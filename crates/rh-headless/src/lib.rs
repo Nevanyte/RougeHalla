@@ -9,7 +9,7 @@ use rh_policy::{drive_seats_with, scripted, submit_all, Policy, Seat, SeatStats}
 use rh_sim::replay::{Recorder, Replay, ReplayInput, ReplayStart};
 use rh_sim::{
     observe, Arena, Event, FactionId, Observation, Phase, Placement, PlayerId, RawCommand,
-    RunResult, Secrets, Sim, SimConfig, Vec2,
+    RunResult, Secrets, SightCache, Sim, SimConfig, Vec2,
 };
 
 pub enum Agent {
@@ -58,6 +58,8 @@ pub struct Env {
     cfg: EnvConfig,
     pub sim: Sim,
     seats: Vec<Seat>,
+    /// The seats' line-of-sight memo (derived, outside the sim).
+    sight: SightCache,
     external: Vec<PlayerId>,
     recorder: Option<Recorder>,
     last_events: Vec<Event>,
@@ -114,11 +116,17 @@ impl Env {
             cfg,
             sim,
             seats,
+            sight: SightCache::new(),
             external,
             recorder,
             last_events: Vec::new(),
             start_tick,
         }
+    }
+
+    /// Hits and misses of the seats' line-of-sight memo so far (diagnostics).
+    pub fn sight_stats(&self) -> rh_sim::SightStats {
+        self.sight.stats()
     }
 
     pub fn external_players(&self) -> &[PlayerId] {
@@ -195,6 +203,7 @@ impl Env {
             &mut self.sim,
             &mut self.seats,
             &self.last_events,
+            &mut self.sight,
             |player, cmd| {
                 if let Some(r) = rec.as_mut() {
                     r.record(ReplayInput::Command { player, cmd });

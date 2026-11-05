@@ -140,6 +140,13 @@ fn main() {
             break;
         }
     }
+    if args.iter().any(|a| a == "--sight-stats") {
+        eprintln!(
+            "sight memo: publisher {:?}, bots {:?}",
+            publisher.sight_stats(),
+            env.sight_stats()
+        );
+    }
     let secs = steps as f64 * 0.05;
     let digest = digest
         .map(|d| format!("\"outcomeDigest\":\"{}\",", d.hex()))

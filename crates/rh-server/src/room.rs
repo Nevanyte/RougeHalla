@@ -217,6 +217,8 @@ pub struct Room {
     /// Every event of the current wake, in order (reused).
     wake_events: Vec<Event>,
     publisher: wire::Publisher,
+    /// The bots' line-of-sight memo (derived, outside the sim; the publisher keeps its own for the humans).
+    bot_sight: rh_sim::SightCache,
     reports: mpsc::UnboundedSender<RoomReport>,
     clock: Arc<AtomicU64>,
     /// Step wall times: a fixed-size histogram (384 bytes at any uptime; was a Vec growing to 288 KB).
@@ -286,6 +288,7 @@ impl Room {
             step_events: Vec::new(),
             wake_events: Vec::new(),
             publisher: wire::Publisher::default(),
+            bot_sight: rh_sim::SightCache::new(),
             reports,
             clock: Arc::new(AtomicU64::new(0f64.to_bits())),
             step_us: Histogram::new(),
@@ -645,6 +648,7 @@ impl Room {
                 &mut self.sim,
                 &mut self.bots,
                 &self.last_events,
+                &mut self.bot_sight,
                 |player, cmd| {
                     if let Some(r) = rec.as_mut() {
                         r.record(ReplayInput::Command { player, cmd });
@@ -666,7 +670,7 @@ impl Room {
                 // final state.
                 for h in &mut self.humans {
                     if h.outbox.is_some() {
-                        rh_sim::observe_events_into(
+                        self.publisher.observe_events_into(
                             &self.sim,
                             h.player,
                             &self.step_events,

@@ -26,6 +26,7 @@ pub mod results;
 pub mod rng;
 pub mod schedule;
 mod scratch;
+pub mod sight;
 pub mod sim;
 pub mod state;
 pub mod statics;
@@ -39,9 +40,10 @@ pub use input::{validate, Command, RawCommand, Reject};
 pub use map::TileMap;
 pub use math::Vec2;
 pub use observe::{
-    observe, observe_events_into, observe_into, public_snapshot, Observation, SeenEvent,
-    OBSERVATION_VERSION,
+    observe, observe_events_into, observe_events_into_cached, observe_into, observe_into_cached,
+    public_snapshot, Observation, SeenEvent, OBSERVATION_VERSION,
 };
+pub use sight::{SightCache, SightStats};
 pub use sim::{
     Arena, Event, Outcome, Phase, Placement, PlayerId, RunResult, Secrets, Sim, SimConfig, Status,
 };

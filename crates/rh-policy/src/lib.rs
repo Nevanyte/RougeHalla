@@ -12,8 +12,8 @@
 pub mod scripted;
 
 use rh_sim::{
-    observe_events_into, observe_into, validate, Event, Observation, PlayerId, RawCommand,
-    SeenEvent, Sim,
+    observe_events_into, observe_events_into_cached, observe_into, observe_into_cached, validate,
+    Event, Observation, PlayerId, RawCommand, SeenEvent, SightCache, Sim,
 };
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::sync::mpsc;
@@ -188,16 +188,30 @@ impl Seat {
 /// them; the next decision's observation carries them first, in step order, then the events of the step just before it.
 /// A policy therefore sees every event it could perceive, whatever its decision interval.
 pub fn drive_seats(sim: &mut Sim, seats: &mut [Seat], last_events: &[Event]) {
-    drive_seats_with(sim, seats, last_events, |_, _| {});
+    drive_inner(sim, seats, last_events, None, |_, _| {});
 }
 
 /// [`drive_seats`], reporting every command that passed validation and was SUBMITTED (accepted or refused by the order
 /// budget: a refusal still moves the budget's refill state, so a replay must re-submit it). The one implementation both
 /// runners use.
+///
+/// `sight` is the runner's line-of-sight memo (one per room or match, outside the sim: see [`rh_sim::SightCache`]); the
+/// observations the seats get are exactly the ones [`drive_seats`] gives.
 pub fn drive_seats_with(
     sim: &mut Sim,
     seats: &mut [Seat],
     last_events: &[Event],
+    sight: &mut SightCache,
+    submitted: impl FnMut(PlayerId, rh_sim::Command),
+) {
+    drive_inner(sim, seats, last_events, Some(sight), submitted);
+}
+
+fn drive_inner(
+    sim: &mut Sim,
+    seats: &mut [Seat],
+    last_events: &[Event],
+    mut sight: Option<&mut SightCache>,
     mut submitted: impl FnMut(PlayerId, rh_sim::Command),
 ) {
     for seat in seats.iter_mut() {
@@ -207,7 +221,16 @@ pub fn drive_seats_with(
         if !seat.wants(sim.tick()) {
             // Not a decision tick: no observation, only what this step's events tell the seat.
             if !last_events.is_empty() {
-                observe_events_into(sim, seat.player, last_events, &mut seat.pending);
+                match sight.as_deref_mut() {
+                    Some(c) => observe_events_into_cached(
+                        sim,
+                        seat.player,
+                        last_events,
+                        &mut seat.pending,
+                        c,
+                    ),
+                    None => observe_events_into(sim, seat.player, last_events, &mut seat.pending),
+                }
                 let over = seat.pending.len().saturating_sub(MAX_PENDING_EVENTS);
                 seat.pending.drain(..over);
             }
@@ -216,7 +239,10 @@ pub fn drive_seats_with(
         // The seat's own buffers, moved out for the call (a move of a few words, no allocation).
         let mut obs = std::mem::take(&mut seat.obs);
         let mut cmds = std::mem::take(&mut seat.cmds);
-        observe_into(sim, seat.player, last_events, &mut obs);
+        match sight.as_deref_mut() {
+            Some(c) => observe_into_cached(sim, seat.player, last_events, &mut obs, c),
+            None => observe_into(sim, seat.player, last_events, &mut obs),
+        }
         if !seat.pending.is_empty() {
             seat.pending.append(&mut obs.events);
             std::mem::swap(&mut seat.pending, &mut obs.events);
