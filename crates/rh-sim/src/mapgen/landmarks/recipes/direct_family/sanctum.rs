@@ -69,16 +69,15 @@ pub struct Recipe<'a> {
     template: ParsedTemplate,
 }
 #[derive(Debug)]
-struct Scan {
-    x: i32,
-    y: i32,
-    k: usize,
-    score: f64,
-    bad: Vec<i32>,
-    #[cfg(test)]
-    win: Vec<u8>,
+pub(crate) struct Scan {
+    pub x: i32,
+    pub y: i32,
+    pub k: usize,
+    pub score: f64,
+    pub bad: Vec<i32>,
+    pub win: Vec<u8>,
 }
-fn piers(d: &Definition<'_>, r: i32) -> Vec<[i32; 2]> {
+pub(crate) fn piers(d: &Definition<'_>, r: i32) -> Vec<[i32; 2]> {
     let mut out = Vec::new();
     for i in -4..=3 {
         for j in -4..=3 {
@@ -127,12 +126,48 @@ fn spot(cx: i32, cy: i32, k: i32, d: i32) -> (i32, i32, u8) {
         (sx - 4, sy - 3, if vy < 0 { 2 } else { 0 })
     }
 }
-fn scan(rt: &LandmarkRuntime<'_>, d: &Definition<'_>, axis: bool, r: i32) -> Scan {
-    let s = rt.state();
-    let g = rt.geometry();
-    let bb = g.info.bbox;
-    let w = s.w;
-    let h = s.h;
+/// Shared source scanCentre geometry, used by both landmark estimation and stage-six hall placement.
+pub(crate) struct ScanInput<'a> {
+    pub w: usize,
+    pub h: usize,
+    pub zone: &'a crate::mapgen::landmarks::runtime::ZoneInfo,
+    pub mask: &'a [u8],
+    pub tiles: &'a [u8],
+    pub hard: &'a [u8],
+}
+pub(crate) fn hall_axis(zone: &crate::mapgen::landmarks::runtime::ZoneInfo) -> bool {
+    zone.axis.x.abs() < zone.axis.y.abs()
+}
+pub(crate) fn hall_radius(
+    d: &Definition<'_>,
+    rules: &crate::mapgen::landmarks::recipe_support::RecipeSupportDefinition,
+    painted: usize,
+) -> i32 {
+    (js_round(d.radius_ref * rules.len_scale(painted)) as i32).clamp(d.radius_min, d.radius_max)
+}
+pub(crate) struct ScanOptions {
+    pub axis: bool,
+    pub radius: i32,
+    pub line: Option<[f64; 4]>,
+    pub line_bonus: f64,
+    pub line_width_squared: f64,
+}
+pub(crate) fn scan_centre(
+    c: ScanInput<'_>,
+    d: &Definition<'_>,
+    options: ScanOptions,
+    open: impl Fn(i32) -> bool,
+    mut candidate: impl FnMut(i32, i32, usize, f64),
+) -> Scan {
+    let ScanOptions {
+        axis,
+        radius: r,
+        line,
+        line_bonus,
+        line_width_squared,
+    } = options;
+    let bb = c.zone.bbox;
+    let (w, h) = (c.w, c.h);
     let n = w * h;
     let (x0, y0, x1, y1) = (bb.x, bb.y, bb.x + bb.w as i32, bb.y + bb.h as i32);
     let mut ok = vec![0u8; n];
@@ -143,12 +178,12 @@ fn scan(rt: &LandmarkRuntime<'_>, d: &Definition<'_>, axis: bool, r: i32) -> Sca
         for x in x0..x1 {
             let i = y as usize * w + x as usize;
             let mut nf = 1;
-            if g.mask[i] == 1 {
-                if s.tiles[i] == TILE_FLOOR && rt.original_hard()[i] == 0 {
+            if c.mask[i] == 1 {
+                if c.tiles[i] == TILE_FLOOR && c.hard[i] == 0 {
                     floor[i] = 1;
                     nf = 0;
                 }
-                if nf == 0 && rt.open(i as i32) {
+                if nf == 0 && open(i as i32) {
                     ok[i] = 1;
                 }
             }
@@ -171,16 +206,15 @@ fn scan(rt: &LandmarkRuntime<'_>, d: &Definition<'_>, axis: bool, r: i32) -> Sca
         }
     }
     let piers = piers(d, r);
-    let px = g.info.pole.x;
-    let py = g.info.pole.y;
+    let px = c.zone.pole.x;
+    let py = c.zone.pole.y;
     let mut best = Scan {
         x: px,
         y: py,
         k: 0,
         score: 0.0,
         bad,
-        #[cfg(test)]
-        win: win.clone(),
+        win: Vec::new(),
     };
     for y in (y0 + 2..y1 - 2).step_by(2) {
         for x in (x0 + 2..x1 - 2).step_by(2) {
@@ -195,13 +229,16 @@ fn scan(rt: &LandmarkRuntime<'_>, d: &Definition<'_>, axis: bool, r: i32) -> Sca
                     k += win[ty as usize * w + tx as usize] as usize;
                 }
             }
-            let score =
+            let mut score =
                 d.pier_score * k as f64 - isqrt(dist2(x as f64, y as f64, px as f64, py as f64));
-            #[cfg(test)]
-            super::plan(
-                rt,
-                serde_json::json!({"type":"sanctumCandidate","x":x,"y":y,"k":k,"score":score,"scoreBits":format!("{:016x}",score.to_bits())}),
-            );
+            if let Some([ax, ay, bx, by]) = line {
+                let (bx, by) = (bx - ax, by - ay);
+                let cross = (2.0 * x as f64 + 1.0 - ax) * by - (2.0 * y as f64 + 1.0 - ay) * bx;
+                if cross * cross <= line_width_squared * (bx * bx + by * by) {
+                    score += line_bonus;
+                }
+            }
+            candidate(x, y, k, score);
             if k >= d.min_piers && (best.k == 0 || score > best.score) {
                 best.x = x;
                 best.y = y;
@@ -210,7 +247,38 @@ fn scan(rt: &LandmarkRuntime<'_>, d: &Definition<'_>, axis: bool, r: i32) -> Sca
             }
         }
     }
+    best.win = win;
     best
+}
+fn scan(rt: &LandmarkRuntime<'_>, d: &Definition<'_>, axis: bool, r: i32) -> Scan {
+    scan_centre(
+        ScanInput {
+            w: rt.state().w,
+            h: rt.state().h,
+            zone: &rt.geometry().info,
+            mask: &rt.geometry().mask,
+            tiles: &rt.state().tiles,
+            hard: rt.original_hard(),
+        },
+        d,
+        ScanOptions {
+            axis,
+            radius: r,
+            line: None,
+            line_bonus: 0.0,
+            line_width_squared: 0.0,
+        },
+        |i| rt.open(i),
+        |x, y, k, score| {
+            #[cfg(test)]
+            super::plan(
+                rt,
+                serde_json::json!({"type":"sanctumCandidate","x":x,"y":y,"k":k,"score":score,"scoreBits":format!("{:016x}",score.to_bits())}),
+            );
+            #[cfg(not(test))]
+            let _ = (x, y, k, score);
+        },
+    )
 }
 impl<'a> Recipe<'a> {
     pub fn from_definition(d: &Definition<'a>) -> Result<Self, TemplateError> {
@@ -222,9 +290,8 @@ impl<'a> Recipe<'a> {
     pub fn apply(&self, rt: &mut LandmarkRuntime<'_>, inputs: &RecipeInputs<'_>) {
         let d = &self.definition;
         let g = rt.geometry();
-        let axis = g.info.axis.x.abs() < g.info.axis.y.abs();
-        let r = (js_round(d.radius_ref * inputs.rules.len_scale(g.info.painted)) as i32)
-            .clamp(d.radius_min, d.radius_max);
+        let axis = hall_axis(&g.info);
+        let r = hall_radius(d, inputs.rules, g.info.painted);
         let est = scan(rt, d, axis, r);
         #[cfg(test)]
         super::plan(

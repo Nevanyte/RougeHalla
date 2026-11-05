@@ -1,0 +1,82 @@
+{
+  "status": "PASS",
+  "base": "a232c779",
+  "documentationAmendment": "e97bbe20",
+  "scope": "remaining shared style helpers and Holy phase callbacks, not full styled dispatch",
+  "contentHash": "58dc066ada48c13f",
+  "formats": {
+    "checkpoint": 14,
+    "replay": 12,
+    "observation": 11,
+    "policy": 8,
+    "wire": 5
+  },
+  "workspaceAllFeaturesLocked": {
+    "suites": 109,
+    "passed": 944,
+    "failed": 0,
+    "ignored": 2,
+    "filtered": 0
+  },
+  "fmt": true,
+  "clippyAllFeatures": true,
+  "clippyDefaultFeatures": true,
+  "parity": {
+    "compared": 97,
+    "captureOnly": 13,
+    "paths": 300,
+    "allMatch": true
+  },
+  "focused": {
+    "helpers": 5,
+    "holy": 6,
+    "oldSharedLandmarks": 6,
+    "aggregatePolicyFields": 20
+  },
+  "source": {
+    "runtime": "Linux amd64 Node22.23.4",
+    "image": "c86ecead9e55",
+    "readonlyRepository": true,
+    "bytechecks": [
+      "style-features.ts",
+      "style-sanctum.ts"
+    ]
+  },
+  "sharedSeams": {
+    "scanPatch": "735f26fc1360970f2287fffca16179d12236e93d91d24947fcdc20c079ea97d2",
+    "testOnlySourceInputPrefix": "25ff0b77a85d16000627d2572e73c97978a09e7b7f87574d4a8bc347212cb00f"
+  },
+  "logs": {
+    "features.log": "dd3197ae92db6cbcd6c5e4aac1276abd8ec8ba5ad3ed4bae19d3b8eebb3e3352",
+    "holy.log": "f9c933c16035438445ab2b8ec55a98904583f5bc6e16962c23ac188666901d77",
+    "landmarks.log": "6cf4b2373d5d60110b894f1825400a78ab3df556b1c5e6b252c4692dce45e966",
+    "content-initial.log": "ad5456b0b836e8ea55ecf578be9f78db30b17605aff989b2f26d45f6be2b9b25",
+    "content-classified.log": "ea291290fc38029ad3dabacf55c89395158746c3347bdb2d2116d5ed76534016",
+    "content-final.log": "1a4a55f37e0393bd01189c261230f21b34fd2d204443c7d9c9a42e800179c0ba",
+    "fmt.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "clippy-all.log": "389800f730f5dec3537e022abd96b9a15799c88acf675c02b97bd863b8cd2c51",
+    "clippy-default.log": "9442efa64631bdfcdd7622c24ac41d0300a3e8c6e0e835a82db01551fd8107e9",
+    "gate.log": "0f9742f20bc85b1ef164a29e8d36ddd1a54d7b0f55af1faba840cd870f429ff3",
+    "parity.log": "1829857511405c9cbda57cfdd5419db1496e983ac1834eb0af1b8bdd6a792509",
+    "canonical.log": "c14246bee7e856560f754cfc82e49f2255eccc137b31f99cc378c4652be29b8e",
+    "headless.log": "fd809fd528209293b2bc77f98ecda9f2a6acda969e69ccc88436d626ad315258",
+    "replay.log": "1898840ab4c108baf34129e4133f230b55624fc628e7e9f79624ed742faead7b"
+  },
+  "limits": [
+    "source-captured prior-zone input, not native earlier callback continuity",
+    "remaining four callbacks and styled dispatcher/pins pending",
+    "no performance, Unity build, cloud, DNS or production proof",
+    "no new dependency or lock change"
+  ],
+  "headlessSmoke": {
+    "matches": 1,
+    "players": 8,
+    "seed": 17,
+    "ticks": 200,
+    "intentionallyTruncated": true,
+    "fullLayerMap": "crates/rh-sim/src/mapdata/fixtures/seed1.map.json",
+    "replaySteps": 200,
+    "verified": true,
+    "contentOverride": false
+  }
+}

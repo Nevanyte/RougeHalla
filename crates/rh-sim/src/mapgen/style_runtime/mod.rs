@@ -1021,3 +1021,48 @@ pub fn noise_fbm(noise: Noise, x: f64, y: f64, cell: f64, octaves: u32, salt: f6
     }
     sum / weight
 }
+
+/// Source-captured *input* scratch for leaf callback fixtures; never a production restore path.
+#[cfg(test)]
+pub(crate) struct FixturePrefix {
+    pub wrote: Vec<u8>,
+    pub mark: Vec<i32>,
+    pub qa: Vec<i32>,
+    pub qb: Vec<i32>,
+    pub depth: Vec<i16>,
+    pub epoch: i64,
+}
+#[cfg(test)]
+pub(crate) fn restore_fixture_prefix(
+    state: &mut State,
+    prefix: FixturePrefix,
+) -> Result<(), Error> {
+    let FixturePrefix {
+        wrote,
+        mark,
+        qa,
+        qb,
+        depth,
+        epoch,
+    } = prefix;
+    let n = state.w * state.h;
+    if [wrote.len(), mark.len(), qa.len(), qb.len(), depth.len()]
+        .iter()
+        .any(|&l| l != n)
+        || wrote.iter().any(|&v| v > 2)
+        || !(0..=i32::MAX as i64).contains(&epoch)
+        || qa.iter().chain(&qb).any(|&i| i < 0 || i as usize >= n)
+        || mark.iter().any(|&m| m < 0 || i64::from(m) > epoch)
+    {
+        return Err(Error::Layer);
+    }
+    state.wrote = wrote;
+    state.scratch = Scratch {
+        mark,
+        qa,
+        qb,
+        depth,
+        epoch,
+    };
+    Ok(())
+}

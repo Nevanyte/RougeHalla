@@ -28,6 +28,11 @@ const NUMBER_FREE_TYPES: &[(&str, bool, &str)] = &[
 /// Each entry must match a declaration the scan finds and not be covered by NUMBER_FREE_TYPES. Adding to this list is a
 /// review decision: a number that can change an outcome belongs in the registry instead.
 const NON_GAMEPLAY: &[(&str, &str, &str)] = &[
+    ("mapgen/style_features/tests.rs","FIXTURE_DIGEST","cfg(test)-only byte-integrity guard for the captured helper fixture; never read by runtime algorithms"),
+    ("mapgen/style_sanctum/tests.rs","CASES","cfg(test)-only exact genuine source-case identity inventory"),
+    ("mapgen/style_sanctum/tests.rs","UNITS","cfg(test)-only labelled direct source-case inventory"),
+    ("mapgen/style_sanctum/tests.rs","SOURCES","cfg(test)-only source path inventory for capture provenance"),
+
     ("mapgen/certify/labels.rs", "LABELS", "human-readable ordered diagnostic wording; numbers in descriptions are never decision thresholds; exact source diagnostic fixtures cover every label"),
     ("mapgen/certify/review_expected.rs", "EXPECTED", "cfg(test)-only independently captured expected failure arrays, never read by runtime decisions"),
     ("mapgen/certify/terrain.rs", "KEYS", "terrain names used only in diagnostic messages, not terrain acceptance decisions"),
@@ -103,6 +108,11 @@ const NON_GAMEPLAY: &[(&str, &str, &str)] = &[
 /// Rules that are tables rather than scalar rows: they are folded by `content_hash` directly (see content.rs). As
 /// (file, name, reason).
 const TABLES_FOLDED_BY_HASH: &[(&str, &str, &str)] = &[
+    ("mapgen/style_features/rules.rs","DEFAULT_DEFINITION","all eleven shared feature arithmetic/search policies are folded by content_hash_of_style_features_definition"),
+    ("mapgen/style_features/mod.rs","DIR8","derived topology-bearing coordinates used by callbacks are folded directly by content_hash"),
+    ("mapgen/style_features/mod.rs","CHAMFER_FAR","typed alias of DEFAULT_DEFINITION.chamfer_far, folded by the same feature definition visitor"),
+    ("mapgen/style_sanctum/mod.rs","DEFAULT_DEFINITION","all nine Holy shape/surface/decor policies are folded by content_hash_of_style_sanctum_definition"),
+
     ("mapgen/certify/rules.rs", "R", "independent hard-check runtime definition/table folded by certify::rules::visit_definition into content_hash"),
     ("mapgen/certify/rules.rs", "TERRAIN", "independent hard-check runtime definition/table folded by certify::rules::visit_definition into content_hash"),
     ("mapgen/certify/rules.rs", "PROP_CLASSES", "independent hard-check runtime definition/table folded by certify::rules::visit_definition into content_hash"),
@@ -394,7 +404,7 @@ fn hash_golden() {
         content_hash()
     );
 }
-const GOLDEN_CONTENT_HASH: u64 = 0xd6a8_7634_91c6_5535;
+const GOLDEN_CONTENT_HASH: u64 = 0x58dc_066a_da48_c13f;
 
 #[test]
 fn every_registry_row_perturbs_the_hash() {

@@ -1,0 +1,70 @@
+{
+  "status": "accepted-bounded-holy-callbacks",
+  "ownedManifest": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/style-sanctum-independent-review/reviewed-manifest.json",
+  "ownedManifestSha256": "914325a0bfa33fe411ce31141864a99972ad611e8d9c5cce005b0551f146a551",
+  "ownedFileCount": 5,
+  "separatelyReviewedSeams": {
+    "shared-scan.patch": "735f26fc1360970f2287fffca16179d12236e93d91d24947fcdc20c079ea97d2",
+    "fixture-prefix-seam.rs": "25ff0b77a85d16000627d2572e73c97978a09e7b7f87574d4a8bc347212cb00f"
+  },
+  "resolvedFindings": [
+    "Outer light-bay radius threshold16 now a Definition field wired into layout and content visitor.",
+    "Fixture caps,stream IDs/seeds,dimensions,camp coordinates use checked admission instead of truncating casts; six overflow probes refuse.",
+    "Source-input scratch restore seam has14 atomic refusal probes using distinct prefilled buffers."
+  ],
+  "verification": {
+    "defaultFocusedTestsPassed": 8,
+    "allFeatureFocusedTestsPassed": 8,
+    "sharedStage4RegressionTestsPassed": 6,
+    "producerSemanticMutantsVerified": 12,
+    "independentAdditionalSemanticMutantsKilled": 1,
+    "compileFailuresCredited": 0,
+    "freshIndependentCompleteCallbackCases": {
+      "actualSourceAttempts": 20,
+      "variedDirectGrids": 60,
+      "sourceStampedShrinePairs": 8,
+      "total": 88
+    },
+    "independentTargetedSurfaceInput": {
+      "cases": 1,
+      "input": "Explicit surfaceBayOverride after shape, before surface, placing a bay below a genuine stamped shrine door. This is input for the surface leaf, not a claim that shape naturally produces this bay.",
+      "baseline": "matches actual source callback full state/plan/props",
+      "mutant": "Removing shrine exclusion changes surfaced counter18 vs source15 and fails.",
+      "naturalSearch": "1008 genuine one-shrine shape contexts had no overlap; initial mutant survived these ordinary inputs."
+    },
+    "canonicalBytecheck": "pass",
+    "canonicalRuntime": "cached c86ecead9e55 --pull=never linux/amd64 Node22.23.4; source read-only; private tsx4.23.15 dependencies",
+    "sourceHashesEqualLive": 75,
+    "sharedPatchAppliesToLive": "git apply --check passed; no live writes"
+  },
+  "authorityReview": [
+    "Only accepted phase-specific runtime contexts are used for writes.",
+    "Shared raw scan/piers/axis/radius APIs are crate-private; win buffer moves, no clone.",
+    "Source-captured initial wrote/scratch only are restored; native callbacks produce every expected post-state.",
+    "Shared scan preserves actual stage4 candidate/helper traces and source recipe outputs.",
+    "Nine callback content words; shared hall/scale/runtime/catalog definitions remain sole owners."
+  ],
+  "evidence": [
+    "final-focused.log",
+    "final-all-features.log",
+    "shared-scan-regression.log",
+    "canonical-bytecheck.log",
+    "independent.json",
+    "surface-exclusion.json",
+    "source-probe.log",
+    "surface-exclusion-source.log",
+    "mutant-shrine-surface-exclusion-direct.log",
+    "reviewed-manifest.json",
+    "shared-scan.patch",
+    "fixture-prefix-seam.rs",
+    "repo/tools/map-fixtures/style-sanctum-independent.ts",
+    "repo/tools/map-fixtures/surface-exclusion.ts"
+  ],
+  "limits": [
+    "Accepts Holy leaf on genuine source-captured prerequisite input; no native execution proof of earlier faction callbacks.",
+    "All6 producer and20 independent actual attempts returned maps; no terminal-null case exercised.",
+    "Targeted surface override is a labelled direct input and not an actual full-generator shape output.",
+    "No full styled generator/map pins, full workspace gate, performance or allocation claim.",
+    "Coordinator alone integrates shared seams,module registration and content fold. No live or producer files edited."
+  ]
+}

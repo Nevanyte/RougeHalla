@@ -14,7 +14,7 @@ revision; [sweep/README.md](sweep/README.md) says which (H-sim and H-server-2 ha
 
 ### Stage 2 validation addendum (takes precedence over the historical Stage 1 rows below)
 
-Native arm64 integration on `optimization_port`: 931 tests passed with all features, 0 failed/filtered and two explicitly
+Native arm64 integration on `optimization_port`: 944 tests passed with all features, 0 failed/filtered and two explicitly
 ignored tests (heap measurement and manual bridge E2E; the latter passed at the preceding external integration). Formatting and full/default-feature workspace Clippy with warnings denied passed. The preceding
 foundation gate passed 395 all-feature/386 default-feature tests; its Rust/C#/browser and legacy recapture CI passed at
 `c93b659d`. Full-game, AWS, browser-matrix and release gates remain open.
@@ -23,7 +23,7 @@ foundation gate passed 395 all-feature/386 default-feature tests; its Rust/C#/br
   outcomes, rejects unconsumed or unordered records, and checks requirements only for replayed records. 97 compared
   scenarios and 300 path queries MATCH; 13 scenarios are explicitly capture-only. Exact recapture runs Linux x64 Node 22.23.4.
 - C-DET/C-NUM: checkpoint format is `rh-checkpoint/14`, replay `rh-replay/12`, observation version 11; content identity
-  `d6a8763491c65535`. Projectile state is hashed/restored, invalid packet/identity headroom is refused, and the six new
+  `58dc066ada48c13f`. Projectile state is hashed/restored, invalid packet/identity headroom is refused, and the six new
   flight fixtures allocate zero over 336 measured steady steps. Fixed map geometry uses one definition folded into the
   content identity; all 76 recaptured files and all seven map oracles agree on Linux x64 Node 22.23.4. Full admitted gameplay
   layers participate in static hashing and checkpoint validation. Captured legacy map hashes remain unverified metadata at structural import; the separate exact source hash now
@@ -43,6 +43,10 @@ foundation gate passed 395 all-feature/386 default-feature tests; its Rust/C#/br
   faction callbacks/dispatch/styled pins remain open. Crate ownership retains source Uint16 IDs through failed attempts
   instead of narrowing them. Source cases at 255/256/257/65535 and five semantic mutants pass. Prop homes share the sole
   catalog; threshold/stream/retry/home identity mutations move aggregate content. See `evidence/stage2-map-pipeline/`.
+  Shared style helpers and Holy callbacks are now integrated: 2,800 fresh helper cases, 88 fresh complete Holy contexts
+  plus an explicit surface-input probe, canonical bytechecks and shared stage-four regressions pass. Continuous native
+  callbacks for all factions and styled pins remain pending. Source-prefix fixture restoration is test-only, bounded
+  and atomic; it never supplies expected post-callback answers. See `evidence/stage2-holy-style/`.
 - C-OBS: hidden pickup targets are indistinguishable from absent targets in requester feedback. Hit/Death/Block source
   ids are redacted when unseen; authoritative credit and trusted parity events are preserved. Independent differential
   and earlier-step/cached projection checks passed. Public item discovery/self inventory now works for headless/policy

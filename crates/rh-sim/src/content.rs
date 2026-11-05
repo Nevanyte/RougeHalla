@@ -631,6 +631,37 @@ pub fn content_hash_of_style_runtime_definition(
     )
 }
 
+/// Shared style feature/search arithmetic uses these exact policies.
+pub fn content_hash_of_style_features_definition(
+    registry: &[Entry],
+    stagger_weapons: &[WeaponId],
+    definition: &crate::mapgen::style_features::Definition,
+) -> u64 {
+    content_hash_of_map_definitions(
+        registry,
+        stagger_weapons,
+        MapDefinitions {
+            style_features: definition,
+            ..Default::default()
+        },
+    )
+}
+/// Holy shape, surface and decor consume the registered callback definition.
+pub fn content_hash_of_style_sanctum_definition(
+    registry: &[Entry],
+    stagger_weapons: &[WeaponId],
+    definition: &crate::mapgen::style_sanctum::Definition,
+) -> u64 {
+    content_hash_of_map_definitions(
+        registry,
+        stagger_weapons,
+        MapDefinitions {
+            style_sanctum: definition,
+            ..Default::default()
+        },
+    )
+}
+
 /// Bounded complete-plain orchestration uses these same retry and feature limits.
 pub fn content_hash_of_pipeline_definition(
     registry: &[Entry],
@@ -723,6 +754,8 @@ struct MapDefinitions<'rules, 'pillars> {
     recipes: crate::mapgen::landmarks::recipes::Definitions<'pillars>,
     records: &'rules crate::mapgen::records::Definition<'pillars>,
     terrain_gate: &'rules crate::mapgen::terrain_gate::TerrainGateDefinition<'pillars>,
+    style_features: &'rules crate::mapgen::style_features::Definition,
+    style_sanctum: &'rules crate::mapgen::style_sanctum::Definition,
     pipeline: &'rules crate::mapgen::pipeline::Definition,
     certify: &'rules crate::mapgen::certify::rules::Definition,
     style_runtime: &'rules crate::mapgen::style_runtime::Definition,
@@ -746,6 +779,8 @@ impl Default for MapDefinitions<'_, '_> {
             recipes: crate::mapgen::landmarks::recipes::default_definitions(),
             records: &crate::mapgen::records::DEFAULT_DEFINITION,
             terrain_gate: &crate::mapgen::terrain_gate::DEFAULT_DEFINITION,
+            style_features: &crate::mapgen::style_features::DEFAULT_DEFINITION,
+            style_sanctum: &crate::mapgen::style_sanctum::DEFAULT_DEFINITION,
             pipeline: &crate::mapgen::pipeline::DEFAULT_DEFINITION,
             certify: &crate::mapgen::certify::rules::R,
             style_runtime: &crate::mapgen::style_runtime::DEFAULT_DEFINITION,
@@ -786,6 +821,8 @@ fn content_hash_of_definitions(
         recipes,
         records,
         terrain_gate,
+        style_features,
+        style_sanctum,
         pipeline,
         certify,
         style_runtime,
@@ -850,6 +887,16 @@ fn content_hash_of_definitions(
 
     h.str("mapgen/hard-certifier/1");
     crate::mapgen::certify::rules::visit_definition(certify, |word| h.u64(word));
+    h.str("mapgen/style-features/1");
+    crate::mapgen::style_features::visit_content(style_features, |word| h.u64(word));
+    h.u64(crate::mapgen::style_features::DIR8.len() as u64);
+    for [dx, dy] in crate::mapgen::style_features::DIR8 {
+        h.u64(dx as u64);
+        h.u64(dy as u64);
+    }
+    h.str("mapgen/style-sanctum/1");
+    crate::mapgen::style_sanctum::visit_content(style_sanctum, |word| h.u64(word));
+
     h.str("mapgen/style-runtime/1");
     crate::mapgen::style_runtime::visit_content(style_runtime, |word| h.u64(word));
     h.u64(crate::mapgen::style_runtime::MAX_CELLS as u64);

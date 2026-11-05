@@ -133,6 +133,10 @@ jobs:
         run: node --import tsx tools/map-fixtures/certify.ts --check
       - name: Stage-six guarded runtime still matches the actual source
         run: node --import tsx tools/map-fixtures/style-runtime.ts --check
+      - name: Style feature search and geometry still match the actual source
+        run: node --import tsx tools/map-fixtures/style-features.ts --check
+      - name: Holy style callbacks still match the actual source
+        run: node --import tsx tools/map-fixtures/style-sanctum.ts --check
       - name: Complete plain pipeline and original pins still match the actual source
         run: node --import tsx tools/map-fixtures/plain-pipeline.ts --check
       - name: Browser proof (Chromium over WSS)

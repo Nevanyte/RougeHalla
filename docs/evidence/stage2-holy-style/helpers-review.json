@@ -1,0 +1,57 @@
+{
+  "status": "accepted-bounded-helpers",
+  "manifest": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/style-features-independent-review/reviewed-manifest.json",
+  "manifestSha256": "831f07f02d2120ce909d962377291eb509cc85615be3ba2f8b32897e1b24820d",
+  "ownedFiles": 10,
+  "resolvedFinding": "Normal cargo tests originally allowed deleted/empty/duplicate fixture sections and unchecked scalar narrowing. Final artifact adds exact inventories, checked narrowing, byte-integrity guard and negative controls.",
+  "freshIndependentCases": {
+    "geometry": 400,
+    "graphs": 400,
+    "fields": 400,
+    "paths": 400,
+    "viterbiRows": 400,
+    "viterbiPath": 400,
+    "noise": 400,
+    "totalGroupedCases": 2800
+  },
+  "canonical": {
+    "image": "c86ecead9e55",
+    "platform": "linux/amd64",
+    "node": "v22.23.4",
+    "pull": "never",
+    "sourceMount": "read-only",
+    "sourceHashesComparedAgainstLive": 39,
+    "producerFixtureBytecheck": "passed"
+  },
+  "frozenProducerFixture": {
+    "helperCases": 232,
+    "boundaryCases": 205,
+    "actualCallerCases": 27,
+    "paths": 14,
+    "viterbiPaths": 26,
+    "noiseCases": 12,
+    "observationalFinalMapNullHashControls": 3
+  },
+  "verification": {
+    "focusedTests": 6,
+    "failed": 0,
+    "independentTest": "fresh_independent_source_cases",
+    "semanticMutantsReviewed": 15,
+    "semanticMutantsKilled": 15,
+    "noCompileCredit": true
+  },
+  "evidenceFiles": [
+    "probe.mjs",
+    "independent.json",
+    "final-focused.log",
+    "canonical-bytecheck.log",
+    "reviewed-manifest.json",
+    "repo/crates/rh-sim/src/mapgen/style_features/independent_review.rs"
+  ],
+  "limits": [
+    "Default Definition and documented trusted producer domains; not a general untrusted-input admission layer.",
+    "No full styled callbacks/generator, finished-map pins, workspace gate, performance or allocation claim.",
+    "PathSource protection is immutable per view; future integrations must respect source context/protection lifetime.",
+    "Coordinator registers module and content visitor; no shared/live/producer files edited."
+  ]
+}
