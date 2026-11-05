@@ -165,3 +165,12 @@ recorded run, within the 5 ms floor).
 `node --test hosting/placement/probe/probe.test.mjs hosting/infra/edge/dns/dns.test.mjs`. The fakes enforce the documented request rules
 (placement id shape and uniqueness, 1..10 locations, stop-after-fulfil refused), so the service tests prove the service obeys them.
 `rh-placement plan < input.json` prints a plan and the exact API request offline.
+
+## Abandoned requests and the reaper
+
+A `place_with` future can be dropped while GameLift still holds its placement (the browser closed, the HTTP handler timed out). Dropping cannot await, so
+`PlacementService` only records the placement id (`AbandonGuard`); the embedding service must call `reap_abandoned()` every few seconds. It stops a still-pending
+placement, and for one that fulfilled meanwhile it terminates the game session and deletes the (possibly published) name; ids it could not resolve because
+GameLift was unavailable stay queued. Without the reaper a dropped request can leave a placed host nobody will ever join. Every error exit after `Fulfilled`
+inside `publish` (missing address or port, unusable hostname, DNS failure) terminates the session itself. Tests: `dropping_place_mid_attempt_queues_the_placement_and_the_reaper_stops_it`,
+`reaper_terminates_a_placement_that_fulfilled_after_the_drop`, `fulfilled_placement_missing_its_port_terminates_the_session`, `hostname_error_after_fulfilment_terminates_the_session`.

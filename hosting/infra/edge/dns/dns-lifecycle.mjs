@@ -17,6 +17,11 @@ const cmd = argv[0];
 const flag = (n, d) => { const i = argv.indexOf(`--${n}`); return i < 0 ? d : argv[i + 1]; };
 const has = (n) => argv.includes(`--${n}`);
 const zone = flag("zone", "g.rougehalla.com");
+const ttl = Number(flag("ttl", "60"));
+if (cmd === "upsert" && (!Number.isInteger(ttl) || ttl < 60)) {
+  console.error(`--ttl must be an integer of at least 60 (Cloudflare's minimum), got ${JSON.stringify(flag("ttl"))}`);
+  process.exit(2);
+}
 const apply = has("apply");
 if (apply && process.env.RH_EDGE_ALLOW_DNS_WRITES !== "yes") {
   console.error("refusing --apply: set RH_EDGE_ALLOW_DNS_WRITES=yes after the change was reviewed (docs/hosting/TLS_DNS.md)");
@@ -27,7 +32,7 @@ try {
   let result;
   if (cmd === "upsert") {
     const name = gameHostname(flag("region"), flag("placement-id"), zone);
-    result = await dns.upsert(name, flag("ip"), Number(flag("ttl", "60")), flag("placement-id"));
+    result = await dns.upsert(name, flag("ip"), ttl, flag("placement-id"));
     result.name = name;
   } else if (cmd === "delete") {
     const name = gameHostname(flag("region"), flag("placement-id"), zone);

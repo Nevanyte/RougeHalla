@@ -22,10 +22,11 @@ export function token(placementId) {
 }
 
 export function regionOk(region) {
-  return /^[a-z0-9](?:[a-z0-9-]{0,30}[a-z0-9])?$/.test(region);
+  return typeof region === "string" && /^[a-z0-9](?:[a-z0-9-]{0,30}[a-z0-9])?$/.test(region);
 }
 
 export function gameHostname(region, placementId, zone) {
+  if (typeof placementId !== "string" || placementId === "") throw new Error("placement id is required");
   if (!regionOk(region)) throw new Error(`region ${JSON.stringify(region)} is not usable in a DNS label`);
   if (!zone || zone.startsWith(".") || zone.startsWith("*") || zone.endsWith(".")) throw new Error("zone must be a bare domain such as g.rougehalla.com");
   return `${region}-${token(placementId)}.${zone}`;

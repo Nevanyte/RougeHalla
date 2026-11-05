@@ -6,6 +6,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/amazon-gamelift/amazon-gamelift-servers-go-server-sdk/v5/common"
 	"github.com/amazon-gamelift/amazon-gamelift-servers-go-server-sdk/v5/model"
 	"github.com/amazon-gamelift/amazon-gamelift-servers-go-server-sdk/v5/model/request"
 	"github.com/amazon-gamelift/amazon-gamelift-servers-go-server-sdk/v5/server"
@@ -38,8 +39,10 @@ func (realSDK) ProcessReady(cb Callbacks) error {
 	})
 }
 
-func (realSDK) ActivateGameSession() error          { return server.ActivateGameSession() }
-func (realSDK) AcceptPlayerSession(id string) error { return server.AcceptPlayerSession(id) }
+func (realSDK) ActivateGameSession() error { return server.ActivateGameSession() }
+func (realSDK) AcceptPlayerSession(id string) error {
+	return classifyAccept(server.AcceptPlayerSession(id))
+}
 func (realSDK) RemovePlayerSession(id string) error { return server.RemovePlayerSession(id) }
 func (realSDK) ProcessEnding() error                { return server.ProcessEnding() }
 func (realSDK) Destroy() error                      { return server.Destroy() }
@@ -76,4 +79,26 @@ func (realSDK) TerminationTime() (time.Time, error) {
 		return time.Time{}, err
 	}
 	return decodeTerminationTime(v)
+}
+
+// classifyAccept wraps definitive rejections of AcceptPlayerSession in *RejectedError and leaves every other error untouched.
+//
+// SDK v5.6.0 (server/server_state.go acceptPlayerSession): a malformed id fails ValidatePlayerSessionId locally; otherwise
+// the request goes over the agent websocket and a non-200 reply becomes common.NewGameLiftErrorFromStatusCode
+// (common/errors.go): 400 BadRequest, 403 Forbidden, 404 NotFound, 409 Conflict, 429 TooManyRequests, other 4xx BadRequest,
+// everything else (5xx, unknown) InternalServiceException. The websocket layer adds WebsocketSendMessageFailure and friends.
+// Definitive for one player session: ValidationException, BadRequestException, NotFoundException, ConflictException,
+// ForbiddenException, UnexpectedPlayerSession, FleetMismatch. Transient or operational (never kick): TooManyRequests,
+// InternalService, UnauthorizedException (our own credentials), ProcessNotReady, GamesessionIDNotSet, Websocket*, timeouts.
+func classifyAccept(err error) error {
+	var ge *common.GameLiftError
+	if err == nil || !errors.As(err, &ge) {
+		return err
+	}
+	switch ge.ErrorType {
+	case common.ValidationException, common.BadRequestException, common.NotFoundException, common.ConflictException,
+		common.ForbiddenException, common.UnexpectedPlayerSession, common.FleetMismatch:
+		return &RejectedError{Err: err}
+	}
+	return err
 }

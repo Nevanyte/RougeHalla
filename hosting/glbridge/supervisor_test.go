@@ -1,13 +1,14 @@
 package main
 
 import (
+	"os"
 	"slices"
 	"testing"
 	"time"
 )
 
 func TestServerArgsAreFailClosed(t *testing.T) {
-	a := serverArgs(35000, "127.0.0.1:7778", "/m.json", "", "", []string{"--database-url", "x"})
+	a := serverArgs(35000, "127.0.0.1:7778", "/m.json", "", "", "", []string{"--database-url", "x"})
 	for _, want := range []string{"--require-admit", "--max-rooms", "1", "--control", "127.0.0.1:7778"} {
 		if !slices.Contains(a, want) {
 			t.Fatalf("%v lacks %s", a, want)
@@ -72,5 +73,64 @@ func TestDecodeTerminationTime(t *testing.T) {
 	}
 	if _, err := decodeTerminationTime(0); err == nil {
 		t.Fatal("zero is not a termination time")
+	}
+}
+
+func TestServerArgsPassTheControlTokenFile(t *testing.T) {
+	a := serverArgs(35000, "127.0.0.1:7778", "/m.json", "", "", "/tmp/tok", nil)
+	if i := slices.Index(a, "--control-token-file"); i < 0 || a[i+1] != "/tmp/tok" {
+		t.Fatalf("%v lacks --control-token-file /tmp/tok", a)
+	}
+	if slices.Contains(serverArgs(35000, "127.0.0.1:7778", "/m.json", "", "", "", nil), "--control-token-file") {
+		t.Fatal("no token file argument without a token")
+	}
+}
+
+func TestWriteTokenFileIs0600AndHoldsTheToken(t *testing.T) {
+	p, rm, err := writeTokenFile("s3cret-token")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rm()
+	st, err := os.Stat(p)
+	if err != nil || st.Mode().Perm() != 0o600 {
+		t.Fatalf("stat %v mode %v", err, st.Mode())
+	}
+	if b, _ := os.ReadFile(p); string(b) != "s3cret-token" {
+		t.Fatalf("content %q", b)
+	}
+	rm()
+	if _, err := os.Stat(p); !os.IsNotExist(err) {
+		t.Fatal("remover must delete the file")
+	}
+}
+
+func TestScrubEnvRemovesCredentialsAndBridgeSettings(t *testing.T) {
+	in := []string{"PATH=/bin", "AWS_SECRET_ACCESS_KEY=x", "AWS_CONTAINER_CREDENTIALS_RELATIVE_URI=/v2", "GAMELIFT_SDK_WEBSOCKET_URL=wss://x",
+		"GLBRIDGE_CONTROL_TOKEN=t", "HOME=/h", "MY_AWS_THING=keep", "RUST_LOG=info"}
+	out := scrubEnv(in)
+	want := []string{"PATH=/bin", "HOME=/h", "MY_AWS_THING=keep", "RUST_LOG=info"}
+	if !slices.Equal(out, want) {
+		t.Fatalf("scrubEnv = %v, want %v", out, want)
+	}
+}
+
+// The supervised child must not see AWS credentials, whatever the bridge's own environment holds.
+func TestSupervisedChildSeesNoAWSEnvironment(t *testing.T) {
+	t.Setenv("AWS_ACCESS_KEY_ID", "AKIAEXAMPLE")
+	t.Setenv("AWS_SECRET_ACCESS_KEY", "secret")
+	t.Setenv("AWS_SESSION_TOKEN", "tok")
+	t.Setenv("GLBRIDGE_CONTROL_TOKEN", "ctl")
+	p, err := startServer("/bin/sh", []string{"-c", `[ -z "$AWS_ACCESS_KEY_ID$AWS_SECRET_ACCESS_KEY$AWS_SESSION_TOKEN$GLBRIDGE_CONTROL_TOKEN" ] && [ -n "$PATH" ]`})
+	if err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case err := <-p.exit:
+		if err != nil {
+			t.Fatalf("the child saw a scrubbed variable (or lost PATH): %v", err)
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("child did not exit")
 	}
 }

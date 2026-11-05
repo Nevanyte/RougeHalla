@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { CloudflareDns, MARKER, assertPracticeZone, ipType, apexOf, resolveAuthoritative } from "./cloudflare.mjs";
-import { gameHostname, isGameHostname, token } from "./hostname.mjs";
+import { gameHostname, isGameHostname, regionOk, token } from "./hostname.mjs";
 
 const vectors = JSON.parse(readFileSync(fileURLToPath(new URL("../../../placement/vectors/hostnames.json", import.meta.url)), "utf8"));
 const ZONE = "g.rougehalla.com";
@@ -17,6 +17,8 @@ function fakeCf(initial = []) {
     const u = new URL(url);
     const method = init.method;
     calls.push({ method, path: u.pathname + u.search, auth: init.headers.authorization });
+    if (u.pathname === "/client/v4/zones/zone1") return { ok: true, status: 200, json: async () => ({ success: true, result: { id: "zone1", name: "rougehalla.com" } }) };
+    if (/^\/client\/v4\/zones\/[^/]+$/.test(u.pathname)) return { ok: true, status: 200, json: async () => ({ success: true, result: { id: "other", name: "other.example" } }) };
     const body = init.body ? JSON.parse(init.body) : null;
     const ok = (result) => ({ ok: true, status: 200, json: async () => ({ success: true, result }) });
     if (method === "GET") {
@@ -153,4 +155,49 @@ test("authoritative verification needs every name server to agree", async () => 
   assert.deepEqual([split.agree, split.addresses], [false, []]);
   await assert.rejects(resolveAuthoritative("x.play.roguehalla.com", "play.roguehalla.com", io({})));
   assert.equal(apexOf("g.rougehalla.com"), "rougehalla.com");
+});
+
+test("a zone id that belongs to another zone is refused before any record request", async () => {
+  const cf = fakeCf();
+  const dns = new CloudflareDns({ zone: ZONE, zoneId: "zoneX", token: "SECRET", apply: true, fetchImpl: cf.fetchImpl });
+  const name = gameHostname("us-west-2", "rh-req00020-1", ZONE);
+  await assert.rejects(dns.upsert(name, "203.0.113.9"), /belongs to zone "other.example"/);
+  await assert.rejects(dns.delete(name), /belongs to zone/);
+  await assert.rejects(dns.sweep(new Set()), /belongs to zone/);
+  assert.ok(cf.calls.every((c) => c.path.endsWith("/zones/zoneX")), "only the read-only zone lookup was sent");
+  // A matching zone id is verified once, then used.
+  const ok = mk(fakeCf());
+  await ok.upsert(gameHostname("us-west-2", "rh-req00021-1", ZONE), "203.0.113.9");
+  assert.equal(ok.requests.filter((r) => r.url.endsWith("/zones/zone1")).length, 1);
+});
+
+test("sweep keeps records whose created_on is missing or unparsable (NaN), and rejects a NaN min age", async () => {
+  const a = gameHostname("us-west-2", "rh-nan000001-1", ZONE);
+  const b = gameHostname("us-west-2", "rh-nan000002-1", ZONE);
+  const cf = fakeCf([
+    { id: "1", type: "A", name: a, content: "1.1.1.1", comment: `${MARKER} x`, created_on: "not a date" },
+    { id: "2", type: "A", name: b, content: "1.1.1.2", comment: `${MARKER} y` },
+  ]);
+  const r = await mk(cf).sweep(new Set(), 15 * 60_000);
+  assert.deepEqual(r.deleted, []);
+  assert.deepEqual(r.kept.sort(), [a, b].sort());
+  assert.equal(cf.records.length, 2);
+  await assert.rejects(mk(fakeCf()).sweep(new Set(), Number("abc")), /min age/);
+});
+
+test("regionOk and gameHostname refuse undefined: no undefined-<token> names", () => {
+  assert.equal(regionOk(undefined), false);
+  assert.equal(regionOk(null), false);
+  assert.equal(regionOk(42), false);
+  assert.throws(() => gameHostname(undefined, "rh-req00001-1", ZONE), /not usable/);
+  assert.throws(() => gameHostname("us-west-2", undefined, ZONE), /placement id/);
+});
+
+test("ttl must be a finite integer of at least 60", async () => {
+  const cf = fakeCf();
+  const dns = mk(cf);
+  const name = gameHostname("us-west-2", "rh-req00022-1", ZONE);
+  for (const bad of [NaN, Infinity, 60.5, "60", -1, 59]) await assert.rejects(dns.upsert(name, "203.0.113.9", bad), /ttl/, String(bad));
+  assert.equal(cf.calls.length, 0);
+  await assert.doesNotReject(dns.upsert(name, "203.0.113.9", 60));
 });

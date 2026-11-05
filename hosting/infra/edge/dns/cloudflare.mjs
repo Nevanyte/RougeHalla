@@ -35,12 +35,34 @@ export class CloudflareDns {
     Object.assign(this, { zone, zoneId, token, apply, fetchImpl, now });
     /** Planned or executed requests, token redacted. */
     this.requests = [];
+    this.zoneVerified = false;
+  }
+
+  /**
+   * Before the first real request: the zone id must belong to the validated zone name (a wrong CLOUDFLARE_ZONE_ID would send
+   * the writes to another zone). Read-only lookup; the Cloudflare zone is the registered domain, so `g.rougehalla.com` lives
+   * in zone `rougehalla.com`. Fails closed on any mismatch or error.
+   */
+  async #verifyZone() {
+    if (this.zoneVerified) return;
+    const url = `${API}/zones/${this.zoneId}`;
+    this.requests.push({ method: "GET", url, body: null, executed: true });
+    const res = await this.fetchImpl(url, { method: "GET", headers: { authorization: `Bearer ${this.token}`, "content-type": "application/json" } });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok || json.success === false) throw new Error(`cloudflare GET zone: HTTP ${res.status} ${JSON.stringify(json.errors ?? [])}`);
+    const name = json.result?.name;
+    if (typeof name !== "string" || !(this.zone === name || this.zone.endsWith(`.${name}`))) {
+      throw new Error(`refusing: CLOUDFLARE_ZONE_ID belongs to zone ${JSON.stringify(name)}, not to ${JSON.stringify(this.zone)}`);
+    }
+    assertPracticeZone(name);
+    this.zoneVerified = true;
   }
 
   async #call(method, path, body) {
     const url = `${API}/zones/${this.zoneId ?? "<ZONE_ID>"}${path}`;
     this.requests.push({ method, url, body: body ?? null, executed: this.apply });
     if (!this.apply) return { success: true, result: method === "GET" ? [] : {}, dryRun: true };
+    await this.#verifyZone();
     const res = await this.fetchImpl(url, {
       method,
       headers: { authorization: `Bearer ${this.token}`, "content-type": "application/json" },
@@ -63,7 +85,7 @@ export class CloudflareDns {
   /** Create or replace the record. Idempotent: the same name+ip is a no-op, a different ip updates in place. */
   async upsert(name, ip, ttl = 60, placementId = "") {
     this.#checkName(name);
-    if (ttl < MIN_TTL_S) throw new Error(`ttl ${ttl} below the provider minimum ${MIN_TTL_S}`);
+    if (!Number.isInteger(ttl) || ttl < MIN_TTL_S) throw new Error(`ttl ${ttl} below the provider minimum ${MIN_TTL_S}`);
     const type = ipType(ip);
     const body = { type, name, content: ip, ttl, proxied: false, comment: `${MARKER} ${placementId}`.trim() };
     const existing = (await this.find(name)).filter((r) => r.type === type || r.type === "A" || r.type === "AAAA");
@@ -95,12 +117,14 @@ export class CloudflareDns {
 
   /** Delete marked game records not in `active` (hostnames) that are older than `minAgeMs`. */
   async sweep(active, minAgeMs = 15 * 60_000) {
+    if (!Number.isFinite(minAgeMs) || minAgeMs < 0) throw new Error(`min age ${minAgeMs} is not a non-negative number`);
     const r = await this.#call("GET", `/dns_records?comment.startswith=${MARKER}&per_page=5000`);
     const out = { kept: [], deleted: [], skipped: [] };
     for (const rec of r.result) {
       if (!isGameHostname(rec.name, this.zone) || !(rec.comment ?? "").startsWith(MARKER)) {
         out.skipped.push(rec.name);
-      } else if (active.has(rec.name) || this.now() - Date.parse(rec.created_on ?? 0) < minAgeMs) {
+      } else if (active.has(rec.name) || !Number.isFinite(Date.parse(rec.created_on)) || this.now() - Date.parse(rec.created_on) < minAgeMs) {
+        // An unparsable or missing created_on is "keep": a record of unknown age is never deleted.
         out.kept.push(rec.name);
       } else {
         await this.#call("DELETE", `/dns_records/${rec.id}`);

@@ -26,12 +26,14 @@ docker run --rm -v "$PWD":/src -w /src golang:1.25.14-bookworm sh -c 'gofmt -l .
 The context is trimmed by `hosting/Dockerfile.dockerignore` (sources, lockfile, the one map; no `target/`).
 
 ```bash
+# RH_BUILD names the build (stamped into every replay as BUILD_ID); the image build fails if it is empty.
+export RH_BUILD=$(git rev-parse --short=12 HEAD)
 # linux/arm64 (native on Apple silicon / Graviton), for c9g/m9g-class instances:
-docker buildx build --platform linux/arm64 -f hosting/Dockerfile -t rh-match:dev-arm64 --load .
+docker buildx build --platform linux/arm64 -f hosting/Dockerfile --build-arg RH_BUILD="$RH_BUILD" -t rh-match:dev-arm64 --load .
 # linux/amd64 (emulated on Apple silicon, native on x86):
-docker buildx build --platform linux/amd64 -f hosting/Dockerfile -t rh-match:dev-amd64 --load .
+docker buildx build --platform linux/amd64 -f hosting/Dockerfile --build-arg RH_BUILD="$RH_BUILD" -t rh-match:dev-amd64 --load .
 # without the durable-results (PostgreSQL) feature:
-docker buildx build --platform linux/arm64 -f hosting/Dockerfile --build-arg RH_FEATURES= -t rh-match:nodb-arm64 --load .
+docker buildx build --platform linux/arm64 -f hosting/Dockerfile --build-arg RH_BUILD="$RH_BUILD" --build-arg RH_FEATURES= -t rh-match:nodb-arm64 --load .
 ```
 
 A GameLift container fleet needs the image architecture to match the fleet's instance type
@@ -48,9 +50,12 @@ Cold-build measurements, sizes and cgo result: docs/hosting/GAMELIFT_VERIFIED.md
 | `--control-addr` / `GLBRIDGE_CONTROL_ADDR` | `127.0.0.1:7778` | loopback control listener |
 | `--map` / `GLBRIDGE_MAP` | `/local/game/maps/seed1.map.json` | map |
 | `--tls-cert`, `--tls-key` / `GLBRIDGE_TLS_CERT`, `_KEY` | none | game listener certificate (wss) |
-| `GLBRIDGE_CONTROL_TOKEN` | none | bearer token sent on control requests |
+| `GLBRIDGE_CONTROL_TOKEN` | none | bearer token: sent on control requests and handed to rh-server as a 0600 file via `--control-token-file`; startup fails unless an unauthenticated `/control/health` probe returns 401 |
+| `--server-exit-grace` | 3m | after drain, wait this long for rh-server to exit by itself (it needs up to 150 s for result writes) before `ProcessEnding`; capped by GameLift's termination time; a forced end exits non-zero |
 | `--poll-interval`, `--admit-interval`, `--drain-deadline`, `--start-timeout` | 500 ms, 1 s, 4m30s, 30 s | cadences and bounds |
 | `--allow-no-admit` | off | development only: accept a server without `--require-admit` |
+
+The supervised rh-server never sees `AWS_*`, `GAMELIFT_*` or `GLBRIDGE_*` environment variables.
 
 rh-server is always started with `--max-rooms 1 --require-admit` (one process, one game session; docs/hosting/GAMELIFT_VERIFIED.md
 section 3). `--require-admit` needs `--control` and is checked as an extra step after the profile credential check; see
@@ -88,7 +93,7 @@ gone. The Rust control tests (no Go needed) are `cargo test -p rh-server --test 
 The same fake can run in the image, to check the arm64 container itself (not run against AWS):
 
 ```bash
-docker buildx build --platform linux/arm64 -f hosting/Dockerfile --build-arg GLBRIDGE_TAGS=fakesdk -t rh-match:fakesdk-arm64 --load .
+docker buildx build --platform linux/arm64 -f hosting/Dockerfile --build-arg RH_BUILD="$RH_BUILD" --build-arg GLBRIDGE_TAGS=fakesdk -t rh-match:fakesdk-arm64 --load .
 # the script and control ports are loopback-only, so the script drives it from inside the container:
 hosting/scripts/docker-smoke.sh rh-match:fakesdk-arm64
 ```
