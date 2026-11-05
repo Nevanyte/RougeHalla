@@ -192,8 +192,9 @@ the final 905-test workspace gate; its merge-commit CI remains pending. The real
 explicitly invoked. See `docs/evidence/stage2-external-integration/` for the exact scope and limitations.
 Result-spool recovery covers same-volume process restarts; host-volume loss and managed database failover remain open.
 Placement ownership is protected in process, but durable ledger/restart recovery and the production adapters remain open.
-PR27 is merged as `5b1a7aae`. Rust/C# CI `42110941659` and native determinism CI `42110939993` are running for that
-exact code revision. The new manual hosting-validation workflow cannot be dispatched through GitHub yet because it
+PR27 is merged as `5b1a7aae`. Native determinism CI `42110939993` passed all six jobs for that exact code revision,
+including both native architectures, exact comparison and both foreign-replay directions. Rust/C# CI `42110941659`
+is still running (C# passed). The new manual hosting-validation workflow cannot be dispatched through GitHub yet because it
 is absent from the default branch; its Node/script/template checks passed locally. No default-branch change was made.
 The owner requested two further external goals: Claude's single milestone is durable placement/restart reconciliation
 ([P-CLAUDE-PLACEMENT-2](backlog/packets/P-CLAUDE-PLACEMENT-2.md)); Kimi's is the pure Rust stat fold and bounded
