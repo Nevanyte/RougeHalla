@@ -389,6 +389,9 @@ async fn director_renews_live_seats_by_id_and_expires_only_the_stalled_seat() {
         db_timeout: Duration::from_millis(110),
     };
     cfg.tick = Duration::from_millis(10);
+    // Final leaves may straddle a tick and end the match. Keep this lease proof's cleanup
+    // independent of the normal five-second result-delivery linger window.
+    cfg.linger = Duration::from_millis(100);
     let p = Arc::new(Persistence::postgres(store.clone(), "host-a".into()));
     let director = Director::new(
         cfg,
