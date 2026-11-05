@@ -1,4 +1,4 @@
-//! Checkpoint scope (docs/CONTRACTS.md C-DET): a checkpoint is `{format, statics, world}`; per-tick scratch (the action
+//! Checkpoint scope (docs/CONTRACTS.md C-DET): a checkpoint is `{format, content_hash, build, statics, world}`; per-tick scratch (the action
 //! rank, the damage ledger, the melee requests, the bounty snapshot) is never serialized, and a restored match continues
 //! bit-identically.
 
@@ -100,7 +100,11 @@ fn a_checkpoint_contains_no_scratch_keys() {
     }
     assert_eq!(json["format"], "rh-checkpoint/3");
     let top: Vec<&String> = json.as_object().unwrap().keys().collect();
-    assert_eq!(top.len(), 3, "format, statics, world: {top:?}");
+    assert_eq!(
+        top.len(),
+        5,
+        "format, content_hash, build, statics, world: {top:?}"
+    );
 }
 
 #[test]
@@ -257,4 +261,46 @@ fn a_checkpoint_whose_next_id_is_not_past_the_last_player_is_malformed_not_a_pan
     // The honest value restores.
     let ok = Sim::restore(good).unwrap();
     assert_eq!(ok.state_hash(), a.state_hash());
+}
+
+#[test]
+fn a_checkpoint_names_its_content_and_build_and_refuses_other_content() {
+    use rh_sim::CheckpointError;
+    let mut a = crowded_8();
+    drive(&mut a, 10);
+    let good = serde_json::to_value(&a).unwrap();
+    let content = rh_sim::content::content_hash();
+    assert_eq!(good["content_hash"], content);
+    assert_eq!(good["build"], rh_sim::replay::BUILD_ID);
+    assert!(serde_json::to_string(&a)
+        .unwrap()
+        .starts_with("{\"format\":\"rh-checkpoint/3\",\"content_hash\":"));
+    assert!(Sim::restore(&good).is_ok());
+
+    // Other content: refused with the typed error, whichever side of the tag it arrives on, and even when the payload
+    // of that content's checkpoint would not parse.
+    let mut other = good.clone();
+    other["content_hash"] = (content ^ 1).into();
+    let expect = CheckpointError::ContentMismatch {
+        checkpoint: content ^ 1,
+        build: content,
+    };
+    assert_eq!(Sim::restore(&other).err(), Some(expect.clone()));
+    other["world"] = Value::from("not a world");
+    assert_eq!(Sim::restore(&other).err(), Some(expect.clone()));
+    let text = format!(
+        "{{\"world\":1,\"content_hash\":{},\"format\":\"rh-checkpoint/3\"}}",
+        content ^ 1
+    );
+    assert_eq!(
+        Sim::restore(&mut serde_json::Deserializer::from_str(&text)).err(),
+        Some(expect)
+    );
+
+    // A checkpoint written before the keys existed still restores (it cannot be compared).
+    let mut old = good.clone();
+    old.as_object_mut().unwrap().remove("content_hash");
+    old.as_object_mut().unwrap().remove("build");
+    let b = Sim::restore(&old).expect("an older checkpoint without the keys restores");
+    assert_eq!(a.state_hash(), b.state_hash());
 }

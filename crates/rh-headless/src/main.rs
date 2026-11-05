@@ -30,6 +30,26 @@ fn verify(path: &str, ignore_content_hash: bool) {
     let text = std::fs::read_to_string(path).expect("replay file");
     let mut r: rh_sim::replay::Replay = serde_json::from_str(&text).expect("replay json");
     let build = rh_sim::content::content_hash();
+    // A replay is verified by the build that recorded it, never across builds: say which one that was.
+    let recorded_build = if r.build.is_empty() {
+        eprintln!(
+            "warning: this replay names no recording build (written before the field existed)"
+        );
+        "unknown".to_owned()
+    } else {
+        if r.build != rh_sim::replay::BUILD_ID {
+            eprintln!(
+                "warning: recorded by build {:?}, verified by build {:?}",
+                r.build,
+                rh_sim::replay::BUILD_ID
+            );
+        }
+        r.build.clone()
+    };
+    let (build_id, match_id) = (
+        rh_sim::replay::BUILD_ID,
+        r.match_id.clone().unwrap_or_default(),
+    );
     let content = if r.content_hash == build {
         "same"
     } else if ignore_content_hash {
@@ -41,7 +61,7 @@ fn verify(path: &str, ignore_content_hash: bool) {
     };
     match rh_sim::replay::run_replay(&r) {
         Ok((sim, _)) => println!(
-            "{{\"verified\":true,\"steps\":{},\"finalHash\":\"{:016x}\",\"contentHash\":\"{content}\"}}",
+            "{{\"verified\":true,\"steps\":{},\"finalHash\":\"{:016x}\",\"contentHash\":\"{content}\",\"recordedBuild\":\"{recorded_build}\",\"build\":\"{build_id}\",\"matchId\":\"{match_id}\"}}",
             r.hashes.len(),
             sim.state_hash()
         ),
@@ -53,7 +73,7 @@ fn verify(path: &str, ignore_content_hash: bool) {
                 | rh_sim::replay::ReplayError::Format { .. } => 0,
             };
             println!(
-                "{{\"verified\":false,\"steps\":{done},\"recordedSteps\":{},\"contentHash\":\"{content}\",\"error\":\"{e:?}\"}}",
+                "{{\"verified\":false,\"steps\":{done},\"recordedSteps\":{},\"contentHash\":\"{content}\",\"recordedBuild\":\"{recorded_build}\",\"build\":\"{build_id}\",\"error\":\"{e:?}\"}}",
                 r.hashes.len()
             );
             std::process::exit(1);

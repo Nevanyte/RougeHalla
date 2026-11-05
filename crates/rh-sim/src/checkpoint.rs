@@ -1,4 +1,4 @@
-//! Checkpoints: `{format, statics, world}` as JSON (or any serde format). The format tag is written first and refused
+//! Checkpoints: `{format, content_hash, build, statics, world}` as JSON (or any serde format). The format tag is written first and refused
 //! before the payload is interpreted, whatever order the keys arrive in, so a checkpoint of another layout (or none at all)
 //! fails with a typed [`CheckpointError`] instead of an arbitrary serde error or a silently wrong state. Per-tick scratch is
 //! never part of a checkpoint: a restored [`Sim`] starts with an empty [`TickScratch`] and behaves identically
@@ -32,6 +32,9 @@ pub enum CheckpointError {
     MissingFormat,
     /// A `format` this build does not read.
     UnsupportedFormat { found: String },
+    /// The tag matched but the checkpoint was taken under other content (rules) than this build runs: restoring it would
+    /// continue the match under different rules. A checkpoint without the key (written before it existed) is not checked.
+    ContentMismatch { checkpoint: u64, build: u64 },
     /// The tag matched but the payload did not parse (or lacks `statics` / `world`).
     Malformed(String),
 }
@@ -46,6 +49,10 @@ impl fmt::Display for CheckpointError {
             Self::UnsupportedFormat { found } => write!(
                 f,
                 "unsupported checkpoint format \"{found}\" (expected \"{CHECKPOINT_FORMAT}\")"
+            ),
+            Self::ContentMismatch { checkpoint, build } => write!(
+                f,
+                "checkpoint was taken under content {checkpoint:016x}, this build runs {build:016x}"
             ),
             Self::Malformed(why) => write!(f, "malformed checkpoint: {why}"),
         }
@@ -65,12 +72,14 @@ impl Sim {
     }
 }
 
-const FIELDS: &[&str] = &["format", "statics", "world"];
+const FIELDS: &[&str] = &["format", "content_hash", "build", "statics", "world"];
 
 impl serde::Serialize for Sim {
     fn serialize<S: Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
         let mut st = s.serialize_struct("Checkpoint", FIELDS.len())?;
         st.serialize_field("format", CHECKPOINT_FORMAT)?;
+        st.serialize_field("content_hash", &crate::content::content_hash())?;
+        st.serialize_field("build", crate::replay::BUILD_ID)?;
         st.serialize_field("statics", &self.k)?;
         st.serialize_field("world", &self.w)?;
         st.end()
@@ -87,6 +96,9 @@ impl<'de> serde::Deserialize<'de> for Sim {
 #[serde(field_identifier, rename_all = "lowercase")]
 enum Key {
     Format,
+    #[serde(rename = "content_hash")]
+    ContentHash,
+    Build,
     Statics,
     World,
     #[serde(other)]
@@ -130,6 +142,7 @@ impl<'de> Visitor<'de> for CheckpointVisitor<'_> {
 
     fn visit_map<A: MapAccess<'de>>(self, mut map: A) -> Result<Sim, A::Error> {
         let mut tagged = false;
+        let mut content = None::<u64>;
         let (mut statics, mut world) = (None::<Part<MatchStatic>>, None::<Part<World>>);
         while let Some(key) = map.next_key::<Key>()? {
             match key {
@@ -139,6 +152,24 @@ impl<'de> Visitor<'de> for CheckpointVisitor<'_> {
                         return Err(self.refuse(CheckpointError::UnsupportedFormat { found }));
                     }
                     tagged = true;
+                    if let Some(why) = content.and_then(content_mismatch) {
+                        return Err(self.refuse(why));
+                    }
+                }
+                Key::ContentHash => {
+                    let checkpoint: u64 = map.next_value()?;
+                    // Checked as soon as it is read when the tag is known good, so the typed reason wins over whatever
+                    // the payload of another content's checkpoint happens to fail on.
+                    if tagged {
+                        if let Some(why) = content_mismatch(checkpoint) {
+                            return Err(self.refuse(why));
+                        }
+                    }
+                    content = Some(checkpoint);
+                }
+                // Informational: names the build that can verify this file; it is not compared (never verified across builds).
+                Key::Build => {
+                    map.next_value::<IgnoredAny>()?;
                 }
                 // Before the tag has been read a payload is only held (a stale layout must be refused by its tag, not by
                 // whatever its payload happens to fail on); after it, it is parsed straight into its type.
@@ -164,6 +195,9 @@ impl<'de> Visitor<'de> for CheckpointVisitor<'_> {
         if !tagged {
             return Err(self.refuse(CheckpointError::MissingFormat));
         }
+        if let Some(why) = content.and_then(content_mismatch) {
+            return Err(self.refuse(why));
+        }
         let (Some(k), Some(w)) = (statics, world) else {
             return Err(self.refuse(CheckpointError::Malformed(
                 "missing `statics` or `world`".into(),
@@ -185,6 +219,11 @@ impl<'de> Visitor<'de> for CheckpointVisitor<'_> {
             pf: Pathfinder::default(),
         })
     }
+}
+
+fn content_mismatch(checkpoint: u64) -> Option<CheckpointError> {
+    let build = crate::content::content_hash();
+    (checkpoint != build).then_some(CheckpointError::ContentMismatch { checkpoint, build })
 }
 
 /// The invariants the tick relies on and the serde shape cannot express. A state that breaks one would panic (or silently

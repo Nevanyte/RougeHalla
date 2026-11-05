@@ -436,8 +436,11 @@ fn perturb_all(sim: &Sim, pool: &BTreeMap<String, Vec<Value>>, tally: &mut Tally
     };
     for item in &items {
         let (path, leaf) = (&item.path, &item.value);
-        if path.first().map(String::as_str) == Some("format") {
-            continue; // the tag is checked by `restore`, not hashed
+        if matches!(
+            path.first().map(String::as_str),
+            Some("format" | "content_hash" | "build")
+        ) {
+            continue; // the tag and the content/build header are checked by `restore`, not hashed
         }
         let p = path_of(path);
         let pat = pattern(&p);

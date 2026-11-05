@@ -120,3 +120,29 @@ fn a_replay_with_a_malformed_map_is_an_error_not_a_panic() {
         assert!(serde_json::from_str::<Replay>(&text[..cut]).is_err());
     }
 }
+
+#[test]
+fn a_replay_names_its_build_and_a_file_without_the_new_keys_still_verifies() {
+    let mut r = recorded(60);
+    assert_eq!(r.build, rh_sim::replay::BUILD_ID);
+    assert_eq!(r.match_id, None);
+    r.match_id = Some("00000000-0000-4000-8000-000000000001".into());
+    let back: Replay = serde_json::from_str(&serde_json::to_string(&r).unwrap()).unwrap();
+    assert_eq!(back, r);
+
+    // A replay recorded before `build` and `match_id` existed: same format tag, keys absent, still verifies.
+    let mut v = serde_json::to_value(&r).unwrap();
+    v.as_object_mut().unwrap().remove("build");
+    v.as_object_mut().unwrap().remove("match_id");
+    let old: Replay = serde_json::from_value(v).unwrap();
+    assert_eq!((old.build.as_str(), old.match_id.as_deref()), ("", None));
+    run_replay(&old).expect("an older replay without the keys verifies");
+
+    // Content is still compared before anything runs.
+    let mut other = r.clone();
+    other.content_hash ^= 1;
+    assert!(matches!(
+        run_replay(&other),
+        Err(ReplayError::ContentMismatch { .. })
+    ));
+}

@@ -11,6 +11,16 @@ use crate::sim::{Arena, Event, Placement, PlayerId, Secrets, Sim, SimConfig};
 /// held the hand-listed byte-wise FNV hashes, which no build can reproduce any more). [`run_replay`] refuses any other tag.
 pub const REPLAY_FORMAT: &str = "rh-replay/2";
 
+/// Identity of the code this binary was built from: the `RH_BUILD` environment variable at compile time (the release
+/// pipeline sets it to the commit id), else `dev-<crate version>`. It is a compile-time constant, so reading it keeps
+/// `rh-sim` pure. A replay or checkpoint is verified by the build that recorded it and never across builds: the state hash
+/// follows the serialized layout of the world, and `content_hash` does not cover system code, so only the recording commit
+/// can reproduce a stored file. Releases keep their commit buildable (rust-toolchain.toml and Cargo.lock pin the rest).
+pub const BUILD_ID: &str = match option_env!("RH_BUILD") {
+    Some(b) => b,
+    None => concat!("dev-", env!("CARGO_PKG_VERSION")),
+};
+
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum ReplayInput {
     /// A lobby join (live rooms start from a lobby). `policy` names the bot policy and its own seed, so a headless re-run
@@ -64,6 +74,12 @@ pub struct ReplayTick {
 pub struct Replay {
     pub format: String,
     pub content_hash: u64,
+    /// The [`BUILD_ID`] that recorded it (the build that can verify it). Empty in a file written before the field existed.
+    #[serde(default)]
+    pub build: String,
+    /// The match this replay belongs to, as the durable store knows it (a UUID string) when it was recorded by a live room.
+    #[serde(default)]
+    pub match_id: Option<String>,
     pub config: SimConfig,
     pub arena: Arena,
     pub secrets: Secrets,
@@ -85,6 +101,8 @@ impl Recorder {
             replay: Replay {
                 format: REPLAY_FORMAT.into(),
                 content_hash: crate::content::content_hash(),
+                build: BUILD_ID.into(),
+                match_id: None,
                 config,
                 arena: sim.arena().clone(),
                 secrets: sim.secrets_for_replay(),
