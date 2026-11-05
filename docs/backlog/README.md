@@ -25,6 +25,12 @@ acceptance evidence. Codex retains Rust gameplay/map generation/parity/headless 
 starting server adapter, persistence or hosting work; the original prompt's no-Claude assumption is superseded by the
 owner's new instruction. This reservation is not a completion claim for any listed backlog item.
 
+**Parallel Kimi handoff (owner request 2026-11-05).** [P-KIMI-VERIFY-1](packets/P-KIMI-VERIFY-1.md) reserves new
+headless determinism-sweep files, `tools/determinism/**` and `.github/workflows/determinism.yml` for a separate Kimi
+branch. Kimi implements bounded Rust verification and native architecture checks, with no gameplay/shared-library
+changes. Codex independently reviews results and retains shared status/contract/lockfile ownership. P-CI-2 remains open
+until native runs and exact comparison actually pass.
+
 **Dependency order (earliest first).** A packet may start once everything it depends on is merged; "Ready packet" items have a
 full spec in `packets/<ID>.md`, "Coarse" items need a packet written (copy the section list below) before they start.
 
