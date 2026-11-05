@@ -135,7 +135,7 @@ async fn failing_after_the_offer_write_is_an_uncertain_commit_the_service_reconc
             == 1
     );
     assert_eq!(s.place(&req()).await.unwrap(), offer);
-    assert!(s.gamelift.terminated().is_empty());
+    assert!(s.gamelift().terminated().is_empty());
 }
 
 #[tokio::test(start_paused = true)]
@@ -149,7 +149,7 @@ async fn failing_after_the_start_call_is_a_lost_receipt_recovered_through_the_st
         .expect("the retried start finds the accepted placement by its binding");
     set_hook(None);
     assert_eq!(
-        s.gamelift.starts().len(),
+        s.gamelift().starts().len(),
         2,
         "the second start was refused as already existing"
     );
@@ -164,7 +164,7 @@ async fn failing_before_a_write_sends_nothing_and_stops_without_cleanup() {
     assert!(s.place(&req()).await.is_err());
     set_hook(None);
     assert!(
-        s.gamelift.starts().is_empty() && s.gamelift.terminated().is_empty(),
+        s.gamelift().starts().is_empty() && s.gamelift().terminated().is_empty(),
         "no effect without its committed intent"
     );
 }

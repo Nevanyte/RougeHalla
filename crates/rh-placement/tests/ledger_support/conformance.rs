@@ -343,9 +343,15 @@ pub async fn offered_released_and_finished_rows_are_never_reapable<L: Ledger>(fx
     fx.a.write(&rc, &offered_state("req00013"), Phase::Releasing, LONG)
         .await
         .unwrap();
-    fx.a.write(&rc, &offered_state("req00013"), Phase::Released, LONG)
-        .await
-        .unwrap();
+    // Every write bumps the row's version: the claim after the first write is `rc.next()`.
+    fx.a.write(
+        &rc.next(),
+        &offered_state("req00013"),
+        Phase::Released,
+        LONG,
+    )
+    .await
+    .unwrap();
     pass_lease().await;
     assert!(fx
         .b
@@ -485,7 +491,9 @@ pub async fn purge_makes_tombstones_that_never_replay<L: Ledger>(fx: &Fx<L>) {
     };
     let s = offered_state("purge002");
     fx.a.write(&rc, &s, Phase::Releasing, LONG).await.unwrap();
-    fx.a.write(&rc, &s, Phase::Released, LONG).await.unwrap();
+    fx.a.write(&rc.next(), &s, Phase::Released, LONG)
+        .await
+        .unwrap();
     offered(&*fx.a, "purge003").await;
     started(&*fx.a, "purge004", LONG).await;
     // Nothing is old enough yet.
@@ -504,6 +512,9 @@ pub async fn purge_makes_tombstones_that_never_replay<L: Ledger>(fx: &Fx<L>) {
         );
         assert_eq!(r.state, LedgerState::default());
         assert!(r.identity.request_json.is_empty() && r.identity.config_json.is_empty());
+        // A released offer keeps only its placement id (a late duplicate release must still name it).
+        let kept = (was == Phase::Released).then(|| offer(id).placement_id);
+        assert_eq!(r.final_placement_id, kept, "{id}");
         // A purged id never replays, restarts or is reaped; a different identity still conflicts.
         assert_eq!(
             fx.a.begin(&ident(id, "s", "f"), "w", LONG).await.unwrap(),
@@ -584,6 +595,73 @@ pub async fn illegal_phase_moves_are_refused<L: Ledger>(fx: &Fx<L>) {
     assert!(matches!(r, Err(LedgerError::Refused(_))), "{r:?}");
 }
 
+pub async fn stale_write_under_the_same_claim_is_refused<L: Ledger>(fx: &Fx<L>) {
+    // A write that was sent, timed out client-side and is still queued at the store can land after a retry and a later write
+    // of the same claim. Fence, holder and liveness all still match; only the row's version tells it is stale.
+    let c = started(&*fx.a, "req00040", LONG).await;
+    assert_eq!(c.version, 1);
+    let mut s1 = LedgerState::default();
+    s1.attempts.push(attempt("req00040"));
+    let mut s2 = s1.clone();
+    s2.attempts[0].resolution = Resolution::NoHost;
+    s2.note = "later".into();
+    assert_eq!(
+        fx.a.write(&c, &s1, Phase::Active, LONG).await.unwrap(),
+        WriteOutcome::Written
+    );
+    let c2 = c.next();
+    assert_eq!(
+        fx.b.write(&c2, &s2, Phase::Active, LONG).await.unwrap(),
+        WriteOutcome::Written
+    );
+    // The delayed copy of the FIRST write finally arrives: refused, nothing rolled back.
+    assert_eq!(
+        fx.a.write(&c, &s1, Phase::Active, LONG).await.unwrap(),
+        WriteOutcome::Fenced,
+        "a stale copy of an earlier write must not land"
+    );
+    // So does a copy of the second one (it was already applied once).
+    assert_eq!(
+        fx.a.write(&c2, &s2, Phase::Active, LONG).await.unwrap(),
+        WriteOutcome::Fenced
+    );
+    let r = fx.b.get("req00040").await.unwrap().unwrap();
+    assert_eq!((r.state, r.version, r.fence), (s2.clone(), 3, 1));
+    // The current claim still works, and the stale one still cannot finish the row either.
+    let mut done = s2.clone();
+    done.note = "done".into();
+    assert_eq!(
+        fx.a.write(&c, &done, Phase::Finished, LONG).await.unwrap(),
+        WriteOutcome::Fenced
+    );
+    assert_eq!(
+        fx.a.write(&c2.next(), &done, Phase::Finished, LONG)
+            .await
+            .unwrap(),
+        WriteOutcome::Written
+    );
+}
+
+pub async fn versions_follow_every_write_and_claim<L: Ledger>(fx: &Fx<L>) {
+    let c = started(&*fx.a, "req00041", SHORT).await;
+    let mut s = LedgerState::default();
+    s.attempts.push(attempt("req00041"));
+    fx.a.write(&c, &s, Phase::Active, SHORT).await.unwrap();
+    assert_eq!(fx.a.get("req00041").await.unwrap().unwrap().version, 2);
+    pass_lease().await;
+    let got = fx.b.claim_reapable("r", LONG, 4).await.unwrap();
+    // A claim carries the version the row has once it is claimed, so its first write is accepted.
+    assert_eq!(got.len(), 1);
+    assert_eq!((got[0].0.version, got[0].1.version), (3, 3));
+    assert_eq!(
+        fx.b.write(&got[0].0, &s, Phase::Active, LONG)
+            .await
+            .unwrap(),
+        WriteOutcome::Written
+    );
+    assert_eq!(fx.a.get("req00041").await.unwrap().unwrap().version, 4);
+}
+
 /// Expands to one test per case for a fixture. `$setup` builds an `Fx`, `$teardown` consumes it.
 #[macro_export]
 macro_rules! conformance_cases {
@@ -606,7 +684,9 @@ macro_rules! conformance_cases {
             epoch_is_created_once_and_never_over_old_records,
             epoch_open_returns_the_stored_nonce,
             concurrent_epoch_open_agrees,
-            illegal_phase_moves_are_refused
+            illegal_phase_moves_are_refused,
+            stale_write_under_the_same_claim_is_refused,
+            versions_follow_every_write_and_claim
         );
     };
     (@each [$attr:meta] $setup:path, $teardown:path; $($case:ident),+) => {

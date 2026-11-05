@@ -31,7 +31,7 @@ impl Fallback {
 }
 
 /// `StartGameSessionPlacement` ([API](https://docs.aws.amazon.com/gameliftservers/latest/apireference/API_StartGameSessionPlacement.html)).
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct StartPlacement {
     /// `^[a-zA-Z0-9-]+$`, at most 48, unique across Regions and never reused.
     pub placement_id: String,
@@ -43,6 +43,39 @@ pub struct StartPlacement {
     /// `PriorityConfigurationOverride.LocationOrder`: 1..=10 distinct locations.
     pub location_order: Vec<String>,
     pub fallback: Fallback,
+}
+
+// `GameSessionData` carries the ownership binding and player-session ids are match credentials: neither is ever printed.
+impl std::fmt::Debug for StartPlacement {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("StartPlacement")
+            .field("placement_id", &self.placement_id)
+            .field("queue_name", &self.queue_name)
+            .field("max_player_sessions", &self.max_player_sessions)
+            .field("players", &self.players)
+            .field("game_session_data", &"<redacted>")
+            .field("location_order", &self.location_order)
+            .field("fallback", &self.fallback)
+            .finish()
+    }
+}
+
+impl std::fmt::Debug for PlacementState {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("PlacementState")
+            .field(
+                "game_session_data",
+                &self.game_session_data.as_ref().map(|_| "<redacted>"),
+            )
+            .field("placement_id", &self.placement_id)
+            .field("status", &self.status)
+            .field("game_session_arn", &self.game_session_arn)
+            .field("region", &self.region)
+            .field("ip_address", &self.ip_address)
+            .field("port", &self.port)
+            .field("placed_player_sessions", &"<redacted>")
+            .finish()
+    }
 }
 
 impl StartPlacement {
@@ -111,7 +144,7 @@ impl PlacementStatus {
 }
 
 /// The fields of `GameSessionPlacement` we read. Connection fields are only final when `status == Fulfilled`.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct PlacementState {
     /// Exact GameSessionData returned by GameLift, including this service's ownership binding.
     /// Missing metadata is never evidence of ownership.

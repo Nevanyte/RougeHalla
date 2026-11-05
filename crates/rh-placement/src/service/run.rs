@@ -111,10 +111,21 @@ impl<'a, G: GameLiftBackend, D: DnsBackend, L: Ledger> Run<'a, G, D, L> {
             .map_err(|_| lost())
     }
 
+    /// What a successful write of `self.state` changes in the run: the committed copy, the phase, the clock and the claim's
+    /// version (every write bumps the row's version by one, and the next write must present it).
+    fn landed(&mut self, phase: Phase) {
+        self.committed = self.state.clone();
+        self.phase = phase;
+        self.claim = self.claim.next();
+        self.last_write = Instant::now();
+    }
+
     /// Compare-and-swap write of `self.state`. An ambiguous failure is reconciled by reading the row back: committed,
     /// unchanged (retry) or lost. The worker never turns an unknown outcome into cleanup.
     pub(super) async fn commit(&mut self, label: &str, phase: Phase) -> Result<(), Stop> {
         let mut tries = 0;
+        // An earlier try of THIS write ended without a verdict: a copy of it may still be queued at the store.
+        let mut ambiguous = false;
         loop {
             let r = match fp("before", "write", label).await {
                 Err(m) => Err(LedgerError::Unavailable(m)),
@@ -134,37 +145,46 @@ impl<'a, G: GameLiftBackend, D: DnsBackend, L: Ledger> Run<'a, G, D, L> {
             };
             match r {
                 Ok(crate::ledger::WriteOutcome::Written) => {
-                    self.committed = self.state.clone();
-                    self.phase = phase;
-                    self.last_write = Instant::now();
+                    self.landed(phase);
                     return Ok(());
                 }
-                Ok(crate::ledger::WriteOutcome::Fenced) => return Err(lost()),
+                Ok(crate::ledger::WriteOutcome::Fenced) => {
+                    // After an ambiguous try the copy that was still queued may have landed first, which is what fenced
+                    // this retry (its version is stale now). Look once more before reporting a loss.
+                    if ambiguous && matches!(self.reconcile(phase).await, Reconciled::Committed) {
+                        self.landed(phase);
+                        return Ok(());
+                    }
+                    return Err(lost());
+                }
                 Err(e) if !e.ambiguous() => {
                     self.state = self.committed.clone();
                     return Err(Stop::Err(PlaceError::ServiceUnavailable(
                         "placement ledger refused the update".into(),
                     )));
                 }
-                Err(_) => match self.reconcile(phase).await {
-                    Reconciled::Committed => {
-                        self.committed = self.state.clone();
-                        self.phase = phase;
-                        self.last_write = Instant::now();
-                        return Ok(());
-                    }
-                    Reconciled::Retry => {
-                        tries += 1;
-                        if tries >= 3 {
-                            return Err(lost());
+                Err(_) => {
+                    ambiguous = true;
+                    match self.reconcile(phase).await {
+                        Reconciled::Committed => {
+                            self.landed(phase);
+                            return Ok(());
                         }
+                        Reconciled::Retry => {
+                            tries += 1;
+                            if tries >= 3 {
+                                return Err(lost());
+                            }
+                        }
+                        Reconciled::Lost => return Err(lost()),
                     }
-                    Reconciled::Lost => return Err(lost()),
-                },
+                }
             }
         }
     }
 
+    /// Where the row stands relative to this claim. Every write bumps the row's version, so exactly `version + 1` with the
+    /// state and phase we sent is our write, and an unchanged version means nothing of ours landed (yet).
     async fn reconcile(&self, phase: Phase) -> Reconciled {
         for i in 0..3u32 {
             match self
@@ -176,10 +196,13 @@ impl<'a, G: GameLiftBackend, D: DnsBackend, L: Ledger> Run<'a, G, D, L> {
                     if rec.fence != self.claim.fence {
                         return Reconciled::Lost;
                     }
-                    if rec.phase == phase && rec.state == self.state {
+                    if rec.version == self.claim.version + 1
+                        && rec.phase == phase
+                        && rec.state == self.state
+                    {
                         return Reconciled::Committed;
                     }
-                    if rec.phase == self.phase && rec.state == self.committed {
+                    if rec.version == self.claim.version {
                         return Reconciled::Retry;
                     }
                     return Reconciled::Lost;
@@ -368,9 +391,12 @@ impl<'a, G: GameLiftBackend, D: DnsBackend, L: Ledger> Run<'a, G, D, L> {
                     break existing;
                 }
                 Err(BackendError::Invalid(m)) => {
-                    // The provider refused the request outright: nothing was started.
-                    self.resolve(idx, Resolution::NoHost);
-                    self.commit("attempt_resolved", Phase::Active).await?;
+                    // Only the FIRST try's refusal proves nothing was started. After an unavailable or timed-out try the
+                    // provider may have accepted that earlier request: leave the attempt open for the reaper.
+                    if tries == 0 {
+                        self.resolve(idx, Resolution::NoHost);
+                        self.commit("attempt_resolved", Phase::Active).await?;
+                    }
                     return Err(PlaceError::Invalid(m).into());
                 }
                 Err(BackendError::NotFound) => {
@@ -395,6 +421,14 @@ impl<'a, G: GameLiftBackend, D: DnsBackend, L: Ledger> Run<'a, G, D, L> {
                         "missing placement ownership metadata".into(),
                     )
                     .into())
+                }
+                Owner::Foreign if accepted => {
+                    // We already saw this placement carry our binding: contradictory evidence resolves nothing and
+                    // mutates nothing. The attempt stays open for the reaper.
+                    return Err(PlaceError::ServiceUnavailable(
+                        "contradictory placement ownership evidence".into(),
+                    )
+                    .into());
                 }
                 Owner::Foreign => {
                     self.resolve(idx, Resolution::Foreign);
@@ -442,7 +476,10 @@ impl<'a, G: GameLiftBackend, D: DnsBackend, L: Ledger> Run<'a, G, D, L> {
                     if consecutive_errors >= 5 {
                         // Best effort: the intent is committed first, the outcome (if verified) is recorded, and the
                         // error is returned either way. An unresolved attempt is left to the reaper.
-                        let _ = self.stop_verified(idx).await;
+                        if let Err(lost @ Stop::Lost(_)) = self.stop_verified(idx).await.map(|_| ())
+                        {
+                            return Err(lost);
+                        }
                         return Err(PlaceError::ServiceUnavailable(m).into());
                     }
                 }
@@ -647,6 +684,12 @@ impl<'a, G: GameLiftBackend, D: DnsBackend, L: Ledger> Run<'a, G, D, L> {
         match owner(&a, &st) {
             Owner::Ours => {}
             // A matching id alone never authorizes cleanup of someone else's placement.
+            Owner::Foreign if a.proven_ours() => {
+                // Evidence now contradicts what we verified earlier. Nothing is mutated, not even our own recorded name or
+                // session (it is only ever cleaned from data this run verified as ours AND a consistent receipt), and
+                // the attempt stays open and visible (`unresolved_count`) until the provider agrees with the ledger.
+                return Ok(false);
+            }
             Owner::Foreign => {
                 self.resolve(idx, Resolution::Foreign);
                 self.commit("attempt_resolved", Phase::Active).await?;
@@ -746,6 +789,28 @@ impl<'a, G: GameLiftBackend, D: DnsBackend, L: Ledger> Run<'a, G, D, L> {
     async fn not_found(&mut self, idx: usize) -> Result<bool, Stop> {
         let a = self.state.attempts[idx].clone();
         let accepted = matches!(a.start, StartStep::Accepted { .. });
+        // A cleanup already begun (name deletion or termination recorded) is finished from the stored session and name,
+        // never abandoned: the provider forgetting the placement does not mean the session or the record is gone.
+        let cleanup_open = matches!(a.terminate, TermStep::Intent { .. })
+            || matches!(
+                a.dns,
+                DnsStep::Intent { .. } | DnsStep::Verified { .. } | DnsStep::DeleteIntent { .. }
+            );
+        if cleanup_open {
+            let arn = match &a.terminate {
+                TermStep::Intent { arn } => Some(arn.clone()),
+                _ => a.fulfilled.as_ref().map(|f| f.arn.clone()),
+            };
+            let Some(arn) = arn else {
+                return Ok(false);
+            };
+            let host = a.dns_host().or_else(|| {
+                a.fulfilled
+                    .as_ref()
+                    .and_then(|f| game_hostname(&f.region, &a.placement_id, &self.zone).ok())
+            });
+            return self.cleanup_fulfilled(idx, arn, host).await;
+        }
         match a.status {
             Some(PlacementStatus::Fulfilled) if accepted => {
                 if let Some(f) = &a.fulfilled {
@@ -820,6 +885,16 @@ enum Reconciled {
 }
 
 impl AttemptRec {
+    /// This run (or an earlier one) verified a receipt with our binding for the attempt, or acted on one.
+    fn proven_ours(&self) -> bool {
+        matches!(self.start, StartStep::Accepted { .. })
+            || self.status.is_some()
+            || self.fulfilled.is_some()
+            || self.stop == StopStep::Resolved
+            || !matches!(self.dns, DnsStep::None)
+            || self.terminate != TermStep::None
+    }
+
     fn dns_host(&self) -> Option<String> {
         match &self.dns {
             DnsStep::None => None,
@@ -831,43 +906,33 @@ impl AttemptRec {
     }
 }
 
-/// Claims not yet visited by a reaper pass; dropping the pass (cancellation) frees them at once on a local ledger.
-struct Pending<L: Ledger> {
-    ledger: Arc<L>,
-    claims: Vec<Claim>,
-}
-
-impl<L: Ledger> Drop for Pending<L> {
-    fn drop(&mut self) {
-        for c in &self.claims {
-            self.ledger.relinquish_blocking(c);
-        }
-    }
-}
-
 impl<G: GameLiftBackend, D: DnsBackend, L: Ledger> PlacementService<G, D, L> {
     /// Claim up to `durability.reap_batch` abandoned rows and settle what can be settled; returns how many rows became final
     /// (`finished` or `released`). Never touches `offered`, `released`, `finished` or `tombstone` rows, and never infers
     /// session end from an offer's age or a worker's lease. A dropped (cancelled) pass leaves every claim reclaimable.
     pub async fn reap_abandoned(&self) -> usize {
-        let claimed = match self
-            .db(self.ledger.claim_reapable(
-                &holder_id(),
-                self.durability.reaper_lease,
-                self.durability.reap_batch,
-            ))
-            .await
-        {
-            Ok(c) => c,
-            Err(_) => return 0,
-        };
-        let mut pending = Pending {
+        // One claim at a time: a claim's lease starts when its row is about to be worked, so a slow backend on one row can
+        // never run out the leases of the rows queued behind it. A row that could not be settled keeps its claim until the
+        // pass ends (so the pass does not claim it again and bump its fence); a cancelled pass frees them on drop.
+        let holder = holder_id();
+        let mut kept = Kept {
             ledger: self.ledger.clone(),
-            claims: claimed.iter().map(|(c, _)| c.clone()).collect(),
+            claims: Vec::new(),
         };
         let mut resolved = 0;
-        for (claim, record) in claimed {
-            pending.claims.remove(0);
+        for _ in 0..self.durability.reap_batch {
+            let mut claimed = match self
+                .db(self
+                    .ledger
+                    .claim_reapable(&holder, self.durability.reaper_lease, 1))
+                .await
+            {
+                Ok(c) => c,
+                Err(_) => break,
+            };
+            let Some((claim, record)) = claimed.pop() else {
+                break;
+            };
             debug_assert_ne!(claim.kind, ClaimKind::None);
             let mut run = Run::new(
                 self,
@@ -887,9 +952,30 @@ impl<G: GameLiftBackend, D: DnsBackend, L: Ledger> PlacementService<G, D, L> {
                     run.disarm();
                     resolved += 1;
                 }
-                Ok(false) | Err(_) => run.give_up().await,
+                Ok(false) | Err(_) => {
+                    kept.claims.push(run.claim.clone());
+                    run.disarm();
+                }
             }
         }
+        for c in std::mem::take(&mut kept.claims) {
+            let _ = self.db(self.ledger.relinquish(&c)).await;
+        }
         resolved
+    }
+}
+
+/// Claims of rows a reaper pass worked but could not settle; dropped (a cancelled pass) they are freed at once on a local
+/// ledger and expire with their lease anywhere else.
+struct Kept<L: Ledger> {
+    ledger: Arc<L>,
+    claims: Vec<Claim>,
+}
+
+impl<L: Ledger> Drop for Kept<L> {
+    fn drop(&mut self) {
+        for c in &self.claims {
+            self.ledger.relinquish_blocking(c);
+        }
     }
 }

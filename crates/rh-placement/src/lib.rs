@@ -15,6 +15,13 @@
 //! No AWS SDK is linked and no credential is read here. The real GameLift and DNS adapters are separate programs that hold
 //! the credentials (never the game process, never the bridge); this crate is the logic they call.
 
+// Fault points and mutants exist to break the service on purpose (tests and negative controls). A release build must never
+// contain them, however a feature set was assembled.
+#[cfg(all(feature = "fault-injection", not(debug_assertions)))]
+compile_error!(
+    "the `fault-injection` feature is for test builds only and cannot be enabled in a release build (debug_assertions off)"
+);
+
 pub mod backend;
 pub mod fake;
 pub mod hostname;

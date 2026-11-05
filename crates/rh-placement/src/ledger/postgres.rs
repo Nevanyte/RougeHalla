@@ -11,18 +11,22 @@
 //! reduced to a category and SQLSTATE: they never include the connection URL.
 
 use super::*;
-use sqlx::postgres::{PgPool, PgPoolOptions, PgRow};
+use sqlx::postgres::{PgConnectOptions, PgPool, PgPoolOptions, PgRow};
 use sqlx::Row as _;
 use std::future::Future;
+use std::str::FromStr;
 
 const MIGRATION_1: &str = include_str!("../../migrations/0001_placement_ledger.sql");
+const MIGRATION_2: &str = include_str!("../../migrations/0002_placement_ledger_version.sql");
 const MIGRATION_LOCK: i64 = 0x7268_706c_6163_6531; // "rhplace1"
 
 #[derive(Clone, Debug)]
 pub struct PgLedgerConfig {
     pub max_connections: u32,
     pub acquire_timeout: Duration,
-    /// Client-side budget per call, and the server's `statement_timeout`/`lock_timeout`.
+    /// Client-side budget per call. The server's `statement_timeout`/`lock_timeout` are set to four fifths of it, so the
+    /// database cancels a statement before the client gives up on it (a statement the client abandoned while it was still
+    /// queued server-side could otherwise land late; the row's version check makes that harmless, this makes it rare).
     pub op_timeout: Duration,
 }
 
@@ -65,7 +69,7 @@ fn ms(d: Duration) -> i64 {
 
 /// Columns of a full record. `$`-free: no parameters inside.
 const COLS: &str = "request_id, scope, fingerprint, request_json::text AS request_json, config_json::text AS config_json, \
-    zone, phase, final_phase, fence, claim_kind, claim_holder, \
+    zone, phase, final_phase, final_placement_id, fence, version, claim_kind, claim_holder, \
     (claim_until IS NOT NULL AND claim_until > clock_timestamp()) AS claim_live, state::text AS state, \
     (extract(epoch from created_at) * 1000)::bigint AS created_ms, \
     (extract(epoch from updated_at) * 1000)::bigint AS updated_ms, \
@@ -103,7 +107,9 @@ fn decode(row: &PgRow) -> Result<Record, LedgerError> {
         final_phase: final_phase
             .map(|p| Phase::parse(&p).ok_or_else(|| corrupt("unknown phase")))
             .transpose()?,
+        final_placement_id: row.try_get("final_placement_id").map_err(map_err)?,
         fence: row.try_get("fence").map_err(map_err)?,
+        version: row.try_get("version").map_err(map_err)?,
         claim: ClaimInfo {
             kind: ClaimKind::parse(&kind).ok_or_else(|| corrupt("unknown claim kind"))?,
             holder: row.try_get("claim_holder").map_err(map_err)?,
@@ -122,13 +128,25 @@ fn claim_of(rec: &Record) -> Claim {
         holder: rec.claim.holder.clone().unwrap_or_default(),
         fence: rec.fence,
         kind: rec.claim.kind,
+        version: rec.version,
     }
 }
 
 impl PgLedger {
     /// Connect with a bounded pool and make sure the schema is at [`SCHEMA_VERSION`].
     pub async fn connect(url: &str, cfg: PgLedgerConfig) -> Result<Self, LedgerError> {
-        let op_ms = ms(cfg.op_timeout);
+        // A parse error is reduced like every other: it must never echo the URL.
+        let opts = PgConnectOptions::from_str(url).map_err(map_err)?;
+        Self::connect_with(opts, cfg).await
+    }
+
+    /// [`PgLedger::connect`] with parsed options.
+    pub async fn connect_with(
+        opts: PgConnectOptions,
+        cfg: PgLedgerConfig,
+    ) -> Result<Self, LedgerError> {
+        let op_ms = ms(cfg.op_timeout) / 5 * 4;
+        let op_ms = op_ms.max(1);
         let pool = PgPoolOptions::new()
             .max_connections(cfg.max_connections.max(1))
             .acquire_timeout(cfg.acquire_timeout)
@@ -143,7 +161,7 @@ impl PgLedger {
                     Ok(())
                 })
             })
-            .connect(url)
+            .connect_with(opts)
             .await
             .map_err(map_err)?;
         let l = Self {
@@ -154,7 +172,8 @@ impl PgLedger {
         Ok(l)
     }
 
-    /// Use an existing pool (the caller owns its timeouts). Call [`PgLedger::migrate`] before use.
+    /// Use an existing pool. The caller owns its timeouts and MUST set the connections' `statement_timeout` below
+    /// `op_timeout` (as [`PgLedger::connect`] does). Call [`PgLedger::migrate`] before use.
     pub fn from_pool(pool: PgPool, op_timeout: Duration) -> Self {
         Self { pool, op_timeout }
     }
@@ -181,17 +200,17 @@ impl PgLedger {
                 sqlx::query_scalar("SELECT max(version) FROM rh_placement_schema")
                     .fetch_one(&mut *tx)
                     .await?;
-            match current {
-                Some(v) if v > SCHEMA_VERSION => {
-                    return Ok(Err(LedgerError::Corrupt(
-                        "database schema is newer than this binary".into(),
-                    )))
-                }
-                Some(_) => {}
-                None => {
-                    sqlx::raw_sql(MIGRATION_1).execute(&mut *tx).await?;
+            let current = current.unwrap_or(0);
+            if current > SCHEMA_VERSION {
+                return Ok(Err(LedgerError::Corrupt(
+                    "database schema is newer than this binary".into(),
+                )));
+            }
+            for (version, script) in [(1_i64, MIGRATION_1), (2_i64, MIGRATION_2)] {
+                if current < version {
+                    sqlx::raw_sql(script).execute(&mut *tx).await?;
                     sqlx::query("INSERT INTO rh_placement_schema (version) VALUES ($1)")
-                        .bind(1_i64)
+                        .bind(version)
                         .execute(&mut *tx)
                         .await?;
                 }
@@ -219,6 +238,7 @@ impl PgLedger {
         match row {
             Some(r)
                 if r.fence == claim.fence
+                    && r.version == claim.version
                     && r.claim.holder.as_deref() == Some(&claim.holder)
                     && r.claim.kind == claim.kind
                     && r.claim.live =>
@@ -231,6 +251,10 @@ impl PgLedger {
 }
 
 impl Ledger for PgLedger {
+    fn op_budget(&self) -> Option<Duration> {
+        Some(self.op_timeout)
+    }
+
     async fn open_epoch(&self, candidate: [u8; 32]) -> Result<[u8; 32], LedgerError> {
         let nonce: Option<Vec<u8>> = self
             .run(async {
@@ -301,6 +325,7 @@ impl Ledger for PgLedger {
                 holder: holder.to_string(),
                 fence: 1,
                 kind: ClaimKind::Worker,
+                version: 1,
             }));
         }
         let Some(r) = self.get(&identity.request_id).await? else {
@@ -344,13 +369,14 @@ impl Ledger for PgLedger {
         #[cfg(not(feature = "fault-injection"))]
         let fenced = true;
         let guard = if fenced {
-            "AND fence = $5 AND claim_holder = $6 AND claim_kind = $7 AND claim_until > clock_timestamp() \
-             AND phase = ANY($4)"
+            "AND fence = $5 AND version = $11 AND claim_holder = $6 AND claim_kind = $7 \
+             AND claim_until > clock_timestamp() AND phase = ANY($4)"
         } else {
-            "AND $5::bigint IS NOT NULL AND $6::text IS NOT NULL AND $7::text IS NOT NULL AND phase = ANY($4)"
+            "AND $5::bigint IS NOT NULL AND $11::bigint IS NOT NULL AND $6::text IS NOT NULL AND $7::text IS NOT NULL \
+             AND phase = ANY($4)"
         };
         let sql = format!(
-            "UPDATE rh_placement_requests SET state = $1::text::jsonb, phase = $2, \
+            "UPDATE rh_placement_requests SET state = $1::text::jsonb, phase = $2, version = version + 1, \
              claim_kind = CASE WHEN $3 THEN 'none' ELSE claim_kind END, \
              claim_holder = CASE WHEN $3 THEN NULL ELSE claim_holder END, \
              claim_until = CASE WHEN $3 THEN NULL ELSE clock_timestamp() + ($8::bigint * interval '1 millisecond') END, \
@@ -371,6 +397,7 @@ impl Ledger for PgLedger {
                     .bind(ms(lease))
                     .bind(finishes)
                     .bind(&claim.request_id)
+                    .bind(claim.version)
                     .execute(&self.pool),
             )
             .await?
@@ -408,7 +435,7 @@ impl Ledger for PgLedger {
                WHERE phase IN ('active', 'releasing') \
                  AND (claim_until IS NULL OR claim_until <= clock_timestamp()) \
                ORDER BY updated_at, request_id LIMIT $1 FOR UPDATE SKIP LOCKED) \
-             UPDATE rh_placement_requests t SET fence = t.fence + 1, \
+             UPDATE rh_placement_requests t SET fence = t.fence + 1, version = t.version + 1, \
                claim_kind = CASE WHEN t.phase = 'releasing' THEN 'release' ELSE 'reaper' END, \
                claim_holder = $2, claim_until = clock_timestamp() + ($3::bigint * interval '1 millisecond'), \
                updated_at = clock_timestamp() \
@@ -435,7 +462,7 @@ impl Ledger for PgLedger {
         lease: Duration,
     ) -> Result<ReleaseClaim, LedgerError> {
         let sql = format!(
-            "UPDATE rh_placement_requests SET fence = fence + 1, claim_kind = 'release', claim_holder = $2, \
+            "UPDATE rh_placement_requests SET fence = fence + 1, version = version + 1, claim_kind = 'release', claim_holder = $2, \
                claim_until = clock_timestamp() + ($3::bigint * interval '1 millisecond'), updated_at = clock_timestamp() \
              WHERE request_id = $1 AND phase IN ('offered', 'releasing') \
                AND (claim_until IS NULL OR claim_until <= clock_timestamp()) RETURNING {COLS}"
@@ -516,9 +543,9 @@ impl Ledger for PgLedger {
         let n = self
             .run(
                 sqlx::query(
-                    "UPDATE rh_placement_requests SET final_phase = phase, phase = 'tombstone', request_json = NULL, \
+                    "UPDATE rh_placement_requests SET final_phase = phase, final_placement_id = state->'offer'->>'placement_id', phase = 'tombstone', request_json = NULL, \
                        config_json = NULL, zone = NULL, state = NULL, claim_kind = 'none', claim_holder = NULL, \
-                       claim_until = NULL, updated_at = clock_timestamp() \
+                       claim_until = NULL, updated_at = clock_timestamp(), version = version + 1 \
                      WHERE request_id IN (SELECT request_id FROM rh_placement_requests \
                        WHERE phase IN ('finished', 'released') \
                          AND finished_at < clock_timestamp() - ($2::bigint * interval '1 millisecond') \

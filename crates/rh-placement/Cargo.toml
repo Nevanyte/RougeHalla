@@ -46,3 +46,10 @@ required-features = ["postgres", "fault-injection"]
 name = "delayed_effects"
 path = "tests/delayed_effects.rs"
 required-features = ["postgres", "fault-injection"]
+
+# The PostgreSQL suites never run silently without the feature: cargo refuses to build/run this target, instead of running
+# zero tests and reporting success. The acceptance command is `cargo test -p rh-placement --features postgres,fault-injection`.
+[[test]]
+name = "ledger_conformance_postgres"
+path = "tests/ledger_conformance_postgres.rs"
+required-features = ["postgres"]

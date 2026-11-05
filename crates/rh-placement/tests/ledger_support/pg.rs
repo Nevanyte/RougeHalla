@@ -27,6 +27,11 @@ fn database_url() -> String {
 }
 
 impl TestDb {
+    /// Connection options for this database (never printed).
+    pub fn options(&self) -> PgConnectOptions {
+        self.opts.clone()
+    }
+
     /// The database's name (the crash harness hands it to a child process; the URL itself is never exposed).
     pub fn name(&self) -> &str {
         &self.name

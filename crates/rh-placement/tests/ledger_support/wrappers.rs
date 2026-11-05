@@ -9,6 +9,7 @@ use rh_placement::ledger::{
 };
 use rh_placement::RegionCapacity;
 use std::collections::BTreeMap;
+use std::collections::VecDeque;
 use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU8, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -63,6 +64,9 @@ impl<T: DnsBackend> DnsBackend for Shared<T> {
 }
 
 impl<T: Ledger> Ledger for Shared<T> {
+    fn op_budget(&self) -> Option<Duration> {
+        self.0.op_budget()
+    }
     async fn open_epoch(&self, c: [u8; 32]) -> Result<[u8; 32], LedgerError> {
         self.0.open_epoch(c).await
     }
@@ -131,6 +135,27 @@ pub struct FaultLedger<L> {
     pub get_down: AtomicBool,
     pub all_down: AtomicBool,
     pub offer_writes: AtomicU32,
+    /// Capture the next write (first `Offered` write when `hold_offer`, else the very next one) instead of sending it, and
+    /// answer `Timeout`: the statement is "still queued at the server". [`FaultLedger::release_held`] lands it later.
+    pub hold_next_write: AtomicBool,
+    pub hold_offer: AtomicBool,
+    /// Land the captured write right before the next write goes out (a delayed statement that overtakes the retry).
+    pub land_held_before_next: AtomicBool,
+    #[allow(clippy::type_complexity)]
+    held: Mutex<Option<(Claim, LedgerState, Phase, Duration)>>,
+    /// Fail (and take the database down) any write that records a stop intent.
+    pub down_on_stop_intent: AtomicBool,
+}
+
+impl<L: Ledger> FaultLedger<L> {
+    /// Apply the captured write now, as the store finally runs it. `None` when nothing was captured.
+    pub async fn release_held(&self) -> Option<Result<WriteOutcome, LedgerError>> {
+        let h = self.held.lock().unwrap().take();
+        match h {
+            Some((c, s, p, l)) => Some(self.inner.write(&c, &s, p, l).await),
+            None => None,
+        }
+    }
 }
 
 impl<L> FaultLedger<L> {
@@ -142,6 +167,11 @@ impl<L> FaultLedger<L> {
             get_down: AtomicBool::new(false),
             all_down: AtomicBool::new(false),
             offer_writes: AtomicU32::new(0),
+            hold_next_write: AtomicBool::new(false),
+            hold_offer: AtomicBool::new(false),
+            land_held_before_next: AtomicBool::new(false),
+            held: Mutex::new(None),
+            down_on_stop_intent: AtomicBool::new(false),
         }
     }
 }
@@ -174,6 +204,25 @@ impl<L: Ledger> Ledger for FaultLedger<L> {
         l: Duration,
     ) -> Result<WriteOutcome, LedgerError> {
         if self.all_down.load(Ordering::SeqCst) {
+            return Err(down());
+        }
+        if self.land_held_before_next.load(Ordering::SeqCst) {
+            let h = self.held.lock().unwrap().take();
+            if let Some((hc, hs, hp, hl)) = h {
+                let _ = self.inner.write(&hc, &hs, hp, hl).await;
+            }
+        }
+        if self.hold_next_write.load(Ordering::SeqCst)
+            && (!self.hold_offer.load(Ordering::SeqCst) || p == Phase::Offered)
+        {
+            self.hold_next_write.store(false, Ordering::SeqCst);
+            *self.held.lock().unwrap() = Some((c.clone(), s.clone(), p, l));
+            return Err(LedgerError::Timeout);
+        }
+        if self.down_on_stop_intent.load(Ordering::SeqCst)
+            && s.attempts.iter().any(|a| a.stop == StopStep::Intent)
+        {
+            self.get_down.store(true, Ordering::SeqCst);
             return Err(down());
         }
         if p == Phase::Offered {
@@ -265,6 +314,16 @@ pub struct Tamper<T> {
     pub hold_start_receipt: Mutex<Option<Arc<Gate>>>,
     /// The first start: wait here before the provider sees the request.
     pub hold_start_effect: Mutex<Option<Arc<Gate>>>,
+    /// The provider no longer knows any placement: `describe_placement` answers `NotFound`.
+    pub describe_not_found: AtomicBool,
+    /// The next this-many describes fail with `Unavailable`.
+    pub describe_failures: AtomicU32,
+    /// Scripted answers for the next starts (nothing reaches the provider for them).
+    pub start_errors: Mutex<VecDeque<BackendError>>,
+    /// Every describe takes this long (a slow backend).
+    pub describe_delay: Mutex<Option<Duration>>,
+    /// The first describe waits here before it answers.
+    pub hold_describe: Mutex<Option<Arc<Gate>>>,
 }
 
 impl<T> Tamper<T> {
@@ -274,6 +333,11 @@ impl<T> Tamper<T> {
             tamper: AtomicU8::new(T_NONE),
             hold_start_receipt: Mutex::new(None),
             hold_start_effect: Mutex::new(None),
+            describe_not_found: AtomicBool::new(false),
+            describe_failures: AtomicU32::new(0),
+            start_errors: Mutex::new(VecDeque::new()),
+            describe_delay: Mutex::new(None),
+            hold_describe: Mutex::new(None),
         }
     }
     fn alter(&self, mut s: PlacementState) -> PlacementState {
@@ -289,6 +353,10 @@ impl<T> Tamper<T> {
 
 impl<T: GameLiftBackend> GameLiftBackend for Tamper<T> {
     async fn start_placement(&self, r: &StartPlacement) -> Result<PlacementState, BackendError> {
+        let scripted = self.start_errors.lock().unwrap().pop_front();
+        if let Some(e) = scripted {
+            return Err(e);
+        }
         let before = self.hold_start_effect.lock().unwrap().take();
         if let Some(g) = before {
             g.wait().await;
@@ -301,6 +369,24 @@ impl<T: GameLiftBackend> GameLiftBackend for Tamper<T> {
         res
     }
     async fn describe_placement(&self, id: &str) -> Result<PlacementState, BackendError> {
+        let gate = self.hold_describe.lock().unwrap().take();
+        if let Some(g) = gate {
+            g.wait().await;
+        }
+        let delay = *self.describe_delay.lock().unwrap();
+        if let Some(d) = delay {
+            tokio::time::sleep(d).await;
+        }
+        if self
+            .describe_failures
+            .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |v| v.checked_sub(1))
+            .is_ok()
+        {
+            return Err(BackendError::Unavailable("describe failed".into()));
+        }
+        if self.describe_not_found.load(Ordering::SeqCst) {
+            return Err(BackendError::NotFound);
+        }
         self.inner
             .describe_placement(id)
             .await

@@ -34,8 +34,8 @@ pub struct ServiceConfig {
     pub max_players: u32,
 }
 
-/// What the client is given.
-#[derive(Clone, Debug, PartialEq, Eq)]
+/// What the client is given. `Debug` omits the player-session ids (match credentials).
+#[derive(Clone, PartialEq, Eq)]
 pub struct JoinOffer {
     pub region: String,
     pub hostname: String,
@@ -48,6 +48,22 @@ pub struct JoinOffer {
     pub player_sessions: Vec<(String, String)>,
     pub warnings: Vec<Warning>,
     pub attempts_used: usize,
+}
+
+impl std::fmt::Debug for JoinOffer {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("JoinOffer")
+            .field("region", &self.region)
+            .field("hostname", &self.hostname)
+            .field("port", &self.port)
+            .field("url", &self.url)
+            .field("placement_id", &self.placement_id)
+            .field("game_session_arn", &self.game_session_arn)
+            .field("player_sessions", &"<redacted>")
+            .field("warnings", &self.warnings)
+            .field("attempts_used", &self.attempts_used)
+            .finish()
+    }
 }
 
 /// Progress the UI can narrate while the request is open.
@@ -247,8 +263,8 @@ enum Outcome {
 pub struct PlacementService<G, D, L = MemoryLedger> {
     ownership_nonce: [u8; 32],
     pub cfg: ServiceConfig,
-    pub gamelift: G,
-    pub dns: D,
+    gamelift: G,
+    dns: D,
     pub durability: DurabilityConfig,
     ledger: Arc<L>,
 }
@@ -300,8 +316,13 @@ impl<G: GameLiftBackend, D: DnsBackend, L: Ledger> PlacementService<G, D, L> {
         gamelift: G,
         dns: D,
         ledger: L,
-        durability: DurabilityConfig,
+        mut durability: DurabilityConfig,
     ) -> Result<Self, LedgerError> {
+        // Never give up on a ledger call sooner than the store itself does (its server-side statement timeout is below its
+        // own client budget): a call abandoned while its statement is still queued can land late.
+        if let Some(budget) = ledger.op_budget() {
+            durability.db_op_timeout = durability.db_op_timeout.max(budget);
+        }
         let nonce =
             tokio::time::timeout(durability.db_op_timeout, ledger.open_epoch(candidate_nonce))
                 .await
@@ -318,6 +339,23 @@ impl<G: GameLiftBackend, D: DnsBackend, L: Ledger> PlacementService<G, D, L> {
 
     pub fn ledger(&self) -> &L {
         &self.ledger
+    }
+
+    /// Read-only access to the backends (tests and diagnostics). Nothing outside the service replaces or reaches into them.
+    #[doc(hidden)]
+    pub fn gamelift(&self) -> &G {
+        &self.gamelift
+    }
+
+    #[doc(hidden)]
+    pub fn dns(&self) -> &D {
+        &self.dns
+    }
+
+    /// Take the backends back (a test that rebuilds a service over the same fakes).
+    #[doc(hidden)]
+    pub fn into_backends(self) -> (G, D) {
+        (self.gamelift, self.dns)
     }
 
     /// `active`/`releasing` rows not held by a live worker.
@@ -592,8 +630,13 @@ fn check_release(
         return Err(ReleaseError::Unknown);
     }
     match rec.phase {
+        // A tombstone keeps only the placement id of its offer: a released id still answers `Ok` for ITS placement and
+        // refuses any other, as the live row does.
         Phase::Tombstone => match rec.final_phase {
-            Some(Phase::Released) => Ok(true),
+            Some(Phase::Released) if rec.final_placement_id.as_deref() == Some(placement_id) => {
+                Ok(true)
+            }
+            Some(Phase::Released) => Err(ReleaseError::WrongPlacement),
             _ => Err(ReleaseError::NotOffered),
         },
         Phase::Offered | Phase::Releasing | Phase::Released => match &rec.state.offer {

@@ -13,7 +13,9 @@ struct Row {
     identity: Identity,
     phase: Phase,
     final_phase: Option<Phase>,
+    final_placement_id: Option<String>,
     fence: i64,
+    version: i64,
     claim_kind: ClaimKind,
     claim_holder: Option<String>,
     claim_until: Option<Instant>,
@@ -40,7 +42,9 @@ impl Row {
             identity: self.identity.clone(),
             phase: self.phase,
             final_phase: self.final_phase,
+            final_placement_id: self.final_placement_id.clone(),
             fence: self.fence,
+            version: self.version,
             claim: ClaimInfo {
                 kind: self.claim_kind,
                 holder: self.claim_holder.clone(),
@@ -58,6 +62,7 @@ impl Row {
             holder: self.claim_holder.clone().unwrap_or_default(),
             fence: self.fence,
             kind: self.claim_kind,
+            version: self.version,
         }
     }
 }
@@ -183,7 +188,9 @@ impl Ledger for MemoryLedger {
                 identity: identity.clone(),
                 phase: Phase::Active,
                 final_phase: None,
+                final_placement_id: None,
                 fence: 1,
+                version: 1,
                 claim_kind: ClaimKind::Worker,
                 claim_holder: Some(holder.to_string()),
                 claim_until: Some(Instant::now() + lease),
@@ -198,6 +205,7 @@ impl Ledger for MemoryLedger {
             holder: holder.to_string(),
             fence: 1,
             kind: ClaimKind::Worker,
+            version: 1,
         }))
     }
 
@@ -215,6 +223,7 @@ impl Ledger for MemoryLedger {
             return Ok(WriteOutcome::Fenced);
         };
         let held = r.fence == claim.fence
+            && r.version == claim.version
             && r.claim_holder.as_deref() == Some(&claim.holder)
             && r.claim_kind == claim.kind
             && r.live();
@@ -228,6 +237,7 @@ impl Ledger for MemoryLedger {
         }
         r.state = state.clone();
         r.phase = phase;
+        r.version += 1;
         r.updated_ms = now;
         match phase {
             Phase::Offered | Phase::Finished | Phase::Released => r.clear_claim(),
@@ -267,6 +277,7 @@ impl Ledger for MemoryLedger {
         for (_, id) in ids.into_iter().take(limit) {
             let r = g.rows.get_mut(&id).unwrap();
             r.fence += 1;
+            r.version += 1;
             r.claim_kind = if r.phase == Phase::Releasing {
                 ClaimKind::Release
             } else {
@@ -300,6 +311,7 @@ impl Ledger for MemoryLedger {
             return Ok(ReleaseClaim::Busy);
         }
         r.fence += 1;
+        r.version += 1;
         r.claim_kind = ClaimKind::Release;
         r.claim_holder = Some(holder.to_string());
         r.claim_until = Some(Instant::now() + lease);
@@ -342,11 +354,13 @@ impl Ledger for MemoryLedger {
         for (_, id) in ids.into_iter().take(limit) {
             let r = g.rows.get_mut(&id).unwrap();
             r.final_phase = Some(r.phase);
+            r.final_placement_id = r.state.offer.as_ref().map(|o| o.placement_id.clone());
             r.phase = Phase::Tombstone;
             r.identity.request_json.clear();
             r.identity.config_json.clear();
             r.identity.zone.clear();
             r.state = LedgerState::default();
+            r.version += 1;
             r.clear_claim();
             r.updated_ms = now;
             n += 1;
