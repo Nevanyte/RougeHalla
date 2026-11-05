@@ -1294,6 +1294,8 @@ mod tests {
 
     fn some_result(profile: &str) -> rh_sim::RunResult {
         rh_sim::RunResult {
+            faction: None,
+            weapon: None,
             outcome: rh_sim::Outcome::Mia,
             profile: profile.into(),
             duration_sec: 1,
@@ -1312,6 +1314,42 @@ mod tests {
     async fn settle() {
         for _ in 0..8 {
             tokio::task::yield_now().await;
+        }
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn ending_metadata_is_retained_for_humans_and_never_banks_a_bot() {
+        let d = director_with(MemoryStore::strict());
+        let m = id(1);
+        let fence = d.persistence.acquire("subject", m).await.unwrap();
+        d.inner
+            .lock()
+            .unwrap()
+            .profiles
+            .insert("subject".into(), seat(1, m, fence, SeatState::Seated));
+        let mut result = some_result("subject");
+        result.faction = Some(FactionId::Frost);
+        result.weapon = Some(rh_sim::WeaponId::Wand);
+        for bot in [true, false] {
+            d.reports
+                .send(RoomReport::Result {
+                    admission: None,
+                    match_id: m,
+                    profile: "subject".into(),
+                    fence: Some(fence),
+                    bot,
+                    result: result.clone(),
+                    roster: Roster::default(),
+                })
+                .unwrap();
+            settle().await;
+            let stored = store(&d).results.lock().unwrap();
+            if bot {
+                assert!(stored.is_empty());
+            } else {
+                assert_eq!(stored.len(), 1);
+                assert_eq!(stored[0].2, result);
+            }
         }
     }
 

@@ -30,7 +30,7 @@ real pre-styler intermediate arrays and consumed RNG words. M2b adds camp sites 
 waits for real stage inputs. New rule definitions must drive both the implementation and allocation-free content words.
 
 M2b initial camp placement/territories/reach is also implemented and independently reviewed; camp spots, post-styler
-repair and canonical record renumbering remain open. Next M3a is the actual attempt prefix through stage 3, retaining
+repair and canonical record renumbering remain open. M3a is now implemented/reviewed through stage 3, retaining
 the advanced RNG and internal IDs. Camp failure redraws zones within the four layout attempts on the same stream;
 partition failure ends the attempt. Seed 17 exercises the distinction. Capture private stages using an isolated actual
 module copy with export-only exposure/read-only taps, and require final output/hash equality with the unmodified caller.
@@ -40,6 +40,11 @@ Never reconstruct pre-repair inputs from final DTOs.
 not plain-pin parity. Camp radius is fractional `sqrt(reach2) * TILE` and participates in the legacy hash; exact
 ECMAScript number strings and UTF-16 hashing are required, not integer-only formatting. Full plain pins must wait for
 the actual landmark runtime/callbacks, safety nets, spot/crate/repair passes, tail records and all acceptance gates.
+
+Next bounded source work is spawn-pool preparation and the independent gate walk decision using actual captured
+post-landmark layers. Do not substitute empty landmark masks. The original picked pool's protection masks survive
+later gate member removal. Landmark runtime/templates/callbacks remain a separate prerequisite before claiming plain
+generation. Existing strict differential and pin rules continue to apply.
 
 ## Exclusive write scope
 Initial foundation worker: new `crates/rh-sim/src/mapgen/**` and `tools/map-fixtures/**` only. Coordinator adds the module

@@ -76,6 +76,11 @@ const NON_GAMEPLAY: &[(&str, &str, &str)] = &[
 /// (file, name, reason).
 const TABLES_FOLDED_BY_HASH: &[(&str, &str, &str)] = &[
     (
+        "mapgen/attempt/rules.rs",
+        "DEFAULT_DEFINITION",
+        "both attempt-prefix values drive runtime and are folded by content_hash_of_attempt_definition",
+    ),
+    (
         "mapgen/zones/camps/rules.rs",
         "DEFAULT_DEFINITION",
         "all 13 camp/initial-territory tunables drive generation and are folded by content_hash_of_camp_definition",
@@ -323,7 +328,7 @@ fn hash_golden() {
         content_hash()
     );
 }
-const GOLDEN_CONTENT_HASH: u64 = 0x038e_e74f_114d_47bf;
+const GOLDEN_CONTENT_HASH: u64 = 0xe639_a5f9_fc48_e272;
 
 #[test]
 fn every_registry_row_perturbs_the_hash() {
@@ -467,6 +472,28 @@ fn camp_rules_move_the_content_hash() {
     definition.halo_window += 1;
     assert_ne!(
         content_hash_of_camp_definition(REGISTRY, STAGGER_WEAPONS, &definition),
+        base
+    );
+}
+
+#[test]
+fn attempt_prefix_rules_move_the_content_hash() {
+    use rh_sim::content::content_hash_of_attempt_definition;
+    let mut definition = rh_sim::mapgen::attempt::default_definition();
+    let base = content_hash();
+    assert_eq!(
+        content_hash_of_attempt_definition(REGISTRY, STAGGER_WEAPONS, &definition),
+        base
+    );
+    definition.layout_tries += 1;
+    assert_ne!(
+        content_hash_of_attempt_definition(REGISTRY, STAGGER_WEAPONS, &definition),
+        base
+    );
+    definition = rh_sim::mapgen::attempt::default_definition();
+    definition.retry_seed_stride += 1.0;
+    assert_ne!(
+        content_hash_of_attempt_definition(REGISTRY, STAGGER_WEAPONS, &definition),
         base
     );
 }

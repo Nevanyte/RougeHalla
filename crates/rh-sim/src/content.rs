@@ -419,6 +419,7 @@ pub fn content_hash_of_map_definition(
         definition,
         &crate::mapgen::zones::default_definition(),
         &crate::mapgen::zones::camps::default_definition(),
+        &crate::mapgen::attempt::default_definition(),
     )
 }
 
@@ -434,6 +435,7 @@ pub fn content_hash_of_zone_definition(
         &crate::mapgen::coliseum::default_definition(),
         definition,
         &crate::mapgen::zones::camps::default_definition(),
+        &crate::mapgen::attempt::default_definition(),
     )
 }
 
@@ -449,6 +451,23 @@ pub fn content_hash_of_camp_definition(
         &crate::mapgen::coliseum::default_definition(),
         &crate::mapgen::zones::default_definition(),
         definition,
+        &crate::mapgen::attempt::default_definition(),
+    )
+}
+
+/// Attempt-prefix retry/arithmetic rules are shared by the producer and its identity.
+pub fn content_hash_of_attempt_definition(
+    registry: &[Entry],
+    stagger_weapons: &[WeaponId],
+    definition: &crate::mapgen::attempt::AttemptDefinition,
+) -> u64 {
+    content_hash_of_map_definitions(
+        registry,
+        stagger_weapons,
+        &crate::mapgen::coliseum::default_definition(),
+        &crate::mapgen::zones::default_definition(),
+        &crate::mapgen::zones::camps::default_definition(),
+        definition,
     )
 }
 
@@ -458,6 +477,7 @@ fn content_hash_of_map_definitions(
     coliseum: &crate::mapgen::coliseum::FixedDefinition<'_>,
     zones: &crate::mapgen::zones::ZoneDefinition,
     camps: &crate::mapgen::zones::camps::CampDefinition,
+    attempt: &crate::mapgen::attempt::AttemptDefinition,
 ) -> u64 {
     let mut h = Fnv::new();
 
@@ -476,6 +496,9 @@ fn content_hash_of_map_definitions(
 
     h.str("mapgen/zones/camps/1");
     crate::mapgen::zones::camps::visit_content(camps, |word| h.u64(word));
+
+    h.str("mapgen/attempt-prefix/1");
+    crate::mapgen::attempt::visit_content(attempt, |word| h.u64(word));
 
     h.str("factions");
     for f in FactionId::ALL {

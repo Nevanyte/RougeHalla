@@ -515,6 +515,7 @@ impl Player {
                 inputs: InputQueue::default(),
             },
             seat: Seat {
+                picked_faction: None,
                 profile: profile.to_string(),
                 name: profile.to_string(),
                 bot,

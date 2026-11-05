@@ -4,7 +4,7 @@
 //! one of its components), so a new kind of fighter is a new wrapper around the same core, not a copy of the systems.
 //!
 //! The components own their data only; the rules live in `systems/`. All of it is plain data that serializes, hashes and
-//! checkpoints (the layout is `rh-checkpoint/9`).
+//! checkpoints (the layout is `rh-checkpoint/10`).
 
 use crate::content::{FactionId, WeaponId};
 use crate::input::{InputQueue, OrderBudget};
@@ -135,6 +135,8 @@ impl<'a> FighterRef<'a> {
 /// The seat a player occupies: who it is for banking and display, and how fast it may give orders.
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Seat {
+    /// Private persistence provenance: only an explicit join choice earns faction win progress.
+    pub(crate) picked_faction: Option<FactionId>,
     /// The profile (callsign) the result is banked to; for a bot only its display name.
     pub profile: String,
     pub name: String,

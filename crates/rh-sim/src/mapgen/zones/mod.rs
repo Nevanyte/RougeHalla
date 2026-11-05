@@ -27,6 +27,15 @@ pub struct ZoneContext<'a> {
     clear_offsets: Vec<i32>,
 }
 impl<'a> ZoneContext<'a> {
+    /// Shared clearing geometry for later attempt stages; the definition remains the sole owner.
+    pub fn camp_radius(&self) -> f64 {
+        self.rules.camp_radius
+    }
+
+    pub fn clearing_offsets(&self) -> &[i32] {
+        &self.clear_offsets
+    }
+
     pub fn new(fixed: &'a FixedLayout) -> Self {
         Self::from_definition(fixed, &default_definition())
     }

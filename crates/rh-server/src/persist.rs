@@ -632,9 +632,8 @@ pub mod pg {
         }
     }
 
-    /// Every field of the `RunResult` is kept (the record is stored whole). The per-win faction and weapon counters need the
-    /// player's faction and weapon at the end, which RunResult does not carry yet (docs/backlog P-PERSIST-2), so those two
-    /// stay `None`.
+    /// Every field of the private simulation result is retained, including the explicit faction
+    /// choice and carried item captured after the legacy body-drop order.
     pub fn to_persist(r: &rh_sim::RunResult) -> rh_persist::MatchResult {
         let g = &r.gv;
         rh_persist::MatchResult {
@@ -653,8 +652,8 @@ pub mod pg {
                 win: g.win as i64,
                 total: g.total as i64,
             },
-            faction: None,
-            weapon: None,
+            faction: r.faction.map(|f| f.as_str().to_owned()),
+            weapon: r.weapon.map(|w| w.as_str().to_owned()),
             win_qualified: r.outcome == Outcome::Won && !r.win_bonus_withheld,
             duration_sec: i64::from(r.duration_sec),
             killed_by: r.killed_by.clone(),

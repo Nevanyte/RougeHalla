@@ -36,6 +36,10 @@ pub struct GvBreakdown {
 pub struct RunResult {
     pub outcome: Outcome,
     pub profile: String,
+    /// Explicit join choice, not the runtime round-robin default (legacy RaidRoom.picked).
+    pub faction: Option<crate::FactionId>,
+    /// Selected carried item at resolution, after body drops. Empty hands are None, not Fists.
+    pub weapon: Option<crate::WeaponId>,
     pub duration_sec: u32,
     pub kills: u32,
     pub killed_by: Option<String>,
@@ -46,3 +50,6 @@ pub struct RunResult {
     pub win_bonus_withheld: bool,
     pub win_bonus_why: Option<WinBonusWhy>,
 }
+
+#[cfg(test)]
+mod tests;

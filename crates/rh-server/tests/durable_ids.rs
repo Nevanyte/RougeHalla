@@ -60,6 +60,8 @@ fn stored_result_spellings_are_pinned() {
     use rh_sim::sim::Outcome;
     use rh_sim::RunResult;
     let mut r = RunResult {
+        faction: None,
+        weapon: None,
         outcome: Outcome::Won,
         profile: "p".into(),
         duration_sec: 90,

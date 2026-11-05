@@ -55,6 +55,8 @@ jobs:
         run: node --import tsx tools/persist-fixtures/achievements.ts --check
       - name: Shop catalog and validated look words still match the legacy reference
         run: node --import tsx tools/persist-fixtures/cosmetics.ts --check
+      - name: Ending metadata still matches the legacy room and store
+        run: node --import tsx tools/persist-fixtures/ending-metadata.ts --check
       - name: Map foundations still match the legacy reference
         run: node --import tsx tools/map-fixtures/foundations.ts --check
       - name: Full map exports still match the legacy reference
@@ -63,6 +65,8 @@ jobs:
         run: node --import tsx tools/map-fixtures/zones-partition.ts --check
       - name: Initial camps and territories still match the legacy reference
         run: node --import tsx tools/map-fixtures/zones-camps.ts --check
+      - name: Attempt prefixes still match the actual legacy generator
+        run: node --import tsx tools/map-fixtures/attempt-frame.ts --check
       - name: Browser proof (Chromium over WSS)
         run: |
           cargo build -p rh-server

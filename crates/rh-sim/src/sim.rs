@@ -218,6 +218,7 @@ impl Sim {
         }
         let join_index = self.w.joined;
         self.w.joined = self.w.joined.saturating_add(1);
+        let picked_faction = faction;
         let faction = faction.unwrap_or_else(|| FactionId::default_for(join_index));
         let hp = crate::content::faction(faction).hp;
         let spot = if self.k.arena.spawns.is_empty() {
@@ -231,9 +232,9 @@ impl Sim {
         let id = PlayerId(self.w.next_id);
         self.w.next_id += 1;
         self.w.roster.push(id, profile);
-        self.w
-            .players
-            .push(Player::joining(id, profile, bot, faction, spot, hp));
+        let mut player = Player::joining(id, profile, bot, faction, spot, hp);
+        player.seat.picked_faction = picked_faction;
+        self.w.players.push(player);
         Some(id)
     }
 

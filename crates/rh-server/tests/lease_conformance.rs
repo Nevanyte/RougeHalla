@@ -120,6 +120,8 @@ fn cases() -> Vec<Case> {
 
 fn result(profile: &str) -> RunResult {
     RunResult {
+        faction: None,
+        weapon: None,
         outcome: Outcome::Mia,
         profile: profile.into(),
         duration_sec: 1,

@@ -38,3 +38,8 @@ See `crates/rh-sim/src/mapgen/zones/README.md` for the API and the unimplemented
 Its 128-stream scan records 116 successes and 12 terminal failures (no retrying successes); ten full cases retain complete
 camp fields, arrays, input/draw transcripts and continuation words. `--check` verifies `mapgen/fixtures/zones-camps.json`
 with the same pinned runtime. Camp spots, post-styler repair, canonical record renumbering and full generation remain open.
+
+`attempt-frame.ts` captures the actual generator prefix through stage 3 using an isolated source copy with observational
+taps. It verifies complete final output/hash equality against the unmodified real caller, then compares exact intermediate
+arrays and RNG words. Fourteen cases include real camp-failure redraws and wide/signed attempt arithmetic. `--check`
+verifies `mapgen/fixtures/attempt-frame.json`; a frame is not a finished map or a plain-pin claim.

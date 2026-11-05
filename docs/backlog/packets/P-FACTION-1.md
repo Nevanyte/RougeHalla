@@ -1,5 +1,29 @@
 # P-FACTION-1: faction signatures, engagement, lifesteal and chill
 
+## Planned next slice: Plague and temporal public reporting
+
+Implementation has not started. Source audit selects Plague plus shared DoT accounting/reporting first, then Fire with
+the genuine afterWeapons attack snapshot. Disease and execute are two ordered Disease entries; execute is a private
+flag, not a new signature kind. Both read the source pre-ledger HP fraction without barrier. The proportional DoT cap
+replaces the instantaneous hit cap for those entries; barrier apportionment follows. A stagger's own tick is not paused;
+with current player timings only wand produces a positive later pause (bow exempt, melee windups zero).
+
+An actual-source paired probe found a delayed visibility leak: hidden earlier Plague damage produced chunks
+12.146966292134834 versus 8.097977528089888 at tick 11, despite identical visible HP/signature history since tick 9.
+The safe proposed public boundary is per-contribution eligibility at its settled tick, with canonical flush timing.
+Both visible portions in that pair total 4.048988764044944, with the unseen source redacted. Trusted private totals,
+damage, summation and flush events must remain source-exact.
+
+Redact source identity before public bucket keys/order/first-weapon selection; anonymous contributions must not expose
+hidden source count or history. Live/headless/policy share a canonical every-tick Rust projection feed independent of
+decision/delivery cadence. Fresh reconnect/restore sessions discard prior public-window entitlement; skipped history
+cannot be rebuilt from the current view. Game rules never consume projector output. API continuity/checkpoint details
+need independent review before implementation. No aggregation belongs in Unity.
+
+Whole-window suppression is a possible conservative alternative only if eligibility covers every tick of the entire
+window, including zero-damage ticks. Requiring visibility only for actual contributions leaks through event absence.
+Keep the original Fire/Plague full-world traces capture-only until unrelated installer inactivity is established.
+
 ## Stage 2 bounded slice: engagement and Holy
 
 Implemented and independently reviewed in `SimConfig.holy_foundation` (default false): private engagement, trusted

@@ -240,6 +240,12 @@ fn resolve(
     let result = RunResult {
         outcome,
         profile: p.seat.profile.clone(),
+        faction: p.seat.picked_faction,
+        weapon: if p.weapon.slot == 1 {
+            p.weapon.weapon1
+        } else {
+            p.weapon.weapon0
+        },
         duration_sec: if started > 0.0 {
             js_round((now - started) / 1000.0) as u32
         } else {

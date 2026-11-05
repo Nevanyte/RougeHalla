@@ -572,6 +572,8 @@ mod tests {
                 id: a,
                 bot: false,
                 result: RunResult {
+                    faction: None,
+                    weapon: None,
                     outcome: Outcome::Won,
                     profile: "p".into(),
                     duration_sec: 1,

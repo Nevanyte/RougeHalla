@@ -138,7 +138,7 @@ Paths are relative to `packages/` unless they start with `crates/`, `docs/`, `de
 
 | ID | Outcome | Depends on | Status | Legacy owners |
 |---|---|---|---|---|
-| P-MAP-1 | Port the generator and the independent certifier; reproduce the pinned hashes or record an owner-approved re-pin | none | M0/M1, M2a partition and M2b initial camps/territories implemented/reviewed; spots/repair/styles/generator/certifier/pins remain | shared/mapgen.ts, zones.ts, coliseum.ts, zoneStyle/*, gridOps.ts, gridTopology.ts, detMath.ts, test/mapCertify.ts, test/mapPins.ts |
+| P-MAP-1 | Port the generator and the independent certifier; reproduce the pinned hashes or record an owner-approved re-pin | none | M0/M1, M2a/M2b and M3a attempt prefix implemented/reviewed; spawns/landmarks/spots/repair/tail/generator/certifier/pins remain | shared/mapgen.ts, zones.ts, coliseum.ts, zoneStyle/*, gridOps.ts, gridTopology.ts, detMath.ts, test/mapCertify.ts, test/mapPins.ts |
 | P-MAP-2 | Public layers on the wire (zones, terrain, features, camps, spawn subset): `MapBlob` v2 + C# decode | P-MAP-1 (or `rh-map/2` export), P-NET-3 | Coarse | shared/mapWire.ts, map.ts |
 | P-MAP-3 | Off-tick certified-map pool (worker/thread, target 8, refill 6, fallback, hang watchdog) | P-MAP-1 | Coarse | server/src/mapPool.ts, mapWorker.ts |
 | P-MAP-4 | Client art data: decor/props from the public seed (cosmetic, unhashed), zone art inputs for Unity | P-MAP-2, P-UI-8 | Coarse | shared/propKinds.ts, client/src/render/zoneArt/* |
@@ -208,7 +208,7 @@ is **not implemented**; the gain figures are **estimates**.
 
 | ID | Outcome | Depends on | Status | Legacy owners |
 |---|---|---|---|---|
-| P-PERSIST-2 | Wire `rh-server` to `rh-persist` in production: Postgres auth, lease renewal, achievements port, faction/weapon in results, profile REST API port | none | Achievements/catalog/live renewal implemented and reviewed; ending-kit metadata, crash recovery and REST remain | server/src/persistence/ProfileStore.ts, index.ts (`/api/profile*`, `/api/leaderboard`), shared/achievements.ts, cosmetics.ts |
+| P-PERSIST-2 | Wire `rh-server` to `rh-persist` in production: Postgres auth, lease renewal, achievements port, faction/weapon in results, profile REST API port | none | Achievements/catalog/live renewal/ending metadata implemented and reviewed; crash recovery and REST remain | server/src/persistence/ProfileStore.ts, index.ts (`/api/profile*`, `/api/leaderboard`), shared/achievements.ts, cosmetics.ts |
 | P-PERSIST-3 | Leaderboard months, shop catalog parity, cosmetics `look` word in `rh-protocol` | P-PERSIST-2 | Catalog/validated look packing implemented (57 entries, 301 legacy cases); leaderboard/API and wire presentation remain | ProfileStore.ts, shared/cosmetics.ts |
 | P-PERSIST-4 | Aurora failover and pool-exhaustion tests; retry/backoff sizing | P-PERSIST-2 | Coarse | none (ADR 0006 "not yet tested") |
 | P-PERSIST-5 | New-profile rate caps and passcode equivalents at the edge | P-PERSIST-2, P-HOST-2 | Coarse | server/src/guards/*, config.ts |

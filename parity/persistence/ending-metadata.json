@@ -1,0 +1,826 @@
+{
+  "format": "rh-ending-metadata/1",
+  "source": "RaidRoom.onJoin/settle/bankVoided -> JsonProfileStore",
+  "cases": [
+    {
+      "input": {
+        "name": "explicit-faction-wand",
+        "faction": "frost",
+        "weapon0": "wand",
+        "weapon1": null,
+        "slot": 0,
+        "swap": false,
+        "finish": "won",
+        "qualified": true,
+        "bot": false,
+        "training": false,
+        "earned": 0
+      },
+      "result": {
+        "outcome": "won",
+        "profile": "Subject",
+        "durationSec": 0,
+        "kills": 0,
+        "killedBy": null,
+        "place": 1,
+        "players": 3,
+        "gv": {
+          "kills": 0,
+          "mobs": 0,
+          "bounty": 0,
+          "quest": 0,
+          "win": 50,
+          "total": 50
+        },
+        "winBonusWithheld": false
+      },
+      "record": {
+        "outcome": "won",
+        "kills": 0,
+        "gv": 50,
+        "bounty": 0,
+        "weapon": "wand",
+        "faction": "frost",
+        "winQualified": true
+      },
+      "banks": [],
+      "stats": {
+        "runs": 1,
+        "wins": 1,
+        "draws": 0,
+        "deaths": 0,
+        "kills": 0
+      },
+      "progress": {
+        "qualifiedWins": 1,
+        "bountyRuns": 0,
+        "bestRunKills": 0,
+        "winsByFaction": {
+          "frost": 1
+        },
+        "winsByWeapon": {
+          "wand": 1
+        }
+      },
+      "gv": 50
+    },
+    {
+      "input": {
+        "name": "default-faction",
+        "faction": null,
+        "weapon0": "wand",
+        "weapon1": null,
+        "slot": 0,
+        "swap": false,
+        "finish": "won",
+        "qualified": true,
+        "bot": false,
+        "training": false,
+        "earned": 0
+      },
+      "result": {
+        "outcome": "won",
+        "profile": "Subject",
+        "durationSec": 0,
+        "kills": 0,
+        "killedBy": null,
+        "place": 1,
+        "players": 3,
+        "gv": {
+          "kills": 0,
+          "mobs": 0,
+          "bounty": 0,
+          "quest": 0,
+          "win": 50,
+          "total": 50
+        },
+        "winBonusWithheld": false
+      },
+      "record": {
+        "outcome": "won",
+        "kills": 0,
+        "gv": 50,
+        "bounty": 0,
+        "weapon": "wand",
+        "winQualified": true
+      },
+      "banks": [],
+      "stats": {
+        "runs": 1,
+        "wins": 1,
+        "draws": 0,
+        "deaths": 0,
+        "kills": 0
+      },
+      "progress": {
+        "qualifiedWins": 1,
+        "bountyRuns": 0,
+        "bestRunKills": 0,
+        "winsByFaction": {},
+        "winsByWeapon": {
+          "wand": 1
+        }
+      },
+      "gv": 50
+    },
+    {
+      "input": {
+        "name": "selected-empty-other-armed",
+        "faction": "frost",
+        "weapon0": null,
+        "weapon1": "axe",
+        "slot": 0,
+        "swap": false,
+        "finish": "won",
+        "qualified": true,
+        "bot": false,
+        "training": false,
+        "earned": 0
+      },
+      "result": {
+        "outcome": "won",
+        "profile": "Subject",
+        "durationSec": 0,
+        "kills": 0,
+        "killedBy": null,
+        "place": 1,
+        "players": 3,
+        "gv": {
+          "kills": 0,
+          "mobs": 0,
+          "bounty": 0,
+          "quest": 0,
+          "win": 50,
+          "total": 50
+        },
+        "winBonusWithheld": false
+      },
+      "record": {
+        "outcome": "won",
+        "kills": 0,
+        "gv": 50,
+        "bounty": 0,
+        "faction": "frost",
+        "winQualified": true
+      },
+      "banks": [],
+      "stats": {
+        "runs": 1,
+        "wins": 1,
+        "draws": 0,
+        "deaths": 0,
+        "kills": 0
+      },
+      "progress": {
+        "qualifiedWins": 1,
+        "bountyRuns": 0,
+        "bestRunKills": 0,
+        "winsByFaction": {
+          "frost": 1
+        },
+        "winsByWeapon": {}
+      },
+      "gv": 50
+    },
+    {
+      "input": {
+        "name": "both-empty-fists",
+        "faction": "frost",
+        "weapon0": null,
+        "weapon1": null,
+        "slot": 0,
+        "swap": false,
+        "finish": "won",
+        "qualified": true,
+        "bot": false,
+        "training": false,
+        "earned": 0
+      },
+      "result": {
+        "outcome": "won",
+        "profile": "Subject",
+        "durationSec": 0,
+        "kills": 0,
+        "killedBy": null,
+        "place": 1,
+        "players": 3,
+        "gv": {
+          "kills": 0,
+          "mobs": 0,
+          "bounty": 0,
+          "quest": 0,
+          "win": 50,
+          "total": 50
+        },
+        "winBonusWithheld": false
+      },
+      "record": {
+        "outcome": "won",
+        "kills": 0,
+        "gv": 50,
+        "bounty": 0,
+        "faction": "frost",
+        "winQualified": true
+      },
+      "banks": [],
+      "stats": {
+        "runs": 1,
+        "wins": 1,
+        "draws": 0,
+        "deaths": 0,
+        "kills": 0
+      },
+      "progress": {
+        "qualifiedWins": 1,
+        "bountyRuns": 0,
+        "bestRunKills": 0,
+        "winsByFaction": {
+          "frost": 1
+        },
+        "winsByWeapon": {}
+      },
+      "gv": 50
+    },
+    {
+      "input": {
+        "name": "second-slot-held",
+        "faction": "frost",
+        "weapon0": "wand",
+        "weapon1": "shield",
+        "slot": 1,
+        "swap": false,
+        "finish": "won",
+        "qualified": true,
+        "bot": false,
+        "training": false,
+        "earned": 0
+      },
+      "result": {
+        "outcome": "won",
+        "profile": "Subject",
+        "durationSec": 0,
+        "kills": 0,
+        "killedBy": null,
+        "place": 1,
+        "players": 3,
+        "gv": {
+          "kills": 0,
+          "mobs": 0,
+          "bounty": 0,
+          "quest": 0,
+          "win": 50,
+          "total": 50
+        },
+        "winBonusWithheld": false
+      },
+      "record": {
+        "outcome": "won",
+        "kills": 0,
+        "gv": 50,
+        "bounty": 0,
+        "weapon": "shield",
+        "faction": "frost",
+        "winQualified": true
+      },
+      "banks": [],
+      "stats": {
+        "runs": 1,
+        "wins": 1,
+        "draws": 0,
+        "deaths": 0,
+        "kills": 0
+      },
+      "progress": {
+        "qualifiedWins": 1,
+        "bountyRuns": 0,
+        "bestRunKills": 0,
+        "winsByFaction": {
+          "frost": 1
+        },
+        "winsByWeapon": {
+          "shield": 1
+        }
+      },
+      "gv": 50
+    },
+    {
+      "input": {
+        "name": "swapped-from-wand",
+        "faction": "frost",
+        "weapon0": "wand",
+        "weapon1": "sword",
+        "slot": 0,
+        "swap": true,
+        "finish": "won",
+        "qualified": true,
+        "bot": false,
+        "training": false,
+        "earned": 0
+      },
+      "result": {
+        "outcome": "won",
+        "profile": "Subject",
+        "durationSec": 0,
+        "kills": 0,
+        "killedBy": null,
+        "place": 1,
+        "players": 3,
+        "gv": {
+          "kills": 0,
+          "mobs": 0,
+          "bounty": 0,
+          "quest": 0,
+          "win": 50,
+          "total": 50
+        },
+        "winBonusWithheld": false
+      },
+      "record": {
+        "outcome": "won",
+        "kills": 0,
+        "gv": 50,
+        "bounty": 0,
+        "weapon": "sword",
+        "faction": "frost",
+        "winQualified": true
+      },
+      "banks": [],
+      "stats": {
+        "runs": 1,
+        "wins": 1,
+        "draws": 0,
+        "deaths": 0,
+        "kills": 0
+      },
+      "progress": {
+        "qualifiedWins": 1,
+        "bountyRuns": 0,
+        "bestRunKills": 0,
+        "winsByFaction": {
+          "frost": 1
+        },
+        "winsByWeapon": {
+          "sword": 1
+        }
+      },
+      "gv": 50
+    },
+    {
+      "input": {
+        "name": "last-held-before-death",
+        "faction": "frost",
+        "weapon0": "wand",
+        "weapon1": null,
+        "slot": 0,
+        "swap": false,
+        "finish": "died",
+        "qualified": true,
+        "bot": false,
+        "training": false,
+        "earned": 0
+      },
+      "result": {
+        "outcome": "died",
+        "profile": "Subject",
+        "durationSec": 0,
+        "kills": 0,
+        "killedBy": null,
+        "place": 3,
+        "players": 3,
+        "gv": {
+          "kills": 0,
+          "mobs": 0,
+          "bounty": 0,
+          "quest": 0,
+          "win": 0,
+          "total": 0
+        },
+        "winBonusWithheld": false
+      },
+      "record": {
+        "outcome": "died",
+        "kills": 0,
+        "gv": 0,
+        "bounty": 0,
+        "faction": "frost",
+        "winQualified": false
+      },
+      "banks": [],
+      "stats": {
+        "runs": 1,
+        "wins": 0,
+        "draws": 0,
+        "deaths": 1,
+        "kills": 0
+      },
+      "progress": {
+        "qualifiedWins": 0,
+        "bountyRuns": 0,
+        "bestRunKills": 0,
+        "winsByFaction": {},
+        "winsByWeapon": {}
+      },
+      "gv": 0
+    },
+    {
+      "input": {
+        "name": "active-mia",
+        "faction": "frost",
+        "weapon0": "wand",
+        "weapon1": null,
+        "slot": 0,
+        "swap": false,
+        "finish": "mia",
+        "qualified": true,
+        "bot": false,
+        "training": false,
+        "earned": 0
+      },
+      "result": {
+        "outcome": "mia",
+        "profile": "Subject",
+        "durationSec": 0,
+        "kills": 0,
+        "killedBy": null,
+        "place": 3,
+        "players": 3,
+        "gv": {
+          "kills": 0,
+          "mobs": 0,
+          "bounty": 0,
+          "quest": 0,
+          "win": 0,
+          "total": 0
+        },
+        "winBonusWithheld": false
+      },
+      "record": {
+        "outcome": "mia",
+        "kills": 0,
+        "gv": 0,
+        "bounty": 0,
+        "faction": "frost",
+        "winQualified": false
+      },
+      "banks": [],
+      "stats": {
+        "runs": 1,
+        "wins": 0,
+        "draws": 0,
+        "deaths": 1,
+        "kills": 0
+      },
+      "progress": {
+        "qualifiedWins": 0,
+        "bountyRuns": 0,
+        "bestRunKills": 0,
+        "winsByFaction": {},
+        "winsByWeapon": {}
+      },
+      "gv": 0
+    },
+    {
+      "input": {
+        "name": "posthumous-qualified-winner",
+        "faction": "frost",
+        "weapon0": "wand",
+        "weapon1": null,
+        "slot": 0,
+        "swap": false,
+        "finish": "posthumous",
+        "qualified": true,
+        "bot": false,
+        "training": false,
+        "earned": 0
+      },
+      "result": {
+        "outcome": "won",
+        "profile": "Subject",
+        "durationSec": 0,
+        "kills": 0,
+        "killedBy": null,
+        "place": 1,
+        "players": 3,
+        "gv": {
+          "kills": 0,
+          "mobs": 0,
+          "bounty": 0,
+          "quest": 0,
+          "win": 50,
+          "total": 50
+        },
+        "winBonusWithheld": false
+      },
+      "record": {
+        "outcome": "won",
+        "kills": 0,
+        "gv": 50,
+        "bounty": 0,
+        "faction": "frost",
+        "winQualified": true
+      },
+      "banks": [],
+      "stats": {
+        "runs": 1,
+        "wins": 1,
+        "draws": 0,
+        "deaths": 0,
+        "kills": 0
+      },
+      "progress": {
+        "qualifiedWins": 1,
+        "bountyRuns": 0,
+        "bestRunKills": 0,
+        "winsByFaction": {
+          "frost": 1
+        },
+        "winsByWeapon": {}
+      },
+      "gv": 50
+    },
+    {
+      "input": {
+        "name": "draw-after-body-drops",
+        "faction": "frost",
+        "weapon0": "wand",
+        "weapon1": null,
+        "slot": 0,
+        "swap": false,
+        "finish": "draw",
+        "qualified": true,
+        "bot": false,
+        "training": false,
+        "earned": 0
+      },
+      "result": {
+        "outcome": "draw",
+        "profile": "Subject",
+        "durationSec": 0,
+        "kills": 0,
+        "killedBy": null,
+        "place": 1,
+        "players": 3,
+        "gv": {
+          "kills": 0,
+          "mobs": 0,
+          "bounty": 0,
+          "quest": 0,
+          "win": 0,
+          "total": 0
+        },
+        "winBonusWithheld": false
+      },
+      "record": {
+        "outcome": "draw",
+        "kills": 0,
+        "gv": 0,
+        "bounty": 0,
+        "faction": "frost",
+        "winQualified": false
+      },
+      "banks": [],
+      "stats": {
+        "runs": 1,
+        "wins": 0,
+        "draws": 1,
+        "deaths": 0,
+        "kills": 0
+      },
+      "progress": {
+        "qualifiedWins": 0,
+        "bountyRuns": 0,
+        "bestRunKills": 0,
+        "winsByFaction": {},
+        "winsByWeapon": {}
+      },
+      "gv": 0
+    },
+    {
+      "input": {
+        "name": "withheld-held-wand",
+        "faction": "frost",
+        "weapon0": "wand",
+        "weapon1": null,
+        "slot": 0,
+        "swap": false,
+        "finish": "won",
+        "qualified": false,
+        "bot": false,
+        "training": false,
+        "earned": 0
+      },
+      "result": {
+        "outcome": "won",
+        "profile": "Subject",
+        "durationSec": 0,
+        "kills": 0,
+        "killedBy": null,
+        "place": 1,
+        "players": 3,
+        "gv": {
+          "kills": 0,
+          "mobs": 0,
+          "bounty": 0,
+          "quest": 0,
+          "win": 0,
+          "total": 0
+        },
+        "winBonusWithheld": true,
+        "winBonusWhy": "opponents"
+      },
+      "record": {
+        "outcome": "won",
+        "kills": 0,
+        "gv": 0,
+        "bounty": 0,
+        "weapon": "wand",
+        "faction": "frost",
+        "winQualified": false
+      },
+      "banks": [],
+      "stats": {
+        "runs": 1,
+        "wins": 1,
+        "draws": 0,
+        "deaths": 0,
+        "kills": 0
+      },
+      "progress": {
+        "qualifiedWins": 0,
+        "bountyRuns": 0,
+        "bestRunKills": 0,
+        "winsByFaction": {},
+        "winsByWeapon": {}
+      },
+      "gv": 0
+    },
+    {
+      "input": {
+        "name": "void-earned",
+        "faction": "frost",
+        "weapon0": "wand",
+        "weapon1": null,
+        "slot": 0,
+        "swap": false,
+        "finish": "void",
+        "qualified": true,
+        "bot": false,
+        "training": false,
+        "earned": 7
+      },
+      "result": null,
+      "record": null,
+      "banks": [
+        7
+      ],
+      "stats": {
+        "runs": 0,
+        "wins": 0,
+        "draws": 0,
+        "deaths": 0,
+        "kills": 0
+      },
+      "progress": {
+        "qualifiedWins": 0,
+        "bountyRuns": 0,
+        "bestRunKills": 0,
+        "winsByFaction": {},
+        "winsByWeapon": {}
+      },
+      "gv": 7
+    },
+    {
+      "input": {
+        "name": "void-zero",
+        "faction": "frost",
+        "weapon0": "wand",
+        "weapon1": null,
+        "slot": 0,
+        "swap": false,
+        "finish": "void",
+        "qualified": true,
+        "bot": false,
+        "training": false,
+        "earned": 0
+      },
+      "result": null,
+      "record": null,
+      "banks": [],
+      "stats": {
+        "runs": 0,
+        "wins": 0,
+        "draws": 0,
+        "deaths": 0,
+        "kills": 0
+      },
+      "progress": {
+        "qualifiedWins": 0,
+        "bountyRuns": 0,
+        "bestRunKills": 0,
+        "winsByFaction": {},
+        "winsByWeapon": {}
+      },
+      "gv": 0
+    },
+    {
+      "input": {
+        "name": "bot-suppressed",
+        "faction": "frost",
+        "weapon0": "wand",
+        "weapon1": null,
+        "slot": 0,
+        "swap": false,
+        "finish": "won",
+        "qualified": true,
+        "bot": true,
+        "training": false,
+        "earned": 0
+      },
+      "result": {
+        "outcome": "won",
+        "profile": "Subject",
+        "durationSec": 0,
+        "kills": 0,
+        "killedBy": null,
+        "place": 1,
+        "players": 3,
+        "gv": {
+          "kills": 0,
+          "mobs": 0,
+          "bounty": 0,
+          "quest": 0,
+          "win": 50,
+          "total": 50
+        },
+        "winBonusWithheld": false
+      },
+      "record": null,
+      "banks": [],
+      "stats": {
+        "runs": 0,
+        "wins": 0,
+        "draws": 0,
+        "deaths": 0,
+        "kills": 0
+      },
+      "progress": {
+        "qualifiedWins": 0,
+        "bountyRuns": 0,
+        "bestRunKills": 0,
+        "winsByFaction": {},
+        "winsByWeapon": {}
+      },
+      "gv": 0
+    },
+    {
+      "input": {
+        "name": "training-second-guard",
+        "faction": "frost",
+        "weapon0": "wand",
+        "weapon1": null,
+        "slot": 0,
+        "swap": false,
+        "finish": "won",
+        "qualified": true,
+        "bot": false,
+        "training": true,
+        "earned": 0
+      },
+      "result": {
+        "outcome": "won",
+        "profile": "Subject",
+        "durationSec": 0,
+        "kills": 0,
+        "killedBy": null,
+        "place": 1,
+        "players": 3,
+        "gv": {
+          "kills": 0,
+          "mobs": 0,
+          "bounty": 0,
+          "quest": 0,
+          "win": 50,
+          "total": 50
+        },
+        "winBonusWithheld": false
+      },
+      "record": null,
+      "banks": [],
+      "stats": {
+        "runs": 0,
+        "wins": 0,
+        "draws": 0,
+        "deaths": 0,
+        "kills": 0
+      },
+      "progress": {
+        "qualifiedWins": 0,
+        "bountyRuns": 0,
+        "bestRunKills": 0,
+        "winsByFaction": {},
+        "winsByWeapon": {}
+      },
+      "gv": 0
+    }
+  ]
+}

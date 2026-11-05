@@ -258,6 +258,8 @@ impl OutcomeDigest {
             Outcome::Mia => "mia",
         });
         self.s(&r.profile);
+        self.s(r.faction.map_or("-", |f| f.as_str()));
+        self.s(r.weapon.map_or("-", |w| w.as_str()));
         self.w(r.duration_sec as u64);
         self.w(r.kills as u64);
         match &r.killed_by {
@@ -328,5 +330,39 @@ fn status(s: Status) -> &'static str {
         Status::Alive => "alive",
         Status::Dead => "dead",
         Status::Mia => "mia",
+    }
+}
+
+#[cfg(test)]
+mod ending_metadata_tests {
+    use super::*;
+    #[test]
+    fn the_private_digest_includes_both_result_metadata_fields() {
+        let mut r = RunResult {
+            outcome: Outcome::Won,
+            profile: "Subject".into(),
+            faction: None,
+            weapon: None,
+            duration_sec: 1,
+            kills: 0,
+            killed_by: None,
+            killed_by_bot: false,
+            place: 1,
+            players: 3,
+            gv: Default::default(),
+            win_bonus_withheld: false,
+            win_bonus_why: None,
+        };
+        let digest = |r: &RunResult| {
+            let mut d = OutcomeDigest::new();
+            d.result(r);
+            d.value()
+        };
+        let original = digest(&r);
+        r.faction = Some(rh_sim::FactionId::Holy);
+        assert_ne!(original, digest(&r));
+        r.faction = None;
+        r.weapon = Some(rh_sim::WeaponId::Wand);
+        assert_ne!(original, digest(&r));
     }
 }

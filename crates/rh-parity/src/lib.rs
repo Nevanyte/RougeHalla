@@ -1066,6 +1066,9 @@ pub fn compare(fx: &Fixture) -> Report {
             fx.results.len()
         ));
     }
+    // This is the original captured sim-result projection. Legacy ending metadata belongs to
+    // RaidRoom -> recordRun, not to that sim payload; its separate strict capture is compared in
+    // rh-sim results::tests and rh-server/tests/ending_metadata.rs (parity/persistence/README.md).
     for (lr, (tick, id, r)) in fx.results.iter().zip(&rust_results) {
         let g: GvBreakdown = r.gv;
         let ok = lr.tick == *tick

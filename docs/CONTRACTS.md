@@ -14,7 +14,7 @@ revision; [sweep/README.md](sweep/README.md) says which (H-sim and H-server-2 ha
 
 ### Stage 2 validation addendum (takes precedence over the historical Stage 1 rows below)
 
-Native arm64 integration on `optimization_port`: 505 tests passed with all features, 0 failed/filtered and one explicitly
+Native arm64 integration on `optimization_port`: 521 tests passed with all features, 0 failed/filtered and one explicitly
 ignored heap measurement. Formatting and full/default-feature workspace Clippy with warnings denied passed. The preceding
 foundation gate passed 395 all-feature/386 default-feature tests; its Rust/C#/browser and legacy recapture CI passed at
 `c93b659d`. Full-game, AWS, browser-matrix and release gates remain open.
@@ -22,15 +22,17 @@ foundation gate passed 395 all-feature/386 default-feature tests; its Rust/C#/br
 - C-INPUT/C-PARITY: weapon inputs use the existing validation/action budget. The harness now compares real admission
   outcomes, rejects unconsumed or unordered records, and checks requirements only for replayed records. 57 compared
   scenarios and 300 path queries MATCH; 13 scenarios are explicitly capture-only. Exact recapture runs Linux x64 Node 22.23.4.
-- C-DET/C-NUM: checkpoint format is `rh-checkpoint/9`, replay `rh-replay/7`, observation version 7; content identity
-  `038ee74f114d47bf`. Projectile state is hashed/restored, invalid packet/identity headroom is refused, and the six new
+- C-DET/C-NUM: checkpoint format is `rh-checkpoint/10`, replay `rh-replay/8`, observation version 7; content identity
+  `e639a5f9fc48e272`. Projectile state is hashed/restored, invalid packet/identity headroom is refused, and the six new
   flight fixtures allocate zero over 336 measured steady steps. Fixed map geometry uses one definition folded into the
-  content identity; all 72 recaptured files and all four map oracles agree on Linux x64 Node 22.23.4. Full admitted gameplay
+  content identity; all 72 recaptured files and all five map oracles agree on Linux x64 Node 22.23.4. Full admitted gameplay
   layers participate in static hashing and checkpoint validation. Captured legacy map hashes remain unverified metadata.
   Exact zone partitioning and initial camps share 28-field/13-field definitions with runtime. Hash coverage has zero
   unhashed and complete optional coverage, including private signature state; the prior C3 audit examined 17,613 leaves.
   Invalid lock owners and goal/timer tuples are refused. Raw finite overfull-HP fractions remain valid as in the source.
   Holy engagement/heal uses an explicit default-off foundation gate; all 762 measured warmed steps allocate zero.
+  Attempt stages 1–3 preserve binary64 seed arithmetic and distinct partition/camp failure control flow. Original optional
+  admission faction and result metadata are hashed/restored without changing observations or wire-result bytes.
 - C-OBS: hidden pickup targets are indistinguishable from absent targets in requester feedback. Hit/Death/Block source
   ids are redacted when unseen; authoritative credit and trusted parity events are preserved. Independent differential
   and earlier-step/cached projection checks passed. Public item discovery/self inventory now works for headless/policy
@@ -55,7 +57,9 @@ foundation gate passed 395 all-feature/386 default-feature tests; its Rust/C#/br
   packing match 301 additional legacy observations; all 35 persistence checks passed. Live renewals now have confirmed
   room deadlines, stable authenticated IDs and cancellation-safe acquisition/reservation cleanup. Real PostgreSQL
   rename/reassignment, row-lock, cancellation and host-takeover probes passed. Defaults are 120/30/5 s with a one-hour TTL
-  cap. Live ending-kit metadata, unwritten-result crash recovery and the full profile API remain open.
+  cap. Ending metadata now preserves explicit choice and the selected raw slot after body drop, with exact qualified
+  counters and unchanged result-document v1. Defaults/death/MIA/posthumous cases, real-PG retry/rename/rollback and
+  old documents pass. Unwritten-result crash recovery and the full profile API remain open.
 - Client authority: the straight-line predictor is removed; local coordinates come only from accepted server snapshots.
   Later C# suite: 214 passed, including duplicate/base poisoning and requested same-tick recovery. Native ownership cleanup
   is preserved; current-source Unity Web verification remains pending. Prediction needs Rust-vector parity before activation.
@@ -142,9 +146,9 @@ See [adr/0007-determinism.md](adr/0007-determinism.md). `rh_sim::math` is the on
 
 ## C-DET: reproducibility
 - Same arena + config + secrets + inputs ⇒ the same state hash after every step on declared targets.
-- `rh_sim::replay::Replay` (`rh-replay/7`) records the start (typed reset or lobby), secrets, every input with its tick
+- `rh_sim::replay::Replay` (`rh-replay/8`) records the start (typed reset or lobby), secrets, every input with its tick
   (joins, commands as submitted, drops, leaves) and each step's hash; `run_replay` checks every hash. Any other tag
-  (including `/1` through `/6` or unknown) is refused with `ReplayError::Format { found }` before a step runs. Stage 2 adds
+  (including `/1` through `/7` or unknown) is refused with `ReplayError::Format { found }` before a step runs. Stage 2 adds
   resolved pickup misses, private flight and vision state; accepted commands replay independently of public observation timing.
 - State identity by construction (P8, [adr/0007-determinism.md](adr/0007-determinism.md) addendum): `Sim::state_hash` is
   derived from the serialized `World` by a serde `Serializer` (`crates/rh-sim/src/hash.rs`, `HashSer`: 64-bit words,
@@ -180,7 +184,7 @@ See [adr/0007-determinism.md](adr/0007-determinism.md). `rh_sim::math` is the on
   inputs are empty and rule (8) is covered only by the unit test `a_queued_input_validation_would_change_is_refused`. A packet that moves bodies past
   `COORD_MARGIN` or adds items or ranged actions must widen these rules and the `hash_coverage` seeds.
 - Not done yet: `TileMap` keeps public `w`/`h`/`tiles` ([sweep/README.md](sweep/README.md), follow-ups).
-- A checkpoint (`crates/rh-sim/src/checkpoint.rs`, tag `rh-checkpoint/9`) is `{format, content_hash, build, statics, world}`; deserialization
+- A checkpoint (`crates/rh-sim/src/checkpoint.rs`, tag `rh-checkpoint/10`) is `{format, content_hash, build, statics, world}`; deserialization
   builds every derived table (the decoded value is complete, see above) and the restored sim continues identically (`rh-sim/tests/checkpoint.rs`). Players are serialized
   in id order as nested components (core{id, body, vitals, weapon, motion}, seat, credit, fate, status, down, resolved); the
   world carries `roster` (append-only join names, leavers included; `killed_by` and `winner` are ids resolved to names only
@@ -216,7 +220,7 @@ See [adr/0007-determinism.md](adr/0007-determinism.md). `rh_sim::math` is the on
 - `Command` is opaque (H-sim): its field is private, and the only ways to hold one are `validate` and a `Deserialize` that
   runs `validate` again and refuses anything it would change, so no fixture or edited replay can hand the sim an
   unvalidated command. It serializes as the plain variant, so recorded replays keep their shape. `run_replay` checks
-  `REPLAY_FORMAT` (`rh-replay/7`) first (C-DET). Queued inputs inside a restored checkpoint get the same re-validation.
+  `REPLAY_FORMAT` (`rh-replay/8`) first (C-DET). Queued inputs inside a restored checkpoint get the same re-validation.
 - The network layer additionally caps frames (1 KiB, 16 commands, 60 frames/s burst 120 per connection).
 
 ## C-OBS: views and leaks
@@ -480,6 +484,11 @@ figures are taken by hand).
 (`a_changed_rule_is_caught`).
 
 ## Change log
+- Stage 2 ending metadata/attempt prefix (2026-11-05): checkpoint /10 and replay /8 preserve original optional faction
+  choice and selected post-drop item through private results and the existing fenced writer. Observation 7/policy 4/wire 5
+  and durable result-document v1 remain unchanged. The adapter oracle is distinct from legacy sim resolved payloads;
+  strict projection tests cover both. Actual attempt stages 1–3 and their two-word rule definition are source-exact.
+  See [evidence](evidence/stage2-ending-attempt/README.md). Full generation, remaining factions and release stay open.
 - Stage 2 Holy/camp integration (2026-11-05): observation 7, checkpoint /9 and replay /7 add the explicit default-off
   Holy foundation and private engagement state. Landed damage and block provenance are trusted scratch, never copied
   from caller output. Actual overfull HP remains representable. Initial camps/territories share a thirteen-field content
