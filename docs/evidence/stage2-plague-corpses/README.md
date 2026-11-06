@@ -61,8 +61,11 @@ Pinned Linux x64 Node `v22.23.4` (`node:22.23.4-bookworm-slim@sha256:5ec23b...`)
 - `parity/corpses/source-manifest.json` pins 14 source files and all 3 fixtures.
 - `tools/corpse-fixtures/run-mutants.sh` — **6/6 killed**.
 - `cargo test -p rh-parity --test parity` — **29 passed**, including both slice fixtures.
+- `cargo test --workspace --all-features --locked` with the throwaway PostgreSQL cluster — all tests pass.
+- `node tools/corpse-fixtures/check.mjs` — 17 manifest/fixture checks pass.
+- `mob_checkpoint` now admits a raised zombie body in a PvE checkpoint instead of treating every mob as a regional birth.
 
 ## 7. Remaining
 
 - Close the zombie-combat per-tick damage drift and promote that capture.
-- `mob_checkpoint` PvE zombie validation, full workspace/perf gates.
+- Full perf gate and PR.
