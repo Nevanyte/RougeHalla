@@ -33,9 +33,12 @@ headless foundation again leads the next implementation work; Unity rules remain
 all still partial at full-port scope. The bounded Calgary run still cleans up at13:00UTC; continuation does not enlarge
 CAD20 total or authorize a Paid-plan upgrade/production rollout.
 
-P-TERRAIN-1 is now being implemented in two private source/runtime work packets, with actual legacy captures and full
-terrain semantics. Arena-gate ownership and the remaining Frost/Sentenced NPC domains are explicit integration
-prerequisites. No terrain hazard is enabled in the currently deployed MVP while its wire/presentation facts are absent.
+P-TERRAIN-1 source witnesses are integrated after independent source-only approval:66 installed/helper/runtime cases,
+11 ice traces and a separate21-case/88-frame actual-born NPC extension. Both pinned Linux amd64 Node22.23.4 captures
+were reproduced byte exactly; the nine integrated files match the frozen manifests and all source provenance hashes.
+CI now checks both captures. The native runtime/comparators remain a private proposal under review; this is not a
+terrain-runtime completion claim. Arena-gate ownership and remaining full NPC/training producers stay explicit in
+[the packet](backlog/packets/P-TERRAIN-1.md). The deployed MVP still has hazards Off and its original build.
 
 ### Current playable-core checkpoint
 
