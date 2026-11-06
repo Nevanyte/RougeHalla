@@ -98,7 +98,7 @@ function checkSnapshot(m, d, n) {
     if (d.me === null) eq(m.me, null, `${n} me`);
     else {
       const e = d.me, s = m.me;
-      for (const [k, jk] of [["id", "id"], ["faction", "faction"], ["status", "status"], ["weapon", "weapon"], ["readyIn", "readyInMs"], ["kills", "kills"], ["bounty", "bounty"], ["gv", "gv"], ["moveSeq", "moveSeq"], ["effects", "effects"], ["displaceSeq", "displaceSeq"], ["sig", "sig"]]) eq(s[k], e[jk], `${n} me.${k}`);
+      for (const [k, jk] of [["id", "id"], ["faction", "faction"], ["status", "status"], ["weapon", "weapon"], ["readyIn", "readyInMs"], ["kills", "kills"], ["bounty", "bounty"], ["gv", "gv"], ["moveSeq", "moveSeq"], ["effects", "effects"], ["displaceSeq", "displaceSeq"], ["sig", "sig"], ["huntTarget", "huntTarget"], ["huntStacks", "huntStacks"]]) eq(s[k], e[jk], `${n} me.${k}`);
       for (const [k, jk] of [["x", "xBits"], ["y", "yBits"], ["facing", "facingBits"], ["hp", "hpBits"], ["maxHp", "maxHpBits"]]) eq(bits(s[k]), e[jk], `${n} me.${k}`);
     }
     eq(m.actors.length, d.actors.length, `${n} actors`);

@@ -1,0 +1,13 @@
+--- a/crates/rh-sim/src/systems/sentenced_hunt.rs
++++ b/crates/rh-sim/src/systems/sentenced_hunt.rs
+@@ -113,9 +113,7 @@
+     let Some(vi) = hx.w.idx(id) else {
+         return;
+     };
+-    let real_death = cause == OutCause::Down
+-        && hx.w.players[vi].status == Status::Dead
+-        && hx.w.phase == Phase::Active;
++    let real_death = cause == OutCause::Down || hx.w.phase == Phase::Active;
+     hx.w.players[vi].set_hunt_target(None);
+     for hi in 0..hx.w.players.len() {
+         if hx.w.players[hi].hunt_target() != Some(id) {

@@ -52,7 +52,10 @@ pub const DH_STATUS: u32 = 1 << 14;
 pub const DH_EFFECTS: u32 = 1 << 15;
 pub const DH_DISPLACE: u32 = 1 << 16;
 pub const DH_SIG: u32 = 1 << 17;
-pub const DH_FIELDS: u32 = 0x7e7e | DH_EFFECTS | DH_DISPLACE | DH_SIG;
+pub const DH_HUNT_TARGET: u32 = 1 << 18;
+pub const DH_HUNT_STACKS: u32 = 1 << 19;
+pub const DH_FIELDS: u32 =
+    0x7e7e | DH_EFFECTS | DH_DISPLACE | DH_SIG | DH_HUNT_TARGET | DH_HUNT_STACKS;
 pub const DH_KNOWN: u32 = DH_PRESENT | DH_FIELDS | DH_PHASE | DH_DEPARTED;
 
 /// Actor delta mask bits (append only): the fields that follow, in bit order.
@@ -82,7 +85,7 @@ const MIN_HEAD: usize = 1;
 
 /// Largest self delta after the head: x, y, facing, hp, max_hp (4 each), kit, ready (2), kills, bounty, gv (3 each),
 /// move_seq, status, phase, effects (2), displacement, sig.
-const MAX_SELF_DELTA: usize = 20 + 1 + 2 + 9 + 1 + 1 + 1 + 2 + 1 + 1;
+const MAX_SELF_DELTA: usize = 20 + 1 + 2 + 9 + 1 + 1 + 1 + 2 + 1 + 1 + 5 + 3;
 /// Largest delta head: tag, tick (5), age, ack (5), head (1 placeholder), the self delta, the changed count (3).
 const MAX_DELTA_HEAD: usize = 1 + 5 + 1 + 5 + 1 + MAX_SELF_DELTA + 3;
 /// Largest changed-actor record: id 5, mask 2, x/y/facing 6, kit/hp, bounty 3, status/kind, effects 2, displacement/mob type/sig.
@@ -850,6 +853,16 @@ fn write_self_delta(f: &mut Fixed<MAX_DELTA_HEAD>, b: &WireSelf, c: &WireSelf) -
         m |= DH_SIG;
         f.u8(c.sig);
     }
+    if c.hunt_target != b.hunt_target {
+        m |= DH_HUNT_TARGET;
+        if let Some(target) = c.hunt_target {
+            f.varint(target);
+        }
+    }
+    if c.hunt_stacks != b.hunt_stacks {
+        m |= DH_HUNT_STACKS;
+        f.varint(c.hunt_stacks as u32);
+    }
     m
 }
 
@@ -874,6 +887,8 @@ pub struct SelfDelta {
     pub effects: u16,
     pub displace_seq: u8,
     pub sig: u8,
+    pub hunt_target: Option<u32>,
+    pub hunt_stacks: u16,
 }
 
 impl SelfDelta {
@@ -927,6 +942,12 @@ impl SelfDelta {
         if m & DH_SIG != 0 {
             s.sig = self.sig;
         }
+        if m & DH_HUNT_TARGET != 0 {
+            s.hunt_target = self.hunt_target;
+        }
+        if m & DH_HUNT_STACKS != 0 {
+            s.hunt_stacks = self.hunt_stacks;
+        }
         s
     }
 
@@ -957,6 +978,16 @@ impl SelfDelta {
             effects: if keep(DH_EFFECTS) { c.effects } else { 0 },
             displace_seq: if keep(DH_DISPLACE) { c.displace_seq } else { 0 },
             sig: if keep(DH_SIG) { c.sig } else { 0 },
+            hunt_target: if keep(DH_HUNT_TARGET) {
+                c.hunt_target
+            } else {
+                None
+            },
+            hunt_stacks: if keep(DH_HUNT_STACKS) {
+                c.hunt_stacks
+            } else {
+                0
+            },
         }
     }
 }
@@ -1172,6 +1203,14 @@ pub(crate) fn write_message(w: &mut Writer, d: &SnapshotDelta) {
         if m & DH_SIG != 0 {
             w.u8(s.sig);
         }
+        if m & DH_HUNT_TARGET != 0 {
+            if let Some(target) = s.hunt_target {
+                w.varint(target);
+            }
+        }
+        if m & DH_HUNT_STACKS != 0 {
+            w.varint(s.hunt_stacks as u32);
+        }
     }
     if let Some(p) = d.phase {
         w.u8(p);
@@ -1324,6 +1363,16 @@ fn read_self_delta(r: &mut Reader, mask: u32) -> Result<SelfDelta, DecodeError> 
     }
     if mask & DH_SIG != 0 {
         s.sig = r.u8()?;
+    }
+    if mask & DH_HUNT_TARGET != 0 {
+        let target = r.varint()?;
+        if target == 0 {
+            return Err(DecodeError::BadField("hunt target"));
+        }
+        s.hunt_target = Some(target);
+    }
+    if mask & DH_HUNT_STACKS != 0 {
+        s.hunt_stacks = crate::varint_u16(r, "hunt_stacks")?;
     }
     Ok(s)
 }

@@ -101,6 +101,8 @@ fn maximum_full_records_and_reference_delta_preserve_new_scalars() {
         bounty: u16::MAX,
         gv: u16::MAX,
         move_seq: 255,
+        hunt_target: None,
+        hunt_stacks: 0,
         effects: u16::MAX,
         displace_seq: 255,
         sig: 255,

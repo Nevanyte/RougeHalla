@@ -1,0 +1,10 @@
+--- a/crates/rh-sim/src/systems/sentenced_hunt.rs
++++ b/crates/rh-sim/src/systems/sentenced_hunt.rs
+@@ -15,7 +15,6 @@
+ pub(crate) fn sees_target(viewer: &Player, target: &Player) -> bool {
+     viewer.standing()
+         && viewer.vitals.faction == FactionId::Sentenced
+-        && viewer.hunt_target() == Some(target.id)
+         && target.status == Status::Alive
+ }
+ 

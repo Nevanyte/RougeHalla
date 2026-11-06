@@ -196,6 +196,8 @@ fn scalar_status_changes_and_clears_survive_full_and_fast_delta_paths() {
         bounty: 0,
         gv: 0,
         move_seq: 0,
+        hunt_target: None,
+        hunt_stacks: 0,
         effects: 4096 | 8,
         displace_seq: 255,
     };

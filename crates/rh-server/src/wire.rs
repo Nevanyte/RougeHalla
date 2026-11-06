@@ -17,6 +17,9 @@ pub fn command(c: WireCommand) -> rh_sim::PublicCommand {
     match c {
         WireCommand::UseConsumable => Public::UseConsumable,
         // This remains a public reference: Room intake resolves it through the seat ItemObserver.
+        WireCommand::HuntTarget { actor } => Public::HuntTarget {
+            actor: rh_sim::PlayerId(actor),
+        },
         WireCommand::Target { actor } => Public::Target {
             actor: rh_sim::PlayerId(actor),
         },
@@ -83,7 +86,7 @@ pub fn checked_phase(p: Phase) -> Result<u8, rh_protocol::EncodeError> {
 
 /// Compatibility wrapper for supported-profile callers; never invents a wire phase.
 pub fn phase(p: Phase) -> u8 {
-    checked_phase(p).expect("native phase is unsupported by protocol 6")
+    checked_phase(p).expect("native phase is unsupported by protocol 7")
 }
 
 fn observation_supported(obs: &Observation) -> Result<(), rh_protocol::EncodeError> {
@@ -161,6 +164,8 @@ fn wire_self(m: &rh_sim::observe::SelfView) -> WireSelf {
         bounty: sat16(m.bounty),
         gv: sat16(m.gv),
         move_seq: m.move_seq,
+        hunt_target: m.hunt_target.map(|id| id.0),
+        hunt_stacks: sat16(m.hunt_stacks),
     }
 }
 
@@ -191,7 +196,7 @@ fn wire_actor(a: &rh_sim::observe::ActorView) -> WireActor {
 }
 
 pub fn snapshot(obs: &Observation, ack_input: u32) -> ServerMsg {
-    checked_snapshot(obs, ack_input).expect("native observation is unsupported by protocol 6")
+    checked_snapshot(obs, ack_input).expect("native observation is unsupported by protocol 7")
 }
 
 pub fn checked_snapshot(
@@ -1181,7 +1186,7 @@ mod tests {
     #[test]
     fn omitted_effect_announcements_leave_frames_and_redaction_unchanged() {
         use rh_sim::status_runtime::{AbilityId, CastEndReason, StatusKind};
-        assert_eq!(rh_protocol::PROTOCOL_VERSION, 6);
+        assert_eq!(rh_protocol::PROTOCOL_VERSION, 7);
         let env = seed1_match(1);
         let id = env.sim.players()[0].id;
         let mut publisher = Publisher::default();
@@ -1403,6 +1408,12 @@ mod tests {
             command(WireCommand::Target { actor: 0x8000_0201 }),
             rh_sim::PublicCommand::Target {
                 actor: rh_sim::PlayerId(0x8000_0201)
+            }
+        );
+        assert_eq!(
+            command(WireCommand::HuntTarget { actor: 2 }),
+            rh_sim::PublicCommand::HuntTarget {
+                actor: rh_sim::PlayerId(2)
             }
         );
         assert_eq!(

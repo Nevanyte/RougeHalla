@@ -1,7 +1,7 @@
 //! Roguehalla wire protocol, version [`PROTOCOL_VERSION`]. One message per WebSocket BINARY frame (the only transport a
 //! browser build can use; served as wss:// in production). Little-endian, no reflection: the C# mirror
 //! (`client-unity/RoguehallaNet`) and the JS probe decode the same bytes, and all are held to the golden vectors in
-//! `protocol/fixtures/v6.json` (docs/CONTRACTS.md C-NET).
+//! `protocol/fixtures/v7.json` (docs/CONTRACTS.md C-NET).
 //!
 //! Frame layout: `[tag u8][body]`. Strings: `u8 length + UTF-8`. Blobs: `u16 length + bytes`. Optional values: `u8 flag (0/1) +
 //! value`. Lists: `u16 count + items`. Floats are IEEE-754; a decoder REJECTS non-finite floats in client messages. Unknown
@@ -23,6 +23,8 @@
 //!
 //! Protocol 6 adds Choose (8: handle u32 + pick i8 -1..=2), UseConsumable (9: no body),
 //! Target (10: nonzero actor reference u32), and AttackMove (11: Move payload).
+//! Protocol 7 adds HuntTarget (12: nonzero actor reference u32) and the self hunt fields
+//! (Full head bits 14/15, delta bits 18/19; the target is a nonzero varint, stacks a varint).
 //! PotionNotice (Events 7) carries only a notice byte 1..=7. Camps carry direct mob type 0..29,
 //! optional elite as 0 absent / 1+index, alive varint <=512, state 0..=2, and finite nonnegative
 //! cleared/respawn f64 times with respawn >= cleared. At most 512 rows and seven ascending State keys.
@@ -119,7 +121,7 @@ pub use delta::{
 pub use encode::{encode_welcome, encode_welcome_into, WelcomeHeader};
 
 /// Bump on any incompatible change (a new tag or field in an existing message). Both ends refuse another major version.
-pub const PROTOCOL_VERSION: u16 = 6;
+pub const PROTOCOL_VERSION: u16 = 7;
 /// Milliseconds per server tick (20 Hz). A Snapshot carries `tick` only: its server time is `tick * TICK_MS` exactly.
 pub const TICK_MS: u32 = 50;
 
@@ -210,6 +212,9 @@ pub enum WireCommand {
     Target {
         actor: u32,
     },
+    HuntTarget {
+        actor: u32,
+    },
     AttackMove {
         x: f32,
         y: f32,
@@ -298,6 +303,9 @@ pub struct WireSelf {
     pub effects: u16,
     pub displace_seq: u8,
     pub sig: u8,
+    /// The selected Sentenced rival; absent is `None` (never actor 0).
+    pub hunt_target: Option<u32>,
+    pub hunt_stacks: u16,
 }
 
 /// A remote actor as the observation chose it. On the wire its position and facing are quantized ([`quant`]): a decoded
@@ -565,6 +573,13 @@ impl ClientMsg {
                             y: r.f32()?,
                             seq: r.opt(|r| r.u8())?,
                         },
+                        12 => {
+                            let actor = r.u32()?;
+                            if actor == 0 {
+                                return Err(DecodeError::BadField("hunt target"));
+                            }
+                            WireCommand::HuntTarget { actor }
+                        }
                         C_MOVE => WireCommand::Move {
                             x: r.f32()?,
                             y: r.f32()?,
@@ -617,7 +632,10 @@ pub(crate) const HM_PHASE: u32 = 1 << 10;
 pub(crate) const HM_EFFECTS: u32 = 1 << 11;
 pub(crate) const HM_DISPLACE: u32 = 1 << 12;
 pub(crate) const HM_SIG: u32 = 1 << 13;
-pub(crate) const HM_SELF_BITS: u32 = 0x03ff | HM_EFFECTS | HM_DISPLACE | HM_SIG;
+pub(crate) const HM_HUNT_TARGET: u32 = 1 << 14;
+pub(crate) const HM_HUNT_STACKS: u32 = 1 << 15;
+pub(crate) const HM_SELF_BITS: u32 =
+    0x03ff | HM_EFFECTS | HM_DISPLACE | HM_SIG | HM_HUNT_TARGET | HM_HUNT_STACKS;
 pub(crate) const HM_KNOWN: u32 = HM_SELF_BITS | HM_PHASE;
 /// Full actor mask bits (append only): 0 kit, 1 hp, 2 status, 3 bounty, 4 kind.
 pub(crate) const AM_KIT: u32 = 1 << 0;
@@ -696,6 +714,20 @@ fn read_self(r: &mut Reader, mask: u32) -> Result<WireSelf, DecodeError> {
     let effects = if mask & HM_EFFECTS != 0 { r.u16()? } else { 0 };
     let displace_seq = if mask & HM_DISPLACE != 0 { r.u8()? } else { 0 };
     let sig = if mask & HM_SIG != 0 { r.u8()? } else { 0 };
+    let hunt_target = if mask & HM_HUNT_TARGET != 0 {
+        let target = r.varint()?;
+        if target == 0 {
+            return Err(DecodeError::BadField("hunt target"));
+        }
+        Some(target)
+    } else {
+        None
+    };
+    let hunt_stacks = if mask & HM_HUNT_STACKS != 0 {
+        varint_u16(r, "hunt_stacks")?
+    } else {
+        0
+    };
     Ok(WireSelf {
         effects,
         displace_seq,
@@ -714,6 +746,8 @@ fn read_self(r: &mut Reader, mask: u32) -> Result<WireSelf, DecodeError> {
         bounty,
         gv,
         move_seq,
+        hunt_target,
+        hunt_stacks,
     })
 }
 

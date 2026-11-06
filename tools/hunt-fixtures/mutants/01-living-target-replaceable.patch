@@ -1,0 +1,16 @@
+--- a/crates/rh-sim/src/systems/sentenced_hunt.rs
++++ b/crates/rh-sim/src/systems/sentenced_hunt.rs
+@@ -33,13 +33,6 @@
+     };
+     let hunter = &cx.w.players[hi];
+     if !hunter.standing() || hunter.vitals.faction != FactionId::Sentenced {
+-        return;
+-    }
+-    if hunter
+-        .hunt_target()
+-        .and_then(|current| cx.w.player(current))
+-        .is_some_and(|current| current.standing())
+-    {
+         return;
+     }
+     let Some(ti) = cx.w.idx(id) else {

@@ -52,6 +52,8 @@ fn snapshot(n: u32, tick: u32) -> ServerMsg {
             bounty: 0,
             gv: 0,
             move_seq: 7,
+            hunt_target: None,
+            hunt_stacks: 0,
         }),
         actors: slice_actors(n, tick),
     }

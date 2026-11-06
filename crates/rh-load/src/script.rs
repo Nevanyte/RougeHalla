@@ -344,6 +344,8 @@ mod tests {
             bounty: 0,
             gv: 0,
             move_seq: 0,
+            hunt_target: None,
+            hunt_stacks: 0,
         };
         let actor = |id, x, status| rh_protocol::WireActor {
             sig: 0,

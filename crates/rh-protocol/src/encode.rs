@@ -110,7 +110,7 @@ fn command_len(c: &WireCommand) -> usize {
         WireCommand::Pickup { .. } => 5,
         WireCommand::Choose { .. } => 6,
         WireCommand::UseConsumable => 1,
-        WireCommand::Target { .. } => 5,
+        WireCommand::Target { .. } | WireCommand::HuntTarget { .. } => 5,
         WireCommand::Move { seq, .. } | WireCommand::AttackMove { seq, .. } => {
             1 + 8 + opt_len(seq.is_some(), 1)
         }
@@ -132,6 +132,7 @@ fn command_finite(c: &WireCommand) -> bool {
         | WireCommand::Pickup { .. }
         | WireCommand::Choose { .. }
         | WireCommand::Target { .. }
+        | WireCommand::HuntTarget { .. }
         | WireCommand::UseConsumable => true,
         WireCommand::Aim { a } => a.is_finite(),
         WireCommand::Attack { a, t } | WireCommand::Release { a, t } => {
@@ -249,6 +250,10 @@ impl Frame for ClientMsg {
                         WireCommand::UseConsumable => w.u8(9),
                         WireCommand::Target { actor } => {
                             w.u8(10);
+                            w.u32(actor);
+                        }
+                        WireCommand::HuntTarget { actor } => {
+                            w.u8(12);
                             w.u32(actor);
                         }
                         WireCommand::AttackMove { x, y, seq } => {
@@ -396,6 +401,12 @@ fn head_word(phase: u8, me: Option<&WireSelf>) -> u32 {
     if s.sig != 0 {
         m |= HM_SIG;
     }
+    if s.hunt_target.is_some() {
+        m |= HM_HUNT_TARGET;
+    }
+    if s.hunt_stacks != 0 {
+        m |= HM_HUNT_STACKS;
+    }
     m
 }
 
@@ -439,6 +450,12 @@ fn self_len(s: &WireSelf, mask: u32) -> usize {
     }
     if mask & HM_SIG != 0 {
         n += 1;
+    }
+    if let Some(target) = s.hunt_target {
+        n += varint_len(target);
+    }
+    if mask & HM_HUNT_STACKS != 0 {
+        n += varint_len(s.hunt_stacks as u32);
     }
     n
 }
@@ -518,7 +535,8 @@ impl<const N: usize> Fixed<N> {
 
 /// Largest Snapshot head: tag, tick, ack (5 each at most), head (2), a full self (id 5, 12, max_hp 4, kit, hp 4, ready 2,
 /// kills, bounty, gv 3 each, move_seq, status, effects 2, displacement, sig), the phase and actor count.
-const MAX_HEAD_LEN: usize = 1 + 5 + 5 + 2 + 5 + 12 + 4 + 1 + 4 + 2 + 9 + 1 + 1 + 2 + 1 + 1 + 1 + 5;
+const MAX_HEAD_LEN: usize =
+    1 + 5 + 5 + 2 + 5 + 12 + 4 + 1 + 4 + 2 + 9 + 1 + 1 + 2 + 1 + 1 + 1 + 5 + 5 + 3;
 /// Largest actor: id 5, mask 2, x/y/facing 6, kit/hp/status, bounty 3, kind, effects 2, displacement, mob type, sig.
 const MAX_ACTOR_LEN: usize = 5 + 2 + 6 + 1 + 1 + 1 + 3 + 1 + 2 + 1 + 1 + 1;
 
@@ -567,6 +585,12 @@ fn write_self(w: &mut Fixed<MAX_HEAD_LEN>, m: u32, s: &WireSelf) {
     }
     if m & HM_SIG != 0 {
         w.u8(s.sig);
+    }
+    if let Some(target) = s.hunt_target {
+        w.varint(target);
+    }
+    if m & HM_HUNT_STACKS != 0 {
+        w.varint(s.hunt_stacks as u32);
     }
 }
 
@@ -644,6 +668,9 @@ fn snapshot_fault(phase: u8, me: Option<&WireSelf>, actors: &[WireActor]) -> Opt
     if let Some(s) = me {
         if let Some(f) = kit_status_fault(s.faction, s.weapon, s.status) {
             return Some(f);
+        }
+        if s.hunt_target == Some(0) {
+            return Some("hunt target");
         }
     }
     let mut prev: Option<u32> = None;

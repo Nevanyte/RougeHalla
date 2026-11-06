@@ -66,6 +66,7 @@ function rowsOf(map: GameMap): string[] {
 import { canonicalEvent, canonicalJson, r6 } from "./canon";
 import { canPlayerSee, canPlayerSeeActor, getVisionMemory } from "../../packages/server/src/sim/vision";
 import { sentencedScenarios } from "./scenarios/sentenced";
+import { huntScenarios } from "./scenarios/hunt";
 import { frostScenarios } from "./scenarios/frost";
 import { fireScenarios } from "./scenarios/fire";
 import { plagueScenarios } from "./scenarios/plague";
@@ -80,7 +81,8 @@ import { meleeScenarios } from "./scenarios/melee";
 import { catalogue } from "./scenarios/catalogue";
 
 function run(sc: Scenario): unknown {
-  if(sc.factionSlice === "player-engagement-holy-plague-fire-frost-sentenced/1" && (process.version!=="v22.23.4" || process.platform!=="linux" || process.arch!=="x64")) throw new Error("Sentenced source fixtures require Linux x64 Node22.23.4");
+  if((sc.factionSlice === "player-engagement-holy-plague-fire-frost-sentenced/1" || sc.factionSlice === "player-engagement-holy-plague-fire-frost-sentenced-hunt/1") && (process.version!=="v22.23.4" || process.platform!=="linux" || process.arch!=="x64")) throw new Error("Sentenced source fixtures require Linux x64 Node22.23.4");
+  const huntSlice = sc.factionSlice === "player-engagement-holy-plague-fire-frost-sentenced-hunt/1";
   const map = sc.generatedMapSeed === undefined ? parseRows(sc.rows) : generateMap(sc.generatedMapSeed, undefined, sc.vision?.spawnSeed === undefined ? undefined : { decor: false });
   if(sc.bootstrapSpawns) map.spawns=sc.bootstrapSpawns;
   const world = createScenarioWorld(sc, map);
@@ -143,7 +145,7 @@ function run(sc: Scenario): unknown {
   let markDenials: unknown[] = [];
   let markFlags: unknown[] = [];
   if((sc.factionSlice === "player-engagement-holy-plague-fire/1" || (sc.factionSlice === "player-engagement-holy-plague-fire-frost/1" || sc.factionSlice === "player-engagement-holy-plague-fire-frost-sentenced/1"))) world.afterWeapons.push(w => {performed=[...w.combat.melee.map(m=>({by:m.attacker,weapon:m.weapon})),...w.combat.spawns.map(p=>({by:p.owner,weapon:p.weapon}))];});
-  if(sc.factionSlice) world.beforeDamage.push(w=>{rawLedger=canonicalJson(w.combat.ledger.map(e=>({victim:e.victim,by:e.by.id,raw:e.packet.raw,scale:e.scale,weapon:e.weapon,sig:e.sig??null,execute:e.execute??false,phys:e.packet.phys,magic:e.packet.magic,true_:e.packet.true}))) as unknown[];});
+  if(sc.factionSlice && !huntSlice) world.beforeDamage.push(w=>{rawLedger=canonicalJson(w.combat.ledger.map(e=>({victim:e.victim,by:e.by.id,raw:e.packet.raw,scale:e.scale,weapon:e.weapon,sig:e.sig??null,execute:e.execute??false,phys:e.packet.phys,magic:e.packet.magic,true_:e.packet.true}))) as unknown[];});
   if(sc.factionSlice === "player-engagement-holy-plague-fire-frost-sentenced/1") world.beforeDamage.push(w => {
     markFlags=w.combat.ledger.map(e=>({passive:e.passive??false,derived:e.derived??false,projectile:e.projectile??null,stagger:e.stagger??false}));
     markDenials = [...(w.combat.marks?.denies ?? [])].flatMap(([owner,foes])=>[...foes].map(foe=>({owner,foe})));
@@ -182,7 +184,7 @@ function run(sc: Scenario): unknown {
       id, x: r6(s.x), y: r6(s.y), facing: r6(s.facing), hp: r6(s.hp), status: s.status, readyAt: r6(s.readyAt),
     }));
     const extras: Record<string, unknown> = {};
-    if(sc.factionSlice) extras.plague=canonicalJson({
+    if(sc.factionSlice && !huntSlice) extras.plague=canonicalJson({
       ...((sc.factionSlice === "player-engagement-holy-plague-fire/1" || (sc.factionSlice === "player-engagement-holy-plague-fire-frost/1" || sc.factionSlice === "player-engagement-holy-plague-fire-frost-sentenced/1")) ? {performed} : {}),
       raw:rawLedger,
       landed:world.combat.landed.map(h=>({victim:h.victim,by:h.by,amount:h.amount,sig:h.sig??null,weapon:h.weapon})),
@@ -249,6 +251,7 @@ function run(sc: Scenario): unknown {
       if (kind === "mobs") extras.mobs = [...world.state.mobs.entries()].map(([id, m]) => canonicalJson({ ...m.toJSON(), id }));
       if (kind === "fields") extras.fields = canonicalJson([...(world.abilities?.fields.values() ?? [])]);
       if (kind === "statuses") extras.statuses = canonicalJson([...world.players.entries(), ...world.mobs.entries()].map(([id, rt]) => ({ id, statuses: rt.statuses ?? [] })));
+      if (kind === "hunt") extras.hunt = canonicalJson([...world.state.players.entries()].map(([id, p]) => ({ id, huntTarget: p.huntTarget, huntStacks: p.huntStacks })));
       if (kind === "containers") extras.containers = [...world.state.containers.entries()].map(([id, c]) => canonicalJson({ ...c.toJSON(), id }));
     }
     ticks.push({ tick: ctx.tick, serverTime: world.state.serverTime, players, events: evs, ...(launches.length ? { launches } : {}), ...extras });
@@ -268,7 +271,7 @@ function run(sc: Scenario): unknown {
       world: !sc.modules && !sc.config && sc.generatedMapSeed === undefined ? "createGameWorld(signatures:false, walkHints:false), hand-built map, mobs/quests/hazards/regen off, pvpRules on (default), no cards" : "createScenarioWorld: explicit recorded modules/options/map seed",
       modules: sc.modules ?? DEFAULT_MODULES,
       itemUidScheme: "sequential/1",
-      ...(sc.packet === "P-FACTION-1" && sc.parity === "slice" ? {rustSlice:sc.factionSlice??"player-engagement-holy/1"} : {}),
+      ...((sc.packet === "P-FACTION-1" || sc.packet === "P-FACTION-4") && sc.parity === "slice" ? {rustSlice:sc.factionSlice??"player-engagement-holy/1"} : {}),
       options: sc.config ?? {},
       ...(sc.generatedMapSeed === undefined ? {} : { mapSeed: sc.generatedMapSeed }),
       secrets: { orderSalt: world.orderSalt, rewardSalt: sc.secrets?.rewardSalt ?? [1, 2, 3, 4], questSalt: sc.secrets?.questSalt ?? [5, 6, 7, 8] },
@@ -583,7 +586,7 @@ const lockTwin: Scenario = {
   modules: DEFAULT_MODULES.filter(m => m !== "consumables"), record: ["combat", "containers", "statuses", "locks"],
   requires: ["input:target", "launch", "projEnd", "death"],
 };
-for (const sc of [...SCENARIOS, ...catalogue, ...meleeScenarios, ...projectileScenarios, ...visionScenarios, ...targetingScenarios, ...holyScenarios, ...plagueScenarios, ...fireScenarios, ...frostScenarios, ...sentencedScenarios, lockTwin]) {
+for (const sc of [...SCENARIOS, ...catalogue, ...meleeScenarios, ...projectileScenarios, ...visionScenarios, ...targetingScenarios, ...holyScenarios, ...plagueScenarios, ...fireScenarios, ...frostScenarios, ...sentencedScenarios, ...huntScenarios, lockTwin]) {
   if (only && sc.name !== only) continue;
   const t0 = performance.now();
   const fx = run(sc) as { ticks: unknown[]; results: unknown[]; legacyConfig: { unexpectedEventTypes: string[]; mobsPresent: number } };

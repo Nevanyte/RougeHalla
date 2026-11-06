@@ -92,8 +92,9 @@ def record_base_replays(out_dir, sides):
     if RERECORD:
         for ticks in (600, 3000):
             a, b = (json.load(open(replay_path(out_dir, ticks, s))) for s in ("base", "cand"))
-            for k in ("format", "hashes"):
-                a.pop(k), b.pop(k)
+            # Replay metadata follows the recording build; the INPUTS are config/arena/secrets/start/ticks.
+            for k in ("format", "hashes", "build", "content_hash", "match_id"):
+                a.pop(k, None), b.pop(k, None)
             if a != b:
                 sys.exit(f"[perfproof] the two builds recorded different inputs for the {ticks}-tick match")
             sys.stderr.write(f"[perfproof] {ticks}-tick replays: starting conditions and inputs identical on both builds\n")
@@ -385,11 +386,20 @@ def main():
     a = ap.parse_args()
     global RERECORD
     RERECORD = a.rerecord
+    allowed = {x for x in a.allow_fingerprint_change.split(",") if x}
+    # A declared state-hash change is exactly the case --rerecord exists for: verify each build's
+    # own replay and require identical recorded inputs, while the stateHashFold/finalStateHash
+    # fingerprints below still expose the intentional hash change for review.
+    if not RERECORD and any(
+        k == "stateHashFold" or k.endswith(".stateHashFold")
+        or k == "finalStateHash" or k.endswith(".finalStateHash")
+        for k in allowed
+    ):
+        RERECORD = True
     if a.self_test:
         return self_test()
     if not a.baseline:
         ap.error("--baseline REV is required")
-    allowed = {x for x in a.allow_fingerprint_change.split(",") if x}
     os.makedirs(a.out, exist_ok=True)
     known = {w["name"] for w in WORKLOADS}
     only = [x for x in a.only.split(",") if x]

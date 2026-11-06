@@ -33,7 +33,7 @@ namespace Roguehalla.Net.Tests
             throw new KeyNotFoundException(name);
         }
 
-        [Test] public void FixtureIsProtocolV6() { Assert.AreEqual(6, Wire.ProtocolVersion); Assert.AreEqual(Wire.ProtocolVersion, Fixture().GetProperty("protocol").GetInt32()); }
+        [Test] public void FixtureIsProtocolV7() { Assert.AreEqual(7, Wire.ProtocolVersion); Assert.AreEqual(Wire.ProtocolVersion, Fixture().GetProperty("protocol").GetInt32()); }
 
         [TestCaseSource(nameof(ClientVectors))]
         public void ClientVectorRoundTripsByteForByte(string name, string hex)
@@ -163,6 +163,18 @@ namespace Roguehalla.Net.Tests
             foreach (var bad in new[] { WireCommand.Swap(2), WireCommand.Pickup(default(PickupHandle)) }) {
                 var input = new ClientMsg.Input(); input.Commands.Add(bad); Assert.Throws<ArgumentException>(() => input.Encode());
             }
+        }
+
+        [Test]
+        public void HuntCommandAndSelfFieldsRoundTrip()
+        {
+            var h = Client<ClientMsg.Input>("input_hunt");
+            Assert.AreEqual(1, h.Commands.Count);
+            Assert.AreEqual(CommandKind.HuntTarget, h.Commands[0].Kind);
+            Assert.AreEqual(2u, h.Commands[0].ActorRef);
+            var snap = Server<ServerMsg.Snapshot>("snapshot");
+            Assert.AreEqual(2u, snap.Me.HuntTarget);
+            Assert.AreEqual((ushort)3, snap.Me.HuntStacks);
         }
 
         [Test]
@@ -352,6 +364,9 @@ namespace Roguehalla.Net.Tests
                 Assert.AreEqual(me.GetProperty("bounty").GetUInt16(), s.Me.Bounty); Assert.AreEqual(me.GetProperty("gv").GetUInt16(), s.Me.Gv);
                 Assert.AreEqual(me.GetProperty("moveSeq").GetByte(), s.Me.MoveSeq);
                 Assert.AreEqual(me.GetProperty("effects").GetUInt16(), s.Me.Effects); Assert.AreEqual(me.GetProperty("displaceSeq").GetByte(), s.Me.DisplaceSeq); Assert.AreEqual(me.GetProperty("sig").GetByte(),s.Me.Sig);
+                var hunt = me.GetProperty("huntTarget");
+                Assert.AreEqual(hunt.ValueKind == JsonValueKind.Null ? (uint?)null : hunt.GetUInt32(), s.Me.HuntTarget);
+                Assert.AreEqual(me.GetProperty("huntStacks").GetUInt16(), s.Me.HuntStacks);
             }
             var actors = d.GetProperty("actors");
             Assert.AreEqual(actors.GetArrayLength(), s.Actors.Length);

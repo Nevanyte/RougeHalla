@@ -297,6 +297,8 @@ pub enum MarkNotice {
     Marked,
     CarriedOut,
     ExecuteBlocked,
+    Hunting { target: PlayerId },
+    HuntComplete { stacks: u32 },
 }
 impl MarkNotice {
     pub const fn message(self) -> &'static str {
@@ -304,6 +306,8 @@ impl MarkNotice {
             Self::Marked => "Sentenced marked you.",
             Self::CarriedOut => "Your sentence has been carried out.",
             Self::ExecuteBlocked => "Execute blocked - already sentenced.",
+            Self::Hunting { .. } => "",
+            Self::HuntComplete { .. } => "",
         }
     }
 }
