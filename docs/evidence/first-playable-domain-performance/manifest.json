@@ -1,0 +1,47 @@
+{
+  "files": {
+    "README.md": {
+      "bytes": 7280,
+      "sha256": "b55ddfaa52d75c3221a993d5cd33509e200b0c21cc80a83383005dc44ca0647b"
+    },
+    "active.png": {
+      "bytes": 38815,
+      "sha256": "0bf2700059bf56cb35d97da5be29d9d820f6524e20dce57fbbe7e0ce9eabb5b0"
+    },
+    "browser-normal.json": {
+      "bytes": 32131,
+      "sha256": "31dc29cb68d61ccd1f537929977c448dff593f95f706bdfc9be20ad11ce104f0"
+    },
+    "browser-source-hashes.json": {
+      "bytes": 636,
+      "sha256": "ad1aca0c7bbe0ad3fa0c4e595408f5a6839758453bd1fb1e8b0ace1a56c101bb"
+    },
+    "browser-uncapped-diagnostic.json": {
+      "bytes": 32590,
+      "sha256": "55d00a1de3055a92f63848968a91e28d9305efe7903f95f760a939197c1575f8"
+    },
+    "cloudwatch-before.json": {
+      "bytes": 3164,
+      "sha256": "19e8f6b690c2848fa324ab4e9da18d8a285641dac95a85ca120727e18b419b99"
+    },
+    "http-ping.json": {
+      "bytes": 40728,
+      "sha256": "995c3991a837ca5156c62ac2b3808e2a2339a1303766b4585189a6950283fb69"
+    },
+    "metrics.json": {
+      "bytes": 6633,
+      "sha256": "4c12e9f06d81aa5a9fecf58daa11cce91921bd23e04c5fe74b170be0e9768952"
+    },
+    "server-after.json": {
+      "bytes": 3258,
+      "sha256": "1055b5c87a2cd51d0a55fe00676868356da3a1484b8719654d9a4a96a02d01d9"
+    },
+    "server-before.json": {
+      "bytes": 1904,
+      "sha256": "58183cdb561fedcbca35cd7d20d16f78fd61cd37ff05fd89d66a75772efaa53a"
+    }
+  },
+  "private_raw_frames_sha256": "e74ea5cf06b834cf7c198a8249a532dae68d8fe5485f5a913f2238c38db76957",
+  "private_raw_frames_bytes": 2230020,
+  "baseline_profile_file": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/aws-mvp/domain-performance/browser/run-2026-11-06T09-36-13-843Z"
+}

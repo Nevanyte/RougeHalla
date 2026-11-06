@@ -1,0 +1,256 @@
+{
+  "domain": "https://rougehalla.com/",
+  "measured_utc": {
+    "start": "2026-11-06T09:36:13.844Z",
+    "end": "2026-11-06T09:37:13.722Z"
+  },
+  "hardware": "Apple M5 Pro; native Metal; headed Chromium156",
+  "canvas": {
+    "width": 960,
+    "height": 600,
+    "dpr": 1
+  },
+  "active_seconds": 24.408900000095368,
+  "frames": 1464,
+  "fps": 59.97812273368648,
+  "frame_interval_ms": {
+    "n": 1464,
+    "p50": 16.69999999999709,
+    "p95": 18.5,
+    "p99": 18.60000000000582,
+    "min": 14.599999999998545,
+    "max": 18.80000000000291,
+    "mean": 16.66659836065574
+  },
+  "synchronous_callback_cpu_ms": {
+    "n": 1464,
+    "p50": 1.5999999046325684,
+    "p95": 2.200000286102295,
+    "p99": 2.5,
+    "min": 0.39999961853027344,
+    "max": 3.8000001907348633,
+    "mean": 1.572131146824425
+  },
+  "gpu_ms": {
+    "n": 1464,
+    "p50": 0.20275,
+    "p95": 0.215999,
+    "p99": 0.241375,
+    "min": 0.19,
+    "max": 0.483583,
+    "mean": 0.2047494480874317
+  },
+  "gpu_disjoint_events": 0,
+  "js_heap_bytes": {
+    "n": 1464,
+    "p50": 25571532,
+    "p95": 26197113,
+    "p99": 26353355,
+    "min": 24672541,
+    "max": 26412939,
+    "mean": 25570335.283469945
+  },
+  "wasm_linear_bytes": {
+    "n": 1464,
+    "p50": 69730304,
+    "p95": 69730304,
+    "p99": 69730304,
+    "min": 69730304,
+    "max": 69730304,
+    "mean": 69730304
+  },
+  "visible_counts": {
+    "visibleActors": {
+      "n": 1464,
+      "p50": 2,
+      "p95": 2,
+      "p99": 2,
+      "min": 2,
+      "max": 2,
+      "mean": 2
+    },
+    "visibleMobs": {
+      "n": 1464,
+      "p50": 1,
+      "p95": 1,
+      "p99": 1,
+      "min": 1,
+      "max": 1,
+      "mean": 1
+    },
+    "projectiles": {
+      "n": 1464,
+      "p50": 0,
+      "p95": 0,
+      "p99": 1,
+      "min": 0,
+      "max": 1,
+      "mean": 0.018442622950819672
+    },
+    "events": {
+      "swing": 58,
+      "hit": 58
+    }
+  },
+  "websocket": {
+    "actualUnityPingPongRttMs": {
+      "n": 24,
+      "p50": 9.900000095367432,
+      "p95": 11,
+      "p99": 11.699999809265137,
+      "min": 8,
+      "max": 11.699999809265137,
+      "mean": 9.770833373069763
+    },
+    "pingEchoesAllMatched": true,
+    "snapshotFrames": 488,
+    "snapshotRate": 19.992707577895494,
+    "snapshotGapMs": {
+      "n": 487,
+      "p50": 50,
+      "p95": 51.799999713897705,
+      "p99": 53.39999961853027,
+      "min": 43.5,
+      "max": 56.69999980926514,
+      "mean": 49.9983572901152
+    },
+    "snapshotTickGaps": {
+      "n": 487,
+      "p50": 1,
+      "p95": 1,
+      "p99": 1,
+      "min": 1,
+      "max": 1,
+      "mean": 1
+    },
+    "snapshotGapsOver100ms": 0,
+    "receivedBytes": 18801,
+    "sentBytes": 9096,
+    "receivedFrames": 608,
+    "sentFrames": 756,
+    "receivedBytesPerSecond": 770.2518343688795,
+    "sentBytesPerSecond": 372.6509592797898,
+    "cdpEncodedDownloadBytes": 23548062
+  },
+  "load_marks_ms": {
+    "unityReady": 24512.300000190735,
+    "menuReady": 29516,
+    "joinClick": 30347.699999809265,
+    "active": 33549.800000190735,
+    "welcome": 30494.599999904633,
+    "payloadEnd": 24280.900000095367
+  },
+  "build_resources": [
+    {
+      "name": "https://rougehalla.com/Build/Web.loader.js",
+      "encodedBodySize": 9420,
+      "decodedBodySize": 26455,
+      "responseEnd": 80.69999980926514,
+      "contentEncoding": "gzip"
+    },
+    {
+      "name": "https://rougehalla.com/Build/Web.framework.js",
+      "encodedBodySize": 90027,
+      "decodedBodySize": 432952,
+      "responseEnd": 240.90000009536743,
+      "contentEncoding": "gzip"
+    },
+    {
+      "name": "https://rougehalla.com/Build/Web.data",
+      "encodedBodySize": 10809404,
+      "decodedBodySize": 10809404,
+      "responseEnd": 12195.199999809265,
+      "contentEncoding": ""
+    },
+    {
+      "name": "https://rougehalla.com/Build/Web.wasm",
+      "encodedBodySize": 12595926,
+      "decodedBodySize": 44548477,
+      "responseEnd": 24280.900000095367,
+      "contentEncoding": "gzip"
+    }
+  ],
+  "build_encoded_bytes": 23504777,
+  "build_decoded_bytes": 55817288,
+  "completed_room": {
+    "bytesEnqueuedTotal": 24208,
+    "bytesOut": 23599,
+    "crashed": false,
+    "droppedSteps": 0,
+    "frameRefusals": 0,
+    "frameRefusalsLogged": 0,
+    "fxDropped": 0,
+    "lateWakes": 0,
+    "snapshotBytesSent": 16737,
+    "snapshotRefusals": 0,
+    "snapshotRefusalsLogged": 0,
+    "snapshotsDelta": 581,
+    "snapshotsFull": 1,
+    "snapshotsSkipped": 0,
+    "stepUsMax": 578,
+    "stepUsP50": 63,
+    "stepUsP99": 159,
+    "ticks": 676
+  },
+  "scope": [
+    "One ordinary MVP encounter; normal browser pacing; two visible remote actors including one mob.",
+    "Cloud room timer includes bot decisions, lease expiry and simulation; excludes publish and network. Whole room, including lobby/ended ticks.",
+    "Room p50/p99 are conservative histogram bucket bounds, not exact sorted quantiles.",
+    "Socket RTT ends at browser message delivery and excludes later Unity frame polling.",
+    "Application byte rates exclude WebSocket/TLS/TCP/IP overhead.",
+    "CloudWatch file predates this browser run; historical host context only.",
+    "No source, player, quality, hosting or display settings changed for normal baseline.",
+    "No game/page/decoder errors; optional CDP Wasm body hashing unavailable; ResourceTiming complete."
+  ],
+  "uncapped_diagnostic": {
+    "seconds": 8.084699999809265,
+    "submitted_callbacks": 6108,
+    "submitted_callbacks_per_second": 755.5011317852363,
+    "synchronous_cpu_ms": {
+      "n": 6108,
+      "p50": 0.20000028610229492,
+      "p95": 2.5999999046325684,
+      "p99": 2.6000003814697266,
+      "min": 0,
+      "max": 3.3999996185302734,
+      "mean": 1.213425017137034
+    },
+    "main_task_seconds": 8.046183999999998,
+    "gpu_query_samples": 184,
+    "gpu_queries_fraction": 0.030124426981008513,
+    "visible_counts": {
+      "visibleActors": {
+        "n": 6108,
+        "p50": 6,
+        "p95": 6,
+        "p99": 6,
+        "min": 5,
+        "max": 6,
+        "mean": 5.528650949574328
+      },
+      "visibleMobs": {
+        "n": 6108,
+        "p50": 3,
+        "p95": 3,
+        "p99": 3,
+        "min": 3,
+        "max": 3,
+        "mean": 3
+      },
+      "projectiles": {
+        "n": 6108,
+        "p50": 0,
+        "p95": 2,
+        "p99": 3,
+        "min": 0,
+        "max": 4,
+        "mean": 0.5903732809430255
+      },
+      "events": {
+        "swing": 59,
+        "hit": 62
+      }
+    },
+    "scope": "Experimental browser flags request uncapping. GL-submitting callbacks are not confirmed displayed frames or shipping FPS. Different random encounter, not paired. Sparse GPU queries cannot be compared with complete baseline."
+  }
+}

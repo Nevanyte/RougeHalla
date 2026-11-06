@@ -1,0 +1,14 @@
+[
+  {
+    "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/aws-mvp/domain-performance/browser/domain-profile.cjs",
+    "sha256": "2a30279ad2eb1ef85b09d6c4870cafe8a8e67e86750710974d84a1a442ca6891"
+  },
+  {
+    "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/aws-mvp/domain-performance/browser/profile-init.js",
+    "sha256": "28921c0893b7b7ed33a3c255241923df5357f983b5bfe7f9d41e0b63c0a7222d"
+  },
+  {
+    "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/aws-mvp/domain-performance/browser/wire-observer-init.js",
+    "sha256": "18a25327a17954d23ca70daab6a6582cac302a761177115230937ab133216c4b"
+  }
+]

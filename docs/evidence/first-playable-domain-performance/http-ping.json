@@ -1,0 +1,1583 @@
+{
+  "started_utc": "2026-11-06T09:35:06.423Z",
+  "finished_utc": "2026-11-06T09:35:19.382Z",
+  "endpoint": "https://rougehalla.com/ping",
+  "source_contract": {
+    "file": "crates/rh-server/src/lib.rs",
+    "line": 99,
+    "response": "HTTP 200 body pong, Cache-Control: no-store, Access-Control-Allow-Origin: *",
+    "meaning": "Tiny HTTP application round trip to game process. Includes client scheduling, network path, TLS record processing, HTTP handling, response transfer; does not measure simulation tick time or WSS Ping/Pong."
+  },
+  "context": {
+    "machine": "Apple M5 Pro, 64 GiB RAM",
+    "os": "macOS 26.6.1 (25G76), arm64",
+    "interface": "en0 (Wi-Fi), default route interface en0",
+    "runtime": "v25.8.1",
+    "branch": "optimization_port",
+    "commit": "bb6c91a1c31f9aee515a96f0c8aed9e98f3f4d3d",
+    "server_context_from_coordinator": "t4g.small 2GiB, ca-west-1a Calgary, public egress shaped to 8 Mbit/s",
+    "phase": "Started only after browser agent reports Unity asset download finished; no large download initiated by this probe.",
+    "browser_assets_finished_utc": "2026-11-06T09:34:49.991Z"
+  },
+  "method": {
+    "connections": 3,
+    "requests": 63,
+    "warm_count": 60,
+    "serial_pause_after_previous_response_ms": 200,
+    "http": "HTTP/1.1 TLS, Node https.Agent keepalive, TLS session cache disabled, third cold connection reused by all warm requests",
+    "dns": "resolve4/resolve6 with TTL plus CNAME via configured resolver; no OS/resolver cache flush. Fresh connection does not imply uncached DNS.",
+    "percentiles": "nearest rank on response-body-complete elapsed time",
+    "ttfb": "time from request creation to response headers callback",
+    "limits": [
+      "Single client and one short window; p99 with 60 samples is the maximum.",
+      "No ICMP, broad survey, load stress, WebSocket client or AWS mutations.",
+      "No claim of internet path isolation or performance for other locations/devices."
+    ],
+    "cold_dns_timing_definition": "Request creation to OS lookup callback; includes local Node/request setup and OS resolver scheduling, not isolated wire DNS. Separate resolve queries also reported."
+  },
+  "dns_observations": [
+    {
+      "type": "A",
+      "elapsed_ms": 12.503,
+      "answers": [
+        {
+          "address": "56.112.101.45",
+          "ttl": 60
+        }
+      ]
+    },
+    {
+      "type": "AAAA",
+      "elapsed_ms": 11.9,
+      "error": "ENODATA"
+    },
+    {
+      "type": "CNAME",
+      "elapsed_ms": 14.102,
+      "error": "ENODATA"
+    }
+  ],
+  "warm_summary_ms": {
+    "n": 60,
+    "p50": 10.675,
+    "p95": 12.211,
+    "p99": 13.285,
+    "min": 9.039,
+    "max": 13.285
+  },
+  "warm_reused_socket_count": 60,
+  "raw": [
+    {
+      "phase": "cold_connection",
+      "index": 1,
+      "at_utc": "2026-11-06T09:35:06.529Z",
+      "status": 200,
+      "body": "pong",
+      "body_bytes": 4,
+      "http_version": "1.1",
+      "reused_socket": false,
+      "tls_protocol": "TLSv1.3",
+      "tls_authorized": true,
+      "headers": {
+        "cache-control": "no-store",
+        "access-control-allow-origin": "*",
+        "content-length": "4"
+      },
+      "timing_ms": {
+        "tcp": 10.866,
+        "tls": 16.572,
+        "ttfb_from_start": 66.264,
+        "total": 66.721,
+        "dns_lookup_from_start": 29.233
+      }
+    },
+    {
+      "phase": "cold_connection",
+      "index": 2,
+      "at_utc": "2026-11-06T09:35:06.569Z",
+      "status": 200,
+      "body": "pong",
+      "body_bytes": 4,
+      "http_version": "1.1",
+      "reused_socket": false,
+      "tls_protocol": "TLSv1.3",
+      "tls_authorized": true,
+      "headers": {
+        "cache-control": "no-store",
+        "access-control-allow-origin": "*",
+        "content-length": "4"
+      },
+      "timing_ms": {
+        "tcp": 10.981,
+        "tls": 15.502,
+        "ttfb_from_start": 38.477,
+        "total": 38.575,
+        "dns_lookup_from_start": 1.729
+      }
+    },
+    {
+      "phase": "cold_connection",
+      "index": 3,
+      "at_utc": "2026-11-06T09:35:06.609Z",
+      "status": 200,
+      "body": "pong",
+      "body_bytes": 4,
+      "http_version": "1.1",
+      "reused_socket": false,
+      "tls_protocol": "TLSv1.3",
+      "tls_authorized": true,
+      "headers": {
+        "cache-control": "no-store",
+        "access-control-allow-origin": "*",
+        "content-length": "4"
+      },
+      "timing_ms": {
+        "tcp": 11.045,
+        "tls": 15.831,
+        "ttfb_from_start": 40.111,
+        "total": 40.217,
+        "dns_lookup_from_start": 1.985
+      }
+    },
+    {
+      "phase": "warm_keepalive",
+      "index": 1,
+      "at_utc": "2026-11-06T09:35:06.824Z",
+      "status": 200,
+      "body": "pong",
+      "body_bytes": 4,
+      "http_version": "1.1",
+      "reused_socket": true,
+      "tls_protocol": "TLSv1.3",
+      "tls_authorized": true,
+      "headers": {
+        "cache-control": "no-store",
+        "access-control-allow-origin": "*",
+        "content-length": "4"
+      },
+      "timing_ms": {
+        "tcp": null,
+        "tls": null,
+        "ttfb_from_start": 12.129,
+        "total": 12.44,
+        "dns_lookup_from_start": null
+      }
+    },
+    {
+      "phase": "warm_keepalive",
+      "index": 2,
+      "at_utc": "2026-11-06T09:35:07.039Z",
+      "status": 200,
+      "body": "pong",
+      "body_bytes": 4,
+      "http_version": "1.1",
+      "reused_socket": true,
+      "tls_protocol": "TLSv1.3",
+      "tls_authorized": true,
+      "headers": {
+        "cache-control": "no-store",
+        "access-control-allow-origin": "*",
+        "content-length": "4"
+      },
+      "timing_ms": {
+        "tcp": null,
+        "tls": null,
+        "ttfb_from_start": 12.167,
+        "total": 12.476,
+        "dns_lookup_from_start": null
+      }
+    },
+    {
+      "phase": "warm_keepalive",
+      "index": 3,
+      "at_utc": "2026-11-06T09:35:07.250Z",
+      "status": 200,
+      "body": "pong",
+      "body_bytes": 4,
+      "http_version": "1.1",
+      "reused_socket": true,
+      "tls_protocol": "TLSv1.3",
+      "tls_authorized": true,
+      "headers": {
+        "cache-control": "no-store",
+        "access-control-allow-origin": "*",
+        "content-length": "4"
+      },
+      "timing_ms": {
+        "tcp": null,
+        "tls": null,
+        "ttfb_from_start": 9.708,
+        "total": 9.972,
+        "dns_lookup_from_start": null
+      }
+    },
+    {
+      "phase": "warm_keepalive",
+      "index": 4,
+      "at_utc": "2026-11-06T09:35:07.464Z",
+      "status": 200,
+      "body": "pong",
+      "body_bytes": 4,
+      "http_version": "1.1",
+      "reused_socket": true,
+      "tls_protocol": "TLSv1.3",
+      "tls_authorized": true,
+      "headers": {
+        "cache-control": "no-store",
+        "access-control-allow-origin": "*",
+        "content-length": "4"
+      },
+      "timing_ms": {
+        "tcp": null,
+        "tls": null,
+        "ttfb_from_start": 12.034,
+        "total": 12.173,
+        "dns_lookup_from_start": null
+      }
+    },
+    {
+      "phase": "warm_keepalive",
+      "index": 5,
+      "at_utc": "2026-11-06T09:35:07.678Z",
+      "status": 200,
+      "body": "pong",
+      "body_bytes": 4,
+      "http_version": "1.1",
+      "reused_socket": true,
+      "tls_protocol": "TLSv1.3",
+      "tls_authorized": true,
+      "headers": {
+        "cache-control": "no-store",
+        "access-control-allow-origin": "*",
+        "content-length": "4"
+      },
+      "timing_ms": {
+        "tcp": null,
+        "tls": null,
+        "ttfb_from_start": 11.517,
+        "total": 11.8,
+        "dns_lookup_from_start": null
+      }
+    },
+    {
+      "phase": "warm_keepalive",
+      "index": 6,
+      "at_utc": "2026-11-06T09:35:07.891Z",
+      "status": 200,
+      "body": "pong",
+      "body_bytes": 4,
+      "http_version": "1.1",
+      "reused_socket": true,
+      "tls_protocol": "TLSv1.3",
+      "tls_authorized": true,
+      "headers": {
+        "cache-control": "no-store",
+        "access-control-allow-origin": "*",
+        "content-length": "4"
+      },
+      "timing_ms": {
+        "tcp": null,
+        "tls": null,
+        "ttfb_from_start": 11.606,
+        "total": 11.889,
+        "dns_lookup_from_start": null
+      }
+    },
+    {
+      "phase": "warm_keepalive",
+      "index": 7,
+      "at_utc": "2026-11-06T09:35:08.105Z",
+      "status": 200,
+      "body": "pong",
+      "body_bytes": 4,
+      "http_version": "1.1",
+      "reused_socket": true,
+      "tls_protocol": "TLSv1.3",
+      "tls_authorized": true,
+      "headers": {
+        "cache-control": "no-store",
+        "access-control-allow-origin": "*",
+        "content-length": "4"
+      },
+      "timing_ms": {
+        "tcp": null,
+        "tls": null,
+        "ttfb_from_start": 11.395,
+        "total": 11.633,
+        "dns_lookup_from_start": null
+      }
+    },
+    {
+      "phase": "warm_keepalive",
+      "index": 8,
+      "at_utc": "2026-11-06T09:35:08.317Z",
+      "status": 200,
+      "body": "pong",
+      "body_bytes": 4,
+      "http_version": "1.1",
+      "reused_socket": true,
+      "tls_protocol": "TLSv1.3",
+      "tls_authorized": true,
+      "headers": {
+        "cache-control": "no-store",
+        "access-control-allow-origin": "*",
+        "content-length": "4"
+      },
+      "timing_ms": {
+        "tcp": null,
+        "tls": null,
+        "ttfb_from_start": 9.842,
+        "total": 9.926,
+        "dns_lookup_from_start": null
+      }
+    },
+    {
+      "phase": "warm_keepalive",
+      "index": 9,
+      "at_utc": "2026-11-06T09:35:08.530Z",
+      "status": 200,
+      "body": "pong",
+      "body_bytes": 4,
+      "http_version": "1.1",
+      "reused_socket": true,
+      "tls_protocol": "TLSv1.3",
+      "tls_authorized": true,
+      "headers": {
+        "cache-control": "no-store",
+        "access-control-allow-origin": "*",
+        "content-length": "4"
+      },
+      "timing_ms": {
+        "tcp": null,
+        "tls": null,
+        "ttfb_from_start": 11.218,
+        "total": 11.343,
+        "dns_lookup_from_start": null
+      }
+    },
+    {
+      "phase": "warm_keepalive",
+      "index": 10,
+      "at_utc": "2026-11-06T09:35:08.743Z",
+      "status": 200,
+      "body": "pong",
+      "body_bytes": 4,
+      "http_version": "1.1",
+      "reused_socket": true,
+      "tls_protocol": "TLSv1.3",
+      "tls_authorized": true,
+      "headers": {
+        "cache-control": "no-store",
+        "access-control-allow-origin": "*",
+        "content-length": "4"
+      },
+      "timing_ms": {
+        "tcp": null,
+        "tls": null,
+        "ttfb_from_start": 10.55,
+        "total": 10.77,
+        "dns_lookup_from_start": null
+      }
+    },
+    {
+      "phase": "warm_keepalive",
+      "index": 11,
+      "at_utc": "2026-11-06T09:35:08.955Z",
+      "status": 200,
+      "body": "pong",
+      "body_bytes": 4,
+      "http_version": "1.1",
+      "reused_socket": true,
+      "tls_protocol": "TLSv1.3",
+      "tls_authorized": true,
+      "headers": {
+        "cache-control": "no-store",
+        "access-control-allow-origin": "*",
+        "content-length": "4"
+      },
+      "timing_ms": {
+        "tcp": null,
+        "tls": null,
+        "ttfb_from_start": 10.792,
+        "total": 10.965,
+        "dns_lookup_from_start": null
+      }
+    },
+    {
+      "phase": "warm_keepalive",
+      "index": 12,
+      "at_utc": "2026-11-06T09:35:09.170Z",
+      "status": 200,
+      "body": "pong",
+      "body_bytes": 4,
+      "http_version": "1.1",
+      "reused_socket": true,
+      "tls_protocol": "TLSv1.3",
+      "tls_authorized": true,
+      "headers": {
+        "cache-control": "no-store",
+        "access-control-allow-origin": "*",
+        "content-length": "4"
+      },
+      "timing_ms": {
+        "tcp": null,
+        "tls": null,
+        "ttfb_from_start": 11.718,
+        "total": 11.871,
+        "dns_lookup_from_start": null
+      }
+    },
+    {
+      "phase": "warm_keepalive",
+      "index": 13,
+      "at_utc": "2026-11-06T09:35:09.382Z",
+      "status": 200,
+      "body": "pong",
+      "body_bytes": 4,
+      "http_version": "1.1",
+      "reused_socket": true,
+      "tls_protocol": "TLSv1.3",
+      "tls_authorized": true,
+      "headers": {
+        "cache-control": "no-store",
+        "access-control-allow-origin": "*",
+        "content-length": "4"
+      },
+      "timing_ms": {
+        "tcp": null,
+        "tls": null,
+        "ttfb_from_start": 10.265,
+        "total": 10.381,
+        "dns_lookup_from_start": null
+      }
+    },
+    {
+      "phase": "warm_keepalive",
+      "index": 14,
+      "at_utc": "2026-11-06T09:35:09.594Z",
+      "status": 200,
+      "body": "pong",
+      "body_bytes": 4,
+      "http_version": "1.1",
+      "reused_socket": true,
+      "tls_protocol": "TLSv1.3",
+      "tls_authorized": true,
+      "headers": {
+        "cache-control": "no-store",
+        "access-control-allow-origin": "*",
+        "content-length": "4"
+      },
+      "timing_ms": {
+        "tcp": null,
+        "tls": null,
+        "ttfb_from_start": 10.8,
+        "total": 11.027,
+        "dns_lookup_from_start": null
+      }
+    },
+    {
+      "phase": "warm_keepalive",
+      "index": 15,
+      "at_utc": "2026-11-06T09:35:09.807Z",
+      "status": 200,
+      "body": "pong",
+      "body_bytes": 4,
+      "http_version": "1.1",
+      "reused_socket": true,
+      "tls_protocol": "TLSv1.3",
+      "tls_authorized": true,
+      "headers": {
+        "cache-control": "no-store",
+        "access-control-allow-origin": "*",
+        "content-length": "4"
+      },
+      "timing_ms": {
+        "tcp": null,
+        "tls": null,
+        "ttfb_from_start": 10.862,
+        "total": 11.08,
+        "dns_lookup_from_start": null
+      }
+    },
+    {
+      "phase": "warm_keepalive",
+      "index": 16,
+      "at_utc": "2026-11-06T09:35:10.019Z",
+      "status": 200,
+      "body": "pong",
+      "body_bytes": 4,
+      "http_version": "1.1",
+      "reused_socket": true,
+      "tls_protocol": "TLSv1.3",
+      "tls_authorized": true,
+      "headers": {
+        "cache-control": "no-store",
+        "access-control-allow-origin": "*",
+        "content-length": "4"
+      },
+      "timing_ms": {
+        "tcp": null,
+        "tls": null,
+        "ttfb_from_start": 10.468,
+        "total": 10.657,
+        "dns_lookup_from_start": null
+      }
+    },
+    {
+      "phase": "warm_keepalive",
+      "index": 17,
+      "at_utc": "2026-11-06T09:35:10.231Z",
+      "status": 200,
+      "body": "pong",
+      "body_bytes": 4,
+      "http_version": "1.1",
+      "reused_socket": true,
+      "tls_protocol": "TLSv1.3",
+      "tls_authorized": true,
+      "headers": {
+        "cache-control": "no-store",
+        "access-control-allow-origin": "*",
+        "content-length": "4"
+      },
+      "timing_ms": {
+        "tcp": null,
+        "tls": null,
+        "ttfb_from_start": 10.54,
+        "total": 10.675,
+        "dns_lookup_from_start": null
+      }
+    },
+    {
+      "phase": "warm_keepalive",
+      "index": 18,
+      "at_utc": "2026-11-06T09:35:10.443Z",
+      "status": 200,
+      "body": "pong",
+      "body_bytes": 4,
+      "http_version": "1.1",
+      "reused_socket": true,
+      "tls_protocol": "TLSv1.3",
+      "tls_authorized": true,
+      "headers": {
+        "cache-control": "no-store",
+        "access-control-allow-origin": "*",
+        "content-length": "4"
+      },
+      "timing_ms": {
+        "tcp": null,
+        "tls": null,
+        "ttfb_from_start": 9.707,
+        "total": 9.886,
+        "dns_lookup_from_start": null
+      }
+    },
+    {
+      "phase": "warm_keepalive",
+      "index": 19,
+      "at_utc": "2026-11-06T09:35:10.655Z",
+      "status": 200,
+      "body": "pong",
+      "body_bytes": 4,
+      "http_version": "1.1",
+      "reused_socket": true,
+      "tls_protocol": "TLSv1.3",
+      "tls_authorized": true,
+      "headers": {
+        "cache-control": "no-store",
+        "access-control-allow-origin": "*",
+        "content-length": "4"
+      },
+      "timing_ms": {
+        "tcp": null,
+        "tls": null,
+        "ttfb_from_start": 9.518,
+        "total": 9.651,
+        "dns_lookup_from_start": null
+      }
+    },
+    {
+      "phase": "warm_keepalive",
+      "index": 20,
+      "at_utc": "2026-11-06T09:35:10.867Z",
+      "status": 200,
+      "body": "pong",
+      "body_bytes": 4,
+      "http_version": "1.1",
+      "reused_socket": true,
+      "tls_protocol": "TLSv1.3",
+      "tls_authorized": true,
+      "headers": {
+        "cache-control": "no-store",
+        "access-control-allow-origin": "*",
+        "content-length": "4"
+      },
+      "timing_ms": {
+        "tcp": null,
+        "tls": null,
+        "ttfb_from_start": 9.734,
+        "total": 9.893,
+        "dns_lookup_from_start": null
+      }
+    },
+    {
+      "phase": "warm_keepalive",
+      "index": 21,
+      "at_utc": "2026-11-06T09:35:11.080Z",
+      "status": 200,
+      "body": "pong",
+      "body_bytes": 4,
+      "http_version": "1.1",
+      "reused_socket": true,
+      "tls_protocol": "TLSv1.3",
+      "tls_authorized": true,
+      "headers": {
+        "cache-control": "no-store",
+        "access-control-allow-origin": "*",
+        "content-length": "4"
+      },
+      "timing_ms": {
+        "tcp": null,
+        "tls": null,
+        "ttfb_from_start": 11.345,
+        "total": 11.609,
+        "dns_lookup_from_start": null
+      }
+    },
+    {
+      "phase": "warm_keepalive",
+      "index": 22,
+      "at_utc": "2026-11-06T09:35:11.292Z",
+      "status": 200,
+      "body": "pong",
+      "body_bytes": 4,
+      "http_version": "1.1",
+      "reused_socket": true,
+      "tls_protocol": "TLSv1.3",
+      "tls_authorized": true,
+      "headers": {
+        "cache-control": "no-store",
+        "access-control-allow-origin": "*",
+        "content-length": "4"
+      },
+      "timing_ms": {
+        "tcp": null,
+        "tls": null,
+        "ttfb_from_start": 9.683,
+        "total": 9.865,
+        "dns_lookup_from_start": null
+      }
+    },
+    {
+      "phase": "warm_keepalive",
+      "index": 23,
+      "at_utc": "2026-11-06T09:35:11.504Z",
+      "status": 200,
+      "body": "pong",
+      "body_bytes": 4,
+      "http_version": "1.1",
+      "reused_socket": true,
+      "tls_protocol": "TLSv1.3",
+      "tls_authorized": true,
+      "headers": {
+        "cache-control": "no-store",
+        "access-control-allow-origin": "*",
+        "content-length": "4"
+      },
+      "timing_ms": {
+        "tcp": null,
+        "tls": null,
+        "ttfb_from_start": 9.763,
+        "total": 9.987,
+        "dns_lookup_from_start": null
+      }
+    },
+    {
+      "phase": "warm_keepalive",
+      "index": 24,
+      "at_utc": "2026-11-06T09:35:11.717Z",
+      "status": 200,
+      "body": "pong",
+      "body_bytes": 4,
+      "http_version": "1.1",
+      "reused_socket": true,
+      "tls_protocol": "TLSv1.3",
+      "tls_authorized": true,
+      "headers": {
+        "cache-control": "no-store",
+        "access-control-allow-origin": "*",
+        "content-length": "4"
+      },
+      "timing_ms": {
+        "tcp": null,
+        "tls": null,
+        "ttfb_from_start": 10.26,
+        "total": 10.47,
+        "dns_lookup_from_start": null
+      }
+    },
+    {
+      "phase": "warm_keepalive",
+      "index": 25,
+      "at_utc": "2026-11-06T09:35:11.931Z",
+      "status": 200,
+      "body": "pong",
+      "body_bytes": 4,
+      "http_version": "1.1",
+      "reused_socket": true,
+      "tls_protocol": "TLSv1.3",
+      "tls_authorized": true,
+      "headers": {
+        "cache-control": "no-store",
+        "access-control-allow-origin": "*",
+        "content-length": "4"
+      },
+      "timing_ms": {
+        "tcp": null,
+        "tls": null,
+        "ttfb_from_start": 11.486,
+        "total": 11.658,
+        "dns_lookup_from_start": null
+      }
+    },
+    {
+      "phase": "warm_keepalive",
+      "index": 26,
+      "at_utc": "2026-11-06T09:35:12.143Z",
+      "status": 200,
+      "body": "pong",
+      "body_bytes": 4,
+      "http_version": "1.1",
+      "reused_socket": true,
+      "tls_protocol": "TLSv1.3",
+      "tls_authorized": true,
+      "headers": {
+        "cache-control": "no-store",
+        "access-control-allow-origin": "*",
+        "content-length": "4"
+      },
+      "timing_ms": {
+        "tcp": null,
+        "tls": null,
+        "ttfb_from_start": 9.279,
+        "total": 9.482,
+        "dns_lookup_from_start": null
+      }
+    },
+    {
+      "phase": "warm_keepalive",
+      "index": 27,
+      "at_utc": "2026-11-06T09:35:12.355Z",
+      "status": 200,
+      "body": "pong",
+      "body_bytes": 4,
+      "http_version": "1.1",
+      "reused_socket": true,
+      "tls_protocol": "TLSv1.3",
+      "tls_authorized": true,
+      "headers": {
+        "cache-control": "no-store",
+        "access-control-allow-origin": "*",
+        "content-length": "4"
+      },
+      "timing_ms": {
+        "tcp": null,
+        "tls": null,
+        "ttfb_from_start": 9.715,
+        "total": 9.894,
+        "dns_lookup_from_start": null
+      }
+    },
+    {
+      "phase": "warm_keepalive",
+      "index": 28,
+      "at_utc": "2026-11-06T09:35:12.567Z",
+      "status": 200,
+      "body": "pong",
+      "body_bytes": 4,
+      "http_version": "1.1",
+      "reused_socket": true,
+      "tls_protocol": "TLSv1.3",
+      "tls_authorized": true,
+      "headers": {
+        "cache-control": "no-store",
+        "access-control-allow-origin": "*",
+        "content-length": "4"
+      },
+      "timing_ms": {
+        "tcp": null,
+        "tls": null,
+        "ttfb_from_start": 11.158,
+        "total": 11.363,
+        "dns_lookup_from_start": null
+      }
+    },
+    {
+      "phase": "warm_keepalive",
+      "index": 29,
+      "at_utc": "2026-11-06T09:35:12.781Z",
+      "status": 200,
+      "body": "pong",
+      "body_bytes": 4,
+      "http_version": "1.1",
+      "reused_socket": true,
+      "tls_protocol": "TLSv1.3",
+      "tls_authorized": true,
+      "headers": {
+        "cache-control": "no-store",
+        "access-control-allow-origin": "*",
+        "content-length": "4"
+      },
+      "timing_ms": {
+        "tcp": null,
+        "tls": null,
+        "ttfb_from_start": 11.27,
+        "total": 11.389,
+        "dns_lookup_from_start": null
+      }
+    },
+    {
+      "phase": "warm_keepalive",
+      "index": 30,
+      "at_utc": "2026-11-06T09:35:12.993Z",
+      "status": 200,
+      "body": "pong",
+      "body_bytes": 4,
+      "http_version": "1.1",
+      "reused_socket": true,
+      "tls_protocol": "TLSv1.3",
+      "tls_authorized": true,
+      "headers": {
+        "cache-control": "no-store",
+        "access-control-allow-origin": "*",
+        "content-length": "4"
+      },
+      "timing_ms": {
+        "tcp": null,
+        "tls": null,
+        "ttfb_from_start": 10.225,
+        "total": 10.388,
+        "dns_lookup_from_start": null
+      }
+    },
+    {
+      "phase": "warm_keepalive",
+      "index": 31,
+      "at_utc": "2026-11-06T09:35:13.206Z",
+      "status": 200,
+      "body": "pong",
+      "body_bytes": 4,
+      "http_version": "1.1",
+      "reused_socket": true,
+      "tls_protocol": "TLSv1.3",
+      "tls_authorized": true,
+      "headers": {
+        "cache-control": "no-store",
+        "access-control-allow-origin": "*",
+        "content-length": "4"
+      },
+      "timing_ms": {
+        "tcp": null,
+        "tls": null,
+        "ttfb_from_start": 10.394,
+        "total": 10.505,
+        "dns_lookup_from_start": null
+      }
+    },
+    {
+      "phase": "warm_keepalive",
+      "index": 32,
+      "at_utc": "2026-11-06T09:35:13.418Z",
+      "status": 200,
+      "body": "pong",
+      "body_bytes": 4,
+      "http_version": "1.1",
+      "reused_socket": true,
+      "tls_protocol": "TLSv1.3",
+      "tls_authorized": true,
+      "headers": {
+        "cache-control": "no-store",
+        "access-control-allow-origin": "*",
+        "content-length": "4"
+      },
+      "timing_ms": {
+        "tcp": null,
+        "tls": null,
+        "ttfb_from_start": 10.085,
+        "total": 10.341,
+        "dns_lookup_from_start": null
+      }
+    },
+    {
+      "phase": "warm_keepalive",
+      "index": 33,
+      "at_utc": "2026-11-06T09:35:13.632Z",
+      "status": 200,
+      "body": "pong",
+      "body_bytes": 4,
+      "http_version": "1.1",
+      "reused_socket": true,
+      "tls_protocol": "TLSv1.3",
+      "tls_authorized": true,
+      "headers": {
+        "cache-control": "no-store",
+        "access-control-allow-origin": "*",
+        "content-length": "4"
+      },
+      "timing_ms": {
+        "tcp": null,
+        "tls": null,
+        "ttfb_from_start": 11.273,
+        "total": 11.431,
+        "dns_lookup_from_start": null
+      }
+    },
+    {
+      "phase": "warm_keepalive",
+      "index": 34,
+      "at_utc": "2026-11-06T09:35:13.847Z",
+      "status": 200,
+      "body": "pong",
+      "body_bytes": 4,
+      "http_version": "1.1",
+      "reused_socket": true,
+      "tls_protocol": "TLSv1.3",
+      "tls_authorized": true,
+      "headers": {
+        "cache-control": "no-store",
+        "access-control-allow-origin": "*",
+        "content-length": "4"
+      },
+      "timing_ms": {
+        "tcp": null,
+        "tls": null,
+        "ttfb_from_start": 13.084,
+        "total": 13.285,
+        "dns_lookup_from_start": null
+      }
+    },
+    {
+      "phase": "warm_keepalive",
+      "index": 35,
+      "at_utc": "2026-11-06T09:35:14.059Z",
+      "status": 200,
+      "body": "pong",
+      "body_bytes": 4,
+      "http_version": "1.1",
+      "reused_socket": true,
+      "tls_protocol": "TLSv1.3",
+      "tls_authorized": true,
+      "headers": {
+        "cache-control": "no-store",
+        "access-control-allow-origin": "*",
+        "content-length": "4"
+      },
+      "timing_ms": {
+        "tcp": null,
+        "tls": null,
+        "ttfb_from_start": 10.403,
+        "total": 10.523,
+        "dns_lookup_from_start": null
+      }
+    },
+    {
+      "phase": "warm_keepalive",
+      "index": 36,
+      "at_utc": "2026-11-06T09:35:14.271Z",
+      "status": 200,
+      "body": "pong",
+      "body_bytes": 4,
+      "http_version": "1.1",
+      "reused_socket": true,
+      "tls_protocol": "TLSv1.3",
+      "tls_authorized": true,
+      "headers": {
+        "cache-control": "no-store",
+        "access-control-allow-origin": "*",
+        "content-length": "4"
+      },
+      "timing_ms": {
+        "tcp": null,
+        "tls": null,
+        "ttfb_from_start": 9.902,
+        "total": 10.221,
+        "dns_lookup_from_start": null
+      }
+    },
+    {
+      "phase": "warm_keepalive",
+      "index": 37,
+      "at_utc": "2026-11-06T09:35:14.485Z",
+      "status": 200,
+      "body": "pong",
+      "body_bytes": 4,
+      "http_version": "1.1",
+      "reused_socket": true,
+      "tls_protocol": "TLSv1.3",
+      "tls_authorized": true,
+      "headers": {
+        "cache-control": "no-store",
+        "access-control-allow-origin": "*",
+        "content-length": "4"
+      },
+      "timing_ms": {
+        "tcp": null,
+        "tls": null,
+        "ttfb_from_start": 12.04,
+        "total": 12.211,
+        "dns_lookup_from_start": null
+      }
+    },
+    {
+      "phase": "warm_keepalive",
+      "index": 38,
+      "at_utc": "2026-11-06T09:35:14.699Z",
+      "status": 200,
+      "body": "pong",
+      "body_bytes": 4,
+      "http_version": "1.1",
+      "reused_socket": true,
+      "tls_protocol": "TLSv1.3",
+      "tls_authorized": true,
+      "headers": {
+        "cache-control": "no-store",
+        "access-control-allow-origin": "*",
+        "content-length": "4"
+      },
+      "timing_ms": {
+        "tcp": null,
+        "tls": null,
+        "ttfb_from_start": 11.449,
+        "total": 11.647,
+        "dns_lookup_from_start": null
+      }
+    },
+    {
+      "phase": "warm_keepalive",
+      "index": 39,
+      "at_utc": "2026-11-06T09:35:14.912Z",
+      "status": 200,
+      "body": "pong",
+      "body_bytes": 4,
+      "http_version": "1.1",
+      "reused_socket": true,
+      "tls_protocol": "TLSv1.3",
+      "tls_authorized": true,
+      "headers": {
+        "cache-control": "no-store",
+        "access-control-allow-origin": "*",
+        "content-length": "4"
+      },
+      "timing_ms": {
+        "tcp": null,
+        "tls": null,
+        "ttfb_from_start": 10.492,
+        "total": 10.711,
+        "dns_lookup_from_start": null
+      }
+    },
+    {
+      "phase": "warm_keepalive",
+      "index": 40,
+      "at_utc": "2026-11-06T09:35:15.126Z",
+      "status": 200,
+      "body": "pong",
+      "body_bytes": 4,
+      "http_version": "1.1",
+      "reused_socket": true,
+      "tls_protocol": "TLSv1.3",
+      "tls_authorized": true,
+      "headers": {
+        "cache-control": "no-store",
+        "access-control-allow-origin": "*",
+        "content-length": "4"
+      },
+      "timing_ms": {
+        "tcp": null,
+        "tls": null,
+        "ttfb_from_start": 11.287,
+        "total": 11.444,
+        "dns_lookup_from_start": null
+      }
+    },
+    {
+      "phase": "warm_keepalive",
+      "index": 41,
+      "at_utc": "2026-11-06T09:35:15.338Z",
+      "status": 200,
+      "body": "pong",
+      "body_bytes": 4,
+      "http_version": "1.1",
+      "reused_socket": true,
+      "tls_protocol": "TLSv1.3",
+      "tls_authorized": true,
+      "headers": {
+        "cache-control": "no-store",
+        "access-control-allow-origin": "*",
+        "content-length": "4"
+      },
+      "timing_ms": {
+        "tcp": null,
+        "tls": null,
+        "ttfb_from_start": 10.32,
+        "total": 10.51,
+        "dns_lookup_from_start": null
+      }
+    },
+    {
+      "phase": "warm_keepalive",
+      "index": 42,
+      "at_utc": "2026-11-06T09:35:15.552Z",
+      "status": 200,
+      "body": "pong",
+      "body_bytes": 4,
+      "http_version": "1.1",
+      "reused_socket": true,
+      "tls_protocol": "TLSv1.3",
+      "tls_authorized": true,
+      "headers": {
+        "cache-control": "no-store",
+        "access-control-allow-origin": "*",
+        "content-length": "4"
+      },
+      "timing_ms": {
+        "tcp": null,
+        "tls": null,
+        "ttfb_from_start": 11.066,
+        "total": 11.29,
+        "dns_lookup_from_start": null
+      }
+    },
+    {
+      "phase": "warm_keepalive",
+      "index": 43,
+      "at_utc": "2026-11-06T09:35:15.766Z",
+      "status": 200,
+      "body": "pong",
+      "body_bytes": 4,
+      "http_version": "1.1",
+      "reused_socket": true,
+      "tls_protocol": "TLSv1.3",
+      "tls_authorized": true,
+      "headers": {
+        "cache-control": "no-store",
+        "access-control-allow-origin": "*",
+        "content-length": "4"
+      },
+      "timing_ms": {
+        "tcp": null,
+        "tls": null,
+        "ttfb_from_start": 10.489,
+        "total": 10.667,
+        "dns_lookup_from_start": null
+      }
+    },
+    {
+      "phase": "warm_keepalive",
+      "index": 44,
+      "at_utc": "2026-11-06T09:35:15.977Z",
+      "status": 200,
+      "body": "pong",
+      "body_bytes": 4,
+      "http_version": "1.1",
+      "reused_socket": true,
+      "tls_protocol": "TLSv1.3",
+      "tls_authorized": true,
+      "headers": {
+        "cache-control": "no-store",
+        "access-control-allow-origin": "*",
+        "content-length": "4"
+      },
+      "timing_ms": {
+        "tcp": null,
+        "tls": null,
+        "ttfb_from_start": 9.805,
+        "total": 9.968,
+        "dns_lookup_from_start": null
+      }
+    },
+    {
+      "phase": "warm_keepalive",
+      "index": 45,
+      "at_utc": "2026-11-06T09:35:16.191Z",
+      "status": 200,
+      "body": "pong",
+      "body_bytes": 4,
+      "http_version": "1.1",
+      "reused_socket": true,
+      "tls_protocol": "TLSv1.3",
+      "tls_authorized": true,
+      "headers": {
+        "cache-control": "no-store",
+        "access-control-allow-origin": "*",
+        "content-length": "4"
+      },
+      "timing_ms": {
+        "tcp": null,
+        "tls": null,
+        "ttfb_from_start": 11.069,
+        "total": 11.204,
+        "dns_lookup_from_start": null
+      }
+    },
+    {
+      "phase": "warm_keepalive",
+      "index": 46,
+      "at_utc": "2026-11-06T09:35:16.403Z",
+      "status": 200,
+      "body": "pong",
+      "body_bytes": 4,
+      "http_version": "1.1",
+      "reused_socket": true,
+      "tls_protocol": "TLSv1.3",
+      "tls_authorized": true,
+      "headers": {
+        "cache-control": "no-store",
+        "access-control-allow-origin": "*",
+        "content-length": "4"
+      },
+      "timing_ms": {
+        "tcp": null,
+        "tls": null,
+        "ttfb_from_start": 9.598,
+        "total": 9.711,
+        "dns_lookup_from_start": null
+      }
+    },
+    {
+      "phase": "warm_keepalive",
+      "index": 47,
+      "at_utc": "2026-11-06T09:35:16.615Z",
+      "status": 200,
+      "body": "pong",
+      "body_bytes": 4,
+      "http_version": "1.1",
+      "reused_socket": true,
+      "tls_protocol": "TLSv1.3",
+      "tls_authorized": true,
+      "headers": {
+        "cache-control": "no-store",
+        "access-control-allow-origin": "*",
+        "content-length": "4"
+      },
+      "timing_ms": {
+        "tcp": null,
+        "tls": null,
+        "ttfb_from_start": 9.895,
+        "total": 10.149,
+        "dns_lookup_from_start": null
+      }
+    },
+    {
+      "phase": "warm_keepalive",
+      "index": 48,
+      "at_utc": "2026-11-06T09:35:16.830Z",
+      "status": 200,
+      "body": "pong",
+      "body_bytes": 4,
+      "http_version": "1.1",
+      "reused_socket": true,
+      "tls_protocol": "TLSv1.3",
+      "tls_authorized": true,
+      "headers": {
+        "cache-control": "no-store",
+        "access-control-allow-origin": "*",
+        "content-length": "4"
+      },
+      "timing_ms": {
+        "tcp": null,
+        "tls": null,
+        "ttfb_from_start": 11.86,
+        "total": 11.976,
+        "dns_lookup_from_start": null
+      }
+    },
+    {
+      "phase": "warm_keepalive",
+      "index": 49,
+      "at_utc": "2026-11-06T09:35:17.044Z",
+      "status": 200,
+      "body": "pong",
+      "body_bytes": 4,
+      "http_version": "1.1",
+      "reused_socket": true,
+      "tls_protocol": "TLSv1.3",
+      "tls_authorized": true,
+      "headers": {
+        "cache-control": "no-store",
+        "access-control-allow-origin": "*",
+        "content-length": "4"
+      },
+      "timing_ms": {
+        "tcp": null,
+        "tls": null,
+        "ttfb_from_start": 11.938,
+        "total": 12.138,
+        "dns_lookup_from_start": null
+      }
+    },
+    {
+      "phase": "warm_keepalive",
+      "index": 50,
+      "at_utc": "2026-11-06T09:35:17.256Z",
+      "status": 200,
+      "body": "pong",
+      "body_bytes": 4,
+      "http_version": "1.1",
+      "reused_socket": true,
+      "tls_protocol": "TLSv1.3",
+      "tls_authorized": true,
+      "headers": {
+        "cache-control": "no-store",
+        "access-control-allow-origin": "*",
+        "content-length": "4"
+      },
+      "timing_ms": {
+        "tcp": null,
+        "tls": null,
+        "ttfb_from_start": 9.866,
+        "total": 9.971,
+        "dns_lookup_from_start": null
+      }
+    },
+    {
+      "phase": "warm_keepalive",
+      "index": 51,
+      "at_utc": "2026-11-06T09:35:17.468Z",
+      "status": 200,
+      "body": "pong",
+      "body_bytes": 4,
+      "http_version": "1.1",
+      "reused_socket": true,
+      "tls_protocol": "TLSv1.3",
+      "tls_authorized": true,
+      "headers": {
+        "cache-control": "no-store",
+        "access-control-allow-origin": "*",
+        "content-length": "4"
+      },
+      "timing_ms": {
+        "tcp": null,
+        "tls": null,
+        "ttfb_from_start": 9.65,
+        "total": 9.77,
+        "dns_lookup_from_start": null
+      }
+    },
+    {
+      "phase": "warm_keepalive",
+      "index": 52,
+      "at_utc": "2026-11-06T09:35:17.682Z",
+      "status": 200,
+      "body": "pong",
+      "body_bytes": 4,
+      "http_version": "1.1",
+      "reused_socket": true,
+      "tls_protocol": "TLSv1.3",
+      "tls_authorized": true,
+      "headers": {
+        "cache-control": "no-store",
+        "access-control-allow-origin": "*",
+        "content-length": "4"
+      },
+      "timing_ms": {
+        "tcp": null,
+        "tls": null,
+        "ttfb_from_start": 11.942,
+        "total": 12.033,
+        "dns_lookup_from_start": null
+      }
+    },
+    {
+      "phase": "warm_keepalive",
+      "index": 53,
+      "at_utc": "2026-11-06T09:35:17.894Z",
+      "status": 200,
+      "body": "pong",
+      "body_bytes": 4,
+      "http_version": "1.1",
+      "reused_socket": true,
+      "tls_protocol": "TLSv1.3",
+      "tls_authorized": true,
+      "headers": {
+        "cache-control": "no-store",
+        "access-control-allow-origin": "*",
+        "content-length": "4"
+      },
+      "timing_ms": {
+        "tcp": null,
+        "tls": null,
+        "ttfb_from_start": 9.705,
+        "total": 9.78,
+        "dns_lookup_from_start": null
+      }
+    },
+    {
+      "phase": "warm_keepalive",
+      "index": 54,
+      "at_utc": "2026-11-06T09:35:18.106Z",
+      "status": 200,
+      "body": "pong",
+      "body_bytes": 4,
+      "http_version": "1.1",
+      "reused_socket": true,
+      "tls_protocol": "TLSv1.3",
+      "tls_authorized": true,
+      "headers": {
+        "cache-control": "no-store",
+        "access-control-allow-origin": "*",
+        "content-length": "4"
+      },
+      "timing_ms": {
+        "tcp": null,
+        "tls": null,
+        "ttfb_from_start": 9.992,
+        "total": 10.068,
+        "dns_lookup_from_start": null
+      }
+    },
+    {
+      "phase": "warm_keepalive",
+      "index": 55,
+      "at_utc": "2026-11-06T09:35:18.319Z",
+      "status": 200,
+      "body": "pong",
+      "body_bytes": 4,
+      "http_version": "1.1",
+      "reused_socket": true,
+      "tls_protocol": "TLSv1.3",
+      "tls_authorized": true,
+      "headers": {
+        "cache-control": "no-store",
+        "access-control-allow-origin": "*",
+        "content-length": "4"
+      },
+      "timing_ms": {
+        "tcp": null,
+        "tls": null,
+        "ttfb_from_start": 10.048,
+        "total": 10.156,
+        "dns_lookup_from_start": null
+      }
+    },
+    {
+      "phase": "warm_keepalive",
+      "index": 56,
+      "at_utc": "2026-11-06T09:35:18.531Z",
+      "status": 200,
+      "body": "pong",
+      "body_bytes": 4,
+      "http_version": "1.1",
+      "reused_socket": true,
+      "tls_protocol": "TLSv1.3",
+      "tls_authorized": true,
+      "headers": {
+        "cache-control": "no-store",
+        "access-control-allow-origin": "*",
+        "content-length": "4"
+      },
+      "timing_ms": {
+        "tcp": null,
+        "tls": null,
+        "ttfb_from_start": 10.755,
+        "total": 10.91,
+        "dns_lookup_from_start": null
+      }
+    },
+    {
+      "phase": "warm_keepalive",
+      "index": 57,
+      "at_utc": "2026-11-06T09:35:18.745Z",
+      "status": 200,
+      "body": "pong",
+      "body_bytes": 4,
+      "http_version": "1.1",
+      "reused_socket": true,
+      "tls_protocol": "TLSv1.3",
+      "tls_authorized": true,
+      "headers": {
+        "cache-control": "no-store",
+        "access-control-allow-origin": "*",
+        "content-length": "4"
+      },
+      "timing_ms": {
+        "tcp": null,
+        "tls": null,
+        "ttfb_from_start": 11.202,
+        "total": 11.308,
+        "dns_lookup_from_start": null
+      }
+    },
+    {
+      "phase": "warm_keepalive",
+      "index": 58,
+      "at_utc": "2026-11-06T09:35:18.958Z",
+      "status": 200,
+      "body": "pong",
+      "body_bytes": 4,
+      "http_version": "1.1",
+      "reused_socket": true,
+      "tls_protocol": "TLSv1.3",
+      "tls_authorized": true,
+      "headers": {
+        "cache-control": "no-store",
+        "access-control-allow-origin": "*",
+        "content-length": "4"
+      },
+      "timing_ms": {
+        "tcp": null,
+        "tls": null,
+        "ttfb_from_start": 10.532,
+        "total": 10.633,
+        "dns_lookup_from_start": null
+      }
+    },
+    {
+      "phase": "warm_keepalive",
+      "index": 59,
+      "at_utc": "2026-11-06T09:35:19.170Z",
+      "status": 200,
+      "body": "pong",
+      "body_bytes": 4,
+      "http_version": "1.1",
+      "reused_socket": true,
+      "tls_protocol": "TLSv1.3",
+      "tls_authorized": true,
+      "headers": {
+        "cache-control": "no-store",
+        "access-control-allow-origin": "*",
+        "content-length": "4"
+      },
+      "timing_ms": {
+        "tcp": null,
+        "tls": null,
+        "ttfb_from_start": 11.94,
+        "total": 12.032,
+        "dns_lookup_from_start": null
+      }
+    },
+    {
+      "phase": "warm_keepalive",
+      "index": 60,
+      "at_utc": "2026-11-06T09:35:19.382Z",
+      "status": 200,
+      "body": "pong",
+      "body_bytes": 4,
+      "http_version": "1.1",
+      "reused_socket": true,
+      "tls_protocol": "TLSv1.3",
+      "tls_authorized": true,
+      "headers": {
+        "cache-control": "no-store",
+        "access-control-allow-origin": "*",
+        "content-length": "4"
+      },
+      "timing_ms": {
+        "tcp": null,
+        "tls": null,
+        "ttfb_from_start": 8.939,
+        "total": 9.039,
+        "dns_lookup_from_start": null
+      }
+    }
+  ]
+}

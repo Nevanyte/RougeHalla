@@ -55,6 +55,12 @@ CLI verifies the new account and the Cloudflare dashboard made only the marked p
 change or Paid-plan upgrade was made. [Cloud evidence](evidence/first-playable-calgary/README.md) records exact artifacts,
 public TLS, runtime guards and budget scope. Wasm/JS use gzip; further loading optimization remains open.
 
+Actual-domain M5 Pro profiling now measures59.98FPS over24.409s, socket RTT9.9ms median/11.7ms p99, GPU0.203ms
+median and fresh Unity readiness24.5s under the8Mbit/s cap. A separate experimental uncapped run submits755.5 GL callbacks/s;
+this is not confirmed displayed/shipping FPS. The new Calgary room reports game-step63/159µs median/p99 in its scoped
+histogram. [Full domain metrics](evidence/first-playable-domain-performance/README.md) separate rendering, network,
+loading, memory and server work; no source/player/quality changes were made.
+
 **Remaining first-release gate: finish the bounded playtest and verify cleanup.** The owner can test until06:00 Edmonton
 on2026-11-06; the cleanup coordinator is assigned for13:00UTC, before the guest’s13:34UTC fallback and the Rust admission
 cutoff. Cleanup is pending, not passed. CAD20 total remains the cap. Final matched full-port performance and the original
