@@ -76,6 +76,8 @@ checkpoint layout, observation schema, policy contract or wire layout changes he
 ## Verification and measurement
 
 [Integrated results](integrated-result.json) records the final workspace checks and source fingerprints.
+[CI results](ci-result.json) bind source checkpoint `d1027eac`: Rust/C# `42132791905` and all six native
+determinism jobs `42133186195` passed, including both foreign replay directions.
 The content identity is `105333d9ac5d8d92`; checkpoint 14/replay 12/observation 11/policy 8/wire 5 remain.
 Canonical recaptures use Linux amd64 Node 22.23.4 in the cached image, read-only source mounts and private
 executable dependency storage. CI retains all four callback checks plus the styled pin, registry,

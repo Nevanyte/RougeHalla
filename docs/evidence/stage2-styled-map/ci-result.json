@@ -1,0 +1,23 @@
+{
+  "format": "rh-stage2-styled-map-ci/1",
+  "commit": "d1027eac93be54ec9e37435ab71c2e97a3aafdc9",
+  "branch": "optimization_port",
+  "rustFoundation": {
+    "runId": 42132791905,
+    "rust": "success",
+    "csharp": "success"
+  },
+  "nativeDeterminism": {
+    "runId": 42133186195,
+    "jobs": [
+      "native x86_64 production",
+      "native aarch64 production",
+      "artifact comparison",
+      "aarch64 replay on x86_64",
+      "x86_64 replay on aarch64",
+      "aggregate gate"
+    ],
+    "allSuccess": true
+  },
+  "scope": "Implemented generator/gameplay slice; full gameplay, client/browser matrix, cloud and release gates remain open."
+}

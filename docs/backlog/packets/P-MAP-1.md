@@ -15,7 +15,7 @@ pins and full DTOs match;800 independent hard checks pass. The997-test native wo
 formatting and gameplay parity pass. Quiet native M5 Pro release medians are 13.47 ms plain and22.21 ms styled, versus
 paired actual Node 22.23.4 source 29.48 ms and45.32 ms,both decor:false (40 seeds,5 warmups/mode). Reproducible off-core
 harness: `tools/map-bench`. Source fingerprints, raw samples, limitations and reviews:
-[completion evidence](../../evidence/stage2-styled-map/README.md). CI refresh awaits the integration commit.
+[completion evidence](../../evidence/stage2-styled-map/README.md). Checkpoint `d1027eac` passed Rust/C# CI `42132791905` and all six native determinism jobs `42133186195`.
 The incremental milestone text below is historical; MIGRATION remains the status record. Live map-pool operation,
 public transport and full gameplay remain separate packets.
 
