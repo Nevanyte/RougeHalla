@@ -222,6 +222,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Actual card runtime and positive Witness remain byte exact
         run: |
+          mkdir -p node_modules
           bash tools/card-runtime-fixtures/capture.sh --check
           bash tools/card-runtime-witness-fixtures/capture.sh --check
 
