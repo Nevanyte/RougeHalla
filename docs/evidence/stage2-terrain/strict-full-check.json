@@ -1,0 +1,8 @@
+{
+  "status": "INCOMPLETE",
+  "exit_code": 101,
+  "known_reward_mismatch_observed": true,
+  "case": "born-plague-ember-real-attack-credit",
+  "frame": 3,
+  "field": "containers/c4/options/1"
+}

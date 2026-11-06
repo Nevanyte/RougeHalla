@@ -408,6 +408,68 @@ fn mob_audit_states() -> (Sim, Sim) {
     (engaged, cleared)
 }
 
+/// Real native producer for the global optional slide audit; keep the large map's
+/// already-covered grid out of the per-leaf perturbation campaign below.
+fn native_ice_slide() -> Sim {
+    let export: rh_sim::mapdata::MapExport =
+        serde_json::from_str(include_str!("../src/mapdata/fixtures/seed1.map.json")).unwrap();
+    let arena = export.validate().unwrap().into_arena().unwrap();
+    let index = arena
+        .map
+        .layers()
+        .unwrap()
+        .data()
+        .terrain
+        .iter()
+        .position(|v| *v == 6)
+        .unwrap();
+    let at = Vec2::new(
+        (index % arena.map.w as usize) as f64 * 32. + 16.,
+        (index / arena.map.w as usize) as f64 * 32. + 16.,
+    );
+    let ps = [
+        Placement {
+            profile: "ice-a".into(),
+            faction: FactionId::Holy,
+            bot: false,
+            at,
+            hp: None,
+            weapon0: None,
+            weapon1: None,
+        },
+        Placement {
+            profile: "ice-b".into(),
+            faction: FactionId::Holy,
+            bot: false,
+            at: arena.spawns[1],
+            hp: None,
+            weapon0: None,
+            weapon1: None,
+        },
+    ];
+    let mut sim = Sim::reset_active(
+        SimConfig {
+            hazards: rh_sim::terrain::Mode::Map,
+            ..Default::default()
+        },
+        arena,
+        Secrets::from_seed(1),
+        &ps,
+    );
+    sim.submit(
+        PlayerId(1),
+        cmd(RawCommand::Move {
+            x: at.x + 32.,
+            y: at.y,
+            seq: Some(1),
+        }),
+    )
+    .unwrap();
+    sim.step();
+    assert!(sim.players()[0].motion.slip.is_some());
+    sim
+}
+
 fn scenarios() -> Vec<(&'static str, Sim)> {
     let (mob_engaged, mob_cleared) = mob_audit_states();
     let mut mid = crowded_8();
@@ -601,11 +663,18 @@ fn candidates(leaf: &Value, strings: &[String]) -> Vec<Value> {
 
 /// Patterns whose perturbation the restore may refuse, and why. Any other refusal fails the test.
 const VALIDATED: &[(&str, &str)] = &[
+    ("statics.config.hazards", "terrain mode is a closed Off/Map/All enum"),
+    ("world.players.*.core.motion.path.#len", "path checkpoint is exactly the generation/points pair"),
+    ("world.mobs.*.core.motion.path.#len", "path checkpoint is exactly the generation/points pair"),
+    ("world.rt.gates_locked", "no ordinary arena gate producer is admitted yet; true requires that future stage"),
+    ("world.terrain.seconds.#len", "exact four source surface counters"),
+    ("world.terrain.seconds.*", "terrain counters must be nonnegative finite and zero when hazards are Off"),
+    ("world.deferred.hits.*.terrain", "terrain hits are applied within the burn pass, never deferred; imported terrain entries are refused"),
     ("world.mobs.*.core.weapon.action.kind", "mob pending action kind must match its held weapon (Bow Draw, Wand Cast, otherwise Swing)"),
     ("world.mobs.*.core.weapon.action.weapon", "mob pending action weapon must equal its catalog-derived active weapon"),
     ("world.mobs.*.core.weapon.action.target", "mob_checkpoint rejects player lock targets on mob pending attacks; NPC aim is resolved through its brain"),
     ("world.mobs.*.core.card_dot_crit", "mob_checkpoint requires no player card DotCrit runtime on mobs"),
-    ("world.mobs.*.core.motion.slip", "mob_checkpoint rejects mob slip; supported mob movement has no slip producer"),
+    ("world.mobs.*.core.motion.slip", "terrain validation rejects slip when hazards are Off; admitted Map/All ice states are covered by the dedicated terrain leaf audit"),
     ("world.mobs.*.core.signature.ap_hits.target", "mob_checkpoint requires the complete player-only AP hit history remain default"),
     ("world.mobs.*.core.signature.mark.far_since", "mob_checkpoint requires the complete unsupported Mark runtime remain default"),
     ("world.mobs.*.core.statuses.cast", "mob_checkpoint rejects ability cast state on mobs"),
@@ -1209,6 +1278,23 @@ fn every_serialized_leaf_of_a_match_changes_the_state_hash() {
         layered.state_hash()
     );
     all.perturbed.push(path_of(&path));
+    // An actual map-ice producer supplies Some, rather than inventing Off-state slip.
+    let sliding = native_ice_slide();
+    let mut checkpoint = serde_json::to_value(&sliding).unwrap();
+    assert_eq!(
+        Sim::restore(&checkpoint).unwrap().state_hash(),
+        sliding.state_hash()
+    );
+    assert!(checkpoint["world"]["players"][0]["core"]["motion"]["slip"].is_object());
+    checkpoint["world"]["players"][0]["core"]["motion"]["slip"] = Value::Null;
+    assert_ne!(
+        Sim::restore(&checkpoint).unwrap().state_hash(),
+        sliding.state_hash()
+    );
+    all.optional_seen
+        .push("world.players.*.core.motion.slip".into());
+    all.perturbed
+        .push("world.players.*.core.motion.slip".into());
     // Every optional pattern must either accept a hash-changing edit somewhere in the corpus
     // or have an exact documented restore refusal (including role-forbidden Some values).
     // Accepted edits are always checked, even for patterns listed in VALIDATED.
@@ -1246,7 +1332,7 @@ fn a_deferred_queue_and_every_roster_name_are_hashed() {
     let mut cp = serde_json::to_value(&sim).unwrap();
     cp["world"]["deferred"]["hits"] = serde_json::json!([{
         "victim": 2, "by": 1,
-        "dot":false,"ability":null,"arena":false,"source":null,"critical":false,"critical_mult":null,
+        "terrain":false,"dot":false,"ability":null,"arena":false,"source":null,"critical":false,"critical_mult":null,
         "sig": null,"execute": false,
             "packet": {"raw": 5.0, "phys": 4.0, "magic": 1.0, "true_": 0.0},
         "weapon": "Fists", "stagger": true, "scale": 1.0, "derived":false, "projectile":null
@@ -1266,7 +1352,7 @@ fn a_deferred_queue_and_every_roster_name_are_hashed() {
             && t.validated
                 .iter()
                 .filter(|p| p.contains("deferred"))
-                .all(|p| p.ends_with("execute") || p.ends_with("sig")),
+                .all(|p| p.ends_with("execute") || p.ends_with("sig") || p.ends_with("terrain")),
         "the queued hit's own leaves were perturbed and hashed"
     );
     // The new optional signature and execute qualification are independently hash-covered
@@ -1385,8 +1471,8 @@ fn the_serde_skips_are_exactly_the_documented_ones() {
         ),
         (
             "statics.rs",
-            1,
-            "MatchStatic: the digest, derived from the stored fields while decoding",
+            3,
+            "MatchStatic: the digest and hazard flags are rebuilt from stored fields; terrain source is rebuilt from hashed EMBER_NAME and typed terrain attribution",
         ),
     ];
     let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src");

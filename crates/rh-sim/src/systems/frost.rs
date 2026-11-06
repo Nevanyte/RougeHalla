@@ -648,6 +648,7 @@ mod tests {
                 cx.s.rank.resize(cx.w.players.len(), 0);
                 let mut hit = |victim, by, weapon, raw, sig| {
                     cx.s.ledger.push(super::super::ledger::Entry {
+                        terrain: false,
                         dot: false,
                         ability: None,
                         arena: false,

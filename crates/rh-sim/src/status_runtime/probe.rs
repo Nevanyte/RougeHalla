@@ -93,6 +93,7 @@ pub(crate) fn record_hook(w: &mut World, args: &HookArgs) {
             by,
             source,
             amount,
+            ..
         } => Some(HookRecord::ArenaHurt {
             victim: *victim,
             by: *by,
@@ -145,7 +146,7 @@ pub(crate) fn record_heal(w: &mut World, i: usize, amount: f64, kind: systems::h
             systems::heal::Kind::Lifesteal => HealSource::Lifesteal,
             systems::heal::Kind::IgnoreLockout => HealSource::IgnoreLockout,
             systems::heal::Kind::DeathFloor => HealSource::DeathFloor,
-            systems::heal::Kind::QuietRegen => return,
+            systems::heal::Kind::QuietRegen | systems::heal::Kind::QuietOrdinary => return,
         };
         w.trace.1.records.push(HookRecord::Healed {
             actor: Box::new(w.players[i].clone()),
@@ -174,6 +175,7 @@ pub struct ProbeHit {
 impl From<ProbeHit> for ledger::Entry {
     fn from(h: ProbeHit) -> Self {
         Self {
+            terrain: false,
             by: h.source.id,
             source: Some(h.source),
             victim: h.victim,

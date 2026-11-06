@@ -74,6 +74,12 @@ jobs:
         run: |
           bash tools/terrain-fixtures/capture.sh --check
           bash tools/terrain-fixtures/born-capture.sh --check
+      - name: Bounded terrain kernel and collision allocation checks
+        run: |
+          cargo test --locked -p rh-sim --features trusted-status-probes --lib terrain
+          cargo test --locked -p rh-sim --features trusted-status-probes --test terrain_no_alloc
+      - name: Planning and arena source witnesses remain byte exact
+        run: bash tools/arena-fixtures/capture.sh --check
       - name: Pure mob catalog and rosters still match the actual source
         run: node --import tsx tools/mob-fixtures/catalog-rosters.ts --self-test
       - name: Status runtime matches all four frozen source corpora

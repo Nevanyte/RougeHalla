@@ -115,6 +115,7 @@ fn resolve_swings(cx: &mut Cx) {
                     || angle_between(atan2(dy, dx), target.body.facing)
                         <= SHIELD_HALF_ARC + ARC_EPS);
             let mut entry = Entry {
+                terrain: false,
                 dot: false,
                 ability: None,
                 arena: false,
@@ -171,6 +172,7 @@ fn resolve_swings(cx: &mut Cx) {
                         w,
                         ledger,
                         Entry {
+                            terrain: false,
                             dot: false,
                             ability: None,
                             arena: false,

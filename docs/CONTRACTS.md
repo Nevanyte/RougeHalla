@@ -14,12 +14,23 @@ revision; [sweep/README.md](sweep/README.md) says which (H-sim and H-server-2 ha
 
 ### Stage 2 validation addendum (takes precedence over the historical Stage 1 rows below)
 
-Native arm64 integration on `optimization_port`: 1,304 tests passed with all features and two explicitly
+Historical playable-core arm64 integration on `optimization_port`: 1,304 tests passed with all features and two explicitly
 ignored tests (heap measurement and manual bridge E2E; the latter passed at the preceding external integration).
 Workspace coverage was split into completed simulation and remaining-workspace batches; a stale counter control and
 test-only trace accumulation were repaired and retested. Formatting and full/default-feature workspace Clippy with warnings denied passed. The preceding
 foundation gate passed 395 all-feature/386 default-feature tests; its Rust/C#/browser and legacy recapture CI passed at
-`c93b659d`. Full-game, AWS, browser-matrix and release gates remain open.
+`c93b659d`. The newer terrain kernel passes1,127 distinct tests in split native batches, both strict workspace Clippy
+modes and formatting. Its191 unchanged map-generator unit tests await the new full CI run rather than another local
+campaign. Full-game, AWS, browser-matrix and release gates remain open.
+
+- C-TICK/C-DET/C-PARITY terrain-kernel addendum: source ember/bog/ice/light now run in their original schedule/hook
+  slots. Logical path points plus replacement generation preserve source array identity across restore; internal ice
+  replans reuse buffers without replacing that identity. Restore enforces a tick-derived generation ceiling, complete
+  slip tuples, actor/clock provenance, and enabled/admitted terrain modes. Actual five-faction surfaces and source
+  naming feed content identity. The44,690-leaf audit has zero unhashed leaves; warmed terrain and source collision/
+  replan/grip traces allocate zero. Twenty born cases compare fully; one exact reward-options difference remains a
+  reproducible strict full-world failure. Training, arena producers, full NPC signatures and public terrain facts remain
+  open; public hazards stay Off. See [terrain evidence](evidence/stage2-terrain/README.md).
 
 - C-INPUT/C-OBS/C-PARITY playable-core addendum: actual initial loot, Small potions, selected cards/stat boosts and
   Holy/Fire/Plague PvE share the native fighter/stat/input paths. Typed constructor/actor provenance is checked on
@@ -45,8 +56,8 @@ foundation gate passed 395 all-feature/386 default-feature tests; its Rust/C#/br
 - C-INPUT/C-PARITY: weapon inputs use the existing validation/action budget. The harness now compares real admission
   outcomes, rejects unconsumed or unordered records, and checks requirements only for replayed records. 97 compared
   scenarios and 300 path queries MATCH; 13 scenarios are explicitly capture-only. Exact recapture runs Linux x64 Node 22.23.4.
-- C-DET/C-NUM: checkpoint format is `rh-checkpoint/16`, replay `rh-replay/14`, observation version13/policy10; content identity
-  `74192c062ab9eac1`. Current hash audit covers44,428 leaves with zero unhashed;37 optional patterns have actual Some
+- C-DET/C-NUM: checkpoint format is `rh-checkpoint/17`, replay `rh-replay/15`, observation version13/policy10; content identity
+  `cb27362236f2d3c2`. Current hash audit covers44,690 leaves with zero unhashed;37 optional patterns have actual Some
   values and30 exact optional patterns are documented restore refusals. Projectile state is hashed/restored, invalid packet/identity headroom is refused, and the six earlier
   flight fixtures allocate zero over 336 measured steady steps. Fixed map geometry uses one definition folded into the
   content identity; all 76 recaptured files and all seven map oracles agree on Linux x64 Node 22.23.4. Full admitted gameplay
@@ -564,6 +575,12 @@ figures are taken by hand).
 (`a_changed_rule_is_caught`).
 
 ## Change log
+
+- Native terrain kernel (2026-11-06): source ice captures require path replacement identity in addition to logical
+  points. Independently reviewed checkpoint17/replay15 adds that generation and private terrain state; typed restore
+  bounds prevent the observed near-maximum epoch panic. Real helper/actor captures, hash/restore/allocation checks and
+  a surface/content negative control verify the bounded kernel. Full-world rewards retain the exact documented failure;
+  no full-terrain or full-port completion is declared. [Evidence](evidence/stage2-terrain/README.md).
 
 - Stage 2 placement/repair/tail (2026-11-05): native all-feature/locked gate: 703 passed, 0 failed, one intentionally ignored; both strict
   Clippy modes, formatting and parity (97 compared, 13 capture-only, 300 paths) pass. Canonical source bytechecks and independent

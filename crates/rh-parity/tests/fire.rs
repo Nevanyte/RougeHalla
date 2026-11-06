@@ -130,7 +130,7 @@ fn fire_checkpoint_refuses_instant_delayed_and_wrong_mode_state() {
     bits["world"]["players"][0]["core"]["signature"]["bits"] = 16.into();
     assert!(Sim::restore(bits).is_err());
     let mut deferred = valid;
-    deferred["world"]["deferred"]["hits"] = serde_json::json!([{"dot":false,"ability":null,"arena":false,"source":null,"critical":false,"critical_mult":null,"victim":2,"by":1,"packet":{"raw":1.,"phys":1.,"magic":0.,"true_":0.},"weapon":"Fists","stagger":false,"projectile":null,"scale":1.,"derived":false,"passive":false,"sig":"Backlash","execute":false}]);
+    deferred["world"]["deferred"]["hits"] = serde_json::json!([{"terrain":false,"dot":false,"ability":null,"arena":false,"source":null,"critical":false,"critical_mult":null,"victim":2,"by":1,"packet":{"raw":1.,"phys":1.,"magic":0.,"true_":0.},"weapon":"Fists","stagger":false,"projectile":null,"scale":1.,"derived":false,"passive":false,"sig":"Backlash","execute":false}]);
     assert!(
         Sim::restore(deferred.clone()).is_ok(),
         "valid instant deferred entry"

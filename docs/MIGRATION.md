@@ -33,12 +33,26 @@ headless foundation again leads the next implementation work; Unity rules remain
 all still partial at full-port scope. The bounded Calgary run still cleans up at13:00UTC; continuation does not enlarge
 CAD20 total or authorize a Paid-plan upgrade/production rollout.
 
-P-TERRAIN-1 source witnesses are integrated after independent source-only approval:66 installed/helper/runtime cases,
-11 ice traces and a separate21-case/88-frame actual-born NPC extension. Both pinned Linux amd64 Node22.23.4 captures
-were reproduced byte exactly; the nine integrated files match the frozen manifests and all source provenance hashes.
-CI now checks both captures. The native runtime/comparators remain a private proposal under review; this is not a
-terrain-runtime completion claim. Arena-gate ownership and remaining full NPC/training producers stay explicit in
-[the packet](backlog/packets/P-TERRAIN-1.md). The deployed MVP still has hazards Off and its original build.
+The bounded P-TERRAIN-1 native kernel is integrated after independent review: ember, bog, ice and light use the ordinary
+Rust movement/ledger/heal paths, with private clocks/statistics, source hook resets and restored path-array identity.
+Its witnesses retain66 original cases,11 ice traces and a separate21-case/88-frame actual-born NPC extension. Both
+pinned Linux amd64 Node22.23.4 captures reproduce byte exactly; CI checks both. Twenty born cases fully compare; the
+lethal-credit case preserves an exact full-world reward-card mismatch. Full P-TERRAIN-1 remains **INCOMPLETE**.
+
+Current native identity: content `cb27362236f2d3c2`, checkpoint17/replay15; observation13/policy10/protocol6 unchanged.
+The coordinator verified1,127 distinct tests in split batches, including all simulation integration tests, real-PG
+adapters, three compile-fail documentation checks and the44,690-leaf hash audit with zero unhashed leaves. Both strict
+workspace Clippy modes and formatting pass;97 legacy scenarios/13 capture-only/300 paths retain their existing result.
+The191 unchanged map-generator unit tests were not repeated locally; the new full CI run remains pending.
+[Terrain evidence](evidence/stage2-terrain/README.md) records exact commands, source scope, zero-allocation collision
+replanning and the reproducible strict reward failure. The deployed MVP retains its original build and hazards Off.
+
+P-ARENA-1 design and its frozen source witnesses are independently reviewed:35 cases/621 frames,200 exact deals and
+two labeled helpers are integrated source-only, with a pinned canonical reproduction and CI check. Native implementation
+remains private. Its reviewed design preserves historical
+vision across gate changes, source constructor/deal/teleport stream order, retained private planning state and owner-only
+planning facts. Native lifecycle comes before its serialized wire/client and durable shutdown work. Full card rewards,
+training actors, full NPC faction domains and other original-port requirements remain in the backlog.
 
 ### Current playable-core checkpoint
 
@@ -49,10 +63,11 @@ The native six-seat proof terminates at tick688, replays exactly and restores it
 is opt-in `--first-playable`; [maps/README](../maps/README.md) documents its eight-seat and four-hour-plus-drain bounds.
 Quests, traders, other consumables, remaining regional mechanics and the full card pool are still deferred.
 
-Native all-feature workspace coverage passes **1,304 tests**, including three compile-fail documentation checks,
+The preceding playable-core all-feature workspace gate passed **1,304 tests**, including three compile-fail documentation checks,
 with two existing manual ignores. The long simulation suite was split from the remaining workspace to avoid repeating completed map tests. Both strict Clippy modes and
 formatting pass. C# passes267 tests; JS passes15,377 golden and61 focused assertions. Wire6 now binds all seven reliable
-collections and the new gameplay inputs. Content is `74192c062ab9eac1`; checkpoint16/replay14/observation13/policy10.
+collections and the new gameplay inputs. That deployed checkpoint uses content `74192c062ab9eac1` and
+checkpoint16/replay14/observation13/policy10; the newer native terrain identity is recorded above.
 The hash audit finds zero unhashed leaves across44,428 leaves, with actual mob runtime states included.
 Checkpoint `484cef25` also passes Rust/C# CI42190950142 and hosting CI42190950113.
 

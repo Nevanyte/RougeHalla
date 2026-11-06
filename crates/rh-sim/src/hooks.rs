@@ -63,6 +63,7 @@ pub(crate) enum HookArgs {
         melee: bool,
     },
     ArenaHurt {
+        terrain: bool,
         victim: PlayerId,
         by: Option<PlayerId>,
         source: Option<crate::status_runtime::StatusSource>,

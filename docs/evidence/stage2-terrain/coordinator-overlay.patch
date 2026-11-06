@@ -1,0 +1,106 @@
+--- a/crates/rh-load/tests/smoke.rs
++++ b/crates/rh-load/tests/smoke.rs
+@@ -24,0 +25 @@
++        hazards: rh_sim::terrain::Mode::Off,
+--- a/crates/rh-parity/tests/fire.rs
++++ b/crates/rh-parity/tests/fire.rs
+@@ -133 +133 @@
+-    deferred["world"]["deferred"]["hits"] = serde_json::json!([{"dot":false,"ability":null,"arena":false,"source":null,"critical":false,"critical_mult":null,"victim":2,"by":1,"packet":{"raw":1.,"phys":1.,"magic":0.,"true_":0.},"weapon":"Fists","stagger":false,"projectile":null,"scale":1.,"derived":false,"passive":false,"sig":"Backlash","execute":false}]);
++    deferred["world"]["deferred"]["hits"] = serde_json::json!([{"terrain":false,"dot":false,"ability":null,"arena":false,"source":null,"critical":false,"critical_mult":null,"victim":2,"by":1,"packet":{"raw":1.,"phys":1.,"magic":0.,"true_":0.},"weapon":"Fists","stagger":false,"projectile":null,"scale":1.,"derived":false,"passive":false,"sig":"Backlash","execute":false}]);
+--- a/crates/rh-server/examples/connheap.rs
++++ b/crates/rh-server/examples/connheap.rs
+@@ -50,0 +51 @@
++        hazards: rh_sim::terrain::Mode::Off,
+--- a/crates/rh-server/src/bin/densitybench/engine.rs
++++ b/crates/rh-server/src/bin/densitybench/engine.rs
+@@ -206,0 +207 @@
++        hazards: rh_sim::terrain::Mode::Off,
+--- a/crates/rh-server/src/director.rs
++++ b/crates/rh-server/src/director.rs
+@@ -1915,0 +1916 @@
++            hazards: rh_sim::terrain::Mode::Off,
+--- a/crates/rh-server/src/main.rs
++++ b/crates/rh-server/src/main.rs
+@@ -428,0 +429 @@
++        hazards: rh_sim::terrain::Mode::Off,
+--- a/crates/rh-server/src/room.rs
++++ b/crates/rh-server/src/room.rs
+@@ -1318,0 +1319 @@
++                hazards: rh_sim::terrain::Mode::Off,
+--- a/crates/rh-server/tests/account_api.rs
++++ b/crates/rh-server/tests/account_api.rs
+@@ -97,0 +98 @@
++            hazards: rh_sim::terrain::Mode::Off,
+--- a/crates/rh-server/tests/account_api_memory.rs
++++ b/crates/rh-server/tests/account_api_memory.rs
+@@ -15,0 +16 @@
++            hazards: rh_sim::terrain::Mode::Off,
+--- a/crates/rh-server/tests/control.rs
++++ b/crates/rh-server/tests/control.rs
+@@ -143,0 +144 @@
++        hazards: rh_sim::terrain::Mode::Off,
+@@ -284,0 +286 @@
++                    hazards: rh_sim::terrain::Mode::Off,
+@@ -1256,0 +1259 @@
++                    hazards: rh_sim::terrain::Mode::Off,
+--- a/crates/rh-server/tests/density.rs
++++ b/crates/rh-server/tests/density.rs
+@@ -32,0 +33 @@
++            hazards: rh_sim::terrain::Mode::Off,
+--- a/crates/rh-server/tests/equivalence.rs
++++ b/crates/rh-server/tests/equivalence.rs
+@@ -48,0 +49 @@
++        hazards: rh_sim::terrain::Mode::Off,
+--- a/crates/rh-server/tests/lifecycle.rs
++++ b/crates/rh-server/tests/lifecycle.rs
+@@ -47,0 +48 @@
++        hazards: rh_sim::terrain::Mode::Off,
+@@ -426,0 +428 @@
++        hazards: rh_sim::terrain::Mode::Off,
+--- a/crates/rh-server/tests/live.rs
++++ b/crates/rh-server/tests/live.rs
+@@ -74,0 +75 @@
++        hazards: rh_sim::terrain::Mode::Off,
+--- a/crates/rh-server/tests/pg_e2e.rs
++++ b/crates/rh-server/tests/pg_e2e.rs
+@@ -113,0 +114 @@
++                hazards: rh_sim::terrain::Mode::Off,
+@@ -367,0 +369 @@
++                hazards: rh_sim::terrain::Mode::Off,
+--- a/crates/rh-server/tests/publish.rs
++++ b/crates/rh-server/tests/publish.rs
+@@ -294,0 +295 @@
++                hazards: rh_sim::terrain::Mode::Off,
+--- a/crates/rh-server/tests/result_recovery.rs
++++ b/crates/rh-server/tests/result_recovery.rs
+@@ -141,0 +142 @@
++                hazards: rh_sim::terrain::Mode::Off,
+--- a/crates/rh-server/tests/transport.rs
++++ b/crates/rh-server/tests/transport.rs
+@@ -42,0 +43 @@
++        hazards: rh_sim::terrain::Mode::Off,
+--- a/crates/rh-sim/src/schedule.rs
++++ b/crates/rh-sim/src/schedule.rs
+@@ -1792 +1792 @@
+-        // The capture plan retains the nine source-ordered live consumers; mob callbacks are no-ops without actors.
++        // The capture plan retains ten source-ordered live consumers; mob callbacks are no-ops without actors.
+@@ -1806,0 +1807 @@
++                "terrainEffects.lightPass",
+--- a/crates/rh-sim/tests/mob_foundation.rs
++++ b/crates/rh-sim/tests/mob_foundation.rs
+@@ -175 +175 @@
+-        "dot":false,"ability":null,"arena":false,"source":null,"critical":false,"critical_mult":null,
++        "terrain":false,"dot":false,"ability":null,"arena":false,"source":null,"critical":false,"critical_mult":null,
+--- a/crates/rh-sim/tests/sentenced.rs
++++ b/crates/rh-sim/tests/sentenced.rs
+@@ -82,2 +82,8 @@
+-    cp["world"]["deferred"]["hits"] = json!([{"victim":2,"by":1,"sig":"Mark","execute":true,"packet":{"raw":1.,"phys":0.4,"magic":0.6,"true_":0.},"weapon":"Fists","stagger":false,"projectile":null,"scale":1.,"derived":false,"passive":false}]);
+-    assert!(Sim::restore(cp).is_err());
++    cp["world"]["deferred"]["hits"] = json!([{"terrain":false,"dot":false,"ability":null,"arena":false,"source":null,"critical":false,"critical_mult":null,"victim":2,"by":1,"sig":"Mark","execute":true,"packet":{"raw":1.,"phys":0.4,"magic":0.6,"true_":0.},"weapon":"Fists","stagger":false,"projectile":null,"scale":1.,"derived":false,"passive":false}]);
++    let mut legal = cp.clone();
++    legal["world"]["deferred"]["hits"][0]["execute"] = json!(false);
++    Sim::restore(legal).expect("an otherwise valid deferred Mark entry");
++    assert!(Sim::restore(cp)
++        .unwrap_err()
++        .to_string()
++        .contains("execute qualification"));

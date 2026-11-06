@@ -471,6 +471,9 @@ fn what_the_slice_has_ported_stays_ported() {
     assert!(ported(&t.systems).contains(&"mods.updateMods"));
     assert!(ported(&t.systems).contains(&"abilities.abilityDotFx"));
     assert!(ported(&t.before_damage).contains(&"abilities.statusDamage"));
+    assert!(ported(&t.before_damage).contains(&"terrainEffects.burnPass"));
+    assert!(ported(&t.systems).contains(&"terrainEffects.lightPass"));
+    assert!(ported(&t.move_modifiers).contains(&"terrainEffects.applyBog"));
     assert!(ported(&t.move_modifiers).contains(&"abilities.statusMoveMultiplier"));
     assert!(ported(&t.mod_sources).contains(&"abilities.attackSlowSource"));
     assert!(ported(&t.mod_sources).contains(&"cardHooks.cardSource"));

@@ -279,4 +279,20 @@ content! {
     CAMP_HEAL_RANGE:f64=12.*TILE,"u";
     CAMP_RESPAWN_MS: f64 = 180000., "ms";
 
+    TERRAIN_BURN: f64 = 0.02, "terrain source rule";
+    TERRAIN_BOG: f64 = 0.7, "terrain source rule";
+    TERRAIN_SLIP_MS: f64 = 400., "terrain source rule";
+    TERRAIN_HEAL: f64 = 0.03, "terrain source rule";
+    TERRAIN_HOME_HEAL: f64 = 2., "terrain source rule";
+    TERRAIN_LIGHT_FX_MS: f64 = 1000., "terrain source rule";
+    TERRAIN_LIGHT_FX_MIN: f64 = 0.5, "terrain source rule";
+    TERRAIN_REACH: f64 = 4., "terrain source rule";
+    TERRAIN_REPLAN_MS: f64 = 250., "terrain source rule";
+    TERRAIN_STUCK_REPLANS: f64 = 3., "terrain source rule";
+    TERRAIN_STUCK_WINDOW_MS: f64 = 2000., "terrain source rule";
+    TERRAIN_GRIP_MS: f64 = 1000., "terrain source rule";
+    TERRAIN_ARRIVE_EPS: f64 = 0.5, "terrain source rule";
+    TERRAIN_EPS: f64 = 1e-9, "terrain source rule";
+    TERRAIN_V_EPS: f64 = 1e-6, "terrain source rule";
+
 }

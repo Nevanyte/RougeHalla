@@ -37,6 +37,34 @@ Exact new capture/helper filenames and integration owners are assigned before im
 `crates/rh-parity/**`, `crates/rh-server/src/{room.rs,wire.rs}` for sending the private plan, `parity/legacy-capture/capture.ts`,
 `parity/maps/`. Protocol/C# edits are the shared-file change (README). Core layout rules (post-sweep, [ADR 0009](../../adr/0009-core-layout.md); the README "Shared-file rule" has the long form): the mechanic is `systems/<mechanic>.rs` with `fn(&mut Cx)` entry points, plus its rows flipped from `Pending` to `Ported` in `schedule.rs` at their legacy position (the row names, never a reorder); entity data goes in `fighter.rs` / `state.rs` / `store.rs` (hashed and checkpointed: extend `check_world` in `checkpoint.rs` if the new data has an invariant the tick relies on) and per-tick lists in `TickScratch` (`scratch.rs`, never serialized); `tests/no_alloc.rs` must stay at zero allocations per step, new content goes through the `content.rs` registry (`content_hash`), and every new serialized field must be covered by `tests/hash_coverage.rs`. `sim.rs` is a facade and is not in any write scope.
 
+### Approved private implementation scope (2026-11-06)
+
+The coordinator and independent reviewer approved core-first implementation after source/caller audit. Necessary
+`sim.rs` changes are thin delegations only, amending its exclusion above. The worker proposes changes privately;
+the coordinator retains root integration, shared versions/status, Cargo.lock and public activation.
+
+1. Derive an immutable locked collision view and route actual movement/path/target/projectile/melee/item/observer
+   consumers. Keep canonical layers/terrain intact and classify intentional open-map consumers individually.
+   Historical vision records its collision variant; same-tick reveals need an ordinal or equivalent invalidation in
+   tile caches and stationary-tail matching. Preserve source exploration across transitions.
+2. Implement exact planning/deal and arena lifecycle below the facade, with input/events/hook/state/restore changes
+   and owner-only observations. Extend the affected vision, sight, fighter, lifecycle and projection modules as the
+   caller audit requires. All actors use validate/submit. Headless/policy integration follows the same core.
+3. Validate planning records by phase: source retains deals/holders/last-sent state into Active/Ended, including records
+   for actors removed after start. Current membership/holder reciprocity applies during Planning; later records require
+   valid historical identities and bounds. Preserve valid source history.
+4. Distinguish constructor prefixes by installed modules. Source mode with neither loot nor mobs still consumes its
+   order-salt draw. Source mobsOn/lootOff requires its actual capture-backed prefix or explicit refusal; it must not
+   inherit the foundation's synthetic loot-prefix consumption. Preserve existing public profile behavior.
+5. Serialize protocol/client/server/durable shutdown work afterward. Protocol6 cannot expose this mode. Planning
+   indices need ordered pool mapping and server-produced choice facts, or resolved owner-option facts; gate metadata
+   alone is insufficient. Unity implements no deal, pathfinding, matchup or arena rules. Public activation waits for
+   actual Rust/C#/JS vectors, UI and persistence checks.
+
+Source witness scope is `tools/arena-fixtures/**` and `parity/arena/**`, initially proposed privately with immutable
+inputs, source hashes and one canonical reproduction. No legacy corpus replacement, map re-pin, cloud action or
+Unity visual expansion belongs to this implementation stage.
+
 ## Contracts and references
 C-RNG (the deal reads existing private `rewardRandom`; raid-start spawn shuffle and teleport read private `world.random`,
 never the public map seed), C-TICK (settle is last; teleport only in a tick with no death), C-INPUT (the new plan command

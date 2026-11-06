@@ -194,12 +194,14 @@ impl<'de> serde::Deserialize<'de> for History {
 }
 
 /// The waypoints a fighter still walks, consumed from the front with a cursor instead of `remove(0)`. Only the logical
-/// content (`pts[cursor..]`) is serialized, compared and hashed: the consumed prefix is dead data. The buffer is compacted
+/// content (`pts[cursor..]`) and a replacement generation are serialized, compared and hashed; ice anchors
+/// against that generation, preserving JavaScript path-array identity through restore. The consumed prefix is dead data. The buffer is compacted
 /// whenever the path is replaced or runs out, so the cursor never outlives a path.
 #[derive(Clone, Debug, Default)]
 pub struct Path {
     pts: Vec<Vec2>,
     cursor: usize,
+    pub(crate) generation: u64,
 }
 
 impl Path {
@@ -220,10 +222,15 @@ impl Path {
     pub fn advance(&mut self) {
         self.cursor += 1;
         if self.cursor >= self.pts.len() {
-            self.clear();
+            self.pts.clear();
+            self.cursor = 0;
         }
     }
     pub fn clear(&mut self) {
+        self.generation = self
+            .generation
+            .checked_add(1)
+            .expect("path generation exhausted");
         self.pts.clear();
         self.cursor = 0;
     }
@@ -234,11 +241,30 @@ impl Path {
         from: Vec2,
         goal: Vec2,
     ) {
+        self.generation = self
+            .generation
+            .checked_add(1)
+            .expect("path generation exhausted");
         self.cursor = 0;
         crate::pathfind::plan_path_into(pf, map, from, goal, &mut self.pts);
     }
+    pub(crate) fn replan_in_place(
+        &mut self,
+        pf: &mut crate::pathfind::Pathfinder,
+        map: &crate::TileMap,
+        from: Vec2,
+        goal: Vec2,
+        radius: f64,
+    ) {
+        self.cursor = 0;
+        pf.find_path_into(map, from, goal, radius, &mut self.pts);
+    }
     /// Replaces the path with `pts` (compacting: the cursor restarts at 0); the buffer keeps its capacity.
     pub fn set_from(&mut self, pts: &[Vec2]) {
+        self.generation = self
+            .generation
+            .checked_add(1)
+            .expect("path generation exhausted");
         self.pts.clear();
         self.pts.extend_from_slice(pts);
         self.cursor = 0;
@@ -247,21 +273,23 @@ impl Path {
 
 impl PartialEq for Path {
     fn eq(&self, o: &Self) -> bool {
-        self.as_slice() == o.as_slice()
+        self.as_slice() == o.as_slice() && self.generation == o.generation
     }
 }
 
 impl serde::Serialize for Path {
     fn serialize<S: serde::Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
-        s.collect_seq(self.as_slice())
+        serde::Serialize::serialize(&(self.generation, self.as_slice()), s)
     }
 }
 
 impl<'de> serde::Deserialize<'de> for Path {
     fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        let (generation, pts) = <(u64, Vec<Vec2>)>::deserialize(d)?;
         Ok(Path {
-            pts: Vec::<Vec2>::deserialize(d)?,
+            pts,
             cursor: 0,
+            generation,
         })
     }
 }
@@ -570,6 +598,8 @@ impl Player {
 /// The arena's run bookkeeping that outlives a tick (legacy `world.arena`).
 #[derive(Clone, Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
 pub(crate) struct ArenaRt {
+    /// Internal arena ownership seam; no public command can set this.
+    pub(crate) gates_locked: bool,
     pub(crate) started_with: u32,
     pub(crate) started_humans: usize,
     pub(crate) downs_between_ticks: u32,
@@ -630,6 +660,7 @@ impl Projectile {
 /// [`crate::scratch::TickScratch`] instead.
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub(crate) struct World {
+    pub(crate) terrain: crate::terrain::Runtime,
     pub(crate) reward_chests: Vec<crate::reward_chests::Chest>,
     pub(crate) factions: crate::factions::FactionRuntime,
     pub(crate) abilities: Option<crate::status_runtime::AbilityRuntime>,
@@ -896,6 +927,7 @@ impl World {
     pub(crate) fn new(secrets: &Secrets) -> Self {
         Self {
             reward_chests: Vec::new(),
+            terrain: Default::default(),
             factions: Default::default(),
             abilities: None,
             tick: 0,
@@ -1028,12 +1060,15 @@ mod tests {
         assert_eq!(p.len(), 3);
         assert_eq!(
             serde_json::to_value(&p).unwrap(),
-            serde_json::to_value(&pts[2..]).unwrap(),
+            serde_json::to_value((p.generation, &pts[2..])).unwrap(),
             "the consumed prefix is not serialized"
         );
         let mut fresh = Path::default();
         fresh.set_from(&pts[2..]);
-        assert_eq!(p, fresh, "equality sees the logical path only");
+        assert_eq!(
+            p, fresh,
+            "equality sees the logical path and replacement generation"
+        );
         let back: Path = serde_json::from_value(serde_json::to_value(&p).unwrap()).unwrap();
         assert_eq!(back, p);
         p.set_from(&pts[..1]);
@@ -1045,7 +1080,10 @@ mod tests {
             (0, 0),
             "running out resets the cursor"
         );
-        assert_eq!(serde_json::to_value(&p).unwrap(), serde_json::json!([]));
+        assert_eq!(
+            serde_json::to_value(&p).unwrap(),
+            serde_json::json!([2, []])
+        );
     }
 
     #[test]

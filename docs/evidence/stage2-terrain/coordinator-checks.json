@@ -1,0 +1,206 @@
+{
+  "format": "rh-terrain-coordinator-checks/1",
+  "branch": "optimization_port",
+  "base_revision": "262451affb8d14c437a471b4a9f1ddd18d7e3eca",
+  "content_hash": "cb27362236f2d3c2",
+  "checkpoint": 17,
+  "replay": 15,
+  "observation": 13,
+  "policy": 10,
+  "protocol": 6,
+  "unique_native_tests_passed": 1127,
+  "unchanged_mapgen_unit_tests_not_repeated_locally": 191,
+  "existing_manual_ignores": 2,
+  "full_ci": "PENDING",
+  "full_world": "INCOMPLETE",
+  "gates": [
+    {
+      "gate": "sim-core",
+      "command": "cargo test --locked -p rh-sim --all-features --lib -- --skip mapgen",
+      "status": "PASS",
+      "log_sha256": "a270c1ff6243f5a19f2c70ec4f16964f657fd6565ef9e0d7ca6f7ad21dc3252a",
+      "counts": {
+        "passed": 220,
+        "failed": 0,
+        "ignored": 0,
+        "filtered": 191
+      }
+    },
+    {
+      "gate": "sim-contracts",
+      "command": "cargo test --locked -p rh-sim --all-features --test checkpoint --test content --test replay --test hash_coverage --test mob_pve --test terrain_no_alloc",
+      "status": "PASS",
+      "log_sha256": "fb429468a16923f7201196975700533bb43eab143d7c554affa949fb696d38ba",
+      "counts": {
+        "passed": 41,
+        "failed": 0,
+        "ignored": 0,
+        "filtered": 0
+      }
+    },
+    {
+      "gate": "sim-integrations",
+      "command": "cargo test --locked -p rh-sim --all-features --test '*' -- --skip every_serialized_leaf_of_a_match_changes_the_state_hash",
+      "status": "PASS",
+      "log_sha256": "c1d4fcf385474861a25372d27df2a92b7e67c7f84a3ad894bbbf73574b3534f0",
+      "counts": {
+        "passed": 154,
+        "failed": 0,
+        "ignored": 0,
+        "filtered": 1
+      }
+    },
+    {
+      "gate": "sim-docs",
+      "command": "cargo test --locked -p rh-sim --all-features --doc",
+      "status": "PASS",
+      "log_sha256": "6380a627794d9c66591b897485be12dd4cd7490773b2f1de3e47b817895200fd",
+      "counts": {
+        "passed": 3,
+        "failed": 0,
+        "ignored": 0,
+        "filtered": 0
+      }
+    },
+    {
+      "gate": "parity-tests",
+      "command": "cargo test --locked -p rh-parity --all-features",
+      "status": "PASS",
+      "log_sha256": "f270a665f6066f0a6e3b3b001ea346bc352cc33ed3a16aaa317532fd050c7b2d",
+      "counts": {
+        "passed": 65,
+        "failed": 0,
+        "ignored": 0,
+        "filtered": 0
+      }
+    },
+    {
+      "gate": "workspace-remaining",
+      "command": "cargo test --locked --workspace --all-features --exclude rh-sim --exclude rh-headless --exclude rh-load --exclude rh-parity",
+      "status": "PASS",
+      "log_sha256": "6163f1dc09a873fc56944ab80ef0aa0a58889697394384b928ad9a84feec6900",
+      "counts": {
+        "passed": 594,
+        "failed": 0,
+        "ignored": 2,
+        "filtered": 0
+      }
+    },
+    {
+      "gate": "headless-load-docs",
+      "command": "cargo test --locked -p rh-headless -p rh-load --all-features --doc",
+      "status": "PASS",
+      "log_sha256": "78a33b9b4273c2abe2859d30f1bed8ceedcec3e0048fd5b42f7622e1f05e309d",
+      "counts": {
+        "passed": 0,
+        "failed": 0,
+        "ignored": 0,
+        "filtered": 0
+      }
+    },
+    {
+      "gate": "clippy-all",
+      "command": "cargo clippy --locked --workspace --all-targets --all-features -- -D warnings",
+      "status": "PASS",
+      "log_sha256": "f48de976dc77ececa0cfc9cac6dd9b28bc7df25147e2e65118cc22a6939aa98b",
+      "counts": {
+        "passed": 0,
+        "failed": 0,
+        "ignored": 0,
+        "filtered": 0
+      }
+    },
+    {
+      "gate": "clippy-default",
+      "command": "cargo clippy --locked --workspace --all-targets -- -D warnings",
+      "status": "PASS",
+      "log_sha256": "3d1d84ccdcfc8f80bd859586644cfd7de69cee90ea9f826e6e4d3b2660d9007c",
+      "counts": {
+        "passed": 0,
+        "failed": 0,
+        "ignored": 0,
+        "filtered": 0
+      }
+    },
+    {
+      "gate": "parity",
+      "command": "cargo run --locked -p rh-parity --bin parity-report",
+      "status": "PASS",
+      "log_sha256": "b3355b537bbe59432bc463978cfea65e7a0e810384cd13d9c4fd9474ca95b980",
+      "counts": {
+        "passed": 0,
+        "failed": 0,
+        "ignored": 0,
+        "filtered": 0
+      }
+    },
+    {
+      "gate": "format",
+      "command": "cargo fmt --all --check",
+      "status": "PASS",
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "counts": {
+        "passed": 0,
+        "failed": 0,
+        "ignored": 0,
+        "filtered": 0
+      }
+    },
+    {
+      "gate": "headless-load-complete-groups",
+      "command": "cargo test --locked --workspace --all-features --exclude rh-sim",
+      "status": "PASS_FOR_HEADLESS_AND_LOAD_ONLY",
+      "counts": {
+        "passed": 90,
+        "failed": 0,
+        "ignored": 0,
+        "filtered": 0
+      },
+      "log_sha256": "4164f27bbde01d137d78dae4636e5a12034642c75ba8881918c0a09391ee6773",
+      "note": "Those complete package groups passed before the later parity fixture failure; parity was repaired and rerun separately."
+    }
+  ],
+  "coordinator_overlay_files": [
+    "crates/rh-load/tests/smoke.rs",
+    "crates/rh-parity/tests/fire.rs",
+    "crates/rh-server/examples/connheap.rs",
+    "crates/rh-server/src/bin/densitybench/engine.rs",
+    "crates/rh-server/src/director.rs",
+    "crates/rh-server/src/main.rs",
+    "crates/rh-server/src/room.rs",
+    "crates/rh-server/tests/account_api.rs",
+    "crates/rh-server/tests/account_api_memory.rs",
+    "crates/rh-server/tests/control.rs",
+    "crates/rh-server/tests/density.rs",
+    "crates/rh-server/tests/equivalence.rs",
+    "crates/rh-server/tests/lifecycle.rs",
+    "crates/rh-server/tests/live.rs",
+    "crates/rh-server/tests/pg_e2e.rs",
+    "crates/rh-server/tests/publish.rs",
+    "crates/rh-server/tests/result_recovery.rs",
+    "crates/rh-server/tests/transport.rs",
+    "crates/rh-sim/src/schedule.rs",
+    "crates/rh-sim/tests/mob_foundation.rs",
+    "crates/rh-sim/tests/sentenced.rs"
+  ],
+  "strict_full": {
+    "status": "INCOMPLETE",
+    "exit_code": 101,
+    "known_reward_mismatch_observed": true,
+    "case": "born-plague-ember-real-attack-credit",
+    "frame": 3,
+    "field": "containers/c4/options/1"
+  },
+  "arena_source_only": {
+    "status": "APPROVED_SOURCE_ONLY",
+    "manifest_sha256": "4dc42aec08097977d2c7f8e3a94afd77a97c6ae1c7b763c6b66dc009af94a441",
+    "corpus_sha256": "6ff324e134127d9c84a4f4383965f11e08a108fbe306424b1547795265adf6f5",
+    "cases": 35,
+    "frames": 621,
+    "exact_deals": 200,
+    "helpers": 2,
+    "provenance_hashes_checked": 132,
+    "mismatches": 0,
+    "native_arena": "INCOMPLETE"
+  }
+}

@@ -1,0 +1,462 @@
+{
+  "format": "rh-terrain-kernel-proposal/1",
+  "baseRevision": "d00e5e52f0b981c7c8afb6c721ddcaae7d29864b",
+  "coordinatorHeadAtFreeze": "262451affb8d14c437a471b4a9f1ddd18d7e3eca",
+  "scope": "native kernel only; full original port and full terrain INCOMPLETE",
+  "checkpointFormat": "rh-checkpoint/17",
+  "replayFormat": "rh-replay/15",
+  "contentHash": "cb27362236f2d3c2",
+  "patchSha256": "c9547bc1e8e5719622e272cbfa8d67a91d59991f4d66db2d177cf7f31d8bf248",
+  "files": [
+    {
+      "path": "crates/rh-headless/src/bin/determinism_sweep_support/mod.rs",
+      "baseSha256": "df3dcf29dbece72c995f5fba5c7a9a48d62302cb5c8df0749174db6e5fc1ad19",
+      "newSha256": "cdc207dbfd4728d5116197b78ed3ce6dd11737ed1ca0bc55cfcd636a98d2f983",
+      "bytes": 45514,
+      "newFile": false
+    },
+    {
+      "path": "crates/rh-headless/tests/terrain.rs",
+      "baseSha256": null,
+      "newSha256": "006cc465c74f5fb086ae5a0bb801aae8004d2b56e355e5cc170dda27b30eed50",
+      "bytes": 2946,
+      "newFile": true
+    },
+    {
+      "path": "crates/rh-parity/src/bin/status_probes.rs",
+      "baseSha256": "ad895ed12f80c10dd9fb72d8b752f0c6600f016eeec0b53c96cfc0c3d64c1658",
+      "newSha256": "aea4c5374b76e98f2980aaba6a256d9c3c636b1ba1f8e4d6be3f91e56209924d",
+      "bytes": 62858,
+      "newFile": false
+    },
+    {
+      "path": "crates/rh-parity/tests/schedule.rs",
+      "baseSha256": "13dacc22509de188b0c49f1c220176a9cc0bbf6ed63d7f4c9a0f76caf413155b",
+      "newSha256": "4031534fa85a0e7037f7c6583559e4959020175f9cc411205cccdc4a62fdfc41",
+      "bytes": 38098,
+      "newFile": false
+    },
+    {
+      "path": "crates/rh-sim/src/checkpoint.rs",
+      "baseSha256": "7692fdff9a6271ed39913457cdcf38f23c525bec5df307073e6b112894b686be",
+      "newSha256": "b5585d81d5c09a09893283a63cfdc4cd7ecb690f19b461877d953774f86bce24",
+      "bytes": 58727,
+      "newFile": false
+    },
+    {
+      "path": "crates/rh-sim/src/constants.rs",
+      "baseSha256": "65cad8bb3767fa9fb5a5628e8304172221b9ac7b66d6e76a8163686f0c4b72b2",
+      "newSha256": "8b78536a7b96b62a1e6b4c7da3ad613dbc4b98d13642dfdce736e217d4e94cf6",
+      "bytes": 13199,
+      "newFile": false
+    },
+    {
+      "path": "crates/rh-sim/src/content.rs",
+      "baseSha256": "e11255d3e529e92e654bfaa13818c68c6532f238c4fa75ab3797ab7814e6414a",
+      "newSha256": "0bbc95a4cab33e4c3eb82ef6590cd8d3eb1018cd2b9ef85aee6f8b67bba7c41d",
+      "bytes": 47662,
+      "newFile": false
+    },
+    {
+      "path": "crates/rh-sim/src/fighter.rs",
+      "baseSha256": "174329463de4fe3cc269069ca854845f4e791b2b372e0cea539e39d060ccc00d",
+      "newSha256": "2ad0768d214cdb94755dc4b183699a02e3fb0ad37db465398e2ed4f28ce9ff89",
+      "bytes": 10191,
+      "newFile": false
+    },
+    {
+      "path": "crates/rh-sim/src/hash.rs",
+      "baseSha256": "131c8350aa45952503de48bce76037f0c205752fc743b4bb68d26599b5ab8b8d",
+      "newSha256": "e98bac3b60648445018943779e054e7d8d589fe8dd1afd73dedcff86da87e27a",
+      "bytes": 20435,
+      "newFile": false
+    },
+    {
+      "path": "crates/rh-sim/src/hooks.rs",
+      "baseSha256": "30b483ab0f1626ed8a8a5add5969c6c01fdfb7a5369b022c3c39572a4dfd79c1",
+      "newSha256": "04a5537a1ffb74e5134f925fff92c90bba2084d015f969ea3b432aa14da20d2c",
+      "bytes": 6681,
+      "newFile": false
+    },
+    {
+      "path": "crates/rh-sim/src/lib.rs",
+      "baseSha256": "0202d61d355a48d91bd9fa530e63c1aa957e9aa7d1595d7b5fd6fd5647598cfa",
+      "newSha256": "4cf3b9e7665bef394ce7ab8fd4819478a41aeb88ee668ac3d8dd5d2e58b8857b",
+      "bytes": 2433,
+      "newFile": false
+    },
+    {
+      "path": "crates/rh-sim/src/map.rs",
+      "baseSha256": "d63ef81e8e301f29b97a92c7938f9db23246118eb28ca61eeedbcb0b21939883",
+      "newSha256": "b06e12cf441d8f4a4b0f6f260d89f33e3239aa85ea3eaec21051bebff353ea64",
+      "bytes": 14019,
+      "newFile": false
+    },
+    {
+      "path": "crates/rh-sim/src/mapdata/mod.rs",
+      "baseSha256": "3afbbbbd997842bab3ce8ea323e0f38f7ea21b150eee837093ea19d00762c5fb",
+      "newSha256": "93bc61f88cd83dd7950be4c980fa5eb1f5d82daba0081104eb95a5da142102d1",
+      "bytes": 5600,
+      "newFile": false
+    },
+    {
+      "path": "crates/rh-sim/src/replay.rs",
+      "baseSha256": "3cd4311744b37dba6460b18fd43f64fdb60eb937d02f30c0d9744561feeefcff",
+      "newSha256": "0a626ea28327c62c094d67d035a623a3481bbe7825d4ca874aa5ca196ac6342b",
+      "bytes": 9007,
+      "newFile": false
+    },
+    {
+      "path": "crates/rh-sim/src/schedule.rs",
+      "baseSha256": "f84b40ea880d668709e2b582914ed0ebdf6d2cf243ae820bed280539d8f4ffb3",
+      "newSha256": "44f19aba1f3fc70709a92dfcb004c75ba0e1181af2c1f0708dcecf5983015b06",
+      "bytes": 57534,
+      "newFile": false
+    },
+    {
+      "path": "crates/rh-sim/src/sim.rs",
+      "baseSha256": "1c180c825a1c6640f48327d4a5c06c5296e9bb81f07b1e1b7e00eb00bb13baed",
+      "newSha256": "88ad37a3ac990fc0e98a5cd8ae3a77984fe5ab7060eca1d1e39789f6d4f87bc0",
+      "bytes": 17389,
+      "newFile": false
+    },
+    {
+      "path": "crates/rh-sim/src/state.rs",
+      "baseSha256": "55d3ed399532e559a564f6cb8f783aa9fddb5834b04d093d237266db9b8c0f67",
+      "newSha256": "8145dd15bad9b9ebabe4e94e6a5a375fdb7b1c9f699c366f1e1e104c75d3a09b",
+      "bytes": 38546,
+      "newFile": false
+    },
+    {
+      "path": "crates/rh-sim/src/statics.rs",
+      "baseSha256": "c418caff72978a02ab6542b9d4368637c60ffd9f37e12c6b06209c5e3a112fff",
+      "newSha256": "8a73d2669c43656ef582272ba03cc86d65aeff7308529ca582cc10eff31e19eb",
+      "bytes": 7037,
+      "newFile": false
+    },
+    {
+      "path": "crates/rh-sim/src/status_runtime/checkpoint.rs",
+      "baseSha256": "ddf30d055037d6e7fc13be9137721691e0d4874c4649d027ffcc9cdf234aa618",
+      "newSha256": "13de95be11483882ec617d206289f165d2cbb47faa234676bc1f3e5bc0fc8616",
+      "bytes": 20951,
+      "newFile": false
+    },
+    {
+      "path": "crates/rh-sim/src/status_runtime/probe.rs",
+      "baseSha256": "1873cee33ab824a3669b2dfdf755fa82275820a346d9f92de5f0d6056779fd94",
+      "newSha256": "d4c71b64492267c71ffb6aa76ecdf5669a94f3f8924ddfde5ec3be9742ff1c70",
+      "bytes": 39061,
+      "newFile": false
+    },
+    {
+      "path": "crates/rh-sim/src/systems/fire.rs",
+      "baseSha256": "d6e66074e2b37af729d7fd0092986e1ee0487eda7d04615e6bf06a2200ccaf29",
+      "newSha256": "3fe0f74795f38eb67ee11a2b875316cb209486e84f232be10e9ac091da313c8f",
+      "bytes": 20241,
+      "newFile": false
+    },
+    {
+      "path": "crates/rh-sim/src/systems/frost.rs",
+      "baseSha256": "acaf2f1060e37656a5a236cd8046ea8f5e97415d28483830455718001fd47da1",
+      "newSha256": "e3c308eb8e8ebcf94f43ebf38580893b7d2ff1fcdfe06142d37f0a7780509091",
+      "bytes": 27052,
+      "newFile": false
+    },
+    {
+      "path": "crates/rh-sim/src/systems/heal.rs",
+      "baseSha256": "bbf8b4c8e94ea22d540dc95061bf231633c839eb62b9e4b50c794f6282e9f29f",
+      "newSha256": "a74989cea385605af2b195ecc57789fc55468b9b3437bd0557189814a0ec1fec",
+      "bytes": 4139,
+      "newFile": false
+    },
+    {
+      "path": "crates/rh-sim/src/systems/ledger.rs",
+      "baseSha256": "90a1767fbb418061f1c2b1124ac10cd30c5e77e0f210bbf29cc443866e95d244",
+      "newSha256": "e966bdff5cceed1f601782b5542dd4ac464e8d581070962169287f156a133a1f",
+      "bytes": 30041,
+      "newFile": false
+    },
+    {
+      "path": "crates/rh-sim/src/systems/melee.rs",
+      "baseSha256": "5f27945585c02173fd0f59af52d19fd46573b0fe2c31bb0a7bdb71e1f163dff6",
+      "newSha256": "d256de1266b7af5ea8887cbf701c34763eb2a1ca55205fa56f6c8c16e0f94374",
+      "bytes": 8797,
+      "newFile": false
+    },
+    {
+      "path": "crates/rh-sim/src/systems/mob_checkpoint.rs",
+      "baseSha256": "3794802b08c72bc19cd8d375641b436765e030953d433b583cdb2627f30688e2",
+      "newSha256": "4d19680967dd34b8194b28280e48f58915a900c36d2d25b14e9683a95c175b76",
+      "bytes": 14075,
+      "newFile": false
+    },
+    {
+      "path": "crates/rh-sim/src/systems/mob_life.rs",
+      "baseSha256": "c60533051fcb3bd6d081167606932db9cf089357ba8ad8c453ee440e338fa5ff",
+      "newSha256": "ae216f70af7363981c32610eabd41255f9cc21599b9a3a48044281f43599cdfb",
+      "bytes": 15897,
+      "newFile": false
+    },
+    {
+      "path": "crates/rh-sim/src/systems/mod.rs",
+      "baseSha256": "4210706407e366680b763b679ca4d76200a85cf0f13d2c2a3df95adde47fb268",
+      "newSha256": "a689eb39c4f6ca7c8ba930f4e1605e90157bd9e1fc7d56316af725300074859a",
+      "bytes": 3971,
+      "newFile": false
+    },
+    {
+      "path": "crates/rh-sim/src/systems/movement.rs",
+      "baseSha256": "cf90b8af6f8bfb9c68de161b6706ed2c8b7d8c99f869312064846c0edbbda571",
+      "newSha256": "f454e9dba79fcb26736d4151923e7a6b41f729424994c2f8eca043c38161c619",
+      "bytes": 6140,
+      "newFile": false
+    },
+    {
+      "path": "crates/rh-sim/src/systems/plague.rs",
+      "baseSha256": "464d1f43e2d934813e2c510128ffc4b0da461a642686c922cf045787e650e8f7",
+      "newSha256": "dbf26001378ec83e4b0518204f27e5b7105d8211c88e7acdaee4ed9dd73b2196",
+      "bytes": 12837,
+      "newFile": false
+    },
+    {
+      "path": "crates/rh-sim/src/systems/projectiles.rs",
+      "baseSha256": "f0949279f6139ae899b82a088ddbf466c1cff711b8aff4f8ac317e6be3ce4d5a",
+      "newSha256": "5d3b78d3b18c8abdd8bf7c63fa3a839e847ed70f5b83d31ca8fb108746aa37e1",
+      "bytes": 30450,
+      "newFile": false
+    },
+    {
+      "path": "crates/rh-sim/src/systems/sentenced.rs",
+      "baseSha256": "9119b4502dddb2ca965ad5841e5d93ce3005cc3ba29a427f4f6b653a97cab7af",
+      "newSha256": "810478cc054c1289801851b15888d5a1738384d43e5990826137696f6b663f55",
+      "bytes": 11465,
+      "newFile": false
+    },
+    {
+      "path": "crates/rh-sim/src/systems/sentenced/actual_source_tests.rs",
+      "baseSha256": "c509babafa1404f2f2134d5e13d31cb163cc2ec54009457888f6ed606499b53c",
+      "newSha256": "64382ca5ac43c985f36bf0342f91f9d3d807e9ed61802276ac81faeb5cdcbfa9",
+      "bytes": 16181,
+      "newFile": false
+    },
+    {
+      "path": "crates/rh-sim/src/systems/sentenced/tests.rs",
+      "baseSha256": "9463cfd8966742d65f930b78bfbc9ee026b23ae61e9786ad330106a9e69dc3e0",
+      "newSha256": "fc6f8d382ff510988611aaf95b402a3967863291027415a209bfde975e8c0979",
+      "bytes": 10941,
+      "newFile": false
+    },
+    {
+      "path": "crates/rh-sim/src/systems/signatures/pve_tests.rs",
+      "baseSha256": "20cd7955747fa1eff98b83db0fdbdf71a2fe03fee72aef0e95cfbb38b1df09dc",
+      "newSha256": "fd3a724a104b01e7b34e29488a4be550860d753a0d8c1a653a150ab423c653f1",
+      "bytes": 21955,
+      "newFile": false
+    },
+    {
+      "path": "crates/rh-sim/src/systems/status/dot.rs",
+      "baseSha256": "4b57469e223a55944f17e5088acc44c982ebc31ba330d6435229ac98a9956f46",
+      "newSha256": "1e1f11db17b0664f34bf33e9901006009482a3bbc335932e10dd7e62607e38d5",
+      "bytes": 5885,
+      "newFile": false
+    },
+    {
+      "path": "crates/rh-sim/src/systems/status/tests.rs",
+      "baseSha256": "c8ef2d3fcf9e282c93e23b75a835c2d4b708d0c11a3d2f977f668c12c47a7ffe",
+      "newSha256": "fbf84e553d29e7b62ffda97ed2de3056630c45e953b94d6df8520cd6d5b9c69e",
+      "bytes": 10839,
+      "newFile": false
+    },
+    {
+      "path": "crates/rh-sim/src/systems/terrain/born_tests.rs",
+      "baseSha256": null,
+      "newSha256": "39aa7ce8d4e89c684884edc09f57a8e0be016728583f15a5b6a62c447ff0e3fc",
+      "bytes": 27733,
+      "newFile": true
+    },
+    {
+      "path": "crates/rh-sim/src/systems/terrain/mod.rs",
+      "baseSha256": null,
+      "newSha256": "59115c1af536bfa0a01dbd20ea34bf2db56e5321e4953a4f9928aaaaed305368",
+      "bytes": 5168,
+      "newFile": true
+    },
+    {
+      "path": "crates/rh-sim/src/systems/terrain/native_tests.rs",
+      "baseSha256": null,
+      "newSha256": "71ca992ffac84be350a5c7638ce1bfd7a55626c2f1dee025683baaff68e6c442",
+      "bytes": 13458,
+      "newFile": true
+    },
+    {
+      "path": "crates/rh-sim/src/systems/terrain/source_tests.rs",
+      "baseSha256": null,
+      "newSha256": "fbe96b222b914e3fc38e6cc77914613c50a1c85abbdf633d4f374a7473ab1f36",
+      "bytes": 37523,
+      "newFile": true
+    },
+    {
+      "path": "crates/rh-sim/src/systems/terrain/walk.rs",
+      "baseSha256": null,
+      "newSha256": "225bbaa997e901ae07bc9cb28a5c1697423bc79a13aa886886522c4df6250ed7",
+      "bytes": 10328,
+      "newFile": true
+    },
+    {
+      "path": "crates/rh-sim/src/systems/tests.rs",
+      "baseSha256": "5bd8952ac35c80823e45dbe4fda997a2b37e73d37e986bef1fe5708b4d132f53",
+      "newSha256": "3d3616201a4943838c277946dd798218fb1f1bc211908ecb379c3d8314e9bc91",
+      "bytes": 24323,
+      "newFile": false
+    },
+    {
+      "path": "crates/rh-sim/src/terrain.rs",
+      "baseSha256": null,
+      "newSha256": "7d2b3e68b32ac4c8d8e4d837502f2bf1b09b51e9aeefff6a7611eead7e79b7d1",
+      "bytes": 12966,
+      "newFile": true
+    },
+    {
+      "path": "crates/rh-sim/tests/checkpoint.rs",
+      "baseSha256": "db19f7e197d3b3ba646d11c588b0008d61a09ccb70b24adb60607908947ccc1a",
+      "newSha256": "9b62e99a6e14b7c1169316638d7248b936bbd28465b8b18beded3b5826f53fbd",
+      "bytes": 11908,
+      "newFile": false
+    },
+    {
+      "path": "crates/rh-sim/tests/content.rs",
+      "baseSha256": "28f9ed93c66a58be63f02f8b285230eccfdeefb75428312fa2c5c2fd87da7a13",
+      "newSha256": "62bd123fc5ea246a28c24eb09e32a39e1155e36e9462654c450aea450d65114c",
+      "bytes": 49381,
+      "newFile": false
+    },
+    {
+      "path": "crates/rh-sim/tests/hash_coverage.rs",
+      "baseSha256": "1ed6fffccc7543f8016aa295dc7c5c802e8dd410553e7c3fa9109c271b902426",
+      "newSha256": "51aec5d8f2c23098b425ae47add027f0727b87d67f06fbdfca8d0ba0fa2d8a9e",
+      "bytes": 77848,
+      "newFile": false
+    },
+    {
+      "path": "crates/rh-sim/tests/mob_pve.rs",
+      "baseSha256": "b6c4b284848b1345c81fae186818169522b604062307c552638f95eeb1eebd57",
+      "newSha256": "c446112c8033e24605b7410d2ec7481275dd955c158f02a0714b2cd8fe049291",
+      "bytes": 11092,
+      "newFile": false
+    },
+    {
+      "path": "crates/rh-sim/tests/replay.rs",
+      "baseSha256": "2b430441a7d330539387964ab30a543ae02ebdc8d1cc07b48419db4e54371d02",
+      "newSha256": "8ea03d8a0b27782757d01bc791f980affc074d3be77fcaf318d234cb9152ff8e",
+      "bytes": 5664,
+      "newFile": false
+    },
+    {
+      "path": "crates/rh-sim/tests/terrain_no_alloc.rs",
+      "baseSha256": null,
+      "newSha256": "a12717eb361f80849b2c26d92021ebb5db085b29fc2fba28b661160929d64bf3",
+      "bytes": 4508,
+      "newFile": true
+    }
+  ],
+  "witnessDependencies": [
+    {
+      "path": "parity/terrain/source.json",
+      "sha256": "e6f870eca04de9ae537f2e367f32b357dada7c6d56b6d3d3712bc095486f1030",
+      "alreadyIntegrated": true
+    },
+    {
+      "path": "parity/terrain/born-source.json",
+      "sha256": "0526ef2e2c45aab025c9a45a1a82b3a75e82b4c7bf72b310554ce749e2094a0a",
+      "alreadyIntegrated": true
+    }
+  ],
+  "evidence": [
+    {
+      "path": "terrain-final-tests.log",
+      "sha256": "a5785a599f7b314b1af8e780926af93dc04c8695bf0493f36c44a7416cd7db2c"
+    },
+    {
+      "path": "strict-full-incomplete.log",
+      "sha256": "337dc2821cbd3fbde716c30d7386bdc3f884079cf26e908b55b3e4f0d4624aac"
+    },
+    {
+      "path": "focused-final.log",
+      "sha256": "91177baa28dc30dd3e023dded03261d416c03c870126cf0908fff9744c433892"
+    },
+    {
+      "path": "path-final.log",
+      "sha256": "7d821c72aef37692ef19cf7c09abcbc05d6461297bec49d36e74445037d4d5ec"
+    },
+    {
+      "path": "pve-signature-final.log",
+      "sha256": "948bcca93308c9bb5ed9bf6bfbccee716e0737b9d35255068f841eed670955b3"
+    },
+    {
+      "path": "status-adapter-final.log",
+      "sha256": "509308dbc487239aae718fa0b0e08bc6f194d5a58cf45fdac3838746df27d767"
+    },
+    {
+      "path": "adapters-final.log",
+      "sha256": "e8763777dacea57bbcc8c7077952ece018def82a9c68a9556d9426f13dec47d2"
+    },
+    {
+      "path": "clippy-final.log",
+      "sha256": "58ad93c91e5695b5d81110c61ae6f1be80f05bf8fad5c22c0782416a03b9b4e7"
+    },
+    {
+      "path": "clippy-default-final.log",
+      "sha256": "fd217cf182f95e29e3c7fa02bc7373302288cc2b310d69f159e4c66697332f15"
+    },
+    {
+      "path": "fmt-final.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "hash-final.log",
+      "sha256": "873d3f3b5cd306c3263f55a64457c0140c90eb36b8f0738bf145efe8b0bad8fc"
+    },
+    {
+      "path": "restore-final.log",
+      "sha256": "a4a4a6752d6295db26bc89ee36fee35ca841fe588608738ee7c6e9ab45cd749d"
+    },
+    {
+      "path": "allocation-final.log",
+      "sha256": "ce1a62a180ad262a0759a1c7e717dff09f51d3b70f12f8b0a6bf6c7caae742a2"
+    },
+    {
+      "path": "negative-surface.log",
+      "sha256": "adf62d6476df4ab6314676b79248eff15f7fd784ca0becbfef149c1795401156"
+    },
+    {
+      "path": "negative-content.log",
+      "sha256": "96c49be485c66d178c056cbadbaac95500e3c8daa8db68cda8c6aa630599b49c"
+    },
+    {
+      "path": "negative-restored-surface.log",
+      "sha256": "7cc4d35ccdfb1b370a283e19b0874bd29c538d4888f7bb6649045325be26bb02"
+    },
+    {
+      "path": "negative-restored-content.log",
+      "sha256": "03be361484ee3570077e8a16cf350a273e0e51342ba33bc4f7bc59b3252475d4"
+    },
+    {
+      "path": "test-results.json",
+      "sha256": "0392dbf414b0c66c67820a95162a801eac33f901db8ed76a3b16b6b12295e986"
+    },
+    {
+      "path": "negative-control.json",
+      "sha256": "e2370391de98f3f726db143ab98408ac3686199bd736734201cca84264750084"
+    },
+    {
+      "path": "README.md",
+      "sha256": "c5ee82f24384bf342790653e37f2d64fd3a11742c869789f7e79d107b3d48539"
+    }
+  ],
+  "strictFullGate": {
+    "status": "INCOMPLETE",
+    "command": "RH_TERRAIN_REQUIRE_FULL=1 cargo test -p rh-sim --all-features --lib terrain_born_kernel_twenty_complete_one_reward_gap -- --nocapture",
+    "exit": 101,
+    "knownGap": "born-plague-ember-real-attack-credit actions3/4 reward options: native [siphon,slowBurn,pocketSand], source [siphon,tankEngine,thirdTimesTheCharm]"
+  }
+}

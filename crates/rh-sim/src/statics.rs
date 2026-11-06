@@ -16,6 +16,10 @@ pub(crate) struct MatchStatic {
     pub(crate) secrets: Secrets,
     #[serde(skip)] // derived from the fields above
     pub(crate) digest: u64,
+    #[serde(skip)]
+    pub(crate) hazards: crate::terrain::Hazards,
+    #[serde(skip)]
+    pub(crate) terrain_source: crate::status_runtime::StatusSource,
 }
 
 /// The serialized shape of [`MatchStatic`]: exactly its stored fields.
@@ -38,12 +42,19 @@ impl MatchStatic {
         let arena = arena.into();
         // The statics secrets stay out of the digest. The state hash still depends on spawn_seed through World.spawn_rng,
         // so it is server-private (see hash.rs).
+        let hazards = crate::terrain::Hazards::of(&arena.map, config.hazards);
         let digest = crate::hash::hash_of(0, &(&config, &*arena));
         Self {
             config,
             arena,
             secrets,
             digest,
+            hazards,
+            terrain_source: crate::status_runtime::StatusSource {
+                id: None,
+                owner_id: None,
+                name: crate::terrain::EMBER_NAME.into(),
+            },
         }
     }
 }
@@ -128,6 +139,9 @@ impl FactionMode {
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct SimConfig {
+    /// Native terrain rules are opt-in until clients carry public terrain layers.
+    #[serde(default)]
+    pub hazards: crate::terrain::Mode,
     #[serde(default)]
     pub initial_loot: bool,
     pub min_players: usize,
@@ -154,6 +168,7 @@ impl Default for SimConfig {
     fn default() -> Self {
         Self {
             initial_loot: false,
+            hazards: crate::terrain::Mode::Off,
             min_players: 2,
             lobby_seconds: 30.0,
             fill_seconds: 5.0,

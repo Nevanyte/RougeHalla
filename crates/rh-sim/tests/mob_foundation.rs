@@ -172,7 +172,7 @@ fn retained_typed_provenance_and_private_birth_data_are_checked() {
     // the shared ledger is widened, restore refuses it before a player-slot index is read.
     let mut deferred = original.clone();
     deferred["world"]["deferred"]["hits"] = serde_json::json!([{
-        "dot":false,"ability":null,"arena":false,"source":null,"critical":false,"critical_mult":null,
+        "terrain":false,"dot":false,"ability":null,"arena":false,"source":null,"critical":false,"critical_mult":null,
         "sig":null,"execute":false,"victim":1,"by":2,"packet":{"raw":1.,"phys":1.,"magic":0.,"true_":0.},
         "weapon":null,"stagger":false,"projectile":null,"scale":1.,"derived":false,"passive":false
     }]);

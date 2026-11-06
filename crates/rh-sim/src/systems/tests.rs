@@ -227,6 +227,7 @@ fn a_hook_with_no_ported_link_changes_nothing() {
 
 fn hit(by: u32, victim: u32, raw: f64) -> ledger::Entry {
     ledger::Entry {
+        terrain: false,
         dot: false,
         ability: None,
         arena: false,
@@ -627,6 +628,7 @@ fn melee_reference(
                 continue;
             }
             ledger.push(ledger::Entry {
+                terrain: false,
                 dot: false,
                 ability: None,
                 arena: false,

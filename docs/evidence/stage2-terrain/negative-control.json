@@ -1,0 +1,71 @@
+{
+  "mutation": "Actual executable ember exemption Fire -> Holy, no stamp edits",
+  "sha256BeforeAndAfter": "7d2b3e68b32ac4c8d8e4d837502f2bf1b09b51e9aeefff6a7611eead7e79b7d1",
+  "results": [
+    {
+      "log": "negative-surface.log",
+      "args": [
+        "test",
+        "-p",
+        "rh-sim",
+        "--all-features",
+        "--lib",
+        "terrain_surface_and_sweep_match_actual_source"
+      ],
+      "exit": 101,
+      "expectedExit": 101
+    },
+    {
+      "log": "negative-content.log",
+      "args": [
+        "test",
+        "-p",
+        "rh-sim",
+        "--test",
+        "content",
+        "hash_golden"
+      ],
+      "exit": 101,
+      "expectedExit": 101
+    },
+    {
+      "log": "negative-restored-surface.log",
+      "args": [
+        "test",
+        "-p",
+        "rh-sim",
+        "--all-features",
+        "--lib",
+        "terrain_surface_and_sweep_match_actual_source"
+      ],
+      "exit": 0,
+      "expectedExit": 0
+    },
+    {
+      "log": "negative-restored-content.log",
+      "args": [
+        "test",
+        "-p",
+        "rh-sim",
+        "--test",
+        "content",
+        "hash_golden"
+      ],
+      "exit": 0,
+      "expectedExit": 0
+    },
+    {
+      "log": "path-final.log",
+      "args": [
+        "test",
+        "-p",
+        "rh-sim",
+        "--all-features",
+        "--lib",
+        "a_path_serializes"
+      ],
+      "exit": 0,
+      "expectedExit": 0
+    }
+  ]
+}

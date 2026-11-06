@@ -8,7 +8,7 @@ use crate::input::Command;
 use crate::sim::{Arena, Event, Placement, PlayerId, Secrets, Sim, SimConfig};
 
 /// Version 12 includes private singleton Mark progress and persistent sentence stacks. [`run_replay`] refuses other formats.
-pub const REPLAY_FORMAT: &str = "rh-replay/14";
+pub const REPLAY_FORMAT: &str = "rh-replay/15";
 
 /// Identity of the code this binary was built from: the `RH_BUILD` environment variable at compile time (a release build is meant to set
 /// it to the commit id; nothing in the repo does yet, so every dev build reads the same), else `dev-<crate version>`. It is a compile-time constant, so reading it keeps

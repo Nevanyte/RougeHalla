@@ -1203,10 +1203,12 @@ fn execute(h: &mut Harness, ids: &mut Ids, op: &V) -> R<V> {
                     vy: n(&s["vy"])?,
                     ax: n(&s["ax"])?,
                     ay: n(&s["ay"])?,
+                    // Frozen status witnesses only carry null here; a non-null array
+                    // needs the terrain adapter's explicit source-reference identity.
                     path: if s["path"].is_null() {
                         None
                     } else {
-                        Some(points(&s["path"])?)
+                        return Err("non-null slip path identity requires terrain adapter".into());
                     },
                     replan_at: s.get("replanAt").map(n).transpose()?,
                     stuck_x: s.get("stuckX").map(n).transpose()?,

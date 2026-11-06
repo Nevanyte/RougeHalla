@@ -212,6 +212,7 @@ fn trusted_actual_installed_mark_matrix() {
         let mut ledger = vec![];
         for _ in 0..c["hits"].as_f64().unwrap() as usize {
             ledger.push(Entry {
+                terrain: false,
                 dot: false,
                 ability: None,
                 arena: false,
@@ -400,6 +401,7 @@ fn helper_only_actual_execute_denial_matrix() {
         for row in c["rows"].as_array().unwrap() {
             let by = row[0].as_f64().map(|n| PlayerId(n as u32 + 1));
             s.s.ledger.push(Entry {
+                terrain: false,
                 dot: false,
                 ability: None,
                 arena: false,

@@ -1192,6 +1192,7 @@ fn content_hash_of_definitions(
     crate::initial_world::visit_content(|word| h.u64(word));
 
     h.str("status-runtime/1");
+    crate::terrain::visit_content(|word| h.u64(word));
     fold_status_content(&mut h, runtime_words.status);
     fold_status_stream(
         &mut h,

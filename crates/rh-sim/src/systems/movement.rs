@@ -31,26 +31,86 @@ pub(crate) fn multipliers(cx: &mut Cx) {
     if !modifiers.is_empty() {
         for (m, &i) in s.mults.iter_mut().zip(&s.standing) {
             for &(_, modifier) in modifiers {
-                *m *= modifier(w, w.core(i), TICK_MS, stats.view(w.core(i)));
+                let view = stats.view(w.core(i));
+                *m *= modifier(k, w, i, TICK_MS, view);
             }
         }
     }
     for m in s.mults.iter_mut() {
-        if *m > 0.0 && *m < MOVE_MULT_FLOOR {
-            *m = MOVE_MULT_FLOOR;
-        }
+        *m = floor_multiplier(*m);
     }
 }
 
 /// System (legacy step.walkFighter): every standing fighter walks its path at its tick speed, in join order.
 pub(crate) fn walk(cx: &mut Cx) {
-    let Cx { w, s, .. } = cx;
-    let now = w.server_time;
-    let dt = TICK_MS / 1000.0;
+    let Cx { k, w, s, pf, .. } = cx;
     for (&ix, &mult) in s.standing.iter().zip(&s.mults) {
-        let p = w.core_mut(ix);
-        let aiming = p.weapon.aim_at > 0.0 && now - p.weapon.aim_at < AIM_STALE_MS;
+        walk_one(k, w, ix, pf, TICK_MS, None, mult);
+    }
+}
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn walk_one(
+    k: &crate::statics::MatchStatic,
+    w: &mut crate::state::World,
+    ix: FighterIx,
+    pf: &mut crate::pathfind::Pathfinder,
+    dt_ms: f64,
+    keep_facing: Option<bool>,
+    mult: f64,
+) {
+    let now = w.server_time;
+    let dt = dt_ms / 1000.;
+    let core = w.core(ix);
+    let faction = (k.config.hazards != crate::terrain::Mode::All).then_some(core.vitals.faction);
+    let slippery = k.hazards.slip && super::terrain::slip_allowed(w, ix);
+    let map = &k.arena.map;
+    let accel = if slippery {
+        crate::terrain::at(map, core.body.x, core.body.y, faction).accel
+    } else {
+        0.
+    };
+    if accel > 0. {
+        w.terrain.seconds[2] += dt_ms / 1000.;
+    }
+    let p = w.core_mut(ix);
+    let aiming =
+        keep_facing.unwrap_or(p.weapon.aim_at > 0.0 && now - p.weapon.aim_at < AIM_STALE_MS);
+    if accel == 0. {
+        if p.motion.slip.take().is_some() {
+            super::terrain::walk::regrip(map, p.pos(), &mut p.motion.path, pf);
+        }
         advance_along_path(p, dt, aiming, mult);
+    } else {
+        let pos = p.pos();
+        let mut slip = p.motion.slip.take().unwrap_or_else(|| {
+            let velocity = tick_velocity(p.body.history.as_slice());
+            super::terrain::walk::new_slip(pos, velocity)
+        });
+        let mut pos = pos;
+        super::terrain::walk::walk(
+            map,
+            &mut pos,
+            &mut slip,
+            &mut p.motion.path,
+            dt_ms,
+            PLAYER_SPEED * mult,
+            |x, y| crate::terrain::at(map, x, y, faction).accel,
+            now,
+            PLAYER_RADIUS,
+            pf,
+        );
+        p.body.x = pos.x;
+        p.body.y = pos.y;
+        if !aiming && mult > 0. {
+            if let Some(t) = p.motion.path.first() {
+                let dx = t.x - pos.x;
+                let dy = t.y - pos.y;
+                if dx * dx + dy * dy > 1e-6 {
+                    p.body.facing = atan2(dy, dx);
+                }
+            }
+        }
+        p.motion.slip = Some(slip);
     }
 }
 
@@ -95,4 +155,26 @@ fn advance_along_path(p: &mut FighterCore, dt: f64, keep_facing: bool, speed_mul
 fn record_sample(p: &mut FighterCore, now: f64) {
     let (x, y) = (p.body.x, p.body.y);
     p.body.history.record(now, x, y);
+}
+
+pub(crate) fn floor_multiplier(m: f64) -> f64 {
+    if m > 0. && m < MOVE_MULT_FLOOR {
+        MOVE_MULT_FLOOR
+    } else {
+        m
+    }
+}
+
+pub(crate) fn tick_velocity(h: &[crate::state::Sample]) -> crate::Vec2 {
+    if h.len() < 2 {
+        return crate::Vec2::new(0., 0.);
+    }
+    let a = h[h.len() - 2];
+    let b = h[h.len() - 1];
+    let dt = (b.t - a.t) / 1000.;
+    if dt > 0. {
+        crate::Vec2::new((b.x - a.x) / dt, (b.y - a.y) / dt)
+    } else {
+        crate::Vec2::new(0., 0.)
+    }
 }

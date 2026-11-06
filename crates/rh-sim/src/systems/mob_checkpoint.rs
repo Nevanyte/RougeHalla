@@ -208,7 +208,7 @@ pub(crate) fn validate(
             || !near(p.body.x, p.body.y)
             || !p.body.facing.is_finite()
             || p.motion.path.as_slice().iter().any(|q| !near(q.x, q.y))
-            || p.motion.slip.is_some()
+            || (k.config.hazards == crate::terrain::Mode::Off && p.motion.slip.is_some())
         {
             return Err("invalid mob identity/body".into());
         }

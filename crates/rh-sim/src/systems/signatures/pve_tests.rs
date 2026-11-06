@@ -265,7 +265,7 @@ fn actual_source_basic_faction_pve_frames_and_restore() {
                 assert_eq!(b["holding"], eb["holding"]);
                 assert_eq!(b["moving"], eb["moving"]);
                 json_close(&b["goal"], &eb["goal"], "goal");
-                json_close(&j["core"]["motion"]["path"], &e["path"], "path");
+                json_close(&j["core"]["motion"]["path"][1], &e["path"], "path");
                 close(
                     j["last_hit_at"].as_f64().unwrap(),
                     &e["lastHitAt"],

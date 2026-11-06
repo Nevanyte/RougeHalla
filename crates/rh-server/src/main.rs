@@ -426,6 +426,7 @@ async fn main() {
             .unwrap_or(d)
     };
     let sim = rh_sim::SimConfig {
+        hazards: rh_sim::terrain::Mode::Off,
         mob_mode: if profile_enabled {
             rh_sim::mob_runtime::MobMode::Pve
         } else {

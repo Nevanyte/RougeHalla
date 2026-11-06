@@ -362,3 +362,14 @@ fn nav_masks(tiles: &[u8], w: usize, h: usize) -> Vec<u8> {
     }
     nav
 }
+
+#[cfg(test)]
+impl TileMap {
+    /// Uncertified legacy helper map only. Never used by native admission or restore tests.
+    pub(crate) fn source_terrain_fixture(mut self, terrain: Vec<u8>) -> Self {
+        self.layers = Some(std::sync::Arc::new(crate::mapdata::source_terrain_fixture(
+            self.w, self.h, terrain,
+        )));
+        self
+    }
+}

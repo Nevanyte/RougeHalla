@@ -20,7 +20,7 @@ use serde::ser::{SerializeStruct, Serializer};
 use std::fmt;
 
 /// The tag every checkpoint carries. Bump it when the layout of `statics` or `world` changes incompatibly.
-pub const CHECKPOINT_FORMAT: &str = "rh-checkpoint/16";
+pub const CHECKPOINT_FORMAT: &str = "rh-checkpoint/17";
 
 /// How far past the map edge a fighter, waypoint or spawn may be and still restore (real states stay inside the map).
 const COORD_MARGIN: f64 = 1024.0;
@@ -455,6 +455,7 @@ fn check_world(k: &MatchStatic, w: &World) -> Result<(), String> {
     crate::systems::initial_loot::validate(k, w)?;
     crate::systems::potions::validate(w)?;
     crate::reward_chests::validate_world(w, near)?;
+    crate::terrain::validate(k, w, near)?;
     for e in &w.deferred.hits {
         if (e.execute && e.sig != Some(crate::factions::SignatureKind::Disease))
             || e.sig.is_some_and(|s| !k.config.faction_mode.supports(s))
@@ -1209,7 +1210,7 @@ mod tests {
         assert!(refusal(&json).contains("rewind sample"));
         let mut json = stepped(5);
         json["world"]["players"][0]["core"]["motion"]["path"] =
-            serde_json::json!([{"x": 1e300, "y": -1e300}]);
+            serde_json::json!([0,[{"x": 1e300, "y": -1e300}]]);
         assert!(refusal(&json).contains("path point"));
         let mut json = stepped(5);
         json["statics"]["arena"]["spawns"] = serde_json::json!([{"x": 1e300, "y": -1e300}]);

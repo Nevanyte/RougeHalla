@@ -77,6 +77,7 @@ impl Sim {
             s: TickScratch::default(),
             pf: Pathfinder::default(),
         };
+        crate::terrain::validate_config(&sim.k.config)?;
         crate::systems::initial_loot::initialize(&mut sim.k, &mut sim.w)?;
         crate::systems::mobs::initialize(&mut sim.k, &mut sim.w)?;
         Ok(sim)

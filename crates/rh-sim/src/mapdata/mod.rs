@@ -136,3 +136,41 @@ impl MapLayers {
 }
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+pub(crate) fn source_terrain_fixture(w: u32, h: u32, terrain: Vec<u8>) -> MapLayers {
+    let n = (w * h) as usize;
+    MapLayers {
+        legacy_map_hash_u32: 0,
+        data: LayerData {
+            seed: 0,
+            w,
+            h,
+            terrain,
+            props: vec![],
+            region_grid: vec![0; n],
+            attempt: 0,
+            territory_grid: vec![0; n],
+            coliseum: ColiseumDef {
+                rect: TileRect {
+                    x: 0,
+                    y: 0,
+                    w: 0,
+                    h: 0,
+                },
+                centre: WorldPt { x: 16., y: 16. },
+                gates: vec![],
+                inner_spawns: vec![],
+            },
+            regions: vec![],
+            camps: vec![],
+            spawn_pool: vec![],
+            buildings: vec![],
+            spawns: vec![],
+            crate_spots: vec![],
+            ground_spots: vec![],
+            features: vec![],
+            feature_grid: vec![0; n],
+        },
+    }
+}

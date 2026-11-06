@@ -211,7 +211,13 @@ pub(crate) type PhaseFn = fn(&mut Cx) -> Flow;
 /// A system of a registration list (legacy `SimSystem`; the step is the fixed `TICK_MS`).
 pub(crate) type SystemFn = fn(&mut Cx);
 /// A factor on one fighter's move speed (legacy `MoveModifier`); the product is folded in table order.
-pub(crate) type MoveFn = fn(&World, &FighterCore, f64, crate::status_runtime::StatView) -> f64;
+pub(crate) type MoveFn = fn(
+    &crate::statics::MatchStatic,
+    &mut World,
+    crate::fighter::FighterIx,
+    f64,
+    crate::status_runtime::StatView,
+) -> f64;
 /// What one mod source adds to a fighter's stat mirrors (legacy `ModContribution`).
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub(crate) struct ModContribution {
@@ -546,7 +552,13 @@ fn no_source(
 ) -> Option<ModContribution> {
     None
 }
-fn no_modifier(_: &World, _: &FighterCore, _: f64, _: crate::status_runtime::StatView) -> f64 {
+fn no_modifier(
+    _: &crate::statics::MatchStatic,
+    _: &mut World,
+    _: crate::fighter::FighterIx,
+    _: f64,
+    _: crate::status_runtime::StatView,
+) -> f64 {
     1.0
 }
 
@@ -769,7 +781,13 @@ static BEFORE_DAMAGE: [Item<SystemFn>; 3] = [
         Gate::Signatures,
         crate::systems::signatures::before_damage,
     ),
-    pending("terrainEffects.burnPass", Gate::Always, "P-TERRAIN-1"),
+    partial(
+        "terrainEffects.burnPass",
+        Gate::Always,
+        "native player and admitted PvE terrain",
+        "P-TERRAIN-1",
+        crate::systems::terrain::burn,
+    ),
     ported(
         "abilities.statusDamage",
         Gate::Always,
@@ -812,7 +830,13 @@ static SYSTEMS: [Item<SystemFn>; 24] = [
         Gate::Always,
         crate::systems::mob_ai::think,
     ),
-    pending("terrainEffects.lightPass", Gate::Always, "P-TERRAIN-1"),
+    partial(
+        "terrainEffects.lightPass",
+        Gate::Always,
+        "native player and admitted PvE terrain",
+        "P-TERRAIN-1",
+        crate::systems::terrain::light,
+    ),
     pending("regen.regenPass", Gate::Always, "P-MOBS-2"),
     ported(
         "abilities.abilityDotFx",
@@ -855,23 +879,29 @@ static MOVE_MODIFIERS: [Item<MoveFn>; 7] = [
     ported(
         "factions.frostMovementModifier",
         Gate::Signatures,
-        crate::systems::frost::movement_modifier,
+        |_, w, ix, dt, stats| crate::systems::frost::movement_modifier(w, w.core(ix), dt, stats),
     ),
     ported(
         "buffs.moveSpeedMult",
         Gate::Always,
-        crate::modifiers::movement,
+        |_, w, ix, dt, stats| crate::modifiers::movement(w, w.core(ix), dt, stats),
     ),
     ported(
         "mobLife.mobRoleMove",
         Gate::Always,
-        crate::systems::mobs::role_move,
+        |_, w, ix, dt, stats| crate::systems::mobs::role_move(w, w.core(ix), dt, stats),
     ),
-    pending("terrainEffects.applyBog", Gate::Always, "P-TERRAIN-1"),
+    partial(
+        "terrainEffects.applyBog",
+        Gate::Always,
+        "native player and admitted PvE terrain",
+        "P-TERRAIN-1",
+        crate::systems::terrain::bog,
+    ),
     ported(
         "abilities.statusMoveMultiplier",
         Gate::Always,
-        crate::systems::status::movement,
+        |_, w, ix, dt, stats| crate::systems::status::movement(w, w.core(ix), dt, stats),
     ),
     pending(
         "sentencedHunt.huntMoveMultiplier",
@@ -1042,17 +1072,17 @@ static TELEPORTED: [Link; 13] = [
         Gate::Always,
         crate::reward_chests::clear,
     ),
-    pending_link(
+    ported_link(
         "mobLife.resetAllMobs",
         Mode::Append,
         Gate::Always,
-        "P-MOBS-1",
+        crate::systems::mob_life::teleported,
     ),
-    pending_link(
+    ported_link(
         "terrainEffects.clearSlips",
         Mode::Append,
         Gate::Always,
-        "P-TERRAIN-1",
+        crate::systems::terrain::clear_slips,
     ),
     ported_link(
         "abilities.<arrow>",
@@ -1172,11 +1202,11 @@ static RAID_STARTED: [Link; 14] = [
         Gate::Mobs,
         crate::systems::mobs::raid_started,
     ),
-    pending_link(
+    ported_link(
         "terrainEffects.onRaidStarted",
         Mode::Append,
         Gate::Always,
-        "P-TERRAIN-1",
+        crate::systems::terrain::raid_started,
     ),
     pending_link("regen.<arrow>", Mode::Append, Gate::Always, "P-MOBS-2"),
     // Status/field reset only; Wish charges/cooldown/landing remain P-ABIL-1.
@@ -1310,11 +1340,11 @@ static MOB_KILLED: [Link; 2] = [
         "P-QUEST-1",
     ),
 ];
-static ARENA_HURT: [Link; 1] = [pending_link(
+static ARENA_HURT: [Link; 1] = [ported_link(
     "terrainEffects.terrainHurt",
     Mode::Append,
     Gate::Always,
-    "P-TERRAIN-1",
+    crate::systems::terrain::hurt,
 )];
 static FIGHTER_OUT: [Link; 8] = [
     ported_link(
@@ -1759,7 +1789,7 @@ mod tests {
                 assert_eq!(plan.actions[a.id as usize].is_some(), live, "{}", a.name);
             }
         }
-        // The capture plan retains the nine source-ordered live consumers; mob callbacks are no-ops without actors.
+        // The capture plan retains ten source-ordered live consumers; mob callbacks are no-ops without actors.
         assert_eq!(CAPTURE_PLAN.phases.live().len(), 20);
         assert_eq!(
             CAPTURE_PLAN
@@ -1774,6 +1804,7 @@ mod tests {
                 "mobLife.reapMobs",
                 "mobLife.respawnCamps",
                 "mobAI.thinkMobs",
+                "terrainEffects.lightPass",
                 "abilities.abilityDotFx",
                 "vision.refreshVision",
                 "consumables.updateConsumables",

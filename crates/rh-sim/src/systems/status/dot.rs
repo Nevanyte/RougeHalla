@@ -92,6 +92,7 @@ pub(crate) fn damage_with(
                 true_: 1.,
             });
             s.ledger.push(Entry {
+                terrain: false,
                 dot: true,
                 ability: st.ability,
                 arena: false,

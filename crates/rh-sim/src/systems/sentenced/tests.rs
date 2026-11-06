@@ -28,6 +28,7 @@ fn scene() -> Sim {
 }
 fn hit() -> Entry {
     Entry {
+        terrain: false,
         dot: false,
         ability: None,
         arena: false,

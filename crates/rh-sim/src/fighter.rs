@@ -73,7 +73,7 @@ pub struct SlipState {
     pub vy: f64,
     pub ax: f64,
     pub ay: f64,
-    pub path: Option<Vec<Vec2>>,
+    pub path: Option<u64>,
     pub replan_at: Option<f64>,
     pub stuck_x: Option<f64>,
     pub stuck_y: Option<f64>,

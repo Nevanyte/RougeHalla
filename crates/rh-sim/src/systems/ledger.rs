@@ -17,6 +17,7 @@ use crate::systems::{credit, settle, weapons, Cx};
 /// retain the immutable source snapshot through shared handles, without cloning string bytes.
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub(crate) struct Entry {
+    pub(crate) terrain: bool,
     pub(crate) dot: bool,
     pub(crate) ability: Option<crate::status_runtime::AbilityId>,
     pub(crate) arena: bool,
@@ -53,6 +54,7 @@ impl Entry {
 }
 #[derive(Clone, Debug)]
 pub(crate) struct Hit {
+    pub(crate) terrain: bool,
     pub(crate) amount: f64,
     pub(crate) by: Option<PlayerId>,
     pub(crate) name: Option<std::sync::Arc<str>>,
@@ -578,6 +580,7 @@ fn apply_victim(
     hits.extend(order.iter().map(|&(_, j)| {
         let e = &ledger[idxs[j]];
         Hit {
+            terrain: e.terrain,
             amount: amounts[j],
             by: e.credit_id(),
             name: e.source.as_ref().map(|s| s.name.clone()),
@@ -634,6 +637,7 @@ fn apply_victim(
                         fx: None,
                     },
                     crate::hooks::HookArgs::ArenaHurt {
+                        terrain: e.terrain,
                         victim: v,
                         by: e.by,
                         source: e.source.clone(),
@@ -810,6 +814,7 @@ fn apply_hits(pass: &mut Pass, vi: usize, hits: &[Hit]) -> f64 {
         Some(r) => hits[r].by,
         // Legacy arena.ts: a kill whose top hit is the arena's own (sudden death) credits nobody; only a sourced top hit
         // falls back to the recent rival. A self-hit (the attacker is the victim) credits nobody either.
+        None if hits[top].terrain => credit::recent_rival(w, vi, now),
         None => hits[top]
             .by
             .filter(|b| *b != victim_id)

@@ -2,7 +2,7 @@
 //! never widen the ordinary checkpoint domain: source IDs must belong to retained typed actor provenance (never an allocation-counter range).
 use super::*;
 use crate::state::World;
-pub(crate) fn validate_world(w: &World, near: impl Fn(f64, f64) -> bool) -> Result<(), String> {
+pub(crate) fn validate_world(w: &World, _near: impl Fn(f64, f64) -> bool) -> Result<(), String> {
     let provenance = |source: &StatusSource| {
         [source.id, source.owner_id]
             .into_iter()
@@ -53,8 +53,7 @@ pub(crate) fn validate_world(w: &World, near: impl Fn(f64, f64) -> bool) -> Resu
                 .all(|v| v.is_finite())
                 || s.replan_at.is_some_and(|v| !v.is_finite())
                 || s.path
-                    .as_ref()
-                    .is_some_and(|path| path.iter().any(|v| !near(v.x, v.y)))
+                    .is_some_and(|generation| generation > p.motion.path.generation)
             {
                 return Err("invalid slip memory".into());
             }
@@ -111,7 +110,8 @@ pub(crate) fn validate_world(w: &World, near: impl Fn(f64, f64) -> bool) -> Resu
         }
     }
     for e in &w.deferred.hits {
-        if !w.known_actor(e.victim)
+        if e.terrain
+            || !w.known_actor(e.victim)
             || e.by.is_some_and(|id| !w.known_actor(id))
             || e.source
                 .as_ref()
@@ -199,20 +199,7 @@ mod tests {
             roll_tick: Some(0),
             critical: false,
         });
-        s.w.players[1].motion.slip = Some(crate::fighter::SlipState {
-            vx: 1.,
-            vy: 2.,
-            ax: 3.,
-            ay: 4.,
-            path: Some(vec![Vec2::new(500., 400.)]),
-            replan_at: Some(0.),
-            stuck_x: Some(460.),
-            stuck_y: Some(400.),
-            stuck_n: Some(1.),
-            stuck_best: Some(0.),
-            stuck_at: Some(0.),
-            grip_until: Some(10.),
-        });
+
         let mut a = AbilityRuntime::new(0.);
         a.teleported_at = Some(0.);
         a.fields.push(Field {
@@ -241,6 +228,7 @@ mod tests {
         s.w.abilities = Some(a);
         s.w.entity_counter = 1;
         s.w.deferred.defer_hit(crate::systems::ledger::Entry {
+            terrain: false,
             dot: true,
             ability: Some(AbilityId::Blaze),
             arena: false,
@@ -354,8 +342,6 @@ mod tests {
             ),
             ("/world/players/1/core/card_dot_crit/critical", json!(true)),
             ("/world/players/1/core/motion/displace_seq", json!(1)),
-            ("/world/players/1/core/motion/slip/vx", json!(2.)),
-            ("/world/players/1/core/motion/slip/path/0/x", json!(501.)),
             (
                 "/world/abilities/fields/0/owner/name",
                 json!("field source snapshot"),
@@ -397,6 +383,22 @@ mod tests {
                 true_: 0.5,
             }),
         };
+        // Raw serialized-leaf hashing only. Ordinary slip admission/continuation now belongs
+        // to terrain::native_tests with real map hazards enabled.
+        s.w.players[1].motion.slip = Some(crate::fighter::SlipState {
+            vx: 1.,
+            vy: 2.,
+            ax: 3.,
+            ay: 4.,
+            path: Some(0),
+            replan_at: Some(0.),
+            stuck_x: Some(460.),
+            stuck_y: Some(400.),
+            stuck_n: Some(1.),
+            stuck_best: Some(0.),
+            stuck_at: Some(0.),
+            grip_until: Some(10.),
+        });
         s.w.players[1].fate.killed_by_name = Some("source label".into());
         let field = &mut s.w.abilities.as_mut().unwrap().fields[0];
         field.subject = Some(PlayerId(2));
@@ -473,7 +475,6 @@ mod tests {
             "/players/1/core/statuses/instances/0/taken",
             "/players/1/core/statuses/cast",
             "/players/1/core/card_dot_crit",
-            "/players/1/core/motion/slip",
             "/abilities",
             "/deferred/hits/0/source",
         ] {
@@ -488,7 +489,6 @@ mod tests {
         let invalid = [
             ("/world/abilities/fields/0/x2", json!(1e308)),
             ("/world/abilities/fields/0/r", json!(-1e308)),
-            ("/world/players/1/core/motion/slip/vx", json!(1e308)),
             (
                 "/world/players/1/core/statuses/instances/0/source/id",
                 json!(999),
@@ -517,8 +517,6 @@ mod tests {
             ("/world/players/1/core/modifiers/wire/0", json!(800.5)),
             ("/world/players/1/core/card_dot_crit/accumulator", json!(1.)),
             ("/world/players/1/core/card_dot_crit/roll_tick", json!(1000)),
-            ("/world/players/1/core/motion/slip/vx", Value::Null),
-            ("/world/players/1/core/motion/slip/path/0/x", json!(1e20)),
             ("/world/abilities/dot_since", json!(1000.)),
             ("/world/abilities/teleported_at", json!(1000.)),
             ("/world/abilities/fields/0/id", json!(2)),

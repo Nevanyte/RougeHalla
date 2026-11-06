@@ -28,6 +28,7 @@ const NUMBER_FREE_TYPES: &[(&str, bool, &str)] = &[
 /// Each entry must match a declaration the scan finds and not be covered by NUMBER_FREE_TYPES. Adding to this list is a
 /// review decision: a number that can change an outcome belongs in the registry instead.
 const NON_GAMEPLAY: &[(&str, &str, &str)] = &[
+    ("systems/terrain/source_tests.rs", "FIXTURE_FNV", "test-only actual-source witness integrity pin; not read by gameplay"),
     ("projectile_view.rs", "MAX_VISIBLE_PROJECTILES", "complete public projectile representation capacity; never read by game rules"),
     ("projectile_view.rs", "PROJECTILE_ROW_BYTES_MAX", "complete public projectile representation capacity; never read by game rules"),
     ("projectile_view.rs", "PROJECTILE_VIEW_BYTES_MAX", "complete public projectile representation capacity; never read by game rules"),
@@ -133,6 +134,7 @@ const NON_GAMEPLAY: &[(&str, &str, &str)] = &[
 /// Rules that are tables rather than scalar rows: they are folded by `content_hash` directly (see content.rs). As
 /// (file, name, reason).
 const TABLES_FOLDED_BY_HASH: &[(&str, &str, &str)] = &[
+    ("terrain.rs", "NEUTRAL", "actual complete runtime surface matrix folded by terrain::visit_content"),
     ("potions/mod.rs", "DEFINITION", "actual Small potion stock/concurrency/duration/share read by runtime and progression content visitor"),
     ("cards/mod.rs", "ALL", "actual selected card identities/index/name order folded by visit_progression_content"),
     ("cards/rules.rs", "DEFINITION", "actual selected card tiers/effect words folded by visit_progression_content"),
@@ -455,7 +457,7 @@ fn hash_golden() {
         content_hash()
     );
 }
-const GOLDEN_CONTENT_HASH: u64 = 0x7419_2c06_2ab9_eac1;
+const GOLDEN_CONTENT_HASH: u64 = 0xcb27_3622_36f2_d3c2;
 
 #[test]
 fn every_registry_row_perturbs_the_hash() {

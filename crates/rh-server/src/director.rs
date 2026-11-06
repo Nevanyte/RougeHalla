@@ -1913,6 +1913,7 @@ mod tests {
 
     fn director_with(store: MemoryStore) -> Arc<Director> {
         let sim = SimConfig {
+            hazards: rh_sim::terrain::Mode::Off,
             mob_mode: rh_sim::mob_runtime::MobMode::Off,
             initial_loot: false,
             min_players: 2,

@@ -495,3 +495,35 @@ pub(crate) fn respawn(cx: &mut Cx) {
     }
     cx.s.reserve_actors(cx.w.fighter_count());
 }
+
+/// Source mobLife.resetAllMobs -> mobAI.resetMob; the teleport producer remains staged.
+pub(crate) fn teleported(hx: &mut crate::hooks::Hx, _: &crate::hooks::HookArgs) {
+    let now = hx.w.server_time;
+    for m in &mut hx.w.mobs {
+        if m.status != Status::Alive {
+            continue;
+        }
+        m.brain.target = None;
+        m.brain.threat.clear();
+        m.brain.goal = None;
+        m.brain.last_move_at = 0.;
+        m.brain.moving = false;
+        m.brain.holding = false;
+        m.core.inputs.clear();
+        m.core.motion.path.clear();
+        m.core.motion.slip = None;
+        super::weapons::cancel_action(&mut m.core, now);
+        m.core.weapon.held = false;
+        m.core.weapon.buffered_until = 0.;
+        m.core.body.x = m.home.x;
+        m.core.body.y = m.home.y;
+        m.core.body.facing = m.home_facing;
+        m.core.vitals.hp = m.core.vitals.max_hp;
+        m.core.body.history.reset(crate::state::Sample {
+            t: now,
+            x: m.home.x,
+            y: m.home.y,
+        });
+        m.brain.mode = BrainMode::Idle;
+    }
+}

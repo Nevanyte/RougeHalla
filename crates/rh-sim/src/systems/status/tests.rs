@@ -193,6 +193,7 @@ fn floor_sees_post_barrier_overkill_and_antiheal_cuts_expiry_heal_without_lockou
     anti.value = Some(0.5);
     add(&mut s, PlayerId(2), anti, &mut ev);
     s.w.deferred.defer_hit(ledger::Entry {
+        terrain: false,
         dot: false,
         ability: None,
         arena: false,

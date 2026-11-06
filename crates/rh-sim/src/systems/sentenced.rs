@@ -121,6 +121,7 @@ pub(crate) fn before_damage(
             }
             let e = ledger[n].clone();
             ledger.push(Entry {
+                terrain: false,
                 dot: false,
                 ability: None,
                 arena: false,

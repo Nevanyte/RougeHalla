@@ -79,8 +79,14 @@ fn strict_mark_mode_counter_clock_relationship_and_delayed_classification_admiss
         json!([{"victim":2,"by":1,"sig":"Mark","weapon":"Fists","amount":1.}]);
     assert!(Sim::restore(cp).is_err());
     let mut cp = base;
-    cp["world"]["deferred"]["hits"] = json!([{"victim":2,"by":1,"sig":"Mark","execute":true,"packet":{"raw":1.,"phys":0.4,"magic":0.6,"true_":0.},"weapon":"Fists","stagger":false,"projectile":null,"scale":1.,"derived":false,"passive":false}]);
-    assert!(Sim::restore(cp).is_err());
+    cp["world"]["deferred"]["hits"] = json!([{"terrain":false,"dot":false,"ability":null,"arena":false,"source":null,"critical":false,"critical_mult":null,"victim":2,"by":1,"sig":"Mark","execute":true,"packet":{"raw":1.,"phys":0.4,"magic":0.6,"true_":0.},"weapon":"Fists","stagger":false,"projectile":null,"scale":1.,"derived":false,"passive":false}]);
+    let mut legal = cp.clone();
+    legal["world"]["deferred"]["hits"][0]["execute"] = json!(false);
+    Sim::restore(legal).expect("an otherwise valid deferred Mark entry");
+    assert!(Sim::restore(cp)
+        .unwrap_err()
+        .to_string()
+        .contains("execute qualification"));
 }
 #[test]
 fn mark_checkpoint_continuation_and_caller_prefix_do_not_change_hashes_or_events() {

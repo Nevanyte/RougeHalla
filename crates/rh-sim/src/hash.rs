@@ -464,6 +464,7 @@ mod tests {
                 "deferred hit",
                 Box::new(|s| {
                     s.w.deferred.defer_hit(crate::systems::ledger::Entry {
+                        terrain: false,
                         dot: false,
                         ability: None,
                         arena: false,

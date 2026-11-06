@@ -11,6 +11,7 @@ pub(crate) enum Kind {
     IgnoreLockout,
     DeathFloor,
     QuietRegen,
+    QuietOrdinary,
 }
 pub(crate) fn apply(w: &mut World, ev: &mut Vec<Event>, i: usize, amount: f64, kind: Kind) -> f64 {
     let stats = crate::status_runtime::stats::view(w.core(crate::fighter::FighterIx::of_slot(i)));
@@ -30,7 +31,7 @@ pub(crate) fn apply_with(
         return 0.0;
     }
     let p = w.core_mut(ix);
-    if matches!(kind, Kind::Ordinary)
+    if matches!(kind, Kind::Ordinary | Kind::QuietOrdinary)
         && p.signature
             .combat_at
             .is_some_and(|at| now - at < HEAL_LOCKOUT_MS)
@@ -47,7 +48,7 @@ pub(crate) fn apply_with(
     let before = p.vitals.hp;
     p.vitals.hp = p.vitals.max_hp.min(before + amount);
     let gained = p.vitals.hp - before;
-    if gained > 0.0 && !matches!(kind, Kind::QuietRegen) {
+    if gained > 0.0 && !matches!(kind, Kind::QuietRegen | Kind::QuietOrdinary) {
         ev.push(Event::Heal {
             id: p.id,
             amount: gained,

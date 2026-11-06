@@ -49,6 +49,7 @@ pub(crate) fn damage(
                 w,
                 ledger,
                 Entry {
+                    terrain: false,
                     dot: false,
                     ability: None,
                     arena: false,
@@ -166,6 +167,7 @@ mod tests {
                 cx.s.rank.resize(cx.w.players.len(), 0);
                 for e in c["entries"].as_array().unwrap() {
                     cx.s.ledger.push(Entry {
+                        terrain: false,
                         dot: false,
                         ability: None,
                         arena: false,
