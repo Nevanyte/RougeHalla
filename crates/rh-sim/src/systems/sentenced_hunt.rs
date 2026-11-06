@@ -2,7 +2,7 @@
 //! completed-hunt Mark stacks and the selected actor's visibility exception.
 use crate::constants::*;
 use crate::content::FactionId;
-use crate::events::{Event, HuntNotice};
+use crate::events::{Event, MarkNotice};
 use crate::fighter::FighterIx;
 use crate::hooks::{HookArgs, Hx, OutCause};
 use crate::math::hypot;
@@ -15,7 +15,7 @@ use crate::{input::ActionCmd, statics::MatchStatic};
 pub(crate) fn sees_target(viewer: &Player, target: &Player) -> bool {
     viewer.standing()
         && viewer.vitals.faction == FactionId::Sentenced
-        && viewer.hunt_target == Some(target.id)
+        && viewer.hunt_target() == Some(target.id)
         && target.status == Status::Alive
 }
 
@@ -36,7 +36,7 @@ pub(crate) fn target(cx: &mut Cx, ix: FighterIx, cmd: &ActionCmd) {
         return;
     }
     if hunter
-        .hunt_target
+        .hunt_target()
         .and_then(|current| cx.w.player(current))
         .is_some_and(|current| current.standing())
     {
@@ -48,10 +48,10 @@ pub(crate) fn target(cx: &mut Cx, ix: FighterIx, cmd: &ActionCmd) {
     if id == hunter_id || !cx.w.players[ti].standing() {
         return;
     }
-    cx.w.players[hi].hunt_target = Some(id);
-    cx.ev.push(Event::HuntNotice {
+    cx.w.players[hi].set_hunt_target(Some(id));
+    cx.ev.push(Event::MarkNotice {
         recipient: hunter_id,
-        notice: HuntNotice::Targeted { target: id },
+        notice: MarkNotice::Hunting { target: id },
     });
 }
 
@@ -70,7 +70,7 @@ pub(crate) fn movement(
     if !p.standing() || p.vitals.faction != FactionId::Sentenced {
         return 1.;
     }
-    let Some(target_id) = p.hunt_target else {
+    let Some(target_id) = p.hunt_target() else {
         return 1.;
     };
     let Some(target) = w.player(target_id) else {
@@ -116,12 +116,12 @@ pub(crate) fn fighter_out(hx: &mut Hx, args: &HookArgs) {
     let real_death = cause == OutCause::Down
         && hx.w.players[vi].status == Status::Dead
         && hx.w.phase == Phase::Active;
-    hx.w.players[vi].hunt_target = None;
+    hx.w.players[vi].set_hunt_target(None);
     for hi in 0..hx.w.players.len() {
-        if hx.w.players[hi].hunt_target != Some(id) {
+        if hx.w.players[hi].hunt_target() != Some(id) {
             continue;
         }
-        hx.w.players[hi].hunt_target = None;
+        hx.w.players[hi].set_hunt_target(None);
         let hunter = &hx.w.players[hi];
         if !real_death || hunter.id == id || !hunter.standing() {
             continue;
@@ -132,9 +132,11 @@ pub(crate) fn fighter_out(hx: &mut Hx, args: &HookArgs) {
         let hunter_id = hunter.id;
         let stacks = hx.w.players[hi].hunt_stacks.saturating_add(1);
         hx.w.players[hi].hunt_stacks = stacks;
-        hx.ev.push(Event::HuntNotice {
+        hx.ev.push(Event::MarkNotice {
             recipient: hunter_id,
-            notice: HuntNotice::Completed { stacks },
+            notice: MarkNotice::HuntComplete {
+                stacks: u32::from(stacks),
+            },
         });
     }
 }
@@ -145,7 +147,7 @@ pub(crate) fn run_ended(hx: &mut Hx, _args: &HookArgs) {
         return;
     }
     for p in &mut hx.w.players {
-        p.hunt_target = None;
+        p.set_hunt_target(None);
     }
 }
 

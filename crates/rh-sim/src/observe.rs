@@ -336,7 +336,6 @@ fn to_seen(e: &Event, can_see: &impl Fn(PlayerId) -> bool) -> Option<SeenEvent> 
         Event::Victory { id, draw } => Some(SeenEvent::Ended { winner: id, draw }),
         Event::AbilityHit { .. }
         | Event::MarkNotice { .. }
-        | Event::HuntNotice { .. }
         | Event::SignatureHit { .. }
         | Event::ProjectileLaunched(_)
         | Event::ProjectileEnded { .. }
@@ -508,8 +507,8 @@ pub(crate) fn observe_with(
         bounty: p.credit.bounty,
         gv: p.credit.gv,
         move_seq: p.motion.move_seq,
-        hunt_target: p.hunt_target,
-        hunt_stacks: p.hunt_stacks,
+        hunt_target: p.hunt_target(),
+        hunt_stacks: u32::from(p.hunt_stacks),
     });
     out.camps.clear();
     out.camps.extend_from_slice(sim.camp_rosters());

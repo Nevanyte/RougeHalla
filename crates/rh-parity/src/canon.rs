@@ -92,11 +92,8 @@ pub(crate) fn canon(e: &Event, sim: &Sim) -> Option<Value> {
             json!({"kind":"hit","id":fid(*victim),"by":by.map(fid).unwrap_or_default(),"ability":ability,"amount":amount,"weapon":null})
         }
         Event::MarkNotice { recipient, notice } => {
-            json!({"kind":"toast","to":fid(*recipient),"text":notice.message()})
-        }
-        Event::HuntNotice { recipient, notice } => {
             let text = match notice {
-                rh_sim::events::HuntNotice::Targeted { target } => {
+                rh_sim::events::MarkNotice::Hunting { target } => {
                     let p = sim.player(*target);
                     format!(
                         "Hunting {} · {}",
@@ -104,10 +101,11 @@ pub(crate) fn canon(e: &Event, sim: &Sim) -> Option<Value> {
                         p.map_or("", |p| p.vitals.faction.as_str())
                     )
                 }
-                rh_sim::events::HuntNotice::Completed { .. } => format!(
+                rh_sim::events::MarkNotice::HuntComplete { .. } => format!(
                     "Hunt complete: +{}% mark strength",
                     (rh_sim::constants::SENTENCED_HUNT_MARK_PER_STACK * 100.).round()
                 ),
+                other => other.message().to_string(),
             };
             json!({"kind":"toast","to":fid(*recipient),"text":text})
         }

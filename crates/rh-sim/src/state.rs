@@ -497,12 +497,12 @@ pub struct Player {
     pub status: Status,
     pub down: Option<Outcome>,
     pub resolved: bool,
-    /// The living rival this Sentenced hunter selected (legacy `huntTarget`, "" = none).
+    /// The selected rival's id, or 0 for none (legacy `huntTarget`; compact on purpose).
     #[serde(default)]
-    pub hunt_target: Option<PlayerId>,
+    pub hunt_target: u32,
     /// Completed hunts; multiplies this player's Mark strength (legacy `huntStacks`).
     #[serde(default)]
-    pub hunt_stacks: u32,
+    pub hunt_stacks: u8,
 }
 
 impl Keyed for Player {
@@ -595,13 +595,21 @@ impl Player {
             down: None,
             resolved: false,
             plan_ready: false,
-            hunt_target: None,
+            hunt_target: 0,
             hunt_stacks: 0,
         }
     }
 
     pub fn standing(&self) -> bool {
         self.status == Status::Alive && self.down.is_none() && !self.resolved
+    }
+
+    /// The selected rival, if any (0 is the no-target sentinel on the wire-sized field).
+    pub fn hunt_target(&self) -> Option<PlayerId> {
+        (self.hunt_target != 0).then_some(PlayerId(self.hunt_target))
+    }
+    pub fn set_hunt_target(&mut self, target: Option<PlayerId>) {
+        self.hunt_target = target.map_or(0, |id| id.0);
     }
 
     /// A read-only view of the fighter in this seat.

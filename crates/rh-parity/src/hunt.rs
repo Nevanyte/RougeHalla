@@ -67,7 +67,7 @@ pub(super) fn compare(
         .map(|p| {
             json!({
                 "id": fid(p.id),
-                "huntTarget": p.hunt_target.map(fid).unwrap_or_default(),
+                "huntTarget": p.hunt_target().map(fid).unwrap_or_default(),
                 "huntStacks": p.hunt_stacks,
             })
         })

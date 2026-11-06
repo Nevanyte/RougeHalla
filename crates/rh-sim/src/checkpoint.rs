@@ -501,7 +501,7 @@ fn check_world(k: &MatchStatic, w: &World) -> Result<(), String> {
             k.config.lifecycle.rules().is_some() && w.raid_started_at > 0.,
             near,
         )?;
-        if p.hunt_target.is_some_and(|id| {
+        if p.hunt_target().is_some_and(|id| {
             id == p.id
                 || w.phase != crate::Phase::Active
                 || !p.standing()

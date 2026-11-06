@@ -58,19 +58,19 @@ fn hunt(s: &mut Sim, id: crate::PlayerId) -> Vec<Event> {
 fn selecting_a_living_target_is_sticky_and_dead_targets_can_be_replaced() {
     let mut s = scene();
     let ev = hunt(&mut s, crate::PlayerId(2));
-    assert_eq!(s.players()[0].hunt_target, Some(crate::PlayerId(2)));
+    assert_eq!(s.players()[0].hunt_target(), Some(crate::PlayerId(2)));
     assert!(ev
         .iter()
-        .any(|e| matches!(e, Event::HuntNotice { recipient, notice: HuntNotice::Targeted { target } } if *recipient == crate::PlayerId(1) && *target == crate::PlayerId(2))));
+        .any(|e| matches!(e, Event::MarkNotice { recipient, notice: MarkNotice::Hunting { target } } if *recipient == crate::PlayerId(1) && *target == crate::PlayerId(2))));
 
     hunt(&mut s, crate::PlayerId(3));
-    assert_eq!(s.players()[0].hunt_target, Some(crate::PlayerId(2)));
+    assert_eq!(s.players()[0].hunt_target(), Some(crate::PlayerId(2)));
 
     let mut ev = Vec::new();
     crate::systems::settle::down_player(&s.k, &mut s.w, &mut ev, None, 1, Outcome::Died);
-    assert_eq!(s.players()[0].hunt_target, None);
+    assert_eq!(s.players()[0].hunt_target(), None);
     assert_eq!(s.players()[0].hunt_stacks, 1);
-    assert!(ev.iter().any(|e| matches!(e, Event::HuntNotice { recipient, notice: HuntNotice::Completed { stacks: 1 } } if *recipient == crate::PlayerId(1))));
+    assert!(ev.iter().any(|e| matches!(e, Event::MarkNotice { recipient, notice: MarkNotice::HuntComplete { stacks: 1 } } if *recipient == crate::PlayerId(1))));
 }
 
 #[test]
@@ -79,22 +79,28 @@ fn mia_and_the_hunters_own_death_clear_without_a_stack() {
     hunt(&mut s, crate::PlayerId(2));
     let mut ev = Vec::new();
     crate::systems::settle::down_player(&s.k, &mut s.w, &mut ev, None, 1, Outcome::Mia);
-    assert_eq!(s.players()[0].hunt_target, None);
+    assert_eq!(s.players()[0].hunt_target(), None);
     assert_eq!(s.players()[0].hunt_stacks, 0);
-    assert!(!ev.iter().any(|e| matches!(e, Event::HuntNotice { .. })));
+    assert!(!ev.iter().any(|e| matches!(
+        e,
+        Event::MarkNotice {
+            notice: MarkNotice::HuntComplete { .. },
+            ..
+        }
+    )));
 
     let mut s = scene();
     hunt(&mut s, crate::PlayerId(2));
     let mut ev = Vec::new();
     crate::systems::settle::down_player(&s.k, &mut s.w, &mut ev, None, 0, Outcome::Died);
-    assert_eq!(s.players()[0].hunt_target, None);
+    assert_eq!(s.players()[0].hunt_target(), None);
     assert_eq!(s.players()[0].hunt_stacks, 0);
 }
 
 #[test]
 fn movement_bonus_uses_the_next_path_leg_toward_the_living_rival() {
     let mut s = scene();
-    s.w.players[0].hunt_target = Some(crate::PlayerId(2));
+    s.w.players[0].set_hunt_target(Some(crate::PlayerId(2)));
     s.w.players[0].body.x = 300.;
     s.w.players[0].body.y = 400.;
     s.w.players[1].body.x = 600.;
@@ -120,7 +126,7 @@ fn selected_actor_is_visible_through_fog_but_neighbours_are_not() {
     s.w.players[1].body.y = 400.;
     s.w.players[2].body.x = 2100.;
     s.w.players[2].body.y = 400.;
-    s.w.players[0].hunt_target = Some(crate::PlayerId(2));
+    s.w.players[0].set_hunt_target(Some(crate::PlayerId(2)));
     let map = s.k.collision_view(false);
     let tick = s.tick();
     assert!(crate::vision::actor_with(
@@ -154,7 +160,7 @@ fn completed_hunts_scale_mark_strength_and_run_end_clears_selections() {
     s.w.players[0].hunt_stacks = 5;
     let boosted = crate::modifiers::mark_pulse(&s.players()[0], WeaponId::Bow, 1000., true);
     assert!((boosted - base * 1.1).abs() < 1e-12);
-    s.w.players[0].hunt_target = Some(crate::PlayerId(2));
+    s.w.players[0].set_hunt_target(Some(crate::PlayerId(2)));
     let mut ev = Vec::new();
     let mut hx = crate::hooks::Hx {
         stats: Default::default(),
@@ -164,7 +170,7 @@ fn completed_hunts_scale_mark_strength_and_run_end_clears_selections() {
         ev: &mut ev,
     };
     run_ended(&mut hx, &HookArgs::RunEnded);
-    assert_eq!(s.players()[0].hunt_target, None);
+    assert_eq!(s.players()[0].hunt_target(), None);
     assert_eq!(s.players()[0].hunt_stacks, 5);
 }
 
@@ -173,11 +179,11 @@ fn hunt_target_is_refused_outside_an_active_sentenced_run_and_for_self() {
     let mut s = scene();
     s.w.phase = Phase::Ended;
     hunt(&mut s, crate::PlayerId(2));
-    assert_eq!(s.players()[0].hunt_target, None);
+    assert_eq!(s.players()[0].hunt_target(), None);
     s.w.phase = Phase::Active;
     hunt(&mut s, crate::PlayerId(1));
-    assert_eq!(s.players()[0].hunt_target, None);
+    assert_eq!(s.players()[0].hunt_target(), None);
     s.w.players[0].vitals.faction = FactionId::Fire;
     hunt(&mut s, crate::PlayerId(2));
-    assert_eq!(s.players()[0].hunt_target, None);
+    assert_eq!(s.players()[0].hunt_target(), None);
 }

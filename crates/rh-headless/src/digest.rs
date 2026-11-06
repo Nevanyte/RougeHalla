@@ -304,20 +304,16 @@ impl OutcomeDigest {
             Event::MarkNotice { recipient, notice } => {
                 self.s("mark_notice");
                 self.w(recipient.0 as u64);
-                self.s(notice.message());
-            }
-            Event::HuntNotice { recipient, notice } => {
-                self.s("hunt_notice");
-                self.w(recipient.0 as u64);
                 match notice {
-                    rh_sim::events::HuntNotice::Targeted { target } => {
-                        self.w(0);
+                    rh_sim::events::MarkNotice::Hunting { target } => {
+                        self.s("hunting");
                         self.w(target.0 as u64);
                     }
-                    rh_sim::events::HuntNotice::Completed { stacks } => {
-                        self.w(1);
+                    rh_sim::events::MarkNotice::HuntComplete { stacks } => {
+                        self.s("hunt_complete");
                         self.w(u64::from(*stacks));
                     }
+                    other => self.s(other.message()),
                 }
             }
             Event::SignatureHit {
