@@ -34,5 +34,6 @@ Base: `856618eb948555adefc6ff0bf4628d879d556250` (`origin/optimization_port`, 20
 
 ## Next action
 
-1. Finish the full workspace gate on the rebased head.
-2. Commit the protocol/mirror changes and open one PR for P-FACTION-4.
+P-FACTION-4 is complete and PR #30 is open. The remaining `Pending("P-...")` rows are P-QUEST-1, P-TRADE-1,
+P-FACTION-3 and P-ARENA-2 (plus the cross-cutting P-NET-3 exposure, P-BOTS-1..7, P-PARITY-2, P-HEAD-1 and the final gate).
+The next packet starts from a fresh rebase of `deepseek/rust-completion` onto `origin/optimization_port`.
