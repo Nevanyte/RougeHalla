@@ -56,8 +56,9 @@ Pinned Linux x64 Node `v22.23.4` (`node:22.23.4-bookworm-slim@sha256:5ec23b...`)
 - `parity/fixtures/corpse_death_auto_raise.json` — slice: near auto-harvest, stack, heal, zombie raise.
 - `parity/fixtures/corpse_marker_persists_and_explicit_consume.json` — slice: marker persistence, far refusal,
   auto-harvest after walking in.
-- `parity/fixtures/corpse_zombie_assists_owner_target.json` — capture-only: zombie follows the owner's new target
-  and lands hits; not promoted because the per-tick damage drift is still open.
+- `parity/fixtures/corpse_zombie_assists_owner_target.json` — capture-only: a sword-only fight (no disease) shows the
+  zombie follows the owner's fresh target and lands hits; the remaining per-tick damage drift is therefore in the
+  zombie attack interaction, not disease, and is not hidden by promotion.
 - `parity/corpses/source-manifest.json` pins 14 source files and all 3 fixtures.
 - `tools/corpse-fixtures/run-mutants.sh` — **6/6 killed**.
 - `cargo test -p rh-parity --test parity` — **29 passed**, including both slice fixtures.

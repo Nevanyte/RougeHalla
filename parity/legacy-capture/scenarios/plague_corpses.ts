@@ -70,18 +70,22 @@ export const scenarios: Scenario[] = [
   {
     ...base(
       "corpse_zombie_assists_owner_target",
-      "A wand kill raises the zombie; the owner locks a fresh target and the zombie follows and attacks it.",
+      "A sword kill raises the zombie; the owner strikes a fresh target and the zombie follows and attacks it.",
     ),
     parity: "capture-only",
     players: [
-      { id: "p0", faction: "plague", at: { x: 400, y: 320 }, hp: 1000, weapon0: "wand" },
+      { id: "p0", faction: "plague", at: { x: 400, y: 320 }, hp: 1000, weapon0: "sword" },
       { id: "p1", faction: "holy", at: { x: 410, y: 320 }, hp: 1, weapon0: "sword" },
-      { id: "p2", faction: "holy", at: { x: 520, y: 320 }, hp: 5000, weapon0: "sword" },
+      { id: "p2", faction: "holy", at: { x: 460, y: 320 }, hp: 5000, weapon0: "sword" },
     ],
     maxTicks: 110,
-    drive: ({ tick, send }) => {
-      if (tick === 2) send("p0", "target", { id: "p1" });
-      if (tick === 20) send("p0", "target", { id: "p2" });
+    drive: ({ tick, world, send }) => {
+      if (tick === 2) send("p0", "attack", { a: 0, t: 100 });
+      if (tick === 20) {
+        const p = world.state.players.get("p0")!;
+        const q = world.state.players.get("p2")!;
+        send("p0", "attack", { a: Math.atan2(q.y - p.y, q.x - p.x), t: 100 });
+      }
     },
   },
 ];
