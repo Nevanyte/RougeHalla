@@ -1,0 +1,53 @@
+{
+  "format": "rh-ability-void-integration/1",
+  "base": "3619339a1c03469be837aa9b42a280d7940044d0",
+  "sourceOnly": true,
+  "nativeRestore": "PENDING",
+  "sourceCases": 2,
+  "ordinary50msSteps": 24,
+  "proposalManifestSha256": "45442c5b11054affd6ed1a2086e12c26fe285050a3d820a8ae7388a2c2ec0643",
+  "reviewSha256": "cea90e53a44918ad57e8df681e9402c9f47e4cf26118db437b44f8830a66e5d5",
+  "files": [
+    {
+      "path": "parity/ability-void/INPUT_SHA256.json",
+      "sha256": "501b493f42e183bb984728e891f251c9d8730641098483158087946c9eedfe6d"
+    },
+    {
+      "path": "parity/ability-void/README.md",
+      "sha256": "d63b194d10e71129cb6c4df80eb072898c8870044e93136fe762f72cb2e74cb2"
+    },
+    {
+      "path": "parity/ability-void/source.json",
+      "sha256": "cb8bec8f8a8e1e72db22ff86c6f6e4eecb9cf449a1a5e0636c1c4939b7f7eef5"
+    },
+    {
+      "path": "tools/ability-void-fixtures/assertions.mts",
+      "sha256": "2549c976f02e7cc178945a47f3d920375e07114fce333b0bd338c6f3dee25770"
+    },
+    {
+      "path": "tools/ability-void-fixtures/capture.mts",
+      "sha256": "bbd7b3a78e1c1291eafca2d0043584491e571b4ec167b2a56bb4d23e6a10a338"
+    },
+    {
+      "path": "tools/ability-void-fixtures/capture.sh",
+      "sha256": "1a19582273f9c3c3dd8741faed15a548e6c136c343fcc75d8ee9f5660dd158ad"
+    },
+    {
+      "path": "tools/ability-void-fixtures/cases.mts",
+      "sha256": "e24347c306f6f064ad89318fff0242b2cb074775f7632fca46b17506d34c36b4"
+    },
+    {
+      "path": "tools/ability-void-fixtures/frozen-inputs.json",
+      "sha256": "26d2ef1578e50e5799be571d6a1298d9e7c969a9ecc0d7dae9980b0b4a8e83f1"
+    }
+  ],
+  "checks": {
+    "all8IntegratedDigests": "PASS",
+    "allSourceAndOriginalAndCompanionHarnessDigests": "PASS",
+    "original63CaseCorpusDigest": "PASS",
+    "caseAndStepCounts": "PASS"
+  },
+  "workerPinnedCaptureExit": 0,
+  "workerSingleFreshCompareExit": 0,
+  "coordinatorRepeatedCanonicalCapture": false
+}

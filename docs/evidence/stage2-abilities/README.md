@@ -17,7 +17,12 @@ its eventual result is separate from the observed checks above.
 The coordinator corrected one accepted documentation finding: zero-time cast-hook and due-batch snapshots are
 transient assertions, not ordinary checkpoint boundaries. Corpus/harness bytes remain frozen. The packet also preserves
 phase-specific target/trail/DoT recipients and void-aware restoration: source clocks can advance while a voided match's
-pending casts stay frozen. A separate focused source extension is still needed for that latter restore domain.
+pending casts stay frozen. The separately accepted [two-case source companion](../../../parity/ability-void/README.md)
+now covers unrelated-player and target abandonment with24 ordinary steps. Its corpus SHA256 is
+`cb8bec8f8a8e1e72db22ff86c6f6e4eecb9cf449a1a5e0636c1c4939b7f7eef5`; independent review SHA256 is
+`cea90e53a44918ad57e8df681e9402c9f47e4cf26118db437b44f8830a66e5d5`.
+[Companion integrity checks](void-integration.json) record exact integrated/provenance digests. Native restore remains
+an implementation gate. The original63-case corpus and all seven original harness inputs are unchanged.
 
 The reviewed implementation direction uses one canonical cast owner, source-exact atomic landing, both stock/refund
 clocks, private target resolution and the arena collision/history view. Native implementation has started privately.

@@ -66,7 +66,10 @@ reviewed README correction separating transient hook observations from ordinary 
 bytes are unchanged. A reviewed single-owner cast design is now being implemented privately on the frozen arena
 collision/history prerequisite. [Wish evidence](evidence/stage2-abilities/README.md) records exact scope. No ordinary
 native Cast parity, full coupled producer or public transport success is claimed. Blaze Step is the Fire Wish; the
-genuine native arena refund and a focused frozen-void cast continuation witness remain required.
+genuine native arena refund remains required. A separate independently reviewed two-case/24-step
+[voided-cast source companion](../parity/ability-void/README.md) now captures both unrelated-player and target
+abandonment: pending Freeze and both clocks remain exact at600ms beyond its350ms deadline. It closes the missing
+source witness, not native restore acceptance; the original63-case corpus/harness remains unchanged.
 
 ### Current playable-core checkpoint
 

@@ -81,7 +81,9 @@ jobs:
       - name: Planning and arena source witnesses remain byte exact
         run: bash tools/arena-fixtures/capture.sh --check
       - name: All five Wish source witnesses remain byte exact
-        run: bash tools/ability-fixtures/capture.sh --check
+        run: |
+          bash tools/ability-fixtures/capture.sh --check
+          bash tools/ability-void-fixtures/capture.sh --check
       - name: Pure mob catalog and rosters still match the actual source
         run: node --import tsx tools/mob-fixtures/catalog-rosters.ts --self-test
       - name: Status runtime matches all four frozen source corpora
