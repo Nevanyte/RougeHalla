@@ -1,0 +1,86 @@
+{
+  "format": "rh-card-runtime-witness-integration/1",
+  "source_only": true,
+  "proposal_manifest_sha256": "fc664050a01531b519c3f98436b8e662a4024529f0fc61dfcf0b4c478305c4f0",
+  "proposal_patch_sha256": "d5fe4a625d3f1a5c1887f90b84246ab249241459e3bef23c88a0092740644139",
+  "independent_review_sha256": "15d78a67392e10aad8c63738fbcf597572b94c82265a78197ca454edba9d4316",
+  "source_sha256": "5d0663a06696d933177b5fd7a6659a3d69c66a8148648050d4ef03ab9bf8d445",
+  "coordinator_checks": {
+    "all9proposal_hashes_sizes_and_patch": true,
+    "applied_hashes": true,
+    "all15actual_dependency_pins": true,
+    "all133source_pins": true
+  },
+  "files": [
+    {
+      "path": "parity/card-runtime-witness/HOT_RAID.md",
+      "bytes": 1993,
+      "mode": "100644",
+      "sha256": "a270c365f6cdcd450afb2163693fe6e6308cd9af24abcf0b1d55cf1bf2886ef3"
+    },
+    {
+      "path": "parity/card-runtime-witness/INPUT_SHA256.json",
+      "bytes": 29046,
+      "mode": "100644",
+      "sha256": "89c9e8cd6c24689d5f998c3cdbb75942706149361a735e899239967ff93c88e1"
+    },
+    {
+      "path": "parity/card-runtime-witness/README.md",
+      "bytes": 8291,
+      "mode": "100644",
+      "sha256": "4ec4ea282e3eb068347d168237a1f7c62857fd05d56a750423cd6c0330abbed7"
+    },
+    {
+      "path": "parity/card-runtime-witness/source.json",
+      "bytes": 171853,
+      "mode": "100644",
+      "sha256": "5d0663a06696d933177b5fd7a6659a3d69c66a8148648050d4ef03ab9bf8d445"
+    },
+    {
+      "path": "tools/card-runtime-witness-fixtures/FROZEN_PINS.json",
+      "bytes": 3203,
+      "mode": "100644",
+      "sha256": "96d772dd1c8aad4b89055ce50944e7f8fca2bd4d0a466bec26074679756a9654"
+    },
+    {
+      "path": "tools/card-runtime-witness-fixtures/capture.mts",
+      "bytes": 8516,
+      "mode": "100644",
+      "sha256": "09796001fc5033499ff481402db5b1e3a5ff1b7b1d2fccc13e46f6efbcc576a2"
+    },
+    {
+      "path": "tools/card-runtime-witness-fixtures/capture.sh",
+      "bytes": 1567,
+      "mode": "100755",
+      "sha256": "35c3a7ab7e63d1387efcc8bc5d8d0539a2c39c1f9af8c61f9d77ccd54efeb83c"
+    },
+    {
+      "path": "tools/card-runtime-witness-fixtures/engine-bridge.mts",
+      "bytes": 18401,
+      "mode": "100644",
+      "sha256": "8705ed18b27c069fcde61eb6a9e9397644a7426255d7e05cdb3b2b31d4d21082"
+    },
+    {
+      "path": "tools/card-runtime-witness-fixtures/noninterference.mts",
+      "bytes": 3619,
+      "mode": "100644",
+      "sha256": "3c5715623fdf78629e9c0ccdef19f8e8b9c8fc93ccac2d35980926db8158c653"
+    }
+  ],
+  "counts": {
+    "matched_traces": 2,
+    "ordinary_steps": 6,
+    "reason_preserving_controls": 3,
+    "post_prefix_private_comparisons": 30
+  },
+  "source_result": {
+    "third_party": true,
+    "baseline_damage": 36.13796707603867,
+    "witness_damage": 39.029004442121774,
+    "ratio": 1.08,
+    "random_tapes_equal": true
+  },
+  "v1_failure": "Original companion required oldREADME exact bytes after accepted prose overlay. V2 admits only two explicit original/accepted doc SHAs and records actual dependency inputs; no gameplay/executable/main65 corpus changes.",
+  "old65_campaign_repeated": false,
+  "native_card_acceptance": "INCOMPLETE"
+}

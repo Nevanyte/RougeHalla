@@ -72,8 +72,6 @@ jobs:
           node --import tsx tools/stat-fold/run.ts ci
       - name: Complete card catalog and reward selection still match the actual source
         run: bash tools/card-catalog-fixtures/capture.sh --check
-      - name: Actual card runtime witnesses remain byte exact
-        run: bash tools/card-runtime-fixtures/capture.sh --check
       - name: Terrain player and source-born NPC witnesses remain byte exact
         run: |
           bash tools/terrain-fixtures/capture.sh --check
@@ -216,6 +214,16 @@ jobs:
           npm i --no-save playwright@1.63.0
           npx playwright install --with-deps chromium
           node tools/browser-proof/proof.mjs
+
+  card-runtime-source:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Actual card runtime and positive Witness remain byte exact
+        run: |
+          bash tools/card-runtime-fixtures/capture.sh --check
+          bash tools/card-runtime-witness-fixtures/capture.sh --check
 
   csharp:
     runs-on: ubuntu-latest

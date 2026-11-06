@@ -81,8 +81,9 @@ source witness, not native restore acceptance; the original63-case corpus/harnes
 The [65-case card runtime source prerequisite](evidence/stage2-card-runtime/README.md) is independently accepted and
 integrated with6,236 ordinary50ms steps,3,298 full frames and3,179 exact private records. Four reviewed prose corrections
 qualify assertion coverage, frame selection, Slow Burn and the original reason-stripping observation control. Runtime
-harness/corpus bytes remain exact. Positive Witness uses a separately reviewed companion; source evidence does not
-admit native full-card builds or certify all80-card/runtime/public completion.
+harness/corpus bytes remain exact. The separately accepted Witness companion adds two matched traces/six ordinary
+ticks, actual8% damage consequence and three reason-preserving controls/30 private comparisons. Source evidence does
+not admit native full-card builds or certify all80-card/runtime/public completion.
 
 ### Current playable-core checkpoint
 

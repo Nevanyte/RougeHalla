@@ -16,7 +16,11 @@ the dedicated full-Fire case demonstrates longer linger.
 The worker completed one final pinned Linux amd64 Node22.23.4 capture and one fresh byte-identical comparison. The
 reviewer verified provenance, actual lexical read-only inspection, records, draw order and logs. Root verified frozen
 hashes and patch application without repeating that campaign. CI adds `bash tools/card-runtime-fixtures/capture.sh --check`.
-Positive Witness and stricter reason-preserving controls use a separate companion; their integration is still pending.
+The separately accepted [Witness companion](../../../parity/card-runtime-witness/README.md) now supplies two matched
+traces/six ordinary ticks, positive actual victim-lock context and an8% real damage increase with equal RNG. Its three
+shortened controls preserve gameplay reasons and compare30 private prefixes. [Companion checks](witness-integration.json)
+record exact source/proposal/review hashes and the explicit documentation-only pin repair; the original65 bytes remain
+unchanged. CI also adds `bash tools/card-runtime-witness-fixtures/capture.sh --check`.
 
 This is source evidence. All80 native card definitions/runtime, legal builds, coupled NPC/training producers,
 checkpoint/hash/replay, public projection and serialized activation remain required by [P-CARDS-1](../../backlog/packets/P-CARDS-1.md).

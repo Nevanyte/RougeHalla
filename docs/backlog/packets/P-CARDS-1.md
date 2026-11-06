@@ -7,7 +7,8 @@ eligibility and all G1–G13 guards. The accepted pure stat-fold kernel and thre
 not completion. The [409-case source catalog](../../../parity/card-catalog/README.md) covers definitions/selection only;
 the separate [65-case runtime source prerequisite](../../../parity/card-runtime/README.md) now captures real
 combat/grant/choice/lifecycle effects and guards. Neither corpus certifies all80 native runtime ownership; positive
-Witness and stricter reason-preserving controls remain a separate companion. Full gameplay remains authoritative in Rust.
+Witness and stricter reason-preserving controls are accepted in a [separate source companion](../../../parity/card-runtime-witness/README.md).
+Full gameplay remains authoritative in Rust.
 
 Coordinate the in-flight Wish schema before overlapping native state edits. Its lazy card-owned last-Wish-spend
 metadata must remain the single owner; expand that runtime rather than adding a second clock. Existing DoT critical
