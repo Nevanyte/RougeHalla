@@ -66,6 +66,14 @@ continuity"). Requirement IDs (R-*) are referenced from the backlog.
   (revision, hardware, native/emulated, workload, build mode, duration). Complexity without demonstrated value is removed.
 - R-OPT-3. Server CPU, network RTT, browser CPU/GPU, memory, download size and operating complexity are separate budgets.
   No automatic improvement is promised from adopting Rust, Unity or AWS.
+- R-OPT-4. Owner request 2026-11-05: perform a final runtime profiling and efficiency pass across the completed Rust
+  server and actual Unity/C# browser build, compared with the legacy TypeScript/Colyseus/Phaser stack on the M5 Pro.
+  Match maps, actor counts, scripted actions and browser/resolution settings; record visual-quality differences and
+  browser/display limits. Report server step distributions/throughput, browser CPU/GPU frame times and sustained FPS,
+  memory/allocations/GC, network use, loading and download size separately. Optimize measured bottlenecks while
+  preserving gameplay and intended visual quality, then repeat the same workloads. Partial-slice or map timings cannot
+  establish full-game speedup. Pursue the highest sustainable frame rate under R-WEB-3.
+
 
 ## R-VIS: Unity visual design
 - R-VIS-1. Owner update 2026-11-05 supersedes the original existing-art-only restriction: assets need not match the legacy

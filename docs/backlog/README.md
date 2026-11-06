@@ -255,7 +255,7 @@ is **not implemented**; the gain figures are **estimates**.
 |---|---|---|---|---|
 | P-LOAD-1 | Load client: current protocol sessions with scripted policies over WSS | P-CI-1 | Implemented/reviewed in `rh-load`; full-game scenarios remain | server/bench/netProbe*.ts, bandwidth.ts |
 | P-LOAD-2 | Scenario runner at the **provisional** 200 matches / 1,600 players (an assumption, not authorization to spend) | P-LOAD-1, P-HOST-1 | Coarse | none |
-| P-LOAD-3 | Full-game tick cost and bandwidth budgets (avg < 5 ms / p99 < 15 ms tick and < 20 KB/s per client were the legacy gates); extend the existing `parity-bench` (Rust `step()` on captured inputs vs `parity/legacy-capture/bench.ts`) and `wirebench` (bytes per player per second) | mechanic packets | Coarse | server/bench/stepBench.ts, bandwidth.ts |
+| P-LOAD-3 | Final Rust + actual Unity/C# runtime efficiency pass versus legacy TypeScript/Colyseus/Phaser on matched M5 Pro workloads (R-OPT-4), coordinating client frame/memory/loading checks with P-UNITY-PERF-1; report server CPU, sustained FPS/CPU/GPU frames, memory/GC and network separately. Legacy server gates were avg <5 ms /p99 <15 ms tick and <20 KB/s per client | mechanic packets and representative full client | Coarse; explicit final owner gate | server/bench/stepBench.ts, bandwidth.ts; `parity-bench`, `wirebench` |
 
 ### 10. Operations
 
