@@ -93,6 +93,9 @@ impl Sim {
     pub fn mobs(&self) -> &[crate::mob_runtime::Mob] {
         self.w.mobs.as_slice()
     }
+    pub fn plague_corpses(&self) -> &[crate::state::PlagueCorpse] {
+        &self.w.plague_corpses
+    }
     pub fn camp_rosters(&self) -> &[crate::mob_runtime::CampRoster] {
         self.w.mob_runtime.as_ref().map_or(&[], |rt| &rt.camps)
     }

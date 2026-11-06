@@ -1,8 +1,8 @@
 # P-FACTION-3: Plague corpses and owned zombie
 
-Status: **INCOMPLETE (core + protocol v8)** — corpse harvest, the companion actor, combat/credit, regen,
-checkpointing and the wire command/actor/prop exposure are integrated and tested. Actual-source capture/parity,
-mutants and the full gate remain.
+Status: **INCOMPLETE (one honest gap)** — core, protocol v8, two pinned actual-source parity slices and six
+mutants are green. The zombie-combat capture remains capture-only because a per-tick damage drift is still open;
+PvE checkpointing and the full workspace/perf gate remain.
 
 ## 1. Outcome
 
@@ -49,7 +49,20 @@ row for living Plague; the zombie is a kind-2 actor), C-RNG (no new stream; ids 
 - `node tools/browser-proof/proof.mjs` — 15 checks PASS on protocol 8.
 - `cargo clippy --workspace --all-targets --all-features -- -D warnings` — clean.
 
-## 6. Remaining
+## 6. Actual-source capture and mutants
 
-- Actual-source capture/parity scenarios and six mutants.
+Pinned Linux x64 Node `v22.23.4` (`node:22.23.4-bookworm-slim@sha256:5ec23b...`), no package source changes:
+
+- `parity/fixtures/corpse_death_auto_raise.json` — slice: near auto-harvest, stack, heal, zombie raise.
+- `parity/fixtures/corpse_marker_persists_and_explicit_consume.json` — slice: marker persistence, far refusal,
+  auto-harvest after walking in.
+- `parity/fixtures/corpse_zombie_assists_owner_target.json` — capture-only: zombie follows the owner's new target
+  and lands hits; not promoted because the per-tick damage drift is still open.
+- `parity/corpses/source-manifest.json` pins 14 source files and all 3 fixtures.
+- `tools/corpse-fixtures/run-mutants.sh` — **6/6 killed**.
+- `cargo test -p rh-parity --test parity` — **29 passed**, including both slice fixtures.
+
+## 7. Remaining
+
+- Close the zombie-combat per-tick damage drift and promote that capture.
 - `mob_checkpoint` PvE zombie validation, full workspace/perf gates.

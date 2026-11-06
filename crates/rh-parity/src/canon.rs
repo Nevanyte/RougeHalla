@@ -3,6 +3,17 @@ use crate::{angle_close, close, fid, Event, Sim, Value};
 fn projectile_id(n: u32) -> String {
     super::combat::id36(n).replacen('c', "p", 1)
 }
+fn actor(sim: &Sim, id: rh_sim::PlayerId) -> String {
+    if let Some(m) = sim
+        .mobs()
+        .iter()
+        .find(|m| m.core.id == id && m.owner.is_some())
+    {
+        return format!("pz:{}", fid(m.owner.unwrap()));
+    }
+    fid(id)
+}
+
 fn kind(k: rh_sim::ProjectileKind) -> &'static str {
     match k {
         rh_sim::ProjectileKind::Arrow => "arrow",
@@ -129,7 +140,7 @@ pub(crate) fn canon(e: &Event, sim: &Sim) -> Option<Value> {
             json!({"kind":"hit","id":fid(*victim),"by":fid(*by),"sig":sig.as_str(),"weapon":weapon.map(|w|w.as_str()),"amount":amount})
         }
         Event::Windup { by, weapon, a, ms } => {
-            json!({"kind": "windup", "by": fid(*by), "weapon": weapon.as_str(), "a": a, "ms": ms})
+            json!({"kind": "windup", "by": actor(sim, *by), "weapon": weapon.as_str(), "a": a, "ms": ms})
         }
         Event::Swing {
             by,
@@ -138,7 +149,7 @@ pub(crate) fn canon(e: &Event, sim: &Sim) -> Option<Value> {
             y,
             a,
         } => {
-            json!({"kind": "swing", "by": fid(*by), "weapon": weapon.as_str(), "x": x, "y": y, "a": a})
+            json!({"kind": "swing", "by": actor(sim, *by), "weapon": weapon.as_str(), "x": x, "y": y, "a": a})
         }
         Event::Hit {
             victim,
@@ -149,14 +160,14 @@ pub(crate) fn canon(e: &Event, sim: &Sim) -> Option<Value> {
         } => {
             // `by` None is the legacy SUDDEN_DEATH_KILLER string ("sudden death"); `weapon` None is the legacy null
             // (ability / card damage chunks). The packet that ports sudden death fixes its weapon.
-            let mut event = json!({"kind": "hit", "id": fid(*victim), "by": by.map_or_else(|| "sudden death".to_string(), fid), "amount": amount, "weapon": weapon.map(|w| w.as_str())});
+            let mut event = json!({"kind": "hit", "id": actor(sim, *victim), "by": by.map_or_else(|| "sudden death".to_string(), |id| actor(sim, id)), "amount": amount, "weapon": weapon.map(|w| w.as_str())});
             if *passive {
                 event["passive"] = json!(true);
             }
             event
         }
         Event::Death { id, x, y, by } => {
-            json!({"kind": "death", "id": fid(*id), "x": x, "y": y, "by": by.map(fid)})
+            json!({"kind": "death", "id": actor(sim, *id), "x": x, "y": y, "by": by.map(|id| actor(sim, id))})
         }
         Event::Victory { id, draw } => {
             json!({"kind": "victory", "id": id.map(fid), "name": id.and_then(|p| sim.player(p).map(|p| p.seat.name.as_str())), "draw": draw})

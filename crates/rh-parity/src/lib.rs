@@ -20,6 +20,7 @@ mod holy;
 mod hunt;
 mod mapping;
 mod plague;
+mod plague_corpses;
 mod sentenced;
 mod vision;
 use canon::{canon, first_difference};
@@ -202,6 +203,8 @@ pub struct FixTick {
     pub sentenced: Option<Value>,
     #[serde(default)]
     pub hunt: Option<Value>,
+    #[serde(default)]
+    pub corpses: Option<Value>,
     #[serde(default)]
     pub holy_inactive: Option<Value>,
     #[serde(default)]
@@ -627,7 +630,8 @@ fn try_build(fx: &Fixture) -> Result<Sim, String> {
         spawn_seed: vision::source(fx).map_or(0, |m| m.spawn_seed),
     };
     let mut config = SimConfig {
-        faction_mode: if sentenced::enabled(fx) || hunt::enabled(fx) {
+        faction_mode: if sentenced::enabled(fx) || hunt::enabled(fx) || plague_corpses::enabled(fx)
+        {
             rh_sim::FactionMode::EngagementHolyPlagueFireFrostSentenced
         } else if plague::frost(fx) {
             rh_sim::FactionMode::EngagementHolyPlagueFireFrost
@@ -648,7 +652,11 @@ fn try_build(fx: &Fixture) -> Result<Sim, String> {
             .ok_or_else(|| format!("{key} must be boolean"))?;
         match key.as_str() {
             "weaponSpecials" => config.weapon_specials = v,
-            "pvpRules" if sentenced::enabled(fx) || hunt::enabled(fx) => config.pvp_rules = v,
+            "pvpRules"
+                if sentenced::enabled(fx) || hunt::enabled(fx) || plague_corpses::enabled(fx) =>
+            {
+                config.pvp_rules = v
+            }
             _ => return Err(format!("unported legacyConfig.options key {key}")),
         }
     }
@@ -705,6 +713,8 @@ pub fn preconditions(fx: &Fixture, sim: &Sim) -> Vec<String> {
                 Some("player-engagement-holy-plague-fire-frost/1")
             } else if plague::fire(fx) {
                 Some("player-engagement-holy-plague-fire/1")
+            } else if plague_corpses::enabled(fx) {
+                Some("plague-corpses/1")
             } else if plague::enabled(fx) {
                 Some("player-engagement-holy-plague/1")
             } else {
@@ -720,6 +730,7 @@ pub fn preconditions(fx: &Fixture, sim: &Sim) -> Vec<String> {
         || hunt::enabled(fx)
         || holy::enabled(fx)
         || plague::enabled(fx)
+        || plague_corpses::enabled(fx)
         || fx.packet.as_deref() == Some("P-VISION-1"))
         && c.modules.is_some()
         && c.world != CAPTURE_WORLD;
@@ -752,7 +763,7 @@ pub fn preconditions(fx: &Fixture, sim: &Sim) -> Vec<String> {
         ),
     );
     need(
-        c.mobs_present == 0,
+        c.mobs_present == 0 || plague_corpses::enabled(fx),
         format!(
             "mobsPresent {} != 0 (mobs are not in the slice)",
             c.mobs_present
@@ -819,7 +830,9 @@ pub fn preconditions(fx: &Fixture, sim: &Sim) -> Vec<String> {
             "mods",
         ];
         need(
-            if plague::enabled(fx) {
+            if plague_corpses::enabled(fx) {
+                plague_corpses::modules_match(fx)
+            } else if plague::enabled(fx) {
                 plague::modules_match(fx)
             } else if hunt::enabled(fx) {
                 hunt::modules_match(fx)
@@ -949,6 +962,9 @@ pub fn compare(fx: &Fixture) -> Report {
     for m in hunt::preflight(fx) {
         rep.fail(m);
     }
+    for m in plague_corpses::preflight(fx) {
+        rep.fail(m);
+    }
     for m in sentenced::preflight(fx) {
         rep.fail(m);
     }
@@ -1057,6 +1073,7 @@ pub fn compare(fx: &Fixture) -> Report {
         frost::compare(&mut rep, &sim, fx, t);
         sentenced::compare(&mut rep, &sim, fx, t, &ours, &mark_visuals);
         hunt::compare(&mut rep, &sim, fx, t, &ours);
+        plague_corpses::compare(&mut rep, &sim, fx, t);
         holy::compare(&mut rep, &sim, fx, t);
         if fx.packet.as_deref() == Some("P-COMBAT-3") || t.locks.is_some() {
             combat::compare_locks(&mut rep, &sim, t);

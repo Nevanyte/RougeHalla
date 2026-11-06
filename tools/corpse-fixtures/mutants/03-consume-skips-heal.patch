@@ -1,0 +1,11 @@
+--- a/crates/rh-sim/src/systems/plague_corpses.rs
++++ b/crates/rh-sim/src/systems/plague_corpses.rs
+@@ -118,7 +118,7 @@
+     crate::modifiers::sync_max_hp(&mut w.players[ix]);
+     w.players[ix].vitals.hp = hp_before.min(w.players[ix].vitals.max_hp);
+     let amount = crate::content::faction(FactionId::Plague).hp * PLAGUE_CORPSE_HEAL_SHARE;
+-    heal::apply(w, ev, ix, amount, heal::Kind::Ordinary);
++    let _ = amount;
+     plague_zombies::raise_or_grow(k, w, owner_id);
+     toast(
+         w,

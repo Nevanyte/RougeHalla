@@ -5,7 +5,7 @@ Base: `856618eb948555adefc6ff0bf4628d879d556250` (`origin/optimization_port`, 20
 
 | Packet | Status | Commit range / PR | Evidence |
 |---|---|---|---|
-| P-FACTION-3 Plague corpses + zombie | `INCOMPLETE` — core native corpse harvest, zombie actor/combat/credit/restore and protocol v8; capture/parity and mutants remain | working tree on `deepseek/p-faction-3` | [`stage2-plague-corpses`](../stage2-plague-corpses/README.md) |
+| P-FACTION-3 Plague corpses + zombie | `INCOMPLETE` — core, protocol v8, 2 slice captures, source manifest and 6/6 mutants; zombie-combat capture remains capture-only | working tree on `deepseek/p-faction-3` | [`stage2-plague-corpses`](../stage2-plague-corpses/README.md) |
 | P-FACTION-4 Sentenced hunt | `DONE-VERIFIED` — native gameplay, capture, per-tick parity, restore, six mutant controls, protocol v7, C#/JS mirrors, full workspace gate and browser WSS proof pass | `bb4ca9ce`..`7d48bb15`; [PR #30](https://github.com/Nevanyte/RougeHalla/pull/30) | [`stage2-sentenced-hunt`](../stage2-sentenced-hunt/README.md) |
 
 ## Commands actually run

@@ -240,7 +240,8 @@ mod tests {
                 .find(|m| m.owner == Some(PlayerId(1)))
                 .expect("raised");
         assert!(zombie.zombie.is_some());
-        assert!(zombie.core.vitals.max_hp > 0.);
+        assert!((zombie.core.vitals.max_hp - 108.528).abs() < 1e-6);
+        assert_eq!(s.w.credited_player(zombie.core.id), Some(PlayerId(1)));
         assert!(!plague_zombies::hostile(&s.w, PlayerId(1), zombie.core.id));
         assert!(plague_zombies::hostile(&s.w, zombie.core.id, PlayerId(3)));
         let zid = zombie.core.id;
@@ -272,6 +273,7 @@ mod tests {
         crate::systems::settle::down_player(&s.k, &mut s.w, &mut ev, None, 1, crate::Outcome::Died);
         ev.clear();
         let before = s.players()[0].vitals.max_hp;
+        let hp_before = s.players()[0].vitals.hp;
         s.w.plague_corpses[0].x = 400.;
         s.w.plague_corpses[0].y = 320.;
         assert!(consume(
@@ -285,6 +287,7 @@ mod tests {
         assert!(s.w.plague_corpses.is_empty());
         assert_eq!(s.players()[0].farm.corpse_stacks(), 1);
         assert!(s.players()[0].vitals.max_hp > before);
+        assert!(s.players()[0].vitals.hp > hp_before);
         assert!(s
             .w
             .mobs

@@ -1,0 +1,11 @@
+--- a/crates/rh-sim/src/systems/plague_corpses.rs
++++ b/crates/rh-sim/src/systems/plague_corpses.rs
+@@ -92,7 +92,7 @@
+     } else {
+         PLAGUE_CORPSE_INTERACT_RANGE
+     };
+-    if hypot(at.0 - p.body.x, at.1 - p.body.y) > reach {
++    if false && hypot(at.0 - p.body.x, at.1 - p.body.y) > reach {
+         if !auto {
+             toast(w, ev, owner_id, PlagueNotice::Far);
+         }

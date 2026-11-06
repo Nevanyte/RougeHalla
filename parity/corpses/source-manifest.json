@@ -1,0 +1,37 @@
+{
+  "format": "rh-plague-corpse-source-manifest/1",
+  "acceptedBaseline": "856618eb948555adefc6ff0bf4628d879d556250",
+  "packageSourceUnchangedFromBaseline": true,
+  "runtime": {
+    "version": "v22.23.4",
+    "platform": "linux",
+    "arch": "x64",
+    "image": "node:22.23.4-bookworm-slim@sha256:5ec23b7c622b00547753bc6ffd78085dd868a68aeb41c8e0a1418f033e13d96d"
+  },
+  "fixtureRevision": {
+    "value": "unknown",
+    "reason": "isolated minimal capture image has no git; package source verified byte-unchanged from acceptedBaseline and pinned below"
+  },
+  "captureCommand": "node --import tsx parity/legacy-capture/capture.ts --out <dir> --only <scenario>",
+  "sourceFiles": {
+    "packages/server/src/sim/plagueCorpses.ts": "55449dc54c27b9c33196ed89d761afdf6566cb65e2f992bbe86aa2a8828bc80c",
+    "packages/server/src/sim/plagueZombies.ts": "137fb2a40800ce51e8e8cd99ddb1208b73921c0f99f10c71a2036d7af40be736",
+    "packages/server/src/sim/combatant.ts": "3c2fac6ed6fbee82802c5bea86b0131d36e8ebf86eceb2c1a99ce58664fa7e60",
+    "packages/server/src/sim/weapons.ts": "581ba4cf9ae93af5d3753cbb3cdf6b823bfaf730448edab7669e6c6d84c86f26",
+    "packages/server/src/sim/melee.ts": "8b0699aed6258cce4364f8436efc28df9ee349a69dd500c6a87179d252fdefe6",
+    "packages/server/src/sim/ledger.ts": "cc73151c50c43f65a85fc922050b2ea6a34973794ec893c7b7d51d657a4e6437",
+    "packages/server/src/sim/mods.ts": "93db949f7b217b93942efdeca66caef29096d94881c5dd28bcf0eaf8287d323b",
+    "packages/server/src/sim/step.ts": "5ff90451b4b27b12ddfe8175745cf38892eaf07a851282c904076edc46896634",
+    "packages/server/src/sim/gameplay.ts": "70f6f2b67571783f3042309bef01dc75aabd2656c59a184d0f97c9c0a8b8cf78",
+    "packages/shared/src/plagueCorpses.ts": "cd85318857ba38853385c3ce9560b8674266b71b0b1555017953c7a41080378d",
+    "packages/shared/src/schema.ts": "245486da649ea5bc5d8b9b0d5d75f3e860fc8f153574fa2b9ee091dcb52e99cb",
+    "parity/legacy-capture/capture.ts": "2c75176549a914173ebf01d1480af53c1336bf8705d7d098e660455aa1622288",
+    "parity/legacy-capture/scenarios/plague_corpses.ts": "2e9e5ce32c575488625ef3e2ca2c6a1d20e06740eb390657847b72ec28455f47",
+    "parity/legacy-capture/scenarios/types.ts": "793b14642a03c303eb3015ccccd39cc1347d3a517fb38e69aa11dc08dc7edaf9"
+  },
+  "fixtures": {
+    "corpse_death_auto_raise.json": "3744205b59edb789f97753838fd6c100699e677166a1cef0a54a91ddac0ed4f5",
+    "corpse_marker_persists_and_explicit_consume.json": "4ccc173a967b4677ab9154791d1cfb979c194948abc3477a7f6b4dbe188a5146",
+    "corpse_zombie_assists_owner_target.json": "8284ae90c5d6df1fc5ea5c7f97cec3aa7bb29cb41c643f03d5adbc24ecedc624"
+  }
+}
