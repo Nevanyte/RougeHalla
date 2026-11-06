@@ -1,0 +1,76 @@
+{
+  "baseRevision": "3619339a1c03469be837aa9b42a280d7940044d0",
+  "stabilizationRepair": {
+    "finding": "Dynamic preexisting tools/parity discovery included unrelated new private proposals; freeze audit found future reproducibility risk after first successful pair.",
+    "repair": "Protected inventory is325 explicit tracked paths at64052f09:317 from source base3619339a plus8 ability-void companion paths. Unrelated new files no longer alter capture. Source/harness contents remain hash checked.",
+    "supersededAttempt": {
+      "captureExitCode": 0,
+      "comparisonExitCode": 0,
+      "sha256": "2f2ddd0e79b6a1d8deca2a1da989129d983ca1e9442be9fa4366b2528e29dc2d",
+      "classification": "pre-stabilization tooling attempt; not accepted final evidence"
+    }
+  },
+  "commands": [
+    {
+      "command": "RH_CARD_CATALOG_OUTPUT=/tmp/rh-card-catalog-diagnostic.json node --import tsx tools/card-catalog-fixtures/capture.mts --diagnostic",
+      "exitCode": 0,
+      "scope": "local stabilization only"
+    },
+    {
+      "command": "bash tools/card-catalog-fixtures/capture.sh",
+      "exitCode": 0,
+      "scope": "one final pinned Linux amd64 Node22.23.4 capture after inventory repair"
+    },
+    {
+      "command": "bash tools/card-catalog-fixtures/capture.sh --check",
+      "exitCode": 0,
+      "scope": "exactly one fresh pinned comparison after stabilization; read-only output"
+    }
+  ],
+  "observed": {
+    "cases": 409,
+    "familyCounts": {
+      "catalog": 80,
+      "eligibility": 80,
+      "count-boundary": 28,
+      "unknown": 6,
+      "membership": 1,
+      "pool": 30,
+      "roll": 181,
+      "pool-representation": 3
+    },
+    "catalogCards": 80,
+    "interactiveCardsActuallySelected": 14,
+    "effectKinds": 10,
+    "canonicalSha256": "d7ca500595b0b3a988d6d80a6588e2203863ae3f19b13aeea0ce4a0c8d2017f1",
+    "sourceFiles": 78,
+    "protectedPreexistingTrackedFiles": 325,
+    "undeclaredRandomness": "Math.random throws",
+    "inputMutationCheck": "pass",
+    "sourceAndProtectedMutationCheck": "pass",
+    "exactConsumedTapeAndContinuationCheck": "pass",
+    "freshComparison": "byte exact"
+  },
+  "limits": [
+    "source-only; no native card completion",
+    "no legacy world runtime capture",
+    "no old campaign recapture",
+    "no stat-fold recapture or native count-domain widening",
+    "no Rust, Unity, cloud, ML or native gameplay verification"
+  ],
+  "protectedInventorySnapshot": {
+    "revision": "64052f09",
+    "sourceBaseRevision": "3619339a1c03469be837aa9b42a280d7940044d0",
+    "pathsAtSourceBase": 317,
+    "abilityVoidOverlayPaths": 8,
+    "totalProtectedPaths": 325
+  },
+  "coordinatorCorrections": {
+    "sourceOnlyAcceptance": true,
+    "frozenHarnessPreserved": true,
+    "unknownOptionView": "Unknown to card, boost and kill-trophy namespaces; boost:ad has a valid option view.",
+    "tierFallback": "Nearest/lower fallback observed; competitive tier1-versus-tier3 tie unreachable in current14-card reward catalog.",
+    "scopeViolation": "Worker placed9 new untracked files in root contrary to private-onlyscope; coordinator confirmed zero tracked changes and moved exact bytes to private review before acceptance. Only7 necessary patchfiles integrated.",
+    "reportedChecks": "Worker exit/byte-match claims; raw canonical logs were not retained in proposal. A separate coordinator focused --check supplies direct execution evidence."
+  }
+}

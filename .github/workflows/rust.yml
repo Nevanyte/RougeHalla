@@ -70,6 +70,8 @@ jobs:
           node --import tsx tools/stat-fold/capture.ts --preset canonical --check
           node --import tsx --test tools/stat-fold/run.test.ts
           node --import tsx tools/stat-fold/run.ts ci
+      - name: Complete card catalog and reward selection still match the actual source
+        run: bash tools/card-catalog-fixtures/capture.sh --check
       - name: Terrain player and source-born NPC witnesses remain byte exact
         run: |
           bash tools/terrain-fixtures/capture.sh --check

@@ -56,6 +56,13 @@ vision across gate changes, source constructor/deal/teleport stream order, retai
 planning facts. Native lifecycle comes before its serialized wire/client and durable shutdown work. Full card rewards,
 training actors, full NPC faction domains and other original-port requirements remain in the backlog.
 
+The complete card/reward source prerequisite is independently accepted:409 cases,80 complete catalog definitions,
+all ten effect payload kinds and14 interactive reward selections. A coordinator pinned Node22.23.4 read-only check
+reproduces the exact corpus; source/protected snapshot and helper-coverage documentation corrections are explicit.
+[Card evidence](evidence/stage2-cards/README.md) records the scoped worker-write violation, exact-byte quarantine and
+reviewed seven-file integration. The [full card packet](backlog/packets/P-CARDS-1.md) retains actual runtime captures,
+all hooks/guards/grants/rewards and the strict terrain options mismatch as unfinished work; no native scope widened.
+
 The private arena collision/history prerequisite has independent stage1-v2 approval (manifest
 `14ac6e5f82c5cd635ccba8d3bb9ad047c3498c5727a4636e4e786acef5de39b9`), including the repaired first-reveal ordinal
 restore rule. It is not yet integrated; actual lifecycle/locked-world/public-observer acceptance remains pending.

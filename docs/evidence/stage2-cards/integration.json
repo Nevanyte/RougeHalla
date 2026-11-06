@@ -1,0 +1,78 @@
+{
+  "format": "rh-card-source-integration/1",
+  "rootBase": "64052f09212ea857b2aa6327cf996b1860deb91b",
+  "sourceBase": "3619339a1c03469be837aa9b42a280d7940044d0",
+  "protectedInventorySnapshot": "64052f09",
+  "sourceOnly": true,
+  "nativeFullCards": "INCOMPLETE",
+  "proposalManifestSha256": "91746ec6d50ade8abf9b6468b2cb414047d8c29f9544215e6c314090574044cf",
+  "reviewSha256": "3a8cb2102f749b8c801f7c8a84fc8a8d3caf3673cca5bbf805ae69c88a27bcb1",
+  "integratedFiles": [
+    {
+      "path": "parity/card-catalog/README.md",
+      "acceptedSha256": "3aaa508ec4ee73679df6a52797b712e3633180de5333bc8b3e204483de79ec41",
+      "integratedSha256": "d223191850096462428446fbef52281f9d91c68a62db1e9d5607724dcc29d47a",
+      "coordinatorDocumentationOverlay": true
+    },
+    {
+      "path": "parity/card-catalog/checks.json",
+      "acceptedSha256": "e54330b25d3c9a3cb33fe7da4f21b58408ccd348aaddcaffaf07bbd200f957c3",
+      "integratedSha256": "47c0223c487abab62f494849a3391c342b04094eb5fa9d647d7d5ffa1bab3945",
+      "coordinatorDocumentationOverlay": true
+    },
+    {
+      "path": "parity/card-catalog/source.json",
+      "acceptedSha256": "d7ca500595b0b3a988d6d80a6588e2203863ae3f19b13aeea0ce4a0c8d2017f1",
+      "integratedSha256": "d7ca500595b0b3a988d6d80a6588e2203863ae3f19b13aeea0ce4a0c8d2017f1",
+      "coordinatorDocumentationOverlay": false
+    },
+    {
+      "path": "tools/card-catalog-fixtures/README.md",
+      "acceptedSha256": "6e1d9afbce340bdacbb48853d32bdef047a1306085850f07ed1b1b5c7d30b624",
+      "integratedSha256": "6e1d9afbce340bdacbb48853d32bdef047a1306085850f07ed1b1b5c7d30b624",
+      "coordinatorDocumentationOverlay": false
+    },
+    {
+      "path": "tools/card-catalog-fixtures/capture.mts",
+      "acceptedSha256": "8202a5404f96c698f9979d88f9aa5a9b8fbce17e6e42fd0be14b1485ad9f1cdc",
+      "integratedSha256": "8202a5404f96c698f9979d88f9aa5a9b8fbce17e6e42fd0be14b1485ad9f1cdc",
+      "coordinatorDocumentationOverlay": false
+    },
+    {
+      "path": "tools/card-catalog-fixtures/capture.sh",
+      "acceptedSha256": "dda0f1ae023e01113d558697b13c82955c2f1ee0bbc912698f6c7cac74a147c2",
+      "integratedSha256": "dda0f1ae023e01113d558697b13c82955c2f1ee0bbc912698f6c7cac74a147c2",
+      "coordinatorDocumentationOverlay": false
+    },
+    {
+      "path": "tools/card-catalog-fixtures/protected-inputs.json",
+      "acceptedSha256": "e037e836ee11c27c50517eceaa258fd95a543064ed60a8c11426e519cfc08842",
+      "integratedSha256": "e037e836ee11c27c50517eceaa258fd95a543064ed60a8c11426e519cfc08842",
+      "coordinatorDocumentationOverlay": false
+    }
+  ],
+  "sourceInputs": 78,
+  "harnessInputs": 4,
+  "protectedInputs": 325,
+  "allInputDigests": "PASS",
+  "coordinatorCheck": {
+    "command": "bash tools/card-catalog-fixtures/capture.sh --check",
+    "exitCode": 0,
+    "directLogSha256": "f554ee4a4aa3d8d902ed9ce214d0c0bdcd7afbfd3411d1d6761779bbcc200a8c",
+    "mode": "check",
+    "cases": 409,
+    "families": {
+      "catalog": 80,
+      "eligibility": 80,
+      "count-boundary": 28,
+      "unknown": 6,
+      "membership": 1,
+      "pool": 30,
+      "roll": 181,
+      "pool-representation": 3
+    },
+    "sha256": "d7ca500595b0b3a988d6d80a6588e2203863ae3f19b13aeea0ce4a0c8d2017f1"
+  },
+  "scopeViolation": "Nine new untracked files appeared in root contrary to private-onlyscope; coordinator preserved exact bytes in private area, verified zero tracked changes, then accepted seven necessary files with explicit documentation overlays.",
+  "quarantineReportSha256": "4dfc43dc77fef51853f56ec66b34ffd9eea5fb7a363c8970be8cca56e1a10f47"
+}
