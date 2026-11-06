@@ -23,6 +23,9 @@ Base: `856618eb948555adefc6ff0bf4628d879d556250` (`origin/optimization_port`, 20
 - `node tools/protocol-js/check-vectors.mjs` — 24 server vectors, 89 malformed, 10 chains, 15,448 checks.
 - `dotnet test client-unity/RoguehallaNet.Tests` — 269 passed, 0 failed (local .NET 8 SDK installed for the gate).
 - `node tools/browser-proof/proof.mjs` — 15 checks PASS, protocol 7, 3 Full + 415 delta snapshots, no page errors.
+- `python3 tools/perfproof/perfproof.py --self-test` — 13 cases pass. A declared `stateHashFold`/`finalStateHash`
+  change now selects the existing `--rerecord` path, so baseline and candidate each verify their own replay while the
+  recorded inputs and the declared state-hash fingerprints are still compared.
 - Captures: pinned Linux x64 Node `v22.23.4` (`node:22.23.4-bookworm-slim`), `npm ci --ignore-scripts` inside the container, `node --import tsx parity/legacy-capture/capture.ts --out parity/fixtures --only <scenario>`.
 
 ## Open owner questions / coordinator notes

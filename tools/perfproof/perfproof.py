@@ -385,11 +385,20 @@ def main():
     a = ap.parse_args()
     global RERECORD
     RERECORD = a.rerecord
+    allowed = {x for x in a.allow_fingerprint_change.split(",") if x}
+    # A declared state-hash change is exactly the case --rerecord exists for: verify each build's
+    # own replay and require identical recorded inputs, while the stateHashFold/finalStateHash
+    # fingerprints below still expose the intentional hash change for review.
+    if not RERECORD and any(
+        k == "stateHashFold" or k.endswith(".stateHashFold")
+        or k == "finalStateHash" or k.endswith(".finalStateHash")
+        for k in allowed
+    ):
+        RERECORD = True
     if a.self_test:
         return self_test()
     if not a.baseline:
         ap.error("--baseline REV is required")
-    allowed = {x for x in a.allow_fingerprint_change.split(",") if x}
     os.makedirs(a.out, exist_ok=True)
     known = {w["name"] for w in WORKLOADS}
     only = [x for x in a.only.split(",") if x]
