@@ -1,0 +1,11 @@
+--- crates/rh-sim/src/mob_catalog/rosters.rs
++++ crates/rh-sim/src/mob_catalog/rosters.rs
+@@ -93,7 +93,7 @@
+     elite_type: Option<MobTypeId>,
+ ) -> Vec<CampMob> {
+     let elite =
+-        elite_type.unwrap_or_else(|| elites_of(camp.zone).next().expect("zone has elite").id);
++        elite_type.filter(|id| super::mob_type_by_id(id.as_str()).unwrap().elite).unwrap_or_else(|| elites_of(camp.zone).next().expect("zone has elite").id);
+     (0..camp.spot_count)
+         .map(|i| {
+             let is_elite = i64::try_from(i).ok() == Some(i64::from(camp.elite_spot));

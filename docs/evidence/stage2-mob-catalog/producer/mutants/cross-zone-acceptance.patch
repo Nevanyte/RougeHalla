@@ -1,0 +1,11 @@
+--- crates/rh-sim/src/mob_catalog/mod.rs
++++ crates/rh-sim/src/mob_catalog/mod.rs
+@@ -501,7 +501,7 @@
+     DEFINITION.types.iter().find(|t| t.id.as_str() == id)
+ }
+ pub fn mob_type_in(region: FactionId, id: Option<&str>) -> Option<&'static MobTypeDef> {
+-    id.and_then(mob_type_by_id).filter(|t| t.zone == region)
++    id.and_then(mob_type_by_id).filter(|_| region == region)
+ }
+ fn region_def(region: FactionId) -> &'static RegionDef {
+     DEFINITION

@@ -1,0 +1,11 @@
+--- crates/rh-sim/src/mob_catalog/rosters.rs
++++ crates/rh-sim/src/mob_catalog/rosters.rs
+@@ -70,7 +70,7 @@
+     camps
+         .iter()
+         .map(|c| {
+-            if c.elite_spot < 0 {
++            if c.elite_spot == -1 {
+                 return None;
+             }
+             let at = match seen.iter().position(|(zone, _)| *zone == c.zone) {

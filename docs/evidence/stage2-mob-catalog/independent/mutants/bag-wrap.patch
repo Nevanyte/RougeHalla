@@ -1,0 +1,11 @@
+--- crates/rh-sim/src/mob_catalog/rosters.rs
++++ crates/rh-sim/src/mob_catalog/rosters.rs
+@@ -39,7 +39,7 @@
+         }
+         bag.extend(round);
+     }
+-    (0..camp_count).map(|i| bag[i % bag.len()]).collect()
++    (0..camp_count).map(|i| bag[(i + 1) % bag.len()]).collect()
+ }
+ pub fn roll_camp_types(zones: &[FactionId], rng: &mut impl FnMut() -> f64) -> Vec<MobTypeId> {
+     let mut represented = Vec::new();

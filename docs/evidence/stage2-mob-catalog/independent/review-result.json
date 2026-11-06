@@ -1,0 +1,238 @@
+{
+  "verdict": "ACCEPT pure catalog/roster leaf for coordinator integration",
+  "producerManifestSha256": "1240c2a955a5690f0d40b3dd8b5e4b724664cf4e39fd8dc1e29fb9c07dcf96d1",
+  "producerPatchSha256": "296687cebf706467615d45490c37feaea570a674b394d18f89c7f565f6bd0dd8",
+  "blockingFindings": [],
+  "productionChangesRequired": false,
+  "canonicalCases": 322,
+  "freshCases": 120,
+  "testsDefault": 7,
+  "testsAllFeatures": 7,
+  "compiledMutantsDetected": 16,
+  "baselineFixtureNegatives": 26,
+  "additionalFixtureNegatives": 7,
+  "helperNegatives": 17,
+  "coordinatorPending": [
+    "content aggregate registration/perturbation/classifier/golden",
+    "integrated gate"
+  ],
+  "excluded": [
+    "native RNG",
+    "mob actors/spawn/AI/rewards",
+    "full faction sheets/signatures",
+    "performance claims"
+  ],
+  "commands": {
+    "final-default": {
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "rh-sim",
+        "--test",
+        "mob_catalog",
+        "--",
+        "--nocapture"
+      ],
+      "exit": 0,
+      "seconds": 5.37252875
+    },
+    "final-all-features": {
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "rh-sim",
+        "--all-features",
+        "--test",
+        "mob_catalog",
+        "--",
+        "--nocapture"
+      ],
+      "exit": 0,
+      "seconds": 5.3942901249999995
+    },
+    "no-alloc-complete-fixtures": {
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "rh-sim",
+        "--test",
+        "no_alloc"
+      ],
+      "exit": 0,
+      "seconds": 7.236549374999999
+    },
+    "clippy-default-complete-fixtures": {
+      "command": [
+        "cargo",
+        "clippy",
+        "--locked",
+        "-p",
+        "rh-sim",
+        "--lib",
+        "--tests",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit": 0,
+      "seconds": 9.755266417
+    },
+    "clippy-all-complete-fixtures": {
+      "command": [
+        "cargo",
+        "clippy",
+        "--locked",
+        "-p",
+        "rh-sim",
+        "--all-features",
+        "--lib",
+        "--tests",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit": 0,
+      "seconds": 8.992724542
+    },
+    "fmt-check": {
+      "command": [
+        "rustfmt",
+        "--edition",
+        "2021",
+        "--check",
+        "crates/rh-sim/src/mob_catalog/mod.rs",
+        "crates/rh-sim/src/mob_catalog/rosters.rs",
+        "crates/rh-sim/tests/mob_catalog.rs"
+      ],
+      "exit": 0,
+      "seconds": 0.026872874999999997
+    },
+    "check": {
+      "command": [
+        "docker",
+        "run",
+        "--rm",
+        "--pull=never",
+        "--platform",
+        "linux/amd64",
+        "--cpus=2",
+        "--tmpfs",
+        "/repo/node_modules:rw,exec,size=1500m",
+        "--tmpfs",
+        "/tmp:rw,exec,size=512m",
+        "--mount",
+        "type=bind,src=/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/mob-catalog-independent-review/repo,dst=/repo,readonly",
+        "--mount",
+        "type=bind,src=/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/sentenced-capture/node-v22.23.4-linux-x64,dst=/node,readonly",
+        "--mount",
+        "type=bind,src=/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/mob-catalog-independent-review,dst=/out",
+        "-w",
+        "/repo",
+        "c86ecead9e55",
+        "sh",
+        "-eu",
+        "-c",
+        "npm ci --ignore-scripts --no-audit --no-fund > /out/npm-check.log 2>&1\n/node/bin/node --import tsx tools/mob-fixtures/catalog-rosters.ts --check\nnpm --version\nnode --version\n/node/bin/node -p \"JSON.stringify({tsx:JSON.parse(require('fs').readFileSync('node_modules/tsx/package.json','utf8')).version})\""
+      ],
+      "exit": 0,
+      "seconds": 8.841162
+    },
+    "self-test": {
+      "command": [
+        "docker",
+        "run",
+        "--rm",
+        "--pull=never",
+        "--platform",
+        "linux/amd64",
+        "--cpus=2",
+        "--tmpfs",
+        "/repo/node_modules:rw,exec,size=1500m",
+        "--tmpfs",
+        "/tmp:rw,exec,size=512m",
+        "--mount",
+        "type=bind,src=/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/mob-catalog-independent-review/repo,dst=/repo,readonly",
+        "--mount",
+        "type=bind,src=/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/sentenced-capture/node-v22.23.4-linux-x64,dst=/node,readonly",
+        "--mount",
+        "type=bind,src=/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/mob-catalog-independent-review,dst=/out",
+        "-w",
+        "/repo",
+        "c86ecead9e55",
+        "sh",
+        "-eu",
+        "-c",
+        "npm ci --ignore-scripts --no-audit --no-fund > /out/npm-self-test.log 2>&1\n/node/bin/node --import tsx tools/mob-fixtures/catalog-rosters.ts --self-test"
+      ],
+      "exit": 0,
+      "seconds": 6.3852259579999995
+    },
+    "capture": {
+      "command": [
+        "docker",
+        "run",
+        "--rm",
+        "--pull=never",
+        "--platform",
+        "linux/amd64",
+        "--cpus=2",
+        "--tmpfs",
+        "/repo/node_modules:rw,exec,size=1500m",
+        "--tmpfs",
+        "/tmp:rw,exec,size=512m",
+        "--mount",
+        "type=bind,src=/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/mob-catalog-independent-review/repo,dst=/repo,readonly",
+        "--mount",
+        "type=bind,src=/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/sentenced-capture/node-v22.23.4-linux-x64,dst=/node,readonly",
+        "--mount",
+        "type=bind,src=/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/mob-catalog-independent-review,dst=/out",
+        "-w",
+        "/repo",
+        "c86ecead9e55",
+        "sh",
+        "-eu",
+        "-c",
+        "npm ci --ignore-scripts --no-audit --no-fund > /out/npm-capture.log 2>&1\n/node/bin/node --import tsx tools/mob-fixtures/catalog-rosters.ts --capture --output /out/catalog-rosters.json"
+      ],
+      "exit": 0,
+      "seconds": 7.6936262499999994
+    },
+    "fresh": {
+      "command": [
+        "docker",
+        "run",
+        "--rm",
+        "--pull=never",
+        "--platform",
+        "linux/amd64",
+        "--cpus=2",
+        "--tmpfs",
+        "/repo/node_modules:rw,exec,size=1500m",
+        "--tmpfs",
+        "/tmp:rw,exec,size=512m",
+        "--mount",
+        "type=bind,src=/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/mob-catalog-independent-review/repo,dst=/repo,readonly",
+        "--mount",
+        "type=bind,src=/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/sentenced-capture/node-v22.23.4-linux-x64,dst=/node,readonly",
+        "--mount",
+        "type=bind,src=/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/mob-catalog-independent-review,dst=/out",
+        "-w",
+        "/repo",
+        "c86ecead9e55",
+        "sh",
+        "-eu",
+        "-c",
+        "npm ci --ignore-scripts --no-audit --no-fund > /out/npm-fresh.log 2>&1\n/node/bin/node --import tsx tools/mob-fixtures/independent.ts"
+      ],
+      "exit": 0,
+      "seconds": 6.120223209000001
+    }
+  },
+  "reviewSha256": "e18e52354534623c3defd9ec4c662a50c6044bdd9b059d25ca5476a4bd5c2737"
+}

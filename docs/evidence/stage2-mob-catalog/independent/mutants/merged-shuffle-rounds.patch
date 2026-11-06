@@ -1,0 +1,13 @@
+--- crates/rh-sim/src/mob_catalog/rosters.rs
++++ crates/rh-sim/src/mob_catalog/rosters.rs
+@@ -26,8 +26,8 @@
+     }
+     let normals: Vec<_> = normal_types_of(zone).map(|t| t.id).collect();
+     let mut bag = Vec::with_capacity(normals.len() * DEFINITION.rules.bag_copies);
+-    for _ in 0..DEFINITION.rules.bag_copies {
+-        let mut round = normals.clone();
++    for _ in 0..1 {
++        let mut round = normals.repeat(DEFINITION.rules.bag_copies);
+         for i in (1..round.len()).rev() {
+             let draw = rng();
+             assert!(

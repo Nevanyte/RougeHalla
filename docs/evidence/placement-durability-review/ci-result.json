@@ -1,0 +1,17 @@
+{
+  "sourceRevision": "25aca1ed7fe64f7dc505faec8212e90e76c359e8",
+  "rustCsharpBrowser": {
+    "runId": 42147913799,
+    "conclusion": "success",
+    "jobs": [
+      "rust",
+      "csharp"
+    ],
+    "requiredPostgresProcessRecoveryStep": "success"
+  },
+  "hostingValidate": {
+    "runId": 42147913830,
+    "conclusion": "success"
+  },
+  "scope": "local durable placement checkpoint; no cloud resources/deployment"
+}

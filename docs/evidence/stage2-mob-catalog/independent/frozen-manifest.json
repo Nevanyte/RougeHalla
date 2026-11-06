@@ -1,0 +1,455 @@
+{
+  "format": "rh-mob-catalog-independent-review/1",
+  "files": [
+    {
+      "path": "REVIEW.md",
+      "sha256": "e18e52354534623c3defd9ec4c662a50c6044bdd9b059d25ca5476a4bd5c2737",
+      "bytes": 7947
+    },
+    {
+      "path": "baseline-result.json",
+      "sha256": "2123c1d5943a430e8961f278902a1d81723de99f6d047914c8ff46c24f8e77c0",
+      "bytes": 188
+    },
+    {
+      "path": "baseline.log",
+      "sha256": "7ee8cba010e56f8849ae6a2cb9fd91a300ab72479e96fb07752ca61f2a19edf3",
+      "bytes": 563
+    },
+    {
+      "path": "canonical-fresh.py",
+      "sha256": "3709a5bb0c9efebd47ae63a10e03dc263592945b2ee2a151a637b1fb45f9fadb",
+      "bytes": 1250
+    },
+    {
+      "path": "canonical.py",
+      "sha256": "f36341cd50865751f8e438a1454ceb65e9b69889bac9adb5f96d0c31f0e5f491",
+      "bytes": 1370
+    },
+    {
+      "path": "capture-result.json",
+      "sha256": "89905bfe41eb294eb98db1aa8c947b68697a1e3f05135de18e2ca9359613187e",
+      "bytes": 969
+    },
+    {
+      "path": "capture.log",
+      "sha256": "c286c895f43f0f4dbce947e0be69c42c33613900560305673b9e1ea97cb84001",
+      "bytes": 124
+    },
+    {
+      "path": "catalog-rosters.json",
+      "sha256": "94786558142cb39f6d1b05d57c368b5f9adf84d2184d703cd882597ab447641b",
+      "bytes": 566172
+    },
+    {
+      "path": "check-result.json",
+      "sha256": "36aab7116b94a6f8c5525654aa5ccafaf83e99c1ef022b803dda6bec02cc5479",
+      "bytes": 1083
+    },
+    {
+      "path": "check.log",
+      "sha256": "171255ba4dfb0ef00013a4c91fbe84f9b13a024c26284ac4a3555843dc2c7c09",
+      "bytes": 157
+    },
+    {
+      "path": "clippy-all-complete-fixtures-result.json",
+      "sha256": "9695b2f635bc2fcd886acfb608b26bebef2c2b0ad9c0469ab3928bf7da2ac71c",
+      "bytes": 214
+    },
+    {
+      "path": "clippy-all-complete-fixtures.log",
+      "sha256": "cac93798e699b6598d09e009d0afc1b21abe22c94e88914768d933bc03db7a01",
+      "bytes": 191
+    },
+    {
+      "path": "clippy-all-result.json",
+      "sha256": "609547c808db683cb52ab5e0085f57fb758f8631ef431c40c255276bcdcf5dcc",
+      "bytes": 216
+    },
+    {
+      "path": "clippy-all.log",
+      "sha256": "6241082782a6cf31c5ec58fbbee52444fbfa28c526be5ad4410f9b289480891c",
+      "bytes": 467
+    },
+    {
+      "path": "clippy-default-complete-fixtures-result.json",
+      "sha256": "08f15f9b46d4b059745525c83af8bcb2663d7ed47e0b8d38f90fd5cb6bb4136a",
+      "bytes": 192
+    },
+    {
+      "path": "clippy-default-complete-fixtures.log",
+      "sha256": "23f93225e7b761641f2531ec0c0972c2d566c0e5327aaa03bb6753c471b43ed0",
+      "bytes": 191
+    },
+    {
+      "path": "clippy-default-result.json",
+      "sha256": "66e2ef1881dc5d07be88a2df1bedc392ad994d570cdf7bda3f1753f1fc866fad",
+      "bytes": 194
+    },
+    {
+      "path": "clippy-default.log",
+      "sha256": "6241082782a6cf31c5ec58fbbee52444fbfa28c526be5ad4410f9b289480891c",
+      "bytes": 467
+    },
+    {
+      "path": "compiled-mutations.json",
+      "sha256": "7d7252f8c5100bfae0ddbde0c6d6e7864da845de102b7d5bbd978594bd65f44f",
+      "bytes": 4779
+    },
+    {
+      "path": "final-all-features-result.json",
+      "sha256": "dec21e9855ead070408d9e973bcdac5854e4012b0ecfed0caaa9bfa24d738e77",
+      "bytes": 217
+    },
+    {
+      "path": "final-all-features.log",
+      "sha256": "64fb8529f5fc9b36213e726b31a3b088008e5a7f89da367f4766bf7bbfde5684",
+      "bytes": 801
+    },
+    {
+      "path": "final-default-result.json",
+      "sha256": "99e56bc2702b218581b2c0505a58d4b7588233d180fb8a0c006e51720e9335d9",
+      "bytes": 187
+    },
+    {
+      "path": "final-default.log",
+      "sha256": "97c5344f9ad0867ef89953de5acbf534601c40cebedf6c6e69eaf7a8e8e6941f",
+      "bytes": 801
+    },
+    {
+      "path": "fmt-check-result.json",
+      "sha256": "313c929d048ca208ac784618df8988ec9eadcad572f6e084b9a549cc6c719d43",
+      "bytes": 263
+    },
+    {
+      "path": "fmt-check.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "format-private-result.json",
+      "sha256": "8ecb4b2445b279614a3d3b9dee812e185c3b8427e8a18768190a5411bd4cad06",
+      "bytes": 147
+    },
+    {
+      "path": "format-private.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "fresh-inputs.json",
+      "sha256": "1aa5c6c4aa9a26a2aa210e23df58833ba73ff3a17340afdbdfec73cc800725c2",
+      "bytes": 208434
+    },
+    {
+      "path": "fresh-native-result.json",
+      "sha256": "6b96a71c46647ce46a80ec9fbcb7ea26f13c61cfe51af26c389d3edf16153a10",
+      "bytes": 188
+    },
+    {
+      "path": "fresh-native.log",
+      "sha256": "1bba01784515419d406c030b9ad74e8dee8cc7d51424de824f404fe72770a883",
+      "bytes": 801
+    },
+    {
+      "path": "fresh-proof-manifest.json",
+      "sha256": "081cf9a909b49e1136ede8827ba683a12a9c023a3f99792bc1ca14c03fcd5b35",
+      "bytes": 1400
+    },
+    {
+      "path": "fresh-result.json",
+      "sha256": "5ab269a0a361d78a3f90ef915d4927ca9c42b43d619ded17b4f3b897aeee3643",
+      "bytes": 917
+    },
+    {
+      "path": "fresh-source.json",
+      "sha256": "15346d22e7b7e5aefd418330ea9ba0264147182361662c689dcedc6aa66c1d7d",
+      "bytes": 279610
+    },
+    {
+      "path": "fresh.log",
+      "sha256": "d9341c56d79d7080105fcdd38fa3e0096666e8eeaa53cd56fc806bbdb60e36fa",
+      "bytes": 63
+    },
+    {
+      "path": "fresh.py",
+      "sha256": "786539bffaf843f5462af0bda65faa47e9d8b7dd66b5379c5cd32713c3727ec6",
+      "bytes": 1776
+    },
+    {
+      "path": "independent-coverage.json",
+      "sha256": "ec80f26adb9b0d9f7b0d99b0f4d3505ab501f08a54dd66d3a314f129d07be623",
+      "bytes": 14783
+    },
+    {
+      "path": "independent-tests.patch",
+      "sha256": "6cd8c1a7a9472a78e316f60e6882204cdf96819cecbcf52b5e817b3311d8a1dd",
+      "bytes": 1878
+    },
+    {
+      "path": "mutants/bag-wrap.log",
+      "sha256": "fa73db0b2acaa9807759dccb046741bd286753fbb7e2d632ccf826882fc512d5",
+      "bytes": 1694
+    },
+    {
+      "path": "mutants/bag-wrap.patch",
+      "sha256": "fe2a475de92892ff8e070f4d0a54a583e1522ef9210f7d31d210c97981f8489a",
+      "bytes": 416
+    },
+    {
+      "path": "mutants/camp-order.log",
+      "sha256": "736af4ccfc58554bb7f520f001510b9d73748fbd54b8333e3e145a6d4fb737c9",
+      "bytes": 2086
+    },
+    {
+      "path": "mutants/camp-order.patch",
+      "sha256": "441f277ab50863d5d360418c5974df1bbb95036629a16200197ce5feddb583fc",
+      "bytes": 440
+    },
+    {
+      "path": "mutants/catalog-name.log",
+      "sha256": "a9139c91b8ac6930bfb56c8c01f6b971d413b708efd29704af16e53fac3f5afa",
+      "bytes": 1221
+    },
+    {
+      "path": "mutants/catalog-name.patch",
+      "sha256": "9cc1ab951365337dd6513ed66a8dcdd1f721cad3aa7dfe5e1fd9ef3bc792e08a",
+      "bytes": 350
+    },
+    {
+      "path": "mutants/cross-zone-acceptance.log",
+      "sha256": "21f43ea02586ceca03f9d36ab0eada3e4482956341b63bfede293ef50dbca974",
+      "bytes": 1221
+    },
+    {
+      "path": "mutants/cross-zone-acceptance.patch",
+      "sha256": "429204660c79552f4804dcb1d87f36dd73323288d5bc3ea493ffefb96cc581ec",
+      "bytes": 455
+    },
+    {
+      "path": "mutants/elite-wrap.log",
+      "sha256": "4c98e5e74cf085de4cd666b296733901ca3686c84e43efd16347f6359a67520a",
+      "bytes": 1713
+    },
+    {
+      "path": "mutants/elite-wrap.patch",
+      "sha256": "86ca04b3d5ab07d06cf72a4f68cc862f294c882fecbb900a33ee4f33c5d68906",
+      "bytes": 360
+    },
+    {
+      "path": "mutants/empty-zone-draw.log",
+      "sha256": "93281e42aac30a0e9dde790f22e48c6da51a1f077027865112565b144ea07911",
+      "bytes": 1643
+    },
+    {
+      "path": "mutants/empty-zone-draw.patch",
+      "sha256": "acb3a2cee539a1b67e98d277d4f1ef5a022e2d459cd4ca3ce5252488a797c3ee",
+      "bytes": 326
+    },
+    {
+      "path": "mutants/extra-draw.log",
+      "sha256": "e2cfba946178c8187a09f1b1fb81e94843c9b314e07c8de1d56ff715cec60496",
+      "bytes": 2106
+    },
+    {
+      "path": "mutants/extra-draw.patch",
+      "sha256": "c7308fff10784071499512850965d030ca7a32ef18185b574abc12b0d9129a18",
+      "bytes": 394
+    },
+    {
+      "path": "mutants/first-seen-order.log",
+      "sha256": "20cdb6564ea916fc6b39d5b452447befc2f1474288e3de566bdad248607e6ecb",
+      "bytes": 2086
+    },
+    {
+      "path": "mutants/first-seen-order.patch",
+      "sha256": "1cf96b1b1fe8bd1c0e8b9b19569496d2e3604dfd606d8e07292f33a802b2ce66",
+      "bytes": 411
+    },
+    {
+      "path": "mutants/independent-ignore-explicit-override.log",
+      "sha256": "d4ec87d40db9fc7c371dd4c6ba8f5ceec5329448bdae3e8607143e3c6385997b",
+      "bytes": 2116
+    },
+    {
+      "path": "mutants/independent-ignore-explicit-override.patch",
+      "sha256": "fbaa42deeae3a60b7f4b72d25a5ab99c70592a1493bb573ce08a42ba24483bb8",
+      "bytes": 525
+    },
+    {
+      "path": "mutants/independent-negative-elite-consuming-slot.log",
+      "sha256": "e36f078e80f38179b08bef5bf3dbeaeb4a1816d63bb80767a5f48f04783e7f3a",
+      "bytes": 1405
+    },
+    {
+      "path": "mutants/independent-negative-elite-consuming-slot.patch",
+      "sha256": "237ba0a0f39047fda280b9cfcb36cef2ddc2231e7de20055f83d280d421d16db",
+      "bytes": 353
+    },
+    {
+      "path": "mutants/independent-reject-normal-override.log",
+      "sha256": "899a4a76be65b60197d84b7c0ad7e79293ceaa9e976ad6a2a887608900c382bf",
+      "bytes": 1861
+    },
+    {
+      "path": "mutants/independent-reject-normal-override.patch",
+      "sha256": "2d5c76c78a80099dc881141fccf6dcc7b4f9a678e9992ac69c20de0d06363844",
+      "bytes": 570
+    },
+    {
+      "path": "mutants/merged-shuffle-rounds.log",
+      "sha256": "86b4a0b0128b2a4059d738f842951a0ed2f89d8dba2cd02d988c67348cc9db43",
+      "bytes": 2102
+    },
+    {
+      "path": "mutants/merged-shuffle-rounds.patch",
+      "sha256": "855f402ec17ccaeb67ac742fb423fd44be613d6c549ea4171ca1b35e7e3b2448",
+      "bytes": 549
+    },
+    {
+      "path": "mutants/reach-damage.log",
+      "sha256": "dc6b47bd9721927859611cb86aabd99ca05b4384361439263d08a9ad8ac5eb79",
+      "bytes": 1221
+    },
+    {
+      "path": "mutants/reach-damage.patch",
+      "sha256": "6e4c4b1608450e80e4df7ce6a9ee295abc3aa113bd875c6272d40675fd768ad9",
+      "bytes": 275
+    },
+    {
+      "path": "mutants/role-hp.log",
+      "sha256": "83cea9c91a50db53cc32afb23226b07f372eb413058877ff0ca1ed7bc7003b77",
+      "bytes": 1221
+    },
+    {
+      "path": "mutants/role-hp.patch",
+      "sha256": "ec671b9dd466df011045bd15affddb4c30867941e65e939746325ba1073deb0e",
+      "bytes": 350
+    },
+    {
+      "path": "mutants/typed-weapon.log",
+      "sha256": "b59e4f9cf67a9085e588e7cd16394823f6c658c7d7153f140b018065d46a1f89",
+      "bytes": 1221
+    },
+    {
+      "path": "mutants/typed-weapon.patch",
+      "sha256": "a9c0451a894603a464b0a00c92cb4f858f73dd5b796acc7a3f94d86fa17365c6",
+      "bytes": 345
+    },
+    {
+      "path": "mutants/unknown-id-casefold.log",
+      "sha256": "2ac2c331fc528d5ea4e523042a49f3a96b5259b6307e25727377ced913d86e14",
+      "bytes": 1221
+    },
+    {
+      "path": "mutants/unknown-id-casefold.patch",
+      "sha256": "e385b02f9b4dcc0a22ef68b04aab5124505d2f093b4407ddc7baa4fdd6275a80",
+      "bytes": 507
+    },
+    {
+      "path": "mutations.py",
+      "sha256": "173d3d81d97938b6d4f0b372745d17000f79819c3b616ac7b2778b9987632519",
+      "bytes": 3709
+    },
+    {
+      "path": "no-alloc-complete-fixtures-result.json",
+      "sha256": "537dd9882f84a3123a8d3352e5a93811040fed78b0bad64e994f3776a9d28ba3",
+      "bytes": 162
+    },
+    {
+      "path": "no-alloc-complete-fixtures.log",
+      "sha256": "45f8a13f656a097023bbe364711e5f7939820b3e3622f847856f0d7c40b0aa93",
+      "bytes": 364
+    },
+    {
+      "path": "no-alloc-result.json",
+      "sha256": "633f8a22653b73b36239a2d5bd9f1aed0a2cd038abfb5020ff8f66a32085f18b",
+      "bytes": 165
+    },
+    {
+      "path": "no-alloc.log",
+      "sha256": "4eca4ba4220da0ebbe740bad59a67fc81b6d4f2dad707c3a6bae9449770076e3",
+      "bytes": 1171
+    },
+    {
+      "path": "npm-capture.log",
+      "sha256": "6c2dc3d27bbc0e13ee6ee69d8827fbc071c7ecd0451fcf40bb3c3a1d291a71ae",
+      "bytes": 235
+    },
+    {
+      "path": "npm-check.log",
+      "sha256": "53440c34e12d03e7c3a57436e0cd4ff59906685c97d802d39b5ab506a8c3406f",
+      "bytes": 235
+    },
+    {
+      "path": "npm-fresh.log",
+      "sha256": "53d9aace6beaff6dd73fbc518d31e233d5c7d9ac9a8b21cd15d19e312b35b114",
+      "bytes": 235
+    },
+    {
+      "path": "npm-self-test.log",
+      "sha256": "53d9aace6beaff6dd73fbc518d31e233d5c7d9ac9a8b21cd15d19e312b35b114",
+      "bytes": 235
+    },
+    {
+      "path": "producer-bindings.json",
+      "sha256": "b8bb03feddd5520db48b41bf5a821d7be31ce60f850693cc4673cee97d4c24f6",
+      "bytes": 1796
+    },
+    {
+      "path": "restored-bindings.json",
+      "sha256": "645723c241f6e6ad24c1292d6c181792fec966aeb494c3e050ef21a02a66bfad",
+      "bytes": 990
+    },
+    {
+      "path": "review-result.json",
+      "sha256": "dc20ab72d72698bc042874cbdee3406a74551e2f3d1ad2b1ca705a0daa28cf21",
+      "bytes": 7100
+    },
+    {
+      "path": "run.py",
+      "sha256": "49c574b36f49adb75da2e9e9fcac289e45d85dddde6de58d56b7dbb80979bdfc",
+      "bytes": 803
+    },
+    {
+      "path": "self-test-result.json",
+      "sha256": "95f6c9fd6dd26338cf1bd59f127bd59169c34ae3aa2845d69b874d734aa9d4ad",
+      "bytes": 938
+    },
+    {
+      "path": "self-test.log",
+      "sha256": "3a9e92ac8b4308b0c1a624e139b2d55750027470f5c934430947cfe1c129de50",
+      "bytes": 148
+    },
+    {
+      "path": "setup-check-result.json",
+      "sha256": "7c8e272d06c65fee0180821e77b7eaf122d060f5b5f78ef45075ecd4bfbdc23d",
+      "bytes": 1096
+    },
+    {
+      "path": "setup-check.log",
+      "sha256": "aebc80f94a1fb27a6c20417fe003d3cca5fa2d5f5340635f81e52369b8eee534",
+      "bytes": 549
+    },
+    {
+      "path": "source-bindings.json",
+      "sha256": "f0e603f652b0062fd242188b76063a9a473eb94774f4208fe1e2f337fb506505",
+      "bytes": 2912
+    },
+    {
+      "path": "repo/tools/mob-fixtures/independent.ts",
+      "sha256": "1ae9d6e5ad7efb15773dd4fb1614e9c02ca0754c005dc0df0936528faa1b68cb",
+      "bytes": 1202
+    },
+    {
+      "path": "repo/parity/mobs/independent-review.json",
+      "sha256": "15346d22e7b7e5aefd418330ea9ba0264147182361662c689dcedc6aa66c1d7d",
+      "bytes": 279610
+    },
+    {
+      "path": "repo/crates/rh-sim/tests/mob_catalog.rs",
+      "sha256": "d144f911dffb797feef3abd85709d60c0cc53d01cbc48bda39ac1997a0329c94",
+      "bytes": 25144
+    }
+  ]
+}

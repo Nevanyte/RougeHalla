@@ -1,0 +1,13 @@
+{
+  "command": [
+    "cargo",
+    "test",
+    "-p",
+    "rh-sim",
+    "--locked",
+    "--test",
+    "content"
+  ],
+  "exit": 101,
+  "seconds": 0.549436375
+}

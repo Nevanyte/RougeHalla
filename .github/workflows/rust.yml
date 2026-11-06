@@ -62,6 +62,8 @@ jobs:
           node --import tsx tools/stat-fold/capture.ts --preset canonical --check
           node --import tsx --test tools/stat-fold/run.test.ts
           node --import tsx tools/stat-fold/run.ts ci
+      - name: Pure mob catalog and rosters still match the actual source
+        run: node --import tsx tools/mob-fixtures/catalog-rosters.ts --self-test
       - name: Durable achievement rules still match the legacy evaluator
         run: node --import tsx tools/persist-fixtures/achievements.ts --check
       - name: Shop catalog and validated look words still match the legacy reference

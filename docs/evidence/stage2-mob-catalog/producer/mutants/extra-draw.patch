@@ -1,0 +1,10 @@
+--- crates/rh-sim/src/mob_catalog/rosters.rs
++++ crates/rh-sim/src/mob_catalog/rosters.rs
+@@ -24,6 +24,7 @@
+     if camp_count == 0 {
+         return Vec::new();
+     }
++    let _ = rng();
+     let normals: Vec<_> = normal_types_of(zone).map(|t| t.id).collect();
+     let mut bag = Vec::with_capacity(normals.len() * DEFINITION.rules.bag_copies);
+     for _ in 0..DEFINITION.rules.bag_copies {

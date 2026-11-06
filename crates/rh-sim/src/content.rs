@@ -419,6 +419,24 @@ pub fn content_hash_of_stat_fold_definition(
         MapDefinitions::default(),
         &signatures,
         definition,
+        &crate::mob_catalog::DEFINITION,
+    )
+}
+
+/// The roster helpers and aggregate identity consume the same catalog definition.
+pub fn content_hash_of_mob_catalog_definition(
+    registry: &[Entry],
+    stagger_weapons: &[WeaponId],
+    definition: &crate::mob_catalog::Definition,
+) -> u64 {
+    let signatures = crate::factions::SignatureKind::ALL.map(|kind| (kind, kind.is_dot()));
+    content_hash_of_definitions(
+        registry,
+        stagger_weapons,
+        MapDefinitions::default(),
+        &signatures,
+        &crate::stat_fold::default_definition(),
+        definition,
     )
 }
 
@@ -836,6 +854,7 @@ pub fn content_hash_of_signature_rules(
         MapDefinitions::default(),
         signature_rules,
         &crate::stat_fold::default_definition(),
+        &crate::mob_catalog::DEFINITION,
     )
 }
 
@@ -916,7 +935,56 @@ fn content_hash_of_map_definitions(
         definitions,
         &signature_rules,
         &crate::stat_fold::default_definition(),
+        &crate::mob_catalog::DEFINITION,
     )
+}
+
+fn fold_mob_catalog(h: &mut Fnv, definition: &crate::mob_catalog::Definition) {
+    use crate::mob_catalog::{visit_definition, Metadata};
+    h.str("mob-catalog/1");
+    h.u64(definition.roles.len() as u64);
+    h.u64(definition.types.len() as u64);
+    h.u64(definition.regions.len() as u64);
+    visit_definition(definition, |entry| match entry {
+        Metadata::Role(row) => {
+            h.str("role");
+            h.str(row.id.as_str());
+            h.str(row.label);
+            h.f64(row.hp_mult);
+            h.f64(row.dmg_mult);
+            h.f64(row.move_mult);
+            h.u64(row.tags.len() as u64);
+            for tag in row.tags {
+                h.str(tag.as_str());
+            }
+            h.str(row.blurb);
+        }
+        Metadata::Type(row) => {
+            h.str("type");
+            h.str(row.id.as_str());
+            h.str(row.zone.as_str());
+            h.u64(u64::from(row.elite));
+            h.str(row.name);
+            h.str(row.role.as_str());
+            h.str(row.weapon.as_str());
+        }
+        Metadata::Region(row) => {
+            h.str("region");
+            h.str(row.zone.as_str());
+            h.u64(row.names.len() as u64);
+            for name in row.names {
+                h.str(name);
+            }
+            h.str(row.weapon.as_str());
+        }
+        Metadata::Rules(row) => {
+            h.str("rules");
+            h.u64(row.bag_copies as u64);
+            h.f64(row.melee_damage);
+            h.f64(row.ranged_damage);
+            h.f64(row.elite_damage);
+        }
+    });
 }
 
 fn content_hash_of_definitions(
@@ -925,6 +993,7 @@ fn content_hash_of_definitions(
     definitions: MapDefinitions<'_, '_>,
     signature_rules: &[(crate::factions::SignatureKind, bool)],
     stat_fold: &crate::stat_fold::StatFoldDefinition,
+    mob_catalog: &crate::mob_catalog::Definition,
 ) -> u64 {
     let MapDefinitions {
         coliseum,
@@ -962,6 +1031,8 @@ fn content_hash_of_definitions(
         h.str(e.name);
         h.val(&e.val);
     }
+
+    fold_mob_catalog(&mut h, mob_catalog);
 
     h.str("stat-fold/1");
     crate::stat_fold::visit_content(stat_fold, |word| h.u64(word));

@@ -1,0 +1,96 @@
+[
+  {
+    "name": "fmt",
+    "command": [
+      "cargo",
+      "fmt",
+      "--all",
+      "--check"
+    ],
+    "exit": 0,
+    "seconds": 0.800738916,
+    "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "name": "clippy-all",
+    "command": [
+      "cargo",
+      "clippy",
+      "--workspace",
+      "--all-targets",
+      "--all-features",
+      "--locked",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "exit": 0,
+    "seconds": 17.708798292,
+    "logSha256": "d48310e74cf0e1e5621b1983cd856d52b1f886087adf59ca82854e3c84be183b"
+  },
+  {
+    "name": "clippy-default",
+    "command": [
+      "cargo",
+      "clippy",
+      "--workspace",
+      "--all-targets",
+      "--locked",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "exit": 0,
+    "seconds": 11.944268417,
+    "logSha256": "7290cfba16bbe816d39fc8e6116f3dacc52f21ba9459cb34a07699dd0675e12f"
+  },
+  {
+    "name": "workspace-all",
+    "command": [
+      "cargo",
+      "test",
+      "--workspace",
+      "--all-features",
+      "--locked"
+    ],
+    "exit": 0,
+    "seconds": 466.85164787499997,
+    "logSha256": "df3dd37272c121273f241f15249144f5369d7e71b25a8fe1e210c2dbd3140bc4"
+  },
+  {
+    "name": "parity",
+    "command": [
+      "cargo",
+      "run",
+      "--locked",
+      "-p",
+      "rh-parity",
+      "--bin",
+      "parity-report"
+    ],
+    "exit": 0,
+    "seconds": 5.939325332999999,
+    "logSha256": "cde9d574abea934af3258ea611526e30dfaf735f444caf2464de2dccdf87e8d5"
+  },
+  {
+    "name": "csharp",
+    "command": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/dotnet/dotnet",
+      "test",
+      "client-unity/RoguehallaNet.Tests"
+    ],
+    "exit": 0,
+    "seconds": 5.910337499999969,
+    "logSha256": "2ee32c98af6966b5efb247a18e24696adee36c70749f3b0abf879b5131486948"
+  },
+  {
+    "name": "js-vectors",
+    "command": [
+      "node",
+      "tools/protocol-js/check-vectors.mjs"
+    ],
+    "exit": 0,
+    "seconds": 0.14094020799996088,
+    "logSha256": "6ea107f54a2ae650cbacf8f77a204175b4a1646d522b90a3201e4c600a450570"
+  }
+]

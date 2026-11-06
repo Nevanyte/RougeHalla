@@ -1,0 +1,11 @@
+--- crates/rh-sim/src/mob_catalog/rosters.rs
++++ crates/rh-sim/src/mob_catalog/rosters.rs
+@@ -57,7 +57,7 @@
+             .filter_map(|(i, &z)| (z == zone).then_some(i))
+             .collect();
+         let types = roll_zone_types(zone, indices.len(), rng);
+-        for (i, ty) in indices.into_iter().zip(types) {
++        for (i, ty) in indices.into_iter().zip(types.into_iter().rev()) {
+             out[i] = Some(ty);
+         }
+     }

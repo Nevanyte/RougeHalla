@@ -1,0 +1,56 @@
+--- a/crates/rh-sim/tests/mob_catalog.rs
++++ b/crates/rh-sim/tests/mob_catalog.rs
+@@ -618,3 +618,53 @@
+         assert!(evaluate(&input).is_err());
+     }
+ }
++
++#[test]
++fn independent_fresh_source_cases() {
++    let rows: Vec<Case> =
++        serde_json::from_str(include_str!("../../../parity/mobs/independent-review.json")).unwrap();
++    assert_eq!(rows.len(), 120);
++    let mut seen = BTreeSet::new();
++    for row in rows {
++        assert!(seen.insert(row.id.clone()));
++        let actual = evaluate(&row.input).unwrap();
++        assert!(
++            equivalent(&actual, &row.expected),
++            "fresh mismatch {}: actual {actual} expected {}",
++            row.id,
++            row.expected
++        );
++    }
++}
++#[test]
++fn independent_fixture_presence_and_narrowing_controls() {
++    let base: Value = serde_json::from_str(FIXTURE).unwrap();
++    let at = base["cases"]
++        .as_array()
++        .unwrap()
++        .iter()
++        .position(|v| v["input"]["kind"] == "spots")
++        .unwrap();
++    let mut missing = base.clone();
++    missing["cases"][at]["input"]
++        .as_object_mut()
++        .unwrap()
++        .remove("eliteType");
++    assert!(verify(&missing.to_string()).is_err());
++    for bad in [
++        json!(2147483648_u64),
++        json!(-2147483649_i64),
++        json!(1.5),
++        json!("0"),
++    ] {
++        let mut value = base.clone();
++        value["cases"][at]["input"]["camp"]["eliteSpot"] = bad;
++        assert!(verify(&value.to_string()).is_err());
++    }
++    let mut renamed = base.clone();
++    renamed["provenance"]["sources"][0]["path"] = json!("unknown.ts");
++    assert!(verify(&renamed.to_string()).is_err());
++    let raw = FIXTURE.replacen("\"eliteSpot\":", "\"eliteSpot\":0,\"eliteSpot\":", 1);
++    assert_ne!(raw, FIXTURE);
++    assert!(verify(&raw).unwrap_err().contains("duplicate JSON key"));
++}

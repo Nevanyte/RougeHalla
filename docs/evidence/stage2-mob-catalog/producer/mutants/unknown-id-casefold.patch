@@ -1,0 +1,11 @@
+--- crates/rh-sim/src/mob_catalog/mod.rs
++++ crates/rh-sim/src/mob_catalog/mod.rs
+@@ -498,7 +498,7 @@
+     mob_types_of(zone).filter(|t| t.elite)
+ }
+ pub fn mob_type_by_id(id: &str) -> Option<&'static MobTypeDef> {
+-    DEFINITION.types.iter().find(|t| t.id.as_str() == id)
++    DEFINITION.types.iter().find(|t| t.id.as_str().eq_ignore_ascii_case(id))
+ }
+ pub fn mob_type_in(region: FactionId, id: Option<&str>) -> Option<&'static MobTypeDef> {
+     id.and_then(mob_type_by_id).filter(|t| t.zone == region)

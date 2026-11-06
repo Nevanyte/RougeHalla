@@ -1,0 +1,11 @@
+--- crates/rh-sim/src/mob_catalog/rosters.rs
++++ crates/rh-sim/src/mob_catalog/rosters.rs
+@@ -50,7 +50,7 @@
+     }
+     // No arbitrary placeholder mob ID: source returns an empty list for an empty map.
+     let mut out = vec![None; zones.len()];
+-    for zone in represented {
++    for zone in represented.into_iter().rev() {
+         let indices: Vec<_> = zones
+             .iter()
+             .enumerate()

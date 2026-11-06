@@ -1,0 +1,11 @@
+--- crates/rh-sim/src/mob_catalog/rosters.rs
++++ crates/rh-sim/src/mob_catalog/rosters.rs
+@@ -83,7 +83,7 @@
+             let k = seen[at].1;
+             seen[at].1 += 1;
+             let elites: Vec<_> = elites_of(c.zone).map(|t| t.id).collect();
+-            Some(elites[k % elites.len()])
++            Some(elites[k % 1])
+         })
+         .collect()
+ }

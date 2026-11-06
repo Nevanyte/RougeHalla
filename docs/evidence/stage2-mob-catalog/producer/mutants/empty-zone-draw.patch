@@ -1,0 +1,10 @@
+--- crates/rh-sim/src/mob_catalog/rosters.rs
++++ crates/rh-sim/src/mob_catalog/rosters.rs
+@@ -22,6 +22,7 @@
+     rng: &mut impl FnMut() -> f64,
+ ) -> Vec<MobTypeId> {
+     if camp_count == 0 {
++        let _ = rng();
+         return Vec::new();
+     }
+     let normals: Vec<_> = normal_types_of(zone).map(|t| t.id).collect();

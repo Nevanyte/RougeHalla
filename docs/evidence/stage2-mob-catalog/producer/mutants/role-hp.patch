@@ -1,0 +1,11 @@
+--- crates/rh-sim/src/mob_catalog/mod.rs
++++ crates/rh-sim/src/mob_catalog/mod.rs
+@@ -151,7 +151,7 @@
+         MobRoleDef {
+             id: MobRole::Swarm,
+             label: "Swarm",
+-            hp_mult: 0.7,
++            hp_mult: 0.8,
+             dmg_mult: 0.9,
+             move_mult: 1.1,
+             tags: &[MobTag::Fast, MobTag::Fragile],

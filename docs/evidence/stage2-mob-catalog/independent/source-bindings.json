@@ -1,0 +1,87 @@
+{
+  "canonicalSourceClosure": 15,
+  "extraExecutionBindings": [
+    "package.json",
+    "tsconfig.base.json",
+    "packages/shared/package.json",
+    "tools/mob-fixtures/independent.ts"
+  ],
+  "files": [
+    {
+      "path": "package-lock.json",
+      "sha256": "991869bdfbbefb6874220500197c61db302a4d2b2603dfc2288fd7032ce1d481"
+    },
+    {
+      "path": "packages/shared/src/abilities.ts",
+      "sha256": "95ef39376a9d9f40cc529a0f7300700a97427050628941e801aaa1e299862518"
+    },
+    {
+      "path": "packages/shared/src/constants.ts",
+      "sha256": "51ce4dd800ec868abee525fb1ae375688066f336972a7da878644df1235924e7"
+    },
+    {
+      "path": "packages/shared/src/factions.ts",
+      "sha256": "aa0cebf1c17af17b64bc1e020c4613ab10788ec66d82a72232aef8915d5403f3"
+    },
+    {
+      "path": "packages/shared/src/map.ts",
+      "sha256": "35caac04108a3bd0e1d880a9502f14bdccb3a9a17d262cba335c3d6436995eed"
+    },
+    {
+      "path": "packages/shared/src/mark.ts",
+      "sha256": "44870381fa48b9c8f65f180ff74995725644d7264df5b069a3c43c2291540661"
+    },
+    {
+      "path": "packages/shared/src/messages.ts",
+      "sha256": "f7f3b4eb6bb32c54bb97a7d3a8e2ba613b0aff0495a0f20c09fd6d36c797fe80"
+    },
+    {
+      "path": "packages/shared/src/mobs.ts",
+      "sha256": "3b567c08363d8d4f1e9a897240b3d99d5b8ded7757b6809a4b534b63d72b5522"
+    },
+    {
+      "path": "packages/shared/src/rng.ts",
+      "sha256": "412bdcee4a5adcb6163bff3561cb4a07eff423dc7e30e9ba0694cb41b05b1bec"
+    },
+    {
+      "path": "packages/shared/src/rosters.ts",
+      "sha256": "0f544537f1ea1517345efd44bc3d4a4ee7d5bffd52a13cb084cc9693ec6f297d"
+    },
+    {
+      "path": "packages/shared/src/signatureShares.ts",
+      "sha256": "e6996931487dde9d4e3f71481a9da996f7500fbcd2148f7924ed730a78eba1a4"
+    },
+    {
+      "path": "packages/shared/src/signatures.ts",
+      "sha256": "0a6befbb5a6fe9870b13a540d72235085c491668c8cae3674fa8faf89816e191"
+    },
+    {
+      "path": "packages/shared/src/status.ts",
+      "sha256": "98a0570d7620e424d9d522356fe378a6af049109d8af0342be0ecff970310df7"
+    },
+    {
+      "path": "packages/shared/src/weapons.ts",
+      "sha256": "2f22f037502fe63fae6b47f20408cfd35ebc72bfea081194ae8d18cfc21df99b"
+    },
+    {
+      "path": "tools/mob-fixtures/catalog-rosters.ts",
+      "sha256": "849f8f535efbd4d6381ac5d4b25fa364986a68a1373bb23818942d3dad513b09"
+    },
+    {
+      "path": "package.json",
+      "sha256": "9da8ab00050db3ec14c083365ab0c3a5b8986e38fd13c086b2913249d531422c"
+    },
+    {
+      "path": "tsconfig.base.json",
+      "sha256": "017575ec3101f44df43b5a7cc850779582650d9e01a2090b7e311b213b98ef88"
+    },
+    {
+      "path": "packages/shared/package.json",
+      "sha256": "6e9c040348c50e0ad5043ec4cb9b4206f68f29cf4eeb4dec5f635f37a6f87f35"
+    },
+    {
+      "path": "tools/mob-fixtures/independent.ts",
+      "sha256": "1ae9d6e5ad7efb15773dd4fb1614e9c02ca0754c005dc0df0936528faa1b68cb"
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+--- crates/rh-sim/src/mob_catalog/mod.rs
++++ crates/rh-sim/src/mob_catalog/mod.rs
+@@ -193,7 +193,7 @@
+             elite: false,
+             name: "Ember Imp",
+             role: MobRole::Swarm,
+-            weapon: WeaponId::Axe,
++            weapon: WeaponId::Sword,
+         },
+         MobTypeDef {
+             id: MobTypeId::CinderHound,

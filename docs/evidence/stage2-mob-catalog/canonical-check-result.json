@@ -1,0 +1,33 @@
+{
+  "command": [
+    "docker",
+    "run",
+    "--rm",
+    "--pull=never",
+    "--platform",
+    "linux/amd64",
+    "--cpus=2",
+    "--tmpfs",
+    "/repo/node_modules:rw,exec,size=1500m",
+    "--tmpfs",
+    "/tmp:rw,exec,size=512m",
+    "--mount",
+    "type=bind,src=/Users/nevinmckinnon/.codex/worktrees/rougehalla-stage2-managed/RougeHalla,dst=/repo,readonly",
+    "--mount",
+    "type=bind,src=/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/sentenced-capture/node-v22.23.4-linux-x64,dst=/node,readonly",
+    "--mount",
+    "type=bind,src=/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/mob-catalog-integration/canonical,dst=/out",
+    "-w",
+    "/repo",
+    "c86ecead9e55",
+    "sh",
+    "-eu",
+    "-c",
+    "npm ci --ignore-scripts --no-audit --no-fund > /out/npm.log 2>&1\n/node/bin/node --import tsx tools/mob-fixtures/catalog-rosters.ts --self-test\n/node/bin/node --import tsx tools/mob-fixtures/independent.ts"
+  ],
+  "exit": 0,
+  "seconds": 6.532362542,
+  "freshBytesIdentical": true,
+  "canonicalFixtureSha256": "94786558142cb39f6d1b05d57c368b5f9adf84d2184d703cd882597ab447641b",
+  "freshFixtureSha256": "15346d22e7b7e5aefd418330ea9ba0264147182361662c689dcedc6aa66c1d7d"
+}

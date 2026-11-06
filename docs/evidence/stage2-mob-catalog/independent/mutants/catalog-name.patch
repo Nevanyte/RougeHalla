@@ -1,0 +1,11 @@
+--- crates/rh-sim/src/mob_catalog/mod.rs
++++ crates/rh-sim/src/mob_catalog/mod.rs
+@@ -191,7 +191,7 @@
+             id: MobTypeId::EmberImp,
+             zone: FactionId::Fire,
+             elite: false,
+-            name: "Ember Imp",
++            name: "Wrong Imp",
+             role: MobRole::Swarm,
+             weapon: WeaponId::Axe,
+         },

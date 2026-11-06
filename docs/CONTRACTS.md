@@ -14,7 +14,7 @@ revision; [sweep/README.md](sweep/README.md) says which (H-sim and H-server-2 ha
 
 ### Stage 2 validation addendum (takes precedence over the historical Stage 1 rows below)
 
-Native arm64 integration on `optimization_port`: 1,196 tests passed with all features, 0 failed/filtered and two explicitly
+Native arm64 integration on `optimization_port`: 1,207 tests passed with all features, 0 failed/filtered and two explicitly
 ignored tests (heap measurement and manual bridge E2E; the latter passed at the preceding external integration). Formatting and full/default-feature workspace Clippy with warnings denied passed. The preceding
 foundation gate passed 395 all-feature/386 default-feature tests; its Rust/C#/browser and legacy recapture CI passed at
 `c93b659d`. Full-game, AWS, browser-matrix and release gates remain open.
@@ -23,7 +23,7 @@ foundation gate passed 395 all-feature/386 default-feature tests; its Rust/C#/br
   outcomes, rejects unconsumed or unordered records, and checks requirements only for replayed records. 97 compared
   scenarios and 300 path queries MATCH; 13 scenarios are explicitly capture-only. Exact recapture runs Linux x64 Node 22.23.4.
 - C-DET/C-NUM: checkpoint format is `rh-checkpoint/14`, replay `rh-replay/12`, observation version 11; content identity
-  `24c5098abed31dfb`. Projectile state is hashed/restored, invalid packet/identity headroom is refused, and the six new
+  `b5a9b0f84279dcfb`. Projectile state is hashed/restored, invalid packet/identity headroom is refused, and the six new
   flight fixtures allocate zero over 336 measured steady steps. Fixed map geometry uses one definition folded into the
   content identity; all 76 recaptured files and all seven map oracles agree on Linux x64 Node 22.23.4. Full admitted gameplay
   layers participate in static hashing and checkpoint validation. Captured legacy map hashes remain unverified metadata at structural import; the separate exact source hash now
@@ -54,6 +54,12 @@ foundation gate passed 395 all-feature/386 default-feature tests; its Rust/C#/br
   boost and product boundaries. Canonical 4,096-case CI and 100,000-distinct-input stress comparisons pass, and ten
   actual compiled implementation mutants fail semantically. The aggregate content fold includes all 33 numeric
   definition words and actual key/category/index metadata. This leaf is unwired; card/status runtime is not implied.
+- C-NUM/C-PARITY/C-DET: the pure mob catalog/roster leaf matches 322 original and 120 independent actual-source
+  cases; all 30 types/five roles and 200 distinct binary64 input tapes are covered. Sixteen actual compiled behavior
+  mutations were detected. The coordinator folds the actual ordered role/type/region/rule visitor into content, with
+  327 field/membership/order/tag sensitivity checks and unchanged stat-fold checks. Both original and independent
+  corpora reproduce byte for byte under Linux x64 Node 22.23.4. This registers a pure helper, not native private RNG,
+  mob actors, AI, combat, rewards or respawn. See `evidence/stage2-mob-catalog/integration.json`.
 - C-OBS: hidden pickup targets are indistinguishable from absent targets in requester feedback. Hit/Death/Block source
   ids are redacted when unseen; authoritative credit and trusted parity events are preserved. Independent differential
   and earlier-step/cached projection checks passed. Public item discovery/self inventory now works for headless/policy

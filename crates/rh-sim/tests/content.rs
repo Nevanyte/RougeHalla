@@ -126,6 +126,7 @@ const NON_GAMEPLAY: &[(&str, &str, &str)] = &[
 /// Rules that are tables rather than scalar rows: they are folded by `content_hash` directly (see content.rs). As
 /// (file, name, reason).
 const TABLES_FOLDED_BY_HASH: &[(&str, &str, &str)] = &[
+    ("mob_catalog/mod.rs", "DEFINITION", "actual ordered role/type/region metadata and four roster/reach policies folded by content_hash_of_mob_catalog_definition through the runtime visitor"),
     ("mapgen/style_zones/mod.rs", "ENTRIES", "actual five-faction callback identity and phase metadata folded by style_zones::visit_entries into aggregate content"),
     ("mapgen/style_rime/shape.rs", "NORMALS", "actual facet geometry coordinates folded through the same style_rime::visit_content definition visitor"),
     ("mapgen/style_features/rules.rs","DEFAULT_DEFINITION","all eleven shared feature arithmetic/search policies are folded by content_hash_of_style_features_definition"),
@@ -424,7 +425,7 @@ fn hash_golden() {
         content_hash()
     );
 }
-const GOLDEN_CONTENT_HASH: u64 = 0x24c5_098a_bed3_1dfb;
+const GOLDEN_CONTENT_HASH: u64 = 0xb5a9_b0f8_4279_dcfb;
 
 #[test]
 fn every_registry_row_perturbs_the_hash() {

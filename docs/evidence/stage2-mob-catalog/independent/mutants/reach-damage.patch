@@ -1,0 +1,11 @@
+--- crates/rh-sim/src/mob_catalog/mod.rs
++++ crates/rh-sim/src/mob_catalog/mod.rs
+@@ -457,7 +457,7 @@
+     ],
+     rules: Rules {
+         bag_copies: 3,
+-        melee_damage: 1.6,
++        melee_damage: 1.7,
+         ranged_damage: 1.2,
+         elite_damage: 1.0,
+     },

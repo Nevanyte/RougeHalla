@@ -1,0 +1,2154 @@
+{
+  "actualTapePayloadUniqueness": {
+    "encoding": "49 big-endian IEEE754 doubles per tape; IDs/seeds/labels/expected excluded",
+    "count": 200,
+    "distinctCount": 200,
+    "payloadSha256": [
+      "b7a1bb227b169e8c15d438adcb4cba8d93910d7997a20e9cd77dc956e410051c",
+      "78df626e0d069d32393234fc2d3951186e2bfbcc642e0e908e73c2c74b99b50e",
+      "d0a734bb9a07bef41004c08e4e07802e7565e42cc8cdb274cbc0b91d44247fbf",
+      "d95f259209fd194bdf121482e5514025de5c996aa34139baa81f55984ad8e4fc",
+      "d10319574007bed2f337f70bc309dd714826bae67e341f4dc5decfbbe56a9b3d",
+      "e810d6a9acbb2230e0044580baf21cb12567e815e29fddaf33d8ad9fd68b5903",
+      "db539f75cf619e66335a4ae78f41cd1adf065782a0979b279b5c8c4d85a00969",
+      "90a5871587213633bab271f739cddf88d5273a57c5c4691f1a41e7e6ab93570a",
+      "1bfae73cc8a136a8ae00a779460759550a9e70ac64c379ef605e973fdd1d5b23",
+      "c837b71a0b7a8c6e289dcf733b2b8cba72a1929472ab327d08f0e09ce9c40714",
+      "e9e824a4814096271de97a14a928cb9c6fce5b0011bb7a962bc2513917f217b8",
+      "0585f69b46b00c6c3190b496abadd5e0a3d70a70fe35b45eaefd75ea0cfe3e88",
+      "07a8a08d941c700c72a4c3ce2a037930aea8ef79723dc36225d533b91a6eb07b",
+      "a4c2922f45d7bceeece2ee70966b61ecb102942cad4b227218a4d0cee7a4d220",
+      "a5d59705d29535a71454b821e324feee07f866da1de0b76875fceee3dec9a05b",
+      "ec1d46e2e4e3f7797208a7dc48ed9de5bb801377241b61c99a2ccf6059c96be7",
+      "38896009be43e36a45994d51c43e77846a1e1397afe747f6c1a32018c099984a",
+      "c2a1fe08d96cff10daa81617966381a42cf4f79f88f98967f5f31e176e9ba53a",
+      "7b94812a29e68d45d0a56f67b8a2759cfe7033de5682009774939b238df320c9",
+      "67bfc023837ed2be6899d1fb60306eb2e3a4f66c600c8913f917c356ec2bba6f",
+      "48098a53e6c073b79f6ed8b254db0f1bb8f81e7fe2f5290fbbbf18b582cd9cc8",
+      "a2f283c17280a653f60e9509628329692f515f62ba6a3edc3c603d730d0efd4a",
+      "e43faba39613167dd0278599bf8499272fec6ec44c8969e37960d1f0a50a2e36",
+      "b2b4459dbc5738625e0c405d0d8b5b8eaaf4e7d80b74935d65bf77db88882108",
+      "402b4ee839d523230ff946eee01bc60ef54270b7849bb1625270b2c181534954",
+      "26c9e64973bc6d1c321307b1538e0aec416f185ab3b817cfe54ce41389a8cb1b",
+      "847cdc8c7f61cebc322df96268d09fd70544a14ca0a6248125ee2ee8f803f100",
+      "5e306c1517130c8d988cca78dd5377895647da4af496003c618c5a639187d89f",
+      "6857d6abfe3e008dc49b17ee3154d02d65dba006eded937da33f9bdd133152ab",
+      "90e79764a5b4f1532afbf7256d8b4d8d3ea9f8beb5a635987690c48531519dab",
+      "921a719a329fcad3cd5eb6b255263e4b95f1246d25863bf4b4bd75a51fbead64",
+      "f36568ee285c833c1e19e64d7bf95f1555ae94f6765ab3d3bfd915d09c20245c",
+      "7fdf4a6e33619716438aacecd7f7187b6e68665d7ba4519c48b2d387c6419358",
+      "11cd2a46cb8e61045e0dd8e309285720e584049ed51dc6a29dba944283ac7afd",
+      "584ea36c1fed1efb04b4c8023786c3b95795cfc3895d20938404963ae47d9eb5",
+      "e516acfc702494b752b7575e656a510658bb42d3889796f13f93e9d0d17f3327",
+      "f2c1fb1564c4cc7336713b7197348db8340289d6c70bf47600c911a6fab9196c",
+      "8f867ffd402215b11c78bd32f54b92398f57e22cb1120f5534de4a25896094b1",
+      "5e36268d12f3a989c1798c0a55d8d5fa33f17c27a869cb7a779933aaeaf6915f",
+      "75fb5330f8811a22c5743d7a2a2fa61a9a4c3d044703548d40aab6399b133745",
+      "0b823193ab9dc2ec81c40fb1c3cd6925884660cb63cb71face2ae3ae95dce434",
+      "b13a067a5b48e991afc6a732e5ff082e62554911d4dcc3b560c1e146577976a4",
+      "a2adad45f2471f5cff375c6015e8bd9f2eb596e5bbade94b4af8a809f4c3cc71",
+      "480e16edc289a3b7f20f459ab8620e553bba8ceb938771ad98e205a3da3caedf",
+      "9ee8dadd26ad24e2026f55293515d32351fc4d60d93dcfb1f88047cfbe1314f3",
+      "36c195b0f18164fb1c2416e0e96c152153222137eacda34a75383127e6921585",
+      "ab473d47ca83d985d81b125eac05314ed1f7969a22acb6c35a3828e7977257ea",
+      "7957557215df560605a313455f3916d739eb2e4a412a0ef6a9581cf51817e36b",
+      "5085a7a2a61a7a648c42f488de2d9882fb3cce40829f800ecfe784157fbfb57a",
+      "72b81daf50d856a289e592fa55b77710b784230f6bc6d5c38ce32dcafb59d359",
+      "006176cf0f9a0c408eaa53b57982ca52eec9bd8f240fc0f766fbb161238a5a6c",
+      "79a3271f653cb3f545690433b278332422e3178956f90c1dd91a01b136b107b7",
+      "0434565896368ca4d6641431ac451b930740557d66708f20750902550335fa9f",
+      "05f7f2a3bcde45b13ed0d77ed2fa660dbdc11a9f6c3b34d00deb6b4345bae105",
+      "2c7dc459f30a49813f1fe20f1ffb4d485bd38e599ae15c9289dd0c6f975998d2",
+      "2c250b04e79771c9065c76af73002fe4d87b624a99c1cc1b520038106a9abb7c",
+      "6a5e675bdba59baace5f185e9424ba5089420a8554b517d28d87a02693e848c2",
+      "37b639caea2a38dc932fc65a0fb20de5010e9789e6a48104f129c660851c82d9",
+      "222975d80f467f01d6d81997febd231c13a158335eb9f8ca1254a14b9246d458",
+      "6504b7a2ae126a688ceddf99e065815b3c7d3055bcbaa3534d17f57699a39ec6",
+      "c4447d8d2c99371042b1db92a7f55fa9c6dfedcff22ade99bc6a6d56fd45f8ba",
+      "f26eca55ff19dd958a3a243a02ad05cb2373553c7d8c04e5cb655774114b47eb",
+      "2102b615bf1511e5e6cee9ab65d19cd270e5acebd1df277a867fb6ee99cd65cd",
+      "a5f24995f54e145f2432fb0210f18dc2dfb260dc7998674dab31502e0e3fd620",
+      "4f85898d1bafe1a7705b680784e88f05966ce5ca6fe4845f38f6ef8dd283c4b3",
+      "44ab2019787713572a621e45958e20162fa92eea042527307d5f50ad09597993",
+      "dd825c2fe9bd9c943de5ece0a1381e2fe5bcea1a67bcdb4b73fdf3d564e0dd6d",
+      "5aee697ee98abb9af18478d3f6bed3f1a59f4e3aa44c947f64e3df32cfaf82b6",
+      "0d5647f0a91cc487f88840189d60c20cc123ce7f999f8dd9f39d9307493514f6",
+      "fd322021701049779ad9b7df251b09baf61d931fd2c4db5417f139d33e8e06f5",
+      "95d4c166a326b76a5205e2c821dfba94ac1ab77e5c86ee49134c68917f1acc90",
+      "c57f8b5be6104444abe677710b7aa4baf1bf12118f1d78d9e067a70bbca80bc0",
+      "7903e73fd592549294caace0700b4b9c7e3d846dc9a3258b20524bd64efcc708",
+      "f3507062267ee5dbf82e1a2bc9b0383739b74b5876cd8d46fa0bcdd8d7977649",
+      "283d0afeb0f92cea87517ddb1ef750a2e9a956c1f61074580591d75dc06752b1",
+      "6a6b55b59f563d37f01316f8a44a833011937f9232bedf68ad8c9aecbbb5bb36",
+      "464d29cd627a6a62d23c704a8d95482c29befd57d985088b2a3732ac4d1f889f",
+      "735d443ca1cb668f91a4684662a69e91e98c99ddae216667c312d64534cc1cac",
+      "3ebdbd8477a6137a99373ececb058921f09dff66a378ab258dca0c16cf2e676e",
+      "658d66be2f8f2334dce7218c100751128678d3238e455d8def4ce66b93991239",
+      "e9116da31bb69b44832471721f0054fa4f7cfccbf43e8b790b5a7b4170469e4e",
+      "fb0a3f264b899b26127d592233f843060a13b07bf4c6e9b3b77cd8ccd691acac",
+      "11d0feab2881b7468f524665eab1c1109d8f8936b600a47419f522ebb0eae25c",
+      "31140904eb84f0fb94d68a33a60f1e0cd8481c46d2fe5c0ac7439c7b22fe4baa",
+      "64befd7b48017307dff002bde167bb3671bb835be778a4e899d479daa46b1f17",
+      "d97e4773bebf89cf6fd6a3518f9a2844722f11b18f3aeaf218462ec07bb4d1a7",
+      "3fb5c02edd5db1b430f6480a7c2bc8110229f75676beca75eab1ec0f056db0e5",
+      "7ee5f072d5a62c1ae7a213b4ff065e6618a528128beaa988036ed28d95ed0c55",
+      "d15e31ca308a6936c9a01799f0c8d5851c6cc4fe1acb5ca9825538cf8894338a",
+      "2c1f67e2dc5918d8728eac274cfbdbaf742d06c15a111556a29d5ccd26c4c1b3",
+      "e045d3beb82d360e00664fd885781abcf69a6c47502e017af0394ff6bad40100",
+      "f976db84e1b79a4ca6f1bd0e52a6fcae2ce7a9a8f2b4575be3b96109e1ffd412",
+      "7e5a7bd464ddc2e1554a231bfa70e533a9d43f597113865665d09ba2e0010158",
+      "e2ee4cc0d486068fc60226980f657f25e7f5f6f024003a00c31f46ba09f3c39a",
+      "a074958af1a30216eb9c6fba98542e0dabc50940bd4bec5f1e9c0649ab3bafca",
+      "cdc22bfbb2074c225c417fa09a62a32b9b6f9111e18e1c591ab47ea3141f3e44",
+      "5c12e16701f522b3dcaaf230723f3e04d2f0cdaca9876b19cb254a2f44d93d22",
+      "b3d4eb8cbff50f1dd090cc5a295f5eb127b0624a3e3fa03ec11296dd87274014",
+      "013b70611ae893469349ee143e19aa2781d22627e0b56faac3d9f0d871281ab9",
+      "ff3a68250409b93b72b0b89d998479ac1d8ab97ec2bf1eeb98a513266f99e2c4",
+      "f6a4d6d09d8283a947c8cf107671f7f90b224417878e75f27efd68276dcdba6b",
+      "f12e1f7e6f1f205262b0dc324a664d6da8f2950571eaa2a7a535b9b72ae576f4",
+      "1210eab21d0b6a9f37b9e781290e3c8a0762f430f947f0fcaffea2e95d7f77b7",
+      "8a1fae2c3cd45f505acdf0e8e1544470fedbd200bc34519142665792ef124175",
+      "6d6e66e7cf4c92343924a99a53daf5450386832b868711f0c46ad2763157273b",
+      "56766ac9da664f40da4062aaffa9fd2f1aa230f987d2f86fb0fe90069317a86a",
+      "8aff600b63eb556da0af9f979509d3784b49354d22321c308b3d66ea33e5f427",
+      "64065b54f97cb04e0c02c9aa8ada2d7eaeb304eaa5c40e5d091327c620d8d032",
+      "0aadcb28d4a1268c4b8e5acdddab71dc87976312ed6b8d2b36dd9da4bc79b303",
+      "54bda7db8df409870ef82ee64dd5f9d39e42643acefc878a89c4f5a61717b245",
+      "36843d8b1f3e3eea54c900871a414e423539a9ba7d99399113561b342be7ba28",
+      "7455a0fb9ef36acf2c953e834fb207937d6e2e391946e256a8a8067d554b4cbe",
+      "610e1ba62940793fe910423c051e51c1b3c8f1473525e9b054081dc4dd8d77bf",
+      "623865fd1d1f48942f2746ccb5252f8d2f1849a79363ace58f28998a2b4943a2",
+      "1da2ce6b66d93250e743a349ab1afd8a155e03ad6af6e971f548bad61aba05de",
+      "4341f018171bb0a8a6eb0364e3dab448e839034abbe2bc53ada2f079945be06e",
+      "a9f5277c5c340b4680cdabed817d5aa27c4add1e5c8a7317b012372b4100036b",
+      "0fe5668d2380c38acf7c1a0019e14e69f15e1b134a345de4af8ee62f4733d788",
+      "99510d1503baa54296bd4d1f6ec95b01e7bfe382b727777fde04822964f87780",
+      "f49febe6886c09496c5db02571367c8fc58c4a030082ffd33e63502bf9a8eff2",
+      "4e9b50199b4f0042967f48771e2c9372802c75cf8010e22de8ac6e42760c8dea",
+      "faa487cbfa6bab7535969412010cf6b96161f02bf8be6aaa435c58d630ff228e",
+      "abd8928528f4691f93b35e97a966fe62882db4ce72d7e3704f20c8df3a79fb72",
+      "a605a5deb97c023df3ff484f6bf19d45b294ad3f7ae159eb29c4d64d7dcbb8c5",
+      "79bf577e1f603a2c34a05233bdd1bb4feeac7a2e0ae31c5e8922d178721bcc9d",
+      "ef849723b15327bb6edaf818133c3af6c5bcd1955e0bca761abdf55ce7a27009",
+      "5cb6200d5b62206d5d0033fb599270cb5d0394427f694c9a46a8333e8a86faa9",
+      "cf17ccae177a43b6b86dcecf45b6fe3dbcc72bc721275ef46baedb925025b6a6",
+      "ba725adbbd785b83fa801ec1e10d49bfb308b451929c86b852149129cdef9215",
+      "d144efa1881c6347996f248d7c17794094fe98a61d719294687891b51f51d36d",
+      "06451810484e6be8b42cd8ce174e25316a319a733fba253bdbafbb6e90dd1567",
+      "7325b2ec658c2af3a8a2f5b2ca505bde70e569c19cc279f86ed24e392b4dc7f8",
+      "6bd43516ed771a32633931ec4a20ae622748163c5c06604bc9a9582ad6ec965d",
+      "44147f263279ebce2598ee6d525d1993b215d98c94e36fd4df60e498e13b17a1",
+      "8a348b6aeaaeb7a57fff0b876c6f4e11ca0e8dcee22ee8d99ada1baffb662c73",
+      "af63f3d1ae2e4bcc40e3892888ca5620fe740c15f158472f879d44b30eb87413",
+      "cea1ed2a5e2af31994dd9e1353d0d0c7e85b9f94f27c09f4794907015680b318",
+      "df10be333b579dc516c83f8e5d5d05954f7346a323335eee08cd9ab0f84820fd",
+      "3d484e95fab60385a10c200acfe23b4fff8806710269a919363d26714ae66109",
+      "7db1bff731807c690f881064150c5ad0532856002e95cf08c38d90efb529229f",
+      "689cc8689c6769fe95461dcc42d0296a6726f94a137b7cf672bfbb3f3805cade",
+      "c9c07cd9f0504115ece13448099af56a5eea49de17484991757c8a019f6cfa8d",
+      "c6bd8cad88b0f62079658bb2f316346692de55fd1081d9cfed451653e2592256",
+      "ecd4691bb3d38ce44dbd938712207bad53606792117d475a3d667f22a2eb3220",
+      "c20721738b32e5adb893fdf3acb9568d30c71d0ea12529ccf968a512b2d24306",
+      "cc2776fd1bc5a2cc3be248ac20f07a8e89b1c484ec675e03c3553168f79b73a1",
+      "c9f399ec28958725863674d1c4ef942a6038e87d32923a6309c0da932e16387e",
+      "efdf8c072077ec7fdf7013e5b93c65244b961f001562c5f03a7d3a2dea228b6e",
+      "a5907296f58389828ba924ceff3de9e0c3844add60fbadd7249e853917ab683c",
+      "904898d4681705478841d1b320147b60ceb9e7df054ec7a0ffc8723bd697b0e0",
+      "68a0be5be61acf518ab48209397acfd04e26d1feb648c1b86af04eab106e26e4",
+      "ff6af2b24b37c7412e93a45f204e74be36bbd59bf96604b4697e5d16506268da",
+      "acc1eaa6b0496ebc919760266223b339a1ab62693468c21e20e1190a869cbf3e",
+      "037830e659baabb22e2f97b0602f1a5465011efd22a570f60ef24985e442a036",
+      "83898ae1fced6caa0f63989fd93a22667a0239fe3793d97559a8e942a80a6bc5",
+      "204b66ed98cfcd6c4f6de7f9bb810e9dd53b05c398054332d018ac2a3f8e4f8a",
+      "523b2b5441e451ba8c8fd4171ae744c63fcd9b6d36a83f2d6649fb69655cca0f",
+      "bdf5b6273a8d9651ada97e09f126f5b90ee1f7e383195169d9ee5e4a9d2a4b83",
+      "93ab23df6e0e2a6b930d37ae081602454a03a73d5dadfbbe9d21387103ee43ee",
+      "7335504347451d18e6b1b4107cb78b461ce4f81dddae179d651cca25879b4876",
+      "55c6e7cb85d8080b624718adfc291d7630edc7288ea90941587d05d9b2d86c17",
+      "c624e885d840a8690c04b2125f7f75f084dbdbc1a8d55508ad42476e5f7b7315",
+      "09bc8aebebe17f870cca5fe4319b86d6482662950cee36ceb5aed0aef42eca4c",
+      "8327efd00ea167279115f88ceb96f58d8ab8186eb225f1c38f2a5529aa7993ed",
+      "f0497321080186d1cae6c6588f4a921cfa6555f18857fd4063b8bd4d354abc77",
+      "8c0bd8033832b53be6c26849847e4b6315157d02490dd5f133e399f8d09c5084",
+      "5cd1626ed3f479af4316eb1ab16055e77b3c93a18ee3d5812c705500bcb5a32f",
+      "c72f5092db6831251b750007222c7bbf457eed9b21a4d21ed8be969d627dee0f",
+      "e97a9616d24bc11e33a77b337de62d3fa09251bb70ed09bf60626a7304426d61",
+      "8b37088671719f3d02c45fd3c0ab3c4be5380cb2cad8443613ea648630e41d66",
+      "f37253a3ebc3f3421d94896b5ed5b4d6abc7bf32d275c1170651ba466053cd12",
+      "59a49277691f2b482a2a8371d9c2a3a706f647ddbe756fc9c1aeaf9f82bc1917",
+      "c6c079dc01afb1d51b0ad134a4ca5e40a8cdf02adc03b4502c79889967239f47",
+      "a595ddbb3db1444992bff5f53f5954eedd2774457001ef936396fde6dfd8a187",
+      "a7340f29f209ce1c85ce3bbd95ea66d81a2660aa20062d401576d7686da5450c",
+      "3616018613efd58a15c80dafa58e915222b4cbf37aba912ba807a48c013c4519",
+      "1c13d592a25f6670b5285fd01a0fdb5d640465f06270b747acb47a553dc7350c",
+      "6196185ba077685eb782e54969e2acef4951541bbf11dbbe983b054ebca8e245",
+      "7a5d7faeefbc430e058a2b9ac2b34966c1a4d1d993ba7b537c8b18e9c0be2a2d",
+      "c09b1b6bd8ea214b1535041983ed8415568b2141ba5e1f5796815579a15bbed5",
+      "a6ca8aa675f4f9f9862796d6d93a2a782abd1321a28342a95ae4944c526e13b3",
+      "4afe7e747cfbbed09364f5517172e28f9854c0468cc5d687e4e3537129b832a7",
+      "2eaf303b0897e6aea6b01186c9b82017518f24032fc47f719a078ae5a5eb65f3",
+      "17e81dcf3834c97a3b9dca3032cc829f2058d40f96eb0e9bab668fe500236b15",
+      "fd6f2a23085ed25a79908bcc5fb2cccf4c43b39b2ef0dbcfdb430cc992f1c48e",
+      "aecc2a5085cf2300c992c1e7bbf115a6fbf245c9b2c470c0f91e4d3a28b56ab6",
+      "1e40ebf30b3bfacec32fd9322fe268609638dd70e1d77f0c3f501079fba6cd86",
+      "0708200a5bf9a7de8eeaa324ac03de0527c8a36a52c73b0751fe5087a360991b",
+      "191372c4d3d86f388be1036ec46db1db52347cfe9097e9de4a17b98056f790aa",
+      "af51ef6d1062d6d0b80d6b75dc7c4e99f4a56fba0e414dc17096a571422fa54d",
+      "c4987460d924d48a314bea81e5af1736df3b398c2f06f71af71cc425d27b3264",
+      "9f06d99153a1a662f5bf98a9867af440fbb6235c939e8310fac8dbf49a27e440",
+      "36daf8c483e42863f044bd4c2d3c26b098ab22a653d1eca257f91b6267f4a9bd",
+      "d711036d73bd6269ca6553e9943c1cd210453276f89577d39b40cdcd788bb9cc",
+      "92b640d0cef543057b7596a70354f0936b3e01b43de5b496691cd6fa4cd0177c",
+      "612a3ff0bc29a5c8e0ac081c0853fdba4067d0f114c9a7538abb1628020261eb",
+      "f2be7686db455bbb4458c65c0a501dd7af87bd3e653ca4ed06c8af108c8f70ae",
+      "5dddb57a10f166840effdae74108655614f3135e8ab7809107d8106c8affff87",
+      "aedac42ea3392c0864f98720b3b9d333095cff3ce8d7291d0051f0c375695a8b",
+      "380c6de1b210bfda502ce399d81b4979ee57d702fed4dcb88e4fae1ee16d8896"
+    ]
+  },
+  "caseCount": 322,
+  "kindCounts": {
+    "catalog": 1,
+    "kinds": 1,
+    "camps": 204,
+    "zone": 40,
+    "elites": 6,
+    "spots": 70
+  },
+  "totalDraws": 9360,
+  "totalContinuationValues": 1280,
+  "orderedCases": [
+    {
+      "id": "catalog",
+      "kind": "catalog",
+      "draws": null,
+      "continuationLength": null
+    },
+    {
+      "id": "kinds",
+      "kind": "kinds",
+      "draws": null,
+      "continuationLength": null
+    },
+    {
+      "id": "stream-0",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-1",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-2",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-3",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-4",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-5",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-6",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-7",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-8",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-9",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-10",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-11",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-12",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-13",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-14",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-15",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-16",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-17",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-18",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-19",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-20",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-21",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-22",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-23",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-24",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-25",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-26",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-27",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-28",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-29",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-30",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-31",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-32",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-33",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-34",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-35",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-36",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-37",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-38",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-39",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-40",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-41",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-42",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-43",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-44",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-45",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-46",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-47",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-48",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-49",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-50",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-51",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-52",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-53",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-54",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-55",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-56",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-57",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-58",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-59",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-60",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-61",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-62",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-63",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-64",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-65",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-66",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-67",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-68",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-69",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-70",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-71",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-72",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-73",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-74",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-75",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-76",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-77",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-78",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-79",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-80",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-81",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-82",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-83",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-84",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-85",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-86",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-87",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-88",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-89",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-90",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-91",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-92",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-93",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-94",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-95",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-96",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-97",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-98",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-99",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-100",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-101",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-102",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-103",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-104",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-105",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-106",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-107",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-108",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-109",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-110",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-111",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-112",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-113",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-114",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-115",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-116",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-117",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-118",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-119",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-120",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-121",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-122",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-123",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-124",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-125",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-126",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-127",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-128",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-129",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-130",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-131",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-132",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-133",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-134",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-135",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-136",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-137",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-138",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-139",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-140",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-141",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-142",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-143",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-144",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-145",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-146",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-147",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-148",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-149",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-150",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-151",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-152",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-153",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-154",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-155",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-156",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-157",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-158",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-159",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-160",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-161",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-162",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-163",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-164",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-165",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-166",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-167",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-168",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-169",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-170",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-171",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-172",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-173",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-174",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-175",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-176",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-177",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-178",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-179",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-180",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-181",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-182",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-183",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-184",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-185",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-186",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-187",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-188",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-189",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-190",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-191",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-192",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-193",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-194",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-195",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-196",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-197",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-198",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "stream-199",
+      "kind": "camps",
+      "draws": 45,
+      "continuationLength": 4
+    },
+    {
+      "id": "zone-0-0",
+      "kind": "zone",
+      "draws": 0,
+      "continuationLength": 4
+    },
+    {
+      "id": "zone-0-1",
+      "kind": "zone",
+      "draws": 9,
+      "continuationLength": 4
+    },
+    {
+      "id": "zone-0-4",
+      "kind": "zone",
+      "draws": 9,
+      "continuationLength": 4
+    },
+    {
+      "id": "zone-0-10",
+      "kind": "zone",
+      "draws": 9,
+      "continuationLength": 4
+    },
+    {
+      "id": "zone-0-12",
+      "kind": "zone",
+      "draws": 9,
+      "continuationLength": 4
+    },
+    {
+      "id": "zone-0-13",
+      "kind": "zone",
+      "draws": 9,
+      "continuationLength": 4
+    },
+    {
+      "id": "zone-0-25",
+      "kind": "zone",
+      "draws": 9,
+      "continuationLength": 4
+    },
+    {
+      "id": "zone-1-0",
+      "kind": "zone",
+      "draws": 0,
+      "continuationLength": 4
+    },
+    {
+      "id": "zone-1-1",
+      "kind": "zone",
+      "draws": 9,
+      "continuationLength": 4
+    },
+    {
+      "id": "zone-1-4",
+      "kind": "zone",
+      "draws": 9,
+      "continuationLength": 4
+    },
+    {
+      "id": "zone-1-10",
+      "kind": "zone",
+      "draws": 9,
+      "continuationLength": 4
+    },
+    {
+      "id": "zone-1-12",
+      "kind": "zone",
+      "draws": 9,
+      "continuationLength": 4
+    },
+    {
+      "id": "zone-1-13",
+      "kind": "zone",
+      "draws": 9,
+      "continuationLength": 4
+    },
+    {
+      "id": "zone-1-25",
+      "kind": "zone",
+      "draws": 9,
+      "continuationLength": 4
+    },
+    {
+      "id": "zone-2-0",
+      "kind": "zone",
+      "draws": 0,
+      "continuationLength": 4
+    },
+    {
+      "id": "zone-2-1",
+      "kind": "zone",
+      "draws": 9,
+      "continuationLength": 4
+    },
+    {
+      "id": "zone-2-4",
+      "kind": "zone",
+      "draws": 9,
+      "continuationLength": 4
+    },
+    {
+      "id": "zone-2-10",
+      "kind": "zone",
+      "draws": 9,
+      "continuationLength": 4
+    },
+    {
+      "id": "zone-2-12",
+      "kind": "zone",
+      "draws": 9,
+      "continuationLength": 4
+    },
+    {
+      "id": "zone-2-13",
+      "kind": "zone",
+      "draws": 9,
+      "continuationLength": 4
+    },
+    {
+      "id": "zone-2-25",
+      "kind": "zone",
+      "draws": 9,
+      "continuationLength": 4
+    },
+    {
+      "id": "zone-3-0",
+      "kind": "zone",
+      "draws": 0,
+      "continuationLength": 4
+    },
+    {
+      "id": "zone-3-1",
+      "kind": "zone",
+      "draws": 9,
+      "continuationLength": 4
+    },
+    {
+      "id": "zone-3-4",
+      "kind": "zone",
+      "draws": 9,
+      "continuationLength": 4
+    },
+    {
+      "id": "zone-3-10",
+      "kind": "zone",
+      "draws": 9,
+      "continuationLength": 4
+    },
+    {
+      "id": "zone-3-12",
+      "kind": "zone",
+      "draws": 9,
+      "continuationLength": 4
+    },
+    {
+      "id": "zone-3-13",
+      "kind": "zone",
+      "draws": 9,
+      "continuationLength": 4
+    },
+    {
+      "id": "zone-3-25",
+      "kind": "zone",
+      "draws": 9,
+      "continuationLength": 4
+    },
+    {
+      "id": "zone-4-0",
+      "kind": "zone",
+      "draws": 0,
+      "continuationLength": 4
+    },
+    {
+      "id": "zone-4-1",
+      "kind": "zone",
+      "draws": 9,
+      "continuationLength": 4
+    },
+    {
+      "id": "zone-4-4",
+      "kind": "zone",
+      "draws": 9,
+      "continuationLength": 4
+    },
+    {
+      "id": "zone-4-10",
+      "kind": "zone",
+      "draws": 9,
+      "continuationLength": 4
+    },
+    {
+      "id": "zone-4-12",
+      "kind": "zone",
+      "draws": 9,
+      "continuationLength": 4
+    },
+    {
+      "id": "zone-4-13",
+      "kind": "zone",
+      "draws": 9,
+      "continuationLength": 4
+    },
+    {
+      "id": "zone-4-25",
+      "kind": "zone",
+      "draws": 9,
+      "continuationLength": 4
+    },
+    {
+      "id": "layout-0",
+      "kind": "camps",
+      "draws": 0,
+      "continuationLength": 4
+    },
+    {
+      "id": "layout-1",
+      "kind": "camps",
+      "draws": 9,
+      "continuationLength": 4
+    },
+    {
+      "id": "layout-2",
+      "kind": "camps",
+      "draws": 27,
+      "continuationLength": 4
+    },
+    {
+      "id": "layout-3",
+      "kind": "camps",
+      "draws": 9,
+      "continuationLength": 4
+    },
+    {
+      "id": "draw-boundary-0",
+      "kind": "zone",
+      "draws": 9,
+      "continuationLength": 4
+    },
+    {
+      "id": "draw-boundary-1",
+      "kind": "zone",
+      "draws": 9,
+      "continuationLength": 4
+    },
+    {
+      "id": "draw-boundary-2",
+      "kind": "zone",
+      "draws": 9,
+      "continuationLength": 4
+    },
+    {
+      "id": "draw-boundary-3",
+      "kind": "zone",
+      "draws": 9,
+      "continuationLength": 4
+    },
+    {
+      "id": "draw-boundary-4",
+      "kind": "zone",
+      "draws": 9,
+      "continuationLength": 4
+    },
+    {
+      "id": "elites-0",
+      "kind": "elites",
+      "draws": 0,
+      "continuationLength": 4
+    },
+    {
+      "id": "spots-0-0-0",
+      "kind": "spots",
+      "draws": 0,
+      "continuationLength": 4
+    },
+    {
+      "id": "spots-0-0-1",
+      "kind": "spots",
+      "draws": 0,
+      "continuationLength": 4
+    },
+    {
+      "id": "spots-0-1-0",
+      "kind": "spots",
+      "draws": 0,
+      "continuationLength": 4
+    },
+    {
+      "id": "spots-0-1-1",
+      "kind": "spots",
+      "draws": 0,
+      "continuationLength": 4
+    },
+    {
+      "id": "spots-0-2-0",
+      "kind": "spots",
+      "draws": 0,
+      "continuationLength": 4
+    },
+    {
+      "id": "spots-0-2-1",
+      "kind": "spots",
+      "draws": 0,
+      "continuationLength": 4
+    },
+    {
+      "id": "spots-0-3-0",
+      "kind": "spots",
+      "draws": 0,
+      "continuationLength": 4
+    },
+    {
+      "id": "spots-0-3-1",
+      "kind": "spots",
+      "draws": 0,
+      "continuationLength": 4
+    },
+    {
+      "id": "spots-0-4-0",
+      "kind": "spots",
+      "draws": 0,
+      "continuationLength": 4
+    },
+    {
+      "id": "spots-0-4-1",
+      "kind": "spots",
+      "draws": 0,
+      "continuationLength": 4
+    },
+    {
+      "id": "spots-0-5-0",
+      "kind": "spots",
+      "draws": 0,
+      "continuationLength": 4
+    },
+    {
+      "id": "spots-0-5-1",
+      "kind": "spots",
+      "draws": 0,
+      "continuationLength": 4
+    },
+    {
+      "id": "spots-0-6-0",
+      "kind": "spots",
+      "draws": 0,
+      "continuationLength": 4
+    },
+    {
+      "id": "spots-0-6-1",
+      "kind": "spots",
+      "draws": 0,
+      "continuationLength": 4
+    },
+    {
+      "id": "elites-1",
+      "kind": "elites",
+      "draws": 0,
+      "continuationLength": 4
+    },
+    {
+      "id": "spots-1-0-0",
+      "kind": "spots",
+      "draws": 0,
+      "continuationLength": 4
+    },
+    {
+      "id": "spots-1-0-1",
+      "kind": "spots",
+      "draws": 0,
+      "continuationLength": 4
+    },
+    {
+      "id": "spots-1-1-0",
+      "kind": "spots",
+      "draws": 0,
+      "continuationLength": 4
+    },
+    {
+      "id": "spots-1-1-1",
+      "kind": "spots",
+      "draws": 0,
+      "continuationLength": 4
+    },
+    {
+      "id": "spots-1-2-0",
+      "kind": "spots",
+      "draws": 0,
+      "continuationLength": 4
+    },
+    {
+      "id": "spots-1-2-1",
+      "kind": "spots",
+      "draws": 0,
+      "continuationLength": 4
+    },
+    {
+      "id": "spots-1-3-0",
+      "kind": "spots",
+      "draws": 0,
+      "continuationLength": 4
+    },
+    {
+      "id": "spots-1-3-1",
+      "kind": "spots",
+      "draws": 0,
+      "continuationLength": 4
+    },
+    {
+      "id": "spots-1-4-0",
+      "kind": "spots",
+      "draws": 0,
+      "continuationLength": 4
+    },
+    {
+      "id": "spots-1-4-1",
+      "kind": "spots",
+      "draws": 0,
+      "continuationLength": 4
+    },
+    {
+      "id": "spots-1-5-0",
+      "kind": "spots",
+      "draws": 0,
+      "continuationLength": 4
+    },
+    {
+      "id": "spots-1-5-1",
+      "kind": "spots",
+      "draws": 0,
+      "continuationLength": 4
+    },
+    {
+      "id": "spots-1-6-0",
+      "kind": "spots",
+      "draws": 0,
+      "continuationLength": 4
+    },
+    {
+      "id": "spots-1-6-1",
+      "kind": "spots",
+      "draws": 0,
+      "continuationLength": 4
+    },
+    {
+      "id": "elites-2",
+      "kind": "elites",
+      "draws": 0,
+      "continuationLength": 4
+    },
+    {
+      "id": "spots-2-0-0",
+      "kind": "spots",
+      "draws": 0,
+      "continuationLength": 4
+    },
+    {
+      "id": "spots-2-0-1",
+      "kind": "spots",
+      "draws": 0,
+      "continuationLength": 4
+    },
+    {
+      "id": "spots-2-1-0",
+      "kind": "spots",
+      "draws": 0,
+      "continuationLength": 4
+    },
+    {
+      "id": "spots-2-1-1",
+      "kind": "spots",
+      "draws": 0,
+      "continuationLength": 4
+    },
+    {
+      "id": "spots-2-2-0",
+      "kind": "spots",
+      "draws": 0,
+      "continuationLength": 4
+    },
+    {
+      "id": "spots-2-2-1",
+      "kind": "spots",
+      "draws": 0,
+      "continuationLength": 4
+    },
+    {
+      "id": "spots-2-3-0",
+      "kind": "spots",
+      "draws": 0,
+      "continuationLength": 4
+    },
+    {
+      "id": "spots-2-3-1",
+      "kind": "spots",
+      "draws": 0,
+      "continuationLength": 4
+    },
+    {
+      "id": "spots-2-4-0",
+      "kind": "spots",
+      "draws": 0,
+      "continuationLength": 4
+    },
+    {
+      "id": "spots-2-4-1",
+      "kind": "spots",
+      "draws": 0,
+      "continuationLength": 4
+    },
+    {
+      "id": "spots-2-5-0",
+      "kind": "spots",
+      "draws": 0,
+      "continuationLength": 4
+    },
+    {
+      "id": "spots-2-5-1",
+      "kind": "spots",
+      "draws": 0,
+      "continuationLength": 4
+    },
+    {
+      "id": "spots-2-6-0",
+      "kind": "spots",
+      "draws": 0,
+      "continuationLength": 4
+    },
+    {
+      "id": "spots-2-6-1",
+      "kind": "spots",
+      "draws": 0,
+      "continuationLength": 4
+    },
+    {
+      "id": "elites-3",
+      "kind": "elites",
+      "draws": 0,
+      "continuationLength": 4
+    },
+    {
+      "id": "spots-3-0-0",
+      "kind": "spots",
+      "draws": 0,
+      "continuationLength": 4
+    },
+    {
+      "id": "spots-3-0-1",
+      "kind": "spots",
+      "draws": 0,
+      "continuationLength": 4
+    },
+    {
+      "id": "spots-3-1-0",
+      "kind": "spots",
+      "draws": 0,
+      "continuationLength": 4
+    },
+    {
+      "id": "spots-3-1-1",
+      "kind": "spots",
+      "draws": 0,
+      "continuationLength": 4
+    },
+    {
+      "id": "spots-3-2-0",
+      "kind": "spots",
+      "draws": 0,
+      "continuationLength": 4
+    },
+    {
+      "id": "spots-3-2-1",
+      "kind": "spots",
+      "draws": 0,
+      "continuationLength": 4
+    },
+    {
+      "id": "spots-3-3-0",
+      "kind": "spots",
+      "draws": 0,
+      "continuationLength": 4
+    },
+    {
+      "id": "spots-3-3-1",
+      "kind": "spots",
+      "draws": 0,
+      "continuationLength": 4
+    },
+    {
+      "id": "spots-3-4-0",
+      "kind": "spots",
+      "draws": 0,
+      "continuationLength": 4
+    },
+    {
+      "id": "spots-3-4-1",
+      "kind": "spots",
+      "draws": 0,
+      "continuationLength": 4
+    },
+    {
+      "id": "spots-3-5-0",
+      "kind": "spots",
+      "draws": 0,
+      "continuationLength": 4
+    },
+    {
+      "id": "spots-3-5-1",
+      "kind": "spots",
+      "draws": 0,
+      "continuationLength": 4
+    },
+    {
+      "id": "spots-3-6-0",
+      "kind": "spots",
+      "draws": 0,
+      "continuationLength": 4
+    },
+    {
+      "id": "spots-3-6-1",
+      "kind": "spots",
+      "draws": 0,
+      "continuationLength": 4
+    },
+    {
+      "id": "elites-4",
+      "kind": "elites",
+      "draws": 0,
+      "continuationLength": 4
+    },
+    {
+      "id": "spots-4-0-0",
+      "kind": "spots",
+      "draws": 0,
+      "continuationLength": 4
+    },
+    {
+      "id": "spots-4-0-1",
+      "kind": "spots",
+      "draws": 0,
+      "continuationLength": 4
+    },
+    {
+      "id": "spots-4-1-0",
+      "kind": "spots",
+      "draws": 0,
+      "continuationLength": 4
+    },
+    {
+      "id": "spots-4-1-1",
+      "kind": "spots",
+      "draws": 0,
+      "continuationLength": 4
+    },
+    {
+      "id": "spots-4-2-0",
+      "kind": "spots",
+      "draws": 0,
+      "continuationLength": 4
+    },
+    {
+      "id": "spots-4-2-1",
+      "kind": "spots",
+      "draws": 0,
+      "continuationLength": 4
+    },
+    {
+      "id": "spots-4-3-0",
+      "kind": "spots",
+      "draws": 0,
+      "continuationLength": 4
+    },
+    {
+      "id": "spots-4-3-1",
+      "kind": "spots",
+      "draws": 0,
+      "continuationLength": 4
+    },
+    {
+      "id": "spots-4-4-0",
+      "kind": "spots",
+      "draws": 0,
+      "continuationLength": 4
+    },
+    {
+      "id": "spots-4-4-1",
+      "kind": "spots",
+      "draws": 0,
+      "continuationLength": 4
+    },
+    {
+      "id": "spots-4-5-0",
+      "kind": "spots",
+      "draws": 0,
+      "continuationLength": 4
+    },
+    {
+      "id": "spots-4-5-1",
+      "kind": "spots",
+      "draws": 0,
+      "continuationLength": 4
+    },
+    {
+      "id": "spots-4-6-0",
+      "kind": "spots",
+      "draws": 0,
+      "continuationLength": 4
+    },
+    {
+      "id": "spots-4-6-1",
+      "kind": "spots",
+      "draws": 0,
+      "continuationLength": 4
+    },
+    {
+      "id": "elites-empty",
+      "kind": "elites",
+      "draws": 0,
+      "continuationLength": 4
+    }
+  ]
+}

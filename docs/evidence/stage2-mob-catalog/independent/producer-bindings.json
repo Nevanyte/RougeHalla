@@ -1,0 +1,59 @@
+{
+  "manifestSha256": "1240c2a955a5690f0d40b3dd8b5e4b724664cf4e39fd8dc1e29fb9c07dcf96d1",
+  "owned": [
+    {
+      "path": "crates/rh-sim/src/lib.rs",
+      "bytes": 2139,
+      "sha256": "6edaf995babbc05a66c377ac1964736507e5a2a507f62eebc71e6bd91f11d7bb"
+    },
+    {
+      "path": "crates/rh-sim/src/mob_catalog/mod.rs",
+      "bytes": 16177,
+      "sha256": "f8790a19ad904afc620778f51c9b467f8724dbb1bb29da9700dd5228c6e90717"
+    },
+    {
+      "path": "crates/rh-sim/src/mob_catalog/rosters.rs",
+      "bytes": 3516,
+      "sha256": "e6fc3afb649adb952455854c8cb4743764e2ebd648d05c0e854c82632eb6f728"
+    },
+    {
+      "path": "crates/rh-sim/tests/mob_catalog.rs",
+      "bytes": 23474,
+      "sha256": "5889a00f825ca8eab7223a66c7b6d8703961589b0d995e516f77bdfc3a999758"
+    },
+    {
+      "path": "docs/evidence/stage2-mob-catalog/README.md",
+      "bytes": 8162,
+      "sha256": "3041f3a0232ef4174291a2b841f6b11a429853dbd5858e78fed74b67bddc1e64"
+    },
+    {
+      "path": "parity/mobs/catalog-rosters.json",
+      "bytes": 566172,
+      "sha256": "94786558142cb39f6d1b05d57c368b5f9adf84d2184d703cd882597ab447641b"
+    },
+    {
+      "path": "tools/mob-fixtures/catalog-rosters.ts",
+      "bytes": 9770,
+      "sha256": "849f8f535efbd4d6381ac5d4b25fa364986a68a1373bb23818942d3dad513b09"
+    }
+  ],
+  "fixture": {
+    "sha256": "94786558142cb39f6d1b05d57c368b5f9adf84d2184d703cd882597ab447641b",
+    "bytes": 566172,
+    "cases": 322,
+    "types": 30,
+    "normal": 20,
+    "elite": 10,
+    "roles": 5,
+    "lookups": 170,
+    "distinctActualTapePayloads": 200,
+    "draws": 9360,
+    "continuationValues": 1280,
+    "sourceFiles": 15
+  },
+  "patch": {
+    "path": "mob-catalog.patch",
+    "bytes": 630348,
+    "sha256": "296687cebf706467615d45490c37feaea570a674b394d18f89c7f565f6bd0dd8"
+  }
+}

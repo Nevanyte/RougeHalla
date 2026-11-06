@@ -1,0 +1,45 @@
+{
+  "scope": "120 independent actual-source supplementary cases, separate from unchanged canonical 322 inventory",
+  "files": [
+    {
+      "path": "fresh.py",
+      "sha256": "786539bffaf843f5462af0bda65faa47e9d8b7dd66b5379c5cd32713c3727ec6",
+      "bytes": 1776
+    },
+    {
+      "path": "fresh-inputs.json",
+      "sha256": "1aa5c6c4aa9a26a2aa210e23df58833ba73ff3a17340afdbdfec73cc800725c2",
+      "bytes": 208434
+    },
+    {
+      "path": "fresh-source.json",
+      "sha256": "15346d22e7b7e5aefd418330ea9ba0264147182361662c689dcedc6aa66c1d7d",
+      "bytes": 279610
+    },
+    {
+      "path": "canonical-fresh.py",
+      "sha256": "3709a5bb0c9efebd47ae63a10e03dc263592945b2ee2a151a637b1fb45f9fadb",
+      "bytes": 1250
+    },
+    {
+      "path": "source-bindings.json",
+      "sha256": "f0e603f652b0062fd242188b76063a9a473eb94774f4208fe1e2f337fb506505",
+      "bytes": 2912
+    },
+    {
+      "path": "independent-tests.patch",
+      "sha256": "6cd8c1a7a9472a78e316f60e6882204cdf96819cecbcf52b5e817b3311d8a1dd",
+      "bytes": 1878
+    },
+    {
+      "path": "repo/tools/mob-fixtures/independent.ts",
+      "sha256": "1ae9d6e5ad7efb15773dd4fb1614e9c02ca0754c005dc0df0936528faa1b68cb",
+      "bytes": 1202
+    },
+    {
+      "path": "repo/parity/mobs/independent-review.json",
+      "sha256": "15346d22e7b7e5aefd418330ea9ba0264147182361662c689dcedc6aa66c1d7d",
+      "bytes": 279610
+    }
+  ]
+}

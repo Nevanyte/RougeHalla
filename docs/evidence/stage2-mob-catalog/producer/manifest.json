@@ -1,0 +1,936 @@
+{
+  "format": "rh-mob-catalog-handoff/1",
+  "base": "49726d60fdd92e669c6605b13bac40c14ba56421",
+  "privateCheckout": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/mob-catalog-work",
+  "repositoryEdits": "private detached checkout only; no root writes or commit",
+  "status": "bounded leaf reviewable; coordinator content identity/classifier and independent acceptance pending",
+  "ownFiles": [
+    {
+      "path": "crates/rh-sim/src/lib.rs",
+      "bytes": 2139,
+      "sha256": "6edaf995babbc05a66c377ac1964736507e5a2a507f62eebc71e6bd91f11d7bb"
+    },
+    {
+      "path": "crates/rh-sim/src/mob_catalog/mod.rs",
+      "bytes": 16177,
+      "sha256": "f8790a19ad904afc620778f51c9b467f8724dbb1bb29da9700dd5228c6e90717"
+    },
+    {
+      "path": "crates/rh-sim/src/mob_catalog/rosters.rs",
+      "bytes": 3516,
+      "sha256": "e6fc3afb649adb952455854c8cb4743764e2ebd648d05c0e854c82632eb6f728"
+    },
+    {
+      "path": "crates/rh-sim/tests/mob_catalog.rs",
+      "bytes": 23474,
+      "sha256": "5889a00f825ca8eab7223a66c7b6d8703961589b0d995e516f77bdfc3a999758"
+    },
+    {
+      "path": "docs/evidence/stage2-mob-catalog/README.md",
+      "bytes": 8162,
+      "sha256": "3041f3a0232ef4174291a2b841f6b11a429853dbd5858e78fed74b67bddc1e64"
+    },
+    {
+      "path": "parity/mobs/catalog-rosters.json",
+      "bytes": 566172,
+      "sha256": "94786558142cb39f6d1b05d57c368b5f9adf84d2184d703cd882597ab447641b"
+    },
+    {
+      "path": "tools/mob-fixtures/catalog-rosters.ts",
+      "bytes": 9770,
+      "sha256": "849f8f535efbd4d6381ac5d4b25fa364986a68a1373bb23818942d3dad513b09"
+    }
+  ],
+  "patch": {
+    "path": "mob-catalog.patch",
+    "bytes": 630348,
+    "sha256": "296687cebf706467615d45490c37feaea570a674b394d18f89c7f565f6bd0dd8"
+  },
+  "fixture": {
+    "sha256": "94786558142cb39f6d1b05d57c368b5f9adf84d2184d703cd882597ab447641b",
+    "bytes": 566172,
+    "cases": 322,
+    "types": 30,
+    "normal": 20,
+    "elite": 10,
+    "roles": 5,
+    "lookups": 170,
+    "distinctActualTapePayloads": 200,
+    "draws": 9360,
+    "continuationValues": 1280,
+    "sourceFiles": 15
+  },
+  "controls": {
+    "nativeMalformedFixtureAndParser": 26,
+    "helperFixtureBytecheckAndCLI": 17,
+    "realCompiledRustBehaviorMutations": 13,
+    "compiledMutationsDetected": 13
+  },
+  "commands": [
+    {
+      "record": "capture-first-failure-result.json",
+      "command": [
+        "docker",
+        "run",
+        "--rm",
+        "--pull=never",
+        "--platform",
+        "linux/amd64",
+        "--cpus=2",
+        "--tmpfs",
+        "/repo/node_modules:rw,exec,size=1500m",
+        "--tmpfs",
+        "/tmp:rw,exec,size=512m",
+        "--mount",
+        "type=bind,src=/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/mob-catalog-work,dst=/repo,readonly",
+        "--mount",
+        "type=bind,src=/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/sentenced-capture/node-v22.23.4-linux-x64,dst=/node,readonly",
+        "--mount",
+        "type=bind,src=/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/mob-catalog-evidence,dst=/out",
+        "-w",
+        "/repo",
+        "c86ecead9e55",
+        "sh",
+        "-eu",
+        "-c",
+        "npm ci --ignore-scripts --no-audit --no-fund > /out/npm-capture.log 2>&1\n/node/bin/node --import tsx tools/mob-fixtures/catalog-rosters.ts --capture --output /out/catalog-rosters.json"
+      ],
+      "exit": 125,
+      "seconds": 0.125571625,
+      "recordSha256": "4e21fe3d7cd9be0e42693ebd0ff7779d87eaff08389342ad1139d5a82858769f"
+    },
+    {
+      "record": "capture-result.json",
+      "command": [
+        "docker",
+        "run",
+        "--rm",
+        "--pull=never",
+        "--platform",
+        "linux/amd64",
+        "--cpus=2",
+        "--tmpfs",
+        "/repo/node_modules:rw,exec,size=1500m",
+        "--tmpfs",
+        "/tmp:rw,exec,size=512m",
+        "--mount",
+        "type=bind,src=/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/mob-catalog-work,dst=/repo,readonly",
+        "--mount",
+        "type=bind,src=/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/sentenced-capture/node-v22.23.4-linux-x64,dst=/node,readonly",
+        "--mount",
+        "type=bind,src=/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/mob-catalog-evidence,dst=/out",
+        "-w",
+        "/repo",
+        "c86ecead9e55",
+        "sh",
+        "-eu",
+        "-c",
+        "npm ci --ignore-scripts --no-audit --no-fund > /out/npm-capture.log 2>&1\n/node/bin/node --import tsx tools/mob-fixtures/catalog-rosters.ts --capture --output /out/catalog-rosters.json"
+      ],
+      "exit": 0,
+      "seconds": 6.013903792000001,
+      "recordSha256": "98f560da11bc278cafd82661e7081afb324b456337440d0eaeddb8c0bb95779e"
+    },
+    {
+      "record": "cargo-version-result.json",
+      "command": [
+        "cargo",
+        "--version"
+      ],
+      "exit": 0,
+      "seconds": 0.018455208,
+      "recordSha256": "930b458361ab36f9443de5ed08eb1b191af3897667eefe63589699fa10a08be8"
+    },
+    {
+      "record": "check-result.json",
+      "command": [
+        "docker",
+        "run",
+        "--rm",
+        "--pull=never",
+        "--platform",
+        "linux/amd64",
+        "--cpus=2",
+        "--tmpfs",
+        "/repo/node_modules:rw,exec,size=1500m",
+        "--tmpfs",
+        "/tmp:rw,exec,size=512m",
+        "--mount",
+        "type=bind,src=/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/mob-catalog-work,dst=/repo,readonly",
+        "--mount",
+        "type=bind,src=/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/sentenced-capture/node-v22.23.4-linux-x64,dst=/node,readonly",
+        "--mount",
+        "type=bind,src=/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/mob-catalog-evidence,dst=/out",
+        "-w",
+        "/repo",
+        "c86ecead9e55",
+        "sh",
+        "-eu",
+        "-c",
+        "npm ci --ignore-scripts --no-audit --no-fund > /out/npm-check.log 2>&1\n/node/bin/node --import tsx tools/mob-fixtures/catalog-rosters.ts --check\nnpm --version\nnode --version\n/node/bin/node -p \"JSON.stringify({tsx:JSON.parse(require('fs').readFileSync('node_modules/tsx/package.json','utf8')).version})\""
+      ],
+      "exit": 0,
+      "seconds": 8.044690416,
+      "recordSha256": "d65f0f240e1eafd92f560b896409ced0cdfbd9cdb29b67ac23f060223436c946"
+    },
+    {
+      "record": "clippy-allfeatures-result.json",
+      "command": [
+        "cargo",
+        "clippy",
+        "-p",
+        "rh-sim",
+        "--locked",
+        "--all-targets",
+        "--all-features",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit": 0,
+      "seconds": 8.970698333000001,
+      "recordSha256": "5ef1c1357f187418b20ae771ce6d8c76a1382fcc34bc77ec18302157688ddd80"
+    },
+    {
+      "record": "clippy-final-result.json",
+      "command": [
+        "cargo",
+        "clippy",
+        "-p",
+        "rh-sim",
+        "--locked",
+        "--all-targets",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit": 0,
+      "seconds": 8.825048792,
+      "recordSha256": "951b182b264015d69a318af80af13b4033c73efeb4f22bacf13387861820459f"
+    },
+    {
+      "record": "clippy-first-result.json",
+      "command": [
+        "cargo",
+        "clippy",
+        "-p",
+        "rh-sim",
+        "--locked",
+        "--all-targets",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit": 101,
+      "seconds": 11.373020209,
+      "recordSha256": "a4b5dfba04da087b877ee40626ea1bc53723565e7670dc968a6d55255679fe13"
+    },
+    {
+      "record": "content-pending-result.json",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "rh-sim",
+        "--locked",
+        "--test",
+        "content"
+      ],
+      "exit": 101,
+      "seconds": 0.549436375,
+      "recordSha256": "3a24c2af844635c69d7b773bb2d6973c8f76602a3981714fc018a49b7ef04b04"
+    },
+    {
+      "record": "fmt-before-final-result.json",
+      "command": [
+        "cargo",
+        "fmt",
+        "-p",
+        "rh-sim"
+      ],
+      "exit": 0,
+      "seconds": 0.485759084,
+      "recordSha256": "5eef48f4201219d896335823ee68d8d9480e8eb22740d70f5c7d484de33a4c52"
+    },
+    {
+      "record": "fmt-check-result.json",
+      "command": [
+        "cargo",
+        "fmt",
+        "-p",
+        "rh-sim",
+        "--",
+        "--check"
+      ],
+      "exit": 0,
+      "seconds": 0.47019325,
+      "recordSha256": "edab56e5a47d34ea505add8577d863d5d8284c91e5314864adbae6d3923bf0a1"
+    },
+    {
+      "record": "fmt-clean-result.json",
+      "command": [
+        "cargo",
+        "fmt",
+        "-p",
+        "rh-sim"
+      ],
+      "exit": 0,
+      "seconds": 0.45129012500000004,
+      "recordSha256": "240a80a32010536bd76dc3d50d49f68a0f8462615159d5bdc0f0348f9d6f5a66"
+    },
+    {
+      "record": "fmt-final-result.json",
+      "command": [
+        "cargo",
+        "fmt",
+        "-p",
+        "rh-sim"
+      ],
+      "exit": 0,
+      "seconds": 0.452228875,
+      "recordSha256": "1f61cc8f1856bc0a2e286c078294cc9e2df0bd0c5b9a58b570688d9a1fca589a"
+    },
+    {
+      "record": "fmt-result.json",
+      "command": [
+        "cargo",
+        "fmt",
+        "-p",
+        "rh-sim"
+      ],
+      "exit": 0,
+      "seconds": 0.474041875,
+      "recordSha256": "61c5707136557a3ff9b407bc1e9741fbe7b3c5938af45fcf8830b684a7ef8437"
+    },
+    {
+      "record": "native-allfeatures-result.json",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "rh-sim",
+        "--locked",
+        "--all-features",
+        "--test",
+        "mob_catalog",
+        "--",
+        "--nocapture"
+      ],
+      "exit": 0,
+      "seconds": 5.2604455,
+      "recordSha256": "85f6accbd36f07dbd0b1899a8e00043b97b53e6ff0fd1a61266bd8acfdffb086"
+    },
+    {
+      "record": "native-final-result.json",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "rh-sim",
+        "--locked",
+        "--test",
+        "mob_catalog",
+        "--",
+        "--nocapture"
+      ],
+      "exit": 0,
+      "seconds": 5.6964071249999995,
+      "recordSha256": "0a796e47d3a16743a5696819bb1d99d098b9928babf8b860e39157b7fb1d4543"
+    },
+    {
+      "record": "native-first-result.json",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "rh-sim",
+        "--locked",
+        "--test",
+        "mob_catalog",
+        "--",
+        "--nocapture"
+      ],
+      "exit": 101,
+      "seconds": 7.502117917,
+      "recordSha256": "816796c57fa9f0ef073fd242b0fb5f03b0a28783919160a2ba9d1aef888aa31a"
+    },
+    {
+      "record": "native-fourth-result.json",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "rh-sim",
+        "--locked",
+        "--test",
+        "mob_catalog",
+        "--",
+        "--nocapture"
+      ],
+      "exit": 0,
+      "seconds": 1.301099417,
+      "recordSha256": "929b01054d57b583b2901484836651accf066a370b1c633e42af41f19272ecfa"
+    },
+    {
+      "record": "native-second-result.json",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "rh-sim",
+        "--locked",
+        "--test",
+        "mob_catalog",
+        "--",
+        "--nocapture"
+      ],
+      "exit": 101,
+      "seconds": 1.3077669170000001,
+      "recordSha256": "c7df3b083bc1cfd9a8f85e565e8f88330468c68984a818a2e41f558a3653bdd4"
+    },
+    {
+      "record": "native-third-result.json",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "rh-sim",
+        "--locked",
+        "--test",
+        "mob_catalog",
+        "--",
+        "--nocapture"
+      ],
+      "exit": 101,
+      "seconds": 5.318918833,
+      "recordSha256": "d47d9f5f7fe49f14408447936de41e97468af10f0a4fee07ea8b5cfc4771344c"
+    },
+    {
+      "record": "noalloc-final-result.json",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "rh-sim",
+        "--locked",
+        "--test",
+        "no_alloc"
+      ],
+      "exit": 0,
+      "seconds": 8.333451582999999,
+      "recordSha256": "314b488d0ef684f1e98dd26bd5378ceb184f4ede607705d296a76d88077ef44e"
+    },
+    {
+      "record": "rust-toolchain-result.json",
+      "command": [
+        "rustc",
+        "--version",
+        "--verbose"
+      ],
+      "exit": 0,
+      "seconds": 0.020608166999999997,
+      "recordSha256": "fa48a4e9503cc6b8cfca1509536c2bffc47576d64824b076bf1bf14c3c287587"
+    },
+    {
+      "record": "self-test-result.json",
+      "command": [
+        "docker",
+        "run",
+        "--rm",
+        "--pull=never",
+        "--platform",
+        "linux/amd64",
+        "--cpus=2",
+        "--tmpfs",
+        "/repo/node_modules:rw,exec,size=1500m",
+        "--tmpfs",
+        "/tmp:rw,exec,size=512m",
+        "--mount",
+        "type=bind,src=/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/mob-catalog-work,dst=/repo,readonly",
+        "--mount",
+        "type=bind,src=/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/sentenced-capture/node-v22.23.4-linux-x64,dst=/node,readonly",
+        "--mount",
+        "type=bind,src=/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/mob-catalog-evidence,dst=/out",
+        "-w",
+        "/repo",
+        "c86ecead9e55",
+        "sh",
+        "-eu",
+        "-c",
+        "npm ci --ignore-scripts --no-audit --no-fund > /out/npm-self-test.log 2>&1\n/node/bin/node --import tsx tools/mob-fixtures/catalog-rosters.ts --self-test"
+      ],
+      "exit": 0,
+      "seconds": 6.222635667,
+      "recordSha256": "a092a2d1ad5464a9c4872b8a323c436b20e500ca79d69784f7b9984dc6e298ab"
+    },
+    {
+      "record": "whitespace-result.json",
+      "command": [
+        "git",
+        "diff",
+        "--cached",
+        "--check"
+      ],
+      "exit": 0,
+      "seconds": 0.010031084,
+      "recordSha256": "3533dfde8d3395e77aa7cdf76c22b1b93b8193928f22bb6a8631e0ef0ba28fdc"
+    }
+  ],
+  "firstFailuresPreserved": [
+    "capture-first-failure.log",
+    "native-first.log",
+    "native-second.log",
+    "native-third.log",
+    "clippy-first.log"
+  ],
+  "expectedOpenGate": {
+    "command": "cargo test -p rh-sim --locked --test content",
+    "passed": 20,
+    "failed": 1,
+    "reason": "mob_catalog/mod.rs DEFINITION is not yet registered in aggregate content identity/classifier; coordinator-owned edit"
+  },
+  "limits": [
+    "no native production sfc32 equivalence",
+    "no full faction scaling or signature parity",
+    "no runtime actors/spawn/AI/combat/rewards/respawn",
+    "no full private workspace or map suite",
+    "no coordinator shared schema/content/status/lock/protocol edits"
+  ],
+  "artifactHashes": [
+    {
+      "path": "canonical.py",
+      "bytes": 1341,
+      "sha256": "f366233987af6be111651c8cef23d89fd7e23c27555e1f2fc3a1374ef68521a2"
+    },
+    {
+      "path": "capture-first-failure-result.json",
+      "bytes": 935,
+      "sha256": "4e21fe3d7cd9be0e42693ebd0ff7779d87eaff08389342ad1139d5a82858769f"
+    },
+    {
+      "path": "capture-first-failure.log",
+      "bytes": 549,
+      "sha256": "7b38dfa8111ce267fce86a89aa00bd748012a3e92613573fb4ff90e594a5e3a2"
+    },
+    {
+      "path": "capture-result.json",
+      "bytes": 939,
+      "sha256": "98f560da11bc278cafd82661e7081afb324b456337440d0eaeddb8c0bb95779e"
+    },
+    {
+      "path": "capture.log",
+      "bytes": 124,
+      "sha256": "c286c895f43f0f4dbce947e0be69c42c33613900560305673b9e1ea97cb84001"
+    },
+    {
+      "path": "cargo-version-result.json",
+      "bytes": 91,
+      "sha256": "930b458361ab36f9443de5ed08eb1b191af3897667eefe63589699fa10a08be8"
+    },
+    {
+      "path": "cargo-version.log",
+      "bytes": 36,
+      "sha256": "f4f564f8936fa8eb53bca8bbe50666489252bbcbeaae0cb0dd54682444697e52"
+    },
+    {
+      "path": "catalog-rosters-initial.json",
+      "bytes": 566140,
+      "sha256": "0b6f687b99c27f1ab3e80a2aae02ef16bd8eaef33302e8c6fda4a5e3e2163957"
+    },
+    {
+      "path": "catalog-rosters.json",
+      "bytes": 566172,
+      "sha256": "94786558142cb39f6d1b05d57c368b5f9adf84d2184d703cd882597ab447641b"
+    },
+    {
+      "path": "check-result.json",
+      "bytes": 1057,
+      "sha256": "d65f0f240e1eafd92f560b896409ced0cdfbd9cdb29b67ac23f060223436c946"
+    },
+    {
+      "path": "check.log",
+      "bytes": 157,
+      "sha256": "171255ba4dfb0ef00013a4c91fbe84f9b13a024c26284ac4a3555843dc2c7c09"
+    },
+    {
+      "path": "clippy-allfeatures-result.json",
+      "bytes": 213,
+      "sha256": "5ef1c1357f187418b20ae771ce6d8c76a1382fcc34bc77ec18302157688ddd80"
+    },
+    {
+      "path": "clippy-allfeatures.log",
+      "bytes": 172,
+      "sha256": "e986a3a3e60d8640c463a049c8c18816349f8c63fb08be67b9bccae969b88a80"
+    },
+    {
+      "path": "clippy-final-result.json",
+      "bytes": 185,
+      "sha256": "951b182b264015d69a318af80af13b4033c73efeb4f22bacf13387861820459f"
+    },
+    {
+      "path": "clippy-final.log",
+      "bytes": 172,
+      "sha256": "c631b0d04a64ed2f033a709957aa0dd14f29d7e574276ac46566c9c206bb7c08"
+    },
+    {
+      "path": "clippy-first-result.json",
+      "bytes": 188,
+      "sha256": "a4b5dfba04da087b877ee40626ea1bc53723565e7670dc968a6d55255679fe13"
+    },
+    {
+      "path": "clippy-first.log",
+      "bytes": 1456,
+      "sha256": "0416c65eaa4ea258b27cfff7732b4f151725fbec6ed6d04debf565cb608edf95"
+    },
+    {
+      "path": "compiled-mutations.json",
+      "bytes": 4651,
+      "sha256": "909e675bf6ad5102a925c25c5a159bc9e14f7deff8eeaf8726eee984fcbbb7e2"
+    },
+    {
+      "path": "content-pending-result.json",
+      "bytes": 157,
+      "sha256": "3a24c2af844635c69d7b773bb2d6973c8f76602a3981714fc018a49b7ef04b04"
+    },
+    {
+      "path": "content-pending.log",
+      "bytes": 2316,
+      "sha256": "8084bc172f5d7d91523a5fc6cf8f86fd82b8be371e9d51f8f4d19374793e80e7"
+    },
+    {
+      "path": "content-seam.txt",
+      "bytes": 3322,
+      "sha256": "ae1667684f432aaac56551c763326a20e38fa954fdad7aed833db5b731e5f0b3"
+    },
+    {
+      "path": "coverage.json",
+      "bytes": 50746,
+      "sha256": "f08c384cca10c04e915e4dc18ba433c66dfbc13f1a2e74a34f38e1e3e5dcf954"
+    },
+    {
+      "path": "create.py",
+      "bytes": 9272,
+      "sha256": "abdbf89643b7fc5841b0404be0de2a79839d2080354648358f965882a831f26c"
+    },
+    {
+      "path": "fmt-before-final-result.json",
+      "bytes": 109,
+      "sha256": "5eef48f4201219d896335823ee68d8d9480e8eb22740d70f5c7d484de33a4c52"
+    },
+    {
+      "path": "fmt-before-final.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "fmt-check-result.json",
+      "bytes": 133,
+      "sha256": "edab56e5a47d34ea505add8577d863d5d8284c91e5314864adbae6d3923bf0a1"
+    },
+    {
+      "path": "fmt-check.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "fmt-clean-result.json",
+      "bytes": 117,
+      "sha256": "240a80a32010536bd76dc3d50d49f68a0f8462615159d5bdc0f0348f9d6f5a66"
+    },
+    {
+      "path": "fmt-clean.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "fmt-final-result.json",
+      "bytes": 109,
+      "sha256": "1f61cc8f1856bc0a2e286c078294cc9e2df0bd0c5b9a58b570688d9a1fca589a"
+    },
+    {
+      "path": "fmt-final.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "fmt-result.json",
+      "bytes": 109,
+      "sha256": "61c5707136557a3ff9b407bc1e9741fbe7b3c5938af45fcf8830b684a7ef8437"
+    },
+    {
+      "path": "fmt.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "initial-check.log",
+      "bytes": 441,
+      "sha256": "f199290ce61d1b74e00cf0c5bf7662852736bc71f3bdc213093af523efa042b3"
+    },
+    {
+      "path": "mob-catalog.patch",
+      "bytes": 630348,
+      "sha256": "296687cebf706467615d45490c37feaea570a674b394d18f89c7f565f6bd0dd8"
+    },
+    {
+      "path": "mutants/bag-wrap.log",
+      "bytes": 904,
+      "sha256": "a32c75f8bac2a2200537671b72c9ed07a349c08b85c363497e6e23f3a6ef1027"
+    },
+    {
+      "path": "mutants/bag-wrap.patch",
+      "bytes": 416,
+      "sha256": "fe2a475de92892ff8e070f4d0a54a583e1522ef9210f7d31d210c97981f8489a"
+    },
+    {
+      "path": "mutants/camp-order.log",
+      "bytes": 904,
+      "sha256": "21e332d02e7e18fef41a2629ea0b4e2d66696d58fc4bb773a0629dd5b71ff520"
+    },
+    {
+      "path": "mutants/camp-order.patch",
+      "bytes": 440,
+      "sha256": "441f277ab50863d5d360418c5974df1bbb95036629a16200197ce5feddb583fc"
+    },
+    {
+      "path": "mutants/catalog-name.log",
+      "bytes": 903,
+      "sha256": "6fea38152365329d0545693d54154a4f26fa9f6292fc1707006f2f76c1d6fd66"
+    },
+    {
+      "path": "mutants/catalog-name.patch",
+      "bytes": 350,
+      "sha256": "d1e3d86b19f6de0b46122bde4e172f181da386f30be9679ef63e32656dfb661d"
+    },
+    {
+      "path": "mutants/cross-zone-acceptance.log",
+      "bytes": 903,
+      "sha256": "e24b93f1280f76a57e8ca023f1dab66702105eb69a55e970bdedbc1b65a012c0"
+    },
+    {
+      "path": "mutants/cross-zone-acceptance.patch",
+      "bytes": 455,
+      "sha256": "ea180862c8577b63b7afda2e808cc5cf8e43b25236eee7690498035453e29151"
+    },
+    {
+      "path": "mutants/elite-wrap.log",
+      "bytes": 904,
+      "sha256": "1e304799cc4f5777cdd7f3015df358a2b1619da8066d3f3626b6772192ffa509"
+    },
+    {
+      "path": "mutants/elite-wrap.patch",
+      "bytes": 360,
+      "sha256": "86ca04b3d5ab07d06cf72a4f68cc862f294c882fecbb900a33ee4f33c5d68906"
+    },
+    {
+      "path": "mutants/empty-zone-draw.log",
+      "bytes": 904,
+      "sha256": "db55467b48863c3d3f81d94015cfacfd05c37a671aac9d0c42e03c3c496e37e2"
+    },
+    {
+      "path": "mutants/empty-zone-draw.patch",
+      "bytes": 326,
+      "sha256": "acb3a2cee539a1b67e98d277d4f1ef5a022e2d459cd4ca3ce5252488a797c3ee"
+    },
+    {
+      "path": "mutants/extra-draw.log",
+      "bytes": 869,
+      "sha256": "5f46bd1d07da1fa531438ae3dc3f69d8e6f1f796299ceb0ae9bde0ce11813477"
+    },
+    {
+      "path": "mutants/extra-draw.patch",
+      "bytes": 394,
+      "sha256": "c7308fff10784071499512850965d030ca7a32ef18185b574abc12b0d9129a18"
+    },
+    {
+      "path": "mutants/first-seen-order.log",
+      "bytes": 904,
+      "sha256": "5e384edde58b67c41aeb9ae66f0a4abe31a44f0c839312a17d6347d9766e934f"
+    },
+    {
+      "path": "mutants/first-seen-order.patch",
+      "bytes": 411,
+      "sha256": "1cf96b1b1fe8bd1c0e8b9b19569496d2e3604dfd606d8e07292f33a802b2ce66"
+    },
+    {
+      "path": "mutants/merged-shuffle-rounds.log",
+      "bytes": 869,
+      "sha256": "c888d1bc85f6ae9de70ff375602063921479ddcc70cef5af6f0f755816de6970"
+    },
+    {
+      "path": "mutants/merged-shuffle-rounds.patch",
+      "bytes": 549,
+      "sha256": "855f402ec17ccaeb67ac742fb423fd44be613d6c549ea4171ca1b35e7e3b2448"
+    },
+    {
+      "path": "mutants/reach-damage.log",
+      "bytes": 903,
+      "sha256": "c0789d02360ca8b8d2ef61d432cd37e0a20e90276a113aa6b8b4a89bc67a7004"
+    },
+    {
+      "path": "mutants/reach-damage.patch",
+      "bytes": 275,
+      "sha256": "abb7b386981772107809e50e6e3098c560e9606431b962107133e241d7cdf835"
+    },
+    {
+      "path": "mutants/role-hp.log",
+      "bytes": 903,
+      "sha256": "d817ef50e5e3a4809967ced3b9594f204899847358dedae858be283c1a9413bc"
+    },
+    {
+      "path": "mutants/role-hp.patch",
+      "bytes": 350,
+      "sha256": "04928b57b601cf9a9a9cbb4aaaa3df8ec7a78e71e81e55da5e7d5cd9776f72f0"
+    },
+    {
+      "path": "mutants/typed-weapon.log",
+      "bytes": 903,
+      "sha256": "f7c2592c4f0ba333d0d0759ef6ada0ac1e74456372719dd60041e36dbecf0d8c"
+    },
+    {
+      "path": "mutants/typed-weapon.patch",
+      "bytes": 345,
+      "sha256": "768ca3f4401af0b43dda5d212f9b2262239da69ed5bf1f66a1159b47e23dcb26"
+    },
+    {
+      "path": "mutants/unknown-id-casefold.log",
+      "bytes": 903,
+      "sha256": "7831ee9a748a1a575ff3f51552904854a51fd2c6bf30c1c0d8a470fba3fbf113"
+    },
+    {
+      "path": "mutants/unknown-id-casefold.patch",
+      "bytes": 507,
+      "sha256": "270ac0e3dd7fc3b26ad8cd95384feb086a55ce4fe6829ade2896b443e90af84f"
+    },
+    {
+      "path": "mutations.py",
+      "bytes": 3307,
+      "sha256": "151bcd3b4c85e5a8ebe74fbd1fb1fcf98ba51e36c6f45f30170c68d02578bdd7"
+    },
+    {
+      "path": "native-allfeatures-result.json",
+      "bytes": 208,
+      "sha256": "85f6accbd36f07dbd0b1899a8e00043b97b53e6ff0fd1a61266bd8acfdffb086"
+    },
+    {
+      "path": "native-allfeatures.log",
+      "bytes": 675,
+      "sha256": "db280c33f316884d738ecc69cf63caf917138666b025385646348081aa8bfa08"
+    },
+    {
+      "path": "native-final-result.json",
+      "bytes": 195,
+      "sha256": "0a796e47d3a16743a5696819bb1d99d098b9928babf8b860e39157b7fb1d4543"
+    },
+    {
+      "path": "native-final.log",
+      "bytes": 675,
+      "sha256": "5f9c7175b11f29247f4ad53d48cd254c76aa59f254ce50324ec0ee5f78e1ca2e"
+    },
+    {
+      "path": "native-first-result.json",
+      "bytes": 190,
+      "sha256": "816796c57fa9f0ef073fd242b0fb5f03b0a28783919160a2ba9d1aef888aa31a"
+    },
+    {
+      "path": "native-first.log",
+      "bytes": 1708,
+      "sha256": "59623b15a456714c7a5a8a2d7f5d1e9a4bc5b41b7203a2f926b3392bee5e0d01"
+    },
+    {
+      "path": "native-fourth-result.json",
+      "bytes": 188,
+      "sha256": "929b01054d57b583b2901484836651accf066a370b1c633e42af41f19272ecfa"
+    },
+    {
+      "path": "native-fourth.log",
+      "bytes": 675,
+      "sha256": "8707c4fc8ac37104807f388ee667c7da1f2463833abe7335fb605d80de75c2f2"
+    },
+    {
+      "path": "native-second-result.json",
+      "bytes": 197,
+      "sha256": "c7df3b083bc1cfd9a8f85e565e8f88330468c68984a818a2e41f558a3653bdd4"
+    },
+    {
+      "path": "native-second.log",
+      "bytes": 1326,
+      "sha256": "1acaf564532881bed81e669bdfdcc0749681292c67e8c0c7a7654f3f59c1d9fa"
+    },
+    {
+      "path": "native-third-result.json",
+      "bytes": 190,
+      "sha256": "d47d9f5f7fe49f14408447936de41e97468af10f0a4fee07ea8b5cfc4771344c"
+    },
+    {
+      "path": "native-third.log",
+      "bytes": 1090,
+      "sha256": "1147ff2b2b3a846d0fe2bcf0f1529ec37c44774abdcca5761f5e792bf75cb7df"
+    },
+    {
+      "path": "noalloc-final-result.json",
+      "bytes": 162,
+      "sha256": "314b488d0ef684f1e98dd26bd5378ceb184f4ede607705d296a76d88077ef44e"
+    },
+    {
+      "path": "noalloc-final.log",
+      "bytes": 476,
+      "sha256": "cdd238bc8f91cc99008000e76614ef4631a110be18b8fae2e302936f677e716f"
+    },
+    {
+      "path": "npm-capture.log",
+      "bytes": 235,
+      "sha256": "53d9aace6beaff6dd73fbc518d31e233d5c7d9ac9a8b21cd15d19e312b35b114"
+    },
+    {
+      "path": "npm-check.log",
+      "bytes": 235,
+      "sha256": "6c2dc3d27bbc0e13ee6ee69d8827fbc071c7ecd0451fcf40bb3c3a1d291a71ae"
+    },
+    {
+      "path": "npm-self-test.log",
+      "bytes": 235,
+      "sha256": "53d9aace6beaff6dd73fbc518d31e233d5c7d9ac9a8b21cd15d19e312b35b114"
+    },
+    {
+      "path": "run.py",
+      "bytes": 774,
+      "sha256": "4da94a7efd719f42ba4435631f708997bbca330464d464edf2be241cb6b6558a"
+    },
+    {
+      "path": "rust-toolchain-result.json",
+      "bytes": 117,
+      "sha256": "fa48a4e9503cc6b8cfca1509536c2bffc47576d64824b076bf1bf14c3c287587"
+    },
+    {
+      "path": "rust-toolchain.log",
+      "bytes": 192,
+      "sha256": "e0a03bccf22d7879cab5f3dffa6589dd425c6085ccb22507e3d2e2e8c60f9148"
+    },
+    {
+      "path": "self-test-result.json",
+      "bytes": 902,
+      "sha256": "a092a2d1ad5464a9c4872b8a323c436b20e500ca79d69784f7b9984dc6e298ab"
+    },
+    {
+      "path": "self-test.log",
+      "bytes": 148,
+      "sha256": "3a9e92ac8b4308b0c1a624e139b2d55750027470f5c934430947cfe1c129de50"
+    },
+    {
+      "path": "source-oracle-provenance.json",
+      "bytes": 2401,
+      "sha256": "6b6a224e059aa850ff5779904acfc5fc9167e9c5ab400a29b2d3b231e08cb17d"
+    },
+    {
+      "path": "whitespace-result.json",
+      "bytes": 115,
+      "sha256": "3533dfde8d3395e77aa7cdf76c22b1b93b8193928f22bb6a8631e0ef0ba28fdc"
+    },
+    {
+      "path": "whitespace.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ]
+}

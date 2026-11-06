@@ -1,0 +1,274 @@
+[
+  {
+    "name": "catalog-name",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "rh-sim",
+      "--locked",
+      "--test",
+      "mob_catalog",
+      "--",
+      "--nocapture"
+    ],
+    "exit": 101,
+    "seconds": 5.314356792,
+    "compiledBehaviorDetected": true
+  },
+  {
+    "name": "role-hp",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "rh-sim",
+      "--locked",
+      "--test",
+      "mob_catalog",
+      "--",
+      "--nocapture"
+    ],
+    "exit": 101,
+    "seconds": 5.317891874999999,
+    "compiledBehaviorDetected": true
+  },
+  {
+    "name": "typed-weapon",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "rh-sim",
+      "--locked",
+      "--test",
+      "mob_catalog",
+      "--",
+      "--nocapture"
+    ],
+    "exit": 101,
+    "seconds": 5.384914915999998,
+    "compiledBehaviorDetected": true
+  },
+  {
+    "name": "cross-zone-acceptance",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "rh-sim",
+      "--locked",
+      "--test",
+      "mob_catalog",
+      "--",
+      "--nocapture"
+    ],
+    "exit": 101,
+    "seconds": 5.339761333000002,
+    "compiledBehaviorDetected": true
+  },
+  {
+    "name": "unknown-id-casefold",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "rh-sim",
+      "--locked",
+      "--test",
+      "mob_catalog",
+      "--",
+      "--nocapture"
+    ],
+    "exit": 101,
+    "seconds": 5.6524901250000035,
+    "compiledBehaviorDetected": true
+  },
+  {
+    "name": "reach-damage",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "rh-sim",
+      "--locked",
+      "--test",
+      "mob_catalog",
+      "--",
+      "--nocapture"
+    ],
+    "exit": 101,
+    "seconds": 5.622721334000001,
+    "compiledBehaviorDetected": true
+  },
+  {
+    "name": "first-seen-order",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "rh-sim",
+      "--locked",
+      "--test",
+      "mob_catalog",
+      "--",
+      "--nocapture"
+    ],
+    "exit": 101,
+    "seconds": 5.689912833000001,
+    "compiledBehaviorDetected": true
+  },
+  {
+    "name": "camp-order",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "rh-sim",
+      "--locked",
+      "--test",
+      "mob_catalog",
+      "--",
+      "--nocapture"
+    ],
+    "exit": 101,
+    "seconds": 6.055534916999996,
+    "compiledBehaviorDetected": true
+  },
+  {
+    "name": "merged-shuffle-rounds",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "rh-sim",
+      "--locked",
+      "--test",
+      "mob_catalog",
+      "--",
+      "--nocapture"
+    ],
+    "exit": 101,
+    "seconds": 5.112614708000002,
+    "compiledBehaviorDetected": true
+  },
+  {
+    "name": "extra-draw",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "rh-sim",
+      "--locked",
+      "--test",
+      "mob_catalog",
+      "--",
+      "--nocapture"
+    ],
+    "exit": 101,
+    "seconds": 5.124190208000002,
+    "compiledBehaviorDetected": true
+  },
+  {
+    "name": "empty-zone-draw",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "rh-sim",
+      "--locked",
+      "--test",
+      "mob_catalog",
+      "--",
+      "--nocapture"
+    ],
+    "exit": 101,
+    "seconds": 5.467294333000005,
+    "compiledBehaviorDetected": true
+  },
+  {
+    "name": "elite-wrap",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "rh-sim",
+      "--locked",
+      "--test",
+      "mob_catalog",
+      "--",
+      "--nocapture"
+    ],
+    "exit": 101,
+    "seconds": 5.465051209000002,
+    "compiledBehaviorDetected": true
+  },
+  {
+    "name": "bag-wrap",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "rh-sim",
+      "--locked",
+      "--test",
+      "mob_catalog",
+      "--",
+      "--nocapture"
+    ],
+    "exit": 101,
+    "seconds": 5.453325666000012,
+    "compiledBehaviorDetected": true
+  },
+  {
+    "name": "independent-ignore-explicit-override",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "rh-sim",
+      "--locked",
+      "--test",
+      "mob_catalog",
+      "--",
+      "--nocapture"
+    ],
+    "exit": 101,
+    "seconds": 5.705367332999998,
+    "compiledBehaviorDetected": true
+  },
+  {
+    "name": "independent-reject-normal-override",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "rh-sim",
+      "--locked",
+      "--test",
+      "mob_catalog",
+      "--",
+      "--nocapture"
+    ],
+    "exit": 101,
+    "seconds": 5.7369734580000085,
+    "compiledBehaviorDetected": true
+  },
+  {
+    "name": "independent-negative-elite-consuming-slot",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "rh-sim",
+      "--locked",
+      "--test",
+      "mob_catalog",
+      "--",
+      "--nocapture"
+    ],
+    "exit": 101,
+    "seconds": 5.503245124999992,
+    "compiledBehaviorDetected": true
+  }
+]

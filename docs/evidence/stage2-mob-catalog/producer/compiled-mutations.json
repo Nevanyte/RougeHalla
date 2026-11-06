@@ -1,0 +1,249 @@
+[
+  {
+    "name": "catalog-name",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "rh-sim",
+      "--locked",
+      "--test",
+      "mob_catalog",
+      "source_catalog_rosters_and_draws_match",
+      "--",
+      "--exact",
+      "--nocapture"
+    ],
+    "exit": 101,
+    "seconds": 4.576826334000001,
+    "compiledBehaviorDetected": true
+  },
+  {
+    "name": "role-hp",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "rh-sim",
+      "--locked",
+      "--test",
+      "mob_catalog",
+      "source_catalog_rosters_and_draws_match",
+      "--",
+      "--exact",
+      "--nocapture"
+    ],
+    "exit": 101,
+    "seconds": 4.583477583,
+    "compiledBehaviorDetected": true
+  },
+  {
+    "name": "typed-weapon",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "rh-sim",
+      "--locked",
+      "--test",
+      "mob_catalog",
+      "source_catalog_rosters_and_draws_match",
+      "--",
+      "--exact",
+      "--nocapture"
+    ],
+    "exit": 101,
+    "seconds": 4.56643225,
+    "compiledBehaviorDetected": true
+  },
+  {
+    "name": "cross-zone-acceptance",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "rh-sim",
+      "--locked",
+      "--test",
+      "mob_catalog",
+      "source_catalog_rosters_and_draws_match",
+      "--",
+      "--exact",
+      "--nocapture"
+    ],
+    "exit": 101,
+    "seconds": 4.5933354999999985,
+    "compiledBehaviorDetected": true
+  },
+  {
+    "name": "unknown-id-casefold",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "rh-sim",
+      "--locked",
+      "--test",
+      "mob_catalog",
+      "source_catalog_rosters_and_draws_match",
+      "--",
+      "--exact",
+      "--nocapture"
+    ],
+    "exit": 101,
+    "seconds": 4.574342790999999,
+    "compiledBehaviorDetected": true
+  },
+  {
+    "name": "reach-damage",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "rh-sim",
+      "--locked",
+      "--test",
+      "mob_catalog",
+      "source_catalog_rosters_and_draws_match",
+      "--",
+      "--exact",
+      "--nocapture"
+    ],
+    "exit": 101,
+    "seconds": 4.557788625000001,
+    "compiledBehaviorDetected": true
+  },
+  {
+    "name": "first-seen-order",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "rh-sim",
+      "--locked",
+      "--test",
+      "mob_catalog",
+      "source_catalog_rosters_and_draws_match",
+      "--",
+      "--exact",
+      "--nocapture"
+    ],
+    "exit": 101,
+    "seconds": 4.573822791000001,
+    "compiledBehaviorDetected": true
+  },
+  {
+    "name": "camp-order",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "rh-sim",
+      "--locked",
+      "--test",
+      "mob_catalog",
+      "source_catalog_rosters_and_draws_match",
+      "--",
+      "--exact",
+      "--nocapture"
+    ],
+    "exit": 101,
+    "seconds": 4.547824958,
+    "compiledBehaviorDetected": true
+  },
+  {
+    "name": "merged-shuffle-rounds",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "rh-sim",
+      "--locked",
+      "--test",
+      "mob_catalog",
+      "source_catalog_rosters_and_draws_match",
+      "--",
+      "--exact",
+      "--nocapture"
+    ],
+    "exit": 101,
+    "seconds": 4.599269375000006,
+    "compiledBehaviorDetected": true
+  },
+  {
+    "name": "extra-draw",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "rh-sim",
+      "--locked",
+      "--test",
+      "mob_catalog",
+      "source_catalog_rosters_and_draws_match",
+      "--",
+      "--exact",
+      "--nocapture"
+    ],
+    "exit": 101,
+    "seconds": 4.734274167000002,
+    "compiledBehaviorDetected": true
+  },
+  {
+    "name": "empty-zone-draw",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "rh-sim",
+      "--locked",
+      "--test",
+      "mob_catalog",
+      "source_catalog_rosters_and_draws_match",
+      "--",
+      "--exact",
+      "--nocapture"
+    ],
+    "exit": 101,
+    "seconds": 4.980442250000003,
+    "compiledBehaviorDetected": true
+  },
+  {
+    "name": "elite-wrap",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "rh-sim",
+      "--locked",
+      "--test",
+      "mob_catalog",
+      "source_catalog_rosters_and_draws_match",
+      "--",
+      "--exact",
+      "--nocapture"
+    ],
+    "exit": 101,
+    "seconds": 4.6443893329999995,
+    "compiledBehaviorDetected": true
+  },
+  {
+    "name": "bag-wrap",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "rh-sim",
+      "--locked",
+      "--test",
+      "mob_catalog",
+      "source_catalog_rosters_and_draws_match",
+      "--",
+      "--exact",
+      "--nocapture"
+    ],
+    "exit": 101,
+    "seconds": 4.624980375,
+    "compiledBehaviorDetected": true
+  }
+]
