@@ -30,8 +30,8 @@ stack per real target death, the selected actor's fog/bush visibility exception,
   handler outside the tick.
 - C-TICK: the action sits at its existing `ACTIONS` position; the movement modifier is row 6 of `MOVE_MODIFIERS`; the
   `fighterOut` and `runEnded` links keep their recorded positions.
-- C-OBS: `hunt_target`/`hunt_stacks` are in the owner's `SelfView` only; the selected actor exception reveals that actor,
-  never its terrain or neighbours. The state stays private from other observers until protocol exposure is added.
+- C-OBS: `hunt_target`/`hunt_stacks` are in the owner's `SelfView` and on the v7 self wire record only; the selected
+  actor exception reveals that actor, never its terrain or neighbours.
 - C-RNG: no random stream.
 - C-DET: state fields are serialized, hashed and checkpoint-validated; the restored continuation is checked every tick.
 
