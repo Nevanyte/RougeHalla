@@ -20,8 +20,9 @@ Workspace coverage was split into completed simulation and remaining-workspace b
 test-only trace accumulation were repaired and retested. Formatting and full/default-feature workspace Clippy with warnings denied passed. The preceding
 foundation gate passed 395 all-feature/386 default-feature tests; its Rust/C#/browser and legacy recapture CI passed at
 `c93b659d`. The newer terrain kernel passes1,127 distinct tests in split native batches, both strict workspace Clippy
-modes and formatting. Its191 unchanged map-generator unit tests await the new full CI run rather than another local
-campaign. Full-game, AWS, browser-matrix and release gates remain open.
+modes and formatting. Its191 unchanged map-generator unit tests were checked by full
+[CI42214298734](https://github.com/Nevanyte/RougeHalla/actions/runs/42214298734), which passes at `0b525260` with
+Rust/C#/WSS and source checks. Full-game, AWS, browser-matrix and release gates remain open.
 
 - C-TICK/C-DET/C-PARITY terrain-kernel addendum: source ember/bog/ice/light now run in their original schedule/hook
   slots. Logical path points plus replacement generation preserve source array identity across restore; internal ice

@@ -43,7 +43,9 @@ Current native identity: content `cb27362236f2d3c2`, checkpoint17/replay15; obse
 The coordinator verified1,127 distinct tests in split batches, including all simulation integration tests, real-PG
 adapters, three compile-fail documentation checks and the44,690-leaf hash audit with zero unhashed leaves. Both strict
 workspace Clippy modes and formatting pass;97 legacy scenarios/13 capture-only/300 paths retain their existing result.
-The191 unchanged map-generator unit tests were not repeated locally; the new full CI run remains pending.
+The191 unchanged map-generator unit tests were not repeated locally. Full
+[Rust/C#/WSS CI42214298734](https://github.com/Nevanyte/RougeHalla/actions/runs/42214298734) passes at `0b525260`,
+including the workspace/map tests, all canonical source checks and267 C# tests.
 [Terrain evidence](evidence/stage2-terrain/README.md) records exact commands, source scope, zero-allocation collision
 replanning and the reproducible strict reward failure. The deployed MVP retains its original build and hazards Off.
 

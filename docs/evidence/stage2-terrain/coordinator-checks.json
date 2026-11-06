@@ -11,7 +11,7 @@
   "unique_native_tests_passed": 1127,
   "unchanged_mapgen_unit_tests_not_repeated_locally": 191,
   "existing_manual_ignores": 2,
-  "full_ci": "PENDING",
+  "full_ci": "PASS",
   "full_world": "INCOMPLETE",
   "gates": [
     {
@@ -202,5 +202,28 @@
     "provenance_hashes_checked": 132,
     "mismatches": 0,
     "native_arena": "INCOMPLETE"
+  },
+  "ci": {
+    "run_id": 42214298734,
+    "url": "https://github.com/Nevanyte/RougeHalla/actions/runs/42214298734",
+    "code_revision": "0b525260e050363113375713d8732947f6eb25b7",
+    "jobs": [
+      {
+        "completedAt": "2026-11-06T12:00:25Z",
+        "conclusion": "success",
+        "name": "csharp",
+        "status": "completed",
+        "url": "https://github.com/Nevanyte/RougeHalla/actions/runs/42214298734/job/127880375198"
+      },
+      {
+        "completedAt": "2026-11-06T12:21:43Z",
+        "conclusion": "success",
+        "name": "rust",
+        "status": "completed",
+        "url": "https://github.com/Nevanyte/RougeHalla/actions/runs/42214298734/job/127880375630"
+      }
+    ],
+    "csharp_tests_passed": 267,
+    "completion_record_sha256": "8e645f06441764b2383e5ec5c8b93e1112f7e30fc159c78466f439781e354114"
   }
 }

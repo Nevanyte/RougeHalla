@@ -31,8 +31,9 @@ The stored overlay uses zero context; reconstruction uses `git apply --unidiff-z
 
 - 1,127 distinct tests pass across split batches:220 non-map core unit tests,155 simulation integration tests,
   three compile-fail documentation checks,90 headless/load checks,65 parity checks and594 remaining workspace checks.
-  Two existing manual tests remain ignored. The191 unchanged map-generator unit tests await full CI; they were not
-  repeated locally. The final CI result is recorded in MIGRATION when observed.
+  Two existing manual tests remain ignored. The191 unchanged map-generator unit tests were not repeated locally.
+  Full [CI42214298734](https://github.com/Nevanyte/RougeHalla/actions/runs/42214298734) passes at `0b525260`, including
+  workspace/map tests, source checks,267 C# tests/library synchronization and the WSS browser proof.
 - Both strict workspace Clippy modes and formatting pass. The existing97 compared scenarios/13 capture-only cases
   and300 path queries retain their result; terrain coverage is reported separately here.
 - The hash audit examines44,690 leaves with zero unhashed leaves. A real admitted ice player supplies populated slip
