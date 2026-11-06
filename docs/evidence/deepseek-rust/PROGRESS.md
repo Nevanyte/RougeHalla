@@ -5,7 +5,7 @@ Base: `856618eb948555adefc6ff0bf4628d879d556250` (`origin/optimization_port`, 20
 
 | Packet | Status | Commit range / PR | Evidence |
 |---|---|---|---|
-| P-FACTION-4 Sentenced hunt | `DONE-VERIFIED` — native gameplay, capture, per-tick parity, restore, six mutant controls, protocol v7, C#/JS mirrors, full workspace gate and browser WSS proof pass; PR pending | `bb4ca9ce` + protocol working tree | [`stage2-sentenced-hunt`](../stage2-sentenced-hunt/README.md) |
+| P-FACTION-4 Sentenced hunt | `DONE-VERIFIED` — native gameplay, capture, per-tick parity, restore, six mutant controls, protocol v7, C#/JS mirrors, full workspace gate and browser WSS proof pass | `bb4ca9ce`..`2150bbce`; [PR #30](https://github.com/Nevanyte/RougeHalla/pull/30) | [`stage2-sentenced-hunt`](../stage2-sentenced-hunt/README.md) |
 
 ## Commands actually run
 

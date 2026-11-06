@@ -59,7 +59,7 @@ stack per real target death, the selected actor's fog/bush visibility exception,
 - [x] Six committed mutants with semantic failures and a restoring runner (`tools/hunt-fixtures/run-mutants.sh`, 6/6 killed).
 - [x] Protocol exposure: `HuntTarget` (client tag 12), self `hunt_target`/`hunt_stacks` (Full bits 14/15, delta bits 18/19), v7 golden vectors, C# and JS mirrors.
 - [x] Full workspace gate: 1,391 passed, 0 failed, 2 ignored; both strict Clippy modes clean; 103 slice scenarios + 13 capture-only and 300 path queries MATCH.
-- [ ] PR (branch pushed, review pending).
+- [x] [PR #30](https://github.com/Nevanyte/RougeHalla/pull/30) opened against `optimization_port`; branch `deepseek/rust-completion`, commits `bb4ca9ce`..`2150bbce`.
 
 ## 7. Commands
 
