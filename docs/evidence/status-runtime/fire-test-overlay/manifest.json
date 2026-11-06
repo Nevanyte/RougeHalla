@@ -1,0 +1,35 @@
+{
+  "format": "rh-status-test-overlay/1",
+  "status": "immutable, review pending",
+  "baseCandidateSha256": "0a58f65be1b8527409c24375564f0979d4106dbb5fc409243f5955b3ef2c1a8e",
+  "finalOverlaySha256": "06908057b5c3c597639026952c43fa092bdf724a5b981074353dfc657b1c4e04",
+  "changedFiles": [
+    {
+      "path": "crates/rh-parity/tests/fire.rs",
+      "baselineSha256": "04a1ea110180a5ec19ebc4e2619d23167b8cfe398c84dee7ac50bfe0ebdf877c",
+      "sha256": "76b89a0ede1c63da98797aca0701ce992e7ec16933cf524861d19c6354d14913"
+    }
+  ],
+  "files": [
+    {
+      "path": "README.md",
+      "sha256": "320ff88b986cbe0e106313085f7b3a90f420eec5a9717ec5ffe5bb7a8afb74be",
+      "bytes": 603
+    },
+    {
+      "path": "files/crates/rh-parity/tests/fire.rs",
+      "sha256": "76b89a0ede1c63da98797aca0701ce992e7ec16933cf524861d19c6354d14913",
+      "bytes": 8849
+    },
+    {
+      "path": "fire-tests.log",
+      "sha256": "1b31c17ba074c30ffb3fd742b6f585f345ddcaec5effcf303f0ed99e0eddc843",
+      "bytes": 811
+    },
+    {
+      "path": "overlay.patch",
+      "sha256": "ca452782468e0d3964eea0b0912c476e2274e7a5c0b6414ce60097dcd9711c95",
+      "bytes": 971
+    }
+  ]
+}

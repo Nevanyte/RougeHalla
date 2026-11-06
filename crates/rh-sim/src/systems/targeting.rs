@@ -44,6 +44,7 @@ fn lockable(cx: &mut Cx, i: usize, j: usize) -> bool {
     let other = &cx.w.players[j];
     if i == j
         || !other.standing()
+        || crate::status_runtime::untargetable(&other.statuses.instances, cx.w.server_time)
         || !crate::vision::gameplay_actor_visible(&cx.k.arena.map, viewer, other, cx.w.tick)
     {
         return false;

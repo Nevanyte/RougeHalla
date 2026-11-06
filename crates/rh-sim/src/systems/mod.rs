@@ -9,6 +9,8 @@
 //! called from anywhere else, and a mechanic packet adds `systems/<mechanic>.rs` plus the flip of its rows.
 
 pub(crate) mod credit;
+pub(crate) mod displace;
+pub(crate) mod fields;
 pub(crate) mod fire;
 pub(crate) mod frost;
 pub(crate) mod heal;
@@ -24,6 +26,7 @@ pub(crate) mod projectiles;
 pub(crate) mod sentenced;
 pub(crate) mod settle;
 pub(crate) mod signatures;
+pub(crate) mod status;
 pub(crate) mod targeting;
 pub(crate) mod weapons;
 
@@ -38,6 +41,9 @@ use crate::statics::MatchStatic;
 /// What a system runs over: the match statics (read only), the world, the tick scratch, the step's event log and the
 /// path search scratch, as disjoint borrows.
 pub(crate) struct Cx<'a> {
+    pub(crate) stats: crate::status_runtime::stats::Inputs<'a>,
+    #[cfg(feature = "trusted-status-probes")]
+    pub(crate) probe: Option<&'a mut crate::status_runtime::probe::HurtRecipe>,
     pub(crate) k: &'a MatchStatic,
     pub(crate) w: &'a mut World,
     pub(crate) s: &'a mut TickScratch,

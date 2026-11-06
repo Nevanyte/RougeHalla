@@ -44,8 +44,14 @@ pub struct FactionRuntime {
     pub dot: Vec<DotBucket>,
 }
 /// Trusted pre-application ledger diagnostic. It is not an observation or command surface.
-#[derive(Clone, Copy, Debug, serde::Serialize)]
+#[derive(Clone, Debug, serde::Serialize)]
 pub struct DamageView {
+    pub dot: bool,
+    pub ability: Option<crate::status_runtime::AbilityId>,
+    pub arena: bool,
+    pub source: Option<crate::status_runtime::StatusSource>,
+    pub critical: bool,
+    pub critical_mult: Option<f64>,
     pub victim: PlayerId,
     pub by: Option<PlayerId>,
     pub raw: f64,
@@ -64,6 +70,12 @@ pub struct DamageView {
 impl From<crate::systems::ledger::Entry> for DamageView {
     fn from(e: crate::systems::ledger::Entry) -> Self {
         Self {
+            dot: e.dot,
+            ability: e.ability,
+            arena: e.arena,
+            source: e.source,
+            critical: e.critical,
+            critical_mult: e.critical_mult,
             victim: e.victim,
             by: e.by,
             raw: e.packet.raw,

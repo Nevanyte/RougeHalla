@@ -1,0 +1,11 @@
+--- a/crates/rh-sim/src/status_runtime/observe.rs
++++ b/crates/rh-sim/src/status_runtime/observe.rs
+@@ -24,7 +24,7 @@
+         Self {
+             kind: f.kind,
+             ability: f.ability,
+-            owner: f.owner.id.filter(|id| seen(*id)),
++            owner: f.owner.id,
+             subject: f.subject.filter(|id| seen(*id)),
+             x: f.x,
+             y: f.y,

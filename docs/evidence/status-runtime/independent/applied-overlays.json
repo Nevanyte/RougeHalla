@@ -1,0 +1,49 @@
+[
+  {
+    "name": "status-runtime-partial-schedule-overlay-v1",
+    "sha256": "5fd991cba4eac36e4cc6d4fc9fba74b98f39843bd9d9f477cacb370c4eb4b874",
+    "files": [
+      {
+        "path": "crates/rh-sim/src/schedule.rs",
+        "sha256": "87df5caea9e805da172770657ade53d3fd5cd02bfddb76e65e06bc03bba59596",
+        "baseSha256": "b8dadd155e6fcb9de202285a5ca645ddbc72a3398de7392b144ecbe1b8d6dfe4"
+      },
+      {
+        "path": "crates/rh-sim/src/hooks.rs",
+        "sha256": "29374f94b9cb1d04265850e817af1eb9f080ebffbcf9e4a1f6cac135dbc6f805",
+        "baseSha256": "66658faa915db2a355c38898ff68ef14ed620971d3c53633da36ac89e344bb24"
+      },
+      {
+        "path": "crates/rh-parity/tests/schedule.rs",
+        "sha256": "fa3e5fcc526da27b0f62d229be17b981a56761035f96e3be4c857017a41c23df",
+        "baseSha256": "4297f9507966f2626ea2cab7cf9742eef9650d02bee9ea54d282b079437bb549"
+      }
+    ]
+  },
+  {
+    "name": "status-runtime-geometry-overlay-v1",
+    "sha256": "8692fce2c830a47b4fe47237f814481bddde9918257432ad4166d5f27b749160",
+    "files": [
+      {
+        "path": "crates/rh-sim/src/status_runtime/fields.rs",
+        "sha256": "38fdfe6bf92b44317438c02724b260b7810f1ebf05516c6df4f0bec8a3aa0d7f",
+        "baseSha256": "e33c7484e222e6a0bd90d752003b59f69ff620aab233ef2931508920dc626f6a"
+      },
+      {
+        "path": "crates/rh-sim/src/status_runtime/checkpoint.rs",
+        "sha256": "35374b42b5ff09912cfe3140c0c43e322c11c0cf1d7ba211bbcd3b32db885f2e",
+        "baseSha256": "15ddccbf25407da2869fb8c491f91845c9d55d94d5e6786d4ed669e2a130b89b"
+      },
+      {
+        "path": "crates/rh-sim/tests/status_runtime.rs",
+        "sha256": "b4f9ee0fdad48c1dd46d623aa8451dff83eca040fa05f9be725665f0d450bae3",
+        "baseSha256": "6f0b7c89cec84c7bddba6b0f215fc2254545e35c14bb1e95a86919fb871f4314"
+      },
+      {
+        "path": "crates/rh-parity/src/bin/status_probe/admission.rs",
+        "sha256": "1b4e0f163164e6a5d9bda2b7b623c82a98ab4613c3cc8a14d83f8604aeada197",
+        "baseSha256": "f34c1e07ef83c9e99947d625bf1abf8a1c78a6acfb87f58d4f10fcfd6112977d"
+      }
+    ]
+  }
+]

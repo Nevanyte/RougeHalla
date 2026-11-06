@@ -1,0 +1,48 @@
+{
+  "format": "rh-status-independent-tests/1",
+  "scope": "new test/capture files only; no production mutation",
+  "baseCandidateManifestSha256": "0a58f65be1b8527409c24375564f0979d4106dbb5fc409243f5955b3ef2c1a8e",
+  "finalOverlayManifestSha256": "06908057b5c3c597639026952c43fa092bdf724a5b981074353dfc657b1c4e04",
+  "files": [
+    {
+      "path": "README.md",
+      "bytes": 2593,
+      "sha256": "0a3786a30f6ab66104005a30aa6b5892a550d8ecc4d4d4cbb5c0e72ffca86893"
+    },
+    {
+      "path": "files/crates/rh-sim/tests/status_alloc_review.rs",
+      "bytes": 2612,
+      "sha256": "da0daffabe389c3c619021c7a20fafdef4ca9f0601e6e3260050ee49a97ea734"
+    },
+    {
+      "path": "files/crates/rh-sim/tests/status_privacy_review.rs",
+      "bytes": 9393,
+      "sha256": "b89bfcc6f31f0334ddc16fba85ad734a5a6d9c769e03f6c9de91abe6c5dd809a"
+    },
+    {
+      "path": "files/parity/legacy-capture/status-probes-privacy-observer.ts",
+      "bytes": 23390,
+      "sha256": "0cefc877d521e5cc1dd8de941e8a12e843606ed3daf7ac5141c349d73d6b9fc9"
+    },
+    {
+      "path": "files/parity/status/independent-privacy.json",
+      "bytes": 82445,
+      "sha256": "e5343e8b7349388d8b17017d0b5c408ca58cd9da82edbbddacd812fc203f5ec5"
+    },
+    {
+      "path": "files/tools/status-fixtures/privacy-independent.ts",
+      "bytes": 4677,
+      "sha256": "79f49e8a8aa8e0ed491673b54fbafa2231cfe8d7806e5bcbe3871e0ce9fb907a"
+    },
+    {
+      "path": "owned-files.json",
+      "bytes": 853,
+      "sha256": "477722937ed6cd0adec72ce0e7aaa56733708fe8ee479fb00555a314e2d8bd9d"
+    },
+    {
+      "path": "required-features.patch",
+      "bytes": 290,
+      "sha256": "23d912a2a825d766907fe939cdd74994e1325bd56f29b28739c2108bfbf9abbb"
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "command": [
+    "node",
+    "tools/browser-proof/proof.mjs"
+  ],
+  "exit": 0,
+  "seconds": 27.749284042,
+  "logSha256": "edfb76afc6bcadd662fa3e7eef2a5a782060efe6809a48a38fffe7750e1a71b9",
+  "dependencyLocation": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/browser/node_modules",
+  "serverBinary": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/server-target/debug/rh-server"
+}

@@ -89,9 +89,20 @@ fn step_weapon(cx: &mut Cx, ix: FighterIx) {
     }
     let p = cx.w.core_mut(ix);
     let wants = p.weapon.held || now <= p.weapon.buffered_until;
-    if p.weapon.action.is_none() && wants && now + TIE_EPS_MS >= p.weapon.ready_at {
+    if p.weapon.action.is_none()
+        && wants
+        && now + TIE_EPS_MS >= p.weapon.ready_at
+        && !crate::status_runtime::action_blocked(&p.statuses, now)
+    {
         let f = paced(p.vitals.faction);
-        let tm = player_timings(weapon, attack_interval(&f, weapon, 1.0));
+        let tm = player_timings(
+            weapon,
+            attack_interval(
+                &f,
+                weapon,
+                crate::stat_fold::decode_mult(p.attack_rate_wire),
+            ),
+        );
         start_attack(p, now, cx.ev, weapon, tm);
         let id = p.id;
         if cx.k.config.faction_mode.frost() {
@@ -99,6 +110,7 @@ fn step_weapon(cx: &mut Cx, ix: FighterIx) {
         }
         crate::hooks::fire(
             &mut crate::hooks::Hx {
+                stats: cx.stats,
                 fx: None,
                 k: cx.k,
                 w: cx.w,

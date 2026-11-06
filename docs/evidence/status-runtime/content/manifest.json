@@ -1,0 +1,27 @@
+{
+  "format": "status-content-proposal/1",
+  "status": "frozen",
+  "accepted_status_manifest_sha256": "3f7575820bdf8d8c4b70a0a2c1efa89e5d383386efdfa6bffe30ec401d4b60d8",
+  "baseline_mob_content_hash": "b5a9b0f84279dcfb",
+  "rules_words": 105,
+  "extra_words_after_patch": 67,
+  "test_execution": "not run; rustfmt succeeded",
+  "files": [
+    {
+      "path": "README.md",
+      "sha256": "305fea83d816b2f53a0389e86cd0cfb98697457a13ae4d1875424d6d37399c5c"
+    },
+    {
+      "path": "aggregate-fragment.rs",
+      "sha256": "3492c319228a9e4edd8fb2bafeb8d922c4d017bd4f5ce3aa66274ca27b8c6f08"
+    },
+    {
+      "path": "crates/rh-sim/tests/status_content.rs",
+      "sha256": "7d2b22c772239d677b4ac515a817028a073baefc9c496226179fd616626aee84"
+    },
+    {
+      "path": "status-api-content-only.patch",
+      "sha256": "74a336e1e6a154795ec211e20eec527a313cf58b4d6f7d87e665aaf935274e54"
+    }
+  ]
+}

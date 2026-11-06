@@ -1,0 +1,329 @@
+[
+  {
+    "name": "final-source-helpers",
+    "args": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-source-work/repo/parity/status/helpers.json"
+    ],
+    "exit": 0,
+    "want": 0,
+    "passed": true,
+    "executableSha256": "021916fc95a492867ca985adf606e0ad64a431a52bc2b1f5525b6caa6744bd1b"
+  },
+  {
+    "name": "final-source-runtime",
+    "args": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-source-work/repo/parity/status/runtime.json"
+    ],
+    "exit": 0,
+    "want": 0,
+    "passed": true,
+    "executableSha256": "021916fc95a492867ca985adf606e0ad64a431a52bc2b1f5525b6caa6744bd1b"
+  },
+  {
+    "name": "final-source-v2",
+    "args": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-source-work-v2/repo/parity/status/refinements-v2.json"
+    ],
+    "exit": 0,
+    "want": 0,
+    "passed": true,
+    "executableSha256": "021916fc95a492867ca985adf606e0ad64a431a52bc2b1f5525b6caa6744bd1b"
+  },
+  {
+    "name": "final-source-v3",
+    "args": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-source-work-v3/repo/parity/status/boundaries-v3.json"
+    ],
+    "exit": 0,
+    "want": 0,
+    "passed": true,
+    "executableSha256": "021916fc95a492867ca985adf606e0ad64a431a52bc2b1f5525b6caa6744bd1b"
+  },
+  {
+    "name": "final-admission-serialization-control",
+    "args": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-native-admission-review/corpora/serialization-control.json",
+      "kind-stun"
+    ],
+    "exit": 0,
+    "want": 0,
+    "passed": true,
+    "executableSha256": "021916fc95a492867ca985adf606e0ad64a431a52bc2b1f5525b6caa6744bd1b"
+  },
+  {
+    "name": "final-admission-root-unknown",
+    "args": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-native-admission-review/corpora/root-unknown.json",
+      "kind-stun"
+    ],
+    "exit": 1,
+    "want": 1,
+    "passed": true,
+    "executableSha256": "021916fc95a492867ca985adf606e0ad64a431a52bc2b1f5525b6caa6744bd1b"
+  },
+  {
+    "name": "final-admission-missing-provenance",
+    "args": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-native-admission-review/corpora/missing-provenance.json",
+      "kind-stun"
+    ],
+    "exit": 1,
+    "want": 1,
+    "passed": true,
+    "executableSha256": "021916fc95a492867ca985adf606e0ad64a431a52bc2b1f5525b6caa6744bd1b"
+  },
+  {
+    "name": "final-admission-bad-provenance",
+    "args": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-native-admission-review/corpora/bad-provenance.json",
+      "kind-stun"
+    ],
+    "exit": 1,
+    "want": 1,
+    "passed": true,
+    "executableSha256": "021916fc95a492867ca985adf606e0ad64a431a52bc2b1f5525b6caa6744bd1b"
+  },
+  {
+    "name": "final-admission-unbound-data-and-slice",
+    "args": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-native-admission-review/corpora/unbound-data-and-slice.json",
+      "kind-stun"
+    ],
+    "exit": 1,
+    "want": 1,
+    "passed": true,
+    "executableSha256": "021916fc95a492867ca985adf606e0ad64a431a52bc2b1f5525b6caa6744bd1b"
+  },
+  {
+    "name": "final-admission-duplicate-root",
+    "args": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-native-admission-review/corpora/duplicate-root.json",
+      "kind-stun"
+    ],
+    "exit": 1,
+    "want": 1,
+    "passed": true,
+    "executableSha256": "021916fc95a492867ca985adf606e0ad64a431a52bc2b1f5525b6caa6744bd1b"
+  },
+  {
+    "name": "final-admission-duplicate-nested",
+    "args": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-native-admission-review/corpora/duplicate-nested.json",
+      "kind-stun"
+    ],
+    "exit": 1,
+    "want": 1,
+    "passed": true,
+    "executableSha256": "021916fc95a492867ca985adf606e0ad64a431a52bc2b1f5525b6caa6744bd1b"
+  },
+  {
+    "name": "final-admission-extra-cli-argument",
+    "args": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-native-admission-review/corpora/extra-cli-argument.json",
+      "kind-stun",
+      "--unexpected"
+    ],
+    "exit": 2,
+    "want": 1,
+    "passed": true,
+    "executableSha256": "021916fc95a492867ca985adf606e0ad64a431a52bc2b1f5525b6caa6744bd1b"
+  },
+  {
+    "name": "final-admission-tick-narrowing-wrap",
+    "args": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-native-admission-review/corpora/tick-narrowing-wrap.json",
+      "kind-stun"
+    ],
+    "exit": 1,
+    "want": 1,
+    "passed": true,
+    "executableSha256": "021916fc95a492867ca985adf606e0ad64a431a52bc2b1f5525b6caa6744bd1b"
+  },
+  {
+    "name": "final-admission-module-string-bool",
+    "args": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-native-admission-review/corpora/module-string-bool.json",
+      "kind-stun"
+    ],
+    "exit": 1,
+    "want": 1,
+    "passed": true,
+    "executableSha256": "021916fc95a492867ca985adf606e0ad64a431a52bc2b1f5525b6caa6744bd1b"
+  },
+  {
+    "name": "final-admission-module-unknown",
+    "args": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-native-admission-review/corpora/module-unknown.json",
+      "kind-stun"
+    ],
+    "exit": 1,
+    "want": 1,
+    "passed": true,
+    "executableSha256": "021916fc95a492867ca985adf606e0ad64a431a52bc2b1f5525b6caa6744bd1b"
+  },
+  {
+    "name": "final-admission-config-untyped",
+    "args": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-native-admission-review/corpora/config-untyped.json",
+      "kind-stun"
+    ],
+    "exit": 1,
+    "want": 1,
+    "passed": true,
+    "executableSha256": "021916fc95a492867ca985adf606e0ad64a431a52bc2b1f5525b6caa6744bd1b"
+  },
+  {
+    "name": "final-admission-runtime-unknown",
+    "args": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-native-admission-review/corpora/runtime-unknown.json",
+      "kind-stun"
+    ],
+    "exit": 1,
+    "want": 1,
+    "passed": true,
+    "executableSha256": "021916fc95a492867ca985adf606e0ad64a431a52bc2b1f5525b6caa6744bd1b"
+  },
+  {
+    "name": "final-admission-field-unknown",
+    "args": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-native-admission-review/corpora/field-unknown.json",
+      "fields-identity-mirror-snapshot-remove"
+    ],
+    "exit": 1,
+    "want": 1,
+    "passed": true,
+    "executableSha256": "021916fc95a492867ca985adf606e0ad64a431a52bc2b1f5525b6caa6744bd1b"
+  },
+  {
+    "name": "final-admission-field-coordinate-type",
+    "args": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-native-admission-review/corpora/field-coordinate-type.json",
+      "fields-identity-mirror-snapshot-remove"
+    ],
+    "exit": 1,
+    "want": 1,
+    "passed": true,
+    "executableSha256": "021916fc95a492867ca985adf606e0ad64a431a52bc2b1f5525b6caa6744bd1b"
+  },
+  {
+    "name": "final-admission-actor-sequence-narrowing",
+    "args": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-native-admission-review/corpora/actor-sequence-narrowing.json",
+      "frozen-dead-recipient"
+    ],
+    "exit": 1,
+    "want": 1,
+    "passed": true,
+    "executableSha256": "021916fc95a492867ca985adf606e0ad64a431a52bc2b1f5525b6caa6744bd1b"
+  },
+  {
+    "name": "final-admission-ledger-raw-type",
+    "args": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-native-admission-review/corpora/ledger-raw-type.json",
+      "death-floor-expiry-post-barrier"
+    ],
+    "exit": 1,
+    "want": 1,
+    "passed": true,
+    "executableSha256": "021916fc95a492867ca985adf606e0ad64a431a52bc2b1f5525b6caa6744bd1b"
+  },
+  {
+    "name": "final-admission-expected-runtime-coordinate-type",
+    "args": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-native-admission-review/corpora/expected-runtime-coordinate-type.json",
+      "kind-stun"
+    ],
+    "exit": 1,
+    "want": 1,
+    "passed": true,
+    "executableSha256": "021916fc95a492867ca985adf606e0ad64a431a52bc2b1f5525b6caa6744bd1b"
+  },
+  {
+    "name": "final-admission-missing-required-null-field",
+    "args": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-native-admission-review/corpora/missing-required-null-field.json",
+      "fields-identity-mirror-snapshot-remove"
+    ],
+    "exit": 1,
+    "want": 1,
+    "passed": true,
+    "executableSha256": "021916fc95a492867ca985adf606e0ad64a431a52bc2b1f5525b6caa6744bd1b"
+  },
+  {
+    "name": "final-admission-missing-required-null-assertion",
+    "args": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-native-admission-review/corpora/missing-required-null-assertion.json",
+      "kind-stun"
+    ],
+    "exit": 1,
+    "want": 1,
+    "passed": true,
+    "executableSha256": "021916fc95a492867ca985adf606e0ad64a431a52bc2b1f5525b6caa6744bd1b"
+  },
+  {
+    "name": "final-admission-unknown-status-enum",
+    "args": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-native-admission-review/corpora/unknown-status-enum.json",
+      "kind-stun"
+    ],
+    "exit": 1,
+    "want": 1,
+    "passed": true,
+    "executableSha256": "021916fc95a492867ca985adf606e0ad64a431a52bc2b1f5525b6caa6744bd1b"
+  },
+  {
+    "name": "final-admission-malformed-undefined-marker",
+    "args": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-native-admission-review/corpora/malformed-undefined-marker.json",
+      "kind-stun"
+    ],
+    "exit": 1,
+    "want": 1,
+    "passed": true,
+    "executableSha256": "021916fc95a492867ca985adf606e0ad64a431a52bc2b1f5525b6caa6744bd1b"
+  },
+  {
+    "name": "final-admission-late-unknown-after-valid-prefix",
+    "args": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-native-admission-review/corpora/late-unknown-after-valid-prefix.json",
+      "kind-stun"
+    ],
+    "exit": 1,
+    "want": 1,
+    "passed": true,
+    "executableSha256": "021916fc95a492867ca985adf606e0ad64a431a52bc2b1f5525b6caa6744bd1b"
+  },
+  {
+    "name": "final-admission-expected-output-not-input",
+    "args": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-native-admission-review/corpora/expected-output-not-input.json",
+      "kind-stun"
+    ],
+    "exit": 1,
+    "want": 1,
+    "passed": true,
+    "executableSha256": "021916fc95a492867ca985adf606e0ad64a431a52bc2b1f5525b6caa6744bd1b"
+  },
+  {
+    "name": "final-admission-overflow",
+    "args": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-independent-review/candidate-v1/overflow-field-input.json",
+      "fields-identity-mirror-snapshot-remove"
+    ],
+    "exit": 1,
+    "want": 1,
+    "passed": true,
+    "executableSha256": "021916fc95a492867ca985adf606e0ad64a431a52bc2b1f5525b6caa6744bd1b"
+  },
+  {
+    "name": "final-admission-returned",
+    "args": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-independent-review/candidate-v1/unknown-returned-outside-filter.json",
+      "trail-inclusive-segment"
+    ],
+    "exit": 1,
+    "want": 1,
+    "passed": true,
+    "executableSha256": "021916fc95a492867ca985adf606e0ad64a431a52bc2b1f5525b6caa6744bd1b"
+  }
+]

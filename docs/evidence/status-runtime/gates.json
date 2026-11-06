@@ -1,0 +1,96 @@
+[
+  {
+    "name": "fmt",
+    "command": [
+      "cargo",
+      "fmt",
+      "--all",
+      "--check"
+    ],
+    "exit": 0,
+    "seconds": 0.8465111670000001,
+    "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "name": "clippy-all",
+    "command": [
+      "cargo",
+      "clippy",
+      "--workspace",
+      "--all-targets",
+      "--all-features",
+      "--locked",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "exit": 0,
+    "seconds": 47.865391083000006,
+    "logSha256": "67d0ce0417a80eb2eaae105a6de544d8bee32782784a6180969faee5c1294ed4"
+  },
+  {
+    "name": "clippy-default",
+    "command": [
+      "cargo",
+      "clippy",
+      "--workspace",
+      "--all-targets",
+      "--locked",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "exit": 0,
+    "seconds": 12.848228417000001,
+    "logSha256": "ffa16b7a6b01b92a90dee1080636afc2d7b298520096354dec92add52c15e8ab"
+  },
+  {
+    "name": "workspace-all",
+    "command": [
+      "cargo",
+      "test",
+      "--workspace",
+      "--all-features",
+      "--locked"
+    ],
+    "exit": 0,
+    "seconds": 411.66605904200003,
+    "logSha256": "2ad95d9898928ab91ac84ef716805c335c0843b1509c289b6b191a1803f82dc1"
+  },
+  {
+    "name": "parity",
+    "command": [
+      "cargo",
+      "run",
+      "--locked",
+      "-p",
+      "rh-parity",
+      "--bin",
+      "parity-report"
+    ],
+    "exit": 0,
+    "seconds": 9.181864915999995,
+    "logSha256": "1d799036589b368502e4ff3ff17516490e6af72f929eb963a6df26cdf9af25c9"
+  },
+  {
+    "name": "csharp",
+    "command": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/dotnet/dotnet",
+      "test",
+      "client-unity/RoguehallaNet.Tests"
+    ],
+    "exit": 0,
+    "seconds": 5.846081083000001,
+    "logSha256": "2ee32c98af6966b5efb247a18e24696adee36c70749f3b0abf879b5131486948"
+  },
+  {
+    "name": "js-vectors",
+    "command": [
+      "node",
+      "tools/protocol-js/check-vectors.mjs"
+    ],
+    "exit": 0,
+    "seconds": 0.15145962499997268,
+    "logSha256": "6ea107f54a2ae650cbacf8f77a204175b4a1646d522b90a3201e4c600a450570"
+  }
+]

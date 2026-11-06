@@ -1,0 +1,62 @@
+[
+  {
+    "name": "public-trail-endpoint-bypass",
+    "command": [
+      "cargo",
+      "test",
+      "--offline",
+      "--locked",
+      "-p",
+      "rh-sim",
+      "--features",
+      "trusted-status-probes",
+      "--test",
+      "status_privacy_review",
+      "--",
+      "--nocapture"
+    ],
+    "exit": 101,
+    "compiledBehaviorDetected": true,
+    "baselineSha256": "3367d679b5a0f207c472b963030caeb0e3d90a0c3565cb884c0351c3600df596"
+  },
+  {
+    "name": "public-owner-unredacted",
+    "command": [
+      "cargo",
+      "test",
+      "--offline",
+      "--locked",
+      "-p",
+      "rh-sim",
+      "--features",
+      "trusted-status-probes",
+      "--test",
+      "status_privacy_review",
+      "--",
+      "--nocapture"
+    ],
+    "exit": 101,
+    "compiledBehaviorDetected": true,
+    "baselineSha256": "3367d679b5a0f207c472b963030caeb0e3d90a0c3565cb884c0351c3600df596"
+  },
+  {
+    "name": "public-duplicate-fields-dropped",
+    "command": [
+      "cargo",
+      "test",
+      "--offline",
+      "--locked",
+      "-p",
+      "rh-sim",
+      "--features",
+      "trusted-status-probes",
+      "--test",
+      "status_privacy_review",
+      "--",
+      "--nocapture"
+    ],
+    "exit": 101,
+    "compiledBehaviorDetected": true,
+    "baselineSha256": "3367d679b5a0f207c472b963030caeb0e3d90a0c3565cb884c0351c3600df596"
+  }
+]

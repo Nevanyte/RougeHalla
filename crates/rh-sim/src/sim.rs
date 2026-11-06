@@ -190,6 +190,9 @@ impl Sim {
     fn with_cx<R>(&mut self, f: impl FnOnce(&mut Cx<'_>) -> R) -> R {
         let mut ev = std::mem::take(&mut self.w.pending_events);
         let r = f(&mut Cx {
+            stats: crate::status_runtime::stats::Inputs::default(),
+            #[cfg(feature = "trusted-status-probes")]
+            probe: None,
             k: &self.k,
             w: &mut self.w,
             s: &mut self.s,
@@ -293,6 +296,7 @@ impl Sim {
             // Legacy removePlayer: the hook fires after the down and before the seat is removed.
             let cause = OutCause::Removed;
             let mut hx = Hx {
+                stats: crate::status_runtime::stats::Inputs::default(),
                 fx: None,
                 k: cx.k,
                 w: cx.w,
@@ -327,12 +331,30 @@ impl Sim {
     /// (a leave's result), then the step's own, in order. `out` is not cleared, so a caller that loops reuses one buffer
     /// (`out.clear()` between steps) and a steady-state step allocates nothing (`tests/no_alloc.rs`).
     pub fn step_into(&mut self, out: &mut Vec<Event>) {
+        self.step_into_with(
+            out,
+            crate::status_runtime::stats::Inputs::default(),
+            #[cfg(feature = "trusted-status-probes")]
+            None,
+        );
+    }
+    pub(crate) fn step_into_with(
+        &mut self,
+        out: &mut Vec<Event>,
+        stats: crate::status_runtime::stats::Inputs,
+        #[cfg(feature = "trusted-status-probes")] probe: Option<
+            &mut crate::status_runtime::probe::HurtRecipe,
+        >,
+    ) {
         let event_start = out.len();
         self.s.fx.ops.clear();
         self.w.server_time += TICK_MS;
         self.w.tick += 1;
         out.append(&mut self.w.pending_events);
         systems::step(&mut Cx {
+            stats,
+            #[cfg(feature = "trusted-status-probes")]
+            probe,
             k: &self.k,
             w: &mut self.w,
             s: &mut self.s,

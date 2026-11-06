@@ -1,0 +1,32 @@
+{
+  "command": [
+    "docker",
+    "run",
+    "--rm",
+    "--pull=never",
+    "--platform",
+    "linux/amd64",
+    "--cpus=2",
+    "--tmpfs",
+    "/repo/node_modules:rw,exec,size=1500m",
+    "--tmpfs",
+    "/tmp:rw,exec,size=512m",
+    "--mount",
+    "type=bind,src=/Users/nevinmckinnon/.codex/worktrees/rougehalla-stage2-managed/RougeHalla,dst=/repo,readonly",
+    "--mount",
+    "type=bind,src=/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/sentenced-capture/node-v22.23.4-linux-x64,dst=/node,readonly",
+    "--mount",
+    "type=bind,src=/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-runtime-root-integration/canonical,dst=/out",
+    "-w",
+    "/repo",
+    "c86ecead9e55",
+    "sh",
+    "-eu",
+    "-c",
+    "npm ci --ignore-scripts --no-audit --no-fund > /out/npm.log 2>&1\n/node/bin/node --import tsx tools/status-fixtures/argv-controls.ts\n/node/bin/node --import tsx tools/status-fixtures/capture.ts --check\n/node/bin/node --import tsx tools/status-fixtures/capture.ts --slice=runtime --check\n/node/bin/node --import tsx tools/status-fixtures/refinements.ts --check\n/node/bin/node --import tsx tools/status-fixtures/capture-v3.ts --check\n/node/bin/node --import tsx tools/status-fixtures/privacy-independent.ts\n"
+  ],
+  "exit": 0,
+  "seconds": 26.781766124999997,
+  "logSha256": "398fa20cac5ee08294fc7b65e1da8e10e176d82cba3b919c0b194e61282aefe1",
+  "privacyBytesIdentical": true
+}

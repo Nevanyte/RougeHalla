@@ -351,7 +351,10 @@ impl Sim {
     /// Not a security hash and server-private. It sees exactly what a checkpoint restores (module docs), and tick scratch is
     /// empty between steps, so call it between steps only.
     pub fn state_hash(&self) -> u64 {
-        debug_assert!(self.s.is_settled(), "state_hash between steps only");
+        debug_assert!(
+            self.s.is_settled() && !self.w.pay.collecting && self.w.pay.items.is_empty(),
+            "state_hash between steps only"
+        );
         hash_of(self.k.digest, &self.w)
     }
 
@@ -461,6 +464,12 @@ mod tests {
                 "deferred hit",
                 Box::new(|s| {
                     s.w.deferred.defer_hit(crate::systems::ledger::Entry {
+                        dot: false,
+                        ability: None,
+                        arena: false,
+                        source: None,
+                        critical: false,
+                        critical_mult: None,
                         sig: None,
                         execute: false,
                         victim: PlayerId(1),

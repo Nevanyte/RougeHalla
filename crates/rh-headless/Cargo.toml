@@ -29,3 +29,6 @@ bench = ["rh-sim/bench"]
 
 [lints]
 workspace = true
+
+[dev-dependencies]
+rh-sim = { path = "../rh-sim", features = ["trusted-status-probes"] }

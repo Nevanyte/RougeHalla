@@ -64,6 +64,7 @@ fn start_raid(k: &MatchStatic, w: &mut World, s: &mut TickScratch, ev: &mut Vec<
     // Legacy startRaid: beginRun, then the raidStarted hook chain, then the event.
     hooks::fire(
         &mut Hx {
+            stats: crate::status_runtime::stats::Inputs::default(),
             k,
             w,
             ev,

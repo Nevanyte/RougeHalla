@@ -174,7 +174,12 @@ pub(crate) fn after_damage(w: &mut World) {
         }
     }
 }
-pub(crate) fn movement_modifier(w: &World, p: &FighterCore, _dt: f64) -> f64 {
+pub(crate) fn movement_modifier(
+    w: &World,
+    p: &FighterCore,
+    _dt: f64,
+    _: crate::status_runtime::StatView,
+) -> f64 {
     let f = &p.signature;
     if f.frost_move_mult >= 1. {
         return 1.;
@@ -431,7 +436,7 @@ mod tests {
                 p.weapon.draw_started_at = 9000.;
             }
             assert_eq!(
-                movement_modifier(&s.w, &s.w.players[1].core, TICK_MS),
+                movement_modifier(&s.w, &s.w.players[1].core, TICK_MS, Default::default()),
                 case["beforeMove"].as_f64().unwrap()
             );
             if let Some(i) = c["depart"].as_u64() {
@@ -442,7 +447,7 @@ mod tests {
             }
             let i = s.w.idx(PlayerId(2)).unwrap();
             assert_eq!(
-                movement_modifier(&s.w, &s.w.players[i].core, TICK_MS),
+                movement_modifier(&s.w, &s.w.players[i].core, TICK_MS, Default::default()),
                 case["liveMove"].as_f64().unwrap()
             );
             after_damage(&mut s.w);
@@ -528,7 +533,8 @@ mod tests {
             movement_modifier(
                 &restored.w,
                 &restored.player(PlayerId(2)).unwrap().core,
-                TICK_MS
+                TICK_MS,
+                Default::default()
             ),
             0.7
         );
@@ -538,7 +544,8 @@ mod tests {
             movement_modifier(
                 &restored.w,
                 &restored.player(PlayerId(2)).unwrap().core,
-                TICK_MS
+                TICK_MS,
+                Default::default()
             ),
             1.
         );
@@ -619,6 +626,9 @@ mod tests {
             let mut events = Vec::new();
             {
                 let mut cx = Cx {
+                    stats: crate::status_runtime::stats::Inputs::default(),
+                    #[cfg(feature = "trusted-status-probes")]
+                    probe: None,
                     k: &s.k,
                     w: &mut s.w,
                     s: &mut s.s,
@@ -630,6 +640,12 @@ mod tests {
                 cx.s.rank.resize(cx.w.players.len(), 0);
                 let mut hit = |victim, by, weapon, raw, sig| {
                     cx.s.ledger.push(super::super::ledger::Entry {
+                        dot: false,
+                        ability: None,
+                        arena: false,
+                        source: None,
+                        critical: false,
+                        critical_mult: None,
                         victim: PlayerId(victim),
                         by: Some(PlayerId(by)),
                         packet: crate::state::Packet {

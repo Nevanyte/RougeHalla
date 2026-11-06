@@ -64,6 +64,22 @@ jobs:
           node --import tsx tools/stat-fold/run.ts ci
       - name: Pure mob catalog and rosters still match the actual source
         run: node --import tsx tools/mob-fixtures/catalog-rosters.ts --self-test
+      - name: Status runtime matches all four frozen source corpora
+        run: |
+          cargo run --locked -p rh-parity --features trusted-status-probes --bin status-probes -- parity/status/helpers.json
+          cargo run --locked -p rh-parity --features trusted-status-probes --bin status-probes -- parity/status/runtime.json
+          cargo run --locked -p rh-parity --features trusted-status-probes --bin status-probes -- parity/status/refinements-v2.json
+          cargo run --locked -p rh-parity --features trusted-status-probes --bin status-probes -- parity/status/boundaries-v3.json
+          cargo test --locked -p rh-sim --features trusted-status-probes --test status_privacy_review --test status_alloc_review --test status_no_alloc
+      - name: Status source corpora and nested admission remain exact
+        run: |
+          node --import tsx tools/status-fixtures/argv-controls.ts
+          node --import tsx tools/status-fixtures/capture.ts --check
+          node --import tsx tools/status-fixtures/capture.ts --slice=runtime --check
+          node --import tsx tools/status-fixtures/refinements.ts --check
+          node --import tsx tools/status-fixtures/capture-v3.ts --check
+          python3 tools/status-fixtures/strict-admission-v2.py parity/status/helpers.json parity/status/runtime.json parity/status/refinements-v2.json
+          python3 tools/status-fixtures/validate-v3.py parity/status/boundaries-v3.json
       - name: Durable achievement rules still match the legacy evaluator
         run: node --import tsx tools/persist-fixtures/achievements.ts --check
       - name: Shop catalog and validated look words still match the legacy reference

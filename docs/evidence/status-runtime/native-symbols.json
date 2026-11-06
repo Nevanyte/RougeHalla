@@ -1,0 +1,556 @@
+{
+  "format": "rh-status-native-symbols/1",
+  "symbols": [
+    {
+      "path": "packages/server/src/sim/status.ts",
+      "symbol": "statusesOf",
+      "evidence": "helpers + runtime fixed inventories",
+      "classification": "unchanged exported source helper; direct call or actual internal caller",
+      "native": "StatusRuntime.initialized/instances",
+      "sourceSha256": "55bc525be1ac832f04b0f134cee6769b0b99f4d45ce182ec7db9d3670ba35642",
+      "nativeScope": "shared fighter runtime; ordinary player Sim and labelled trusted helpers; mob/quest only explicit role-admission leaf"
+    },
+    {
+      "path": "packages/server/src/sim/status.ts",
+      "symbol": "addStatus",
+      "evidence": "helpers + runtime fixed inventories",
+      "classification": "unchanged exported source helper; direct call or actual internal caller",
+      "native": "systems/status/operations.rs::apply_with + status_runtime/mutation.rs::apply",
+      "sourceSha256": "55bc525be1ac832f04b0f134cee6769b0b99f4d45ce182ec7db9d3670ba35642",
+      "nativeScope": "shared fighter runtime; ordinary player Sim and labelled trusted helpers; mob/quest only explicit role-admission leaf"
+    },
+    {
+      "path": "packages/server/src/sim/status.ts",
+      "symbol": "removeStatuses",
+      "evidence": "helpers + runtime fixed inventories",
+      "classification": "unchanged exported source helper; direct call or actual internal caller",
+      "native": "systems/status/operations.rs::remove_into_with/remove_discard_with",
+      "sourceSha256": "55bc525be1ac832f04b0f134cee6769b0b99f4d45ce182ec7db9d3670ba35642",
+      "nativeScope": "shared fighter runtime; ordinary player Sim and labelled trusted helpers; mob/quest only explicit role-admission leaf"
+    },
+    {
+      "path": "packages/server/src/sim/status.ts",
+      "symbol": "cleanse",
+      "evidence": "helpers + runtime fixed inventories",
+      "classification": "unchanged exported source helper; direct call or actual internal caller",
+      "native": "status_runtime/mutation.rs::Selector::Cleanse",
+      "sourceSha256": "55bc525be1ac832f04b0f134cee6769b0b99f4d45ce182ec7db9d3670ba35642",
+      "nativeScope": "shared fighter runtime; ordinary player Sim and labelled trusted helpers; mob/quest only explicit role-admission leaf"
+    },
+    {
+      "path": "packages/server/src/sim/status.ts",
+      "symbol": "findStatus",
+      "evidence": "helpers + runtime fixed inventories",
+      "classification": "unchanged exported source helper; direct call or actual internal caller",
+      "native": "status_runtime/readers.rs::find",
+      "sourceSha256": "55bc525be1ac832f04b0f134cee6769b0b99f4d45ce182ec7db9d3670ba35642",
+      "nativeScope": "shared fighter runtime; ordinary player Sim and labelled trusted helpers; mob/quest only explicit role-admission leaf"
+    },
+    {
+      "path": "packages/server/src/sim/status.ts",
+      "symbol": "statusValue",
+      "evidence": "helpers + runtime fixed inventories",
+      "classification": "unchanged exported source helper; direct call or actual internal caller",
+      "native": "status_runtime/readers.rs::value",
+      "sourceSha256": "55bc525be1ac832f04b0f134cee6769b0b99f4d45ce182ec7db9d3670ba35642",
+      "nativeScope": "shared fighter runtime; ordinary player Sim and labelled trusted helpers; mob/quest only explicit role-admission leaf"
+    },
+    {
+      "path": "packages/server/src/sim/status.ts",
+      "symbol": "isStunned",
+      "evidence": "helpers + runtime fixed inventories",
+      "classification": "unchanged exported source helper; direct call or actual internal caller",
+      "native": "status_runtime/readers.rs::has(Stun)",
+      "sourceSha256": "55bc525be1ac832f04b0f134cee6769b0b99f4d45ce182ec7db9d3670ba35642",
+      "nativeScope": "shared fighter runtime; ordinary player Sim and labelled trusted helpers; mob/quest only explicit role-admission leaf"
+    },
+    {
+      "path": "packages/server/src/sim/status.ts",
+      "symbol": "isRooted",
+      "evidence": "helpers + runtime fixed inventories",
+      "classification": "unchanged exported source helper; direct call or actual internal caller",
+      "native": "status_runtime/readers.rs::has(Root)",
+      "sourceSha256": "55bc525be1ac832f04b0f134cee6769b0b99f4d45ce182ec7db9d3670ba35642",
+      "nativeScope": "shared fighter runtime; ordinary player Sim and labelled trusted helpers; mob/quest only explicit role-admission leaf"
+    },
+    {
+      "path": "packages/server/src/sim/status.ts",
+      "symbol": "isSilenced",
+      "evidence": "helpers + runtime fixed inventories",
+      "classification": "unchanged exported source helper; direct call or actual internal caller",
+      "native": "status_runtime/readers.rs::has(Silence)",
+      "sourceSha256": "55bc525be1ac832f04b0f134cee6769b0b99f4d45ce182ec7db9d3670ba35642",
+      "nativeScope": "shared fighter runtime; ordinary player Sim and labelled trusted helpers; mob/quest only explicit role-admission leaf"
+    },
+    {
+      "path": "packages/server/src/sim/status.ts",
+      "symbol": "isSlowed",
+      "evidence": "helpers + runtime fixed inventories",
+      "classification": "unchanged exported source helper; direct call or actual internal caller",
+      "native": "status_runtime/readers.rs::slowed",
+      "sourceSha256": "55bc525be1ac832f04b0f134cee6769b0b99f4d45ce182ec7db9d3670ba35642",
+      "nativeScope": "shared fighter runtime; ordinary player Sim and labelled trusted helpers; mob/quest only explicit role-admission leaf"
+    },
+    {
+      "path": "packages/server/src/sim/status.ts",
+      "symbol": "isUntargetable",
+      "evidence": "helpers + runtime fixed inventories",
+      "classification": "unchanged exported source helper; direct call or actual internal caller",
+      "native": "status_runtime/readers.rs::untargetable",
+      "sourceSha256": "55bc525be1ac832f04b0f134cee6769b0b99f4d45ce182ec7db9d3670ba35642",
+      "nativeScope": "shared fighter runtime; ordinary player Sim and labelled trusted helpers; mob/quest only explicit role-admission leaf"
+    },
+    {
+      "path": "packages/server/src/sim/status.ts",
+      "symbol": "isUntargetableId",
+      "evidence": "helpers + runtime fixed inventories",
+      "classification": "unchanged exported source helper; direct call or actual internal caller",
+      "native": "systems/targeting.rs + status_runtime/readers.rs::untargetable",
+      "sourceSha256": "55bc525be1ac832f04b0f134cee6769b0b99f4d45ce182ec7db9d3670ba35642",
+      "nativeScope": "shared fighter runtime; ordinary player Sim and labelled trusted helpers; mob/quest only explicit role-admission leaf"
+    },
+    {
+      "path": "packages/server/src/sim/status.ts",
+      "symbol": "isUntargetableAt",
+      "evidence": "helpers + runtime fixed inventories",
+      "classification": "unchanged exported source helper; direct call or actual internal caller",
+      "native": "status_runtime/readers.rs::untargetable(now)",
+      "sourceSha256": "55bc525be1ac832f04b0f134cee6769b0b99f4d45ce182ec7db9d3670ba35642",
+      "nativeScope": "shared fighter runtime; ordinary player Sim and labelled trusted helpers; mob/quest only explicit role-admission leaf"
+    },
+    {
+      "path": "packages/server/src/sim/status.ts",
+      "symbol": "isHidden",
+      "evidence": "helpers + runtime fixed inventories",
+      "classification": "unchanged exported source helper; direct call or actual internal caller",
+      "native": "status_runtime/readers.rs::hidden",
+      "sourceSha256": "55bc525be1ac832f04b0f134cee6769b0b99f4d45ce182ec7db9d3670ba35642",
+      "nativeScope": "shared fighter runtime; ordinary player Sim and labelled trusted helpers; mob/quest only explicit role-admission leaf"
+    },
+    {
+      "path": "packages/server/src/sim/status.ts",
+      "symbol": "isCasting",
+      "evidence": "helpers + runtime fixed inventories",
+      "classification": "unchanged exported source helper; direct call or actual internal caller",
+      "native": "status_runtime/readers.rs::is_casting",
+      "sourceSha256": "55bc525be1ac832f04b0f134cee6769b0b99f4d45ce182ec7db9d3670ba35642",
+      "nativeScope": "shared fighter runtime; ordinary player Sim and labelled trusted helpers; mob/quest only explicit role-admission leaf"
+    },
+    {
+      "path": "packages/server/src/sim/status.ts",
+      "symbol": "cannotMove",
+      "evidence": "helpers + runtime fixed inventories",
+      "classification": "unchanged exported source helper; direct call or actual internal caller",
+      "native": "status_runtime/readers.rs::cannot_move",
+      "sourceSha256": "55bc525be1ac832f04b0f134cee6769b0b99f4d45ce182ec7db9d3670ba35642",
+      "nativeScope": "shared fighter runtime; ordinary player Sim and labelled trusted helpers; mob/quest only explicit role-admission leaf"
+    },
+    {
+      "path": "packages/server/src/sim/status.ts",
+      "symbol": "actionBlocked",
+      "evidence": "helpers + runtime fixed inventories",
+      "classification": "unchanged exported source helper; direct call or actual internal caller",
+      "native": "status_runtime/readers.rs::action_blocked",
+      "sourceSha256": "55bc525be1ac832f04b0f134cee6769b0b99f4d45ce182ec7db9d3670ba35642",
+      "nativeScope": "shared fighter runtime; ordinary player Sim and labelled trusted helpers; mob/quest only explicit role-admission leaf"
+    },
+    {
+      "path": "packages/server/src/sim/status.ts",
+      "symbol": "castBlocked",
+      "evidence": "helpers + runtime fixed inventories",
+      "classification": "unchanged exported source helper; direct call or actual internal caller",
+      "native": "status_runtime/readers.rs::cast_blocked",
+      "sourceSha256": "55bc525be1ac832f04b0f134cee6769b0b99f4d45ce182ec7db9d3670ba35642",
+      "nativeScope": "shared fighter runtime; ordinary player Sim and labelled trusted helpers; mob/quest only explicit role-admission leaf"
+    },
+    {
+      "path": "packages/server/src/sim/status.ts",
+      "symbol": "reveal",
+      "evidence": "helpers + runtime fixed inventories",
+      "classification": "unchanged exported source helper; direct call or actual internal caller",
+      "native": "status_runtime/readers.rs::reveal",
+      "sourceSha256": "55bc525be1ac832f04b0f134cee6769b0b99f4d45ce182ec7db9d3670ba35642",
+      "nativeScope": "shared fighter runtime; ordinary player Sim and labelled trusted helpers; mob/quest only explicit role-admission leaf"
+    },
+    {
+      "path": "packages/server/src/sim/status.ts",
+      "symbol": "damageFactor",
+      "evidence": "helpers + runtime fixed inventories",
+      "classification": "unchanged exported source helper; direct call or actual internal caller",
+      "native": "status_runtime/readers.rs::damage_factor",
+      "sourceSha256": "55bc525be1ac832f04b0f134cee6769b0b99f4d45ce182ec7db9d3670ba35642",
+      "nativeScope": "shared fighter runtime; ordinary player Sim and labelled trusted helpers; mob/quest only explicit role-admission leaf"
+    },
+    {
+      "path": "packages/server/src/sim/status.ts",
+      "symbol": "dealtFactor",
+      "evidence": "helpers + runtime fixed inventories",
+      "classification": "unchanged exported source helper; direct call or actual internal caller",
+      "native": "status_runtime/readers.rs::dealt_factor",
+      "sourceSha256": "55bc525be1ac832f04b0f134cee6769b0b99f4d45ce182ec7db9d3670ba35642",
+      "nativeScope": "shared fighter runtime; ordinary player Sim and labelled trusted helpers; mob/quest only explicit role-admission leaf"
+    },
+    {
+      "path": "packages/server/src/sim/status.ts",
+      "symbol": "floorHp",
+      "evidence": "helpers + runtime fixed inventories",
+      "classification": "unchanged exported source helper; direct call or actual internal caller",
+      "native": "status_runtime/readers.rs::floor_hp + systems/ledger.rs post-barrier call",
+      "sourceSha256": "55bc525be1ac832f04b0f134cee6769b0b99f4d45ce182ec7db9d3670ba35642",
+      "nativeScope": "shared fighter runtime; ordinary player Sim and labelled trusted helpers; mob/quest only explicit role-admission leaf"
+    },
+    {
+      "path": "packages/server/src/sim/status.ts",
+      "symbol": "healFactor",
+      "evidence": "helpers + runtime fixed inventories",
+      "classification": "unchanged exported source helper; direct call or actual internal caller",
+      "native": "status_runtime/readers.rs::heal_factor + systems/heal.rs::apply_with",
+      "sourceSha256": "55bc525be1ac832f04b0f134cee6769b0b99f4d45ce182ec7db9d3670ba35642",
+      "nativeScope": "shared fighter runtime; ordinary player Sim and labelled trusted helpers; mob/quest only explicit role-admission leaf"
+    },
+    {
+      "path": "packages/server/src/sim/status.ts",
+      "symbol": "attackSlowFactor",
+      "evidence": "helpers + runtime fixed inventories",
+      "classification": "unchanged exported source helper; direct call or actual internal caller",
+      "native": "status_runtime/readers.rs::attack_slow_factor",
+      "sourceSha256": "55bc525be1ac832f04b0f134cee6769b0b99f4d45ce182ec7db9d3670ba35642",
+      "nativeScope": "shared fighter runtime; ordinary player Sim and labelled trusted helpers; mob/quest only explicit role-admission leaf"
+    },
+    {
+      "path": "packages/server/src/sim/status.ts",
+      "symbol": "statusMoveMultiplier",
+      "evidence": "helpers + runtime fixed inventories",
+      "classification": "unchanged exported source helper; direct call or actual internal caller",
+      "native": "status_runtime/readers.rs::move_multiplier + systems/status/mod.rs move source",
+      "sourceSha256": "55bc525be1ac832f04b0f134cee6769b0b99f4d45ce182ec7db9d3670ba35642",
+      "nativeScope": "shared fighter runtime; ordinary player Sim and labelled trusted helpers; mob/quest only explicit role-admission leaf"
+    },
+    {
+      "path": "packages/server/src/sim/status.ts",
+      "symbol": "effectsOf",
+      "evidence": "helpers + runtime fixed inventories",
+      "classification": "unchanged exported source helper; direct call or actual internal caller",
+      "native": "status_runtime/readers.rs::effects_of",
+      "sourceSha256": "55bc525be1ac832f04b0f134cee6769b0b99f4d45ce182ec7db9d3670ba35642",
+      "nativeScope": "shared fighter runtime; ordinary player Sim and labelled trusted helpers; mob/quest only explicit role-admission leaf"
+    },
+    {
+      "path": "packages/server/src/sim/status.ts",
+      "symbol": "refreshEffects",
+      "evidence": "helpers + runtime fixed inventories",
+      "classification": "unchanged exported source helper; direct call or actual internal caller",
+      "native": "status_runtime/mod.rs::StatusRuntime::refresh_effects",
+      "sourceSha256": "55bc525be1ac832f04b0f134cee6769b0b99f4d45ce182ec7db9d3670ba35642",
+      "nativeScope": "shared fighter runtime; ordinary player Sim and labelled trusted helpers; mob/quest only explicit role-admission leaf"
+    },
+    {
+      "path": "packages/server/src/sim/fields.ts",
+      "symbol": "abilitiesRt",
+      "evidence": "helpers + runtime fixed inventories",
+      "classification": "unchanged exported source helper; direct call or actual internal caller",
+      "native": "state::World.abilities + status_runtime/fields.rs::AbilityRuntime",
+      "sourceSha256": "617c36051243a9cda3e16614f92de76c4b09e42d8ecbc36c7ef0b9642c5ca203",
+      "nativeScope": "shared fighter runtime; ordinary player Sim and labelled trusted helpers; mob/quest only explicit role-admission leaf"
+    },
+    {
+      "path": "packages/server/src/sim/fields.ts",
+      "symbol": "addField",
+      "evidence": "helpers + runtime fixed inventories",
+      "classification": "unchanged exported source helper; direct call or actual internal caller",
+      "native": "systems/fields.rs::add",
+      "sourceSha256": "617c36051243a9cda3e16614f92de76c4b09e42d8ecbc36c7ef0b9642c5ca203",
+      "nativeScope": "shared fighter runtime; ordinary player Sim and labelled trusted helpers; mob/quest only explicit role-admission leaf"
+    },
+    {
+      "path": "packages/server/src/sim/fields.ts",
+      "symbol": "removeField",
+      "evidence": "helpers + runtime fixed inventories",
+      "classification": "unchanged exported source helper; direct call or actual internal caller",
+      "native": "systems/fields.rs::remove",
+      "sourceSha256": "617c36051243a9cda3e16614f92de76c4b09e42d8ecbc36c7ef0b9642c5ca203",
+      "nativeScope": "shared fighter runtime; ordinary player Sim and labelled trusted helpers; mob/quest only explicit role-admission leaf"
+    },
+    {
+      "path": "packages/server/src/sim/fields.ts",
+      "symbol": "removeFieldsWhere",
+      "evidence": "helpers + runtime fixed inventories",
+      "classification": "unchanged exported source helper; direct call or actual internal caller",
+      "native": "systems/fields.rs::remove_into + status_runtime::FieldSelector",
+      "sourceSha256": "617c36051243a9cda3e16614f92de76c4b09e42d8ecbc36c7ef0b9642c5ca203",
+      "nativeScope": "shared fighter runtime; ordinary player Sim and labelled trusted helpers; mob/quest only explicit role-admission leaf"
+    },
+    {
+      "path": "packages/server/src/sim/fields.ts",
+      "symbol": "fieldsOf",
+      "evidence": "helpers + runtime fixed inventories",
+      "classification": "unchanged exported source helper; direct call or actual internal caller",
+      "native": "World.abilities.fields ordered storage; status_runtime/observe.rs public projection",
+      "sourceSha256": "617c36051243a9cda3e16614f92de76c4b09e42d8ecbc36c7ef0b9642c5ca203",
+      "nativeScope": "shared fighter runtime; ordinary player Sim and labelled trusted helpers; mob/quest only explicit role-admission leaf"
+    },
+    {
+      "path": "packages/server/src/sim/fields.ts",
+      "symbol": "onTrail",
+      "evidence": "helpers + runtime fixed inventories",
+      "classification": "unchanged exported source helper; direct call or actual internal caller",
+      "native": "status_runtime/fields.rs::on_trail",
+      "sourceSha256": "617c36051243a9cda3e16614f92de76c4b09e42d8ecbc36c7ef0b9642c5ca203",
+      "nativeScope": "shared fighter runtime; ordinary player Sim and labelled trusted helpers; mob/quest only explicit role-admission leaf"
+    },
+    {
+      "path": "packages/server/src/sim/displace.ts",
+      "symbol": "displace",
+      "evidence": "helpers + runtime fixed inventories",
+      "classification": "unchanged exported source helper; direct call or actual internal caller",
+      "native": "systems/displace.rs::apply/Request::execute/current pathfinder",
+      "sourceSha256": "cb3f57417fe819bce5feeccc51b2e1e70b7278f6ada08c10ea0e68670b705e23",
+      "nativeScope": "shared fighter runtime; ordinary player Sim and labelled trusted helpers; mob/quest only explicit role-admission leaf"
+    },
+    {
+      "path": "packages/server/src/sim/abilities.ts",
+      "symbol": "install",
+      "evidence": "runtime fixed inventory; actual installed hooks for private onAttackStarted and actual scoped lifecycle callers for private routines",
+      "classification": "unchanged source routine; no observational export or rewritten body",
+      "native": "schedule.rs registrations in unchanged source order",
+      "sourceSha256": "4457746101114724098d67024db28b73667a9300a0082be33718a9b3dc7fd4fc",
+      "nativeScope": "shared fighter runtime; ordinary player Sim and labelled trusted helpers; mob/quest only explicit role-admission leaf"
+    },
+    {
+      "path": "packages/server/src/sim/abilities.ts",
+      "symbol": "updateAbilities",
+      "evidence": "runtime fixed inventory; actual installed hooks for private onAttackStarted and actual scoped lifecycle callers for private routines",
+      "classification": "unchanged source routine; no observational export or rewritten body",
+      "native": "systems/status/mod.rs::expire (partial: due-cast landing remains P-ABIL-1)",
+      "sourceSha256": "4457746101114724098d67024db28b73667a9300a0082be33718a9b3dc7fd4fc",
+      "nativeScope": "shared fighter runtime; ordinary player Sim and labelled trusted helpers; mob/quest only explicit role-admission leaf"
+    },
+    {
+      "path": "packages/server/src/sim/abilities.ts",
+      "symbol": "onStatusApplied",
+      "evidence": "runtime fixed inventory; actual installed hooks for private onAttackStarted and actual scoped lifecycle callers for private routines",
+      "classification": "unchanged source routine; no observational export or rewritten body",
+      "native": "systems/status/mod.rs::on_applied",
+      "sourceSha256": "4457746101114724098d67024db28b73667a9300a0082be33718a9b3dc7fd4fc",
+      "nativeScope": "shared fighter runtime; ordinary player Sim and labelled trusted helpers; mob/quest only explicit role-admission leaf"
+    },
+    {
+      "path": "packages/server/src/sim/abilities.ts",
+      "symbol": "onAttackStarted",
+      "evidence": "runtime fixed inventory; actual installed hooks for private onAttackStarted and actual scoped lifecycle callers for private routines",
+      "classification": "unchanged source routine; no observational export or rewritten body",
+      "native": "systems/status/mod.rs::attack_started (existing vision owner remains single)",
+      "sourceSha256": "4457746101114724098d67024db28b73667a9300a0082be33718a9b3dc7fd4fc",
+      "nativeScope": "shared fighter runtime; ordinary player Sim and labelled trusted helpers; mob/quest only explicit role-admission leaf"
+    },
+    {
+      "path": "packages/server/src/sim/abilities.ts",
+      "symbol": "endFields",
+      "evidence": "runtime fixed inventory; actual installed hooks for private onAttackStarted and actual scoped lifecycle callers for private routines",
+      "classification": "unchanged source routine; no observational export or rewritten body",
+      "native": "systems/status/mod.rs::end_fields_with",
+      "sourceSha256": "4457746101114724098d67024db28b73667a9300a0082be33718a9b3dc7fd4fc",
+      "nativeScope": "shared fighter runtime; ordinary player Sim and labelled trusted helpers; mob/quest only explicit role-admission leaf"
+    },
+    {
+      "path": "packages/server/src/sim/abilities.ts",
+      "symbol": "endZones",
+      "evidence": "runtime fixed inventory; actual installed hooks for private onAttackStarted and actual scoped lifecycle callers for private routines",
+      "classification": "unchanged source routine; no observational export or rewritten body",
+      "native": "systems/status/mod.rs::end_zones",
+      "sourceSha256": "4457746101114724098d67024db28b73667a9300a0082be33718a9b3dc7fd4fc",
+      "nativeScope": "shared fighter runtime; ordinary player Sim and labelled trusted helpers; mob/quest only explicit role-admission leaf"
+    },
+    {
+      "path": "packages/server/src/sim/abilities.ts",
+      "symbol": "clearFighter",
+      "evidence": "runtime fixed inventory; actual installed hooks for private onAttackStarted and actual scoped lifecycle callers for private routines",
+      "classification": "unchanged source routine; no observational export or rewritten body",
+      "native": "systems/status/mod.rs::clear_fighter_with + queued lifecycle hook",
+      "sourceSha256": "4457746101114724098d67024db28b73667a9300a0082be33718a9b3dc7fd4fc",
+      "nativeScope": "shared fighter runtime; ordinary player Sim and labelled trusted helpers; mob/quest only explicit role-admission leaf"
+    },
+    {
+      "path": "packages/server/src/sim/abilities.ts",
+      "symbol": "clearAll",
+      "evidence": "runtime fixed inventory; actual installed hooks for private onAttackStarted and actual scoped lifecycle callers for private routines",
+      "classification": "unchanged source routine; no observational export or rewritten body",
+      "native": "systems/status/mod.rs::clear_all",
+      "sourceSha256": "4457746101114724098d67024db28b73667a9300a0082be33718a9b3dc7fd4fc",
+      "nativeScope": "shared fighter runtime; ordinary player Sim and labelled trusted helpers; mob/quest only explicit role-admission leaf"
+    },
+    {
+      "path": "packages/server/src/sim/abilities.ts",
+      "symbol": "payDeathFloor",
+      "evidence": "runtime fixed inventory; actual installed hooks for private onAttackStarted and actual scoped lifecycle callers for private routines",
+      "classification": "unchanged source routine; no observational export or rewritten body",
+      "native": "systems/status/mod.rs::pay_floor",
+      "sourceSha256": "4457746101114724098d67024db28b73667a9300a0082be33718a9b3dc7fd4fc",
+      "nativeScope": "shared fighter runtime; ordinary player Sim and labelled trusted helpers; mob/quest only explicit role-admission leaf"
+    },
+    {
+      "path": "packages/server/src/sim/abilities.ts",
+      "symbol": "statusDamage",
+      "evidence": "runtime fixed inventory; actual installed hooks for private onAttackStarted and actual scoped lifecycle callers for private routines",
+      "classification": "unchanged source routine; no observational export or rewritten body",
+      "native": "systems/status/dot.rs::damage_with",
+      "sourceSha256": "4457746101114724098d67024db28b73667a9300a0082be33718a9b3dc7fd4fc",
+      "nativeScope": "shared fighter runtime; ordinary player Sim and labelled trusted helpers; mob/quest only explicit role-admission leaf"
+    },
+    {
+      "path": "packages/server/src/sim/abilities.ts",
+      "symbol": "abilityDotFx",
+      "evidence": "runtime fixed inventory; actual installed hooks for private onAttackStarted and actual scoped lifecycle callers for private routines",
+      "classification": "unchanged source routine; no observational export or rewritten body",
+      "native": "systems/status/dot.rs::report",
+      "sourceSha256": "4457746101114724098d67024db28b73667a9300a0082be33718a9b3dc7fd4fc",
+      "nativeScope": "shared fighter runtime; ordinary player Sim and labelled trusted helpers; mob/quest only explicit role-admission leaf"
+    },
+    {
+      "path": "packages/server/src/sim/abilities.ts",
+      "symbol": "flushAbilityDot",
+      "evidence": "runtime fixed inventory; actual installed hooks for private onAttackStarted and actual scoped lifecycle callers for private routines",
+      "classification": "unchanged source routine; no observational export or rewritten body",
+      "native": "systems/status/dot.rs::flush",
+      "sourceSha256": "4457746101114724098d67024db28b73667a9300a0082be33718a9b3dc7fd4fc",
+      "nativeScope": "shared fighter runtime; ordinary player Sim and labelled trusted helpers; mob/quest only explicit role-admission leaf"
+    }
+  ],
+  "sharedData": [
+    "packages/shared/src/status.ts::STATUS_KINDS",
+    "packages/shared/src/status.ts::STATUS_RULES",
+    "packages/shared/src/status.ts::EFFECT_CASTING",
+    "packages/shared/src/status.ts::HIDDEN_REVEAL_MS",
+    "packages/shared/src/mods.ts::hasteMultiplier",
+    "packages/shared/src/mods.ts::resistSlow",
+    "packages/shared/src/abilities.ts::rankOf + ABILITIES rank-one scoped field quantities"
+  ],
+  "callerBoundaries": [
+    "actual gameplay.createGameWorld/step/addPlayer/removePlayer and existing intake",
+    "actual ledger.recordHit/applyLedger/deferHit with trusted hook recipes",
+    "actual mods.setExtraRows/getters + cardState.rollDotCrit invoked by statusDamage",
+    "actual combatant.standing/isQuestGiver and no-state isEvading"
+  ],
+  "pendingProducers": [
+    "ability cast validation/landing/spending/Wish production",
+    "card acquisition/on-hit production; supplied nonneutral modifiers are trusted inputs",
+    "new native mob store/gameplay",
+    "terrain ice production",
+    "teleport/displacement destination selection"
+  ],
+  "schemaAudit": {
+    "noSync": [
+      "RaidState.tick: explicitly included every snapshot.clock and runtime.clock"
+    ],
+    "opaqueFunctions": "Only existing queued function names/cardinality can be observed; no closure payload is invented. Typed input recipes and actual execution effects preserve timing proof.",
+    "registrationFunctions": "Function registration/action chains excluded from data snapshots; original source bodies/source hashes and untouched-run equivalence bind actual execution.",
+    "externalModCaches": "Existing mods WeakMaps remain with their owner; actual source rows/sums/mirrors are captured via exported readers."
+  },
+  "rules": [
+    {
+      "kind": "stun",
+      "native": "status_runtime/rules.rs::STATUS_RULES ordered index 0",
+      "source": "packages/shared/src/status.ts",
+      "sourceSha256": "98a0570d7620e424d9d522356fe378a6af049109d8af0342be0ecff970310df7"
+    },
+    {
+      "kind": "root",
+      "native": "status_runtime/rules.rs::STATUS_RULES ordered index 1",
+      "source": "packages/shared/src/status.ts",
+      "sourceSha256": "98a0570d7620e424d9d522356fe378a6af049109d8af0342be0ecff970310df7"
+    },
+    {
+      "kind": "silence",
+      "native": "status_runtime/rules.rs::STATUS_RULES ordered index 2",
+      "source": "packages/shared/src/status.ts",
+      "sourceSha256": "98a0570d7620e424d9d522356fe378a6af049109d8af0342be0ecff970310df7"
+    },
+    {
+      "kind": "slowMove",
+      "native": "status_runtime/rules.rs::STATUS_RULES ordered index 3",
+      "source": "packages/shared/src/status.ts",
+      "sourceSha256": "98a0570d7620e424d9d522356fe378a6af049109d8af0342be0ecff970310df7"
+    },
+    {
+      "kind": "slowAttack",
+      "native": "status_runtime/rules.rs::STATUS_RULES ordered index 4",
+      "source": "packages/shared/src/status.ts",
+      "sourceSha256": "98a0570d7620e424d9d522356fe378a6af049109d8af0342be0ecff970310df7"
+    },
+    {
+      "kind": "antiHeal",
+      "native": "status_runtime/rules.rs::STATUS_RULES ordered index 5",
+      "source": "packages/shared/src/status.ts",
+      "sourceSha256": "98a0570d7620e424d9d522356fe378a6af049109d8af0342be0ecff970310df7"
+    },
+    {
+      "kind": "dot",
+      "native": "status_runtime/rules.rs::STATUS_RULES ordered index 6",
+      "source": "packages/shared/src/status.ts",
+      "sourceSha256": "98a0570d7620e424d9d522356fe378a6af049109d8af0342be0ecff970310df7"
+    },
+    {
+      "kind": "invulnerable",
+      "native": "status_runtime/rules.rs::STATUS_RULES ordered index 7",
+      "source": "packages/shared/src/status.ts",
+      "sourceSha256": "98a0570d7620e424d9d522356fe378a6af049109d8af0342be0ecff970310df7"
+    },
+    {
+      "kind": "untargetable",
+      "native": "status_runtime/rules.rs::STATUS_RULES ordered index 8",
+      "source": "packages/shared/src/status.ts",
+      "sourceSha256": "98a0570d7620e424d9d522356fe378a6af049109d8af0342be0ecff970310df7"
+    },
+    {
+      "kind": "hidden",
+      "native": "status_runtime/rules.rs::STATUS_RULES ordered index 9",
+      "source": "packages/shared/src/status.ts",
+      "sourceSha256": "98a0570d7620e424d9d522356fe378a6af049109d8af0342be0ecff970310df7"
+    },
+    {
+      "kind": "zoned",
+      "native": "status_runtime/rules.rs::STATUS_RULES ordered index 10",
+      "source": "packages/shared/src/status.ts",
+      "sourceSha256": "98a0570d7620e424d9d522356fe378a6af049109d8af0342be0ecff970310df7"
+    },
+    {
+      "kind": "deathFloor",
+      "native": "status_runtime/rules.rs::STATUS_RULES ordered index 11",
+      "source": "packages/shared/src/status.ts",
+      "sourceSha256": "98a0570d7620e424d9d522356fe378a6af049109d8af0342be0ecff970310df7"
+    },
+    {
+      "kind": "haste",
+      "native": "status_runtime/rules.rs::STATUS_RULES ordered index 12",
+      "source": "packages/shared/src/status.ts",
+      "sourceSha256": "98a0570d7620e424d9d522356fe378a6af049109d8af0342be0ecff970310df7"
+    },
+    {
+      "kind": "shred",
+      "native": "status_runtime/rules.rs::STATUS_RULES ordered index 13",
+      "source": "packages/shared/src/status.ts",
+      "sourceSha256": "98a0570d7620e424d9d522356fe378a6af049109d8af0342be0ecff970310df7"
+    }
+  ],
+  "pendingOwners": {
+    "P-ABIL-1": [
+      "casts/charges/cooldowns/slot/rank/target/refund producers",
+      "due cast landing in abilities phase",
+      "remaining armWishes work",
+      "staggered cast hook"
+    ],
+    "P-CARDS-1": [
+      "card acquisition/on-hit catalogs/conditions",
+      "ordinary nonneutral provider population"
+    ],
+    "P-MOBS/P-QUEST": [
+      "second combatant store and real role-specific status continuation"
+    ],
+    "P-TERRAIN-1": [
+      "slip production"
+    ],
+    "coordinator": [
+      "public observation/policy/wire versions and client codecs"
+    ]
+  }
+}

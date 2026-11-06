@@ -13,7 +13,7 @@ use crate::systems::{weapons, Cx};
 /// live move modifiers in table order (`schedule::MOVE_MODIFIERS`, `acc * modifier(c)` left to right, so the order is
 /// part of the result); the product never drops below MOVE_MULT_FLOOR while it is above 0 (a root's 0 stays 0).
 pub(crate) fn multipliers(cx: &mut Cx) {
-    let Cx { k, w, s, .. } = cx;
+    let Cx { k, w, s, stats, .. } = cx;
     let now = w.server_time;
     s.standing.clear();
     s.mults.clear();
@@ -29,7 +29,7 @@ pub(crate) fn multipliers(cx: &mut Cx) {
     if !modifiers.is_empty() {
         for (m, &i) in s.mults.iter_mut().zip(&s.standing) {
             for &(_, modifier) in modifiers {
-                *m *= modifier(w, w.core(i), TICK_MS);
+                *m *= modifier(w, w.core(i), TICK_MS, stats.view(w.core(i)));
             }
         }
     }

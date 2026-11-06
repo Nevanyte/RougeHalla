@@ -27,6 +27,7 @@ use crate::systems::ledger::{self, PayLater};
 
 /// What a hook link may touch (see the module docs).
 pub(crate) struct Hx<'a> {
+    pub(crate) stats: crate::status_runtime::stats::Inputs<'a>,
     /// Write-only derived presentation markers; never gameplay input.
     pub(crate) fx: Option<&'a mut crate::fx_report::TickFx>,
     pub(crate) k: &'a MatchStatic,
@@ -39,7 +40,7 @@ impl Hx<'_> {
     /// hook fires outside the pass.
     #[cfg_attr(not(test), allow(dead_code))] // the first link that pays later is P-ABIL-1 / P-STATUS-1; tests use it now
     pub(crate) fn pay_later(&mut self, p: PayLater) {
-        ledger::pay_later(self.k, self.w, self.ev, p);
+        ledger::pay_later_with(self.k, self.w, self.ev, p, self.stats);
     }
 }
 
@@ -53,8 +54,26 @@ pub(crate) enum OutCause {
 }
 
 /// The typed arguments of a fired hook.
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub(crate) enum HookArgs {
+    ArenaHurt {
+        victim: PlayerId,
+        by: Option<PlayerId>,
+        source: Option<crate::status_runtime::StatusSource>,
+        amount: f64,
+    },
+    Hurt {
+        id: PlayerId,
+        amount: f64,
+        before: f64,
+    },
+    Teleported,
+    StatusApplied {
+        id: PlayerId,
+        kind: crate::status_runtime::StatusKind,
+        fresh: bool,
+        index: usize,
+    },
     /// The lobby just turned into an active raid: players are placed (legacy `raidStarted(world)`).
     RaidStarted,
     /// A player went down with their run gear still on them (legacy `dropBody(world, p)`).
@@ -89,6 +108,10 @@ pub(crate) enum HookArgs {
 impl HookArgs {
     pub(crate) const fn hook(&self) -> Hook {
         match self {
+            HookArgs::ArenaHurt { .. } => Hook::ArenaHurt,
+            HookArgs::Hurt { .. } => Hook::Hurt,
+            HookArgs::Teleported => Hook::Teleported,
+            HookArgs::StatusApplied { .. } => Hook::StatusApplied,
             HookArgs::RaidStarted => Hook::RaidStarted,
             HookArgs::DropBody { .. } => Hook::DropBody,
             HookArgs::FighterOut { .. } => Hook::FighterOut,
@@ -115,11 +138,13 @@ pub(crate) fn fire(hx: &mut Hx, args: HookArgs) {
         if !link.gate.on(&g) {
             continue;
         }
-        if let Run::Ported(f) = link.run {
+        if let Run::Ported(f) | Run::Partial { callback: f, .. } = link.run {
             #[cfg(feature = "schedule-trace")]
             hx.w.trace
                 .push(schedule::TraceEntry::Hook(hook.key(), link.legacy));
             f(hx, &args);
         }
     }
+    #[cfg(feature = "trusted-status-probes")]
+    crate::status_runtime::probe::record_hook(hx.w, &args);
 }

@@ -1,0 +1,10 @@
+{
+  "suites": 129,
+  "totals": {
+    "passed": 1252,
+    "failed": 0,
+    "ignored": 2,
+    "measured": 0,
+    "filtered": 0
+  }
+}

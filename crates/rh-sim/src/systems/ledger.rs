@@ -13,10 +13,17 @@ use crate::state::{Packet, PlayerId, World};
 use crate::statics::MatchStatic;
 use crate::systems::{credit, settle, weapons, Cx};
 
-/// One hit of the tick's ledger. `Copy` and name-free: the attacker is an id, and its display name is resolved from the
-/// roster only when a result needs it (`World::roster`), so a hit never clones a string.
-#[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+/// One hit of the tick ledger. Ordinary weapon rows retain IDs; status rows additionally
+/// retain the immutable source snapshot through shared handles, without cloning string bytes.
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub(crate) struct Entry {
+    pub(crate) dot: bool,
+    pub(crate) ability: Option<crate::status_runtime::AbilityId>,
+    pub(crate) arena: bool,
+    /// Full immutable status source snapshot; by is checked equal to source.id at restore.
+    pub(crate) source: Option<crate::status_runtime::StatusSource>,
+    pub(crate) critical: bool,
+    pub(crate) critical_mult: Option<f64>,
     pub(crate) sig: Option<crate::factions::SignatureKind>,
     pub(crate) execute: bool,
     pub(crate) victim: PlayerId,
@@ -36,18 +43,45 @@ pub(crate) struct Entry {
     pub(crate) passive: bool,
 }
 
+impl Entry {
+    pub(crate) fn is_dot(&self) -> bool {
+        self.dot || self.sig.is_some_and(crate::factions::SignatureKind::is_dot)
+    }
+    pub(crate) fn credit_id(&self) -> Option<PlayerId> {
+        self.source.as_ref().and_then(|s| s.owner_id).or(self.by)
+    }
+}
+#[derive(Clone, Debug)]
+pub(crate) struct Hit {
+    pub(crate) amount: f64,
+    pub(crate) by: Option<PlayerId>,
+    pub(crate) name: Option<std::sync::Arc<str>>,
+}
 /// What a payout does when it is paid (legacy `payLater(world, () => ...)`, as typed data). The slice has one: a kill's
 /// credit. A packet whose legacy code calls `payLater` adds its variant here and its arm to [`PayLater::pay`]; it never
 /// puts the effect in `World::deferred`, which is the NEXT tick's ledger.
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub(crate) enum PayLater {
+    #[cfg(feature = "trusted-status-probes")]
+    ProbeNested {
+        victim: PlayerId,
+        source: crate::status_runtime::StatusSource,
+    },
+    ApplyStatus {
+        victim: PlayerId,
+        apply: crate::status_runtime::StatusApply,
+        quiet: bool,
+    },
+    RemoveStatuses {
+        victim: PlayerId,
+        selector: crate::status_runtime::Selector,
+    },
     ExecuteDenied {
         owner: PlayerId,
         denied: super::sentenced::Denied,
     },
-    AxeShred {
+    ClearStatuses {
         victim: PlayerId,
-        source: PlayerId,
     },
     /// legacy arena.ts `creditKill`: the kill's GV, bounty and rampage, after every victim took their damage.
     CreditKill {
@@ -59,33 +93,52 @@ pub(crate) enum PayLater {
     },
 }
 
+// Inline queue payloads preserve warmed allocation-free application/removal; source strings are shared handles.
+#[allow(clippy::large_enum_variant)]
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) enum Payout {
+    Ordinary(PayLater),
+    #[cfg_attr(not(any(test, feature = "trusted-status-probes")), allow(dead_code))]
+    // P-ABIL production caller remains pending.
+    Displace(super::displace::Request),
+}
+
 impl PayLater {
-    fn pay(self, k: &MatchStatic, w: &mut World, ev: &mut Vec<Event>) {
+    fn pay(
+        self,
+        k: &MatchStatic,
+        w: &mut World,
+        ev: &mut Vec<Event>,
+        stats: crate::status_runtime::stats::Inputs,
+    ) {
         match self {
+            #[cfg(feature = "trusted-status-probes")]
+            PayLater::ProbeNested { victim, source } => {
+                crate::status_runtime::probe::pay_nested(k, w, ev, victim, source, stats)
+            }
+            PayLater::ApplyStatus {
+                victim,
+                apply,
+                quiet,
+            } => {
+                super::status::operations::apply_with(k, w, ev, victim, apply, quiet, stats);
+            }
+            PayLater::RemoveStatuses { victim, selector } => {
+                super::status::operations::remove_discard_with(k, w, victim, selector, stats)
+            }
+            PayLater::ClearStatuses { victim } => {
+                super::status::clear_fighter_with(k, w, ev, victim, stats)
+            }
             PayLater::ExecuteDenied { owner, denied } => crate::hooks::fire(
-                &mut crate::hooks::Hx { k, w, ev, fx: None },
+                &mut crate::hooks::Hx {
+                    stats,
+                    k,
+                    w,
+                    ev,
+                    fx: None,
+                },
                 crate::hooks::HookArgs::ExecuteDenied { owner, denied },
             ),
-            PayLater::AxeShred { victim, source } => {
-                let now = w.server_time;
-                let Some(i) = w.idx(victim) else { return };
-                let p = &mut w.players[i];
-                if !p.standing() {
-                    return;
-                }
-                let shreds = &mut p.weapon.shreds;
-                if let Some(status) = shreds.iter_mut().find(|s| s.source == source) {
-                    status.value = (status.value + AXE_SHRED_ARMOR).min(AXE_SHRED_CAP);
-                    status.until = now + AXE_SHRED_MS;
-                } else {
-                    shreds.push(crate::state::Shred {
-                        source,
-                        value: AXE_SHRED_ARMOR,
-                        started_at: now,
-                        until: now + AXE_SHRED_MS,
-                    });
-                }
-            }
             PayLater::CreditKill {
                 by,
                 victim,
@@ -111,29 +164,67 @@ impl PayLater {
 /// Legacy `payLater`: queues `p` while the ledger pass runs and pays it at once otherwise (a hook fired outside the pass:
 /// `remove_player`, the lobby, the run's end).
 pub(crate) fn pay_later(k: &MatchStatic, w: &mut World, ev: &mut Vec<Event>, p: PayLater) {
+    pay_later_with(k, w, ev, p, crate::status_runtime::stats::Inputs::default())
+}
+pub(crate) fn pay_later_with(
+    k: &MatchStatic,
+    w: &mut World,
+    ev: &mut Vec<Event>,
+    p: PayLater,
+    stats: crate::status_runtime::stats::Inputs,
+) {
     if w.pay.collecting {
-        w.pay.items.push(p);
+        w.pay.items.push(Payout::Ordinary(p));
     } else {
-        p.pay(k, w, ev);
+        p.pay(k, w, ev, stats);
     }
 }
 
 /// Ends the pass: everyone has taken their damage, so the queued payouts go out in the order they were queued. A payout
 /// that itself calls `pay_later` pays at once, as in legacy (`collecting` is off by then).
-pub(crate) fn pay_all(k: &MatchStatic, w: &mut World, ev: &mut Vec<Event>) {
+#[cfg(test)]
+pub(crate) fn pay_all(
+    k: &MatchStatic,
+    w: &mut World,
+    ev: &mut Vec<Event>,
+    pf: &mut crate::pathfind::Pathfinder,
+) {
+    pay_all_with(
+        k,
+        w,
+        ev,
+        pf,
+        crate::status_runtime::stats::Inputs::default(),
+    )
+}
+pub(crate) fn pay_all_with(
+    k: &MatchStatic,
+    w: &mut World,
+    ev: &mut Vec<Event>,
+    pf: &mut crate::pathfind::Pathfinder,
+    stats: crate::status_runtime::stats::Inputs,
+) {
     w.pay.collecting = false;
     // Index, not take: the queue keeps its capacity, and a payout cannot queue another (it pays at once now).
     let mut i = 0;
     while i < w.pay.items.len() {
-        let p = w.pay.items[i];
+        let p = w.pay.items[i].clone();
         i += 1;
-        p.pay(k, w, ev);
+        match p {
+            Payout::Ordinary(p) => p.pay(k, w, ev, stats),
+            Payout::Displace(request) => request.execute(k, w, pf),
+        }
     }
     w.pay.items.clear();
 }
 
 /// What applying one victim's hits touches: everything but the ledger, which it only reads.
 struct Pass<'a> {
+    #[cfg(feature = "trusted-status-probes")]
+    standalone: bool,
+    stats: crate::status_runtime::stats::Inputs<'a>,
+    #[cfg(feature = "trusted-status-probes")]
+    probe: Option<&'a mut crate::status_runtime::probe::HurtRecipe>,
     denies: [Option<PlayerId>; MAX_PLAYERS],
     k: &'a MatchStatic,
     w: &'a mut World,
@@ -148,7 +239,7 @@ struct Bufs<'a> {
     idxs: &'a mut Vec<usize>,
     amounts: &'a mut Vec<f64>,
     order: &'a mut Vec<(usize, usize)>,
-    hits: &'a mut Vec<(f64, Option<PlayerId>)>,
+    hits: &'a mut Vec<Hit>,
     dot_sums: &'a mut Vec<(PlayerId, f64)>,
 }
 
@@ -172,11 +263,44 @@ pub(crate) fn open(cx: &mut Cx) {
 /// for kill credit), and kill spoils are paid only after every victim took its damage, so no reward decides who survives
 /// the pass. The ledger is empty afterwards.
 pub(crate) fn apply(cx: &mut Cx) {
-    let Cx { k, w, s, ev, .. } = cx;
+    #[cfg(feature = "trusted-status-probes")]
+    let mut borrowed = cx.probe.take();
+    apply_inner(
+        cx,
+        #[cfg(feature = "trusted-status-probes")]
+        borrowed.as_deref_mut(),
+        #[cfg(feature = "trusted-status-probes")]
+        false,
+    );
+    #[cfg(feature = "trusted-status-probes")]
+    {
+        cx.probe = borrowed;
+    }
+}
+#[cfg(feature = "trusted-status-probes")]
+pub(crate) fn apply_probed(cx: &mut Cx, probe: &mut crate::status_runtime::probe::HurtRecipe) {
+    apply_inner(cx, Some(probe), true);
+}
+fn apply_inner(
+    cx: &mut Cx,
+    #[cfg(feature = "trusted-status-probes")] probe: Option<
+        &mut crate::status_runtime::probe::HurtRecipe,
+    >,
+    #[cfg(feature = "trusted-status-probes")] standalone: bool,
+) {
+    let Cx {
+        k,
+        w,
+        s,
+        ev,
+        pf,
+        stats,
+        ..
+    } = cx;
     s.ledger_diagnostics.extend(
         s.ledger
             .iter()
-            .copied()
+            .cloned()
             .map(crate::factions::DamageView::from),
     );
     let TickScratch {
@@ -214,7 +338,7 @@ pub(crate) fn apply(cx: &mut Cx) {
     mults.clear();
     for (n, e) in ledger.iter().enumerate() {
         let vix = w.fighter_idx(e.victim);
-        let bix = e.by.and_then(|b| w.fighter_idx(b));
+        let bix = e.credit_id().and_then(|b| w.fighter_idx(b));
         entry_next.push(NONE);
         // The hit's place in the action order (anyone not in it, such as a leaver, after everyone), looked up once here.
         entry_rank.push(
@@ -233,6 +357,8 @@ pub(crate) fn apply(cx: &mut Cx) {
         // The PvP factor is for a player hitting a player: a mob on either side, or no attacker, takes none.
         mults.push(
             if k.config.pvp_rules
+                && !e.arena
+                && e.ability.is_none()
                 && vix
                     .zip(bix)
                     .is_some_and(|(v, b)| w.is_player(v) && w.is_player(b))
@@ -258,6 +384,11 @@ pub(crate) fn apply(cx: &mut Cx) {
         }
     }
     let mut pass = Pass {
+        #[cfg(feature = "trusted-status-probes")]
+        standalone,
+        stats: *stats,
+        #[cfg(feature = "trusted-status-probes")]
+        probe,
         denies,
         k,
         w,
@@ -285,7 +416,7 @@ pub(crate) fn apply(cx: &mut Cx) {
         slot_tail[vi] = NONE;
         apply_victim(&mut pass, &mut bufs, vi, ledger, mults, entry_rank);
     }
-    pay_all(pass.k, pass.w, pass.ev);
+    pay_all_with(pass.k, pass.w, pass.ev, pf, pass.stats);
     ledger.clear();
 }
 
@@ -316,7 +447,24 @@ fn apply_victim(
     amounts.clear();
     amounts.extend(idxs.iter().map(|&k| {
         let e = &ledger[k];
-        let raw = e.packet.raw * e.scale * mults[k];
+        let attacker =
+            e.by.and_then(|id| pass.w.player(id))
+                .map(|p| p.statuses.instances.as_slice())
+                .unwrap_or(&[]);
+        let factor = crate::status_runtime::settlement_factor(
+            attacker,
+            &pass.w.players[vi].statuses.instances,
+            e.by,
+            pass.w.server_time,
+            e.arena,
+            e.by.and_then(|id| pass.w.player(id))
+                .and_then(|p| pass.stats.view(p).mark_suppression),
+        );
+        let raw = if e.scale > 0. {
+            e.packet.raw * e.scale * mults[k] * factor
+        } else {
+            0.
+        };
         let s = DamageShares {
             phys: e.packet.phys,
             magic: e.packet.magic,
@@ -333,10 +481,10 @@ fn apply_victim(
             let Some(by) = e.by.filter(|id| pass.w.roster.name(*id).is_some()) else {
                 continue;
             };
-            if !(amounts[j] > 0.0) {
+            if e.arena || !(amounts[j] > 0.0) {
                 continue;
             }
-            if e.sig.is_some_and(crate::factions::SignatureKind::is_dot) {
+            if e.is_dot() {
                 if let Some((_, sum)) = dot_sums.iter_mut().find(|(id, _)| *id == by) {
                     *sum += amounts[j]
                 } else {
@@ -348,7 +496,7 @@ fn apply_victim(
         }
         for (j, &index) in idxs.iter().enumerate() {
             let e = &ledger[index];
-            if !e.sig.is_some_and(crate::factions::SignatureKind::is_dot) {
+            if e.arena || !e.is_dot() {
                 continue;
             }
             if let Some((_, sum)) = dot_sums.iter().find(|(id, _)| Some(*id) == e.by) {
@@ -396,24 +544,84 @@ fn apply_victim(
     order.extend((0..idxs.len()).map(|j| (entry_rank[idxs[j]] as usize, j)));
     order.sort_unstable();
     hits.clear();
-    hits.extend(order.iter().map(|&(_, j)| (amounts[j], ledger[idxs[j]].by)));
+    hits.extend(order.iter().map(|&(_, j)| {
+        let e = &ledger[idxs[j]];
+        Hit {
+            amount: amounts[j],
+            by: e.credit_id(),
+            name: e.source.as_ref().map(|s| s.name.clone()),
+        }
+    }));
+    let hp_before = pass.w.players[vi].vitals.hp;
     let barrier_before = pass.w.players[vi].vitals.barrier;
     let total: f64 = amounts.iter().sum();
     let applied = apply_hits(pass, vi, hits);
     if !(applied > 0.0) {
         return;
     }
+    if pass.w.players[vi].standing() {
+        crate::hooks::fire(
+            &mut crate::hooks::Hx {
+                stats: pass.stats,
+                k: pass.k,
+                w: pass.w,
+                ev: pass.ev,
+                fx: None,
+            },
+            crate::hooks::HookArgs::Hurt {
+                id: v,
+                amount: applied,
+                before: hp_before,
+            },
+        );
+        #[cfg(feature = "trusted-status-probes")]
+        if let Some(probe) = pass.probe.as_deref_mut() {
+            probe.fire(pass.k, pass.w, pass.ev, v, pass.stats);
+        }
+    }
     let landed_share = if total > 0.0 {
         (1.0 - (barrier_before - pass.w.players[vi].vitals.barrier) / total).max(0.0)
     } else {
         0.0
     };
+    if total > 0. {
+        for (j, &index) in idxs.iter().enumerate() {
+            let e = &ledger[index];
+            if e.arena && amounts[j] > 0. {
+                crate::hooks::fire(
+                    &mut crate::hooks::Hx {
+                        stats: pass.stats,
+                        k: pass.k,
+                        w: pass.w,
+                        ev: pass.ev,
+                        fx: None,
+                    },
+                    crate::hooks::HookArgs::ArenaHurt {
+                        victim: v,
+                        by: e.by,
+                        source: e.source.clone(),
+                        amount: (amounts[j] * applied) / total,
+                    },
+                );
+            }
+        }
+    }
     for (j, &k) in idxs.iter().enumerate() {
-        if amounts[j] > 0.0 {
+        if amounts[j] > 0.0 && !ledger[k].arena {
             let e = &ledger[k];
-            if pass.k.config.faction_mode.engagement() {
+            {
                 pass.landed.push(crate::systems::signatures::LandedHit {
+                    critical: e.critical,
+                    cut: e.by.and_then(|id| pass.w.player(id)).map_or(1., |p| {
+                        crate::status_runtime::suppression_cut(
+                            &p.statuses.instances,
+                            pass.w.server_time,
+                            pass.stats.view(p).mark_suppression,
+                        )
+                    }),
                     sig: e.sig,
+                    ability: e.ability,
+                    dot: e.dot,
                     weapon: e.weapon,
                     victim: v,
                     by: e.by,
@@ -430,7 +638,7 @@ fn apply_victim(
                         amount: amounts[j],
                     });
                 }
-            } else if e.sig.is_none() {
+            } else if !e.is_dot() && e.sig.is_none() {
                 pass.ev.push(Event::Hit {
                     victim: v,
                     by: e.by,
@@ -441,13 +649,14 @@ fn apply_victim(
             }
             crate::hooks::fire(
                 &mut crate::hooks::Hx {
+                    stats: pass.stats,
                     fx: None,
                     k: pass.k,
                     w: pass.w,
                     ev: pass.ev,
                 },
                 crate::hooks::HookArgs::HitLanded {
-                    entry: *e,
+                    entry: e.clone(),
                     amount: amounts[j],
                 },
             );
@@ -465,7 +674,7 @@ fn apply_victim(
 }
 
 /// Legacy `applyHits` for a player victim: the hits land together; the kill goes to the largest rival hit.
-fn apply_hits(pass: &mut Pass, vi: usize, hits: &[(f64, Option<PlayerId>)]) -> f64 {
+fn apply_hits(pass: &mut Pass, vi: usize, hits: &[Hit]) -> f64 {
     let w = &mut *pass.w;
     let now = w.server_time;
     {
@@ -479,12 +688,13 @@ fn apply_hits(pass: &mut Pass, vi: usize, hits: &[(f64, Option<PlayerId>)]) -> f
     let mut total = 0.0;
     let mut top: Option<usize> = None;
     let mut top_rival: Option<usize> = None;
-    for (h, (amount, by)) in hits.iter().enumerate() {
+    for (h, hit) in hits.iter().enumerate() {
+        let (amount, by) = (&hit.amount, &hit.by);
         if !(*amount > 0.0) {
             continue;
         }
         total += amount;
-        if top.is_none_or(|t| *amount > hits[t].0) {
+        if top.is_none_or(|t| *amount > hits[t].amount) {
             top = Some(h);
         }
         // A source still in the run (not resolved) is an attacker; anyone else is a name only.
@@ -497,7 +707,7 @@ fn apply_hits(pass: &mut Pass, vi: usize, hits: &[(f64, Option<PlayerId>)]) -> f
                 if !victim_bot && !src.credit.damaged_humans.contains(&victim_id) {
                     src.credit.damaged_humans.push(victim_id);
                 }
-                if top_rival.is_none_or(|t| *amount > hits[t].0) {
+                if top_rival.is_none_or(|t| *amount > hits[t].amount) {
                     top_rival = Some(h);
                 }
             }
@@ -505,7 +715,7 @@ fn apply_hits(pass: &mut Pass, vi: usize, hits: &[(f64, Option<PlayerId>)]) -> f
     }
     let Some(top) = top else { return 0.0 };
     if let Some(r) = top_rival {
-        w.players[vi].credit.last_hit = hits[r].1.map(|b| (b, now));
+        w.players[vi].credit.last_hit = hits[r].by.map(|b| (b, now));
     }
     let v = &mut w.players[vi];
     if v.vitals.barrier > 0.0 {
@@ -522,7 +732,7 @@ fn apply_hits(pass: &mut Pass, vi: usize, hits: &[(f64, Option<PlayerId>)]) -> f
     }
     let before = v.vitals.hp;
     let unheld = (before - total).max(0.0);
-    v.vitals.hp = (before - total).max(0.0);
+    v.vitals.hp = crate::status_runtime::floor_hp(&mut v.statuses.instances, now, before, total);
     if v.vitals.hp > 0.0 {
         return if v.vitals.hp > unheld {
             total
@@ -531,7 +741,7 @@ fn apply_hits(pass: &mut Pass, vi: usize, hits: &[(f64, Option<PlayerId>)]) -> f
         };
     }
     let killer = top_rival.unwrap_or(top);
-    let kid = hits[killer].1;
+    let kid = hits[killer].by;
     let killer_idx = kid
         .and_then(|k| w.idx(k))
         .filter(|&k| !w.players[k].resolved);
@@ -542,6 +752,11 @@ fn apply_hits(pass: &mut Pass, vi: usize, hits: &[(f64, Option<PlayerId>)]) -> f
         // The killer, by id: the roster names it when the result is built (legacy: the attacker's name, or the source
         // name of one who already left).
         v.fate.killed_by = kid;
+        v.fate.killed_by_name = if killer_idx.is_none() {
+            hits[killer].name.clone()
+        } else {
+            None
+        };
         if killer_bot {
             v.fate.killed_by_bot = true;
         }
@@ -553,11 +768,11 @@ fn apply_hits(pass: &mut Pass, vi: usize, hits: &[(f64, Option<PlayerId>)]) -> f
         by: killer_idx.and(kid),
     });
     let credited = match top_rival {
-        Some(r) => hits[r].1,
+        Some(r) => hits[r].by,
         // Legacy arena.ts: a kill whose top hit is the arena's own (sudden death) credits nobody; only a sourced top hit
         // falls back to the recent rival. A self-hit (the attacker is the victim) credits nobody either.
         None => hits[top]
-            .1
+            .by
             .filter(|b| *b != victim_id)
             .and_then(|_| credit::recent_rival(w, vi, now)),
     };
@@ -575,6 +790,11 @@ fn apply_hits(pass: &mut Pass, vi: usize, hits: &[(f64, Option<PlayerId>)]) -> f
                 bounty,
             },
         );
+    }
+    #[cfg(feature = "trusted-status-probes")]
+    if pass.standalone {
+        settle::down_player(pass.k, w, pass.ev, None, vi, Outcome::Died);
+        return before;
     }
     settle::down_player(pass.k, w, pass.ev, Some(pass.downed), vi, Outcome::Died);
     before

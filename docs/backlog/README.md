@@ -18,6 +18,12 @@ rows are `Pending("P-...")` entries there, named after the legacy rows, and [../
 
 ## How to pick up work
 
+**Current first-release scope (owner decision 2026-11-05): playable core first.** Complete one browser match with
+combat, mobs, a small card/chest selection, a functional Unity HUD and one AWS staging region. Quests, traders,
+advanced bots, visual polish and large-scale hosting tests are deferred; this backlog retains the full original scope
+for later milestones. Work only on dependencies needed for that loop now, preserving focused parity and regression
+checks. See the concrete finish line in [MIGRATION](../MIGRATION.md#first-playable-release-scope--owner-decision-2026-11-05).
+
 **First Claude handoff integrated (owner request 2026-11-05).** PR25–27 from
 [P-CLAUDE-INFRA-1](packets/P-CLAUDE-INFRA-1.md) are integrated with coordinator repairs; the broad reservation is closed.
 See [external integration evidence](../evidence/stage2-external-integration/README.md). Same-volume recovery, account
@@ -117,7 +123,7 @@ Paths are relative to `packages/` unless they start with `crates/`, `docs/`, `de
 | P-FACTION-3 | Plague corpses, owned zombie, `consumeCorpse` | P-FACTION-1, P-MOBS-1 | Coarse | server/src/sim/plagueCorpses.ts, plagueZombies.ts; shared/plagueCorpses.ts; docs/PLAGUE_CORPSES.md |
 | P-FACTION-4 | Sentenced hunt (`huntTarget`) | P-FACTION-1 | Coarse | server/src/sim/sentencedHunt.ts; shared/sentencedHunt.ts; docs/SENTENCED_HUNT.md, SENTENCED_REDESIGN.md |
 | P-FACTION-5 | Bruiser/champion passives | P-FACTION-1, P-CARDS-1 | Coarse | server/src/sim/bruiserPassives.ts; shared/championPassives.ts; docs/BRUISER_PASSIVES.md |
-| P-STATUS-1 | Status runtime (14 kinds, `STATUS_RULES`), fields (areas), `displace`, effect bits | P-COMBAT-1 | Bounded private runtime independently accepted; coordinator content/version/transport integration pending | server/src/sim/status.ts, fields.ts, displace.ts; shared/status.ts |
+| P-STATUS-1 | Status runtime (14 kinds, `STATUS_RULES`), fields (areas), `displace`, effect bits | P-COMBAT-1 | Core integrated/reviewed:79 Sim +1 role source cases,14 privacy pairs,1,252-test workspace and WSS proof pass. Live status/field transport remains P-NET-3; mechanic producers remain separate | server/src/sim/status.ts, fields.ts, displace.ts; shared/status.ts |
 | P-ABIL-1 | Cast pipeline and the five Wishes (`freeze`, `swarm`, `trial`, `blaze`, `lastStand`), Blaze Step blink, wish lock | P-STATUS-1, P-COMBAT-3 | Coarse | server/src/sim/abilities.ts; shared/abilities.ts, blink.ts |
 | P-CARDS-1 | Stat mirrors and the `foldRows` build fold, card catalog (80 cards), card hooks, on-hit pipeline, guards G1-G13, PvP factor beyond power 0 | P-COMBAT-1, P-STATUS-1 | Coarse | server/src/sim/mods.ts, cardHooks.ts, cardState.ts, onHit.ts, vsProbe.ts, buffs.ts; shared/cards.ts, effects.ts, mods.ts, rules.ts |
 | P-KIMI-FOLD-1 | Pure stat fold, mirrors and numeric chest boosts; 4,096-case CI differential plus 100,000-case bounded stress inventory | Reviewed integration `5b1a7aae`; independent of pending runtime | Pure kernel integrated at `7f294cc7`; 1,031-test workspace, Rust/C#/browser CI and all six native determinism jobs passed. Does not complete P-CARDS-1 | shared/mods.ts, effects.ts, chestBoosts.ts, constants.ts |
@@ -240,7 +246,7 @@ is **not implemented**; the gain figures are **estimates**.
 | ID | Outcome | Depends on | Status | Legacy owners |
 |---|---|---|---|---|
 | P-HOST-1 | Go SDK bridge sidecar + control API session endpoints + run `docs/hosting/STAGING_EXPERIMENT.md` when authorized | none (AWS gate) | Local bridge/control API implemented/reviewed; actual managed-fleet experiment remains open under CAD20 total cap | deployment/cloudflare/src/containerLifecycle.ts (legacy analogue) |
-| P-CLAUDE-PLACEMENT-2 | Durable placement ownership, fenced claims and abrupt process restart/reconciliation over PostgreSQL | Reviewed integration `5b1a7aae` | Integrated after independent repairs/review: schema 3, 236 placement tests, 1,196-test workspace gate; CI pending. No cloud deployment | crates/rh-placement/src/service.rs (new adapter infrastructure) |
+| P-CLAUDE-PLACEMENT-2 | Durable placement ownership, fenced claims and abrupt process restart/reconciliation over PostgreSQL | Reviewed integration `5b1a7aae` | Integrated after independent repairs/review: schema 3, 236 placement tests, 1,196-test workspace gate; Rust/C#/browser CI42147913799 passed. No cloud deployment | crates/rh-placement/src/service.rs (new adapter infrastructure) |
 | P-PLACEMENT-3 | Authenticated placement/release API, real provider adapters, explicit bounded reaper cadence/backoff and unresolved-obligation monitoring; preserve indefinite ambiguity and original-zone cleanup | P-CLAUDE-PLACEMENT-2, P-HOST-2, P-HOST-3 | Coarse; required before deployment | crates/rh-placement/src/service/{mod,run}.rs; future adapter/wrapper |
 | P-HOST-2 | TLS and DNS: wildcard cert, per-placement record, rustls serving | P-HOST-1 | Coarse | none |
 | P-HOST-3 | Region set, HTTPS latency endpoints, queue config, `PlayerLatencies` | P-HOST-1 | Coarse | scripts/latency-probe.mjs, network-probe.mjs |

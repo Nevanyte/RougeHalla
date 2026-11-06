@@ -1,0 +1,42 @@
+--- a/crates/rh-sim/src/status_runtime/mod.rs
++++ b/crates/rh-sim/src/status_runtime/mod.rs
+@@ -12,7 +12,10 @@
+ pub use mutation::*;
+ pub use readers::*;
+ pub use rules::*;
+-pub use stats::{crit_chance, roll_dot_crit, DotCritState, StatView};
++pub use stats::{
++    crit_chance, roll_dot_crit, DotCritState, StatView, CRIT_CHANCE_MAX, CRIT_EPSILON, CRIT_MULT,
++    HOLY_LEECH_ROW_MULT, LIFESTEAL_MAX,
++};
+ 
+ use crate::{content::DamageShares, PlayerId};
+ use std::sync::Arc;
+--- a/crates/rh-sim/src/status_runtime/rules.rs
++++ b/crates/rh-sim/src/status_runtime/rules.rs
+@@ -141,13 +141,7 @@
+     word(super::stats::CRIT_EPSILON.to_bits());
+     word(super::stats::CRIT_MULT.to_bits());
+     word(super::stats::CRIT_CHANCE_MAX.to_bits());
+-    for id in [
+-        super::AbilityId::Freeze,
+-        super::AbilityId::Swarm,
+-        super::AbilityId::Trial,
+-        super::AbilityId::Blaze,
+-        super::AbilityId::LastStand,
+-    ] {
++    for id in super::AbilityId::ALL {
+         word(id as u64);
+         word(id.as_str().len() as u64);
+         for byte in id.as_str().bytes() {
+@@ -164,4 +158,10 @@
+             word(ms.to_bits())
+         }
+     }
++    // The ordinary axe producer uses this exact source key for status identity.
++    let axe_tag = super::StatusTag::Axe;
++    word(axe_tag.as_str().len() as u64);
++    for byte in axe_tag.as_str().bytes() {
++        word(u64::from(byte));
++    }
+ }

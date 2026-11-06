@@ -30,6 +30,24 @@ impl PickupRefusal {
 /// ([`Event::class`]); important events (deaths, results, the end) are never dropped, fx may be (docs/CONTRACTS.md C-NET-5).
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum Event {
+    /// Private source-timed ability chunk; public output uses frozen per-step contributions.
+    AbilityHit {
+        victim: PlayerId,
+        by: Option<PlayerId>,
+        ability: crate::status_runtime::AbilityId,
+        amount: f64,
+    },
+    CastEnded {
+        id: PlayerId,
+        ability: crate::status_runtime::AbilityId,
+        reason: crate::status_runtime::CastEndReason,
+    },
+    StatusApplied {
+        id: PlayerId,
+        kind: crate::status_runtime::StatusKind,
+        ms: f64,
+        by: Option<PlayerId>,
+    },
     MarkNotice {
         recipient: PlayerId,
         notice: MarkNotice,
@@ -158,6 +176,8 @@ impl Event {
     /// Who may know of this event. No wildcard arm, on purpose.
     pub fn visibility(&self) -> Visibility {
         match *self {
+            Event::CastEnded { id, .. } => Visibility::IfSeen(id),
+            Event::StatusApplied { id, .. } => Visibility::IfSeen(id),
             Event::Swing { by, .. } => Visibility::IfSeen(by),
             Event::Hit { victim, by, .. } => Visibility::IfSeenOrBy { seen: victim, by },
             Event::Block { id, .. }
@@ -167,7 +187,8 @@ impl Event {
             | Event::Death { id, .. } => Visibility::IfSeen(id),
             Event::PickupRefused { id, .. } => Visibility::Owner(id),
             Event::Bounty { .. } | Event::Victory { .. } => Visibility::Everyone,
-            Event::MarkNotice { .. }
+            Event::AbilityHit { .. }
+            | Event::MarkNotice { .. }
             | Event::SignatureHit { .. }
             | Event::ProjectileLaunched(_)
             | Event::ProjectileEnded { .. }
@@ -187,14 +208,17 @@ impl Event {
             | Event::Bounty { .. }
             | Event::Victory { .. }
             | Event::Resolved { .. } => Class::Important,
-            Event::Swing { .. }
+            Event::CastEnded { .. }
+            | Event::StatusApplied { .. }
+            | Event::Swing { .. }
             | Event::Hit { .. }
             | Event::Block { .. }
             | Event::Heal { .. }
             | Event::AttackCancelled { .. }
             | Event::Stagger { .. } => Class::Fx,
             Event::PickupRefused { .. } => Class::Important,
-            Event::MarkNotice { .. }
+            Event::AbilityHit { .. }
+            | Event::MarkNotice { .. }
             | Event::SignatureHit { .. }
             | Event::ProjectileLaunched(_)
             | Event::ProjectileEnded { .. }

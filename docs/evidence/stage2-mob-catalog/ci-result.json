@@ -1,0 +1,18 @@
+{
+  "sourceRevision": "0306096588ca9d0ca19d91e5181b087abc86ce94",
+  "rustCsharpBrowser": {
+    "runId": 42156086659,
+    "conclusion": "success",
+    "jobs": [
+      "rust",
+      "csharp"
+    ]
+  },
+  "nativeDeterminism": {
+    "runId": 42156125508,
+    "conclusion": "success",
+    "jobs": 6,
+    "bothForeignReplayDirections": "passed"
+  },
+  "scope": "implemented domain only"
+}

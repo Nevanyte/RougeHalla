@@ -38,6 +38,7 @@ pub mod sim;
 pub mod stat_fold;
 pub mod state;
 pub mod statics;
+pub mod status_runtime;
 pub mod store;
 mod systems;
 mod vision;

@@ -2,8 +2,14 @@
 use std::sync::Arc;
 // Representation limits for the bounded eight-player producer. Checked before copying.
 pub(crate) const FX_REPORT_EVENTS_MAX: usize = 512;
-pub(crate) const FX_REPORT_OPS_MAX: usize = 20;
-pub(crate) const FX_PUBLIC_BUCKETS_MAX: usize = 128;
+pub(crate) const ABILITY_CONTRIBUTIONS_MAX: usize = crate::constants::MAX_PLAYERS
+    * (crate::constants::MAX_PLAYERS + 1)
+    * crate::status_runtime::AbilityId::ALL.len();
+pub(crate) const FX_REPORT_OPS_MAX: usize = 20 + ABILITY_CONTRIBUTIONS_MAX;
+pub(crate) const FX_PUBLIC_BUCKETS_MAX: usize = 128
+    + crate::constants::MAX_PLAYERS
+        * (crate::constants::MAX_PLAYERS + 1)
+        * crate::status_runtime::AbilityId::ALL.len();
 pub(crate) const FX_INSTANT_BUCKETS_MAX: usize = 16;
 pub(crate) const FX_OUTPUT_EVENTS_MAX: usize =
     FX_REPORT_EVENTS_MAX + 2 * FX_PUBLIC_BUCKETS_MAX + FX_INSTANT_BUCKETS_MAX;
@@ -36,6 +42,7 @@ impl Clone for Projection {
 pub(crate) enum Op {
     Contribution(LandedHit),
     Flush(usize),
+    AbilityFlush(usize),
     Reset(usize),
     InstantFlush(usize),
 }
@@ -140,7 +147,7 @@ impl Sim {
                 .iter()
                 .filter(|o| matches!(o, Op::Contribution(_)))
                 .count()
-                <= 16;
+                <= 16 + ABILITY_CONTRIBUTIONS_MAX;
         if !r.bounded {
             return;
         }
@@ -159,6 +166,7 @@ impl Sim {
         r.ops
             .extend(self.s.fx.ops.iter().cloned().map(|op| match op {
                 Op::Flush(i) => Op::Flush(i - offset),
+                Op::AbilityFlush(i) => Op::AbilityFlush(i - offset),
                 Op::Reset(i) => Op::Reset(i - offset),
                 Op::InstantFlush(i) => Op::InstantFlush(i - offset),
                 o => o,

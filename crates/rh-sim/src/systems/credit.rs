@@ -58,7 +58,13 @@ pub(crate) fn credit_kill(
         credit(w, ev, bi, GvReason::Bounty, bounty);
     }
     crate::hooks::fire(
-        &mut crate::hooks::Hx { k, w, ev, fx: None },
+        &mut crate::hooks::Hx {
+            stats: crate::status_runtime::stats::Inputs::default(),
+            k,
+            w,
+            ev,
+            fx: None,
+        },
         crate::hooks::HookArgs::PlayerKilled {
             by,
             victim: victim.id,

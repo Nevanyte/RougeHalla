@@ -1,0 +1,311 @@
+{
+  "format": "rh-status-source-symbols/1",
+  "symbols": [
+    {
+      "path": "packages/server/src/sim/status.ts",
+      "symbol": "statusesOf",
+      "evidence": "helpers + runtime fixed inventories",
+      "classification": "unchanged exported source helper; direct call or actual internal caller"
+    },
+    {
+      "path": "packages/server/src/sim/status.ts",
+      "symbol": "addStatus",
+      "evidence": "helpers + runtime fixed inventories",
+      "classification": "unchanged exported source helper; direct call or actual internal caller"
+    },
+    {
+      "path": "packages/server/src/sim/status.ts",
+      "symbol": "removeStatuses",
+      "evidence": "helpers + runtime fixed inventories",
+      "classification": "unchanged exported source helper; direct call or actual internal caller"
+    },
+    {
+      "path": "packages/server/src/sim/status.ts",
+      "symbol": "cleanse",
+      "evidence": "helpers + runtime fixed inventories",
+      "classification": "unchanged exported source helper; direct call or actual internal caller"
+    },
+    {
+      "path": "packages/server/src/sim/status.ts",
+      "symbol": "findStatus",
+      "evidence": "helpers + runtime fixed inventories",
+      "classification": "unchanged exported source helper; direct call or actual internal caller"
+    },
+    {
+      "path": "packages/server/src/sim/status.ts",
+      "symbol": "statusValue",
+      "evidence": "helpers + runtime fixed inventories",
+      "classification": "unchanged exported source helper; direct call or actual internal caller"
+    },
+    {
+      "path": "packages/server/src/sim/status.ts",
+      "symbol": "isStunned",
+      "evidence": "helpers + runtime fixed inventories",
+      "classification": "unchanged exported source helper; direct call or actual internal caller"
+    },
+    {
+      "path": "packages/server/src/sim/status.ts",
+      "symbol": "isRooted",
+      "evidence": "helpers + runtime fixed inventories",
+      "classification": "unchanged exported source helper; direct call or actual internal caller"
+    },
+    {
+      "path": "packages/server/src/sim/status.ts",
+      "symbol": "isSilenced",
+      "evidence": "helpers + runtime fixed inventories",
+      "classification": "unchanged exported source helper; direct call or actual internal caller"
+    },
+    {
+      "path": "packages/server/src/sim/status.ts",
+      "symbol": "isSlowed",
+      "evidence": "helpers + runtime fixed inventories",
+      "classification": "unchanged exported source helper; direct call or actual internal caller"
+    },
+    {
+      "path": "packages/server/src/sim/status.ts",
+      "symbol": "isUntargetable",
+      "evidence": "helpers + runtime fixed inventories",
+      "classification": "unchanged exported source helper; direct call or actual internal caller"
+    },
+    {
+      "path": "packages/server/src/sim/status.ts",
+      "symbol": "isUntargetableId",
+      "evidence": "helpers + runtime fixed inventories",
+      "classification": "unchanged exported source helper; direct call or actual internal caller"
+    },
+    {
+      "path": "packages/server/src/sim/status.ts",
+      "symbol": "isUntargetableAt",
+      "evidence": "helpers + runtime fixed inventories",
+      "classification": "unchanged exported source helper; direct call or actual internal caller"
+    },
+    {
+      "path": "packages/server/src/sim/status.ts",
+      "symbol": "isHidden",
+      "evidence": "helpers + runtime fixed inventories",
+      "classification": "unchanged exported source helper; direct call or actual internal caller"
+    },
+    {
+      "path": "packages/server/src/sim/status.ts",
+      "symbol": "isCasting",
+      "evidence": "helpers + runtime fixed inventories",
+      "classification": "unchanged exported source helper; direct call or actual internal caller"
+    },
+    {
+      "path": "packages/server/src/sim/status.ts",
+      "symbol": "cannotMove",
+      "evidence": "helpers + runtime fixed inventories",
+      "classification": "unchanged exported source helper; direct call or actual internal caller"
+    },
+    {
+      "path": "packages/server/src/sim/status.ts",
+      "symbol": "actionBlocked",
+      "evidence": "helpers + runtime fixed inventories",
+      "classification": "unchanged exported source helper; direct call or actual internal caller"
+    },
+    {
+      "path": "packages/server/src/sim/status.ts",
+      "symbol": "castBlocked",
+      "evidence": "helpers + runtime fixed inventories",
+      "classification": "unchanged exported source helper; direct call or actual internal caller"
+    },
+    {
+      "path": "packages/server/src/sim/status.ts",
+      "symbol": "reveal",
+      "evidence": "helpers + runtime fixed inventories",
+      "classification": "unchanged exported source helper; direct call or actual internal caller"
+    },
+    {
+      "path": "packages/server/src/sim/status.ts",
+      "symbol": "damageFactor",
+      "evidence": "helpers + runtime fixed inventories",
+      "classification": "unchanged exported source helper; direct call or actual internal caller"
+    },
+    {
+      "path": "packages/server/src/sim/status.ts",
+      "symbol": "dealtFactor",
+      "evidence": "helpers + runtime fixed inventories",
+      "classification": "unchanged exported source helper; direct call or actual internal caller"
+    },
+    {
+      "path": "packages/server/src/sim/status.ts",
+      "symbol": "floorHp",
+      "evidence": "helpers + runtime fixed inventories",
+      "classification": "unchanged exported source helper; direct call or actual internal caller"
+    },
+    {
+      "path": "packages/server/src/sim/status.ts",
+      "symbol": "healFactor",
+      "evidence": "helpers + runtime fixed inventories",
+      "classification": "unchanged exported source helper; direct call or actual internal caller"
+    },
+    {
+      "path": "packages/server/src/sim/status.ts",
+      "symbol": "attackSlowFactor",
+      "evidence": "helpers + runtime fixed inventories",
+      "classification": "unchanged exported source helper; direct call or actual internal caller"
+    },
+    {
+      "path": "packages/server/src/sim/status.ts",
+      "symbol": "statusMoveMultiplier",
+      "evidence": "helpers + runtime fixed inventories",
+      "classification": "unchanged exported source helper; direct call or actual internal caller"
+    },
+    {
+      "path": "packages/server/src/sim/status.ts",
+      "symbol": "effectsOf",
+      "evidence": "helpers + runtime fixed inventories",
+      "classification": "unchanged exported source helper; direct call or actual internal caller"
+    },
+    {
+      "path": "packages/server/src/sim/status.ts",
+      "symbol": "refreshEffects",
+      "evidence": "helpers + runtime fixed inventories",
+      "classification": "unchanged exported source helper; direct call or actual internal caller"
+    },
+    {
+      "path": "packages/server/src/sim/fields.ts",
+      "symbol": "abilitiesRt",
+      "evidence": "helpers + runtime fixed inventories",
+      "classification": "unchanged exported source helper; direct call or actual internal caller"
+    },
+    {
+      "path": "packages/server/src/sim/fields.ts",
+      "symbol": "addField",
+      "evidence": "helpers + runtime fixed inventories",
+      "classification": "unchanged exported source helper; direct call or actual internal caller"
+    },
+    {
+      "path": "packages/server/src/sim/fields.ts",
+      "symbol": "removeField",
+      "evidence": "helpers + runtime fixed inventories",
+      "classification": "unchanged exported source helper; direct call or actual internal caller"
+    },
+    {
+      "path": "packages/server/src/sim/fields.ts",
+      "symbol": "removeFieldsWhere",
+      "evidence": "helpers + runtime fixed inventories",
+      "classification": "unchanged exported source helper; direct call or actual internal caller"
+    },
+    {
+      "path": "packages/server/src/sim/fields.ts",
+      "symbol": "fieldsOf",
+      "evidence": "helpers + runtime fixed inventories",
+      "classification": "unchanged exported source helper; direct call or actual internal caller"
+    },
+    {
+      "path": "packages/server/src/sim/fields.ts",
+      "symbol": "onTrail",
+      "evidence": "helpers + runtime fixed inventories",
+      "classification": "unchanged exported source helper; direct call or actual internal caller"
+    },
+    {
+      "path": "packages/server/src/sim/displace.ts",
+      "symbol": "displace",
+      "evidence": "helpers + runtime fixed inventories",
+      "classification": "unchanged exported source helper; direct call or actual internal caller"
+    },
+    {
+      "path": "packages/server/src/sim/abilities.ts",
+      "symbol": "install",
+      "evidence": "runtime fixed inventory; actual installed hooks for private onAttackStarted and actual scoped lifecycle callers for private routines",
+      "classification": "unchanged source routine; no observational export or rewritten body"
+    },
+    {
+      "path": "packages/server/src/sim/abilities.ts",
+      "symbol": "updateAbilities",
+      "evidence": "runtime fixed inventory; actual installed hooks for private onAttackStarted and actual scoped lifecycle callers for private routines",
+      "classification": "unchanged source routine; no observational export or rewritten body"
+    },
+    {
+      "path": "packages/server/src/sim/abilities.ts",
+      "symbol": "onStatusApplied",
+      "evidence": "runtime fixed inventory; actual installed hooks for private onAttackStarted and actual scoped lifecycle callers for private routines",
+      "classification": "unchanged source routine; no observational export or rewritten body"
+    },
+    {
+      "path": "packages/server/src/sim/abilities.ts",
+      "symbol": "onAttackStarted",
+      "evidence": "runtime fixed inventory; actual installed hooks for private onAttackStarted and actual scoped lifecycle callers for private routines",
+      "classification": "unchanged source routine; no observational export or rewritten body"
+    },
+    {
+      "path": "packages/server/src/sim/abilities.ts",
+      "symbol": "endFields",
+      "evidence": "runtime fixed inventory; actual installed hooks for private onAttackStarted and actual scoped lifecycle callers for private routines",
+      "classification": "unchanged source routine; no observational export or rewritten body"
+    },
+    {
+      "path": "packages/server/src/sim/abilities.ts",
+      "symbol": "endZones",
+      "evidence": "runtime fixed inventory; actual installed hooks for private onAttackStarted and actual scoped lifecycle callers for private routines",
+      "classification": "unchanged source routine; no observational export or rewritten body"
+    },
+    {
+      "path": "packages/server/src/sim/abilities.ts",
+      "symbol": "clearFighter",
+      "evidence": "runtime fixed inventory; actual installed hooks for private onAttackStarted and actual scoped lifecycle callers for private routines",
+      "classification": "unchanged source routine; no observational export or rewritten body"
+    },
+    {
+      "path": "packages/server/src/sim/abilities.ts",
+      "symbol": "clearAll",
+      "evidence": "runtime fixed inventory; actual installed hooks for private onAttackStarted and actual scoped lifecycle callers for private routines",
+      "classification": "unchanged source routine; no observational export or rewritten body"
+    },
+    {
+      "path": "packages/server/src/sim/abilities.ts",
+      "symbol": "payDeathFloor",
+      "evidence": "runtime fixed inventory; actual installed hooks for private onAttackStarted and actual scoped lifecycle callers for private routines",
+      "classification": "unchanged source routine; no observational export or rewritten body"
+    },
+    {
+      "path": "packages/server/src/sim/abilities.ts",
+      "symbol": "statusDamage",
+      "evidence": "runtime fixed inventory; actual installed hooks for private onAttackStarted and actual scoped lifecycle callers for private routines",
+      "classification": "unchanged source routine; no observational export or rewritten body"
+    },
+    {
+      "path": "packages/server/src/sim/abilities.ts",
+      "symbol": "abilityDotFx",
+      "evidence": "runtime fixed inventory; actual installed hooks for private onAttackStarted and actual scoped lifecycle callers for private routines",
+      "classification": "unchanged source routine; no observational export or rewritten body"
+    },
+    {
+      "path": "packages/server/src/sim/abilities.ts",
+      "symbol": "flushAbilityDot",
+      "evidence": "runtime fixed inventory; actual installed hooks for private onAttackStarted and actual scoped lifecycle callers for private routines",
+      "classification": "unchanged source routine; no observational export or rewritten body"
+    }
+  ],
+  "sharedData": [
+    "packages/shared/src/status.ts::STATUS_KINDS",
+    "packages/shared/src/status.ts::STATUS_RULES",
+    "packages/shared/src/status.ts::EFFECT_CASTING",
+    "packages/shared/src/status.ts::HIDDEN_REVEAL_MS",
+    "packages/shared/src/mods.ts::hasteMultiplier",
+    "packages/shared/src/mods.ts::resistSlow",
+    "packages/shared/src/abilities.ts::rankOf + ABILITIES rank-one scoped field quantities"
+  ],
+  "callerBoundaries": [
+    "actual gameplay.createGameWorld/step/addPlayer/removePlayer and existing intake",
+    "actual ledger.recordHit/applyLedger/deferHit with trusted hook recipes",
+    "actual mods.setExtraRows/getters + cardState.rollDotCrit invoked by statusDamage",
+    "actual combatant.standing/isQuestGiver and no-state isEvading"
+  ],
+  "pendingProducers": [
+    "ability cast validation/landing/spending/Wish production",
+    "card acquisition/on-hit production; supplied nonneutral modifiers are trusted inputs",
+    "new native mob store/gameplay",
+    "terrain ice production",
+    "teleport/displacement destination selection"
+  ],
+  "schemaAudit": {
+    "noSync": [
+      "RaidState.tick: explicitly included every snapshot.clock and runtime.clock"
+    ],
+    "opaqueFunctions": "Only existing queued function names/cardinality can be observed; no closure payload is invented. Typed input recipes and actual execution effects preserve timing proof.",
+    "registrationFunctions": "Function registration/action chains excluded from data snapshots; original source bodies/source hashes and untouched-run equivalence bind actual execution.",
+    "externalModCaches": "Existing mods WeakMaps remain with their owner; actual source rows/sums/mirrors are captured via exported readers."
+  }
+}

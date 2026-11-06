@@ -1051,7 +1051,12 @@ pub fn compare(fx: &Fixture) -> Report {
         if vision::compare(&mut rep, &sim, fx, t) {
             occurred.insert("state:vision".into());
         }
-        if sim.players().iter().any(|p| !p.weapon.shreds.is_empty()) {
+        if sim.players().iter().any(|p| {
+            p.statuses
+                .instances
+                .iter()
+                .any(|s| s.kind == rh_sim::status_runtime::StatusKind::Shred)
+        }) {
             occurred.insert("state:shred".into());
         }
         // events

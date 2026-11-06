@@ -248,7 +248,10 @@ pub(crate) fn actor_with(
     tick: u32,
     line_blocked: impl FnOnce() -> bool,
 ) -> bool {
-    if target.status == Status::Lobby || !point_with(map, viewer, target.pos(), tick, line_blocked)
+    if (viewer.id != target.id
+        && target.statuses.effects & crate::status_runtime::StatusKind::Hidden.rule().bit != 0)
+        || target.status == Status::Lobby
+        || !point_with(map, viewer, target.pos(), tick, line_blocked)
     {
         return false;
     }
@@ -293,7 +296,12 @@ pub(crate) fn gameplay_actor_visible(
     target: &Player,
     tick: u32,
 ) -> bool {
-    if actor_visible(map, viewer, target, tick) {
+    // Presentation uses the last source-timed hidden mirror; gameplay targetability uses
+    // current status readers at its own phase, so terrain sight must not reuse that mirror.
+    if target.status != Status::Lobby
+        && point_visible(map, viewer, target.pos(), tick)
+        && bush_visible(map, viewer, target, tick)
+    {
         return true;
     }
     if viewer.status != Status::Alive

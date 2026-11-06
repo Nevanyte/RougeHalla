@@ -52,6 +52,12 @@ pub(crate) fn damage(
         ] {
             if raw > 0.0 {
                 ledger.push(Entry {
+                    dot: false,
+                    ability: None,
+                    arena: false,
+                    source: None,
+                    critical: false,
+                    critical_mult: None,
                     victim: t.id,
                     by: Some(p.id),
                     packet: Packet {
@@ -241,6 +247,9 @@ mod tests {
             let mut events = Vec::new();
             {
                 let mut cx = super::super::Cx {
+                    stats: crate::status_runtime::stats::Inputs::default(),
+                    #[cfg(feature = "trusted-status-probes")]
+                    probe: None,
                     k: &sim.k,
                     w: &mut sim.w,
                     s: &mut sim.s,
@@ -252,6 +261,12 @@ mod tests {
                 cx.s.rank.resize(cx.w.players.len(), 0);
                 for e in c["entries"].as_array().unwrap() {
                     cx.s.ledger.push(Entry {
+                        dot: false,
+                        ability: None,
+                        arena: false,
+                        source: None,
+                        critical: false,
+                        critical_mult: None,
                         victim: id(&e["victim"]),
                         by: Some(id(&e["by"])),
                         packet: Packet {

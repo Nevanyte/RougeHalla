@@ -1,0 +1,14 @@
+--- a/crates/rh-sim/Cargo.toml
++++ b/crates/rh-sim/Cargo.toml
+@@ -31,3 +31,11 @@
+ 
+ [lints]
+ workspace = true
++
++[[test]]
++name = "status_privacy_review"
++required-features = ["trusted-status-probes"]
++
++[[test]]
++name = "status_alloc_review"
++required-features = ["trusted-status-probes"]

@@ -14,7 +14,7 @@ revision; [sweep/README.md](sweep/README.md) says which (H-sim and H-server-2 ha
 
 ### Stage 2 validation addendum (takes precedence over the historical Stage 1 rows below)
 
-Native arm64 integration on `optimization_port`: 1,207 tests passed with all features, 0 failed/filtered and two explicitly
+Native arm64 integration on `optimization_port`: 1,252 tests passed with all features, 0 failed/filtered and two explicitly
 ignored tests (heap measurement and manual bridge E2E; the latter passed at the preceding external integration). Formatting and full/default-feature workspace Clippy with warnings denied passed. The preceding
 foundation gate passed 395 all-feature/386 default-feature tests; its Rust/C#/browser and legacy recapture CI passed at
 `c93b659d`. Full-game, AWS, browser-matrix and release gates remain open.
@@ -22,8 +22,8 @@ foundation gate passed 395 all-feature/386 default-feature tests; its Rust/C#/br
 - C-INPUT/C-PARITY: weapon inputs use the existing validation/action budget. The harness now compares real admission
   outcomes, rejects unconsumed or unordered records, and checks requirements only for replayed records. 97 compared
   scenarios and 300 path queries MATCH; 13 scenarios are explicitly capture-only. Exact recapture runs Linux x64 Node 22.23.4.
-- C-DET/C-NUM: checkpoint format is `rh-checkpoint/14`, replay `rh-replay/12`, observation version 11; content identity
-  `b5a9b0f84279dcfb`. Projectile state is hashed/restored, invalid packet/identity headroom is refused, and the six new
+- C-DET/C-NUM: checkpoint format is `rh-checkpoint/15`, replay `rh-replay/13`, observation version 12; content identity
+  `256add608aea64e6`. Projectile state is hashed/restored, invalid packet/identity headroom is refused, and the six new
   flight fixtures allocate zero over 336 measured steady steps. Fixed map geometry uses one definition folded into the
   content identity; all 76 recaptured files and all seven map oracles agree on Linux x64 Node 22.23.4. Full admitted gameplay
   layers participate in static hashing and checkpoint validation. Captured legacy map hashes remain unverified metadata at structural import; the separate exact source hash now
@@ -53,13 +53,21 @@ foundation gate passed 395 all-feature/386 default-feature tests; its Rust/C#/br
   All 463 original cases retain their input/expected values and coverage; 252 fresh source cases expose non-finite
   boost and product boundaries. Canonical 4,096-case CI and 100,000-distinct-input stress comparisons pass, and ten
   actual compiled implementation mutants fail semantically. The aggregate content fold includes all 33 numeric
-  definition words and actual key/category/index metadata. This leaf is unwired; card/status runtime is not implied.
+  definition words and actual key/category/index metadata. Generic status now reuses the kernel; card producers remain pending.
 - C-NUM/C-PARITY/C-DET: the pure mob catalog/roster leaf matches 322 original and 120 independent actual-source
   cases; all 30 types/five roles and 200 distinct binary64 input tapes are covered. Sixteen actual compiled behavior
   mutations were detected. The coordinator folds the actual ordered role/type/region/rule visitor into content, with
   327 field/membership/order/tag sensitivity checks and unchanged stat-fold checks. Both original and independent
   corpora reproduce byte for byte under Linux x64 Node 22.23.4. This registers a pure helper, not native private RNG,
   mob actors, AI, combat, rewards or respawn. See `evidence/stage2-mob-catalog/integration.json`.
+- C-TICK/C-DET/C-PARITY/C-OBS: the generic status core is integrated with one ledger for all14 kinds, fields and
+  displacement. Actual schedule positions are unchanged; partial ability rows record both executed subresponsibility
+  and pending producer ownership. All79 real-Sim source cases plus one separate role leaf and14 fresh privacy pairs
+  pass; all four corpora reproduce exactly on canonical Node22.23.4. Fields omit runtime IDs, redact identities before
+  sorting, preserve multiplicity and obey source-timed hidden effects. Restore/headless/policy/allocation gates pass.
+  Actual status words and axe/ability key metadata are folded with exhaustive inventory and sensitivity coverage;
+  accepted stat-fold/mob injection remains intact. Full ability/card/mob/terrain producers and live transport remain
+  pending. See `evidence/status-runtime/INTEGRATION.md` and provisional ADR0017.
 - C-OBS: hidden pickup targets are indistinguishable from absent targets in requester feedback. Hit/Death/Block source
   ids are redacted when unseen; authoritative credit and trusted parity events are preserved. Independent differential
   and earlier-step/cached projection checks passed. Public item discovery/self inventory now works for headless/policy
@@ -75,7 +83,7 @@ foundation gate passed 395 all-feature/386 default-feature tests; its Rust/C#/br
   eligibility, anonymous source redaction/exact sums and every-step Rust projection. Fresh sessions/gaps cannot recover
   private history; derived reports are instance-bound and outside authoritative hashes/checkpoints. Independent actual
   live/headless/policy checks, 5,400 generated transitions and five impactful mutations pass.
-- C-POLICY: contract v8 proposes `PublicCommand`s. Observer-local handles resolve into trusted commands before the normal
+- C-POLICY: contract v9 proposes `PublicCommand`s and consumes observation12 status/field facts. Observer-local handles resolve into trusted commands before the normal
   action budget; explicit misses are recorded/replayed. Async seats own their projection and discard late/panicked output.
   Target/AttackMove share the same Rust path. Explicit targets need delivered actor membership and current sight;
   autonomous acquisition is independent of publication. Hidden targets never enter the owner target mirror.
@@ -85,7 +93,7 @@ foundation gate passed 395 all-feature/386 default-feature tests; its Rust/C#/br
 - C-NET: protocol 5 ([ADR 0012](adr/0012-combat-protocol-v5.md)), strict combat codecs and frozen Hello/Reject envelope.
   Rust 73, C# 220 and JS 3,344 codec checks plus real Chromium WSS proof passed. Oversize, BOM and wrong-version regressions
   were reproduced and corrected. Actual Unity Web build and movement over WS/WSS also passed; no valid public TLS claim.
-  Protocol 5 explicitly omits core Cancel/Heal/signature effects and signature-state bits until compatible transport/
+  Protocol 5 explicitly omits core Cancel/Heal/signature/status/ability effects, status/field facts and signature-state bits until compatible transport/
   presentation support is implemented; it never encodes Disease as an ordinary Hit.
 - C-PERSIST: achievement ids, timestamps and reward cosmetics commit with the fenced result. 83 legacy observations
   and 32 real-PG tests passed, including concurrent duplicate result and crash rollback. The cosmetic catalog and look

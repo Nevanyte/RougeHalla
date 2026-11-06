@@ -73,6 +73,7 @@ const NON_GAMEPLAY: &[(&str, &str, &str)] = &[
     ("mapgen/landmarks/templates/mod.rs", "NOOK", "internal parsed-cell role encoding, not a geometry tunable"),
     ("mapgen/landmarks/templates/mod.rs", "LIGHT", "internal parsed-cell role encoding, not a geometry tunable"),
     ("fx_report.rs", "FX_REPORT_EVENTS_MAX", "sealed projection report capacity; unsupported scenes fail explicitly, never changes gameplay"),
+    ("fx_report.rs", "ABILITY_CONTRIBUTIONS_MAX", "checked sealed-report representation capacity for temporal ability contributions; unsupported scenes fail explicitly rather than changing rules"),
     ("fx_report.rs", "FX_REPORT_OPS_MAX", "derived per-step projection operation capacity, not a rule"),
     ("fx_report.rs", "FX_PUBLIC_BUCKETS_MAX", "bounded viewer-local public report storage, never read by gameplay"),
     ("fx_report.rs", "FX_INSTANT_BUCKETS_MAX", "bounded same-tick projected signature output, not a game rule"),
@@ -126,6 +127,20 @@ const NON_GAMEPLAY: &[(&str, &str, &str)] = &[
 /// Rules that are tables rather than scalar rows: they are folded by `content_hash` directly (see content.rs). As
 /// (file, name, reason).
 const TABLES_FOLDED_BY_HASH: &[(&str, &str, &str)] = &[
+    ("status_runtime/fields.rs", "TRIAL_FIELD_POLICY", "actual rank-one exit-stun/burn policy read by status fields and visit_extra_content"),
+    ("status_runtime/fields.rs", "BLAZE_FIELD_POLICY", "actual rank-one exit-stun/burn policy read by status fields and visit_extra_content"),
+    ("status_runtime/mod.rs", "ALL", "actual ordered AbilityId identities and text keys folded by visit_extra_content"),
+    ("status_runtime/readers.rs", "HASTE_BASE_FLOOR", "actual status movement floor folded by visit_extra_content"),
+    ("status_runtime/readers.rs", "DEATH_FLOOR_DEFAULT_HP", "actual death-floor default folded by visit_extra_content"),
+    ("status_runtime/rules.rs", "STATUS_KINDS", "actual ordered status kind identities consumed by visit_content"),
+    ("status_runtime/rules.rs", "STATUS_RULES", "all actual status duration/combine/cap/cleanse/bit/role fields consumed by visit_content"),
+    ("status_runtime/rules.rs", "HIDDEN_REVEAL_MS", "actual reveal interval consumed by visit_content"),
+    ("status_runtime/rules.rs", "EFFECT_CASTING", "actual casting effect bit consumed by visit_content"),
+    ("status_runtime/stats.rs", "CRIT_EPSILON", "actual deterministic DoT critical threshold consumed by visit_extra_content"),
+    ("status_runtime/stats.rs", "CRIT_MULT", "actual critical damage multiplier consumed by visit_extra_content"),
+    ("status_runtime/stats.rs", "CRIT_CHANCE_MAX", "actual critical chance bound consumed by visit_extra_content"),
+    ("status_runtime/stats.rs", "LIFESTEAL_MAX", "actual lifesteal bound consumed by visit_extra_content"),
+    ("status_runtime/stats.rs", "HOLY_LEECH_ROW_MULT", "actual Holy row multiplier consumed by visit_extra_content"),
     ("mob_catalog/mod.rs", "DEFINITION", "actual ordered role/type/region metadata and four roster/reach policies folded by content_hash_of_mob_catalog_definition through the runtime visitor"),
     ("mapgen/style_zones/mod.rs", "ENTRIES", "actual five-faction callback identity and phase metadata folded by style_zones::visit_entries into aggregate content"),
     ("mapgen/style_rime/shape.rs", "NORMALS", "actual facet geometry coordinates folded through the same style_rime::visit_content definition visitor"),
@@ -425,7 +440,7 @@ fn hash_golden() {
         content_hash()
     );
 }
-const GOLDEN_CONTENT_HASH: u64 = 0xb5a9_b0f8_4279_dcfb;
+const GOLDEN_CONTENT_HASH: u64 = 0x256a_dd60_8aea_64e6;
 
 #[test]
 fn every_registry_row_perturbs_the_hash() {

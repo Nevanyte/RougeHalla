@@ -1,0 +1,288 @@
+[
+  {
+    "name": "early-same-pass-apply",
+    "buildExit": 0,
+    "runExit": 1,
+    "case": "ledger-frozen-live-fifo",
+    "fixture": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-source-work/repo/parity/status/runtime.json",
+    "command": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-runtime-target/debug/status-probes",
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-source-work/repo/parity/status/runtime.json",
+      "ledger-frozen-live-fifo"
+    ],
+    "diagnostic": "ledger-frozen-live-fifo: 4/after/events/1/fx: native {\"by\":\"bob\",\"id\":\"alice\",\"kind\":\"status\",\"ms\":1000.0,\"status\":\"root\"} != source {\"amount\":1,\"by\":\"bob\",\"id\":\"carol\",\"kind\":\"hit\",\"weapon\":null}",
+    "patch": {
+      "file": "crates/rh-sim/src/systems/status/operations.rs",
+      "old": "if w.pay.collecting {",
+      "new": "if false && w.pay.collecting {",
+      "baselineSha256": "748dac5202da717b2f7b8104d0bc34dc95766a30d6a3b058f9649bf5cc628fd8"
+    }
+  },
+  {
+    "name": "next-tick-payout",
+    "buildExit": 0,
+    "runExit": 1,
+    "case": "frozen-fifo-and-late-selector",
+    "fixture": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-source-work/repo/parity/status/helpers.json",
+    "command": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-runtime-target/debug/status-probes",
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-source-work/repo/parity/status/helpers.json",
+      "frozen-fifo-and-late-selector"
+    ],
+    "diagnostic": "frozen-fifo-and-late-selector: 6/after/fighters/0/effects: native 2 != source 0",
+    "patch": {
+      "file": "crates/rh-sim/src/systems/ledger.rs",
+      "old": "    w.pay.collecting = false;",
+      "new": "    if w.server_time <= 1000. { return; }\n    w.pay.collecting = false;",
+      "baselineSha256": "072be3ca459bec3ac3e4e5f5103fc7c765514178889ef207c333ac88b486ab67"
+    }
+  },
+  {
+    "name": "refresh-source-replacement",
+    "buildExit": 0,
+    "runExit": 1,
+    "case": "key-cross-tag-ability",
+    "fixture": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-source-work/repo/parity/status/helpers.json",
+    "command": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-runtime-target/debug/status-probes",
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-source-work/repo/parity/status/helpers.json",
+      "key-cross-tag-ability"
+    ],
+    "diagnostic": "key-cross-tag-ability: 1/return/source/name: native \"REFRESH\" != source \"BOB\"",
+    "patch": {
+      "file": "crates/rh-sim/src/status_runtime/mutation.rs",
+      "old": "    } else {\n        st.until =",
+      "new": "    } else {\n        st.source = a.source;\n        st.until =",
+      "baselineSha256": "475f2ecb6d848380b7d3ee559b34dee46c44ca742a1c0100baa11e7032953fb8"
+    }
+  },
+  {
+    "name": "refresh-payload-clear",
+    "buildExit": 0,
+    "runExit": 1,
+    "case": "additive-refresh-partial",
+    "fixture": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-source-work/repo/parity/status/helpers.json",
+    "command": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-runtime-target/debug/status-probes",
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-source-work/repo/parity/status/helpers.json",
+      "additive-refresh-partial"
+    ],
+    "diagnostic": "additive-refresh-partial: 1/return: native {\"kind\":\"slowAttack\",\"moveMult\":0.0,\"source\":{\"id\":\"bob\",\"name\":\"BOB\"},\"startedAt\":1000.0,\"until\":2000.0,\"value\":0.45} != source {\"fieldId\":\"f0\",\"kind\":\"slowAttack\",\"moveMult\":0,\"revealUntil\":9000,\"source\":{\"id\":\"bob\",\"name\":\"BOB\"},\"startedAt\":1000,\"until\":2000,\"value\":0.45}",
+    "patch": {
+      "file": "crates/rh-sim/src/status_runtime/mutation.rs",
+      "old": "        st.data.merge(data)",
+      "new": "        st.data = Payload::default();\n        st.data.merge(data)",
+      "baselineSha256": "475f2ecb6d848380b7d3ee559b34dee46c44ca742a1c0100baa11e7032953fb8"
+    }
+  },
+  {
+    "name": "expiry-strict-less",
+    "buildExit": 0,
+    "runExit": 1,
+    "case": "death-floor-expiry-post-barrier",
+    "fixture": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-source-work/repo/parity/status/runtime.json",
+    "command": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-runtime-target/debug/status-probes",
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-source-work/repo/parity/status/runtime.json",
+      "death-floor-expiry-post-barrier"
+    ],
+    "diagnostic": "death-floor-expiry-post-barrier: 11/after/fighters/0/hp: native 5.0 != source 41",
+    "patch": {
+      "file": "crates/rh-sim/src/status_runtime/mutation.rs",
+      "old": "Self::Expired { at } => st.until <= at",
+      "new": "Self::Expired { at } => st.until < at",
+      "baselineSha256": "475f2ecb6d848380b7d3ee559b34dee46c44ca742a1c0100baa11e7032953fb8"
+    }
+  },
+  {
+    "name": "reveal-immediate",
+    "buildExit": 0,
+    "runExit": 1,
+    "case": "reveal-half-open-next-tick",
+    "fixture": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-source-work/repo/parity/status/helpers.json",
+    "command": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-runtime-target/debug/status-probes",
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-source-work/repo/parity/status/helpers.json",
+      "reveal-half-open-next-tick"
+    ],
+    "diagnostic": "reveal-half-open-next-tick: 1/after/fighters/0/effects: native 0 != source 256",
+    "patch": {
+      "file": "crates/rh-sim/src/status_runtime/readers.rs",
+      "old": "Some(now + crate::constants::TICK_MS)",
+      "new": "Some(now)",
+      "baselineSha256": "fef0d556ff0de5525a53b284ed7c8e1d8f85fc086cc7ba20dd19f381a30a2cfa"
+    }
+  },
+  {
+    "name": "cleanse-never",
+    "buildExit": 0,
+    "runExit": 1,
+    "case": "cleanse-classes",
+    "fixture": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-source-work/repo/parity/status/helpers.json",
+    "command": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-runtime-target/debug/status-probes",
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-source-work/repo/parity/status/helpers.json",
+      "cleanse-classes"
+    ],
+    "diagnostic": "cleanse-classes: 14/return: native [{\"kind\":\"invulnerable\",\"source\":{\"id\":\"bob\",\"name\":\"BOB\"},\"startedAt\":1000.0,\"until\":2000.0,\"value\":0.0},{\"kind\":\"untargetable\",\"source\":{\"id\":\"bob\",\"name\":\"BOB\"},\"startedAt\":1000.0,\"until\":2000.0,\"value\":0.0},{\"kind\":\"hidden\",\"source\":{\"id\":\"bob\",\"name\":\"BOB\"},\"startedAt\":1000.0,\"until\":2000.0,\"value\":0.0},{\"kind\":\"zoned\",\"source\":{\"id\":\"bob\",\"name\":\"BOB\"},\"startedAt\":1000.0,\"until\":2000.0,\"value\":0.0},{\"kind\":\"deathFloor\",\"source\":{\"id\":\"bob\",\"name\":\"BOB\"},\"startedAt\":1000.0,\"until\":2000.0,\"value\":0.0},{\"kind\":\"haste\",\"source\":{\"id\":\"bob\",\"name\":\"BOB\"},\"startedAt\":1000.0,\"until\":2000.0,\"value\":0.0}] != source []",
+    "patch": {
+      "file": "crates/rh-sim/src/status_runtime/mutation.rs",
+      "old": "CleanseClass::Never => false",
+      "new": "CleanseClass::Never => true",
+      "baselineSha256": "475f2ecb6d848380b7d3ee559b34dee46c44ca742a1c0100baa11e7032953fb8"
+    }
+  },
+  {
+    "name": "clear-shared-immunity",
+    "buildExit": 0,
+    "runExit": 1,
+    "case": "immunity-clock-retained",
+    "fixture": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-source-work/repo/parity/status/helpers.json",
+    "command": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-runtime-target/debug/status-probes",
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-source-work/repo/parity/status/helpers.json",
+      "immunity-clock-retained"
+    ],
+    "diagnostic": "immunity-clock-retained: 1/after/fighters/0/immuneUntil: native 0.0 != source 3000",
+    "patch": {
+      "file": "crates/rh-sim/src/systems/status/operations.rs",
+      "old": "    let slow = rt::remove_into(&mut w.players[i].statuses, now, selector, out);",
+      "new": "    w.players[i].vitals.immune_until = 0.;\n    let slow = rt::remove_into(&mut w.players[i].statuses, now, selector, out);",
+      "baselineSha256": "748dac5202da717b2f7b8104d0bc34dc95766a30d6a3b058f9649bf5cc628fd8"
+    }
+  },
+  {
+    "name": "floor-before-barrier",
+    "buildExit": 0,
+    "runExit": 1,
+    "case": "death-floor-expiry-post-barrier",
+    "fixture": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-source-work/repo/parity/status/runtime.json",
+    "command": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-runtime-target/debug/status-probes",
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-source-work/repo/parity/status/runtime.json",
+      "death-floor-expiry-post-barrier"
+    ],
+    "diagnostic": "death-floor-expiry-post-barrier: 4/after/fighters/0/statuses/0/taken: native 200.0 != source 170",
+    "patch": {
+      "file": "crates/rh-sim/src/systems/ledger.rs",
+      "old": "    let v = &mut w.players[vi];\n    if v.vitals.barrier > 0.0 {",
+      "new": "    let before_barrier_total = total;\n    let v = &mut w.players[vi];\n    if v.vitals.barrier > 0.0 {",
+      "baselineSha256": "072be3ca459bec3ac3e4e5f5103fc7c765514178889ef207c333ac88b486ab67",
+      "secondary": "floor_hp total -> before_barrier_total"
+    }
+  },
+  {
+    "name": "duplicate-haste",
+    "buildExit": 0,
+    "runExit": 1,
+    "case": "movement-slow-resist-haste",
+    "fixture": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-source-work/repo/parity/status/runtime.json",
+    "command": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-runtime-target/debug/status-probes",
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-source-work/repo/parity/status/runtime.json",
+      "movement-slow-resist-haste"
+    ],
+    "diagnostic": "movement-slow-resist-haste: 4/return/moveMultiplier: native 1.3320000000000003 != source 0.8880000000000001",
+    "patch": {
+      "file": "crates/rh-sim/src/status_runtime/readers.rs",
+      "old": "haste_multiplier(buff_move, haste)",
+      "new": "haste_multiplier(buff_move, haste) * haste_multiplier(buff_move, haste)",
+      "baselineSha256": "fef0d556ff0de5525a53b284ed7c8e1d8f85fc086cc7ba20dd19f381a30a2cfa"
+    }
+  },
+  {
+    "name": "trail-exclusive-radius",
+    "buildExit": 0,
+    "runExit": 1,
+    "case": "trail-inclusive-segment",
+    "fixture": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-source-work/repo/parity/status/runtime.json",
+    "command": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-runtime-target/debug/status-probes",
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-source-work/repo/parity/status/runtime.json",
+      "trail-inclusive-segment"
+    ],
+    "diagnostic": "trail-inclusive-segment: 1/return: native false != source true",
+    "patch": {
+      "file": "crates/rh-sim/src/status_runtime/fields.rs",
+      "old": "crate::math::sqrt(ex * ex + ey * ey) <= f.r",
+      "new": "crate::math::sqrt(ex * ex + ey * ey) < f.r",
+      "baselineSha256": "38fdfe6bf92b44317438c02724b260b7810f1ebf05516c6df4f0bec8a3aa0d7f"
+    }
+  },
+  {
+    "name": "zone-exclusive-radius",
+    "buildExit": 0,
+    "runExit": 1,
+    "case": "zone-exit-radius-equality",
+    "fixture": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-source-work/repo/parity/status/runtime.json",
+    "command": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-runtime-target/debug/status-probes",
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-source-work/repo/parity/status/runtime.json",
+      "zone-exit-radius-equality"
+    ],
+    "diagnostic": "zone-exit-radius-equality: 3/after/fighters/0/effects: native 1 != source 512",
+    "patch": {
+      "file": "crates/rh-sim/src/systems/status/mod.rs",
+      "old": "crate::math::hypot(p.body.x - f.x, p.body.y - f.y) <= f.r",
+      "new": "crate::math::hypot(p.body.x - f.x, p.body.y - f.y) < f.r",
+      "baselineSha256": "d12c3d38ffa9d26eb180bda0f30e3a3569aab2bc189c829c6341028d55c90bc5"
+    }
+  },
+  {
+    "name": "dot-crit-no-tick-cache",
+    "buildExit": 0,
+    "runExit": 1,
+    "case": "dot-crit-source-accumulator",
+    "fixture": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-source-work/repo/parity/status/runtime.json",
+    "command": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-runtime-target/debug/status-probes",
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-source-work/repo/parity/status/runtime.json",
+      "dot-crit-source-accumulator"
+    ],
+    "diagnostic": "dot-crit-source-accumulator: 3/after/fighters/1/cards/critAccDot: native 0.0 != source 0.5",
+    "patch": {
+      "file": "crates/rh-sim/src/status_runtime/stats.rs",
+      "old": "if c.roll_tick == Some(tick) {",
+      "new": "if false && c.roll_tick == Some(tick) {",
+      "baselineSha256": "bd1654621b81f91c9f5c090263c5c05035098dc194eac2b02021e48a12ffa0d6"
+    }
+  },
+  {
+    "name": "invented-dot-rng-draw",
+    "buildExit": 0,
+    "runExit": 1,
+    "case": "dot-crit-source-accumulator",
+    "fixture": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-source-work/repo/parity/status/runtime.json",
+    "command": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-runtime-target/debug/status-probes",
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-source-work/repo/parity/status/runtime.json",
+      "dot-crit-source-accumulator"
+    ],
+    "diagnostic": "dot-crit-source-accumulator: native unexpected RNG draw",
+    "patch": {
+      "file": "crates/rh-sim/src/systems/status/dot.rs",
+      "old": "    let now = w.server_time;",
+      "new": "    let now = w.server_time;\n    w.spawn_rng.next_f64();",
+      "baselineSha256": "4b57469e223a55944f17e5088acc44c982ebc31ba330d6435229ac98a9956f46"
+    }
+  },
+  {
+    "name": "departed-displace-skips-lock-reset",
+    "buildExit": 0,
+    "runExit": 1,
+    "case": "review-queued-displace-after-real-departure",
+    "fixture": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-source-work-v2/repo/parity/status/refinements-v2.json",
+    "command": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-runtime-target/debug/status-probes",
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-source-work-v2/repo/parity/status/refinements-v2.json",
+      "review-queued-displace-after-real-departure"
+    ],
+    "diagnostic": "review-queued-displace-after-real-departure: 4/after/fighters/0/weapon/state/lockGoal: native {\"x\":200.0,\"y\":320.0} != source null",
+    "patch": {
+      "file": "crates/rh-sim/src/systems/displace.rs",
+      "old": "    let now = w.server_time;",
+      "new": "    let now = w.server_time;\n    if w.idx(id).is_none() { return; }",
+      "baselineSha256": "efd9d35eb85f34ae155508b265f2515a11977e731511fd9b19b65db9477c283c"
+    }
+  }
+]

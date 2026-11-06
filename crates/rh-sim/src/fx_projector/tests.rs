@@ -43,6 +43,10 @@ fn report(
     r.seen = vec![seen, 7, 7];
     for &(by, amount, weapon) in values {
         r.ops.push(Op::Contribution(LandedHit {
+            critical: false,
+            cut: 1.,
+            ability: None,
+            dot: false,
             victim: PlayerId(2),
             by: Some(PlayerId(by)),
             amount,
@@ -185,6 +189,10 @@ fn table_uses_actual_ids_and_frozen_visibility() {
     r.ops.insert(
         0,
         Op::Contribution(LandedHit {
+            critical: false,
+            cut: 1.,
+            ability: None,
+            dot: false,
             victim: PlayerId(900),
             by: Some(PlayerId(105)),
             amount: 7.,
@@ -383,6 +391,10 @@ fn instant_anonymous_exact_sum_fixed_marker_and_delayed_independence() {
     other.ops.insert(
         0,
         Op::Contribution(LandedHit {
+            critical: false,
+            cut: 1.,
+            ability: None,
+            dot: false,
             victim: PlayerId(2),
             by: Some(PlayerId(3)),
             sig: Some(SignatureKind::Burn),

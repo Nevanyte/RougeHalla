@@ -1,0 +1,253 @@
+{
+  "format": "rh-status-native-overlay/2",
+  "status": "immutable review candidate, not accepted",
+  "baseCandidateSha256": "0a58f65be1b8527409c24375564f0979d4106dbb5fc409243f5955b3ef2c1a8e",
+  "supersedes": [
+    "status-runtime-partial-schedule-overlay-v1",
+    "status-runtime-geometry-overlay-v1"
+  ],
+  "sourceV3Sha256": "960c6b962ab85a8982ae7ec1e10e901df8d5f6d5f30ff8c3b36140f41a948a93",
+  "caseCounts": {
+    "sim": 79,
+    "roleLeaf": 1
+  },
+  "changedFiles": [
+    {
+      "path": "crates/rh-parity/src/bin/status_probe/admission.rs",
+      "baselineSha256": "f34c1e07ef83c9e99947d625bf1abf8a1c78a6acfb87f58d4f10fcfd6112977d",
+      "sha256": "bb101f8972b380a5ca0d6f7b3860689953943223f3cdb3eeadce3cb30469717d",
+      "bytes": 40717
+    },
+    {
+      "path": "crates/rh-parity/src/bin/status_probe/boundary_v3.rs",
+      "baselineSha256": null,
+      "sha256": "f656fba6339438b132f0f6eb052dec329532c72bec65267e1edf06412f7b3abe",
+      "bytes": 9548
+    },
+    {
+      "path": "crates/rh-parity/src/bin/status_probe/outputs.rs",
+      "baselineSha256": null,
+      "sha256": "ffecb2ad29f92e30e7735c826cdd0ea4135fb08cfe43863ea9fc1659ec28acd0",
+      "bytes": 12913
+    },
+    {
+      "path": "crates/rh-parity/src/bin/status_probes.rs",
+      "baselineSha256": "444a10114ebc0b1f690fd04273122691654de5d23d7bec3dbe0f77d700dbe50d",
+      "sha256": "0f5a7fbea4a93602a369c7b1f3f06bf877510f6083881e03649040eb3d5fe111",
+      "bytes": 62600
+    },
+    {
+      "path": "crates/rh-parity/tests/schedule.rs",
+      "baselineSha256": "4297f9507966f2626ea2cab7cf9742eef9650d02bee9ea54d282b079437bb549",
+      "sha256": "fa3e5fcc526da27b0f62d229be17b981a56761035f96e3be4c857017a41c23df",
+      "bytes": 37250
+    },
+    {
+      "path": "crates/rh-sim/src/hooks.rs",
+      "baselineSha256": "66658faa915db2a355c38898ff68ef14ed620971d3c53633da36ac89e344bb24",
+      "sha256": "29374f94b9cb1d04265850e817af1eb9f080ebffbcf9e4a1f6cac135dbc6f805",
+      "bytes": 6466
+    },
+    {
+      "path": "crates/rh-sim/src/schedule.rs",
+      "baselineSha256": "b8dadd155e6fcb9de202285a5ca645ddbc72a3398de7392b144ecbe1b8d6dfe4",
+      "sha256": "5b3071a5e5532f6bc2eb1360149a62a53c9a77772457e5b0e1b116243c61725a",
+      "bytes": 54412
+    },
+    {
+      "path": "crates/rh-sim/src/status_runtime/checkpoint.rs",
+      "baselineSha256": "15ddccbf25407da2869fb8c491f91845c9d55d94d5e6786d4ed669e2a130b89b",
+      "sha256": "fa962e53f0bf0ac0009aa3c7d19a91cbfaf27475bcbde0b091c7c7bc55a5ccf3",
+      "bytes": 21181
+    },
+    {
+      "path": "crates/rh-sim/src/status_runtime/fields.rs",
+      "baselineSha256": "e33c7484e222e6a0bd90d752003b59f69ff620aab233ef2931508920dc626f6a",
+      "sha256": "38fdfe6bf92b44317438c02724b260b7810f1ebf05516c6df4f0bec8a3aa0d7f",
+      "bytes": 3907
+    },
+    {
+      "path": "crates/rh-sim/src/status_runtime/probe.rs",
+      "baselineSha256": "9397f06ed29799035aa4d4d7eea9a43d11c65f80c6c8ebe11638d2c2b7189a20",
+      "sha256": "5a78afd2f71198f72a8fe219c43c8b9b39c118422bf3f959945bdf77d1f0b1e6",
+      "bytes": 38863
+    },
+    {
+      "path": "crates/rh-sim/src/systems/status/tests.rs",
+      "baselineSha256": "eb1d6b5a82a85360b0fd6ddd4f786b15ae6fd0500a42a0ef37c63aa45eda92f0",
+      "sha256": "0dd1ac07da9fea2e0212e076d55efb7592bc8994e2af0b24caa5d7d112735c0c",
+      "bytes": 10791
+    },
+    {
+      "path": "crates/rh-sim/tests/status_runtime.rs",
+      "baselineSha256": "6f0b7c89cec84c7bddba6b0f215fc2254545e35c14bb1e95a86919fb871f4314",
+      "sha256": "b4f9ee0fdad48c1dd46d623aa8451dff83eca040fa05f9be725665f0d450bae3",
+      "bytes": 6768
+    },
+    {
+      "path": "parity/status/source-metadata.json",
+      "baselineSha256": "95815af31dfc57359b4453f0c2ac95bd0fd8d54a082db865f7af803109578899",
+      "sha256": "2c9db7ac41fc2934b3699dc925eded3379a6e1a4d5c3ac6596c579ccd1e96f60",
+      "bytes": 108280
+    },
+    {
+      "path": "docs/evidence/status-runtime/native-handoff.md",
+      "baselineSha256": null,
+      "sha256": "7887d4def82989e588044f86fa6c5a788e39fe356e8a8269ba49a28f323de3fa",
+      "bytes": 12878
+    },
+    {
+      "path": "docs/evidence/status-runtime/native-symbols.json",
+      "baselineSha256": null,
+      "sha256": "1e3395de883c21c274eb7c6daa766cb26ba0a41f55304a2d087a7b70450f90ce",
+      "bytes": 32259
+    }
+  ],
+  "files": [
+    {
+      "path": "README.md",
+      "sha256": "e92570c92a39861811a6e744118e3787793b846add1956a7fa9ea1f7a7efaf41",
+      "bytes": 1365
+    },
+    {
+      "path": "changed-files.json",
+      "sha256": "4e30c641d0aac61ec0c0c21d0431b3d70b3bd6b02667707885106da49e45d37b",
+      "bytes": 3607
+    },
+    {
+      "path": "evidence/admission-final.json",
+      "sha256": "873628b010b3c07d236e16cf9852a4e9f9346839104ca91801f5054fb593faab",
+      "bytes": 25939
+    },
+    {
+      "path": "evidence/output-negative-results.json",
+      "sha256": "c29193f0c9a31df2cfdc8801c69717027959daeba63ba3c2bb6f3b857c80b03f",
+      "bytes": 5829
+    },
+    {
+      "path": "evidence/run-admission-final.py.log",
+      "sha256": "913748adfdb82c5d8d7ea0bb0bb9026e40f3343d084c522bdcec3a8a73d0fd3f",
+      "bytes": 2052
+    },
+    {
+      "path": "evidence/run-output-negatives.py.log",
+      "sha256": "76e710438b2ebe56bce43380b15c8c3f2a8348fe6700d08c4e38f776f81aa39e",
+      "bytes": 533
+    },
+    {
+      "path": "evidence/source-comparison-final.json",
+      "sha256": "17e4bf300a267fbb20a290c872a9f2f4156f4992636d5ff004b7592e9b79f86b",
+      "bytes": 1165
+    },
+    {
+      "path": "evidence/status-field-provenance.log",
+      "sha256": "1936913fe5150b8a606ca53f6566762fb8082fed54be20ba57a03eaa65b0ad5f",
+      "bytes": 1870
+    },
+    {
+      "path": "evidence/status-final-clippy.log",
+      "sha256": "ec41c2e8b60f5f2dfe0d5470b697e3d0f346d17e94a12d76fb1d70272ab4c34f",
+      "bytes": 1134
+    },
+    {
+      "path": "evidence/status-final-runtime-gates2.log",
+      "sha256": "276ed828da02959850a3550b948ea630be840604b6a23e0d0b6eaaa364c53c12",
+      "bytes": 5253
+    },
+    {
+      "path": "evidence/status-schedule-parity.log",
+      "sha256": "e012cfcf7ef0ff7f04f83a4efe69add814d5da7956b28d5434328fd871d149bb",
+      "bytes": 14431
+    },
+    {
+      "path": "evidence/unknown-target-before.json",
+      "sha256": "db1f1490f09ac3495154b35bf989c5e0f94a5cf146bba65c4415a7e578220191",
+      "bytes": 587
+    },
+    {
+      "path": "files/crates/rh-parity/src/bin/status_probe/admission.rs",
+      "sha256": "bb101f8972b380a5ca0d6f7b3860689953943223f3cdb3eeadce3cb30469717d",
+      "bytes": 40717
+    },
+    {
+      "path": "files/crates/rh-parity/src/bin/status_probe/boundary_v3.rs",
+      "sha256": "f656fba6339438b132f0f6eb052dec329532c72bec65267e1edf06412f7b3abe",
+      "bytes": 9548
+    },
+    {
+      "path": "files/crates/rh-parity/src/bin/status_probe/outputs.rs",
+      "sha256": "ffecb2ad29f92e30e7735c826cdd0ea4135fb08cfe43863ea9fc1659ec28acd0",
+      "bytes": 12913
+    },
+    {
+      "path": "files/crates/rh-parity/src/bin/status_probes.rs",
+      "sha256": "0f5a7fbea4a93602a369c7b1f3f06bf877510f6083881e03649040eb3d5fe111",
+      "bytes": 62600
+    },
+    {
+      "path": "files/crates/rh-parity/tests/schedule.rs",
+      "sha256": "fa3e5fcc526da27b0f62d229be17b981a56761035f96e3be4c857017a41c23df",
+      "bytes": 37250
+    },
+    {
+      "path": "files/crates/rh-sim/src/hooks.rs",
+      "sha256": "29374f94b9cb1d04265850e817af1eb9f080ebffbcf9e4a1f6cac135dbc6f805",
+      "bytes": 6466
+    },
+    {
+      "path": "files/crates/rh-sim/src/schedule.rs",
+      "sha256": "5b3071a5e5532f6bc2eb1360149a62a53c9a77772457e5b0e1b116243c61725a",
+      "bytes": 54412
+    },
+    {
+      "path": "files/crates/rh-sim/src/status_runtime/checkpoint.rs",
+      "sha256": "fa962e53f0bf0ac0009aa3c7d19a91cbfaf27475bcbde0b091c7c7bc55a5ccf3",
+      "bytes": 21181
+    },
+    {
+      "path": "files/crates/rh-sim/src/status_runtime/fields.rs",
+      "sha256": "38fdfe6bf92b44317438c02724b260b7810f1ebf05516c6df4f0bec8a3aa0d7f",
+      "bytes": 3907
+    },
+    {
+      "path": "files/crates/rh-sim/src/status_runtime/probe.rs",
+      "sha256": "5a78afd2f71198f72a8fe219c43c8b9b39c118422bf3f959945bdf77d1f0b1e6",
+      "bytes": 38863
+    },
+    {
+      "path": "files/crates/rh-sim/src/systems/status/tests.rs",
+      "sha256": "0dd1ac07da9fea2e0212e076d55efb7592bc8994e2af0b24caa5d7d112735c0c",
+      "bytes": 10791
+    },
+    {
+      "path": "files/crates/rh-sim/tests/status_runtime.rs",
+      "sha256": "b4f9ee0fdad48c1dd46d623aa8451dff83eca040fa05f9be725665f0d450bae3",
+      "bytes": 6768
+    },
+    {
+      "path": "files/docs/evidence/status-runtime/native-handoff.md",
+      "sha256": "7887d4def82989e588044f86fa6c5a788e39fe356e8a8269ba49a28f323de3fa",
+      "bytes": 12878
+    },
+    {
+      "path": "files/docs/evidence/status-runtime/native-symbols.json",
+      "sha256": "1e3395de883c21c274eb7c6daa766cb26ba0a41f55304a2d087a7b70450f90ce",
+      "bytes": 32259
+    },
+    {
+      "path": "files/parity/status/source-metadata.json",
+      "sha256": "2c9db7ac41fc2934b3699dc925eded3379a6e1a4d5c3ac6596c579ccd1e96f60",
+      "bytes": 108280
+    },
+    {
+      "path": "overlay.patch",
+      "sha256": "fd1ac9e432ea15a92a860085318a8df1d9ee16906785cae642df3caab0fff5e8",
+      "bytes": 134116
+    }
+  ],
+  "pending": [
+    "independent final review",
+    "final-baseline mutation rerun evidence",
+    "coordinator serial integration/content/version/transport/broad gates"
+  ]
+}

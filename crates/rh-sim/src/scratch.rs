@@ -29,6 +29,8 @@ pub(crate) const NONE: u32 = u32::MAX;
 
 #[derive(Debug)]
 pub(crate) struct TickScratch {
+    pub(crate) status_active: Vec<PlayerId>,
+    pub(crate) status_removed: Vec<crate::status_runtime::StatusInstance>,
     /// Rewritten before weapons; only the actual start site marks an action new.
     pub(crate) attack_started: [bool; MAX_PLAYERS],
     pub(crate) performed: Vec<crate::factions::PerformedAttack>,
@@ -58,7 +60,7 @@ pub(crate) struct TickScratch {
     /// Positive post-barrier damage in victim/entry order. Cleared when opening the next ledger.
     pub(crate) landed: Vec<crate::systems::signatures::LandedHit>,
     pub(crate) contacts: Vec<crate::systems::signatures::Contact>,
-    pub(crate) dealt: Vec<(PlayerId, f64)>,
+    pub(crate) dealt: Vec<(PlayerId, f64, f64)>,
     /// Players downed during this step, settled at its end.
     pub(crate) downed_this_tick: Vec<PlayerId>,
     /// The fighters standing when the melee queue is resolved.
@@ -79,7 +81,7 @@ pub(crate) struct TickScratch {
     pub(crate) idxs: Vec<usize>,
     pub(crate) amounts: Vec<f64>,
     pub(crate) order: Vec<(usize, usize)>,
-    pub(crate) hits: Vec<(f64, Option<PlayerId>)>,
+    pub(crate) hits: Vec<crate::systems::ledger::Hit>,
     /// Who still stands, collected only when the settle needs the ids (the end of a run).
     pub(crate) alive: Vec<PlayerId>,
     /// A path search's output, copied into the fighter's path when the order replaces it.
@@ -95,6 +97,8 @@ impl Default for TickScratch {
     fn default() -> Self {
         let (p, hits) = (MAX_PLAYERS, 2 * MAX_PLAYERS * MAX_PLAYERS);
         Self {
+            status_active: Vec::with_capacity(p),
+            status_removed: Vec::with_capacity(p),
             attack_started: [false; MAX_PLAYERS],
             performed: Vec::with_capacity(crate::fx_report::FX_INSTANT_BUCKETS_MAX),
             performed_bounded: true,
@@ -102,7 +106,7 @@ impl Default for TickScratch {
             ledger_diagnostics: Vec::with_capacity(hits),
             dot_sums: Vec::with_capacity(p),
             fx: crate::fx_report::TickFx {
-                ops: Vec::with_capacity(20),
+                ops: Vec::with_capacity(crate::fx_report::FX_REPORT_OPS_MAX),
             },
             bounty_at_tick_start: Vec::with_capacity(p),
             action_order: Vec::with_capacity(p),

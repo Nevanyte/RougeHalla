@@ -108,6 +108,10 @@ fn reference(
             SeenEvent::Stagger { id } => fx.push(WireFx::Stagger { id: id.0 }),
             SeenEvent::AttackCancelled { .. } => {} // No cancel telegraph in protocol 5.
             SeenEvent::SignatureHit { .. } | SeenEvent::Heal { .. } => {} // No heal effect in protocol 5.
+            // P-NET-3 will add status/ability transport; protocol 5 deliberately omits these.
+            SeenEvent::AbilityHit { .. }
+            | SeenEvent::CastEnded { .. }
+            | SeenEvent::StatusApplied { .. } => {}
             SeenEvent::PickupRefused { reason } => events.push(WireEvent::PickupRefused {
                 reason: match reason {
                     rh_sim::PickupRefusal::Blocked => 1,

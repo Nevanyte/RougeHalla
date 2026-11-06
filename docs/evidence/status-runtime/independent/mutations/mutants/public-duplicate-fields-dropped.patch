@@ -1,0 +1,10 @@
+--- a/crates/rh-sim/src/status_runtime/observe.rs
++++ b/crates/rh-sim/src/status_runtime/observe.rs
+@@ -93,6 +93,7 @@
+         }));
+     }
+     out.sort_unstable_by(FieldView::cmp);
++    out.dedup();
+ }
+ pub(crate) fn public(sim: &Sim) -> Vec<FieldView> {
+     let mut out: Vec<_> = sim

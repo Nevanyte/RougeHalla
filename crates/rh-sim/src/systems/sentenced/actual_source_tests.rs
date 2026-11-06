@@ -212,6 +212,12 @@ fn trusted_actual_installed_mark_matrix() {
         let mut ledger = vec![];
         for _ in 0..c["hits"].as_f64().unwrap() as usize {
             ledger.push(Entry {
+                dot: false,
+                ability: None,
+                arena: false,
+                source: None,
+                critical: false,
+                critical_mult: None,
                 victim: PlayerId(2),
                 by: Some(PlayerId(1)),
                 packet: Packet {
@@ -394,6 +400,12 @@ fn helper_only_actual_execute_denial_matrix() {
         for row in c["rows"].as_array().unwrap() {
             let by = row[0].as_f64().map(|n| PlayerId(n as u32 + 1));
             s.s.ledger.push(Entry {
+                dot: false,
+                ability: None,
+                arena: false,
+                source: None,
+                critical: false,
+                critical_mult: None,
                 victim: PlayerId(1),
                 by,
                 packet: Packet {
@@ -414,6 +426,9 @@ fn helper_only_actual_execute_denial_matrix() {
         }
         let mut events = vec![];
         let mut cx = crate::systems::Cx {
+            stats: crate::status_runtime::stats::Inputs::default(),
+            #[cfg(feature = "trusted-status-probes")]
+            probe: None,
             k: &s.k,
             w: &mut s.w,
             s: &mut s.s,

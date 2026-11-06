@@ -273,6 +273,12 @@ fn first_body(cx: &Cx, s: Stretch, t: f64) -> Option<(usize, Vec2)> {
 
 fn entry(pr: Projectile, victim: PlayerId, scale: f64, derived: bool) -> Entry {
     Entry {
+        dot: false,
+        ability: None,
+        arena: false,
+        source: None,
+        critical: false,
+        critical_mult: None,
         sig: None,
         execute: false,
         victim,

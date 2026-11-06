@@ -1,0 +1,11 @@
+--- a/crates/rh-sim/src/status_runtime/observe.rs
++++ b/crates/rh-sim/src/status_runtime/observe.rs
+@@ -83,7 +83,7 @@
+     let map = &sim.k.arena.map;
+     for f in &a.fields {
+         if !crate::vision::point_visible(map, me, Vec2::new(f.x, f.y), sim.w.tick)
+-            || (f.kind == FieldKind::Trail
++            || (false && f.kind == FieldKind::Trail
+                 && !crate::vision::point_visible(map, me, Vec2::new(f.x2, f.y2), sim.w.tick))
+         {
+             continue;

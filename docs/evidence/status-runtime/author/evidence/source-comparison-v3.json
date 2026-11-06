@@ -1,0 +1,26 @@
+[
+  {
+    "file": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-source-work/repo/parity/status/helpers.json",
+    "exit": 0,
+    "stdout": "41 Sim status source cases and 1 separate role leaf proofs passed\n",
+    "stderr": ""
+  },
+  {
+    "file": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-source-work/repo/parity/status/runtime.json",
+    "exit": 0,
+    "stdout": "32 Sim status source cases and 0 separate role leaf proofs passed\n",
+    "stderr": ""
+  },
+  {
+    "file": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-source-work-v2/repo/parity/status/refinements-v2.json",
+    "exit": 0,
+    "stdout": "2 Sim status source cases and 0 separate role leaf proofs passed\n",
+    "stderr": ""
+  },
+  {
+    "file": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-source-work-v3/repo/parity/status/boundaries-v3.json",
+    "exit": 0,
+    "stdout": "4 Sim status source cases and 0 separate role leaf proofs passed\n",
+    "stderr": ""
+  }
+]

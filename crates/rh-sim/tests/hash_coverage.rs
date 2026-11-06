@@ -506,6 +506,7 @@ fn candidates(leaf: &Value, strings: &[String]) -> Vec<Value> {
 
 /// Patterns whose perturbation the restore may refuse, and why. Any other refusal fails the test.
 const VALIDATED: &[(&str, &str)] = &[
+    ("world.players.*.core.statuses.initialized", "a nonempty status table or cast requires initialized runtime; empty runtime presence is separately perturbed"),
     ("world.players.*.core.vitals.faction","nondefault Mark runtime is owned only by a Sentenced faction"),
     ("world.players.*.core.signature.mark.tier","trusted singleton Mark requires its mode/faction, legal progress/tier/counters, target and bounded clocks"),
     ("world.players.*.core.signature.mark.hits","trusted singleton Mark requires its mode/faction, legal progress/tier/counters, target and bounded clocks"),
@@ -565,7 +566,6 @@ const VALIDATED: &[(&str, &str)] = &[
     ("world.containers.*.opened", "only chests can be opened"),
     ("world.containers.*.id", "container ids are unique and cannot exceed the allocated counter"),
     ("world.containers.*.items.*.uid", "item ids must be unique, nonzero and allocated"),
-    ("world.players.*.core.weapon.shreds.*.value", "axe stacks use discrete rule values"),
     (
         "statics.arena.map.w",
         "TileMap::new checks w*h == tiles.len()",
@@ -608,6 +608,30 @@ const VALIDATED: &[(&str, &str)] = &[
 /// a swing is finished or cancelled by the step that ends it, a kill announcement is sent within its step).
 fn seeds(pat: &str) -> Vec<Value> {
     match pat {
+        "world.abilities" => {
+            vec![serde_json::json!({"fields":[],"teleported_at":null,"dot":[],"dot_since":0.0})]
+        }
+        "world.players.*.core.card_dot_crit" => {
+            vec![serde_json::json!({"accumulator":0.0,"roll_tick":0,"critical":false})]
+        }
+        "world.players.*.core.statuses.cast" => vec![
+            serde_json::json!({"ability":"freeze","started_at":0.0,"lands_at":10000.0,"cancelled_by":{"stun":true,"silence":true,"root":false,"stagger":false}}),
+        ],
+        "world.players.*.core.motion.slip" => vec![
+            serde_json::json!({"vx":0.0,"vy":0.0,"ax":0.0,"ay":0.0,"path":null,"replan_at":null,"stuck_x":null,"stuck_y":null,"stuck_n":null,"stuck_best":null,"stuck_at":null,"grip_until":null}),
+        ],
+        "world.players.*.fate.killed_by_name" => {
+            vec![serde_json::json!("departed source snapshot")]
+        }
+        "world.players.*.core.statuses.instances.*.ability" | "world.deferred.hits.*.ability" => {
+            vec![serde_json::json!("freeze")]
+        }
+        "world.players.*.core.statuses.instances.*.data.shares" => {
+            vec![serde_json::json!({"phys":0.0,"magic":0.0,"true_":1.0})]
+        }
+        "world.deferred.hits.*.source" => {
+            vec![serde_json::json!({"id":1,"name":"retained source","owner_id":null})]
+        }
         "world.players.*.core.weapon.weapon0" | "world.players.*.core.weapon.weapon1" => {
             vec![serde_json::json!("Axe"), serde_json::json!("Bow")]
         }
@@ -668,6 +692,25 @@ fn perturb_all(sim: &Sim, pool: &BTreeMap<String, Vec<Value>>, tally: &mut Tally
             "Ground",
             "Arrow",
             "Ball",
+            "stun",
+            "root",
+            "silence",
+            "slowMove",
+            "slowAttack",
+            "antiHeal",
+            "dot",
+            "invulnerable",
+            "untargetable",
+            "hidden",
+            "zoned",
+            "deathFloor",
+            "haste",
+            "shred",
+            "freeze",
+            "swarm",
+            "trial",
+            "blaze",
+            "lastStand",
         ] {
             s.push(extra.into());
         }
@@ -690,10 +733,13 @@ fn perturb_all(sim: &Sim, pool: &BTreeMap<String, Vec<Value>>, tally: &mut Tally
         }
         let secret = p.starts_with("statics.secrets");
         let tries: Vec<Value> = match item.kind {
+            Kind::Leaf if pat == "world.players.*.core.attack_rate_wire" => {
+                vec![serde_json::json!(800.0), serde_json::json!(900.0)]
+            }
             Kind::Leaf if pat == "world.players.*.core.weapon.armor_shred" => {
                 vec![serde_json::json!(3.0), serde_json::json!(6.0)]
             }
-            Kind::Leaf if pat == "world.players.*.core.weapon.shreds.*.value" => {
+            Kind::Leaf if pat == "world.players.*.core.statuses.instances.*.value" => {
                 vec![serde_json::json!(if leaf == &serde_json::json!(3.0) {
                     6.0
                 } else {
@@ -882,6 +928,7 @@ fn a_deferred_queue_and_every_roster_name_are_hashed() {
     let mut cp = serde_json::to_value(&sim).unwrap();
     cp["world"]["deferred"]["hits"] = serde_json::json!([{
         "victim": 2, "by": 1,
+        "dot":false,"ability":null,"arena":false,"source":null,"critical":false,"critical_mult":null,
         "sig": null,"execute": false,
             "packet": {"raw": 5.0, "phys": 4.0, "magic": 1.0, "true_": 0.0},
         "weapon": "Fists", "stagger": true, "scale": 1.0, "derived":false, "projectile":null

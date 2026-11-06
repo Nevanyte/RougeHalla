@@ -137,7 +137,8 @@ fn checked_actor(a: &ActorView) -> Result<QActor, &'static str> {
     QActor::checked(&wire_actor(a))
 }
 
-/// Whether two views are the same actor state, bit for bit (`0.0` and `-0.0`, or two NaNs, never count as equal).
+/// Whether the protocol-5 actor fields match bit for bit (`0.0` and `-0.0`, or two NaNs, never count as equal).
+/// Core-only status/effect fields do not participate until their transport is implemented in P-NET-3.
 #[inline]
 fn same_view(a: &ActorView, b: &ActorView) -> bool {
     a.id == b.id
@@ -217,6 +218,11 @@ fn to_wire(e: &SeenEvent) -> Wire {
         // Target locking is currently a core/policy/headless feature. Protocol 5 has no cancel telegraph.
         SeenEvent::AttackCancelled { .. } => Wire::OmittedInV5,
         SeenEvent::SignatureHit { .. } | SeenEvent::Heal { .. } => Wire::OmittedInV5,
+        // P-STATUS-1 exposes these to core observers/policies/headless. Protocol 5 has no matching
+        // messages, nor status/field snapshot data. P-NET-3 owns that transport and its codec mirrors.
+        SeenEvent::AbilityHit { .. }
+        | SeenEvent::CastEnded { .. }
+        | SeenEvent::StatusApplied { .. } => Wire::OmittedInV5,
         SeenEvent::PickupRefused { reason } => Wire::Event(WireEvent::PickupRefused {
             reason: match reason {
                 rh_sim::PickupRefusal::Blocked => 1,
@@ -577,6 +583,8 @@ mod tests {
 
     fn view(id: u32) -> ActorView {
         ActorView {
+            effects: 0,
+            displace_seq: 0,
             mark_tier: 0,
             brand: 0,
             mark_by: None,
@@ -604,6 +612,8 @@ mod tests {
         type Edit = Box<dyn Fn(&mut ActorView)>;
         let edits: Vec<(&str, Edit)> = vec![
             ("same", Box::new(|_| {})),
+            ("core-only effects", Box::new(|a| a.effects = 4096)),
+            ("core-only displacement", Box::new(|a| a.displace_seq = 255)),
             ("x", Box::new(|a| a.x = 101.25)),
             ("y", Box::new(|a| a.y = 51.0)),
             ("facing", Box::new(|a| a.facing = -2.0)),
@@ -780,6 +790,78 @@ mod tests {
     }
 
     #[test]
+    fn protocol_five_omissions_leave_published_frames_and_redaction_unchanged() {
+        use rh_sim::status_runtime::{AbilityId, CastEndReason, StatusKind};
+        assert_eq!(rh_protocol::PROTOCOL_VERSION, 5);
+        let env = seed1_match(1);
+        let id = env.sim.players()[0].id;
+        let mut publisher = Publisher::default();
+        let baseline = publisher.frames(&env.sim, id, 7, &[], &mut Vec::new(), &[]);
+        assert!(baseline.important.is_none() && baseline.fx.is_none());
+        for by in [None, Some(id)] {
+            // These are already-observed carry events, the input boundary of this wire adapter.
+            let omitted = vec![
+                SeenEvent::AbilityHit {
+                    victim: id,
+                    by,
+                    ability: AbilityId::Blaze,
+                    amount: 3.,
+                },
+                SeenEvent::CastEnded {
+                    id,
+                    ability: AbilityId::Freeze,
+                    reason: CastEndReason::Interrupted,
+                },
+                SeenEvent::StatusApplied {
+                    id,
+                    by,
+                    kind: StatusKind::Hidden,
+                    ms: 500.,
+                },
+                SeenEvent::SignatureHit {
+                    victim: id,
+                    by,
+                    sig: rh_sim::factions::SignatureKind::Burn,
+                    weapon: None,
+                    amount: 3.,
+                },
+                SeenEvent::Heal { id, amount: 3. },
+            ];
+            let mut carry = omitted.clone();
+            let frames = publisher.frames(&env.sim, id, 7, &[], &mut carry, &[]);
+            assert!(carry.is_empty());
+            assert!(frames.important.is_none() && frames.fx.is_none() && frames.refused.is_none());
+            assert_eq!(frames.snapshot, baseline.snapshot);
+            assert_eq!(publisher.observation().events, omitted);
+
+            let mut carry = omitted;
+            carry.push(SeenEvent::Hit {
+                victim: id,
+                by,
+                amount: 2.,
+                passive: true,
+            });
+            let frames = publisher.frames(&env.sim, id, 7, &[], &mut carry, &[]);
+            assert!(frames.important.is_none() && frames.refused.is_none());
+            assert_eq!(frames.snapshot, baseline.snapshot);
+            let expected = ServerMsg::Fx {
+                tick: env.sim.tick(),
+                fx: vec![WireFx::Hit {
+                    victim: id.0,
+                    by: by.map_or(WIRE_NO_SOURCE, |p| p.0),
+                    amount: 2.,
+                    passive: true,
+                }],
+            }
+            .try_encode()
+            .unwrap();
+            assert_eq!(frames.fx, Some(expected));
+            let empty = publisher.frames(&env.sim, id, 7, &[], &mut Vec::new(), &[]);
+            assert!(empty.fx.is_none() && empty.important.is_none());
+        }
+    }
+
+    #[test]
     fn combat_mapping_preserves_privacy_passive_and_channels() {
         use rh_sim::{PickupRefusal, PlayerId};
         let id = PlayerId(2);
@@ -822,6 +904,45 @@ mod tests {
             to_wire(&SeenEvent::Heal { id, amount: 1.0 }),
             Wire::OmittedInV5
         ));
+        for by in [None, Some(PlayerId(1))] {
+            for kind in rh_sim::status_runtime::STATUS_KINDS {
+                assert!(matches!(
+                    to_wire(&SeenEvent::StatusApplied {
+                        id,
+                        by,
+                        kind,
+                        ms: 500.
+                    }),
+                    Wire::OmittedInV5
+                ));
+            }
+            for ability in rh_sim::status_runtime::AbilityId::ALL {
+                assert!(matches!(
+                    to_wire(&SeenEvent::AbilityHit {
+                        victim: id,
+                        by,
+                        ability,
+                        amount: 10.
+                    }),
+                    Wire::OmittedInV5
+                ));
+            }
+        }
+        for ability in rh_sim::status_runtime::AbilityId::ALL {
+            for reason in [
+                rh_sim::status_runtime::CastEndReason::Interrupted,
+                rh_sim::status_runtime::CastEndReason::Cancelled,
+            ] {
+                assert!(matches!(
+                    to_wire(&SeenEvent::CastEnded {
+                        id,
+                        ability,
+                        reason
+                    }),
+                    Wire::OmittedInV5
+                ));
+            }
+        }
         for (by, sig) in [None, Some(id)]
             .into_iter()
             .flat_map(|by| rh_sim::factions::SignatureKind::ALL.map(|sig| (by, sig)))

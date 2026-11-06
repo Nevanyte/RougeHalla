@@ -1,0 +1,918 @@
+{
+  "format": "rh-status-root-selection/1",
+  "base": "0306096588ca9d0ca19d91e5181b087abc86ce94",
+  "decision": "ACCEPT bounded status core after broad integration gates",
+  "content": "256add608aea64e6",
+  "versions": {
+    "checkpoint": 15,
+    "replay": 13,
+    "observation": 12,
+    "policy": 9,
+    "wire": 5
+  },
+  "sourceCases": {
+    "sim": 79,
+    "roleLeaf": 1,
+    "freshPrivacyPairs": 14
+  },
+  "sourceCanonical": {
+    "command": [
+      "docker",
+      "run",
+      "--rm",
+      "--pull=never",
+      "--platform",
+      "linux/amd64",
+      "--cpus=2",
+      "--tmpfs",
+      "/repo/node_modules:rw,exec,size=1500m",
+      "--tmpfs",
+      "/tmp:rw,exec,size=512m",
+      "--mount",
+      "type=bind,src=/Users/nevinmckinnon/.codex/worktrees/rougehalla-stage2-managed/RougeHalla,dst=/repo,readonly",
+      "--mount",
+      "type=bind,src=/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/sentenced-capture/node-v22.23.4-linux-x64,dst=/node,readonly",
+      "--mount",
+      "type=bind,src=/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-runtime-root-integration/canonical,dst=/out",
+      "-w",
+      "/repo",
+      "c86ecead9e55",
+      "sh",
+      "-eu",
+      "-c",
+      "npm ci --ignore-scripts --no-audit --no-fund > /out/npm.log 2>&1\n/node/bin/node --import tsx tools/status-fixtures/argv-controls.ts\n/node/bin/node --import tsx tools/status-fixtures/capture.ts --check\n/node/bin/node --import tsx tools/status-fixtures/capture.ts --slice=runtime --check\n/node/bin/node --import tsx tools/status-fixtures/refinements.ts --check\n/node/bin/node --import tsx tools/status-fixtures/capture-v3.ts --check\n/node/bin/node --import tsx tools/status-fixtures/privacy-independent.ts\n"
+    ],
+    "exit": 0,
+    "seconds": 26.781766124999997,
+    "logSha256": "398fa20cac5ee08294fc7b65e1da8e10e176d82cba3b919c0b194e61282aefe1",
+    "privacyBytesIdentical": true
+  },
+  "focusedGates": [
+    {
+      "name": "focused",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "rh-sim",
+        "--all-features",
+        "--test",
+        "status_runtime",
+        "--test",
+        "status_no_alloc",
+        "--test",
+        "status_privacy_review",
+        "--test",
+        "status_alloc_review",
+        "--test",
+        "checkpoint",
+        "--test",
+        "replay",
+        "--test",
+        "hash_coverage",
+        "--test",
+        "observe"
+      ],
+      "exit": 0,
+      "seconds": 40.113549459,
+      "logSha256": "f75d6237c1c8ea450782b9f4492e796cff003061b0d7e3d66828c3215995ffe0"
+    },
+    {
+      "name": "headless",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "rh-headless",
+        "--features",
+        "rh-sim/trusted-status-probes",
+        "--test",
+        "status_runtime"
+      ],
+      "exit": 0,
+      "seconds": 7.2958113749999995,
+      "logSha256": "c8f90931e66993fdd56ef135cf9c9ba4bf3c788be9be3d9d7a78d698ae4bbbb3"
+    },
+    {
+      "name": "policy",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "rh-policy"
+      ],
+      "exit": 0,
+      "seconds": 6.519942166,
+      "logSha256": "a6c1ab09976103b5418902eefcd79f76cf53af230d0a235a441101f244f036b8"
+    }
+  ],
+  "sourceNativeGates": [
+    {
+      "name": "native-build",
+      "command": [
+        "cargo",
+        "build",
+        "--locked",
+        "-p",
+        "rh-parity",
+        "--features",
+        "trusted-status-probes",
+        "--bin",
+        "status-probes"
+      ],
+      "exit": 0,
+      "seconds": 2.023809416,
+      "logSha256": "82ef1a9d36d4c32c20b1b69a923c08ab26188874e1d7383ade0083d995dce9b4"
+    },
+    {
+      "name": "native-helpers",
+      "command": [
+        "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/server-target/debug/status-probes",
+        "parity/status/helpers.json"
+      ],
+      "exit": 0,
+      "seconds": 1.4552643749999996,
+      "logSha256": "38ecd80234f09eb577592c179a95ae7a74dd686839d7279b291db33cc1b1ae01"
+    },
+    {
+      "name": "native-runtime",
+      "command": [
+        "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/server-target/debug/status-probes",
+        "parity/status/runtime.json"
+      ],
+      "exit": 0,
+      "seconds": 0.6143098329999996,
+      "logSha256": "d86bffce3bb966f0221fcd0dc6a37954f6964fc884df7aa59ba92ea0c522113c"
+    },
+    {
+      "name": "native-refinements-v2",
+      "command": [
+        "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/server-target/debug/status-probes",
+        "parity/status/refinements-v2.json"
+      ],
+      "exit": 0,
+      "seconds": 0.03160654200000046,
+      "logSha256": "ed9b619c1945ce78e5cd28b71ae40f1a158ca59ba135d6f17830ca4e9def7cb6"
+    },
+    {
+      "name": "native-boundaries-v3",
+      "command": [
+        "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/server-target/debug/status-probes",
+        "parity/status/boundaries-v3.json"
+      ],
+      "exit": 0,
+      "seconds": 0.09615654200000012,
+      "logSha256": "991df4ffc0dc8947e69a04d9e9fa8c52cdea638aaa4a5c80cec6e7696a8d2133"
+    },
+    {
+      "name": "strict-source",
+      "command": [
+        "python3",
+        "tools/status-fixtures/strict-admission-v2.py",
+        "parity/status/helpers.json",
+        "parity/status/runtime.json",
+        "parity/status/refinements-v2.json"
+      ],
+      "exit": 0,
+      "seconds": 26.175752125,
+      "logSha256": "4903a087eba7c00429ad9982df147f4957301b67055dd7a6c9cf1f36fab7fc93"
+    },
+    {
+      "name": "strict-v3",
+      "command": [
+        "python3",
+        "tools/status-fixtures/validate-v3.py",
+        "parity/status/boundaries-v3.json"
+      ],
+      "exit": 0,
+      "seconds": 1.2844211250000015,
+      "logSha256": "6ac06e148ad2c4b12a15507a46c044271f6d5c3df9389bccc27709d0384b1461"
+    },
+    {
+      "name": "content-initial",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "rh-sim",
+        "--all-features",
+        "--test",
+        "content"
+      ],
+      "exit": 101,
+      "seconds": 0.5607776250000001,
+      "logSha256": "185e5658eebf7689dd68517939c66485b6b28e39f611a018323ef6ceba86f925"
+    }
+  ],
+  "selectedNativePaths": [
+    {
+      "path": "crates/rh-headless/Cargo.toml",
+      "acceptedCandidate": "1a8c5d1165f167f80931e68c4ab13c3137b047c592af69d6fccb762b47888e09",
+      "integrated": "1a8c5d1165f167f80931e68c4ab13c3137b047c592af69d6fccb762b47888e09",
+      "sameAsCandidate": true
+    },
+    {
+      "path": "crates/rh-headless/src/digest.rs",
+      "acceptedCandidate": "8e1cd417be96525b118576ef2e7777e74d23d0474f71c698b257e0f4e8382c59",
+      "integrated": "8e1cd417be96525b118576ef2e7777e74d23d0474f71c698b257e0f4e8382c59",
+      "sameAsCandidate": true
+    },
+    {
+      "path": "crates/rh-headless/tests/status_runtime.rs",
+      "acceptedCandidate": "214966abfafec12025cabe0c0ed0dad53e8ca9fdf415f9794fae0da2a80d6c45",
+      "integrated": "214966abfafec12025cabe0c0ed0dad53e8ca9fdf415f9794fae0da2a80d6c45",
+      "sameAsCandidate": true
+    },
+    {
+      "path": "crates/rh-parity/Cargo.toml",
+      "acceptedCandidate": "cb5267d989bcda084dc0ba1d8447c52b3c3c2416ba6be52ee75fdfc8626a9c00",
+      "integrated": "cb5267d989bcda084dc0ba1d8447c52b3c3c2416ba6be52ee75fdfc8626a9c00",
+      "sameAsCandidate": true
+    },
+    {
+      "path": "crates/rh-parity/src/bin/status_probe/admission.rs",
+      "acceptedCandidate": "bb101f8972b380a5ca0d6f7b3860689953943223f3cdb3eeadce3cb30469717d",
+      "integrated": "bb101f8972b380a5ca0d6f7b3860689953943223f3cdb3eeadce3cb30469717d",
+      "sameAsCandidate": true
+    },
+    {
+      "path": "crates/rh-parity/src/bin/status_probe/boundary_v3.rs",
+      "acceptedCandidate": "f656fba6339438b132f0f6eb052dec329532c72bec65267e1edf06412f7b3abe",
+      "integrated": "f656fba6339438b132f0f6eb052dec329532c72bec65267e1edf06412f7b3abe",
+      "sameAsCandidate": true
+    },
+    {
+      "path": "crates/rh-parity/src/bin/status_probe/outputs.rs",
+      "acceptedCandidate": "ffecb2ad29f92e30e7735c826cdd0ea4135fb08cfe43863ea9fc1659ec28acd0",
+      "integrated": "ffecb2ad29f92e30e7735c826cdd0ea4135fb08cfe43863ea9fc1659ec28acd0",
+      "sameAsCandidate": true
+    },
+    {
+      "path": "crates/rh-parity/src/bin/status_probes.rs",
+      "acceptedCandidate": "0f5a7fbea4a93602a369c7b1f3f06bf877510f6083881e03649040eb3d5fe111",
+      "integrated": "0f5a7fbea4a93602a369c7b1f3f06bf877510f6083881e03649040eb3d5fe111",
+      "sameAsCandidate": true
+    },
+    {
+      "path": "crates/rh-parity/src/canon.rs",
+      "acceptedCandidate": "b403fa2fcc6f5fefb0446b7e0bcbe78825fad47991402f6505c5258289b985cd",
+      "integrated": "b403fa2fcc6f5fefb0446b7e0bcbe78825fad47991402f6505c5258289b985cd",
+      "sameAsCandidate": true
+    },
+    {
+      "path": "crates/rh-parity/src/combat.rs",
+      "acceptedCandidate": "8255cb08cbfd809e72e7701c268416f4e927cef0a40d47f81a65f634e95ffd89",
+      "integrated": "8255cb08cbfd809e72e7701c268416f4e927cef0a40d47f81a65f634e95ffd89",
+      "sameAsCandidate": true
+    },
+    {
+      "path": "crates/rh-parity/src/lib.rs",
+      "acceptedCandidate": "e53d2c0e758d44385363c1fac6ac4ff92758b965e61d6dbed2cc3956850ee99c",
+      "integrated": "e53d2c0e758d44385363c1fac6ac4ff92758b965e61d6dbed2cc3956850ee99c",
+      "sameAsCandidate": true
+    },
+    {
+      "path": "crates/rh-parity/tests/schedule.rs",
+      "acceptedCandidate": "fa3e5fcc526da27b0f62d229be17b981a56761035f96e3be4c857017a41c23df",
+      "integrated": "fa3e5fcc526da27b0f62d229be17b981a56761035f96e3be4c857017a41c23df",
+      "sameAsCandidate": true
+    },
+    {
+      "path": "crates/rh-sim/Cargo.toml",
+      "acceptedCandidate": "ae631d7f06b5dd44198b3b97ebcc1d495bded25b4d7dd76896c6254ee0c8dae9",
+      "integrated": "6763a176c49ea8cb649085bc31ef35d5580dc9ac73b0bd3e38b6cbe2d8c50a09",
+      "sameAsCandidate": false
+    },
+    {
+      "path": "crates/rh-sim/src/checkpoint.rs",
+      "acceptedCandidate": "421a9498356340fdd26efa999aa75be37760356d2c7afc73bc4df3ed65217673",
+      "integrated": "421a9498356340fdd26efa999aa75be37760356d2c7afc73bc4df3ed65217673",
+      "sameAsCandidate": true
+    },
+    {
+      "path": "crates/rh-sim/src/content.rs",
+      "acceptedCandidate": "690ecaa10547eae2d68d0ad22fbc7fb68012b18584f978b13b8ffcdfd4b76c72",
+      "integrated": "bfef1472e825c88e909e90658c07798d73912fca424f671cfd9ede61445f9440",
+      "sameAsCandidate": false
+    },
+    {
+      "path": "crates/rh-sim/src/events.rs",
+      "acceptedCandidate": "459a7c30bb222596ca7af4ea444f0c2da69ac19c8b965428f25eadd2b6d0b542",
+      "integrated": "459a7c30bb222596ca7af4ea444f0c2da69ac19c8b965428f25eadd2b6d0b542",
+      "sameAsCandidate": true
+    },
+    {
+      "path": "crates/rh-sim/src/factions.rs",
+      "acceptedCandidate": "605dc972b1c1129ed4c5cf5d80cb7a1226ca75ce7fd0e739866e1d423a0c3e69",
+      "integrated": "605dc972b1c1129ed4c5cf5d80cb7a1226ca75ce7fd0e739866e1d423a0c3e69",
+      "sameAsCandidate": true
+    },
+    {
+      "path": "crates/rh-sim/src/fighter.rs",
+      "acceptedCandidate": "9d0c8305d79a581b072d6bd02f59ddd267c3374ef5b8e0f3886fd68afc5f342d",
+      "integrated": "9d0c8305d79a581b072d6bd02f59ddd267c3374ef5b8e0f3886fd68afc5f342d",
+      "sameAsCandidate": true
+    },
+    {
+      "path": "crates/rh-sim/src/fx_projector/mod.rs",
+      "acceptedCandidate": "72b1e08465680541723526ed58845f7dcf324a1b270d48fee7f2df0a20da786b",
+      "integrated": "72b1e08465680541723526ed58845f7dcf324a1b270d48fee7f2df0a20da786b",
+      "sameAsCandidate": true
+    },
+    {
+      "path": "crates/rh-sim/src/fx_projector/tests.rs",
+      "acceptedCandidate": "3f15ae4ea3aae687f7783609adcfb96ddb58581d770d7c384bb832a1248cb8aa",
+      "integrated": "3f15ae4ea3aae687f7783609adcfb96ddb58581d770d7c384bb832a1248cb8aa",
+      "sameAsCandidate": true
+    },
+    {
+      "path": "crates/rh-sim/src/fx_report.rs",
+      "acceptedCandidate": "abe909543cfae233235f7dff90c6bba7b2ebeab973bdc860ef42e3b2489f5eea",
+      "integrated": "abe909543cfae233235f7dff90c6bba7b2ebeab973bdc860ef42e3b2489f5eea",
+      "sameAsCandidate": true
+    },
+    {
+      "path": "crates/rh-sim/src/hash.rs",
+      "acceptedCandidate": "131c8350aa45952503de48bce76037f0c205752fc743b4bb68d26599b5ab8b8d",
+      "integrated": "131c8350aa45952503de48bce76037f0c205752fc743b4bb68d26599b5ab8b8d",
+      "sameAsCandidate": true
+    },
+    {
+      "path": "crates/rh-sim/src/hooks.rs",
+      "acceptedCandidate": "29374f94b9cb1d04265850e817af1eb9f080ebffbcf9e4a1f6cac135dbc6f805",
+      "integrated": "29374f94b9cb1d04265850e817af1eb9f080ebffbcf9e4a1f6cac135dbc6f805",
+      "sameAsCandidate": true
+    },
+    {
+      "path": "crates/rh-sim/src/lib.rs",
+      "acceptedCandidate": "9113ac02edab08c547d665702de4a29fc62dc680ff77f6e4bbc262cd513ff63b",
+      "integrated": "4c754ca3d2f6234af2ab4f33c5ec3827057de69bea85522b60ccbfeb34e3d6e0",
+      "sameAsCandidate": false
+    },
+    {
+      "path": "crates/rh-sim/src/observe.rs",
+      "acceptedCandidate": "7161dc4c445cdbe7077f5361d8ba0ab3ff7d7870aa269469b3e0446a820021d6",
+      "integrated": "edc66b3eecbe1ff9b7125f17ecd7e0a873c1ada489568839317669a05eacc108",
+      "sameAsCandidate": false
+    },
+    {
+      "path": "crates/rh-sim/src/replay.rs",
+      "acceptedCandidate": "95a27a09da1f96fbbf6a4f926468bb52432c28ec638b2ec2d9527a70d5e6cb57",
+      "integrated": "95a27a09da1f96fbbf6a4f926468bb52432c28ec638b2ec2d9527a70d5e6cb57",
+      "sameAsCandidate": true
+    },
+    {
+      "path": "crates/rh-sim/src/results/tests.rs",
+      "acceptedCandidate": "aac14e09263ef7ee5dffb0dae3805d5167e74c1ec3365c724ca779fc8f574ad1",
+      "integrated": "aac14e09263ef7ee5dffb0dae3805d5167e74c1ec3365c724ca779fc8f574ad1",
+      "sameAsCandidate": true
+    },
+    {
+      "path": "crates/rh-sim/src/schedule.rs",
+      "acceptedCandidate": "5b3071a5e5532f6bc2eb1360149a62a53c9a77772457e5b0e1b116243c61725a",
+      "integrated": "5b3071a5e5532f6bc2eb1360149a62a53c9a77772457e5b0e1b116243c61725a",
+      "sameAsCandidate": true
+    },
+    {
+      "path": "crates/rh-sim/src/scratch.rs",
+      "acceptedCandidate": "d257badde4961d0ca4c60c1e1495a6b14639ce063148b6d4897119936ad7be37",
+      "integrated": "d257badde4961d0ca4c60c1e1495a6b14639ce063148b6d4897119936ad7be37",
+      "sameAsCandidate": true
+    },
+    {
+      "path": "crates/rh-sim/src/sim.rs",
+      "acceptedCandidate": "14864d640c55700560d3fe986646011c712c5ec4e1c59116b139582e1801381d",
+      "integrated": "14864d640c55700560d3fe986646011c712c5ec4e1c59116b139582e1801381d",
+      "sameAsCandidate": true
+    },
+    {
+      "path": "crates/rh-sim/src/state.rs",
+      "acceptedCandidate": "b824628f052df51752e8639e0e68dace71a02590a0ecf1c5e1dc740394e1ed22",
+      "integrated": "b824628f052df51752e8639e0e68dace71a02590a0ecf1c5e1dc740394e1ed22",
+      "sameAsCandidate": true
+    },
+    {
+      "path": "crates/rh-sim/src/status_runtime/checkpoint.rs",
+      "acceptedCandidate": "fa962e53f0bf0ac0009aa3c7d19a91cbfaf27475bcbde0b091c7c7bc55a5ccf3",
+      "integrated": "fa962e53f0bf0ac0009aa3c7d19a91cbfaf27475bcbde0b091c7c7bc55a5ccf3",
+      "sameAsCandidate": true
+    },
+    {
+      "path": "crates/rh-sim/src/status_runtime/fields.rs",
+      "acceptedCandidate": "38fdfe6bf92b44317438c02724b260b7810f1ebf05516c6df4f0bec8a3aa0d7f",
+      "integrated": "38fdfe6bf92b44317438c02724b260b7810f1ebf05516c6df4f0bec8a3aa0d7f",
+      "sameAsCandidate": true
+    },
+    {
+      "path": "crates/rh-sim/src/status_runtime/mod.rs",
+      "acceptedCandidate": "1cd5df946f6aebc866af70e5298c6a284dc70a4d07ec52ad2d7ed63c249b8df9",
+      "integrated": "528a1c8670c11034ca84c2ebf731c9fffdd10ec97bc7bb4029434c2deb2d8fa9",
+      "sameAsCandidate": false
+    },
+    {
+      "path": "crates/rh-sim/src/status_runtime/mutation.rs",
+      "acceptedCandidate": "475f2ecb6d848380b7d3ee559b34dee46c44ca742a1c0100baa11e7032953fb8",
+      "integrated": "475f2ecb6d848380b7d3ee559b34dee46c44ca742a1c0100baa11e7032953fb8",
+      "sameAsCandidate": true
+    },
+    {
+      "path": "crates/rh-sim/src/status_runtime/observe.rs",
+      "acceptedCandidate": "3367d679b5a0f207c472b963030caeb0e3d90a0c3565cb884c0351c3600df596",
+      "integrated": "3367d679b5a0f207c472b963030caeb0e3d90a0c3565cb884c0351c3600df596",
+      "sameAsCandidate": true
+    },
+    {
+      "path": "crates/rh-sim/src/status_runtime/probe.rs",
+      "acceptedCandidate": "5a78afd2f71198f72a8fe219c43c8b9b39c118422bf3f959945bdf77d1f0b1e6",
+      "integrated": "5a78afd2f71198f72a8fe219c43c8b9b39c118422bf3f959945bdf77d1f0b1e6",
+      "sameAsCandidate": true
+    },
+    {
+      "path": "crates/rh-sim/src/status_runtime/readers.rs",
+      "acceptedCandidate": "fef0d556ff0de5525a53b284ed7c8e1d8f85fc086cc7ba20dd19f381a30a2cfa",
+      "integrated": "fef0d556ff0de5525a53b284ed7c8e1d8f85fc086cc7ba20dd19f381a30a2cfa",
+      "sameAsCandidate": true
+    },
+    {
+      "path": "crates/rh-sim/src/status_runtime/rules.rs",
+      "acceptedCandidate": "88c3bfdb924d757dab286909fc77788ac590359d9bd2abbf926f9bb46fecd654",
+      "integrated": "e5060b7dedf0132ab10c3313d528760bcacf173f7185d5aa4eca9306042566d4",
+      "sameAsCandidate": false
+    },
+    {
+      "path": "crates/rh-sim/src/status_runtime/stats.rs",
+      "acceptedCandidate": "bd1654621b81f91c9f5c090263c5c05035098dc194eac2b02021e48a12ffa0d6",
+      "integrated": "bd1654621b81f91c9f5c090263c5c05035098dc194eac2b02021e48a12ffa0d6",
+      "sameAsCandidate": true
+    },
+    {
+      "path": "crates/rh-sim/src/systems/credit.rs",
+      "acceptedCandidate": "57c550a1e53a78e8142167a475716c78890166fb655049a70d560bccd2bae515",
+      "integrated": "57c550a1e53a78e8142167a475716c78890166fb655049a70d560bccd2bae515",
+      "sameAsCandidate": true
+    },
+    {
+      "path": "crates/rh-sim/src/systems/displace.rs",
+      "acceptedCandidate": "efd9d35eb85f34ae155508b265f2515a11977e731511fd9b19b65db9477c283c",
+      "integrated": "efd9d35eb85f34ae155508b265f2515a11977e731511fd9b19b65db9477c283c",
+      "sameAsCandidate": true
+    },
+    {
+      "path": "crates/rh-sim/src/systems/fields.rs",
+      "acceptedCandidate": "a5732836236c8615cf7d956c38dd341ee5afbb1038d526f595dd57851b9fb749",
+      "integrated": "a5732836236c8615cf7d956c38dd341ee5afbb1038d526f595dd57851b9fb749",
+      "sameAsCandidate": true
+    },
+    {
+      "path": "crates/rh-sim/src/systems/fire.rs",
+      "acceptedCandidate": "871149ce5d452bd330564a8691a3cd0f302f82bfcd67f5723a927711ea2696d1",
+      "integrated": "871149ce5d452bd330564a8691a3cd0f302f82bfcd67f5723a927711ea2696d1",
+      "sameAsCandidate": true
+    },
+    {
+      "path": "crates/rh-sim/src/systems/frost.rs",
+      "acceptedCandidate": "2e407fbe5e6d42502db7966d97972f30e2b38d4d69c698ee50f135008cce517e",
+      "integrated": "2e407fbe5e6d42502db7966d97972f30e2b38d4d69c698ee50f135008cce517e",
+      "sameAsCandidate": true
+    },
+    {
+      "path": "crates/rh-sim/src/systems/heal.rs",
+      "acceptedCandidate": "df0b471770ebbc4a49ac980f209ef1dcfae304995320725c7a54036d9c068b72",
+      "integrated": "df0b471770ebbc4a49ac980f209ef1dcfae304995320725c7a54036d9c068b72",
+      "sameAsCandidate": true
+    },
+    {
+      "path": "crates/rh-sim/src/systems/items.rs",
+      "acceptedCandidate": "e749a4e24669e9e028a91bb8ca22c70c3b8a0a7cd646b533b6405637e4469abb",
+      "integrated": "e749a4e24669e9e028a91bb8ca22c70c3b8a0a7cd646b533b6405637e4469abb",
+      "sameAsCandidate": true
+    },
+    {
+      "path": "crates/rh-sim/src/systems/ledger.rs",
+      "acceptedCandidate": "072be3ca459bec3ac3e4e5f5103fc7c765514178889ef207c333ac88b486ab67",
+      "integrated": "072be3ca459bec3ac3e4e5f5103fc7c765514178889ef207c333ac88b486ab67",
+      "sameAsCandidate": true
+    },
+    {
+      "path": "crates/rh-sim/src/systems/lobby.rs",
+      "acceptedCandidate": "06410056f37a03a56356cdee677348c52128f590e61d623c798fa394529015d9",
+      "integrated": "06410056f37a03a56356cdee677348c52128f590e61d623c798fa394529015d9",
+      "sameAsCandidate": true
+    },
+    {
+      "path": "crates/rh-sim/src/systems/melee.rs",
+      "acceptedCandidate": "16cea22cfa2fa68081fc3667c69c8b81645dd77b9ad94231608eaf7550965b31",
+      "integrated": "16cea22cfa2fa68081fc3667c69c8b81645dd77b9ad94231608eaf7550965b31",
+      "sameAsCandidate": true
+    },
+    {
+      "path": "crates/rh-sim/src/systems/mod.rs",
+      "acceptedCandidate": "9cf1b8dadea61bfe50932e9b94013cb95552cf61802efe78df6128d178110321",
+      "integrated": "9cf1b8dadea61bfe50932e9b94013cb95552cf61802efe78df6128d178110321",
+      "sameAsCandidate": true
+    },
+    {
+      "path": "crates/rh-sim/src/systems/movement.rs",
+      "acceptedCandidate": "d6c5388e10b632319dd848e8332832b6318a2988ae78b0116c37e88642c92282",
+      "integrated": "d6c5388e10b632319dd848e8332832b6318a2988ae78b0116c37e88642c92282",
+      "sameAsCandidate": true
+    },
+    {
+      "path": "crates/rh-sim/src/systems/plague.rs",
+      "acceptedCandidate": "d74766d77ffc3ec26d165331f822a1f5a50e60aaef9422a746880894026e9ad7",
+      "integrated": "d74766d77ffc3ec26d165331f822a1f5a50e60aaef9422a746880894026e9ad7",
+      "sameAsCandidate": true
+    },
+    {
+      "path": "crates/rh-sim/src/systems/projectiles.rs",
+      "acceptedCandidate": "e2b08c2b219e117f03326a043ae18d70d39a35f4d5deee5ada6568ae49476594",
+      "integrated": "e2b08c2b219e117f03326a043ae18d70d39a35f4d5deee5ada6568ae49476594",
+      "sameAsCandidate": true
+    },
+    {
+      "path": "crates/rh-sim/src/systems/sentenced.rs",
+      "acceptedCandidate": "ab39b0e26e1b425181d84701640255313c858640376fff8dc868b4fe46972244",
+      "integrated": "ab39b0e26e1b425181d84701640255313c858640376fff8dc868b4fe46972244",
+      "sameAsCandidate": true
+    },
+    {
+      "path": "crates/rh-sim/src/systems/sentenced/actual_source_tests.rs",
+      "acceptedCandidate": "c509babafa1404f2f2134d5e13d31cb163cc2ec54009457888f6ed606499b53c",
+      "integrated": "c509babafa1404f2f2134d5e13d31cb163cc2ec54009457888f6ed606499b53c",
+      "sameAsCandidate": true
+    },
+    {
+      "path": "crates/rh-sim/src/systems/sentenced/tests.rs",
+      "acceptedCandidate": "9463cfd8966742d65f930b78bfbc9ee026b23ae61e9786ad330106a9e69dc3e0",
+      "integrated": "9463cfd8966742d65f930b78bfbc9ee026b23ae61e9786ad330106a9e69dc3e0",
+      "sameAsCandidate": true
+    },
+    {
+      "path": "crates/rh-sim/src/systems/settle.rs",
+      "acceptedCandidate": "322d3e18f85ef0b502ee07ea6d46d6a90faa702017c4768cb5b4b588e6d3d9e5",
+      "integrated": "322d3e18f85ef0b502ee07ea6d46d6a90faa702017c4768cb5b4b588e6d3d9e5",
+      "sameAsCandidate": true
+    },
+    {
+      "path": "crates/rh-sim/src/systems/signatures.rs",
+      "acceptedCandidate": "821f4c335405e1821116611ae4e356493c3c875e6b1069bf6790a9965d93883e",
+      "integrated": "821f4c335405e1821116611ae4e356493c3c875e6b1069bf6790a9965d93883e",
+      "sameAsCandidate": true
+    },
+    {
+      "path": "crates/rh-sim/src/systems/status/dot.rs",
+      "acceptedCandidate": "4b57469e223a55944f17e5088acc44c982ebc31ba330d6435229ac98a9956f46",
+      "integrated": "4b57469e223a55944f17e5088acc44c982ebc31ba330d6435229ac98a9956f46",
+      "sameAsCandidate": true
+    },
+    {
+      "path": "crates/rh-sim/src/systems/status/mod.rs",
+      "acceptedCandidate": "d12c3d38ffa9d26eb180bda0f30e3a3569aab2bc189c829c6341028d55c90bc5",
+      "integrated": "d12c3d38ffa9d26eb180bda0f30e3a3569aab2bc189c829c6341028d55c90bc5",
+      "sameAsCandidate": true
+    },
+    {
+      "path": "crates/rh-sim/src/systems/status/operations.rs",
+      "acceptedCandidate": "748dac5202da717b2f7b8104d0bc34dc95766a30d6a3b058f9649bf5cc628fd8",
+      "integrated": "748dac5202da717b2f7b8104d0bc34dc95766a30d6a3b058f9649bf5cc628fd8",
+      "sameAsCandidate": true
+    },
+    {
+      "path": "crates/rh-sim/src/systems/status/tests.rs",
+      "acceptedCandidate": "0dd1ac07da9fea2e0212e076d55efb7592bc8994e2af0b24caa5d7d112735c0c",
+      "integrated": "0dd1ac07da9fea2e0212e076d55efb7592bc8994e2af0b24caa5d7d112735c0c",
+      "sameAsCandidate": true
+    },
+    {
+      "path": "crates/rh-sim/src/systems/targeting.rs",
+      "acceptedCandidate": "43673f32978a6a250b04983fe362207dc4016c72911ce64ac18021354bbf44ef",
+      "integrated": "43673f32978a6a250b04983fe362207dc4016c72911ce64ac18021354bbf44ef",
+      "sameAsCandidate": true
+    },
+    {
+      "path": "crates/rh-sim/src/systems/tests.rs",
+      "acceptedCandidate": "5bd8952ac35c80823e45dbe4fda997a2b37e73d37e986bef1fe5708b4d132f53",
+      "integrated": "5bd8952ac35c80823e45dbe4fda997a2b37e73d37e986bef1fe5708b4d132f53",
+      "sameAsCandidate": true
+    },
+    {
+      "path": "crates/rh-sim/src/systems/weapons.rs",
+      "acceptedCandidate": "d791ea7cc9149724f3705ed0161a2dc7f8140b1f2e6417807ec57463984d2ee9",
+      "integrated": "d791ea7cc9149724f3705ed0161a2dc7f8140b1f2e6417807ec57463984d2ee9",
+      "sameAsCandidate": true
+    },
+    {
+      "path": "crates/rh-sim/src/vision.rs",
+      "acceptedCandidate": "b7869d2bbd451e8ffc5319c935cf55e5fdcfdefed8dc09726ee251fd2afdab5c",
+      "integrated": "b7869d2bbd451e8ffc5319c935cf55e5fdcfdefed8dc09726ee251fd2afdab5c",
+      "sameAsCandidate": true
+    },
+    {
+      "path": "crates/rh-sim/tests/checkpoint.rs",
+      "acceptedCandidate": "51b6f2ded99a44f863e9b4ed913f84d8a312e28e4e024bcb6ec20e1d1d942646",
+      "integrated": "51b6f2ded99a44f863e9b4ed913f84d8a312e28e4e024bcb6ec20e1d1d942646",
+      "sameAsCandidate": true
+    },
+    {
+      "path": "crates/rh-sim/tests/hash_coverage.rs",
+      "acceptedCandidate": "cb1c5c8a0eef1f96b1e5f3afd33c2ba0ab43af9fa39b640a9c5773b206ea9513",
+      "integrated": "cb1c5c8a0eef1f96b1e5f3afd33c2ba0ab43af9fa39b640a9c5773b206ea9513",
+      "sameAsCandidate": true
+    },
+    {
+      "path": "crates/rh-sim/tests/items_melee.rs",
+      "acceptedCandidate": "5004c8c0890e2593adaded4db440dcfd9235a83baad5b2356db6a7e0c9907bb8",
+      "integrated": "5004c8c0890e2593adaded4db440dcfd9235a83baad5b2356db6a7e0c9907bb8",
+      "sameAsCandidate": true
+    },
+    {
+      "path": "crates/rh-sim/tests/replay.rs",
+      "acceptedCandidate": "db848344ce3291044a5b9df9b60cdf077a706d6bf1791006e410c0f3735bae72",
+      "integrated": "db848344ce3291044a5b9df9b60cdf077a706d6bf1791006e410c0f3735bae72",
+      "sameAsCandidate": true
+    },
+    {
+      "path": "crates/rh-sim/tests/status_no_alloc.rs",
+      "acceptedCandidate": "9da41303b299f21c7e334bbdad4b84636a802a8b7f867908658efdd017426583",
+      "integrated": "9da41303b299f21c7e334bbdad4b84636a802a8b7f867908658efdd017426583",
+      "sameAsCandidate": true
+    },
+    {
+      "path": "crates/rh-sim/tests/status_runtime.rs",
+      "acceptedCandidate": "b4f9ee0fdad48c1dd46d623aa8451dff83eca040fa05f9be725665f0d450bae3",
+      "integrated": "b4f9ee0fdad48c1dd46d623aa8451dff83eca040fa05f9be725665f0d450bae3",
+      "sameAsCandidate": true
+    },
+    {
+      "path": "docs/evidence/status-runtime/native-handoff.md",
+      "acceptedCandidate": "7887d4def82989e588044f86fa6c5a788e39fe356e8a8269ba49a28f323de3fa",
+      "integrated": "7887d4def82989e588044f86fa6c5a788e39fe356e8a8269ba49a28f323de3fa",
+      "sameAsCandidate": true
+    },
+    {
+      "path": "docs/evidence/status-runtime/native-symbols.json",
+      "acceptedCandidate": "1e3395de883c21c274eb7c6daa766cb26ba0a41f55304a2d087a7b70450f90ce",
+      "integrated": "1e3395de883c21c274eb7c6daa766cb26ba0a41f55304a2d087a7b70450f90ce",
+      "sameAsCandidate": true
+    },
+    {
+      "path": "parity/status/source-metadata.json",
+      "acceptedCandidate": "2c9db7ac41fc2934b3699dc925eded3379a6e1a4d5c3ac6596c579ccd1e96f60",
+      "integrated": "2c9db7ac41fc2934b3699dc925eded3379a6e1a4d5c3ac6596c579ccd1e96f60",
+      "sameAsCandidate": true
+    }
+  ],
+  "requiredOverlays": [
+    "status-runtime-final-overlay-v2",
+    "status-runtime-fire-test-overlay-v1",
+    "status-independent-review/candidate-v1/review-test-overlay"
+  ],
+  "coordinatorChanges": [
+    "preserve current map/stat-fold/mob content injection while folding status words",
+    "visit actual AbilityId::ALL and actual Axe text key; expose five existing constants for inventory",
+    "105 rule +67 extra actual words with length/domain separators; borrowed hash perturbation seam",
+    "observation12/policy9 and explicit unchanged protocol5 mapping omissions",
+    "register status constants/tables; only checked report capacity classified non-gameplay",
+    "new status-probe/source-admission/canonical CI gates"
+  ],
+  "acceptedIndependentAudits": [
+    "status runtime frozen review d1b784e9",
+    "combined content default/injected preservation and no default collection allocation",
+    "unchangedwire5 adapter/version/observation privacy selection"
+  ],
+  "pending": [
+    "committed-source Rust/C#/browser and native determinism CI",
+    "P-NET-3 live status/effect/field transport for MVP presentation",
+    "MVP included combat/mobs/card/chest producers and full playable loop",
+    "original full-game mechanics deferred by owner first-release scope"
+  ],
+  "noCloudActions": true,
+  "noUnityGameplayRules": true,
+  "broadGates": [
+    {
+      "name": "fmt",
+      "command": [
+        "cargo",
+        "fmt",
+        "--all",
+        "--check"
+      ],
+      "exit": 0,
+      "seconds": 0.8465111670000001,
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "clippy-all",
+      "command": [
+        "cargo",
+        "clippy",
+        "--workspace",
+        "--all-targets",
+        "--all-features",
+        "--locked",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit": 0,
+      "seconds": 47.865391083000006,
+      "logSha256": "67d0ce0417a80eb2eaae105a6de544d8bee32782784a6180969faee5c1294ed4"
+    },
+    {
+      "name": "clippy-default",
+      "command": [
+        "cargo",
+        "clippy",
+        "--workspace",
+        "--all-targets",
+        "--locked",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit": 0,
+      "seconds": 12.848228417000001,
+      "logSha256": "ffa16b7a6b01b92a90dee1080636afc2d7b298520096354dec92add52c15e8ab"
+    },
+    {
+      "name": "workspace-all",
+      "command": [
+        "cargo",
+        "test",
+        "--workspace",
+        "--all-features",
+        "--locked"
+      ],
+      "exit": 0,
+      "seconds": 411.66605904200003,
+      "logSha256": "2ad95d9898928ab91ac84ef716805c335c0843b1509c289b6b191a1803f82dc1"
+    },
+    {
+      "name": "parity",
+      "command": [
+        "cargo",
+        "run",
+        "--locked",
+        "-p",
+        "rh-parity",
+        "--bin",
+        "parity-report"
+      ],
+      "exit": 0,
+      "seconds": 9.181864915999995,
+      "logSha256": "1d799036589b368502e4ff3ff17516490e6af72f929eb963a6df26cdf9af25c9"
+    },
+    {
+      "name": "csharp",
+      "command": [
+        "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/dotnet/dotnet",
+        "test",
+        "client-unity/RoguehallaNet.Tests"
+      ],
+      "exit": 0,
+      "seconds": 5.846081083000001,
+      "logSha256": "2ee32c98af6966b5efb247a18e24696adee36c70749f3b0abf879b5131486948"
+    },
+    {
+      "name": "js-vectors",
+      "command": [
+        "node",
+        "tools/protocol-js/check-vectors.mjs"
+      ],
+      "exit": 0,
+      "seconds": 0.15145962499997268,
+      "logSha256": "6ea107f54a2ae650cbacf8f77a204175b4a1646d522b90a3201e4c600a450570"
+    }
+  ],
+  "nativeGate": {
+    "suites": 129,
+    "totals": {
+      "passed": 1252,
+      "failed": 0,
+      "ignored": 2,
+      "measured": 0,
+      "filtered": 0
+    }
+  },
+  "finalNativeSourceComparisons": [
+    {
+      "name": "final-probe-build",
+      "command": [
+        "cargo",
+        "build",
+        "--locked",
+        "-p",
+        "rh-parity",
+        "--features",
+        "trusted-status-probes",
+        "--bin",
+        "status-probes"
+      ],
+      "exit": 0,
+      "seconds": 6.061402290999999,
+      "logSha256": "96fec563941c2c636b9f520a1c12817fe4c4c73c7294072bf7ae842682aa11f9"
+    },
+    {
+      "name": "final-native-helpers",
+      "command": [
+        "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/server-target/debug/status-probes",
+        "parity/status/helpers.json"
+      ],
+      "exit": 0,
+      "seconds": 1.470275333,
+      "logSha256": "38ecd80234f09eb577592c179a95ae7a74dd686839d7279b291db33cc1b1ae01"
+    },
+    {
+      "name": "final-native-runtime",
+      "command": [
+        "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/server-target/debug/status-probes",
+        "parity/status/runtime.json"
+      ],
+      "exit": 0,
+      "seconds": 0.5796940840000007,
+      "logSha256": "d86bffce3bb966f0221fcd0dc6a37954f6964fc884df7aa59ba92ea0c522113c"
+    },
+    {
+      "name": "final-native-refinements-v2",
+      "command": [
+        "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/server-target/debug/status-probes",
+        "parity/status/refinements-v2.json"
+      ],
+      "exit": 0,
+      "seconds": 0.02959049999999941,
+      "logSha256": "ed9b619c1945ce78e5cd28b71ae40f1a158ca59ba135d6f17830ca4e9def7cb6"
+    },
+    {
+      "name": "final-native-boundaries-v3",
+      "command": [
+        "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/server-target/debug/status-probes",
+        "parity/status/boundaries-v3.json"
+      ],
+      "exit": 0,
+      "seconds": 0.09016929199999879,
+      "logSha256": "991df4ffc0dc8947e69a04d9e9fa8c52cdea638aaa4a5c80cec6e7696a8d2133"
+    },
+    {
+      "name": "server-build",
+      "command": [
+        "cargo",
+        "build",
+        "--locked",
+        "-p",
+        "rh-server"
+      ],
+      "exit": 0,
+      "seconds": 11.195368833,
+      "logSha256": "7b2decc36a1c01df66023763bbd112a222c3d823668e3e3b9f3343a32532002b"
+    }
+  ],
+  "browser": {
+    "command": [
+      "node",
+      "tools/browser-proof/proof.mjs"
+    ],
+    "exit": 0,
+    "seconds": 27.749284042,
+    "logSha256": "edfb76afc6bcadd662fa3e7eef2a5a782060efe6809a48a38fffe7750e1a71b9",
+    "dependencyLocation": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/browser/node_modules",
+    "serverBinary": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/server-target/debug/rh-server"
+  },
+  "firstBrowserAttempt": {
+    "exit": 1,
+    "reason": "existing external Playwright location was absent from NODE_PATH; rerun used existing installed dependency and passed",
+    "logSha256": "1ff637e8d2bb2a4c9d3c57b7b298034bd76ac7f9cbbf0f81142e1533ae2e1977"
+  },
+  "formats": {
+    "checkpoint": 15,
+    "replay": 13,
+    "observation": 12,
+    "policy": 9,
+    "wire": 5
+  },
+  "contentRegistration": {
+    "actualWords": 172,
+    "rules": 105,
+    "extra": 67,
+    "flipDeleteInsertChecks": 516,
+    "additionalChecks": "order, membership, optional presence, default aggregate; exhaustive StatusRule/RankOneFieldPolicy and enum matches",
+    "statFoldAndMobAggregateChecks": "passed unchanged",
+    "actualAxeKeyAndAbilityAll": "folded"
+  },
+  "externalArchive": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-runtime-root-integration",
+  "sourceAndFixtureBytes": "unchanged from immutable accepted handoffs; original gameplay fixtures unchanged",
+  "readonlyReviews": "combined content and version/adapter selections independently accepted",
+  "immutableEvidenceWhitespaceExceptions": {
+    "reason": "Raw frozen unified-diff blank context lines retain their required leading space; source/code whitespace checks exclude only these four hash-bound artifacts.",
+    "paths": [
+      "docs/evidence/status-runtime/content/status-api-content-only.patch",
+      "docs/evidence/status-runtime/independent-tests/required-features.patch",
+      "docs/evidence/status-runtime/independent/mutations/review-test-overlay/required-features.patch",
+      "docs/evidence/status-runtime/wire-adapter/adapter.patch"
+    ]
+  },
+  "ownerFirstReleaseScope": "Playable core first: one browser match, combat/mobs/small card-chest set/functional HUD/single AWS region; quests, traders, advanced bots, visual polish and large-scale hosting tests deferred."
+}

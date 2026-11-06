@@ -61,6 +61,9 @@ fn finish(s: &mut Sim, kind: &str) -> Vec<Event> {
     }
     let mut events = Vec::new();
     let mut cx = Cx {
+        stats: crate::status_runtime::stats::Inputs::default(),
+        #[cfg(feature = "trusted-status-probes")]
+        probe: None,
         k: &s.k,
         w: &mut s.w,
         s: &mut s.s,

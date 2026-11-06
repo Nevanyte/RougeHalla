@@ -34,6 +34,9 @@ fn step_with_actor(sim: &mut Sim, actor: impl FnOnce(&mut Cx)) {
     sim.w.tick += 1;
     let mut ev = std::mem::take(&mut sim.w.pending_events);
     let mut cx = Cx {
+        stats: crate::status_runtime::stats::Inputs::default(),
+        #[cfg(feature = "trusted-status-probes")]
+        probe: None,
         k: &sim.k,
         w: &mut sim.w,
         s: &mut sim.s,
@@ -76,6 +79,9 @@ fn a_command_through_cx_submit_and_through_sim_submit_leaves_identical_state() {
             // The same command through a `Cx` built by hand, outside a step.
             let mut ev = std::mem::take(&mut b.w.pending_events);
             let rb = Cx {
+                stats: crate::status_runtime::stats::Inputs::default(),
+                #[cfg(feature = "trusted-status-probes")]
+                probe: None,
                 k: &b.k,
                 w: &mut b.w,
                 s: &mut b.s,
@@ -136,6 +142,9 @@ fn a_proposal_is_validated_before_it_queues() {
     let before = s.w.clone();
     let mut ev = Vec::new();
     let mut cx = Cx {
+        stats: crate::status_runtime::stats::Inputs::default(),
+        #[cfg(feature = "trusted-status-probes")]
+        probe: None,
         k: &s.k,
         w: &mut s.w,
         s: &mut s.s,
@@ -169,6 +178,7 @@ fn a_proposal_is_validated_before_it_queues() {
 fn with_hx<R>(sim: &mut Sim, f: impl FnOnce(&mut Hx) -> R) -> R {
     let mut ev = Vec::new();
     f(&mut Hx {
+        stats: crate::status_runtime::stats::Inputs::default(),
         fx: None,
         k: &sim.k,
         w: &mut sim.w,
@@ -217,6 +227,12 @@ fn a_hook_with_no_ported_link_changes_nothing() {
 
 fn hit(by: u32, victim: u32, raw: f64) -> ledger::Entry {
     ledger::Entry {
+        dot: false,
+        ability: None,
+        arena: false,
+        source: None,
+        critical: false,
+        critical_mult: None,
         sig: None,
         execute: false,
         victim: PlayerId(victim),
@@ -305,9 +321,16 @@ fn pay_later_inside_the_pass_waits_for_its_end_and_pays_in_order() {
         (0, 0),
         "nothing is paid while the pass collects"
     );
-    assert_eq!(s.w.pay.items, vec![credit(1), credit(2), credit(1)]);
+    assert_eq!(
+        s.w.pay.items,
+        vec![
+            ledger::Payout::Ordinary(credit(1)),
+            ledger::Payout::Ordinary(credit(2)),
+            ledger::Payout::Ordinary(credit(1))
+        ]
+    );
     let mut ev = Vec::new();
-    ledger::pay_all(&s.k, &mut s.w, &mut ev);
+    ledger::pay_all(&s.k, &mut s.w, &mut ev, &mut s.pf);
     assert_eq!(
         (s.w.players[0].credit.kills, s.w.players[1].credit.kills),
         (2, 1)
@@ -348,7 +371,7 @@ fn a_sourceless_hit_damages_and_credits_no_one() {
     free.by = None;
     free.weapon = None;
     let max = s.w.players[1].vitals.max_hp;
-    s.w.deferred.defer_hit(free);
+    s.w.deferred.defer_hit(free.clone());
     s.step();
     let taken = max - s.w.players[1].vitals.hp;
     assert!(taken > 0.0, "the sourceless hit landed");
@@ -425,6 +448,9 @@ fn kill_credit_is_paid_after_every_victim_took_their_damage() {
     let mut s = sim3();
     let mut ev = Vec::new();
     let mut cx = Cx {
+        stats: crate::status_runtime::stats::Inputs::default(),
+        #[cfg(feature = "trusted-status-probes")]
+        probe: None,
         k: &s.k,
         w: &mut s.w,
         s: &mut s.s,
@@ -601,6 +627,12 @@ fn melee_reference(
                 continue;
             }
             ledger.push(ledger::Entry {
+                dot: false,
+                ability: None,
+                arena: false,
+                source: None,
+                critical: false,
+                critical_mult: None,
                 sig: None,
                 execute: false,
                 victim: w.players[ti].id,
@@ -691,6 +723,9 @@ fn shared_rewound_positions_give_the_ledger_of_the_per_pair_pass() {
         let mut ev = Vec::new();
         {
             let mut cx = Cx {
+                stats: crate::status_runtime::stats::Inputs::default(),
+                #[cfg(feature = "trusted-status-probes")]
+                probe: None,
                 k: &sim.k,
                 w: &mut sim.w,
                 s: &mut sim.s,

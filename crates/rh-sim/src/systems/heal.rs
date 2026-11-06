@@ -1,13 +1,28 @@
-//! Shared heal funnel for supported player sources. Cards, anti-heal and heal barriers
-//! will join here when their actual producers are ported. No public healing command.
+//! Shared heal funnel for supported player sources and supplied status modifiers.
+//! Card acquisition and heal-barrier production remain pending. No public healing command.
 use crate::{constants::HEAL_LOCKOUT_MS, events::Event, state::World};
 #[derive(Clone, Copy)]
 pub(crate) enum Kind {
     #[cfg_attr(not(test), allow(dead_code))] // first ordinary source is a later packet
     Ordinary,
     Lifesteal,
+    #[cfg_attr(not(feature = "trusted-status-probes"), allow(dead_code))]
+    // P-CARDS source; DeathFloor uses its separate attribution.
+    IgnoreLockout,
+    DeathFloor,
 }
 pub(crate) fn apply(w: &mut World, ev: &mut Vec<Event>, i: usize, amount: f64, kind: Kind) -> f64 {
+    let stats = crate::status_runtime::stats::view(&w.players[i]);
+    apply_with(w, ev, i, amount, kind, stats)
+}
+pub(crate) fn apply_with(
+    w: &mut World,
+    ev: &mut Vec<Event>,
+    i: usize,
+    amount: f64,
+    kind: Kind,
+    stats: crate::status_runtime::StatView,
+) -> f64 {
     let now = w.server_time;
     let p = &mut w.players[i];
     if !(amount > 0.0) || !p.standing() {
@@ -20,6 +35,13 @@ pub(crate) fn apply(w: &mut World, ev: &mut Vec<Event>, i: usize, amount: f64, k
     {
         return 0.0;
     }
+    let mut amount = amount * crate::status_runtime::heal_factor(&p.statuses.instances, now);
+    if !matches!(kind, Kind::Lifesteal) {
+        amount *= stats.heal_taken_mult;
+    }
+    if !(amount > 0.) {
+        return 0.;
+    }
     let before = p.vitals.hp;
     p.vitals.hp = p.vitals.max_hp.min(before + amount);
     let gained = p.vitals.hp - before;
@@ -28,6 +50,10 @@ pub(crate) fn apply(w: &mut World, ev: &mut Vec<Event>, i: usize, amount: f64, k
             id: p.id,
             amount: gained,
         });
+    }
+    #[cfg(feature = "trusted-status-probes")]
+    if gained > 0. {
+        crate::status_runtime::probe::record_heal(w, i, gained, kind);
     }
     gained
 }

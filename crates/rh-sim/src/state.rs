@@ -227,6 +227,16 @@ impl Path {
         self.pts.clear();
         self.cursor = 0;
     }
+    pub(crate) fn replan(
+        &mut self,
+        pf: &mut crate::pathfind::Pathfinder,
+        map: &crate::TileMap,
+        from: Vec2,
+        goal: Vec2,
+    ) {
+        self.cursor = 0;
+        crate::pathfind::plan_path_into(pf, map, from, goal, &mut self.pts);
+    }
     /// Replaces the path with `pts` (compacting: the cursor restarts at 0); the buffer keeps its capacity.
     pub fn set_from(&mut self, pts: &[Vec2]) {
         self.pts.clear();
@@ -364,15 +374,6 @@ pub struct Container {
     pub(crate) born_tick: u32,
 }
 
-/// An axe's armor shred has a separate refresh timer for every source.
-#[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct Shred {
-    pub source: PlayerId,
-    pub started_at: f64,
-    pub until: f64,
-    pub value: f64,
-}
-
 /// A fighter's weapon state: the carried items and the active slot, and the runtime of the swing in progress.
 /// Private wand chase state. Search budgets survive a dropped or replaced lock.
 #[derive(Clone, Copy, Default, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -392,7 +393,6 @@ pub struct WeaponRt {
     /// Carried items; an empty slot fights with fists.
     /// Armor reduction folded after damage, used by the next tick's ledger.
     pub armor_shred: f64,
-    pub shreds: Vec<Shred>,
     pub weapon0: Option<WeaponId>,
     pub weapon1: Option<WeaponId>,
     pub slot: u8,
@@ -414,7 +414,6 @@ impl Default for WeaponRt {
         Self {
             targeting: Targeting::default(),
             armor_shred: 0.0,
-            shreds: Vec::with_capacity(MAX_PLAYERS),
             weapon0: None,
             weapon1: None,
             slot: 0,
@@ -511,6 +510,9 @@ impl Player {
                 },
                 weapon: WeaponRt::default(),
                 signature: Default::default(),
+                statuses: Default::default(),
+                attack_rate_wire: 1000.,
+                card_dot_crit: None,
                 motion: Motion::default(),
                 inputs: InputQueue::default(),
             },
@@ -619,6 +621,7 @@ impl Projectile {
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub(crate) struct World {
     pub(crate) factions: crate::factions::FactionRuntime,
+    pub(crate) abilities: Option<crate::status_runtime::AbilityRuntime>,
     pub(crate) tick: u32,
     pub(crate) server_time: f64,
     pub(crate) phase: Phase,
@@ -682,7 +685,7 @@ impl DeferredQueue {
 #[derive(Clone, Debug, Default, PartialEq)]
 pub(crate) struct PayQueue {
     pub(crate) collecting: bool,
-    pub(crate) items: Vec<crate::systems::ledger::PayLater>,
+    pub(crate) items: Vec<crate::systems::ledger::Payout>,
 }
 
 impl World {
@@ -760,6 +763,7 @@ impl World {
     pub(crate) fn new(secrets: &Secrets) -> Self {
         Self {
             factions: Default::default(),
+            abilities: None,
             tick: 0,
             server_time: 0.0,
             phase: Phase::Lobby,

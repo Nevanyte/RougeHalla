@@ -1,0 +1,843 @@
+[
+  {
+    "suite": "admission-final.json",
+    "name": "map-unknown",
+    "command": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/mob-catalog-target/debug/status-probes",
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-runtime-evidence/v3-negatives/map-unknown.json",
+      "queued-displacement-current-goal"
+    ],
+    "inputSha256": "fce3bebbc72f19cda3176fdca3ce801181b9961f258deb69293eca10ff4d5ee3",
+    "executableSha256": "021916fc95a492867ca985adf606e0ad64a431a52bc2b1f5525b6caa6744bd1b",
+    "exit": 1,
+    "stdout": "",
+    "stderr": "unknown key unknown\n"
+  },
+  {
+    "suite": "admission-final.json",
+    "name": "map-missing-rows",
+    "command": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/mob-catalog-target/debug/status-probes",
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-runtime-evidence/v3-negatives/map-missing-rows.json",
+      "queued-displacement-current-goal"
+    ],
+    "inputSha256": "98b8228426118e0921e4af32202422d19e2975cfea3b1e3cda43683ed626640c",
+    "executableSha256": "021916fc95a492867ca985adf606e0ad64a431a52bc2b1f5525b6caa6744bd1b",
+    "exit": 1,
+    "stdout": "",
+    "stderr": "missing required rows\n"
+  },
+  {
+    "suite": "admission-final.json",
+    "name": "map-string-rows",
+    "command": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/mob-catalog-target/debug/status-probes",
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-runtime-evidence/v3-negatives/map-string-rows.json",
+      "queued-displacement-current-goal"
+    ],
+    "inputSha256": "a089963fd52a5cf6844a3c7d90c645a88b457f7265f912538a9cb796d531655e",
+    "executableSha256": "021916fc95a492867ca985adf606e0ad64a431a52bc2b1f5525b6caa6744bd1b",
+    "exit": 1,
+    "stdout": "",
+    "stderr": "invalid type: string \"not rows\", expected a sequence\n"
+  },
+  {
+    "suite": "admission-final.json",
+    "name": "map-ragged",
+    "command": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/mob-catalog-target/debug/status-probes",
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-runtime-evidence/v3-negatives/map-ragged.json",
+      "queued-displacement-current-goal"
+    ],
+    "inputSha256": "1d2bf51071464fc4bb8506e979d839319f7e65d20d9783f76e652a9e2303d8ed",
+    "executableSha256": "021916fc95a492867ca985adf606e0ad64a431a52bc2b1f5525b6caa6744bd1b",
+    "exit": 1,
+    "stdout": "",
+    "stderr": "unsupported replacement map dimensions\n"
+  },
+  {
+    "suite": "admission-final.json",
+    "name": "map-unknown-cell",
+    "command": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/mob-catalog-target/debug/status-probes",
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-runtime-evidence/v3-negatives/map-unknown-cell.json",
+      "queued-displacement-current-goal"
+    ],
+    "inputSha256": "b7af13ef186aa5a1ef3e3b6d5794ef79930c10d32278d5f596d12cf1b3fb0572",
+    "executableSha256": "021916fc95a492867ca985adf606e0ad64a431a52bc2b1f5525b6caa6744bd1b",
+    "exit": 1,
+    "stdout": "",
+    "stderr": "BadChar { row: 1, col: 0, ch: '?' }\n"
+  },
+  {
+    "suite": "admission-final.json",
+    "name": "farm-unknown",
+    "command": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/mob-catalog-target/debug/status-probes",
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-runtime-evidence/v3-negatives/farm-unknown.json",
+      "queued-displacement-current-goal"
+    ],
+    "inputSha256": "bdf1e26d812b66335a1664b8edee2930b71175ff9cf591f78db329287862cb6e",
+    "executableSha256": "021916fc95a492867ca985adf606e0ad64a431a52bc2b1f5525b6caa6744bd1b",
+    "exit": 1,
+    "stdout": "",
+    "stderr": "unknown key unknown\n"
+  },
+  {
+    "suite": "admission-final.json",
+    "name": "farm-missing-counts",
+    "command": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/mob-catalog-target/debug/status-probes",
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-runtime-evidence/v3-negatives/farm-missing-counts.json",
+      "queued-displacement-current-goal"
+    ],
+    "inputSha256": "da990410dea4e62d4b33bf3efe61841b97b2733ae5f7a792437a0ebe6dbe2b2d",
+    "executableSha256": "021916fc95a492867ca985adf606e0ad64a431a52bc2b1f5525b6caa6744bd1b",
+    "exit": 1,
+    "stdout": "",
+    "stderr": "missing required counts\n"
+  },
+  {
+    "suite": "admission-final.json",
+    "name": "farm-duplicate",
+    "command": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/mob-catalog-target/debug/status-probes",
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-runtime-evidence/v3-negatives/farm-duplicate.json",
+      "queued-displacement-current-goal"
+    ],
+    "inputSha256": "263076023bbbf3b15beaf02ea1c1c88a641e471974ff4d7194f74bbaef9b5f31",
+    "executableSha256": "021916fc95a492867ca985adf606e0ad64a431a52bc2b1f5525b6caa6744bd1b",
+    "exit": 1,
+    "stdout": "",
+    "stderr": "unsupported or duplicate farm key\n"
+  },
+  {
+    "suite": "admission-final.json",
+    "name": "farm-unknown-kind",
+    "command": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/mob-catalog-target/debug/status-probes",
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-runtime-evidence/v3-negatives/farm-unknown-kind.json",
+      "queued-displacement-current-goal"
+    ],
+    "inputSha256": "b59aa0f191b4b7e4f57788635d364ec9586a132b22576a2ba6ecb0ed3068e3be",
+    "executableSha256": "021916fc95a492867ca985adf606e0ad64a431a52bc2b1f5525b6caa6744bd1b",
+    "exit": 1,
+    "stdout": "",
+    "stderr": "unsupported or duplicate farm key\n"
+  },
+  {
+    "suite": "admission-final.json",
+    "name": "farm-fraction",
+    "command": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/mob-catalog-target/debug/status-probes",
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-runtime-evidence/v3-negatives/farm-fraction.json",
+      "queued-displacement-current-goal"
+    ],
+    "inputSha256": "c201d1eb7fafc265f87890c2c3fedacd171abdb63c5164fb2bf3adc62e4dc216",
+    "executableSha256": "021916fc95a492867ca985adf606e0ad64a431a52bc2b1f5525b6caa6744bd1b",
+    "exit": 1,
+    "stdout": "",
+    "stderr": "farm count\n"
+  },
+  {
+    "suite": "admission-final.json",
+    "name": "farm-negative",
+    "command": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/mob-catalog-target/debug/status-probes",
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-runtime-evidence/v3-negatives/farm-negative.json",
+      "queued-displacement-current-goal"
+    ],
+    "inputSha256": "d49afc131f1727ac707a8de65a6fb4824901a2d1f6e717e8fd43c02f3fa7bfaa",
+    "executableSha256": "021916fc95a492867ca985adf606e0ad64a431a52bc2b1f5525b6caa6744bd1b",
+    "exit": 1,
+    "stdout": "",
+    "stderr": "farm count\n"
+  },
+  {
+    "suite": "admission-final.json",
+    "name": "farm-unsafe-integer",
+    "command": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/mob-catalog-target/debug/status-probes",
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-runtime-evidence/v3-negatives/farm-unsafe-integer.json",
+      "queued-displacement-current-goal"
+    ],
+    "inputSha256": "8ba852d7e4090e1b43fcd03e4d5be1cab648fa905978510f869fff41220c921a",
+    "executableSha256": "021916fc95a492867ca985adf606e0ad64a431a52bc2b1f5525b6caa6744bd1b",
+    "exit": 1,
+    "stdout": "",
+    "stderr": "farm count\n"
+  },
+  {
+    "suite": "admission-final.json",
+    "name": "farm-bool",
+    "command": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/mob-catalog-target/debug/status-probes",
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-runtime-evidence/v3-negatives/farm-bool.json",
+      "queued-displacement-current-goal"
+    ],
+    "inputSha256": "ad6b8ce259631bc964f462b9242b3d320f025758ab7a32197a92816b159d771e",
+    "executableSha256": "021916fc95a492867ca985adf606e0ad64a431a52bc2b1f5525b6caa6744bd1b",
+    "exit": 1,
+    "stdout": "",
+    "stderr": "farm count\n"
+  },
+  {
+    "suite": "admission-final.json",
+    "name": "farm-bad-actor",
+    "command": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/mob-catalog-target/debug/status-probes",
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-runtime-evidence/v3-negatives/farm-bad-actor.json",
+      "queued-displacement-current-goal"
+    ],
+    "inputSha256": "57ab026a44742a7b954905c9293e73feb350c0200f6c94ee623f69411e393358",
+    "executableSha256": "021916fc95a492867ca985adf606e0ad64a431a52bc2b1f5525b6caa6744bd1b",
+    "exit": 1,
+    "stdout": "",
+    "stderr": "undeclared actor target\n"
+  },
+  {
+    "suite": "admission-final.json",
+    "name": "policy",
+    "command": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/mob-catalog-target/debug/status-probes",
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-runtime-evidence/v3-negatives/policy.json",
+      "queued-displacement-current-goal"
+    ],
+    "inputSha256": "e2b19b8da198870b167619049766176aa3acb7572ff50aa223949545e07eb429",
+    "executableSha256": "021916fc95a492867ca985adf606e0ad64a431a52bc2b1f5525b6caa6744bd1b",
+    "exit": 1,
+    "stdout": "",
+    "stderr": "trusted farm policy/farmLifesteal/effect/v: native 0.005 != source 0.0025\n"
+  },
+  {
+    "suite": "admission-final.json",
+    "name": "runtime-missing-collision",
+    "command": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/mob-catalog-target/debug/status-probes",
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-runtime-evidence/v3-negatives/runtime-missing-collision.json",
+      "queued-displacement-current-goal"
+    ],
+    "inputSha256": "2d9dda019cf3f4d28795fe84e5d759acd5c04f653a3b493962edd2a3e1106187",
+    "executableSha256": "021916fc95a492867ca985adf606e0ad64a431a52bc2b1f5525b6caa6744bd1b",
+    "exit": 1,
+    "stdout": "",
+    "stderr": "invalid type: null, expected struct Collision\n"
+  },
+  {
+    "suite": "admission-final.json",
+    "name": "runtime-modifier-type",
+    "command": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/mob-catalog-target/debug/status-probes",
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-runtime-evidence/v3-negatives/runtime-modifier-type.json",
+      "queued-displacement-current-goal"
+    ],
+    "inputSha256": "3312ed48c5b63d5944d9e8e7475a85cd927066b8e4178937e4afb5b5520b4f6a",
+    "executableSha256": "021916fc95a492867ca985adf606e0ad64a431a52bc2b1f5525b6caa6744bd1b",
+    "exit": 1,
+    "stdout": "",
+    "stderr": "invalid type: string \"not number\", expected f64\n"
+  },
+  {
+    "suite": "admission-final.json",
+    "name": "runtime-null-undefined",
+    "command": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/mob-catalog-target/debug/status-probes",
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-runtime-evidence/v3-negatives/runtime-null-undefined.json",
+      "queued-displacement-current-goal"
+    ],
+    "inputSha256": "67e2e0ec2ecb6dce26f086d74d118f5d914d7fe0bb25f79dde53330a58e5fa28",
+    "executableSha256": "021916fc95a492867ca985adf606e0ad64a431a52bc2b1f5525b6caa6744bd1b",
+    "exit": 1,
+    "stdout": "",
+    "stderr": "undefined sentinel\n"
+  },
+  {
+    "suite": "admission-final.json",
+    "name": "reordered-case",
+    "command": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/mob-catalog-target/debug/status-probes",
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-runtime-evidence/v3-negatives/reordered-case.json",
+      "queued-displacement-current-goal"
+    ],
+    "inputSha256": "34d9c8e5c4fd2ca1a113a39dc215f5e8b7624426253a8a1306bba75699cc1107",
+    "executableSha256": "021916fc95a492867ca985adf606e0ad64a431a52bc2b1f5525b6caa6744bd1b",
+    "exit": 1,
+    "stdout": "",
+    "stderr": "ordered case inventory/0: native \"nonneutral-farm-lifesteal-outside-cap\" != source \"queued-displacement-current-goal\"\n"
+  },
+  {
+    "suite": "admission-final.json",
+    "name": "modifier-order",
+    "command": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/mob-catalog-target/debug/status-probes",
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-runtime-evidence/v3-negatives/modifier-order.json",
+      "queued-displacement-current-goal"
+    ],
+    "inputSha256": "76b7e4145e816cff004767f5723f6661f01989a5a71693716895db23a5269d45",
+    "executableSha256": "021916fc95a492867ca985adf606e0ad64a431a52bc2b1f5525b6caa6744bd1b",
+    "exit": 1,
+    "stdout": "",
+    "stderr": "modifier actor order\n"
+  },
+  {
+    "suite": "admission-final.json",
+    "name": "raw-0",
+    "command": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/mob-catalog-target/debug/status-probes",
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-runtime-evidence/v3-negatives/raw-0.json",
+      "queued-displacement-current-goal"
+    ],
+    "inputSha256": "640147d461ad60afd8d5159ccfb682d396e5a457681122c252a1b46a4ae88801",
+    "executableSha256": "021916fc95a492867ca985adf606e0ad64a431a52bc2b1f5525b6caa6744bd1b",
+    "exit": 1,
+    "stdout": "",
+    "stderr": "duplicate object key at line 1 column 17\n"
+  },
+  {
+    "suite": "admission-final.json",
+    "name": "raw-1",
+    "command": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/mob-catalog-target/debug/status-probes",
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-runtime-evidence/v3-negatives/raw-1.json",
+      "queued-displacement-current-goal"
+    ],
+    "inputSha256": "b566b7ff15e7763d42ce4af6b0ad0e4071541caa9ea266bfe2227cf0e7f6d04a",
+    "executableSha256": "021916fc95a492867ca985adf606e0ad64a431a52bc2b1f5525b6caa6744bd1b",
+    "exit": 1,
+    "stdout": "",
+    "stderr": "duplicate object key at line 1 column 15\n"
+  },
+  {
+    "suite": "admission-final.json",
+    "name": "raw-2",
+    "command": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/mob-catalog-target/debug/status-probes",
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-runtime-evidence/v3-negatives/raw-2.json",
+      "queued-displacement-current-goal"
+    ],
+    "inputSha256": "c238cb6e9ac5407491b0988102620ab9445290d2ed7713c516a2b28bd2388968",
+    "executableSha256": "021916fc95a492867ca985adf606e0ad64a431a52bc2b1f5525b6caa6744bd1b",
+    "exit": 1,
+    "stdout": "",
+    "stderr": "expected value at line 1 column 6\n"
+  },
+  {
+    "suite": "admission-final.json",
+    "name": "unknown-target-outside-filter",
+    "command": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/mob-catalog-target/debug/status-probes",
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-runtime-evidence/unknown-target-outside-filter.json",
+      "fields-identity-mirror-snapshot-remove"
+    ],
+    "inputSha256": "dbcda4ddb3421178e3fd7c489163c93baf1140dd3c2c07c939c8d6f79d8e5276",
+    "executableSha256": "021916fc95a492867ca985adf606e0ad64a431a52bc2b1f5525b6caa6744bd1b",
+    "exit": 1,
+    "stdout": "",
+    "stderr": "undeclared actor target\n"
+  },
+  {
+    "suite": "admission-final.json",
+    "name": "overflow-field-outside-filter",
+    "command": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/mob-catalog-target/debug/status-probes",
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-independent-review/candidate-v1/overflow-field-input.json",
+      "fields-identity-mirror-snapshot-remove"
+    ],
+    "inputSha256": "3878a43f18960b0aadd503bc2e9f743ff215e3403315839b5062c8a8e8be7035",
+    "executableSha256": "021916fc95a492867ca985adf606e0ad64a431a52bc2b1f5525b6caa6744bd1b",
+    "exit": 1,
+    "stdout": "",
+    "stderr": "overflowing geometry\n"
+  },
+  {
+    "suite": "admission-final.json",
+    "name": "original-serialization-control",
+    "command": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/mob-catalog-target/debug/status-probes",
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-native-admission-review/corpora/serialization-control.json",
+      "kind-stun"
+    ],
+    "inputSha256": "d12fcace3e97ee2d4ddec14f79cdaf2f18fcb5a136ca34d2306629b076db3967",
+    "executableSha256": "021916fc95a492867ca985adf606e0ad64a431a52bc2b1f5525b6caa6744bd1b",
+    "exit": 0,
+    "stdout": "1 Sim status source cases and 0 separate role leaf proofs passed\n",
+    "stderr": ""
+  },
+  {
+    "suite": "admission-final.json",
+    "name": "original-root-unknown",
+    "command": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/mob-catalog-target/debug/status-probes",
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-native-admission-review/corpora/root-unknown.json",
+      "kind-stun"
+    ],
+    "inputSha256": "e04adf09328a35ae4735eb14b59e508ec290fbfe4ef9eb5ef072db7d8f69dc91",
+    "executableSha256": "021916fc95a492867ca985adf606e0ad64a431a52bc2b1f5525b6caa6744bd1b",
+    "exit": 1,
+    "stdout": "",
+    "stderr": "unknown key unknown\n"
+  },
+  {
+    "suite": "admission-final.json",
+    "name": "original-missing-provenance",
+    "command": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/mob-catalog-target/debug/status-probes",
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-native-admission-review/corpora/missing-provenance.json",
+      "kind-stun"
+    ],
+    "inputSha256": "6c64ac61d4da92c4487d2fd30af2e37989ce2e251cd9b18bb0361e64a4a8748c",
+    "executableSha256": "021916fc95a492867ca985adf606e0ad64a431a52bc2b1f5525b6caa6744bd1b",
+    "exit": 1,
+    "stdout": "",
+    "stderr": "missing required provenance\n"
+  },
+  {
+    "suite": "admission-final.json",
+    "name": "original-bad-provenance",
+    "command": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/mob-catalog-target/debug/status-probes",
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-native-admission-review/corpora/bad-provenance.json",
+      "kind-stun"
+    ],
+    "inputSha256": "aac7e22f04de055f3940d2038195db2169ebb914f917fbd87e4f457f6d69d431",
+    "executableSha256": "021916fc95a492867ca985adf606e0ad64a431a52bc2b1f5525b6caa6744bd1b",
+    "exit": 1,
+    "stdout": "",
+    "stderr": "bound source provenance/node: native \"v25.0.0\" != source \"v22.23.4\"\n"
+  },
+  {
+    "suite": "admission-final.json",
+    "name": "original-unbound-data-and-slice",
+    "command": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/mob-catalog-target/debug/status-probes",
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-native-admission-review/corpora/unbound-data-and-slice.json",
+      "kind-stun"
+    ],
+    "inputSha256": "13a1191d56863cbf8a4606a8796cca8a4db16fa2cba3383c29c3c9d8b29f175d",
+    "executableSha256": "021916fc95a492867ca985adf606e0ad64a431a52bc2b1f5525b6caa6744bd1b",
+    "exit": 1,
+    "stdout": "",
+    "stderr": "unknown slice\n"
+  },
+  {
+    "suite": "admission-final.json",
+    "name": "original-duplicate-root",
+    "command": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/mob-catalog-target/debug/status-probes",
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-native-admission-review/corpora/duplicate-root.json",
+      "kind-stun"
+    ],
+    "inputSha256": "72321c7070e84091b758309bb0d2877a9c38e24e42fb26e33f9514764a58c051",
+    "executableSha256": "021916fc95a492867ca985adf606e0ad64a431a52bc2b1f5525b6caa6744bd1b",
+    "exit": 1,
+    "stdout": "",
+    "stderr": "duplicate object key at line 1 column 39\n"
+  },
+  {
+    "suite": "admission-final.json",
+    "name": "original-duplicate-nested",
+    "command": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/mob-catalog-target/debug/status-probes",
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-native-admission-review/corpora/duplicate-nested.json",
+      "kind-stun"
+    ],
+    "inputSha256": "c81af437d66c8b6ccd6b3f77cff5840f63a6fa2c7732f70b7c9efd4f29db46d2",
+    "executableSha256": "021916fc95a492867ca985adf606e0ad64a431a52bc2b1f5525b6caa6744bd1b",
+    "exit": 1,
+    "stdout": "",
+    "stderr": "duplicate object key at line 1 column 25320\n"
+  },
+  {
+    "suite": "admission-final.json",
+    "name": "original-extra-cli-argument",
+    "command": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/mob-catalog-target/debug/status-probes",
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-native-admission-review/corpora/extra-cli-argument.json",
+      "kind-stun",
+      "--unexpected"
+    ],
+    "inputSha256": "d12fcace3e97ee2d4ddec14f79cdaf2f18fcb5a136ca34d2306629b076db3967",
+    "executableSha256": "021916fc95a492867ca985adf606e0ad64a431a52bc2b1f5525b6caa6744bd1b",
+    "exit": 2,
+    "stdout": "",
+    "stderr": "usage: status-probes fixture.json [case]\n"
+  },
+  {
+    "suite": "admission-final.json",
+    "name": "original-tick-narrowing-wrap",
+    "command": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/mob-catalog-target/debug/status-probes",
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-native-admission-review/corpora/tick-narrowing-wrap.json",
+      "kind-stun"
+    ],
+    "inputSha256": "4b056af12e8123c91c29d0d04cc1faaf26b96c1f79f664ccce83e3eb76e2c71e",
+    "executableSha256": "021916fc95a492867ca985adf606e0ad64a431a52bc2b1f5525b6caa6744bd1b",
+    "exit": 1,
+    "stdout": "",
+    "stderr": "checked unsigned integer required\n"
+  },
+  {
+    "suite": "admission-final.json",
+    "name": "original-module-string-bool",
+    "command": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/mob-catalog-target/debug/status-probes",
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-native-admission-review/corpora/module-string-bool.json",
+      "kind-stun"
+    ],
+    "inputSha256": "6e82a6507f67f13b7c0c4853eb5d48f0af5e49455173af66f3975f442a0c644a",
+    "executableSha256": "021916fc95a492867ca985adf606e0ad64a431a52bc2b1f5525b6caa6744bd1b",
+    "exit": 1,
+    "stdout": "",
+    "stderr": "boolean required\n"
+  },
+  {
+    "suite": "admission-final.json",
+    "name": "original-module-unknown",
+    "command": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/mob-catalog-target/debug/status-probes",
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-native-admission-review/corpora/module-unknown.json",
+      "kind-stun"
+    ],
+    "inputSha256": "dd41aa88197d98107c0f7e8888cbfd435f9f3403200a666b29772c7027dde6a9",
+    "executableSha256": "021916fc95a492867ca985adf606e0ad64a431a52bc2b1f5525b6caa6744bd1b",
+    "exit": 1,
+    "stdout": "",
+    "stderr": "unknown key unknown\n"
+  },
+  {
+    "suite": "admission-final.json",
+    "name": "original-config-untyped",
+    "command": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/mob-catalog-target/debug/status-probes",
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-native-admission-review/corpora/config-untyped.json",
+      "kind-stun"
+    ],
+    "inputSha256": "8220a3157f79c70e3089c9fe78c5806fc56a7190431fb6e7b29c12bcac1b28b5",
+    "executableSha256": "021916fc95a492867ca985adf606e0ad64a431a52bc2b1f5525b6caa6744bd1b",
+    "exit": 1,
+    "stdout": "",
+    "stderr": "checked unsigned integer required\n"
+  },
+  {
+    "suite": "admission-final.json",
+    "name": "original-runtime-unknown",
+    "command": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/mob-catalog-target/debug/status-probes",
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-native-admission-review/corpora/runtime-unknown.json",
+      "kind-stun"
+    ],
+    "inputSha256": "6550c7ed055c72a3385e1bcb34281034b23f6038c2668dbf683b058a773d31e1",
+    "executableSha256": "021916fc95a492867ca985adf606e0ad64a431a52bc2b1f5525b6caa6744bd1b",
+    "exit": 1,
+    "stdout": "",
+    "stderr": "unknown key unknown\n"
+  },
+  {
+    "suite": "admission-final.json",
+    "name": "original-field-unknown",
+    "command": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/mob-catalog-target/debug/status-probes",
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-native-admission-review/corpora/field-unknown.json",
+      "fields-identity-mirror-snapshot-remove"
+    ],
+    "inputSha256": "132e01afa574f38d4823d9a5ce79a1b1abc714ef9d2b4d7953380a0d2dd9bb0b",
+    "executableSha256": "021916fc95a492867ca985adf606e0ad64a431a52bc2b1f5525b6caa6744bd1b",
+    "exit": 1,
+    "stdout": "",
+    "stderr": "unknown key unknown\n"
+  },
+  {
+    "suite": "admission-final.json",
+    "name": "original-field-coordinate-type",
+    "command": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/mob-catalog-target/debug/status-probes",
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-native-admission-review/corpora/field-coordinate-type.json",
+      "fields-identity-mirror-snapshot-remove"
+    ],
+    "inputSha256": "38418e42ea01e52aa1c1d4ae383aa1091d674f6d0be7f6051bc6019c7ec614df",
+    "executableSha256": "021916fc95a492867ca985adf606e0ad64a431a52bc2b1f5525b6caa6744bd1b",
+    "exit": 1,
+    "stdout": "",
+    "stderr": "expected finite number\n"
+  },
+  {
+    "suite": "admission-final.json",
+    "name": "original-actor-sequence-narrowing",
+    "command": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/mob-catalog-target/debug/status-probes",
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-native-admission-review/corpora/actor-sequence-narrowing.json",
+      "frozen-dead-recipient"
+    ],
+    "inputSha256": "0f2b8e3ad2be4c1a3a7c969cd1b4ed06bd2f1f3735213c128e9e66007d9290df",
+    "executableSha256": "021916fc95a492867ca985adf606e0ad64a431a52bc2b1f5525b6caa6744bd1b",
+    "exit": 1,
+    "stdout": "",
+    "stderr": "checked unsigned integer required\n"
+  },
+  {
+    "suite": "admission-final.json",
+    "name": "original-ledger-raw-type",
+    "command": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/mob-catalog-target/debug/status-probes",
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-native-admission-review/corpora/ledger-raw-type.json",
+      "death-floor-expiry-post-barrier"
+    ],
+    "inputSha256": "728f60bf9fec96301bc32734a27ca346a4cff1c2dea2cbac0cfbc7417873e733",
+    "executableSha256": "021916fc95a492867ca985adf606e0ad64a431a52bc2b1f5525b6caa6744bd1b",
+    "exit": 1,
+    "stdout": "",
+    "stderr": "expected finite number\n"
+  },
+  {
+    "suite": "admission-final.json",
+    "name": "original-expected-runtime-coordinate-type",
+    "command": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/mob-catalog-target/debug/status-probes",
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-native-admission-review/corpora/expected-runtime-coordinate-type.json",
+      "kind-stun"
+    ],
+    "inputSha256": "daad9f66c485334fc03183bfa266eeee4bc714e2e633db37ae8ce0814c9d8f2a",
+    "executableSha256": "021916fc95a492867ca985adf606e0ad64a431a52bc2b1f5525b6caa6744bd1b",
+    "exit": 1,
+    "stdout": "",
+    "stderr": "expected finite number\n"
+  },
+  {
+    "suite": "admission-final.json",
+    "name": "original-missing-required-null-field",
+    "command": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/mob-catalog-target/debug/status-probes",
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-native-admission-review/corpora/missing-required-null-field.json",
+      "fields-identity-mirror-snapshot-remove"
+    ],
+    "inputSha256": "7ac7a156d11c98a096ee0995061629e34989afe8aec7700a8427d8ee69bab443",
+    "executableSha256": "021916fc95a492867ca985adf606e0ad64a431a52bc2b1f5525b6caa6744bd1b",
+    "exit": 1,
+    "stdout": "",
+    "stderr": "missing required subject\n"
+  },
+  {
+    "suite": "admission-final.json",
+    "name": "original-missing-required-null-assertion",
+    "command": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/mob-catalog-target/debug/status-probes",
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-native-admission-review/corpora/missing-required-null-assertion.json",
+      "kind-stun"
+    ],
+    "inputSha256": "1240fd728eca1ecba973441c88dc64768980c8a4e9bc396c83a59f6ff36a72b1",
+    "executableSha256": "021916fc95a492867ca985adf606e0ad64a431a52bc2b1f5525b6caa6744bd1b",
+    "exit": 1,
+    "stdout": "",
+    "stderr": "missing required abilities\n"
+  },
+  {
+    "suite": "admission-final.json",
+    "name": "original-unknown-status-enum",
+    "command": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/mob-catalog-target/debug/status-probes",
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-native-admission-review/corpora/unknown-status-enum.json",
+      "kind-stun"
+    ],
+    "inputSha256": "ae197ccdea5f9e1e3def283eecfe7ca55ce351803bbd643f7f946698521d01a1",
+    "executableSha256": "021916fc95a492867ca985adf606e0ad64a431a52bc2b1f5525b6caa6744bd1b",
+    "exit": 1,
+    "stdout": "",
+    "stderr": "unknown variant `unknown-status`, expected one of `stun`, `root`, `silence`, `slowMove`, `slowAttack`, `antiHeal`, `dot`, `invulnerable`, `untargetable`, `hidden`, `zoned`, `deathFloor`, `haste`, `shred`\n"
+  },
+  {
+    "suite": "admission-final.json",
+    "name": "original-malformed-undefined-marker",
+    "command": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/mob-catalog-target/debug/status-probes",
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-native-admission-review/corpora/malformed-undefined-marker.json",
+      "kind-stun"
+    ],
+    "inputSha256": "bc20aacbf53ce5b9a832538c5f786e2305876eef3d80b309f5414127a58adbcc",
+    "executableSha256": "021916fc95a492867ca985adf606e0ad64a431a52bc2b1f5525b6caa6744bd1b",
+    "exit": 1,
+    "stdout": "",
+    "stderr": "expected finite number\n"
+  },
+  {
+    "suite": "admission-final.json",
+    "name": "original-late-unknown-after-valid-prefix",
+    "command": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/mob-catalog-target/debug/status-probes",
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-native-admission-review/corpora/late-unknown-after-valid-prefix.json",
+      "kind-stun"
+    ],
+    "inputSha256": "a7ef48a20c234781ce5461cbd6b72401d7e0b2a4007168fd0f9d0756986a780f",
+    "executableSha256": "021916fc95a492867ca985adf606e0ad64a431a52bc2b1f5525b6caa6744bd1b",
+    "exit": 1,
+    "stdout": "",
+    "stderr": "unknown key unknown\n"
+  },
+  {
+    "suite": "admission-final.json",
+    "name": "original-expected-output-not-input",
+    "command": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/mob-catalog-target/debug/status-probes",
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-native-admission-review/corpora/expected-output-not-input.json",
+      "kind-stun"
+    ],
+    "inputSha256": "ce09fb5cae5bd0d1e758bcf147a474ed1b157e68dd618065ba1fc886125189ed",
+    "executableSha256": "021916fc95a492867ca985adf606e0ad64a431a52bc2b1f5525b6caa6744bd1b",
+    "exit": 1,
+    "stdout": "",
+    "stderr": "kind-stun: 2/after/fighters/0/statuses/0/value: native 0.4 != source 999\n"
+  },
+  {
+    "suite": "output-negative-results.json",
+    "name": "unknown-returned",
+    "command": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/mob-catalog-target/debug/status-probes",
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-runtime-evidence/output-negatives/unknown-returned.json",
+      "trail-inclusive-segment"
+    ],
+    "inputSha256": "73d306d673ec366e3b16430d0a98759f7ea7dea0c0c4e87a6da46e86526f95b5",
+    "executableSha256": "021916fc95a492867ca985adf606e0ad64a431a52bc2b1f5525b6caa6744bd1b",
+    "exit": 1,
+    "stdout": "",
+    "stderr": "unknown key unknownOwnedResult\n"
+  },
+  {
+    "suite": "output-negative-results.json",
+    "name": "missing-returned-id",
+    "command": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/mob-catalog-target/debug/status-probes",
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-runtime-evidence/output-negatives/missing-returned-id.json",
+      "trail-inclusive-segment"
+    ],
+    "inputSha256": "2399643555e29d82d6e00da3e09a00a4e3bdfcc638adadc407c12b705649109a",
+    "executableSha256": "021916fc95a492867ca985adf606e0ad64a431a52bc2b1f5525b6caa6744bd1b",
+    "exit": 1,
+    "stdout": "",
+    "stderr": "missing required id\n"
+  },
+  {
+    "suite": "output-negative-results.json",
+    "name": "unknown-hook-member",
+    "command": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/mob-catalog-target/debug/status-probes",
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-runtime-evidence/output-negatives/unknown-hook-member.json",
+      "trail-inclusive-segment"
+    ],
+    "inputSha256": "11fbbccc6300fa9ba6ac2d0b2ad225500b58dfb45c827e102780e02fdb58ba97",
+    "executableSha256": "021916fc95a492867ca985adf606e0ad64a431a52bc2b1f5525b6caa6744bd1b",
+    "exit": 1,
+    "stdout": "",
+    "stderr": "unknown key unknownOwnedHook\n"
+  },
+  {
+    "suite": "output-negative-results.json",
+    "name": "missing-hook-argument",
+    "command": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/mob-catalog-target/debug/status-probes",
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-runtime-evidence/output-negatives/missing-hook-argument.json",
+      "trail-inclusive-segment"
+    ],
+    "inputSha256": "749b9a22e97d3d3afbf2ad7c7a48920b7a0fd2f5aba3484a52e4eccc50471cca",
+    "executableSha256": "021916fc95a492867ca985adf606e0ad64a431a52bc2b1f5525b6caa6744bd1b",
+    "exit": 1,
+    "stdout": "",
+    "stderr": "hook argument count\n"
+  },
+  {
+    "suite": "output-negative-results.json",
+    "name": "unknown-hook-actor-member",
+    "command": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/mob-catalog-target/debug/status-probes",
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-runtime-evidence/output-negatives/unknown-hook-actor-member.json",
+      "trail-inclusive-segment"
+    ],
+    "inputSha256": "8fd6aa9cfe4b351117b6e564d60cf8e0e1949dd4d070357cb4a7227ce19f7d27",
+    "executableSha256": "021916fc95a492867ca985adf606e0ad64a431a52bc2b1f5525b6caa6744bd1b",
+    "exit": 1,
+    "stdout": "",
+    "stderr": "unknown key unknownActor\n"
+  },
+  {
+    "suite": "output-negative-results.json",
+    "name": "unknown-hook-state-member",
+    "command": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/mob-catalog-target/debug/status-probes",
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-runtime-evidence/output-negatives/unknown-hook-state-member.json",
+      "trail-inclusive-segment"
+    ],
+    "inputSha256": "ced2bea096639be6487f4e0c5668e7660136d60ebe1650db2a02eda1bbaa5633",
+    "executableSha256": "021916fc95a492867ca985adf606e0ad64a431a52bc2b1f5525b6caa6744bd1b",
+    "exit": 1,
+    "stdout": "",
+    "stderr": "unknown key unknownState\n"
+  },
+  {
+    "suite": "output-negative-results.json",
+    "name": "missing-owned-hook-hp",
+    "command": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/mob-catalog-target/debug/status-probes",
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-runtime-evidence/output-negatives/missing-owned-hook-hp.json",
+      "trail-inclusive-segment"
+    ],
+    "inputSha256": "a59e3713fba8f8efa3455011c2584270e1e79b1c2c31b61b0a5195bf45c6cbd1",
+    "executableSha256": "021916fc95a492867ca985adf606e0ad64a431a52bc2b1f5525b6caa6744bd1b",
+    "exit": 1,
+    "stdout": "",
+    "stderr": "missing required hp\n"
+  },
+  {
+    "suite": "output-negative-results.json",
+    "name": "unknown-event-member",
+    "command": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/mob-catalog-target/debug/status-probes",
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-runtime-evidence/output-negatives/unknown-event-member.json",
+      "trail-inclusive-segment"
+    ],
+    "inputSha256": "ace7fcbee6a6aecc9f415d117b51d42626359b704d4626e80973b66728f96946",
+    "executableSha256": "021916fc95a492867ca985adf606e0ad64a431a52bc2b1f5525b6caa6744bd1b",
+    "exit": 1,
+    "stdout": "",
+    "stderr": "unknown key unknownEvent\n"
+  },
+  {
+    "suite": "output-negative-results.json",
+    "name": "unknown-fx-member",
+    "command": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/mob-catalog-target/debug/status-probes",
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-runtime-evidence/output-negatives/unknown-fx-member.json",
+      "trail-inclusive-segment"
+    ],
+    "inputSha256": "032ccf488c1d258feee31bdab96077d0087b744e67bb508e340ee7c0f4e9d8c4",
+    "executableSha256": "021916fc95a492867ca985adf606e0ad64a431a52bc2b1f5525b6caa6744bd1b",
+    "exit": 1,
+    "stdout": "",
+    "stderr": "unknown key unknownFx\n"
+  },
+  {
+    "suite": "output-negative-results.json",
+    "name": "unknown-callback-member",
+    "command": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/mob-catalog-target/debug/status-probes",
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-runtime-evidence/output-negatives/unknown-callback-member.json",
+      "trail-inclusive-segment"
+    ],
+    "inputSha256": "09d0ab05f40e0af2052e804f72990f7b74852e4b69284c9d81533b5b5573fbde",
+    "executableSha256": "021916fc95a492867ca985adf606e0ad64a431a52bc2b1f5525b6caa6744bd1b",
+    "exit": 1,
+    "stdout": "",
+    "stderr": "unknown key unknownCallback\n"
+  },
+  {
+    "suite": "output-negative-results.json",
+    "name": "missing-callback-return",
+    "command": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/mob-catalog-target/debug/status-probes",
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-runtime-evidence/output-negatives/missing-callback-return.json",
+      "trail-inclusive-segment"
+    ],
+    "inputSha256": "a5fb8cbc90ce1a7d21346120fe49fe64aa024a5c32e7c9c423820f4d1cb396a8",
+    "executableSha256": "021916fc95a492867ca985adf606e0ad64a431a52bc2b1f5525b6caa6744bd1b",
+    "exit": 1,
+    "stdout": "",
+    "stderr": "missing required returned\n"
+  }
+]

@@ -13,8 +13,12 @@ pub(crate) struct BlockContact {
     pub holder: PlayerId,
     pub passive: bool,
 }
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, serde::Serialize)]
 pub struct LandedHit {
+    pub critical: bool,
+    pub cut: f64,
+    pub ability: Option<crate::status_runtime::AbilityId>,
+    pub dot: bool,
     pub sig: Option<crate::factions::SignatureKind>,
     pub weapon: Option<WeaponId>,
     pub victim: PlayerId,
@@ -253,7 +257,9 @@ pub(crate) fn before_damage(cx: &mut Cx) {
 }
 /// Ordered post-barrier landed damage feeds combat clocks and surviving Holy attackers.
 pub(crate) fn after_damage(cx: &mut Cx) {
-    let Cx { k, w, s, ev, .. } = cx;
+    let Cx {
+        k, w, s, ev, stats, ..
+    } = cx;
     s.dealt.clear();
     for h in &s.landed {
         if h.sig.is_some_and(crate::factions::SignatureKind::is_dot) {
@@ -266,19 +272,52 @@ pub(crate) fn after_damage(cx: &mut Cx) {
             }
         }
         let Some(by) = h.by else { continue };
-        if let Some((_, amount)) = s.dealt.iter_mut().find(|(id, _)| *id == by) {
-            *amount += h.amount;
+        let dot = h.dot || h.sig.is_some_and(crate::factions::SignatureKind::is_dot);
+        let fed = h.amount / h.cut;
+        if let Some((_, amount, dot_amount)) = s.dealt.iter_mut().find(|(id, _, _)| *id == by) {
+            *amount += fed;
+            if dot {
+                *dot_amount += fed;
+            }
         } else {
-            s.dealt.push((by, h.amount));
+            s.dealt.push((by, fed, if dot { fed } else { 0. }));
         }
     }
-    for &(id, amount) in &s.dealt {
+    for &(id, amount, dot_amount) in &s.dealt {
         let Some(i) = w.idx(id).filter(|&i| w.players[i].standing()) else {
             continue;
         };
         let p = &w.players[i];
-        if p.vitals.faction == FactionId::Holy {
-            let gain = amount * content::holy_lifesteal_fraction(p.signature.hp_frac);
+        let v = stats.view(p);
+        let holy = p.vitals.faction == FactionId::Holy;
+        let own = if holy {
+            content::holy_lifesteal_fraction(p.signature.hp_frac)
+        } else {
+            0.
+        };
+        let rows = if holy {
+            v.lifesteal_rows * crate::status_runtime::stats::HOLY_LEECH_ROW_MULT
+        } else {
+            v.lifesteal_rows
+        };
+        let share = crate::status_runtime::stats::lifesteal_total(
+            own,
+            rows,
+            v.lifesteal_mult,
+            0.,
+            v.farm_lifesteal_rows,
+        );
+        let dot = if v.lifesteal_dot > 0. { dot_amount } else { 0. };
+        let gain = (amount - dot) * share
+            + dot
+                * crate::status_runtime::stats::lifesteal_total(
+                    own,
+                    rows,
+                    v.lifesteal_mult,
+                    v.lifesteal_dot,
+                    v.farm_lifesteal_rows,
+                );
+        if gain > 0. {
             heal::apply(w, ev, i, gain, heal::Kind::Lifesteal);
         }
     }

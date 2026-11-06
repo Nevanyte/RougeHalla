@@ -1,0 +1,187 @@
+{
+  "format": "rh-status-native-admission-freeze/1",
+  "root": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-native-admission-review",
+  "binarySha256": "48b506c069e1aeeb18bc2ba5993b206eaa91de30f6a90d132ad11cebb1f9cc61",
+  "report": {
+    "path": "review-result.json",
+    "sha256": "a7091f362fc84112a774dfd46525852e9f66dcd81b962ab8565d44204252075c"
+  },
+  "artifacts": [
+    {
+      "path": "PATCH-SNIPPETS.md",
+      "bytes": 4776,
+      "sha256": "e952a0333ce68c2661e16c767706bb8715ec2947bd823c833694469d76847762"
+    },
+    {
+      "path": "REPORT.md",
+      "bytes": 5274,
+      "sha256": "86667ae06ba8d63f41efe0f14cb2e3dc00b06673154d28cd691dede257f8e2f8"
+    },
+    {
+      "path": "audit.py",
+      "bytes": 5000,
+      "sha256": "973873b6aaece2a3ab7605902748664ae397c2cb1403966ac467cfa5f4a03ee2"
+    },
+    {
+      "path": "baseline-results.json",
+      "bytes": 2639,
+      "sha256": "64d79f14a6f6d9d8a9080d14ca1d0b5130467cc3c1dc84a867be21f68f92afbd"
+    },
+    {
+      "path": "bin/status-probes",
+      "bytes": 3669168,
+      "sha256": "48b506c069e1aeeb18bc2ba5993b206eaa91de30f6a90d132ad11cebb1f9cc61"
+    },
+    {
+      "path": "corpora/actor-sequence-narrowing.json",
+      "bytes": 19569685,
+      "sha256": "0f2b8e3ad2be4c1a3a7c969cd1b4ed06bd2f1f3735213c128e9e66007d9290df"
+    },
+    {
+      "path": "corpora/bad-provenance.json",
+      "bytes": 19546416,
+      "sha256": "aac7e22f04de055f3940d2038195db2169ebb914f917fbd87e4f457f6d69d431"
+    },
+    {
+      "path": "corpora/config-untyped.json",
+      "bytes": 19569661,
+      "sha256": "8220a3157f79c70e3089c9fe78c5806fc56a7190431fb6e7b29c12bcac1b28b5"
+    },
+    {
+      "path": "corpora/duplicate-nested.json",
+      "bytes": 19569660,
+      "sha256": "c81af437d66c8b6ccd6b3f77cff5840f63a6fa2c7732f70b7c9efd4f29db46d2"
+    },
+    {
+      "path": "corpora/duplicate-root.json",
+      "bytes": 19569679,
+      "sha256": "72321c7070e84091b758309bb0d2877a9c38e24e42fb26e33f9514764a58c051"
+    },
+    {
+      "path": "corpora/expected-output-not-input.json",
+      "bytes": 19569649,
+      "sha256": "ce09fb5cae5bd0d1e758bcf147a474ed1b157e68dd618065ba1fc886125189ed"
+    },
+    {
+      "path": "corpora/expected-runtime-coordinate-type.json",
+      "bytes": 19569664,
+      "sha256": "daad9f66c485334fc03183bfa266eeee4bc714e2e633db37ae8ce0814c9d8f2a"
+    },
+    {
+      "path": "corpora/extra-cli-argument.json",
+      "bytes": 19569649,
+      "sha256": "d12fcace3e97ee2d4ddec14f79cdaf2f18fcb5a136ca34d2306629b076db3967"
+    },
+    {
+      "path": "corpora/field-coordinate-type.json",
+      "bytes": 10019464,
+      "sha256": "38418e42ea01e52aa1c1d4ae383aa1091d674f6d0be7f6051bc6019c7ec614df"
+    },
+    {
+      "path": "corpora/field-unknown.json",
+      "bytes": 10019464,
+      "sha256": "132e01afa574f38d4823d9a5ce79a1b1abc714ef9d2b4d7953380a0d2dd9bb0b"
+    },
+    {
+      "path": "corpora/late-unknown-after-valid-prefix.json",
+      "bytes": 19569679,
+      "sha256": "a7ef48a20c234781ce5461cbd6b72401d7e0b2a4007168fd0f9d0756986a780f"
+    },
+    {
+      "path": "corpora/ledger-raw-type.json",
+      "bytes": 10019456,
+      "sha256": "728f60bf9fec96301bc32734a27ca346a4cff1c2dea2cbac0cfbc7417873e733"
+    },
+    {
+      "path": "corpora/malformed-undefined-marker.json",
+      "bytes": 19569753,
+      "sha256": "bc20aacbf53ce5b9a832538c5f786e2305876eef3d80b309f5414127a58adbcc"
+    },
+    {
+      "path": "corpora/missing-provenance.json",
+      "bytes": 19545992,
+      "sha256": "6c64ac61d4da92c4487d2fd30af2e37989ce2e251cd9b18bb0361e64a4a8748c"
+    },
+    {
+      "path": "corpora/missing-required-null-assertion.json",
+      "bytes": 19569632,
+      "sha256": "1240fd728eca1ecba973441c88dc64768980c8a4e9bc396c83a59f6ff36a72b1"
+    },
+    {
+      "path": "corpora/missing-required-null-field.json",
+      "bytes": 10019404,
+      "sha256": "7ac7a156d11c98a096ee0995061629e34989afe8aec7700a8427d8ee69bab443"
+    },
+    {
+      "path": "corpora/module-string-bool.json",
+      "bytes": 19569659,
+      "sha256": "6e82a6507f67f13b7c0c4853eb5d48f0af5e49455173af66f3975f442a0c644a"
+    },
+    {
+      "path": "corpora/module-unknown.json",
+      "bytes": 19569664,
+      "sha256": "dd41aa88197d98107c0f7e8888cbfd435f9f3403200a666b29772c7027dde6a9"
+    },
+    {
+      "path": "corpora/root-unknown.json",
+      "bytes": 19569664,
+      "sha256": "e04adf09328a35ae4735eb14b59e508ec290fbfe4ef9eb5ef072db7d8f69dc91"
+    },
+    {
+      "path": "corpora/runtime-unknown.json",
+      "bytes": 19569664,
+      "sha256": "6550c7ed055c72a3385e1bcb34281034b23f6038c2668dbf683b058a773d31e1"
+    },
+    {
+      "path": "corpora/serialization-control.json",
+      "bytes": 19569649,
+      "sha256": "d12fcace3e97ee2d4ddec14f79cdaf2f18fcb5a136ca34d2306629b076db3967"
+    },
+    {
+      "path": "corpora/tick-narrowing-wrap.json",
+      "bytes": 19569657,
+      "sha256": "4b056af12e8123c91c29d0d04cc1faaf26b96c1f79f664ccce83e3eb76e2c71e"
+    },
+    {
+      "path": "corpora/unbound-data-and-slice.json",
+      "bytes": 19568361,
+      "sha256": "13a1191d56863cbf8a4606a8796cca8a4db16fa2cba3383c29c3c9d8b29f175d"
+    },
+    {
+      "path": "corpora/unknown-status-enum.json",
+      "bytes": 19569669,
+      "sha256": "ae197ccdea5f9e1e3def283eecfe7ca55ce351803bbd643f7f946698521d01a1"
+    },
+    {
+      "path": "results.json",
+      "bytes": 44031,
+      "sha256": "07a6623d09ec01d8078565e0445be3ed03db9a3179494156fba0c8d84a67c167"
+    },
+    {
+      "path": "run.log",
+      "bytes": 1589,
+      "sha256": "817af5c070c731c4fdfff4b2e15f721cebd8472b2eeeb8a04d937459df62fa4d"
+    },
+    {
+      "path": "setup-shape.json",
+      "bytes": 3108,
+      "sha256": "120dfad298ae79f17f1c918b43611eea8b8d5db17b19dd85a934d64bb465ad16"
+    },
+    {
+      "path": "snapshot.json",
+      "bytes": 1160,
+      "sha256": "722767de6b3241fd3e84bdc82a96a006f7652abdbada699b386d28a83a104b99"
+    },
+    {
+      "path": "source-snapshot/probe.rs",
+      "bytes": 34722,
+      "sha256": "f00591f86b7673375cd6592f47817f1c39bfdb316e98a9cc0327214596cbd384"
+    },
+    {
+      "path": "source-snapshot/status_probes.rs",
+      "bytes": 53088,
+      "sha256": "69bd2342495ec09784e1f2a7c173d45174f2a7e2b9d9979f06381702d1cf642d"
+    }
+  ],
+  "sourceFreezesUnchanged": true
+}

@@ -28,6 +28,12 @@ fn scene() -> Sim {
 }
 fn hit() -> Entry {
     Entry {
+        dot: false,
+        ability: None,
+        arena: false,
+        source: None,
+        critical: false,
+        critical_mult: None,
         victim: PlayerId(2),
         by: Some(PlayerId(1)),
         packet: Packet {
@@ -48,6 +54,9 @@ fn hit() -> Entry {
 }
 fn cx<'a>(s: &'a mut Sim, ev: &'a mut Vec<crate::Event>) -> super::super::Cx<'a> {
     super::super::Cx {
+        stats: crate::status_runtime::stats::Inputs::default(),
+        #[cfg(feature = "trusted-status-probes")]
+        probe: None,
         k: &s.k,
         w: &mut s.w,
         s: &mut s.s,

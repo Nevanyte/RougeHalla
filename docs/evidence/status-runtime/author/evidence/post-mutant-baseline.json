@@ -1,0 +1,96 @@
+{
+  "overlayManifestSha256": "06908057b5c3c597639026952c43fa092bdf724a5b981074353dfc657b1c4e04",
+  "candidateOwnedAndSharedRestored": 72,
+  "overlayFilesRestored": 15,
+  "behavioralMutantsKilled": 17,
+  "definitionControlsKilled": 1,
+  "executableSha256": "021916fc95a492867ca985adf606e0ad64a431a52bc2b1f5525b6caa6744bd1b",
+  "baselineResults": [
+    {
+      "command": [
+        "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-runtime-target/debug/status-probes",
+        "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-source-work/repo/parity/status/helpers.json",
+        "kind-stun"
+      ],
+      "exit": 0,
+      "stdout": "1 Sim status source cases and 0 separate role leaf proofs passed\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-runtime-target/debug/status-probes",
+        "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-source-work/repo/parity/status/runtime.json",
+        "fields-identity-mirror-snapshot-remove"
+      ],
+      "exit": 0,
+      "stdout": "1 Sim status source cases and 0 separate role leaf proofs passed\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-runtime-target/debug/status-probes",
+        "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-source-work/repo/parity/status/helpers.json",
+        "frozen-dead-recipient"
+      ],
+      "exit": 0,
+      "stdout": "1 Sim status source cases and 0 separate role leaf proofs passed\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-runtime-target/debug/status-probes",
+        "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-source-work/repo/parity/status/runtime.json",
+        "death-floor-expiry-post-barrier"
+      ],
+      "exit": 0,
+      "stdout": "1 Sim status source cases and 0 separate role leaf proofs passed\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-runtime-target/debug/status-probes",
+        "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-source-work/repo/parity/status/runtime.json",
+        "generic-dot-source-order-and-flush"
+      ],
+      "exit": 0,
+      "stdout": "1 Sim status source cases and 0 separate role leaf proofs passed\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-runtime-target/debug/status-probes",
+        "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-source-work/repo/parity/status/helpers.json"
+      ],
+      "exit": 0,
+      "stdout": "41 Sim status source cases and 1 separate role leaf proofs passed\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-runtime-target/debug/status-probes",
+        "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-source-work/repo/parity/status/runtime.json"
+      ],
+      "exit": 0,
+      "stdout": "32 Sim status source cases and 0 separate role leaf proofs passed\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-runtime-target/debug/status-probes",
+        "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-source-work-v2/repo/parity/status/refinements-v2.json"
+      ],
+      "exit": 0,
+      "stdout": "2 Sim status source cases and 0 separate role leaf proofs passed\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-runtime-target/debug/status-probes",
+        "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-source-work-v3/repo/parity/status/boundaries-v3.json"
+      ],
+      "exit": 0,
+      "stdout": "4 Sim status source cases and 0 separate role leaf proofs passed\n",
+      "stderr": ""
+    }
+  ]
+}

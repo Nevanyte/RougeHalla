@@ -1,0 +1,29 @@
+{
+  "executableSha256": "021916fc95a492867ca985adf606e0ad64a431a52bc2b1f5525b6caa6744bd1b",
+  "results": [
+    {
+      "fixture": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-source-work/repo/parity/status/helpers.json",
+      "exit": 0,
+      "stdout": "41 Sim status source cases and 1 separate role leaf proofs passed\n",
+      "stderr": ""
+    },
+    {
+      "fixture": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-source-work/repo/parity/status/runtime.json",
+      "exit": 0,
+      "stdout": "32 Sim status source cases and 0 separate role leaf proofs passed\n",
+      "stderr": ""
+    },
+    {
+      "fixture": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-source-work-v2/repo/parity/status/refinements-v2.json",
+      "exit": 0,
+      "stdout": "2 Sim status source cases and 0 separate role leaf proofs passed\n",
+      "stderr": ""
+    },
+    {
+      "fixture": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-source-work-v3/repo/parity/status/boundaries-v3.json",
+      "exit": 0,
+      "stdout": "4 Sim status source cases and 0 separate role leaf proofs passed\n",
+      "stderr": ""
+    }
+  ]
+}

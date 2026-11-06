@@ -53,7 +53,7 @@ pub(crate) fn down_player(
     let v = &mut w.players[vi];
     v.down = Some(outcome);
     v.motion.path.clear();
-    v.weapon.shreds.clear();
+    v.motion.slip = None;
     release_trigger(v, now);
     v.status = if outcome == Outcome::Died {
         Status::Dead
@@ -63,7 +63,13 @@ pub(crate) fn down_player(
     let victim_bot = v.seat.bot;
     let id = v.id;
     // Legacy order: fighterOut, the kill credit, then dropBody.
-    let mut hx = Hx { k, w, ev, fx: None };
+    let mut hx = Hx {
+        stats: crate::status_runtime::stats::Inputs::default(),
+        k,
+        w,
+        ev,
+        fx: None,
+    };
     hooks::fire(
         &mut hx,
         HookArgs::FighterOut {
@@ -105,7 +111,9 @@ pub(crate) fn down_player(
 
 /// System (legacy arena.settle): resolve the tick's downs, or end the run when at most one fighter stands.
 pub(crate) fn settle(cx: &mut Cx) {
-    let Cx { k, w, s, ev, .. } = cx;
+    let Cx {
+        k, w, s, ev, stats, ..
+    } = cx;
     let TickScratch {
         downed_this_tick: downed,
         alive,
@@ -119,7 +127,7 @@ pub(crate) fn settle(cx: &mut Cx) {
     if standing == 0 || (contested && standing == 1) {
         alive.clear();
         alive.extend(w.players.iter().filter(|p| p.standing()).map(|p| p.id));
-        end_run(k, w, ev, alive, downed, contested, fx);
+        end_run(k, w, ev, (alive, downed), contested, fx, *stats);
         downed.clear();
         return;
     }
@@ -137,11 +145,12 @@ fn end_run(
     k: &MatchStatic,
     w: &mut World,
     ev: &mut Vec<Event>,
-    alive: &[PlayerId],
-    downed: &[PlayerId],
+    participants: (&[PlayerId], &[PlayerId]),
     contested: bool,
     fx: &mut crate::fx_report::TickFx,
+    stats: crate::status_runtime::stats::Inputs,
 ) {
+    let (alive, downed) = participants;
     let mut winners: Vec<PlayerId> = Vec::new();
     if alive.len() == 1 {
         winners = alive.to_vec();
@@ -197,15 +206,12 @@ fn end_run(
     };
     w.winner = winner.filter(|id| w.player(*id).is_some());
     w.phase = Phase::Ended;
-    // Legacy abilities.runEnded clears statuses after the final stat mirror fold.
-    for p in &mut w.players {
-        p.weapon.shreds.clear();
-    }
     for p in &mut w.players {
         super::targeting::drop_lock(p);
     }
     hooks::fire(
         &mut Hx {
+            stats,
             k,
             w,
             ev,
@@ -275,8 +281,9 @@ fn resolve(
         kills: p.credit.kills.saturating_sub(p.credit.bot_kills),
         killed_by: if outcome == Outcome::Died {
             p.fate
-                .killed_by
-                .and_then(|by| roster.name(by))
+                .killed_by_name
+                .as_deref()
+                .or_else(|| p.fate.killed_by.and_then(|by| roster.name(by)))
                 .map(str::to_string)
         } else {
             None

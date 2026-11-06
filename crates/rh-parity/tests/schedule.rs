@@ -195,25 +195,32 @@ fn backlog_packets() -> BTreeSet<String> {
     ids
 }
 
-/// A pending row names a real backlog packet (and no ported row names one).
+/// Pending and partial rows name real remaining work; a partial callback also names its completed responsibility.
 fn check_pending(t: &Tables, packets: &BTreeSet<String>) -> Result<(), String> {
-    let mut all: Vec<(&str, Option<&str>)> = Vec::new();
+    let mut all: Vec<(&str, Option<&str>, Option<&str>)> = Vec::new();
     for e in t
         .phases
         .iter()
         .chain(lists(t).iter().flat_map(|(_, v)| v.iter()))
     {
-        all.push((e.legacy, e.pending));
+        all.push((e.legacy, e.pending, e.completed));
     }
     for a in &t.actions {
-        all.push((a.name, a.pending));
+        all.push((a.name, a.pending, a.completed));
     }
     for (_, links) in &t.hooks {
         for l in links {
-            all.push((l.legacy, l.pending));
+            all.push((l.legacy, l.pending, l.completed));
         }
     }
-    for (name, pending) in all {
+    for (name, pending, completed) in all {
+        if completed.is_some_and(|c| c.trim().is_empty())
+            || (completed.is_some() && pending.is_none())
+        {
+            return Err(format!(
+                "partial row {name} must name completed and pending responsibilities"
+            ));
+        }
         if let Some(p) = pending {
             if !packets.contains(p) {
                 return Err(format!(
@@ -240,7 +247,7 @@ fn check_all(t: &Tables, rec: &Value, packets: &BTreeSet<String>) -> Result<(), 
 fn expected_order(t: &Tables, g: &Gates) -> Vec<TraceEntry> {
     let mut out = Vec::new();
     for p in live(&t.phases, g) {
-        if p.pending.is_some() {
+        if p.pending.is_some() && p.completed.is_none() {
             continue;
         }
         out.push(TraceEntry::Phase(p.legacy));
@@ -250,7 +257,7 @@ fn expected_order(t: &Tables, g: &Gates) -> Vec<TraceEntry> {
                 .find(|(k, _)| *k == list)
                 .unwrap_or_else(|| panic!("no list {list}"));
             for e in live(entries, g) {
-                if e.pending.is_none() {
+                if e.pending.is_none() || e.completed.is_some() {
                     out.push(TraceEntry::Link(key, e.legacy));
                 }
             }
@@ -304,6 +311,56 @@ fn check_trace(t: &Tables, ticks: &[Vec<TraceEntry>], gates: &Gates) -> Result<(
 // ---------------------------------------------------------------------------------------------------------------------
 // Conformance
 // ---------------------------------------------------------------------------------------------------------------------
+
+#[test]
+fn partial_rows_keep_pending_ownership_and_execute_in_source_position() {
+    let t = tables();
+    let packets = backlog_packets();
+    for name in ["abilities", "abilities.armWishes"] {
+        for missing_pending in [false, true] {
+            let mut bad = t.clone();
+            if name == "abilities" {
+                let row = bad.phases.iter_mut().find(|r| r.legacy == name).unwrap();
+                if missing_pending {
+                    row.pending = None;
+                } else {
+                    row.completed = Some("");
+                }
+            } else {
+                let row = bad
+                    .hooks
+                    .iter_mut()
+                    .flat_map(|(_, rows)| rows)
+                    .find(|r| r.legacy == name)
+                    .unwrap();
+                if missing_pending {
+                    row.pending = None;
+                } else {
+                    row.completed = Some("");
+                }
+            }
+            assert!(check_pending(&bad, &packets).is_err());
+        }
+    }
+    let order = expected_order(&t, &Gates::CAPTURE);
+    let at = order
+        .iter()
+        .position(|e| *e == TraceEntry::Phase("abilities"))
+        .unwrap();
+    assert_eq!(
+        order[at - 1],
+        TraceEntry::Phase("inputs:players(actionOrder)")
+    );
+    assert_eq!(order[at + 1], TraceEntry::Phase("targets"));
+    assert!(t
+        .hooks
+        .iter()
+        .find(|(h, _)| *h == Hook::Staggered)
+        .unwrap()
+        .1
+        .iter()
+        .all(|l| l.pending == Some("P-ABIL-1") && l.completed.is_none()));
+}
 
 #[test]
 fn the_tables_equal_the_legacy_record_in_all_three_worlds() {
@@ -363,7 +420,7 @@ fn what_the_slice_has_ported_stays_ported() {
     let t = tables();
     let ported = |es: &[Entry]| -> Vec<&'static str> {
         es.iter()
-            .filter(|e| e.pending.is_none())
+            .filter(|e| e.pending.is_none() || e.completed.is_some())
             .map(|e| e.legacy)
             .collect()
     };
@@ -386,8 +443,29 @@ fn what_the_slice_has_ported_stays_ported() {
     ] {
         assert!(ported(&t.phases).contains(&want), "phase {want} is ported");
     }
+    let lifecycle = t.phases.iter().find(|e| e.legacy == "abilities").unwrap();
+    assert_eq!(lifecycle.pending, Some("P-ABIL-1"));
+    assert_eq!(
+        lifecycle.completed,
+        Some("status lifecycle, fields and reveal")
+    );
+    let reset = t
+        .hooks
+        .iter()
+        .find(|(h, _)| *h == Hook::RaidStarted)
+        .unwrap()
+        .1
+        .iter()
+        .find(|e| e.legacy == "abilities.armWishes")
+        .unwrap();
+    assert_eq!(reset.pending, Some("P-ABIL-1"));
+    assert_eq!(reset.completed, Some("status and field reset"));
     assert!(ported(&t.systems).contains(&"feed.flushAnnouncements"));
     assert!(ported(&t.systems).contains(&"mods.updateMods"));
+    assert!(ported(&t.systems).contains(&"abilities.abilityDotFx"));
+    assert!(ported(&t.before_damage).contains(&"abilities.statusDamage"));
+    assert!(ported(&t.move_modifiers).contains(&"abilities.statusMoveMultiplier"));
+    assert!(ported(&t.mod_sources).contains(&"abilities.attackSlowSource"));
     assert!(ported(&t.mod_sources).contains(&"cardHooks.cardSource"));
     assert!(ported(&t.move_modifiers).contains(&"factions.frostMovementModifier"));
     assert!(t
@@ -410,6 +488,10 @@ fn what_the_slice_has_ported_stays_ported() {
         (Hook::WeaponSwapped, "factions.onWeaponSwapped"),
         (Hook::PlayerKilled, "factions.onPlayerKilled"),
         (Hook::ExecuteDenied, "factions.onExecuteDenied"),
+        (Hook::StatusApplied, "abilities.onStatusApplied"),
+        (Hook::FighterOut, "abilities.<arrow>"),
+        (Hook::RunEnded, "abilities.<arrow>"),
+        (Hook::Teleported, "abilities.<arrow>"),
     ] {
         let links = &t.hooks.iter().find(|(h, _)| *h == hook).unwrap().1;
         assert!(
@@ -522,6 +604,10 @@ fn a_match_runs_its_ported_rows_in_table_order() {
                 TraceEntry::Hook("weaponSwapped", "factions.onWeaponSwapped") => {}
                 TraceEntry::Hook("playerKilled", "factions.onPlayerKilled") => {}
                 TraceEntry::Hook("executeDenied", "factions.onExecuteDenied") => {}
+                TraceEntry::Hook("statusApplied", "abilities.onStatusApplied") => {}
+                TraceEntry::Hook("fighterOut" | "runEnded" | "teleported", "abilities.<arrow>") => {
+                }
+                TraceEntry::Hook("raidStarted", "abilities.armWishes") => {} // status reset only; P-ABIL remainder is explicit.
                 TraceEntry::Hook(h, l) => panic!("{name}: hook {h} link {l} is not ported"),
                 _ => {}
             }
@@ -740,6 +826,7 @@ fn a_changed_hook_chain_is_rejected() {
             "a link the record does not have",
             Box::new(|t| {
                 chain_mut(t, Hook::Blocked).push(LinkEntry {
+                    completed: None,
                     legacy: "cardHooks.extra",
                     mode: Mode::Append,
                     gate: Gate::Always,
@@ -833,7 +920,11 @@ fn rs_files(dir: &std::path::Path, out: &mut Vec<std::path::PathBuf>) {
 fn production_text(text: &str) -> &str {
     // A separately stored module can be test-only through this compiler-enforced inner attribute.
     // Its parent's cfg is outside this file, so require the attribute in the scanned text itself.
-    if text.starts_with("#![cfg(test)]") {
+    if text.starts_with("#![cfg(test)]")
+        || text
+            .lines()
+            .any(|line| line == "#![cfg(feature = \"trusted-status-probes\")]")
+    {
         return "";
     }
     match text.find("#[cfg(test)]") {

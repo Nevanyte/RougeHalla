@@ -41,6 +41,22 @@ pub(crate) fn launch(e: &Event) -> Option<Value> {
 pub(crate) fn canon(e: &Event, sim: &Sim) -> Option<Value> {
     use serde_json::json;
     Some(rounded(match e {
+        Event::StatusApplied { id, kind, ms, by } => {
+            json!({"kind":"status","id":fid(*id),"status":kind,"ms":ms,"by":by.map(fid).unwrap_or_default()})
+        }
+        Event::CastEnded {
+            id,
+            ability,
+            reason,
+        } => json!({"kind":"castEnd","by":fid(*id),"ability":ability,"reason":reason}),
+        Event::AbilityHit {
+            victim,
+            by,
+            ability,
+            amount,
+        } => {
+            json!({"kind":"hit","id":fid(*victim),"by":by.map(fid).unwrap_or_default(),"ability":ability,"amount":amount,"weapon":null})
+        }
         Event::MarkNotice { recipient, notice } => {
             json!({"kind":"toast","to":fid(*recipient),"text":notice.message()})
         }

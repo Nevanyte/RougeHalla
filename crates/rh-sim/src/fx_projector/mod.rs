@@ -25,11 +25,16 @@ pub enum FeedStatus {
     Duplicate,
     Gap,
 }
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+enum BucketKind {
+    Signature(SignatureKind),
+    Ability(crate::status_runtime::AbilityId),
+}
 #[derive(Debug)]
 struct Bucket {
     victim: PlayerId,
     by: Option<PlayerId>,
-    sig: SignatureKind,
+    kind: BucketKind,
     weapon: Option<crate::WeaponId>,
     sum: ExactSum,
 }
@@ -169,25 +174,24 @@ impl FxProjector {
             }
             let by = r.sees(viewer, by).then_some(by);
             let weapon = if by.is_some() { weapon } else { None };
-            let index = if let Some(i) = self
-                .instant
-                .iter()
-                .position(|b| (b.victim, b.by, b.sig) == (victim, by, sig))
-            {
-                i
-            } else {
-                if self.instant.len() == FX_INSTANT_BUCKETS_MAX {
-                    return self.fail(FxError::UnsupportedBounds);
-                }
-                self.instant.push(Bucket {
-                    victim,
-                    by,
-                    sig,
-                    weapon,
-                    sum: ExactSum::default(),
-                });
-                self.instant.len() - 1
-            };
+            let index =
+                if let Some(i) = self.instant.iter().position(|b| {
+                    (b.victim, b.by, b.kind) == (victim, by, BucketKind::Signature(sig))
+                }) {
+                    i
+                } else {
+                    if self.instant.len() == FX_INSTANT_BUCKETS_MAX {
+                        return self.fail(FxError::UnsupportedBounds);
+                    }
+                    self.instant.push(Bucket {
+                        victim,
+                        by,
+                        kind: BucketKind::Signature(sig),
+                        weapon,
+                        sum: ExactSum::default(),
+                    });
+                    self.instant.len() - 1
+                };
             if self.instant[index].sum.add(amount).is_err() {
                 return self.fail(FxError::InvalidAmount);
             }
@@ -199,13 +203,19 @@ impl FxProjector {
                     if !r.sees(viewer, h.victim) && h.by != Some(self.viewer) {
                         continue;
                     }
-                    let Some(sig) = h.sig else { continue };
+                    let Some(kind) = h
+                        .sig
+                        .map(BucketKind::Signature)
+                        .or_else(|| h.ability.map(BucketKind::Ability))
+                    else {
+                        continue;
+                    };
                     let by = h.by.filter(|&id| r.sees(viewer, id));
                     let weapon = if by.is_some() { h.weapon } else { None };
                     let index = self
                         .buckets
                         .iter()
-                        .position(|b| (b.victim, b.by, b.sig) == (h.victim, by, sig));
+                        .position(|b| (b.victim, b.by, b.kind) == (h.victim, by, kind));
                     let index = if let Some(i) = index {
                         i
                     } else {
@@ -215,7 +225,7 @@ impl FxProjector {
                         self.buckets.push(Bucket {
                             victim: h.victim,
                             by,
-                            sig,
+                            kind,
                             weapon,
                             sum: ExactSum::default(),
                         });
@@ -225,7 +235,7 @@ impl FxProjector {
                         return self.fail(FxError::InvalidAmount);
                     }
                 }
-                Op::Flush(at) | Op::Reset(at) | Op::InstantFlush(at) => {
+                Op::Flush(at) | Op::AbilityFlush(at) | Op::Reset(at) | Op::InstantFlush(at) => {
                     if at < cursor || at > r.events.len() {
                         return self.fail(FxError::UnsupportedBounds);
                     }
@@ -236,30 +246,47 @@ impl FxProjector {
                         &mut self.events,
                     );
                     cursor = at;
-                    if matches!(op, Op::Flush(_) | Op::InstantFlush(_)) {
+                    if matches!(op, Op::Flush(_) | Op::AbilityFlush(_) | Op::InstantFlush(_)) {
                         let buckets = if matches!(op, Op::InstantFlush(_)) {
                             &mut self.instant
                         } else {
                             &mut self.buckets
                         };
-                        buckets.sort_unstable_by_key(|b| (b.victim, b.by, b.sig));
-                        for b in buckets.iter() {
+                        buckets.sort_unstable_by_key(|b| (b.victim, b.by, b.kind));
+                        for b in buckets.iter().filter(|b| match op {
+                            Op::AbilityFlush(_) => matches!(b.kind, BucketKind::Ability(_)),
+                            _ => matches!(b.kind, BucketKind::Signature(_)),
+                        }) {
                             let Ok(amount) = b.sum.rounded() else {
                                 return self.fail(FxError::Overflow);
                             };
                             if amount > 0.0 {
-                                self.events.push(SeenEvent::SignatureHit {
-                                    victim: b.victim,
-                                    by: b.by,
-                                    sig: b.sig,
-                                    weapon: b.weapon,
-                                    amount,
+                                self.events.push(match b.kind {
+                                    BucketKind::Signature(sig) => SeenEvent::SignatureHit {
+                                        victim: b.victim,
+                                        by: b.by,
+                                        sig,
+                                        weapon: b.weapon,
+                                        amount,
+                                    },
+                                    BucketKind::Ability(ability) => SeenEvent::AbilityHit {
+                                        victim: b.victim,
+                                        by: b.by,
+                                        ability,
+                                        amount,
+                                    },
                                 });
                             }
                         }
                     }
                     if matches!(op, Op::InstantFlush(_)) {
                         self.instant.clear();
+                    } else if matches!(op, Op::AbilityFlush(_)) {
+                        self.buckets
+                            .retain(|b| !matches!(b.kind, BucketKind::Ability(_)));
+                    } else if matches!(op, Op::Flush(_)) {
+                        self.buckets
+                            .retain(|b| !matches!(b.kind, BucketKind::Signature(_)));
                     } else {
                         self.buckets.clear();
                     }

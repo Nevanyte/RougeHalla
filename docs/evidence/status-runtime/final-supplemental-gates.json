@@ -1,0 +1,82 @@
+[
+  {
+    "name": "final-probe-build",
+    "command": [
+      "cargo",
+      "build",
+      "--locked",
+      "-p",
+      "rh-parity",
+      "--features",
+      "trusted-status-probes",
+      "--bin",
+      "status-probes"
+    ],
+    "exit": 0,
+    "seconds": 6.061402290999999,
+    "logSha256": "96fec563941c2c636b9f520a1c12817fe4c4c73c7294072bf7ae842682aa11f9"
+  },
+  {
+    "name": "final-native-helpers",
+    "command": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/server-target/debug/status-probes",
+      "parity/status/helpers.json"
+    ],
+    "exit": 0,
+    "seconds": 1.470275333,
+    "logSha256": "38ecd80234f09eb577592c179a95ae7a74dd686839d7279b291db33cc1b1ae01"
+  },
+  {
+    "name": "final-native-runtime",
+    "command": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/server-target/debug/status-probes",
+      "parity/status/runtime.json"
+    ],
+    "exit": 0,
+    "seconds": 0.5796940840000007,
+    "logSha256": "d86bffce3bb966f0221fcd0dc6a37954f6964fc884df7aa59ba92ea0c522113c"
+  },
+  {
+    "name": "final-native-refinements-v2",
+    "command": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/server-target/debug/status-probes",
+      "parity/status/refinements-v2.json"
+    ],
+    "exit": 0,
+    "seconds": 0.02959049999999941,
+    "logSha256": "ed9b619c1945ce78e5cd28b71ae40f1a158ca59ba135d6f17830ca4e9def7cb6"
+  },
+  {
+    "name": "final-native-boundaries-v3",
+    "command": [
+      "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/server-target/debug/status-probes",
+      "parity/status/boundaries-v3.json"
+    ],
+    "exit": 0,
+    "seconds": 0.09016929199999879,
+    "logSha256": "991df4ffc0dc8947e69a04d9e9fa8c52cdea638aaa4a5c80cec6e7696a8d2133"
+  },
+  {
+    "name": "server-build",
+    "command": [
+      "cargo",
+      "build",
+      "--locked",
+      "-p",
+      "rh-server"
+    ],
+    "exit": 0,
+    "seconds": 11.195368833,
+    "logSha256": "7b2decc36a1c01df66023763bbd112a222c3d823668e3e3b9f3343a32532002b"
+  },
+  {
+    "name": "browser",
+    "command": [
+      "node",
+      "tools/browser-proof/proof.mjs"
+    ],
+    "exit": 1,
+    "seconds": 0.0492300830000012,
+    "logSha256": "1ff637e8d2bb2a4c9d3c57b7b298034bd76ac7f9cbbf0f81142e1533ae2e1977"
+  }
+]

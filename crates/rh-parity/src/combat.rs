@@ -62,10 +62,20 @@ fn containers(sim: &Sim) -> Vec<Value> {
 }
 fn statuses(sim: &Sim) -> Vec<Value> {
     sim.players().iter().map(|p| {
-        let statuses=p.weapon.shreds.iter().map(|s|json!({
-            "kind":"shred","source":{"id":fid(s.source),"name":sim.player_name(s.source)},"tag":"axe",
-            "startedAt":s.started_at,"until":s.until,"value":s.value
-        })).collect::<Vec<_>>();
+        let statuses=p.statuses.instances.iter().map(|s| {
+            let mut value = json!({"kind":s.kind,"source":{"id":s.source.id.map(fid).unwrap_or_default(),"name":s.source.name},"startedAt":s.started_at,"until":s.until,"value":s.value});
+            let o = value.as_object_mut().unwrap();
+            if let Some(a) = s.ability { o.insert("ability".into(), json!(a)); }
+            if let Some(tag) = &s.tag { o.insert("tag".into(), json!(tag)); }
+            if let Some(owner) = s.source.owner_id { o.get_mut("source").unwrap().as_object_mut().unwrap().insert("ownerId".into(), json!(fid(owner))); }
+            macro_rules! field { ($name:literal,$v:expr) => { if let Some(v) = $v { o.insert($name.into(), json!(v)); } }; }
+            field!("revealFrom",s.reveal_from); field!("revealUntil",s.data.reveal_until);
+            field!("dealtMult",s.data.dealt_mult); field!("takenFromSourceMult",s.data.taken_from_source_mult);
+            field!("moveMult",s.data.move_mult); field!("floorHp",s.data.floor_hp); field!("taken",s.taken); field!("healShare",s.data.heal_share);
+            if let Some(id) = s.data.field_id { o.insert("fieldId".into(), json!(format!("fld{}",id36(id).trim_start_matches('c')))); }
+            if let Some(shares) = s.data.shares {o.insert("shares".into(),json!({"phys":shares.phys,"magic":shares.magic,"true":shares.true_}));}
+            value
+        }).collect::<Vec<_>>();
         json!({"id":fid(p.id),"statuses":statuses})
     }).collect()
 }

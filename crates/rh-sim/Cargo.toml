@@ -20,6 +20,8 @@ serde_json = { version = "1", features = ["float_roundtrip"] }
 dhat = "0.3"
 
 [features]
+# Trusted parity harness only; never a gameplay command or a production default.
+trusted-status-probes = ["schedule-trace"]
 # Records which ported rows of the tick schedule ran, in order (tests only: enabled by rh-parity as a dev-dependency
 # feature, never in a production build). See src/schedule.rs.
 schedule-trace = []
@@ -29,3 +31,11 @@ bench = []
 
 [lints]
 workspace = true
+
+[[test]]
+name = "status_privacy_review"
+required-features = ["trusted-status-probes"]
+
+[[test]]
+name = "status_alloc_review"
+required-features = ["trusted-status-probes"]

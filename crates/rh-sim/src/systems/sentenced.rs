@@ -119,8 +119,14 @@ pub(crate) fn before_damage(
             if !qualifies(w, i, &ledger[n]) {
                 continue;
             }
-            let e = ledger[n];
+            let e = ledger[n].clone();
             ledger.push(Entry {
+                dot: false,
+                ability: None,
+                arena: false,
+                source: None,
+                critical: false,
+                critical_mult: None,
                 sig: Some(SignatureKind::Mark),
                 execute: false,
                 victim: e.victim,

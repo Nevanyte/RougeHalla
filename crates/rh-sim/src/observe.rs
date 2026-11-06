@@ -17,10 +17,12 @@ use crate::sim::{Event, Phase, PlayerId, Sim, Status};
 use crate::state::Player;
 use crate::vision::{actor_with, scene_line_blocked};
 
-pub const OBSERVATION_VERSION: u16 = 11;
+pub const OBSERVATION_VERSION: u16 = 12;
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct SelfView {
+    pub effects: u16,
+    pub displace_seq: u8,
     pub mark_tier: u8,
     pub brand: u8,
     pub mark_by: Option<PlayerId>,
@@ -48,6 +50,8 @@ pub struct SelfView {
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct ActorView {
+    pub effects: u16,
+    pub displace_seq: u8,
     pub mark_tier: u8,
     pub brand: u8,
     pub mark_by: Option<PlayerId>,
@@ -68,6 +72,23 @@ pub struct ActorView {
 /// An event the observer could perceive.
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum SeenEvent {
+    AbilityHit {
+        victim: PlayerId,
+        by: Option<PlayerId>,
+        ability: crate::status_runtime::AbilityId,
+        amount: f64,
+    },
+    CastEnded {
+        id: PlayerId,
+        ability: crate::status_runtime::AbilityId,
+        reason: crate::status_runtime::CastEndReason,
+    },
+    StatusApplied {
+        id: PlayerId,
+        kind: crate::status_runtime::StatusKind,
+        ms: f64,
+        by: Option<PlayerId>,
+    },
     SignatureHit {
         victim: PlayerId,
         by: Option<PlayerId>,
@@ -130,6 +151,7 @@ pub struct Observation {
     pub me: Option<SelfView>,
     pub inventory: Option<crate::Inventory>,
     pub props: Vec<crate::VisibleProp>,
+    pub fields: Vec<crate::status_runtime::FieldView>,
     pub visible: Vec<ActorView>,
     pub events: Vec<SeenEvent>,
 }
@@ -142,7 +164,10 @@ impl SeenEvent {
             SeenEvent::Death { .. } | SeenEvent::Bounty { .. } | SeenEvent::Ended { .. } => {
                 Class::Important
             }
-            SeenEvent::SignatureHit { .. }
+            SeenEvent::AbilityHit { .. }
+            | SeenEvent::CastEnded { .. }
+            | SeenEvent::StatusApplied { .. }
+            | SeenEvent::SignatureHit { .. }
             | SeenEvent::Swing { .. }
             | SeenEvent::Hit { .. }
             | SeenEvent::Block { .. }
@@ -188,6 +213,21 @@ fn to_seen(e: &Event, can_see: &impl Fn(PlayerId) -> bool) -> Option<SeenEvent> 
             by: can_see(by).then_some(by),
             weapon,
         }),
+        Event::CastEnded {
+            id,
+            ability,
+            reason,
+        } => Some(SeenEvent::CastEnded {
+            id,
+            ability,
+            reason,
+        }),
+        Event::StatusApplied { id, kind, ms, by } => Some(SeenEvent::StatusApplied {
+            id,
+            kind,
+            ms,
+            by: by.filter(|&id| can_see(id)),
+        }),
         Event::Heal { id, amount } => Some(SeenEvent::Heal { id, amount }),
         Event::AttackCancelled { id } => Some(SeenEvent::AttackCancelled { id }),
         Event::Stagger { id } => Some(SeenEvent::Stagger { id }),
@@ -209,7 +249,8 @@ fn to_seen(e: &Event, can_see: &impl Fn(PlayerId) -> bool) -> Option<SeenEvent> 
         }),
         Event::Bounty { id, bounty } => Some(SeenEvent::Bounty { id, bounty }),
         Event::Victory { id, draw } => Some(SeenEvent::Ended { winner: id, draw }),
-        Event::MarkNotice { .. }
+        Event::AbilityHit { .. }
+        | Event::MarkNotice { .. }
         | Event::SignatureHit { .. }
         | Event::ProjectileLaunched(_)
         | Event::ProjectileEnded { .. }
@@ -232,6 +273,7 @@ impl Default for Observation {
             me: None,
             inventory: None,
             props: Vec::new(),
+            fields: Vec::new(),
             visible: Vec::new(),
             events: Vec::new(),
         }
@@ -342,6 +384,8 @@ pub(crate) fn observe_with(
     out.server_time = now;
     out.phase = sim.phase();
     out.me = me.map(|p| SelfView {
+        effects: p.statuses.effects,
+        displace_seq: p.motion.displace_seq,
         mark_tier: crate::systems::sentenced::public_mark_tier(&sim.w, p.id),
         brand: crate::systems::sentenced::public_mark_tier(&sim.w, p.id) * 25,
         mark_by: None,
@@ -386,6 +430,8 @@ pub(crate) fn observe_with(
                 _ => scene_line_blocked(map, ax, ay, o.body.x, o.body.y),
             }) {
                 out.visible.push(ActorView {
+                    effects: o.statuses.effects,
+                    displace_seq: o.motion.displace_seq,
                     mark_tier: crate::systems::sentenced::public_mark_tier(&sim.w, o.id),
                     brand: crate::systems::sentenced::public_mark_tier(&sim.w, o.id) * 25,
                     mark_by: None,
@@ -416,6 +462,7 @@ pub(crate) fn observe_with(
     if !out.visible.is_sorted_by_key(|a| a.id) {
         out.visible.sort_unstable_by_key(|a| a.id);
     }
+    crate::status_runtime::observe::project(sim, viewer, &out.visible, &mut out.fields);
     if let (Some(p), Some(view)) = (me, &mut out.me) {
         view.attack_target = p
             .weapon
@@ -500,6 +547,8 @@ fn observe_events_with(
 /// replicate this to a playing client: it ignores line of sight.
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct PublicPlayer {
+    pub effects: u16,
+    pub displace_seq: u8,
     pub mark_tier: u8,
     pub brand: u8,
     pub mark_by: Option<PlayerId>,
@@ -525,6 +574,7 @@ pub struct PublicSnapshot {
     pub phase: Phase,
     pub winner: Option<String>,
     pub players: Vec<PublicPlayer>,
+    pub fields: Vec<crate::status_runtime::FieldView>,
 }
 
 pub fn public_snapshot(sim: &Sim) -> PublicSnapshot {
@@ -532,6 +582,8 @@ pub fn public_snapshot(sim: &Sim) -> PublicSnapshot {
         .players()
         .iter()
         .map(|p| PublicPlayer {
+            effects: p.statuses.effects,
+            displace_seq: p.motion.displace_seq,
             mark_tier: crate::systems::sentenced::public_mark_tier(&sim.w, p.id),
             brand: crate::systems::sentenced::public_mark_tier(&sim.w, p.id) * 25,
             mark_by: None,
@@ -559,6 +611,7 @@ pub fn public_snapshot(sim: &Sim) -> PublicSnapshot {
         phase: sim.phase(),
         winner: sim.winner().map(str::to_owned),
         players,
+        fields: crate::status_runtime::observe::public(sim),
     }
 }
 

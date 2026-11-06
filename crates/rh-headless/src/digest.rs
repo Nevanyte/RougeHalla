@@ -96,6 +96,34 @@ impl OutcomeDigest {
             self.s(status(p.status));
             self.w(p.kills as u64);
             self.w(p.bounty as u64);
+            if p.effects != 0 || p.displace_seq != 0 {
+                self.s("status_motion");
+                self.w(p.effects.into());
+                self.w(p.displace_seq.into());
+            }
+        }
+        if !snap.fields.is_empty() {
+            self.s("visible_fields");
+            self.w(snap.fields.len() as u64);
+            for f in &snap.fields {
+                self.w(f.kind as u64);
+                self.s(f.ability.as_str());
+                self.opt(f.owner.map(|id| id.0.into()));
+                self.opt(f.subject.map(|id| id.0.into()));
+                for n in [
+                    f.x,
+                    f.y,
+                    f.x2,
+                    f.y2,
+                    f.r,
+                    f.vx,
+                    f.vy,
+                    f.started_at,
+                    f.ends_at,
+                ] {
+                    self.f(n);
+                }
+            }
         }
         self.w(events.len() as u64);
         for e in events {
@@ -123,6 +151,35 @@ impl OutcomeDigest {
     fn event(&mut self, e: &Event) {
         self.events += 1;
         match e {
+            Event::AbilityHit {
+                victim,
+                by,
+                ability,
+                amount,
+            } => {
+                self.s("ability_hit");
+                self.w(victim.0.into());
+                self.opt(by.map(|p| p.0.into()));
+                self.s(ability.as_str());
+                self.f(*amount);
+            }
+            Event::CastEnded {
+                id,
+                ability,
+                reason,
+            } => {
+                self.s("cast_ended");
+                self.w(id.0.into());
+                self.s(ability.as_str());
+                self.w(*reason as u64);
+            }
+            Event::StatusApplied { id, kind, ms, by } => {
+                self.s("status_applied");
+                self.w(id.0.into());
+                self.w(*kind as u64);
+                self.f(*ms);
+                self.opt(by.map(|p| p.0.into()));
+            }
             Event::MarkNotice { recipient, notice } => {
                 self.s("mark_notice");
                 self.w(recipient.0 as u64);

@@ -26,3 +26,11 @@ path = "src/bin/parity_bench.rs"
 [dev-dependencies]
 # The schedule conformance test reads the execution trace (tests/schedule.rs).
 rh-sim = { path = "../rh-sim", features = ["schedule-trace"] }
+
+[features]
+trusted-status-probes = ["rh-sim/trusted-status-probes"]
+
+[[bin]]
+name = "status-probes"
+path = "src/bin/status_probes.rs"
+required-features = ["trusted-status-probes"]

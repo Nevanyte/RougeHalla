@@ -61,6 +61,26 @@ pub struct Vitals {
 pub struct Motion {
     pub path: Path,
     pub move_seq: u8,
+    pub displace_seq: u8,
+    pub slip: Option<SlipState>,
+}
+
+/// Shared terrain movement memory. P-TERRAIN supplies and advances it; displacement only clears it.
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SlipState {
+    pub vx: f64,
+    pub vy: f64,
+    pub ax: f64,
+    pub ay: f64,
+    pub path: Option<Vec<Vec2>>,
+    pub replan_at: Option<f64>,
+    pub stuck_x: Option<f64>,
+    pub stuck_y: Option<f64>,
+    pub stuck_n: Option<f64>,
+    pub stuck_best: Option<f64>,
+    pub stuck_at: Option<f64>,
+    pub grip_until: Option<f64>,
 }
 
 /// Everything the combat systems need of one fighter, whoever it is. Its `inputs` are the commands that reached it through
@@ -74,6 +94,11 @@ pub struct FighterCore {
     pub weapon: WeaponRt,
     /// Private engagement and sustain clocks, independent of weapon target locks.
     pub signature: Signature,
+    pub statuses: crate::status_runtime::StatusRuntime,
+    /// Encoded source-timed attack-speed mirror; the shared kernel owns its codec.
+    pub attack_rate_wire: f64,
+    /// Player card runtime; the status ticker shares the source one-roll-per-tick cache.
+    pub card_dot_crit: Option<crate::status_runtime::DotCritState>,
     pub motion: Motion,
     pub(crate) inputs: InputQueue,
 }
@@ -166,6 +191,7 @@ pub struct Credit {
 #[derive(Clone, Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Fate {
     pub killed_by: Option<PlayerId>,
+    pub killed_by_name: Option<std::sync::Arc<str>>,
     pub killed_by_bot: bool,
 }
 

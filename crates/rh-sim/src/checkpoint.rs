@@ -20,7 +20,7 @@ use serde::ser::{SerializeStruct, Serializer};
 use std::fmt;
 
 /// The tag every checkpoint carries. Bump it when the layout of `statics` or `world` changes incompatibly.
-pub const CHECKPOINT_FORMAT: &str = "rh-checkpoint/14";
+pub const CHECKPOINT_FORMAT: &str = "rh-checkpoint/15";
 
 /// How far past the map edge a fighter, waypoint or spawn may be and still restore (real states stay inside the map).
 const COORD_MARGIN: f64 = 1024.0;
@@ -76,6 +76,11 @@ const FIELDS: &[&str] = &["format", "content_hash", "build", "statics", "world"]
 
 impl serde::Serialize for Sim {
     fn serialize<S: Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
+        if self.w.pay.collecting || !self.w.pay.items.is_empty() {
+            return Err(serde::ser::Error::custom(
+                "checkpoint requires an empty same-tick payout queue",
+            ));
+        }
         let mut st = s.serialize_struct("Checkpoint", FIELDS.len())?;
         st.serialize_field("format", CHECKPOINT_FORMAT)?;
         st.serialize_field("content_hash", &crate::content::content_hash())?;
@@ -425,6 +430,7 @@ fn check_world(k: &MatchStatic, w: &World) -> Result<(), String> {
     if u64::from(w.entity_counter) + needed_ids > u64::from(u32::MAX) {
         return Err("insufficient run entity identity headroom".into());
     }
+    crate::status_runtime::checkpoint::validate_world(w, near)?;
     for e in &w.deferred.hits {
         if (e.execute && e.sig != Some(crate::factions::SignatureKind::Disease))
             || e.sig.is_some_and(|s| !k.config.faction_mode.supports(s))
@@ -571,18 +577,18 @@ fn check_world(k: &MatchStatic, w: &World) -> Result<(), String> {
         if !(0.0..=crate::constants::AXE_SHRED_CAP).contains(&p.weapon.armor_shred) {
             return Err(format!("player {}: invalid armor mirror", p.id.0));
         }
-        for (n, shred) in p.weapon.shreds.iter().enumerate() {
-            if w.roster.name(shred.source).is_none()
-                || p.weapon.shreds[..n]
-                    .iter()
-                    .any(|s| s.source == shred.source)
-                || !(shred.value == crate::constants::AXE_SHRED_ARMOR
-                    || shred.value == crate::constants::AXE_SHRED_CAP)
-                || !(0.0..=w.server_time).contains(&shred.started_at)
-                || !(shred.until > w.server_time
-                    && shred.until <= w.server_time + crate::constants::AXE_SHRED_MS)
+        crate::status_runtime::validate(&p.statuses, w.server_time)
+            .map_err(|reason| format!("player {}: invalid status runtime: {reason}", p.id.0))?;
+        for st in &p.statuses.instances {
+            if [st.source.id, st.source.owner_id]
+                .into_iter()
+                .flatten()
+                .any(|id| w.roster.name(id).is_none())
             {
-                return Err(format!("player {}: invalid axe shred", p.id.0));
+                return Err(format!(
+                    "player {}: status source has no player provenance",
+                    p.id.0
+                ));
             }
         }
         if let Some(a) = p.weapon.action {

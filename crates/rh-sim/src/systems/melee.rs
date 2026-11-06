@@ -113,6 +113,12 @@ fn resolve_swings(cx: &mut Cx) {
                     || angle_between(atan2(dy, dx), target.body.facing)
                         <= SHIELD_HALF_ARC + ARC_EPS);
             let mut entry = Entry {
+                dot: false,
+                ability: None,
+                arena: false,
+                source: None,
+                critical: false,
+                critical_mult: None,
                 sig: None,
                 execute: false,
                 victim: target.id,
@@ -141,6 +147,12 @@ fn resolve_swings(cx: &mut Cx) {
                 });
                 if req.weapon == WeaponId::Sword {
                     ledger.push(Entry {
+                        dot: false,
+                        ability: None,
+                        arena: false,
+                        source: None,
+                        critical: false,
+                        critical_mult: None,
                         sig: None,
                         execute: false,
                         victim: req.attacker,

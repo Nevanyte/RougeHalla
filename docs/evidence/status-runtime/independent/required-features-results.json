@@ -1,0 +1,53 @@
+[
+  {
+    "command": [
+      "cargo",
+      "test",
+      "--offline",
+      "--locked",
+      "-p",
+      "rh-sim",
+      "--test",
+      "status_privacy_review",
+      "--no-run"
+    ],
+    "exit": 101,
+    "stdout": "",
+    "stderr": "error: target `status_privacy_review` in package `rh-sim` requires the features: `trusted-status-probes`\nConsider enabling them by passing, e.g., `--features=\"trusted-status-probes\"`\n"
+  },
+  {
+    "command": [
+      "cargo",
+      "test",
+      "--offline",
+      "--locked",
+      "-p",
+      "rh-sim",
+      "--test",
+      "status_alloc_review",
+      "--no-run"
+    ],
+    "exit": 101,
+    "stdout": "",
+    "stderr": "error: target `status_alloc_review` in package `rh-sim` requires the features: `trusted-status-probes`\nConsider enabling them by passing, e.g., `--features=\"trusted-status-probes\"`\n"
+  },
+  {
+    "command": [
+      "cargo",
+      "test",
+      "--offline",
+      "--locked",
+      "-p",
+      "rh-sim",
+      "--features",
+      "trusted-status-probes",
+      "--test",
+      "status_privacy_review",
+      "--test",
+      "status_alloc_review"
+    ],
+    "exit": 0,
+    "stdout": "\nrunning 1 test\ntest more_than_initial_capacity_retains_all_tags_and_warms_real_fifo_refolds ... ok\n\ntest result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s\n\n\nrunning 2 tests\ntest checkpoint_refuses_never_allocated_field_references_but_keeps_departed_fields ... ok\ntest actual_source_visible_unseen_field_and_hidden_effect_pairs ... ok\n\ntest result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s\n\n",
+    "stderr": "   Compiling rh-sim v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/status-independent-review/candidate-v1/repo/crates/rh-sim)\n    Finished `test` profile [unoptimized] target(s) in 0.92s\n     Running tests/status_alloc_review.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/mob-catalog-target/debug/deps/status_alloc_review-455ebc65d67e5f8f)\n     Running tests/status_privacy_review.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/mob-catalog-target/debug/deps/status_privacy_review-5be3b40cd4f6cd38)\n"
+  }
+]

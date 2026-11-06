@@ -9,7 +9,7 @@
 //! tick executes its ported rows in another order than the table (C-TICK, executable).
 //!
 //! Rules (docs/adr/0009-core-layout.md):
-//! * a row is [`Run::Ported`] (a `fn`) or [`Run::Pending`] (the backlog packet that ports it, a real id in
+//! * a row is [`Run::Ported`], [`Run::Partial`] (an executed subresponsibility plus pending remainder), or [`Run::Pending`] (a real id in
 //!   `docs/backlog/README.md`); a pending row is skipped, exactly as the legacy mechanic does not exist yet;
 //! * a mechanic packet adds `systems/<mechanic>.rs` and flips its rows from `Pending` to `Ported`; it never reorders a
 //!   table and never calls a system from anywhere else (the loops in [`run_steps`] and `run_list` are the only callers);
@@ -140,6 +140,11 @@ pub(crate) enum Flow {
 #[derive(Clone, Copy)]
 pub(crate) enum Run<F> {
     Ported(F),
+    Partial {
+        callback: F,
+        completed: &'static str,
+        pending: &'static str,
+    },
     Pending(&'static str),
 }
 
@@ -158,6 +163,24 @@ const fn ported<F>(legacy: &'static str, gate: Gate, f: F) -> Item<F> {
     }
 }
 
+const fn partial<F>(
+    legacy: &'static str,
+    gate: Gate,
+    completed: &'static str,
+    pending: &'static str,
+    callback: F,
+) -> Item<F> {
+    Item {
+        legacy,
+        gate,
+        run: Run::Partial {
+            callback,
+            completed,
+            pending,
+        },
+    }
+}
+
 const fn pending<F>(legacy: &'static str, gate: Gate, packet: &'static str) -> Item<F> {
     Item {
         legacy,
@@ -171,7 +194,7 @@ pub(crate) type PhaseFn = fn(&mut Cx) -> Flow;
 /// A system of a registration list (legacy `SimSystem`; the step is the fixed `TICK_MS`).
 pub(crate) type SystemFn = fn(&mut Cx);
 /// A factor on one fighter's move speed (legacy `MoveModifier`); the product is folded in table order.
-pub(crate) type MoveFn = fn(&World, &FighterCore, f64) -> f64;
+pub(crate) type MoveFn = fn(&World, &FighterCore, f64, crate::status_runtime::StatView) -> f64;
 /// What one mod source adds to a fighter's stat mirrors (legacy `ModContribution`).
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub(crate) struct ModContribution {
@@ -182,7 +205,8 @@ pub(crate) struct ModContribution {
     pub(crate) shield: Option<f64>,
 }
 /// A source the stat mirrors fold in besides the fighter's own rows (legacy `ModSource`).
-pub(crate) type SourceFn = fn(&World, &FighterCore) -> Option<ModContribution>;
+pub(crate) type SourceFn =
+    fn(&World, &FighterCore, crate::status_runtime::StatView) -> Option<ModContribution>;
 /// An action handler (legacy `ActionHandler`): the queued command of the fighter at `ix`.
 pub(crate) type ActionFn = fn(&mut Cx, FighterIx, &ActionCmd);
 
@@ -213,6 +237,26 @@ const fn ported_link(legacy: &'static str, mode: Mode, gate: Gate, f: LinkFn) ->
         mode,
         gate,
         run: Run::Ported(f),
+    }
+}
+
+const fn partial_link(
+    legacy: &'static str,
+    mode: Mode,
+    gate: Gate,
+    completed: &'static str,
+    pending: &'static str,
+    callback: LinkFn,
+) -> Link {
+    Link {
+        legacy,
+        mode,
+        gate,
+        run: Run::Partial {
+            callback,
+            completed,
+            pending,
+        },
     }
 }
 
@@ -389,7 +433,10 @@ pub enum TraceEntry {
 /// only cost memory in a test build.
 #[cfg(feature = "schedule-trace")]
 #[derive(Debug, Default)]
-pub(crate) struct TraceLog(Vec<TraceEntry>);
+pub(crate) struct TraceLog(
+    Vec<TraceEntry>,
+    #[cfg(feature = "trusted-status-probes")] pub(crate) crate::status_runtime::probe::ProbeLog,
+);
 
 #[cfg(feature = "schedule-trace")]
 impl Clone for TraceLog {
@@ -442,7 +489,7 @@ impl<F: Copy, const N: usize> Compiled<F, N> {
         let mut len = 0;
         let mut i = 0;
         while i < N {
-            if let Run::Ported(f) = rows[i].run {
+            if let Run::Ported(f) | Run::Partial { callback: f, .. } = rows[i].run {
                 if rows[i].gate.on(g) {
                     items[len] = (rows[i].legacy, f);
                     len += 1;
@@ -475,10 +522,14 @@ fn no_phase(_: &mut Cx) -> Flow {
     Flow::Continue
 }
 fn no_system(_: &mut Cx) {}
-fn no_source(_: &World, _: &FighterCore) -> Option<ModContribution> {
+fn no_source(
+    _: &World,
+    _: &FighterCore,
+    _: crate::status_runtime::StatView,
+) -> Option<ModContribution> {
     None
 }
-fn no_modifier(_: &World, _: &FighterCore, _: f64) -> f64 {
+fn no_modifier(_: &World, _: &FighterCore, _: f64, _: crate::status_runtime::StatView) -> f64 {
     1.0
 }
 
@@ -487,7 +538,7 @@ impl Plan {
         let mut actions: [Option<ActionFn>; 13] = [None; 13];
         let mut i = 0;
         while i < ACTIONS.len() {
-            if let Run::Ported(f) = ACTIONS[i].run {
+            if let Run::Ported(f) | Run::Partial { callback: f, .. } = ACTIONS[i].run {
                 if ACTIONS[i].gate.on(g) {
                     actions[ACTIONS[i].id as usize] = Some(f);
                 }
@@ -604,12 +655,18 @@ pub(crate) static PHASES: [Item<PhaseFn>; 23] = [
         Flow::Continue
     }),
     pending("inputs:mobs(insertionOrder)", Gate::Always, "P-MOBS-1"),
-    // The axe is the first ported status. P-ABIL-1 extends this phase with casts.
-    ported("abilities", Gate::Always, |cx| {
-        crate::vision::apply_exposures(cx);
-        items::expire_shred(cx);
-        Flow::Continue
-    }),
+    // Complete status/field lifecycle runs here. P-ABIL-1 extends this phase with cast producers.
+    partial(
+        "abilities",
+        Gate::Always,
+        "status lifecycle, fields and reveal",
+        "P-ABIL-1",
+        |cx| {
+            crate::vision::apply_exposures(cx);
+            crate::systems::status::expire(cx);
+            Flow::Continue
+        },
+    ),
     ported("targets", Gate::Always, |cx| {
         crate::systems::targeting::update(cx);
         Flow::Continue
@@ -687,7 +744,11 @@ static BEFORE_DAMAGE: [Item<SystemFn>; 3] = [
         crate::systems::signatures::before_damage,
     ),
     pending("terrainEffects.burnPass", Gate::Always, "P-TERRAIN-1"),
-    pending("abilities.statusDamage", Gate::Always, "P-STATUS-1"),
+    ported(
+        "abilities.statusDamage",
+        Gate::Always,
+        crate::systems::status::dot::damage,
+    ),
 ];
 static SYSTEMS: [Item<SystemFn>; 24] = [
     pending("fireRoam.update", Gate::Signatures, "P-FACTION-2"),
@@ -711,7 +772,11 @@ static SYSTEMS: [Item<SystemFn>; 24] = [
     pending("mobAI.thinkMobs", Gate::Always, "P-MOBS-1"),
     pending("terrainEffects.lightPass", Gate::Always, "P-TERRAIN-1"),
     pending("regen.regenPass", Gate::Always, "P-MOBS-2"),
-    pending("abilities.abilityDotFx", Gate::Always, "P-ABIL-1"),
+    ported(
+        "abilities.abilityDotFx",
+        Gate::Always,
+        crate::systems::status::dot::report,
+    ),
     pending("quests.questSystem", Gate::Quests, "P-QUEST-1"),
     ported("vision.refreshVision", Gate::Always, crate::vision::refresh),
     pending("consumables.updateConsumables", Gate::Always, "P-CONS-1"),
@@ -719,7 +784,7 @@ static SYSTEMS: [Item<SystemFn>; 24] = [
     pending("cardHooks.afterDamage", Gate::Always, "P-CARDS-1"),
     pending("plagueCorpses.<anonymous>", Gate::Signatures, "P-FACTION-3"),
     pending("bruiserPassives.update", Gate::Signatures, "P-FACTION-5"),
-    // The only ported stat source is axe shred. P-CARDS-1 extends this fold with cards.
+    // Current status sources are axe shred and attack slow. P-CARDS-1 extends this fold with cards.
     ported("mods.updateMods", Gate::Always, items::fold_armor),
     pending(
         "plagueZombies.updateZombies",
@@ -747,7 +812,11 @@ static MOVE_MODIFIERS: [Item<MoveFn>; 7] = [
     pending("buffs.moveSpeedMult", Gate::Always, "P-CARDS-2"),
     pending("mobLife.mobRoleMove", Gate::Always, "P-MOBS-1"),
     pending("terrainEffects.applyBog", Gate::Always, "P-TERRAIN-1"),
-    pending("abilities.statusMoveMultiplier", Gate::Always, "P-STATUS-1"),
+    ported(
+        "abilities.statusMoveMultiplier",
+        Gate::Always,
+        crate::systems::status::movement,
+    ),
     pending(
         "sentencedHunt.huntMoveMultiplier",
         Gate::Signatures,
@@ -758,7 +827,11 @@ static MOVE_MODIFIERS: [Item<MoveFn>; 7] = [
 /// Legacy stat modifier sources, folded after damage in registration order.
 static MOD_SOURCES: [Item<SourceFn>; 6] = [
     pending("factions.markTaxSource", Gate::Signatures, "P-FACTION-1"),
-    pending("abilities.attackSlowSource", Gate::Always, "P-STATUS-1"),
+    ported(
+        "abilities.attackSlowSource",
+        Gate::Always,
+        crate::systems::status::attack_source,
+    ),
     pending("consumables.<anonymous>", Gate::Always, "P-CONS-1"),
     ported("cardHooks.cardSource", Gate::Always, items::shred_source),
     pending("fireRoam.roamingSpeed", Gate::Signatures, "P-FACTION-2"),
@@ -921,7 +994,12 @@ static TELEPORTED: [Link; 13] = [
         Gate::Always,
         "P-TERRAIN-1",
     ),
-    pending_link("abilities.<arrow>", Mode::Append, Gate::Always, "P-ABIL-1"),
+    ported_link(
+        "abilities.<arrow>",
+        Mode::Append,
+        Gate::Always,
+        crate::systems::status::teleported,
+    ),
     pending_link("quests.<arrow>", Mode::Append, Gate::Quests, "P-QUEST-1"),
     pending_link(
         "vision.refreshAllVision",
@@ -960,7 +1038,7 @@ static ATTACK_STARTED: [Link; 3] = [
         "abilities.onAttackStarted",
         Mode::Append,
         Gate::Always,
-        crate::vision::attack_started,
+        crate::systems::status::attack_started,
     ),
     pending_link(
         "fireRoam.onAttackStarted",
@@ -1041,11 +1119,14 @@ static RAID_STARTED: [Link; 14] = [
         "P-TERRAIN-1",
     ),
     pending_link("regen.<arrow>", Mode::Append, Gate::Always, "P-MOBS-2"),
-    pending_link(
+    // Status/field reset only; Wish charges/cooldown/landing remain P-ABIL-1.
+    partial_link(
         "abilities.armWishes",
         Mode::Append,
         Gate::Always,
+        "status and field reset",
         "P-ABIL-1",
+        crate::systems::status::raid_started,
     ),
     pending_link(
         "quests.raidStarted",
@@ -1109,7 +1190,12 @@ static RUN_ENDED: [Link; 12] = [
         Gate::Always,
         "P-CARDS-2",
     ),
-    pending_link("abilities.<arrow>", Mode::Append, Gate::Always, "P-ABIL-1"),
+    ported_link(
+        "abilities.<arrow>",
+        Mode::Append,
+        Gate::Always,
+        crate::systems::status::run_ended,
+    ),
     pending_link("quests.<arrow>", Mode::Append, Gate::Quests, "P-QUEST-1"),
     pending_link(
         "cardHooks.dropDeferred",
@@ -1171,7 +1257,12 @@ static ARENA_HURT: [Link; 1] = [pending_link(
     "P-TERRAIN-1",
 )];
 static FIGHTER_OUT: [Link; 8] = [
-    pending_link("abilities.<arrow>", Mode::Append, Gate::Always, "P-ABIL-1"),
+    ported_link(
+        "abilities.<arrow>",
+        Mode::Append,
+        Gate::Always,
+        crate::systems::status::fighter_out,
+    ),
     pending_link("vision.<arrow>", Mode::Append, Gate::Always, "P-VISION-1"),
     pending_link(
         "consumables.<arrow>",
@@ -1210,11 +1301,11 @@ static FIGHTER_OUT: [Link; 8] = [
         "P-FACTION-3",
     ),
 ];
-static STATUS_APPLIED: [Link; 1] = [pending_link(
+static STATUS_APPLIED: [Link; 1] = [ported_link(
     "abilities.onStatusApplied",
     Mode::Append,
     Gate::Always,
-    "P-STATUS-1",
+    crate::systems::status::on_applied,
 )];
 static STAGGERED: [Link; 1] = [pending_link(
     "abilities.<arrow>",
@@ -1383,8 +1474,10 @@ pub struct Entry {
     /// The legacy name: a phase of `updateActive`, or `module.fn` for a registered system.
     pub legacy: &'static str,
     pub gate: Gate,
-    /// The backlog packet that ports it; `None` when ported.
+    /// The backlog packet for unported work; partial rows retain this even though their callback executes.
     pub pending: Option<&'static str>,
+    /// Executed subresponsibility while `pending` retains the unported remainder.
+    pub completed: Option<&'static str>,
 }
 
 /// A hook link, as data.
@@ -1394,6 +1487,8 @@ pub struct LinkEntry {
     pub mode: Mode,
     pub gate: Gate,
     pub pending: Option<&'static str>,
+    /// Executed subresponsibility while `pending` retains the unported remainder.
+    pub completed: Option<&'static str>,
 }
 
 /// An action handler, as data.
@@ -1404,6 +1499,8 @@ pub struct ActionEntry {
     pub module: &'static str,
     pub gate: Gate,
     pub pending: Option<&'static str>,
+    /// Executed subresponsibility while `pending` retains the unported remainder.
+    pub completed: Option<&'static str>,
 }
 
 /// The whole schedule as data: what `crates/rh-parity/tests/schedule.rs` projects under each gate set and compares with
@@ -1426,10 +1523,8 @@ impl<F> Item<F> {
         Entry {
             legacy: self.legacy,
             gate: self.gate,
-            pending: match self.run {
-                Run::Ported(_) => None,
-                Run::Pending(p) => Some(p),
-            },
+            pending: pending_of(&self.run),
+            completed: completed_of(&self.run),
         }
     }
 }
@@ -1437,7 +1532,14 @@ impl<F> Item<F> {
 fn pending_of<F>(run: &Run<F>) -> Option<&'static str> {
     match run {
         Run::Ported(_) => None,
-        Run::Pending(p) => Some(p),
+        Run::Pending(p) | Run::Partial { pending: p, .. } => Some(p),
+    }
+}
+
+fn completed_of<F>(run: &Run<F>) -> Option<&'static str> {
+    match run {
+        Run::Partial { completed, .. } => Some(completed),
+        _ => None,
     }
 }
 
@@ -1460,6 +1562,7 @@ pub fn tables() -> Tables {
                 module: a.module,
                 gate: a.gate,
                 pending: pending_of(&a.run),
+                completed: completed_of(&a.run),
             })
             .collect(),
         hooks: HOOKS
@@ -1474,6 +1577,7 @@ pub fn tables() -> Tables {
                             mode: l.mode,
                             gate: l.gate,
                             pending: pending_of(&l.run),
+                            completed: completed_of(&l.run),
                         })
                         .collect(),
                 )
@@ -1558,7 +1662,7 @@ mod tests {
         ] {
             let ported_live = |es: &[Entry]| -> Vec<&'static str> {
                 es.iter()
-                    .filter(|e| e.gate.on(&g) && e.pending.is_none())
+                    .filter(|e| e.gate.on(&g) && (e.pending.is_none() || e.completed.is_some()))
                     .map(|e| e.legacy)
                     .collect()
             };
@@ -1585,13 +1689,13 @@ mod tests {
                 ported_live(&t.move_modifiers)
             );
             for a in &ACTIONS {
-                let live = a.gate.on(&g) && matches!(a.run, Run::Ported(_));
+                let live = a.gate.on(&g) && matches!(a.run, Run::Ported(_) | Run::Partial { .. });
                 assert_eq!(plan.actions[a.id as usize].is_some(), live, "{}", a.name);
             }
         }
-        // The slice's world: the capture plan runs 19 phases and three registered systems.
+        // The capture plan runs 19 phases and four registered systems, including ability DoT FX.
         assert_eq!(CAPTURE_PLAN.phases.live().len(), 19);
-        assert_eq!(CAPTURE_PLAN.systems.live().len(), 3);
+        assert_eq!(CAPTURE_PLAN.systems.live().len(), 4);
         // Training swaps the settle for a pending one: no ported settle in that world yet.
         assert!(!TRAINING_PLAN
             .phases
@@ -1660,6 +1764,9 @@ mod tests {
         let mut ev = Vec::new();
         let flow = run_steps(
             &mut Cx {
+                stats: crate::status_runtime::stats::Inputs::default(),
+                #[cfg(feature = "trusted-status-probes")]
+                probe: None,
                 k: &sim.k,
                 w: &mut sim.w,
                 s: &mut sim.s,

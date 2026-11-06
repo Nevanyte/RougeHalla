@@ -242,7 +242,7 @@ fn axe_shred_has_per_source_refresh_and_a_global_cap() {
         attack(&mut s, 1, 0.0);
         attack(&mut s, 2, 0.0);
         s.step();
-        let shreds = &s.players()[2].weapon.shreds;
+        let shreds = &s.players()[2].statuses.instances;
         assert_eq!(shreds.len(), if specials { 2 } else { 0 });
         if specials {
             assert_eq!(shreds.iter().map(|x| x.value).sum::<f64>(), AXE_SHRED_CAP);
@@ -252,7 +252,7 @@ fn axe_shred_has_per_source_refresh_and_a_global_cap() {
         for _ in 0..60 {
             s.step();
         }
-        assert!(s.players()[2].weapon.shreds.is_empty());
+        assert!(s.players()[2].statuses.instances.is_empty());
     }
 }
 
@@ -338,11 +338,11 @@ fn corrupt_container_ids_slots_and_axe_statuses_cannot_restore() {
             serde_json::json!("Fists"),
         ),
         (
-            "/world/players/1/core/weapon/shreds/0/source",
+            "/world/players/1/core/statuses/instances/0/source/id",
             serde_json::json!(99),
         ),
         (
-            "/world/players/1/core/weapon/shreds/0/until",
+            "/world/players/1/core/statuses/instances/0/until",
             serde_json::json!(0),
         ),
         (

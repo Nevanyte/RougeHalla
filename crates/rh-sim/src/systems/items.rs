@@ -11,34 +11,46 @@ use crate::state::{Container, ContainerKind, WeaponItem, WeaponRt, World};
 use crate::vision::point_visible;
 use crate::{Sim, WeaponId};
 
-// P-STATUS-1 extends expiry to the other statuses. The armor mirror used by the
-// current ledger still holds the previous tick's fold.
-pub(crate) fn expire_shred(cx: &mut Cx) {
-    let now = cx.w.server_time;
-    for p in &mut cx.w.players {
-        p.weapon.shreds.retain(|s| s.until > now);
-    }
-}
-
-/// The axe component of legacy cardHooks.cardSource. Future card sources join the same fold.
-pub(crate) fn shred_source(_: &World, p: &FighterCore) -> Option<crate::schedule::ModContribution> {
-    let shred = p.weapon.shreds.iter().map(|s| s.value).sum::<f64>();
+/// The axe component of legacy cardHooks.cardSource. Generic status state is its sole owner.
+pub(crate) fn shred_source(
+    w: &World,
+    p: &FighterCore,
+    _: crate::status_runtime::StatView,
+) -> Option<crate::schedule::ModContribution> {
+    let shred = crate::status_runtime::value(
+        &p.statuses.instances,
+        crate::status_runtime::StatusKind::Shred,
+        w.server_time,
+    );
     (shred > 0.0).then(|| crate::schedule::ModContribution {
-        armor: Some(-shred.min(crate::constants::AXE_SHRED_CAP)),
+        armor: Some(-shred),
         ..Default::default()
     })
 }
 
 pub(crate) fn fold_armor(cx: &mut Cx) {
-    let sources = crate::schedule::Plan::of(cx.k).mod_sources.live();
     for i in 0..cx.w.players.len() {
-        let armor = sources
-            .iter()
-            .filter_map(|(_, source)| source(cx.w, &cx.w.players[i]))
-            .filter_map(|m| m.armor)
-            .fold(0.0, |total, part| total + part);
-        cx.w.players[i].weapon.armor_shred = (-armor).max(0.0);
+        refold_modifiers_with(cx.k, cx.w, i, cx.stats);
     }
+}
+/// Current mirror owner: every source recompute refreshes all registered current sources together.
+pub(crate) fn refold_modifiers_with(
+    k: &crate::statics::MatchStatic,
+    w: &mut World,
+    i: usize,
+    stats: crate::status_runtime::stats::Inputs,
+) {
+    let mut armor = 0.;
+    let mut attack = 1.;
+    for (_, source) in crate::schedule::Plan::of(k).mod_sources.live() {
+        if let Some(m) = source(w, &w.players[i], stats.view(&w.players[i])) {
+            armor += m.armor.unwrap_or(0.);
+            attack *= m.as_mult.unwrap_or(1.);
+        }
+    }
+    w.players[i].weapon.armor_shred = (-armor).max(0.);
+    w.players[i].attack_rate_wire =
+        crate::stat_fold::encode_mult(crate::stat_fold::cap_as_mult(attack));
 }
 
 impl WeaponRt {
@@ -73,7 +85,7 @@ impl WeaponRt {
 /// Axe shred is the first effect of the legacy hitLanded hook. Returned hits
 /// do not proc it; the status is paid after every victim in the pass.
 pub(crate) fn hit_landed(hx: &mut Hx, args: &HookArgs) {
-    let HookArgs::HitLanded { entry, .. } = *args else {
+    let HookArgs::HitLanded { ref entry, .. } = *args else {
         return;
     };
     if !hx.k.config.weapon_specials
@@ -88,10 +100,37 @@ pub(crate) fn hit_landed(hx: &mut Hx, args: &HookArgs) {
         return;
     };
     if hx.w.player(entry.victim).is_some_and(|p| p.standing()) {
-        hx.pay_later(crate::systems::ledger::PayLater::AxeShred {
-            victim: entry.victim,
-            source,
-        });
+        let source = crate::status_runtime::StatusSource {
+            id: Some(source),
+            name: hx
+                .w
+                .roster
+                .label(source)
+                .expect("present axe owner")
+                .clone(),
+            owner_id: None,
+        };
+        super::status::operations::apply_with(
+            hx.k,
+            hx.w,
+            hx.ev,
+            entry.victim,
+            crate::status_runtime::StatusApply {
+                kind: crate::status_runtime::StatusKind::Shred,
+                source,
+                ms: crate::constants::AXE_SHRED_MS,
+                ability: None,
+                tag: Some(crate::status_runtime::StatusTag::Axe),
+                value: None,
+                add: Some(crate::status_runtime::AddValue {
+                    per: crate::constants::AXE_SHRED_ARMOR,
+                    cap: crate::constants::AXE_SHRED_CAP,
+                }),
+                data: None,
+            },
+            true,
+            hx.stats,
+        );
     }
 }
 
@@ -111,12 +150,14 @@ pub(crate) fn swap(cx: &mut Cx, ix: FighterIx, cmd: &ActionCmd) {
     let p = cx.w.core_mut(ix);
     let target = slot.unwrap_or(1 - p.weapon.slot);
     // P-STATUS-1 supplies actionBlocked (stun/ability cast), P-CARDS-1 supplies lockSecondSlot.
-    if p.weapon.can_swap(target, false) {
+    if !crate::status_runtime::action_blocked(&p.statuses, now) && p.weapon.can_swap(target, false)
+    {
         p.weapon.slot = target;
         weapon_changed(p, now);
         let id = p.id;
         crate::hooks::fire(
             &mut crate::hooks::Hx {
+                stats: cx.stats,
                 k: cx.k,
                 w: cx.w,
                 ev: cx.ev,
@@ -258,7 +299,14 @@ pub(crate) fn pickup(cx: &mut Cx, ix: FighterIx, cmd: &ActionCmd) {
         _ => return,
     };
     // P-STATUS-1: stun/ability cast refuses before even looking up the requested id.
-    let result = pickup_check(cx, ix, id, !cx.w.standing(ix)).and_then(|i| take(cx, ix, i));
+    let result = pickup_check(
+        cx,
+        ix,
+        id,
+        !cx.w.standing(ix)
+            || crate::status_runtime::action_blocked(&cx.w.core(ix).statuses, cx.w.server_time),
+    )
+    .and_then(|i| take(cx, ix, i));
     if let Err(reason) = result {
         // A client can guess run-local ids. Only a visible prop can give it a
         // distance, reach or empty-container hint. A blocked order still reports
@@ -310,6 +358,7 @@ fn take(cx: &mut Cx, ix: FighterIx, i: usize) -> Result<(), PickupRefusal> {
     if changed {
         crate::hooks::fire(
             &mut crate::hooks::Hx {
+                stats: cx.stats,
                 k: cx.k,
                 w: cx.w,
                 ev: cx.ev,
@@ -394,6 +443,9 @@ mod tests {
         );
         let mut events = Vec::new();
         let cx = Cx {
+            stats: crate::status_runtime::stats::Inputs::default(),
+            #[cfg(feature = "trusted-status-probes")]
+            probe: None,
             k: &sim.k,
             w: &mut sim.w,
             s: &mut sim.s,

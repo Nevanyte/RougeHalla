@@ -1,6 +1,6 @@
 # 0017: Visible status fields without global runtime identities
 
-Status: **Provisional**. The design is approved for the private P-STATUS-1 implementation; integrated validation is pending.
+Status: **Provisional**. The core projection is integrated and independently validated; live transport/presentation remain pending.
 
 ## Context
 
@@ -25,12 +25,13 @@ Presentation may render or animate the observed field geometry; it does not deci
 If transport later needs stable lifecycle handles, use viewer-local presentation handles outside the world. This decision
 does not introduce an allocator or authorize exposing the shared entity counter.
 
-## Validation still required
+## Validation
 
-- Bind source visibility/schema behavior to the unchanged reference and compare ordinary native runtime observations.
-- Check hidden versus absent allocations, hidden owner/subject changes, departure, equal public tuples, multiplicity,
-  trail endpoints, visibility/trail expiry, repeated reads and sorting.
-- Prove projection cannot mutate the simulation or affect its checkpoint, replay, RNG or later behavior.
-- Integrate the observation/policy versions and any required Rust/C#/JS wire changes through the coordinator.
+- Passed: unchanged source comparisons and14 independent public/native privacy pairs, including hidden allocations,
+  owner departure, multiplicity, trail endpoints, source-timed hidden expiry and repeated observation/continuation.
+- Passed: checkpoint/replay/headless/privacy/allocation gates and coordinator observation12/policy9 integration.
+- Pending: complete live Rust/C#/JS status/field transport and Unity presentation. Protocol5 explicitly omits these facts.
+
+See [status core integration](../evidence/status-runtime/INTEGRATION.md) for the frozen evidence and limits.
 
 This ADR records a working privacy boundary. It does not claim the status runtime, transport or Unity presentation is complete.
