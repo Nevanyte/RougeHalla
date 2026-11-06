@@ -55,6 +55,11 @@ jobs:
         with:
           node-version: "22.23.4"
       - run: npm ci
+      - name: Pure stat fold still matches the actual source
+        run: |
+          node --import tsx tools/stat-fold/capture.ts --preset canonical --check
+          node --import tsx --test tools/stat-fold/run.test.ts
+          node --import tsx tools/stat-fold/run.ts ci
       - name: Durable achievement rules still match the legacy evaluator
         run: node --import tsx tools/persist-fixtures/achievements.ts --check
       - name: Shop catalog and validated look words still match the legacy reference

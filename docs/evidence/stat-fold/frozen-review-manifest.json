@@ -1,0 +1,371 @@
+{
+  "format": "rh-stat-fold-independent-review/1",
+  "status": "accepted-repaired-leaf",
+  "revision": 2,
+  "producerCommit": "f14a89e87b4541c31076496935585d69c66ecddf",
+  "sourceReference": "de6f1c196f9b6a42e50dfdf19327d72bd3683fc8",
+  "repo": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/stat-fold-independent-review/repo",
+  "ownedFiles": [
+    {
+      "path": "crates/rh-sim/src/stat_fold/fold.rs",
+      "sha256": "466f2e1b413ccb5467122f4138d69bded18224f6c7d8ad9d26a01b2bbc051f0d"
+    },
+    {
+      "path": "crates/rh-sim/tests/stat_fold.rs",
+      "sha256": "701835a3cd07b24e51a24b572c519f4ffa23712c9d8100e389272d8281f5868a"
+    },
+    {
+      "path": "tools/stat-fold/schema.ts",
+      "sha256": "b01520c20bf1b55985fd0b42f4aa1a7155bcece40fe79df3f7f5fa500eb89d2a"
+    },
+    {
+      "path": "tools/stat-fold/run.ts",
+      "sha256": "90a31179d1cf197b8c897457a2db570a1f9762c7cf240b5fce52362c22388edf"
+    },
+    {
+      "path": "tools/stat-fold/run.test.ts",
+      "sha256": "a7f0be89bb3b45b28a5f1c281dde8af58f1754d22900825d6c9d44f20cc20df5"
+    },
+    {
+      "path": "tools/stat-fold/README.md",
+      "sha256": "9c4e231053e2959902af643b3d7409a3672b7895f722013870267ab6d8ba8a8c"
+    },
+    {
+      "path": "parity/stat-fold/README.md",
+      "sha256": "0a790d6282cb881d3c130f648853dca78aed25d85a1d9011931d4d9a0d508d18"
+    },
+    {
+      "path": "docs/evidence/stat-fold/README.md",
+      "sha256": "9ce032abf0735fd8b45f365b8dd4222c1a469726011b141eea6551c435d5088b"
+    },
+    {
+      "path": "docs/evidence/stat-fold/independent-review.json",
+      "sha256": "ffb5900014fb86a5f2c359427e88d4250c1a30435da220d22d50cfcd66ee0ca2"
+    },
+    {
+      "path": "parity/stat-fold/review-boost-boundaries.json",
+      "sha256": "c1b1908b1da4afe2a0222a1392195ef2f2b93ac2dbabd2e5e1f6927e808412cb"
+    },
+    {
+      "path": "parity/stat-fold/review-mutant-boundaries.json",
+      "sha256": "58dca788624af5c50074d627b3d8d7157f8d5faad193b129dc6d66b4645e6807"
+    },
+    {
+      "path": "tools/stat-fold/review-capture.ts",
+      "sha256": "2bb5e5ab6353b5a3ee357c9248e5bb447835c3730407ca06fd88ae6cd6abdc4c"
+    },
+    {
+      "path": "tools/stat-fold/review-mutant-capture.ts",
+      "sha256": "3aa79a378b6121084a777021364be517ab1c0aafece0b750e65094faf27e0f35"
+    }
+  ],
+  "sourceFiles": [
+    {
+      "path": "packages/shared/src/mods.ts",
+      "sha256": "10e9dcd3d7417c4fe85d1c36ef33afe5abf7a5703a59b42a3a825a66aa4efaff"
+    },
+    {
+      "path": "packages/shared/src/effects.ts",
+      "sha256": "859ac817f16a8334865abf103b783fae76b5525d0e90dc407bddf921810f415b"
+    },
+    {
+      "path": "packages/shared/src/chestBoosts.ts",
+      "sha256": "60b50c685dacdfdbc2861fdc9f80a900845c5cc0af0b77741527cfb8da51fa81"
+    },
+    {
+      "path": "packages/shared/src/constants.ts",
+      "sha256": "51ce4dd800ec868abee525fb1ae375688066f336972a7da878644df1235924e7"
+    },
+    {
+      "path": "packages/shared/src/cards.ts",
+      "sha256": "4a51376a1ce3a79f417e32ce7ae8d7eb37142da5e49f59c3a2c89d48b11ae1e3"
+    }
+  ],
+  "preservedCanonical": {
+    "path": "parity/stat-fold/canonical.json",
+    "sha256": "1ae8161f60a004a41262ede8abda39280a5df837934be2eab75eb82bc4b22328"
+  },
+  "artifacts": [
+    {
+      "path": "repair.patch",
+      "sha256": "65a1894adb9c26d06a1f9c46b74fd25ebf9624bf300bedf70201c1d9e034a1ab"
+    },
+    {
+      "path": "canonical-metadata.patch",
+      "sha256": "1c09f307693b9328222c52ad58b2daca093eb4c301c0bd61fcabd4691e73960d"
+    },
+    {
+      "path": "repaired-files.tar",
+      "sha256": "9305e536a67ddc1f869e68338d50faecb2020f5b53e16f9712be5434fef509b7"
+    },
+    {
+      "path": "repaired-canonical.json",
+      "sha256": "36ef015d8208bea7222de1660d81e0b53c281b69978596235e1265430e39dfd8"
+    },
+    {
+      "path": "coordinator-content-proposed.patch",
+      "sha256": "d7da6682048eb1c9fe815cffb57c9d85df560c66ebcee93c4465db9e9b8bf049"
+    }
+  ],
+  "evidence": [
+    {
+      "path": "initial-fixture.log",
+      "sha256": "d8fe972a16174c44a350ea665857ae2acc1726a304731e5a24216056a6d881e1"
+    },
+    {
+      "path": "canonical-bytecheck.log",
+      "sha256": "bfa54456b6a8812487ee3c0d1d767178cdd9d025b36f4e5e82d8262056b122b6"
+    },
+    {
+      "path": "fresh-boost-original.json",
+      "sha256": "f7decb2bc3bbd062a31743956c8c64ae8e8c7accbf2f7f3f5cc510a173620bb9"
+    },
+    {
+      "path": "fresh-boost-failure.json",
+      "sha256": "808c5aada0256f80071e1d7c6027c5eca75ac16aa0c42a5aa01ab69f3647c4a9"
+    },
+    {
+      "path": "fresh-boost-native.log",
+      "sha256": "99a04f87872e47ba0c0e8a6d6fc9a223dfa56e38e713ee5b8fb81de17e684180"
+    },
+    {
+      "path": "review-capture-original.ts",
+      "sha256": "65b9c67a10e902a0217abb5d72e181f5a9154733434d6364c45ac5e92a1f1cd8"
+    },
+    {
+      "path": "fresh-mutant-source.log",
+      "sha256": "3de7079b21e63c21705cc1c8920aacf7a4e031da0765ca97c757f8f852a549cf"
+    },
+    {
+      "path": "fresh-final.log",
+      "sha256": "bd0c8a64938d02896b823ec33497f58acac36a8d33dc649ba681ecf0f3ba2941"
+    },
+    {
+      "path": "repaired-bytecheck.log",
+      "sha256": "bfa54456b6a8812487ee3c0d1d767178cdd9d025b36f4e5e82d8262056b122b6"
+    },
+    {
+      "path": "repaired-canonical.json",
+      "sha256": "36ef015d8208bea7222de1660d81e0b53c281b69978596235e1265430e39dfd8"
+    },
+    {
+      "path": "canonical100k-result.json",
+      "sha256": "b471de87c983e272dcc9ab61bd1c3c7016348816a79469efea2cb2a676532477"
+    },
+    {
+      "path": "canonical-batches-source.json",
+      "sha256": "81c7f988835d28cf3cc6d58f3c750cad6cfabb841de6a82588788ccf0b868e07"
+    },
+    {
+      "path": "canonical4096-result.json",
+      "sha256": "fc1c0f92b7b4a637e581b0edf83d94a26099a7a7961d3a94037b34b45e5a8b35"
+    },
+    {
+      "path": "ci-batches-source.json",
+      "sha256": "03b6e0f9f185a269858cbebaca0e1c56c4ce26365421a80530483aec64ca58df"
+    },
+    {
+      "path": "soak-input-uniqueness.json",
+      "sha256": "acfda038d3040863761ad1fb945f24c3b86bb84337e3df59078fe3d49af56a03"
+    },
+    {
+      "path": "soak100k.log",
+      "sha256": "1770a0034019adcabe2c1e8d72902649ddf2a25accac8e1b1c6266729cf3ae6a"
+    },
+    {
+      "path": "final-gates.json",
+      "sha256": "9c43d19b2a9a4fdaa72b3ff2cd5f0b0ec97b55b428c6b0a5200332726d39546e"
+    },
+    {
+      "path": "focused-default.log",
+      "sha256": "00244379ecc39b65db536ea5e2e5be943a86aef0f4cca27156ed532682b259cc"
+    },
+    {
+      "path": "focused-all.log",
+      "sha256": "9c814e5b4fdbea3b405ca139859e9161af58bc8a4271a659ab9d2205f8fa1e08"
+    },
+    {
+      "path": "fixture-default.log",
+      "sha256": "80f147f6c4397c7c71da9677b66556ca42f29f4250645dfcee8fc98583581b07"
+    },
+    {
+      "path": "fixture-all.log",
+      "sha256": "d9e2c1db5de04fbc10d0f32b99721f15a473aff7945745b2bc1d6abc9bf9ec86"
+    },
+    {
+      "path": "fixture-final-default.log",
+      "sha256": "1fd8d053a054e81d1eb899df8aac0fa5069598a568536dc2a31ff05a4fa8a545"
+    },
+    {
+      "path": "fixture-final-all.log",
+      "sha256": "18b25c014e4d610b5f0f63311100a742eeabe07c420339de7c660bdd37be3c61"
+    },
+    {
+      "path": "runner-tests.log",
+      "sha256": "f5fc9943da352528e98eea244b01f32c320ab54110485189bbc545e090782f9a"
+    },
+    {
+      "path": "ci4096.log",
+      "sha256": "1a25318fc72a89a0f597fabf934d976a0d9219524402beb2826c05be974792d2"
+    },
+    {
+      "path": "clippy-default.log",
+      "sha256": "f199c1f8ae7e266b31bc12d8c3c75e8426c5e2a0558197f3066a8e5268a947ec"
+    },
+    {
+      "path": "clippy-all.log",
+      "sha256": "5c8a44cd2918beea02025ed42f7d4cf67da379114c77ee557d21834ac7a95382"
+    },
+    {
+      "path": "fmt.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "parity.log",
+      "sha256": "66e4bef1f03ecaa92a151ccd137e84658754a917ac680d58803c83b1d85b79fd"
+    },
+    {
+      "path": "runtime_mutants.py",
+      "sha256": "25a8e1196bd2533c57662953ba8078e91e7223f9505e2574a05d9ebab827284b"
+    },
+    {
+      "path": "runtime-mutants-result.json",
+      "sha256": "448a999f5960a9ddda590e1165219611cc7483ec4fbadaff8b404d89e571e6a3"
+    },
+    {
+      "path": "runtime-mutants.log",
+      "sha256": "c75619376da462418d6be67a2484fbe28e8e229bb854cff5212d5f80a36db0e6"
+    },
+    {
+      "path": "runtime-mutants-v2.log",
+      "sha256": "3d92f22843432c72afa62d6e490760e7fca8792a01abe5fadcf9b383197cf5d9"
+    },
+    {
+      "path": "nested-duplicate-input.log",
+      "sha256": "040a1a4c0fce86e9ee75b81d09ab1359a0c48d3f2ed7f24eeb09e82b17c6d94c"
+    },
+    {
+      "path": "empty-source-inventory.log",
+      "sha256": "040a1a4c0fce86e9ee75b81d09ab1359a0c48d3f2ed7f24eeb09e82b17c6d94c"
+    },
+    {
+      "path": "renamed-source.log",
+      "sha256": "040a1a4c0fce86e9ee75b81d09ab1359a0c48d3f2ed7f24eeb09e82b17c6d94c"
+    },
+    {
+      "path": "canonical_batch_review.py",
+      "sha256": "a2469dafacd56c6f88a66218f3e43be5cf5d4cace593a8473a75a875991e2244"
+    },
+    {
+      "path": "ci_batch_review.py",
+      "sha256": "6c2194453f3eb1ee3e4118c268fa88eaf7683aa3ebdd111a797393b7b554cb76"
+    },
+    {
+      "path": "final_gates.py",
+      "sha256": "0fd821820375d9a7c3bcabe4081c8614843e3febdde91c7a5fc57f54568912a9"
+    },
+    {
+      "path": "toolchains.json",
+      "sha256": "96bdbf8ccb156edd8f098649cc6689c9052ed2085c374b84f4c0a47d27a73a87"
+    },
+    {
+      "path": "replay_controls.py",
+      "sha256": "ffd20532970d1fab7e1ed29a68d3448de1f4737678f5977a1a1b42b1c275a4b0"
+    },
+    {
+      "path": "replay-controls-result.json",
+      "sha256": "b0df3fbf98eb84bd1f8eecfc193e9f2ae989a80f5a8eef175cb2bc0e27e3beab"
+    },
+    {
+      "path": "external-replay-failure.json",
+      "sha256": "9c19ce78418cb98b18a33f810dc873ffe3306be4a3bdf233722445077f9f5061"
+    },
+    {
+      "path": "external-replay-repeat-failure.json",
+      "sha256": "9c19ce78418cb98b18a33f810dc873ffe3306be4a3bdf233722445077f9f5061"
+    },
+    {
+      "path": "generated-replay-failure.json",
+      "sha256": "3521c24ee768856f035a544fd1f5a4f96d79b586941aa68e0b2b0c7b7a8b890d"
+    },
+    {
+      "path": "external-replay-first.log",
+      "sha256": "377fac67eb56f8a752b5adce9415419e075c02559e63463e3af53d62be6db4d8"
+    },
+    {
+      "path": "external-replay-repeat.log",
+      "sha256": "0316b6858095763c484d55a8dceee28170aa201a06920726f7a322a2d0eb8cff"
+    },
+    {
+      "path": "generated-replay-first.log",
+      "sha256": "a4596e49b2e255bb869ac61afe68ccd060d7bca55f99d1ff7f27fcd11efa7a9d"
+    },
+    {
+      "path": "generated-replay-repeat.log",
+      "sha256": "2ad5d80c789df31647189fa0bf827575226598ba37f176c90f27593f717be335"
+    },
+    {
+      "path": "runtime-mutants/boost-compounds-per-pick.log",
+      "sha256": "7a73c6b5c2e2536b21d33d26e8f8e614718a312e6ee1154f6a1ba40e1403f2c9"
+    },
+    {
+      "path": "runtime-mutants/cap-after-as-post.log",
+      "sha256": "a9c8f5b5e5a6c3ffbce7bc17467c26141655948be6ec3173f0c0b6c2ea348687"
+    },
+    {
+      "path": "runtime-mutants/conversion-feeds-next.log",
+      "sha256": "d0389a314d13fca731ca6e94f5563b131bce98f8a4e8a0852bfc15c1716bce63"
+    },
+    {
+      "path": "runtime-mutants/farm-inside-cap.log",
+      "sha256": "6b6ebd8d0efeb8187245a32e62b2967e3c0f9d41e98d0530a888cbd0866796bc"
+    },
+    {
+      "path": "runtime-mutants/missing-ownership-accepted.log",
+      "sha256": "2bc1ec8fa06b2a5a2457b970ed3b60c1c5434d3f1620e0c6b520cc27e2e68d7c"
+    },
+    {
+      "path": "runtime-mutants/nan-gain-truthy.log",
+      "sha256": "986ae27210377bdcf039b062a6452537a46975b644db3fc80c64019a365dbc0b"
+    },
+    {
+      "path": "runtime-mutants/narrow-mirror.log",
+      "sha256": "157a615bcc963ec5349e8506adcb3aa80ae1ad9bd1b616c91012ada3f547d8e9"
+    },
+    {
+      "path": "runtime-mutants/original-product-addition-survived.log",
+      "sha256": "a9274296ffe39c7b8d3057a64097e7c65549ce19aca667fe8e28787d45f287c2"
+    },
+    {
+      "path": "runtime-mutants/product-addition.log",
+      "sha256": "114cb1d63ead42fdccdcfc3179e0bb29de53a5df621cf1014e8d92cd2945d7a6"
+    },
+    {
+      "path": "runtime-mutants/ties-to-even.log",
+      "sha256": "a72d1f3955a95014449eaa25a7120cd38e4f396ac52e1c7d09b2cab8df1bae75"
+    },
+    {
+      "path": "runtime-mutants/while-answer-inverted.log",
+      "sha256": "4d185bfa5557c22860a000ec9aa6fa058287d6dc1691481667fe77481b14075a"
+    },
+    {
+      "path": "repo/tools/stat-fold/review-canonical-batches.ts",
+      "sha256": "35b94bc5fb706465ddaaed358028096fbf79bd54346ad5bfe0b623a0c7c18bb9"
+    },
+    {
+      "path": "repo/tools/stat-fold/review-ci-batches.ts",
+      "sha256": "2bbfd3cc4c4527baecf99f0817fdfbbc21c46888dbd9791d622895a6390df7ed"
+    },
+    {
+      "path": "repo/tools/stat-fold/review-uniqueness.ts",
+      "sha256": "c5deae67e4148b57a3016637a720981428058535ca5fc63480593dceab3cbddf"
+    }
+  ],
+  "limits": [
+    "Unwired pure stat-fold kernel only; no card/status gameplay acceptance",
+    "Aggregate content registration/golden is separately coordinator-owned",
+    "No full workspace/map repetition or performance claim",
+    "NaNs compare by classification; signed zero and other canonical results exact",
+    "Original first-failure artifact preserved; new structured custom-file and validated generated replays proven separately"
+  ]
+}

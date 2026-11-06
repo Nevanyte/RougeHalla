@@ -406,6 +406,22 @@ pub fn content_hash_of_rules(registry: &[Entry], stagger_weapons: &[WeaponId]) -
     )
 }
 
+/// Stat-fold tuning shares its actual definition with the aggregate rules identity.
+pub fn content_hash_of_stat_fold_definition(
+    registry: &[Entry],
+    stagger_weapons: &[WeaponId],
+    definition: &crate::stat_fold::StatFoldDefinition,
+) -> u64 {
+    let signatures = crate::factions::SignatureKind::ALL.map(|kind| (kind, kind.is_dot()));
+    content_hash_of_definitions(
+        registry,
+        stagger_weapons,
+        MapDefinitions::default(),
+        &signatures,
+        definition,
+    )
+}
+
 /// The map foundation's fixed geometry is content too. The same definition drives generation;
 /// this entry point lets the identity tests perturb it without constructing a map.
 pub fn content_hash_of_map_definition(
@@ -819,6 +835,7 @@ pub fn content_hash_of_signature_rules(
         stagger_weapons,
         MapDefinitions::default(),
         signature_rules,
+        &crate::stat_fold::default_definition(),
     )
 }
 
@@ -893,7 +910,13 @@ fn content_hash_of_map_definitions(
     definitions: MapDefinitions<'_, '_>,
 ) -> u64 {
     let signature_rules = crate::factions::SignatureKind::ALL.map(|kind| (kind, kind.is_dot()));
-    content_hash_of_definitions(registry, stagger_weapons, definitions, &signature_rules)
+    content_hash_of_definitions(
+        registry,
+        stagger_weapons,
+        definitions,
+        &signature_rules,
+        &crate::stat_fold::default_definition(),
+    )
 }
 
 fn content_hash_of_definitions(
@@ -901,6 +924,7 @@ fn content_hash_of_definitions(
     stagger_weapons: &[WeaponId],
     definitions: MapDefinitions<'_, '_>,
     signature_rules: &[(crate::factions::SignatureKind, bool)],
+    stat_fold: &crate::stat_fold::StatFoldDefinition,
 ) -> u64 {
     let MapDefinitions {
         coliseum,
@@ -937,6 +961,57 @@ fn content_hash_of_definitions(
     for e in registry {
         h.str(e.name);
         h.val(&e.val);
+    }
+
+    h.str("stat-fold/1");
+    crate::stat_fold::visit_content(stat_fold, |word| h.u64(word));
+    // Fold the actual runtime key order/index/category mappings rather than shadow lists.
+    let stat_keys = crate::stat_fold::StatKey::source_order();
+    h.u64(stat_keys.len() as u64);
+    for key in stat_keys {
+        h.u64(key as u64);
+        h.u64(key.index() as u64);
+        h.u64(u64::from(crate::stat_fold::is_product_stat(key)));
+        h.u64(u64::from(crate::stat_fold::is_flat_stat(key)));
+    }
+    let keys = crate::stat_fold::MultKey::source_order();
+    h.str("mult-keys");
+    h.u64(keys.len() as u64);
+    for key in keys {
+        h.u64(key as u64);
+        h.u64(key.index() as u64);
+    }
+    let keys = crate::stat_fold::EffectFlag::source_order();
+    h.str("effect-flags");
+    h.u64(keys.len() as u64);
+    for key in keys {
+        h.u64(key as u64);
+    }
+    let keys = crate::stat_fold::ConvertFrom::source_order();
+    h.str("convert-from");
+    h.u64(keys.len() as u64);
+    for key in keys {
+        h.u64(key as u64);
+    }
+    let keys = crate::stat_fold::ConvertTo::source_order();
+    h.str("convert-to");
+    h.u64(keys.len() as u64);
+    for key in keys {
+        h.u64(key as u64);
+        h.u64(key.stat_key() as u64);
+    }
+    let keys = crate::stat_fold::ChestBoostStat::source_order();
+    h.str("chest-keys");
+    h.u64(keys.len() as u64);
+    for key in keys {
+        h.u64(key as u64);
+        h.u64(key.index() as u64);
+    }
+    let keys = crate::stat_fold::MirrorField::source_order();
+    h.str("mirror-fields");
+    h.u64(keys.len() as u64);
+    for key in keys {
+        h.u64(key as u64);
     }
 
     h.str("mapgen/coliseum/1");

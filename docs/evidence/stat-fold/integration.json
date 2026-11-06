@@ -1,0 +1,285 @@
+{
+  "format": "rh-stat-fold-integration/1",
+  "status": "local-gates-passed-ci-pending",
+  "branch": "optimization_port",
+  "firstParent": "084b890fdb702a133c75b7a0d732030839e519fe",
+  "producer": "f14a89e87b4541c31076496935585d69c66ecddf",
+  "reviewManifestSha256": "138974e73c514ca9e1207d878a9a2c6f4e59b8c9ecababdd74d8a10a18c83c95",
+  "reviewResultSha256": "055757004559bcfac5dd8bf88090ec3e7c7527e647e318b980d79fe502b52a60",
+  "repairSha256": "65a1894adb9c26d06a1f9c46b74fd25ebf9624bf300bedf70201c1d9e034a1ab",
+  "canonicalMetadataPatchSha256": "1c09f307693b9328222c52ad58b2daca093eb4c301c0bd61fcabd4691e73960d",
+  "contentIdentity": "24c5098abed31dfb",
+  "previousContentIdentity": "105333d9ac5d8d92",
+  "contentWords": {
+    "numeric": 33,
+    "keyCategoryIndexMetadata": 184,
+    "total": 217
+  },
+  "formats": {
+    "checkpoint": 14,
+    "replay": 12,
+    "observation": 11,
+    "policy": 8,
+    "protocol": 5
+  },
+  "nativeWorkspace": {
+    "suites": 111,
+    "passed": 1031,
+    "failed": 0,
+    "ignored": 2,
+    "filtered": 0
+  },
+  "checks": [
+    {
+      "name": "fmt",
+      "command": [
+        "cargo",
+        "fmt",
+        "--all",
+        "--check"
+      ],
+      "exit": 0,
+      "seconds": 0.7228970419999999,
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "clippy-all",
+      "command": [
+        "cargo",
+        "clippy",
+        "--workspace",
+        "--all-targets",
+        "--all-features",
+        "--locked",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit": 0,
+      "seconds": 20.508947333,
+      "logSha256": "82c62899327056e27bfc3e176d63f5c1593f909fcf57eb8c6f309320fd1d8389"
+    },
+    {
+      "name": "clippy-default",
+      "command": [
+        "cargo",
+        "clippy",
+        "--workspace",
+        "--all-targets",
+        "--locked",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit": 0,
+      "seconds": 11.022762999999998,
+      "logSha256": "33a1748a0ad878770a0b89ef5be1d41a03648ffc44c07f91b039c0ea7e0d7ecc"
+    },
+    {
+      "name": "workspace-all",
+      "command": [
+        "cargo",
+        "test",
+        "--workspace",
+        "--all-features",
+        "--locked"
+      ],
+      "exit": 0,
+      "seconds": 435.72121754200003,
+      "logSha256": "16d57f2501376d6082d0dacf0218b0c346b6455404e1d8db7aec58208a494473"
+    },
+    {
+      "name": "parity",
+      "command": [
+        "cargo",
+        "run",
+        "--locked",
+        "-p",
+        "rh-parity",
+        "--bin",
+        "parity-report"
+      ],
+      "exit": 0,
+      "seconds": 5.916433124999969,
+      "logSha256": "847e6f7b36c553c590881bcf88082ef18debad05a79ea7319c900185d5045a02"
+    },
+    {
+      "name": "runner-tests",
+      "command": [
+        "node",
+        "--import",
+        "tsx",
+        "--test",
+        "tools/stat-fold/run.test.ts"
+      ],
+      "exit": 0,
+      "seconds": 0.49100750000002336,
+      "logSha256": "7afe920326e431ce97163e8ba4ed95b0b399224ed5178379389875ff2849f969"
+    },
+    {
+      "name": "ci4096-diagnostic",
+      "command": [
+        "node",
+        "--import",
+        "tsx",
+        "tools/stat-fold/run.ts",
+        "ci"
+      ],
+      "exit": 0,
+      "seconds": 0.6734961660000067,
+      "logSha256": "2e9c7fc1a7c6406a0144460f65bb8e534dfbad1f66c6eaeb224ea3f3b7077768"
+    },
+    {
+      "name": "csharp",
+      "command": [
+        "dotnet",
+        "test",
+        "client-unity/RoguehallaNet.Tests"
+      ],
+      "exit": 0,
+      "seconds": 5.9029003750000015,
+      "logSha256": "2ee32c98af6966b5efb247a18e24696adee36c70749f3b0abf879b5131486948"
+    },
+    {
+      "name": "unity-library-copy",
+      "command": [
+        "bash",
+        "client-unity/sync-net.sh",
+        "--check"
+      ],
+      "exit": 0,
+      "seconds": 0.047371542000007594,
+      "logSha256": "df5a45a2ab7772bde9308c3f020adece1eccb98c913e246a29a1455036b29683"
+    },
+    {
+      "name": "js-vectors",
+      "command": [
+        "node",
+        "tools/protocol-js/check-vectors.mjs"
+      ],
+      "exit": 0,
+      "seconds": 0.1503072090000046,
+      "logSha256": "6ea107f54a2ae650cbacf8f77a204175b4a1646d522b90a3201e4c600a450570"
+    }
+  ],
+  "canonicalByteCheck": {
+    "command": [
+      "docker",
+      "run",
+      "--rm",
+      "--pull=never",
+      "--platform",
+      "linux/amd64",
+      "--cpus=2",
+      "--tmpfs",
+      "/repo/node_modules:rw,exec,size=1500m",
+      "--tmpfs",
+      "/tmp:rw,exec,size=512m",
+      "--mount",
+      "type=bind,src=/Users/nevinmckinnon/.codex/worktrees/rougehalla-stage2-managed/RougeHalla,dst=/repo,readonly",
+      "--mount",
+      "type=bind,src=/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/sentenced-capture/node-v22.23.4-linux-x64,dst=/node,readonly",
+      "--mount",
+      "type=bind,src=/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/stat-fold-integration,dst=/out",
+      "-w",
+      "/repo",
+      "c86ecead9e55",
+      "sh",
+      "-eu",
+      "-c",
+      "npm ci --ignore-scripts --no-audit --no-fund > /out/canonical-npm.log 2>&1\n/node/bin/node --import tsx tools/stat-fold/capture.ts --preset canonical --check"
+    ],
+    "exit": 0,
+    "seconds": 6.391766791,
+    "corpusSha256": "36ef015d8208bea7222de1660d81e0b53c281b69978596235e1265430e39dfd8"
+  },
+  "canonicalCasesPreserved": 463,
+  "canonicalCoverageRowsPreserved": 207,
+  "sourceRegressionCases": 252,
+  "independentCanonicalComparisons": {
+    "ci": 4096,
+    "soakDistinct": 100000,
+    "actualImplementationMutantsKilled": 10
+  },
+  "parity": {
+    "compared": 97,
+    "captureOnly": 13,
+    "pathQueries": 300,
+    "status": "MATCH"
+  },
+  "csharpTests": 214,
+  "jsVectorChecks": 3344,
+  "nodeRunnerTests": 8,
+  "hostDiagnosticCiCases": 4096,
+  "codeFiles": [
+    {
+      "path": ".github/workflows/rust.yml",
+      "sha256": "d0dd45c86447202b2dabbcc470dc31999b6a27147b7c6d8024b611a7be41ebeb"
+    },
+    {
+      "path": "crates/rh-sim/src/content.rs",
+      "sha256": "880f2f9577e2608c9d21dd8aa0d889413721dd44e5a2f6098fdfb3bf24e6ff4c"
+    },
+    {
+      "path": "crates/rh-sim/src/lib.rs",
+      "sha256": "0042ecaaf941491a4074d841d1ff8f0a66e0cc8260575e06c42ba3238261c3e6"
+    },
+    {
+      "path": "crates/rh-sim/src/stat_fold/boost.rs",
+      "sha256": "6df8a141ac509b0966c0416f2a7a2d6db9b59ec50e0eafd13e5b3a306ab1ea5b"
+    },
+    {
+      "path": "crates/rh-sim/src/stat_fold/definition.rs",
+      "sha256": "270120093720fe2e728dd994364b5e2e42956dbda121f3843dd30e44569539fc"
+    },
+    {
+      "path": "crates/rh-sim/src/stat_fold/fold.rs",
+      "sha256": "466f2e1b413ccb5467122f4138d69bded18224f6c7d8ad9d26a01b2bbc051f0d"
+    },
+    {
+      "path": "crates/rh-sim/src/stat_fold/js.rs",
+      "sha256": "7a3092965eab425e2dd6fabf62a19bff2f4c440f7c51f35cb21a01b54beb3586"
+    },
+    {
+      "path": "crates/rh-sim/src/stat_fold/keys.rs",
+      "sha256": "0f9e501d64707055328295eee68e7db3fe363e85cc5909cac7957e5ebdb2c4bf"
+    },
+    {
+      "path": "crates/rh-sim/src/stat_fold/mirror.rs",
+      "sha256": "a11be2d80ec8b806eb68a706ba5253216b49ce17729bfccbc1a8e6cfdd0f41dc"
+    },
+    {
+      "path": "crates/rh-sim/src/stat_fold/mod.rs",
+      "sha256": "73de9ccde34a8764a080f625e3ca75c3ebccf129562cdbad7bdcaf3e5af38365"
+    },
+    {
+      "path": "crates/rh-sim/src/stat_fold/rows.rs",
+      "sha256": "342c2d4a87ef11b46e91174a209e14e3477d19830dd8ff208a16efbc2c8dfae4"
+    },
+    {
+      "path": "crates/rh-sim/src/stat_fold/tests.rs",
+      "sha256": "0c823767a846a6d924c77f6908cdd479594d5fb055bbbf78b76d0d1da5c8bfc1"
+    },
+    {
+      "path": "crates/rh-sim/tests/content.rs",
+      "sha256": "5df002f58381e8bb2ca4a9a18197ae38b6376d77a636c3d58d72802b7e07c16b"
+    },
+    {
+      "path": "crates/rh-sim/tests/stat_fold.rs",
+      "sha256": "701835a3cd07b24e51a24b572c519f4ffa23712c9d8100e389272d8281f5868a"
+    },
+    {
+      "path": "crates/rh-sim/tests/stat_fold_content.rs",
+      "sha256": "5f4fc56d4e5cb52b4c090dac0fa960c17c66452528f24dd2313c6a050e169b39"
+    }
+  ],
+  "logRoot": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/stat-fold-integration",
+  "limits": [
+    "Pure unwired kernel only; cards/status gameplay remains pending",
+    "No gameplay, state shape, protocol, dependency or Cargo.lock change",
+    "Canonical stress/mutation evidence is the frozen independent review, not repeated by the integrated host diagnostic run",
+    "Two ignored tests are existing manual heap/bridge checks; no new skip",
+    "No runtime/FPS/full-game performance claim",
+    "No AWS, DNS, Unity visual or production change"
+  ]
+}

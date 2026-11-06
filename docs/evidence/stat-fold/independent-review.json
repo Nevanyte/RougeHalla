@@ -1,0 +1,295 @@
+{
+  "producerCommit": "f14a89e87b4541c31076496935585d69c66ecddf",
+  "sourceReference": "de6f1c196f9b6a42e50dfdf19327d72bd3683fc8",
+  "findings": [
+    "NaN maxHp gain source truthiness mismatch fixed",
+    "recursive duplicate keys and exact provenance enforced",
+    "required 100000-case soak restored",
+    "original additive-product implementation mutant survived; 12 fresh source witnesses added"
+  ],
+  "checks": [
+    {
+      "name": "focused-default",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "rh-sim",
+        "stat_fold",
+        "--lib"
+      ],
+      "exit": 0,
+      "seconds": 0.0899895
+    },
+    {
+      "name": "fixture-default",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "rh-sim",
+        "--test",
+        "stat_fold"
+      ],
+      "exit": 0,
+      "seconds": 2.0401374580000002
+    },
+    {
+      "name": "focused-all",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "rh-sim",
+        "--all-features",
+        "stat_fold",
+        "--lib"
+      ],
+      "exit": 0,
+      "seconds": 0.08949912500000012
+    },
+    {
+      "name": "fixture-all",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "rh-sim",
+        "--all-features",
+        "--test",
+        "stat_fold"
+      ],
+      "exit": 0,
+      "seconds": 1.9655048749999997
+    },
+    {
+      "name": "runner-tests",
+      "command": [
+        "/opt/homebrew/bin/node",
+        "--import",
+        "/Users/nevinmckinnon/.codex/worktrees/rougehalla-stage2-managed/RougeHalla/node_modules/tsx/dist/loader.mjs",
+        "--test",
+        "tools/stat-fold/run.test.ts"
+      ],
+      "exit": 0,
+      "seconds": 0.43394858400000036
+    },
+    {
+      "name": "ci4096",
+      "command": [
+        "/opt/homebrew/bin/node",
+        "--import",
+        "/Users/nevinmckinnon/.codex/worktrees/rougehalla-stage2-managed/RougeHalla/node_modules/tsx/dist/loader.mjs",
+        "tools/stat-fold/run.ts",
+        "ci"
+      ],
+      "exit": 0,
+      "seconds": 0.6732131250000002
+    },
+    {
+      "name": "fmt",
+      "command": [
+        "cargo",
+        "fmt",
+        "--all",
+        "--check"
+      ],
+      "exit": 0,
+      "seconds": 0.6298979999999998
+    },
+    {
+      "name": "clippy-default",
+      "command": [
+        "cargo",
+        "clippy",
+        "--locked",
+        "-p",
+        "rh-sim",
+        "--all-targets",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit": 0,
+      "seconds": 0.6302197499999993
+    },
+    {
+      "name": "clippy-all",
+      "command": [
+        "cargo",
+        "clippy",
+        "--locked",
+        "-p",
+        "rh-sim",
+        "--all-targets",
+        "--all-features",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit": 0,
+      "seconds": 0.5691040409999992
+    },
+    {
+      "name": "parity",
+      "command": [
+        "cargo",
+        "run",
+        "--locked",
+        "-p",
+        "rh-parity",
+        "--bin",
+        "parity-report"
+      ],
+      "exit": 0,
+      "seconds": 4.12921075
+    }
+  ],
+  "inputUniqueness": {
+    "cases": 100000,
+    "uniqueKindAndInput": 100000,
+    "excludedFromIdentity": [
+      "id",
+      "seed",
+      "origin",
+      "tags",
+      "expected"
+    ],
+    "normalizedInputSequenceSha256": "03274b4cf513c1e2079a12ddc7ad2f0476befc066d9021ee8948501e9a1cfd21",
+    "kinds": {
+      "fold": 12692,
+      "statFold": 12525,
+      "requirements": 12448,
+      "boostBonus": 12455,
+      "boostGain": 12506,
+      "multCodec": 12464,
+      "flatCodec": 12464,
+      "mirrors": 12446
+    }
+  },
+  "runtimeMutants": [
+    {
+      "name": "product-addition",
+      "test": "canonical_",
+      "exit": 101,
+      "semanticKilled": true,
+      "seconds": 5.204963334
+    },
+    {
+      "name": "conversion-feeds-next",
+      "test": "canonical_",
+      "exit": 101,
+      "semanticKilled": true,
+      "seconds": 5.189302082999999
+    },
+    {
+      "name": "cap-after-as-post",
+      "test": "canonical_",
+      "exit": 101,
+      "semanticKilled": true,
+      "seconds": 5.2337187499999995
+    },
+    {
+      "name": "farm-inside-cap",
+      "test": "canonical_",
+      "exit": 101,
+      "semanticKilled": true,
+      "seconds": 5.208760082999998
+    },
+    {
+      "name": "boost-compounds-per-pick",
+      "test": "canonical_",
+      "exit": 101,
+      "semanticKilled": true,
+      "seconds": 5.240165000000001
+    },
+    {
+      "name": "missing-ownership-accepted",
+      "test": "canonical_",
+      "exit": 101,
+      "semanticKilled": true,
+      "seconds": 5.285657833000002
+    },
+    {
+      "name": "while-answer-inverted",
+      "test": "canonical_",
+      "exit": 101,
+      "semanticKilled": true,
+      "seconds": 5.233457083000001
+    },
+    {
+      "name": "ties-to-even",
+      "test": "canonical_",
+      "exit": 101,
+      "semanticKilled": true,
+      "seconds": 5.258288374999999
+    },
+    {
+      "name": "narrow-mirror",
+      "test": "canonical_",
+      "exit": 101,
+      "semanticKilled": true,
+      "seconds": 5.3084178750000035
+    },
+    {
+      "name": "nan-gain-truthy",
+      "test": "canonical_",
+      "exit": 101,
+      "semanticKilled": true,
+      "seconds": 5.256346833000002
+    }
+  ],
+  "canonical100k": {
+    "status": "verified",
+    "cases": 100000,
+    "batches": 782,
+    "nativeWorkers": 2,
+    "sourceRuntime": {
+      "node": "v22.23.4",
+      "platform": "linux",
+      "arch": "x64"
+    },
+    "elapsedSeconds": 20.061149875,
+    "evidenceSha256": "b471de87c983e272dcc9ab61bd1c3c7016348816a79469efea2cb2a676532477"
+  },
+  "canonical4096": {
+    "status": "verified",
+    "cases": 4096,
+    "batches": 32,
+    "nativeWorkers": 1,
+    "sourceRuntime": {
+      "node": "v22.23.4",
+      "platform": "linux",
+      "arch": "x64"
+    },
+    "elapsedSeconds": 7.726742417,
+    "evidenceSha256": "fc1c0f92b7b4a637e581b0edf83d94a26099a7a7961d3a94037b34b45e5a8b35"
+  },
+  "originalCanonicalSha256": "1ae8161f60a004a41262ede8abda39280a5df837934be2eab75eb82bc4b22328",
+  "proposedCanonicalSha256": "36ef015d8208bea7222de1660d81e0b53c281b69978596235e1265430e39dfd8",
+  "replayControls": [
+    {
+      "name": "custom external structured argv replay",
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/stat-fold-independent-review/custom input 'quoted' $literal.json",
+      "case": "ci-00120",
+      "seed": 54441,
+      "field": "maxHp",
+      "exactFailureRepeat": true
+    },
+    {
+      "name": "generated inventory replay",
+      "case": "ci-00425",
+      "seed": 4242253416,
+      "field": "encoded",
+      "exactFailureRepeat": true,
+      "retainedTemporaryFailurePaths": [
+        "/var/folders/f1/zlvpzngj3kbb95dxk8svy1y00000gn/T/rh-stat-fold-9dr7te/failure-00000.json",
+        "/var/folders/f1/zlvpzngj3kbb95dxk8svy1y00000gn/T/rh-stat-fold-YQSPjU/failure-00000.json"
+      ]
+    }
+  ]
+}
