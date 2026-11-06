@@ -1,0 +1,68 @@
+diff --git a/crates/rh-placement/tests/delayed_effects.rs b/crates/rh-placement/tests/delayed_effects.rs
+index 0d97906a..14a90b9c 100644
+--- a/crates/rh-placement/tests/delayed_effects.rs
++++ b/crates/rh-placement/tests/delayed_effects.rs
+@@ -375,3 +375,63 @@ async fn a_start_applied_after_the_settle_window_is_untracked_by_design() {
+     assert!(h.fake.terminated().is_empty());
+     h.finish().await;
+ }
++
++/// Coordinator contract regression: elapsed time and repeated absence cannot prove an already-sent start is canceled.
++#[tokio::test]
++async fn late_start_intent_stays_reapable_until_definitive_provider_evidence() {
++    let (h, id) = ambiguous_start(Duration::ZERO).await;
++    let row = h.row(&id).await;
++    assert_eq!(
++        (row.phase, row.state.attempts[0].resolution),
++        (Phase::Active, Resolution::Open),
++        "an ambiguous start must remain tracked even after any configured settling interval"
++    );
++    assert_eq!(h.counts().await.unresolved, 1);
++    let b = h.worker(ZONE, 20_000, dur(300)).await;
++    h.wait_reapable(&id).await;
++    assert_eq!(b.reap_abandoned().await, 1);
++    let row = h.row(&id).await;
++    assert_eq!(row.phase, Phase::Finished);
++    assert!(row.state.offer.is_none());
++    h.assert_no_orphans();
++    h.finish().await;
++}
++
++/// Coordinator contract regression: an already-sent upsert can arrive after the replacement worker deleted the name.
++#[tokio::test]
++async fn late_dns_upsert_keeps_recovery_discoverable_until_the_name_is_cleaned() {
++    let h = H::new(fulfil()).await;
++    let (a, b) = (
++        h.worker(ZONE, 20_000, dur(20_000)).await,
++        h.worker(ZONE, 20_000, dur(20_000)).await,
++    );
++    let id = "delayF01";
++    let host = host_of(id, ZONE);
++    h.fake.hold_effect(Op::DnsUpsert, Matcher::key(&host));
++    let held = h.fake.notify_on(Op::DnsUpsert, Matcher::key(&host), Stage::Arrived);
++    let rq = request(id, "alice");
++    let scope = rh_placement::ledger::Scope::default();
++    let (res, ()) = tokio::join!(a.place_scoped(&scope, &rq), async {
++        bounded(held.wait()).await;
++        assert!(matches!(h.row(id).await.state.attempts[0].dns, DnsStep::Intent { .. }));
++        h.wait_reapable(id).await;
++        b.reap_abandoned().await;
++        let applied = h.fake.notify_on(Op::DnsUpsert, Matcher::key(&host), Stage::Applied);
++        assert_eq!(h.fake.release_all(), 1);
++        bounded(applied.wait()).await;
++    });
++    assert!(unavailable(&res), "{res:?}");
++    let row = h.row(id).await;
++    assert!(row.state.offer.is_none());
++    assert!(h.mine(id, ZONE).iter().any(|m| m.op == Op::DnsUpsert && m.late));
++    assert!(
++        !h.fake.dns().contains_key(&host)
++            || (row.phase == Phase::Active && row.state.attempts[0].resolution == Resolution::Open),
++        "late DNS remains outside recovery: phase={:?}, resolution={:?}, trace={:?}",
++        row.phase, row.state.attempts[0].resolution, h.mine(id, ZONE)
++    );
++    h.wait_reapable(id).await;
++    b.reap_abandoned().await;
++    h.assert_no_orphans();
++    h.finish().await;
++}

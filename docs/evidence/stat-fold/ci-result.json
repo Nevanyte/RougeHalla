@@ -1,0 +1,63 @@
+{
+  "format": "rh-stat-fold-ci/1",
+  "sourceCommit": "7f294cc755967cf0a968b6a545c6a53b309f1dc2",
+  "branch": "optimization_port",
+  "observedUtc": "2026-11-06 01:13:41 UTC",
+  "rustCsharp": {
+    "runId": 42140634731,
+    "url": "https://github.com/Nevanyte/RougeHalla/actions/runs/42140634731",
+    "jobs": [
+      {
+        "name": "csharp",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "name": "rust",
+        "status": "in_progress",
+        "conclusion": null
+      }
+    ]
+  },
+  "nativeDeterminism": {
+    "runId": 42140667566,
+    "url": "https://github.com/Nevanyte/RougeHalla/actions/runs/42140667566",
+    "conclusion": "success",
+    "jobs": [
+      {
+        "name": "Produce CI artifacts (x86_64-unknown-linux-gnu)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "name": "Produce CI artifacts (aarch64-unknown-linux-gnu)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "name": "Compare native CI artifacts",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "name": "Verify x86_64-unknown-linux-gnu replay on aarch64-unknown-linux-gnu",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "name": "Verify aarch64-unknown-linux-gnu replay on x86_64-unknown-linux-gnu",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "name": "Native determinism gate",
+        "status": "completed",
+        "conclusion": "success"
+      }
+    ]
+  },
+  "limits": [
+    "Native determinism covers the declared CI artifacts/replays, not full gameplay completion",
+    "Rust CI remains confirmed live; no timeout/restart/failure inferred from observation delay"
+  ]
+}

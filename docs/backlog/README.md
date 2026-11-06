@@ -242,7 +242,7 @@ is **not implemented**; the gain figures are **estimates**.
 | ID | Outcome | Depends on | Status | Legacy owners |
 |---|---|---|---|---|
 | P-HOST-1 | Go SDK bridge sidecar + control API session endpoints + run `docs/hosting/STAGING_EXPERIMENT.md` when authorized | none (AWS gate) | Local bridge/control API implemented/reviewed; actual managed-fleet experiment remains open under CAD20 total cap | deployment/cloudflare/src/containerLifecycle.ts (legacy analogue) |
-| P-CLAUDE-PLACEMENT-2 | Durable placement ownership, fenced claims and abrupt process restart/reconciliation over PostgreSQL | Reviewed integration `5b1a7aae` | Ready packet; reserved for Claude on `claude/durable-placement-ledger`; no cloud deployment | crates/rh-placement/src/service.rs (new adapter infrastructure) |
+| P-CLAUDE-PLACEMENT-2 | Durable placement ownership, fenced claims and abrupt process restart/reconciliation over PostgreSQL | Reviewed integration `5b1a7aae` | Producer `4843cd51` under review, not merged: two real-PG contract failures for untracked late starts/DNS writes require repair. No cloud deployment | crates/rh-placement/src/service.rs (new adapter infrastructure) |
 | P-HOST-2 | TLS and DNS: wildcard cert, per-placement record, rustls serving | P-HOST-1 | Coarse | none |
 | P-HOST-3 | Region set, HTTPS latency endpoints, queue config, `PlayerLatencies` | P-HOST-1 | Coarse | scripts/latency-probe.mjs, network-probe.mjs |
 | P-HOST-4 | Autoscaling, scale-in protection, warm capacity, drain on deployment | P-HOST-1, P-LOAD-2 | Coarse | none |

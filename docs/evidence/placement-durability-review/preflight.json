@@ -1,0 +1,126 @@
+{
+  "format": "rh-placement-durability-preflight/1",
+  "producerCommit": "4843cd51551f71e43228a75dd3c83effe0228bb3",
+  "status": "not-accepted-two-contract-failures",
+  "productionServiceEdited": false,
+  "rootMergeAttempted": false,
+  "environment": {
+    "execution": "native macOS arm64",
+    "rust": "1.97.0",
+    "postgres": "16.15",
+    "provider": "persistent parent-hosted TCP fake; no cloud or DNS actions"
+  },
+  "originalControl": {
+    "name": "documented-late-start-loss",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "-p",
+      "rh-placement",
+      "--features",
+      "postgres,fault-injection",
+      "--test",
+      "delayed_effects",
+      "--",
+      "--exact",
+      "a_start_applied_after_the_settle_window_is_untracked_by_design",
+      "--nocapture"
+    ],
+    "exit": 0,
+    "seconds": 7.481069625000001,
+    "logSha256": "7fe580765ac5559e522a28ca7ec1a2025a267f3d2fcc75792943cd8406278ab1"
+  },
+  "regressions": [
+    {
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "rh-placement",
+        "--features",
+        "postgres,fault-injection",
+        "--test",
+        "delayed_effects",
+        "--",
+        "--exact",
+        "late_start_intent_stays_reapable_until_definitive_provider_evidence",
+        "--nocapture"
+      ],
+      "exit": 101,
+      "seconds": 2.607659125,
+      "logSha256": "5e0242de945e86f4cc811c0c422666c74db081d7211bb2bcf92813696dcf872c",
+      "failure": "ambiguous late start no longer reapable",
+      "compiled": true,
+      "semanticMismatch": true
+    },
+    {
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "rh-placement",
+        "--features",
+        "postgres,fault-injection",
+        "--test",
+        "delayed_effects",
+        "--",
+        "--exact",
+        "late_dns_upsert_keeps_recovery_discoverable_until_the_name_is_cleaned",
+        "--nocapture"
+      ],
+      "exit": 101,
+      "seconds": 2.5468869580000004,
+      "logSha256": "6dae64e3273fcf546e6f677eff1a923f2eee485cefac96130f8d8cbe86bd2f04",
+      "failure": "late DNS outside recovery",
+      "compiled": true,
+      "semanticMismatch": true
+    }
+  ],
+  "testPatchSha256": "1fdbbe1a84045e7de3c3d14850b252a142043e49c670aa6439eee2bd3259b553",
+  "producerFiles": [
+    {
+      "path": "crates/rh-placement/src/service/run.rs",
+      "sha256": "543d31cc727865153722f2a73e77fc1703977ba2b9974faba46397ef956fbb36"
+    },
+    {
+      "path": "crates/rh-placement/src/service/mod.rs",
+      "sha256": "e6ac6bcb999e4a385871a69bb69d996033843a9aab3e20b9d12f5afd6215e966"
+    },
+    {
+      "path": "crates/rh-placement/src/ledger/mod.rs",
+      "sha256": "523033308e514ff1e625b0903a79118e1ef4a7095fd046abef94a2920466eb91"
+    },
+    {
+      "path": "crates/rh-placement/tests/delayed_effects.rs",
+      "sha256": "bba88ae21999b6a05914fa5e7ddf3ebbfb7d0854cc083fe60d364591039f8132"
+    },
+    {
+      "path": "docs/evidence/placement-durability/README.md",
+      "sha256": "3cf026d4531a252670c254ffbe372691d6222bfac0b3b52e031af924e4141e79"
+    }
+  ],
+  "findings": [
+    {
+      "id": "late-start-loss",
+      "requirement": "Ambiguous sent starts remain discoverable; time/absence do not prove cancellation.",
+      "observed": "Two NotFound responses plus the configured interval resolve to Finished/Settled, then a delayed provider start appears outside reaping.",
+      "required": "Retain Active/Open until definitive provider identity and terminal/cancellation evidence."
+    },
+    {
+      "id": "late-dns-upsert-loss",
+      "requirement": "Unknown external effects remain recoverable; local fencing does not cancel sent operations.",
+      "observed": "Start -> DNS delete -> terminate -> late DNS upsert leaves a record while the row is Finished/CleanedUp and unclaimable.",
+      "required": "Preserve a separate unresolved upsert obligation across cleanup and all retries; no offer/finalization/retention until completion is proved."
+    }
+  ],
+  "review": "Independent Astra design assessment confirms both findings; complete repair and independent implementation review pending.",
+  "knownLimits": [
+    "Focused reproductions only; not a full branch acceptance review",
+    "The original test passes because it deliberately asserts untracked late work; that assertion conflicts with the packet",
+    "A timeout, successful later delete/resolve or different retry receipt does not prove every earlier send is finished",
+    "Private regression logs are preserved at /Users/nevinmckinnon/.codex/tools/rougehalla-stage2/placement-durability-review"
+  ]
+}
