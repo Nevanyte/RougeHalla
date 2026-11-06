@@ -32,14 +32,11 @@ refresh is tracked in MIGRATION. Kimi implements bounded Rust verification and n
 changes. Codex independently reviews results and retains shared status/contract/lockfile ownership. Both native architectures, exact comparison and foreign replay directions also passed at merge `1d26fd61`
 (CI `42101769249`); this closes the implemented-domain P-CI-2 gate, not full-game determinism.
 
-**Current external reservations (owner request 2026-11-05).** These two packets can run independently, each from the
-reviewed integration at `5b1a7aae` or a later `optimization_port` containing it. Claude owns
-[P-CLAUDE-PLACEMENT-2](packets/P-CLAUDE-PLACEMENT-2.md): durable PostgreSQL placement identity and crash/restart
-reconciliation, confined to `rh-placement` and its evidence. Kimi owns
-[P-KIMI-FOLD-1](packets/P-KIMI-FOLD-1.md): the pure Rust stat fold and bounded source differential tests, confined to
-new kernel/capture/test/evidence paths and its module declaration. No cloud or Unity account access is needed.
-Neither worker wires new gameplay, edits shared status/lockfiles, deploys or merges its own PR. Codex retains map
-generation and the integration seams. Each packet defines explicit SUCCESS and FAILURE lines.
+**External milestone handoffs (owner request 2026-11-05).** Both bounded handoffs are integrated after independent
+review and coordinator repairs: [P-CLAUDE-PLACEMENT-2](packets/P-CLAUDE-PLACEMENT-2.md) provides the locally verified
+durable placement library; [P-KIMI-FOLD-1](packets/P-KIMI-FOLD-1.md) provides the pure stat-fold kernel. Their external
+write reservations are closed. Neither completes gameplay, cloud deployment or client flows. Codex retains shared
+integration and the remaining backlog; provider/authentication/scheduler work remains P-PLACEMENT-3.
 
 **Dependency order (earliest first).** A packet may start once everything it depends on is merged; "Ready packet" items have a
 full spec in `packets/<ID>.md`, "Coarse" items need a packet written (copy the section list below) before they start.
@@ -242,7 +239,8 @@ is **not implemented**; the gain figures are **estimates**.
 | ID | Outcome | Depends on | Status | Legacy owners |
 |---|---|---|---|---|
 | P-HOST-1 | Go SDK bridge sidecar + control API session endpoints + run `docs/hosting/STAGING_EXPERIMENT.md` when authorized | none (AWS gate) | Local bridge/control API implemented/reviewed; actual managed-fleet experiment remains open under CAD20 total cap | deployment/cloudflare/src/containerLifecycle.ts (legacy analogue) |
-| P-CLAUDE-PLACEMENT-2 | Durable placement ownership, fenced claims and abrupt process restart/reconciliation over PostgreSQL | Reviewed integration `5b1a7aae` | Producer `4843cd51` under review, not merged: two real-PG contract failures for untracked late starts/DNS writes require repair. No cloud deployment | crates/rh-placement/src/service.rs (new adapter infrastructure) |
+| P-CLAUDE-PLACEMENT-2 | Durable placement ownership, fenced claims and abrupt process restart/reconciliation over PostgreSQL | Reviewed integration `5b1a7aae` | Integrated after independent repairs/review: schema 3, 236 placement tests, 1,196-test workspace gate; CI pending. No cloud deployment | crates/rh-placement/src/service.rs (new adapter infrastructure) |
+| P-PLACEMENT-3 | Authenticated placement/release API, real provider adapters, explicit bounded reaper cadence/backoff and unresolved-obligation monitoring; preserve indefinite ambiguity and original-zone cleanup | P-CLAUDE-PLACEMENT-2, P-HOST-2, P-HOST-3 | Coarse; required before deployment | crates/rh-placement/src/service/{mod,run}.rs; future adapter/wrapper |
 | P-HOST-2 | TLS and DNS: wildcard cert, per-placement record, rustls serving | P-HOST-1 | Coarse | none |
 | P-HOST-3 | Region set, HTTPS latency endpoints, queue config, `PlayerLatencies` | P-HOST-1 | Coarse | scripts/latency-probe.mjs, network-probe.mjs |
 | P-HOST-4 | Autoscaling, scale-in protection, warm capacity, drain on deployment | P-HOST-1, P-LOAD-2 | Coarse | none |

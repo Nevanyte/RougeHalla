@@ -1,0 +1,17 @@
+{
+  "kind": "compiled-runtime-selector",
+  "environment": {
+    "RH_PLACEMENT_MUTANT": "skip_ownership_check"
+  },
+  "selectorImplementation": "crates/rh-placement/src/ledger/faults.rs",
+  "selectorImplementationSha256": "59c9a2ca9e9818db16b2774eb81be26508c70054ffbde46b2fc8e07e98f2c48b",
+  "compiledSites": [
+    {
+      "path": "crates/rh-placement/src/service/run.rs",
+      "sha256": "2ec7d9f6bc17a294a6c17dff728ed8bc6d9456c9384c1d34ec6d2c4f4ab3720e",
+      "line": 36,
+      "compiledSourceContext": "/// Receipts are compared with the binding STORED for the attempt, by id and exact `GameSessionData`.\nfn owner(a: &AttemptRec, st: &PlacementState) -> Owner {\n    if mutant(Mutant::SkipOwnershipCheck) {\n        return Owner::Ours;\n    }\n    match st.game_session_data.as_deref() {\n        None => Owner::Unknown,\n        Some(d) if d == a.binding && st.placement_id == a.placement_id => Owner::Ours,\n        Some(_) => Owner::Foreign,\n    }\n}\n\nenum StopResult {\n    Terminal(PlacementState),\n    Pending,\n    Unverified,\n    Backend(BackendError),"
+    }
+  ],
+  "note": "Already compiled fault-injection implementation branch; activated by environment in a fresh process. No physical source patch was applied."
+}

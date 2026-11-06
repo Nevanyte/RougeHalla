@@ -1,0 +1,20 @@
+-- State generation 3: each attempt explicitly records dns_upsert (idle/in_flight/ambiguous).
+-- The migrator refuses nonempty pre-v3 ledgers under an exclusive table lock BEFORE changing
+-- schema or data: v1/v2 could erase ambiguous sends or purge identities. Empty old ledgers
+-- retain their ownership epoch. The version row prevents older binaries reopening the DB.
+-- An already-open v2 connection can bypass startup checks, so the database itself rejects
+-- its state writes (v2 serializes every attempt without dns_upsert). This fails its start/
+-- cleanup write-ahead intent before the old service can send an external effect. Empty
+-- begin rows and tombstones remain valid. The constraint never rewrites existing data.
+ALTER TABLE rh_placement_requests ADD CONSTRAINT rh_placement_dns_send_obligation_v3 CHECK (
+    phase = 'tombstone' OR (
+        jsonb_typeof(state) = 'object'
+        AND (
+            NOT (state ? 'attempts') OR (
+                jsonb_typeof(state->'attempts') = 'array'
+                AND NOT jsonb_path_exists(state,
+                    '$.attempts[*] ? (!exists(@.dns_upsert) || @.dns_upsert.type() != "string" || (@.dns_upsert != "idle" && @.dns_upsert != "in_flight" && @.dns_upsert != "ambiguous"))')
+            )
+        )
+    )
+);

@@ -1,0 +1,22 @@
+{
+  "verdict": "ACCEPT repaired candidate v2 with independent test-only integration overlay",
+  "files": {
+    "REVIEW.md": "4b2b41189179a33e91f2ebca1eeeb92c4f69bc9a8a5096dfca2f9e0f01911307",
+    "candidate-bindings.json": "9bf2c2ea997df9d519b33ef79fc3b4564a1bd5f820c9fc67e8d99691d48012b4",
+    "coordinator-manifest.patch": "934e35ef1d1b594fa3b18484657a54ba4150a70e1668e6fcb286f9e90338d99d",
+    "evidence.tar.gz": "4b48d74b1d806ffdd7f6fe0a76eb160619fe7f8580d03e580ef13fdd915516db",
+    "mutations/database-guard-removed.patch": "5d940c998a30fd4568712db3ea57fc33777ac0edfb3f22e07f2e1c406fa3377d",
+    "mutations/missing-default-is-idle.patch": "983f8f445db1217db26b7d88d5428f7fe6c2e92332fa6873301ba111ed10bb21",
+    "mutations/premature_completion-compiled-selector.json": "a4e775ffbea173ddc483b4aabac9e4b85f55438204f26c4f9429786579a99848",
+    "mutations/repeated-absence-finishes.patch": "f394cef0f7324254c819d8b9d8ab4497bb9c6edf347307c380cd73af0aecc9c9",
+    "mutations/skip_fencing-compiled-selector.json": "b6cbd97fe11484a8860422780485df243ae390b1eca8fe589dcef9d71c71eccf",
+    "mutations/skip_ownership_check-compiled-selector.json": "43ddbb42f34d291f1cb932d2f7eb744ea7e503372e95df42cda22a9db3d63258",
+    "mutations/skip_write_ahead-compiled-selector.json": "f4675b98a85bc98d5aa8d6f096b5a21794853b6445685d622a1bbbcfc2e08372",
+    "mutations/success-erases-earlier-send.patch": "faf53939c2926b666bad7329712aab24f866bbc253727f51bdfbb72a7bd7d054",
+    "mutations.json": "09d26f165c976d73f2b58e70402d35836c6fa9f520a5c702b2a6714e5abed76c",
+    "new-test-files.tar.gz": "d87dff5fb8861bd6b08211f29d8708b79859a8702d15358fa1af2b0ef33be6e6",
+    "owned-test-files.json": "e59ba7a4456b731109093b1af20e82c914ec03952e9ede5198ea3f7cee6fcd35",
+    "review-result.json": "0d290c1ad2521542e85032b4dcc201b89085b638bd2cba278be837cb3d28f790",
+    "review-tests.patch": "7f8ae8a0db9d9cde4e9fe3b97d055308e7c8a0200dcee81a08995d3766e3f732"
+  }
+}

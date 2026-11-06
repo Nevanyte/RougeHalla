@@ -14,7 +14,7 @@ revision; [sweep/README.md](sweep/README.md) says which (H-sim and H-server-2 ha
 
 ### Stage 2 validation addendum (takes precedence over the historical Stage 1 rows below)
 
-Native arm64 integration on `optimization_port`: 1,031 tests passed with all features, 0 failed/filtered and two explicitly
+Native arm64 integration on `optimization_port`: 1,196 tests passed with all features, 0 failed/filtered and two explicitly
 ignored tests (heap measurement and manual bridge E2E; the latter passed at the preceding external integration). Formatting and full/default-feature workspace Clippy with warnings denied passed. The preceding
 foundation gate passed 395 all-feature/386 default-feature tests; its Rust/C#/browser and legacy recapture CI passed at
 `c93b659d`. Full-game, AWS, browser-matrix and release gates remain open.
@@ -93,8 +93,13 @@ foundation gate passed 395 all-feature/386 default-feature tests; its Rust/C#/br
   failover remain open; this local recovery evidence is not a host-loss guarantee.
 - C-HOST: the local real Go bridge/Rust server/WebSocket E2E passes, including retry after SDK refusal. One managed
   game session uses one process; multiple container groups are the host-density unit. Placement has ownership-bound,
-  cancellation-safe local reconciliation with 71 Rust checks, including 16 cancellation-receipt identity controls. Its
-  bounded ledger is process-local; durable recovery, authenticated HTTP and real AWS/DNS adapters remain open.
+  cancellation-safe reconciliation; the original71 checks retain their meaning. The PostgreSQL schema 3 ledger now
+  preserves write-ahead identity, exact binding, fenced/versioned claims, uncertain commits, immutable offers and scoped
+  explicit release. Independent 236-test acceptance includes real process death and delayed effect application; eight
+  behavior mutants fail. Root all-feature integration and 144 default checks without a database pass. Unknown starts and
+  DNS sends remain discoverable indefinitely absent a real completion barrier. Old nonempty schemas refuse safely;
+  database guards also fence field-erasing legacy writes. Scheduling/cadence/backoff, authenticated HTTP and real AWS/DNS
+  adapters remain open. See `evidence/placement-durability-review/`.
   Template/policy validation and operation guards pass locally; no Stage 2 fleet deployment or public TLS proof exists.
   See `evidence/stage2-external-integration/`.
 - Client authority: the straight-line predictor is removed; local coordinates come only from accepted server snapshots.

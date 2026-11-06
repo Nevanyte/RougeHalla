@@ -1,0 +1,17 @@
+{
+  "kind": "compiled-runtime-selector",
+  "environment": {
+    "RH_PLACEMENT_MUTANT": "skip_write_ahead"
+  },
+  "selectorImplementation": "crates/rh-placement/src/ledger/faults.rs",
+  "selectorImplementationSha256": "59c9a2ca9e9818db16b2774eb81be26508c70054ffbde46b2fc8e07e98f2c48b",
+  "compiledSites": [
+    {
+      "path": "crates/rh-placement/src/service/run.rs",
+      "sha256": "2ec7d9f6bc17a294a6c17dff728ed8bc6d9456c9384c1d34ec6d2c4f4ab3720e",
+      "line": 219,
+      "compiledSourceContext": "    /// Write-ahead: the intent is committed before its effect is sent.\n    async fn intent(&mut self, label: &str) -> Result<(), Stop> {\n        if mutant(Mutant::SkipWriteAhead) {\n            return Ok(());\n        }\n        self.commit(label, Phase::Active).await\n    }\n\n    /// Renew the lease when a third of it has passed since the last write.\n    async fn touch(&mut self) -> Result<(), Stop> {\n        if self.last_write.elapsed() >= self.lease / 3 {\n            let p = self.phase;\n            self.commit(\"lease\", p).await?;\n        }\n        Ok(())\n    }\n"
+    }
+  ],
+  "note": "Already compiled fault-injection implementation branch; activated by environment in a fresh process. No physical source patch was applied."
+}

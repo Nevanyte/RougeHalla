@@ -1,0 +1,13 @@
+--- a/crates/rh-placement/src/ledger/mod.rs
++++ b/crates/rh-placement/src/ledger/mod.rs
+@@ -302,9 +302,9 @@
+ #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+ #[serde(rename_all = "snake_case")]
+ pub enum DnsUpsert {
++    #[default]
+     Idle,
+     InFlight,
+-    #[default]
+     Ambiguous,
+ }
+ 

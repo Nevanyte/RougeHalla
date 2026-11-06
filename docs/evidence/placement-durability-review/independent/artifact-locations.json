@@ -1,0 +1,71 @@
+{
+  "fullFrozenManifestSha256": "ad7dfe989e9fdb05316cbc0a13ac009c0a2f9d528953992a08b77aca392f52db",
+  "copiedTextArtifacts": [
+    {
+      "path": "REVIEW.md",
+      "sha256": "4b2b41189179a33e91f2ebca1eeeb92c4f69bc9a8a5096dfca2f9e0f01911307"
+    },
+    {
+      "path": "candidate-bindings.json",
+      "sha256": "9bf2c2ea997df9d519b33ef79fc3b4564a1bd5f820c9fc67e8d99691d48012b4"
+    },
+    {
+      "path": "coordinator-manifest.patch",
+      "sha256": "934e35ef1d1b594fa3b18484657a54ba4150a70e1668e6fcb286f9e90338d99d"
+    },
+    {
+      "path": "mutations/database-guard-removed.patch",
+      "sha256": "5d940c998a30fd4568712db3ea57fc33777ac0edfb3f22e07f2e1c406fa3377d"
+    },
+    {
+      "path": "mutations/missing-default-is-idle.patch",
+      "sha256": "983f8f445db1217db26b7d88d5428f7fe6c2e92332fa6873301ba111ed10bb21"
+    },
+    {
+      "path": "mutations/premature_completion-compiled-selector.json",
+      "sha256": "a4e775ffbea173ddc483b4aabac9e4b85f55438204f26c4f9429786579a99848"
+    },
+    {
+      "path": "mutations/repeated-absence-finishes.patch",
+      "sha256": "f394cef0f7324254c819d8b9d8ab4497bb9c6edf347307c380cd73af0aecc9c9"
+    },
+    {
+      "path": "mutations/skip_fencing-compiled-selector.json",
+      "sha256": "b6cbd97fe11484a8860422780485df243ae390b1eca8fe589dcef9d71c71eccf"
+    },
+    {
+      "path": "mutations/skip_ownership_check-compiled-selector.json",
+      "sha256": "43ddbb42f34d291f1cb932d2f7eb744ea7e503372e95df42cda22a9db3d63258"
+    },
+    {
+      "path": "mutations/skip_write_ahead-compiled-selector.json",
+      "sha256": "f4675b98a85bc98d5aa8d6f096b5a21794853b6445685d622a1bbbcfc2e08372"
+    },
+    {
+      "path": "mutations/success-erases-earlier-send.patch",
+      "sha256": "faf53939c2926b666bad7329712aab24f866bbc253727f51bdfbb72a7bd7d054"
+    },
+    {
+      "path": "mutations.json",
+      "sha256": "09d26f165c976d73f2b58e70402d35836c6fa9f520a5c702b2a6714e5abed76c"
+    },
+    {
+      "path": "owned-test-files.json",
+      "sha256": "e59ba7a4456b731109093b1af20e82c914ec03952e9ede5198ea3f7cee6fcd35"
+    },
+    {
+      "path": "review-result.json",
+      "sha256": "0d290c1ad2521542e85032b4dcc201b89085b638bd2cba278be837cb3d28f790"
+    },
+    {
+      "path": "review-tests.patch",
+      "sha256": "7f8ae8a0db9d9cde4e9fe3b97d055308e7c8a0200dcee81a08995d3766e3f732"
+    }
+  ],
+  "archivesRetainedAt": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/placement-durability-independent-review/frozen-review",
+  "omittedArchives": [
+    "evidence.tar.gz",
+    "new-test-files.tar.gz"
+  ],
+  "note": "Text, mutation patches and integration overlay are copied here unchanged. The immutable full manifest also binds external log/test archives; the new test source is integrated in the crate."
+}

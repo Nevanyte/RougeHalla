@@ -1,0 +1,313 @@
+{
+  "format": "rh-placement-durability-integration/1",
+  "status": "local-gates-passed-ci-pending",
+  "branch": "optimization_port",
+  "firstParent": "49726d60fdd92e669c6605b13bac40c14ba56421",
+  "producer": "4843cd51551f71e43228a75dd3c83effe0228bb3",
+  "repairPatchSha256": "d3aaabf92886fed3ddd9a0239d31708cdc80ca8cc86885a21b33d2c8e0cd693b",
+  "repairManifestSha256": "37a67331798d922668243a4e7d80786c0c5da61907fd51c6c7733a11caa7c527",
+  "independentReviewManifestSha256": "ad7dfe989e9fdb05316cbc0a13ac009c0a2f9d528953992a08b77aca392f52db",
+  "independentTestOverlaySha256": "7f8ae8a0db9d9cde4e9fe3b97d055308e7c8a0200dcee81a08995d3766e3f732",
+  "schemaVersion": 3,
+  "contentIdentity": "24c5098abed31dfb",
+  "formats": {
+    "checkpoint": 14,
+    "replay": 12,
+    "observation": 11,
+    "policy": 8,
+    "protocol": 5
+  },
+  "workspace": {
+    "suites": 120,
+    "passed": 1196,
+    "failed": 0,
+    "ignored": 2,
+    "filtered": 0
+  },
+  "defaultPlacementWithoutDatabase": {
+    "suites": 9,
+    "passed": 144,
+    "failed": 0,
+    "ignored": 0,
+    "filtered": 0
+  },
+  "checks": [
+    {
+      "name": "fmt",
+      "command": [
+        "cargo",
+        "fmt",
+        "--all",
+        "--check"
+      ],
+      "exit": 0,
+      "seconds": 0.7930362919999999,
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "clippy-all",
+      "command": [
+        "cargo",
+        "clippy",
+        "--workspace",
+        "--all-targets",
+        "--all-features",
+        "--locked",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit": 0,
+      "seconds": 3.028256583,
+      "logSha256": "823d1d4e502cfe5aeff673331b8c9f2512c83b3dcac2a617c257b5bb5299082a"
+    },
+    {
+      "name": "clippy-default",
+      "command": [
+        "cargo",
+        "clippy",
+        "--workspace",
+        "--all-targets",
+        "--locked",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit": 0,
+      "seconds": 1.374110333,
+      "logSha256": "668edc5ac7044f72659bbb07b8d7ed6c89c8748eaf239e8042dc60023d02d90f"
+    },
+    {
+      "name": "workspace-all",
+      "command": [
+        "cargo",
+        "test",
+        "--workspace",
+        "--all-features",
+        "--locked"
+      ],
+      "exit": 0,
+      "seconds": 392.421311333,
+      "logSha256": "c2d6a4f7b75a51973627701072a2321ee50e7d4e45c1c40aaee174d51a6271ff"
+    },
+    {
+      "name": "placement-default-without-db",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "rh-placement"
+      ],
+      "exit": 0,
+      "seconds": 6.846540375000018,
+      "logSha256": "3eb145f636d1cbe98f0563277b3024b1ded1ecf7d38a8962fcd1b30f08fcc0f9"
+    },
+    {
+      "name": "parity",
+      "command": [
+        "cargo",
+        "run",
+        "--locked",
+        "-p",
+        "rh-parity",
+        "--bin",
+        "parity-report"
+      ],
+      "exit": 0,
+      "seconds": 4.125085666999951,
+      "logSha256": "86144859c0c1ed1d81c031666d2225815e0fa1783d96c67322fa1f1880a55ad4"
+    }
+  ],
+  "parity": {
+    "compared": 97,
+    "captureOnly": 13,
+    "pathQueries": 300,
+    "status": "MATCH"
+  },
+  "independentPlacementTests": 236,
+  "mutations": {
+    "compiledFaultSelectors": 4,
+    "physicalImplementationPatches": 4,
+    "totalKilled": 8
+  },
+  "originalSemanticFailuresPreserved": 3,
+  "ignoredTests": [
+    "test the_real_bridge_drives_the_real_server_through_a_whole_game_session ... ignored, needs RH_GLBRIDGE_FAKE (a fakesdk glbridge for this host); run hosting/scripts/e2e-bridge.sh",
+    "test room_heap_probe ... ignored, measurement, run under valgrind --tool=dhat"
+  ],
+  "codeFiles": [
+    {
+      "path": "crates/rh-placement/Cargo.toml",
+      "sha256": "199eaad9d73b848a2c7bfbde48116c65e68499bf35cab4d08cafbe34b40958c8"
+    },
+    {
+      "path": "crates/rh-placement/migrations/0001_placement_ledger.sql",
+      "sha256": "959db213c3e541200479718525bbc9c0e8ebb82d6dde9b53546cca3e4b461144"
+    },
+    {
+      "path": "crates/rh-placement/migrations/0002_placement_ledger_version.sql",
+      "sha256": "42223feb1ffa2a6015493949378af7f8f582dc207d474827a5408c1426dec7e5"
+    },
+    {
+      "path": "crates/rh-placement/migrations/0003_dns_send_obligations.sql",
+      "sha256": "839dc658de5763f61a34eac05f5e29df9bfba62dc6050586a17709eb158ff122"
+    },
+    {
+      "path": "crates/rh-placement/src/backend.rs",
+      "sha256": "160c11f2fbbdaf46072cd50c24e55f5bd490b580f541ab8f99a2041b2c1e916c"
+    },
+    {
+      "path": "crates/rh-placement/src/bin/placement-crash-child.rs",
+      "sha256": "24c6927ae956707ef26e340a31be93b9604ee2234c0cb60f14d86ea6aa942e8a"
+    },
+    {
+      "path": "crates/rh-placement/src/bin/rh-placement.rs",
+      "sha256": "6044c2883d12d37e869082cf7fcca81be2c2b816bdcc2fe21c8647ae28a18993"
+    },
+    {
+      "path": "crates/rh-placement/src/fake.rs",
+      "sha256": "9dff024c0b49b68d335a885754cef3f09e21d433d23ac3f8fb26daca195585cb"
+    },
+    {
+      "path": "crates/rh-placement/src/hostname.rs",
+      "sha256": "b13dc6867c61fc85abdfe3a910abf65396455a40e7221d8685f0141612788844"
+    },
+    {
+      "path": "crates/rh-placement/src/ledger/faults.rs",
+      "sha256": "59c9a2ca9e9818db16b2774eb81be26508c70054ffbde46b2fc8e07e98f2c48b"
+    },
+    {
+      "path": "crates/rh-placement/src/ledger/memory.rs",
+      "sha256": "9a3a36e1c3680cb2c43439cd1ccfdba9dec620670f892b5c3294e761dc0f7599"
+    },
+    {
+      "path": "crates/rh-placement/src/ledger/mod.rs",
+      "sha256": "f56d4a707560a0813db2bbd51a483f998324a45f88bb6950331d6ac07adce107"
+    },
+    {
+      "path": "crates/rh-placement/src/ledger/postgres.rs",
+      "sha256": "24c59918ea18e6c66303f86521b156249481d65ab43f2b0e6d4fc69423336231"
+    },
+    {
+      "path": "crates/rh-placement/src/lib.rs",
+      "sha256": "6c82a80d7a5627f93ce4e7993d773b144bf3d737345beb5dd2395e3b5f27e199"
+    },
+    {
+      "path": "crates/rh-placement/src/model.rs",
+      "sha256": "4bfaa3820f3e63d839c8f34291167b9ba630337e1a7d1f3a21c204e93211e312"
+    },
+    {
+      "path": "crates/rh-placement/src/score.rs",
+      "sha256": "6d7647608ed1f5b98a745bc7a249c09d3b7a2992554963e7b89ec0f6837e756c"
+    },
+    {
+      "path": "crates/rh-placement/src/service/mod.rs",
+      "sha256": "bb0fc15b5919e4a133d634778dfa7816b50f2833882fa31de7a3046fa6429a67"
+    },
+    {
+      "path": "crates/rh-placement/src/service/run.rs",
+      "sha256": "2ec7d9f6bc17a294a6c17dff728ed8bc6d9456c9384c1d34ec6d2c4f4ab3720e"
+    },
+    {
+      "path": "crates/rh-placement/tests/cancellation_identity.rs",
+      "sha256": "6813e106e2163a68afbdcd1eef078cad192984789547e40247bf85a11ea5c85b"
+    },
+    {
+      "path": "crates/rh-placement/tests/crash_restart.rs",
+      "sha256": "82bbdc3978dc337177ec562a90668423ac1ed7e38440acf29be04905ce06db2d"
+    },
+    {
+      "path": "crates/rh-placement/tests/delayed_effects.rs",
+      "sha256": "ed47c51fa6299b6a1939e239c00c84043a629af11cc0ce6af8ab2721cc31a427"
+    },
+    {
+      "path": "crates/rh-placement/tests/fault_hooks.rs",
+      "sha256": "b99896050f747fa475a52fbdd08d7244455fb11a057a9e5e70d2ce4cc76336a3"
+    },
+    {
+      "path": "crates/rh-placement/tests/independent_review.rs",
+      "sha256": "423fb60a3eaa817c387cc56e2197d210d31e47343b6a3ce7d41f8ed3b7a4b6d3"
+    },
+    {
+      "path": "crates/rh-placement/tests/ledger_conformance_memory.rs",
+      "sha256": "5550d2fd12ada8fe29788c70b85684d61f5d283f61a924bb80a77487e2921b9a"
+    },
+    {
+      "path": "crates/rh-placement/tests/ledger_conformance_postgres.rs",
+      "sha256": "89b424ee4df50c5f5b03526802ebaea8983a879234022dc338b9005ccb31c9a1"
+    },
+    {
+      "path": "crates/rh-placement/tests/ledger_support/conformance.rs",
+      "sha256": "6e6f5016ed4a0fbf31444ff680a0556dbaf4972939b2e46763bd5b501afca509"
+    },
+    {
+      "path": "crates/rh-placement/tests/ledger_support/mod.rs",
+      "sha256": "1c01e06f0880ff9e97fe6a36b8bbd67750d7cb16b69a5757a4c692726f089de0"
+    },
+    {
+      "path": "crates/rh-placement/tests/ledger_support/pg.rs",
+      "sha256": "9d46e5795cb408cda9d15829ce95e01379d7f69e199d6e04d27946097d53ccef"
+    },
+    {
+      "path": "crates/rh-placement/tests/ledger_support/wrappers.rs",
+      "sha256": "e062fdc29e3741d0a160b8e340a177979e9c89c04eb572c3c89cbec08015629c"
+    },
+    {
+      "path": "crates/rh-placement/tests/placement_durable.rs",
+      "sha256": "3d9426b4b7b59ec06a54ef48e0a54db32843651abf6f2d8ca7d124920a7dd1e7"
+    },
+    {
+      "path": "crates/rh-placement/tests/remote_fake_selftest.rs",
+      "sha256": "db609b627046f0e99eb26447b8107f1d5614ad49e17f44e3adad9c193591132c"
+    },
+    {
+      "path": "crates/rh-placement/tests/review_boundaries.rs",
+      "sha256": "48418f817536985983ed260098fff44eba6b74b4e921a6a33c63d7b8c48d3122"
+    },
+    {
+      "path": "crates/rh-placement/tests/support/crash_harness.rs",
+      "sha256": "f569d4ca870819e4a1cc3ef8e60c8faa4d722a30a9e53add4ee42a2b399c4808"
+    },
+    {
+      "path": "crates/rh-placement/tests/support/remote_fake/client.rs",
+      "sha256": "b45e488a1d86adfe5c818f1b5ede64f9808d2dc0af2017d5fbe244f3c80e6a1e"
+    },
+    {
+      "path": "crates/rh-placement/tests/support/remote_fake/mod.rs",
+      "sha256": "979ba75e6623ac55906d8e934b2148b436a74d5d47e28562690d4eb6e35d5784"
+    },
+    {
+      "path": "crates/rh-placement/tests/support/remote_fake/server.rs",
+      "sha256": "339369593fb14865f78fddb446d806f312b072fa8807f55739b6e697e3e2662b"
+    },
+    {
+      "path": "crates/rh-placement/tests/support/remote_fake/wire.rs",
+      "sha256": "8e6a1849b8f6330a919a7f77ef5e1a2e84866d38ed88d360264c1733bedccacf"
+    }
+  ],
+  "coordinatorLockChange": "one sqlx dependency-list entry; no new dependency version",
+  "ciChange": "mandatory PostgreSQL/fault/process-recovery placement gate in existing Rust workflow",
+  "logRoot": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/placement-durability-integration",
+  "limits": [
+    "Local PostgreSQL and persistent parent-hosted TCP fake only; no AWS/DNS mutations",
+    "Actual placement HTTP/auth/provider adapters, scheduling/cadence/backoff, public TLS and staging deployment remain open",
+    "Uncertain starts/sends can require indefinite bounded reconciliation; no exactly-once claim",
+    "Nonempty pre-v3 placement ledgers require quiesced explicit operator reconciliation; no automatic unsafe upgrade",
+    "Simulation, protocol, C# and gameplay source are unchanged; no performance/full-game completion claim",
+    "Current-source CI is pending; previous stat-kernel CI passed at7f294cc7"
+  ],
+  "commentOnlyOverlay": {
+    "sha256": "7cd5baeb008254c5fca633286ec0b04202cbee063d944d14ed7e70d8b244c447",
+    "scope": "Accessor README/source/test commentary only; implementation and assertions unchanged",
+    "appliedAfterGates": true
+  },
+  "immutableArtifactWhitespace": {
+    "preservedExactly": [
+      "docs/evidence/placement-durability/negative-controls.output.txt",
+      "docs/evidence/placement-durability-review/independent/mutations/missing-default-is-idle.patch",
+      "docs/evidence/placement-durability-review/independent/api-surface/documentation.patch"
+    ],
+    "reason": "Raw command output and unified-diff bytes are kept hash-identical; all other staged source/document files pass diff whitespace checks."
+  }
+}

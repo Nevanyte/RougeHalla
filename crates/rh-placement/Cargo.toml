@@ -11,10 +11,18 @@ license.workspace = true
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["float_roundtrip"] }
 sha2 = "0.10"
-tokio = { version = "1", features = ["time"] }
+tokio = { version = "1", features = ["time", "rt", "macros", "net", "io-util", "sync"] }
+sqlx = { version = "0.8", optional = true, default-features = false, features = ["runtime-tokio", "tls-rustls", "postgres"] }
 
 [dev-dependencies]
-tokio = { version = "1", features = ["time", "test-util", "macros", "rt"] }
+tokio = { version = "1", features = ["time", "test-util", "macros", "rt", "rt-multi-thread", "sync"] }
+
+[features]
+default = []
+# PostgreSQL-backed placement ledger (`ledger::postgres`). The default build never links sqlx or connects to a database.
+postgres = ["dep:sqlx"]
+# Named fault points and mutants for crash/negative-control tests (`ledger::faults`). Never enable in production.
+fault-injection = []
 
 [[bin]]
 name = "rh-placement"
@@ -22,3 +30,31 @@ path = "src/bin/rh-placement.rs"
 
 [lints]
 workspace = true
+
+# Test-only child service process for the crash/restart harness (tests/crash_restart.rs). Never built by default.
+[[bin]]
+name = "placement-crash-child"
+path = "src/bin/placement-crash-child.rs"
+required-features = ["postgres", "fault-injection"]
+
+[[test]]
+name = "crash_restart"
+path = "tests/crash_restart.rs"
+required-features = ["postgres", "fault-injection"]
+
+[[test]]
+name = "delayed_effects"
+path = "tests/delayed_effects.rs"
+required-features = ["postgres", "fault-injection"]
+
+# The PostgreSQL suites never run silently without the feature: cargo refuses to build/run this target, instead of running
+# zero tests and reporting success. The acceptance command is `cargo test -p rh-placement --features postgres,fault-injection`.
+[[test]]
+name = "ledger_conformance_postgres"
+path = "tests/ledger_conformance_postgres.rs"
+required-features = ["postgres"]
+
+# Independent durable-recovery contract controls require the real PostgreSQL harness.
+[[test]]
+name = "review_boundaries"
+required-features = ["postgres", "fault-injection"]

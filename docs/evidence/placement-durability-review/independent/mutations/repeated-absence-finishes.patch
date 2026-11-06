@@ -1,0 +1,10 @@
+--- a/crates/rh-placement/src/service/run.rs
++++ b/crates/rh-placement/src/service/run.rs
+@@ -852,6 +852,7 @@
+         let nf = &mut self.state.attempts[idx].not_found;
+         nf.first_at_ms.get_or_insert(now);
+         nf.count = nf.count.saturating_add(1);
++        if nf.count >= 2 { self.resolve(idx, Resolution::Settled); }
+         self.commit("not_found", Phase::Active).await?;
+         Ok(false)
+     }

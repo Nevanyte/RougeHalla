@@ -1,0 +1,16 @@
+{
+  "newFiles": {
+    "crates/rh-placement/tests/review_boundaries.rs": "48418f817536985983ed260098fff44eba6b74b4e921a6a33c63d7b8c48d3122"
+  },
+  "coordinatorHunk": {
+    "path": "crates/rh-placement/Cargo.toml",
+    "baseSha256": "44aa91075f1f301d493b14c56ffbe8252f8031b98a592a5246f8f053cc864e7a",
+    "resultSha256": "199eaad9d73b848a2c7bfbde48116c65e68499bf35cab4d08cafbe34b40958c8",
+    "patchSha256": "934e35ef1d1b594fa3b18484657a54ba4150a70e1668e6fcb286f9e90338d99d"
+  },
+  "requiredFeatures": [
+    "postgres",
+    "fault-injection"
+  ],
+  "newTests": 3
+}

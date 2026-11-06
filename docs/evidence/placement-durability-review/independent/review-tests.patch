@@ -1,0 +1,191 @@
+--- /dev/null
++++ b/crates/rh-placement/tests/review_boundaries.rs
+@@ -0,0 +1,177 @@
++//! Independent contract controls; no production adapter or external cloud services.
++#![cfg(all(feature = "postgres", feature = "fault-injection"))]
++#[path = "support/crash_harness.rs"]
++mod crash_harness;
++mod ledger_support;
++use crash_harness::remote_fake::{Matcher, Op, Stage};
++use crash_harness::*;
++use ledger_support::conformance::{ident, offered_state, LONG};
++use rh_placement::ledger::{
++    validate_write, Begin, DnsUpsert, Ledger, LedgerState, Phase, Resolution, Scope,
++};
++use rh_placement::service::DurabilityConfig;
++use serde_json::json;
++use std::time::Duration;
++
++#[test]
++fn missing_dns_metadata_is_an_obligation_even_on_an_apparently_resolved_attempt() {
++    let state = offered_state("ownmissing");
++    let mut raw = serde_json::to_value(state).unwrap();
++    raw["attempts"][0]
++        .as_object_mut()
++        .unwrap()
++        .remove("dns_upsert");
++    let decoded: LedgerState = serde_json::from_value(raw).unwrap();
++    assert_eq!(decoded.attempts[0].dns_upsert, DnsUpsert::Ambiguous);
++    assert!(decoded.attempts[0].is_open());
++    assert!(!decoded.all_resolved());
++    for phase in [
++        Phase::Offered,
++        Phase::Finished,
++        Phase::Releasing,
++        Phase::Released,
++    ] {
++        assert!(validate_write(&decoded, phase).is_err(), "{phase:?}");
++    }
++}
++
++#[tokio::test]
++async fn schema_three_rejects_every_attempt_missing_or_malformed_obligation_atomically() {
++    let db = ledger_support::pg::TestDb::create().await;
++    let l = db.ledger().await;
++    l.open_epoch([31; 32]).await.unwrap();
++    let Begin::Started(_) = l
++        .begin(&ident("ownschema", "s", "f"), "review", LONG)
++        .await
++        .unwrap()
++    else {
++        panic!("begin")
++    };
++    let good = serde_json::to_value(offered_state("ownschema")).unwrap();
++    let original = l.get("ownschema").await.unwrap().unwrap();
++    let mut cases = vec![
++        json!(null),
++        json!([]),
++        json!({"attempts":null}),
++        json!({"attempts":{}}),
++        json!({"attempts":[null]}),
++        json!({"attempts":["bad"]}),
++    ];
++    for value in [
++        json!(null),
++        json!(0),
++        json!({}),
++        json!([]),
++        json!("unknown"),
++    ] {
++        let mut bad = good.clone();
++        bad["attempts"][0]["dns_upsert"] = value;
++        cases.push(bad);
++    }
++    let mut absent = good.clone();
++    absent["attempts"][0]
++        .as_object_mut()
++        .unwrap()
++        .remove("dns_upsert");
++    cases.push(absent.clone());
++    let mut mixed = good.clone();
++    mixed["attempts"]
++        .as_array_mut()
++        .unwrap()
++        .push(absent["attempts"][0].clone());
++    cases.push(mixed);
++    for (i, bad) in cases.iter().enumerate() {
++        let result=sqlx::query("UPDATE rh_placement_requests SET state=$1::text::jsonb, version=version+1 WHERE request_id='ownschema'").bind(bad.to_string()).execute(l.pool()).await;
++        let error = result.expect_err(&format!("malformed case {i} admitted"));
++        assert_eq!(
++            error.as_database_error().unwrap().code().as_deref(),
++            Some("23514"),
++            "case {i}"
++        );
++        assert_eq!(
++            l.get("ownschema").await.unwrap().unwrap(),
++            original,
++            "case {i} changed data"
++        );
++    }
++    // SQL NULL is independently refused by the original non-tombstone constraint.
++    assert!(sqlx::query(
++        "UPDATE rh_placement_requests SET state=NULL WHERE request_id='ownschema'"
++    )
++    .execute(l.pool())
++    .await
++    .is_err());
++    assert_eq!(l.get("ownschema").await.unwrap().unwrap(), original);
++    println!(
++        "independent schema controls: {} JSON shapes + SQL NULL",
++        cases.len()
++    );
++    l.pool().close().await;
++    db.drop_db().await;
++}
++
++#[tokio::test]
++async fn late_success_receipt_after_takeover_does_not_clear_the_obligation_or_poison_clean_work() {
++    let h = H::new(fulfil()).await;
++    h.seed_foreign().await;
++    let id = "ownreceipt";
++    let host = host_of(id, ZONE);
++    let d = DurabilityConfig {
++        worker_lease: Duration::from_millis(600),
++        reaper_lease: Duration::from_millis(600),
++        backend_op_timeout: Duration::from_secs(20),
++        retention: Duration::ZERO,
++        ..Default::default()
++    };
++    let a = h.worker(ZONE, 20_000, d.clone()).await;
++    let b = h.worker("different.example.com", 20_000, d.clone()).await;
++    h.fake
++        .hold_reply_after_apply(Op::DnsUpsert, Matcher::key(&host));
++    let applied = h
++        .fake
++        .notify_on(Op::DnsUpsert, Matcher::key(&host), Stage::Applied);
++    let rq = request(id, "alice");
++    let (result, ()) = tokio::join!(a.place(&rq), async {
++        tokio::time::timeout(Duration::from_secs(5), applied.wait())
++            .await
++            .unwrap();
++        assert!(h.fake.dns().contains_key(&host));
++        assert_eq!(
++            h.row(id).await.state.attempts[0].dns_upsert,
++            DnsUpsert::InFlight
++        );
++        h.wait_reapable(id).await;
++        assert_eq!(b.reap_abandoned().await, 0);
++        assert!(!h.fake.dns().contains_key(&host));
++        assert_eq!(h.fake.release_all(), 1);
++    });
++    assert!(result.is_err(), "stale success cannot publish");
++    let row = h.row(id).await;
++    assert_eq!(
++        (row.phase, row.state.attempts[0].resolution),
++        (Phase::Active, Resolution::Open)
++    );
++    assert_eq!(row.state.attempts[0].dns_upsert, DnsUpsert::InFlight);
++    assert!(row.state.offer.is_none());
++    assert_eq!(b.purge_retained().await.unwrap(), 0);
++    assert_eq!(b.reap_abandoned().await, 0);
++    h.assert_foreign_untouched();
++    // New unambiguous work still publishes/replays/releases despite the permanent earlier obligation.
++    let c = h.worker(ZONE, 20_000, d).await;
++    let fresh = request("ownclean", "alice");
++    let offer = c.place(&fresh).await.unwrap();
++    assert_eq!(c.place(&fresh).await.unwrap(), offer);
++    c.release_session(&Scope::default(), "ownclean", &offer.placement_id)
++        .await
++        .unwrap();
++    assert_eq!(h.row("ownclean").await.phase, Phase::Released);
++    assert_eq!(h.counts().await.unresolved, 1);
++    assert!(h
++        .fake
++        .trace_of(Op::DnsDelete)
++        .iter()
++        .filter(|m| m.key.contains(id))
++        .all(|m| m.key == host));
++    println!("independent stale receipt effects: {:?}", h.ops(id, ZONE));
++    h.finish().await;
++}
+--- a/crates/rh-placement/Cargo.toml
++++ b/crates/rh-placement/Cargo.toml
+@@ -53,3 +53,8 @@
+ name = "ledger_conformance_postgres"
+ path = "tests/ledger_conformance_postgres.rs"
+ required-features = ["postgres"]
++
++# Independent durable-recovery contract controls require the real PostgreSQL harness.
++[[test]]
++name = "review_boundaries"
++required-features = ["postgres", "fault-injection"]

@@ -1,0 +1,11 @@
+--- a/crates/rh-placement/src/service/run.rs
++++ b/crates/rh-placement/src/service/run.rs
+@@ -633,7 +633,7 @@
+             self.intent("dns_intent").await?;
+             match svc.bk_upsert(&host, &ip, ttl).await {
+                 Ok(()) => {
+-                    if self.state.attempts[idx].dns_upsert == DnsUpsert::InFlight {
++                    if true {
+                         self.state.attempts[idx].dns_upsert = DnsUpsert::Idle;
+                     }
+                     // A lost claim or uncertain DB outcome cannot let this receipt

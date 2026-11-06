@@ -1,0 +1,23 @@
+{
+  "kind": "compiled-runtime-selector",
+  "environment": {
+    "RH_PLACEMENT_MUTANT": "skip_fencing"
+  },
+  "selectorImplementation": "crates/rh-placement/src/ledger/faults.rs",
+  "selectorImplementationSha256": "59c9a2ca9e9818db16b2774eb81be26508c70054ffbde46b2fc8e07e98f2c48b",
+  "compiledSites": [
+    {
+      "path": "crates/rh-placement/src/ledger/postgres.rs",
+      "sha256": "24c59918ea18e6c66303f86521b156249481d65ab43f2b0e6d4fc69423336231",
+      "line": 386,
+      "compiledSourceContext": "        // The unfenced variant exists only for the `skip_fencing` negative control.\n        #[cfg(feature = \"fault-injection\")]\n        let fenced = !mutant(Mutant::SkipFencing);\n        #[cfg(not(feature = \"fault-injection\"))]\n        let fenced = true;\n        let guard = if fenced {\n            \"AND fence = $5 AND version = $11 AND claim_holder = $6 AND claim_kind = $7 \\\n             AND claim_until > clock_timestamp() AND phase = ANY($4)\"\n        } else {\n            \"AND $5::bigint IS NOT NULL AND $11::bigint IS NOT NULL AND $6::text IS NOT NULL AND $7::text IS NOT NULL \\\n             AND phase = ANY($4)\"\n        };\n        let sql = format!(\n            \"UPDATE rh_placement_requests SET state = $1::text::jsonb, phase = $2, version = version + 1, \\\n             claim_kind = CASE WHEN $3 THEN 'none' ELSE claim_kind END, \\\n             claim_holder = CASE WHEN $3 THEN NULL ELSE claim_holder END, \\\n             claim_until = CASE WHEN $3 THEN NULL ELSE clock_timestamp() + ($8::bigint * interval '1 millisecond') END, \\"
+    },
+    {
+      "path": "crates/rh-placement/src/ledger/memory.rs",
+      "sha256": "9a3a36e1c3680cb2c43439cd1ccfdba9dec620670f892b5c3294e761dc0f7599",
+      "line": 231,
+      "compiledSourceContext": "            && r.live();\n        #[cfg(feature = \"fault-injection\")]\n        let held = held || mutant(Mutant::SkipFencing);\n        if !held {\n            return Ok(WriteOutcome::Fenced);\n        }\n        if !r.phase.may_become(phase) {\n            return Err(LedgerError::Refused(\"illegal phase transition\".into()));\n        }\n        r.state = state.clone();\n        r.phase = phase;\n        r.version += 1;\n        r.updated_ms = now;\n        match phase {\n            Phase::Offered | Phase::Finished | Phase::Released => r.clear_claim(),\n            _ => r.claim_until = Some(Instant::now() + lease),\n        }"
+    }
+  ],
+  "note": "Already compiled fault-injection implementation branch; activated by environment in a fresh process. No physical source patch was applied."
+}

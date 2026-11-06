@@ -1,0 +1,244 @@
+[
+  {
+    "name": "mutant-skip_write_ahead",
+    "failedTests": [
+      "memory::every_effect_is_preceded_by_its_committed_intent",
+      "postgres::every_effect_is_preceded_by_its_committed_intent"
+    ],
+    "logSha256": "dada3e4153a97208cea65cc34fd7415a3b7087b08cfb73c6839e1ee2bcc61b97",
+    "activation": {
+      "kind": "compiled-runtime-selector",
+      "path": "mutations/skip_write_ahead-compiled-selector.json",
+      "sha256": "f4675b98a85bc98d5aa8d6f096b5a21794853b6445685d622a1bbbcfc2e08372"
+    },
+    "command": [
+      "env",
+      "RH_PLACEMENT_MUTANT=skip_write_ahead",
+      "cargo",
+      "test",
+      "--locked",
+      "-p",
+      "rh-placement",
+      "--features",
+      "postgres,fault-injection",
+      "--test",
+      "placement_durable",
+      "every_effect_is_preceded_by_its_committed_intent",
+      "--",
+      "--test-threads=1"
+    ],
+    "exit": 101,
+    "log": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/placement-durability-independent-review/mutant-skip_write_ahead.log"
+  },
+  {
+    "name": "mutant-skip_ownership_check",
+    "failedTests": [
+      "memory::foreign_receipts_never_authorize_cleanup",
+      "postgres::foreign_receipts_never_authorize_cleanup"
+    ],
+    "logSha256": "b8a711f5dffeda5eccdbc6223dad54e60ae5de33ec4d6ad6a8ce03243ba44952",
+    "activation": {
+      "kind": "compiled-runtime-selector",
+      "path": "mutations/skip_ownership_check-compiled-selector.json",
+      "sha256": "43ddbb42f34d291f1cb932d2f7eb744ea7e503372e95df42cda22a9db3d63258"
+    },
+    "command": [
+      "env",
+      "RH_PLACEMENT_MUTANT=skip_ownership_check",
+      "cargo",
+      "test",
+      "--locked",
+      "-p",
+      "rh-placement",
+      "--features",
+      "postgres,fault-injection",
+      "--test",
+      "placement_durable",
+      "foreign_receipts_never_authorize_cleanup",
+      "--",
+      "--test-threads=1"
+    ],
+    "exit": 101,
+    "log": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/placement-durability-independent-review/mutant-skip_ownership_check.log"
+  },
+  {
+    "name": "mutant-skip_fencing",
+    "failedTests": [
+      "postgres::stale_worker_cannot_commit_offer_or_finish"
+    ],
+    "logSha256": "83917c40bbdbb492fd37aec62dcedba57a85b87c6973afa1561d68f45de4c5af",
+    "activation": {
+      "kind": "compiled-runtime-selector",
+      "path": "mutations/skip_fencing-compiled-selector.json",
+      "sha256": "b6cbd97fe11484a8860422780485df243ae390b1eca8fe589dcef9d71c71eccf"
+    },
+    "command": [
+      "env",
+      "RH_PLACEMENT_MUTANT=skip_fencing",
+      "cargo",
+      "test",
+      "--locked",
+      "-p",
+      "rh-placement",
+      "--features",
+      "postgres,fault-injection",
+      "--test",
+      "ledger_conformance_postgres",
+      "stale_worker_cannot_commit_offer_or_finish",
+      "--",
+      "--test-threads=1"
+    ],
+    "exit": 101,
+    "log": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/placement-durability-independent-review/mutant-skip_fencing.log"
+  },
+  {
+    "name": "mutant-premature_completion",
+    "failedTests": [
+      "a_cleanup_effect_accepted_before_local_completion_is_repeated_idempotently_after_a_crash"
+    ],
+    "logSha256": "3bec3ecd53ccea6681307831475b6402fa52805dd0565320e858d5f90f90f5e5",
+    "activation": {
+      "kind": "compiled-runtime-selector",
+      "path": "mutations/premature_completion-compiled-selector.json",
+      "sha256": "a4e775ffbea173ddc483b4aabac9e4b85f55438204f26c4f9429786579a99848"
+    },
+    "command": [
+      "env",
+      "RH_PLACEMENT_MUTANT=premature_completion",
+      "cargo",
+      "test",
+      "--locked",
+      "-p",
+      "rh-placement",
+      "--features",
+      "postgres,fault-injection",
+      "--test",
+      "crash_restart",
+      "a_cleanup_effect_accepted_before_local_completion_is_repeated_idempotently_after_a_crash",
+      "--",
+      "--test-threads=1"
+    ],
+    "exit": 101,
+    "log": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/placement-durability-independent-review/mutant-premature_completion.log"
+  },
+  {
+    "name": "mutant-missing-default-is-idle",
+    "failedTests": [
+      "missing_dns_metadata_is_an_obligation_even_on_an_apparently_resolved_attempt"
+    ],
+    "logSha256": "4b1758d0eb7a3cf27c652a6be83afe25d3175d6b260351d4c18adfaeda6ea004",
+    "activation": {
+      "kind": "physical-source-patch",
+      "path": "mutations/missing-default-is-idle.patch",
+      "sha256": "983f8f445db1217db26b7d88d5428f7fe6c2e92332fa6873301ba111ed10bb21",
+      "originalFileSha256": "f56d4a707560a0813db2bbd51a483f998324a45f88bb6950331d6ac07adce107",
+      "mutantFileSha256": "ede1a11fd42299bfdac50c6c3b1143a3a133c0c0e1e5cad0d6bd71b5bb84df73"
+    },
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "-p",
+      "rh-placement",
+      "--features",
+      "postgres,fault-injection",
+      "--test",
+      "review_boundaries",
+      "missing_dns_metadata",
+      "--",
+      "--test-threads=1"
+    ],
+    "exit": 101,
+    "log": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/placement-durability-independent-review/mutant-missing-default-is-idle.log"
+  },
+  {
+    "name": "mutant-success-erases-earlier-send",
+    "failedTests": [
+      "ambiguous_dns_retries_survive_restarts_age_and_purge_in_the_original_zone"
+    ],
+    "logSha256": "476426af5e657a3790b1b8a057df512e54b1d260d086f9310099d655dff8e157",
+    "activation": {
+      "kind": "physical-source-patch",
+      "path": "mutations/success-erases-earlier-send.patch",
+      "sha256": "faf53939c2926b666bad7329712aab24f866bbc253727f51bdfbb72a7bd7d054",
+      "originalFileSha256": "2ec7d9f6bc17a294a6c17dff728ed8bc6d9456c9384c1d34ec6d2c4f4ab3720e",
+      "mutantFileSha256": "fbb05a3fefd3531026e0c7c5674caff0c8f02ded9232185aa8a47f6a8c6edea9"
+    },
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "-p",
+      "rh-placement",
+      "--features",
+      "postgres,fault-injection",
+      "--test",
+      "delayed_effects",
+      "ambiguous_dns_retries_survive_restarts",
+      "--",
+      "--test-threads=1"
+    ],
+    "exit": 101,
+    "log": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/placement-durability-independent-review/mutant-success-erases-earlier-send.log"
+  },
+  {
+    "name": "mutant-database-guard-removed",
+    "failedTests": [
+      "schema_three_rejects_every_attempt_missing_or_malformed_obligation_atomically"
+    ],
+    "logSha256": "504a185219fb1b621dc4675557cbfe374750c5b1db9aff520be732c96bf761a7",
+    "activation": {
+      "kind": "physical-source-patch",
+      "path": "mutations/database-guard-removed.patch",
+      "sha256": "5d940c998a30fd4568712db3ea57fc33777ac0edfb3f22e07f2e1c406fa3377d",
+      "originalFileSha256": "839dc658de5763f61a34eac05f5e29df9bfba62dc6050586a17709eb158ff122",
+      "mutantFileSha256": "b4e0497804e46e0a0b0b8c31975b062152d551bac49c3c2e80932567b4085dcd"
+    },
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "-p",
+      "rh-placement",
+      "--features",
+      "postgres,fault-injection",
+      "--test",
+      "review_boundaries",
+      "schema_three_rejects",
+      "--",
+      "--test-threads=1"
+    ],
+    "exit": 101,
+    "log": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/placement-durability-independent-review/mutant-database-guard-removed.log"
+  },
+  {
+    "name": "mutant-repeated-absence-finishes",
+    "failedTests": [
+      "held_start_survives_a_century_of_age_restarts_repeated_absence_and_purge"
+    ],
+    "logSha256": "8a503d6d2899180ce56b1ed1e41ab095824facc08470b51955a385d4e5ebbbdb",
+    "activation": {
+      "kind": "physical-source-patch",
+      "path": "mutations/repeated-absence-finishes.patch",
+      "sha256": "f394cef0f7324254c819d8b9d8ab4497bb9c6edf347307c380cd73af0aecc9c9",
+      "originalFileSha256": "2ec7d9f6bc17a294a6c17dff728ed8bc6d9456c9384c1d34ec6d2c4f4ab3720e",
+      "mutantFileSha256": "d844162ce0846b11a537b279ecf5295e3d32df45dda2418b4189c8d3d0ca1d9d"
+    },
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "-p",
+      "rh-placement",
+      "--features",
+      "postgres,fault-injection",
+      "--test",
+      "delayed_effects",
+      "held_start_survives_a_century",
+      "--",
+      "--test-threads=1"
+    ],
+    "exit": 101,
+    "log": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/placement-durability-independent-review/mutant-repeated-absence-finishes.log"
+  }
+]

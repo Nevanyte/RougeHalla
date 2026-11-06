@@ -1,0 +1,62 @@
+--- a/crates/rh-placement/src/service/mod.rs
++++ b/crates/rh-placement/src/service/mod.rs
+@@ -341,18 +341,23 @@
+         &self.ledger
+     }
+ 
+-    /// Read-only access to the backends (tests and diagnostics). Nothing outside the service replaces or reaches into them.
++    /// Raw GameLift backend access for trusted backend owners and tests. Backend methods can mutate
++    /// provider state without ledger checks; use the service methods for managed placement and release.
++    /// This is not a restricted diagnostic view or an authorization boundary.
+     #[doc(hidden)]
+     pub fn gamelift(&self) -> &G {
+         &self.gamelift
+     }
+ 
++    /// Raw DNS backend access for trusted backend owners and tests. Calling its mutation methods
++    /// bypasses the ledger; managed session-end cleanup must use `release_session`.
+     #[doc(hidden)]
+     pub fn dns(&self) -> &D {
+         &self.dns
+     }
+ 
+-    /// Take the backends back (a test that rebuilds a service over the same fakes).
++    /// Consume the service and return its raw backend capabilities (also used to rebuild test services).
++    /// This performs no release or reconciliation and does not settle existing ledger obligations.
+     #[doc(hidden)]
+     pub fn into_backends(self) -> (G, D) {
+         (self.gamelift, self.dns)
+--- a/crates/rh-placement/README.md
++++ b/crates/rh-placement/README.md
+@@ -79,9 +79,11 @@
+ (original zone), records `released`; a duplicate is `Ok` with no DNS call; a half-done release is resumed by a retry or by
+ the reaper. A released id never replays its offer. After retention the tombstone keeps the offer's placement id, so a duplicate release still has to name it
+ (`WrongPlacement` otherwise; tombstones made by a schema 1 binary have none and refuse every release, fail closed).
+-`release_host(region, id)` is gone: no ID-only deletion path remains. After retention the tombstone keeps the offer's placement
+-id, so a duplicate release still has to name it (`WrongPlacement` otherwise; tombstones made by a schema 1 binary have none and
+-refuse every release, fail closed).
++`release_host(region, id)` is gone: the service has no ID-only release operation. Raw backend accessors remain available
++to trusted library owners and tests; their methods can mutate providers without ledger checks. These accessors are not
++read-only views, and `doc(hidden)` does not restrict access. The service governs its managed lifecycle operations, not
++capabilities callers already hold through the backends they supply. Route managed session-end cleanup through
++`release_session`; this does not establish HTTP authorization or capability confinement.
+ 
+ **Retention** (`purge_retained`): `finished`/`released` rows older than `DurabilityConfig::retention` (30 days) become
+ tombstones (id, scope, fingerprint, final phase, timestamps kept forever; request/config/state dropped), so an old id never
+--- a/crates/rh-placement/tests/crash_restart.rs
++++ b/crates/rh-placement/tests/crash_restart.rs
+@@ -701,10 +701,10 @@
+     h.finish().await;
+ }
+ 
+-/// The old ID-only `release_host(region, placement_id)` is gone. Rust offers no compile-fail check without a new
+-/// dependency, so this pins the public surface by reading the service source: the only public item that can release a name
+-/// is `release_session`, whose three arguments are the scope, the request id and the offer's placement id; the behavioural
+-/// tests above prove each argument is checked against the ledger before any DNS call.
++/// The old ID-only `release_host(region, placement_id)` is gone. This source-level check enumerates
++/// named public service release/delete/terminate operations; it does not audit capabilities reachable
++/// through raw backend accessors. The behavioural tests above prove that `release_session` checks
++/// scope, request id and offer placement id against the ledger before making a DNS call.
+ #[test]
+ fn the_only_public_release_path_is_the_ledger_bound_release_session() {
+     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src");

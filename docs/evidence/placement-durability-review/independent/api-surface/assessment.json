@@ -1,0 +1,28 @@
+{
+  "verdict": "No new capability-confinement or authorization contract violation within the accepted trusted backend-owner boundary; documentation correction recommended.",
+  "acceptedBase": "de6f1c196f9b6a42e50dfdf19327d72bd3683fc8",
+  "acceptedBaseServiceSha256": "0582a0bfdaaab3d58040b03f577e90b27d7dd7d7b9501c6260f1cba95c12a61f",
+  "evidence": [
+    "Accepted base exposes public raw gamelift/dns fields; current methods retain those existing capabilities while removing direct field replacement.",
+    "Constructors receive caller-supplied backends; callers can retain shared aliases independently.",
+    "No production accessor consumers found outside rh-placement tests; no HTTP exposure inferred.",
+    "Default tests intentionally inspect and change fake controls through these references; read-only wording is incorrect.",
+    "Managed release_session checks remain intact and old ID-only service release operation remains absent."
+  ],
+  "changes": "Documentation/comments only; production and test bodies/assertions unchanged.",
+  "bindings": {
+    "crates/rh-placement/src/service/mod.rs": {
+      "beforeSha256": "680edfb5047fccd36a81288e9e412d16c5cf917c6aaae7dce14f9bf53d94b38f",
+      "afterSha256": "bb0fc15b5919e4a133d634778dfa7816b50f2833882fa31de7a3046fa6429a67"
+    },
+    "crates/rh-placement/README.md": {
+      "beforeSha256": "dfc13e8de63f5b2c69bf17cabeea84804b7f2d9186233917ae2e00d58a8fcf03",
+      "afterSha256": "6ccbe889f0e77cc88f65159f3258d466f5167f87e771aed256c4b858f26ff306"
+    },
+    "crates/rh-placement/tests/crash_restart.rs": {
+      "beforeSha256": "89fad144245c552a44521893200fed4bfdb80ac169ebe2a3fc980b36c90cae21",
+      "afterSha256": "82bbdc3978dc337177ec562a90668423ac1ed7e38440acf29be04905ce06db2d"
+    }
+  },
+  "patchSha256": "7cd5baeb008254c5fca633286ec0b04202cbee063d944d14ed7e70d8b244c447"
+}

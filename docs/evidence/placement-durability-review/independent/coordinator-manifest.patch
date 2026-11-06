@@ -1,0 +1,11 @@
+--- a/crates/rh-placement/Cargo.toml
++++ b/crates/rh-placement/Cargo.toml
+@@ -53,3 +53,8 @@
+ name = "ledger_conformance_postgres"
+ path = "tests/ledger_conformance_postgres.rs"
+ required-features = ["postgres"]
++
++# Independent durable-recovery contract controls require the real PostgreSQL harness.
++[[test]]
++name = "review_boundaries"
++required-features = ["postgres", "fault-injection"]

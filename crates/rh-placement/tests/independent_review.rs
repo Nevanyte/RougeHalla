@@ -44,16 +44,16 @@ async fn describe_failure_fulfilment_race_retains_cleanup() {
     let svc = PlacementService::new([1; 32], cfg(), gl, FakeDns::new());
     assert!(svc.place(&req()).await.is_err());
     let state = svc
-        .gamelift
+        .gamelift()
         .describe_placement("rh-review001-1")
         .await
         .unwrap();
     assert_eq!(state.status, PlacementStatus::Fulfilled);
     assert!(
-        svc.abandoned_count() > 0 || !svc.gamelift.terminated().is_empty(),
+        svc.abandoned_count() > 0 || !svc.gamelift().terminated().is_empty(),
         "fulfilled orphan lost: abandoned={}, terminated={:?}",
         svc.abandoned_count(),
-        svc.gamelift.terminated()
+        svc.gamelift().terminated()
     );
 }
 #[tokio::test(start_paused = true)]
@@ -162,14 +162,14 @@ async fn cancellation_of_reaper_preserves_current_and_unvisited_requests() {
     let mut r = req();
     r.request_id = "review002".into();
     abandon(&svc, &r).await;
-    svc.gamelift.hold_stop.store(true, Ordering::SeqCst);
+    svc.gamelift().hold_stop.store(true, Ordering::SeqCst);
     {
         let reaper = svc.reap_abandoned();
         tokio::pin!(reaper);
         tokio::select! {_=&mut reaper=>panic!("reaper should block"),_=tokio::time::sleep(Duration::from_millis(10))=>{}}
     }
     assert_eq!(svc.abandoned_count(), 2);
-    svc.gamelift.hold_stop.store(false, Ordering::SeqCst);
+    svc.gamelift().hold_stop.store(false, Ordering::SeqCst);
     assert_eq!(svc.reap_abandoned().await, 2);
     assert_eq!(svc.abandoned_count(), 0);
 }
@@ -182,17 +182,17 @@ async fn failed_stop_and_termination_remain_retryable() {
         FakeDns::new(),
     );
     abandon(&svc, &req()).await;
-    svc.gamelift.stop_failures.store(1, Ordering::SeqCst);
+    svc.gamelift().stop_failures.store(1, Ordering::SeqCst);
     assert_eq!(svc.reap_abandoned().await, 0);
     assert_eq!(svc.abandoned_count(), 1);
     assert_eq!(svc.reap_abandoned().await, 1);
     let svc = PlacementService::new([1; 32], cfg(), Unreliable::new(fulfil()), FakeDns::new());
     abandon(&svc, &req()).await;
-    svc.gamelift.terminate_failures.store(1, Ordering::SeqCst);
+    svc.gamelift().terminate_failures.store(1, Ordering::SeqCst);
     assert_eq!(svc.reap_abandoned().await, 0);
     assert_eq!(svc.abandoned_count(), 1);
     assert_eq!(svc.reap_abandoned().await, 1);
-    assert_eq!(svc.gamelift.inner.terminated().len(), 1);
+    assert_eq!(svc.gamelift().inner.terminated().len(), 1);
 }
 #[tokio::test(start_paused = true)]
 async fn concurrent_retry_cannot_take_ownership_and_successful_retry_is_bound() {
@@ -213,11 +213,11 @@ async fn concurrent_retry_cannot_take_ownership_and_successful_retry_is_bound() 
         ));
         first.await.unwrap()
     };
-    let calls = svc.gamelift.calls();
+    let calls = svc.gamelift().calls();
     assert_eq!(svc.place(&r).await.unwrap(), offer);
-    assert_eq!(svc.gamelift.calls(), calls);
+    assert_eq!(svc.gamelift().calls(), calls);
     assert_eq!(svc.reap_abandoned().await, 0);
-    assert!(svc.gamelift.terminated().is_empty());
+    assert!(svc.gamelift().terminated().is_empty());
     let mut conflicting = r.clone();
     conflicting.party[0].callsign = "mallory".into();
     assert!(matches!(
@@ -226,7 +226,7 @@ async fn concurrent_retry_cannot_take_ownership_and_successful_retry_is_bound() 
     ));
     svc.cfg.queue_name = "different-queue".into();
     assert!(matches!(svc.place(&r).await, Err(PlaceError::Invalid(_))));
-    assert!(svc.gamelift.terminated().is_empty());
+    assert!(svc.gamelift().terminated().is_empty());
 }
 #[tokio::test(start_paused = true)]
 async fn foreign_backend_collision_returns_no_credentials_and_is_never_reaped() {
@@ -248,8 +248,8 @@ async fn foreign_backend_collision_returns_no_credentials_and_is_never_reaped() 
         PlaceError::RequestIdReused
     );
     assert_eq!(svc.reap_abandoned().await, 0);
-    assert!(svc.gamelift.terminated().is_empty());
-    assert!(svc.dns.records().is_empty());
+    assert!(svc.gamelift().terminated().is_empty());
+    assert!(svc.dns().records().is_empty());
 }
 
 #[tokio::test(start_paused = true)]
@@ -261,17 +261,18 @@ async fn canceled_start_ack_cannot_reap_another_services_accepted_offer() {
         FakeDns::new(),
     );
     let offer = old.place(&req()).await.unwrap();
+    let (old_gamelift, old_dns) = old.into_backends();
     let backend = Unreliable {
-        inner: old.gamelift,
+        inner: old_gamelift,
         ..Unreliable::new(fulfil())
     };
     backend.hold_start.store(true, Ordering::SeqCst);
-    let fresh = PlacementService::new([2; 32], cfg(), backend, old.dns);
+    let fresh = PlacementService::new([2; 32], cfg(), backend, old_dns);
     abandon(&fresh, &req()).await;
     assert_eq!(fresh.abandoned_count(), 1);
     assert_eq!(fresh.reap_abandoned().await, 1);
-    assert!(fresh.gamelift.inner.terminated().is_empty());
-    assert!(fresh.dns.records().contains_key(&offer.hostname));
+    assert!(fresh.gamelift().inner.terminated().is_empty());
+    assert!(fresh.dns().records().contains_key(&offer.hostname));
 }
 #[tokio::test(start_paused = true)]
 async fn new_service_cannot_attach_to_identical_request_with_old_owner() {
@@ -282,14 +283,15 @@ async fn new_service_cannot_attach_to_identical_request_with_old_owner() {
         FakeDns::new(),
     );
     let offer = old.place(&req()).await.unwrap();
-    let fresh = PlacementService::new([2; 32], cfg(), old.gamelift, old.dns);
+    let (old_gamelift, old_dns) = old.into_backends();
+    let fresh = PlacementService::new([2; 32], cfg(), old_gamelift, old_dns);
     assert_eq!(
         fresh.place(&req()).await.unwrap_err(),
         PlaceError::RequestIdReused
     );
     assert_eq!(fresh.reap_abandoned().await, 0);
-    assert!(fresh.gamelift.terminated().is_empty());
-    assert!(fresh.dns.records().contains_key(&offer.hostname));
+    assert!(fresh.gamelift().terminated().is_empty());
+    assert!(fresh.dns().records().contains_key(&offer.hostname));
 }
 #[tokio::test(start_paused = true)]
 async fn lost_start_response_reconciles_only_our_binding() {
@@ -299,7 +301,7 @@ async fn lost_start_response_reconciles_only_our_binding() {
     let offer = svc.place(&req()).await.unwrap();
     assert_eq!(offer.player_sessions[0].0, "alice");
     assert_eq!(svc.reap_abandoned().await, 0);
-    assert!(svc.gamelift.inner.terminated().is_empty());
+    assert!(svc.gamelift().inner.terminated().is_empty());
 }
 #[tokio::test(start_paused = true)]
 async fn canceled_owned_start_ack_still_reaps_the_created_host() {
@@ -308,7 +310,7 @@ async fn canceled_owned_start_ack_still_reaps_the_created_host() {
     let svc = PlacementService::new([1; 32], cfg(), backend, FakeDns::new());
     abandon(&svc, &req()).await;
     assert_eq!(svc.reap_abandoned().await, 1);
-    assert_eq!(svc.gamelift.inner.terminated().len(), 1);
+    assert_eq!(svc.gamelift().inner.terminated().len(), 1);
 }
 
 #[tokio::test(start_paused = true)]
@@ -322,18 +324,18 @@ async fn ledger_is_bounded_and_full_or_invalid_requests_make_no_external_call() 
     let mut invalid = req();
     invalid.request_id = "".into();
     assert!(svc.place(&invalid).await.is_err());
-    assert!(svc.gamelift.calls().is_empty());
+    assert!(svc.gamelift().calls().is_empty());
     for i in 0..4096 {
         let mut r = req();
         r.request_id = format!("bound{i:05}");
         assert!(svc.place(&r).await.is_err());
     }
-    let calls = svc.gamelift.calls();
+    let calls = svc.gamelift().calls();
     let mut extra = req();
     extra.request_id = "boundextra".into();
     assert!(matches!(
         svc.place(&extra).await,
         Err(PlaceError::ServiceUnavailable(_))
     ));
-    assert_eq!(svc.gamelift.calls(), calls);
+    assert_eq!(svc.gamelift().calls(), calls);
 }

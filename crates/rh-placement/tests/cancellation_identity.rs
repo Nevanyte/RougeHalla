@@ -105,19 +105,19 @@ async fn check(describe_receipt: bool, identity: Identity, status: PlacementStat
     let svc = PlacementService::new([7; 32], cfg, backend, FakeDns::new());
     let result = svc.place(&req).await;
     assert!(
-        svc.gamelift.after_stop.load(Ordering::SeqCst),
+        svc.gamelift().after_stop.load(Ordering::SeqCst),
         "control must reach cancellation"
     );
     if matches!(identity, Identity::Valid) {
         if status == PlacementStatus::Fulfilled {
             assert!(result.is_ok(), "{result:?}");
-            assert_eq!(svc.dns.records().len(), 1);
+            assert_eq!(svc.dns().records().len(), 1);
         } else {
             assert!(
                 matches!(result, Err(PlaceError::NoCapacity { .. })),
                 "{result:?}"
             );
-            assert!(svc.dns.records().is_empty());
+            assert!(svc.dns().records().is_empty());
         }
         assert_eq!(svc.abandoned_count(), 0);
     } else {
@@ -131,10 +131,10 @@ async fn check(describe_receipt: bool, identity: Identity, status: PlacementStat
             "unverified receipt cannot disarm owned work"
         );
         assert!(
-            svc.dns.log().is_empty(),
+            svc.dns().log().is_empty(),
             "unverified receipt cannot publish or delete DNS"
         );
-        assert!(svc.gamelift.inner.terminated().is_empty());
+        assert!(svc.gamelift().inner.terminated().is_empty());
     }
 }
 macro_rules! receipt_test {

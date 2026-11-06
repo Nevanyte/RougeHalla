@@ -1,0 +1,23 @@
+{
+  "kind": "compiled-runtime-selector",
+  "environment": {
+    "RH_PLACEMENT_MUTANT": "premature_completion"
+  },
+  "selectorImplementation": "crates/rh-placement/src/ledger/faults.rs",
+  "selectorImplementationSha256": "59c9a2ca9e9818db16b2774eb81be26508c70054ffbde46b2fc8e07e98f2c48b",
+  "compiledSites": [
+    {
+      "path": "crates/rh-placement/src/service/run.rs",
+      "sha256": "2ec7d9f6bc17a294a6c17dff728ed8bc6d9456c9384c1d34ec6d2c4f4ab3720e",
+      "line": 615,
+      "compiledSourceContext": "            attempts_used,\n        };\n        if mutant(Mutant::PrematureCompletion) {\n            // Negative control: the offer is committed before the DNS effect is confirmed.\n            self.state.attempts[idx].dns = DnsStep::Verified { host: host.clone() };\n            self.commit_offer(idx, &offer).await?;\n        }\n\n        let ttl = svc.cfg.policy.dns_ttl_s;\n        let mut ok = false;\n        for i in 0..3 {\n            // Persist each send separately. The prior send may still apply even if this\n            // retry succeeds, resolves, or is subsequently deleted.\n            let a = &mut self.state.attempts[idx];\n            a.dns = DnsStep::Intent { host: host.clone() };\n            a.dns_upsert = if a.dns_upsert == DnsUpsert::Idle {\n                DnsUpsert::InFlight"
+    },
+    {
+      "path": "crates/rh-placement/src/service/run.rs",
+      "sha256": "2ec7d9f6bc17a294a6c17dff728ed8bc6d9456c9384c1d34ec6d2c4f4ab3720e",
+      "line": 769,
+      "compiledSourceContext": "        }\n        self.intent(\"cleanup_intent\").await?;\n        if mutant(Mutant::PrematureCompletion) {\n            // Negative control: completion is recorded before the effects.\n            let a = &mut self.state.attempts[idx];\n            if let Some(h) = &host {\n                a.dns = DnsStep::Deleted { host: h.clone() };\n            }\n            a.terminate = TermStep::Done;\n            a.resolution = Resolution::CleanedUp;\n            self.commit(\"cleanup_done\", Phase::Active).await?;\n        }\n        if let Some(h) = &host {\n            if svc.bk_delete(h).await.is_err() {\n                return Ok(false);\n            }\n        }"
+    }
+  ],
+  "note": "Already compiled fault-injection implementation branch; activated by environment in a fresh process. No physical source patch was applied."
+}
