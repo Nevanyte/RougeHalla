@@ -26,12 +26,12 @@
     "packages/shared/src/plagueCorpses.ts": "cd85318857ba38853385c3ce9560b8674266b71b0b1555017953c7a41080378d",
     "packages/shared/src/schema.ts": "245486da649ea5bc5d8b9b0d5d75f3e860fc8f153574fa2b9ee091dcb52e99cb",
     "parity/legacy-capture/capture.ts": "2c75176549a914173ebf01d1480af53c1336bf8705d7d098e660455aa1622288",
-    "parity/legacy-capture/scenarios/plague_corpses.ts": "c25c5475b878f774a3611d952b545ba4034a802405c320281f9a15be6400019a",
+    "parity/legacy-capture/scenarios/plague_corpses.ts": "332da5b6e0a2c224da8e244cbf8d43d4c726f8387ebf9ecbe58943eda4b94d03",
     "parity/legacy-capture/scenarios/types.ts": "793b14642a03c303eb3015ccccd39cc1347d3a517fb38e69aa11dc08dc7edaf9"
   },
   "fixtures": {
     "corpse_death_auto_raise.json": "3744205b59edb789f97753838fd6c100699e677166a1cef0a54a91ddac0ed4f5",
     "corpse_marker_persists_and_explicit_consume.json": "4ccc173a967b4677ab9154791d1cfb979c194948abc3477a7f6b4dbe188a5146",
-    "corpse_zombie_assists_owner_target.json": "74406c24748902edb6722a9d1bbe300968e9c9da33e66e15a21dcfd68d6495cc"
+    "corpse_zombie_assists_owner_target.json": "f3f15427d82f925a78e7d8998ab3f773c4cba2360bb5a0d639d82bb09862e0f7"
   }
 }

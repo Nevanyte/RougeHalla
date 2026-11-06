@@ -38,6 +38,10 @@ pub(crate) fn damage(
         if p.vitals.faction != FactionId::Plague {
             continue;
         }
+        // A companion is a Plague combatant, not a Plague champion: only champions run the faction signature.
+        if w.mobs.get(p.id).is_some_and(|m| m.zombie.is_some()) {
+            continue;
+        }
         let t = w.core(ti);
         let weapon = p.active_weapon();
         let id = p.id;

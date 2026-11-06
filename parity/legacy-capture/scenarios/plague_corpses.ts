@@ -72,7 +72,6 @@ export const scenarios: Scenario[] = [
       "corpse_zombie_assists_owner_target",
       "A sword kill raises the zombie; the owner strikes a fresh target and the zombie follows and attacks it.",
     ),
-    parity: "capture-only",
     players: [
       { id: "p0", faction: "plague", at: { x: 400, y: 320 }, hp: 1000, weapon0: "sword" },
       { id: "p1", faction: "holy", at: { x: 410, y: 320 }, hp: 1, weapon0: "sword" },
