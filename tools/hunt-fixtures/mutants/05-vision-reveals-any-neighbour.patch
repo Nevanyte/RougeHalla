@@ -4,7 +4,7 @@
  pub(crate) fn sees_target(viewer: &Player, target: &Player) -> bool {
      viewer.standing()
          && viewer.vitals.faction == FactionId::Sentenced
--        && viewer.hunt_target == Some(target.id)
+-        && viewer.hunt_target() == Some(target.id)
          && target.status == Status::Alive
  }
  

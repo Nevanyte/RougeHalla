@@ -16,6 +16,8 @@ Base: `856618eb948555adefc6ff0bf4628d879d556250` (`origin/optimization_port`, 20
 - `cargo test -p rh-sim --test no_alloc -- --nocapture` — zero allocations per warmed step.
 - `cargo test -p rh-sim --test hash_coverage` — all six tests pass; every serialized leaf perturbs the state hash.
 - `cargo test --workspace --all-features --locked` (with the throwaway PostgreSQL cluster) — 1,391 passed, 0 failed, 2 ignored.
+- `cargo test -p rh-sim --test hash_coverage` after the compact state change — all six tests pass (every leaf hashed or exactly validated).
+- `tools/hunt-fixtures/run-mutants.sh` after the compact state change — 6/6 killed again.
 - `cargo clippy --workspace --all-targets --all-features -- -D warnings` and the default-feature mode — both clean.
 - `cargo run -p rh-parity --bin parity-report` — 103 slice scenarios + 13 capture-only, 300 pathfinding queries: all MATCH.
 - `tools/hunt-fixtures/run-mutants.sh` — 6/6 mutants killed by semantic test failures, tree restored after each.
@@ -26,6 +28,8 @@ Base: `856618eb948555adefc6ff0bf4628d879d556250` (`origin/optimization_port`, 20
 - `python3 tools/perfproof/perfproof.py --self-test` — 13 cases pass. A declared `stateHashFold`/`finalStateHash`
   change now selects the existing `--rerecord` path, so baseline and candidate each verify their own replay while the
   recorded inputs and the declared state-hash fingerprints are still compared.
+- GitHub CI: legacy recapture, C# and **Perf gate pass** on `7d48bb15`/later tooling heads; Rust foundation and Native
+  determinism were still running at the last check. `git diff --stat 856618eb -- packages` is empty.
 - Captures: pinned Linux x64 Node `v22.23.4` (`node:22.23.4-bookworm-slim`), `npm ci --ignore-scripts` inside the container, `node --import tsx parity/legacy-capture/capture.ts --out parity/fixtures --only <scenario>`.
 
 ## Open owner questions / coordinator notes

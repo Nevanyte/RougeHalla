@@ -8,6 +8,6 @@
 -        && hx.w.players[vi].status == Status::Dead
 -        && hx.w.phase == Phase::Active;
 +    let real_death = cause == OutCause::Down || hx.w.phase == Phase::Active;
-     hx.w.players[vi].hunt_target = None;
+     hx.w.players[vi].set_hunt_target(None);
      for hi in 0..hx.w.players.len() {
-         if hx.w.players[hi].hunt_target != Some(id) {
+         if hx.w.players[hi].hunt_target() != Some(id) {

@@ -7,7 +7,7 @@
 -        return;
 -    }
 -    if hunter
--        .hunt_target
+-        .hunt_target()
 -        .and_then(|current| cx.w.player(current))
 -        .is_some_and(|current| current.standing())
 -    {
