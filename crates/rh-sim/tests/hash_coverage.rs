@@ -806,6 +806,11 @@ fn candidates(leaf: &Value, strings: &[String]) -> Vec<Value> {
 
 /// Patterns whose perturbation the restore may refuse, and why. Any other refusal fails the test.
 const VALIDATED: &[(&str, &str)] = &[
+    // A Sentenced target is a living other player or the 0 sentinel; a raw id that names self or a
+    // non-player is refused by the checkpoint validator rather than hashed.
+    ("world.players.*.hunt_target", "hunt target is 0 or a living other player's id"),
+    ("world.players.*.hunt_stacks", "completed hunts cannot exceed the number of players who ever joined"),
+
     // Full Wish producer tuples are coupled. Accepted edits still always have to change the hash.
     ("world.abilities.fields.*.owner.owner_id", "ordinary player Wish fields have no secondary/summoner owner; Full producer source requires None"),
     ("world.players.*.core.statuses.instances.*.data.shares.phys", "Full Blaze Dot payload is the exact pure true-damage shares tuple"),
