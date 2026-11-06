@@ -30,8 +30,8 @@ The owner explicitly confirmed **continue this same goal through the full origin
 milestone. Earlier MVP deferrals are sequencing decisions, not removed requirements. The complete Rust game/parity/
 headless foundation again leads the next implementation work; Unity rules remain prohibited. The
 [requirements audit](evidence/stage2-scope-audit/README.md) records42 requirements and the original five completion gates,
-all still partial at full-port scope. The bounded Calgary run still cleans up at13:00UTC; continuation does not enlarge
-CAD20 total or authorize a Paid-plan upgrade/production rollout.
+all still partial at full-port scope. The bounded Calgary run was cleaned up and verified at13:03:33UTC after the
+scheduled13:00 DNS removal; continuation does not enlarge CAD20 total or authorize a Paid-plan upgrade/production rollout.
 
 The bounded P-TERRAIN-1 native kernel is integrated after independent review: ember, bog, ice and light use the ordinary
 Rust movement/ledger/heal paths, with private clocks/statistics, source hook resets and restored path-array identity.
@@ -92,7 +92,7 @@ normal browser CPU submission/GPU medians1.70/0.206ms, and native Sim-only means
 deterministic trials. Browser/display pacing and experimental uncapped callbacks are reported separately in
 [the performance record](evidence/first-playable-performance/README.md). These are not a full-game legacy speedup claim.
 
-**Calgary staging is live and functionally verified at [rougehalla.com](https://rougehalla.com/).** The actual Unity
+**Calgary staging was functionally verified at [rougehalla.com](https://rougehalla.com/); the temporary run is now removed.** The actual Unity
 browser passes the full MVP loop over publicly trusted HTTPS/WSS in `ca-west-1a`, including a chest choice, results,
 reconnect and rejoin, with zero page/decoder errors. This uses the reviewed temporary small-host exception in ADR0020;
 GameLift/provider/scale and durable progression remain separate. AWS Core still refuses authentication; the approved
@@ -110,13 +110,17 @@ A bounded follow-up fixes the reusable browser proof’s false-green risk: all15
 coverage; missing/unexercised reports exit2/INCOMPLETE and observed errors exit1/FAIL. The actual saved local/Calgary
 proofs remain complete;58 focused coverage-contract checks pass through a lightweight Node CI job. No game rules changed.
 An [offline loading improvement](evidence/first-playable-web-compression/README.md) adds lossless data sidecars and correct
-MIME/health routing for the next bundle: actual local transfer saves7.409MB, with identical decoded bytes. The live
-playtest and24.5s baseline are unchanged; the projected7.4s wire saving still needs future public-load measurement.
+MIME/health routing for the next bundle: actual local transfer saves7.409MB, with identical decoded bytes. The measured
+playtest payload and24.5s baseline are unchanged; the projected7.4s wire saving still needs future public-load measurement.
 
-**Remaining first-release gate: finish the bounded playtest and verify cleanup.** The owner can test until06:00 Edmonton
-on2026-11-06; the cleanup coordinator is assigned for13:00UTC, before the guest’s13:34UTC fallback and the Rust admission
-cutoff. Cleanup is pending, not passed. CAD20 total remains the cap. Final matched full-port performance and the original
-broader backlog remain open; this checkpoint does not declare the whole port done.
+**The playable-core staging milestone, including cleanup, is complete.** The owner playtest ended at06:00 Edmonton
+on2026-11-06. The coordinator removed the exact marked practice DNS record at the scheduled13:00UTC; after its full60s
+TTL window, the cleanup helper deleted the owned stack and artifact bucket. Independent API/DNS checks completed at
+13:03:33UTC: instance terminated, root volume/stack/bucket/VPC absent, no owned ENI/IP allocation and both authoritative
+nameservers return no practice address. [Cleanup evidence](evidence/first-playable-calgary/cleanup.json) pins the checked
+report. Production was untouched; posted billing remains unverified, so no zero-bill claim is made. CAD20 total remains
+the cap. The same goal continues through the full original port; broader gameplay/client/regional/state/performance
+gates remain open. Caffeinate remains active for ongoing development.
 
 ### Current architecture, before Stage 2 changes
 
@@ -136,9 +140,9 @@ broader backlog remain open; this checkpoint does not declare the whole port don
 - The owner created and signed in to a new AWS staging account after old-account MFA blocked access; CLI identity is verified.
   The new account replaces the previous target; the total authorized staging spend is **CAD 20**, not a monthly target.
   Cloud resources must be planned against the remaining total with cleanup; the old experiment's USD 150 ceiling is not
-  authorized. One reviewed Calgary playtest run is active; its owned resources and cleanup deadline are recorded above.
-- Practice domain: **`rougehalla.com`**. Cloudflare dashboard sign-in is verified. Its previously empty zone now has one marked
-  DNS-only A record for this Calgary playtest at TTL60. The dashboard is used because the saved tool OAuth scope refuses DNS requests. Production **`play.roguehalla.com`** must remain unchanged; production
+  authorized. The reviewed Calgary playtest run is now removed; its verified cleanup is recorded above.
+- Practice domain: **`rougehalla.com`**. Cloudflare dashboard sign-in is verified. The one marked TTL60 playtest A record
+  has been removed, restoring the previously empty zone. The dashboard was used because the saved tool OAuth scope refuses DNS requests. Production **`play.roguehalla.com`** must remain unchanged; production
   cutover requires later owner authorization.
 - Unity Personal sign-in/license and Web module are available. The project now pins Unity `6000.0.85f2` (revision
   `b028303d8e7d`), with a resolved package lock and URP 17.0.4. Both the first protocol-4 bootstrap and the rebuilt

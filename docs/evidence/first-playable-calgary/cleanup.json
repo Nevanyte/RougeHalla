@@ -1,0 +1,111 @@
+{
+  "format": "rh-staging-cleanup/1",
+  "run_id": "20261106t090412z-18737d",
+  "region": "ca-west-1",
+  "cleanup_started_at_utc": "2026-11-06T13:01:44.639292+00:00",
+  "completed_at_utc": "2026-11-06T13:03:33.329114+00:00",
+  "private_report_sha256": "5367931916955b4795ea2350e242ee574247551fd6d44a99135e65d44e11faba",
+  "private_evidence_digests_verified": true,
+  "dns": {
+    "root_confirmed_disappearance_observed_no_later_than_utc": "2026-11-06T13:00:31Z",
+    "earliest_aws_cleanup_utc": "2026-11-06T13:01:31Z",
+    "confirmation": "Root used existing signed-in Cloudflare dashboard; exact owned A record removed; practice zone visibly showed No DNS records.",
+    "removed_record": {
+      "zone": "rougehalla.com",
+      "type": "A",
+      "content": "56.112.101.45",
+      "ttl": 60,
+      "comment": "Roguehalla temporary staging 20261106t090412z-18737d; expires 2026-11-06 13:34 UTC"
+    },
+    "production_untouched": true
+  },
+  "authoritative_dns": {
+    "checked_at_utc": "2026-11-06T13:02:21.465Z",
+    "zone": "rougehalla.com",
+    "authoritative": [
+      {
+        "ns": "cruz.ns.cloudflare.com",
+        "server": "173.245.58.88",
+        "A": {
+          "values": [],
+          "error": "ENODATA"
+        },
+        "AAAA": {
+          "values": [],
+          "error": "ENODATA"
+        },
+        "CNAME": {
+          "values": [],
+          "error": "ENODATA"
+        }
+      },
+      {
+        "ns": "leif.ns.cloudflare.com",
+        "server": "108.162.195.222",
+        "A": {
+          "values": [],
+          "error": "ENODATA"
+        },
+        "AAAA": {
+          "values": [],
+          "error": "ENODATA"
+        },
+        "CNAME": {
+          "values": [],
+          "error": "ENODATA"
+        }
+      }
+    ],
+    "practice_address_absent": true
+  },
+  "helper_exit_code": 0,
+  "resources": {
+    "instance": {
+      "operation": "ec2:describe-instances",
+      "checked_at_utc": "2026-11-06T13:03:33.176101+00:00",
+      "passed": true
+    },
+    "volume": {
+      "operation": "ec2:describe-volumes",
+      "checked_at_utc": "2026-11-06T13:03:33.328757+00:00",
+      "passed": true,
+      "expected_absence_error": "InvalidVolume.NotFound"
+    },
+    "stack": {
+      "operation": "cloudformation:describe-stacks",
+      "checked_at_utc": "2026-11-06T13:03:33.064944+00:00",
+      "passed": true,
+      "expected_absence_error": "does not exist"
+    },
+    "bucket": {
+      "operation": "s3api:get-bucket-location",
+      "checked_at_utc": "2026-11-06T13:03:33.064550+00:00",
+      "passed": true,
+      "expected_absence_error": "NoSuchBucket"
+    },
+    "network_interfaces": {
+      "operation": "ec2:describe-network-interfaces",
+      "checked_at_utc": "2026-11-06T13:03:33.163001+00:00",
+      "passed": true
+    },
+    "addresses": {
+      "operation": "ec2:describe-addresses",
+      "checked_at_utc": "2026-11-06T13:03:33.168066+00:00",
+      "passed": true
+    },
+    "vpc": {
+      "operation": "ec2:describe-vpcs",
+      "checked_at_utc": "2026-11-06T13:03:33.155017+00:00",
+      "passed": true,
+      "expected_absence_error": "InvalidVpcID.NotFound"
+    }
+  },
+  "instance_state": "terminated",
+  "instance_public_ip": null,
+  "instance_block_devices": [],
+  "owned_network_interface_count": 0,
+  "address_allocation_count": 0,
+  "all_cleanup_verified": true,
+  "production_touched": false,
+  "billing_coverage": "No posted-bill or zero-cost claim; Cost Explorer was not enabled. Resource removal is verified independently."
+}

@@ -10,7 +10,9 @@ The frozen corpus SHA256 is `8629c08fa42ac9fb15b21c52416658997c7d8969a6962cf59b7
 The proposal manifest SHA256 is `439a6829ca7db1f7c6449151326f80ad5143771f61cdb42144acfb172388d036`;
 the accepted review SHA256 is `8056a5fe2814a75b1eb1928c6f93b65740df18ccc082aba5caf592ef84e0db33`.
 [Coordinator integrity checks](integration.json) retain the actual integrated file digests and the sole README overlay.
-CI now runs `bash tools/ability-fixtures/capture.sh --check`; a future CI result is separate from these observed checks.
+CI now runs `bash tools/ability-fixtures/capture.sh --check`.
+[Run42222451955](https://github.com/Nevanyte/RougeHalla/actions/runs/42222451955) is in progress at `d3418f17`;
+its eventual result is separate from the observed checks above.
 
 The coordinator corrected one accepted documentation finding: zero-time cast-hook and due-batch snapshots are
 transient assertions, not ordinary checkpoint boundaries. Corpus/harness bytes remain frozen. The packet also preserves

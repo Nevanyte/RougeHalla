@@ -5,6 +5,9 @@ The actual Unity Web player completed the MVP loop at **https://rougehalla.com/*
 [ADR0020](../../adr/0020-temporary-single-host-staging.md), not managed GameLift, durable progression, scale proof or
 production rollout. All implementation remains on `optimization_port`; `play.roguehalla.com` was not changed.
 
+**The bounded playtest has ended and its practice deployment is removed.** [Cleanup](cleanup.json) passes at
+2026-11-06 13:03:33UTC /06:03:33 Edmonton. This page retains historical deployment evidence.
+
 ## Actual public browser proof
 
 A bare HTTPS visit uses the packaged same-origin WSS default and waits at the menu. Chromium then drives the actual
@@ -42,7 +45,12 @@ created stacks still require their own tag. [Failure probes](ownership-probes.js
 The original authorization remains **CAD20 total**; this run reserves CAD10 including margin and does not expand the
 limit because credits exist. Fixed expiry is **2026-11-06 13:34:12UTC**. Cleanup is assigned for **13:00UTC /06:00Edmonton**,
 before the Rust admission cutoff and host fallback. The operator removes only the marked practice DNS record, lets its
-TTL expire, then deletes the exact owned stack/bucket and verifies volume/IP cleanup. **Cleanup is pending, not passed.**
+TTL expire, then deletes the exact owned stack/bucket and verifies volume/IP cleanup. **Cleanup is now verified.**
+The exact marked DNS record disappeared by13:00:31UTC; AWS deletion began13:01:44UTC after the full60s window.
+Independent checks completed13:03:33UTC: instance terminated with no public IP/block devices; root volume, stack,
+artifact bucket and VPC absent; no owned ENIs/address allocation. Both authoritative Cloudflare nameservers return
+no A/AAAA/CNAME for the practice apex. The coordinator verified all four private cleanup evidence digests and
+published the [sanitized result](cleanup.json). Production remained untouched.
 The release object was deleted after successful bootstrap, revoking the presigned download; no permanent key or instance
 IAM role was installed. The empty artifact bucket is included in cleanup.
 

@@ -26,12 +26,13 @@ checks. See the concrete finish line in [MIGRATION](../MIGRATION.md#first-playab
 
 **Full-port continuation (owner2026-11-06):** continue this goal beyond the playable-core milestone. Deferred content,
 complete browser/account flows, durable cloud progression and regional scaling remain required later work. Rust
-gameplay/parity/headless lead; the existing Calgary cleanup deadline and CAD20 total are unchanged.
+gameplay/parity/headless lead; CAD20 total remains unchanged. The bounded Calgary run is now removed after verified cleanup.
 
 **Current MVP gate:** the local and public Calgary Unity loop now passes, including loot/chest choice, results and
 reconnect; [cloud evidence](../evidence/first-playable-calgary/README.md) records the temporary single-host deployment.
-The bounded owner playtest and verified cleanup remain; managed GameLift, persistent progression, full browser/content
-coverage and matched legacy performance remain later gates.
+The bounded owner playtest and verified cleanup are complete at13:03:33UTC on2026-11-06. The practice deployment is
+removed. Managed GameLift, persistent progression, full browser/content coverage and matched legacy performance remain
+required full-port gates.
 
 **First Claude handoff integrated (owner request 2026-11-05).** PR25–27 from
 [P-CLAUDE-INFRA-1](packets/P-CLAUDE-INFRA-1.md) are integrated with coordinator repairs; the broad reservation is closed.
