@@ -23,6 +23,7 @@ pub struct PlayerId(pub u32);
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum Phase {
     Lobby,
+    Planning,
     Active,
     Ended,
 }
@@ -435,6 +436,8 @@ pub struct WeaponRt {
     pub aim: f64,
     pub aim_at: f64,
     pub lag_ms: f64,
+    /// Source weapon.lastShotAt; None represents its initial -Infinity.
+    pub last_shot_at: Option<f64>,
 }
 
 impl Default for WeaponRt {
@@ -455,6 +458,7 @@ impl Default for WeaponRt {
             aim: 0.0,
             aim_at: 0.0,
             lag_ms: 0.0,
+            last_shot_at: None,
         }
     }
 }
@@ -476,6 +480,7 @@ impl WeaponRt {
 /// player is borrowed at the same time. `status`, `down` and `resolved` are the run bookkeeping the settle owns.
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Player {
+    pub plan_ready: bool,
     pub build: crate::cards::Build,
     pub potion_small: u8,
     pub(crate) healing_until: f64,
@@ -579,6 +584,7 @@ impl Player {
             status: Status::Lobby,
             down: None,
             resolved: false,
+            plan_ready: false,
         }
     }
 
@@ -598,6 +604,10 @@ impl Player {
 /// The arena's run bookkeeping that outlives a tick (legacy `world.arena`).
 #[derive(Clone, Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
 pub(crate) struct ArenaRt {
+    pub(crate) voided: bool,
+    pub(crate) patience_ends_at: Option<f64>,
+    pub(crate) in_coliseum: bool,
+    pub(crate) sudden_death_at: f64,
     /// Internal arena ownership seam; no public command can set this.
     pub(crate) gates_locked: bool,
     pub(crate) started_with: u32,
@@ -660,6 +670,8 @@ impl Projectile {
 /// [`crate::scratch::TickScratch`] instead.
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub(crate) struct World {
+    pub(crate) planning: Option<crate::systems::planning::Runtime>,
+    pub(crate) plan_ends_at: f64,
     pub(crate) terrain: crate::terrain::Runtime,
     pub(crate) reward_chests: Vec<crate::reward_chests::Chest>,
     pub(crate) factions: crate::factions::FactionRuntime,
@@ -926,6 +938,8 @@ impl World {
 
     pub(crate) fn new(secrets: &Secrets) -> Self {
         Self {
+            planning: None,
+            plan_ends_at: 0.,
             reward_chests: Vec::new(),
             terrain: Default::default(),
             factions: Default::default(),

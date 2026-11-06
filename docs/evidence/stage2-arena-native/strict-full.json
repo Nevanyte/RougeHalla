@@ -1,0 +1,48 @@
+[
+  {
+    "gate": "arena",
+    "environment": {
+      "RH_ARENA_REQUIRE_FULL": "1"
+    },
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "-p",
+      "rh-sim",
+      "--all-features",
+      "--lib",
+      "systems::planning::source_tests::arena_capture_inventory_has_one_explicit_full_wish_dependency",
+      "--",
+      "--exact",
+      "--nocapture"
+    ],
+    "exit_code": 101,
+    "status": "INCOMPLETE",
+    "log_sha256": "1b2566d95878afa53bd70e62f575910f09fc66d0777be75545213c7388182cf4",
+    "failure": "unconsumed declared ability/helper setup"
+  },
+  {
+    "gate": "terrain",
+    "environment": {
+      "RH_TERRAIN_REQUIRE_FULL": "1"
+    },
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "-p",
+      "rh-sim",
+      "--all-features",
+      "--lib",
+      "systems::terrain::born_tests::terrain_born_kernel_twenty_complete_one_reward_gap",
+      "--",
+      "--exact",
+      "--nocapture"
+    ],
+    "exit_code": 101,
+    "status": "INCOMPLETE",
+    "log_sha256": "8eb9ca64a418de78c7b1a5be0eec25d66451a8b474583e36c736addd98196f84",
+    "failure": "born-plague-ember-real-attack-credit/3/containers/c4/options/1: native slowBurn versus source tankEngine"
+  }
+]

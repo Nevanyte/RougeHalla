@@ -1193,6 +1193,9 @@ fn content_hash_of_definitions(
 
     h.str("status-runtime/1");
     crate::terrain::visit_content(|word| h.u64(word));
+    crate::systems::arena_rules::visit_content(|word| h.u64(word));
+    h.str("arena-collision-vision/1");
+    crate::collision::visit_content(|word| h.u64(word));
     fold_status_content(&mut h, runtime_words.status);
     fold_status_stream(
         &mut h,

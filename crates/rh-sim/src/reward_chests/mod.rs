@@ -160,11 +160,16 @@ pub(crate) fn grant_boost(k: &MatchStatic, w: &mut World, id: PlayerId, boost: B
     crate::modifiers::sync_max_hp(&mut w.players[i]);
     true
 }
-fn reach(k: &MatchStatic, from: Vec2, at: Vec2) -> Result<(), Refusal> {
+fn reach(k: &MatchStatic, locked: bool, from: Vec2, at: Vec2) -> Result<(), Refusal> {
     if crate::math::hypot(from.x - at.x, from.y - at.y) > DEFINITION.range {
         return Err(Refusal::Far);
     }
-    if !crate::geometry::has_line_of_sight(&k.arena.map, from, at, crate::constants::MASK_SIGHT) {
+    if !crate::geometry::has_line_of_sight(
+        k.collision_map(locked),
+        from,
+        at,
+        crate::constants::MASK_SIGHT,
+    ) {
         return Err(Refusal::Blocked);
     }
     Ok(())
@@ -193,7 +198,7 @@ pub(crate) fn choose(
     if c.owner.is_some_and(|owner| owner != who) {
         return Err(Refusal::NotYours);
     }
-    reach(k, w.players[pi].pos(), c.at)?;
+    reach(k, w.rt.gates_locked, w.players[pi].pos(), c.at)?;
     if c.pickers.contains(&who) {
         return Err(Refusal::Picked);
     }

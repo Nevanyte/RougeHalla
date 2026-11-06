@@ -183,7 +183,7 @@ impl ItemObserver {
         };
         self.vision.begin(sim, me, self.sampled.is_some());
         let from = me.pos();
-        let map = &sim.arena().map;
+        let map = sim.collision_view();
         let mut best: Option<(usize, f64, Option<WeaponId>)> = None;
         for c in sim.containers() {
             if !self.vision.sees(map, me, c.at, sim.tick()) {
@@ -221,7 +221,7 @@ impl ItemObserver {
                 body_hint: None,
             };
             // Birth is a private execution guard. The legacy F prompt uses present contents and reach.
-            if me.standing() && !c.items.is_empty() && pickup_reach(map, from, c.at).is_ok() {
+            if me.standing() && !c.items.is_empty() && pickup_reach(&map, from, c.at).is_ok() {
                 let dx = from.x - f64::from(cue.x) / 8.0;
                 let dy = from.y - f64::from(cue.y) / 8.0;
                 let distance = dx * dx + dy * dy;
@@ -368,14 +368,14 @@ impl ItemObserver {
             let visible = id.filter(|&id| {
                 sim.player(self.viewer).is_some_and(|me| {
                     sim.player(id).is_some_and(|p| {
-                        crate::vision::actor_visible(&sim.arena().map, me, p, sim.tick())
+                        crate::vision::actor_visible(sim.collision_view(), me, p, sim.tick())
                     }) || sim
                         .mobs()
                         .iter()
                         .find(|m| m.core.id == id)
                         .is_some_and(|m| {
                             crate::vision::point_visible(
-                                &sim.arena().map,
+                                sim.collision_view(),
                                 me,
                                 m.core.pos(),
                                 sim.tick(),
@@ -405,7 +405,7 @@ impl ItemObserver {
                 let me = sim.player(self.viewer)?;
                 let i = sim.containers().binary_search_by_key(&id, |c| c.id).ok()?;
                 crate::vision::point_visible(
-                    &sim.arena().map,
+                    sim.collision_view(),
                     me,
                     sim.containers()[i].at,
                     sim.tick(),
@@ -416,14 +416,19 @@ impl ItemObserver {
                 self.actors.binary_search(&actor).is_ok()
                     && sim.player(self.viewer).is_some_and(|me| {
                         sim.player(actor).is_some_and(|other| {
-                            crate::vision::actor_visible(&sim.arena().map, me, other, sim.tick())
+                            crate::vision::actor_visible(
+                                sim.collision_view(),
+                                me,
+                                other,
+                                sim.tick(),
+                            )
                         }) || sim
                             .mobs()
                             .iter()
                             .find(|m| m.core.id == actor)
                             .is_some_and(|m| {
                                 crate::vision::point_visible(
-                                    &sim.arena().map,
+                                    sim.collision_view(),
                                     me,
                                     m.core.pos(),
                                     sim.tick(),

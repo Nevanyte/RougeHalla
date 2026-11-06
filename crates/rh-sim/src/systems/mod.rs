@@ -77,6 +77,7 @@ pub(crate) fn step(cx: &mut Cx) {
     cx.s.performed_bounded = true;
     match cx.w.phase {
         Phase::Lobby => lobby::update(cx),
+        Phase::Planning => planning::update(cx),
         Phase::Active => update_active(cx),
         Phase::Ended => inputs::drain_all(cx),
     }
@@ -97,3 +98,8 @@ pub(crate) mod mob_ai;
 pub(crate) mod mob_life;
 
 pub(crate) mod mob_checkpoint;
+
+pub(crate) mod arena_rules;
+pub(crate) mod arena_validation;
+pub(crate) mod coliseum;
+pub(crate) mod planning;

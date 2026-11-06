@@ -26,13 +26,24 @@ pub(crate) fn update(cx: &mut Cx) {
             .min(w.server_time + k.config.fill_seconds * 1000.0);
     }
     if humans >= MAX_PLAYERS || w.server_time >= w.lobby_ends_at {
-        start_raid(k, w, s, ev);
+        if super::planning::enabled(k) {
+            super::planning::start(k, w, ev);
+        } else {
+            start_raid(k, w, s, ev, &[]);
+        }
     }
 }
 
-fn start_raid(k: &MatchStatic, w: &mut World, s: &mut TickScratch, ev: &mut Vec<Event>) {
+pub(super) fn start_raid(
+    k: &MatchStatic,
+    w: &mut World,
+    s: &mut TickScratch,
+    ev: &mut Vec<Event>,
+    placed: &[(crate::PlayerId, crate::Vec2)],
+) {
     w.phase = Phase::Active;
     w.raid_started_at = w.server_time;
+    w.plan_ends_at = 0.;
     let mut spawns = k.arena.spawns.clone();
     let mut i = spawns.len();
     while i > 1 {
@@ -42,13 +53,20 @@ fn start_raid(k: &MatchStatic, w: &mut World, s: &mut TickScratch, ev: &mut Vec<
         spawns.swap(i, j);
     }
     let now = w.server_time;
-    for (k, p) in w.players.iter_mut().enumerate() {
-        if !spawns.is_empty() {
-            let s = spawns[k % spawns.len()];
+    let mut fallback = 0;
+    for p in w.players.iter_mut() {
+        if let Some((_, at)) = placed.iter().find(|(id, _)| *id == p.id) {
+            p.body.x = at.x;
+            p.body.y = at.y;
+        } else if !spawns.is_empty() {
+            let s = spawns[fallback % spawns.len()];
+            fallback += 1;
             p.body.x = s.x;
             p.body.y = s.y;
         }
         p.status = Status::Alive;
+        p.motion.path.clear();
+        p.motion.slip = None;
         p.inputs.clear();
         let (x, y) = (p.body.x, p.body.y);
         p.body.history.reset(Sample { t: now, x, y });
@@ -56,8 +74,7 @@ fn start_raid(k: &MatchStatic, w: &mut World, s: &mut TickScratch, ev: &mut Vec<
         p.weapon.ready_at = 0.0;
         p.weapon.draw_started_at = 0.0;
     }
-    w.rt.started_with = w.players.len() as u32;
-    w.rt.started_humans = w.players.iter().filter(|p| !p.seat.bot).count();
+    super::arena_rules::begin_run(k, w);
     s.downed_this_tick.clear();
     w.rt.downs_between_ticks = 0;
     w.winner = None;

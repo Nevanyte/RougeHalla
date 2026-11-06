@@ -24,6 +24,15 @@ modes and formatting. Its191 unchanged map-generator unit tests were checked by 
 [CI42214298734](https://github.com/Nevanyte/RougeHalla/actions/runs/42214298734), which passes at `0b525260` with
 Rust/C#/WSS and source checks. Full-game, AWS, browser-matrix and release gates remain open.
 
+- C-TICK/C-DET/C-PARITY/C-OBS bounded arena addendum: real Source planning/deals, teleport/gates, patience/sudden death,
+  private retained planning state and historical collision/vision are integrated after independent review. Source order,
+  constructor/deal/teleport RNG, removed-player callbacks and zero/fractional/death-shortened timer restoration are checked.
+  Native owner facts reach headless/policy. Protocol6 explicitly refuses Source hosting/publication before simulation or
+  offered handles; Planning is never mapped to Lobby. The coordinator's1,163 distinct native tests, both strict workspace
+  Clippy modes and formatting pass;191 unchanged map-generator unit tests await the new full CI. Full Wish/refund,
+  card reset hooks, public wire/client and durable shutdown/MIA remain incomplete. Strict arena and terrain completion
+  diagnostics retain their real failures. See [arena evidence](evidence/stage2-arena-native/README.md).
+
 - C-TICK/C-DET/C-PARITY terrain-kernel addendum: source ember/bog/ice/light now run in their original schedule/hook
   slots. Logical path points plus replacement generation preserve source array identity across restore; internal ice
   replans reuse buffers without replacing that identity. Restore enforces a tick-derived generation ceiling, complete
@@ -59,9 +68,9 @@ Rust/C#/WSS and source checks. Full-game, AWS, browser-matrix and release gates 
 - C-INPUT/C-PARITY: weapon inputs use the existing validation/action budget. The harness now compares real admission
   outcomes, rejects unconsumed or unordered records, and checks requirements only for replayed records. 97 compared
   scenarios and 300 path queries MATCH; 13 scenarios are explicitly capture-only. Exact recapture runs Linux x64 Node 22.23.4.
-- C-DET/C-NUM: checkpoint format is `rh-checkpoint/17`, replay `rh-replay/15`, observation version13/policy10; content identity
-  `cb27362236f2d3c2`. Current hash audit covers44,690 leaves with zero unhashed;37 optional patterns have actual Some
-  values and30 exact optional patterns are documented restore refusals. Projectile state is hashed/restored, invalid packet/identity headroom is refused, and the six earlier
+- C-DET/C-NUM: checkpoint format is `rh-checkpoint/18`, replay `rh-replay/16`, observation version14/policy11; content identity
+  `57b3428f8b41ebf7`. Current global/optional hash-coverage tests pass with zero unhashed; the preceding terrain audit
+  counted44,690 leaves,37 actual-Some optional patterns and30 exact restore-validated optional patterns. Projectile state is hashed/restored, invalid packet/identity headroom is refused, and the six earlier
   flight fixtures allocate zero over 336 measured steady steps. Fixed map geometry uses one definition folded into the
   content identity; all 76 recaptured files and all seven map oracles agree on Linux x64 Node 22.23.4. Full admitted gameplay
   layers participate in static hashing and checkpoint validation. Captured legacy map hashes remain unverified metadata at structural import; the separate exact source hash now

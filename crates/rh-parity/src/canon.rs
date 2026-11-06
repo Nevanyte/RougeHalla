@@ -147,7 +147,13 @@ pub(crate) fn canon(e: &Event, sim: &Sim) -> Option<Value> {
         Event::AttackCancelled { id } => json!({"kind":"cancel","id":fid(*id)}),
         Event::Stagger { id } => json!({"kind": "stagger", "id": fid(*id)}),
         Event::RaidStarted => json!({"kind": "raidStarted"}),
-        Event::Gv { .. } | Event::Resolved { .. } => return None,
+        // The legacy scenario projection excludes arena lifecycle events. The dedicated arena
+        // oracle compares these facts against its exercised Source captures.
+        Event::PlanningStarted
+        | Event::Plan { .. }
+        | Event::Teleported
+        | Event::Gv { .. }
+        | Event::Resolved { .. } => return None,
     }))
 }
 

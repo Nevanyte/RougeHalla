@@ -295,7 +295,12 @@ fn fight(cx: &mut Cx, id: PlayerId, b: &mut Brain) {
             from,
             to: at,
             vel,
-            los: crate::geometry::has_line_of_sight(&cx.k.arena.map, from, at, mask),
+            los: crate::geometry::has_line_of_sight(
+                cx.k.collision_map(cx.w.rt.gates_locked),
+                from,
+                at,
+                mask,
+            ),
             weapon,
             windup: tm.windup,
             lock: false,
@@ -304,7 +309,13 @@ fn fight(cx: &mut Cx, id: PlayerId, b: &mut Brain) {
         |a, to| {
             leash(cx.k, camp, home, to, MOB_LEASH_MARGIN)
                 && distance(to, at) > distance(a, at)
-                && crate::geometry::segment_clear(&cx.k.arena.map, a, to, PLAYER_RADIUS, MASK_MOVE)
+                && crate::geometry::segment_clear(
+                    cx.k.collision_map(cx.w.rt.gates_locked),
+                    a,
+                    to,
+                    PLAYER_RADIUS,
+                    MASK_MOVE,
+                )
         },
     );
     if b.last_aim

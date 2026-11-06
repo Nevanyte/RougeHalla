@@ -49,7 +49,9 @@ fn event_refs(event: &mut SeenEvent, map: &impl Fn(PlayerId) -> Option<PlayerId>
         | SeenEvent::Bounty { id, .. } => (Some(id), None),
         SeenEvent::Swing { by, .. } => (Some(by), None),
         SeenEvent::Ended { winner, .. } => (None, Some(winner)),
-        SeenEvent::MobArmed { .. }
+        SeenEvent::Teleported
+        | SeenEvent::Plan(..)
+        | SeenEvent::MobArmed { .. }
         | SeenEvent::CampCleared { .. }
         | SeenEvent::PotionNotice { .. }
         | SeenEvent::ChestRefused { .. }

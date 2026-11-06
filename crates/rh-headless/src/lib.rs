@@ -95,16 +95,37 @@ impl Env {
                 weapon1: None,
             })
             .collect();
-        let sim = Sim::reset_active(cfg.sim.clone(), cfg.arena.clone(), secrets, &placements);
-        let recorder = cfg.record.then(|| {
-            Recorder::new(
-                &sim,
-                cfg.sim.clone(),
-                ReplayStart::Active {
-                    placements: placements.clone(),
-                },
-            )
-        });
+        let (sim, recorder) = if matches!(cfg.sim.lifecycle, rh_sim::ArenaMode::Source(_)) {
+            let mut sim = Sim::new(cfg.sim.clone(), cfg.arena.clone(), secrets);
+            let mut recorder = cfg
+                .record
+                .then(|| Recorder::new(&sim, cfg.sim.clone(), ReplayStart::Lobby));
+            for a in &agents {
+                sim.add_player(&a.profile, Some(a.faction), a.bot)
+                    .expect("admitted headless player");
+                if let Some(r) = &mut recorder {
+                    r.record(ReplayInput::Join {
+                        profile: a.profile.clone(),
+                        faction: Some(a.faction),
+                        bot: a.bot,
+                        policy: None,
+                    });
+                }
+            }
+            (sim, recorder)
+        } else {
+            let sim = Sim::reset_active(cfg.sim.clone(), cfg.arena.clone(), secrets, &placements);
+            let recorder = cfg.record.then(|| {
+                Recorder::new(
+                    &sim,
+                    cfg.sim.clone(),
+                    ReplayStart::Active {
+                        placements: placements.clone(),
+                    },
+                )
+            });
+            (sim, recorder)
+        };
         let mut seats = Vec::new();
         let mut external = Vec::new();
         for (i, a) in agents.into_iter().enumerate() {

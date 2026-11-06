@@ -5,7 +5,9 @@
 Port the complete80-card catalog and its runtime behavior, full build/stat mirrors and rewards, preserving source
 eligibility and all G1–G13 guards. The accepted pure stat-fold kernel and three-card playable subset are prerequisites,
 not completion. The [409-case source catalog](../../../parity/card-catalog/README.md) covers definitions/selection only;
-actual combat/grant/choice/lifecycle captures are still required. Full gameplay remains authoritative in Rust.
+the separate [65-case runtime source prerequisite](../../../parity/card-runtime/README.md) now captures real
+combat/grant/choice/lifecycle effects and guards. Neither corpus certifies all80 native runtime ownership; positive
+Witness and stricter reason-preserving controls remain a separate companion. Full gameplay remains authoritative in Rust.
 
 Coordinate the in-flight Wish schema before overlapping native state edits. Its lazy card-owned last-Wish-spend
 metadata must remain the single owner; expand that runtime rather than adding a second clock. Existing DoT critical

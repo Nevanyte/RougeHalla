@@ -427,6 +427,7 @@ async fn main() {
     };
     let sim = rh_sim::SimConfig {
         hazards: rh_sim::terrain::Mode::Off,
+        lifecycle: rh_sim::ArenaMode::Off,
         mob_mode: if profile_enabled {
             rh_sim::mob_runtime::MobMode::Pve
         } else {
@@ -450,6 +451,10 @@ async fn main() {
             rh_sim::FactionMode::Off
         },
     };
+    if let Err(e) = rh_server::wire::profile_supported(&sim) {
+        eprintln!("[server] refusing to host this simulation profile: {e}");
+        std::process::exit(2);
+    }
     let hosted = hosted_settings(&args).unwrap_or_else(|e| {
         eprintln!("[server] invalid hosting settings: {e}");
         std::process::exit(2);

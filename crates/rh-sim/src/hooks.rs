@@ -83,6 +83,7 @@ pub(crate) enum HookArgs {
     },
     /// The lobby just turned into an active raid: players are placed (legacy `raidStarted(world)`).
     RaidStarted,
+    PlanningStarted,
     /// A player went down with their run gear still on them (legacy `dropBody(world, p)`).
     DropBody {
         victim: PlayerId,
@@ -121,6 +122,7 @@ impl HookArgs {
             HookArgs::Teleported => Hook::Teleported,
             HookArgs::StatusApplied { .. } => Hook::StatusApplied,
             HookArgs::RaidStarted => Hook::RaidStarted,
+            HookArgs::PlanningStarted => Hook::PlanningStarted,
             HookArgs::DropBody { .. } => Hook::DropBody,
             HookArgs::FighterOut { .. } => Hook::FighterOut,
             HookArgs::HitLanded { .. } => Hook::HitLanded,

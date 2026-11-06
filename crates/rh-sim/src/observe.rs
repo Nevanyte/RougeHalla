@@ -17,7 +17,7 @@ use crate::sim::{Event, Phase, PlayerId, Sim, Status};
 use crate::state::Player;
 use crate::vision::{actor_with, scene_line_blocked};
 
-pub const OBSERVATION_VERSION: u16 = 13;
+pub const OBSERVATION_VERSION: u16 = 14;
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct SelfView {
@@ -75,6 +75,8 @@ pub struct ActorView {
 /// An event the observer could perceive.
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum SeenEvent {
+    Teleported,
+    Plan(crate::PlanView),
     MobArmed {
         weapon: WeaponId,
     },
@@ -159,6 +161,8 @@ pub enum SeenEvent {
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Observation {
+    pub arena: Option<crate::ArenaView>,
+    pub plan: Option<crate::PlanningView>,
     pub projectiles: Vec<crate::ProjectileView>,
     pub reward_chests: Vec<crate::reward_chests::RewardChestView>,
     pub build: Option<crate::reward_chests::BuildView>,
@@ -180,6 +184,8 @@ impl SeenEvent {
     /// wildcard arm, on purpose.
     pub fn class(&self) -> Class {
         match self {
+            SeenEvent::Plan(..) => Class::Important,
+            SeenEvent::Teleported => Class::Fx,
             SeenEvent::Death { .. } | SeenEvent::Bounty { .. } | SeenEvent::Ended { .. } => {
                 Class::Important
             }
@@ -206,6 +212,9 @@ impl SeenEvent {
 /// Exhaustive, no wildcard: a new [`Event`] variant must say here whether it reaches observers at all.
 fn to_seen(e: &Event, can_see: &impl Fn(PlayerId) -> bool) -> Option<SeenEvent> {
     match *e {
+        Event::Plan { ref plan, .. } => Some(SeenEvent::Plan(plan.clone())),
+        Event::PlanningStarted => None,
+        Event::Teleported => Some(SeenEvent::Teleported),
         Event::MobArmed { weapon, .. } => Some(SeenEvent::MobArmed { weapon }),
         Event::CampCleared { camp } => Some(SeenEvent::CampCleared { camp }),
         Event::PotionNotice { notice, .. } => Some(SeenEvent::PotionNotice { notice }),
@@ -294,6 +303,8 @@ impl Default for Observation {
     /// An empty observation, for a buffer that [`observe_into`] fills.
     fn default() -> Self {
         Self {
+            arena: None,
+            plan: None,
             projectiles: Vec::new(),
             version: OBSERVATION_VERSION,
             tick: 0,
@@ -314,12 +325,12 @@ impl Default for Observation {
 
 /// The same current line and private trail apply to full observations and event-only catch-up.
 fn sees(sim: &Sim, me: &Player, other: &Player, cache: &mut Option<&mut SightCache>) -> bool {
-    let map = &sim.arena().map;
+    let map = sim.collision_view();
     let a = me.pos();
     let b = other.pos();
     actor_with(map, me, other, sim.tick(), || match cache {
-        Some(c) => c.blocked(map, me.id, other.id, a.x, a.y, b.x, b.y),
-        None => scene_line_blocked(map, a.x, a.y, b.x, b.y),
+        Some(c) => c.blocked(&map, me.id, other.id, a.x, a.y, b.x, b.y),
+        None => scene_line_blocked(&map, a.x, a.y, b.x, b.y),
     })
 }
 
@@ -328,7 +339,7 @@ fn begin(sim: &Sim, cache: &mut Option<&mut SightCache>) {
     if let Some(c) = cache {
         let k = &sim.k;
         c.begin(
-            std::sync::Arc::as_ptr(&k.arena) as usize,
+            sim.collision_map() as *const crate::TileMap as usize,
             k.digest,
             sim.players().len(),
             u64::from(sim.tick()),
@@ -418,6 +429,8 @@ pub(crate) fn observe_with(
     out.tick = sim.tick();
     out.server_time = now;
     out.phase = sim.phase();
+    out.arena = crate::systems::planning::view::arena_view(&sim.k, &sim.w);
+    out.plan = crate::systems::planning::view::owner_view(&sim.k, &sim.w, viewer);
     out.me = me.map(|p| SelfView {
         effects: p.statuses.effects,
         displace_seq: p.motion.displace_seq,
@@ -449,7 +462,7 @@ pub(crate) fn observe_with(
     out.camps.extend_from_slice(sim.camp_rosters());
     out.visible.clear();
     if let Some(m) = me {
-        let map = &sim.arena().map;
+        let map = sim.collision_view();
         let (ax, ay) = (m.body.x, m.body.y);
         // Use the same actor verdict as the event-only pass; the table memoizes direct lines only.
         out.visible.reserve(sim.players().len());
@@ -463,8 +476,8 @@ pub(crate) fn observe_with(
                 continue;
             }
             if actor_with(map, m, o, sim.tick(), || match &mut cache {
-                Some(c) if probing => c.probe(map, m.id, o.id, ax, ay, o.body.x, o.body.y),
-                _ => scene_line_blocked(map, ax, ay, o.body.x, o.body.y),
+                Some(c) if probing => c.probe(&map, m.id, o.id, ax, ay, o.body.x, o.body.y),
+                _ => scene_line_blocked(&map, ax, ay, o.body.x, o.body.y),
             }) {
                 out.visible.push(ActorView {
                     kind: 0,
@@ -500,7 +513,7 @@ pub(crate) fn observe_with(
     // Ids are unique, so any sort gives this order; the unstable one never allocates (the stable one does from ~85 entries).
     if let Some(me) = me {
         for mob in sim.mobs() {
-            if crate::vision::point_visible(&sim.arena().map, me, mob.core.pos(), sim.tick())
+            if crate::vision::point_visible(sim.collision_view(), me, mob.core.pos(), sim.tick())
                 && !crate::status_runtime::hidden(&mob.core.statuses.instances, now)
             {
                 out.visible.push(mob_view(mob));
@@ -591,7 +604,7 @@ fn observe_events_with(
                     .find(|mob| mob.core.id == id)
                     .is_some_and(|mob| {
                         crate::vision::point_visible(
-                            &sim.arena().map,
+                            sim.collision_view(),
                             m,
                             mob.core.pos(),
                             sim.tick(),
@@ -631,6 +644,7 @@ pub struct PublicPlayer {
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct PublicSnapshot {
+    pub arena: Option<crate::ArenaView>,
     pub mobs: Vec<ActorView>,
     pub camps: Vec<crate::mob_runtime::CampRoster>,
     pub tick: u32,
@@ -670,6 +684,7 @@ pub fn public_snapshot(sim: &Sim) -> PublicSnapshot {
         players.sort_unstable_by_key(|p| p.id);
     }
     PublicSnapshot {
+        arena: crate::systems::planning::view::arena_view(&sim.k, &sim.w),
         mobs: sim.mobs().iter().map(mob_view).collect(),
         camps: sim.camp_rosters().to_vec(),
         tick: sim.tick(),

@@ -214,7 +214,14 @@ fn delete_arrows(cx: &mut Cx) {
             }
             let (a, b) = closest(*ball, *arrow);
             if distance(a, b) <= BALL_ARROW_RADIUS
-                && !ray_blocked(&cx.k.arena.map, a.x, a.y, b.x, b.y, MASK_SIGHT)
+                && !ray_blocked(
+                    cx.k.collision_map(cx.w.rt.gates_locked),
+                    a.x,
+                    a.y,
+                    b.x,
+                    b.y,
+                    MASK_SIGHT,
+                )
             {
                 end(
                     &mut cx.w.projectiles[ai],
@@ -326,7 +333,14 @@ fn splash(cx: &mut Cx, pr: Projectile, primary: usize, t: f64) {
         }
         let at = p.position_at(t);
         if distance(centre, at) <= WAND_SPLASH_RADIUS
-            && !ray_blocked(&cx.k.arena.map, centre.x, centre.y, at.x, at.y, MASK_SIGHT)
+            && !ray_blocked(
+                cx.k.collision_map(cx.w.rt.gates_locked),
+                centre.x,
+                centre.y,
+                at.x,
+                at.y,
+                MASK_SIGHT,
+            )
         {
             let hit = entry(pr, p.id, WAND_SPLASH_SHARE, true);
             super::ledger::record_hit(cx.w, &mut cx.s.ledger, hit);
@@ -478,7 +492,7 @@ pub(crate) fn sweep(cx: &mut Cx) {
             if cx.s.flight.swept[i].ended || cx.w.projectiles[i].time >= t {
                 continue;
             }
-            match stretch(cx.w, i, t, &cx.k.arena.map) {
+            match stretch(cx.w, i, t, cx.k.collision_map(cx.w.rt.gates_locked)) {
                 Ok((s, v)) => {
                     cx.w.projectiles[i].velocity = v;
                     cx.s.flight.stretches.push(s);
@@ -559,6 +573,34 @@ pub(crate) fn finish(cx: &mut Cx) {
             .expect("one stretch origin per projectile")
             .ended
     });
+}
+
+/// Source removes an ended flight immediately. Compact the native swept parallel arrays before
+/// settlement hooks inspect flights, so a teleport clears only flights that still exist in source.
+pub(crate) fn retire(cx: &mut Cx) {
+    let mut swept = cx.s.flight.swept.iter();
+    cx.w.projectiles
+        .retain(|_| !swept.next().expect("one swept record per flight").ended);
+    cx.s.flight.swept.retain(|s| !s.ended);
+}
+pub(crate) fn teleported(hx: &mut crate::hooks::Hx, _: &crate::hooks::HookArgs) {
+    for p in &hx.w.projectiles {
+        hx.ev.push(Event::ProjectileEnded {
+            launch: p.launch,
+            at: p.pos,
+            reason: ProjectileEnd::Cleared,
+        });
+    }
+    hx.w.projectiles.clear();
+}
+#[cfg(test)]
+impl FlightScratch {
+    pub(crate) fn source_audit_origin(&self, id: u32, projectiles: &[Projectile]) -> Option<Vec2> {
+        projectiles
+            .iter()
+            .position(|p| p.launch.id == id)
+            .and_then(|i| self.swept.get(i).map(|s| s.from))
+    }
 }
 
 #[cfg(test)]

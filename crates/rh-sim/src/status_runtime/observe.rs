@@ -80,7 +80,7 @@ pub(crate) fn project(
     out.clear();
     let Some(me) = sim.player(viewer) else { return };
     let Some(a) = &sim.w.abilities else { return };
-    let map = &sim.k.arena.map;
+    let map = sim.collision_view();
     for f in &a.fields {
         if !crate::vision::point_visible(map, me, Vec2::new(f.x, f.y), sim.w.tick)
             || (f.kind == FieldKind::Trail

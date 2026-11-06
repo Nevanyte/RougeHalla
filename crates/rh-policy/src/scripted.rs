@@ -70,6 +70,24 @@ impl Policy for Brawler {
         out
     }
     fn decide_into(&mut self, obs: &Observation, out: &mut Vec<PublicCommand>) {
+        if obs.phase == rh_sim::Phase::Planning {
+            if let Some(plan) = &obs.plan {
+                if !plan.ready {
+                    let spawn = (0..2)
+                        .find(|&i| !plan.plan.taken[i] && plan.options[i].is_some())
+                        .map(|i| i as u8);
+                    out.push(PublicCommand::Plan {
+                        spawn,
+                        boon: None,
+                        ready: Some(true),
+                    });
+                }
+            }
+            return;
+        }
+        if obs.phase != rh_sim::Phase::Active {
+            return;
+        }
         let Some(me) = &obs.me else { return };
         let target = obs
             .visible

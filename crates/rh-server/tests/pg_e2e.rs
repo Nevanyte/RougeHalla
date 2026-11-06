@@ -111,6 +111,7 @@ async fn a_match_over_websockets_banks_results_once_in_postgres() {
         linger: Duration::from_millis(100),
         ..DirectorConfig::new(
             SimConfig {
+                lifecycle: rh_sim::ArenaMode::Off,
                 hazards: rh_sim::terrain::Mode::Off,
                 mob_mode: rh_sim::mob_runtime::MobMode::Off,
                 initial_loot: false,
@@ -366,6 +367,7 @@ async fn an_mia_leave_is_banked_under_its_fence() {
         linger: Duration::from_millis(100),
         ..DirectorConfig::new(
             SimConfig {
+                lifecycle: rh_sim::ArenaMode::Off,
                 hazards: rh_sim::terrain::Mode::Off,
                 mob_mode: rh_sim::mob_runtime::MobMode::Off,
                 initial_loot: false,

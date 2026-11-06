@@ -1,0 +1,45 @@
+{
+  "root_head": "6a3aa9f9f2844fdc0a8dc30ab597b96e6576f86c",
+  "private_frozen_base": "d38f506aefd49f272ac346e365008d02347d3d38",
+  "kernel_manifest_sha256": "7942248de4e48fecda0fb35d534533870fbf16f5a7600afa431f3623790ad60a",
+  "approved_review_sha256": "7b28a15125a396408fef8b2d9f3ef90896ce0a5baa21d0b92bac84ea76d76603",
+  "files": [
+    {
+      "path": "crates/rh-parity/src/canon.rs",
+      "base_sha256": "edc69d6bc11cae982d9441d77d7288020d13c1db8afb39925e7a5f2643d300b5",
+      "new_sha256": "b54926549ee63e05f64e47023ab043c7f8aa27fc4a3d371a629eac3f67399d8f",
+      "bytes": 9913
+    },
+    {
+      "path": "crates/rh-server/src/control.rs",
+      "base_sha256": "475b264924c8b37c35520cac5f40d80ca3190c792ed79af6fc1307db82fc4156",
+      "new_sha256": "e6f43f97c8d5ab14ae52e3159e7c4b04464c70a6f28e4317be370aeac231e025",
+      "bytes": 48566
+    },
+    {
+      "path": "crates/rh-server/src/director.rs",
+      "base_sha256": "03f38717bff37efdcd07f3262e056514e23314d4a785ed7a413808266af7d907",
+      "new_sha256": "15a37f1a4149d96c0f06e4aa250edece51da089742a3c0d878a470154f62ba2a",
+      "bytes": 117818
+    },
+    {
+      "path": "crates/rh-server/src/main.rs",
+      "base_sha256": "6ee506d3bd681c71b2bc36e28802061d451b40ac3f0815258412f19b62bc053f",
+      "new_sha256": "5c906945448df925d44bbd4a1b73fed47d47d253106ab05df6ecf7c0445b3747",
+      "bytes": 35318
+    },
+    {
+      "path": "crates/rh-server/src/room.rs",
+      "base_sha256": "20f5d22418bee47aafa570a98a2751a3f3aac419b999c062b9a112c71a38ee69",
+      "new_sha256": "ebd61a739bcbda4d3299907b9b2ed9bf6ed3eb6307f0227558857df275ed3685",
+      "bytes": 67289
+    },
+    {
+      "path": "crates/rh-server/src/wire.rs",
+      "base_sha256": "1521148f4f8490e7cbfecc945ea4f390d587e74bc57d45a4d9de5cde9df12faa",
+      "new_sha256": "e531cb20dc03752341bbbc4f99bedfb5770f514e1f890cc5a693f36b09703e6a",
+      "bytes": 53232
+    }
+  ],
+  "patch_sha256": "6bb9a76ec244e59d52c5203b759f6ce1641e08101a2f753e0b7a674c3e7908ea"
+}

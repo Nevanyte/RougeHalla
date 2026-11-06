@@ -671,7 +671,13 @@ pub(crate) fn run_action(cx: &mut Cx, id: ActionId, ix: FighterIx, cmd: &ActionC
 /// Legacy `updateActive` (packages/server/src/sim/step.ts), phase for phase (the record's `updateActive`, 23 rows).
 pub(crate) static PHASES: [Item<PhaseFn>; 23] = [
     // `if (world.arena.voided) return;`: a void run (a shutdown) is frozen.
-    pending("guard:voided", Gate::Always, "P-ARENA-1"),
+    ported("guard:voided", Gate::Always, |cx| {
+        if cx.w.rt.voided {
+            Flow::EndTick
+        } else {
+            Flow::Continue
+        }
+    }),
     ported("markTickStart", Gate::Always, |cx| {
         settle::mark_tick_start(cx);
         Flow::Continue
@@ -740,7 +746,10 @@ pub(crate) static PHASES: [Item<PhaseFn>; 23] = [
     }),
     ported("hooks:beforeDamage", Gate::Always, list_before_damage),
     // After the signatures, which read the ledger for this tick's contacts: the burn is no one's hit.
-    pending("suddenDeath(notTraining)", Gate::NotTraining, "P-ARENA-1"),
+    ported("suddenDeath(notTraining)", Gate::NotTraining, |cx| {
+        crate::systems::arena_rules::sudden_death(cx);
+        Flow::Continue
+    }),
     ported("ledger:apply", Gate::Always, |cx| {
         ledger::apply(cx);
         cx.s.fx
@@ -1053,12 +1062,17 @@ static DROP_BODY: [Link; 4] = [
     pending_link("quests.<arrow>", Mode::Wrap, Gate::Quests, "P-QUEST-1"),
 ];
 static TELEPORTED: [Link; 13] = [
-    pending_link("weapons.<arrow>", Mode::Append, Gate::Always, "P-ARENA-1"),
-    pending_link(
+    ported_link(
+        "weapons.<arrow>",
+        Mode::Append,
+        Gate::Always,
+        weapons::teleported,
+    ),
+    ported_link(
         "projectiles.<arrow>",
         Mode::Append,
         Gate::Always,
-        "P-COMBAT-2",
+        projectiles::teleported,
     ),
     pending_link(
         "factions.<arrow>",
@@ -1091,11 +1105,11 @@ static TELEPORTED: [Link; 13] = [
         crate::systems::status::teleported,
     ),
     pending_link("quests.<arrow>", Mode::Append, Gate::Quests, "P-QUEST-1"),
-    pending_link(
+    ported_link(
         "vision.refreshAllVision",
         Mode::Append,
         Gate::Always,
-        "P-VISION-1",
+        crate::vision::raid_started,
     ),
     pending_link(
         "cardHooks.resetFight",
@@ -1353,7 +1367,12 @@ static FIGHTER_OUT: [Link; 8] = [
         Gate::Always,
         crate::systems::status::fighter_out,
     ),
-    pending_link("vision.<arrow>", Mode::Append, Gate::Always, "P-VISION-1"),
+    ported_link(
+        "vision.<arrow>",
+        Mode::Append,
+        Gate::Always,
+        crate::vision::fighter_out,
+    ),
     partial_link(
         "consumables.<arrow>",
         Mode::Append,
@@ -1789,8 +1808,8 @@ mod tests {
                 assert_eq!(plan.actions[a.id as usize].is_some(), live, "{}", a.name);
             }
         }
-        // The capture plan retains ten source-ordered live consumers; mob callbacks are no-ops without actors.
-        assert_eq!(CAPTURE_PLAN.phases.live().len(), 20);
+        // Source void guard and sudden death now run at their original ordered phase slots.
+        assert_eq!(CAPTURE_PLAN.phases.live().len(), 22);
         assert_eq!(
             CAPTURE_PLAN
                 .systems

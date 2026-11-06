@@ -388,6 +388,7 @@ impl Room {
         reports: mpsc::UnboundedSender<RoomReport>,
         now: Instant,
     ) -> Self {
+        wire::profile_supported(&cfg.sim).expect("refusing to host unsupported simulation profile");
         // Match secrets come from the OS CSPRNG and never leave this task (docs/CONTRACTS.md C-RNG).
         let secrets = cfg.fixed_secrets.unwrap_or_else(|| Secrets {
             order_salt: random_u32(),
@@ -1312,11 +1313,22 @@ pub async fn run_room(mut room: Room, mut rx: mpsc::Receiver<RoomCmd>) {
 mod tests {
     use super::*;
 
+    #[test]
+    #[should_panic(expected = "Source arena lifecycle requires protocol 7")]
+    fn arena_profile_direct_room_construction_refuses_before_sim_or_entropy() {
+        let mut config = cfg(Duration::from_millis(50));
+        config.sim.lifecycle = rh_sim::ArenaMode::Source(Default::default());
+        config.fixed_secrets = None;
+        let (tx, _) = mpsc::unbounded_channel();
+        Room::new([0; 16], config, tx, Instant::now());
+    }
+
     fn cfg(tick: Duration) -> RoomConfig {
         let assets = MapAssets::new(rh_sim::arenas::practice_arena()).unwrap();
         RoomConfig {
             sim: SimConfig {
                 hazards: rh_sim::terrain::Mode::Off,
+                lifecycle: rh_sim::ArenaMode::Off,
                 mob_mode: rh_sim::mob_runtime::MobMode::Off,
                 initial_loot: false,
                 min_players: 2,

@@ -163,10 +163,10 @@ pub(crate) fn validate(
     near: impl Fn(f64, f64) -> bool,
 ) -> Result<(), String> {
     validate_config(&k.config)?;
-    // The future arena packet owns the only ordinary transition to true. A private
-    // source helper may exercise its guard, but a checkpoint cannot forge that transition.
-    if w.rt.gates_locked {
-        return Err("arena gate lock requires its unported producer".into());
+    // Lifecycle admission owns the source gate producer and its clocks. Legacy Off profiles
+    // retain the earlier refusal; terrain never creates or repairs gate state.
+    if w.rt.gates_locked && k.config.lifecycle.rules().is_none() {
+        return Err("arena gate lock requires source lifecycle".into());
     }
     let rt = &w.terrain;
     if !rt.light_since.is_finite()

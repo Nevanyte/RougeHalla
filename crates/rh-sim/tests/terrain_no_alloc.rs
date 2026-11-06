@@ -37,6 +37,7 @@ fn warmed_terrain_passes_allocate_nothing() {
             .collect::<Vec<_>>();
         let mut sim = Sim::reset_active(
             SimConfig {
+                lifecycle: rh_sim::ArenaMode::Off,
                 hazards: Mode::All,
                 ..Default::default()
             },

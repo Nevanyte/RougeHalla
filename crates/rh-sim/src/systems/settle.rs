@@ -111,6 +111,7 @@ pub(crate) fn down_player(
 
 /// System (legacy arena.settle): resolve the tick's downs, or end the run when at most one fighter stands.
 pub(crate) fn settle(cx: &mut Cx) {
+    super::projectiles::retire(cx);
     let Cx {
         k, w, s, ev, stats, ..
     } = cx;
@@ -120,6 +121,7 @@ pub(crate) fn settle(cx: &mut Cx) {
         fx,
         ..
     } = &mut **s;
+    let deaths = downed.len() + w.rt.downs_between_ticks as usize;
     w.rt.downs_between_ticks = 0;
     // Only the count decides a step that is not the end; the ids are collected when the run ends.
     let standing = w.players.iter().filter(|p| p.standing()).count();
@@ -138,7 +140,7 @@ pub(crate) fn settle(cx: &mut Cx) {
         }
     }
     downed.clear();
-    // [patience timer, coliseum teleport, sudden death] -- not in the slice (docs/backlog P-ARENA-1)
+    super::coliseum::settle(k, w, ev, fx, *stats, deaths, standing);
 }
 
 fn end_run(
@@ -219,6 +221,9 @@ fn end_run(
         },
         HookArgs::RunEnded,
     );
+    w.rt.patience_ends_at = None;
+    w.rt.gates_locked = false;
+    w.rt.sudden_death_at = 0.;
     ev.push(Event::Victory { id: winner, draw });
     ev.push(Event::RaidEnded);
 }
@@ -231,6 +236,15 @@ fn withheld_why(w: &World, i: usize) -> Option<WinBonusWhy> {
         return Some(WinBonusWhy::Opponents);
     }
     None
+}
+
+pub(crate) fn miss_in_planning(w: &mut World, ev: &mut Vec<Event>, i: usize) {
+    if w.players[i].resolved {
+        return;
+    }
+    w.players[i].down = Some(Outcome::Mia);
+    w.players[i].motion.path.clear();
+    resolve(w, ev, i, Outcome::Mia, w.players.len() as u32, 0, None);
 }
 
 /// Banks player `i`'s run once (legacy `resolvePlayer`): the result event persistence consumes.

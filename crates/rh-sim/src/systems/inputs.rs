@@ -89,6 +89,7 @@ pub(crate) fn drain_all(cx: &mut Cx) {
 
 fn apply_inputs(cx: &mut Cx, ix: FighterIx) {
     let now = cx.w.server_time;
+    let map = cx.k.collision_map(cx.w.rt.gates_locked);
     cx.w.core_mut(ix).inputs.drain_into(&mut cx.s.drained);
     if !cx.w.is_player(ix)
         && crate::status_runtime::has(
@@ -108,13 +109,7 @@ fn apply_inputs(cx: &mut Cx, ix: FighterIx) {
         }
         if k == move_before.min(n) {
             if let Some(mv) = mv {
-                apply_move(
-                    cx.w.core_mut(ix),
-                    &cx.k.arena.map,
-                    cx.pf,
-                    &mut cx.s.path,
-                    mv,
-                );
+                apply_move(cx.w.core_mut(ix), map, cx.pf, &mut cx.s.path, mv);
             }
         }
         if k == aim_before.min(n) && cx.w.core(ix).weapon.targeting.target.is_none() {
@@ -123,13 +118,16 @@ fn apply_inputs(cx: &mut Cx, ix: FighterIx) {
             }
         }
         if let Some(cmd) = cx.s.drained.actions.get(k).copied() {
-            schedule::run_action(cx, action_id(&cmd), ix, &cmd);
+            if let Some(id) = action_id(&cmd) {
+                schedule::run_action(cx, id, ix, &cmd);
+            }
         }
     }
 }
 
-fn action_id(cmd: &ActionCmd) -> ActionId {
-    match cmd {
+fn action_id(cmd: &ActionCmd) -> Option<ActionId> {
+    Some(match cmd {
+        ActionCmd::Plan { .. } => return None,
         ActionCmd::UseConsumable => ActionId::UseConsumable,
         ActionCmd::Choose { .. } => ActionId::Choose,
         ActionCmd::Target { .. } | ActionCmd::MissingTarget => ActionId::Target,
@@ -137,7 +135,7 @@ fn action_id(cmd: &ActionCmd) -> ActionId {
         ActionCmd::Pickup { .. } | ActionCmd::MissingPickup => ActionId::Pickup,
         ActionCmd::Attack { .. } => ActionId::Attack,
         ActionCmd::Release { .. } => ActionId::Release,
-    }
+    })
 }
 
 fn apply_move(

@@ -64,13 +64,13 @@ fn moving_trail_and_full_hidden_rack() {
         ev.clear();
         s.step_into(&mut ev);
     }
-    // Populate the precise upper bound, independent of path-planner pauses at waypoint turns.
+    // Populate the ordinary open-map sampling bound, independent of path-planner pauses at waypoint turns.
     // These origins move along the near side of the wall, all 2 ticks apart.
     let mut cp = serde_json::to_value(&s).unwrap();
     let stamps: Vec<_> = (0..300u32)
         .map(|i| {
             let offset = (i % 60).abs_diff(30) as f64 * 8.;
-            serde_json::json!({"tick":s.tick()-598+i*2,"origin":{"x":832.,"y":1000.+offset}})
+            serde_json::json!({"tick":s.tick()-598+i*2,"variant":"Open","ordinal":0,"origin":{"x":832.,"y":1000.+offset}})
         })
         .collect();
     cp["world"]["players"][0]["vision"]["reveals"] = serde_json::json!(stamps);

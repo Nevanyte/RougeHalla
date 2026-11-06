@@ -1,0 +1,147 @@
+{
+  "format": "rh-card-runtime-source-integration/1",
+  "branch": "optimization_port",
+  "base_revision": "6a3aa9f9",
+  "source_only": true,
+  "proposal_manifest_sha256": "ba169440ba1ebde1e855754cc26d5707f9fee5f65e1e8a23d7e0ddef986c98dd",
+  "proposal_patch_sha256": "e233492ee642f5dc3cfbc1e53f26f5c16f80e1aedaccb352228669aecaeb2967",
+  "independent_review_sha256": "355a6520145b1678ca96e0971876a79e001b1a1c52d213ddcf603bc307ec6b4f",
+  "coordinator_check": "all15 frozen hashes/sizes and new-only patch applicability verified before application; all15 applied hashes verified; README then receives only reviewed prose corrections",
+  "counts": {
+    "cases": 65,
+    "ordinary_steps": 6236,
+    "full_frames": 3298,
+    "private_records": 3179,
+    "record_references": 81226
+  },
+  "files": [
+    {
+      "path": "parity/card-runtime/ATTEMPTS.json",
+      "bytes": 4582,
+      "mode": "100644",
+      "sha256": "5f87eacf42eabe372f554255faee0109d2f61789f6a5c67857ff2b1eb7f3083d",
+      "integrated_sha256": "5f87eacf42eabe372f554255faee0109d2f61789f6a5c67857ff2b1eb7f3083d",
+      "coordinator_overlay": false
+    },
+    {
+      "path": "parity/card-runtime/INPUT_SHA256.json",
+      "bytes": 23272,
+      "mode": "100644",
+      "sha256": "06a61740f2a7678fae07c3004c459664519a29e8a24d09cf12443c68de4eb51a",
+      "integrated_sha256": "06a61740f2a7678fae07c3004c459664519a29e8a24d09cf12443c68de4eb51a",
+      "coordinator_overlay": false
+    },
+    {
+      "path": "parity/card-runtime/README.md",
+      "bytes": 22956,
+      "mode": "100644",
+      "sha256": "d5d3c30632494c98fb96ce4ddad76da2e716322609ccca767e52b868ec16742d",
+      "integrated_sha256": "d0fa1b753a7016e07c9bb3b3db4ae55ef483df176c343296c80e2c8756ba5ed8",
+      "coordinator_overlay": true
+    },
+    {
+      "path": "parity/card-runtime/source.json",
+      "bytes": 53033364,
+      "mode": "100644",
+      "sha256": "a40518c2217af6a2bec014206c65f52c41ffd0b29b3a184f2fe59096693872e7",
+      "integrated_sha256": "a40518c2217af6a2bec014206c65f52c41ffd0b29b3a184f2fe59096693872e7",
+      "coordinator_overlay": false
+    },
+    {
+      "path": "tools/card-runtime-fixtures/assertions.mts",
+      "bytes": 8145,
+      "mode": "100644",
+      "sha256": "b5eebed03b8e3819dea4b2847d3db34534e1ad44272f22b901f5d959e859c6c1",
+      "integrated_sha256": "b5eebed03b8e3819dea4b2847d3db34534e1ad44272f22b901f5d959e859c6c1",
+      "coordinator_overlay": false
+    },
+    {
+      "path": "tools/card-runtime-fixtures/born-input.json",
+      "bytes": 7510,
+      "mode": "100644",
+      "sha256": "5ee388ca61234bae0e7dc04adca00702fbc6199f048487490fcbca25b2cffb16",
+      "integrated_sha256": "5ee388ca61234bae0e7dc04adca00702fbc6199f048487490fcbca25b2cffb16",
+      "coordinator_overlay": false
+    },
+    {
+      "path": "tools/card-runtime-fixtures/capture.mts",
+      "bytes": 5987,
+      "mode": "100644",
+      "sha256": "e4eb7efb4fc373e430d13cd0d790432a417cebe2fb54fe4cc268d3df67d9d33d",
+      "integrated_sha256": "e4eb7efb4fc373e430d13cd0d790432a417cebe2fb54fe4cc268d3df67d9d33d",
+      "coordinator_overlay": false
+    },
+    {
+      "path": "tools/card-runtime-fixtures/capture.sh",
+      "bytes": 1543,
+      "mode": "100755",
+      "sha256": "c10676de58f36d84693aabc335c7a00074737b97e983173ff241cec3123c5db3",
+      "integrated_sha256": "c10676de58f36d84693aabc335c7a00074737b97e983173ff241cec3123c5db3",
+      "coordinator_overlay": false
+    },
+    {
+      "path": "tools/card-runtime-fixtures/cases.mts",
+      "bytes": 15613,
+      "mode": "100644",
+      "sha256": "473b7160a8abf7014d511156ee08ca43b371f94b89f80c24b9211504986d3dd0",
+      "integrated_sha256": "473b7160a8abf7014d511156ee08ca43b371f94b89f80c24b9211504986d3dd0",
+      "coordinator_overlay": false
+    },
+    {
+      "path": "tools/card-runtime-fixtures/control.mts",
+      "bytes": 568,
+      "mode": "100644",
+      "sha256": "e0178eb9734d0b362d636f49f4b4d9c3cf598b32978de6912f7eac73b6277338",
+      "integrated_sha256": "e0178eb9734d0b362d636f49f4b4d9c3cf598b32978de6912f7eac73b6277338",
+      "coordinator_overlay": false
+    },
+    {
+      "path": "tools/card-runtime-fixtures/engine.mts",
+      "bytes": 18327,
+      "mode": "100644",
+      "sha256": "7cf3b22c05af7395b5d83b33ae77e437e903b2111690872f28a9e1b311b5bddb",
+      "integrated_sha256": "7cf3b22c05af7395b5d83b33ae77e437e903b2111690872f28a9e1b311b5bddb",
+      "coordinator_overlay": false
+    },
+    {
+      "path": "tools/card-runtime-fixtures/inspection.mts",
+      "bytes": 1597,
+      "mode": "100644",
+      "sha256": "3cf7a5a8a9ab0dd24771099cd28df8f83c05008991b35d3c901751e2ccf23b36",
+      "integrated_sha256": "3cf7a5a8a9ab0dd24771099cd28df8f83c05008991b35d3c901751e2ccf23b36",
+      "coordinator_overlay": false
+    },
+    {
+      "path": "tools/card-runtime-fixtures/noninterference.mts",
+      "bytes": 2906,
+      "mode": "100644",
+      "sha256": "099459e3b445fae074e732c0a9094971d2d0974298de9ce2b10cdf5c841d76bd",
+      "integrated_sha256": "099459e3b445fae074e732c0a9094971d2d0974298de9ce2b10cdf5c841d76bd",
+      "coordinator_overlay": false
+    },
+    {
+      "path": "tools/card-runtime-fixtures/private-inspection.mts",
+      "bytes": 1537,
+      "mode": "100644",
+      "sha256": "92c2bb4cb99b4702da608d148c4f044e99192e87c416fec6a07c88e9c60e0880",
+      "integrated_sha256": "92c2bb4cb99b4702da608d148c4f044e99192e87c416fec6a07c88e9c60e0880",
+      "coordinator_overlay": false
+    },
+    {
+      "path": "tools/card-runtime-fixtures/seed1-input.json",
+      "bytes": 319166,
+      "mode": "100644",
+      "sha256": "7c95efad61f47942d10921d7f1bc16acb43306f370cf368e0693a69d456441e7",
+      "integrated_sha256": "7c95efad61f47942d10921d7f1bc16acb43306f370cf368e0693a69d456441e7",
+      "coordinator_overlay": false
+    }
+  ],
+  "corrections": {
+    "noninterference": "Frozen three-control comparator recursively strips all reason keys, including gameplay reasons. Snapshots retain them. Reason-preserving companion remains separately reviewed.",
+    "all14": "All14 acquired choices/runtime paths captured. All14 loop does not individually assert Gambler/SlowBurn; nonneutral consequences present and separate diagnostics assert them. Manifest all14ChoicesAndConsequencesAsserted qualified.",
+    "frame_selection": "Declared marker/events/hooks/boundaries select frames. Unchanged marker is not identical World; replay all50ms steps.",
+    "slow_burn": "Interactive Fire case produces Fire burn, not Hemorrhage. Dedicated full-Fire case demonstrates longer linger."
+  },
+  "native_acceptance": "INCOMPLETE",
+  "main65_recapture_repeated_by_coordinator": false
+}

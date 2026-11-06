@@ -75,6 +75,21 @@ impl OutcomeDigest {
         self.w(snap.tick as u64);
         self.f(snap.server_time);
         self.s(phase(snap.phase));
+        if let Some(a) = snap.arena {
+            self.s("source_arena");
+            for value in [
+                a.lobby_ends_at,
+                a.plan_ends_at,
+                a.raid_started_at,
+                a.sudden_death_at,
+            ] {
+                self.f(value);
+            }
+            self.opt(a.patience_ends_at.map(f64::to_bits));
+            self.w(u64::from(a.in_coliseum));
+            self.w(u64::from(a.gates_locked));
+            self.w(a.started_with.into());
+        }
         match &snap.winner {
             None => self.w(0),
             Some(n) => {
@@ -174,6 +189,25 @@ impl OutcomeDigest {
     fn event(&mut self, e: &Event) {
         self.events += 1;
         match e {
+            Event::PlanningStarted => self.s("planningStarted"),
+            Event::Teleported => self.s("teleported"),
+            Event::Plan { to, plan } => {
+                self.s("ownerPlan");
+                self.w(to.0.into());
+                self.f(plan.ends_at);
+                for n in plan.spawns {
+                    self.w(n as u64);
+                }
+                for taken in plan.taken {
+                    self.w(u64::from(taken));
+                }
+                self.w(plan.pick as u64);
+                self.w(plan.boons.len() as u64);
+                for boon in &plan.boons {
+                    self.s(boon);
+                }
+                self.w(plan.boon as u64);
+            }
             Event::PotionNotice { id, notice } => {
                 self.s("potion_notice");
                 self.w(id.0.into());
@@ -446,6 +480,7 @@ pub fn fold_all(values: impl IntoIterator<Item = u64>) -> u64 {
 fn phase(p: Phase) -> &'static str {
     match p {
         Phase::Lobby => "lobby",
+        Phase::Planning => "planning",
         Phase::Active => "active",
         Phase::Ended => "ended",
     }

@@ -17,9 +17,15 @@ pub(crate) struct MatchStatic {
     #[serde(skip)] // derived from the fields above
     pub(crate) digest: u64,
     #[serde(skip)]
+    pub(crate) locked_map: Option<TileMap>,
+    #[serde(skip)] // immutable source spawnWalks cache, reconstructed from canonical map
+    pub(crate) planning_walks: Vec<Option<f64>>,
+    #[serde(skip)]
     pub(crate) hazards: crate::terrain::Hazards,
     #[serde(skip)]
     pub(crate) terrain_source: crate::status_runtime::StatusSource,
+    #[serde(skip)] // constant-derived environmental source, not stored gameplay state
+    pub(crate) arena_source: crate::status_runtime::StatusSource,
 }
 
 /// The serialized shape of [`MatchStatic`]: exactly its stored fields.
@@ -38,10 +44,31 @@ impl From<StaticRepr> for MatchStatic {
 }
 
 impl MatchStatic {
+    pub(crate) fn collision_view(&self, locked: bool) -> crate::collision::View<'_> {
+        crate::collision::View {
+            open: &self.arena.map,
+            locked: self.locked_map.as_ref().unwrap_or(&self.arena.map),
+            variant: crate::collision::Variant::of(locked),
+        }
+    }
+    pub(crate) fn collision_map(&self, locked: bool) -> &TileMap {
+        self.collision_view(locked).current()
+    }
+
     pub(crate) fn new(config: SimConfig, arena: impl Into<Arc<Arena>>, secrets: Secrets) -> Self {
         let arena = arena.into();
         // The statics secrets stay out of the digest. The state hash still depends on spawn_seed through World.spawn_rng,
         // so it is server-private (see hash.rs).
+        let locked_map = arena.map.closed_gates();
+        let planning_walks = if config
+            .lifecycle
+            .rules()
+            .is_some_and(|r| r.plan_seconds > 0.)
+        {
+            crate::systems::planning::deal::spawn_walks(&arena.map)
+        } else {
+            Vec::new()
+        };
         let hazards = crate::terrain::Hazards::of(&arena.map, config.hazards);
         let digest = crate::hash::hash_of(0, &(&config, &*arena));
         Self {
@@ -50,6 +77,13 @@ impl MatchStatic {
             secrets,
             digest,
             hazards,
+            locked_map,
+            planning_walks,
+            arena_source: crate::status_runtime::StatusSource {
+                id: None,
+                owner_id: None,
+                name: crate::systems::arena_rules::SUDDEN_DEATH_NAME.into(),
+            },
             terrain_source: crate::status_runtime::StatusSource {
                 id: None,
                 owner_id: None,
@@ -139,6 +173,8 @@ impl FactionMode {
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct SimConfig {
+    #[serde(default)]
+    pub lifecycle: crate::ArenaMode,
     /// Native terrain rules are opt-in until clients carry public terrain layers.
     #[serde(default)]
     pub hazards: crate::terrain::Mode,
@@ -167,6 +203,7 @@ fn specials_enabled() -> bool {
 impl Default for SimConfig {
     fn default() -> Self {
         Self {
+            lifecycle: crate::ArenaMode::Off,
             initial_loot: false,
             hazards: crate::terrain::Mode::Off,
             min_players: 2,

@@ -134,6 +134,18 @@ const NON_GAMEPLAY: &[(&str, &str, &str)] = &[
 /// Rules that are tables rather than scalar rows: they are folded by `content_hash` directly (see content.rs). As
 /// (file, name, reason).
 const TABLES_FOLDED_BY_HASH: &[(&str, &str, &str)] = &[
+    ("systems/arena_rules.rs", "MAX_DURATION_SECONDS", "actual arena duration admission bound folded by arena_rules::visit_content"),
+    ("systems/arena_rules.rs", "PATIENCE_MIN_PLAYERS", "actual source patience scaling endpoint folded by arena_rules::visit_content"),
+    ("systems/arena_rules.rs", "PATIENCE_FULL_PLAYERS", "actual source patience scaling endpoint folded by arena_rules::visit_content"),
+    ("systems/arena_rules.rs", "SD_START", "actual sudden-death damage start folded by arena_rules::visit_content"),
+    ("systems/arena_rules.rs", "SD_RAMP", "actual sudden-death damage ramp folded by arena_rules::visit_content"),
+    ("systems/coliseum.rs", "SPOT_SEARCH_TILES", "actual fallback search bound folded by arena_rules::visit_content"),
+    ("systems/coliseum.rs", "RING_RADIUS", "actual fallback ring radius folded by arena_rules::visit_content"),
+    ("systems/coliseum.rs", "IMMUNITY_MS", "actual teleport immunity folded by arena_rules::visit_content"),
+    ("systems/planning/deal.rs", "WALK_TOLERANCE", "actual planning comparison tolerance folded by planning::deal::visit_content"),
+    ("systems/planning/deal.rs", "TIER_EPS", "actual planning tier arithmetic epsilon folded by planning::deal::visit_content"),
+    ("systems/planning/deal.rs", "SEARCH_BUDGET", "actual planning assignment budget folded by planning::deal::visit_content"),
+    ("systems/planning/deal.rs", "SPARE_BUDGET", "actual planning fallback budget folded by planning::deal::visit_content"),
     ("terrain.rs", "NEUTRAL", "actual complete runtime surface matrix folded by terrain::visit_content"),
     ("potions/mod.rs", "DEFINITION", "actual Small potion stock/concurrency/duration/share read by runtime and progression content visitor"),
     ("cards/mod.rs", "ALL", "actual selected card identities/index/name order folded by visit_progression_content"),
@@ -457,7 +469,7 @@ fn hash_golden() {
         content_hash()
     );
 }
-const GOLDEN_CONTENT_HASH: u64 = 0xcb27_3622_36f2_d3c2;
+const GOLDEN_CONTENT_HASH: u64 = 0x57b3_428f_8b41_ebf7;
 
 #[test]
 fn every_registry_row_perturbs_the_hash() {

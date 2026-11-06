@@ -49,7 +49,7 @@ pub(crate) fn project(
     };
     for flight in &sim.w.projectiles {
         // Source ProjectileView.update and bot vision.filter both test the current flight point.
-        if !crate::vision::point_visible(&sim.arena().map, me, flight.pos, sim.tick()) {
+        if !crate::vision::point_visible(sim.collision_view(), me, flight.pos, sim.tick()) {
             continue;
         }
         if out.projectiles.len() == MAX_VISIBLE_PROJECTILES {

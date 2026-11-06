@@ -1,0 +1,102 @@
+{
+  "format": "rh-card-runtime-attempts/1",
+  "failedAttemptDetails": {
+    "dev-run-5": "Wrong test premise: Holy wand has physical faction base and legitimately bleeds. Changed intended pure-magic input to Fire; retained strict no-bleed assertion.",
+    "dev-run-6": "Checker read first actor of empty pre-join constructor snapshot. Restricted actor-dependent existential checks to frames with actors; kept cap assertions.",
+    "reachabilityRepairs": "Before final freeze: removed pre-owned Hemorrhage from choice case; named existing player placement at actual declared camp chest; made selector mean latest public reward; supplied enough ordinary heavy blocks and legal vitality grants to reach Tank cap. These were source-input/checker repairs, never balance or expected-state edits."
+  },
+  "attempts": [
+    {
+      "attempt": "minimal-inspector-probe-1",
+      "outcome": "failed",
+      "error": "TypeError at world.ts899: opts.config.minPlayers; minimal diagnostic createWorld omitted mandatory config",
+      "evidence": "tool output retained in conversation; no original on-disk log existed",
+      "repair": "supplied declared required config; no source edit, getter or ordinary gameplay rule change"
+    },
+    {
+      "attempt": "minimal-inspector-probe-2",
+      "outcome": "passed",
+      "observation": "actual pending/bleeds undefined in empty diagnostic world; insufficient alone, superseded by nonempty ordinary controls"
+    },
+    {
+      "attempt": "dev-run-1",
+      "kind": "bounded development corpus; not canonical",
+      "outcome": "passed executor/then-current checks",
+      "log": "dev-run-1.log",
+      "sha256": "b530beff46b253165cf22565e9190479f669d400c5907f876567f1383dd8fd40"
+    },
+    {
+      "attempt": "dev-run-2",
+      "kind": "bounded development corpus; not canonical",
+      "outcome": "passed executor/then-current checks",
+      "log": "dev-run-2.log",
+      "sha256": "b530beff46b253165cf22565e9190479f669d400c5907f876567f1383dd8fd40"
+    },
+    {
+      "attempt": "dev-run-3",
+      "kind": "bounded development corpus; not canonical",
+      "outcome": "passed executor/then-current checks",
+      "log": "dev-run-3.log",
+      "sha256": "b1c4365800ea30bd7e89bd2977dbb48f130ea06fdb2c5a9876eb9db3599624ac"
+    },
+    {
+      "attempt": "dev-run-4",
+      "kind": "bounded development corpus; not canonical",
+      "outcome": "passed executor/then-current checks",
+      "log": "dev-run-4.log",
+      "sha256": "ff469189d1cea8a7aa6b5aec68d11553d7c5d8b1bcd9854e9b41fab35b10eed2"
+    },
+    {
+      "attempt": "dev-run-5",
+      "kind": "bounded development corpus; not canonical",
+      "outcome": "failed coverage assertion",
+      "log": "dev-run-5.log",
+      "sha256": "c8997ebd0dbbffc5bc769dd2856d7e811a697f910af207092f61d8a21a50e308"
+    },
+    {
+      "attempt": "dev-run-6",
+      "kind": "bounded development corpus; not canonical",
+      "outcome": "failed checker on empty constructor actor list",
+      "log": "dev-run-6.log",
+      "sha256": "6419e4dde2484e394df2c7eed41b0e2b37e617022441b130a543cdd949852360"
+    },
+    {
+      "attempt": "dev-run-7",
+      "kind": "bounded development corpus; not canonical",
+      "outcome": "passed executor/then-current checks",
+      "log": "dev-run-7.log",
+      "sha256": "835d2ae2095245a499cb54c30a8f43cd3d25e155a10c082b8b1cd0a2b8717a1f"
+    },
+    {
+      "attempt": "dev-controls-1",
+      "kind": "read-only observation noninterference",
+      "outcome": "passed",
+      "scope": "full ordinary non-oracle state and all final private maps",
+      "log": "dev-controls-1.log",
+      "sha256": "19833f8845b14ebed3df2a0973bf420f0aecf75fc47dfa5aa02da47208d2a9e9"
+    },
+    {
+      "attempt": "dev-controls-2",
+      "kind": "read-only observation noninterference",
+      "outcome": "passed",
+      "scope": "every ordinary prefix private maps plus full raw state/events/hooks/RNG/admission",
+      "log": "dev-controls-2.log",
+      "sha256": "60f7bd00417ed0fb3d744aab429f38a4b4209999763e51af66fc1f45dff51e5a"
+    },
+    {
+      "attempt": "canonical-final-capture",
+      "outcome": "passed",
+      "exit": 0,
+      "log": "canonical-capture.log",
+      "sha256": "988b3e71eb82ebd7d404c49cca9635e17e5c864042d0ca115cf45f9f050cfec1"
+    },
+    {
+      "attempt": "canonical-final-single-fresh-compare",
+      "outcome": "passed",
+      "exit": 0,
+      "log": "canonical-compare.log",
+      "sha256": "4a9c40e34bf5dd7009a529e766f2b19a467765df8e69ae907480ab414a83899f",
+      "note": "exactly one --check; no source/harness mutation between final capture and compare"
+    }
+  ]
+}

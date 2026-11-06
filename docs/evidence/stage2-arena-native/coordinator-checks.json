@@ -1,0 +1,235 @@
+{
+  "format": "rh-arena-coordinator-checks/1",
+  "branch": "optimization_port",
+  "base_revision": "6a3aa9f9",
+  "content_hash": "57b3428f8b41ebf7",
+  "checkpoint": 18,
+  "replay": 16,
+  "observation": 14,
+  "policy": 11,
+  "protocol": 6,
+  "unique_native_tests_passed": 1163,
+  "unique_count_equation": "248 sim units +156 sim integrations +137 completed prior workspace +14 corrected schedule +599 remaining workspace +3 sim docs +6 parity Sentenced",
+  "mapgen_unchanged_units_not_repeated_locally": 191,
+  "manual_ignores": 2,
+  "full_ci": "pending at integration; completed d3418f17 CI42222451955 is predecessor only",
+  "kernel_review_sha256": "7b28a15125a396408fef8b2d9f3ef90896ce0a5baa21d0b92bac84ea76d76603",
+  "adapter_review_sha256": "ba01357c46989e8f6ffe33fbf0a72e428a2c7f18528159627bff0e3de872cb6e",
+  "coordinator_review_sha256": "cbbad711556012216289dd3358ba1656b5a7331ba2b26874ad8070c589d74ad7",
+  "gates": [
+    {
+      "log": "sim-lib.log",
+      "command": "cargo test --locked -p rh-sim --all-features --lib -- --skip mapgen",
+      "status": "247 PASS; obsolete hook assertion FAILED",
+      "log_sha256": "9bdb11f7dfd0791799d8c4af2d1a95de93607e6b68cd2cc266ced4cc0c5c3c2a",
+      "counts": {
+        "passed": 247,
+        "failed": 1,
+        "ignored": 0,
+        "filtered": 191
+      },
+      "note": "Its one failure is repaired and checked below.191 unchanged map-generator units not repeated."
+    },
+    {
+      "log": "pending-hook-corrected.log",
+      "command": "cargo test --locked -p rh-sim --all-features --lib systems::tests::a_pending_hook_changes_nothing -- --exact",
+      "status": "PASS",
+      "log_sha256": "468e970cdcda19f0a5512bc2c821f8ab84ef9cc32658b1106698ae1e782a52f9",
+      "counts": {
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "filtered": 438
+      }
+    },
+    {
+      "log": "content-after.log",
+      "command": "cargo test --locked -p rh-sim --all-features --test content",
+      "status": "PASS",
+      "log_sha256": "5ab4223597e23ba2e8e4951e33b3d40c73cd3eb3f908e9b1c257f6ece7f21de6",
+      "counts": {
+        "passed": 21,
+        "failed": 0,
+        "ignored": 0,
+        "filtered": 0
+      }
+    },
+    {
+      "log": "sim-integration.log",
+      "command": "cargo test --locked -p rh-sim --all-features --test arena_no_alloc --test cards_no_alloc --test checkpoint --test hash_coverage --test holy --test initial_loot_allocation --test item_offer_alloc --test items_melee --test kernel --test landmark_recipe_content --test map_finalization_content --test map_layers --test map_repair_content --test map_runtime_content --test map_spot_content --test map_style_content --test map_tail_content --test mob_catalog --test mob_catalog_content --test mob_foundation --test mob_presentation --test mob_pve --test no_alloc --test observe --test plague --test progression_content --test replay --test sentenced --test stat_fold --test stat_fold_content --test status_alloc_review --test status_content --test status_no_alloc --test status_privacy_review --test status_runtime --test targeting_restore --test terrain_no_alloc --test vision_pressure",
+      "status": "PASS",
+      "log_sha256": "42f1d7483702e7faa351c90ffd71e20da29583015b9b146da9cf65238c6fc363",
+      "counts": {
+        "passed": 135,
+        "failed": 0,
+        "ignored": 0,
+        "filtered": 0
+      }
+    },
+    {
+      "log": "workspace-rerun.log",
+      "command": "cargo test --locked --workspace --exclude rh-sim --all-features",
+      "status": "137 distinct PASS before schedule failure",
+      "log_sha256": "1193802175bf24fc3478ff283fa37678232f893b228fa1e873a6ddc95e26a805",
+      "counts": {
+        "passed": 149,
+        "failed": 2,
+        "ignored": 0,
+        "filtered": 0
+      },
+      "note": "149 passed includes12 preliminary schedule tests; these12 are counted only in the complete14-test corrected schedule gate. No tests after the failed schedule target ran."
+    },
+    {
+      "log": "schedule-final.log",
+      "command": "cargo test --locked -p rh-parity --all-features --test schedule",
+      "status": "PASS",
+      "log_sha256": "60fbfe221d9c2ff6f2a704bf9b8983b96625056854285cc32b6696f3f8a832ed",
+      "counts": {
+        "passed": 14,
+        "failed": 0,
+        "ignored": 0,
+        "filtered": 0
+      }
+    },
+    {
+      "log": "workspace-final.log",
+      "command": "cargo test --locked --workspace --exclude rh-sim --exclude rh-headless --exclude rh-load --exclude rh-parity --all-features",
+      "status": "PASS",
+      "log_sha256": "d4f3ef9e78ce2067fdb426c81520bd0cc096cf92ec7ecbfae851c292e31169fe",
+      "counts": {
+        "passed": 599,
+        "failed": 0,
+        "ignored": 2,
+        "filtered": 0
+      }
+    },
+    {
+      "log": "sim-doc.log",
+      "command": "cargo test --locked -p rh-sim --all-features --doc",
+      "status": "PASS",
+      "log_sha256": "67b06592ab7be6d70dedfe0c6350b4a5e87168b2bfcba770a8080d77454a81f4",
+      "counts": {
+        "passed": 3,
+        "failed": 0,
+        "ignored": 0,
+        "filtered": 0
+      }
+    },
+    {
+      "log": "parity-sentenced.log",
+      "command": "cargo test --locked -p rh-parity --all-features --test sentenced",
+      "status": "PASS",
+      "log_sha256": "b8cc34f7fdd1ffa753b2d2e153b52ab953e6dc9a69e7ac1c68205b1b4f71cf2d",
+      "counts": {
+        "passed": 6,
+        "failed": 0,
+        "ignored": 0,
+        "filtered": 0
+      }
+    },
+    {
+      "log": "docs-tail.log",
+      "command": "cargo test --locked -p rh-parity -p rh-headless -p rh-load --all-features --doc",
+      "status": "PASS",
+      "log_sha256": "55ea2c7c4426bd790804782802364f7ab9e4e23d153f2c5519fdf253ba005db4",
+      "counts": {
+        "passed": 0,
+        "failed": 0,
+        "ignored": 0,
+        "filtered": 0
+      }
+    },
+    {
+      "log": "planning-final.log",
+      "command": "cargo test --locked -p rh-sim --all-features --lib systems::planning",
+      "status": "PASS",
+      "log_sha256": "5c4c47feafd96409556e2cc1a01b85fefc1cc22927b192de69f69a07165d8387",
+      "counts": {
+        "passed": 20,
+        "failed": 0,
+        "ignored": 0,
+        "filtered": 419
+      },
+      "note": "Repeated affected20 after extracting unchanged slot mutation into helper; not additional unique tests."
+    },
+    {
+      "log": "clippy-default.log",
+      "command": "cargo clippy --locked --workspace --all-targets -- -D warnings",
+      "status": "PASS",
+      "log_sha256": "7da21e3b2344cf876a09c28477967a294083da54dbbf3227ed1729b38ca9f4c4",
+      "counts": {
+        "passed": 0,
+        "failed": 0,
+        "ignored": 0,
+        "filtered": 0
+      }
+    },
+    {
+      "log": "clippy-full.log",
+      "command": "cargo clippy --locked --workspace --all-targets --all-features -- -D warnings",
+      "status": "PASS",
+      "log_sha256": "0a17160fe2b9b77d70d3bd0258d81854f68e6f464d98de5f188eb39e74396fc0",
+      "counts": {
+        "passed": 0,
+        "failed": 0,
+        "ignored": 0,
+        "filtered": 0
+      }
+    },
+    {
+      "log": "fmt-final.log",
+      "command": "cargo fmt --all --check",
+      "status": "PASS",
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "counts": {
+        "passed": 0,
+        "failed": 0,
+        "ignored": 0,
+        "filtered": 0
+      }
+    },
+    {
+      "log": "parity-report.log",
+      "command": "cargo run --locked -p rh-parity --bin parity-report",
+      "status": "PASS",
+      "log_sha256": "2184822936e802994f5889b4fcdf6ac64725bc3c722aedb72d24f1f6a1e4d456",
+      "counts": {
+        "passed": 0,
+        "failed": 0,
+        "ignored": 0,
+        "filtered": 0
+      }
+    },
+    {
+      "log": "server-build.log",
+      "command": "cargo build --locked -p rh-server",
+      "status": "PASS",
+      "log_sha256": "0b96781b21bba01f8939f8f2d843e2618b54611eab5b2db0b66070c66935a1cc",
+      "counts": {
+        "passed": 0,
+        "failed": 0,
+        "ignored": 0,
+        "filtered": 0
+      }
+    },
+    {
+      "command": "RH_SERVER_BIN=$CARGO_TARGET_DIR/debug/rh-server NODE_PATH=$PREFIX/browser/node_modules node tools/browser-proof/proof.mjs",
+      "status": "PASS",
+      "report": "browser-proof.json",
+      "report_sha256": "342c9473a72306d3888e991aa2345583669f912a90248e768be0cd7248c38772",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "checks": 15,
+      "scope": "actual Chromium WSS, supported Off protocol6 profile; no Unity/sourceprofile activation"
+    }
+  ],
+  "earlier_unsuccessful_attempts": {
+    "workspace.log": "Compile stopped on missing explicit Plan/Teleported arm in Off-only test reference encoder; repaired.",
+    "pending-hook.log": "Short --exact filter ran0; not acceptance. Correct full-path test ran1.",
+    "parity-tail.log": "CLI rejected mixing --doc and --test; no test executed. Separate corrected commands pass.",
+    "browser-stderr.log": "Missing local playwright module search path; no browser proof executed. Uses existing dedicated browser tools via NODE_PATH for final run."
+  },
+  "full_arena": "INCOMPLETE",
+  "full_terrain": "INCOMPLETE",
+  "public_source_profile": "REFUSED",
+  "source_campaigns_repeated_by_coordinator": false
+}

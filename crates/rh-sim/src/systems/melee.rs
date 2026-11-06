@@ -103,7 +103,14 @@ fn resolve_swings(cx: &mut Cx) {
             if !in_arc(origin, req.a, reach, half_arc, at, PLAYER_RADIUS) {
                 continue;
             }
-            if ray_blocked(&k.arena.map, origin.x, origin.y, at.x, at.y, MASK_MELEE) {
+            if ray_blocked(
+                k.collision_map(w.rt.gates_locked),
+                origin.x,
+                origin.y,
+                at.x,
+                at.y,
+                MASK_MELEE,
+            ) {
                 continue;
             }
             let target = w.core(ti);
@@ -201,7 +208,15 @@ fn resolve_swings(cx: &mut Cx) {
             }
             super::ledger::record_hit(w, ledger, entry);
         }
-        super::projectiles::meet_balls(w, flight, ledger, ev, &k.arena.map, req, (reach, half_arc));
+        super::projectiles::meet_balls(
+            w,
+            flight,
+            ledger,
+            ev,
+            k.collision_map(w.rt.gates_locked),
+            req,
+            (reach, half_arc),
+        );
     }
     melee.clear();
 }

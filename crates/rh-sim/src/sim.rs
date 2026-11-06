@@ -12,15 +12,13 @@
 
 use crate::constants::*;
 use crate::content::FactionId;
-use crate::hooks::{self, HookArgs, Hx, OutCause};
 use crate::input::{Command, Reject};
 use crate::math::Vec2;
 use crate::pathfind::Pathfinder;
 use crate::scratch::TickScratch;
 use crate::state::World;
 use crate::statics::MatchStatic;
-use crate::systems::weapons::release_trigger;
-use crate::systems::{self, inputs, settle, Cx};
+use crate::systems::{self, inputs, Cx};
 use std::sync::Arc;
 
 pub use crate::events::Event;
@@ -61,6 +59,14 @@ pub struct Placement {
 }
 
 impl Sim {
+    /// Current authoritative collision geometry; public static metadata stays on `arena()`.
+    pub fn collision_map(&self) -> &crate::TileMap {
+        self.k.collision_map(self.w.rt.gates_locked)
+    }
+    pub(crate) fn collision_view(&self) -> crate::collision::View<'_> {
+        self.k.collision_view(self.w.rt.gates_locked)
+    }
+
     pub fn new(config: SimConfig, arena: impl Into<Arc<Arena>>, secrets: Secrets) -> Self {
         Self::try_new(config, arena, secrets).expect("unsupported private foundation configuration")
     }
@@ -78,6 +84,7 @@ impl Sim {
             pf: Pathfinder::default(),
         };
         crate::terrain::validate_config(&sim.k.config)?;
+        crate::systems::arena_rules::validate_config(&sim.k)?;
         crate::systems::initial_loot::initialize(&mut sim.k, &mut sim.w)?;
         crate::systems::mobs::initialize(&mut sim.k, &mut sim.w)?;
         Ok(sim)
@@ -119,6 +126,13 @@ impl Sim {
         placements: &[Placement],
         cap: usize,
     ) -> Self {
+        assert!(
+            config
+                .lifecycle
+                .rules()
+                .is_none_or(|r| r.plan_seconds <= 0.),
+            "reset_active cannot bypass source planning; start from a lobby"
+        );
         // The lobby closes on step 1: every human counts toward min_players (bots never close a lobby, as in legacy).
         let humans = placements.iter().filter(|p| !p.bot).count();
         if config.mob_mode == crate::mob_runtime::MobMode::Pve && config.faction_mode.engagement() {
@@ -320,47 +334,21 @@ impl Sim {
     /// queued inputs are dropped (a press that arrived just before the socket closed must not hold the trigger for the whole
     /// grace) and the trigger is released, since the release the client sends will never arrive.
     pub fn mark_dropped(&mut self, id: PlayerId, dropped: bool) {
-        let now = self.w.server_time;
-        let tick = self.w.tick;
-        let active = self.w.phase == Phase::Active;
-        if let Some(i) = self.w.idx(id) {
-            let p = &mut self.w.players[i];
-            if dropped {
-                if p.seat.dropped_at.is_none() && active {
-                    p.seat.dropped_at = Some(now);
-                }
-                p.inputs.clear();
-            } else {
-                p.seat.dropped_at = None;
-                // Legacy reconnect sends a vision snapshot, which refreshes this viewer only.
-                // The replayable lifecycle input owns that refresh, never a socket encode.
-                if active {
-                    crate::vision::refresh_player(p, tick);
-                }
-            }
-            release_trigger(p, now);
-        }
+        crate::lifecycle::dropped(&mut self.w, id, dropped);
     }
-
-    /// A player leaves for good (legacy `removePlayer`): in an active run it counts as a death (MIA), resolved at once.
+    /// Permanent departure, including source planning MIA.
     pub fn remove_player(&mut self, id: PlayerId) {
-        let Some(i) = self.w.idx(id) else { return };
-        self.with_cx(|cx| {
-            if cx.w.phase == Phase::Active {
-                settle::down_player(cx.k, cx.w, cx.ev, None, i, Outcome::Mia);
-            }
-            // Legacy removePlayer: the hook fires after the down and before the seat is removed.
-            let cause = OutCause::Removed;
-            let mut hx = Hx {
-                stats: crate::status_runtime::stats::Inputs::default(),
-                fx: None,
-                k: cx.k,
-                w: cx.w,
-                ev: cx.ev,
-            };
-            hooks::fire(&mut hx, HookArgs::FighterOut { id, cause });
-        });
-        self.w.players.remove(id);
+        self.with_cx(|cx| crate::lifecycle::remove(cx, id));
+    }
+    /// Administrative void/removal; returns unbanked GV for the durable adapter, never a player command.
+    pub fn abandon_player(&mut self, id: PlayerId) -> u32 {
+        self.with_cx(|cx| crate::lifecycle::abandon(cx, id))
+    }
+    pub fn current_plan(&self, id: PlayerId) -> Option<crate::PlanView> {
+        crate::systems::planning::plan_for(&self.w, id)
+    }
+    pub fn plan_ends_at(&self) -> f64 {
+        self.w.plan_ends_at
     }
 
     /// What the schedule ran since the last call, in order: the ported phases, registered systems, action handlers and

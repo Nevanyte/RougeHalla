@@ -210,6 +210,7 @@ fn land(cx: &mut Cx, ix: FighterIx, act: PendingAction) {
             });
         }
         ActionKind::Cast | ActionKind::Draw => {
+            p.weapon.last_shot_at = Some(now);
             let aim = if let Some((_, at)) = target {
                 crate::math::atan2(at.y - p.body.y, at.x - p.body.x)
             } else if act.kind == ActionKind::Draw {
@@ -286,4 +287,16 @@ pub(crate) fn cancel_action(p: &mut FighterCore, now: f64) {
     }
     p.weapon.action = None;
     p.weapon.draw_started_at = 0.0;
+}
+/// Source teleported chain: every standing fighter releases and loses its old root.
+pub(crate) fn teleported(hx: &mut crate::hooks::Hx, _: &crate::hooks::HookArgs) {
+    let now = hx.w.server_time;
+    for slot in 0..hx.w.fighter_count() {
+        let ix = crate::fighter::FighterIx::of_slot(slot);
+        if hx.w.standing(ix) {
+            let c = hx.w.core_mut(ix);
+            release_trigger(c, now);
+            c.weapon.root_until = 0.;
+        }
+    }
 }

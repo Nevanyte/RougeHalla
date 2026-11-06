@@ -20,7 +20,7 @@ use serde::ser::{SerializeStruct, Serializer};
 use std::fmt;
 
 /// The tag every checkpoint carries. Bump it when the layout of `statics` or `world` changes incompatibly.
-pub const CHECKPOINT_FORMAT: &str = "rh-checkpoint/17";
+pub const CHECKPOINT_FORMAT: &str = "rh-checkpoint/18";
 
 /// How far past the map edge a fighter, waypoint or spawn may be and still restore (real states stay inside the map).
 const COORD_MARGIN: f64 = 1024.0;
@@ -257,6 +257,8 @@ pub(crate) fn valid_ranged_packet(packet: crate::state::Packet, weapon: WeaponId
 /// The invariants the tick relies on and the serde shape cannot express. A state that breaks one would panic (or silently
 /// misbehave) a few steps later, so a checkpoint carrying it is refused here instead.
 fn check_world(k: &MatchStatic, w: &World) -> Result<(), String> {
+    crate::systems::arena_validation::validate(k, w)?;
+    crate::systems::planning::validate(k, w)?;
     // Every coordinate the kernel will read must be a real place near the arena: a huge or non-finite one overflows the
     // tile arithmetic of the next path request (debug panic, release wrap), and two huge opposite ones cancel in a
     // finiteness sum.
@@ -492,7 +494,12 @@ fn check_world(k: &MatchStatic, w: &World) -> Result<(), String> {
         }
     }
     for p in w.players.iter() {
-        p.vision.check(w.tick, near)?;
+        // Locked history becomes admissible with the complete Source arena lifecycle.
+        p.vision.check(
+            w.tick,
+            k.config.lifecycle.rules().is_some() && w.raid_started_at > 0.,
+            near,
+        )?;
         let sig = &p.signature;
         crate::systems::sentenced::validate(k, w, p)?;
         super::systems::signatures::validate_basic(k, w, p.id, sig)?;

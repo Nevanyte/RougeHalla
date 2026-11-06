@@ -8,7 +8,7 @@ input boundaries. It does not implement native card mechanics or close the terra
 The coordinator ran `bash tools/card-catalog-fixtures/capture.sh --check` on the integrated files in the pinned Linux
 amd64 Node22.23.4 image with fresh npm installation. Exit0 and409 cases reproduce SHA256
 `d7ca500595b0b3a988d6d80a6588e2203863ae3f19b13aeea0ce4a0c8d2017f1`.
-[Direct output](coordinator-source-check.log) and [integrity record](integration.json) retain this observed check.
+[Direct output](coordinator-source-check.json) and [integrity record](integration.json) retain this observed check.
 The worker's prior capture/compare reports are separately labeled; raw worker canonical logs were not retained.
 No old terrain, arena, Wish, map or stat-fold capture campaign was repeated.
 

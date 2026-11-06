@@ -449,6 +449,7 @@ fn native_ice_slide() -> Sim {
     ];
     let mut sim = Sim::reset_active(
         SimConfig {
+            lifecycle: rh_sim::ArenaMode::Off,
             hazards: rh_sim::terrain::Mode::Map,
             ..Default::default()
         },
@@ -470,8 +471,61 @@ fn native_ice_slide() -> Sim {
     sim
 }
 
+fn source_lifecycle_states() -> (Sim, Sim, Sim) {
+    let mut sim = Sim::new(
+        SimConfig {
+            lifecycle: rh_sim::ArenaMode::Source(rh_sim::ArenaRules {
+                plan_seconds: 0.2,
+                first_patience_seconds: Some(0.1),
+                coliseum_schedule: Some(rh_sim::ColiseumSchedule {
+                    first_seconds: 0.1,
+                    second_seconds: 0.5,
+                    repeat_seconds: 0.5,
+                    min_gap_seconds: 0.1,
+                }),
+                ..Default::default()
+            }),
+            min_players: 2,
+            fill_seconds: 0.,
+            hazards: rh_sim::terrain::Mode::Off,
+            ..Default::default()
+        },
+        practice_arena(),
+        Secrets::from_seed(12),
+    );
+    for name in ["a", "b", "c", "d"] {
+        sim.add_player(name, Some(FactionId::Holy), false).unwrap();
+    }
+    sim.step();
+    sim.submit(
+        PlayerId(1),
+        cmd(RawCommand::Plan {
+            spawn: Some(0),
+            boon: Some(0),
+            ready: Some(true),
+        }),
+    )
+    .unwrap();
+    let planning = sim.clone();
+    for _ in 0..4 {
+        sim.step();
+    }
+    let active = sim.clone();
+    for _ in 0..2 {
+        sim.step();
+    }
+    assert!(rh_sim::public_snapshot(&active)
+        .arena
+        .unwrap()
+        .patience_ends_at
+        .is_some());
+    assert!(rh_sim::public_snapshot(&sim).arena.unwrap().gates_locked);
+    (planning, active, sim)
+}
+
 fn scenarios() -> Vec<(&'static str, Sim)> {
     let (mob_engaged, mob_cleared) = mob_audit_states();
+    let (source_planning, source_active, source_locked) = source_lifecycle_states();
     let mut mid = crowded_8();
     drive(&mut mid, 40);
     let mut late = crowded_8();
@@ -479,6 +533,9 @@ fn scenarios() -> Vec<(&'static str, Sim)> {
     let mut fuse = short_fuse();
     drive(&mut fuse, 400);
     vec![
+        ("source planning", source_planning),
+        ("source active timer", source_active),
+        ("source locked", source_locked),
         ("mob engaged with pending attack", mob_engaged),
         ("mob camp cleared", mob_cleared),
         ("card choices", card_choices()),
@@ -663,6 +720,47 @@ fn candidates(leaf: &Value, strings: &[String]) -> Vec<Value> {
 
 /// Patterns whose perturbation the restore may refuse, and why. Any other refusal fails the test.
 const VALIDATED: &[(&str, &str)] = &[
+    ("world.planning", "enabled planning requires retained history after Lobby; Off and disabled planning forbid the history"),
+    ("world.rt.voided", "disabled lifecycle only permits abandon-produced void state during Active; Source Lobby cannot be voided"),
+    ("statics.config.lifecycle.Source.sudden_death_seconds", "locked deadline must exactly equal the actual teleport hook time plus configured sudden-death duration"),
+    ("world.abilities.teleported_at", "locked Source worlds require this actual hook clock to agree with their sudden-death deadline"),
+
+    ("statics.secrets.order_salt", "Source lifecycle pins action-order salt to the first actual constructor main draw"),
+    ("statics.secrets.spawn_seed", "Source core Lobby/Planning requires main stream to equal the actual one-draw constructor prefix"),
+    ("world.spawn_rng.state", "Source core Lobby/Planning requires main stream to equal the actual one-draw constructor prefix"),
+    ("world.tick", "Source server time must equal tick times the fixed 50ms step"),
+    ("world.players.#len", "Planning live player count must equal retained deals and ordered identities"),
+    ("world.rt.started_humans", "Source pre-raid has zero startedHumans and running counts are bounded by starters"),
+    ("world.rt.started_with", "Source starters must agree with planning history and phase"),
+    ("world.planning.deals.#len", "Planning requires one deal for every current player"),
+    ("world.planning.deals.*.#len", "Each planning deal is a typed identity and payload pair"),
+    ("world.planning.deals.*.*", "Deal identities are ordered known roster members and live during Planning"),
+    ("world.planning.starters", "Planning starters bound retained deal count and equal arena startedWith"),
+    ("world.planning.deals.*.*.boon", "Planning typed two-option deal, selection/reservation reciprocity, empty normal boon domain and exact sent owner snapshot are validated"),
+    ("world.planning.deals.*.*.pick", "Planning typed two-option deal, selection/reservation reciprocity, empty normal boon domain and exact sent owner snapshot are validated"),
+    ("world.planning.deals.*.*.sent.boon", "Planning typed two-option deal, selection/reservation reciprocity, empty normal boon domain and exact sent owner snapshot are validated"),
+    ("world.planning.deals.*.*.sent.endsAt", "Planning typed two-option deal, selection/reservation reciprocity, empty normal boon domain and exact sent owner snapshot are validated"),
+    ("world.planning.deals.*.*.sent.pick", "Planning typed two-option deal, selection/reservation reciprocity, empty normal boon domain and exact sent owner snapshot are validated"),
+    ("world.planning.deals.*.*.sent.spawns.#len", "Planning typed two-option deal, selection/reservation reciprocity, empty normal boon domain and exact sent owner snapshot are validated"),
+    ("world.planning.deals.*.*.sent.spawns.*", "Planning typed two-option deal, selection/reservation reciprocity, empty normal boon domain and exact sent owner snapshot are validated"),
+    ("world.planning.deals.*.*.sent.taken.#len", "Planning typed two-option deal, selection/reservation reciprocity, empty normal boon domain and exact sent owner snapshot are validated"),
+    ("world.planning.deals.*.*.sent.taken.*", "Planning typed two-option deal, selection/reservation reciprocity, empty normal boon domain and exact sent owner snapshot are validated"),
+    ("world.planning.deals.*.*.spawns.#len", "Planning typed two-option deal, selection/reservation reciprocity, empty normal boon domain and exact sent owner snapshot are validated"),
+    ("world.planning.deals.*.*.spawns.*", "Planning typed two-option deal, selection/reservation reciprocity, empty normal boon domain and exact sent owner snapshot are validated"),
+    ("world.planning.report.pairs", "Planning report counts and rule must agree with the admitted pool and starter count"),
+    ("world.planning.report.rule", "Planning report counts and rule must agree with the admitted pool and starter count"),
+    ("world.planning.report.sameZonePairs", "Planning report counts and rule must agree with the admitted pool and starter count"),
+    ("world.planning.report.shared", "Planning report counts and rule must agree with the admitted pool and starter count"),
+    ("world.planning.report.tierPairs", "Planning report counts and rule must agree with the admitted pool and starter count"),
+
+    ("statics.config.lifecycle", "ArenaMode enum and Source payload must parse; changing to Source requires actual phase/clock state"),
+    ("world.plan_ends_at", "disabled lifecycle requires zero; Planning requires its bounded deadline and sent owner plans to agree"),
+    ("world.players.*.plan_ready", "ready latch is forbidden without an enabled planning producer"),
+    ("world.players.*.vision.reveals.*.ordinal", "first retained reveal is ordinal zero; same-tick successors increment exactly once"),
+    ("world.players.*.vision.reveals.*.variant", "locked history requires admitted Source raid producer; repeated origins coalesce only for equal variants"),
+    ("world.rt.in_coliseum", "disabled lifecycle forbids coliseum state; Source locked phase requires matching in-coliseum flag"),
+    ("world.rt.sudden_death_at", "disabled lifecycle requires zero; locked Source deadline must match exact teleport hook clock plus configured duration"),
+
     ("statics.config.hazards", "terrain mode is a closed Off/Map/All enum"),
     ("world.players.*.core.motion.path.#len", "path checkpoint is exactly the generation/points pair"),
     ("world.mobs.*.core.motion.path.#len", "path checkpoint is exactly the generation/points pair"),
@@ -1471,8 +1569,8 @@ fn the_serde_skips_are_exactly_the_documented_ones() {
         ),
         (
             "statics.rs",
-            3,
-            "MatchStatic: the digest and hazard flags are rebuilt from stored fields; terrain source is rebuilt from hashed EMBER_NAME and typed terrain attribution",
+            6,
+            "MatchStatic: the digest and hazard flags are rebuilt from stored fields; terrain source is rebuilt from hashed EMBER_NAME and typed terrain attribution; locked collision and all its query caches derive from admitted open map gate coordinates; planning distances derive from the same canonical map and enabled configuration; arena source derives from hashed SUDDEN_DEATH_NAME and typed arena attribution",
         ),
     ];
     let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src");

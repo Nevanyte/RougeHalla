@@ -43,22 +43,32 @@ fn lockable(cx: &mut Cx, i: usize, j: usize) -> bool {
         return false;
     }
     let visible = if cx.w.is_player(other_ix) {
-        crate::vision::gameplay_actor_visible(&cx.k.arena.map, viewer, &cx.w.players[j], cx.w.tick)
+        crate::vision::gameplay_actor_visible(
+            cx.k.collision_view(cx.w.rt.gates_locked),
+            viewer,
+            &cx.w.players[j],
+            cx.w.tick,
+        )
     } else {
-        crate::vision::point_visible(&cx.k.arena.map, viewer, other.pos(), cx.w.tick)
+        crate::vision::point_visible(
+            cx.k.collision_view(cx.w.rt.gates_locked),
+            viewer,
+            other.pos(),
+            cx.w.tick,
+        )
     };
     if !visible {
         return false;
     }
     let within = distance(viewer.pos(), other.pos()) <= TARGET_RANGE;
-    crate::vision::refresh_player(&mut cx.w.players[i], cx.w.tick);
+    crate::vision::refresh_player(&mut cx.w.players[i], cx.w.tick, cx.w.rt.gates_locked);
     within
 }
 
 fn plan(cx: &mut Cx, i: usize, goal: Vec2) -> bool {
     plan_path_into(
         cx.pf,
-        &cx.k.arena.map,
+        cx.k.collision_map(cx.w.rt.gates_locked),
         cx.w.players[i].pos(),
         goal,
         &mut cx.s.path,
@@ -88,7 +98,12 @@ pub(crate) fn target(cx: &mut Cx, ix: FighterIx, cmd: &ActionCmd) {
         return;
     }
     let due = fresh(p.weapon.targeting.search_at, now);
-    let behind = !has_line_of_sight(&cx.k.arena.map, p.pos(), goal, MASK_SIGHT);
+    let behind = !has_line_of_sight(
+        cx.k.collision_map(cx.w.rt.gates_locked),
+        p.pos(),
+        goal,
+        MASK_SIGHT,
+    );
     if behind {
         if !due {
             return;
@@ -134,7 +149,12 @@ fn acquire(cx: &mut Cx, i: usize, goal: Vec2) {
         let d = distance(from, at);
         if d > range
             || !lockable(cx, i, j)
-            || !has_line_of_sight(&cx.k.arena.map, from, at, MASK_SIGHT)
+            || !has_line_of_sight(
+                cx.k.collision_map(cx.w.rt.gates_locked),
+                from,
+                at,
+                MASK_SIGHT,
+            )
         {
             continue;
         }
@@ -194,7 +214,13 @@ fn chase(cx: &mut Cx, i: usize, goal: Vec2, seen: bool) -> bool {
     lock.goal = Some(goal);
     if plan(cx, i, goal) {
         cx.w.players[i].motion.path.set_from(&cx.s.path);
-    } else if !seen || sealed(&cx.k.arena.map, cx.w.players[i].pos(), goal) {
+    } else if !seen
+        || sealed(
+            cx.k.collision_map(cx.w.rt.gates_locked),
+            cx.w.players[i].pos(),
+            goal,
+        )
+    {
         resume(cx, i);
         return false;
     }
@@ -225,7 +251,12 @@ fn follow(cx: &mut Cx, i: usize, id: PlayerId) {
     let now = cx.w.server_time;
     let to = cx.w.core(FighterIx::of_slot(j)).pos();
     let from = cx.w.players[i].pos();
-    let seen = has_line_of_sight(&cx.k.arena.map, from, to, MASK_SIGHT);
+    let seen = has_line_of_sight(
+        cx.k.collision_map(cx.w.rt.gates_locked),
+        from,
+        to,
+        MASK_SIGHT,
+    );
     let p = &mut cx.w.players[i];
     let lock = &mut p.weapon.targeting;
     if seen {

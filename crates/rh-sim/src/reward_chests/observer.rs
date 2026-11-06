@@ -81,7 +81,7 @@ impl RewardChestObserver {
         if let Some(me) = sim.player(self.viewer) {
             self.vision.begin(sim, me, self.sampled.is_some());
             for c in &sim.w.reward_chests {
-                if !self.vision.sees(&sim.arena().map, me, c.at, tick) {
+                if !self.vision.sees(sim.collision_view(), me, c.at, tick) {
                     continue;
                 }
                 if self.scratch.len() == crate::item_view::MAX_VISIBLE_PROPS {
@@ -105,7 +105,12 @@ impl RewardChestObserver {
                             taken_by: t.filter(|who| {
                                 *who == self.viewer
                                     || sim.player(*who).is_some_and(|p| {
-                                        crate::vision::actor_visible(&sim.arena().map, me, p, tick)
+                                        crate::vision::actor_visible(
+                                            sim.collision_view(),
+                                            me,
+                                            p,
+                                            tick,
+                                        )
                                     })
                             }),
                         })
@@ -129,7 +134,7 @@ impl RewardChestObserver {
                             && c.owner.is_none_or(|id| id == self.viewer)
                             && c.held_until_tick < tick
                             && sim.server_time() < c.expires_at
-                            && super::reach(&sim.k, me.pos(), c.at).is_ok(),
+                            && super::reach(&sim.k, sim.w.rt.gates_locked, me.pos(), c.at).is_ok(),
                     },
                 });
             }
@@ -185,7 +190,7 @@ impl RewardChestObserver {
                     .iter()
                     .find(|c| c.id == *id)
                     .is_some_and(|c| {
-                        crate::vision::point_visible(&sim.arena().map, me, c.at, sim.tick())
+                        crate::vision::point_visible(sim.collision_view(), me, c.at, sim.tick())
                     })
             })
         });

@@ -1,0 +1,7 @@
+/** Read-only lexical getters extracted by Node's debugger; original TS bytes stay unchanged. */
+import{Session}from'node:inspector';import assert from'node:assert/strict';
+export async function inspectClosure(fn:Function,name:string,expression:string){const session=new Session();session.connect();const post=(method:string,params:any={})=>new Promise<any>((resolve,reject)=>session.post(method as any,params,(err,result)=>err?reject(err):resolve(result)));
+ await post('Runtime.enable');await post('Debugger.enable');(globalThis as any).__rhInspectFunction=fn;const obj=await post('Runtime.evaluate',{expression:'globalThis.__rhInspectFunction'});const bp=await post('Debugger.setBreakpointOnFunctionCall',{objectId:obj.result.objectId});let getter:any,inspectionError:any;
+ session.on('Debugger.paused',(message:any)=>{session.post('Debugger.evaluateOnCallFrame',{callFrameId:message.params.callFrames[0].callFrameId,expression:'globalThis.__rhInspectGetter='+expression},(err,result:any)=>{if(err||result?.exceptionDetails)inspectionError=err??result.exceptionDetails;else getter=(globalThis as any).__rhInspectGetter;session.post('Debugger.resume');});});
+ return{capture:()=>{assert.ifError(inspectionError);assert.equal(typeof getter,'function',name+' lexical getter installed');return getter;},close:async()=>{await post('Debugger.removeBreakpoint',{breakpointId:bp.breakpointId});await post('Debugger.disable');session.disconnect();delete(globalThis as any).__rhInspectFunction;delete(globalThis as any).__rhInspectGetter;}};
+}

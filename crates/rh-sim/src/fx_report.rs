@@ -164,7 +164,12 @@ impl Sim {
             let mut mask = 0;
             for (j, p) in self.w.players.iter().enumerate() {
                 if me.id == p.id
-                    || crate::vision::actor_visible(&self.k.arena.map, me, p, self.w.tick)
+                    || crate::vision::actor_visible(
+                        self.k.collision_view(self.w.rt.gates_locked),
+                        me,
+                        p,
+                        self.w.tick,
+                    )
                 {
                     mask |= 1 << j;
                 }
@@ -176,7 +181,7 @@ impl Sim {
             if !crate::status_runtime::hidden(&mob.core.statuses.instances, self.w.server_time) {
                 for (i, me) in self.w.players.iter().enumerate() {
                     if crate::vision::point_visible(
-                        &self.k.arena.map,
+                        self.k.collision_view(self.w.rt.gates_locked),
                         me,
                         mob.core.pos(),
                         self.w.tick,

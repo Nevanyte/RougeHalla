@@ -1,0 +1,311 @@
+--- a/crates/rh-load/tests/smoke.rs
++++ b/crates/rh-load/tests/smoke.rs
+@@ -22,6 +22,7 @@
+ 
+ async fn start(creds: &Creds, max_rooms: usize) -> InProc {
+     let sim = rh_sim::SimConfig {
++        lifecycle: rh_sim::ArenaMode::Off,
+         hazards: rh_sim::terrain::Mode::Off,
+         mob_mode: rh_sim::mob_runtime::MobMode::Off,
+         initial_loot: false,
+--- a/crates/rh-parity/tests/schedule.rs
++++ b/crates/rh-parity/tests/schedule.rs
+@@ -620,6 +620,7 @@
+                 TraceEntry::Hook("runEnded" | "teleported", "chests.clearChests") => {}
+                 TraceEntry::Hook("blocked", "cardHooks.onBlocked") => {}
+                 TraceEntry::Hook("fighterOut", "consumables.<arrow>") => {} // actual Small potion cleanup; other consumables remain pending.
++                TraceEntry::Hook("fighterOut", "vision.<arrow>") => {}
+                 TraceEntry::Hook("raidStarted", "abilities.armWishes") => {} // status reset only; P-ABIL remainder is explicit.
+                 TraceEntry::Hook(h, l) => panic!("{name}: hook {h} link {l} is not ported"),
+                 _ => {}
+--- a/crates/rh-server/examples/connheap.rs
++++ b/crates/rh-server/examples/connheap.rs
+@@ -48,6 +48,7 @@
+         None => rh_sim::arenas::practice_arena(),
+     };
+     let sim = rh_sim::SimConfig {
++        lifecycle: rh_sim::ArenaMode::Off,
+         hazards: rh_sim::terrain::Mode::Off,
+         mob_mode: rh_sim::mob_runtime::MobMode::Off,
+         initial_loot: false,
+--- a/crates/rh-server/src/bin/densitybench/engine.rs
++++ b/crates/rh-server/src/bin/densitybench/engine.rs
+@@ -204,6 +204,7 @@
+     let metrics: &'static Metrics = Box::leak(Box::new(Metrics::new()));
+     let assets = MapAssets::new(o.arena.clone()).expect("map encodes");
+     let sim = SimConfig {
++        lifecycle: rh_sim::ArenaMode::Off,
+         hazards: rh_sim::terrain::Mode::Off,
+         mob_mode: rh_sim::mob_runtime::MobMode::Off,
+         initial_loot: false,
+--- a/crates/rh-server/tests/account_api.rs
++++ b/crates/rh-server/tests/account_api.rs
+@@ -95,6 +95,7 @@
+     store.migrate().await.unwrap();
+     let dcfg = DirectorConfig::new(
+         rh_sim::SimConfig {
++            lifecycle: rh_sim::ArenaMode::Off,
+             hazards: rh_sim::terrain::Mode::Off,
+             mob_mode: rh_sim::mob_runtime::MobMode::Off,
+             initial_loot: false,
+--- a/crates/rh-server/tests/account_api_memory.rs
++++ b/crates/rh-server/tests/account_api_memory.rs
+@@ -13,6 +13,7 @@
+ async fn start() -> (std::net::SocketAddr, Arc<Lifecycle>) {
+     let cfg = DirectorConfig::new(
+         rh_sim::SimConfig {
++            lifecycle: rh_sim::ArenaMode::Off,
+             hazards: rh_sim::terrain::Mode::Off,
+             mob_mode: rh_sim::mob_runtime::MobMode::Off,
+             initial_loot: false,
+--- a/crates/rh-server/tests/control.rs
++++ b/crates/rh-server/tests/control.rs
+@@ -141,6 +141,7 @@
+ 
+ async fn rig(o: Opts) -> Rig {
+     let sim = SimConfig {
++        lifecycle: rh_sim::ArenaMode::Off,
+         hazards: rh_sim::terrain::Mode::Off,
+         mob_mode: rh_sim::mob_runtime::MobMode::Off,
+         initial_loot: false,
+@@ -283,6 +284,7 @@
+         let d = Director::new(
+             DirectorConfig::new(
+                 SimConfig {
++                    lifecycle: rh_sim::ArenaMode::Off,
+                     hazards: rh_sim::terrain::Mode::Off,
+                     mob_mode: rh_sim::mob_runtime::MobMode::Off,
+                     initial_loot: false,
+@@ -1256,6 +1258,7 @@
+             require_admit: true,
+             ..DirectorConfig::new(
+                 SimConfig {
++                    lifecycle: rh_sim::ArenaMode::Off,
+                     hazards: rh_sim::terrain::Mode::Off,
+                     mob_mode: rh_sim::mob_runtime::MobMode::Off,
+                     initial_loot: false,
+--- a/crates/rh-server/tests/density.rs
++++ b/crates/rh-server/tests/density.rs
+@@ -30,6 +30,7 @@
+     let assets = MapAssets::new(rh_sim::arenas::practice_arena()).unwrap();
+     RoomConfig {
+         sim: SimConfig {
++            lifecycle: rh_sim::ArenaMode::Off,
+             hazards: rh_sim::terrain::Mode::Off,
+             mob_mode: rh_sim::mob_runtime::MobMode::Off,
+             initial_loot: false,
+--- a/crates/rh-server/tests/equivalence.rs
++++ b/crates/rh-server/tests/equivalence.rs
+@@ -46,6 +46,7 @@
+ #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+ async fn a_live_match_replays_and_its_bots_decide_identically_headless() {
+     let sim = SimConfig {
++        lifecycle: rh_sim::ArenaMode::Off,
+         hazards: rh_sim::terrain::Mode::Off,
+         mob_mode: rh_sim::mob_runtime::MobMode::Off,
+         initial_loot: false,
+--- a/crates/rh-server/tests/lifecycle.rs
++++ b/crates/rh-server/tests/lifecycle.rs
+@@ -45,6 +45,7 @@
+ 
+ fn sim_config() -> SimConfig {
+     SimConfig {
++        lifecycle: rh_sim::ArenaMode::Off,
+         hazards: rh_sim::terrain::Mode::Off,
+         mob_mode: rh_sim::mob_runtime::MobMode::Off,
+         initial_loot: false,
+@@ -425,6 +426,7 @@
+     let arena = rh_headless::load_arena(&map).expect("map");
+     // One human closes the lobby on the first step: the next admission opens a room of its own.
+     let sim = SimConfig {
++        lifecycle: rh_sim::ArenaMode::Off,
+         hazards: rh_sim::terrain::Mode::Off,
+         mob_mode: rh_sim::mob_runtime::MobMode::Off,
+         initial_loot: false,
+--- a/crates/rh-server/tests/live.rs
++++ b/crates/rh-server/tests/live.rs
+@@ -72,6 +72,7 @@
+ 
+ async fn start(arena: Arena, tweak: impl FnOnce(&mut DirectorConfig)) -> Server {
+     let sim = SimConfig {
++        lifecycle: rh_sim::ArenaMode::Off,
+         hazards: rh_sim::terrain::Mode::Off,
+         mob_mode: rh_sim::mob_runtime::MobMode::Off,
+         initial_loot: false,
+--- a/crates/rh-server/tests/pg_e2e.rs
++++ b/crates/rh-server/tests/pg_e2e.rs
+@@ -111,6 +111,7 @@
+         linger: Duration::from_millis(100),
+         ..DirectorConfig::new(
+             SimConfig {
++                lifecycle: rh_sim::ArenaMode::Off,
+                 hazards: rh_sim::terrain::Mode::Off,
+                 mob_mode: rh_sim::mob_runtime::MobMode::Off,
+                 initial_loot: false,
+@@ -366,6 +367,7 @@
+         linger: Duration::from_millis(100),
+         ..DirectorConfig::new(
+             SimConfig {
++                lifecycle: rh_sim::ArenaMode::Off,
+                 hazards: rh_sim::terrain::Mode::Off,
+                 mob_mode: rh_sim::mob_runtime::MobMode::Off,
+                 initial_loot: false,
+--- a/crates/rh-server/tests/publish.rs
++++ b/crates/rh-server/tests/publish.rs
+@@ -64,6 +64,9 @@
+     let mut fx = Vec::new();
+     for e in &obs.events {
+         match *e {
++            SeenEvent::Teleported | SeenEvent::Plan(_) => {
++                panic!("protocol 6 reference encoder does not support Source arena events")
++            }
+             SeenEvent::PotionNotice { notice } => events.push(WireEvent::PotionNotice {
+                 notice: match notice {
+                     rh_sim::potions::Notice::Stored => 1,
+@@ -292,6 +295,7 @@
+         let now = Instant::now();
+         let cfg = RoomConfig {
+             sim: SimConfig {
++                lifecycle: rh_sim::ArenaMode::Off,
+                 hazards: rh_sim::terrain::Mode::Off,
+                 mob_mode: rh_sim::mob_runtime::MobMode::Off,
+                 initial_loot: false,
+--- a/crates/rh-server/tests/result_recovery.rs
++++ b/crates/rh-server/tests/result_recovery.rs
+@@ -139,6 +139,7 @@
+         linger: Duration::from_millis(100),
+         ..DirectorConfig::new(
+             SimConfig {
++                lifecycle: rh_sim::ArenaMode::Off,
+                 hazards: rh_sim::terrain::Mode::Off,
+                 mob_mode: rh_sim::mob_runtime::MobMode::Off,
+                 initial_loot: false,
+--- a/crates/rh-server/tests/transport.rs
++++ b/crates/rh-server/tests/transport.rs
+@@ -40,6 +40,7 @@
+ async fn start(tls: bool) -> Started {
+     let _ = rustls::crypto::ring::default_provider().install_default();
+     let sim = SimConfig {
++        lifecycle: rh_sim::ArenaMode::Off,
+         hazards: rh_sim::terrain::Mode::Off,
+         mob_mode: rh_sim::mob_runtime::MobMode::Off,
+         initial_loot: false,
+--- a/crates/rh-sim/src/replay.rs
++++ b/crates/rh-sim/src/replay.rs
+@@ -7,7 +7,7 @@
+ use crate::input::Command;
+ use crate::sim::{Arena, Event, Placement, PlayerId, Secrets, Sim, SimConfig};
+ 
+-/// Version 12 includes private singleton Mark progress and persistent sentence stacks. [`run_replay`] refuses other formats.
++/// Version16 includes source planning and replayable administrative abandonment. [`run_replay`] refuses other formats.
+ pub const REPLAY_FORMAT: &str = "rh-replay/16";
+ 
+ /// Identity of the code this binary was built from: the `RH_BUILD` environment variable at compile time (a release build is meant to set
+--- a/crates/rh-sim/src/systems/items.rs
++++ b/crates/rh-sim/src/systems/items.rs
+@@ -246,10 +246,6 @@
+ }
+ 
+ pub(crate) fn drop_body(hx: &mut Hx, args: &HookArgs) {
+-    if hx.k.config.lifecycle.rules().is_some() && !hx.k.config.initial_loot {
+-        super::loot::clear_slots(hx, args);
+-        return;
+-    }
+     let HookArgs::DropBody {
+         victim,
+         between_ticks,
+@@ -257,6 +253,10 @@
+     else {
+         return;
+     };
++    if hx.k.config.lifecycle.rules().is_some() && !hx.k.config.initial_loot {
++        super::loot::clear_player_slots(hx.w, victim);
++        return;
++    }
+     let Some(i) = hx.w.idx(victim) else { return };
+     let p = &mut hx.w.players[i];
+     let at = p.pos();
+--- a/crates/rh-sim/src/systems/loot.rs
++++ b/crates/rh-sim/src/systems/loot.rs
+@@ -12,8 +12,13 @@
+     let HookArgs::DropBody { victim, .. } = *args else {
+         return;
+     };
+-    if let Some(i) = hx.w.idx(victim) {
+-        let p = &mut hx.w.players[i];
++    clear_player_slots(hx.w, victim);
++}
++
++/// Shared slot mutation; hook callbacks remain callable only through the schedule.
++pub(crate) fn clear_player_slots(w: &mut crate::state::World, victim: crate::state::PlayerId) {
++    if let Some(i) = w.idx(victim) {
++        let p = &mut w.players[i];
+         p.weapon.weapon0 = None;
+         p.weapon.weapon1 = None;
+     }
+--- a/crates/rh-sim/src/systems/tests.rs
++++ b/crates/rh-sim/src/systems/tests.rs
+@@ -3,7 +3,7 @@
+ use super::*;
+ use crate::arenas::practice_arena;
+ use crate::constants::{MAX_ACTIONS_PER_TICK, TICK_MS};
+-use crate::hooks::{self, HookArgs, Hx, OutCause};
++use crate::hooks::{self, HookArgs, Hx};
+ use crate::input::{cmd, RawCommand};
+ use crate::state::Packet;
+ use crate::{FactionId, Placement, Secrets, Sim, SimConfig, Vec2};
+@@ -207,18 +207,19 @@
+ }
+ 
+ #[test]
+-fn a_hook_with_no_ported_link_changes_nothing() {
++fn a_pending_hook_changes_nothing() {
+     let mut s = sim();
+     let before = s.w.clone();
+     let id = s.w.players[0].id;
++    let hp = s.w.players[0].vitals.hp;
+     with_hx(&mut s, |hx| {
+-        hooks::fire(hx, HookArgs::RaidStarted);
+-        hooks::fire(hx, HookArgs::RunEnded);
++        // Lifecycle hooks now have real reset/vision links. Hurt remains pending.
+         hooks::fire(
+             hx,
+-            HookArgs::FighterOut {
++            HookArgs::Hurt {
+                 id,
+-                cause: OutCause::Removed,
++                amount: 1.,
++                before: hp,
+             },
+         );
+     });
+--- a/crates/rh-sim/tests/content.rs
++++ b/crates/rh-sim/tests/content.rs
+@@ -134,6 +134,18 @@
+ /// Rules that are tables rather than scalar rows: they are folded by `content_hash` directly (see content.rs). As
+ /// (file, name, reason).
+ const TABLES_FOLDED_BY_HASH: &[(&str, &str, &str)] = &[
++    ("systems/arena_rules.rs", "MAX_DURATION_SECONDS", "actual arena duration admission bound folded by arena_rules::visit_content"),
++    ("systems/arena_rules.rs", "PATIENCE_MIN_PLAYERS", "actual source patience scaling endpoint folded by arena_rules::visit_content"),
++    ("systems/arena_rules.rs", "PATIENCE_FULL_PLAYERS", "actual source patience scaling endpoint folded by arena_rules::visit_content"),
++    ("systems/arena_rules.rs", "SD_START", "actual sudden-death damage start folded by arena_rules::visit_content"),
++    ("systems/arena_rules.rs", "SD_RAMP", "actual sudden-death damage ramp folded by arena_rules::visit_content"),
++    ("systems/coliseum.rs", "SPOT_SEARCH_TILES", "actual fallback search bound folded by arena_rules::visit_content"),
++    ("systems/coliseum.rs", "RING_RADIUS", "actual fallback ring radius folded by arena_rules::visit_content"),
++    ("systems/coliseum.rs", "IMMUNITY_MS", "actual teleport immunity folded by arena_rules::visit_content"),
++    ("systems/planning/deal.rs", "WALK_TOLERANCE", "actual planning comparison tolerance folded by planning::deal::visit_content"),
++    ("systems/planning/deal.rs", "TIER_EPS", "actual planning tier arithmetic epsilon folded by planning::deal::visit_content"),
++    ("systems/planning/deal.rs", "SEARCH_BUDGET", "actual planning assignment budget folded by planning::deal::visit_content"),
++    ("systems/planning/deal.rs", "SPARE_BUDGET", "actual planning fallback budget folded by planning::deal::visit_content"),
+     ("terrain.rs", "NEUTRAL", "actual complete runtime surface matrix folded by terrain::visit_content"),
+     ("potions/mod.rs", "DEFINITION", "actual Small potion stock/concurrency/duration/share read by runtime and progression content visitor"),
+     ("cards/mod.rs", "ALL", "actual selected card identities/index/name order folded by visit_progression_content"),
+@@ -457,7 +469,7 @@
+         content_hash()
+     );
+ }
+-const GOLDEN_CONTENT_HASH: u64 = 0xcb27_3622_36f2_d3c2;
++const GOLDEN_CONTENT_HASH: u64 = 0x57b3_428f_8b41_ebf7;
+ 
+ #[test]
+ fn every_registry_row_perturbs_the_hash() {

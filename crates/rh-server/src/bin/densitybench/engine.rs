@@ -204,6 +204,7 @@ pub async fn run(o: &Opts, check_frames: bool) -> Report {
     let metrics: &'static Metrics = Box::leak(Box::new(Metrics::new()));
     let assets = MapAssets::new(o.arena.clone()).expect("map encodes");
     let sim = SimConfig {
+        lifecycle: rh_sim::ArenaMode::Off,
         hazards: rh_sim::terrain::Mode::Off,
         mob_mode: rh_sim::mob_runtime::MobMode::Off,
         initial_loot: false,

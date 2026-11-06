@@ -127,6 +127,7 @@ struct PlayerRec {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum CPhase {
     Lobby,
+    Planning,
     Active,
     Ended,
     Closed,
@@ -136,6 +137,7 @@ impl CPhase {
     pub fn as_str(self) -> &'static str {
         match self {
             CPhase::Lobby => "lobby",
+            CPhase::Planning => "planning",
             CPhase::Active => "active",
             CPhase::Ended => "ended",
             CPhase::Closed => "closed",
@@ -144,6 +146,7 @@ impl CPhase {
     fn of(p: Phase) -> Self {
         match p {
             Phase::Lobby => CPhase::Lobby,
+            Phase::Planning => CPhase::Planning,
             Phase::Active => CPhase::Active,
             Phase::Ended => CPhase::Ended,
         }
@@ -1357,5 +1360,14 @@ mod tests {
             b.on_seat([1; 16], "bob", SeatEvent::Seated),
             Some(Duration::from_millis(40))
         );
+    }
+}
+
+#[cfg(test)]
+mod arena_phase_tests {
+    use super::*;
+    #[test]
+    fn arena_planning_control_phase_is_named_truthfully() {
+        assert_eq!(CPhase::of(Phase::Planning).as_str(), "planning");
     }
 }

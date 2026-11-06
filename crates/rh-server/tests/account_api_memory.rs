@@ -13,6 +13,7 @@ use std::sync::Arc;
 async fn start() -> (std::net::SocketAddr, Arc<Lifecycle>) {
     let cfg = DirectorConfig::new(
         rh_sim::SimConfig {
+            lifecycle: rh_sim::ArenaMode::Off,
             hazards: rh_sim::terrain::Mode::Off,
             mob_mode: rh_sim::mob_runtime::MobMode::Off,
             initial_loot: false,

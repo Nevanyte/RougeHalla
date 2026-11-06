@@ -7,8 +7,8 @@ use crate::content::FactionId;
 use crate::input::Command;
 use crate::sim::{Arena, Event, Placement, PlayerId, Secrets, Sim, SimConfig};
 
-/// Version 12 includes private singleton Mark progress and persistent sentence stacks. [`run_replay`] refuses other formats.
-pub const REPLAY_FORMAT: &str = "rh-replay/15";
+/// Version16 includes source planning and replayable administrative abandonment. [`run_replay`] refuses other formats.
+pub const REPLAY_FORMAT: &str = "rh-replay/16";
 
 /// Identity of the code this binary was built from: the `RH_BUILD` environment variable at compile time (a release build is meant to set
 /// it to the commit id; nothing in the repo does yet, so every dev build reads the same), else `dev-<crate version>`. It is a compile-time constant, so reading it keeps
@@ -40,6 +40,10 @@ pub enum ReplayInput {
         cmd: Command,
     },
     Leave {
+        player: PlayerId,
+    },
+    /// Administrative shutdown void, distinct from MIA.
+    Abandon {
         player: PlayerId,
     },
     Dropped {
@@ -177,6 +181,9 @@ pub fn apply_input(sim: &mut Sim, input: &ReplayInput) {
             let _ = sim.submit_unbudgeted(player, cmd);
         }
         ReplayInput::Leave { player } => sim.remove_player(player),
+        ReplayInput::Abandon { player } => {
+            sim.abandon_player(player);
+        }
         ReplayInput::Dropped { player, dropped } => sim.mark_dropped(player, dropped),
     }
 }

@@ -5,7 +5,8 @@ their source schedule positions. Off/Map/All modes preserve faction home rules. 
 identity, source attribution and clocks remain private; checkpoints validate and continue them. The public MVP keeps
 hazards Off and its deployed build. Unity contains no new gameplay rules.
 
-Current native content is `cb27362236f2d3c2`, checkpoint17/replay15; observation13/policy10/protocol6 are unchanged.
+This terrain integration used content `cb27362236f2d3c2`, checkpoint17/replay15 and observation13/policy10/protocol6.
+The later [arena integration](../stage2-arena-native/README.md) owns the current native identity.
 The original full-port goal remains active under [REQUIREMENTS](../../REQUIREMENTS.md).
 
 ## Source and review

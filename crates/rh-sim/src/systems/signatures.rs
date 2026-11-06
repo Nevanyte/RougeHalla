@@ -262,7 +262,7 @@ pub(crate) fn before_damage(cx: &mut Cx) {
             Shape::Projectile { range, .. } => (range + PLAYER_RADIUS + RANGED_SLACK, MASK_SIGHT),
         };
         let in_reach = crate::math::hypot(t.body.x - p.body.x, t.body.y - p.body.y) <= reach
-            && has_line_of_sight(&k.arena.map, p.pos(), t.pos(), mask);
+            && has_line_of_sight(k.collision_map(w.rt.gates_locked), p.pos(), t.pos(), mask);
         // Source signature cadence deliberately excludes the attack-speed mirror.
         let cadence = |i| {
             let p = w.core(i);

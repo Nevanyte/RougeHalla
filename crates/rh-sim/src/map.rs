@@ -149,6 +149,35 @@ impl TileMap {
         Ok(self)
     }
 
+    /// Runtime-only derived geometry. Canonical layer admission remains against the open map.
+    pub(crate) fn closed_gates(&self) -> Option<Self> {
+        let layers = self.layers.as_ref()?;
+        if layers.dimensions() != (self.w, self.h)
+            || self.tiles.len() as u64 != u64::from(self.w) * u64::from(self.h)
+        {
+            return None;
+        }
+        if layers
+            .coliseum()
+            .gates
+            .iter()
+            .all(|gate| gate.tiles.is_empty())
+        {
+            return None;
+        }
+        let mut tiles = self.tiles.clone();
+        for gate in &layers.coliseum().gates {
+            for at in &gate.tiles {
+                // Layer admission already checked every gate coordinate against these dimensions.
+                *tiles.get_mut((at.y as usize) * self.w as usize + at.x as usize)? = TILE_WALL;
+            }
+        }
+        let mut map =
+            Self::new(self.w, self.h, tiles).expect("derived geometry has unchanged dimensions");
+        map.layers = self.layers.clone();
+        Some(map)
+    }
+
     pub fn layers(&self) -> Option<&crate::mapdata::MapLayers> {
         self.layers.as_deref()
     }

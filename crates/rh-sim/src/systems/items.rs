@@ -253,6 +253,10 @@ pub(crate) fn drop_body(hx: &mut Hx, args: &HookArgs) {
     else {
         return;
     };
+    if hx.k.config.lifecycle.rules().is_some() && !hx.k.config.initial_loot {
+        super::loot::clear_player_slots(hx.w, victim);
+        return;
+    }
     let Some(i) = hx.w.idx(victim) else { return };
     let p = &mut hx.w.players[i];
     let at = p.pos();
@@ -300,8 +304,13 @@ fn pickup_check(
         return Err(PickupRefusal::NothingThere);
     }
     let p = cx.w.core(ix).pos();
-    pickup_reach(&cx.k.arena.map, p, c.at)?;
-    if !point_visible(&cx.k.arena.map, &cx.w.players[ix.slot()], c.at, cx.w.tick) {
+    pickup_reach(cx.k.collision_map(cx.w.rt.gates_locked), p, c.at)?;
+    if !point_visible(
+        cx.k.collision_view(cx.w.rt.gates_locked),
+        &cx.w.players[ix.slot()],
+        c.at,
+        cx.w.tick,
+    ) {
         return Err(PickupRefusal::NothingThere);
     }
     Ok(i)
@@ -338,7 +347,12 @@ pub(crate) fn pickup(cx: &mut Cx, ix: FighterIx, cmd: &ActionCmd) {
                         .expect("target of refused pickup still present");
                 let viewer = &cx.w.players[ix.slot()];
                 let at = cx.w.containers[i].at;
-                point_visible(&cx.k.arena.map, viewer, at, cx.w.tick)
+                point_visible(
+                    cx.k.collision_view(cx.w.rt.gates_locked),
+                    viewer,
+                    at,
+                    cx.w.tick,
+                )
             }
         };
         cx.ev.push(Event::PickupRefused {

@@ -3,7 +3,7 @@
 use super::*;
 use crate::arenas::practice_arena;
 use crate::constants::{MAX_ACTIONS_PER_TICK, TICK_MS};
-use crate::hooks::{self, HookArgs, Hx, OutCause};
+use crate::hooks::{self, HookArgs, Hx};
 use crate::input::{cmd, RawCommand};
 use crate::state::Packet;
 use crate::{FactionId, Placement, Secrets, Sim, SimConfig, Vec2};
@@ -207,18 +207,19 @@ fn the_drop_body_hook_empties_the_slots_through_the_dispatcher() {
 }
 
 #[test]
-fn a_hook_with_no_ported_link_changes_nothing() {
+fn a_pending_hook_changes_nothing() {
     let mut s = sim();
     let before = s.w.clone();
     let id = s.w.players[0].id;
+    let hp = s.w.players[0].vitals.hp;
     with_hx(&mut s, |hx| {
-        hooks::fire(hx, HookArgs::RaidStarted);
-        hooks::fire(hx, HookArgs::RunEnded);
+        // Lifecycle hooks now have real reset/vision links. Hurt remains pending.
         hooks::fire(
             hx,
-            HookArgs::FighterOut {
+            HookArgs::Hurt {
                 id,
-                cause: OutCause::Removed,
+                amount: 1.,
+                before: hp,
             },
         );
     });

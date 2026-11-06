@@ -81,6 +81,12 @@ pub enum Event {
         amount: f64,
     },
     RaidStarted,
+    PlanningStarted,
+    Teleported,
+    Plan {
+        to: PlayerId,
+        plan: crate::PlanView,
+    },
     ProjectileLaunched(crate::ProjectileLaunch),
     ProjectileEnded {
         launch: crate::ProjectileLaunch,
@@ -196,6 +202,9 @@ impl Event {
     /// Who may know of this event. No wildcard arm, on purpose.
     pub fn visibility(&self) -> Visibility {
         match *self {
+            Event::Plan { to, .. } => Visibility::Owner(to),
+            Event::PlanningStarted => Visibility::ServerOnly,
+            Event::Teleported => Visibility::Everyone,
             Event::MobArmed { id, .. } => Visibility::Owner(id),
             Event::CampCleared { .. } => Visibility::Everyone,
             Event::ChestRefused { id, .. } => Visibility::Owner(id),
@@ -230,6 +239,9 @@ impl Event {
     /// path routes by its own exhaustive match over what an observer is shown, and debug-asserts it agrees with this.
     pub fn class(&self) -> Class {
         match self {
+            Event::Plan { .. } => Class::Important,
+            Event::PlanningStarted => Class::ServerOnly,
+            Event::Teleported => Class::Fx,
             Event::MobArmed { .. } | Event::CampCleared { .. } => Class::Important,
             Event::ChestRefused { .. } => Class::Important,
             Event::ChestTaken { .. } => Class::ServerOnly,

@@ -620,6 +620,7 @@ fn a_match_runs_its_ported_rows_in_table_order() {
                 TraceEntry::Hook("runEnded" | "teleported", "chests.clearChests") => {}
                 TraceEntry::Hook("blocked", "cardHooks.onBlocked") => {}
                 TraceEntry::Hook("fighterOut", "consumables.<arrow>") => {} // actual Small potion cleanup; other consumables remain pending.
+                TraceEntry::Hook("fighterOut", "vision.<arrow>") => {}
                 TraceEntry::Hook("raidStarted", "abilities.armWishes") => {} // status reset only; P-ABIL remainder is explicit.
                 TraceEntry::Hook(h, l) => panic!("{name}: hook {h} link {l} is not ported"),
                 _ => {}

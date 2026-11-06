@@ -369,6 +369,8 @@ impl Director {
         lifecycle: Arc<Lifecycle>,
         #[cfg(feature = "postgres")] spool: Option<Arc<crate::spool::ResultSpool>>,
     ) -> Arc<Self> {
+        crate::wire::profile_supported(&cfg.sim)
+            .expect("refusing to host unsupported simulation profile");
         cfg.leases.validate().expect("invalid lease policy");
         if let Err(e) = crate::wire::arena_fits(&cfg.arena) {
             panic!("refusing to host this arena: {e}");
@@ -1911,9 +1913,25 @@ mod tests {
         assert_eq!(open_lobby(&m), Some(id(2)));
     }
 
+    #[test]
+    #[should_panic(expected = "Source arena lifecycle requires protocol 7")]
+    fn arena_profile_director_construction_refuses_before_runtime_spawn() {
+        let sim = SimConfig {
+            lifecycle: rh_sim::ArenaMode::Source(Default::default()),
+            ..Default::default()
+        };
+        Director::new(
+            DirectorConfig::new(sim, rh_sim::arenas::practice_arena()),
+            Arc::new(Persistence::Memory(Box::<MemoryStore>::default())),
+            Arc::new(Auth::Dev),
+            Arc::new(Lifecycle::default()),
+        );
+    }
+
     fn director_with(store: MemoryStore) -> Arc<Director> {
         let sim = SimConfig {
             hazards: rh_sim::terrain::Mode::Off,
+            lifecycle: rh_sim::ArenaMode::Off,
             mob_mode: rh_sim::mob_runtime::MobMode::Off,
             initial_loot: false,
             min_players: 2,

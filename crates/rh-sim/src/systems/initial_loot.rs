@@ -61,6 +61,9 @@ fn input(k: &MatchStatic) -> Input<'_> {
 }
 pub(crate) fn initialize(k: &mut MatchStatic, w: &mut World) -> Result<(), &'static str> {
     if !k.config.initial_loot && k.config.mob_mode == crate::mob_runtime::MobMode::Off {
+        if k.config.lifecycle.rules().is_some() {
+            k.secrets.order_salt = w.spawn_rng.next_u32();
+        }
         return Ok(());
     }
     k.secrets.order_salt = w.spawn_rng.next_u32();

@@ -55,12 +55,42 @@ pub fn status(s: Status) -> u8 {
     }
 }
 
-pub fn phase(p: Phase) -> u8 {
-    match p {
-        Phase::Lobby => 0,
-        Phase::Active => 1,
-        Phase::Ended => 2,
+/// Protocol 6 cannot represent the native arena lifecycle.
+const ARENA_UNSUPPORTED: &str =
+    "Source arena lifecycle requires protocol 7 and durable lifecycle integration";
+
+/// Admission guard, independent of the current phase (including Source Lobby).
+pub fn profile_supported(config: &rh_sim::SimConfig) -> Result<(), rh_protocol::EncodeError> {
+    match config.lifecycle {
+        rh_sim::ArenaMode::Off => Ok(()),
+        rh_sim::ArenaMode::Source(_) => Err(rh_protocol::EncodeError::BadValue(ARENA_UNSUPPORTED)),
     }
+}
+
+pub fn checked_phase(p: Phase) -> Result<u8, rh_protocol::EncodeError> {
+    match p {
+        Phase::Lobby => Ok(0),
+        Phase::Active => Ok(1),
+        Phase::Ended => Ok(2),
+        Phase::Planning => Err(rh_protocol::EncodeError::BadValue(ARENA_UNSUPPORTED)),
+    }
+}
+
+/// Compatibility wrapper for supported-profile callers; never invents a wire phase.
+pub fn phase(p: Phase) -> u8 {
+    checked_phase(p).expect("native phase is unsupported by protocol 6")
+}
+
+fn observation_supported(obs: &Observation) -> Result<(), rh_protocol::EncodeError> {
+    checked_phase(obs.phase)?;
+    if obs.arena.is_some() || obs.plan.is_some() || obs.events.iter().any(arena_event) {
+        return Err(rh_protocol::EncodeError::BadValue(ARENA_UNSUPPORTED));
+    }
+    Ok(())
+}
+
+fn arena_event(event: &SeenEvent) -> bool {
+    matches!(event, SeenEvent::Plan(..) | SeenEvent::Teleported)
 }
 
 /// Whether the wire can carry every position of a match on `arena`: the world extent (`w * TILE` by `h * TILE` u) and
@@ -146,13 +176,21 @@ fn wire_actor(a: &rh_sim::observe::ActorView) -> WireActor {
 }
 
 pub fn snapshot(obs: &Observation, ack_input: u32) -> ServerMsg {
-    ServerMsg::Snapshot {
+    checked_snapshot(obs, ack_input).expect("native observation is unsupported by protocol 6")
+}
+
+pub fn checked_snapshot(
+    obs: &Observation,
+    ack_input: u32,
+) -> Result<ServerMsg, rh_protocol::EncodeError> {
+    observation_supported(obs)?;
+    Ok(ServerMsg::Snapshot {
         tick: obs.tick,
-        phase: phase(obs.phase),
+        phase: checked_phase(obs.phase)?,
         ack_input,
         me: obs.me.as_ref().map(wire_self),
         actors: obs.visible.iter().map(wire_actor).collect(),
-    }
+    })
 }
 
 /// An actor checked and quantized for the wire: [`QActor::checked`] of its [`wire_actor`].
@@ -221,10 +259,12 @@ enum Wire {
     Event(WireEvent),
     Fx(WireFx),
     Omitted,
+    Refused,
 }
 
 fn to_wire(e: &SeenEvent) -> Wire {
     match *e {
+        SeenEvent::Plan(..) | SeenEvent::Teleported => Wire::Refused,
         SeenEvent::PotionNotice { notice } => Wire::Event(WireEvent::PotionNotice {
             notice: match notice {
                 rh_sim::potions::Notice::Stored => 1,
@@ -326,6 +366,15 @@ pub struct ViewFrames {
 }
 
 impl ViewFrames {
+    fn unsupported(error: rh_protocol::EncodeError) -> Self {
+        Self {
+            important: None,
+            fx: None,
+            snapshot: Err(error.clone()),
+            refused: Some(error),
+        }
+    }
+
     /// Bytes handed to the outbox: the events and fx frames, and the snapshot at a lower bound of the size of its Full frame
     /// ([`SnapshotData::min_len`]; the writer sends a Full frame or a smaller delta and counts the real bytes).
     pub fn bytes(&self) -> usize {
@@ -338,8 +387,19 @@ impl ViewFrames {
     }
 }
 
-/// The publish path: the observation, its wire forms and the frames, with every intermediate buffer kept between viewers
-/// and ticks. The room and wirebench both call [`Publisher::frames`], so the bench measures the production path.
+/// A refusing profile check or a failed native observation offer.
+#[derive(Debug)]
+pub enum PrepareFramesError {
+    Unsupported(rh_protocol::EncodeError),
+    Offer(rh_sim::OfferError),
+}
+impl From<rh_sim::OfferError> for PrepareFramesError {
+    fn from(error: rh_sim::OfferError) -> Self {
+        Self::Offer(error)
+    }
+}
+
+/// The shared production and benchmark publish path, retaining intermediate buffers.
 #[derive(Default)]
 pub struct Publisher {
     obs: Observation,
@@ -403,6 +463,9 @@ impl Publisher {
         earlier: &mut Vec<SeenEvent>,
         all: &[rh_sim::Event],
     ) -> ViewFrames {
+        if let Err(error) = profile_supported(sim.config()) {
+            return ViewFrames::unsupported(error);
+        }
         rh_sim::observe_into_cached(sim, viewer, last_step, &mut self.obs, &mut self.sight);
         self.build_observation_frames(spare, viewer, ack_input, earlier, all)
     }
@@ -419,7 +482,8 @@ impl Publisher {
         last_step: &[rh_sim::Event],
         earlier: &mut Vec<SeenEvent>,
         all: &[rh_sim::Event],
-    ) -> Result<(ViewFrames, rh_sim::item_view::PreparedOffer<'a>), rh_sim::OfferError> {
+    ) -> Result<(ViewFrames, rh_sim::item_view::PreparedOffer<'a>), PrepareFramesError> {
+        profile_supported(sim.config()).map_err(PrepareFramesError::Unsupported)?;
         let viewer = observer.viewer();
         let offer = observer.prepare_with_seen(
             sim,
@@ -428,6 +492,7 @@ impl Publisher {
             &mut self.obs,
             Some(&mut self.sight),
         )?;
+        observation_supported(&self.obs).map_err(PrepareFramesError::Unsupported)?;
         earlier.clear();
         Ok((
             self.build_observation_frames(spare, viewer, ack_input, earlier, all),
@@ -447,6 +512,9 @@ impl Publisher {
             earlier.append(&mut self.obs.events);
             std::mem::swap(earlier, &mut self.obs.events);
         }
+        if let Err(error) = observation_supported(&self.obs) {
+            return ViewFrames::unsupported(error);
+        }
         self.events.clear();
         self.fx.clear();
         for e in &self.obs.events {
@@ -460,6 +528,11 @@ impl Publisher {
                     self.fx.push(w);
                 }
                 Wire::Omitted => {}
+                Wire::Refused => {
+                    return ViewFrames::unsupported(rh_protocol::EncodeError::BadValue(
+                        ARENA_UNSUPPORTED,
+                    ))
+                }
             }
         }
         for e in all {
@@ -560,6 +633,117 @@ mod tests {
     use rh_protocol::quant::POS_SCALE;
     use rh_protocol::{snapshot_server_ms, TICK_MS};
     use rh_sim::{FactionId, SimConfig};
+
+    fn arena_env() -> Env {
+        let arena = rh_headless::load_arena(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../parity/maps/seed1.map.json"
+        ))
+        .unwrap();
+        Env::new(
+            EnvConfig {
+                arena,
+                sim: SimConfig {
+                    lifecycle: rh_sim::ArenaMode::Source(rh_sim::ArenaRules::default()),
+                    min_players: 2,
+                    lobby_seconds: 0.,
+                    fill_seconds: 0.,
+                    ..Default::default()
+                },
+                max_ticks: 100,
+                record: false,
+            },
+            (0..2)
+                .map(|i| AgentSpec {
+                    profile: format!("p{i}"),
+                    faction: FactionId::Holy,
+                    bot: false,
+                    agent: Agent::External,
+                })
+                .collect(),
+            12,
+        )
+    }
+
+    #[test]
+    fn arena_profile_refuses_lobby_planning_and_active_without_partial_frames_or_offers() {
+        let mut env = arena_env();
+        let viewer = env.observations()[0].me.as_ref().unwrap().id;
+        let mut publisher = Publisher::default();
+        let mut observer = rh_sim::ItemObserver::new(viewer);
+        for expected in [Phase::Lobby, Phase::Planning, Phase::Active] {
+            assert_eq!(env.sim.phase(), expected);
+            let mut earlier = vec![SeenEvent::Teleported];
+            let frames = publisher.frames(&env.sim, viewer, 0, &[], &mut earlier, &[]);
+            assert!(frames.important.is_none() && frames.fx.is_none());
+            assert_eq!(frames.bytes(), 0);
+            assert_eq!(
+                frames.snapshot.unwrap_err(),
+                rh_protocol::EncodeError::BadValue(ARENA_UNSUPPORTED)
+            );
+            assert_eq!(earlier, vec![SeenEvent::Teleported]);
+            assert!(matches!(
+                publisher.frames_prepared(&mut observer, None, &env.sim, 0, &[], &mut earlier, &[]),
+                Err(PrepareFramesError::Unsupported(_))
+            ));
+            assert_eq!(earlier, vec![SeenEvent::Teleported]);
+            let obs = rh_sim::observe(&env.sim, viewer, &[]);
+            assert!(checked_snapshot(&obs, 0).is_err());
+            if expected == Phase::Lobby {
+                env.step(&[]);
+            } else if expected == Phase::Planning {
+                env.step(&[
+                    vec![rh_sim::PublicCommand::Plan {
+                        spawn: Some(0),
+                        boon: None,
+                        ready: Some(true),
+                    }],
+                    vec![rh_sim::PublicCommand::Plan {
+                        spawn: Some(0),
+                        boon: None,
+                        ready: Some(true),
+                    }],
+                ]);
+            }
+        }
+    }
+
+    #[test]
+    fn arena_observation_and_catchup_facts_refuse_atomically_and_off_still_encodes() {
+        let env = seed1_match(1);
+        let viewer = env.sim.players()[0].id;
+        let mut publisher = Publisher::default();
+        let frames = publisher.frames(&env.sim, viewer, 7, &[], &mut Vec::new(), &[]);
+        assert!(frames.snapshot.is_ok() && frames.refused.is_none());
+        let obs = publisher.observation();
+        assert!(checked_snapshot(obs, 7).unwrap().try_encode().is_ok());
+        let mut planning = obs.clone();
+        planning.phase = Phase::Planning;
+        assert!(checked_snapshot(&planning, 7).is_err());
+        assert!(checked_phase(Phase::Planning).is_err());
+        for event in [
+            SeenEvent::Teleported,
+            SeenEvent::Plan(rh_sim::PlanView {
+                ends_at: 1.,
+                spawns: [0, 1],
+                taken: [false, false],
+                pick: -1,
+                boons: Vec::new(),
+                boon: -1,
+            }),
+        ] {
+            let frames = publisher.frames(&env.sim, viewer, 7, &[], &mut vec![event], &[]);
+            assert!(frames.snapshot.is_err());
+            assert!(frames.important.is_none() && frames.fx.is_none());
+        }
+        assert!(profile_supported(env.sim.config()).is_ok());
+        let mut observer = rh_sim::ItemObserver::new(viewer);
+        let (frames, offer) = publisher
+            .frames_prepared(&mut observer, None, &env.sim, 7, &[], &mut Vec::new(), &[])
+            .unwrap();
+        assert!(frames.snapshot.is_ok() && frames.refused.is_none());
+        offer.commit();
+    }
 
     fn seed1_match(ticks: u32) -> Env {
         let path = concat!(

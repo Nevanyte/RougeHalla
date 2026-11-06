@@ -12,8 +12,13 @@ pub(crate) fn clear_slots(hx: &mut Hx, args: &HookArgs) {
     let HookArgs::DropBody { victim, .. } = *args else {
         return;
     };
-    if let Some(i) = hx.w.idx(victim) {
-        let p = &mut hx.w.players[i];
+    clear_player_slots(hx.w, victim);
+}
+
+/// Shared slot mutation; hook callbacks remain callable only through the schedule.
+pub(crate) fn clear_player_slots(w: &mut crate::state::World, victim: crate::state::PlayerId) {
+    if let Some(i) = w.idx(victim) {
+        let p = &mut w.players[i];
         p.weapon.weapon0 = None;
         p.weapon.weapon1 = None;
     }

@@ -39,22 +39,25 @@ Its witnesses retain66 original cases,11 ice traces and a separate21-case/88-fra
 pinned Linux amd64 Node22.23.4 captures reproduce byte exactly; CI checks both. Twenty born cases fully compare; the
 lethal-credit case preserves an exact full-world reward-card mismatch. Full P-TERRAIN-1 remains **INCOMPLETE**.
 
-Current native identity: content `cb27362236f2d3c2`, checkpoint17/replay15; observation13/policy10/protocol6 unchanged.
-The coordinator verified1,127 distinct tests in split batches, including all simulation integration tests, real-PG
-adapters, three compile-fail documentation checks and the44,690-leaf hash audit with zero unhashed leaves. Both strict
-workspace Clippy modes and formatting pass;97 legacy scenarios/13 capture-only/300 paths retain their existing result.
-The191 unchanged map-generator unit tests were not repeated locally. Full
-[Rust/C#/WSS CI42214298734](https://github.com/Nevanyte/RougeHalla/actions/runs/42214298734) passes at `0b525260`,
-including the workspace/map tests, all canonical source checks and267 C# tests.
-[Terrain evidence](evidence/stage2-terrain/README.md) records exact commands, source scope, zero-allocation collision
-replanning and the reproducible strict reward failure. The deployed MVP retains its original build and hazards Off.
+Current native identity: content `57b3428f8b41ebf7`, checkpoint18/replay16, observation14/policy11; protocol6 unchanged.
+The independently reviewed bounded P-ARENA-1 authority kernel is integrated: real planning/deals, coliseum clocks,
+teleport/gate transitions, patience/sudden death, historical collision/vision and administrative abandonment. Headless
+and policy observations carry the new native owner facts. Exact source ordering/RNG and retained planning state are
+preserved; invalid early lock/history states refuse restore. Full P-ARENA-1 remains **INCOMPLETE**.
 
-P-ARENA-1 design and its frozen source witnesses are independently reviewed:35 cases/621 frames,200 exact deals and
-two labeled helpers are integrated source-only, with a pinned canonical reproduction and CI check. Native implementation
-remains private. Its reviewed design preserves historical
-vision across gate changes, source constructor/deal/teleport stream order, retained private planning state and owner-only
-planning facts. Native lifecycle comes before its serialized wire/client and durable shutdown work. Full card rewards,
-training actors, full NPC faction domains and other original-port requirements remain in the backlog.
+The coordinator verified1,163 distinct native tests across split batches, including PostgreSQL, checkpoint/replay/hash,
+privacy, headless/policy and three compile-fail documentation checks. Both strict workspace Clippy modes and formatting
+pass. The191 unchanged map-generator unit tests were not repeated locally. The latest completed full
+[Rust/C#/WSS CI42222451955](https://github.com/Nevanyte/RougeHalla/actions/runs/42222451955) passes at `d3418f17`,
+before this native arena integration; new CI is pending. The [arena integration evidence](evidence/stage2-arena-native/README.md)
+records exact split commands, repaired integration checks and bounded acceptance. Protocol6 hosting/publication
+explicitly refuses Source lifecycle before simulation/offers; no Planning→Lobby alias or silent event omission is used.
+Full wire/client transport and durable shutdown/MIA remain open. The original frozen arena source remains35cases/621frames,
+200 exact deals and two labeled helpers; native acceptance covers33 ordinary owned trajectories/603frames plus one
+boon helper/9frames. Genuine Wish/refund and card reset hooks are unfinished; their strict completion diagnostic fails.
+The strict terrain reward-options diagnostic also retains its exact failure. Full card rewards, training actors,
+full NPC faction domains and other original-port requirements remain in the backlog. The former Calgary MVP deployment
+was cleaned up; no new live profile is deployed.
 
 The complete card/reward source prerequisite is independently accepted:409 cases,80 complete catalog definitions,
 all ten effect payload kinds and14 interactive reward selections. A coordinator pinned Node22.23.4 read-only check
@@ -63,20 +66,23 @@ reproduces the exact corpus; source/protected snapshot and helper-coverage docum
 reviewed seven-file integration. The [full card packet](backlog/packets/P-CARDS-1.md) retains actual runtime captures,
 all hooks/guards/grants/rewards and the strict terrain options mismatch as unfinished work; no native scope widened.
 
-The private arena collision/history prerequisite has independent stage1-v2 approval (manifest
-`14ac6e5f82c5cd635ccba8d3bb9ad047c3498c5727a4636e4e786acef5de39b9`), including the repaired first-reveal ordinal
-restore rule. It is not yet integrated; actual lifecycle/locked-world/public-observer acceptance remains pending.
 The full [Wish packet](backlog/packets/P-ABIL-1.md) now has independently accepted source evidence:63 cases/6,318
 ordinary50ms steps/1,237 full frames, with all five real outcomes, stock clocks, atomic rank reversal, source-born
 recipients and observer twins. A fresh pinned capture and one exact comparison pass. The coordinator applied the
 reviewed README correction separating transient hook observations from ordinary checkpoint boundaries; corpus/harness
 bytes are unchanged. A reviewed single-owner cast design is now being implemented privately on the frozen arena
-collision/history prerequisite. [Wish evidence](evidence/stage2-abilities/README.md) records exact scope. No ordinary
+collision/history kernel. [Wish evidence](evidence/stage2-abilities/README.md) records exact scope. No ordinary
 native Cast parity, full coupled producer or public transport success is claimed. Blaze Step is the Fire Wish; the
 genuine native arena refund remains required. A separate independently reviewed two-case/24-step
 [voided-cast source companion](../parity/ability-void/README.md) now captures both unrelated-player and target
 abandonment: pending Freeze and both clocks remain exact at600ms beyond its350ms deadline. It closes the missing
 source witness, not native restore acceptance; the original63-case corpus/harness remains unchanged.
+
+The [65-case card runtime source prerequisite](evidence/stage2-card-runtime/README.md) is independently accepted and
+integrated with6,236 ordinary50ms steps,3,298 full frames and3,179 exact private records. Four reviewed prose corrections
+qualify assertion coverage, frame selection, Slow Burn and the original reason-stripping observation control. Runtime
+harness/corpus bytes remain exact. Positive Witness uses a separately reviewed companion; source evidence does not
+admit native full-card builds or certify all80-card/runtime/public completion.
 
 ### Current playable-core checkpoint
 

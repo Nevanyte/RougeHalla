@@ -1,0 +1,208 @@
+{
+  "server": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/server-target/debug/rh-server",
+  "url": "https://localhost:7443/probe",
+  "tls": "self-signed (ignoreHTTPSErrors)",
+  "checks": {
+    "admission_and_map": {
+      "a": {
+        "player": 1,
+        "tick": 0,
+        "mapW": 12,
+        "mapH": 8,
+        "mapHash": 2876423845,
+        "tickRate": 20
+      },
+      "b": {
+        "player": 2,
+        "tick": 0,
+        "mapW": 12,
+        "mapH": 8,
+        "mapHash": 2876423845,
+        "tickRate": 20
+      }
+    },
+    "run_started": true,
+    "join_receives_complete_reliable_state": {
+      "frames": 1,
+      "first": [
+        [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ]
+      ],
+      "keys": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7"
+      ]
+    },
+    "protocol_6_full_first_then_deltas": {
+      "protocol": 6,
+      "first": [
+        "full"
+      ],
+      "full": 1,
+      "delta": 21,
+      "refused": [],
+      "resyncs": 0
+    },
+    "resync_refreshes_reliable_state": true,
+    "resync_answered_with_one_full_snapshot": {
+      "full": 2,
+      "refused": []
+    },
+    "refusal_inside_the_interval_still_gets_a_full_snapshot": {
+      "before": {
+        "full": 2,
+        "resyncs": 1,
+        "refused": 0
+      },
+      "after": {
+        "full": 3,
+        "resyncs": 2,
+        "refused": 13,
+        "errors": 0
+      }
+    },
+    "input_applied_and_acked": {
+      "seq": 1,
+      "y0": 144,
+      "y1": 208
+    },
+    "reconnect_same_seat": {
+      "player": 2
+    },
+    "resume_starts_with_a_full_snapshot": {
+      "first": [
+        "full",
+        "full"
+      ],
+      "refused": [],
+      "resyncs": 0
+    },
+    "resume_refreshes_all_state_keys": [
+      [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ]
+    ],
+    "authoritative_results": {
+      "alpha": {
+        "k": "result",
+        "outcome": 2,
+        "place": 2,
+        "players": 2,
+        "kills": 0,
+        "killedBy": "webBravo",
+        "gvTotal": 0,
+        "gvWin": 0,
+        "durationSec": 22,
+        "withheld": false
+      },
+      "bravo": {
+        "k": "result",
+        "outcome": 0,
+        "place": 1,
+        "players": 2,
+        "kills": 1,
+        "killedBy": null,
+        "gvTotal": 10,
+        "gvWin": 0,
+        "durationSec": 22,
+        "withheld": true
+      }
+    },
+    "resume_after_the_run_resolved_resends_the_result": {
+      "result": {
+        "k": "result",
+        "outcome": 2,
+        "place": 2,
+        "players": 2,
+        "kills": 0,
+        "killedBy": "webBravo",
+        "gvTotal": 0,
+        "gvWin": 0,
+        "durationSec": 22,
+        "withheld": false
+      }
+    },
+    "no_page_errors": true,
+    "wrong_protocol_welcome_refused_before_state": {
+      "preserved": true,
+      "reject": {
+        "code": 1,
+        "reason": "protocol mismatch"
+      },
+      "closing": true
+    }
+  },
+  "measured": {
+    "joinMs": {
+      "pageToWelcome": 67.30000019073486,
+      "helloToWelcome": 3.6000003814697266
+    },
+    "resumeHelloToWelcomeMs": 2,
+    "snapshots": 418,
+    "fullSnapshots": 3,
+    "deltaSnapshots": 415,
+    "resyncs": 2,
+    "refusedDeltas": [
+      "refused no_base",
+      "refused no_base",
+      "refused no_base",
+      "refused no_base",
+      "refused no_base",
+      "refused no_base",
+      "refused no_base",
+      "refused no_base",
+      "refused no_base",
+      "refused no_base",
+      "refused no_base",
+      "refused no_base",
+      "refused no_base"
+    ],
+    "fxFrames": 109,
+    "rttMsP50": 0.6000003814697266,
+    "rttMsMax": 1.0999999046325684,
+    "pageErrors": [],
+    "rejects": []
+  },
+  "browser": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.8078.4 Safari/537.36",
+  "serverInfo": {
+    "closedRooms": [],
+    "contentHash": "57b3428f8b41ebf7",
+    "lobbies": 0,
+    "maxRooms": 16,
+    "players": 2,
+    "protocol": 6,
+    "resultsFailed": 0,
+    "resultsOk": 2,
+    "resultsRefused": 0,
+    "rooms": 1,
+    "state": "ready"
+  },
+  "verdict": "PASS"
+}
