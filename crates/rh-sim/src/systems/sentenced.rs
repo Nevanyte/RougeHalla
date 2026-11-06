@@ -1,7 +1,7 @@
 //! Power-zero base-player singleton Sentenced Mark. No auxiliary installer or bonus-stat producers.
 use super::ledger::Entry;
 use crate::constants::*;
-use crate::content::{self, FactionId};
+use crate::content::FactionId;
 use crate::factions::SignatureKind;
 use crate::hooks::{HookArgs, Hx};
 use crate::state::{Packet, PlayerId, World};
@@ -132,10 +132,10 @@ pub(crate) fn before_damage(
                 victim: e.victim,
                 by: e.by,
                 packet: Packet {
-                    raw: content::sentenced_pulse(
+                    raw: crate::modifiers::mark_pulse(
+                        &w.players[i],
                         e.weapon.unwrap(),
                         w.players[ti].vitals.max_hp,
-                        w.players[i].credit.sentence,
                         distance <= MARK_NEAR_RANGE,
                     ),
                     phys: MARK_PHYS_SHARE,

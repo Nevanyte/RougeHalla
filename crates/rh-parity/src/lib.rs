@@ -619,6 +619,7 @@ fn try_build(fx: &Fixture) -> Result<Sim, String> {
         })
         .collect::<Result<Vec<_>, String>>()?;
     let secrets = Secrets {
+        reward_salt: [0; 4],
         order_salt: fx.legacy_config.order_salt,
         spawn_seed: vision::source(fx).map_or(0, |m| m.spawn_seed),
     };

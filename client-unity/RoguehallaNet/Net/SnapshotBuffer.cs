@@ -4,7 +4,7 @@ using Roguehalla.Net.Protocol;
 
 namespace Roguehalla.Net
 {
-    /// <summary>A remote actor as drawn at a render time: owned by the caller's list, typed codes.</summary>
+    /// <summary>A remote actor on the common 20 Hz timeline, using the native presentation id. NPCs need no extra visual slot; typed facts are owned by the caller's list.</summary>
     public struct InterpActor
     {
         public uint Id;
@@ -16,6 +16,8 @@ namespace Roguehalla.Net
         public ushort Bounty, Effects;
         public byte DisplaceSeq;
         public ActorKind Kind;
+        public MobTypeId? MobType;
+        public byte SourceSig;
     }
 
     /// <summary>
@@ -120,7 +122,7 @@ namespace Roguehalla.Net
             for (int i = 0; i < cur.Length; i++)
             {
                 ref readonly WireActor c = ref cur[i];
-                var o = new InterpActor { Id = c.Id, Faction = (FactionId)c.Faction, HpPct = c.HpPct, Status = (ActorStatus)c.Status, Weapon = (WeaponId)c.Weapon, Bounty = c.Bounty, Effects=c.Effects, DisplaceSeq=c.DisplaceSeq, Kind=(ActorKind)c.Kind, X = c.X, Y = c.Y, Facing = c.Facing };
+                var o = new InterpActor { Id = c.Id, Faction = (FactionId)c.Faction, HpPct = c.HpPct, Status = (ActorStatus)c.Status, Weapon = (WeaponId)c.Weapon, Bounty = c.Bounty, Effects=c.Effects, DisplaceSeq=c.DisplaceSeq, Kind=(ActorKind)c.Kind, MobType=c.MobTypeCode==0?(MobTypeId?)null:(MobTypeId)(c.MobTypeCode-1),SourceSig=c.Sig, X = c.X, Y = c.Y, Facing = c.Facing };
                 int k = -1;
                 if (merge)
                 {

@@ -96,13 +96,30 @@ impl Gates {
     /// The match uses the baseline capture plan or the explicitly partial Holy foundation.
     /// Other signature producers remain Pending even in the latter plan.
     pub(crate) const fn of(k: &MatchStatic) -> Gates {
-        if k.config.faction_mode.engagement() {
+        if matches!(
+            k.config.mob_mode,
+            crate::mob_runtime::MobMode::SpawnFoundation | crate::mob_runtime::MobMode::Pve
+        ) {
+            if k.config.faction_mode.engagement() {
+                Gates::MOB_BASIC_FACTIONS
+            } else {
+                Gates::MOB_FOUNDATION
+            }
+        } else if k.config.faction_mode.engagement() {
             Gates::HOLY_FOUNDATION
         } else {
             Gates::CAPTURE
         }
     }
     /// Partial explicit-module plan: only engagement and Holy sustain are implemented.
+    pub const MOB_BASIC_FACTIONS: Gates = Gates {
+        signatures: true,
+        ..Self::MOB_FOUNDATION
+    };
+    pub const MOB_FOUNDATION: Gates = Gates {
+        mobs: true,
+        ..Gates::CAPTURE
+    };
     pub const HOLY_FOUNDATION: Gates = Gates {
         signatures: true,
         ..Gates::CAPTURE
@@ -563,6 +580,10 @@ impl Plan {
             &PRODUCTION_PLAN
         } else if g == Gates::HOLY_FOUNDATION {
             &HOLY_FOUNDATION_PLAN
+        } else if g == Gates::MOB_BASIC_FACTIONS {
+            &MOB_BASIC_FACTIONS_PLAN
+        } else if g == Gates::MOB_FOUNDATION {
+            &MOB_FOUNDATION_PLAN
         } else if g == Gates::TRAINING {
             &TRAINING_PLAN
         } else {
@@ -577,6 +598,8 @@ impl Plan {
     }
 }
 
+static MOB_BASIC_FACTIONS_PLAN: Plan = Plan::compile(&Gates::MOB_BASIC_FACTIONS);
+static MOB_FOUNDATION_PLAN: Plan = Plan::compile(&Gates::MOB_FOUNDATION);
 static PRODUCTION_PLAN: Plan = Plan::compile(&Gates::PRODUCTION);
 static CAPTURE_PLAN: Plan = Plan::compile(&Gates::CAPTURE);
 static HOLY_FOUNDATION_PLAN: Plan = Plan::compile(&Gates::HOLY_FOUNDATION);
@@ -654,7 +677,10 @@ pub(crate) static PHASES: [Item<PhaseFn>; 23] = [
         inputs::apply_players(cx);
         Flow::Continue
     }),
-    pending("inputs:mobs(insertionOrder)", Gate::Always, "P-MOBS-1"),
+    ported("inputs:mobs(insertionOrder)", Gate::Always, |cx| {
+        inputs::apply_mobs(cx);
+        Flow::Continue
+    }),
     // Complete status/field lifecycle runs here. P-ABIL-1 extends this phase with cast producers.
     partial(
         "abilities",
@@ -766,10 +792,26 @@ static SYSTEMS: [Item<SystemFn>; 24] = [
         Gate::Always,
         credit::flush_announcements,
     ),
-    pending("chests.expireChests", Gate::Always, "P-CARDS-2"),
-    pending("mobLife.reapMobs", Gate::Always, "P-MOBS-1"),
-    pending("mobLife.respawnCamps", Gate::Always, "P-MOBS-1"),
-    pending("mobAI.thinkMobs", Gate::Always, "P-MOBS-1"),
+    ported(
+        "chests.expireChests",
+        Gate::Always,
+        crate::reward_chests::expire,
+    ),
+    ported(
+        "mobLife.reapMobs",
+        Gate::Always,
+        crate::systems::mob_life::reap,
+    ),
+    ported(
+        "mobLife.respawnCamps",
+        Gate::Always,
+        crate::systems::mob_life::respawn,
+    ),
+    ported(
+        "mobAI.thinkMobs",
+        Gate::Always,
+        crate::systems::mob_ai::think,
+    ),
     pending("terrainEffects.lightPass", Gate::Always, "P-TERRAIN-1"),
     pending("regen.regenPass", Gate::Always, "P-MOBS-2"),
     ported(
@@ -779,7 +821,13 @@ static SYSTEMS: [Item<SystemFn>; 24] = [
     ),
     pending("quests.questSystem", Gate::Quests, "P-QUEST-1"),
     ported("vision.refreshVision", Gate::Always, crate::vision::refresh),
-    pending("consumables.updateConsumables", Gate::Always, "P-CONS-1"),
+    partial(
+        "consumables.updateConsumables",
+        Gate::Always,
+        "Small potion Hot",
+        "P-CONS-1",
+        crate::systems::potions::update,
+    ),
     pending("traders.updateTraders", Gate::NotTraining, "P-TRADE-1"),
     pending("cardHooks.afterDamage", Gate::Always, "P-CARDS-1"),
     pending("plagueCorpses.<anonymous>", Gate::Signatures, "P-FACTION-3"),
@@ -809,8 +857,16 @@ static MOVE_MODIFIERS: [Item<MoveFn>; 7] = [
         Gate::Signatures,
         crate::systems::frost::movement_modifier,
     ),
-    pending("buffs.moveSpeedMult", Gate::Always, "P-CARDS-2"),
-    pending("mobLife.mobRoleMove", Gate::Always, "P-MOBS-1"),
+    ported(
+        "buffs.moveSpeedMult",
+        Gate::Always,
+        crate::modifiers::movement,
+    ),
+    ported(
+        "mobLife.mobRoleMove",
+        Gate::Always,
+        crate::systems::mobs::role_move,
+    ),
     pending("terrainEffects.applyBog", Gate::Always, "P-TERRAIN-1"),
     ported(
         "abilities.statusMoveMultiplier",
@@ -884,7 +940,7 @@ pub(crate) static ACTIONS: [ActionRow; 13] = [
         "choose",
         "chests",
         Gate::Always,
-        Run::Pending("P-CARDS-2"),
+        Run::Ported(crate::reward_chests::on_choose),
     ),
     action(
         ActionId::Cast,
@@ -905,7 +961,11 @@ pub(crate) static ACTIONS: [ActionRow; 13] = [
         "useConsumable",
         "consumables",
         Gate::Always,
-        Run::Pending("P-CONS-1"),
+        Run::Partial {
+            callback: crate::systems::potions::use_potion,
+            completed: "Small potion",
+            pending: "P-CONS-1",
+        },
     ),
     action(
         ActionId::Trade,
@@ -976,11 +1036,11 @@ static TELEPORTED: [Link; 13] = [
         Gate::Signatures,
         "P-FACTION-1",
     ),
-    pending_link(
+    ported_link(
         "chests.clearChests",
         Mode::Append,
         Gate::Always,
-        "P-CARDS-2",
+        crate::reward_chests::clear,
     ),
     pending_link(
         "mobLife.resetAllMobs",
@@ -1106,11 +1166,11 @@ static RAID_STARTED: [Link; 14] = [
         Gate::Dummies,
         "P-ARENA-2",
     ),
-    pending_link(
+    ported_link(
         "mobLife.spawnRegionalMobs",
         Mode::Append,
         Gate::Mobs,
-        "P-MOBS-1",
+        crate::systems::mobs::raid_started,
     ),
     pending_link(
         "terrainEffects.onRaidStarted",
@@ -1184,11 +1244,11 @@ static RUN_ENDED: [Link; 12] = [
         Gate::Signatures,
         crate::systems::plague::run_ended,
     ),
-    pending_link(
+    ported_link(
         "chests.clearChests",
         Mode::Append,
         Gate::Always,
-        "P-CARDS-2",
+        crate::reward_chests::clear,
     ),
     ported_link(
         "abilities.<arrow>",
@@ -1264,11 +1324,13 @@ static FIGHTER_OUT: [Link; 8] = [
         crate::systems::status::fighter_out,
     ),
     pending_link("vision.<arrow>", Mode::Append, Gate::Always, "P-VISION-1"),
-    pending_link(
+    partial_link(
         "consumables.<arrow>",
         Mode::Append,
         Gate::Always,
+        "Small potion cleanup",
         "P-CONS-1",
+        crate::systems::potions::fighter_out,
     ),
     pending_link(
         "plagueCorpses.leaveCorpse",
@@ -1366,11 +1428,13 @@ static HIT_LANDED: [Link; 4] = [
     ),
 ];
 static BLOCKED: [Link; 2] = [
-    pending_link(
+    partial_link(
         "cardHooks.onBlocked",
         Mode::Append,
         Gate::Always,
+        "Pocket Sand block status",
         "P-CARDS-1",
+        crate::cards::on_blocked,
     ),
     pending_link(
         "bruiserPassives.noteBlockedContact",
@@ -1659,6 +1723,8 @@ mod tests {
             (&PRODUCTION_PLAN, Gates::PRODUCTION),
             (&CAPTURE_PLAN, Gates::CAPTURE),
             (&TRAINING_PLAN, Gates::TRAINING),
+            (&MOB_FOUNDATION_PLAN, Gates::MOB_FOUNDATION),
+            (&MOB_BASIC_FACTIONS_PLAN, Gates::MOB_BASIC_FACTIONS),
         ] {
             let ported_live = |es: &[Entry]| -> Vec<&'static str> {
                 es.iter()
@@ -1693,9 +1759,27 @@ mod tests {
                 assert_eq!(plan.actions[a.id as usize].is_some(), live, "{}", a.name);
             }
         }
-        // The capture plan runs 19 phases and four registered systems, including ability DoT FX.
-        assert_eq!(CAPTURE_PLAN.phases.live().len(), 19);
-        assert_eq!(CAPTURE_PLAN.systems.live().len(), 4);
+        // The capture plan retains the nine source-ordered live consumers; mob callbacks are no-ops without actors.
+        assert_eq!(CAPTURE_PLAN.phases.live().len(), 20);
+        assert_eq!(
+            CAPTURE_PLAN
+                .systems
+                .live()
+                .iter()
+                .map(|(n, _)| *n)
+                .collect::<Vec<_>>(),
+            [
+                "feed.flushAnnouncements",
+                "chests.expireChests",
+                "mobLife.reapMobs",
+                "mobLife.respawnCamps",
+                "mobAI.thinkMobs",
+                "abilities.abilityDotFx",
+                "vision.refreshVision",
+                "consumables.updateConsumables",
+                "mods.updateMods"
+            ]
+        );
         // Training swaps the settle for a pending one: no ported settle in that world yet.
         assert!(!TRAINING_PLAN
             .phases

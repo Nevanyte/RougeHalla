@@ -1,0 +1,560 @@
+{
+  "status": "complete",
+  "timestamp": "2026-11-06T07:46:45.718Z",
+  "durationSeconds": 17.579,
+  "scope": "experimental uncapped diagnostic only; flags requested, not supported shipping FPS; new random room workload",
+  "url": "http://127.0.0.1:8087/?server=ws%3A%2F%2F127.0.0.1%3A7787%2Fws&profile=perfMVPmw4o7w2d&faction=4",
+  "browser": {
+    "version": {
+      "protocolVersion": "1.3",
+      "product": "Chrome/156.0.8078.4",
+      "revision": "@f842f52ef39fd97b449eb27cff414bf05a98ddce",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36",
+      "jsVersion": "15.6.75"
+    },
+    "executable": "/Users/nevinmckinnon/Library/Caches/ms-playwright/chromium-1248/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing",
+    "headless": false,
+    "requestedArgs": [
+      "--use-angle=metal",
+      "--enable-gpu",
+      "--disable-frame-rate-limit",
+      "--disable-gpu-vsync"
+    ],
+    "actualCommandLine": {
+      "error": "Error: cdpSession.send: Protocol error (Browser.getBrowserCommandLine): Command line not returned because --enable-automation not set."
+    },
+    "experimentalUncapped": true
+  },
+  "host": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "cpu": "Apple M5 Pro",
+    "osRelease": "25.6.0"
+  },
+  "gpu": {
+    "renderers": [
+      "ANGLE (Apple, ANGLE Metal Renderer: Apple M5 Pro, Unspecified Version)"
+    ],
+    "softwareRenderer": false,
+    "timerAvailable": true,
+    "nativeMetalObserved": true,
+    "system": {
+      "devices": [
+        {
+          "vendorId": 4203,
+          "deviceId": 0,
+          "vendorString": "Google Inc. (Apple)",
+          "deviceString": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5 Pro, Version 26.6.1 (Build 25G76))",
+          "driverVendor": "Apple",
+          "driverVersion": "26.6.1"
+        }
+      ],
+      "auxAttributes": {
+        "amdSwitchable": false,
+        "canSupportThreadedTextureMailbox": false,
+        "directRenderingVersion": "",
+        "displayType": "ANGLE_METAL",
+        "glExtensions": "GL_AMD_performance_monitor GL_ANGLE_base_vertex_base_instance_shader_builtin GL_ANGLE_blob_cache GL_ANGLE_client_arrays GL_ANGLE_clip_cull_distance GL_ANGLE_compressed_texture_etc GL_ANGLE_depth_texture GL_ANGLE_framebuffer_blit GL_ANGLE_framebuffer_multisample GL_ANGLE_get_serialized_context_string GL_ANGLE_get_tex_level_parameter GL_ANGLE_instanced_arrays GL_ANGLE_memory_size GL_ANGLE_pack_reverse_row_order GL_ANGLE_polygon_mode GL_ANGLE_program_binary_readiness_query GL_ANGLE_program_cache_control GL_ANGLE_provoking_vertex GL_ANGLE_renderability_validation GL_ANGLE_request_extension GL_ANGLE_rgbx_internal_format GL_ANGLE_robust_client_memory GL_ANGLE_shader_pixel_local_storage GL_ANGLE_shader_pixel_local_storage_coherent GL_ANGLE_stencil_texturing GL_ANGLE_texture_compression_dxt3 GL_ANGLE_texture_compression_dxt5 GL_ANGLE_texture_multisample GL_ANGLE_translated_shader_source GL_APPLE_clip_distance GL_ARM_rgba8 GL_CHROMIUM_bind_generates_resource GL_CHROMIUM_bind_uniform_location GL_CHROMIUM_copy_texture GL_CHROMIUM_lose_context GL_EXT_base_instance GL_EXT_blend_func_extended GL_EXT_blend_minmax GL_EXT_clip_control GL_EXT_color_buffer_float GL_EXT_color_buffer_half_float GL_EXT_compressed_ETC1_RGB8_sub_texture GL_EXT_conservative_depth GL_EXT_debug_label GL_EXT_debug_marker GL_EXT_depth_clamp GL_EXT_discard_framebuffer GL_EXT_disjoint_timer_query GL_EXT_draw_buffers GL_EXT_draw_buffers_indexed GL_EXT_draw_elements_base_vertex GL_EXT_float_blend GL_EXT_frag_depth GL_EXT_instanced_arrays GL_EXT_map_buffer_range GL_EXT_multisampled_render_to_texture GL_EXT_occlusion_query_boolean GL_EXT_polygon_offset_clamp GL_EXT_pvrtc_sRGB GL_EXT_read_format_bgra GL_EXT_render_snorm GL_EXT_robustness GL_EXT_sRGB GL_EXT_shader_texture_lod GL_EXT_texture_compression_bptc GL_EXT_texture_compression_dxt1 GL_EXT_texture_compression_rgtc GL_EXT_texture_compression_s3tc_srgb GL_EXT_texture_filter_anisotropic GL_EXT_texture_format_BGRA8888 GL_EXT_texture_mirror_clamp_to_edge GL_EXT_texture_norm16 GL_EXT_texture_rg GL_EXT_texture_sRGB_R8 GL_EXT_texture_sRGB_RG8 GL_EXT_texture_shadow_lod GL_EXT_texture_storage GL_IMG_texture_compression_pvrtc GL_KHR_debug GL_KHR_parallel_shader_compile GL_KHR_robustness GL_KHR_texture_compression_astc_hdr GL_KHR_texture_compression_astc_ldr GL_KHR_texture_compression_astc_sliced_3d GL_MESA_framebuffer_flip_y GL_NV_fence GL_NV_framebuffer_blit GL_NV_pixel_buffer_object GL_NV_shader_noperspective_interpolation GL_OES_EGL_image GL_OES_EGL_sync GL_OES_compressed_ETC1_RGB8_texture GL_OES_depth24 GL_OES_depth32 GL_OES_depth_texture GL_OES_draw_buffers_indexed GL_OES_draw_elements_base_vertex GL_OES_element_index_uint GL_OES_fbo_render_mipmap GL_OES_get_program_binary GL_OES_mapbuffer GL_OES_packed_depth_stencil GL_OES_required_internalformat GL_OES_rgb8_rgba8 GL_OES_sample_variables GL_OES_shader_multisample_interpolation GL_OES_standard_derivatives GL_OES_surfaceless_context GL_OES_texture_3D GL_OES_texture_float GL_OES_texture_float_linear GL_OES_texture_half_float GL_OES_texture_half_float_linear GL_OES_texture_npot GL_OES_texture_stencil8 GL_OES_vertex_array_object GL_QCOM_render_shared_exponent ",
+        "glImplementationParts": "(gl=egl-angle,angle=metal)",
+        "glRenderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5 Pro, Version 26.6.1 (Build 25G76))",
+        "glResetNotificationStrategy": 33362,
+        "glVendor": "Google Inc. (Apple)",
+        "glVersion": "OpenGL ES 3.0 (ANGLE 2.1.28967 git hash: dfeede58b618)",
+        "glWsExtensions": "",
+        "glWsVendor": "",
+        "glWsVersion": "",
+        "inProcessGpu": false,
+        "initializationTime": 0.020361,
+        "isAsan": false,
+        "isClangCoverage": false,
+        "jpegDecodeAcceleratorSupported": false,
+        "maxMsaaSamples": "8",
+        "optimus": false,
+        "passthroughCmdDecoder": true,
+        "pixelShaderVersion": "3.00",
+        "processCrashCount": 0,
+        "sandboxed": false,
+        "skiaBackendType": "GraphiteDawnMetal",
+        "subpixelFontRendering": true,
+        "targetCpuBits": 64,
+        "vertexShaderVersion": "3.00",
+        "visibilityCallbackCallCount": 0
+      },
+      "featureStatus": {
+        "2d_canvas": "enabled",
+        "direct_rendering_display_compositor": "disabled_off_ok",
+        "gpu_compositing": "enabled",
+        "multiple_raster_threads": "enabled_on",
+        "opengl": "enabled_on",
+        "rasterization": "enabled",
+        "raw_draw": "disabled_off_ok",
+        "skia_graphite": "enabled_on",
+        "trees_in_viz": "disabled_off",
+        "video_decode": "enabled",
+        "video_encode": "enabled",
+        "webgl": "enabled",
+        "webgpu": "enabled",
+        "webnn": "disabled_off"
+      },
+      "driverBugWorkarounds": [
+        "disable_2d_canvas_auto_flush",
+        "enable_webgl_timer_query_extensions",
+        "disabled_extension_GL_KHR_blend_equation_advanced",
+        "disabled_extension_GL_KHR_blend_equation_advanced_coherent"
+      ],
+      "videoDecoding": [],
+      "videoEncoding": []
+    },
+    "elapsedMs": {
+      "samples": 168,
+      "p50": 0.193875,
+      "p95": 0.19725,
+      "p99": 0.1985,
+      "min": 0.188125,
+      "max": 0.1995
+    },
+    "disjoint": 0
+  },
+  "viewport": {
+    "visibility": "visible",
+    "focused": true,
+    "dpr": 1,
+    "viewport": {
+      "width": 1280,
+      "height": 900
+    },
+    "canvas": [
+      {
+        "id": "unity-canvas",
+        "width": 960,
+        "height": 600,
+        "rect": {
+          "x": 160,
+          "y": 129,
+          "width": 960,
+          "height": 600,
+          "top": 129,
+          "right": 1120,
+          "bottom": 729,
+          "left": 160
+        }
+      }
+    ],
+    "screen": {
+      "width": 1280,
+      "height": 900,
+      "colorDepth": 24
+    },
+    "jsMemory": {
+      "used": 28673056,
+      "total": 42003236,
+      "limit": 4395630592
+    },
+    "resources": [
+      {
+        "name": "http://127.0.0.1:8087/TemplateData/style.css",
+        "transferSize": 1748,
+        "encodedBodySize": 1448,
+        "decodedBodySize": 1448,
+        "duration": 3.5,
+        "startTime": 3.6999998092651367,
+        "responseEnd": 7.199999809265137
+      },
+      {
+        "name": "http://127.0.0.1:8087/Build/Web.loader.js",
+        "transferSize": 26755,
+        "encodedBodySize": 26455,
+        "decodedBodySize": 26455,
+        "duration": 2.8999996185302734,
+        "startTime": 7.800000190734863,
+        "responseEnd": 10.699999809265137
+      },
+      {
+        "name": "http://127.0.0.1:8087/TemplateData/unity-logo-dark.png",
+        "transferSize": 3342,
+        "encodedBodySize": 3042,
+        "decodedBodySize": 3042,
+        "duration": 2.3000001907348633,
+        "startTime": 8,
+        "responseEnd": 10.300000190734863
+      },
+      {
+        "name": "http://127.0.0.1:8087/TemplateData/progress-bar-empty-dark.png",
+        "transferSize": 396,
+        "encodedBodySize": 96,
+        "decodedBodySize": 96,
+        "duration": 2.3000001907348633,
+        "startTime": 8.099999904632568,
+        "responseEnd": 10.400000095367432
+      },
+      {
+        "name": "http://127.0.0.1:8087/TemplateData/unity-logo-title-footer.png",
+        "transferSize": 1451,
+        "encodedBodySize": 1151,
+        "decodedBodySize": 1151,
+        "duration": 3.0999999046325684,
+        "startTime": 8.099999904632568,
+        "responseEnd": 11.199999809265137
+      },
+      {
+        "name": "http://127.0.0.1:8087/TemplateData/progress-bar-full-dark.png",
+        "transferSize": 374,
+        "encodedBodySize": 74,
+        "decodedBodySize": 74,
+        "duration": 3.700000286102295,
+        "startTime": 8.099999904632568,
+        "responseEnd": 11.800000190734863
+      },
+      {
+        "name": "http://127.0.0.1:8087/TemplateData/fullscreen-button.png",
+        "transferSize": 475,
+        "encodedBodySize": 175,
+        "decodedBodySize": 175,
+        "duration": 4,
+        "startTime": 8.099999904632568,
+        "responseEnd": 12.099999904632568
+      },
+      {
+        "name": "http://127.0.0.1:8087/Build/Web.framework.js",
+        "transferSize": 433252,
+        "encodedBodySize": 432952,
+        "decodedBodySize": 432952,
+        "duration": 1.8000001907348633,
+        "startTime": 28.09999990463257,
+        "responseEnd": 29.90000009536743
+      },
+      {
+        "name": "http://127.0.0.1:8087/Build/Web.data",
+        "transferSize": 10809704,
+        "encodedBodySize": 10809404,
+        "decodedBodySize": 10809404,
+        "duration": 45,
+        "startTime": 35,
+        "responseEnd": 80
+      },
+      {
+        "name": "http://127.0.0.1:8087/Build/Web.wasm",
+        "transferSize": 44548777,
+        "encodedBodySize": 44548477,
+        "decodedBodySize": 44548477,
+        "duration": 49.80000019073486,
+        "startTime": 39.5,
+        "responseEnd": 89.30000019073486
+      },
+      {
+        "name": "http://127.0.0.1:8087/TemplateData/favicon.ico",
+        "transferSize": 2605,
+        "encodedBodySize": 2305,
+        "decodedBodySize": 2305,
+        "duration": 4.400000095367432,
+        "startTime": 72.19999980926514,
+        "responseEnd": 76.59999990463257
+      }
+    ],
+    "navigation": [
+      {
+        "name": "http://127.0.0.1:8087/?server=ws%3A%2F%2F127.0.0.1%3A7787%2Fws&profile=perfMVPmw4o7w2d&faction=4",
+        "entryType": "navigation",
+        "startTime": 0,
+        "duration": 41,
+        "navigationId": 6940,
+        "initiatorType": "navigation",
+        "deliveryType": "",
+        "nextHopProtocol": "http/1.0",
+        "renderBlockingStatus": "non-blocking",
+        "contentType": "text/html",
+        "contentEncoding": "",
+        "workerStart": 0,
+        "workerRouterEvaluationStart": 0,
+        "workerCacheLookupStart": 0,
+        "workerMatchedSourceType": "",
+        "workerFinalSourceType": "",
+        "redirectStart": 0,
+        "redirectEnd": 0,
+        "fetchStart": 0.19999980926513672,
+        "domainLookupStart": 0.19999980926513672,
+        "domainLookupEnd": 0.19999980926513672,
+        "connectStart": 0.19999980926513672,
+        "secureConnectionStart": 0,
+        "connectEnd": 0.19999980926513672,
+        "requestStart": 0.5999999046325684,
+        "responseStart": 1,
+        "firstInterimResponseStart": 0,
+        "finalResponseHeadersStart": 1,
+        "responseEnd": 1.1999998092651367,
+        "transferSize": 5870,
+        "encodedBodySize": 5570,
+        "decodedBodySize": 5570,
+        "responseStatus": 200,
+        "serverTiming": [],
+        "unloadEventStart": 0,
+        "unloadEventEnd": 0,
+        "domInteractive": 12.599999904632568,
+        "domContentLoadedEventStart": 12.599999904632568,
+        "domContentLoadedEventEnd": 12.599999904632568,
+        "domComplete": 41,
+        "loadEventStart": 41,
+        "loadEventEnd": 41,
+        "type": "navigate",
+        "redirectCount": 0,
+        "activationStart": 0,
+        "criticalCHRestart": 0,
+        "notRestoredReasons": null,
+        "confidence": {
+          "randomizedTriggerRate": 0.4994798,
+          "value": "high"
+        }
+      }
+    ]
+  },
+  "warmupSeconds": 2,
+  "window": {
+    "startMs": 8592.400000095367,
+    "endMs": 16592.400000095367,
+    "requestedSeconds": 8,
+    "allRenderedFrames": 6020,
+    "eligibleFrames": 6020,
+    "eligibleSpanMs": 7996.799999999999,
+    "startWire": {
+      "phase": 1,
+      "meAlive": true,
+      "meHp": 1145,
+      "meId": 1,
+      "tick": 101,
+      "visibleActors": 2,
+      "visibleMobs": 1,
+      "projectiles": 1,
+      "receivedAt": 8586.5
+    },
+    "endWire": {
+      "phase": 1,
+      "meAlive": true,
+      "meHp": 986.1248779296875,
+      "meId": 1,
+      "tick": 261,
+      "visibleActors": 1,
+      "visibleMobs": 0,
+      "projectiles": 1,
+      "receivedAt": 16585.5
+    },
+    "visibility": "visible"
+  },
+  "renderedRafIntervalMs": {
+    "samples": 6020,
+    "p50": 0.7000000000007276,
+    "p95": 2.600000000000364,
+    "p99": 2.7000000000007276,
+    "min": 0,
+    "max": 3.3000000000010914
+  },
+  "synchronousRafCpuMs": {
+    "samples": 6020,
+    "p50": 0.3000001907348633,
+    "p95": 2.5999999046325684,
+    "p99": 2.6999998092651367,
+    "min": 0,
+    "max": 3.200000286102295
+  },
+  "draws": {
+    "samples": 6020,
+    "p50": 5,
+    "p95": 5,
+    "p99": 5,
+    "min": 5,
+    "max": 5
+  },
+  "instances": {
+    "samples": 6020,
+    "p50": 5,
+    "p95": 5,
+    "p99": 5,
+    "min": 5,
+    "max": 5
+  },
+  "observedCounts": {
+    "visibleActors": {
+      "samples": 6020,
+      "p50": 2,
+      "p95": 3,
+      "p99": 3,
+      "min": 1,
+      "max": 3
+    },
+    "visibleMobs": {
+      "samples": 6020,
+      "p50": 1,
+      "p95": 2,
+      "p99": 2,
+      "min": 0,
+      "max": 2
+    },
+    "projectiles": {
+      "samples": 6020,
+      "p50": 1,
+      "p95": 3,
+      "p99": 4,
+      "min": 0,
+      "max": 4
+    }
+  },
+  "memory": {
+    "jsHeapBytes": {
+      "samples": 6020,
+      "p50": 29117627,
+      "p95": 31625985,
+      "p99": 31814560,
+      "min": 26872358,
+      "max": 31845929
+    },
+    "wasmLinearBytes": {
+      "samples": 6020,
+      "p50": 69730304,
+      "p95": 69730304,
+      "p99": 69730304,
+      "min": 69730304,
+      "max": 69730304
+    }
+  },
+  "cdpMetrics": {
+    "TaskDuration": {
+      "before": 8.300002,
+      "after": 16.257475,
+      "delta": 7.957473
+    },
+    "ScriptDuration": {
+      "before": 6.68453,
+      "after": 14.332314,
+      "delta": 7.647784000000001
+    },
+    "LayoutDuration": {
+      "before": 0.003734,
+      "after": 0.003734,
+      "delta": 0
+    },
+    "RecalcStyleDuration": {
+      "before": 0.000467,
+      "after": 0.000467,
+      "delta": 0
+    },
+    "JSHeapUsedSize": {
+      "before": 15684968,
+      "after": 17415956,
+      "delta": 1730988
+    },
+    "JSHeapTotalSize": {
+      "before": 22020096,
+      "after": 30703616,
+      "delta": 8683520
+    }
+  },
+  "artifacts": {
+    "fullWebTreeBytes": 55836754,
+    "buildPayloadBytes": 55817288
+  },
+  "network": {
+    "eventCountsWindow": {
+      "hit": 36,
+      "swing": 15,
+      "death": 1
+    },
+    "receivedWSBytes": 12202,
+    "sentWSBytes": 6094,
+    "receivedWSFrames": 460,
+    "sentWSFrames": 501,
+    "eventCounts": {
+      "swing": 20,
+      "hit": 43,
+      "death": 1
+    },
+    "responses": [
+      {
+        "url": "http://127.0.0.1:8087/?server=ws%3A%2F%2F127.0.0.1%3A7787%2Fws&profile=perfMVPmw4o7w2d&faction=4",
+        "status": 200,
+        "type": "text/html",
+        "encoding": null,
+        "contentLength": "5570"
+      },
+      {
+        "url": "http://127.0.0.1:8087/TemplateData/style.css",
+        "status": 200,
+        "type": "text/css",
+        "encoding": null,
+        "contentLength": "1448"
+      },
+      {
+        "url": "http://127.0.0.1:8087/TemplateData/unity-logo-dark.png",
+        "status": 200,
+        "type": "image/png",
+        "encoding": null,
+        "contentLength": "3042"
+      },
+      {
+        "url": "http://127.0.0.1:8087/TemplateData/progress-bar-empty-dark.png",
+        "status": 200,
+        "type": "image/png",
+        "encoding": null,
+        "contentLength": "96"
+      },
+      {
+        "url": "http://127.0.0.1:8087/TemplateData/unity-logo-title-footer.png",
+        "status": 200,
+        "type": "image/png",
+        "encoding": null,
+        "contentLength": "1151"
+      },
+      {
+        "url": "http://127.0.0.1:8087/TemplateData/progress-bar-full-dark.png",
+        "status": 200,
+        "type": "image/png",
+        "encoding": null,
+        "contentLength": "74"
+      },
+      {
+        "url": "http://127.0.0.1:8087/TemplateData/fullscreen-button.png",
+        "status": 200,
+        "type": "image/png",
+        "encoding": null,
+        "contentLength": "175"
+      },
+      {
+        "url": "http://127.0.0.1:8087/Build/Web.loader.js",
+        "status": 200,
+        "type": "text/javascript",
+        "encoding": null,
+        "contentLength": "26455"
+      },
+      {
+        "url": "http://127.0.0.1:8087/Build/Web.framework.js",
+        "status": 200,
+        "type": "text/javascript",
+        "encoding": null,
+        "contentLength": "432952"
+      },
+      {
+        "url": "http://127.0.0.1:8087/Build/Web.data",
+        "status": 200,
+        "type": "application/octet-stream",
+        "encoding": null,
+        "contentLength": "10809404"
+      },
+      {
+        "url": "http://127.0.0.1:8087/Build/Web.wasm",
+        "status": 200,
+        "type": "application/wasm",
+        "encoding": null,
+        "contentLength": "44548477"
+      }
+    ],
+    "cdpEncodedBytes": 55833423,
+    "serviceWorkers": 0
+  },
+  "errors": [],
+  "notes": [
+    "No gameplay inputs scripted; actual normal server/bots/NPCs drive observed scene.",
+    "Eligibility uses latest wire-delivered phase and alive status; this is not a Unity PlayerLoop capture.",
+    "CPU synchronous RAF timing excludes asynchronous/browser/render-thread work; GPU elapsed samples are issued-window-tagged queries, not Rust timings.",
+    "Rendered cadence includes display/browser pacing; no shipping/native uncapped FPS inference.",
+    "Memory reports JS heap/wasm linear allocation only, not total process RAM or VRAM.",
+    "Observer adds overhead. Native matching legacy full-game comparison remains separate."
+  ]
+}

@@ -16,9 +16,11 @@ FROM ${RUST_IMAGE} AS rust-build
 WORKDIR /src
 COPY Cargo.toml Cargo.lock ./
 COPY crates crates
+COPY maps/first-playable.json maps/first-playable.json
 # The image pins the toolchain (1.97.0, same as rust-toolchain.toml); skipping the file avoids a rustup component fetch.
 # `postgres` links rh-persist (durable results). Pass --build-arg RH_FEATURES= for a database-free build.
 ARG RH_FEATURES=postgres
+ARG CARGO_BUILD_JOBS=2
 # RH_BUILD names the build (rh_sim::replay::BUILD_ID, stamped into every replay): required, e.g. the git commit
 # (--build-arg RH_BUILD=$(git rev-parse --short=12 HEAD)). An empty value fails the build, so no image is anonymous.
 ARG RH_BUILD

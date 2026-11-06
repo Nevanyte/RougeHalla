@@ -86,6 +86,8 @@ impl From<&SimSpec> for SimConfig {
             pvp_rules: spec.pvp_rules,
             weapon_specials: spec.weapon_specials,
             faction_mode: spec.faction_mode,
+            mob_mode: rh_sim::mob_runtime::MobMode::Off,
+            initial_loot: false,
         }
     }
 }

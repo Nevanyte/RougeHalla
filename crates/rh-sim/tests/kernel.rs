@@ -877,6 +877,7 @@ fn a_replay_is_equal_right_after_decoding() {
     let secrets = Secrets {
         order_salt: 3,
         spawn_seed: 4,
+        reward_salt: [0x12345678, 0x9abcdef0, 0x31415926, 0x27182818],
     };
     let sim = Sim::reset_active(SimConfig::default(), practice_arena(), secrets, &placements);
     let rec = Recorder::new(

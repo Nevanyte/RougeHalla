@@ -72,5 +72,6 @@ fn start_raid(k: &MatchStatic, w: &mut World, s: &mut TickScratch, ev: &mut Vec<
         },
         HookArgs::RaidStarted,
     );
+    s.reserve_actors(w.fighter_count());
     ev.push(Event::RaidStarted);
 }

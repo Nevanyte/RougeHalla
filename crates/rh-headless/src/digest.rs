@@ -102,6 +102,29 @@ impl OutcomeDigest {
                 self.w(p.displace_seq.into());
             }
         }
+        if !snap.mobs.is_empty() || !snap.camps.is_empty() {
+            self.s("regional_actors");
+            self.w(snap.mobs.len() as u64);
+            for m in &snap.mobs {
+                self.w(m.id.0.into());
+                self.w(m.kind.into());
+                self.s(m.mob_type.expect("mob type").as_str());
+                self.s(m.faction.as_str());
+                for n in [m.x, m.y, m.facing, m.hp_frac] {
+                    self.f(n);
+                }
+                self.s(status(m.status));
+                self.s(m.weapon.as_str());
+                self.w(m.effects.into());
+                self.w(m.displace_seq.into());
+            }
+            self.w(snap.camps.len() as u64);
+            for c in &snap.camps {
+                self.s(c.mob_type.as_str());
+                self.s(c.elite.map_or("", |e| e.as_str()));
+                self.w(c.alive.into());
+            }
+        }
         if !snap.fields.is_empty() {
             self.s("visible_fields");
             self.w(snap.fields.len() as u64);
@@ -151,6 +174,31 @@ impl OutcomeDigest {
     fn event(&mut self, e: &Event) {
         self.events += 1;
         match e {
+            Event::PotionNotice { id, notice } => {
+                self.s("potion_notice");
+                self.w(id.0.into());
+                self.s(notice.message());
+            }
+            Event::MobArmed { id, weapon } => {
+                self.s("mob_armed");
+                self.w(id.0.into());
+                self.s(weapon.as_str());
+            }
+            Event::CampCleared { camp } => {
+                self.s("camp_cleared");
+                self.w((*camp).into());
+            }
+            Event::ChestRefused { id, reason } => {
+                self.s("chest_refused");
+                self.w(id.0.into());
+                self.s(reason.message());
+            }
+            Event::ChestTaken { chest, by, pick } => {
+                self.s("chest_taken");
+                self.w((*chest).into());
+                self.w(by.0.into());
+                self.w(i64::from(*pick) as u64);
+            }
             Event::AbilityHit {
                 victim,
                 by,
@@ -304,6 +352,9 @@ impl OutcomeDigest {
                     GvReason::Kill => "kill",
                     GvReason::Bounty => "bounty",
                     GvReason::Win => "win",
+                    GvReason::Skip => "skip",
+                    GvReason::Mob => "mob",
+                    GvReason::Elite => "elite",
                 });
             }
             Event::Bounty { id, bounty } => {

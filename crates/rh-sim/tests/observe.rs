@@ -45,6 +45,7 @@ fn world(hidden_x: f64, hidden_hp: f64, salt: u32) -> Sim {
         Secrets {
             order_salt: salt,
             spawn_seed: 1,
+            reward_salt: [0x12345678, 0x9abcdef0, 0x31415926, 0x27182818],
         },
         &ps,
     )

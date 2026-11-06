@@ -32,7 +32,7 @@ pub(crate) struct TickScratch {
     pub(crate) status_active: Vec<PlayerId>,
     pub(crate) status_removed: Vec<crate::status_runtime::StatusInstance>,
     /// Rewritten before weapons; only the actual start site marks an action new.
-    pub(crate) attack_started: [bool; MAX_PLAYERS],
+    pub(crate) attack_started: Vec<bool>,
     pub(crate) performed: Vec<crate::factions::PerformedAttack>,
     pub(crate) performed_bounded: bool,
     pub(crate) mark_denials: [Option<(PlayerId, PlayerId)>; MAX_PLAYERS],
@@ -99,7 +99,7 @@ impl Default for TickScratch {
         Self {
             status_active: Vec::with_capacity(p),
             status_removed: Vec::with_capacity(p),
-            attack_started: [false; MAX_PLAYERS],
+            attack_started: vec![false; MAX_PLAYERS],
             performed: Vec::with_capacity(crate::fx_report::FX_INSTANT_BUCKETS_MAX),
             performed_bounded: true,
             mark_denials: [None; MAX_PLAYERS],
@@ -150,6 +150,23 @@ impl Clone for TickScratch {
 }
 
 impl TickScratch {
+    pub(crate) fn reserve_actors(&mut self, count: usize) {
+        if self.attack_started.len() < count {
+            self.attack_started.resize(count, false);
+        }
+        macro_rules! reserve { ($($field:ident),*) => { $(if self.$field.capacity() < count {self.$field.reserve(count.saturating_sub(self.$field.len()));})* }; }
+        reserve!(
+            standing,
+            mults,
+            bodies,
+            rewound,
+            victims,
+            status_active,
+            dot_sums,
+            alive
+        );
+    }
+
     /// True when nothing tick-local survives the step (asserted at the end of every step in debug builds). Checked: the
     /// queues a tick fills and drains (`melee`, `ledger`, `downed_this_tick`), the lists the movement systems hand from
     /// one system to the next (`standing`, `mults`), and the ledger's per-slot chains, which must be all `NONE` between

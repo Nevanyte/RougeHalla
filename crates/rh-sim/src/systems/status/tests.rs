@@ -63,11 +63,11 @@ fn real_fifo_freezes_status_membership_and_immediate_mirror_until_all_payouts() 
     add(&mut s, PlayerId(2), second, &mut ev);
     assert!(removed.is_empty());
     assert!(s.w.players[1].statuses.instances.is_empty());
-    assert_eq!(s.w.players[1].attack_rate_wire, 1000.);
+    assert_eq!(s.w.players[1].modifiers.attack_rate_wire(), 1000.);
     assert!(ev.is_empty());
     ledger::pay_all(&s.k, &mut s.w, &mut ev, &mut s.pf);
     assert_eq!(s.w.players[1].statuses.instances[0].value, 0.2);
-    assert_eq!(s.w.players[1].attack_rate_wire, 800.);
+    assert_eq!(s.w.players[1].modifiers.attack_rate_wire(), 800.);
     assert_eq!(ev.len(), 2);
 }
 #[test]

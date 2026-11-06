@@ -64,23 +64,33 @@ pub fn hash_seed(seed: u32, attempt: u32, zone: u32, stream: u32) -> u32 {
     h ^ (h >> 16)
 }
 
-/// Legacy `tieRank` for the canonical actor namespace p0, p1, ... (numeric public ID minus one).
-/// One independent draw; this neither advances a stream nor depends on hidden actor population.
-pub(crate) fn tie_rank(salt: u32, tick: u32, id: crate::PlayerId) -> u32 {
-    let mut h = (salt ^ tick.wrapping_mul(0x9e37_79b1) ^ u32::from(b'p')).wrapping_mul(0x0100_0193);
+/// Exact source actor key, independent from the private allocation namespace and public actor ID.
+pub(crate) fn tie_rank_origin(
+    salt: u32,
+    tick: u32,
+    origin: &crate::mob_runtime::ActorOrigin,
+) -> u32 {
+    let (prefix, mut n, radix): (&[u8], u32, u32) = match origin {
+        crate::mob_runtime::ActorOrigin::Player { join_ordinal } => (b"p", *join_ordinal, 10),
+        crate::mob_runtime::ActorOrigin::Mob { birth_serial, .. } => (b"mob", *birth_serial, 36),
+    };
+    let mut h = salt ^ tick.wrapping_mul(0x9e37_79b1);
+    for &b in prefix {
+        h = (h ^ u32::from(b)).wrapping_mul(0x0100_0193);
+    }
     let mut digits = [0u8; 10];
-    let mut n = id.0 - 1;
     let mut at = digits.len();
     loop {
         at -= 1;
-        digits[at] = b'0' + (n % 10) as u8;
-        n /= 10;
+        let d = (n % radix) as u8;
+        digits[at] = if d < 10 { b'0' + d } else { b'a' + d - 10 };
+        n /= radix;
         if n == 0 {
             break;
         }
     }
-    for &digit in &digits[at..] {
-        h = (h ^ u32::from(digit)).wrapping_mul(0x0100_0193);
+    for &b in &digits[at..] {
+        h = (h ^ u32::from(b)).wrapping_mul(0x0100_0193);
     }
     Mulberry32::new(h).next_u32()
 }
@@ -88,6 +98,40 @@ pub(crate) fn tie_rank(salt: u32, tick: u32, id: crate::PlayerId) -> u32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn actor_ties_use_actual_source_keys() {
+        // Direct call to unchanged packages/server/src/sim/world.ts tieRank, salt1237598750,tick1.
+        use crate::mob_runtime::ActorOrigin;
+        for (ordinal, expected) in [(0, 2133980057), (1, 3762038895)] {
+            assert_eq!(
+                tie_rank_origin(
+                    1237598750,
+                    1,
+                    &ActorOrigin::Player {
+                        join_ordinal: ordinal
+                    }
+                ),
+                expected
+            );
+        }
+        for (serial, expected) in [
+            (1, 3797300844),
+            (35, 2199502943),
+            (36, 1524533302),
+            (46, 3775833461),
+        ] {
+            let origin = ActorOrigin::Mob {
+                birth_serial: serial,
+                born_tick: 1,
+                camp: 0,
+                spot: 0,
+                mob_type: crate::mob_catalog::MobTypeId::Wyrmling,
+                elite: true,
+            };
+            assert_eq!(tie_rank_origin(1237598750, 1, &origin), expected);
+        }
+    }
 
     #[test]
     fn mulberry32_matches_legacy_vectors() {

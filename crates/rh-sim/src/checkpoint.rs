@@ -20,7 +20,7 @@ use serde::ser::{SerializeStruct, Serializer};
 use std::fmt;
 
 /// The tag every checkpoint carries. Bump it when the layout of `statics` or `world` changes incompatibly.
-pub const CHECKPOINT_FORMAT: &str = "rh-checkpoint/15";
+pub const CHECKPOINT_FORMAT: &str = "rh-checkpoint/16";
 
 /// How far past the map edge a fighter, waypoint or spawn may be and still restore (real states stay inside the map).
 const COORD_MARGIN: f64 = 1024.0;
@@ -246,11 +246,8 @@ fn content_mismatch(checkpoint: u64) -> Option<CheckpointError> {
 
 /// A projectile starts with its faction's weapon damage. Reflections, interceptions and arrow
 /// deletions only reduce it. Check pending ranged packets too, before they can become a flight.
-fn valid_ranged_packet(packet: crate::state::Packet, weapon: WeaponId) -> bool {
-    let maximum = crate::FactionId::ALL
-        .into_iter()
-        .map(|id| crate::content::damage_per_hit(&crate::content::paced(id), weapon, 1.0))
-        .fold(0.0, f64::max);
+pub(crate) fn valid_ranged_packet(packet: crate::state::Packet, weapon: WeaponId) -> bool {
+    let maximum = crate::modifiers::maximum_packet(weapon);
     let shares = [packet.phys, packet.magic, packet.true_];
     (0.0..=maximum).contains(&packet.raw)
         && shares.iter().all(|v| (0.0..=1.0).contains(v))
@@ -307,6 +304,7 @@ fn check_world(k: &MatchStatic, w: &World) -> Result<(), String> {
         .map(|p| p.id)
         .into_iter()
         .chain(w.roster.last_id())
+        .chain(w.actor_history.last().map(|a| a.id))
         .max();
     if let Some(last) = ceiling {
         if w.next_id <= last.0 {
@@ -316,9 +314,23 @@ fn check_world(k: &MatchStatic, w: &World) -> Result<(), String> {
             ));
         }
     }
-    // The next join adds one to it.
-    if w.next_id == u32::MAX {
-        return Err("next_id is at its maximum".into());
+    // A raid transition or a respawn can create an entire camp batch before the next
+    // validation. Reserve every admitted camp spot conservatively, plus the next join.
+    // Current corpses/camp state are not a bound on future births.
+    let potential_births = if k.config.mob_mode == crate::mob_runtime::MobMode::Off {
+        0
+    } else {
+        k.arena.map.layers().map_or(0, |layers| {
+            layers
+                .data()
+                .camps
+                .iter()
+                .map(|c| c.spots.len() as u64)
+                .sum::<u64>()
+        })
+    };
+    if u64::from(w.next_id) + potential_births + 1 > u64::from(u32::MAX) {
+        return Err("next_id lacks headroom for camp births and the next join".into());
     }
     // Roster order is checked by its own decoder and player order by the store's.
     // The clock must stay where `+= TICK_MS` and the rewind cutoff are exact (the most the tick counter can reach); far
@@ -336,43 +348,51 @@ fn check_world(k: &MatchStatic, w: &World) -> Result<(), String> {
     }
     let mut last_container = 0;
     let mut item_ids = std::collections::BTreeSet::new();
-    let seats = w.roster.len().max(crate::constants::MAX_PLAYERS) as u64;
     let per_seat = crate::constants::MAX_ACTIONS_PER_TICK as u64
         + 1
         + u64::from(crate::constants::MAX_ARROW_REFLECTIONS);
     // Seeded rack props can be numerous. Each consumed ground prop needed one action; each
     // launched shot and its entire reflection chain needed an attack. These account for all
     // entity ids no longer represented by current containers in this build.
-    let max_allocated = (w.containers.len() as u64).saturating_add(
-        u64::from(w.tick)
-            .saturating_mul(seats)
-            .saturating_mul(per_seat),
-    );
+    let max_allocated = ((w.containers.len() + w.reward_chests.len()) as u64
+        + w.actor_history
+            .iter()
+            .filter(|a| matches!(a.origin, crate::mob_runtime::ActorOrigin::Mob { .. }))
+            .count() as u64)
+        .saturating_add(
+            u64::from(w.tick)
+                .saturating_mul(w.actor_history.len() as u64)
+                .saturating_mul(per_seat),
+        );
     if u64::from(w.entity_counter) > max_allocated
-        || w.item_counter > u64::from(w.entity_counter) * 2
+        || w.item_counter
+            > u64::from(w.entity_counter) * (2 + u64::from(crate::potions::DEFINITION.cap))
     {
         return Err("invalid run entity identity counters".into());
     }
     // Keep enough ids for a full step of inputs, shots, drops and body creation, PLUS every
     // additional reflection the existing arrows could make. An imported dense volley must
     // never panic at the shield that reflects it.
-    let mut needed_ids = seats * (2 * crate::constants::MAX_ACTIONS_PER_TICK as u64);
+    let mut needed_ids = potential_births
+        + (w.fighter_count() as u64 + potential_births)
+            * (2 * crate::constants::MAX_ACTIONS_PER_TICK as u64);
     for c in &w.containers {
         if c.id <= last_container
             || c.id > w.entity_counter
             || !near(c.at.x, c.at.y)
             || c.born_tick > w.tick.saturating_add(1)
-            || (c.items[0].is_none() && c.items[1].is_some())
+            || c.items.len() > 2 + usize::from(crate::potions::DEFINITION.cap)
             || (c.kind == crate::ContainerKind::Ground
-                && (c.items[0].is_none() || c.items[1].is_some()))
+                && (c.items.len() != 1
+                    || !matches!(c.items[0].def, crate::initial_world::ItemDef::Weapon(_))))
             || (c.kind != crate::ContainerKind::Chest && c.opened)
             || matches!(c.kind, crate::ContainerKind::Body(id) if w.roster.name(id).is_none())
         {
             return Err(format!("invalid container {}", c.id));
         }
         last_container = c.id;
-        for item in c.items.iter().flatten() {
-            if item.weapon == WeaponId::Fists
+        for item in &c.items {
+            if item.def == crate::initial_world::ItemDef::Weapon(WeaponId::Fists)
                 || item.uid == 0
                 || item.uid > w.item_counter
                 || !item_ids.insert(item.uid)
@@ -402,10 +422,10 @@ fn check_world(k: &MatchStatic, w: &World) -> Result<(), String> {
             || st.id <= last_projectile
             || st.id > w.entity_counter
             || w.containers.binary_search_by_key(&st.id, |c| c.id).is_ok()
-            || w.roster.name(st.owner).is_none()
-            || st.target.is_some_and(|id| {
-                weapon != WeaponId::Wand || w.roster.name(id).is_none() || id == st.owner
-            })
+            || !w.known_actor(st.owner)
+            || st
+                .target
+                .is_some_and(|id| weapon != WeaponId::Wand || !w.known_actor(id) || id == st.owner)
             || st.reflected != (pr.reflections > 0)
             || pr.reflections > crate::constants::MAX_ARROW_REFLECTIONS
             || (st.reflected && weapon != WeaponId::Bow)
@@ -430,7 +450,11 @@ fn check_world(k: &MatchStatic, w: &World) -> Result<(), String> {
     if u64::from(w.entity_counter) + needed_ids > u64::from(u32::MAX) {
         return Err("insufficient run entity identity headroom".into());
     }
+    crate::systems::mobs::validate(k, w, near)?;
     crate::status_runtime::checkpoint::validate_world(w, near)?;
+    crate::systems::initial_loot::validate(k, w)?;
+    crate::systems::potions::validate(w)?;
+    crate::reward_chests::validate_world(w, near)?;
     for e in &w.deferred.hits {
         if (e.execute && e.sig != Some(crate::factions::SignatureKind::Disease))
             || e.sig.is_some_and(|s| !k.config.faction_mode.supports(s))
@@ -444,7 +468,10 @@ fn check_world(k: &MatchStatic, w: &World) -> Result<(), String> {
         || (!k.config.faction_mode.engagement()
             && w.factions != crate::factions::FactionRuntime::default())
         || (!k.config.faction_mode.plague() && !w.factions.dot.is_empty())
-        || w.factions.dot.len() > 2 * crate::constants::MAX_PLAYERS * crate::constants::MAX_PLAYERS
+        || w.factions.dot.len()
+            > 2usize
+                .saturating_mul(w.actor_history.len().max(w.roster.len()))
+                .saturating_mul(w.actor_history.len().max(w.roster.len()))
     {
         return Err("invalid faction runtime".into());
     }
@@ -454,8 +481,8 @@ fn check_world(k: &MatchStatic, w: &World) -> Result<(), String> {
             || !b.amount.is_finite()
             || !(b.amount > 0.0)
             || b.by == b.victim
-            || w.roster.name(b.by).is_none()
-            || w.roster.name(b.victim).is_none()
+            || !w.known_actor(b.by)
+            || !w.known_actor(b.victim)
             || w.factions.dot[..i]
                 .iter()
                 .any(|a| (a.by, a.victim, a.sig) == (b.by, b.victim, b.sig))
@@ -467,37 +494,9 @@ fn check_world(k: &MatchStatic, w: &World) -> Result<(), String> {
         p.vision.check(w.tick, near)?;
         let sig = &p.signature;
         crate::systems::sentenced::validate(k, w, p)?;
-        super::systems::frost::validate_signature(k.config.faction_mode.frost(), w, p.id, sig)?;
-        if (!k.config.faction_mode.engagement() && *sig != crate::fighter::Signature::default())
-            || !sig.hp_frac.is_finite()
-            || !(0.0..=w.server_time + crate::constants::WAND_WINDUP_MAX_S * 1000.0)
-                .contains(&sig.dot_paused_until)
-            || sig.bits
-                & !(crate::constants::SIG_CHILLED
-                    | crate::constants::SIG_DISEASED
-                    | crate::constants::SIG_EXECUTE
-                    | crate::constants::SIG_BURNING
-                    | crate::constants::SIG_EXEC_BLOCKED)
-                != 0
-            || (!k.config.faction_mode.plague() && sig.bits != 0)
-            || (!k.config.faction_mode.fire() && sig.bits & crate::constants::SIG_BURNING != 0)
-            || (!k.config.faction_mode.sentenced()
-                && sig.bits & crate::constants::SIG_EXEC_BLOCKED != 0)
-            || [sig.reach_at, sig.contact_at, sig.combat_at]
-                .into_iter()
-                .flatten()
-                .any(|t| !(0.0..=w.server_time).contains(&t))
-            || sig
-                .target
-                .is_some_and(|id| id == p.id || w.roster.name(id).is_none())
-            || (sig.target.is_some() && sig.contact_at.is_none())
-            || (sig.target.is_none() && (sig.in_reach || sig.engaged || sig.reach_at.is_some()))
-            || ((sig.in_reach || sig.engaged) && sig.reach_at.is_none())
-        {
-            return Err(format!("invalid signature state for player {}", p.id.0));
-        }
+        super::systems::signatures::validate_basic(k, w, p.id, sig)?;
         let lock = &p.weapon.targeting;
-        let valid_foe = |id: crate::PlayerId| id != p.id && w.roster.name(id).is_some();
+        let valid_foe = |id: crate::PlayerId| id != p.id && w.known_actor(id);
         let valid_time = |t: f64| (0.0..=w.server_time).contains(&t);
         if lock.target.is_some_and(|id| {
             !valid_foe(id)
@@ -574,7 +573,11 @@ fn check_world(k: &MatchStatic, w: &World) -> Result<(), String> {
         {
             return Err(format!("player {}: invalid carried weapon or slot", p.id.0));
         }
-        if !(0.0..=crate::constants::AXE_SHRED_CAP).contains(&p.weapon.armor_shred) {
+        if !p.modifiers.valid(
+            &p.build,
+            &p.farm,
+            crate::content::faction(p.vitals.faction).hp,
+        ) {
             return Err(format!("player {}: invalid armor mirror", p.id.0));
         }
         crate::status_runtime::validate(&p.statuses, w.server_time)
@@ -583,7 +586,7 @@ fn check_world(k: &MatchStatic, w: &World) -> Result<(), String> {
             if [st.source.id, st.source.owner_id]
                 .into_iter()
                 .flatten()
-                .any(|id| w.roster.name(id).is_none())
+                .any(|id| !w.known_actor(id))
             {
                 return Err(format!(
                     "player {}: status source has no player provenance",
@@ -961,7 +964,9 @@ mod tests {
         json["world"]["next_id"] = u32::MAX.into();
         assert!(refusal(&json).contains("next_id"));
         json["world"]["next_id"] = (u32::MAX - 1).into();
-        assert!(Sim::restore(&json).is_ok());
+        // Numeric headroom alone is insufficient: the typed append-only actor history
+        // must account for every allocation, including in player-only worlds.
+        assert!(refusal(&json).contains("actor provenance/counter mismatch"));
     }
 
     #[test]

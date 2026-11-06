@@ -53,3 +53,9 @@ mkdir -p "$(dirname "$build_log")"
 echo "Building Web player; log: $build_log"
 "$unity_editor" -batchmode -quit -projectPath "$project" -buildTarget WebGL \
     -executeMethod Roguehalla.Editor.RhBuild.BuildWeb -logFile "$build_log" "$@"
+# Keep imported font/resource notices with the distributable player.
+mkdir -p "$project/Build/Web/Licenses"
+cp "$project/../../LICENSE" "$project/Build/Web/Licenses/Roguehalla-MIT.txt"
+cp "$project/Assets/TextMesh Pro/License.Unity.md" "$project/Build/Web/Licenses/Unity-Companion.md"
+cp "$project/Assets/TextMesh Pro/Fonts/LiberationSans - OFL.txt" "$project/Build/Web/Licenses/LiberationSans-OFL.txt"
+cp "$project/Assets/TextMesh Pro/Sprites/EmojiOne Attribution.txt" "$project/Build/Web/Licenses/EmojiOne-Attribution.txt"

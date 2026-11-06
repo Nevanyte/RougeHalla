@@ -15,6 +15,11 @@ use crate::math::wrap_angle;
 /// from the viewer’s most recently delivered complete observation.
 #[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum PublicCommand {
+    UseConsumable,
+    Choose {
+        handle: crate::reward_chests::RewardChestHandle,
+        pick: i8,
+    },
     Target {
         actor: crate::PlayerId,
     },
@@ -56,6 +61,11 @@ pub enum PublicCommand {
 /// Trusted fixture/replay-side proposal. Public seats use [`PublicCommand`].
 #[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum RawCommand {
+    UseConsumable,
+    Choose {
+        chest_id: Option<u32>,
+        pick: i8,
+    },
     Target {
         id: crate::PlayerId,
     },
@@ -105,8 +115,21 @@ pub enum RawCommand {
 #[serde(transparent)]
 pub struct Command(Kind);
 
+impl Command {
+    pub(crate) fn is_mob_combat(&self) -> bool {
+        matches!(self.0, Kind::Attack { .. } | Kind::Release { .. })
+    }
+    pub(crate) fn is_foundation_movement(self) -> bool {
+        matches!(
+            self.0,
+            Kind::Move { .. } | Kind::Stop { .. } | Kind::Aim { .. }
+        )
+    }
+}
 #[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 enum Kind {
+    UseConsumable,
+    Choose { chest_id: Option<u32>, pick: i8 },
     Target { id: crate::PlayerId },
     MissingTarget,
     AttackMove { x: f64, y: f64, seq: Option<u8> },
@@ -128,6 +151,11 @@ impl PublicCommand {
         seen: impl FnOnce(crate::PlayerId) -> bool,
     ) -> Result<Command, Reject> {
         validate(match self {
+            Self::UseConsumable => RawCommand::UseConsumable,
+            Self::Choose { pick, .. } => RawCommand::Choose {
+                chest_id: None,
+                pick,
+            },
             Self::Target { actor } if actor.0 == 0 => return Err(Reject::InvalidTarget),
             Self::Target { actor } => {
                 if seen(actor) {
@@ -154,6 +182,8 @@ impl PublicCommand {
 impl Kind {
     fn raw(self) -> RawCommand {
         match self {
+            Kind::UseConsumable => RawCommand::UseConsumable,
+            Kind::Choose { chest_id, pick } => RawCommand::Choose { chest_id, pick },
             Kind::Target { id } => RawCommand::Target { id },
             Kind::MissingTarget => RawCommand::MissingTarget,
             Kind::AttackMove { x, y, seq } => RawCommand::AttackMove { x, y, seq },
@@ -194,6 +224,8 @@ pub(crate) fn cmd(raw: RawCommand) -> Command {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Reject {
+    /// Private spawn foundation deliberately has no mob combat implementation yet.
+    UnsupportedActorAction,
     InvalidTarget,
     NonFinite,
     InvalidSlot,
@@ -222,6 +254,13 @@ pub fn validate(raw: RawCommand) -> Result<Command, Reject> {
     };
     let time = |t: Option<f64>| t.filter(|v| v.is_finite());
     Ok(Command(match raw {
+        RawCommand::UseConsumable => Kind::UseConsumable,
+        RawCommand::Choose { chest_id, pick }
+            if !(-1..=2).contains(&pick) || chest_id == Some(0) =>
+        {
+            return Err(Reject::InvalidContainer)
+        }
+        RawCommand::Choose { chest_id, pick } => Kind::Choose { chest_id, pick },
         RawCommand::Swap { slot } if slot.is_some_and(|i| i > 1) => {
             return Err(Reject::InvalidSlot)
         }
@@ -262,6 +301,8 @@ pub(crate) enum MoveCmd {
 
 #[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub(crate) enum ActionCmd {
+    UseConsumable,
+    Choose { chest_id: Option<u32>, pick: i8 },
     Target { id: crate::PlayerId },
     MissingTarget,
     Attack { a: f64, t: Option<f64> },
@@ -350,6 +391,11 @@ impl InputQueue {
         }
         for act in self.actions.as_slice() {
             match *act {
+                ActionCmd::UseConsumable => same(RawCommand::UseConsumable, Kind::UseConsumable)?,
+                ActionCmd::Choose { chest_id, pick } => same(
+                    RawCommand::Choose { chest_id, pick },
+                    Kind::Choose { chest_id, pick },
+                )?,
                 ActionCmd::Target { id } => same(RawCommand::Target { id }, Kind::Target { id })?,
                 ActionCmd::MissingTarget => same(RawCommand::MissingTarget, Kind::MissingTarget)?,
                 ActionCmd::MissingPickup => same(RawCommand::MissingPickup, Kind::MissingPickup)?,
@@ -425,6 +471,7 @@ pub(crate) fn accept(
 impl InputQueue {
     fn push(&mut self, cmd: Command) -> Result<(), Reject> {
         match cmd.0 {
+            Kind::UseConsumable => return self.push_action(ActionCmd::UseConsumable),
             Kind::Move { x, y, seq } => {
                 self.mv = Some(MoveCmd::Move { x, y, seq });
                 self.move_before = self.actions.len();
@@ -442,6 +489,9 @@ impl InputQueue {
             Kind::Aim { a } => {
                 self.aim = Some(a);
                 self.aim_before = self.actions.len();
+            }
+            Kind::Choose { chest_id, pick } => {
+                return self.push_action(ActionCmd::Choose { chest_id, pick })
             }
             Kind::MissingPickup => return self.push_action(ActionCmd::MissingPickup),
             Kind::Swap { slot } => return self.push_action(ActionCmd::Swap { slot }),

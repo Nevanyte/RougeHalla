@@ -54,6 +54,8 @@ namespace Roguehalla.Net.Protocol
         public WireRewardOption[] Options = Array.Empty<WireRewardOption>();
         public bool Picked, CanChoose;
     }
+    public struct WireProjectile { public byte Kind; public ushort X,Y,Facing; public uint? Owner; }
+    public struct WireCamp { public byte MobType, Elite; public uint Alive; public byte State; public double ClearedAt, RespawnAt; }
     public struct WireBuild { public byte[] Cards, Boosts; }
 
     /// <summary>Keys are ascending, unique complete replacements. Missing keys retain their previous values.</summary>
@@ -62,7 +64,7 @@ namespace Roguehalla.Net.Protocol
         public abstract uint Key { get; }
         internal abstract void Check();
         internal abstract void Write(Writer w);
-        internal const int MaxRows = 512, MaxKeys = 5;
+        internal const int MaxRows = 512, MaxKeys = 7;
         internal static void Require(bool condition, string name) { if (!condition) throw new EncodeException(name); }
         internal static bool Finite(double v) { return !double.IsNaN(v) && !double.IsInfinity(v); }
         internal static byte Weapon(byte v) { if (v >= 5) throw new DecodeException(DecodeError.BadField, "carried weapon"); return v; }
@@ -136,6 +138,14 @@ namespace Roguehalla.Net.Protocol
                             chest.Picked = r.Flag(); chest.CanChoose = r.Flag(); chests.Rows[j] = chest;
                         }
                         item = chests; break;
+                    case 7:
+                        var projectiles = new ProjectilesState { Rows=new WireProjectile[Count(ref r,MaxRows)] };
+                        for(int j=0;j<projectiles.Rows.Length;j++) projectiles.Rows[j]=new WireProjectile {Kind=r.U8(),X=r.U16(),Y=r.U16(),Facing=r.U16(),Owner=ReadActor(ref r)};
+                        item=projectiles;break;
+                    case 6:
+                        var camps = new CampsState { Rows = new WireCamp[Count(ref r, MaxRows)] };
+                        for(int j=0;j<camps.Rows.Length;j++) camps.Rows[j]=new WireCamp {MobType=r.U8(),Elite=r.U8(),Alive=r.Varint(),State=r.U8(),ClearedAt=r.F64(),RespawnAt=r.F64()};
+                        item=camps; break;
                     case 5:
                         var build = new BuildState();
                         if (r.Flag())
@@ -258,4 +268,36 @@ namespace Roguehalla.Net.Protocol
         internal override void Check() { if (Value.HasValue) Require(Value.Value.Cards != null && Value.Value.Cards.Length == 3 && Value.Value.Boosts != null && Value.Value.Boosts.Length == 8, "build"); }
         internal override void Write(Writer w) { w.U8(Value.HasValue ? (byte)1 : (byte)0); if (Value.HasValue) { w.Bytes(Value.Value.Cards); w.Bytes(Value.Value.Boosts); } }
     }
+    public sealed class CampsState : StateItem
+    {
+        public override uint Key { get { return 6; } }
+        public WireCamp[] Rows = Array.Empty<WireCamp>();
+        internal override void Check()
+        {
+            Require(Rows != null && Rows.Length <= MaxRows,"camps");
+            foreach(var c in Rows) Require(c.MobType<30 && c.Elite<=30 && c.Alive<=512 && c.State<=2 && Finite(c.ClearedAt) && c.ClearedAt>=0 && Finite(c.RespawnAt) && c.RespawnAt>=c.ClearedAt,"camp");
+        }
+        internal override void Write(Writer w)
+        {
+            w.Varint((uint)Rows.Length);
+            foreach(var c in Rows) { w.U8(c.MobType);w.U8(c.Elite);w.Varint(c.Alive);w.U8(c.State);w.F64(c.ClearedAt);w.F64(c.RespawnAt); }
+        }
+    }
+
+    public sealed class ProjectilesState : StateItem
+    {
+        public override uint Key { get { return 7; } }
+        public WireProjectile[] Rows=Array.Empty<WireProjectile>();
+        internal override void Check()
+        {
+            Require(Rows!=null && Rows.Length<=MaxRows,"projectiles");
+            foreach(var p in Rows) Require(p.Kind<=1 && p.Owner!=0,"projectile");
+        }
+        internal override void Write(Writer w)
+        {
+            w.Varint((uint)Rows.Length);
+            foreach(var p in Rows) {w.U8(p.Kind);w.U16(p.X);w.U16(p.Y);w.U16(p.Facing);WriteActor(w,p.Owner);}
+        }
+    }
+
 }

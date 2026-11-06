@@ -12,73 +12,91 @@ use crate::{
 };
 pub(crate) fn damage(
     k: &MatchStatic,
-    w: &World,
+    w: &mut World,
     performed: &[crate::factions::PerformedAttack],
     ledger: &mut Vec<Entry>,
 ) {
     let now = w.server_time;
-    for p in w
-        .players
-        .iter()
-        .filter(|p| p.standing() && p.signature.engaged)
-    {
-        let Some(t) = p
+    for slot in 0..w.fighter_count() {
+        let ix = crate::fighter::FighterIx::of_slot(slot);
+        let p = w.core(ix);
+        if !w.standing(ix) || !p.signature.engaged {
+            continue;
+        }
+        let Some(ti) = p
             .signature
             .target
-            .and_then(|id| w.player(id))
-            .filter(|t| t.standing())
+            .and_then(|id| w.fighter_idx(id))
+            .filter(|&ti| w.standing(ti))
         else {
             continue;
         };
         if p.vitals.faction == FactionId::Fire && k.config.faction_mode.fire() {
-            super::fire::damage(p, t, now, performed, ledger);
+            super::fire::damage(w, ix, ti, now, performed, ledger);
         }
+        let p = w.core(ix);
         if p.vitals.faction != FactionId::Plague {
             continue;
         }
+        let t = w.core(ti);
         let weapon = p.active_weapon();
-        let paused = TICK_MS.min((p.signature.dot_paused_until - (now - TICK_MS)).max(0.0));
-        let dot =
-            content::weapon(weapon).dps_mult * ((TICK_MS - paused) / 1000.0) * p.signature.chill;
+        let id = p.id;
+        let victim = t.id;
+        let paused = TICK_MS.min((p.signature.dot_paused_until - (now - TICK_MS)).max(0.));
+        let secs = (TICK_MS - paused) / 1000.;
+        let dot = content::weapon(weapon).dps_mult * secs * p.signature.chill;
+        let basic = w.signature_damage(ix, PLAGUE_DPS, false) * dot;
+        let ap = if w.is_player(ix) {
+            crate::modifiers::DEFINITION.plague_ap_per_hit
+                * p.modifiers.mirrors().ap_bonus
+                * p.signature.ap_hits.rate()
+                * secs
+        } else {
+            crate::modifiers::DEFINITION.ap_dot_ratio * p.modifiers.mirrors().ap_bonus * secs
+        } * p.signature.chill;
+        let execute = w.signature_damage(ix, PLAGUE_EXECUTE_DPS, true)
+            * (PLAGUE_EXECUTE_BAND - t.signature.hp_frac).max(0.)
+            * dot;
+        let dm = p.modifiers.dot_mult();
         for (raw, execute) in [
-            (PLAGUE_DPS * DUEL_PACE * dot, false),
-            (
-                PLAGUE_EXECUTE_DPS
-                    * DUEL_PACE
-                    * (PLAGUE_EXECUTE_BAND - t.signature.hp_frac).max(0.0)
-                    * dot,
-                true,
-            ),
+            (basic, false),
+            (if basic > 0. { ap } else { 0. }, false),
+            (execute, true),
         ] {
-            if raw > 0.0 {
-                ledger.push(Entry {
-                    dot: false,
-                    ability: None,
-                    arena: false,
-                    source: None,
-                    critical: false,
-                    critical_mult: None,
-                    victim: t.id,
-                    by: Some(p.id),
-                    packet: Packet {
-                        raw,
-                        phys: 0.,
-                        magic: 1.,
-                        true_: 0.,
+            if raw > 0. {
+                super::ledger::record_hit(
+                    w,
+                    ledger,
+                    Entry {
+                        dot: false,
+                        ability: None,
+                        arena: false,
+                        source: None,
+                        critical: false,
+                        critical_mult: None,
+                        victim,
+                        by: Some(id),
+                        packet: Packet {
+                            raw: raw * dm,
+                            phys: 0.,
+                            magic: 1.,
+                            true_: 0.,
+                        },
+                        weapon: Some(weapon),
+                        stagger: false,
+                        projectile: None,
+                        scale: 1.,
+                        derived: false,
+                        passive: false,
+                        sig: Some(SignatureKind::Disease),
+                        execute,
                     },
-                    weapon: Some(weapon),
-                    stagger: false,
-                    projectile: None,
-                    scale: 1.,
-                    derived: false,
-                    passive: false,
-                    sig: Some(SignatureKind::Disease),
-                    execute,
-                });
+                );
             }
         }
     }
 }
+
 pub(crate) fn accumulate(w: &mut World, h: &LandedHit) {
     let (Some(by), Some(sig)) = (h.by, h.sig) else {
         return;
@@ -123,20 +141,25 @@ pub(crate) fn run_ended(h: &mut Hx, args: &HookArgs) {
 }
 pub(crate) fn after_damage(k: &MatchStatic, w: &mut World, ev: &mut Vec<Event>, fx: &mut TickFx) {
     let now = w.server_time;
-    for p in &mut w.players {
-        p.signature.bits = 0;
-        if !p.standing() {
+    for slot in 0..w.fighter_count() {
+        let ix = crate::fighter::FighterIx::of_slot(slot);
+        w.core_mut(ix).signature.bits = 0;
+        if !w.standing(ix) {
             continue;
         }
+        let p = w.core(ix);
         let weapon = p.active_weapon();
         if weapon != WeaponId::Bow
             && p.weapon.stagger_immune_until == now + STAGGER_IMMUNITY_SECONDS * 1000.
         {
-            let tm = content::player_timings(
-                weapon,
-                content::attack_interval(&content::paced(p.vitals.faction), weapon, 1.),
-            );
+            let interval = content::attack_interval(&w.paced_sheet(ix), weapon, 1.);
+            let tm = if w.is_player(ix) {
+                content::player_timings(weapon, interval)
+            } else {
+                content::npc_timings(weapon, interval)
+            };
             if tm.windup > 0. {
+                let p = w.core_mut(ix);
                 p.signature.dot_paused_until =
                     p.signature.dot_paused_until.max(now + tm.windup * 1000.);
             }
@@ -148,33 +171,34 @@ pub(crate) fn after_damage(k: &MatchStatic, w: &mut World, ev: &mut Vec<Event>, 
     if k.config.faction_mode.sentenced() {
         super::sentenced::after_damage(w);
     }
-    for i in 0..w.players.len() {
-        let p = &w.players[i];
+    for slot in 0..w.fighter_count() {
+        let ix = crate::fighter::FighterIx::of_slot(slot);
+        let p = w.core(ix);
         if !k.config.faction_mode.plague()
-            || !p.standing()
+            || !w.standing(ix)
             || !(p.vitals.faction == FactionId::Plague
                 || (p.vitals.faction == FactionId::Fire && k.config.faction_mode.fire()))
             || !p.signature.engaged
         {
             continue;
         }
-        let Some(t) = p
+        let Some(ti) = p
             .signature
             .target
-            .and_then(|id| w.idx(id))
-            .filter(|&i| w.players[i].standing())
+            .and_then(|id| w.fighter_idx(id))
+            .filter(|&i| w.standing(i))
         else {
             continue;
         };
         let fire = p.vitals.faction == FactionId::Fire;
-        let t = &mut w.players[t];
+        let t = w.core_mut(ti);
         if fire {
             t.signature.bits |= SIG_BURNING;
-            continue;
-        }
-        t.signature.bits |= SIG_DISEASED;
-        if t.vitals.max_hp > 0. && t.vitals.hp / t.vitals.max_hp < PLAGUE_EXECUTE_BAND {
-            t.signature.bits |= SIG_EXECUTE;
+        } else {
+            t.signature.bits |= SIG_DISEASED;
+            if t.vitals.max_hp > 0. && t.vitals.hp / t.vitals.max_hp < PLAGUE_EXECUTE_BAND {
+                t.signature.bits |= SIG_EXECUTE;
+            }
         }
     }
     if now - w.factions.dot_since >= DOT_FX_MS {

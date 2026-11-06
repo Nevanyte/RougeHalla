@@ -31,8 +31,16 @@ pub(crate) fn apply_with(
     quiet: bool,
     stats: Inputs,
 ) -> Option<Applied> {
-    let i = w.idx(id)?;
-    if !rt::admits(&a, Recipient::Player, w.players[i].standing()) {
+    let i = w.fighter_idx(id)?;
+    if !rt::admits(
+        &a,
+        if w.is_player(i) {
+            Recipient::Player
+        } else {
+            Recipient::Mob
+        },
+        w.standing(i),
+    ) {
         return None;
     }
     if w.pay.collecting {
@@ -52,10 +60,10 @@ pub(crate) fn apply_with(
     let now = w.server_time;
     let kind = a.kind;
     let by = a.source.id;
-    let result = rt::apply(&mut w.players[i].statuses, now, a);
-    let until = w.players[i].statuses.instances[result.index].until;
+    let result = rt::apply(&mut w.core_mut(i).statuses, now, a);
+    let until = w.core(i).statuses.instances[result.index].until;
     if kind == StatusKind::Invulnerable {
-        w.players[i].vitals.immune_until = w.players[i].vitals.immune_until.max(until);
+        w.core_mut(i).vitals.immune_until = w.core(i).vitals.immune_until.max(until);
     }
     if result.fresh && !quiet {
         ev.push(Event::StatusApplied {
@@ -118,10 +126,10 @@ pub(crate) fn remove_into_with(
         return;
     }
     let now = w.server_time;
-    let Some(i) = w.idx(id) else { return };
-    let slow = rt::remove_into(&mut w.players[i].statuses, now, selector, out);
+    let Some(i) = w.fighter_idx(id) else { return };
+    let slow = rt::remove_into(&mut w.core_mut(i).statuses, now, selector, out);
     if slow {
-        super::refold_attack_with(k, w, i, stats);
+        super::refold_attack_with(k, w, i.slot(), stats);
     }
 }
 /// A queued bare removal has no consumer for the source's returned rows.
@@ -142,8 +150,8 @@ pub(crate) fn remove_discard_with(
         return;
     }
     let now = w.server_time;
-    let Some(i) = w.idx(id) else { return };
-    let p = &mut w.players[i];
+    let Some(i) = w.fighter_idx(id) else { return };
+    let p = w.core_mut(i);
     let mut slow = false;
     let mut removed = false;
     p.statuses.instances.retain(|st| {
@@ -158,6 +166,6 @@ pub(crate) fn remove_discard_with(
         p.statuses.refresh_effects(now)
     }
     if slow {
-        super::refold_attack_with(k, w, i, stats);
+        super::refold_attack_with(k, w, i.slot(), stats);
     }
 }

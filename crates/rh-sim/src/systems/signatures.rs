@@ -1,8 +1,9 @@
-//! Partial faction foundation: genuine player contacts, engagement and Holy sustain.
-//! Fire, Plague, Frost, Sentenced, cards and mob signatures are separate pending producers.
+//! Shared engagement and basic Holy/Fire/Plague faction consumers.
+//! Regional Frost/Sentenced and auxiliary faction producers remain outside the admitted PvE domain.
 use super::{heal, Cx};
 use crate::constants::*;
 use crate::content::{self, FactionId, Shape, WeaponId};
+use crate::fighter::FighterIx;
 use crate::geometry::has_line_of_sight;
 use crate::hooks::{HookArgs, Hx};
 use crate::state::{PlayerId, World};
@@ -54,12 +55,18 @@ fn contact(
     amount: f64,
     passive: bool,
 ) {
-    let Some(ai) = w.idx(attacker) else { return };
-    let Some(vi) = w.idx(victim) else { return };
+    let Some(ai) = w.fighter_idx(attacker) else {
+        return;
+    };
+    let Some(vi) = w.fighter_idx(victim) else {
+        return;
+    };
     if attacker != victim
-        && w.players[ai].standing()
-        && w.players[vi].standing()
-        && w.server_time >= w.players[vi].vitals.immune_until
+        && w.standing(ai)
+        && w.standing(vi)
+        && (w.is_player(ai) || w.is_player(vi))
+        && !returning(w, attacker)
+        && (!w.is_player(vi) || w.server_time >= w.core(vi).vitals.immune_until)
     {
         out.push(Contact {
             attacker,
@@ -70,6 +77,7 @@ fn contact(
     }
 }
 fn largest<'a>(
+    origins: &crate::store::Store<crate::mob_runtime::ActorProvenance>,
     contacts: impl Iterator<Item = (PlayerId, &'a Contact)>,
     salt: u32,
     tick: u32,
@@ -79,12 +87,25 @@ fn largest<'a>(
         if best.is_none_or(|(bid, amount)| {
             c.amount > amount
                 || (c.amount == amount
-                    && crate::rng::tie_rank(salt, tick, id) < crate::rng::tie_rank(salt, tick, bid))
+                    && crate::rng::tie_rank_origin(
+                        salt,
+                        tick,
+                        &origins.get(id).expect("known fighter").origin,
+                    ) < crate::rng::tie_rank_origin(
+                        salt,
+                        tick,
+                        &origins.get(bid).expect("known fighter").origin,
+                    ))
         }) {
             best = Some((id, c.amount));
         }
     }
     best.map(|(id, _)| id)
+}
+fn returning(w: &World, id: PlayerId) -> bool {
+    w.mobs
+        .get(id)
+        .is_some_and(|m| m.brain.mode == crate::mob_runtime::BrainMode::Return)
 }
 pub(crate) fn after_weapons(cx: &mut Cx) {
     if cx.k.config.faction_mode.frost() {
@@ -119,32 +140,39 @@ pub(crate) fn after_weapons(cx: &mut Cx) {
         s.performed.push(a);
     }
 }
-/// The original beforeDamage row, currently implementing only player engagement.
+/// The original beforeDamage row, shared by admitted standing combatants.
 pub(crate) fn before_damage(cx: &mut Cx) {
     let Cx { k, w, s, .. } = cx;
     let now = w.server_time;
     // Legacy removes nonstanding runtime on this pass. A fighter downed later in the
     // same ledger retains this tick's state until the next active pass, including at run end.
-    for i in 0..w.players.len() {
-        if !w.players[i].standing() {
-            w.players[i].signature = Default::default();
+    for slot in 0..w.fighter_count() {
+        let ix = FighterIx::of_slot(slot);
+        if !w.standing(ix) {
+            w.core_mut(ix).signature = Default::default();
             continue;
         }
-        let target = w.players[i].signature.target;
-        if target.is_some_and(|id| w.idx(id).is_none_or(|ti| !w.players[ti].standing())) {
-            w.players[i].signature.clear_target();
+        let p = w.core(ix);
+        let clear = returning(w, p.id)
+            || p.signature
+                .target
+                .is_some_and(|id| w.fighter_idx(id).is_none_or(|ti| !w.standing(ti)));
+        let p = w.core_mut(ix);
+        if clear {
+            p.signature.clear_target();
         }
-        let p = &mut w.players[i];
-        p.signature.hp_frac = if p.vitals.max_hp > 0.0 {
+        p.signature.hp_frac = if p.vitals.max_hp > 0. {
             p.vitals.hp / p.vitals.max_hp
         } else {
-            0.0
+            0.
         };
     }
     s.contacts.clear();
     for e in &s.ledger {
         let raw = e.packet.raw * e.scale;
-        if let Some(by) = e.by.filter(|_| raw > 0.0 && e.sig.is_none()) {
+        if let Some(by) =
+            e.by.filter(|_| raw > 0.0 && e.sig.is_none() && e.ability.is_none() && !e.dot)
+        {
             contact(
                 w,
                 &mut s.contacts,
@@ -158,9 +186,14 @@ pub(crate) fn before_damage(cx: &mut Cx) {
     for b in &s.blocks {
         contact(w, &mut s.contacts, b.attacker, b.holder, 0.0, b.passive);
     }
-    for p in w.players.iter_mut().filter(|p| p.standing()) {
+    for slot in 0..w.fighter_count() {
+        let ix = FighterIx::of_slot(slot);
+        let p = w.core(ix);
+        if !w.standing(ix) || returning(w, p.id) {
+            continue;
+        }
         let id = p.id;
-        let f = &mut p.signature;
+        let mut target = p.signature.target;
         let outgoing = || {
             s.contacts
                 .iter()
@@ -173,46 +206,56 @@ pub(crate) fn before_damage(cx: &mut Cx) {
                 .filter(|c| c.victim == id)
                 .map(|c| (c.attacker, c))
         };
-        if f.target.is_none() || !outgoing().any(|(other, _)| Some(other) == f.target) {
-            if let Some(target) = largest(
+        let mut selected = None;
+        if target.is_none() || !outgoing().any(|(other, _)| Some(other) == target) {
+            selected = largest(
+                &w.actor_history,
                 outgoing().filter(|(_, c)| !c.passive),
                 k.secrets.order_salt,
                 w.tick,
-            ) {
-                f.set_target(target, now);
+            );
+            if selected.is_some() {
+                target = selected;
             }
         }
-        if f.target.is_none() {
-            if let Some(target) =
-                largest(outgoing().chain(incoming()), k.secrets.order_salt, w.tick)
-            {
-                f.set_target(target, now);
-            }
+        if target.is_none() {
+            selected = largest(
+                &w.actor_history,
+                outgoing().chain(incoming()),
+                k.secrets.order_salt,
+                w.tick,
+            );
+            target = selected;
         }
-        if f.target.is_some()
+        let contacted = target.is_some()
             && outgoing()
                 .chain(incoming())
-                .any(|(other, _)| Some(other) == f.target)
-        {
+                .any(|(other, _)| Some(other) == target);
+        let f = &mut w.core_mut(ix).signature;
+        if let Some(t) = selected {
+            f.set_target(t, now);
+        }
+        if contacted {
             f.contact_at = Some(now);
         }
     }
-    for i in 0..w.players.len() {
-        let p = &w.players[i];
-        if !p.standing() {
+    for slot in 0..w.fighter_count() {
+        let ix = FighterIx::of_slot(slot);
+        let p = w.core(ix);
+        if !w.standing(ix) || returning(w, p.id) {
             continue;
         }
-        let Some(ti) = p.signature.target.and_then(|id| w.idx(id)) else {
+        let Some(ti) = p.signature.target.and_then(|id| w.fighter_idx(id)) else {
             continue;
         };
         if p.signature
             .contact_at
             .is_some_and(|t| now - t >= TARGET_FORGET_MS)
         {
-            w.players[i].signature.clear_target();
+            w.core_mut(ix).signature.clear_target();
             continue;
         }
-        let t = &w.players[ti];
+        let t = w.core(ti);
         let weapon = p.active_weapon();
         let (reach, mask) = match content::weapon(weapon).shape {
             Shape::Arc { reach, .. } => (reach + PLAYER_RADIUS, MASK_MELEE),
@@ -220,21 +263,27 @@ pub(crate) fn before_damage(cx: &mut Cx) {
         };
         let in_reach = crate::math::hypot(t.body.x - p.body.x, t.body.y - p.body.y) <= reach
             && has_line_of_sight(&k.arena.map, p.pos(), t.pos(), mask);
-        let cadence = |p: &crate::state::Player| {
-            content::attack_interval(&content::paced(p.vitals.faction), p.active_weapon(), 1.0)
-                / p.signature.chill
+        // Source signature cadence deliberately excludes the attack-speed mirror.
+        let cadence = |i| {
+            let p = w.core(i);
+            content::attack_interval(&w.paced_sheet(i), p.active_weapon(), 1.) / p.signature.chill
         };
         let trade = ENGAGE_TRADE_SECONDS
-            .max(cadence(p).max(cadence(t)) + ENGAGE_TRADE_SLACK_SECONDS)
-            * 1000.0;
-        let f = &mut w.players[i].signature;
+            .max(cadence(ix).max(cadence(ti)) + ENGAGE_TRADE_SLACK_SECONDS)
+            * 1000.;
+        let linger = if matches!(p.vitals.faction, FactionId::Fire | FactionId::Plague) {
+            p.modifiers.linger_mult()
+        } else {
+            1.
+        };
+        let f = &mut w.core_mut(ix).signature;
         f.in_reach = in_reach;
         if in_reach {
             f.reach_at = Some(now);
         }
         f.engaged = f
             .reach_at
-            .is_some_and(|t| now - t <= ENGAGE_LINGER_MS + TIE_EPS_MS)
+            .is_some_and(|t| now - t <= ENGAGE_LINGER_MS * linger + TIE_EPS_MS)
             && f.contact_at.is_some_and(|t| now - t <= trade + TIE_EPS_MS);
     }
     if k.config.faction_mode.sentenced() {
@@ -251,6 +300,7 @@ pub(crate) fn before_damage(cx: &mut Cx) {
             }
         }
     }
+    crate::modifiers::hit_window::update(w, &s.ledger);
     if k.config.faction_mode.plague() {
         super::plague::damage(k, w, &s.performed, &mut s.ledger);
     }
@@ -267,8 +317,8 @@ pub(crate) fn after_damage(cx: &mut Cx) {
             s.fx.ops.push(crate::fx_report::Op::Contribution(*h));
         }
         for id in [Some(h.victim), h.by].into_iter().flatten() {
-            if let Some(i) = w.idx(id).filter(|&i| w.players[i].standing()) {
-                w.players[i].signature.combat_at = Some(w.server_time);
+            if let Some(i) = w.fighter_idx(id).filter(|&i| w.standing(i)) {
+                w.core_mut(i).signature.combat_at = Some(w.server_time);
             }
         }
         let Some(by) = h.by else { continue };
@@ -284,10 +334,10 @@ pub(crate) fn after_damage(cx: &mut Cx) {
         }
     }
     for &(id, amount, dot_amount) in &s.dealt {
-        let Some(i) = w.idx(id).filter(|&i| w.players[i].standing()) else {
+        let Some(i) = w.fighter_idx(id).filter(|&i| w.standing(i)) else {
             continue;
         };
-        let p = &w.players[i];
+        let p = w.core(i);
         let v = stats.view(p);
         let holy = p.vitals.faction == FactionId::Holy;
         let own = if holy {
@@ -295,7 +345,7 @@ pub(crate) fn after_damage(cx: &mut Cx) {
         } else {
             0.
         };
-        let rows = if holy {
+        let rows = if holy && w.is_player(i) {
             v.lifesteal_rows * crate::status_runtime::stats::HOLY_LEECH_ROW_MULT
         } else {
             v.lifesteal_rows
@@ -318,7 +368,7 @@ pub(crate) fn after_damage(cx: &mut Cx) {
                     v.farm_lifesteal_rows,
                 );
         if gain > 0. {
-            heal::apply(w, ev, i, gain, heal::Kind::Lifesteal);
+            heal::apply(w, ev, i.slot(), gain, heal::Kind::Lifesteal);
         }
     }
     if k.config.faction_mode.frost() {
@@ -334,3 +384,49 @@ impl crate::Sim {
         &self.s.landed
     }
 }
+
+/// Shared trusted restore checks; historical actor identity is typed and retained.
+pub(crate) fn validate_basic(
+    k: &crate::statics::MatchStatic,
+    w: &World,
+    id: PlayerId,
+    sig: &crate::fighter::Signature,
+) -> Result<(), String> {
+    if !sig.ap_hits.valid(w.server_time) || sig.ap_hits.target.is_some_and(|t| !w.known_actor(t)) {
+        return Err("invalid AP hit history".into());
+    }
+    super::frost::validate_signature(k.config.faction_mode.frost(), w, id, sig)?;
+    let owner = id;
+    if (!k.config.faction_mode.engagement() && *sig != crate::fighter::Signature::default())
+        || !sig.hp_frac.is_finite()
+        || !(0.0..=w.server_time + crate::constants::WAND_WINDUP_MAX_S * 1000.0)
+            .contains(&sig.dot_paused_until)
+        || sig.bits
+            & !(crate::constants::SIG_CHILLED
+                | crate::constants::SIG_DISEASED
+                | crate::constants::SIG_EXECUTE
+                | crate::constants::SIG_BURNING
+                | crate::constants::SIG_EXEC_BLOCKED)
+            != 0
+        || (!k.config.faction_mode.plague() && sig.bits != 0)
+        || (!k.config.faction_mode.fire() && sig.bits & crate::constants::SIG_BURNING != 0)
+        || (!k.config.faction_mode.sentenced()
+            && sig.bits & crate::constants::SIG_EXEC_BLOCKED != 0)
+        || [sig.reach_at, sig.contact_at, sig.combat_at]
+            .into_iter()
+            .flatten()
+            .any(|t| !(0.0..=w.server_time).contains(&t))
+        || sig
+            .target
+            .is_some_and(|id| id == owner || !w.known_actor(id))
+        || (sig.target.is_some() && sig.contact_at.is_none())
+        || (sig.target.is_none() && (sig.in_reach || sig.engaged || sig.reach_at.is_some()))
+        || ((sig.in_reach || sig.engaged) && sig.reach_at.is_none())
+    {
+        return Err(format!("invalid signature state for actor {}", id.0));
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod pve_tests;

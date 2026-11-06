@@ -48,6 +48,8 @@ async fn server(args: &[String], conns: usize, secs: u64) {
         None => rh_sim::arenas::practice_arena(),
     };
     let sim = rh_sim::SimConfig {
+        mob_mode: rh_sim::mob_runtime::MobMode::Off,
+        initial_loot: false,
         min_players: 2,
         lobby_seconds: 30.0,
         fill_seconds: 5.0,

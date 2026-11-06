@@ -35,7 +35,11 @@ for (const v of fx.client) {
 }
 for (const v of fx.malformedClient) { let threw = false; try { decodeClient(bytes(v.hex)); } catch { threw = true; } eq(threw, true, v.name + " malformed client"); }
 const combat = decodeClient(bytes(fx.client.find(v => v.name === "input_combat").hex));
-eq(JSON.stringify(combat.cmds), JSON.stringify([{ k: "swap", slot: null }, { k: "swap", slot: 0 }, { k: "swap", slot: 1 }, { k: "pickup", containerId: 42 }]), "combat command fields");
+eq(JSON.stringify(combat.cmds), JSON.stringify([{ k: "swap", slot: null }, { k: "swap", slot: 0 }, { k: "swap", slot: 1 }, { k: "pickup", handle: 42 }]), "combat command fields");
+const choices=decodeClient(bytes(fx.client.find(v=>v.name==="input_choices").hex));
+eq(JSON.stringify(choices.cmds),JSON.stringify([-1,0,1,2].map(pick=>({k:"choose",handle:0xffffffff,pick}))),"typed reward choices including skip");
+const chestRefusals=decode(bytes(fx.server.find(v=>v.name==="chest_refusals").hex));
+eq(JSON.stringify(chestRefusals.events),JSON.stringify([1,2,3,4,5,6,7,8,9].map(reason=>({k:"chestRefused",reason}))),"owner reward refusal reasons");
 const refusals = decode(bytes(fx.server.find(v => v.name === "pickup_refusals").hex));
 eq(JSON.stringify(refusals.events), JSON.stringify([1,2,3,4,5].map(reason => ({ k: "pickupRefused", reason }))), "owner refusal reasons");
 
@@ -48,10 +52,12 @@ eq(JSON.stringify(state.items), JSON.stringify([
   {key:2,value:{rows:[{handle:1,x:800,y:900,kind:1,weapon:0},{handle:2,x:801,y:902,kind:2,open:true},{handle:3,x:802,y:903,kind:3,label:"\ufeffBÖB"}],focus:{handle:3,bodyHint:4}}},
   {key:3,value:[publicField,publicField]},
   {key:4,value:[{handle:0xffffffff,x:100,y:200,expiresAt:15000,options:[{kind:1,id:0,taken:false,takenBy:null},{kind:2,id:7,taken:true,takenBy:1}],picked:false,canChoose:true}]},
-  {key:5,value:{cards:[1,0,1],boosts:[0,1,2,3,0,1,2,3]}}
+  {key:5,value:{cards:[1,0,1],boosts:[0,1,2,3,0,1,2,3]}},
+  {key:6,value:[{mobType:0,elite:30,alive:0,state:2,clearedAt:1000,respawnAt:181000}]},
+  {key:7,value:[{kind:0,x:800,y:900,facing:12345,owner:1},{kind:0,x:800,y:900,facing:12345,owner:1}]}
 ]), "all reliable public facts");
 collectionTracker.decode(bytes(fx.server.find(v => v.name === "snapshot").hex));
-eq(collectionTracker.collections.size, 5, "snapshot retains reliable collections");
+eq(collectionTracker.collections.size, 7, "snapshot retains reliable collections");
 collectionTracker.decode(new Uint8Array([0x88,1,1,1,0]).buffer);
 eq(collectionTracker.collections.get(1), null, "missing inventory clears");
 eq(collectionTracker.collections.get(2).rows.length, 3, "missing key retains props");
@@ -67,6 +73,8 @@ eq(collectionTracker.collections.get(2).rows.length, 0, "empty replacement clear
 eq(collectionTracker.collections.get(3).length, 0, "empty replacement clears fields");
 eq(collectionTracker.collections.get(4).length, 0, "empty replacement clears reward offers");
 eq(collectionTracker.collections.get(5), null, "build clear");
+eq(collectionTracker.collections.get(6).length,0,"camp clear");
+eq(collectionTracker.collections.get(7).length,0,"projectiles clear");
 
 const bomReject = decode(bytes(fx.server.find(v => v.name === "reject_unknown_bom").hex));
 eq(bomReject.code, 300, "unknown Reject code"); eq(bomReject.reason, "\uFEFFa", "unknown Reject BOM reason");
@@ -90,13 +98,13 @@ function checkSnapshot(m, d, n) {
     if (d.me === null) eq(m.me, null, `${n} me`);
     else {
       const e = d.me, s = m.me;
-      for (const [k, jk] of [["id", "id"], ["faction", "faction"], ["status", "status"], ["weapon", "weapon"], ["readyIn", "readyInMs"], ["kills", "kills"], ["bounty", "bounty"], ["gv", "gv"], ["moveSeq", "moveSeq"], ["effects", "effects"], ["displaceSeq", "displaceSeq"]]) eq(s[k], e[jk], `${n} me.${k}`);
+      for (const [k, jk] of [["id", "id"], ["faction", "faction"], ["status", "status"], ["weapon", "weapon"], ["readyIn", "readyInMs"], ["kills", "kills"], ["bounty", "bounty"], ["gv", "gv"], ["moveSeq", "moveSeq"], ["effects", "effects"], ["displaceSeq", "displaceSeq"], ["sig", "sig"]]) eq(s[k], e[jk], `${n} me.${k}`);
       for (const [k, jk] of [["x", "xBits"], ["y", "yBits"], ["facing", "facingBits"], ["hp", "hpBits"], ["maxHp", "maxHpBits"]]) eq(bits(s[k]), e[jk], `${n} me.${k}`);
     }
     eq(m.actors.length, d.actors.length, `${n} actors`);
     d.actors.forEach((e, i) => {
       const s = m.actors[i];
-      for (const k of ["id", "faction", "hpPct", "status", "weapon", "bounty", "kind", "effects", "displaceSeq"]) eq(s[k], e[k], `${n} actor ${i}.${k}`);
+      for (const k of ["id", "faction", "hpPct", "status", "weapon", "bounty", "kind", "effects", "displaceSeq", "mobTypeCode", "sig"]) eq(s[k], e[k], `${n} actor ${i}.${k}`);
       for (const [k, jk] of [["x", "xBits"], ["y", "yBits"], ["facing", "facingBits"]]) eq(bits(s[k]), e[jk], `${n} actor ${i}.${k}`);
     });
 }
@@ -123,6 +131,11 @@ for (const v of fx.server) {
 
 // The JS decoder reports a reason as an Error message (RangeError for a read past the end).
 const reason = {
+  state_too_many_projectiles:/too many/,projectile_kind:/projectile/,projectile_owner_zero:/handle/,projectile_owner_flag:/option/,projectile_owner_overlong:/varint/,
+  potion_notice_zero:/potion notice/,potion_notice_unknown:/potion notice/,state_too_many_camps:/too many/,
+  camp_mob_type:/camp/,camp_elite:/camp/,camp_alive:/camp/,camp_state:/camp/,camp_negative_time:/camp/,camp_nonfinite_time:/field/,camp_time_order:/camp/,
+  actor_mob_type_over_30:/mob type/,delta_actor_mob_type_over_30:/mob type/,
+  chest_bad_reason_zero: /chest reason/, chest_bad_reason_unknown: /chest reason/,
   hit_bad_passive: /bad option/, pickup_bad_reason_zero: /bad field/, pickup_bad_reason_unknown: /bad field/,
   empty: /./, truncated_snapshot: /./, self_truncated: /./, actor_count_without_actors: /./,
   unknown_tag: /unknown tag/, client_tag_from_server: /unknown tag/, trailing_byte: /trailing/,

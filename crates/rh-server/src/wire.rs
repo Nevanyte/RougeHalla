@@ -15,6 +15,16 @@ use rh_sim::RunResult;
 pub fn command(c: WireCommand) -> rh_sim::PublicCommand {
     use rh_sim::PublicCommand as Public;
     match c {
+        WireCommand::UseConsumable => Public::UseConsumable,
+        // This remains a public reference: Room intake resolves it through the seat ItemObserver.
+        WireCommand::Target { actor } => Public::Target {
+            actor: rh_sim::PlayerId(actor),
+        },
+        WireCommand::AttackMove { x, y, seq } => Public::AttackMove {
+            x: f64::from(x),
+            y: f64::from(y),
+            seq,
+        },
         WireCommand::Move { x, y, seq } => Public::Move {
             x: x as f64,
             y: y as f64,
@@ -23,6 +33,11 @@ pub fn command(c: WireCommand) -> rh_sim::PublicCommand {
         WireCommand::Swap { slot } => Public::Swap { slot },
         WireCommand::Pickup { handle } => Public::Pickup {
             handle: rh_sim::PickupHandle::new(handle.get()).expect("checked wire handle"),
+        },
+        WireCommand::Choose { handle, pick } => Public::Choose {
+            handle: rh_sim::reward_chests::RewardChestHandle::from_wire(handle.get())
+                .expect("checked reward handle"),
+            pick,
         },
         WireCommand::Stop { seq } => Public::Stop { seq },
         WireCommand::Aim { a } => Public::Aim { a: a as f64 },
@@ -84,6 +99,7 @@ fn sat16(v: u32) -> u16 {
 
 fn wire_self(m: &rh_sim::observe::SelfView) -> WireSelf {
     WireSelf {
+        sig: m.sig,
         effects: m.effects,
         displace_seq: m.displace_seq,
         id: m.id.0,
@@ -112,6 +128,8 @@ fn hp_pct(f: f64) -> u8 {
 
 fn wire_actor(a: &rh_sim::observe::ActorView) -> WireActor {
     WireActor {
+        sig: a.sig,
+        mob_type_code: a.mob_type.map_or(0, |id| id as u8 + 1),
         effects: a.effects,
         displace_seq: a.displace_seq,
         id: a.id.0,
@@ -123,8 +141,7 @@ fn wire_actor(a: &rh_sim::observe::ActorView) -> WireActor {
         status: status(a.status),
         weapon: a.weapon.code(),
         bounty: sat16(a.bounty),
-        // Every actor is a player today; a mob packet maps its kind here (the id namespace is shared: docs/adr/0011).
-        kind: 0,
+        kind: a.kind,
     }
 }
 
@@ -144,8 +161,7 @@ fn checked_actor(a: &ActorView) -> Result<QActor, &'static str> {
     QActor::checked(&wire_actor(a))
 }
 
-/// Whether the protocol-5 actor fields match bit for bit (`0.0` and `-0.0`, or two NaNs, never count as equal).
-/// Core-only status/effect fields do not participate until their transport is implemented in P-NET-3.
+/// Whether the protocol-6 actor fields match bit for bit (`0.0` and `-0.0`, or two NaNs, never count as equal).
 #[inline]
 fn same_view(a: &ActorView, b: &ActorView) -> bool {
     a.id == b.id
@@ -157,8 +173,11 @@ fn same_view(a: &ActorView, b: &ActorView) -> bool {
         && a.status == b.status
         && a.faction == b.faction
         && a.weapon == b.weapon
+        && a.sig == b.sig
         && a.effects == b.effects
         && a.displace_seq == b.displace_seq
+        && a.kind == b.kind
+        && a.mob_type == b.mob_type
 }
 
 /// Source absent or redacted by observation: no actor has this sentinel (Hit and Block).
@@ -196,7 +215,7 @@ impl ActorMemo {
     }
 }
 
-/// Each observed event's explicit protocol-5 treatment. Exhaustive over [`SeenEvent`] (no wildcard): a new core
+/// Each observed event's explicit protocol-6 treatment. Exhaustive over [`SeenEvent`] (no wildcard): a new core
 /// event needs a deliberate wire mapping or an explicit omission until a compatible transport is implemented.
 enum Wire {
     Event(WireEvent),
@@ -206,6 +225,31 @@ enum Wire {
 
 fn to_wire(e: &SeenEvent) -> Wire {
     match *e {
+        SeenEvent::PotionNotice { notice } => Wire::Event(WireEvent::PotionNotice {
+            notice: match notice {
+                rh_sim::potions::Notice::Stored => 1,
+                rh_sim::potions::Notice::BagFull => 2,
+                rh_sim::potions::Notice::Used => 3,
+                rh_sim::potions::Notice::Blocked => 4,
+                rh_sim::potions::Notice::Busy => 5,
+                rh_sim::potions::Notice::Full => 6,
+                rh_sim::potions::Notice::Empty => 7,
+            },
+        }),
+        SeenEvent::MobArmed { .. } | SeenEvent::CampCleared { .. } => Wire::Omitted,
+        SeenEvent::ChestRefused { reason } => Wire::Event(WireEvent::ChestRefused {
+            reason: match reason {
+                rh_sim::reward_chests::Refusal::Busy => 1,
+                rh_sim::reward_chests::Refusal::Gone => 2,
+                rh_sim::reward_chests::Refusal::Far => 3,
+                rh_sim::reward_chests::Refusal::Blocked => 4,
+                rh_sim::reward_chests::Refusal::Picked => 5,
+                rh_sim::reward_chests::Refusal::Taken => 6,
+                rh_sim::reward_chests::Refusal::Owned => 7,
+                rh_sim::reward_chests::Refusal::Maxed => 8,
+                rh_sim::reward_chests::Refusal::NotYours => 9,
+            },
+        }),
         SeenEvent::Death { id, by } => Wire::Event(WireEvent::Death {
             id: id.0,
             by: by.map(|b| b.0),
@@ -224,11 +268,11 @@ fn to_wire(e: &SeenEvent) -> Wire {
             weapon: weapon.code(),
         }),
         SeenEvent::Stagger { id } => Wire::Fx(WireFx::Stagger { id: id.0 }),
-        // Target locking is currently a core/policy/headless feature. Protocol 5 has no cancel telegraph.
+        // Protocol 6 carries target commands but has no cancellation telegraph.
         SeenEvent::AttackCancelled { .. } => Wire::Omitted,
         SeenEvent::SignatureHit { .. } | SeenEvent::Heal { .. } => Wire::Omitted,
-        // P-STATUS-1 exposes these to core observers/policies/headless. Protocol 5 has no matching
-        // messages, nor status/field snapshot data. P-NET-3 owns that transport and its codec mirrors.
+        // Scalar effects and fields have snapshot transport; these distinct event telegraphs
+        // remain omitted until their own compatible messages are defined.
         SeenEvent::AbilityHit { .. }
         | SeenEvent::CastEnded { .. }
         | SeenEvent::StatusApplied { .. } => Wire::Omitted,
@@ -377,7 +421,14 @@ impl Publisher {
         all: &[rh_sim::Event],
     ) -> Result<(ViewFrames, rh_sim::item_view::PreparedOffer<'a>), rh_sim::OfferError> {
         let viewer = observer.viewer();
-        let offer = observer.prepare_into(sim, last_step, &mut self.obs, Some(&mut self.sight))?;
+        let offer = observer.prepare_with_seen(
+            sim,
+            last_step,
+            earlier,
+            &mut self.obs,
+            Some(&mut self.sight),
+        )?;
+        earlier.clear();
         Ok((
             self.build_observation_frames(spare, viewer, ack_input, earlier, all),
             offer,
@@ -624,6 +675,8 @@ mod tests {
 
     fn view(id: u32) -> ActorView {
         ActorView {
+            kind: 0,
+            mob_type: None,
             effects: 0,
             displace_seq: 0,
             mark_tier: 0,
@@ -653,8 +706,14 @@ mod tests {
         type Edit = Box<dyn Fn(&mut ActorView)>;
         let edits: Vec<(&str, Edit)> = vec![
             ("same", Box::new(|_| {})),
-            ("core-only effects", Box::new(|a| a.effects = 4096)),
-            ("core-only displacement", Box::new(|a| a.displace_seq = 255)),
+            ("sig", Box::new(|a| a.sig = 255)),
+            (
+                "mob type",
+                Box::new(|a| a.mob_type = Some(rh_sim::mob_catalog::MobTypeId::Archon)),
+            ),
+            ("kind", Box::new(|a| a.kind = 1)),
+            ("effects", Box::new(|a| a.effects = 4096)),
+            ("displacement", Box::new(|a| a.displace_seq = 255)),
             ("x", Box::new(|a| a.x = 101.25)),
             ("y", Box::new(|a| a.y = 51.0)),
             ("facing", Box::new(|a| a.facing = -2.0)),
@@ -1044,5 +1103,114 @@ mod tests {
         a.spawns.push(rh_sim::Vec2::new(9000.0, 1.0));
         assert!(arena_fits(&a).expect_err("spawn").contains("spawn"));
         assert!(arena_fits(&rh_sim::arenas::practice_arena()).is_ok());
+    }
+    #[test]
+    fn pve_commands_and_notices_keep_normal_public_semantics() {
+        assert_eq!(
+            command(WireCommand::UseConsumable),
+            rh_sim::PublicCommand::UseConsumable
+        );
+        assert_eq!(
+            command(WireCommand::Target { actor: 0x8000_0201 }),
+            rh_sim::PublicCommand::Target {
+                actor: rh_sim::PlayerId(0x8000_0201)
+            }
+        );
+        assert_eq!(
+            command(WireCommand::AttackMove {
+                x: 12.5,
+                y: 20.,
+                seq: Some(9)
+            }),
+            rh_sim::PublicCommand::AttackMove {
+                x: 12.5,
+                y: 20.,
+                seq: Some(9)
+            }
+        );
+        use rh_sim::potions::Notice::*;
+        for (notice, code) in [Stored, BagFull, Used, Blocked, Busy, Full, Empty]
+            .into_iter()
+            .zip(1..=7)
+        {
+            let event = SeenEvent::PotionNotice { notice };
+            assert_eq!(event.class(), Class::Important);
+            assert!(
+                matches!(to_wire(&event),Wire::Event(WireEvent::PotionNotice {notice:n}) if n==code)
+            );
+        }
+        let env = seed1_match(2);
+        let id = env.sim.players()[0].id;
+        let mut own = rh_sim::observe(&env.sim, id, &[]).me.unwrap();
+        own.sig = 255;
+        assert_eq!(wire_self(&own).sig, 255);
+        own.sig = 0;
+        assert_eq!(wire_self(&own).sig, 0);
+        let mut actor = view(9);
+        actor.sig = 255;
+        actor.mob_type = Some(rh_sim::mob_catalog::MobTypeId::Archon);
+        let wire = wire_actor(&actor);
+        assert_eq!((wire.sig, wire.mob_type_code), (255, 30));
+        actor.sig = 0;
+        actor.mob_type = None;
+        let wire = wire_actor(&actor);
+        assert_eq!((wire.sig, wire.mob_type_code), (0, 0));
+    }
+
+    #[test]
+    fn target_conversion_never_bypasses_observer_delivery() {
+        use rh_sim::{ItemObserver, Placement, PlayerId, Secrets, Sim, Vec2};
+        let sim = Sim::reset_active(
+            SimConfig::default(),
+            rh_sim::arenas::practice_arena(),
+            Secrets::from_seed(7),
+            &[
+                Placement {
+                    profile: "viewer".into(),
+                    faction: FactionId::Holy,
+                    bot: false,
+                    at: Vec2::new(100., 272.),
+                    hp: None,
+                    weapon0: None,
+                    weapon1: None,
+                },
+                Placement {
+                    profile: "other".into(),
+                    faction: FactionId::Fire,
+                    bot: false,
+                    at: Vec2::new(120., 272.),
+                    hp: None,
+                    weapon0: None,
+                    weapon1: None,
+                },
+            ],
+        );
+        let mut observer = ItemObserver::new(PlayerId(1));
+        let proposal = command(WireCommand::Target { actor: 2 });
+        let missing = rh_sim::validate(rh_sim::RawCommand::MissingTarget).unwrap();
+        assert_eq!(observer.resolve(&sim, proposal).unwrap(), missing);
+        let mut obs = Observation::default();
+        drop(observer.prepare_into(&sim, &[], &mut obs, None).unwrap());
+        assert_eq!(observer.resolve(&sim, proposal).unwrap(), missing);
+        observer
+            .prepare_into(&sim, &[], &mut obs, None)
+            .unwrap()
+            .commit();
+        assert_eq!(
+            observer.resolve(&sim, proposal).unwrap(),
+            rh_sim::validate(rh_sim::RawCommand::Target { id: PlayerId(2) }).unwrap()
+        );
+        assert_eq!(
+            observer
+                .resolve(&sim, command(WireCommand::Target { actor: 0x8000_0201 }))
+                .unwrap(),
+            missing
+        );
+        assert_eq!(
+            observer
+                .resolve(&sim, command(WireCommand::Target { actor: 999 }))
+                .unwrap(),
+            missing
+        );
     }
 }

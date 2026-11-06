@@ -466,5 +466,22 @@ namespace Roguehalla.Net.Tests
             Assert.IsInstanceOf<ClientMsg.Leave>(ClientMsg.Decode(_t.Sent[_t.Sent.Count - 1]));
             Assert.AreEqual(SessionState.Ended, _s.State); Assert.IsTrue(_t.CloseCalled);
         }
+
+        [Test]
+        public void ServerEndedMatchStillSendsLeaveToReleaseItsSeatExactlyOnce()
+        {
+            ToMatch();
+            var ended = new ServerMsg.Events { Tick = 9 };
+            ended.List.Add(new WireEvent { Kind = EventKind.MatchEnded, Winner = 3 });
+            _t.Deliver(ended);
+            Assert.AreEqual(SessionState.Ended, _s.State);
+            int before = _t.Sent.Count;
+            _s.Leave();
+            Assert.AreEqual(before + 1, _t.Sent.Count);
+            Assert.IsInstanceOf<ClientMsg.Leave>(ClientMsg.Decode(_t.Sent[_t.Sent.Count - 1]));
+            Assert.IsTrue(_t.CloseCalled);
+            _s.Leave();
+            Assert.AreEqual(before + 1, _t.Sent.Count);
+        }
     }
 }

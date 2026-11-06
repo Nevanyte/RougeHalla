@@ -11,7 +11,7 @@ namespace Roguehalla.Net.Protocol
         Malformed = 7, TooSlow = 8, ServerDraining = 9, NoSuchSession = 10, Kicked = 11,
     }
 
-    public enum CommandKind : byte { Move = 1, Stop = 2, Aim = 3, Attack = 4, Release = 5, Swap = 6, Pickup = 7 }
+    public enum CommandKind : byte { Move = 1, Stop = 2, Aim = 3, Attack = 4, Release = 5, Swap = 6, Pickup = 7, Choose = 8, UseConsumable = 9, Target = 10, AttackMove = 11 }
 
     /// <summary>A client command. Only the fields of its Kind are meaningful.</summary>
     public sealed class WireCommand
@@ -20,16 +20,23 @@ namespace Roguehalla.Net.Protocol
         public float X, Y;
         /// <summary>Aim angle (Aim, Attack, Release).</summary>
         public float A;
-        /// <summary>Order sequence echoed in Snapshot.me.move_seq (Move, Stop).</summary>
+        /// <summary>Order sequence echoed in Snapshot.me.move_seq (Move, AttackMove, Stop).</summary>
         public byte? Seq;
         public byte? Slot;
-        public uint ContainerId;
+        public PickupHandle PickupRef;
+        public RewardChestHandle RewardRef;
+        public sbyte Pick;
+        public uint ActorRef;
         /// <summary>Client render time in server ms (Attack, Release); lag compensation, clamped by the server.</summary>
         public double? T;
 
         public static WireCommand Swap(byte? slot = null) { return new WireCommand { Kind = CommandKind.Swap, Slot = slot }; }
-        public static WireCommand Pickup(uint containerId) { return new WireCommand { Kind = CommandKind.Pickup, ContainerId = containerId }; }
+        public static WireCommand Pickup(PickupHandle handle) { return new WireCommand { Kind = CommandKind.Pickup, PickupRef = handle }; }
+        public static WireCommand Choose(RewardChestHandle handle, sbyte pick) { return new WireCommand { Kind = CommandKind.Choose, RewardRef = handle, Pick = pick }; }
         public static WireCommand Move(float x, float y, byte? seq) { return new WireCommand { Kind = CommandKind.Move, X = x, Y = y, Seq = seq }; }
+        public static WireCommand UseConsumable() { return new WireCommand { Kind = CommandKind.UseConsumable }; }
+        public static WireCommand Target(uint actorRef) { if (actorRef == 0) throw new ArgumentException("actor reference"); return new WireCommand { Kind = CommandKind.Target, ActorRef = actorRef }; }
+        public static WireCommand AttackMove(float x, float y, byte? seq) { return new WireCommand { Kind = CommandKind.AttackMove, X = x, Y = y, Seq = seq }; }
         public static WireCommand Stop(byte? seq) { return new WireCommand { Kind = CommandKind.Stop, Seq = seq }; }
         public static WireCommand Aim(float a) { return new WireCommand { Kind = CommandKind.Aim, A = a }; }
         public static WireCommand Attack(float a, double? t) { return new WireCommand { Kind = CommandKind.Attack, A = a, T = t }; }
@@ -69,7 +76,11 @@ namespace Roguehalla.Net.Protocol
                         switch (tag)
                         {
                             case 6: { byte? slot = r.Flag() ? r.U8() : (byte?)null; if (slot > 1) throw new DecodeException(DecodeError.BadField, "slot"); inp.Commands.Add(WireCommand.Swap(slot)); break; }
-                            case 7: { uint id = r.U32(); if (id == 0) throw new DecodeException(DecodeError.BadField, "container"); inp.Commands.Add(WireCommand.Pickup(id)); break; }
+                            case 7: { uint id = r.U32(); if (id == 0) throw new DecodeException(DecodeError.BadField, "container"); inp.Commands.Add(WireCommand.Pickup(new PickupHandle(id))); break; }
+                            case 8: { uint id=r.U32(); sbyte pick=unchecked((sbyte)r.U8()); if(id==0 || pick < -1 || pick > 2) throw new DecodeException(DecodeError.BadField,"reward choice"); inp.Commands.Add(WireCommand.Choose(new RewardChestHandle(id),pick)); break; }
+                            case 9: inp.Commands.Add(WireCommand.UseConsumable()); break;
+                            case 10: { uint id=r.U32(); if(id==0) throw new DecodeException(DecodeError.BadField,"actor reference"); inp.Commands.Add(WireCommand.Target(id)); break; }
+                            case 11: { float x=r.F32(),y=r.F32(); inp.Commands.Add(WireCommand.AttackMove(x,y,r.Flag()?r.U8():(byte?)null)); break; }
                             case 1: { float x = r.F32(), y = r.F32(); inp.Commands.Add(WireCommand.Move(x, y, r.Flag() ? r.U8() : (byte?)null)); break; }
                             case 2: inp.Commands.Add(WireCommand.Stop(r.Flag() ? r.U8() : (byte?)null)); break;
                             case 3: inp.Commands.Add(WireCommand.Aim(r.F32())); break;
@@ -135,7 +146,11 @@ namespace Roguehalla.Net.Protocol
                     switch (c.Kind)
                     {
                         case CommandKind.Swap: if (c.Slot > 1) throw new ArgumentException("slot"); Opt(w, c.Slot); break;
-                        case CommandKind.Pickup: if (c.ContainerId == 0) throw new ArgumentException("container"); w.U32(c.ContainerId); break;
+                        case CommandKind.Pickup: if (!c.PickupRef.IsValid) throw new ArgumentException("pickup handle"); w.U32(c.PickupRef.Value); break;
+                        case CommandKind.Choose: if(!c.RewardRef.IsValid || c.Pick < -1 || c.Pick > 2) throw new ArgumentException("reward choice"); w.U32(c.RewardRef.Value);w.U8(unchecked((byte)c.Pick));break;
+                        case CommandKind.UseConsumable: break;
+                        case CommandKind.Target: if(c.ActorRef==0) throw new ArgumentException("actor reference"); w.U32(c.ActorRef); break;
+                        case CommandKind.AttackMove:
                         case CommandKind.Move: w.F32(c.X); w.F32(c.Y); Opt(w, c.Seq); break;
                         case CommandKind.Stop: Opt(w, c.Seq); break;
                         case CommandKind.Aim: w.F32(c.A); break;
@@ -157,10 +172,16 @@ namespace Roguehalla.Net.Protocol
                 {
                     case CommandKind.Swap: return c.Slot.HasValue ? 3 : 2;
                     case CommandKind.Pickup: return 5;
+                    case CommandKind.Choose: return 6;
+                    case CommandKind.UseConsumable: return 1;
+                    case CommandKind.Target: return 5;
+                    case CommandKind.AttackMove:
                     case CommandKind.Move: return 9 + (c.Seq.HasValue ? 2 : 1);
                     case CommandKind.Stop: return 1 + (c.Seq.HasValue ? 2 : 1);
                     case CommandKind.Aim: return 5;
-                    default: return 5 + (c.T.HasValue ? 9 : 1);
+                    case CommandKind.Attack:
+                    case CommandKind.Release: return 5 + (c.T.HasValue ? 9 : 1);
+                    default: throw new ArgumentException("command kind");
                 }
             }
         }
@@ -192,19 +213,19 @@ namespace Roguehalla.Net.Protocol
         public float X, Y, Facing, Hp, MaxHp;
         public byte Status, Weapon;
         public ushort ReadyInMs, Kills, Bounty, Gv;
-        public byte MoveSeq, DisplaceSeq;
+        public byte MoveSeq, DisplaceSeq, Sig;
         public ushort Effects;
 
         internal void CopyFrom(WireSelf o)
         {
             Id = o.Id; Faction = o.Faction; X = o.X; Y = o.Y; Facing = o.Facing; Hp = o.Hp; MaxHp = o.MaxHp; Status = o.Status; Weapon = o.Weapon;
-            ReadyInMs = o.ReadyInMs; Kills = o.Kills; Bounty = o.Bounty; Gv = o.Gv; MoveSeq = o.MoveSeq; Effects = o.Effects; DisplaceSeq = o.DisplaceSeq;
+            ReadyInMs = o.ReadyInMs; Kills = o.Kills; Bounty = o.Bounty; Gv = o.Gv; MoveSeq = o.MoveSeq; Effects = o.Effects; DisplaceSeq = o.DisplaceSeq; Sig = o.Sig;
         }
 
         // Head bits (rh-protocol lib.rs, append only): a varint, so bits below 7 take one byte.
         internal const uint HPresent = 1 << 0, HKit = 1 << 1, HHp = 1 << 2, HReady = 1 << 3, HKills = 1 << 4, HBounty = 1 << 5,
-            HMoveSeq = 1 << 6, HGv = 1 << 7, HMaxHpF32 = 1 << 8, HStatus = 1 << 9, HPhase = 1 << 10, HEffects = 1 << 11, HDisplace = 1 << 12;
-        internal const uint SelfBits = 0x03ff | HEffects | HDisplace, Known = SelfBits | HPhase;
+            HMoveSeq = 1 << 6, HGv = 1 << 7, HMaxHpF32 = 1 << 8, HStatus = 1 << 9, HPhase = 1 << 10, HEffects = 1 << 11, HDisplace = 1 << 12, HSig = 1 << 13;
+        internal const uint SelfBits = 0x03ff | HEffects | HDisplace | HSig, Known = SelfBits | HPhase;
 
         static bool MaxHpIsVarint(float v)
         {
@@ -230,6 +251,7 @@ namespace Roguehalla.Net.Protocol
             if (Status != Wire.DefaultStatus) m |= HStatus;
             if (Effects != 0) m |= HEffects;
             if (DisplaceSeq != 0) m |= HDisplace;
+            if (Sig != 0) m |= HSig;
             return m;
         }
 
@@ -251,6 +273,7 @@ namespace Roguehalla.Net.Protocol
             if ((head & HStatus) != 0) n += 1;
             if ((head & HEffects) != 0) n += 2;
             if ((head & HDisplace) != 0) n += 1;
+            if ((head & HSig) != 0) n += 1;
             return n;
         }
 
@@ -269,6 +292,7 @@ namespace Roguehalla.Net.Protocol
             Status = (head & HStatus) != 0 ? r.Code(Wire.MaxStatusCode, "status") : Wire.DefaultStatus;
             Effects = (head & HEffects) != 0 ? r.U16() : (ushort)0;
             DisplaceSeq = (head & HDisplace) != 0 ? r.U8() : (byte)0;
+            Sig = (head & HSig) != 0 ? r.U8() : (byte)0;
         }
 
         internal void Write(Writer w, uint head)
@@ -285,6 +309,7 @@ namespace Roguehalla.Net.Protocol
             if ((head & HStatus) != 0) w.U8(Status);
             if ((head & HEffects) != 0) w.U16(Effects);
             if ((head & HDisplace) != 0) w.U8(DisplaceSeq);
+            if ((head & HSig) != 0) w.U8(Sig);
         }
     }
 
@@ -303,11 +328,11 @@ namespace Roguehalla.Net.Protocol
         public byte HpPct;
         public byte Status, Weapon;
         /// <summary>What the entity is: 0 = player (the default; costs no byte). The id namespace is shared by every kind.</summary>
-        public byte Kind, DisplaceSeq;
+        public byte Kind, DisplaceSeq, MobTypeCode, Sig;
         public ushort Effects;
 
         // Full actor mask bits (append only): 0 kit, 1 hp, 2 status, 3 bounty, 4 kind. A varint.
-        internal const uint MKit = 1 << 0, MHp = 1 << 1, MStatus = 1 << 2, MBounty = 1 << 3, MKind = 1 << 4, MEffects = 1 << 5, MDisplace = 1 << 6, MKnown = MKit | MHp | MStatus | MBounty | MKind | MEffects | MDisplace;
+        internal const uint MKit = 1 << 0, MHp = 1 << 1, MStatus = 1 << 2, MBounty = 1 << 3, MKind = 1 << 4, MEffects = 1 << 5, MDisplace = 1 << 6, MMobType = 1 << 7, MSig = 1 << 8, MKnown = MKit | MHp | MStatus | MBounty | MKind | MEffects | MDisplace | MMobType | MSig;
         internal const byte DefaultHpPct = 100;
 
         internal uint Mask()
@@ -320,6 +345,9 @@ namespace Roguehalla.Net.Protocol
             if (Kind != 0) m |= MKind;
             if (Effects != 0) m |= MEffects;
             if (DisplaceSeq != 0) m |= MDisplace;
+            if (MobTypeCode > 30) throw new ArgumentException("mob type");
+            if (MobTypeCode != 0) m |= MMobType;
+            if (Sig != 0) m |= MSig;
             return m;
         }
 
@@ -329,7 +357,7 @@ namespace Roguehalla.Net.Protocol
         {
             uint m = Mask();
             return Writer.VarintLength(IdField(Id, first, prev)) + Writer.VarintLength(m) + 6 + ((m & MKit) != 0 ? 1 : 0) + ((m & MHp) != 0 ? 1 : 0)
-                + ((m & MStatus) != 0 ? 1 : 0) + ((m & MBounty) != 0 ? Writer.VarintLength(Bounty) : 0) + ((m & MKind) != 0 ? 1 : 0) + ((m & MEffects) != 0 ? 2 : 0) + ((m & MDisplace) != 0 ? 1 : 0);
+                + ((m & MStatus) != 0 ? 1 : 0) + ((m & MBounty) != 0 ? Writer.VarintLength(Bounty) : 0) + ((m & MKind) != 0 ? 1 : 0) + ((m & MEffects) != 0 ? 2 : 0) + ((m & MDisplace) != 0 ? 1 : 0) + ((m & MMobType) != 0 ? 1 : 0) + ((m & MSig) != 0 ? 1 : 0);
         }
 
         /// <summary>Reads one actor; the first has an absolute id, each later one the (non-zero) gap from <paramref name="prev"/>.</summary>
@@ -355,6 +383,8 @@ namespace Roguehalla.Net.Protocol
             a.Kind = (mask & MKind) != 0 ? r.U8() : (byte)0;
             a.Effects = (mask & MEffects) != 0 ? r.U16() : (ushort)0;
             a.DisplaceSeq = (mask & MDisplace) != 0 ? r.U8() : (byte)0;
+            a.MobTypeCode = (mask & MMobType) != 0 ? r.Code(30,"mob type") : (byte)0;
+            a.Sig = (mask & MSig) != 0 ? r.U8() : (byte)0;
             return a;
         }
 
@@ -370,6 +400,8 @@ namespace Roguehalla.Net.Protocol
             if ((m & MKind) != 0) w.U8(Kind);
             if ((m & MEffects) != 0) w.U16(Effects);
             if ((m & MDisplace) != 0) w.U8(DisplaceSeq);
+            if ((m & MMobType) != 0) w.U8(MobTypeCode);
+            if ((m & MSig) != 0) w.U8(Sig);
         }
     }
 
@@ -380,14 +412,14 @@ namespace Roguehalla.Net.Protocol
     public struct SelfDelta
     {
         public const uint FX = 1 << 1, FY = 1 << 2, FFacing = 1 << 3, FMoveSeq = 1 << 4, FHp = 1 << 5, FReady = 1 << 6,
-            FMaxHp = 1 << 9, FKit = 1 << 10, FKills = 1 << 11, FBounty = 1 << 12, FGv = 1 << 13, FStatus = 1 << 14, FEffects = 1 << 15, FDisplace = 1 << 16;
+            FMaxHp = 1 << 9, FKit = 1 << 10, FKills = 1 << 11, FBounty = 1 << 12, FGv = 1 << 13, FStatus = 1 << 14, FEffects = 1 << 15, FDisplace = 1 << 16, FSig = 1 << 17;
         /// <summary>The self field bits (never the present, departed or phase bits of the head).</summary>
-        public const uint Fields = 0x7e7e | FEffects | FDisplace;
+        public const uint Fields = 0x7e7e | FEffects | FDisplace | FSig;
         public uint Mask;
         public float X, Y, Facing, Hp, MaxHp;
         public byte Kit;
         public ushort ReadyInMs, Kills, Bounty, Gv;
-        public byte MoveSeq, DisplaceSeq;
+        public byte MoveSeq, DisplaceSeq, Sig;
         public ushort Effects;
         /// <summary>The new status (0..3) when <see cref="FStatus"/> is set in <see cref="Mask"/>.</summary>
         public byte StatusValue;
@@ -409,6 +441,7 @@ namespace Roguehalla.Net.Protocol
             if ((mask & FStatus) != 0) s.StatusValue = r.Code(Wire.MaxStatusCode, "status");
             if ((mask & FEffects) != 0) s.Effects = r.U16();
             if ((mask & FDisplace) != 0) s.DisplaceSeq = r.U8();
+            if ((mask & FSig) != 0) s.Sig = r.U8();
             return s;
         }
 
@@ -428,6 +461,7 @@ namespace Roguehalla.Net.Protocol
             if ((Mask & FStatus) != 0) w.U8(StatusValue);
             if ((Mask & FEffects) != 0) w.U16(Effects);
             if ((Mask & FDisplace) != 0) w.U8(DisplaceSeq);
+            if ((Mask & FSig) != 0) w.U8(Sig);
         }
 
         internal void ApplyTo(WireSelf s)
@@ -446,6 +480,7 @@ namespace Roguehalla.Net.Protocol
             if ((Mask & FStatus) != 0) s.Status = StatusValue;
             if ((Mask & FEffects) != 0) s.Effects = Effects;
             if ((Mask & FDisplace) != 0) s.DisplaceSeq = DisplaceSeq;
+            if ((Mask & FSig) != 0) s.Sig = Sig;
         }
     }
 
@@ -457,15 +492,15 @@ namespace Roguehalla.Net.Protocol
     public struct ActorDelta
     {
         public const uint MX = 1 << 0, MY = 1 << 1, MFacing = 1 << 2, MKit = 1 << 3, MHp = 1 << 4, MBounty = 1 << 5, MStatus = 1 << 6,
-            MKind = 1 << 7, MEffects = 1 << 8, MDisplace = 1 << 9, MAll = 0x3ff, MNew = MX | MY | MFacing;
+            MKind = 1 << 7, MEffects = 1 << 8, MDisplace = 1 << 9, MMobType = 1 << 10, MSig = 1 << 11, MAll = 0xfff, MNew = MX | MY | MFacing;
         public uint Id;
         public uint Mask;
         public ushort X, Y, Facing;
-        public byte Kit, HpPct, Status, Kind, DisplaceSeq;
+        public byte Kit, HpPct, Status, Kind, DisplaceSeq, MobTypeCode, Sig;
         public ushort Bounty, Effects;
     }
 
-    public enum EventKind : byte { Death = 1, Bounty = 2, MatchEnded = 3, Result = 4, PickupRefused = 5 }
+    public enum EventKind : byte { Death = 1, Bounty = 2, MatchEnded = 3, Result = 4, PickupRefused = 5, ChestRefused = 6, PotionNotice = 7 }
 
     /// <summary>Reliable, ordered events. Only the fields of its Kind are meaningful.</summary>
     public sealed class WireEvent
@@ -477,7 +512,7 @@ namespace Roguehalla.Net.Protocol
         public uint? Winner;
         public bool Draw;
         public WireResult Result;
-        public byte PickupReason;
+        public byte PickupReason, ChestReason, PotionNotice;
     }
 
     public sealed class WireResult
@@ -556,6 +591,8 @@ namespace Roguehalla.Net.Protocol
                         switch (tag)
                         {
                             case 5: ev.PickupReason = r.U8(); if (ev.PickupReason < 1 || ev.PickupReason > 5) throw new DecodeException(DecodeError.BadField, "pickup reason"); break;
+                            case 7: ev.PotionNotice=r.U8(); if(ev.PotionNotice<1 || ev.PotionNotice>7) throw new DecodeException(DecodeError.BadField,"potion notice"); break;
+                            case 6: ev.ChestReason = r.U8(); if(ev.ChestReason < 1 || ev.ChestReason > 9) throw new DecodeException(DecodeError.BadField,"chest reason");break;
                             case 1: ev.Id = r.U32(); if (r.Flag()) ev.By = r.U32(); break;
                             case 2: ev.Id = r.U32(); ev.Bounty = r.U16(); break;
                             case 3: if (r.Flag()) ev.Winner = r.U32(); ev.Draw = r.U8() != 0; break;
@@ -785,6 +822,8 @@ namespace Roguehalla.Net.Protocol
                     if ((a.Mask & ActorDelta.MKind) != 0) a.Kind = r.U8();
                     if ((a.Mask & ActorDelta.MEffects) != 0) a.Effects = r.U16();
                     if ((a.Mask & ActorDelta.MDisplace) != 0) a.DisplaceSeq = r.U8();
+                    if ((a.Mask & ActorDelta.MMobType) != 0) a.MobTypeCode = r.Code(30,"mob type");
+                    if ((a.Mask & ActorDelta.MSig) != 0) a.Sig = r.U8();
                     d.Changed[i] = a;
                 }
                 d.DepartedCount = 0;
@@ -838,6 +877,7 @@ namespace Roguehalla.Net.Protocol
                 {
                     var a = Changed[i];
                     w.Varint(i == 0 ? a.Id : a.Id - Changed[i - 1].Id);
+                    if ((a.Mask & ActorDelta.MMobType)!=0 && a.MobTypeCode>30) throw new ArgumentException("mob type");
                     w.Varint(a.Mask & ActorDelta.MAll);
                     if ((a.Mask & ActorDelta.MX) != 0) w.U16(a.X);
                     if ((a.Mask & ActorDelta.MY) != 0) w.U16(a.Y);
@@ -849,6 +889,8 @@ namespace Roguehalla.Net.Protocol
                     if ((a.Mask & ActorDelta.MKind) != 0) w.U8(a.Kind);
                     if ((a.Mask & ActorDelta.MEffects) != 0) w.U16(a.Effects);
                     if ((a.Mask & ActorDelta.MDisplace) != 0) w.U8(a.DisplaceSeq);
+                    if ((a.Mask & ActorDelta.MMobType) != 0) w.U8(a.MobTypeCode);
+                    if ((a.Mask & ActorDelta.MSig) != 0) w.U8(a.Sig);
                 }
                 if (DepartedCount > 0)
                 {
@@ -875,7 +917,7 @@ namespace Roguehalla.Net.Protocol
                         case EventKind.Death: len += 6 + (e.By.HasValue ? 4 : 0); break;
                         case EventKind.Bounty: len += 7; break;
                         case EventKind.MatchEnded: len += 3 + (e.Winner.HasValue ? 4 : 0); break;
-                        case EventKind.PickupRefused: len += 2; break;
+                        case EventKind.PotionNotice: case EventKind.PickupRefused: case EventKind.ChestRefused: len += 2; break;
                         case EventKind.Result: len += 20 + (e.Result.KilledBy == null ? 0 : 1 + System.Text.Encoding.UTF8.GetByteCount(e.Result.KilledBy)); break;
                         default: throw new EncodeException("event kind");
                     }
@@ -888,6 +930,8 @@ namespace Roguehalla.Net.Protocol
                     w.U8((byte)e.Kind);
                     switch (e.Kind)
                     {
+                        case EventKind.PotionNotice: if(e.PotionNotice<1 || e.PotionNotice>7) throw new ArgumentException("potion notice");w.U8(e.PotionNotice);break;
+                        case EventKind.ChestRefused: if(e.ChestReason < 1 || e.ChestReason > 9) throw new ArgumentException("chest reason");w.U8(e.ChestReason);break;
                         case EventKind.PickupRefused: if (e.PickupReason < 1 || e.PickupReason > 5) throw new ArgumentException("pickup reason"); w.U8(e.PickupReason); break;
                         case EventKind.Death: w.U32(e.Id); if (e.By.HasValue) { w.U8(1); w.U32(e.By.Value); } else w.U8(0); break;
                         case EventKind.Bounty: w.U32(e.Id); w.U16(e.Bounty); break;

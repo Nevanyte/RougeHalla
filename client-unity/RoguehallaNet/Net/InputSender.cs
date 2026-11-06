@@ -20,7 +20,7 @@ namespace Roguehalla.Net
         /// <summary>Commands dropped because a value cannot be encoded (the server would refuse the whole frame).</summary>
         public int Dropped { get; private set; }
 
-        /// <summary>Order sequence for Move/Stop: 1..255, never 0 (0 is what Snapshot.me.move_seq holds before any order).</summary>
+        /// <summary>Order sequence for Move/AttackMove/Stop: 1..255, never 0 (0 is what Snapshot.me.move_seq holds before any order).</summary>
         byte NextOrderSeq() { _orderSeq = (byte)(_orderSeq == 255 ? 1 : _orderSeq + 1); return _orderSeq; }
 
         static bool Finite(float v) { return !(float.IsNaN(v) || float.IsInfinity(v)); }
@@ -33,6 +33,9 @@ namespace Roguehalla.Net
             return s;
         }
 
+        public void UseConsumable() { _queue.Add(WireCommand.UseConsumable()); }
+        public void Target(uint actorRef) { if(actorRef==0) { Dropped++; return; } _queue.Add(WireCommand.Target(actorRef)); }
+        public byte AttackMove(float x,float y) { if(!Finite(x)||!Finite(y)) {Dropped++;return 0;} byte s=NextOrderSeq();_queue.Add(WireCommand.AttackMove(x,y,s));return s; }
         public byte Stop()
         {
             byte s = NextOrderSeq();
@@ -57,7 +60,14 @@ namespace Roguehalla.Net
         public void Pickup(PickupHandle handle)
         {
             if (!handle.IsValid) { Dropped++; return; }
-            _queue.Add(WireCommand.Pickup(handle.Value));
+            _queue.Add(WireCommand.Pickup(handle));
+        }
+
+        /// <summary>Chooses an issued reward option, or skips with -1. Eligibility remains authoritative.</summary>
+        public void Choose(RewardChestHandle handle, sbyte pick)
+        {
+            if(!handle.IsValid || pick < -1 || pick > 2) {Dropped++;return;}
+            _queue.Add(WireCommand.Choose(handle,pick));
         }
 
         /// <summary>Cancels commands that belong to an earlier connection/observer epoch.</summary>

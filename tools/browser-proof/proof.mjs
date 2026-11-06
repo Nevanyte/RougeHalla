@@ -58,7 +58,7 @@ try {
   pass("run_started");
   await wait(a, () => window.__probe.firstStateAfterWelcome.length === 1);
   const state0 = await a.evaluate(() => ({frames:window.__probe.stateFrames,first:window.__probe.firstStateAfterWelcome,keys:Object.keys(window.__probe.collections)}));
-  state0.first[0].join() === "1,2,3,4,5" && state0.keys.join() === "1,2,3,4,5" ? pass("join_receives_complete_reliable_state",state0) : fail("join_receives_complete_reliable_state",JSON.stringify(state0));
+  state0.first[0].join() === "1,2,3,4,5,6,7" && state0.keys.join() === "1,2,3,4,5,6,7" ? pass("join_receives_complete_reliable_state",state0) : fail("join_receives_complete_reliable_state",JSON.stringify(state0));
 
   // Protocol 6: the first snapshot of a connection is Full, and the stream that follows is deltas the page's own decoder applies.
   await wait(a, () => window.__probe.deltaSnapshots > 20);
@@ -109,7 +109,7 @@ try {
 
   await wait(b, () => window.__probe.firstStateAfterWelcome.length === 2);
   const resumedState = await b.evaluate(() => window.__probe.firstStateAfterWelcome);
-  resumedState.every(keys => keys.join() === "1,2,3,4,5") ? pass("resume_refreshes_all_state_keys",resumedState) : fail("resume_refreshes_all_state_keys",JSON.stringify(resumedState));
+  resumedState.every(keys => keys.join() === "1,2,3,4,5,6,7") ? pass("resume_refreshes_all_state_keys",resumedState) : fail("resume_refreshes_all_state_keys",JSON.stringify(resumedState));
 
   // Fight to the end: both hold attack toward each other; the server decides the outcome.
   for (const [page, other] of [[a, wb.player], [b, wa.player]]) {

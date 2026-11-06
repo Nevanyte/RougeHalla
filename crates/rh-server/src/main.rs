@@ -1,6 +1,7 @@
 //! rh-server: the live authoritative match server.
 //!
 //!   cargo run --release -p rh-server -- --bind 127.0.0.1:7777 [--self-signed | --tls-cert cert.pem --tls-key key.pem]
+//!       [--first-playable] (embedded small PvE/loot map; drain at4h, forced process stop by4h+180s)
 //!       [--control 127.0.0.1:7778] [--map parity/maps/seed1.map.json] [--max-rooms 16] [--fill-bots 8]
 //!       [--min-players 1] [--lobby-seconds 10] [--fill-seconds 3] [--auth dev|static:<file>]
 //!       [--database-url postgres://... [--instance-id id]]   (build with --features postgres)
@@ -68,6 +69,117 @@ fn arg(args: &[String], k: &str) -> Option<String> {
     args.iter()
         .position(|a| a == k)
         .and_then(|i| args.get(i + 1).cloned())
+}
+
+/// Bounded opt-in service profile, not new simulation rules. Default startup is unchanged.
+const FIRST_PLAYABLE_LIFETIME: Duration = Duration::from_secs(4 * 60 * 60);
+const FIRST_PLAYABLE_GRACE: Duration = Duration::from_secs(180);
+struct FirstPlayable {
+    min_players: usize,
+    fill_bots: usize,
+    lobby_seconds: f64,
+    fill_seconds: f64,
+}
+fn first_playable_settings(args: &[String]) -> Result<Option<FirstPlayable>, String> {
+    let count = args
+        .iter()
+        .filter(|a| a.as_str() == "--first-playable")
+        .count();
+    if args
+        .iter()
+        .any(|a| a.starts_with("--first-play") && a != "--first-playable")
+    {
+        return Err("unknown --first-playable option; use the flag without a value".into());
+    }
+    if count == 0 {
+        return Ok(None);
+    }
+    if count != 1 {
+        return Err("--first-playable must occur once".into());
+    }
+    let index = args.iter().position(|a| a == "--first-playable").unwrap();
+    if args.get(index + 1).is_some_and(|a| !a.starts_with("--")) {
+        return Err("--first-playable takes no value".into());
+    }
+    for flag in [
+        "--min-players",
+        "--fill-bots",
+        "--lobby-seconds",
+        "--fill-seconds",
+    ] {
+        if args.iter().any(|a| a.starts_with(&format!("{flag}="))) {
+            return Err(format!("use {flag} with a separate value"));
+        }
+    }
+    if args.iter().any(|a| a == "--map" || a.starts_with("--map=")) {
+        return Err("--first-playable uses the embedded map; --map cannot override it".into());
+    }
+    let whole = |flag: &str, default: usize, minimum: usize| -> Result<usize, String> {
+        let mut found = args.iter().enumerate().filter(|(_, a)| a.as_str() == flag);
+        let value = match found.next() {
+            None => return Ok(default),
+            Some((i, _)) => args
+                .get(i + 1)
+                .and_then(|v| v.parse::<usize>().ok())
+                .ok_or_else(|| format!("{flag} requires a whole seat count"))?,
+        };
+        if found.next().is_some() || !(minimum..=rh_sim::constants::MAX_PLAYERS).contains(&value) {
+            return Err(format!("{flag} must occur once with {minimum}..=8 seats"));
+        }
+        Ok(value)
+    };
+    let seconds = |flag: &str, default: f64| -> Result<f64, String> {
+        let mut found = args.iter().enumerate().filter(|(_, a)| a.as_str() == flag);
+        let value = match found.next() {
+            None => return Ok(default),
+            Some((i, _)) => args
+                .get(i + 1)
+                .and_then(|v| v.parse::<f64>().ok())
+                .ok_or_else(|| format!("{flag} requires seconds"))?,
+        };
+        if found.next().is_some()
+            || !value.is_finite()
+            || value < 0.
+            || !(value * 1000.).is_finite()
+        {
+            return Err(format!("{flag} requires finite nonnegative seconds"));
+        }
+        Ok(value)
+    };
+    Ok(Some(FirstPlayable {
+        min_players: whole("--min-players", 2, 1)?,
+        fill_bots: whole("--fill-bots", 0, 0)?,
+        lobby_seconds: seconds("--lobby-seconds", 30.)?,
+        fill_seconds: seconds("--fill-seconds", 5.)?,
+    }))
+}
+fn first_playable_arena() -> Result<rh_sim::Arena, String> {
+    if rh_sim::constants::MAX_PLAYERS != 8 {
+        return Err(
+            "first-playable capacity requires the existing eight-seat admission cap".into(),
+        );
+    }
+    let map: rh_sim::mapdata::MapExport =
+        serde_json::from_slice(include_bytes!("../../../maps/first-playable.json"))
+            .map_err(|e| e.to_string())?;
+    if map.legacy_map_hash_u32 != 0x0252_d18b
+        || rh_sim::mapgen::map_hash::map_hash(&map.map) != "0252d18b"
+    {
+        return Err(
+            "embedded first-playable map identity changed; review map capacity before enabling"
+                .into(),
+        );
+    }
+    map.validate()
+        .map_err(|e| e.to_string())?
+        .into_arena()
+        .map_err(|e| e.to_string())
+}
+async fn service_deadline(deadline: Option<tokio::time::Instant>) {
+    match deadline {
+        Some(at) => tokio::time::sleep_until(at).await,
+        None => std::future::pending::<()>().await,
+    }
 }
 
 /// `--result-spool <dir>` with `--result-spool-max` (pending records, default 4096), `--result-dead-max` (dead letters kept,
@@ -272,16 +384,37 @@ fn api_config(args: &[String]) -> Result<ApiConfig, String> {
 
 #[tokio::main]
 async fn main() {
+    let process_started = tokio::time::Instant::now();
     // One explicit TLS crypto provider (ring): with none selected rustls panics at the first handshake.
     let _ = rustls::crypto::ring::default_provider().install_default();
     let args: Vec<String> = std::env::args().collect();
+    let first_playable = first_playable_settings(&args).unwrap_or_else(|e| {
+        eprintln!("[server] invalid first-playable settings: {e}");
+        std::process::exit(2);
+    });
+    let profile_enabled = first_playable.is_some();
+    if profile_enabled {
+        // Absolute watchdog is independent of signals, control/drain, room completion and pending writes.
+        tokio::spawn(async move {
+            service_deadline(Some(
+                process_started + FIRST_PLAYABLE_LIFETIME + FIRST_PLAYABLE_GRACE,
+            ))
+            .await;
+            eprintln!("[server] first-playable process lifetime exhausted; stopping (configured durable spool owns pending-write recovery)");
+            std::process::exit(0);
+        });
+    }
     let bind: SocketAddr = arg(&args, "--bind")
         .unwrap_or_else(|| "127.0.0.1:7777".into())
         .parse()
         .expect("--bind");
-    let arena = match arg(&args, "--map") {
-        Some(p) => rh_headless::load_arena(&p).unwrap_or_else(|e| panic!("{e}")),
-        None => rh_sim::arenas::practice_arena(),
+    let arena = if profile_enabled {
+        first_playable_arena().unwrap_or_else(|e| panic!("embedded first-playable map: {e}"))
+    } else {
+        match arg(&args, "--map") {
+            Some(p) => rh_headless::load_arena(&p).unwrap_or_else(|e| panic!("{e}")),
+            None => rh_sim::arenas::practice_arena(),
+        }
     };
     if let Err(e) = rh_server::wire::arena_fits(&arena) {
         eprintln!("[server] refusing to host this arena: {e}");
@@ -293,12 +426,28 @@ async fn main() {
             .unwrap_or(d)
     };
     let sim = rh_sim::SimConfig {
-        min_players: num("--min-players", 2.0) as usize,
-        lobby_seconds: num("--lobby-seconds", 30.0),
-        fill_seconds: num("--fill-seconds", 5.0),
+        mob_mode: if profile_enabled {
+            rh_sim::mob_runtime::MobMode::Pve
+        } else {
+            rh_sim::mob_runtime::MobMode::Off
+        },
+        initial_loot: profile_enabled,
+        min_players: first_playable
+            .as_ref()
+            .map_or_else(|| num("--min-players", 2.0) as usize, |p| p.min_players),
+        lobby_seconds: first_playable
+            .as_ref()
+            .map_or_else(|| num("--lobby-seconds", 30.), |p| p.lobby_seconds),
+        fill_seconds: first_playable
+            .as_ref()
+            .map_or_else(|| num("--fill-seconds", 5.), |p| p.fill_seconds),
         pvp_rules: true,
         weapon_specials: true,
-        faction_mode: rh_sim::FactionMode::Off,
+        faction_mode: if profile_enabled {
+            rh_sim::FactionMode::EngagementHolyPlagueFire
+        } else {
+            rh_sim::FactionMode::Off
+        },
     };
     let hosted = hosted_settings(&args).unwrap_or_else(|e| {
         eprintln!("[server] invalid hosting settings: {e}");
@@ -310,7 +459,9 @@ async fn main() {
             std::process::exit(2);
         }),
         max_rooms: num("--max-rooms", 16.0) as usize,
-        fill_bots_to: num("--fill-bots", 0.0) as usize,
+        fill_bots_to: first_playable
+            .as_ref()
+            .map_or_else(|| num("--fill-bots", 0.) as usize, |p| p.fill_bots),
         ..DirectorConfig::new(sim, arena)
     };
     cfg.require_admit = hosted.require_admit;
@@ -441,10 +592,11 @@ async fn main() {
             tokio::select! {
                 _ = tokio::signal::ctrl_c() => {}
                 _ = term.recv() => {}
+                _ = service_deadline(profile_enabled.then_some(process_started+FIRST_PLAYABLE_LIFETIME)) => {}
             }
         }
         #[cfg(not(unix))]
-        let _ = tokio::signal::ctrl_c().await;
+        tokio::select! { _ = tokio::signal::ctrl_c() => {}, _ = service_deadline(profile_enabled.then_some(process_started+FIRST_PLAYABLE_LIFETIME)) => {} }
         eprintln!("[server] draining: no new admissions; active matches finish");
         shutdown_director.drain().await;
     });
@@ -505,6 +657,83 @@ mod tests {
 
     fn args(values: &[&str]) -> Vec<String> {
         values.iter().map(|s| s.to_string()).collect()
+    }
+
+    #[test]
+    fn first_playable_profile_is_opt_in_and_limits_seat_overrides() {
+        assert!(first_playable_settings(&args(&["rh-server"]))
+            .unwrap()
+            .is_none());
+        let profile = first_playable_settings(&args(&[
+            "rh-server",
+            "--first-playable",
+            "--min-players",
+            "1",
+            "--fill-bots",
+            "8",
+        ]))
+        .unwrap()
+        .unwrap();
+        assert_eq!(profile.min_players, 1);
+        assert_eq!(profile.fill_bots, 8);
+        for bad in [
+            vec!["--first-playable", "--map", "x"],
+            vec!["--first-playable", "--map=x"],
+            vec!["--first-playable", "--first-playable"],
+            vec!["--first-playable", "true"],
+            vec!["--first-playable-lifetime", "99999"],
+            vec!["--first-playable", "--fill-bots", "9"],
+            vec!["--first-playable", "--fill-bots", "1.5"],
+            vec!["--first-playable", "--min-players", "0"],
+            vec!["--first-playable", "--min-players", "9"],
+            vec!["--first-playable", "--min-players=2"],
+            vec!["--first-playable", "--lobby-seconds", "NaN"],
+            vec!["--first-playable", "--fill-seconds", "-1"],
+            vec!["--first-playable", "--fill-bots", "1", "--fill-bots", "2"],
+        ] {
+            assert!(first_playable_settings(&args(&bad)).is_err(), "{bad:?}");
+        }
+    }
+    #[test]
+    fn embedded_map_is_admitted_and_fits_the_process_budget() {
+        let arena = first_playable_arena().unwrap();
+        rh_server::wire::arena_fits(&arena).unwrap();
+        let data = arena.map.layers().unwrap().data();
+        assert_eq!(arena.spawns.len(), 8);
+        assert_eq!(data.crate_spots.len(), 8);
+        assert_eq!(data.ground_spots.len(), 48);
+        assert_eq!(data.camps.iter().map(|c| c.spots.len()).sum::<usize>(), 4);
+        assert_eq!(rh_sim::constants::MAX_PLAYERS, 8);
+        assert_eq!(rh_sim::constants::CAMP_RESPAWN_MS, 180000.);
+        assert_eq!(
+            (FIRST_PLAYABLE_LIFETIME + FIRST_PLAYABLE_GRACE).as_secs(),
+            14580
+        );
+        let waves = 1 + 14580 / 180;
+        let units = 4 * waves + 48 + 16;
+        assert_eq!(8 + 48 + 8 + units, 456);
+        assert!(8 + 48 + 8 + units <= 512);
+    }
+    #[tokio::test(start_paused = true)]
+    async fn service_deadlines_are_absolute_and_disabled_has_no_timer() {
+        let started = tokio::time::Instant::now();
+        let auto = tokio::spawn(service_deadline(Some(started + FIRST_PLAYABLE_LIFETIME)));
+        let hard = tokio::spawn(service_deadline(Some(
+            started + FIRST_PLAYABLE_LIFETIME + FIRST_PLAYABLE_GRACE,
+        )));
+        let off = tokio::spawn(service_deadline(None));
+        tokio::task::yield_now().await;
+        tokio::time::advance(FIRST_PLAYABLE_LIFETIME - Duration::from_secs(1)).await;
+        assert!(!auto.is_finished());
+        assert!(!hard.is_finished());
+        tokio::time::advance(Duration::from_secs(1)).await;
+        tokio::task::yield_now().await;
+        assert!(auto.is_finished());
+        tokio::time::advance(FIRST_PLAYABLE_GRACE).await;
+        tokio::task::yield_now().await;
+        assert!(hard.is_finished());
+        assert!(!off.is_finished());
+        off.abort();
     }
 
     #[test]

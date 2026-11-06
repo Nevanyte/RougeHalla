@@ -139,6 +139,8 @@ fn director_with(
         linger: Duration::from_millis(100),
         ..DirectorConfig::new(
             SimConfig {
+                mob_mode: rh_sim::mob_runtime::MobMode::Off,
+                initial_loot: false,
                 min_players: 2,
                 lobby_seconds: 30.0,
                 fill_seconds: 0.0,
@@ -922,6 +924,14 @@ async fn process_kill_between_spool_and_commit_recovers_exactly_once() {
     .await
     .unwrap();
     assert_eq!(runs, 2, "each run counted exactly once");
+    // Persistence/unlink complete before the diagnostic is emitted. Keep the process alive
+    // until that final completion signal rather than racing SIGKILL against its logging task.
+    wait_until("recovery completion log", 30, || async {
+        std::fs::read_to_string(logs.join("second.log"))
+            .unwrap_or_default()
+            .contains("recovered from spool")
+    })
+    .await;
     second.kill().unwrap();
     second.wait().unwrap();
     let log2 = std::fs::read_to_string(logs.join("second.log")).unwrap();

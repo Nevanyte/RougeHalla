@@ -7,7 +7,7 @@ use crate::hooks::{HookArgs, Hx};
 use crate::input::ActionCmd;
 use crate::item_view::pickup_reach;
 use crate::math::Vec2;
-use crate::state::{Container, ContainerKind, WeaponItem, WeaponRt, World};
+use crate::state::{Container, ContainerKind, WeaponRt, World};
 use crate::vision::point_visible;
 use crate::{Sim, WeaponId};
 
@@ -29,7 +29,7 @@ pub(crate) fn shred_source(
 }
 
 pub(crate) fn fold_armor(cx: &mut Cx) {
-    for i in 0..cx.w.players.len() {
+    for i in 0..cx.w.fighter_count() {
         refold_modifiers_with(cx.k, cx.w, i, cx.stats);
     }
 }
@@ -40,17 +40,7 @@ pub(crate) fn refold_modifiers_with(
     i: usize,
     stats: crate::status_runtime::stats::Inputs,
 ) {
-    let mut armor = 0.;
-    let mut attack = 1.;
-    for (_, source) in crate::schedule::Plan::of(k).mod_sources.live() {
-        if let Some(m) = source(w, &w.players[i], stats.view(&w.players[i])) {
-            armor += m.armor.unwrap_or(0.);
-            attack *= m.as_mult.unwrap_or(1.);
-        }
-    }
-    w.players[i].weapon.armor_shred = (-armor).max(0.);
-    w.players[i].attack_rate_wire =
-        crate::stat_fold::encode_mult(crate::stat_fold::cap_as_mult(attack));
+    crate::modifiers::recompute_with(k, w, FighterIx::of_slot(i), stats);
 }
 
 impl WeaponRt {
@@ -96,18 +86,17 @@ pub(crate) fn hit_landed(hx: &mut Hx, args: &HookArgs) {
     {
         return;
     }
-    let Some(source) = entry.by.filter(|id| hx.w.idx(*id).is_some()) else {
+    let Some(source) = entry.by.filter(|id| hx.w.fighter_idx(*id).is_some()) else {
         return;
     };
-    if hx.w.player(entry.victim).is_some_and(|p| p.standing()) {
+    if hx
+        .w
+        .fighter_idx(entry.victim)
+        .is_some_and(|i| hx.w.standing(i))
+    {
         let source = crate::status_runtime::StatusSource {
             id: Some(source),
-            name: hx
-                .w
-                .roster
-                .label(source)
-                .expect("present axe owner")
-                .clone(),
+            name: hx.w.actor_label(source).expect("present axe owner"),
             owner_id: None,
         };
         super::status::operations::apply_with(
@@ -134,7 +123,7 @@ pub(crate) fn hit_landed(hx: &mut Hx, args: &HookArgs) {
     }
 }
 
-fn weapon_changed(p: &mut FighterCore, now: f64) {
+pub(crate) fn weapon_changed(p: &mut FighterCore, now: f64) {
     weapons::cancel_action(p, now);
     p.weapon.ready_at = p.weapon.ready_at.max(now) + SWAP_SECONDS * 1000.0;
     if p.active_weapon() != WeaponId::Wand {
@@ -143,6 +132,9 @@ fn weapon_changed(p: &mut FighterCore, now: f64) {
 }
 
 pub(crate) fn swap(cx: &mut Cx, ix: FighterIx, cmd: &ActionCmd) {
+    if !cx.w.is_player(ix) {
+        return;
+    }
     let ActionCmd::Swap { slot } = *cmd else {
         return;
     };
@@ -178,7 +170,7 @@ fn blocked_through(tick: u32, wait_for_publication: bool) -> u32 {
     }
 }
 
-fn add_container(
+pub(crate) fn add_container(
     w: &mut World,
     kind: ContainerKind,
     at: Vec2,
@@ -186,22 +178,35 @@ fn add_container(
     tick: u32,
     between_ticks: bool,
 ) -> u32 {
-    let id = w.next_entity_id();
-    let items = weapons.map(|weapon| {
-        weapon.map(|weapon| {
+    let items = weapons
+        .into_iter()
+        .flatten()
+        .map(|weapon| {
             w.item_counter += 1;
-            WeaponItem {
+            crate::initial_world::Item {
                 uid: w.item_counter,
-                weapon,
+                def: crate::initial_world::ItemDef::Weapon(weapon),
             }
         })
-    });
+        .collect();
+    add_items(w, kind, at, items, tick, between_ticks)
+}
+fn add_items(
+    w: &mut World,
+    kind: ContainerKind,
+    at: Vec2,
+    items: Vec<crate::initial_world::Item>,
+    tick: u32,
+    between_ticks: bool,
+) -> u32 {
+    let id = w.next_entity_id();
     w.containers.push(Container {
         id,
         kind,
         at,
         opened: false,
         items,
+        stat_offer: false,
         born_tick: blocked_through(tick, between_ticks || kind == ContainerKind::Chest),
     });
     id
@@ -251,17 +256,27 @@ pub(crate) fn drop_body(hx: &mut Hx, args: &HookArgs) {
     let Some(i) = hx.w.idx(victim) else { return };
     let p = &mut hx.w.players[i];
     let at = p.pos();
-    let mut gear = [p.weapon.weapon0.take(), p.weapon.weapon1.take()];
-    if gear[0].is_none() {
-        gear.swap(0, 1);
+    let gear = [p.weapon.weapon0.take(), p.weapon.weapon1.take()];
+    let small = std::mem::take(&mut p.potion_small);
+    let mut items = Vec::with_capacity(gear.iter().flatten().count() + usize::from(small));
+    for def in gear
+        .into_iter()
+        .flatten()
+        .map(crate::initial_world::ItemDef::Weapon)
+        .chain((0..small).map(|_| crate::initial_world::ItemDef::PotionSmall))
+    {
+        hx.w.item_counter += 1;
+        items.push(crate::initial_world::Item {
+            uid: hx.w.item_counter,
+            def,
+        });
     }
-    let tick = hx.w.tick;
-    add_container(
+    add_items(
         hx.w,
         ContainerKind::Body(victim),
         at,
-        gear,
-        tick,
+        items,
+        hx.w.tick,
         between_ticks,
     );
 }
@@ -293,6 +308,9 @@ fn pickup_check(
 }
 
 pub(crate) fn pickup(cx: &mut Cx, ix: FighterIx, cmd: &ActionCmd) {
+    if !cx.w.is_player(ix) {
+        return;
+    }
     let id = match *cmd {
         ActionCmd::Pickup { container_id } => Some(container_id),
         ActionCmd::MissingPickup => None,
@@ -332,22 +350,45 @@ pub(crate) fn pickup(cx: &mut Cx, ix: FighterIx, cmd: &ActionCmd) {
 }
 
 fn take(cx: &mut Cx, ix: FighterIx, i: usize) -> Result<(), PickupRefusal> {
-    let c = &mut cx.w.containers[i];
-    if c.kind == ContainerKind::Chest {
-        c.opened = true;
+    if cx.w.containers[i].kind == ContainerKind::Chest {
+        if !cx.w.containers[i].opened && cx.w.containers[i].stat_offer {
+            let at = cx.w.containers[i].at;
+            crate::reward_chests::drop_stat(cx.w, at); // Actual reward producer BEFORE opened=true.
+        }
+        cx.w.containers[i].opened = true;
     }
-    let item = c.items[0]
-        .filter(|it| it.weapon != WeaponId::Fists)
+    let item = *cx.w.containers[i]
+        .items
+        .first()
         .ok_or(PickupRefusal::NothingToTake)?;
-    c.items[0] = c.items[1].take();
-    let vanished = c.kind == ContainerKind::Ground && c.items[0].is_none();
+    if item.def == crate::initial_world::ItemDef::PotionSmall {
+        let id = cx.w.core(ix).id;
+        if !super::potions::grant(cx.w, cx.ev, id) {
+            cx.ev.push(Event::PotionNotice {
+                id,
+                notice: crate::potions::Notice::BagFull,
+            });
+            return Ok(());
+        }
+        cx.w.containers[i].items.remove(0);
+        return Ok(());
+    }
+    let crate::initial_world::ItemDef::Weapon(weapon) = item.def else {
+        unreachable!()
+    };
+    if weapon == WeaponId::Fists {
+        return Err(PickupRefusal::NothingToTake);
+    }
+    cx.w.containers[i].items.remove(0);
+    let vanished =
+        cx.w.containers[i].kind == ContainerKind::Ground && cx.w.containers[i].items.is_empty();
     let now = cx.w.server_time;
     let p = cx.w.core_mut(ix);
     let slot = p.weapon.pickup_slot(false);
     let old = if slot == 0 {
-        p.weapon.weapon0.replace(item.weapon)
+        p.weapon.weapon0.replace(weapon)
     } else {
-        p.weapon.weapon1.replace(item.weapon)
+        p.weapon.weapon1.replace(weapon)
     };
     let changed = slot == p.weapon.slot;
     if changed {
@@ -371,16 +412,26 @@ fn take(cx: &mut Cx, ix: FighterIx, i: usize) -> Result<(), PickupRefusal> {
         cx.w.containers.remove(i);
     }
     if let Some(old) = old {
-        add_container(
-            cx.w,
-            ContainerKind::Ground,
-            at,
-            [Some(old), None],
-            cx.w.tick,
-            false,
-        );
+        drop_weapon(cx.w, at, old, cx.w.tick, false);
     }
     Ok(())
+}
+
+pub(crate) fn drop_weapon(
+    w: &mut World,
+    at: Vec2,
+    weapon: WeaponId,
+    tick: u32,
+    between_ticks: bool,
+) -> u32 {
+    add_container(
+        w,
+        ContainerKind::Ground,
+        at,
+        [Some(weapon), None],
+        tick,
+        between_ticks,
+    )
 }
 
 #[cfg(test)]

@@ -1,0 +1,62 @@
+{
+  "created_utc": "2026-11-06T08:42:38.955470+00:00",
+  "image": "node:22.23.4-bookworm-slim@sha256:aaa4b5baf1ecff3b283486bb1f90405cdda225a3e6f79660d2c559fa510a7292",
+  "platform": "linux/amd64",
+  "checks": {
+    "cards-fixtures": {
+      "exit_code": 0,
+      "log": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/cards-fixtures-ci-portability.log",
+      "sha256": "8a4e803d18ae09f9c88b5d64aa167688720e6db4a4250b602ceed6e4b01a8796"
+    },
+    "initial-world-fixtures": {
+      "exit_code": 0,
+      "log": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/initial-world-fixtures-ci-portability.log",
+      "sha256": "e391c43ad4d0e22f5f4fd740ea140d507f17ebfdd6f3b4c1e691d1adde41300c"
+    },
+    "initial-loot-fixtures": {
+      "exit_code": 0,
+      "log": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/initial-loot-fixtures-ci-portability.log",
+      "sha256": "dde29285f918b317b10027ed9d4fd09f4826b942fa5868792e6b96f61a8db6d9"
+    },
+    "pve-dot": {
+      "exit_code": 0,
+      "log": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/pve-dot-ci-portability.log",
+      "sha256": "87d407a85b544ca31078f8cabf9fcc0936c6b99fd48ca158584fa4238c56b43f"
+    }
+  },
+  "files": {
+    ".github/workflows/rust.yml": {
+      "bytes": 14140,
+      "sha256": "a80695107f2e960a9e13b15b3cfb460e5a488819a7de54ccfdc9d019a4174752"
+    },
+    "tools/cards-fixtures/capture.sh": {
+      "bytes": 1594,
+      "sha256": "93d5234941b9d7234df626bde9542a1efa06d67435651a6e4f127f36f477ccbc"
+    },
+    "tools/initial-world-fixtures/capture.sh": {
+      "bytes": 1672,
+      "sha256": "75dd249ef5c673650b5f486d30e3823908e1cdd9a1608c50810dad4837e4eaf0"
+    },
+    "tools/initial-loot-fixtures/capture.sh": {
+      "bytes": 1666,
+      "sha256": "714907e7e173acaadb3c0e7f3b1ac573ebb379cf1800d1daca80c0ad63d261d2"
+    },
+    "tools/pve-dot/capture.sh": {
+      "bytes": 1602,
+      "sha256": "3bbc110fbe815b3ba1d1c8cafea9fed345f645f121f4dc5aa66e4c03c49e172b"
+    },
+    "parity/initial-world/spawn-v1.json": {
+      "bytes": 10628758,
+      "sha256": "8dbbe3f16e76246e682925b8d60daf6c1a5e79b5f30f5ef966f52e9cd3f07335"
+    }
+  },
+  "validation": [
+    "all four canonical source captures exactly equal checked-in fixture bytes",
+    "Ruby YAML parse and target commands assertion",
+    "bash -n four wrappers",
+    "JS focused61assertions",
+    "git diff --check"
+  ],
+  "capture_recorders_modified": false,
+  "source_expected_values_modified": false
+}

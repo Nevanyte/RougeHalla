@@ -114,12 +114,18 @@ fn swapping_and_replacing_share_cooldown_and_a_new_drop_blocks_same_tick_guess()
         (w.slot, w.weapon0, w.weapon1, w.ready_at),
         (1, Some(Sword), Some(Axe), 850.0)
     );
-    assert_eq!(s.containers()[0].items[0].unwrap().weapon, Bow);
+    assert_eq!(
+        s.containers()[0].items[0].def,
+        rh_sim::initial_world::ItemDef::Weapon(Bow)
+    );
     assert_eq!(s.containers()[0].at, ps[0].at);
     pickup(&mut s, 4);
     s.step();
     assert_eq!(s.players()[0].weapon.weapon1, Some(Bow));
-    assert_eq!(s.containers()[0].items[0].unwrap().weapon, Axe);
+    assert_eq!(
+        s.containers()[0].items[0].def,
+        rh_sim::initial_world::ItemDef::Weapon(Axe)
+    );
 }
 
 #[test]
@@ -140,7 +146,7 @@ fn body_from_leave_is_published_before_looting_and_remains_after_emptying() {
     pickup(&mut s, 1);
     let second = s.step();
     assert!(refusal(&second, PickupRefusal::NothingToTake));
-    assert_eq!(s.containers()[0].items, [None; 2]);
+    assert!(s.containers()[0].items.is_empty());
     assert_eq!(s.players()[0].weapon.weapon0, Some(Shield));
     assert_eq!(s.players()[0].weapon.weapon1, Some(Wand));
 }
@@ -346,12 +352,12 @@ fn corrupt_container_ids_slots_and_axe_statuses_cannot_restore() {
             serde_json::json!(0),
         ),
         (
-            "/world/players/1/core/weapon/armor_shred",
+            "/world/players/1/core/modifiers/wire/3",
             serde_json::json!(7),
         ),
         ("/world/containers/1/id", serde_json::json!(1)),
         (
-            "/world/containers/0/items/0/weapon",
+            "/world/containers/0/items/0/def/Weapon",
             serde_json::json!("Fists"),
         ),
         ("/world/containers/0/items/0/uid", serde_json::json!(2)),

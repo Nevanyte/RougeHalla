@@ -37,7 +37,7 @@ impl FieldView {
             ends_at: f.ends_at,
         }
     }
-    fn cmp(&self, b: &Self) -> std::cmp::Ordering {
+    pub(crate) fn cmp(&self, b: &Self) -> std::cmp::Ordering {
         (self.kind, self.ability, self.owner, self.subject)
             .cmp(&(b.kind, b.ability, b.owner, b.subject))
             .then_with(|| {

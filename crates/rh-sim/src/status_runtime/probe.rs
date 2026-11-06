@@ -145,6 +145,7 @@ pub(crate) fn record_heal(w: &mut World, i: usize, amount: f64, kind: systems::h
             systems::heal::Kind::Lifesteal => HealSource::Lifesteal,
             systems::heal::Kind::IgnoreLockout => HealSource::IgnoreLockout,
             systems::heal::Kind::DeathFloor => HealSource::DeathFloor,
+            systems::heal::Kind::QuietRegen => return,
         };
         w.trace.1.records.push(HookRecord::Healed {
             actor: Box::new(w.players[i].clone()),
@@ -926,7 +927,7 @@ mod tests {
         let snap = h.snapshot();
         assert!(snap.players[2].statuses.instances.is_empty());
         assert_eq!(snap.players[2].pos(), Vec2::new(400., 400.));
-        assert_eq!(snap.players[2].attack_rate_wire, 1000.);
+        assert_eq!(snap.players[2].modifiers.attack_rate_wire(), 1000.);
         assert_eq!(snap.deferred.len(), 1);
         assert_eq!(snap.payouts, 0);
         assert!(matches!(snap.hooks[0], HookRecord::Hurt { .. }));
@@ -1122,7 +1123,7 @@ mod scheduled_view_tests {
         })
         .unwrap();
         h.execute(Operation::Step).unwrap();
-        assert_eq!(h.sim.w.players[2].attack_rate_wire, 800.);
+        assert_eq!(h.sim.w.players[2].modifiers.attack_rate_wire(), 800.);
         let mut shred = dot();
         shred.kind = StatusKind::Shred;
         shred.value = Some(3.);
@@ -1132,14 +1133,14 @@ mod scheduled_view_tests {
             quiet: true,
         })
         .unwrap();
-        assert_eq!(h.sim.w.players[2].weapon.armor_shred, 0.);
+        assert_eq!(h.sim.w.players[2].modifiers.mirrors().armor_bonus, 0.);
         h.execute(Operation::Remove {
             id: PlayerId(3),
             selector: Selector::Kind(StatusKind::SlowAttack),
         })
         .unwrap();
-        assert_eq!(h.sim.w.players[2].attack_rate_wire, 1000.);
-        assert_eq!(h.sim.w.players[2].weapon.armor_shred, 3.);
+        assert_eq!(h.sim.w.players[2].modifiers.attack_rate_wire(), 1000.);
+        assert_eq!(h.sim.w.players[2].modifiers.mirrors().armor_bonus, -3.);
     }
     #[test]
     fn source_visible_removal_events_precede_step_without_duplication() {

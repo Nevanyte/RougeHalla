@@ -7,6 +7,7 @@
 // `!(x > 0.0)` is deliberate throughout: it is the legacy NaN-safe test ("not a positive number"), not `x <= 0.0`.
 #![allow(clippy::neg_cmp_op_on_partial_ord)]
 
+mod actor_refs;
 pub mod arenas;
 pub mod checkpoint;
 pub mod constants;
@@ -19,15 +20,21 @@ pub mod fx_report;
 pub mod geometry;
 mod hash;
 mod hooks;
+pub mod initial_world;
 pub mod input;
 pub mod item_view;
+pub mod projectile_view;
+pub use projectile_view::ProjectileView;
 pub mod map;
 pub mod mapdata;
 pub mod mapgen;
 pub mod math;
 pub mod mob_catalog;
+pub mod mob_runtime;
 pub mod observe;
 pub mod pathfind;
+pub mod potions;
+pub mod private_rng;
 pub mod replay;
 pub mod results;
 pub mod rng;
@@ -70,3 +77,9 @@ pub use statics::FactionMode;
 pub use store::{EntityId, Store};
 
 pub use systems::signatures::LandedHit;
+
+pub mod cards;
+pub(crate) mod combat_policy;
+pub mod modifiers;
+
+pub mod reward_chests;

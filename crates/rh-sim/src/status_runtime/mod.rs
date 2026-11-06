@@ -55,18 +55,23 @@ impl AbilityId {
 #[derive(Clone, Debug)]
 pub enum StatusTag {
     Axe,
+    Block,
     Text(Arc<str>),
 }
 impl StatusTag {
     pub fn as_str(&self) -> &str {
         match self {
             Self::Axe => "axe",
+            Self::Block => "block",
             Self::Text(v) => v,
         }
     }
 }
 impl From<&str> for StatusTag {
     fn from(v: &str) -> Self {
+        if v == "block" {
+            return Self::Block;
+        }
         if v == "axe" {
             Self::Axe
         } else {
@@ -90,6 +95,8 @@ impl<'de> serde::Deserialize<'de> for StatusTag {
         let v = <Arc<str> as serde::Deserialize>::deserialize(d)?;
         Ok(if &*v == "axe" {
             Self::Axe
+        } else if &*v == "block" {
+            Self::Block
         } else {
             Self::Text(v)
         })

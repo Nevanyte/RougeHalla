@@ -28,6 +28,12 @@ const NUMBER_FREE_TYPES: &[(&str, bool, &str)] = &[
 /// Each entry must match a declaration the scan finds and not be covered by NUMBER_FREE_TYPES. Adding to this list is a
 /// review decision: a number that can change an outcome belongs in the registry instead.
 const NON_GAMEPLAY: &[(&str, &str, &str)] = &[
+    ("projectile_view.rs", "MAX_VISIBLE_PROJECTILES", "complete public projectile representation capacity; never read by game rules"),
+    ("projectile_view.rs", "PROJECTILE_ROW_BYTES_MAX", "complete public projectile representation capacity; never read by game rules"),
+    ("projectile_view.rs", "PROJECTILE_VIEW_BYTES_MAX", "complete public projectile representation capacity; never read by game rules"),
+    ("actor_refs.rs", "NPC_REFERENCE_BLOCK", "observer presentation block capacity, not a gameplay number"),
+    ("actor_refs.rs", "NPC_REFERENCE_BASE", "disjoint non-reused presentation reference namespace, not a game rule"),
+    ("reward_chests/tests.rs", "FIXTURE_FNV", "cfg(test)-only frozen source fixture integrity; not runtime policy"),
     ("mapgen/style_zones/tests.rs", "CASES", "cfg(test)-only exact source open-case/provenance inventory; never read by runtime policy"),
     ("mapgen/style_zones/tests.rs", "SOURCE_NAMES", "cfg(test)-only exact source open-case/provenance inventory; never read by runtime policy"),
     ("mapgen/pipeline/styled_controls.rs", "INPUTS", "cfg(test)-only exact source input/provenance inventory; never read by runtime policy"),
@@ -127,6 +133,15 @@ const NON_GAMEPLAY: &[(&str, &str, &str)] = &[
 /// Rules that are tables rather than scalar rows: they are folded by `content_hash` directly (see content.rs). As
 /// (file, name, reason).
 const TABLES_FOLDED_BY_HASH: &[(&str, &str, &str)] = &[
+    ("potions/mod.rs", "DEFINITION", "actual Small potion stock/concurrency/duration/share read by runtime and progression content visitor"),
+    ("cards/mod.rs", "ALL", "actual selected card identities/index/name order folded by visit_progression_content"),
+    ("cards/rules.rs", "DEFINITION", "actual selected card tiers/effect words folded by visit_progression_content"),
+    ("modifiers/farm.rs", "DEFINITION", "actual ordered mob reward rows and count bounds folded by visit_progression_content"),
+    ("modifiers/rules.rs", "DEFINITION", "actual weapon/signature stat scaling words folded by visit_progression_content"),
+    ("private_rng.rs", "DEFINITION", "actual private reward stream warmup policy folded by visit_progression_content"),
+    ("reward_chests/rules.rs", "DEFINITION", "actual source offer/range/expiry/skip policy folded by visit_progression_content"),
+    ("reward_chests/view.rs", "ALL", "actual boost identities/index/name order folded by visit_progression_content"),
+    ("initial_world/rules.rs", "DEFINITION", "actual initial-world constructor policies are folded through their runtime visitor"),
     ("status_runtime/fields.rs", "TRIAL_FIELD_POLICY", "actual rank-one exit-stun/burn policy read by status fields and visit_extra_content"),
     ("status_runtime/fields.rs", "BLAZE_FIELD_POLICY", "actual rank-one exit-stun/burn policy read by status fields and visit_extra_content"),
     ("status_runtime/mod.rs", "ALL", "actual ordered AbilityId identities and text keys folded by visit_extra_content"),
@@ -440,7 +455,7 @@ fn hash_golden() {
         content_hash()
     );
 }
-const GOLDEN_CONTENT_HASH: u64 = 0x256a_dd60_8aea_64e6;
+const GOLDEN_CONTENT_HASH: u64 = 0x7419_2c06_2ab9_eac1;
 
 #[test]
 fn every_registry_row_perturbs_the_hash() {

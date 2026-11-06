@@ -19,8 +19,8 @@ pub(crate) fn expire(cx: &mut Cx) {
     let now = w.server_time;
     s.status_active.clear();
     s.status_active.extend(
-        w.players
-            .iter()
+        (0..w.fighter_count())
+            .map(|i| w.core(crate::fighter::FighterIx::of_slot(i)))
             .filter(|p| p.statuses.cast.is_some() || !p.statuses.instances.is_empty())
             .map(|p| p.id),
     );
@@ -62,7 +62,8 @@ pub(crate) fn expire(cx: &mut Cx) {
     end_fields_with(k, w, FieldSelector::Expired(now), stats);
     // P-ABIL lands due casts at this exact boundary, before zone exit and final effects.
     end_zones(k, w, ev, stats);
-    for p in &mut w.players {
+    for i in 0..w.fighter_count() {
+        let p = w.core_mut(crate::fighter::FighterIx::of_slot(i));
         if p.statuses.cast.is_none() && p.statuses.instances.is_empty() {
             continue;
         }
@@ -75,9 +76,9 @@ pub(crate) fn expire(cx: &mut Cx) {
 fn pay_floor(w: &mut World, ev: &mut Vec<Event>, id: PlayerId, st: &StatusInstance, stats: Inputs) {
     let amount = st.taken.unwrap_or(0.) * st.data.heal_share.unwrap_or(0.);
     if amount > 0. {
-        if let Some(i) = w.idx(id) {
-            let view = stats.view(&w.players[i]);
-            super::heal::apply_with(w, ev, i, amount, super::heal::Kind::DeathFloor, view);
+        if let Some(i) = w.fighter_idx(id) {
+            let view = stats.view(w.core(i));
+            super::heal::apply_with(w, ev, i.slot(), amount, super::heal::Kind::DeathFloor, view);
         }
     }
 }
@@ -187,12 +188,14 @@ pub(crate) fn on_applied(hx: &mut Hx, args: &HookArgs) {
     let HookArgs::StatusApplied { id, kind, .. } = *args else {
         return;
     };
-    let Some(i) = hx.w.idx(id) else { return };
+    let Some(i) = hx.w.fighter_idx(id) else {
+        return;
+    };
     let now = hx.w.server_time;
-    if kind == StatusKind::Stun && hx.w.players[i].weapon.action.is_some() {
-        super::weapons::cancel_action(&mut hx.w.players[i], now);
+    if kind == StatusKind::Stun && hx.w.core(i).weapon.action.is_some() {
+        super::weapons::cancel_action(hx.w.core_mut(i), now);
     }
-    if let Some(c) = hx.w.players[i].statuses.cast {
+    if let Some(c) = hx.w.core(i).statuses.cast {
         let cancel = match kind {
             StatusKind::Stun => c.cancelled_by.stun,
             StatusKind::Silence => c.cancelled_by.silence,
@@ -204,7 +207,7 @@ pub(crate) fn on_applied(hx: &mut Hx, args: &HookArgs) {
         }
     }
     if kind == StatusKind::SlowAttack {
-        refold_attack_with(hx.k, hx.w, i, hx.stats);
+        refold_attack_with(hx.k, hx.w, i.slot(), hx.stats);
     }
 }
 fn cancel_cast(
@@ -215,8 +218,8 @@ fn cancel_cast(
     reason: rt::CastEndReason,
     refund: bool,
 ) {
-    let Some(i) = w.idx(id) else { return };
-    let Some(c) = w.players[i].statuses.cast else {
+    let Some(i) = w.fighter_idx(id) else { return };
+    let Some(c) = w.core(i).statuses.cast else {
         return;
     };
     ev.push(Event::CastEnded {
@@ -228,8 +231,9 @@ fn cancel_cast(
     crate::status_runtime::probe::record_cast(w, id, c.ability, reason);
     // No installed source gameplay castEnded listener exists; P-ABIL owns refunds.
     let _ = (k, refund);
-    w.players[i].statuses.cast = None;
-    w.players[i].statuses.refresh_effects(w.server_time);
+    w.core_mut(i).statuses.cast = None;
+    let now = w.server_time;
+    w.core_mut(i).statuses.refresh_effects(now);
 }
 pub(crate) fn attack_started(hx: &mut Hx, args: &HookArgs) {
     crate::vision::attack_started(hx, args);
@@ -237,10 +241,10 @@ pub(crate) fn attack_started(hx: &mut Hx, args: &HookArgs) {
         return;
     };
     let now = hx.w.server_time;
-    if let Some(i) = hx.w.idx(id) {
-        if let Some(a) = hx.w.players[i].weapon.action {
+    if let Some(i) = hx.w.fighter_idx(id) {
+        if let Some(a) = hx.w.core(i).weapon.action {
             rt::reveal(
-                &mut hx.w.players[i].statuses,
+                &mut hx.w.core_mut(i).statuses,
                 now,
                 a.lands_at + rt::HIDDEN_REVEAL_MS,
             );
@@ -284,8 +288,9 @@ pub(crate) fn clear_all(hx: &mut Hx, teleport: bool) {
             .get_or_insert_with(|| rt::AbilityRuntime::new(now))
             .teleported_at = Some(now);
     }
-    for i in 0..hx.w.players.len() {
-        let id = hx.w.players[i].id;
+    for slot in 0..hx.w.fighter_count() {
+        let i = crate::fighter::FighterIx::of_slot(slot);
+        let id = hx.w.core(i).id;
         cancel_cast(
             hx.k,
             hx.w,
@@ -295,9 +300,9 @@ pub(crate) fn clear_all(hx: &mut Hx, teleport: bool) {
             teleport,
         );
         if teleport {
-            let count = hx.w.players[i].statuses.instances.len();
+            let count = hx.w.core(i).statuses.instances.len();
             for j in 0..count {
-                let st = &hx.w.players[i].statuses.instances[j];
+                let st = &hx.w.core(i).statuses.instances[j];
                 if st.kind == StatusKind::DeathFloor && st.until > now {
                     let st = st.clone();
                     pay_floor(hx.w, hx.ev, id, &st, hx.stats);
@@ -325,9 +330,10 @@ pub(crate) fn raid_started(hx: &mut Hx, args: &HookArgs) {
     if *args != HookArgs::RaidStarted {
         return;
     }
-    for i in 0..hx.w.players.len() {
-        hx.w.players[i].statuses.cast = None;
-        let id = hx.w.players[i].id;
+    for slot in 0..hx.w.fighter_count() {
+        let i = crate::fighter::FighterIx::of_slot(slot);
+        hx.w.core_mut(i).statuses.cast = None;
+        let id = hx.w.core(i).id;
         operations::remove_discard_with(hx.k, hx.w, id, Selector::All, hx.stats);
     }
     if let Some(a) = hx.w.abilities.as_mut() {

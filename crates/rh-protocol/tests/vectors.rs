@@ -50,6 +50,19 @@ fn malformed_server_frames_are_rejected_for_the_documented_reason() {
     use DecodeError::*;
     let want = |name: &str| -> DecodeError {
         match name {
+            "potion_notice_zero" | "potion_notice_unknown" => BadField("potion notice"),
+            "state_too_many_camps" | "state_too_many_projectiles" => TooMany(0),
+            "projectile_kind" | "projectile_owner_zero" => BadField("projectile"),
+            "projectile_owner_flag" => BadTag(2),
+            "projectile_owner_overlong" => BadVarint,
+            "camp_mob_type"
+            | "camp_elite"
+            | "camp_alive"
+            | "camp_state"
+            | "camp_negative_time"
+            | "camp_nonfinite_time"
+            | "camp_time_order" => BadField("camp"),
+            "actor_mob_type_over_30" | "delta_actor_mob_type_over_30" => BadField("mob type"),
             "empty" | "truncated_snapshot" | "self_truncated" | "actor_count_without_actors" => {
                 Truncated
             }
@@ -70,6 +83,7 @@ fn malformed_server_frames_are_rejected_for_the_documented_reason() {
                 BadField("status")
             }
             "phase_over_3" | "delta_phase_over_3" => BadField("phase"),
+            "chest_bad_reason_zero" | "chest_bad_reason_unknown" => BadField("chest reason"),
             "state_unknown_key" => BadField("state key"),
             "state_duplicate_key" | "state_key_order" => BadField("state key order"),
             "state_too_many_keys"

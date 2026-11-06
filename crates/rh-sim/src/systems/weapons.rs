@@ -4,14 +4,11 @@
 //! queue.
 
 use crate::constants::*;
-use crate::content::{
-    attack_interval, damage_per_hit, damage_shares, paced, player_timings, weapon, DamageShares,
-    Shape, Timings, WeaponId,
-};
+use crate::content::{attack_interval, player_timings, weapon, Shape, Timings, WeaponId};
 use crate::events::Event;
 use crate::fighter::{FighterCore, FighterIx};
 use crate::input::ActionCmd;
-use crate::state::{ActionKind, Packet, PendingAction};
+use crate::state::{ActionKind, PendingAction};
 use crate::systems::melee::MeleeReq;
 use crate::systems::projectiles::Spawn;
 use crate::systems::Cx;
@@ -72,8 +69,8 @@ pub(crate) fn on_release(cx: &mut Cx, ix: FighterIx, cmd: &ActionCmd) {
 /// System (legacy weapons.updateWeapons): every standing fighter's weapon state machine, in join order.
 pub(crate) fn update(cx: &mut Cx) {
     cx.s.attack_started.fill(false);
-    for i in 0..cx.w.players.len() {
-        if cx.w.players[i].standing() {
+    for i in 0..cx.w.fighter_count() {
+        if cx.w.standing(FighterIx::of_slot(i)) {
             step_weapon(cx, FighterIx::of_slot(i));
         }
     }
@@ -87,6 +84,9 @@ fn step_weapon(cx: &mut Cx, ix: FighterIx) {
             land(cx, ix, act);
         }
     }
+    let npc = !cx.w.is_player(ix);
+    let sheet = cx.w.paced_sheet(ix);
+    let base_hp = cx.w.base_sheet(ix).hp;
     let p = cx.w.core_mut(ix);
     let wants = p.weapon.held || now <= p.weapon.buffered_until;
     if p.weapon.action.is_none()
@@ -94,16 +94,26 @@ fn step_weapon(cx: &mut Cx, ix: FighterIx) {
         && now + TIE_EPS_MS >= p.weapon.ready_at
         && !crate::status_runtime::action_blocked(&p.statuses, now)
     {
-        let f = paced(p.vitals.faction);
-        let tm = player_timings(
+        let f = sheet;
+        let timing = if npc {
+            crate::content::npc_timings
+        } else {
+            player_timings
+        };
+        let tm = timing(
             weapon,
             attack_interval(
                 &f,
                 weapon,
-                crate::stat_fold::decode_mult(p.attack_rate_wire),
+                crate::stat_fold::decode_mult(p.modifiers.attack_rate_wire()),
             ),
         );
-        start_attack(p, now, cx.ev, weapon, tm);
+        let packet = if npc {
+            crate::modifiers::packet_with_sheet(p, weapon, &sheet, base_hp)
+        } else {
+            crate::modifiers::packet(p, weapon)
+        };
+        start_attack(p, now, cx.ev, weapon, tm, packet);
         let id = p.id;
         if cx.k.config.faction_mode.frost() {
             cx.s.attack_started[ix.slot()] = true;
@@ -127,16 +137,14 @@ fn step_weapon(cx: &mut Cx, ix: FighterIx) {
     }
 }
 
-fn start_attack(p: &mut FighterCore, now: f64, ev: &mut Vec<Event>, weapon: WeaponId, tm: Timings) {
-    let f = paced(p.vitals.faction);
-    let base = damage_per_hit(&f, weapon, 1.0);
-    let shares: DamageShares = damage_shares(&f);
-    let packet = Packet {
-        raw: base,
-        phys: shares.phys,
-        magic: shares.magic,
-        true_: shares.true_,
-    };
+fn start_attack(
+    p: &mut FighterCore,
+    now: f64,
+    ev: &mut Vec<Event>,
+    weapon: WeaponId,
+    tm: Timings,
+    packet: crate::state::Packet,
+) {
     let start = if p.weapon.pressed_at <= p.weapon.ready_at {
         p.weapon.ready_at.max(now - TICK_MS)
     } else {
@@ -184,9 +192,9 @@ fn land(cx: &mut Cx, ix: FighterIx, act: PendingAction) {
     let now = cx.w.server_time;
     let target = act
         .target
-        .and_then(|id| cx.w.player(id))
-        .filter(|other| other.standing() && other.id != cx.w.core(ix).id)
-        .map(|other| (other.id, other.pos()));
+        .and_then(|id| cx.w.fighter_idx(id))
+        .filter(|&other| cx.w.standing(other) && other != ix)
+        .map(|other| (cx.w.core(other).id, cx.w.core(other).pos()));
     let p = cx.w.core_mut(ix);
     p.weapon.action = None;
     match act.kind {

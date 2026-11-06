@@ -70,7 +70,7 @@ fn launch(
 
 pub(crate) fn spawn(cx: &mut Cx) {
     for req in cx.s.flight.spawns.drain(..) {
-        let Some(owner) = cx.w.player(req.owner) else {
+        let Some(owner) = cx.w.actor(req.owner) else {
             continue;
         };
         let Shape::Projectile { speed, range } = weapon(req.weapon).shape else {
@@ -129,7 +129,11 @@ fn stretch(
     let pr = &w.projectiles[index];
     let mut v = pr.velocity;
     if let Some(id) = pr.launch.target {
-        let Some(target) = w.player(id).filter(|p| p.standing()) else {
+        let Some(target) = w
+            .fighter_idx(id)
+            .filter(|&ix| w.standing(ix))
+            .map(|ix| w.core(ix))
+        else {
             return Err(ProjectileEnd::Destroyed);
         };
         let at = target.position_at(t);
@@ -256,13 +260,23 @@ fn first_body(cx: &Cx, s: Stretch, t: f64) -> Option<(usize, Vec2)> {
             RANGED_SLACK
         };
     let mut best = None::<(f64, f64, u32, usize)>;
-    for (i, p) in cx.w.players.iter().enumerate() {
-        if !p.standing() || p.id == pr.launch.owner {
+    for i in 0..cx.w.fighter_count() {
+        let ix = crate::fighter::FighterIx::of_slot(i);
+        let p = cx.w.core(ix);
+        if !cx.w.standing(ix)
+            || p.id == pr.launch.owner
+            || (cx.w.mobs.contains(pr.launch.owner) && !cx.w.is_player(ix))
+        {
             continue;
         }
         let at = p.position_at(t);
         if let Some(u) = contact(s, at, reach) {
-            let candidate = (u, distance(s.a, at), cx.s.rank[i], i);
+            let candidate = (
+                u,
+                distance(s.a, at),
+                cx.s.rank.get(i).copied().unwrap_or(u32::MAX),
+                i,
+            );
             if best.is_none_or(|b| candidate < b) {
                 best = Some(candidate);
             }
@@ -296,22 +310,31 @@ fn splash(cx: &mut Cx, pr: Projectile, primary: usize, t: f64) {
     if pr.weapon() != WeaponId::Wand || !cx.k.config.weapon_specials {
         return;
     }
-    let centre = cx.w.players[primary].position_at(t);
-    for (i, p) in cx.w.players.iter().enumerate() {
-        if i == primary || !p.standing() || p.id == pr.launch.owner {
+    let centre =
+        cx.w.core(crate::fighter::FighterIx::of_slot(primary))
+            .position_at(t);
+    for i in 0..cx.w.fighter_count() {
+        let ix = crate::fighter::FighterIx::of_slot(i);
+        let p = cx.w.core(ix);
+        if i == primary
+            || !cx.w.standing(ix)
+            || p.id == pr.launch.owner
+            || (cx.w.mobs.contains(pr.launch.owner) && !cx.w.is_player(ix))
+        {
             continue;
         }
         let at = p.position_at(t);
         if distance(centre, at) <= WAND_SPLASH_RADIUS
             && !ray_blocked(&cx.k.arena.map, centre.x, centre.y, at.x, at.y, MASK_SIGHT)
         {
-            cx.s.ledger.push(entry(pr, p.id, WAND_SPLASH_SHARE, true));
+            let hit = entry(pr, p.id, WAND_SPLASH_SHARE, true);
+            super::ledger::record_hit(cx.w, &mut cx.s.ledger, hit);
         }
     }
 }
 fn reflect(cx: &mut Cx, s: Stretch, t: f64, victim: usize, at: Vec2) {
     let pr = cx.w.projectiles[s.index];
-    let holder = &cx.w.players[victim];
+    let holder = cx.w.core(crate::fighter::FighterIx::of_slot(victim));
     let id = holder.id;
     let facing = holder.body.facing;
     if cx.k.config.faction_mode.engagement() {
@@ -339,12 +362,32 @@ fn reflect(cx: &mut Cx, s: Stretch, t: f64, victim: usize, at: Vec2) {
             ProjectileEnd::Reflected
         },
     );
+    if cx.w.fighter_idx(pr.launch.owner).is_some() {
+        crate::hooks::fire(
+            &mut crate::hooks::Hx {
+                k: cx.k,
+                w: cx.w,
+                ev: cx.ev,
+                stats: cx.stats,
+                fx: None,
+            },
+            crate::hooks::HookArgs::Blocked {
+                holder: id,
+                attacker: pr.launch.owner,
+                prevented: crate::state::Packet {
+                    raw: pr.packet.raw * if blocked { 1. } else { ARROW_REFLECT_SHARE },
+                    ..pr.packet
+                },
+                melee: false,
+            },
+        );
+    }
     if blocked {
         return;
     }
     let mut hit = entry(pr, id, 1., false);
     hit.packet.raw *= 1. - ARROW_REFLECT_SHARE;
-    cx.s.ledger.push(hit);
+    super::ledger::record_hit(cx.w, &mut cx.s.ledger, hit);
     let (nx, ny) = (cos(facing), sin(facing));
     let d = pr.velocity.x * nx + pr.velocity.y * ny;
     let velocity = Vec2::new(pr.velocity.x - 2. * d * nx, pr.velocity.y - 2. * d * ny);
@@ -385,7 +428,7 @@ fn advance(cx: &mut Cx, s: Stretch, t: f64) {
     }
     let pr = cx.w.projectiles[s.index];
     if let Some((i, at)) = first_body(cx, s, t) {
-        let holder = &cx.w.players[i];
+        let holder = cx.w.core(crate::fighter::FighterIx::of_slot(i));
         if pr.launch.kind == ProjectileKind::Arrow
             && holder.active_weapon() == WeaponId::Shield
             && (pr.velocity.x != 0. || pr.velocity.y != 0.)
@@ -394,7 +437,8 @@ fn advance(cx: &mut Cx, s: Stretch, t: f64) {
         {
             reflect(cx, s, t, i, at);
         } else {
-            cx.s.ledger.push(entry(pr, holder.id, 1., false));
+            let hit = entry(pr, holder.id, 1., false);
+            super::ledger::record_hit(cx.w, &mut cx.s.ledger, hit);
             splash(cx, pr, i, t);
             end(
                 &mut cx.w.projectiles[s.index],
@@ -463,7 +507,7 @@ pub(crate) fn meet_balls(
     if !matches!(req.weapon, WeaponId::Sword | WeaponId::Axe) {
         return;
     }
-    let origin = w.player(req.attacker).expect("standing attacker").pos();
+    let origin = w.actor(req.attacker).expect("standing attacker").pos();
     for (pr, swept) in w.projectiles.iter_mut().zip(&mut flight.swept) {
         if pr.launch.kind != ProjectileKind::Ball || pr.launch.owner == req.attacker {
             continue;

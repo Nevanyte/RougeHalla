@@ -1,0 +1,124 @@
+{
+  "allocation_scope": "not measured",
+  "construction_hashing_checkpoint_report_json_io": "outside timed regions",
+  "content_hash": "74192c062ab9eac1",
+  "initial_tick": 1,
+  "map": "0252d18b",
+  "measured_advances": 687,
+  "measured_simulated_seconds": 34.35,
+  "rows": [
+    {
+      "fingerprint": "8ed7fd3004c689d5",
+      "scope": "Env::advance/public-policy-observation-validation-submit-sim-feed",
+      "terminal_tick": 688,
+      "terminated": true,
+      "ticks_per_s": 41960.28431604584,
+      "timing": {
+        "max_us": 93.20800000000001,
+        "mean_us": 23.807547307132445,
+        "p50_us": 20.084,
+        "p99_us": 77.834,
+        "percentile": "nearest-rank",
+        "samples": 687
+      },
+      "trial": 1,
+      "truncated": false,
+      "wall_s": 0.016372625
+    },
+    {
+      "fingerprint": "8ed7fd3004c689d5",
+      "scope": "Sim::step_into-only/recorded-ordinary-validated-public-inputs",
+      "terminal_tick": 688,
+      "terminated": true,
+      "ticks_per_s_including_replay_submit_and_timer": 78481.77183738166,
+      "timing": {
+        "max_us": 40.625,
+        "mean_us": 12.698181950509461,
+        "p50_us": 9.917,
+        "p99_us": 32.833999999999996,
+        "percentile": "nearest-rank",
+        "samples": 687
+      },
+      "trial": 1,
+      "truncated": false,
+      "wall_s_including_replay_submit_and_timer": 0.008753625
+    },
+    {
+      "fingerprint": "8ed7fd3004c689d5",
+      "scope": "Env::advance/public-policy-observation-validation-submit-sim-feed",
+      "terminal_tick": 688,
+      "terminated": true,
+      "ticks_per_s": 46880.46661554626,
+      "timing": {
+        "max_us": 77.0,
+        "mean_us": 21.30920960698689,
+        "p50_us": 18.458,
+        "p99_us": 70.417,
+        "percentile": "nearest-rank",
+        "samples": 687
+      },
+      "trial": 2,
+      "truncated": false,
+      "wall_s": 0.014654291
+    },
+    {
+      "fingerprint": "8ed7fd3004c689d5",
+      "scope": "Sim::step_into-only/recorded-ordinary-validated-public-inputs",
+      "terminal_tick": 688,
+      "terminated": true,
+      "ticks_per_s_including_replay_submit_and_timer": 86100.11952501308,
+      "timing": {
+        "max_us": 35.541,
+        "mean_us": 11.55677583697234,
+        "p50_us": 8.958,
+        "p99_us": 28.833,
+        "percentile": "nearest-rank",
+        "samples": 687
+      },
+      "trial": 2,
+      "truncated": false,
+      "wall_s_including_replay_submit_and_timer": 0.007979083
+    },
+    {
+      "fingerprint": "8ed7fd3004c689d5",
+      "scope": "Env::advance/public-policy-observation-validation-submit-sim-feed",
+      "terminal_tick": 688,
+      "terminated": true,
+      "ticks_per_s": 50280.86289865149,
+      "timing": {
+        "max_us": 71.542,
+        "mean_us": 19.866624454148454,
+        "p50_us": 17.458000000000002,
+        "p99_us": 64.666,
+        "percentile": "nearest-rank",
+        "samples": 687
+      },
+      "trial": 3,
+      "truncated": false,
+      "wall_s": 0.01366325
+    },
+    {
+      "fingerprint": "8ed7fd3004c689d5",
+      "scope": "Sim::step_into-only/recorded-ordinary-validated-public-inputs",
+      "terminal_tick": 688,
+      "terminated": true,
+      "ticks_per_s_including_replay_submit_and_timer": 87811.42859991387,
+      "timing": {
+        "max_us": 34.709,
+        "mean_us": 11.343823871906842,
+        "p50_us": 9.0,
+        "p99_us": 28.0,
+        "percentile": "nearest-rank",
+        "samples": 687
+      },
+      "trial": 3,
+      "truncated": false,
+      "wall_s_including_replay_submit_and_timer": 0.007823583
+    }
+  ],
+  "seats": 6,
+  "seed": 1,
+  "sim_hz": 20,
+  "timers": "Instant per tick; distributions include timer observation overhead; end-to-end wall includes sample collection",
+  "trials": 3
+}

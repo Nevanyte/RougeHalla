@@ -392,6 +392,7 @@ impl Room {
         let secrets = cfg.fixed_secrets.unwrap_or_else(|| Secrets {
             order_salt: random_u32(),
             spawn_seed: random_u32(),
+            reward_salt: std::array::from_fn(|_| random_u32()),
         });
         let sim = Sim::new(cfg.sim.clone(), cfg.arena, secrets);
         let recorder = cfg.record.then(|| {
@@ -591,7 +592,8 @@ impl Room {
                     self.humans[index].ack_input = seq;
                     for c in commands {
                         // Resolve only within this seat's delivered offer, then use the shared
-                        // validator/budget/submit path. Misses are recorded ordinary commands.
+                        // validator/budget/submit path. Target is an observer-issued reference,
+                        // never a private-ID fallback. Misses are recorded ordinary commands.
                         let resolved = self.humans[index]
                             .items
                             .resolve(&self.sim, wire::command(c));
@@ -1024,6 +1026,7 @@ impl Room {
             let mut state = match h.collections.prepare(
                 self.publisher.observation(),
                 offer.props_changed(),
+                offer.rewards_changed(),
                 out.state_resync_requested(),
             ) {
                 Ok(pending) => pending,
@@ -1313,6 +1316,8 @@ mod tests {
         let assets = MapAssets::new(rh_sim::arenas::practice_arena()).unwrap();
         RoomConfig {
             sim: SimConfig {
+                mob_mode: rh_sim::mob_runtime::MobMode::Off,
+                initial_loot: false,
                 min_players: 2,
                 lobby_seconds: 30.0,
                 fill_seconds: 0.0,

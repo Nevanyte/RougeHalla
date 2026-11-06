@@ -30,9 +30,9 @@ impl Default for StatView {
         }
     }
 }
-/// Current ordinary producer domain has no cards/buffs. P-CARDS replaces the provider, not status arithmetic.
-pub(crate) fn view(_p: &crate::fighter::FighterCore) -> StatView {
-    StatView::default()
+/// The canonical modifier owner supplies current ordinary card/boost/farm values.
+pub(crate) fn view(p: &crate::fighter::FighterCore) -> StatView {
+    crate::modifiers::view(p)
 }
 /// Card-owned per-player mutable critical roll state. The source uses no PRNG draw.
 #[derive(Clone, Copy, Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]

@@ -365,7 +365,7 @@ pub(crate) fn attack_started(hx: &mut crate::hooks::Hx, args: &crate::hooks::Hoo
     let Some(layers) = hx.k.arena.map.layers() else {
         return;
     };
-    let i = hx.w.idx(id).expect("attacker in the weapons pass");
+    let Some(i) = hx.w.idx(id) else { return }; // Source bush exposure applies to players only.
     let p = &mut hx.w.players[i];
     if layers.bush_at_world(p.body.x, p.body.y) == 0 {
         return;

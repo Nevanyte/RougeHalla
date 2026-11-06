@@ -46,6 +46,8 @@ fn small_arena() -> Arena {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn a_live_match_replays_and_its_bots_decide_identically_headless() {
     let sim = SimConfig {
+        mob_mode: rh_sim::mob_runtime::MobMode::Off,
+        initial_loot: false,
         min_players: 1,
         lobby_seconds: 30.0,
         fill_seconds: 0.0,

@@ -141,6 +141,8 @@ impl Default for Opts {
 
 async fn rig(o: Opts) -> Rig {
     let sim = SimConfig {
+        mob_mode: rh_sim::mob_runtime::MobMode::Off,
+        initial_loot: false,
         min_players: if o.quick_start { 1 } else { 2 },
         lobby_seconds: if o.quick_start { 0.3 } else { 30.0 },
         fill_seconds: 0.0,
@@ -280,6 +282,8 @@ async fn session_properties_are_validated_and_a_starting_server_is_503() {
         let d = Director::new(
             DirectorConfig::new(
                 SimConfig {
+                    mob_mode: rh_sim::mob_runtime::MobMode::Off,
+                    initial_loot: false,
                     min_players: 2,
                     lobby_seconds: 30.0,
                     fill_seconds: 0.0,
@@ -1250,6 +1254,8 @@ async fn a_session_created_while_draining_is_refused_or_drained_never_left_live_
             require_admit: true,
             ..DirectorConfig::new(
                 SimConfig {
+                    mob_mode: rh_sim::mob_runtime::MobMode::Off,
+                    initial_loot: false,
                     min_players: 2,
                     lobby_seconds: 30.0,
                     fill_seconds: 0.0,

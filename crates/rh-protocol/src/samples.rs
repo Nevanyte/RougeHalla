@@ -9,12 +9,44 @@ use crate::delta::{
 };
 use crate::map::MapBlob;
 use crate::*;
-use crate::{AM_BOUNTY, AM_HP, AM_KIND, AM_STATUS};
+use crate::{AM_BOUNTY, AM_HP, AM_STATUS};
 
 // The aim of -3.1415927 is deliberate: an f32 at the -PI edge of the angle range.
 #[allow(clippy::approx_constant)]
 pub fn client_samples() -> Vec<(&'static str, ClientMsg)> {
     vec![
+        (
+            "input_pve",
+            ClientMsg::Input {
+                seq: 45,
+                commands: vec![
+                    WireCommand::UseConsumable,
+                    WireCommand::Target { actor: u32::MAX },
+                    WireCommand::AttackMove {
+                        x: 10.5,
+                        y: -0.0,
+                        seq: None,
+                    },
+                    WireCommand::AttackMove {
+                        x: -1.0,
+                        y: 20.0,
+                        seq: Some(255),
+                    },
+                ],
+            },
+        ),
+        (
+            "input_choices",
+            ClientMsg::Input {
+                seq: 44,
+                commands: (-1..=2)
+                    .map(|pick| WireCommand::Choose {
+                        handle: RewardChestHandle::new(u32::MAX).unwrap(),
+                        pick,
+                    })
+                    .collect(),
+            },
+        ),
         (
             "input_combat",
             ClientMsg::Input {
@@ -178,6 +210,24 @@ fn state_sample() -> ServerMsg {
                 cards: [1, 0, 1],
                 boosts: [0, 1, 2, 3, 0, 1, 2, 3],
             })),
+            StateItem::Camps(vec![WireCamp {
+                mob_type: 0,
+                elite: Some(29),
+                alive: 0,
+                state: 2,
+                cleared_at: 1000.,
+                respawn_at: 181000.,
+            }]),
+            StateItem::Projectiles(vec![
+                WireProjectile {
+                    kind: 0,
+                    x: 800,
+                    y: 900,
+                    facing: 12345,
+                    owner: Some(1)
+                };
+                2
+            ]),
         ],
     }
 }
@@ -198,6 +248,41 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
     vec![
         ("state_all", state_sample()),
         (
+            "potion_notices",
+            ServerMsg::Events {
+                tick: 11,
+                events: (1..=7)
+                    .map(|notice| WireEvent::PotionNotice { notice })
+                    .collect(),
+            },
+        ),
+        (
+            "camps_limits",
+            ServerMsg::State {
+                tick: 12,
+                items: vec![StateItem::Camps(vec![
+                    WireCamp {
+                        mob_type: 29,
+                        elite: None,
+                        alive: 512,
+                        state: 0,
+                        cleared_at: 0.,
+                        respawn_at: 0.
+                    };
+                    512
+                ])],
+            },
+        ),
+        (
+            "chest_refusals",
+            ServerMsg::Events {
+                tick: 10,
+                events: (1..=9)
+                    .map(|reason| WireEvent::ChestRefused { reason })
+                    .collect(),
+            },
+        ),
+        (
             "state_clear",
             ServerMsg::State {
                 tick: 201,
@@ -207,6 +292,8 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
                     StateItem::Fields(vec![]),
                     StateItem::RewardChests(vec![]),
                     StateItem::Build(None),
+                    StateItem::Camps(vec![]),
+                    StateItem::Projectiles(vec![]),
                 ],
             },
         ),
@@ -287,6 +374,7 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
                 phase: 1,
                 ack_input: 42,
                 me: Some(WireSelf {
+                    sig: 0,
                     effects: 0x1234,
                     displace_seq: 255,
                     id: 3,
@@ -305,6 +393,8 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
                     move_seq: 7,
                 }),
                 actors: vec![WireActor {
+                    sig: 0,
+                    mob_type_code: 0,
                     effects: 0x1234,
                     displace_seq: 255,
                     id: 1,
@@ -338,6 +428,7 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
                 phase: 1,
                 ack_input: 128,
                 me: Some(WireSelf {
+                    sig: 0,
                     effects: 0,
                     displace_seq: 0,
                     id: 1,
@@ -356,6 +447,8 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
                     move_seq: 0,
                 }),
                 actors: vec![WireActor {
+                    sig: 0,
+                    mob_type_code: 0,
                     effects: 0,
                     displace_seq: 0,
                     id: 2,
@@ -380,6 +473,7 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
                 phase: 2,
                 ack_input: 300,
                 me: Some(WireSelf {
+                    sig: 0,
                     effects: 0,
                     displace_seq: 0,
                     id: 300,
@@ -399,6 +493,8 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
                 }),
                 actors: vec![
                     WireActor {
+                        sig: 0,
+                        mob_type_code: 0,
                         effects: 0,
                         displace_seq: 0,
                         id: 2,
@@ -413,6 +509,8 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
                         kind: 0,
                     },
                     WireActor {
+                        sig: 0,
+                        mob_type_code: 0,
                         effects: 0,
                         displace_seq: 0,
                         id: 128,
@@ -427,6 +525,8 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
                         kind: 0,
                     },
                     WireActor {
+                        sig: 0,
+                        mob_type_code: 0,
                         effects: 0,
                         displace_seq: 0,
                         id: 70_000,
@@ -441,6 +541,8 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
                         kind: 2,
                     },
                     WireActor {
+                        sig: 0,
+                        mob_type_code: 0,
                         effects: 0,
                         displace_seq: 0,
                         id: u32::MAX,
@@ -465,6 +567,7 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
                 phase: 3,
                 ack_input: 16383,
                 me: Some(WireSelf {
+                    sig: 0,
                     effects: 0,
                     displace_seq: 0,
                     id: 8,
@@ -531,6 +634,8 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
                     ActorDelta {
                         mask: AD_ALL,
                         q: QActor {
+                            sig: 0,
+                            mob_type_code: 0,
                             effects: 0,
                             displace_seq: 0,
                             id: 128,
@@ -675,6 +780,29 @@ pub fn malformed_client() -> Vec<(&'static str, Vec<u8>)> {
     bad_utf8.extend_from_slice(&[0; 8]);
     bad_utf8.extend_from_slice(&[2, 0xff, 0xfe]);
     vec![
+        ("target_zero", vec![2, 0, 0, 0, 0, 1, 0, 10, 0, 0, 0, 0]),
+        ("target_truncated", vec![2, 0, 0, 0, 0, 1, 0, 10, 1, 0, 0]),
+        ("use_consumable_payload", vec![2, 0, 0, 0, 0, 1, 0, 9, 0]),
+        (
+            "attack_move_bad_option",
+            vec![2, 0, 0, 0, 0, 1, 0, 11, 0, 0, 0, 0, 0, 0, 0, 0, 2],
+        ),
+        (
+            "attack_move_nonfinite",
+            vec![2, 0, 0, 0, 0, 1, 0, 11, 0, 0, 128, 127, 0, 0, 0, 0, 0],
+        ),
+        (
+            "choice_zero_handle",
+            vec![2, 0, 0, 0, 0, 1, 0, 8, 0, 0, 0, 0, 0],
+        ),
+        (
+            "choice_pick_three",
+            vec![2, 0, 0, 0, 0, 1, 0, 8, 1, 0, 0, 0, 3],
+        ),
+        (
+            "choice_pick_minus_two",
+            vec![2, 0, 0, 0, 0, 1, 0, 8, 1, 0, 0, 0, 254],
+        ),
         ("swap_bad_slot", vec![2, 1, 0, 0, 0, 1, 0, 6, 1, 2]),
         ("swap_bad_flag", vec![2, 1, 0, 0, 0, 1, 0, 6, 2]),
         ("pickup_bad_id", vec![2, 1, 0, 0, 0, 1, 0, 7, 0, 0, 0, 0]),
@@ -744,6 +872,18 @@ fn actor_bytes(mask: u32, extra: &[u8]) -> Vec<u8> {
 }
 
 /// Server frames a client must reject (the C# and JS tests check the same names against the reason they expect).
+fn camp_bytes(mob_type: u8, elite: u8, alive: u32, state: u8, clear: f64, respawn: f64) -> Vec<u8> {
+    let mut w = Writer::default();
+    w.bytes(&[0x88, 0, 1, 6, 1]);
+    w.u8(mob_type);
+    w.u8(elite);
+    w.varint(alive);
+    w.u8(state);
+    w.f64(clear);
+    w.f64(respawn);
+    w.finish()
+}
+
 pub fn malformed_server() -> Vec<(&'static str, Vec<u8>)> {
     let good = ServerMsg::Snapshot {
         tick: 5,
@@ -751,6 +891,8 @@ pub fn malformed_server() -> Vec<(&'static str, Vec<u8>)> {
         ack_input: 0,
         me: None,
         actors: vec![WireActor {
+            sig: 0,
+            mob_type_code: 0,
             effects: 0,
             displace_seq: 0,
             id: 1,
@@ -769,6 +911,44 @@ pub fn malformed_server() -> Vec<(&'static str, Vec<u8>)> {
     let mut trailing = good.clone();
     trailing.push(0);
     vec![
+        ("potion_notice_zero", vec![0x84, 0, 0, 0, 0, 1, 0, 7, 0]),
+        ("potion_notice_unknown", vec![0x84, 0, 0, 0, 0, 1, 0, 7, 8]),
+        ("state_too_many_projectiles", vec![0x88, 0, 1, 7, 0x81, 4]),
+        (
+            "projectile_kind",
+            vec![0x88, 0, 1, 7, 1, 2, 0, 0, 0, 0, 0, 0, 0],
+        ),
+        (
+            "projectile_owner_zero",
+            vec![0x88, 0, 1, 7, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0],
+        ),
+        (
+            "projectile_owner_flag",
+            vec![0x88, 0, 1, 7, 1, 0, 0, 0, 0, 0, 0, 0, 2],
+        ),
+        (
+            "projectile_owner_overlong",
+            vec![0x88, 0, 1, 7, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0x81, 0],
+        ),
+        ("state_too_many_camps", vec![0x88, 0, 1, 6, 0x81, 4]),
+        ("camp_mob_type", camp_bytes(30, 0, 0, 0, 0., 0.)),
+        ("camp_elite", camp_bytes(0, 31, 0, 0, 0., 0.)),
+        ("camp_alive", camp_bytes(0, 0, 513, 0, 0., 0.)),
+        ("camp_state", camp_bytes(0, 0, 0, 3, 0., 0.)),
+        ("camp_negative_time", camp_bytes(0, 0, 0, 0, -1., 0.)),
+        (
+            "camp_nonfinite_time",
+            camp_bytes(0, 0, 0, 0, 0., f64::INFINITY),
+        ),
+        ("camp_time_order", camp_bytes(0, 0, 0, 0, 2., 1.)),
+        (
+            "actor_mob_type_over_30",
+            snapshot_bytes(0, &[], 1, &actor_bytes(AM_MOB_TYPE, &[31])),
+        ),
+        (
+            "delta_actor_mob_type_over_30",
+            delta_bytes(10, 1, 0, &[1, 1, 0x80, 8, 31]),
+        ),
         ("empty", vec![]),
         ("unknown_tag", vec![0x7f]),
         ("client_tag_from_server", vec![0x01]),
@@ -797,7 +977,7 @@ pub fn malformed_server() -> Vec<(&'static str, Vec<u8>)> {
             snapshot_bytes(0x0002, &[], 0, &[]),
         ),
         // Bit 13 is not a field of this version: a mask bit a decoder does not know is refused, never skipped.
-        ("head_unknown_bit", snapshot_bytes(0x2001, &[], 0, &[])),
+        ("head_unknown_bit", snapshot_bytes(0x4001, &[], 0, &[])),
         // The head 0x80 0x00 is a two-byte zero: the canonical form is one byte.
         ("head_overlong_varint", vec![0x83, 0, 0, 0x80, 0x00, 0]),
         ("self_truncated", snapshot_bytes(0x0001, &[], 0, &[])),
@@ -827,7 +1007,7 @@ pub fn malformed_server() -> Vec<(&'static str, Vec<u8>)> {
         ("actor_count_without_actors", snapshot_bytes(0, &[], 1, &[])),
         (
             "actor_reserved_mask_bit",
-            snapshot_bytes(0, &[], 1, &actor_bytes(0x80, &[])),
+            snapshot_bytes(0, &[], 1, &actor_bytes(0x200, &[])),
         ),
         (
             "actor_id_gap_zero",
@@ -860,10 +1040,10 @@ pub fn malformed_server() -> Vec<(&'static str, Vec<u8>)> {
             "actor_mask_overlong_varint",
             snapshot_bytes(0, &[], 1, &[1, 0x80, 0x00, 0, 0, 0, 0, 0, 0]),
         ),
-        // Kind and status/displacement bits are known; bit 7 is not.
+        // Kind and status/displacement bits are known; bit 9 is not.
         (
             "actor_unknown_mask_bit_after_kind",
-            snapshot_bytes(0, &[], 1, &actor_bytes(AM_KIND << 3, &[])),
+            snapshot_bytes(0, &[], 1, &actor_bytes(1 << 9, &[])),
         ),
         (
             "actor_hp_over_100",
@@ -877,10 +1057,15 @@ pub fn malformed_server() -> Vec<(&'static str, Vec<u8>)> {
         ("fx_too_many", vec![0x85, 0, 0x80, 0x80, 0x04]),
         ("fx_bad_tag", vec![0x85, 0, 1, 9]),
         // State: key zero is undefined; truncated and trailing bytes remain invalid.
-        ("state_unknown_key", vec![0x88, 0, 1, 6]),
+        ("chest_bad_reason_zero", vec![0x84, 0, 0, 0, 0, 1, 0, 6, 0]),
+        (
+            "chest_bad_reason_unknown",
+            vec![0x84, 0, 0, 0, 0, 1, 0, 6, 10],
+        ),
+        ("state_unknown_key", vec![0x88, 0, 1, 8]),
         ("state_duplicate_key", vec![0x88, 0, 2, 1, 0, 1, 0]),
         ("state_key_order", vec![0x88, 0, 2, 3, 0, 1, 0]),
-        ("state_too_many_keys", vec![0x88, 0, 6]),
+        ("state_too_many_keys", vec![0x88, 0, 8]),
         ("state_too_many_props", vec![0x88, 0, 1, 2, 0x81, 4]),
         ("state_too_many_fields", vec![0x88, 0, 1, 3, 0x81, 4]),
         ("state_too_many_rewards", vec![0x88, 0, 1, 4, 0x81, 4]),
@@ -937,6 +1122,8 @@ pub struct ChainStep {
 
 fn wa(id: u32, x: f32, y: f32, hp_pct: u8, status: u8) -> WireActor {
     WireActor {
+        sig: 0,
+        mob_type_code: 0,
         effects: 0,
         displace_seq: 0,
         id,
@@ -954,6 +1141,7 @@ fn wa(id: u32, x: f32, y: f32, hp_pct: u8, status: u8) -> WireActor {
 
 fn chain_self(x: f32) -> WireSelf {
     WireSelf {
+        sig: 0,
         effects: 0,
         displace_seq: 0,
         id: 3,
@@ -1028,6 +1216,36 @@ fn empty_delta() -> SnapshotDelta {
 pub fn chain_samples() -> Vec<(&'static str, Vec<ChainStep>)> {
     let mut chains = Vec::new();
 
+    {
+        let mut encoder = ConnEncoder::new();
+        let mut tracker = SnapshotTracker::new();
+        let mut steps = Vec::new();
+        for (tick, code, sig) in [(1, 30, 255), (2, 1, 1), (3, 0, 0)] {
+            let mut me = chain_self(1.);
+            me.sig = sig;
+            let mut actors: Vec<_> = (1..=8).map(|id| wa(id, 10., 20., 100, 1)).collect();
+            actors[0].mob_type_code = code;
+            actors[0].sig = sig;
+            let data = snap(tick, 1, 0, Some(me), &actors);
+            let mut frame = Vec::new();
+            let kind = encoder.encode(data.clone(), &mut frame);
+            assert_eq!(
+                kind,
+                if tick == 1 {
+                    FrameKind::Full
+                } else {
+                    FrameKind::Delta
+                }
+            );
+            let got = tracker.decode(&frame).unwrap();
+            assert_eq!(got, data.decoded());
+            steps.push(ChainStep {
+                frame,
+                outcome: ChainOutcome::Applied(got),
+            });
+        }
+        chains.push(("pve_scalar_clears", steps));
+    }
     // A connection's life: Full first, then deltas, a tick gap, an actor appearing and leaving, rare self fields, a self that
     // goes away (a delta) and comes back (a Full), a resync (a Full), and deltas again.
     let crowd = |dx: f32| -> Vec<WireActor> {
@@ -1294,8 +1512,8 @@ pub fn malformed_deltas() -> Vec<(&'static str, Vec<u8>)> {
             "delta_head_field_without_present_bit",
             delta_bytes(10, 1, DH_X, &[0]),
         ),
-        // Bit 17 is not a field of this version.
-        ("delta_head_unknown_bit", delta_bytes(10, 1, 1 << 17, &[0])),
+        // Bit 18 is not a field of this version.
+        ("delta_head_unknown_bit", delta_bytes(10, 1, 1 << 18, &[0])),
         (
             "delta_head_overlong_varint",
             vec![0x87, 10, 1, 0, 0x80, 0x00, 0],
@@ -1305,10 +1523,10 @@ pub fn malformed_deltas() -> Vec<(&'static str, Vec<u8>)> {
             delta_bytes(10, 1, DH_PRESENT | DH_STATUS, &[4, 0]),
         ),
         ("delta_phase_over_3", delta_bytes(10, 1, DH_PHASE, &[4, 0])),
-        // Actor delta bit 10 is not a field of this version.
+        // Actor delta bit 12 is not a field of this version.
         (
             "delta_actor_mask_unknown_bit",
-            delta_bytes(10, 1, 0, &[1, 1, 0x80, 0x08]),
+            delta_bytes(10, 1, 0, &[1, 1, 0x80, 0x20]),
         ),
         (
             "delta_actor_status_over_3",
@@ -1381,7 +1599,7 @@ fn decoded_snapshot_json(m: &ServerMsg) -> String {
     let me = match me {
         None => "null".to_string(),
         Some(s) => format!(
-            "{{\"id\": {}, \"faction\": {}, \"xBits\": {}, \"yBits\": {}, \"facingBits\": {}, \"hpBits\": {}, \"maxHpBits\": {}, \"status\": {}, \"weapon\": {}, \"readyInMs\": {}, \"kills\": {}, \"bounty\": {}, \"gv\": {}, \"moveSeq\": {}, \"effects\": {}, \"displaceSeq\": {}}}",
+            "{{\"id\": {}, \"faction\": {}, \"xBits\": {}, \"yBits\": {}, \"facingBits\": {}, \"hpBits\": {}, \"maxHpBits\": {}, \"status\": {}, \"weapon\": {}, \"readyInMs\": {}, \"kills\": {}, \"bounty\": {}, \"gv\": {}, \"moveSeq\": {}, \"effects\": {}, \"displaceSeq\": {}, \"sig\": {}}}",
             s.id,
             s.faction,
             bits(s.x),
@@ -1395,14 +1613,14 @@ fn decoded_snapshot_json(m: &ServerMsg) -> String {
             s.kills,
             s.bounty,
             s.gv,
-            s.move_seq, s.effects, s.displace_seq
+            s.move_seq, s.effects, s.displace_seq, s.sig
         ),
     };
     let actors: Vec<String> = actors
         .iter()
         .map(|a| {
             format!(
-                "{{\"id\": {}, \"faction\": {}, \"xBits\": {}, \"yBits\": {}, \"facingBits\": {}, \"hpPct\": {}, \"status\": {}, \"weapon\": {}, \"bounty\": {}, \"kind\": {}, \"effects\": {}, \"displaceSeq\": {}}}",
+                "{{\"id\": {}, \"faction\": {}, \"xBits\": {}, \"yBits\": {}, \"facingBits\": {}, \"hpPct\": {}, \"status\": {}, \"weapon\": {}, \"bounty\": {}, \"kind\": {}, \"effects\": {}, \"displaceSeq\": {}, \"mobTypeCode\": {}, \"sig\": {}}}",
                 a.id,
                 a.faction,
                 bits(a.x),
@@ -1412,7 +1630,7 @@ fn decoded_snapshot_json(m: &ServerMsg) -> String {
                 a.status,
                 a.weapon,
                 a.bounty,
-                a.kind, a.effects, a.displace_seq
+                a.kind, a.effects, a.displace_seq, a.mob_type_code, a.sig
             )
         })
         .collect();

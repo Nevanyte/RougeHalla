@@ -128,9 +128,15 @@ pub(crate) fn after_damage(w: &mut World) {
             .iter()
             .flatten()
             .any(|&id| near(w, &w.players[i].core, id));
+        let chill = sources[i][..counts[i]]
+            .iter()
+            .flatten()
+            .filter_map(|id| w.player(*id))
+            .map(|p| crate::modifiers::frost_chill(p))
+            .fold(1., f64::min);
         let p = &mut w.players[i].core;
         let f = &mut p.signature;
-        f.chill = if counts[i] > 0 { 1. - FROST_SLOW } else { 1. };
+        f.chill = chill;
         f.chillers = sources[i];
         f.chiller_count = counts[i] as u8;
         if near_frost {
@@ -215,7 +221,9 @@ pub(crate) fn validate_signature(
     let valid_time = |t: f64| (0. ..=w.server_time).contains(&t);
     if (!enabled && !identity)
         || count > MAX_PLAYERS
-        || !(f.chill == 1. || f.chill == 1. - FROST_SLOW)
+        || !(f.chill == 1.
+            || ((1. - FROST_SLOW - crate::modifiers::DEFINITION.frost_cap)..=(1. - FROST_SLOW))
+                .contains(&f.chill))
         || !f.frost_move_mult.is_finite()
         || !(CHILL_MOVE_MULT..=1.).contains(&f.frost_move_mult)
         || (f.frost_move_mult * FROST_MOVE_QUANTIZATION).round() / FROST_MOVE_QUANTIZATION
@@ -557,25 +565,25 @@ mod tests {
         let public = crate::public_snapshot(&s);
         let baseline = s.state_hash();
         let mut edits = Vec::new();
-        let mut f = s.w.players[1].signature;
+        let mut f = s.w.players[1].signature.clone();
         f.chill = 1. - FROST_SLOW;
         edits.push(f);
-        f = s.w.players[1].signature;
+        f = s.w.players[1].signature.clone();
         f.chillers[0] = Some(PlayerId(1));
         edits.push(f);
-        f = s.w.players[1].signature;
+        f = s.w.players[1].signature.clone();
         f.chiller_count = 1;
         edits.push(f);
-        f = s.w.players[1].signature;
+        f = s.w.players[1].signature.clone();
         f.exposure_started_at = Some(0.);
         edits.push(f);
-        f = s.w.players[1].signature;
+        f = s.w.players[1].signature.clone();
         f.last_near_at = Some(50.);
         edits.push(f);
-        f = s.w.players[1].signature;
+        f = s.w.players[1].signature.clone();
         f.ranged_chill_until = Some(1200.);
         edits.push(f);
-        f = s.w.players[1].signature;
+        f = s.w.players[1].signature.clone();
         f.frost_move_mult = 0.7;
         edits.push(f);
         for f in edits {

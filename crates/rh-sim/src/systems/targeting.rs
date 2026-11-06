@@ -2,24 +2,17 @@
 //! still requires a clear physical ray. Only the actor's own input and gameplay phases update vision.
 use super::{weapons, Cx};
 use crate::constants::*;
-use crate::content::{attack_interval, paced, player_timings, weapon, Shape, WeaponId};
+use crate::content::{attack_interval, paced, player_timings, WeaponId};
 use crate::fighter::{FighterCore, FighterIx};
 use crate::geometry::has_line_of_sight;
 use crate::input::ActionCmd;
-use crate::math::{atan2, hypot, sqrt, wrap_angle, Vec2};
+use crate::math::{hypot, wrap_angle, Vec2};
 use crate::pathfind::plan_path_into;
 use crate::{PlayerId, TileMap};
 
 fn distance(a: Vec2, b: Vec2) -> f64 {
     hypot(a.x - b.x, a.y - b.y)
 }
-fn wand_shape() -> (f64, f64) {
-    let Shape::Projectile { range, speed } = weapon(WeaponId::Wand).shape else {
-        unreachable!("wand catalog shape")
-    };
-    (range, speed)
-}
-
 pub(super) fn drop_lock(p: &mut FighterCore) {
     let lock = &mut p.weapon.targeting;
     if lock.target.take().is_some() {
@@ -41,18 +34,27 @@ fn set_lock(p: &mut FighterCore, id: PlayerId) {
 
 fn lockable(cx: &mut Cx, i: usize, j: usize) -> bool {
     let viewer = &cx.w.players[i];
-    let other = &cx.w.players[j];
-    if i == j
-        || !other.standing()
+    let other_ix = FighterIx::of_slot(j);
+    let other = cx.w.core(other_ix);
+    if viewer.id == other.id
+        || !cx.w.standing(other_ix)
         || crate::status_runtime::untargetable(&other.statuses.instances, cx.w.server_time)
-        || !crate::vision::gameplay_actor_visible(&cx.k.arena.map, viewer, other, cx.w.tick)
     {
+        return false;
+    }
+    let visible = if cx.w.is_player(other_ix) {
+        crate::vision::gameplay_actor_visible(&cx.k.arena.map, viewer, &cx.w.players[j], cx.w.tick)
+    } else {
+        crate::vision::point_visible(&cx.k.arena.map, viewer, other.pos(), cx.w.tick)
+    };
+    if !visible {
         return false;
     }
     let within = distance(viewer.pos(), other.pos()) <= TARGET_RANGE;
     crate::vision::refresh_player(&mut cx.w.players[i], cx.w.tick);
     within
 }
+
 fn plan(cx: &mut Cx, i: usize, goal: Vec2) -> bool {
     plan_path_into(
         cx.pf,
@@ -71,7 +73,7 @@ pub(crate) fn target(cx: &mut Cx, ix: FighterIx, cmd: &ActionCmd) {
     let ActionCmd::Target { id } = *cmd else {
         return;
     };
-    let Some(j) = cx.w.idx(id) else {
+    let Some(j) = cx.w.fighter_idx(id).map(FighterIx::slot) else {
         return;
     };
     let i = ix.slot();
@@ -79,7 +81,7 @@ pub(crate) fn target(cx: &mut Cx, ix: FighterIx, cmd: &ActionCmd) {
         return;
     }
     let now = cx.w.server_time;
-    let goal = cx.w.players[j].pos();
+    let goal = cx.w.core(FighterIx::of_slot(j)).pos();
     let p = &mut cx.w.players[i];
     if p.weapon.targeting.target == Some(id) {
         p.weapon.targeting.attack_move = None;
@@ -123,10 +125,10 @@ fn acquire(cx: &mut Cx, i: usize, goal: Vec2) {
         return;
     }
     let from = p.pos();
-    let range = wand_shape().0 * LOCK_ATTACK_SHARE;
+    let range = crate::combat_policy::spacing(WeaponId::Wand, true).attack;
     let mut best: Option<(f64, f64, PlayerId)> = None;
-    for j in 0..cx.w.players.len() {
-        let other = &cx.w.players[j];
+    for j in 0..cx.w.fighter_count() {
+        let other = cx.w.core(FighterIx::of_slot(j));
         let at = other.pos();
         let id = other.id;
         let d = distance(from, at);
@@ -199,7 +201,7 @@ fn chase(cx: &mut Cx, i: usize, goal: Vec2, seen: bool) -> bool {
     true
 }
 
-fn velocity(p: &FighterCore, now: f64) -> Vec2 {
+pub(super) fn velocity(p: &FighterCore, now: f64) -> Vec2 {
     let history = p.body.history.as_slice();
     let end = history.last().map_or(now, |s| s.t);
     let start = (end - VELOCITY_WINDOW_MS).max(history.first().map_or(end, |s| s.t));
@@ -210,44 +212,8 @@ fn velocity(p: &FighterCore, now: f64) -> Vec2 {
     let dt = (end - start) / 1000.;
     Vec2::new((p.body.x - before.x) / dt, (p.body.y - before.y) / dt)
 }
-// Shared policies.ts project() with a stationary shooter and no client lag; a chaser stops at contact.
-fn projected(from: Vec2, to: Vec2, v: Vec2, windup: f64) -> Vec2 {
-    let (x, y) = (to.x - from.x, to.y - from.y);
-    let a = v.x * v.x + v.y * v.y;
-    let b = x * v.x + y * v.y;
-    let c = x * x + y * y - LOCK_CONTACT * LOCK_CONTACT;
-    let mut t = windup;
-    if b < 0. && a > 0. {
-        let disc = b * b - a * c;
-        if c <= 0. {
-            t = 0.;
-        } else if disc >= 0. {
-            t = t.min(((-b - sqrt(disc)) / a).max(0.));
-        }
-    }
-    Vec2::new(to.x + v.x * t, to.y + v.y * t)
-}
-fn intercept(x: f64, y: f64, v: Vec2, speed: f64) -> f64 {
-    let a = v.x * v.x + v.y * v.y - speed * speed;
-    let b = 2. * (x * v.x + y * v.y);
-    let c = x * x + y * y;
-    if a.abs() < LOCK_INTERCEPT_EPS {
-        return if b < 0. { -c / b } else { -1. };
-    }
-    let disc = b * b - 4. * a * c;
-    if disc < 0. {
-        return -1.;
-    }
-    let r = sqrt(disc);
-    let (a, b) = ((-b - r) / (2. * a), (-b + r) / (2. * a));
-    if a.min(b) > 0. {
-        a.min(b)
-    } else {
-        a.max(b)
-    }
-}
 fn follow(cx: &mut Cx, i: usize, id: PlayerId) {
-    let Some(j) = cx.w.idx(id) else {
+    let Some(j) = cx.w.fighter_idx(id).map(FighterIx::slot) else {
         resume(cx, i);
         return;
     };
@@ -257,7 +223,7 @@ fn follow(cx: &mut Cx, i: usize, id: PlayerId) {
         return;
     }
     let now = cx.w.server_time;
-    let to = cx.w.players[j].pos();
+    let to = cx.w.core(FighterIx::of_slot(j)).pos();
     let from = cx.w.players[i].pos();
     let seen = has_line_of_sight(&cx.k.arena.map, from, to, MASK_SIGHT);
     let p = &mut cx.w.players[i];
@@ -272,19 +238,24 @@ fn follow(cx: &mut Cx, i: usize, id: PlayerId) {
     let faction = paced(p.vitals.faction);
     let tm = player_timings(
         WeaponId::Wand,
-        attack_interval(&faction, WeaponId::Wand, 1.0),
+        attack_interval(&faction, WeaponId::Wand, p.modifiers.mirrors().as_mult),
     );
-    let vel = velocity(&cx.w.players[j], now);
-    let hit = projected(from, to, vel, tm.windup);
-    let (range, speed) = wand_shape();
-    let (dx, dy) = (hit.x - from.x, hit.y - from.y);
-    let t = intercept(dx, dy, vel, speed);
-    let (aim, reach) = if t > 0. {
-        (atan2(dy + vel.y * t, dx + vel.x * t), t * speed)
-    } else {
-        (atan2(dy, dx), hypot(dx, dy))
-    };
-    if !seen || distance(from, to) > range * LOCK_FAR_SHARE {
+    let vel = velocity(cx.w.core(FighterIx::of_slot(j)), now);
+    let out = crate::combat_policy::decide(
+        crate::combat_policy::Input {
+            from,
+            to,
+            vel,
+            los: seen,
+            weapon: WeaponId::Wand,
+            windup: tm.windup,
+            lock: true,
+            delay: 0.,
+        },
+        |_, _| true,
+    );
+    let aim = out.aim;
+    if let crate::combat_policy::Move::Point(_) = out.movement {
         if !chase(cx, i, to, seen) {
             return;
         }
@@ -292,7 +263,7 @@ fn follow(cx: &mut Cx, i: usize, id: PlayerId) {
         cx.w.players[i].motion.path.clear();
     }
     let p = &mut cx.w.players[i];
-    let hold = seen && reach <= range * LOCK_ATTACK_SHARE;
+    let hold = out.hold;
     if hold && !p.weapon.held {
         p.weapon.pressed_at = now;
     }

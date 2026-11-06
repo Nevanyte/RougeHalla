@@ -93,7 +93,9 @@ impl FxProjector {
         Ok(())
     }
     /// Copy the current cached tick only after checking instance, viewer and completed tick.
-    /// This is presentation-only and never prepares or commits an action observation.
+    /// This trusted intermediate retains private actor IDs. Merge it through
+    /// `ItemObserver::prepare_with_seen` before delivery; never append it to a projected scene.
+    /// It does not prepare or commit an action observation.
     pub fn append_into(
         &self,
         sim: &Sim,

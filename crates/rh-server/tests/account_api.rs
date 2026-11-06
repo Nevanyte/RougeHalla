@@ -95,6 +95,8 @@ async fn rig_with_pause(cfg: ApiConfig, pause: Option<Arc<AcquirePause>>) -> Rig
     store.migrate().await.unwrap();
     let dcfg = DirectorConfig::new(
         rh_sim::SimConfig {
+            mob_mode: rh_sim::mob_runtime::MobMode::Off,
+            initial_loot: false,
             min_players: 2,
             lobby_seconds: 30.0,
             fill_seconds: 0.0,

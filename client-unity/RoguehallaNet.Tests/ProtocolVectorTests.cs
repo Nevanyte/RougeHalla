@@ -100,7 +100,7 @@ namespace Roguehalla.Net.Tests
         }
 
         [TestCase(0)]
-        [TestCase(6)]
+        [TestCase(8)]
         [TestCase(255)]
         public void EventsEncoderRefusesUndefinedKindsBeforeWriting(int kind)
         {
@@ -153,14 +153,14 @@ namespace Roguehalla.Net.Tests
             Assert.AreEqual(4, i.Commands.Count);
             Assert.AreEqual(CommandKind.Swap, i.Commands[0].Kind); Assert.IsNull(i.Commands[0].Slot);
             Assert.AreEqual((byte)0, i.Commands[1].Slot); Assert.AreEqual((byte)1, i.Commands[2].Slot);
-            Assert.AreEqual(CommandKind.Pickup, i.Commands[3].Kind); Assert.AreEqual(42u, i.Commands[3].ContainerId);
+            Assert.AreEqual(CommandKind.Pickup, i.Commands[3].Kind); Assert.AreEqual(42u, i.Commands[3].PickupRef.Value);
             var e = Server<ServerMsg.Events>("pickup_refusals");
             Assert.AreEqual(5, e.List.Count);
             for (int n = 0; n < 5; n++) { Assert.AreEqual(EventKind.PickupRefused, e.List[n].Kind); Assert.AreEqual(n + 1, e.List[n].PickupReason); }
             var f = Server<ServerMsg.Fx>("fx_combat");
             Assert.AreEqual(uint.MaxValue, f.List[0].By); Assert.AreEqual(1u, f.List[1].By);
             Assert.IsTrue(f.List[3].Passive); Assert.AreEqual(uint.MaxValue, f.List[3].By);
-            foreach (var bad in new[] { WireCommand.Swap(2), WireCommand.Pickup(0) }) {
+            foreach (var bad in new[] { WireCommand.Swap(2), WireCommand.Pickup(default(PickupHandle)) }) {
                 var input = new ClientMsg.Input(); input.Commands.Add(bad); Assert.Throws<ArgumentException>(() => input.Encode());
             }
         }
@@ -351,7 +351,7 @@ namespace Roguehalla.Net.Tests
                 Assert.AreEqual(me.GetProperty("readyInMs").GetUInt16(), s.Me.ReadyInMs); Assert.AreEqual(me.GetProperty("kills").GetUInt16(), s.Me.Kills);
                 Assert.AreEqual(me.GetProperty("bounty").GetUInt16(), s.Me.Bounty); Assert.AreEqual(me.GetProperty("gv").GetUInt16(), s.Me.Gv);
                 Assert.AreEqual(me.GetProperty("moveSeq").GetByte(), s.Me.MoveSeq);
-                Assert.AreEqual(me.GetProperty("effects").GetUInt16(), s.Me.Effects); Assert.AreEqual(me.GetProperty("displaceSeq").GetByte(), s.Me.DisplaceSeq);
+                Assert.AreEqual(me.GetProperty("effects").GetUInt16(), s.Me.Effects); Assert.AreEqual(me.GetProperty("displaceSeq").GetByte(), s.Me.DisplaceSeq); Assert.AreEqual(me.GetProperty("sig").GetByte(),s.Me.Sig);
             }
             var actors = d.GetProperty("actors");
             Assert.AreEqual(actors.GetArrayLength(), s.Actors.Length);
@@ -364,7 +364,7 @@ namespace Roguehalla.Net.Tests
                 Assert.AreEqual(e.GetProperty("hpPct").GetByte(), a.HpPct); Assert.AreEqual(e.GetProperty("status").GetByte(), a.Status);
                 Assert.AreEqual(e.GetProperty("weapon").GetByte(), a.Weapon); Assert.AreEqual(e.GetProperty("bounty").GetUInt16(), a.Bounty);
                 Assert.AreEqual(e.GetProperty("kind").GetByte(), a.Kind);
-                Assert.AreEqual(e.GetProperty("effects").GetUInt16(), a.Effects); Assert.AreEqual(e.GetProperty("displaceSeq").GetByte(), a.DisplaceSeq);
+                Assert.AreEqual(e.GetProperty("effects").GetUInt16(), a.Effects); Assert.AreEqual(e.GetProperty("displaceSeq").GetByte(), a.DisplaceSeq); Assert.AreEqual(e.GetProperty("mobTypeCode").GetByte(),a.MobTypeCode); Assert.AreEqual(e.GetProperty("sig").GetByte(),a.Sig);
             }
         }
 
@@ -377,15 +377,20 @@ namespace Roguehalla.Net.Tests
             switch (name)
             {
                 case "empty": case "truncated_snapshot": case "self_truncated": case "actor_count_without_actors": want = DecodeError.Truncated; break;
-                case "hit_bad_passive": want = DecodeError.BadTag; break;
+                case "projectile_owner_flag": case "hit_bad_passive": want = DecodeError.BadTag; break;
+                case "projectile_kind": case "projectile_owner_zero":
+                case "potion_notice_zero": case "potion_notice_unknown":
+                case "camp_mob_type": case "camp_elite": case "camp_alive": case "camp_state": case "camp_negative_time": case "camp_nonfinite_time": case "camp_time_order":
+                case "actor_mob_type_over_30": case "delta_actor_mob_type_over_30":
+                case "chest_bad_reason_zero": case "chest_bad_reason_unknown":
                 case "pickup_bad_reason_zero": case "pickup_bad_reason_unknown": want = DecodeError.BadField; break;
                 case "unknown_tag": case "client_tag_from_server": case "fx_bad_tag": want = DecodeError.BadTag; break;
                 case "trailing_byte": case "state_trailing_byte": want = DecodeError.Trailing; break;
                 case "state_truncated": want = DecodeError.Truncated; break;
                 case "overlong_varint": case "varint_past_u32": case "varint_too_long": case "head_overlong_varint": case "actor_mask_overlong_varint":
-                case "delta_head_overlong_varint":
+                case "projectile_owner_overlong": case "delta_head_overlong_varint":
                     want = DecodeError.BadVarint; break;
-                case "state_too_many_keys": case "state_too_many_props": case "state_too_many_fields": case "state_too_many_rewards":
+                case "state_too_many_keys": case "state_too_many_props": case "state_too_many_fields": case "state_too_many_projectiles": case "state_too_many_camps": case "state_too_many_rewards":
                 case "too_many_actors": case "fx_too_many": want = DecodeError.TooMany; break;
                 case "head_self_bit_without_present_bit": case "head_unknown_bit": case "self_max_hp_over_u16": case "actor_reserved_mask_bit":
                 case "self_status_over_3": case "phase_over_3": case "actor_status_over_3": case "actor_unknown_mask_bit_after_kind":

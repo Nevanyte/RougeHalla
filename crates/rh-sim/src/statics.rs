@@ -56,6 +56,7 @@ pub struct Secrets {
     pub order_salt: u32,
     /// Seeds the spawn shuffle stream.
     pub spawn_seed: u32,
+    pub reward_salt: [u32; 4],
 }
 
 impl Secrets {
@@ -66,6 +67,9 @@ impl Secrets {
         Self {
             order_salt: crate::rng::hash_seed(lo, hi, 0x4f52_4452, 1),
             spawn_seed: crate::rng::hash_seed(lo, hi, 0x5350_574e, 2),
+            reward_salt: std::array::from_fn(|i| {
+                crate::rng::hash_seed(lo, hi, 0x5245_5744, i as u32)
+            }),
         }
     }
 }
@@ -124,6 +128,8 @@ impl FactionMode {
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct SimConfig {
+    #[serde(default)]
+    pub initial_loot: bool,
     pub min_players: usize,
     pub lobby_seconds: f64,
     pub fill_seconds: f64,
@@ -136,6 +142,8 @@ pub struct SimConfig {
     /// Other faction producers and installers remain pending. Recorded in replay identity.
     #[serde(default)]
     pub faction_mode: FactionMode,
+    #[serde(default)]
+    pub mob_mode: crate::mob_runtime::MobMode,
 }
 
 fn specials_enabled() -> bool {
@@ -145,12 +153,14 @@ fn specials_enabled() -> bool {
 impl Default for SimConfig {
     fn default() -> Self {
         Self {
+            initial_loot: false,
             min_players: 2,
             lobby_seconds: 30.0,
             fill_seconds: 5.0,
             pvp_rules: true,
             weapon_specials: true,
             faction_mode: FactionMode::Off,
+            mob_mode: crate::mob_runtime::MobMode::Off,
         }
     }
 }

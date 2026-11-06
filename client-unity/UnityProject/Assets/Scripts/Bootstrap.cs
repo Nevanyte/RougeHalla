@@ -1,4 +1,4 @@
-// NOT COMPILED in Stage 1 (no Unity). Builds the whole scene from code so the project needs no authored scene content: it runs
+// Builds the scene from code so the project needs no authored scene content: it runs
 // in any (even empty) scene. Query string in WebGL: ?server=wss://host/ws&profile=name&token=secret&hash=<u64>&faction=<0-4>
 using System;
 using UnityEngine;
@@ -43,7 +43,8 @@ namespace Roguehalla.Client
             camGo.tag = "MainCamera";
 
             var go = new GameObject("Match");
-            var arena = go.AddComponent<ArenaView>();
+            var arenaGo = new GameObject("Arena");
+            var arena = arenaGo.AddComponent<ArenaView>();
             var mc = go.AddComponent<MatchClient>();
             mc.Arena = arena;
             mc.Cam = cam;
@@ -51,7 +52,9 @@ namespace Roguehalla.Client
             mc.Profile = Query(s, "profile", "web" + UnityEngine.Random.Range(1000, 9999));
             mc.Token = Query(s, "token", Guid.NewGuid().ToString("N"));
             ulong hash; if (ulong.TryParse(Query(s, "hash", BakedContent.Hash.ToString(System.Globalization.CultureInfo.InvariantCulture)), out hash)) mc.ContentHash = hash;
-            int faction; if (int.TryParse(Query(s, "faction", "-1"), out faction)) mc.Faction = faction;
+            int faction; if (int.TryParse(Query(s, "faction", "4"), out faction)) mc.Faction = faction;
+            // Explicit profile keeps existing automated/browser links joining immediately. Ordinary visits show the menu.
+            mc.AutoJoin = Query(s, "auto", Query(s, "profile", "") != "" ? "1" : "0") == "1";
         }
     }
 }

@@ -364,13 +364,15 @@ pub enum ContainerKind {
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Container {
     pub id: u32,
     pub kind: ContainerKind,
     pub at: Vec2,
     pub opened: bool,
     /// First item at index zero, second if a body held both weapons.
-    pub items: [Option<WeaponItem>; 2],
+    pub items: Vec<crate::initial_world::Item>,
+    pub(crate) stat_offer: bool,
     pub(crate) born_tick: u32,
 }
 
@@ -391,8 +393,6 @@ pub struct Targeting {
 pub struct WeaponRt {
     pub targeting: Targeting,
     /// Carried items; an empty slot fights with fists.
-    /// Armor reduction folded after damage, used by the next tick's ledger.
-    pub armor_shred: f64,
     pub weapon0: Option<WeaponId>,
     pub weapon1: Option<WeaponId>,
     pub slot: u8,
@@ -413,7 +413,6 @@ impl Default for WeaponRt {
     fn default() -> Self {
         Self {
             targeting: Targeting::default(),
-            armor_shred: 0.0,
             weapon0: None,
             weapon1: None,
             slot: 0,
@@ -449,6 +448,11 @@ impl WeaponRt {
 /// player is borrowed at the same time. `status`, `down` and `resolved` are the run bookkeeping the settle owns.
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Player {
+    pub build: crate::cards::Build,
+    pub potion_small: u8,
+    pub(crate) healing_until: f64,
+    pub potions_healing: u8,
+    pub farm: crate::modifiers::Farm,
     pub core: FighterCore,
     pub seat: Seat,
     pub(crate) vision: crate::vision::VisionTrail,
@@ -490,6 +494,11 @@ impl Player {
         hp: f64,
     ) -> Self {
         Self {
+            build: Default::default(),
+            potion_small: 0,
+            healing_until: 0.,
+            potions_healing: 0,
+            farm: Default::default(),
             vision: Default::default(),
             bush: Default::default(),
             core: FighterCore {
@@ -511,7 +520,7 @@ impl Player {
                 weapon: WeaponRt::default(),
                 signature: Default::default(),
                 statuses: Default::default(),
-                attack_rate_wire: 1000.,
+                modifiers: Default::default(),
                 card_dot_crit: None,
                 motion: Motion::default(),
                 inputs: InputQueue::default(),
@@ -525,6 +534,7 @@ impl Player {
                 dropped_at: None,
             },
             credit: Credit {
+                mob_kills: 0,
                 sentence: 0,
                 kills: 0,
                 bot_kills: 0,
@@ -620,6 +630,7 @@ impl Projectile {
 /// [`crate::scratch::TickScratch`] instead.
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub(crate) struct World {
+    pub(crate) reward_chests: Vec<crate::reward_chests::Chest>,
     pub(crate) factions: crate::factions::FactionRuntime,
     pub(crate) abilities: Option<crate::status_runtime::AbilityRuntime>,
     pub(crate) tick: u32,
@@ -630,9 +641,14 @@ pub(crate) struct World {
     pub(crate) winner: Option<PlayerId>,
     /// In join order (legacy Map insertion order).
     pub(crate) players: Store<Player>,
+    pub(crate) mobs: Store<crate::mob_runtime::Mob>,
+    pub(crate) actor_history: Store<crate::mob_runtime::ActorProvenance>,
+    pub(crate) mob_runtime: Option<crate::mob_runtime::MobRuntime>,
     pub(crate) next_id: u32,
     pub(crate) projectiles: Vec<Projectile>,
     pub(crate) containers: Vec<Container>,
+    pub(crate) initial_birth_serial: u32,
+    pub(crate) potion_healing: Vec<crate::potions::Healing>,
     /// Legacy nextId: container and projectile prefixes share one ascending run-local serial.
     pub(crate) entity_counter: u32,
     pub(crate) item_counter: u64,
@@ -640,6 +656,7 @@ pub(crate) struct World {
     pub(crate) roster: Roster,
     pub(crate) joined: usize,
     pub(crate) spawn_rng: Mulberry32,
+    pub(crate) reward_rng: crate::private_rng::Sfc32,
     pub(crate) rt: ArenaRt,
     /// Events emitted between steps (a leave's result) wait here for the next step: part of a checkpoint and the hash.
     pub(crate) pending_events: Vec<Event>,
@@ -684,11 +701,23 @@ impl DeferredQueue {
 /// `Hx::pay_later` from a hook link); never push to `items` directly.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub(crate) struct PayQueue {
+    pub(crate) mob_wakes: Vec<(u32, PlayerId)>,
+    pub(crate) mob_deaths: Vec<crate::systems::mob_life::Award>,
+    pub(crate) mob_settled: Vec<PlayerId>,
+    pub(crate) median_feed: f64,
+    pub(crate) mob_feeds: Vec<f64>,
     pub(crate) collecting: bool,
     pub(crate) items: Vec<crate::systems::ledger::Payout>,
 }
 
 impl World {
+    pub(crate) fn known_actor(&self, id: PlayerId) -> bool {
+        self.actor_history.contains(id)
+    }
+    pub(crate) fn actor_origin(&self, id: PlayerId) -> Option<&crate::mob_runtime::ActorOrigin> {
+        self.actor_history.get(id).map(|row| &row.origin)
+    }
+
     pub(crate) fn next_entity_id(&mut self) -> u32 {
         self.entity_counter = self
             .entity_counter
@@ -697,6 +726,85 @@ impl World {
         self.entity_counter
     }
 
+    pub(crate) fn actor_label(&self, id: PlayerId) -> Option<std::sync::Arc<str>> {
+        self.roster
+            .label(id)
+            .cloned()
+            .or_else(|| match self.actor_origin(id) {
+                Some(crate::mob_runtime::ActorOrigin::Mob { mob_type, .. }) => {
+                    crate::mob_catalog::mob_type_by_id(mob_type.as_str())
+                        .map(|t| std::sync::Arc::from(t.name))
+                }
+                _ => None,
+            })
+    }
+    pub(crate) fn actor(&self, id: PlayerId) -> Option<&FighterCore> {
+        self.fighter_idx(id).map(|ix| self.core(ix))
+    }
+    pub(crate) fn base_sheet(&self, ix: FighterIx) -> crate::content::FactionSpec {
+        let p = self.core(ix);
+        let mut f = crate::content::faction(p.vitals.faction);
+        if let Some(m) = self.mobs.get(p.id) {
+            let ty = crate::mob_catalog::mob_type_by_id(m.mob_type.as_str()).expect("catalog type");
+            let k = if m.elite {
+                crate::constants::ELITE_K
+            } else {
+                crate::constants::MOB_K
+            };
+            f.hp = (f.hp * k)
+                * (crate::constants::MOB_HP_MULT
+                    * if m.elite {
+                        crate::constants::ELITE_HP_MULT
+                    } else {
+                        1.
+                    })
+                * ty.role_def().hp_mult;
+            f.hit = self.point_damage(ix, f.hit, false);
+        }
+        f
+    }
+    /// Source scaledFaction -> mobFaction -> mobTypeFaction -> pacedFaction order for point-damage params.
+    fn point_damage(&self, ix: FighterIx, raw: f64, execute: bool) -> f64 {
+        let Some(m) = self.mobs.get(self.core(ix).id) else {
+            return raw;
+        };
+        let ty = crate::mob_catalog::mob_type_by_id(m.mob_type.as_str()).expect("catalog type");
+        let k = if m.elite {
+            crate::constants::ELITE_K
+        } else {
+            crate::constants::MOB_K
+        };
+        let d = crate::constants::MOB_DMG_MULT
+            * if m.elite {
+                crate::constants::ELITE_DMG_MULT
+            } else {
+                1.
+            };
+        let zone = match ty.zone {
+            crate::FactionId::Plague => crate::constants::MOB_PLAGUE_DAMAGE,
+            crate::FactionId::Holy => crate::constants::MOB_HOLY_DAMAGE,
+            _ => 1.,
+        };
+        let reach = if m.elite {
+            1.
+        } else if matches!(
+            crate::content::weapon(ty.weapon).shape,
+            crate::content::Shape::Projectile { .. }
+        ) {
+            crate::constants::MOB_RANGED_DMG_MULT
+        } else {
+            crate::constants::MOB_MELEE_DMG_MULT
+        };
+        (((raw * k) * d) * if execute { k } else { 1. }) * (ty.role_def().dmg_mult * zone * reach)
+    }
+    pub(crate) fn signature_damage(&self, ix: FighterIx, raw: f64, execute: bool) -> f64 {
+        self.point_damage(ix, raw, execute) * crate::constants::DUEL_PACE
+    }
+    pub(crate) fn paced_sheet(&self, ix: FighterIx) -> crate::content::FactionSpec {
+        let mut f = self.base_sheet(ix);
+        f.hit *= crate::constants::DUEL_PACE;
+        f
+    }
     /// The slot of a present player (join order = id order): a binary search.
     pub(crate) fn idx(&self, id: PlayerId) -> Option<usize> {
         self.players.idx(id)
@@ -706,20 +814,23 @@ impl World {
         self.players.get(id)
     }
 
-    // The fighter list: every actor that fights, addressed by [`FighterIx`]. Players are all of it today (indices
-    // `0..players.len()`, join order); a mob store joins after them, and these accessors are the only place that knows
-    // which store an index belongs to, so the systems written against them do not change when it does.
+    // The fighter list is players in join order followed by mobs in insertion order.
+    // FighterIx must be reacquired after any structural store mutation.
 
     /// How many fighters there are (present, standing or not).
     #[inline]
     pub(crate) fn fighter_count(&self) -> usize {
-        self.players.len()
+        self.players.len() + self.mobs.len()
     }
 
     /// The index of the fighter with id `id`, if present.
     #[inline]
     pub(crate) fn fighter_idx(&self, id: PlayerId) -> Option<FighterIx> {
-        self.players.idx(id).map(FighterIx::of_slot)
+        self.players.idx(id).map(FighterIx::of_slot).or_else(|| {
+            self.mobs
+                .idx(id)
+                .map(|i| FighterIx::of_slot(self.players.len() + i))
+        })
     }
 
     /// Whether the fighter at `ix` is a seated player (the PvP rules, the order budget and the run's bookkeeping apply to
@@ -732,36 +843,59 @@ impl World {
     /// The core every fighter has.
     #[inline]
     pub(crate) fn core(&self, ix: FighterIx) -> &FighterCore {
-        &self.players[ix.slot()].core
+        if self.is_player(ix) {
+            &self.players[ix.slot()].core
+        } else {
+            &self.mobs[ix.slot() - self.players.len()].core
+        }
     }
 
     #[inline]
     pub(crate) fn core_mut(&mut self, ix: FighterIx) -> &mut FighterCore {
-        &mut self.players[ix.slot()].core
+        if self.is_player(ix) {
+            &mut self.players[ix.slot()].core
+        } else {
+            let slot = ix.slot() - self.players.len();
+            &mut self.mobs[slot].core
+        }
     }
 
     /// Whether the fighter at `ix` still stands in the run.
     #[inline]
     pub(crate) fn standing(&self, ix: FighterIx) -> bool {
-        self.players[ix.slot()].standing()
+        if self.is_player(ix) {
+            self.players[ix.slot()].standing()
+        } else {
+            self.mobs[ix.slot() - self.players.len()].status == Status::Alive
+        }
     }
 
     /// Whether the fighter at `ix` is alive (its status, not its settle state: a downed player not yet resolved is not).
     #[inline]
     pub(crate) fn alive(&self, ix: FighterIx) -> bool {
-        self.players[ix.slot()].status == Status::Alive
+        if self.is_player(ix) {
+            self.players[ix.slot()].status == Status::Alive
+        } else {
+            self.mobs[ix.slot() - self.players.len()].status == Status::Alive
+        }
     }
 
     /// Where a command for the fighter at `ix` is queued and the order budget it spends: a player's seat budget; an actor
     /// that is not a seat (a mob) has none (legacy rate-limits at the network edge, not in the sim).
     #[inline]
     pub(crate) fn intake(&mut self, ix: FighterIx) -> (&mut InputQueue, Option<&mut OrderBudget>) {
-        let p = &mut self.players[ix.slot()];
-        (&mut p.core.inputs, Some(&mut p.seat.budget))
+        if self.is_player(ix) {
+            let p = &mut self.players[ix.slot()];
+            (&mut p.core.inputs, Some(&mut p.seat.budget))
+        } else {
+            let slot = ix.slot() - self.players.len();
+            (&mut self.mobs[slot].core.inputs, None)
+        }
     }
 
     pub(crate) fn new(secrets: &Secrets) -> Self {
         Self {
+            reward_chests: Vec::new(),
             factions: Default::default(),
             abilities: None,
             tick: 0,
@@ -771,14 +905,20 @@ impl World {
             raid_started_at: 0.0,
             winner: None,
             players: Store::new(),
+            mobs: Store::new(),
+            actor_history: Store::new(),
+            mob_runtime: None,
             next_id: 1,
             containers: Vec::with_capacity(4 * MAX_PLAYERS),
+            initial_birth_serial: 0,
+            potion_healing: Vec::with_capacity(MAX_PLAYERS),
             projectiles: Vec::new(),
             entity_counter: 0,
             item_counter: 0,
             roster: Roster::default(),
             joined: 0,
             spawn_rng: Mulberry32::new(secrets.spawn_seed),
+            reward_rng: crate::private_rng::Sfc32::from_words(secrets.reward_salt),
             rt: ArenaRt::default(),
             pending_events: Vec::new(),
             deferred: DeferredQueue::default(),

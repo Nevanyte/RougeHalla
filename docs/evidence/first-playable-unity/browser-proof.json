@@ -1,0 +1,694 @@
+{
+  "timestamp": "2026-11-06T07:27:58.883Z",
+  "url": "http://127.0.0.1:8087/?server=ws%3A%2F%2F127.0.0.1%3A7787%2Fws",
+  "checks": {
+    "menuNoSocketBeforeJoin": {
+      "status": "pass",
+      "socketCount": 0
+    },
+    "menuJoin": {
+      "status": "pass",
+      "hello": {
+        "protocol": 6,
+        "profile": "unityUImw4nk3vm",
+        "faction": 4,
+        "resumed": false,
+        "at": 1793950085739
+      },
+      "welcome": {
+        "player": 1,
+        "protocol": 6,
+        "map": {
+          "width": 48,
+          "height": 40,
+          "hash": 477571931,
+          "hex": "1c772b5b",
+          "exactCollisionGrid": true
+        },
+        "at": 1793950085743
+      }
+    },
+    "mapAndCollections": {
+      "status": "pass",
+      "keys": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "inventory": {
+        "activeSlot": 0,
+        "slots": [
+          null,
+          null
+        ],
+        "potionSmall": 0,
+        "potionsHealing": 0
+      },
+      "props": {
+        "rows": [],
+        "focus": null
+      },
+      "camps": [
+        {
+          "mobType": 2,
+          "elite": 0,
+          "alive": 1,
+          "state": 0,
+          "clearedAt": 0,
+          "respawnAt": 0
+        },
+        {
+          "mobType": 13,
+          "elite": 0,
+          "alive": 1,
+          "state": 0,
+          "clearedAt": 0,
+          "respawnAt": 0
+        },
+        {
+          "mobType": 27,
+          "elite": 29,
+          "alive": 2,
+          "state": 0,
+          "clearedAt": 0,
+          "respawnAt": 0
+        }
+      ],
+      "snapshot": {
+        "tick": 1,
+        "phase": 0,
+        "me": {
+          "id": 1,
+          "faction": 4,
+          "x": 240,
+          "y": 176,
+          "facing": 0,
+          "hp": 1145,
+          "maxHp": 1145,
+          "status": 0,
+          "weapon": 5,
+          "readyIn": 0,
+          "kills": 0,
+          "bounty": 0,
+          "gv": 0,
+          "moveSeq": 0,
+          "effects": 0,
+          "displaceSeq": 0,
+          "sig": 0
+        },
+        "actors": 0,
+        "visibleMobs": 0
+      }
+    },
+    "focusedPickupInput": {
+      "status": "pass",
+      "before": {
+        "inventory": {
+          "activeSlot": 0,
+          "slots": [
+            null,
+            null
+          ],
+          "potionSmall": 0,
+          "potionsHealing": 0
+        },
+        "props": {
+          "rows": [
+            {
+              "handle": 1,
+              "x": 1920,
+              "y": 1664,
+              "kind": 2,
+              "open": false
+            },
+            {
+              "handle": 2,
+              "x": 1920,
+              "y": 4736,
+              "kind": 1,
+              "weapon": 4
+            },
+            {
+              "handle": 3,
+              "x": 1920,
+              "y": 5504,
+              "kind": 2,
+              "open": false
+            },
+            {
+              "handle": 4,
+              "x": 2176,
+              "y": 5504,
+              "kind": 1,
+              "weapon": 4
+            },
+            {
+              "handle": 5,
+              "x": 3456,
+              "y": 1664,
+              "kind": 2,
+              "open": false
+            },
+            {
+              "handle": 6,
+              "x": 8320,
+              "y": 1408,
+              "kind": 1,
+              "weapon": 3
+            },
+            {
+              "handle": 7,
+              "x": 8576,
+              "y": 1664,
+              "kind": 1,
+              "weapon": 3
+            },
+            {
+              "handle": 8,
+              "x": 8832,
+              "y": 1664,
+              "kind": 2,
+              "open": false
+            },
+            {
+              "handle": 9,
+              "x": 9344,
+              "y": 1408,
+              "kind": 1,
+              "weapon": 1
+            },
+            {
+              "handle": 10,
+              "x": 10368,
+              "y": 1664,
+              "kind": 2,
+              "open": false
+            }
+          ],
+          "focus": {
+            "handle": 5,
+            "bodyHint": null
+          }
+        }
+      },
+      "after": {
+        "inventory": {
+          "activeSlot": 0,
+          "slots": [
+            null,
+            null
+          ],
+          "potionSmall": 1,
+          "potionsHealing": 0
+        },
+        "props": {
+          "rows": [
+            {
+              "handle": 11,
+              "x": 1920,
+              "y": 1664,
+              "kind": 2,
+              "open": false
+            },
+            {
+              "handle": 12,
+              "x": 1920,
+              "y": 4736,
+              "kind": 1,
+              "weapon": 4
+            },
+            {
+              "handle": 13,
+              "x": 1920,
+              "y": 5504,
+              "kind": 2,
+              "open": false
+            },
+            {
+              "handle": 14,
+              "x": 2176,
+              "y": 5504,
+              "kind": 1,
+              "weapon": 4
+            },
+            {
+              "handle": 15,
+              "x": 3456,
+              "y": 1664,
+              "kind": 2,
+              "open": true
+            },
+            {
+              "handle": 16,
+              "x": 8320,
+              "y": 1408,
+              "kind": 1,
+              "weapon": 3
+            },
+            {
+              "handle": 17,
+              "x": 8576,
+              "y": 1664,
+              "kind": 1,
+              "weapon": 3
+            },
+            {
+              "handle": 18,
+              "x": 8832,
+              "y": 1664,
+              "kind": 2,
+              "open": false
+            },
+            {
+              "handle": 19,
+              "x": 9344,
+              "y": 1408,
+              "kind": 1,
+              "weapon": 1
+            },
+            {
+              "handle": 20,
+              "x": 10368,
+              "y": 1664,
+              "kind": 2,
+              "open": false
+            }
+          ],
+          "focus": null
+        }
+      },
+      "sent": [
+        {
+          "k": "pickup",
+          "handle": 5,
+          "inputSeq": 93,
+          "at": 1793950088909
+        }
+      ],
+      "response": [
+        {
+          "k": "potionNotice",
+          "notice": 1,
+          "tick": 64,
+          "at": 1793950088944
+        }
+      ],
+      "stateChanged": true
+    },
+    "pickupOutcome": {
+      "status": "changed",
+      "note": "Only server-observed changes/refusals are recorded; no acquisition inferred."
+    },
+    "rewardChoice": {
+      "status": "pass",
+      "issuedChest": {
+        "handle": 2,
+        "x": 3456,
+        "y": 1664,
+        "expiresAt": 18200,
+        "options": [
+          {
+            "kind": 2,
+            "id": 0,
+            "taken": false,
+            "takenBy": null
+          },
+          {
+            "kind": 2,
+            "id": 1,
+            "taken": false,
+            "takenBy": null
+          },
+          {
+            "kind": 2,
+            "id": 2,
+            "taken": false,
+            "takenBy": null
+          }
+        ],
+        "picked": false,
+        "canChoose": true
+      },
+      "pick": 0,
+      "before": {
+        "cards": [
+          0,
+          0,
+          0
+        ],
+        "boosts": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "after": {
+        "cards": [
+          0,
+          0,
+          0
+        ],
+        "boosts": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "sent": [
+        {
+          "k": "choose",
+          "handle": 2,
+          "pick": 0,
+          "inputSeq": 120,
+          "at": 1793950089842
+        }
+      ]
+    },
+    "potionInputAndNotice": {
+      "status": "pass",
+      "before": {
+        "tick": 85,
+        "phase": 1,
+        "me": {
+          "id": 1,
+          "faction": 4,
+          "x": 432,
+          "y": 176,
+          "facing": 3.133120059967041,
+          "hp": 1125.8555908203125,
+          "maxHp": 1145,
+          "status": 1,
+          "weapon": 5,
+          "readyIn": 0,
+          "kills": 0,
+          "bounty": 0,
+          "gv": 0,
+          "moveSeq": 0,
+          "effects": 0,
+          "displaceSeq": 0,
+          "sig": 0
+        },
+        "actors": 4,
+        "visibleMobs": 2
+      },
+      "after": {
+        "tick": 87,
+        "phase": 1,
+        "me": {
+          "id": 1,
+          "faction": 4,
+          "x": 432,
+          "y": 176,
+          "facing": 3.133120059967041,
+          "hp": 1106.7110595703125,
+          "maxHp": 1145,
+          "status": 1,
+          "weapon": 5,
+          "readyIn": 0,
+          "kills": 0,
+          "bounty": 0,
+          "gv": 0,
+          "moveSeq": 0,
+          "effects": 0,
+          "displaceSeq": 0,
+          "sig": 0
+        },
+        "actors": 4,
+        "visibleMobs": 2
+      },
+      "notices": [
+        {
+          "k": "potionNotice",
+          "notice": 3,
+          "tick": 87,
+          "at": 1793950090092
+        }
+      ]
+    },
+    "hudBlocksWorldClick": {
+      "status": "pass",
+      "unintended": []
+    },
+    "worldAttackClick": {
+      "status": "pass",
+      "sent": [
+        {
+          "k": "attack",
+          "a": 3.133120059967041,
+          "t": 4831.000000000002,
+          "inputSeq": 126,
+          "at": 1793950090673
+        },
+        {
+          "k": "release",
+          "a": 3.133120059967041,
+          "t": 4882,
+          "inputSeq": 128,
+          "at": 1793950090725
+        }
+      ]
+    },
+    "swapInput": {
+      "status": "pass",
+      "before": {
+        "activeSlot": 0,
+        "slots": [
+          null,
+          null
+        ],
+        "potionSmall": 0,
+        "potionsHealing": 1
+      },
+      "after": {
+        "activeSlot": 0,
+        "slots": [
+          null,
+          null
+        ],
+        "potionSmall": 0,
+        "potionsHealing": 1
+      }
+    },
+    "movement": {
+      "status": "pass",
+      "before": {
+        "tick": 116,
+        "phase": 1,
+        "me": {
+          "id": 1,
+          "faction": 4,
+          "x": 432,
+          "y": 176,
+          "facing": 3.133120059967041,
+          "hp": 1108.203369140625,
+          "maxHp": 1145,
+          "status": 1,
+          "weapon": 5,
+          "readyIn": 0,
+          "kills": 0,
+          "bounty": 0,
+          "gv": 0,
+          "moveSeq": 0,
+          "effects": 0,
+          "displaceSeq": 0,
+          "sig": 0
+        },
+        "actors": 4,
+        "visibleMobs": 2
+      },
+      "after": {
+        "tick": 143,
+        "phase": 1,
+        "me": {
+          "id": 1,
+          "faction": 4,
+          "x": 542.5,
+          "y": 176,
+          "facing": 3.133120059967041,
+          "hp": 1135.3360595703125,
+          "maxHp": 1145,
+          "status": 1,
+          "weapon": 5,
+          "readyIn": 0,
+          "kills": 0,
+          "bounty": 0,
+          "gv": 0,
+          "moveSeq": 8,
+          "effects": 0,
+          "displaceSeq": 0,
+          "sig": 0
+        },
+        "actors": 4,
+        "visibleMobs": 2
+      },
+      "sent": [
+        {
+          "k": "move",
+          "x": 496,
+          "y": 176,
+          "seq": 1,
+          "inputSeq": 155,
+          "at": 1793950091608
+        },
+        {
+          "k": "move",
+          "x": 504.5,
+          "y": 176,
+          "seq": 2,
+          "inputSeq": 159,
+          "at": 1793950091710
+        },
+        {
+          "k": "move",
+          "x": 530,
+          "y": 176,
+          "seq": 3,
+          "inputSeq": 163,
+          "at": 1793950091826
+        },
+        {
+          "k": "move",
+          "x": 547,
+          "y": 176,
+          "seq": 4,
+          "inputSeq": 166,
+          "at": 1793950091926
+        },
+        {
+          "k": "move",
+          "x": 564,
+          "y": 176,
+          "seq": 5,
+          "inputSeq": 169,
+          "at": 1793950092026
+        },
+        {
+          "k": "move",
+          "x": 581,
+          "y": 176,
+          "seq": 6,
+          "inputSeq": 173,
+          "at": 1793950092143
+        },
+        {
+          "k": "move",
+          "x": 598,
+          "y": 176,
+          "seq": 7,
+          "inputSeq": 177,
+          "at": 1793950092242
+        }
+      ]
+    },
+    "reconnect": {
+      "status": "pass",
+      "welcomeBefore": 1,
+      "welcomeAfter": 2,
+      "latestHello": {
+        "protocol": 6,
+        "profile": "unityUImw4nk3vm",
+        "faction": 4,
+        "resumed": true,
+        "at": 1793950093486
+      },
+      "latestWelcome": {
+        "player": 1,
+        "protocol": 6,
+        "map": {
+          "width": 48,
+          "height": 40,
+          "hash": 477571931,
+          "hex": "1c772b5b",
+          "exactCollisionGrid": true
+        },
+        "at": 1793950093490
+      },
+      "after": {
+        "tick": 156,
+        "phase": 1,
+        "me": {
+          "id": 1,
+          "faction": 4,
+          "x": 542.5,
+          "y": 176,
+          "facing": 3.133120059967041,
+          "hp": 1125.6722412109375,
+          "maxHp": 1145,
+          "status": 1,
+          "weapon": 5,
+          "readyIn": 0,
+          "kills": 0,
+          "bounty": 0,
+          "gv": 0,
+          "moveSeq": 8,
+          "effects": 0,
+          "displaceSeq": 0,
+          "sig": 0
+        },
+        "actors": 4,
+        "visibleMobs": 2
+      }
+    },
+    "results": {
+      "status": "pass",
+      "result": {
+        "k": "result",
+        "outcome": 2,
+        "place": 4,
+        "players": 4,
+        "kills": 0,
+        "killedBy": "bot1",
+        "gvTotal": 0,
+        "gvWin": 0,
+        "durationSec": 15,
+        "withheld": false,
+        "tick": 359,
+        "at": 1793950103693
+      }
+    },
+    "leaveAndRejoin": {
+      "status": "pass",
+      "latestHello": {
+        "protocol": 6,
+        "profile": "unityUImw4nk3vm",
+        "faction": 4,
+        "resumed": false,
+        "at": 1793950104771
+      },
+      "latestWelcome": {
+        "player": 1,
+        "protocol": 6,
+        "map": {
+          "width": 48,
+          "height": 40,
+          "hash": 477571931,
+          "hex": "1c772b5b",
+          "exactCollisionGrid": true
+        },
+        "at": 1793950104775
+      }
+    },
+    "visibleMobs": {
+      "status": "pass",
+      "maximumDeliveredVisibleMobs": 2
+    }
+  },
+  "failures": [],
+  "ok": true,
+  "raw_report_sha256": "6819aec730a41b761a5d712ec97d97c80fafa2a5a0d469a4c1d294981878eb6e",
+  "script_sha256": "bf03dd5a3f25cef48a88919a1eced3a360e50e6247677a341f2133cf5ca88ead"
+}

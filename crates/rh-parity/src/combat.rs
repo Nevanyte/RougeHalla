@@ -49,11 +49,11 @@ pub(super) fn id36(mut n: u32) -> String {
 fn containers(sim: &Sim) -> Vec<Value> {
     sim.containers().iter().map(|c| {
         let (kind,label)=match c.kind {
-            ContainerKind::Ground => ("ground",format!("{:?}",c.items[0].unwrap().weapon)),
+            ContainerKind::Ground => ("ground",match c.items[0].def {rh_sim::initial_world::ItemDef::Weapon(w)=>format!("{w:?}"), _=>unreachable!("ground loot is a weapon")}),
             ContainerKind::Chest => ("chest","Chest".to_string()),
             ContainerKind::Body(id) => ("body",sim.player_name(id).unwrap().to_string()),
         };
-        let items=c.items.iter().flatten().map(|i|json!({"def":i.weapon.as_str(),"uid":i.uid.to_string()})).collect::<Vec<_>>();
+        let items=c.items.iter().map(|i|json!({"def":i.def.as_str(),"uid":i.uid.to_string()})).collect::<Vec<_>>();
         // The shared legacy schema also supplies neutral fields for other container kinds
         // (cannons, reward chests and trophies). Assert every one on ordinary weapon loot.
         json!({"id":id36(c.id),"kind":kind,"label":label,"x":c.at.x,"y":c.at.y,"opened":c.opened,"items":items,
@@ -85,7 +85,7 @@ fn weapons(sim: &Sim) -> Vec<Value> {
         let action=w.action.map(|a| json!({"kind":match a.kind {
             rh_sim::state::ActionKind::Swing => "swing", rh_sim::state::ActionKind::Cast => "cast", rh_sim::state::ActionKind::Draw => "draw",
         },"weapon":a.weapon.as_str(),"a":a.a,"landsAt":a.lands_at}));
-        let armor_bonus = -w.armor_shred;
+        let armor_bonus = p.modifiers.mirrors().armor_bonus;
         json!({"id":fid(p.id),"weapon0":w.weapon0.map_or("", WeaponId::as_str),"weapon1":w.weapon1.map_or("", WeaponId::as_str),
             "slot":w.slot,"drawStartedAt":w.draw_started_at,"staggerImmuneUntil":w.stagger_immune_until,"armorBonus":armor_bonus,"action":action})
     }).collect()

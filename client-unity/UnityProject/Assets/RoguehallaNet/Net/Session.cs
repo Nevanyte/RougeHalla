@@ -51,6 +51,7 @@ namespace Roguehalla.Net
         int _attempt;
         double _nextAttemptAt, _lastPing = double.NegativeInfinity;
         bool _attemptInFlight;
+        bool _leaveSent;
         // Snapshots arrive as Full frames and deltas (protocol v3): the tracker holds the last one applied. After a refused delta
         // the session asks for a Full snapshot once and ignores deltas (they all name a base it does not hold) until one arrives;
         // it asks again only if the answer is ResyncRetryMs late.
@@ -126,6 +127,7 @@ namespace Roguehalla.Net
 
         public void Connect()
         {
+            _leaveSent = false;
             Set(SessionState.Connecting);
             _t.Connect(_o.Url);
         }
@@ -145,7 +147,12 @@ namespace Roguehalla.Net
 
         public void Leave()
         {
-            if (State == SessionState.InMatch) Send(new ClientMsg.Leave());
+            // MatchEnded ends play while the socket can still own its resolved seat.
+            if (!_leaveSent && (State == SessionState.InMatch || State == SessionState.Ended && Welcome != null))
+            {
+                Send(new ClientMsg.Leave());
+                _leaveSent = true;
+            }
             Set(SessionState.Ended);
             _t.Close();
         }

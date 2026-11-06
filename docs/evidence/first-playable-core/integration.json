@@ -1,0 +1,146 @@
+{
+  "date": "2026-11-06",
+  "branch": "optimization_port",
+  "base": "b6a79ad43c81a513f238a18f951fc0cf56a2c54a",
+  "content_hash": "74192c062ab9eac1",
+  "formats": {
+    "checkpoint": 16,
+    "replay": 14,
+    "observation": 13,
+    "policy": 10,
+    "wire": 6
+  },
+  "rust": {
+    "passed": 1304,
+    "ignored": 2,
+    "coverage": "All workspace unit/integration targets with all features. rh-sim was split from the remaining workspace to avoid repeating long map tests. Its 399 unchanged unit tests passed; the repaired stale-counter control then passed. All 37 integration targets passed across recorded focused batches. Three rh-sim compile-fail documentation tests also pass.",
+    "clippy_all_features": true,
+    "clippy_default_features": true
+  },
+  "client": {
+    "csharp_tests": 267,
+    "js_golden_assertions": 15377,
+    "js_focused_assertions": 61
+  },
+  "headless": {
+    "map_full_identity": "0252d18b",
+    "normal_terminal_tick": 688,
+    "simulated_seconds": 34.4,
+    "seats": 6,
+    "policy_faults": 0,
+    "replay_equal": true,
+    "terminal_checkpoint_restores": true,
+    "mob_kills": 3,
+    "camp_clears": 2,
+    "boost_choices": 3,
+    "potion_pickups": 7,
+    "potion_uses": 7,
+    "healing_payment_observations": 52,
+    "final_state_hash_private_synthetic": "8ed7fd3004c689d5",
+    "augment_in_terminal_run": false,
+    "separate_truncated_run_augment": "Siphon"
+  },
+  "hash_audit": {
+    "leaves": 44428,
+    "hash_changing_edits": 29764,
+    "unhashed": 0,
+    "actual_some_patterns": 37,
+    "restore_validated_optional_patterns": 30
+  },
+  "wss_browser_proof": "PASS all15 checks including all7 State keys, input, resync, resume and results",
+  "cloud": "CLI identity verified for new staging account; Calgary region enabled. No cloud resources or DNS writes made at this native/UI checkpoint. GameLift access refuses subscription; bounded temporary single-host staging is being prepared.",
+  "proposals": [
+    {
+      "proposal": "cards-mvp-work/final-v1",
+      "manifest_sha256": "207abfc234c98c6b0ab759fbbebe3732716caa289c38cedbf62e0424e90b9235"
+    },
+    {
+      "proposal": "initial-world-work",
+      "manifest_sha256": "8b13da9ca3fe08de2c9f578f2e58f997c973a832b60cc262d818e8ce77aad0a1"
+    },
+    {
+      "proposal": "mob-pve-candidate-v1",
+      "manifest_sha256": "92b3937c9d2558b569df68cc64918b0771174eeef76f9e269d8468507ddc0152"
+    },
+    {
+      "proposal": "initial-loot-runtime-work/freeze-v1",
+      "manifest_sha256": "d924a01edb7f6ca40fcb7402c2ae35ba1b33e2d39220a65ff0115fd96a39d08c"
+    },
+    {
+      "proposal": "mob-dot-work/freeze-v1",
+      "manifest_sha256": "cefee960bb8b9f4d002b7cbf29db919e2f7d177b42bcb6e487902a0fd9bdd9f1"
+    },
+    {
+      "proposal": "mob-presentation-v1",
+      "manifest_sha256": "fde5858b638b06e364a2e712f79ece3f3f28e5311450c7ea690245c8c52fd252"
+    },
+    {
+      "proposal": "projectile-view-v1",
+      "manifest_sha256": "ea6241493a6f2de3704ab5434ea372975d7f3b966a5c2840a8a4ed135a5905bb"
+    },
+    {
+      "proposal": "protocol-mvp-native-work/freeze-v1",
+      "manifest_sha256": "737434197f99b560039dd4a78a2488ca801e4c0dfd4cd0eb10608c011036a2a6"
+    },
+    {
+      "proposal": "protocol-mvp-mirror-work/freeze-v1",
+      "manifest_sha256": "578508cfad21491838c442e6b6050b5fbaf76690cf009412860347f74bb0a4a9"
+    },
+    {
+      "proposal": "server-mvp-adapter-work/freeze-v1",
+      "manifest_sha256": "0a609130aabf59892ff262cb1771619d3b76d2a35e82bb3e1b67a828e20df962"
+    },
+    {
+      "proposal": "first-playable-adoption-work/freeze-v1",
+      "manifest_sha256": "2dbfb1b7fe2bd7c6471508f48f1d9a625bc24610f7ce049357d840dc26fab410"
+    }
+  ],
+  "private_log_hashes": [
+    {
+      "log": "protocol6-integration/combined-workspace-tests.log",
+      "sha256": "fe4c8b6768ac30afe7f329fb46e5cd5fd502933a09a7e6379918167633756b7a"
+    },
+    {
+      "log": "protocol6-integration/combined-sim-tests.log",
+      "sha256": "2dc7a5ccccd373c58b165ff1335c1a90addeccef74e62e81342ce7ce690243d1"
+    },
+    {
+      "log": "protocol6-integration/combined-checkpoint-control.log",
+      "sha256": "22f86999d8820d4de0d18d546fa1f433a8c504a5c7e545099470c9980bcc8054"
+    },
+    {
+      "log": "protocol6-integration/combined-sim-integration.log",
+      "sha256": "9081c4665424e8b60ee237fabad4465df5018b4d8c754ae1c0ac2799451cd13b"
+    },
+    {
+      "log": "hash-coverage-mobs.log",
+      "sha256": "70c71eddc822c0427ea64e5c1425dff6ad699a77236d44d0e3a9f40f4f68ba53"
+    },
+    {
+      "log": "protocol6-integration/combined-sim-remaining.log",
+      "sha256": "928aa59587137d83d85b7bf3e6aaf89f1b9986fc68282a837f96584c91404d93"
+    },
+    {
+      "log": "protocol6-integration/combined-clippy-all.log",
+      "sha256": "9a5a8f8dd63aa441b0781bc9dee9a1232fbd99608b11eb55786f237055f99242"
+    },
+    {
+      "log": "protocol6-integration/combined-clippy-default.log",
+      "sha256": "77cb1ea02daca5a765a9df8c6bedb0da25b3c7ae491e30d922b96a7e7ef7587c"
+    },
+    {
+      "log": "unity-mvp/session-leave-tests.log",
+      "sha256": "27bdc14661ace9d5a808109f020814e0cdc1e0cb3c8239a761a29ced15814f5c"
+    }
+  ],
+  "canonical_capture_checks": {
+    "image": "node:22.23.4-bookworm-slim@sha256:aaa4b5baf1ecff3b283486bb1f90405cdda225a3e6f79660d2c559fa510a7292",
+    "platform": "linux/amd64",
+    "cards_cases": 20,
+    "initial_world_cases": 6,
+    "initial_loot_potion_cases": 4,
+    "pve_cases": 2,
+    "unchanged_source_and_expected_bytes": true,
+    "ci": "Four portable wrappers wired into Rust workflow; required exact spawn source corpus retained."
+  }
+}

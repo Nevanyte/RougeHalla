@@ -8,7 +8,7 @@ use crate::input::Command;
 use crate::sim::{Arena, Event, Placement, PlayerId, Secrets, Sim, SimConfig};
 
 /// Version 12 includes private singleton Mark progress and persistent sentence stacks. [`run_replay`] refuses other formats.
-pub const REPLAY_FORMAT: &str = "rh-replay/13";
+pub const REPLAY_FORMAT: &str = "rh-replay/14";
 
 /// Identity of the code this binary was built from: the `RH_BUILD` environment variable at compile time (a release build is meant to set
 /// it to the commit id; nothing in the repo does yet, so every dev build reads the same), else `dev-<crate version>`. It is a compile-time constant, so reading it keeps
@@ -120,10 +120,18 @@ impl Recorder {
             pending: sim
                 .containers()
                 .iter()
+                .filter(|c| c.id > sim.w.initial_birth_serial)
                 .map(|c| ReplayInput::WeaponRack {
                     kind: c.kind,
                     at: c.at,
-                    weapons: c.items.iter().flatten().map(|i| i.weapon).collect(),
+                    weapons: c
+                        .items
+                        .iter()
+                        .filter_map(|i| match i.def {
+                            crate::initial_world::ItemDef::Weapon(w) => Some(w),
+                            crate::initial_world::ItemDef::PotionSmall => None,
+                        })
+                        .collect(),
                 })
                 .collect(),
         }

@@ -22,7 +22,9 @@ namespace Roguehalla.Net.Tests
                 new RewardChestsState {Rows=new [] {new WireRewardChest {Handle=new RewardChestHandle(uint.MaxValue),X=100,Y=200,ExpiresAt=15000,Options=new [] {
                     new WireRewardOption{Kind=1,Id=0,Taken=false,TakenBy=null},new WireRewardOption{Kind=2,Id=7,Taken=true,TakenBy=1}
                 },Picked=false,CanChoose=true}}},
-                new BuildState {Value=new WireBuild {Cards=new byte[]{1,0,1},Boosts=new byte[]{0,1,2,3,0,1,2,3}}}
+                new BuildState {Value=new WireBuild {Cards=new byte[]{1,0,1},Boosts=new byte[]{0,1,2,3,0,1,2,3}}},
+                new CampsState {Rows=new[]{new WireCamp{MobType=0,Elite=30,Alive=0,State=2,ClearedAt=1000,RespawnAt=181000}}},
+                new ProjectilesState {Rows=new[]{new WireProjectile{Kind=0,X=800,Y=900,Facing=12345,Owner=1},new WireProjectile{Kind=0,X=800,Y=900,Facing=12345,Owner=1}}}
             }};
         }
         static ServerMsg.Welcome Welcome()
@@ -56,7 +58,7 @@ namespace Roguehalla.Net.Tests
             var t=new FakeTransport();double now=0;
             var s=new Session(t,new SessionOptions{Url="ws://x/ws",Profile="p",Ticket=new byte[0],Now=()=>now});
             s.Connect();t.Open();t.Deliver(Welcome());t.Deliver(Full(10));
-            Assert.IsTrue(s.Collections.HasFullState);Assert.AreEqual(3,s.Collections.Props.Count);
+            Assert.IsTrue(s.Collections.HasFullState);Assert.AreEqual(MobTypeId.Archon,s.Collections.Camps[0].Elite);Assert.AreEqual(3,s.Collections.Props.Count);Assert.AreEqual(2,s.Collections.Projectiles.Count);
             Assert.AreEqual(new PickupHandle(3),s.Collections.Focus.Value.Handle);
             t.Deliver(new ServerMsg.Snapshot{Tick=100,Phase=1});
             t.Deliver(new ServerMsg.State{Tick=11,Items=new StateItem[]{new InventoryState{Value=null}}});
@@ -65,7 +67,7 @@ namespace Roguehalla.Net.Tests
             t.Deliver(new ServerMsg.State{Tick=12,Items=new StateItem[]{new PropsState()}});
             Assert.AreEqual(0,s.Collections.Props.Count);Assert.IsNull(s.Collections.Focus);
             t.Drop();now=1000;s.Update();t.Open();t.Deliver(Welcome());
-            Assert.IsFalse(s.Collections.HasFullState);Assert.IsNull(s.Collections.Inventory);Assert.AreEqual(0,s.Collections.RewardChests.Count);Assert.IsFalse(s.Collections.HasBuild);
+            Assert.IsFalse(s.Collections.HasFullState);Assert.AreEqual(0,s.Collections.Camps.Count);Assert.AreEqual(0,s.Collections.Projectiles.Count);Assert.IsNull(s.Collections.Inventory);Assert.AreEqual(0,s.Collections.RewardChests.Count);Assert.IsFalse(s.Collections.HasBuild);
         }
 
         [Test]

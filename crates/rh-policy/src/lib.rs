@@ -29,7 +29,7 @@ use std::time::{Duration, Instant};
 /// Version 5 feeds temporally eligible signature effects every tick, independently of decision cadence.
 /// Version 6 adds Fire Burn and canonically merged, report-local Backlash effects.
 /// Version 7 adds player Frost chilled bits and the resulting attack/movement clocks.
-pub const POLICY_CONTRACT_VERSION: u16 = 9;
+pub const POLICY_CONTRACT_VERSION: u16 = 10;
 
 /// Everything a policy may know about a match before its first observation, all of it public static data (the map
 /// and spawn points), never match state. Never a [`rh_sim::Secrets`] value and never the sim itself (C-OBS, C-RNG, C-POLICY).
@@ -351,28 +351,22 @@ fn drive_inner(
         let mut cmds = std::mem::take(&mut seat.cmds);
         if let Err(err) = seat
             .observer
-            .observe_into(sim, &[], &mut obs, sight.as_deref_mut())
+            .prepare_with_seen(sim, &[], &seat.pending, &mut obs, sight.as_deref_mut())
+            .map(|offer| offer.commit())
         {
             seat.fault = Some(Fault::ItemObservation(err));
             seat.obs = obs;
             seat.cmds = cmds;
             continue;
         }
-        prepend_pending(&mut seat.pending, &mut obs);
+        seat.pending.clear();
+        let over = obs.events.len().saturating_sub(MAX_PENDING_EVENTS);
+        obs.events.drain(..over);
         cmds.clear();
         seat.decide_into(&obs, &mut cmds);
         submit_all(sim, &seat.observer, &cmds, &mut seat.stats, &mut submitted);
         seat.obs = obs;
         seat.cmds = cmds;
-    }
-}
-
-fn prepend_pending(pending: &mut Vec<SeenEvent>, obs: &mut Observation) {
-    if !pending.is_empty() {
-        pending.append(&mut obs.events);
-        std::mem::swap(pending, &mut obs.events);
-        let over = obs.events.len().saturating_sub(MAX_PENDING_EVENTS);
-        obs.events.drain(..over);
     }
 }
 
@@ -554,8 +548,12 @@ impl AsyncSeat {
         let fallback = expired.is_some() || panicked;
         let due = tick >= self.next_tick && self.pending.is_none();
         if due || fallback {
-            let offer = self.observer.prepare_into(sim, &[], &mut self.obs, None)?;
-            prepend_pending(&mut self.seen, &mut self.obs);
+            let offer =
+                self.observer
+                    .prepare_with_seen(sim, &[], &self.seen, &mut self.obs, None)?;
+            self.seen.clear();
+            let over = self.obs.events.len().saturating_sub(MAX_PENDING_EVENTS);
+            self.obs.events.drain(..over);
             if due {
                 self.stats.decisions += 1;
                 self.next_tick = tick.saturating_add(self.interval);
@@ -1266,8 +1264,8 @@ mod frost_tests {
         assert!(seen
             .iter()
             .any(|o| o.me.as_ref().is_some_and(|p| p.sig & 1 != 0)));
-        assert!(seen.iter().all(|o| o.version == 12));
-        assert_eq!(POLICY_CONTRACT_VERSION, 9);
+        assert!(seen.iter().all(|o| o.version == 13));
+        assert_eq!(POLICY_CONTRACT_VERSION, 10);
     }
 }
 

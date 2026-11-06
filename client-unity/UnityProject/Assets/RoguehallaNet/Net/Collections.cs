@@ -9,6 +9,9 @@ namespace Roguehalla.Net
     public enum AbilityId : byte { Freeze, Swarm, Trial, Blaze, LastStand }
     public enum CardId : byte { SlowBurn, PocketSand, Siphon }
     public enum BoostId : byte { Ad, Ap, Armor, Shield, MaxHp, AttackSpeed, MoveSpeed, Lifesteal }
+    public enum ProjectileKind : byte { Arrow=0,Ball=1 }
+    public struct NetProjectileView { public ProjectileKind Kind; public float X,Y,Facing; public uint? Owner; }
+    public struct CampView { public MobTypeId MobType; public MobTypeId? Elite; public uint Alive; public byte State; public double ClearedAt,RespawnAt; }
     public struct InventoryView { public byte ActiveSlot, PotionSmall, PotionsHealing; public WeaponId? Slot0, Slot1; }
     public struct PropView
     {
@@ -59,13 +62,15 @@ namespace Roguehalla.Net
         public IReadOnlyList<RewardChestView> RewardChests { get; private set; } = Array.Empty<RewardChestView>();
         public IReadOnlyList<byte> Cards { get; private set; } = Array.Empty<byte>();
         public IReadOnlyList<byte> Boosts { get; private set; } = Array.Empty<byte>();
+        public IReadOnlyList<CampView> Camps { get; private set; } = Array.Empty<CampView>();
+        public IReadOnlyList<NetProjectileView> Projectiles { get; private set; } = Array.Empty<NetProjectileView>();
         public bool HasBuild { get; private set; }
         uint _seen;
-        public bool HasFullState { get { return _seen == 31; } }
+        public bool HasFullState { get { return _seen == 127; } }
 
         internal void Reset()
         {
-            Tick = 0; _seen = 0; Inventory = null; Focus = null; HasBuild = false;
+            Tick = 0; _seen = 0; Camps=Array.Empty<CampView>(); Projectiles=Array.Empty<NetProjectileView>(); Inventory = null; Focus = null; HasBuild = false;
             Props = Array.Empty<PropView>(); Fields = Array.Empty<AreaView>();
             RewardChests = Array.Empty<RewardChestView>(); Cards = Array.Empty<byte>(); Boosts = Array.Empty<byte>();
         }
@@ -133,6 +138,18 @@ namespace Roguehalla.Net
                         rows[i] = new RewardChestView { Handle = c.Handle, X = Quant.DequantizePos(c.X), Y = Quant.DequantizePos(c.Y), ExpiresAt = c.ExpiresAt, Picked = c.Picked, CanChoose = c.CanChoose, Options = options };
                     }
                     RewardChests = rows;
+                }
+                else if(item is ProjectilesState projectiles)
+                {
+                    var rows=new NetProjectileView[projectiles.Rows.Length];
+                    for(int i=0;i<rows.Length;i++) {var p=projectiles.Rows[i];rows[i]=new NetProjectileView {Kind=(ProjectileKind)p.Kind,X=Quant.DequantizePos(p.X),Y=Quant.DequantizePos(p.Y),Facing=Quant.DequantizeFacing(p.Facing),Owner=p.Owner};}
+                    Projectiles=rows;
+                }
+                else if(item is CampsState camps)
+                {
+                    var rows=new CampView[camps.Rows.Length];
+                    for(int i=0;i<rows.Length;i++) {var c=camps.Rows[i];rows[i]=new CampView {MobType=(MobTypeId)c.MobType,Elite=c.Elite==0?(MobTypeId?)null:(MobTypeId)(c.Elite-1),Alive=c.Alive,State=c.State,ClearedAt=c.ClearedAt,RespawnAt=c.RespawnAt};}
+                    Camps=rows;
                 }
                 else if (item is BuildState build)
                 {

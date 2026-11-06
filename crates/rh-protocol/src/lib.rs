@@ -21,6 +21,12 @@
 //! PickupRefused (Events 5) carries only its owner-filtered reason byte: append-only 1 Blocked, 2 NothingThere,
 //! 3 TooFar, 4 Unreachable, 5 NothingToTake; all other values are refused. No private recipient id is sent.
 //!
+//! Protocol 6 adds Choose (8: handle u32 + pick i8 -1..=2), UseConsumable (9: no body),
+//! Target (10: nonzero actor reference u32), and AttackMove (11: Move payload).
+//! PotionNotice (Events 7) carries only a notice byte 1..=7. Camps carry direct mob type 0..29,
+//! optional elite as 0 absent / 1+index, alive varint <=512, state 0..=2, and finite nonnegative
+//! cleared/respawn f64 times with respawn >= cleared. At most 512 rows and seven ascending State keys.
+//!
 //! # Field masks (protocol v4; docs/adr/0011-protocol-v4.md)
 //!
 //! Every presence mask (the Full head, the Full actor mask, the Delta head, the actor-delta mask) is a canonical LEB128
@@ -33,23 +39,23 @@
 //! ```text
 //! Snapshot  0x83, tick varint, ack_input varint, head varint, [self], actor_count varint (<= MAX_ACTORS), actors
 //!   head bits  0 a self follows   1 kit   2 hp   3 ready_in_ms   4 kills   5 bounty   6 move_seq   7 gv   8 max_hp is an f32
-//!              9 status   10 phase   11 effects u16   12 displacement u8 (self bits require bit 0; phase does not)
+//!              9 status   10 phase   11 effects u16   12 displacement u8   13 sig u8 (self bits require bit 0; phase does not)
 //!   [self: id varint, x f32, y f32, facing f32, max_hp (f32 with bit 8, else a varint in 0..=65535), then per set bit, in
 //!      bit order: 1 kit u8 (faction | weapon << 4; default 0)  2 hp f32 (default = max_hp)  3 ready_in_ms u16 (0)
 //!      4 kills varint (0)  5 bounty varint (0)  6 move_seq u8 (0)  7 gv varint (0)  9 status u8 0..=3 (default 1)
-//!      11 effects u16 (0)  12 displacement u8 (0); then phase u8 0..=3 with head bit 10 (default 1)]
+//!      11 effects u16 (0)  12 displacement u8 (0)  13 sig u8 (0); then phase u8 0..=3 with head bit 10 (default 1)]
 //!   per actor (the observation sorts them by id; ids must strictly ascend): id varint (the first actor's id, then the gap
 //!     from the previous one), mask varint, x u16, y u16, facing u16, then per mask bit: 0 kit u8 (default 0)
-//!     1 hp_pct u8 (default 100)  2 status u8 0..=3 (default 1)  3 bounty varint (0)  4 kind u8 (0 = player)  5 effects u16 (0)  6 displacement u8 (0)
+//!     1 hp_pct u8 (default 100)  2 status u8 0..=3 (default 1)  3 bounty varint (0)  4 kind u8 (0 = player)  5 effects u16 (0)  6 displacement u8 (0)  7 mob_type_code u8 (0..=30)  8 sig u8 (0)
 //! SnapshotDelta 0x87, tick varint, base_age varint (tick - base tick, 1..=MAX_DELTA_AGE), ack_input varint, head varint
 //!   head bits  0 a self follows (its id is the base's)   1 x   2 y   3 facing   4 move_seq   5 hp   6 ready_in_ms
-//!              7 a departed list follows   8 phase   9 max_hp   10 kit   11 kills   12 bounty   13 gv   14 status   15 effects u16   16 displacement u8
+//!              7 a departed list follows   8 phase   9 max_hp   10 kit   11 kills   12 bounty   13 gv   14 status   15 effects u16   16 displacement u8   17 sig u8
 //!   [self fields, in bit order, only those whose bit is set: x f32, y f32, facing f32, move_seq u8, hp f32, ready_in_ms u16,
-//!      max_hp f32, kit u8, kills varint, bounty varint, gv varint, status u8 (0..=3), effects u16, displacement u8]   bits 1..=6 and 9..=16 need bit 0
+//!      max_hp f32, kit u8, kills varint, bounty varint, gv varint, status u8 (0..=3), effects u16, displacement u8, sig u8]   bits 1..=6 and 9..=17 need bit 0
 //!   [phase u8 (0..=3) with bit 8: the new phase (a delta carries a field only when it differs from the base)]
 //!   changed_count varint (<= MAX_ACTORS), then per changed actor, ascending by id: id varint (the first's id, then the gap),
 //!     mask varint, then per mask bit: 0 x u16  1 y u16  2 facing u16  3 kit u8  4 hp_pct u8  5 bounty varint  6 status u8
-//!     7 kind u8  8 effects u16  9 displacement u8. A NEW actor (not in the base) starts from the default actor and must carry bits 0..=2 (its position).
+//!     7 kind u8  8 effects u16  9 displacement u8  10 mob_type_code u8 (0..=30)  11 sig u8. A NEW actor (not in the base) starts from the default actor and must carry bits 0..=2 (its position).
 //!   [departed_count varint (1..=MAX_ACTORS), then the ids: the first's id, then gaps]    only with head bit 7
 //! ```
 //!
@@ -73,8 +79,8 @@
 //! announcements) and Fx (droppable). Anything else the client needs to KEEP (collections, match-level state) is KEYED STATE:
 //! `State 0x88, tick varint, count varint, then per item [key varint][record]`, the latest value per key, the record layout
 //! defined by the key. Keys are unique and ascending: 1 self inventory, 2 props/focus, 3 visible fields,
-//! 4 reward offers, 5 self build. Each is a complete replacement; missing keys retain their last value. Module [`state`]
-//! defines strict bounds and record layouts. Welcome (join and resume) is followed by all five keys, even empty,
+//! 4 reward offers, 5 self build, 6 camp summaries, 7 visible projectiles. Each is a complete replacement; missing keys retain their last value. Module [`state`]
+//! defines strict bounds and record layouts. Welcome (join and resume) is followed by all seven keys, even empty,
 //! so a resumed or recovered client never depends on an
 //! event it may have missed; events stay for one-shot announcements. The player's own `Result` is the one event the server
 //! keeps and re-sends after a resume.
@@ -100,8 +106,9 @@ pub mod quant;
 pub mod samples;
 pub mod state;
 pub use state::{
-    PickupHandle, RewardChestHandle, StateItem, WireBuild, WireField, WireFocus, WireInventory,
-    WireProp, WirePropKind, WireProps, WireRewardChest, WireRewardId, WireRewardOption,
+    PickupHandle, RewardChestHandle, StateItem, WireBuild, WireCamp, WireField, WireFocus,
+    WireInventory, WireProjectile, WireProp, WirePropKind, WireProps, WireRewardChest,
+    WireRewardId, WireRewardOption,
 };
 
 pub use codec::{DecodeError, EncodeError, Reader, Writer};
@@ -199,11 +206,24 @@ impl RejectCode {
 /// A command as the client sends it (validated again by the server's simulation: never trusted).
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum WireCommand {
+    UseConsumable,
+    Target {
+        actor: u32,
+    },
+    AttackMove {
+        x: f32,
+        y: f32,
+        seq: Option<u8>,
+    },
     Swap {
         slot: Option<u8>,
     },
     Pickup {
         handle: PickupHandle,
+    },
+    Choose {
+        handle: RewardChestHandle,
+        pick: i8,
     },
     Move {
         x: f32,
@@ -277,6 +297,7 @@ pub struct WireSelf {
     pub move_seq: u8,
     pub effects: u16,
     pub displace_seq: u8,
+    pub sig: u8,
 }
 
 /// A remote actor as the observation chose it. On the wire its position and facing are quantized ([`quant`]): a decoded
@@ -298,6 +319,8 @@ pub struct WireActor {
     pub kind: u8,
     pub effects: u16,
     pub displace_seq: u8,
+    pub sig: u8,
+    pub mob_type_code: u8,
 }
 
 impl WireActor {
@@ -337,6 +360,9 @@ impl WireFx {
 /// Important events: delivered reliably and in order (never dropped for a slow client).
 #[derive(Clone, Debug, PartialEq)]
 pub enum WireEvent {
+    PotionNotice {
+        notice: u8,
+    },
     Death {
         id: u32,
         by: Option<u32>,
@@ -352,6 +378,9 @@ pub enum WireEvent {
     /// The player's own resolved run.
     Result(WireResult),
     PickupRefused {
+        reason: u8,
+    },
+    ChestRefused {
         reason: u8,
     },
 }
@@ -514,6 +543,28 @@ impl ClientMsg {
                                 .ok_or(DecodeError::BadField("combat"))?;
                             WireCommand::Pickup { handle }
                         }
+                        8 => {
+                            let handle = RewardChestHandle::new(r.u32()?)
+                                .ok_or(DecodeError::BadField("reward choice"))?;
+                            let pick = r.u8()? as i8;
+                            if !(-1..=2).contains(&pick) {
+                                return Err(DecodeError::BadField("reward choice"));
+                            }
+                            WireCommand::Choose { handle, pick }
+                        }
+                        9 => WireCommand::UseConsumable,
+                        10 => {
+                            let actor = r.u32()?;
+                            if actor == 0 {
+                                return Err(DecodeError::BadField("target"));
+                            }
+                            WireCommand::Target { actor }
+                        }
+                        11 => WireCommand::AttackMove {
+                            x: r.f32()?,
+                            y: r.f32()?,
+                            seq: r.opt(|r| r.u8())?,
+                        },
                         C_MOVE => WireCommand::Move {
                             x: r.f32()?,
                             y: r.f32()?,
@@ -565,7 +616,8 @@ pub(crate) const HM_PHASE: u32 = 1 << 10;
 /// Bits that belong to the self; a head without a self must have none of them set.
 pub(crate) const HM_EFFECTS: u32 = 1 << 11;
 pub(crate) const HM_DISPLACE: u32 = 1 << 12;
-pub(crate) const HM_SELF_BITS: u32 = 0x03ff | HM_EFFECTS | HM_DISPLACE;
+pub(crate) const HM_SIG: u32 = 1 << 13;
+pub(crate) const HM_SELF_BITS: u32 = 0x03ff | HM_EFFECTS | HM_DISPLACE | HM_SIG;
 pub(crate) const HM_KNOWN: u32 = HM_SELF_BITS | HM_PHASE;
 /// Full actor mask bits (append only): 0 kit, 1 hp, 2 status, 3 bounty, 4 kind.
 pub(crate) const AM_KIT: u32 = 1 << 0;
@@ -575,8 +627,17 @@ pub(crate) const AM_BOUNTY: u32 = 1 << 3;
 pub(crate) const AM_KIND: u32 = 1 << 4;
 pub(crate) const AM_EFFECTS: u32 = 1 << 5;
 pub(crate) const AM_DISPLACE: u32 = 1 << 6;
-pub(crate) const AM_KNOWN: u32 =
-    AM_KIT | AM_HP | AM_STATUS | AM_BOUNTY | AM_KIND | AM_EFFECTS | AM_DISPLACE;
+pub(crate) const AM_MOB_TYPE: u32 = 1 << 7;
+pub(crate) const AM_SIG: u32 = 1 << 8;
+pub(crate) const AM_KNOWN: u32 = AM_KIT
+    | AM_HP
+    | AM_STATUS
+    | AM_BOUNTY
+    | AM_KIND
+    | AM_EFFECTS
+    | AM_DISPLACE
+    | AM_MOB_TYPE
+    | AM_SIG;
 /// The hp a clear hp bit stands for.
 pub(crate) const DEFAULT_HP_PCT: u8 = 100;
 /// The status a clear status bit stands for: alive (0 lobby, 1 alive, 2 dead, 3 mia: docs/CONTRACTS.md C-NET).
@@ -634,9 +695,11 @@ fn read_self(r: &mut Reader, mask: u32) -> Result<WireSelf, DecodeError> {
     };
     let effects = if mask & HM_EFFECTS != 0 { r.u16()? } else { 0 };
     let displace_seq = if mask & HM_DISPLACE != 0 { r.u8()? } else { 0 };
+    let sig = if mask & HM_SIG != 0 { r.u8()? } else { 0 };
     Ok(WireSelf {
         effects,
         displace_seq,
+        sig,
         id,
         faction,
         x,
@@ -706,9 +769,17 @@ fn read_actor(r: &mut Reader, prev: Option<u32>) -> Result<WireActor, DecodeErro
     let kind = if mask & AM_KIND != 0 { r.u8()? } else { 0 };
     let effects = if mask & AM_EFFECTS != 0 { r.u16()? } else { 0 };
     let displace_seq = if mask & AM_DISPLACE != 0 { r.u8()? } else { 0 };
+    let mob_type_code = if mask & AM_MOB_TYPE != 0 {
+        code(r, 30, "mob type")?
+    } else {
+        0
+    };
+    let sig = if mask & AM_SIG != 0 { r.u8()? } else { 0 };
     Ok(WireActor {
+        mob_type_code,
         effects,
         displace_seq,
+        sig,
         id,
         faction,
         x,
@@ -801,6 +872,20 @@ impl ServerMsg {
                 let mut events = Vec::with_capacity(n.min(1024));
                 for _ in 0..n {
                     events.push(match r.u8()? {
+                        7 => {
+                            let notice = r.u8()?;
+                            if !(1..=7).contains(&notice) {
+                                return Err(DecodeError::BadField("potion notice"));
+                            }
+                            WireEvent::PotionNotice { notice }
+                        }
+                        6 => {
+                            let reason = r.u8()?;
+                            if !(1..=9).contains(&reason) {
+                                return Err(DecodeError::BadField("chest reason"));
+                            }
+                            WireEvent::ChestRefused { reason }
+                        }
                         5 => {
                             let reason = r.u8()?;
                             if !(1..=5).contains(&reason) {

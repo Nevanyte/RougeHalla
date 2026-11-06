@@ -57,6 +57,8 @@ pub struct FxTickReport {
     pub(crate) complete: bool,
     pub(crate) viewers: Vec<PlayerId>,
     pub(crate) seen: Vec<u8>,
+    // One viewer bitmask per mob; actor count is independent of the seat limit.
+    pub(crate) mob_seen: Vec<(PlayerId, u8)>,
     pub(crate) ops: Vec<Op>,
     pub(crate) events: Vec<Event>,
     pub(crate) bounded: bool,
@@ -69,6 +71,7 @@ impl FxTickReport {
             complete: false,
             viewers: Vec::with_capacity(8),
             seen: Vec::with_capacity(8),
+            mob_seen: Vec::new(),
             ops: Vec::with_capacity(FX_REPORT_OPS_MAX),
             events: Vec::with_capacity(FX_REPORT_EVENTS_MAX),
             bounded: true,
@@ -82,6 +85,10 @@ impl FxTickReport {
             .iter()
             .position(|&v| v == id)
             .is_some_and(|j| self.seen[viewer] & (1 << j) != 0)
+            || self
+                .mob_seen
+                .binary_search_by_key(&id, |(id, _)| *id)
+                .is_ok_and(|j| self.mob_seen[j].1 & (1 << viewer) != 0)
     }
 }
 impl Sim {
@@ -96,6 +103,7 @@ impl Sim {
         r.complete = true;
         r.viewers.clear();
         r.seen.clear();
+        r.mob_seen.clear();
         r.ops.clear();
         r.events.clear();
         r.bounded = self.s.performed_bounded
@@ -163,6 +171,23 @@ impl Sim {
             }
             r.seen.push(mask);
         }
+        for mob in &self.w.mobs {
+            let mut mask = 0;
+            if !crate::status_runtime::hidden(&mob.core.statuses.instances, self.w.server_time) {
+                for (i, me) in self.w.players.iter().enumerate() {
+                    if crate::vision::point_visible(
+                        &self.k.arena.map,
+                        me,
+                        mob.core.pos(),
+                        self.w.tick,
+                    ) {
+                        mask |= 1 << i;
+                    }
+                }
+            }
+            r.mob_seen.push((mob.core.id, mask));
+        }
+        r.mob_seen.sort_unstable_by_key(|(id, _)| *id);
         r.ops
             .extend(self.s.fx.ops.iter().cloned().map(|op| match op {
                 Op::Flush(i) => Op::Flush(i - offset),

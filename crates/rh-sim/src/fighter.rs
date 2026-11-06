@@ -15,8 +15,8 @@ use crate::state::{History, Path, PlayerId, WeaponRt};
 /// A fighter's place in the tick's fighter list: the address the systems use for "the n-th fighter", whoever it is.
 ///
 /// Players occupy `0..players.len()` in join order, so the order the systems iterate (and the legacy tick depends on) is
-/// the index order; mobs will follow them in id order (legacy `standingCombatants`: players, then mobs). An index is valid
-/// for the tick that produced it: a join or a leave between ticks renumbers the later fighters, so one is never stored
+/// the index order; mobs follow them in insertion order (legacy `standingCombatants`: players, then mobs). An index is valid
+/// only until the next structural store mutation: a join, removal, compaction or birth can renumber later fighters. It is never stored
 /// across a step, a checkpoint or a replay (the stable name of a fighter is its [`PlayerId`] / `EntityId`). It is not
 /// serialized, not hashed and has no wire form.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -96,7 +96,7 @@ pub struct FighterCore {
     pub signature: Signature,
     pub statuses: crate::status_runtime::StatusRuntime,
     /// Encoded source-timed attack-speed mirror; the shared kernel owns its codec.
-    pub attack_rate_wire: f64,
+    pub modifiers: crate::modifiers::Runtime,
     /// Player card runtime; the status ticker shares the source one-roll-per-tick cache.
     pub card_dot_crit: Option<crate::status_runtime::DotCritState>,
     pub motion: Motion,
@@ -174,6 +174,7 @@ pub struct Seat {
 /// What a fighter has earned and whom it hurt.
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Credit {
+    pub mob_kills: u32,
     pub sentence: u8,
     pub kills: u32,
     pub bot_kills: u32,
@@ -197,8 +198,9 @@ pub struct Fate {
 
 /// Player engagement and Holy sustain state. Optional timestamps encode the legacy negative-infinity sentinel.
 /// This is trusted checkpoint state, never an observation or a target-admission source.
-#[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Signature {
+    pub ap_hits: crate::modifiers::HitWindow,
     pub mark: Mark,
 
     pub chill: f64,
@@ -223,6 +225,7 @@ pub struct Signature {
 impl Default for Signature {
     fn default() -> Self {
         Self {
+            ap_hits: Default::default(),
             mark: Mark::default(),
             chill: 1.0,
             chillers: [None; crate::constants::MAX_PLAYERS],

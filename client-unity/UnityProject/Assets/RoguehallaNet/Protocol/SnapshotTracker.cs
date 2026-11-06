@@ -146,6 +146,8 @@ namespace Roguehalla.Net.Protocol
             if ((ch.Mask & ActorDelta.MKind) != 0) a.Kind = ch.Kind;
             if ((ch.Mask & ActorDelta.MEffects) != 0) a.Effects = ch.Effects;
             if ((ch.Mask & ActorDelta.MDisplace) != 0) a.DisplaceSeq = ch.DisplaceSeq;
+            if ((ch.Mask & ActorDelta.MMobType) != 0) a.MobTypeCode = ch.MobTypeCode;
+            if ((ch.Mask & ActorDelta.MSig) != 0) a.Sig = ch.Sig;
             return a;
         }
 

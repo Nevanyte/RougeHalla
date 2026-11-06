@@ -62,13 +62,30 @@ pub struct Placement {
 
 impl Sim {
     pub fn new(config: SimConfig, arena: impl Into<Arc<Arena>>, secrets: Secrets) -> Self {
-        Self {
+        Self::try_new(config, arena, secrets).expect("unsupported private foundation configuration")
+    }
+    /// Fallible admission for the explicitly incomplete mob spawn foundation.
+    pub fn try_new(
+        config: SimConfig,
+        arena: impl Into<Arc<Arena>>,
+        secrets: Secrets,
+    ) -> Result<Self, &'static str> {
+        let mut sim = Self {
             projection: Default::default(),
             k: MatchStatic::new(config, arena, secrets),
             w: World::new(&secrets),
             s: TickScratch::default(),
             pf: Pathfinder::default(),
-        }
+        };
+        crate::systems::initial_loot::initialize(&mut sim.k, &mut sim.w)?;
+        crate::systems::mobs::initialize(&mut sim.k, &mut sim.w)?;
+        Ok(sim)
+    }
+    pub fn mobs(&self) -> &[crate::mob_runtime::Mob] {
+        self.w.mobs.as_slice()
+    }
+    pub fn camp_rosters(&self) -> &[crate::mob_runtime::CampRoster] {
+        self.w.mob_runtime.as_ref().map_or(&[], |rt| &rt.camps)
     }
 
     /// Typed reset: a new match whose run is active after its first step, with the players placed as given (the lobby
@@ -103,6 +120,14 @@ impl Sim {
     ) -> Self {
         // The lobby closes on step 1: every human counts toward min_players (bots never close a lobby, as in legacy).
         let humans = placements.iter().filter(|p| !p.bot).count();
+        if config.mob_mode == crate::mob_runtime::MobMode::Pve && config.faction_mode.engagement() {
+            assert!(
+                placements
+                    .iter()
+                    .all(|p| crate::systems::mobs::basic_faction(p.faction)),
+                "unsupported faction in basic PvE placement"
+            );
+        }
         let mut sim = Sim::new(
             SimConfig {
                 min_players: humans,
@@ -188,6 +213,7 @@ impl Sim {
 
     /// Runs `f` over a [`Cx`] outside a step (a leave): its events wait in the world for the next step, in order.
     fn with_cx<R>(&mut self, f: impl FnOnce(&mut Cx<'_>) -> R) -> R {
+        self.s.reserve_actors(self.w.fighter_count());
         let mut ev = std::mem::take(&mut self.w.pending_events);
         let r = f(&mut Cx {
             stats: crate::status_runtime::stats::Inputs::default(),
@@ -225,9 +251,30 @@ impl Sim {
             return None;
         }
         let join_index = self.w.joined;
-        self.w.joined = self.w.joined.saturating_add(1);
         let picked_faction = faction;
-        let faction = faction.unwrap_or_else(|| FactionId::default_for(join_index));
+        let faction = faction.unwrap_or_else(|| {
+            if self.k.config.mob_mode == crate::mob_runtime::MobMode::Pve
+                && self.k.config.faction_mode.engagement()
+            {
+                // First-playable availability is the supported basic-faction subset, in source order.
+                let choices = FactionId::ALL
+                    .into_iter()
+                    .filter(|&f| crate::systems::mobs::basic_faction(f));
+                choices
+                    .clone()
+                    .nth(join_index % choices.count())
+                    .expect("nonempty basic factions")
+            } else {
+                FactionId::default_for(join_index)
+            }
+        });
+        if self.k.config.mob_mode == crate::mob_runtime::MobMode::Pve
+            && self.k.config.faction_mode.engagement()
+            && !crate::systems::mobs::basic_faction(faction)
+        {
+            return None;
+        }
+        self.w.joined = self.w.joined.saturating_add(1);
         let hp = crate::content::faction(faction).hp;
         let spot = if self.k.arena.spawns.is_empty() {
             self.k.arena.centre()
@@ -240,6 +287,14 @@ impl Sim {
         let id = PlayerId(self.w.next_id);
         self.w.next_id += 1;
         self.w.roster.push(id, profile);
+        self.w
+            .actor_history
+            .push(crate::mob_runtime::ActorProvenance {
+                id,
+                origin: crate::mob_runtime::ActorOrigin::Player {
+                    join_ordinal: join_index as u32,
+                },
+            });
         let mut player = Player::joining(id, profile, bot, faction, spot, hp);
         player.seat.picked_faction = picked_faction;
         self.w.players.push(player);

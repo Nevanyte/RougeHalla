@@ -10,9 +10,10 @@ pub(crate) enum Kind {
     // P-CARDS source; DeathFloor uses its separate attribution.
     IgnoreLockout,
     DeathFloor,
+    QuietRegen,
 }
 pub(crate) fn apply(w: &mut World, ev: &mut Vec<Event>, i: usize, amount: f64, kind: Kind) -> f64 {
-    let stats = crate::status_runtime::stats::view(&w.players[i]);
+    let stats = crate::status_runtime::stats::view(w.core(crate::fighter::FighterIx::of_slot(i)));
     apply_with(w, ev, i, amount, kind, stats)
 }
 pub(crate) fn apply_with(
@@ -24,10 +25,11 @@ pub(crate) fn apply_with(
     stats: crate::status_runtime::StatView,
 ) -> f64 {
     let now = w.server_time;
-    let p = &mut w.players[i];
-    if !(amount > 0.0) || !p.standing() {
+    let ix = crate::fighter::FighterIx::of_slot(i);
+    if !(amount > 0.0) || !w.standing(ix) {
         return 0.0;
     }
+    let p = w.core_mut(ix);
     if matches!(kind, Kind::Ordinary)
         && p.signature
             .combat_at
@@ -45,14 +47,14 @@ pub(crate) fn apply_with(
     let before = p.vitals.hp;
     p.vitals.hp = p.vitals.max_hp.min(before + amount);
     let gained = p.vitals.hp - before;
-    if gained > 0.0 {
+    if gained > 0.0 && !matches!(kind, Kind::QuietRegen) {
         ev.push(Event::Heal {
             id: p.id,
             amount: gained,
         });
     }
     #[cfg(feature = "trusted-status-probes")]
-    if gained > 0. {
+    if gained > 0. && w.is_player(ix) {
         crate::status_runtime::probe::record_heal(w, i, gained, kind);
     }
     gained

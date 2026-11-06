@@ -30,6 +30,26 @@ impl PickupRefusal {
 /// ([`Event::class`]); important events (deaths, results, the end) are never dropped, fx may be (docs/CONTRACTS.md C-NET-5).
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum Event {
+    MobArmed {
+        id: PlayerId,
+        weapon: WeaponId,
+    },
+    CampCleared {
+        camp: u32,
+    },
+    PotionNotice {
+        id: PlayerId,
+        notice: crate::potions::Notice,
+    },
+    ChestRefused {
+        id: PlayerId,
+        reason: crate::reward_chests::Refusal,
+    },
+    ChestTaken {
+        chest: u32,
+        by: PlayerId,
+        pick: i8,
+    },
     /// Private source-timed ability chunk; public output uses frozen per-step contributions.
     AbilityHit {
         victim: PlayerId,
@@ -176,6 +196,10 @@ impl Event {
     /// Who may know of this event. No wildcard arm, on purpose.
     pub fn visibility(&self) -> Visibility {
         match *self {
+            Event::MobArmed { id, .. } => Visibility::Owner(id),
+            Event::CampCleared { .. } => Visibility::Everyone,
+            Event::ChestRefused { id, .. } => Visibility::Owner(id),
+            Event::ChestTaken { .. } => Visibility::ServerOnly,
             Event::CastEnded { id, .. } => Visibility::IfSeen(id),
             Event::StatusApplied { id, .. } => Visibility::IfSeen(id),
             Event::Swing { by, .. } => Visibility::IfSeen(by),
@@ -185,7 +209,9 @@ impl Event {
             | Event::AttackCancelled { id }
             | Event::Stagger { id }
             | Event::Death { id, .. } => Visibility::IfSeen(id),
-            Event::PickupRefused { id, .. } => Visibility::Owner(id),
+            Event::PickupRefused { id, .. } | Event::PotionNotice { id, .. } => {
+                Visibility::Owner(id)
+            }
             Event::Bounty { .. } | Event::Victory { .. } => Visibility::Everyone,
             Event::AbilityHit { .. }
             | Event::MarkNotice { .. }
@@ -204,6 +230,9 @@ impl Event {
     /// path routes by its own exhaustive match over what an observer is shown, and debug-asserts it agrees with this.
     pub fn class(&self) -> Class {
         match self {
+            Event::MobArmed { .. } | Event::CampCleared { .. } => Class::Important,
+            Event::ChestRefused { .. } => Class::Important,
+            Event::ChestTaken { .. } => Class::ServerOnly,
             Event::Death { .. }
             | Event::Bounty { .. }
             | Event::Victory { .. }
@@ -216,7 +245,7 @@ impl Event {
             | Event::Heal { .. }
             | Event::AttackCancelled { .. }
             | Event::Stagger { .. } => Class::Fx,
-            Event::PickupRefused { .. } => Class::Important,
+            Event::PickupRefused { .. } | Event::PotionNotice { .. } => Class::Important,
             Event::AbilityHit { .. }
             | Event::MarkNotice { .. }
             | Event::SignatureHit { .. }

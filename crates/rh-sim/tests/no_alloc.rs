@@ -58,6 +58,7 @@ fn load(name: &str) -> Scenario {
     let secrets = Secrets {
         order_salt: fx["legacyConfig"]["orderSalt"].as_u64().unwrap() as u32,
         spawn_seed: 0,
+        reward_salt: [0x12345678, 0x9abcdef0, 0x31415926, 0x27182818],
     };
     let config = SimConfig {
         faction_mode: if fx["legacyConfig"]["rustSlice"]

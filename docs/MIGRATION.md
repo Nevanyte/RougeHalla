@@ -4,7 +4,7 @@ The single status record of the Rust + Unity + AWS migration. **Only the coordin
 [REQUIREMENTS.md](REQUIREMENTS.md). Invariants and their validation status: [CONTRACTS.md](CONTRACTS.md). Remaining work:
 [backlog/README.md](backlog/README.md). Decisions: [adr/](adr/README.md).
 
-## Stage 2 working checkpoint (2026-11-05)
+## Stage 2 working checkpoint (2026-11-06)
 
 Implementation branch: **`optimization_port`**, starting at `e7e85338` (the closing Stage 1 documentation merge).
 Implementation checkout: a separate local worktree; the original `Fix-autos` checkout and its untracked prompt files are
@@ -24,6 +24,35 @@ checks, and MVP performance on the M5 Pro. Deploy that loop to the practice doma
 the existing **CAD20 total** staging cap and cleanup. Production remains unchanged. A library test or helper is not an
 end-to-end milestone; progress reports should lead with playable capabilities. Extra content, polish and scale work wait.
 
+### Current playable-core checkpoint
+
+The local Unity browser now completes the selected match loop: nickname/faction menu, real Rust combat and visible mobs,
+loot pickup, potion use, an actual chest choice with a server-confirmed build change, results, reconnect and fresh rejoin.
+The final Chromium run passes every functional check without page/decoder errors. Unity contains presentation/input only.
+The native six-seat proof terminates at tick688, replays exactly and restores its terminal checkpoint. The live profile
+is opt-in `--first-playable`; [maps/README](../maps/README.md) documents its eight-seat and four-hour-plus-drain bounds.
+Quests, traders, other consumables, remaining regional mechanics and the full card pool are still deferred.
+
+Native all-feature workspace test coverage passes **1,304 tests**, with two existing manual ignores, including three compile-fail documentation checks; the long simulation
+suite was split from the remaining workspace to avoid repeating completed map tests. Both strict Clippy modes and
+formatting pass. C# passes267 tests; JS passes15,377 golden and61 focused assertions. Wire6 now binds all seven reliable
+collections and the new gameplay inputs. Content is `74192c062ab9eac1`; checkpoint16/replay14/observation13/policy10.
+The hash audit finds zero unhashed leaves across44,428 leaves, with actual mob runtime states included.
+
+The rebuilt Unity Web player and actual UI screenshots are recorded in
+[the Unity evidence](evidence/first-playable-unity/INTEGRATION.md); native source/restore/privacy evidence is in
+[the core record](evidence/first-playable-core/INTEGRATION.md). M5 Pro measurements are scoped to this MVP:
+normal browser CPU submission/GPU medians1.70/0.206ms, and native Sim-only means11.3–12.7µs/tick over three short
+deterministic trials. Browser/display pacing and experimental uncapped callbacks are reported separately in
+[the performance record](evidence/first-playable-performance/README.md). These are not a full-game legacy speedup claim.
+
+**Remaining first-release gate: one-region AWS/TLS/DNS deployment, budget verification and cleanup.** AWS Core currently
+rejects authentication even after reconnect; the authorized fallback CLI now verifies the owner’s new staging account
+through the in-app browser. The account is on the free plan with USD100 credits; GameLift currently refuses service access.
+The owner selected Calgary (`ca-west-1`), which is enabled; a bounded temporary single-host alternative is being prepared. No cloud resources
+or DNS writes were made. CAD20 total and the production-domain restriction remain unchanged. Final matched
+full-port performance and the original broader backlog remain open; this checkpoint does not declare the whole port done.
+
 ### Current architecture, before Stage 2 changes
 
 | Boundary | Implemented state at `e7e85338` | Evidence / remaining scope |
@@ -39,11 +68,13 @@ end-to-end milestone; progress reports should lead with playable capabilities. E
 
 ### Session authorization and environment
 
-- AWS staging account was confirmed by the owner; the total authorized staging spend is **CAD 20**, not a monthly target.
+- The owner created and signed in to a new AWS staging account after old-account MFA blocked access; CLI identity is verified.
+  The new account replaces the previous target; the total authorized staging spend is **CAD 20**, not a monthly target.
   Cloud resources must be planned against the remaining total with cleanup; the old experiment's USD 150 ceiling is not
   authorized. No Stage 2 cloud resources have been created yet.
-- Practice domain: **`rougehalla.com`**. Existing Cloudflare authentication can read its active zone and reports DNS-edit
-  capability. No DNS write has been attempted. Production **`play.roguehalla.com`** must remain unchanged; production
+- Practice domain: **`rougehalla.com`**. Existing Cloudflare authentication reads the active zone and its account permissions
+  include DNS edit, but actual DNS requests are refused by the saved OAuth tool scope. Dashboard sign-in is pending.
+  No DNS write has been attempted. Production **`play.roguehalla.com`** must remain unchanged; production
   cutover requires later owner authorization.
 - Unity Personal sign-in/license and Web module are available. The project now pins Unity `6000.0.85f2` (revision
   `b028303d8e7d`), with a resolved package lock and URP 17.0.4. Both the first protocol-4 bootstrap and the rebuilt

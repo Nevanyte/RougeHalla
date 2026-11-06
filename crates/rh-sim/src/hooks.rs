@@ -56,6 +56,12 @@ pub(crate) enum OutCause {
 /// The typed arguments of a fired hook.
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) enum HookArgs {
+    Blocked {
+        holder: PlayerId,
+        attacker: PlayerId,
+        prevented: crate::state::Packet,
+        melee: bool,
+    },
     ArenaHurt {
         victim: PlayerId,
         by: Option<PlayerId>,
@@ -108,6 +114,7 @@ pub(crate) enum HookArgs {
 impl HookArgs {
     pub(crate) const fn hook(&self) -> Hook {
         match self {
+            HookArgs::Blocked { .. } => Hook::Blocked,
             HookArgs::ArenaHurt { .. } => Hook::ArenaHurt,
             HookArgs::Hurt { .. } => Hook::Hurt,
             HookArgs::Teleported => Hook::Teleported,

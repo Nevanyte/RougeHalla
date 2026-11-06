@@ -136,7 +136,7 @@ namespace Roguehalla.Net.Tests
             var frames = s.Flush(0);
             CollectionAssert.AreEqual(new[] { 16, 3 }, frames.Select(f => f.Commands.Count).ToArray());
             Assert.AreEqual(CommandKind.Swap, frames[0].Commands[15].Kind); Assert.IsNull(frames[0].Commands[15].Slot);
-            Assert.AreEqual(CommandKind.Pickup, frames[1].Commands[0].Kind); Assert.AreEqual(42u, frames[1].Commands[0].ContainerId);
+            Assert.AreEqual(CommandKind.Pickup, frames[1].Commands[0].Kind); Assert.AreEqual(42u, frames[1].Commands[0].PickupRef.Value);
             Assert.AreEqual(CommandKind.Swap, frames[1].Commands[1].Kind); Assert.AreEqual((byte)1, frames[1].Commands[1].Slot);
             Assert.AreEqual(CommandKind.Release, frames[1].Commands[2].Kind); Assert.AreEqual(2, s.Dropped);
             foreach (var frame in frames) Assert.DoesNotThrow(() => ClientMsg.Decode(frame.Encode()));

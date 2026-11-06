@@ -51,7 +51,8 @@ pub const DH_STATUS: u32 = 1 << 14;
 /// The self field bits (a head without a self must have none of them).
 pub const DH_EFFECTS: u32 = 1 << 15;
 pub const DH_DISPLACE: u32 = 1 << 16;
-pub const DH_FIELDS: u32 = 0x7e7e | DH_EFFECTS | DH_DISPLACE;
+pub const DH_SIG: u32 = 1 << 17;
+pub const DH_FIELDS: u32 = 0x7e7e | DH_EFFECTS | DH_DISPLACE | DH_SIG;
 pub const DH_KNOWN: u32 = DH_PRESENT | DH_FIELDS | DH_PHASE | DH_DEPARTED;
 
 /// Actor delta mask bits (append only): the fields that follow, in bit order.
@@ -66,7 +67,9 @@ pub const AD_KIND: u32 = 1 << 7;
 /// Every field.
 pub const AD_EFFECTS: u32 = 1 << 8;
 pub const AD_DISPLACE: u32 = 1 << 9;
-pub const AD_ALL: u32 = 0x3ff;
+pub const AD_MOB_TYPE: u32 = 1 << 10;
+pub const AD_SIG: u32 = 1 << 11;
+pub const AD_ALL: u32 = 0xfff;
 /// What a new actor (one the base does not hold) must carry: its position. Every other field starts at its default.
 pub const AD_NEW: u32 = AD_X | AD_Y | AD_FACING;
 
@@ -78,14 +81,14 @@ const MIN_ACTOR: usize = 1 + 1 + 6;
 const MIN_HEAD: usize = 1;
 
 /// Largest self delta after the head: x, y, facing, hp, max_hp (4 each), kit, ready (2), kills, bounty, gv (3 each),
-/// move_seq, status, phase.
-const MAX_SELF_DELTA: usize = 20 + 1 + 2 + 9 + 1 + 1 + 1 + 3;
+/// move_seq, status, phase, effects (2), displacement, sig.
+const MAX_SELF_DELTA: usize = 20 + 1 + 2 + 9 + 1 + 1 + 1 + 2 + 1 + 1;
 /// Largest delta head: tag, tick (5), age, ack (5), head (1 placeholder), the self delta, the changed count (3).
 const MAX_DELTA_HEAD: usize = 1 + 5 + 1 + 5 + 1 + MAX_SELF_DELTA + 3;
-/// Largest changed-actor record: id 5, mask 2, x y facing 6, kit, hp, bounty 3, status, kind.
-const MAX_ACTOR_DELTA: usize = 5 + 2 + 6 + 1 + 1 + 3 + 1 + 1 + 3;
+/// Largest changed-actor record: id 5, mask 2, x/y/facing 6, kit/hp, bounty 3, status/kind, effects 2, displacement/mob type/sig.
+const MAX_ACTOR_DELTA: usize = 5 + 2 + 6 + 1 + 1 + 3 + 1 + 1 + 2 + 1 + 1 + 1;
 
-/// A remote actor as a connection remembers and sends it: exactly what the wire carries (15 bytes of fields).
+/// A remote actor as a connection remembers and sends it: exactly what the wire carries.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub struct QActor {
     pub id: u32,
@@ -103,6 +106,8 @@ pub struct QActor {
     pub kind: u8,
     pub effects: u16,
     pub displace_seq: u8,
+    pub sig: u8,
+    pub mob_type_code: u8,
 }
 
 impl QActor {
@@ -119,6 +124,8 @@ impl QActor {
         kind: 0,
         effects: 0,
         displace_seq: 0,
+        mob_type_code: 0,
+        sig: 0,
     };
 
     /// `a` checked and quantized: the first reason a decoder would reject the actor on its own (a faction, weapon or status over
@@ -148,6 +155,8 @@ impl QActor {
             kind: a.kind,
             effects: a.effects,
             displace_seq: a.displace_seq,
+            mob_type_code: a.mob_type_code,
+            sig: a.sig,
         }
     }
 
@@ -166,6 +175,8 @@ impl QActor {
             kind: self.kind,
             effects: self.effects,
             displace_seq: self.displace_seq,
+            mob_type_code: self.mob_type_code,
+            sig: self.sig,
         }
     }
 
@@ -194,6 +205,12 @@ impl QActor {
         if self.displace_seq != 0 {
             m |= AM_DISPLACE;
         }
+        if self.mob_type_code != 0 {
+            m |= AM_MOB_TYPE;
+        }
+        if self.sig != 0 {
+            m |= AM_SIG;
+        }
         m
     }
 
@@ -201,7 +218,8 @@ impl QActor {
     #[inline]
     fn full_len(&self, prev: Option<u32>) -> usize {
         varint_len(id_field(self.id, prev))
-            + 7
+            + 6
+            + varint_len(self.full_mask())
             + (self.kit != 0) as usize
             + (self.hp_pct != DEFAULT_HP_PCT) as usize
             + (self.status != DEFAULT_STATUS) as usize
@@ -213,6 +231,8 @@ impl QActor {
             + (self.kind != 0) as usize
             + 2 * (self.effects != 0) as usize
             + (self.displace_seq != 0) as usize
+            + (self.mob_type_code != 0) as usize
+            + (self.sig != 0) as usize
     }
 }
 
@@ -246,6 +266,12 @@ fn write_full_actor(out: &mut Writer, q: &QActor, prev: Option<u32>) {
     }
     if m & AM_DISPLACE != 0 {
         w.u8(q.displace_seq);
+    }
+    if m & AM_MOB_TYPE != 0 {
+        w.u8(q.mob_type_code);
+    }
+    if m & AM_SIG != 0 {
+        w.u8(q.sig);
     }
     w.put(out);
 }
@@ -619,6 +645,8 @@ fn actor_delta_mask(p: &QActor, q: &QActor) -> u32 {
         | ((p.kind != q.kind) as u32) << 7
         | ((p.effects != q.effects) as u32) << 8
         | ((p.displace_seq != q.displace_seq) as u32) << 9
+        | ((p.mob_type_code != q.mob_type_code) as u32) << 10
+        | ((p.sig != q.sig) as u32) << 11
 }
 
 /// The mask of a NEW actor: its position, and every other field that is not the default.
@@ -708,6 +736,12 @@ fn write_delta(
         }
         if mask & AD_DISPLACE != 0 {
             w.u8(q.displace_seq);
+        }
+        if mask & AD_MOB_TYPE != 0 {
+            w.u8(q.mob_type_code);
+        }
+        if mask & AD_SIG != 0 {
+            w.u8(q.sig);
         }
         put(out, &w);
         last = q.id;
@@ -812,6 +846,10 @@ fn write_self_delta(f: &mut Fixed<MAX_DELTA_HEAD>, b: &WireSelf, c: &WireSelf) -
         m |= DH_DISPLACE;
         f.u8(c.displace_seq);
     }
+    if c.sig != b.sig {
+        m |= DH_SIG;
+        f.u8(c.sig);
+    }
     m
 }
 
@@ -835,6 +873,7 @@ pub struct SelfDelta {
     pub status: u8,
     pub effects: u16,
     pub displace_seq: u8,
+    pub sig: u8,
 }
 
 impl SelfDelta {
@@ -885,6 +924,9 @@ impl SelfDelta {
         if m & DH_DISPLACE != 0 {
             s.displace_seq = self.displace_seq;
         }
+        if m & DH_SIG != 0 {
+            s.sig = self.sig;
+        }
         s
     }
 
@@ -914,6 +956,7 @@ impl SelfDelta {
             status: if keep(DH_STATUS) { c.status } else { 0 },
             effects: if keep(DH_EFFECTS) { c.effects } else { 0 },
             displace_seq: if keep(DH_DISPLACE) { c.displace_seq } else { 0 },
+            sig: if keep(DH_SIG) { c.sig } else { 0 },
         }
     }
 }
@@ -960,6 +1003,12 @@ impl ActorDelta {
         }
         if self.mask & AD_DISPLACE != 0 {
             a.displace_seq = self.q.displace_seq;
+        }
+        if self.mask & AD_MOB_TYPE != 0 {
+            a.mob_type_code = self.q.mob_type_code;
+        }
+        if self.mask & AD_SIG != 0 {
+            a.sig = self.q.sig;
         }
         a
     }
@@ -1050,6 +1099,12 @@ fn mask_fields(q: &QActor, mask: u32) -> QActor {
         } else {
             0
         },
+        mob_type_code: if mask & AD_MOB_TYPE != 0 {
+            q.mob_type_code
+        } else {
+            0
+        },
+        sig: if mask & AD_SIG != 0 { q.sig } else { 0 },
     }
 }
 
@@ -1114,6 +1169,9 @@ pub(crate) fn write_message(w: &mut Writer, d: &SnapshotDelta) {
         if m & DH_DISPLACE != 0 {
             w.u8(s.displace_seq);
         }
+        if m & DH_SIG != 0 {
+            w.u8(s.sig);
+        }
     }
     if let Some(p) = d.phase {
         w.u8(p);
@@ -1154,6 +1212,12 @@ pub(crate) fn write_message(w: &mut Writer, d: &SnapshotDelta) {
         if a.mask & AD_DISPLACE != 0 {
             w.u8(a.q.displace_seq);
         }
+        if a.mask & AD_MOB_TYPE != 0 {
+            w.u8(a.q.mob_type_code);
+        }
+        if a.mask & AD_SIG != 0 {
+            w.u8(a.q.sig);
+        }
     }
     if !d.departed.is_empty() {
         write_departed(w, &d.departed);
@@ -1193,6 +1257,9 @@ pub(crate) fn message_check(d: &SnapshotDelta) -> Result<(), EncodeError> {
         }
         if a.mask & AD_STATUS != 0 && a.q.status > MAX_STATUS_CODE {
             return bad("status");
+        }
+        if a.mask & AD_MOB_TYPE != 0 && a.q.mob_type_code > 30 {
+            return bad("mob type");
         }
         if a.mask & AD_HP != 0 && a.q.hp_pct > 100 {
             return bad("hp_pct");
@@ -1254,6 +1321,9 @@ fn read_self_delta(r: &mut Reader, mask: u32) -> Result<SelfDelta, DecodeError> 
     }
     if mask & DH_DISPLACE != 0 {
         s.displace_seq = r.u8()?;
+    }
+    if mask & DH_SIG != 0 {
+        s.sig = r.u8()?;
     }
     Ok(s)
 }
@@ -1341,6 +1411,12 @@ pub(crate) fn read_snapshot_delta(r: &mut Reader) -> Result<SnapshotDelta, Decod
         }
         if mask & AD_DISPLACE != 0 {
             q.displace_seq = r.u8()?;
+        }
+        if mask & AD_MOB_TYPE != 0 {
+            q.mob_type_code = crate::code(r, 30, "mob type")?;
+        }
+        if mask & AD_SIG != 0 {
+            q.sig = r.u8()?;
         }
         changed.push(ActorDelta { mask, q });
     }

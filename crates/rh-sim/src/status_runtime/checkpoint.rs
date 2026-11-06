@@ -1,5 +1,5 @@
 //! Admission for source-timed state added by the status packet. Synthetic helper identities
-//! never widen the ordinary checkpoint domain: source IDs must belong to the retained roster.
+//! never widen the ordinary checkpoint domain: source IDs must belong to retained typed actor provenance (never an allocation-counter range).
 use super::*;
 use crate::state::World;
 pub(crate) fn validate_world(w: &World, near: impl Fn(f64, f64) -> bool) -> Result<(), String> {
@@ -7,9 +7,10 @@ pub(crate) fn validate_world(w: &World, near: impl Fn(f64, f64) -> bool) -> Resu
         [source.id, source.owner_id]
             .into_iter()
             .flatten()
-            .all(|id| w.roster.name(id).is_some())
+            .all(|id| w.known_actor(id))
     };
-    for p in &w.players {
+    for i in 0..w.fighter_count() {
+        let p = w.core(crate::fighter::FighterIx::of_slot(i));
         if p.statuses.instances.iter().any(|st| {
             st.data
                 .field_id
@@ -17,11 +18,9 @@ pub(crate) fn validate_world(w: &World, near: impl Fn(f64, f64) -> bool) -> Resu
         }) {
             return Err("status field reference was never allocated".into());
         }
-        if !p.attack_rate_wire.is_finite()
-            || p.attack_rate_wire < crate::stat_fold::encode_mult(0.)
-            || p.attack_rate_wire.fract() != 0.
-            || p.attack_rate_wire
-                > crate::stat_fold::encode_mult(crate::stat_fold::cap_as_mult(f64::MAX))
+        if !p.modifiers.attack_rate_wire().is_finite()
+            || p.modifiers.attack_rate_wire() < crate::stat_fold::encode_mult(0.)
+            || p.modifiers.attack_rate_wire().fract() != 0.
         {
             return Err("invalid attack mirror".into());
         }
@@ -75,7 +74,7 @@ pub(crate) fn validate_world(w: &World, near: impl Fn(f64, f64) -> bool) -> Resu
                 || w.containers.iter().any(|p| p.id == f.id)
                 || w.projectiles.iter().any(|p| p.launch.id == f.id)
                 || !provenance(&f.owner)
-                || f.subject.is_some_and(|id| w.roster.name(id).is_none())
+                || f.subject.is_some_and(|id| !w.known_actor(id))
                 || ![f.x, f.y, f.x2, f.y2, f.r, f.vx, f.vy]
                     .into_iter()
                     .all(geometry_scalar_is_safe)
@@ -101,8 +100,8 @@ pub(crate) fn validate_world(w: &World, near: impl Fn(f64, f64) -> bool) -> Resu
         for (i, b) in a.dot.iter().enumerate() {
             if !(b.amount > 0.)
                 || !b.amount.is_finite()
-                || w.roster.name(b.victim).is_none()
-                || b.by.is_some_and(|id| w.roster.name(id).is_none())
+                || !w.known_actor(b.victim)
+                || b.by.is_some_and(|id| !w.known_actor(id))
                 || a.dot[..i]
                     .iter()
                     .any(|p| (p.victim, p.by, p.ability) == (b.victim, b.by, b.ability))
@@ -112,8 +111,8 @@ pub(crate) fn validate_world(w: &World, near: impl Fn(f64, f64) -> bool) -> Resu
         }
     }
     for e in &w.deferred.hits {
-        if w.roster.name(e.victim).is_none()
-            || e.by.is_some_and(|id| w.roster.name(id).is_none())
+        if !w.known_actor(e.victim)
+            || e.by.is_some_and(|id| !w.known_actor(id))
             || e.source
                 .as_ref()
                 .is_some_and(|s| s.id != e.by || !provenance(s))
@@ -194,7 +193,7 @@ mod tests {
             },
         });
         s.w.players[1].statuses.refresh_effects(0.);
-        s.w.players[1].attack_rate_wire = 800.;
+        s.w.players[1].modifiers.test_set_attack_wire(800.);
         s.w.players[1].card_dot_crit = Some(DotCritState {
             accumulator: 0.5,
             roll_tick: Some(0),
@@ -348,7 +347,7 @@ mod tests {
             ),
             ("/world/players/1/core/statuses/cast/lands_at", json!(1100.)),
             ("/world/players/1/core/statuses/effects", json!(1)),
-            ("/world/players/1/core/attack_rate_wire", json!(850.)),
+            ("/world/players/1/core/modifiers/wire/0", json!(850.)),
             (
                 "/world/players/1/core/card_dot_crit/accumulator",
                 json!(0.25),
@@ -422,7 +421,7 @@ mod tests {
         }
         let roots = [
             "/players/1/core/statuses",
-            "/players/1/core/attack_rate_wire",
+            "/players/1/core/modifiers/wire/0",
             "/players/1/core/card_dot_crit",
             "/players/1/core/motion/slip",
             "/players/1/core/motion/displace_seq",
@@ -514,8 +513,8 @@ mod tests {
                 "/world/players/1/core/statuses/instances/0/started_at",
                 json!(1000.),
             ),
-            ("/world/players/1/core/attack_rate_wire", json!(49.)),
-            ("/world/players/1/core/attack_rate_wire", json!(800.5)),
+            ("/world/players/1/core/modifiers/wire/0", json!(49.)),
+            ("/world/players/1/core/modifiers/wire/0", json!(800.5)),
             ("/world/players/1/core/card_dot_crit/accumulator", json!(1.)),
             ("/world/players/1/core/card_dot_crit/roll_tick", json!(1000)),
             ("/world/players/1/core/motion/slip/vx", Value::Null),

@@ -74,7 +74,7 @@ pub(crate) fn credit_kill(
     update_bounty(w, ev, bi);
 }
 
-fn credit(w: &mut World, ev: &mut Vec<Event>, i: usize, reason: GvReason, amount: u32) {
+pub(super) fn credit(w: &mut World, ev: &mut Vec<Event>, i: usize, reason: GvReason, amount: u32) {
     let p = &mut w.players[i];
     if p.resolved || amount == 0 {
         return;
@@ -84,6 +84,7 @@ fn credit(w: &mut World, ev: &mut Vec<Event>, i: usize, reason: GvReason, amount
         GvReason::Bounty => {
             p.credit.gv_parts.bounty = p.credit.gv_parts.bounty.saturating_add(amount)
         }
+        GvReason::Skip | GvReason::Mob | GvReason::Elite => p.credit.gv_parts.mobs += amount,
         GvReason::Win => {}
     }
     p.credit.gv = p
@@ -134,4 +135,13 @@ pub(crate) fn flush_announcements(cx: &mut Cx) {
             }
         }
     }
+}
+
+pub(crate) fn award_skip(w: &mut World, ev: &mut Vec<Event>, i: usize) {
+    let amount = crate::reward_chests::DEFINITION.skip_gv.min(
+        crate::reward_chests::DEFINITION
+            .mob_gv_cap
+            .saturating_sub(w.players[i].credit.gv_parts.mobs),
+    );
+    credit(w, ev, i, GvReason::Skip, amount);
 }

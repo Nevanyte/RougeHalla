@@ -10,7 +10,7 @@ use crate::{
 use std::{num::NonZeroU32, sync::Arc};
 
 pub const MAX_VISIBLE_PROPS: usize = 512;
-const GRACE: u32 = 20;
+pub(crate) const GRACE: u32 = 20;
 
 /// Zero is malformed on every public intake.
 #[derive(
@@ -30,6 +30,8 @@ impl PickupHandle {
 #[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Inventory {
     pub active_slot: u8,
+    pub potion_small: u8,
+    pub potions_healing: u8,
     pub slots: [Option<WeaponId>; 2],
 }
 
@@ -58,6 +60,12 @@ pub struct VisibleProp {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum OfferError {
+    TooManyProjectiles,
+    ProjectileGeometryOutOfRange,
+    ActorReferenceCollision,
+    ActorReferencesExhausted,
+    TooManyActors,
+    Rewards(crate::reward_chests::OfferError),
     FxProjection(crate::FxError),
     TooManyProps,
     PositionOutOfRange,
@@ -79,7 +87,7 @@ pub(crate) fn pickup_reach(map: &TileMap, from: Vec2, at: Vec2) -> Result<(), Pi
     Ok(())
 }
 
-fn position(v: f64) -> Result<u16, OfferError> {
+pub(crate) fn position(v: f64) -> Result<u16, OfferError> {
     // Same checked f32 domain and half-away rounding as rh_protocol::quant.
     let v = v as f32;
     if !(0.0..=65535.0 / 8.0).contains(&v) {
@@ -113,6 +121,8 @@ struct Candidate {
 
 /// Private adapter state for exactly one viewer and one match. Keep one per connection or external/policy seat.
 pub struct ItemObserver {
+    actor_refs: crate::actor_refs::ActorRefs,
+    rewards: crate::reward_chests::RewardChestObserver,
     viewer: PlayerId,
     next: u64, // one past u32::MAX means permanently exhausted
     sampled: Option<u32>,
@@ -130,6 +140,8 @@ pub struct ItemObserver {
 impl ItemObserver {
     pub fn new(viewer: PlayerId) -> Self {
         Self {
+            actor_refs: Default::default(),
+            rewards: crate::reward_chests::RewardChestObserver::new(viewer),
             viewer,
             next: 1,
             sampled: None,
@@ -150,9 +162,18 @@ impl ItemObserver {
 
     /// Reconnect in this match: invalidate every prior binding but never reuse a handle.
     pub fn reconnect(&mut self) {
+        let mut rewards = std::mem::replace(
+            &mut self.rewards,
+            crate::reward_chests::RewardChestObserver::new(self.viewer),
+        );
+        rewards.reconnect();
+        let mut actor_refs = std::mem::take(&mut self.actor_refs);
+        actor_refs.reconnect();
         let next = self.next;
         *self = Self::new(self.viewer);
         self.next = next;
+        self.rewards = rewards;
+        self.actor_refs = actor_refs;
     }
 
     fn candidates(&mut self, sim: &Sim) -> Result<(), OfferError> {
@@ -171,11 +192,14 @@ impl ItemObserver {
             if self.scratch.len() == MAX_VISIBLE_PROPS {
                 return Err(OfferError::TooManyProps);
             }
-            let first = c.items[0].map(|item| item.weapon);
+            let first = c.items.first().and_then(|item| match item.def {
+                crate::initial_world::ItemDef::Weapon(w) => Some(w),
+                crate::initial_world::ItemDef::PotionSmall => None,
+            });
             let kind = match c.kind {
                 ContainerKind::Ground => PropKind::Ground(first.ok_or(OfferError::InvalidGround)?),
                 ContainerKind::Chest => PropKind::Chest {
-                    open: c.opened || first.is_none(),
+                    open: c.opened || c.items.is_empty(),
                 },
                 ContainerKind::Body(id) => {
                     let label = sim
@@ -197,7 +221,7 @@ impl ItemObserver {
                 body_hint: None,
             };
             // Birth is a private execution guard. The legacy F prompt uses present contents and reach.
-            if me.standing() && first.is_some() && pickup_reach(map, from, c.at).is_ok() {
+            if me.standing() && !c.items.is_empty() && pickup_reach(map, from, c.at).is_ok() {
                 let dx = from.x - f64::from(cue.x) / 8.0;
                 let dy = from.y - f64::from(cue.y) / 8.0;
                 let distance = dx * dx + dy * dy;
@@ -235,6 +259,19 @@ impl ItemObserver {
         out: &mut Observation,
         cache: Option<&mut SightCache>,
     ) -> Result<PreparedOffer<'a>, OfferError> {
+        self.prepare_with_seen(sim, events, &[], out, cache)
+    }
+
+    /// Merge raw, already visibility-filtered catch-up events before the single actor-reference
+    /// projection. Callers must not append raw events after this method.
+    pub fn prepare_with_seen<'a>(
+        &'a mut self,
+        sim: &Sim,
+        events: &[Event],
+        earlier: &[crate::SeenEvent],
+        out: &mut Observation,
+        cache: Option<&mut SightCache>,
+    ) -> Result<PreparedOffer<'a>, OfferError> {
         let tick = sim.tick();
         if self.sampled.is_some_and(|t| t > tick) {
             return Err(OfferError::EarlierTick);
@@ -258,10 +295,16 @@ impl ItemObserver {
         }
         crate::observe::observe_with(sim, self.viewer, events, out, cache);
         self.staged_actors.clear();
-        self.staged_actors
-            .extend(out.visible.iter().map(|actor| actor.id));
+        self.staged_actors.extend(
+            out.visible
+                .iter()
+                .filter(|actor| actor.kind == 0)
+                .map(|actor| actor.id),
+        );
         out.inventory = sim.player(self.viewer).map(|me| Inventory {
             active_slot: me.weapon.slot,
+            potion_small: me.potion_small,
+            potions_healing: me.potions_healing,
             slots: [me.weapon.weapon0, me.weapon.weapon1],
         });
         if changed {
@@ -275,7 +318,19 @@ impl ItemObserver {
         } else {
             out.props.clone_from(&self.rows);
         }
+        let rewards = self
+            .rewards
+            .stage_into(sim, &mut out.reward_chests, &mut out.build)
+            .map_err(OfferError::Rewards)?;
+        if !earlier.is_empty() {
+            out.events.splice(0..0, earlier.iter().cloned());
+        }
+        crate::projectile_view::project(sim, self.viewer, out)?;
+        let actors = self.actor_refs.stage(sim, out)?;
+        crate::actor_refs::project(out, |id| self.actor_refs.map(sim, &actors, id));
         Ok(PreparedOffer {
+            actors,
+            rewards,
             observer: self,
             tick,
             changed,
@@ -298,6 +353,43 @@ impl ItemObserver {
     /// Return exactly the command to submit and record, including a normal budgeted miss for an absent,
     /// expired or now-invisible target. A handle cannot resolve outside this viewer's bindings.
     pub fn resolve(&self, sim: &Sim, proposal: PublicCommand) -> Result<Command, Reject> {
+        if let PublicCommand::Choose { handle, pick } = proposal {
+            return self.rewards.resolve(sim, handle, pick);
+        }
+        if let PublicCommand::Target { actor } = proposal {
+            if actor.0 == 0 {
+                return Err(Reject::InvalidTarget);
+            }
+            let id = if u64::from(actor.0) >= crate::actor_refs::NPC_REFERENCE_BASE {
+                self.actor_refs.resolve(sim.tick(), actor)
+            } else {
+                self.actors.binary_search(&actor).is_ok().then_some(actor)
+            };
+            let visible = id.filter(|&id| {
+                sim.player(self.viewer).is_some_and(|me| {
+                    sim.player(id).is_some_and(|p| {
+                        crate::vision::actor_visible(&sim.arena().map, me, p, sim.tick())
+                    }) || sim
+                        .mobs()
+                        .iter()
+                        .find(|m| m.core.id == id)
+                        .is_some_and(|m| {
+                            crate::vision::point_visible(
+                                &sim.arena().map,
+                                me,
+                                m.core.pos(),
+                                sim.tick(),
+                            ) && !crate::status_runtime::hidden(
+                                &m.core.statuses.instances,
+                                sim.server_time(),
+                            )
+                        })
+                })
+            });
+            return crate::validate(visible.map_or(crate::RawCommand::MissingTarget, |id| {
+                crate::RawCommand::Target { id }
+            }));
+        }
         proposal.resolve(
             |handle| {
                 let id = self.current.lookup(handle).or_else(|| {
@@ -322,12 +414,25 @@ impl ItemObserver {
             },
             |actor| {
                 self.actors.binary_search(&actor).is_ok()
-                    && sim
-                        .player(self.viewer)
-                        .zip(sim.player(actor))
-                        .is_some_and(|(me, other)| {
+                    && sim.player(self.viewer).is_some_and(|me| {
+                        sim.player(actor).is_some_and(|other| {
                             crate::vision::actor_visible(&sim.arena().map, me, other, sim.tick())
-                        })
+                        }) || sim
+                            .mobs()
+                            .iter()
+                            .find(|m| m.core.id == actor)
+                            .is_some_and(|m| {
+                                crate::vision::point_visible(
+                                    &sim.arena().map,
+                                    me,
+                                    m.core.pos(),
+                                    sim.tick(),
+                                ) && !crate::status_runtime::hidden(
+                                    &m.core.statuses.instances,
+                                    sim.server_time(),
+                                )
+                            })
+                    })
             },
         )
     }
@@ -335,6 +440,8 @@ impl ItemObserver {
 
 #[must_use = "commit after delivering the observation, or drop to discard it"]
 pub struct PreparedOffer<'a> {
+    actors: crate::actor_refs::ActorStage,
+    rewards: crate::reward_chests::observer::RewardStage,
     observer: &'a mut ItemObserver,
     tick: u32,
     changed: bool,
@@ -346,8 +453,13 @@ impl PreparedOffer<'_> {
         self.changed
     }
 
+    pub fn rewards_changed(&self) -> bool {
+        self.rewards.changed
+    }
     pub fn commit(self) {
         let s = self.observer;
+        s.rewards.commit_stage(self.rewards);
+        s.actor_refs.commit(self.actors);
         std::mem::swap(&mut s.actors, &mut s.staged_actors);
         if self.absent {
             // A permanently removed viewer may be sampled again in the departure tick. No handle is
@@ -551,6 +663,8 @@ mod tests {
         assert_eq!(
             view.inventory,
             Some(Inventory {
+                potion_small: 0,
+                potions_healing: 0,
                 active_slot: 0,
                 slots: [None, Some(Wand)]
             })

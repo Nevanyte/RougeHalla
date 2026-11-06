@@ -1,56 +1,75 @@
-// NOT COMPILED in Stage 1 (no Unity). A coloured disc per actor with a facing nose and an hp bar. Colored shapes only, as the legacy game.
 using UnityEngine;
 using Roguehalla.Net;
 
 namespace Roguehalla.Client
 {
-    public sealed class ActorView : MonoBehaviour
+    /// <summary>Appends only the actor facts supplied for this frame. No retained NPC identity or simulation.</summary>
+    public static class ActorView
     {
-        public const float Scale = ArenaView.Scale;
-        const float Radius = 12f * Scale;
-        Transform _nose, _bar;
-        readonly System.Collections.Generic.List<Mesh> _ownedMeshes = new System.Collections.Generic.List<Mesh>(5);
-        void OnDestroy() { foreach (var mesh in _ownedMeshes) if (mesh != null) { if (Application.isPlaying) Destroy(mesh); else DestroyImmediate(mesh); } }
-
-        /// <summary>Legacy palette (packages/shared/src/factions.ts): fire, sentenced, plague, frost, holy.</summary>
         static readonly Color32[] FactionColors =
         {
-            new Color32(0xff, 0x70, 0x43, 255), new Color32(0x95, 0x75, 0xcd, 255), new Color32(0x9c, 0xcc, 0x65, 255),
-            new Color32(0x4f, 0xc3, 0xf7, 255), new Color32(0xff, 0xf1, 0x76, 255),
+            new Color32(255, 112, 67, 255), new Color32(149, 117, 205, 255), new Color32(156, 204, 101, 255),
+            new Color32(79, 195, 247, 255), new Color32(255, 241, 118, 255),
         };
-        public static Color32 FactionColor(FactionId f) { int i = (int)f; return i < FactionColors.Length ? FactionColors[i] : new Color32(0xb0, 0xb0, 0xb0, 255); }
-
-        public static ActorView Create(Transform parent, Material mat, FactionId faction, bool local)
+        static readonly Color32 Ink = new Color32(22, 26, 34, 255), White = new Color32(240, 247, 255, 255);
+        public static Color32 FactionColor(FactionId faction)
         {
-            var go = new GameObject("Actor");
-            go.transform.SetParent(parent, false);
-            var v = go.AddComponent<ActorView>();
-            v.Part("Body", MeshBuilder.Disc(Radius, 24, FactionColor(faction)), mat, 0f, Vector3.one);
-            if (local) v.Part("Ring", MeshBuilder.Disc(Radius * 1.25f, 24, new Color32(255, 255, 255, 255)), mat, -0.01f, Vector3.one);
-            v._nose = v.Part("Nose", MeshBuilder.Nose(new Color32(255, 255, 255, 255)), mat, 0.02f, Vector3.one * (Radius * 4f)).transform;
-            v.Part("BarBack", MeshBuilder.Bar(new Color32(30, 30, 30, 255)), mat, 0.03f, new Vector3(Radius * 2f, 1, 0.14f), new Vector3(-Radius, 0, -Radius * 1.6f));
-            v._bar = v.Part("BarFill", MeshBuilder.Bar(new Color32(90, 220, 90, 255)), mat, 0.04f, new Vector3(Radius * 2f, 1, 0.1f), new Vector3(-Radius, 0, -Radius * 1.6f)).transform;
-            return v;
+            int i = (int)faction;
+            return i >= 0 && i < FactionColors.Length ? FactionColors[i] : new Color32(176, 176, 176, 255);
         }
 
-        GameObject Part(string name, Mesh mesh, Material mat, float y, Vector3 scale, Vector3? offset = null)
+        public static void Draw(MeshBuilder b, float x, float y, float facing, int hpPct, FactionId faction,
+            ActorStatus status, WeaponId weapon, ActorKind kind, MobTypeId? mobType, ushort effects, byte signature, bool local)
         {
-            _ownedMeshes.Add(mesh);
-            var go = new GameObject(name);
-            go.transform.SetParent(transform, false);
-            go.transform.localPosition = (offset ?? Vector3.zero) + new Vector3(0, y, 0);
-            go.transform.localScale = scale;
-            go.AddComponent<MeshFilter>().sharedMesh = mesh;
-            go.AddComponent<MeshRenderer>().sharedMaterial = mat;
-            return go;
+            var p = new Vector3(x * ArenaView.Scale, 0.08f, -y * ArenaView.Scale);
+            const float radius = 0.375f;
+            bool mob = kind == ActorKind.RegionalMob;
+            bool fallen = status == ActorStatus.Dead || status == ActorStatus.Mia;
+            Color32 color = fallen ? new Color32(105, 109, 121, 255) : FactionColor(faction);
+            if (local) b.Ring(p, radius + 0.11f, 0.055f, White);
+            // Players are round; all regional mobs have angular bodies and paired horns.
+            b.DiscAt(p + Vector3.up * 0.01f, radius + 0.035f, mob ? 4 : 16, Ink);
+            b.DiscAt(p + Vector3.up * 0.02f, radius, mob ? 4 : 16, color);
+            if (mob)
+            {
+                b.Line(p + new Vector3(-0.24f, .03f, .13f), p + new Vector3(-.39f, .03f, .39f), .08f, White);
+                b.Line(p + new Vector3(.24f, .03f, .13f), p + new Vector3(.39f, .03f, .39f), .08f, White);
+                // A bounded 1–6 pip motif distinguishes the supplied type within each faction's palette.
+                if (mobType.HasValue)
+                    for (int i = 0; i <= (int)mobType.Value % 6; i++)
+                        b.DiscAt(p + new Vector3(-.22f + i * .088f, .05f, 0), .025f, 4, Ink);
+            }
+            if (fallen)
+            {
+                b.Line(p + new Vector3(-.2f, .06f, -.2f), p + new Vector3(.2f, .06f, .2f), .08f, White);
+                b.Line(p + new Vector3(.2f, .06f, -.2f), p + new Vector3(-.2f, .06f, .2f), .08f, White);
+                return;
+            }
+            var forward = new Vector3(Mathf.Cos(facing), 0, -Mathf.Sin(facing));
+            b.Line(p + Vector3.up * .04f, p + Vector3.up * .04f + forward * .43f, .07f, White);
+            b.Weapon(p + forward * .61f + Vector3.up * .06f, weapon, facing, .7f, White);
+            b.Rect(p + new Vector3(0, .08f, -.58f), .9f, .14f, Ink);
+            float fill = Mathf.Clamp01(hpPct / 100f);
+            b.Rect(p + new Vector3(-.45f + .45f * fill, .09f, -.58f), .9f * fill, .085f, new Color32(96, 227, 147, 255));
+            // Exact public bit indicators. They never apply a status or infer an expiry.
+            for (int bit = 0; bit < 13; bit++)
+                if ((effects & (1 << bit)) != 0)
+                    b.Rect(p + new Vector3(-.42f + bit * .07f, .10f, -.76f), .05f, .09f, EffectColor(bit));
+            if (signature != 0)
+                for (int bit = 0; bit < 8; bit++)
+                    if ((signature & (1 << bit)) != 0)
+                        b.DiscAt(p + new Vector3(-.32f + bit * .09f, .10f, .54f), .045f, 4,
+                            bit == 0 ? FactionColors[3] : bit == 1 ? FactionColors[0] : bit == 2 ? FactionColors[2] : FactionColors[1]);
+            if (status == ActorStatus.Lobby) b.Ring(p + Vector3.up * .04f, .22f, .035f, White);
         }
 
-        /// <summary>Server coordinates in, world out: x -> x, y -> -z, so server +y is down the screen under a camera whose up is +z.</summary>
-        public void Place(float x, float y, float facing, int hpPct)
+        static Color32 EffectColor(int bit)
         {
-            transform.position = new Vector3(x * Scale, 0.05f, -y * Scale);
-            _nose.localRotation = Quaternion.Euler(0, Mathf.Atan2(Mathf.Cos(facing), -Mathf.Sin(facing)) * Mathf.Rad2Deg, 0);
-            var s = _bar.localScale; s.x = Radius * 2f * Mathf.Clamp01(hpPct / 100f); _bar.localScale = s;
+            if (bit <= 2) return new Color32(255, 208, 89, 255); // stun/root/silence
+            if (bit <= 4) return new Color32(102, 204, 255, 255); // slows
+            if (bit <= 6) return new Color32(241, 117, 103, 255); // antiheal/dot
+            if (bit == 12) return new Color32(207, 157, 255, 255); // casting
+            return new Color32(216, 230, 243, 255);
         }
     }
 }

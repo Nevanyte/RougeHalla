@@ -1,58 +1,86 @@
-//! Player-only Fire producer: performed requests, never public effects, trigger retaliation.
-use super::ledger::Entry;
+//! Shared basic Fire producer; build riders remain player-only as in the source.
+use super::ledger::{record_hit, Entry};
 use crate::{
     constants::*,
     content,
     factions::{PerformedAttack, SignatureKind},
-    state::{Packet, Player},
+    fighter::FighterIx,
+    state::{Packet, World},
 };
 pub(crate) fn damage(
-    p: &Player,
-    t: &Player,
+    w: &mut World,
+    ix: FighterIx,
+    ti: FighterIx,
     now: f64,
     performed: &[PerformedAttack],
     ledger: &mut Vec<Entry>,
 ) {
+    let p = w.core(ix);
+    let t = w.core(ti);
     let weapon = p.active_weapon();
+    let id = p.id;
+    let victim = t.id;
     let mult = content::weapon(weapon).dps_mult;
-    let paused = TICK_MS.min((p.signature.dot_paused_until - (now - TICK_MS)).max(0.0));
-    let burn =
-        FIRE_BURN_DPS * DUEL_PACE * (mult * ((TICK_MS - paused) / 1000.0) * p.signature.chill);
+    let paused = TICK_MS.min((p.signature.dot_paused_until - (now - TICK_MS)).max(0.));
+    let secs = (TICK_MS - paused) / 1000.;
+    let chill = p.signature.chill;
+    let dot_mult = p.modifiers.dot_mult();
+    let burn = w.signature_damage(ix, FIRE_BURN_DPS, false) * (mult * secs * chill);
+    let m = p.modifiers.mirrors();
+    let rider = (crate::modifiers::DEFINITION.ap_dot_ratio * m.ap_bonus
+        + if w.is_player(ix) {
+            crate::modifiers::DEFINITION.fire_ad_ratio * m.ad_bonus
+        } else {
+            0.
+        })
+        * secs
+        * chill;
+    let backlash = w.signature_damage(ix, FIRE_BACKLASH, false);
+    let defense = if w.is_player(ix) {
+        crate::modifiers::bonus_defense(p)
+    } else {
+        0.
+    };
+    let tank = 1. + crate::modifiers::DEFINITION.fire_defense_ratio * defense;
+    let foe = w.paced_sheet(ti);
     let mut push = |sig, raw, phys, magic| {
-        if raw > 0.0 {
-            ledger.push(Entry {
-                dot: false,
-                ability: None,
-                arena: false,
-                source: None,
-                critical: false,
-                critical_mult: None,
-                victim: t.id,
-                by: Some(p.id),
-                packet: Packet {
-                    raw,
-                    phys,
-                    magic,
-                    true_: 0.,
+        if raw > 0. {
+            record_hit(
+                w,
+                ledger,
+                Entry {
+                    dot: false,
+                    ability: None,
+                    arena: false,
+                    source: None,
+                    critical: false,
+                    critical_mult: None,
+                    victim,
+                    by: Some(id),
+                    packet: Packet {
+                        raw,
+                        phys,
+                        magic,
+                        true_: 0.,
+                    },
+                    weapon: Some(weapon),
+                    stagger: false,
+                    projectile: None,
+                    scale: 1.,
+                    derived: false,
+                    passive: false,
+                    sig: Some(sig),
+                    execute: false,
                 },
-                weapon: Some(weapon),
-                stagger: false,
-                projectile: None,
-                scale: 1.,
-                derived: false,
-                passive: false,
-                sig: Some(sig),
-                execute: false,
-            });
+            );
         }
     };
-    push(SignatureKind::Burn, burn, 0., 1.);
-    for a in performed.iter().filter(|a| a.by == t.id) {
-        let raw = FIRE_BACKLASH
-            * DUEL_PACE
-            * content::attack_interval(&content::paced(t.vitals.faction), a.weapon, 1.)
-            * mult
-            * p.signature.chill;
+    push(SignatureKind::Burn, burn * dot_mult, 0., 1.);
+    if burn > 0. {
+        push(SignatureKind::Burn, rider * dot_mult, 0., 1.);
+    }
+    for a in performed.iter().filter(|a| a.by == victim) {
+        let raw = backlash * content::attack_interval(&foe, a.weapon, 1.) * mult * tank * chill;
         push(SignatureKind::Backlash, raw, 1., 0.);
     }
 }

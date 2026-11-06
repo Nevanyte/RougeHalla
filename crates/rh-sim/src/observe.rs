@@ -17,7 +17,7 @@ use crate::sim::{Event, Phase, PlayerId, Sim, Status};
 use crate::state::Player;
 use crate::vision::{actor_with, scene_line_blocked};
 
-pub const OBSERVATION_VERSION: u16 = 12;
+pub const OBSERVATION_VERSION: u16 = 13;
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct SelfView {
@@ -50,6 +50,9 @@ pub struct SelfView {
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct ActorView {
+    /// Kind 0 preserves human IDs; kind 1 uses the delivering observer's NPC reference namespace.
+    pub kind: u8,
+    pub mob_type: Option<crate::mob_catalog::MobTypeId>,
     pub effects: u16,
     pub displace_seq: u8,
     pub mark_tier: u8,
@@ -72,6 +75,18 @@ pub struct ActorView {
 /// An event the observer could perceive.
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum SeenEvent {
+    MobArmed {
+        weapon: WeaponId,
+    },
+    CampCleared {
+        camp: u32,
+    },
+    PotionNotice {
+        notice: crate::potions::Notice,
+    },
+    ChestRefused {
+        reason: crate::reward_chests::Refusal,
+    },
     AbilityHit {
         victim: PlayerId,
         by: Option<PlayerId>,
@@ -144,6 +159,9 @@ pub enum SeenEvent {
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Observation {
+    pub projectiles: Vec<crate::ProjectileView>,
+    pub reward_chests: Vec<crate::reward_chests::RewardChestView>,
+    pub build: Option<crate::reward_chests::BuildView>,
     pub version: u16,
     pub tick: u32,
     pub server_time: f64,
@@ -153,6 +171,7 @@ pub struct Observation {
     pub props: Vec<crate::VisibleProp>,
     pub fields: Vec<crate::status_runtime::FieldView>,
     pub visible: Vec<ActorView>,
+    pub camps: Vec<crate::mob_runtime::CampRoster>,
     pub events: Vec<SeenEvent>,
 }
 
@@ -174,7 +193,11 @@ impl SeenEvent {
             | SeenEvent::Heal { .. }
             | SeenEvent::AttackCancelled { .. }
             | SeenEvent::Stagger { .. } => Class::Fx,
-            SeenEvent::PickupRefused { .. } => Class::Important,
+            SeenEvent::PickupRefused { .. }
+            | SeenEvent::ChestRefused { .. }
+            | SeenEvent::MobArmed { .. }
+            | SeenEvent::CampCleared { .. }
+            | SeenEvent::PotionNotice { .. } => Class::Important,
         }
     }
 }
@@ -183,6 +206,11 @@ impl SeenEvent {
 /// Exhaustive, no wildcard: a new [`Event`] variant must say here whether it reaches observers at all.
 fn to_seen(e: &Event, can_see: &impl Fn(PlayerId) -> bool) -> Option<SeenEvent> {
     match *e {
+        Event::MobArmed { weapon, .. } => Some(SeenEvent::MobArmed { weapon }),
+        Event::CampCleared { camp } => Some(SeenEvent::CampCleared { camp }),
+        Event::PotionNotice { notice, .. } => Some(SeenEvent::PotionNotice { notice }),
+        Event::ChestRefused { reason, .. } => Some(SeenEvent::ChestRefused { reason }),
+        Event::ChestTaken { .. } => None,
         Event::Swing {
             by,
             weapon,
@@ -266,15 +294,19 @@ impl Default for Observation {
     /// An empty observation, for a buffer that [`observe_into`] fills.
     fn default() -> Self {
         Self {
+            projectiles: Vec::new(),
             version: OBSERVATION_VERSION,
             tick: 0,
             server_time: 0.0,
             phase: Phase::Lobby,
             me: None,
             inventory: None,
+            reward_chests: Vec::new(),
+            build: None,
             props: Vec::new(),
             fields: Vec::new(),
             visible: Vec::new(),
+            camps: Vec::new(),
             events: Vec::new(),
         }
     }
@@ -379,6 +411,9 @@ pub(crate) fn observe_with(
     begin(sim, &mut cache);
     let me = sim.player(viewer);
     let now = sim.server_time();
+    out.projectiles.clear();
+    out.reward_chests.clear();
+    out.build = me.map(|p| crate::reward_chests::BuildView::from(&p.build));
     out.version = OBSERVATION_VERSION;
     out.tick = sim.tick();
     out.server_time = now;
@@ -410,6 +445,8 @@ pub(crate) fn observe_with(
         gv: p.credit.gv,
         move_seq: p.motion.move_seq,
     });
+    out.camps.clear();
+    out.camps.extend_from_slice(sim.camp_rosters());
     out.visible.clear();
     if let Some(m) = me {
         let map = &sim.arena().map;
@@ -430,6 +467,8 @@ pub(crate) fn observe_with(
                 _ => scene_line_blocked(map, ax, ay, o.body.x, o.body.y),
             }) {
                 out.visible.push(ActorView {
+                    kind: 0,
+                    mob_type: None,
                     effects: o.statuses.effects,
                     displace_seq: o.motion.displace_seq,
                     mark_tier: crate::systems::sentenced::public_mark_tier(&sim.w, o.id),
@@ -459,6 +498,15 @@ pub(crate) fn observe_with(
     }
     // Public id order, never join order (a no-op scan when the store already iterates in id order).
     // Ids are unique, so any sort gives this order; the unstable one never allocates (the stable one does from ~85 entries).
+    if let Some(me) = me {
+        for mob in sim.mobs() {
+            if crate::vision::point_visible(&sim.arena().map, me, mob.core.pos(), sim.tick())
+                && !crate::status_runtime::hidden(&mob.core.statuses.instances, now)
+            {
+                out.visible.push(mob_view(mob));
+            }
+        }
+    }
     if !out.visible.is_sorted_by_key(|a| a.id) {
         out.visible.sort_unstable_by_key(|a| a.id);
     }
@@ -497,10 +545,10 @@ pub(crate) fn observe_with(
     );
 }
 
-/// Appends to `out` what `viewer` may know of `events` as the sim stands NOW, without building the whole observation. A
-/// room that runs several steps in one wake calls this after each step but the last, so a step's events are judged against
-/// that step's line of sight and not a later one's (C-OBS); for the same sim and events it appends exactly the events
-/// [`observe_into`] would put in the observation.
+/// Trusted catch-up intermediate: filter events against this step's visibility while retaining
+/// private actor IDs. Pass the result to `ItemObserver::prepare_with_seen` before public delivery;
+/// that boundary assigns the same presented references as the delivered scene. Never append
+/// this raw intermediate after an observation has been prepared.
 pub fn observe_events_into(
     sim: &Sim,
     viewer: PlayerId,
@@ -537,7 +585,21 @@ fn observe_events_with(
             || me.is_some_and(|m| {
                 sim.player(id).is_some_and(|o| {
                     o.status != Status::Lobby && sees(sim, m, o, &mut cache.borrow_mut())
-                })
+                }) || sim
+                    .mobs()
+                    .iter()
+                    .find(|mob| mob.core.id == id)
+                    .is_some_and(|mob| {
+                        crate::vision::point_visible(
+                            &sim.arena().map,
+                            m,
+                            mob.core.pos(),
+                            sim.tick(),
+                        ) && !crate::status_runtime::hidden(
+                            &mob.core.statuses.instances,
+                            sim.server_time(),
+                        )
+                    })
             })
     };
     filter_events(events, me_id, can_see, out);
@@ -569,6 +631,8 @@ pub struct PublicPlayer {
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct PublicSnapshot {
+    pub mobs: Vec<ActorView>,
+    pub camps: Vec<crate::mob_runtime::CampRoster>,
     pub tick: u32,
     pub server_time: f64,
     pub phase: Phase,
@@ -606,12 +670,38 @@ pub fn public_snapshot(sim: &Sim) -> PublicSnapshot {
         players.sort_unstable_by_key(|p| p.id);
     }
     PublicSnapshot {
+        mobs: sim.mobs().iter().map(mob_view).collect(),
+        camps: sim.camp_rosters().to_vec(),
         tick: sim.tick(),
         server_time: sim.server_time(),
         phase: sim.phase(),
         winner: sim.winner().map(str::to_owned),
         players,
         fields: crate::status_runtime::observe::public(sim),
+    }
+}
+
+fn mob_view(mob: &crate::mob_runtime::Mob) -> ActorView {
+    let core = &mob.core;
+    ActorView {
+        kind: 1,
+        mob_type: Some(mob.mob_type),
+        effects: core.statuses.effects,
+        displace_seq: core.motion.displace_seq,
+        mark_tier: 0,
+        brand: 0,
+        mark_by: None,
+        mark_tax: 0,
+        sig: core.signature.bits,
+        id: core.id,
+        faction: core.vitals.faction,
+        x: core.body.x,
+        y: core.body.y,
+        facing: core.body.facing,
+        hp_frac: (core.vitals.hp / core.vitals.max_hp * 100.).round() / 100.,
+        status: mob.status,
+        weapon: core.active_weapon(),
+        bounty: 0,
     }
 }
 

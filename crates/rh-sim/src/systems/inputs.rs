@@ -22,6 +22,12 @@ pub(crate) fn submit(w: &mut World, id: PlayerId, cmd: Command) -> Result<(), Re
     let Some(ix) = w.fighter_idx(id) else {
         return Ok(());
     };
+    if !w.is_player(ix)
+        && !cmd.is_foundation_movement()
+        && (!cmd.is_mob_combat() || w.mob_runtime.as_ref().is_none_or(|m| !m.combat))
+    {
+        return Err(Reject::UnsupportedActorAction);
+    }
     let (queue, budget) = w.intake(ix);
     input::accept(queue, budget, cmd, now)
 }
@@ -32,6 +38,12 @@ pub(crate) fn submit_unbudgeted(w: &mut World, id: PlayerId, cmd: Command) -> Re
     let Some(ix) = w.fighter_idx(id) else {
         return Ok(());
     };
+    if !w.is_player(ix)
+        && !cmd.is_foundation_movement()
+        && (!cmd.is_mob_combat() || w.mob_runtime.as_ref().is_none_or(|m| !m.combat))
+    {
+        return Err(Reject::UnsupportedActorAction);
+    }
     let (queue, _) = w.intake(ix);
     input::accept(queue, None, cmd, now)
 }
@@ -63,16 +75,30 @@ pub(crate) fn apply_players(cx: &mut Cx) {
     }
 }
 
+pub(crate) fn apply_mobs(cx: &mut Cx) {
+    for slot in 0..cx.w.mobs.len() {
+        apply_inputs(cx, FighterIx::of_slot(cx.w.players.len() + slot));
+    }
+}
 /// Drops every queued input (lobby and ended phases: nothing is applied there).
 pub(crate) fn drain_all(cx: &mut Cx) {
-    for p in &mut cx.w.players {
-        p.inputs.clear();
+    for i in 0..cx.w.fighter_count() {
+        cx.w.core_mut(FighterIx::of_slot(i)).inputs.clear();
     }
 }
 
 fn apply_inputs(cx: &mut Cx, ix: FighterIx) {
     let now = cx.w.server_time;
     cx.w.core_mut(ix).inputs.drain_into(&mut cx.s.drained);
+    if !cx.w.is_player(ix)
+        && crate::status_runtime::has(
+            &cx.w.core(ix).statuses.instances,
+            crate::status_runtime::StatusKind::Stun,
+            now,
+        )
+    {
+        return;
+    }
     let (mv, aim) = (cx.s.drained.mv, cx.s.drained.aim);
     let (move_before, aim_before) = (cx.s.drained.move_before, cx.s.drained.aim_before);
     let n = cx.s.drained.actions.len();
@@ -104,6 +130,8 @@ fn apply_inputs(cx: &mut Cx, ix: FighterIx) {
 
 fn action_id(cmd: &ActionCmd) -> ActionId {
     match cmd {
+        ActionCmd::UseConsumable => ActionId::UseConsumable,
+        ActionCmd::Choose { .. } => ActionId::Choose,
         ActionCmd::Target { .. } | ActionCmd::MissingTarget => ActionId::Target,
         ActionCmd::Swap { .. } => ActionId::Swap,
         ActionCmd::Pickup { .. } | ActionCmd::MissingPickup => ActionId::Pickup,

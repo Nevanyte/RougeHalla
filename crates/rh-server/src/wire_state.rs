@@ -1,7 +1,8 @@
 //! Reliable collection replacements built only from the already-filtered observation.
 use rh_protocol::{
-    EncodeError, PickupHandle, ServerMsg, StateItem, WireField, WireFocus, WireInventory, WireProp,
-    WirePropKind, WireProps,
+    EncodeError, PickupHandle, RewardChestHandle, ServerMsg, StateItem, WireBuild, WireCamp,
+    WireField, WireFocus, WireInventory, WireProjectile, WireProp, WirePropKind, WireProps,
+    WireRewardChest, WireRewardId, WireRewardOption,
 };
 use rh_sim::{Inventory, Observation, PropKind};
 
@@ -10,6 +11,9 @@ pub struct CollectionPublisher {
     sent: bool,
     inventory: Option<WireInventory>,
     fields: Vec<WireField>,
+    build: Option<WireBuild>,
+    camps: Vec<WireCamp>,
+    projectiles: Vec<WireProjectile>,
     last_forced: Option<u32>,
 }
 
@@ -24,10 +28,8 @@ fn inventory(value: Inventory) -> WireInventory {
     WireInventory {
         active_slot: value.active_slot,
         slots: value.slots.map(|v| v.map(|w| w.code())),
-        // The current core has no potion acquisition. The minimal consumable owner supplies
-        // these self-only facts when its actual storage/producer is integrated.
-        potion_small: 0,
-        potions_healing: 0,
+        potion_small: value.potion_small,
+        potions_healing: value.potions_healing,
     }
 }
 
@@ -83,6 +85,77 @@ fn fields(observation: &Observation) -> Vec<WireField> {
         .collect()
 }
 
+fn rewards(observation: &Observation) -> Result<Vec<WireRewardChest>, EncodeError> {
+    observation
+        .reward_chests
+        .iter()
+        .map(|c| {
+            let x = c.at.x as f32;
+            let y = c.at.y as f32;
+            if !rh_protocol::quant::pos_in_range(x) || !rh_protocol::quant::pos_in_range(y) {
+                return Err(EncodeError::BadValue("reward position"));
+            }
+            Ok(WireRewardChest {
+                handle: RewardChestHandle::new(c.handle.wire())
+                    .expect("core nonzero reward handle"),
+                x: rh_protocol::quant::quantize_pos(x),
+                y: rh_protocol::quant::quantize_pos(y),
+                expires_at: c.expires_at,
+                options: c
+                    .options
+                    .iter()
+                    .map(|o| WireRewardOption {
+                        id: match o.id {
+                            rh_sim::reward_chests::OptionId::Card(id) => {
+                                WireRewardId::Card(id.index() as u8)
+                            }
+                            rh_sim::reward_chests::OptionId::Boost(id) => {
+                                WireRewardId::Boost(id.index() as u8)
+                            }
+                        },
+                        taken: o.taken,
+                        taken_by: o.taken_by.map(|id| id.0),
+                    })
+                    .collect(),
+                picked: c.picked,
+                can_choose: c.can_choose,
+            })
+        })
+        .collect()
+}
+
+fn camps(observation: &Observation) -> Vec<WireCamp> {
+    observation
+        .camps
+        .iter()
+        .map(|c| WireCamp {
+            mob_type: c.mob_type as u8,
+            elite: c.elite.map(|id| id as u8),
+            alive: c.alive,
+            state: c.state,
+            cleared_at: c.cleared_at,
+            respawn_at: c.respawn_at,
+        })
+        .collect()
+}
+
+fn projectiles(observation: &Observation) -> Vec<WireProjectile> {
+    observation
+        .projectiles
+        .iter()
+        .map(|p| WireProjectile {
+            kind: match p.kind {
+                rh_sim::ProjectileKind::Arrow => 0,
+                rh_sim::ProjectileKind::Ball => 1,
+            },
+            x: p.x,
+            y: p.y,
+            facing: p.facing,
+            owner: p.owner.map(|id| id.0),
+        })
+        .collect()
+}
+
 impl CollectionPublisher {
     pub fn reconnect(&mut self) {
         *self = Self::default();
@@ -93,6 +166,7 @@ impl CollectionPublisher {
         &self,
         observation: &Observation,
         props_changed: bool,
+        rewards_changed: bool,
         resync_requested: bool,
     ) -> Result<PendingState, EncodeError> {
         let forced = resync_requested
@@ -102,6 +176,12 @@ impl CollectionPublisher {
         let full = !self.sent || forced;
         let next_inventory = observation.inventory.map(inventory);
         let next_fields = fields(observation);
+        let next_camps = camps(observation);
+        let next_projectiles = projectiles(observation);
+        let next_build = observation.build.map(|v| WireBuild {
+            cards: v.cards,
+            boosts: v.boosts,
+        });
         let mut items = Vec::new();
         if full || next_inventory != self.inventory {
             items.push(StateItem::Inventory(next_inventory));
@@ -112,10 +192,17 @@ impl CollectionPublisher {
         if full || next_fields != self.fields {
             items.push(StateItem::Fields(next_fields));
         }
-        if full {
-            // Explicit empty replacements until the actual card/chest observer is integrated.
-            items.push(StateItem::RewardChests(Vec::new()));
-            items.push(StateItem::Build(None));
+        if full || rewards_changed {
+            items.push(StateItem::RewardChests(rewards(observation)?));
+        }
+        if full || next_build != self.build {
+            items.push(StateItem::Build(next_build));
+        }
+        if full || next_camps != self.camps {
+            items.push(StateItem::Camps(next_camps));
+        }
+        if full || next_projectiles != self.projectiles {
+            items.push(StateItem::Projectiles(next_projectiles));
         }
         let (frame, items) = if items.is_empty() {
             (None, items)
@@ -145,7 +232,10 @@ impl PendingState {
             match item {
                 StateItem::Inventory(v) => publisher.inventory = v,
                 StateItem::Fields(v) => publisher.fields = v,
-                StateItem::Props(_) | StateItem::RewardChests(_) | StateItem::Build(_) => {}
+                StateItem::Build(v) => publisher.build = v,
+                StateItem::Camps(v) => publisher.camps = v,
+                StateItem::Projectiles(v) => publisher.projectiles = v,
+                StateItem::Props(_) | StateItem::RewardChests(_) => {}
             }
         }
         publisher.sent = true;
@@ -164,44 +254,163 @@ mod tests {
     fn collection_baselines_commit_after_enqueue_and_defer_flooded_resyncs() {
         let mut publisher = CollectionPublisher::default();
         let mut obs = Observation::default();
-        let first = publisher.prepare(&obs, false, false).unwrap();
+        let first = publisher.prepare(&obs, false, false, false).unwrap();
         assert!(first.frame.is_some());
         drop(first); // Failed enqueue must leave the first complete replacement pending.
-        let first = publisher.prepare(&obs, false, false).unwrap();
+        let first = publisher.prepare(&obs, false, false, false).unwrap();
         let ServerMsg::State { items, .. } =
             ServerMsg::decode(first.frame.as_ref().unwrap()).unwrap()
         else {
             panic!()
         };
-        assert_eq!(items.len(), 5);
+        assert_eq!(
+            items.iter().map(StateItem::key).collect::<Vec<_>>(),
+            [1, 2, 3, 4, 5, 6, 7]
+        );
         first.commit(&mut publisher);
         assert!(publisher
-            .prepare(&obs, false, false)
+            .prepare(&obs, false, false, false)
             .unwrap()
             .frame
             .is_none());
         obs.tick = 1;
         assert!(publisher
-            .prepare(&obs, false, true)
+            .prepare(&obs, false, false, true)
             .unwrap()
             .commit(&mut publisher));
         obs.tick = 2;
         assert!(publisher
-            .prepare(&obs, false, true)
+            .prepare(&obs, false, false, true)
             .unwrap()
             .frame
             .is_none());
         obs.tick = 21;
         assert!(publisher
-            .prepare(&obs, false, true)
+            .prepare(&obs, false, false, true)
             .unwrap()
             .frame
             .is_some());
         publisher.reconnect();
         assert!(publisher
-            .prepare(&obs, false, false)
+            .prepare(&obs, false, false, false)
             .unwrap()
             .frame
             .is_some());
+    }
+    #[test]
+    fn actual_potions_camps_and_projectiles_commit_retain_clear_and_reconnect() {
+        let mut publisher = CollectionPublisher::default();
+        let mut obs = Observation {
+            inventory: Some(Inventory {
+                active_slot: 0,
+                slots: [None, None],
+                potion_small: 5,
+                potions_healing: 3,
+            }),
+            ..Observation::default()
+        };
+        obs.camps.push(rh_sim::mob_runtime::CampRoster {
+            mob_type: rh_sim::mob_catalog::MobTypeId::EmberImp,
+            elite: Some(rh_sim::mob_catalog::MobTypeId::Archon),
+            alive: 2,
+            state: 0,
+            cleared_at: 0.,
+            respawn_at: 0.,
+        });
+        let flight = rh_sim::ProjectileView {
+            kind: rh_sim::ProjectileKind::Ball,
+            x: 800,
+            y: 900,
+            facing: 12345,
+            owner: Some(rh_sim::PlayerId(0x8000_0201)),
+        };
+        obs.projectiles.extend([flight, flight]);
+        let pending = publisher.prepare(&obs, false, false, false).unwrap();
+        let first = pending.frame.clone().unwrap();
+        let ServerMsg::State { items, .. } = ServerMsg::decode(&first).unwrap() else {
+            panic!()
+        };
+        assert_eq!(
+            items.iter().map(StateItem::key).collect::<Vec<_>>(),
+            [1, 2, 3, 4, 5, 6, 7]
+        );
+        assert!(matches!(
+            items[0],
+            StateItem::Inventory(Some(WireInventory {
+                potion_small: 5,
+                potions_healing: 3,
+                ..
+            }))
+        ));
+        assert!(
+            matches!(&items[5],StateItem::Camps(v) if v[0].mob_type==0 && v[0].elite==Some(29) && v[0].alive==2)
+        );
+        assert!(
+            matches!(&items[6],StateItem::Projectiles(v) if v.len()==2 && v[0]==v[1] && v[0].kind==1 && v[0].owner==Some(0x8000_0201))
+        );
+        drop(pending);
+        assert_eq!(
+            publisher.prepare(&obs, false, false, false).unwrap().frame,
+            Some(first)
+        );
+        publisher
+            .prepare(&obs, false, false, false)
+            .unwrap()
+            .commit(&mut publisher);
+        assert!(publisher
+            .prepare(&obs, false, false, false)
+            .unwrap()
+            .frame
+            .is_none());
+        obs.tick = 1;
+        obs.camps.clear();
+        obs.projectiles.clear();
+        let clear = publisher.prepare(&obs, false, false, false).unwrap();
+        let ServerMsg::State { items, .. } =
+            ServerMsg::decode(clear.frame.as_ref().unwrap()).unwrap()
+        else {
+            panic!()
+        };
+        assert_eq!(
+            items,
+            vec![StateItem::Camps(vec![]), StateItem::Projectiles(vec![])]
+        );
+        clear.commit(&mut publisher);
+        assert!(publisher
+            .prepare(&obs, false, false, false)
+            .unwrap()
+            .frame
+            .is_none());
+        publisher.reconnect();
+        let full = publisher.prepare(&obs, false, false, false).unwrap();
+        let ServerMsg::State { items, .. } =
+            ServerMsg::decode(full.frame.as_ref().unwrap()).unwrap()
+        else {
+            panic!()
+        };
+        assert_eq!(
+            items.iter().map(StateItem::key).collect::<Vec<_>>(),
+            [1, 2, 3, 4, 5, 6, 7]
+        );
+    }
+
+    #[test]
+    fn malformed_authoritative_collections_refuse_before_baseline_changes() {
+        let publisher = CollectionPublisher::default();
+        let good = Observation::default();
+        let expected = publisher.prepare(&good, false, false, false).unwrap().frame;
+        let mut invalid = Observation::default();
+        invalid.projectiles.push(rh_sim::ProjectileView {
+            kind: rh_sim::ProjectileKind::Arrow,
+            x: 0,
+            y: 0,
+            facing: 0,
+            owner: Some(rh_sim::PlayerId(0)),
+        });
+        assert!(publisher.prepare(&invalid, false, false, false).is_err());
+        assert_eq!(
+            publisher.prepare(&good, false, false, false).unwrap().frame,
+            expected
+        );
     }
 }

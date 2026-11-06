@@ -216,4 +216,67 @@ content! {
     MARK_MAGIC_SHARE: f64 = 0.6, "fraction";
     MARK_TRUE_SHARE: f64 = 0.0, "fraction";
     SIG_EXEC_BLOCKED: u8 = 64, "bits";
+    // Source regional mob spawn foundation (shared/constants + mobLife birth phase).
+    MOB_K: f64 = 0.22, "multiplier";
+    ELITE_K: f64 = 0.65, "multiplier";
+    MOB_HP_MULT: f64 = 2., "multiplier";
+    ELITE_HP_MULT: f64 = 2., "multiplier";
+    MOB_REPATH_PHASE_MULT: u32 = 137, "ms/birth";
+    MOB_REPATH_PHASE_PERIOD: u32 = 500, "ms";
+
+    // Source NPC weapon/policy and regional combat profile.
+    NPC_SWORD_WINDUP: f64 = 0.1, "s";
+    NPC_BASH_WINDUP: f64 = 0.1, "s";
+    NPC_FISTS_WINDUP: f64 = 0.1, "s";
+    NPC_AXE_WINDUP: f64 = 0.25, "s";
+    NPC_AXE_WINDUP_SHARE: f64 = 0.25, "share";
+    NPC_AXE_ROOT: f64 = 0., "s";
+    NPC_AXE_ROOT_SHARE: f64 = 0., "share";
+    NPC_BOW_WINDUP: f64 = 0.6, "s";
+    NPC_BOW_WINDUP_SHARE: f64 = 0.92, "share";
+    NPC_WAND_WINDUP: f64 = 0.4, "s";
+    NPC_WAND_WINDUP_SHARE: f64 = 0.8, "share";
+    NPC_MELEE_FAR_SHARE: f64 = 0.85, "share";
+    NPC_MELEE_EDGE: f64 = 6., "u";
+    NPC_BOW_FAR_SHARE: f64 = 400./480., "share";
+    NPC_BOW_ATTACK_SHARE: f64 = 0.92, "share";
+    NPC_BOW_RETREAT_SHARE: f64 = 220./480., "share";
+    NPC_WAND_FAR_SHARE: f64 = 280./420., "share";
+    NPC_WAND_ATTACK_SHARE: f64 = 0.8, "share";
+    NPC_WAND_RETREAT_SHARE: f64 = 160./420., "share";
+    NPC_POLICY_CONTACT: f64 = 40., "u";
+    NPC_POLICY_STEP: f64 = 160., "u";
+    NPC_RETREAT_TURN1: f64 = 0.7, "rad";
+    NPC_RETREAT_TURN2: f64 = 1.4, "rad";
+    NPC_RETREAT_TURN3: f64 = 2.1, "rad";
+    NPC_INTERCEPT_EPS: f64 = 1e-9, "epsilon";
+    MOB_DMG_MULT: f64 = 0.5, "multiplier";
+    ELITE_DMG_MULT: f64 = 1.5, "multiplier";
+    MOB_MELEE_DMG_MULT: f64 = 1.6, "multiplier";
+    MOB_RANGED_DMG_MULT: f64 = 1.2, "multiplier";
+    MOB_PLAGUE_DAMAGE: f64 = 0.85, "multiplier";
+    MOB_HOLY_DAMAGE: f64 = 0.92, "multiplier";
+    MOB_GIVE_UP_SECONDS: f64 = 20., "s";
+    MOB_HOME_RADIUS: f64 = 10., "u";
+    MOB_LEASH_RADIUS: f64 = 24.*TILE, "u";
+    MOB_LEASH_CAP: f64 = 24.*TILE, "u";
+    MOB_CORPSE_MS: f64 = 1500., "ms";
+    MOB_REGEN_SECONDS: f64 = 4., "s";
+    MOB_RETURN_REGEN_SECONDS: f64 = 2., "s";
+    MOB_REGEN_LOCK_MS: f64 = 3000., "ms";
+    MOB_LEASH_MARGIN: f64 = 24., "u";
+    MOB_HEADING_HOME: f64 = 0.5, "u";
+    MOB_ON_SPOT: f64 = 0.01, "u";
+    MOB_GV_NORMAL:u32=6,"GV";
+    MOB_GV_ELITE:u32=30,"GV";
+    MOB_FEED_WEIGHT:f64=0.25,"feed/kill";
+    MOB_REWARD_FLOOR:f64=0.3,"multiplier";
+    MOB_REWARD_MID:f64=5.,"feed";
+    MOB_REWARD_WIDTH:f64=1.5,"feed";
+    MOB_CATCHUP_GAP:f64=2.,"feed";
+    MOB_CATCHUP_MULT:f64=1.25,"multiplier";
+    CAMP_WARD_MS:f64=120000.,"ms";
+    CAMP_HEAL_RANGE:f64=12.*TILE,"u";
+    CAMP_RESPAWN_MS: f64 = 180000., "ms";
+
 }

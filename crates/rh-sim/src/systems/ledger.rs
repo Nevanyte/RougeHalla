@@ -62,6 +62,13 @@ pub(crate) struct Hit {
 /// puts the effect in `World::deferred`, which is the NEXT tick's ledger.
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) enum PayLater {
+    MobWakes,
+    CampCleared {
+        camp: u32,
+    },
+    MobKill {
+        award: super::mob_life::Award,
+    },
     #[cfg(feature = "trusted-status-probes")]
     ProbeNested {
         victim: PlayerId,
@@ -112,6 +119,9 @@ impl PayLater {
         stats: crate::status_runtime::stats::Inputs,
     ) {
         match self {
+            PayLater::MobWakes => super::mob_life::settle_wakes(k, w),
+            PayLater::CampCleared { camp } => ev.push(Event::CampCleared { camp }),
+            PayLater::MobKill { award } => super::mob_life::pay(k, w, ev, award),
             #[cfg(feature = "trusted-status-probes")]
             PayLater::ProbeNested { victim, source } => {
                 crate::status_runtime::probe::pay_nested(k, w, ev, victim, source, stats)
@@ -216,6 +226,11 @@ pub(crate) fn pay_all_with(
         }
     }
     w.pay.items.clear();
+    w.pay.mob_wakes.clear();
+    w.pay.mob_deaths.clear();
+    w.pay.mob_settled.clear();
+    w.pay.mob_feeds.clear();
+    w.pay.median_feed = 0.;
 }
 
 /// What applying one victim's hits touches: everything but the ledger, which it only reads.
@@ -355,21 +370,32 @@ fn apply_inner(
             slot_tail[v] = n as u32;
         }
         // The PvP factor is for a player hitting a player: a mob on either side, or no attacker, takes none.
+        let farm_mult = if !e.arena && e.ability.is_none() {
+            bix.map_or(1., |i| crate::modifiers::outgoing(w.core(i)))
+        } else {
+            1.
+        };
         mults.push(
-            if k.config.pvp_rules
-                && !e.arena
-                && e.ability.is_none()
-                && vix
-                    .zip(bix)
-                    .is_some_and(|(v, b)| w.is_player(v) && w.is_player(b))
-            {
-                pvp_factor(0.0)
-            } else {
-                1.0
-            },
+            farm_mult
+                * (if k.config.pvp_rules
+                    && !e.arena
+                    && e.ability.is_none()
+                    && vix
+                        .zip(bix)
+                        .is_some_and(|(v, b)| w.is_player(v) && w.is_player(b))
+                {
+                    pvp_factor(
+                        w.players[bix.expect("checked player attacker").slot()]
+                            .build
+                            .power(),
+                    )
+                } else {
+                    1.0
+                }),
         );
     }
     w.pay.items.clear();
+    super::mob_life::open(w);
     w.pay.collecting = true;
     // Freeze the pass-start denial index before any victim application or payout.
     let mut denies = [None; MAX_PLAYERS];
@@ -428,15 +454,17 @@ fn apply_victim(
     mults: &[f64],
     entry_rank: &[u32],
 ) {
-    let v = pass.w.players[vi].id;
-    if !pass.w.players[vi].standing() {
+    let ix = FighterIx::of_slot(vi);
+    let player = pass.w.is_player(ix);
+    let v = pass.w.core(ix).id;
+    if !pass.w.standing(ix) {
         return;
     }
-    let vf = crate::content::faction(pass.w.players[vi].vitals.faction);
+    let vf = pass.w.base_sheet(ix);
     // The armor mirror was folded after last tick's damage pass. A shred reaching
     // its boundary now still affects this hit; an axe in this pass takes effect afterwards.
-    let armor = (vf.armor - pass.w.players[vi].weapon.armor_shred).max(0.0);
-    let shield = vf.shield;
+    let armor = (vf.armor + pass.w.core(ix).modifiers.mirrors().armor_bonus).max(0.0);
+    let shield = vf.shield + pass.w.core(ix).modifiers.mirrors().shield_bonus;
     let Bufs {
         idxs,
         amounts,
@@ -448,19 +476,20 @@ fn apply_victim(
     amounts.extend(idxs.iter().map(|&k| {
         let e = &ledger[k];
         let attacker =
-            e.by.and_then(|id| pass.w.player(id))
+            e.by.and_then(|id| pass.w.actor(id))
                 .map(|p| p.statuses.instances.as_slice())
                 .unwrap_or(&[]);
         let factor = crate::status_runtime::settlement_factor(
             attacker,
-            &pass.w.players[vi].statuses.instances,
+            &pass.w.core(ix).statuses.instances,
             e.by,
             pass.w.server_time,
             e.arena,
-            e.by.and_then(|id| pass.w.player(id))
+            e.by.and_then(|id| pass.w.actor(id))
                 .and_then(|p| pass.stats.view(p).mark_suppression),
         );
-        let raw = if e.scale > 0. {
+        let friendly_mobs = !player && e.by.is_some_and(|id| pass.w.mobs.contains(id));
+        let raw = if e.scale > 0. && !friendly_mobs {
             e.packet.raw * e.scale * mults[k] * factor
         } else {
             0.
@@ -472,9 +501,9 @@ fn apply_victim(
         };
         mitigate_shares(raw, &s, armor, shield)
     }));
-    if pass.k.config.pvp_rules {
-        let cap = PVP_HIT_CAP_SHARE * pass.w.players[vi].vitals.max_hp;
-        let budget = PVP_DOT_CAP_SHARE * pass.w.players[vi].vitals.max_hp * (TICK_MS / 1000.0);
+    if player && pass.k.config.pvp_rules {
+        let cap = PVP_HIT_CAP_SHARE * pass.w.core(ix).vitals.max_hp;
+        let budget = PVP_DOT_CAP_SHARE * pass.w.core(ix).vitals.max_hp * (TICK_MS / 1000.0);
         dot_sums.clear();
         for (j, &index) in idxs.iter().enumerate() {
             let e = &ledger[index];
@@ -506,7 +535,7 @@ fn apply_victim(
             }
         }
     }
-    if let Some(foe) = pass.denies[vi] {
+    if let Some(foe) = pass.denies.get(vi).copied().flatten() {
         let total: f64 = amounts.iter().sum();
         let execute: f64 = idxs
             .iter()
@@ -514,7 +543,7 @@ fn apply_victim(
             .filter(|(_, &index)| ledger[index].execute && ledger[index].by == Some(foe))
             .map(|(j, _)| amounts[j])
             .sum();
-        let pool = pass.w.players[vi].vitals.hp + pass.w.players[vi].vitals.barrier;
+        let pool = pass.w.core(ix).vitals.hp + pass.w.core(ix).vitals.barrier;
         let allowed = execute.min(pool - 1. - (total - execute)).max(0.);
         let held = execute - allowed;
         if held > MARK_EXECUTE_EPS {
@@ -542,7 +571,9 @@ fn apply_victim(
     // merge buffer however many hits a victim takes.
     order.clear();
     order.extend((0..idxs.len()).map(|j| (entry_rank[idxs[j]] as usize, j)));
-    order.sort_unstable();
+    if player {
+        order.sort_unstable();
+    }
     hits.clear();
     hits.extend(order.iter().map(|&(_, j)| {
         let e = &ledger[idxs[j]];
@@ -552,14 +583,18 @@ fn apply_victim(
             name: e.source.as_ref().map(|s| s.name.clone()),
         }
     }));
-    let hp_before = pass.w.players[vi].vitals.hp;
-    let barrier_before = pass.w.players[vi].vitals.barrier;
+    let hp_before = pass.w.core(ix).vitals.hp;
+    let barrier_before = pass.w.core(ix).vitals.barrier;
     let total: f64 = amounts.iter().sum();
-    let applied = apply_hits(pass, vi, hits);
+    let applied = if player {
+        apply_hits(pass, vi, hits)
+    } else {
+        super::mob_life::hurt(pass.k, pass.w, pass.ev, ix, hits)
+    };
     if !(applied > 0.0) {
         return;
     }
-    if pass.w.players[vi].standing() {
+    if pass.w.standing(ix) {
         crate::hooks::fire(
             &mut crate::hooks::Hx {
                 stats: pass.stats,
@@ -579,8 +614,10 @@ fn apply_victim(
             probe.fire(pass.k, pass.w, pass.ev, v, pass.stats);
         }
     }
-    let landed_share = if total > 0.0 {
-        (1.0 - (barrier_before - pass.w.players[vi].vitals.barrier) / total).max(0.0)
+    let landed_share = if !player && total > applied {
+        applied / total
+    } else if total > 0.0 {
+        (1.0 - (barrier_before - pass.w.core(ix).vitals.barrier) / total).max(0.0)
     } else {
         0.0
     };
@@ -612,7 +649,7 @@ fn apply_victim(
             {
                 pass.landed.push(crate::systems::signatures::LandedHit {
                     critical: e.critical,
-                    cut: e.by.and_then(|id| pass.w.player(id)).map_or(1., |p| {
+                    cut: e.by.and_then(|id| pass.w.actor(id)).map_or(1., |p| {
                         crate::status_runtime::suppression_cut(
                             &p.statuses.instances,
                             pass.w.server_time,
@@ -662,14 +699,14 @@ fn apply_victim(
             );
         }
     }
-    if pass.w.players[vi].standing()
+    if pass.w.standing(ix)
         && idxs
             .iter()
             .enumerate()
             .any(|(j, &k)| ledger[k].stagger && amounts[j] > 0.0)
     {
         let now = pass.w.server_time;
-        weapons::stagger(&mut pass.w.players[vi], now, pass.ev);
+        weapons::stagger(pass.w.core_mut(ix), now, pass.ev);
     }
 }
 
@@ -746,6 +783,8 @@ fn apply_hits(pass: &mut Pass, vi: usize, hits: &[Hit]) -> f64 {
         .and_then(|k| w.idx(k))
         .filter(|&k| !w.players[k].resolved);
     let killer_bot = killer_idx.map(|k| w.players[k].seat.bot).unwrap_or(false);
+    let killer_label = kid.and_then(|id| w.actor_label(id));
+    let killer_present = kid.is_some_and(|id| w.actor(id).is_some());
     let (vx, vy) = (w.players[vi].body.x, w.players[vi].body.y);
     {
         let v = &mut w.players[vi];
@@ -753,7 +792,7 @@ fn apply_hits(pass: &mut Pass, vi: usize, hits: &[Hit]) -> f64 {
         // name of one who already left).
         v.fate.killed_by = kid;
         v.fate.killed_by_name = if killer_idx.is_none() {
-            hits[killer].name.clone()
+            hits[killer].name.clone().or(killer_label)
         } else {
             None
         };
@@ -765,7 +804,7 @@ fn apply_hits(pass: &mut Pass, vi: usize, hits: &[Hit]) -> f64 {
         id: victim_id,
         x: vx,
         y: vy,
-        by: killer_idx.and(kid),
+        by: if killer_present { kid } else { None },
     });
     let credited = match top_rival {
         Some(r) => hits[r].by,
@@ -798,4 +837,18 @@ fn apply_hits(pass: &mut Pass, vi: usize, hits: &[Hit]) -> f64 {
     }
     settle::down_player(pass.k, w, pass.ev, Some(pass.downed), vi, Outcome::Died);
     before
+}
+
+/// Source recordHit, before a later melee interception may reduce the stored projectile scale.
+pub(crate) fn record_hit(w: &mut World, ledger: &mut Vec<Entry>, mut entry: Entry) {
+    if entry.by.is_some_and(|id| w.mobs.contains(id)) && w.mobs.contains(entry.victim) {
+        entry.scale = 0.;
+    }
+    if entry.scale > 0. && w.players.contains(entry.victim) {
+        let now = w.server_time;
+        if let Some(m) = entry.by.and_then(|id| w.mobs.get_mut(id)) {
+            m.brain.last_combat_at = now;
+        }
+    }
+    ledger.push(entry);
 }

@@ -319,7 +319,97 @@ fn sentenced_window() -> Sim {
     Sim::restore(cp).unwrap()
 }
 
+/// Two bounded ordinary PvE states: real NPC decisions/signatures and a real cleared camp.
+/// The admitted map and commands are the existing source-backed three-mob fixture.
+fn mob_audit_states() -> (Sim, Sim) {
+    let data = serde_json::from_str(include_str!("fixtures/mob-pve-map.json")).unwrap();
+    let arena = rh_sim::mapdata::MapExport {
+        format: "rh-map/2".into(),
+        legacy_map_hash_u32: 0,
+        map: data,
+    }
+    .validate()
+    .unwrap()
+    .into_arena()
+    .unwrap();
+    let fixture: Value =
+        serde_json::from_str(include_str!("fixtures/mob-pve-source.json")).unwrap();
+    let case = &fixture["cases"][2];
+    let placements: Vec<_> = case["input"]["players"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .enumerate()
+        .map(|(i, p)| Placement {
+            profile: format!("mob-audit-{i}"),
+            faction: FactionId::parse(p["faction"].as_str().unwrap()).unwrap(),
+            bot: false,
+            at: Vec2::new(p["x"].as_f64().unwrap(), p["y"].as_f64().unwrap()),
+            hp: None,
+            weapon0: rh_sim::WeaponId::parse(p["weapon"].as_str().unwrap()),
+            weapon1: None,
+        })
+        .collect();
+    let mut secrets = Secrets::from_seed(1);
+    secrets.spawn_seed = 12;
+    secrets.reward_salt = [1, 2, 3, 4];
+    let config = SimConfig {
+        mob_mode: rh_sim::mob_runtime::MobMode::Pve,
+        ..Default::default()
+    };
+    let mut cleared = Sim::reset_active(config.clone(), arena.clone(), secrets, &placements);
+    let mut engaged = Sim::reset_active(
+        SimConfig {
+            faction_mode: rh_sim::FactionMode::EngagementHolyPlagueFire,
+            ..config
+        },
+        arena,
+        secrets,
+        &placements,
+    );
+    let mut have_pending_attack = false;
+    for frame in case["frames"].as_array().unwrap() {
+        for c in frame["commands"].as_array().unwrap() {
+            let player = PlayerId(c["actor"].as_str().unwrap()[1..].parse::<u32>().unwrap() + 1);
+            let target = c["id"].as_str().unwrap();
+            let target =
+                PlayerId(3 + u32::from_str_radix(target.strip_prefix("mob").unwrap(), 36).unwrap());
+            let command = cmd(RawCommand::Target { id: target });
+            cleared.submit(player, command).unwrap();
+            if !have_pending_attack {
+                engaged.submit(player, command).unwrap();
+            }
+        }
+        cleared.step();
+        if !have_pending_attack {
+            engaged.step();
+            have_pending_attack = engaged.tick() >= 40
+                && engaged
+                    .mobs()
+                    .iter()
+                    .any(|m| m.core.weapon.action.is_some());
+        }
+        if cleared.camp_rosters()[0].state == 2 {
+            break;
+        }
+    }
+    assert!(have_pending_attack);
+    assert_eq!(engaged.mobs().len(), 3);
+    assert_eq!(cleared.camp_rosters()[0].state, 2);
+    assert!(serde_json::to_value(&engaged).unwrap()["world"]["mobs"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|m| !m["brain"]["target"].is_null()));
+    assert!(
+        !serde_json::to_value(&cleared).unwrap()["world"]["mob_runtime"]["life"][0]["ward_owner"]
+            .is_null()
+    );
+    (engaged, cleared)
+}
+
 fn scenarios() -> Vec<(&'static str, Sim)> {
+    let (mob_engaged, mob_cleared) = mob_audit_states();
     let mut mid = crowded_8();
     drive(&mut mid, 40);
     let mut late = crowded_8();
@@ -327,6 +417,9 @@ fn scenarios() -> Vec<(&'static str, Sim)> {
     let mut fuse = short_fuse();
     drive(&mut fuse, 400);
     vec![
+        ("mob engaged with pending attack", mob_engaged),
+        ("mob camp cleared", mob_cleared),
+        ("card choices", card_choices()),
         ("Sentenced window", sentenced_window()),
         ("Frost window", frost_window()),
         ("Plague window", plague_window()),
@@ -365,6 +458,8 @@ struct Tally {
     validated: Vec<String>,
     /// Patterns of the null leaves no candidate could fill, and of every leaf that was perturbed.
     null_left: Vec<String>,
+    optional_seen: Vec<String>,
+    validated_optional: Vec<String>,
     perturbed: Vec<String>,
     secrets_checked: usize,
 }
@@ -506,6 +601,194 @@ fn candidates(leaf: &Value, strings: &[String]) -> Vec<Value> {
 
 /// Patterns whose perturbation the restore may refuse, and why. Any other refusal fails the test.
 const VALIDATED: &[(&str, &str)] = &[
+    ("world.mobs.*.core.weapon.action.kind", "mob pending action kind must match its held weapon (Bow Draw, Wand Cast, otherwise Swing)"),
+    ("world.mobs.*.core.weapon.action.weapon", "mob pending action weapon must equal its catalog-derived active weapon"),
+    ("world.mobs.*.core.weapon.action.target", "mob_checkpoint rejects player lock targets on mob pending attacks; NPC aim is resolved through its brain"),
+    ("world.mobs.*.core.card_dot_crit", "mob_checkpoint requires no player card DotCrit runtime on mobs"),
+    ("world.mobs.*.core.motion.slip", "mob_checkpoint rejects mob slip; supported mob movement has no slip producer"),
+    ("world.mobs.*.core.signature.ap_hits.target", "mob_checkpoint requires the complete player-only AP hit history remain default"),
+    ("world.mobs.*.core.signature.mark.far_since", "mob_checkpoint requires the complete unsupported Mark runtime remain default"),
+    ("world.mobs.*.core.statuses.cast", "mob_checkpoint rejects ability cast state on mobs"),
+    ("world.mobs.*.core.weapon.weapon1", "mob_checkpoint requires catalog weapon0 and no secondary slot"),
+    ("world.mobs.*.core.signature.chillers.*", "validate_basic requires default Frost runtime in the supported basic Holy/Fire/Plague PvE domain"),
+    ("world.mobs.*.core.signature.exposure_started_at", "validate_basic requires default Frost runtime in the supported basic Holy/Fire/Plague PvE domain"),
+    ("world.mobs.*.core.signature.last_near_at", "validate_basic requires default Frost runtime in the supported basic Holy/Fire/Plague PvE domain"),
+    ("world.mobs.*.core.signature.ranged_chill_until", "validate_basic requires default Frost runtime in the supported basic Holy/Fire/Plague PvE domain"),
+    ("world.mobs.*.core.weapon.targeting.attack_move", "mob_checkpoint requires player weapon-targeting state remain default; mob decisions use their separate validated brain"),
+    ("world.mobs.*.core.weapon.targeting.goal", "mob_checkpoint requires player weapon-targeting state remain default; mob decisions use their separate validated brain"),
+    ("world.mobs.*.core.weapon.targeting.lost_at", "mob_checkpoint requires player weapon-targeting state remain default; mob decisions use their separate validated brain"),
+    ("world.mobs.*.core.weapon.targeting.plan_at", "mob_checkpoint requires player weapon-targeting state remain default; mob decisions use their separate validated brain"),
+    ("world.mobs.*.core.weapon.targeting.search_at", "mob_checkpoint requires player weapon-targeting state remain default; mob decisions use their separate validated brain"),
+    ("world.mobs.*.core.weapon.targeting.target", "mob_checkpoint requires player weapon-targeting state remain default; mob decisions use their separate validated brain"),
+    ("world.mob_runtime.camps.*.state", "cleared camp state must agree with nonzero clear/respawn clocks and zero alive count"),
+    ("world.mobs.*.core.signature.dot_paused_until", "signature pause is finite and bounded; gate-off requires default signature"),
+    ("world.mobs.*.core.signature.engaged", "engagement requires target and reach timestamp; gate-off requires default signature"),
+    ("world.mobs.*.core.signature.hp_frac", "signature fraction is finite; gate-off requires default signature"),
+    ("world.mobs.*.core.signature.in_reach", "reach requires target and reach timestamp; gate-off requires default signature"),
+    ("world.mobs.*.core.vitals.hp", "mob HP is finite in 0..max_hp and positive exactly when status is Alive"),
+    ("world.mobs.*.core.weapon.held", "dead mobs must have no held attack or pending action"),
+    // Exact coupled constraints exposed by the admitted three-mob corpus. No accepted edit is skipped.
+    ("statics.arena.map.layers.data.camps.#len", "mapdata camp identity, zone, centre and ordered spots must match region mirrors, territory and retained mob births"),
+    ("statics.arena.map.layers.data.camps.*.area", "mapdata::collision recomputes camp area from territory floor cells"),
+    ("statics.arena.map.layers.data.camps.*.chest.x", "mapdata::camp_record requires chest equal camp centre and on floor"),
+    ("statics.arena.map.layers.data.camps.*.chest.y", "mapdata::camp_record requires chest equal camp centre and on floor"),
+    ("statics.arena.map.layers.data.camps.*.eliteSpot", "map elite spot must agree with region mirror and retained typed mob births"),
+    ("statics.arena.map.layers.data.camps.*.id", "mapdata camp identity, zone, centre and ordered spots must match region mirrors, territory and retained mob births"),
+    ("statics.arena.map.layers.data.camps.*.r", "mapdata camp identity, zone, centre and ordered spots must match region mirrors, territory and retained mob births"),
+    ("statics.arena.map.layers.data.camps.*.spots.#len", "mapdata camp identity, zone, centre and ordered spots must match region mirrors, territory and retained mob births"),
+    ("statics.arena.map.layers.data.camps.*.spots.*.x", "mapdata camp identity, zone, centre and ordered spots must match region mirrors, territory and retained mob births"),
+    ("statics.arena.map.layers.data.camps.*.spots.*.y", "mapdata camp identity, zone, centre and ordered spots must match region mirrors, territory and retained mob births"),
+    ("statics.arena.map.layers.data.camps.*.x", "mapdata camp identity, zone, centre and ordered spots must match region mirrors, territory and retained mob births"),
+    ("statics.arena.map.layers.data.camps.*.y", "mapdata camp identity, zone, centre and ordered spots must match region mirrors, territory and retained mob births"),
+    ("statics.arena.map.layers.data.camps.*.zone", "mapdata camp identity, zone, centre and ordered spots must match region mirrors, territory and retained mob births"),
+    ("statics.arena.map.layers.data.coliseum.centre.x", "mapdata requires the coliseum centre and all coliseum cells/gates to agree with its rectangle and floor"),
+    ("statics.arena.map.layers.data.coliseum.centre.y", "mapdata requires the coliseum centre and all coliseum cells/gates to agree with its rectangle and floor"),
+    ("statics.arena.map.layers.data.coliseum.gates.#len", "mapdata requires four ordered sides with distinct contiguous boundary tiles and matching gate centres"),
+    ("statics.arena.map.layers.data.coliseum.gates.*.side", "mapdata requires four ordered sides with distinct contiguous boundary tiles and matching gate centres"),
+    ("statics.arena.map.layers.data.coliseum.gates.*.tiles.#len", "mapdata requires four ordered sides with distinct contiguous boundary tiles and matching gate centres"),
+    ("statics.arena.map.layers.data.coliseum.gates.*.tiles.*.x", "mapdata requires four ordered sides with distinct contiguous boundary tiles and matching gate centres"),
+    ("statics.arena.map.layers.data.coliseum.gates.*.tiles.*.y", "mapdata requires four ordered sides with distinct contiguous boundary tiles and matching gate centres"),
+    ("statics.arena.map.layers.data.coliseum.gates.*.x", "mapdata requires four ordered sides with distinct contiguous boundary tiles and matching gate centres"),
+    ("statics.arena.map.layers.data.coliseum.gates.*.y", "mapdata requires four ordered sides with distinct contiguous boundary tiles and matching gate centres"),
+    ("statics.arena.map.layers.data.coliseum.innerSpawns.#len", "mapdata requires at least MAX_PLAYERS distinct coliseum floor spawns"),
+    ("statics.arena.map.layers.data.coliseum.innerSpawns.*.x", "mapdata requires at least MAX_PLAYERS distinct coliseum floor spawns"),
+    ("statics.arena.map.layers.data.coliseum.innerSpawns.*.y", "mapdata requires at least MAX_PLAYERS distinct coliseum floor spawns"),
+    ("statics.arena.map.layers.data.coliseum.rect.h", "mapdata requires the coliseum centre and all coliseum cells/gates to agree with its rectangle and floor"),
+    ("statics.arena.map.layers.data.coliseum.rect.w", "mapdata requires the coliseum centre and all coliseum cells/gates to agree with its rectangle and floor"),
+    ("statics.arena.map.layers.data.coliseum.rect.x", "mapdata requires the coliseum centre and all coliseum cells/gates to agree with its rectangle and floor"),
+    ("statics.arena.map.layers.data.coliseum.rect.y", "mapdata requires the coliseum centre and all coliseum cells/gates to agree with its rectangle and floor"),
+    ("statics.arena.map.layers.data.featureGrid.#len", "mapdata grid lengths and collision dimensions must equal w*h"),
+    ("statics.arena.map.layers.data.featureGrid.*", "mapdata feature cells must reference existing features; this admitted map has none"),
+    ("statics.arena.map.layers.data.h", "mapdata grid lengths and collision dimensions must equal w*h"),
+    ("statics.arena.map.layers.data.regionGrid.#len", "mapdata grid lengths and collision dimensions must equal w*h"),
+    ("statics.arena.map.layers.data.regionGrid.*", "mapdata region cells must agree with areas, coliseum footprint, camps and declared destinations"),
+    ("statics.arena.map.layers.data.regions.#len", "mapdata requires exactly five regions in faction order"),
+    ("statics.arena.map.layers.data.regions.*.area", "mapdata::region_record recomputes region area from regionGrid"),
+    ("statics.arena.map.layers.data.regions.*.id", "mapdata requires exactly five regions in faction order"),
+    ("statics.arena.map.layers.data.regions.*.mobCamps.#len", "mapdata::region_record requires the exact ordered camp mirror and faction default weapon"),
+    ("statics.arena.map.layers.data.regions.*.mobCamps.*.elite", "mapdata::region_record requires the exact ordered camp mirror and faction default weapon"),
+    ("statics.arena.map.layers.data.regions.*.mobCamps.*.id", "mapdata::region_record requires the exact ordered camp mirror and faction default weapon"),
+    ("statics.arena.map.layers.data.regions.*.mobCamps.*.r", "mapdata::region_record requires the exact ordered camp mirror and faction default weapon"),
+    ("statics.arena.map.layers.data.regions.*.mobCamps.*.region", "mapdata::region_record requires the exact ordered camp mirror and faction default weapon"),
+    ("statics.arena.map.layers.data.regions.*.mobCamps.*.spots.#len", "mapdata::region_record requires the exact ordered camp mirror and faction default weapon"),
+    ("statics.arena.map.layers.data.regions.*.mobCamps.*.spots.*.x", "mapdata::region_record requires the exact ordered camp mirror and faction default weapon"),
+    ("statics.arena.map.layers.data.regions.*.mobCamps.*.spots.*.y", "mapdata::region_record requires the exact ordered camp mirror and faction default weapon"),
+    ("statics.arena.map.layers.data.regions.*.mobCamps.*.weapon", "mapdata::region_record requires the exact ordered camp mirror and faction default weapon"),
+    ("statics.arena.map.layers.data.regions.*.mobCamps.*.x", "mapdata::region_record requires the exact ordered camp mirror and faction default weapon"),
+    ("statics.arena.map.layers.data.regions.*.mobCamps.*.y", "mapdata::region_record requires the exact ordered camp mirror and faction default weapon"),
+    ("statics.arena.map.layers.data.regions.*.pole.x", "mapdata requires faction poles on floor in their declared zone"),
+    ("statics.arena.map.layers.data.regions.*.pole.y", "mapdata requires faction poles on floor in their declared zone"),
+    ("statics.arena.map.layers.data.regions.*.spawns.#len", "mapdata requires each region spawn list equal its ordered spawnPool view"),
+    ("statics.arena.map.layers.data.regions.*.spawns.*.x", "mapdata requires each region spawn list equal its ordered spawnPool view"),
+    ("statics.arena.map.layers.data.regions.*.spawns.*.y", "mapdata requires each region spawn list equal its ordered spawnPool view"),
+    ("statics.arena.map.layers.data.spawnPool.#len", "mapdata requires region spawns, spawnPool and ordered interleaved spawns to agree and name floor in the declared zone"),
+    ("statics.arena.map.layers.data.spawnPool.*.x", "mapdata requires region spawns, spawnPool and ordered interleaved spawns to agree and name floor in the declared zone"),
+    ("statics.arena.map.layers.data.spawnPool.*.y", "mapdata requires region spawns, spawnPool and ordered interleaved spawns to agree and name floor in the declared zone"),
+    ("statics.arena.map.layers.data.spawnPool.*.zone", "mapdata requires region spawns, spawnPool and ordered interleaved spawns to agree and name floor in the declared zone"),
+    ("statics.arena.map.layers.data.spawns.#len", "mapdata requires region spawns, spawnPool and ordered interleaved spawns to agree and name floor in the declared zone"),
+    ("statics.arena.map.layers.data.spawns.*.x", "mapdata requires region spawns, spawnPool and ordered interleaved spawns to agree and name floor in the declared zone"),
+    ("statics.arena.map.layers.data.spawns.*.y", "mapdata requires region spawns, spawnPool and ordered interleaved spawns to agree and name floor in the declared zone"),
+    ("statics.arena.map.layers.data.terrain.#len", "mapdata grid lengths and collision dimensions must equal w*h"),
+    ("statics.arena.map.layers.data.terrain.*", "mapdata terrain must agree with collision; outer border is unowned plain wall"),
+    ("statics.arena.map.layers.data.territoryGrid.#len", "mapdata grid lengths and collision dimensions must equal w*h"),
+    ("statics.arena.map.layers.data.territoryGrid.*", "mapdata territory cells must reference their camp/zone and reproduce its floor area"),
+    ("statics.arena.map.layers.data.w", "mapdata grid lengths and collision dimensions must equal w*h"),
+    ("statics.arena.map.tiles.*", "layered map collision must preserve border walls, destination floor and territory area"),
+    ("world.actor_history.*.origin.Mob.birth_serial", "mob_checkpoint verifies typed camp/spot/type/elite provenance, initial serial order and raid birth tick against actual actors"),
+    ("world.actor_history.*.origin.Mob.born_tick", "mob_checkpoint verifies typed camp/spot/type/elite provenance, initial serial order and raid birth tick against actual actors"),
+    ("world.actor_history.*.origin.Mob.camp", "mob_checkpoint verifies typed camp/spot/type/elite provenance, initial serial order and raid birth tick against actual actors"),
+    ("world.actor_history.*.origin.Mob.elite", "mob_checkpoint verifies typed camp/spot/type/elite provenance, initial serial order and raid birth tick against actual actors"),
+    ("world.actor_history.*.origin.Mob.mob_type", "mob_checkpoint verifies typed camp/spot/type/elite provenance, initial serial order and raid birth tick against actual actors"),
+    ("world.actor_history.*.origin.Mob.spot", "mob_checkpoint verifies typed camp/spot/type/elite provenance, initial serial order and raid birth tick against actual actors"),
+    ("world.mob_runtime.camps.#len", "mob runtime camp and life arrays must match admitted map camp count"),
+    ("world.mob_runtime.camps.*.alive", "camp alive count must equal actual standing mobs in that camp"),
+    ("world.mob_runtime.camps.*.cleared_at", "uncleared camp clocks are zero; cleared camp expiry equals cleared_at plus CAMP_RESPAWN_MS"),
+    ("world.mob_runtime.camps.*.elite", "published roster must match camp faction/elite spot and every retained typed birth"),
+    ("world.mob_runtime.camps.*.mob_type", "published roster must match camp faction/elite spot and every retained typed birth"),
+    ("world.mob_runtime.camps.*.respawn_at", "uncleared camp clocks are zero; cleared camp expiry equals cleared_at plus CAMP_RESPAWN_MS"),
+    ("world.mob_runtime.combat", "supported PvE runtime requires combat enabled"),
+    ("world.mob_runtime.life.#len", "mob runtime camp and life arrays must match admitted map camp count"),
+    ("world.mob_runtime.life.*.contributors.*", "contributors are unique retained player identities, never future ids or mobs"),
+    ("world.mob_runtime.life.*.ward_expires_at", "ward expiry is zero without owner, otherwise cleared_at plus CAMP_WARD_MS"),
+    ("world.mobs.#len", "camp alive count and typed current birth cycle must agree with actual mob store"),
+    ("world.mobs.*.brain.mode", "target requires Fight mode; a dead mob must be Idle"),
+    ("world.mobs.*.brain.threat.*.#len", "threat rows are exact (retained player id, finite nonnegative amount) pairs with unique ids"),
+    ("world.mobs.*.brain.threat.*.*", "threat rows are exact (retained player id, finite nonnegative amount) pairs with unique ids"),
+    ("world.mobs.*.camp", "mob identity/home/facing/phase must equal its retained typed camp birth and source-derived spawn"),
+    ("world.mobs.*.core.body.history.*.t", "mob rewind times must be nonnegative, past and at least TICK_MS apart"),
+    ("world.mobs.*.core.id", "mob identity/home/facing/phase must equal its retained typed camp birth and source-derived spawn"),
+    ("world.mobs.*.core.modifiers.farm.#len", "mob mirrors must validate against empty player Build/Farm and catalog-derived max HP; arrays have canonical fixed lengths"),
+    ("world.mobs.*.core.modifiers.farm.*", "mob mirrors must validate against empty player Build/Farm and catalog-derived max HP; arrays have canonical fixed lengths"),
+    ("world.mobs.*.core.modifiers.max_hp_mult", "mob mirrors must validate against empty player Build/Farm and catalog-derived max HP; arrays have canonical fixed lengths"),
+    ("world.mobs.*.core.modifiers.mults.#len", "mob mirrors must validate against empty player Build/Farm and catalog-derived max HP; arrays have canonical fixed lengths"),
+    ("world.mobs.*.core.modifiers.mults.*", "mob mirrors must validate against empty player Build/Farm and catalog-derived max HP; arrays have canonical fixed lengths"),
+    ("world.mobs.*.core.modifiers.sums.#len", "mob mirrors must validate against empty player Build/Farm and catalog-derived max HP; arrays have canonical fixed lengths"),
+    ("world.mobs.*.core.modifiers.sums.*", "mob mirrors must validate against empty player Build/Farm and catalog-derived max HP; arrays have canonical fixed lengths"),
+    ("world.mobs.*.core.modifiers.wire.#len", "mob mirrors must validate against empty player Build/Farm and catalog-derived max HP; arrays have canonical fixed lengths"),
+    ("world.mobs.*.core.modifiers.wire.*", "mob mirrors must validate against empty player Build/Farm and catalog-derived max HP; arrays have canonical fixed lengths"),
+    ("world.mobs.*.core.signature.bits", "signature bit domain and enabled faction mode are checked; unsupported bits are rejected"),
+    ("world.mobs.*.core.signature.chill", "basic PvE excludes Frost; validate_basic requires default Frost runtime and canonical chiller storage"),
+    ("world.mobs.*.core.signature.chiller_count", "basic PvE excludes Frost; validate_basic requires default Frost runtime and canonical chiller storage"),
+    ("world.mobs.*.core.signature.chillers.#len", "basic PvE excludes Frost; validate_basic requires default Frost runtime and canonical chiller storage"),
+    ("world.mobs.*.core.signature.frost_move_mult", "basic PvE excludes Frost; validate_basic requires default Frost runtime and canonical chiller storage"),
+    ("world.mobs.*.core.signature.mark.amp_until", "supported mob domain requires the complete Mark runtime remain default"),
+    ("world.mobs.*.core.signature.mark.denied", "supported mob domain requires the complete Mark runtime remain default"),
+    ("world.mobs.*.core.signature.mark.hits", "supported mob domain requires the complete Mark runtime remain default"),
+    ("world.mobs.*.core.signature.mark.progress", "supported mob domain requires the complete Mark runtime remain default"),
+    ("world.mobs.*.core.signature.mark.swaps", "supported mob domain requires the complete Mark runtime remain default"),
+    ("world.mobs.*.core.signature.mark.tier", "supported mob domain requires the complete Mark runtime remain default"),
+    ("world.mobs.*.core.vitals.barrier", "supported mob vitals require zero barrier and immunity clock"),
+    ("world.mobs.*.core.vitals.faction", "mob vitals faction and max HP must equal its catalog-derived birth facts"),
+    ("world.mobs.*.core.vitals.immune_until", "supported mob vitals require zero barrier and immunity clock"),
+    ("world.mobs.*.core.vitals.max_hp", "mob vitals faction and max HP must equal its catalog-derived birth facts"),
+    ("world.mobs.*.core.weapon.slot", "mob gear is its catalog weapon in slot zero with no player targeting state"),
+    ("world.mobs.*.core.weapon.targeting.seen", "mob gear is its catalog weapon in slot zero with no player targeting state"),
+    ("world.mobs.*.core.weapon.weapon0", "mob gear is its catalog weapon in slot zero with no player targeting state"),
+    ("world.mobs.*.elite", "mob identity/home/facing/phase must equal its retained typed camp birth and source-derived spawn"),
+    ("world.mobs.*.home.x", "mob identity/home/facing/phase must equal its retained typed camp birth and source-derived spawn"),
+    ("world.mobs.*.home.y", "mob identity/home/facing/phase must equal its retained typed camp birth and source-derived spawn"),
+    ("world.mobs.*.home_facing", "mob identity/home/facing/phase must equal its retained typed camp birth and source-derived spawn"),
+    ("world.mobs.*.mob_type", "mob identity/home/facing/phase must equal its retained typed camp birth and source-derived spawn"),
+    ("world.mobs.*.repath_phase", "mob identity/home/facing/phase must equal its retained typed camp birth and source-derived spawn"),
+    ("world.mobs.*.status", "mob status is Alive or Dead and must agree with positive HP and dead brain/action constraints"),
+    ("world.raid_started_at", "mob_checkpoint requires initial typed birth tick times TICK_MS equal raid_started_at"),
+    ("world.mob_runtime", "PvE requires Some runtime; Off rejects it, so optional presence cannot change independently of mode and typed births"),
+    ("world.containers.*.stat_offer", "initial crate entitlement must match the constructor replay; other props cannot retain one"),
+    ("world.players.*.healing_until", "expiry mirror must equal the active Small potion queue or zero when absent"),
+    ("world.players.*.potions_healing", "active-count mirror must equal the actual Small potion queue length"),
+    ("statics.config.mob_mode", "mode requires matching admitted camp layers and typed runtime/provenance"),
+    ("statics.config.initial_loot", "constructor mode must match the replayed initial item storage and RNG prefix"),
+    ("world.initial_birth_serial", "constructor boundary must equal the real initial allocations"),
+    ("world.next_id", "next allocation must follow the complete contiguous typed actor history"),
+    ("world.actor_history.#len", "retained provenance must account for every player and mob allocation"),
+    ("world.actor_history.*.id", "retained history ids are contiguous and agree with roster and runtime stores"),
+    ("world.actor_history.*.origin.Player.join_ordinal", "player provenance ordinal must agree with retained roster order"),
+    ("world.reward_chests.*.options.*.Card","closed supported card domain and distinct option ids"),
+    ("world.reward_chests.*.options.*.Boost","closed source boost domain and distinct option ids"),
+    ("world.reward_chests.*.pickers.#len","a taken option retains its picker"),
+    ("world.reward_chests.*.pickers.*","retained roster identity and matching taken slot"),
+    ("world.reward_chests.*.id","allocated monotonic entity id, distinct from props/projectiles/fields"),
+    ("world.reward_rng.words.#len","source private RNG is exactly four words"),
+    ("statics.secrets.reward_salt.#len","source private RNG seed is exactly four words"),
+    ("world.players.*.build.cards.#len","supported card facts have three canonical slots"),
+    ("world.players.*.build.cards.*","unique insertion order and matching folded facts"),
+    ("world.players.*.build.boosts.#len","eight source boost counts"),
+    ("world.players.*.build.boosts.*","at most three picks; a grant must update the canonical fold"),
+    ("world.players.*.farm.counts.#len","exact twenty normal-type facts"),
+    ("world.players.*.farm.counts.*","safe integer reward counts; a grant must update the canonical farm fold"),
+    ("world.players.*.core.modifiers.sums.#len","canonical fixed stat keys"),
+    ("world.players.*.core.modifiers.sums.*","cached sums must match actual card/boost facts"),
+    ("world.players.*.core.modifiers.farm.#len","canonical fixed stat keys"),
+    ("world.players.*.core.modifiers.farm.*","cached farm sums must match actual earned facts"),
+    ("world.players.*.core.modifiers.mults.#len","canonical fixed product keys"),
+    ("world.players.*.core.modifiers.mults.*","products must match the actual selected rows"),
+    ("world.players.*.core.modifiers.wire.#len","exact seven encoded source mirrors"),
+    ("world.players.*.core.modifiers.wire.*","integral codecs and fact-derived ranges preserve quiet status timing"),
+    ("world.players.*.core.modifiers.max_hp_mult","max HP multiplier matches the actual row/farm sums"),
+    ("world.reward_chests.*.options.#len","three closed offer slots"),
+    ("world.reward_chests.*.taken.#len","taken slots align with three offers"),
+    ("world.reward_chests.*.taken.*","picker provenance and one option per picker"),
+
     ("world.players.*.core.statuses.initialized", "a nonempty status table or cast requires initialized runtime; empty runtime presence is separately perturbed"),
     ("world.players.*.core.vitals.faction","nondefault Mark runtime is owned only by a Sentenced faction"),
     ("world.players.*.core.signature.mark.tier","trusted singleton Mark requires its mode/faction, legal progress/tier/counters, target and bounded clocks"),
@@ -561,8 +844,8 @@ const VALIDATED: &[(&str, &str)] = &[
     ("world.projectiles.*.reflections", "return count agrees with the launch"),
     ("world.projectiles.*.halved","only a ball can be intercepted by a sword"),
     ("world.projectiles.*.time","settled projectiles end exactly at the simulation clock"),
-    ("world.item_counter", "item identities are bounded by twice the number of allocated containers"),
-    ("world.containers.*.items.#len", "weapon item storage has two slots"),
+    ("world.item_counter", "item identities are bounded by actual weapon/potion capacity of allocated entities"),
+    ("world.containers.*.items.#len", "typed item storage is bounded by two weapons plus capped potion stock"),
     ("world.containers.*.opened", "only chests can be opened"),
     ("world.containers.*.id", "container ids are unique and cannot exceed the allocated counter"),
     ("world.containers.*.items.*.uid", "item ids must be unique, nonzero and allocated"),
@@ -648,6 +931,7 @@ fn seeds(pat: &str) -> Vec<Value> {
 }
 
 fn perturb_all(sim: &Sim, pool: &BTreeMap<String, Vec<Value>>, tally: &mut Tally) {
+    let mut undocumented = BTreeSet::new();
     let base = serde_json::to_value(sim).unwrap();
     let h0 = sim.state_hash();
     assert_eq!(
@@ -728,16 +1012,19 @@ fn perturb_all(sim: &Sim, pool: &BTreeMap<String, Vec<Value>>, tally: &mut Tally
         }
         let p = path_of(path);
         let pat = pattern(&p);
+        if item.kind == Kind::Leaf && leaf.is_null() {
+            tally.optional_seen.push(pat.clone());
+        }
         if item.kind != Kind::Subtree {
             tally.leaves += 1;
         }
         let secret = p.starts_with("statics.secrets");
         let tries: Vec<Value> = match item.kind {
-            Kind::Leaf if pat == "world.players.*.core.attack_rate_wire" => {
+            Kind::Leaf if p.ends_with(".core.modifiers.wire.0") => {
                 vec![serde_json::json!(800.0), serde_json::json!(900.0)]
             }
-            Kind::Leaf if pat == "world.players.*.core.weapon.armor_shred" => {
-                vec![serde_json::json!(3.0), serde_json::json!(6.0)]
+            Kind::Leaf if p.ends_with(".core.modifiers.wire.3") => {
+                vec![serde_json::json!(-30.0), serde_json::json!(-60.0)]
             }
             Kind::Leaf if pat == "world.players.*.core.statuses.instances.*.value" => {
                 vec![serde_json::json!(if leaf == &serde_json::json!(3.0) {
@@ -755,6 +1042,13 @@ fn perturb_all(sim: &Sim, pool: &BTreeMap<String, Vec<Value>>, tally: &mut Tally
             Kind::Leaf if leaf.is_null() => {
                 let mut v = pool.get(&pat).cloned().unwrap_or_default();
                 v.extend(seeds(&pat));
+                // Shared FighterCore option types reuse real player examples, while the
+                // mob restore still enforces its stricter supported recipient/gear domain.
+                if let Some(tail) = pat.strip_prefix("world.mobs.*.core.") {
+                    let player = format!("world.players.*.core.{tail}");
+                    v.extend(pool.get(&player).cloned().unwrap_or_default());
+                    v.extend(seeds(&player));
+                }
                 v.extend([serde_json::json!(1), serde_json::json!(1.5)]);
                 v
             }
@@ -798,7 +1092,11 @@ fn perturb_all(sim: &Sim, pool: &BTreeMap<String, Vec<Value>>, tally: &mut Tally
         }
         match (item.kind, result) {
             // A subtree is only perturbed where it is optional; a required one legitimately refuses to vanish.
-            (Kind::Subtree, None) => {}
+            (Kind::Subtree, None) => {
+                if VALIDATED.iter().any(|(v, _)| *v == pat) {
+                    tally.validated_optional.push(pat);
+                }
+            }
             (Kind::Subtree, Some(h)) => {
                 assert_ne!(
                     h, h0,
@@ -807,12 +1105,17 @@ fn perturb_all(sim: &Sim, pool: &BTreeMap<String, Vec<Value>>, tally: &mut Tally
                 tally.changed += 1;
                 tally.perturbed.push(pat);
             }
-            (_, None) if leaf.is_null() => tally.null_left.push(pat),
+            (_, None) if leaf.is_null() => {
+                if VALIDATED.iter().any(|(v, _)| *v == pat) {
+                    tally.validated_optional.push(pat);
+                } else {
+                    tally.null_left.push(pat);
+                }
+            }
             (_, None) => {
-                assert!(
-                    VALIDATED.iter().any(|(v, _)| *v == pat),
-                    "`{p}`: every perturbation was refused by the restore and `{pat}` is not a documented validated path"
-                );
+                if !VALIDATED.iter().any(|(v, _)| *v == pat) {
+                    undocumented.insert(pat.clone());
+                }
                 tally.validated.push(pat);
             }
             (_, Some(h)) if secret => {
@@ -829,6 +1132,10 @@ fn perturb_all(sim: &Sim, pool: &BTreeMap<String, Vec<Value>>, tally: &mut Tally
             (_, Some(_)) => tally.unhashed.push(p),
         }
     }
+    assert!(
+        undocumented.is_empty(),
+        "restore-refused paths need exact documented validation: {undocumented:#?}"
+    );
 }
 
 fn report(name: &str, t: &Tally) {
@@ -869,6 +1176,8 @@ fn every_serialized_leaf_of_a_match_changes_the_state_hash() {
         all.unhashed
             .extend(t.unhashed.iter().map(|p| format!("{name}: {p}")));
         all.null_left.extend(t.null_left);
+        all.optional_seen.extend(t.optional_seen);
+        all.validated_optional.extend(t.validated_optional);
         all.perturbed.extend(t.perturbed);
     }
     assert!(
@@ -900,17 +1209,26 @@ fn every_serialized_leaf_of_a_match_changes_the_state_hash() {
         layered.state_hash()
     );
     all.perturbed.push(path_of(&path));
-    // An optional leaf that is `None` in a scenario must be perturbed as a `Some` in at least one scenario.
+    // Every optional pattern must either accept a hash-changing edit somewhere in the corpus
+    // or have an exact documented restore refusal (including role-forbidden Some values).
+    // Accepted edits are always checked, even for patterns listed in VALIDATED.
     let perturbed: BTreeSet<&String> = all.perturbed.iter().collect();
+    let validated_optional: BTreeSet<&String> = all.validated_optional.iter().collect();
     let never: BTreeSet<&String> = all
         .null_left
         .iter()
-        .filter(|p| !perturbed.contains(p))
+        .filter(|p| !perturbed.contains(p) && !validated_optional.contains(p))
         .collect();
     assert!(
         never.is_empty(),
-        "optional leaves no scenario ever perturbed (extend a scenario so they are Some): {never:#?}"
+        "optional leaves neither perturbed nor documented as restore-validated (extend a scenario so they are Some): {never:#?}"
     );
+    let optional_seen: BTreeSet<_> = all.optional_seen.iter().collect();
+    let some_count = optional_seen
+        .iter()
+        .filter(|p| pool.get(**p).is_some_and(|v| !v.is_empty()))
+        .count();
+    eprintln!("OPTIONALS: {some_count} patterns have actual Some values in the corpus; {} exact restore-validated optional patterns", validated_optional.len());
     eprintln!(
         "TOTAL: {} leaves, {} perturbations changed the hash, {} unhashed",
         all.leaves,
@@ -1111,4 +1429,59 @@ fn is_serde_skip(line: &str) -> bool {
     let body = t.split(")]").next().unwrap_or(t);
     body.split(|c: char| !(c.is_alphanumeric() || c == '_'))
         .any(|w| w == "skip" || w == "skip_serializing" || w == "skip_deserializing")
+}
+
+fn card_choices() -> Sim {
+    let ps = [
+        Placement {
+            profile: "card-a".into(),
+            faction: FactionId::Fire,
+            bot: false,
+            at: Vec2::new(400., 400.),
+            hp: None,
+            weapon0: None,
+            weapon1: None,
+        },
+        Placement {
+            profile: "card-b".into(),
+            faction: FactionId::Holy,
+            bot: false,
+            at: Vec2::new(456., 400.),
+            hp: None,
+            weapon0: None,
+            weapon1: None,
+        },
+    ];
+    let mut ps = ps.to_vec();
+    for i in 0..2 {
+        ps.push(Placement {
+            profile: format!("card-extra-{i}"),
+            faction: FactionId::Holy,
+            bot: false,
+            at: Vec2::new(800. + f64::from(i) * 70., 700.),
+            hp: None,
+            weapon0: None,
+            weapon1: None,
+        });
+    }
+    let sim = Sim::reset_active(
+        SimConfig::default(),
+        rh_sim::arenas::practice_arena(),
+        Secrets::from_seed(55),
+        &ps,
+    );
+    let mut cp = serde_json::to_value(sim).unwrap();
+    cp["world"]["reward_chests"] = serde_json::json!([{"id":1,"at":{"x":400.,"y":400.},"expires_at":15000.,"held_until_tick":0,"options":[{"Card":"slowBurn"},{"Card":"pocketSand"},{"Card":"siphon"}],"taken":[null,null,null],"pickers":[],"camp":null,"owner":null}]);
+    cp["world"]["entity_counter"] = serde_json::json!(1);
+    let mut sim = Sim::restore(&cp).unwrap();
+    sim.submit(
+        PlayerId(1),
+        cmd(RawCommand::Choose {
+            chest_id: Some(1),
+            pick: 1,
+        }),
+    )
+    .unwrap();
+    sim.step();
+    sim
 }

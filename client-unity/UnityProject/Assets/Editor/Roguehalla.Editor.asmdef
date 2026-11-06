@@ -1,7 +1,7 @@
 {
   "name": "Roguehalla.Editor",
   "rootNamespace": "Roguehalla.Editor",
-  "references": ["Roguehalla.Client"],
+  "references": ["Roguehalla.Client", "Unity.TextMeshPro"],
   "includePlatforms": ["Editor"],
   "excludePlatforms": []
 }

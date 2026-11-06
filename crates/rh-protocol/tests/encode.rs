@@ -7,6 +7,8 @@ use rh_protocol::*;
 
 fn actor(i: u32) -> WireActor {
     WireActor {
+        sig: 0,
+        mob_type_code: 0,
         effects: 0,
         displace_seq: 0,
         id: i * 3 + 1,
@@ -24,6 +26,7 @@ fn actor(i: u32) -> WireActor {
 
 fn me() -> WireSelf {
     WireSelf {
+        sig: 0,
         effects: 0,
         displace_seq: 0,
         id: 3,

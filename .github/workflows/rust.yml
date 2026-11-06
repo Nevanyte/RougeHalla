@@ -5,9 +5,9 @@ name: Rust foundation
 on:
   push:
     branches: [main, optimization_port]
-    paths: ["crates/**", "protocol/**", "parity/**", "packages/shared/src/**", "package.json", "package-lock.json", "client-unity/RoguehallaNet/**", "client-unity/RoguehallaNet.Tests/**", "tools/**", "Cargo.*", "rust-toolchain.toml", ".github/workflows/rust.yml"]
+    paths: ["crates/**", "protocol/**", "parity/**", "maps/**", "packages/shared/src/**", "packages/server/src/**", "package.json", "package-lock.json", "client-unity/RoguehallaNet/**", "client-unity/RoguehallaNet.Tests/**", "tools/**", "Cargo.*", "rust-toolchain.toml", ".github/workflows/rust.yml"]
   pull_request:
-    paths: ["crates/**", "protocol/**", "parity/**", "packages/shared/src/**", "package.json", "package-lock.json", "client-unity/**", "tools/**", "Cargo.*", "rust-toolchain.toml", ".github/workflows/rust.yml"]
+    paths: ["crates/**", "protocol/**", "parity/**", "maps/**", "packages/shared/src/**", "packages/server/src/**", "package.json", "package-lock.json", "client-unity/**", "tools/**", "Cargo.*", "rust-toolchain.toml", ".github/workflows/rust.yml"]
   workflow_dispatch:
 
 permissions:
@@ -52,11 +52,19 @@ jobs:
       - name: Headless smoke (full gameplay map layers, 8 bots)
         run: cargo run --release -p rh-headless -- --matches 1 --players 8 --map crates/rh-sim/src/mapdata/fixtures/seed1.map.json --max-ticks 4000
       - name: JS probe decoder vs the golden vectors
-        run: node tools/protocol-js/check-vectors.mjs
+        run: |
+          node tools/protocol-js/check-vectors.mjs
+          node tools/protocol-js/check-first-playable.mjs
       - uses: actions/setup-node@v4
         with:
           node-version: "22.23.4"
       - run: npm ci
+      - name: First-playable cards, constructor, potions and PvE still match the actual source
+        run: |
+          bash tools/cards-fixtures/capture.sh --check
+          bash tools/initial-world-fixtures/capture.sh --check
+          bash tools/initial-loot-fixtures/capture.sh --check
+          bash tools/pve-dot/capture.sh --check
       - name: Pure stat fold still matches the actual source
         run: |
           node --import tsx tools/stat-fold/capture.ts --preset canonical --check

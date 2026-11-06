@@ -17,10 +17,12 @@ pub(crate) fn multipliers(cx: &mut Cx) {
     let now = w.server_time;
     s.standing.clear();
     s.mults.clear();
-    for (i, p) in w.players.iter().enumerate() {
-        if p.standing() {
-            s.standing.push(FighterIx::of_slot(i));
-            s.mults.push(weapons::move_multiplier(&p.core, now));
+    for i in 0..w.fighter_count() {
+        let ix = FighterIx::of_slot(i);
+        if w.standing(ix) {
+            s.standing.push(ix);
+            let core = w.core(ix);
+            s.mults.push(weapons::move_multiplier(core, now));
         }
     }
     // Fighter-major, as legacy: each fighter's whole chain runs (in table order) before the next fighter's. None is

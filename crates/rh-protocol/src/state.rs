@@ -3,7 +3,7 @@ use crate::codec::{str_fits, str_len, varint_len};
 use crate::{DecodeError, EncodeError, Reader, Writer};
 use std::num::NonZeroU32;
 
-pub const MAX_STATE_KEYS: usize = 5;
+pub const MAX_STATE_KEYS: usize = 7;
 pub const MAX_VISIBLE_PROPS: usize = 512;
 pub const MAX_VISIBLE_FIELDS: usize = 512;
 pub const MAX_REWARD_CHESTS: usize = 512;
@@ -155,6 +155,98 @@ pub enum StateItem {
     Fields(Vec<WireField>),
     RewardChests(Vec<WireRewardChest>),
     Build(Option<WireBuild>),
+    Camps(Vec<WireCamp>),
+    Projectiles(Vec<WireProjectile>),
+}
+
+/// Public camp summary; no private actor identity is carried.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct WireCamp {
+    pub mob_type: u8,
+    pub elite: Option<u8>,
+    pub alive: u32,
+    pub state: u8,
+    pub cleared_at: f64,
+    pub respawn_at: f64,
+}
+/// Visible projectile fact, with no global projectile ID.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct WireProjectile {
+    pub kind: u8,
+    pub x: u16,
+    pub y: u16,
+    pub facing: u16,
+    pub owner: Option<u32>,
+}
+impl WireProjectile {
+    fn valid(&self) -> bool {
+        self.kind <= 1 && self.owner != Some(0)
+    }
+    fn len(&self) -> usize {
+        8 + self.owner.map_or(0, varint_len)
+    }
+    fn write(&self, w: &mut Writer) {
+        w.u8(self.kind);
+        w.u16(self.x);
+        w.u16(self.y);
+        w.u16(self.facing);
+        w.opt(self.owner.as_ref(), |w, id| w.varint(*id));
+    }
+    fn read(r: &mut Reader<'_>) -> Result<Self, DecodeError> {
+        let v = Self {
+            kind: r.u8()?,
+            x: r.u16()?,
+            y: r.u16()?,
+            facing: r.u16()?,
+            owner: r.opt(Reader::varint)?,
+        };
+        if v.valid() {
+            Ok(v)
+        } else {
+            Err(DecodeError::BadField("projectile"))
+        }
+    }
+}
+
+impl WireCamp {
+    fn valid(&self) -> bool {
+        self.mob_type < 30
+            && self.elite.is_none_or(|v| v < 30)
+            && self.alive <= 512
+            && self.state <= 2
+            && self.cleared_at.is_finite()
+            && self.cleared_at >= 0.
+            && self.respawn_at.is_finite()
+            && self.respawn_at >= self.cleared_at
+    }
+    fn len(&self) -> usize {
+        19 + varint_len(self.alive)
+    }
+    fn write(&self, w: &mut Writer) {
+        w.u8(self.mob_type);
+        w.u8(self.elite.map_or(0, |v| v + 1));
+        w.varint(self.alive);
+        w.u8(self.state);
+        w.f64(self.cleared_at);
+        w.f64(self.respawn_at);
+    }
+    fn read(r: &mut Reader<'_>) -> Result<Self, DecodeError> {
+        let mob_type = r.u8()?;
+        let elite = r.u8()?.checked_sub(1);
+        let v = Self {
+            mob_type,
+            elite,
+            alive: r.varint()?,
+            state: r.u8()?,
+            cleared_at: r.f64()?,
+            respawn_at: r.f64()?,
+        };
+        if v.valid() {
+            Ok(v)
+        } else {
+            Err(DecodeError::BadField("camp"))
+        }
+    }
 }
 
 impl WireRewardChest {
@@ -434,6 +526,8 @@ impl StateItem {
             Self::Fields(_) => 3,
             Self::RewardChests(_) => 4,
             Self::Build(_) => 5,
+            Self::Camps(_) => 6,
+            Self::Projectiles(_) => 7,
         }
     }
     pub(crate) fn encoded_len(&self) -> usize {
@@ -449,6 +543,13 @@ impl StateItem {
                         + value.iter().map(WireRewardChest::len).sum::<usize>()
                 }
                 Self::Build(value) => 1 + usize::from(value.is_some()) * 11,
+                Self::Projectiles(value) => {
+                    varint_len(value.len() as u32)
+                        + value.iter().map(WireProjectile::len).sum::<usize>()
+                }
+                Self::Camps(value) => {
+                    varint_len(value.len() as u32) + value.iter().map(WireCamp::len).sum::<usize>()
+                }
             }
     }
     pub(crate) fn check(&self) -> Result<(), EncodeError> {
@@ -495,6 +596,30 @@ impl StateItem {
                 }
             }
             Self::Build(_) => {}
+            Self::Projectiles(value) => {
+                if value.len() > 512 {
+                    return Err(EncodeError::TooMany {
+                        what: "projectiles",
+                        n: value.len(),
+                        max: 512,
+                    });
+                }
+                if !value.iter().all(WireProjectile::valid) {
+                    return Err(EncodeError::BadValue("projectile"));
+                }
+            }
+            Self::Camps(value) => {
+                if value.len() > 512 {
+                    return Err(EncodeError::TooMany {
+                        what: "camps",
+                        n: value.len(),
+                        max: 512,
+                    });
+                }
+                if !value.iter().all(WireCamp::valid) {
+                    return Err(EncodeError::BadValue("camp"));
+                }
+            }
         }
         Ok(())
     }
@@ -512,6 +637,18 @@ impl StateItem {
                 });
             }
             Self::Props(value) => value.write(w),
+            Self::Projectiles(value) => {
+                w.varint(value.len() as u32);
+                for row in value {
+                    row.write(w);
+                }
+            }
+            Self::Camps(value) => {
+                w.varint(value.len() as u32);
+                for row in value {
+                    row.write(w);
+                }
+            }
             Self::Fields(value) => {
                 w.varint(value.len() as u32);
                 for field in value {
@@ -585,6 +722,28 @@ impl StateItem {
                     boosts: r.bytes(8)?.try_into().unwrap(),
                 })
             })?),
+            6 => {
+                let n = r.varint()? as usize;
+                if n > 512 {
+                    return Err(DecodeError::TooMany(n));
+                }
+                let mut rows = Vec::with_capacity(n);
+                for _ in 0..n {
+                    rows.push(WireCamp::read(r)?);
+                }
+                Self::Camps(rows)
+            }
+            7 => {
+                let n = r.varint()? as usize;
+                if n > 512 {
+                    return Err(DecodeError::TooMany(n));
+                }
+                let mut rows = Vec::with_capacity(n);
+                for _ in 0..n {
+                    rows.push(WireProjectile::read(r)?);
+                }
+                Self::Projectiles(rows)
+            }
             _ => return Err(DecodeError::BadField("state key")),
         })
     }

@@ -119,7 +119,7 @@ fn unsafe_key_handle_kind_and_count_combinations_are_refused() {
     for raw in [
         vec![0x88, 0, 2, 1, 0, 1, 0],          // duplicate key
         vec![0x88, 0, 2, 3, 0, 1, 0],          // out-of-order key
-        vec![0x88, 0, 1, 6],                   // unknown key
+        vec![0x88, 0, 1, 8],                   // unknown key
         vec![0x88, 0, 1, 2, 0x81, 4],          // too many props, before row allocation
         vec![0x88, 0, 1, 3, 0x81, 4],          // too many fields
         vec![0x88, 0, 1, 1, 1, 0, 0, 0, 6, 0], // impossible stored potion count
@@ -181,6 +181,7 @@ fn unsafe_key_handle_kind_and_count_combinations_are_refused() {
 #[test]
 fn scalar_status_changes_and_clears_survive_full_and_fast_delta_paths() {
     let me = WireSelf {
+        sig: 255,
         id: 1,
         faction: 0,
         x: 100.,
@@ -200,6 +201,8 @@ fn scalar_status_changes_and_clears_survive_full_and_fast_delta_paths() {
     };
     let actors: Vec<_> = (2..18)
         .map(|id| WireActor {
+            sig: 255,
+            mob_type_code: 30,
             id,
             faction: 0,
             x: 200.,
@@ -216,18 +219,24 @@ fn scalar_status_changes_and_clears_survive_full_and_fast_delta_paths() {
         .collect();
     let first = SnapshotData::build(10, 1, 0, Some(me), actors.clone().into_iter()).unwrap();
     let mut next_me = me;
+    next_me.sig = 0;
     next_me.effects = 0;
     next_me.displace_seq = 0;
     let mut next_actors = actors;
+    next_actors[0].sig = 0;
+    next_actors[0].mob_type_code = 0;
     next_actors[0].effects = 0;
     next_actors[0].displace_seq = 0;
     let second =
         SnapshotData::build(11, 1, 0, Some(next_me), next_actors.clone().into_iter()).unwrap();
+    let reference = rh_protocol::delta::diff(&first, &second).unwrap();
+    let reference_bytes = ServerMsg::SnapshotDelta(reference).encode();
     let mut encoder = ConnEncoder::default();
     let (a, kind) = encoder.encode_frame(first);
     assert_eq!(kind, FrameKind::Full);
     let (b, kind) = encoder.encode_frame(second);
     assert_eq!(kind, FrameKind::Delta);
+    assert_eq!(&*b, &reference_bytes);
     let mut tracker = SnapshotTracker::default();
     tracker.decode(&a).unwrap();
     let decoded = tracker.decode(&b).unwrap();

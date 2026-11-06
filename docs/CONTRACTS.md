@@ -14,22 +14,35 @@ revision; [sweep/README.md](sweep/README.md) says which (H-sim and H-server-2 ha
 
 ### Stage 2 validation addendum (takes precedence over the historical Stage 1 rows below)
 
-Native arm64 integration on `optimization_port`: 1,252 tests passed with all features, 0 failed/filtered and two explicitly
-ignored tests (heap measurement and manual bridge E2E; the latter passed at the preceding external integration). Formatting and full/default-feature workspace Clippy with warnings denied passed. The preceding
+Native arm64 integration on `optimization_port`: 1,304 tests passed with all features and two explicitly
+ignored tests (heap measurement and manual bridge E2E; the latter passed at the preceding external integration).
+Workspace coverage was split into completed simulation and remaining-workspace batches; a stale counter control and
+test-only trace accumulation were repaired and retested. Formatting and full/default-feature workspace Clippy with warnings denied passed. The preceding
 foundation gate passed 395 all-feature/386 default-feature tests; its Rust/C#/browser and legacy recapture CI passed at
 `c93b659d`. Full-game, AWS, browser-matrix and release gates remain open.
 
-- C-NET/C-OBS transport addendum: wire6 carries strict complete-replacement State keys1–5 and effect/displacement
+- C-INPUT/C-OBS/C-PARITY playable-core addendum: actual initial loot, Small potions, selected cards/stat boosts and
+  Holy/Fire/Plague PvE share the native fighter/stat/input paths. Typed constructor/actor provenance is checked on
+  restore. A six-seat public-policy match ends normally, replays exactly and restores; the Unity browser separately
+  exercises loot, a real reward choice/build change, potion feedback, combat/results, reconnect and fresh rejoin.
+  Wire6 carries all seven strict replacement collections plus current mob/signature facts and authoritative projectile
+  positions. Failed enqueue commits no observer handles/baselines. NPC references are per-observer fixed blocks;
+  raw birth/launch/item identities remain private. See [ADR0019](adr/0019-first-playable-runtime.md) and
+  [the integration evidence](evidence/first-playable-core/INTEGRATION.md). C#267/JS15,377+61 pass. Deferred mechanic
+  domains and one-shot effect announcements remain explicit; this does not close full regional/content parity.
+
+- Earlier C-NET/C-OBS transport checkpoint: wire6 carried strict complete-replacement State keys1–5 and effect/displacement
   full/delta scalars. Human inputs resolve observer handles, never raw container IDs; reliable State+Events enqueue
   atomically before committing either offered handles or collection baselines. Resume clears bindings/pending client
   input and preserves the seat cursor. Focused protocol76/server103/C#229/JS3,811 checks and real Chromium WSS
-  admission/resync/reconnect/results pass with independent bounded review. Native reward/potion producer binding,
-  source loot admission and Unity HUD remain open; see [protocol6 evidence](evidence/protocol6/INTEGRATION.md).
+  admission/resync/reconnect/results passed with independent bounded review. At that earlier checkpoint native producer binding,
+  source loot admission and the Unity HUD were open; see [protocol6 evidence](evidence/protocol6/INTEGRATION.md).
 - C-INPUT/C-PARITY: weapon inputs use the existing validation/action budget. The harness now compares real admission
   outcomes, rejects unconsumed or unordered records, and checks requirements only for replayed records. 97 compared
   scenarios and 300 path queries MATCH; 13 scenarios are explicitly capture-only. Exact recapture runs Linux x64 Node 22.23.4.
-- C-DET/C-NUM: checkpoint format is `rh-checkpoint/15`, replay `rh-replay/13`, observation version 12; content identity
-  `256add608aea64e6`. Projectile state is hashed/restored, invalid packet/identity headroom is refused, and the six new
+- C-DET/C-NUM: checkpoint format is `rh-checkpoint/16`, replay `rh-replay/14`, observation version13/policy10; content identity
+  `74192c062ab9eac1`. Current hash audit covers44,428 leaves with zero unhashed;37 optional patterns have actual Some
+  values and30 exact optional patterns are documented restore refusals. Projectile state is hashed/restored, invalid packet/identity headroom is refused, and the six earlier
   flight fixtures allocate zero over 336 measured steady steps. Fixed map geometry uses one definition folded into the
   content identity; all 76 recaptured files and all seven map oracles agree on Linux x64 Node 22.23.4. Full admitted gameplay
   layers participate in static hashing and checkpoint validation. Captured legacy map hashes remain unverified metadata at structural import; the separate exact source hash now

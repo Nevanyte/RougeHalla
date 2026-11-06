@@ -194,8 +194,14 @@ impl Env {
         self.observers
             .get_mut(agent)
             .ok_or(OfferError::UnknownExternalSeat)?
-            .observe_into(&self.sim, &[], out, Some(&mut self.sight))?;
-        out.events.extend_from_slice(&self.fx_pending[agent]);
+            .prepare_with_seen(
+                &self.sim,
+                &[],
+                &self.fx_pending[agent],
+                out,
+                Some(&mut self.sight),
+            )?
+            .commit();
         self.fx_delivered[agent] = true;
         Ok(())
     }
@@ -237,12 +243,15 @@ impl Env {
         for (agent, (observer, fx)) in self.observers.iter_mut().zip(&self.fx).enumerate() {
             let mut observation = Observation::default();
             let viewer = observer.viewer();
-            offers.push(observer.prepare_into(&self.sim, &[], &mut observation, None)?);
+            offers.push(observer.prepare_with_seen(
+                &self.sim,
+                &[],
+                &self.fx_pending[agent],
+                &mut observation,
+                None,
+            )?);
             fx.check_delivery(&self.sim, viewer)
                 .map_err(OfferError::FxProjection)?;
-            observation
-                .events
-                .extend_from_slice(&self.fx_pending[agent]);
             observations.push(observation);
         }
         for offer in offers {

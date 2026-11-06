@@ -35,7 +35,9 @@ pub(crate) fn resolve(cx: &mut Cx) {
 
 #[inline(never)]
 fn resolve_swings(cx: &mut Cx) {
-    let Cx { k, w, s, ev, .. } = cx;
+    let Cx {
+        k, w, s, ev, stats, ..
+    } = cx;
     let w: &mut World = w;
     let TickScratch {
         melee,
@@ -145,34 +147,57 @@ fn resolve_swings(cx: &mut Cx) {
                     weapon: req.weapon,
                     passive: false,
                 });
-                if req.weapon == WeaponId::Sword {
-                    ledger.push(Entry {
-                        dot: false,
-                        ability: None,
-                        arena: false,
-                        source: None,
-                        critical: false,
-                        critical_mult: None,
-                        sig: None,
-                        execute: false,
-                        victim: req.attacker,
-                        by: Some(target.id),
-                        packet: Packet {
-                            raw: req.packet.raw * SHIELD_BLOCK_SHARE * RIPOSTE_SHARE,
+                let holder = target.id;
+                crate::hooks::fire(
+                    &mut crate::hooks::Hx {
+                        k,
+                        w,
+                        ev,
+                        stats: *stats,
+                        fx: None,
+                    },
+                    crate::hooks::HookArgs::Blocked {
+                        holder,
+                        attacker: req.attacker,
+                        prevented: Packet {
+                            raw: req.packet.raw * SHIELD_BLOCK_SHARE,
                             ..req.packet
                         },
-                        weapon: Some(WeaponId::Shield),
-                        stagger: false,
-                        projectile: None,
-                        scale: 1.0,
-                        derived: false,
-                        passive: true,
-                    });
+                        melee: true,
+                    },
+                );
+                if req.weapon == WeaponId::Sword {
+                    super::ledger::record_hit(
+                        w,
+                        ledger,
+                        Entry {
+                            dot: false,
+                            ability: None,
+                            arena: false,
+                            source: None,
+                            critical: false,
+                            critical_mult: None,
+                            sig: None,
+                            execute: false,
+                            victim: req.attacker,
+                            by: Some(holder),
+                            packet: Packet {
+                                raw: req.packet.raw * SHIELD_BLOCK_SHARE * RIPOSTE_SHARE,
+                                ..req.packet
+                            },
+                            weapon: Some(WeaponId::Shield),
+                            stagger: false,
+                            projectile: None,
+                            scale: 1.0,
+                            derived: false,
+                            passive: true,
+                        },
+                    );
                 }
                 entry.packet.raw *= 1.0 - SHIELD_BLOCK_SHARE;
                 entry.stagger = false;
             }
-            ledger.push(entry);
+            super::ledger::record_hit(w, ledger, entry);
         }
         super::projectiles::meet_balls(w, flight, ledger, ev, &k.arena.map, req, (reach, half_arc));
     }

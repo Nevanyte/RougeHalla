@@ -64,6 +64,31 @@ fn reference(
     let mut fx = Vec::new();
     for e in &obs.events {
         match *e {
+            SeenEvent::PotionNotice { notice } => events.push(WireEvent::PotionNotice {
+                notice: match notice {
+                    rh_sim::potions::Notice::Stored => 1,
+                    rh_sim::potions::Notice::BagFull => 2,
+                    rh_sim::potions::Notice::Used => 3,
+                    rh_sim::potions::Notice::Blocked => 4,
+                    rh_sim::potions::Notice::Busy => 5,
+                    rh_sim::potions::Notice::Full => 6,
+                    rh_sim::potions::Notice::Empty => 7,
+                },
+            }),
+            SeenEvent::MobArmed { .. } | SeenEvent::CampCleared { .. } => {}
+            SeenEvent::ChestRefused { reason } => events.push(WireEvent::ChestRefused {
+                reason: match reason {
+                    rh_sim::reward_chests::Refusal::Busy => 1,
+                    rh_sim::reward_chests::Refusal::Gone => 2,
+                    rh_sim::reward_chests::Refusal::Far => 3,
+                    rh_sim::reward_chests::Refusal::Blocked => 4,
+                    rh_sim::reward_chests::Refusal::Picked => 5,
+                    rh_sim::reward_chests::Refusal::Taken => 6,
+                    rh_sim::reward_chests::Refusal::Owned => 7,
+                    rh_sim::reward_chests::Refusal::Maxed => 8,
+                    rh_sim::reward_chests::Refusal::NotYours => 9,
+                },
+            }),
             SeenEvent::Death { id, by } => events.push(WireEvent::Death {
                 id: id.0,
                 by: by.map(|b| b.0),
@@ -106,9 +131,9 @@ fn reference(
                 weapon: weapon.code(),
             }),
             SeenEvent::Stagger { id } => fx.push(WireFx::Stagger { id: id.0 }),
-            SeenEvent::AttackCancelled { .. } => {} // No cancel telegraph in protocol 5.
-            SeenEvent::SignatureHit { .. } | SeenEvent::Heal { .. } => {} // No heal effect in protocol 5.
-            // P-NET-3 will add status/ability transport; protocol 5 deliberately omits these.
+            SeenEvent::AttackCancelled { .. } => {} // No cancel telegraph in protocol 6.
+            SeenEvent::SignatureHit { .. } | SeenEvent::Heal { .. } => {} // No heal effect in protocol 6.
+            // Scalar status/fields are transported; these separate event telegraphs remain omitted.
             SeenEvent::AbilityHit { .. }
             | SeenEvent::CastEnded { .. }
             | SeenEvent::StatusApplied { .. } => {}
@@ -267,6 +292,8 @@ impl Hand {
         let now = Instant::now();
         let cfg = RoomConfig {
             sim: SimConfig {
+                mob_mode: rh_sim::mob_runtime::MobMode::Off,
+                initial_loot: false,
                 min_players: 1,
                 lobby_seconds: 1.0,
                 fill_seconds: 0.0,
@@ -282,6 +309,7 @@ impl Hand {
             fixed_secrets: Some(Secrets {
                 order_salt: 11,
                 spawn_seed: 3,
+                reward_salt: [11, 22, 33, 44],
             }),
             fixed_bot_seed: Some(5),
             reconnect_grace: Duration::from_secs(10),

@@ -40,6 +40,8 @@ struct Started {
 async fn start(tls: bool) -> Started {
     let _ = rustls::crypto::ring::default_provider().install_default();
     let sim = SimConfig {
+        mob_mode: rh_sim::mob_runtime::MobMode::Off,
+        initial_loot: false,
         min_players: 2,
         lobby_seconds: 30.0,
         fill_seconds: 0.0,

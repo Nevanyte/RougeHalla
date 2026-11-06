@@ -6,6 +6,41 @@ namespace Roguehalla.Net
 
     /// <summary>Life-cycle status code (docs/CONTRACTS.md). A value outside the named ones is a newer server's: cast, never assume.</summary>
     public enum ActorStatus : byte { Lobby = 0, Alive = 1, Dead = 2, Mia = 3 }
+    /// <summary>Native MobTypeId::ALL order; no gameplay statistics.</summary>
+    public enum MobTypeId : byte
+    {
+        EmberImp = 0,
+        CinderHound = 1,
+        MagmaBrute = 2,
+        FlameCaller = 3,
+        Wyrmling = 4,
+        AshDrake = 5,
+        Bailiff = 6,
+        ChainWarden = 7,
+        Inquisitor = 8,
+        Pardoner = 9,
+        Executioner = 10,
+        Gaoler = 11,
+        PlagueRat = 12,
+        Bloatfly = 13,
+        RotMonk = 14,
+        MiasmaWitch = 15,
+        RatOgre = 16,
+        PoxBehemoth = 17,
+        FrostWisp = 18,
+        IceGolem = 19,
+        RimeStalker = 20,
+        FrostbowSentry = 21,
+        GlacialWarden = 22,
+        AvalancheTroll = 23,
+        Acolyte = 24,
+        SeraphShard = 25,
+        Penitent = 26,
+        Zealot = 27,
+        BloodSaint = 28,
+        Archon = 29,
+    }
+    public enum PotionNotice : byte { Stored=1,BagFull=2,Used=3,Blocked=4,Busy=5,Full=6,Empty=7 }
     public enum ActorKind : byte { Player = 0, RegionalMob = 1 }
 
     /// <summary>Faction code: <c>FactionId::ALL</c> order (append only). A value outside the named ones is a newer server's.</summary>
@@ -27,7 +62,7 @@ namespace Roguehalla.Net
         public ActorStatus Status;
         public WeaponId Weapon;
         public ushort ReadyInMs, Kills, Bounty, Gv;
-        public byte MoveSeq, DisplaceSeq;
+        public byte MoveSeq, DisplaceSeq, SelfSig;
         public ushort Effects;
 
         /// <summary>Health as a whole percent, 100 when the maximum is unknown (0).</summary>
@@ -46,7 +81,7 @@ namespace Roguehalla.Net
         {
             Id = w.Id; Faction = (FactionId)w.Faction; X = w.X; Y = w.Y; Facing = w.Facing; Hp = w.Hp; MaxHp = w.MaxHp;
             Status = (ActorStatus)w.Status; Weapon = (WeaponId)w.Weapon; ReadyInMs = w.ReadyInMs; Kills = w.Kills; Bounty = w.Bounty;
-            Gv = w.Gv; MoveSeq = w.MoveSeq; Effects = w.Effects; DisplaceSeq = w.DisplaceSeq;
+            Gv = w.Gv; MoveSeq = w.MoveSeq; Effects = w.Effects; DisplaceSeq = w.DisplaceSeq; SelfSig=w.Sig;
         }
     }
 }

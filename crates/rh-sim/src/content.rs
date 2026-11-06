@@ -333,6 +333,23 @@ pub fn player_timings(w: WeaponId, interval: f64) -> Timings {
     t
 }
 
+/// Source weaponTimings NPC profile; all attack arithmetic still uses this shared weapon catalog.
+pub fn npc_timings(w: WeaponId, interval: f64) -> Timings {
+    let mut t = player_timings(w, interval);
+    match w {
+        WeaponId::Sword => t.windup = NPC_SWORD_WINDUP.min(interval),
+        WeaponId::Shield => t.windup = NPC_BASH_WINDUP.min(interval),
+        WeaponId::Fists => t.windup = NPC_FISTS_WINDUP.min(interval),
+        WeaponId::Axe => {
+            t.windup = NPC_AXE_WINDUP.min(NPC_AXE_WINDUP_SHARE * interval);
+            t.root = NPC_AXE_ROOT.min(NPC_AXE_ROOT_SHARE * interval);
+        }
+        WeaponId::Bow => t.windup = NPC_BOW_WINDUP.min(NPC_BOW_WINDUP_SHARE * interval),
+        WeaponId::Wand => t.windup = NPC_WAND_WINDUP.min(NPC_WAND_WINDUP_SHARE * interval),
+    }
+    t
+}
+
 /// Weapons whose hits stagger the victim (legacy: the sword). A rule flag registered as data so the rules identity covers
 /// it; the sim's stagger check still compares against `WeaponId::Sword` directly until it is switched to read this table.
 pub const STAGGER_WEAPONS: &[WeaponId] = &[WeaponId::Sword];
@@ -421,7 +438,7 @@ pub fn content_hash_of_stat_fold_definition(
         &signatures,
         definition,
         &crate::mob_catalog::DEFINITION,
-        None,
+        RuntimeWords::default(),
     )
 }
 
@@ -439,7 +456,7 @@ pub fn content_hash_of_mob_catalog_definition(
         &signatures,
         &crate::stat_fold::default_definition(),
         definition,
-        None,
+        RuntimeWords::default(),
     )
 }
 
@@ -858,7 +875,7 @@ pub fn content_hash_of_signature_rules(
         signature_rules,
         &crate::stat_fold::default_definition(),
         &crate::mob_catalog::DEFINITION,
-        None,
+        RuntimeWords::default(),
     )
 }
 
@@ -940,7 +957,7 @@ fn content_hash_of_map_definitions(
         &signature_rules,
         &crate::stat_fold::default_definition(),
         &crate::mob_catalog::DEFINITION,
-        None,
+        RuntimeWords::default(),
     )
 }
 
@@ -1007,7 +1024,10 @@ pub fn content_hash_of_status_words(
         &signatures,
         &crate::stat_fold::default_definition(),
         &crate::mob_catalog::DEFINITION,
-        Some((rule_words, extra_words)),
+        RuntimeWords {
+            status: Some((rule_words, extra_words)),
+            ..Default::default()
+        },
     )
 }
 
@@ -1041,6 +1061,86 @@ fn fold_status_content(h: &mut Fnv, supplied: Option<(&[u64], &[u64])>) {
     });
 }
 
+#[derive(Default)]
+struct RuntimeWords<'a> {
+    status: Option<(&'a [u64], &'a [u64])>,
+    progression: Option<&'a [u64]>,
+}
+
+/// Ordered words from the actual selected-card, modifier, farm, reward and private-stream definitions.
+/// Component names/lengths and actual public key mappings prevent membership/order ambiguity.
+pub fn visit_progression_content(mut word: impl FnMut(u64)) {
+    type Visit = fn(&mut dyn FnMut(u64));
+    let visitors: [(&str, Visit); 6] = [
+        ("cards/1", |f| {
+            crate::cards::visit_content(&crate::cards::DEFINITION, f)
+        }),
+        ("modifiers/1", |f| {
+            crate::modifiers::visit_content(&crate::modifiers::DEFINITION, f)
+        }),
+        ("farm/1", |f| {
+            crate::modifiers::farm::visit_content(&crate::modifiers::farm::DEFINITION, f)
+        }),
+        ("reward-chests/1", |f| {
+            crate::reward_chests::visit_content(&crate::reward_chests::DEFINITION, f)
+        }),
+        ("private-sfc32/1", |f| crate::private_rng::visit_content(f)),
+        ("small-potions/1", |f| crate::potions::visit_content(f)),
+    ];
+    for (tag, visit) in visitors {
+        word(tag.len() as u64);
+        for b in tag.bytes() {
+            word(u64::from(b));
+        }
+        let mut n = 0;
+        visit(&mut |_| n += 1);
+        word(n);
+        visit(&mut word);
+    }
+    word(FactionId::ALL.len() as u64);
+    for faction in FactionId::ALL {
+        word(u64::from(faction.code()));
+        word(u64::from(crate::systems::mobs::basic_faction(faction)));
+    }
+    word(crate::cards::CardId::ALL.len() as u64);
+    for id in crate::cards::CardId::ALL {
+        word(id.index() as u64);
+        word(id.as_str().len() as u64);
+        for b in id.as_str().bytes() {
+            word(u64::from(b));
+        }
+    }
+    word(crate::reward_chests::BoostId::ALL.len() as u64);
+    for id in crate::reward_chests::BoostId::ALL {
+        word(id.index() as u64);
+        word(id.as_str().len() as u64);
+        for b in id.as_str().bytes() {
+            word(u64::from(b));
+        }
+    }
+}
+
+/// Sensitivity seam for the real aggregate fold; only output words are supplied, no gameplay state changes.
+pub fn content_hash_of_progression_words(
+    registry: &[Entry],
+    stagger_weapons: &[WeaponId],
+    words: &[u64],
+) -> u64 {
+    let signatures = crate::factions::SignatureKind::ALL.map(|kind| (kind, kind.is_dot()));
+    content_hash_of_definitions(
+        registry,
+        stagger_weapons,
+        MapDefinitions::default(),
+        &signatures,
+        &crate::stat_fold::default_definition(),
+        &crate::mob_catalog::DEFINITION,
+        RuntimeWords {
+            progression: Some(words),
+            ..Default::default()
+        },
+    )
+}
+
 fn content_hash_of_definitions(
     registry: &[Entry],
     stagger_weapons: &[WeaponId],
@@ -1048,7 +1148,7 @@ fn content_hash_of_definitions(
     signature_rules: &[(crate::factions::SignatureKind, bool)],
     stat_fold: &crate::stat_fold::StatFoldDefinition,
     mob_catalog: &crate::mob_catalog::Definition,
-    status_words: Option<(&[u64], &[u64])>,
+    runtime_words: RuntimeWords<'_>,
 ) -> u64 {
     let MapDefinitions {
         coliseum,
@@ -1088,9 +1188,17 @@ fn content_hash_of_definitions(
     }
 
     fold_mob_catalog(&mut h, mob_catalog);
+    h.str("initial-world/1");
+    crate::initial_world::visit_content(|word| h.u64(word));
 
     h.str("status-runtime/1");
-    fold_status_content(&mut h, status_words);
+    fold_status_content(&mut h, runtime_words.status);
+    fold_status_stream(
+        &mut h,
+        "mvp-progression/1",
+        runtime_words.progression,
+        |word| visit_progression_content(word),
+    );
 
     h.str("stat-fold/1");
     crate::stat_fold::visit_content(stat_fold, |word| h.u64(word));

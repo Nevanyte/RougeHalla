@@ -108,7 +108,12 @@ fn command_len(c: &WireCommand) -> usize {
     match *c {
         WireCommand::Swap { slot } => 2 + usize::from(slot.is_some()),
         WireCommand::Pickup { .. } => 5,
-        WireCommand::Move { seq, .. } => 1 + 8 + opt_len(seq.is_some(), 1),
+        WireCommand::Choose { .. } => 6,
+        WireCommand::UseConsumable => 1,
+        WireCommand::Target { .. } => 5,
+        WireCommand::Move { seq, .. } | WireCommand::AttackMove { seq, .. } => {
+            1 + 8 + opt_len(seq.is_some(), 1)
+        }
         WireCommand::Stop { seq } => 1 + opt_len(seq.is_some(), 1),
         WireCommand::Aim { .. } => 1 + 4,
         WireCommand::Attack { t, .. } | WireCommand::Release { t, .. } => {
@@ -119,8 +124,15 @@ fn command_len(c: &WireCommand) -> usize {
 
 fn command_finite(c: &WireCommand) -> bool {
     match *c {
-        WireCommand::Move { x, y, .. } => x.is_finite() && y.is_finite(),
-        WireCommand::Stop { .. } | WireCommand::Swap { .. } | WireCommand::Pickup { .. } => true,
+        WireCommand::Move { x, y, .. } | WireCommand::AttackMove { x, y, .. } => {
+            x.is_finite() && y.is_finite()
+        }
+        WireCommand::Stop { .. }
+        | WireCommand::Swap { .. }
+        | WireCommand::Pickup { .. }
+        | WireCommand::Choose { .. }
+        | WireCommand::Target { .. }
+        | WireCommand::UseConsumable => true,
         WireCommand::Aim { a } => a.is_finite(),
         WireCommand::Attack { a, t } | WireCommand::Release { a, t } => {
             a.is_finite() && t.is_none_or(f64::is_finite)
@@ -176,10 +188,11 @@ impl Frame for ClientMsg {
             }
             ClientMsg::Input { commands, .. } => {
                 list("commands", commands.len(), MAX_COMMANDS_PER_INPUT)?;
-                if commands
-                    .iter()
-                    .any(|c| matches!(c, WireCommand::Swap { slot: Some(s) } if *s > 1))
-                {
+                if commands.iter().any(|c| {
+                    matches!(c, WireCommand::Target { actor: 0 })
+                        || matches!(c, WireCommand::Swap { slot: Some(s) } if *s > 1)
+                        || matches!(c, WireCommand::Choose { pick, .. } if !(-1..=2).contains(pick))
+                }) {
                     return Err(EncodeError::BadValue("command"));
                 }
                 if !commands.iter().all(command_finite) {
@@ -227,6 +240,22 @@ impl Frame for ClientMsg {
                         WireCommand::Pickup { handle } => {
                             w.u8(7);
                             w.u32(handle.get());
+                        }
+                        WireCommand::Choose { handle, pick } => {
+                            w.u8(8);
+                            w.u32(handle.get());
+                            w.u8(pick as u8);
+                        }
+                        WireCommand::UseConsumable => w.u8(9),
+                        WireCommand::Target { actor } => {
+                            w.u8(10);
+                            w.u32(actor);
+                        }
+                        WireCommand::AttackMove { x, y, seq } => {
+                            w.u8(11);
+                            w.f32(x);
+                            w.f32(y);
+                            w.opt(seq.as_ref(), |w, s| w.u8(*s));
                         }
                         WireCommand::Move { x, y, seq } => {
                             w.u8(C_MOVE);
@@ -293,6 +322,7 @@ impl ClientMsg {
 fn event_len(e: &WireEvent) -> usize {
     match e {
         WireEvent::PickupRefused { .. } => 2,
+        WireEvent::ChestRefused { .. } | WireEvent::PotionNotice { .. } => 2,
         WireEvent::Death { by, .. } => 1 + 4 + opt_len(by.is_some(), 4),
         WireEvent::Bounty { .. } => 1 + 4 + 2,
         WireEvent::MatchEnded { winner, .. } => 1 + opt_len(winner.is_some(), 4) + 1,
@@ -363,6 +393,9 @@ fn head_word(phase: u8, me: Option<&WireSelf>) -> u32 {
     if s.displace_seq != 0 {
         m |= HM_DISPLACE;
     }
+    if s.sig != 0 {
+        m |= HM_SIG;
+    }
     m
 }
 
@@ -402,6 +435,9 @@ fn self_len(s: &WireSelf, mask: u32) -> usize {
         n += 2;
     }
     if mask & HM_DISPLACE != 0 {
+        n += 1;
+    }
+    if mask & HM_SIG != 0 {
         n += 1;
     }
     n
@@ -481,10 +517,10 @@ impl<const N: usize> Fixed<N> {
 }
 
 /// Largest Snapshot head: tag, tick, ack (5 each at most), head (2), a full self (id 5, 12, max_hp 4, kit, hp 4, ready 2,
-/// kills, bounty, gv 3 each, move_seq, status), the phase and the actor count.
-const MAX_HEAD_LEN: usize = 1 + 5 + 5 + 2 + 5 + 12 + 4 + 1 + 4 + 2 + 9 + 1 + 1 + 1 + 5 + 3;
-/// Largest actor: id 5, mask 1, x, y, facing, kit, hp, status, bounty 3, kind.
-const MAX_ACTOR_LEN: usize = 5 + 1 + 6 + 1 + 1 + 1 + 3 + 1 + 3;
+/// kills, bounty, gv 3 each, move_seq, status, effects 2, displacement, sig), the phase and actor count.
+const MAX_HEAD_LEN: usize = 1 + 5 + 5 + 2 + 5 + 12 + 4 + 1 + 4 + 2 + 9 + 1 + 1 + 2 + 1 + 1 + 1 + 5;
+/// Largest actor: id 5, mask 2, x/y/facing 6, kit/hp/status, bounty 3, kind, effects 2, displacement, mob type, sig.
+const MAX_ACTOR_LEN: usize = 5 + 2 + 6 + 1 + 1 + 1 + 3 + 1 + 2 + 1 + 1 + 1;
 
 /// Writes the self record for the head word `m` ([`head_word`] of `s`), fields in bit order.
 #[inline]
@@ -529,6 +565,9 @@ fn write_self(w: &mut Fixed<MAX_HEAD_LEN>, m: u32, s: &WireSelf) {
     if m & HM_DISPLACE != 0 {
         w.u8(s.displace_seq);
     }
+    if m & HM_SIG != 0 {
+        w.u8(s.sig);
+    }
 }
 
 /// The actor mask of `a`: a bit for every field that differs from its default.
@@ -556,6 +595,12 @@ fn actor_mask(a: &WireActor) -> u32 {
     if a.displace_seq != 0 {
         m |= AM_DISPLACE;
     }
+    if a.mob_type_code != 0 {
+        m |= AM_MOB_TYPE;
+    }
+    if a.sig != 0 {
+        m |= AM_SIG;
+    }
     m
 }
 
@@ -577,6 +622,8 @@ fn actor_len(a: &WireActor, prev: Option<u32>) -> usize {
         + (m & AM_KIND != 0) as usize
         + 2 * (m & AM_EFFECTS != 0) as usize
         + (m & AM_DISPLACE != 0) as usize
+        + (m & AM_MOB_TYPE != 0) as usize
+        + (m & AM_SIG != 0) as usize
 }
 
 /// The id as written: the first actor's absolute id, then the gap to the previous one (the observation sorts by id, so a
@@ -604,6 +651,9 @@ fn snapshot_fault(phase: u8, me: Option<&WireSelf>, actors: &[WireActor]) -> Opt
         if let Some(f) = kit_status_fault(a.faction, a.weapon, a.status) {
             return Some(f);
         }
+        if a.mob_type_code > 30 {
+            return Some("mob type");
+        }
         if a.hp_pct > 100 {
             return Some("hp_pct");
         }
@@ -623,6 +673,7 @@ fn snapshot_fault(phase: u8, me: Option<&WireSelf>, actors: &[WireActor]) -> Opt
 fn actor_looks_bad(a: &WireActor, prev: Option<u32>) -> bool {
     (a.faction | a.weapon) > MAX_KIT_CODE
         || a.status > MAX_STATUS_CODE
+        || a.mob_type_code > 30
         || a.hp_pct > 100
         || !(quant::pos_in_range(a.x) && quant::pos_in_range(a.y))
         || prev.is_some_and(|p| a.id <= p)
@@ -669,6 +720,12 @@ fn write_actor(out: &mut Writer, a: &WireActor, prev: Option<u32>) {
     }
     if m & AM_DISPLACE != 0 {
         w.u8(a.displace_seq);
+    }
+    if m & AM_MOB_TYPE != 0 {
+        w.u8(a.mob_type_code);
+    }
+    if m & AM_SIG != 0 {
+        w.u8(a.sig);
     }
     w.put(out);
 }
@@ -766,6 +823,14 @@ impl Frame for ServerMsg {
             ServerMsg::Events { events, .. } => {
                 list("events", events.len(), u16::MAX as usize)?;
                 for e in events {
+                    if matches!(e, WireEvent::PotionNotice { notice } if !(1..=7).contains(notice))
+                    {
+                        return Err(EncodeError::BadValue("potion notice"));
+                    }
+                    if matches!(e, WireEvent::ChestRefused { reason } if !(1..=9).contains(reason))
+                    {
+                        return Err(EncodeError::BadValue("chest reason"));
+                    }
                     if matches!(e, WireEvent::PickupRefused { reason } if !(1..=5).contains(reason))
                     {
                         return Err(EncodeError::BadValue("pickup reason"));
@@ -888,6 +953,14 @@ impl Frame for ServerMsg {
                 w.u16(events.len() as u16);
                 for e in events {
                     match e {
+                        WireEvent::PotionNotice { notice } => {
+                            w.u8(7);
+                            w.u8(*notice);
+                        }
+                        WireEvent::ChestRefused { reason } => {
+                            w.u8(6);
+                            w.u8(*reason);
+                        }
                         WireEvent::PickupRefused { reason } => {
                             w.u8(5);
                             w.u8(*reason);

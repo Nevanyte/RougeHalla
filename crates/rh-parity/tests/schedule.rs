@@ -286,7 +286,10 @@ fn check_trace(t: &Tables, ticks: &[Vec<TraceEntry>], gates: &Gates) -> Result<(
             match e {
                 TraceEntry::Phase(p) => phase = p,
                 TraceEntry::Action(a) => {
-                    if phase != "inputs:players(actionOrder)" {
+                    if !matches!(
+                        phase,
+                        "inputs:players(actionOrder)" | "inputs:mobs(insertionOrder)"
+                    ) {
                         return Err(format!("action {a} ran in phase {phase:?}"));
                     }
                 }
@@ -294,7 +297,11 @@ fn check_trace(t: &Tables, ticks: &[Vec<TraceEntry>], gates: &Gates) -> Result<(
                     // Between steps (a leave) a hook runs before the tick's first phase.
                     let allowed = match *h {
                         "attackStarted" => phase == "weapons",
-                        "weaponSwapped" => phase == "inputs:players(actionOrder)",
+                        "blocked" => matches!(phase, "melee" | "projectiles:sweep"),
+                        "weaponSwapped" => matches!(
+                            phase,
+                            "inputs:players(actionOrder)" | "inputs:mobs(insertionOrder)"
+                        ),
                         _ => matches!(phase, "" | "ledger:apply" | "settle"),
                     };
                     if !allowed {
@@ -349,7 +356,7 @@ fn partial_rows_keep_pending_ownership_and_execute_in_source_position() {
         .unwrap();
     assert_eq!(
         order[at - 1],
-        TraceEntry::Phase("inputs:players(actionOrder)")
+        TraceEntry::Phase("inputs:mobs(insertionOrder)")
     );
     assert_eq!(order[at + 1], TraceEntry::Phase("targets"));
     assert!(t
@@ -607,6 +614,9 @@ fn a_match_runs_its_ported_rows_in_table_order() {
                 TraceEntry::Hook("statusApplied", "abilities.onStatusApplied") => {}
                 TraceEntry::Hook("fighterOut" | "runEnded" | "teleported", "abilities.<arrow>") => {
                 }
+                TraceEntry::Hook("runEnded" | "teleported", "chests.clearChests") => {}
+                TraceEntry::Hook("blocked", "cardHooks.onBlocked") => {}
+                TraceEntry::Hook("fighterOut", "consumables.<arrow>") => {} // actual Small potion cleanup; other consumables remain pending.
                 TraceEntry::Hook("raidStarted", "abilities.armWishes") => {} // status reset only; P-ABIL remainder is explicit.
                 TraceEntry::Hook(h, l) => panic!("{name}: hook {h} link {l} is not ported"),
                 _ => {}
@@ -875,7 +885,7 @@ fn an_execution_that_is_not_the_table_is_rejected() {
         runs.iter()
             .try_for_each(|(_, r)| check_trace(t, &r.active_ticks, &r.gates))
     };
-    assert!(check(&tables()).is_ok());
+    assert_eq!(check(&tables()), Ok(()));
 
     let mut t = tables();
     let a = t.phases.iter().position(|e| e.legacy == "weapons").unwrap();

@@ -1,0 +1,80 @@
+{
+  "scope": "two bounded private browser-only measurements, native headed Metal normal baseline plus one experimental diagnostic",
+  "runs": 2,
+  "gameOrSettingsEdits": false,
+  "privateSocketPayloadsCaptured": false,
+  "files": {
+    "README.md": {
+      "sha256": "5751cec85b454efdad60a3df18b84d1ad8e5cddd40008ec9fdcf096c27f03f5e",
+      "bytes": 5842
+    },
+    "active-profile.cjs": {
+      "sha256": "e9eecc0bf727b021a8c9d9ac40b881344d5a869599f5377bed62cfe6f3ca7cef",
+      "bytes": 9701
+    },
+    "baseline-normal/active-alive.png": {
+      "sha256": "2bc51bc1476dc859d16974e89dfbd8fe30e8a62d7d406139e198933bf4af47a2",
+      "bytes": 38649
+    },
+    "baseline-normal/artifacts.json": {
+      "sha256": "bf0e31e74894fa8cc7815fe55fdab95157ca327c96fbc0ab9e52e586f73c98e6",
+      "bytes": 3226
+    },
+    "baseline-normal/raw.json": {
+      "sha256": "ca16437462a7fcd62ef5061bd05f45d7c253cfd9660de28ed77425e0ea79ec9b",
+      "bytes": 993806
+    },
+    "baseline-normal/report.json": {
+      "sha256": "d121ff8de05cf227770cc83d36f7bf8b9547ceed96ae6696aaab8e08953d5dec",
+      "bytes": 19194
+    },
+    "baseline-normal.log": {
+      "sha256": "d344398cef23556ed7c88cd11c544b79ad2ab1ef4e9e6d1f94bb02561d5878ea",
+      "bytes": 1213
+    },
+    "diagnostic-profile.cjs": {
+      "sha256": "00ff1a2c03b6a52d7ee729154af2db600e32749de85dba7d9dfa6573e671d097",
+      "bytes": 9851
+    },
+    "diagnostic-uncapped/active-alive.png": {
+      "sha256": "c612f3c5ac70a69883969cf94f433b762aac3e0ecdb3f62c356a0c49641f5bc1",
+      "bytes": 38900
+    },
+    "diagnostic-uncapped/artifacts.json": {
+      "sha256": "bf0e31e74894fa8cc7815fe55fdab95157ca327c96fbc0ab9e52e586f73c98e6",
+      "bytes": 3226
+    },
+    "diagnostic-uncapped/raw.json": {
+      "sha256": "55d341bab41ecb368e749b4083f9f266cc057f0cf5f47dfad6021a87ec40de22",
+      "bytes": 6299643
+    },
+    "diagnostic-uncapped/report.json": {
+      "sha256": "6e4941403ef4829eb1d412ee316ef54d5b0fc867c92ec81d4a5317e5f68de408",
+      "bytes": 19314
+    },
+    "diagnostic-uncapped.log": {
+      "sha256": "1198922a023b2b1bb1c8393602cc5a19d7a359c76000a0ce2a8e2f1cdbcaaf61",
+      "bytes": 1221
+    },
+    "integrity-and-settings.json": {
+      "sha256": "0220910b019f260015781575870cbb959fc2626a7b20f23f35a76b587fd82b2b",
+      "bytes": 2746
+    },
+    "load-timings.json": {
+      "sha256": "afa43a7c7582328e39742068a7da00678aeeabb68b2111112bd7229440d7829f",
+      "bytes": 2614
+    },
+    "profile-init.js": {
+      "sha256": "9fbd24ca09527be59e7fbd1fe8c59ebd619c9f6a3a3dc19e9cda08f08fecf7c6",
+      "bytes": 3084
+    },
+    "source-hashes.json": {
+      "sha256": "0892c1be707a4f8d1f08b5f7591bcd97aac3a770736aadbf2dfae71df8cf621c",
+      "bytes": 1028
+    },
+    "wire-observer-init.js": {
+      "sha256": "abc2128b8743252f9382f5a756db3a951c966c47e2a8eb61140457d2ef2b1fb8",
+      "bytes": 27560
+    }
+  }
+}

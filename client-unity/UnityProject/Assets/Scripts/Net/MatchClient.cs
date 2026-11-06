@@ -16,32 +16,70 @@ namespace Roguehalla.Client
         public ulong ContentHash;
         /// <summary>-1 = server default.</summary>
         public int Faction = -1;
+        public bool AutoJoin;
+        public MatchHud Hud { get; private set; }
         public ArenaView Arena;
         public Camera Cam;
 
         public Session Session { get; private set; }
         readonly List<InterpActor> _actors = new List<InterpActor>();
+        readonly List<InterpActor> _targetActors = new List<InterpActor>();
         const double SteerRepeatMs = 100;
         const float SteerAheadU = 64f;
         Vector2 _lastDir;
         double _lastSteer;
         bool _steering;
         float _aimAngle;
+        bool _attackHeld;
 
         static double NowMs() { return Time.realtimeSinceStartupAsDouble * 1000.0; }
 
         void Start()
         {
+            Hud = gameObject.AddComponent<MatchHud>();
+            Hud.Initialize(this);
+            if (AutoJoin) Join(Profile, Faction);
+        }
+
+        public void Join(string nickname, int faction)
+        {
+            if (Session != null) Session.Leave();
+            Profile = string.IsNullOrWhiteSpace(nickname) ? Profile : nickname.Trim();
+            Faction = faction;
+            _actors.Clear(); _steering = false; _attackHeld = false;
+            if (Arena != null) Destroy(Arena.gameObject);
+            Arena = new GameObject("Arena").AddComponent<ArenaView>();
             Session = new Session(TransportFactory.Create(), new SessionOptions
             {
                 Url = Url, Profile = Profile, Ticket = System.Text.Encoding.UTF8.GetBytes(Token ?? ""), ContentHash = ContentHash, Build = "unity-web-0.1.0",
                 Faction = Faction >= 0 ? (byte)Faction : (byte?)null, Now = NowMs,
             });
-            Session.StateChanged += s => Debug.Log("[net] " + s + (Session.RejectCode.HasValue ? " " + Session.RejectCode + ": " + Session.RejectReason : "") + (Session.Error != null ? " " + Session.Error : ""));
+            Session.StateChanged += state =>
+            {
+                if (state != SessionState.InMatch) { _steering = false; _attackHeld = false; }
+                Debug.Log("[net] " + state + (Session.RejectCode.HasValue ? " " + Session.RejectCode + ": " + Session.RejectReason : "") + (Session.Error != null ? " " + Session.Error : ""));
+            };
+            Hud.Bind(Session);
             Session.Connect();
         }
 
-        void OnDestroy() { if (Session != null && Session.State == SessionState.InMatch) Session.Leave(); }
+        public void Leave()
+        {
+            if (Session != null) Session.Leave();
+            if (Arena != null) Destroy(Arena.gameObject);
+            Session = null;
+            Hud.ShowMenu();
+        }
+
+        void OnApplicationFocus(bool focused)
+        {
+            if (focused || Session == null || Session.State != SessionState.InMatch) return;
+            if (_attackHeld) Session.Input.Release(_aimAngle, Session.Clock.RenderMs);
+            if (_steering) Session.OrderStop();
+            _attackHeld = _steering = false;
+        }
+
+        void OnDestroy() { if (Session != null) Session.Leave(); }
 
         void Update()
         {
@@ -49,6 +87,7 @@ namespace Roguehalla.Client
             Session.Update();
             if (Session.State != SessionState.InMatch && Session.State != SessionState.Ended) return;
             if (Arena != null && !Arena.HasMap && Session.Map != null) Arena.Build(Session.Map);
+            Session.Snapshots.Sample(Session.Clock.RenderMs, _actors);
             if (Session.State == SessionState.InMatch) ReadInput();
             Present();
         }
@@ -61,22 +100,54 @@ namespace Roguehalla.Client
             float myX = m.DrawnX, myY = m.DrawnY;
 
             var mouse = Mouse.current;
+            // Release is always forwarded, even if the pointer moved onto a panel after pressing.
+            if (_attackHeld && mouse != null && mouse.leftButton.wasReleasedThisFrame)
+            {
+                Session.Input.Release(_aimAngle, Session.Clock.RenderMs); _attackHeld = false;
+            }
+            bool blocked = Hud != null && Hud.BlocksWorldInput;
+            if (blocked)
+            {
+                if (_steering) { Session.OrderStop(); _steering = false; }
+                return;
+            }
             float sx = myX, sy = myY;
             bool haveCursor = mouse != null && Cam != null && Arena != null && Arena.ScreenToServer(Cam, mouse.position.ReadValue(), out sx, out sy);
             if (haveCursor)
             {
                 _aimAngle = Mathf.Atan2(sy - myY, sx - myX);
                 Session.Input.Aim(_aimAngle);
-                double t = Session.Clock.RenderMs; // server ms the player is looking at (lag compensation)
-                if (mouse.leftButton.wasPressedThisFrame) Session.Input.Attack(_aimAngle, t);
-                if (mouse.leftButton.wasReleasedThisFrame) Session.Input.Release(_aimAngle, t);
-                if (mouse.rightButton.wasPressedThisFrame) Session.OrderMove(sx, sy);
+                if (mouse.leftButton.wasPressedThisFrame)
+                {
+                    // UI hit geometry only. The server resolves sight, eligibility and all targeting rules.
+                    uint target = VisibleActorAt(mouse.position.ReadValue());
+                    if (Session.Me != null && Session.Me.Weapon == WeaponId.Wand && target != 0)
+                        Session.Input.Target(target);
+                    else
+                    {
+                        Session.Input.Attack(_aimAngle, Session.Clock.RenderMs); _attackHeld = true;
+                        if (mouse.leftButton.wasReleasedThisFrame)
+                        {
+                            Session.Input.Release(_aimAngle, Session.Clock.RenderMs); _attackHeld = false;
+                        }
+                    }
+                }
+                if (mouse.rightButton.wasPressedThisFrame)
+                {
+                    if (Keyboard.current != null && Keyboard.current.leftShiftKey.isPressed) Session.Input.AttackMove(sx, sy);
+                    else Session.OrderMove(sx, sy);
+                }
             }
-
             var kb = Keyboard.current;
             if (kb == null) return;
-            // Server +y points down the screen, so S is +y.
-            var dir = new Vector2((kb.dKey.isPressed ? 1 : 0) - (kb.aKey.isPressed ? 1 : 0), (kb.sKey.isPressed ? 1 : 0) - (kb.wKey.isPressed ? 1 : 0));
+            if (kb.digit1Key.wasPressedThisFrame) Session.Input.Swap(0);
+            if (kb.digit2Key.wasPressedThisFrame) Session.Input.Swap(1);
+            if (kb.qKey.wasPressedThisFrame) Session.Input.Swap();
+            if (kb.eKey.wasPressedThisFrame) Session.Input.UseConsumable();
+            if (kb.fKey.wasPressedThisFrame) PickupFocus();
+            // Server +y points down the screen. This sends destinations; it never simulates movement.
+            var dir = new Vector2((kb.dKey.isPressed || kb.rightArrowKey.isPressed ? 1 : 0) - (kb.aKey.isPressed || kb.leftArrowKey.isPressed ? 1 : 0),
+                (kb.sKey.isPressed || kb.downArrowKey.isPressed ? 1 : 0) - (kb.wKey.isPressed || kb.upArrowKey.isPressed ? 1 : 0));
             if (dir != Vector2.zero)
             {
                 dir.Normalize();
@@ -89,10 +160,32 @@ namespace Roguehalla.Client
             else if (_steering) { Session.OrderStop(); _steering = false; }
         }
 
+        public void PickupFocus()
+        {
+            if (Session != null && Session.State == SessionState.InMatch && Session.Collections.Focus.HasValue)
+                Session.Input.Pickup(Session.Collections.Focus.Value.Handle);
+        }
+
+        uint VisibleActorAt(Vector2 pointer)
+        {
+            uint id = 0; float best = 22f * 22f;
+            // Use the newest delivered membership: observer refs can change between snapshots.
+            Session.Snapshots.Sample(Session.Snapshots.NewestMs, _targetActors);
+            foreach (var actor in _targetActors)
+            {
+                if (actor.Id == Session.PlayerId) continue;
+                var screen = Cam.WorldToScreenPoint(new Vector3(actor.X * ArenaView.Scale, 0, -actor.Y * ArenaView.Scale));
+                if (screen.z <= 0) continue;
+                float d = ((Vector2)screen - pointer).sqrMagnitude;
+                if (d < best) { best = d; id = actor.Id; }
+            }
+            return id;
+        }
+
         void Present()
         {
             if (Arena == null) return;
-            Session.Snapshots.Sample(Session.Clock.RenderMs, _actors);
+            Arena.PresentCollections(Session.Collections);
             Arena.Present(_actors, Session.Me, Session.Motion, _aimAngle);
             if (Cam != null && Session.Motion != null && Session.Motion.Initialized) Arena.Follow(Cam, Session.Motion.DrawnX, Session.Motion.DrawnY);
         }

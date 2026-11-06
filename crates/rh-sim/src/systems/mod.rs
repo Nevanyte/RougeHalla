@@ -14,14 +14,17 @@ pub(crate) mod fields;
 pub(crate) mod fire;
 pub(crate) mod frost;
 pub(crate) mod heal;
+pub(crate) mod initial_loot;
 pub(crate) mod inputs;
 pub(crate) mod items;
 pub(crate) mod ledger;
 pub(crate) mod lobby;
 pub(crate) mod loot;
 pub(crate) mod melee;
+pub(crate) mod mobs;
 pub(crate) mod movement;
 pub(crate) mod plague;
+pub(crate) mod potions;
 pub(crate) mod projectiles;
 pub(crate) mod sentenced;
 pub(crate) mod settle;
@@ -87,3 +90,9 @@ fn update_active(cx: &mut Cx) {
 
 #[cfg(test)]
 mod tests;
+
+pub(crate) mod mob_ai;
+
+pub(crate) mod mob_life;
+
+pub(crate) mod mob_checkpoint;

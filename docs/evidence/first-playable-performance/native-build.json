@@ -1,0 +1,36 @@
+{
+  "measured_utc": "2026-11-06T07:52:53.109817+00:00",
+  "hardware": {
+    "cpu": "Apple M5 Pro",
+    "logical_cpus": 18,
+    "memory_bytes": 68719476736,
+    "os": "macOS 26.6.1 (25G76)",
+    "architecture": "aarch64-apple-darwin"
+  },
+  "build": {
+    "rustc": "1.97.0 (2d8144b78 2026-07-07)",
+    "llvm": "22.1.6",
+    "cargo_profile": "release",
+    "opt_level": 3,
+    "debug": 1,
+    "lto": false,
+    "target_cpu": "Rust default, no RUSTFLAGS",
+    "jobs": 2,
+    "incremental": false,
+    "features": "default production library features; no bench/trusted-status-probes"
+  },
+  "branch": "optimization_port",
+  "hashes_sha256": {
+    "source-manifest.json": "ef6b1fb51d4a71e75fdddac46b98d340e8943974441e26746e67b153eed07a3d",
+    "bench/src/main.rs": "d82ab3fb0f34c103d7b55c5a36cd5e77f1b152ca5c58494692aa397e8c5d350a",
+    "bench/Cargo.toml": "d54f30955327b5ffe4601a777058b8c15c92910ab60b167ff0cc8f89eaa70d1c",
+    "Cargo.toml": "9078a525fef2c60f89491e69c02e490485423c7524c99c30ef2f9ce7ced99cce",
+    "Cargo.lock": "3d144a38a97c9026c98ce5718e41e68e6d1ca1a4b3ee34d34885e8504477e651",
+    "maps/first-playable.json": "90bc4c8e82b7d4ba4819843001ae59da35c20ee870b5591b20192082b5bd16aa",
+    "mvp-native-timing": "637debd85057c74960d1ce9ecdf4d447204b1f7e7e040c72058076fd444f85d9",
+    "results.json": "7b55c687687ac70d078d4a958252a192e5203c5bea65999339ba42569e23eeaf"
+  },
+  "accepted_report_sha256": "0ce54c4897b3d37fde830e14f07aaf28f3f27e96ba284a1e31cc15359ec802d1",
+  "base_revision": "b6a79ad43c81a513f238a18f951fc0cf56a2c54a",
+  "source_identity": "Measured a frozen dirty working tree derived from base_revision; source-manifest.json hashes, not the base commit alone, identify measured bytes."
+}

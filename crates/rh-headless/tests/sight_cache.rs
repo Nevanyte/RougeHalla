@@ -111,6 +111,7 @@ fn a_cache_never_carries_a_verdict_to_another_map() {
             Secrets {
                 order_salt: 1,
                 spawn_seed: 1,
+                reward_salt: [11, 22, 33, 44],
             },
             &ps,
         )
@@ -149,6 +150,7 @@ fn a_roster_larger_than_the_table_stays_exact() {
         Secrets {
             order_salt: 3,
             spawn_seed: 3,
+            reward_salt: [11, 22, 33, 44],
         },
         &ps,
     );

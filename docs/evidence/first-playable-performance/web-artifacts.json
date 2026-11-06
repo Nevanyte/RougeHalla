@@ -1,0 +1,87 @@
+[
+  {
+    "path": "client-unity/UnityProject/Build/Web/Build/Web.data",
+    "bytes": 10809404,
+    "sha256": "967630f11caad616e572ccac873d1c6bca3e7ca39e3042e65fabe7afd71b9f73"
+  },
+  {
+    "path": "client-unity/UnityProject/Build/Web/Build/Web.framework.js",
+    "bytes": 432952,
+    "sha256": "d946cb8dadf98ce043da87373206345649a588e047de5aa18b27be95a05b2f06"
+  },
+  {
+    "path": "client-unity/UnityProject/Build/Web/Build/Web.loader.js",
+    "bytes": 26455,
+    "sha256": "7ea0e4f7488e513d693ee570ed992fbbb07bec79b32164040d20db48c7a9f61f"
+  },
+  {
+    "path": "client-unity/UnityProject/Build/Web/Build/Web.wasm",
+    "bytes": 44548477,
+    "sha256": "11310cfd1b42b86b0e002ced3501828d523f8511ffadb38cceebf70e5ab7123e"
+  },
+  {
+    "path": "client-unity/UnityProject/Build/Web/TemplateData/MemoryProfiler.png",
+    "bytes": 665,
+    "sha256": "0ce87be20d0c24ab6cb73b57de2004da261cc2a641e69319c6ae3fe11fc85483"
+  },
+  {
+    "path": "client-unity/UnityProject/Build/Web/TemplateData/favicon.ico",
+    "bytes": 2305,
+    "sha256": "9c13beb90ee8f70580d52a21d5233970d1c89e71e4a34a462c22610941c3c77f"
+  },
+  {
+    "path": "client-unity/UnityProject/Build/Web/TemplateData/fullscreen-button.png",
+    "bytes": 175,
+    "sha256": "21221581673a54b8139d408d4a3f8d2b879e86827d4b6fc53b995ff7a99ee3e9"
+  },
+  {
+    "path": "client-unity/UnityProject/Build/Web/TemplateData/progress-bar-empty-dark.png",
+    "bytes": 96,
+    "sha256": "bbee7131afe8a3365906240d89184dc86234c119467f390bc4bc6802328fdb4d"
+  },
+  {
+    "path": "client-unity/UnityProject/Build/Web/TemplateData/progress-bar-empty-light.png",
+    "bytes": 109,
+    "sha256": "143696c060ad43d6c30f19ff5f49000927a139a2a1e4c9f45fafaa2b90d7d2be"
+  },
+  {
+    "path": "client-unity/UnityProject/Build/Web/TemplateData/progress-bar-full-dark.png",
+    "bytes": 74,
+    "sha256": "3306a6244dcb3926fca38a28e3ced589df8ff1beed955eb17c0bbf01c918bc62"
+  },
+  {
+    "path": "client-unity/UnityProject/Build/Web/TemplateData/progress-bar-full-light.png",
+    "bytes": 84,
+    "sha256": "12395ea785480c5cdf12fade6e6cbf49666d5bb1cef7240c113dbcba6bdc5c87"
+  },
+  {
+    "path": "client-unity/UnityProject/Build/Web/TemplateData/style.css",
+    "bytes": 1448,
+    "sha256": "8e3625e108a61dcd1d31303376d9e02d7bdc08921d254e8f4359b892b3825caa"
+  },
+  {
+    "path": "client-unity/UnityProject/Build/Web/TemplateData/unity-logo-dark.png",
+    "bytes": 3042,
+    "sha256": "c1b72d26c096487dabc948b54bc203f8dac7ed4e3f5733918798e858acb4b159"
+  },
+  {
+    "path": "client-unity/UnityProject/Build/Web/TemplateData/unity-logo-light.png",
+    "bytes": 3077,
+    "sha256": "002990aea0d946833cadc1519d5b7e50a4570bd537a0517dd79a59d3eec84da7"
+  },
+  {
+    "path": "client-unity/UnityProject/Build/Web/TemplateData/unity-logo-title-footer.png",
+    "bytes": 1151,
+    "sha256": "9e8b3bdb67c2446d16362fe59449d892100931dbbadfe6a9d923a4142b57a79f"
+  },
+  {
+    "path": "client-unity/UnityProject/Build/Web/TemplateData/webmemd-icon.png",
+    "bytes": 1670,
+    "sha256": "c56f5494640cedda273aad38d58e6ab9da625d5b3f4d875c0ff92c6192a569c2"
+  },
+  {
+    "path": "client-unity/UnityProject/Build/Web/index.html",
+    "bytes": 5570,
+    "sha256": "fce54df34994e75a7bf66a95edeb02473d25ee724544ef164c3547138f9d02dd"
+  }
+]

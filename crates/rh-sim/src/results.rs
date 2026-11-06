@@ -16,6 +16,9 @@ pub enum WinBonusWhy {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum GvReason {
+    Mob,
+    Elite,
+    Skip,
     Kill,
     Bounty,
     Win,
