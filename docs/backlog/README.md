@@ -24,6 +24,10 @@ advanced bots, visual polish and large-scale hosting tests are deferred; this ba
 for later milestones. Work only on dependencies needed for that loop now, preserving focused parity and regression
 checks. See the concrete finish line in [MIGRATION](../MIGRATION.md#first-playable-release-scope--owner-decision-2026-11-05).
 
+**Full-port continuation (owner2026-11-06):** continue this goal beyond the playable-core milestone. Deferred content,
+complete browser/account flows, durable cloud progression and regional scaling remain required later work. Rust
+gameplay/parity/headless lead; the existing Calgary cleanup deadline and CAD20 total are unchanged.
+
 **Current MVP gate:** the local and public Calgary Unity loop now passes, including loot/chest choice, results and
 reconnect; [cloud evidence](../evidence/first-playable-calgary/README.md) records the temporary single-host deployment.
 The bounded owner playtest and verified cleanup remain; managed GameLift, persistent progression, full browser/content
@@ -138,7 +142,7 @@ Paths are relative to `packages/` unless they start with `crates/`, `docs/`, `de
 | P-TRADE-1 | Neutral traders and per-run stat exchanges, `trade` | P-CARDS-3 | Coarse | server/src/sim/traders.ts; shared/traders.ts |
 | P-QUEST-1 | K1 quests (20 defs, 10 known), accept, carriers, hidden offers, lifecycle | P-MOBS-1, P-CARDS-3, P-MAP-1 | Coarse | server/src/sim/quests.ts; shared/quests.ts; docs/quests.md |
 | P-VISION-1 | Vision: actual 30 s private trail, owned wards, restore, bushes (`bushConceals`) | P-MAP-1 (bush layer), P-NET-3 | Trail/bush/attack-exposure prerequisite implemented and reviewed; remaining producers/dynamic geometry in [packet](packets/P-VISION-1.md) | server/src/sim/vision.ts; shared/vision.ts, bushes.ts |
-| P-TERRAIN-1 | Hazards: ember burn, bog slow, ice slide (`walkFighter`), light heal; faction exemptions | P-MAP-1 (terrain layer), P-FACTION-1 | Coarse | server/src/sim/terrainEffects.ts; shared/terrain.ts, walk.ts |
+| P-TERRAIN-1 | Hazards: ember burn, bog slow, ice slide (`walkFighter`), light heal; faction exemptions | P-MAP-1 (terrain layer), P-FACTION-1 | In progress: independent actual-source capture and private native runtime; gate/NPC prerequisites explicit | server/src/sim/terrainEffects.ts; shared/terrain.ts, walk.ts |
 | P-ARENA-1 | Planning phase + spawn deal from a private stream, coliseum schedule/teleport/gates, patience, sudden death | none (map gates need P-MAP-1 data; use `rh-map/1` first) | Ready packet | server/src/sim/planning.ts, arena.ts, step.ts; shared/planning.ts, coliseum.ts, rules.ts |
 | P-ARENA-2 | Training rooms and the `train` console (card/stat/camp/chest/clear) | P-CARDS-2, P-MOBS-1 | Coarse | server/src/sim/training.ts; shared/training.ts |
 | P-MOBS-CATALOG-1 | Pure typed 30-type/five-role catalog and draw-injected roster helpers; no actor/runtime or native RNG claim | Existing source and capture baseline | Integrated after independent acceptance and actual content registration; 322 +120 source cases, 327 aggregate checks, 1,207-test workspace gate passed. See stage2-mob-catalog evidence | shared/mobs.ts, rosters.ts, rng.ts |

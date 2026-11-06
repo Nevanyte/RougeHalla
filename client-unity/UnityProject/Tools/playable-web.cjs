@@ -3,6 +3,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
+const { evaluateProof } = require('./proof-contract.cjs');
 const prefix = process.env.RH_STAGE2_PREFIX || path.join(os.homedir(), '.codex/tools/rougehalla-stage2');
 const { chromium } = require(process.env.RH_PLAYWRIGHT_MODULE || path.join(prefix, 'browser/node_modules/playwright'));
 const root = path.resolve(__dirname, '../../..');
@@ -190,10 +191,14 @@ fs.mkdirSync(out, { recursive: true });
   finally {
     report.checks.visibleMobs = status(maxVisibleMobs > 0 ? 'pass' : 'unexercised', { maximumDeliveredVisibleMobs: maxVisibleMobs });
     report.commands = commands; report.events = events; report.hellos = hellos; report.welcomes = welcomes;
-    report.failures = failures; report.ok = failures.length === 0 && report.pageErrors.length === 0 && report.observerErrors.length === 0;
+    report.failures = failures;
+    const verdict = evaluateProof(report);
+    report.status = verdict.status; report.ok = verdict.ok;
+    report.requiredChecks = verdict.requiredChecks; report.failedChecks = verdict.failedChecks;
+    report.incompleteChecks = verdict.incompleteChecks; report.failureChannels = verdict.failureChannels;
     fs.writeFileSync(path.join(out, 'playable-web.json'), JSON.stringify(report, null, 2) + '\n');
     if (browser) await browser.close();
-    console.log(JSON.stringify({ ok: report.ok, checks: Object.fromEntries(Object.entries(report.checks).map(([name, value]) => [name, value.status])), failures, pageErrors: report.pageErrors, observerErrors: report.observerErrors, report: path.join(out, 'playable-web.json') }, null, 2));
-    process.exitCode = report.ok ? 0 : 1;
+    console.log(JSON.stringify({ status: report.status, ok: report.ok, checks: Object.fromEntries(Object.entries(report.checks).map(([name, value]) => [name, value.status])), incompleteChecks: verdict.incompleteChecks, failedChecks: verdict.failedChecks, failures, pageErrors: report.pageErrors, observerErrors: report.observerErrors, report: path.join(out, 'playable-web.json') }, null, 2));
+    process.exitCode = verdict.exitCode;
   }
 })();

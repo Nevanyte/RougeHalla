@@ -1,0 +1,14 @@
+{
+  "source_bytes": 10809404,
+  "gzip_bytes": 3400837,
+  "saved_bytes": 7408567,
+  "saved_percent": 68.53816362123203,
+  "compression_seconds": 0.7318513339999999,
+  "source_sha256": "967630f11caad616e572ccac873d1c6bca3e7ca39e3042e65fabe7afd71b9f73",
+  "decoded_sha256": "967630f11caad616e572ccac873d1c6bca3e7ca39e3042e65fabe7afd71b9f73",
+  "gzip_sha256": "f890f00ccc476ec949cd3898e8fc4c4681c7a45d70e3286ff2a493d8349ea906",
+  "baseline_build_encoded_bytes": 23504777,
+  "projected_build_encoded_bytes": 16096210,
+  "projected_seconds_saved_at_8_mbit": 7.408567,
+  "live_changed": false
+}

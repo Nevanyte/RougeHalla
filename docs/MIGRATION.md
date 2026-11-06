@@ -24,6 +24,19 @@ checks, and MVP performance on the M5 Pro. Deploy that loop to the practice doma
 the existing **CAD20 total** staging cap and cleanup. Production remains unchanged. A library test or helper is not an
 end-to-end milestone; progress reports should lead with playable capabilities. Extra content, polish and scale work wait.
 
+### Full-port continuation — owner decision 2026-11-06
+
+The owner explicitly confirmed **continue this same goal through the full original port** after the playable-core
+milestone. Earlier MVP deferrals are sequencing decisions, not removed requirements. The complete Rust game/parity/
+headless foundation again leads the next implementation work; Unity rules remain prohibited. The
+[requirements audit](evidence/stage2-scope-audit/README.md) records42 requirements and the original five completion gates,
+all still partial at full-port scope. The bounded Calgary run still cleans up at13:00UTC; continuation does not enlarge
+CAD20 total or authorize a Paid-plan upgrade/production rollout.
+
+P-TERRAIN-1 is now being implemented in two private source/runtime work packets, with actual legacy captures and full
+terrain semantics. Arena-gate ownership and the remaining Frost/Sentenced NPC domains are explicit integration
+prerequisites. No terrain hazard is enabled in the currently deployed MVP while its wire/presentation facts are absent.
+
 ### Current playable-core checkpoint
 
 The local Unity browser now completes the selected match loop: nickname/faction menu, real Rust combat and visible mobs,
@@ -33,8 +46,8 @@ The native six-seat proof terminates at tick688, replays exactly and restores it
 is opt-in `--first-playable`; [maps/README](../maps/README.md) documents its eight-seat and four-hour-plus-drain bounds.
 Quests, traders, other consumables, remaining regional mechanics and the full card pool are still deferred.
 
-Native all-feature workspace test coverage passes **1,304 tests**, with two existing manual ignores, including three compile-fail documentation checks; the long simulation
-suite was split from the remaining workspace to avoid repeating completed map tests. Both strict Clippy modes and
+Native all-feature workspace coverage passes **1,304 tests**, including three compile-fail documentation checks,
+with two existing manual ignores. The long simulation suite was split from the remaining workspace to avoid repeating completed map tests. Both strict Clippy modes and
 formatting pass. C# passes267 tests; JS passes15,377 golden and61 focused assertions. Wire6 now binds all seven reliable
 collections and the new gameplay inputs. Content is `74192c062ab9eac1`; checkpoint16/replay14/observation13/policy10.
 The hash audit finds zero unhashed leaves across44,428 leaves, with actual mob runtime states included.
@@ -60,6 +73,13 @@ median and fresh Unity readiness24.5s under the8Mbit/s cap. A separate experimen
 this is not confirmed displayed/shipping FPS. The new Calgary room reports game-step63/159µs median/p99 in its scoped
 histogram. [Full domain metrics](evidence/first-playable-domain-performance/README.md) separate rendering, network,
 loading, memory and server work; no source/player/quality changes were made.
+
+A bounded follow-up fixes the reusable browser proof’s false-green risk: all15 required outcomes now need actual
+coverage; missing/unexercised reports exit2/INCOMPLETE and observed errors exit1/FAIL. The actual saved local/Calgary
+proofs remain complete;58 focused coverage-contract checks pass through a lightweight Node CI job. No game rules changed.
+An [offline loading improvement](evidence/first-playable-web-compression/README.md) adds lossless data sidecars and correct
+MIME/health routing for the next bundle: actual local transfer saves7.409MB, with identical decoded bytes. The live
+playtest and24.5s baseline are unchanged; the projected7.4s wire saving still needs future public-load measurement.
 
 **Remaining first-release gate: finish the bounded playtest and verify cleanup.** The owner can test until06:00 Edmonton
 on2026-11-06; the cleanup coordinator is assigned for13:00UTC, before the guest’s13:34UTC fallback and the Rust admission

@@ -1,0 +1,12 @@
+{
+  "name": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/aws-mvp/web-compression-proposal/template-review/template.json",
+  "metadata": {},
+  "status": "PASS",
+  "not_compliant": [],
+  "not_applicable": [],
+  "compliant": [
+    "capability_not_echoed",
+    "one_small_disposable_host",
+    "web_and_acme_ingress_only"
+  ]
+}

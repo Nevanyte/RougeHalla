@@ -1,0 +1,15 @@
+{
+  "tests": 58,
+  "passed": 58,
+  "failed": 0,
+  "actual_complete_fixtures": [
+    "docs/evidence/first-playable-calgary/browser-proof.json",
+    "docs/evidence/first-playable-unity/browser-proof.json"
+  ],
+  "mutations": "Each of15requiredgates missing/unexercised/failed, runtime/decoder/errors, unknownstatus andrefusedpickup; explicitINCOMPLETE/FAIL exitcodes.",
+  "source_sha256": {
+    "client-unity/UnityProject/Tools/proof-contract.cjs": "589caa3c2cd4b05957f5a70d8bcfa8e9ec1a6b8f7fc68b5d708b5aeb7fb85889",
+    "client-unity/UnityProject/Tools/proof-contract.test.cjs": "c382017f5b9a229cec959c070b8cfc0f8bd2bc6d06b71fbcc354e445b8021fd8",
+    "client-unity/UnityProject/Tools/playable-web.cjs": "faa2f1acff0d504c46d930ce962d73acf5db59cdc1cbeb59b4c6979439bb1fca"
+  }
+}

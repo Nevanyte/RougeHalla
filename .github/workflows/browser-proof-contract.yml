@@ -1,0 +1,23 @@
+name: Browser proof coverage
+
+on:
+  push:
+    branches: [main, optimization_port]
+    paths: ["client-unity/UnityProject/Tools/playable-web.cjs", "client-unity/UnityProject/Tools/proof-contract*.cjs", "docs/evidence/first-playable-calgary/browser-proof.json", "docs/evidence/first-playable-unity/browser-proof.json", ".github/workflows/browser-proof-contract.yml"]
+  pull_request:
+    paths: ["client-unity/UnityProject/Tools/playable-web.cjs", "client-unity/UnityProject/Tools/proof-contract*.cjs", "docs/evidence/first-playable-calgary/browser-proof.json", "docs/evidence/first-playable-unity/browser-proof.json", ".github/workflows/browser-proof-contract.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  coverage-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.23.4"
+      - run: node --test client-unity/UnityProject/Tools/proof-contract.test.cjs

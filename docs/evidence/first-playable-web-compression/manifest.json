@@ -1,0 +1,13 @@
+{
+  "files": {
+    "guard.json": "ffc633698e6e9dffb46c2417e01aa84dbc3a4874028fd0397786edaacde7f2f2",
+    "http-proof.json": "44965a40415226539e94bfca2993f106a8afc7d50622eae08e7c542a55939aff",
+    "README.md": "8a91a2b3f8b6a6e14b99d3addbe75be10229a695116d0b91c85fe0066e18ccc1",
+    "compression.json": "aac5017cf89ffef994465624012ea4ca1b9cfd4f74f26d26e228e4728eae107f",
+    "packaging.json": "c83f49e18b426871a4421fdd84ac6f15caaa966cf58f0db09366fe5f3602abe8"
+  },
+  "source_files": {
+    "hosting/staging-mvp/package-web.py": "a5d46cdb4f8118998dc1a17f5aadf8b55a7250e3060711edf14be005a06f25e0",
+    "hosting/staging-mvp/bootstrap.sh.in": "78478133e3a0d1bc7c1905bb29a763ee497116579af8bf78aa7c86b982e97ec6"
+  }
+}

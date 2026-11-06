@@ -79,7 +79,7 @@ cat > /etc/rougehalla.Caddyfile <<'CADDY'
 }
 rougehalla.com {
     encode gzip
-    @game path /ws /info /ping /health
+    @game path /ws /info /ping /healthz
     handle @game {
         reverse_proxy 127.0.0.1:7777
     }
@@ -89,7 +89,11 @@ rougehalla.com {
             X-Content-Type-Options nosniff
             Cache-Control no-cache
         }
-        file_server
+        @data path /Build/*.data
+        header @data Content-Type application/octet-stream
+        file_server {
+            precompressed gzip
+        }
     }
 }
 CADDY

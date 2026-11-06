@@ -8,6 +8,12 @@ nickname/faction menu; explicit `?profile=` keeps automated autojoin, overridabl
 bake the server's current content hash through `UnityProject/Tools/build-web.sh`. Prepare fonts once using
 `Roguehalla.Editor.RhBuild.PrepareUiResources` without `-quit`; the method exits batch mode after import completes.
 
+The functional proof command is `node client-unity/UnityProject/Tools/playable-web.cjs` after starting the matching
+server/Web build (its `RH_UNITY_PLAYABLE_*` variables select endpoints). Exit0/PASS requires all15 outcomes; an ordinary
+run without an actual reward choice, result or visible mob is INCOMPLETE/exit2. An observed failure/decoder/runtime
+error is FAIL/exit1. Coverage-contract checks run separately without a browser using
+`node --test client-unity/UnityProject/Tools/proof-contract.test.cjs`.
+
 [Actual browser proof and screenshots](../docs/evidence/first-playable-unity/INTEGRATION.md) ·
 [M5 Pro baseline](../docs/evidence/first-playable-performance/README.md) · [asset provenance](THIRD_PARTY_ASSETS.md).
 

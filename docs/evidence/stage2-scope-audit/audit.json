@@ -1,0 +1,908 @@
+{
+  "audit_at_utc": "2026-11-06T10:10:04.684976+00:00",
+  "repo": "/Users/nevinmckinnon/.codex/worktrees/rougehalla-stage2-managed/RougeHalla",
+  "head_at_start": "d00e5e52f0b981c7c8afb6c721ddcaae7d29864b",
+  "branch": "optimization_port",
+  "read_only_audit": true,
+  "tests_or_cloud_calls_by_auditor": false,
+  "full_goal_complete": false,
+  "first_milestone_complete": false,
+  "completion_conclusion": "SelectedChromiumMVPfunctional/publicproofisstrong; ownedcleanupstillpending. Fulloriginalcompletionisnotproved and mustnotbemarkedcomplete.",
+  "proof_payload_checks": {
+    "saved_calgary_all_required_outcomes": true,
+    "saved_calgary_no_page_decoder_failures": true,
+    "headless_natural_terminal": true,
+    "headless_replay_restore": true,
+    "accepted_headless_report_sha256": "0ce54c4897b3d37fde830e14f07aaf28f3f27e96ba284a1e31cc15359ec802d1",
+    "core_log_hash_checks": [
+      {
+        "path": "protocol6-integration/combined-workspace-tests.log",
+        "exists": true,
+        "matches": true
+      },
+      {
+        "path": "protocol6-integration/combined-sim-tests.log",
+        "exists": true,
+        "matches": true
+      },
+      {
+        "path": "protocol6-integration/combined-checkpoint-control.log",
+        "exists": true,
+        "matches": true
+      },
+      {
+        "path": "protocol6-integration/combined-sim-integration.log",
+        "exists": true,
+        "matches": true
+      },
+      {
+        "path": "hash-coverage-mobs.log",
+        "exists": true,
+        "matches": true
+      },
+      {
+        "path": "protocol6-integration/combined-sim-remaining.log",
+        "exists": true,
+        "matches": true
+      },
+      {
+        "path": "protocol6-integration/combined-clippy-all.log",
+        "exists": true,
+        "matches": true
+      },
+      {
+        "path": "protocol6-integration/combined-clippy-default.log",
+        "exists": true,
+        "matches": true
+      },
+      {
+        "path": "unity-mvp/session-leave-tests.log",
+        "exists": true,
+        "matches": true
+      }
+    ]
+  },
+  "owner_overrides": [
+    {
+      "original": "Sections2/7C existing art only; no redesign/generated art",
+      "later_owner": "Compatible open-source/procedural/originalUnity assets and creative visual liberties allowed.",
+      "effect": "Use R-VIS amended2026-11-05; preserve fidelity/geometry/privacy and third-party terms."
+    },
+    {
+      "original": "Section7C initial60FPS on midrange desktop",
+      "later_owner": "M5Pro named initially; do not stop at60FPS, pursue maximum sustainable rate.",
+      "effect": "No60target acceptance; report pacing/headroom/scoped sustain limitations."
+    },
+    {
+      "original": "Sections1/4 noClaude communication; economical2workers normally",
+      "later_owner": "Owner explicitly offloadedClaude/Kimi separatebranches and asked integration/moreparallel agents with strength matched.",
+      "effect": "External branch integration/delegation authorized; sharedfile ownership and independent review preserved."
+    },
+    {
+      "original": "Sections2/7D hundreds ofmatches, regional queue/scaling plus full feature flows",
+      "later_owner": "Firstplayablecore: completeonebrowsermatch/combat/mobs/smallcardschests/HUD/oneAWSregion; deferquests,traders,advancedbots,visualpolish,largescalehostingtests.",
+      "effect": "Immediate milestone narrowed; full original endstate remains deferred/partial, never treated implemented."
+    },
+    {
+      "original": "AWS broadstagingexperiment/provisional200matches",
+      "later_owner": "CAD20TOTAL, practice rougehalla.com, productionlaterapproval; Calgary explicitly selected; newaccountFreeplan.",
+      "effect": "ADR0020 temporarysinglehost exception; no implicitPaidupgrade, otherregion/multifleetlargeexperiment orproductionauthority."
+    },
+    {
+      "original": "Any ambiguousUnity rules/prediction implementation",
+      "later_owner": "Allrules/physics/collision/combat/AI/botsRustonly; narrowmirroredvectorcheckedcorrectedlocalmovementsoleexception;Rustfirst.",
+      "effect": "Currentunverifiedpredictionremoved; no newclientrules; fullverifiedprediction remainsopen."
+    },
+    {
+      "original": "Unresolvedlicense/referencehardware",
+      "later_owner": "MITprojectcode; M5Proinitialreference.",
+      "effect": "LICENSEdecisiondone; thirdpartytermsseparate."
+    }
+  ],
+  "requirements": [
+    {
+      "id": "R-AUTH-1",
+      "requirement": "The full gameplay simulation and the authoritative multiplayer server are written in Rust (`crates/`).",
+      "full_goal_status": "partial",
+      "first_milestone_status": "done",
+      "evidence": [
+        "docs/evidence/first-playable-core/integration.json",
+        "crates/rh-sim/src/schedule.rs",
+        "docs/adr/0019-first-playable-runtime.md",
+        "crates/rh-headless/examples/first_playable.rs"
+      ],
+      "proven_scope": "Rust owns admitted MVP rules; schedule still has Pending/Partial mechanics.",
+      "remaining_action": "Port remaining full inventory after selected milestone; retain Rust-only rules."
+    },
+    {
+      "id": "R-AUTH-2",
+      "requirement": "Unity supplies presentation, input and narrowly defined client prediction only (the local player's walk; never attacks, damage, deaths, other players or outcomes). Unity is never a second gameplay authority.",
+      "full_goal_status": "done",
+      "first_milestone_status": "done",
+      "evidence": [
+        "crates/rh-sim/src/input.rs",
+        "crates/rh-sim/src/sim.rs",
+        "crates/rh-policy/src/lib.rs",
+        "client-unity/RoguehallaNet/Net/LocalMotion.cs",
+        "client-unity/UnityProject/Assets/Scripts/Net/MatchClient.cs",
+        "crates/rh-server/tests/equivalence.rs"
+      ],
+      "proven_scope": "Current client sends input and renders delivered facts; unverified movement prediction was removed. Selected live/headless paths share validation/submit.",
+      "remaining_action": "Preserve boundary when extending mechanics; prediction may return only with Rust-produced vectors and correction."
+    },
+    {
+      "id": "R-AUTH-2a",
+      "requirement": "All game rules, physics, collision, combat, AI and bot behaviour live only in the Rust simulation/policy/ headless stack (`rh-sim`, `rh-policy`, `rh-headless`). Local movement prediction is the sole client exception: it mirrors Rust movement, passes Rust test vectors, is always corrected by authoritative state, and is never used by headless or future ML runs. Unity render animation and projectile presentation never decide hits or other game outcomes.",
+      "full_goal_status": "done",
+      "first_milestone_status": "done",
+      "evidence": [
+        "crates/rh-sim/src/input.rs",
+        "crates/rh-sim/src/sim.rs",
+        "crates/rh-policy/src/lib.rs",
+        "client-unity/RoguehallaNet/Net/LocalMotion.cs",
+        "client-unity/UnityProject/Assets/Scripts/Net/MatchClient.cs",
+        "crates/rh-server/tests/equivalence.rs"
+      ],
+      "proven_scope": "Current client sends input and renders delivered facts; unverified movement prediction was removed. Selected live/headless paths share validation/submit.",
+      "remaining_action": "Preserve boundary when extending mechanics; prediction may return only with Rust-produced vectors and correction."
+    },
+    {
+      "id": "R-AUTH-3",
+      "requirement": "Clients send inputs only; the server never accepts positions, damage or outcomes from a client.",
+      "full_goal_status": "done",
+      "first_milestone_status": "done",
+      "evidence": [
+        "crates/rh-sim/src/input.rs",
+        "crates/rh-sim/src/sim.rs",
+        "crates/rh-policy/src/lib.rs",
+        "client-unity/RoguehallaNet/Net/LocalMotion.cs",
+        "client-unity/UnityProject/Assets/Scripts/Net/MatchClient.cs",
+        "crates/rh-server/tests/equivalence.rs"
+      ],
+      "proven_scope": "Current client sends input and renders delivered facts; unverified movement prediction was removed. Selected live/headless paths share validation/submit.",
+      "remaining_action": "Preserve boundary when extending mechanics; prediction may return only with Rust-produced vectors and correction."
+    },
+    {
+      "id": "R-WEB-1",
+      "requirement": "The client is C# in Unity, playable through an actual Unity Web build in supported ordinary browsers (Chrome, Edge, Firefox, Safari current versions). Desktop builds may remain possible. A separate mobile port is not required.",
+      "full_goal_status": "partial",
+      "first_milestone_status": "done",
+      "evidence": [
+        "docs/evidence/first-playable-calgary/browser-proof.json",
+        "docs/evidence/first-playable-unity/browser-proof.json",
+        "client-unity/UnityProject/Tools/playable-web.cjs",
+        "client-unity/README.md"
+      ],
+      "proven_scope": "Actual IL2CPP/WebGL player and complete selected loop verified in Chromium156 only.",
+      "remaining_action": "Verify supported Firefox/Safari/Edge; keep full matrix open. Current MVP claim must say Chromium-scoped."
+    },
+    {
+      "id": "R-WEB-2",
+      "requirement": "Browser constraints are respected: WebSocket (wss) transport through the browser; no native sockets, UDP, ICMP, desktop-only libraries or per-frame native FFI; IL2CPP/AOT-safe code (no runtime code generation).",
+      "full_goal_status": "done",
+      "first_milestone_status": "done",
+      "evidence": [
+        "docs/evidence/first-playable-calgary/browser-proof.json",
+        "docs/evidence/first-playable-unity/browser-proof.json",
+        "client-unity/UnityProject/Tools/playable-web.cjs",
+        "client-unity/README.md"
+      ],
+      "proven_scope": "Real browser WSS/AOT path; .NET networking compiled out of Web player, browser bridge used.",
+      "remaining_action": "Preserve AOT/transport constraints on further inputs."
+    },
+    {
+      "id": "R-WEB-3",
+      "requirement": "Pursue the **highest sustainable frame rate** while preserving intended gameplay, readability and visual quality. The owner selected **Apple M5 Pro** as the initial named reference on 2026-11-05 and explicitly replaced the earlier 60 FPS goal with a request to measure how far performance can be pushed. Report CPU/GPU frame-time distributions and browser/display limits separately; do not infer rendered FPS from the Rust server's throughput. Frame time, memory, download size and load time have explicit measured budgets. Verify representative crowded gameplay, not just a movement smoke; results do not establish performance on other hardware.",
+      "full_goal_status": "partial",
+      "first_milestone_status": "done",
+      "evidence": [
+        "docs/evidence/first-playable-domain-performance/metrics.json",
+        "docs/evidence/first-playable-domain-performance/browser-normal.json",
+        "docs/evidence/first-playable-domain-performance/browser-uncapped-diagnostic.json",
+        "docs/evidence/first-playable-performance/native.json"
+      ],
+      "proven_scope": "M5 Pro normal24.409s/59.98FPS plus8.0847s755.5GL-submission diagnostic; scoped CPU/GPU/memory/load metrics.",
+      "remaining_action": "Sustained maximum, density, other resolutions/browsers and complete frame/memory budgets remain; do not label755 as presented/shipping FPS."
+    },
+    {
+      "id": "R-AWS-1",
+      "requirement": "Hundreds of simultaneous matches, up to eight players per match.",
+      "full_goal_status": "deferred",
+      "first_milestone_status": "deferred",
+      "evidence": [
+        "docs/evidence/first-playable-calgary/public-tls.json",
+        "docs/evidence/first-playable-calgary/runtime-guards.json",
+        "docs/evidence/first-playable-calgary/budget-reservation.json",
+        "hosting/staging-mvp/staging.py",
+        "docs/adr/0020-temporary-single-host-staging.md"
+      ],
+      "proven_scope": "One temporary Calgary host supports selected MVP. Provider/placement/scaling code has local tests but actual managed fleet/scale remains unproved.",
+      "remaining_action": "Later bounded provider/placement/packing/autoscale/warm-capacity tests under new concrete budget plan; no200-match claim."
+    },
+    {
+      "id": "R-AWS-2",
+      "requirement": "Latency-aware regional placement considering every party member, capacity and latency ceilings; automatic selection shown to the player with the measured ping; manual region override.",
+      "full_goal_status": "deferred",
+      "first_milestone_status": "deferred",
+      "evidence": [
+        "docs/evidence/first-playable-calgary/public-tls.json",
+        "docs/evidence/first-playable-calgary/runtime-guards.json",
+        "docs/evidence/first-playable-calgary/budget-reservation.json",
+        "hosting/staging-mvp/staging.py",
+        "docs/adr/0020-temporary-single-host-staging.md"
+      ],
+      "proven_scope": "One temporary Calgary host supports selected MVP. Provider/placement/scaling code has local tests but actual managed fleet/scale remains unproved.",
+      "remaining_action": "Later bounded provider/placement/packing/autoscale/warm-capacity tests under new concrete budget plan; no200-match claim."
+    },
+    {
+      "id": "R-AWS-3",
+      "requirement": "Automatic capacity adjustment (scale on available session capacity and demand, with CPU, memory, tick-deadline and join-delay guardrails); efficient host packing (several matches per process/host where measured); active matches protected on scale-in and deployment; idle sessions closed; warm capacity vs cold start documented.",
+      "full_goal_status": "deferred",
+      "first_milestone_status": "deferred",
+      "evidence": [
+        "docs/evidence/first-playable-calgary/public-tls.json",
+        "docs/evidence/first-playable-calgary/runtime-guards.json",
+        "docs/evidence/first-playable-calgary/budget-reservation.json",
+        "hosting/staging-mvp/staging.py",
+        "docs/adr/0020-temporary-single-host-staging.md"
+      ],
+      "proven_scope": "One temporary Calgary host supports selected MVP. Provider/placement/scaling code has local tests but actual managed fleet/scale remains unproved.",
+      "remaining_action": "Later bounded provider/placement/packing/autoscale/warm-capacity tests under new concrete budget plan; no200-match claim."
+    },
+    {
+      "id": "R-AWS-4",
+      "requirement": "Western Canadian players are considered (candidate locations measured; `ca-west-1` availability verified).",
+      "full_goal_status": "partial",
+      "first_milestone_status": "done",
+      "evidence": [
+        "docs/evidence/first-playable-calgary/public-tls.json",
+        "docs/evidence/first-playable-calgary/runtime-guards.json",
+        "docs/evidence/first-playable-calgary/budget-reservation.json",
+        "hosting/staging-mvp/staging.py",
+        "docs/adr/0020-temporary-single-host-staging.md"
+      ],
+      "proven_scope": "Calgaryca-west-1a actual EC2 target and direct game-process HTTP/WSS RTT verified; owner explicitly selected Calgary.",
+      "remaining_action": "Full regional candidate/party latency placement remains open; this proves the chosen region only."
+    },
+    {
+      "id": "R-AWS-5",
+      "requirement": "Active cross-region match migration is NOT required.",
+      "full_goal_status": "done",
+      "first_milestone_status": "done",
+      "evidence": [
+        "docs/evidence/first-playable-calgary/public-tls.json",
+        "docs/evidence/first-playable-calgary/runtime-guards.json",
+        "docs/evidence/first-playable-calgary/budget-reservation.json",
+        "hosting/staging-mvp/staging.py",
+        "docs/adr/0020-temporary-single-host-staging.md"
+      ],
+      "proven_scope": "Active cross-region migration is excluded; no such mechanism required for current scope.",
+      "remaining_action": "No action unless owner changes scope."
+    },
+    {
+      "id": "R-AWS-6",
+      "requirement": "Provisional sizing scenario: 200 concurrent matches / 1,600 players. This is a planning ASSUMPTION, not measured capacity and not a spending authorization. Nothing at that scale is provisioned without budget authorization.",
+      "full_goal_status": "done",
+      "first_milestone_status": "done",
+      "evidence": [
+        "docs/evidence/first-playable-calgary/public-tls.json",
+        "docs/evidence/first-playable-calgary/runtime-guards.json",
+        "docs/evidence/first-playable-calgary/budget-reservation.json",
+        "hosting/staging-mvp/staging.py",
+        "docs/adr/0020-temporary-single-host-staging.md"
+      ],
+      "proven_scope": "200/1600 remains assumption; actual template one t4g.small and explicitCAD20total cap.",
+      "remaining_action": "Keep future density forecasts separate from authorization and measured capacity."
+    },
+    {
+      "id": "R-AWS-7",
+      "requirement": "A browser-reachable secure endpoint with valid TLS and DNS (not just an IP and port).",
+      "full_goal_status": "done",
+      "first_milestone_status": "done",
+      "evidence": [
+        "docs/evidence/first-playable-calgary/public-tls.json",
+        "docs/evidence/first-playable-calgary/runtime-guards.json",
+        "docs/evidence/first-playable-calgary/budget-reservation.json",
+        "hosting/staging-mvp/staging.py",
+        "docs/adr/0020-temporary-single-host-staging.md"
+      ],
+      "proven_scope": "Saved publicLE certificate/SAN, authoritativeDNS TTL60 and actualUnityWSS loop at practice apex.",
+      "remaining_action": "Cleanup is a separate pending gate; future long-lived topology needs its own TLS/lifecycle proof."
+    },
+    {
+      "id": "R-GAME-1",
+      "requirement": "Preserve intended controls, rules, timing, balance, fairness, progression, existing bots and player flows, and recognizable presentation. The legacy code at the baseline revision ([MIGRATION.md](MIGRATION.md)) is the reference; where legacy docs disagree with code, code and tests win and the doc is corrected (known disagreements: [legacy/INVENTORY.md](legacy/INVENTORY.md) section 9).",
+      "full_goal_status": "partial",
+      "first_milestone_status": "done",
+      "evidence": [
+        "docs/evidence/first-playable-core/integration.json",
+        "crates/rh-sim/src/schedule.rs",
+        "docs/adr/0019-first-playable-runtime.md",
+        "crates/rh-headless/examples/first_playable.rs"
+      ],
+      "proven_scope": "Selected source-backed combat/PvE/loot/potion/threecards/eightboosts plus results/reconnect pass; full game flows/content absent.",
+      "remaining_action": "Continue full inventory later, including quests/traders/abilities/full cards/regions/hub/planning/progression; explicit deferral is not completion."
+    },
+    {
+      "id": "R-GAME-2",
+      "requirement": "Controls (current live playtest, README \"Live playtest update\"): WASD/arrows move; click attacks; the wand alone locks/homes; R casts the Wish; E drinks a potion; Tab shows the map and weapons; J the quest log; F interacts.",
+      "full_goal_status": "partial",
+      "first_milestone_status": "partial",
+      "evidence": [
+        "docs/evidence/first-playable-calgary/browser-proof.json",
+        "docs/evidence/first-playable-unity/browser-proof.json",
+        "client-unity/UnityProject/Tools/playable-web.cjs",
+        "client-unity/README.md"
+      ],
+      "proven_scope": "Proof exercises D/W,2,F,E, normalclick; alternate controls implemented but not all separately exercised. Wish/Tab-map/J-quests not in MVP.",
+      "remaining_action": "Focused right-click/Shiftattack-move/arrows/wand-target/input-focus check is ready; full controls follow their native mechanics."
+    },
+    {
+      "id": "R-GAME-3",
+      "requirement": "Fixed 20 Hz authoritative tick; fair input ordering (secret per-tick shuffle); lag compensation (melee rewind bounded by `MAX_REWIND_MS`); simultaneous damage resolution with the legacy tie rules; secret state never sent to clients (deals, hidden quests, chest rolls, salts).",
+      "full_goal_status": "done",
+      "first_milestone_status": "done",
+      "evidence": [
+        "docs/evidence/first-playable-core/integration.json",
+        "crates/rh-sim/src/schedule.rs",
+        "docs/adr/0019-first-playable-runtime.md",
+        "crates/rh-headless/examples/first_playable.rs"
+      ],
+      "proven_scope": "Fixed20Hz/source-order schedule, native fairness/rewind/ledger/hash/privacy checks cover admitted mechanics; no timing change introduced by client.",
+      "remaining_action": "Extend source fixtures and invariant tests with each later mechanic."
+    },
+    {
+      "id": "R-GAME-4",
+      "requirement": "Player flows: hub, profile claim/sign-in, matchmaking (arena and training), lobby with fill bots, planning, the run (camps, quests, chests, coliseum teleports, sudden death), death/results, GV banking, leaving (MIA), disconnect and reconnect (seat held for the grace), match termination and shutdown voiding.",
+      "full_goal_status": "partial",
+      "first_milestone_status": "done",
+      "evidence": [
+        "docs/evidence/first-playable-core/integration.json",
+        "crates/rh-sim/src/schedule.rs",
+        "docs/adr/0019-first-playable-runtime.md",
+        "crates/rh-headless/examples/first_playable.rs"
+      ],
+      "proven_scope": "Selected source-backed combat/PvE/loot/potion/threecards/eightboosts plus results/reconnect pass; full game flows/content absent.",
+      "remaining_action": "Continue full inventory later, including quests/traders/abilities/full cards/regions/hub/planning/progression; explicit deferral is not completion."
+    },
+    {
+      "id": "R-GAME-5",
+      "requirement": "Ordinary game rewards, loot, currency (GV), cosmetics, achievements and progression remain in scope.",
+      "full_goal_status": "partial",
+      "first_milestone_status": "done",
+      "evidence": [
+        "docs/evidence/first-playable-core/integration.json",
+        "crates/rh-sim/src/schedule.rs",
+        "docs/adr/0019-first-playable-runtime.md",
+        "crates/rh-headless/examples/first_playable.rs"
+      ],
+      "proven_scope": "Selected source-backed combat/PvE/loot/potion/threecards/eightboosts plus results/reconnect pass; full game flows/content absent.",
+      "remaining_action": "Continue full inventory later, including quests/traders/abilities/full cards/regions/hub/planning/progression; explicit deferral is not completion."
+    },
+    {
+      "id": "R-GAME-6",
+      "requirement": "If a product change is genuinely unresolved, preserve existing intended behaviour and record the decision for the owner instead of redesigning silently.",
+      "full_goal_status": "done",
+      "first_milestone_status": "done",
+      "evidence": [
+        "docs/evidence/first-playable-core/integration.json",
+        "crates/rh-sim/src/schedule.rs",
+        "docs/adr/0019-first-playable-runtime.md",
+        "crates/rh-headless/examples/first_playable.rs"
+      ],
+      "proven_scope": "Bounded pool/map/temporary hosting decisions explicitly recorded, with owner narrowing and source behavior as reference.",
+      "remaining_action": "Record new unresolved product decisions; do not silently redefine legacy behavior."
+    },
+    {
+      "id": "R-OPT-1",
+      "requirement": "Both stages actively identify and implement worthwhile improvements in algorithms, data structures, allocation, spatial/pathfinding/perception work, replication, serialization, batching, rendering and hosting, preserving intended behaviour. A literal line-by-line translation is not the objective.",
+      "full_goal_status": "partial",
+      "first_milestone_status": "done",
+      "evidence": [
+        "docs/evidence/first-playable-domain-performance/metrics.json",
+        "docs/evidence/first-playable-domain-performance/browser-normal.json",
+        "docs/evidence/first-playable-domain-performance/browser-uncapped-diagnostic.json",
+        "docs/evidence/first-playable-performance/native.json"
+      ],
+      "proven_scope": "Core sweeps and batching have scoped evidence; current domain CPU/GPU/RTT/bytes/loading measured separately.",
+      "remaining_action": "Act on measured bottlenecks with quality-preserving A/B; full-game pass remains."
+    },
+    {
+      "id": "R-OPT-2",
+      "requirement": "Every optimization records its observed cost, mechanism, behavioural risk and comparable before/after evidence (revision, hardware, native/emulated, workload, build mode, duration). Complexity without demonstrated value is removed.",
+      "full_goal_status": "partial",
+      "first_milestone_status": "done",
+      "evidence": [
+        "docs/evidence/first-playable-domain-performance/metrics.json",
+        "docs/evidence/first-playable-domain-performance/browser-normal.json",
+        "docs/evidence/first-playable-domain-performance/browser-uncapped-diagnostic.json",
+        "docs/evidence/first-playable-performance/native.json"
+      ],
+      "proven_scope": "Historical core/map comparative evidence and exact current baseline artifacts exist. No full-stack speedup is claimed from this MVP.",
+      "remaining_action": "Matched before/after for further shipping optimizations; sustained full-game comparison remains."
+    },
+    {
+      "id": "R-OPT-3",
+      "requirement": "Server CPU, network RTT, browser CPU/GPU, memory, download size and operating complexity are separate budgets. No automatic improvement is promised from adopting Rust, Unity or AWS.",
+      "full_goal_status": "done",
+      "first_milestone_status": "done",
+      "evidence": [
+        "docs/evidence/first-playable-domain-performance/metrics.json",
+        "docs/evidence/first-playable-domain-performance/browser-normal.json",
+        "docs/evidence/first-playable-domain-performance/browser-uncapped-diagnostic.json",
+        "docs/evidence/first-playable-performance/native.json"
+      ],
+      "proven_scope": "CPU, GPU, server step, HTTP/WSS RTT, JS/Wasm allocation, load/transfer and budget have distinct scopes.",
+      "remaining_action": "Keep measurement channels and limitations separate."
+    },
+    {
+      "id": "R-OPT-4",
+      "requirement": "Owner request 2026-11-05: perform a final runtime profiling and efficiency pass across the completed Rust server and actual Unity/C# browser build, compared with the legacy TypeScript/Colyseus/Phaser stack on the M5 Pro. Match maps, actor counts, scripted actions and browser/resolution settings; record visual-quality differences and browser/display limits. Report server step distributions/throughput, browser CPU/GPU frame times and sustained FPS, memory/allocations/GC, network use, loading and download size separately. Optimize measured bottlenecks while preserving gameplay and intended visual quality, then repeat the same workloads. Partial-slice or map timings cannot establish full-game speedup. Pursue the highest sustainable frame rate under R-WEB-3.",
+      "full_goal_status": "deferred",
+      "first_milestone_status": "deferred",
+      "evidence": [
+        "docs/evidence/first-playable-domain-performance/metrics.json",
+        "docs/evidence/first-playable-domain-performance/browser-normal.json",
+        "docs/evidence/first-playable-domain-performance/browser-uncapped-diagnostic.json",
+        "docs/evidence/first-playable-performance/native.json"
+      ],
+      "proven_scope": "Only selected MVP and earlier map/native comparisons measured; full legacy matched runtime absent.",
+      "remaining_action": "P-LOAD-3 requires completed/matched workloads, maps, actor/actions/settings plus memory/GC/network/loading and long-run checks."
+    },
+    {
+      "id": "R-VIS-1",
+      "requirement": "Owner update 2026-11-05 supersedes the original existing-art-only restriction: assets need not match the legacy art one-to-one. Compatible open-source assets and original assets made with Unity tooling, including procedural geometry/materials, are allowed. Take creative liberties with the presentation ([VISUAL_DIRECTION.md](VISUAL_DIRECTION.md)).",
+      "full_goal_status": "done",
+      "first_milestone_status": "done",
+      "evidence": [
+        "docs/evidence/first-playable-calgary/browser-proof.json",
+        "docs/evidence/first-playable-unity/browser-proof.json",
+        "client-unity/UnityProject/Tools/playable-web.cjs",
+        "client-unity/README.md"
+      ],
+      "proven_scope": "Owner superseded existing-art-only with procedural/open-source/creative assets; current procedural views are permitted.",
+      "remaining_action": "Preserve notices/readability as visual work expands."
+    },
+    {
+      "id": "R-VIS-2",
+      "requirement": "Character/environment artwork, silhouettes and presentation may be redesigned. Preserve competitive readability, clear faction/role cues and faithful presentation of authoritative positions, reach, collision geometry and gameplay-critical indicators. Art changes do not authorize changes to Rust game rules or Unity gameplay authority.",
+      "full_goal_status": "partial",
+      "first_milestone_status": "done",
+      "evidence": [
+        "docs/evidence/first-playable-calgary/browser-proof.json",
+        "docs/evidence/first-playable-unity/browser-proof.json",
+        "client-unity/UnityProject/Tools/playable-web.cjs",
+        "client-unity/README.md"
+      ],
+      "proven_scope": "Exact server map/positions/HP/status/projectiles rendered. Some one-shot telegraphs and complete faction cues remain omitted.",
+      "remaining_action": "Complete gameplay-essential cues in full client gate; visual polish remains deferred."
+    },
+    {
+      "id": "R-VIS-3",
+      "requirement": "Adaptive quality with manual overrides and an accessible low tier; essential gameplay indicators on every tier; no effect may reveal a hidden actor.",
+      "full_goal_status": "partial",
+      "first_milestone_status": "deferred",
+      "evidence": [
+        "docs/evidence/first-playable-calgary/browser-proof.json",
+        "docs/evidence/first-playable-unity/browser-proof.json",
+        "client-unity/UnityProject/Tools/playable-web.cjs",
+        "client-unity/README.md"
+      ],
+      "proven_scope": "Static Unity presets exist; actual adaptive/manual UI and usable low-tier proof absent.",
+      "remaining_action": "Implement/verify adaptive/manual settings and essential indicators before full browser experience claim."
+    },
+    {
+      "id": "R-VIS-4",
+      "requirement": "Record third-party asset provenance and preserve redistribution/attribution terms under R-OSS. Rust gameplay, parity and headless completion retain priority over visual expansion; pursue the highest sustainable M5 Pro rate.",
+      "full_goal_status": "partial",
+      "first_milestone_status": "done",
+      "evidence": [
+        "LICENSE",
+        "CONTRIBUTING.md",
+        "client-unity/THIRD_PARTY_ASSETS.md",
+        ".github/workflows/rust.yml",
+        "docs/backlog/README.md"
+      ],
+      "proven_scope": "TMP/Unity/font/EmojiOne notices retained; selected native rules preceded HUD. Full asset/dependency audit remains open.",
+      "remaining_action": "P-OSS-2 transitive redistribution/provenance audit for release."
+    },
+    {
+      "id": "R-OSS-1",
+      "requirement": "Game code and a standalone headless Rust engine build and test without Unity or AWS (`cargo test --workspace`; `cargo run -p rh-headless`).",
+      "full_goal_status": "done",
+      "first_milestone_status": "done",
+      "evidence": [
+        "LICENSE",
+        "CONTRIBUTING.md",
+        "client-unity/THIRD_PARTY_ASSETS.md",
+        ".github/workflows/rust.yml",
+        "docs/backlog/README.md"
+      ],
+      "proven_scope": "Rust workspace/headless build/test independent of Unity/AWS; native CI/logs cover admitted engine.",
+      "remaining_action": "Full-game mechanics completeness remains separately partial."
+    },
+    {
+      "id": "R-OSS-2",
+      "requirement": "Reproducible setup, local play (`cargo run -p rh-server` + the browser probe today; the Unity client later), versioned protocols, contributor instructions ([../CONTRIBUTING.md](../CONTRIBUTING.md)).",
+      "full_goal_status": "partial",
+      "first_milestone_status": "done",
+      "evidence": [
+        "LICENSE",
+        "CONTRIBUTING.md",
+        "client-unity/THIRD_PARTY_ASSETS.md",
+        ".github/workflows/rust.yml",
+        "docs/backlog/README.md"
+      ],
+      "proven_scope": "Current local core/server/headless/Unity build and browser commands documented; portable canonical wrappers wired into CI.",
+      "remaining_action": "Fresh-contributor full setup/Unity build CI and remaining protocol/policy/ops documentation as new features land."
+    },
+    {
+      "id": "R-OSS-3",
+      "requirement": "Preserve existing licenses. The owner selected **MIT** for project-authored code on 2026-11-05 (`LICENSE`). Asset and dependency redistribution remains a separate review; third-party terms and Unity's proprietary tooling are not relicensed. Packages remain private until publishing is deliberately prepared.",
+      "full_goal_status": "partial",
+      "first_milestone_status": "done",
+      "evidence": [
+        "LICENSE",
+        "CONTRIBUTING.md",
+        "client-unity/THIRD_PARTY_ASSETS.md",
+        ".github/workflows/rust.yml",
+        "docs/backlog/README.md"
+      ],
+      "proven_scope": "Project MIT chosen andLICENSE exists. Third-party notices preserved separately; packages private.",
+      "remaining_action": "Complete asset/dependency/history secret audit and release templates before OSS-ready claim."
+    },
+    {
+      "id": "R-ML-1",
+      "requirement": "Future goals: competitive bots and human-like bots, using legitimate player-visible observations (including permitted UI/audio/map cues; screenshots not required) and the full game simulation.",
+      "full_goal_status": "partial",
+      "first_milestone_status": "done",
+      "evidence": [
+        "crates/rh-policy/src/lib.rs",
+        "crates/rh-headless/src/lib.rs",
+        "crates/rh-headless/tests/env.rs",
+        "crates/rh-server/tests/equivalence.rs",
+        "docs/adr/0005-policy-seam.md"
+      ],
+      "proven_scope": "Architecture-only shared seat contract/cadence/fallback/visibility and live-headless equivalence tested for admitted core; no ML implementation.",
+      "remaining_action": "Complete full shared game then extend compatible legitimate observations; networked future-seat spec/stub and version matrix remain tracked. No training/runtime scope."
+    },
+    {
+      "id": "R-ML-2",
+      "requirement": "Future policies attach to the LIVE Rust server through the same policy contract as scripted bots ([adr/0005-policy-seam.md](adr/0005-policy-seam.md)), with normal pacing and Unity rendering. Headless runs use the same contract with no waits.",
+      "full_goal_status": "partial",
+      "first_milestone_status": "done",
+      "evidence": [
+        "crates/rh-policy/src/lib.rs",
+        "crates/rh-headless/src/lib.rs",
+        "crates/rh-headless/tests/env.rs",
+        "crates/rh-server/tests/equivalence.rs",
+        "docs/adr/0005-policy-seam.md"
+      ],
+      "proven_scope": "Architecture-only shared seat contract/cadence/fallback/visibility and live-headless equivalence tested for admitted core; no ML implementation.",
+      "remaining_action": "Complete full shared game then extend compatible legitimate observations; networked future-seat spec/stub and version matrix remain tracked. No training/runtime scope."
+    },
+    {
+      "id": "R-ML-3",
+      "requirement": "Humans, scripted bots and future learned policies use the same authoritative action validation and applicable timing/rate constraints; each bot policy keeps its configured decision cadence live and headless; nobody gets extra actions per simulated second.",
+      "full_goal_status": "partial",
+      "first_milestone_status": "done",
+      "evidence": [
+        "crates/rh-policy/src/lib.rs",
+        "crates/rh-headless/src/lib.rs",
+        "crates/rh-headless/tests/env.rs",
+        "crates/rh-server/tests/equivalence.rs",
+        "docs/adr/0005-policy-seam.md"
+      ],
+      "proven_scope": "Architecture-only shared seat contract/cadence/fallback/visibility and live-headless equivalence tested for admitted core; no ML implementation.",
+      "remaining_action": "Complete full shared game then extend compatible legitimate observations; networked future-seat spec/stub and version matrix remain tracked. No training/runtime scope."
+    },
+    {
+      "id": "R-ML-4",
+      "requirement": "Observations contain only legitimate player-perceivable information; policies may remember prior observations but never receive hidden updates; no leaks through ids, ordering, counts, masks, events or RNG; privileged diagnostics stay separate.",
+      "full_goal_status": "partial",
+      "first_milestone_status": "done",
+      "evidence": [
+        "crates/rh-policy/src/lib.rs",
+        "crates/rh-headless/src/lib.rs",
+        "crates/rh-headless/tests/env.rs",
+        "crates/rh-server/tests/equivalence.rs",
+        "docs/adr/0005-policy-seam.md"
+      ],
+      "proven_scope": "Architecture-only shared seat contract/cadence/fallback/visibility and live-headless equivalence tested for admitted core; no ML implementation.",
+      "remaining_action": "Complete full shared game then extend compatible legitimate observations; networked future-seat spec/stub and version matrix remain tracked. No training/runtime scope."
+    },
+    {
+      "id": "R-ML-5",
+      "requirement": "Policy state/reset, deadlines, fallback, versioning and compatibility are defined; orchestration and future batching stay outside the deterministic rules.",
+      "full_goal_status": "partial",
+      "first_milestone_status": "done",
+      "evidence": [
+        "crates/rh-policy/src/lib.rs",
+        "crates/rh-headless/src/lib.rs",
+        "crates/rh-headless/tests/env.rs",
+        "crates/rh-server/tests/equivalence.rs",
+        "docs/adr/0005-policy-seam.md"
+      ],
+      "proven_scope": "Architecture-only shared seat contract/cadence/fallback/visibility and live-headless equivalence tested for admitted core; no ML implementation.",
+      "remaining_action": "Complete full shared game then extend compatible legitimate observations; networked future-seat spec/stub and version matrix remain tracked. No training/runtime scope."
+    },
+    {
+      "id": "R-PERSIST-1",
+      "requirement": "Replace the singleton profile store before independent writers exist: atomic progression and currency, idempotent results, concurrent session ownership, retries/recovery, schema versioning, fencing.",
+      "full_goal_status": "partial",
+      "first_milestone_status": "deferred",
+      "evidence": [
+        "crates/rh-persist",
+        "crates/rh-server/tests/pg_e2e.rs",
+        "crates/rh-server/tests/result_recovery.rs",
+        "docs/evidence/stage2-leases",
+        "docs/evidence/placement-durability-review",
+        "docs/adr/0006-persistence.md"
+      ],
+      "proven_scope": "LocalPG atomic/fenced/idempotent result/auth/lease/recovery paths implemented and tested; Calgary playtest intentionally uses in-memory profiles/results.",
+      "remaining_action": "Real cloud durable-store/host-loss/failover integration before persistent or multiwriter release; never infer persistence from temporary match results."
+    },
+    {
+      "id": "R-PERSIST-2",
+      "requirement": "Profile export/migration, reconciliation, backup and rollback are prepared without changing live data.",
+      "full_goal_status": "partial",
+      "first_milestone_status": "deferred",
+      "evidence": [
+        "crates/rh-persist",
+        "crates/rh-server/tests/pg_e2e.rs",
+        "crates/rh-server/tests/result_recovery.rs",
+        "docs/evidence/stage2-leases",
+        "docs/evidence/placement-durability-review",
+        "docs/adr/0006-persistence.md"
+      ],
+      "proven_scope": "Legacy import primitives and reconciliation/rollback guidance exist; actual authorized export/import rehearsal/cutover not performed.",
+      "remaining_action": "P-MIG-1/2 rehearsals and reconciliation using owner-authorized staging snapshot; preserveproduction."
+    },
+    {
+      "id": "R-PROC-1",
+      "requirement": "Keep the legacy game runnable while its replacement is built; preserve unrelated changes.",
+      "full_goal_status": "done",
+      "first_milestone_status": "done",
+      "evidence": [
+        "LICENSE",
+        "CONTRIBUTING.md",
+        "client-unity/THIRD_PARTY_ASSETS.md",
+        ".github/workflows/rust.yml",
+        "docs/backlog/README.md"
+      ],
+      "proven_scope": "Legacypackages retained; task currentbranchoptimization_port, production untouched in deployment records.",
+      "remaining_action": "Continue preserving legacy until explicit cutover/retirement authorization."
+    },
+    {
+      "id": "R-PROC-2",
+      "requirement": "Never imply full-game parity or release readiness from a partial slice; never claim zero defects.",
+      "full_goal_status": "done",
+      "first_milestone_status": "done",
+      "evidence": [
+        "docs/evidence/first-playable-core/integration.json",
+        "crates/rh-sim/src/schedule.rs",
+        "docs/adr/0019-first-playable-runtime.md",
+        "crates/rh-headless/examples/first_playable.rs"
+      ],
+      "proven_scope": "Current evidence carefully scopes MVP, cloud exception, diagnostics and deferred full gates. Existing verifier weakness is now hardened in a root-pending patch.",
+      "remaining_action": "Integrate strict proofcontract; maintain no-zero-defects/full-parity-overclaim discipline."
+    },
+    {
+      "id": "R-PROC-3",
+      "requirement": "Decisions are recorded as ADRs; decision status is tracked separately from validation status.",
+      "full_goal_status": "done",
+      "first_milestone_status": "done",
+      "evidence": [
+        "docs/evidence/first-playable-core/integration.json",
+        "crates/rh-sim/src/schedule.rs",
+        "docs/adr/0019-first-playable-runtime.md",
+        "crates/rh-headless/examples/first_playable.rs"
+      ],
+      "proven_scope": "ADRs separate accepted decisions from validation; latestMIGRATION takes precedence over historical paragraphs.",
+      "remaining_action": "Clean stale ADR/index/backlog wording to reduce ambiguity, without changing historical evidence."
+    },
+    {
+      "id": "R-PROC-4",
+      "requirement": "Owner priority (2026-11-05): complete the Rust simulation, meaningful parity and headless support ahead of Unity visual work. The maximum sustainable client-performance goal remains for the client verification stage.",
+      "full_goal_status": "done",
+      "first_milestone_status": "done",
+      "evidence": [
+        "docs/evidence/first-playable-core/integration.json",
+        "crates/rh-sim/src/schedule.rs",
+        "docs/adr/0019-first-playable-runtime.md",
+        "crates/rh-headless/examples/first_playable.rs"
+      ],
+      "proven_scope": "Native selected rules/parity/headless proven before actual HUD expansion; broader original scope retained for later.",
+      "remaining_action": "Continue Rust-first dependency order for later features."
+    }
+  ],
+  "original_section_completion_gates": [
+    {
+      "gate": "FullRustgame",
+      "full_goal_status": "partial",
+      "proof": "NativeMVP/parity/restore/hash coverage verified; source schedule still Pending/Partial for abilities/quests/traders/factionaux/arena.",
+      "next": "Laterfullmechanicspackets/sourcefixtures; preserve Rustfirst."
+    },
+    {
+      "gate": "Fullheadless/policyfoundation",
+      "full_goal_status": "partial",
+      "proof": "Exactsame admittedcore normal6seat match tick688, replay/restorehash8ed7...; purestandalonebuild and live-equivalence tests.",
+      "next": "Fullsharedgamecomplete then fullreset/compatibility/observation/cadencecoverage."
+    },
+    {
+      "gate": "CompleteUnitybrowserexperience",
+      "full_goal_status": "partial",
+      "proof": "ActualChromium publicMVPall15outcomes; matrix/resize/DPR2/focus/quality/prediction/fullflowsnotcovered.",
+      "next": "Boundedresize/focus/alternatecontrol checksready; keepmatrixandotherfullgatesopen."
+    },
+    {
+      "gate": "Regionalmultiplayerandstate",
+      "full_goal_status": "partial",
+      "proof": "RealCalgarytemporaryHTTPS/WSSplaytest; memoryprofiles; localPG/providerfacadetests do notproverealregionalplacement/cloudstate/scaling.",
+      "next": "Cleanup13:00UTCthenfutureboundedprovider/durable/placement/scaling proof; noproductioncutover."
+    },
+    {
+      "gate": "Releasecandidate",
+      "full_goal_status": "partial",
+      "proof": "SelectedMVPsource/native/transport/actualbrowser/TLS/performanceCI evidenceexists,cleanupstillpending; fullcapacity/migration/OSSauditnotdone.",
+      "next": "Firstmilestonecleanupandselfcontainedreport; fullreleasewaitsremaininggates."
+    }
+  ],
+  "immediate_milestone": [
+    {
+      "item": "Rustcombat/mobs/selectedcardschests/potions/loot",
+      "status": "done",
+      "evidence": "Selectedsourcecorpora20/6/4/2cases +native/parity+actualpublicoutcomes."
+    },
+    {
+      "item": "Sameheadlessrules/naturalterminal/replay/restore",
+      "status": "done",
+      "evidence": "ActualacceptedreportSHA0ce54c...;6seats/tick688/terminatedtrue/truncatedfalse/replay+restoretrue."
+    },
+    {
+      "item": "ActualUnityHUD/join/fight/reward/results/reconnect/rejoin",
+      "status": "done",
+      "evidence": "SavedCalgary15requiredoutcomesallpass/changed; errors/failuresempty."
+    },
+    {
+      "item": "OneCalgaryAWSregion/publicTLS/practicedomain",
+      "status": "done",
+      "evidence": "SavedTLSNS/runtimeguardproof; notnewlivecloudpollinthisaudit."
+    },
+    {
+      "item": "M5Proscopedperformance",
+      "status": "done",
+      "evidence": "Actualdomain24.4snormal+8suncappeddiag; wholeRoomCPUreport andseparateHTTPtimings. Sustainedceilingfullcapacitynotestablished."
+    },
+    {
+      "item": "Budgetandboundedcleanup",
+      "status": "partial",
+      "evidence": "CAD20cap/reserved10,actualruntimeguardssaved; cleanup13:00UTCassignedbutnotcompleted. Postedbillnotcertified."
+    },
+    {
+      "item": "Broaderbrowsercompatibility/focus/resize",
+      "status": "partial",
+      "evidence": "Notinownerexplicitdeferral list; fullR-WEBremainsopen. CurrentmilestoneclaimmustbeChromium-scoped."
+    },
+    {
+      "item": "Reusablefull-proofacceptance",
+      "status": "partial",
+      "evidence": "Currentcompleteproofvalid; verifierpatchnewproof-contract/tests58cases passes, rootintegrationpending."
+    }
+  ],
+  "named_commands_artifacts": [
+    {
+      "command": "cargo test --workspace / --all-features --locked",
+      "status": "done",
+      "scope": "Nativeallfeaturecoverage1304passes2existingignoresacrosssplitbatches; initialfailedtestlogsretainedandtargetedrepairsverified. No rerun by audit."
+    },
+    {
+      "command": "cargo fmt --all --check; clippy full/default alltargets -Dwarnings",
+      "status": "done",
+      "scope": "Storedrootloghashesverify; source-nativeRustunchangedafter484cef25."
+    },
+    {
+      "command": "cargo run -p rh-parity --bin parity-report",
+      "status": "done",
+      "scope": "Storedcombinedparitylog97compared/13captureonly/300pathsallMATCH, notfullgameparity."
+    },
+    {
+      "command": "dotnet test client-unity/RoguehallaNet.Tests; sync-net.sh --check",
+      "status": "done",
+      "scope": "267C# plusfreshsourcecopy/CIrecord; actualplayer runtimeproof separate."
+    },
+    {
+      "command": "node tools/protocol-js/check-vectors.mjs; check-first-playable.mjs",
+      "status": "done",
+      "scope": "15377golden+61focusedrecorded; sourceCIrequired."
+    },
+    {
+      "command": "node tools/browser-proof/proof.mjs",
+      "status": "done",
+      "scope": "WSStransport15checksrecorded; actualUnityGUIproofdistinct."
+    },
+    {
+      "command": "node client-unity/UnityProject/Tools/playable-web.cjs",
+      "status": "done",
+      "scope": "ActualsavedCalgarycompleteproof; newlystrictcontractrootintegrationpending."
+    },
+    {
+      "command": "Unity6000.0.85f2 WebIL2CPP build viaTools/build-web.sh",
+      "status": "done",
+      "scope": "ActualcurrentMVPplayerpubliclyruns; nativeEditorlicense/pinnedpackages/resourcespresent."
+    },
+    {
+      "command": "canonicalNode22.23.4linuxamd64fourcaptures --check",
+      "status": "done",
+      "scope": "Portablewrappers/immutableDockerimage/spawnwitnessretained; currentexpectedvaluesunchanged."
+    },
+    {
+      "command": "AWSCFN/Caddyvalidate/guard +realdeployment",
+      "status": "partial",
+      "scope": "Template+realTLS/WSS/runtimeproven; cleanupandfullmanagedproviderlifecycleopen."
+    },
+    {
+      "command": "npm ci && npm test legacy",
+      "status": "partial",
+      "scope": "Legacykeptunchanged,sourcecaptures/CIimportactuallegacy; broadcurrentlegacyfrontendfullmatrixnotrerunbythisaudit."
+    },
+    {
+      "command": "fullmatchedlegacyperformance/loadsoak/OSSscan/cutover",
+      "status": "deferred",
+      "scope": "Originalfullgoaloutcomesremain; currentMVPmeasurementscannotclose."
+    }
+  ],
+  "findings": [
+    {
+      "severity": "material-verification",
+      "finding": "Originalplayable-web.cjscouldexit0withrequiredreward/results/moboutcomesunexercised. Currentpublishedproofsdidexerciseall15.",
+      "action": "Rootauthorizedchildstrict15gatePASS/INCOMPLETE/FAILcontractwith58focusedmutationchecks; integrateandwirecheapNodeCI.",
+      "artifact": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/aws-mvp/release-scope-audit/proof-contract-implementation.json"
+    },
+    {
+      "severity": "coverage",
+      "finding": "OnlyChromiumfixedDPR1/fixedcanvasproof; browsermatrix/resize/highDPI/focus/alternateinputs/adaptivequality areopen,notexplicitlynamedownerdeferrals.",
+      "action": "Keepfullbrowsergatepartial; highest-value boundedcheckresize+DPR2+blurheldinputthenalternatecommands."
+    },
+    {
+      "severity": "operations-pending",
+      "finding": "Actualownedcloud/DNS/volume/bucketcleanupnotyetproven; futuretimer/agentintentisnotcleanup.",
+      "action": "Cleanupcoordinator13:00UTCexactrun; verifyterminatedinstance/deletedrootvolume/noownedDNS/bucket/stack, thenrootupdatesrecords."
+    },
+    {
+      "severity": "evidence-scope",
+      "finding": "CalgarytemporarymemorymodeisnotGameLiftprovider,scalingorcloudpersistentprogressionproof.",
+      "action": "RetainADR0004/fullR-AWS/R-PERSISTgatesopen."
+    },
+    {
+      "severity": "minor-maintenance",
+      "finding": "BacklogP-UNITY-1stilllistscloudhostingremaining; ADR0008freshbuild andADR0017pendinglabels are stale against currentMVP.",
+      "action": "Rootclarifycurrentvsfull/historicalvalidation; do notrewritehistoricalproof."
+    },
+    {
+      "severity": "future-bootstrap",
+      "finding": "ObservedoldCaddy/healthroute differedfromserver/healthz. Rootnowcorrectedofflinecandidateand locallyverifiedrealRust200; deployedlivehostunchanged.",
+      "action": "Keepcandidatevsdeployedbytesdistinct; verifyfuturepublichealthafterdeployment."
+    }
+  ],
+  "evidence_sources_sha256": {
+    "docs/MIGRATION.md": "d8bad0c12c8ef48b6d3f5c10b0f10e95a7283240106afd89b3f547df36c05c20",
+    "docs/CONTRACTS.md": "fa426b98076a56914a871069479f0aa6c92037669bb13a3948c1e12a9bba5dd0",
+    "docs/REQUIREMENTS.md": "45f4a590c36bae776ed213297b2468cdbda0edc788946c670c04335923fb51c4",
+    "docs/backlog/README.md": "3bd896782111b7740c5afe215950eecf0c78e340f7f58f81effa92c00ce64e0e",
+    "docs/adr/README.md": "951f25b2ba27ac42f0531146986509904a4d383334802f514f98593f261fa093",
+    "docs/adr/0019-first-playable-runtime.md": "82f142e2c298f8cfe13afb22cd34ec084e3c1204aee1da25fa8f777d4274ead9",
+    "docs/adr/0020-temporary-single-host-staging.md": "a9230ea30d540d9e6d38e3bf77236a50884dbc93e1c8a07675405deccd22f209",
+    "docs/evidence/first-playable-calgary/browser-proof.json": "888aa97ed8a465e368207eadf3492d81705c1a43a94cdd0c2f841ad598c70cbc",
+    "docs/evidence/first-playable-domain-performance/metrics.json": "4c12e9f06d81aa5a9fecf58daa11cce91921bd23e04c5fe74b170be0e9768952"
+  },
+  "source_pending_packets": [
+    "P-ABIL-1",
+    "P-ARENA-2",
+    "P-FACTION-3",
+    "P-FACTION-4",
+    "P-QUEST-1",
+    "P-TRADE-1"
+  ],
+  "scope_limit": "Auditinspectsrepository/source/frozenproofs/privatecontrolledloghashes; no newnetwork/cloud/browserexecution. Fullgateabsenceisnotretestedintocompletion."
+}

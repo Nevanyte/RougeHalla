@@ -45,7 +45,8 @@ licenses/...        # retain project, Caddy, TMP/Unity and font/sprite notices
 ```
 
 Make a copy of the measured canonical Unity output; do not mutate the benchmark artifact or rebuild Wasm just to set
-the endpoint. This helper changes only the copied HTML wrapper, before the loader. It supplies a same-origin `/ws`
+the endpoint. The helper changes the copied HTML wrapper before the loader and adds lossless `.data.gz` sidecars while retaining
+every original Build payload. It supplies a same-origin `/ws`
 backend only when `server` is absent, preserves all other query parameters, and leaves normal visits at the menu:
 
 ```bash
@@ -56,9 +57,16 @@ python3 hosting/staging-mvp/package-web.py \
 ```
 
 The destination must not exist. The report records the original and packaged index hashes and verifies every other
-payload hash stayed unchanged. Do not add precompressed sidecars: Caddy’s `encode gzip` negotiates response compression
-and `Content-Encoding`; the underlying `.wasm` remains ordinary `application/wasm` static content. The final browser
-smoke must verify MIME, decompression, trusted TLS and the ordinary menu-to-match path on the real hostname.
+payload hash stayed unchanged. Its `gzip_sidecars` entries separately identify each added file and decoded source hash.
+Caddy's `file_server precompressed gzip` negotiates these sidecars; the explicit `.data` MIME remains
+`application/octet-stream`. Identity clients receive the original bytes, and `Vary: Accept-Encoding` separates cached
+representations. Wasm/JS retain dynamic gzip and their original MIME types. The actual health proxy is `/healthz`.
+
+The currently live playtest predates these packaging changes: its `.data` remains uncompressed. Local real-Caddy and
+Chromium checks verify negotiated MIME/decompression/hash, identity fallback and identity byte ranges. A future reviewed
+deployment still needs the complete actual Unity proof; these local asset checks do not replace that playthrough.
+See [compression evidence](../../docs/evidence/first-playable-web-compression/README.md). The final public smoke must
+verify trusted TLS, asset headers and the ordinary menu-to-match path on the real hostname.
 
 ## Render and review without provisioning
 
@@ -114,7 +122,7 @@ python3 hosting/staging-mvp/staging.py status --state-dir /absolute/private/run
 Execution requires the owned `REVIEW_IN_PROGRESS` stack, a matching available change set containing only Add actions,
 and no failed/error validation events. Creation completing does not prove bootstrap success or usable TLS. Once the
 public IP is known, create the coordinator-owned DNS-only A record for the **practice apex** `rougehalla.com`, then
-verify valid public HTTPS, `/info`, `/ping`, a real Unity match/results/reconnect, gzip headers and the UTC deadline.
+verify valid public HTTPS, `/healthz`, `/info`, `/ping`, a real Unity match/results/reconnect, gzip headers and the UTC deadline.
 Leave existing unrelated DNS records untouched. If bootstrap fails, obtain non-secret console output and clean up;
 there is intentionally no SSH/instance role for ad hoc changes.
 

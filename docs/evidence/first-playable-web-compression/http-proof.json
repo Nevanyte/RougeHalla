@@ -1,0 +1,60 @@
+{
+  "before": {
+    "status": 200,
+    "headers": {
+      "accept-ranges": "bytes",
+      "cache-control": "no-cache",
+      "content-length": "10809404",
+      "content-type": "application/octet-stream",
+      "etag": "\"dmny63g675eg-6fol8\"",
+      "last-modified": "Fri, 06 Nov 2026 07:25:10 GMT",
+      "server": "Caddy",
+      "vary": "Accept-Encoding",
+      "x-content-type-options": "nosniff",
+      "date": "Fri, 06 Nov 2026 10:05:03 GMT"
+    },
+    "encodedBytes": 10809404,
+    "decodedBytes": 10809404,
+    "decodedSha256": "967630f11caad616e572ccac873d1c6bca3e7ca39e3042e65fabe7afd71b9f73"
+  },
+  "after": {
+    "status": 200,
+    "headers": {
+      "accept-ranges": "bytes",
+      "cache-control": "no-cache",
+      "content-encoding": "gzip",
+      "content-length": "3400837",
+      "content-type": "application/octet-stream",
+      "etag": "\"dmo1hit6welo-20w3p\"",
+      "last-modified": "Fri, 06 Nov 2026 07:25:10 GMT",
+      "server": "Caddy",
+      "vary": "Accept-Encoding",
+      "x-content-type-options": "nosniff",
+      "date": "Fri, 06 Nov 2026 10:05:03 GMT"
+    },
+    "encodedBytes": 3400837,
+    "decodedBytes": 10809404,
+    "decodedSha256": "967630f11caad616e572ccac873d1c6bca3e7ca39e3042e65fabe7afd71b9f73"
+  },
+  "identity": {
+    "status": 200,
+    "bytes": 10809404,
+    "sha256": "967630f11caad616e572ccac873d1c6bca3e7ca39e3042e65fabe7afd71b9f73"
+  },
+  "range": {
+    "status": 206,
+    "bytes": 1024,
+    "contentRange": "bytes 0-1023/10809404"
+  },
+  "realRustHealth": {
+    "status": 200,
+    "body": "ok"
+  },
+  "browser": {
+    "status": 200,
+    "encoding": "gzip",
+    "mime": "application/octet-stream",
+    "decodedBytes": 10809404,
+    "sha256": "967630f11caad616e572ccac873d1c6bca3e7ca39e3042e65fabe7afd71b9f73"
+  }
+}

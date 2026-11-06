@@ -1,0 +1,170 @@
+{
+  "audit_utc": "2026-11-06T09:59:38.914891+00:00",
+  "base_commit": "d00e5e52f0b981c7c8afb6c721ddcaae7d29864b",
+  "read_only": true,
+  "cloud_or_browser_calls": false,
+  "tests_run": false,
+  "owner_scope": "First playable staging match: combat, mobs, small cards/chests, functional HUD, one AWS region. Explicit deferrals: quests, traders, advanced bots, visual polish, large-scale hosting tests. These deferrals do not prove the original complete-browser requirements.",
+  "actual_proofs": [
+    {
+      "path": "docs/evidence/first-playable-unity/browser-proof.json",
+      "sha256": "cbb1a8dfccc111d098c662f443ec66f2fb7b7c1a6e779deb0b1bc158af0ee57c",
+      "ok": true,
+      "checks": {
+        "menuNoSocketBeforeJoin": "pass",
+        "menuJoin": "pass",
+        "mapAndCollections": "pass",
+        "focusedPickupInput": "pass",
+        "pickupOutcome": "changed",
+        "rewardChoice": "pass",
+        "potionInputAndNotice": "pass",
+        "hudBlocksWorldClick": "pass",
+        "worldAttackClick": "pass",
+        "swapInput": "pass",
+        "movement": "pass",
+        "reconnect": "pass",
+        "results": "pass",
+        "leaveAndRejoin": "pass",
+        "visibleMobs": "pass"
+      },
+      "page_errors": 0,
+      "observer_errors": 0,
+      "failures": []
+    },
+    {
+      "path": "docs/evidence/first-playable-calgary/browser-proof.json",
+      "sha256": "888aa97ed8a465e368207eadf3492d81705c1a43a94cdd0c2f841ad598c70cbc",
+      "ok": true,
+      "checks": {
+        "menuNoSocketBeforeJoin": "pass",
+        "menuJoin": "pass",
+        "mapAndCollections": "pass",
+        "focusedPickupInput": "pass",
+        "pickupOutcome": "changed",
+        "rewardChoice": "pass",
+        "potionInputAndNotice": "pass",
+        "hudBlocksWorldClick": "pass",
+        "worldAttackClick": "pass",
+        "swapInput": "pass",
+        "movement": "pass",
+        "reconnect": "pass",
+        "results": "pass",
+        "leaveAndRejoin": "pass",
+        "visibleMobs": "pass"
+      },
+      "page_errors": 0,
+      "observer_errors": 0,
+      "failures": []
+    }
+  ],
+  "implemented_mvp_browser_outcomes": [
+    "Offline menu until actual Join; real nickname/faction in Hello",
+    "Exact48x40 collision grid and all7 reliable State collections",
+    "F pickup actual inventory/prop mutation and E potion notice",
+    "Actual issued chest Choose followed by authoritative build change",
+    "HUD blocks arena clicks; world click sends attack/release or target",
+    "Slot2 input; D or W movement acknowledged with changed server position",
+    "Visible mobs; ordinary authoritative result; dropped-socket same-seat resume; Leave and fresh rejoin"
+  ],
+  "limits": [
+    {
+      "id": "R-WEB-1 / P-UNITY-1",
+      "status": "partial",
+      "evidence": [
+        "client-unity/UnityProject/Tools/playable-web.cjs:56-58",
+        "docs/evidence/first-playable-calgary/browser-proof.json"
+      ],
+      "finding": "Actual Unity/AOT/WebGL2/WSS proof is Chromium156 only. Full supported Chrome/Edge/Firefox/Safari matrix remains unproven. An in-app browser menu observation is not a separate full browser-engine proof.",
+      "owner_explicitly_deferred": false,
+      "next_action": "If promoting beyond Chromium-scoped staging, run bounded same-build Firefox and Safari/WebKit/Edge smoke or explicitly record unsupported/unverified scope; no need broad mechanics."
+    },
+    {
+      "id": "Original section7C resize/highDPI/tab-focus; functional HUD",
+      "status": "missing_verification",
+      "evidence": [
+        "client-unity/UnityProject/Tools/playable-web.cjs:58",
+        "client-unity/UnityProject/Assets/Scripts/UI/MatchHud.cs:63-69",
+        "client-unity/UnityProject/Assets/Scripts/Net/MatchClient.cs:74-80"
+      ],
+      "finding": "Proof fixes viewport1280x900 and performance fixes DPR1/canvas960x600. ScaleWithScreenSize and focus-loss release/stop code exist; actual resizing, DPR2 and blur/focus under held controls are not exercised by these proofs.",
+      "owner_explicitly_deferred": false,
+      "next_action": "High-value bounded MVP check: resize and DPR2 menu/HUD hit areas, plus blur while moving/holding attack then return; verify no stuck input/rejected frames."
+    },
+    {
+      "id": "R-GAME-2 selected live input integration",
+      "status": "partial_verification",
+      "evidence": [
+        "client-unity/UnityProject/Tools/playable-web.cjs:140-165",
+        "client-unity/UnityProject/Assets/Scripts/Net/MatchClient.cs:120-160"
+      ],
+      "finding": "Code implements right-click movement, Shift+right attack-move, arrow aliases,1/Q swap and wand Target. Existing browser proof directly exercises F/E/2/D-or-W, HUD blocking, and a world-attack assertion that accepts either Target or Attack+Release. It does not prove each implemented path separately. Wish R, Tab map, J quest log are broader missing/deferred flows.",
+      "next_action": "While current staging remains available, use ordinary UI to check right-click/Shift attack-move, arrow movement and the exclusive wand-target path if naturally acquired; do not force RNG or game state."
+    },
+    {
+      "id": "R-WEB-2 browser transport/AOT",
+      "status": "verified_for_chromium_mvp",
+      "evidence": [
+        "client-unity/README.md:77",
+        "client-unity/UnityProject/Assets/Plugins/WebGL/RhWebSocket.jslib",
+        "docs/evidence/first-playable-calgary/browser-proof.json"
+      ],
+      "finding": "Actual built IL2CPP/WebGL2 client uses browser WSS bridge and public valid TLS. This is stronger than library/unit tests; cross-browser compatibility remains separate."
+    },
+    {
+      "id": "R-WEB-3 / R-OPT-4 performance",
+      "status": "partial",
+      "evidence": [
+        "docs/evidence/first-playable-domain-performance/metrics.json",
+        "docs/evidence/first-playable-domain-performance/README.md"
+      ],
+      "finding": "M5 Pro normal24.409s at960x600 includes2 visible remote actors/1mob,1464frames59.978FPS, full GPU query coverage. Separate8.0847s uncapped diagnostic has755.5 GL callbacks/s and sparse3%GPU query coverage with different encounter. Highest sustainable displayed FPS, thermal/dense eight-player scope, browser matrix, full memory/GC and matched legacy comparison remain open.",
+      "owner_explicitly_deferred": "Large-scale hosting tests explicitly; visual polish explicitly; full runtime comparison remains later original requirement."
+    },
+    {
+      "id": "R-VIS-1 asset style override",
+      "status": "implemented_for_mvp",
+      "evidence": [
+        "client-unity/THIRD_PARTY_ASSETS.md",
+        "client-unity/UnityProject/Assets/Scripts/View/ArenaView.cs"
+      ],
+      "finding": "Procedural project-authored geometry is consistent with later owner creative-liberty instruction, superseding original existing-assets-only wording."
+    },
+    {
+      "id": "R-VIS-2 readable authoritative visuals",
+      "status": "partial",
+      "evidence": [
+        "docs/evidence/first-playable-unity/INTEGRATION.md",
+        "client-unity/UnityProject/Assets/Scripts/View/ArenaView.cs",
+        "client-unity/UnityProject/Assets/Scripts/View/ActorView.cs"
+      ],
+      "finding": "Selected delivered actors/NPCs,HP,props,rewards,status/projectile facts are rendered. Full mechanic telegraphs/one-shot FX, stable NPC/projectile identities and full content are not proved by selected loop. Basic visual polish is explicitly deferred; hidden-information authority stays Rust."
+    },
+    {
+      "id": "R-VIS-3 / P-UI-9 adaptive quality/manual low tier",
+      "status": "missing",
+      "evidence": [
+        "client-unity/UnityProject/ProjectSettings/QualitySettings.asset",
+        "client-unity/UnityProject/Assets/Scripts/UI/MatchHud.cs"
+      ],
+      "finding": "Static quality presets exist and WebGL defaults to High; no runtime adaptive quality selector/manual override or accessible low-tier settings UI is implemented in the inspected scripts. Static presets alone do not establish usable low-tier support.",
+      "owner_explicitly_deferred": false,
+      "next_action": "Keep open for complete-browser release; decide explicitly whether bounded staging retains fixed quality. Avoid silently equating visual-polish deferral with this requirement being fulfilled."
+    },
+    {
+      "id": "R-VIS-4 / R-OSS-3 provenance",
+      "status": "partial",
+      "evidence": [
+        "client-unity/THIRD_PARTY_ASSETS.md",
+        "client-unity/UnityProject/Tools/build-web.sh",
+        "docs/backlog/README.md"
+      ],
+      "finding": "Actual added TMP/font/sprite/Unity notices and Web copies are recorded. Broader third-party/dependency audit P-OSS-2 remains open."
+    }
+  ],
+  "verifier_caveat": {
+    "file": "client-unity/UnityProject/Tools/playable-web.cjs:127,178,191-197",
+    "finding": "The script permits rewardChoice/results/visibleMobs status unexercised without adding a failure; ok and exit0 alone are weaker than full loop evidence. Current saved local/cloud proof explicitly exercises all required checks and remains valid.",
+    "next_action": "For future release gating, require the named MVP checks to be pass/changed or inspect them explicitly; retain optional diagnostic mode separately."
+  },
+  "recommendation": "Current saved evidence supports the selected Chromium-scoped MVP match loop. It does not close full R-WEB/R-VIS or original section7C. Useful bounded work while waiting for cleanup is real resize/DPR/focus/input-path checks; broad browser/adaptive/full-content gates remain explicitly open. Cleanup still must be proven separately."
+}
