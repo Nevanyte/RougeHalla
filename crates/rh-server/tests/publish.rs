@@ -64,8 +64,11 @@ fn reference(
     let mut fx = Vec::new();
     for e in &obs.events {
         match *e {
-            SeenEvent::Teleported | SeenEvent::Plan(_) => {
-                panic!("protocol 6 reference encoder does not support Source arena events")
+            SeenEvent::Teleported
+            | SeenEvent::Plan(_)
+            | SeenEvent::CastStarted { .. }
+            | SeenEvent::CastLanded { .. } => {
+                panic!("protocol 6 reference encoder does not support Source arena or Full Wish events")
             }
             SeenEvent::PotionNotice { notice } => events.push(WireEvent::PotionNotice {
                 notice: match notice {
@@ -295,6 +298,8 @@ impl Hand {
         let now = Instant::now();
         let cfg = RoomConfig {
             sim: SimConfig {
+                abilities: rh_sim::abilities::Mode::Off,
+                wish_lock_ms: rh_sim::abilities::WISH_LOCK_MS,
                 lifecycle: rh_sim::ArenaMode::Off,
                 hazards: rh_sim::terrain::Mode::Off,
                 mob_mode: rh_sim::mob_runtime::MobMode::Off,

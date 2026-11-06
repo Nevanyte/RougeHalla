@@ -881,6 +881,28 @@ mod tests {
 #[cfg(test)]
 #[path = "vision_arena_tests.rs"]
 mod arena_tests;
+
+/// Casts feed the same delayed bush exposure queue as attacks.
+pub(crate) fn cast_exposure(
+    k: &crate::statics::MatchStatic,
+    p: &mut Player,
+    now: f64,
+    lands_at: f64,
+) {
+    if k.arena
+        .map
+        .layers()
+        .is_some_and(|l| l.bush_at_world(p.body.x, p.body.y) != 0)
+    {
+        p.bush.pending = Some(
+            p.bush
+                .pending
+                .unwrap_or(0.)
+                .max(lands_at.max(now) + BUSH_REVEAL_MS),
+        );
+    }
+}
+
 #[cfg(test)]
 impl VisionTrail {
     #[cfg(feature = "schedule-trace")]

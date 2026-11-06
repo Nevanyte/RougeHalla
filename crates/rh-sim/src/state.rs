@@ -480,6 +480,8 @@ impl WeaponRt {
 /// player is borrowed at the same time. `status`, `down` and `resolved` are the run bookkeeping the settle owns.
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Player {
+    pub stocks: crate::abilities::Stocks,
+    pub card_runtime: Option<crate::cards::runtime::Runtime>,
     pub plan_ready: bool,
     pub build: crate::cards::Build,
     pub potion_small: u8,
@@ -527,6 +529,8 @@ impl Player {
         hp: f64,
     ) -> Self {
         Self {
+            stocks: Default::default(),
+            card_runtime: None,
             build: Default::default(),
             potion_small: 0,
             healing_until: 0.,

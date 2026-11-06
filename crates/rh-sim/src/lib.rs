@@ -7,6 +7,7 @@
 // `!(x > 0.0)` is deliberate throughout: it is the legacy NaN-safe test ("not a positive number"), not `x <= 0.0`.
 #![allow(clippy::neg_cmp_op_on_partial_ord)]
 
+pub mod abilities;
 mod actor_refs;
 pub mod arenas;
 pub mod checkpoint;

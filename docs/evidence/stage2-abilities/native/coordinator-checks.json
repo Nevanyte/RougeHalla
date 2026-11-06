@@ -1,0 +1,240 @@
+{
+  "format": "rh-wish-coordinator-checks/1",
+  "branch": "optimization_port",
+  "base_head": "0f2f9763107444c89b2ecab89fdaa78b4e241ad9",
+  "content_hash": "e95d55ba96b2feca",
+  "checkpoint": 19,
+  "replay": 17,
+  "observation": 15,
+  "policy": 12,
+  "protocol": 6,
+  "unique_native_tests_passed": 1188,
+  "unique_count_equation": "265 non-map units +29 pre-hash integrations +109 pre-privacy integrations +2 corrected privacy +12 final integrations +6 final hash +762 remaining workspace +3 sim docs",
+  "manual_ignores": 2,
+  "unchanged_mapgen_units_not_repeated_locally": 191,
+  "hash_audit": {
+    "leaves": 77358,
+    "hash_changes": 54154,
+    "unhashed": 0,
+    "actual_some_patterns": 61,
+    "exact_restore_validated_optional_patterns": 46
+  },
+  "parity_report": "97 compared scenarios/13 capture-only/300 paths retain MATCH",
+  "browser": {
+    "report": "browser-proof.json",
+    "sha256": "8450f80781650fcffb689bc3b6896b4fe9a04a3bc6bbdd74c52b973602631784",
+    "checks": 15,
+    "scope": "actual Chromium WSS on supported Off protocol6; localhost self-signed, not public Source deployment"
+  },
+  "gates": [
+    {
+      "command": "cargo test --locked -p rh-sim --all-features --lib -- --skip mapgen",
+      "log": "sim-lib.log",
+      "log_sha256": "79a450af7040261da11636238e19b086d88221152a0ab7490a80199b12b7edb9",
+      "status": "PASS",
+      "counts": {
+        "passed": 265,
+        "failed": 0,
+        "ignored": 0,
+        "filtered": 191
+      }
+    },
+    {
+      "command": "cargo test --locked -p rh-sim --all-features --test '*'",
+      "log": "sim-integration.log",
+      "log_sha256": "e0d5b560dee84e76221de2e57865a30a691c715908173d17c0f9c8b1a294ec64",
+      "status": "29 pre-hash tests PASS; hash audit FAILED",
+      "counts": {
+        "passed": 30,
+        "failed": 4,
+        "ignored": 0,
+        "filtered": 0
+      },
+      "note": "30 passes includes one preliminary hash-layout pass; counted only in final six-test hash gate. Remaining integration targets did not execute."
+    },
+    {
+      "command": "cargo test --locked -p rh-sim --all-features [remaining targets after hash_coverage]",
+      "log": "sim-integration-tail.log",
+      "log_sha256": "ebd94bb68014da212f44708aeb7802f8af5a0975d5953663bb70626eeb2c00d0",
+      "status": "109 tests PASS before privacy helper failure",
+      "counts": {
+        "passed": 110,
+        "failed": 1,
+        "ignored": 0,
+        "filtered": 0
+      },
+      "note": "110 passes includes one privacy test counted only in corrected two-test privacy gate."
+    },
+    {
+      "command": "cargo test --locked -p rh-sim --all-features --test status_privacy_review",
+      "log": "status-privacy-fixed.log",
+      "log_sha256": "b2df38a4f27f2045420b18953a959c7ea1cc98071d70ba470d9805ec02b2cbf2",
+      "status": "PASS",
+      "counts": {
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0,
+        "filtered": 0
+      }
+    },
+    {
+      "command": "cargo test --locked -p rh-sim --all-features [targets after status_privacy_review]",
+      "log": "sim-integration-final-tail.log",
+      "log_sha256": "f2b089c662a873ff794fabad73e8460f8ded5af4790f0fbfbaf7e42bca505317",
+      "status": "PASS",
+      "counts": {
+        "passed": 12,
+        "failed": 0,
+        "ignored": 0,
+        "filtered": 0
+      }
+    },
+    {
+      "command": "cargo test --locked -p rh-sim --all-features --test hash_coverage -- --nocapture",
+      "log": "hash-final.log",
+      "log_sha256": "d96be4edbc08ddba5600dc50909d13afca22fc59069c2af872ee0d21b06fc07f",
+      "status": "PASS",
+      "counts": {
+        "passed": 6,
+        "failed": 0,
+        "ignored": 0,
+        "filtered": 0
+      }
+    },
+    {
+      "command": "cargo test --locked --workspace --exclude rh-sim --all-features",
+      "log": "workspace.log",
+      "log_sha256": "3b5a920f8eda5391de67576d70ebfcd7b044594927c7e2ce8d33e1fb1a214b8f",
+      "status": "PASS",
+      "counts": {
+        "passed": 762,
+        "failed": 0,
+        "ignored": 2,
+        "filtered": 0
+      }
+    },
+    {
+      "command": "cargo test --locked -p rh-sim --all-features --doc",
+      "log": "sim-doc.log",
+      "log_sha256": "d146e14eb6d78e29ef559f92b7bdbfc5c93469fe44caefed891ff9b6fa9e71ff",
+      "status": "PASS",
+      "counts": {
+        "passed": 3,
+        "failed": 0,
+        "ignored": 0,
+        "filtered": 0
+      }
+    },
+    {
+      "command": "cargo test --locked -p rh-sim --all-features --lib systems::planning::source_tests::arena_capture_inventory_runs_genuine_wish_prerequisite_and_keeps_full_hooks_pending -- --exact --nocapture",
+      "log": "arena-wish-handoff.log",
+      "log_sha256": "29cb1b9f98997d3dca266f7ca0061dcec7e47967296f09f7ead065a7c7cdc928",
+      "status": "PASS",
+      "counts": {
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "filtered": 455
+      },
+      "note": "Focused replacement/handoff after initial unit batch; not an additional unique test."
+    },
+    {
+      "command": "cargo clippy --locked --workspace --all-targets -- -D warnings",
+      "log": "clippy-default.log",
+      "log_sha256": "b45fc6f77ff71450ab8ff9ca19cfee7d73b67c9e1ed07c6f753215d1d27da0d3",
+      "status": "PASS",
+      "counts": {
+        "passed": 0,
+        "failed": 0,
+        "ignored": 0,
+        "filtered": 0
+      }
+    },
+    {
+      "command": "cargo clippy --locked --workspace --all-targets --all-features -- -D warnings",
+      "log": "clippy-full.log",
+      "log_sha256": "e7a5c0ebf47b8354a10df9c6e0644e68e6ee9b66c5909084081150a500a21e89",
+      "status": "PASS",
+      "counts": {
+        "passed": 0,
+        "failed": 0,
+        "ignored": 0,
+        "filtered": 0
+      }
+    },
+    {
+      "command": "cargo clippy --locked -p rh-sim --all-targets -- -D warnings",
+      "log": "clippy-sim-final-default.log",
+      "log_sha256": "a63656d9a9ae7578b2422a7447754411736c1f719c8f3f4829b30f3333232c2a",
+      "status": "PASS",
+      "counts": {
+        "passed": 0,
+        "failed": 0,
+        "ignored": 0,
+        "filtered": 0
+      }
+    },
+    {
+      "command": "cargo clippy --locked -p rh-sim --all-targets --all-features -- -D warnings",
+      "log": "clippy-sim-final-full.log",
+      "log_sha256": "9a9e64a4576db14c2c727fead8fda5754f5f1f931dc12606721315997558efb8",
+      "status": "PASS",
+      "counts": {
+        "passed": 0,
+        "failed": 0,
+        "ignored": 0,
+        "filtered": 0
+      }
+    },
+    {
+      "command": "cargo fmt --all --check",
+      "log": "fmt-hash-final.log",
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "status": "PASS",
+      "counts": {
+        "passed": 0,
+        "failed": 0,
+        "ignored": 0,
+        "filtered": 0
+      }
+    },
+    {
+      "command": "cargo run --locked -p rh-parity --bin parity-report",
+      "log": "parity-report.log",
+      "log_sha256": "55c5e668aaa7964170dadc1285d0887674f5978ecf5883008e21d02ce622177f",
+      "status": "PASS",
+      "counts": {
+        "passed": 0,
+        "failed": 0,
+        "ignored": 0,
+        "filtered": 0
+      }
+    },
+    {
+      "command": "cargo build --locked -p rh-server",
+      "log": "server-build.log",
+      "log_sha256": "c627ccd01541c86275bafbbd04643cedace3a6ad2e87b122f0a4b6580713d286",
+      "status": "PASS",
+      "counts": {
+        "passed": 0,
+        "failed": 0,
+        "ignored": 0,
+        "filtered": 0
+      }
+    }
+  ],
+  "new_full_ci": "pending",
+  "completed_predecessor_ci": {
+    "run": 42238404509,
+    "head": "0f2f9763107444c89b2ecab89fdaa78b4e241ad9",
+    "result": "PASS all Rust/C#/card-runtime-source jobs"
+  },
+  "earlier_unsuccessful_attempts": {
+    "content-before.log": "Old arena golden fails with derived e95d55ba96b2feca; final golden passes.",
+    "server-wire.log": "15 pass/1 wrong setup: legacy Off Env starts Active; fixed test uses real Sim::new+join+step Lobby\u2192Active; focused retry passes and full workspace covers all106 server lib tests.",
+    "sim-integration.log": "New stocks/derived ring absent from old global audit; exact one-file repaired audit reviewed and all6 final tests pass.",
+    "sim-integration-tail.log": "Trusted UpdateAbilities called expiry only after production split; adapter now expiry/landing/finish, unchanged privacy source passes.",
+    "strict-full metadata checker": "Initial checker looked for unattempted instead of actual not attempted text; actual native strict test already exited101 with exactten prerequisites. Completed log reused, not repeated."
+  },
+  "full_packet": "INCOMPLETE: exactten unattempted original Wish prerequisites plus Source public transport; see strict-full.json"
+}

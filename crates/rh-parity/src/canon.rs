@@ -53,6 +53,31 @@ pub(crate) fn canon(e: &Event, sim: &Sim) -> Option<Value> {
         Event::StatusApplied { id, kind, ms, by } => {
             json!({"kind":"status","id":fid(*id),"status":kind,"ms":ms,"by":by.map(fid).unwrap_or_default()})
         }
+        Event::CastStarted {
+            id,
+            ability,
+            ms,
+            target,
+            x,
+            y,
+        } => {
+            json!({"kind":"cast","by":fid(*id),"ability":ability,"ms":ms,"target":target.map(fid),"x":x,"y":y})
+        }
+        Event::CastLanded {
+            id,
+            ability,
+            target,
+            x,
+            y,
+            to,
+        } => {
+            let mut v = json!({"kind":"castLand","by":fid(*id),"ability":ability,"target":target.map(fid),"x":x,"y":y});
+            if let Some(to) = to {
+                v["x2"] = json!(to.x);
+                v["y2"] = json!(to.y);
+            }
+            v
+        }
         Event::CastEnded {
             id,
             ability,

@@ -1,0 +1,71 @@
+[
+  {
+    "gate": "abilities",
+    "environment": {
+      "RH_ABIL_REQUIRE_FULL": "1"
+    },
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "-p",
+      "rh-sim",
+      "--all-features",
+      "--lib",
+      "abilities::source_tests::frozen_full_source_all_63_cases",
+      "--",
+      "--exact",
+      "--nocapture"
+    ],
+    "exit_code": 101,
+    "status": "INCOMPLETE",
+    "log_sha256": "551697b42196de46833ec097367ec9ab8a3bfbd9a61c93667f765dd1e25003e6",
+    "failure": "10 named prerequisite cases were not attempted"
+  },
+  {
+    "gate": "arena",
+    "environment": {
+      "RH_ARENA_REQUIRE_FULL": "1"
+    },
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "-p",
+      "rh-sim",
+      "--all-features",
+      "--lib",
+      "systems::planning::source_tests::arena_capture_inventory_runs_genuine_wish_prerequisite_and_keeps_full_hooks_pending",
+      "--",
+      "--exact",
+      "--nocapture"
+    ],
+    "exit_code": 101,
+    "status": "INCOMPLETE",
+    "log_sha256": "f39da4c0b4a371f6838db1ea1e2463e8f49d98208e3f336935a7b4b4d00773c4",
+    "failure": "cardHooks.resetFight/dropDeferred/resetAll"
+  },
+  {
+    "gate": "terrain",
+    "environment": {
+      "RH_TERRAIN_REQUIRE_FULL": "1"
+    },
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "-p",
+      "rh-sim",
+      "--all-features",
+      "--lib",
+      "systems::terrain::born_tests::terrain_born_kernel_twenty_complete_one_reward_gap",
+      "--",
+      "--exact",
+      "--nocapture"
+    ],
+    "exit_code": 101,
+    "status": "INCOMPLETE",
+    "log_sha256": "d0746180f3d7e5602c7e1b0a8ce4a7771cd2551a7bdd1bf84dbd7529d0fc7210",
+    "failure": "containers/c4/options/1"
+  }
+]

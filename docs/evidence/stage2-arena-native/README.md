@@ -17,7 +17,8 @@ The obsolete no-op lifecycle assertion now exercises a truly pending hook. Exist
 [Coordinator checks](coordinator-checks.json) record1,163 distinct passing native tests in split batches, including real
 PostgreSQL, hash/optional coverage, restore/replay/privacy, policy/headless, allocations and three compile-fail docs.
 Both strict workspace Clippy modes and formatting pass. The191 unchanged map-generator unit tests were not repeated
-locally; the preceding full CI passes atd3418f17, and this integration needs its own CI. The retained old parity report
+locally; full [CI42238404509](https://github.com/Nevanyte/RougeHalla/actions/runs/42238404509) passes this arena checkpoint
+at0f2f9763, including Rust/map/source/WSS, C# and the parallel card source checks. The retained old parity report
 still matches97 compared scenarios/13 capture-only/300 paths. The actual [Chromium WSS proof](browser-proof.json)
 passes admission, full/delta/resync, movement, reliable state, reconnect and authoritative results on the supported Off profile. Repeated focused planning checks are not counted twice.
 Recorded compile/test/tooling failures are disclosed with their actual repairs; zero-test filters are not evidence.
@@ -33,7 +34,10 @@ Checked raw/prepared publication refuses Planning/owner facts and caught-up Plan
 frames or committed handles. Planning is named truthfully and never mapped to Lobby. Existing Off bytes remain valid.
 This integration does not deploy or rebuild Unity; no new Source gameplay is publicly activated.
 
-Full P-ARENA remains **INCOMPLETE**: genuine Wish/refund, card reset/deferred hooks, training/faction/quest consumers,
+The later [Wish integration](../stage2-abilities/native/README.md) now executes the genuine refund prerequisite.
+Full P-ARENA remains **INCOMPLETE**: full card reset/deferred hooks, training/faction/quest consumers,
 new wire/client facts and durable shutdown/Abandon/Leave/MIA ordering remain required. [Strict diagnostics](strict-full.json)
-retain the unconsumed genuine ability/helper case and exact terrain reward-options difference. They are deliberately
+retain the historical unconsumed ability/helper case and exact terrain reward-options difference at this checkpoint.
+The later Wish integration replaces the stale missing-Wish diagnostic with an actual delegated consumer and explicit
+remaining card/public/durable requirements. They are deliberately
 failing completion checks, not skipped parity success. The separate Wish implementation remains under independent review.

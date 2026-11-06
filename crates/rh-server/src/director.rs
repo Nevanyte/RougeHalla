@@ -1928,8 +1928,26 @@ mod tests {
         );
     }
 
+    #[test]
+    #[should_panic(expected = "Full Wish casting requires protocol 7")]
+    fn wish_profile_director_construction_refuses_before_runtime_spawn() {
+        let sim = SimConfig {
+            abilities: rh_sim::abilities::Mode::Full,
+            lifecycle: rh_sim::ArenaMode::Off,
+            ..Default::default()
+        };
+        Director::new(
+            DirectorConfig::new(sim, rh_sim::arenas::practice_arena()),
+            Arc::new(Persistence::Memory(Box::<MemoryStore>::default())),
+            Arc::new(Auth::Dev),
+            Arc::new(Lifecycle::default()),
+        );
+    }
+
     fn director_with(store: MemoryStore) -> Arc<Director> {
         let sim = SimConfig {
+            abilities: rh_sim::abilities::Mode::Off,
+            wish_lock_ms: rh_sim::abilities::WISH_LOCK_MS,
             hazards: rh_sim::terrain::Mode::Off,
             lifecycle: rh_sim::ArenaMode::Off,
             mob_mode: rh_sim::mob_runtime::MobMode::Off,

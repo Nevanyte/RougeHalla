@@ -55,12 +55,17 @@ pub fn status(s: Status) -> u8 {
     }
 }
 
-/// Protocol 6 cannot represent the native arena lifecycle.
+/// Protocol 6 cannot represent the native arena lifecycle or complete Wish intake/owner facts.
 const ARENA_UNSUPPORTED: &str =
     "Source arena lifecycle requires protocol 7 and durable lifecycle integration";
 
+const WISH_UNSUPPORTED: &str = "Full Wish casting requires protocol 7 input and owner facts";
+
 /// Admission guard, independent of the current phase (including Source Lobby).
 pub fn profile_supported(config: &rh_sim::SimConfig) -> Result<(), rh_protocol::EncodeError> {
+    if config.abilities == rh_sim::abilities::Mode::Full {
+        return Err(rh_protocol::EncodeError::BadValue(WISH_UNSUPPORTED));
+    }
     match config.lifecycle {
         rh_sim::ArenaMode::Off => Ok(()),
         rh_sim::ArenaMode::Source(_) => Err(rh_protocol::EncodeError::BadValue(ARENA_UNSUPPORTED)),
@@ -83,10 +88,20 @@ pub fn phase(p: Phase) -> u8 {
 
 fn observation_supported(obs: &Observation) -> Result<(), rh_protocol::EncodeError> {
     checked_phase(obs.phase)?;
+    if obs.me.as_ref().is_some_and(|me| me.wish.is_some()) || obs.events.iter().any(wish_event) {
+        return Err(rh_protocol::EncodeError::BadValue(WISH_UNSUPPORTED));
+    }
     if obs.arena.is_some() || obs.plan.is_some() || obs.events.iter().any(arena_event) {
         return Err(rh_protocol::EncodeError::BadValue(ARENA_UNSUPPORTED));
     }
     Ok(())
+}
+
+fn wish_event(event: &SeenEvent) -> bool {
+    matches!(
+        event,
+        SeenEvent::CastStarted { .. } | SeenEvent::CastLanded { .. }
+    )
 }
 
 fn arena_event(event: &SeenEvent) -> bool {
@@ -259,12 +274,15 @@ enum Wire {
     Event(WireEvent),
     Fx(WireFx),
     Omitted,
-    Refused,
+    Refused(&'static str),
 }
 
 fn to_wire(e: &SeenEvent) -> Wire {
     match *e {
-        SeenEvent::Plan(..) | SeenEvent::Teleported => Wire::Refused,
+        SeenEvent::Plan(..) | SeenEvent::Teleported => Wire::Refused(ARENA_UNSUPPORTED),
+        SeenEvent::CastStarted { .. } | SeenEvent::CastLanded { .. } => {
+            Wire::Refused(WISH_UNSUPPORTED)
+        }
         SeenEvent::PotionNotice { notice } => Wire::Event(WireEvent::PotionNotice {
             notice: match notice {
                 rh_sim::potions::Notice::Stored => 1,
@@ -528,10 +546,8 @@ impl Publisher {
                     self.fx.push(w);
                 }
                 Wire::Omitted => {}
-                Wire::Refused => {
-                    return ViewFrames::unsupported(rh_protocol::EncodeError::BadValue(
-                        ARENA_UNSUPPORTED,
-                    ))
+                Wire::Refused(reason) => {
+                    return ViewFrames::unsupported(rh_protocol::EncodeError::BadValue(reason))
                 }
             }
         }
@@ -635,6 +651,16 @@ mod tests {
     use rh_sim::{FactionId, SimConfig};
 
     fn arena_env() -> Env {
+        profile_env(SimConfig {
+            lifecycle: rh_sim::ArenaMode::Source(rh_sim::ArenaRules::default()),
+            min_players: 2,
+            lobby_seconds: 0.,
+            fill_seconds: 0.,
+            ..Default::default()
+        })
+    }
+
+    fn profile_env(sim: SimConfig) -> Env {
         let arena = rh_headless::load_arena(concat!(
             env!("CARGO_MANIFEST_DIR"),
             "/../../parity/maps/seed1.map.json"
@@ -643,13 +669,7 @@ mod tests {
         Env::new(
             EnvConfig {
                 arena,
-                sim: SimConfig {
-                    lifecycle: rh_sim::ArenaMode::Source(rh_sim::ArenaRules::default()),
-                    min_players: 2,
-                    lobby_seconds: 0.,
-                    fill_seconds: 0.,
-                    ..Default::default()
-                },
+                sim,
                 max_ticks: 100,
                 record: false,
             },
@@ -705,6 +725,91 @@ mod tests {
                     }],
                 ]);
             }
+        }
+    }
+
+    #[test]
+    fn full_wishes_refuse_even_with_arena_off_before_frames_or_offers() {
+        let mut sim = rh_sim::Sim::new(
+            SimConfig {
+                abilities: rh_sim::abilities::Mode::Full,
+                lifecycle: rh_sim::ArenaMode::Off,
+                min_players: 2,
+                lobby_seconds: 0.,
+                fill_seconds: 0.,
+                ..Default::default()
+            },
+            rh_sim::arenas::practice_arena(),
+            rh_sim::Secrets::from_seed(12),
+        );
+        let viewer = sim.add_player("p0", Some(FactionId::Holy), false).unwrap();
+        sim.add_player("p1", Some(FactionId::Holy), false).unwrap();
+        let mut publisher = Publisher::default();
+        let mut observer = rh_sim::ItemObserver::new(viewer);
+        for expected in [Phase::Lobby, Phase::Active] {
+            assert_eq!(sim.phase(), expected);
+            assert_eq!(
+                profile_supported(sim.config()),
+                Err(rh_protocol::EncodeError::BadValue(WISH_UNSUPPORTED))
+            );
+            let mut earlier = vec![SeenEvent::Stagger { id: viewer }];
+            let original = earlier.clone();
+            let frames = publisher.frames(&sim, viewer, 0, &[], &mut earlier, &[]);
+            assert!(frames.important.is_none() && frames.fx.is_none());
+            assert_eq!(frames.bytes(), 0);
+            assert_eq!(
+                frames.snapshot.unwrap_err(),
+                rh_protocol::EncodeError::BadValue(WISH_UNSUPPORTED)
+            );
+            assert_eq!(earlier, original);
+            assert!(matches!(
+                publisher.frames_prepared(&mut observer, None, &sim, 0, &[], &mut earlier, &[]),
+                Err(PrepareFramesError::Unsupported(
+                    rh_protocol::EncodeError::BadValue(WISH_UNSUPPORTED)
+                ))
+            ));
+            assert_eq!(earlier, original);
+            let obs = rh_sim::observe(&sim, viewer, &[]);
+            assert!(obs.me.as_ref().unwrap().wish.is_some());
+            assert!(obs.arena.is_none() && obs.plan.is_none());
+            assert_eq!(
+                checked_snapshot(&obs, 0).unwrap_err(),
+                rh_protocol::EncodeError::BadValue(WISH_UNSUPPORTED)
+            );
+            if expected == Phase::Lobby {
+                sim.step();
+            }
+        }
+    }
+
+    #[test]
+    fn caught_up_wish_start_and_landing_refuse_without_partial_frames() {
+        let env = seed1_match(1);
+        let viewer = env.sim.players()[0].id;
+        let mut publisher = Publisher::default();
+        for event in [
+            SeenEvent::CastStarted {
+                id: viewer,
+                ability: rh_sim::status_runtime::AbilityId::Freeze,
+                ms: 250.,
+                target: None,
+                at: None,
+            },
+            SeenEvent::CastLanded {
+                id: viewer,
+                ability: rh_sim::status_runtime::AbilityId::Freeze,
+                target: None,
+                at: None,
+                to: None,
+            },
+        ] {
+            assert!(matches!(to_wire(&event), Wire::Refused(WISH_UNSUPPORTED)));
+            let frames = publisher.frames(&env.sim, viewer, 0, &[], &mut vec![event], &[]);
+            assert!(frames.important.is_none() && frames.fx.is_none());
+            assert_eq!(
+                frames.snapshot.unwrap_err(),
+                rh_protocol::EncodeError::BadValue(WISH_UNSUPPORTED)
+            );
         }
     }
 

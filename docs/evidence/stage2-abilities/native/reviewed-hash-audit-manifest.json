@@ -1,0 +1,42 @@
+{
+  "scope": [
+    "crates/rh-sim/tests/hash_coverage.rs"
+  ],
+  "base": {
+    "root": "/Users/nevinmckinnon/.codex/worktrees/rougehalla-stage2-managed/RougeHalla",
+    "head": "0f2f9763107444c89b2ecab89fdaa78b4e241ad9",
+    "file": "crates/rh-sim/tests/hash_coverage.rs",
+    "sha256": "bdbb7f2a1b01d66a271d5273fe0c5fb9d7c34188398334afa41882520f918dc5"
+  },
+  "new_sha256": "7a573be3d66d572c061ce1238a42dd6df52c182f9e26b6c34e326521958d8196",
+  "new_bytes": 99016,
+  "patch_sha256": "e2088223c3d513c17fa64309348afcf4d0465ff331084f0b2a79108f28601e39",
+  "readme_sha256": "d5685590e8918981306e2cae06557498bbaa692956dd2414f2c1237635548219",
+  "evidence": [
+    {
+      "path": "evidence/final-tests.log",
+      "sha256": "8bd989975db12e22c6748c63afb6343417bf2eb641dc221e03f2b9733f2c4d37"
+    },
+    {
+      "path": "evidence/final-clippy.log",
+      "sha256": "416e852eec76ba8e18e7d5430ff189e51754640f1d5914b0ad1c931a4ea4254e"
+    },
+    {
+      "path": "evidence/final-format.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "checks": {
+    "tests": "6 passed;0 failed;0 ignored",
+    "leaves": 77358,
+    "hash_changing_perturbations": 54154,
+    "unhashed": 0,
+    "actual_some_patterns": 61,
+    "restore_validated_optional_patterns": 46,
+    "clippy": "PASS",
+    "format": "PASS",
+    "base_root_still_exact": true,
+    "independent_patch_roundtrip": "PASS"
+  },
+  "production_edits": false
+}

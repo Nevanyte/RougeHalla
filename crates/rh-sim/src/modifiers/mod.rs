@@ -48,6 +48,9 @@ impl Runtime {
     pub fn attack_rate_wire(&self) -> f64 {
         self.wire[0]
     }
+    pub fn wish_cooldown_mult(&self) -> f64 {
+        MultSums::from_source_values(self.mults).get(fold::MultKey::WishCooldown)
+    }
     pub fn dot_mult(&self) -> f64 {
         MultSums::from_source_values(self.mults).get(fold::MultKey::Dot)
     }

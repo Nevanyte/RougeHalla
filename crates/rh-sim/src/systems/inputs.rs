@@ -112,7 +112,14 @@ fn apply_inputs(cx: &mut Cx, ix: FighterIx) {
                 apply_move(cx.w.core_mut(ix), map, cx.pf, &mut cx.s.path, mv);
             }
         }
-        if k == aim_before.min(n) && cx.w.core(ix).weapon.targeting.target.is_none() {
+        if k == aim_before.min(n)
+            && cx.w.core(ix).weapon.targeting.target.is_none()
+            && !crate::status_runtime::has(
+                &cx.w.core(ix).statuses.instances,
+                crate::status_runtime::StatusKind::Stun,
+                now,
+            )
+        {
             if let Some(a) = aim {
                 weapons::set_aim(cx.w.core_mut(ix), now, a);
             }
@@ -128,6 +135,7 @@ fn apply_inputs(cx: &mut Cx, ix: FighterIx) {
 fn action_id(cmd: &ActionCmd) -> Option<ActionId> {
     Some(match cmd {
         ActionCmd::Plan { .. } => return None,
+        ActionCmd::Cast { .. } => ActionId::Cast,
         ActionCmd::UseConsumable => ActionId::UseConsumable,
         ActionCmd::Choose { .. } => ActionId::Choose,
         ActionCmd::Target { .. } | ActionCmd::MissingTarget => ActionId::Target,

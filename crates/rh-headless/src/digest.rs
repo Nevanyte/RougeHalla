@@ -245,6 +245,45 @@ impl OutcomeDigest {
                 self.s(ability.as_str());
                 self.f(*amount);
             }
+            Event::CastStarted {
+                id,
+                ability,
+                ms,
+                target,
+                x,
+                y,
+            } => {
+                self.s("cast_started");
+                self.w(id.0.into());
+                self.s(ability.as_str());
+                self.f(*ms);
+                self.opt(target.map(|p| p.0.into()));
+                self.f(*x);
+                self.f(*y);
+            }
+            Event::CastLanded {
+                id,
+                ability,
+                target,
+                x,
+                y,
+                to,
+            } => {
+                self.s("cast_landed");
+                self.w(id.0.into());
+                self.s(ability.as_str());
+                self.opt(target.map(|p| p.0.into()));
+                self.f(*x);
+                self.f(*y);
+                match to {
+                    None => self.w(0),
+                    Some(to) => {
+                        self.w(1);
+                        self.f(to.x);
+                        self.f(to.y);
+                    }
+                }
+            }
             Event::CastEnded {
                 id,
                 ability,

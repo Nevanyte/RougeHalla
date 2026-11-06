@@ -1,0 +1,655 @@
+{
+  "stage": "P-ABIL-1 bounded five-Wish runtime over reviewed Source arena v2",
+  "full_packet": "INCOMPLETE: exact ten named prerequisites unattempted; RH_ABIL_REQUIRE_FULL strict gate fails; coordinator wire integration pending",
+  "root_base": "aaef192119ed45e89f6ba0e7d2fffba1d5b25595",
+  "arena_manifest_sha256": "7942248de4e48fecda0fb35d534533870fbf16f5a7600afa431f3623790ad60a",
+  "wish_corpus_sha256": "8629c08fa42ac9fb15b21c52416658997c7d8969a6962cf59b71cebedd571330",
+  "void_corpus_sha256": "cb8bec8f8a8e1e72db22ff86c6f6e4eecb9cf449a1a5e0636c1c4939b7f7eef5",
+  "overlap_corpus_sha256": "27f3894dc8dc1d9fa398c7da411983d612e3422d8599d2186c8fcab0d0fb03e7",
+  "refund_corpus_sha256": "75af171db8d0ded8dba57e46c45bdc08e4efc7689397d400aa0483342c1f6d22",
+  "files": [
+    {
+      "path": "crates/rh-headless/src/bin/determinism_sweep_support/mod.rs",
+      "base_sha256": "6b6c34c36406f011d9bc0e38bb08b25b2b9d0b9345bf892a5252be0c8afa35f3",
+      "new_sha256": "5c23927e0267b8214ee82f7d3f98435748ca28ca44d649e148ef8e29ba2ccf9b",
+      "bytes": 45649
+    },
+    {
+      "path": "crates/rh-headless/src/digest.rs",
+      "base_sha256": "1839a6d181e1367681b8a9c5ba38f73fdc9ecf12fbb69a564c23070a58bd8453",
+      "new_sha256": "b9ba0312d77c7753d4c485271db2f96d228dc829adfdfe5d292121201cd8f6d6",
+      "bytes": 17995
+    },
+    {
+      "path": "crates/rh-headless/tests/abilities.rs",
+      "base_sha256": null,
+      "new_sha256": "01090e9cd10faa564845cf407816e4e14e216af718425a1e76f0f364dd0d4661",
+      "bytes": 5133
+    },
+    {
+      "path": "crates/rh-parity/src/bin/status_probes.rs",
+      "base_sha256": "aea4c5374b76e98f2980aaba6a256d9c3c636b1ba1f8e4d6be3f91e56209924d",
+      "new_sha256": "74a3b53003d3b22c8409c33e2abf0f57d120a32a81f3881ae660162cf0dd4a67",
+      "bytes": 63014
+    },
+    {
+      "path": "crates/rh-parity/src/canon.rs",
+      "base_sha256": "edc69d6bc11cae982d9441d77d7288020d13c1db8afb39925e7a5f2643d300b5",
+      "new_sha256": "0ec967a35ac9840ef0872f61d1cfd74c76d7cad93ec0b12fb8c1200e12b22cdf",
+      "bytes": 10519
+    },
+    {
+      "path": "crates/rh-sim/src/abilities/blink.rs",
+      "base_sha256": null,
+      "new_sha256": "6907ba1fcb5915cbfdd32776fa7842bf237f4352943b9f99ab4a61e29620979a",
+      "bytes": 8271
+    },
+    {
+      "path": "crates/rh-sim/src/abilities/checkpoint.rs",
+      "base_sha256": null,
+      "new_sha256": "cf873296dc91f1a0c87e0291433806a3bc40798358bdaa1aefc04d4b5c5c8669",
+      "bytes": 12159
+    },
+    {
+      "path": "crates/rh-sim/src/abilities/effect_checkpoint.rs",
+      "base_sha256": null,
+      "new_sha256": "4209c70b3b2d3a3d1809e85070bd1b7c512c369d9c3299943457afc829a3bcd4",
+      "bytes": 5585
+    },
+    {
+      "path": "crates/rh-sim/src/abilities/mod.rs",
+      "base_sha256": null,
+      "new_sha256": "faf0b9275fd88a091050415aeb7acf3122e511b742023c9db2e337e347988f7d",
+      "bytes": 7621
+    },
+    {
+      "path": "crates/rh-sim/src/abilities/source_tests/arena_refund.rs",
+      "base_sha256": null,
+      "new_sha256": "072fbb96045da74019eaa8079dfd56cbf5f5fd1a3bf487446fff878a8af352c7",
+      "bytes": 7221
+    },
+    {
+      "path": "crates/rh-sim/src/abilities/source_tests/compare.rs",
+      "base_sha256": null,
+      "new_sha256": "3f30becd6cf78f7dd4d6d09b0fef9e1ea99f2aff1250e2b4a5d2223498e75ced",
+      "bytes": 14295
+    },
+    {
+      "path": "crates/rh-sim/src/abilities/source_tests/mod.rs",
+      "base_sha256": null,
+      "new_sha256": "8cd3a1819fa61f0e235b9b3efc1a5bc1e7b4ab53ff0c149b33247c5865b98c26",
+      "bytes": 18731
+    },
+    {
+      "path": "crates/rh-sim/src/abilities/source_tests/motion.rs",
+      "base_sha256": null,
+      "new_sha256": "c6135770609a9e79f771a18b566f9d058375eadc8b0f3fed5b4967fb8f7772df",
+      "bytes": 2940
+    },
+    {
+      "path": "crates/rh-sim/src/abilities/source_tests/repair_tests.rs",
+      "base_sha256": null,
+      "new_sha256": "654b235d0fd39a810af85c7c5daaf2768e8f89ff9dfc268800cd5e60e011acec",
+      "bytes": 8814
+    },
+    {
+      "path": "crates/rh-sim/src/abilities/source_tests/runner.rs",
+      "base_sha256": null,
+      "new_sha256": "c9ede0cca468b531f5fff1b7ef257fd6c32bd3175526f57bace6eff9c6647109",
+      "bytes": 7191
+    },
+    {
+      "path": "crates/rh-sim/src/abilities/source_tests/setup.rs",
+      "base_sha256": null,
+      "new_sha256": "79b16c4d14de214759bdfdc07e426867ce1e413a58b4309e87ef9f4b7a0189fd",
+      "bytes": 12821
+    },
+    {
+      "path": "crates/rh-sim/src/actor_refs.rs",
+      "base_sha256": "b56e89347c5468b83d94101aa49afb7a525d83fdcb3d79bbde60c5010907338b",
+      "new_sha256": "d49003e0b22811606fdbc388c413809b4bfe304966cd0eb5d66d4c2e93def0fe",
+      "bytes": 8660
+    },
+    {
+      "path": "crates/rh-sim/src/cards/mod.rs",
+      "base_sha256": "b6130a61468abb2b2e0214ad13cf7a7573e2612111d87ba39d443bffa6d2a0e4",
+      "new_sha256": "83c2e4400590ea80569a14f943c0b0c50f42636c2b21b2a59e373e95dfb3fc3d",
+      "bytes": 5459
+    },
+    {
+      "path": "crates/rh-sim/src/cards/runtime.rs",
+      "base_sha256": null,
+      "new_sha256": "0105b46f50648a9856a1449c9e03f9d48a7ccf45677cb9f972ed5f6984a3f9b7",
+      "bytes": 684
+    },
+    {
+      "path": "crates/rh-sim/src/checkpoint.rs",
+      "base_sha256": "e03e0d500a0ed8a1b144dae44c8e33a21c30cfc7aa0cf8d2262307decd38571f",
+      "new_sha256": "a78d0b37faffbdc87536b20e31e8edb71ee45f5b3a87ba7aca3eb358aa340737",
+      "bytes": 59201
+    },
+    {
+      "path": "crates/rh-sim/src/content.rs",
+      "base_sha256": "8c25796f16fac31c8104b608e33410534586e3114a839f075b0ece2308918969",
+      "new_sha256": "578e5874fc4e9b10c9f03c78070303e68b2ff5d7018a2e405928b0ab324cc92e",
+      "bytes": 47914
+    },
+    {
+      "path": "crates/rh-sim/src/events.rs",
+      "base_sha256": "69c612e43ab1b14a4a01a3240c748daaffb99f2957061d8a9321929ffdf1b27f",
+      "new_sha256": "0b220cd3bdb3d35cde14f3ab61832f66267c0057321c02ceb8627e3dcb6700f6",
+      "bytes": 10103
+    },
+    {
+      "path": "crates/rh-sim/src/hooks.rs",
+      "base_sha256": "7a84d4bb747f9b8d2a37eab10ba1bf9ff03f12edc771c29235c9b1cf04a416cb",
+      "new_sha256": "faa10081a473dbca87a612db603c7fd4fd7b37aa50de0e3a77dae316f01081a3",
+      "bytes": 7742
+    },
+    {
+      "path": "crates/rh-sim/src/input.rs",
+      "base_sha256": "f96962179c47a8cbe90ed3984c65a5274fc343d65fa8fe9896a51fc4c2639954",
+      "new_sha256": "3ceb12e983b9a2bcb28d7c7e6e4ce29982c97b4dca8ae9035a66bd061cc37c3b",
+      "bytes": 31771
+    },
+    {
+      "path": "crates/rh-sim/src/item_view.rs",
+      "base_sha256": "acc6776efbe405cde2ce9832b3a97e49fcfbbe5c9553e1f4ab048dca14a14e55",
+      "new_sha256": "34c39a5a53dfcc8d9b84f83e24705b14c14f6c0f3fe2aafad332c7048dbf1612",
+      "bytes": 33097
+    },
+    {
+      "path": "crates/rh-sim/src/lib.rs",
+      "base_sha256": "384f9df91075b3bfc0317975e8f14597285b5cfcbc0666f6ccc159eed6c2978f",
+      "new_sha256": "36950f40906b0666a82b2e1486f5e963f5568d612abba7d740478d8190d16216",
+      "bytes": 2637
+    },
+    {
+      "path": "crates/rh-sim/src/modifiers/mod.rs",
+      "base_sha256": "aee545fa6b40b13308b94b2e6463f952d80d9598e952d8dc6b8d2e4e9b75d788",
+      "new_sha256": "7d49924ac0b18ea31af9e659a901e0ed462221a4f4d2df8f5470c3e993ec0096",
+      "bytes": 12161
+    },
+    {
+      "path": "crates/rh-sim/src/observe.rs",
+      "base_sha256": "387761f97cd90f3ef26d5cb315ecffa47436e0c20d881e474cbc2f664d7cde78",
+      "new_sha256": "4641fecf3b68e6a0c900fcae1432b518e284519fb728856201fa5599fe720feb",
+      "bytes": 30832
+    },
+    {
+      "path": "crates/rh-sim/src/schedule.rs",
+      "base_sha256": "13571b0be0317768ec59d3ffc3e42c3c9fd10bbe16741b0b5822637ee434dacd",
+      "new_sha256": "ea02d6e9807fc450ae1bae63abacef2b7544e7b0e63c63c8f84ae77c159675ed",
+      "bytes": 58067
+    },
+    {
+      "path": "crates/rh-sim/src/scratch.rs",
+      "base_sha256": "231d9d0b94025b059b4dfcd8cbe1e20f20689ff51a76d580ab79479c3a45f12b",
+      "new_sha256": "6ae0155f30ae4afb77dd5da8019fd989327a5bcafbe56c5357921bad1030076d",
+      "bytes": 10369
+    },
+    {
+      "path": "crates/rh-sim/src/sim.rs",
+      "base_sha256": "da57a4ac0f762bbec2b56feca025e30d798f2f9f80c14624cb111d59b99f562b",
+      "new_sha256": "d711eb3b3449405db82a5711fb87c9fa1446c8012be025719793f75b839be437",
+      "bytes": 16969
+    },
+    {
+      "path": "crates/rh-sim/src/state.rs",
+      "base_sha256": "dafa61c524a7eeaedee19c8fb9d3550e1288f48da63a82219c8bf4df2269843a",
+      "new_sha256": "1800d6636552182980b99cc0c3c9d5360ac46ff144c406163b8bef70341aeb4d",
+      "bytes": 39239
+    },
+    {
+      "path": "crates/rh-sim/src/statics.rs",
+      "base_sha256": "8303212f60dcb19326e90ec34d4c957b698cd325c5c3068d3b736bebf40e9520",
+      "new_sha256": "003284c46c4314f83a47777acebb48b8f4333ed5fee827754bb02a7c6f4738bd",
+      "bytes": 8989
+    },
+    {
+      "path": "crates/rh-sim/src/status_runtime/checkpoint.rs",
+      "base_sha256": "13de95be11483882ec617d206289f165d2cbb47faa234676bc1f3e5bc0fc8616",
+      "new_sha256": "4d97e9ea3cf39d3ef1c294ac38958e87770f898a7df837f9eb528cfe4091f3f2",
+      "bytes": 20979
+    },
+    {
+      "path": "crates/rh-sim/src/status_runtime/mod.rs",
+      "base_sha256": "24d4183fa17cf154d10825841f3ff4921a7ff1eca923ed15aba0dd7b055f90e4",
+      "new_sha256": "442c97802543bfc2cce99dec217b28e2fa2ab7d6e7a1819df7ee30bb5a09f5f2",
+      "bytes": 9113
+    },
+    {
+      "path": "crates/rh-sim/src/status_runtime/probe.rs",
+      "base_sha256": "d4c71b64492267c71ffb6aa76ecdf5669a94f3f8924ddfde5ec3be9742ff1c70",
+      "new_sha256": "e60d1e1c710d58f223056f85fa22b62998b0cdc29640630e10215045c9e47108",
+      "bytes": 39922
+    },
+    {
+      "path": "crates/rh-sim/src/systems/abilities/effects.rs",
+      "base_sha256": null,
+      "new_sha256": "1ebe83ec2214aed5187ffd8cbe66aa0032a4c03874c490b029959552a1d8dba7",
+      "bytes": 6560
+    },
+    {
+      "path": "crates/rh-sim/src/systems/abilities/mod.rs",
+      "base_sha256": null,
+      "new_sha256": "a6ae29acb8dc3455242726aa3af0f76ce4ebfd3af1767deafe5dfb80b62472fd",
+      "bytes": 8974
+    },
+    {
+      "path": "crates/rh-sim/src/systems/arena_validation.rs",
+      "base_sha256": "8efd250b197324ff0bf29ffad64fdad04281c521a20194051eeb0e64b6ed1366",
+      "new_sha256": "2e5f41a4b0dc27e9a03211ca554e3707445f4b5365b0f2e51ad1c6dca047beb6",
+      "bytes": 8071
+    },
+    {
+      "path": "crates/rh-sim/src/systems/inputs.rs",
+      "base_sha256": "4ddf16a7abb980e3bac035787f72bcf2286f6efcaf7858699d5c4830d5e8ddd1",
+      "new_sha256": "7939633667655b4ba27c9ed745f90b222f7446a20bb3c4d81754f7be992da0af",
+      "bytes": 7058
+    },
+    {
+      "path": "crates/rh-sim/src/systems/mob_checkpoint.rs",
+      "base_sha256": "4d19680967dd34b8194b28280e48f58915a900c36d2d25b14e9683a95c175b76",
+      "new_sha256": "62160c56f2859a56a0603f061d959773ed54aff709a16268d3d898f36172b27a",
+      "bytes": 14255
+    },
+    {
+      "path": "crates/rh-sim/src/systems/mod.rs",
+      "base_sha256": "1aa9c9b55d1c343a6c6cf085e9f954c87e0ed47c2b135bd9e8b2289eab9687e2",
+      "new_sha256": "cbed66f95c4bb688fcaabeb200585fe6671c64a403dea9b9a1138adfa14c38a5",
+      "bytes": 4158
+    },
+    {
+      "path": "crates/rh-sim/src/systems/planning/native_tests.rs",
+      "base_sha256": "0b69564fdbec635f06a4e5787d59b4223e45238c46aee5cbd2aa32e3dfb4e636",
+      "new_sha256": "03aec836600f507ed1653d08fefb0026b3774c228b129ed6560bae79ac27e641",
+      "bytes": 22427
+    },
+    {
+      "path": "crates/rh-sim/src/systems/status/dot.rs",
+      "base_sha256": "1e1f11db17b0664f34bf33e9901006009482a3bbc335932e10dd7e62607e38d5",
+      "new_sha256": "e6b3ffe4a7fed8ad5c3f5ab05c22d3e1d6b1a8220cd3eac50678714a4ac3a865",
+      "bytes": 6013
+    },
+    {
+      "path": "crates/rh-sim/src/systems/status/mod.rs",
+      "base_sha256": "3f9b8583796bdd5df0ea3efafa4de2a7a7f19c6c22d41a73545ff43926798749",
+      "new_sha256": "e587d22aab988a452cb08ea3ad91978c817dc98221ad2acaa35373ceecd1c863",
+      "bytes": 12198
+    },
+    {
+      "path": "crates/rh-sim/src/systems/weapons.rs",
+      "base_sha256": "b1d016f31c184fce0910708da580e1b56c1eec9d1c5eb9eef307e456eb910a58",
+      "new_sha256": "3a38a8cb389185446078fa3b9dbc2b1635f0b6b8289693d62149a1369ce6769d",
+      "bytes": 9854
+    },
+    {
+      "path": "crates/rh-sim/src/vision.rs",
+      "base_sha256": "2296bf06d329c6edc5d3e93e391daad7f44c26a263a427fefa84ec4912d6bc2c",
+      "new_sha256": "ff62eed1c4fb87c25c43c983c048b7838cf14a9ddf5ccf30c2a3bccf4e20ff3c",
+      "bytes": 33971
+    },
+    {
+      "path": "crates/rh-sim/tests/abilities_no_alloc.rs",
+      "base_sha256": null,
+      "new_sha256": "71498b74806ea118b0165c4c24d8b163dec308e59fe2e975c14cb912a4f05dc8",
+      "bytes": 4834
+    },
+    {
+      "path": "crates/rh-sim/tests/content.rs",
+      "base_sha256": "62bd123fc5ea246a28c24eb09e32a39e1155e36e9462654c450aea450d65114c",
+      "new_sha256": "c82ebd1198525f73045e55ae999459f21b3c837df5b961fdb9346f49ac84c707",
+      "bytes": 54162
+    },
+    {
+      "path": "parity/ability-overlap/INPUT_SHA256.json",
+      "base_sha256": null,
+      "new_sha256": "ab97b538b1c6526a77576fea516feb9e750ced9cf4e53fa37733066f0e58448c",
+      "bytes": 21909
+    },
+    {
+      "path": "parity/ability-overlap/README.md",
+      "base_sha256": null,
+      "new_sha256": "0073d2a337ab886d3ca3107ad9d7336b8bd8ea7afeec3fbd94a40662e30b0b92",
+      "bytes": 1553
+    },
+    {
+      "path": "parity/ability-overlap/source.json",
+      "base_sha256": null,
+      "new_sha256": "27f3894dc8dc1d9fa398c7da411983d612e3422d8599d2186c8fcab0d0fb03e7",
+      "bytes": 1289736
+    },
+    {
+      "path": "parity/ability-refund/INPUT_SHA256.json",
+      "base_sha256": null,
+      "new_sha256": "cab903aa4d9fe0f0e73bd2e1b2b71f66c2ff22e107d088e16134e981f3ddc098",
+      "bytes": 21903
+    },
+    {
+      "path": "parity/ability-refund/README.md",
+      "base_sha256": null,
+      "new_sha256": "02d6258bf0593648eac81f4cf24363fa3685617fcd93efb7cd4aba44a560cd75",
+      "bytes": 1852
+    },
+    {
+      "path": "parity/ability-refund/source.json",
+      "base_sha256": null,
+      "new_sha256": "75af171db8d0ded8dba57e46c45bdc08e4efc7689397d400aa0483342c1f6d22",
+      "bytes": 110687
+    },
+    {
+      "path": "tools/ability-overlap-fixtures/assertions.mts",
+      "base_sha256": null,
+      "new_sha256": "ac200c5e408efa1bb33d592d59250fea1f9681bbcd5f3f7e256a8645e9b9bdd1",
+      "bytes": 1102
+    },
+    {
+      "path": "tools/ability-overlap-fixtures/capture.mts",
+      "base_sha256": null,
+      "new_sha256": "ec80aab3f81b75cbf582b6813962544eb7be9cea8b08d489d020bc8788ecd86b",
+      "bytes": 3849
+    },
+    {
+      "path": "tools/ability-overlap-fixtures/capture.sh",
+      "base_sha256": null,
+      "new_sha256": "12b1ed6fe4b5880ba308ac355574614d70fbc63724a2567ef6bca77368aac723",
+      "bytes": 1578
+    },
+    {
+      "path": "tools/ability-overlap-fixtures/cases.mts",
+      "base_sha256": null,
+      "new_sha256": "4a9d4de603c019e6692971b59726ad812734f732bbece185816e5d620b12986e",
+      "bytes": 997
+    },
+    {
+      "path": "tools/ability-overlap-fixtures/frozen-inputs.json",
+      "base_sha256": null,
+      "new_sha256": "26d2ef1578e50e5799be571d6a1298d9e7c969a9ecc0d7dae9980b0b4a8e83f1",
+      "bytes": 20660
+    },
+    {
+      "path": "tools/ability-refund-fixtures/assertions.mts",
+      "base_sha256": null,
+      "new_sha256": "dbc3ec0f0216e91089ec64a3d7ba47d3c56f8a4faf5ffba78be744abf05cdc74",
+      "bytes": 1116
+    },
+    {
+      "path": "tools/ability-refund-fixtures/capture.mts",
+      "base_sha256": null,
+      "new_sha256": "c185e8d6eca17a247ad7c69bfeaaf50951963ea8aab5b3af84b0276e3aada0b2",
+      "bytes": 3750
+    },
+    {
+      "path": "tools/ability-refund-fixtures/capture.sh",
+      "base_sha256": null,
+      "new_sha256": "bd15bb86f4c196480efa3cd703feb5bed341e9cbb8bb199e8d3479300e0b86da",
+      "bytes": 1568
+    },
+    {
+      "path": "tools/ability-refund-fixtures/cases.mts",
+      "base_sha256": null,
+      "new_sha256": "8e927e4e346496fa2fee472d72a22458adb9cbf1f334b3975672e6e2bbebc9a5",
+      "bytes": 645
+    },
+    {
+      "path": "tools/ability-refund-fixtures/frozen-inputs.json",
+      "base_sha256": null,
+      "new_sha256": "26d2ef1578e50e5799be571d6a1298d9e7c969a9ecc0d7dae9980b0b4a8e83f1",
+      "bytes": 20660
+    }
+  ],
+  "patch_sha256": "910f48bb87b1f28ce516da90080ef5d079fa1d9248ca706ae8cb5594f3074d33",
+  "evidence": [
+    {
+      "path": "evidence/arena-v2-rebase-audit.json",
+      "sha256": "0515dc8a0e6bacf952d277dfcd191517d65305cf98ca1d203ab8cf2b7e9556fd"
+    },
+    {
+      "path": "evidence/blaze-bound-mutant.json",
+      "sha256": "2304c8dcf33823d57e92ae19d1f7747ed5ba16d039d644568ec9c7e4f5a1a747"
+    },
+    {
+      "path": "evidence/blaze-bound-mutant.log",
+      "sha256": "763cb8eea8a6bf57cb7b4c5a959957dcd1b5ae4d406e9accc1f3d78eb81d1a48"
+    },
+    {
+      "path": "evidence/composed-abilities.log",
+      "sha256": "b074b47a960e17ba43812cb6ec627aba75f43dbcd15ff60e1428f7702badf03a"
+    },
+    {
+      "path": "evidence/composed-allocation.log",
+      "sha256": "5c5a5d18342327af11d03eb89deda2dc543dc533c37e47ea0bad1cf5f4c1fb97"
+    },
+    {
+      "path": "evidence/composed-arena-native.log",
+      "sha256": "6df3bc5bfcae1c73a251ac1369293ad9144705050c76e5a9c5367186400ee97c"
+    },
+    {
+      "path": "evidence/composed-checkpoint.log",
+      "sha256": "110b78cc5e962fa83f176e5ee91c1e21cf2f7b6e03c7d3fc742734042764c086"
+    },
+    {
+      "path": "evidence/composed-checks.json",
+      "sha256": "e6af8c1403f6db1f7fffe075b6a10e2b6063a14932fd8cbbe138adefc6a759a1"
+    },
+    {
+      "path": "evidence/composed-clippy.log",
+      "sha256": "4d4795007e83cf6a391aa20e6221a4eb2076879a5db74257c810c628debad1ff"
+    },
+    {
+      "path": "evidence/composed-content.log",
+      "sha256": "16c4bb01479b779c664cf55a0f0215767f9977fd3ca7cdb710aa93cfeb404733"
+    },
+    {
+      "path": "evidence/composed-full-gate.log",
+      "sha256": "5f2323baad3f4653d6f79a71aecd3ae2977b2b71c38d43cc1ca5ccf1d50858cc"
+    },
+    {
+      "path": "evidence/composed-hash-golden.log",
+      "sha256": "989b6cbac61619a0d22362486e08f01263c552e8f4982e68379617d402664adb"
+    },
+    {
+      "path": "evidence/composed-headless.log",
+      "sha256": "21e1e23a4da6712007ae5569b224a4baeb0089997427c171615d2da3bed0d0f4"
+    },
+    {
+      "path": "evidence/composed-parity-check.log",
+      "sha256": "754c7b4098e1b12bbc2438885e9300d3ee3b74160a753f53dcaf3eea2da4d9e5"
+    },
+    {
+      "path": "evidence/composed-schedule.log",
+      "sha256": "e2bdbdae5b509015ed1598e60d5d0c923ee2809e5a60d1944feee0e7d6e93dff"
+    },
+    {
+      "path": "evidence/composed-status-systems.log",
+      "sha256": "8584155f35ca1f9e5ec27a8e10fb26aadd5874f5437a0914d4cef1d7eb7ec53b"
+    },
+    {
+      "path": "evidence/composed-status.log",
+      "sha256": "af9968c54049d15db3acbc8a5501faaef1b470ce3a4ec38100a0d864aaeaa4cb"
+    },
+    {
+      "path": "evidence/due-order-mutant.json",
+      "sha256": "91845662f21b7308241513b43e9a3c417fe5dfac999b54276b84c39dd5ff25e4"
+    },
+    {
+      "path": "evidence/due-order-mutant.log",
+      "sha256": "14d296ac215336fdee95831563037f2dfb01006dc6f288cf4df13697d931d04c"
+    },
+    {
+      "path": "evidence/overlap-source-capture.log",
+      "sha256": "68f73616427b73bacf5f6f72ff3d7f37a3186f0770c0871934808aa63b89280b"
+    },
+    {
+      "path": "evidence/overlap-source-check.log",
+      "sha256": "b6a54185335d058fbc8352f73c850369944f967e7aeeb0cd80340d0b9aa7c820"
+    },
+    {
+      "path": "evidence/refund-source-capture.log",
+      "sha256": "d8e1c1eb4acb84dee69c177f15acea99f3948d19a8d45f54d3b9b433a2415714"
+    },
+    {
+      "path": "evidence/refund-source-check.log",
+      "sha256": "55c61673197c2381ae7dbab2383c9d799fd89d55ff7c4cbd64f8c08696c92471"
+    },
+    {
+      "path": "evidence/repair-abilities.log",
+      "sha256": "a27197164a205cf7629c6c1db55f07bc5c50e9af582b879abbc5d9f305f4278b"
+    },
+    {
+      "path": "evidence/repair-allocation.log",
+      "sha256": "baeb9207a912737aeec5665608ea02d89c46d1da66906a87f8d7ad1b31603708"
+    },
+    {
+      "path": "evidence/repair-checks.json",
+      "sha256": "838e54c07ec1297edbc695cf81b5e86e0d93280f473a4cb38415477e798e52c0"
+    },
+    {
+      "path": "evidence/repair-clippy.log",
+      "sha256": "7ec23a85725442680288ef55f121a7a50ad0e8af1400b37f5be437504167c5fd"
+    },
+    {
+      "path": "evidence/repair-content.log",
+      "sha256": "f98573f9b723e312851a6ee07b33bfe7ebf07f40f963af5aaa8b143194e70e06"
+    },
+    {
+      "path": "evidence/repair-final-clippy.log",
+      "sha256": "16f956de7d4eb87c37f82ed68c3e32c272cbb881c1efdcdd5c440e85139dd54d"
+    },
+    {
+      "path": "evidence/repair-final-controls.log",
+      "sha256": "21841eb393c179eaec80984b8ac0855e3bc3447a5cf6c3a240dbc1cfb3e67d39"
+    },
+    {
+      "path": "evidence/repair-format.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/repair-headless.log",
+      "sha256": "9b057737f04e7b076dfe9a1c3303f80de0be59425dbcd57c9a752d83927b5ac4"
+    },
+    {
+      "path": "evidence/repair-status.log",
+      "sha256": "f474b5e082938328ed0638f8d9bad36e237c4f2f4c00c9725da2edea04bdcbae"
+    },
+    {
+      "path": "evidence/repair-targeting.log",
+      "sha256": "1dce2edd5d5ce915c59eef6775429ef0792a2cd66efed50d860603c5853573a9"
+    },
+    {
+      "path": "evidence/repair-weapons.log",
+      "sha256": "19f32c752e27d78855c8c69c4596300759c8e4ad788a7254d2980c8fdbe81f1b"
+    },
+    {
+      "path": "evidence/root-coordinator-overlay-reference.json",
+      "sha256": "db30c437f5be3e272791942f2f1224ead4e04f03ca65524dea2fb9ad07ed9044"
+    },
+    {
+      "path": "evidence/v3-abilities.log",
+      "sha256": "d9f7264ec1156b953d2b535dd6d96d622b4b3cf44334c548baa3b2901b7ccc64"
+    },
+    {
+      "path": "evidence/v3-bounded-full-gate.log",
+      "sha256": "e86c4993453c098252fa3999a793f1a80227f6c56f1a215016374c8f00d61a20"
+    },
+    {
+      "path": "evidence/v3-checks.json",
+      "sha256": "f49376062057bc12cbea6040d0c289fabb6c21910fbcbc37136ef3a5f0c205a0"
+    },
+    {
+      "path": "evidence/v3-clippy.log",
+      "sha256": "5c69f7c577f8240d06b66dcf6ff45f8d2f730c3ff9d5ff193406308c0330deba"
+    },
+    {
+      "path": "evidence/v3-final-checks.json",
+      "sha256": "b68b31ef69e10c8c466fe071fd7a877e41a48c4cf199d8b3233528ef9ddfef34"
+    },
+    {
+      "path": "evidence/v3-final-clippy.log",
+      "sha256": "3bbe38e8529f561ce53c33b63b5c2653f4260455bf6ca07d3bc8f204a7a66a0a"
+    },
+    {
+      "path": "evidence/v3-format.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/v3-full-strict.log",
+      "sha256": "8bc1e555569fecfb5e5e6530e3ac2ab1e7d2c17e0efe14ade9d2b389c4e3c051"
+    },
+    {
+      "path": "evidence/v3-ordinary-gates.log",
+      "sha256": "33502444670f852d0ba5185afc3ced04d85e9881a9633a44ea63b6e0e5f67d04"
+    },
+    {
+      "path": "evidence/void-source-overlay.json",
+      "sha256": "1a4e800698ebc03673fdbac2be26073e01120a2caf7713a3ec680937f75ce002"
+    }
+  ],
+  "previous_manifest_sha256": "d97832dbec7660129cb87d06656679506625959b541214b5c03336376866acb4",
+  "repair_files": [
+    {
+      "path": "crates/rh-sim/src/abilities/checkpoint.rs",
+      "v2_sha256": "6ea418e114957a58d4a6fc26609ce50a859e5b93f7785e970428bac3f98b8bb2",
+      "new_sha256": "cf873296dc91f1a0c87e0291433806a3bc40798358bdaa1aefc04d4b5c5c8669"
+    },
+    {
+      "path": "crates/rh-sim/src/abilities/source_tests/arena_refund.rs",
+      "v2_sha256": "2733919e70071e5f7749b3290ac6cd350a94ff2ded2992058c2d7a4a2ebf8aed",
+      "new_sha256": "072fbb96045da74019eaa8079dfd56cbf5f5fd1a3bf487446fff878a8af352c7"
+    },
+    {
+      "path": "crates/rh-sim/src/abilities/source_tests/mod.rs",
+      "v2_sha256": "fa8b4b60a700ccac686f35732c5608ed6ff8092cd2daf402ff96d3daffccfb8c",
+      "new_sha256": "8cd3a1819fa61f0e235b9b3efc1a5bc1e7b4ab53ff0c149b33247c5865b98c26"
+    },
+    {
+      "path": "crates/rh-sim/src/abilities/source_tests/repair_tests.rs",
+      "v2_sha256": "b2acfa6c52b77a7b989a41091e76e3e5c3438720849f2e21fb0be6ea210208e4",
+      "new_sha256": "654b235d0fd39a810af85c7c5daaf2768e8f89ff9dfc268800cd5e60e011acec"
+    },
+    {
+      "path": "parity/ability-refund/INPUT_SHA256.json",
+      "v2_sha256": null,
+      "new_sha256": "cab903aa4d9fe0f0e73bd2e1b2b71f66c2ff22e107d088e16134e981f3ddc098"
+    },
+    {
+      "path": "parity/ability-refund/README.md",
+      "v2_sha256": null,
+      "new_sha256": "02d6258bf0593648eac81f4cf24363fa3685617fcd93efb7cd4aba44a560cd75"
+    },
+    {
+      "path": "parity/ability-refund/source.json",
+      "v2_sha256": null,
+      "new_sha256": "75af171db8d0ded8dba57e46c45bdc08e4efc7689397d400aa0483342c1f6d22"
+    },
+    {
+      "path": "tools/ability-refund-fixtures/assertions.mts",
+      "v2_sha256": null,
+      "new_sha256": "dbc3ec0f0216e91089ec64a3d7ba47d3c56f8a4faf5ffba78be744abf05cdc74"
+    },
+    {
+      "path": "tools/ability-refund-fixtures/capture.mts",
+      "v2_sha256": null,
+      "new_sha256": "c185e8d6eca17a247ad7c69bfeaaf50951963ea8aab5b3af84b0276e3aada0b2"
+    },
+    {
+      "path": "tools/ability-refund-fixtures/capture.sh",
+      "v2_sha256": null,
+      "new_sha256": "bd15bb86f4c196480efa3cd703feb5bed341e9cbb8bb199e8d3479300e0b86da"
+    },
+    {
+      "path": "tools/ability-refund-fixtures/cases.mts",
+      "v2_sha256": null,
+      "new_sha256": "8e927e4e346496fa2fee472d72a22458adb9cbf1f334b3975672e6e2bbebc9a5"
+    },
+    {
+      "path": "tools/ability-refund-fixtures/frozen-inputs.json",
+      "v2_sha256": null,
+      "new_sha256": "26d2ef1578e50e5799be571d6a1298d9e7c969a9ecc0d7dae9980b0b4a8e83f1"
+    }
+  ],
+  "repair_patch_sha256": "c3286247140518766dbeb9f224d503bcd7fcd1017f2da8c0d263a8d4c2b04d6c",
+  "review_readme_sha256": "7706c11d7ead0c679524f95215038d5b8e06a9c7b5759031f2dff45bd4b0e1d0",
+  "patch_roundtrip": "PASS: cumulative exact baseline and repair over immutable v2 both reconstruct all65 frozen files"
+}

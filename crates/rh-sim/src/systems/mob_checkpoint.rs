@@ -325,7 +325,10 @@ pub(crate) fn validate(
         }
         if p.statuses.cast.is_some()
             || p.statuses.instances.iter().any(|s| {
-                s.kind.rule().players_only || s.kind == crate::status_runtime::StatusKind::Dot
+                s.kind.rule().players_only
+                    || (s.kind == crate::status_runtime::StatusKind::Dot
+                        && !(k.config.abilities == crate::abilities::Mode::Full
+                            && crate::abilities::checkpoint::blaze_dot(w, s)))
             })
         {
             return Err("unsupported mob status domain".into());

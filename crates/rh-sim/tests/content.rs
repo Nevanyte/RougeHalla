@@ -28,6 +28,7 @@ const NUMBER_FREE_TYPES: &[(&str, bool, &str)] = &[
 /// Each entry must match a declaration the scan finds and not be covered by NUMBER_FREE_TYPES. Adding to this list is a
 /// review decision: a number that can change an outcome belongs in the registry instead.
 const NON_GAMEPLAY: &[(&str, &str, &str)] = &[
+    ("abilities/source_tests/setup.rs", "PLAYER_COUNT", "test-only source actor identity mapping per executor thread; never read by gameplay"),
     ("systems/terrain/source_tests.rs", "FIXTURE_FNV", "test-only actual-source witness integrity pin; not read by gameplay"),
     ("projectile_view.rs", "MAX_VISIBLE_PROJECTILES", "complete public projectile representation capacity; never read by game rules"),
     ("projectile_view.rs", "PROJECTILE_ROW_BYTES_MAX", "complete public projectile representation capacity; never read by game rules"),
@@ -134,6 +135,30 @@ const NON_GAMEPLAY: &[(&str, &str, &str)] = &[
 /// Rules that are tables rather than scalar rows: they are folded by `content_hash` directly (see content.rs). As
 /// (file, name, reason).
 const TABLES_FOLDED_BY_HASH: &[(&str, &str, &str)] = &[
+    ("abilities/mod.rs", "CANCELLED_BY", "executable Wish catalog/blink policy folded by abilities::visit_content"),
+    ("abilities/mod.rs", "RANGE_SLACK", "executable Wish catalog/blink policy folded by abilities::visit_content"),
+    ("abilities/mod.rs", "TELEPORT_GRACE_MS", "executable Wish catalog/blink policy folded by abilities::visit_content"),
+    ("abilities/mod.rs", "WISH_LOCK_MS", "executable Wish catalog/blink policy folded by abilities::visit_content"),
+    ("abilities/mod.rs", "TRAINING_COOLDOWN_MS", "executable Wish catalog/blink policy folded by abilities::visit_content"),
+    ("abilities/mod.rs", "WISH_MULT_MIN", "executable Wish catalog/blink policy folded by abilities::visit_content"),
+    ("abilities/mod.rs", "FREEZE_STUN_MS", "executable Wish catalog/blink policy folded by abilities::visit_content"),
+    ("abilities/mod.rs", "SWARM_MS", "executable Wish catalog/blink policy folded by abilities::visit_content"),
+    ("abilities/mod.rs", "SWARM_RADIUS", "executable Wish catalog/blink policy folded by abilities::visit_content"),
+    ("abilities/mod.rs", "TRIAL_MS", "executable Wish catalog/blink policy folded by abilities::visit_content"),
+    ("abilities/mod.rs", "TRIAL_RADIUS", "executable Wish catalog/blink policy folded by abilities::visit_content"),
+    ("abilities/mod.rs", "TRIAL_CONVICTED_RADIUS", "executable Wish catalog/blink policy folded by abilities::visit_content"),
+    ("abilities/mod.rs", "TRIAL_DEALT_MULT", "executable Wish catalog/blink policy folded by abilities::visit_content"),
+    ("abilities/mod.rs", "TRIAL_TAKEN_MULT", "executable Wish catalog/blink policy folded by abilities::visit_content"),
+    ("abilities/mod.rs", "TRIAL_MOVE_MULT", "executable Wish catalog/blink policy folded by abilities::visit_content"),
+    ("abilities/mod.rs", "BLAZE_TRAIL_MS", "executable Wish catalog/blink policy folded by abilities::visit_content"),
+    ("abilities/mod.rs", "BLAZE_HALF_WIDTH", "executable Wish catalog/blink policy folded by abilities::visit_content"),
+    ("abilities/mod.rs", "LAST_STAND_MS", "executable Wish catalog/blink policy folded by abilities::visit_content"),
+    ("abilities/mod.rs", "LAST_STAND_FLOOR", "executable Wish catalog/blink policy folded by abilities::visit_content"),
+    ("abilities/mod.rs", "LAST_STAND_HASTE", "executable Wish catalog/blink policy folded by abilities::visit_content"),
+    ("abilities/mod.rs", "LAST_STAND_HEAL", "executable Wish catalog/blink policy folded by abilities::visit_content"),
+    ("abilities/blink.rs", "MIN_DIST", "executable Wish catalog/blink policy folded by abilities::visit_content"),
+    ("abilities/blink.rs", "MAX_DIST", "executable Wish catalog/blink policy folded by abilities::visit_content"),
+    ("abilities/blink.rs", "STEP", "executable Wish catalog/blink policy folded by abilities::visit_content"),
     ("systems/arena_rules.rs", "MAX_DURATION_SECONDS", "actual arena duration admission bound folded by arena_rules::visit_content"),
     ("systems/arena_rules.rs", "PATIENCE_MIN_PLAYERS", "actual source patience scaling endpoint folded by arena_rules::visit_content"),
     ("systems/arena_rules.rs", "PATIENCE_FULL_PLAYERS", "actual source patience scaling endpoint folded by arena_rules::visit_content"),
@@ -469,7 +494,7 @@ fn hash_golden() {
         content_hash()
     );
 }
-const GOLDEN_CONTENT_HASH: u64 = 0x57b3_428f_8b41_ebf7;
+const GOLDEN_CONTENT_HASH: u64 = 0xe95d_55ba_96b2_feca;
 
 #[test]
 fn every_registry_row_perturbs_the_hash() {

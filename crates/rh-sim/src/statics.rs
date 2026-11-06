@@ -21,6 +21,8 @@ pub(crate) struct MatchStatic {
     #[serde(skip)] // immutable source spawnWalks cache, reconstructed from canonical map
     pub(crate) planning_walks: Vec<Option<f64>>,
     #[serde(skip)]
+    pub(crate) blink_ring: crate::abilities::blink::Ring,
+    #[serde(skip)]
     pub(crate) hazards: crate::terrain::Hazards,
     #[serde(skip)]
     pub(crate) terrain_source: crate::status_runtime::StatusSource,
@@ -60,6 +62,7 @@ impl MatchStatic {
         // The statics secrets stay out of the digest. The state hash still depends on spawn_seed through World.spawn_rng,
         // so it is server-private (see hash.rs).
         let locked_map = arena.map.closed_gates();
+        let blink_ring = crate::abilities::blink::Ring::new(&arena.map);
         let planning_walks = if config
             .lifecycle
             .rules()
@@ -78,6 +81,7 @@ impl MatchStatic {
             digest,
             hazards,
             locked_map,
+            blink_ring,
             planning_walks,
             arena_source: crate::status_runtime::StatusSource {
                 id: None,
@@ -174,6 +178,10 @@ impl FactionMode {
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct SimConfig {
     #[serde(default)]
+    pub abilities: crate::abilities::Mode,
+    #[serde(default = "default_wish_lock")]
+    pub wish_lock_ms: f64,
+    #[serde(default)]
     pub lifecycle: crate::ArenaMode,
     /// Native terrain rules are opt-in until clients carry public terrain layers.
     #[serde(default)]
@@ -196,6 +204,10 @@ pub struct SimConfig {
     pub mob_mode: crate::mob_runtime::MobMode,
 }
 
+fn default_wish_lock() -> f64 {
+    crate::abilities::WISH_LOCK_MS
+}
+
 fn specials_enabled() -> bool {
     true
 }
@@ -203,6 +215,8 @@ fn specials_enabled() -> bool {
 impl Default for SimConfig {
     fn default() -> Self {
         Self {
+            abilities: crate::abilities::Mode::Off,
+            wish_lock_ms: crate::abilities::WISH_LOCK_MS,
             lifecycle: crate::ArenaMode::Off,
             initial_loot: false,
             hazards: crate::terrain::Mode::Off,

@@ -60,7 +60,14 @@ pub(crate) fn expire(cx: &mut Cx) {
     }
     s.status_removed.clear();
     end_fields_with(k, w, FieldSelector::Expired(now), stats);
-    // P-ABIL lands due casts at this exact boundary, before zone exit and final effects.
+}
+
+pub(crate) fn finish(cx: &mut Cx) {
+    let Cx {
+        k, w, ev, stats, ..
+    } = cx;
+    let stats = *stats;
+    let now = w.server_time;
     end_zones(k, w, ev, stats);
     for i in 0..w.fighter_count() {
         let p = w.core_mut(crate::fighter::FighterIx::of_slot(i));
@@ -132,8 +139,9 @@ fn end_zones(k: &MatchStatic, w: &mut World, ev: &mut Vec<Event>, stats: Inputs)
         }
         let subject = f
             .subject
-            .and_then(|id| w.player(id))
-            .filter(|p| p.standing());
+            .and_then(|id| w.fighter_idx(id))
+            .filter(|i| w.standing(*i))
+            .map(|i| w.core(i));
         if subject.is_some_and(|p| crate::math::hypot(p.body.x - f.x, p.body.y - f.y) <= f.r) {
             i += 1;
             continue;
@@ -210,7 +218,7 @@ pub(crate) fn on_applied(hx: &mut Hx, args: &HookArgs) {
         refold_attack_with(hx.k, hx.w, i.slot(), hx.stats);
     }
 }
-fn cancel_cast(
+pub(crate) fn cancel_cast(
     k: &MatchStatic,
     w: &mut World,
     ev: &mut Vec<Event>,
@@ -229,8 +237,24 @@ fn cancel_cast(
     });
     #[cfg(feature = "trusted-status-probes")]
     crate::status_runtime::probe::record_cast(w, id, c.ability, reason);
-    // No installed source gameplay castEnded listener exists; P-ABIL owns refunds.
-    let _ = (k, refund);
+    crate::hooks::cast_ended(
+        k,
+        w,
+        ev,
+        id,
+        c.ability,
+        crate::hooks::CastOutcome::Cancelled(reason),
+    );
+    if refund && k.config.abilities == crate::abilities::Mode::Full {
+        if let Some(detail) = c.producer {
+            if let Some(p) = w.idx(id).map(|i| &mut w.players[i]) {
+                p.stocks.wish_ready_at = detail.previous_ready_at;
+                if let Some(full) = detail.previous_full_at {
+                    p.stocks.wish_full_at = Some(full);
+                }
+            }
+        }
+    }
     w.core_mut(i).statuses.cast = None;
     let now = w.server_time;
     w.core_mut(i).statuses.refresh_effects(now);
@@ -329,6 +353,16 @@ pub(crate) fn run_ended(hx: &mut Hx, args: &HookArgs) {
 pub(crate) fn raid_started(hx: &mut Hx, args: &HookArgs) {
     if *args != HookArgs::RaidStarted {
         return;
+    }
+    if hx.k.config.abilities == crate::abilities::Mode::Full {
+        let ready = hx.w.raid_started_at + hx.k.config.wish_lock_ms.max(0.);
+        for p in &mut hx.w.players {
+            p.stocks = crate::abilities::Stocks {
+                wish_ready_at: ready,
+                wish_full_at: Some(ready),
+                ..Default::default()
+            };
+        }
     }
     for slot in 0..hx.w.fighter_count() {
         let i = crate::fighter::FighterIx::of_slot(slot);

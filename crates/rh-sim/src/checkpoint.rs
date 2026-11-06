@@ -20,7 +20,7 @@ use serde::ser::{SerializeStruct, Serializer};
 use std::fmt;
 
 /// The tag every checkpoint carries. Bump it when the layout of `statics` or `world` changes incompatibly.
-pub const CHECKPOINT_FORMAT: &str = "rh-checkpoint/18";
+pub const CHECKPOINT_FORMAT: &str = "rh-checkpoint/19";
 
 /// How far past the map edge a fighter, waypoint or spawn may be and still restore (real states stay inside the map).
 const COORD_MARGIN: f64 = 1024.0;
@@ -454,6 +454,7 @@ fn check_world(k: &MatchStatic, w: &World) -> Result<(), String> {
     }
     crate::systems::mobs::validate(k, w, near)?;
     crate::status_runtime::checkpoint::validate_world(w, near)?;
+    crate::abilities::checkpoint::validate(k, w)?;
     crate::systems::initial_loot::validate(k, w)?;
     crate::systems::potions::validate(w)?;
     crate::reward_chests::validate_world(w, near)?;
@@ -556,7 +557,10 @@ fn check_world(k: &MatchStatic, w: &World) -> Result<(), String> {
         // Samples are appended one tick apart at least (a trim keeps the ring within its window only then); closer ones
         // fill the ring within a few steps. The gap test also covers time order.
         let h = p.body.history.as_slice();
-        if h.windows(2).any(|s| !(s[1].t - s[0].t >= TICK_MS)) {
+        if h.windows(2).enumerate().any(|(i, s)| {
+            !(s[1].t - s[0].t >= TICK_MS)
+                && !(i == 0 && crate::abilities::checkpoint::blaze_history(k, p))
+        }) {
             return Err(format!(
                 "player {}: rewind history is not in time order, a tick apart",
                 p.id.0

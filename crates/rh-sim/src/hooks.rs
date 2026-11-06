@@ -158,3 +158,34 @@ pub(crate) fn fire(hx: &mut Hx, args: HookArgs) {
     #[cfg(feature = "trusted-status-probes")]
     crate::status_runtime::probe::record_hook(hx.w, &args);
 }
+
+/// These source optional hooks have no installed gameplay listeners in the captured world.
+/// Keeping typed call sites preserves their ordering without inventing a hook-chain row.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) enum CastOutcome {
+    Landed,
+    Cancelled(crate::status_runtime::CastEndReason),
+}
+pub(crate) fn cast_accepted(
+    _k: &MatchStatic,
+    _w: &mut World,
+    _ev: &mut Vec<Event>,
+    _id: PlayerId,
+    _ability: crate::status_runtime::AbilityId,
+) {
+    #[cfg(feature = "trusted-status-probes")]
+    crate::status_runtime::probe::record_cast_accepted(_w, _id, _ability);
+}
+pub(crate) fn cast_ended(
+    _k: &MatchStatic,
+    _w: &mut World,
+    _ev: &mut Vec<Event>,
+    _id: PlayerId,
+    _ability: crate::status_runtime::AbilityId,
+    _outcome: CastOutcome,
+) {
+    #[cfg(feature = "trusted-status-probes")]
+    if _outcome == CastOutcome::Landed {
+        crate::status_runtime::probe::record_cast_landed(_w, _id, _ability);
+    }
+}

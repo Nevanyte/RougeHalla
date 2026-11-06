@@ -708,6 +708,8 @@ pub(crate) static PHASES: [Item<PhaseFn>; 23] = [
         |cx| {
             crate::vision::apply_exposures(cx);
             crate::systems::status::expire(cx);
+            crate::systems::abilities::land(cx);
+            crate::systems::status::finish(cx);
             Flow::Continue
         },
     ),
@@ -986,7 +988,7 @@ pub(crate) static ACTIONS: [ActionRow; 13] = [
         "cast",
         "abilities",
         Gate::Always,
-        Run::Pending("P-ABIL-1"),
+        Run::Ported(crate::systems::abilities::handle),
     ),
     action(
         ActionId::QuestAccept,
@@ -1256,11 +1258,13 @@ static RAID_STARTED: [Link; 14] = [
         Gate::NotTraining,
         "P-TRADE-1",
     ),
-    pending_link(
+    partial_link(
         "cardHooks.resetAll",
         Mode::Append,
         Gate::Always,
+        "canonical lazy Wish spend memory",
         "P-CARDS-1",
+        crate::cards::runtime::reset_all,
     ),
     pending_link(
         "fireRoam.<arrow>",

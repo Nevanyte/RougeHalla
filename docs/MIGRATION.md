@@ -39,25 +39,31 @@ Its witnesses retain66 original cases,11 ice traces and a separate21-case/88-fra
 pinned Linux amd64 Node22.23.4 captures reproduce byte exactly; CI checks both. Twenty born cases fully compare; the
 lethal-credit case preserves an exact full-world reward-card mismatch. Full P-TERRAIN-1 remains **INCOMPLETE**.
 
-Current native identity: content `57b3428f8b41ebf7`, checkpoint18/replay16, observation14/policy11; protocol6 unchanged.
-The independently reviewed bounded P-ARENA-1 authority kernel is integrated: real planning/deals, coliseum clocks,
-teleport/gate transitions, patience/sudden death, historical collision/vision and administrative abandonment. Headless
-and policy observations carry the new native owner facts. Exact source ordering/RNG and retained planning state are
-preserved; invalid early lock/history states refuse restore. Full P-ARENA-1 remains **INCOMPLETE**.
+Current native identity: content `e95d55ba96b2feca`, checkpoint19/replay17, observation15/policy12; protocol6 unchanged.
+The independently reviewed bounded P-ARENA-1 kernel and five-Wish P-ABIL-1 kernel are integrated. Rust owns planning/
+deals, coliseum/teleport/gates, patience/sudden death, historical collision/vision and administrative abandonment, plus
+validated Cast intake, canonical stocks/casts/refunds, atomic landing and all five ordinary player Wishes. The genuine
+arena Freeze/Last Stand/teleport/refund prerequisite now executes through its dedicated source consumer, with the
+explicit Off-slip helper boundary preserved. This does not certify the entire case27 arena-owned projection or full hooks.
 
-The coordinator verified1,163 distinct native tests across split batches, including PostgreSQL, checkpoint/replay/hash,
-privacy, headless/policy and three compile-fail documentation checks. Both strict workspace Clippy modes and formatting
-pass. The191 unchanged map-generator unit tests were not repeated locally. The latest completed full
-[Rust/C#/WSS CI42222451955](https://github.com/Nevanyte/RougeHalla/actions/runs/42222451955) passes at `d3418f17`,
-before this native arena integration; new CI is pending. The [arena integration evidence](evidence/stage2-arena-native/README.md)
-records exact split commands, repaired integration checks and bounded acceptance. Protocol6 hosting/publication
-explicitly refuses Source lifecycle before simulation/offers; no Planning→Lobby alias or silent event omission is used.
-Full wire/client transport and durable shutdown/MIA remain open. The original frozen arena source remains35cases/621frames,
-200 exact deals and two labeled helpers; native acceptance covers33 ordinary owned trajectories/603frames plus one
-boon helper/9frames. Genuine Wish/refund and card reset hooks are unfinished; their strict completion diagnostic fails.
-The strict terrain reward-options diagnostic also retains its exact failure. Full card rewards, training actors,
-full NPC faction domains and other original-port requirements remain in the backlog. The former Calgary MVP deployment
-was cleaned up; no new live profile is deployed.
+The coordinator verified1,188 distinct native tests in split batches, including real PostgreSQL, restore/replay, privacy,
+headless/policy, warmed all-five Wish allocations and three compile-fail docs. Both strict workspace Clippy modes,
+final affected sim checks, formatting and the15-check Chromium WSS proof pass. The global audit traverses77,358 leaves
+with54,154 hash-changing perturbations and zero unhashed;61 optional patterns have actual Some. The191 unchanged
+map-generator unit tests were not repeated locally. Completed full
+[Rust/C#/source/WSS CI42238404509](https://github.com/Nevanyte/RougeHalla/actions/runs/42238404509) passes at preceding
+`0f2f9763`; this newer Wish integration needs its own CI. [Wish native evidence](evidence/stage2-abilities/native/README.md)
+records exact scope/commands/repairs; [arena evidence](evidence/stage2-arena-native/README.md) retains its earlier checkpoint.
+Protocol6 refuses Source lifecycle and Full Wishes before simulation/offers, including Full with arena Off; no public
+activation, Unity rebuild or deployment occurs here.
+
+Full P-ABIL remains **INCOMPLETE**:53 original source cases plus six companion scenarios pass the bounded owned-state
+consumer; exactten original card/own-Mark/player-reset/training/full-NPC-signature prerequisites remain explicitly
+unattempted and fatal in strict mode. Full arena strict mode now executes genuine Wish/refund, then fails pending
+card reset/deferred hooks, full case27 projection and Source transport/durability. Terrain retains its exact reward
+options failure. Player-reset and pure80-card catalog proposals are under separate repair/review; full card runtime,
+training, remaining signatures, browser/account/cloud/durable/regional and other original-port requirements remain.
+The former Calgary MVP deployment is cleaned up; no new live profile is deployed.
 
 The complete card/reward source prerequisite is independently accepted:409 cases,80 complete catalog definitions,
 all ten effect payload kinds and14 interactive reward selections. A coordinator pinned Node22.23.4 read-only check
@@ -66,17 +72,12 @@ reproduces the exact corpus; source/protected snapshot and helper-coverage docum
 reviewed seven-file integration. The [full card packet](backlog/packets/P-CARDS-1.md) retains actual runtime captures,
 all hooks/guards/grants/rewards and the strict terrain options mismatch as unfinished work; no native scope widened.
 
-The full [Wish packet](backlog/packets/P-ABIL-1.md) now has independently accepted source evidence:63 cases/6,318
-ordinary50ms steps/1,237 full frames, with all five real outcomes, stock clocks, atomic rank reversal, source-born
-recipients and observer twins. A fresh pinned capture and one exact comparison pass. The coordinator applied the
-reviewed README correction separating transient hook observations from ordinary checkpoint boundaries; corpus/harness
-bytes are unchanged. A reviewed single-owner cast design is now being implemented privately on the frozen arena
-collision/history kernel. [Wish evidence](evidence/stage2-abilities/README.md) records exact scope. No ordinary
-native Cast parity, full coupled producer or public transport success is claimed. Blaze Step is the Fire Wish; the
-genuine native arena refund remains required. A separate independently reviewed two-case/24-step
-[voided-cast source companion](../parity/ability-void/README.md) now captures both unrelated-player and target
-abandonment: pending Freeze and both clocks remain exact at600ms beyond its350ms deadline. It closes the missing
-source witness, not native restore acceptance; the original63-case corpus/harness remains unchanged.
+The full [Wish packet](backlog/packets/P-ABIL-1.md) retains its63-case/6,318-step original source corpus and separate
+void companion unchanged. New focused source companions add two real overlapping-Blaze cases/106 ordinary steps and
+one actual first-refund→second-teleport continuation/13 steps. Review rejected earlier stock/overlap admission bugs;
+repaired v3 preserves source stock reachability, pending rollback, multi-charge clocks, refreshed burns and stunned aim.
+A single card-owned last-spend record and canonical cast producer avoid synchronized shadows. Native scope is bounded,
+with coupled producer and wire completion still explicit; see [the native evidence](evidence/stage2-abilities/native/README.md).
 
 The [65-case card runtime source prerequisite](evidence/stage2-card-runtime/README.md) is independently accepted and
 integrated with6,236 ordinary50ms steps,3,298 full frames and3,179 exact private records. Four reviewed prose corrections

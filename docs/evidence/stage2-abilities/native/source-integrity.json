@@ -1,0 +1,104 @@
+{
+  "files": [
+    {
+      "path": "parity/ability-overlap/INPUT_SHA256.json",
+      "base_sha256": null,
+      "new_sha256": "ab97b538b1c6526a77576fea516feb9e750ced9cf4e53fa37733066f0e58448c",
+      "bytes": 21909
+    },
+    {
+      "path": "parity/ability-overlap/README.md",
+      "base_sha256": null,
+      "new_sha256": "0073d2a337ab886d3ca3107ad9d7336b8bd8ea7afeec3fbd94a40662e30b0b92",
+      "bytes": 1553
+    },
+    {
+      "path": "parity/ability-overlap/source.json",
+      "base_sha256": null,
+      "new_sha256": "27f3894dc8dc1d9fa398c7da411983d612e3422d8599d2186c8fcab0d0fb03e7",
+      "bytes": 1289736
+    },
+    {
+      "path": "parity/ability-refund/INPUT_SHA256.json",
+      "base_sha256": null,
+      "new_sha256": "cab903aa4d9fe0f0e73bd2e1b2b71f66c2ff22e107d088e16134e981f3ddc098",
+      "bytes": 21903
+    },
+    {
+      "path": "parity/ability-refund/README.md",
+      "base_sha256": null,
+      "new_sha256": "02d6258bf0593648eac81f4cf24363fa3685617fcd93efb7cd4aba44a560cd75",
+      "bytes": 1852
+    },
+    {
+      "path": "parity/ability-refund/source.json",
+      "base_sha256": null,
+      "new_sha256": "75af171db8d0ded8dba57e46c45bdc08e4efc7689397d400aa0483342c1f6d22",
+      "bytes": 110687
+    },
+    {
+      "path": "tools/ability-overlap-fixtures/assertions.mts",
+      "base_sha256": null,
+      "new_sha256": "ac200c5e408efa1bb33d592d59250fea1f9681bbcd5f3f7e256a8645e9b9bdd1",
+      "bytes": 1102
+    },
+    {
+      "path": "tools/ability-overlap-fixtures/capture.mts",
+      "base_sha256": null,
+      "new_sha256": "ec80aab3f81b75cbf582b6813962544eb7be9cea8b08d489d020bc8788ecd86b",
+      "bytes": 3849
+    },
+    {
+      "path": "tools/ability-overlap-fixtures/capture.sh",
+      "base_sha256": null,
+      "new_sha256": "12b1ed6fe4b5880ba308ac355574614d70fbc63724a2567ef6bca77368aac723",
+      "bytes": 1578
+    },
+    {
+      "path": "tools/ability-overlap-fixtures/cases.mts",
+      "base_sha256": null,
+      "new_sha256": "4a9d4de603c019e6692971b59726ad812734f732bbece185816e5d620b12986e",
+      "bytes": 997
+    },
+    {
+      "path": "tools/ability-overlap-fixtures/frozen-inputs.json",
+      "base_sha256": null,
+      "new_sha256": "26d2ef1578e50e5799be571d6a1298d9e7c969a9ecc0d7dae9980b0b4a8e83f1",
+      "bytes": 20660
+    },
+    {
+      "path": "tools/ability-refund-fixtures/assertions.mts",
+      "base_sha256": null,
+      "new_sha256": "dbc3ec0f0216e91089ec64a3d7ba47d3c56f8a4faf5ffba78be744abf05cdc74",
+      "bytes": 1116
+    },
+    {
+      "path": "tools/ability-refund-fixtures/capture.mts",
+      "base_sha256": null,
+      "new_sha256": "c185e8d6eca17a247ad7c69bfeaaf50951963ea8aab5b3af84b0276e3aada0b2",
+      "bytes": 3750
+    },
+    {
+      "path": "tools/ability-refund-fixtures/capture.sh",
+      "base_sha256": null,
+      "new_sha256": "bd15bb86f4c196480efa3cd703feb5bed341e9cbb8bb199e8d3479300e0b86da",
+      "bytes": 1568
+    },
+    {
+      "path": "tools/ability-refund-fixtures/cases.mts",
+      "base_sha256": null,
+      "new_sha256": "8e927e4e346496fa2fee472d72a22458adb9cbf1f334b3975672e6e2bbebc9a5",
+      "bytes": 645
+    },
+    {
+      "path": "tools/ability-refund-fixtures/frozen-inputs.json",
+      "base_sha256": null,
+      "new_sha256": "26d2ef1578e50e5799be571d6a1298d9e7c969a9ecc0d7dae9980b0b4a8e83f1",
+      "bytes": 20660
+    }
+  ],
+  "coordinator_verified_exact": true,
+  "overlap_source_sha256": "27f3894dc8dc1d9fa398c7da411983d612e3422d8599d2186c8fcab0d0fb03e7",
+  "repeated_teleport_source_sha256": "75af171db8d0ded8dba57e46c45bdc08e4efc7689397d400aa0483342c1f6d22",
+  "coordinator_recapture": "not repeated; worker pinned capture/fresh compare and independent hash/provenance review accepted"
+}

@@ -25,3 +25,6 @@ unchanged. CI also adds `bash tools/card-runtime-witness-fixtures/capture.sh --c
 This is source evidence. All80 native card definitions/runtime, legal builds, coupled NPC/training producers,
 checkpoint/hash/replay, public projection and serialized activation remain required by [P-CARDS-1](../../backlog/packets/P-CARDS-1.md).
 No native gameplay, wire version, Unity build or deployed profile changed through this source integration.
+
+Full [CI42238404509](https://github.com/Nevanyte/RougeHalla/actions/runs/42238404509) passes at0f2f9763; the separate
+card-runtime-source job reproduces both frozen corpora byte exactly. That source job does not prove native card runtime.

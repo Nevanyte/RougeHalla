@@ -523,6 +523,90 @@ fn source_lifecycle_states() -> (Sim, Sim, Sim) {
     (planning, active, sim)
 }
 
+/// Real Full producers populate the optional cast/card/stock/effect branches. Zero-time
+/// Blaze/LastStand casts have already landed at the first ordinary checkpoint.
+fn wish_states() -> Vec<(&'static str, Sim)> {
+    let mut out = Vec::new();
+    for (faction, accepted_name, landed_name) in [
+        (FactionId::Frost, "Freeze pending", "Freeze landed"),
+        (FactionId::Plague, "Swarm pending", "Swarm landed"),
+        (FactionId::Sentenced, "Trial pending", "Trial landed"),
+        (FactionId::Fire, "Blaze first charge", "Blaze trail"),
+        (FactionId::Holy, "LastStand paid", "LastStand active"),
+    ] {
+        let placements = [
+            (faction, 300.),
+            (FactionId::Holy, 440.),
+            (FactionId::Frost, 900.),
+        ]
+        .into_iter()
+        .enumerate()
+        .map(|(i, (faction, x))| Placement {
+            profile: format!("wish{i}"),
+            faction,
+            bot: false,
+            at: Vec2::new(x, 320.),
+            hp: None,
+            weapon0: None,
+            weapon1: None,
+        })
+        .collect::<Vec<_>>();
+        let mut sim = Sim::reset_active(
+            SimConfig {
+                abilities: rh_sim::abilities::Mode::Full,
+                lifecycle: rh_sim::ArenaMode::Source(rh_sim::ArenaRules {
+                    plan_seconds: 0.,
+                    first_patience_seconds: None,
+                    coliseum_schedule: None,
+                    patience_seconds: 3600.,
+                    patience_min_seconds: 3600.,
+                    sudden_death_seconds: 60.,
+                }),
+                wish_lock_ms: 0.,
+                ..Default::default()
+            },
+            practice_arena(),
+            Secrets::from_seed(3),
+            &placements,
+        );
+        let target =
+            matches!(faction, FactionId::Frost | FactionId::Sentenced).then_some(PlayerId(2));
+        sim.submit(
+            PlayerId(1),
+            cmd(RawCommand::Cast {
+                slot: rh_sim::abilities::Slot::Wish,
+                x: 600.,
+                y: 320.,
+                id: target,
+                t: None,
+                seq: None,
+            }),
+        )
+        .unwrap();
+        sim.step();
+        let cp = serde_json::to_value(&sim).unwrap();
+        let p = &cp["world"]["players"][0];
+        assert!(p["card_runtime"]["wish_cast"].is_object());
+        assert!(p["stocks"]["wish_full_at"].is_number());
+        if matches!(faction, FactionId::Fire | FactionId::Holy) {
+            assert!(p["core"]["statuses"]["cast"].is_null());
+        } else {
+            assert!(p["core"]["statuses"]["cast"]["producer"].is_object());
+        }
+        assert_eq!(Sim::restore(&cp).unwrap().state_hash(), sim.state_hash());
+        out.push((accepted_name, sim.clone()));
+        for _ in 0..7 {
+            sim.step();
+        }
+        assert!(
+            serde_json::to_value(&sim).unwrap()["world"]["players"][0]["core"]["statuses"]["cast"]
+                .is_null()
+        );
+        out.push((landed_name, sim));
+    }
+    out
+}
+
 fn scenarios() -> Vec<(&'static str, Sim)> {
     let (mob_engaged, mob_cleared) = mob_audit_states();
     let (source_planning, source_active, source_locked) = source_lifecycle_states();
@@ -532,7 +616,8 @@ fn scenarios() -> Vec<(&'static str, Sim)> {
     drive(&mut late, 700);
     let mut fuse = short_fuse();
     drive(&mut fuse, 400);
-    vec![
+    let mut states = wish_states();
+    states.extend([
         ("source planning", source_planning),
         ("source active timer", source_active),
         ("source locked", source_locked),
@@ -551,7 +636,8 @@ fn scenarios() -> Vec<(&'static str, Sim)> {
         ("queued inputs", with_queued_inputs()),
         ("lobby with names", lobby_with_names()),
         ("lobby after a leave", lobby_after_leave()),
-    ]
+    ]);
+    states
 }
 
 /// What a perturbation is: a scalar replaced, an array shortened by its last element, or an optional subtree removed.
@@ -720,6 +806,62 @@ fn candidates(leaf: &Value, strings: &[String]) -> Vec<Value> {
 
 /// Patterns whose perturbation the restore may refuse, and why. Any other refusal fails the test.
 const VALIDATED: &[(&str, &str)] = &[
+    // Full Wish producer tuples are coupled. Accepted edits still always have to change the hash.
+    ("world.abilities.fields.*.owner.owner_id", "ordinary player Wish fields have no secondary/summoner owner; Full producer source requires None"),
+    ("world.players.*.core.statuses.instances.*.data.shares.phys", "Full Blaze Dot payload is the exact pure true-damage shares tuple"),
+    ("world.players.*.core.statuses.instances.*.data.shares.magic", "Full Blaze Dot payload is the exact pure true-damage shares tuple"),
+    ("world.players.*.core.statuses.instances.*.data.shares.true_", "Full Blaze Dot payload is the exact pure true-damage shares tuple"),
+
+    ("world.abilities.fields.*.exit_stun_ms", "Trial Zone exit stun is fixed by its producer; other admitted fields require None"),
+    ("world.players.*.core.statuses.instances.*.data.dealt_mult", "Trial Zoned payload requires the exact outgoing damage multiplier"),
+    ("world.players.*.core.statuses.instances.*.data.field_id", "Zoned payload references the actual retained Trial field id"),
+    ("world.players.*.core.statuses.instances.*.data.move_mult", "Trial Zoned payload requires the exact movement multiplier"),
+    ("world.players.*.core.statuses.instances.*.data.taken_from_source_mult", "Trial Zoned payload requires the exact incoming source multiplier"),
+    ("world.players.*.core.statuses.instances.*.data.floor_hp", "LastStand DeathFloor payload requires the exact minimum health"),
+    ("world.players.*.core.statuses.instances.*.data.heal_share", "LastStand DeathFloor payload requires the exact stored healing share"),
+    ("world.players.*.core.statuses.cast.producer", "Full requires complete producer details; Off forbids them and only admits trusted bare cast facts"),
+    ("world.players.*.card_runtime", "Full canonical spend memory is coupled to produced stock clocks/cast; Off forbids card memory"),
+    ("world.players.*.card_runtime.wish_cast", "the admitted lazy card runtime is created only by a successful Wish spend and cannot be empty"),
+
+    ("world.abilities.fields.*.ability", "Full field ability is coupled to its Cloud/Trail/Zone kind and typed definition"),
+    ("world.abilities.fields.*.ends_at", "Full field end equals started_at plus its exact ability duration"),
+    ("world.abilities.fields.*.id", "field identity is a unique positive allocated id below next_field_id and referenced by owned statuses"),
+    ("world.abilities.fields.*.kind", "Full field kind is coupled to its ability definition"),
+    ("world.abilities.fields.*.owner.id", "Full field owner has stable matching roster identity and name"),
+    ("world.abilities.fields.*.owner.name", "Full field owner name matches its stable roster identity"),
+    ("world.abilities.fields.*.r", "Full field radius is fixed by its actual ability definition"),
+    ("world.abilities.fields.*.vx", "Full Wish fields have zero horizontal drift"),
+    ("world.abilities.fields.*.vy", "Full Wish fields have zero vertical drift"),
+    ("world.abilities.fields.*.x2", "Cloud/Zone fields have zero second endpoint; Trail endpoints remain separately perturbable"),
+    ("world.abilities.fields.*.y2", "Cloud/Zone fields have zero second endpoint; Trail endpoints remain separately perturbable"),
+
+    ("world.players.*.core.statuses.instances.*.data.undefined_fields", "Full Wish payload must equal its typed producer shape; no arbitrary undefined-field mask is produced"),
+    ("world.players.*.core.statuses.instances.*.kind", "Full Wish status kind is coupled to its ability definition"),
+    ("world.players.*.core.statuses.instances.*.source.id", "Full Wish source must have stable matching player roster identity and source name"),
+    ("world.players.*.core.statuses.instances.*.source.name", "Full Wish source name must match its stable player roster identity"),
+    ("world.players.*.core.statuses.instances.*.until", "Full Wish status deadline is coupled to its exact duration or current refreshed Blaze tail"),
+    ("world.players.*.core.statuses.instances.*.value", "Full Wish value is fixed by its ability/status producer tuple"),
+
+    ("statics.config.lifecycle.Source.plan_seconds", "changing disabled planning to enabled requires its actual retained deal/phase history"),
+    ("world.players.*.card_runtime.wish_cast.at", "canonical last spend is fixed-step aligned and agrees with pending cast or attainable completed stock clocks"),
+    ("world.players.*.card_runtime.wish_cast.cooldown_ms", "canonical accepted cooldown equals the admitted faction Wish definition and current supported modifier"),
+    ("world.players.*.core.statuses.cast.ability", "Full pending ability must be the player faction Wish and agree with duration/stock/producer"),
+    ("world.players.*.core.statuses.cast.lands_at", "Full landing clock equals started_at plus the exact timed definition and remains future unless voided"),
+    ("world.players.*.core.statuses.cast.started_at", "Full start equals canonical WishSpend and its spent stock clocks"),
+    ("world.players.*.core.statuses.cast.producer.previous_full_at", "timed Wish rollback tuple must be Some(previous_ready_at) and an attainable opening/prior-spend clock"),
+    ("world.players.*.core.statuses.cast.producer.previous_ready_at", "timed Wish rollback tuple is coupled and must be an attainable opening/prior-spend clock"),
+    ("world.players.*.core.statuses.cast.producer.rank", "admitted ordinary player Wish producer has rank one"),
+    ("world.players.*.core.statuses.cast.producer.slot", "admitted ordinary player producer equips the Wish slot only"),
+    ("world.players.*.stocks.wish_full_at", "Full stock must be initialized and satisfy its ready/spend/refund equation; Off forbids Some"),
+    ("world.players.*.core.statuses.cast.cancelled_by.root", "Full producer cancel mask equals the executable Wish definition"),
+    ("world.players.*.core.statuses.cast.cancelled_by.silence", "Full producer cancel mask equals the executable Wish definition"),
+    ("world.players.*.core.statuses.cast.cancelled_by.stagger", "Full producer cancel mask equals the executable Wish definition"),
+    ("world.players.*.core.statuses.cast.cancelled_by.stun", "Full producer cancel mask equals the executable Wish definition"),
+
+    ("statics.config.abilities", "closed Off/Full domain; Full requires initialized stock/cast producers, Off forbids their persistent state"),
+    ("world.players.*.stocks.e_ready_at", "no equipped E producer: clock must remain zero"),
+    ("world.players.*.stocks.q_ready_at", "no equipped Q producer: clock must remain zero"),
+    ("world.players.*.stocks.wish_ready_at", "Off requires default stocks; Full ready clock is coupled to opening lock, canonical spend/full clock or a valid teleport refund"),
     ("world.planning", "enabled planning requires retained history after Lobby; Off and disabled planning forbid the history"),
     ("world.rt.voided", "disabled lifecycle only permits abandon-produced void state during Active; Source Lobby cannot be voided"),
     ("statics.config.lifecycle.Source.sudden_death_seconds", "locked deadline must exactly equal the actual teleport hook time plus configured sudden-death duration"),
@@ -1333,6 +1475,18 @@ fn pool_of(sims: &[(&str, Sim)]) -> BTreeMap<String, Vec<Value>> {
 fn every_serialized_leaf_of_a_match_changes_the_state_hash() {
     let sims = scenarios();
     let pool = pool_of(&sims);
+    for path in [
+        "world.players.*.core.statuses.cast.producer",
+        "world.players.*.card_runtime",
+        "world.players.*.card_runtime.wish_cast",
+        "world.players.*.stocks.wish_full_at",
+    ] {
+        assert!(
+            pool.get(path)
+                .is_some_and(|values| values.iter().any(|v| !v.is_null())),
+            "actual Wish producer must populate {path}"
+        );
+    }
     let mut all = Tally::default();
     for (name, sim) in &sims {
         let mut t = Tally::default();
@@ -1569,8 +1723,8 @@ fn the_serde_skips_are_exactly_the_documented_ones() {
         ),
         (
             "statics.rs",
-            6,
-            "MatchStatic: the digest and hazard flags are rebuilt from stored fields; terrain source is rebuilt from hashed EMBER_NAME and typed terrain attribution; locked collision and all its query caches derive from admitted open map gate coordinates; planning distances derive from the same canonical map and enabled configuration; arena source derives from hashed SUDDEN_DEATH_NAME and typed arena attribution",
+            7,
+            "MatchStatic: the digest and hazard flags are rebuilt from stored fields; terrain source is rebuilt from hashed EMBER_NAME and typed terrain attribution; locked collision and all its query caches derive from admitted open map gate coordinates; planning distances derive from the same canonical map and enabled configuration; arena source derives from hashed SUDDEN_DEATH_NAME and typed arena attribution; cloned blink_ring is rebuilt by StaticRepr→MatchStatic::new→Ring::new solely from canonical map dimensions and coliseum layer geometry",
         ),
     ];
     let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
@@ -1668,4 +1822,99 @@ fn card_choices() -> Sim {
     .unwrap();
     sim.step();
     sim
+}
+
+/// MatchStatic clones its immutable ring and reconstructs it via StaticRepr::from.
+/// Real locked Blaze inputs must have identical landings and continuation after both paths.
+#[test]
+fn derived_blink_ring_clone_and_restore_preserve_actual_locked_casts() {
+    let file: rh_sim::mapdata::MapExport =
+        serde_json::from_str(include_str!("../src/mapdata/fixtures/seed1.map.json")).unwrap();
+    let mut original = Sim::new(
+        SimConfig {
+            abilities: rh_sim::abilities::Mode::Full,
+            wish_lock_ms: 0.,
+            min_players: 2,
+            lobby_seconds: 0.,
+            fill_seconds: 0.,
+            lifecycle: rh_sim::ArenaMode::Source(rh_sim::ArenaRules {
+                plan_seconds: 0.,
+                first_patience_seconds: Some(0.1),
+                coliseum_schedule: None,
+                ..Default::default()
+            }),
+            ..Default::default()
+        },
+        file.validate().unwrap().into_arena().unwrap(),
+        Secrets::from_seed(12),
+    );
+    original
+        .add_player("blinker", Some(FactionId::Fire), false)
+        .unwrap();
+    original
+        .add_player("rival", Some(FactionId::Holy), false)
+        .unwrap();
+    for _ in 0..3 {
+        original.step();
+    }
+    assert!(
+        rh_sim::public_snapshot(&original)
+            .arena
+            .unwrap()
+            .gates_locked
+    );
+    // The real teleport producer forbids casts for300ms; advance ordinary steps past it.
+    for _ in 0..6 {
+        original.step();
+    }
+    let snapshot = serde_json::to_value(&original).unwrap();
+    assert!(snapshot["statics"].get("blink_ring").is_none());
+    let cloned = original.clone();
+    let restored = Sim::restore(&snapshot).unwrap();
+    let actor = original.player(PlayerId(1)).unwrap();
+    let from = Vec2::new(actor.body.x, actor.body.y);
+    let ring = rh_sim::abilities::blink::Ring::new(&original.arena().map);
+    // Exercise all cardinal directions, including an actual closed ring crossing.
+    let mut crossing = false;
+    for delta in [
+        Vec2::new(300., 0.),
+        Vec2::new(-300., 0.),
+        Vec2::new(0., 300.),
+        Vec2::new(0., -300.),
+    ] {
+        let at = Vec2::new(from.x + delta.x, from.y + delta.y);
+        crossing |= ring.crosses(original.collision_map(), from, at);
+        let mut a = original.clone();
+        let mut b = cloned.clone();
+        let mut c = restored.clone();
+        for sim in [&mut a, &mut b, &mut c] {
+            sim.submit(
+                PlayerId(1),
+                cmd(RawCommand::Cast {
+                    slot: rh_sim::abilities::Slot::Wish,
+                    x: at.x,
+                    y: at.y,
+                    id: None,
+                    t: None,
+                    seq: None,
+                }),
+            )
+            .unwrap();
+        }
+        for _ in 0..3 {
+            let ea = a.step();
+            let eb = b.step();
+            let ec = c.step();
+            assert_eq!(ea, eb);
+            assert_eq!(ea, ec);
+            assert_eq!(a.state_hash(), b.state_hash());
+            assert_eq!(a.state_hash(), c.state_hash());
+        }
+        let cp = serde_json::to_value(&a).unwrap();
+        assert!(cp["world"]["players"][0]["card_runtime"]["wish_cast"].is_object());
+    }
+    assert!(
+        crossing,
+        "the clone/restore control must exercise an actual closed coliseum boundary"
+    );
 }

@@ -182,6 +182,7 @@ mod tests {
             );
         }
         s.w.players[1].statuses.cast = Some(CastFact {
+            producer: None,
             ability: AbilityId::Freeze,
             started_at: 0.,
             lands_at: 1000.,

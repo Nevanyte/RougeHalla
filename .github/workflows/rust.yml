@@ -86,6 +86,12 @@ jobs:
         run: |
           bash tools/ability-fixtures/capture.sh --check
           bash tools/ability-void-fixtures/capture.sh --check
+          bash tools/ability-overlap-fixtures/capture.sh --check
+          bash tools/ability-refund-fixtures/capture.sh --check
+      - name: Bounded native Wishes retain source behavior and warmed allocations
+        run: |
+          cargo test --locked -p rh-sim --features trusted-status-probes,schedule-trace --lib abilities::
+          cargo test --locked -p rh-sim --features trusted-status-probes --test abilities_no_alloc
       - name: Pure mob catalog and rosters still match the actual source
         run: node --import tsx tools/mob-fixtures/catalog-rosters.ts --self-test
       - name: Status runtime matches all four frozen source corpora

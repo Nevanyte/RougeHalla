@@ -29,6 +29,7 @@ pub(crate) const NONE: u32 = u32::MAX;
 
 #[derive(Debug)]
 pub(crate) struct TickScratch {
+    pub(crate) cast_landings: Vec<crate::systems::abilities::Landing>,
     pub(crate) status_active: Vec<PlayerId>,
     pub(crate) status_removed: Vec<crate::status_runtime::StatusInstance>,
     /// Rewritten before weapons; only the actual start site marks an action new.
@@ -97,6 +98,7 @@ impl Default for TickScratch {
     fn default() -> Self {
         let (p, hits) = (MAX_PLAYERS, 2 * MAX_PLAYERS * MAX_PLAYERS);
         Self {
+            cast_landings: Vec::with_capacity(p),
             status_active: Vec::with_capacity(p),
             status_removed: Vec::with_capacity(p),
             attack_started: vec![false; MAX_PLAYERS],
@@ -175,7 +177,8 @@ impl TickScratch {
     /// `bounty_at_tick_start` (rewritten at the start of every active tick), `bodies`, `victims`, `ledger_mults`,
     /// `entry_next`, `entry_rank`, `idxs`, `amounts`, `order`, `hits`, `alive`, `path` and `drained`.
     pub(crate) fn is_settled(&self) -> bool {
-        self.melee.is_empty()
+        self.cast_landings.is_empty()
+            && self.melee.is_empty()
             && self.ledger.is_empty()
             && self.downed_this_tick.is_empty()
             && self.standing.is_empty()

@@ -27,7 +27,9 @@ pub(crate) fn validate(k: &MatchStatic, w: &World) -> Result<(), String> {
             Ok(())
         };
     };
-    if (0..w.fighter_count()).any(|slot| {
+    if k.config.abilities == crate::abilities::Mode::Full {
+        crate::abilities::checkpoint::validate(k, w)?;
+    } else if (0..w.fighter_count()).any(|slot| {
         w.core(crate::fighter::FighterIx::of_slot(slot))
             .statuses
             .cast

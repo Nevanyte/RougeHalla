@@ -84,6 +84,7 @@ impl Sim {
             pf: Pathfinder::default(),
         };
         crate::terrain::validate_config(&sim.k.config)?;
+        crate::abilities::validate_config(&sim.k.config)?;
         crate::systems::arena_rules::validate_config(&sim.k)?;
         crate::systems::initial_loot::initialize(&mut sim.k, &mut sim.w)?;
         crate::systems::mobs::initialize(&mut sim.k, &mut sim.w)?;

@@ -280,6 +280,7 @@ fn populated_reservations_sent_plans_and_locked_clocks_are_hashed_or_rejected() 
 #[test]
 fn source_refuses_unproduced_kernel_casts_and_deferred_hits_but_off_keeps_them() {
     let fact = crate::status_runtime::CastFact {
+        producer: None,
         ability: crate::status_runtime::AbilityId::Freeze,
         started_at: 50.,
         lands_at: 250.,

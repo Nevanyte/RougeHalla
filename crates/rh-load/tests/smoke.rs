@@ -22,6 +22,8 @@ struct InProc {
 
 async fn start(creds: &Creds, max_rooms: usize) -> InProc {
     let sim = rh_sim::SimConfig {
+        abilities: rh_sim::abilities::Mode::Off,
+        wish_lock_ms: rh_sim::abilities::WISH_LOCK_MS,
         lifecycle: rh_sim::ArenaMode::Off,
         hazards: rh_sim::terrain::Mode::Off,
         mob_mode: rh_sim::mob_runtime::MobMode::Off,

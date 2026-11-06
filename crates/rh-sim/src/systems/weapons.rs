@@ -30,7 +30,13 @@ fn note_lag(p: &mut FighterCore, now: f64, t: Option<f64>) {
 pub(crate) fn handle_press(p: &mut FighterCore, now: f64, a: f64, t: Option<f64>) {
     super::targeting::drop_lock(p);
     p.weapon.targeting.attack_move = None;
-    set_aim(p, now, a);
+    if !crate::status_runtime::has(
+        &p.statuses.instances,
+        crate::status_runtime::StatusKind::Stun,
+        now,
+    ) {
+        set_aim(p, now, a);
+    }
     note_lag(p, now, t);
     let w = &mut p.weapon;
     if !w.held {
@@ -41,7 +47,13 @@ pub(crate) fn handle_press(p: &mut FighterCore, now: f64, a: f64, t: Option<f64>
 }
 
 pub(crate) fn handle_release(p: &mut FighterCore, now: f64, a: f64, t: Option<f64>) {
-    if p.weapon.targeting.target.is_none() {
+    if p.weapon.targeting.target.is_none()
+        && !crate::status_runtime::has(
+            &p.statuses.instances,
+            crate::status_runtime::StatusKind::Stun,
+            now,
+        )
+    {
         set_aim(p, now, a);
     }
     if t.is_some() {

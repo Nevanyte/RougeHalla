@@ -72,6 +72,8 @@ struct Server {
 
 async fn start(arena: Arena, tweak: impl FnOnce(&mut DirectorConfig)) -> Server {
     let sim = SimConfig {
+        abilities: rh_sim::abilities::Mode::Off,
+        wish_lock_ms: rh_sim::abilities::WISH_LOCK_MS,
         lifecycle: rh_sim::ArenaMode::Off,
         hazards: rh_sim::terrain::Mode::Off,
         mob_mode: rh_sim::mob_runtime::MobMode::Off,

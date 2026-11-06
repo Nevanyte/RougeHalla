@@ -1,0 +1,276 @@
+{
+  "format": "rh-wish-coordinator-overlays/1",
+  "base_head": "0f2f9763107444c89b2ecab89fdaa78b4e241ad9",
+  "files": [
+    {
+      "path": "crates/rh-load/tests/smoke.rs",
+      "reviewed_or_root_base_sha256": "5061dd4b553feb5e36596631466c42e477bafb7496a5a7112d531a9a11d8f39f",
+      "integrated_sha256": "9377c68a959f9c065b5e03366a4274f6728374c188511591f4263a185750141f"
+    },
+    {
+      "path": "crates/rh-parity/src/canon.rs",
+      "reviewed_or_root_base_sha256": "0ec967a35ac9840ef0872f61d1cfd74c76d7cad93ec0b12fb8c1200e12b22cdf",
+      "integrated_sha256": "a506f1a480078ebf30bb0b63ab506edf8417eb77c8a094a776a49b2b8842174a"
+    },
+    {
+      "path": "crates/rh-policy/src/lib.rs",
+      "reviewed_or_root_base_sha256": "91dde5e3422c58e04b77d8f86278251a9d50704bbfe8b723dc2cfbda30d79a69",
+      "integrated_sha256": "f68b59b4ce5478c6f084c8b46283968b9c5813aacb1126d3113683f93b01e267"
+    },
+    {
+      "path": "crates/rh-server/examples/connheap.rs",
+      "reviewed_or_root_base_sha256": "d5e0944af464dc8cbbd44d024fa43009b8acd3f82b5953a292ab8ea928ac2cec",
+      "integrated_sha256": "ce7208b29fb488200a58c170b071ec6201fa12cbd822e54a1120d52c150ef00f"
+    },
+    {
+      "path": "crates/rh-server/src/bin/densitybench/engine.rs",
+      "reviewed_or_root_base_sha256": "160675012bccd968e87111baea8ab2df78cf950199afebbe08f0bf2052627554",
+      "integrated_sha256": "82e61168cb1b5a102e077e95de77d86f7c686a3d960c9292e5eb1314a18991e9"
+    },
+    {
+      "path": "crates/rh-server/src/director.rs",
+      "reviewed_or_root_base_sha256": "15a37f1a4149d96c0f06e4aa250edece51da089742a3c0d878a470154f62ba2a",
+      "integrated_sha256": "ed6972b049e04401b3399bfbd1d8c89f2e4aca02bac1f5fecc4e1a6d8ba789c6"
+    },
+    {
+      "path": "crates/rh-server/src/main.rs",
+      "reviewed_or_root_base_sha256": "5c906945448df925d44bbd4a1b73fed47d47d253106ab05df6ecf7c0445b3747",
+      "integrated_sha256": "632956e846ce0ac0d492055fa3dd5a7baa4cae29882d71b19ee7282ad712935e"
+    },
+    {
+      "path": "crates/rh-server/src/room.rs",
+      "reviewed_or_root_base_sha256": "ebd61a739bcbda4d3299907b9b2ed9bf6ed3eb6307f0227558857df275ed3685",
+      "integrated_sha256": "c0a4687afca779660ea58d79cffa63482690b68da3d0297765fa8f25b848437d"
+    },
+    {
+      "path": "crates/rh-server/src/wire.rs",
+      "reviewed_or_root_base_sha256": "e531cb20dc03752341bbbc4f99bedfb5770f514e1f890cc5a693f36b09703e6a",
+      "integrated_sha256": "2b9dfa2f3a92fc3c7b8e00adf90996ddc3ea7170db5789e3d12fa3f20800134e"
+    },
+    {
+      "path": "crates/rh-server/tests/account_api.rs",
+      "reviewed_or_root_base_sha256": "e917e7211a32c7f21dcb52dfd83918b8d8e1b907db88e8c2aa65320c42349a9f",
+      "integrated_sha256": "4fdd62ea25e939e4fdc13b4758c5f27079e2dcac811c6c1c06a989c382625fb7"
+    },
+    {
+      "path": "crates/rh-server/tests/account_api_memory.rs",
+      "reviewed_or_root_base_sha256": "f0be36e07ecfdfadcf13326bc9e62b10e8d7ebda3e0d12365fd8b2e7c2ef136c",
+      "integrated_sha256": "5d94fdfe28d85ba0cd4327adaea72037c9cec7e5b75487cfe22b34ee25e7de94"
+    },
+    {
+      "path": "crates/rh-server/tests/control.rs",
+      "reviewed_or_root_base_sha256": "6cc9daa194102d8c1d9de70cd786362c2b573fda234db3ad8fea379ddfa121d3",
+      "integrated_sha256": "07efa6995e9b74f8984c8e70a089c4fbdfd1f4a6a9b17b29c5eaa120e0959b29"
+    },
+    {
+      "path": "crates/rh-server/tests/density.rs",
+      "reviewed_or_root_base_sha256": "890d1e4981cccf6c615e522f1bc1239da4425de32fc38b838ddeffb9338e8236",
+      "integrated_sha256": "ec6dcabf54ff80b4f03cf821602a9840f24ca523acc29f79d39bfa0e862e05b4"
+    },
+    {
+      "path": "crates/rh-server/tests/equivalence.rs",
+      "reviewed_or_root_base_sha256": "f7d62f0c128c678482d7e4c8c3365b2e16a5f3693df596ab99fde7d97ed7ebd4",
+      "integrated_sha256": "6f57085dd0c1de16281988424b32b26953e25efd0d9b653a86e60f9b52089cee"
+    },
+    {
+      "path": "crates/rh-server/tests/lifecycle.rs",
+      "reviewed_or_root_base_sha256": "bbb7893bf913ac9273c39cd5fcf33bdbf16115685182097a45516833b9397521",
+      "integrated_sha256": "50d4f599e2060adfea82593fbfa4f3bd85279a751d0af70387d31453f7e1c6dd"
+    },
+    {
+      "path": "crates/rh-server/tests/live.rs",
+      "reviewed_or_root_base_sha256": "43844f07ca979cfe2dfa1bb8c774b0c4ec2817b6df7cedf1aceb1ceff8284bbf",
+      "integrated_sha256": "5fceae4f26cdf32ddda0bbf15ad694f23a1393c9b66990f74a81fb4477a49c1b"
+    },
+    {
+      "path": "crates/rh-server/tests/pg_e2e.rs",
+      "reviewed_or_root_base_sha256": "f2f42dd74dd8b971fe2a56ddacdfb78a3ff64c5f9b17cc4f2725e34002ef5def",
+      "integrated_sha256": "431c91cd9d4822cf90274d2b56d4a335c454f872f4e35fb9ced980108c9e5cec"
+    },
+    {
+      "path": "crates/rh-server/tests/publish.rs",
+      "reviewed_or_root_base_sha256": "eb4e751808786255258fc105ca95c55d3cd0ade61ed4f225b28336f729676363",
+      "integrated_sha256": "ee493e6b2fcde16e22c78b41d0467dd622bc76807d9b2cfd67e5dc24a542af14"
+    },
+    {
+      "path": "crates/rh-server/tests/result_recovery.rs",
+      "reviewed_or_root_base_sha256": "9a5c55c82012609412997d5bee5852212044c7f8c55af9750fc1193dfde13190",
+      "integrated_sha256": "20f577ec7db458023264143bd7c255f6b9680a86e89c6893f07f400e0ddb816c"
+    },
+    {
+      "path": "crates/rh-server/tests/transport.rs",
+      "reviewed_or_root_base_sha256": "509f324711a919c1290d3b78003c4a1408986f0cf3ec1ec1f20a5d73ecee2837",
+      "integrated_sha256": "d2f06a29e4610cfbfe6232e2e69cb53d3b67027a601b9c8dfa05aae6cde55570"
+    },
+    {
+      "path": "crates/rh-sim/src/abilities/mod.rs",
+      "reviewed_or_root_base_sha256": "faf0b9275fd88a091050415aeb7acf3122e511b742023c9db2e337e347988f7d",
+      "integrated_sha256": "282a4b6e2e4df87af18249e683742cc07b262a9792ca207f2d26ea1f6e6a055a"
+    },
+    {
+      "path": "crates/rh-sim/src/abilities/source_tests/compare.rs",
+      "reviewed_or_root_base_sha256": "3f30becd6cf78f7dd4d6d09b0fef9e1ea99f2aff1250e2b4a5d2223498e75ced",
+      "integrated_sha256": "5c9faf21c5e9e46acb4c7bf1fb826c4b05e22f9911a72a8558c2e7e60246b576"
+    },
+    {
+      "path": "crates/rh-sim/src/abilities/source_tests/mod.rs",
+      "reviewed_or_root_base_sha256": "8cd3a1819fa61f0e235b9b3efc1a5bc1e7b4ab53ff0c149b33247c5865b98c26",
+      "integrated_sha256": "0e43a6ad07712affe1b11f9856073daa5a201d802729a22d4c1437072a0f9e01"
+    },
+    {
+      "path": "crates/rh-sim/src/checkpoint.rs",
+      "reviewed_or_root_base_sha256": "a78d0b37faffbdc87536b20e31e8edb71ee45f5b3a87ba7aca3eb358aa340737",
+      "integrated_sha256": "3993e58e63334e77284f793db15e3cb5a5e1bb4e767c128e3c0df5c7169f3eb6"
+    },
+    {
+      "path": "crates/rh-sim/src/observe.rs",
+      "reviewed_or_root_base_sha256": "4641fecf3b68e6a0c900fcae1432b518e284519fb728856201fa5599fe720feb",
+      "integrated_sha256": "059d15f060f8c945be548d8b14e12ef7cd52528e97af6a56c5eabf3fa8233429"
+    },
+    {
+      "path": "crates/rh-sim/src/replay.rs",
+      "reviewed_or_root_base_sha256": "2a12c8aecf64172aada2aba97e7aa0951c9ffe66d0c4be79c6c68108e196b1b2",
+      "integrated_sha256": "27ad67c5917fc27ff932129ed71a92866b4c0b9d7b0be7d1c4753a9c30863151"
+    },
+    {
+      "path": "crates/rh-sim/src/status_runtime/probe.rs",
+      "reviewed_or_root_base_sha256": "e60d1e1c710d58f223056f85fa22b62998b0cdc29640630e10215045c9e47108",
+      "integrated_sha256": "428bc76ef2c3c3eb5af41913b5242915d2573f09ab4a32665ccbb50f0c2f2f02"
+    },
+    {
+      "path": "crates/rh-sim/src/systems/planning/source_tests.rs",
+      "reviewed_or_root_base_sha256": "443e7ab8514f0c9c6cc2c4ba8a67a24a539300d31d3fd7633dc2f26d42bcaa07",
+      "integrated_sha256": "8bf86bd60ac86757dcf9f06ef7e6beac30e9d26be656b25ea403e85367afef0a"
+    },
+    {
+      "path": "crates/rh-sim/tests/checkpoint.rs",
+      "reviewed_or_root_base_sha256": "ac28791aaed1285a27dc68fd06611f8c1fd73a381aeb0f0676a46f6a5c516e33",
+      "integrated_sha256": "6ebc938cac73dee70e3fb837c41239ef70514b0f7e1554d363c2417881a42a19"
+    },
+    {
+      "path": "crates/rh-sim/tests/content.rs",
+      "reviewed_or_root_base_sha256": "c82ebd1198525f73045e55ae999459f21b3c837df5b961fdb9346f49ac84c707",
+      "integrated_sha256": "8aa982e869b95236f8780c01e0b887fe2ec36374d97badc327532c595a487cce"
+    },
+    {
+      "path": "crates/rh-sim/tests/hash_coverage.rs",
+      "reviewed_or_root_base_sha256": "bdbb7f2a1b01d66a271d5273fe0c5fb9d7c34188398334afa41882520f918dc5",
+      "integrated_sha256": "7a573be3d66d572c061ce1238a42dd6df52c182f9e26b6c34e326521958d8196"
+    },
+    {
+      "path": "crates/rh-sim/tests/replay.rs",
+      "reviewed_or_root_base_sha256": "cae9c3ae30c7578e4384fc5d8661328c42af24585a82f12267f784f9216e6619",
+      "integrated_sha256": "734c91dff633382f1db809e8209bf133961d6b960175bac62dc777a7e4b96890"
+    }
+  ],
+  "patch_sha256": "a256f20038ca0e3dcf09edc9b3366219fc02d3365229e160994c25bab489a53d",
+  "explicit_constructor_inventory": [
+    {
+      "path": "crates/rh-load/tests/smoke.rs",
+      "count": 1,
+      "abilities": "Off",
+      "wish_lock_ms": "WISH_LOCK_MS"
+    },
+    {
+      "path": "crates/rh-server/examples/connheap.rs",
+      "count": 1,
+      "abilities": "Off",
+      "wish_lock_ms": "WISH_LOCK_MS"
+    },
+    {
+      "path": "crates/rh-server/src/bin/densitybench/engine.rs",
+      "count": 1,
+      "abilities": "Off",
+      "wish_lock_ms": "WISH_LOCK_MS"
+    },
+    {
+      "path": "crates/rh-server/tests/account_api.rs",
+      "count": 1,
+      "abilities": "Off",
+      "wish_lock_ms": "WISH_LOCK_MS"
+    },
+    {
+      "path": "crates/rh-server/tests/account_api_memory.rs",
+      "count": 1,
+      "abilities": "Off",
+      "wish_lock_ms": "WISH_LOCK_MS"
+    },
+    {
+      "path": "crates/rh-server/tests/density.rs",
+      "count": 1,
+      "abilities": "Off",
+      "wish_lock_ms": "WISH_LOCK_MS"
+    },
+    {
+      "path": "crates/rh-server/tests/live.rs",
+      "count": 1,
+      "abilities": "Off",
+      "wish_lock_ms": "WISH_LOCK_MS"
+    },
+    {
+      "path": "crates/rh-server/tests/lifecycle.rs",
+      "count": 2,
+      "abilities": "Off",
+      "wish_lock_ms": "WISH_LOCK_MS"
+    },
+    {
+      "path": "crates/rh-server/tests/equivalence.rs",
+      "count": 1,
+      "abilities": "Off",
+      "wish_lock_ms": "WISH_LOCK_MS"
+    },
+    {
+      "path": "crates/rh-server/tests/pg_e2e.rs",
+      "count": 2,
+      "abilities": "Off",
+      "wish_lock_ms": "WISH_LOCK_MS"
+    },
+    {
+      "path": "crates/rh-server/tests/transport.rs",
+      "count": 1,
+      "abilities": "Off",
+      "wish_lock_ms": "WISH_LOCK_MS"
+    },
+    {
+      "path": "crates/rh-server/tests/control.rs",
+      "count": 3,
+      "abilities": "Off",
+      "wish_lock_ms": "WISH_LOCK_MS"
+    },
+    {
+      "path": "crates/rh-server/tests/result_recovery.rs",
+      "count": 1,
+      "abilities": "Off",
+      "wish_lock_ms": "WISH_LOCK_MS"
+    },
+    {
+      "path": "crates/rh-server/tests/publish.rs",
+      "count": 1,
+      "abilities": "Off",
+      "wish_lock_ms": "WISH_LOCK_MS"
+    },
+    {
+      "path": "crates/rh-server/src/main.rs",
+      "count": 1,
+      "abilities": "Off",
+      "wish_lock_ms": "WISH_LOCK_MS"
+    },
+    {
+      "path": "crates/rh-server/src/director.rs",
+      "count": 1,
+      "abilities": "Off",
+      "wish_lock_ms": "WISH_LOCK_MS"
+    },
+    {
+      "path": "crates/rh-server/src/room.rs",
+      "count": 1,
+      "abilities": "Off",
+      "wish_lock_ms": "WISH_LOCK_MS"
+    }
+  ],
+  "native_review_sha256": "7281d5915790e7d30b5195d7d2da2374ffa6da60078933d7dd7acfff961723ea",
+  "coordinator_review_sha256": "316c3487f5568307dcc402562a2d958a2c0995c097555da918e3f3282ee4e093",
+  "probe_adapter_review_sha256": "334889a4d5914b81925427619c7efa576c80a8a940fa2399f6b672894ea7a08d",
+  "hash_audit_independent_review": "hash-review.json",
+  "arena_handoff": "cfg(test) wrapper delegates actual genuine Wish/refund source consumer; normal inventory executes it; strict arena retains exact pending card hooks and Source public/durable requirements; no full arena-owned projection claim"
+}

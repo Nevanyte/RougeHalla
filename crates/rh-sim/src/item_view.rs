@@ -356,7 +356,25 @@ impl ItemObserver {
         if let PublicCommand::Choose { handle, pick } = proposal {
             return self.rewards.resolve(sim, handle, pick);
         }
-        if let PublicCommand::Target { actor } = proposal {
+        let cast = if let PublicCommand::Cast {
+            slot,
+            x,
+            y,
+            id,
+            t,
+            seq,
+        } = proposal
+        {
+            Some((slot, x, y, id, t, seq))
+        } else {
+            None
+        };
+        let target = match proposal {
+            PublicCommand::Target { actor } => Some(actor),
+            PublicCommand::Cast { id, .. } => id,
+            _ => None,
+        };
+        if let Some(actor) = target {
             if actor.0 == 0 {
                 return Err(Reject::InvalidTarget);
             }
@@ -386,6 +404,16 @@ impl ItemObserver {
                         })
                 })
             });
+            if let Some((slot, x, y, _, t, seq)) = cast {
+                return crate::validate(crate::RawCommand::Cast {
+                    slot,
+                    x,
+                    y,
+                    id: visible,
+                    t,
+                    seq,
+                });
+            }
             return crate::validate(visible.map_or(crate::RawCommand::MissingTarget, |id| {
                 crate::RawCommand::Target { id }
             }));

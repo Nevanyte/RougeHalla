@@ -1323,10 +1323,23 @@ mod tests {
         Room::new([0; 16], config, tx, Instant::now());
     }
 
+    #[test]
+    #[should_panic(expected = "Full Wish casting requires protocol 7")]
+    fn wish_profile_direct_room_construction_refuses_before_sim_or_entropy() {
+        let mut config = cfg(Duration::from_millis(50));
+        config.sim.abilities = rh_sim::abilities::Mode::Full;
+        config.sim.lifecycle = rh_sim::ArenaMode::Off;
+        config.fixed_secrets = None;
+        let (tx, _) = mpsc::unbounded_channel();
+        Room::new([0; 16], config, tx, Instant::now());
+    }
+
     fn cfg(tick: Duration) -> RoomConfig {
         let assets = MapAssets::new(rh_sim::arenas::practice_arena()).unwrap();
         RoomConfig {
             sim: SimConfig {
+                abilities: rh_sim::abilities::Mode::Off,
+                wish_lock_ms: rh_sim::abilities::WISH_LOCK_MS,
                 hazards: rh_sim::terrain::Mode::Off,
                 lifecycle: rh_sim::ArenaMode::Off,
                 mob_mode: rh_sim::mob_runtime::MobMode::Off,

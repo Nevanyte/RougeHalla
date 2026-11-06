@@ -1193,6 +1193,8 @@ fn content_hash_of_definitions(
 
     h.str("status-runtime/1");
     crate::terrain::visit_content(|word| h.u64(word));
+    h.str("wish-producers/1");
+    crate::abilities::visit_content(|word| h.u64(word));
     crate::systems::arena_rules::visit_content(|word| h.u64(word));
     h.str("arena-collision-vision/1");
     crate::collision::visit_content(|word| h.u64(word));

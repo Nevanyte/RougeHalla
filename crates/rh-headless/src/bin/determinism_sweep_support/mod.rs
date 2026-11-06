@@ -89,6 +89,8 @@ impl From<&SimSpec> for SimConfig {
             mob_mode: rh_sim::mob_runtime::MobMode::Off,
             initial_loot: false,
             hazards: rh_sim::terrain::Mode::Off,
+            abilities: rh_sim::abilities::Mode::Off,
+            wish_lock_ms: 45_000.,
             lifecycle: rh_sim::ArenaMode::Off,
         }
     }

@@ -17,10 +17,11 @@ use crate::sim::{Event, Phase, PlayerId, Sim, Status};
 use crate::state::Player;
 use crate::vision::{actor_with, scene_line_blocked};
 
-pub const OBSERVATION_VERSION: u16 = 14;
+pub const OBSERVATION_VERSION: u16 = 15;
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct SelfView {
+    pub wish: Option<crate::abilities::OwnerView>,
     pub effects: u16,
     pub displace_seq: u8,
     pub mark_tier: u8,
@@ -94,6 +95,20 @@ pub enum SeenEvent {
         by: Option<PlayerId>,
         ability: crate::status_runtime::AbilityId,
         amount: f64,
+    },
+    CastStarted {
+        id: PlayerId,
+        ability: crate::status_runtime::AbilityId,
+        ms: f64,
+        target: Option<PlayerId>,
+        at: Option<crate::Vec2>,
+    },
+    CastLanded {
+        id: PlayerId,
+        ability: crate::status_runtime::AbilityId,
+        target: Option<PlayerId>,
+        at: Option<crate::Vec2>,
+        to: Option<crate::Vec2>,
     },
     CastEnded {
         id: PlayerId,
@@ -190,6 +205,8 @@ impl SeenEvent {
                 Class::Important
             }
             SeenEvent::AbilityHit { .. }
+            | SeenEvent::CastStarted { .. }
+            | SeenEvent::CastLanded { .. }
             | SeenEvent::CastEnded { .. }
             | SeenEvent::StatusApplied { .. }
             | SeenEvent::SignatureHit { .. }
@@ -249,6 +266,34 @@ fn to_seen(e: &Event, can_see: &impl Fn(PlayerId) -> bool) -> Option<SeenEvent> 
             id,
             by: can_see(by).then_some(by),
             weapon,
+        }),
+        Event::CastStarted {
+            id,
+            ability,
+            ms,
+            target,
+            x,
+            y,
+        } => Some(SeenEvent::CastStarted {
+            id,
+            ability,
+            ms,
+            target: target.filter(|id| can_see(*id)),
+            at: target.is_none_or(can_see).then_some(crate::Vec2::new(x, y)),
+        }),
+        Event::CastLanded {
+            id,
+            ability,
+            target,
+            x,
+            y,
+            to,
+        } => Some(SeenEvent::CastLanded {
+            id,
+            ability,
+            target: target.filter(|id| can_see(*id)),
+            at: target.is_none_or(can_see).then_some(crate::Vec2::new(x, y)),
+            to,
         }),
         Event::CastEnded {
             id,
@@ -432,6 +477,8 @@ pub(crate) fn observe_with(
     out.arena = crate::systems::planning::view::arena_view(&sim.k, &sim.w);
     out.plan = crate::systems::planning::view::owner_view(&sim.k, &sim.w, viewer);
     out.me = me.map(|p| SelfView {
+        wish: (sim.k.config.abilities == crate::abilities::Mode::Full)
+            .then(|| crate::abilities::OwnerView::of(p)),
         effects: p.statuses.effects,
         displace_seq: p.motion.displace_seq,
         mark_tier: crate::systems::sentenced::public_mark_tier(&sim.w, p.id),

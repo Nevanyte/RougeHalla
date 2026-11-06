@@ -30,6 +30,8 @@ fn room_cfg() -> RoomConfig {
     let assets = MapAssets::new(rh_sim::arenas::practice_arena()).unwrap();
     RoomConfig {
         sim: SimConfig {
+            abilities: rh_sim::abilities::Mode::Off,
+            wish_lock_ms: rh_sim::abilities::WISH_LOCK_MS,
             lifecycle: rh_sim::ArenaMode::Off,
             hazards: rh_sim::terrain::Mode::Off,
             mob_mode: rh_sim::mob_runtime::MobMode::Off,

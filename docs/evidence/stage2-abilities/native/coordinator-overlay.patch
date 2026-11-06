@@ -1,0 +1,1115 @@
+--- a/crates/rh-load/tests/smoke.rs
++++ b/crates/rh-load/tests/smoke.rs
+@@ -22,6 +22,8 @@
+ 
+ async fn start(creds: &Creds, max_rooms: usize) -> InProc {
+     let sim = rh_sim::SimConfig {
++        abilities: rh_sim::abilities::Mode::Off,
++        wish_lock_ms: rh_sim::abilities::WISH_LOCK_MS,
+         lifecycle: rh_sim::ArenaMode::Off,
+         hazards: rh_sim::terrain::Mode::Off,
+         mob_mode: rh_sim::mob_runtime::MobMode::Off,
+--- a/crates/rh-parity/src/canon.rs
++++ b/crates/rh-parity/src/canon.rs
+@@ -44,9 +44,6 @@
+         Event::MobArmed { .. } | Event::CampCleared { .. } | Event::PotionNotice { .. } => {
+             return None
+         } // Dedicated PvE/initial-loot source projections cover these.
+-        Event::PlanningStarted | Event::Teleported | Event::Plan { .. } => {
+-            return None; // Dedicated Source arena consumer compares lifecycle events and owner plans.
+-        }
+         Event::ChestRefused { id, reason } => {
+             json!({"kind":"toast","to":fid(*id),"text":reason.message()})
+         }
+@@ -175,7 +172,13 @@
+         Event::AttackCancelled { id } => json!({"kind":"cancel","id":fid(*id)}),
+         Event::Stagger { id } => json!({"kind": "stagger", "id": fid(*id)}),
+         Event::RaidStarted => json!({"kind": "raidStarted"}),
+-        Event::Gv { .. } | Event::Resolved { .. } => return None,
++        // The legacy scenario projection excludes arena lifecycle events. The dedicated arena
++        // oracle compares these facts against its exercised Source captures.
++        Event::PlanningStarted
++        | Event::Plan { .. }
++        | Event::Teleported
++        | Event::Gv { .. }
++        | Event::Resolved { .. } => return None,
+     }))
+ }
+ 
+--- a/crates/rh-policy/src/lib.rs
++++ b/crates/rh-policy/src/lib.rs
+@@ -29,7 +29,7 @@
+ /// Version 5 feeds temporally eligible signature effects every tick, independently of decision cadence.
+ /// Version 6 adds Fire Burn and canonically merged, report-local Backlash effects.
+ /// Version 7 adds player Frost chilled bits and the resulting attack/movement clocks.
+-pub const POLICY_CONTRACT_VERSION: u16 = 11;
++pub const POLICY_CONTRACT_VERSION: u16 = 12;
+ 
+ /// Everything a policy may know about a match before its first observation, all of it public static data (the map
+ /// and spawn points), never match state. Never a [`rh_sim::Secrets`] value and never the sim itself (C-OBS, C-RNG, C-POLICY).
+@@ -1269,8 +1269,8 @@
+         assert!(seen
+             .iter()
+             .any(|o| o.me.as_ref().is_some_and(|p| p.sig & 1 != 0)));
+-        assert!(seen.iter().all(|o| o.version == 14));
+-        assert_eq!(POLICY_CONTRACT_VERSION, 11);
++        assert!(seen.iter().all(|o| o.version == 15));
++        assert_eq!(POLICY_CONTRACT_VERSION, 12);
+     }
+ }
+ 
+--- a/crates/rh-server/examples/connheap.rs
++++ b/crates/rh-server/examples/connheap.rs
+@@ -48,6 +48,8 @@
+         None => rh_sim::arenas::practice_arena(),
+     };
+     let sim = rh_sim::SimConfig {
++        abilities: rh_sim::abilities::Mode::Off,
++        wish_lock_ms: rh_sim::abilities::WISH_LOCK_MS,
+         lifecycle: rh_sim::ArenaMode::Off,
+         hazards: rh_sim::terrain::Mode::Off,
+         mob_mode: rh_sim::mob_runtime::MobMode::Off,
+--- a/crates/rh-server/src/bin/densitybench/engine.rs
++++ b/crates/rh-server/src/bin/densitybench/engine.rs
+@@ -204,6 +204,8 @@
+     let metrics: &'static Metrics = Box::leak(Box::new(Metrics::new()));
+     let assets = MapAssets::new(o.arena.clone()).expect("map encodes");
+     let sim = SimConfig {
++        abilities: rh_sim::abilities::Mode::Off,
++        wish_lock_ms: rh_sim::abilities::WISH_LOCK_MS,
+         lifecycle: rh_sim::ArenaMode::Off,
+         hazards: rh_sim::terrain::Mode::Off,
+         mob_mode: rh_sim::mob_runtime::MobMode::Off,
+--- a/crates/rh-server/src/director.rs
++++ b/crates/rh-server/src/director.rs
+@@ -1928,8 +1928,26 @@
+         );
+     }
+ 
++    #[test]
++    #[should_panic(expected = "Full Wish casting requires protocol 7")]
++    fn wish_profile_director_construction_refuses_before_runtime_spawn() {
++        let sim = SimConfig {
++            abilities: rh_sim::abilities::Mode::Full,
++            lifecycle: rh_sim::ArenaMode::Off,
++            ..Default::default()
++        };
++        Director::new(
++            DirectorConfig::new(sim, rh_sim::arenas::practice_arena()),
++            Arc::new(Persistence::Memory(Box::<MemoryStore>::default())),
++            Arc::new(Auth::Dev),
++            Arc::new(Lifecycle::default()),
++        );
++    }
++
+     fn director_with(store: MemoryStore) -> Arc<Director> {
+         let sim = SimConfig {
++            abilities: rh_sim::abilities::Mode::Off,
++            wish_lock_ms: rh_sim::abilities::WISH_LOCK_MS,
+             hazards: rh_sim::terrain::Mode::Off,
+             lifecycle: rh_sim::ArenaMode::Off,
+             mob_mode: rh_sim::mob_runtime::MobMode::Off,
+--- a/crates/rh-server/src/main.rs
++++ b/crates/rh-server/src/main.rs
+@@ -427,6 +427,8 @@
+     };
+     let sim = rh_sim::SimConfig {
+         hazards: rh_sim::terrain::Mode::Off,
++        abilities: rh_sim::abilities::Mode::Off,
++        wish_lock_ms: rh_sim::abilities::WISH_LOCK_MS,
+         lifecycle: rh_sim::ArenaMode::Off,
+         mob_mode: if profile_enabled {
+             rh_sim::mob_runtime::MobMode::Pve
+--- a/crates/rh-server/src/room.rs
++++ b/crates/rh-server/src/room.rs
+@@ -1323,10 +1323,23 @@
+         Room::new([0; 16], config, tx, Instant::now());
+     }
+ 
++    #[test]
++    #[should_panic(expected = "Full Wish casting requires protocol 7")]
++    fn wish_profile_direct_room_construction_refuses_before_sim_or_entropy() {
++        let mut config = cfg(Duration::from_millis(50));
++        config.sim.abilities = rh_sim::abilities::Mode::Full;
++        config.sim.lifecycle = rh_sim::ArenaMode::Off;
++        config.fixed_secrets = None;
++        let (tx, _) = mpsc::unbounded_channel();
++        Room::new([0; 16], config, tx, Instant::now());
++    }
++
+     fn cfg(tick: Duration) -> RoomConfig {
+         let assets = MapAssets::new(rh_sim::arenas::practice_arena()).unwrap();
+         RoomConfig {
+             sim: SimConfig {
++                abilities: rh_sim::abilities::Mode::Off,
++                wish_lock_ms: rh_sim::abilities::WISH_LOCK_MS,
+                 hazards: rh_sim::terrain::Mode::Off,
+                 lifecycle: rh_sim::ArenaMode::Off,
+                 mob_mode: rh_sim::mob_runtime::MobMode::Off,
+--- a/crates/rh-server/src/wire.rs
++++ b/crates/rh-server/src/wire.rs
+@@ -55,12 +55,17 @@
+     }
+ }
+ 
+-/// Protocol 6 cannot represent the native arena lifecycle.
++/// Protocol 6 cannot represent the native arena lifecycle or complete Wish intake/owner facts.
+ const ARENA_UNSUPPORTED: &str =
+     "Source arena lifecycle requires protocol 7 and durable lifecycle integration";
+ 
++const WISH_UNSUPPORTED: &str = "Full Wish casting requires protocol 7 input and owner facts";
++
+ /// Admission guard, independent of the current phase (including Source Lobby).
+ pub fn profile_supported(config: &rh_sim::SimConfig) -> Result<(), rh_protocol::EncodeError> {
++    if config.abilities == rh_sim::abilities::Mode::Full {
++        return Err(rh_protocol::EncodeError::BadValue(WISH_UNSUPPORTED));
++    }
+     match config.lifecycle {
+         rh_sim::ArenaMode::Off => Ok(()),
+         rh_sim::ArenaMode::Source(_) => Err(rh_protocol::EncodeError::BadValue(ARENA_UNSUPPORTED)),
+@@ -83,10 +88,20 @@
+ 
+ fn observation_supported(obs: &Observation) -> Result<(), rh_protocol::EncodeError> {
+     checked_phase(obs.phase)?;
++    if obs.me.as_ref().is_some_and(|me| me.wish.is_some()) || obs.events.iter().any(wish_event) {
++        return Err(rh_protocol::EncodeError::BadValue(WISH_UNSUPPORTED));
++    }
+     if obs.arena.is_some() || obs.plan.is_some() || obs.events.iter().any(arena_event) {
+         return Err(rh_protocol::EncodeError::BadValue(ARENA_UNSUPPORTED));
+     }
+     Ok(())
++}
++
++fn wish_event(event: &SeenEvent) -> bool {
++    matches!(
++        event,
++        SeenEvent::CastStarted { .. } | SeenEvent::CastLanded { .. }
++    )
+ }
+ 
+ fn arena_event(event: &SeenEvent) -> bool {
+@@ -259,12 +274,15 @@
+     Event(WireEvent),
+     Fx(WireFx),
+     Omitted,
+-    Refused,
++    Refused(&'static str),
+ }
+ 
+ fn to_wire(e: &SeenEvent) -> Wire {
+     match *e {
+-        SeenEvent::Plan(..) | SeenEvent::Teleported => Wire::Refused,
++        SeenEvent::Plan(..) | SeenEvent::Teleported => Wire::Refused(ARENA_UNSUPPORTED),
++        SeenEvent::CastStarted { .. } | SeenEvent::CastLanded { .. } => {
++            Wire::Refused(WISH_UNSUPPORTED)
++        }
+         SeenEvent::PotionNotice { notice } => Wire::Event(WireEvent::PotionNotice {
+             notice: match notice {
+                 rh_sim::potions::Notice::Stored => 1,
+@@ -528,10 +546,8 @@
+                     self.fx.push(w);
+                 }
+                 Wire::Omitted => {}
+-                Wire::Refused => {
+-                    return ViewFrames::unsupported(rh_protocol::EncodeError::BadValue(
+-                        ARENA_UNSUPPORTED,
+-                    ))
++                Wire::Refused(reason) => {
++                    return ViewFrames::unsupported(rh_protocol::EncodeError::BadValue(reason))
+                 }
+             }
+         }
+@@ -635,6 +651,16 @@
+     use rh_sim::{FactionId, SimConfig};
+ 
+     fn arena_env() -> Env {
++        profile_env(SimConfig {
++            lifecycle: rh_sim::ArenaMode::Source(rh_sim::ArenaRules::default()),
++            min_players: 2,
++            lobby_seconds: 0.,
++            fill_seconds: 0.,
++            ..Default::default()
++        })
++    }
++
++    fn profile_env(sim: SimConfig) -> Env {
+         let arena = rh_headless::load_arena(concat!(
+             env!("CARGO_MANIFEST_DIR"),
+             "/../../parity/maps/seed1.map.json"
+@@ -643,13 +669,7 @@
+         Env::new(
+             EnvConfig {
+                 arena,
+-                sim: SimConfig {
+-                    lifecycle: rh_sim::ArenaMode::Source(rh_sim::ArenaRules::default()),
+-                    min_players: 2,
+-                    lobby_seconds: 0.,
+-                    fill_seconds: 0.,
+-                    ..Default::default()
+-                },
++                sim,
+                 max_ticks: 100,
+                 record: false,
+             },
+@@ -705,6 +725,91 @@
+                     }],
+                 ]);
+             }
++        }
++    }
++
++    #[test]
++    fn full_wishes_refuse_even_with_arena_off_before_frames_or_offers() {
++        let mut sim = rh_sim::Sim::new(
++            SimConfig {
++                abilities: rh_sim::abilities::Mode::Full,
++                lifecycle: rh_sim::ArenaMode::Off,
++                min_players: 2,
++                lobby_seconds: 0.,
++                fill_seconds: 0.,
++                ..Default::default()
++            },
++            rh_sim::arenas::practice_arena(),
++            rh_sim::Secrets::from_seed(12),
++        );
++        let viewer = sim.add_player("p0", Some(FactionId::Holy), false).unwrap();
++        sim.add_player("p1", Some(FactionId::Holy), false).unwrap();
++        let mut publisher = Publisher::default();
++        let mut observer = rh_sim::ItemObserver::new(viewer);
++        for expected in [Phase::Lobby, Phase::Active] {
++            assert_eq!(sim.phase(), expected);
++            assert_eq!(
++                profile_supported(sim.config()),
++                Err(rh_protocol::EncodeError::BadValue(WISH_UNSUPPORTED))
++            );
++            let mut earlier = vec![SeenEvent::Stagger { id: viewer }];
++            let original = earlier.clone();
++            let frames = publisher.frames(&sim, viewer, 0, &[], &mut earlier, &[]);
++            assert!(frames.important.is_none() && frames.fx.is_none());
++            assert_eq!(frames.bytes(), 0);
++            assert_eq!(
++                frames.snapshot.unwrap_err(),
++                rh_protocol::EncodeError::BadValue(WISH_UNSUPPORTED)
++            );
++            assert_eq!(earlier, original);
++            assert!(matches!(
++                publisher.frames_prepared(&mut observer, None, &sim, 0, &[], &mut earlier, &[]),
++                Err(PrepareFramesError::Unsupported(
++                    rh_protocol::EncodeError::BadValue(WISH_UNSUPPORTED)
++                ))
++            ));
++            assert_eq!(earlier, original);
++            let obs = rh_sim::observe(&sim, viewer, &[]);
++            assert!(obs.me.as_ref().unwrap().wish.is_some());
++            assert!(obs.arena.is_none() && obs.plan.is_none());
++            assert_eq!(
++                checked_snapshot(&obs, 0).unwrap_err(),
++                rh_protocol::EncodeError::BadValue(WISH_UNSUPPORTED)
++            );
++            if expected == Phase::Lobby {
++                sim.step();
++            }
++        }
++    }
++
++    #[test]
++    fn caught_up_wish_start_and_landing_refuse_without_partial_frames() {
++        let env = seed1_match(1);
++        let viewer = env.sim.players()[0].id;
++        let mut publisher = Publisher::default();
++        for event in [
++            SeenEvent::CastStarted {
++                id: viewer,
++                ability: rh_sim::status_runtime::AbilityId::Freeze,
++                ms: 250.,
++                target: None,
++                at: None,
++            },
++            SeenEvent::CastLanded {
++                id: viewer,
++                ability: rh_sim::status_runtime::AbilityId::Freeze,
++                target: None,
++                at: None,
++                to: None,
++            },
++        ] {
++            assert!(matches!(to_wire(&event), Wire::Refused(WISH_UNSUPPORTED)));
++            let frames = publisher.frames(&env.sim, viewer, 0, &[], &mut vec![event], &[]);
++            assert!(frames.important.is_none() && frames.fx.is_none());
++            assert_eq!(
++                frames.snapshot.unwrap_err(),
++                rh_protocol::EncodeError::BadValue(WISH_UNSUPPORTED)
++            );
+         }
+     }
+ 
+--- a/crates/rh-server/tests/account_api.rs
++++ b/crates/rh-server/tests/account_api.rs
+@@ -95,6 +95,8 @@
+     store.migrate().await.unwrap();
+     let dcfg = DirectorConfig::new(
+         rh_sim::SimConfig {
++            abilities: rh_sim::abilities::Mode::Off,
++            wish_lock_ms: rh_sim::abilities::WISH_LOCK_MS,
+             lifecycle: rh_sim::ArenaMode::Off,
+             hazards: rh_sim::terrain::Mode::Off,
+             mob_mode: rh_sim::mob_runtime::MobMode::Off,
+--- a/crates/rh-server/tests/account_api_memory.rs
++++ b/crates/rh-server/tests/account_api_memory.rs
+@@ -13,6 +13,8 @@
+ async fn start() -> (std::net::SocketAddr, Arc<Lifecycle>) {
+     let cfg = DirectorConfig::new(
+         rh_sim::SimConfig {
++            abilities: rh_sim::abilities::Mode::Off,
++            wish_lock_ms: rh_sim::abilities::WISH_LOCK_MS,
+             lifecycle: rh_sim::ArenaMode::Off,
+             hazards: rh_sim::terrain::Mode::Off,
+             mob_mode: rh_sim::mob_runtime::MobMode::Off,
+--- a/crates/rh-server/tests/control.rs
++++ b/crates/rh-server/tests/control.rs
+@@ -141,6 +141,8 @@
+ 
+ async fn rig(o: Opts) -> Rig {
+     let sim = SimConfig {
++        abilities: rh_sim::abilities::Mode::Off,
++        wish_lock_ms: rh_sim::abilities::WISH_LOCK_MS,
+         lifecycle: rh_sim::ArenaMode::Off,
+         hazards: rh_sim::terrain::Mode::Off,
+         mob_mode: rh_sim::mob_runtime::MobMode::Off,
+@@ -284,6 +286,8 @@
+         let d = Director::new(
+             DirectorConfig::new(
+                 SimConfig {
++                    abilities: rh_sim::abilities::Mode::Off,
++                    wish_lock_ms: rh_sim::abilities::WISH_LOCK_MS,
+                     lifecycle: rh_sim::ArenaMode::Off,
+                     hazards: rh_sim::terrain::Mode::Off,
+                     mob_mode: rh_sim::mob_runtime::MobMode::Off,
+@@ -1258,6 +1262,8 @@
+             require_admit: true,
+             ..DirectorConfig::new(
+                 SimConfig {
++                    abilities: rh_sim::abilities::Mode::Off,
++                    wish_lock_ms: rh_sim::abilities::WISH_LOCK_MS,
+                     lifecycle: rh_sim::ArenaMode::Off,
+                     hazards: rh_sim::terrain::Mode::Off,
+                     mob_mode: rh_sim::mob_runtime::MobMode::Off,
+--- a/crates/rh-server/tests/density.rs
++++ b/crates/rh-server/tests/density.rs
+@@ -30,6 +30,8 @@
+     let assets = MapAssets::new(rh_sim::arenas::practice_arena()).unwrap();
+     RoomConfig {
+         sim: SimConfig {
++            abilities: rh_sim::abilities::Mode::Off,
++            wish_lock_ms: rh_sim::abilities::WISH_LOCK_MS,
+             lifecycle: rh_sim::ArenaMode::Off,
+             hazards: rh_sim::terrain::Mode::Off,
+             mob_mode: rh_sim::mob_runtime::MobMode::Off,
+--- a/crates/rh-server/tests/equivalence.rs
++++ b/crates/rh-server/tests/equivalence.rs
+@@ -46,6 +46,8 @@
+ #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+ async fn a_live_match_replays_and_its_bots_decide_identically_headless() {
+     let sim = SimConfig {
++        abilities: rh_sim::abilities::Mode::Off,
++        wish_lock_ms: rh_sim::abilities::WISH_LOCK_MS,
+         lifecycle: rh_sim::ArenaMode::Off,
+         hazards: rh_sim::terrain::Mode::Off,
+         mob_mode: rh_sim::mob_runtime::MobMode::Off,
+--- a/crates/rh-server/tests/lifecycle.rs
++++ b/crates/rh-server/tests/lifecycle.rs
+@@ -45,6 +45,8 @@
+ 
+ fn sim_config() -> SimConfig {
+     SimConfig {
++        abilities: rh_sim::abilities::Mode::Off,
++        wish_lock_ms: rh_sim::abilities::WISH_LOCK_MS,
+         lifecycle: rh_sim::ArenaMode::Off,
+         hazards: rh_sim::terrain::Mode::Off,
+         mob_mode: rh_sim::mob_runtime::MobMode::Off,
+@@ -426,6 +428,8 @@
+     let arena = rh_headless::load_arena(&map).expect("map");
+     // One human closes the lobby on the first step: the next admission opens a room of its own.
+     let sim = SimConfig {
++        abilities: rh_sim::abilities::Mode::Off,
++        wish_lock_ms: rh_sim::abilities::WISH_LOCK_MS,
+         lifecycle: rh_sim::ArenaMode::Off,
+         hazards: rh_sim::terrain::Mode::Off,
+         mob_mode: rh_sim::mob_runtime::MobMode::Off,
+--- a/crates/rh-server/tests/live.rs
++++ b/crates/rh-server/tests/live.rs
+@@ -72,6 +72,8 @@
+ 
+ async fn start(arena: Arena, tweak: impl FnOnce(&mut DirectorConfig)) -> Server {
+     let sim = SimConfig {
++        abilities: rh_sim::abilities::Mode::Off,
++        wish_lock_ms: rh_sim::abilities::WISH_LOCK_MS,
+         lifecycle: rh_sim::ArenaMode::Off,
+         hazards: rh_sim::terrain::Mode::Off,
+         mob_mode: rh_sim::mob_runtime::MobMode::Off,
+--- a/crates/rh-server/tests/pg_e2e.rs
++++ b/crates/rh-server/tests/pg_e2e.rs
+@@ -111,6 +111,8 @@
+         linger: Duration::from_millis(100),
+         ..DirectorConfig::new(
+             SimConfig {
++                abilities: rh_sim::abilities::Mode::Off,
++                wish_lock_ms: rh_sim::abilities::WISH_LOCK_MS,
+                 lifecycle: rh_sim::ArenaMode::Off,
+                 hazards: rh_sim::terrain::Mode::Off,
+                 mob_mode: rh_sim::mob_runtime::MobMode::Off,
+@@ -367,6 +369,8 @@
+         linger: Duration::from_millis(100),
+         ..DirectorConfig::new(
+             SimConfig {
++                abilities: rh_sim::abilities::Mode::Off,
++                wish_lock_ms: rh_sim::abilities::WISH_LOCK_MS,
+                 lifecycle: rh_sim::ArenaMode::Off,
+                 hazards: rh_sim::terrain::Mode::Off,
+                 mob_mode: rh_sim::mob_runtime::MobMode::Off,
+--- a/crates/rh-server/tests/publish.rs
++++ b/crates/rh-server/tests/publish.rs
+@@ -64,8 +64,11 @@
+     let mut fx = Vec::new();
+     for e in &obs.events {
+         match *e {
+-            SeenEvent::Teleported | SeenEvent::Plan(_) => {
+-                panic!("protocol 6 reference encoder does not support Source arena events")
++            SeenEvent::Teleported
++            | SeenEvent::Plan(_)
++            | SeenEvent::CastStarted { .. }
++            | SeenEvent::CastLanded { .. } => {
++                panic!("protocol 6 reference encoder does not support Source arena or Full Wish events")
+             }
+             SeenEvent::PotionNotice { notice } => events.push(WireEvent::PotionNotice {
+                 notice: match notice {
+@@ -295,6 +298,8 @@
+         let now = Instant::now();
+         let cfg = RoomConfig {
+             sim: SimConfig {
++                abilities: rh_sim::abilities::Mode::Off,
++                wish_lock_ms: rh_sim::abilities::WISH_LOCK_MS,
+                 lifecycle: rh_sim::ArenaMode::Off,
+                 hazards: rh_sim::terrain::Mode::Off,
+                 mob_mode: rh_sim::mob_runtime::MobMode::Off,
+--- a/crates/rh-server/tests/result_recovery.rs
++++ b/crates/rh-server/tests/result_recovery.rs
+@@ -139,6 +139,8 @@
+         linger: Duration::from_millis(100),
+         ..DirectorConfig::new(
+             SimConfig {
++                abilities: rh_sim::abilities::Mode::Off,
++                wish_lock_ms: rh_sim::abilities::WISH_LOCK_MS,
+                 lifecycle: rh_sim::ArenaMode::Off,
+                 hazards: rh_sim::terrain::Mode::Off,
+                 mob_mode: rh_sim::mob_runtime::MobMode::Off,
+--- a/crates/rh-server/tests/transport.rs
++++ b/crates/rh-server/tests/transport.rs
+@@ -40,6 +40,8 @@
+ async fn start(tls: bool) -> Started {
+     let _ = rustls::crypto::ring::default_provider().install_default();
+     let sim = SimConfig {
++        abilities: rh_sim::abilities::Mode::Off,
++        wish_lock_ms: rh_sim::abilities::WISH_LOCK_MS,
+         lifecycle: rh_sim::ArenaMode::Off,
+         hazards: rh_sim::terrain::Mode::Off,
+         mob_mode: rh_sim::mob_runtime::MobMode::Off,
+--- a/crates/rh-sim/src/abilities/mod.rs
++++ b/crates/rh-sim/src/abilities/mod.rs
+@@ -186,6 +186,12 @@
+ mod effect_checkpoint;
+ #[cfg(test)]
+ mod source_tests;
++
++/// The arena inventory delegates its genuine Wish prerequisite to the same source consumer.
++#[cfg(test)]
++pub(crate) fn assert_genuine_arena_refund() {
++    source_tests::assert_genuine_arena_refund();
++}
+ /// Executable catalog and tuning, shared by runtime and content identity.
+ pub fn visit_content(mut word: impl FnMut(u64)) {
+     for id in AbilityId::ALL {
+--- a/crates/rh-sim/src/abilities/source_tests/compare.rs
++++ b/crates/rh-sim/src/abilities/source_tests/compare.rs
+@@ -106,7 +106,7 @@
+     for (p, expected) in s.players().iter().zip(states) {
+         let e = &expected["state"];
+         let r = private.iter().find(|r| r["id"] == expected["id"]).unwrap();
+-        super::motion::compare_motion(p, r, e, &format!("{name}/tick{}/{}",s.tick(),label(p.id)));
++        super::motion::compare_motion(p, r, e, &format!("{name}/tick{}/{}", s.tick(), label(p.id)));
+         compare_value(
+             &json!({"kills":p.credit.kills,"bounty":p.credit.bounty,"gv":p.credit.gv,"mobKills":p.credit.mob_kills,"status":format!("{:?}",p.status).to_lowercase(),"immuneUntil":p.vitals.immune_until,"weapon0":p.weapon.weapon0.map_or("",|w|w.as_str()),"weapon1":p.weapon.weapon1.map_or("",|w|w.as_str()),"readyAt":p.weapon.ready_at,"slot":p.weapon.slot}),
+             &json!({"kills":e["kills"],"bounty":e["bounty"],"gv":e["gv"],"mobKills":e["mobKills"],"status":e["status"],"immuneUntil":e["immuneUntil"],"weapon0":e["weapon0"],"weapon1":e["weapon1"],"readyAt":e["readyAt"],"slot":e["slot"]}),
+@@ -165,7 +165,7 @@
+             .iter()
+             .find(|r| r["id"] == expected["id"])
+             .unwrap();
+-        super::motion::compare_motion(p, r, e, &format!("{name}/tick{}/{}",s.tick(),label(p.id)));
++        super::motion::compare_motion(p, r, e, &format!("{name}/tick{}/{}", s.tick(), label(p.id)));
+         assert_eq!(
+             label(p.id),
+             expected["id"].as_str().unwrap(),
+--- a/crates/rh-sim/src/abilities/source_tests/mod.rs
++++ b/crates/rh-sim/src/abilities/source_tests/mod.rs
+@@ -12,6 +12,10 @@
+ use compare::*;
+ use runner::*;
+ use setup::*;
++
++pub(super) fn assert_genuine_arena_refund() {
++    arena_refund::arena_genuine_freeze_laststand_and_teleport_refund();
++}
+ 
+ #[test]
+ fn frozen_core_source_casts() {
+--- a/crates/rh-sim/src/checkpoint.rs
++++ b/crates/rh-sim/src/checkpoint.rs
+@@ -20,7 +20,7 @@
+ use std::fmt;
+ 
+ /// The tag every checkpoint carries. Bump it when the layout of `statics` or `world` changes incompatibly.
+-pub const CHECKPOINT_FORMAT: &str = "rh-checkpoint/18";
++pub const CHECKPOINT_FORMAT: &str = "rh-checkpoint/19";
+ 
+ /// How far past the map edge a fighter, waypoint or spawn may be and still restore (real states stay inside the map).
+ const COORD_MARGIN: f64 = 1024.0;
+--- a/crates/rh-sim/src/observe.rs
++++ b/crates/rh-sim/src/observe.rs
+@@ -17,7 +17,7 @@
+ use crate::state::Player;
+ use crate::vision::{actor_with, scene_line_blocked};
+ 
+-pub const OBSERVATION_VERSION: u16 = 14;
++pub const OBSERVATION_VERSION: u16 = 15;
+ 
+ #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+ pub struct SelfView {
+--- a/crates/rh-sim/src/replay.rs
++++ b/crates/rh-sim/src/replay.rs
+@@ -7,8 +7,8 @@
+ use crate::input::Command;
+ use crate::sim::{Arena, Event, Placement, PlayerId, Secrets, Sim, SimConfig};
+ 
+-/// Version16 includes source planning and replayable administrative abandonment. [`run_replay`] refuses other formats.
+-pub const REPLAY_FORMAT: &str = "rh-replay/16";
++/// Version17 adds complete native Wish inputs, stocks and cast ownership to source lifecycle replays. [`run_replay`] refuses other formats.
++pub const REPLAY_FORMAT: &str = "rh-replay/17";
+ 
+ /// Identity of the code this binary was built from: the `RH_BUILD` environment variable at compile time (a release build is meant to set
+ /// it to the commit id; nothing in the repo does yet, so every dev build reads the same), else `dev-<crate version>`. It is a compile-time constant, so reading it keeps
+--- a/crates/rh-sim/src/status_runtime/probe.rs
++++ b/crates/rh-sim/src/status_runtime/probe.rs
+@@ -710,6 +710,8 @@
+             }
+             Operation::UpdateAbilities => {
+                 systems::status::expire(&mut cx);
++                systems::abilities::land(&mut cx);
++                systems::status::finish(&mut cx);
+                 Returned::Undefined
+             }
+             Operation::Hit(h) => {
+--- a/crates/rh-sim/src/systems/planning/source_tests.rs
++++ b/crates/rh-sim/src/systems/planning/source_tests.rs
+@@ -1109,7 +1109,7 @@
+ }
+ 
+ #[test]
+-fn arena_capture_inventory_has_one_explicit_full_wish_dependency() {
++fn arena_capture_inventory_runs_genuine_wish_prerequisite_and_keeps_full_hooks_pending() {
+     let source = crate::collision::tests::fixture();
+     assert_eq!(source["cases"].as_array().unwrap().len(), 35);
+     let case = source["cases"]
+@@ -1125,10 +1125,32 @@
+         .any(|a| a["inputs"]
+             .as_array()
+             .is_some_and(|inputs| inputs.iter().any(|i| i["type"] == "cast"))));
++    crate::abilities::assert_genuine_arena_refund();
++    let tables = crate::schedule::tables();
++    for (hook, name) in [
++        (crate::schedule::Hook::Teleported, "cardHooks.resetFight"),
++        (crate::schedule::Hook::Teleported, "cardHooks.dropDeferred"),
++        (crate::schedule::Hook::RaidStarted, "cardHooks.resetAll"),
++    ] {
++        let link = tables
++            .hooks
++            .iter()
++            .find(|(h, _)| *h == hook)
++            .unwrap()
++            .1
++            .iter()
++            .find(|link| link.legacy == name)
++            .unwrap();
++        assert_eq!(
++            link.pending,
++            Some("P-CARDS-1"),
++            "{name} remains explicitly incomplete"
++        );
++    }
+     if std::env::var_os("RH_ARENA_REQUIRE_FULL").is_some() {
+-        run_case(&source, case);
+-    }
+-    eprintln!("Arena owned kernel: 33 ordinary cases +1 declared boon helper; genuine Wish case and unported full hook payloads remain INCOMPLETE");
++        panic!("Full ARENA INCOMPLETE: cardHooks.resetFight/dropDeferred/resetAll; Source wire/client and durable shutdown/MIA prerequisites. Genuine Wish/refund was executed separately; full arena-owned projection is not claimed.");
++    }
++    eprintln!("Arena owned kernel: 33 ordinary cases +1 declared boon helper, plus genuine Wish/refund prerequisite through its dedicated consumer; full card hooks, Source transport/durability and complete case27 arena projection remain INCOMPLETE");
+ }
+ 
+ #[cfg(feature = "schedule-trace")]
+--- a/crates/rh-sim/tests/checkpoint.rs
++++ b/crates/rh-sim/tests/checkpoint.rs
+@@ -100,7 +100,7 @@
+             "a checkpoint must not carry the scratch key `{banned}`"
+         );
+     }
+-    assert_eq!(json["format"], "rh-checkpoint/18");
++    assert_eq!(json["format"], "rh-checkpoint/19");
+     let top: Vec<&String> = json.as_object().unwrap().keys().collect();
+     assert_eq!(
+         top.len(),
+@@ -218,7 +218,7 @@
+         "null",
+         "[]",
+         "42",
+-        "\"rh-checkpoint/18\"",
++        "\"rh-checkpoint/19\"",
+         "{}",
+         "{\"format\":3}",
+     ] {
+@@ -284,7 +284,7 @@
+     assert_eq!(good["build"], rh_sim::replay::BUILD_ID);
+     assert!(serde_json::to_string(&a)
+         .unwrap()
+-        .starts_with("{\"format\":\"rh-checkpoint/18\",\"content_hash\":"));
++        .starts_with("{\"format\":\"rh-checkpoint/19\",\"content_hash\":"));
+     assert!(Sim::restore(&good).is_ok());
+ 
+     // Other content: refused with the typed error, whichever side of the tag it arrives on, and even when the payload
+@@ -299,7 +299,7 @@
+     other["world"] = Value::from("not a world");
+     assert_eq!(Sim::restore(&other).err(), Some(expect.clone()));
+     let text = format!(
+-        "{{\"world\":1,\"content_hash\":{},\"format\":\"rh-checkpoint/18\"}}",
++        "{{\"world\":1,\"content_hash\":{},\"format\":\"rh-checkpoint/19\"}}",
+         content ^ 1
+     );
+     assert_eq!(
+--- a/crates/rh-sim/tests/content.rs
++++ b/crates/rh-sim/tests/content.rs
+@@ -28,43 +28,7 @@
+ /// Each entry must match a declaration the scan finds and not be covered by NUMBER_FREE_TYPES. Adding to this list is a
+ /// review decision: a number that can change an outcome belongs in the registry instead.
+ const NON_GAMEPLAY: &[(&str, &str, &str)] = &[
+-    ("systems/arena_rules.rs", "MAX_DURATION_SECONDS", "actual Source arena rules folded by arena_rules::visit_content and planning::deal::visit_content"),
+-    ("systems/arena_rules.rs", "PATIENCE_MIN_PLAYERS", "actual Source arena rules folded by arena_rules::visit_content and planning::deal::visit_content"),
+-    ("systems/arena_rules.rs", "PATIENCE_FULL_PLAYERS", "actual Source arena rules folded by arena_rules::visit_content and planning::deal::visit_content"),
+-    ("systems/arena_rules.rs", "SD_START", "actual Source arena rules folded by arena_rules::visit_content and planning::deal::visit_content"),
+-    ("systems/arena_rules.rs", "SD_RAMP", "actual Source arena rules folded by arena_rules::visit_content and planning::deal::visit_content"),
+-    ("systems/coliseum.rs", "SPOT_SEARCH_TILES", "actual Source arena rules folded by arena_rules::visit_content and planning::deal::visit_content"),
+-    ("systems/coliseum.rs", "RING_RADIUS", "actual Source arena rules folded by arena_rules::visit_content and planning::deal::visit_content"),
+-    ("systems/coliseum.rs", "IMMUNITY_MS", "actual Source arena rules folded by arena_rules::visit_content and planning::deal::visit_content"),
+-    ("systems/planning/deal.rs", "WALK_TOLERANCE", "actual Source arena rules folded by arena_rules::visit_content and planning::deal::visit_content"),
+-    ("systems/planning/deal.rs", "TIER_EPS", "actual Source arena rules folded by arena_rules::visit_content and planning::deal::visit_content"),
+-    ("systems/planning/deal.rs", "SEARCH_BUDGET", "actual Source arena rules folded by arena_rules::visit_content and planning::deal::visit_content"),
+-    ("systems/planning/deal.rs", "SPARE_BUDGET", "actual Source arena rules folded by arena_rules::visit_content and planning::deal::visit_content"),
+     ("abilities/source_tests/setup.rs", "PLAYER_COUNT", "test-only source actor identity mapping per executor thread; never read by gameplay"),
+-    ("abilities/mod.rs", "CANCELLED_BY", "executable Wish catalog/blink policy folded by abilities::visit_content"),
+-    ("abilities/mod.rs", "RANGE_SLACK", "executable Wish catalog/blink policy folded by abilities::visit_content"),
+-    ("abilities/mod.rs", "TELEPORT_GRACE_MS", "executable Wish catalog/blink policy folded by abilities::visit_content"),
+-    ("abilities/mod.rs", "WISH_LOCK_MS", "executable Wish catalog/blink policy folded by abilities::visit_content"),
+-    ("abilities/mod.rs", "TRAINING_COOLDOWN_MS", "executable Wish catalog/blink policy folded by abilities::visit_content"),
+-    ("abilities/mod.rs", "WISH_MULT_MIN", "executable Wish catalog/blink policy folded by abilities::visit_content"),
+-    ("abilities/mod.rs", "FREEZE_STUN_MS", "executable Wish catalog/blink policy folded by abilities::visit_content"),
+-    ("abilities/mod.rs", "SWARM_MS", "executable Wish catalog/blink policy folded by abilities::visit_content"),
+-    ("abilities/mod.rs", "SWARM_RADIUS", "executable Wish catalog/blink policy folded by abilities::visit_content"),
+-    ("abilities/mod.rs", "TRIAL_MS", "executable Wish catalog/blink policy folded by abilities::visit_content"),
+-    ("abilities/mod.rs", "TRIAL_RADIUS", "executable Wish catalog/blink policy folded by abilities::visit_content"),
+-    ("abilities/mod.rs", "TRIAL_CONVICTED_RADIUS", "executable Wish catalog/blink policy folded by abilities::visit_content"),
+-    ("abilities/mod.rs", "TRIAL_DEALT_MULT", "executable Wish catalog/blink policy folded by abilities::visit_content"),
+-    ("abilities/mod.rs", "TRIAL_TAKEN_MULT", "executable Wish catalog/blink policy folded by abilities::visit_content"),
+-    ("abilities/mod.rs", "TRIAL_MOVE_MULT", "executable Wish catalog/blink policy folded by abilities::visit_content"),
+-    ("abilities/mod.rs", "BLAZE_TRAIL_MS", "executable Wish catalog/blink policy folded by abilities::visit_content"),
+-    ("abilities/mod.rs", "BLAZE_HALF_WIDTH", "executable Wish catalog/blink policy folded by abilities::visit_content"),
+-    ("abilities/mod.rs", "LAST_STAND_MS", "executable Wish catalog/blink policy folded by abilities::visit_content"),
+-    ("abilities/mod.rs", "LAST_STAND_FLOOR", "executable Wish catalog/blink policy folded by abilities::visit_content"),
+-    ("abilities/mod.rs", "LAST_STAND_HASTE", "executable Wish catalog/blink policy folded by abilities::visit_content"),
+-    ("abilities/mod.rs", "LAST_STAND_HEAL", "executable Wish catalog/blink policy folded by abilities::visit_content"),
+-    ("abilities/blink.rs", "MIN_DIST", "executable Wish catalog/blink policy folded by abilities::visit_content"),
+-    ("abilities/blink.rs", "MAX_DIST", "executable Wish catalog/blink policy folded by abilities::visit_content"),
+-    ("abilities/blink.rs", "STEP", "executable Wish catalog/blink policy folded by abilities::visit_content"),
+     ("systems/terrain/source_tests.rs", "FIXTURE_FNV", "test-only actual-source witness integrity pin; not read by gameplay"),
+     ("projectile_view.rs", "MAX_VISIBLE_PROJECTILES", "complete public projectile representation capacity; never read by game rules"),
+     ("projectile_view.rs", "PROJECTILE_ROW_BYTES_MAX", "complete public projectile representation capacity; never read by game rules"),
+@@ -171,6 +135,42 @@
+ /// Rules that are tables rather than scalar rows: they are folded by `content_hash` directly (see content.rs). As
+ /// (file, name, reason).
+ const TABLES_FOLDED_BY_HASH: &[(&str, &str, &str)] = &[
++    ("abilities/mod.rs", "CANCELLED_BY", "executable Wish catalog/blink policy folded by abilities::visit_content"),
++    ("abilities/mod.rs", "RANGE_SLACK", "executable Wish catalog/blink policy folded by abilities::visit_content"),
++    ("abilities/mod.rs", "TELEPORT_GRACE_MS", "executable Wish catalog/blink policy folded by abilities::visit_content"),
++    ("abilities/mod.rs", "WISH_LOCK_MS", "executable Wish catalog/blink policy folded by abilities::visit_content"),
++    ("abilities/mod.rs", "TRAINING_COOLDOWN_MS", "executable Wish catalog/blink policy folded by abilities::visit_content"),
++    ("abilities/mod.rs", "WISH_MULT_MIN", "executable Wish catalog/blink policy folded by abilities::visit_content"),
++    ("abilities/mod.rs", "FREEZE_STUN_MS", "executable Wish catalog/blink policy folded by abilities::visit_content"),
++    ("abilities/mod.rs", "SWARM_MS", "executable Wish catalog/blink policy folded by abilities::visit_content"),
++    ("abilities/mod.rs", "SWARM_RADIUS", "executable Wish catalog/blink policy folded by abilities::visit_content"),
++    ("abilities/mod.rs", "TRIAL_MS", "executable Wish catalog/blink policy folded by abilities::visit_content"),
++    ("abilities/mod.rs", "TRIAL_RADIUS", "executable Wish catalog/blink policy folded by abilities::visit_content"),
++    ("abilities/mod.rs", "TRIAL_CONVICTED_RADIUS", "executable Wish catalog/blink policy folded by abilities::visit_content"),
++    ("abilities/mod.rs", "TRIAL_DEALT_MULT", "executable Wish catalog/blink policy folded by abilities::visit_content"),
++    ("abilities/mod.rs", "TRIAL_TAKEN_MULT", "executable Wish catalog/blink policy folded by abilities::visit_content"),
++    ("abilities/mod.rs", "TRIAL_MOVE_MULT", "executable Wish catalog/blink policy folded by abilities::visit_content"),
++    ("abilities/mod.rs", "BLAZE_TRAIL_MS", "executable Wish catalog/blink policy folded by abilities::visit_content"),
++    ("abilities/mod.rs", "BLAZE_HALF_WIDTH", "executable Wish catalog/blink policy folded by abilities::visit_content"),
++    ("abilities/mod.rs", "LAST_STAND_MS", "executable Wish catalog/blink policy folded by abilities::visit_content"),
++    ("abilities/mod.rs", "LAST_STAND_FLOOR", "executable Wish catalog/blink policy folded by abilities::visit_content"),
++    ("abilities/mod.rs", "LAST_STAND_HASTE", "executable Wish catalog/blink policy folded by abilities::visit_content"),
++    ("abilities/mod.rs", "LAST_STAND_HEAL", "executable Wish catalog/blink policy folded by abilities::visit_content"),
++    ("abilities/blink.rs", "MIN_DIST", "executable Wish catalog/blink policy folded by abilities::visit_content"),
++    ("abilities/blink.rs", "MAX_DIST", "executable Wish catalog/blink policy folded by abilities::visit_content"),
++    ("abilities/blink.rs", "STEP", "executable Wish catalog/blink policy folded by abilities::visit_content"),
++    ("systems/arena_rules.rs", "MAX_DURATION_SECONDS", "actual arena duration admission bound folded by arena_rules::visit_content"),
++    ("systems/arena_rules.rs", "PATIENCE_MIN_PLAYERS", "actual source patience scaling endpoint folded by arena_rules::visit_content"),
++    ("systems/arena_rules.rs", "PATIENCE_FULL_PLAYERS", "actual source patience scaling endpoint folded by arena_rules::visit_content"),
++    ("systems/arena_rules.rs", "SD_START", "actual sudden-death damage start folded by arena_rules::visit_content"),
++    ("systems/arena_rules.rs", "SD_RAMP", "actual sudden-death damage ramp folded by arena_rules::visit_content"),
++    ("systems/coliseum.rs", "SPOT_SEARCH_TILES", "actual fallback search bound folded by arena_rules::visit_content"),
++    ("systems/coliseum.rs", "RING_RADIUS", "actual fallback ring radius folded by arena_rules::visit_content"),
++    ("systems/coliseum.rs", "IMMUNITY_MS", "actual teleport immunity folded by arena_rules::visit_content"),
++    ("systems/planning/deal.rs", "WALK_TOLERANCE", "actual planning comparison tolerance folded by planning::deal::visit_content"),
++    ("systems/planning/deal.rs", "TIER_EPS", "actual planning tier arithmetic epsilon folded by planning::deal::visit_content"),
++    ("systems/planning/deal.rs", "SEARCH_BUDGET", "actual planning assignment budget folded by planning::deal::visit_content"),
++    ("systems/planning/deal.rs", "SPARE_BUDGET", "actual planning fallback budget folded by planning::deal::visit_content"),
+     ("terrain.rs", "NEUTRAL", "actual complete runtime surface matrix folded by terrain::visit_content"),
+     ("potions/mod.rs", "DEFINITION", "actual Small potion stock/concurrency/duration/share read by runtime and progression content visitor"),
+     ("cards/mod.rs", "ALL", "actual selected card identities/index/name order folded by visit_progression_content"),
+@@ -494,7 +494,7 @@
+         content_hash()
+     );
+ }
+-const GOLDEN_CONTENT_HASH: u64 = 0xcb27_3622_36f2_d3c2;
++const GOLDEN_CONTENT_HASH: u64 = 0xe95d_55ba_96b2_feca;
+ 
+ #[test]
+ fn every_registry_row_perturbs_the_hash() {
+--- a/crates/rh-sim/tests/hash_coverage.rs
++++ b/crates/rh-sim/tests/hash_coverage.rs
+@@ -523,6 +523,90 @@
+     (planning, active, sim)
+ }
+ 
++/// Real Full producers populate the optional cast/card/stock/effect branches. Zero-time
++/// Blaze/LastStand casts have already landed at the first ordinary checkpoint.
++fn wish_states() -> Vec<(&'static str, Sim)> {
++    let mut out = Vec::new();
++    for (faction, accepted_name, landed_name) in [
++        (FactionId::Frost, "Freeze pending", "Freeze landed"),
++        (FactionId::Plague, "Swarm pending", "Swarm landed"),
++        (FactionId::Sentenced, "Trial pending", "Trial landed"),
++        (FactionId::Fire, "Blaze first charge", "Blaze trail"),
++        (FactionId::Holy, "LastStand paid", "LastStand active"),
++    ] {
++        let placements = [
++            (faction, 300.),
++            (FactionId::Holy, 440.),
++            (FactionId::Frost, 900.),
++        ]
++        .into_iter()
++        .enumerate()
++        .map(|(i, (faction, x))| Placement {
++            profile: format!("wish{i}"),
++            faction,
++            bot: false,
++            at: Vec2::new(x, 320.),
++            hp: None,
++            weapon0: None,
++            weapon1: None,
++        })
++        .collect::<Vec<_>>();
++        let mut sim = Sim::reset_active(
++            SimConfig {
++                abilities: rh_sim::abilities::Mode::Full,
++                lifecycle: rh_sim::ArenaMode::Source(rh_sim::ArenaRules {
++                    plan_seconds: 0.,
++                    first_patience_seconds: None,
++                    coliseum_schedule: None,
++                    patience_seconds: 3600.,
++                    patience_min_seconds: 3600.,
++                    sudden_death_seconds: 60.,
++                }),
++                wish_lock_ms: 0.,
++                ..Default::default()
++            },
++            practice_arena(),
++            Secrets::from_seed(3),
++            &placements,
++        );
++        let target =
++            matches!(faction, FactionId::Frost | FactionId::Sentenced).then_some(PlayerId(2));
++        sim.submit(
++            PlayerId(1),
++            cmd(RawCommand::Cast {
++                slot: rh_sim::abilities::Slot::Wish,
++                x: 600.,
++                y: 320.,
++                id: target,
++                t: None,
++                seq: None,
++            }),
++        )
++        .unwrap();
++        sim.step();
++        let cp = serde_json::to_value(&sim).unwrap();
++        let p = &cp["world"]["players"][0];
++        assert!(p["card_runtime"]["wish_cast"].is_object());
++        assert!(p["stocks"]["wish_full_at"].is_number());
++        if matches!(faction, FactionId::Fire | FactionId::Holy) {
++            assert!(p["core"]["statuses"]["cast"].is_null());
++        } else {
++            assert!(p["core"]["statuses"]["cast"]["producer"].is_object());
++        }
++        assert_eq!(Sim::restore(&cp).unwrap().state_hash(), sim.state_hash());
++        out.push((accepted_name, sim.clone()));
++        for _ in 0..7 {
++            sim.step();
++        }
++        assert!(
++            serde_json::to_value(&sim).unwrap()["world"]["players"][0]["core"]["statuses"]["cast"]
++                .is_null()
++        );
++        out.push((landed_name, sim));
++    }
++    out
++}
++
+ fn scenarios() -> Vec<(&'static str, Sim)> {
+     let (mob_engaged, mob_cleared) = mob_audit_states();
+     let (source_planning, source_active, source_locked) = source_lifecycle_states();
+@@ -532,7 +616,8 @@
+     drive(&mut late, 700);
+     let mut fuse = short_fuse();
+     drive(&mut fuse, 400);
+-    vec![
++    let mut states = wish_states();
++    states.extend([
+         ("source planning", source_planning),
+         ("source active timer", source_active),
+         ("source locked", source_locked),
+@@ -551,7 +636,8 @@
+         ("queued inputs", with_queued_inputs()),
+         ("lobby with names", lobby_with_names()),
+         ("lobby after a leave", lobby_after_leave()),
+-    ]
++    ]);
++    states
+ }
+ 
+ /// What a perturbation is: a scalar replaced, an array shortened by its last element, or an optional subtree removed.
+@@ -720,6 +806,62 @@
+ 
+ /// Patterns whose perturbation the restore may refuse, and why. Any other refusal fails the test.
+ const VALIDATED: &[(&str, &str)] = &[
++    // Full Wish producer tuples are coupled. Accepted edits still always have to change the hash.
++    ("world.abilities.fields.*.owner.owner_id", "ordinary player Wish fields have no secondary/summoner owner; Full producer source requires None"),
++    ("world.players.*.core.statuses.instances.*.data.shares.phys", "Full Blaze Dot payload is the exact pure true-damage shares tuple"),
++    ("world.players.*.core.statuses.instances.*.data.shares.magic", "Full Blaze Dot payload is the exact pure true-damage shares tuple"),
++    ("world.players.*.core.statuses.instances.*.data.shares.true_", "Full Blaze Dot payload is the exact pure true-damage shares tuple"),
++
++    ("world.abilities.fields.*.exit_stun_ms", "Trial Zone exit stun is fixed by its producer; other admitted fields require None"),
++    ("world.players.*.core.statuses.instances.*.data.dealt_mult", "Trial Zoned payload requires the exact outgoing damage multiplier"),
++    ("world.players.*.core.statuses.instances.*.data.field_id", "Zoned payload references the actual retained Trial field id"),
++    ("world.players.*.core.statuses.instances.*.data.move_mult", "Trial Zoned payload requires the exact movement multiplier"),
++    ("world.players.*.core.statuses.instances.*.data.taken_from_source_mult", "Trial Zoned payload requires the exact incoming source multiplier"),
++    ("world.players.*.core.statuses.instances.*.data.floor_hp", "LastStand DeathFloor payload requires the exact minimum health"),
++    ("world.players.*.core.statuses.instances.*.data.heal_share", "LastStand DeathFloor payload requires the exact stored healing share"),
++    ("world.players.*.core.statuses.cast.producer", "Full requires complete producer details; Off forbids them and only admits trusted bare cast facts"),
++    ("world.players.*.card_runtime", "Full canonical spend memory is coupled to produced stock clocks/cast; Off forbids card memory"),
++    ("world.players.*.card_runtime.wish_cast", "the admitted lazy card runtime is created only by a successful Wish spend and cannot be empty"),
++
++    ("world.abilities.fields.*.ability", "Full field ability is coupled to its Cloud/Trail/Zone kind and typed definition"),
++    ("world.abilities.fields.*.ends_at", "Full field end equals started_at plus its exact ability duration"),
++    ("world.abilities.fields.*.id", "field identity is a unique positive allocated id below next_field_id and referenced by owned statuses"),
++    ("world.abilities.fields.*.kind", "Full field kind is coupled to its ability definition"),
++    ("world.abilities.fields.*.owner.id", "Full field owner has stable matching roster identity and name"),
++    ("world.abilities.fields.*.owner.name", "Full field owner name matches its stable roster identity"),
++    ("world.abilities.fields.*.r", "Full field radius is fixed by its actual ability definition"),
++    ("world.abilities.fields.*.vx", "Full Wish fields have zero horizontal drift"),
++    ("world.abilities.fields.*.vy", "Full Wish fields have zero vertical drift"),
++    ("world.abilities.fields.*.x2", "Cloud/Zone fields have zero second endpoint; Trail endpoints remain separately perturbable"),
++    ("world.abilities.fields.*.y2", "Cloud/Zone fields have zero second endpoint; Trail endpoints remain separately perturbable"),
++
++    ("world.players.*.core.statuses.instances.*.data.undefined_fields", "Full Wish payload must equal its typed producer shape; no arbitrary undefined-field mask is produced"),
++    ("world.players.*.core.statuses.instances.*.kind", "Full Wish status kind is coupled to its ability definition"),
++    ("world.players.*.core.statuses.instances.*.source.id", "Full Wish source must have stable matching player roster identity and source name"),
++    ("world.players.*.core.statuses.instances.*.source.name", "Full Wish source name must match its stable player roster identity"),
++    ("world.players.*.core.statuses.instances.*.until", "Full Wish status deadline is coupled to its exact duration or current refreshed Blaze tail"),
++    ("world.players.*.core.statuses.instances.*.value", "Full Wish value is fixed by its ability/status producer tuple"),
++
++    ("statics.config.lifecycle.Source.plan_seconds", "changing disabled planning to enabled requires its actual retained deal/phase history"),
++    ("world.players.*.card_runtime.wish_cast.at", "canonical last spend is fixed-step aligned and agrees with pending cast or attainable completed stock clocks"),
++    ("world.players.*.card_runtime.wish_cast.cooldown_ms", "canonical accepted cooldown equals the admitted faction Wish definition and current supported modifier"),
++    ("world.players.*.core.statuses.cast.ability", "Full pending ability must be the player faction Wish and agree with duration/stock/producer"),
++    ("world.players.*.core.statuses.cast.lands_at", "Full landing clock equals started_at plus the exact timed definition and remains future unless voided"),
++    ("world.players.*.core.statuses.cast.started_at", "Full start equals canonical WishSpend and its spent stock clocks"),
++    ("world.players.*.core.statuses.cast.producer.previous_full_at", "timed Wish rollback tuple must be Some(previous_ready_at) and an attainable opening/prior-spend clock"),
++    ("world.players.*.core.statuses.cast.producer.previous_ready_at", "timed Wish rollback tuple is coupled and must be an attainable opening/prior-spend clock"),
++    ("world.players.*.core.statuses.cast.producer.rank", "admitted ordinary player Wish producer has rank one"),
++    ("world.players.*.core.statuses.cast.producer.slot", "admitted ordinary player producer equips the Wish slot only"),
++    ("world.players.*.stocks.wish_full_at", "Full stock must be initialized and satisfy its ready/spend/refund equation; Off forbids Some"),
++    ("world.players.*.core.statuses.cast.cancelled_by.root", "Full producer cancel mask equals the executable Wish definition"),
++    ("world.players.*.core.statuses.cast.cancelled_by.silence", "Full producer cancel mask equals the executable Wish definition"),
++    ("world.players.*.core.statuses.cast.cancelled_by.stagger", "Full producer cancel mask equals the executable Wish definition"),
++    ("world.players.*.core.statuses.cast.cancelled_by.stun", "Full producer cancel mask equals the executable Wish definition"),
++
++    ("statics.config.abilities", "closed Off/Full domain; Full requires initialized stock/cast producers, Off forbids their persistent state"),
++    ("world.players.*.stocks.e_ready_at", "no equipped E producer: clock must remain zero"),
++    ("world.players.*.stocks.q_ready_at", "no equipped Q producer: clock must remain zero"),
++    ("world.players.*.stocks.wish_ready_at", "Off requires default stocks; Full ready clock is coupled to opening lock, canonical spend/full clock or a valid teleport refund"),
+     ("world.planning", "enabled planning requires retained history after Lobby; Off and disabled planning forbid the history"),
+     ("world.rt.voided", "disabled lifecycle only permits abandon-produced void state during Active; Source Lobby cannot be voided"),
+     ("statics.config.lifecycle.Source.sudden_death_seconds", "locked deadline must exactly equal the actual teleport hook time plus configured sudden-death duration"),
+@@ -1333,6 +1475,18 @@
+ fn every_serialized_leaf_of_a_match_changes_the_state_hash() {
+     let sims = scenarios();
+     let pool = pool_of(&sims);
++    for path in [
++        "world.players.*.core.statuses.cast.producer",
++        "world.players.*.card_runtime",
++        "world.players.*.card_runtime.wish_cast",
++        "world.players.*.stocks.wish_full_at",
++    ] {
++        assert!(
++            pool.get(path)
++                .is_some_and(|values| values.iter().any(|v| !v.is_null())),
++            "actual Wish producer must populate {path}"
++        );
++    }
+     let mut all = Tally::default();
+     for (name, sim) in &sims {
+         let mut t = Tally::default();
+@@ -1569,8 +1723,8 @@
+         ),
+         (
+             "statics.rs",
+-            6,
+-            "MatchStatic: the digest and hazard flags are rebuilt from stored fields; terrain source is rebuilt from hashed EMBER_NAME and typed terrain attribution; locked collision and all its query caches derive from admitted open map gate coordinates; planning distances derive from the same canonical map and enabled configuration; arena source derives from hashed SUDDEN_DEATH_NAME and typed arena attribution",
++            7,
++            "MatchStatic: the digest and hazard flags are rebuilt from stored fields; terrain source is rebuilt from hashed EMBER_NAME and typed terrain attribution; locked collision and all its query caches derive from admitted open map gate coordinates; planning distances derive from the same canonical map and enabled configuration; arena source derives from hashed SUDDEN_DEATH_NAME and typed arena attribution; cloned blink_ring is rebuilt by StaticRepr→MatchStatic::new→Ring::new solely from canonical map dimensions and coliseum layer geometry",
+         ),
+     ];
+     let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
+@@ -1669,3 +1823,98 @@
+     sim.step();
+     sim
+ }
++
++/// MatchStatic clones its immutable ring and reconstructs it via StaticRepr::from.
++/// Real locked Blaze inputs must have identical landings and continuation after both paths.
++#[test]
++fn derived_blink_ring_clone_and_restore_preserve_actual_locked_casts() {
++    let file: rh_sim::mapdata::MapExport =
++        serde_json::from_str(include_str!("../src/mapdata/fixtures/seed1.map.json")).unwrap();
++    let mut original = Sim::new(
++        SimConfig {
++            abilities: rh_sim::abilities::Mode::Full,
++            wish_lock_ms: 0.,
++            min_players: 2,
++            lobby_seconds: 0.,
++            fill_seconds: 0.,
++            lifecycle: rh_sim::ArenaMode::Source(rh_sim::ArenaRules {
++                plan_seconds: 0.,
++                first_patience_seconds: Some(0.1),
++                coliseum_schedule: None,
++                ..Default::default()
++            }),
++            ..Default::default()
++        },
++        file.validate().unwrap().into_arena().unwrap(),
++        Secrets::from_seed(12),
++    );
++    original
++        .add_player("blinker", Some(FactionId::Fire), false)
++        .unwrap();
++    original
++        .add_player("rival", Some(FactionId::Holy), false)
++        .unwrap();
++    for _ in 0..3 {
++        original.step();
++    }
++    assert!(
++        rh_sim::public_snapshot(&original)
++            .arena
++            .unwrap()
++            .gates_locked
++    );
++    // The real teleport producer forbids casts for300ms; advance ordinary steps past it.
++    for _ in 0..6 {
++        original.step();
++    }
++    let snapshot = serde_json::to_value(&original).unwrap();
++    assert!(snapshot["statics"].get("blink_ring").is_none());
++    let cloned = original.clone();
++    let restored = Sim::restore(&snapshot).unwrap();
++    let actor = original.player(PlayerId(1)).unwrap();
++    let from = Vec2::new(actor.body.x, actor.body.y);
++    let ring = rh_sim::abilities::blink::Ring::new(&original.arena().map);
++    // Exercise all cardinal directions, including an actual closed ring crossing.
++    let mut crossing = false;
++    for delta in [
++        Vec2::new(300., 0.),
++        Vec2::new(-300., 0.),
++        Vec2::new(0., 300.),
++        Vec2::new(0., -300.),
++    ] {
++        let at = Vec2::new(from.x + delta.x, from.y + delta.y);
++        crossing |= ring.crosses(original.collision_map(), from, at);
++        let mut a = original.clone();
++        let mut b = cloned.clone();
++        let mut c = restored.clone();
++        for sim in [&mut a, &mut b, &mut c] {
++            sim.submit(
++                PlayerId(1),
++                cmd(RawCommand::Cast {
++                    slot: rh_sim::abilities::Slot::Wish,
++                    x: at.x,
++                    y: at.y,
++                    id: None,
++                    t: None,
++                    seq: None,
++                }),
++            )
++            .unwrap();
++        }
++        for _ in 0..3 {
++            let ea = a.step();
++            let eb = b.step();
++            let ec = c.step();
++            assert_eq!(ea, eb);
++            assert_eq!(ea, ec);
++            assert_eq!(a.state_hash(), b.state_hash());
++            assert_eq!(a.state_hash(), c.state_hash());
++        }
++        let cp = serde_json::to_value(&a).unwrap();
++        assert!(cp["world"]["players"][0]["card_runtime"]["wish_cast"].is_object());
++    }
++    assert!(
++        crossing,
++        "the clone/restore control must exercise an actual closed coliseum boundary"
++    );
++}
+--- a/crates/rh-sim/tests/replay.rs
++++ b/crates/rh-sim/tests/replay.rs
+@@ -1,4 +1,4 @@
+-//! Replay files (docs/CONTRACTS.md C-DET): `rh-replay/16`, a typed refusal of any other format, and a decoded replay that is
++//! Replay files (docs/CONTRACTS.md C-DET): `rh-replay/17`, a typed refusal of any other format, and a decoded replay that is
+ //! complete (a malformed map is an `Err` while decoding, not a panic later).
+ 
+ use rh_sim::arenas::practice_arena;
+@@ -58,7 +58,7 @@
+ fn a_recorded_replay_is_tagged_roundtrips_complete_and_verifies() {
+     let r = recorded(120);
+     assert_eq!(r.format, REPLAY_FORMAT);
+-    assert_eq!(REPLAY_FORMAT, "rh-replay/16");
++    assert_eq!(REPLAY_FORMAT, "rh-replay/17");
+     let back: Replay = serde_json::from_str(&serde_json::to_string(&r).unwrap()).unwrap();
+     assert_eq!(back, r, "equal right after decoding, with no rebuild call");
+     let (sim, _) = run_replay(&back).expect("a decoded replay verifies");

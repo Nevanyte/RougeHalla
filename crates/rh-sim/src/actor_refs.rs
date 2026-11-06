@@ -42,6 +42,9 @@ fn event_refs(event: &mut SeenEvent, map: &impl Fn(PlayerId) -> Option<PlayerId>
         SeenEvent::StatusApplied { id, by, .. }
         | SeenEvent::Block { id, by, .. }
         | SeenEvent::Death { id, by } => (Some(id), Some(by)),
+        SeenEvent::CastStarted { id, target, .. } | SeenEvent::CastLanded { id, target, .. } => {
+            (Some(id), Some(target))
+        }
         SeenEvent::CastEnded { id, .. }
         | SeenEvent::Heal { id, .. }
         | SeenEvent::AttackCancelled { id }

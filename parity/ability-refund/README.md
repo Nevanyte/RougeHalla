@@ -1,0 +1,9 @@
+# Focused repeated-teleport Wish refund regression
+
+One unchanged-source case starts three real players, casts Freeze at100 (due350), reaches the first ordinary timer teleport at150 and refunds both stock clocks to50. Removing the unrelated third player causes the real Source lifecycle to unlock/rearm; its next ordinary timer teleport is500. No recast occurs. At650, the original WishSpend.at100 and refunded clocks50 remain, while the source-global teleportedAt now describes500.
+
+The case executes13 ordinary50ms steps and records13 action frames plus constructor/join/birth/bootstrap/final snapshots. Inputs include only declared player placement, one client Cast, ordinary steps and actual administrative removePlayer. No cast/status/clock injection or expected-state construction is used. The native consumer restores every captured ordinary boundary and rejects paired fabricated prior-clock mutations.
+
+This companion reuses the exact frozen `tools/ability-fixtures/engine.mts`, pins the original63-case corpus and complete original source/harness input inventory, and leaves them unchanged. Canonical runtime is pinned Linux/amd64 Node22.23.4 with the repository lockfile. Run `RH_ABILITY_REFUND_DIRECTORY=$PWD/parity/ability-refund bash tools/ability-refund-fixtures/capture.sh --check` for exact fresh reproduction. INPUT_SHA256.json includes runtime/source/harness provenance. Fresh private copies need an empty node_modules directory before Docker's temporary dependency mount.
+
+The state validator uses necessary retained-state facts, not an invented history record: a subsequent global teleport exists, the ability can be refunded, and the prior stock is an opening lock or attainable prior spend clock. Source does not retain the identity/time of each historical refund; the latest global clock cannot identify the refunding teleport.

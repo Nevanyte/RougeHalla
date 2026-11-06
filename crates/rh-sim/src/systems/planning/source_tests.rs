@@ -1109,7 +1109,7 @@ fn actual_source_assignment_helper_preserves_reservation_and_order() {
 }
 
 #[test]
-fn arena_capture_inventory_has_one_explicit_full_wish_dependency() {
+fn arena_capture_inventory_runs_genuine_wish_prerequisite_and_keeps_full_hooks_pending() {
     let source = crate::collision::tests::fixture();
     assert_eq!(source["cases"].as_array().unwrap().len(), 35);
     let case = source["cases"]
@@ -1125,10 +1125,32 @@ fn arena_capture_inventory_has_one_explicit_full_wish_dependency() {
         .any(|a| a["inputs"]
             .as_array()
             .is_some_and(|inputs| inputs.iter().any(|i| i["type"] == "cast"))));
-    if std::env::var_os("RH_ARENA_REQUIRE_FULL").is_some() {
-        run_case(&source, case);
+    crate::abilities::assert_genuine_arena_refund();
+    let tables = crate::schedule::tables();
+    for (hook, name) in [
+        (crate::schedule::Hook::Teleported, "cardHooks.resetFight"),
+        (crate::schedule::Hook::Teleported, "cardHooks.dropDeferred"),
+        (crate::schedule::Hook::RaidStarted, "cardHooks.resetAll"),
+    ] {
+        let link = tables
+            .hooks
+            .iter()
+            .find(|(h, _)| *h == hook)
+            .unwrap()
+            .1
+            .iter()
+            .find(|link| link.legacy == name)
+            .unwrap();
+        assert_eq!(
+            link.pending,
+            Some("P-CARDS-1"),
+            "{name} remains explicitly incomplete"
+        );
     }
-    eprintln!("Arena owned kernel: 33 ordinary cases +1 declared boon helper; genuine Wish case and unported full hook payloads remain INCOMPLETE");
+    if std::env::var_os("RH_ARENA_REQUIRE_FULL").is_some() {
+        panic!("Full ARENA INCOMPLETE: cardHooks.resetFight/dropDeferred/resetAll; Source wire/client and durable shutdown/MIA prerequisites. Genuine Wish/refund was executed separately; full arena-owned projection is not claimed.");
+    }
+    eprintln!("Arena owned kernel: 33 ordinary cases +1 declared boon helper, plus genuine Wish/refund prerequisite through its dedicated consumer; full card hooks, Source transport/durability and complete case27 arena projection remain INCOMPLETE");
 }
 
 #[cfg(feature = "schedule-trace")]

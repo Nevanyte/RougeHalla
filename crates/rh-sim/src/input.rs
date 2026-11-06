@@ -15,6 +15,14 @@ use crate::math::wrap_angle;
 /// from the viewer’s most recently delivered complete observation.
 #[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum PublicCommand {
+    Cast {
+        slot: crate::abilities::Slot,
+        x: f64,
+        y: f64,
+        id: Option<crate::PlayerId>,
+        t: Option<f64>,
+        seq: Option<u8>,
+    },
     Plan {
         spawn: Option<u8>,
         boon: Option<u8>,
@@ -66,6 +74,14 @@ pub enum PublicCommand {
 /// Trusted fixture/replay-side proposal. Public seats use [`PublicCommand`].
 #[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum RawCommand {
+    Cast {
+        slot: crate::abilities::Slot,
+        x: f64,
+        y: f64,
+        id: Option<crate::PlayerId>,
+        t: Option<f64>,
+        seq: Option<u8>,
+    },
     Plan {
         spawn: Option<u8>,
         boon: Option<u8>,
@@ -138,6 +154,14 @@ impl Command {
 }
 #[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 enum Kind {
+    Cast {
+        slot: crate::abilities::Slot,
+        x: f64,
+        y: f64,
+        id: Option<crate::PlayerId>,
+        t: Option<f64>,
+        seq: Option<u8>,
+    },
     Plan {
         spawn: Option<u8>,
         boon: Option<u8>,
@@ -193,6 +217,26 @@ impl PublicCommand {
         seen: impl FnOnce(crate::PlayerId) -> bool,
     ) -> Result<Command, Reject> {
         validate(match self {
+            Self::Cast {
+                slot,
+                x,
+                y,
+                id,
+                t,
+                seq,
+            } => {
+                if id.is_some_and(|id| id.0 == 0) {
+                    return Err(Reject::InvalidTarget);
+                }
+                RawCommand::Cast {
+                    slot,
+                    x,
+                    y,
+                    id: id.filter(|id| seen(*id)),
+                    t,
+                    seq,
+                }
+            }
             Self::Plan { spawn, boon, ready } => RawCommand::Plan { spawn, boon, ready },
             Self::UseConsumable => RawCommand::UseConsumable,
             Self::Choose { pick, .. } => RawCommand::Choose {
@@ -225,6 +269,21 @@ impl PublicCommand {
 impl Kind {
     fn raw(self) -> RawCommand {
         match self {
+            Kind::Cast {
+                slot,
+                x,
+                y,
+                id,
+                t,
+                seq,
+            } => RawCommand::Cast {
+                slot,
+                x,
+                y,
+                id,
+                t,
+                seq,
+            },
             Kind::Plan { spawn, boon, ready } => RawCommand::Plan { spawn, boon, ready },
             Kind::UseConsumable => RawCommand::UseConsumable,
             Kind::Choose { chest_id, pick } => RawCommand::Choose { chest_id, pick },
@@ -299,6 +358,27 @@ pub fn validate(raw: RawCommand) -> Result<Command, Reject> {
     };
     let time = |t: Option<f64>| t.filter(|v| v.is_finite());
     Ok(Command(match raw {
+        RawCommand::Cast {
+            slot,
+            x,
+            y,
+            id,
+            t,
+            seq,
+        } => {
+            if id.is_some_and(|id| id.0 == 0) {
+                return Err(Reject::InvalidTarget);
+            }
+            let (x, y) = clamp_pt(x, y)?;
+            Kind::Cast {
+                slot,
+                x,
+                y,
+                id,
+                t: time(t),
+                seq,
+            }
+        }
         RawCommand::Plan { spawn, boon, ready } => {
             if spawn.is_some_and(|v| v > 1)
                 || boon.is_some_and(|v| v > 1)
@@ -355,6 +435,14 @@ pub(crate) enum MoveCmd {
 
 #[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub(crate) enum ActionCmd {
+    Cast {
+        slot: crate::abilities::Slot,
+        x: f64,
+        y: f64,
+        id: Option<crate::PlayerId>,
+        t: Option<f64>,
+        seq: Option<u8>,
+    },
     Plan {
         spawn: Option<u8>,
         boon: Option<u8>,
@@ -465,6 +553,31 @@ impl InputQueue {
         }
         for act in self.actions.as_slice() {
             match *act {
+                ActionCmd::Cast {
+                    slot,
+                    x,
+                    y,
+                    id,
+                    t,
+                    seq,
+                } => same(
+                    RawCommand::Cast {
+                        slot,
+                        x,
+                        y,
+                        id,
+                        t,
+                        seq,
+                    },
+                    Kind::Cast {
+                        slot,
+                        x,
+                        y,
+                        id,
+                        t,
+                        seq,
+                    },
+                )?,
                 ActionCmd::Plan { spawn, boon, ready } => same(
                     RawCommand::Plan { spawn, boon, ready },
                     Kind::Plan { spawn, boon, ready },
@@ -549,6 +662,23 @@ pub(crate) fn accept(
 impl InputQueue {
     fn push(&mut self, cmd: Command) -> Result<(), Reject> {
         match cmd.0 {
+            Kind::Cast {
+                slot,
+                x,
+                y,
+                id,
+                t,
+                seq,
+            } => {
+                return self.push_action(ActionCmd::Cast {
+                    slot,
+                    x,
+                    y,
+                    id,
+                    t,
+                    seq,
+                })
+            }
             Kind::Plan { spawn, boon, ready } => {
                 return self.push_action(ActionCmd::Plan { spawn, boon, ready })
             }

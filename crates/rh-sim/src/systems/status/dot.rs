@@ -18,23 +18,25 @@ pub(crate) fn damage_with(
         k, w, s, ev, stats, ..
     } = cx;
     let now = w.server_time;
-    for i in 0..w.players.len() {
-        if !w.players[i].standing() || now < w.players[i].vitals.immune_until {
+    let tick = w.tick;
+    for slot in 0..w.fighter_count() {
+        let i = crate::fighter::FighterIx::of_slot(slot);
+        if !w.standing(i) || (w.is_player(i) && now < w.core(i).vitals.immune_until) {
             continue;
         }
         let count = w.abilities.as_ref().map_or(0, |a| a.fields.len());
         for j in 0..count {
             let f = &w.abilities.as_ref().unwrap().fields[j];
             if f.kind != FieldKind::Trail
-                || f.owner.id == Some(w.players[i].id)
-                || !rt::on_trail(f, w.players[i].pos())
+                || f.owner.id == Some(w.core(i).id)
+                || !rt::on_trail(f, w.core(i).pos())
             {
                 continue;
             }
             let Some((dps, ms)) = rt::rank_one_field_policy(f.ability).burn else {
                 continue;
             };
-            let quiet = w.players[i].statuses.instances.iter().any(|st| {
+            let quiet = w.core(i).statuses.instances.iter().any(|st| {
                 st.kind == StatusKind::Dot
                     && st.source.id == f.owner.id
                     && st.ability == Some(f.ability)
@@ -57,34 +59,35 @@ pub(crate) fn damage_with(
                     ..Default::default()
                 }),
             };
-            super::operations::apply_with(k, w, ev, w.players[i].id, apply, quiet, *stats);
+            super::operations::apply_with(k, w, ev, w.core(i).id, apply, quiet, *stats);
         }
     }
-    for i in 0..w.players.len() {
-        if !w.players[i].standing() {
+    for slot in 0..w.fighter_count() {
+        let i = crate::fighter::FighterIx::of_slot(slot);
+        if !w.standing(i) {
             continue;
         }
-        for j in 0..w.players[i].statuses.instances.len() {
-            let st = &w.players[i].statuses.instances[j];
+        for j in 0..w.core(i).statuses.instances.len() {
+            let st = &w.core(i).statuses.instances[j];
             if st.kind != StatusKind::Dot || st.until <= now {
                 continue;
             }
             let st = st.clone();
-            let victim = w.players[i].id;
+            let victim = w.core(i).id;
             let raw = st.value * dt_ms / 1000.;
             let owner = if st.ability.is_none() && st.source.id != Some(victim) {
-                st.source.id.and_then(|id| w.idx(id))
+                st.source.id.and_then(|id| w.fighter_idx(id))
             } else {
                 None
             };
-            let stats = owner.map(|i| view(&w.players[i])).unwrap_or_default();
+            let stats = owner.map(|i| view(w.core(i))).unwrap_or_default();
             let base = if owner.is_some() {
                 raw * stats.dot_mult
             } else {
                 raw
             };
             let critical = owner.is_some_and(|i| {
-                rt::roll_dot_crit(&mut w.players[i].card_dot_crit, w.tick, true, stats)
+                rt::roll_dot_crit(&mut w.core_mut(i).card_dot_crit, tick, true, stats)
             });
             let shares = st.data.shares.unwrap_or(crate::content::DamageShares {
                 phys: 0.,

@@ -57,6 +57,22 @@ pub enum Event {
         ability: crate::status_runtime::AbilityId,
         amount: f64,
     },
+    CastStarted {
+        id: PlayerId,
+        ability: crate::status_runtime::AbilityId,
+        ms: f64,
+        target: Option<PlayerId>,
+        x: f64,
+        y: f64,
+    },
+    CastLanded {
+        id: PlayerId,
+        ability: crate::status_runtime::AbilityId,
+        target: Option<PlayerId>,
+        x: f64,
+        y: f64,
+        to: Option<crate::Vec2>,
+    },
     CastEnded {
         id: PlayerId,
         ability: crate::status_runtime::AbilityId,
@@ -209,7 +225,9 @@ impl Event {
             Event::CampCleared { .. } => Visibility::Everyone,
             Event::ChestRefused { id, .. } => Visibility::Owner(id),
             Event::ChestTaken { .. } => Visibility::ServerOnly,
-            Event::CastEnded { id, .. } => Visibility::IfSeen(id),
+            Event::CastStarted { id, .. }
+            | Event::CastLanded { id, .. }
+            | Event::CastEnded { id, .. } => Visibility::IfSeen(id),
             Event::StatusApplied { id, .. } => Visibility::IfSeen(id),
             Event::Swing { by, .. } => Visibility::IfSeen(by),
             Event::Hit { victim, by, .. } => Visibility::IfSeenOrBy { seen: victim, by },
@@ -249,7 +267,9 @@ impl Event {
             | Event::Bounty { .. }
             | Event::Victory { .. }
             | Event::Resolved { .. } => Class::Important,
-            Event::CastEnded { .. }
+            Event::CastStarted { .. }
+            | Event::CastLanded { .. }
+            | Event::CastEnded { .. }
             | Event::StatusApplied { .. }
             | Event::Swing { .. }
             | Event::Hit { .. }

@@ -12,7 +12,7 @@
   "unique_count_equation": "248 sim units +156 sim integrations +137 completed prior workspace +14 corrected schedule +599 remaining workspace +3 sim docs +6 parity Sentenced",
   "mapgen_unchanged_units_not_repeated_locally": 191,
   "manual_ignores": 2,
-  "full_ci": "pending at integration; completed d3418f17 CI42222451955 is predecessor only",
+  "full_ci": "PASS",
   "kernel_review_sha256": "7b28a15125a396408fef8b2d9f3ef90896ce0a5baa21d0b92bac84ea76d76603",
   "adapter_review_sha256": "ba01357c46989e8f6ffe33fbf0a72e428a2c7f18528159627bff0e3de872cb6e",
   "coordinator_review_sha256": "cbbad711556012216289dd3358ba1656b5a7331ba2b26874ad8070c589d74ad7",
@@ -231,5 +231,7 @@
   "full_arena": "INCOMPLETE",
   "full_terrain": "INCOMPLETE",
   "public_source_profile": "REFUSED",
-  "source_campaigns_repeated_by_coordinator": false
+  "source_campaigns_repeated_by_coordinator": false,
+  "full_ci_run": 42238404509,
+  "full_ci_head": "0f2f9763107444c89b2ecab89fdaa78b4e241ad9"
 }

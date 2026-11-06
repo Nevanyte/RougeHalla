@@ -427,6 +427,8 @@ async fn main() {
     };
     let sim = rh_sim::SimConfig {
         hazards: rh_sim::terrain::Mode::Off,
+        abilities: rh_sim::abilities::Mode::Off,
+        wish_lock_ms: rh_sim::abilities::WISH_LOCK_MS,
         lifecycle: rh_sim::ArenaMode::Off,
         mob_mode: if profile_enabled {
             rh_sim::mob_runtime::MobMode::Pve

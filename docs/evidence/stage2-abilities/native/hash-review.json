@@ -1,0 +1,18 @@
+{
+  "verdict": "ACCEPT bounded one-file global hash-audit repair",
+  "manifest_sha256": "b1c4e505d95152868feb9880ac81fafb2f95eedf21f60595c4172e3216373f57",
+  "reviewer": "coordinator independent of worker author",
+  "base_sha256": "bdbb7f2a1b01d66a271d5273fe0c5fb9d7c34188398334afa41882520f918dc5",
+  "new_sha256": "7a573be3d66d572c061ce1238a42dd6df52c182f9e26b6c34e326521958d8196",
+  "checks": [
+    "all proposal/base/evidence hashes and sizes verified",
+    "exact one-file patch applicability verified",
+    "generic accepted-edit walker unchanged; every accepted edit still must affect hash",
+    "50 exact validation paths only, no new prefix matching",
+    "ten actual native Full producer snapshots from declared constructor placements plus validate/submit/step; no expected legacy state injected",
+    "timed pending casts only; zero-time casts are ordinary landed states",
+    "actual Some assertions for producer/card runtime/spend/full stocks",
+    "blink ring derives only from immutable canonical map and clone/restore actual locked-cast continuation is exercised"
+  ],
+  "scope_limit": "Native state/hash consistency audit, not new source parity or whole full-port completion; actual root six-test execution follows"
+}

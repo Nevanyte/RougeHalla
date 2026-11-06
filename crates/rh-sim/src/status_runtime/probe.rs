@@ -13,6 +13,14 @@ use crate::{Event, PlayerId, RawCommand, Sim, Vec2};
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize)]
 pub enum HookRecord {
+    CastAccepted {
+        actor: Box<Player>,
+        ability: AbilityId,
+    },
+    CastLanded {
+        actor: Box<Player>,
+        ability: AbilityId,
+    },
     StatusApplied {
         actor: Box<Player>,
         status: StatusInstance,
@@ -702,6 +710,8 @@ impl Harness {
             }
             Operation::UpdateAbilities => {
                 systems::status::expire(&mut cx);
+                systems::abilities::land(&mut cx);
+                systems::status::finish(&mut cx);
                 Returned::Undefined
             }
             Operation::Hit(h) => {
@@ -1201,4 +1211,27 @@ pub(crate) fn pay_nested(
         },
         stats,
     );
+}
+
+pub(crate) fn record_cast_accepted(w: &mut World, id: PlayerId, ability: AbilityId) {
+    if w.trace.1.enabled {
+        if let Some(p) = w.player(id) {
+            let record = HookRecord::CastAccepted {
+                actor: Box::new(p.clone()),
+                ability,
+            };
+            w.trace.1.records.push(record);
+        }
+    }
+}
+pub(crate) fn record_cast_landed(w: &mut World, id: PlayerId, ability: AbilityId) {
+    if w.trace.1.enabled {
+        if let Some(p) = w.player(id) {
+            let record = HookRecord::CastLanded {
+                actor: Box::new(p.clone()),
+                ability,
+            };
+            w.trace.1.records.push(record);
+        }
+    }
 }

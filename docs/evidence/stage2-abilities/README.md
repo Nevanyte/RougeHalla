@@ -24,8 +24,8 @@ now covers unrelated-player and target abandonment with24 ordinary steps. Its co
 [Companion integrity checks](void-integration.json) record exact integrated/provenance digests. Native restore remains
 an implementation gate. The original63-case corpus and all seven original harness inputs are unchanged.
 
-The reviewed implementation direction uses one canonical cast owner, source-exact atomic landing, both stock/refund
-clocks, private target resolution and the arena collision/history view. Native implementation has started privately.
-This source integration does **not** prove native Wishes, card/training/full-NPC-signature prerequisites, genuine native
-arena refund, public transport/client support or full P-ABIL-1 completion. The [packet](../../backlog/packets/P-ABIL-1.md)
-retains those gates; no deployed build or protocol changed.
+The [bounded native five-Wish kernel](native/README.md) is now integrated after independent v3 approval and coordinator
+gates. Rust executes genuine Cast, atomic landing, stocks/refunds and canonical effects. The genuine arena refund,
+void, overlapping-burn and subsequent-teleport controls pass; exactten coupled cases and Source public transport remain
+incomplete. The original corpus/harness is unchanged. The native evidence records current versions,1,188 distinct
+native checks, hash/restore/privacy and the supported-profile browser proof; no live Source activation follows.

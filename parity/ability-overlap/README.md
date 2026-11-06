@@ -1,0 +1,7 @@
+# Focused real-source overlapping Blaze regression
+
+Two unchanged-source cases execute 106 ordinary 50ms steps and retain 105 action frames plus constructor/join/birth/bootstrap/final frames. Casts at t100 and t1000 leave overlapping trails. At t2650 a standing player and a real source-born melee NPC retain the same owner's Dot(startedAt100,until4650), exceeding one trail lifetime plus one tail. The NPC runs its ordinary constructor, movement and combat; the only NPC setup is declared HP=500. No cast/status/clock injection, no expected-state construction and no NPC signature admission.
+
+The companion reuses the frozen `tools/ability-fixtures/engine.mts` executor and checks every original source/harness inventory digest plus the original 63-case corpus SHA. The original Wish and void corpora are unchanged. Inputs are in `tools/ability-overlap-fixtures/cases.mts`; assertions require both real landed casts, exact times, original burn start, refreshed deadline and surviving recipients.
+
+Canonical environment: pinned Linux/amd64 Node22.23.4 image and existing lockfile/tsx/esbuild. Run `RH_ABILITY_OVERLAP_DIRECTORY=$PWD/parity/ability-overlap bash tools/ability-overlap-fixtures/capture.sh --check` for an exact fresh execution comparison. INPUT_SHA256.json records runtime, source and harness provenance. The native consumer constructs from declared setup/actions, compares snapshots as assertions, restores every sampled ordinary boundary, then additionally checks malformed payload/deadline controls and ordinary subsequent continuation.

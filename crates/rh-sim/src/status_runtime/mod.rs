@@ -170,6 +170,8 @@ pub struct CastFact {
     pub started_at: f64,
     pub lands_at: f64,
     pub cancelled_by: CancelCauses,
+    /// None is an isolated trusted status fact, never a Wish producer.
+    pub producer: Option<crate::abilities::CastDetail>,
 }
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -277,6 +279,7 @@ pub fn validate(rt: &StatusRuntime, now: f64) -> Result<(), &'static str> {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum CastEndReason {
+    Fizzle,
     Interrupted,
     Cancelled,
 }
