@@ -53,6 +53,17 @@ pub(crate) fn validate(
                 }
                 players += 1;
             }
+            ActorOrigin::Zombie { owner } => {
+                if w.roster.name(owner).is_none()
+                    || w.roster.name(row.id).is_some()
+                    || !w
+                        .mobs
+                        .get(row.id)
+                        .is_some_and(|m| m.owner == Some(owner) && m.zombie.is_some())
+                {
+                    return Err("invalid zombie provenance".into());
+                }
+            }
             ActorOrigin::Mob {
                 birth_serial,
                 born_tick,

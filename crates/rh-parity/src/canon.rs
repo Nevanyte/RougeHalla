@@ -91,6 +91,16 @@ pub(crate) fn canon(e: &Event, sim: &Sim) -> Option<Value> {
         } => {
             json!({"kind":"hit","id":fid(*victim),"by":by.map(fid).unwrap_or_default(),"ability":ability,"amount":amount,"weapon":null})
         }
+        Event::PlagueNotice { recipient, notice } => {
+            let text = match notice {
+                rh_sim::events::PlagueNotice::Consumed { player } => format!(
+                    "Consumed {}'s corpse: +3% max health, zombie raised or strengthened",
+                    sim.player(*player).map_or("", |p| p.seat.name.as_str())
+                ),
+                other => other.message().to_string(),
+            };
+            json!({"kind":"toast","to":fid(*recipient),"text":text})
+        }
         Event::MarkNotice { recipient, notice } => {
             let text = match notice {
                 rh_sim::events::MarkNotice::Hunting { target } => {

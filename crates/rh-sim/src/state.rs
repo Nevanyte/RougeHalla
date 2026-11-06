@@ -378,6 +378,16 @@ pub struct PendingAction {
     pub packet: Packet,
 }
 
+/// One real player death's harvestable remains. Ordinary loot/body containers are separate.
+#[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct PlagueCorpse {
+    /// The fallen player's stable id; each player falls once per raid.
+    pub player: PlayerId,
+    pub x: f64,
+    pub y: f64,
+}
+
 /// A run-only item. Its identity is allocated by the world without consuming any RNG.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct WeaponItem {
@@ -710,6 +720,7 @@ pub(crate) struct World {
     pub(crate) next_id: u32,
     pub(crate) projectiles: Vec<Projectile>,
     pub(crate) containers: Vec<Container>,
+    pub(crate) plague_corpses: Vec<PlagueCorpse>,
     pub(crate) initial_birth_serial: u32,
     pub(crate) potion_healing: Vec<crate::potions::Healing>,
     /// Legacy nextId: container and projectile prefixes share one ascending run-local serial.
@@ -780,6 +791,13 @@ impl World {
     pub(crate) fn actor_origin(&self, id: PlayerId) -> Option<&crate::mob_runtime::ActorOrigin> {
         self.actor_history.get(id).map(|row| &row.origin)
     }
+    /// Rewards and kill credit belong to a companion's owner.
+    pub(crate) fn credited_player(&self, id: PlayerId) -> Option<PlayerId> {
+        self.mobs
+            .get(id)
+            .and_then(|m| m.owner)
+            .or_else(|| self.player(id).map(|_| id))
+    }
 
     pub(crate) fn next_entity_id(&mut self) -> u32 {
         self.entity_counter = self
@@ -798,6 +816,11 @@ impl World {
                     crate::mob_catalog::mob_type_by_id(mob_type.as_str())
                         .map(|t| std::sync::Arc::from(t.name))
                 }
+                Some(crate::mob_runtime::ActorOrigin::Zombie { .. }) => self
+                    .mobs
+                    .get(id)
+                    .and_then(|m| m.display_name.clone())
+                    .map(std::sync::Arc::from),
                 _ => None,
             })
     }
@@ -808,6 +831,9 @@ impl World {
         let p = self.core(ix);
         let mut f = crate::content::faction(p.vitals.faction);
         if let Some(m) = self.mobs.get(p.id) {
+            if m.zombie.is_some() {
+                return f;
+            }
             let ty = crate::mob_catalog::mob_type_by_id(m.mob_type.as_str()).expect("catalog type");
             let k = if m.elite {
                 crate::constants::ELITE_K
@@ -831,6 +857,9 @@ impl World {
         let Some(m) = self.mobs.get(self.core(ix).id) else {
             return raw;
         };
+        if m.zombie.is_some() {
+            return raw;
+        }
         let ty = crate::mob_catalog::mob_type_by_id(m.mob_type.as_str()).expect("catalog type");
         let k = if m.elite {
             crate::constants::ELITE_K
@@ -976,6 +1005,7 @@ impl World {
             mob_runtime: None,
             next_id: 1,
             containers: Vec::with_capacity(4 * MAX_PLAYERS),
+            plague_corpses: Vec::new(),
             initial_birth_serial: 0,
             potion_healing: Vec::with_capacity(MAX_PLAYERS),
             projectiles: Vec::new(),

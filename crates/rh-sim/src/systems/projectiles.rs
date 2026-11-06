@@ -271,7 +271,7 @@ fn first_body(cx: &Cx, s: Stretch, t: f64) -> Option<(usize, Vec2)> {
         let ix = crate::fighter::FighterIx::of_slot(i);
         let p = cx.w.core(ix);
         if !cx.w.standing(ix)
-            || p.id == pr.launch.owner
+            || !crate::systems::plague_zombies::hostile(cx.w, pr.launch.owner, p.id)
             || (cx.w.mobs.contains(pr.launch.owner) && !cx.w.is_player(ix))
         {
             continue;
@@ -326,7 +326,7 @@ fn splash(cx: &mut Cx, pr: Projectile, primary: usize, t: f64) {
         let p = cx.w.core(ix);
         if i == primary
             || !cx.w.standing(ix)
-            || p.id == pr.launch.owner
+            || !crate::systems::plague_zombies::hostile(cx.w, pr.launch.owner, p.id)
             || (cx.w.mobs.contains(pr.launch.owner) && !cx.w.is_player(ix))
         {
             continue;

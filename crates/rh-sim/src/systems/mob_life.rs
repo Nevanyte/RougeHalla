@@ -132,17 +132,20 @@ pub(crate) fn hurt(
 ) -> f64 {
     let id = w.core(ix).id;
     let now = w.server_time;
+    let total = hits
+        .iter()
+        .filter(|h| h.amount > 0.)
+        .map(|h| h.amount)
+        .sum::<f64>();
+    if w.mobs.get(id).is_some_and(|m| m.zombie.is_some()) {
+        return super::plague_zombies::hurt(k, w, ev, id, total);
+    }
     let m = w.mobs.get(id).expect("mob victim");
     if m.status != Status::Alive {
         return 0.;
     }
     let before = m.core.vitals.hp;
     let camp = m.camp;
-    let total = hits
-        .iter()
-        .filter(|h| h.amount > 0.)
-        .map(|h| h.amount)
-        .sum::<f64>();
     if total <= 0. {
         return 0.;
     }

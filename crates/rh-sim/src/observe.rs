@@ -336,6 +336,7 @@ fn to_seen(e: &Event, can_see: &impl Fn(PlayerId) -> bool) -> Option<SeenEvent> 
         Event::Victory { id, draw } => Some(SeenEvent::Ended { winner: id, draw }),
         Event::AbilityHit { .. }
         | Event::MarkNotice { .. }
+        | Event::PlagueNotice { .. }
         | Event::SignatureHit { .. }
         | Event::ProjectileLaunched(_)
         | Event::ProjectileEnded { .. }
@@ -751,8 +752,8 @@ pub fn public_snapshot(sim: &Sim) -> PublicSnapshot {
 fn mob_view(mob: &crate::mob_runtime::Mob) -> ActorView {
     let core = &mob.core;
     ActorView {
-        kind: 1,
-        mob_type: Some(mob.mob_type),
+        kind: if mob.zombie.is_some() { 2 } else { 1 },
+        mob_type: mob.zombie.is_none().then_some(mob.mob_type),
         effects: core.statuses.effects,
         displace_seq: core.motion.displace_seq,
         mark_tier: 0,

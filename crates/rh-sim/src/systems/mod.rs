@@ -25,6 +25,8 @@ pub(crate) mod melee;
 pub(crate) mod mobs;
 pub(crate) mod movement;
 pub(crate) mod plague;
+pub(crate) mod plague_corpses;
+pub(crate) mod plague_zombies;
 pub(crate) mod potions;
 pub(crate) mod projectiles;
 pub(crate) mod sentenced;

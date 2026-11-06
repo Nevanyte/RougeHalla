@@ -63,6 +63,9 @@ pub const DEFINITION: Definition = Definition {
 #[serde(deny_unknown_fields)]
 pub struct Farm {
     counts: [u64; 20],
+    /// Plague corpses harvested this run: a flat max-hp row outside mob counts.
+    #[serde(default)]
+    corpse_stacks: u8,
 }
 impl Farm {
     pub fn count(&self, id: M) -> u64 {
@@ -78,16 +81,23 @@ impl Farm {
     pub(crate) fn maximum() -> Self {
         Self {
             counts: [DEFINITION.max_count; 20],
+            corpse_stacks: 0,
         }
     }
-    pub(crate) fn rows(&self) -> ([EffectRow<'static>; 20], usize) {
+    pub fn corpse_stacks(&self) -> u8 {
+        self.corpse_stacks
+    }
+    pub fn set_corpse_stacks(&mut self, stacks: u8) {
+        self.corpse_stacks = stacks;
+    }
+    pub(crate) fn rows(&self) -> ([EffectRow<'static>; 21], usize) {
         let empty = EffectRow {
             kind: EffectKind::Trigger,
             requires: &[],
             needs_status: false,
         };
-        let mut out = [empty; 20];
-        let mut kinds = [None; 20];
+        let mut out = [empty; 21];
+        let mut kinds = [None; 21];
         let mut n = 0;
         for (r, count) in DEFINITION.rows.into_iter().zip(self.counts) {
             if count == 0 {
@@ -110,6 +120,13 @@ impl Farm {
                 EffectKind::Stat { v, .. } | EffectKind::Flat { v, .. } => *v += value,
                 _ => unreachable!(),
             }
+        }
+        if self.corpse_stacks > 0 {
+            out[n].kind = EffectKind::Stat {
+                stat: S::MaxHp,
+                v: f64::from(self.corpse_stacks) * crate::constants::PLAGUE_CORPSE_HP_SHARE,
+            };
+            n += 1;
         }
         (out, n)
     }

@@ -40,6 +40,10 @@ pub enum PublicCommand {
     HuntTarget {
         actor: crate::PlayerId,
     },
+    /// Plague corpse harvest (legacy `consumeCorpse`); the id is the fallen player's id.
+    ConsumeCorpse {
+        corpse: crate::PlayerId,
+    },
     /// Walk to a point (right click / WASD goal). `seq` is echoed in the player's `move_seq` once applied.
     Move {
         x: f64,
@@ -101,6 +105,9 @@ pub enum RawCommand {
     },
     HuntTarget {
         id: crate::PlayerId,
+    },
+    ConsumeCorpse {
+        corpse: crate::PlayerId,
     },
     MissingTarget,
     /// Walk to a point (right click / WASD goal). `seq` is echoed in the player's `move_seq` once applied.
@@ -185,6 +192,9 @@ enum Kind {
     HuntTarget {
         id: crate::PlayerId,
     },
+    ConsumeCorpse {
+        corpse: crate::PlayerId,
+    },
     MissingTarget,
     AttackMove {
         x: f64,
@@ -263,6 +273,8 @@ impl PublicCommand {
             }
             Self::HuntTarget { actor } if actor.0 == 0 => return Err(Reject::InvalidTarget),
             Self::HuntTarget { actor } => RawCommand::HuntTarget { id: actor },
+            Self::ConsumeCorpse { corpse } if corpse.0 == 0 => return Err(Reject::InvalidTarget),
+            Self::ConsumeCorpse { corpse } => RawCommand::ConsumeCorpse { corpse },
             Self::AttackMove { x, y, seq } => RawCommand::AttackMove { x, y, seq },
             Self::Pickup { handle } => match lookup(handle) {
                 Some(container_id) => RawCommand::Pickup { container_id },
@@ -301,6 +313,7 @@ impl Kind {
             Kind::Choose { chest_id, pick } => RawCommand::Choose { chest_id, pick },
             Kind::Target { id } => RawCommand::Target { id },
             Kind::HuntTarget { id } => RawCommand::HuntTarget { id },
+            Kind::ConsumeCorpse { corpse } => RawCommand::ConsumeCorpse { corpse },
             Kind::MissingTarget => RawCommand::MissingTarget,
             Kind::AttackMove { x, y, seq } => RawCommand::AttackMove { x, y, seq },
             Kind::MissingPickup => RawCommand::MissingPickup,
@@ -415,6 +428,8 @@ pub fn validate(raw: RawCommand) -> Result<Command, Reject> {
         RawCommand::Target { id } => Kind::Target { id },
         RawCommand::HuntTarget { id } if id.0 == 0 => return Err(Reject::InvalidTarget),
         RawCommand::HuntTarget { id } => Kind::HuntTarget { id },
+        RawCommand::ConsumeCorpse { corpse } if corpse.0 == 0 => return Err(Reject::InvalidTarget),
+        RawCommand::ConsumeCorpse { corpse } => Kind::ConsumeCorpse { corpse },
         RawCommand::MissingTarget => Kind::MissingTarget,
         RawCommand::AttackMove { x, y, seq } => {
             let (x, y) = clamp_pt(x, y)?;
@@ -473,6 +488,9 @@ pub(crate) enum ActionCmd {
     },
     HuntTarget {
         id: crate::PlayerId,
+    },
+    ConsumeCorpse {
+        corpse: crate::PlayerId,
     },
     MissingTarget,
     Attack {
@@ -609,6 +627,10 @@ impl InputQueue {
                 ActionCmd::HuntTarget { id } => {
                     same(RawCommand::HuntTarget { id }, Kind::HuntTarget { id })?
                 }
+                ActionCmd::ConsumeCorpse { corpse } => same(
+                    RawCommand::ConsumeCorpse { corpse },
+                    Kind::ConsumeCorpse { corpse },
+                )?,
                 ActionCmd::MissingTarget => same(RawCommand::MissingTarget, Kind::MissingTarget)?,
                 ActionCmd::MissingPickup => same(RawCommand::MissingPickup, Kind::MissingPickup)?,
                 ActionCmd::Swap { slot } => same(RawCommand::Swap { slot }, Kind::Swap { slot })?,
@@ -714,6 +736,9 @@ impl InputQueue {
             }
             Kind::Target { id } => return self.push_action(ActionCmd::Target { id }),
             Kind::HuntTarget { id } => return self.push_action(ActionCmd::HuntTarget { id }),
+            Kind::ConsumeCorpse { corpse } => {
+                return self.push_action(ActionCmd::ConsumeCorpse { corpse })
+            }
             Kind::MissingTarget => return self.push_action(ActionCmd::MissingTarget),
             Kind::Stop { seq } => {
                 self.mv = Some(MoveCmd::Stop { seq });

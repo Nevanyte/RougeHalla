@@ -142,6 +142,9 @@ pub(crate) fn role_move(
     _: f64,
     _: crate::status_runtime::StatView,
 ) -> f64 {
+    if w.mobs.get(core.id).is_some_and(|m| m.zombie.is_some()) {
+        return 1.;
+    }
     w.mobs
         .get(core.id)
         .and_then(|m| crate::mob_catalog::mob_type_by_id(m.mob_type.as_str()))
@@ -187,6 +190,17 @@ pub(crate) fn validate(
                     return Err("player actor provenance mismatch".into());
                 }
                 players += 1;
+            }
+            ActorOrigin::Zombie { owner } => {
+                if w.roster.name(owner).is_none()
+                    || w.roster.name(row.id).is_some()
+                    || !w
+                        .mobs
+                        .get(row.id)
+                        .is_some_and(|m| m.owner == Some(owner) && m.zombie.is_some())
+                {
+                    return Err("invalid zombie provenance".into());
+                }
             }
             ActorOrigin::Mob {
                 birth_serial,
@@ -254,8 +268,25 @@ pub(crate) fn validate(
             return Err("present player has no player provenance".into());
         }
     }
+    for m in w.mobs.as_slice() {
+        match (m.owner, m.zombie.is_some()) {
+            (Some(owner), true) => {
+                if w.player(owner).is_none()
+                    || w.roster.name(owner).is_none()
+                    || m.display_name.is_none()
+                {
+                    return Err("invalid zombie companion".into());
+                }
+            }
+            (None, false) => {}
+            _ => return Err("zombie owner/state mismatch".into()),
+        }
+    }
     match (&w.mob_runtime, k.config.mob_mode) {
-        (None, MobMode::Off) if w.mobs.is_empty() && serial == w.initial_birth_serial => {
+        (None, MobMode::Off)
+            if w.mobs.as_slice().iter().all(|m| m.zombie.is_some())
+                && serial == w.initial_birth_serial =>
+        {
             return Ok(())
         }
         (Some(_), MobMode::SpawnFoundation) => {}

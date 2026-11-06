@@ -955,6 +955,7 @@ fn actor_name(sim: &Sim, id: PlayerId) -> String {
         crate::mob_runtime::ActorOrigin::Mob { birth_serial, .. } => {
             format!("mob{}", radix36(*birth_serial))
         }
+        crate::mob_runtime::ActorOrigin::Zombie { owner } => format!("zombie{}", owner.0),
     }
 }
 fn roster_snapshot(sim: &Sim, f: &Value, ctx: &str) {

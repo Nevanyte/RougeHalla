@@ -97,6 +97,7 @@ fn step_weapon(cx: &mut Cx, ix: FighterIx) {
         }
     }
     let npc = !cx.w.is_player(ix);
+    let zombie_profile = super::plague_zombies::attack_profile(cx.k, cx.w, cx.w.core(ix).id);
     let sheet = cx.w.paced_sheet(ix);
     let base_hp = cx.w.base_sheet(ix).hp;
     let p = cx.w.core_mut(ix);
@@ -106,24 +107,29 @@ fn step_weapon(cx: &mut Cx, ix: FighterIx) {
         && now + TIE_EPS_MS >= p.weapon.ready_at
         && !crate::status_runtime::action_blocked(&p.statuses, now)
     {
-        let f = sheet;
-        let timing = if npc {
-            crate::content::npc_timings
+        let (tm, packet) = if let Some((tm, packet)) = zombie_profile {
+            (tm, packet)
         } else {
-            player_timings
-        };
-        let tm = timing(
-            weapon,
-            attack_interval(
-                &f,
+            let f = sheet;
+            let timing = if npc {
+                crate::content::npc_timings
+            } else {
+                player_timings
+            };
+            let tm = timing(
                 weapon,
-                crate::stat_fold::decode_mult(p.modifiers.attack_rate_wire()),
-            ),
-        );
-        let packet = if npc {
-            crate::modifiers::packet_with_sheet(p, weapon, &sheet, base_hp)
-        } else {
-            crate::modifiers::packet(p, weapon)
+                attack_interval(
+                    &f,
+                    weapon,
+                    crate::stat_fold::decode_mult(p.modifiers.attack_rate_wire()),
+                ),
+            );
+            let packet = if npc {
+                crate::modifiers::packet_with_sheet(p, weapon, &sheet, base_hp)
+            } else {
+                crate::modifiers::packet(p, weapon)
+            };
+            (tm, packet)
         };
         start_attack(p, now, cx.ev, weapon, tm, packet);
         let id = p.id;
