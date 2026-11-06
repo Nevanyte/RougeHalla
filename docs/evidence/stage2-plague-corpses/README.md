@@ -1,7 +1,7 @@
 # P-FACTION-3: Plague corpses and owned zombie
 
 Status: **COMPLETE (native + protocol v8 + actual-source parity)** — core, protocol v8, three pinned source slices,
-six mutants and the full workspace gate are green. Packet PR: [#31](https://github.com/Nevanyte/RougeHalla/pull/31); the perf gate is running.
+six mutants and the full workspace gate are green. Packet PR: [#31](https://github.com/Nevanyte/RougeHalla/pull/31). The **Perf gate passes**; Rust foundation and Native determinism were still running at the last check.
 
 ## 1. Outcome
 
