@@ -1914,7 +1914,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Source arena lifecycle requires protocol 7")]
+    #[should_panic(expected = "Source arena lifecycle requires protocol 8")]
     fn arena_profile_director_construction_refuses_before_runtime_spawn() {
         let sim = SimConfig {
             lifecycle: rh_sim::ArenaMode::Source(Default::default()),
@@ -1929,7 +1929,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Full Wish casting requires protocol 7")]
+    #[should_panic(expected = "Full Wish casting requires protocol 8")]
     fn wish_profile_director_construction_refuses_before_runtime_spawn() {
         let sim = SimConfig {
             abilities: rh_sim::abilities::Mode::Full,

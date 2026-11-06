@@ -11,7 +11,7 @@ namespace Roguehalla.Net.Protocol
         Malformed = 7, TooSlow = 8, ServerDraining = 9, NoSuchSession = 10, Kicked = 11,
     }
 
-    public enum CommandKind : byte { Move = 1, Stop = 2, Aim = 3, Attack = 4, Release = 5, Swap = 6, Pickup = 7, Choose = 8, UseConsumable = 9, Target = 10, AttackMove = 11, HuntTarget = 12 }
+    public enum CommandKind : byte { Move = 1, Stop = 2, Aim = 3, Attack = 4, Release = 5, Swap = 6, Pickup = 7, Choose = 8, UseConsumable = 9, Target = 10, AttackMove = 11, HuntTarget = 12, ConsumeCorpse = 13 }
 
     /// <summary>A client command. Only the fields of its Kind are meaningful.</summary>
     public sealed class WireCommand
@@ -37,6 +37,7 @@ namespace Roguehalla.Net.Protocol
         public static WireCommand UseConsumable() { return new WireCommand { Kind = CommandKind.UseConsumable }; }
         public static WireCommand Target(uint actorRef) { if (actorRef == 0) throw new ArgumentException("actor reference"); return new WireCommand { Kind = CommandKind.Target, ActorRef = actorRef }; }
         public static WireCommand HuntTarget(uint actorRef) { if (actorRef == 0) throw new ArgumentException("hunt target"); return new WireCommand { Kind = CommandKind.HuntTarget, ActorRef = actorRef }; }
+        public static WireCommand ConsumeCorpse(PickupHandle handle) { if (!handle.IsValid) throw new ArgumentException("corpse handle"); return new WireCommand { Kind = CommandKind.ConsumeCorpse, PickupRef = handle }; }
         public static WireCommand AttackMove(float x, float y, byte? seq) { return new WireCommand { Kind = CommandKind.AttackMove, X = x, Y = y, Seq = seq }; }
         public static WireCommand Stop(byte? seq) { return new WireCommand { Kind = CommandKind.Stop, Seq = seq }; }
         public static WireCommand Aim(float a) { return new WireCommand { Kind = CommandKind.Aim, A = a }; }
@@ -83,6 +84,7 @@ namespace Roguehalla.Net.Protocol
                             case 10: { uint id=r.U32(); if(id==0) throw new DecodeException(DecodeError.BadField,"actor reference"); inp.Commands.Add(WireCommand.Target(id)); break; }
                             case 11: { float x=r.F32(),y=r.F32(); inp.Commands.Add(WireCommand.AttackMove(x,y,r.Flag()?r.U8():(byte?)null)); break; }
                             case 12: { uint id=r.U32(); if(id==0) throw new DecodeException(DecodeError.BadField,"hunt target"); inp.Commands.Add(WireCommand.HuntTarget(id)); break; }
+                            case 13: { uint id=r.U32(); if(id==0) throw new DecodeException(DecodeError.BadField,"corpse handle"); inp.Commands.Add(WireCommand.ConsumeCorpse(new PickupHandle(id))); break; }
                             case 1: { float x = r.F32(), y = r.F32(); inp.Commands.Add(WireCommand.Move(x, y, r.Flag() ? r.U8() : (byte?)null)); break; }
                             case 2: inp.Commands.Add(WireCommand.Stop(r.Flag() ? r.U8() : (byte?)null)); break;
                             case 3: inp.Commands.Add(WireCommand.Aim(r.F32())); break;
@@ -153,6 +155,7 @@ namespace Roguehalla.Net.Protocol
                         case CommandKind.UseConsumable: break;
                         case CommandKind.Target: if(c.ActorRef==0) throw new ArgumentException("actor reference"); w.U32(c.ActorRef); break;
                         case CommandKind.HuntTarget: if(c.ActorRef==0) throw new ArgumentException("hunt target"); w.U32(c.ActorRef); break;
+                        case CommandKind.ConsumeCorpse: if(!c.PickupRef.IsValid) throw new ArgumentException("corpse handle"); w.U32(c.PickupRef.Value); break;
                         case CommandKind.AttackMove:
                         case CommandKind.Move: w.F32(c.X); w.F32(c.Y); Opt(w, c.Seq); break;
                         case CommandKind.Stop: Opt(w, c.Seq); break;
@@ -179,6 +182,7 @@ namespace Roguehalla.Net.Protocol
                     case CommandKind.UseConsumable: return 1;
                     case CommandKind.Target: return 5;
                     case CommandKind.HuntTarget: return 5;
+                    case CommandKind.ConsumeCorpse: return 5;
                     case CommandKind.AttackMove:
                     case CommandKind.Move: return 9 + (c.Seq.HasValue ? 2 : 1);
                     case CommandKind.Stop: return 1 + (c.Seq.HasValue ? 2 : 1);

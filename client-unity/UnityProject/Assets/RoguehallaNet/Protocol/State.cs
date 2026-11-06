@@ -27,7 +27,7 @@ namespace Roguehalla.Net
 namespace Roguehalla.Net.Protocol
 {
     public struct WireInventory { public byte ActiveSlot, PotionSmall, PotionsHealing; public byte? Slot0, Slot1; }
-    public enum PropKind : byte { Ground = 1, Chest = 2, Body = 3 }
+    public enum PropKind : byte { Ground = 1, Chest = 2, Body = 3, Corpse = 4 }
     public struct WireProp
     {
         public PickupHandle Handle;
@@ -36,6 +36,7 @@ namespace Roguehalla.Net.Protocol
         public byte GroundWeapon;
         public bool Open;
         public string BodyLabel;
+        public string CorpseLabel;
     }
     public struct WireFocus { public PickupHandle Handle; public byte? BodyHint; }
     public struct WireField
@@ -111,6 +112,7 @@ namespace Roguehalla.Net.Protocol
                                 case PropKind.Ground: row.GroundWeapon = Weapon(r.U8()); break;
                                 case PropKind.Chest: row.Open = r.Flag(); break;
                                 case PropKind.Body: row.BodyLabel = r.Str(); break;
+                                case PropKind.Corpse: row.CorpseLabel = r.Str(); break;
                                 default: throw new DecodeException(DecodeError.BadField, "prop kind");
                             }
                             props.Rows[j] = row;
@@ -194,6 +196,7 @@ namespace Roguehalla.Net.Protocol
                     case PropKind.Ground: CheckWeapon(row.GroundWeapon); break;
                     case PropKind.Chest: break;
                     case PropKind.Body: Require(Encoding.UTF8.GetByteCount(row.BodyLabel ?? "") <= 255, "body label"); break;
+                    case PropKind.Corpse: Require(Encoding.UTF8.GetByteCount(row.CorpseLabel ?? "") <= 255, "corpse label"); break;
                     default: throw new EncodeException("prop kind");
                 }
                 if (Focus.HasValue && row.Handle.Equals(Focus.Value.Handle))
@@ -210,7 +213,7 @@ namespace Roguehalla.Net.Protocol
             foreach (var row in Rows)
             {
                 w.Varint(row.Handle.Value); w.U16(row.X); w.U16(row.Y); w.U8((byte)row.Kind);
-                switch (row.Kind) { case PropKind.Ground: w.U8(row.GroundWeapon); break; case PropKind.Chest: w.U8(row.Open ? (byte)1 : (byte)0); break; case PropKind.Body: w.Str(row.BodyLabel); break; }
+                switch (row.Kind) { case PropKind.Ground: w.U8(row.GroundWeapon); break; case PropKind.Chest: w.U8(row.Open ? (byte)1 : (byte)0); break; case PropKind.Body: w.Str(row.BodyLabel); break; case PropKind.Corpse: w.Str(row.CorpseLabel); break; }
             }
             w.Varint(Focus.HasValue ? Focus.Value.Handle.Value : 0); if (Focus.HasValue) WriteWeapon(w, Focus.Value.BodyHint);
         }

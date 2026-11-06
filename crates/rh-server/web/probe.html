@@ -22,7 +22,7 @@
 </main>
 <script>
 "use strict";
-// ---- protocol v7 (mirror of crates/rh-protocol; tools/protocol-js/check-vectors.mjs holds this block to protocol/fixtures/v7.json) ----
+// ---- protocol v8 (mirror of crates/rh-protocol; tools/protocol-js/check-vectors.mjs holds this block to protocol/fixtures/v8.json) ----
 class W {
   constructor() { this.b = new Uint8Array(256); this.n = 0; this.v = new DataView(this.b.buffer); }
   need(k) { if (this.n + k > this.b.length) { const nb = new Uint8Array(this.b.length * 2 + k); nb.set(this.b); this.b = nb; this.v = new DataView(nb.buffer); } }
@@ -75,7 +75,7 @@ function fnv(w, h, tiles) {
   for (const t of tiles) eat(t);
   return x >>> 0;
 }
-const PROTOCOL = 7;
+const PROTOCOL = 8;
 const MAX_TICKET = 448;
 // Quantized remote actors and swings (rh-protocol quant.rs): positions are u16 at 1/8 u, angles u16 over 2 pi read as a signed code.
 const FACING_STEP_F32 = Math.fround(2 * Math.PI / 65536);
@@ -100,6 +100,7 @@ function input(seq, cmds) {
     else if(c.k === "useConsumable") { w.u8(9); }
     else if(c.k === "target") { if(!Number.isInteger(c.actorRef)||c.actorRef<=0||c.actorRef>0xffffffff) throw new Error("bad actor reference");w.u8(10);w.u32(c.actorRef); }
     else if(c.k === "huntTarget") { if(!Number.isInteger(c.actorRef)||c.actorRef<=0||c.actorRef>0xffffffff) throw new Error("bad hunt target");w.u8(12);w.u32(c.actorRef); }
+    else if(c.k === "consumeCorpse") { if(!Number.isInteger(c.handle)||c.handle<=0||c.handle>0xffffffff) throw new Error("bad corpse handle");w.u8(13);w.u32(c.handle); }
     else if (c.k === "stop") { w.u8(2); if (c.seq == null) w.u8(0); else { w.u8(1); w.u8(c.seq); } }
     else if (c.k === "aim") { w.u8(3); w.f32(c.a); }
     else if (c.k === "attack") { w.u8(4); w.f32(c.a); if (c.t == null) w.u8(0); else { w.u8(1); w.f64(c.t); } }
@@ -126,6 +127,7 @@ function decodeClient(buf) {
       else if(k === 9) c={k:"useConsumable"};
       else if(k === 10) {const actorRef=r.u32();if(!actorRef)throw new Error("bad actor reference");c={k:"target",actorRef};}
       else if(k === 12) {const actorRef=r.u32();if(!actorRef)throw new Error("bad hunt target");c={k:"huntTarget",actorRef};}
+      else if(k === 13) {const handle=r.u32();if(!handle)throw new Error("bad corpse handle");c={k:"consumeCorpse",handle};}
       else if (k === 2) c = { k: "stop", seq: r.opt(() => r.u8()) };
       else if (k === 3) c = { k: "aim", a: finite(r.f32()) };
       else if (k === 4 || k === 5) c = { k: k === 4 ? "attack" : "release", a: finite(r.f32()), t: r.opt(() => finite(r.f64())) };
@@ -352,6 +354,7 @@ function readState(r) {
         if (kind === 1) prop = { kind, weapon: r.code(4, "carried weapon") };
         else if (kind === 2) prop = { kind, open: flag() };
         else if (kind === 3) prop = { kind, label: r.str() };
+        else if (kind === 4) prop = { kind, label: r.str() };
         else throw new Error("bad prop kind");
         rows.push({ handle: h, x, y, ...prop });
       }

@@ -1314,7 +1314,7 @@ mod tests {
     use super::*;
 
     #[test]
-    #[should_panic(expected = "Source arena lifecycle requires protocol 7")]
+    #[should_panic(expected = "Source arena lifecycle requires protocol 8")]
     fn arena_profile_direct_room_construction_refuses_before_sim_or_entropy() {
         let mut config = cfg(Duration::from_millis(50));
         config.sim.lifecycle = rh_sim::ArenaMode::Source(Default::default());
@@ -1324,7 +1324,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Full Wish casting requires protocol 7")]
+    #[should_panic(expected = "Full Wish casting requires protocol 8")]
     fn wish_profile_direct_room_construction_refuses_before_sim_or_entropy() {
         let mut config = cfg(Duration::from_millis(50));
         config.sim.abilities = rh_sim::abilities::Mode::Full;

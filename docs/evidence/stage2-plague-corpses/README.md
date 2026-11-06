@@ -1,7 +1,8 @@
 # P-FACTION-3: Plague corpses and owned zombie
 
-Status: **INCOMPLETE (core native)** — corpse harvest, the companion actor, combat/credit, regen and checkpointing
-are integrated and tested. Protocol exposure, actual-source capture/parity, mutants and the full gate remain.
+Status: **INCOMPLETE (core + protocol v8)** — corpse harvest, the companion actor, combat/credit, regen,
+checkpointing and the wire command/actor/prop exposure are integrated and tested. Actual-source capture/parity,
+mutants and the full gate remain.
 
 ## 1. Outcome
 
@@ -41,9 +42,11 @@ C-RNG (no new stream; ids derive from the actor counter), C-NUM (source f64 orde
 - `cargo test -p rh-sim --test content` — 21 pass; content hash now `a882b26657530d74`.
 - `cargo test -p rh-sim --test hash_coverage` — 6 pass; 0 unhashed.
 - `cargo test -p rh-sim plague_corpses --lib` — 3 pass, including zombie checkpoint restore and follow.
+- `cargo test -p rh-protocol` — all pass; protocol v8 vectors include `input_corpse` and a corpse prop.
+- `node tools/protocol-js/check-vectors.mjs` — 25 server vectors, 89 malformed, 10 chains, 15,477 checks.
+- `dotnet test client-unity/RoguehallaNet.Tests` — 271 passed.
 
 ## 6. Remaining
 
-- Protocol v8: `consumeCorpse` command, corpse list/actor-owner exposure, C#/JS golden vectors.
 - Actual-source capture/parity scenarios and six mutants.
 - `mob_checkpoint` PvE zombie validation, full workspace/clippy/perf/browser gates.

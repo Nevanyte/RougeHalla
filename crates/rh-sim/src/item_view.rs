@@ -40,6 +40,7 @@ pub enum PropKind {
     Ground(WeaponId),
     Chest { open: bool },
     Body { label: Arc<str> },
+    Corpse { label: Arc<str> },
 }
 
 /// Position is already encoded on the public 1/8-unit grid. Field order is the canonical sort key.
@@ -240,6 +241,32 @@ impl ItemObserver {
                 }
             }
             self.scratch.push(Candidate { cue, id: c.id });
+        }
+        if me.standing() && me.vitals.faction == crate::content::FactionId::Plague {
+            for corpse in &sim.w.plague_corpses {
+                if self.scratch.len() == MAX_VISIBLE_PROPS {
+                    return Err(OfferError::TooManyProps);
+                }
+                let label = sim
+                    .w
+                    .roster
+                    .label(corpse.player)
+                    .filter(|s| s.len() <= u8::MAX as usize)
+                    .ok_or(OfferError::InvalidBodyLabel)?;
+                let cue = PropCue {
+                    x: position(corpse.x)?,
+                    y: position(corpse.y)?,
+                    kind: PropKind::Corpse {
+                        label: label.clone(),
+                    },
+                    focused: false,
+                    body_hint: None,
+                };
+                self.scratch.push(Candidate {
+                    cue,
+                    id: corpse.player.0,
+                });
+            }
         }
         if let Some((i, _, hint)) = best {
             self.scratch[i].cue.focused = true;

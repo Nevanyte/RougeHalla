@@ -40,9 +40,9 @@ pub enum PublicCommand {
     HuntTarget {
         actor: crate::PlayerId,
     },
-    /// Plague corpse harvest (legacy `consumeCorpse`); the id is the fallen player's id.
+    /// Plague corpse harvest (legacy `consumeCorpse`); the handle is the corpse prop's observer handle.
     ConsumeCorpse {
-        corpse: crate::PlayerId,
+        handle: crate::PickupHandle,
     },
     /// Walk to a point (right click / WASD goal). `seq` is echoed in the player's `move_seq` once applied.
     Move {
@@ -273,8 +273,12 @@ impl PublicCommand {
             }
             Self::HuntTarget { actor } if actor.0 == 0 => return Err(Reject::InvalidTarget),
             Self::HuntTarget { actor } => RawCommand::HuntTarget { id: actor },
-            Self::ConsumeCorpse { corpse } if corpse.0 == 0 => return Err(Reject::InvalidTarget),
-            Self::ConsumeCorpse { corpse } => RawCommand::ConsumeCorpse { corpse },
+            Self::ConsumeCorpse { handle } => match lookup(handle) {
+                Some(id) if id != 0 => RawCommand::ConsumeCorpse {
+                    corpse: crate::PlayerId(id),
+                },
+                _ => return Err(Reject::InvalidContainer),
+            },
             Self::AttackMove { x, y, seq } => RawCommand::AttackMove { x, y, seq },
             Self::Pickup { handle } => match lookup(handle) {
                 Some(container_id) => RawCommand::Pickup { container_id },

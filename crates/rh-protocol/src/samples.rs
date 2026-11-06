@@ -1,4 +1,4 @@
-//! The golden vectors: deterministic sample messages, and frames that must be rejected. `protocol/fixtures/v7.json` is
+//! The golden vectors: deterministic sample messages, and frames that must be rejected. `protocol/fixtures/v8.json` is
 //! generated from these (`cargo run -p rh-protocol --bin protocol-fixtures`) and read by the Rust, C# and JS tests. A
 //! Snapshot or Fx vector also carries what a client must DECODE (floats as their exact bit patterns), so the three decoders are
 //! held to the same quantization, not just to the same bytes.
@@ -45,6 +45,15 @@ pub fn client_samples() -> Vec<(&'static str, ClientMsg)> {
                         pick,
                     })
                     .collect(),
+            },
+        ),
+        (
+            "input_corpse",
+            ClientMsg::Input {
+                seq: 47,
+                commands: vec![WireCommand::ConsumeCorpse {
+                    handle: PickupHandle::new(42).unwrap(),
+                }],
             },
         ),
         (
@@ -254,6 +263,21 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
         .collect();
     vec![
         ("state_all", state_sample()),
+        (
+            "props_corpse",
+            ServerMsg::State {
+                tick: 13,
+                items: vec![StateItem::Props(WireProps {
+                    rows: vec![WireProp {
+                        handle: PickupHandle::new(7).unwrap(),
+                        x: 800,
+                        y: 900,
+                        kind: WirePropKind::Corpse { label: "P1".into() },
+                    }],
+                    focus: None,
+                })],
+            },
+        ),
         (
             "potion_notices",
             ServerMsg::Events {
