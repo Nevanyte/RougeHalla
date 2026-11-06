@@ -2,7 +2,7 @@
   "format": "rh-stat-fold-ci/1",
   "sourceCommit": "7f294cc755967cf0a968b6a545c6a53b309f1dc2",
   "branch": "optimization_port",
-  "observedUtc": "2026-11-06 01:13:41 UTC",
+  "observedUtc": "2026-11-06T01:34:32.394963+00:00",
   "rustCsharp": {
     "runId": 42140634731,
     "url": "https://github.com/Nevanyte/RougeHalla/actions/runs/42140634731",
@@ -14,10 +14,11 @@
       },
       {
         "name": "rust",
-        "status": "in_progress",
-        "conclusion": null
+        "status": "completed",
+        "conclusion": "success"
       }
-    ]
+    ],
+    "conclusion": "success"
   },
   "nativeDeterminism": {
     "runId": 42140667566,
@@ -57,7 +58,6 @@
     ]
   },
   "limits": [
-    "Native determinism covers the declared CI artifacts/replays, not full gameplay completion",
-    "Rust CI remains confirmed live; no timeout/restart/failure inferred from observation delay"
+    "CI covers the declared Rust/C#/browser and native artifacts/replays; full gameplay, Unity full flow, staging and release remain incomplete."
   ]
 }

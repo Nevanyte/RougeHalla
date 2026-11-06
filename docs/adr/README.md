@@ -22,3 +22,4 @@ provisional decision is the working default until the named experiment confirms 
 | [0014](0014-sentenced-public-state.md) | Current-survivor Mark fields, eligible-before-numeric owner identity and fail-closed projector sessions | Accepted, implemented and independently reviewed (bounded base Sentenced) |
 | [0015](0015-landmark-recipes.md) | Actual five-faction landmark recipes, ordered shared state and exact stage admission | Accepted, implemented and independently reviewed (stage four; full generator/pins remain open) |
 | [0016](0016-map-finalization.md) | Canonical records, exact ECMAScript legacy map identity and ordered terrain acceptance | Accepted, implemented and independently reviewed (finalization leaves; full generator/certifier/pins remain open) |
+| [0017](0017-visible-status-fields.md) | Visible status fields as redacted snapshot facts without shared runtime IDs | Provisional; private implementation and integrated privacy/version checks pending |
