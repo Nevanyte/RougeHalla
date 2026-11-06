@@ -2,7 +2,7 @@
 
 Status: **INCOMPLETE (one honest gap)** — core, protocol v8, two pinned actual-source parity slices and six
 mutants are green. The zombie-combat capture remains capture-only because a per-tick damage drift is still open;
-PvE checkpointing and the full workspace/perf gate remain.
+the full perf gate and the PR remain.
 
 ## 1. Outcome
 
