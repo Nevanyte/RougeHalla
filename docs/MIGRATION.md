@@ -59,9 +59,14 @@ training actors, full NPC faction domains and other original-port requirements r
 The private arena collision/history prerequisite has independent stage1-v2 approval (manifest
 `14ac6e5f82c5cd635ccba8d3bb9ad047c3498c5727a4636e4e786acef5de39b9`), including the repaired first-reveal ordinal
 restore rule. It is not yet integrated; actual lifecycle/locked-world/public-observer acceptance remains pending.
-The full [Wish packet](backlog/packets/P-ABIL-1.md) is now ready after a65-input source/native audit. A separate source
-worker is capturing all five real Wish outcomes and their clocks/fields/refunds; no ordinary native Cast implementation
-is claimed. Blaze Step is the Fire Wish. The existing genuine arena refund trace remains dependent on this pipeline.
+The full [Wish packet](backlog/packets/P-ABIL-1.md) now has independently accepted source evidence:63 cases/6,318
+ordinary50ms steps/1,237 full frames, with all five real outcomes, stock clocks, atomic rank reversal, source-born
+recipients and observer twins. A fresh pinned capture and one exact comparison pass. The coordinator applied the
+reviewed README correction separating transient hook observations from ordinary checkpoint boundaries; corpus/harness
+bytes are unchanged. A reviewed single-owner cast design is now being implemented privately on the frozen arena
+collision/history prerequisite. [Wish evidence](evidence/stage2-abilities/README.md) records exact scope. No ordinary
+native Cast parity, full coupled producer or public transport success is claimed. Blaze Step is the Fire Wish; the
+genuine native arena refund and a focused frozen-void cast continuation witness remain required.
 
 ### Current playable-core checkpoint
 

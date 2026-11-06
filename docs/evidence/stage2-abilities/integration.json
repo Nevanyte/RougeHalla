@@ -1,0 +1,84 @@
+{
+  "format": "rh-ability-source-integration/1",
+  "base": "aaef192119ed45e89f6ba0e7d2fffba1d5b25595",
+  "sourceOnly": true,
+  "nativeFullPacket": "INCOMPLETE",
+  "sourceCases": 63,
+  "ordinary50msSteps": 6318,
+  "fullFrames": 1237,
+  "sourceInputCount": 132,
+  "harnessInputCount": 7,
+  "proposalManifestSha256": "439a6829ca7db1f7c6449151326f80ad5143771f61cdb42144acfb172388d036",
+  "independentReviewSha256": "8056a5fe2814a75b1eb1928c6f93b65740df18ccc082aba5caf592ef84e0db33",
+  "sourceWorkerCanonicalCaptureExit": 0,
+  "sourceWorkerSingleCanonicalCompareExit": 0,
+  "coordinatorRepeatedCanonicalCapture": false,
+  "files": [
+    {
+      "path": "parity/abilities/INPUT_SHA256.json",
+      "acceptedSha256": "75b3772c7590a5156a78dcabe000d2504b7fa60a0cc10440eb0ddff0d3fcca6e",
+      "integratedSha256": "75b3772c7590a5156a78dcabe000d2504b7fa60a0cc10440eb0ddff0d3fcca6e",
+      "coordinatorReadmeOverlay": false
+    },
+    {
+      "path": "parity/abilities/README.md",
+      "acceptedSha256": "89d79eaeae59adb3f0ebe5fb8295e805a5b92679f2df441e0dfd8e8181b910c5",
+      "integratedSha256": "136dbef1aa587bc3d926321493c172f84020dad95ecaec4cca0feba93bed3c55",
+      "coordinatorReadmeOverlay": true
+    },
+    {
+      "path": "parity/abilities/source.json",
+      "acceptedSha256": "8629c08fa42ac9fb15b21c52416658997c7d8969a6962cf59b71cebedd571330",
+      "integratedSha256": "8629c08fa42ac9fb15b21c52416658997c7d8969a6962cf59b71cebedd571330",
+      "coordinatorReadmeOverlay": false
+    },
+    {
+      "path": "tools/ability-fixtures/assertions.mts",
+      "acceptedSha256": "f34393b19f5656650bc8735e8d9f9317be344192e24cf87633c0a77fcd901f1a",
+      "integratedSha256": "f34393b19f5656650bc8735e8d9f9317be344192e24cf87633c0a77fcd901f1a",
+      "coordinatorReadmeOverlay": false
+    },
+    {
+      "path": "tools/ability-fixtures/born-input.json",
+      "acceptedSha256": "5ee388ca61234bae0e7dc04adca00702fbc6199f048487490fcbca25b2cffb16",
+      "integratedSha256": "5ee388ca61234bae0e7dc04adca00702fbc6199f048487490fcbca25b2cffb16",
+      "coordinatorReadmeOverlay": false
+    },
+    {
+      "path": "tools/ability-fixtures/capture.mts",
+      "acceptedSha256": "b956a024d289edebb77cf1a53b1a8922ba2e6614d377cef045a1e931d0bd28db",
+      "integratedSha256": "b956a024d289edebb77cf1a53b1a8922ba2e6614d377cef045a1e931d0bd28db",
+      "coordinatorReadmeOverlay": false
+    },
+    {
+      "path": "tools/ability-fixtures/capture.sh",
+      "acceptedSha256": "52d6a9fa887300cf8959d6ddba2d9198cc96bf9d66606c0e092690a5ff616613",
+      "integratedSha256": "52d6a9fa887300cf8959d6ddba2d9198cc96bf9d66606c0e092690a5ff616613",
+      "coordinatorReadmeOverlay": false
+    },
+    {
+      "path": "tools/ability-fixtures/cases.mts",
+      "acceptedSha256": "05dc07ce4c7c449526fe305f43fc22236355abd31897bc95fe79b551a1b4d40d",
+      "integratedSha256": "05dc07ce4c7c449526fe305f43fc22236355abd31897bc95fe79b551a1b4d40d",
+      "coordinatorReadmeOverlay": false
+    },
+    {
+      "path": "tools/ability-fixtures/engine.mts",
+      "acceptedSha256": "f3a99627fc7487e9ab788c2f13bd326dd7abc63d0f89a2b26a2053c9a5e125f1",
+      "integratedSha256": "f3a99627fc7487e9ab788c2f13bd326dd7abc63d0f89a2b26a2053c9a5e125f1",
+      "coordinatorReadmeOverlay": false
+    },
+    {
+      "path": "tools/ability-fixtures/seed1-input.json",
+      "acceptedSha256": "7c95efad61f47942d10921d7f1bc16acb43306f370cf368e0693a69d456441e7",
+      "integratedSha256": "7c95efad61f47942d10921d7f1bc16acb43306f370cf368e0693a69d456441e7",
+      "coordinatorReadmeOverlay": false
+    }
+  ],
+  "checks": {
+    "integratedDigests": "PASS with approved README overlay",
+    "allProvenanceDigests": "PASS",
+    "caseStepFrameCounts": "PASS"
+  },
+  "readmeCorrection": "Transient zero-time cast-hook and due-batch observations are not ordinary checkpoint boundaries."
+}

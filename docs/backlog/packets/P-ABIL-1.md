@@ -92,6 +92,9 @@ The private full cast has one authoritative owner; any status-facing mirror must
   While ledger collection runs, fighter-out cleanup uses same-tick payLater; surviving trails keep immutable attribution.
 - Keep status/field pairing, expiry and replacement order, next-tick movement exits and same-phase Blaze exits.
   Reuse all-fighter status/ledger paths; current player-only Trial resolution and Blaze/DoT loops must be completed.
+  Preserve separate recipient rules: unit targeting checks hostility/untargetability/LOS; trail contact skips its owner,
+  evading actors and immune players, without an untargetability/hostility test; existing DoT ticks use standing/evasion
+  and the common ledger. Swarm does not make a fighter immune to existing or trail burns; returning NPCs remain eligible.
   Ability damage/reporting uses its source-specific multipliers,500ms aggregation and frozen public eligibility rules.
 
 ## Acceptance checks
@@ -106,7 +109,9 @@ The private full cast has one authoritative owner; any status-facing mirror must
    complements these cases and cannot stand in for ordinary casts, births or lifecycle.
 4. Reproduce the existing genuine arena refund case through actual native cast ownership and teleport. Test death,
    MIA, drop/reconnect, run-end, paired expiry and owner-outliving trails/status attribution. Preserve exact event order.
-5. Restore and continue pending/zero-time/due/batch casts, stock/refund boundaries, fields and departed-owner damage.
+5. Restore and continue queued Cast inputs and reachable pending casts, stock/refund boundaries, fields and
+   departed-owner damage. Zero-time and due-batch hook snapshots are transient phase assertions, not ordinary
+   checkpoint boundaries. Preserve source frozen-void behavior: its clock can advance while pending casts remain.
    Validate coherent private cast/mirror data, actors, finite clocks/targets/landing, IDs and tuple dependencies. Populate
    every new hashed leaf; content derives from executable definitions and policies. No synthetic admission widening.
 6. Public/owner/policy observations expose permitted Wish/stock/casting facts and visible effects only. Test hidden/
