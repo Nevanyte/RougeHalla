@@ -92,8 +92,9 @@ def record_base_replays(out_dir, sides):
     if RERECORD:
         for ticks in (600, 3000):
             a, b = (json.load(open(replay_path(out_dir, ticks, s))) for s in ("base", "cand"))
-            for k in ("format", "hashes"):
-                a.pop(k), b.pop(k)
+            # Replay metadata follows the recording build; the INPUTS are config/arena/secrets/start/ticks.
+            for k in ("format", "hashes", "build", "content_hash", "match_id"):
+                a.pop(k, None), b.pop(k, None)
             if a != b:
                 sys.exit(f"[perfproof] the two builds recorded different inputs for the {ticks}-tick match")
             sys.stderr.write(f"[perfproof] {ticks}-tick replays: starting conditions and inputs identical on both builds\n")
