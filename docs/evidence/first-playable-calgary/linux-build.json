@@ -1,0 +1,41 @@
+{
+  "utc": "2026-11-06T08:43:22.674975+00:00",
+  "base_revision": "b6a79ad43c81a513f238a18f951fc0cf56a2c54a",
+  "source_identity": "Dirty working-tree bytes frozen in the Docker image and identified by linux-source-manifest.json, not the base commit alone.",
+  "image": "rh-rustbuild:mvp-arm64",
+  "image_id": "sha256:a8ffeef3c59aa76d61ae0ba39d50435e50ffc41160767cba25e85a7f1deeeb2d",
+  "image_architecture": "arm64",
+  "image_os": "linux",
+  "rh_build": "b6a79ad-mvp-workingtree",
+  "features": "default (empty extra features; no postgres)",
+  "cargo_build_jobs": 2,
+  "binary_bytes": 6238496,
+  "binary_sha256": "c35b7c6034cfd57a956f1e832780620a447410f35a0c479e540c339a932d13d2",
+  "source_manifest_sha256": "ac06444d1e05d639e7ac86452a592a38e1fe23ca43bb22d35fefd9dd79b21495",
+  "source_files": 555,
+  "tool_report_sha256": "85817fbafa05c8fdc092fd308bf297ae4c269f76aa79f95ee8ed7905e9eb0569",
+  "smoke": {
+    "passed": true,
+    "first_playable": true,
+    "info": {
+      "closedRooms": [],
+      "contentHash": "74192c062ab9eac1",
+      "lobbies": 0,
+      "maxRooms": 2,
+      "players": 0,
+      "protocol": 6,
+      "resultsFailed": 0,
+      "resultsOk": 0,
+      "resultsRefused": 0,
+      "rooms": 0,
+      "state": "ready"
+    },
+    "info_sha256": "d39b6fa04578b63eefb3a8b9d85251620501c3059aa3b387844a84cb92a73887",
+    "loopback_only": true,
+    "cloud_actions": false
+  },
+  "build_notes": [
+    "An initial build was cancelled because CARGO_BUILD_JOBS was passed before its Dockerfile ARG existed. The Dockerfile now declares the argument; the succeeding build used2 jobs and exited0.",
+    "docker-build.log preserves interleaved buffered cancellation text from the first process, including NUL padding; successful current image identity and extracted/smoked binary are authoritative. No cloud calls or image push occurred."
+  ]
+}

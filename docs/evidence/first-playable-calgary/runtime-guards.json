@@ -1,0 +1,27 @@
+{
+  "verified_at": "2026-11-06T09:19:26.886927+00:00",
+  "region": "ca-west-1",
+  "zone": "ca-west-1a",
+  "instance_type": "t4g.small",
+  "state": "running",
+  "metadata_tokens": "required",
+  "iam_profile_present": false,
+  "cpu_credits": "standard",
+  "os_shutdown": "terminate",
+  "volume": {
+    "id": "vol-0be48625f90b07be6",
+    "gib": 8,
+    "type": "gp3",
+    "encrypted": true,
+    "delete_on_termination": true
+  },
+  "expiry_console": [
+    "[   17.709525] cloud-init[1016]: Roguehalla absolute host expiry UTC: 2026-11-06 13:34:12 UTC"
+  ],
+  "observed_service_success": {
+    "rust": true,
+    "egress_limiter": true,
+    "https": true
+  },
+  "cleanup_scheduled_utc": "2026-11-06T13:00:00Z"
+}

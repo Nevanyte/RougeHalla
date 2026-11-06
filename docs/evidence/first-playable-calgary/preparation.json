@@ -1,0 +1,46 @@
+{
+  "cloud_mutations": 0,
+  "schema_lint": "cfn-lint ca-west-1: 0 findings",
+  "security": "cfn-guard3.2.1:3PASS0violations",
+  "aws_validate_template": "PASS, read-only",
+  "python_compile": "PASS",
+  "bash_syntax": "PASS",
+  "local_guard_probes": "5PASS, no AWS API calls",
+  "caddy_linux_arm64_v2_11_9": "validate exit0, no listener/TLS issuance",
+  "files": [
+    {
+      "path": "hosting/staging-mvp/README.md",
+      "sha256": "3cd081c03d55ba914551ca257e9a9164a4272a30a99e02128c121d2cd5fe753f"
+    },
+    {
+      "path": "hosting/staging-mvp/bootstrap.sh.in",
+      "sha256": "7117cf3b06d62067eb96352d1b6dff357fe9ee1c26e84b1e29a6e1cc98b6bdc6"
+    },
+    {
+      "path": "hosting/staging-mvp/package-web.py",
+      "sha256": "74c97d53db87d10da5f36eeb8e5e040a29f554f499a9c169e1e1be9013c01cb0"
+    },
+    {
+      "path": "hosting/staging-mvp/security.guard",
+      "sha256": "b6c0b6546f79cadd8b067714bd81a4ba855448084f559d7b68c9c27bb2ab9143"
+    },
+    {
+      "path": "hosting/staging-mvp/stack.base.json",
+      "sha256": "593e1fa181aa02256b02b6077d1eb9dad7bee3ffd56172197ace59ca6a740d12"
+    },
+    {
+      "path": "hosting/staging-mvp/staging.py",
+      "sha256": "140696b78b9b48e640cb8e5c74b9d2908d776c8a8db4fef38a9da6810302eb7e"
+    },
+    {
+      "path": "docs/adr/0020-temporary-single-host-staging.md",
+      "sha256": "a9230ea30d540d9e6d38e3bf77236a50884dbc93e1c8a07675405deccd22f209"
+    }
+  ],
+  "validation_baseline_note": "Historical prelaunch validation hashes are preserved. staging.py/README were subsequently repaired for AWS untagged REVIEW_IN_PROGRESS stacks; the exact ownership refusal probes cover that repair. Template/bootstrap bytes were unchanged.",
+  "current_helper_sha256": {
+    "hosting/staging-mvp/staging.py": "3fd0239eef3958eff104e0b40ebade0a3172b58a0c297286ecfae144d1470646",
+    "hosting/staging-mvp/README.md": "e16f93b4c234de414cb20f260a1cbf96412dc36931643f8d3aff12081853d830"
+  },
+  "later_validation": "ownership-probes.json; real CREATE-only execution and public browser/runtime proofs"
+}

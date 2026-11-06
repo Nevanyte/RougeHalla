@@ -1,0 +1,33 @@
+{
+  "real_cloud_mutations": 0,
+  "checks": [
+    {
+      "check": "untagged_review_owned_change_set",
+      "result": "accepted"
+    },
+    {
+      "check": "different_change_set_stack_id",
+      "result": "refused"
+    },
+    {
+      "check": "different_run_tag",
+      "result": "refused"
+    },
+    {
+      "check": "different_purpose_tag",
+      "result": "refused"
+    },
+    {
+      "check": "created_stack_missing_own_tags",
+      "result": "refused"
+    },
+    {
+      "check": "created_stack_own_tag",
+      "result": "accepted"
+    },
+    {
+      "check": "review_cleanup_after_ownership_proof",
+      "result": "accepted_in_fake_only"
+    }
+  ]
+}

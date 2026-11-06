@@ -105,13 +105,32 @@ def load_state(directory):
 
 
 def verify_stack(aws, state, missing=False):
-    result = aws.call("cloudformation", "describe-stacks", "--stack-name", state["stack"], missing=missing)
+    # Exclude Parameters: even NoEcho capabilities do not belong in status/review output.
+    result = aws.call("cloudformation", "describe-stacks", "--stack-name", state["stack"], "--query",
+                      "{Stacks:Stacks[].{StackName:StackName,StackId:StackId,StackStatus:StackStatus,Tags:Tags,Outputs:Outputs}}",
+                      missing=missing)
     if result is None:
         return None
     stacks = result.get("Stacks", [])
-    if len(stacks) != 1 or {x["Key"]: x["Value"] for x in stacks[0].get("Tags", [])}.get("RoguehallaRun") != state["run_id"]:
+    if len(stacks) != 1:
+        fail("expected exactly one owned stack")
+    stack = stacks[0]
+    expected_arn = "arn:aws:cloudformation:" + REGION + ":" + ACCOUNT + ":stack/" + state["stack"] + "/"
+    if stack.get("StackName") != state["stack"] or not stack.get("StackId", "").startswith(expected_arn):
+        fail("stack name/account/region identity mismatch")
+    if stack.get("StackStatus") == "REVIEW_IN_PROGRESS":
+        # New CREATE stacks expose no stack tags until execution. The pending change set owns those tags.
+        change = aws.call("cloudformation", "describe-change-set", "--stack-name", state["stack"],
+                          "--change-set-name", state.get("change_set", "first-playable"), "--query",
+                          "{StackName:StackName,StackId:StackId,Tags:Tags}")
+        tags = {x["Key"]: x["Value"] for x in change.get("Tags", [])}
+        if (state.get("change_set_type") != "CREATE" or change.get("StackId") != stack["StackId"]
+                or change.get("StackName") != state["stack"] or tags.get("RoguehallaRun") != state["run_id"]
+                or tags.get("Purpose") != "DisposableFirstPlayable"):
+            fail("review change set ownership mismatch")
+    elif {x["Key"]: x["Value"] for x in stack.get("Tags", [])}.get("RoguehallaRun") != state["run_id"]:
         fail("stack ownership tag mismatch")
-    return stacks[0]
+    return stack
 
 
 def prepare(aws, args):
@@ -177,7 +196,8 @@ def execute(aws, args, state):
     stack = verify_stack(aws, state)
     if stack["StackStatus"] != "REVIEW_IN_PROGRESS":
         fail("only a new reviewed stack can execute; updates/replacements are unsupported")
-    change = aws.call("cloudformation", "describe-change-set", "--change-set-name", state["change_set"])
+    change = aws.call("cloudformation", "describe-change-set", "--change-set-name", state["change_set"], "--query",
+                      "{StackId:StackId,Status:Status,ExecutionStatus:ExecutionStatus,Changes:Changes}")
     if change.get("Status") != "CREATE_COMPLETE" or change.get("ExecutionStatus") != "AVAILABLE" or state.get("change_set_type") != "CREATE":
         fail("change set is not an available CREATE; inspect its status and validation events")
     changes = change.get("Changes", [])

@@ -31,6 +31,11 @@ foundation gate passed 395 all-feature/386 default-feature tests; its Rust/C#/br
   [the integration evidence](evidence/first-playable-core/INTEGRATION.md). C#267/JS15,377+61 pass. Deferred mechanic
   domains and one-shot effect announcements remain explicit; this does not close full regional/content parity.
 
+- C-HOST first-playable addendum: real Calgary EC2 plus publicly trusted HTTPS/WSS passes the actual Unity match loop
+  under ADR0020, with no production change. Runtime expiry/standard credits/disk/metadata settings are verified.
+  This is an ephemeral single-host exception; GameLift/provider/scale and durable cloud progression remain open.
+  Cleanup at13:00UTC is assigned and pending, not passed. See [cloud evidence](evidence/first-playable-calgary/README.md).
+
 - Earlier C-NET/C-OBS transport checkpoint: wire6 carried strict complete-replacement State keys1–5 and effect/displacement
   full/delta scalars. Human inputs resolve observer handles, never raw container IDs; reliable State+Events enqueue
   atomically before committing either offered handles or collection baselines. Resume clears bindings/pending client

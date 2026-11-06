@@ -8,8 +8,9 @@ One image, two binaries (ADR 0004, [docs/hosting/CONTROL_API.md](../docs/hosting
 - `rh-server` (Rust, built from the workspace, no cloud SDK).
 
 Status: the bridge, the contract and the Rust side of the control API are done and tested against each other (a fake SDK, a fake
-control server, and the real bridge driving the real server end to end, below). **Nothing here has run against AWS.** Do not push
-images.
+control server, and the real bridge driving the real server end to end, below). **The bridge/image has not run against managed GameLift.** The separate
+[temporary Calgary MVP](staging-mvp/README.md) runs the verified standalone Rust binary with the Unity browser; it does
+not establish managed-fleet integration. Image publication still needs its own reviewed run.
 
 ## Tests (no AWS, no Go on the host: use the pinned image)
 

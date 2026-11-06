@@ -24,6 +24,11 @@ advanced bots, visual polish and large-scale hosting tests are deferred; this ba
 for later milestones. Work only on dependencies needed for that loop now, preserving focused parity and regression
 checks. See the concrete finish line in [MIGRATION](../MIGRATION.md#first-playable-release-scope--owner-decision-2026-11-05).
 
+**Current MVP gate:** the local and public Calgary Unity loop now passes, including loot/chest choice, results and
+reconnect; [cloud evidence](../evidence/first-playable-calgary/README.md) records the temporary single-host deployment.
+The bounded owner playtest and verified cleanup remain; managed GameLift, persistent progression, full browser/content
+coverage and matched legacy performance remain later gates.
+
 **First Claude handoff integrated (owner request 2026-11-05).** PR25–27 from
 [P-CLAUDE-INFRA-1](packets/P-CLAUDE-INFRA-1.md) are integrated with coordinator repairs; the broad reservation is closed.
 See [external integration evidence](../evidence/stage2-external-integration/README.md). Same-volume recovery, account

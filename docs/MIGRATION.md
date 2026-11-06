@@ -38,6 +38,7 @@ suite was split from the remaining workspace to avoid repeating completed map te
 formatting pass. C# passes267 tests; JS passes15,377 golden and61 focused assertions. Wire6 now binds all seven reliable
 collections and the new gameplay inputs. Content is `74192c062ab9eac1`; checkpoint16/replay14/observation13/policy10.
 The hash audit finds zero unhashed leaves across44,428 leaves, with actual mob runtime states included.
+Checkpoint `484cef25` also passes Rust/C# CI42190950142 and hosting CI42190950113.
 
 The rebuilt Unity Web player and actual UI screenshots are recorded in
 [the Unity evidence](evidence/first-playable-unity/INTEGRATION.md); native source/restore/privacy evidence is in
@@ -46,13 +47,18 @@ normal browser CPU submission/GPU medians1.70/0.206ms, and native Sim-only means
 deterministic trials. Browser/display pacing and experimental uncapped callbacks are reported separately in
 [the performance record](evidence/first-playable-performance/README.md). These are not a full-game legacy speedup claim.
 
-**Remaining first-release gate: one-region AWS/TLS/DNS deployment, budget verification and cleanup.** AWS Core currently
-rejects authentication even after reconnect; the authorized fallback CLI now verifies the owner’s new staging account
-through the in-app browser. The account is on the free plan with USD100 credits; GameLift currently refuses service access.
-The owner selected Calgary (`ca-west-1`), which is enabled. The reviewed [temporary single-host plan](../hosting/staging-mvp/README.md)
-uses one small host, an absolute4.5h expiry and bounded transfer; it preserves GameLift/provider/scale as later gates. No cloud resources
-or DNS writes were made. CAD20 total and the production-domain restriction remain unchanged. Final matched
-full-port performance and the original broader backlog remain open; this checkpoint does not declare the whole port done.
+**Calgary staging is live and functionally verified at [rougehalla.com](https://rougehalla.com/).** The actual Unity
+browser passes the full MVP loop over publicly trusted HTTPS/WSS in `ca-west-1a`, including a chest choice, results,
+reconnect and rejoin, with zero page/decoder errors. This uses the reviewed temporary small-host exception in ADR0020;
+GameLift/provider/scale and durable progression remain separate. AWS Core still refuses authentication; the approved
+CLI verifies the new account and the Cloudflare dashboard made only the marked practice DNS record. No production
+change or Paid-plan upgrade was made. [Cloud evidence](evidence/first-playable-calgary/README.md) records exact artifacts,
+public TLS, runtime guards and budget scope. Wasm/JS use gzip; further loading optimization remains open.
+
+**Remaining first-release gate: finish the bounded playtest and verify cleanup.** The owner can test until06:00 Edmonton
+on2026-11-06; the cleanup coordinator is assigned for13:00UTC, before the guest’s13:34UTC fallback and the Rust admission
+cutoff. Cleanup is pending, not passed. CAD20 total remains the cap. Final matched full-port performance and the original
+broader backlog remain open; this checkpoint does not declare the whole port done.
 
 ### Current architecture, before Stage 2 changes
 
@@ -72,10 +78,9 @@ full-port performance and the original broader backlog remain open; this checkpo
 - The owner created and signed in to a new AWS staging account after old-account MFA blocked access; CLI identity is verified.
   The new account replaces the previous target; the total authorized staging spend is **CAD 20**, not a monthly target.
   Cloud resources must be planned against the remaining total with cleanup; the old experiment's USD 150 ceiling is not
-  authorized. No Stage 2 cloud resources have been created yet.
-- Practice domain: **`rougehalla.com`**. Cloudflare dashboard sign-in is verified and the practice zone has no DNS records.
-  The dashboard is used because the saved tool OAuth scope refuses actual DNS requests.
-  No DNS write has been attempted. Production **`play.roguehalla.com`** must remain unchanged; production
+  authorized. One reviewed Calgary playtest run is active; its owned resources and cleanup deadline are recorded above.
+- Practice domain: **`rougehalla.com`**. Cloudflare dashboard sign-in is verified. Its previously empty zone now has one marked
+  DNS-only A record for this Calgary playtest at TTL60. The dashboard is used because the saved tool OAuth scope refuses DNS requests. Production **`play.roguehalla.com`** must remain unchanged; production
   cutover requires later owner authorization.
 - Unity Personal sign-in/license and Web module are available. The project now pins Unity `6000.0.85f2` (revision
   `b028303d8e7d`), with a resolved package lock and URP 17.0.4. Both the first protocol-4 bootstrap and the rebuilt

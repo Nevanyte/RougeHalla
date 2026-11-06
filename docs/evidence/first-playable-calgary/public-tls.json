@@ -1,0 +1,59 @@
+{
+  "timestamp": "2026-11-06T09:12:47.619Z",
+  "authoritative": [
+    {
+      "ns": "cruz.ns.cloudflare.com",
+      "answers": [
+        {
+          "address": "56.112.101.45",
+          "ttl": 60
+        }
+      ]
+    },
+    {
+      "ns": "leif.ns.cloudflare.com",
+      "answers": [
+        {
+          "address": "56.112.101.45",
+          "ttl": 60
+        }
+      ]
+    }
+  ],
+  "status": 200,
+  "authorized": true,
+  "certificate": {
+    "subject": {
+      "CN": "rougehalla.com"
+    },
+    "issuer": {
+      "C": "US",
+      "O": "Let's Encrypt",
+      "CN": "YE1"
+    },
+    "subjectaltname": "DNS:rougehalla.com",
+    "valid_from": "Nov  6 08:13:11 2026 GMT",
+    "valid_to": "Feb  4 08:13:10 2027 GMT",
+    "fingerprint256": "9D:EA:E1:F7:94:60:66:FE:45:A7:02:34:97:F7:D8:A2:D3:A8:2B:25:F5:F2:AA:06:C7:8A:E3:1B:F0:E0:0F:D0"
+  },
+  "headers": {
+    "cache-control": "no-store",
+    "content-length": "178",
+    "content-type": "application/json",
+    "date": "Fri, 06 Nov 2026 09:12:47 GMT",
+    "via": "1.1 Caddy"
+  },
+  "info": {
+    "closedRooms": [],
+    "contentHash": "74192c062ab9eac1",
+    "lobbies": 0,
+    "maxRooms": 2,
+    "players": 0,
+    "protocol": 6,
+    "resultsFailed": 0,
+    "resultsOk": 0,
+    "resultsRefused": 0,
+    "rooms": 0,
+    "state": "ready"
+  }
+}

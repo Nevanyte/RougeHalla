@@ -1,0 +1,48 @@
+{
+  "utc": "2026-11-06T08:47:14.801800+00:00",
+  "tag": "v2.11.9",
+  "release": "https://github.com/caddyserver/caddy/releases/tag/v2.11.9",
+  "published_at": "2026-11-05T01:30:24Z",
+  "prerelease": false,
+  "archive": {
+    "url": "https://github.com/caddyserver/caddy/releases/download/v2.11.9/caddy_2.11.9_linux_arm64.tar.gz",
+    "sha256": "5e377cff994fc9362a6fcf695c53f226cfca3a3ef85bd3a3687cf252d6310165",
+    "sha512": "9e5e76d7888542924de2c25353ae87c5f77e2a22c5b1198633cae13688922282e05383d142599205c88d8d80eee5e967d291214d7abce4835329a191b20dd6e0",
+    "bytes": 16342262
+  },
+  "official_checksums": {
+    "url": "https://github.com/caddyserver/caddy/releases/download/v2.11.9/caddy_2.11.9_checksums.txt",
+    "algorithm": "SHA512",
+    "sha256": "e4e1e43b78299733b19b8aeab8abebcf57aef4f5dae617be125016f9e4e0299f",
+    "archive_matches": true,
+    "github_release_sha256_digest_matches": true
+  },
+  "binary_sha256": "762d7763ed8e303d50bf11fb0274627266907ea8c170720d7d9a6fd0b9bf5c65",
+  "binary_bytes": 47317152,
+  "license_sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+  "license": "Apache-2.0 bundled official LICENSE; no relicensing",
+  "bundle_root": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/aws-mvp/bundle",
+  "no_cloud_actions": true,
+  "local_validation": {
+    "config": "Caddyfile.validation",
+    "config_sha256": "db3ade1cda99ceff06091a0544814aed773f5777e7e0218f0d66a27f4b791dca",
+    "command": "caddy validate --config /Caddyfile --adapter caddyfile",
+    "exit_code": 0,
+    "stdout_stderr": "validation.txt",
+    "docker_image": "rh-rustbuild:mvp-arm64 (existing native Linuxarm64 RustBookworm image; no new image pull)",
+    "scope": "Private reference configuration only. hosting/staging-mvp/Caddyfile did not yet exist; validate the final deployment file separately. No listener start or certificate issuance."
+  },
+  "build_info_sha256": "817754248d1c5b18b04572a7248faf4d796bffaebc78f3569f7a2aeb8a387182",
+  "final_validation": {
+    "config": "../final.Caddyfile",
+    "config_sha256": "7b4363a94a4569bfee556383a07975d9b732814701986d372b09a6d7b90d3a83",
+    "extracted_from": "hosting/staging-mvp/bootstrap.sh.in literal CADDY heredoc",
+    "bootstrap_sha256": "2e8bb4d0f432da9436e5e8f2418ad494ef991b52cf8dc6152d655b561cf0725f",
+    "hostname": "rougehalla.com",
+    "caddy_version": "v2.11.9",
+    "exit_code": 0,
+    "command": "caddy validate --config /Caddyfile --adapter caddyfile",
+    "stdout_stderr": "final-validation.txt",
+    "no_listener_or_tls_issuance": true
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "source": "/Users/nevinmckinnon/.codex/worktrees/rougehalla-stage2-managed/RougeHalla/client-unity/UnityProject/Build/Web",
+  "dest": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/aws-mvp/bundle/web",
+  "changed": [
+    "index.html"
+  ],
+  "original_index_sha256": "fce54df34994e75a7bf66a95edeb02473d25ee724544ef164c3547138f9d02dd",
+  "packaged_index_sha256": "0421890df6936af7ec64656c6eaa1a040014f01dfa5c5ffddcf96de3f7e9f8a9",
+  "injected_script_sha256": "1e32d2354cd3d59ec7a2726e31cd863cec0f521761339e04c421ca5293cc540c",
+  "unchanged_payload_sha256": {
+    "Build/Web.data": "967630f11caad616e572ccac873d1c6bca3e7ca39e3042e65fabe7afd71b9f73",
+    "Build/Web.framework.js": "d946cb8dadf98ce043da87373206345649a588e047de5aa18b27be95a05b2f06",
+    "Build/Web.loader.js": "7ea0e4f7488e513d693ee570ed992fbbb07bec79b32164040d20db48c7a9f61f",
+    "Build/Web.wasm": "11310cfd1b42b86b0e002ced3501828d523f8511ffadb38cceebf70e5ab7123e",
+    "Licenses/EmojiOne-Attribution.txt": "4b65f8960e4f4c5c8b35fd139e369265e9bb45667fc16461b2ba01188d464d93",
+    "Licenses/LiberationSans-OFL.txt": "37f8552e9a874ec10710dc0ede6a9adf168e6609fbd02a507f35629373b85a48",
+    "Licenses/Roguehalla-MIT.txt": "385298d673f01f328553f49d75680ab30254c09d2295171c929fa61efe84b103",
+    "Licenses/Unity-Companion.md": "6550a14445e6c2116213b2419c4c28b75be4b99039afc8d091ced3192624390c",
+    "TemplateData/MemoryProfiler.png": "0ce87be20d0c24ab6cb73b57de2004da261cc2a641e69319c6ae3fe11fc85483",
+    "TemplateData/favicon.ico": "9c13beb90ee8f70580d52a21d5233970d1c89e71e4a34a462c22610941c3c77f",
+    "TemplateData/fullscreen-button.png": "21221581673a54b8139d408d4a3f8d2b879e86827d4b6fc53b995ff7a99ee3e9",
+    "TemplateData/progress-bar-empty-dark.png": "bbee7131afe8a3365906240d89184dc86234c119467f390bc4bc6802328fdb4d",
+    "TemplateData/progress-bar-empty-light.png": "143696c060ad43d6c30f19ff5f49000927a139a2a1e4c9f45fafaa2b90d7d2be",
+    "TemplateData/progress-bar-full-dark.png": "3306a6244dcb3926fca38a28e3ced589df8ff1beed955eb17c0bbf01c918bc62",
+    "TemplateData/progress-bar-full-light.png": "12395ea785480c5cdf12fade6e6cbf49666d5bb1cef7240c113dbcba6bdc5c87",
+    "TemplateData/style.css": "8e3625e108a61dcd1d31303376d9e02d7bdc08921d254e8f4359b892b3825caa",
+    "TemplateData/unity-logo-dark.png": "c1b72d26c096487dabc948b54bc203f8dac7ed4e3f5733918798e858acb4b159",
+    "TemplateData/unity-logo-light.png": "002990aea0d946833cadc1519d5b7e50a4570bd537a0517dd79a59d3eec84da7",
+    "TemplateData/unity-logo-title-footer.png": "9e8b3bdb67c2446d16362fe59449d892100931dbbadfe6a9d923a4142b57a79f",
+    "TemplateData/webmemd-icon.png": "c56f5494640cedda273aad38d58e6ab9da625d5b3f4d875c0ff92c6192a569c2"
+  }
+}

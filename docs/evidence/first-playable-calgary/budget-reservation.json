@@ -1,0 +1,17 @@
+{
+  "authorized_total_cad": 20,
+  "reserved_for_this_run_cad": 10,
+  "region": "ca-west-1",
+  "max_run_hours": 4.5,
+  "ec2_usd_per_hour": 0.0184,
+  "ipv4_usd_per_hour": 0.005,
+  "gp3_gib": 8,
+  "gp3_usd_per_gib_month": 0.088,
+  "compute_disk_ip_usd_conservative_4_5h": 0.110014,
+  "egress_rate_bits_per_second": 8000000,
+  "max_egress_decimal_gb_ignoring_small_burst": 16.2,
+  "credit_treatment": "No credit offset assumed for spend reservation; no Paid-plan upgrade authorized or performed.",
+  "posted_cost": "Cost Explorer not enabled; no zero-bill assertion.",
+  "deadline_utc": "2026-11-06T13:34:12+00:00",
+  "cleanup": "Coordinator is active during launch and functional verification; owned stack/artifact/DNS cleanup remains required."
+}

@@ -18,7 +18,7 @@ bake the server's current content hash through `UnityProject/Tools/build-web.sh`
 | `RoguehallaNet/` | `netstandard2.1`, C# 9 library: `Protocol/` (byte-exact wire mirror, map blob), `Net/` (SnapshotBuffer, RenderClock, LocalMotion, InputSender, ClockSync, Session, ITransport). No engine, reflection, serializers, threads or `unsafe`. | built and tested |
 | `RoguehallaNet.Tests/` | NUnit (net8.0): golden vectors, malformed frames, session/recovery and authoritative presentation, probe transport, Unity-copy drift check | 267 tests pass |
 | `RoguehallaNet.Probe/` | console client over `ClientWebSocket` | built; current protocol tests pass; historical real-server protocol-4 runs are recorded below |
-| `UnityProject/` | Unity6 Web client (WebSocket bridge, authoritative HUD, input, batched world views, menu/results, editor build menu) | 6000.0.85f2 Editor/Web build and actual Chromium full MVP loop verified; cloud/browser matrix remain open |
+| `UnityProject/` | Unity6 Web client (WebSocket bridge, authoritative HUD, input, batched world views, menu/results, editor build menu) | 6000.0.85f2 Editor/Web build and actual Chromium full MVP loop verified; Calgary practice-domain loop verified; full browser matrix remains open |
 | `sync-net.sh` | copies the library sources into `UnityProject/Assets/RoguehallaNet/` (`--check` verifies) | works |
 
 ## Library: build and test
@@ -30,9 +30,9 @@ client-unity/sync-net.sh                    # after ANY change under RoguehallaN
 ```
 `dotnet test` fails if the Unity copy is stale. The dotnet library is the source of truth; never edit `Assets/RoguehallaNet/*.cs`.
 
-## API for gameplay code
+## API for client presentation and input
 
-Gameplay scripts (HUD, views, abilities, input) are written against `Net/` only: `Session` (state, `Me`, `Snapshots.Sample`, `Clock`, `Motion`, `Input`, `OrderMove`), `SelfView` (the local player: one owned object the session overwrites per applied snapshot, so it never aliases a recycled snapshot and makes no garbage), `InterpActor` (a remote actor at the render time) and the typed codes `ActorStatus`, `FactionId`, `WeaponId` (`Net/Views.cs`; a value outside the named ones is a newer server's, so cast and never assume).
+HUD, view and input scripts are written against `Net/` only: `Session` (state, `Me`, `Snapshots.Sample`, `Clock`, `Motion`, `Input`, `OrderMove`), `SelfView` (the local player: one owned object the session overwrites per applied snapshot, so it never aliases a recycled snapshot and makes no garbage), `InterpActor` (a remote actor at the render time) and the typed codes `ActorStatus`, `FactionId`, `WeaponId` (`Net/Views.cs`; a value outside the named ones is a newer server's, so cast and never assume).
 
 **`Protocol/*` is the codec layer, mostly internal to the netcode.** `Net/` owns the self and actor views (`Session.Me` / `SelfView`, `InterpActor`, `ActorStatus`, `FactionId`, `WeaponId`): a protocol change to snapshots is absorbed there. `ServerMsg`, `ClientMsg`, `WireSelf`, `WireActor`, `Session.Latest` and the `SnapshotReceived` payload are recycled once they leave the 40-snapshot buffer and change with every protocol bump, so scripts must not hold them. Known exceptions, which have no `Net/` view yet and are the only codec types scripts may import (`using Roguehalla.Net.Protocol;`): `MapBlob` (and its tile constants; `ArenaView.Build`), `RejectCode` (`MatchClient` logs it), `Session.Welcome`, `Session.LastResult` (`WireResult`) and the `EventsReceived` / `FxReceived` events (raw `ServerMsg.Events` / `ServerMsg.Fx`). A wire change to the map, events, fx or results is therefore NOT absorbed in `Net/` yet; owned views for them are future work.
 
@@ -67,7 +67,7 @@ Local reproduction (Unity Personal or another valid existing license, plus Web B
 
 The build uses WebGL2, disabled compression and no threads. `RhBuild.BuildWeb` throws when Unity reports failure so batch builds cannot silently succeed. Current inputs are WASD/arrows or right-click movement, left-click attack (wand uses the delivered target handle), Shift+click attack-move, 1/2 or Q swap, F pickup/open and E potion. HUD buttons issue the same ordinary inputs and block clicks from reaching the arena. Results support leaving and a fresh join.
 
-Current evidence: [first playable Unity browser](../docs/evidence/first-playable-unity/INTEGRATION.md) and [M5 Pro runtime baseline](../docs/evidence/first-playable-performance/README.md). The measured uncompressed Web tree is55,836,754 bytes. Actual Chromium exercises the MVP loop against Rust with zero decoder/page errors. Cloud TLS/DNS, compressed release hosting, the full browser matrix and adaptive quality remain open. The [earlier bootstrap](../docs/evidence/stage2-unity/README.md) records its own historical build and local WSS checks.
+Current evidence: [first playable Unity browser](../docs/evidence/first-playable-unity/INTEGRATION.md) and [M5 Pro runtime baseline](../docs/evidence/first-playable-performance/README.md). The measured uncompressed Web tree is55,836,754 bytes. Actual Chromium exercises the MVP loop against Rust with zero decoder/page errors. The [Calgary practice-domain proof](../docs/evidence/first-playable-calgary/README.md) now verifies public TLS/DNS and the same MVP loop. Full browser matrix, adaptive quality and further loading optimization remain open. The [earlier bootstrap](../docs/evidence/stage2-unity/README.md) records its own historical build and local WSS checks.
 
 ### Browser and AOT constraints
 - WebGL is single threaded: no `Thread`, and the code never needs `Task` on the hot path. `Session.Update()` is polled from `MatchClient.Update`.

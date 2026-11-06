@@ -131,6 +131,11 @@ through the recorded creation success plus expected owner; an unrelated tagged b
 marked practice DNS record separately and verify no EC2 volume/public-IP charge remains. Preserve the non-secret local
 hashes/results for the release record. No broad region sweeps or production resource deletion are part of this helper.
 
+CloudFormation leaves a new unexecuted CREATE stack untagged while `REVIEW_IN_PROGRESS`. Only in that state, ownership
+is proven by its exact derived account/region/name ARN plus a change set with the same StackId/name and both run/purpose
+tags. This permits safe execution or cleanup of the pending stack. Created/failed stacks still require their own run tag;
+the pending-stack exception never accepts a different change set’s StackId or tags. Status reads exclude parameters.
+
 Official references: [EC2 instance schema](https://docs.aws.amazon.com/AWSCloudFormation/latest/TemplateReference/aws-resource-ec2-instance.html),
 [OS shutdown behavior](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Using_ChangingInstanceInitiatedShutdownBehavior.html),
 [Canonical AMI ownership](https://documentation.ubuntu.com/aws/aws-how-to/instances/launch-ubuntu-ec2-instance/),
