@@ -71,6 +71,8 @@ The private full cast has one authoritative owner; any status-facing mirror must
 - Revalidate the complete due batch in secret action rank before effects; clear survivors' pending casts, apply all
   self effects, then all target effects. A simultaneous Freeze/Swarm cannot invalidate an already admitted landing.
   Fizzle spends cooldown. Trial uses the subject's position after self effects, not a stale intake center.
+  CastRuntime.rank is the ability rank (ordinary Wishes are rank1); due-cast priority comes from the current landing
+  tick's combat action rank. Never sort by the stored ability rank or by an earlier intake tick's order.
 - Freeze:250ms cast,450 range+32 slack,1250ms stun,45s cooldown. Swarm:250ms cast,8000ms hidden/cloud radius72,
   120s cooldown; own lock/chase drops while an independent ordered walk survives.
 - Trial:350ms cast,400+32 range,5000ms zone; radius300 or200 from this caster's own tier>=3 Mark on this subject.
