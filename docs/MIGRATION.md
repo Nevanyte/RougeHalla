@@ -49,7 +49,8 @@ deterministic trials. Browser/display pacing and experimental uncapped callbacks
 **Remaining first-release gate: one-region AWS/TLS/DNS deployment, budget verification and cleanup.** AWS Core currently
 rejects authentication even after reconnect; the authorized fallback CLI now verifies the owner’s new staging account
 through the in-app browser. The account is on the free plan with USD100 credits; GameLift currently refuses service access.
-The owner selected Calgary (`ca-west-1`), which is enabled; a bounded temporary single-host alternative is being prepared. No cloud resources
+The owner selected Calgary (`ca-west-1`), which is enabled. The reviewed [temporary single-host plan](../hosting/staging-mvp/README.md)
+uses one small host, an absolute4.5h expiry and bounded transfer; it preserves GameLift/provider/scale as later gates. No cloud resources
 or DNS writes were made. CAD20 total and the production-domain restriction remain unchanged. Final matched
 full-port performance and the original broader backlog remain open; this checkpoint does not declare the whole port done.
 
@@ -72,8 +73,8 @@ full-port performance and the original broader backlog remain open; this checkpo
   The new account replaces the previous target; the total authorized staging spend is **CAD 20**, not a monthly target.
   Cloud resources must be planned against the remaining total with cleanup; the old experiment's USD 150 ceiling is not
   authorized. No Stage 2 cloud resources have been created yet.
-- Practice domain: **`rougehalla.com`**. Existing Cloudflare authentication reads the active zone and its account permissions
-  include DNS edit, but actual DNS requests are refused by the saved OAuth tool scope. Dashboard sign-in is pending.
+- Practice domain: **`rougehalla.com`**. Cloudflare dashboard sign-in is verified and the practice zone has no DNS records.
+  The dashboard is used because the saved tool OAuth scope refuses actual DNS requests.
   No DNS write has been attempted. Production **`play.roguehalla.com`** must remain unchanged; production
   cutover requires later owner authorization.
 - Unity Personal sign-in/license and Web module are available. The project now pins Unity `6000.0.85f2` (revision

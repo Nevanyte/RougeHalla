@@ -10,7 +10,9 @@ const out = process.env.RH_UNITY_PLAYABLE_OUTPUT || path.join(prefix, 'unity-mvp
 const server = process.env.RH_UNITY_PLAYABLE_SERVER || 'ws://127.0.0.1:7787/ws';
 const url = new URL(process.env.RH_UNITY_PLAYABLE_URL || 'http://127.0.0.1:8087/');
 url.searchParams.delete('profile'); url.searchParams.delete('auto');
-url.searchParams.set('server', server);
+// A packaged staging player supplies its own same-origin WSS default; exercise an ordinary bare visit too.
+if (server === 'same-origin') url.searchParams.delete('server');
+else url.searchParams.set('server', server);
 const nickname = process.env.RH_UNITY_PLAYABLE_NICKNAME || `unityUI${Date.now().toString(36)}`;
 const resultWait = Math.min(90000, Math.max(0, Number(process.env.RH_UNITY_PLAYABLE_RESULT_WAIT_MS || 60000)));
 const displayedUrl = new URL(url); if (displayedUrl.searchParams.has('token')) displayedUrl.searchParams.set('token', '[redacted]');

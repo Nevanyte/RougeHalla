@@ -1,0 +1,37 @@
+# Focused staging boundary checks, not a general production compliance claim.
+rule one_small_disposable_host {
+    Resources.Host.Type == "AWS::EC2::Instance"
+    Resources.Host.Properties {
+        InstanceType == "t4g.small"
+        CreditSpecification.CPUCredits == "standard"
+        InstanceInitiatedShutdownBehavior == "terminate"
+        MetadataOptions.HttpTokens == "required"
+        MetadataOptions.HttpPutResponseHopLimit == 1
+        IamInstanceProfile !exists
+        KeyName !exists
+        BlockDeviceMappings[0].Ebs {
+            Encrypted == true
+            DeleteOnTermination == true
+            VolumeSize == 8
+            VolumeType == "gp3"
+        }
+    }
+}
+
+rule web_and_acme_ingress_only {
+    Resources.WebSecurityGroup.Properties.SecurityGroupIngress[0] {
+        IpProtocol == "tcp"
+        FromPort == 80
+        ToPort == 80
+    }
+    Resources.WebSecurityGroup.Properties.SecurityGroupIngress[1] {
+        IpProtocol == "tcp"
+        FromPort == 443
+        ToPort == 443
+    }
+    Resources.WebSecurityGroup.Properties.SecurityGroupIngress[2] !exists
+}
+
+rule capability_not_echoed {
+    Parameters.BundleUrl.NoEcho == true
+}

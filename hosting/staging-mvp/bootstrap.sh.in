@@ -1,0 +1,153 @@
+#!/bin/bash
+# Rendered as CloudFormation Fn::Sub. Never enable shell tracing: BundleUrl is a short-lived capability.
+set -euo pipefail
+umask 077
+trap 'echo "Roguehalla bootstrap failed; powering off disposable staging host" >&2; systemctl --no-block poweroff || shutdown -P now' ERR
+
+# Establish expiry before downloads, unpacking, accounts or game processes. A persistent absolute timer also survives reboot.
+deadline='${DeadlineUnix}'
+if [ "$(date +%s)" -ge "$deadline" ]; then
+    systemctl --no-block poweroff
+    exit 1
+fi
+expiry=$(date -u -d "@$deadline" '+%Y-%m-%d %H:%M:%S UTC')
+install -d -m 0755 /etc/systemd/system
+cat > /etc/systemd/system/rougehalla-expiry.service <<'UNIT'
+[Unit]
+Description=End the disposable Roguehalla staging host
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/systemctl --no-block poweroff
+UNIT
+cat > /etc/systemd/system/rougehalla-expiry.timer <<UNIT
+[Unit]
+Description=Absolute staging expiry, independent of game or download success
+[Timer]
+OnCalendar=$expiry
+AccuracySec=1s
+Persistent=true
+[Install]
+WantedBy=timers.target
+UNIT
+systemctl daemon-reload
+systemctl enable --now rougehalla-expiry.timer
+systemctl is-active --quiet rougehalla-expiry.timer
+echo "Roguehalla absolute host expiry UTC: $expiry"
+printf '%s\n' "$deadline" > /var/lib/rougehalla-expiry-unix
+chmod 0600 /var/lib/rougehalla-expiry-unix
+
+work=$(mktemp -d /var/tmp/rougehalla-bootstrap.XXXXXX)
+# The URL is never echoed and the downloadable bundle contains no credentials.
+curl --fail --silent --show-error --proto '=https' --tlsv1.2 --connect-timeout 10 --max-time 600 --retry 2 \
+    '${BundleUrl}' -o "$work/release.tar.gz"
+printf '%s  %s\n' '${BundleSha256}' "$work/release.tar.gz" | sha256sum --check --status
+install -d -m 0755 /opt/rougehalla
+tar --extract --gzip --file "$work/release.tar.gz" --directory /opt/rougehalla --no-same-owner --no-same-permissions
+test -x /opt/rougehalla/bin/rh-server
+test -x /opt/rougehalla/bin/caddy
+test -f /opt/rougehalla/web/index.html
+rm -rf "$work"
+useradd --system --home /var/lib/rougehalla --create-home --shell /usr/sbin/nologin rougehalla
+useradd --system --home /var/lib/rougehalla-caddy --create-home --shell /usr/sbin/nologin rougehalla-caddy
+chmod -R a+rX /opt/rougehalla
+chown -R root:root /opt/rougehalla
+cat > /usr/local/sbin/rougehalla-egress-limit <<'LIMIT'
+#!/bin/bash
+set -euo pipefail
+iface=$(ip -4 route show default | awk '{for (i = 1; i <= NF; i++) if ($i == "dev") {print $(i+1); exit}}')
+test -n "$iface"
+tc qdisc replace dev "$iface" root tbf rate 8mbit burst 512kb latency 1000ms
+LIMIT
+chmod 0755 /usr/local/sbin/rougehalla-egress-limit
+cat > /etc/systemd/system/rougehalla-egress-limit.service <<'UNIT'
+[Unit]
+Description=Bound temporary staging internet transfer
+After=network-online.target
+Wants=network-online.target
+Before=rougehalla-caddy.service
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/rougehalla-egress-limit
+RemainAfterExit=true
+UNIT
+cat > /etc/rougehalla.Caddyfile <<'CADDY'
+{
+    admin off
+    servers {
+        protocols h1 h2
+    }
+}
+rougehalla.com {
+    encode gzip
+    @game path /ws /info /ping /health
+    handle @game {
+        reverse_proxy 127.0.0.1:7777
+    }
+    handle {
+        root * /opt/rougehalla/web
+        header {
+            X-Content-Type-Options nosniff
+            Cache-Control no-cache
+        }
+        file_server
+    }
+}
+CADDY
+/opt/rougehalla/bin/caddy validate --config /etc/rougehalla.Caddyfile --adapter caddyfile
+cat > /etc/systemd/system/rougehalla.service <<'UNIT'
+[Unit]
+Description=Authoritative Rust first playable staging server
+After=network-online.target
+Wants=network-online.target
+[Service]
+Type=simple
+User=rougehalla
+Group=rougehalla
+WorkingDirectory=/var/lib/rougehalla
+ExecStart=/opt/rougehalla/bin/rh-server --first-playable --bind 127.0.0.1:7777 --min-players 1 --fill-bots 4 --max-rooms 2 --lobby-seconds 5 --fill-seconds 3
+# The four-hour game bound must not restart into another four-hour process.
+Restart=no
+KillSignal=SIGTERM
+TimeoutStopSec=180
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/rougehalla
+LimitNOFILE=4096
+MemoryMax=768M
+[Install]
+WantedBy=multi-user.target
+UNIT
+cat > /etc/systemd/system/rougehalla-caddy.service <<'UNIT'
+[Unit]
+Description=HTTPS static Unity player and WSS proxy
+After=network-online.target rougehalla.service rougehalla-egress-limit.service
+Wants=network-online.target
+Requires=rougehalla-egress-limit.service
+[Service]
+Type=simple
+User=rougehalla-caddy
+Group=rougehalla-caddy
+Environment=HOME=/var/lib/rougehalla-caddy
+Environment=XDG_DATA_HOME=/var/lib/rougehalla-caddy
+ExecStart=/opt/rougehalla/bin/caddy run --config /etc/rougehalla.Caddyfile --adapter caddyfile
+Restart=on-failure
+RestartSec=5
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/rougehalla-caddy
+LimitNOFILE=4096
+MemoryMax=384M
+[Install]
+WantedBy=multi-user.target
+UNIT
+chmod 0644 /etc/rougehalla.Caddyfile /etc/systemd/system/rougehalla*.service /etc/systemd/system/rougehalla*.timer
+systemctl daemon-reload
+systemctl enable --now rougehalla.service rougehalla-caddy.service
+systemctl is-active --quiet rougehalla.service rougehalla-caddy.service
+echo 'Roguehalla staging processes started; trusted TLS awaits practice-domain DNS'

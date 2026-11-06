@@ -1,0 +1,59 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "Disposable single-host first playable in Calgary; render with staging.py; no managed-fleet claim",
+  "Parameters": {
+    "AmiId": {"Type": "AWS::EC2::Image::Id", "Description": "Verified official Canonical Ubuntu 24.04 arm64 image"},
+    "BundleUrl": {"Type": "String", "NoEcho": true, "AllowedPattern": "https://.+", "Description": "Private presigned GET, short-lived, never output"},
+    "BundleSha256": {"Type": "String", "AllowedPattern": "[a-f0-9]{64}", "Description": "SHA256 of exact release tar.gz"},
+    "DeadlineUnix": {"Type": "String", "AllowedPattern": "[0-9]{10}", "Description": "Fixed absolute UTC expiry at most 4.5 hours after preparation"},
+    "RunId": {"Type": "String", "AllowedPattern": "[0-9]{8}t[0-9]{6}z-[a-f0-9]{6}", "Description": "Ownership marker shared with local cleanup manifest"}
+  },
+  "Resources": {
+    "Vpc": {"Type": "AWS::EC2::VPC", "Properties": {"CidrBlock": "10.70.0.0/24", "EnableDnsSupport": true, "EnableDnsHostnames": true, "Tags": [{"Key": "RoguehallaRun", "Value": {"Ref": "RunId"}}]}},
+    "Gateway": {"Type": "AWS::EC2::InternetGateway", "Properties": {"Tags": [{"Key": "RoguehallaRun", "Value": {"Ref": "RunId"}}]}},
+    "GatewayAttachment": {"Type": "AWS::EC2::VPCGatewayAttachment", "Properties": {"VpcId": {"Ref": "Vpc"}, "InternetGatewayId": {"Ref": "Gateway"}}},
+    "Subnet": {"Type": "AWS::EC2::Subnet", "Properties": {"VpcId": {"Ref": "Vpc"}, "CidrBlock": "10.70.0.0/28", "MapPublicIpOnLaunch": true, "Tags": [{"Key": "RoguehallaRun", "Value": {"Ref": "RunId"}}]}},
+    "Routes": {"Type": "AWS::EC2::RouteTable", "Properties": {"VpcId": {"Ref": "Vpc"}}},
+    "InternetRoute": {"Type": "AWS::EC2::Route", "DependsOn": "GatewayAttachment", "Properties": {"RouteTableId": {"Ref": "Routes"}, "DestinationCidrBlock": "0.0.0.0/0", "GatewayId": {"Ref": "Gateway"}}},
+    "SubnetRoutes": {"Type": "AWS::EC2::SubnetRouteTableAssociation", "Properties": {"SubnetId": {"Ref": "Subnet"}, "RouteTableId": {"Ref": "Routes"}}},
+    "WebSecurityGroup": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupDescription": "Public HTTPS and HTTP ACME only; no SSH or direct game/control ports",
+        "VpcId": {"Ref": "Vpc"},
+        "SecurityGroupIngress": [
+          {"IpProtocol": "tcp", "FromPort": 80, "ToPort": 80, "CidrIp": "0.0.0.0/0", "Description": "ACME HTTP01 and HTTPS redirect"},
+          {"IpProtocol": "tcp", "FromPort": 443, "ToPort": 443, "CidrIp": "0.0.0.0/0", "Description": "Unity HTTPS and authoritative WSS"}
+        ],
+        "SecurityGroupEgress": [
+          {"IpProtocol": "tcp", "FromPort": 80, "ToPort": 80, "CidrIp": "0.0.0.0/0", "Description": "Certificate status HTTP"},
+          {"IpProtocol": "tcp", "FromPort": 443, "ToPort": 443, "CidrIp": "0.0.0.0/0", "Description": "Private bundle download and ACME"}
+        ],
+        "Tags": [{"Key": "RoguehallaRun", "Value": {"Ref": "RunId"}}]
+      }
+    },
+    "Host": {
+      "Type": "AWS::EC2::Instance",
+      "DependsOn": ["InternetRoute", "SubnetRoutes"],
+      "Properties": {
+        "ImageId": {"Ref": "AmiId"},
+        "InstanceType": "t4g.small",
+        "CreditSpecification": {"CPUCredits": "standard"},
+        "InstanceInitiatedShutdownBehavior": "terminate",
+        "MetadataOptions": {"HttpEndpoint": "enabled", "HttpTokens": "required", "HttpPutResponseHopLimit": 1},
+        "Monitoring": false,
+        "SubnetId": {"Ref": "Subnet"},
+        "SecurityGroupIds": [{"Ref": "WebSecurityGroup"}],
+        "BlockDeviceMappings": [{"DeviceName": "/dev/sda1", "Ebs": {"VolumeSize": 8, "VolumeType": "gp3", "Encrypted": true, "DeleteOnTermination": true}}],
+        "Tags": [{"Key": "Name", "Value": {"Fn::Sub": "${AWS::StackName}-host"}}, {"Key": "RoguehallaRun", "Value": {"Ref": "RunId"}}],
+        "UserData": "RENDER_WITH_STAGING_PY"
+      }
+    }
+  },
+  "Outputs": {
+    "InstanceId": {"Value": {"Ref": "Host"}, "Description": "Only disposable game/web host"},
+    "PublicIp": {"Value": {"Fn::GetAtt": ["Host", "PublicIp"]}, "Description": "Practice-only rougehalla.com A record target"},
+    "Site": {"Value": "https://rougehalla.com", "Description": "Trusted TLS requires practice-only DNS to point to PublicIp"},
+    "ExpiresUnix": {"Value": {"Ref": "DeadlineUnix"}, "Description": "Absolute host poweroff deadline; cleanup still removes the stack and artifact bucket"}
+  }
+}
