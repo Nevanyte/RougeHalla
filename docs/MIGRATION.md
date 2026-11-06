@@ -54,6 +54,13 @@ vision across gate changes, source constructor/deal/teleport stream order, retai
 planning facts. Native lifecycle comes before its serialized wire/client and durable shutdown work. Full card rewards,
 training actors, full NPC faction domains and other original-port requirements remain in the backlog.
 
+The private arena collision/history prerequisite has independent stage1-v2 approval (manifest
+`14ac6e5f82c5cd635ccba8d3bb9ad047c3498c5727a4636e4e786acef5de39b9`), including the repaired first-reveal ordinal
+restore rule. It is not yet integrated; actual lifecycle/locked-world/public-observer acceptance remains pending.
+The full [Wish packet](backlog/packets/P-ABIL-1.md) is now ready after a65-input source/native audit. A separate source
+worker is capturing all five real Wish outcomes and their clocks/fields/refunds; no ordinary native Cast implementation
+is claimed. Blaze Step is the Fire Wish. The existing genuine arena refund trace remains dependent on this pipeline.
+
 ### Current playable-core checkpoint
 
 The local Unity browser now completes the selected match loop: nickname/faction menu, real Rust combat and visible mobs,
