@@ -28,6 +28,7 @@ pub(crate) mod plague;
 pub(crate) mod potions;
 pub(crate) mod projectiles;
 pub(crate) mod sentenced;
+pub(crate) mod sentenced_hunt;
 pub(crate) mod settle;
 pub(crate) mod signatures;
 pub(crate) mod status;

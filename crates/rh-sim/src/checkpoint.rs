@@ -501,6 +501,15 @@ fn check_world(k: &MatchStatic, w: &World) -> Result<(), String> {
             k.config.lifecycle.rules().is_some() && w.raid_started_at > 0.,
             near,
         )?;
+        if p.hunt_target.is_some_and(|id| {
+            id == p.id
+                || w.phase != crate::Phase::Active
+                || !p.standing()
+                || w.player(id).is_none_or(|target| !target.standing())
+        }) || p.hunt_stacks as usize > joined_ever
+        {
+            return Err(format!("player {}: invalid Sentenced hunt state", p.id.0));
+        }
         let sig = &p.signature;
         crate::systems::sentenced::validate(k, w, p)?;
         super::systems::signatures::validate_basic(k, w, p.id, sig)?;
@@ -979,6 +988,22 @@ mod tests {
         // Numeric headroom alone is insufficient: the typed append-only actor history
         // must account for every allocation, including in player-only worlds.
         assert!(refusal(&json).contains("actor provenance/counter mismatch"));
+    }
+
+    #[test]
+    fn a_hunt_selection_must_name_a_living_other_player() {
+        let mut json = stepped(5);
+        json["world"]["players"][0]["hunt_target"] = 1.into();
+        assert!(refusal(&json).contains("hunt"));
+        let mut json = stepped(5);
+        json["world"]["players"][0]["hunt_target"] = 99.into();
+        assert!(refusal(&json).contains("hunt"));
+        let mut json = stepped(5);
+        json["world"]["players"][0]["hunt_stacks"] = 99.into();
+        assert!(refusal(&json).contains("hunt"));
+        let mut json = stepped(5);
+        json["world"]["players"][0]["hunt_target"] = 2.into();
+        assert!(Sim::restore(&json).is_ok());
     }
 
     #[test]

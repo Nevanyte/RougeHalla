@@ -497,6 +497,12 @@ pub struct Player {
     pub status: Status,
     pub down: Option<Outcome>,
     pub resolved: bool,
+    /// The living rival this Sentenced hunter selected (legacy `huntTarget`, "" = none).
+    #[serde(default)]
+    pub hunt_target: Option<PlayerId>,
+    /// Completed hunts; multiplies this player's Mark strength (legacy `huntStacks`).
+    #[serde(default)]
+    pub hunt_stacks: u32,
 }
 
 impl Keyed for Player {
@@ -589,6 +595,8 @@ impl Player {
             down: None,
             resolved: false,
             plan_ready: false,
+            hunt_target: None,
+            hunt_stacks: 0,
         }
     }
 

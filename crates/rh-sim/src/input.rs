@@ -36,6 +36,10 @@ pub enum PublicCommand {
     Target {
         actor: crate::PlayerId,
     },
+    /// Sentenced hunt selection (legacy `huntTarget`).
+    HuntTarget {
+        actor: crate::PlayerId,
+    },
     /// Walk to a point (right click / WASD goal). `seq` is echoed in the player's `move_seq` once applied.
     Move {
         x: f64,
@@ -93,6 +97,9 @@ pub enum RawCommand {
         pick: i8,
     },
     Target {
+        id: crate::PlayerId,
+    },
+    HuntTarget {
         id: crate::PlayerId,
     },
     MissingTarget,
@@ -175,6 +182,9 @@ enum Kind {
     Target {
         id: crate::PlayerId,
     },
+    HuntTarget {
+        id: crate::PlayerId,
+    },
     MissingTarget,
     AttackMove {
         x: f64,
@@ -251,6 +261,8 @@ impl PublicCommand {
                     RawCommand::MissingTarget
                 }
             }
+            Self::HuntTarget { actor } if actor.0 == 0 => return Err(Reject::InvalidTarget),
+            Self::HuntTarget { actor } => RawCommand::HuntTarget { id: actor },
             Self::AttackMove { x, y, seq } => RawCommand::AttackMove { x, y, seq },
             Self::Pickup { handle } => match lookup(handle) {
                 Some(container_id) => RawCommand::Pickup { container_id },
@@ -288,6 +300,7 @@ impl Kind {
             Kind::UseConsumable => RawCommand::UseConsumable,
             Kind::Choose { chest_id, pick } => RawCommand::Choose { chest_id, pick },
             Kind::Target { id } => RawCommand::Target { id },
+            Kind::HuntTarget { id } => RawCommand::HuntTarget { id },
             Kind::MissingTarget => RawCommand::MissingTarget,
             Kind::AttackMove { x, y, seq } => RawCommand::AttackMove { x, y, seq },
             Kind::MissingPickup => RawCommand::MissingPickup,
@@ -400,6 +413,8 @@ pub fn validate(raw: RawCommand) -> Result<Command, Reject> {
         }
         RawCommand::Target { id } if id.0 == 0 => return Err(Reject::InvalidTarget),
         RawCommand::Target { id } => Kind::Target { id },
+        RawCommand::HuntTarget { id } if id.0 == 0 => return Err(Reject::InvalidTarget),
+        RawCommand::HuntTarget { id } => Kind::HuntTarget { id },
         RawCommand::MissingTarget => Kind::MissingTarget,
         RawCommand::AttackMove { x, y, seq } => {
             let (x, y) = clamp_pt(x, y)?;
@@ -454,6 +469,9 @@ pub(crate) enum ActionCmd {
         pick: i8,
     },
     Target {
+        id: crate::PlayerId,
+    },
+    HuntTarget {
         id: crate::PlayerId,
     },
     MissingTarget,
@@ -588,6 +606,9 @@ impl InputQueue {
                     Kind::Choose { chest_id, pick },
                 )?,
                 ActionCmd::Target { id } => same(RawCommand::Target { id }, Kind::Target { id })?,
+                ActionCmd::HuntTarget { id } => {
+                    same(RawCommand::HuntTarget { id }, Kind::HuntTarget { id })?
+                }
                 ActionCmd::MissingTarget => same(RawCommand::MissingTarget, Kind::MissingTarget)?,
                 ActionCmd::MissingPickup => same(RawCommand::MissingPickup, Kind::MissingPickup)?,
                 ActionCmd::Swap { slot } => same(RawCommand::Swap { slot }, Kind::Swap { slot })?,
@@ -692,6 +713,7 @@ impl InputQueue {
                 self.move_before = self.actions.len();
             }
             Kind::Target { id } => return self.push_action(ActionCmd::Target { id }),
+            Kind::HuntTarget { id } => return self.push_action(ActionCmd::HuntTarget { id }),
             Kind::MissingTarget => return self.push_action(ActionCmd::MissingTarget),
             Kind::Stop { seq } => {
                 self.mv = Some(MoveCmd::Stop { seq });

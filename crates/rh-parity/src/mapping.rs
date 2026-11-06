@@ -7,8 +7,9 @@ pub fn raw_command_pub(i: &FixInput) -> Option<RawCommand> {
 
 /// The `msg` keys each slice input type may carry: [`raw_command`] reads exactly these, so any other key (a future
 /// `charge` on an attack) is reported by [`unread_msg_keys`] instead of being dropped without a word.
-pub const INPUT_MSG_KEYS: [(&str, &[&str]); 9] = [
+pub const INPUT_MSG_KEYS: [(&str, &[&str]); 10] = [
     ("target", &["id"]),
+    ("huntTarget", &["id"]),
     ("attackMove", &["x", "y", "seq"]),
     ("move", &["x", "y", "seq"]),
     ("stop", &["seq"]),
@@ -44,11 +45,17 @@ pub(crate) fn raw_command(i: &FixInput) -> Option<RawCommand> {
         .filter(|v| *v <= 255)
         .map(|v| v as u8);
     Some(match i.kind.as_str() {
-        "target" => {
+        "target" | "huntTarget" => {
             let id = m.get("id")?.as_str()?;
             if !(1..=64).contains(&id.encode_utf16().count()) {
-                RawCommand::Target {
-                    id: rh_sim::PlayerId(0),
+                if i.kind == "huntTarget" {
+                    RawCommand::HuntTarget {
+                        id: rh_sim::PlayerId(0),
+                    }
+                } else {
+                    RawCommand::Target {
+                        id: rh_sim::PlayerId(0),
+                    }
                 }
             } else if let Some(n) = id
                 .strip_prefix('p')
@@ -56,9 +63,17 @@ pub(crate) fn raw_command(i: &FixInput) -> Option<RawCommand> {
                 .filter(|n| format!("p{n}") == id)
                 .and_then(|n| n.checked_add(1))
             {
-                RawCommand::Target {
-                    id: rh_sim::PlayerId(n),
+                if i.kind == "huntTarget" {
+                    RawCommand::HuntTarget {
+                        id: rh_sim::PlayerId(n),
+                    }
+                } else {
+                    RawCommand::Target {
+                        id: rh_sim::PlayerId(n),
+                    }
                 }
+            } else if i.kind == "huntTarget" {
+                return None;
             } else {
                 RawCommand::MissingTarget
             }

@@ -88,6 +88,11 @@ pub enum Event {
         recipient: PlayerId,
         notice: MarkNotice,
     },
+    /// Private Sentenced-hunt feedback (legacy toast text; structured so no step allocates).
+    HuntNotice {
+        recipient: PlayerId,
+        notice: HuntNotice,
+    },
     /// Source-exact private delayed chunk. Public projection consumes per-tick contributions instead.
     SignatureHit {
         victim: PlayerId,
@@ -242,6 +247,7 @@ impl Event {
             Event::Bounty { .. } | Event::Victory { .. } => Visibility::Everyone,
             Event::AbilityHit { .. }
             | Event::MarkNotice { .. }
+            | Event::HuntNotice { .. }
             | Event::SignatureHit { .. }
             | Event::ProjectileLaunched(_)
             | Event::ProjectileEnded { .. }
@@ -280,6 +286,7 @@ impl Event {
             Event::PickupRefused { .. } | Event::PotionNotice { .. } => Class::Important,
             Event::AbilityHit { .. }
             | Event::MarkNotice { .. }
+            | Event::HuntNotice { .. }
             | Event::SignatureHit { .. }
             | Event::ProjectileLaunched(_)
             | Event::ProjectileEnded { .. }
@@ -289,6 +296,13 @@ impl Event {
             | Event::RaidEnded => Class::ServerOnly,
         }
     }
+}
+
+/// Private Sentenced-hunt notices, fixed data without per-step string allocation.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum HuntNotice {
+    Targeted { target: PlayerId },
+    Completed { stacks: u32 },
 }
 
 /// Private source notices, fixed text without per-step string allocation.

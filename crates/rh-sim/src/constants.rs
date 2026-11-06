@@ -216,6 +216,11 @@ content! {
     MARK_MAGIC_SHARE: f64 = 0.6, "fraction";
     MARK_TRUE_SHARE: f64 = 0.0, "fraction";
     SIG_EXEC_BLOCKED: u8 = 64, "bits";
+
+    // Base power-zero player Sentenced hunt (shared/sentencedHunt).
+    SENTENCED_HUNT_MOVE_BONUS: f64 = 0.05, "multiplier";
+    SENTENCED_HUNT_TOWARD_DOT: f64 = 0.3, "dot";
+    SENTENCED_HUNT_MARK_PER_STACK: f64 = 0.02, "fraction/stack";
     // Source regional mob spawn foundation (shared/constants + mobLife birth phase).
     MOB_K: f64 = 0.22, "multiplier";
     ELITE_K: f64 = 0.65, "multiplier";

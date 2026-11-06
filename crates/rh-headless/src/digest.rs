@@ -306,6 +306,20 @@ impl OutcomeDigest {
                 self.w(recipient.0 as u64);
                 self.s(notice.message());
             }
+            Event::HuntNotice { recipient, notice } => {
+                self.s("hunt_notice");
+                self.w(recipient.0 as u64);
+                match notice {
+                    rh_sim::events::HuntNotice::Targeted { target } => {
+                        self.w(0);
+                        self.w(target.0 as u64);
+                    }
+                    rh_sim::events::HuntNotice::Completed { stacks } => {
+                        self.w(1);
+                        self.w(u64::from(*stacks));
+                    }
+                }
+            }
             Event::SignatureHit {
                 victim,
                 by,

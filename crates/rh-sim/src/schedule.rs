@@ -914,10 +914,10 @@ static MOVE_MODIFIERS: [Item<MoveFn>; 7] = [
         Gate::Always,
         |_, w, ix, dt, stats| crate::systems::status::movement(w, w.core(ix), dt, stats),
     ),
-    pending(
+    ported(
         "sentencedHunt.huntMoveMultiplier",
         Gate::Signatures,
-        "P-FACTION-4",
+        |k, w, ix, dt, stats| crate::systems::sentenced_hunt::movement(k, w, ix, dt, stats),
     ),
     pending("plagueZombies.<anonymous>", Gate::Signatures, "P-FACTION-3"),
 ];
@@ -1027,7 +1027,7 @@ pub(crate) static ACTIONS: [ActionRow; 13] = [
         "huntTarget",
         "sentencedHunt",
         Gate::Signatures,
-        Run::Pending("P-FACTION-4"),
+        Run::Ported(crate::systems::sentenced_hunt::target),
     ),
     action(
         ActionId::Train,
@@ -1335,11 +1335,11 @@ static RUN_ENDED: [Link; 12] = [
         Gate::Signatures,
         "P-FACTION-5",
     ),
-    pending_link(
+    ported_link(
         "sentencedHunt.<arrow>",
         Mode::Append,
         Gate::Signatures,
-        "P-FACTION-4",
+        crate::systems::sentenced_hunt::run_ended,
     ),
     pending_link(
         "plagueZombies.<arrow>",
@@ -1403,11 +1403,11 @@ static FIGHTER_OUT: [Link; 8] = [
         Gate::Signatures,
         "P-FACTION-5",
     ),
-    pending_link(
+    ported_link(
         "sentencedHunt.fighterOut",
         Mode::Append,
         Gate::Signatures,
-        "P-FACTION-4",
+        crate::systems::sentenced_hunt::fighter_out,
     ),
     pending_link(
         "plagueZombies.<arrow>",

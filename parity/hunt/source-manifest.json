@@ -1,0 +1,43 @@
+{
+  "format": "rh-sentenced-hunt-source-manifest/1",
+  "acceptedBaseline": "856618eb948555adefc6ff0bf4628d879d556250",
+  "packageSourceUnchangedFromBaseline": true,
+  "runtime": {
+    "version": "v22.23.4",
+    "platform": "linux",
+    "arch": "x64",
+    "image": "node:22.23.4-bookworm-slim",
+    "imageId": "sha256:5ec23b7c622b00547753bc6ffd78085dd868a68aeb41c8e0a1418f033e13d96d",
+    "defaultImageBinaryRejected": "none; this image is the pinned Node22.23.4 runtime"
+  },
+  "fixtureRevision": {
+    "value": "unknown",
+    "reason": "isolated minimal capture image has no git; package source verified byte-unchanged from acceptedBaseline and pinned below"
+  },
+  "captureCommand": "node --import tsx parity/legacy-capture/capture.ts --out <dir> --only <scenario>",
+  "checkCommand": "node tools/hunt-fixtures/check.mjs",
+  "sourceFiles": {
+    "packages/server/src/sim/sentencedHunt.ts": "a3a444134fc88f69f18f9724f89a59b19fb05b6eef8df9633c278ad8c20e4606",
+    "packages/shared/src/sentencedHunt.ts": "a606dd94905114562d14d13c09f6c59586a60a70e9a02da49285d886305ce561",
+    "packages/server/src/sim/factions.ts": "9ea65429b48b9aa43578922642534d82a1369778fbcec502e62cc9e21dacbf1c",
+    "packages/server/src/sim/vision.ts": "25838e435b6e5282d31b28758e1955d36c8118086700e1e6497a979647287e56",
+    "packages/server/src/sim/gameplay.ts": "70f6f2b67571783f3042309bef01dc75aabd2656c59a184d0f97c9c0a8b8cf78",
+    "packages/server/src/sim/inputs.ts": "47bda82b978e67922c9d2361bfcd51be4555a55691453a4e0393deb917be4cde",
+    "packages/shared/src/schema.ts": "245486da649ea5bc5d8b9b0d5d75f3e860fc8f153574fa2b9ee091dcb52e99cb",
+    "packages/server/test/sentencedHunt.test.ts": "078a4fd819dd0ec530d79c39f9d8d34665b3ae4eb145dcd0dbeb4f733e261b45",
+    "parity/legacy-capture/capture.ts": "a07094cb32d789f771e2e0dc1898ff3796441029b99ed154d9d8b4c01fba0979",
+    "parity/legacy-capture/scenarios/hunt.ts": "982ab462270fada0340668c1d18eb690545e54db8b69569daff60b81a2ce7860",
+    "parity/legacy-capture/scenarios/types.ts": "75f7781512938753eb02e1db884991165303880617f58ee3055ceb37475dba89"
+  },
+  "packageLockSha256": "991869bdfbbefb6874220500197c61db302a4d2b2603dfc2288fd7032ce1d481",
+  "fixtures": {
+    "sentenced_hunt_select_and_death.json": "9ecc8d7d09d9e9e38d0f44d83a8f8ba72ce4f4f1665c55a38763570a1e07c326",
+    "sentenced_hunt_mia_clears.json": "2d191f037f181400b6dcc6503814a21d2988286d611b465d226242d9570c7506",
+    "sentenced_hunt_hunter_death_clears.json": "7786894689c1d0d4b1979c3d624361abe4ec437660865da5c3352b033c96f116",
+    "sentenced_hunt_toward_move.json": "ec183bbefaf3d4bbdaa0ac30886a406fde898049187e007976a207d98d004ae6",
+    "sentenced_hunt_vision_exception.json": "335b5f27ab66c85094675b28f5b2bc9f468d5b5adce3683beed1950d7742df54",
+    "sentenced_hunt_run_end_clears.json": "b844e72d2ed5068e40f7d516f9f1b3eaee2cfeaef7104afd2d0a2624f0ef2add"
+  },
+  "scenarios": 6,
+  "ticks": 534
+}

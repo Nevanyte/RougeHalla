@@ -17,6 +17,7 @@ mod canon;
 mod combat;
 mod frost;
 mod holy;
+mod hunt;
 mod mapping;
 mod plague;
 mod sentenced;
@@ -199,6 +200,8 @@ pub struct FixTick {
     pub frost: Option<Value>,
     #[serde(default)]
     pub sentenced: Option<Value>,
+    #[serde(default)]
+    pub hunt: Option<Value>,
     #[serde(default)]
     pub holy_inactive: Option<Value>,
     #[serde(default)]
@@ -624,7 +627,7 @@ fn try_build(fx: &Fixture) -> Result<Sim, String> {
         spawn_seed: vision::source(fx).map_or(0, |m| m.spawn_seed),
     };
     let mut config = SimConfig {
-        faction_mode: if sentenced::enabled(fx) {
+        faction_mode: if sentenced::enabled(fx) || hunt::enabled(fx) {
             rh_sim::FactionMode::EngagementHolyPlagueFireFrostSentenced
         } else if plague::frost(fx) {
             rh_sim::FactionMode::EngagementHolyPlagueFireFrost
@@ -645,7 +648,7 @@ fn try_build(fx: &Fixture) -> Result<Sim, String> {
             .ok_or_else(|| format!("{key} must be boolean"))?;
         match key.as_str() {
             "weaponSpecials" => config.weapon_specials = v,
-            "pvpRules" if sentenced::enabled(fx) => config.pvp_rules = v,
+            "pvpRules" if sentenced::enabled(fx) || hunt::enabled(fx) => config.pvp_rules = v,
             _ => return Err(format!("unported legacyConfig.options key {key}")),
         }
     }
@@ -694,7 +697,9 @@ pub fn preconditions(fx: &Fixture, sim: &Sim) -> Vec<String> {
     );
     need(
         c.rust_slice.as_deref()
-            == if sentenced::enabled(fx) {
+            == if hunt::enabled(fx) {
+                Some("player-engagement-holy-plague-fire-frost-sentenced-hunt/1")
+            } else if sentenced::enabled(fx) {
                 Some("player-engagement-holy-plague-fire-frost-sentenced/1")
             } else if plague::frost(fx) {
                 Some("player-engagement-holy-plague-fire-frost/1")
@@ -712,6 +717,7 @@ pub fn preconditions(fx: &Fixture, sim: &Sim) -> Vec<String> {
         Some("P-COMBAT-1" | "P-COMBAT-2" | "P-COMBAT-3")
     );
     let isolated_combat = (combat_packet
+        || hunt::enabled(fx)
         || holy::enabled(fx)
         || plague::enabled(fx)
         || fx.packet.as_deref() == Some("P-VISION-1"))
@@ -815,6 +821,8 @@ pub fn preconditions(fx: &Fixture, sim: &Sim) -> Vec<String> {
         need(
             if plague::enabled(fx) {
                 plague::modules_match(fx)
+            } else if hunt::enabled(fx) {
+                hunt::modules_match(fx)
             } else if holy::enabled(fx) {
                 holy::modules_match(fx)
             } else if vision::source(fx).is_some() {
@@ -938,6 +946,9 @@ pub fn compare(fx: &Fixture) -> Report {
     for m in preconditions(fx, &sim) {
         rep.fail(m);
     }
+    for m in hunt::preflight(fx) {
+        rep.fail(m);
+    }
     for m in sentenced::preflight(fx) {
         rep.fail(m);
     }
@@ -1045,6 +1056,7 @@ pub fn compare(fx: &Fixture) -> Report {
         plague::compare(&mut rep, &sim, fx, t);
         frost::compare(&mut rep, &sim, fx, t);
         sentenced::compare(&mut rep, &sim, fx, t, &ours, &mark_visuals);
+        hunt::compare(&mut rep, &sim, fx, t, &ours);
         holy::compare(&mut rep, &sim, fx, t);
         if fx.packet.as_deref() == Some("P-COMBAT-3") || t.locks.is_some() {
             combat::compare_locks(&mut rep, &sim, t);

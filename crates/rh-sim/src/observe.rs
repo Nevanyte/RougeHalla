@@ -17,7 +17,7 @@ use crate::sim::{Event, Phase, PlayerId, Sim, Status};
 use crate::state::Player;
 use crate::vision::{actor_with, scene_line_blocked};
 
-pub const OBSERVATION_VERSION: u16 = 15;
+pub const OBSERVATION_VERSION: u16 = 16;
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct SelfView {
@@ -47,6 +47,9 @@ pub struct SelfView {
     pub gv: u32,
     /// The last movement order number the server applied (prediction ack).
     pub move_seq: u8,
+    /// The Sentenced hunt selection and completed-hunt count (self only; legacy `huntTarget`/`huntStacks`).
+    pub hunt_target: Option<PlayerId>,
+    pub hunt_stacks: u32,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -333,6 +336,7 @@ fn to_seen(e: &Event, can_see: &impl Fn(PlayerId) -> bool) -> Option<SeenEvent> 
         Event::Victory { id, draw } => Some(SeenEvent::Ended { winner: id, draw }),
         Event::AbilityHit { .. }
         | Event::MarkNotice { .. }
+        | Event::HuntNotice { .. }
         | Event::SignatureHit { .. }
         | Event::ProjectileLaunched(_)
         | Event::ProjectileEnded { .. }
@@ -504,6 +508,8 @@ pub(crate) fn observe_with(
         bounty: p.credit.bounty,
         gv: p.credit.gv,
         move_seq: p.motion.move_seq,
+        hunt_target: p.hunt_target,
+        hunt_stacks: p.hunt_stacks,
     });
     out.camps.clear();
     out.camps.extend_from_slice(sim.camp_rosters());

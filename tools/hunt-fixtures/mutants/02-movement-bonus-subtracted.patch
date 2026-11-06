@@ -1,0 +1,11 @@
+--- a/crates/rh-sim/src/systems/sentenced_hunt.rs
++++ b/crates/rh-sim/src/systems/sentenced_hunt.rs
+@@ -83,7 +83,7 @@
+         return 1.;
+     };
+     if toward(p.pos(), target.pos(), next) {
+-        1. + SENTENCED_HUNT_MOVE_BONUS
++        1. - SENTENCED_HUNT_MOVE_BONUS
+     } else {
+         1.
+     }

@@ -139,6 +139,7 @@ fn action_id(cmd: &ActionCmd) -> Option<ActionId> {
         ActionCmd::UseConsumable => ActionId::UseConsumable,
         ActionCmd::Choose { .. } => ActionId::Choose,
         ActionCmd::Target { .. } | ActionCmd::MissingTarget => ActionId::Target,
+        ActionCmd::HuntTarget { .. } => ActionId::HuntTarget,
         ActionCmd::Swap { .. } => ActionId::Swap,
         ActionCmd::Pickup { .. } | ActionCmd::MissingPickup => ActionId::Pickup,
         ActionCmd::Attack { .. } => ActionId::Attack,

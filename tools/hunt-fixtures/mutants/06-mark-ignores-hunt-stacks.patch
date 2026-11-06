@@ -1,0 +1,11 @@
+--- a/crates/rh-sim/src/systems/sentenced_hunt.rs
++++ b/crates/rh-sim/src/systems/sentenced_hunt.rs
+@@ -151,7 +151,7 @@
+ 
+ /// Source `sentencedHuntMarkMultiplier`: completed hunts scale Mark strength without a cap.
+ pub(crate) fn mark_multiplier(stacks: u32) -> f64 {
+-    1. + SENTENCED_HUNT_MARK_PER_STACK * f64::from(stacks)
++    1.
+ }
+ 
+ #[cfg(test)]
