@@ -593,9 +593,7 @@ pub(crate) fn attack_profile(
     id: PlayerId,
 ) -> Option<(crate::content::Timings, crate::state::Packet)> {
     let m = w.mobs.get(id)?;
-    if m.zombie.is_none() {
-        return None;
-    }
+    m.zombie.as_ref()?;
     let owner = m.owner.and_then(|id| w.player(id))?;
     let (_, damage) = stats(owner);
     let _ = k;
