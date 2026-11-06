@@ -1,4 +1,4 @@
-//! The golden vectors: deterministic sample messages, and frames that must be rejected. `protocol/fixtures/v6.json` is
+//! The golden vectors: deterministic sample messages, and frames that must be rejected. `protocol/fixtures/v7.json` is
 //! generated from these (`cargo run -p rh-protocol --bin protocol-fixtures`) and read by the Rust, C# and JS tests. A
 //! Snapshot or Fx vector also carries what a client must DECODE (floats as their exact bit patterns), so the three decoders are
 //! held to the same quantization, not just to the same bytes.
@@ -45,6 +45,13 @@ pub fn client_samples() -> Vec<(&'static str, ClientMsg)> {
                         pick,
                     })
                     .collect(),
+            },
+        ),
+        (
+            "input_hunt",
+            ClientMsg::Input {
+                seq: 46,
+                commands: vec![WireCommand::HuntTarget { actor: 2 }],
             },
         ),
         (
@@ -391,6 +398,8 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
                     bounty: 0,
                     gv: 20,
                     move_seq: 7,
+                    hunt_target: Some(2),
+                    hunt_stacks: 3,
                 }),
                 actors: vec![WireActor {
                     sig: 0,
@@ -445,6 +454,8 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
                     bounty: 0,
                     gv: 0,
                     move_seq: 0,
+                    hunt_target: None,
+                    hunt_stacks: 0,
                 }),
                 actors: vec![WireActor {
                     sig: 0,
@@ -490,6 +501,8 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
                     bounty: 65535,
                     gv: 16384,
                     move_seq: 255,
+                    hunt_target: None,
+                    hunt_stacks: 0,
                 }),
                 actors: vec![
                     WireActor {
@@ -584,6 +597,8 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
                     bounty: 1,
                     gv: 1,
                     move_seq: 1,
+                    hunt_target: None,
+                    hunt_stacks: 0,
                 }),
                 actors: vec![],
             },
@@ -617,6 +632,8 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
                     kills: 200,
                     gv: 16384,
                     move_seq: 255,
+                    hunt_target: None,
+                    hunt_stacks: 0,
                     status: 2,
                     ..SelfDelta::default()
                 }),
@@ -977,7 +994,7 @@ pub fn malformed_server() -> Vec<(&'static str, Vec<u8>)> {
             snapshot_bytes(0x0002, &[], 0, &[]),
         ),
         // Bit 13 is not a field of this version: a mask bit a decoder does not know is refused, never skipped.
-        ("head_unknown_bit", snapshot_bytes(0x4001, &[], 0, &[])),
+        ("head_unknown_bit", snapshot_bytes(0x10001, &[], 0, &[])),
         // The head 0x80 0x00 is a two-byte zero: the canonical form is one byte.
         ("head_overlong_varint", vec![0x83, 0, 0, 0x80, 0x00, 0]),
         ("self_truncated", snapshot_bytes(0x0001, &[], 0, &[])),
@@ -1158,6 +1175,8 @@ fn chain_self(x: f32) -> WireSelf {
         bounty: 0,
         gv: 0,
         move_seq: 0,
+        hunt_target: None,
+        hunt_stacks: 0,
     }
 }
 
@@ -1513,7 +1532,7 @@ pub fn malformed_deltas() -> Vec<(&'static str, Vec<u8>)> {
             delta_bytes(10, 1, DH_X, &[0]),
         ),
         // Bit 18 is not a field of this version.
-        ("delta_head_unknown_bit", delta_bytes(10, 1, 1 << 18, &[0])),
+        ("delta_head_unknown_bit", delta_bytes(10, 1, 1 << 20, &[0])),
         (
             "delta_head_overlong_varint",
             vec![0x87, 10, 1, 0, 0x80, 0x00, 0],
@@ -1599,7 +1618,7 @@ fn decoded_snapshot_json(m: &ServerMsg) -> String {
     let me = match me {
         None => "null".to_string(),
         Some(s) => format!(
-            "{{\"id\": {}, \"faction\": {}, \"xBits\": {}, \"yBits\": {}, \"facingBits\": {}, \"hpBits\": {}, \"maxHpBits\": {}, \"status\": {}, \"weapon\": {}, \"readyInMs\": {}, \"kills\": {}, \"bounty\": {}, \"gv\": {}, \"moveSeq\": {}, \"effects\": {}, \"displaceSeq\": {}, \"sig\": {}}}",
+            "{{\"id\": {}, \"faction\": {}, \"xBits\": {}, \"yBits\": {}, \"facingBits\": {}, \"hpBits\": {}, \"maxHpBits\": {}, \"status\": {}, \"weapon\": {}, \"readyInMs\": {}, \"kills\": {}, \"bounty\": {}, \"gv\": {}, \"moveSeq\": {}, \"effects\": {}, \"displaceSeq\": {}, \"sig\": {}, \"huntTarget\": {}, \"huntStacks\": {}}}",
             s.id,
             s.faction,
             bits(s.x),
@@ -1613,7 +1632,8 @@ fn decoded_snapshot_json(m: &ServerMsg) -> String {
             s.kills,
             s.bounty,
             s.gv,
-            s.move_seq, s.effects, s.displace_seq, s.sig
+            s.move_seq, s.effects, s.displace_seq, s.sig,
+            s.hunt_target.map_or("null".to_string(), |v| v.to_string()), s.hunt_stacks
         ),
     };
     let actors: Vec<String> = actors

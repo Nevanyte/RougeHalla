@@ -64,9 +64,9 @@ namespace Roguehalla.Net.Tests
         {
             double withMe = DecodeGarbage(actors, true), spectator = DecodeGarbage(actors, false);
             TestContext.Progress.WriteLine("plain decode, {0} actors: {1} B with a self, {2} B without", actors, withMe, spectator);
-            // Snapshot object (56 B) + array header (24 B) + 28 B per actor (v6 effects/displacement); a self adds one 64 B object. No reader object.
+            // Snapshot object (56 B) + array header (24 B) + 28 B per actor (v6 effects/displacement); a self adds one 72 B object (v7 hunt fields). No reader object.
             Assert.LessOrEqual(spectator, 28.0 * actors + 80);
-            Assert.LessOrEqual(withMe, 28.0 * actors + 144);
+            Assert.LessOrEqual(withMe, 28.0 * actors + 160);
         }
 
         /// <summary>Decode into the buffer's spare, as Session does. <paramref name="vary"/> alternates the actor count every

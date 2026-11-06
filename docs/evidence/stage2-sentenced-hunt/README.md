@@ -57,13 +57,22 @@ stack per real target death, the selected actor's fog/bush visibility exception,
 - [x] Checkpoint refusal for a self/missing target and an over-large stack count.
 - [x] Warmed `no_alloc` and full hash-coverage gates pass.
 - [x] Six committed mutants with semantic failures and a restoring runner (`tools/hunt-fixtures/run-mutants.sh`, 6/6 killed).
-- [ ] Protocol exposure (`huntTarget` input, self fields, v7 vectors, C#/JS mirrors).
-- [ ] Full workspace gate and PR.
+- [x] Protocol exposure: `HuntTarget` (client tag 12), self `hunt_target`/`hunt_stacks` (Full bits 14/15, delta bits 18/19), v7 golden vectors, C# and JS mirrors.
+- [x] Full workspace gate: 1,391 passed, 0 failed, 2 ignored; both strict Clippy modes clean; 103 slice scenarios + 13 capture-only and 300 path queries MATCH.
+- [ ] PR (branch pushed, review pending).
 
 ## 7. Commands
 
 See `docs/evidence/deepseek-rust/PROGRESS.md`. Captures are run in the pinned Linux x64 Node `v22.23.4` container; the
 fixture files were produced by `node --import tsx parity/legacy-capture/capture.ts --out parity/fixtures --only <name>`.
+Protocol checks: `cargo test -p rh-protocol` (including `tests/v7_hunt.rs`), `node tools/protocol-js/check-vectors.mjs`
+(24 server vectors, 89 malformed, 10 chains, 15,448 checks), `dotnet test client-unity/RoguehallaNet.Tests` (269 passed)
+and `node tools/browser-proof/proof.mjs` (15 checks, PASS; 3 Full + 415 delta snapshots, protocol 7).
+
+## Coordinator handoff
+
+The shared status records were deliberately not edited. They still say protocol 6, observation 15 and content
+`e95d55ba96b2feca`; this packet moves them to protocol 7, observation 16 and content `63036d344ce05ea0`.
 
 ## 8. Traps
 

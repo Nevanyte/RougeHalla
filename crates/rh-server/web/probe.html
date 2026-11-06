@@ -22,7 +22,7 @@
 </main>
 <script>
 "use strict";
-// ---- protocol v6 (mirror of crates/rh-protocol; tools/protocol-js/check-vectors.mjs holds this block to protocol/fixtures/v6.json) ----
+// ---- protocol v7 (mirror of crates/rh-protocol; tools/protocol-js/check-vectors.mjs holds this block to protocol/fixtures/v7.json) ----
 class W {
   constructor() { this.b = new Uint8Array(256); this.n = 0; this.v = new DataView(this.b.buffer); }
   need(k) { if (this.n + k > this.b.length) { const nb = new Uint8Array(this.b.length * 2 + k); nb.set(this.b); this.b = nb; this.v = new DataView(nb.buffer); } }
@@ -75,7 +75,7 @@ function fnv(w, h, tiles) {
   for (const t of tiles) eat(t);
   return x >>> 0;
 }
-const PROTOCOL = 6;
+const PROTOCOL = 7;
 const MAX_TICKET = 448;
 // Quantized remote actors and swings (rh-protocol quant.rs): positions are u16 at 1/8 u, angles u16 over 2 pi read as a signed code.
 const FACING_STEP_F32 = Math.fround(2 * Math.PI / 65536);
@@ -99,6 +99,7 @@ function input(seq, cmds) {
     else if(c.k === "choose") { if(!Number.isInteger(c.handle) || c.handle<=0 || c.handle>0xffffffff || !Number.isInteger(c.pick) || c.pick < -1 || c.pick > 2) throw new Error("bad reward choice"); w.u8(8);w.u32(c.handle);w.u8(c.pick & 255); }
     else if(c.k === "useConsumable") { w.u8(9); }
     else if(c.k === "target") { if(!Number.isInteger(c.actorRef)||c.actorRef<=0||c.actorRef>0xffffffff) throw new Error("bad actor reference");w.u8(10);w.u32(c.actorRef); }
+    else if(c.k === "huntTarget") { if(!Number.isInteger(c.actorRef)||c.actorRef<=0||c.actorRef>0xffffffff) throw new Error("bad hunt target");w.u8(12);w.u32(c.actorRef); }
     else if (c.k === "stop") { w.u8(2); if (c.seq == null) w.u8(0); else { w.u8(1); w.u8(c.seq); } }
     else if (c.k === "aim") { w.u8(3); w.f32(c.a); }
     else if (c.k === "attack") { w.u8(4); w.f32(c.a); if (c.t == null) w.u8(0); else { w.u8(1); w.f64(c.t); } }
@@ -124,6 +125,7 @@ function decodeClient(buf) {
       if (k === 1 || k === 11) c = { k: k===1 ? "move" : "attackMove", x: finite(r.f32()), y: finite(r.f32()), seq: r.opt(() => r.u8()) };
       else if(k === 9) c={k:"useConsumable"};
       else if(k === 10) {const actorRef=r.u32();if(!actorRef)throw new Error("bad actor reference");c={k:"target",actorRef};}
+      else if(k === 12) {const actorRef=r.u32();if(!actorRef)throw new Error("bad hunt target");c={k:"huntTarget",actorRef};}
       else if (k === 2) c = { k: "stop", seq: r.opt(() => r.u8()) };
       else if (k === 3) c = { k: "aim", a: finite(r.f32()) };
       else if (k === 4 || k === 5) c = { k: k === 4 ? "attack" : "release", a: finite(r.f32()), t: r.opt(() => finite(r.f64())) };
@@ -180,7 +182,7 @@ function decodeBody(r) {
   if (tag === 0x83) {
     const tick = r.varint(), ack = r.varint(), head = r.varint();
     // Append-only varint head: bit 0 a self follows, bits 1..9 its fields, bit 10 the phase; any other bit is refused.
-    if ((head & ~0x3fff) !== 0 || ((head & 1) === 0 && (head & 0x3bff) !== 0)) throw new Error("bad head");
+    if ((head & ~0xffff) !== 0 || ((head & 1) === 0 && (head & 0xfbff) !== 0)) throw new Error("bad head");
     const s = { t: "snapshot", tick, serverMs: tick * 50, phase: 1, ack, me: null, actors: [] };
     if (head & 1) {
       const id = r.varint(), x = r.f32(), y = r.f32(), facing = r.f32();
@@ -195,7 +197,9 @@ function decodeBody(r) {
       const gv = (head & 0x80) ? r.varintU16("gv") : 0;
       const status = (head & 0x200) ? r.code(3, "status") : 1;
       const effects = (head & 0x800) ? r.u16() : 0, displaceSeq = (head & 0x1000) ? r.u8() : 0, sig = (head & 0x2000) ? r.u8() : 0;
-      s.me = { id, faction, x, y, facing, hp, maxHp, status, weapon, readyIn, kills, bounty, gv, moveSeq, effects, displaceSeq, sig };
+      let huntTarget = null; if (head & 0x4000) { huntTarget = r.varint(); if (huntTarget === 0) throw new Error("bad hunt target"); }
+      const huntStacks = (head & 0x8000) ? r.varintU16("hunt_stacks") : 0;
+      s.me = { id, faction, x, y, facing, hp, maxHp, status, weapon, readyIn, kills, bounty, gv, moveSeq, effects, displaceSeq, sig, huntTarget, huntStacks };
     }
     if (head & 0x400) s.phase = r.code(3, "phase");
     const n = r.varint();
@@ -227,10 +231,10 @@ function decodeBody(r) {
     if (age < 1 || age > 64 || age > tick) throw new Error("bad base age");
     const ack = r.varint(), head = r.varint();
     // Append-only varint head: bit 0 a self follows (fields: bits 1..6 and 9..14), bit 7 a departed list follows, bit 8 the phase changed.
-    if ((head & ~0x3ffff) !== 0 || ((head & 1) === 0 && (head & 0x3fe7e) !== 0)) throw new Error("bad head");
+    if ((head & ~0xfffff) !== 0 || ((head & 1) === 0 && (head & 0xffe7e) !== 0)) throw new Error("bad head");
     const d = { t: "delta", tick, baseTick: tick - age, phase: null, ack, me: null, changed: [], departed: [] };
     if (head & 1) {
-      const m = head & 0x3fe7e, s = { mask: m };
+      const m = head & 0xffe7e, s = { mask: m };
       if (m & 0x0002) s.x = r.f32();
       if (m & 0x0004) s.y = r.f32();
       if (m & 0x0008) s.facing = r.f32();
@@ -246,6 +250,8 @@ function decodeBody(r) {
       if (m & 0x8000) s.effects = r.u16();
       if (m & 0x10000) s.displaceSeq = r.u8();
       if (m & 0x20000) s.sig=r.u8();
+      if (m & 0x40000) { s.huntTarget = r.varint(); if (s.huntTarget === 0) throw new Error("bad hunt target"); }
+      if (m & 0x80000) s.huntStacks = r.varintU16("hunt_stacks");
       d.me = s;
     }
     if (head & 0x100) d.phase = r.code(3, "phase");
@@ -462,6 +468,8 @@ class Tracker {
       if (d.mask & 0x8000) s.effects = d.effects;
       if (d.mask & 0x10000) s.displaceSeq = d.displaceSeq;
       if (d.mask & 0x20000) s.sig=d.sig;
+      if (d.mask & 0x40000) s.huntTarget = d.huntTarget;
+      if (d.mask & 0x80000) s.huntStacks = d.huntStacks;
       me = s;
     }
     const s = { t: "snapshot", tick: m.tick, serverMs: m.tick * 50, phase: m.phase === null ? b.phase : m.phase, ack: m.ack, me, actors: out };

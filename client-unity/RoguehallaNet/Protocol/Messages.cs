@@ -11,7 +11,7 @@ namespace Roguehalla.Net.Protocol
         Malformed = 7, TooSlow = 8, ServerDraining = 9, NoSuchSession = 10, Kicked = 11,
     }
 
-    public enum CommandKind : byte { Move = 1, Stop = 2, Aim = 3, Attack = 4, Release = 5, Swap = 6, Pickup = 7, Choose = 8, UseConsumable = 9, Target = 10, AttackMove = 11 }
+    public enum CommandKind : byte { Move = 1, Stop = 2, Aim = 3, Attack = 4, Release = 5, Swap = 6, Pickup = 7, Choose = 8, UseConsumable = 9, Target = 10, AttackMove = 11, HuntTarget = 12 }
 
     /// <summary>A client command. Only the fields of its Kind are meaningful.</summary>
     public sealed class WireCommand
@@ -36,6 +36,7 @@ namespace Roguehalla.Net.Protocol
         public static WireCommand Move(float x, float y, byte? seq) { return new WireCommand { Kind = CommandKind.Move, X = x, Y = y, Seq = seq }; }
         public static WireCommand UseConsumable() { return new WireCommand { Kind = CommandKind.UseConsumable }; }
         public static WireCommand Target(uint actorRef) { if (actorRef == 0) throw new ArgumentException("actor reference"); return new WireCommand { Kind = CommandKind.Target, ActorRef = actorRef }; }
+        public static WireCommand HuntTarget(uint actorRef) { if (actorRef == 0) throw new ArgumentException("hunt target"); return new WireCommand { Kind = CommandKind.HuntTarget, ActorRef = actorRef }; }
         public static WireCommand AttackMove(float x, float y, byte? seq) { return new WireCommand { Kind = CommandKind.AttackMove, X = x, Y = y, Seq = seq }; }
         public static WireCommand Stop(byte? seq) { return new WireCommand { Kind = CommandKind.Stop, Seq = seq }; }
         public static WireCommand Aim(float a) { return new WireCommand { Kind = CommandKind.Aim, A = a }; }
@@ -81,6 +82,7 @@ namespace Roguehalla.Net.Protocol
                             case 9: inp.Commands.Add(WireCommand.UseConsumable()); break;
                             case 10: { uint id=r.U32(); if(id==0) throw new DecodeException(DecodeError.BadField,"actor reference"); inp.Commands.Add(WireCommand.Target(id)); break; }
                             case 11: { float x=r.F32(),y=r.F32(); inp.Commands.Add(WireCommand.AttackMove(x,y,r.Flag()?r.U8():(byte?)null)); break; }
+                            case 12: { uint id=r.U32(); if(id==0) throw new DecodeException(DecodeError.BadField,"hunt target"); inp.Commands.Add(WireCommand.HuntTarget(id)); break; }
                             case 1: { float x = r.F32(), y = r.F32(); inp.Commands.Add(WireCommand.Move(x, y, r.Flag() ? r.U8() : (byte?)null)); break; }
                             case 2: inp.Commands.Add(WireCommand.Stop(r.Flag() ? r.U8() : (byte?)null)); break;
                             case 3: inp.Commands.Add(WireCommand.Aim(r.F32())); break;
@@ -150,6 +152,7 @@ namespace Roguehalla.Net.Protocol
                         case CommandKind.Choose: if(!c.RewardRef.IsValid || c.Pick < -1 || c.Pick > 2) throw new ArgumentException("reward choice"); w.U32(c.RewardRef.Value);w.U8(unchecked((byte)c.Pick));break;
                         case CommandKind.UseConsumable: break;
                         case CommandKind.Target: if(c.ActorRef==0) throw new ArgumentException("actor reference"); w.U32(c.ActorRef); break;
+                        case CommandKind.HuntTarget: if(c.ActorRef==0) throw new ArgumentException("hunt target"); w.U32(c.ActorRef); break;
                         case CommandKind.AttackMove:
                         case CommandKind.Move: w.F32(c.X); w.F32(c.Y); Opt(w, c.Seq); break;
                         case CommandKind.Stop: Opt(w, c.Seq); break;
@@ -175,6 +178,7 @@ namespace Roguehalla.Net.Protocol
                     case CommandKind.Choose: return 6;
                     case CommandKind.UseConsumable: return 1;
                     case CommandKind.Target: return 5;
+                    case CommandKind.HuntTarget: return 5;
                     case CommandKind.AttackMove:
                     case CommandKind.Move: return 9 + (c.Seq.HasValue ? 2 : 1);
                     case CommandKind.Stop: return 1 + (c.Seq.HasValue ? 2 : 1);
@@ -215,17 +219,21 @@ namespace Roguehalla.Net.Protocol
         public ushort ReadyInMs, Kills, Bounty, Gv;
         public byte MoveSeq, DisplaceSeq, Sig;
         public ushort Effects;
+        public uint? HuntTarget;
+        public ushort HuntStacks;
 
         internal void CopyFrom(WireSelf o)
         {
             Id = o.Id; Faction = o.Faction; X = o.X; Y = o.Y; Facing = o.Facing; Hp = o.Hp; MaxHp = o.MaxHp; Status = o.Status; Weapon = o.Weapon;
             ReadyInMs = o.ReadyInMs; Kills = o.Kills; Bounty = o.Bounty; Gv = o.Gv; MoveSeq = o.MoveSeq; Effects = o.Effects; DisplaceSeq = o.DisplaceSeq; Sig = o.Sig;
+            HuntTarget = o.HuntTarget; HuntStacks = o.HuntStacks;
         }
 
         // Head bits (rh-protocol lib.rs, append only): a varint, so bits below 7 take one byte.
         internal const uint HPresent = 1 << 0, HKit = 1 << 1, HHp = 1 << 2, HReady = 1 << 3, HKills = 1 << 4, HBounty = 1 << 5,
-            HMoveSeq = 1 << 6, HGv = 1 << 7, HMaxHpF32 = 1 << 8, HStatus = 1 << 9, HPhase = 1 << 10, HEffects = 1 << 11, HDisplace = 1 << 12, HSig = 1 << 13;
-        internal const uint SelfBits = 0x03ff | HEffects | HDisplace | HSig, Known = SelfBits | HPhase;
+            HMoveSeq = 1 << 6, HGv = 1 << 7, HMaxHpF32 = 1 << 8, HStatus = 1 << 9, HPhase = 1 << 10, HEffects = 1 << 11, HDisplace = 1 << 12, HSig = 1 << 13,
+            HHuntTarget = 1 << 14, HHuntStacks = 1 << 15;
+        internal const uint SelfBits = 0x03ff | HEffects | HDisplace | HSig | HHuntTarget | HHuntStacks, Known = SelfBits | HPhase;
 
         static bool MaxHpIsVarint(float v)
         {
@@ -252,6 +260,8 @@ namespace Roguehalla.Net.Protocol
             if (Effects != 0) m |= HEffects;
             if (DisplaceSeq != 0) m |= HDisplace;
             if (Sig != 0) m |= HSig;
+            if (HuntTarget.HasValue) m |= HHuntTarget;
+            if (HuntStacks != 0) m |= HHuntStacks;
             return m;
         }
 
@@ -274,6 +284,8 @@ namespace Roguehalla.Net.Protocol
             if ((head & HEffects) != 0) n += 2;
             if ((head & HDisplace) != 0) n += 1;
             if ((head & HSig) != 0) n += 1;
+            if (HuntTarget.HasValue) n += Writer.VarintLength(HuntTarget.Value);
+            if ((head & HHuntStacks) != 0) n += Writer.VarintLength(HuntStacks);
             return n;
         }
 
@@ -293,6 +305,8 @@ namespace Roguehalla.Net.Protocol
             Effects = (head & HEffects) != 0 ? r.U16() : (ushort)0;
             DisplaceSeq = (head & HDisplace) != 0 ? r.U8() : (byte)0;
             Sig = (head & HSig) != 0 ? r.U8() : (byte)0;
+            if ((head & HHuntTarget) != 0) { uint t = r.Varint(); if (t == 0) throw new DecodeException(DecodeError.BadField, "hunt target"); HuntTarget = t; } else HuntTarget = null;
+            HuntStacks = (head & HHuntStacks) != 0 ? r.VarintU16("hunt_stacks") : (ushort)0;
         }
 
         internal void Write(Writer w, uint head)
@@ -310,12 +324,14 @@ namespace Roguehalla.Net.Protocol
             if ((head & HEffects) != 0) w.U16(Effects);
             if ((head & HDisplace) != 0) w.U8(DisplaceSeq);
             if ((head & HSig) != 0) w.U8(Sig);
+            if (HuntTarget.HasValue) w.Varint(HuntTarget.Value);
+            if ((head & HHuntStacks) != 0) w.Varint(HuntStacks);
         }
     }
 
     /// <summary>
     /// One visible actor. A value type: a snapshot's actors live inline in its array (no object per actor). The fields are
-    /// declared widest first so the struct packs into 28 bytes (including v6 effects/displacement); the wire order is fixed by <see cref="Read"/>/<see cref="Write"/>.
+    /// declared widest first so the struct packs into 28 bytes (including v6 effects/displacement; v7 hunt fields); the wire order is fixed by <see cref="Read"/>/<see cref="Write"/>.
     /// X, Y and Facing are what the wire carries (quantized to 1/8 u and 2 pi / 65536).
     /// </summary>
     public struct WireActor
@@ -412,9 +428,10 @@ namespace Roguehalla.Net.Protocol
     public struct SelfDelta
     {
         public const uint FX = 1 << 1, FY = 1 << 2, FFacing = 1 << 3, FMoveSeq = 1 << 4, FHp = 1 << 5, FReady = 1 << 6,
-            FMaxHp = 1 << 9, FKit = 1 << 10, FKills = 1 << 11, FBounty = 1 << 12, FGv = 1 << 13, FStatus = 1 << 14, FEffects = 1 << 15, FDisplace = 1 << 16, FSig = 1 << 17;
+            FMaxHp = 1 << 9, FKit = 1 << 10, FKills = 1 << 11, FBounty = 1 << 12, FGv = 1 << 13, FStatus = 1 << 14, FEffects = 1 << 15, FDisplace = 1 << 16, FSig = 1 << 17,
+            FHuntTarget = 1 << 18, FHuntStacks = 1 << 19;
         /// <summary>The self field bits (never the present, departed or phase bits of the head).</summary>
-        public const uint Fields = 0x7e7e | FEffects | FDisplace | FSig;
+        public const uint Fields = 0x7e7e | FEffects | FDisplace | FSig | FHuntTarget | FHuntStacks;
         public uint Mask;
         public float X, Y, Facing, Hp, MaxHp;
         public byte Kit;
@@ -423,6 +440,8 @@ namespace Roguehalla.Net.Protocol
         public ushort Effects;
         /// <summary>The new status (0..3) when <see cref="FStatus"/> is set in <see cref="Mask"/>.</summary>
         public byte StatusValue;
+        public uint? HuntTarget;
+        public ushort HuntStacks;
 
         internal static SelfDelta Read(ref Reader r, uint mask)
         {
@@ -442,6 +461,8 @@ namespace Roguehalla.Net.Protocol
             if ((mask & FEffects) != 0) s.Effects = r.U16();
             if ((mask & FDisplace) != 0) s.DisplaceSeq = r.U8();
             if ((mask & FSig) != 0) s.Sig = r.U8();
+            if ((mask & FHuntTarget) != 0) { uint t = r.Varint(); if (t == 0) throw new DecodeException(DecodeError.BadField, "hunt target"); s.HuntTarget = t; }
+            if ((mask & FHuntStacks) != 0) s.HuntStacks = r.VarintU16("hunt_stacks");
             return s;
         }
 
@@ -462,6 +483,8 @@ namespace Roguehalla.Net.Protocol
             if ((Mask & FEffects) != 0) w.U16(Effects);
             if ((Mask & FDisplace) != 0) w.U8(DisplaceSeq);
             if ((Mask & FSig) != 0) w.U8(Sig);
+            if ((Mask & FHuntTarget) != 0 && HuntTarget.HasValue) w.Varint(HuntTarget.Value);
+            if ((Mask & FHuntStacks) != 0) w.Varint(HuntStacks);
         }
 
         internal void ApplyTo(WireSelf s)
@@ -481,6 +504,8 @@ namespace Roguehalla.Net.Protocol
             if ((Mask & FEffects) != 0) s.Effects = Effects;
             if ((Mask & FDisplace) != 0) s.DisplaceSeq = DisplaceSeq;
             if ((Mask & FSig) != 0) s.Sig = Sig;
+            if ((Mask & FHuntTarget) != 0) s.HuntTarget = HuntTarget;
+            if ((Mask & FHuntStacks) != 0) s.HuntStacks = HuntStacks;
         }
     }
 
@@ -714,6 +739,7 @@ namespace Roguehalla.Net.Protocol
                 if (Actors.Length > Wire.MaxActors) throw new ArgumentException("more than " + Wire.MaxActors + " actors");
                 if (Phase > Wire.MaxPhaseCode) throw new ArgumentException("phase");
                 if (Me != null && (Me.Faction > Wire.MaxKitCode || Me.Weapon > Wire.MaxKitCode || Me.Status > Wire.MaxStatusCode)) throw new ArgumentException("self faction/weapon/status");
+                if (Me != null && Me.HuntTarget == 0) throw new ArgumentException("hunt target");
                 for (int i = 0; i < Actors.Length; i++)
                 {
                     var a = Actors[i];

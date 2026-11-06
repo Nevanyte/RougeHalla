@@ -15,13 +15,13 @@ fn hello_prefix_is_read_without_decoding_the_rest() {
     .encode();
     assert_eq!(ClientMsg::hello_protocol(&hello), Some(PROTOCOL_VERSION));
     // Another version with arbitrary trailing bytes: the prefix answers, the full decode would not.
-    let future = [0x01, 6, 0, 0xde, 0xad, 0xbe, 0xef, 0x01];
-    assert_eq!(ClientMsg::hello_protocol(&future), Some(6));
+    let future = [0x01, 7, 0, 0xde, 0xad, 0xbe, 0xef, 0x01];
+    assert_eq!(ClientMsg::hello_protocol(&future), Some(7));
     assert!(ClientMsg::decode(&future).is_err());
     let previous = [0x01, 4, 0, 0xff];
     assert_eq!(ClientMsg::hello_protocol(&previous), Some(4));
     assert_ne!(ClientMsg::hello_protocol(&previous), Some(PROTOCOL_VERSION));
-    assert_eq!(PROTOCOL_VERSION, 6);
+    assert_eq!(PROTOCOL_VERSION, 7);
     assert_eq!(ClientMsg::hello_protocol(&[0x01, 4]), None);
     assert_eq!(ClientMsg::hello_protocol(&[]), None);
     assert_eq!(ClientMsg::hello_protocol(&[0x02, 3, 0, 0]), None);
