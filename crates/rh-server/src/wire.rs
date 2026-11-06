@@ -10,21 +10,24 @@ use rh_protocol::{
 use rh_sim::observe::{ActorView, Observation, SeenEvent};
 use rh_sim::sim::{Outcome, Phase, Status};
 use rh_sim::Class;
-use rh_sim::{RawCommand, RunResult};
+use rh_sim::RunResult;
 
-pub fn command(c: WireCommand) -> RawCommand {
+pub fn command(c: WireCommand) -> rh_sim::PublicCommand {
+    use rh_sim::PublicCommand as Public;
     match c {
-        WireCommand::Move { x, y, seq } => RawCommand::Move {
+        WireCommand::Move { x, y, seq } => Public::Move {
             x: x as f64,
             y: y as f64,
             seq,
         },
-        WireCommand::Swap { slot } => RawCommand::Swap { slot },
-        WireCommand::Pickup { container_id } => RawCommand::Pickup { container_id },
-        WireCommand::Stop { seq } => RawCommand::Stop { seq },
-        WireCommand::Aim { a } => RawCommand::Aim { a: a as f64 },
-        WireCommand::Attack { a, t } => RawCommand::Attack { a: a as f64, t },
-        WireCommand::Release { a, t } => RawCommand::Release { a: a as f64, t },
+        WireCommand::Swap { slot } => Public::Swap { slot },
+        WireCommand::Pickup { handle } => Public::Pickup {
+            handle: rh_sim::PickupHandle::new(handle.get()).expect("checked wire handle"),
+        },
+        WireCommand::Stop { seq } => Public::Stop { seq },
+        WireCommand::Aim { a } => Public::Aim { a: a as f64 },
+        WireCommand::Attack { a, t } => Public::Attack { a: a as f64, t },
+        WireCommand::Release { a, t } => Public::Release { a: a as f64, t },
     }
 }
 
@@ -81,6 +84,8 @@ fn sat16(v: u32) -> u16 {
 
 fn wire_self(m: &rh_sim::observe::SelfView) -> WireSelf {
     WireSelf {
+        effects: m.effects,
+        displace_seq: m.displace_seq,
         id: m.id.0,
         faction: m.faction.code(),
         x: m.x as f32,
@@ -107,6 +112,8 @@ fn hp_pct(f: f64) -> u8 {
 
 fn wire_actor(a: &rh_sim::observe::ActorView) -> WireActor {
     WireActor {
+        effects: a.effects,
+        displace_seq: a.displace_seq,
         id: a.id.0,
         faction: a.faction.code(),
         x: a.x as f32,
@@ -150,6 +157,8 @@ fn same_view(a: &ActorView, b: &ActorView) -> bool {
         && a.status == b.status
         && a.faction == b.faction
         && a.weapon == b.weapon
+        && a.effects == b.effects
+        && a.displace_seq == b.displace_seq
 }
 
 /// Source absent or redacted by observation: no actor has this sentinel (Hit and Block).
@@ -192,7 +201,7 @@ impl ActorMemo {
 enum Wire {
     Event(WireEvent),
     Fx(WireFx),
-    OmittedInV5,
+    Omitted,
 }
 
 fn to_wire(e: &SeenEvent) -> Wire {
@@ -216,13 +225,13 @@ fn to_wire(e: &SeenEvent) -> Wire {
         }),
         SeenEvent::Stagger { id } => Wire::Fx(WireFx::Stagger { id: id.0 }),
         // Target locking is currently a core/policy/headless feature. Protocol 5 has no cancel telegraph.
-        SeenEvent::AttackCancelled { .. } => Wire::OmittedInV5,
-        SeenEvent::SignatureHit { .. } | SeenEvent::Heal { .. } => Wire::OmittedInV5,
+        SeenEvent::AttackCancelled { .. } => Wire::Omitted,
+        SeenEvent::SignatureHit { .. } | SeenEvent::Heal { .. } => Wire::Omitted,
         // P-STATUS-1 exposes these to core observers/policies/headless. Protocol 5 has no matching
         // messages, nor status/field snapshot data. P-NET-3 owns that transport and its codec mirrors.
         SeenEvent::AbilityHit { .. }
         | SeenEvent::CastEnded { .. }
-        | SeenEvent::StatusApplied { .. } => Wire::OmittedInV5,
+        | SeenEvent::StatusApplied { .. } => Wire::Omitted,
         SeenEvent::PickupRefused { reason } => Wire::Event(WireEvent::PickupRefused {
             reason: match reason {
                 rh_sim::PickupRefusal::Blocked => 1,
@@ -351,6 +360,38 @@ impl Publisher {
         all: &[rh_sim::Event],
     ) -> ViewFrames {
         rh_sim::observe_into_cached(sim, viewer, last_step, &mut self.obs, &mut self.sight);
+        self.build_observation_frames(spare, viewer, ack_input, earlier, all)
+    }
+
+    /// An action-producing observer is seat-owned; the caller commits only after its reliable
+    /// state and snapshot have entered the outbox. Event-only catch-up never touches this offer.
+    #[allow(clippy::too_many_arguments)]
+    pub fn frames_prepared<'a>(
+        &mut self,
+        observer: &'a mut rh_sim::ItemObserver,
+        spare: Option<SnapshotData>,
+        sim: &rh_sim::Sim,
+        ack_input: u32,
+        last_step: &[rh_sim::Event],
+        earlier: &mut Vec<SeenEvent>,
+        all: &[rh_sim::Event],
+    ) -> Result<(ViewFrames, rh_sim::item_view::PreparedOffer<'a>), rh_sim::OfferError> {
+        let viewer = observer.viewer();
+        let offer = observer.prepare_into(sim, last_step, &mut self.obs, Some(&mut self.sight))?;
+        Ok((
+            self.build_observation_frames(spare, viewer, ack_input, earlier, all),
+            offer,
+        ))
+    }
+
+    fn build_observation_frames(
+        &mut self,
+        spare: Option<SnapshotData>,
+        viewer: rh_sim::PlayerId,
+        ack_input: u32,
+        earlier: &mut Vec<SeenEvent>,
+        all: &[rh_sim::Event],
+    ) -> ViewFrames {
         if !earlier.is_empty() {
             earlier.append(&mut self.obs.events);
             std::mem::swap(earlier, &mut self.obs.events);
@@ -367,7 +408,7 @@ impl Publisher {
                     debug_assert_eq!(e.class(), Class::Fx);
                     self.fx.push(w);
                 }
-                Wire::OmittedInV5 => {}
+                Wire::Omitted => {}
             }
         }
         for e in all {
@@ -790,9 +831,9 @@ mod tests {
     }
 
     #[test]
-    fn protocol_five_omissions_leave_published_frames_and_redaction_unchanged() {
+    fn omitted_effect_announcements_leave_frames_and_redaction_unchanged() {
         use rh_sim::status_runtime::{AbilityId, CastEndReason, StatusKind};
-        assert_eq!(rh_protocol::PROTOCOL_VERSION, 5);
+        assert_eq!(rh_protocol::PROTOCOL_VERSION, 6);
         let env = seed1_match(1);
         let id = env.sim.players()[0].id;
         let mut publisher = Publisher::default();
@@ -898,11 +939,11 @@ mod tests {
         ));
         assert!(matches!(
             to_wire(&SeenEvent::AttackCancelled { id }),
-            Wire::OmittedInV5
+            Wire::Omitted
         ));
         assert!(matches!(
             to_wire(&SeenEvent::Heal { id, amount: 1.0 }),
-            Wire::OmittedInV5
+            Wire::Omitted
         ));
         for by in [None, Some(PlayerId(1))] {
             for kind in rh_sim::status_runtime::STATUS_KINDS {
@@ -913,7 +954,7 @@ mod tests {
                         kind,
                         ms: 500.
                     }),
-                    Wire::OmittedInV5
+                    Wire::Omitted
                 ));
             }
             for ability in rh_sim::status_runtime::AbilityId::ALL {
@@ -924,7 +965,7 @@ mod tests {
                         ability,
                         amount: 10.
                     }),
-                    Wire::OmittedInV5
+                    Wire::Omitted
                 ));
             }
         }
@@ -939,7 +980,7 @@ mod tests {
                         ability,
                         reason
                     }),
-                    Wire::OmittedInV5
+                    Wire::Omitted
                 ));
             }
         }
@@ -955,7 +996,7 @@ mod tests {
                     weapon: Some(rh_sim::WeaponId::Axe),
                     amount: 10.
                 }),
-                Wire::OmittedInV5
+                Wire::Omitted
             ));
         }
         for (reason, code) in [
@@ -973,11 +1014,13 @@ mod tests {
         }
         assert!(matches!(
             command(WireCommand::Swap { slot: None }),
-            RawCommand::Swap { slot: None }
+            rh_sim::PublicCommand::Swap { slot: None }
         ));
         assert!(matches!(
-            command(WireCommand::Pickup { container_id: 42 }),
-            RawCommand::Pickup { container_id: 42 }
+            command(WireCommand::Pickup {
+                handle: rh_protocol::PickupHandle::new(42).unwrap()
+            }),
+            rh_sim::PublicCommand::Pickup { handle } if handle.get()==42
         ));
     }
 

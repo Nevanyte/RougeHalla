@@ -54,6 +54,8 @@ fn a_delta_of_hundreds_of_changed_actors_has_a_two_byte_count_and_applies() {
 
 fn actor(id: u32, rng: &mut Rng) -> WireActor {
     WireActor {
+        effects: 0,
+        displace_seq: 0,
         id,
         faction: rng.below(5) as u8,
         x: rng.below(5000) as f32 + 0.3,
@@ -70,6 +72,8 @@ fn actor(id: u32, rng: &mut Rng) -> WireActor {
 
 fn me(id: u32, rng: &mut Rng) -> WireSelf {
     WireSelf {
+        effects: 0,
+        displace_seq: 0,
         id,
         faction: 2,
         x: rng.below(5000) as f32 + 0.25,
@@ -582,6 +586,8 @@ fn deltas_that_do_not_apply_are_refused_and_change_nothing() {
     // A complete new actor is fine.
     let (t, r) = base_and_delta(|d| {
         d.changed = vec![all(QActor {
+            effects: 0,
+            displace_seq: 0,
             id: 3,
             x: 5,
             y: 5,

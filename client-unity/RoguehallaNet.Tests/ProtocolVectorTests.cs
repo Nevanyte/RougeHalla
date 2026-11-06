@@ -33,7 +33,7 @@ namespace Roguehalla.Net.Tests
             throw new KeyNotFoundException(name);
         }
 
-        [Test] public void FixtureIsProtocolV5() { Assert.AreEqual(5, Wire.ProtocolVersion); Assert.AreEqual(Wire.ProtocolVersion, Fixture().GetProperty("protocol").GetInt32()); }
+        [Test] public void FixtureIsProtocolV6() { Assert.AreEqual(6, Wire.ProtocolVersion); Assert.AreEqual(Wire.ProtocolVersion, Fixture().GetProperty("protocol").GetInt32()); }
 
         [TestCaseSource(nameof(ClientVectors))]
         public void ClientVectorRoundTripsByteForByte(string name, string hex)
@@ -351,6 +351,7 @@ namespace Roguehalla.Net.Tests
                 Assert.AreEqual(me.GetProperty("readyInMs").GetUInt16(), s.Me.ReadyInMs); Assert.AreEqual(me.GetProperty("kills").GetUInt16(), s.Me.Kills);
                 Assert.AreEqual(me.GetProperty("bounty").GetUInt16(), s.Me.Bounty); Assert.AreEqual(me.GetProperty("gv").GetUInt16(), s.Me.Gv);
                 Assert.AreEqual(me.GetProperty("moveSeq").GetByte(), s.Me.MoveSeq);
+                Assert.AreEqual(me.GetProperty("effects").GetUInt16(), s.Me.Effects); Assert.AreEqual(me.GetProperty("displaceSeq").GetByte(), s.Me.DisplaceSeq);
             }
             var actors = d.GetProperty("actors");
             Assert.AreEqual(actors.GetArrayLength(), s.Actors.Length);
@@ -363,6 +364,7 @@ namespace Roguehalla.Net.Tests
                 Assert.AreEqual(e.GetProperty("hpPct").GetByte(), a.HpPct); Assert.AreEqual(e.GetProperty("status").GetByte(), a.Status);
                 Assert.AreEqual(e.GetProperty("weapon").GetByte(), a.Weapon); Assert.AreEqual(e.GetProperty("bounty").GetUInt16(), a.Bounty);
                 Assert.AreEqual(e.GetProperty("kind").GetByte(), a.Kind);
+                Assert.AreEqual(e.GetProperty("effects").GetUInt16(), a.Effects); Assert.AreEqual(e.GetProperty("displaceSeq").GetByte(), a.DisplaceSeq);
             }
         }
 
@@ -383,9 +385,11 @@ namespace Roguehalla.Net.Tests
                 case "overlong_varint": case "varint_past_u32": case "varint_too_long": case "head_overlong_varint": case "actor_mask_overlong_varint":
                 case "delta_head_overlong_varint":
                     want = DecodeError.BadVarint; break;
+                case "state_too_many_keys": case "state_too_many_props": case "state_too_many_fields": case "state_too_many_rewards":
                 case "too_many_actors": case "fx_too_many": want = DecodeError.TooMany; break;
                 case "head_self_bit_without_present_bit": case "head_unknown_bit": case "self_max_hp_over_u16": case "actor_reserved_mask_bit":
                 case "self_status_over_3": case "phase_over_3": case "actor_status_over_3": case "actor_unknown_mask_bit_after_kind":
+                case "state_duplicate_key": case "state_key_order": case "state_bad_potion_count": case "state_zero_prop_handle": case "state_missing_focus":
                 case "state_unknown_key": case "delta_head_unknown_bit": case "delta_phase_over_3": case "delta_actor_mask_unknown_bit":
                 case "delta_actor_status_over_3":
                 case "actor_id_gap_zero": case "actor_id_overflow": case "actor_hp_over_100": case "actor_bounty_over_u16":

@@ -5,6 +5,8 @@ use rh_protocol::*;
 
 fn me() -> WireSelf {
     WireSelf {
+        effects: 0,
+        displace_seq: 0,
         id: 3,
         faction: 4,
         x: 400.0,
@@ -24,6 +26,8 @@ fn me() -> WireSelf {
 
 fn actor(id: u32) -> WireActor {
     WireActor {
+        effects: 0,
+        displace_seq: 0,
         id,
         faction: 1,
         x: 100.0 + id as f32,
@@ -234,10 +238,9 @@ fn new_actors_start_from_defaults_and_kind_and_status_changes_are_deltas() {
     assert_eq!(t.actors()[0].kind, 1);
 }
 
-/// The reserved State message: the empty State is a valid frame every decoder accepts, any item is refused (no key exists in
-/// v4), and the tracker passes it through without touching the held snapshot.
+/// The original empty State remains valid; undefined keys are refused. A State never changes the held snapshot.
 #[test]
-fn the_reserved_state_message_is_empty_today() {
+fn an_empty_state_retains_the_snapshot_and_unknown_keys_are_refused() {
     let m = ServerMsg::State {
         tick: 300,
         items: vec![],
@@ -246,7 +249,7 @@ fn the_reserved_state_message_is_empty_today() {
     assert_eq!(b, [0x88, 0xac, 0x02, 0]);
     assert_eq!(ServerMsg::decode(&b), Ok(m.clone()));
     assert_eq!(
-        ServerMsg::decode(&[0x88, 0, 1, 0]),
+        ServerMsg::decode(&[0x88, 0, 1, 6]),
         Err(DecodeError::BadField("state key"))
     );
     let mut t = SnapshotTracker::new();
@@ -261,23 +264,23 @@ fn the_reserved_state_message_is_empty_today() {
 /// A mask bit the version does not define is refused in every mask, never skipped, and a non-canonical varint head is too.
 #[test]
 fn undefined_mask_bits_are_refused_never_skipped() {
-    // A Full head with bit 11, a Full actor mask with bit 5, a delta head with bit 15, a delta actor mask with bit 8.
-    let full_head_bit = [0x83, 1, 0, 0x81, 0x10, 0];
+    // A Full head with bit 13, a Full actor mask with bit 7, a delta head with bit 17, a delta actor mask with bit 10.
+    let full_head_bit = [0x83, 1, 0, 0x81, 0x40, 0];
     assert_eq!(
         ServerMsg::decode(&full_head_bit),
         Err(DecodeError::BadField("head"))
     );
-    let actor_bit = [0x83, 1, 0, 0, 1, 1, 0x20, 0, 0, 0, 0, 0, 0];
+    let actor_bit = [0x83, 1, 0, 0, 1, 1, 0x80, 1, 0, 0, 0, 0, 0, 0];
     assert_eq!(
         ServerMsg::decode(&actor_bit),
         Err(DecodeError::BadField("actor mask"))
     );
-    let delta_head_bit = [0x87, 10, 1, 0, 0x80, 0x80, 0x02, 0];
+    let delta_head_bit = [0x87, 10, 1, 0, 0x80, 0x80, 0x08, 0];
     assert_eq!(
         ServerMsg::decode(&delta_head_bit),
         Err(DecodeError::BadField("head"))
     );
-    let delta_actor_bit = [0x87, 10, 1, 0, 0, 1, 1, 0x80, 0x02];
+    let delta_actor_bit = [0x87, 10, 1, 0, 0, 1, 1, 0x80, 0x08];
     assert_eq!(
         ServerMsg::decode(&delta_actor_bit),
         Err(DecodeError::BadField("actor mask"))
@@ -311,7 +314,7 @@ fn delta_head_and_actor_delta_bit_numbers_are_pinned() {
     for (c, bit) in head {
         assert_eq!(c, 1u32 << bit, "delta head bit {bit}");
     }
-    assert_eq!(DH_KNOWN, (1 << 15) - 1);
+    assert_eq!(DH_KNOWN, (1 << 17) - 1);
     let ad = [
         (AD_X, 0),
         (AD_Y, 1),
@@ -325,5 +328,5 @@ fn delta_head_and_actor_delta_bit_numbers_are_pinned() {
     for (c, bit) in ad {
         assert_eq!(c, 1u32 << bit, "actor-delta bit {bit}");
     }
-    assert_eq!(AD_ALL, 0xff);
+    assert_eq!(AD_ALL, 0x3ff);
 }

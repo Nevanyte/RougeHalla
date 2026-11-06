@@ -14,6 +14,7 @@ pub mod room;
 #[cfg(feature = "postgres")]
 pub mod spool;
 pub mod wire;
+pub mod wire_state;
 
 use axum::extract::{State, WebSocketUpgrade};
 use axum::http::{header, StatusCode};

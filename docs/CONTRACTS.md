@@ -19,6 +19,12 @@ ignored tests (heap measurement and manual bridge E2E; the latter passed at the 
 foundation gate passed 395 all-feature/386 default-feature tests; its Rust/C#/browser and legacy recapture CI passed at
 `c93b659d`. Full-game, AWS, browser-matrix and release gates remain open.
 
+- C-NET/C-OBS transport addendum: wire6 carries strict complete-replacement State keys1–5 and effect/displacement
+  full/delta scalars. Human inputs resolve observer handles, never raw container IDs; reliable State+Events enqueue
+  atomically before committing either offered handles or collection baselines. Resume clears bindings/pending client
+  input and preserves the seat cursor. Focused protocol76/server103/C#229/JS3,811 checks and real Chromium WSS
+  admission/resync/reconnect/results pass with independent bounded review. Native reward/potion producer binding,
+  source loot admission and Unity HUD remain open; see [protocol6 evidence](evidence/protocol6/INTEGRATION.md).
 - C-INPUT/C-PARITY: weapon inputs use the existing validation/action budget. The harness now compares real admission
   outcomes, rejects unconsumed or unordered records, and checks requirements only for replayed records. 97 compared
   scenarios and 300 path queries MATCH; 13 scenarios are explicitly capture-only. Exact recapture runs Linux x64 Node 22.23.4.

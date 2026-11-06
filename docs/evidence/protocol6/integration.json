@@ -1,0 +1,56 @@
+{
+  "format": "rh-protocol6-integration/1",
+  "base": "d35f32b1e3e785b0f2c35a855e2a4f55fdc76806",
+  "branch": "optimization_port",
+  "hardware": "Apple M5 Pro native arm64",
+  "protocol": 6,
+  "content": "256add608aea64e6",
+  "checkpoint": 15,
+  "replay": 13,
+  "observation": 12,
+  "policy": 9,
+  "scope": "bounded transport, not complete loot or playable MVP",
+  "validation": {
+    "protocol-tests": {
+      "passed": 76,
+      "failed": 0,
+      "ignored": 0
+    },
+    "csharp-all": {
+      "result": [
+        "Passed!  - Failed:     0, Passed:   229, Skipped:     0, Total:   229, Duration: 3 s - RoguehallaNet.Tests.dll (net8.0)"
+      ]
+    },
+    "server-lib": {
+      "passed": 83,
+      "failed": 0,
+      "ignored": 0
+    },
+    "server-transport": {
+      "passed": 20,
+      "failed": 0,
+      "ignored": 0
+    },
+    "js-vectors": {
+      "result": [
+        "JS decoder agrees with protocol/fixtures/v6.json: 21 server vectors, 70 malformed, 9 chains, 3811 checks"
+      ]
+    }
+  },
+  "strict_net_clippy_all_targets_all_features": "pass",
+  "formatting": "pass",
+  "unity_copy": "synced and checked; Editor/Web rebuild not run",
+  "browser": "pass; actual Chromium over self-signed localhost WSS",
+  "review_sha256": "78c70c93d43e03ce1e79e8dd1d320aa00e9b3d1769d63c5bf57796fe2736b284",
+  "golden_sha256": "ebeaacdd83c633ee8cf4a6868d2cb83519bfd7fa3c10c30ba3c41f3115a2630f",
+  "csharp_actor_bytes": 28,
+  "csharp_decode_steady_allocation_bytes": 0,
+  "pending": [
+    "native reward/potion producers and Choose/Use inputs",
+    "live initial-loot source admission bound",
+    "real socket/Unity loot selection from native generated world",
+    "remaining status/ability effect announcements",
+    "Unity protocol6 rebuild/HUD",
+    "AWS staging"
+  ]
+}

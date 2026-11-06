@@ -64,9 +64,9 @@ namespace Roguehalla.Net.Tests
         {
             double withMe = DecodeGarbage(actors, true), spectator = DecodeGarbage(actors, false);
             TestContext.Progress.WriteLine("plain decode, {0} actors: {1} B with a self, {2} B without", actors, withMe, spectator);
-            // Snapshot object (56 B) + array header (24 B) + 24 B per actor; a self adds one 56 B object. No reader object.
-            Assert.LessOrEqual(spectator, 24.0 * actors + 80);
-            Assert.LessOrEqual(withMe, 24.0 * actors + 136);
+            // Snapshot object (56 B) + array header (24 B) + 28 B per actor (v6 effects/displacement); a self adds one 64 B object. No reader object.
+            Assert.LessOrEqual(spectator, 28.0 * actors + 80);
+            Assert.LessOrEqual(withMe, 28.0 * actors + 144);
         }
 
         /// <summary>Decode into the buffer's spare, as Session does. <paramref name="vary"/> alternates the actor count every
@@ -97,7 +97,7 @@ namespace Roguehalla.Net.Tests
             double steady = PooledGarbage(actors, false), varying = PooledGarbage(actors, true);
             TestContext.Progress.WriteLine("decode into spare, {0} actors: {1} B steady, {2} B when the count changes every snapshot", actors, steady, varying);
             Assert.AreEqual(0.0, steady);
-            Assert.LessOrEqual(varying, 24.0 * (actors + 1) + 64);
+            Assert.LessOrEqual(varying, 28.0 * (actors + 1) + 64);
         }
 
         [TestCase(1)]
@@ -346,7 +346,7 @@ namespace Roguehalla.Net.Tests
         {
             Assert.IsTrue(typeof(WireActor).IsValueType);
             Assert.IsFalse(typeof(WireSelf).IsValueType, "WireSelf stays a class: Snapshot.Me is null for a spectator");
-            Assert.AreEqual(24, System.Runtime.CompilerServices.Unsafe.SizeOf<WireActor>());
+            Assert.AreEqual(28, System.Runtime.CompilerServices.Unsafe.SizeOf<WireActor>());
         }
 
         [Test]

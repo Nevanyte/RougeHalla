@@ -9,7 +9,7 @@ and section 9 "stale-doc discrepancies": the legacy `docs/legacy/CLAUDE_LEGACY.m
 fists/sword/shield/axe melee with zero-windup player swings and lag-compensated rewind, pickup/swap/drop, the damage ledger (PvP factor at card power 0,
 mitigation, PvP hit cap, simultaneous resolution, kill credit, bounty + announcements, GV, win bonus gate), leaving (MIA),
 observations (current sight only), replays and checkpoints; `rh-parity` (the legacy slice scenarios and 300 `findPath` queries match; `cargo run -p rh-parity --bin parity-report`);
-`rh-protocol` v5 + C#/JS mirrors; `rh-server` (WSS, admission, resume, drain, limits, interest-managed replication, fill bots on
+`rh-protocol` v6 + C#/JS mirrors; `rh-server` (WSS, admission, resume, drain, limits, interest-managed replication, fill bots on
 the policy seat contract, off-tick result sink, private replays); `rh-persist` (Postgres, fenced leases, idempotent
 results, atomic achievements, legacy import); `rh-headless`; `tools/browser-proof`; `client-unity` (RoguehallaNet tested;
 actual Unity 6000.0.85f2 Web build and browser movement verified, full flows still open). Live loot discovery remains
@@ -178,7 +178,7 @@ Paths are relative to `packages/` unless they start with `crates/`, `docs/`, `de
 | P-NET-1 | Prediction parity: C# pathfinding for predicted walks, render-time attack `t`, MAX_REWIND bound per measured RTT, delta-compression decision by measurement | none | Ready packet | client/src/net/localMotion.ts, localPrediction.ts, remoteDraw.ts; shared/interp.ts |
 | P-NET-2 | Remote draw-ahead and the walk hint (presentation only) | P-NET-1 | Coarse | client/src/net/remoteDraw.ts; server/src/sim/walkHint.ts; docs/PLAYER_PREDICTION.md |
 | P-NET-3 | Protocol additions per mechanic: fx kinds, snapshot fields, observation versions (governance of shared files) | each mechanic packet | In progress (combat v5 verified; later mechanics remain) | shared/fxCodec.ts, messages.ts, schema.ts; crates/rh-protocol |
-| P-NET-ITEMS-1 | Public visible-item discovery, private self inventory, exact observer-local pickup handles, headless/live intake and reliable State/Unity integration | P-COMBAT-1; Unity bootstrap for client stage | Shared core/policy/headless implemented and independently reviewed; live State/client gate remains open | crates/rh-sim/src/observe.rs; rh-policy; rh-headless; rh-server; client-unity |
+| P-NET-ITEMS-1 | Public visible-item discovery, private self inventory, exact observer-local pickup handles, headless/live intake and reliable State/Unity integration | P-COMBAT-1; Unity bootstrap for client stage | Shared core/policy/headless plus reliable live State implemented/reviewed; native source admission and real socket/Unity item gate remain open | crates/rh-sim/src/observe.rs; rh-policy; rh-headless; rh-server; client-unity |
 | P-NET-4 | Uplink pacing: aim gate, hold gate, stall watch, order bucket tuning | P-NET-1 | Coarse | client/src/net/uplinkPace.ts, tickPhase.ts |
 | P-NET-5 | Heartbeat/liveness parity (`beat`, 4500 ms timeout, close codes) | none | Coarse | server/src/rooms/RaidRoom.ts, shared/constants.ts |
 | P-NET-6 | Wire-build/content-hash stale-client UX (426 equivalent, reload prompt) | P-UNITY-1 | Coarse | server/src/guards/clientBuild.ts, client/src/ui/reloadPrompt.ts |

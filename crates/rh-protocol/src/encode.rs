@@ -176,10 +176,10 @@ impl Frame for ClientMsg {
             }
             ClientMsg::Input { commands, .. } => {
                 list("commands", commands.len(), MAX_COMMANDS_PER_INPUT)?;
-                if commands.iter().any(|c| {
-                    matches!(c, WireCommand::Swap { slot: Some(s) } if *s > 1)
-                        || matches!(c, WireCommand::Pickup { container_id: 0 })
-                }) {
+                if commands
+                    .iter()
+                    .any(|c| matches!(c, WireCommand::Swap { slot: Some(s) } if *s > 1))
+                {
                     return Err(EncodeError::BadValue("command"));
                 }
                 if !commands.iter().all(command_finite) {
@@ -224,9 +224,9 @@ impl Frame for ClientMsg {
                             w.u8(6);
                             w.opt(slot.as_ref(), |w, s| w.u8(*s));
                         }
-                        WireCommand::Pickup { container_id } => {
+                        WireCommand::Pickup { handle } => {
                             w.u8(7);
-                            w.u32(container_id);
+                            w.u32(handle.get());
                         }
                         WireCommand::Move { x, y, seq } => {
                             w.u8(C_MOVE);
@@ -357,6 +357,12 @@ fn head_word(phase: u8, me: Option<&WireSelf>) -> u32 {
     if s.status != DEFAULT_STATUS {
         m |= HM_STATUS;
     }
+    if s.effects != 0 {
+        m |= HM_EFFECTS;
+    }
+    if s.displace_seq != 0 {
+        m |= HM_DISPLACE;
+    }
     m
 }
 
@@ -390,6 +396,12 @@ fn self_len(s: &WireSelf, mask: u32) -> usize {
         n += 1;
     }
     if mask & HM_STATUS != 0 {
+        n += 1;
+    }
+    if mask & HM_EFFECTS != 0 {
+        n += 2;
+    }
+    if mask & HM_DISPLACE != 0 {
         n += 1;
     }
     n
@@ -470,9 +482,9 @@ impl<const N: usize> Fixed<N> {
 
 /// Largest Snapshot head: tag, tick, ack (5 each at most), head (2), a full self (id 5, 12, max_hp 4, kit, hp 4, ready 2,
 /// kills, bounty, gv 3 each, move_seq, status), the phase and the actor count.
-const MAX_HEAD_LEN: usize = 1 + 5 + 5 + 2 + 5 + 12 + 4 + 1 + 4 + 2 + 9 + 1 + 1 + 1 + 5;
+const MAX_HEAD_LEN: usize = 1 + 5 + 5 + 2 + 5 + 12 + 4 + 1 + 4 + 2 + 9 + 1 + 1 + 1 + 5 + 3;
 /// Largest actor: id 5, mask 1, x, y, facing, kit, hp, status, bounty 3, kind.
-const MAX_ACTOR_LEN: usize = 5 + 1 + 6 + 1 + 1 + 1 + 3 + 1;
+const MAX_ACTOR_LEN: usize = 5 + 1 + 6 + 1 + 1 + 1 + 3 + 1 + 3;
 
 /// Writes the self record for the head word `m` ([`head_word`] of `s`), fields in bit order.
 #[inline]
@@ -511,6 +523,12 @@ fn write_self(w: &mut Fixed<MAX_HEAD_LEN>, m: u32, s: &WireSelf) {
     if m & HM_STATUS != 0 {
         w.u8(s.status);
     }
+    if m & HM_EFFECTS != 0 {
+        w.u16(s.effects);
+    }
+    if m & HM_DISPLACE != 0 {
+        w.u8(s.displace_seq);
+    }
 }
 
 /// The actor mask of `a`: a bit for every field that differs from its default.
@@ -532,6 +550,12 @@ fn actor_mask(a: &WireActor) -> u32 {
     if a.kind != 0 {
         m |= AM_KIND;
     }
+    if a.effects != 0 {
+        m |= AM_EFFECTS;
+    }
+    if a.displace_seq != 0 {
+        m |= AM_DISPLACE;
+    }
     m
 }
 
@@ -551,6 +575,8 @@ fn actor_len(a: &WireActor, prev: Option<u32>) -> usize {
             0
         }
         + (m & AM_KIND != 0) as usize
+        + 2 * (m & AM_EFFECTS != 0) as usize
+        + (m & AM_DISPLACE != 0) as usize
 }
 
 /// The id as written: the first actor's absolute id, then the gap to the previous one (the observation sorts by id, so a
@@ -638,6 +664,12 @@ fn write_actor(out: &mut Writer, a: &WireActor, prev: Option<u32>) {
     if m & AM_KIND != 0 {
         w.u8(a.kind);
     }
+    if m & AM_EFFECTS != 0 {
+        w.u16(a.effects);
+    }
+    if m & AM_DISPLACE != 0 {
+        w.u8(a.displace_seq);
+    }
     w.put(out);
 }
 
@@ -712,7 +744,9 @@ impl Frame for ServerMsg {
             }
             ServerMsg::Pong { .. } => 1 + 4 + 8 + 8,
             ServerMsg::State { tick, items } => {
-                1 + varint_len(*tick) + varint_len(items.len() as u32)
+                1 + varint_len(*tick)
+                    + varint_len(items.len() as u32)
+                    + items.iter().map(StateItem::encoded_len).sum::<usize>()
             }
         }
     }
@@ -765,8 +799,7 @@ impl Frame for ServerMsg {
             }
             ServerMsg::Pong { .. } => {}
             ServerMsg::State { items, .. } => {
-                // `StateItem` has no value in v4: only the empty State exists.
-                debug_assert!(items.is_empty());
+                crate::state::check_items(items)?;
             }
         }
         frame_size(len, Self::MAX_FRAME)
@@ -938,9 +971,8 @@ impl Frame for ServerMsg {
                 w.u8(T_STATE);
                 w.varint(*tick);
                 w.varint(items.len() as u32);
-                // No key exists in v4: `StateItem` has no value, so there is nothing to write after the count.
-                if let Some(it) = items.first() {
-                    match *it {}
+                for item in items {
+                    item.write(w);
                 }
             }
             ServerMsg::Pong {

@@ -49,7 +49,9 @@ pub const DH_BOUNTY: u32 = 1 << 12;
 pub const DH_GV: u32 = 1 << 13;
 pub const DH_STATUS: u32 = 1 << 14;
 /// The self field bits (a head without a self must have none of them).
-pub const DH_FIELDS: u32 = 0x7e7e;
+pub const DH_EFFECTS: u32 = 1 << 15;
+pub const DH_DISPLACE: u32 = 1 << 16;
+pub const DH_FIELDS: u32 = 0x7e7e | DH_EFFECTS | DH_DISPLACE;
 pub const DH_KNOWN: u32 = DH_PRESENT | DH_FIELDS | DH_PHASE | DH_DEPARTED;
 
 /// Actor delta mask bits (append only): the fields that follow, in bit order.
@@ -62,7 +64,9 @@ pub const AD_BOUNTY: u32 = 1 << 5;
 pub const AD_STATUS: u32 = 1 << 6;
 pub const AD_KIND: u32 = 1 << 7;
 /// Every field.
-pub const AD_ALL: u32 = 0xff;
+pub const AD_EFFECTS: u32 = 1 << 8;
+pub const AD_DISPLACE: u32 = 1 << 9;
+pub const AD_ALL: u32 = 0x3ff;
 /// What a new actor (one the base does not hold) must carry: its position. Every other field starts at its default.
 pub const AD_NEW: u32 = AD_X | AD_Y | AD_FACING;
 
@@ -75,11 +79,11 @@ const MIN_HEAD: usize = 1;
 
 /// Largest self delta after the head: x, y, facing, hp, max_hp (4 each), kit, ready (2), kills, bounty, gv (3 each),
 /// move_seq, status, phase.
-const MAX_SELF_DELTA: usize = 20 + 1 + 2 + 9 + 1 + 1 + 1;
+const MAX_SELF_DELTA: usize = 20 + 1 + 2 + 9 + 1 + 1 + 1 + 3;
 /// Largest delta head: tag, tick (5), age, ack (5), head (1 placeholder), the self delta, the changed count (3).
 const MAX_DELTA_HEAD: usize = 1 + 5 + 1 + 5 + 1 + MAX_SELF_DELTA + 3;
 /// Largest changed-actor record: id 5, mask 2, x y facing 6, kit, hp, bounty 3, status, kind.
-const MAX_ACTOR_DELTA: usize = 5 + 2 + 6 + 1 + 1 + 3 + 1 + 1;
+const MAX_ACTOR_DELTA: usize = 5 + 2 + 6 + 1 + 1 + 3 + 1 + 1 + 3;
 
 /// A remote actor as a connection remembers and sends it: exactly what the wire carries (15 bytes of fields).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
@@ -97,6 +101,8 @@ pub struct QActor {
     pub bounty: u16,
     /// What the entity is (0 = player).
     pub kind: u8,
+    pub effects: u16,
+    pub displace_seq: u8,
 }
 
 impl QActor {
@@ -111,6 +117,8 @@ impl QActor {
         status: DEFAULT_STATUS,
         bounty: 0,
         kind: 0,
+        effects: 0,
+        displace_seq: 0,
     };
 
     /// `a` checked and quantized: the first reason a decoder would reject the actor on its own (a faction, weapon or status over
@@ -138,6 +146,8 @@ impl QActor {
             status: a.status,
             bounty: a.bounty,
             kind: a.kind,
+            effects: a.effects,
+            displace_seq: a.displace_seq,
         }
     }
 
@@ -154,6 +164,8 @@ impl QActor {
             weapon: self.kit >> 4,
             bounty: self.bounty,
             kind: self.kind,
+            effects: self.effects,
+            displace_seq: self.displace_seq,
         }
     }
 
@@ -176,6 +188,12 @@ impl QActor {
         if self.kind != 0 {
             m |= AM_KIND;
         }
+        if self.effects != 0 {
+            m |= AM_EFFECTS;
+        }
+        if self.displace_seq != 0 {
+            m |= AM_DISPLACE;
+        }
         m
     }
 
@@ -193,6 +211,8 @@ impl QActor {
                 0
             }
             + (self.kind != 0) as usize
+            + 2 * (self.effects != 0) as usize
+            + (self.displace_seq != 0) as usize
     }
 }
 
@@ -220,6 +240,12 @@ fn write_full_actor(out: &mut Writer, q: &QActor, prev: Option<u32>) {
     }
     if m & AM_KIND != 0 {
         w.u8(q.kind);
+    }
+    if m & AM_EFFECTS != 0 {
+        w.u16(q.effects);
+    }
+    if m & AM_DISPLACE != 0 {
+        w.u8(q.displace_seq);
     }
     w.put(out);
 }
@@ -591,6 +617,8 @@ fn actor_delta_mask(p: &QActor, q: &QActor) -> u32 {
         | ((p.bounty != q.bounty) as u32) << 5
         | ((p.status != q.status) as u32) << 6
         | ((p.kind != q.kind) as u32) << 7
+        | ((p.effects != q.effects) as u32) << 8
+        | ((p.displace_seq != q.displace_seq) as u32) << 9
 }
 
 /// The mask of a NEW actor: its position, and every other field that is not the default.
@@ -674,6 +702,12 @@ fn write_delta(
         }
         if mask & AD_KIND != 0 {
             w.u8(q.kind);
+        }
+        if mask & AD_EFFECTS != 0 {
+            w.u16(q.effects);
+        }
+        if mask & AD_DISPLACE != 0 {
+            w.u8(q.displace_seq);
         }
         put(out, &w);
         last = q.id;
@@ -770,6 +804,14 @@ fn write_self_delta(f: &mut Fixed<MAX_DELTA_HEAD>, b: &WireSelf, c: &WireSelf) -
         m |= DH_STATUS;
         f.u8(c.status);
     }
+    if c.effects != b.effects {
+        m |= DH_EFFECTS;
+        f.u16(c.effects);
+    }
+    if c.displace_seq != b.displace_seq {
+        m |= DH_DISPLACE;
+        f.u8(c.displace_seq);
+    }
     m
 }
 
@@ -791,6 +833,8 @@ pub struct SelfDelta {
     pub gv: u16,
     pub move_seq: u8,
     pub status: u8,
+    pub effects: u16,
+    pub displace_seq: u8,
 }
 
 impl SelfDelta {
@@ -835,6 +879,12 @@ impl SelfDelta {
         if m & DH_STATUS != 0 {
             s.status = self.status;
         }
+        if m & DH_EFFECTS != 0 {
+            s.effects = self.effects;
+        }
+        if m & DH_DISPLACE != 0 {
+            s.displace_seq = self.displace_seq;
+        }
         s
     }
 
@@ -862,6 +912,8 @@ impl SelfDelta {
             gv: if keep(DH_GV) { c.gv } else { 0 },
             move_seq: if keep(DH_MOVE_SEQ) { c.move_seq } else { 0 },
             status: if keep(DH_STATUS) { c.status } else { 0 },
+            effects: if keep(DH_EFFECTS) { c.effects } else { 0 },
+            displace_seq: if keep(DH_DISPLACE) { c.displace_seq } else { 0 },
         }
     }
 }
@@ -902,6 +954,12 @@ impl ActorDelta {
         }
         if self.mask & AD_KIND != 0 {
             a.kind = self.q.kind;
+        }
+        if self.mask & AD_EFFECTS != 0 {
+            a.effects = self.q.effects;
+        }
+        if self.mask & AD_DISPLACE != 0 {
+            a.displace_seq = self.q.displace_seq;
         }
         a
     }
@@ -986,6 +1044,12 @@ fn mask_fields(q: &QActor, mask: u32) -> QActor {
         status: if mask & AD_STATUS != 0 { q.status } else { 0 },
         bounty: if mask & AD_BOUNTY != 0 { q.bounty } else { 0 },
         kind: if mask & AD_KIND != 0 { q.kind } else { 0 },
+        effects: if mask & AD_EFFECTS != 0 { q.effects } else { 0 },
+        displace_seq: if mask & AD_DISPLACE != 0 {
+            q.displace_seq
+        } else {
+            0
+        },
     }
 }
 
@@ -1044,6 +1108,12 @@ pub(crate) fn write_message(w: &mut Writer, d: &SnapshotDelta) {
         if m & DH_STATUS != 0 {
             w.u8(s.status);
         }
+        if m & DH_EFFECTS != 0 {
+            w.u16(s.effects);
+        }
+        if m & DH_DISPLACE != 0 {
+            w.u8(s.displace_seq);
+        }
     }
     if let Some(p) = d.phase {
         w.u8(p);
@@ -1077,6 +1147,12 @@ pub(crate) fn write_message(w: &mut Writer, d: &SnapshotDelta) {
         }
         if a.mask & AD_KIND != 0 {
             w.u8(a.q.kind);
+        }
+        if a.mask & AD_EFFECTS != 0 {
+            w.u16(a.q.effects);
+        }
+        if a.mask & AD_DISPLACE != 0 {
+            w.u8(a.q.displace_seq);
         }
     }
     if !d.departed.is_empty() {
@@ -1173,6 +1249,12 @@ fn read_self_delta(r: &mut Reader, mask: u32) -> Result<SelfDelta, DecodeError> 
     if mask & DH_STATUS != 0 {
         s.status = crate::code(r, MAX_STATUS_CODE, "status")?;
     }
+    if mask & DH_EFFECTS != 0 {
+        s.effects = r.u16()?;
+    }
+    if mask & DH_DISPLACE != 0 {
+        s.displace_seq = r.u8()?;
+    }
     Ok(s)
 }
 
@@ -1253,6 +1335,12 @@ pub(crate) fn read_snapshot_delta(r: &mut Reader) -> Result<SnapshotDelta, Decod
         }
         if mask & AD_KIND != 0 {
             q.kind = r.u8()?;
+        }
+        if mask & AD_EFFECTS != 0 {
+            q.effects = r.u16()?;
+        }
+        if mask & AD_DISPLACE != 0 {
+            q.displace_seq = r.u8()?;
         }
         changed.push(ActorDelta { mask, q });
     }

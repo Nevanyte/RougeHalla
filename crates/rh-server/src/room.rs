@@ -311,6 +311,8 @@ struct HumanSeat {
     /// What this human could know of the wake's steps before the last, judged step by step as they ran (empty between
     /// wakes and on every one-step wake).
     carry: Vec<SeenEvent>,
+    items: rh_sim::ItemObserver,
+    collections: crate::wire_state::CollectionPublisher,
     /// A snapshot the connection's outbox handed back, to build the next one in (no allocation per tick).
     spare: Option<rh_protocol::SnapshotData>,
     /// This player's own resolved run, kept on the seat so a client that was away when it resolved (the reconnect grace, or a
@@ -533,6 +535,8 @@ impl Room {
                         h.dropped_at = None;
                         h.fx.rebind(&self.sim, h.player);
                         h.carry.clear();
+                        h.items.reconnect();
+                        h.collections.reconnect();
                         let (player, session) = (h.player, h.session);
                         let seat_profile = h.profile.clone();
                         let resolved = h.result.clone();
@@ -579,19 +583,19 @@ impl Room {
                 seq,
                 commands,
             } => {
-                let mut ok = false;
-                if let Some(h) = self
+                if let Some(index) = self
                     .humans
-                    .iter_mut()
-                    .find(|h| h.player == player && h.conn == conn)
+                    .iter()
+                    .position(|h| h.player == player && h.conn == conn)
                 {
-                    h.ack_input = seq;
-                    ok = true;
-                }
-                if ok {
+                    self.humans[index].ack_input = seq;
                     for c in commands {
-                        // Validation and the order budget are the sim's (the same path as bots and policies).
-                        if let Ok(cmd) = rh_sim::validate(wire::command(c)) {
+                        // Resolve only within this seat's delivered offer, then use the shared
+                        // validator/budget/submit path. Misses are recorded ordinary commands.
+                        let resolved = self.humans[index]
+                            .items
+                            .resolve(&self.sim, wire::command(c));
+                        if let Ok(cmd) = resolved {
                             self.record(ReplayInput::Command { player, cmd });
                             let _ = self.sim.submit(player, cmd);
                         }
@@ -714,6 +718,8 @@ impl Room {
             dropped_at: None,
             ack_input: 0,
             carry: Vec::new(),
+            items: rh_sim::ItemObserver::new(player),
+            collections: Default::default(),
             spare: None,
             result: None,
         });
@@ -970,60 +976,91 @@ impl Room {
     /// One tick's frames for every connected human. `events`: every event of the wake; the observation's own events are
     /// those of the last step (`last_events`) plus what each human's `carry` gathered from the earlier steps.
     fn publish(&mut self, events: &[Event]) {
-        // Shared counters get one add each per publish, however many humans the room has.
         let (mut bytes_total, mut pushes) = (0u64, 0u64);
         for h in &mut self.humans {
             let Some(out) = &h.outbox else {
                 h.carry.clear();
                 continue;
             };
-            let frames = self.publisher.frames_in(
+            let (frames, offer) = match self.publisher.frames_prepared(
+                &mut h.items,
                 h.spare.take(),
                 &self.sim,
-                h.player,
                 h.ack_input,
                 &[],
                 &mut h.carry,
                 events,
-            );
-            if let Some(e) = frames.refused {
-                // An Events or Fx frame the codec refused: not sent (never clamped), counted, logged once per room.
+            ) {
+                Ok(prepared) => prepared,
+                Err(error) => {
+                    if self.frame_refusals == 0 {
+                        self.frame_refusals_logged += 1;
+                        eprintln!("[room] unsupported observation: {error:?}");
+                    }
+                    self.frame_refusals += 1;
+                    out.close(RejectCode::Malformed);
+                    continue;
+                }
+            };
+            if let Some(error) = frames.refused {
                 if self.frame_refusals == 0 {
                     self.frame_refusals_logged += 1;
-                    eprintln!(
-                        "[room] frame not sent: {e} (logged once per room; see frameRefusals)"
-                    );
+                    eprintln!("[room] frame not sent: {error}");
                 }
                 self.frame_refusals += 1;
             }
             let snap = match frames.snapshot {
-                Ok(snap) => Some(snap),
-                // Never a repaired frame: the viewer simply misses this snapshot (the next one supersedes it).
-                Err(e) => {
-                    // Logged once per room (the cause is per map and persists): the count is in the room's stats.
+                Ok(snap) => snap,
+                Err(error) => {
                     if self.snapshot_refusals == 0 {
                         self.snapshot_refusals_logged += 1;
-                        eprintln!(
-                            "[room] snapshot not sent: {e} (logged once per room; see snapshotRefusals)"
-                        );
+                        eprintln!("[room] snapshot not sent: {error}");
                     }
                     self.snapshot_refusals += 1;
-                    None
+                    out.close(RejectCode::Malformed);
+                    continue;
                 }
             };
-            let bytes: usize = [&frames.important, &frames.fx]
+            let mut state = match h.collections.prepare(
+                self.publisher.observation(),
+                offer.props_changed(),
+                out.state_resync_requested(),
+            ) {
+                Ok(pending) => pending,
+                Err(error) => {
+                    if self.frame_refusals == 0 {
+                        self.frame_refusals_logged += 1;
+                        eprintln!("[room] reliable state not sent: {error}");
+                    }
+                    self.frame_refusals += 1;
+                    out.close(RejectCode::Malformed);
+                    continue;
+                }
+            };
+            let bytes = [&state.frame, &frames.important, &frames.fx]
                 .into_iter()
                 .flatten()
                 .map(Vec::len)
                 .sum::<usize>()
-                + snap.as_ref().map_or(0, rh_protocol::SnapshotData::min_len);
-            if bytes > 0 {
+                + snap.min_len();
+            let (spare, accepted) = out.push_tick_with_state(
+                state.frame.take(),
+                frames.important,
+                frames.fx,
+                Some(snap),
+            );
+            h.spare = spare;
+            if accepted {
+                let forced = state.commit(&mut h.collections);
+                offer.commit();
+                if forced {
+                    out.state_resync_answered();
+                }
                 self.bytes_out += bytes as u64;
                 bytes_total += bytes as u64;
                 pushes += 1;
-                // One lock and one notify for the client's whole tick.
-                h.spare = out.push_tick(frames.important, frames.fx, snap);
             }
+            // Failed reliable enqueue drops both prepared guards: no handles or baseline advance.
         }
         if pushes > 0 {
             self.metrics
@@ -1293,6 +1330,195 @@ mod tests {
             reconnect_grace: RECONNECT_GRACE,
             linger: LINGER,
         }
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn live_pickup_resolves_delivered_handles_and_resume_replaces_the_offer() {
+        use rh_protocol::{PickupHandle, ServerMsg, StateItem, WireCommand, WirePropKind};
+        use rh_sim::{ContainerKind, Placement, Vec2, WeaponId};
+        fn drain(out: &Outbox) -> Vec<ServerMsg> {
+            let mut frames = Vec::new();
+            assert_eq!(out.drain_into(&mut frames).close, None);
+            frames
+                .iter()
+                .map(|f| ServerMsg::decode(f).unwrap())
+                .collect()
+        }
+        fn props(messages: &[ServerMsg]) -> rh_protocol::WireProps {
+            messages
+                .iter()
+                .filter_map(|m| match m {
+                    ServerMsg::State { items, .. } => Some(items),
+                    _ => None,
+                })
+                .flatten()
+                .find_map(|s| match s {
+                    StateItem::Props(p) => Some(p.clone()),
+                    _ => None,
+                })
+                .unwrap()
+        }
+        let start = Instant::now();
+        let tick = Duration::from_millis(50);
+        let (reports, _rx) = mpsc::unbounded_channel();
+        let mut room = Room::new([8; 16], cfg(tick), reports, start);
+        let out = Arc::new(Outbox::default());
+        let joined = room
+            .join("viewer".into(), None, out.clone(), 1, 1, None)
+            .unwrap();
+        room.join(
+            "other".into(),
+            None,
+            Arc::new(Outbox::default()),
+            2,
+            1,
+            None,
+        )
+        .unwrap();
+        room.sim = Sim::reset_active(
+            SimConfig::default(),
+            rh_sim::arenas::practice_arena(),
+            Secrets::from_seed(7),
+            &[
+                Placement {
+                    profile: "viewer".into(),
+                    faction: FactionId::Holy,
+                    bot: false,
+                    at: Vec2::new(100., 272.),
+                    hp: None,
+                    weapon0: None,
+                    weapon1: None,
+                },
+                Placement {
+                    profile: "other".into(),
+                    faction: FactionId::Fire,
+                    bot: false,
+                    at: Vec2::new(1400., 272.),
+                    hp: None,
+                    weapon0: None,
+                    weapon1: None,
+                },
+            ],
+        );
+        room.sim
+            .seed_weapon_container(
+                ContainerKind::Ground,
+                Vec2::new(1300., 272.),
+                &[WeaponId::Bow],
+            )
+            .unwrap();
+        let sword_id = room
+            .sim
+            .seed_weapon_container(
+                ContainerKind::Ground,
+                Vec2::new(100., 272.),
+                &[WeaponId::Sword],
+            )
+            .unwrap();
+        room.sim
+            .seed_weapon_container(
+                ContainerKind::Ground,
+                Vec2::new(116., 272.),
+                &[WeaponId::Axe],
+            )
+            .unwrap();
+        for h in &mut room.humans {
+            h.fx.rebind(&room.sim, h.player);
+            h.items = rh_sim::ItemObserver::new(h.player);
+        }
+        room.publish(&[]);
+        let initial = drain(&out);
+        let first = props(&initial);
+        let sword = first
+            .rows
+            .iter()
+            .find(|r| r.kind == WirePropKind::Ground(0))
+            .unwrap()
+            .handle;
+        assert_ne!(
+            sword.get(),
+            sword_id,
+            "wire input carries an observer reference"
+        );
+        room.handle(
+            RoomCmd::Input {
+                player: joined.player,
+                conn: 1,
+                seq: 1,
+                commands: vec![WireCommand::Pickup { handle: sword }],
+            },
+            start,
+        );
+        assert!(room.wake(start + tick));
+        let picked = drain(&out);
+        assert!(picked.iter().any(|m| matches!(m, ServerMsg::State {items,..} if items.iter().any(|i| matches!(i,StateItem::Inventory(Some(v)) if v.slots.contains(&Some(0)))))));
+        assert!(!props(&picked)
+            .rows
+            .iter()
+            .any(|r| r.kind == WirePropKind::Ground(0)));
+        room.handle(
+            RoomCmd::Input {
+                player: joined.player,
+                conn: 1,
+                seq: 2,
+                commands: vec![WireCommand::Pickup { handle: sword }],
+            },
+            start + tick,
+        );
+        assert!(room.wake(start + tick * 2));
+        assert!(drain(&out).iter().any(|m| matches!(m, ServerMsg::Events {events,..} if events.iter().any(|e| matches!(e,rh_protocol::WireEvent::PickupRefused {reason:2})))));
+
+        let fresh = Arc::new(Outbox::default());
+        let (reply, resumed) = oneshot::channel();
+        room.handle(
+            RoomCmd::Resume {
+                session: joined.session,
+                outbox: fresh.clone(),
+                conn: 3,
+                reply,
+            },
+            start + tick * 2,
+        );
+        assert_eq!(resumed.await.unwrap().unwrap().player, joined.player);
+        room.publish(&[]);
+        let resumed_props = props(&drain(&fresh));
+        assert!(resumed_props
+            .rows
+            .iter()
+            .all(|r| !first.rows.iter().any(|old| old.handle == r.handle)));
+        let axe = resumed_props
+            .rows
+            .iter()
+            .find(|r| r.kind == WirePropKind::Ground(4))
+            .unwrap()
+            .handle;
+        room.handle(
+            RoomCmd::Input {
+                player: joined.player,
+                conn: 1,
+                seq: 999,
+                commands: vec![WireCommand::Pickup { handle: axe }],
+            },
+            start + tick * 2,
+        );
+        assert_eq!(
+            room.humans[0].ack_input, 2,
+            "replaced connection cannot act on the fresh offer"
+        );
+        room.handle(
+            RoomCmd::Input {
+                player: joined.player,
+                conn: 3,
+                seq: 3,
+                commands: vec![WireCommand::Pickup {
+                    handle: PickupHandle::new(sword.get()).unwrap(),
+                }],
+            },
+            start + tick * 2,
+        );
+        assert!(room.wake(start + tick * 3));
+        assert!(drain(&fresh).iter().any(|m| matches!(m, ServerMsg::Events {events,..} if events.iter().any(|e| matches!(e,rh_protocol::WireEvent::PickupRefused {reason:2})))));
+        assert_eq!(room.frame_refusals, 0);
     }
 
     #[test]

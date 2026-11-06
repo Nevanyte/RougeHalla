@@ -11,6 +11,8 @@ fn v1_len(me: bool, actors: usize) -> usize {
 fn slice_actors(n: u32, tick: u32) -> Vec<WireActor> {
     (0..n)
         .map(|k| WireActor {
+            effects: 0,
+            displace_seq: 0,
             id: 1000 + k * 2,
             faction: (k % 5) as u8,
             x: (k * 25 + tick) as f32 % 5120.0,
@@ -31,6 +33,8 @@ fn snapshot(n: u32, tick: u32) -> ServerMsg {
         phase: 1,
         ack_input: tick * 2,
         me: Some(WireSelf {
+            effects: 0,
+            displace_seq: 0,
             id: 3,
             faction: 2,
             x: 400.0,

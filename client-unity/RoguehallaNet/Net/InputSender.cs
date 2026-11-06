@@ -54,11 +54,14 @@ namespace Roguehalla.Net
         }
 
         /// <summary>Queues a pickup intent in order with other actions; inventory and range remain server decisions.</summary>
-        public void Pickup(uint containerId)
+        public void Pickup(PickupHandle handle)
         {
-            if (containerId == 0) { Dropped++; return; }
-            _queue.Add(WireCommand.Pickup(containerId));
+            if (!handle.IsValid) { Dropped++; return; }
+            _queue.Add(WireCommand.Pickup(handle.Value));
         }
+
+        /// <summary>Cancels commands that belong to an earlier connection/observer epoch.</summary>
+        internal void ClearPending() { _queue.Clear(); _aim=null; }
 
         public void Attack(float a, double? t) { if (!Finite(a)) { Dropped++; return; } _queue.Add(WireCommand.Attack(a, t)); }
         public void Release(float a, double? t) { if (!Finite(a)) { Dropped++; return; } _queue.Add(WireCommand.Release(a, t)); }

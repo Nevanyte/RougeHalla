@@ -144,6 +144,8 @@ namespace Roguehalla.Net.Protocol
             if ((ch.Mask & ActorDelta.MBounty) != 0) a.Bounty = ch.Bounty;
             if ((ch.Mask & ActorDelta.MStatus) != 0) a.Status = ch.Status;
             if ((ch.Mask & ActorDelta.MKind) != 0) a.Kind = ch.Kind;
+            if ((ch.Mask & ActorDelta.MEffects) != 0) a.Effects = ch.Effects;
+            if ((ch.Mask & ActorDelta.MDisplace) != 0) a.DisplaceSeq = ch.DisplaceSeq;
             return a;
         }
 

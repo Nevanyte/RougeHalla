@@ -15,14 +15,14 @@
 <body>
 <main>
   <h1>Roguehalla protocol probe</h1>
-  <p>A browser client for protocol v5 over the browser WebSocket API (the transport a Unity Web build uses). It is a test
+  <p>A browser client for protocol v6 over the browser WebSocket API (the transport a Unity Web build uses). It is a test
   harness for Stage 1, not the game client. Click to walk; hold Space to attack toward the cursor.</p>
   <canvas id="c" width="960" height="640"></canvas>
   <pre id="s">connecting…</pre>
 </main>
 <script>
 "use strict";
-// ---- protocol v5 (mirror of crates/rh-protocol; tools/protocol-js/check-vectors.mjs holds this block to protocol/fixtures/v5.json) ----
+// ---- protocol v6 (mirror of crates/rh-protocol; tools/protocol-js/check-vectors.mjs holds this block to protocol/fixtures/v6.json) ----
 class W {
   constructor() { this.b = new Uint8Array(256); this.n = 0; this.v = new DataView(this.b.buffer); }
   need(k) { if (this.n + k > this.b.length) { const nb = new Uint8Array(this.b.length * 2 + k); nb.set(this.b); this.b = nb; this.v = new DataView(nb.buffer); } }
@@ -75,7 +75,7 @@ function fnv(w, h, tiles) {
   for (const t of tiles) eat(t);
   return x >>> 0;
 }
-const PROTOCOL = 5;
+const PROTOCOL = 6;
 const MAX_TICKET = 448;
 // Quantized remote actors and swings (rh-protocol quant.rs): positions are u16 at 1/8 u, angles u16 over 2 pi read as a signed code.
 const FACING_STEP_F32 = Math.fround(2 * Math.PI / 65536);
@@ -174,7 +174,7 @@ function decodeBody(r) {
   if (tag === 0x83) {
     const tick = r.varint(), ack = r.varint(), head = r.varint();
     // Append-only varint head: bit 0 a self follows, bits 1..9 its fields, bit 10 the phase; any other bit is refused.
-    if ((head & ~0x7ff) !== 0 || ((head & 1) === 0 && (head & 0x3ff) !== 0)) throw new Error("bad head");
+    if ((head & ~0x1fff) !== 0 || ((head & 1) === 0 && (head & 0x1bff) !== 0)) throw new Error("bad head");
     const s = { t: "snapshot", tick, serverMs: tick * 50, phase: 1, ack, me: null, actors: [] };
     if (head & 1) {
       const id = r.varint(), x = r.f32(), y = r.f32(), facing = r.f32();
@@ -188,7 +188,8 @@ function decodeBody(r) {
       const moveSeq = (head & 0x40) ? r.u8() : 0;
       const gv = (head & 0x80) ? r.varintU16("gv") : 0;
       const status = (head & 0x200) ? r.code(3, "status") : 1;
-      s.me = { id, faction, x, y, facing, hp, maxHp, status, weapon, readyIn, kills, bounty, gv, moveSeq };
+      const effects = (head & 0x800) ? r.u16() : 0, displaceSeq = (head & 0x1000) ? r.u8() : 0;
+      s.me = { id, faction, x, y, facing, hp, maxHp, status, weapon, readyIn, kills, bounty, gv, moveSeq, effects, displaceSeq };
     }
     if (head & 0x400) s.phase = r.code(3, "phase");
     const n = r.varint();
@@ -200,7 +201,7 @@ function decodeBody(r) {
       if (prev !== null) { id = prev + field; if (field === 0 || id > 0xffffffff) throw new Error("bad actor order"); }
       prev = id;
       const mask = r.varint();
-      if (mask & ~0x1f) throw new Error("bad actor mask");
+      if (mask & ~0x7f) throw new Error("bad actor mask");
       const x = dqPos(r.u16()), y = dqPos(r.u16()), facing = dqAngle(r.u16());
       let faction = 0, weapon = 0;
       if (mask & 1) { const k = r.u8(); faction = k & 15; weapon = k >> 4; }
@@ -209,7 +210,8 @@ function decodeBody(r) {
       const status = (mask & 4) ? r.code(3, "status") : 1;
       const bounty = (mask & 8) ? r.varintU16("bounty") : 0;
       const kind = (mask & 0x10) ? r.u8() : 0;
-      s.actors.push({ id, faction, x, y, facing, hpPct, status, weapon, bounty, kind });
+      const effects = (mask & 0x20) ? r.u16() : 0, displaceSeq = (mask & 0x40) ? r.u8() : 0;
+      s.actors.push({ id, faction, x, y, facing, hpPct, status, weapon, bounty, kind, effects, displaceSeq });
     }
     return s;
   }
@@ -219,10 +221,10 @@ function decodeBody(r) {
     if (age < 1 || age > 64 || age > tick) throw new Error("bad base age");
     const ack = r.varint(), head = r.varint();
     // Append-only varint head: bit 0 a self follows (fields: bits 1..6 and 9..14), bit 7 a departed list follows, bit 8 the phase changed.
-    if ((head & ~0x7fff) !== 0 || ((head & 1) === 0 && (head & 0x7e7e) !== 0)) throw new Error("bad head");
+    if ((head & ~0x1ffff) !== 0 || ((head & 1) === 0 && (head & 0x1fe7e) !== 0)) throw new Error("bad head");
     const d = { t: "delta", tick, baseTick: tick - age, phase: null, ack, me: null, changed: [], departed: [] };
     if (head & 1) {
-      const m = head & 0x7e7e, s = { mask: m };
+      const m = head & 0x1fe7e, s = { mask: m };
       if (m & 0x0002) s.x = r.f32();
       if (m & 0x0004) s.y = r.f32();
       if (m & 0x0008) s.facing = r.f32();
@@ -235,6 +237,8 @@ function decodeBody(r) {
       if (m & 0x1000) s.bounty = r.varintU16("bounty");
       if (m & 0x2000) s.gv = r.varintU16("gv");
       if (m & 0x4000) s.status = r.code(3, "status");
+      if (m & 0x8000) s.effects = r.u16();
+      if (m & 0x10000) s.displaceSeq = r.u8();
       d.me = s;
     }
     if (head & 0x100) d.phase = r.code(3, "phase");
@@ -247,7 +251,7 @@ function decodeBody(r) {
       if (prev !== null) { id = prev + field; if (field === 0 || id > 0xffffffff) throw new Error("bad actor order"); }
       prev = id;
       const mask = r.varint();
-      if (mask & ~0xff) throw new Error("bad actor mask");
+      if (mask & ~0x3ff) throw new Error("bad actor mask");
       const a = { id, mask };
       if (mask & 1) a.x = r.u16();
       if (mask & 2) a.y = r.u16();
@@ -257,6 +261,8 @@ function decodeBody(r) {
       if (mask & 32) a.bounty = r.varintU16("bounty");
       if (mask & 64) a.status = r.code(3, "status");
       if (mask & 128) a.kind = r.u8();
+      if (mask & 256) a.effects = r.u16();
+      if (mask & 512) a.displaceSeq = r.u8();
       d.changed.push(a);
     }
     if (head & 0x80) {
@@ -302,23 +308,79 @@ function decodeBody(r) {
   }
   if (tag === 0x86) return { t: "pong", nonce: r.u32(), clientMs: r.f64(), serverMs: r.f64() };
   if (tag === 0x88) {
-    // Keyed state (reserved): v4 defines no key, so only the empty State decodes.
-    const st = { t: "state", tick: r.varint() };
-    if (r.varint() !== 0) throw new Error("bad state key");
-    return st;
+    return { t: "state", tick: r.varint(), items: readState(r) };
   }
   throw new Error("unknown tag " + tag);
+}
+
+// Complete replacements. Decode the entire frame before a collection consumer changes retained state.
+function readState(r) {
+  const n = r.varint(); if (n > 5) throw new Error("too many state keys");
+  const flag = () => r.opt(() => true) !== null;
+  const finite = (x) => { if (!Number.isFinite(x)) throw new Error("bad field"); return x; };
+  const handle = () => { const v = r.varint(); if (!v) throw new Error("bad handle"); return v; };
+  const actor = () => r.opt(() => handle());
+  const weapon = () => { const v = r.code(5, "carried weapon"); return v ? v - 1 : null; };
+  const count = () => { const v = r.varint(); if (v > 512) throw new Error("too many state rows"); return v; };
+  const items = []; let previous = 0;
+  for (let i = 0; i < n; i++) {
+    const key = r.varint(); if (key <= previous || key > 5) throw new Error("bad state key"); previous = key;
+    let value;
+    if (key === 1) value = r.opt(() => ({ activeSlot: r.code(1, "active slot"), slots: [weapon(), weapon()], potionSmall: r.code(5, "potion count"), potionsHealing: r.code(3, "potion count") }));
+    else if (key === 2) {
+      const rows = []; let last = 0;
+      for (let j = 0, k = count(); j < k; j++) {
+        const h = handle(); if (h <= last) throw new Error("bad prop handles"); last = h;
+        const x = r.u16(), y = r.u16(), kind = r.u8(); let prop;
+        if (kind === 1) prop = { kind, weapon: r.code(4, "carried weapon") };
+        else if (kind === 2) prop = { kind, open: flag() };
+        else if (kind === 3) prop = { kind, label: r.str() };
+        else throw new Error("bad prop kind");
+        rows.push({ handle: h, x, y, ...prop });
+      }
+      const h = r.varint(); let focus = null;
+      if (h) {
+        const bodyHint = weapon(), row = rows.find(p => p.handle === h);
+        if (!row || (bodyHint !== null && row.kind !== 3)) throw new Error("bad prop focus");
+        focus = { handle: h, bodyHint };
+      }
+      value = { rows, focus };
+    } else if (key === 3) {
+      value = [];
+      for (let j = 0, k = count(); j < k; j++) {
+        const f = { kind: r.code(2, "field"), ability: r.code(4, "field"), owner: actor(), subject: actor() };
+        for (const name of ["x", "y", "x2", "y2", "r", "vx", "vy"]) f[name] = finite(r.f32());
+        f.startedAt = finite(r.f64()); f.endsAt = finite(r.f64());
+        if (f.r < 0 || f.endsAt < f.startedAt) throw new Error("bad field");
+        value.push(f);
+      }
+    } else if (key === 4) {
+      value = []; let last = 0;
+      for (let j = 0, k = count(); j < k; j++) {
+        const h = handle(); if (h <= last) throw new Error("bad reward chest"); last = h;
+        const x = r.u16(), y = r.u16(), expiresAt = finite(r.f64()), options = [], k = r.code(3, "reward options");
+        for (let o = 0; o < k; o++) {
+          const kind = r.u8(); if (kind !== 1 && kind !== 2) throw new Error("bad reward kind");
+          options.push({ kind, id: r.code(kind === 1 ? 2 : 7, "reward id"), taken: flag(), takenBy: actor() });
+        }
+        value.push({ handle: h, x, y, expiresAt, options, picked: flag(), canChoose: flag() });
+      }
+    } else value = r.opt(() => ({ cards: Array.from(r.bytes(3)), boosts: Array.from(r.bytes(8)) }));
+    items.push({ key, value });
+  }
+  return items;
 }
 
 // A client's snapshot decoder (mirror of rh-protocol SnapshotTracker): holds the last snapshot applied, the base of the next delta.
 // A delta it cannot apply is REFUSED (an Error with a `code`), the held snapshot is kept, and nothing is repaired or clamped.
 function refused(code) { const e = new Error("refused " + code); e.code = code; return e; }
 class Tracker {
-  constructor() { this.base = null; }
-  reset() { this.base = null; }
+  constructor() { this.reset(); }
+  reset() { this.base = null; this.collections = new Map(); }
   decode(buf) { return this.apply(decode(buf)); }
   apply(m) {
     if (m.t === "welcome") { this.reset(); return m; }
+    if (m.t === "state") { for (const item of m.items) this.collections.set(item.key, item.value); return m; }
     if (m.t === "snapshot") { this.base = { tick: m.tick, phase: m.phase, me: m.me, actors: m.actors }; return m; }
     if (m.t !== "delta") return m;
     const b = this.base;
@@ -340,6 +402,8 @@ class Tracker {
       const n = { ...a, id: ch.id };
       if (ch.mask & 64) n.status = ch.status;
       if (ch.mask & 128) n.kind = ch.kind;
+      if (ch.mask & 256) n.effects = ch.effects;
+      if (ch.mask & 512) n.displaceSeq = ch.displaceSeq;
       if (ch.mask & 1) n.x = dqPos(ch.x);
       if (ch.mask & 2) n.y = dqPos(ch.y);
       if (ch.mask & 4) n.facing = dqAngle(ch.facing);
@@ -357,7 +421,7 @@ class Tracker {
       } else {
         // A new actor starts from the default actor and must carry its position (bits 0..2).
         if ((ch.mask & 7) !== 7) throw refused("incomplete_new_actor");
-        out.push(upd({ faction: 0, weapon: 0, hpPct: 100, status: 1, bounty: 0, kind: 0 }, ch));
+        out.push(upd({ faction: 0, weapon: 0, hpPct: 100, status: 1, bounty: 0, kind: 0, effects: 0, displaceSeq: 0 }, ch));
       }
     }
     flush(null);
@@ -378,6 +442,8 @@ class Tracker {
       if (d.mask & 0x1000) s.bounty = d.bounty;
       if (d.mask & 0x2000) s.gv = d.gv;
       if (d.mask & 0x4000) s.status = d.status;
+      if (d.mask & 0x8000) s.effects = d.effects;
+      if (d.mask & 0x10000) s.displaceSeq = d.displaceSeq;
       me = s;
     }
     const s = { t: "snapshot", tick: m.tick, serverMs: m.tick * 50, phase: m.phase === null ? b.phase : m.phase, ack: m.ack, me, actors: out };
@@ -391,9 +457,9 @@ const qs = new URLSearchParams(location.search);
 const profile = qs.get("profile") || ("web" + Math.floor(Math.random() * 1e6));
 const ticket = qs.get("ticket") || qs.get("token") || "dev";
 const faction = qs.has("faction") ? Number(qs.get("faction")) : null;
-const P = window.__probe = { welcome: null, snapshots: 0, lastTick: 0, me: null, actors: [], events: [], results: [], rejects: [], rtts: [], fx: 0, errors: [], refused: [], fullSnapshots: 0, deltaSnapshots: 0, resyncs: 0, firstSnapshotAfterWelcome: [], resumes: 0, inputSeq: 0, moveSeq: 0, open: false };
+const P = window.__probe = { welcome: null, stateFrames: 0, firstStateAfterWelcome: [], collections: {}, snapshots: 0, lastTick: 0, me: null, actors: [], events: [], results: [], rejects: [], rtts: [], fx: 0, errors: [], refused: [], fullSnapshots: 0, deltaSnapshots: 0, resyncs: 0, firstSnapshotAfterWelcome: [], resumes: 0, inputSeq: 0, moveSeq: 0, open: false };
 const tracker = new Tracker();
-let needFull = false, awaitingFirst = false, resyncAt = 0;
+let needFull = false, awaitingFirst = false, awaitingState = false, resyncAt = 0;
 const RESYNC_RETRY_MS = 2000;
 function askFull() { needFull = true; resyncAt = performance.now(); P.resyncs++; send(resync()); }
 let ws = null, session = null, contentHash = 0n, map = null, nonce = 0, mouse = { x: 0, y: 0 }, attacking = false;
@@ -422,7 +488,7 @@ async function connect(resume) {
       else P.errors.push(String(e));
       return;
     }
-    if (m.t === "welcome") { needFull = false; awaitingFirst = true; }
+    if (m.t === "welcome") { needFull = false; awaitingFirst = true; awaitingState = true; P.collections = {}; }
     if (m.t === "snapshot") {
       if (tag === 0x83) { needFull = false; P.fullSnapshots++; } else P.deltaSnapshots++;
       if (awaitingFirst) { awaitingFirst = false; P.firstSnapshotAfterWelcome.push(tag === 0x83 ? "full" : "delta"); }
@@ -430,6 +496,7 @@ async function connect(resume) {
     if (m.t === "welcome") { if (!resume) { P.joinMs = { pageToWelcome: performance.now(), helloToWelcome: performance.now() - P.helloAt }; } else { P.resumeMs = performance.now() - P.helloAt; } P.welcome = { player: m.player, tick: m.tick, mapW: m.map.w, mapH: m.map.h, mapHash: m.map.hash, tickRate: m.tickRate }; session = m.session; map = m.map; if (resume) P.resumes++; }
     else if (m.t === "snapshot") { P.snapshots++; P.lastTick = m.tick; P.me = m.me; P.actors = m.actors; P.phase = m.phase; P.ack = m.ack; }
     else if (m.t === "events") { for (const e of m.events) { P.events.push(e); if (e.k === "result") P.results.push(e); } }
+    else if (m.t === "state") { P.stateFrames++; P.collections = Object.fromEntries(tracker.collections); if (awaitingState) { awaitingState = false; P.firstStateAfterWelcome.push(m.items.map(i => i.key)); } }
     else if (m.t === "fx") P.fx += m.fx.length;
     else if (m.t === "pong") P.rtts.push(performance.now() - m.clientMs);
     else if (m.t === "reject") P.rejects.push({ code: m.code, reason: m.reason });
@@ -442,7 +509,7 @@ P.dropAndResume = () => new Promise((res) => { const old = ws; old.onclose = () 
 P.leave = () => send(leave());
 P.requestResync = askFull;
 // Test hook: forget the snapshot held (as if a delta had been lost), so the next delta is refused and the page asks for a Full one.
-P.loseSnapshot = () => tracker.reset();
+P.loseSnapshot = () => { tracker.base = null; };
 setInterval(() => send(ping(++nonce)), 500);
 
 // ---- input and drawing ----

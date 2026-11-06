@@ -95,10 +95,12 @@ namespace Roguehalla.Net
         public readonly RenderClock Clock = new RenderClock();
         public readonly ClockSync Sync = new ClockSync();
         public readonly InputSender Input = new InputSender();
+        public readonly CollectionsView Collections = new CollectionsView();
         public LocalMotion Motion { get; private set; }
 
         public event Action<SessionState> StateChanged;
         public event Action<ServerMsg.Snapshot> SnapshotReceived;
+        public event Action<CollectionsView> CollectionsChanged;
         public event Action<ServerMsg.Events> EventsReceived;
         public event Action<ServerMsg.Fx> FxReceived;
         /// <summary>Round trip of each Pong, in ms.</summary>
@@ -232,8 +234,8 @@ namespace Roguehalla.Net
 
             ServerMsg msg;
             // A snapshot decodes into the one that last left the buffer (two seconds old), so steady play makes no garbage.
-            var spare = Snapshots.TakeSpare();
             bool delta = frame.Length > 0 && frame[0] == 0x87;
+            var spare = delta || frame.Length > 0 && frame[0] == 0x83 ? Snapshots.TakeSpare() : null;
             bool replaceCurrentTick = false;
             // A stale Full frame must not replace the decoder's delta base. Peek at its tick without allocating; fresh Full
             // frames still go through the tracker exactly once. A stale candidate is fully decoded before ignoring it so a
@@ -306,6 +308,8 @@ namespace Roguehalla.Net
             if (welcome != null) { OnWelcome(welcome); return; }
             if (State != SessionState.InMatch && State != SessionState.Ended) { Ignored++; return; }
 
+            var collections = msg as ServerMsg.State;
+            if (collections != null) { Collections.Apply(collections); if (CollectionsChanged != null) CollectionsChanged(Collections); return; }
             double now = Now;
             var snap = msg as ServerMsg.Snapshot;
             if (snap != null)
@@ -370,6 +374,8 @@ namespace Roguehalla.Net
             _attempt = 0;
             // A fresh Welcome restarts the timelines: a resume may land after a long gap, with a new map object.
             Snapshots.Clear();
+            Collections.Reset();
+            Input.ClearPending();
             Latest = null;
             _hasMe = false;
             _needFull = false;

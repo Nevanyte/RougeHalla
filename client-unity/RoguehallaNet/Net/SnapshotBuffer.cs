@@ -13,7 +13,9 @@ namespace Roguehalla.Net
         public WeaponId Weapon;
         public byte HpPct;
         public float X, Y, Facing;
-        public ushort Bounty;
+        public ushort Bounty, Effects;
+        public byte DisplaceSeq;
+        public ActorKind Kind;
     }
 
     /// <summary>
@@ -118,7 +120,7 @@ namespace Roguehalla.Net
             for (int i = 0; i < cur.Length; i++)
             {
                 ref readonly WireActor c = ref cur[i];
-                var o = new InterpActor { Id = c.Id, Faction = (FactionId)c.Faction, HpPct = c.HpPct, Status = (ActorStatus)c.Status, Weapon = (WeaponId)c.Weapon, Bounty = c.Bounty, X = c.X, Y = c.Y, Facing = c.Facing };
+                var o = new InterpActor { Id = c.Id, Faction = (FactionId)c.Faction, HpPct = c.HpPct, Status = (ActorStatus)c.Status, Weapon = (WeaponId)c.Weapon, Bounty = c.Bounty, Effects=c.Effects, DisplaceSeq=c.DisplaceSeq, Kind=(ActorKind)c.Kind, X = c.X, Y = c.Y, Facing = c.Facing };
                 int k = -1;
                 if (merge)
                 {
@@ -130,7 +132,7 @@ namespace Roguehalla.Net
                 {
                     ref readonly WireActor p = ref prev[k];
                     float dx = c.X - p.X, dy = c.Y - p.Y;
-                    if (dx * dx + dy * dy <= TeleportDistance * TeleportDistance)
+                    if (p.DisplaceSeq == c.DisplaceSeq && dx * dx + dy * dy <= TeleportDistance * TeleportDistance)
                     {
                         o.X = p.X + dx * t;
                         o.Y = p.Y + dy * t;

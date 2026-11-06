@@ -327,6 +327,8 @@ mod tests {
     #[test]
     fn view_picks_the_nearest_living_other_player() {
         let me = rh_protocol::WireSelf {
+            effects: 0,
+            displace_seq: 0,
             id: 1,
             faction: 0,
             x: 0.0,
@@ -343,6 +345,8 @@ mod tests {
             move_seq: 0,
         };
         let actor = |id, x, status| rh_protocol::WireActor {
+            effects: 0,
+            displace_seq: 0,
             id,
             faction: 0,
             x,

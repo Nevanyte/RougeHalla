@@ -1,4 +1,4 @@
-//! The golden vectors: deterministic sample messages, and frames that must be rejected. `protocol/fixtures/v5.json` is
+//! The golden vectors: deterministic sample messages, and frames that must be rejected. `protocol/fixtures/v6.json` is
 //! generated from these (`cargo run -p rh-protocol --bin protocol-fixtures`) and read by the Rust, C# and JS tests. A
 //! Snapshot or Fx vector also carries what a client must DECODE (floats as their exact bit patterns), so the three decoders are
 //! held to the same quantization, not just to the same bytes.
@@ -23,7 +23,9 @@ pub fn client_samples() -> Vec<(&'static str, ClientMsg)> {
                     WireCommand::Swap { slot: None },
                     WireCommand::Swap { slot: Some(0) },
                     WireCommand::Swap { slot: Some(1) },
-                    WireCommand::Pickup { container_id: 42 },
+                    WireCommand::Pickup {
+                        handle: PickupHandle::new(42).unwrap(),
+                    },
                 ],
             },
         ),
@@ -96,6 +98,90 @@ pub fn client_samples() -> Vec<(&'static str, ClientMsg)> {
     ]
 }
 
+fn sample_field() -> WireField {
+    WireField {
+        kind: 2,
+        ability: 3,
+        owner: None,
+        subject: Some(1),
+        x: 20.,
+        y: 30.,
+        x2: 40.,
+        y2: 50.,
+        r: 12.,
+        vx: -2.,
+        vy: 0.,
+        started_at: 1000.5,
+        ends_at: 6000.5,
+    }
+}
+fn state_sample() -> ServerMsg {
+    ServerMsg::State {
+        tick: 200,
+        items: vec![
+            StateItem::Inventory(Some(WireInventory {
+                active_slot: 1,
+                slots: [None, Some(2)],
+                potion_small: 5,
+                potions_healing: 3,
+            })),
+            StateItem::Props(WireProps {
+                rows: vec![
+                    WireProp {
+                        handle: PickupHandle::new(1).unwrap(),
+                        x: 800,
+                        y: 900,
+                        kind: WirePropKind::Ground(0),
+                    },
+                    WireProp {
+                        handle: PickupHandle::new(2).unwrap(),
+                        x: 801,
+                        y: 902,
+                        kind: WirePropKind::Chest { open: true },
+                    },
+                    WireProp {
+                        handle: PickupHandle::new(3).unwrap(),
+                        x: 802,
+                        y: 903,
+                        kind: WirePropKind::Body {
+                            label: "\u{feff}BÖB".into(),
+                        },
+                    },
+                ],
+                focus: Some(WireFocus {
+                    handle: PickupHandle::new(3).unwrap(),
+                    body_hint: Some(4),
+                }),
+            }),
+            StateItem::Fields(vec![sample_field(), sample_field()]),
+            StateItem::RewardChests(vec![WireRewardChest {
+                handle: RewardChestHandle::new(u32::MAX).unwrap(),
+                x: 100,
+                y: 200,
+                expires_at: 15000.,
+                options: vec![
+                    WireRewardOption {
+                        id: WireRewardId::Card(0),
+                        taken: false,
+                        taken_by: None,
+                    },
+                    WireRewardOption {
+                        id: WireRewardId::Boost(7),
+                        taken: true,
+                        taken_by: Some(1),
+                    },
+                ],
+                picked: false,
+                can_choose: true,
+            }]),
+            StateItem::Build(Some(WireBuild {
+                cards: [1, 0, 1],
+                boosts: [0, 1, 2, 3, 0, 1, 2, 3],
+            })),
+        ],
+    }
+}
+
 #[allow(clippy::approx_constant)]
 pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
     let tiles: Vec<u8> = (0..12)
@@ -110,6 +196,20 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
         })
         .collect();
     vec![
+        ("state_all", state_sample()),
+        (
+            "state_clear",
+            ServerMsg::State {
+                tick: 201,
+                items: vec![
+                    StateItem::Inventory(None),
+                    StateItem::Props(WireProps::default()),
+                    StateItem::Fields(vec![]),
+                    StateItem::RewardChests(vec![]),
+                    StateItem::Build(None),
+                ],
+            },
+        ),
         (
             "reject_unknown_bom",
             ServerMsg::Reject {
@@ -187,6 +287,8 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
                 phase: 1,
                 ack_input: 42,
                 me: Some(WireSelf {
+                    effects: 0x1234,
+                    displace_seq: 255,
                     id: 3,
                     faction: 4,
                     x: 400.0,
@@ -203,6 +305,8 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
                     move_seq: 7,
                 }),
                 actors: vec![WireActor {
+                    effects: 0x1234,
+                    displace_seq: 255,
                     id: 1,
                     faction: 0,
                     x: 456.0,
@@ -234,6 +338,8 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
                 phase: 1,
                 ack_input: 128,
                 me: Some(WireSelf {
+                    effects: 0,
+                    displace_seq: 0,
                     id: 1,
                     faction: 0,
                     x: 160.0,
@@ -250,6 +356,8 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
                     move_seq: 0,
                 }),
                 actors: vec![WireActor {
+                    effects: 0,
+                    displace_seq: 0,
                     id: 2,
                     faction: 0,
                     x: 0.0,
@@ -272,6 +380,8 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
                 phase: 2,
                 ack_input: 300,
                 me: Some(WireSelf {
+                    effects: 0,
+                    displace_seq: 0,
                     id: 300,
                     faction: 3,
                     x: 5119.875,
@@ -289,6 +399,8 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
                 }),
                 actors: vec![
                     WireActor {
+                        effects: 0,
+                        displace_seq: 0,
                         id: 2,
                         faction: 1,
                         x: 0.0625,
@@ -301,6 +413,8 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
                         kind: 0,
                     },
                     WireActor {
+                        effects: 0,
+                        displace_seq: 0,
                         id: 128,
                         faction: 4,
                         x: 1234.5678,
@@ -313,6 +427,8 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
                         kind: 0,
                     },
                     WireActor {
+                        effects: 0,
+                        displace_seq: 0,
                         id: 70_000,
                         faction: 0,
                         x: 0.03,
@@ -325,6 +441,8 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
                         kind: 2,
                     },
                     WireActor {
+                        effects: 0,
+                        displace_seq: 0,
                         id: u32::MAX,
                         faction: 0,
                         x: 2559.9375,
@@ -347,6 +465,8 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
                 phase: 3,
                 ack_input: 16383,
                 me: Some(WireSelf {
+                    effects: 0,
+                    displace_seq: 0,
                     id: 8,
                     faction: 15,
                     x: 0.0,
@@ -411,6 +531,8 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
                     ActorDelta {
                         mask: AD_ALL,
                         q: QActor {
+                            effects: 0,
+                            displace_seq: 0,
                             id: 128,
                             x: 100,
                             y: 200,
@@ -512,7 +634,7 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
                 fx: vec![],
             },
         ),
-        // The reserved keyed-state message: no key exists in v4, so only the empty State decodes.
+        // An empty keyed-state message retains all current collections.
         (
             "state_empty",
             ServerMsg::State {
@@ -613,9 +735,12 @@ fn welcome_map(w: u16, h: u16, hash: Option<u32>, runs: &[(u8, u16)]) -> Vec<u8>
 
 /// One minimal actor record: id 1, `mask`, x y facing all 0, then `extra`.
 fn actor_bytes(mask: u32, extra: &[u8]) -> Vec<u8> {
-    let mut a = vec![1, mask as u8, 0, 0, 0, 0, 0, 0];
-    a.extend_from_slice(extra);
-    a
+    let mut a = Writer::with_capacity(16);
+    a.varint(1);
+    a.varint(mask);
+    a.bytes(&[0; 6]);
+    a.bytes(extra);
+    a.finish()
 }
 
 /// Server frames a client must reject (the C# and JS tests check the same names against the reason they expect).
@@ -626,6 +751,8 @@ pub fn malformed_server() -> Vec<(&'static str, Vec<u8>)> {
         ack_input: 0,
         me: None,
         actors: vec![WireActor {
+            effects: 0,
+            displace_seq: 0,
             id: 1,
             faction: 0,
             x: 1.0,
@@ -669,8 +796,8 @@ pub fn malformed_server() -> Vec<(&'static str, Vec<u8>)> {
             "head_self_bit_without_present_bit",
             snapshot_bytes(0x0002, &[], 0, &[]),
         ),
-        // Bit 11 is not a field of this version: a mask bit a decoder does not know is refused, never skipped.
-        ("head_unknown_bit", snapshot_bytes(0x0801, &[], 0, &[])),
+        // Bit 13 is not a field of this version: a mask bit a decoder does not know is refused, never skipped.
+        ("head_unknown_bit", snapshot_bytes(0x2001, &[], 0, &[])),
         // The head 0x80 0x00 is a two-byte zero: the canonical form is one byte.
         ("head_overlong_varint", vec![0x83, 0, 0, 0x80, 0x00, 0]),
         ("self_truncated", snapshot_bytes(0x0001, &[], 0, &[])),
@@ -700,7 +827,7 @@ pub fn malformed_server() -> Vec<(&'static str, Vec<u8>)> {
         ("actor_count_without_actors", snapshot_bytes(0, &[], 1, &[])),
         (
             "actor_reserved_mask_bit",
-            snapshot_bytes(0, &[], 1, &actor_bytes(0x20, &[])),
+            snapshot_bytes(0, &[], 1, &actor_bytes(0x80, &[])),
         ),
         (
             "actor_id_gap_zero",
@@ -733,10 +860,10 @@ pub fn malformed_server() -> Vec<(&'static str, Vec<u8>)> {
             "actor_mask_overlong_varint",
             snapshot_bytes(0, &[], 1, &[1, 0x80, 0x00, 0, 0, 0, 0, 0, 0]),
         ),
-        // Kind (bit 4) is known; the next bit is not.
+        // Kind and status/displacement bits are known; bit 7 is not.
         (
             "actor_unknown_mask_bit_after_kind",
-            snapshot_bytes(0, &[], 1, &actor_bytes(AM_KIND << 1, &[])),
+            snapshot_bytes(0, &[], 1, &actor_bytes(AM_KIND << 3, &[])),
         ),
         (
             "actor_hp_over_100",
@@ -749,8 +876,20 @@ pub fn malformed_server() -> Vec<(&'static str, Vec<u8>)> {
         // Fx: a count past u16, a bad item tag.
         ("fx_too_many", vec![0x85, 0, 0x80, 0x80, 0x04]),
         ("fx_bad_tag", vec![0x85, 0, 1, 9]),
-        // State: v4 defines no key, so any item is refused; truncated and trailing bytes are as ever.
-        ("state_unknown_key", vec![0x88, 0, 1, 0]),
+        // State: key zero is undefined; truncated and trailing bytes remain invalid.
+        ("state_unknown_key", vec![0x88, 0, 1, 6]),
+        ("state_duplicate_key", vec![0x88, 0, 2, 1, 0, 1, 0]),
+        ("state_key_order", vec![0x88, 0, 2, 3, 0, 1, 0]),
+        ("state_too_many_keys", vec![0x88, 0, 6]),
+        ("state_too_many_props", vec![0x88, 0, 1, 2, 0x81, 4]),
+        ("state_too_many_fields", vec![0x88, 0, 1, 3, 0x81, 4]),
+        ("state_too_many_rewards", vec![0x88, 0, 1, 4, 0x81, 4]),
+        (
+            "state_bad_potion_count",
+            vec![0x88, 0, 1, 1, 1, 0, 0, 0, 6, 0],
+        ),
+        ("state_zero_prop_handle", vec![0x88, 0, 1, 2, 1, 0]),
+        ("state_missing_focus", vec![0x88, 0, 1, 2, 0, 1, 0]),
         ("state_trailing_byte", vec![0x88, 0, 0, 0]),
         ("state_truncated", vec![0x88, 0]),
         // Reject: code 0 is not a code (codes start at 1; an unnamed code above that is accepted, see the "reject_code_unknown"
@@ -798,6 +937,8 @@ pub struct ChainStep {
 
 fn wa(id: u32, x: f32, y: f32, hp_pct: u8, status: u8) -> WireActor {
     WireActor {
+        effects: 0,
+        displace_seq: 0,
         id,
         faction: (id % 5) as u8,
         x,
@@ -813,6 +954,8 @@ fn wa(id: u32, x: f32, y: f32, hp_pct: u8, status: u8) -> WireActor {
 
 fn chain_self(x: f32) -> WireSelf {
     WireSelf {
+        effects: 0,
+        displace_seq: 0,
         id: 3,
         faction: 4,
         x,
@@ -1151,8 +1294,8 @@ pub fn malformed_deltas() -> Vec<(&'static str, Vec<u8>)> {
             "delta_head_field_without_present_bit",
             delta_bytes(10, 1, DH_X, &[0]),
         ),
-        // Bit 15 is not a field of this version.
-        ("delta_head_unknown_bit", delta_bytes(10, 1, 1 << 15, &[0])),
+        // Bit 17 is not a field of this version.
+        ("delta_head_unknown_bit", delta_bytes(10, 1, 1 << 17, &[0])),
         (
             "delta_head_overlong_varint",
             vec![0x87, 10, 1, 0, 0x80, 0x00, 0],
@@ -1162,10 +1305,10 @@ pub fn malformed_deltas() -> Vec<(&'static str, Vec<u8>)> {
             delta_bytes(10, 1, DH_PRESENT | DH_STATUS, &[4, 0]),
         ),
         ("delta_phase_over_3", delta_bytes(10, 1, DH_PHASE, &[4, 0])),
-        // Actor delta bit 8 is not a field of this version.
+        // Actor delta bit 10 is not a field of this version.
         (
             "delta_actor_mask_unknown_bit",
-            delta_bytes(10, 1, 0, &[1, 1, 0x80, 0x02]),
+            delta_bytes(10, 1, 0, &[1, 1, 0x80, 0x08]),
         ),
         (
             "delta_actor_status_over_3",
@@ -1238,7 +1381,7 @@ fn decoded_snapshot_json(m: &ServerMsg) -> String {
     let me = match me {
         None => "null".to_string(),
         Some(s) => format!(
-            "{{\"id\": {}, \"faction\": {}, \"xBits\": {}, \"yBits\": {}, \"facingBits\": {}, \"hpBits\": {}, \"maxHpBits\": {}, \"status\": {}, \"weapon\": {}, \"readyInMs\": {}, \"kills\": {}, \"bounty\": {}, \"gv\": {}, \"moveSeq\": {}}}",
+            "{{\"id\": {}, \"faction\": {}, \"xBits\": {}, \"yBits\": {}, \"facingBits\": {}, \"hpBits\": {}, \"maxHpBits\": {}, \"status\": {}, \"weapon\": {}, \"readyInMs\": {}, \"kills\": {}, \"bounty\": {}, \"gv\": {}, \"moveSeq\": {}, \"effects\": {}, \"displaceSeq\": {}}}",
             s.id,
             s.faction,
             bits(s.x),
@@ -1252,14 +1395,14 @@ fn decoded_snapshot_json(m: &ServerMsg) -> String {
             s.kills,
             s.bounty,
             s.gv,
-            s.move_seq
+            s.move_seq, s.effects, s.displace_seq
         ),
     };
     let actors: Vec<String> = actors
         .iter()
         .map(|a| {
             format!(
-                "{{\"id\": {}, \"faction\": {}, \"xBits\": {}, \"yBits\": {}, \"facingBits\": {}, \"hpPct\": {}, \"status\": {}, \"weapon\": {}, \"bounty\": {}, \"kind\": {}}}",
+                "{{\"id\": {}, \"faction\": {}, \"xBits\": {}, \"yBits\": {}, \"facingBits\": {}, \"hpPct\": {}, \"status\": {}, \"weapon\": {}, \"bounty\": {}, \"kind\": {}, \"effects\": {}, \"displaceSeq\": {}}}",
                 a.id,
                 a.faction,
                 bits(a.x),
@@ -1269,7 +1412,7 @@ fn decoded_snapshot_json(m: &ServerMsg) -> String {
                 a.status,
                 a.weapon,
                 a.bounty,
-                a.kind
+                a.kind, a.effects, a.displace_seq
             )
         })
         .collect();

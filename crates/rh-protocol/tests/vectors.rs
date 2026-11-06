@@ -4,9 +4,9 @@ use rh_protocol::*;
 #[test]
 fn committed_vectors_match_the_encoder() {
     let path =
-        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../protocol/fixtures/v5.json");
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../protocol/fixtures/v6.json");
     let committed = std::fs::read_to_string(&path)
-        .expect("protocol/fixtures/v5.json (run the protocol-fixtures bin)");
+        .expect("protocol/fixtures/v6.json (run the protocol-fixtures bin)");
     assert_eq!(
         committed,
         manifest(),
@@ -71,6 +71,14 @@ fn malformed_server_frames_are_rejected_for_the_documented_reason() {
             }
             "phase_over_3" | "delta_phase_over_3" => BadField("phase"),
             "state_unknown_key" => BadField("state key"),
+            "state_duplicate_key" | "state_key_order" => BadField("state key order"),
+            "state_too_many_keys"
+            | "state_too_many_props"
+            | "state_too_many_fields"
+            | "state_too_many_rewards" => TooMany(0),
+            "state_bad_potion_count" => BadField("potion count"),
+            "state_zero_prop_handle" => BadField("pickup handle"),
+            "state_missing_focus" => BadField("prop focus"),
             "state_truncated" => Truncated,
             "state_trailing_byte" => Trailing(0),
             "self_max_hp_over_u16" => BadField("max_hp"),

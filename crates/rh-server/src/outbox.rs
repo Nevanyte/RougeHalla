@@ -75,6 +75,7 @@ pub struct Outbox {
     pub snapshot_bytes_sent: AtomicU64,
     /// A client asked for a Full snapshot: the next one the writer encodes is Full.
     resync: AtomicBool,
+    state_resync: AtomicBool,
     /// The connection's snapshot writer state, touched only by whoever drains (the writer task: uncontended).
     writer: Mutex<SnapshotWriter>,
 }
@@ -204,6 +205,14 @@ impl Outbox {
     /// that interval. Requests never get lost, and a flood of them only keeps the flag set.
     pub fn request_resync(&self) {
         self.resync.store(true, Ordering::Relaxed);
+        self.state_resync.store(true, Ordering::Relaxed);
+    }
+
+    pub fn state_resync_requested(&self) -> bool {
+        self.state_resync.load(Ordering::Relaxed)
+    }
+    pub fn state_resync_answered(&self) {
+        self.state_resync.store(false, Ordering::Relaxed);
     }
 
     /// Encodes `snap` for this connection: a Full frame or a delta against the last snapshot encoded here. Called by the
@@ -277,6 +286,46 @@ impl Outbox {
         let spare = s.spare.take();
         self.wake(s, false);
         spare
+    }
+
+    /// A reliable collection replacement and its snapshot enter one tick push. Refuse the entire
+    /// batch on reliable overflow so observer handles commit only after successful enqueue.
+    pub fn push_tick_with_state(
+        &self,
+        state: Option<Vec<u8>>,
+        important: Option<Vec<u8>>,
+        fx: Option<Vec<u8>>,
+        snapshot: Option<SnapshotData>,
+    ) -> (Option<SnapshotData>, bool) {
+        if state.is_none() && important.is_none() && fx.is_none() && snapshot.is_none() {
+            return (None, true);
+        }
+        let c = self.counts();
+        let mut s = self.state.lock().expect("outbox lock");
+        if s.closed.is_some() {
+            return (None, false);
+        }
+        let required = usize::from(state.is_some()) + usize::from(important.is_some());
+        if s.important.len() + required > IMPORTANT_CAP {
+            s.closed = Some(RejectCode::TooSlow);
+            self.wake(s, false);
+            return (None, false);
+        }
+        if let Some(frame) = state {
+            s.push_important(&c, frame);
+        }
+        if let Some(frame) = important {
+            s.push_important(&c, frame);
+        }
+        if let Some(frame) = fx {
+            s.push_fx(&c, frame);
+        }
+        if let Some(snap) = snapshot {
+            s.push_snapshot(&c, snap);
+        }
+        let spare = s.spare.take();
+        self.wake(s, false);
+        (spare, true)
     }
 
     pub fn counters(&self) -> OutboxCounters {
@@ -374,6 +423,38 @@ mod tests {
     /// A snapshot with no self and no actors at `tick` (6 or 7 bytes as a Full frame).
     fn snap(tick: u32) -> SnapshotData {
         SnapshotData::build(tick, 1, 0, None, std::iter::empty()).expect("valid")
+    }
+
+    #[test]
+    fn collection_and_events_enqueue_atomically_before_disposable_frames() {
+        let o = Outbox::default();
+        assert!(
+            o.push_tick_with_state(Some(vec![1]), Some(vec![2]), Some(vec![3]), Some(snap(4)))
+                .1
+        );
+        let mut frames = Vec::new();
+        let drained = o.drain_into(&mut frames);
+        assert_eq!(drained.close, None);
+        assert_eq!(&frames[..3], &[vec![1], vec![2], vec![3]]);
+        assert_eq!(frames.len(), 4);
+        assert_eq!(o.notify_calls(), 1);
+
+        let slow = Outbox::default();
+        for _ in 0..IMPORTANT_CAP - 1 {
+            slow.important(vec![9]);
+        }
+        let counted = slow.counters();
+        assert!(
+            !slow
+                .push_tick_with_state(Some(vec![1]), Some(vec![2]), Some(vec![3]), Some(snap(4)))
+                .1
+        );
+        assert_eq!(slow.counters(), counted, "a refused batch accepts nothing");
+        let mut frames = Vec::new();
+        let drained = slow.drain_into(&mut frames);
+        assert_eq!(drained.close, Some(RejectCode::TooSlow));
+        assert_eq!(frames.len(), IMPORTANT_CAP - 1);
+        assert!(frames.iter().all(|f| f == &[9]));
     }
 
     #[test]

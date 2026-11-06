@@ -5,6 +5,8 @@ use rh_protocol::*;
 
 fn actor(i: u32) -> WireActor {
     WireActor {
+        effects: 0,
+        displace_seq: 0,
         id: i * 3 + 1,
         faction: (i % 5) as u8,
         x: 100.25 + i as f32,
@@ -20,6 +22,8 @@ fn actor(i: u32) -> WireActor {
 
 fn me() -> WireSelf {
     WireSelf {
+        effects: 0,
+        displace_seq: 0,
         id: 3,
         faction: 4,
         x: 400.0,

@@ -3,12 +3,12 @@ use rh_protocol::*;
 
 #[test]
 fn v5_encoders_refuse_invalid_combat_values() {
+    assert!(PickupHandle::new(0).is_none());
     for command in [
         WireCommand::Swap { slot: Some(2) },
         WireCommand::Swap {
             slot: Some(u8::MAX),
         },
-        WireCommand::Pickup { container_id: 0 },
     ] {
         let msg = ClientMsg::Input {
             seq: 1,

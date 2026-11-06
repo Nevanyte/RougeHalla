@@ -6,6 +6,7 @@ namespace Roguehalla.Net
 
     /// <summary>Life-cycle status code (docs/CONTRACTS.md). A value outside the named ones is a newer server's: cast, never assume.</summary>
     public enum ActorStatus : byte { Lobby = 0, Alive = 1, Dead = 2, Mia = 3 }
+    public enum ActorKind : byte { Player = 0, RegionalMob = 1 }
 
     /// <summary>Faction code: <c>FactionId::ALL</c> order (append only). A value outside the named ones is a newer server's.</summary>
     public enum FactionId : byte { Fire = 0, Sentenced = 1, Plague = 2, Frost = 3, Holy = 4 }
@@ -26,7 +27,8 @@ namespace Roguehalla.Net
         public ActorStatus Status;
         public WeaponId Weapon;
         public ushort ReadyInMs, Kills, Bounty, Gv;
-        public byte MoveSeq;
+        public byte MoveSeq, DisplaceSeq;
+        public ushort Effects;
 
         /// <summary>Health as a whole percent, 100 when the maximum is unknown (0).</summary>
         public int HpPct
@@ -44,7 +46,7 @@ namespace Roguehalla.Net
         {
             Id = w.Id; Faction = (FactionId)w.Faction; X = w.X; Y = w.Y; Facing = w.Facing; Hp = w.Hp; MaxHp = w.MaxHp;
             Status = (ActorStatus)w.Status; Weapon = (WeaponId)w.Weapon; ReadyInMs = w.ReadyInMs; Kills = w.Kills; Bounty = w.Bounty;
-            Gv = w.Gv; MoveSeq = w.MoveSeq;
+            Gv = w.Gv; MoveSeq = w.MoveSeq; Effects = w.Effects; DisplaceSeq = w.DisplaceSeq;
         }
     }
 }

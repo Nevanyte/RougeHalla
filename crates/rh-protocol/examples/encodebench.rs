@@ -27,6 +27,8 @@ fn ring(fixed_actors: Option<usize>) -> Vec<SnapshotData> {
         .map(|i| {
             let n = fixed_actors.unwrap_or(MIX[i as usize % 8]) as u32;
             let me = WireSelf {
+                effects: 0,
+                displace_seq: 0,
                 id: 1000,
                 faction: (i % 5) as u8,
                 x: 100.0 + i as f32 * 0.5,
@@ -43,6 +45,8 @@ fn ring(fixed_actors: Option<usize>) -> Vec<SnapshotData> {
                 move_seq: i as u8,
             };
             let actors = (0..n).map(|k| WireActor {
+                effects: 0,
+                displace_seq: 0,
                 id: k * 2 + 1,
                 faction: (k % 5) as u8,
                 x: 300.0

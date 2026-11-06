@@ -192,18 +192,19 @@ namespace Roguehalla.Net.Protocol
         public float X, Y, Facing, Hp, MaxHp;
         public byte Status, Weapon;
         public ushort ReadyInMs, Kills, Bounty, Gv;
-        public byte MoveSeq;
+        public byte MoveSeq, DisplaceSeq;
+        public ushort Effects;
 
         internal void CopyFrom(WireSelf o)
         {
             Id = o.Id; Faction = o.Faction; X = o.X; Y = o.Y; Facing = o.Facing; Hp = o.Hp; MaxHp = o.MaxHp; Status = o.Status; Weapon = o.Weapon;
-            ReadyInMs = o.ReadyInMs; Kills = o.Kills; Bounty = o.Bounty; Gv = o.Gv; MoveSeq = o.MoveSeq;
+            ReadyInMs = o.ReadyInMs; Kills = o.Kills; Bounty = o.Bounty; Gv = o.Gv; MoveSeq = o.MoveSeq; Effects = o.Effects; DisplaceSeq = o.DisplaceSeq;
         }
 
         // Head bits (rh-protocol lib.rs, append only): a varint, so bits below 7 take one byte.
         internal const uint HPresent = 1 << 0, HKit = 1 << 1, HHp = 1 << 2, HReady = 1 << 3, HKills = 1 << 4, HBounty = 1 << 5,
-            HMoveSeq = 1 << 6, HGv = 1 << 7, HMaxHpF32 = 1 << 8, HStatus = 1 << 9, HPhase = 1 << 10;
-        internal const uint SelfBits = 0x03ff, Known = SelfBits | HPhase;
+            HMoveSeq = 1 << 6, HGv = 1 << 7, HMaxHpF32 = 1 << 8, HStatus = 1 << 9, HPhase = 1 << 10, HEffects = 1 << 11, HDisplace = 1 << 12;
+        internal const uint SelfBits = 0x03ff | HEffects | HDisplace, Known = SelfBits | HPhase;
 
         static bool MaxHpIsVarint(float v)
         {
@@ -227,6 +228,8 @@ namespace Roguehalla.Net.Protocol
             if (MoveSeq != 0) m |= HMoveSeq;
             if (!MaxHpIsVarint(MaxHp)) m |= HMaxHpF32;
             if (Status != Wire.DefaultStatus) m |= HStatus;
+            if (Effects != 0) m |= HEffects;
+            if (DisplaceSeq != 0) m |= HDisplace;
             return m;
         }
 
@@ -246,6 +249,8 @@ namespace Roguehalla.Net.Protocol
             if ((head & HMoveSeq) != 0) n += 1;
             if ((head & HGv) != 0) n += Writer.VarintLength(Gv);
             if ((head & HStatus) != 0) n += 1;
+            if ((head & HEffects) != 0) n += 2;
+            if ((head & HDisplace) != 0) n += 1;
             return n;
         }
 
@@ -262,6 +267,8 @@ namespace Roguehalla.Net.Protocol
             MoveSeq = (head & HMoveSeq) != 0 ? r.U8() : (byte)0;
             Gv = (head & HGv) != 0 ? r.VarintU16("gv") : (ushort)0;
             Status = (head & HStatus) != 0 ? r.Code(Wire.MaxStatusCode, "status") : Wire.DefaultStatus;
+            Effects = (head & HEffects) != 0 ? r.U16() : (ushort)0;
+            DisplaceSeq = (head & HDisplace) != 0 ? r.U8() : (byte)0;
         }
 
         internal void Write(Writer w, uint head)
@@ -276,12 +283,14 @@ namespace Roguehalla.Net.Protocol
             if ((head & HMoveSeq) != 0) w.U8(MoveSeq);
             if ((head & HGv) != 0) w.Varint(Gv);
             if ((head & HStatus) != 0) w.U8(Status);
+            if ((head & HEffects) != 0) w.U16(Effects);
+            if ((head & HDisplace) != 0) w.U8(DisplaceSeq);
         }
     }
 
     /// <summary>
     /// One visible actor. A value type: a snapshot's actors live inline in its array (no object per actor). The fields are
-    /// declared widest first so the struct packs into 24 bytes; the wire order is fixed by <see cref="Read"/>/<see cref="Write"/>.
+    /// declared widest first so the struct packs into 28 bytes (including v6 effects/displacement); the wire order is fixed by <see cref="Read"/>/<see cref="Write"/>.
     /// X, Y and Facing are what the wire carries (quantized to 1/8 u and 2 pi / 65536).
     /// </summary>
     public struct WireActor
@@ -294,10 +303,11 @@ namespace Roguehalla.Net.Protocol
         public byte HpPct;
         public byte Status, Weapon;
         /// <summary>What the entity is: 0 = player (the default; costs no byte). The id namespace is shared by every kind.</summary>
-        public byte Kind;
+        public byte Kind, DisplaceSeq;
+        public ushort Effects;
 
         // Full actor mask bits (append only): 0 kit, 1 hp, 2 status, 3 bounty, 4 kind. A varint.
-        internal const uint MKit = 1 << 0, MHp = 1 << 1, MStatus = 1 << 2, MBounty = 1 << 3, MKind = 1 << 4, MKnown = MKit | MHp | MStatus | MBounty | MKind;
+        internal const uint MKit = 1 << 0, MHp = 1 << 1, MStatus = 1 << 2, MBounty = 1 << 3, MKind = 1 << 4, MEffects = 1 << 5, MDisplace = 1 << 6, MKnown = MKit | MHp | MStatus | MBounty | MKind | MEffects | MDisplace;
         internal const byte DefaultHpPct = 100;
 
         internal uint Mask()
@@ -308,6 +318,8 @@ namespace Roguehalla.Net.Protocol
             if (Status != Wire.DefaultStatus) m |= MStatus;
             if (Bounty != 0) m |= MBounty;
             if (Kind != 0) m |= MKind;
+            if (Effects != 0) m |= MEffects;
+            if (DisplaceSeq != 0) m |= MDisplace;
             return m;
         }
 
@@ -317,7 +329,7 @@ namespace Roguehalla.Net.Protocol
         {
             uint m = Mask();
             return Writer.VarintLength(IdField(Id, first, prev)) + Writer.VarintLength(m) + 6 + ((m & MKit) != 0 ? 1 : 0) + ((m & MHp) != 0 ? 1 : 0)
-                + ((m & MStatus) != 0 ? 1 : 0) + ((m & MBounty) != 0 ? Writer.VarintLength(Bounty) : 0) + ((m & MKind) != 0 ? 1 : 0);
+                + ((m & MStatus) != 0 ? 1 : 0) + ((m & MBounty) != 0 ? Writer.VarintLength(Bounty) : 0) + ((m & MKind) != 0 ? 1 : 0) + ((m & MEffects) != 0 ? 2 : 0) + ((m & MDisplace) != 0 ? 1 : 0);
         }
 
         /// <summary>Reads one actor; the first has an absolute id, each later one the (non-zero) gap from <paramref name="prev"/>.</summary>
@@ -341,6 +353,8 @@ namespace Roguehalla.Net.Protocol
             a.Status = (mask & MStatus) != 0 ? r.Code(Wire.MaxStatusCode, "status") : Wire.DefaultStatus;
             a.Bounty = (mask & MBounty) != 0 ? r.VarintU16("bounty") : (ushort)0;
             a.Kind = (mask & MKind) != 0 ? r.U8() : (byte)0;
+            a.Effects = (mask & MEffects) != 0 ? r.U16() : (ushort)0;
+            a.DisplaceSeq = (mask & MDisplace) != 0 ? r.U8() : (byte)0;
             return a;
         }
 
@@ -354,6 +368,8 @@ namespace Roguehalla.Net.Protocol
             if ((m & MStatus) != 0) w.U8(Status);
             if ((m & MBounty) != 0) w.Varint(Bounty);
             if ((m & MKind) != 0) w.U8(Kind);
+            if ((m & MEffects) != 0) w.U16(Effects);
+            if ((m & MDisplace) != 0) w.U8(DisplaceSeq);
         }
     }
 
@@ -364,14 +380,15 @@ namespace Roguehalla.Net.Protocol
     public struct SelfDelta
     {
         public const uint FX = 1 << 1, FY = 1 << 2, FFacing = 1 << 3, FMoveSeq = 1 << 4, FHp = 1 << 5, FReady = 1 << 6,
-            FMaxHp = 1 << 9, FKit = 1 << 10, FKills = 1 << 11, FBounty = 1 << 12, FGv = 1 << 13, FStatus = 1 << 14;
+            FMaxHp = 1 << 9, FKit = 1 << 10, FKills = 1 << 11, FBounty = 1 << 12, FGv = 1 << 13, FStatus = 1 << 14, FEffects = 1 << 15, FDisplace = 1 << 16;
         /// <summary>The self field bits (never the present, departed or phase bits of the head).</summary>
-        public const uint Fields = 0x7e7e;
+        public const uint Fields = 0x7e7e | FEffects | FDisplace;
         public uint Mask;
         public float X, Y, Facing, Hp, MaxHp;
         public byte Kit;
         public ushort ReadyInMs, Kills, Bounty, Gv;
-        public byte MoveSeq;
+        public byte MoveSeq, DisplaceSeq;
+        public ushort Effects;
         /// <summary>The new status (0..3) when <see cref="FStatus"/> is set in <see cref="Mask"/>.</summary>
         public byte StatusValue;
 
@@ -390,6 +407,8 @@ namespace Roguehalla.Net.Protocol
             if ((mask & FBounty) != 0) s.Bounty = r.VarintU16("bounty");
             if ((mask & FGv) != 0) s.Gv = r.VarintU16("gv");
             if ((mask & FStatus) != 0) s.StatusValue = r.Code(Wire.MaxStatusCode, "status");
+            if ((mask & FEffects) != 0) s.Effects = r.U16();
+            if ((mask & FDisplace) != 0) s.DisplaceSeq = r.U8();
             return s;
         }
 
@@ -407,6 +426,8 @@ namespace Roguehalla.Net.Protocol
             if ((Mask & FBounty) != 0) w.Varint(Bounty);
             if ((Mask & FGv) != 0) w.Varint(Gv);
             if ((Mask & FStatus) != 0) w.U8(StatusValue);
+            if ((Mask & FEffects) != 0) w.U16(Effects);
+            if ((Mask & FDisplace) != 0) w.U8(DisplaceSeq);
         }
 
         internal void ApplyTo(WireSelf s)
@@ -423,6 +444,8 @@ namespace Roguehalla.Net.Protocol
             if ((Mask & FBounty) != 0) s.Bounty = Bounty;
             if ((Mask & FGv) != 0) s.Gv = Gv;
             if ((Mask & FStatus) != 0) s.Status = StatusValue;
+            if ((Mask & FEffects) != 0) s.Effects = Effects;
+            if ((Mask & FDisplace) != 0) s.DisplaceSeq = DisplaceSeq;
         }
     }
 
@@ -434,12 +457,12 @@ namespace Roguehalla.Net.Protocol
     public struct ActorDelta
     {
         public const uint MX = 1 << 0, MY = 1 << 1, MFacing = 1 << 2, MKit = 1 << 3, MHp = 1 << 4, MBounty = 1 << 5, MStatus = 1 << 6,
-            MKind = 1 << 7, MAll = 0xff, MNew = MX | MY | MFacing;
+            MKind = 1 << 7, MEffects = 1 << 8, MDisplace = 1 << 9, MAll = 0x3ff, MNew = MX | MY | MFacing;
         public uint Id;
         public uint Mask;
         public ushort X, Y, Facing;
-        public byte Kit, HpPct, Status, Kind;
-        public ushort Bounty;
+        public byte Kit, HpPct, Status, Kind, DisplaceSeq;
+        public ushort Bounty, Effects;
     }
 
     public enum EventKind : byte { Death = 1, Bounty = 2, MatchEnded = 3, Result = 4, PickupRefused = 5 }
@@ -582,8 +605,7 @@ namespace Roguehalla.Net.Protocol
                 case TState:
                 {
                     var st = new State { Tick = r.Varint() };
-                    // No key is defined in v4: any item is an unknown key, and keys are strict per version.
-                    if (r.Varint() != 0) throw new DecodeException(DecodeError.BadField, "state key");
+                    st.Items = StateItem.ReadAll(ref r);
                     msg = st;
                     break;
                 }
@@ -761,6 +783,8 @@ namespace Roguehalla.Net.Protocol
                     if ((a.Mask & ActorDelta.MBounty) != 0) a.Bounty = r.VarintU16("bounty");
                     if ((a.Mask & ActorDelta.MStatus) != 0) a.Status = r.Code(Wire.MaxStatusCode, "status");
                     if ((a.Mask & ActorDelta.MKind) != 0) a.Kind = r.U8();
+                    if ((a.Mask & ActorDelta.MEffects) != 0) a.Effects = r.U16();
+                    if ((a.Mask & ActorDelta.MDisplace) != 0) a.DisplaceSeq = r.U8();
                     d.Changed[i] = a;
                 }
                 d.DepartedCount = 0;
@@ -823,6 +847,8 @@ namespace Roguehalla.Net.Protocol
                     if ((a.Mask & ActorDelta.MBounty) != 0) w.Varint(a.Bounty);
                     if ((a.Mask & ActorDelta.MStatus) != 0) w.U8(a.Status);
                     if ((a.Mask & ActorDelta.MKind) != 0) w.U8(a.Kind);
+                    if ((a.Mask & ActorDelta.MEffects) != 0) w.U16(a.Effects);
+                    if ((a.Mask & ActorDelta.MDisplace) != 0) w.U8(a.DisplaceSeq);
                 }
                 if (DepartedCount > 0)
                 {
@@ -920,7 +946,8 @@ namespace Roguehalla.Net.Protocol
         public sealed class State : ServerMsg
         {
             public uint Tick;
-            public override byte[] Encode() { var w = new Writer(); w.U8(TState); w.Varint(Tick); w.Varint(0); return w.Finish(); }
+            public StateItem[] Items = Array.Empty<StateItem>();
+            public override byte[] Encode() { var w = new Writer(); w.U8(TState); w.Varint(Tick); StateItem.WriteAll(w, Items); var frame = w.Finish(); if (frame.Length > Wire.MaxServerFrame) throw new EncodeException("state frame too large"); return frame; }
         }
 
         public sealed class Pong : ServerMsg

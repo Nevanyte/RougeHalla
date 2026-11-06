@@ -1,4 +1,4 @@
-// Browser-to-Rust proof (Stage 1): real Chromium pages speak protocol v5 (Full and delta snapshots) over WSS to rh-server through the browser's own
+// Browser-to-Rust proof (Stage 1): real Chromium pages speak protocol v6 (Full and delta snapshots) over WSS to rh-server through the browser's own
 // WebSocket API (the transport a Unity Web build's jslib bridge uses). Two players join, the match starts, a movement order
 // is acknowledged, one player drops and resumes its seat, they fight, and both receive authoritative results.
 //
@@ -56,18 +56,23 @@ try {
   // The run starts (both humans in: min-players 2).
   await wait(a, () => window.__probe.phase === 1);
   pass("run_started");
+  await wait(a, () => window.__probe.firstStateAfterWelcome.length === 1);
+  const state0 = await a.evaluate(() => ({frames:window.__probe.stateFrames,first:window.__probe.firstStateAfterWelcome,keys:Object.keys(window.__probe.collections)}));
+  state0.first[0].join() === "1,2,3,4,5" && state0.keys.join() === "1,2,3,4,5" ? pass("join_receives_complete_reliable_state",state0) : fail("join_receives_complete_reliable_state",JSON.stringify(state0));
 
-  // Protocol 5: the first snapshot of a connection is Full, and the stream that follows is deltas the page's own decoder applies.
+  // Protocol 6: the first snapshot of a connection is Full, and the stream that follows is deltas the page's own decoder applies.
   await wait(a, () => window.__probe.deltaSnapshots > 20);
   const kinds = await a.evaluate(() => ({ first: window.__probe.firstSnapshotAfterWelcome, full: window.__probe.fullSnapshots, delta: window.__probe.deltaSnapshots, refused: window.__probe.refused, resyncs: window.__probe.resyncs }));
   const info0 = await a.evaluate(() => fetch("/info", { cache: "no-store" }).then((r) => r.json()));
-  info0.protocol === 5 && kinds.first[0] === "full" && kinds.delta > kinds.full && kinds.refused.length === 0 && kinds.resyncs === 0
-    ? pass("protocol_5_full_first_then_deltas", { protocol: info0.protocol, ...kinds }) : fail("protocol_5_full_first_then_deltas", JSON.stringify([info0.protocol, kinds]));
+  info0.protocol === 6 && kinds.first[0] === "full" && kinds.delta > kinds.full && kinds.refused.length === 0 && kinds.resyncs === 0
+    ? pass("protocol_6_full_first_then_deltas", { protocol: info0.protocol, ...kinds }) : fail("protocol_6_full_first_then_deltas", JSON.stringify([info0.protocol, kinds]));
 
   // A resync request is answered with a Full snapshot, and deltas continue from it.
   const f0 = await a.evaluate(() => window.__probe.fullSnapshots);
   await a.evaluate(() => window.__probe.requestResync());
   await a.waitForFunction((n) => window.__probe.fullSnapshots > n, f0, { timeout: 5000 });
+  await a.waitForFunction((n) => window.__probe.stateFrames > n, state0.frames, {timeout:5000});
+  pass("resync_refreshes_reliable_state");
   const d0 = await a.evaluate(() => window.__probe.deltaSnapshots);
   await a.waitForFunction((n) => window.__probe.deltaSnapshots > n + 5, d0, { timeout: 5000 });
   const rs = await a.evaluate(() => ({ full: window.__probe.fullSnapshots, refused: window.__probe.refused }));
@@ -102,6 +107,10 @@ try {
   const bk = await b.evaluate(() => ({ first: window.__probe.firstSnapshotAfterWelcome, refused: window.__probe.refused, resyncs: window.__probe.resyncs }));
   bk.first.join() === "full,full" && bk.refused.length === 0 && bk.resyncs === 0 ? pass("resume_starts_with_a_full_snapshot", bk) : fail("resume_starts_with_a_full_snapshot", JSON.stringify(bk));
 
+  await wait(b, () => window.__probe.firstStateAfterWelcome.length === 2);
+  const resumedState = await b.evaluate(() => window.__probe.firstStateAfterWelcome);
+  resumedState.every(keys => keys.join() === "1,2,3,4,5") ? pass("resume_refreshes_all_state_keys",resumedState) : fail("resume_refreshes_all_state_keys",JSON.stringify(resumedState));
+
   // Fight to the end: both hold attack toward each other; the server decides the outcome.
   for (const [page, other] of [[a, wb.player], [b, wa.player]]) {
     await page.evaluate((otherId) => {
@@ -118,7 +127,7 @@ try {
   const ok = ra.outcome === 2 && rb.outcome === 0 && ra.place === 2 && rb.place === 1;
   ok ? pass("authoritative_results", { alpha: ra, bravo: rb }) : fail("authoritative_results", JSON.stringify({ ra, rb }));
 
-  // Protocol 5: the player's own Result is kept on its seat. Alpha resumes after its run resolved and receives that Result again
+  // Protocol 6: the player's own Result is kept on its seat. Alpha resumes after its run resolved and receives that Result again
   // (identical), instead of never.
   await a.evaluate(() => window.__probe.dropAndResume());
   await wait(a, () => window.__probe.resumes === 1 && window.__probe.open);
@@ -133,13 +142,13 @@ try {
   report.measured = { joinMs: pa.joinMs, resumeHelloToWelcomeMs: resumeMs, snapshots: pa.snapshots, fullSnapshots: pa.fullSnapshots, deltaSnapshots: pa.deltaSnapshots, resyncs: pa.resyncs, refusedDeltas: pa.refusedDeltas, fxFrames: pa.fx, rttMsP50: sorted[sorted.length >> 1], rttMsMax: sorted[sorted.length - 1], pageErrors: pa.errors, rejects: pa.rejects };
   report.serverInfo = await a.evaluate(() => fetch("/info", { cache: "no-store" }).then((r) => r.json()));
   consoleErrors.length === 0 && pa.errors.length === 0 ? pass("no_page_errors") : fail("no_page_errors", JSON.stringify([consoleErrors, pa.errors]));
-  const vectors = JSON.parse(readFileSync(resolve(repo, "protocol/fixtures/v5.json"), "utf8"));
+  const vectors = JSON.parse(readFileSync(resolve(repo, "protocol/fixtures/v6.json"), "utf8"));
   const mismatch = await a.evaluate((hex) => {
     const bytes = Uint8Array.from(hex.match(/../g), h => parseInt(h, 16)); bytes[1] = 4;
     const before = JSON.stringify({ welcome: window.__probe.welcome, snapshots: window.__probe.snapshots, base: tracker.base });
     ws.onmessage({ data: bytes.buffer });
     // Even a subsequently queued valid Welcome cannot revive this rejected connection.
-    bytes[1] = 5; ws.onmessage({ data: bytes.buffer });
+    bytes[1] = 6; ws.onmessage({ data: bytes.buffer });
     return { preserved: before === JSON.stringify({ welcome: window.__probe.welcome, snapshots: window.__probe.snapshots, base: tracker.base }), reject: window.__probe.rejects.at(-1), closing: ws.readyState >= 2 };
   }, vectors.server.find(v => v.name === "welcome").hex);
   mismatch.preserved && mismatch.reject?.code === 1 && mismatch.closing ? pass("wrong_protocol_welcome_refused_before_state", mismatch) : fail("wrong_protocol_welcome_refused_before_state", JSON.stringify(mismatch));

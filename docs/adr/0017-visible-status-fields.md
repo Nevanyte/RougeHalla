@@ -1,6 +1,6 @@
 # 0017: Visible status fields without global runtime identities
 
-Status: **Provisional**. The core projection is integrated and independently validated; live transport/presentation remain pending.
+Status: **Provisional**. The core projection is integrated and independently validated; protocol6 fact transport is implemented; Unity presentation remains pending.
 
 ## Context
 
@@ -30,7 +30,9 @@ does not introduce an allocator or authorize exposing the shared entity counter.
 - Passed: unchanged source comparisons and14 independent public/native privacy pairs, including hidden allocations,
   owner departure, multiplicity, trail endpoints, source-timed hidden expiry and repeated observation/continuation.
 - Passed: checkpoint/replay/headless/privacy/allocation gates and coordinator observation12/policy9 integration.
-- Pending: complete live Rust/C#/JS status/field transport and Unity presentation. Protocol5 explicitly omits these facts.
+- Passed for the bounded fact channel: protocol6 Rust/C#/JS carries redacted field replacements and status/displacement
+  scalars, with shared vectors, reconnect/resync and independent transport review ([ADR0018](0018-keyed-state-protocol-v6.md)).
+- Pending: remaining ability/status one-shot effects and Unity presentation.
 
 See [status core integration](../evidence/status-runtime/INTEGRATION.md) for the frozen evidence and limits.
 

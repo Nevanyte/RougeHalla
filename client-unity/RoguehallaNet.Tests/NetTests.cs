@@ -131,8 +131,8 @@ namespace Roguehalla.Net.Tests
         {
             var s = new InputSender();
             for (int i = 0; i < 15; i++) s.Attack(0, null);
-            s.Swap(); s.Pickup(42); s.Swap(1); s.Release(0, null);
-            s.Swap(2); s.Pickup(0);
+            s.Swap(); s.Pickup(new PickupHandle(42)); s.Swap(1); s.Release(0, null);
+            s.Swap(2); s.Pickup(default(PickupHandle));
             var frames = s.Flush(0);
             CollectionAssert.AreEqual(new[] { 16, 3 }, frames.Select(f => f.Commands.Count).ToArray());
             Assert.AreEqual(CommandKind.Swap, frames[0].Commands[15].Kind); Assert.IsNull(frames[0].Commands[15].Slot);
