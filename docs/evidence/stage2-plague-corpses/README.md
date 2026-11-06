@@ -31,9 +31,10 @@ custom-damage packet, regenerates 5%/s in 500 ms steps at 25% for 4 s after bein
 
 ## 4. Contracts
 
-C-INPUT (`consumeCorpse` validated), C-TICK (all rows at their legacy positions), C-DET (corpse/zombie state hashed,
-checkpointed and restore-tested), C-OBS (zombie is a normal actor view; corpse/public transport still pending),
-C-RNG (no new stream; ids derive from the actor counter), C-NUM (source f64 order and constants).
+C-INPUT (`consumeCorpse` validated through an observer-issued corpse prop handle), C-TICK (all rows at their legacy
+positions), C-DET (corpse/zombie state hashed, checkpointed and restore-tested), C-OBS (corpses are a `PropKind::Corpse`
+row for living Plague; the zombie is a kind-2 actor), C-RNG (no new stream; ids derive from the actor counter), C-NUM
+(source f64 order and constants).
 
 ## 5. Checks run
 
@@ -45,8 +46,10 @@ C-RNG (no new stream; ids derive from the actor counter), C-NUM (source f64 orde
 - `cargo test -p rh-protocol` — all pass; protocol v8 vectors include `input_corpse` and a corpse prop.
 - `node tools/protocol-js/check-vectors.mjs` — 25 server vectors, 89 malformed, 10 chains, 15,477 checks.
 - `dotnet test client-unity/RoguehallaNet.Tests` — 271 passed.
+- `node tools/browser-proof/proof.mjs` — 15 checks PASS on protocol 8.
+- `cargo clippy --workspace --all-targets --all-features -- -D warnings` — clean.
 
 ## 6. Remaining
 
 - Actual-source capture/parity scenarios and six mutants.
-- `mob_checkpoint` PvE zombie validation, full workspace/clippy/perf/browser gates.
+- `mob_checkpoint` PvE zombie validation, full workspace/perf gates.
