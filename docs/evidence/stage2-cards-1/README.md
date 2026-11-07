@@ -135,7 +135,7 @@ catalog to a generated, corpus-verified table and the build to the source count 
 
 ## Measurements
 
-- `cargo test --workspace --all-features --locked` (throwaway PostgreSQL): **1,409 passed, 0 failed, 3 ignored, 151 test
+- `cargo test --workspace --all-features --locked` (throwaway PostgreSQL): **1,410 passed, 0 failed, 3 ignored, 151 test
   binaries, exit 0** (after the full-pool drop, the 21/21 terrain kernel, the allocation-free on-hit hook, the Fists of Fury
   multiplicity, the streak memory, Wishful Thinking, heal over time, Second Wind's trigger, Spiked Shell's return, Tank Engine's fortify, Adrenaline's boost and the teleport resets).
 - Catalog differentials: **2/2** (80 cards × all rows/selections; 80 × 4 eligibility entries incl. reasons).
@@ -150,7 +150,11 @@ catalog to a generated, corpus-verified table and the build to the source count 
 - The **runtime witness consumer**: the 65-case `parity/card-runtime/source.json` and the 2-case witness corpus are captured but
   no Rust consumer reproduces them yet. The witness cases (map `room`, `mainSeed`/`rewardSalt`, the harness's test-only
   `witness` card, `target`/`attack`/`release` actions) first need the capture rig's world-seed mapping and the action-to-input
-  mapping.
+  mapping. **The matched witness case is now reproduced**: `crates/rh-sim/src/card_witness_tests.rs` builds the rig's 40x24
+  room (border walls, the five rig spawns), derives the order salt from the main seed's first mulberry32 draw, places the three
+  Holy players with the reward salt, submits the target and the held attack, and steps until the swing lands — the landed
+  damage matches the source's `actualLandedAmount` (36.13796707603867) exactly. The positive case needs the harness's
+  test-only witness card.
 - The chest ownership/skip **certification edge cases** beyond the refusal table (owner-private trophies, the skip's heal-lockout
   GV path) and the guard-by-guard certification against the runtime diagnostic cases.
 - The packet's final acceptance evidence: source probes per runtime family, the mutant controls, and the coordinator's
