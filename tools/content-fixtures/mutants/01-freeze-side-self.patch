@@ -1,0 +1,11 @@
+--- a/crates/rh-sim/src/abilities/mod.rs
++++ b/crates/rh-sim/src/abilities/mod.rs
+@@ -259,7 +259,7 @@
+             false,
+             false,
+             &[Effect::Status {
+-                to: Side::Target,
++                to: Side::Self_,
+                 kind: crate::status_runtime::StatusKind::Stun,
+                 ms: FREEZE_STUN_MS,
+                 value: None,

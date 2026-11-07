@@ -1,0 +1,11 @@
+--- a/crates/rh-sim/src/systems/abilities/effects.rs
++++ b/crates/rh-sim/src/systems/abilities/effects.rs
+@@ -204,7 +204,7 @@
+             )
+             .is_none()
+             {
+-                super::super::fields::remove(cx.w, field_id);
++                let _ = field_id;
+             }
+         }
+         a::Effect::Cloud { ms, radius } => {

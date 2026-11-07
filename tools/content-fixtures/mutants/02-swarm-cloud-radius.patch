@@ -1,0 +1,11 @@
+--- a/crates/rh-sim/src/abilities/mod.rs
++++ b/crates/rh-sim/src/abilities/mod.rs
+@@ -281,7 +281,7 @@
+                 },
+                 Effect::Cloud {
+                     ms: SWARM_MS,
+-                    radius: SWARM_RADIUS,
++                    radius: SWARM_RADIUS + 1.,
+                 },
+             ] as &[Effect],
+         ),

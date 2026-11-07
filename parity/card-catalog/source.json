@@ -303,7 +303,7 @@
     "tools/cards-fixtures/capture.sh": "93d5234941b9d7234df626bde9542a1efa06d67435651a6e4f127f36f477ccbc",
     "tools/cards-fixtures/capture.ts": "121864bd8d11efc29236efed59f6c07a151976e0c7ebefb08235cbfbe04e3c1c",
     "tools/determinism/README.md": "8c31499f2edd199d6e629ba0635f606c1626c1329cbf32efa28da490d0bd9c53",
-    "tools/determinism/compare.py": "d3bb4f38b63fd0e3522e31d425b46d185829d6ad0888851bf1b19a3fe11e7ec8",
+    "tools/determinism/compare.py": "89c6b47027ba85ae5b1e70d74a46f297004c1899f38ab5c3f0a64ae702a6d1ec",
     "tools/determinism/inventory-v1.json": "3980d4c5e51c0d1968211baa725eda9367c879a63632da4f91efded6304e2e69",
     "tools/determinism/test_compare.py": "1926d0d6706f73d5379687600d127490ffd14b0227dbd1a9d0bddaa240425a0e",
     "tools/fire-fixtures/README.md": "7c2cb682a91fc7d0592c54b89c6b092e7c439ed61b774f52b73b2e0fcfba3b71",

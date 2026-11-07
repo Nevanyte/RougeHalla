@@ -5,6 +5,7 @@ use crate::{Arena, Event, Placement, PlayerId, RawCommand, Secrets, Sim, SimConf
 use serde_json::{json, Value as V};
 mod arena_refund;
 mod compare;
+mod hash_tape;
 mod motion;
 mod repair_tests;
 mod runner;
