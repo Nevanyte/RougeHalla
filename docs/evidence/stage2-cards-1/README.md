@@ -93,10 +93,14 @@ catalog to a generated, corpus-verified table and the build to the source count 
    wired**: a melee hit by an armed owner multiplies its packet by 1 + PLANT_FEET_BONUS, spends the clock and carries the bonus
    into the entry's baked multiplier (shared with the crit multiplier for the G1 cap). A focused test pins the arming and the
    spend. (The dot-crit accumulator was already ported on the shared core; no duplicate was kept.)
+17. **Gambler's salted coin is live**: `salted_unit` mirrors the source four-lane salted hash; `gambler_factor` hashes the
+   secret salt (mixed from the reward salt and the gamble tag), the tick, the attacker/victim ids and the entry's place among
+   the attacker's entries on that victim, doubling below GAMBLER_CHANCE, halving below twice it, else 1. The ledger multiplies
+   each Gambler entry by the factor. A focused test pins the determinism and the index sensitivity.
 
 ## Measurements
 
-- `cargo test --workspace --all-features --locked` (throwaway PostgreSQL): **1,403 passed, 0 failed, 3 ignored, 151 test
+- `cargo test --workspace --all-features --locked` (throwaway PostgreSQL): **1,404 passed, 0 failed, 3 ignored, 151 test
   binaries, exit 0** (after the full-pool drop, the 21/21 terrain kernel, the allocation-free on-hit hook, the Fists of Fury
   multiplicity, the streak memory, Wishful Thinking, heal over time, Second Wind's trigger, Spiked Shell's return, Tank Engine's fortify, Adrenaline's boost and the teleport resets).
 - Catalog differentials: **2/2** (80 cards × all rows/selections; 80 × 4 eligibility entries incl. reasons).
