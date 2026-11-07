@@ -122,7 +122,9 @@ this README and the ledger.
 - [x] The ability hash tape was **re-recorded through its declared recorder** (`--ignored record_ability_hash_tape`;
       53 folds moved) because the rules identity grows the module flag and the registry row — the tape's base cases are
       not hand-edited.
-- [ ] Full workspace gate / strict clippy / fmt / browser proof: RUNNING
+- [x] `cargo test --workspace --all-features --locked` (throwaway PostgreSQL) — **1,428 passed, 0 failed, 3 ignored, 155 test binaries, exit 0**.
+- [x] `cargo clippy --workspace --all-targets --all-features -- -D warnings` and the default-feature mode — clean; `cargo fmt --all --check` — clean.
+- [x] `node tools/browser-proof/proof.mjs` — **15/15 checks PASS**, protocol **9**, content hash `a93f0a500ea89235`, 4 Full + 415 delta snapshots, no page errors.
 
 ## 7. Commands
 
