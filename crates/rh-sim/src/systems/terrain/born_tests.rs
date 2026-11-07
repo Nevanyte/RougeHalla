@@ -92,8 +92,7 @@ fn arena(mut map: Value, input: &Value) -> Arena {
         spawns,
     }
 }
-fn snapshot(sim: &Sim, f: &Value, context: &str) -> bool {
-    let mut known_reward_gap = false;
+fn snapshot(sim: &Sim, f: &Value, context: &str) {
     assert_eq!(
         format!("{:?}", sim.w.phase).to_lowercase(),
         f["phase"].as_str().unwrap(),
@@ -110,40 +109,7 @@ fn snapshot(sim: &Sim, f: &Value, context: &str) -> bool {
         let id = format!("c{}", c.id);
         containers.insert(id.clone(),json!({"id":id,"kind":"reward","x":c.at.x,"y":c.at.y,"label":"Augment Chest","items":[],"camp":c.camp.map_or(0,|x|u32::from(x)+1),"expiresAt":c.expires_at,"options":c.options.iter().map(|x|match x{Some(crate::reward_chests::OptionId::Card(id))=>id.as_str(),None=>"",_=>panic!("source corpus has no boost chest")}).collect::<Vec<_>>(),"takenBy":c.taken.map(|id|id.map(label).unwrap_or_default()),"pickers":c.pickers.iter().copied().map(label).collect::<Vec<_>>(),"readyAt":0,"targetX":0,"targetY":0,"opened":false,"owner":c.owner.map(label).unwrap_or_default()}));
     }
-    let mut expected_containers = f["containers"].clone();
-    // Exactly one known staged-card boundary. The strict full-world gate below is unchanged;
-    // the bounded kernel gate compares all other container bytes and pins both observed choices.
-    if context.starts_with("born-plague-ember-real-attack-credit/")
-        && containers.contains_key("c4")
-        && containers["c4"]["options"] != expected_containers["c4"]["options"]
-        && std::env::var_os("RH_TERRAIN_REQUIRE_FULL").is_none()
-    {
-        assert_eq!(
-            containers["c4"]["options"],
-            json!(["siphon", "slowBurn", "pocketSand"]),
-            "new native reward divergence: {context}"
-        );
-        assert_eq!(
-            expected_containers["c4"]["options"],
-            json!(["siphon", "tankEngine", "thirdTimesTheCharm"]),
-            "new source reward boundary: {context}"
-        );
-        eprintln!(
-            "FULL-WORLD INCOMPLETE {context}/containers/c4/options: native={} source={}",
-            containers["c4"]["options"], expected_containers["c4"]["options"]
-        );
-        containers
-            .get_mut("c4")
-            .unwrap()
-            .as_object_mut()
-            .unwrap()
-            .remove("options");
-        expected_containers["c4"]
-            .as_object_mut()
-            .unwrap()
-            .remove("options");
-        known_reward_gap = true;
-    }
+    let expected_containers = f["containers"].clone();
     compare(
         &Value::Object(containers),
         &expected_containers,
@@ -313,7 +279,6 @@ fn snapshot(sim: &Sim, f: &Value, context: &str) -> bool {
         &f["stats"],
         &format!("{context}/stats"),
     );
-    known_reward_gap
 }
 fn rng(sim: &Sim, f: &Value, ctx: &str) {
     let mut main = crate::rng::Mulberry32::new(12);
@@ -354,8 +319,7 @@ e=>panic!("unconsumed born event {e:?}")
     json!(projected)
 }
 #[test]
-fn terrain_born_kernel_twenty_complete_one_reward_gap() {
-    let (mut full_cases, mut partial_cases) = (0, 0);
+fn terrain_born_kernel_all_cases_fully_compared() {
     let bytes = include_bytes!("../../../../../parity/terrain/born-source.json");
     assert_eq!(
         bytes
@@ -368,7 +332,6 @@ fn terrain_born_kernel_twenty_complete_one_reward_gap() {
     assert_eq!(corpus["format"], "rh-terrain-born-source/1");
     assert_eq!(corpus["cases"].as_array().unwrap().len(), 21);
     for case in corpus["cases"].as_array().unwrap() {
-        let mut case_gap = false;
         let input = &case["input"];
         let name = input["name"].as_str().unwrap();
         let placements = input["players"]
@@ -563,7 +526,7 @@ fn terrain_born_kernel_twenty_complete_one_reward_gap() {
                 }
                 other => panic!("unconsumed born action {other}"),
             }
-            case_gap |= snapshot(&sim, f, &ctx);
+            snapshot(&sim, f, &ctx);
             rng(&sim, f, &ctx);
             let expected = f["events"]
                 .as_array()
@@ -610,14 +573,8 @@ fn terrain_born_kernel_twenty_complete_one_reward_gap() {
                 );
             }
         }
-        if case_gap {
-            partial_cases += 1
-        } else {
-            full_cases += 1
-        }
     }
-    // The last partial case was the reward gap: the full interactive pool drop now matches the source exactly, so every
-    // born-kernel case is fully compared (P-CARDS-1).
-    assert_eq!((full_cases, partial_cases), (21, 0));
+    // The last staged divergence (the interactive c4 card pool of born-plague-ember-real-attack-credit) was closed by
+    // P-CARDS-1, so no frame may relax any expected value: every born-kernel case is compared in full.
     eprintln!("TERRAIN KERNEL: 21 cases; 21 fully compared; FULL TERRAIN COMPLETE");
 }
