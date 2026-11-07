@@ -9,6 +9,10 @@ stack. Evidence for the earlier P-FACTION-1 slices:
 [`stage2-fire-landmarks`](../stage2-fire-landmarks/README.md), [`stage2-plague-map`](../stage2-plague-map/README.md),
 [`stage2-holy-camps`](../stage2-holy-camps/README.md).
 
+Pull request: [#37](https://github.com/Nevanyte/RougeHalla/pull/37), stacked on the P-CARDS-1 PR #36; commit range
+`92dcb662`..`814a2224` on `deepseek/p-faction-1`. Ledger row:
+[`docs/evidence/deepseek-rust/PROGRESS.md`](../deepseek-rust/PROGRESS.md).
+
 ## Assessment before writing (code and git, not memory)
 
 At `5ab14916` the schedule rows still labelled `P-FACTION-1` were exactly two:
