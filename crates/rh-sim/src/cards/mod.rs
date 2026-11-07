@@ -1,34 +1,14 @@
 //! The supported interactive subset; source eligibility remains interactive + unique.
 mod rules;
-use crate::stat_fold::{EffectKind, EffectRow, EffectStat, MultKey};
+use crate::stat_fold::{EffectKind, EffectRow};
 pub use rules::{visit_content, Definition, DEFINITION};
-#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub enum CardId {
-    SlowBurn,
-    PocketSand,
-    Siphon,
-}
-impl CardId {
-    pub const ALL: [Self; 3] = [Self::SlowBurn, Self::PocketSand, Self::Siphon];
-    pub const fn index(self) -> usize {
-        match self {
-            Self::SlowBurn => 0,
-            Self::PocketSand => 1,
-            Self::Siphon => 2,
-        }
-    }
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::SlowBurn => "slowBurn",
-            Self::PocketSand => "pocketSand",
-            Self::Siphon => "siphon",
-        }
-    }
-    pub const fn tier(self) -> u8 {
-        DEFINITION.tiers[self.index()]
-    }
-}
+
+/// The three cards the current native build/chest path supports (the catalog is all 80).
+pub const SUPPORTED: [CardId; 3] = [CardId::SlowBurn, CardId::PocketSand, CardId::Siphon];
+mod catalog;
+mod catalog_data;
+pub use catalog::*;
+
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Build {
@@ -83,32 +63,13 @@ impl Build {
         let mut rows = [empty; 3];
         let mut n = 0;
         for id in self.cards() {
-            match id {
-                CardId::SlowBurn => {
-                    for (key, v) in [
-                        (MultKey::Linger, DEFINITION.slow_burn_linger),
-                        (MultKey::Dot, DEFINITION.slow_burn_dot),
-                    ] {
-                        rows[n] = EffectRow {
-                            kind: EffectKind::Mult { key, v },
-                            requires: &[],
-                            needs_status: false,
-                        };
+            for row in id.definition().rows {
+                if let CardRow::Fold(kind) = row {
+                    if n < rows.len() {
+                        rows[n] = EffectRow::new(*kind);
                         n += 1;
                     }
                 }
-                CardId::Siphon => {
-                    rows[n] = EffectRow {
-                        kind: EffectKind::Stat {
-                            stat: EffectStat::LifestealDot,
-                            v: DEFINITION.siphon,
-                        },
-                        requires: &[],
-                        needs_status: false,
-                    };
-                    n += 1;
-                }
-                CardId::PocketSand => {}
             }
         }
         (rows, n)

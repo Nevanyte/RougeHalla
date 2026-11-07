@@ -318,7 +318,7 @@ pub(crate) fn maximum_packet(weapon: crate::WeaponId) -> f64 {
             let f = crate::content::paced(id);
             let base_hp = crate::content::faction(id).hp;
             let build = crate::cards::Build {
-                cards: crate::cards::CardId::ALL.map(Some),
+                cards: crate::cards::SUPPORTED.map(Some),
                 boosts: [crate::stat_fold::default_definition().chest_boost_max_picks as u8; 8],
             };
             let folded = fold_build(&build, &Farm::maximum(), base_hp);
