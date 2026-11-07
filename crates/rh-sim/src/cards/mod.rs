@@ -97,6 +97,40 @@ impl Default for Boost {
 
 /// Source `rollAttackCrit`: a player's deterministic critical accumulator takes its crit chance (the `critChance` sum,
 /// zero under the noCrit flag, never above CRIT_CHANCE_MAX) and fires at 1.
+/// Source `gamblerFactor`: the salted coin for one ledger entry of a Gambler — up with GAMBLER_CHANCE, down with the same,
+/// else 1. The hash covers the secret salt, the tick, the attacker and victim ids and the entry's place among the attacker's
+/// entries on that victim, so no processing order changes it.
+pub(crate) fn gambler_factor(
+    k: &crate::statics::MatchStatic,
+    w: &crate::state::World,
+    by: crate::PlayerId,
+    victim: crate::PlayerId,
+    index: u32,
+) -> f64 {
+    let salt = crate::private_rng::mixed_salt(
+        k.secrets.reward_salt,
+        crate::initial_world::DEFINITION.gamble_tag,
+    );
+    let by_label = w.roster.label(by).cloned().unwrap_or_default();
+    let victim_label = w.roster.label(victim).cloned().unwrap_or_default();
+    let roll = crate::private_rng::salted_unit(
+        salt,
+        &[
+            crate::private_rng::SaltPart::Num(w.tick),
+            crate::private_rng::SaltPart::Text(by_label.as_ref()),
+            crate::private_rng::SaltPart::Text(victim_label.as_ref()),
+            crate::private_rng::SaltPart::Num(index),
+        ],
+    );
+    if roll < crate::constants::GAMBLER_CHANCE {
+        crate::constants::GAMBLER_UP
+    } else if roll < 2. * crate::constants::GAMBLER_CHANCE {
+        crate::constants::GAMBLER_DOWN
+    } else {
+        1.
+    }
+}
+
 /// Source `plantArmed`: stood still long enough (the flag and PLANT_FEET_MS since last seen moving) for its next attack.
 pub(crate) fn plant_armed(p: &crate::state::Player, now: f64) -> bool {
     p.build.has_flag(crate::stat_fold::EffectFlag::PlantFeet)
@@ -791,5 +825,59 @@ mod dot_crit_tests {
         assert!(plant_armed(&sim.w.players[i], now));
         spend_plant(&mut sim.w.players[i], now);
         assert!(!plant_armed(&sim.w.players[i], now));
+    }
+}
+
+#[cfg(test)]
+mod gambler_tests {
+    use super::gambler_factor;
+    use crate::{arenas, FactionId, Placement, PlayerId, Secrets, Sim, SimConfig, Vec2};
+
+    #[test]
+    fn the_gambler_coin_is_deterministic_and_salted() {
+        let ps = [
+            Placement {
+                profile: "a".into(),
+                faction: FactionId::Fire,
+                bot: false,
+                at: Vec2::new(400., 400.),
+                hp: None,
+                weapon0: None,
+                weapon1: None,
+            },
+            Placement {
+                profile: "b".into(),
+                faction: FactionId::Holy,
+                bot: false,
+                at: Vec2::new(456., 400.),
+                hp: None,
+                weapon0: None,
+                weapon1: None,
+            },
+        ];
+        let mut sim = Sim::reset_active(
+            SimConfig::default(),
+            arenas::practice_arena(),
+            Secrets::from_seed(7),
+            &ps,
+        );
+        assert!(crate::cards::grant(
+            &sim.k,
+            &mut sim.w,
+            PlayerId(1),
+            crate::cards::CardId::Gambler
+        ));
+        let a = gambler_factor(&sim.k, &sim.w, PlayerId(1), PlayerId(2), 0);
+        let b = gambler_factor(&sim.k, &sim.w, PlayerId(1), PlayerId(2), 0);
+        assert_eq!(a, b, "the same coin twice");
+        assert!(a == 2. || a == 0.5 || a == 1.);
+        let mut seen: Vec<f64> = Vec::new();
+        for i in 0..16 {
+            let v = gambler_factor(&sim.k, &sim.w, PlayerId(1), PlayerId(2), i);
+            if !seen.iter().any(|x| x.to_bits() == v.to_bits()) {
+                seen.push(v);
+            }
+        }
+        assert!(seen.len() > 1, "the index changes the coin: {seen:?}");
     }
 }

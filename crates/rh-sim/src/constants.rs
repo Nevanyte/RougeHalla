@@ -101,6 +101,9 @@ content! {
     WISHFUL_FLOOR_SHARE: f64 = 0.5, "share";
     HEAL_OVER_TIME_STEP_MS: f64 = 500.0, "ms";
     OUTGOING_ROW_CAP: f64 = 2.5, "x";
+    GAMBLER_CHANCE: f64 = 0.15, "chance";
+    GAMBLER_UP: f64 = 2.0, "x";
+    GAMBLER_DOWN: f64 = 0.5, "x";
     PLANT_FEET_MS: f64 = 1000.0, "ms";
     PLANT_FEET_BONUS: f64 = 0.25, "share";
 

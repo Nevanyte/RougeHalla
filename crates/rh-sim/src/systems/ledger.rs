@@ -446,8 +446,27 @@ fn apply_inner(
         } else {
             1.
         };
+        let gambler = if !e.arena && e.ability.is_none() {
+            bix.filter(|i| {
+                w.is_player(*i)
+                    && w.players[i.slot()]
+                        .build
+                        .has_flag(crate::stat_fold::EffectFlag::Gambler)
+            })
+            .and_then(|_| e.credit_id())
+            .map_or(1., |by| {
+                let index = ledger[..n]
+                    .iter()
+                    .filter(|p| p.credit_id() == Some(by) && p.victim == e.victim)
+                    .count() as u32;
+                crate::cards::gambler_factor(k, w, by, e.victim, index)
+            })
+        } else {
+            1.
+        };
         mults.push(
             farm_mult
+                * gambler
                 * (if k.config.pvp_rules
                     && !e.arena
                     && e.ability.is_none()
