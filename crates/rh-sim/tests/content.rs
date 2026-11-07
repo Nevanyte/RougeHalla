@@ -30,6 +30,8 @@ const NUMBER_FREE_TYPES: &[(&str, bool, &str)] = &[
 const NON_GAMEPLAY: &[(&str, &str, &str)] = &[
     ("abilities/source_tests/setup.rs", "PLAYER_COUNT", "test-only source actor identity mapping per executor thread; never read by gameplay"),
     ("systems/terrain/source_tests.rs", "FIXTURE_FNV", "test-only actual-source witness integrity pin; not read by gameplay"),
+    ("systems/mob_life/mob_lifecycle_tests.rs", "SEATS", "cfg(test)-only declared seat count of the captured mobile lifecycle scenario; never read by gameplay"),
+    ("systems/mob_life/mob_lifecycle_tests.rs", "DIGITS", "cfg(test)-only base-36 label alphabet for comparing captured actor ids; not gameplay policy"),
     ("projectile_view.rs", "MAX_VISIBLE_PROJECTILES", "complete public projectile representation capacity; never read by game rules"),
     ("projectile_view.rs", "PROJECTILE_ROW_BYTES_MAX", "complete public projectile representation capacity; never read by game rules"),
     ("projectile_view.rs", "PROJECTILE_VIEW_BYTES_MAX", "complete public projectile representation capacity; never read by game rules"),
