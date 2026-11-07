@@ -100,28 +100,31 @@ pub const fn effect_side(e: Effect) -> Side {
 pub(crate) mod sample {
     use super::*;
 
-    pub(crate) const ROW: Definition = Definition {
-        id: AbilityId::Freeze,
-        slot: Slot::Q,
-        cast_ms: 0.,
-        cooldown_ms: 1000.,
-        charges: 1,
-        target: Target::Self_,
-        own_order: false,
-        drops_lock: false,
-        effects: &[
-            Effect::Status {
-                to: Side::Self_,
-                kind: crate::status_runtime::StatusKind::Haste,
-                ms: 1000.,
-                value: Some(0.2),
-            },
-            Effect::Cloud {
-                ms: 1000.,
-                radius: 40.,
-            },
-        ],
-    };
+    /// Built on demand so the content scanner sees no extra declaration; it is a test-only row, never in the table.
+    pub(crate) fn row() -> Definition {
+        Definition {
+            id: AbilityId::Freeze,
+            slot: Slot::Q,
+            cast_ms: 0.,
+            cooldown_ms: 1000.,
+            charges: 1,
+            target: Target::Self_,
+            own_order: false,
+            drops_lock: false,
+            effects: &[
+                Effect::Status {
+                    to: Side::Self_,
+                    kind: crate::status_runtime::StatusKind::Haste,
+                    ms: 1000.,
+                    value: Some(0.2),
+                },
+                Effect::Cloud {
+                    ms: 1000.,
+                    radius: 40.,
+                },
+            ],
+        }
+    }
 }
 
 /// Generic row validity: every number finite and in range, every reference a real verb field. Used by the harness for

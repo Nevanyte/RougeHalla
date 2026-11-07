@@ -300,11 +300,11 @@ mod row_harness {
         for id in rt::AbilityId::ALL {
             validate_row(a::definition(id)).expect("production row valid");
         }
-        validate_row(sample::ROW).expect("sample row valid");
+        validate_row(sample::row()).expect("sample row valid");
         let mut first = sim();
-        let l = landing_for(&first, sample::ROW.id, None);
+        let l = landing_for(&first, sample::row().id, None);
         let before = first.state_hash();
-        first.with_cx(|cx| run_row(cx, l, sample::ROW));
+        first.with_cx(|cx| run_row(cx, l, sample::row()));
         assert!(first.players()[0]
             .statuses
             .instances
@@ -318,7 +318,7 @@ mod row_harness {
         assert_ne!(first.state_hash(), before);
         // Determinism on an identical world, and a checkpoint round-trip keeps the same hash.
         let mut second = sim();
-        second.with_cx(|cx| run_row(cx, l, sample::ROW));
+        second.with_cx(|cx| run_row(cx, l, sample::row()));
         assert_eq!(first.state_hash(), second.state_hash());
         let restored = Sim::restore(serde_json::to_value(&first).unwrap()).unwrap();
         assert_eq!(restored.state_hash(), first.state_hash());
