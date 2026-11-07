@@ -129,10 +129,13 @@ catalog to a generated, corpus-verified table and the build to the source count 
    the conversion flag); recompute stores the conversion factor `1 + crit chance x (CRIT_MULT - 1)` when the folded flags hold
    `plagueDotCritConversion` on a Plague player, and `dot_mult` multiplies it in. Two focused tests pin the conversion and its
    absence off-faction. The hash tape is recalibrated for the changed fold.
+26. **Gallows Patience extends the Trial ring**: a player owning the card casts the zone with `GALLOWS_PATIENCE_EXTRA_MS` (2 s)
+   more life and `GALLOWS_PATIENCE_STUN_MS` (2.25 s) as its exit stun, replacing the row's own; a focused test pins both on the
+   Trial ability. Content hash `0x9f7a0ff31bf3b6d4`.
 
 ## Measurements
 
-- `cargo test --workspace --all-features --locked` (throwaway PostgreSQL): **1,408 passed, 0 failed, 3 ignored, 151 test
+- `cargo test --workspace --all-features --locked` (throwaway PostgreSQL): **1,409 passed, 0 failed, 3 ignored, 151 test
   binaries, exit 0** (after the full-pool drop, the 21/21 terrain kernel, the allocation-free on-hit hook, the Fists of Fury
   multiplicity, the streak memory, Wishful Thinking, heal over time, Second Wind's trigger, Spiked Shell's return, Tank Engine's fortify, Adrenaline's boost and the teleport resets).
 - Catalog differentials: **2/2** (80 cards × all rows/selections; 80 × 4 eligibility entries incl. reasons).
