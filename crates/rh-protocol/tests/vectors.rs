@@ -4,9 +4,9 @@ use rh_protocol::*;
 #[test]
 fn committed_vectors_match_the_encoder() {
     let path =
-        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../protocol/fixtures/v8.json");
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../protocol/fixtures/v9.json");
     let committed = std::fs::read_to_string(&path)
-        .expect("protocol/fixtures/v8.json (run the protocol-fixtures bin)");
+        .expect("protocol/fixtures/v9.json (run the protocol-fixtures bin)");
     assert_eq!(
         committed,
         manifest(),
@@ -51,6 +51,11 @@ fn malformed_server_frames_are_rejected_for_the_documented_reason() {
     let want = |name: &str| -> DecodeError {
         match name {
             "potion_notice_zero" | "potion_notice_unknown" => BadField("potion notice"),
+            "cannon_notice_zero"
+            | "cannon_notice_unknown"
+            | "cannon_notice_bad_seconds"
+            | "cannon_notice_seconds_over" => BadField("cannon notice"),
+            "cannon_notice_missing_seconds" => Truncated,
             "state_too_many_camps" | "state_too_many_projectiles" => TooMany(0),
             "projectile_kind" | "projectile_owner_zero" => BadField("projectile"),
             "projectile_owner_flag" => BadTag(2),

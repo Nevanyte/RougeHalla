@@ -42,6 +42,8 @@ const plans=decodeClient(bytes(fx.client.find(v=>v.name==="input_plan").hex));
 eq(JSON.stringify(plans.cmds),JSON.stringify([{k:"plan",spawn:0,boon:null,ready:null},{k:"plan",spawn:null,boon:1,ready:null},{k:"plan",spawn:null,boon:null,ready:true},{k:"plan",spawn:1,boon:0,ready:false}]),"planning commands");
 const chestRefusals=decode(bytes(fx.server.find(v=>v.name==="chest_refusals").hex));
 eq(JSON.stringify(chestRefusals.events),JSON.stringify([1,2,3,4,5,6,7,8,9].map(reason=>({k:"chestRefused",reason}))),"owner reward refusal reasons");
+const cannonNotices = decode(bytes(fx.server.find(v => v.name === "cannon_notices").hex));
+eq(JSON.stringify(cannonNotices.events), JSON.stringify([{k:"cannonNotice",code:1},{k:"cannonNotice",code:2},{k:"cannonNotice",code:3},{k:"cannonNotice",code:4,seconds:74}]), "cannon notice codes");
 const refusals = decode(bytes(fx.server.find(v => v.name === "pickup_refusals").hex));
 eq(JSON.stringify(refusals.events), JSON.stringify([1,2,3,4,5].map(reason => ({ k: "pickupRefused", reason }))), "owner refusal reasons");
 
@@ -51,7 +53,7 @@ const state = collectionTracker.decode(stateBytes);
 const publicField = {kind:2,ability:3,owner:null,subject:1,x:20,y:30,x2:40,y2:50,r:12,vx:-2,vy:0,startedAt:1000.5,endsAt:6000.5};
 eq(JSON.stringify(state.items), JSON.stringify([
   {key:1,value:{activeSlot:1,slots:[null,2],potionSmall:5,potionsHealing:3}},
-  {key:2,value:{rows:[{handle:1,x:800,y:900,kind:1,weapon:0},{handle:2,x:801,y:902,kind:2,open:true},{handle:3,x:802,y:903,kind:3,label:"\ufeffBÖB"}],focus:{handle:3,bodyHint:4}}},
+  {key:2,value:{rows:[{handle:1,x:800,y:900,kind:1,weapon:0},{handle:2,x:801,y:902,kind:2,open:true},{handle:3,x:802,y:903,kind:3,label:"\ufeffBÖB"},{handle:4,x:803,y:904,kind:4,readyAt:175000}],focus:{handle:3,bodyHint:4}}},
   {key:3,value:[publicField,publicField]},
   {key:4,value:[{handle:0xffffffff,x:100,y:200,expiresAt:15000,options:[{kind:1,id:0,taken:false,takenBy:null},{kind:2,id:7,taken:true,takenBy:1}],picked:false,canChoose:true}]},
   {key:5,value:{cards:[...Array(80)].map((_,i)=>i===0||i===2?1:0),boosts:[0,1,2,3,0,1,2,3]}},
@@ -69,7 +71,7 @@ collectionTracker.decode(bytes(fx.server.find(v => v.name === "snapshot").hex));
 eq(collectionTracker.collections.size, 7, "snapshot retains reliable collections");
 collectionTracker.decode(new Uint8Array([0x88,1,1,1,0]).buffer);
 eq(collectionTracker.collections.get(1), null, "missing inventory clears");
-eq(collectionTracker.collections.get(2).rows.length, 3, "missing key retains props");
+eq(collectionTracker.collections.get(2).rows.length, 4, "missing key retains props");
 const heldProps = JSON.stringify(collectionTracker.collections.get(2));
 let badState; try { collectionTracker.decode(new Uint8Array([0x88,2,2,2,0,0,6]).buffer); } catch(e) {badState=e;}
 eq(!!badState, true, "malformed later key is refused");
@@ -143,6 +145,7 @@ for (const v of fx.server) {
 const reason = {
   state_too_many_projectiles:/too many/,projectile_kind:/projectile/,projectile_owner_zero:/handle/,projectile_owner_flag:/option/,projectile_owner_overlong:/varint/,
   potion_notice_zero:/potion notice/,potion_notice_unknown:/potion notice/,state_too_many_camps:/too many/,
+  cannon_notice_zero:/cannon notice/,cannon_notice_unknown:/cannon notice/,cannon_notice_bad_seconds:/cannon notice/,cannon_notice_seconds_over:/cannon notice/,cannon_notice_missing_seconds:/./,
   camp_mob_type:/camp/,camp_elite:/camp/,camp_alive:/camp/,camp_state:/camp/,camp_negative_time:/camp/,camp_nonfinite_time:/field/,camp_time_order:/camp/,
   actor_mob_type_over_30:/mob type/,delta_actor_mob_type_over_30:/mob type/,
   chest_bad_reason_zero: /chest reason/, chest_bad_reason_unknown: /chest reason/,

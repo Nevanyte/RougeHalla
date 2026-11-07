@@ -188,6 +188,10 @@ pub struct SimConfig {
     pub hazards: crate::terrain::Mode,
     #[serde(default)]
     pub initial_loot: bool,
+    /// Installs the consumables module's travel producer (the source full-game profile). Off models the capture
+    /// worlds whose recorded installer list has no `consumables` entry; default and serde default true.
+    #[serde(default = "default_consumables")]
+    pub consumables: bool,
     pub min_players: usize,
     pub lobby_seconds: f64,
     pub fill_seconds: f64,
@@ -212,6 +216,10 @@ fn specials_enabled() -> bool {
     true
 }
 
+fn default_consumables() -> bool {
+    true
+}
+
 impl Default for SimConfig {
     fn default() -> Self {
         Self {
@@ -219,6 +227,7 @@ impl Default for SimConfig {
             wish_lock_ms: crate::abilities::WISH_LOCK_MS,
             lifecycle: crate::ArenaMode::Off,
             initial_loot: false,
+            consumables: true,
             hazards: crate::terrain::Mode::Off,
             min_players: 2,
             lobby_seconds: 30.0,

@@ -133,6 +133,17 @@ impl History {
     /// than `now - MAX_REWIND_MS - TICK_MS`, always keeping two (legacy `recordHistory`: push, then trim while longer than
     /// two). The trim runs first here, so the ring never holds more than the window; the resulting sequence is the same.
     pub fn record(&mut self, now: f64, x: f64, y: f64) {
+        // A displacement/reset earlier in this tick already recorded this tick's final position: the movement phase must
+        // not append a second sample with the same timestamp (the legacy list can hold the duplicate; a reader of the
+        // rewind history cannot tell the difference, and the checkpoint invariant requires samples a tick apart).
+        if self.len > 0 {
+            let last = (self.head as usize + self.len as usize - 1) % history_cap();
+            if self.buf[last].t == now {
+                self.buf[last] = Sample { t: now, x, y };
+                self.buf[last + history_cap()] = self.buf[last];
+                return;
+            }
+        }
         let cutoff = now - MAX_REWIND_MS - TICK_MS;
         let cap = history_cap();
         let (mut head, mut len) = (self.head as usize, self.len as usize);
@@ -390,6 +401,8 @@ pub enum ContainerKind {
     Ground,
     Chest,
     Body(PlayerId),
+    /// A travel cannon: no items; the public reload clock and landing live on the container.
+    Cannon,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -401,6 +414,12 @@ pub struct Container {
     pub opened: bool,
     /// First item at index zero, second if a body held both weapons.
     pub items: Vec<crate::initial_world::Item>,
+    /// A travel cannon's landing point (legacy `ContainerState.targetX/targetY`); `None` on every other kind.
+    #[serde(default)]
+    pub target: Option<Vec2>,
+    /// Server time the cannon reloads (legacy `ContainerState.readyAt`, uint32 ms); zero on every other kind.
+    #[serde(default)]
+    pub ready_at: f64,
     pub(crate) stat_offer: bool,
     pub(crate) born_tick: u32,
 }

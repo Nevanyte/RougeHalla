@@ -41,6 +41,11 @@ pub enum Event {
         id: PlayerId,
         notice: crate::potions::Notice,
     },
+    /// A private cannon notice (the source's own toast words).
+    CannonNotice {
+        id: PlayerId,
+        notice: CannonNotice,
+    },
     ChestRefused {
         id: PlayerId,
         reason: crate::reward_chests::Refusal,
@@ -236,9 +241,9 @@ impl Event {
             | Event::AttackCancelled { id }
             | Event::Stagger { id }
             | Event::Death { id, .. } => Visibility::IfSeen(id),
-            Event::PickupRefused { id, .. } | Event::PotionNotice { id, .. } => {
-                Visibility::Owner(id)
-            }
+            Event::PickupRefused { id, .. }
+            | Event::PotionNotice { id, .. }
+            | Event::CannonNotice { id, .. } => Visibility::Owner(id),
             Event::Bounty { .. } | Event::Victory { .. } => Visibility::Everyone,
             Event::AbilityHit { .. }
             | Event::MarkNotice { .. }
@@ -277,7 +282,9 @@ impl Event {
             | Event::Heal { .. }
             | Event::AttackCancelled { .. }
             | Event::Stagger { .. } => Class::Fx,
-            Event::PickupRefused { .. } | Event::PotionNotice { .. } => Class::Important,
+            Event::PickupRefused { .. }
+            | Event::PotionNotice { .. }
+            | Event::CannonNotice { .. } => Class::Important,
             Event::AbilityHit { .. }
             | Event::MarkNotice { .. }
             | Event::SignatureHit { .. }
@@ -287,6 +294,32 @@ impl Event {
             | Event::Windup { .. }
             | Event::Gv { .. }
             | Event::RaidEnded => Class::ServerOnly,
+        }
+    }
+}
+
+/// Private travel-cannon notices (legacy `consumables.ts useCannon` toasts).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum CannonNotice {
+    /// The coliseum fight locks every travel cannon.
+    Sealed,
+    /// The cannon is still reloading, with the source's rounded-up remaining whole seconds.
+    Reloading {
+        seconds: u32,
+    },
+    /// A stun or cast blocks entering a cannon.
+    CantEnter,
+    /// The blast landed and the cannon reloads for 75 s.
+    Blast,
+}
+impl CannonNotice {
+    /// The source toast words, with the reload split into its own sentence.
+    pub fn message(self) -> String {
+        match self {
+            Self::Sealed => "Cannons are sealed during the coliseum fight".into(),
+            Self::Reloading { seconds } => format!("Cannon reloads in {seconds}s"),
+            Self::CantEnter => "Can't enter a cannon now".into(),
+            Self::Blast => "Cannon blast! Reloading for 75s".into(),
         }
     }
 }

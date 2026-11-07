@@ -58,6 +58,7 @@ fn props(observation: &Observation) -> WireProps {
                     PropKind::Body { label } => WirePropKind::Body {
                         label: label.to_string(),
                     },
+                    PropKind::Cannon { ready_at } => WirePropKind::Cannon { ready_at: *ready_at },
                 },
             }
         })

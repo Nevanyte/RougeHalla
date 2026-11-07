@@ -212,6 +212,8 @@ fn add_items(
         at,
         opened: false,
         items,
+        target: None,
+        ready_at: 0.,
         stat_offer: false,
         born_tick: blocked_through(tick, between_ticks || kind == ContainerKind::Chest),
     });
@@ -372,6 +374,11 @@ pub(crate) fn pickup(cx: &mut Cx, ix: FighterIx, cmd: &ActionCmd) {
 }
 
 fn take(cx: &mut Cx, ix: FighterIx, i: usize) -> Result<(), PickupRefusal> {
+    // Source: the cannon branch sits after the pickup admission and before the chest/consumable/weapon branches.
+    if cx.w.containers[i].kind == ContainerKind::Cannon {
+        super::cannons::use_cannon(cx, ix, i);
+        return Ok(());
+    }
     if cx.w.containers[i].kind == ContainerKind::Chest {
         if !cx.w.containers[i].opened && cx.w.containers[i].stat_offer {
             let at = cx.w.containers[i].at;

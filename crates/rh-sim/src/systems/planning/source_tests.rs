@@ -135,6 +135,8 @@ pub(super) fn make(source: &Value, input: &Value) -> Sim {
             hazards: crate::terrain::Mode::Off,
             lifecycle: crate::ArenaMode::Source(rules),
             initial_loot: roster,
+            // The recorded arena capture profiles list no `consumables` installer: no travel cannons there.
+            consumables: false,
             mob_mode: if roster {
                 crate::mob_runtime::MobMode::Pve
             } else {

@@ -116,6 +116,8 @@ pub enum WirePropKind {
     Ground(u8),
     Chest { open: bool },
     Body { label: String },
+    /// A travel cannon with its server-time reload clock (the legacy `readyAt` countdown).
+    Cannon { ready_at: u32 },
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -588,6 +590,7 @@ impl WireProps {
                 WirePropKind::Ground(v) => check_weapon(Some(*v))?,
                 WirePropKind::Chest { .. } => {}
                 WirePropKind::Body { label } => str_fits("body label", label)?,
+                WirePropKind::Cannon { .. } => {}
             }
         }
         if let Some(focus) = self.focus {
@@ -616,6 +619,9 @@ impl WireProps {
                         + match &row.kind {
                             WirePropKind::Ground(_) | WirePropKind::Chest { .. } => 1,
                             WirePropKind::Body { label } => str_len(label),
+                            WirePropKind::Cannon { ready_at } => {
+                                varint_len(*ready_at)
+                            }
                         }
                 })
                 .sum::<usize>()
@@ -640,6 +646,10 @@ impl WireProps {
                 WirePropKind::Body { label } => {
                     w.u8(3);
                     w.str(label);
+                }
+                WirePropKind::Cannon { ready_at } => {
+                    w.u8(4);
+                    w.varint(*ready_at);
                 }
             }
         }
@@ -669,6 +679,9 @@ impl WireProps {
                     open: bool_flag(r)?,
                 },
                 3 => WirePropKind::Body { label: r.str()? },
+                4 => WirePropKind::Cannon {
+                    ready_at: r.varint()?,
+                },
                 _ => return Err(DecodeError::BadField("prop kind")),
             };
             rows.push(WireProp { handle, x, y, kind });

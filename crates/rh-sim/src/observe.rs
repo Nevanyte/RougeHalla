@@ -17,7 +17,7 @@ use crate::sim::{Event, Phase, PlayerId, Sim, Status};
 use crate::state::Player;
 use crate::vision::{actor_with, scene_line_blocked};
 
-pub const OBSERVATION_VERSION: u16 = 15;
+pub const OBSERVATION_VERSION: u16 = 16;
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct SelfView {
@@ -86,6 +86,10 @@ pub enum SeenEvent {
     },
     PotionNotice {
         notice: crate::potions::Notice,
+    },
+    /// A private travel-cannon notice (sealed, still reloading, cannot enter, or the blast).
+    CannonNotice {
+        notice: crate::events::CannonNotice,
     },
     ChestRefused {
         reason: crate::reward_chests::Refusal,
@@ -220,7 +224,8 @@ impl SeenEvent {
             | SeenEvent::ChestRefused { .. }
             | SeenEvent::MobArmed { .. }
             | SeenEvent::CampCleared { .. }
-            | SeenEvent::PotionNotice { .. } => Class::Important,
+            | SeenEvent::PotionNotice { .. }
+            | SeenEvent::CannonNotice { .. } => Class::Important,
         }
     }
 }
@@ -235,6 +240,7 @@ fn to_seen(e: &Event, can_see: &impl Fn(PlayerId) -> bool) -> Option<SeenEvent> 
         Event::MobArmed { weapon, .. } => Some(SeenEvent::MobArmed { weapon }),
         Event::CampCleared { camp } => Some(SeenEvent::CampCleared { camp }),
         Event::PotionNotice { notice, .. } => Some(SeenEvent::PotionNotice { notice }),
+        Event::CannonNotice { notice, .. } => Some(SeenEvent::CannonNotice { notice }),
         Event::ChestRefused { reason, .. } => Some(SeenEvent::ChestRefused { reason }),
         Event::ChestTaken { .. } => None,
         Event::Swing {

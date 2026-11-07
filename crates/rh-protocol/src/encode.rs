@@ -345,6 +345,7 @@ fn event_len(e: &WireEvent) -> usize {
     match e {
         WireEvent::PickupRefused { .. } => 2,
         WireEvent::ChestRefused { .. } | WireEvent::PotionNotice { .. } => 2,
+        WireEvent::CannonNotice { seconds, .. } => 2 + seconds.map_or(0, |_| 2),
         WireEvent::Death { by, .. } => 1 + 4 + opt_len(by.is_some(), 4),
         WireEvent::Bounty { .. } => 1 + 4 + 2,
         WireEvent::MatchEnded { winner, .. } => 1 + opt_len(winner.is_some(), 4) + 1,
@@ -850,6 +851,13 @@ impl Frame for ServerMsg {
                     {
                         return Err(EncodeError::BadValue("potion notice"));
                     }
+                    if matches!(e, WireEvent::CannonNotice { code, seconds }
+                        if !(1..=4).contains(code)
+                            || (*code == 4)
+                                != matches!(seconds, Some(s) if (1..=75).contains(s)))
+                    {
+                        return Err(EncodeError::BadValue("cannon notice"));
+                    }
                     if matches!(e, WireEvent::ChestRefused { reason } if !(1..=9).contains(reason))
                     {
                         return Err(EncodeError::BadValue("chest reason"));
@@ -979,6 +987,13 @@ impl Frame for ServerMsg {
                         WireEvent::PotionNotice { notice } => {
                             w.u8(7);
                             w.u8(*notice);
+                        }
+                        WireEvent::CannonNotice { code, seconds } => {
+                            w.u8(8);
+                            w.u8(*code);
+                            if let Some(seconds) = seconds {
+                                w.u16(*seconds);
+                            }
                         }
                         WireEvent::ChestRefused { reason } => {
                             w.u8(6);

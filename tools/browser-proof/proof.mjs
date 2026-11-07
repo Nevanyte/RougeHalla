@@ -64,8 +64,8 @@ try {
   await wait(a, () => window.__probe.deltaSnapshots > 20);
   const kinds = await a.evaluate(() => ({ first: window.__probe.firstSnapshotAfterWelcome, full: window.__probe.fullSnapshots, delta: window.__probe.deltaSnapshots, refused: window.__probe.refused, resyncs: window.__probe.resyncs }));
   const info0 = await a.evaluate(() => fetch("/info", { cache: "no-store" }).then((r) => r.json()));
-  info0.protocol === 8 && kinds.first[0] === "full" && kinds.delta > kinds.full && kinds.refused.length === 0 && kinds.resyncs === 0
-    ? pass("protocol_8_full_first_then_deltas", { protocol: info0.protocol, ...kinds }) : fail("protocol_8_full_first_then_deltas", JSON.stringify([info0.protocol, kinds]));
+  info0.protocol === 9 && kinds.first[0] === "full" && kinds.delta > kinds.full && kinds.refused.length === 0 && kinds.resyncs === 0
+    ? pass("protocol_9_full_first_then_deltas", { protocol: info0.protocol, ...kinds }) : fail("protocol_9_full_first_then_deltas", JSON.stringify([info0.protocol, kinds]));
 
   // A resync request is answered with a Full snapshot, and deltas continue from it.
   const f0 = await a.evaluate(() => window.__probe.fullSnapshots);
@@ -142,7 +142,7 @@ try {
   report.measured = { joinMs: pa.joinMs, resumeHelloToWelcomeMs: resumeMs, snapshots: pa.snapshots, fullSnapshots: pa.fullSnapshots, deltaSnapshots: pa.deltaSnapshots, resyncs: pa.resyncs, refusedDeltas: pa.refusedDeltas, fxFrames: pa.fx, rttMsP50: sorted[sorted.length >> 1], rttMsMax: sorted[sorted.length - 1], pageErrors: pa.errors, rejects: pa.rejects };
   report.serverInfo = await a.evaluate(() => fetch("/info", { cache: "no-store" }).then((r) => r.json()));
   consoleErrors.length === 0 && pa.errors.length === 0 ? pass("no_page_errors") : fail("no_page_errors", JSON.stringify([consoleErrors, pa.errors]));
-  const vectors = JSON.parse(readFileSync(resolve(repo, "protocol/fixtures/v7.json"), "utf8"));
+  const vectors = JSON.parse(readFileSync(resolve(repo, "protocol/fixtures/v8.json"), "utf8"));
   const mismatch = await a.evaluate((hex) => {
     const bytes = Uint8Array.from(hex.match(/../g), h => parseInt(h, 16)); bytes[1] = 4;
     const before = JSON.stringify({ welcome: window.__probe.welcome, snapshots: window.__probe.snapshots, base: tracker.base });

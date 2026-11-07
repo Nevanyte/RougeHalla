@@ -1,4 +1,4 @@
-//! The golden vectors: deterministic sample messages, and frames that must be rejected. `protocol/fixtures/v7.json` is
+//! The golden vectors: deterministic sample messages, and frames that must be rejected. `protocol/fixtures/v9.json` is
 //! generated from these (`cargo run -p rh-protocol --bin protocol-fixtures`) and read by the Rust, C# and JS tests. A
 //! Snapshot or Fx vector also carries what a client must DECODE (floats as their exact bit patterns), so the three decoders are
 //! held to the same quantization, not just to the same bytes.
@@ -207,6 +207,12 @@ fn state_sample() -> ServerMsg {
                             label: "\u{feff}BÖB".into(),
                         },
                     },
+                    WireProp {
+                        handle: PickupHandle::new(4).unwrap(),
+                        x: 803,
+                        y: 904,
+                        kind: WirePropKind::Cannon { ready_at: 175000 },
+                    },
                 ],
                 focus: Some(WireFocus {
                     handle: PickupHandle::new(3).unwrap(),
@@ -313,6 +319,30 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
                 events: (1..=9)
                     .map(|reason| WireEvent::ChestRefused { reason })
                     .collect(),
+            },
+        ),
+        (
+            "cannon_notices",
+            ServerMsg::Events {
+                tick: 12,
+                events: vec![
+                    WireEvent::CannonNotice {
+                        code: 1,
+                        seconds: None,
+                    },
+                    WireEvent::CannonNotice {
+                        code: 2,
+                        seconds: None,
+                    },
+                    WireEvent::CannonNotice {
+                        code: 3,
+                        seconds: None,
+                    },
+                    WireEvent::CannonNotice {
+                        code: 4,
+                        seconds: Some(74),
+                    },
+                ],
             },
         ),
         (
@@ -1007,6 +1037,20 @@ pub fn malformed_server() -> Vec<(&'static str, Vec<u8>)> {
     trailing.push(0);
     vec![
         ("potion_notice_zero", vec![0x84, 0, 0, 0, 0, 1, 0, 7, 0]),
+        ("cannon_notice_zero", vec![0x84, 0, 0, 0, 0, 1, 0, 8, 0]),
+        ("cannon_notice_unknown", vec![0x84, 0, 0, 0, 0, 1, 0, 8, 5]),
+        (
+            "cannon_notice_bad_seconds",
+            vec![0x84, 0, 0, 0, 0, 1, 0, 8, 4, 0, 0],
+        ),
+        (
+            "cannon_notice_seconds_over",
+            vec![0x84, 0, 0, 0, 0, 1, 0, 8, 4, 76, 0],
+        ),
+        (
+            "cannon_notice_missing_seconds",
+            vec![0x84, 0, 0, 0, 0, 1, 0, 8, 4],
+        ),
         ("potion_notice_unknown", vec![0x84, 0, 0, 0, 0, 1, 0, 7, 8]),
         ("state_too_many_projectiles", vec![0x88, 0, 1, 7, 0x81, 4]),
         (

@@ -317,4 +317,6 @@ content! {
     TERRAIN_EPS: f64 = 1e-9, "terrain source rule";
     TERRAIN_V_EPS: f64 = 1e-6, "terrain source rule";
 
+    CANNON_COOLDOWN_MS: f64 = 75_000., "ms";
+
 }

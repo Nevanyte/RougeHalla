@@ -1,7 +1,7 @@
 //! Roguehalla wire protocol, version [`PROTOCOL_VERSION`]. One message per WebSocket BINARY frame (the only transport a
 //! browser build can use; served as wss:// in production). Little-endian, no reflection: the C# mirror
 //! (`client-unity/RoguehallaNet`) and the JS probe decode the same bytes, and all are held to the golden vectors in
-//! `protocol/fixtures/v8.json` (docs/CONTRACTS.md C-NET).
+//! `protocol/fixtures/v9.json` (docs/CONTRACTS.md C-NET).
 //!
 //! Frame layout: `[tag u8][body]`. Strings: `u8 length + UTF-8`. Blobs: `u16 length + bytes`. Optional values: `u8 flag (0/1) +
 //! value`. Lists: `u16 count + items`. Floats are IEEE-754; a decoder REJECTS non-finite floats in client messages. Unknown
@@ -37,6 +37,11 @@
 //! 9 is the public arena lifecycle view: lobby/plan/raid timers, optional patience deadline, in-coliseum and gates-locked
 //! flags, the sudden-death deadline and the starter count. Both keys are complete replacements; key 8 is only ever built
 //! from the owner's own observation.
+//!
+//! Protocol 9 adds the travel cannon: prop kind 4 (Cannon) carries the load-ready varint after its position, and
+//! CannonNotice (Events 8) carries only a notice code byte (1 sealed, 2 cannot enter, 3 blast) plus, for code 4
+//! (reloading), the source's rounded-up remaining whole seconds as u16 1..=75. Both are owner-filtered where they name a
+//! player and never carry a world container id.
 //!
 //! # Field masks (protocol v4; docs/adr/0011-protocol-v4.md)
 //!
@@ -131,7 +136,7 @@ pub use delta::{
 pub use encode::{encode_welcome, encode_welcome_into, WelcomeHeader};
 
 /// Bump on any incompatible change (a new tag or field in an existing message). Both ends refuse another major version.
-pub const PROTOCOL_VERSION: u16 = 8;
+pub const PROTOCOL_VERSION: u16 = 9;
 /// Milliseconds per server tick (20 Hz). A Snapshot carries `tick` only: its server time is `tick * TICK_MS` exactly.
 pub const TICK_MS: u32 = 50;
 
@@ -401,6 +406,11 @@ pub enum WireEvent {
     },
     ChestRefused {
         reason: u8,
+    },
+    /// The owner's travel-cannon notice: 1 sealed, 2 cannot enter, 3 blast, or 4 reloading with the remaining seconds.
+    CannonNotice {
+        code: u8,
+        seconds: Option<u16>,
     },
 }
 
@@ -930,6 +940,21 @@ impl ServerMsg {
                                 return Err(DecodeError::BadField("potion notice"));
                             }
                             WireEvent::PotionNotice { notice }
+                        }
+                        8 => {
+                            let code = r.u8()?;
+                            let seconds = match code {
+                                1..=3 => None,
+                                4 => {
+                                    let s = r.u16()?;
+                                    if !(1..=75).contains(&s) {
+                                        return Err(DecodeError::BadField("cannon notice"));
+                                    }
+                                    Some(s)
+                                }
+                                _ => return Err(DecodeError::BadField("cannon notice")),
+                            };
+                            WireEvent::CannonNotice { code, seconds }
                         }
                         6 => {
                             let reason = r.u8()?;

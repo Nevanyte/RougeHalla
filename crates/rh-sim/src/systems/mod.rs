@@ -9,6 +9,9 @@
 //! called from anywhere else, and a mechanic packet adds `systems/<mechanic>.rs` plus the flip of its rows.
 
 pub(crate) mod abilities;
+pub(crate) mod cannons;
+#[cfg(test)]
+mod cannons_source_tests;
 pub(crate) mod credit;
 pub(crate) mod displace;
 pub(crate) mod fields;

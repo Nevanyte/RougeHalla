@@ -1071,6 +1071,7 @@ const VALIDATED: &[(&str, &str)] = &[
     ("world.players.*.potions_healing", "active-count mirror must equal the actual Small potion queue length"),
     ("statics.config.mob_mode", "mode requires matching admitted camp layers and typed runtime/provenance"),
     ("statics.config.initial_loot", "constructor mode must match the replayed initial item storage and RNG prefix"),
+    ("statics.config.consumables", "the travel producer must match the replayed constructor's consumables module profile"),
     ("world.initial_birth_serial", "constructor boundary must equal the real initial allocations"),
     ("world.next_id", "next allocation must follow the complete contiguous typed actor history"),
     ("world.actor_history.#len", "retained provenance must account for every player and mob allocation"),

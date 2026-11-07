@@ -41,9 +41,10 @@ pub(crate) fn launch(e: &Event) -> Option<Value> {
 pub(crate) fn canon(e: &Event, sim: &Sim) -> Option<Value> {
     use serde_json::json;
     Some(rounded(match e {
-        Event::MobArmed { .. } | Event::CampCleared { .. } | Event::PotionNotice { .. } => {
-            return None
-        } // Dedicated PvE/initial-loot source projections cover these.
+        Event::MobArmed { .. }
+        | Event::CampCleared { .. }
+        | Event::PotionNotice { .. }
+        | Event::CannonNotice { .. } => return None, // Dedicated PvE/initial-loot source projections cover these.
         Event::ChestRefused { id, reason } => {
             json!({"kind":"toast","to":fid(*id),"text":reason.message()})
         }

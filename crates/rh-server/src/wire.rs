@@ -60,7 +60,8 @@ const WISH_UNSUPPORTED: &str = "Full Wish casting requires protocol 7 input and 
 
 /// Admission guard, independent of the current phase (including Source Lobby and Planning). Protocol 8 carries the
 /// source lifecycle transport: phase code 3 (Planning), Fx 5 (Teleported) and State keys 8 (the viewer's own plan) and 9
-/// (the public arena view). Full Wish casting still has no owner facts on any protocol version.
+/// (the public arena view); protocol 9 carries the travel cannon as prop kind 4 and the owner-only cannon notice
+/// (Events 8). Full Wish casting still has no owner facts on any protocol version.
 pub fn profile_supported(config: &rh_sim::SimConfig) -> Result<(), rh_protocol::EncodeError> {
     if config.abilities == rh_sim::abilities::Mode::Full {
         return Err(rh_protocol::EncodeError::BadValue(WISH_UNSUPPORTED));
@@ -80,7 +81,7 @@ pub fn checked_phase(p: Phase) -> Result<u8, rh_protocol::EncodeError> {
 
 /// Compatibility wrapper for supported-profile callers; never invents a wire phase.
 pub fn phase(p: Phase) -> u8 {
-    checked_phase(p).expect("protocol 8 carries every native phase")
+    checked_phase(p).expect("protocol 9 carries every native phase")
 }
 
 fn observation_supported(obs: &Observation) -> Result<(), rh_protocol::EncodeError> {
@@ -181,7 +182,7 @@ fn wire_actor(a: &rh_sim::observe::ActorView) -> WireActor {
 }
 
 pub fn snapshot(obs: &Observation, ack_input: u32) -> ServerMsg {
-    checked_snapshot(obs, ack_input).expect("protocol 8 carries every admitted observation")
+    checked_snapshot(obs, ack_input).expect("protocol 9 carries every admitted observation")
 }
 
 pub fn checked_snapshot(
@@ -285,6 +286,18 @@ fn to_wire(e: &SeenEvent) -> Wire {
                 rh_sim::potions::Notice::Busy => 5,
                 rh_sim::potions::Notice::Full => 6,
                 rh_sim::potions::Notice::Empty => 7,
+            },
+        }),
+        SeenEvent::CannonNotice { notice } => Wire::Event(WireEvent::CannonNotice {
+            code: match notice {
+                rh_sim::events::CannonNotice::Sealed => 1,
+                rh_sim::events::CannonNotice::CantEnter => 2,
+                rh_sim::events::CannonNotice::Blast => 3,
+                rh_sim::events::CannonNotice::Reloading { .. } => 4,
+            },
+            seconds: match notice {
+                rh_sim::events::CannonNotice::Reloading { seconds } => u16::try_from(seconds).ok(),
+                _ => None,
             },
         }),
         SeenEvent::MobArmed { .. } | SeenEvent::CampCleared { .. } => Wire::Omitted,
@@ -1280,7 +1293,7 @@ mod tests {
     #[test]
     fn omitted_effect_announcements_leave_frames_and_redaction_unchanged() {
         use rh_sim::status_runtime::{AbilityId, CastEndReason, StatusKind};
-        assert_eq!(rh_protocol::PROTOCOL_VERSION, 8);
+        assert_eq!(rh_protocol::PROTOCOL_VERSION, 9);
         let env = seed1_match(1);
         let id = env.sim.players()[0].id;
         let mut publisher = Publisher::default();

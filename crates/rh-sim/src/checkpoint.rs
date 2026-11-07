@@ -389,6 +389,14 @@ fn check_world(k: &MatchStatic, w: &World) -> Result<(), String> {
                     || !matches!(c.items[0].def, crate::initial_world::ItemDef::Weapon(_))))
             || (c.kind != crate::ContainerKind::Chest && c.opened)
             || matches!(c.kind, crate::ContainerKind::Body(id) if w.roster.name(id).is_none())
+            || (c.kind == crate::ContainerKind::Cannon
+                && (c.opened
+                    || !c.items.is_empty()
+                    || c.target.is_none_or(|t| !near(t.x, t.y))
+                    || !c.ready_at.is_finite()
+                    || !(0.0..=u32::MAX as f64).contains(&c.ready_at)))
+            || (c.kind != crate::ContainerKind::Cannon
+                && (c.target.is_some() || c.ready_at != 0.0))
         {
             return Err(format!("invalid container {}", c.id));
         }

@@ -436,6 +436,7 @@ async fn main() {
             rh_sim::mob_runtime::MobMode::Off
         },
         initial_loot: profile_enabled,
+        consumables: profile_enabled,
         min_players: first_playable
             .as_ref()
             .map_or_else(|| num("--min-players", 2.0) as usize, |p| p.min_players),

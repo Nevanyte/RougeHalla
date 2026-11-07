@@ -524,7 +524,7 @@ namespace Roguehalla.Net.Protocol
         public ushort Bounty, Effects;
     }
 
-    public enum EventKind : byte { Death = 1, Bounty = 2, MatchEnded = 3, Result = 4, PickupRefused = 5, ChestRefused = 6, PotionNotice = 7 }
+    public enum EventKind : byte { Death = 1, Bounty = 2, MatchEnded = 3, Result = 4, PickupRefused = 5, ChestRefused = 6, PotionNotice = 7, CannonNotice = 8 }
 
     /// <summary>Reliable, ordered events. Only the fields of its Kind are meaningful.</summary>
     public sealed class WireEvent
@@ -536,7 +536,8 @@ namespace Roguehalla.Net.Protocol
         public uint? Winner;
         public bool Draw;
         public WireResult Result;
-        public byte PickupReason, ChestReason, PotionNotice;
+        public byte PickupReason, ChestReason, PotionNotice, CannonCode;
+        public ushort? CannonSeconds;
     }
 
     public sealed class WireResult
@@ -617,6 +618,11 @@ namespace Roguehalla.Net.Protocol
                             case 5: ev.PickupReason = r.U8(); if (ev.PickupReason < 1 || ev.PickupReason > 5) throw new DecodeException(DecodeError.BadField, "pickup reason"); break;
                             case 7: ev.PotionNotice=r.U8(); if(ev.PotionNotice<1 || ev.PotionNotice>7) throw new DecodeException(DecodeError.BadField,"potion notice"); break;
                             case 6: ev.ChestReason = r.U8(); if(ev.ChestReason < 1 || ev.ChestReason > 9) throw new DecodeException(DecodeError.BadField,"chest reason");break;
+                            case 8:
+                                ev.CannonCode = r.U8();
+                                if (ev.CannonCode < 1 || ev.CannonCode > 4) throw new DecodeException(DecodeError.BadField, "cannon notice");
+                                if (ev.CannonCode == 4) { ev.CannonSeconds = r.U16(); if (ev.CannonSeconds < 1 || ev.CannonSeconds > 75) throw new DecodeException(DecodeError.BadField, "cannon notice"); }
+                                break;
                             case 1: ev.Id = r.U32(); if (r.Flag()) ev.By = r.U32(); break;
                             case 2: ev.Id = r.U32(); ev.Bounty = r.U16(); break;
                             case 3: if (r.Flag()) ev.Winner = r.U32(); ev.Draw = r.U8() != 0; break;
@@ -943,6 +949,9 @@ namespace Roguehalla.Net.Protocol
                         case EventKind.Bounty: len += 7; break;
                         case EventKind.MatchEnded: len += 3 + (e.Winner.HasValue ? 4 : 0); break;
                         case EventKind.PotionNotice: case EventKind.PickupRefused: case EventKind.ChestRefused: len += 2; break;
+                        case EventKind.CannonNotice:
+                            if (e.CannonCode < 1 || e.CannonCode > 4 || (e.CannonCode == 4) != e.CannonSeconds.HasValue || (e.CannonSeconds.HasValue && (e.CannonSeconds.Value < 1 || e.CannonSeconds.Value > 75))) throw new ArgumentException("cannon notice");
+                            len += 2 + (e.CannonSeconds.HasValue ? 2 : 0); break;
                         case EventKind.Result: len += 20 + (e.Result.KilledBy == null ? 0 : 1 + System.Text.Encoding.UTF8.GetByteCount(e.Result.KilledBy)); break;
                         default: throw new EncodeException("event kind");
                     }
@@ -958,6 +967,9 @@ namespace Roguehalla.Net.Protocol
                         case EventKind.PotionNotice: if(e.PotionNotice<1 || e.PotionNotice>7) throw new ArgumentException("potion notice");w.U8(e.PotionNotice);break;
                         case EventKind.ChestRefused: if(e.ChestReason < 1 || e.ChestReason > 9) throw new ArgumentException("chest reason");w.U8(e.ChestReason);break;
                         case EventKind.PickupRefused: if (e.PickupReason < 1 || e.PickupReason > 5) throw new ArgumentException("pickup reason"); w.U8(e.PickupReason); break;
+                        case EventKind.CannonNotice:
+                            if (e.CannonCode < 1 || e.CannonCode > 4 || (e.CannonCode == 4) != e.CannonSeconds.HasValue || (e.CannonSeconds.HasValue && (e.CannonSeconds.Value < 1 || e.CannonSeconds.Value > 75))) throw new ArgumentException("cannon notice");
+                            w.U8(e.CannonCode); if (e.CannonSeconds.HasValue) w.U16(e.CannonSeconds.Value); break;
                         case EventKind.Death: w.U32(e.Id); if (e.By.HasValue) { w.U8(1); w.U32(e.By.Value); } else w.U8(0); break;
                         case EventKind.Bounty: w.U32(e.Id); w.U16(e.Bounty); break;
                         case EventKind.MatchEnded: if (e.Winner.HasValue) { w.U8(1); w.U32(e.Winner.Value); } else w.U8(0); w.U8((byte)(e.Draw ? 1 : 0)); break;
