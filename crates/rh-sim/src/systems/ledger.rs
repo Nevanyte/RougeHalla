@@ -129,7 +129,20 @@ impl PayLater {
     ) {
         match self {
             PayLater::MobWakes => super::mob_life::settle_wakes(k, w),
-            PayLater::CampCleared { camp } => ev.push(Event::CampCleared { camp }),
+            PayLater::CampCleared { camp } => {
+                // camps.ts payLater: the `campCleared` fx first, then the chainable `campCleared` hook.
+                ev.push(Event::CampCleared { camp });
+                crate::hooks::fire(
+                    &mut crate::hooks::Hx {
+                        stats,
+                        k,
+                        w,
+                        ev,
+                        fx: None,
+                    },
+                    crate::hooks::HookArgs::CampCleared { camp },
+                );
+            }
             PayLater::MobKill { award } => super::mob_life::pay(k, w, ev, award),
             #[cfg(feature = "trusted-status-probes")]
             PayLater::ProbeNested { victim, source } => {

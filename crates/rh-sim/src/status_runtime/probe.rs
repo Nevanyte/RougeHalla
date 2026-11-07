@@ -63,6 +63,19 @@ pub enum HookRecord {
     Staggered {
         actor: PlayerId,
     },
+    /// Producer witness for the regional mob kill hook (the source consumers stay Pending).
+    MobKilled {
+        killer: PlayerId,
+        mob_type: crate::mob_catalog::MobTypeId,
+        zone: crate::FactionId,
+        camp: i32,
+        elite: bool,
+        at: Vec2,
+    },
+    /// Producer witness for the regional camp clear hook (the source consumers stay Pending).
+    CampCleared {
+        camp: u32,
+    },
 }
 #[derive(Clone, Copy, Debug, PartialEq, serde::Serialize)]
 pub enum HealSource {
@@ -133,6 +146,22 @@ pub(crate) fn record_hook(w: &mut World, args: &HookArgs) {
         HookArgs::Teleported => Some(HookRecord::Teleported),
         HookArgs::RunEnded => Some(HookRecord::RunEnded),
         HookArgs::Staggered { id } => Some(HookRecord::Staggered { actor: *id }),
+        HookArgs::MobKilled {
+            killer,
+            mob_type,
+            zone,
+            camp,
+            elite,
+            at,
+        } => Some(HookRecord::MobKilled {
+            killer: *killer,
+            mob_type: *mob_type,
+            zone: *zone,
+            camp: *camp,
+            elite: *elite,
+            at: *at,
+        }),
+        HookArgs::CampCleared { camp } => Some(HookRecord::CampCleared { camp: *camp }),
         _ => None,
     };
     if let Some(r) = record {

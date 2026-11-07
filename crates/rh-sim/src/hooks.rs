@@ -24,6 +24,7 @@ use crate::schedule::{self, Gates, Hook, Run};
 use crate::state::{PlayerId, World};
 use crate::statics::MatchStatic;
 use crate::systems::ledger::{self, PayLater};
+use crate::Vec2;
 
 /// What a hook link may touch (see the module docs).
 pub(crate) struct Hx<'a> {
@@ -123,6 +124,24 @@ pub(crate) enum HookArgs {
     },
     /// The run just ended: results are out and the phase is ended (legacy `runEnded(world)`).
     RunEnded,
+    /// A regional mob died and its spoils were paid (legacy `mobKilled(world, killerRt, mob)`): the killer's runtime
+    /// and the dead mob's identity/location. The source chests and quests links stay Pending (P-CARDS-2/P-QUEST-1);
+    /// this packet owns only the producer call site at the source position.
+    MobKilled {
+        killer: PlayerId,
+        mob_type: crate::mob_catalog::MobTypeId,
+        zone: crate::FactionId,
+        /// The camp's 0-based index in `map.camps` (source `MobState.camp - 1`).
+        camp: i32,
+        elite: bool,
+        at: Vec2,
+    },
+    /// The last member of a regional camp died (legacy `campCleared(world, camp)`, the camp's 0-based index): the
+    /// clear was paid after the ledger pass. The source chest/heal/quest/bruiser links stay Pending (P-CARDS-2,
+    /// P-MOBS-2, P-QUEST-1, P-FACTION-5); this packet owns only the producer call site.
+    CampCleared {
+        camp: u32,
+    },
 }
 
 impl HookArgs {
@@ -145,6 +164,8 @@ impl HookArgs {
             HookArgs::PlayerKilled { .. } => Hook::PlayerKilled,
             HookArgs::ExecuteDenied { .. } => Hook::ExecuteDenied,
             HookArgs::RunEnded => Hook::RunEnded,
+            HookArgs::MobKilled { .. } => Hook::MobKilled,
+            HookArgs::CampCleared { .. } => Hook::CampCleared,
         }
     }
 }
