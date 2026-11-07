@@ -108,6 +108,10 @@ fn walking_over_an_emblem_grants_the_boost_and_expiry_clears_it() {
         super::speed_source(&s.w, core, view).expect("boosted")
     };
     assert_eq!(had.speed_mult, Some(SPEED_BOOST_MULT));
+    // The system's expiry loop clears a deadline the clock has reached (the source no longer answers).
+    s.w.players[0].speed_boost_until = s.server_time();
+    s.step_into(&mut Vec::new());
+    assert_eq!(s.players()[0].speed_boost_until, 0.0, "expired by the system");
     s.w.players[0].speed_boost_until = 0.0;
     let gone = {
         let core = &s.w.players[0].core;

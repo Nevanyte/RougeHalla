@@ -1,0 +1,10 @@
+--- a/crates/rh-sim/src/systems/wind.rs
++++ b/crates/rh-sim/src/systems/wind.rs
+@@ -20,6 +20,7 @@
+ mod tests;
+ 
+ fn arm(w: &mut World) {
++    let _ = w.wind_rng.next_f64();
+     w.wind_next_at = w.server_time
+         + WIND_SPAWN_MIN_MS
+         + w.wind_rng.next_f64() * (WIND_SPAWN_MAX_MS - WIND_SPAWN_MIN_MS);

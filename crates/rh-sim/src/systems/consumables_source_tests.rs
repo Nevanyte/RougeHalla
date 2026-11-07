@@ -280,3 +280,68 @@ fn camp_cases_match_the_source_reward() {
         }
     }
 }
+
+#[test]
+fn wind_emblems_match_the_source_tick_by_tick() {
+    let src = source();
+    let wind = &src["wind"];
+    let order_salt = wind["orderSalt"].as_u64().unwrap() as u32;
+    let start = wind["start"].as_array().unwrap();
+    let placements: Vec<crate::Placement> = start
+        .iter()
+        .map(|p| crate::Placement {
+            profile: p["id"].as_str().unwrap().to_string(),
+            faction: if p["id"] == "p0" {
+                FactionId::Fire
+            } else {
+                FactionId::Holy
+            },
+            bot: false,
+            at: Vec2::new(num(p, "x"), num(p, "y")),
+            hp: None,
+            weapon0: None,
+            weapon1: None,
+        })
+        .collect();
+    let mut sim = Sim::reset_active(
+        SimConfig::default(),
+        camp_arena(),
+        Secrets {
+            order_salt,
+            reward_salt: [0; 4],
+            spawn_seed: 0,
+        },
+        &placements,
+    );
+    let mut compared = 0u32;
+    for frame in wind["frames"].as_array().unwrap() {
+        sim.step();
+        let tick = frame["tick"].as_u64().unwrap();
+        assert_eq!(u64::from(sim.tick()), tick, "tick sequence");
+        let want: Vec<(f64, f64)> = frame["emblems"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|e| (num(e, "x"), num(e, "y")))
+            .collect();
+        let mut got: Vec<(f64, f64)> = sim
+            .containers()
+            .iter()
+            .filter(|c| c.kind == crate::ContainerKind::WindEmblem)
+            .map(|c| (c.at.x, c.at.y))
+            .collect();
+        got.sort_by(|a, b| a.0.total_cmp(&b.0).then(a.1.total_cmp(&b.1)));
+        assert_eq!(got, want, "tick {tick} emblems");
+        let boosts: Vec<f64> = frame["boosts"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|v| v.as_f64().unwrap())
+            .collect();
+        let got_boosts: Vec<f64> = sim.players().iter().map(|p| p.speed_boost_until).collect();
+        assert_eq!(got_boosts, boosts, "tick {tick} boost clock");
+        compared += 1;
+    }
+    assert_eq!(compared, 1600);
+}
+
