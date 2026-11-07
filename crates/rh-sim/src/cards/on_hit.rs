@@ -33,26 +33,71 @@ fn hit_taken_rows(hx: &mut Hx, entry: &crate::systems::ledger::Entry, applied: f
     let Some(by) = entry.by else { return };
     let weapon = victim.core.active_weapon();
     let returned = victim.modifiers.returned_mult();
-    let mut rows = [(0., false, 0.); 4];
+    let mut rows = [(0., crate::cards::TriggerAction::Cooldown { ms: 0. }); 4];
     let mut n = 0;
     for card in victim.build.cards() {
         for row in card.definition().rows {
             if let CardRow::Trigger(t) = row {
-                if t.on == crate::cards::TriggerOn::HitTaken {
-                    if let crate::cards::TriggerAction::Return { melee, share } = t.action {
-                        if n < rows.len() {
-                            rows[n] = (t.arg, melee, share);
-                            n += 1;
-                        }
-                    }
+                if t.on == crate::cards::TriggerOn::HitTaken && n < rows.len() {
+                    rows[n] = (t.arg, t.action);
+                    n += 1;
                 }
             }
         }
     }
-    for &(arg, melee, share) in &rows[..n] {
+    for &(arg, action) in &rows[..n] {
         if arg > 0. && !(applied >= arg * max_hp - 1e-9) {
             continue;
         }
+        let (melee, share) = match action {
+            crate::cards::TriggerAction::Return { melee, share } => (melee, share),
+            crate::cards::TriggerAction::Boost { as_, move_, ms } => {
+                let vix = hx.w.idx(entry.victim).unwrap();
+                crate::cards::start_boost(&mut hx.w.players[vix], hx.w.server_time, as_, move_, ms);
+                crate::modifiers::recompute(hx.k, hx.w, crate::fighter::FighterIx::of_slot(vix));
+                continue;
+            }
+            crate::cards::TriggerAction::Status {
+                to,
+                status,
+                ms,
+                value,
+            } => {
+                let target = match to {
+                    crate::cards::Side::Self_ => entry.victim,
+                    crate::cards::Side::Target => by,
+                };
+                let Some(name) = hx.w.roster.label(entry.victim).cloned() else {
+                    continue;
+                };
+                crate::systems::status::operations::apply_with(
+                    hx.k,
+                    hx.w,
+                    hx.ev,
+                    target,
+                    crate::status_runtime::StatusApply {
+                        kind: status,
+                        source: crate::status_runtime::StatusSource {
+                            id: Some(entry.victim),
+                            name,
+                            owner_id: None,
+                        },
+                        ms,
+                        ability: None,
+                        tag: Some(crate::status_runtime::StatusTag::Text(
+                            std::sync::Arc::from("hitTaken"),
+                        )),
+                        value,
+                        add: None,
+                        data: None,
+                    },
+                    true,
+                    hx.stats,
+                );
+                continue;
+            }
+            _ => continue,
+        };
         if melee && !entry.weapon.is_some_and(swings) {
             continue;
         }
@@ -637,5 +682,96 @@ mod tests {
             deferred.packet.raw
         );
         assert_eq!(deferred.packet.phys, 1.);
+    }
+
+    #[test]
+    fn adrenaline_boosts_attack_and_move_speed_on_a_hit_taken() {
+        use crate::content::WeaponId;
+        use crate::state::Packet;
+        use crate::{arenas, FactionId, Placement, PlayerId, Secrets, Sim, SimConfig, Vec2};
+
+        let ps = [
+            Placement {
+                profile: "a".into(),
+                faction: FactionId::Fire,
+                bot: false,
+                at: Vec2::new(400., 400.),
+                hp: None,
+                weapon0: None,
+                weapon1: None,
+            },
+            Placement {
+                profile: "b".into(),
+                faction: FactionId::Holy,
+                bot: false,
+                at: Vec2::new(456., 400.),
+                hp: None,
+                weapon0: None,
+                weapon1: None,
+            },
+        ];
+        let mut sim = Sim::reset_active(
+            SimConfig::default(),
+            arenas::practice_arena(),
+            Secrets::from_seed(7),
+            &ps,
+        );
+        assert!(crate::cards::grant(
+            &sim.k,
+            &mut sim.w,
+            PlayerId(2),
+            crate::cards::CardId::Adrenaline
+        ));
+        let i = sim.w.idx(PlayerId(2)).unwrap();
+        let before_as = sim.w.players[i].modifiers.mirrors().as_mult;
+        let now = sim.w.server_time;
+        let mut ev = Vec::new();
+        let entry = crate::systems::ledger::Entry {
+            terrain: false,
+            dot: false,
+            ability: None,
+            arena: false,
+            source: None,
+            critical: false,
+            critical_mult: None,
+            sig: None,
+            execute: false,
+            victim: PlayerId(2),
+            by: Some(PlayerId(1)),
+            packet: Packet {
+                raw: 200.,
+                phys: 1.,
+                magic: 0.,
+                true_: 0.,
+            },
+            weapon: Some(WeaponId::Sword),
+            stagger: false,
+            projectile: None,
+            scale: 1.,
+            derived: false,
+            passive: false,
+        };
+        let mut hx = crate::hooks::Hx {
+            stats: Default::default(),
+            fx: None,
+            k: &sim.k,
+            w: &mut sim.w,
+            ev: &mut ev,
+        };
+        apply(
+            &mut hx,
+            &crate::hooks::HookArgs::HitLanded {
+                entry,
+                amount: 200.,
+            },
+        );
+        let p = hx.w.player(PlayerId(2)).unwrap();
+        assert!((p.card_boost.as_mult - 1.4).abs() < 1e-9);
+        assert!((p.card_boost.move_mult - 1.4).abs() < 1e-9);
+        assert!((p.card_boost.until - (now + 2000.)).abs() < 1e-9);
+        assert!(
+            p.modifiers.mirrors().as_mult > before_as,
+            "the fold includes the boost"
+        );
     }
 }

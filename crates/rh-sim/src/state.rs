@@ -494,6 +494,9 @@ pub struct Player {
     /// The once-trigger cards that already fired this run (source `PlayerRuntime.fired`).
     #[serde(default)]
     pub card_fired: Vec<crate::cards::CardId>,
+    /// Adrenaline's running boost (source `cards.boostAs/boostMove/boostUntil`).
+    #[serde(default)]
+    pub card_boost: crate::cards::Boost,
     /// Tank Engine's prevented-damage tally (source `cards.prevented`).
     #[serde(default)]
     pub card_prevented: f64,
@@ -553,6 +556,7 @@ impl Player {
             card_trims: Vec::new(),
             card_hots: Vec::new(),
             card_fired: Vec::new(),
+            card_boost: crate::cards::Boost::default(),
             card_prevented: 0.,
             card_tank_hp: 0.,
             build: Default::default(),

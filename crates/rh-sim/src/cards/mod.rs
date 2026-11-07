@@ -64,6 +64,42 @@ pub fn heal_over_time_steps(ms: f64) -> u32 {
     ((ms / crate::constants::HEAL_OVER_TIME_STEP_MS).round() as u32).max(1)
 }
 
+/// Adrenaline's runtime boost (source `cards.boostAs/boostMove/boostUntil`): factors applied while `until` is in the future.
+#[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Boost {
+    pub as_mult: f64,
+    pub move_mult: f64,
+    pub until: f64,
+}
+
+impl Default for Boost {
+    fn default() -> Self {
+        Self {
+            as_mult: 1.,
+            move_mult: 1.,
+            until: 0.,
+        }
+    }
+}
+
+/// Source `startBoost`: a running boost keeps its stronger factors, a lapsed one starts over; the end moves to the later time.
+pub fn start_boost(p: &mut crate::state::Player, now: f64, as_: f64, move_: f64, ms: f64) {
+    let b = &mut p.card_boost;
+    let running = b.until > now;
+    b.as_mult = if running {
+        b.as_mult.max(1. + as_)
+    } else {
+        1. + as_
+    };
+    b.move_mult = if running {
+        b.move_mult.max(1. + move_)
+    } else {
+        1. + move_
+    };
+    b.until = b.until.max(now + ms);
+}
+
 /// One Wishful Thinking trim inside the source window (source `cards.trims`).
 #[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(deny_unknown_fields)]

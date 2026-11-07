@@ -158,6 +158,14 @@ pub(crate) fn recompute_with(
             src.shield += m.shield.unwrap_or(0.);
         }
     }
+    // A running card boost (Adrenaline) multiplies the final mirrors; lapsed boosts contribute nothing.
+    if w.is_player(ix) {
+        let boost = w.players[ix.slot()].card_boost;
+        if w.server_time < boost.until {
+            src.as_mult *= boost.as_mult;
+            src.speed_mult *= boost.move_mult;
+        }
+    }
     let efficiency = if w.is_player(ix) && w.core(ix).vitals.faction == crate::FactionId::Sentenced
     {
         DEFINITION.mark_as_efficiency

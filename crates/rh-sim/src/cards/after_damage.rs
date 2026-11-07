@@ -75,6 +75,11 @@ pub(crate) fn after_damage(cx: &mut Cx) {
                 }
             }
         }
+        // A lapsed Adrenaline boost stops contributing (the legacy buffs.expireBoosts slice for cards).
+        if w.players[i].card_boost.until > 0. && now >= w.players[i].card_boost.until {
+            w.players[i].card_boost = crate::cards::Boost::default();
+            crate::modifiers::recompute(k, w, crate::fighter::FighterIx::of_slot(i));
+        }
         if n_total > 0 && wish_ms > 0. {
             let p = &mut w.players[i];
             let cast = p.card_runtime.and_then(|r| r.wish_cast);
