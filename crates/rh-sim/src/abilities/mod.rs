@@ -94,6 +94,112 @@ pub const fn effect_side(e: Effect) -> Side {
     }
 }
 
+/// A sixth, test-only ability row: no production table entry, made only of existing verbs. The id is a placeholder key
+/// (the row is never registered), which is the point: new content is a row, not system code.
+#[cfg(test)]
+pub(crate) mod sample {
+    use super::*;
+
+    pub(crate) const ROW: Definition = Definition {
+        id: AbilityId::Freeze,
+        slot: Slot::Q,
+        cast_ms: 0.,
+        cooldown_ms: 1000.,
+        charges: 1,
+        target: Target::Self_,
+        own_order: false,
+        drops_lock: false,
+        effects: &[
+            Effect::Status {
+                to: Side::Self_,
+                kind: crate::status_runtime::StatusKind::Haste,
+                ms: 1000.,
+                value: Some(0.2),
+            },
+            Effect::Cloud {
+                ms: 1000.,
+                radius: 40.,
+            },
+        ],
+    };
+}
+
+/// Generic row validity: every number finite and in range, every reference a real verb field. Used by the harness for
+/// the production rows and any test-only row.
+#[cfg(test)]
+pub(crate) fn validate_row(def: Definition) -> Result<(), &'static str> {
+    if !AbilityId::ALL.contains(&def.id) {
+        return Err("row id is not a real ability id");
+    }
+    if !def.cast_ms.is_finite() || def.cast_ms < 0. || def.cast_ms > 60000. {
+        return Err("row cast time");
+    }
+    if !def.cooldown_ms.is_finite() || def.cooldown_ms < 0. || def.charges == 0 {
+        return Err("row cooldown/charges");
+    }
+    match def.target {
+        Target::Unit(range) if !range.is_finite() || range <= 0. => Err("row unit range"),
+        Target::Self_ | Target::Point | Target::Unit(_) => Ok(()),
+    }?;
+    for e in def.effects {
+        match *e {
+            Effect::Status { ms, value, .. } => {
+                if !ms.is_finite() || ms < 0. || value.is_some_and(|v| !v.is_finite()) {
+                    return Err("row status numbers");
+                }
+            }
+            Effect::DeathFloor {
+                ms,
+                floor_hp,
+                heal_back,
+            } => {
+                if !ms.is_finite()
+                    || ms < 0.
+                    || !floor_hp.is_finite()
+                    || !heal_back.is_finite()
+                    || !(0. ..=1.).contains(&heal_back)
+                {
+                    return Err("row death floor numbers");
+                }
+            }
+            Effect::Zone {
+                ms,
+                radius,
+                convicted_radius,
+                dealt_mult,
+                taken_from_source_mult,
+                move_mult,
+                exit_stun_ms,
+            } => {
+                if !ms.is_finite()
+                    || ms < 0.
+                    || !radius.is_finite()
+                    || radius <= 0.
+                    || convicted_radius.is_some_and(|r| !r.is_finite() || r <= 0.)
+                    || !dealt_mult.is_finite()
+                    || !taken_from_source_mult.is_finite()
+                    || !move_mult.is_finite()
+                    || exit_stun_ms.is_some_and(|v| !v.is_finite() || v < 0.)
+                {
+                    return Err("row zone numbers");
+                }
+            }
+            Effect::Cloud { ms, radius } => {
+                if !ms.is_finite() || ms < 0. || !radius.is_finite() || radius <= 0. {
+                    return Err("row cloud numbers");
+                }
+            }
+            Effect::Blink => {}
+            Effect::Trail { ms, half_width } => {
+                if !ms.is_finite() || ms < 0. || !half_width.is_finite() || half_width <= 0. {
+                    return Err("row trail numbers");
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Definition {
     pub id: AbilityId,

@@ -1,0 +1,11 @@
+--- a/crates/rh-sim/src/systems/abilities/effects.rs
++++ b/crates/rh-sim/src/systems/abilities/effects.rs
+@@ -151,7 +151,7 @@
+                 let p = cx.w.player(l.id).unwrap();
+                 let reset = p.statuses.instances[r.index].started_at == now
+                     || p.statuses.instances[r.index].taken.is_none();
+-                if reset {
++                if reset && false {
+                     let i = cx.w.idx(l.id).unwrap();
+                     cx.w.players[i].statuses.instances[r.index].taken = Some(0.);
+                 }

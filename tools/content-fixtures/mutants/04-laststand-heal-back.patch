@@ -1,0 +1,11 @@
+--- a/crates/rh-sim/src/abilities/mod.rs
++++ b/crates/rh-sim/src/abilities/mod.rs
+@@ -328,7 +328,7 @@
+                 Effect::DeathFloor {
+                     ms: LAST_STAND_MS,
+                     floor_hp: LAST_STAND_FLOOR,
+-                    heal_back: LAST_STAND_HEAL,
++                    heal_back: 0.,
+                 },
+                 Effect::Status {
+                     to: Side::Self_,

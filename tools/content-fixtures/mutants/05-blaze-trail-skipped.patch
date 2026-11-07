@@ -1,0 +1,13 @@
+--- a/crates/rh-sim/src/abilities/mod.rs
++++ b/crates/rh-sim/src/abilities/mod.rs
+@@ -311,10 +311,6 @@
+             false,
+             &[
+                 Effect::Blink,
+-                Effect::Trail {
+-                    ms: BLAZE_TRAIL_MS,
+-                    half_width: BLAZE_HALF_WIDTH,
+-                },
+             ] as &[Effect],
+         ),
+         AbilityId::LastStand => (

@@ -72,23 +72,38 @@ fn field(
     }
 }
 pub(super) fn self_effects(cx: &mut Cx, l: Landing) {
-    let effects = a::definition(l.cast.ability).effects;
-    for e in effects.iter().copied() {
-        if a::effect_side(e) == a::Side::Self_ {
-            run(cx, l, None, e);
-        }
-    }
+    self_pass(cx, l, a::definition(l.cast.ability));
 }
 
 pub(super) fn target_effects(cx: &mut Cx, l: Landing) {
     let Some(target) = l.cast.producer.unwrap().target else {
         return;
     };
-    let effects = a::definition(l.cast.ability).effects;
-    for e in effects.iter().copied() {
+    target_pass(cx, l, a::definition(l.cast.ability), target);
+}
+
+fn self_pass(cx: &mut Cx, l: Landing, def: a::Definition) {
+    for e in def.effects.iter().copied() {
+        if a::effect_side(e) == a::Side::Self_ {
+            run(cx, l, None, e);
+        }
+    }
+}
+
+fn target_pass(cx: &mut Cx, l: Landing, def: a::Definition, target: PlayerId) {
+    for e in def.effects.iter().copied() {
         if a::effect_side(e) == a::Side::Target {
             run(cx, l, Some(target), e);
         }
+    }
+}
+
+/// The generic harness's entry: run ANY row (the production table or a test-only sample) through the one interpreter.
+#[cfg(test)]
+pub(crate) fn run_row(cx: &mut Cx, l: Landing, def: a::Definition) {
+    self_pass(cx, l, def);
+    if let Some(target) = l.cast.producer.and_then(|p| p.target) {
+        target_pass(cx, l, def, target);
     }
 }
 
@@ -227,5 +242,161 @@ fn run(cx: &mut Cx, l: Landing, target: Option<PlayerId>, e: a::Effect) {
                 super::super::fields::add(cx.w, f);
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod row_harness {
+    use super::*;
+    use crate::abilities::{sample, validate_row, CastDetail};
+    use crate::{arenas::practice_arena, Placement, Secrets, Sim, SimConfig, Vec2};
+
+    fn sim() -> Sim {
+        let p = |i: usize, at: Vec2| Placement {
+            profile: format!("row{i}"),
+            faction: crate::FactionId::Fire,
+            bot: false,
+            at,
+            hp: None,
+            weapon0: None,
+            weapon1: None,
+        };
+        Sim::reset_active(
+            SimConfig::default(),
+            practice_arena(),
+            Secrets::from_seed(5),
+            &[p(0, Vec2::new(320., 320.)), p(1, Vec2::new(380., 320.))],
+        )
+    }
+
+    fn landing_for(s: &Sim, ability: rt::AbilityId, to: Option<Vec2>) -> Landing {
+        let id = s.players()[0].id;
+        let target = s.players()[1].id;
+        let now = s.server_time();
+        Landing {
+            id,
+            cast: rt::CastFact {
+                ability,
+                started_at: now,
+                lands_at: now,
+                cancelled_by: a::CANCELLED_BY,
+                producer: Some(CastDetail {
+                    rank: 1,
+                    slot: a::Slot::Q,
+                    target: Some(target),
+                    point: Vec2::new(0., 0.),
+                    previous_ready_at: 0.,
+                    previous_full_at: None,
+                    lag_ms: 0.,
+                }),
+            },
+            origin: s.players()[0].pos(),
+            to,
+        }
+    }
+
+    #[test]
+    fn every_row_validates_and_the_test_only_sixth_row_runs_with_no_system_code() {
+        for id in rt::AbilityId::ALL {
+            validate_row(a::definition(id)).expect("production row valid");
+        }
+        validate_row(sample::ROW).expect("sample row valid");
+        let mut first = sim();
+        let l = landing_for(&first, sample::ROW.id, None);
+        let before = first.state_hash();
+        first.with_cx(|cx| run_row(cx, l, sample::ROW));
+        assert!(first.players()[0]
+            .statuses
+            .instances
+            .iter()
+            .any(|st| st.kind == rt::StatusKind::Haste));
+        assert!(first
+            .w
+            .abilities
+            .as_ref()
+            .is_some_and(|rt| rt.fields.iter().any(|f| f.kind == FieldKind::Cloud)));
+        assert_ne!(first.state_hash(), before);
+        // Determinism on an identical world, and a checkpoint round-trip keeps the same hash.
+        let mut second = sim();
+        second.with_cx(|cx| run_row(cx, l, sample::ROW));
+        assert_eq!(first.state_hash(), second.state_hash());
+        let restored = Sim::restore(serde_json::to_value(&first).unwrap()).unwrap();
+        assert_eq!(restored.state_hash(), first.state_hash());
+    }
+
+    #[test]
+    fn trial_convicted_radius_is_a_row_number_and_uses_the_casters_mark() {
+        let def = a::definition(rt::AbilityId::Trial);
+        let mut s = sim();
+        let target = s.players()[1].id;
+        s.w.players[0].signature.target = Some(target);
+        s.w.players[0].signature.mark.tier = 3;
+        let l = landing_for(&s, rt::AbilityId::Trial, None);
+        s.with_cx(|cx| run_row(cx, l, def));
+        let radius =
+            s.w.abilities
+                .as_ref()
+                .unwrap()
+                .fields
+                .iter()
+                .find(|f| f.kind == FieldKind::Zone)
+                .unwrap()
+                .r;
+        assert_eq!(radius, a::TRIAL_CONVICTED_RADIUS);
+        let mut s = sim();
+        let target = s.players()[1].id;
+        s.w.players[0].signature.target = Some(target);
+        s.w.players[0].signature.mark.tier = 2;
+        let l = landing_for(&s, rt::AbilityId::Trial, None);
+        s.with_cx(|cx| run_row(cx, l, def));
+        let radius =
+            s.w.abilities
+                .as_ref()
+                .unwrap()
+                .fields
+                .iter()
+                .find(|f| f.kind == FieldKind::Zone)
+                .unwrap()
+                .r;
+        assert_eq!(radius, a::TRIAL_RADIUS);
+    }
+
+    #[test]
+    fn last_stand_verbs_carry_the_row_numbers() {
+        let def = a::definition(rt::AbilityId::LastStand);
+        let mut s = sim();
+        s.w.players[0].vitals.hp = 100.;
+        let l = landing_for(&s, rt::AbilityId::LastStand, None);
+        s.with_cx(|cx| run_row(cx, l, def));
+        let p = &s.players()[0];
+        let haste = p
+            .statuses
+            .instances
+            .iter()
+            .find(|st| st.kind == rt::StatusKind::Haste)
+            .expect("haste");
+        assert_eq!(haste.value, a::LAST_STAND_HASTE);
+        let floor = p
+            .statuses
+            .instances
+            .iter()
+            .find(|st| st.kind == rt::StatusKind::DeathFloor)
+            .expect("floor");
+        assert_eq!(floor.data.heal_share, Some(a::LAST_STAND_HEAL));
+    }
+
+    #[test]
+    fn trial_zone_is_removed_when_the_zoned_status_is_refused() {
+        let def = a::definition(rt::AbilityId::Trial);
+        let mut s = sim();
+        s.w.players[1].status = crate::Status::Dead;
+        let l = landing_for(&s, rt::AbilityId::Trial, None);
+        s.with_cx(|cx| run_row(cx, l, def));
+        assert!(
+            s.w.abilities
+                .as_ref()
+                .is_none_or(|rt| rt.fields.iter().all(|f| f.kind != FieldKind::Zone)),
+            "a refused zoned status leaves no zone"
+        );
     }
 }
