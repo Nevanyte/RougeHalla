@@ -79,7 +79,6 @@ fn frozen_full_source_all_63_cases() {
             "rosterSignatures",
             "full five-faction source-born NPC signatures",
         ),
-
     ];
     let mut pending = vec![];
     let mut failures = vec![];
@@ -561,29 +560,27 @@ fn admitted_coupled_source_cases_reproduce_their_real_producers() {
     let own = find("trial-own-convicted-mark-from-real-weapon-hits");
     let s = run_case(own);
     assert!(s.w.players[0].signature.mark.tier >= 3);
-    let zone = s
-        .w
-        .abilities
-        .as_ref()
-        .unwrap()
-        .fields
-        .iter()
-        .find(|f| f.kind == crate::status_runtime::FieldKind::Zone)
-        .expect("the caster's own convicted mark tightens the Trial ring");
+    let zone =
+        s.w.abilities
+            .as_ref()
+            .unwrap()
+            .fields
+            .iter()
+            .find(|f| f.kind == crate::status_runtime::FieldKind::Zone)
+            .expect("the caster's own convicted mark tightens the Trial ring");
     assert_eq!(zone.r, crate::abilities::TRIAL_CONVICTED_RADIUS);
     let other = find("trial-other-owner-convicted-is-not-own-mark");
     let s = run_case(other);
     assert!(s.w.players[2].signature.mark.tier >= 3);
     assert_eq!(s.w.players[0].signature.mark.tier, 0);
-    let zone = s
-        .w
-        .abilities
-        .as_ref()
-        .unwrap()
-        .fields
-        .iter()
-        .find(|f| f.kind == crate::status_runtime::FieldKind::Zone)
-        .expect("another owner's mark does not tighten this Trial");
+    let zone =
+        s.w.abilities
+            .as_ref()
+            .unwrap()
+            .fields
+            .iter()
+            .find(|f| f.kind == crate::status_runtime::FieldKind::Zone)
+            .expect("another owner's mark does not tighten this Trial");
     assert_eq!(zone.r, crate::abilities::TRIAL_RADIUS);
 }
 
@@ -603,6 +600,10 @@ fn card_producer_checkpoint_states_restore_and_reject_malformed_producers() {
     let gallows = find("trial-gallows-card-exit");
     // Stop after the landing: the shorter Trial window is gone from the final state (the subject exited it).
     let mut s = construct(&gallows["input"]);
+    #[cfg(feature = "trusted-status-probes")]
+    {
+        s.w.trace.1.enabled = true;
+    }
     for input in gallows["input"]["actions"][0]["inputs"].as_array().unwrap() {
         enqueue(&mut s, input);
     }
@@ -619,14 +620,18 @@ fn card_producer_checkpoint_states_restore_and_reject_malformed_producers() {
         .unwrap()
         .len();
     *bad.pointer_mut("/world/players/0/build/counts").unwrap() = json!(vec![0u8; counts]);
-    assert!(Sim::restore(bad).is_err(), "a Gallows ring without the card");
+    assert!(
+        Sim::restore(bad).is_err(),
+        "a Gallows ring without the card"
+    );
     let mut bad = good.clone();
     let ends = bad
         .pointer("/world/abilities/fields/0/ends_at")
         .unwrap()
         .as_f64()
         .unwrap();
-    *bad.pointer_mut("/world/abilities/fields/0/ends_at").unwrap() = json!(ends + 1.);
+    *bad.pointer_mut("/world/abilities/fields/0/ends_at")
+        .unwrap() = json!(ends + 1.);
     assert!(Sim::restore(bad).is_err(), "a tampered Trial ring lifetime");
     let arcane = find("arcane-overload-wishful-stock-trim");
     let s = run_case(arcane);

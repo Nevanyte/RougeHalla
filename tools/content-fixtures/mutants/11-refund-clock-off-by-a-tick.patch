@@ -1,0 +1,13 @@
+diff --git a/crates/rh-sim/src/systems/status/mod.rs b/crates/rh-sim/src/systems/status/mod.rs
+index 4e56f8b3..45e4d24e 100644
+--- a/crates/rh-sim/src/systems/status/mod.rs
++++ b/crates/rh-sim/src/systems/status/mod.rs
+@@ -265,7 +265,7 @@ pub(crate) fn cancel_cast(
+     if refund && k.config.abilities == crate::abilities::Mode::Full {
+         if let Some(detail) = c.producer {
+             if let Some(p) = w.idx(id).map(|i| &mut w.players[i]) {
+-                p.stocks.wish_ready_at = detail.previous_ready_at;
++                p.stocks.wish_ready_at = detail.previous_ready_at + 50.;
+                 if let Some(full) = detail.previous_full_at {
+                     p.stocks.wish_full_at = Some(full);
+                 }

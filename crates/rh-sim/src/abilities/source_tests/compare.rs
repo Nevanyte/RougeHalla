@@ -286,22 +286,21 @@ pub(super) fn source_step(s: &mut Sim, case: &V) {
             &format!("{}/tick{}/cast hooks", case["name"], s.tick()),
         );
         // The staggered arguments tape: the abilities chain fires on the weapon stagger at the legacy position.
-        let stagger_actual: Vec<_> = s
-            .w
-            .trace
-            .1
-            .records
-            .iter()
-            .filter_map(|h| match h {
-                HookRecord::Staggered { .. } => Some(json!({
-                    "hook": "staggered",
-                    "installer": "abilities",
-                    "time": s.w.server_time,
-                    "tick": s.tick(),
-                })),
-                _ => None,
-            })
-            .collect();
+        let stagger_actual: Vec<_> =
+            s.w.trace
+                .1
+                .records
+                .iter()
+                .filter_map(|h| match h {
+                    HookRecord::Staggered { .. } => Some(json!({
+                        "hook": "staggered",
+                        "installer": "abilities",
+                        "time": s.w.server_time,
+                        "tick": s.tick(),
+                    })),
+                    _ => None,
+                })
+                .collect();
         let stagger_expected: Vec<_> = case["completeOrdinaryHookTape"]
             .as_array()
             .unwrap()

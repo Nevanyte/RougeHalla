@@ -1,0 +1,13 @@
+diff --git a/crates/rh-sim/src/abilities/mod.rs b/crates/rh-sim/src/abilities/mod.rs
+index e1431dad..c3103592 100644
+--- a/crates/rh-sim/src/abilities/mod.rs
++++ b/crates/rh-sim/src/abilities/mod.rs
+@@ -370,7 +370,7 @@ pub fn cooldown(id: AbilityId, training: bool, wish_mult: Option<f64>) -> f64 {
+     let base = definition(id).cooldown_ms;
+     let mult = wish_mult
+         .filter(|v| *v > 0.)
+-        .map_or(1., |v| v.max(WISH_MULT_MIN));
++        .map_or(1., |_v| 1.);
+     if mult == 1. {
+         base
+     } else {

@@ -9,9 +9,10 @@ fn source(w: &World, s: &rt::StatusSource) -> bool {
 }
 /// Gallows' Patience is the only card producer of the longer Trial tuple, so the owner must really hold it.
 fn owns_gallows(w: &World, s: &rt::StatusSource) -> bool {
-    s.id
-        .and_then(|id| w.player(id))
-        .is_some_and(|p| p.build.has_flag(crate::stat_fold::EffectFlag::GallowsPatience))
+    s.id.and_then(|id| w.player(id)).is_some_and(|p| {
+        p.build
+            .has_flag(crate::stat_fold::EffectFlag::GallowsPatience)
+    })
 }
 pub(super) fn validate(w: &World) -> Result<(), String> {
     if let Some(a) = &w.abilities {
@@ -96,9 +97,8 @@ pub(super) fn validate(w: &World) -> Result<(), String> {
                 }
                 (AbilityId::Trial, rt::StatusKind::Zoned) => {
                     (exact_duration(TRIAL_MS)
-                        || (exact_duration(
-                            TRIAL_MS + crate::constants::GALLOWS_PATIENCE_EXTRA_MS,
-                        ) && owns_gallows(w, &st.source)))
+                        || (exact_duration(TRIAL_MS + crate::constants::GALLOWS_PATIENCE_EXTRA_MS)
+                            && owns_gallows(w, &st.source)))
                         && st.value == TRIAL_DEALT_MULT
                         && st.taken.is_none()
                         && st.data.field_id.is_some()

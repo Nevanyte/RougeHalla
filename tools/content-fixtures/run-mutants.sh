@@ -5,12 +5,14 @@ set -euo pipefail
 REPO=$(cd "$(dirname "$0")/../.." && pwd)
 cd "$REPO"
 CARGO=${CARGO:-cargo}
-FILES=(crates/rh-sim/src/abilities/mod.rs crates/rh-sim/src/systems/abilities/effects.rs)
+FILES=(crates/rh-sim/src/abilities/mod.rs crates/rh-sim/src/systems/abilities/effects.rs crates/rh-sim/src/systems/abilities/mod.rs crates/rh-sim/src/systems/status/mod.rs crates/rh-sim/src/cards/mod.rs)
 BACKUP=$(mktemp -d)
 LOG=$(mktemp)
-restore() { for f in "${FILES[@]}"; do cp "$BACKUP/$(basename "$f")" "$f"; done; }
+# Several touched files share the basename "mod.rs": the backup key is the whole repo-relative path.
+backup_name() { printf '%s' "${1//\//__}"; }
+restore() { for f in "${FILES[@]}"; do cp "$BACKUP/$(backup_name "$f")" "$f"; done; }
 trap 'restore; rm -rf "$BACKUP" "$LOG"' EXIT
-for f in "${FILES[@]}"; do cp "$f" "$BACKUP/$(basename "$f")"; done
+for f in "${FILES[@]}"; do cp "$f" "$BACKUP/$(backup_name "$f")"; done
 run_filters() {
   "$CARGO" test -q -p rh-sim --lib abilities >"$LOG" 2>&1 || return $?
   "$CARGO" test -q -p rh-sim --lib ability_hash_tape >"$LOG" 2>&1 || return $?

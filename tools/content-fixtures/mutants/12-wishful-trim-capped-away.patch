@@ -1,0 +1,13 @@
+diff --git a/crates/rh-sim/src/cards/mod.rs b/crates/rh-sim/src/cards/mod.rs
+index 6b163ddf..738730a5 100644
+--- a/crates/rh-sim/src/cards/mod.rs
++++ b/crates/rh-sim/src/cards/mod.rs
+@@ -238,7 +238,7 @@ pub fn wishful_thinking(
+     let floor_at = (cast.at + crate::constants::WISHFUL_FLOOR_SHARE * cast.cooldown_ms).max(now);
+     let cut = (f64::from(n) * ms)
+         .min(crate::constants::WISHFUL_BUDGET_MS - used)
+-        .min(clock_end - floor_at);
++        .min(0.);
+     if !(cut > 0.) {
+         return;
+     }

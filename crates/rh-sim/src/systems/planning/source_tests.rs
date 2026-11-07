@@ -1176,7 +1176,7 @@ fn compare_owned_hook_order(sim: &mut Sim, case: &Value, f: &Value, ctx: &str) {
     let source = f["hookTrace"].as_array().unwrap();
     let mut pending = 0;
     let expected=source.iter().filter(|h|{
-        if h["hook"]=="staggered" {assert_eq!(h["installer"],"abilities");pending+=1;false}else if h["installer"]=="cardHooks" {assert!(roster&&["raidStarted","teleported"].contains(&h["hook"].as_str().unwrap()));pending+=1;false}else{true}
+        if h["installer"]=="cardHooks" {assert!(roster&&["raidStarted","teleported"].contains(&h["hook"].as_str().unwrap()));pending+=1;false}else{if h["hook"]=="staggered" {assert_eq!(h["installer"],"abilities", "the abilities chain owns the staggered link");}true}
     }).map(|h|{let mut h=h.clone();h.as_object_mut().unwrap().remove("phase");
         if let Some(transition)=h.as_object_mut().unwrap().remove("visionTransition"){
             let mut watched=Vec::new();for a in case["input"]["actions"].as_array().unwrap().iter().take(f["action"].as_u64().unwrap()as usize){if a["kind"]=="vision"{let actor=id(&a["actor"]);if !watched.contains(&actor){watched.push(actor);}}}

@@ -376,8 +376,14 @@ fn the_staggered_hook_interrupts_only_casts_that_list_it() {
     .unwrap();
     assert!(s.submit(caster, command).is_ok());
     s.step();
-    let pending = s.w.players[0].statuses.cast.expect("the Trial cast is pending");
-    assert!(!pending.cancelled_by.stagger, "a Wish does not list stagger");
+    let pending = s.w.players[0]
+        .statuses
+        .cast
+        .expect("the Trial cast is pending");
+    assert!(
+        !pending.cancelled_by.stagger,
+        "a Wish does not list stagger"
+    );
     s.take_events();
     s.with_cx(|cx| {
         crate::hooks::fire(
