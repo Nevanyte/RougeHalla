@@ -423,12 +423,18 @@ fn apply_inner(
                     let higher_power = player
                         && w.is_player(i)
                         && w.players[v.slot()].build.power() > w.players[i.slot()].build.power();
+                    // Witness: the victim's weapon lock or its last signature target is someone other than the attacker.
+                    let attacker = w.core(i).id;
+                    let third_party = [core.weapon.targeting.target, core.signature.target]
+                        .into_iter()
+                        .flatten()
+                        .any(|t| t != attacker);
                     crate::modifiers::VsProbe {
                         slowed,
                         elite,
                         higher_power,
                         player,
-                        third_party: false,
+                        third_party,
                     }
                 });
                 let build = if w.is_player(i) {

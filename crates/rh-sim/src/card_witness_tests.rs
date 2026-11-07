@@ -1,5 +1,5 @@
-//! The card-runtime **witness** consumer: replays a captured witness case against the Rust sim and compares the source's
-//! landed amount (parity/card-runtime-witness/source.json).
+//! The card-runtime **witness** consumer: replays the captured witness cases against the Rust sim and compares the
+//! source's landed amounts (parity/card-runtime-witness/source.json).
 use crate::{
     content::WeaponId, input::validate, input::RawCommand, map::TileMap, Arena, FactionId,
     Placement, PlayerId, Secrets, Sim, SimConfig, Vec2,
@@ -42,18 +42,18 @@ fn load() -> serde_json::Value {
     serde_json::from_str(&std::fs::read_to_string(path).expect("witness corpus")).expect("json")
 }
 
-#[test]
-fn the_witness_matched_case_reproduces_the_source_landed_amount() {
-    let doc = load();
-    let case = &doc["cases"][0];
-    assert_eq!(case["input"]["name"], "matched-without-witness");
+/// The attacker's landed damage for one witness case (the sword swing at the wand holder).
+fn landed_for(case: &serde_json::Value) -> f64 {
     let input = &case["input"];
-    let expected = case["actualLandedAmount"].as_f64().unwrap();
     let mut rng = crate::rng::Mulberry32::new(input["mainSeed"].as_u64().unwrap() as u32);
     let order_salt = rng.next_u32();
     let mut ps = Vec::new();
+    let mut witness = false;
     for p in input["players"].as_array().unwrap() {
         let at = &p["at"];
+        witness |= p["cards"]
+            .as_array()
+            .is_some_and(|cards| cards.iter().any(|c| c == "witness"));
         ps.push(Placement {
             profile: p["faction"].as_str().unwrap().into(),
             faction: FactionId::parse(p["faction"].as_str().unwrap()).unwrap(),
@@ -74,6 +74,14 @@ fn the_witness_matched_case_reproduces_the_source_landed_amount() {
         ..Default::default()
     };
     let mut sim = Sim::reset_active(config, witness_room(), secrets, &ps);
+    if witness {
+        assert!(crate::cards::grant(
+            &sim.k,
+            &mut sim.w,
+            PlayerId(1),
+            crate::cards::CardId::Witness
+        ));
+    }
     let target = validate(RawCommand::Target { id: PlayerId(3) }).expect("valid");
     let attack = validate(RawCommand::Attack { a: 0., t: None }).expect("valid");
     sim.submit(PlayerId(2), target).unwrap();
@@ -89,8 +97,19 @@ fn the_witness_matched_case_reproduces_the_source_landed_amount() {
             break;
         }
     }
-    assert!(
-        (landed - expected).abs() < 1e-6,
-        "landed {landed} != source {expected}"
-    );
+    landed
+}
+
+#[test]
+fn the_witness_cases_reproduce_the_source_landed_amounts() {
+    let doc = load();
+    for case in doc["cases"].as_array().unwrap() {
+        let expected = case["actualLandedAmount"].as_f64().unwrap();
+        let landed = landed_for(case);
+        assert!(
+            (landed - expected).abs() < 1e-6,
+            "{}: landed {landed} != source {expected}",
+            case["input"]["name"]
+        );
+    }
 }
