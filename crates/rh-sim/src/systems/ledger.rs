@@ -390,15 +390,61 @@ fn apply_inner(
                 } else {
                     crate::modifiers::OutgoingKind::Other
                 };
+                let victim_id = vix.map(|v| w.core(v).id);
                 let frac = vix.map_or(1., |v| {
                     let core = w.core(v);
                     core.vitals.hp / core.vitals.max_hp.max(1e-9)
                 });
+                let streak = if w.is_player(i) {
+                    let p = &w.players[i.slot()];
+                    p.card_streak
+                        .filter(|s| {
+                            Some(s.target) == victim_id
+                                && w.server_time - s.last < crate::constants::STREAK_GAP_MS
+                        })
+                        .map_or(0, |s| s.count)
+                } else {
+                    0
+                };
+                let probe = vix.map_or(crate::modifiers::VsProbe::default(), |v| {
+                    let core = w.core(v);
+                    let player = w.is_player(v);
+                    let slowed = core.statuses.instances.iter().any(|s| {
+                        matches!(
+                            s.kind,
+                            crate::status_runtime::StatusKind::SlowMove
+                                | crate::status_runtime::StatusKind::SlowAttack
+                        ) && s.until > w.server_time
+                    });
+                    let rooted = core.statuses.instances.iter().any(|s| {
+                        s.kind == crate::status_runtime::StatusKind::Root && s.until > w.server_time
+                    });
+                    let elite = !player && w.mobs.iter().any(|m| m.core.id == core.id && m.elite);
+                    let higher_power = player
+                        && w.is_player(i)
+                        && w.players[v.slot()].build.power() > w.players[i.slot()].build.power();
+                    crate::modifiers::VsProbe {
+                        slowed,
+                        elite,
+                        higher_power,
+                        player,
+                        rooted,
+                        third_party: false,
+                    }
+                });
+                let build = if w.is_player(i) {
+                    w.players[i.slot()].build
+                } else {
+                    Default::default()
+                };
                 crate::modifiers::outgoing_damage(
                     w.core(i),
+                    &build,
                     frac,
                     kind,
                     e.critical_mult.unwrap_or(1.),
+                    streak,
+                    probe,
                 )
             })
         } else {

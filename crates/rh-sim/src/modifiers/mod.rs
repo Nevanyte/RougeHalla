@@ -372,16 +372,42 @@ pub(crate) enum OutgoingKind {
     Other,
 }
 
-/// Source `outgoingMult`: what a hit deals before armor and shield, as (1 + the damage sums + vs/scale rows), G1-capped so
-/// the row multiplier times the entry's own kind mult never passes OUTGOING_ROW_CAP; farm damage is added outside the cap.
-/// The vs/scale row tests are the remaining P-CARDS-1 slice; they contribute nothing yet.
+/// The probe answers a `vs` row needs beyond the victim's hp fraction (source `VsProbe`).
+#[derive(Clone, Copy, Debug, Default)]
+pub(crate) struct VsProbe {
+    pub slowed: bool,
+    pub elite: bool,
+    pub higher_power: bool,
+    pub player: bool,
+    pub rooted: bool,
+    pub third_party: bool,
+}
+
+fn vs_holds(v: &crate::cards::VsRow, frac: f64, streak: u16, probe: VsProbe) -> bool {
+    use crate::cards::VsTest;
+    match v.test {
+        VsTest::Elite => probe.elite,
+        VsTest::HigherPower => probe.higher_power,
+        VsTest::Slowed => probe.slowed,
+        VsTest::Streak => f64::from(streak) <= v.arg,
+        VsTest::ThirdParty => probe.third_party,
+        VsTest::HpBelow => frac < v.arg,
+        VsTest::PlayerAbove => probe.player && frac > v.arg,
+    }
+}
+
+/// Source `outgoingMult`: what a hit deals before armor and shield, as (1 + the damage sums + holding vs rows + the
+/// stepped scale rows), G1-capped so the row multiplier times the entry's own kind mult never passes OUTGOING_ROW_CAP; farm
+/// damage is added outside the cap. Camps-cleared scales need the unported camp counter and contribute nothing yet.
 pub(crate) fn outgoing_damage(
     p: &crate::fighter::FighterCore,
+    build: &crate::cards::Build,
     victim_frac: f64,
     kind: OutgoingKind,
     baked: f64,
+    streak: u16,
+    probe: VsProbe,
 ) -> f64 {
-    let _ = victim_frac;
     let sums = StatSums::from_source_values(p.modifiers.sums);
     let mults = MultSums::from_source_values(p.modifiers.mults);
     let own = match kind {
@@ -396,8 +422,33 @@ pub(crate) fn outgoing_damage(
         crate::constants::OUTGOING_ROW_CAP
     };
     let farm = StatSums::from_source_values(p.modifiers.farm).damage;
-    if sums.damage == 0. {
+    let mut sum = sums.damage;
+    let mut any_rows = sums.damage != 0.;
+    for id in build.cards() {
+        for row in id.definition().rows {
+            match row {
+                crate::cards::CardRow::Vs(v) => {
+                    any_rows = true;
+                    if vs_holds(v, victim_frac, streak, probe) {
+                        sum += v.v;
+                    }
+                }
+                crate::cards::CardRow::Scale(s) => {
+                    any_rows = true;
+                    let bonus = match s.src {
+                        crate::cards::ScaleSrc::Streak => {
+                            s.per * (f64::from(streak) / s.step + 1e-9).floor()
+                        }
+                        crate::cards::ScaleSrc::CampsCleared => 0.,
+                    };
+                    sum += if bonus > s.cap { s.cap } else { bonus };
+                }
+                _ => {}
+            }
+        }
+    }
+    if !any_rows {
         return 1f64.min(ceiling).max(0.) + farm;
     }
-    (1. + sums.damage).min(ceiling).max(0.) + farm
+    (1. + sum).min(ceiling).max(0.) + farm
 }
