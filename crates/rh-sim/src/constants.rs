@@ -221,6 +221,7 @@ content! {
     // Base power-zero player Sentenced.
     MARK_BASE_PCT: f64 = 0.045, "fraction";
     MARK_KILL_PCT: f64 = 0.00675, "fraction/stack";
+    HEAVIER_SENTENCE_PER_BONUS: f64 = 1.5, "x per bonus-hp share";
     MARK_TIER_HITS: f64 = 3.0, "hits";
     MARK_TOP_TIER: u8 = 4, "tier";
     MARK_NEAR_RANGE: f64 = 300.0, "u";

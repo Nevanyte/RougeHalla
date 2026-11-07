@@ -92,16 +92,28 @@ pub(crate) fn before_damage(
             }
         }
         let chill = w.players[i].signature.chill;
+        let no_commutation = w.players[i]
+            .build
+            .has_flag(crate::stat_fold::EffectFlag::NoCommutation);
+        let swift_judgment = w.players[i]
+            .build
+            .has_flag(crate::stat_fold::EffectFlag::SwiftJudgment);
         let m = &mut w.players[i].signature.mark;
         for _ in 0..count {
             m.hits += 1;
             m.progress += 1. / chill.max(MARK_CHILL_FLOOR);
         }
         if count > 0 || m.tier > 0 {
-            let tier = if m.progress > 0. || m.swaps > 0 {
-                (1. + ((m.progress.max(0.) / MARK_TIER_HITS + MARK_TIER_EPS).floor())
-                    .max(m.swaps as f64))
-                .min(MARK_TOP_TIER as f64) as u8
+            // No Commutation counts each weapon swap twice; Swift Judgment adds every second mark hit.
+            let swaps = (m.swaps as f64) * if no_commutation { 2. } else { 1. }
+                + if swift_judgment {
+                    (m.hits / 2) as f64
+                } else {
+                    0.
+                };
+            let tier = if m.progress > 0. || swaps > 0. {
+                (1. + ((m.progress.max(0.) / MARK_TIER_HITS + MARK_TIER_EPS).floor()).max(swaps))
+                    .min(MARK_TOP_TIER as f64) as u8
             } else {
                 0
             };

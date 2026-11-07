@@ -304,11 +304,27 @@ pub(crate) fn mark_pulse(
     .into_iter()
     .map(|v| v.max(0.))
     .fold(0., |a, b| a + b);
+    // Heavier Sentence: the mark share grows with the owner's bonus max hp relative to its base.
+    let heavier = if p
+        .build
+        .has_flag(crate::stat_fold::EffectFlag::HeavierSentence)
+    {
+        let base = crate::content::faction(p.vitals.faction).hp;
+        if base > 0. {
+            1. + crate::constants::HEAVIER_SENTENCE_PER_BONUS
+                * ((p.vitals.max_hp - base).max(0.) / base)
+        } else {
+            1.
+        }
+    } else {
+        1.
+    };
     let pct = (crate::constants::MARK_BASE_PCT * crate::constants::DUEL_PACE
         + crate::constants::MARK_KILL_PCT
             * crate::constants::DUEL_PACE
             * f64::from(p.credit.sentence))
-        * (1. + DEFINITION.mark_bonus * sum);
+        * (1. + DEFINITION.mark_bonus * sum)
+        * heavier;
     pct * target_hp
         * weight
         * if near {
