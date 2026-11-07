@@ -73,6 +73,11 @@ catalog to a generated, corpus-verified table and the build to the source count 
    nearest standing hostile within the radius (excluding the holder/victim, same-faction players, immune and untargetable
    fighters) as a derived+passive hit for the next tick's ledger with the entry's damage shares and weapon. A focused test pins
    the share and the resolved hit on a third player.
+14. **The folded damage rows reach outgoing damage**: the ledger multiplies every player entry by the source `outgoingMult` —
+   1 + the folded damage sums, **G1-capped** so the row multiplier times the entry's own kind mult (hit/dot/returned plus the
+   baked crit multiplier) never passes `OUTGOING_ROW_CAP` (2.5), with the farm damage added outside the cap; a fighter with no
+   damage rows keeps the cap-only answer. The entry kind and the victim's pass-start hp fraction are read per entry. The
+   `vs`/`scale` row tests are the next slice.
 
 ## Measurements
 
