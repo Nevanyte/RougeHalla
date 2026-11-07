@@ -112,19 +112,31 @@ spawn) proves the comparison is not vacuous. Nothing in the test computes an exp
 - No edits to docs/MIGRATION.md, docs/CONTRACTS.md status table or Cargo.lock; no legacy corpus replaced or regenerated
   from Rust output.
 
-### Pinned-corpus pin refresh (not a Rust regeneration)
+### Card-corpus pin cascade (canonical recapture, not a Rust regeneration)
 
-`parity/card-catalog/source.json` pins the harness tools it ran beside (`protectedSha256`, 325 protected paths). Two of
-them are `tools/browser-proof/proof.mjs` and `tools/protocol-js/check-vectors.mjs`, both necessarily updated for protocol 8.
-The corpus was refreshed by the documented pinned container (`bash tools/card-catalog-fixtures/capture.sh`,
-`node:22.23.4-bookworm-slim@sha256:aaa4b5ba…`, legacy source mounted read-only, unchanged lockfile). The canonical recapture
-changed **only those two hash lines** (2 insertions, 2 deletions); all 409 captured cases and their bytes are unchanged
-(corpus sha256 `ec7559927a25b4af93b6479f5344da2f9381da88fc4fa0c7a50d9860fb2894e0`), and `capture.sh --check` passes.
-No expected value was recomputed from Rust output.
+`parity/card-catalog/source.json` pins the harness tools it ran beside (`protectedSha256`). Two of them are
+`tools/browser-proof/proof.mjs` and `tools/protocol-js/check-vectors.mjs`, both necessarily updated for protocol 8, and a third
+pinned tool file (`tools/protocol-js/check-first-playable.mjs`) stayed byte-identical. The established refresh procedure
+(the same one used by the earlier P-CONS-1a/P-MOBS-2 refresh commits) was executed in the required order with the actual
+generators, all inside the pinned `node:22.23.4-bookworm-slim@sha256:aaa4b5ba…` container (legacy source mounted read-only,
+unchanged lockfile; no expected value recomputed from Rust output):
+
+1. **card-catalog** — 409 cases, only the two protected-tool hashes moved (2-line diff; corpus sha256
+   `ec7559927a25b4af93b6479f5344da2f9381da88fc4fa0c7a50d9860fb2894e0`).
+2. **card-runtime** — the catalog digest is an immutable reference, so its hardcoded pin in
+   `tools/card-runtime-fixtures/capture.mts` was advanced and the corpus recaptured: 65 cases / 6,236 ordinary steps / 3,179
+   private records, only provenance moved (source corpus sha256 `43d25f5e2535…`).
+3. **card-runtime-witness** — `FROZEN_PINS.json` advanced to the new card-runtime source/INPUT/capture.mts hashes and the
+   corpus recaptured: 2 cases / 6 ordinary steps / 1.08 source ratio, only provenance moved.
+
+Seven files changed in total (two large corpora changed by 1–2 lines each: pins/provenance only). All three
+`capture.sh --check` paths pass locally after the refresh. This is pin maintenance forced by the protocol-8 tool changes, not
+a behavioural recapture: 409 catalog cases, 65 runtime cases and the witness pair are byte-identical apart from the pinned
+hashes.
 
 CI note: this line's `rust` workflow job has a pre-existing 40-minute job timeout (`timeout-minutes: 40`); base PRs #35, #36
-and #37 all fail that job at the timeout on this Mac-hosted evidence line. The only workflow step this branch had broken was
-the card-catalog pin check above, and it now passes in the pinned image.
+and #37 all fail that job at the timeout on this Mac-hosted evidence line. The only step this branch had broken was the
+card-catalog / card-runtime / witness pin checks above, and all three now pass in the pinned image.
 
 ## What remains (the packet stays INCOMPLETE)
 
