@@ -112,6 +112,20 @@ spawn) proves the comparison is not vacuous. Nothing in the test computes an exp
 - No edits to docs/MIGRATION.md, docs/CONTRACTS.md status table or Cargo.lock; no legacy corpus replaced or regenerated
   from Rust output.
 
+### Pinned-corpus pin refresh (not a Rust regeneration)
+
+`parity/card-catalog/source.json` pins the harness tools it ran beside (`protectedSha256`, 325 protected paths). Two of
+them are `tools/browser-proof/proof.mjs` and `tools/protocol-js/check-vectors.mjs`, both necessarily updated for protocol 8.
+The corpus was refreshed by the documented pinned container (`bash tools/card-catalog-fixtures/capture.sh`,
+`node:22.23.4-bookworm-slim@sha256:aaa4b5ba…`, legacy source mounted read-only, unchanged lockfile). The canonical recapture
+changed **only those two hash lines** (2 insertions, 2 deletions); all 409 captured cases and their bytes are unchanged
+(corpus sha256 `ec7559927a25b4af93b6479f5344da2f9381da88fc4fa0c7a50d9860fb2894e0`), and `capture.sh --check` passes.
+No expected value was recomputed from Rust output.
+
+CI note: this line's `rust` workflow job has a pre-existing 40-minute job timeout (`timeout-minutes: 40`); base PRs #35, #36
+and #37 all fail that job at the timeout on this Mac-hosted evidence line. The only workflow step this branch had broken was
+the card-catalog pin check above, and it now passes in the pinned image.
+
 ## What remains (the packet stays INCOMPLETE)
 
 - `cardHooks.resetAll` (canonical lazy Wish spend memory) — P-CARDS-1 record + P-ABIL-1 remainder; the source-arena
