@@ -375,6 +375,69 @@ pub(crate) fn after_damage(cx: &mut Cx) {
         super::frost::ranged_hits(w, &s.landed);
     }
     super::plague::after_damage(k, w, ev, &mut s.fx);
+    // Festering Arcana: the damage-over-time signature stopped running on a target (source engagedOn).
+    for i in 0..w.players.len() {
+        let faction = w.players[i].vitals.faction;
+        let deals_dot = matches!(faction, FactionId::Fire | FactionId::Plague);
+        let engaged = w.players[i].signature.engaged;
+        let current = if deals_dot && engaged {
+            w.players[i].signature.target
+        } else {
+            None
+        };
+        let was = w.players[i].signature.engaged_on;
+        w.players[i].signature.engaged_on = current;
+        if was.is_none() || was == current || !deals_dot {
+            continue;
+        }
+        let from = was.unwrap();
+        if !w.players[i]
+            .build
+            .has_flag(crate::stat_fold::EffectFlag::Festering)
+        {
+            continue;
+        }
+        let ap = w.players[i].modifiers.mirrors().ap_bonus;
+        if !(ap > 0.) {
+            continue;
+        }
+        let Some(ti) = w.fighter_idx(from) else {
+            continue;
+        };
+        if !w.standing(ti)
+            || crate::status_runtime::untargetable(&w.core(ti).statuses.instances, w.server_time)
+        {
+            continue;
+        }
+        let owner = w.players[i].id;
+        let Some(name) = w.roster.label(owner).cloned() else {
+            continue;
+        };
+        let apply = crate::status_runtime::StatusApply {
+            kind: crate::status_runtime::StatusKind::Dot,
+            source: crate::status_runtime::StatusSource {
+                id: Some(owner),
+                name,
+                owner_id: None,
+            },
+            ms: f64::from(crate::constants::FESTERING_TICKS) * crate::constants::FESTERING_TICK_MS,
+            ability: None,
+            tag: Some(crate::status_runtime::StatusTag::Text(
+                std::sync::Arc::from("festering"),
+            )),
+            value: Some(ap * crate::constants::FESTERING_AP_SHARE),
+            add: None,
+            data: Some(crate::status_runtime::Payload {
+                shares: Some(crate::content::DamageShares {
+                    phys: 0.,
+                    magic: 1.,
+                    true_: 0.,
+                }),
+                ..Default::default()
+            }),
+        };
+        crate::systems::status::operations::apply_with(k, w, ev, from, apply, true, *stats);
+    }
 }
 
 impl crate::Sim {

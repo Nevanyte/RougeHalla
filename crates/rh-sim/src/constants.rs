@@ -104,6 +104,9 @@ content! {
     GAMBLER_CHANCE: f64 = 0.15, "chance";
     GAMBLER_UP: f64 = 2.0, "x";
     GAMBLER_DOWN: f64 = 0.5, "x";
+    FESTERING_TICKS: u32 = 4, "ticks";
+    FESTERING_TICK_MS: f64 = 1000.0, "ms";
+    FESTERING_AP_SHARE: f64 = 0.125, "share";
     PLANT_FEET_MS: f64 = 1000.0, "ms";
     PLANT_FEET_BONUS: f64 = 0.25, "share";
 
