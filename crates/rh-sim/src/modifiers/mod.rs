@@ -384,7 +384,6 @@ pub(crate) struct VsProbe {
     pub elite: bool,
     pub higher_power: bool,
     pub player: bool,
-    pub rooted: bool,
     pub third_party: bool,
 }
 

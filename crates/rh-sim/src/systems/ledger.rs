@@ -416,9 +416,6 @@ fn apply_inner(
                                 | crate::status_runtime::StatusKind::SlowAttack
                         ) && s.until > w.server_time
                     });
-                    let rooted = core.statuses.instances.iter().any(|s| {
-                        s.kind == crate::status_runtime::StatusKind::Root && s.until > w.server_time
-                    });
                     let elite = !player && w.mobs.iter().any(|m| m.core.id == core.id && m.elite);
                     let higher_power = player
                         && w.is_player(i)
@@ -428,7 +425,6 @@ fn apply_inner(
                         elite,
                         higher_power,
                         player,
-                        rooted,
                         third_party: false,
                     }
                 });

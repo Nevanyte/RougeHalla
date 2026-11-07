@@ -17,7 +17,7 @@ fn is_weapon_hit(h: &LandedHit) -> bool {
 
 /// Source `tieRank`: orderSalt ^ imul(tick, 0x9e3779b1), FNV-folded over the actor id chars, through mulberry32.
 fn tie_rank(w: &World, order_salt: u32, tick: u32, id: PlayerId) -> f64 {
-    let mut h = (order_salt ^ tick.wrapping_mul(0x9e37_79b1)) as u32;
+    let mut h = order_salt ^ tick.wrapping_mul(0x9e37_79b1);
     if let Some(label) = w.roster.label(id) {
         for b in label.as_bytes() {
             h = (h ^ u32::from(*b)).wrapping_mul(0x0100_0193);

@@ -356,11 +356,9 @@ pub(crate) fn on_blocked(hx: &mut crate::hooks::Hx, args: &crate::hooks::HookArg
         for card in p.build.cards() {
             for row in card.definition().rows {
                 if let CardRow::Trigger(t) = row {
-                    if t.on == TriggerOn::Block {
-                        if n < rows.len() {
-                            rows[n] = (t.action, t.arg);
-                            n += 1;
-                        }
+                    if t.on == TriggerOn::Block && n < rows.len() {
+                        rows[n] = (t.action, t.arg);
+                        n += 1;
                     }
                 }
             }

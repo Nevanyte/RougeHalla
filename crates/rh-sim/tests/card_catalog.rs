@@ -522,7 +522,7 @@ fn eligibility_cases_match_the_catalog() {
             let held = build.get(id_str).and_then(|c| c.as_u64()).unwrap_or(0);
             assert_eq!(e["count"].as_u64().unwrap(), held, "count {id_str}");
             assert_eq!(v["held"].as_u64().unwrap(), held, "held {id_str}");
-            let has_required = def.requires.map_or(false, |req| {
+            let has_required = def.requires.is_some_and(|req| {
                 build.as_object().unwrap().keys().any(|k| {
                     CardId::ALL
                         .into_iter()
