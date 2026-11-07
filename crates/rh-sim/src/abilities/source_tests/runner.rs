@@ -1,6 +1,11 @@
 use super::*;
 
 pub(super) fn run_case(c: &V) -> Sim {
+    run_case_watch(c, &mut |_| {})
+}
+
+/// The same driver, reporting the sim after every stepped tick (the per-tick hash tape uses it; no behaviour change).
+pub(super) fn run_case_watch(c: &V, on_tick: &mut dyn FnMut(&Sim)) -> Sim {
     let input = &c["input"];
     let name = c["name"].as_str().unwrap();
     let mut s = construct(input);
@@ -23,6 +28,7 @@ pub(super) fn run_case(c: &V) -> Sim {
                 }
                 if a["kind"] == "step" {
                     source_step(&mut s, c);
+                    on_tick(&s);
                 }
                 compare(&s, timeline, name, input);
                 checkpoint(&mut s, name);
@@ -35,6 +41,7 @@ pub(super) fn run_case(c: &V) -> Sim {
                     .unwrap()
                 {
                     source_step(&mut s, c);
+                    on_tick(&s);
                     if let Some(frame) = timeline["frames"]
                         .as_array()
                         .unwrap()
