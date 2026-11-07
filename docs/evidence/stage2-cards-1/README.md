@@ -58,8 +58,15 @@ catalog to a generated, corpus-verified table and the build to the source count 
 10. **Tank Engine's fortify is live**: the block hook dispatches the owned block trigger rows generically (Pocket Sand's status
    with the block tag, Tank Engine's fortify). Fortify adds the damage the block really kept (`mitigate_shares` over the
    prevented packet and the holder's armor/shield) to `Player.card_prevented` and earns `min(cap, tally x per)` flat max hp,
-   which `sync_max_hp` adds on top of the folded maximum; a focused test pins the tally, the cap and the max-hp increase. The
-   non-dot on-hit families, Adrenaline's boost and the \`vs\`/\`scale\` contexts stay open.
+   which `sync_max_hp` adds on top of the folded maximum; a focused test pins the tally, the cap and the max-hp increase.
+11. **Adrenaline's boost is live**: `start_boost` keeps a running boost's stronger factors (or starts over), extends the end,
+   and the fold multiplies the final mirrors by the running attack/move factors; a lapsed boost stops contributing and is
+   cleared by the after-damage system with a recompute. The hitTaken runner dispatches Boost/Status rows too, and a focused
+   test pins 1.4x as/move for 2 s and the folded attack-speed increase.
+12. **The teleport reset hooks are live**: `cardHooks.resetFight` clears every player's streak and running boost (recomputing
+   when a boost was active) and drops pending heal-over-time runs; `cardHooks.dropDeferred` clears the deferred-hit queue on
+   teleport and run end. Both schedule links moved from pending to ported, the parity trace and the arena inventory were
+   updated, and a focused test pins the cleared fields.
 
 ## Measurements
 
