@@ -7,7 +7,7 @@ pub fn raw_command_pub(i: &FixInput) -> Option<RawCommand> {
 
 /// The `msg` keys each slice input type may carry: [`raw_command`] reads exactly these, so any other key (a future
 /// `charge` on an attack) is reported by [`unread_msg_keys`] instead of being dropped without a word.
-pub const INPUT_MSG_KEYS: [(&str, &[&str]); 10] = [
+pub const INPUT_MSG_KEYS: [(&str, &[&str]); 11] = [
     ("target", &["id"]),
     ("huntTarget", &["id"]),
     ("attackMove", &["x", "y", "seq"]),
@@ -18,6 +18,7 @@ pub const INPUT_MSG_KEYS: [(&str, &[&str]); 10] = [
     ("release", &["a", "t"]),
     ("swap", &["slot"]),
     ("pickup", &["containerId"]),
+    ("consumeCorpse", &["corpseId"]),
 ];
 
 /// The keys of a slice input's `msg` that [`raw_command`] does not read (a non-object `msg` reports `<not an object>`).
@@ -76,6 +77,18 @@ pub(crate) fn raw_command(i: &FixInput) -> Option<RawCommand> {
                 return None;
             } else {
                 RawCommand::MissingTarget
+            }
+        }
+        "consumeCorpse" => {
+            let raw_id = m.get("corpseId")?.as_str()?;
+            let id = raw_id.strip_prefix("pc:").unwrap_or(raw_id);
+            let n = id
+                .strip_prefix('p')
+                .and_then(|s| s.parse::<u32>().ok())
+                .filter(|n| format!("p{n}") == id)
+                .and_then(|n| n.checked_add(1))?;
+            RawCommand::ConsumeCorpse {
+                corpse: rh_sim::PlayerId(n),
             }
         }
         "attackMove" => RawCommand::AttackMove {

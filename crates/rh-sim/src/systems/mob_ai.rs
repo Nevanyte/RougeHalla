@@ -231,6 +231,7 @@ pub(crate) fn think(cx: &mut Cx) {
     for i in 0..cx.w.mobs.len() {
         let m = &cx.w.mobs[i];
         if m.status != Status::Alive
+            || m.zombie.is_some()
             || m.brain.mode == BrainMode::Idle
             || crate::status_runtime::has(
                 &m.core.statuses.instances,

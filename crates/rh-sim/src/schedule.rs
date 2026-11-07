@@ -783,7 +783,11 @@ static AFTER_WEAPONS: [Item<SystemFn>; 3] = [
         crate::systems::signatures::after_weapons,
     ),
     pending("bruiserPassives.update", Gate::Signatures, "P-FACTION-5"),
-    pending("plagueZombies.<anonymous>", Gate::Signatures, "P-FACTION-3"),
+    ported(
+        "plagueZombies.<anonymous>",
+        Gate::Signatures,
+        crate::systems::plague_zombies::after_weapons_link,
+    ),
 ];
 static BEFORE_DAMAGE: [Item<SystemFn>; 3] = [
     // Shared player engagement only. Other factions' damage remains pending.
@@ -865,19 +869,23 @@ static SYSTEMS: [Item<SystemFn>; 24] = [
     ),
     pending("traders.updateTraders", Gate::NotTraining, "P-TRADE-1"),
     pending("cardHooks.afterDamage", Gate::Always, "P-CARDS-1"),
-    pending("plagueCorpses.<anonymous>", Gate::Signatures, "P-FACTION-3"),
+    ported(
+        "plagueCorpses.<anonymous>",
+        Gate::Signatures,
+        crate::systems::plague_corpses::system,
+    ),
     pending("bruiserPassives.update", Gate::Signatures, "P-FACTION-5"),
     // Current status sources are axe shred and attack slow. P-CARDS-1 extends this fold with cards.
     ported("mods.updateMods", Gate::Always, items::fold_armor),
-    pending(
+    ported(
         "plagueZombies.updateZombies",
         Gate::Signatures,
-        "P-FACTION-3",
+        crate::systems::plague_zombies::update,
     ),
-    pending(
+    ported(
         "plagueZombies.regenZombies",
         Gate::Signatures,
-        "P-FACTION-3",
+        crate::systems::plague_zombies::regen,
     ),
     pending("walkHint.updateWalkHints", Gate::WalkHints, "P-NET-2"),
 ];
@@ -919,7 +927,11 @@ static MOVE_MODIFIERS: [Item<MoveFn>; 7] = [
         Gate::Signatures,
         |k, w, ix, dt, stats| crate::systems::sentenced_hunt::movement(k, w, ix, dt, stats),
     ),
-    pending("plagueZombies.<anonymous>", Gate::Signatures, "P-FACTION-3"),
+    ported(
+        "plagueZombies.<anonymous>",
+        Gate::Signatures,
+        |_, w, ix, dt, stats| crate::systems::plague_zombies::movement(w, w.core(ix), dt, stats),
+    ),
 ];
 /// Legacy stat modifier sources, folded after damage in registration order.
 static MOD_SOURCES: [Item<SourceFn>; 6] = [
@@ -1020,7 +1032,7 @@ pub(crate) static ACTIONS: [ActionRow; 13] = [
         "consumeCorpse",
         "plagueCorpses",
         Gate::Signatures,
-        Run::Pending("P-FACTION-3"),
+        Run::Ported(crate::systems::plague_corpses::consume_action),
     ),
     action(
         ActionId::HuntTarget,
@@ -1125,11 +1137,11 @@ static TELEPORTED: [Link; 13] = [
         Gate::Always,
         "P-CARDS-1",
     ),
-    pending_link(
+    ported_link(
         "plagueZombies.<arrow>",
         Mode::Append,
         Gate::Signatures,
-        "P-FACTION-3",
+        crate::systems::plague_zombies::teleported,
     ),
     pending_link("walkHint.zeroAll", Mode::Append, Gate::WalkHints, "P-NET-2"),
 ];
@@ -1317,11 +1329,11 @@ static RUN_ENDED: [Link; 12] = [
         Gate::Always,
         "P-CARDS-1",
     ),
-    pending_link(
+    ported_link(
         "plagueCorpses.<arrow>",
         Mode::Append,
         Gate::Signatures,
-        "P-FACTION-3",
+        crate::systems::plague_corpses::run_ended,
     ),
     pending_link(
         "fireRoam.<arrow>",
@@ -1341,11 +1353,11 @@ static RUN_ENDED: [Link; 12] = [
         Gate::Signatures,
         crate::systems::sentenced_hunt::run_ended,
     ),
-    pending_link(
+    ported_link(
         "plagueZombies.<arrow>",
         Mode::Append,
         Gate::Signatures,
-        "P-FACTION-3",
+        crate::systems::plague_zombies::run_ended,
     ),
     pending_link("walkHint.zeroAll", Mode::Append, Gate::WalkHints, "P-NET-2"),
 ];
@@ -1385,11 +1397,11 @@ static FIGHTER_OUT: [Link; 8] = [
         "P-CONS-1",
         crate::systems::potions::fighter_out,
     ),
-    pending_link(
+    ported_link(
         "plagueCorpses.leaveCorpse",
         Mode::Append,
         Gate::Signatures,
-        "P-FACTION-3",
+        crate::systems::plague_corpses::leave_corpse,
     ),
     pending_link(
         "fireRoam.<arrow>",
@@ -1409,11 +1421,11 @@ static FIGHTER_OUT: [Link; 8] = [
         Gate::Signatures,
         crate::systems::sentenced_hunt::fighter_out,
     ),
-    pending_link(
+    ported_link(
         "plagueZombies.<arrow>",
         Mode::Append,
         Gate::Signatures,
-        "P-FACTION-3",
+        crate::systems::plague_zombies::fighter_out,
     ),
 ];
 static STATUS_APPLIED: [Link; 1] = [ported_link(
@@ -1473,11 +1485,11 @@ static HIT_LANDED: [Link; 4] = [
         Gate::Signatures,
         "P-FACTION-5",
     ),
-    pending_link(
+    ported_link(
         "plagueZombies.<arrow>",
         Mode::Append,
         Gate::Signatures,
-        "P-FACTION-3",
+        crate::systems::plague_zombies::hit_landed,
     ),
 ];
 static BLOCKED: [Link; 2] = [

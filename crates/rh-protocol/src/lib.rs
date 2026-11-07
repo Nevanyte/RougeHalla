@@ -1,7 +1,7 @@
 //! Roguehalla wire protocol, version [`PROTOCOL_VERSION`]. One message per WebSocket BINARY frame (the only transport a
 //! browser build can use; served as wss:// in production). Little-endian, no reflection: the C# mirror
 //! (`client-unity/RoguehallaNet`) and the JS probe decode the same bytes, and all are held to the golden vectors in
-//! `protocol/fixtures/v7.json` (docs/CONTRACTS.md C-NET).
+//! `protocol/fixtures/v8.json` (docs/CONTRACTS.md C-NET).
 //!
 //! Frame layout: `[tag u8][body]`. Strings: `u8 length + UTF-8`. Blobs: `u16 length + bytes`. Optional values: `u8 flag (0/1) +
 //! value`. Lists: `u16 count + items`. Floats are IEEE-754; a decoder REJECTS non-finite floats in client messages. Unknown
@@ -121,7 +121,7 @@ pub use delta::{
 pub use encode::{encode_welcome, encode_welcome_into, WelcomeHeader};
 
 /// Bump on any incompatible change (a new tag or field in an existing message). Both ends refuse another major version.
-pub const PROTOCOL_VERSION: u16 = 7;
+pub const PROTOCOL_VERSION: u16 = 8;
 /// Milliseconds per server tick (20 Hz). A Snapshot carries `tick` only: its server time is `tick * TICK_MS` exactly.
 pub const TICK_MS: u32 = 50;
 
@@ -214,6 +214,9 @@ pub enum WireCommand {
     },
     HuntTarget {
         actor: u32,
+    },
+    ConsumeCorpse {
+        handle: PickupHandle,
     },
     AttackMove {
         x: f32,
@@ -579,6 +582,11 @@ impl ClientMsg {
                                 return Err(DecodeError::BadField("hunt target"));
                             }
                             WireCommand::HuntTarget { actor }
+                        }
+                        13 => {
+                            let handle = PickupHandle::new(r.u32()?)
+                                .ok_or(DecodeError::BadField("corpse handle"))?;
+                            WireCommand::ConsumeCorpse { handle }
                         }
                         C_MOVE => WireCommand::Move {
                             x: r.f32()?,

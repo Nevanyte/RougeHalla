@@ -1,0 +1,10 @@
+--- a/crates/rh-sim/src/systems/plague_corpses.rs
++++ b/crates/rh-sim/src/systems/plague_corpses.rs
+@@ -110,7 +110,6 @@
+         return false;
+     }
+     // Remove first: simultaneous attempts have one winner in the shuffled action order.
+-    w.plague_corpses.remove(ci);
+     let stacks = w.players[ix].farm.corpse_stacks().saturating_add(1);
+     w.players[ix].farm.set_corpse_stacks(stacks);
+     let hp_before = w.players[ix].vitals.hp;

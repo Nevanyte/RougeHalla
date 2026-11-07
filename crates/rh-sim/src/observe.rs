@@ -50,6 +50,8 @@ pub struct SelfView {
     /// The Sentenced hunt selection and completed-hunt count (self only; legacy `huntTarget`/`huntStacks`).
     pub hunt_target: Option<PlayerId>,
     pub hunt_stacks: u32,
+    pub corpse_stacks: u16,
+    pub plague_zombie: Option<PlayerId>,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -64,6 +66,8 @@ pub struct ActorView {
     pub mark_by: Option<PlayerId>,
     pub mark_tax: u8,
     pub sig: u8,
+    /// The Plague owner of a kind-2 companion; None for players and regional mobs.
+    pub owner: Option<PlayerId>,
     pub id: PlayerId,
     pub faction: FactionId,
     pub x: f64,
@@ -336,6 +340,7 @@ fn to_seen(e: &Event, can_see: &impl Fn(PlayerId) -> bool) -> Option<SeenEvent> 
         Event::Victory { id, draw } => Some(SeenEvent::Ended { winner: id, draw }),
         Event::AbilityHit { .. }
         | Event::MarkNotice { .. }
+        | Event::PlagueNotice { .. }
         | Event::SignatureHit { .. }
         | Event::ProjectileLaunched(_)
         | Event::ProjectileEnded { .. }
@@ -509,6 +514,8 @@ pub(crate) fn observe_with(
         move_seq: p.motion.move_seq,
         hunt_target: p.hunt_target(),
         hunt_stacks: u32::from(p.hunt_stacks),
+        corpse_stacks: u16::from(p.farm.corpse_stacks()),
+        plague_zombie: crate::systems::plague_zombies::zombie_of(&sim.w, p.id),
     });
     out.camps.clear();
     out.camps.extend_from_slice(sim.camp_rosters());
@@ -533,6 +540,7 @@ pub(crate) fn observe_with(
             }) {
                 out.visible.push(ActorView {
                     kind: 0,
+                    owner: None,
                     mob_type: None,
                     effects: o.statuses.effects,
                     displace_seq: o.motion.displace_seq,
@@ -751,8 +759,9 @@ pub fn public_snapshot(sim: &Sim) -> PublicSnapshot {
 fn mob_view(mob: &crate::mob_runtime::Mob) -> ActorView {
     let core = &mob.core;
     ActorView {
-        kind: 1,
-        mob_type: Some(mob.mob_type),
+        kind: if mob.zombie.is_some() { 2 } else { 1 },
+        owner: mob.owner,
+        mob_type: mob.zombie.is_none().then_some(mob.mob_type),
         effects: core.statuses.effects,
         displace_seq: core.motion.displace_seq,
         mark_tier: 0,

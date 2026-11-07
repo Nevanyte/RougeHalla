@@ -30,6 +30,10 @@ pub enum ActorOrigin {
         mob_type: MobTypeId,
         elite: bool,
     },
+    /// A Plague-owned companion (legacy MobState kind "zombie").
+    Zombie {
+        owner: PlayerId,
+    },
 }
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -65,6 +69,22 @@ pub struct Mob {
     pub home: Vec2,
     pub home_facing: f64,
     pub repath_phase: u32,
+    /// Present only for a Plague-owned companion; regional mobs are None.
+    #[serde(default)]
+    pub owner: Option<PlayerId>,
+    #[serde(default)]
+    pub zombie: Option<ZombieRt>,
+    #[serde(default)]
+    pub display_name: Option<String>,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ZombieRt {
+    pub target: Option<PlayerId>,
+    pub assist_until: f64,
+    pub last_move_at: f64,
+    pub owner_displace_seq: u8,
 }
 impl Keyed for Mob {
     fn key(&self) -> PlayerId {
@@ -72,6 +92,70 @@ impl Keyed for Mob {
     }
 }
 impl Mob {
+    /// A Plague-owned companion. Its regional `mob_type` is only a placeholder; every
+    /// reader branches on `zombie` before using it.
+    pub(crate) fn zombie(
+        provenance: &ActorProvenance,
+        owner: PlayerId,
+        at: Vec2,
+        name: String,
+        max_hp: f64,
+        now: f64,
+        owner_displace_seq: u8,
+    ) -> Self {
+        debug_assert!(matches!(provenance.origin, ActorOrigin::Zombie { .. }));
+        let id = provenance.id;
+        let mut history = History::default();
+        history.reset(Sample {
+            t: now,
+            x: at.x,
+            y: at.y,
+        });
+        Self {
+            brain: Brain::default(),
+            last_hit_at: 0.,
+            core: FighterCore {
+                id,
+                body: Body {
+                    x: at.x,
+                    y: at.y,
+                    facing: 0.,
+                    history,
+                },
+                vitals: Vitals {
+                    faction: crate::FactionId::Plague,
+                    hp: max_hp,
+                    max_hp,
+                    barrier: 0.,
+                    immune_until: 0.,
+                    hp_frac_at_tick_start: 1.,
+                },
+                weapon: WeaponRt::default(),
+                signature: Default::default(),
+                statuses: Default::default(),
+                modifiers: crate::modifiers::Runtime::default(),
+                card_dot_crit: None,
+                motion: Motion::default(),
+                inputs: InputQueue::default(),
+            },
+            mob_type: MobTypeId::PlagueRat,
+            elite: false,
+            camp: 0,
+            status: Status::Alive,
+            home: at,
+            home_facing: 0.,
+            repath_phase: 0,
+            owner: Some(owner),
+            zombie: Some(ZombieRt {
+                target: None,
+                assist_until: 0.,
+                last_move_at: 0.,
+                owner_displace_seq,
+            }),
+            display_name: Some(name),
+        }
+    }
+
     pub(crate) fn born(provenance: &ActorProvenance, at: Vec2, facing: f64, now: f64) -> Self {
         let ActorOrigin::Mob {
             birth_serial: serial,
@@ -131,6 +215,9 @@ impl Mob {
             repath_phase: ((u64::from(serial) * u64::from(crate::constants::MOB_REPATH_PHASE_MULT))
                 % u64::from(crate::constants::MOB_REPATH_PHASE_PERIOD))
                 as u32,
+            owner: None,
+            zombie: None,
+            display_name: None,
         }
     }
 }

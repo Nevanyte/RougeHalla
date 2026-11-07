@@ -88,6 +88,11 @@ pub enum Event {
         recipient: PlayerId,
         notice: MarkNotice,
     },
+    /// Private Plague corpse feedback. Server-only until the corpse transport lands.
+    PlagueNotice {
+        recipient: PlayerId,
+        notice: PlagueNotice,
+    },
     /// Source-exact private delayed chunk. Public projection consumes per-tick contributions instead.
     SignatureHit {
         victim: PlayerId,
@@ -242,6 +247,7 @@ impl Event {
             Event::Bounty { .. } | Event::Victory { .. } => Visibility::Everyone,
             Event::AbilityHit { .. }
             | Event::MarkNotice { .. }
+            | Event::PlagueNotice { .. }
             | Event::SignatureHit { .. }
             | Event::ProjectileLaunched(_)
             | Event::ProjectileEnded { .. }
@@ -280,6 +286,7 @@ impl Event {
             Event::PickupRefused { .. } | Event::PotionNotice { .. } => Class::Important,
             Event::AbilityHit { .. }
             | Event::MarkNotice { .. }
+            | Event::PlagueNotice { .. }
             | Event::SignatureHit { .. }
             | Event::ProjectileLaunched(_)
             | Event::ProjectileEnded { .. }
@@ -287,6 +294,31 @@ impl Event {
             | Event::Windup { .. }
             | Event::Gv { .. }
             | Event::RaidEnded => Class::ServerOnly,
+        }
+    }
+}
+
+/// Private Plague corpse notices.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum PlagueNotice {
+    OnlyLiving,
+    OnlyPlague,
+    Blocked,
+    Gone,
+    Far,
+    Unreachable,
+    Consumed { player: PlayerId },
+}
+impl PlagueNotice {
+    pub const fn message(self) -> &'static str {
+        match self {
+            Self::OnlyLiving => "Only the living can consume a corpse",
+            Self::OnlyPlague => "Only Plague can consume corpses",
+            Self::Blocked => "Can't do that now",
+            Self::Gone => "That corpse is gone",
+            Self::Far => "Too far away",
+            Self::Unreachable => "Can't reach that",
+            Self::Consumed { .. } => "",
         }
     }
 }

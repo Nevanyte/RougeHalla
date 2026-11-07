@@ -20,6 +20,9 @@ pub fn command(c: WireCommand) -> rh_sim::PublicCommand {
         WireCommand::HuntTarget { actor } => Public::HuntTarget {
             actor: rh_sim::PlayerId(actor),
         },
+        WireCommand::ConsumeCorpse { handle } => Public::ConsumeCorpse {
+            handle: rh_sim::PickupHandle::new(handle.get()).expect("nonzero wire handle"),
+        },
         WireCommand::Target { actor } => Public::Target {
             actor: rh_sim::PlayerId(actor),
         },
@@ -60,9 +63,9 @@ pub fn status(s: Status) -> u8 {
 
 /// Protocol 6 cannot represent the native arena lifecycle or complete Wish intake/owner facts.
 const ARENA_UNSUPPORTED: &str =
-    "Source arena lifecycle requires protocol 7 and durable lifecycle integration";
+    "Source arena lifecycle requires protocol 8 and durable lifecycle integration";
 
-const WISH_UNSUPPORTED: &str = "Full Wish casting requires protocol 7 input and owner facts";
+const WISH_UNSUPPORTED: &str = "Full Wish casting requires protocol 8 input and owner facts";
 
 /// Admission guard, independent of the current phase (including Source Lobby).
 pub fn profile_supported(config: &rh_sim::SimConfig) -> Result<(), rh_protocol::EncodeError> {
@@ -86,7 +89,7 @@ pub fn checked_phase(p: Phase) -> Result<u8, rh_protocol::EncodeError> {
 
 /// Compatibility wrapper for supported-profile callers; never invents a wire phase.
 pub fn phase(p: Phase) -> u8 {
-    checked_phase(p).expect("native phase is unsupported by protocol 7")
+    checked_phase(p).expect("native phase is unsupported by protocol 8")
 }
 
 fn observation_supported(obs: &Observation) -> Result<(), rh_protocol::EncodeError> {
@@ -196,7 +199,7 @@ fn wire_actor(a: &rh_sim::observe::ActorView) -> WireActor {
 }
 
 pub fn snapshot(obs: &Observation, ack_input: u32) -> ServerMsg {
-    checked_snapshot(obs, ack_input).expect("native observation is unsupported by protocol 7")
+    checked_snapshot(obs, ack_input).expect("native observation is unsupported by protocol 8")
 }
 
 pub fn checked_snapshot(
@@ -970,6 +973,7 @@ mod tests {
     fn view(id: u32) -> ActorView {
         ActorView {
             kind: 0,
+            owner: None,
             mob_type: None,
             effects: 0,
             displace_seq: 0,
@@ -1186,7 +1190,7 @@ mod tests {
     #[test]
     fn omitted_effect_announcements_leave_frames_and_redaction_unchanged() {
         use rh_sim::status_runtime::{AbilityId, CastEndReason, StatusKind};
-        assert_eq!(rh_protocol::PROTOCOL_VERSION, 7);
+        assert_eq!(rh_protocol::PROTOCOL_VERSION, 8);
         let env = seed1_match(1);
         let id = env.sim.players()[0].id;
         let mut publisher = Publisher::default();

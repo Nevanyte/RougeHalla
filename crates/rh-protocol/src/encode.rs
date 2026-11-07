@@ -111,6 +111,7 @@ fn command_len(c: &WireCommand) -> usize {
         WireCommand::Choose { .. } => 6,
         WireCommand::UseConsumable => 1,
         WireCommand::Target { .. } | WireCommand::HuntTarget { .. } => 5,
+        WireCommand::ConsumeCorpse { .. } => 5,
         WireCommand::Move { seq, .. } | WireCommand::AttackMove { seq, .. } => {
             1 + 8 + opt_len(seq.is_some(), 1)
         }
@@ -133,6 +134,7 @@ fn command_finite(c: &WireCommand) -> bool {
         | WireCommand::Choose { .. }
         | WireCommand::Target { .. }
         | WireCommand::HuntTarget { .. }
+        | WireCommand::ConsumeCorpse { .. }
         | WireCommand::UseConsumable => true,
         WireCommand::Aim { a } => a.is_finite(),
         WireCommand::Attack { a, t } | WireCommand::Release { a, t } => {
@@ -255,6 +257,10 @@ impl Frame for ClientMsg {
                         WireCommand::HuntTarget { actor } => {
                             w.u8(12);
                             w.u32(actor);
+                        }
+                        WireCommand::ConsumeCorpse { handle } => {
+                            w.u8(13);
+                            w.u32(handle.get());
                         }
                         WireCommand::AttackMove { x, y, seq } => {
                             w.u8(11);

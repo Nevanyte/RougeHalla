@@ -107,6 +107,7 @@ pub enum WirePropKind {
     Ground(u8),
     Chest { open: bool },
     Body { label: String },
+    Corpse { label: String },
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -365,7 +366,9 @@ impl WireProps {
             match &row.kind {
                 WirePropKind::Ground(v) => check_weapon(Some(*v))?,
                 WirePropKind::Chest { .. } => {}
-                WirePropKind::Body { label } => str_fits("body label", label)?,
+                WirePropKind::Body { label } | WirePropKind::Corpse { label } => {
+                    str_fits("prop label", label)?
+                }
             }
         }
         if let Some(focus) = self.focus {
@@ -393,7 +396,9 @@ impl WireProps {
                         + 5
                         + match &row.kind {
                             WirePropKind::Ground(_) | WirePropKind::Chest { .. } => 1,
-                            WirePropKind::Body { label } => str_len(label),
+                            WirePropKind::Body { label } | WirePropKind::Corpse { label } => {
+                                str_len(label)
+                            }
                         }
                 })
                 .sum::<usize>()
@@ -417,6 +422,10 @@ impl WireProps {
                 }
                 WirePropKind::Body { label } => {
                     w.u8(3);
+                    w.str(label);
+                }
+                WirePropKind::Corpse { label } => {
+                    w.u8(4);
                     w.str(label);
                 }
             }
@@ -447,6 +456,7 @@ impl WireProps {
                     open: bool_flag(r)?,
                 },
                 3 => WirePropKind::Body { label: r.str()? },
+                4 => WirePropKind::Corpse { label: r.str()? },
                 _ => return Err(DecodeError::BadField("prop kind")),
             };
             rows.push(WireProp { handle, x, y, kind });

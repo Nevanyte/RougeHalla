@@ -56,6 +56,9 @@ fn props(observation: &Observation) -> WireProps {
                     PropKind::Body { label } => WirePropKind::Body {
                         label: label.to_string(),
                     },
+                    PropKind::Corpse { label } => WirePropKind::Corpse {
+                        label: label.to_string(),
+                    },
                 },
             }
         })

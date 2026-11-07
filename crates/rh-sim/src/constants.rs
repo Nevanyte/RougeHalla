@@ -221,6 +221,28 @@ content! {
     SENTENCED_HUNT_MOVE_BONUS: f64 = 0.05, "multiplier";
     SENTENCED_HUNT_TOWARD_DOT: f64 = 0.3, "dot";
     SENTENCED_HUNT_MARK_PER_STACK: f64 = 0.02, "fraction/stack";
+
+    // Base power-zero Plague corpse harvest and owned zombie (shared/plagueCorpses).
+    PLAGUE_CORPSE_AUTO_RANGE: f64 = 24.0, "u";
+    PLAGUE_CORPSE_INTERACT_RANGE: f64 = 24.0, "u";
+    PLAGUE_CORPSE_HP_SHARE: f64 = 0.03, "fraction";
+    PLAGUE_CORPSE_HEAL_SHARE: f64 = 0.03, "fraction";
+    PLAGUE_ZOMBIE_HP_SHARE: f64 = 0.08, "fraction";
+    PLAGUE_ZOMBIE_HP_PER_BONUS: f64 = 0.8, "fraction/bonus hp";
+    PLAGUE_ZOMBIE_HIT_SHARE: f64 = 0.003, "fraction";
+    PLAGUE_ZOMBIE_HIT_PER_BONUS: f64 = 0.025, "fraction/bonus hp";
+    PLAGUE_ZOMBIE_REGEN_SHARE_PER_SECOND: f64 = 0.05, "fraction/s";
+    PLAGUE_ZOMBIE_REGEN_COMBAT_FACTOR: f64 = 0.25, "multiplier";
+    PLAGUE_ZOMBIE_REGEN_QUIET_MS: f64 = 4000.0, "ms";
+    PLAGUE_ZOMBIE_REGEN_STEP_MS: f64 = 500.0, "ms";
+    PLAGUE_ZOMBIE_GROWTH_PER_BODY: f64 = 0.1, "multiplier/body";
+    PLAGUE_ZOMBIE_INTERVAL_MS: f64 = 1000.0, "ms";
+    PLAGUE_ZOMBIE_WINDUP_MS: f64 = 200.0, "ms";
+    PLAGUE_ZOMBIE_ASSIST_MS: f64 = 5000.0, "ms";
+    PLAGUE_ZOMBIE_ASSIST_RANGE: f64 = 640.0, "u";
+    PLAGUE_ZOMBIE_FOLLOW_DISTANCE: f64 = 48.0, "u";
+    PLAGUE_ZOMBIE_AD_SHARE: f64 = 0.15, "fraction";
+    PLAGUE_ZOMBIE_HIT_CAP_SHARE: f64 = 0.03, "fraction";
     // Source regional mob spawn foundation (shared/constants + mobLife birth phase).
     MOB_K: f64 = 0.22, "multiplier";
     ELITE_K: f64 = 0.65, "multiplier";

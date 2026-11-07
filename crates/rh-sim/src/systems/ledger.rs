@@ -377,17 +377,18 @@ fn apply_inner(
         } else {
             1.
         };
+        let credited = e.by.and_then(|id| w.credited_player(id));
         mults.push(
             farm_mult
                 * (if k.config.pvp_rules
                     && !e.arena
                     && e.ability.is_none()
                     && vix
-                        .zip(bix)
-                        .is_some_and(|(v, b)| w.is_player(v) && w.is_player(b))
+                        .zip(credited)
+                        .is_some_and(|(v, b)| w.is_player(v) && w.player(b).is_some())
                 {
                     pvp_factor(
-                        w.players[bix.expect("checked player attacker").slot()]
+                        w.players[w.idx(credited.expect("checked player attacker")).unwrap()]
                             .build
                             .power(),
                     )

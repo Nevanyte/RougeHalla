@@ -1,0 +1,13 @@
+--- a/crates/rh-sim/src/systems/plague_corpses.rs
++++ b/crates/rh-sim/src/systems/plague_corpses.rs
+@@ -37,9 +37,7 @@
+     if hx.w.plague_corpses.iter().any(|c| c.player == id) {
+         return;
+     }
+-    let (x, y) = (p.body.x, p.body.y);
+-    hx.w.plague_corpses
+-        .push(crate::state::PlagueCorpse { player: id, x, y });
++    let _ = (id, p.body.x, p.body.y);
+ }
+ 
+ pub(crate) fn run_ended(hx: &mut Hx, _args: &HookArgs) {

@@ -22,7 +22,9 @@ pub(crate) fn submit(w: &mut World, id: PlayerId, cmd: Command) -> Result<(), Re
     let Some(ix) = w.fighter_idx(id) else {
         return Ok(());
     };
+    let zombie = w.mobs.get(id).is_some_and(|m| m.zombie.is_some());
     if !w.is_player(ix)
+        && !zombie
         && !cmd.is_foundation_movement()
         && (!cmd.is_mob_combat() || w.mob_runtime.as_ref().is_none_or(|m| !m.combat))
     {
@@ -38,7 +40,9 @@ pub(crate) fn submit_unbudgeted(w: &mut World, id: PlayerId, cmd: Command) -> Re
     let Some(ix) = w.fighter_idx(id) else {
         return Ok(());
     };
+    let zombie = w.mobs.get(id).is_some_and(|m| m.zombie.is_some());
     if !w.is_player(ix)
+        && !zombie
         && !cmd.is_foundation_movement()
         && (!cmd.is_mob_combat() || w.mob_runtime.as_ref().is_none_or(|m| !m.combat))
     {
@@ -140,6 +144,7 @@ fn action_id(cmd: &ActionCmd) -> Option<ActionId> {
         ActionCmd::Choose { .. } => ActionId::Choose,
         ActionCmd::Target { .. } | ActionCmd::MissingTarget => ActionId::Target,
         ActionCmd::HuntTarget { .. } => ActionId::HuntTarget,
+        ActionCmd::ConsumeCorpse { .. } => ActionId::ConsumeCorpse,
         ActionCmd::Swap { .. } => ActionId::Swap,
         ActionCmd::Pickup { .. } | ActionCmd::MissingPickup => ActionId::Pickup,
         ActionCmd::Attack { .. } => ActionId::Attack,

@@ -810,6 +810,9 @@ const VALIDATED: &[(&str, &str)] = &[
     // non-player is refused by the checkpoint validator rather than hashed.
     ("world.players.*.hunt_target", "hunt target is 0 or a living other player's id"),
     ("world.players.*.hunt_stacks", "completed hunts cannot exceed the number of players who ever joined"),
+    ("world.players.*.farm.corpse_stacks", "corpse stacks fold a flat max-hp row and must agree with the serialized mirror"),
+    ("world.mobs.*.display_name", "only a raised Plague zombie carries a display name; regional mobs leave it None"),
+    ("world.mobs.*.zombie", "only a raised Plague companion carries zombie runtime; regional mobs leave it None"),
 
     // Full Wish producer tuples are coupled. Accepted edits still always have to change the hash.
     ("world.abilities.fields.*.owner.owner_id", "ordinary player Wish fields have no secondary/summoner owner; Full producer source requires None"),

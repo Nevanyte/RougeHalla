@@ -287,6 +287,16 @@ fn check_world(k: &MatchStatic, w: &World) -> Result<(), String> {
     // The counters the tick increments cannot be past what the match could have produced: the roster holds everyone who
     // ever joined, a join adds one, a kill needs a victim and a down needs a fighter.
     let joined_ever = w.roster.len();
+    let mut corpse_players = std::collections::BTreeSet::new();
+    for c in &w.plague_corpses {
+        if !corpse_players.insert(c.player)
+            || w.player(c.player)
+                .is_none_or(|p| p.status != crate::Status::Dead)
+            || !near(c.x, c.y)
+        {
+            return Err("invalid Plague corpse state".into());
+        }
+    }
     if w.joined > joined_ever {
         return Err(format!(
             "joined {} exceeds the roster of {joined_ever}",
