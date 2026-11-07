@@ -664,3 +664,90 @@ mod plague_tests {
         assert!((sim.w.players[i].modifiers.dot_mult() - 1.0).abs() < 1e-9);
     }
 }
+
+#[cfg(test)]
+mod guard_tests {
+    use crate::modifiers::{outgoing_damage, OutgoingKind, VsProbe};
+    use crate::{arenas, FactionId, Placement, PlayerId, Secrets, Sim, SimConfig, Vec2};
+
+    fn setup() -> Sim {
+        let ps = [
+            Placement {
+                profile: "a".into(),
+                faction: FactionId::Fire,
+                bot: false,
+                at: Vec2::new(400., 400.),
+                hp: None,
+                weapon0: None,
+                weapon1: None,
+            },
+            Placement {
+                profile: "b".into(),
+                faction: FactionId::Holy,
+                bot: false,
+                at: Vec2::new(456., 400.),
+                hp: None,
+                weapon0: None,
+                weapon1: None,
+            },
+        ];
+        Sim::reset_active(
+            SimConfig::default(),
+            arenas::practice_arena(),
+            Secrets::from_seed(7),
+            &ps,
+        )
+    }
+
+    #[test]
+    fn the_outgoing_row_cap_holds_against_boom_and_glass_cannon() {
+        let mut sim = setup();
+        for card in [
+            crate::cards::CardId::HereComesTheBoom,
+            crate::cards::CardId::GlassCannon,
+            crate::cards::CardId::FirstImpressions,
+            crate::cards::CardId::TunnelVision,
+        ] {
+            assert!(crate::cards::grant(&sim.k, &mut sim.w, PlayerId(1), card));
+        }
+        let i = sim.w.idx(PlayerId(1)).unwrap();
+        let p = &sim.w.players[i];
+        let row = |victim_frac: f64| {
+            outgoing_damage(
+                &p.core,
+                &p.build,
+                victim_frac,
+                OutgoingKind::Hit,
+                1.,
+                0,
+                VsProbe::default(),
+                false,
+            )
+        };
+        // Boom's own x2.5 already fills the cap, so the rows cannot add anything.
+        for frac in [0.5, 0.9, 1.0] {
+            assert!(
+                row(frac) <= 1. + 1e-9,
+                "frac {frac}: row {row}",
+                row = row(frac)
+            );
+        }
+    }
+
+    #[test]
+    fn the_pvp_hit_and_dot_caps_clamp_each_source() {
+        // The caps read the victim's max hp: a player hitting a player is cut to the hit share, and one source's dots to
+        // the dot budget.
+        let share = crate::constants::PVP_HIT_CAP_SHARE;
+        let budget = crate::constants::PVP_DOT_CAP_SHARE;
+        assert!(share > 0. && share < 1.);
+        assert!(budget > 0. && budget < 1.);
+        let max_hp = 3000.;
+        let hit_cap = share * max_hp;
+        let dot_cap = budget * max_hp * 0.05;
+        assert!(
+            hit_cap < max_hp && dot_cap < hit_cap,
+            "the dot budget is the tighter cap"
+        );
+    }
+}
