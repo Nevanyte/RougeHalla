@@ -108,6 +108,8 @@ content! {
     FESTERING_TICK_MS: f64 = 1000.0, "ms";
     FESTERING_AP_SHARE: f64 = 0.125, "share";
     HP_RACE_CAP: f64 = 2.5, "x";
+    GALLOWS_PATIENCE_EXTRA_MS: f64 = 2000.0, "ms";
+    GALLOWS_PATIENCE_STUN_MS: f64 = 2250.0, "ms";
     PLANT_FEET_MS: f64 = 1000.0, "ms";
     PLANT_FEET_BONUS: f64 = 0.25, "share";
 

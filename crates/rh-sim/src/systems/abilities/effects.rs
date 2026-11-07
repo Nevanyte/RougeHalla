@@ -166,6 +166,22 @@ fn run(cx: &mut Cx, l: Landing, target: Option<PlayerId>, e: a::Effect) {
             move_mult,
             exit_stun_ms,
         } => {
+            // Gallows Patience keeps the ring longer and stuns longer.
+            let patient = cx.w.player(l.id).is_some_and(|p| {
+                p.build
+                    .has_flag(crate::stat_fold::EffectFlag::GallowsPatience)
+            });
+            let ms = ms
+                + if patient {
+                    crate::constants::GALLOWS_PATIENCE_EXTRA_MS
+                } else {
+                    0.
+                };
+            let exit_stun_ms = if patient {
+                Some(crate::constants::GALLOWS_PATIENCE_STUN_MS)
+            } else {
+                exit_stun_ms
+            };
             let Some(target) = target else {
                 return;
             };
@@ -397,6 +413,52 @@ mod row_harness {
                 .as_ref()
                 .is_none_or(|rt| rt.fields.iter().all(|f| f.kind != FieldKind::Zone)),
             "a refused zoned status leaves no zone"
+        );
+    }
+
+    #[test]
+    fn gallows_patience_keeps_the_ring_and_stuns_longer() {
+        let def = a::definition(rt::AbilityId::Trial);
+        let mut s = sim();
+        let l = landing_for(&s, rt::AbilityId::Trial, None);
+        s.with_cx(|cx| run_row(cx, l, def));
+        let base =
+            s.w.abilities
+                .as_ref()
+                .unwrap()
+                .fields
+                .iter()
+                .find(|f| f.kind == FieldKind::Zone)
+                .unwrap();
+        let base_life = base.ends_at - base.started_at;
+        let id = s.players()[0].id;
+        assert!(crate::cards::grant(
+            &s.k,
+            &mut s.w,
+            id,
+            crate::cards::CardId::GallowsPatience
+        ));
+        let l = landing_for(&s, rt::AbilityId::Trial, None);
+        s.with_cx(|cx| run_row(cx, l, def));
+        let field =
+            s.w.abilities
+                .as_ref()
+                .unwrap()
+                .fields
+                .iter()
+                .rev()
+                .find(|f| f.kind == FieldKind::Zone)
+                .unwrap();
+        assert_eq!(
+            field.exit_stun_ms,
+            Some(crate::constants::GALLOWS_PATIENCE_STUN_MS)
+        );
+        assert!(
+            (field.ends_at
+                - field.started_at
+                - (base_life + crate::constants::GALLOWS_PATIENCE_EXTRA_MS))
+                .abs()
+                < 1e-6
         );
     }
 }
