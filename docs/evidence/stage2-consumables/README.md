@@ -90,7 +90,8 @@ ledger.
 - [x] Protocol: `cargo test -p rh-protocol` all suites; `node tools/protocol-js/check-vectors.mjs` — 25 server vectors, 89
       malformed, 10 chains, 15,484 checks against `v9.json`; `dotnet test client-unity/RoguehallaNet.Tests` — 271 passed.
 - [x] `cargo fmt --all --check`; both strict Clippy workspace modes.
-- [ ] `cargo test --workspace --all-features --locked` (throwaway PostgreSQL) — RUNNING.
+- [x] `cargo test --workspace --all-features --locked` (throwaway PostgreSQL) — **1,402 passed, 0 failed, 2 ignored, 151
+      test binaries, exit 0**.
 - [x] `node tools/browser-proof/proof.mjs` — **15/15 checks PASS**, protocol **9**, 4 Full + 415 delta snapshots, no page
       errors, content hash `b9ea06c370690603` (the page's own decoder reads the new `potionLarge` inventory byte).
 
@@ -112,7 +113,9 @@ cargo fmt --all --check
 cargo clippy --workspace --all-targets --all-features -- -D warnings
 cargo clippy --workspace --all-targets -- -D warnings
 eval "$(PGBIN=/opt/homebrew/opt/postgresql@16/bin bash tools/pgtest/start.sh)" && cargo test --workspace --all-features --locked
+# 1,402 passed, 0 failed, 2 ignored, 151 test binaries, exit 0
 node tools/browser-proof/proof.mjs
+# 15/15 checks PASS, protocol 9, contentHash b9ea06c370690603
 ```
 
 ## 8. Shared-file hunks
@@ -136,6 +139,10 @@ node tools/browser-proof/proof.mjs
 - `campCleared` was an event only; the chain had no firing site. The payout now emits the event and fires the chain in
   source order.
 - The Rust live profile keeps `regen`/`camps` staged; this packet does not enable a new live mode.
+- Under `--all-features` the no-alloc gate also enables the test-only schedule trace (a growing log): every measured loop
+  must clear it, or the potion Hot steps count its allocations.
+- `crates/rh-server/tests/ending_metadata.rs` pins the current protocol version in its reference encoder; a version bump
+  updates that line (the encoded protocol-5 result bytes themselves are unchanged).
 
 ## 10. Owner questions
 
