@@ -93,6 +93,7 @@ fn reference(
                     rh_sim::reward_chests::Refusal::Owned => 7,
                     rh_sim::reward_chests::Refusal::Maxed => 8,
                     rh_sim::reward_chests::Refusal::NotYours => 9,
+                    rh_sim::reward_chests::Refusal::Needs(_) => 10,
                 },
             }),
             SeenEvent::Death { id, by } => events.push(WireEvent::Death {

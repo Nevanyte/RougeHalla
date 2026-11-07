@@ -19,19 +19,22 @@ pub enum Refusal {
     Owned,
     Maxed,
     NotYours,
+    /// A conditional card whose base the picker does not hold (source "Needs <Base>").
+    Needs(crate::cards::BaseStatId),
 }
 impl Refusal {
-    pub fn message(self) -> &'static str {
+    pub fn message(self) -> std::borrow::Cow<'static, str> {
         match self {
-            Self::Busy => "Can't do that now",
-            Self::Gone => "Chest gone",
-            Self::Far => "Too far away",
-            Self::Blocked => "Can't reach that",
-            Self::Picked => "You already picked",
-            Self::Taken => "Already taken",
-            Self::Owned => "Already yours",
-            Self::Maxed => "Stat maxed",
-            Self::NotYours => "Not yours",
+            Self::Busy => "Can't do that now".into(),
+            Self::Gone => "Chest gone".into(),
+            Self::Far => "Too far away".into(),
+            Self::Blocked => "Can't reach that".into(),
+            Self::Picked => "You already picked".into(),
+            Self::Taken => "Already taken".into(),
+            Self::Owned => "Already yours".into(),
+            Self::Maxed => "Stat maxed".into(),
+            Self::NotYours => "Not yours".into(),
+            Self::Needs(base) => format!("Needs {}", base.label()).into(),
         }
     }
 }
@@ -186,6 +189,15 @@ pub(crate) fn choose(
         }
         match option {
             OptionId::Card(id) if w.players[pi].build.owns(id) => return Err(Refusal::Owned),
+            OptionId::Card(id)
+                if id.definition().requires.is_some_and(|req| {
+                    !crate::cards::CardId::ALL.iter().any(|base| {
+                        base.definition().base == Some(req) && w.players[pi].build.owns(*base)
+                    })
+                }) =>
+            {
+                return Err(Refusal::Needs(id.definition().requires.expect("checked")));
+            }
             OptionId::Boost(id)
                 if u32::from(w.players[pi].build.boosts[id.index()])
                     >= crate::stat_fold::default_definition().chest_boost_max_picks =>
