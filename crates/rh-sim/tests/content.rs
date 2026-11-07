@@ -176,7 +176,7 @@ const TABLES_FOLDED_BY_HASH: &[(&str, &str, &str)] = &[
     ("systems/planning/deal.rs", "SPARE_BUDGET", "actual planning fallback budget folded by planning::deal::visit_content"),
     ("terrain.rs", "NEUTRAL", "actual complete runtime surface matrix folded by terrain::visit_content"),
     ("potions/mod.rs", "DEFINITION", "actual Small potion stock/concurrency/duration/share read by runtime and progression content visitor"),
-    ("cards/mod.rs", "ALL", "actual selected card identities/index/name order folded by visit_progression_content"),
+
     ("cards/rules.rs", "DEFINITION", "actual selected card tiers/effect words folded by visit_progression_content"),
     ("modifiers/farm.rs", "DEFINITION", "actual ordered mob reward rows and count bounds folded by visit_progression_content"),
     ("modifiers/rules.rs", "DEFINITION", "actual weapon/signature stat scaling words folded by visit_progression_content"),
