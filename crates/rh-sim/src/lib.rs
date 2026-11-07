@@ -90,3 +90,6 @@ pub mod reward_chests;
 
 pub use systems::arena_rules::{ArenaMode, ArenaRules, ColiseumSchedule};
 pub use systems::planning::{ArenaView, PlanView, PlanningView, SpawnOptionView};
+
+#[cfg(test)]
+mod card_witness_tests;
