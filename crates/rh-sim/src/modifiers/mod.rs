@@ -363,6 +363,41 @@ pub(crate) fn maximum_packet(weapon: crate::WeaponId) -> f64 {
         .fold(0., f64::max)
 }
 
-pub(crate) fn outgoing(p: &crate::fighter::FighterCore) -> f64 {
-    1. + StatSums::from_source_values(p.modifiers.farm).damage
+/// The damage kind of an entry (source `OutgoingKind`), for the outgoing row cap.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum OutgoingKind {
+    Hit,
+    Dot,
+    Returned,
+    Other,
+}
+
+/// Source `outgoingMult`: what a hit deals before armor and shield, as (1 + the damage sums + vs/scale rows), G1-capped so
+/// the row multiplier times the entry's own kind mult never passes OUTGOING_ROW_CAP; farm damage is added outside the cap.
+/// The vs/scale row tests are the remaining P-CARDS-1 slice; they contribute nothing yet.
+pub(crate) fn outgoing_damage(
+    p: &crate::fighter::FighterCore,
+    victim_frac: f64,
+    kind: OutgoingKind,
+    baked: f64,
+) -> f64 {
+    let _ = victim_frac;
+    let sums = StatSums::from_source_values(p.modifiers.sums);
+    let mults = MultSums::from_source_values(p.modifiers.mults);
+    let own = match kind {
+        OutgoingKind::Hit => mults.get(fold::MultKey::Hit),
+        OutgoingKind::Dot => mults.get(fold::MultKey::Dot),
+        OutgoingKind::Returned => mults.get(fold::MultKey::Returned),
+        OutgoingKind::Other => 1.,
+    } * (if baked > 0. { baked } else { 1. });
+    let ceiling = if own > 1. {
+        crate::constants::OUTGOING_ROW_CAP / own
+    } else {
+        crate::constants::OUTGOING_ROW_CAP
+    };
+    let farm = StatSums::from_source_values(p.modifiers.farm).damage;
+    if sums.damage == 0. {
+        return 1f64.min(ceiling).max(0.) + farm;
+    }
+    (1. + sums.damage).min(ceiling).max(0.) + farm
 }

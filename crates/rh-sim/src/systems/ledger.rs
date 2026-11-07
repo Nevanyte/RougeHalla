@@ -380,7 +380,27 @@ fn apply_inner(
         }
         // The PvP factor is for a player hitting a player: a mob on either side, or no attacker, takes none.
         let farm_mult = if !e.arena && e.ability.is_none() {
-            bix.map_or(1., |i| crate::modifiers::outgoing(w.core(i)))
+            bix.map_or(1., |i| {
+                let kind = if e.is_dot() {
+                    crate::modifiers::OutgoingKind::Dot
+                } else if e.passive {
+                    crate::modifiers::OutgoingKind::Returned
+                } else if e.sig.is_none() && e.ability.is_none() && e.weapon.is_some() {
+                    crate::modifiers::OutgoingKind::Hit
+                } else {
+                    crate::modifiers::OutgoingKind::Other
+                };
+                let frac = vix.map_or(1., |v| {
+                    let core = w.core(v);
+                    core.vitals.hp / core.vitals.max_hp.max(1e-9)
+                });
+                crate::modifiers::outgoing_damage(
+                    w.core(i),
+                    frac,
+                    kind,
+                    e.critical_mult.unwrap_or(1.),
+                )
+            })
         } else {
             1.
         };
