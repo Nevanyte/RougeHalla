@@ -135,7 +135,7 @@ catalog to a generated, corpus-verified table and the build to the source count 
 
 ## Measurements
 
-- `cargo test --workspace --all-features --locked` (throwaway PostgreSQL): **1,411 passed, 0 failed, 3 ignored, 151 test
+- `cargo test --workspace --all-features --locked` (throwaway PostgreSQL): **1,412 passed, 0 failed, 3 ignored, 151 test
   binaries, exit 0** (after the full-pool drop, the 21/21 terrain kernel, the allocation-free on-hit hook, the Fists of Fury
   multiplicity, the streak memory, Wishful Thinking, heal over time, Second Wind's trigger, Spiked Shell's return, Tank Engine's fortify, Adrenaline's boost and the teleport resets).
 - Catalog differentials: **2/2** (80 cards × all rows/selections; 80 × 4 eligibility entries incl. reasons).
@@ -159,7 +159,10 @@ catalog to a generated, corpus-verified table and the build to the source count 
 - The chest **certification edge cases** beyond the refusal table (the owner-private trophy path and the skip's heal-lockout GV
   path) and the guard-by-guard certification against the runtime diagnostic cases. The **refusal table itself is certified**:
   the hold now refuses only the birth tick (the source's `bornThisTick`), and a focused test replays the source's toast tape
-  (birth gone, owned, far, busy, the successful pick, another player's taken/untaken options, expiry).
+  (birth gone, owned, far, busy, the successful pick, another player's taken/untaken options, expiry). **The skip's GV path and
+  the private trophy are certified too**: an elite camp's skip on a full-health player heals nothing and pays the Skip GV (a Gv
+  event with reason Skip), a hurt player's skip heals and pays none, and a trophy chest (owner set) refuses another player with
+  NotYours. Nine reward-chest unit tests pass.
 - The packet's final acceptance evidence: source probes per runtime family, the mutant controls, and the coordinator's
   acceptance.
 
