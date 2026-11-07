@@ -83,7 +83,7 @@ pub fn checked_phase(p: Phase) -> Result<u8, rh_protocol::EncodeError> {
 
 /// Compatibility wrapper for supported-profile callers; never invents a wire phase.
 pub fn phase(p: Phase) -> u8 {
-    checked_phase(p).expect("native phase is unsupported by protocol 6")
+    checked_phase(p).expect("native phase is unsupported by protocol 7")
 }
 
 fn observation_supported(obs: &Observation) -> Result<(), rh_protocol::EncodeError> {
@@ -191,7 +191,7 @@ fn wire_actor(a: &rh_sim::observe::ActorView) -> WireActor {
 }
 
 pub fn snapshot(obs: &Observation, ack_input: u32) -> ServerMsg {
-    checked_snapshot(obs, ack_input).expect("native observation is unsupported by protocol 6")
+    checked_snapshot(obs, ack_input).expect("native observation is unsupported by protocol 7")
 }
 
 pub fn checked_snapshot(
@@ -1181,7 +1181,7 @@ mod tests {
     #[test]
     fn omitted_effect_announcements_leave_frames_and_redaction_unchanged() {
         use rh_sim::status_runtime::{AbilityId, CastEndReason, StatusKind};
-        assert_eq!(rh_protocol::PROTOCOL_VERSION, 6);
+        assert_eq!(rh_protocol::PROTOCOL_VERSION, 7);
         let env = seed1_match(1);
         let id = env.sim.players()[0].id;
         let mut publisher = Publisher::default();

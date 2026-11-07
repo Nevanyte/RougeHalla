@@ -12,7 +12,7 @@ pub use catalog::*;
 /// The source build's card count map (one byte per card in wire order). A newtype so the 80-byte array has Default and a
 /// strict 80-element serde form (serde arrays stop at 32).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct Counts(pub [u8; 80]);
+pub struct Counts(pub [u8; 80]);
 
 impl Default for Counts {
     fn default() -> Self {
@@ -61,6 +61,9 @@ impl Build {
         CardId::ALL
             .into_iter()
             .filter(move |id| self.counts.0[id.index()] > 0)
+    }
+    pub fn counts(&self) -> [u8; 80] {
+        self.counts.0
     }
     pub fn boosts(&self) -> [u8; 8] {
         self.boosts

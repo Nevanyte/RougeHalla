@@ -68,7 +68,7 @@ fn reference(
             | SeenEvent::Plan(_)
             | SeenEvent::CastStarted { .. }
             | SeenEvent::CastLanded { .. } => {
-                panic!("protocol 6 reference encoder does not support Source arena or Full Wish events")
+                panic!("protocol 7 reference encoder does not support Source arena or Full Wish events")
             }
             SeenEvent::PotionNotice { notice } => events.push(WireEvent::PotionNotice {
                 notice: match notice {
@@ -137,8 +137,8 @@ fn reference(
                 weapon: weapon.code(),
             }),
             SeenEvent::Stagger { id } => fx.push(WireFx::Stagger { id: id.0 }),
-            SeenEvent::AttackCancelled { .. } => {} // No cancel telegraph in protocol 6.
-            SeenEvent::SignatureHit { .. } | SeenEvent::Heal { .. } => {} // No heal effect in protocol 6.
+            SeenEvent::AttackCancelled { .. } => {} // No cancel telegraph in protocol 7.
+            SeenEvent::SignatureHit { .. } | SeenEvent::Heal { .. } => {} // No heal effect in protocol 7.
             // Scalar status/fields are transported; these separate event telegraphs remain omitted.
             SeenEvent::AbilityHit { .. }
             | SeenEvent::CastEnded { .. }

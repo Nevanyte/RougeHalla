@@ -15,14 +15,14 @@
 <body>
 <main>
   <h1>Roguehalla protocol probe</h1>
-  <p>A browser client for protocol v6 over the browser WebSocket API (the transport a Unity Web build uses). It is a test
+  <p>A browser client for protocol v7 over the browser WebSocket API (the transport a Unity Web build uses). It is a test
   harness for Stage 1, not the game client. Click to walk; hold Space to attack toward the cursor.</p>
   <canvas id="c" width="960" height="640"></canvas>
   <pre id="s">connecting…</pre>
 </main>
 <script>
 "use strict";
-// ---- protocol v6 (mirror of crates/rh-protocol; tools/protocol-js/check-vectors.mjs holds this block to protocol/fixtures/v6.json) ----
+// ---- protocol v7 (mirror of crates/rh-protocol; tools/protocol-js/check-vectors.mjs holds this block to protocol/fixtures/v6.json) ----
 class W {
   constructor() { this.b = new Uint8Array(256); this.n = 0; this.v = new DataView(this.b.buffer); }
   need(k) { if (this.n + k > this.b.length) { const nb = new Uint8Array(this.b.length * 2 + k); nb.set(this.b); this.b = nb; this.v = new DataView(nb.buffer); } }
@@ -75,7 +75,7 @@ function fnv(w, h, tiles) {
   for (const t of tiles) eat(t);
   return x >>> 0;
 }
-const PROTOCOL = 6;
+const PROTOCOL = 7;
 const MAX_TICKET = 448;
 // Quantized remote actors and swings (rh-protocol quant.rs): positions are u16 at 1/8 u, angles u16 over 2 pi read as a signed code.
 const FACING_STEP_F32 = Math.fround(2 * Math.PI / 65536);
@@ -380,7 +380,7 @@ function readState(r) {
       value=[];for(let j=0,k=count();j<k;j++)value.push({kind:r.code(1,"projectile"),x:r.u16(),y:r.u16(),facing:r.u16(),owner:actor()});
     } else if(key===6) {
       value=[];for(let j=0,k=count();j<k;j++){const c={mobType:r.code(29,"camp"),elite:r.code(30,"camp"),alive:r.varint(),state:r.code(2,"camp"),clearedAt:finite(r.f64()),respawnAt:finite(r.f64())};if(c.alive>512||c.clearedAt<0||c.respawnAt<c.clearedAt)throw new Error("bad camp");value.push(c);}
-    } else value = r.opt(() => ({ cards: Array.from(r.bytes(3)), boosts: Array.from(r.bytes(8)) }));
+    } else value = r.opt(() => ({ cards: Array.from(r.bytes(80)), boosts: Array.from(r.bytes(8)) }));
     items.push({ key, value });
   }
   return items;

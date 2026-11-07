@@ -80,7 +80,12 @@ fn state() -> ServerMsg {
                 can_choose: true,
             }]),
             StateItem::Build(Some(WireBuild {
-                cards: [1, 0, 1],
+                cards: {
+                    let mut c = [0; 80];
+                    c[0] = 1;
+                    c[2] = 1;
+                    c
+                },
                 boosts: [0, 1, 2, 3, 0, 1, 2, 3],
             })),
         ],
