@@ -494,6 +494,12 @@ pub struct Player {
     /// The once-trigger cards that already fired this run (source `PlayerRuntime.fired`).
     #[serde(default)]
     pub card_fired: Vec<crate::cards::CardId>,
+    /// Tank Engine's prevented-damage tally (source `cards.prevented`).
+    #[serde(default)]
+    pub card_prevented: f64,
+    /// Tank Engine's earned flat max-health bonus (source `cards.tankHp`).
+    #[serde(default)]
+    pub card_tank_hp: f64,
     pub plan_ready: bool,
     pub build: crate::cards::Build,
     pub potion_small: u8,
@@ -547,6 +553,8 @@ impl Player {
             card_trims: Vec::new(),
             card_hots: Vec::new(),
             card_fired: Vec::new(),
+            card_prevented: 0.,
+            card_tank_hp: 0.,
             build: Default::default(),
             potion_small: 0,
             healing_until: 0.,

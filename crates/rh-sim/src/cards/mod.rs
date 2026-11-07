@@ -234,40 +234,98 @@ pub(crate) fn grant(
 /// Actual cardHooks.onBlocked subset. Quiet status application is immediate outside the ledger.
 pub(crate) fn on_blocked(hx: &mut crate::hooks::Hx, args: &crate::hooks::HookArgs) {
     let crate::hooks::HookArgs::Blocked {
-        holder, attacker, ..
+        holder,
+        attacker,
+        prevented,
+        ..
     } = *args
     else {
         return;
     };
-    let Some(p) = hx.w.player(holder) else { return };
-    if !p.build.owns(CardId::PocketSand) {
+    let Some(holder_ix) = hx.w.idx(holder) else {
         return;
-    }
+    };
+    let (faction, mirrors, rows, n) = {
+        let Some(p) = hx.w.player(holder) else { return };
+        let mut rows = [(TriggerAction::Cooldown { ms: 0. }, 0.); 4];
+        let mut n = 0;
+        for card in p.build.cards() {
+            for row in card.definition().rows {
+                if let CardRow::Trigger(t) = row {
+                    if t.on == TriggerOn::Block {
+                        if n < rows.len() {
+                            rows[n] = (t.action, t.arg);
+                            n += 1;
+                        }
+                    }
+                }
+            }
+        }
+        (
+            crate::content::faction(p.vitals.faction),
+            p.modifiers.mirrors(),
+            rows,
+            n,
+        )
+    };
     let Some(name) = hx.w.roster.label(holder).cloned() else {
         return;
     };
-    crate::systems::status::operations::apply_with(
-        hx.k,
-        hx.w,
-        hx.ev,
-        attacker,
-        crate::status_runtime::StatusApply {
-            kind: crate::status_runtime::StatusKind::SlowMove,
-            source: crate::status_runtime::StatusSource {
-                id: Some(holder),
-                name,
-                owner_id: None,
-            },
-            ms: DEFINITION.pocket_sand_ms,
-            ability: None,
-            tag: Some(crate::status_runtime::StatusTag::Block),
-            value: Some(DEFINITION.pocket_sand_slow),
-            add: None,
-            data: None,
-        },
-        true,
-        hx.stats,
-    );
+    for &(action, _arg) in &rows[..n] {
+        match action {
+            TriggerAction::Status {
+                to,
+                status,
+                ms,
+                value,
+            } => {
+                let target = match to {
+                    Side::Self_ => holder,
+                    Side::Target => attacker,
+                };
+                crate::systems::status::operations::apply_with(
+                    hx.k,
+                    hx.w,
+                    hx.ev,
+                    target,
+                    crate::status_runtime::StatusApply {
+                        kind: status,
+                        source: crate::status_runtime::StatusSource {
+                            id: Some(holder),
+                            name: name.clone(),
+                            owner_id: None,
+                        },
+                        ms,
+                        ability: None,
+                        tag: Some(crate::status_runtime::StatusTag::Block),
+                        value,
+                        add: None,
+                        data: None,
+                    },
+                    true,
+                    hx.stats,
+                );
+            }
+            TriggerAction::Fortify { per, cap } => {
+                let shares = crate::content::DamageShares {
+                    phys: prevented.phys,
+                    magic: prevented.magic,
+                    true_: prevented.true_,
+                };
+                let armor = (faction.armor + mirrors.armor_bonus).max(0.);
+                let shield = faction.shield + mirrors.shield_bonus;
+                let kept = crate::content::mitigate_shares(prevented.raw, &shares, armor, shield);
+                let p = &mut hx.w.players[holder_ix];
+                p.card_prevented += kept;
+                let earned = (p.card_prevented * per).min(cap);
+                if earned > p.card_tank_hp + 1e-9 {
+                    p.card_tank_hp = earned;
+                    crate::modifiers::sync_max_hp(p);
+                }
+            }
+            _ => {}
+        }
+    }
 }
 
 pub mod runtime;
@@ -329,5 +387,79 @@ mod wishful_tests {
         wishful_thinking(1, 1000., now, &mut st4, cast, &mut trims4);
         assert_eq!(st4.wish_ready_at, now + 2000.);
         assert_eq!(trims4.len(), 1);
+    }
+}
+
+#[cfg(test)]
+mod tank_tests {
+    use super::*;
+    use crate::{arenas, FactionId, Placement, PlayerId, Secrets, Sim, SimConfig, Vec2};
+
+    #[test]
+    fn tank_engine_earns_flat_max_hp_from_prevented_damage() {
+        let ps = [
+            Placement {
+                profile: "a".into(),
+                faction: FactionId::Fire,
+                bot: false,
+                at: Vec2::new(400., 400.),
+                hp: None,
+                weapon0: None,
+                weapon1: None,
+            },
+            Placement {
+                profile: "b".into(),
+                faction: FactionId::Holy,
+                bot: false,
+                at: Vec2::new(456., 400.),
+                hp: None,
+                weapon0: None,
+                weapon1: None,
+            },
+        ];
+        let mut sim = Sim::reset_active(
+            SimConfig::default(),
+            arenas::practice_arena(),
+            Secrets::from_seed(7),
+            &ps,
+        );
+        assert!(crate::cards::grant(
+            &sim.k,
+            &mut sim.w,
+            PlayerId(2),
+            CardId::TankEngine
+        ));
+        let i = sim.w.idx(PlayerId(2)).unwrap();
+        let base_max = sim.w.players[i].vitals.max_hp;
+        let mut ev = Vec::new();
+        let mut hx = crate::hooks::Hx {
+            stats: Default::default(),
+            fx: None,
+            k: &sim.k,
+            w: &mut sim.w,
+            ev: &mut ev,
+        };
+        on_blocked(
+            &mut hx,
+            &crate::hooks::HookArgs::Blocked {
+                holder: PlayerId(2),
+                attacker: PlayerId(1),
+                prevented: crate::state::Packet {
+                    raw: 100.,
+                    phys: 1.,
+                    magic: 0.,
+                    true_: 0.,
+                },
+                melee: true,
+            },
+        );
+        let p = hx.w.player(PlayerId(2)).unwrap();
+        assert!(p.card_prevented > 0., "tally {}", p.card_prevented);
+        assert!(
+            p.card_tank_hp > 0. && p.card_tank_hp <= 250.,
+            "earned {}",
+            p.card_tank_hp
+        );
+        assert_eq!(p.vitals.max_hp, base_max + p.card_tank_hp);
     }
 }

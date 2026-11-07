@@ -178,7 +178,8 @@ pub(crate) fn recompute_with(
     };
 }
 pub(crate) fn sync_max_hp(p: &mut crate::state::Player) {
-    let max = crate::content::faction(p.vitals.faction).hp * p.modifiers.max_hp_mult;
+    let max =
+        crate::content::faction(p.vitals.faction).hp * p.modifiers.max_hp_mult + p.card_tank_hp;
     let delta = max - p.vitals.max_hp;
     if delta.abs() < 1e-9 {
         return;
