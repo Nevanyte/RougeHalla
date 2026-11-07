@@ -135,7 +135,7 @@ catalog to a generated, corpus-verified table and the build to the source count 
 
 ## Measurements
 
-- `cargo test --workspace --all-features --locked` (throwaway PostgreSQL): **1,410 passed, 0 failed, 3 ignored, 151 test
+- `cargo test --workspace --all-features --locked` (throwaway PostgreSQL): **1,411 passed, 0 failed, 3 ignored, 151 test
   binaries, exit 0** (after the full-pool drop, the 21/21 terrain kernel, the allocation-free on-hit hook, the Fists of Fury
   multiplicity, the streak memory, Wishful Thinking, heal over time, Second Wind's trigger, Spiked Shell's return, Tank Engine's fortify, Adrenaline's boost and the teleport resets).
 - Catalog differentials: **2/2** (80 cards × all rows/selections; 80 × 4 eligibility entries incl. reasons).
@@ -156,8 +156,10 @@ catalog to a generated, corpus-verified table and the build to the source count 
   damage matches the source's `actualLandedAmount` (36.13796707603867) exactly. **Both witness cases now pass**: the positive
   case grants the live `Witness` card, and the ledger's `thirdParty` probe (the victim's weapon lock or last signature target
   on someone other than the attacker) applies its +8% — landing 39.029004442121774, matching the source exactly.
-- The chest ownership/skip **certification edge cases** beyond the refusal table (owner-private trophies, the skip's heal-lockout
-  GV path) and the guard-by-guard certification against the runtime diagnostic cases.
+- The chest **certification edge cases** beyond the refusal table (the owner-private trophy path and the skip's heal-lockout GV
+  path) and the guard-by-guard certification against the runtime diagnostic cases. The **refusal table itself is certified**:
+  the hold now refuses only the birth tick (the source's `bornThisTick`), and a focused test replays the source's toast tape
+  (birth gone, owned, far, busy, the successful pick, another player's taken/untaken options, expiry).
 - The packet's final acceptance evidence: source probes per runtime family, the mutant controls, and the coordinator's
   acceptance.
 
