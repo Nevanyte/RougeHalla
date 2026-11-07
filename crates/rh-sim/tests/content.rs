@@ -41,6 +41,7 @@ const NON_GAMEPLAY: &[(&str, &str, &str)] = &[
     ("cards/mod.rs", "MAX_FOLD_ROWS", "fixed scratch bound equal to the generated catalog's total fold rows, not a game rule"),
     ("reward_chests/pools.rs", "INTERACTIVE", "the source interactive augment id list (identifiers only); tiers and rows are the registered catalog"),
     ("cards/on_hit.rs", "MAX_ON_HIT_ROWS", "fixed stack buffer bound for the owned on-hit rows; never a game rule"),
+    ("cards/on_hurt.rs", "MAX_ROWS", "fixed stack buffer bound for the owned hpBelow rows; never a game rule"),
     ("reward_chests/tests.rs", "FIXTURE_FNV", "cfg(test)-only frozen source fixture integrity; not runtime policy"),
     ("mapgen/style_zones/tests.rs", "CASES", "cfg(test)-only exact source open-case/provenance inventory; never read by runtime policy"),
     ("mapgen/style_zones/tests.rs", "SOURCE_NAMES", "cfg(test)-only exact source open-case/provenance inventory; never read by runtime policy"),
