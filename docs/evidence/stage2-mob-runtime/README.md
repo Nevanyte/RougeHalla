@@ -1,5 +1,8 @@
 # P-MOBS-1 remainder: the chainable mob life hooks and the 180 s respawn witness
 
+Stacked PR: [#41](https://github.com/Nevanyte/RougeHalla/pull/41), `deepseek/p-mobs-1` → `deepseek/p-terrain-1` @
+`44299eec`; commits `3415808c`..`f7ad47f2`. No wire/protocol change (stays on the protocol-7 terrain base).
+
 Slice scope, assessed from the code and git history before writing: the regional mob runtime was integrated by the
 first-playable core (`484cef25`); its schedule rows are already ported at their legacy positions
 (`inputs:mobs(insertionOrder)`, `mobLife.reapMobs`, `mobLife.respawnCamps`, `mobAI.thinkMobs`,
@@ -48,8 +51,12 @@ with a pinned-container source witness and mutant controls, and leaves every oth
   name their real packets).
 - `bash tools/mob-runtime-fixtures/capture.sh --check`: **PASS** — 504 frames, 3,946 ticks, 4 producer calls, 708,910
   bytes, byte-identical in the pinned linux/amd64 Node `v22.23.4` container.
-- Gate numbers are in the PR body / commits (`cargo test --workspace --all-features --locked` with the PostgreSQL
-  helper, both strict Clippy modes, `cargo fmt --all --check`).
+- `cargo fmt --all --check`, `cargo clippy --workspace --all-targets --all-features -- -D warnings` and
+  `cargo clippy --workspace --all-targets -- -D warnings`: clean.
+- `eval "$(bash tools/pgtest/start.sh)" && cargo test --workspace --all-features --locked`: **1,430 passed, 0 failed,
+  151 test-result groups, exit 0** (the base `44299eec` gate count plus the three focused lifecycle tests).
+- `cargo run -p rh-parity --bin parity-report`: **97 slice scenarios + 13 capture-only, 300 pathfinding queries: all
+  MATCH** (unchanged scope; the new producers change no state).
 
 ## Still missing (P-MOBS-1 remains INCOMPLETE)
 
