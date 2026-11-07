@@ -56,6 +56,11 @@ impl Runtime {
         MultSums::from_source_values(self.mults).get(fold::MultKey::Hit)
     }
 
+    /// The folded returned-damage multiplier (source `returnedMultOf`): a returned hit's share is scaled by it.
+    pub fn returned_mult(&self) -> f64 {
+        MultSums::from_source_values(self.mults).get(fold::MultKey::Returned)
+    }
+
     pub fn dot_mult(&self) -> f64 {
         MultSums::from_source_values(self.mults).get(fold::MultKey::Dot)
     }

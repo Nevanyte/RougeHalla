@@ -11,8 +11,85 @@ use std::sync::Arc;
 /// Fixed capacity for the owned cards' on-hit rows; a hit takes no allocation.
 pub(crate) const MAX_ON_HIT_ROWS: usize = 8;
 
+/// Is the weapon a melee one (source `swings`: an arc weapon)?
+fn swings(weapon: crate::content::WeaponId) -> bool {
+    matches!(
+        weapon,
+        crate::content::WeaponId::Sword
+            | crate::content::WeaponId::Axe
+            | crate::content::WeaponId::Fists
+    )
+}
+
+/// Source `hitTaken`: a player's hitTaken rows. Spiked Shell returns a share of the applied damage to the attacker as a
+/// deferred physical hit carrying the victim's returned multiplier; the row's threshold is the share of max hp it needs.
+fn hit_taken_rows(hx: &mut Hx, entry: &crate::systems::ledger::Entry, applied: f64) {
+    let Some(victim) = hx.w.player(entry.victim) else {
+        return;
+    };
+    let Some(max_hp) = Some(victim.vitals.max_hp).filter(|m| *m > 0.) else {
+        return;
+    };
+    let Some(by) = entry.by else { return };
+    let weapon = victim.core.active_weapon();
+    let returned = victim.modifiers.returned_mult();
+    let mut rows = [(0., false, 0.); 4];
+    let mut n = 0;
+    for card in victim.build.cards() {
+        for row in card.definition().rows {
+            if let CardRow::Trigger(t) = row {
+                if t.on == crate::cards::TriggerOn::HitTaken {
+                    if let crate::cards::TriggerAction::Return { melee, share } = t.action {
+                        if n < rows.len() {
+                            rows[n] = (t.arg, melee, share);
+                            n += 1;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    for &(arg, melee, share) in &rows[..n] {
+        if arg > 0. && !(applied >= arg * max_hp - 1e-9) {
+            continue;
+        }
+        if melee && !entry.weapon.is_some_and(swings) {
+            continue;
+        }
+        let raw = share * applied * returned;
+        if !(raw > 0.) {
+            continue;
+        }
+        hx.w.deferred.defer_hit(crate::systems::ledger::Entry {
+            terrain: false,
+            dot: false,
+            ability: None,
+            arena: false,
+            source: None,
+            critical: false,
+            critical_mult: None,
+            sig: None,
+            execute: false,
+            victim: by,
+            by: Some(entry.victim),
+            packet: crate::state::Packet {
+                raw,
+                phys: 1.,
+                magic: 0.,
+                true_: 0.,
+            },
+            weapon: Some(weapon),
+            stagger: false,
+            projectile: None,
+            scale: 1.,
+            derived: false,
+            passive: true,
+        });
+    }
+}
+
 pub(crate) fn apply(hx: &mut Hx, args: &HookArgs) {
-    let HookArgs::HitLanded { ref entry, .. } = *args else {
+    let HookArgs::HitLanded { ref entry, amount } = *args else {
         return;
     };
     let Some(by) = entry.by else { return };
@@ -20,6 +97,7 @@ pub(crate) fn apply(hx: &mut Hx, args: &HookArgs) {
     {
         return;
     }
+    hit_taken_rows(hx, entry, amount);
     let Some(victim_ix) = hx.w.fighter_idx(entry.victim) else {
         return;
     };
@@ -467,5 +545,97 @@ mod tests {
             .expect("hemorrhage bleed");
         // Third hit in the row: sword 1.5 x 2 applications, per 0.1 => 100 * 0.1 * 3 = 30 over 2 s = 15 per second.
         assert!((dot.value - 15.).abs() < 1e-9, "value {}", dot.value);
+    }
+
+    #[test]
+    fn spiked_shell_returns_a_share_of_the_applied_damage() {
+        use crate::content::WeaponId;
+        use crate::state::Packet;
+        use crate::{arenas, FactionId, Placement, PlayerId, Secrets, Sim, SimConfig, Vec2};
+
+        let ps = [
+            Placement {
+                profile: "a".into(),
+                faction: FactionId::Fire,
+                bot: false,
+                at: Vec2::new(400., 400.),
+                hp: None,
+                weapon0: None,
+                weapon1: None,
+            },
+            Placement {
+                profile: "b".into(),
+                faction: FactionId::Holy,
+                bot: false,
+                at: Vec2::new(456., 400.),
+                hp: None,
+                weapon0: None,
+                weapon1: None,
+            },
+        ];
+        let mut sim = Sim::reset_active(
+            SimConfig::default(),
+            arenas::practice_arena(),
+            Secrets::from_seed(7),
+            &ps,
+        );
+        assert!(crate::cards::grant(
+            &sim.k,
+            &mut sim.w,
+            PlayerId(2),
+            crate::cards::CardId::SpikedShell
+        ));
+        let mut ev = Vec::new();
+        let entry = crate::systems::ledger::Entry {
+            terrain: false,
+            dot: false,
+            ability: None,
+            arena: false,
+            source: None,
+            critical: false,
+            critical_mult: None,
+            sig: None,
+            execute: false,
+            victim: PlayerId(2),
+            by: Some(PlayerId(1)),
+            packet: Packet {
+                raw: 100.,
+                phys: 1.,
+                magic: 0.,
+                true_: 0.,
+            },
+            weapon: Some(WeaponId::Sword),
+            stagger: false,
+            projectile: None,
+            scale: 1.,
+            derived: false,
+            passive: false,
+        };
+        let mut hx = crate::hooks::Hx {
+            stats: Default::default(),
+            fx: None,
+            k: &sim.k,
+            w: &mut sim.w,
+            ev: &mut ev,
+        };
+        apply(
+            &mut hx,
+            &crate::hooks::HookArgs::HitLanded {
+                entry,
+                amount: 100.,
+            },
+        );
+        let deferred = hx.w.deferred.hits.pop().expect("a returned hit");
+        assert_eq!(deferred.victim, PlayerId(1));
+        assert_eq!(deferred.by, Some(PlayerId(2)));
+        assert_eq!(deferred.weapon, Some(WeaponId::Fists));
+        assert!(deferred.passive);
+        // share 0.15 of the 100 applied, times the (default 1) returned multiplier.
+        assert!(
+            (deferred.packet.raw - 15.).abs() < 1e-9,
+            "raw {}",
+            deferred.packet.raw
+        );
+        assert_eq!(deferred.packet.phys, 1.);
     }
 }
