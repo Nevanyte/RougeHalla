@@ -666,3 +666,41 @@ fn mob_lifecycle_returning_mob_damage_adds_threat_without_reaggro() {
         BrainMode::Return
     );
 }
+
+/// The packet's per-kill-loose-drop trap: a camp's weapon drops once, for the camp clear, chosen by the earliest dying
+/// mob of the pass (never once per kill, and never before the camp is empty). This is the guard the
+/// `per-kill-loose-drop` mutant must fail.
+#[test]
+fn mob_lifecycle_camp_clear_is_the_only_loose_weapon() {
+    let f = fixture();
+    let mut sim = make_sim(&f);
+    sim.step();
+    let ids: Vec<PlayerId> = sim.w.mobs.iter().map(|m| m.core.id).collect();
+    assert!(ids.len() >= 2, "the camp spawned");
+    let award = |sim: &Sim, id: PlayerId| super::Award {
+        mob: id,
+        serial: mob_serial(sim, id),
+        killer: Some(sim.w.players[0].id),
+        camp: 0,
+        weapon: WeaponId::Axe,
+        at: Vec2::new(0., 0.),
+        elite: false,
+        mob_type: crate::mob_catalog::MobTypeId::EmberImp,
+        zone: FactionId::Fire,
+        mult: 1.,
+        contributors: Vec::new(),
+    };
+    let first = award(&sim, ids[0]);
+    let second = award(&sim, ids[1]);
+    // A camp that still has members alive drops nothing for a kill.
+    sim.w.pay.mob_deaths = vec![first.clone()];
+    assert!(!super::dropper(&sim.w, &first));
+    // Once the camp is empty only the earliest dying mob of the camp leaves its weapon.
+    sim.w.mob_runtime.as_mut().unwrap().camps[0].alive = 0;
+    sim.w.pay.mob_deaths = vec![second.clone(), first.clone()];
+    assert!(super::dropper(&sim.w, &first));
+    assert!(!super::dropper(&sim.w, &second));
+    // A clear whose deaths were already settled (empty pass list) still leaves its own weapon.
+    sim.w.pay.mob_deaths.clear();
+    assert!(super::dropper(&sim.w, &first));
+}

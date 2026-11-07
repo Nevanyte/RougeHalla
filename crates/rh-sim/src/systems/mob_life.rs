@@ -297,7 +297,7 @@ fn dropper(w: &World, a: &Award) -> bool {
             .filter(|d| d.camp == a.camp)
             .map(|d| d.serial)
             .min()
-            == Some(a.serial)
+            .is_none_or(|serial| serial == a.serial)
 }
 fn drop_weapon(w: &mut World, a: &Award) {
     if a.weapon != WeaponId::Fists {
