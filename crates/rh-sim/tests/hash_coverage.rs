@@ -822,6 +822,7 @@ const VALIDATED: &[(&str, &str)] = &[
     ("world.players.*.core.statuses.cast.producer", "Full requires complete producer details; Off forbids them and only admits trusted bare cast facts"),
     ("world.players.*.card_runtime", "Full canonical spend memory is coupled to produced stock clocks/cast; Off forbids card memory"),
     ("world.players.*.card_streak", "the card-state streak exists only after the after-damage system records weapon hits; a fresh or no-hit state is legitimately None"),
+    ("world.players.*.card_trims", "Wishful Thinking trims exist only after a Wish cast and landed hits inside the source window; a fresh state is legitimately empty"),
     ("world.players.*.card_runtime.wish_cast", "the admitted lazy card runtime is created only by a successful Wish spend and cannot be empty"),
 
     ("world.abilities.fields.*.ability", "Full field ability is coupled to its Cloud/Trail/Zone kind and typed definition"),

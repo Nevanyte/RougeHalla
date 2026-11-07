@@ -50,6 +50,43 @@ pub(crate) fn after_damage(cx: &mut Cx) {
         let best_offense = w.players[i]
             .build
             .has_flag(crate::stat_fold::EffectFlag::BlockHits);
+        // Wishful Thinking hears the same group: every weapon hit (and Best Offense block) shortens a cast Wish.
+        let mut n_total = 0u32;
+        for h in landed.iter() {
+            if h.by == Some(by) && is_weapon_hit(h) {
+                n_total += 1;
+            }
+        }
+        if best_offense {
+            n_total += blocks
+                .iter()
+                .filter(|b| b.holder == by && !b.passive)
+                .count() as u32;
+        }
+        let mut wish_ms = 0.;
+        for id in w.players[i].build.cards() {
+            for row in id.definition().rows {
+                if let crate::cards::CardRow::Trigger(t) = row {
+                    if t.on == crate::cards::TriggerOn::Hit {
+                        if let crate::cards::TriggerAction::Cooldown { ms } = t.action {
+                            wish_ms += ms;
+                        }
+                    }
+                }
+            }
+        }
+        if n_total > 0 && wish_ms > 0. {
+            let p = &mut w.players[i];
+            let cast = p.card_runtime.and_then(|r| r.wish_cast);
+            crate::cards::wishful_thinking(
+                n_total,
+                wish_ms,
+                now,
+                &mut p.stocks,
+                cast,
+                &mut p.card_trims,
+            );
+        }
         // A block under Best Offense is a hit by the holder on the blocked attacker: it counts for the streak.
         let hits_for = |victim: PlayerId| -> (f64, u32) {
             let (mut damage, mut n) = sum_for(landed, by, victim);

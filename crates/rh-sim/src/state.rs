@@ -485,6 +485,9 @@ pub struct Player {
     /// Source card-state streak memory (written by the after-damage system, read by on-hit/Twist of Fate).
     #[serde(default)]
     pub card_streak: Option<crate::cards::Streak>,
+    /// Wishful Thinking's trims inside the source window (written by the after-damage system).
+    #[serde(default)]
+    pub card_trims: Vec<crate::cards::Trim>,
     pub plan_ready: bool,
     pub build: crate::cards::Build,
     pub potion_small: u8,
@@ -535,6 +538,7 @@ impl Player {
             stocks: Default::default(),
             card_runtime: None,
             card_streak: None,
+            card_trims: Vec::new(),
             build: Default::default(),
             potion_small: 0,
             healing_until: 0.,

@@ -48,6 +48,53 @@ pub struct Streak {
     pub last: f64,
 }
 
+/// One Wishful Thinking trim inside the source window (source `cards.trims`).
+#[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Trim {
+    pub at: f64,
+    pub ms: f64,
+}
+
+/// Source `wishfulThinking`: `n` hits shorten a cast Wish's cooldown by the owned hit-trigger's `ms` each, capped by the
+/// window budget and never below the cast-cooldown floor. Mutates the stock clocks and records the trim.
+pub fn wishful_thinking(
+    n: u32,
+    ms: f64,
+    now: f64,
+    stocks: &mut crate::abilities::Stocks,
+    cast: Option<crate::cards::runtime::WishSpend>,
+    trims: &mut Vec<Trim>,
+) {
+    if n == 0 || !(ms > 0.) {
+        return;
+    }
+    let Some(cast) = cast else { return };
+    let on_cooldown = stocks.wish_ready_at > now;
+    let clock_end = if on_cooldown {
+        stocks.wish_ready_at
+    } else {
+        stocks.wish_full_at.unwrap_or(0.)
+    };
+    if !(clock_end > now) {
+        return;
+    }
+    trims.retain(|t| now - t.at < crate::constants::WISHFUL_WINDOW_MS);
+    let used: f64 = trims.iter().map(|t| t.ms).sum();
+    let floor_at = (cast.at + crate::constants::WISHFUL_FLOOR_SHARE * cast.cooldown_ms).max(now);
+    let cut = (f64::from(n) * ms)
+        .min(crate::constants::WISHFUL_BUDGET_MS - used)
+        .min(clock_end - floor_at);
+    if !(cut > 0.) {
+        return;
+    }
+    if on_cooldown {
+        stocks.wish_ready_at -= cut;
+    }
+    stocks.wish_full_at = stocks.wish_full_at.map(|v| (v - cut).max(0.));
+    trims.push(Trim { at: now, ms: cut });
+}
+
 /// Source `streakBefore`: hits landed in a row on `victim` before this tick's pass (0 without a live same-target streak).
 pub fn streak_before(
     streak: Option<&Streak>,
@@ -208,3 +255,63 @@ pub(crate) fn on_blocked(hx: &mut crate::hooks::Hx, args: &crate::hooks::HookArg
 }
 
 pub mod runtime;
+
+#[cfg(test)]
+mod wishful_tests {
+    use super::{wishful_thinking, Trim};
+    use crate::abilities::Stocks;
+    use crate::cards::runtime::WishSpend;
+
+    fn stocks(now: f64) -> Stocks {
+        Stocks {
+            wish_ready_at: now + 3000.,
+            wish_full_at: None,
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn wishful_thinking_trims_with_the_source_caps() {
+        let cast = Some(WishSpend {
+            at: 0.,
+            cooldown_ms: 10_000.,
+        });
+        let now = 5000.;
+        let mut st = stocks(now);
+        let mut trims = Vec::new();
+        wishful_thinking(1, 1000., now, &mut st, cast, &mut trims);
+        // floorAt = max(now, cast.at + 0.5 * cooldown) = 5000, clockEnd 8000: cut 1000.
+        assert_eq!(st.wish_ready_at, now + 2000.);
+        assert_eq!(trims.len(), 1);
+        // Budget: 30 s already used in the window leaves nothing.
+        let mut st2 = stocks(now);
+        let mut trims2 = vec![Trim {
+            at: now,
+            ms: crate::constants::WISHFUL_BUDGET_MS,
+        }];
+        wishful_thinking(1, 1000., now, &mut st2, cast, &mut trims2);
+        assert_eq!(st2.wish_ready_at, now + 3000.);
+        // Floor: only 200 ms above the floor can be cut.
+        let cast_late = Some(WishSpend {
+            at: 0.,
+            cooldown_ms: 10_000.,
+        });
+        let mut st3 = Stocks {
+            wish_ready_at: now + 200.,
+            wish_full_at: None,
+            ..Default::default()
+        };
+        let mut trims3 = Vec::new();
+        wishful_thinking(5, 1000., now, &mut st3, cast_late, &mut trims3);
+        assert_eq!(st3.wish_ready_at, now);
+        // An expired trim leaves the window.
+        let mut st4 = stocks(now);
+        let mut trims4 = vec![Trim {
+            at: now - crate::constants::WISHFUL_WINDOW_MS,
+            ms: crate::constants::WISHFUL_BUDGET_MS,
+        }];
+        wishful_thinking(1, 1000., now, &mut st4, cast, &mut trims4);
+        assert_eq!(st4.wish_ready_at, now + 2000.);
+        assert_eq!(trims4.len(), 1);
+    }
+}

@@ -14,6 +14,8 @@ pub(crate) fn reset_all(hx: &mut crate::hooks::Hx, args: &crate::hooks::HookArgs
     if *args == crate::hooks::HookArgs::RaidStarted {
         for p in &mut hx.w.players {
             p.card_runtime = None;
+            p.card_streak = None;
+            p.card_trims.clear();
         }
     }
 }

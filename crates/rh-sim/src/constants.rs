@@ -96,6 +96,9 @@ content! {
     SHIELD_BLOCK_SHARE: f64 = 0.07, "fraction";
     RIPOSTE_SHARE: f64 = 0.5, "fraction";
     STREAK_GAP_MS: f64 = 3000.0, "ms";
+    WISHFUL_BUDGET_MS: f64 = 30_000.0, "ms";
+    WISHFUL_WINDOW_MS: f64 = 60_000.0, "ms";
+    WISHFUL_FLOOR_SHARE: f64 = 0.5, "share";
     SWORD_ON_HIT_POWER: f64 = 1.5, "x";
     FISTS_ON_HIT_POWER: f64 = 1.2, "x";
     PLAIN_ON_HIT_POWER: f64 = 1.0, "x";
