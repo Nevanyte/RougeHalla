@@ -1121,17 +1121,17 @@ static TELEPORTED: [Link; 13] = [
         Gate::Always,
         crate::vision::raid_started,
     ),
-    pending_link(
+    ported_link(
         "cardHooks.resetFight",
         Mode::Append,
         Gate::Always,
-        "P-CARDS-1",
+        crate::cards::reset_fight,
     ),
-    pending_link(
+    ported_link(
         "cardHooks.dropDeferred",
         Mode::Append,
         Gate::Always,
-        "P-CARDS-1",
+        crate::cards::drop_deferred,
     ),
     pending_link(
         "plagueZombies.<arrow>",
@@ -1313,11 +1313,11 @@ static RUN_ENDED: [Link; 12] = [
         crate::systems::status::run_ended,
     ),
     pending_link("quests.<arrow>", Mode::Append, Gate::Quests, "P-QUEST-1"),
-    pending_link(
+    ported_link(
         "cardHooks.dropDeferred",
         Mode::Append,
         Gate::Always,
-        "P-CARDS-1",
+        crate::cards::drop_deferred,
     ),
     pending_link(
         "cardHooks.flushBleeds",

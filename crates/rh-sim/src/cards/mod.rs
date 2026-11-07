@@ -364,6 +364,33 @@ pub(crate) fn on_blocked(hx: &mut crate::hooks::Hx, args: &crate::hooks::HookArg
     }
 }
 
+/// Source \`cardHooks.resetFight\`: a teleport starts a fresh fight — no streak and no running boost survive it, and the
+/// pending heal-over-time runs are dropped.
+pub(crate) fn reset_fight(hx: &mut crate::hooks::Hx, args: &crate::hooks::HookArgs) {
+    if *args != crate::hooks::HookArgs::Teleported {
+        return;
+    }
+    for i in 0..hx.w.players.len() {
+        let had_boost = hx.w.players[i].card_boost.until > 0.;
+        hx.w.players[i].card_streak = None;
+        hx.w.players[i].card_boost = Boost::default();
+        hx.w.players[i].card_hots.clear();
+        if had_boost {
+            crate::modifiers::recompute(hx.k, hx.w, crate::fighter::FighterIx::of_slot(i));
+        }
+    }
+}
+
+/// Source \`cardHooks.dropDeferred\`: hits a pass queued for the next tick answer a fight that is over.
+pub(crate) fn drop_deferred(hx: &mut crate::hooks::Hx, args: &crate::hooks::HookArgs) {
+    if matches!(
+        *args,
+        crate::hooks::HookArgs::Teleported | crate::hooks::HookArgs::RunEnded
+    ) {
+        hx.w.deferred.hits.clear();
+    }
+}
+
 pub mod runtime;
 
 #[cfg(test)]
@@ -497,5 +524,99 @@ mod tank_tests {
             p.card_tank_hp
         );
         assert_eq!(p.vitals.max_hp, base_max + p.card_tank_hp);
+    }
+}
+
+#[cfg(test)]
+mod teleport_tests {
+    use super::*;
+    use crate::{arenas, FactionId, Placement, PlayerId, Secrets, Sim, SimConfig, Vec2};
+
+    #[test]
+    fn a_teleport_clears_the_streak_boost_hots_and_deferred_hits() {
+        let ps = [
+            Placement {
+                profile: "a".into(),
+                faction: FactionId::Fire,
+                bot: false,
+                at: Vec2::new(400., 400.),
+                hp: None,
+                weapon0: None,
+                weapon1: None,
+            },
+            Placement {
+                profile: "b".into(),
+                faction: FactionId::Holy,
+                bot: false,
+                at: Vec2::new(456., 400.),
+                hp: None,
+                weapon0: None,
+                weapon1: None,
+            },
+        ];
+        let mut sim = Sim::reset_active(
+            SimConfig::default(),
+            arenas::practice_arena(),
+            Secrets::from_seed(7),
+            &ps,
+        );
+        let i = sim.w.idx(PlayerId(1)).unwrap();
+        let now = sim.w.server_time;
+        sim.w.players[i].card_streak = Some(crate::cards::Streak {
+            target: PlayerId(2),
+            count: 2,
+            last: now,
+        });
+        sim.w.players[i].card_boost = crate::cards::Boost {
+            as_mult: 1.4,
+            move_mult: 1.4,
+            until: now + 1000.,
+        };
+        sim.w.players[i].card_hots.push(crate::cards::Hot {
+            next: now + 500.,
+            left: 2,
+            amount: 10.,
+            ignore_lockout: true,
+        });
+        sim.w.deferred.hits.push(crate::systems::ledger::Entry {
+            terrain: false,
+            dot: false,
+            ability: None,
+            arena: false,
+            source: None,
+            critical: false,
+            critical_mult: None,
+            sig: None,
+            execute: false,
+            victim: PlayerId(2),
+            by: Some(PlayerId(1)),
+            packet: crate::state::Packet {
+                raw: 10.,
+                phys: 1.,
+                magic: 0.,
+                true_: 0.,
+            },
+            weapon: None,
+            stagger: false,
+            projectile: None,
+            scale: 1.,
+            derived: false,
+            passive: true,
+        });
+        let mut ev = Vec::new();
+        let mut hx = crate::hooks::Hx {
+            stats: Default::default(),
+            fx: None,
+            k: &sim.k,
+            w: &mut sim.w,
+            ev: &mut ev,
+        };
+        reset_fight(&mut hx, &crate::hooks::HookArgs::Teleported);
+        drop_deferred(&mut hx, &crate::hooks::HookArgs::Teleported);
+        let p = hx.w.player(PlayerId(1)).unwrap();
+        assert!(p.card_streak.is_none());
+        assert_eq!(p.card_boost.until, 0.);
+        assert!(p.card_hots.is_empty());
+        assert!(hx.w.deferred.hits.is_empty());
     }
 }
