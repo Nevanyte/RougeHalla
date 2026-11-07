@@ -25,6 +25,8 @@ pub struct Runtime {
     mults: [f64; 8],
     wire: [f64; 7],
     max_hp_mult: f64,
+    /// Plague's dot-crit conversion (its DoT crit chance paid as steady DoT damage; 1 for everyone else).
+    plague_dot: f64,
 }
 impl Default for Runtime {
     fn default() -> Self {
@@ -34,6 +36,7 @@ impl Default for Runtime {
             mults: fold::identity_mults().source_values(),
             wire: fold::wire_identity_mirrors().source_values(),
             max_hp_mult: 1.,
+            plague_dot: 1.,
         }
     }
 }
@@ -67,12 +70,18 @@ impl Runtime {
     }
 
     pub fn dot_mult(&self) -> f64 {
-        MultSums::from_source_values(self.mults).get(fold::MultKey::Dot)
+        MultSums::from_source_values(self.mults).get(fold::MultKey::Dot) * self.plague_dot
     }
     pub fn linger_mult(&self) -> f64 {
         MultSums::from_source_values(self.mults).get(fold::MultKey::Linger)
     }
-    pub(crate) fn valid(&self, build: &crate::cards::Build, farm: &Farm, base_hp: f64) -> bool {
+    pub(crate) fn valid(
+        &self,
+        build: &crate::cards::Build,
+        farm: &Farm,
+        base_hp: f64,
+        faction: crate::FactionId,
+    ) -> bool {
         if !build.valid()
             || !farm.valid()
             || !self
@@ -86,7 +95,7 @@ impl Runtime {
         {
             return false;
         }
-        let folded = fold_build(build, farm, base_hp);
+        let folded = fold_build(build, farm, base_hp, faction);
         if self.sums != folded.sums.source_values()
             || self.farm != folded.farm_sums.source_values()
             || self.mults != folded.mults.source_values()
@@ -148,11 +157,8 @@ pub(crate) fn recompute_with(
     } else {
         Farm::default()
     };
-    let folded = fold_build(
-        &build,
-        &farm,
-        crate::content::faction(w.core(ix).vitals.faction).hp,
-    );
+    let faction = w.core(ix).vitals.faction;
+    let folded = fold_build(&build, &farm, crate::content::faction(faction).hp, faction);
     let mut src = fold::SourceMods::default();
     for (_, source) in crate::schedule::Plan::of(k).mod_sources.live() {
         if let Some(m) = source(w, w.core(ix), inputs.view(w.core(ix))) {
@@ -180,6 +186,21 @@ pub(crate) fn recompute_with(
     let wire = fold::encode_mirrors(&fold::mirrors_from_fold_with_sources(
         &folded, &src, efficiency,
     ));
+    // Plague turns its DoT crit chance into steady DoT damage.
+    let plague_dot = if w.is_player(ix)
+        && w.core(ix).vitals.faction == crate::FactionId::Plague
+        && folded
+            .flags
+            .contains(crate::stat_fold::EffectFlag::PlagueDotCritConversion)
+    {
+        let chance = crate::status_runtime::stats::crit_chance(
+            folded.sums.crit_chance,
+            folded.flags.contains(crate::stat_fold::EffectFlag::NoCrit),
+        );
+        1. + chance * (crate::status_runtime::stats::CRIT_MULT - 1.)
+    } else {
+        1.
+    };
     w.core_mut(ix).modifiers = Runtime {
         sums: folded.sums.source_values(),
         farm: folded.farm_sums.source_values(),
@@ -188,6 +209,7 @@ pub(crate) fn recompute_with(
         max_hp_mult: fold::default_definition()
             .max_hp_floor_share
             .max(1. + folded.sums.max_hp + folded.farm_sums.max_hp),
+        plague_dot,
     };
 }
 pub(crate) fn sync_max_hp(p: &mut crate::state::Player) {
@@ -392,8 +414,13 @@ pub(crate) fn mark_pulse(
         }
 }
 
-fn fold_build(build: &crate::cards::Build, farm: &Farm, base: f64) -> fold::Folded {
-    let (rows, n) = build.rows();
+fn fold_build(
+    build: &crate::cards::Build,
+    farm: &Farm,
+    base: f64,
+    faction: crate::FactionId,
+) -> fold::Folded {
+    let (rows, n) = build.rows(faction);
     let boosts = fold::BoostCounts::from_source_values(build.boosts().map(f64::from));
     {
         let (farm_rows, len) = farm.rows();
@@ -425,7 +452,7 @@ pub(crate) fn maximum_packet(weapon: crate::WeaponId) -> f64 {
                 },
                 boosts: [crate::stat_fold::default_definition().chest_boost_max_picks as u8; 8],
             };
-            let folded = fold_build(&build, &Farm::maximum(), base_hp);
+            let folded = fold_build(&build, &Farm::maximum(), base_hp, id);
             let m = fold::decode_mirrors(&fold::encode_mirrors(&fold::mirrors_from_fold(&folded)));
             let rate = m.as_mult.max(fold::cap_as_mult(f64::MAX));
             let interval = crate::content::attack_interval(&f, weapon, rate);
@@ -545,5 +572,95 @@ mod race_tests {
         assert!((hp_race_mult(0.5, 2.5) - 2.0).abs() < 1e-12);
         assert!((hp_race_mult(0.2, 2.5) - 2.5).abs() < 1e-12, "capped");
         assert!((hp_race_mult(0.8, 1.2) - 1.2).abs() < 1e-12);
+    }
+}
+
+#[cfg(test)]
+mod plague_tests {
+    use crate::{arenas, FactionId, Placement, PlayerId, Secrets, Sim, SimConfig, Vec2};
+
+    #[test]
+    fn plague_turns_dot_crit_chance_into_steady_dot_damage() {
+        let ps = [
+            Placement {
+                profile: "a".into(),
+                faction: FactionId::Plague,
+                bot: false,
+                at: Vec2::new(400., 400.),
+                hp: None,
+                weapon0: None,
+                weapon1: None,
+            },
+            Placement {
+                profile: "b".into(),
+                faction: FactionId::Holy,
+                bot: false,
+                at: Vec2::new(456., 400.),
+                hp: None,
+                weapon0: None,
+                weapon1: None,
+            },
+        ];
+        let mut sim = Sim::reset_active(
+            SimConfig::default(),
+            arenas::practice_arena(),
+            Secrets::from_seed(7),
+            &ps,
+        );
+        assert!(crate::cards::grant(
+            &sim.k,
+            &mut sim.w,
+            PlayerId(1),
+            crate::cards::CardId::CruelWounds
+        ));
+        let i = sim.w.idx(PlayerId(1)).unwrap();
+        let p = &sim.w.players[i];
+        assert!(
+            (p.modifiers.crit_chance() - 0.2).abs() < 1e-9,
+            "the plague column keeps the crit chance"
+        );
+        assert!(
+            (p.modifiers.dot_mult() - 1.1).abs() < 1e-9,
+            "conversion: 1 + 0.2 x 0.5, dot {}",
+            p.modifiers.dot_mult()
+        );
+    }
+
+    #[test]
+    fn a_non_plague_keeps_its_dot_crit() {
+        let ps = [
+            Placement {
+                profile: "a".into(),
+                faction: FactionId::Fire,
+                bot: false,
+                at: Vec2::new(400., 400.),
+                hp: None,
+                weapon0: None,
+                weapon1: None,
+            },
+            Placement {
+                profile: "b".into(),
+                faction: FactionId::Holy,
+                bot: false,
+                at: Vec2::new(456., 400.),
+                hp: None,
+                weapon0: None,
+                weapon1: None,
+            },
+        ];
+        let mut sim = Sim::reset_active(
+            SimConfig::default(),
+            arenas::practice_arena(),
+            Secrets::from_seed(7),
+            &ps,
+        );
+        assert!(crate::cards::grant(
+            &sim.k,
+            &mut sim.w,
+            PlayerId(1),
+            crate::cards::CardId::CruelWounds
+        ));
+        let i = sim.w.idx(PlayerId(1)).unwrap();
+        assert!((sim.w.players[i].modifiers.dot_mult() - 1.0).abs() < 1e-9);
     }
 }

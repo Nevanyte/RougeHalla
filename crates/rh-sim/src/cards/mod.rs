@@ -332,7 +332,10 @@ impl Build {
                 u32::from(*n) <= crate::stat_fold::default_definition().chest_boost_max_picks
             })
     }
-    pub(crate) fn rows(&self) -> ([EffectRow<'static>; MAX_FOLD_ROWS], usize) {
+    pub(crate) fn rows(
+        &self,
+        faction: crate::FactionId,
+    ) -> ([EffectRow<'static>; MAX_FOLD_ROWS], usize) {
         let empty = EffectRow {
             kind: EffectKind::Trigger,
             requires: &[],
@@ -341,7 +344,8 @@ impl Build {
         let mut rows = [empty; MAX_FOLD_ROWS];
         let mut n = 0;
         for id in self.cards() {
-            for row in id.definition().rows {
+            let (_, def_rows) = id.definition().selection(faction);
+            for row in def_rows {
                 if let CardRow::Fold(kind) = row {
                     if n == rows.len() {
                         return (rows, n);
