@@ -210,11 +210,23 @@ fn persistent_tile_cache_reuses_source_helper_queries_without_changing_the_leaf_
                 let expected = want["currentIsInVision"].as_bool().unwrap()
                     || want["trailCanSee"].as_bool().unwrap();
                 assert_eq!(
-                    point_visible(sim.collision_view(), player, at, sim.tick()),
+                    point_visible(
+                        sim.collision_view(),
+                        player,
+                        at,
+                        sim.tick(),
+                        WardSight::none()
+                    ),
                     expected
                 );
                 assert_eq!(
-                    cache.sees(sim.collision_view(), player, at, sim.tick()),
+                    cache.sees(
+                        sim.collision_view(),
+                        player,
+                        at,
+                        sim.tick(),
+                        WardSight::none()
+                    ),
                     expected
                 );
             }
@@ -258,10 +270,10 @@ fn a_cached_negative_cell_sees_the_second_reveal_of_its_tick() {
         ..Default::default()
     };
     let point = Vec2::new(16., 16.);
-    assert!(!cache.sees(view, player, point, 5));
+    assert!(!cache.sees(view, player, point, 5, WardSight::none()));
     player.vision.refresh_on(point, 5, Variant::Open);
-    assert!(cache.sees(view, player, point, 5));
-    assert!(point_visible(view, player, point, 5));
+    assert!(cache.sees(view, player, point, 5, WardSight::none()));
+    assert!(point_visible(view, player, point, 5, WardSight::none()));
 }
 #[test]
 fn every_new_persisted_reveal_fact_changes_identity() {

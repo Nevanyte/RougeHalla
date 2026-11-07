@@ -316,6 +316,7 @@ fn pickup_check(
         &cx.w.players[ix.slot()],
         c.at,
         cx.w.tick,
+        crate::vision::WardSight::of(cx.k, cx.w),
     ) {
         return Err(PickupRefusal::NothingThere);
     }
@@ -358,6 +359,7 @@ pub(crate) fn pickup(cx: &mut Cx, ix: FighterIx, cmd: &ActionCmd) {
                     viewer,
                     at,
                     cx.w.tick,
+                    crate::vision::WardSight::of(cx.k, cx.w),
                 )
             }
         };

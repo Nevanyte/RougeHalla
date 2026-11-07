@@ -860,7 +860,8 @@ fn vision_check(sim: &mut Sim, action: &Value, e: &Value, ctx: &str) {
                 sim.collision_view(),
                 viewer,
                 at,
-                tick
+                tick,
+                crate::vision::WardSight::none(),
             )),
             &q["sourceCanPlayerSee"],
             ctx,
@@ -873,7 +874,8 @@ fn vision_check(sim: &mut Sim, action: &Value, e: &Value, ctx: &str) {
                     sim.collision_view(),
                     viewer,
                     target,
-                    tick
+                    tick,
+                    crate::vision::WardSight::none(),
                 )),
                 &q["sourceCanPlayerSeeActor"],
                 ctx,

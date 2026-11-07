@@ -184,9 +184,10 @@ impl ItemObserver {
         self.vision.begin(sim, me, self.sampled.is_some());
         let from = me.pos();
         let map = sim.collision_view();
+        let wards = crate::vision::WardSight::of_sim(sim);
         let mut best: Option<(usize, f64, Option<WeaponId>)> = None;
         for c in sim.containers() {
-            if !self.vision.sees(map, me, c.at, sim.tick()) {
+            if !self.vision.sees(map, me, c.at, sim.tick(), wards) {
                 continue;
             }
             if self.scratch.len() == MAX_VISIBLE_PROPS {
@@ -384,9 +385,10 @@ impl ItemObserver {
                 self.actors.binary_search(&actor).is_ok().then_some(actor)
             };
             let visible = id.filter(|&id| {
+                let wards = crate::vision::WardSight::of_sim(sim);
                 sim.player(self.viewer).is_some_and(|me| {
                     sim.player(id).is_some_and(|p| {
-                        crate::vision::actor_visible(sim.collision_view(), me, p, sim.tick())
+                        crate::vision::actor_visible(sim.collision_view(), me, p, sim.tick(), wards)
                     }) || sim
                         .mobs()
                         .iter()
@@ -397,6 +399,7 @@ impl ItemObserver {
                                 me,
                                 m.core.pos(),
                                 sim.tick(),
+                                wards,
                             ) && !crate::status_runtime::hidden(
                                 &m.core.statuses.instances,
                                 sim.server_time(),
@@ -437,18 +440,21 @@ impl ItemObserver {
                     me,
                     sim.containers()[i].at,
                     sim.tick(),
+                    crate::vision::WardSight::of_sim(sim),
                 )
                 .then_some(id)
             },
             |actor| {
                 self.actors.binary_search(&actor).is_ok()
                     && sim.player(self.viewer).is_some_and(|me| {
+                        let wards = crate::vision::WardSight::of_sim(sim);
                         sim.player(actor).is_some_and(|other| {
                             crate::vision::actor_visible(
                                 sim.collision_view(),
                                 me,
                                 other,
                                 sim.tick(),
+                                wards,
                             )
                         }) || sim
                             .mobs()
@@ -460,6 +466,7 @@ impl ItemObserver {
                                     me,
                                     m.core.pos(),
                                     sim.tick(),
+                                    wards,
                                 ) && !crate::status_runtime::hidden(
                                     &m.core.statuses.instances,
                                     sim.server_time(),

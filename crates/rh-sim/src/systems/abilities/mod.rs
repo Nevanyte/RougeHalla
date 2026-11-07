@@ -31,10 +31,17 @@ fn unit_valid(cx: &Cx, ix: FighterIx, target: PlayerId, range: f64) -> bool {
     }
     let viewer = &cx.w.players[ix.slot()];
     let map = cx.k.collision_view(cx.w.rt.gates_locked);
+    let wards = crate::vision::WardSight::of(cx.k, cx.w);
     let visible = if cx.w.is_player(j) {
-        crate::vision::gameplay_actor_visible(map, viewer, &cx.w.players[j.slot()], cx.w.tick)
+        crate::vision::gameplay_actor_visible(
+            map,
+            viewer,
+            &cx.w.players[j.slot()],
+            cx.w.tick,
+            wards,
+        )
     } else {
-        crate::vision::point_visible(map, viewer, t.pos(), cx.w.tick)
+        crate::vision::point_visible(map, viewer, t.pos(), cx.w.tick, wards)
     };
     visible
         && crate::math::hypot(t.body.x - c.body.x, t.body.y - c.body.y) <= range + a::RANGE_SLACK

@@ -47,9 +47,10 @@ pub(crate) fn project(
     let Some(me) = sim.player(viewer) else {
         return Ok(());
     };
+    let wards = crate::vision::WardSight::of_sim(sim);
     for flight in &sim.w.projectiles {
         // Source ProjectileView.update and bot vision.filter both test the current flight point.
-        if !crate::vision::point_visible(sim.collision_view(), me, flight.pos, sim.tick()) {
+        if !crate::vision::point_visible(sim.collision_view(), me, flight.pos, sim.tick(), wards) {
             continue;
         }
         if out.projectiles.len() == MAX_VISIBLE_PROJECTILES {

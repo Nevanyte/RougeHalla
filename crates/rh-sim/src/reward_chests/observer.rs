@@ -80,8 +80,12 @@ impl RewardChestObserver {
         *build = sim.player(self.viewer).map(|p| BuildView::from(&p.build));
         if let Some(me) = sim.player(self.viewer) {
             self.vision.begin(sim, me, self.sampled.is_some());
+            let wards = crate::vision::WardSight::of_sim(sim);
             for c in &sim.w.reward_chests {
-                if !self.vision.sees(sim.collision_view(), me, c.at, tick) {
+                if !self
+                    .vision
+                    .sees(sim.collision_view(), me, c.at, tick, wards)
+                {
                     continue;
                 }
                 if self.scratch.len() == crate::item_view::MAX_VISIBLE_PROPS {
@@ -110,6 +114,7 @@ impl RewardChestObserver {
                                             me,
                                             p,
                                             tick,
+                                            wards,
                                         )
                                     })
                             }),
@@ -190,7 +195,13 @@ impl RewardChestObserver {
                     .iter()
                     .find(|c| c.id == *id)
                     .is_some_and(|c| {
-                        crate::vision::point_visible(sim.collision_view(), me, c.at, sim.tick())
+                        crate::vision::point_visible(
+                            sim.collision_view(),
+                            me,
+                            c.at,
+                            sim.tick(),
+                            crate::vision::WardSight::of_sim(sim),
+                        )
                     })
             })
         });

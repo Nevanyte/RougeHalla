@@ -42,12 +42,14 @@ fn lockable(cx: &mut Cx, i: usize, j: usize) -> bool {
     {
         return false;
     }
+    let wards = crate::vision::WardSight::of(cx.k, cx.w);
     let visible = if cx.w.is_player(other_ix) {
         crate::vision::gameplay_actor_visible(
             cx.k.collision_view(cx.w.rt.gates_locked),
             viewer,
             &cx.w.players[j],
             cx.w.tick,
+            wards,
         )
     } else {
         crate::vision::point_visible(
@@ -55,6 +57,7 @@ fn lockable(cx: &mut Cx, i: usize, j: usize) -> bool {
             viewer,
             other.pos(),
             cx.w.tick,
+            wards,
         )
     };
     if !visible {
