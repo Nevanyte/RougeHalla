@@ -93,6 +93,8 @@ clears the captured expiry and moves the owner to an unknown seat and requires b
   field-by-field replay and the owner/expiry mutation guard.
 - Capture: `parity/vision/ward-sight.json` sha256 `b38058f8b2ad43280a2fee2659d3db7892a25017aeeed84e1cf28b6212b9bba4`,
   reproduced byte-for-byte by a fresh pinned-container capture.
+- Pull request: [#42](https://github.com/Nevanyte/RougeHalla/pull/42) (base `deepseek/p-arena-1`, the protocol-8
+  arena head). Mechanics head `20acb6fe`; the range is `1fd4bb44..20acb6fe`.
 - No wire change, so the C#/JS/browser wire suites were not required: `PROTOCOL_VERSION` remains 8 and
   `protocol/fixtures/v8.json` plus the Rust/C#/JS decoders are untouched. No schedule row was added, moved or
   reordered.
