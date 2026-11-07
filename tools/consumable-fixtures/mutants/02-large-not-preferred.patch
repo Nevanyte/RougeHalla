@@ -1,0 +1,11 @@
+--- a/crates/rh-sim/src/systems/potions.rs
++++ b/crates/rh-sim/src/systems/potions.rs
+@@ -53,7 +53,7 @@
+     let now = cx.w.server_time;
+     let active = cx.w.potion_healing.iter().position(|e| e.id == id);
+     let count = active.map_or(0, |j| cx.w.potion_healing[j].hots.len());
+-    let large = p.potion_large > 0;
++    let large = false;
+     let refusal = if crate::status_runtime::action_blocked(&p.statuses, now) {
+         Some(Notice::Blocked)
+     } else if count >= usize::from(DEFINITION.concurrent) {

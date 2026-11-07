@@ -473,6 +473,14 @@ fn what_the_slice_has_ported_stays_ported() {
     assert!(ported(&t.before_damage).contains(&"abilities.statusDamage"));
     assert!(ported(&t.before_damage).contains(&"terrainEffects.burnPass"));
     assert!(ported(&t.systems).contains(&"terrainEffects.lightPass"));
+    assert!(t
+        .hooks
+        .iter()
+        .find(|(h, _)| *h == Hook::CampCleared)
+        .unwrap()
+        .1
+        .iter()
+        .any(|e| e.legacy == "campHeal.payCampHeal" && e.pending.is_none()));
     assert!(ported(&t.move_modifiers).contains(&"terrainEffects.applyBog"));
     assert!(ported(&t.move_modifiers).contains(&"abilities.statusMoveMultiplier"));
     assert!(ported(&t.mod_sources).contains(&"abilities.attackSlowSource"));

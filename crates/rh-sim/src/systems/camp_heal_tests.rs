@@ -119,12 +119,7 @@ fn a_clear_pays_a_camp_potion_and_counts_only_the_contributors_at_the_camp() {
     place(&mut sim, 1, far);
     place(&mut sim, 2, at_centre);
     sim.w.players[2].potion_large = DEFINITION.cap;
-    sim.w
-        .mob_runtime
-        .as_mut()
-        .unwrap()
-        .life[camp as usize]
-        .contributors = ids.clone();
+    sim.w.mob_runtime.as_mut().unwrap().life[camp as usize].contributors = ids.clone();
     let mut ev = Vec::new();
     fire(&mut sim, camp, &mut ev);
     // Every standing contributor gets the potion; only the ones still at the camp count the clear.
@@ -180,12 +175,7 @@ fn a_down_contributor_gets_neither_a_potion_nor_the_clear() {
     place(&mut sim, 1, at_centre);
     sim.w.players[0].status = crate::Status::Dead;
     sim.w.players[0].vitals.hp = 0.0;
-    sim.w
-        .mob_runtime
-        .as_mut()
-        .unwrap()
-        .life[camp as usize]
-        .contributors = ids;
+    sim.w.mob_runtime.as_mut().unwrap().life[camp as usize].contributors = ids;
     let mut ev = Vec::new();
     fire(&mut sim, camp, &mut ev);
     assert_eq!(sim.w.players[0].potion_large, 0);

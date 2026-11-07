@@ -1,0 +1,11 @@
+--- a/crates/rh-sim/src/systems/potions.rs
++++ b/crates/rh-sim/src/systems/potions.rs
+@@ -22,7 +22,7 @@
+         Size::Small => &mut w.players[i].potion_small,
+         Size::Large => &mut w.players[i].potion_large,
+     };
+-    if *stock >= DEFINITION.cap {
++    if *stock > DEFINITION.cap {
+         return false;
+     }
+     *stock += 1;

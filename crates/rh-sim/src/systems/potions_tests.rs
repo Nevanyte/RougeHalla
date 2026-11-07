@@ -266,13 +266,15 @@ fn a_stored_camp_potion_is_preferred_and_heals_its_larger_share() {
     .unwrap();
     let ev = s.step();
     assert_eq!(s.w.players[0].potion_large, 0, "the camp potion was drunk");
-    assert_eq!(s.w.players[0].potion_small, 2, "the small stock is untouched");
-    let e = s
-        .w
-        .potion_healing
-        .iter()
-        .find(|e| e.id == PlayerId(1))
-        .unwrap();
+    assert_eq!(
+        s.w.players[0].potion_small, 2,
+        "the small stock is untouched"
+    );
+    let e =
+        s.w.potion_healing
+            .iter()
+            .find(|e| e.id == PlayerId(1))
+            .unwrap();
     assert_eq!(e.hots.len(), 1);
     assert!(
         (e.hots[0].amount - max * 0.4 / 10.0).abs() < 1e-9,
@@ -316,12 +318,11 @@ fn without_a_camp_potion_the_small_one_is_used_and_a_full_bag_refuses_the_grant(
     let ev = s.step();
     assert_eq!(s.w.players[0].potion_small, 0);
     assert_eq!(s.w.players[0].potion_large, 0);
-    let e = s
-        .w
-        .potion_healing
-        .iter()
-        .find(|e| e.id == PlayerId(1))
-        .unwrap();
+    let e =
+        s.w.potion_healing
+            .iter()
+            .find(|e| e.id == PlayerId(1))
+            .unwrap();
     assert!((e.hots[0].amount - max * 0.25 / 10.0).abs() < 1e-9);
     assert!(ev.iter().any(|x| matches!(
         x,

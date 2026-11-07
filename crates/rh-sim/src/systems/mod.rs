@@ -10,6 +10,9 @@
 
 pub(crate) mod abilities;
 pub(crate) mod camp_heal;
+#[cfg(test)]
+#[path = "consumables_source_tests.rs"]
+mod consumables_source_tests;
 pub(crate) mod credit;
 pub(crate) mod displace;
 pub(crate) mod fields;

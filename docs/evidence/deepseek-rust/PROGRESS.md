@@ -7,6 +7,7 @@ Base: `856618eb948555adefc6ff0bf4628d879d556250` (`origin/optimization_port`, 20
 |---|---|---|---|
 | P-FACTION-3 Plague corpses + zombie | `COMPLETE` — core, protocol v8, 3 slice captures, source manifest, 1,394 workspace tests and 6/6 mutants; perf gate **passes** on [PR #31](https://github.com/Nevanyte/RougeHalla/pull/31); Rust/Native running | `deepseek/p-faction-3` | [`stage2-plague-corpses`](../stage2-plague-corpses/README.md) |
 | P-FACTION-4 Sentenced hunt | `DONE-VERIFIED` — native gameplay, capture, per-tick parity, restore, six mutant controls, protocol v7, C#/JS mirrors, full workspace gate and browser WSS proof pass | `bb4ca9ce`..`7d48bb15`; [PR #30](https://github.com/Nevanyte/RougeHalla/pull/30) | [`stage2-sentenced-hunt`](../stage2-sentenced-hunt/README.md) |
+| P-CONS-1a Large potion + camp-clear reward | `INCOMPLETE` (sim, protocol v9, C#/JS, source probe and 8/8 mutants pass; workspace gate and browser proof still running): large stock/use/refusal, the `campCleared` chain and `campHeal.payCampHeal`, protocol v9 | `deepseek/p-cons-1a` (stacked on `deepseek/p-faction-3`) | [`stage2-consumables`](../stage2-consumables/README.md) |
 
 ## Commands actually run
 
