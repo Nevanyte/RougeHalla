@@ -12,7 +12,7 @@ namespace Roguehalla.Net.Tests
         static ServerMsg.State Full(uint tick)
         {
             return new ServerMsg.State { Tick=tick, Items=new StateItem[] {
-                new InventoryState { Value=new WireInventory { ActiveSlot=1,Slot0=null,Slot1=2,PotionSmall=5,PotionsHealing=3 } },
+                new InventoryState { Value=new WireInventory { ActiveSlot=1,Slot0=null,Slot1=2,PotionSmall=5,PotionLarge=4,PotionsHealing=3 } },
                 new PropsState { Rows=new [] {
                     new WireProp {Handle=new PickupHandle(1),X=800,Y=900,Kind=PropKind.Ground,GroundWeapon=0},
                     new WireProp {Handle=new PickupHandle(2),X=801,Y=902,Kind=PropKind.Chest,Open=true},

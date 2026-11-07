@@ -99,6 +99,7 @@ pub struct WireInventory {
     /// Carried weapon codes0..4; an empty slot is distinct from fists.
     pub slots: [Option<u8>; 2],
     pub potion_small: u8,
+    pub potion_large: u8,
     pub potions_healing: u8,
 }
 
@@ -543,7 +544,7 @@ impl StateItem {
     pub(crate) fn encoded_len(&self) -> usize {
         varint_len(self.key())
             + match self {
-                Self::Inventory(value) => 1 + usize::from(value.is_some()) * 5,
+                Self::Inventory(value) => 1 + usize::from(value.is_some()) * 6,
                 Self::Props(value) => value.len(),
                 Self::Fields(value) => {
                     varint_len(value.len() as u32) + value.iter().map(WireField::len).sum::<usize>()
@@ -568,7 +569,7 @@ impl StateItem {
                 if value.active_slot > 1 {
                     return Err(EncodeError::BadValue("active slot"));
                 }
-                if value.potion_small > 5 || value.potions_healing > 3 {
+                if value.potion_small > 5 || value.potion_large > 5 || value.potions_healing > 3 {
                     return Err(EncodeError::BadValue("potion count"));
                 }
                 for slot in value.slots {
@@ -643,6 +644,7 @@ impl StateItem {
                         write_weapon(w, slot);
                     }
                     w.u8(value.potion_small);
+                    w.u8(value.potion_large);
                     w.u8(value.potions_healing);
                 });
             }
@@ -686,14 +688,16 @@ impl StateItem {
                 }
                 let slots = [read_weapon(r)?, read_weapon(r)?];
                 let potion_small = r.u8()?;
+                let potion_large = r.u8()?;
                 let potions_healing = r.u8()?;
-                if potion_small > 5 || potions_healing > 3 {
+                if potion_small > 5 || potion_large > 5 || potions_healing > 3 {
                     return Err(DecodeError::BadField("potion count"));
                 }
                 Ok(WireInventory {
                     active_slot,
                     slots,
                     potion_small,
+                    potion_large,
                     potions_healing,
                 })
             })?),

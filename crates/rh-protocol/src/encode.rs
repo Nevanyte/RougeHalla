@@ -856,7 +856,7 @@ impl Frame for ServerMsg {
             ServerMsg::Events { events, .. } => {
                 list("events", events.len(), u16::MAX as usize)?;
                 for e in events {
-                    if matches!(e, WireEvent::PotionNotice { notice } if !(1..=7).contains(notice))
+                    if matches!(e, WireEvent::PotionNotice { notice } if !(1..=10).contains(notice))
                     {
                         return Err(EncodeError::BadValue("potion notice"));
                     }

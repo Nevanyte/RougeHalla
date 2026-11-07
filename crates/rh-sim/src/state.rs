@@ -513,6 +513,13 @@ pub struct Player {
     /// Completed hunts; multiplies this player's Mark strength (legacy `huntStacks`).
     #[serde(default)]
     pub hunt_stacks: u8,
+    /// Camp potions (legacy `potionLarge`): a bigger share than the small one, stored separately. Appended after the
+    /// hot core so every pre-existing field keeps its offset.
+    #[serde(default)]
+    pub potion_large: u8,
+    /// Camps this player's clear counted for (legacy `campsCleared`; the only consumer is a later card).
+    #[serde(default)]
+    pub camps_cleared: u16,
 }
 
 impl Keyed for Player {
@@ -549,6 +556,8 @@ impl Player {
             card_runtime: None,
             build: Default::default(),
             potion_small: 0,
+            potion_large: 0,
+            camps_cleared: 0,
             healing_until: 0.,
             potions_healing: 0,
             farm: Default::default(),

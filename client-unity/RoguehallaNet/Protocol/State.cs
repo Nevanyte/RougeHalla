@@ -26,7 +26,7 @@ namespace Roguehalla.Net
 
 namespace Roguehalla.Net.Protocol
 {
-    public struct WireInventory { public byte ActiveSlot, PotionSmall, PotionsHealing; public byte? Slot0, Slot1; }
+    public struct WireInventory { public byte ActiveSlot, PotionSmall, PotionLarge, PotionsHealing; public byte? Slot0, Slot1; }
     public enum PropKind : byte { Ground = 1, Chest = 2, Body = 3, Corpse = 4 }
     public struct WireProp
     {
@@ -100,7 +100,7 @@ namespace Roguehalla.Net.Protocol
                 {
                     case 1:
                         var inv = new InventoryState();
-                        if (r.Flag()) inv.Value = new WireInventory { ActiveSlot = r.U8(), Slot0 = ReadWeapon(ref r), Slot1 = ReadWeapon(ref r), PotionSmall=r.U8(),PotionsHealing=r.U8() };
+                        if (r.Flag()) inv.Value = new WireInventory { ActiveSlot = r.U8(), Slot0 = ReadWeapon(ref r), Slot1 = ReadWeapon(ref r), PotionSmall=r.U8(),PotionLarge=r.U8(),PotionsHealing=r.U8() };
                         item = inv; break;
                     case 2:
                         var props = new PropsState { Rows = new WireProp[Count(ref r, MaxRows)] };
@@ -177,8 +177,8 @@ namespace Roguehalla.Net.Protocol
     {
         public override uint Key { get { return 1; } }
         public WireInventory? Value;
-        internal override void Check() { if (Value.HasValue) { Require(Value.Value.ActiveSlot < 2, "active slot"); Require(Value.Value.PotionSmall<=5 && Value.Value.PotionsHealing<=3,"potion count"); CheckWeapon(Value.Value.Slot0); CheckWeapon(Value.Value.Slot1); } }
-        internal override void Write(Writer w) { w.U8(Value.HasValue ? (byte)1 : (byte)0); if (Value.HasValue) { w.U8(Value.Value.ActiveSlot); WriteWeapon(w, Value.Value.Slot0); WriteWeapon(w, Value.Value.Slot1); w.U8(Value.Value.PotionSmall); w.U8(Value.Value.PotionsHealing); } }
+        internal override void Check() { if (Value.HasValue) { Require(Value.Value.ActiveSlot < 2, "active slot"); Require(Value.Value.PotionSmall<=5 && Value.Value.PotionLarge<=5 && Value.Value.PotionsHealing<=3,"potion count"); CheckWeapon(Value.Value.Slot0); CheckWeapon(Value.Value.Slot1); } }
+        internal override void Write(Writer w) { w.U8(Value.HasValue ? (byte)1 : (byte)0); if (Value.HasValue) { w.U8(Value.Value.ActiveSlot); WriteWeapon(w, Value.Value.Slot0); WriteWeapon(w, Value.Value.Slot1); w.U8(Value.Value.PotionSmall); w.U8(Value.Value.PotionLarge); w.U8(Value.Value.PotionsHealing); } }
     }
     public sealed class PropsState : StateItem
     {

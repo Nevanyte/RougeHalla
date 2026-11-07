@@ -1,0 +1,11 @@
+--- a/crates/rh-sim/src/systems/camp_heal.rs
++++ b/crates/rh-sim/src/systems/camp_heal.rs
+@@ -23,7 +23,7 @@
+     };
+     // Legacy deletes the list at the end; taking it now is the same for the links after this one (the chest/near-camp
+     // consumers run before campHeal and no later link reads it), and it allocates nothing.
+-    let contributors = std::mem::take(&mut life.contributors);
++    let contributors = life.contributors.clone();
+     if contributors.is_empty() {
+         return;
+     }

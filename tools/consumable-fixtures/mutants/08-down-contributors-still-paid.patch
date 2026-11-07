@@ -1,0 +1,12 @@
+--- a/crates/rh-sim/src/systems/camp_heal.rs
++++ b/crates/rh-sim/src/systems/camp_heal.rs
+@@ -30,9 +30,6 @@
+     let centre = camp_centre(hx.k, hx.w, camp);
+     for id in contributors {
+         let Some(i) = hx.w.idx(id) else { continue };
+-        if !hx.w.players[i].standing() {
+-            continue;
+-        }
+         let at = Vec2::new(hx.w.players[i].body.x, hx.w.players[i].body.y);
+         if near_camp(hx.k, camp, centre, at) {
+             let p = &mut hx.w.players[i];

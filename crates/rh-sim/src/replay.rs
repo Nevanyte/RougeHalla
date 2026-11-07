@@ -133,7 +133,8 @@ impl Recorder {
                         .iter()
                         .filter_map(|i| match i.def {
                             crate::initial_world::ItemDef::Weapon(w) => Some(w),
-                            crate::initial_world::ItemDef::PotionSmall => None,
+                            crate::initial_world::ItemDef::PotionSmall
+                            | crate::initial_world::ItemDef::PotionLarge => None,
                         })
                         .collect(),
                 })

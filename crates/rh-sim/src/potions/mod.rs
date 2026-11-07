@@ -19,6 +19,7 @@ pub struct Definition {
     pub heal_ms: f64,
     pub step_ms: f64,
     pub small_share: f64,
+    pub large_share: f64,
 }
 pub static DEFINITION: Definition = Definition {
     cap: 5,
@@ -26,6 +27,7 @@ pub static DEFINITION: Definition = Definition {
     heal_ms: 5000.,
     step_ms: 500.,
     small_share: 0.25,
+    large_share: 0.4,
 };
 pub fn visit_content(mut word: impl FnMut(u64)) {
     word(u64::from(DEFINITION.cap));
@@ -33,6 +35,24 @@ pub fn visit_content(mut word: impl FnMut(u64)) {
     word(DEFINITION.heal_ms.to_bits());
     word(DEFINITION.step_ms.to_bits());
     word(DEFINITION.small_share.to_bits());
+    word(DEFINITION.large_share.to_bits());
+}
+
+/// Which potion stock a grant or a use is about (legacy `ConsumableId` without the emblem).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum Size {
+    Small,
+    Large,
+}
+
+impl Size {
+    /// The share of max hp this potion heals over its whole duration.
+    pub fn share(self) -> f64 {
+        match self {
+            Self::Small => DEFINITION.small_share,
+            Self::Large => DEFINITION.large_share,
+        }
+    }
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum Notice {
@@ -43,6 +63,12 @@ pub enum Notice {
     Busy,
     Full,
     Empty,
+    /// Legacy "Camp potion stored" (a camp-clear reward arriving).
+    LargeStored,
+    /// Legacy "Camp potion · healing over 5s".
+    LargeUsed,
+    /// Legacy `payCampHeal`'s bag-full line: the clear is still counted, the potion is not stored.
+    CampBagFull,
 }
 impl Notice {
     pub fn message(self) -> &'static str {
@@ -54,6 +80,9 @@ impl Notice {
             Self::Busy => "Already drinking 3 potions",
             Self::Full => "Already at full health",
             Self::Empty => "No potion stored",
+            Self::LargeStored => "Camp potion stored · Heal 40% HP over 5s",
+            Self::LargeUsed => "Camp potion · healing over 5s",
+            Self::CampBagFull => "Camp cleared · camp potion bag full (5)",
         }
     }
 }

@@ -79,6 +79,9 @@ fn reference(
                     rh_sim::potions::Notice::Busy => 5,
                     rh_sim::potions::Notice::Full => 6,
                     rh_sim::potions::Notice::Empty => 7,
+                    rh_sim::potions::Notice::LargeStored => 8,
+                    rh_sim::potions::Notice::LargeUsed => 9,
+                    rh_sim::potions::Notice::CampBagFull => 10,
                 },
             }),
             SeenEvent::MobArmed { .. } | SeenEvent::CampCleared { .. } => {}

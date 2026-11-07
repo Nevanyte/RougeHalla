@@ -72,7 +72,7 @@ fn new_command_and_notice_refusals_are_atomic() {
         .is_err());
         assert_eq!(out, [77]);
     }
-    for notice in [0, 8, 255] {
+    for notice in [0, 11, 255] {
         let mut out = vec![77];
         assert!(ServerMsg::Events {
             tick: 0,

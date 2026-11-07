@@ -375,9 +375,15 @@ fn take(cx: &mut Cx, ix: FighterIx, i: usize) -> Result<(), PickupRefusal> {
         .items
         .first()
         .ok_or(PickupRefusal::NothingToTake)?;
-    if item.def == crate::initial_world::ItemDef::PotionSmall {
+    let potion = match item.def {
+        crate::initial_world::ItemDef::PotionSmall => Some(crate::potions::Size::Small),
+        crate::initial_world::ItemDef::PotionLarge => Some(crate::potions::Size::Large),
+        crate::initial_world::ItemDef::Weapon(_) => None,
+    };
+    if let Some(size) = potion {
         let id = cx.w.core(ix).id;
-        if !super::potions::grant(cx.w, cx.ev, id) {
+        // A full bag refuses the pickup without consuming the item (legacy `pickConsumable`).
+        if !super::potions::grant(cx.w, cx.ev, id, size) {
             cx.ev.push(Event::PotionNotice {
                 id,
                 notice: crate::potions::Notice::BagFull,

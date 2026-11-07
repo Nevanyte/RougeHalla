@@ -28,6 +28,7 @@ fn state() -> ServerMsg {
                 active_slot: 1,
                 slots: [None, Some(2)],
                 potion_small: 5,
+                potion_large: 4,
                 potions_healing: 3,
             })),
             StateItem::Props(WireProps {

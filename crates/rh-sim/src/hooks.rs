@@ -109,6 +109,10 @@ pub(crate) enum HookArgs {
         entry: crate::systems::ledger::Entry,
         amount: f64,
     },
+    /// A camp's last mob died: paid after the ledger pass, fx first (legacy `world.hooks.campCleared(world, camp)`).
+    CampCleared {
+        camp: u32,
+    },
     /// The run just ended: results are out and the phase is ended (legacy `runEnded(world)`).
     RunEnded,
 }
@@ -130,6 +134,7 @@ impl HookArgs {
             HookArgs::WeaponSwapped(_) => Hook::WeaponSwapped,
             HookArgs::PlayerKilled { .. } => Hook::PlayerKilled,
             HookArgs::ExecuteDenied { .. } => Hook::ExecuteDenied,
+            HookArgs::CampCleared { .. } => Hook::CampCleared,
             HookArgs::RunEnded => Hook::RunEnded,
         }
     }

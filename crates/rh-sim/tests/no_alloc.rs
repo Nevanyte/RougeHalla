@@ -620,6 +620,7 @@ fn sentenced_denial_refills() {
 fn a_steady_state_step_allocates_nothing() {
     let _profiler = dhat::Profiler::builder().testing().build();
     holy_crowded();
+    potion_hot_ticks();
     frost_crowded();
     sentenced_crowded();
     sentenced_denial_refills();
@@ -694,4 +695,57 @@ fn a_steady_state_step_allocates_nothing() {
         assert!(steady > 10, "{name}");
         assert_eq!(allocs, 0, "{name}: first allocation at {bad:?}");
     }
+}
+
+/// A potion's Hot ticks: three potions are drunk in setup (the use action allocates its Hot vector by design), then every
+/// 500 ms step heals; the warmed steps after the use must allocate nothing.
+fn potion_hot_ticks() {
+    let ps: Vec<_> = (0..2)
+        .map(|i| Placement {
+            profile: format!("hot{i}"),
+            faction: FactionId::Fire,
+            bot: false,
+            at: Vec2::new(320.0 + 64.0 * i as f64, 320.0),
+            hp: Some(300.0),
+            weapon0: None,
+            weapon1: None,
+        })
+        .collect();
+    let sim = Sim::reset_active(
+        SimConfig::default(),
+        rh_sim::arenas::practice_arena(),
+        Secrets::from_seed(41),
+        &ps,
+    );
+    // The checkpoint JSON is the documented world layout: seed both stocks and restore (setup, outside the measurement).
+    let mut json = serde_json::to_value(&sim).unwrap();
+    json["world"]["players"][0]["potion_large"] = 5.into();
+    json["world"]["players"][0]["potion_small"] = 5.into();
+    let mut sim = Sim::restore(&json).unwrap();
+    for _ in 0..3 {
+        sim.submit(PlayerId(1), validate(RawCommand::UseConsumable).unwrap())
+            .unwrap();
+    }
+    let _ = sim.step();
+    assert_eq!(sim.players()[0].potions_healing, 3, "three Hot stacks");
+    let mut out = Vec::with_capacity(128);
+    let (mut measured, mut allocations, mut heals) = (0u32, 0u64, 0u32);
+    for _ in 0..100 {
+        out.clear();
+        // The schedule trace (a test-only feature) is a growing log: keep it bounded so it is not counted as the tick's.
+        #[cfg(feature = "schedule-trace")]
+        sim.clear_schedule_trace();
+        let before = dhat::HeapStats::get().total_blocks;
+        sim.step_into(&mut out);
+        let used = dhat::HeapStats::get().total_blocks - before;
+        heals += out
+            .iter()
+            .filter(|e| matches!(e, Event::Heal { .. }))
+            .count() as u32;
+        measured += 1;
+        allocations += used;
+    }
+    eprintln!("potion Hot: {measured} measured steps, {heals} heals, {allocations} allocations");
+    assert!(heals >= 17, "the three Hots ticked until the pool filled");
+    assert_eq!(allocations, 0, "potion Hot ticks allocate nothing");
 }

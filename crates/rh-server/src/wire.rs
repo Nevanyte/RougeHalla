@@ -300,6 +300,9 @@ fn to_wire(e: &SeenEvent) -> Wire {
                 rh_sim::potions::Notice::Busy => 5,
                 rh_sim::potions::Notice::Full => 6,
                 rh_sim::potions::Notice::Empty => 7,
+                rh_sim::potions::Notice::LargeStored => 8,
+                rh_sim::potions::Notice::LargeUsed => 9,
+                rh_sim::potions::Notice::CampBagFull => 10,
             },
         }),
         SeenEvent::MobArmed { .. } | SeenEvent::CampCleared { .. } => Wire::Omitted,
@@ -1190,7 +1193,7 @@ mod tests {
     #[test]
     fn omitted_effect_announcements_leave_frames_and_redaction_unchanged() {
         use rh_sim::status_runtime::{AbilityId, CastEndReason, StatusKind};
-        assert_eq!(rh_protocol::PROTOCOL_VERSION, 8);
+        assert_eq!(rh_protocol::PROTOCOL_VERSION, 9);
         let env = seed1_match(1);
         let id = env.sim.players()[0].id;
         let mut publisher = Publisher::default();

@@ -620,7 +620,7 @@ namespace Roguehalla.Net.Protocol
                         switch (tag)
                         {
                             case 5: ev.PickupReason = r.U8(); if (ev.PickupReason < 1 || ev.PickupReason > 5) throw new DecodeException(DecodeError.BadField, "pickup reason"); break;
-                            case 7: ev.PotionNotice=r.U8(); if(ev.PotionNotice<1 || ev.PotionNotice>7) throw new DecodeException(DecodeError.BadField,"potion notice"); break;
+                            case 7: ev.PotionNotice=r.U8(); if(ev.PotionNotice<1 || ev.PotionNotice>10) throw new DecodeException(DecodeError.BadField,"potion notice"); break;
                             case 6: ev.ChestReason = r.U8(); if(ev.ChestReason < 1 || ev.ChestReason > 9) throw new DecodeException(DecodeError.BadField,"chest reason");break;
                             case 1: ev.Id = r.U32(); if (r.Flag()) ev.By = r.U32(); break;
                             case 2: ev.Id = r.U32(); ev.Bounty = r.U16(); break;
@@ -960,7 +960,7 @@ namespace Roguehalla.Net.Protocol
                     w.U8((byte)e.Kind);
                     switch (e.Kind)
                     {
-                        case EventKind.PotionNotice: if(e.PotionNotice<1 || e.PotionNotice>7) throw new ArgumentException("potion notice");w.U8(e.PotionNotice);break;
+                        case EventKind.PotionNotice: if(e.PotionNotice<1 || e.PotionNotice>10) throw new ArgumentException("potion notice");w.U8(e.PotionNotice);break;
                         case EventKind.ChestRefused: if(e.ChestReason < 1 || e.ChestReason > 9) throw new ArgumentException("chest reason");w.U8(e.ChestReason);break;
                         case EventKind.PickupRefused: if (e.PickupReason < 1 || e.PickupReason > 5) throw new ArgumentException("pickup reason"); w.U8(e.PickupReason); break;
                         case EventKind.Death: w.U32(e.Id); if (e.By.HasValue) { w.U8(1); w.U32(e.By.Value); } else w.U8(0); break;

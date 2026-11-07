@@ -31,6 +31,7 @@ impl PickupHandle {
 pub struct Inventory {
     pub active_slot: u8,
     pub potion_small: u8,
+    pub potion_large: u8,
     pub potions_healing: u8,
     pub slots: [Option<WeaponId>; 2],
 }
@@ -195,7 +196,8 @@ impl ItemObserver {
             }
             let first = c.items.first().and_then(|item| match item.def {
                 crate::initial_world::ItemDef::Weapon(w) => Some(w),
-                crate::initial_world::ItemDef::PotionSmall => None,
+                crate::initial_world::ItemDef::PotionSmall
+                | crate::initial_world::ItemDef::PotionLarge => None,
             });
             let kind = match c.kind {
                 ContainerKind::Ground => PropKind::Ground(first.ok_or(OfferError::InvalidGround)?),
@@ -331,6 +333,7 @@ impl ItemObserver {
         out.inventory = sim.player(self.viewer).map(|me| Inventory {
             active_slot: me.weapon.slot,
             potion_small: me.potion_small,
+            potion_large: me.potion_large,
             potions_healing: me.potions_healing,
             slots: [me.weapon.weapon0, me.weapon.weapon1],
         });
@@ -724,6 +727,7 @@ mod tests {
             view.inventory,
             Some(Inventory {
                 potion_small: 0,
+                potion_large: 0,
                 potions_healing: 0,
                 active_slot: 0,
                 slots: [None, Some(Wand)]

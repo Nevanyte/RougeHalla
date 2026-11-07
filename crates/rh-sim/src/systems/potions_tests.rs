@@ -234,3 +234,109 @@ fn assertion_frame(expected: &Value) -> Value {
     }
     frame
 }
+
+#[test]
+fn a_stored_camp_potion_is_preferred_and_heals_its_larger_share() {
+    use crate::{arenas::practice_arena, Placement};
+    let ps: Vec<_> = (0..2)
+        .map(|i| Placement {
+            profile: format!("q{i}"),
+            faction: FactionId::Holy,
+            bot: false,
+            at: crate::Vec2::new(320.0 + 64.0 * i as f64, 320.0),
+            hp: None,
+            weapon0: None,
+            weapon1: None,
+        })
+        .collect();
+    let mut s = Sim::reset_active(
+        SimConfig::default(),
+        practice_arena(),
+        Secrets::from_seed(5),
+        &ps,
+    );
+    s.w.players[0].vitals.hp = 300.0;
+    s.w.players[0].potion_large = 1;
+    s.w.players[0].potion_small = 2;
+    let max = s.w.players[0].vitals.max_hp;
+    s.submit(
+        PlayerId(1),
+        crate::validate(crate::RawCommand::UseConsumable).unwrap(),
+    )
+    .unwrap();
+    let ev = s.step();
+    assert_eq!(s.w.players[0].potion_large, 0, "the camp potion was drunk");
+    assert_eq!(
+        s.w.players[0].potion_small, 2,
+        "the small stock is untouched"
+    );
+    let e =
+        s.w.potion_healing
+            .iter()
+            .find(|e| e.id == PlayerId(1))
+            .unwrap();
+    assert_eq!(e.hots.len(), 1);
+    assert!(
+        (e.hots[0].amount - max * 0.4 / 10.0).abs() < 1e-9,
+        "a camp potion heals 40% over 5 s: {}",
+        e.hots[0].amount
+    );
+    assert!(ev.iter().any(|x| matches!(
+        x,
+        Event::PotionNotice { id, notice: crate::potions::Notice::LargeUsed } if *id == PlayerId(1)
+    )));
+}
+
+#[test]
+fn without_a_camp_potion_the_small_one_is_used_and_a_full_bag_refuses_the_grant() {
+    use crate::{arenas::practice_arena, Placement};
+    let ps: Vec<_> = (0..2)
+        .map(|i| Placement {
+            profile: format!("r{i}"),
+            faction: FactionId::Holy,
+            bot: false,
+            at: crate::Vec2::new(320.0 + 64.0 * i as f64, 320.0),
+            hp: None,
+            weapon0: None,
+            weapon1: None,
+        })
+        .collect();
+    let mut s = Sim::reset_active(
+        SimConfig::default(),
+        practice_arena(),
+        Secrets::from_seed(6),
+        &ps,
+    );
+    s.w.players[0].vitals.hp = 300.0;
+    s.w.players[0].potion_small = 1;
+    let max = s.w.players[0].vitals.max_hp;
+    s.submit(
+        PlayerId(1),
+        crate::validate(crate::RawCommand::UseConsumable).unwrap(),
+    )
+    .unwrap();
+    let ev = s.step();
+    assert_eq!(s.w.players[0].potion_small, 0);
+    assert_eq!(s.w.players[0].potion_large, 0);
+    let e =
+        s.w.potion_healing
+            .iter()
+            .find(|e| e.id == PlayerId(1))
+            .unwrap();
+    assert!((e.hots[0].amount - max * 0.25 / 10.0).abs() < 1e-9);
+    assert!(ev.iter().any(|x| matches!(
+        x,
+        Event::PotionNotice { id, notice: crate::potions::Notice::Used } if *id == PlayerId(1)
+    )));
+    // A full camp stock refuses the grant, keeps its count and says nothing.
+    s.w.players[0].potion_large = crate::potions::DEFINITION.cap;
+    let mut v = Vec::new();
+    assert!(!crate::systems::potions::grant(
+        &mut s.w,
+        &mut v,
+        PlayerId(1),
+        crate::potions::Size::Large
+    ));
+    assert_eq!(s.w.players[0].potion_large, crate::potions::DEFINITION.cap);
+    assert!(v.is_empty());
+}
