@@ -37,8 +37,8 @@ catalog to a generated, corpus-verified table and the build to the source count 
 
 ## Measurements
 
-- `cargo test --workspace --all-features --locked` (throwaway PostgreSQL): **1,390 passed, 0 failed, 3 ignored, 151 test
-  binaries, exit 0** (after the full-pool drop and the 21/21 terrain kernel).
+- `cargo test --workspace --all-features --locked` (throwaway PostgreSQL): **1,391 passed, 0 failed, 3 ignored, 151 test
+  binaries, exit 0** (after the full-pool drop, the 21/21 terrain kernel and the allocation-free on-hit hook).
 - Catalog differentials: **2/2** (80 cards × all rows/selections; 80 × 4 eligibility entries incl. reasons).
 - Protocol: Rust **11/11**, JS decoder **24 server vectors / 89 malformed / 10 chains / 15,454 checks**, C# **267/267**.
 - Browser proof (`node tools/browser-proof/proof.mjs`): **PASS**, protocol 7.
