@@ -152,6 +152,7 @@ pub(crate) fn after_damage(cx: &mut Cx) {
             });
         }
     }
+    crate::cards::stillness(w, now);
     resolve_splashes(w);
 }
 

@@ -21,6 +21,10 @@ pub(crate) fn reset_all(hx: &mut crate::hooks::Hx, args: &crate::hooks::HookArgs
             p.card_prevented = 0.;
             p.card_tank_hp = 0.;
             p.card_boost = crate::cards::Boost::default();
+            p.card_crit_acc = 0.;
+            p.card_still_x = 0.;
+            p.card_still_y = 0.;
+            p.card_still_since = 0.;
         }
     }
 }

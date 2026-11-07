@@ -97,6 +97,39 @@ impl Default for Boost {
 
 /// Source `rollAttackCrit`: a player's deterministic critical accumulator takes its crit chance (the `critChance` sum,
 /// zero under the noCrit flag, never above CRIT_CHANCE_MAX) and fires at 1.
+/// Source `plantArmed`: stood still long enough (the flag and PLANT_FEET_MS since last seen moving) for its next attack.
+pub(crate) fn plant_armed(p: &crate::state::Player, now: f64) -> bool {
+    p.build.has_flag(crate::stat_fold::EffectFlag::PlantFeet)
+        && now - p.card_still_since >= crate::constants::PLANT_FEET_MS
+}
+
+/// Source `spendPlant`: the armed attack was spent; stand still for PLANT_FEET_MS again.
+pub(crate) fn spend_plant(p: &mut crate::state::Player, now: f64) {
+    p.card_still_since = now;
+}
+
+/// Source `stillness`: a player that moved (or is not standing) was last seen moving now.
+pub(crate) fn stillness(w: &mut crate::state::World, now: f64) {
+    for i in 0..w.players.len() {
+        if !w.players[i]
+            .build
+            .has_flag(crate::stat_fold::EffectFlag::PlantFeet)
+        {
+            continue;
+        }
+        let pos = w.players[i].core.pos();
+        let moved = (pos.x - w.players[i].card_still_x).abs() > 0.01
+            || (pos.y - w.players[i].card_still_y).abs() > 0.01;
+        let standing =
+            w.players[i].core.vitals.hp > 0. && w.players[i].status == crate::Status::Alive;
+        if moved || !standing {
+            w.players[i].card_still_since = now;
+            w.players[i].card_still_x = pos.x;
+            w.players[i].card_still_y = pos.y;
+        }
+    }
+}
+
 pub(crate) fn roll_attack_crit(p: &mut crate::state::Player) -> bool {
     let sum = p.modifiers.crit_chance();
     let no_crit = p.build.has_flag(crate::stat_fold::EffectFlag::NoCrit);
@@ -706,5 +739,59 @@ mod crit_tests {
         }
         assert_eq!(fires, 1, "the fifth 20% step fires");
         assert!(p.card_crit_acc.abs() < 1e-9, "acc {}", p.card_crit_acc);
+    }
+}
+
+#[cfg(test)]
+mod dot_crit_tests {
+    use super::{plant_armed, spend_plant};
+    use crate::{arenas, FactionId, Placement, PlayerId, Secrets, Sim, SimConfig, Vec2};
+
+    fn setup() -> Sim {
+        let ps = [
+            Placement {
+                profile: "a".into(),
+                faction: FactionId::Fire,
+                bot: false,
+                at: Vec2::new(400., 400.),
+                hp: None,
+                weapon0: None,
+                weapon1: None,
+            },
+            Placement {
+                profile: "b".into(),
+                faction: FactionId::Holy,
+                bot: false,
+                at: Vec2::new(456., 400.),
+                hp: None,
+                weapon0: None,
+                weapon1: None,
+            },
+        ];
+        Sim::reset_active(
+            SimConfig::default(),
+            arenas::practice_arena(),
+            Secrets::from_seed(7),
+            &ps,
+        )
+    }
+
+    #[test]
+    fn plant_your_feet_arms_after_a_second_still() {
+        let mut sim = setup();
+        assert!(crate::cards::grant(
+            &sim.k,
+            &mut sim.w,
+            PlayerId(1),
+            crate::cards::CardId::PlantYourFeet
+        ));
+        let i = sim.w.idx(PlayerId(1)).unwrap();
+        let now = sim.w.server_time;
+        sim.w.players[i].card_still_since = now - 999.;
+        assert!(!plant_armed(&sim.w.players[i], now));
+        sim.w.players[i].card_still_since = now - 1000.;
+        assert!(plant_armed(&sim.w.players[i], now));
+        spend_plant(&mut sim.w.players[i], now);
+        assert!(!plant_armed(&sim.w.players[i], now));
     }
 }
