@@ -154,6 +154,14 @@ pub(crate) fn start_over_time(
     }
 }
 
+/// Source \`dropHealsOverTime\`: the teleport forgets the steps of every heal over time still to come (a fresh fight;
+/// the re-armed trigger may start its own). The first paid step has already landed.
+pub(crate) fn drop_over_time(w: &mut crate::state::World) {
+    for p in w.players.iter_mut() {
+        p.card_hots.clear();
+    }
+}
+
 /// System (\`factions.healOverTime\`): the due steps of every pending run. A fighter who went down loses the rest.
 pub(crate) fn over_time(cx: &mut crate::systems::Cx) {
     let crate::systems::Cx { w, ev, .. } = cx;

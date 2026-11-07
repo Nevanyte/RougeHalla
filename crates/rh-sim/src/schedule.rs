@@ -1084,11 +1084,11 @@ static TELEPORTED: [Link; 13] = [
         Gate::Always,
         projectiles::teleported,
     ),
-    pending_link(
+    ported_link(
         "factions.<arrow>",
         Mode::Append,
         Gate::Signatures,
-        "P-FACTION-1",
+        crate::systems::signatures::teleported,
     ),
     ported_link(
         "chests.clearChests",

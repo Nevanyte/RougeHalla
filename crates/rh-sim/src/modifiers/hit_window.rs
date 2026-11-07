@@ -20,6 +20,11 @@ impl HitWindow {
         self.hits.drain(..first);
         self.hits.extend(std::iter::repeat_n(now, count));
     }
+    /// The number of retained landed hits (the source `apHits.length`; tests compare it).
+    #[cfg_attr(not(test), allow(dead_code))]
+    pub(crate) fn len(&self) -> usize {
+        self.hits.len()
+    }
     pub(crate) fn rate(&self) -> f64 {
         self.hits.len() as f64 / (super::DEFINITION.ap_hit_window_ms / 1000.)
     }
