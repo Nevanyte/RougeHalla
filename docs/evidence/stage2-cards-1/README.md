@@ -135,7 +135,7 @@ catalog to a generated, corpus-verified table and the build to the source count 
 
 ## Measurements
 
-- `cargo test --workspace --all-features --locked` (throwaway PostgreSQL): **1,414 passed, 0 failed, 3 ignored, 151 test
+- `cargo test --workspace --all-features --locked` (throwaway PostgreSQL): **1,415 passed, 0 failed, 3 ignored, 151 test
   binaries, exit 0** (after the full-pool drop, the 21/21 terrain kernel, the allocation-free on-hit hook, the Fists of Fury
   multiplicity, the streak memory, Wishful Thinking, heal over time, Second Wind's trigger, Spiked Shell's return, Tank Engine's fortify, Adrenaline's boost and the teleport resets).
 - Catalog differentials: **2/2** (80 cards × all rows/selections; 80 × 4 eligibility entries incl. reasons).
@@ -166,6 +166,10 @@ catalog to a generated, corpus-verified table and the build to the source count 
 - **The G1 row cap is certified against the diagnostic build**: with Here Comes the Boom, Glass Cannon, First Impressions and
   Tunnel Vision owned, the outgoing row multiplier stays at or below 1 (Boom's own x2.5 already fills `OUTGOING_ROW_CAP`, so no
   row adds) across hp fractions; the PvP hit/dot caps' ordering is pinned too.
+- **Stacked base cards apply their rows per copy** (source `countIn`): five Vitality III copies are +125% max health, not
+  +25% — the fold previously emitted each owned card's rows once. That makes the **diagnostic G1-G2-G3 case reproduce exactly**:
+  the injected weapon hit is cut to `901.6874999999999` (the PvP hit share of the source's 2576.25 victim max hp) and one
+  source's dots share the per-source budget.
 - The packet's final acceptance evidence: source probes per runtime family, the mutant controls, and the coordinator's
   acceptance.
 
