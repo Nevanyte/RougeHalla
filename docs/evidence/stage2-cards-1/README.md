@@ -108,10 +108,14 @@ catalog to a generated, corpus-verified table and the build to the source count 
    **Swift Judgment** (every second mark hit adds a step); **Heavier Sentence** multiplies the mark share by
    `1 + 1.5 x (bonus max hp / base hp)`. (The shipped mark amplifier params are 1, so the source's top-tier/linger amp is a
    no-op there.) Content hash `0x96d795398cfcc4fb`; the hash tape is verified.
+21. **Race to 0's multiplier and its lifesteal guard (G4) are live**: `hp_race_mult` is the source's capped inverse hp fraction
+   (`HP_RACE_CAP` 2.5), the ledger multiplies each entry by the dealer's and the victim's race (already-multiplied
+   passive/derived entries take only the victim's), and the landed hit carries the race share so the lifesteal feed divides it
+   out — the extra damage is nobody's earnings. A focused test pins the capped values; content hash `0x360863ef426f9f37`.
 
 ## Measurements
 
-- `cargo test --workspace --all-features --locked` (throwaway PostgreSQL): **1,404 passed, 0 failed, 3 ignored, 151 test
+- `cargo test --workspace --all-features --locked` (throwaway PostgreSQL): **1,405 passed, 0 failed, 3 ignored, 151 test
   binaries, exit 0** (after the full-pool drop, the 21/21 terrain kernel, the allocation-free on-hit hook, the Fists of Fury
   multiplicity, the streak memory, Wishful Thinking, heal over time, Second Wind's trigger, Spiked Shell's return, Tank Engine's fortify, Adrenaline's boost and the teleport resets).
 - Catalog differentials: **2/2** (80 cards × all rows/selections; 80 × 4 eligibility entries incl. reasons).
