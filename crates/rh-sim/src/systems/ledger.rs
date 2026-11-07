@@ -336,6 +336,7 @@ fn apply_inner(
         victims,
         ledger_mults: mults,
         ledger_races: races,
+        deny_parts,
         slot_head,
         slot_tail,
         entry_next,
@@ -443,6 +444,7 @@ fn apply_inner(
                     e.critical_mult.unwrap_or(1.),
                     streak,
                     probe,
+                    false,
                 )
             })
         } else {
@@ -554,12 +556,15 @@ fn apply_inner(
         }
         slot_head[vi] = NONE;
         slot_tail[vi] = NONE;
-        apply_victim(&mut pass, &mut bufs, vi, ledger, mults, races, entry_rank);
+        apply_victim(
+            &mut pass, &mut bufs, vi, ledger, mults, races, deny_parts, entry_rank,
+        );
     }
     pay_all_with(pass.k, pass.w, pass.ev, pf, pass.stats);
     ledger.clear();
 }
 
+#[allow(clippy::too_many_arguments)]
 fn apply_victim(
     pass: &mut Pass,
     b: &mut Bufs,
@@ -567,6 +572,7 @@ fn apply_victim(
     ledger: &[Entry],
     mults: &[f64],
     races: &[f64],
+    deny_parts: &mut Vec<f64>,
     entry_rank: &[u32],
 ) {
     let ix = FighterIx::of_slot(vi);
@@ -650,23 +656,61 @@ fn apply_victim(
             }
         }
     }
+    // A tier-4 mark denies the execute part of the foe's entries: the whole of an execute entry, or the share the attacker's
+    // vs-hpBelow rows add (R7). The execute total cannot take the victim below 1 hp.
     if let Some(foe) = pass.denies.get(vi).copied().flatten() {
         let total: f64 = amounts.iter().sum();
-        let execute: f64 = idxs
-            .iter()
-            .enumerate()
-            .filter(|(_, &index)| ledger[index].execute && ledger[index].by == Some(foe))
-            .map(|(j, _)| amounts[j])
-            .sum();
+        let victim_frac = pass.w.core(ix).vitals.hp_frac_at_tick_start;
+        let foe_ix = pass.w.fighter_idx(foe);
+        deny_parts.clear();
+        let mut x = 0.;
+        for (j, &index) in idxs.iter().enumerate() {
+            let e = &ledger[index];
+            let share = if e.by == Some(foe) {
+                if e.execute {
+                    1.
+                } else {
+                    foe_ix.map_or(0., |bix| {
+                        let build = if pass.w.is_player(bix) {
+                            pass.w.players[bix.slot()].build
+                        } else {
+                            Default::default()
+                        };
+                        let kind = if e.is_dot() {
+                            crate::modifiers::OutgoingKind::Dot
+                        } else if e.passive {
+                            crate::modifiers::OutgoingKind::Returned
+                        } else if e.sig.is_none() && e.ability.is_none() && e.weapon.is_some() {
+                            crate::modifiers::OutgoingKind::Hit
+                        } else {
+                            crate::modifiers::OutgoingKind::Other
+                        };
+                        crate::modifiers::execute_share(
+                            pass.w.core(bix),
+                            &build,
+                            victim_frac,
+                            kind,
+                            e.critical_mult.unwrap_or(1.),
+                        )
+                    })
+                }
+            } else {
+                0.
+            };
+            let part = amounts[j] * share;
+            deny_parts.push(part);
+            x += part;
+        }
         let pool = pass.w.core(ix).vitals.hp + pass.w.core(ix).vitals.barrier;
-        let allowed = execute.min(pool - 1. - (total - execute)).max(0.);
-        let held = execute - allowed;
-        if held > MARK_EXECUTE_EPS {
+        let allowed = x.min(pool - 1. - (total - x)).max(0.);
+        let held = x - allowed;
+        if x > 0. && held > MARK_EXECUTE_EPS {
             let mut denied = super::sentenced::Denied::default();
-            for (j, &index) in idxs.iter().enumerate() {
-                let e = &ledger[index];
-                if e.execute && e.by == Some(foe) && amounts[j] > 0. {
-                    let cut = amounts[j] * (1. - allowed / execute);
+            let keep = allowed / x;
+            for j in 0..idxs.len() {
+                let part = deny_parts[j];
+                if part > 0. {
+                    let cut = part * (1. - keep);
                     amounts[j] -= cut;
                     denied.add(foe, cut);
                 }

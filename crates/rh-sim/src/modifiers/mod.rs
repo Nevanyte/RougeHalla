@@ -297,6 +297,50 @@ pub(crate) fn hp_race_mult(hp_frac: f64, cap: f64) -> f64 {
     (1. / hp_frac).max(1.).min(ceiling)
 }
 
+/// Source `outgoingExecuteShare`: the share of an entry's outgoing multiplier that the attacker's `vs hpBelow` rows
+/// contribute (0 without them, never above 1) — what a tier-4 mark denies (R7).
+pub(crate) fn execute_share(
+    core: &crate::fighter::FighterCore,
+    build: &crate::cards::Build,
+    victim_frac: f64,
+    kind: OutgoingKind,
+    baked: f64,
+) -> f64 {
+    let has = build.cards().any(|id| {
+        id.definition()
+            .rows
+            .iter()
+            .any(|r| matches!(r, crate::cards::CardRow::Vs(v) if matches!(v.test, crate::cards::VsTest::HpBelow)))
+    });
+    if !has {
+        return 0.;
+    }
+    let full = outgoing_damage(
+        core,
+        build,
+        victim_frac,
+        kind,
+        baked,
+        0,
+        VsProbe::default(),
+        false,
+    );
+    if !(full > 0.) {
+        return 0.;
+    }
+    let without = outgoing_damage(
+        core,
+        build,
+        victim_frac,
+        kind,
+        baked,
+        0,
+        VsProbe::default(),
+        true,
+    );
+    (1. - without / full).clamp(0., 1.)
+}
+
 pub(crate) fn mark_pulse(
     p: &crate::state::Player,
     w: crate::WeaponId,
@@ -433,6 +477,7 @@ fn vs_holds(v: &crate::cards::VsRow, frac: f64, streak: u16, probe: VsProbe) -> 
 /// Source `outgoingMult`: what a hit deals before armor and shield, as (1 + the damage sums + holding vs rows + the
 /// stepped scale rows), G1-capped so the row multiplier times the entry's own kind mult never passes OUTGOING_ROW_CAP; farm
 /// damage is added outside the cap. Camps-cleared scales need the unported camp counter and contribute nothing yet.
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn outgoing_damage(
     p: &crate::fighter::FighterCore,
     build: &crate::cards::Build,
@@ -441,6 +486,7 @@ pub(crate) fn outgoing_damage(
     baked: f64,
     streak: u16,
     probe: VsProbe,
+    skip_execute: bool,
 ) -> f64 {
     let sums = StatSums::from_source_values(p.modifiers.sums);
     let mults = MultSums::from_source_values(p.modifiers.mults);
@@ -463,7 +509,9 @@ pub(crate) fn outgoing_damage(
             match row {
                 crate::cards::CardRow::Vs(v) => {
                     any_rows = true;
-                    if vs_holds(v, victim_frac, streak, probe) {
+                    if !(skip_execute && matches!(v.test, crate::cards::VsTest::HpBelow))
+                        && vs_holds(v, victim_frac, streak, probe)
+                    {
                         sum += v.v;
                     }
                 }
