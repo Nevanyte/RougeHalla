@@ -77,7 +77,10 @@ catalog to a generated, corpus-verified table and the build to the source count 
    1 + the folded damage sums, **G1-capped** so the row multiplier times the entry's own kind mult (hit/dot/returned plus the
    baked crit multiplier) never passes `OUTGOING_ROW_CAP` (2.5), with the farm damage added outside the cap; a fighter with no
    damage rows keeps the cap-only answer. The entry kind and the victim's pass-start hp fraction are read per entry. The
-   `vs`/`scale` row tests are the next slice.
+   `vs`/`scale` row tests are live too: the owned `Vs` rows whose test holds (elite, higher power, slowed, streak by hit
+   count, third party, hp below, player above) and the stepped `Scale` rows (streak; camps-cleared needs the unported camp
+   counter) add to the sum before the G1 cap, with the probe read from the victim's statuses/eliteness/build power and the
+   attacker's pass-start streak on the victim.
 
 ## Measurements
 
