@@ -9,66 +9,97 @@ mod catalog;
 mod catalog_data;
 pub use catalog::*;
 
+/// The source build's card count map (one byte per card in wire order). A newtype so the 80-byte array has Default and a
+/// strict 80-element serde form (serde arrays stop at 32).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct Counts(pub [u8; 80]);
+
+impl Default for Counts {
+    fn default() -> Self {
+        Self([0; 80])
+    }
+}
+
+impl serde::Serialize for Counts {
+    fn serialize<S: serde::Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
+        self.0.as_slice().serialize(s)
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for Counts {
+    fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        let v = <Vec<u8>>::deserialize(d)?;
+        let arr: [u8; 80] = v
+            .try_into()
+            .map_err(|_| serde::de::Error::custom("card counts must have 80 entries"))?;
+        Ok(Self(arr))
+    }
+}
+
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Build {
-    /// Source insertion order, with a closed three-card supported domain.
-    pub(crate) cards: [Option<CardId>; 3],
+    /// Source count map in wire order: base cards stack; unique cards have one.
+    pub(crate) counts: Counts,
     pub(crate) boosts: [u8; 8],
 }
+/// The generated catalog's total fold rows: a fixed scratch bound, not a game rule.
+pub(crate) const MAX_FOLD_ROWS: usize = 79;
 impl Build {
     pub fn owns(&self, id: CardId) -> bool {
-        self.cards.contains(&Some(id))
+        self.counts.0[id.index()] > 0
+    }
+    pub fn count(&self, id: CardId) -> u8 {
+        self.counts.0[id.index()]
     }
     pub fn power(&self) -> f64 {
-        self.cards
-            .iter()
-            .flatten()
-            .map(|id| f64::from(id.tier()))
+        self.cards()
+            .map(|id| f64::from(id.tier()) * f64::from(self.count(id)))
             .sum()
     }
     pub fn cards(&self) -> impl Iterator<Item = CardId> + '_ {
-        self.cards.iter().flatten().copied()
+        CardId::ALL
+            .into_iter()
+            .filter(move |id| self.counts.0[id.index()] > 0)
     }
     pub fn boosts(&self) -> [u8; 8] {
         self.boosts
     }
     pub(crate) fn add(&mut self, id: CardId) -> bool {
-        if self.owns(id) {
+        if id.definition().unique && self.owns(id) {
             return false;
         }
-        let Some(slot) = self.cards.iter_mut().find(|v| v.is_none()) else {
+        let c = &mut self.counts.0[id.index()];
+        if *c == u8::MAX {
             return false;
-        };
-        *slot = Some(id);
+        }
+        *c += 1;
         true
     }
     pub(crate) fn valid(&self) -> bool {
-        let n = self.cards.iter().flatten().count();
-        self.cards[..n].iter().all(Option::is_some)
-            && self.cards[n..].iter().all(Option::is_none)
-            && CardId::ALL
-                .into_iter()
-                .all(|id| self.cards.iter().filter(|v| **v == Some(id)).count() <= 1)
+        CardId::ALL
+            .into_iter()
+            .all(|id| !(id.definition().unique && self.counts.0[id.index()] > 1))
             && self.boosts.iter().all(|n| {
                 u32::from(*n) <= crate::stat_fold::default_definition().chest_boost_max_picks
             })
     }
-    pub(crate) fn rows(&self) -> ([EffectRow<'static>; 3], usize) {
+    pub(crate) fn rows(&self) -> ([EffectRow<'static>; MAX_FOLD_ROWS], usize) {
         let empty = EffectRow {
             kind: EffectKind::Trigger,
             requires: &[],
             needs_status: false,
         };
-        let mut rows = [empty; 3];
+        let mut rows = [empty; MAX_FOLD_ROWS];
         let mut n = 0;
         for id in self.cards() {
             for row in id.definition().rows {
                 if let CardRow::Fold(kind) = row {
-                    if n < rows.len() {
-                        rows[n] = EffectRow::new(*kind);
-                        n += 1;
+                    if n == rows.len() {
+                        return (rows, n);
                     }
+                    rows[n] = EffectRow::new(*kind);
+                    n += 1;
                 }
             }
         }
