@@ -89,8 +89,10 @@ catalog to a generated, corpus-verified table and the build to the source count 
    the fifth 20% step.
 16. **Plant Your Feet's stillness clock is live**: `card_still_x/y/since` mirror the source `stillX/stillY/stillSince`; the
    after-damage system marks a moved (or downed) owner as last seen moving now, `plant_armed` reads the flag and
-   `PLANT_FEET_MS` (1 s), and `spend_plant` restarts the clock when the armed attack is spent. A focused test pins the arming
-   and the spend. (The dot-crit accumulator was already ported on the shared core; no duplicate was kept.)
+   `PLANT_FEET_MS` (1 s), and `spend_plant` restarts the clock when the armed attack is spent. **The planted attack itself is
+   wired**: a melee hit by an armed owner multiplies its packet by 1 + PLANT_FEET_BONUS, spends the clock and carries the bonus
+   into the entry's baked multiplier (shared with the crit multiplier for the G1 cap). A focused test pins the arming and the
+   spend. (The dot-crit accumulator was already ported on the shared core; no duplicate was kept.)
 
 ## Measurements
 
