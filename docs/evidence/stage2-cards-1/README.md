@@ -34,14 +34,16 @@ catalog to a generated, corpus-verified table and the build to the source count 
    multiplier, scaled by the weapon's on-hit power (sword 1.5, fists 1.2), as a physical damage-over-time with the
    `bleed:<tick>` tag. Fists of Fury's multiplicity is also live: while the active hand is empty and the flag is owned the
    rows apply one extra time (fists 1.2 × 2 → 12/s in the test). Two focused tests pin the base 7.5/s and the doubled unarmed
-   case. The remaining on-hit families (Third Time's the Charm's streak memory, non-dot statuses) and the rest of the card
-   runtime stay open.
+   case. **Third Time's the Charm** is wired to the new card-state streak memory (`Player.card_streak`: target/count/last,
+   read at the pass start by `streak_before` with the 3 s source gap): the third hit in a row adds an application, pinned by
+   a seeded test (15/s). The after-damage write system that records the tick's weapon hits into the streak is the remaining
+   half; the non-dot on-hit families stay open.
 
 ## Measurements
 
-- `cargo test --workspace --all-features --locked` (throwaway PostgreSQL): **1,392 passed, 0 failed, 3 ignored, 151 test
-  binaries, exit 0** (after the full-pool drop, the 21/21 terrain kernel, the allocation-free on-hit hook and the Fists of
-  Fury multiplicity).
+- `cargo test --workspace --all-features --locked` (throwaway PostgreSQL): **1,393 passed, 0 failed, 3 ignored, 151 test
+  binaries, exit 0** (after the full-pool drop, the 21/21 terrain kernel, the allocation-free on-hit hook, the Fists of Fury
+  multiplicity and the streak memory).
 - Catalog differentials: **2/2** (80 cards × all rows/selections; 80 × 4 eligibility entries incl. reasons).
 - Protocol: Rust **11/11**, JS decoder **24 server vectors / 89 malformed / 10 chains / 15,454 checks**, C# **267/267**.
 - Browser proof (`node tools/browser-proof/proof.mjs`): **PASS**, protocol 7.
