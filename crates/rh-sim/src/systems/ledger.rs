@@ -899,7 +899,21 @@ fn apply_victim(
             .any(|(j, &k)| ledger[k].stagger && amounts[j] > 0.0)
     {
         let now = pass.w.server_time;
-        weapons::stagger(pass.w.core_mut(ix), now, pass.ev);
+        let id = pass.w.core(ix).id;
+        if weapons::stagger_immunity(pass.w.core_mut(ix), now) {
+            // Legacy weapons.stagger fires world.hooks.staggered after the immunity clock, before the cancel.
+            crate::hooks::fire(
+                &mut crate::hooks::Hx {
+                    stats: pass.stats,
+                    fx: None,
+                    k: pass.k,
+                    w: pass.w,
+                    ev: pass.ev,
+                },
+                crate::hooks::HookArgs::Staggered { id },
+            );
+            weapons::stagger_cancel(pass.w.core_mut(ix), now, pass.ev);
+        }
     }
 }
 

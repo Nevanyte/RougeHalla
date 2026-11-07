@@ -60,7 +60,7 @@ pub(super) fn room(input: &V) -> crate::TileMap {
 pub(super) fn construct(input: &V) -> Sim {
     assert!(matches!(
         input["profile"].as_str(),
-        Some("core" | "signatures" | "roster")
+        Some("core" | "signatures" | "roster" | "cards")
     ));
     PLAYER_COUNT.set(input["players"].as_array().unwrap().len() as u32);
     assert!(matches!(
@@ -173,6 +173,19 @@ pub(super) fn construct(input: &V) -> Sim {
         }
         if declared.get("weapon1").is_some() {
             p.weapon.weapon1 = spec.weapon1;
+        }
+    }
+    // The source rig's declared-player bootstrap: grantCard (an owned card folds in at once). Only the declared
+    // ordinary producer path is used; the snapshot can never seed card state.
+    for (i, declared) in input["players"].as_array().unwrap().iter().enumerate() {
+        for card in declared["cards"].as_array().into_iter().flatten() {
+            let card: crate::cards::CardId =
+                serde_json::from_value(card.clone()).expect("declared source card id");
+            let id = sim.w.players[i].id;
+            assert!(
+                crate::cards::grant(&sim.k, &mut sim.w, id, card),
+                "declared source card grant"
+            );
         }
     }
     sim

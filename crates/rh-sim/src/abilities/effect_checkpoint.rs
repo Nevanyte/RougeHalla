@@ -7,6 +7,12 @@ fn source(w: &World, s: &rt::StatusSource) -> bool {
         && s.id
             .is_some_and(|id| w.roster.label(id).is_some_and(|name| name == &s.name))
 }
+/// Gallows' Patience is the only card producer of the longer Trial tuple, so the owner must really hold it.
+fn owns_gallows(w: &World, s: &rt::StatusSource) -> bool {
+    s.id
+        .and_then(|id| w.player(id))
+        .is_some_and(|p| p.build.has_flag(crate::stat_fold::EffectFlag::GallowsPatience))
+}
 pub(super) fn validate(w: &World) -> Result<(), String> {
     if let Some(a) = &w.abilities {
         for f in &a.fields {
@@ -26,12 +32,17 @@ pub(super) fn validate(w: &World) -> Result<(), String> {
                         && f.exit_stun_ms.is_none()
                 }
                 (rt::FieldKind::Zone, AbilityId::Trial) => {
+                    let plain = f.ends_at == f.started_at + TRIAL_MS
+                        && f.exit_stun_ms == rt::TRIAL_FIELD_POLICY.exit_stun_ms;
+                    let patient = f.ends_at
+                        == f.started_at + TRIAL_MS + crate::constants::GALLOWS_PATIENCE_EXTRA_MS
+                        && f.exit_stun_ms == Some(crate::constants::GALLOWS_PATIENCE_STUN_MS)
+                        && owns_gallows(w, &f.owner);
                     f.subject.is_some()
                         && (f.r == TRIAL_RADIUS || f.r == TRIAL_CONVICTED_RADIUS)
-                        && f.ends_at == f.started_at + TRIAL_MS
+                        && (plain || patient)
                         && f.x2 == 0.
                         && f.y2 == 0.
-                        && f.exit_stun_ms == rt::TRIAL_FIELD_POLICY.exit_stun_ms
                 }
                 _ => false,
             };
@@ -74,15 +85,20 @@ pub(super) fn validate(w: &World) -> Result<(), String> {
                         })
                 }
                 (AbilityId::Trial, rt::StatusKind::Stun) => {
-                    rt::TRIAL_FIELD_POLICY
+                    (rt::TRIAL_FIELD_POLICY
                         .exit_stun_ms
                         .is_some_and(exact_duration)
+                        || (exact_duration(crate::constants::GALLOWS_PATIENCE_STUN_MS)
+                            && owns_gallows(w, &st.source)))
                         && st.value == 0.
                         && st.data == default
                         && st.taken.is_none()
                 }
                 (AbilityId::Trial, rt::StatusKind::Zoned) => {
-                    exact_duration(TRIAL_MS)
+                    (exact_duration(TRIAL_MS)
+                        || (exact_duration(
+                            TRIAL_MS + crate::constants::GALLOWS_PATIENCE_EXTRA_MS,
+                        ) && owns_gallows(w, &st.source)))
                         && st.value == TRIAL_DEALT_MULT
                         && st.taken.is_none()
                         && st.data.field_id.is_some()

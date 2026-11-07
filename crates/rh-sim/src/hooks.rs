@@ -81,6 +81,11 @@ pub(crate) enum HookArgs {
         fresh: bool,
         index: usize,
     },
+    /// An unblocked sword hit reached the fighter: its windup or cast is about to be interrupted (legacy
+    /// weapons.stagger fires this before it cancels; the abilities chain interrupts only casts that list stagger).
+    Staggered {
+        id: PlayerId,
+    },
     /// The lobby just turned into an active raid: players are placed (legacy `raidStarted(world)`).
     RaidStarted,
     PlanningStarted,
@@ -128,6 +133,7 @@ impl HookArgs {
             HookArgs::Hurt { .. } => Hook::Hurt,
             HookArgs::Teleported => Hook::Teleported,
             HookArgs::StatusApplied { .. } => Hook::StatusApplied,
+            HookArgs::Staggered { .. } => Hook::Staggered,
             HookArgs::RaidStarted => Hook::RaidStarted,
             HookArgs::PlanningStarted => Hook::PlanningStarted,
             HookArgs::DropBody { .. } => Hook::DropBody,

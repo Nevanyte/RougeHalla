@@ -94,9 +94,10 @@ pub(crate) fn validate_config(k: &MatchStatic) -> Result<(), &'static str> {
     if k.config.mob_mode == crate::mob_runtime::MobMode::SpawnFoundation {
         return Err("source arena requires runtime mobs, not the constructor-only foundation");
     }
-    if k.config.faction_mode != crate::FactionMode::Off {
-        return Err("source arena faction teleport producers are not yet admitted");
-    }
+    // The source arena's teleport producer is admissible under a faction world once the coliseum reset runs:
+    // P-FACTION-1 ported the `factions.<arrow>` teleported chain (resetAll + dropHealsOverTime + rearmTriggers) and
+    // the `abilities.<arrow>` teleport refund, so a source-lifecycle faction match no longer has a missing reset
+    // producer. Remaining faction producers are listed row by row in the schedule and in the packet evidence.
     if k.arena.spawns.is_empty()
         && k.arena
             .map

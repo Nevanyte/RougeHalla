@@ -699,20 +699,15 @@ pub(crate) static PHASES: [Item<PhaseFn>; 23] = [
         inputs::apply_mobs(cx);
         Flow::Continue
     }),
-    // Complete status/field lifecycle runs here. P-ABIL-1 extends this phase with cast producers.
-    partial(
-        "abilities",
-        Gate::Always,
-        "status lifecycle, fields and reveal",
-        "P-ABIL-1",
-        |cx| {
-            crate::vision::apply_exposures(cx);
-            crate::systems::status::expire(cx);
-            crate::systems::abilities::land(cx);
-            crate::systems::status::finish(cx);
-            Flow::Continue
-        },
-    ),
+    // The complete abilities phase (P-ABIL-1): expire statuses/fields, land the due casts atomically, end the zones
+    // that left their ring and refresh the bits/reveals — the four legacy steps in their recorded order.
+    ported("abilities", Gate::Always, |cx| {
+        crate::vision::apply_exposures(cx);
+        crate::systems::status::expire(cx);
+        crate::systems::abilities::land(cx);
+        crate::systems::status::finish(cx);
+        Flow::Continue
+    }),
     ported("targets", Gate::Always, |cx| {
         crate::systems::targeting::update(cx);
         Flow::Continue
@@ -1430,11 +1425,11 @@ static STATUS_APPLIED: [Link; 1] = [ported_link(
     Gate::Always,
     crate::systems::status::on_applied,
 )];
-static STAGGERED: [Link; 1] = [pending_link(
+static STAGGERED: [Link; 1] = [ported_link(
     "abilities.<arrow>",
     Mode::Append,
     Gate::Always,
-    "P-ABIL-1",
+    crate::systems::status::staggered,
 )];
 static PLANNING_STARTED: [Link; 1] = [pending_link(
     "quests.spawnQuests",

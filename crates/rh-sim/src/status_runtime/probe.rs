@@ -60,6 +60,9 @@ pub enum HookRecord {
     },
     Teleported,
     RunEnded,
+    Staggered {
+        actor: PlayerId,
+    },
 }
 #[derive(Clone, Copy, Debug, PartialEq, serde::Serialize)]
 pub enum HealSource {
@@ -129,6 +132,7 @@ pub(crate) fn record_hook(w: &mut World, args: &HookArgs) {
         }),
         HookArgs::Teleported => Some(HookRecord::Teleported),
         HookArgs::RunEnded => Some(HookRecord::RunEnded),
+        HookArgs::Staggered { id } => Some(HookRecord::Staggered { actor: *id }),
         _ => None,
     };
     if let Some(r) = record {
