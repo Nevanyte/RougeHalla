@@ -1913,19 +1913,22 @@ mod tests {
         assert_eq!(open_lobby(&m), Some(id(2)));
     }
 
-    #[test]
-    #[should_panic(expected = "Source arena lifecycle requires protocol 7")]
-    fn arena_profile_director_construction_refuses_before_runtime_spawn() {
+    /// Protocol 8 admits the source lifecycle transport, so the director may be built for it; the full Wish profile is
+    /// still refused before any runtime spawn.
+    #[tokio::test]
+    async fn arena_profile_director_construction_is_admitted_transport() {
         let sim = SimConfig {
             lifecycle: rh_sim::ArenaMode::Source(Default::default()),
             ..Default::default()
         };
-        Director::new(
+        assert!(crate::wire::profile_supported(&sim).is_ok());
+        let director = Director::new(
             DirectorConfig::new(sim, rh_sim::arenas::practice_arena()),
             Arc::new(Persistence::Memory(Box::<MemoryStore>::default())),
             Arc::new(Auth::Dev),
             Arc::new(Lifecycle::default()),
         );
+        drop(director);
     }
 
     #[test]

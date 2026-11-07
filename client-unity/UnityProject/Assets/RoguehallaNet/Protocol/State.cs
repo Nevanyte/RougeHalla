@@ -57,6 +57,28 @@ namespace Roguehalla.Net.Protocol
     public struct WireProjectile { public byte Kind; public ushort X,Y,Facing; public uint? Owner; }
     public struct WireCamp { public byte MobType, Elite; public uint Alive; public byte State; public double ClearedAt, RespawnAt; }
     public struct WireBuild { public byte[] Cards, Boosts; }
+    /// <summary>One resolved planning option: where it is, which zone and how long the walk takes.</summary>
+    public struct WirePlanOption { public uint Index; public ushort X, Y; public byte Zone; public float? WalkSeconds; }
+    /// <summary>The viewer's own private planning deal (key 8); never another player's options.</summary>
+    public sealed class WirePlan
+    {
+        public double EndsAt;
+        public uint? Spawn0, Spawn1;
+        public bool Taken0, Taken1;
+        public byte? Pick, Boon;
+        public string[] Boons = Array.Empty<string>();
+        public bool Ready;
+        public WirePlanOption? Option0, Option1;
+    }
+    /// <summary>The public source arena lifecycle view (key 9); typed absent deadlines, never Infinity.</summary>
+    public struct WireArena
+    {
+        public double LobbyEndsAt, PlanEndsAt, RaidStartedAt;
+        public double? PatienceEndsAt;
+        public bool InColiseum, GatesLocked;
+        public double SuddenDeathAt;
+        public uint StartedWith;
+    }
 
     /// <summary>Keys are ascending, unique complete replacements. Missing keys retain their previous values.</summary>
     public abstract class StateItem
@@ -64,7 +86,7 @@ namespace Roguehalla.Net.Protocol
         public abstract uint Key { get; }
         internal abstract void Check();
         internal abstract void Write(Writer w);
-        internal const int MaxRows = 512, MaxKeys = 7;
+        internal const int MaxRows = 512, MaxKeys = 9;
         internal static void Require(bool condition, string name) { if (!condition) throw new EncodeException(name); }
         internal static bool Finite(double v) { return !double.IsNaN(v) && !double.IsInfinity(v); }
         internal static byte Weapon(byte v) { if (v >= 5) throw new DecodeException(DecodeError.BadField, "carried weapon"); return v; }
@@ -78,6 +100,33 @@ namespace Roguehalla.Net.Protocol
             uint id = r.Varint();
             if (id == 0) throw new DecodeException(DecodeError.BadField, "handle");
             return id;
+        }
+        internal static byte? ReadPlanCode(ref Reader r) { byte v = r.U8(); if (v > 2) throw new DecodeException(DecodeError.BadField, "plan pick"); return v == 0 ? (byte?)null : (byte)(v - 1); }
+        internal static void WritePlanCode(Writer w, byte? v) { if (v.HasValue && v.Value > 1) throw new EncodeException("plan pick"); w.U8(v.HasValue ? (byte)(v.Value + 1) : (byte)0); }
+        internal static void WriteIndex(Writer w, uint? v) { if (v.HasValue) { w.U8(1); w.Varint(v.Value); } else w.U8(0); }
+        internal static WirePlanOption? ReadPlanOption(ref Reader r)
+        {
+            if (!r.Flag()) return null;
+            var o = new WirePlanOption { Index = r.Varint(), X = r.U16(), Y = r.U16(), Zone = r.U8() };
+            if (o.Zone < 1 || o.Zone > 5) throw new DecodeException(DecodeError.BadField, "zone");
+            if (r.Flag()) o.WalkSeconds = r.F32();
+            if (o.WalkSeconds.HasValue && (!Finite(o.WalkSeconds.Value) || o.WalkSeconds.Value < 0)) throw new DecodeException(DecodeError.BadField, "walk");
+            return o;
+        }
+        internal static void CheckPlanOption(WirePlanOption? o)
+        {
+            if (!o.HasValue) return;
+            var v = o.Value;
+            Require(v.Zone >= 1 && v.Zone <= 5, "zone");
+            Require(!v.WalkSeconds.HasValue || (Finite(v.WalkSeconds.Value) && v.WalkSeconds.Value >= 0), "walk");
+        }
+        internal static void WritePlanOption(Writer w, WirePlanOption? o)
+        {
+            w.U8(o.HasValue ? (byte)1 : (byte)0);
+            if (!o.HasValue) return;
+            var v = o.Value;
+            w.Varint(v.Index); w.U16(v.X); w.U16(v.Y); w.U8(v.Zone);
+            if (v.WalkSeconds.HasValue) { w.U8(1); w.F32(v.WalkSeconds.Value); } else w.U8(0);
         }
         internal static int Count(ref Reader r, int max)
         {
@@ -156,6 +205,32 @@ namespace Roguehalla.Net.Protocol
                             build.Value = v;
                         }
                         item = build; break;
+                    case 8:
+                        var plan = new PlanState();
+                        if (r.Flag())
+                        {
+                            var v = new WirePlan { EndsAt = r.F64() };
+                            v.Spawn0 = r.Flag() ? r.Varint() : (uint?)null;
+                            v.Spawn1 = r.Flag() ? r.Varint() : (uint?)null;
+                            v.Taken0 = r.Flag(); v.Taken1 = r.Flag();
+                            v.Pick = ReadPlanCode(ref r);
+                            uint nb = r.U8(); if (nb > 4) throw new DecodeException(DecodeError.TooMany, nb.ToString());
+                            v.Boons = new string[nb];
+                            for (int j = 0; j < nb; j++) v.Boons[j] = r.Str();
+                            v.Boon = ReadPlanCode(ref r);
+                            v.Ready = r.Flag();
+                            v.Option0 = ReadPlanOption(ref r); v.Option1 = ReadPlanOption(ref r);
+                            plan.Value = v;
+                        }
+                        item = plan; break;
+                    case 9:
+                        var arena = new ArenaState();
+                        if (r.Flag()) arena.Value = new WireArena {
+                            LobbyEndsAt = r.F64(), PlanEndsAt = r.F64(), RaidStartedAt = r.F64(),
+                            PatienceEndsAt = r.Flag() ? r.F64() : (double?)null,
+                            InColiseum = r.Flag(), GatesLocked = r.Flag(),
+                            SuddenDeathAt = r.F64(), StartedWith = r.Varint() };
+                        item = arena; break;
                     default: throw new DecodeException(DecodeError.BadField, "state key");
                 }
                 try { item.Check(); } catch (EncodeException e) { throw new DecodeException(DecodeError.BadField, e.Message); }
@@ -297,6 +372,63 @@ namespace Roguehalla.Net.Protocol
         {
             w.Varint((uint)Rows.Length);
             foreach(var p in Rows) {w.U8(p.Kind);w.U16(p.X);w.U16(p.Y);w.U16(p.Facing);WriteActor(w,p.Owner);}
+        }
+    }
+
+    /// <summary>Key 8: the viewer's own private planning deal; the server resolved every fact.</summary>
+    public sealed class PlanState : StateItem
+    {
+        public override uint Key { get { return 8; } }
+        public WirePlan Value;
+        internal override void Check()
+        {
+            if (Value == null) return;
+            Require(Finite(Value.EndsAt) && Value.EndsAt >= 0, "plan ends");
+            Require(!Value.Pick.HasValue || Value.Pick.Value <= 1, "plan pick");
+            Require(!Value.Boon.HasValue || Value.Boon.Value <= 1, "plan boon");
+            Require(Value.Boons != null && Value.Boons.Length <= 4, "plan boons");
+            foreach (var b in Value.Boons) Require(b != null && b.Length <= 255, "plan boon");
+            CheckPlanOption(Value.Option0); CheckPlanOption(Value.Option1);
+        }
+        internal override void Write(Writer w)
+        {
+            w.U8(Value == null ? (byte)0 : (byte)1);
+            if (Value == null) return;
+            w.F64(Value.EndsAt);
+            WriteIndex(w, Value.Spawn0); WriteIndex(w, Value.Spawn1);
+            w.U8((byte)(Value.Taken0 ? 1 : 0)); w.U8((byte)(Value.Taken1 ? 1 : 0));
+            WritePlanCode(w, Value.Pick);
+            w.U8((byte)Value.Boons.Length);
+            foreach (var b in Value.Boons) w.Str(b);
+            WritePlanCode(w, Value.Boon);
+            w.U8((byte)(Value.Ready ? 1 : 0));
+            WritePlanOption(w, Value.Option0); WritePlanOption(w, Value.Option1);
+        }
+    }
+
+    /// <summary>Key 9: the public source arena lifecycle view (typed absent deadlines; never Infinity).</summary>
+    public sealed class ArenaState : StateItem
+    {
+        public override uint Key { get { return 9; } }
+        public WireArena? Value;
+        internal override void Check()
+        {
+            if (!Value.HasValue) return;
+            var v = Value.Value;
+            Require(Finite(v.LobbyEndsAt) && Finite(v.PlanEndsAt) && Finite(v.RaidStartedAt) && Finite(v.SuddenDeathAt)
+                && v.LobbyEndsAt >= 0 && v.PlanEndsAt >= 0 && v.RaidStartedAt >= 0 && v.SuddenDeathAt >= 0, "arena time");
+            Require(!v.PatienceEndsAt.HasValue || (Finite(v.PatienceEndsAt.Value) && v.PatienceEndsAt.Value >= 0), "arena patience");
+            Require(v.StartedWith <= 512, "arena starters");
+        }
+        internal override void Write(Writer w)
+        {
+            w.U8(Value.HasValue ? (byte)1 : (byte)0);
+            if (!Value.HasValue) return;
+            var v = Value.Value;
+            w.F64(v.LobbyEndsAt); w.F64(v.PlanEndsAt); w.F64(v.RaidStartedAt);
+            if (v.PatienceEndsAt.HasValue) { w.U8(1); w.F64(v.PatienceEndsAt.Value); } else w.U8(0);
+            w.U8((byte)(v.InColiseum ? 1 : 0)); w.U8((byte)(v.GatesLocked ? 1 : 0));
+            w.F64(v.SuddenDeathAt); w.Varint(v.StartedWith);
         }
     }
 

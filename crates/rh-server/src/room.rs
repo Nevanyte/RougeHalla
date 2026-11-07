@@ -1313,14 +1313,198 @@ pub async fn run_room(mut room: Room, mut rx: mpsc::Receiver<RoomCmd>) {
 mod tests {
     use super::*;
 
+    /// Protocol 8 admits the source lifecycle transport; constructing a direct room must not panic and keeps the lobby
+    /// phase until the first steps close it (the Wish profile remains refused).
     #[test]
-    #[should_panic(expected = "Source arena lifecycle requires protocol 7")]
-    fn arena_profile_direct_room_construction_refuses_before_sim_or_entropy() {
+    fn arena_profile_direct_room_construction_is_admitted_transport() {
         let mut config = cfg(Duration::from_millis(50));
         config.sim.lifecycle = rh_sim::ArenaMode::Source(Default::default());
         config.fixed_secrets = None;
         let (tx, _) = mpsc::unbounded_channel();
-        Room::new([0; 16], config, tx, Instant::now());
+        let room = Room::new([0; 16], config, tx, Instant::now());
+        assert_eq!(room.sim.phase(), Phase::Lobby);
+    }
+
+    /// The admitted rh-map/2 export the arena capture uses: spawn pool, coliseum and planning walks. The map is copied
+    /// without modification (never generated here), exactly as the parity harness attaches it to its Arena.
+    fn source_arena() -> rh_sim::Arena {
+        let text = std::fs::read_to_string(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../parity/arena/source.json"
+        ))
+        .expect("parity/arena/source.json");
+        let source: serde_json::Value = serde_json::from_str(&text).expect("arena capture json");
+        let export: rh_sim::mapdata::MapExport =
+            serde_json::from_value(source["map"]["export"].clone()).expect("rh-map/2 export");
+        let (w, h, tiles, layers) = export.validate().expect("admitted map layers").into_parts();
+        let spawns = layers
+            .data()
+            .spawns
+            .iter()
+            .map(|p| rh_sim::Vec2::new(p.x, p.y))
+            .collect();
+        rh_sim::Arena {
+            map: rh_sim::TileMap::new(w, h, tiles)
+                .expect("map tiles")
+                .with_layers(layers)
+                .expect("layers fit the tiles"),
+            spawns,
+        }
+    }
+
+    fn arena_room(
+        lobby_seconds: f64,
+        plan_seconds: f64,
+    ) -> (Room, mpsc::UnboundedReceiver<RoomReport>) {
+        let mut config = cfg(Duration::from_millis(50));
+        let assets = MapAssets::new(source_arena()).unwrap();
+        config.arena = assets.arena;
+        config.welcome_map = assets.welcome_map;
+        config.sim.lifecycle = rh_sim::ArenaMode::Source(rh_sim::ArenaRules {
+            plan_seconds,
+            ..Default::default()
+        });
+        config.sim.lobby_seconds = lobby_seconds;
+        let (tx, rx) = mpsc::unbounded_channel();
+        (Room::new([7; 16], config, tx, Instant::now()), rx)
+    }
+
+    fn drain(out: &Outbox) -> Vec<ServerMsg> {
+        let mut frames = Vec::new();
+        assert_eq!(out.drain_into(&mut frames).close, None);
+        frames
+            .iter()
+            .map(|f| ServerMsg::decode(f).unwrap())
+            .collect()
+    }
+
+    /// The last complete-replacement Plan item across the frames (whether it carried a plan or cleared it).
+    fn latest_plan_item(messages: &[ServerMsg]) -> Option<Option<rh_protocol::WirePlan>> {
+        let mut found = None;
+        for message in messages {
+            let ServerMsg::State { items, .. } = message else {
+                continue;
+            };
+            for item in items {
+                if let rh_protocol::StateItem::Plan(plan) = item {
+                    found = Some(plan.clone());
+                }
+            }
+        }
+        found
+    }
+
+    /// The e2e transport on the admitted source profile: the lobby closes into planning, each owner receives its own
+    /// private deal as a complete-replacement State key (never another player's), picks and ready go through the ordinary
+    /// input frame and the run starts; the plan key clears when planning ends. Admission closes at planning (C-NET).
+    #[tokio::test(start_paused = true)]
+    async fn source_planning_transport_delivers_each_owner_plan_and_starts_the_run() {
+        use rh_protocol::{WireCommand, WirePlan};
+        let (mut room, _reports) = arena_room(0.25, 1.0);
+        let start = Instant::now();
+        let tick = Duration::from_millis(50);
+        let a_out = Arc::new(Outbox::default());
+        let b_out = Arc::new(Outbox::default());
+        let a = room
+            .join("a".into(), None, a_out.clone(), 1, 1, None)
+            .unwrap();
+        let b = room
+            .join("b".into(), None, b_out.clone(), 2, 2, None)
+            .unwrap();
+        let mut at = start;
+        for _ in 0..10 {
+            at += tick;
+            assert!(room.wake(at));
+            if room.sim.phase() == Phase::Planning {
+                break;
+            }
+        }
+        assert_eq!(
+            room.sim.phase(),
+            Phase::Planning,
+            "the source lobby closes into planning"
+        );
+        let a_plan: WirePlan = latest_plan_item(&drain(&a_out))
+            .expect("the owner plan key was sent")
+            .expect("the owner has a deal");
+        let b_plan: WirePlan = latest_plan_item(&drain(&b_out))
+            .expect("the other owner plan key was sent")
+            .expect("the other owner has a deal");
+        // Both options are resolved server facts: a pool index, a quantized position, a zone and a walk time.
+        assert!(a_plan.spawns.iter().all(|s| s.is_some()));
+        assert!(a_plan.options.iter().all(|o| o.is_some()));
+        assert!(a_plan.ends_at > 0.);
+        assert_ne!(
+            a_plan.spawns, b_plan.spawns,
+            "the two deals are private and disjoint"
+        );
+        // Admission closes at planning start.
+        let late = Arc::new(Outbox::default());
+        assert_eq!(
+            room.join("late".into(), None, late, 3, 3, None).err(),
+            Some(RejectCode::MatchFull)
+        );
+        // Picking and readying are ordinary validate+submit input commands (C-INPUT).
+        at += tick;
+        room.handle(
+            RoomCmd::Input {
+                player: a.player,
+                conn: 1,
+                seq: 1,
+                commands: vec![WireCommand::Plan {
+                    spawn: Some(0),
+                    boon: None,
+                    ready: None,
+                }],
+            },
+            at,
+        );
+        let mut picked = None;
+        for _ in 0..3 {
+            at += tick;
+            assert!(room.wake(at));
+            if let Some(Some(plan)) = latest_plan_item(&drain(&a_out)) {
+                if plan.pick.is_some() {
+                    picked = Some(plan.pick);
+                    break;
+                }
+            }
+        }
+        assert_eq!(picked, Some(Some(0)), "the owner's own pick is sent back");
+        // Both seats ready: planning ends and the run starts.
+        for (player, conn) in [(a.player, 1), (b.player, 2)] {
+            at += tick;
+            room.handle(
+                RoomCmd::Input {
+                    player,
+                    conn,
+                    seq: 2,
+                    commands: vec![WireCommand::Plan {
+                        spawn: None,
+                        boon: None,
+                        ready: Some(true),
+                    }],
+                },
+                at,
+            );
+        }
+        for _ in 0..3 {
+            at += tick;
+            assert!(room.wake(at));
+            if room.sim.phase() == Phase::Active {
+                break;
+            }
+        }
+        assert_eq!(
+            room.sim.phase(),
+            Phase::Active,
+            "every connected seat is ready"
+        );
+        let cleared = latest_plan_item(&drain(&a_out));
+        assert!(
+            matches!(cleared, Some(None)),
+            "the private deal clears when planning ends"
+        );
     }
 
     #[test]

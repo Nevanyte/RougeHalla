@@ -11,7 +11,7 @@ namespace Roguehalla.Net.Protocol
         Malformed = 7, TooSlow = 8, ServerDraining = 9, NoSuchSession = 10, Kicked = 11,
     }
 
-    public enum CommandKind : byte { Move = 1, Stop = 2, Aim = 3, Attack = 4, Release = 5, Swap = 6, Pickup = 7, Choose = 8, UseConsumable = 9, Target = 10, AttackMove = 11 }
+    public enum CommandKind : byte { Move = 1, Stop = 2, Aim = 3, Attack = 4, Release = 5, Swap = 6, Pickup = 7, Choose = 8, UseConsumable = 9, Target = 10, AttackMove = 11, Plan = 12 }
 
     /// <summary>A client command. Only the fields of its Kind are meaningful.</summary>
     public sealed class WireCommand
@@ -29,6 +29,10 @@ namespace Roguehalla.Net.Protocol
         public uint ActorRef;
         /// <summary>Client render time in server ms (Attack, Release); lag compensation, clamped by the server.</summary>
         public double? T;
+        /// <summary>Planning option indexes (Plan): 0 or 1, indexes into this player's own private plan.</summary>
+        public byte? Spawn, Boon;
+        /// <summary>Plan ready latch (true freezes the picks).</summary>
+        public bool? Ready;
 
         public static WireCommand Swap(byte? slot = null) { return new WireCommand { Kind = CommandKind.Swap, Slot = slot }; }
         public static WireCommand Pickup(PickupHandle handle) { return new WireCommand { Kind = CommandKind.Pickup, PickupRef = handle }; }
@@ -41,6 +45,7 @@ namespace Roguehalla.Net.Protocol
         public static WireCommand Aim(float a) { return new WireCommand { Kind = CommandKind.Aim, A = a }; }
         public static WireCommand Attack(float a, double? t) { return new WireCommand { Kind = CommandKind.Attack, A = a, T = t }; }
         public static WireCommand Release(float a, double? t) { return new WireCommand { Kind = CommandKind.Release, A = a, T = t }; }
+        public static WireCommand Plan(byte? spawn = null, byte? boon = null, bool? ready = null) { return new WireCommand { Kind = CommandKind.Plan, Spawn = spawn, Boon = boon, Ready = ready }; }
     }
 
     public abstract class ClientMsg
@@ -81,6 +86,17 @@ namespace Roguehalla.Net.Protocol
                             case 9: inp.Commands.Add(WireCommand.UseConsumable()); break;
                             case 10: { uint id=r.U32(); if(id==0) throw new DecodeException(DecodeError.BadField,"actor reference"); inp.Commands.Add(WireCommand.Target(id)); break; }
                             case 11: { float x=r.F32(),y=r.F32(); inp.Commands.Add(WireCommand.AttackMove(x,y,r.Flag()?r.U8():(byte?)null)); break; }
+                            case 12:
+                            {
+                                byte flags = r.U8();
+                                if ((flags & 0xf8) != 0) throw new DecodeException(DecodeError.BadField, "plan flags");
+                                byte? spawn = null, boon = null; bool? ready = null;
+                                if ((flags & 1) != 0) { spawn = r.U8(); if (spawn > 1) throw new DecodeException(DecodeError.BadField, "plan spawn"); }
+                                if ((flags & 2) != 0) { boon = r.U8(); if (boon > 1) throw new DecodeException(DecodeError.BadField, "plan boon"); }
+                                if ((flags & 4) != 0) ready = r.U8() != 0;
+                                inp.Commands.Add(WireCommand.Plan(spawn, boon, ready));
+                                break;
+                            }
                             case 1: { float x = r.F32(), y = r.F32(); inp.Commands.Add(WireCommand.Move(x, y, r.Flag() ? r.U8() : (byte?)null)); break; }
                             case 2: inp.Commands.Add(WireCommand.Stop(r.Flag() ? r.U8() : (byte?)null)); break;
                             case 3: inp.Commands.Add(WireCommand.Aim(r.F32())); break;
@@ -149,6 +165,13 @@ namespace Roguehalla.Net.Protocol
                         case CommandKind.Pickup: if (!c.PickupRef.IsValid) throw new ArgumentException("pickup handle"); w.U32(c.PickupRef.Value); break;
                         case CommandKind.Choose: if(!c.RewardRef.IsValid || c.Pick < -1 || c.Pick > 2) throw new ArgumentException("reward choice"); w.U32(c.RewardRef.Value);w.U8(unchecked((byte)c.Pick));break;
                         case CommandKind.UseConsumable: break;
+                        case CommandKind.Plan:
+                            if (c.Spawn > 1 || c.Boon > 1) throw new ArgumentException("plan option");
+                            w.U8((byte)((c.Spawn.HasValue ? 1 : 0) | (c.Boon.HasValue ? 2 : 0) | (c.Ready.HasValue ? 4 : 0)));
+                            if (c.Spawn.HasValue) w.U8(c.Spawn.Value);
+                            if (c.Boon.HasValue) w.U8(c.Boon.Value);
+                            if (c.Ready.HasValue) w.U8((byte)(c.Ready.Value ? 1 : 0));
+                            break;
                         case CommandKind.Target: if(c.ActorRef==0) throw new ArgumentException("actor reference"); w.U32(c.ActorRef); break;
                         case CommandKind.AttackMove:
                         case CommandKind.Move: w.F32(c.X); w.F32(c.Y); Opt(w, c.Seq); break;
@@ -173,6 +196,7 @@ namespace Roguehalla.Net.Protocol
                     case CommandKind.Swap: return c.Slot.HasValue ? 3 : 2;
                     case CommandKind.Pickup: return 5;
                     case CommandKind.Choose: return 6;
+                    case CommandKind.Plan: return 2 + (c.Spawn.HasValue ? 1 : 0) + (c.Boon.HasValue ? 1 : 0) + (c.Ready.HasValue ? 1 : 0);
                     case CommandKind.UseConsumable: return 1;
                     case CommandKind.Target: return 5;
                     case CommandKind.AttackMove:
@@ -524,7 +548,7 @@ namespace Roguehalla.Net.Protocol
         public bool WinBonusWithheld;
     }
 
-    public enum FxKind : byte { Swing = 1, Hit = 2, Block = 3, Stagger = 4 }
+    public enum FxKind : byte { Swing = 1, Hit = 2, Block = 3, Stagger = 4, Teleport = 5 }
 
     public sealed class WireFx
     {
@@ -631,6 +655,7 @@ namespace Roguehalla.Net.Protocol
                             }
                             case 3: f.List.Add(new WireFx { Kind = FxKind.Block, Id = r.Varint(), By = r.Varint(), Weapon = r.U8() }); break;
                             case 4: f.List.Add(new WireFx { Kind = FxKind.Stagger, Id = r.Varint() }); break;
+                            case 5: f.List.Add(new WireFx { Kind = FxKind.Teleport }); break;
                             case 2: { uint victim = r.Varint(), by = r.Varint(); f.List.Add(new WireFx { Kind = FxKind.Hit, Victim = victim, By = by, Amount = r.F32(), Passive = r.Flag() }); break; }
                             default: throw new DecodeException(DecodeError.BadTag, tag.ToString());
                         }
@@ -961,13 +986,13 @@ namespace Roguehalla.Net.Protocol
                 // Like rh-protocol: a swing off the position grid is refused, never saturated.
                 foreach (var f in List)
                 {
-                    if (f.Kind != FxKind.Swing && f.Kind != FxKind.Hit && f.Kind != FxKind.Block && f.Kind != FxKind.Stagger)
+                    if (f.Kind != FxKind.Swing && f.Kind != FxKind.Hit && f.Kind != FxKind.Block && f.Kind != FxKind.Stagger && f.Kind != FxKind.Teleport)
                         throw new EncodeException("fx kind");
                     if (f.Kind == FxKind.Swing && (!Quant.PosInRange(f.X) || !Quant.PosInRange(f.Y))) throw new ArgumentException("position");
                 }
                 int len = 1 + Writer.VarintLength(Tick) + Writer.VarintLength((uint)List.Count);
                 foreach (var f in List)
-                    len += f.Kind == FxKind.Block ? 2 + Writer.VarintLength(f.Id) + Writer.VarintLength(f.By) : f.Kind == FxKind.Stagger ? 1 + Writer.VarintLength(f.Id) : f.Kind == FxKind.Swing ? 1 + Writer.VarintLength(f.By) + 1 + 6 : 1 + Writer.VarintLength(f.Victim) + Writer.VarintLength(f.By) + 5;
+                    len += f.Kind == FxKind.Teleport ? 1 : f.Kind == FxKind.Block ? 2 + Writer.VarintLength(f.Id) + Writer.VarintLength(f.By) : f.Kind == FxKind.Stagger ? 1 + Writer.VarintLength(f.Id) : f.Kind == FxKind.Swing ? 1 + Writer.VarintLength(f.By) + 1 + 6 : 1 + Writer.VarintLength(f.Victim) + Writer.VarintLength(f.By) + 5;
                 if (len > Wire.MaxServerFrame) throw new ArgumentException("frame too large");
                 var w = new Writer(len);
                 w.U8(TFx); w.Varint(Tick); w.Varint((uint)List.Count);
@@ -977,6 +1002,7 @@ namespace Roguehalla.Net.Protocol
                     if (f.Kind == FxKind.Swing) { w.Varint(f.By); w.U8(f.Weapon); w.U16(Quant.QuantizePos(f.X)); w.U16(Quant.QuantizePos(f.Y)); w.U16(Quant.QuantizeFacing(f.A)); }
                     else if (f.Kind == FxKind.Block) { w.Varint(f.Id); w.Varint(f.By); w.U8(f.Weapon); }
                     else if (f.Kind == FxKind.Stagger) w.Varint(f.Id);
+                    else if (f.Kind == FxKind.Teleport) { }
                     else { w.Varint(f.Victim); w.Varint(f.By); w.F32(f.Amount); w.U8((byte)(f.Passive ? 1 : 0)); }
                 }
                 return w.Finish();

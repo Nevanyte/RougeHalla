@@ -33,7 +33,7 @@ namespace Roguehalla.Net.Tests
             throw new KeyNotFoundException(name);
         }
 
-        [Test] public void FixtureIsProtocolV7() { Assert.AreEqual(7, Wire.ProtocolVersion); Assert.AreEqual(Wire.ProtocolVersion, Fixture().GetProperty("protocol").GetInt32()); }
+        [Test] public void FixtureIsProtocolV8() { Assert.AreEqual(8, Wire.ProtocolVersion); Assert.AreEqual(Wire.ProtocolVersion, Fixture().GetProperty("protocol").GetInt32()); }
 
         [TestCaseSource(nameof(ClientVectors))]
         public void ClientVectorRoundTripsByteForByte(string name, string hex)
@@ -89,7 +89,7 @@ namespace Roguehalla.Net.Tests
         }
 
         [TestCase(0)]
-        [TestCase(5)]
+        [TestCase(6)]
         [TestCase(255)]
         public void FxEncoderRefusesUndefinedKindsBeforeWriting(int kind)
         {
@@ -319,6 +319,7 @@ namespace Roguehalla.Net.Tests
                     }
                     else if (it.GetProperty("k").GetString() == "block") { Assert.AreEqual(FxKind.Block, f.Kind); Assert.AreEqual(it.GetProperty("id").GetUInt32(), f.Id); Assert.AreEqual(it.GetProperty("by").GetUInt32(), f.By); Assert.AreEqual(it.GetProperty("weapon").GetByte(), f.Weapon); }
                     else if (it.GetProperty("k").GetString() == "stagger") { Assert.AreEqual(FxKind.Stagger, f.Kind); Assert.AreEqual(it.GetProperty("id").GetUInt32(), f.Id); }
+                    else if (it.GetProperty("k").GetString() == "teleport") { Assert.AreEqual(FxKind.Teleport, f.Kind); }
                     else
                     {
                         Assert.AreEqual(it.GetProperty("passive").GetBoolean(), f.Passive);

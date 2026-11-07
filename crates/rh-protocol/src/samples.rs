@@ -48,6 +48,34 @@ pub fn client_samples() -> Vec<(&'static str, ClientMsg)> {
             },
         ),
         (
+            "input_plan",
+            ClientMsg::Input {
+                seq: 10,
+                commands: vec![
+                    WireCommand::Plan {
+                        spawn: Some(0),
+                        boon: None,
+                        ready: None,
+                    },
+                    WireCommand::Plan {
+                        spawn: None,
+                        boon: Some(1),
+                        ready: None,
+                    },
+                    WireCommand::Plan {
+                        spawn: None,
+                        boon: None,
+                        ready: Some(true),
+                    },
+                    WireCommand::Plan {
+                        spawn: Some(1),
+                        boon: Some(0),
+                        ready: Some(false),
+                    },
+                ],
+            },
+        ),
+        (
             "input_combat",
             ClientMsg::Input {
                 seq: 43,
@@ -299,6 +327,51 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
                     StateItem::Build(None),
                     StateItem::Camps(vec![]),
                     StateItem::Projectiles(vec![]),
+                    StateItem::Plan(None),
+                    StateItem::Arena(None),
+                ],
+            },
+        ),
+        (
+            "state_planning",
+            ServerMsg::State {
+                tick: 3,
+                items: vec![
+                    StateItem::Plan(Some(WirePlan {
+                        ends_at: 500.5,
+                        spawns: [Some(12), None],
+                        taken: [true, false],
+                        pick: Some(1),
+                        boons: vec!["ad".into(), String::new()],
+                        boon: Some(0),
+                        ready: true,
+                        options: [
+                            Some(WirePlanOption {
+                                index: 12,
+                                x: 2464,
+                                y: 3456,
+                                zone: 3,
+                                walk_seconds: Some(12.25),
+                            }),
+                            Some(WirePlanOption {
+                                index: 0,
+                                x: 0,
+                                y: 32760,
+                                zone: 5,
+                                walk_seconds: None,
+                            }),
+                        ],
+                    })),
+                    StateItem::Arena(Some(WireArena {
+                        lobby_ends_at: 150.,
+                        plan_ends_at: 501.,
+                        raid_started_at: 0.,
+                        patience_ends_at: Some(601_000.),
+                        in_coliseum: false,
+                        gates_locked: false,
+                        sudden_death_at: 0.,
+                        started_with: 7,
+                    })),
                 ],
             },
         ),
@@ -332,6 +405,13 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
                         passive: true,
                     },
                 ],
+            },
+        ),
+        (
+            "fx_teleport",
+            ServerMsg::Fx {
+                tick: 777,
+                fx: vec![WireFx::Teleport],
             },
         ),
         (
@@ -413,6 +493,16 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
                     bounty: 28,
                     kind: 0,
                 }],
+            },
+        ),
+        (
+            "snapshot_planning",
+            ServerMsg::Snapshot {
+                tick: 7,
+                phase: 3,
+                ack_input: 6,
+                me: None,
+                actors: vec![],
             },
         ),
         (
@@ -1067,10 +1157,10 @@ pub fn malformed_server() -> Vec<(&'static str, Vec<u8>)> {
             "chest_bad_reason_unknown",
             vec![0x84, 0, 0, 0, 0, 1, 0, 6, 10],
         ),
-        ("state_unknown_key", vec![0x88, 0, 1, 8]),
+        ("state_unknown_key", vec![0x88, 0, 1, 10]),
         ("state_duplicate_key", vec![0x88, 0, 2, 1, 0, 1, 0]),
         ("state_key_order", vec![0x88, 0, 2, 3, 0, 1, 0]),
-        ("state_too_many_keys", vec![0x88, 0, 8]),
+        ("state_too_many_keys", vec![0x88, 0, 10]),
         ("state_too_many_props", vec![0x88, 0, 1, 2, 0x81, 4]),
         ("state_too_many_fields", vec![0x88, 0, 1, 3, 0x81, 4]),
         ("state_too_many_rewards", vec![0x88, 0, 1, 4, 0x81, 4]),
@@ -1666,6 +1756,7 @@ fn decoded_fx_json(m: &ServerMsg) -> String {
                 "{{\"k\": \"hit\", \"victim\": {victim}, \"by\": {by}, \"passive\": {passive}, \"amountBits\": {}}}",
                 bits(amount)
             ),
+            WireFx::Teleport => "{\"k\": \"teleport\"}".to_owned(),
         })
         .collect();
     format!("{{\"tick\": {tick}, \"fx\": [{}]}}", items.join(", "))

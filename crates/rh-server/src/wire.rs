@@ -39,6 +39,7 @@ pub fn command(c: WireCommand) -> rh_sim::PublicCommand {
                 .expect("checked reward handle"),
             pick,
         },
+        WireCommand::Plan { spawn, boon, ready } => Public::Plan { spawn, boon, ready },
         WireCommand::Stop { seq } => Public::Stop { seq },
         WireCommand::Aim { a } => Public::Aim { a: a as f64 },
         WireCommand::Attack { a, t } => Public::Attack { a: a as f64, t },
@@ -55,44 +56,37 @@ pub fn status(s: Status) -> u8 {
     }
 }
 
-/// Protocol 6 cannot represent the native arena lifecycle or complete Wish intake/owner facts.
-const ARENA_UNSUPPORTED: &str =
-    "Source arena lifecycle requires protocol 7 and durable lifecycle integration";
-
 const WISH_UNSUPPORTED: &str = "Full Wish casting requires protocol 7 input and owner facts";
 
-/// Admission guard, independent of the current phase (including Source Lobby).
+/// Admission guard, independent of the current phase (including Source Lobby and Planning). Protocol 8 carries the
+/// source lifecycle transport: phase code 3 (Planning), Fx 5 (Teleported) and State keys 8 (the viewer's own plan) and 9
+/// (the public arena view). Full Wish casting still has no owner facts on any protocol version.
 pub fn profile_supported(config: &rh_sim::SimConfig) -> Result<(), rh_protocol::EncodeError> {
     if config.abilities == rh_sim::abilities::Mode::Full {
         return Err(rh_protocol::EncodeError::BadValue(WISH_UNSUPPORTED));
     }
-    match config.lifecycle {
-        rh_sim::ArenaMode::Off => Ok(()),
-        rh_sim::ArenaMode::Source(_) => Err(rh_protocol::EncodeError::BadValue(ARENA_UNSUPPORTED)),
-    }
+    Ok(())
 }
 
+/// Phase codes are wire format: 0 lobby, 1 active, 2 ended, 3 planning.
 pub fn checked_phase(p: Phase) -> Result<u8, rh_protocol::EncodeError> {
     match p {
         Phase::Lobby => Ok(0),
         Phase::Active => Ok(1),
         Phase::Ended => Ok(2),
-        Phase::Planning => Err(rh_protocol::EncodeError::BadValue(ARENA_UNSUPPORTED)),
+        Phase::Planning => Ok(3),
     }
 }
 
 /// Compatibility wrapper for supported-profile callers; never invents a wire phase.
 pub fn phase(p: Phase) -> u8 {
-    checked_phase(p).expect("native phase is unsupported by protocol 7")
+    checked_phase(p).expect("protocol 8 carries every native phase")
 }
 
 fn observation_supported(obs: &Observation) -> Result<(), rh_protocol::EncodeError> {
     checked_phase(obs.phase)?;
     if obs.me.as_ref().is_some_and(|me| me.wish.is_some()) || obs.events.iter().any(wish_event) {
         return Err(rh_protocol::EncodeError::BadValue(WISH_UNSUPPORTED));
-    }
-    if obs.arena.is_some() || obs.plan.is_some() || obs.events.iter().any(arena_event) {
-        return Err(rh_protocol::EncodeError::BadValue(ARENA_UNSUPPORTED));
     }
     Ok(())
 }
@@ -102,10 +96,6 @@ fn wish_event(event: &SeenEvent) -> bool {
         event,
         SeenEvent::CastStarted { .. } | SeenEvent::CastLanded { .. }
     )
-}
-
-fn arena_event(event: &SeenEvent) -> bool {
-    matches!(event, SeenEvent::Plan(..) | SeenEvent::Teleported)
 }
 
 /// Whether the wire can carry every position of a match on `arena`: the world extent (`w * TILE` by `h * TILE` u) and
@@ -191,7 +181,7 @@ fn wire_actor(a: &rh_sim::observe::ActorView) -> WireActor {
 }
 
 pub fn snapshot(obs: &Observation, ack_input: u32) -> ServerMsg {
-    checked_snapshot(obs, ack_input).expect("native observation is unsupported by protocol 7")
+    checked_snapshot(obs, ack_input).expect("protocol 8 carries every admitted observation")
 }
 
 pub fn checked_snapshot(
@@ -279,7 +269,10 @@ enum Wire {
 
 fn to_wire(e: &SeenEvent) -> Wire {
     match *e {
-        SeenEvent::Plan(..) | SeenEvent::Teleported => Wire::Refused(ARENA_UNSUPPORTED),
+        // The viewer's own deal travels as the complete-replacement State key 8 (a one-shot event would be lost on a
+        // reconnect and would duplicate the key); Teleported is the source's room-wide presentation fx.
+        SeenEvent::Plan(..) => Wire::Omitted,
+        SeenEvent::Teleported => Wire::Fx(WireFx::Teleport),
         SeenEvent::CastStarted { .. } | SeenEvent::CastLanded { .. } => {
             Wire::Refused(WISH_UNSUPPORTED)
         }
@@ -648,29 +641,48 @@ mod tests {
     use rh_headless::{Agent, AgentSpec, Env, EnvConfig};
     use rh_policy::scripted::Brawler;
     use rh_protocol::quant::POS_SCALE;
-    use rh_protocol::{snapshot_server_ms, TICK_MS};
+    use rh_protocol::{snapshot_server_ms, StateItem, WireArena, WirePlan, TICK_MS};
     use rh_sim::{FactionId, SimConfig};
 
-    fn arena_env() -> Env {
-        profile_env(SimConfig {
-            lifecycle: rh_sim::ArenaMode::Source(rh_sim::ArenaRules::default()),
-            min_players: 2,
-            lobby_seconds: 0.,
-            fill_seconds: 0.,
-            ..Default::default()
-        })
+    /// The planning-capable source arena: the admitted rh-map/2 export the arena capture uses (spawn pool, coliseum and
+    /// planning walks), copied without modification into an Arena exactly as the parity harness does.
+    fn source_arena() -> rh_sim::Arena {
+        let text = std::fs::read_to_string(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../parity/arena/source.json"
+        ))
+        .expect("parity/arena/source.json");
+        let source: serde_json::Value = serde_json::from_str(&text).expect("arena capture json");
+        let export: rh_sim::mapdata::MapExport =
+            serde_json::from_value(source["map"]["export"].clone()).expect("rh-map/2 export");
+        let (w, h, tiles, layers) = export.validate().expect("admitted map layers").into_parts();
+        let spawns = layers
+            .data()
+            .spawns
+            .iter()
+            .map(|p| rh_sim::Vec2::new(p.x, p.y))
+            .collect();
+        rh_sim::Arena {
+            map: rh_sim::TileMap::new(w, h, tiles)
+                .expect("map tiles")
+                .with_layers(layers)
+                .expect("layers fit the tiles"),
+            spawns,
+        }
     }
 
-    fn profile_env(sim: SimConfig) -> Env {
-        let arena = rh_headless::load_arena(concat!(
-            env!("CARGO_MANIFEST_DIR"),
-            "/../../parity/maps/seed1.map.json"
-        ))
-        .unwrap();
+    fn arena_env() -> Env {
+        let arena = source_arena();
         Env::new(
             EnvConfig {
                 arena,
-                sim,
+                sim: SimConfig {
+                    lifecycle: rh_sim::ArenaMode::Source(rh_sim::ArenaRules::default()),
+                    min_players: 2,
+                    lobby_seconds: 0.,
+                    fill_seconds: 0.,
+                    ..Default::default()
+                },
                 max_ticks: 100,
                 record: false,
             },
@@ -686,44 +698,107 @@ mod tests {
         )
     }
 
+    fn arena_plan_command(ready: bool) -> rh_sim::PublicCommand {
+        rh_sim::PublicCommand::Plan {
+            spawn: Some(0),
+            boon: None,
+            ready: Some(ready),
+        }
+    }
+
+    fn state_items(frames: &[u8]) -> Vec<StateItem> {
+        let ServerMsg::State { items, .. } = ServerMsg::decode(frames).expect("state frame") else {
+            panic!("not a state frame")
+        };
+        items
+    }
+
+    fn plan_of(items: &[StateItem]) -> Option<WirePlan> {
+        items.iter().find_map(|item| match item {
+            StateItem::Plan(plan) => plan.clone(),
+            _ => None,
+        })
+    }
+
+    fn arena_of(items: &[StateItem]) -> Option<WireArena> {
+        items.iter().find_map(|item| match item {
+            StateItem::Arena(arena) => *arena,
+            _ => None,
+        })
+    }
+
+    /// The source lifecycle's Lobby -> Planning -> Active phases and the owner-plan/public-arena transport encode; the
+    /// teleport event is the source's room-wide fx, never a refused frame.
     #[test]
-    fn arena_profile_refuses_lobby_planning_and_active_without_partial_frames_or_offers() {
+    fn arena_profile_transports_lobby_planning_and_active_with_owner_plan_state() {
         let mut env = arena_env();
         let viewer = env.observations()[0].me.as_ref().unwrap().id;
         let mut publisher = Publisher::default();
         let mut observer = rh_sim::ItemObserver::new(viewer);
+        let mut collections = crate::wire_state::CollectionPublisher::default();
         for expected in [Phase::Lobby, Phase::Planning, Phase::Active] {
             assert_eq!(env.sim.phase(), expected);
             let mut earlier = vec![SeenEvent::Teleported];
             let frames = publisher.frames(&env.sim, viewer, 0, &[], &mut earlier, &[]);
-            assert!(frames.important.is_none() && frames.fx.is_none());
-            assert_eq!(frames.bytes(), 0);
-            assert_eq!(
-                frames.snapshot.unwrap_err(),
-                rh_protocol::EncodeError::BadValue(ARENA_UNSUPPORTED)
-            );
-            assert_eq!(earlier, vec![SeenEvent::Teleported]);
-            assert!(matches!(
-                publisher.frames_prepared(&mut observer, None, &env.sim, 0, &[], &mut earlier, &[]),
-                Err(PrepareFramesError::Unsupported(_))
-            ));
-            assert_eq!(earlier, vec![SeenEvent::Teleported]);
+            assert!(frames.refused.is_none());
+            assert!(frames.snapshot.is_ok());
+            // The source teleport presentation effect maps to the wire's Teleport fx.
+            let ServerMsg::Fx { fx, .. } =
+                ServerMsg::decode(frames.fx.as_ref().expect("teleport fx")).unwrap()
+            else {
+                panic!("not an fx frame")
+            };
+            assert_eq!(fx, vec![WireFx::Teleport]);
+            assert!(publisher
+                .frames_prepared(&mut observer, None, &env.sim, 0, &[], &mut earlier, &[])
+                .is_ok());
             let obs = rh_sim::observe(&env.sim, viewer, &[]);
-            assert!(checked_snapshot(&obs, 0).is_err());
+            let snapshot = checked_snapshot(&obs, 0).expect("phase is wire-encodable");
+            let ServerMsg::Snapshot { phase, .. } = &snapshot else {
+                panic!("not a snapshot")
+            };
+            assert_eq!(*phase, checked_phase(expected).unwrap());
+            assert!(snapshot.try_encode().is_ok());
+            let pending = collections
+                .prepare(publisher.observation(), false, false, false)
+                .expect("plan/arena state encodes");
+            let items = state_items(pending.frame.as_ref().expect("full state after welcome"));
+            let plan = plan_of(&items);
+            let arena = arena_of(&items).expect("source arena view");
+            assert_eq!(arena.lobby_ends_at, 0.);
+            match expected {
+                Phase::Lobby => {
+                    assert!(plan.is_none());
+                    assert_eq!(arena.started_with, 0);
+                    assert_eq!(arena.raid_started_at, 0.);
+                }
+                Phase::Planning => {
+                    let plan = plan.expect("the owner's private plan");
+                    assert!(plan.ends_at >= 0.);
+                    // The admitted source map deals a real ordered pool; the server resolves both option facts.
+                    assert!(plan.spawns.iter().all(|s| s.is_some()));
+                    assert!(plan.options.iter().all(|o| o.is_some()));
+                    for option in plan.options.iter().flatten() {
+                        assert!((1..=5).contains(&option.zone));
+                        assert!(option.walk_seconds.is_some());
+                    }
+                    assert!(!plan.ready);
+                    assert_eq!(arena.plan_ends_at, plan.ends_at);
+                }
+                Phase::Active => {
+                    assert!(plan.is_none(), "the private plan clears when planning ends");
+                    assert!(arena.raid_started_at > 0.);
+                    assert!(arena.started_with >= 2);
+                }
+                Phase::Ended => unreachable!(),
+            }
+            pending.commit(&mut collections);
             if expected == Phase::Lobby {
                 env.step(&[]);
             } else if expected == Phase::Planning {
                 env.step(&[
-                    vec![rh_sim::PublicCommand::Plan {
-                        spawn: Some(0),
-                        boon: None,
-                        ready: Some(true),
-                    }],
-                    vec![rh_sim::PublicCommand::Plan {
-                        spawn: Some(0),
-                        boon: None,
-                        ready: Some(true),
-                    }],
+                    vec![arena_plan_command(true)],
+                    vec![arena_plan_command(true)],
                 ]);
             }
         }
@@ -815,7 +890,7 @@ mod tests {
     }
 
     #[test]
-    fn arena_observation_and_catchup_facts_refuse_atomically_and_off_still_encodes() {
+    fn arena_events_map_to_transport_and_off_profiles_still_encode() {
         let env = seed1_match(1);
         let viewer = env.sim.players()[0].id;
         let mut publisher = Publisher::default();
@@ -823,26 +898,49 @@ mod tests {
         assert!(frames.snapshot.is_ok() && frames.refused.is_none());
         let obs = publisher.observation();
         assert!(checked_snapshot(obs, 7).unwrap().try_encode().is_ok());
+        // Protocol 8 carries the planning phase and the source lifecycle profile (Wishes remain refused).
+        assert_eq!(checked_phase(Phase::Planning), Ok(3));
         let mut planning = obs.clone();
         planning.phase = Phase::Planning;
-        assert!(checked_snapshot(&planning, 7).is_err());
-        assert!(checked_phase(Phase::Planning).is_err());
-        for event in [
-            SeenEvent::Teleported,
-            SeenEvent::Plan(rh_sim::PlanView {
-                ends_at: 1.,
-                spawns: [0, 1],
-                taken: [false, false],
-                pick: -1,
-                boons: Vec::new(),
-                boon: -1,
-            }),
-        ] {
-            let frames = publisher.frames(&env.sim, viewer, 7, &[], &mut vec![event], &[]);
-            assert!(frames.snapshot.is_err());
-            assert!(frames.important.is_none() && frames.fx.is_none());
-        }
-        assert!(profile_supported(env.sim.config()).is_ok());
+        assert!(checked_snapshot(&planning, 7).unwrap().try_encode().is_ok());
+        assert!(profile_supported(&SimConfig {
+            lifecycle: rh_sim::ArenaMode::Source(Default::default()),
+            ..Default::default()
+        })
+        .is_ok());
+        // The source teleport is a room-wide presentation fx.
+        assert!(matches!(
+            to_wire(&SeenEvent::Teleported),
+            Wire::Fx(WireFx::Teleport)
+        ));
+        let frames = publisher.frames(
+            &env.sim,
+            viewer,
+            7,
+            &[],
+            &mut vec![SeenEvent::Teleported],
+            &[],
+        );
+        assert!(frames.snapshot.is_ok() && frames.refused.is_none());
+        let ServerMsg::Fx { fx, .. } =
+            ServerMsg::decode(frames.fx.as_ref().expect("teleport fx")).unwrap()
+        else {
+            panic!("not an fx frame")
+        };
+        assert_eq!(fx, vec![WireFx::Teleport]);
+        // The owner's deal is a complete-replacement State key, never a one-shot event.
+        let plan = SeenEvent::Plan(rh_sim::PlanView {
+            ends_at: 1.,
+            spawns: [0, 1],
+            taken: [false, false],
+            pick: -1,
+            boons: Vec::new(),
+            boon: -1,
+        });
+        assert!(matches!(to_wire(&plan), Wire::Omitted));
+        let frames = publisher.frames(&env.sim, viewer, 7, &[], &mut vec![plan], &[]);
+        assert!(frames.snapshot.is_ok() && frames.refused.is_none());
+        assert!(frames.important.is_none() && frames.fx.is_none());
         let mut observer = rh_sim::ItemObserver::new(viewer);
         let (frames, offer) = publisher
             .frames_prepared(&mut observer, None, &env.sim, 7, &[], &mut Vec::new(), &[])
@@ -1182,7 +1280,7 @@ mod tests {
     #[test]
     fn omitted_effect_announcements_leave_frames_and_redaction_unchanged() {
         use rh_sim::status_runtime::{AbilityId, CastEndReason, StatusKind};
-        assert_eq!(rh_protocol::PROTOCOL_VERSION, 7);
+        assert_eq!(rh_protocol::PROTOCOL_VERSION, 8);
         let env = seed1_match(1);
         let id = env.sim.players()[0].id;
         let mut publisher = Publisher::default();

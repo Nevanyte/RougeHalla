@@ -109,6 +109,11 @@ fn command_len(c: &WireCommand) -> usize {
         WireCommand::Swap { slot } => 2 + usize::from(slot.is_some()),
         WireCommand::Pickup { .. } => 5,
         WireCommand::Choose { .. } => 6,
+        WireCommand::Plan { spawn, boon, ready } => {
+            2 + usize::from(spawn.is_some())
+                + usize::from(boon.is_some())
+                + usize::from(ready.is_some())
+        }
         WireCommand::UseConsumable => 1,
         WireCommand::Target { .. } => 5,
         WireCommand::Move { seq, .. } | WireCommand::AttackMove { seq, .. } => {
@@ -131,6 +136,7 @@ fn command_finite(c: &WireCommand) -> bool {
         | WireCommand::Swap { .. }
         | WireCommand::Pickup { .. }
         | WireCommand::Choose { .. }
+        | WireCommand::Plan { .. }
         | WireCommand::Target { .. }
         | WireCommand::UseConsumable => true,
         WireCommand::Aim { a } => a.is_finite(),
@@ -192,6 +198,7 @@ impl Frame for ClientMsg {
                     matches!(c, WireCommand::Target { actor: 0 })
                         || matches!(c, WireCommand::Swap { slot: Some(s) } if *s > 1)
                         || matches!(c, WireCommand::Choose { pick, .. } if !(-1..=2).contains(pick))
+                        || matches!(c, WireCommand::Plan { spawn, boon, .. } if spawn.is_some_and(|v| v > 1) || boon.is_some_and(|v| v > 1))
                 }) {
                     return Err(EncodeError::BadValue("command"));
                 }
@@ -245,6 +252,21 @@ impl Frame for ClientMsg {
                             w.u8(8);
                             w.u32(handle.get());
                             w.u8(pick as u8);
+                        }
+                        WireCommand::Plan { spawn, boon, ready } => {
+                            w.u8(C_PLAN);
+                            w.u8(u8::from(spawn.is_some())
+                                | (u8::from(boon.is_some()) << 1)
+                                | (u8::from(ready.is_some()) << 2));
+                            if let Some(v) = spawn {
+                                w.u8(v);
+                            }
+                            if let Some(v) = boon {
+                                w.u8(v);
+                            }
+                            if let Some(v) = ready {
+                                w.u8(u8::from(v));
+                            }
                         }
                         WireCommand::UseConsumable => w.u8(9),
                         WireCommand::Target { actor } => {
@@ -338,6 +360,7 @@ fn fx_len(f: &WireFx) -> usize {
         WireFx::Stagger { id } => 1 + varint_len(*id),
         WireFx::Swing { by, .. } => 1 + varint_len(*by) + 1 + 6,
         WireFx::Hit { victim, by, .. } => 1 + varint_len(*victim) + varint_len(*by) + 5,
+        WireFx::Teleport => 1,
     }
 }
 
@@ -1025,6 +1048,7 @@ impl Frame for ServerMsg {
                             w.u16(quant::quantize_pos(y));
                             w.u16(quant::quantize_facing(a));
                         }
+                        WireFx::Teleport => w.u8(5),
                         WireFx::Hit {
                             victim,
                             by,

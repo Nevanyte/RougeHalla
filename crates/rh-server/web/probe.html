@@ -15,14 +15,14 @@
 <body>
 <main>
   <h1>Roguehalla protocol probe</h1>
-  <p>A browser client for protocol v7 over the browser WebSocket API (the transport a Unity Web build uses). It is a test
+  <p>A browser client for protocol v8 over the browser WebSocket API (the transport a Unity Web build uses). It is a test
   harness for Stage 1, not the game client. Click to walk; hold Space to attack toward the cursor.</p>
   <canvas id="c" width="960" height="640"></canvas>
   <pre id="s">connecting…</pre>
 </main>
 <script>
 "use strict";
-// ---- protocol v7 (mirror of crates/rh-protocol; tools/protocol-js/check-vectors.mjs holds this block to protocol/fixtures/v6.json) ----
+// ---- protocol v8 (mirror of crates/rh-protocol; tools/protocol-js/check-vectors.mjs holds this block to protocol/fixtures/v8.json) ----
 class W {
   constructor() { this.b = new Uint8Array(256); this.n = 0; this.v = new DataView(this.b.buffer); }
   need(k) { if (this.n + k > this.b.length) { const nb = new Uint8Array(this.b.length * 2 + k); nb.set(this.b); this.b = nb; this.v = new DataView(nb.buffer); } }
@@ -75,7 +75,7 @@ function fnv(w, h, tiles) {
   for (const t of tiles) eat(t);
   return x >>> 0;
 }
-const PROTOCOL = 7;
+const PROTOCOL = 8;
 const MAX_TICKET = 448;
 // Quantized remote actors and swings (rh-protocol quant.rs): positions are u16 at 1/8 u, angles u16 over 2 pi read as a signed code.
 const FACING_STEP_F32 = Math.fround(2 * Math.PI / 65536);
@@ -97,6 +97,14 @@ function input(seq, cmds) {
     else if (c.k === "swap") { if (c.slot != null && c.slot !== 0 && c.slot !== 1) throw new Error("bad slot"); w.u8(6); if (c.slot == null) w.u8(0); else { w.u8(1); w.u8(c.slot); } }
     else if (c.k === "pickup") { if (!Number.isInteger(c.handle) || c.handle <= 0 || c.handle > 0xffffffff) throw new Error("bad container"); w.u8(7); w.u32(c.handle); }
     else if(c.k === "choose") { if(!Number.isInteger(c.handle) || c.handle<=0 || c.handle>0xffffffff || !Number.isInteger(c.pick) || c.pick < -1 || c.pick > 2) throw new Error("bad reward choice"); w.u8(8);w.u32(c.handle);w.u8(c.pick & 255); }
+    else if (c.k === "plan") {
+      if (c.spawn != null && c.spawn !== 0 && c.spawn !== 1) throw new Error("bad plan spawn");
+      if (c.boon != null && c.boon !== 0 && c.boon !== 1) throw new Error("bad plan boon");
+      w.u8(12); w.u8((c.spawn != null ? 1 : 0) | (c.boon != null ? 2 : 0) | (c.ready != null ? 4 : 0));
+      if (c.spawn != null) w.u8(c.spawn);
+      if (c.boon != null) w.u8(c.boon);
+      if (c.ready != null) w.u8(c.ready ? 1 : 0);
+    }
     else if(c.k === "useConsumable") { w.u8(9); }
     else if(c.k === "target") { if(!Number.isInteger(c.actorRef)||c.actorRef<=0||c.actorRef>0xffffffff) throw new Error("bad actor reference");w.u8(10);w.u32(c.actorRef); }
     else if (c.k === "stop") { w.u8(2); if (c.seq == null) w.u8(0); else { w.u8(1); w.u8(c.seq); } }
@@ -130,6 +138,13 @@ function decodeClient(buf) {
       else if (k === 6) { const slot = r.opt(() => r.u8()); if (slot !== null && slot > 1) throw new Error("bad slot"); c = { k: "swap", slot }; }
       else if (k === 7) { const handle = r.u32(); if (handle === 0) throw new Error("bad container"); c = { k: "pickup", handle }; }
       else if(k === 8) { const handle=r.u32(), byte=r.u8(), pick=byte===255?-1:byte; if(!handle || pick>2) throw new Error("bad reward choice"); c={k:"choose",handle,pick}; }
+      else if (k === 12) {
+        const flags = r.u8(); if (flags & ~7) throw new Error("bad plan flags");
+        const spawn = (flags & 1) ? r.u8() : null; if (spawn !== null && spawn > 1) throw new Error("bad plan spawn");
+        const boon = (flags & 2) ? r.u8() : null; if (boon !== null && boon > 1) throw new Error("bad plan boon");
+        const ready = (flags & 4) ? r.u8() !== 0 : null;
+        c = { k: "plan", spawn, boon, ready };
+      }
       else throw new Error("bad command");
       m.cmds.push(c);
     }
@@ -313,6 +328,7 @@ function decodeBody(r) {
       else if (k === 2) { const victim = r.varint(), by = r.varint(); f.fx.push({ k: "hit", victim, by, amount: r.f32(), passive: r.opt(() => true) !== null }); }
       else if (k === 3) f.fx.push({ k: "block", id: r.varint(), by: r.varint(), weapon: r.u8() });
       else if (k === 4) f.fx.push({ k: "stagger", id: r.varint() });
+      else if (k === 5) f.fx.push({ k: "teleport" });
       else throw new Error("bad fx");
     }
     return f;
@@ -326,7 +342,7 @@ function decodeBody(r) {
 
 // Complete replacements. Decode the entire frame before a collection consumer changes retained state.
 function readState(r) {
-  const n = r.varint(); if (n > 7) throw new Error("too many state keys");
+  const n = r.varint(); if (n > 9) throw new Error("too many state keys");
   const flag = () => r.opt(() => true) !== null;
   const finite = (x) => { if (!Number.isFinite(x)) throw new Error("bad field"); return x; };
   const handle = () => { const v = r.varint(); if (!v) throw new Error("bad handle"); return v; };
@@ -335,7 +351,7 @@ function readState(r) {
   const count = () => { const v = r.varint(); if (v > 512) throw new Error("too many state rows"); return v; };
   const items = []; let previous = 0;
   for (let i = 0; i < n; i++) {
-    const key = r.varint(); if (key <= previous || key > 7) throw new Error("bad state key"); previous = key;
+    const key = r.varint(); if (key <= previous || key > 9) throw new Error("bad state key"); previous = key;
     let value;
     if (key === 1) value = r.opt(() => ({ activeSlot: r.code(1, "active slot"), slots: [weapon(), weapon()], potionSmall: r.code(5, "potion count"), potionsHealing: r.code(3, "potion count") }));
     else if (key === 2) {
@@ -380,6 +396,38 @@ function readState(r) {
       value=[];for(let j=0,k=count();j<k;j++)value.push({kind:r.code(1,"projectile"),x:r.u16(),y:r.u16(),facing:r.u16(),owner:actor()});
     } else if(key===6) {
       value=[];for(let j=0,k=count();j<k;j++){const c={mobType:r.code(29,"camp"),elite:r.code(30,"camp"),alive:r.varint(),state:r.code(2,"camp"),clearedAt:finite(r.f64()),respawnAt:finite(r.f64())};if(c.alive>512||c.clearedAt<0||c.respawnAt<c.clearedAt)throw new Error("bad camp");value.push(c);}
+    } else if (key === 8) {
+      const zone = () => { const z = r.u8(); if (z < 1 || z > 5) throw new Error("bad zone"); return z; };
+      const opt = () => r.opt(() => {
+        const o = { index: r.varint(), x: r.u16(), y: r.u16(), zone: zone(), walkSeconds: r.opt(() => finite(r.f32())) };
+        if (o.walkSeconds !== null && o.walkSeconds < 0) throw new Error("bad walk");
+        return o;
+      });
+      value = r.opt(() => {
+        const pickCode = () => { const v = r.u8(); if (v > 2) throw new Error("bad plan pick"); return v === 0 ? null : v - 1; };
+        const p = {
+          endsAt: finite(r.f64()),
+          spawns: [r.opt(() => r.varint()), r.opt(() => r.varint())],
+          taken: [flag(), flag()],
+          pick: pickCode(),
+          boons: [],
+        };
+        for (let b = 0, nb = r.code(4, "plan boons"); b < nb; b++) p.boons.push(r.str());
+        p.boon = pickCode();
+        p.ready = flag();
+        p.options = [opt(), opt()];
+        return p;
+      });
+    } else if (key === 9) {
+      value = r.opt(() => {
+        const a = {
+          lobbyEndsAt: finite(r.f64()), planEndsAt: finite(r.f64()), raidStartedAt: finite(r.f64()),
+          patienceEndsAt: r.opt(() => finite(r.f64())), inColiseum: flag(), gatesLocked: flag(),
+          suddenDeathAt: finite(r.f64()), startedWith: r.varintU16("started_with"),
+        };
+        if (a.startedWith > 512) throw new Error("bad started_with");
+        return a;
+      });
     } else value = r.opt(() => ({ cards: Array.from(r.bytes(80)), boosts: Array.from(r.bytes(8)) }));
     items.push({ key, value });
   }

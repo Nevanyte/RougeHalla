@@ -38,6 +38,8 @@ const combat = decodeClient(bytes(fx.client.find(v => v.name === "input_combat")
 eq(JSON.stringify(combat.cmds), JSON.stringify([{ k: "swap", slot: null }, { k: "swap", slot: 0 }, { k: "swap", slot: 1 }, { k: "pickup", handle: 42 }]), "combat command fields");
 const choices=decodeClient(bytes(fx.client.find(v=>v.name==="input_choices").hex));
 eq(JSON.stringify(choices.cmds),JSON.stringify([-1,0,1,2].map(pick=>({k:"choose",handle:0xffffffff,pick}))),"typed reward choices including skip");
+const plans=decodeClient(bytes(fx.client.find(v=>v.name==="input_plan").hex));
+eq(JSON.stringify(plans.cmds),JSON.stringify([{k:"plan",spawn:0,boon:null,ready:null},{k:"plan",spawn:null,boon:1,ready:null},{k:"plan",spawn:null,boon:null,ready:true},{k:"plan",spawn:1,boon:0,ready:false}]),"planning commands");
 const chestRefusals=decode(bytes(fx.server.find(v=>v.name==="chest_refusals").hex));
 eq(JSON.stringify(chestRefusals.events),JSON.stringify([1,2,3,4,5,6,7,8,9].map(reason=>({k:"chestRefused",reason}))),"owner reward refusal reasons");
 const refusals = decode(bytes(fx.server.find(v => v.name === "pickup_refusals").hex));
@@ -56,6 +58,13 @@ eq(JSON.stringify(state.items), JSON.stringify([
   {key:6,value:[{mobType:0,elite:30,alive:0,state:2,clearedAt:1000,respawnAt:181000}]},
   {key:7,value:[{kind:0,x:800,y:900,facing:12345,owner:1},{kind:0,x:800,y:900,facing:12345,owner:1}]}
 ]), "all reliable public facts");
+const planning = decode(bytes(fx.server.find(v => v.name === "state_planning").hex));
+eq(JSON.stringify(planning.items.map(i => i.key)), JSON.stringify([8, 9]), "planning state keys");
+eq(JSON.stringify(planning.items[0].value.spawns), JSON.stringify([12, null]), "plan spawn indexes");
+eq(JSON.stringify(planning.items[0].value.options.map(o => o.zone)), JSON.stringify([3, 5]), "plan option zones");
+eq(planning.items[0].value.options[1].walkSeconds, null, "typed absent walk");
+eq(planning.items[1].value.startedWith, 7, "arena starter count");
+eq(planning.items[1].value.patienceEndsAt, 601000, "arena patience deadline");
 collectionTracker.decode(bytes(fx.server.find(v => v.name === "snapshot").hex));
 eq(collectionTracker.collections.size, 7, "snapshot retains reliable collections");
 collectionTracker.decode(new Uint8Array([0x88,1,1,1,0]).buffer);
@@ -124,6 +133,7 @@ for (const v of fx.server) {
       if (e.k === "swing") { eq(s.by, e.by, `${n} by`); eq(s.weapon, e.weapon, `${n} weapon`); eq(bits(s.x), e.xBits, `${n} x`); eq(bits(s.y), e.yBits, `${n} y`); eq(bits(s.a), e.aBits, `${n} a`); }
       else if (e.k === "block") { eq(s.id, e.id, `${n} id`); eq(s.by, e.by, `${n} by`); eq(s.weapon, e.weapon, `${n} weapon`); }
       else if (e.k === "stagger") eq(s.id, e.id, `${n} id`);
+      else if (e.k === "teleport") { /* no fields */ }
       else { eq(s.passive, e.passive, `${n} passive`); eq(s.victim, e.victim, `${n} victim`); eq(s.by, e.by, `${n} by`); eq(bits(s.amount), e.amountBits, `${n} amount`); }
     });
   }

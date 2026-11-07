@@ -64,11 +64,11 @@ fn reference(
     let mut fx = Vec::new();
     for e in &obs.events {
         match *e {
-            SeenEvent::Teleported
-            | SeenEvent::Plan(_)
-            | SeenEvent::CastStarted { .. }
-            | SeenEvent::CastLanded { .. } => {
-                panic!("protocol 7 reference encoder does not support Source arena or Full Wish events")
+            // Protocol 8: the teleport is the room-wide Teleport fx; the owner's deal rides State key 8, not events.
+            SeenEvent::Teleported => fx.push(WireFx::Teleport),
+            SeenEvent::Plan(_) => {}
+            SeenEvent::CastStarted { .. } | SeenEvent::CastLanded { .. } => {
+                panic!("protocol 8 reference encoder does not support Full Wish events")
             }
             SeenEvent::PotionNotice { notice } => events.push(WireEvent::PotionNotice {
                 notice: match notice {

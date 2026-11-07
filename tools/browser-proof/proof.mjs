@@ -1,4 +1,4 @@
-// Browser-to-Rust proof (Stage 1): real Chromium pages speak protocol v7 (Full and delta snapshots) over WSS to rh-server through the browser's own
+// Browser-to-Rust proof (Stage 1): real Chromium pages speak protocol v8 (Full and delta snapshots) over WSS to rh-server through the browser's own
 // WebSocket API (the transport a Unity Web build's jslib bridge uses). Two players join, the match starts, a movement order
 // is acknowledged, one player drops and resumes its seat, they fight, and both receive authoritative results.
 //
@@ -58,14 +58,14 @@ try {
   pass("run_started");
   await wait(a, () => window.__probe.firstStateAfterWelcome.length === 1);
   const state0 = await a.evaluate(() => ({frames:window.__probe.stateFrames,first:window.__probe.firstStateAfterWelcome,keys:Object.keys(window.__probe.collections)}));
-  state0.first[0].join() === "1,2,3,4,5,6,7" && state0.keys.join() === "1,2,3,4,5,6,7" ? pass("join_receives_complete_reliable_state",state0) : fail("join_receives_complete_reliable_state",JSON.stringify(state0));
+  state0.first[0].join() === "1,2,3,4,5,6,7,8,9" && state0.keys.join() === "1,2,3,4,5,6,7,8,9" ? pass("join_receives_complete_reliable_state",state0) : fail("join_receives_complete_reliable_state",JSON.stringify(state0));
 
   // Protocol 6: the first snapshot of a connection is Full, and the stream that follows is deltas the page's own decoder applies.
   await wait(a, () => window.__probe.deltaSnapshots > 20);
   const kinds = await a.evaluate(() => ({ first: window.__probe.firstSnapshotAfterWelcome, full: window.__probe.fullSnapshots, delta: window.__probe.deltaSnapshots, refused: window.__probe.refused, resyncs: window.__probe.resyncs }));
   const info0 = await a.evaluate(() => fetch("/info", { cache: "no-store" }).then((r) => r.json()));
-  info0.protocol === 7 && kinds.first[0] === "full" && kinds.delta > kinds.full && kinds.refused.length === 0 && kinds.resyncs === 0
-    ? pass("protocol_7_full_first_then_deltas", { protocol: info0.protocol, ...kinds }) : fail("protocol_7_full_first_then_deltas", JSON.stringify([info0.protocol, kinds]));
+  info0.protocol === 8 && kinds.first[0] === "full" && kinds.delta > kinds.full && kinds.refused.length === 0 && kinds.resyncs === 0
+    ? pass("protocol_8_full_first_then_deltas", { protocol: info0.protocol, ...kinds }) : fail("protocol_8_full_first_then_deltas", JSON.stringify([info0.protocol, kinds]));
 
   // A resync request is answered with a Full snapshot, and deltas continue from it.
   const f0 = await a.evaluate(() => window.__probe.fullSnapshots);
@@ -109,7 +109,7 @@ try {
 
   await wait(b, () => window.__probe.firstStateAfterWelcome.length === 2);
   const resumedState = await b.evaluate(() => window.__probe.firstStateAfterWelcome);
-  resumedState.every(keys => keys.join() === "1,2,3,4,5,6,7") ? pass("resume_refreshes_all_state_keys",resumedState) : fail("resume_refreshes_all_state_keys",JSON.stringify(resumedState));
+  resumedState.every(keys => keys.join() === "1,2,3,4,5,6,7,8,9") ? pass("resume_refreshes_all_state_keys",resumedState) : fail("resume_refreshes_all_state_keys",JSON.stringify(resumedState));
 
   // Fight to the end: both hold attack toward each other; the server decides the outcome.
   for (const [page, other] of [[a, wb.player], [b, wa.player]]) {
