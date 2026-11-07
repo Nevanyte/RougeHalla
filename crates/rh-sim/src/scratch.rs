@@ -73,6 +73,8 @@ pub(crate) struct TickScratch {
     /// chained per victim slot (`slot_head`/`slot_tail` by slot, `entry_next` by entry: all `NONE` between passes).
     pub(crate) victims: Vec<u32>,
     pub(crate) ledger_mults: Vec<f64>,
+    pub(crate) ledger_races: Vec<f64>,
+    pub(crate) deny_parts: Vec<f64>,
     pub(crate) slot_head: Vec<u32>,
     pub(crate) slot_tail: Vec<u32>,
     pub(crate) entry_next: Vec<u32>,
@@ -127,6 +129,8 @@ impl Default for TickScratch {
             rewound: Vec::with_capacity(p),
             victims: Vec::with_capacity(p),
             ledger_mults: Vec::with_capacity(hits),
+            ledger_races: Vec::with_capacity(hits),
+            deny_parts: Vec::with_capacity(hits),
             slot_head: vec![NONE; p],
             slot_tail: vec![NONE; p],
             entry_next: Vec::with_capacity(hits),

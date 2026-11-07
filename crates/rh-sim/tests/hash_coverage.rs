@@ -821,6 +821,10 @@ const VALIDATED: &[(&str, &str)] = &[
     ("world.players.*.core.statuses.instances.*.data.heal_share", "LastStand DeathFloor payload requires the exact stored healing share"),
     ("world.players.*.core.statuses.cast.producer", "Full requires complete producer details; Off forbids them and only admits trusted bare cast facts"),
     ("world.players.*.card_runtime", "Full canonical spend memory is coupled to produced stock clocks/cast; Off forbids card memory"),
+    ("world.players.*.card_streak", "the card-state streak exists only after the after-damage system records weapon hits; a fresh or no-hit state is legitimately None"),
+    ("world.players.*.card_trims", "Wishful Thinking trims exist only after a Wish cast and landed hits inside the source window; a fresh state is legitimately empty"),
+    ("world.players.*.card_hots", "heal-over-time runs exist only after a trigger heal starts one; a fresh state is legitimately empty"),
+    ("world.players.*.card_fired", "the once-trigger fired set exists only after a trigger fires; a fresh state is legitimately empty"),
     ("world.players.*.card_runtime.wish_cast", "the admitted lazy card runtime is created only by a successful Wish spend and cannot be empty"),
 
     ("world.abilities.fields.*.ability", "Full field ability is coupled to its Cloud/Trail/Zone kind and typed definition"),
@@ -1079,8 +1083,8 @@ const VALIDATED: &[(&str, &str)] = &[
     ("world.reward_chests.*.id","allocated monotonic entity id, distinct from props/projectiles/fields"),
     ("world.reward_rng.words.#len","source private RNG is exactly four words"),
     ("statics.secrets.reward_salt.#len","source private RNG seed is exactly four words"),
-    ("world.players.*.build.cards.#len","supported card facts have three canonical slots"),
-    ("world.players.*.build.cards.*","unique insertion order and matching folded facts"),
+    ("world.players.*.build.counts.#len","the source card count map has exactly one count per card (80)"),
+    ("world.players.*.build.counts.*","source counts are u8; unique cards have at most one, and a grant must update the folded facts"),
     ("world.players.*.build.boosts.#len","eight source boost counts"),
     ("world.players.*.build.boosts.*","at most three picks; a grant must update the canonical fold"),
     ("world.players.*.farm.counts.#len","exact twenty normal-type facts"),
@@ -1718,8 +1722,8 @@ fn the_serde_skips_are_exactly_the_documented_ones() {
         ),
         (
             "state.rs",
-            2,
-            "World: the same-tick payout queue (empty at every step boundary) and the schedule trace (tests only)",
+            3,
+            "World: the same-tick payout queue (empty at every step boundary), the schedule trace (tests only) and the Overkill splash requests (recorded during the pass and drained by the after-damage system)",
         ),
         (
             "statics.rs",

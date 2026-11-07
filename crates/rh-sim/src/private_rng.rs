@@ -50,6 +50,37 @@ impl Sfc32 {
     }
 }
 /// Source `mixedSalt`, over explicit secret words. Does not draw or mutate a stream.
+/// One part of a source `saltedUnit` hash: a number or a text id (hashed as its char codes and length, like the source).
+pub(crate) enum SaltPart<'a> {
+    Num(u32),
+    Text(&'a str),
+}
+
+/// Source `saltedUnit`: the four-lane salted unit value of the given parts (deterministic, never a world stream).
+pub(crate) fn salted_unit(salt: [u32; 4], parts: &[SaltPart<'_>]) -> f64 {
+    let mut h = salt[0];
+    let mut i = 1usize;
+    let mut eat = |n: u32| {
+        h = fmix((h ^ n).wrapping_add(salt[i & 3].wrapping_mul(0x9e37_79b1)));
+        i += 1;
+    };
+    for part in parts {
+        match part {
+            SaltPart::Num(n) => eat(*n),
+            SaltPart::Text(t) => {
+                for b in t.bytes() {
+                    eat(u32::from(b));
+                }
+                eat(t.len() as u32);
+            }
+        }
+    }
+    for lane in salt {
+        eat(lane);
+    }
+    f64::from(fmix(h)) / 4_294_967_296.0
+}
+
 pub fn mixed_salt(words: [u32; 4], tag: u32) -> [u32; 4] {
     let mut lane =
         std::array::from_fn(|i| words[i] ^ tag ^ ((i as u32 + 1).wrapping_mul(0x9e37_79b1)));

@@ -95,6 +95,27 @@ content! {
     SHIELD_HALF_ARC: f64 = std::f64::consts::PI / 3.0, "rad";
     SHIELD_BLOCK_SHARE: f64 = 0.07, "fraction";
     RIPOSTE_SHARE: f64 = 0.5, "fraction";
+    STREAK_GAP_MS: f64 = 3000.0, "ms";
+    WISHFUL_BUDGET_MS: f64 = 30_000.0, "ms";
+    WISHFUL_WINDOW_MS: f64 = 60_000.0, "ms";
+    WISHFUL_FLOOR_SHARE: f64 = 0.5, "share";
+    HEAL_OVER_TIME_STEP_MS: f64 = 500.0, "ms";
+    OUTGOING_ROW_CAP: f64 = 2.5, "x";
+    GAMBLER_CHANCE: f64 = 0.15, "chance";
+    GAMBLER_UP: f64 = 2.0, "x";
+    GAMBLER_DOWN: f64 = 0.5, "x";
+    FESTERING_TICKS: u32 = 4, "ticks";
+    FESTERING_TICK_MS: f64 = 1000.0, "ms";
+    FESTERING_AP_SHARE: f64 = 0.125, "share";
+    HP_RACE_CAP: f64 = 2.5, "x";
+    GALLOWS_PATIENCE_EXTRA_MS: f64 = 2000.0, "ms";
+    GALLOWS_PATIENCE_STUN_MS: f64 = 2250.0, "ms";
+    PLANT_FEET_MS: f64 = 1000.0, "ms";
+    PLANT_FEET_BONUS: f64 = 0.25, "share";
+
+    SWORD_ON_HIT_POWER: f64 = 1.5, "x";
+    FISTS_ON_HIT_POWER: f64 = 1.2, "x";
+    PLAIN_ON_HIT_POWER: f64 = 1.0, "x";
     AXE_SHRED_ARMOR: f64 = 3.0, "armor";
     AXE_SHRED_CAP: f64 = 6.0, "armor";
     AXE_SHRED_MS: f64 = 3000.0, "ms";
@@ -203,6 +224,7 @@ content! {
     // Base power-zero player Sentenced.
     MARK_BASE_PCT: f64 = 0.045, "fraction";
     MARK_KILL_PCT: f64 = 0.00675, "fraction/stack";
+    HEAVIER_SENTENCE_PER_BONUS: f64 = 1.5, "x per bonus-hp share";
     MARK_TIER_HITS: f64 = 3.0, "hits";
     MARK_TOP_TIER: u8 = 4, "tier";
     MARK_NEAR_RANGE: f64 = 300.0, "u";

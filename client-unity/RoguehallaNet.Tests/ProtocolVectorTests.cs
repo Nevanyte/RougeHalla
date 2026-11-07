@@ -33,7 +33,7 @@ namespace Roguehalla.Net.Tests
             throw new KeyNotFoundException(name);
         }
 
-        [Test] public void FixtureIsProtocolV6() { Assert.AreEqual(6, Wire.ProtocolVersion); Assert.AreEqual(Wire.ProtocolVersion, Fixture().GetProperty("protocol").GetInt32()); }
+        [Test] public void FixtureIsProtocolV7() { Assert.AreEqual(7, Wire.ProtocolVersion); Assert.AreEqual(Wire.ProtocolVersion, Fixture().GetProperty("protocol").GetInt32()); }
 
         [TestCaseSource(nameof(ClientVectors))]
         public void ClientVectorRoundTripsByteForByte(string name, string hex)

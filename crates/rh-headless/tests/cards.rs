@@ -1,5 +1,6 @@
 //! Same external observation/issued-handle path as the live adapter, with only trusted pre-offer setup.
 use rh_headless::Env;
+use rh_sim::cards::{CardId, Counts};
 use rh_sim::{FactionId, Placement, PublicCommand, Secrets, Sim, SimConfig, Vec2};
 #[test]
 fn issued_reward_choices_update_the_build_through_real_headless_steps() {
@@ -35,16 +36,21 @@ fn issued_reward_choices_update_the_build_through_real_headless_steps() {
     let sim = Sim::restore(&cp).unwrap();
     let (mut env, obs) = Env::from_external_checkpoint(sim, 100).unwrap();
     let handle = obs[0].reward_chests[0].handle;
-    assert_eq!(obs[0].build.unwrap().cards, [0; 3]);
+    let slow_burn = {
+        let mut c = Counts::default();
+        c.0[CardId::SlowBurn.index()] = 1;
+        c
+    };
+    assert_eq!(obs[0].build.unwrap().cards, Counts::default());
     let out = env
         .try_step(&[vec![PublicCommand::Choose { handle, pick: 0 }], vec![]])
         .unwrap();
-    assert_eq!(out.observations[0].build.unwrap().cards, [1, 0, 0]);
+    assert_eq!(out.observations[0].build.unwrap().cards, slow_burn);
     assert!(out.observations[0].reward_chests[0].picked);
     assert!(!out.observations[0].reward_chests[0].can_choose);
-    assert_eq!(out.observations[1].build.unwrap().cards, [0; 3]);
+    assert_eq!(out.observations[1].build.unwrap().cards, Counts::default());
     let out = env
         .try_step(&[vec![PublicCommand::Choose { handle, pick: 2 }], vec![]])
         .unwrap();
-    assert_eq!(out.observations[0].build.unwrap().cards, [1, 0, 0]);
+    assert_eq!(out.observations[0].build.unwrap().cards, slow_burn);
 }

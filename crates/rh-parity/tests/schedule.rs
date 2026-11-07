@@ -608,6 +608,10 @@ fn a_match_runs_its_ported_rows_in_table_order() {
                     drops += 1;
                 }
                 TraceEntry::Hook("hitLanded", "cardHooks.onHitLanded") => hits += 1,
+                TraceEntry::Hook("hurt", "factions.onHurt") => {} // the card trigger rows run in the fixtures.
+                TraceEntry::Hook("teleported", "cardHooks.resetFight") => {}
+                TraceEntry::Hook("teleported" | "runEnded", "cardHooks.dropDeferred") => {}
+                TraceEntry::Hook("overkilled", "cardHooks.onOverkilled") => {}
                 TraceEntry::Hook("attackStarted", "abilities.onAttackStarted") => attacks += 1,
                 TraceEntry::Hook("runEnded", "factions.flushDotFx") => {}
                 TraceEntry::Hook("attackStarted", "factions.<arrow>") => {}

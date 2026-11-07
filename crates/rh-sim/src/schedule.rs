@@ -813,7 +813,11 @@ static SYSTEMS: [Item<SystemFn>; 24] = [
         Gate::Signatures,
         crate::systems::signatures::after_damage,
     ),
-    pending("factions.healOverTime", Gate::Signatures, "P-FACTION-1"),
+    ported(
+        "factions.healOverTime",
+        Gate::Signatures,
+        crate::systems::heal::over_time,
+    ),
     pending("mobs.resetDummies", Gate::Always, "P-MOBS-1"),
     pending("buffs.expireBoosts", Gate::Always, "P-CARDS-2"),
     ported(
@@ -864,7 +868,11 @@ static SYSTEMS: [Item<SystemFn>; 24] = [
         crate::systems::potions::update,
     ),
     pending("traders.updateTraders", Gate::NotTraining, "P-TRADE-1"),
-    pending("cardHooks.afterDamage", Gate::Always, "P-CARDS-1"),
+    ported(
+        "cardHooks.afterDamage",
+        Gate::Always,
+        crate::cards::after_damage,
+    ),
     pending("plagueCorpses.<anonymous>", Gate::Signatures, "P-FACTION-3"),
     pending("bruiserPassives.update", Gate::Signatures, "P-FACTION-5"),
     // Current status sources are axe shred and attack slow. P-CARDS-1 extends this fold with cards.
@@ -1113,17 +1121,17 @@ static TELEPORTED: [Link; 13] = [
         Gate::Always,
         crate::vision::raid_started,
     ),
-    pending_link(
+    ported_link(
         "cardHooks.resetFight",
         Mode::Append,
         Gate::Always,
-        "P-CARDS-1",
+        crate::cards::reset_fight,
     ),
-    pending_link(
+    ported_link(
         "cardHooks.dropDeferred",
         Mode::Append,
         Gate::Always,
-        "P-CARDS-1",
+        crate::cards::drop_deferred,
     ),
     pending_link(
         "plagueZombies.<arrow>",
@@ -1160,11 +1168,11 @@ static WEAPON_SWAPPED: [Link; 1] = [ported_link(
     crate::systems::sentenced::weapon_swapped,
 )];
 static HURT: [Link; 2] = [
-    pending_link(
+    ported_link(
         "factions.onHurt",
         Mode::Append,
         Gate::Signatures,
-        "P-FACTION-1",
+        crate::cards::on_hurt::on_hurt,
     ),
     pending_link(
         "fireRoam.<arrow>",
@@ -1305,11 +1313,11 @@ static RUN_ENDED: [Link; 12] = [
         crate::systems::status::run_ended,
     ),
     pending_link("quests.<arrow>", Mode::Append, Gate::Quests, "P-QUEST-1"),
-    pending_link(
+    ported_link(
         "cardHooks.dropDeferred",
         Mode::Append,
         Gate::Always,
-        "P-CARDS-1",
+        crate::cards::drop_deferred,
     ),
     pending_link(
         "cardHooks.flushBleeds",
@@ -1496,11 +1504,11 @@ static BLOCKED: [Link; 2] = [
         "P-FACTION-5",
     ),
 ];
-static OVERKILLED: [Link; 1] = [pending_link(
+static OVERKILLED: [Link; 1] = [ported_link(
     "cardHooks.onOverkilled",
     Mode::Append,
     Gate::Always,
-    "P-CARDS-1",
+    crate::cards::on_overkilled::on_overkilled,
 )];
 static HOOKS: [HookRow; 19] = [
     HookRow {
@@ -1831,6 +1839,7 @@ mod tests {
                 "abilities.abilityDotFx",
                 "vision.refreshVision",
                 "consumables.updateConsumables",
+                "cardHooks.afterDamage",
                 "mods.updateMods"
             ]
         );

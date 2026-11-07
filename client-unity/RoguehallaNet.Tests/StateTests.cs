@@ -22,7 +22,7 @@ namespace Roguehalla.Net.Tests
                 new RewardChestsState {Rows=new [] {new WireRewardChest {Handle=new RewardChestHandle(uint.MaxValue),X=100,Y=200,ExpiresAt=15000,Options=new [] {
                     new WireRewardOption{Kind=1,Id=0,Taken=false,TakenBy=null},new WireRewardOption{Kind=2,Id=7,Taken=true,TakenBy=1}
                 },Picked=false,CanChoose=true}}},
-                new BuildState {Value=new WireBuild {Cards=new byte[]{1,0,1},Boosts=new byte[]{0,1,2,3,0,1,2,3}}},
+                new BuildState {Value=new WireBuild {Cards=BuildCards(),Boosts=new byte[]{0,1,2,3,0,1,2,3}}},
                 new CampsState {Rows=new[]{new WireCamp{MobType=0,Elite=30,Alive=0,State=2,ClearedAt=1000,RespawnAt=181000}}},
                 new ProjectilesState {Rows=new[]{new WireProjectile{Kind=0,X=800,Y=900,Facing=12345,Owner=1},new WireProjectile{Kind=0,X=800,Y=900,Facing=12345,Owner=1}}}
             }};
@@ -31,6 +31,8 @@ namespace Roguehalla.Net.Tests
         {
             return new ServerMsg.Welcome {Protocol=Wire.ProtocolVersion,MatchId=new byte[16],Session=new byte[16],PlayerId=1,TickRate=20,Map=new MapBlob(4,4,new byte[16])};
         }
+
+        static byte[] BuildCards() { var c = new byte[80]; c[0] = 1; c[2] = 1; return c; }
 
         [Test]
         public void StateRoundtripPreservesBodiesFocusFieldsChoicesAndEveryTruncationFails()

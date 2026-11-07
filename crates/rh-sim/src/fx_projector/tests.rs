@@ -45,6 +45,7 @@ fn report(
         r.ops.push(Op::Contribution(LandedHit {
             critical: false,
             cut: 1.,
+            race: 1.,
             ability: None,
             dot: false,
             victim: PlayerId(2),
@@ -191,6 +192,7 @@ fn table_uses_actual_ids_and_frozen_visibility() {
         Op::Contribution(LandedHit {
             critical: false,
             cut: 1.,
+            race: 1.,
             ability: None,
             dot: false,
             victim: PlayerId(900),
@@ -393,6 +395,7 @@ fn instant_anonymous_exact_sum_fixed_marker_and_delayed_independence() {
         Op::Contribution(LandedHit {
             critical: false,
             cut: 1.,
+            race: 1.,
             ability: None,
             dot: false,
             victim: PlayerId(2),

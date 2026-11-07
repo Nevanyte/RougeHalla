@@ -179,7 +179,7 @@ impl CollectionPublisher {
         let next_camps = camps(observation);
         let next_projectiles = projectiles(observation);
         let next_build = observation.build.map(|v| WireBuild {
-            cards: v.cards,
+            cards: v.cards.0,
             boosts: v.boosts,
         });
         let mut items = Vec::new();

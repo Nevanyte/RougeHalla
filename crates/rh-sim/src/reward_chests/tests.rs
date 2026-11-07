@@ -82,7 +82,7 @@ fn fnv(bytes: &[u8]) -> u64 {
         (a ^ u64::from(*b)).wrapping_mul(0x100000001b3)
     })
 }
-const FIXTURE_FNV: u64 = 6350794023776888374;
+const FIXTURE_FNV: u64 = 15717370982595805037;
 fn faction(v: &Value) -> FactionId {
     match v.as_str().unwrap() {
         "fire" => FactionId::Fire,

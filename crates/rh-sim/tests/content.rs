@@ -35,6 +35,13 @@ const NON_GAMEPLAY: &[(&str, &str, &str)] = &[
     ("projectile_view.rs", "PROJECTILE_VIEW_BYTES_MAX", "complete public projectile representation capacity; never read by game rules"),
     ("actor_refs.rs", "NPC_REFERENCE_BLOCK", "observer presentation block capacity, not a gameplay number"),
     ("actor_refs.rs", "NPC_REFERENCE_BASE", "disjoint non-reused presentation reference namespace, not a game rule"),
+    ("cards/catalog.rs", "ALL", "the 80 source card ids in wire order (identifiers only); the definitions live in the catalog table"),
+    ("cards/catalog_data.rs", "DEFINITIONS", "typed 80-card catalog table generated from the accepted source corpus; the gameplay numbers are the registered source constants"),
+    ("cards/mod.rs", "SUPPORTED", "the three-card native subset selector (identifiers only), not a game rule"),
+    ("cards/mod.rs", "MAX_FOLD_ROWS", "fixed scratch bound equal to the generated catalog's total fold rows, not a game rule"),
+    ("reward_chests/pools.rs", "INTERACTIVE", "the source interactive augment id list (identifiers only); tiers and rows are the registered catalog"),
+    ("cards/on_hit.rs", "MAX_ON_HIT_ROWS", "fixed stack buffer bound for the owned on-hit rows; never a game rule"),
+    ("cards/on_hurt.rs", "MAX_ROWS", "fixed stack buffer bound for the owned hpBelow rows; never a game rule"),
     ("reward_chests/tests.rs", "FIXTURE_FNV", "cfg(test)-only frozen source fixture integrity; not runtime policy"),
     ("mapgen/style_zones/tests.rs", "CASES", "cfg(test)-only exact source open-case/provenance inventory; never read by runtime policy"),
     ("mapgen/style_zones/tests.rs", "SOURCE_NAMES", "cfg(test)-only exact source open-case/provenance inventory; never read by runtime policy"),
@@ -173,7 +180,7 @@ const TABLES_FOLDED_BY_HASH: &[(&str, &str, &str)] = &[
     ("systems/planning/deal.rs", "SPARE_BUDGET", "actual planning fallback budget folded by planning::deal::visit_content"),
     ("terrain.rs", "NEUTRAL", "actual complete runtime surface matrix folded by terrain::visit_content"),
     ("potions/mod.rs", "DEFINITION", "actual Small potion stock/concurrency/duration/share read by runtime and progression content visitor"),
-    ("cards/mod.rs", "ALL", "actual selected card identities/index/name order folded by visit_progression_content"),
+
     ("cards/rules.rs", "DEFINITION", "actual selected card tiers/effect words folded by visit_progression_content"),
     ("modifiers/farm.rs", "DEFINITION", "actual ordered mob reward rows and count bounds folded by visit_progression_content"),
     ("modifiers/rules.rs", "DEFINITION", "actual weapon/signature stat scaling words folded by visit_progression_content"),
@@ -494,7 +501,7 @@ fn hash_golden() {
         content_hash()
     );
 }
-const GOLDEN_CONTENT_HASH: u64 = 0xe95d_55ba_96b2_feca;
+const GOLDEN_CONTENT_HASH: u64 = 0x9f7a_0ff3_1bf3_b6d4;
 
 #[test]
 fn every_registry_row_perturbs_the_hash() {

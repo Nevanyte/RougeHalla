@@ -482,6 +482,37 @@ impl WeaponRt {
 pub struct Player {
     pub stocks: crate::abilities::Stocks,
     pub card_runtime: Option<crate::cards::runtime::Runtime>,
+    /// Source card-state streak memory (written by the after-damage system, read by on-hit/Twist of Fate).
+    #[serde(default)]
+    pub card_streak: Option<crate::cards::Streak>,
+    /// Wishful Thinking's trims inside the source window (written by the after-damage system).
+    #[serde(default)]
+    pub card_trims: Vec<crate::cards::Trim>,
+    /// Pending heal-over-time runs (Second Wind and other trigger heals).
+    #[serde(default)]
+    pub card_hots: Vec<crate::cards::Hot>,
+    /// The once-trigger cards that already fired this run (source `PlayerRuntime.fired`).
+    #[serde(default)]
+    pub card_fired: Vec<crate::cards::CardId>,
+    /// The attack-critical accumulator (source `cards.critAcc`): deterministic, fires at 1.
+    #[serde(default)]
+    pub card_crit_acc: f64,
+    /// Plant Your Feet's last-seen position and still-since time (source `cards.stillX/stillY/stillSince`).
+    #[serde(default)]
+    pub card_still_x: f64,
+    #[serde(default)]
+    pub card_still_y: f64,
+    #[serde(default)]
+    pub card_still_since: f64,
+    /// Adrenaline's running boost (source `cards.boostAs/boostMove/boostUntil`).
+    #[serde(default)]
+    pub card_boost: crate::cards::Boost,
+    /// Tank Engine's prevented-damage tally (source `cards.prevented`).
+    #[serde(default)]
+    pub card_prevented: f64,
+    /// Tank Engine's earned flat max-health bonus (source `cards.tankHp`).
+    #[serde(default)]
+    pub card_tank_hp: f64,
     pub plan_ready: bool,
     pub build: crate::cards::Build,
     pub potion_small: u8,
@@ -531,6 +562,17 @@ impl Player {
         Self {
             stocks: Default::default(),
             card_runtime: None,
+            card_streak: None,
+            card_trims: Vec::new(),
+            card_hots: Vec::new(),
+            card_fired: Vec::new(),
+            card_crit_acc: 0.,
+            card_still_x: 0.,
+            card_still_y: 0.,
+            card_still_since: 0.,
+            card_boost: crate::cards::Boost::default(),
+            card_prevented: 0.,
+            card_tank_hp: 0.,
             build: Default::default(),
             potion_small: 0,
             healing_until: 0.,
@@ -712,6 +754,9 @@ pub(crate) struct World {
     /// `hash.rs`); `default` still reads checkpoints written while it was omitted.
     #[serde(default)]
     pub(crate) deferred: DeferredQueue,
+    /// Overkill splash requests recorded during the pass and resolved by the after-damage system (never serialized).
+    #[serde(skip)]
+    pub(crate) card_splashes: Vec<crate::cards::SplashReq>,
     /// The same-tick payouts (legacy `payLater`, `combat.collecting` and `combat.payouts`): queued while the ledger pass
     /// runs, paid at its end, or at once outside it. Never part of a checkpoint or the hash: it is empty and not
     /// collecting at every step boundary, where both are taken.
@@ -972,6 +1017,7 @@ impl World {
             rt: ArenaRt::default(),
             pending_events: Vec::new(),
             deferred: DeferredQueue::default(),
+            card_splashes: Vec::new(),
             pay: PayQueue::default(),
             #[cfg(feature = "schedule-trace")]
             trace: Default::default(),

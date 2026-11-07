@@ -88,13 +88,13 @@ pub struct RewardChestView {
 }
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct BuildView {
-    pub cards: [u8; 3],
+    pub cards: crate::cards::Counts,
     pub boosts: [u8; 8],
 }
 impl From<&crate::cards::Build> for BuildView {
     fn from(b: &crate::cards::Build) -> Self {
         Self {
-            cards: CardId::ALL.map(|id| u8::from(b.owns(id))),
+            cards: b.counts,
             boosts: b.boosts(),
         }
     }

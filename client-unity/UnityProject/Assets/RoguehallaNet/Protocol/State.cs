@@ -150,7 +150,7 @@ namespace Roguehalla.Net.Protocol
                         var build = new BuildState();
                         if (r.Flag())
                         {
-                            var v = new WireBuild { Cards = new byte[3], Boosts = new byte[8] };
+                            var v = new WireBuild { Cards = new byte[80], Boosts = new byte[8] };
                             for (int j = 0; j < v.Cards.Length; j++) v.Cards[j] = r.U8();
                             for (int j = 0; j < v.Boosts.Length; j++) v.Boosts[j] = r.U8();
                             build.Value = v;
@@ -265,7 +265,7 @@ namespace Roguehalla.Net.Protocol
     {
         public override uint Key { get { return 5; } }
         public WireBuild? Value;
-        internal override void Check() { if (Value.HasValue) Require(Value.Value.Cards != null && Value.Value.Cards.Length == 3 && Value.Value.Boosts != null && Value.Value.Boosts.Length == 8, "build"); }
+        internal override void Check() { if (Value.HasValue) Require(Value.Value.Cards != null && Value.Value.Cards.Length == 80 && Value.Value.Boosts != null && Value.Value.Boosts.Length == 8, "build"); }
         internal override void Write(Writer w) { w.U8(Value.HasValue ? (byte)1 : (byte)0); if (Value.HasValue) { w.Bytes(Value.Value.Cards); w.Bytes(Value.Value.Boosts); } }
     }
     public sealed class CampsState : StateItem

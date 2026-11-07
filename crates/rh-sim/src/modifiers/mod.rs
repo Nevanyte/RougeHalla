@@ -25,6 +25,8 @@ pub struct Runtime {
     mults: [f64; 8],
     wire: [f64; 7],
     max_hp_mult: f64,
+    /// Plague's dot-crit conversion (its DoT crit chance paid as steady DoT damage; 1 for everyone else).
+    plague_dot: f64,
 }
 impl Default for Runtime {
     fn default() -> Self {
@@ -34,6 +36,7 @@ impl Default for Runtime {
             mults: fold::identity_mults().source_values(),
             wire: fold::wire_identity_mirrors().source_values(),
             max_hp_mult: 1.,
+            plague_dot: 1.,
         }
     }
 }
@@ -51,13 +54,34 @@ impl Runtime {
     pub fn wish_cooldown_mult(&self) -> f64 {
         MultSums::from_source_values(self.mults).get(fold::MultKey::WishCooldown)
     }
+    /// The attacker's folded damage multiplier (legacy `hitMultOf`), used to normalize a recorded hit before a bleed.
+    pub fn hit_mult(&self) -> f64 {
+        MultSums::from_source_values(self.mults).get(fold::MultKey::Hit)
+    }
+
+    /// The folded returned-damage multiplier (source `returnedMultOf`): a returned hit's share is scaled by it.
+    pub fn returned_mult(&self) -> f64 {
+        MultSums::from_source_values(self.mults).get(fold::MultKey::Returned)
+    }
+
+    /// The folded critical-strike chance sum (source `sums.critChance`), before the noCrit flag and the cap.
+    pub fn crit_chance(&self) -> f64 {
+        StatSums::from_source_values(self.sums).crit_chance
+    }
+
     pub fn dot_mult(&self) -> f64 {
-        MultSums::from_source_values(self.mults).get(fold::MultKey::Dot)
+        MultSums::from_source_values(self.mults).get(fold::MultKey::Dot) * self.plague_dot
     }
     pub fn linger_mult(&self) -> f64 {
         MultSums::from_source_values(self.mults).get(fold::MultKey::Linger)
     }
-    pub(crate) fn valid(&self, build: &crate::cards::Build, farm: &Farm, base_hp: f64) -> bool {
+    pub(crate) fn valid(
+        &self,
+        build: &crate::cards::Build,
+        farm: &Farm,
+        base_hp: f64,
+        faction: crate::FactionId,
+    ) -> bool {
         if !build.valid()
             || !farm.valid()
             || !self
@@ -71,7 +95,7 @@ impl Runtime {
         {
             return false;
         }
-        let folded = fold_build(build, farm, base_hp);
+        let folded = fold_build(build, farm, base_hp, faction);
         if self.sums != folded.sums.source_values()
             || self.farm != folded.farm_sums.source_values()
             || self.mults != folded.mults.source_values()
@@ -133,11 +157,8 @@ pub(crate) fn recompute_with(
     } else {
         Farm::default()
     };
-    let folded = fold_build(
-        &build,
-        &farm,
-        crate::content::faction(w.core(ix).vitals.faction).hp,
-    );
+    let faction = w.core(ix).vitals.faction;
+    let folded = fold_build(&build, &farm, crate::content::faction(faction).hp, faction);
     let mut src = fold::SourceMods::default();
     for (_, source) in crate::schedule::Plan::of(k).mod_sources.live() {
         if let Some(m) = source(w, w.core(ix), inputs.view(w.core(ix))) {
@@ -146,6 +167,14 @@ pub(crate) fn recompute_with(
             src.speed_mult *= m.speed_mult.unwrap_or(1.);
             src.windup_mult *= m.windup_mult.unwrap_or(1.);
             src.shield += m.shield.unwrap_or(0.);
+        }
+    }
+    // A running card boost (Adrenaline) multiplies the final mirrors; lapsed boosts contribute nothing.
+    if w.is_player(ix) {
+        let boost = w.players[ix.slot()].card_boost;
+        if w.server_time < boost.until {
+            src.as_mult *= boost.as_mult;
+            src.speed_mult *= boost.move_mult;
         }
     }
     let efficiency = if w.is_player(ix) && w.core(ix).vitals.faction == crate::FactionId::Sentenced
@@ -157,6 +186,21 @@ pub(crate) fn recompute_with(
     let wire = fold::encode_mirrors(&fold::mirrors_from_fold_with_sources(
         &folded, &src, efficiency,
     ));
+    // Plague turns its DoT crit chance into steady DoT damage.
+    let plague_dot = if w.is_player(ix)
+        && w.core(ix).vitals.faction == crate::FactionId::Plague
+        && folded
+            .flags
+            .contains(crate::stat_fold::EffectFlag::PlagueDotCritConversion)
+    {
+        let chance = crate::status_runtime::stats::crit_chance(
+            folded.sums.crit_chance,
+            folded.flags.contains(crate::stat_fold::EffectFlag::NoCrit),
+        );
+        1. + chance * (crate::status_runtime::stats::CRIT_MULT - 1.)
+    } else {
+        1.
+    };
     w.core_mut(ix).modifiers = Runtime {
         sums: folded.sums.source_values(),
         farm: folded.farm_sums.source_values(),
@@ -165,10 +209,12 @@ pub(crate) fn recompute_with(
         max_hp_mult: fold::default_definition()
             .max_hp_floor_share
             .max(1. + folded.sums.max_hp + folded.farm_sums.max_hp),
+        plague_dot,
     };
 }
 pub(crate) fn sync_max_hp(p: &mut crate::state::Player) {
-    let max = crate::content::faction(p.vitals.faction).hp * p.modifiers.max_hp_mult;
+    let max =
+        crate::content::faction(p.vitals.faction).hp * p.modifiers.max_hp_mult + p.card_tank_hp;
     let delta = max - p.vitals.max_hp;
     if delta.abs() < 1e-9 {
         return;
@@ -259,6 +305,64 @@ pub(crate) fn frost_chill(p: &crate::fighter::FighterCore) -> f64 {
                 + DEFINITION.frost_as * (m.as_mult - 1.).max(0.),
         )
 }
+/// Source `hpRaceCapOf`: the folded `hpRace` mult (the Race to 0 ceiling; 0 for none).
+pub(crate) fn hp_race_cap(core: &crate::fighter::FighterCore) -> f64 {
+    MultSums::from_source_values(core.modifiers.mults).get(fold::MultKey::HpRace)
+}
+
+/// Source `hpRaceMult`: the hp-fraction multiplier of a Race to 0, capped.
+pub(crate) fn hp_race_mult(hp_frac: f64, cap: f64) -> f64 {
+    let ceiling = cap.clamp(1., crate::constants::HP_RACE_CAP);
+    if !(hp_frac > 0.) {
+        return ceiling;
+    }
+    (1. / hp_frac).max(1.).min(ceiling)
+}
+
+/// Source `outgoingExecuteShare`: the share of an entry's outgoing multiplier that the attacker's `vs hpBelow` rows
+/// contribute (0 without them, never above 1) — what a tier-4 mark denies (R7).
+pub(crate) fn execute_share(
+    core: &crate::fighter::FighterCore,
+    build: &crate::cards::Build,
+    victim_frac: f64,
+    kind: OutgoingKind,
+    baked: f64,
+) -> f64 {
+    let has = build.cards().any(|id| {
+        id.definition()
+            .rows
+            .iter()
+            .any(|r| matches!(r, crate::cards::CardRow::Vs(v) if matches!(v.test, crate::cards::VsTest::HpBelow)))
+    });
+    if !has {
+        return 0.;
+    }
+    let full = outgoing_damage(
+        core,
+        build,
+        victim_frac,
+        kind,
+        baked,
+        0,
+        VsProbe::default(),
+        false,
+    );
+    if !(full > 0.) {
+        return 0.;
+    }
+    let without = outgoing_damage(
+        core,
+        build,
+        victim_frac,
+        kind,
+        baked,
+        0,
+        VsProbe::default(),
+        true,
+    );
+    (1. - without / full).clamp(0., 1.)
+}
+
 pub(crate) fn mark_pulse(
     p: &crate::state::Player,
     w: crate::WeaponId,
@@ -280,11 +384,27 @@ pub(crate) fn mark_pulse(
     .into_iter()
     .map(|v| v.max(0.))
     .fold(0., |a, b| a + b);
+    // Heavier Sentence: the mark share grows with the owner's bonus max hp relative to its base.
+    let heavier = if p
+        .build
+        .has_flag(crate::stat_fold::EffectFlag::HeavierSentence)
+    {
+        let base = crate::content::faction(p.vitals.faction).hp;
+        if base > 0. {
+            1. + crate::constants::HEAVIER_SENTENCE_PER_BONUS
+                * ((p.vitals.max_hp - base).max(0.) / base)
+        } else {
+            1.
+        }
+    } else {
+        1.
+    };
     let pct = (crate::constants::MARK_BASE_PCT * crate::constants::DUEL_PACE
         + crate::constants::MARK_KILL_PCT
             * crate::constants::DUEL_PACE
             * f64::from(p.credit.sentence))
-        * (1. + DEFINITION.mark_bonus * sum);
+        * (1. + DEFINITION.mark_bonus * sum)
+        * heavier;
     pct * target_hp
         * weight
         * if near {
@@ -294,8 +414,13 @@ pub(crate) fn mark_pulse(
         }
 }
 
-fn fold_build(build: &crate::cards::Build, farm: &Farm, base: f64) -> fold::Folded {
-    let (rows, n) = build.rows();
+fn fold_build(
+    build: &crate::cards::Build,
+    farm: &Farm,
+    base: f64,
+    faction: crate::FactionId,
+) -> fold::Folded {
+    let (rows, n) = build.rows(faction);
     let boosts = fold::BoostCounts::from_source_values(build.boosts().map(f64::from));
     {
         let (farm_rows, len) = farm.rows();
@@ -318,10 +443,16 @@ pub(crate) fn maximum_packet(weapon: crate::WeaponId) -> f64 {
             let f = crate::content::paced(id);
             let base_hp = crate::content::faction(id).hp;
             let build = crate::cards::Build {
-                cards: crate::cards::CardId::ALL.map(Some),
+                counts: {
+                    let mut counts = crate::cards::Counts::default();
+                    for id in crate::cards::SUPPORTED {
+                        counts.0[id.index()] = 1;
+                    }
+                    counts
+                },
                 boosts: [crate::stat_fold::default_definition().chest_boost_max_picks as u8; 8],
             };
-            let folded = fold_build(&build, &Farm::maximum(), base_hp);
+            let folded = fold_build(&build, &Farm::maximum(), base_hp, id);
             let m = fold::decode_mirrors(&fold::encode_mirrors(&fold::mirrors_from_fold(&folded)));
             let rate = m.as_mult.max(fold::cap_as_mult(f64::MAX));
             let interval = crate::content::attack_interval(&f, weapon, rate);
@@ -338,6 +469,198 @@ pub(crate) fn maximum_packet(weapon: crate::WeaponId) -> f64 {
         .fold(0., f64::max)
 }
 
-pub(crate) fn outgoing(p: &crate::fighter::FighterCore) -> f64 {
-    1. + StatSums::from_source_values(p.modifiers.farm).damage
+/// The damage kind of an entry (source `OutgoingKind`), for the outgoing row cap.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum OutgoingKind {
+    Hit,
+    Dot,
+    Returned,
+    Other,
+}
+
+/// The probe answers a `vs` row needs beyond the victim's hp fraction (source `VsProbe`).
+#[derive(Clone, Copy, Debug, Default)]
+pub(crate) struct VsProbe {
+    pub slowed: bool,
+    pub elite: bool,
+    pub higher_power: bool,
+    pub player: bool,
+    pub third_party: bool,
+}
+
+fn vs_holds(v: &crate::cards::VsRow, frac: f64, streak: u16, probe: VsProbe) -> bool {
+    use crate::cards::VsTest;
+    match v.test {
+        VsTest::Elite => probe.elite,
+        VsTest::HigherPower => probe.higher_power,
+        VsTest::Slowed => probe.slowed,
+        VsTest::Streak => f64::from(streak) <= v.arg,
+        VsTest::ThirdParty => probe.third_party,
+        VsTest::HpBelow => frac < v.arg,
+        VsTest::PlayerAbove => probe.player && frac > v.arg,
+    }
+}
+
+/// Source `outgoingMult`: what a hit deals before armor and shield, as (1 + the damage sums + holding vs rows + the
+/// stepped scale rows), G1-capped so the row multiplier times the entry's own kind mult never passes OUTGOING_ROW_CAP; farm
+/// damage is added outside the cap. Camps-cleared scales need the unported camp counter and contribute nothing yet.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn outgoing_damage(
+    p: &crate::fighter::FighterCore,
+    build: &crate::cards::Build,
+    victim_frac: f64,
+    kind: OutgoingKind,
+    baked: f64,
+    streak: u16,
+    probe: VsProbe,
+    skip_execute: bool,
+) -> f64 {
+    let sums = StatSums::from_source_values(p.modifiers.sums);
+    let mults = MultSums::from_source_values(p.modifiers.mults);
+    let own = match kind {
+        OutgoingKind::Hit => mults.get(fold::MultKey::Hit),
+        OutgoingKind::Dot => mults.get(fold::MultKey::Dot),
+        OutgoingKind::Returned => mults.get(fold::MultKey::Returned),
+        OutgoingKind::Other => 1.,
+    } * (if baked > 0. { baked } else { 1. });
+    let ceiling = if own > 1. {
+        crate::constants::OUTGOING_ROW_CAP / own
+    } else {
+        crate::constants::OUTGOING_ROW_CAP
+    };
+    let farm = StatSums::from_source_values(p.modifiers.farm).damage;
+    let mut sum = sums.damage;
+    let mut any_rows = sums.damage != 0.;
+    for id in build.cards() {
+        for row in id.definition().rows {
+            match row {
+                crate::cards::CardRow::Vs(v) => {
+                    any_rows = true;
+                    if !(skip_execute && matches!(v.test, crate::cards::VsTest::HpBelow))
+                        && vs_holds(v, victim_frac, streak, probe)
+                    {
+                        sum += v.v;
+                    }
+                }
+                crate::cards::CardRow::Scale(s) => {
+                    any_rows = true;
+                    let bonus = match s.src {
+                        crate::cards::ScaleSrc::Streak => {
+                            s.per * (f64::from(streak) / s.step + 1e-9).floor()
+                        }
+                        crate::cards::ScaleSrc::CampsCleared => 0.,
+                    };
+                    sum += if bonus > s.cap { s.cap } else { bonus };
+                }
+                _ => {}
+            }
+        }
+    }
+    if !any_rows {
+        return 1f64.min(ceiling).max(0.) + farm;
+    }
+    (1. + sum).min(ceiling).max(0.) + farm
+}
+
+#[cfg(test)]
+mod race_tests {
+    use super::hp_race_mult;
+
+    #[test]
+    fn the_race_multiplier_is_the_inverse_hp_fraction_capped() {
+        assert!((hp_race_mult(1.0, 2.5) - 1.0).abs() < 1e-12);
+        assert!((hp_race_mult(0.5, 2.5) - 2.0).abs() < 1e-12);
+        assert!((hp_race_mult(0.2, 2.5) - 2.5).abs() < 1e-12, "capped");
+        assert!((hp_race_mult(0.8, 1.2) - 1.2).abs() < 1e-12);
+    }
+}
+
+#[cfg(test)]
+mod plague_tests {
+    use crate::{arenas, FactionId, Placement, PlayerId, Secrets, Sim, SimConfig, Vec2};
+
+    #[test]
+    fn plague_turns_dot_crit_chance_into_steady_dot_damage() {
+        let ps = [
+            Placement {
+                profile: "a".into(),
+                faction: FactionId::Plague,
+                bot: false,
+                at: Vec2::new(400., 400.),
+                hp: None,
+                weapon0: None,
+                weapon1: None,
+            },
+            Placement {
+                profile: "b".into(),
+                faction: FactionId::Holy,
+                bot: false,
+                at: Vec2::new(456., 400.),
+                hp: None,
+                weapon0: None,
+                weapon1: None,
+            },
+        ];
+        let mut sim = Sim::reset_active(
+            SimConfig::default(),
+            arenas::practice_arena(),
+            Secrets::from_seed(7),
+            &ps,
+        );
+        assert!(crate::cards::grant(
+            &sim.k,
+            &mut sim.w,
+            PlayerId(1),
+            crate::cards::CardId::CruelWounds
+        ));
+        let i = sim.w.idx(PlayerId(1)).unwrap();
+        let p = &sim.w.players[i];
+        assert!(
+            (p.modifiers.crit_chance() - 0.2).abs() < 1e-9,
+            "the plague column keeps the crit chance"
+        );
+        assert!(
+            (p.modifiers.dot_mult() - 1.1).abs() < 1e-9,
+            "conversion: 1 + 0.2 x 0.5, dot {}",
+            p.modifiers.dot_mult()
+        );
+    }
+
+    #[test]
+    fn a_non_plague_keeps_its_dot_crit() {
+        let ps = [
+            Placement {
+                profile: "a".into(),
+                faction: FactionId::Fire,
+                bot: false,
+                at: Vec2::new(400., 400.),
+                hp: None,
+                weapon0: None,
+                weapon1: None,
+            },
+            Placement {
+                profile: "b".into(),
+                faction: FactionId::Holy,
+                bot: false,
+                at: Vec2::new(456., 400.),
+                hp: None,
+                weapon0: None,
+                weapon1: None,
+            },
+        ];
+        let mut sim = Sim::reset_active(
+            SimConfig::default(),
+            arenas::practice_arena(),
+            Secrets::from_seed(7),
+            &ps,
+        );
+        assert!(crate::cards::grant(
+            &sim.k,
+            &mut sim.w,
+            PlayerId(1),
+            crate::cards::CardId::CruelWounds
+        ));
+        let i = sim.w.idx(PlayerId(1)).unwrap();
+        assert!((sim.w.players[i].modifiers.dot_mult() - 1.0).abs() < 1e-9);
+    }
 }
