@@ -2,8 +2,9 @@
 
 Phase: the stage-2 tail of the backlog packet [P-ABIL-1](../../backlog/packets/P-ABIL-1.md). Branch
 `deepseek/p-abil-1`, **stacked on `deepseek/p-faction-1` at `91d2dc52`**, which is itself stacked on
-`deepseek/p-cards-1` at `92dcb662`, `deepseek/p-content-1` and `856618eb` (`optimization_port`). The PR states
-the stack; it targets `deepseek/p-faction-1` and never merges. Evidence for the earlier slices:
+`deepseek/p-cards-1` at `92dcb662`, `deepseek/p-content-1` and `856618eb` (`optimization_port`). Pull
+request: [#38](https://github.com/Nevanyte/RougeHalla/pull/38), commit range `91d2dc52`..`6c420229`; it targets
+`deepseek/p-faction-1` and never merges. Evidence for the earlier slices:
 [P-CONTENT-1](../stage2-content-1/README.md), [P-CARDS-1](../stage2-cards-1/README.md),
 [P-FACTION-1 remainder](../stage2-faction-remainder/README.md), and the integrated five-Wish kernel record
 [stage2-abilities/native](../stage2-abilities/native/README.md). Ledger row:
