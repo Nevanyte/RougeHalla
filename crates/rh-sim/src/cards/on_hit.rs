@@ -138,11 +138,22 @@ pub(crate) fn apply(hx: &mut Hx, args: &HookArgs) {
         return;
     };
     let Some(by) = entry.by else { return };
-    if entry.passive || entry.derived || entry.sig.is_some() || entry.weapon.is_none() || entry.dot
-    {
+    if entry.arena || entry.derived {
         return;
     }
-    hit_taken_rows(hx, entry, amount);
+    // A weapon hit or a returned hit (Eye for an Eye); a DoT tick, an ability or a signature is no hit.
+    let returned = entry.passive;
+    let weapon_hit = !entry.passive
+        && !entry.dot
+        && entry.sig.is_none()
+        && entry.ability.is_none()
+        && entry.weapon.is_some();
+    if !weapon_hit && !(returned && entry.weapon.is_some()) {
+        return;
+    }
+    if weapon_hit {
+        hit_taken_rows(hx, entry, amount);
+    }
     let Some(victim_ix) = hx.w.fighter_idx(entry.victim) else {
         return;
     };
@@ -161,6 +172,10 @@ pub(crate) fn apply(hx: &mut Hx, args: &HookArgs) {
     };
     let (k, hit, rows, n) = {
         let Some(p) = hx.w.player(by) else { return };
+        // Returned damage only applies the on-hit rows for an Eye for an Eye holder.
+        if returned && !p.build.has_flag(crate::stat_fold::EffectFlag::EyeForAnEye) {
+            return;
+        }
         let mut rows = [(StatusKind::Dot, 0., None, 0.); MAX_ON_HIT_ROWS];
         let mut n = 0;
         for id in p.build.cards() {
@@ -301,6 +316,119 @@ mod tests {
     use crate::content::WeaponId;
     use crate::state::Packet;
     use crate::{arenas, FactionId, Placement, PlayerId, Secrets, Sim, SimConfig, Vec2};
+
+    #[test]
+    fn a_returned_hit_procs_on_hit_only_with_eye_for_an_eye() {
+        let ps = [
+            Placement {
+                profile: "a".into(),
+                faction: FactionId::Fire,
+                bot: false,
+                at: Vec2::new(400., 400.),
+                hp: None,
+                weapon0: None,
+                weapon1: None,
+            },
+            Placement {
+                profile: "b".into(),
+                faction: FactionId::Holy,
+                bot: false,
+                at: Vec2::new(456., 400.),
+                hp: None,
+                weapon0: None,
+                weapon1: None,
+            },
+        ];
+        let mut sim = Sim::reset_active(
+            SimConfig::default(),
+            arenas::practice_arena(),
+            Secrets::from_seed(7),
+            &ps,
+        );
+        assert!(crate::cards::grant(
+            &sim.k,
+            &mut sim.w,
+            PlayerId(1),
+            crate::cards::CardId::Hemorrhage
+        ));
+        let mut ev = Vec::new();
+        let entry = crate::systems::ledger::Entry {
+            terrain: false,
+            dot: false,
+            ability: None,
+            arena: false,
+            source: None,
+            critical: false,
+            critical_mult: None,
+            sig: None,
+            execute: false,
+            victim: PlayerId(2),
+            by: Some(PlayerId(1)),
+            packet: Packet {
+                raw: 100.,
+                phys: 1.,
+                magic: 0.,
+                true_: 0.,
+            },
+            weapon: Some(WeaponId::Sword),
+            stagger: false,
+            projectile: None,
+            scale: 1.,
+            derived: false,
+            passive: true,
+        };
+        {
+            let mut hx = crate::hooks::Hx {
+                stats: Default::default(),
+                fx: None,
+                k: &sim.k,
+                w: &mut sim.w,
+                ev: &mut ev,
+            };
+            apply(
+                &mut hx,
+                &crate::hooks::HookArgs::HitLanded {
+                    entry: entry.clone(),
+                    amount: 100.,
+                },
+            );
+        }
+        let bleed = |w: &crate::state::World| {
+            w.player(PlayerId(2))
+                .unwrap()
+                .statuses
+                .instances
+                .iter()
+                .any(|s| {
+                    matches!(
+                        &s.tag,
+                        Some(crate::status_runtime::StatusTag::Text(t)) if t.starts_with("bleed")
+                    )
+                })
+        };
+        assert!(!bleed(&sim.w), "no Eye for an Eye holds no returned on-hit");
+        assert!(crate::cards::grant(
+            &sim.k,
+            &mut sim.w,
+            PlayerId(1),
+            crate::cards::CardId::EyeForAnEye
+        ));
+        let mut hx = crate::hooks::Hx {
+            stats: Default::default(),
+            fx: None,
+            k: &sim.k,
+            w: &mut sim.w,
+            ev: &mut ev,
+        };
+        apply(
+            &mut hx,
+            &crate::hooks::HookArgs::HitLanded {
+                entry,
+                amount: 100.,
+            },
+        );
+        assert!(bleed(hx.w), "the returned hit procs the bleed");
+    }
 
     #[test]
     fn hemorrhage_applies_a_physical_bleed_from_a_landed_hit() {
