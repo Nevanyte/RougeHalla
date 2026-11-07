@@ -100,6 +100,10 @@ catalog to a generated, corpus-verified table and the build to the source count 
 18. **Final Verdict returns denied execute damage**: when the Sentenced owner has the `finalVerdict` flag, every denied execute
    hit is deferred back at the denying foe as **true damage** with the owner's active weapon, passive (the source's final hit),
    paid by the next tick's ledger.
+19. **Festering Arcana's signature-stop dot is live**: `Signature.engaged_on` records the target a Fire/Plague damage-over-time
+   signature is running on; when it changes, the old target receives the card's magic damage-over-time (4 ticks x 1 s, value
+   AP x 1/8, magic shares) when the owner owns the card and has AP, the target stands and is targetable. The hash tape is
+   recalibrated for the new signature leaf.
 
 ## Measurements
 
