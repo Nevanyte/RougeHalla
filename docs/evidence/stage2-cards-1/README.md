@@ -117,6 +117,9 @@ catalog to a generated, corpus-verified table and the build to the source count 
    its share (the whole entry when it is an execute), keeps the execute total from taking the victim below 1 hp, cuts each entry
    by the held-back fraction and reports the denied amounts per foe. The parts reuse a scratch buffer (no per-victim
    allocation).
+23. **The chest refuses a conditional card without its base**: an option whose card `requires` a base the picker does not hold
+   returns `Refusal::Needs(<Base>)`, whose message is the source's "Needs <Base>" (the refusal message is a `Cow`; the wire maps
+   the new reason to code 10). `BaseStatId` gains the serde derives the refusal needs.
 
 ## Measurements
 
