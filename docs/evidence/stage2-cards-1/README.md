@@ -67,10 +67,16 @@ catalog to a generated, corpus-verified table and the build to the source count 
    when a boost was active) and drops pending heal-over-time runs; `cardHooks.dropDeferred` clears the deferred-hit queue on
    teleport and run end. Both schedule links moved from pending to ported, the parity trace and the arena inventory were
    updated, and a focused test pins the cleared fields.
+13. **Overkill's splash is live**: the ledger fires the new `Overkilled` hook when a pass kills a victim with damage to spare,
+   carrying the contributing entries and their raw shares; `cards::on_overkilled` records one splash request per kill row
+   (share = raw × overkill/total, the victim's position, the card radius), and the after-damage system resolves each to the
+   nearest standing hostile within the radius (excluding the holder/victim, same-faction players, immune and untargetable
+   fighters) as a derived+passive hit for the next tick's ledger with the entry's damage shares and weapon. A focused test pins
+   the share and the resolved hit on a third player.
 
 ## Measurements
 
-- `cargo test --workspace --all-features --locked` (throwaway PostgreSQL): **1,400 passed, 0 failed, 3 ignored, 151 test
+- `cargo test --workspace --all-features --locked` (throwaway PostgreSQL): **1,401 passed, 0 failed, 3 ignored, 151 test
   binaries, exit 0** (after the full-pool drop, the 21/21 terrain kernel, the allocation-free on-hit hook, the Fists of Fury
   multiplicity, the streak memory, Wishful Thinking, heal over time, Second Wind's trigger, Spiked Shell's return, Tank Engine's fortify, Adrenaline's boost and the teleport resets).
 - Catalog differentials: **2/2** (80 cards × all rows/selections; 80 × 4 eligibility entries incl. reasons).
