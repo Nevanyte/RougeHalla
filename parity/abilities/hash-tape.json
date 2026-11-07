@@ -2,215 +2,215 @@
   "base": "856618eb",
   "cases": {
     "all-five-normal-cooldowns-and-blaze-stocks": {
-      "fold": "ef311e8e8685cb12",
+      "fold": "fe3b87b53767a8f7",
       "ticks": 3609
     },
     "atomic-due-batch-fizzle-with-surviving-swarm": {
-      "fold": "d987752931a47d15",
+      "fold": "7227b999ae033ff8",
       "ticks": 9
     },
     "atomic-freeze-and-swarm-same-due": {
-      "fold": "7842e6fd3c892db5",
+      "fold": "33998b6422415c08",
       "ticks": 9
     },
     "atomic-landing-rank-reverses-join-and-intake": {
-      "fold": "5e393037cc8b2a58",
+      "fold": "67eb37c9b08809b0",
       "ticks": 9
     },
     "atomic-reciprocal-freezes-12": {
-      "fold": "e648bd1c9ebbb946",
+      "fold": "4a98d5b3e23ea860",
       "ticks": 9
     },
     "atomic-reciprocal-freezes-77": {
-      "fold": "0a06cd73361220ad",
+      "fold": "9f086f39a97150f2",
       "ticks": 9
     },
     "blaze-contact-tail-and-field-expiry": {
-      "fold": "70dcc90e897b6fb9",
+      "fold": "400fdfd1809b8780",
       "ticks": 97
     },
     "blaze-locked-coliseum-gate-no-charge-spend": {
-      "fold": "25d2f417a4781660",
+      "fold": "2b8a08ddf9d676e4",
       "ticks": 12
     },
     "blaze-no-direction-and-sealed-pocket": {
-      "fold": "c6ed2489c3598989",
+      "fold": "b55ef7599118ca3f",
       "ticks": 4
     },
     "blaze-open-coliseum-gate": {
-      "fold": "48ec84280072f9b7",
+      "fold": "113af0ecdf8b29e7",
       "ticks": 5
     },
     "blaze-resets-slip-history-and-real-chaser-lock": {
-      "fold": "85b7fd6cbed6ba45",
+      "fold": "6306ff8659b3129d",
       "ticks": 8
     },
     "blaze-source-born-fire-return-and-credit": {
-      "fold": "555b855c8717e9d0",
+      "fold": "ba1015fb90f0b95a",
       "ticks": 9
     },
     "blaze-source-born-frost-return-and-credit": {
-      "fold": "9eec88993702f5ee",
+      "fold": "fe90e2d016c01b2f",
       "ticks": 9
     },
     "blaze-source-born-npc-return-and-credit": {
-      "fold": "e2db0f92eea15105",
+      "fold": "9847dac12c0e55f7",
       "ticks": 9
     },
     "blaze-source-born-plague-return-and-credit": {
-      "fold": "4950f3318b2a0c84",
+      "fold": "a0d12201fbc25d2b",
       "ticks": 9
     },
     "blaze-source-born-sentenced-return-and-credit": {
-      "fold": "53b7c69638dc0334",
+      "fold": "d81f0f5c9370cafb",
       "ticks": 9
     },
     "blaze-through-connected-interior-wall": {
-      "fold": "71c43dc76e095d40",
+      "fold": "35b3e7fda268a885",
       "ticks": 4
     },
     "blaze-trail-outlives-removed-owner-to-lethal": {
-      "fold": "88aace436ebfab7e",
+      "fold": "b24cc14d5fcb60f7",
       "ticks": 46
     },
     "blaze-zero-time-order-swap-second-cast": {
-      "fold": "7cf831c315b8b920",
+      "fold": "79133931b65c3eb8",
       "ticks": 5
     },
     "cast-cancels-directional-windup-keeps-walk-held-trigger": {
-      "fold": "01653fd8ec449732",
+      "fold": "e3de93c01f4756e2",
       "ticks": 15
     },
     "cast-parser-empty-slots-sequence-lag": {
-      "fold": "d1bc34e7b9dc5b52",
+      "fold": "313cf2b2ec12edb0",
       "ticks": 8
     },
     "cast-status-eligibility-root": {
-      "fold": "efc262cc837357ce",
+      "fold": "b6f9c47d498625b8",
       "ticks": 8
     },
     "cast-status-eligibility-silence": {
-      "fold": "c5c7d80ac4652190",
+      "fold": "fba5f7be86f488cc",
       "ticks": 8
     },
     "cast-status-eligibility-stun": {
-      "fold": "a44f77f18ab89e78",
+      "fold": "32545dd333271c57",
       "ticks": 8
     },
     "drop-reconnect-preserve-pending-cast": {
-      "fold": "042b176e1f71d78f",
+      "fold": "e52362d8d274b827",
       "ticks": 9
     },
     "freeze-after-swarm-fizzles": {
-      "fold": "42f47142aae8d4ea",
+      "fold": "f9b4d03d7cc0df47",
       "ticks": 10
     },
     "freeze-interrupt-spends-without-refund": {
-      "fold": "fd59ce024dfae817",
+      "fold": "bcae11ad4efb9c8d",
       "ticks": 10
     },
     "freeze-moving-target-fizzle": {
-      "fold": "ef26fa538621a7c1",
+      "fold": "ade357c347f55ee2",
       "ticks": 9
     },
     "freeze-range-slack-482": {
-      "fold": "e2e099b2b2241ea8",
+      "fold": "dcb0c4f5481fd2d3",
       "ticks": 8
     },
     "freeze-range-slack-482.000001": {
-      "fold": "e915f8ca95bac95a",
+      "fold": "b79556016b462675",
       "ticks": 8
     },
     "freeze-trial-source-born-return-target": {
-      "fold": "95bb43cd9367b46c",
+      "fold": "feb5775a5d3d87a9",
       "ticks": 41
     },
     "freeze-wall-los-refusal": {
-      "fold": "092c575816ac7d55",
+      "fold": "e31b54af36a43d86",
       "ticks": 8
     },
     "laststand-antiheal-common-healing": {
-      "fold": "987b6dfad14cbc5c",
+      "fold": "fde45358c7fafd55",
       "ticks": 104
     },
     "laststand-mia-does-not-pay": {
-      "fold": "3f983315dcdaaba2",
+      "fold": "bb2bd9ed1a111dca",
       "ticks": 4
     },
     "laststand-overkill-and-natural-payback": {
-      "fold": "2be60c4dc8ddf90c",
+      "fold": "849bf3acdbb1bbf9",
       "ticks": 104
     },
     "laststand-run-end-does-not-pay": {
-      "fold": "89bf178fc850d18e",
+      "fold": "2a9d0c5f000e72fe",
       "ticks": 3
     },
     "laststand-teleport-payback-without-cooldown-refund": {
-      "fold": "bd0a24d21b198886",
+      "fold": "e929a9be74f20abc",
       "ticks": 8
     },
     "normal-45s-lock-ready-boundary": {
-      "fold": "99f2e7b69e538a7d",
+      "fold": "df8eb723e607f099",
       "ticks": 906
     },
     "observer-hidden-absent-twin-absent-actor": {
-      "fold": "92d280c043f45c7a",
+      "fold": "7384dd58e1154d3b",
       "ticks": 9
     },
     "observer-hidden-absent-twin-p1": {
-      "fold": "92d280c043f45c7a",
+      "fold": "7384dd58e1154d3b",
       "ticks": 9
     },
     "pending-freeze-real-sword-death-paylater": {
-      "fold": "bb37f6245a532472",
+      "fold": "5bd519dd8d53eb6f",
       "ticks": 8
     },
     "pending-freeze-run-end-keeps-spending": {
-      "fold": "22d52faf151a8d90",
+      "fold": "75712468307fbef7",
       "ticks": 3
     },
     "source-born-npc-cannot-originate-wish": {
-      "fold": "4d015115669ea729",
+      "fold": "aca7ce953282fdb9",
       "ticks": 5
     },
     "swarm-drop-reconnect-and-owner-removal": {
-      "fold": "f279ba3a537fb72c",
+      "fold": "83090e074705cb3a",
       "ticks": 12
     },
     "swarm-drops-lock-and-chase": {
-      "fold": "788d0ac7f63865c9",
+      "fold": "44d1ded201d20535",
       "ticks": 14
     },
     "swarm-independent-walk-reveal-and-expiry": {
-      "fold": "464408989977fdb7",
+      "fold": "d00f1e77aee72a7c",
       "ticks": 171
     },
     "swarm-unknown-hidden-target-and-next-tick-reveal": {
-      "fold": "4cf8fe060d320971",
+      "fold": "7d51452b83d3421e",
       "ticks": 17
     },
     "teleport-grace-and-immunity-boundaries": {
-      "fold": "64ab090cdf08c981",
+      "fold": "364ee44fef205c87",
       "ticks": 39
     },
     "trial-centre-after-same-batch-self-blink": {
-      "fold": "e4486a6cf5aeae48",
+      "fold": "9360201810469d58",
       "ticks": 12
     },
     "trial-departed-owner": {
-      "fold": "e8a5ec37819fbcc0",
+      "fold": "4aaf363610c6ccbc",
       "ticks": 11
     },
     "trial-departed-subject": {
-      "fold": "53db93e016138cb0",
+      "fold": "7a0a4331457467cb",
       "ticks": 11
     },
     "trial-existing-zone-blaze-exit-same-phase": {
-      "fold": "1cbfff7312c4f1e0",
+      "fold": "75d392c859c230f9",
       "ticks": 14
     },
     "trial-inclusive-edge-then-ordinary-exit": {
-      "fold": "2298fbb5e06ef672",
+      "fold": "812f593d0d11d16d",
       "ticks": 67
     }
   },
