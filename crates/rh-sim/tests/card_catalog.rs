@@ -8,6 +8,7 @@ use rh_sim::stat_fold::{
     WhileCond,
 };
 use rh_sim::status_runtime::StatusKind;
+use rh_sim::FactionId;
 use serde_json::{json, Value as V};
 
 fn corpus() -> V {
@@ -403,5 +404,133 @@ fn the_generated_catalog_matches_the_source_corpus() {
                 id.as_str()
             );
         }
+        // Faction selections: the default for undefined/unknown, the override for a real faction.
+        for s in case["expected"]["selections"].as_array().unwrap() {
+            let faction = match s["faction"].as_str() {
+                Some("fire") => Some(FactionId::Fire),
+                Some("sentenced") => Some(FactionId::Sentenced),
+                Some("plague") => Some(FactionId::Plague),
+                Some("frost") => Some(FactionId::Frost),
+                Some("holy") => Some(FactionId::Holy),
+                _ => None,
+            };
+            let (text, rows) = match faction {
+                Some(f) => got.selection(f),
+                None => (got.text, got.rows),
+            };
+            assert_eq!(
+                text,
+                s["text"].as_str().unwrap(),
+                "selection text {}",
+                id.as_str()
+            );
+            let want_rows = s["rows"].as_array().unwrap();
+            assert_eq!(
+                rows.len(),
+                want_rows.len(),
+                "selection row count {}",
+                id.as_str()
+            );
+            for (row, w) in rows.iter().zip(want_rows) {
+                let projected = project(row);
+                assert!(
+                    json_eq(&projected, w),
+                    "selection row of {}: generated {projected} vs source {w}",
+                    id.as_str()
+                );
+            }
+        }
     }
+}
+
+#[test]
+fn eligibility_cases_match_the_catalog() {
+    let corpus = corpus();
+    let mut n = 0;
+    for case in corpus["cases"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|c| c["family"] == "eligibility")
+    {
+        let id_str = case["input"]["id"].as_str().unwrap();
+        let id = CardId::ALL
+            .into_iter()
+            .find(|id| id.as_str() == id_str)
+            .unwrap_or_else(|| panic!("unknown id {id_str}"));
+        let def = id.definition();
+        let faction = match case["input"]["viewFaction"].as_str() {
+            Some("fire") => FactionId::Fire,
+            Some("sentenced") => FactionId::Sentenced,
+            Some("plague") => FactionId::Plague,
+            Some("frost") => FactionId::Frost,
+            Some("holy") => FactionId::Holy,
+            other => panic!("unknown view faction {other:?}"),
+        };
+        let (text, _) = def.selection(faction);
+        let builds = case["input"]["builds"].as_array().unwrap();
+        let entries = case["expected"].as_array().unwrap();
+        assert_eq!(entries.len(), builds.len(), "entry count {id_str}");
+        for (build, e) in builds.iter().zip(entries) {
+            let v = &e["view"];
+            assert_eq!(v["id"].as_str().unwrap(), id.as_str(), "view id {id_str}");
+            assert_eq!(
+                v["title"].as_str().unwrap(),
+                def.title,
+                "view title {id_str}"
+            );
+            assert_eq!(
+                usize::from(def.tier),
+                v["tier"].as_u64().unwrap() as usize,
+                "view tier {id_str}"
+            );
+            assert_eq!(
+                v["kind"].as_str().unwrap(),
+                kind_name(def.kind),
+                "view kind {id_str}"
+            );
+            assert_eq!(v["text"].as_str().unwrap(), text, "view text {id_str}");
+            let tags: Vec<&str> = def.tags.iter().map(|t| tag_name(*t)).collect();
+            let want_tags: Vec<&str> = v["tags"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|t| t.as_str().unwrap())
+                .collect();
+            assert_eq!(tags, want_tags, "view tags {id_str}");
+            assert_eq!(
+                v["base"].as_str().map(str::to_string),
+                def.base.map(|b| base_name(b).to_string()),
+                "view base {id_str}"
+            );
+            let held = build.get(id_str).and_then(|c| c.as_u64()).unwrap_or(0);
+            assert_eq!(e["count"].as_u64().unwrap(), held, "count {id_str}");
+            assert_eq!(v["held"].as_u64().unwrap(), held, "held {id_str}");
+            let mut owned: Vec<String> = build
+                .as_object()
+                .unwrap()
+                .keys()
+                .filter(|k| build.get(*k).and_then(|c| c.as_u64()).unwrap_or(0) > 0)
+                .cloned()
+                .collect();
+            owned.sort();
+            let owned_defs = e["owned"].as_array().unwrap();
+            let mut want_owned: Vec<String> = owned_defs
+                .iter()
+                .map(|o| o["def"]["id"].as_str().unwrap().to_string())
+                .collect();
+            want_owned.sort();
+            assert_eq!(owned, want_owned, "owned {id_str}");
+            let power: u64 = owned_defs
+                .iter()
+                .map(|o| {
+                    u64::from(o["def"]["tier"].as_u64().unwrap() as u8)
+                        * o["count"].as_u64().unwrap()
+                })
+                .sum();
+            assert_eq!(e["power"].as_u64().unwrap(), power, "power {id_str}");
+        }
+        n += 1;
+    }
+    assert_eq!(n, 80, "eligibility case count");
 }

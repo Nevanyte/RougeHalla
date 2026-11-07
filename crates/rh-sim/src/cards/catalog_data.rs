@@ -3,13 +3,14 @@
 
 use super::{
     BaseStatId, CardDef, CardId, CardKind, CardRow, MechanicTag, OnHitRow, ScaleRow, ScaleSrc,
-    Side, TriggerAction, TriggerOn, TriggerRow, VsRow, VsTest,
+    Selection, Side, TriggerAction, TriggerOn, TriggerRow, VsRow, VsTest,
 };
 use crate::stat_fold::{
     ConvertFrom, ConvertTo, EffectFlag, EffectKind, EffectStat, FlatStat, MultKey, StatKey,
     WhileCond, WhileRow,
 };
 use crate::status_runtime::StatusKind;
+use crate::FactionId;
 
 pub static DEFINITIONS: [CardDef; 80] = [
     CardDef {
@@ -26,6 +27,8 @@ pub static DEFINITIONS: [CardDef; 80] = [
         rows: &[
             CardRow::Fold(EffectKind::Flat { stat: FlatStat::Ad, v: 12.0 }),
         ],
+        selections: &[
+        ],
     },
     CardDef {
         id: CardId::Ad2,
@@ -40,6 +43,8 @@ pub static DEFINITIONS: [CardDef; 80] = [
         tags: &[MechanicTag::Physical],
         rows: &[
             CardRow::Fold(EffectKind::Flat { stat: FlatStat::Ad, v: 21.0 }),
+        ],
+        selections: &[
         ],
     },
     CardDef {
@@ -56,6 +61,8 @@ pub static DEFINITIONS: [CardDef; 80] = [
         rows: &[
             CardRow::Fold(EffectKind::Flat { stat: FlatStat::Ad, v: 33.0 }),
         ],
+        selections: &[
+        ],
     },
     CardDef {
         id: CardId::Ap1,
@@ -70,6 +77,8 @@ pub static DEFINITIONS: [CardDef; 80] = [
         tags: &[MechanicTag::Magic, MechanicTag::Dot],
         rows: &[
             CardRow::Fold(EffectKind::Flat { stat: FlatStat::Ap, v: 12.0 }),
+        ],
+        selections: &[
         ],
     },
     CardDef {
@@ -86,6 +95,8 @@ pub static DEFINITIONS: [CardDef; 80] = [
         rows: &[
             CardRow::Fold(EffectKind::Flat { stat: FlatStat::Ap, v: 21.0 }),
         ],
+        selections: &[
+        ],
     },
     CardDef {
         id: CardId::Ap3,
@@ -100,6 +111,8 @@ pub static DEFINITIONS: [CardDef; 80] = [
         tags: &[MechanicTag::Magic, MechanicTag::Dot],
         rows: &[
             CardRow::Fold(EffectKind::Flat { stat: FlatStat::Ap, v: 33.0 }),
+        ],
+        selections: &[
         ],
     },
     CardDef {
@@ -116,6 +129,8 @@ pub static DEFINITIONS: [CardDef; 80] = [
         rows: &[
             CardRow::Fold(EffectKind::Stat { stat: EffectStat::AttackSpeed, v: 0.09 }),
         ],
+        selections: &[
+        ],
     },
     CardDef {
         id: CardId::Haste2,
@@ -130,6 +145,8 @@ pub static DEFINITIONS: [CardDef; 80] = [
         tags: &[],
         rows: &[
             CardRow::Fold(EffectKind::Stat { stat: EffectStat::AttackSpeed, v: 0.16 }),
+        ],
+        selections: &[
         ],
     },
     CardDef {
@@ -146,6 +163,8 @@ pub static DEFINITIONS: [CardDef; 80] = [
         rows: &[
             CardRow::Fold(EffectKind::Stat { stat: EffectStat::AttackSpeed, v: 0.25 }),
         ],
+        selections: &[
+        ],
     },
     CardDef {
         id: CardId::Vitality1,
@@ -160,6 +179,8 @@ pub static DEFINITIONS: [CardDef; 80] = [
         tags: &[],
         rows: &[
             CardRow::Fold(EffectKind::Stat { stat: EffectStat::MaxHp, v: 0.09 }),
+        ],
+        selections: &[
         ],
     },
     CardDef {
@@ -176,6 +197,8 @@ pub static DEFINITIONS: [CardDef; 80] = [
         rows: &[
             CardRow::Fold(EffectKind::Stat { stat: EffectStat::MaxHp, v: 0.16 }),
         ],
+        selections: &[
+        ],
     },
     CardDef {
         id: CardId::Vitality3,
@@ -190,6 +213,8 @@ pub static DEFINITIONS: [CardDef; 80] = [
         tags: &[],
         rows: &[
             CardRow::Fold(EffectKind::Stat { stat: EffectStat::MaxHp, v: 0.25 }),
+        ],
+        selections: &[
         ],
     },
     CardDef {
@@ -206,6 +231,8 @@ pub static DEFINITIONS: [CardDef; 80] = [
         rows: &[
             CardRow::Fold(EffectKind::Flat { stat: FlatStat::Armor, v: 15.0 }),
         ],
+        selections: &[
+        ],
     },
     CardDef {
         id: CardId::Armor2,
@@ -220,6 +247,8 @@ pub static DEFINITIONS: [CardDef; 80] = [
         tags: &[MechanicTag::Physical],
         rows: &[
             CardRow::Fold(EffectKind::Flat { stat: FlatStat::Armor, v: 26.0 }),
+        ],
+        selections: &[
         ],
     },
     CardDef {
@@ -236,6 +265,8 @@ pub static DEFINITIONS: [CardDef; 80] = [
         rows: &[
             CardRow::Fold(EffectKind::Flat { stat: FlatStat::Armor, v: 41.0 }),
         ],
+        selections: &[
+        ],
     },
     CardDef {
         id: CardId::Mr1,
@@ -250,6 +281,8 @@ pub static DEFINITIONS: [CardDef; 80] = [
         tags: &[MechanicTag::Magic],
         rows: &[
             CardRow::Fold(EffectKind::Flat { stat: FlatStat::Shield, v: 15.0 }),
+        ],
+        selections: &[
         ],
     },
     CardDef {
@@ -266,6 +299,8 @@ pub static DEFINITIONS: [CardDef; 80] = [
         rows: &[
             CardRow::Fold(EffectKind::Flat { stat: FlatStat::Shield, v: 26.0 }),
         ],
+        selections: &[
+        ],
     },
     CardDef {
         id: CardId::Mr3,
@@ -280,6 +315,8 @@ pub static DEFINITIONS: [CardDef; 80] = [
         tags: &[MechanicTag::Magic],
         rows: &[
             CardRow::Fold(EffectKind::Flat { stat: FlatStat::Shield, v: 41.0 }),
+        ],
+        selections: &[
         ],
     },
     CardDef {
@@ -296,6 +333,8 @@ pub static DEFINITIONS: [CardDef; 80] = [
         rows: &[
             CardRow::Fold(EffectKind::Stat { stat: EffectStat::Lifesteal, v: 0.05 }),
         ],
+        selections: &[
+        ],
     },
     CardDef {
         id: CardId::Leech2,
@@ -310,6 +349,8 @@ pub static DEFINITIONS: [CardDef; 80] = [
         tags: &[MechanicTag::Heal],
         rows: &[
             CardRow::Fold(EffectKind::Stat { stat: EffectStat::Lifesteal, v: 0.09 }),
+        ],
+        selections: &[
         ],
     },
     CardDef {
@@ -326,6 +367,8 @@ pub static DEFINITIONS: [CardDef; 80] = [
         rows: &[
             CardRow::Fold(EffectKind::Stat { stat: EffectStat::Lifesteal, v: 0.14 }),
         ],
+        selections: &[
+        ],
     },
     CardDef {
         id: CardId::Fleet1,
@@ -340,6 +383,8 @@ pub static DEFINITIONS: [CardDef; 80] = [
         tags: &[],
         rows: &[
             CardRow::Fold(EffectKind::While(WhileRow { cond: WhileCond::NotShooting, arg: 0.0, stat: StatKey::MoveSpeed, v: 0.06, ms: Some(2500.0) })),
+        ],
+        selections: &[
         ],
     },
     CardDef {
@@ -356,6 +401,8 @@ pub static DEFINITIONS: [CardDef; 80] = [
         rows: &[
             CardRow::Fold(EffectKind::While(WhileRow { cond: WhileCond::NotShooting, arg: 0.0, stat: StatKey::MoveSpeed, v: 0.1, ms: Some(2500.0) })),
         ],
+        selections: &[
+        ],
     },
     CardDef {
         id: CardId::Fleet3,
@@ -370,6 +417,8 @@ pub static DEFINITIONS: [CardDef; 80] = [
         tags: &[],
         rows: &[
             CardRow::Fold(EffectKind::While(WhileRow { cond: WhileCond::NotShooting, arg: 0.0, stat: StatKey::MoveSpeed, v: 0.15, ms: Some(2500.0) })),
+        ],
+        selections: &[
         ],
     },
     CardDef {
@@ -386,6 +435,8 @@ pub static DEFINITIONS: [CardDef; 80] = [
         rows: &[
             CardRow::Fold(EffectKind::While(WhileRow { cond: WhileCond::HpBelow, arg: 0.5, stat: StatKey::LifestealMult, v: 1.0, ms: None })),
         ],
+        selections: &[
+        ],
     },
     CardDef {
         id: CardId::SecondSkin,
@@ -400,6 +451,8 @@ pub static DEFINITIONS: [CardDef; 80] = [
         tags: &[MechanicTag::Heal],
         rows: &[
             CardRow::Fold(EffectKind::Stat { stat: EffectStat::HealBarrier, v: 0.3 }),
+        ],
+        selections: &[
         ],
     },
     CardDef {
@@ -417,6 +470,8 @@ pub static DEFINITIONS: [CardDef; 80] = [
             CardRow::Fold(EffectKind::Convert { from: ConvertFrom::Ad, to: ConvertTo::Armor, per: 0.25, cap: None }),
             CardRow::Fold(EffectKind::Convert { from: ConvertFrom::Ad, to: ConvertTo::Shield, per: 0.25, cap: None }),
         ],
+        selections: &[
+        ],
     },
     CardDef {
         id: CardId::Spellsword,
@@ -431,6 +486,8 @@ pub static DEFINITIONS: [CardDef; 80] = [
         tags: &[MechanicTag::Magic],
         rows: &[
             CardRow::Fold(EffectKind::Convert { from: ConvertFrom::Ad, to: ConvertTo::Ap, per: 0.5, cap: None }),
+        ],
+        selections: &[
         ],
     },
     CardDef {
@@ -447,6 +504,8 @@ pub static DEFINITIONS: [CardDef; 80] = [
         rows: &[
             CardRow::Fold(EffectKind::Convert { from: ConvertFrom::MaxHp, to: ConvertTo::Ap, per: 0.02, cap: None }),
         ],
+        selections: &[
+        ],
     },
     CardDef {
         id: CardId::ArcaneTempo,
@@ -462,6 +521,8 @@ pub static DEFINITIONS: [CardDef; 80] = [
         rows: &[
             CardRow::Fold(EffectKind::Convert { from: ConvertFrom::BonusAttackSpeed, to: ConvertTo::Ap, per: 100.0, cap: None }),
         ],
+        selections: &[
+        ],
     },
     CardDef {
         id: CardId::Momentum,
@@ -476,6 +537,8 @@ pub static DEFINITIONS: [CardDef; 80] = [
         tags: &[],
         rows: &[
             CardRow::Fold(EffectKind::Convert { from: ConvertFrom::BonusMoveSpeed, to: ConvertTo::Damage, per: 1.0, cap: Some(0.3) }),
+        ],
+        selections: &[
         ],
     },
     CardDef {
@@ -493,6 +556,8 @@ pub static DEFINITIONS: [CardDef; 80] = [
             CardRow::Fold(EffectKind::Convert { from: ConvertFrom::MaxHp, to: ConvertTo::Armor, per: 0.02, cap: None }),
             CardRow::Fold(EffectKind::Convert { from: ConvertFrom::MaxHp, to: ConvertTo::Shield, per: 0.02, cap: None }),
         ],
+        selections: &[
+        ],
     },
     CardDef {
         id: CardId::Hearty,
@@ -507,6 +572,8 @@ pub static DEFINITIONS: [CardDef; 80] = [
         tags: &[],
         rows: &[
             CardRow::Fold(EffectKind::Stat { stat: EffectStat::MaxHp, v: 0.18 }),
+        ],
+        selections: &[
         ],
     },
     CardDef {
@@ -523,6 +590,8 @@ pub static DEFINITIONS: [CardDef; 80] = [
         rows: &[
             CardRow::Fold(EffectKind::Flag { flag: EffectFlag::Festering }),
         ],
+        selections: &[
+        ],
     },
     CardDef {
         id: CardId::Rhythm,
@@ -537,6 +606,8 @@ pub static DEFINITIONS: [CardDef; 80] = [
         tags: &[MechanicTag::Crit],
         rows: &[
             CardRow::Fold(EffectKind::Stat { stat: EffectStat::CritChance, v: 0.3333333333333333 }),
+        ],
+        selections: &[
         ],
     },
     CardDef {
@@ -553,6 +624,8 @@ pub static DEFINITIONS: [CardDef; 80] = [
         rows: &[
             CardRow::Fold(EffectKind::Flag { flag: EffectFlag::HeavierSentence }),
         ],
+        selections: &[
+        ],
     },
     CardDef {
         id: CardId::SwiftJudgment,
@@ -567,6 +640,8 @@ pub static DEFINITIONS: [CardDef; 80] = [
         tags: &[MechanicTag::Ramping],
         rows: &[
             CardRow::Fold(EffectKind::Flag { flag: EffectFlag::SwiftJudgment }),
+        ],
+        selections: &[
         ],
     },
     CardDef {
@@ -586,6 +661,8 @@ pub static DEFINITIONS: [CardDef; 80] = [
             CardRow::Fold(EffectKind::Mult { key: MultKey::Dot, v: 1.25 }),
             CardRow::Fold(EffectKind::Mult { key: MultKey::Returned, v: 1.25 }),
         ],
+        selections: &[
+        ],
     },
     CardDef {
         id: CardId::MachineGun,
@@ -601,6 +678,8 @@ pub static DEFINITIONS: [CardDef; 80] = [
         rows: &[
             CardRow::Fold(EffectKind::Mult { key: MultKey::AsPost, v: 2.0 }),
             CardRow::Fold(EffectKind::Mult { key: MultKey::Hit, v: 0.5 }),
+        ],
+        selections: &[
         ],
     },
     CardDef {
@@ -618,6 +697,8 @@ pub static DEFINITIONS: [CardDef; 80] = [
             CardRow::Fold(EffectKind::Stat { stat: EffectStat::Damage, v: 0.35 }),
             CardRow::Fold(EffectKind::Stat { stat: EffectStat::MaxHp, v: -0.25 }),
         ],
+        selections: &[
+        ],
     },
     CardDef {
         id: CardId::ThickSkull,
@@ -633,6 +714,8 @@ pub static DEFINITIONS: [CardDef; 80] = [
         rows: &[
             CardRow::Fold(EffectKind::Stat { stat: EffectStat::MaxHp, v: 0.3 }),
             CardRow::Fold(EffectKind::Flag { flag: EffectFlag::NoCrit }),
+        ],
+        selections: &[
         ],
     },
     CardDef {
@@ -650,6 +733,8 @@ pub static DEFINITIONS: [CardDef; 80] = [
             CardRow::Fold(EffectKind::Stat { stat: EffectStat::Lifesteal, v: 0.15 }),
             CardRow::Fold(EffectKind::Stat { stat: EffectStat::HealTaken, v: -1.0 }),
         ],
+        selections: &[
+        ],
     },
     CardDef {
         id: CardId::ArcaneOverload,
@@ -665,6 +750,8 @@ pub static DEFINITIONS: [CardDef; 80] = [
         rows: &[
             CardRow::Fold(EffectKind::Mult { key: MultKey::Ap, v: 1.5 }),
             CardRow::Fold(EffectKind::Mult { key: MultKey::WishCooldown, v: 2.0 }),
+        ],
+        selections: &[
         ],
     },
     CardDef {
@@ -683,6 +770,8 @@ pub static DEFINITIONS: [CardDef; 80] = [
             CardRow::Fold(EffectKind::Stat { stat: EffectStat::Damage, v: 0.2 }),
             CardRow::Fold(EffectKind::Stat { stat: EffectStat::AttackSpeed, v: 0.15 }),
         ],
+        selections: &[
+        ],
     },
     CardDef {
         id: CardId::SlowBurn,
@@ -698,6 +787,8 @@ pub static DEFINITIONS: [CardDef; 80] = [
         rows: &[
             CardRow::Fold(EffectKind::Mult { key: MultKey::Linger, v: 2.0 }),
             CardRow::Fold(EffectKind::Mult { key: MultKey::Dot, v: 0.7 }),
+        ],
+        selections: &[
         ],
     },
     CardDef {
@@ -715,6 +806,8 @@ pub static DEFINITIONS: [CardDef; 80] = [
             CardRow::Fold(EffectKind::While(WhileRow { cond: WhileCond::Unarmed, arg: 0.0, stat: StatKey::AttackSpeed, v: 0.4, ms: None })),
             CardRow::Fold(EffectKind::Flag { flag: EffectFlag::TwiceUnarmed }),
         ],
+        selections: &[
+        ],
     },
     CardDef {
         id: CardId::Overkill,
@@ -729,6 +822,8 @@ pub static DEFINITIONS: [CardDef; 80] = [
         tags: &[MechanicTag::Area],
         rows: &[
             CardRow::Trigger(TriggerRow { on: TriggerOn::Kill, arg: 0.0, once: false, action: TriggerAction::Splash { radius: 200.0 } }),
+        ],
+        selections: &[
         ],
     },
     CardDef {
@@ -745,6 +840,8 @@ pub static DEFINITIONS: [CardDef; 80] = [
         rows: &[
             CardRow::Trigger(TriggerRow { on: TriggerOn::Block, arg: 0.0, once: false, action: TriggerAction::Fortify { per: 1.0, cap: 250.0 } }),
         ],
+        selections: &[
+        ],
     },
     CardDef {
         id: CardId::PocketSand,
@@ -760,6 +857,8 @@ pub static DEFINITIONS: [CardDef; 80] = [
         rows: &[
             CardRow::Trigger(TriggerRow { on: TriggerOn::Block, arg: 0.0, once: false, action: TriggerAction::Status { to: Side::Target, status: StatusKind::SlowMove, ms: 1000.0, value: Some(0.3) } }),
         ],
+        selections: &[
+        ],
     },
     CardDef {
         id: CardId::Gambler,
@@ -774,6 +873,8 @@ pub static DEFINITIONS: [CardDef; 80] = [
         tags: &[MechanicTag::Crit],
         rows: &[
             CardRow::Fold(EffectKind::Flag { flag: EffectFlag::Gambler }),
+        ],
+        selections: &[
         ],
     },
     CardDef {
@@ -791,6 +892,8 @@ pub static DEFINITIONS: [CardDef; 80] = [
             CardRow::Fold(EffectKind::Stat { stat: EffectStat::Damage, v: -0.3 }),
             CardRow::Fold(EffectKind::While(WhileRow { cond: WhileCond::FightTime, arg: 3.0, stat: StatKey::Damage, v: 0.65, ms: None })),
         ],
+        selections: &[
+        ],
     },
     CardDef {
         id: CardId::CoupDeGrace,
@@ -805,6 +908,8 @@ pub static DEFINITIONS: [CardDef; 80] = [
         tags: &[MechanicTag::Execute],
         rows: &[
             CardRow::Vs(VsRow { test: VsTest::HpBelow, arg: 0.3, v: 0.3 }),
+        ],
+        selections: &[
         ],
     },
     CardDef {
@@ -822,6 +927,8 @@ pub static DEFINITIONS: [CardDef; 80] = [
             CardRow::Vs(VsRow { test: VsTest::Elite, arg: 0.0, v: 0.25 }),
             CardRow::Vs(VsRow { test: VsTest::PlayerAbove, arg: 0.7, v: 0.25 }),
         ],
+        selections: &[
+        ],
     },
     CardDef {
         id: CardId::PackLeader,
@@ -836,6 +943,8 @@ pub static DEFINITIONS: [CardDef; 80] = [
         tags: &[],
         rows: &[
             CardRow::Scale(ScaleRow { src: ScaleSrc::CampsCleared, per: 0.03, step: 1.0, cap: 0.24 }),
+        ],
+        selections: &[
         ],
     },
     CardDef {
@@ -852,6 +961,8 @@ pub static DEFINITIONS: [CardDef; 80] = [
         rows: &[
             CardRow::Trigger(TriggerRow { on: TriggerOn::HitTaken, arg: 0.1, once: false, action: TriggerAction::Boost { as_: 0.4, move_: 0.4, ms: 2000.0 } }),
         ],
+        selections: &[
+        ],
     },
     CardDef {
         id: CardId::RaceToZero,
@@ -866,6 +977,8 @@ pub static DEFINITIONS: [CardDef; 80] = [
         tags: &[],
         rows: &[
             CardRow::Fold(EffectKind::Mult { key: MultKey::HpRace, v: 2.5 }),
+        ],
+        selections: &[
         ],
     },
     CardDef {
@@ -883,6 +996,10 @@ pub static DEFINITIONS: [CardDef; 80] = [
             CardRow::Fold(EffectKind::Stat { stat: EffectStat::CritChance, v: 0.2 }),
             CardRow::Fold(EffectKind::Flag { flag: EffectFlag::DotCrit }),
         ],
+        selections: &[
+            Selection { faction: FactionId::Plague, text: "Your attacks gain +20% critical strike chance. Plague's damage-over-time ticks cannot crit; instead they deal bonus damage equal to half your current critical strike chance.", rows: &[CardRow::Fold(EffectKind::Stat { stat: EffectStat::CritChance, v: 0.2 }),
+                CardRow::Fold(EffectKind::Flag { flag: EffectFlag::PlagueDotCritConversion })] },
+        ],
     },
     CardDef {
         id: CardId::ThirdTimesTheCharm,
@@ -897,6 +1014,8 @@ pub static DEFINITIONS: [CardDef; 80] = [
         tags: &[MechanicTag::OnHit],
         rows: &[
             CardRow::Fold(EffectKind::Flag { flag: EffectFlag::ThirdCharm }),
+        ],
+        selections: &[
         ],
     },
     CardDef {
@@ -913,6 +1032,8 @@ pub static DEFINITIONS: [CardDef; 80] = [
         rows: &[
             CardRow::Fold(EffectKind::Flag { flag: EffectFlag::EyeForAnEye }),
         ],
+        selections: &[
+        ],
     },
     CardDef {
         id: CardId::BestOffense,
@@ -927,6 +1048,8 @@ pub static DEFINITIONS: [CardDef; 80] = [
         tags: &[MechanicTag::Block],
         rows: &[
             CardRow::Fold(EffectKind::Flag { flag: EffectFlag::BlockHits }),
+        ],
+        selections: &[
         ],
     },
     CardDef {
@@ -943,6 +1066,8 @@ pub static DEFINITIONS: [CardDef; 80] = [
         rows: &[
             CardRow::Vs(VsRow { test: VsTest::Slowed, arg: 0.0, v: 0.12 }),
         ],
+        selections: &[
+        ],
     },
     CardDef {
         id: CardId::TunnelVision,
@@ -957,6 +1082,8 @@ pub static DEFINITIONS: [CardDef; 80] = [
         tags: &[MechanicTag::Ramping],
         rows: &[
             CardRow::Scale(ScaleRow { src: ScaleSrc::Streak, per: 0.04, step: 1.0, cap: 0.4 }),
+        ],
+        selections: &[
         ],
     },
     CardDef {
@@ -973,6 +1100,8 @@ pub static DEFINITIONS: [CardDef; 80] = [
         rows: &[
             CardRow::Vs(VsRow { test: VsTest::Streak, arg: 0.0, v: 0.4 }),
         ],
+        selections: &[
+        ],
     },
     CardDef {
         id: CardId::PlantYourFeet,
@@ -987,6 +1116,8 @@ pub static DEFINITIONS: [CardDef; 80] = [
         tags: &[],
         rows: &[
             CardRow::Fold(EffectKind::Flag { flag: EffectFlag::PlantFeet }),
+        ],
+        selections: &[
         ],
     },
     CardDef {
@@ -1003,6 +1134,8 @@ pub static DEFINITIONS: [CardDef; 80] = [
         rows: &[
             CardRow::Trigger(TriggerRow { on: TriggerOn::Hit, arg: 0.0, once: false, action: TriggerAction::Cooldown { ms: 1000.0 } }),
         ],
+        selections: &[
+        ],
     },
     CardDef {
         id: CardId::Hemorrhage,
@@ -1017,6 +1150,8 @@ pub static DEFINITIONS: [CardDef; 80] = [
         tags: &[MechanicTag::OnHit, MechanicTag::Dot, MechanicTag::Physical],
         rows: &[
             CardRow::OnHit(OnHitRow { status: StatusKind::Dot, per: 0.1, cap: Some(1.0), ms: 2000.0 }),
+        ],
+        selections: &[
         ],
     },
     CardDef {
@@ -1033,6 +1168,8 @@ pub static DEFINITIONS: [CardDef; 80] = [
         rows: &[
             CardRow::Fold(EffectKind::Stat { stat: EffectStat::SlowResist, v: 0.4 }),
         ],
+        selections: &[
+        ],
     },
     CardDef {
         id: CardId::SpikedShell,
@@ -1047,6 +1184,8 @@ pub static DEFINITIONS: [CardDef; 80] = [
         tags: &[MechanicTag::Returned, MechanicTag::Physical],
         rows: &[
             CardRow::Trigger(TriggerRow { on: TriggerOn::HitTaken, arg: 0.0, once: false, action: TriggerAction::Return { melee: true, share: 0.15 } }),
+        ],
+        selections: &[
         ],
     },
     CardDef {
@@ -1063,6 +1202,8 @@ pub static DEFINITIONS: [CardDef; 80] = [
         rows: &[
             CardRow::Fold(EffectKind::Stat { stat: EffectStat::MarkRate, v: 0.5 }),
         ],
+        selections: &[
+        ],
     },
     CardDef {
         id: CardId::Wellspring,
@@ -1077,6 +1218,8 @@ pub static DEFINITIONS: [CardDef; 80] = [
         tags: &[MechanicTag::Heal],
         rows: &[
             CardRow::Fold(EffectKind::Stat { stat: EffectStat::HealTaken, v: 0.25 }),
+        ],
+        selections: &[
         ],
     },
     CardDef {
@@ -1093,6 +1236,8 @@ pub static DEFINITIONS: [CardDef; 80] = [
         rows: &[
             CardRow::Fold(EffectKind::Stat { stat: EffectStat::LifestealDot, v: 0.2 }),
         ],
+        selections: &[
+        ],
     },
     CardDef {
         id: CardId::Quickdraw,
@@ -1107,6 +1252,8 @@ pub static DEFINITIONS: [CardDef; 80] = [
         tags: &[],
         rows: &[
             CardRow::Fold(EffectKind::Stat { stat: EffectStat::Windup, v: -0.5 }),
+        ],
+        selections: &[
         ],
     },
     CardDef {
@@ -1123,6 +1270,8 @@ pub static DEFINITIONS: [CardDef; 80] = [
         rows: &[
             CardRow::Vs(VsRow { test: VsTest::HigherPower, arg: 0.0, v: 0.1 }),
         ],
+        selections: &[
+        ],
     },
     CardDef {
         id: CardId::SecondWind,
@@ -1137,6 +1286,8 @@ pub static DEFINITIONS: [CardDef; 80] = [
         tags: &[MechanicTag::Heal],
         rows: &[
             CardRow::Trigger(TriggerRow { on: TriggerOn::HpBelow, arg: 0.25, once: true, action: TriggerAction::Heal { share: 0.2, ms: Some(2000.0), ignore_lockout: true } }),
+        ],
+        selections: &[
         ],
     },
     CardDef {
@@ -1153,6 +1304,8 @@ pub static DEFINITIONS: [CardDef; 80] = [
         rows: &[
             CardRow::Vs(VsRow { test: VsTest::ThirdParty, arg: 0.0, v: 0.08 }),
         ],
+        selections: &[
+        ],
     },
     CardDef {
         id: CardId::Pestilence,
@@ -1167,6 +1320,9 @@ pub static DEFINITIONS: [CardDef; 80] = [
         tags: &[MechanicTag::Execute],
         rows: &[
             CardRow::Vs(VsRow { test: VsTest::HpBelow, arg: 0.6, v: 0.08 }),
+        ],
+        selections: &[
+            Selection { faction: FactionId::Plague, text: "Your execute starts at 60% health instead of 50%; with no execute, +8% damage to targets below 60% health.", rows: &[CardRow::Fold(EffectKind::Stat { stat: EffectStat::ExecuteBand, v: 0.1 })] },
         ],
     },
     CardDef {
@@ -1183,6 +1339,8 @@ pub static DEFINITIONS: [CardDef; 80] = [
         rows: &[
             CardRow::Fold(EffectKind::While(WhileRow { cond: WhileCond::HpBelow, arg: 0.3, stat: StatKey::AttackSpeed, v: 0.25, ms: None })),
         ],
+        selections: &[
+        ],
     },
     CardDef {
         id: CardId::GallowsPatience,
@@ -1197,6 +1355,8 @@ pub static DEFINITIONS: [CardDef; 80] = [
         tags: &[MechanicTag::Wish],
         rows: &[
             CardRow::Fold(EffectKind::Flag { flag: EffectFlag::GallowsPatience }),
+        ],
+        selections: &[
         ],
     },
     CardDef {
@@ -1213,6 +1373,8 @@ pub static DEFINITIONS: [CardDef; 80] = [
         rows: &[
             CardRow::Fold(EffectKind::Flag { flag: EffectFlag::NoCommutation }),
         ],
+        selections: &[
+        ],
     },
     CardDef {
         id: CardId::FinalVerdict,
@@ -1227,6 +1389,8 @@ pub static DEFINITIONS: [CardDef; 80] = [
         tags: &[MechanicTag::True_, MechanicTag::Execute, MechanicTag::Returned],
         rows: &[
             CardRow::Fold(EffectKind::Flag { flag: EffectFlag::FinalVerdict }),
+        ],
+        selections: &[
         ],
     },
 ];

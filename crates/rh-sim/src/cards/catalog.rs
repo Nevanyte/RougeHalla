@@ -399,6 +399,14 @@ pub enum TriggerAction {
         ignore_lockout: bool,
     },
 }
+/// A faction's replacement rows/text for a card (source selections; only the factions that differ are stored).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Selection {
+    pub faction: crate::FactionId,
+    pub text: &'static str,
+    pub rows: &'static [CardRow],
+}
+
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct CardDef {
     pub id: CardId,
@@ -412,4 +420,18 @@ pub struct CardDef {
     pub text: &'static str,
     pub tags: &'static [MechanicTag],
     pub rows: &'static [CardRow],
+    /// Faction row/text replacements; a faction not listed uses `text`/`rows`.
+    pub selections: &'static [Selection],
+}
+
+impl CardDef {
+    /// The rows and text this card presents to a faction (source `selections`).
+    pub fn selection(&self, faction: crate::FactionId) -> (&'static str, &'static [CardRow]) {
+        for s in self.selections {
+            if s.faction == faction {
+                return (s.text, s.rows);
+            }
+        }
+        (self.text, self.rows)
+    }
 }
