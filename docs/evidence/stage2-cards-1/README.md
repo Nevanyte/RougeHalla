@@ -81,10 +81,14 @@ catalog to a generated, corpus-verified table and the build to the source count 
    count, third party, hp below, player above) and the stepped `Scale` rows (streak; camps-cleared needs the unported camp
    counter) add to the sum before the G1 cap, with the probe read from the victim's statuses/eliteness/build power and the
    attacker's pass-start streak on the victim.
+15. **The attack-critical accumulator is live**: `roll_attack_crit` takes the folded crit chance (zero under the noCrit flag,
+   capped at CRIT_CHANCE_MAX) and accumulates deterministically, firing at 1; the melee hit path rolls it for a player
+   attacker, marks the entry critical and multiplies the packet by CRIT_MULT before blocking. A focused test fires exactly on
+   the fifth 20% step. The dot-crit accumulator and Plant Your Feet's stillness clock remain.
 
 ## Measurements
 
-- `cargo test --workspace --all-features --locked` (throwaway PostgreSQL): **1,401 passed, 0 failed, 3 ignored, 151 test
+- `cargo test --workspace --all-features --locked` (throwaway PostgreSQL): **1,402 passed, 0 failed, 3 ignored, 151 test
   binaries, exit 0** (after the full-pool drop, the 21/21 terrain kernel, the allocation-free on-hit hook, the Fists of Fury
   multiplicity, the streak memory, Wishful Thinking, heal over time, Second Wind's trigger, Spiked Shell's return, Tank Engine's fortify, Adrenaline's boost and the teleport resets).
 - Catalog differentials: **2/2** (80 cards × all rows/selections; 80 × 4 eligibility entries incl. reasons).
