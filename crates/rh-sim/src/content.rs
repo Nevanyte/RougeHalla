@@ -192,6 +192,15 @@ pub enum WeaponId {
     Fists,
 }
 
+/// Source `WeaponSpec.onHitPower`: how hard a weapon's on-hit effects land.
+pub const fn on_hit_power(weapon: WeaponId) -> f64 {
+    match weapon {
+        WeaponId::Sword => crate::constants::SWORD_ON_HIT_POWER,
+        WeaponId::Fists => crate::constants::FISTS_ON_HIT_POWER,
+        _ => crate::constants::PLAIN_ON_HIT_POWER,
+    }
+}
+
 impl WeaponId {
     /// Wire order of `ALL_WEAPON_IDS` (legacy): the five loop weapons, then fists. Append only.
     pub const ALL: [WeaponId; 6] = [
