@@ -491,6 +491,9 @@ pub struct Player {
     /// Pending heal-over-time runs (Second Wind and other trigger heals).
     #[serde(default)]
     pub card_hots: Vec<crate::cards::Hot>,
+    /// The once-trigger cards that already fired this run (source `PlayerRuntime.fired`).
+    #[serde(default)]
+    pub card_fired: Vec<crate::cards::CardId>,
     pub plan_ready: bool,
     pub build: crate::cards::Build,
     pub potion_small: u8,
@@ -543,6 +546,7 @@ impl Player {
             card_streak: None,
             card_trims: Vec::new(),
             card_hots: Vec::new(),
+            card_fired: Vec::new(),
             build: Default::default(),
             potion_small: 0,
             healing_until: 0.,

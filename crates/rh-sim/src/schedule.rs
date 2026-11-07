@@ -1168,11 +1168,11 @@ static WEAPON_SWAPPED: [Link; 1] = [ported_link(
     crate::systems::sentenced::weapon_swapped,
 )];
 static HURT: [Link; 2] = [
-    pending_link(
+    ported_link(
         "factions.onHurt",
         Mode::Append,
         Gate::Signatures,
-        "P-FACTION-1",
+        crate::cards::on_hurt::on_hurt,
     ),
     pending_link(
         "fireRoam.<arrow>",

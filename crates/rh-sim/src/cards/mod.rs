@@ -10,6 +10,7 @@ mod catalog;
 mod catalog_data;
 pub(crate) use after_damage::after_damage;
 pub(crate) mod on_hit;
+pub(crate) mod on_hurt;
 pub use catalog::*;
 
 /// The source build's card count map (one byte per card in wire order). A newtype so the 80-byte array has Default and a

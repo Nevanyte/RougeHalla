@@ -824,6 +824,7 @@ const VALIDATED: &[(&str, &str)] = &[
     ("world.players.*.card_streak", "the card-state streak exists only after the after-damage system records weapon hits; a fresh or no-hit state is legitimately None"),
     ("world.players.*.card_trims", "Wishful Thinking trims exist only after a Wish cast and landed hits inside the source window; a fresh state is legitimately empty"),
     ("world.players.*.card_hots", "heal-over-time runs exist only after a trigger heal starts one; a fresh state is legitimately empty"),
+    ("world.players.*.card_fired", "the once-trigger fired set exists only after a trigger fires; a fresh state is legitimately empty"),
     ("world.players.*.card_runtime.wish_cast", "the admitted lazy card runtime is created only by a successful Wish spend and cannot be empty"),
 
     ("world.abilities.fields.*.ability", "Full field ability is coupled to its Cloud/Trail/Zone kind and typed definition"),

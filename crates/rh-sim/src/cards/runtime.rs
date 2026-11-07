@@ -16,6 +16,8 @@ pub(crate) fn reset_all(hx: &mut crate::hooks::Hx, args: &crate::hooks::HookArgs
             p.card_runtime = None;
             p.card_streak = None;
             p.card_trims.clear();
+            p.card_hots.clear();
+            p.card_fired.clear();
         }
     }
 }
