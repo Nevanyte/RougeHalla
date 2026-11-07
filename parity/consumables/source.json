@@ -1,0 +1,3895 @@
+{
+  "format": "rh-consumables-source/1",
+  "potionCases": [
+    {
+      "name": "large-preferred",
+      "maxHp": 950,
+      "trace": [
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 2,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 2,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 2,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 2,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 2,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 2,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 2,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 2,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 2,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 338,
+          "potionLarge": 0,
+          "potionSmall": 2,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 338,
+          "potionLarge": 0,
+          "potionSmall": 2,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 338,
+          "potionLarge": 0,
+          "potionSmall": 2,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 338,
+          "potionLarge": 0,
+          "potionSmall": 2,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 338,
+          "potionLarge": 0,
+          "potionSmall": 2,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 338,
+          "potionLarge": 0,
+          "potionSmall": 2,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 338,
+          "potionLarge": 0,
+          "potionSmall": 2,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 338,
+          "potionLarge": 0,
+          "potionSmall": 2,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 338,
+          "potionLarge": 0,
+          "potionSmall": 2,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 338,
+          "potionLarge": 0,
+          "potionSmall": 2,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 376,
+          "potionLarge": 0,
+          "potionSmall": 2,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 376,
+          "potionLarge": 0,
+          "potionSmall": 2,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 376,
+          "potionLarge": 0,
+          "potionSmall": 2,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 376,
+          "potionLarge": 0,
+          "potionSmall": 2,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 376,
+          "potionLarge": 0,
+          "potionSmall": 2,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 376,
+          "potionLarge": 0,
+          "potionSmall": 2,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 376,
+          "potionLarge": 0,
+          "potionSmall": 2,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 376,
+          "potionLarge": 0,
+          "potionSmall": 2,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 376,
+          "potionLarge": 0,
+          "potionSmall": 2,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 376,
+          "potionLarge": 0,
+          "potionSmall": 2,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 414,
+          "potionLarge": 0,
+          "potionSmall": 2,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 414,
+          "potionLarge": 0,
+          "potionSmall": 2,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 414,
+          "potionLarge": 0,
+          "potionSmall": 2,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 414,
+          "potionLarge": 0,
+          "potionSmall": 2,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 414,
+          "potionLarge": 0,
+          "potionSmall": 2,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 414,
+          "potionLarge": 0,
+          "potionSmall": 2,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 414,
+          "potionLarge": 0,
+          "potionSmall": 2,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 414,
+          "potionLarge": 0,
+          "potionSmall": 2,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 414,
+          "potionLarge": 0,
+          "potionSmall": 2,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 414,
+          "potionLarge": 0,
+          "potionSmall": 2,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 452,
+          "potionLarge": 0,
+          "potionSmall": 2,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 452,
+          "potionLarge": 0,
+          "potionSmall": 2,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 452,
+          "potionLarge": 0,
+          "potionSmall": 2,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 452,
+          "potionLarge": 0,
+          "potionSmall": 2,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 452,
+          "potionLarge": 0,
+          "potionSmall": 2,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 452,
+          "potionLarge": 0,
+          "potionSmall": 2,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 452,
+          "potionLarge": 0,
+          "potionSmall": 2,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 452,
+          "potionLarge": 0,
+          "potionSmall": 2,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 452,
+          "potionLarge": 0,
+          "potionSmall": 2,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 452,
+          "potionLarge": 0,
+          "potionSmall": 2,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 490,
+          "potionLarge": 0,
+          "potionSmall": 2,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 490,
+          "potionLarge": 0,
+          "potionSmall": 2,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 490,
+          "potionLarge": 0,
+          "potionSmall": 2,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 490,
+          "potionLarge": 0,
+          "potionSmall": 2,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 490,
+          "potionLarge": 0,
+          "potionSmall": 2,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 490,
+          "potionLarge": 0,
+          "potionSmall": 2,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 490,
+          "potionLarge": 0,
+          "potionSmall": 2,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 490,
+          "potionLarge": 0,
+          "potionSmall": 2,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 490,
+          "potionLarge": 0,
+          "potionSmall": 2,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 490,
+          "potionLarge": 0,
+          "potionSmall": 2,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 528,
+          "potionLarge": 0,
+          "potionSmall": 2,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 528,
+          "potionLarge": 0,
+          "potionSmall": 2,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 528,
+          "potionLarge": 0,
+          "potionSmall": 2,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 528,
+          "potionLarge": 0,
+          "potionSmall": 2,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 528,
+          "potionLarge": 0,
+          "potionSmall": 2,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 528,
+          "potionLarge": 0,
+          "potionSmall": 2,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 528,
+          "potionLarge": 0,
+          "potionSmall": 2,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 528,
+          "potionLarge": 0,
+          "potionSmall": 2,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 528,
+          "potionLarge": 0,
+          "potionSmall": 2,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 528,
+          "potionLarge": 0,
+          "potionSmall": 2,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 566,
+          "potionLarge": 0,
+          "potionSmall": 2,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 566,
+          "potionLarge": 0,
+          "potionSmall": 2,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 566,
+          "potionLarge": 0,
+          "potionSmall": 2,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 566,
+          "potionLarge": 0,
+          "potionSmall": 2,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 566,
+          "potionLarge": 0,
+          "potionSmall": 2,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 566,
+          "potionLarge": 0,
+          "potionSmall": 2,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 566,
+          "potionLarge": 0,
+          "potionSmall": 2,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 566,
+          "potionLarge": 0,
+          "potionSmall": 2,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 566,
+          "potionLarge": 0,
+          "potionSmall": 2,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 566,
+          "potionLarge": 0,
+          "potionSmall": 2,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 604,
+          "potionLarge": 0,
+          "potionSmall": 2,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 604,
+          "potionLarge": 0,
+          "potionSmall": 2,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 604,
+          "potionLarge": 0,
+          "potionSmall": 2,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 604,
+          "potionLarge": 0,
+          "potionSmall": 2,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 604,
+          "potionLarge": 0,
+          "potionSmall": 2,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 604,
+          "potionLarge": 0,
+          "potionSmall": 2,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 604,
+          "potionLarge": 0,
+          "potionSmall": 2,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 604,
+          "potionLarge": 0,
+          "potionSmall": 2,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 604,
+          "potionLarge": 0,
+          "potionSmall": 2,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 604,
+          "potionLarge": 0,
+          "potionSmall": 2,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 642,
+          "potionLarge": 0,
+          "potionSmall": 2,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 642,
+          "potionLarge": 0,
+          "potionSmall": 2,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 642,
+          "potionLarge": 0,
+          "potionSmall": 2,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 642,
+          "potionLarge": 0,
+          "potionSmall": 2,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 642,
+          "potionLarge": 0,
+          "potionSmall": 2,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 642,
+          "potionLarge": 0,
+          "potionSmall": 2,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 642,
+          "potionLarge": 0,
+          "potionSmall": 2,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 642,
+          "potionLarge": 0,
+          "potionSmall": 2,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 642,
+          "potionLarge": 0,
+          "potionSmall": 2,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 642,
+          "potionLarge": 0,
+          "potionSmall": 2,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 680,
+          "potionLarge": 0,
+          "potionSmall": 2,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 680,
+          "potionLarge": 0,
+          "potionSmall": 2,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 680,
+          "potionLarge": 0,
+          "potionSmall": 2,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 680,
+          "potionLarge": 0,
+          "potionSmall": 2,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 680,
+          "potionLarge": 0,
+          "potionSmall": 2,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 680,
+          "potionLarge": 0,
+          "potionSmall": 2,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 680,
+          "potionLarge": 0,
+          "potionSmall": 2,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        }
+      ],
+      "toasts": [
+        "Camp potion stored · Heal 40% HP over 5s",
+        "Small potion stored · Heal 25% HP over 5s",
+        "Small potion stored · Heal 25% HP over 5s",
+        "Camp potion · healing over 5s"
+      ]
+    },
+    {
+      "name": "small-only",
+      "maxHp": 950,
+      "trace": [
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 323.75,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 323.75,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 323.75,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 323.75,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 323.75,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 323.75,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 323.75,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 323.75,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 323.75,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 323.75,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 347.5,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 347.5,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 347.5,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 347.5,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 347.5,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 347.5,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 347.5,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 347.5,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 347.5,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 347.5,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 371.25,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 371.25,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 371.25,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 371.25,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 371.25,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 371.25,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 371.25,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 371.25,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 371.25,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 371.25,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 395,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 395,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 395,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 395,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 395,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 395,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 395,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 395,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 395,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 395,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 418.75,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 418.75,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 418.75,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 418.75,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 418.75,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 418.75,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 418.75,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 418.75,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 418.75,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 418.75,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 442.5,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 442.5,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 442.5,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 442.5,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 442.5,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 442.5,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 442.5,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 442.5,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 442.5,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 442.5,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 466.25,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 466.25,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 466.25,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 466.25,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 466.25,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 466.25,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 466.25,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 466.25,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 466.25,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 466.25,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 490,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 490,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 490,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 490,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 490,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 490,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 490,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 490,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 490,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 490,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 513.75,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 513.75,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 513.75,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 513.75,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 513.75,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 513.75,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 513.75,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 513.75,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 513.75,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 513.75,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 5050,
+          "potionsHealing": 1
+        },
+        {
+          "hp": 537.5,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 537.5,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 537.5,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 537.5,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 537.5,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 537.5,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 537.5,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        }
+      ],
+      "toasts": [
+        "Small potion stored · Heal 25% HP over 5s",
+        "Small potion · healing over 5s"
+      ]
+    },
+    {
+      "name": "empty-bag",
+      "maxHp": 950,
+      "trace": [
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        }
+      ],
+      "toasts": [
+        "No potion stored"
+      ]
+    },
+    {
+      "name": "full-health",
+      "maxHp": 950,
+      "trace": [
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        }
+      ],
+      "toasts": [
+        "Small potion stored · Heal 25% HP over 5s",
+        "Already at full health"
+      ]
+    },
+    {
+      "name": "busy-three",
+      "maxHp": 950,
+      "trace": [
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 5050,
+          "potionsHealing": 3
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 5050,
+          "potionsHealing": 3
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 5050,
+          "potionsHealing": 3
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 5050,
+          "potionsHealing": 3
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 5050,
+          "potionsHealing": 3
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 5050,
+          "potionsHealing": 3
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 5050,
+          "potionsHealing": 3
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 5050,
+          "potionsHealing": 3
+        },
+        {
+          "hp": 300,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 5050,
+          "potionsHealing": 3
+        },
+        {
+          "hp": 371.25,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 5050,
+          "potionsHealing": 3
+        },
+        {
+          "hp": 371.25,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 5050,
+          "potionsHealing": 3
+        },
+        {
+          "hp": 371.25,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 5050,
+          "potionsHealing": 3
+        },
+        {
+          "hp": 371.25,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 5050,
+          "potionsHealing": 3
+        },
+        {
+          "hp": 371.25,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 5050,
+          "potionsHealing": 3
+        },
+        {
+          "hp": 371.25,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 5050,
+          "potionsHealing": 3
+        },
+        {
+          "hp": 371.25,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 5050,
+          "potionsHealing": 3
+        },
+        {
+          "hp": 371.25,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 5050,
+          "potionsHealing": 3
+        },
+        {
+          "hp": 371.25,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 5050,
+          "potionsHealing": 3
+        },
+        {
+          "hp": 371.25,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 5050,
+          "potionsHealing": 3
+        },
+        {
+          "hp": 442.5,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 5050,
+          "potionsHealing": 3
+        },
+        {
+          "hp": 442.5,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 5050,
+          "potionsHealing": 3
+        },
+        {
+          "hp": 442.5,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 5050,
+          "potionsHealing": 3
+        },
+        {
+          "hp": 442.5,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 5050,
+          "potionsHealing": 3
+        },
+        {
+          "hp": 442.5,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 5050,
+          "potionsHealing": 3
+        },
+        {
+          "hp": 442.5,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 5050,
+          "potionsHealing": 3
+        },
+        {
+          "hp": 442.5,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 5050,
+          "potionsHealing": 3
+        },
+        {
+          "hp": 442.5,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 5050,
+          "potionsHealing": 3
+        },
+        {
+          "hp": 442.5,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 5050,
+          "potionsHealing": 3
+        },
+        {
+          "hp": 442.5,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 5050,
+          "potionsHealing": 3
+        },
+        {
+          "hp": 513.75,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 5050,
+          "potionsHealing": 3
+        },
+        {
+          "hp": 513.75,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 5050,
+          "potionsHealing": 3
+        },
+        {
+          "hp": 513.75,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 5050,
+          "potionsHealing": 3
+        },
+        {
+          "hp": 513.75,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 5050,
+          "potionsHealing": 3
+        },
+        {
+          "hp": 513.75,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 5050,
+          "potionsHealing": 3
+        },
+        {
+          "hp": 513.75,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 5050,
+          "potionsHealing": 3
+        },
+        {
+          "hp": 513.75,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 5050,
+          "potionsHealing": 3
+        },
+        {
+          "hp": 513.75,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 5050,
+          "potionsHealing": 3
+        },
+        {
+          "hp": 513.75,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 5050,
+          "potionsHealing": 3
+        },
+        {
+          "hp": 513.75,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 5050,
+          "potionsHealing": 3
+        },
+        {
+          "hp": 585,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 5050,
+          "potionsHealing": 3
+        },
+        {
+          "hp": 585,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 5050,
+          "potionsHealing": 3
+        },
+        {
+          "hp": 585,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 5050,
+          "potionsHealing": 3
+        },
+        {
+          "hp": 585,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 5050,
+          "potionsHealing": 3
+        },
+        {
+          "hp": 585,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 5050,
+          "potionsHealing": 3
+        },
+        {
+          "hp": 585,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 5050,
+          "potionsHealing": 3
+        },
+        {
+          "hp": 585,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 5050,
+          "potionsHealing": 3
+        },
+        {
+          "hp": 585,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 5050,
+          "potionsHealing": 3
+        },
+        {
+          "hp": 585,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 5050,
+          "potionsHealing": 3
+        },
+        {
+          "hp": 585,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 5050,
+          "potionsHealing": 3
+        },
+        {
+          "hp": 656.25,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 5050,
+          "potionsHealing": 3
+        },
+        {
+          "hp": 656.25,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 5050,
+          "potionsHealing": 3
+        },
+        {
+          "hp": 656.25,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 5050,
+          "potionsHealing": 3
+        },
+        {
+          "hp": 656.25,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 5050,
+          "potionsHealing": 3
+        },
+        {
+          "hp": 656.25,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 5050,
+          "potionsHealing": 3
+        },
+        {
+          "hp": 656.25,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 5050,
+          "potionsHealing": 3
+        },
+        {
+          "hp": 656.25,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 5050,
+          "potionsHealing": 3
+        },
+        {
+          "hp": 656.25,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 5050,
+          "potionsHealing": 3
+        },
+        {
+          "hp": 656.25,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 5050,
+          "potionsHealing": 3
+        },
+        {
+          "hp": 656.25,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 5050,
+          "potionsHealing": 3
+        },
+        {
+          "hp": 727.5,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 5050,
+          "potionsHealing": 3
+        },
+        {
+          "hp": 727.5,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 5050,
+          "potionsHealing": 3
+        },
+        {
+          "hp": 727.5,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 5050,
+          "potionsHealing": 3
+        },
+        {
+          "hp": 727.5,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 5050,
+          "potionsHealing": 3
+        },
+        {
+          "hp": 727.5,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 5050,
+          "potionsHealing": 3
+        },
+        {
+          "hp": 727.5,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 5050,
+          "potionsHealing": 3
+        },
+        {
+          "hp": 727.5,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 5050,
+          "potionsHealing": 3
+        },
+        {
+          "hp": 727.5,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 5050,
+          "potionsHealing": 3
+        },
+        {
+          "hp": 727.5,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 5050,
+          "potionsHealing": 3
+        },
+        {
+          "hp": 727.5,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 5050,
+          "potionsHealing": 3
+        },
+        {
+          "hp": 798.75,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 5050,
+          "potionsHealing": 3
+        },
+        {
+          "hp": 798.75,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 5050,
+          "potionsHealing": 3
+        },
+        {
+          "hp": 798.75,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 5050,
+          "potionsHealing": 3
+        },
+        {
+          "hp": 798.75,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 5050,
+          "potionsHealing": 3
+        },
+        {
+          "hp": 798.75,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 5050,
+          "potionsHealing": 3
+        },
+        {
+          "hp": 798.75,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 5050,
+          "potionsHealing": 3
+        },
+        {
+          "hp": 798.75,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 5050,
+          "potionsHealing": 3
+        },
+        {
+          "hp": 798.75,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 5050,
+          "potionsHealing": 3
+        },
+        {
+          "hp": 798.75,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 5050,
+          "potionsHealing": 3
+        },
+        {
+          "hp": 798.75,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 5050,
+          "potionsHealing": 3
+        },
+        {
+          "hp": 870,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 5050,
+          "potionsHealing": 3
+        },
+        {
+          "hp": 870,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 5050,
+          "potionsHealing": 3
+        },
+        {
+          "hp": 870,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 5050,
+          "potionsHealing": 3
+        },
+        {
+          "hp": 870,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 5050,
+          "potionsHealing": 3
+        },
+        {
+          "hp": 870,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 5050,
+          "potionsHealing": 3
+        },
+        {
+          "hp": 870,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 5050,
+          "potionsHealing": 3
+        },
+        {
+          "hp": 870,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 5050,
+          "potionsHealing": 3
+        },
+        {
+          "hp": 870,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 5050,
+          "potionsHealing": 3
+        },
+        {
+          "hp": 870,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 5050,
+          "potionsHealing": 3
+        },
+        {
+          "hp": 870,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 5050,
+          "potionsHealing": 3
+        },
+        {
+          "hp": 941.25,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 5050,
+          "potionsHealing": 3
+        },
+        {
+          "hp": 941.25,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 5050,
+          "potionsHealing": 3
+        },
+        {
+          "hp": 941.25,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 5050,
+          "potionsHealing": 3
+        },
+        {
+          "hp": 941.25,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 5050,
+          "potionsHealing": 3
+        },
+        {
+          "hp": 941.25,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 5050,
+          "potionsHealing": 3
+        },
+        {
+          "hp": 941.25,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 5050,
+          "potionsHealing": 3
+        },
+        {
+          "hp": 941.25,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 5050,
+          "potionsHealing": 3
+        },
+        {
+          "hp": 941.25,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 5050,
+          "potionsHealing": 3
+        },
+        {
+          "hp": 941.25,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 5050,
+          "potionsHealing": 3
+        },
+        {
+          "hp": 941.25,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 5050,
+          "potionsHealing": 3
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        },
+        {
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 1,
+          "healingUntil": 0,
+          "potionsHealing": 0
+        }
+      ],
+      "toasts": [
+        "Small potion stored · Heal 25% HP over 5s",
+        "Small potion stored · Heal 25% HP over 5s",
+        "Small potion stored · Heal 25% HP over 5s",
+        "Small potion stored · Heal 25% HP over 5s",
+        "Small potion · healing over 5s",
+        "Small potion · healing over 5s",
+        "Small potion · healing over 5s",
+        "Already drinking 3 potions"
+      ]
+    }
+  ],
+  "grantRefusal": {
+    "name": "large-bag-full",
+    "stored": false,
+    "potionLarge": 5,
+    "potionSmall": 0
+  },
+  "campCases": [
+    {
+      "name": "centre-and-far",
+      "camp": {
+        "x": 912,
+        "y": 1488
+      },
+      "players": [
+        {
+          "id": "p0",
+          "hp": 950,
+          "potionLarge": 1,
+          "potionSmall": 0,
+          "campClears": 1,
+          "status": "alive"
+        },
+        {
+          "id": "p1",
+          "hp": 1145,
+          "potionLarge": 1,
+          "potionSmall": 0,
+          "campClears": 0,
+          "status": "alive"
+        }
+      ],
+      "contributors": [],
+      "toasts": [
+        "Camp potion stored · Heal 40% HP over 5s",
+        "Camp potion stored · Heal 40% HP over 5s"
+      ]
+    },
+    {
+      "name": "full-bag-at-centre",
+      "camp": {
+        "x": 912,
+        "y": 1488
+      },
+      "players": [
+        {
+          "id": "p0",
+          "hp": 950,
+          "potionLarge": 5,
+          "potionSmall": 0,
+          "campClears": 1,
+          "status": "alive"
+        },
+        {
+          "id": "p1",
+          "hp": 1145,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "campClears": 0,
+          "status": "alive"
+        }
+      ],
+      "contributors": [],
+      "toasts": [
+        "Camp cleared · camp potion bag full (5)"
+      ]
+    },
+    {
+      "name": "down-contributor",
+      "camp": {
+        "x": 912,
+        "y": 1488
+      },
+      "players": [
+        {
+          "id": "p0",
+          "hp": 0,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "campClears": 0,
+          "status": "dead"
+        },
+        {
+          "id": "p1",
+          "hp": 1145,
+          "potionLarge": 1,
+          "potionSmall": 0,
+          "campClears": 0,
+          "status": "alive"
+        }
+      ],
+      "contributors": [],
+      "toasts": [
+        "Camp potion stored · Heal 40% HP over 5s"
+      ]
+    },
+    {
+      "name": "nobody",
+      "camp": {
+        "x": 912,
+        "y": 1488
+      },
+      "players": [
+        {
+          "id": "p0",
+          "hp": 950,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "campClears": 0,
+          "status": "alive"
+        },
+        {
+          "id": "p1",
+          "hp": 1145,
+          "potionLarge": 0,
+          "potionSmall": 0,
+          "campClears": 0,
+          "status": "alive"
+        }
+      ],
+      "contributors": [],
+      "toasts": []
+    }
+  ]
+}

@@ -1,6 +1,6 @@
 # client-unity: Roguehalla Unity (Web) client
 
-Client for the Rust authoritative server (`crates/rh-server`), speaking rh-protocol v8 (`crates/rh-protocol`, golden vectors in `protocol/fixtures/v8.json`, [ADR 0018](../docs/adr/0018-keyed-state-protocol-v6.md); a snapshot carries `tick` only and `Snapshot.ServerMs` is derived as `Tick * 50`; remote actors arrive quantized, see `Quant`; snapshots arrive as Full frames and deltas against the last one received, which `SnapshotTracker` applies, and `Session` asks for a Full one with `Resync` when it refuses a delta).
+Client for the Rust authoritative server (`crates/rh-server`), speaking rh-protocol v9 (`crates/rh-protocol`, golden vectors in `protocol/fixtures/v9.json`, [ADR 0018](../docs/adr/0018-keyed-state-protocol-v6.md); a snapshot carries `tick` only and `Snapshot.ServerMs` is derived as `Tick * 50`; remote actors arrive quantized, see `Quant`; snapshots arrive as Full frames and deltas against the last one received, which `SnapshotTracker` applies, and `Session` asks for a Full one with `Resync` when it refuses a delta).
 
 The first-playable profile is documented in [maps/README](../maps/README.md). Start `rh-server --first-playable`,
 serve `UnityProject/Build/Web`, and use `?server=ws%3A%2F%2F127.0.0.1%3A7777%2Fws` locally. Ordinary visits show the
@@ -54,7 +54,7 @@ Unnamed `RejectCode` values are legal: a newer server may refuse for a reason th
 dotnet run --project client-unity/RoguehallaNet.Probe -- --url ws://127.0.0.1:7777/ws --profile probe1 --token t1 --seconds 10 \
     [--content-hash <u64>] [--faction 0..4] [--insecure]
 ```
-Sends Hello (protocol 8; content hash 0 means "ask": a `ContentMismatch` reject is printed with the server's reason), a Ping per second and a Move order every 500 ms, then prints one JSON line
+Sends Hello (protocol 9; content hash 0 means "ask": a `ContentMismatch` reject is printed with the server's reason), a Ping per second and a Move order every 500 ms, then prints one JSON line
 `{welcome, snapshots, lastTick, deltasRefused, resyncsSent, rttMsP50, rejects, resultSeen, errors}`. Exit codes: 0 clean, 1 errors or no Welcome, 2 usage, 3 rejected. `--insecure` accepts a self-signed certificate for `wss://` (local testing only). Run against the real Rust server (the P10c run, protocol 3; a v4 run at `b0b2bb3` gave 118 and 158 snapshots, no refused delta, no errors): 157 snapshots in 8 s (1 Full, 156 deltas by the server's counters), no refused delta, no Resync, no errors.
 
 ## Unity: status and steps

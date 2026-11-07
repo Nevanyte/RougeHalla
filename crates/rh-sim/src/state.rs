@@ -495,6 +495,12 @@ pub struct Player {
     pub plan_ready: bool,
     pub build: crate::cards::Build,
     pub potion_small: u8,
+    /// Camp potions (legacy `potionLarge`): a bigger share than the small one, stored separately.
+    #[serde(default)]
+    pub potion_large: u8,
+    /// Camps this player's clear counted for (legacy `campsCleared`; the only consumer is a later card).
+    #[serde(default)]
+    pub camps_cleared: u16,
     pub(crate) healing_until: f64,
     pub potions_healing: u8,
     pub farm: crate::modifiers::Farm,
@@ -549,6 +555,8 @@ impl Player {
             card_runtime: None,
             build: Default::default(),
             potion_small: 0,
+            potion_large: 0,
+            camps_cleared: 0,
             healing_until: 0.,
             potions_healing: 0,
             farm: Default::default(),

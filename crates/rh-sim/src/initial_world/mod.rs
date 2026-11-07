@@ -15,12 +15,14 @@ mod tests;
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum ItemDef {
     PotionSmall,
+    PotionLarge,
     Weapon(WeaponId),
 }
 impl ItemDef {
     pub fn as_str(self) -> &'static str {
         match self {
             Self::PotionSmall => "potionSmall",
+            Self::PotionLarge => "potionLarge",
             Self::Weapon(w) => w.as_str(),
         }
     }

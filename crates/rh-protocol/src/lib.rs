@@ -1,7 +1,7 @@
 //! Roguehalla wire protocol, version [`PROTOCOL_VERSION`]. One message per WebSocket BINARY frame (the only transport a
 //! browser build can use; served as wss:// in production). Little-endian, no reflection: the C# mirror
 //! (`client-unity/RoguehallaNet`) and the JS probe decode the same bytes, and all are held to the golden vectors in
-//! `protocol/fixtures/v8.json` (docs/CONTRACTS.md C-NET).
+//! `protocol/fixtures/v9.json` (docs/CONTRACTS.md C-NET).
 //!
 //! Frame layout: `[tag u8][body]`. Strings: `u8 length + UTF-8`. Blobs: `u16 length + bytes`. Optional values: `u8 flag (0/1) +
 //! value`. Lists: `u16 count + items`. Floats are IEEE-754; a decoder REJECTS non-finite floats in client messages. Unknown
@@ -25,7 +25,7 @@
 //! Target (10: nonzero actor reference u32), and AttackMove (11: Move payload).
 //! Protocol 7 adds HuntTarget (12: nonzero actor reference u32) and the self hunt fields
 //! (Full head bits 14/15, delta bits 18/19; the target is a nonzero varint, stacks a varint).
-//! PotionNotice (Events 7) carries only a notice byte 1..=7. Camps carry direct mob type 0..29,
+//! PotionNotice (Events 7) carries only a notice byte 1..=10. Camps carry direct mob type 0..29,
 //! optional elite as 0 absent / 1+index, alive varint <=512, state 0..=2, and finite nonnegative
 //! cleared/respawn f64 times with respawn >= cleared. At most 512 rows and seven ascending State keys.
 //!
@@ -121,7 +121,7 @@ pub use delta::{
 pub use encode::{encode_welcome, encode_welcome_into, WelcomeHeader};
 
 /// Bump on any incompatible change (a new tag or field in an existing message). Both ends refuse another major version.
-pub const PROTOCOL_VERSION: u16 = 8;
+pub const PROTOCOL_VERSION: u16 = 9;
 /// Milliseconds per server tick (20 Hz). A Snapshot carries `tick` only: its server time is `tick * TICK_MS` exactly.
 pub const TICK_MS: u32 = 50;
 
@@ -916,7 +916,7 @@ impl ServerMsg {
                     events.push(match r.u8()? {
                         7 => {
                             let notice = r.u8()?;
-                            if !(1..=7).contains(&notice) {
+                            if !(1..=10).contains(&notice) {
                                 return Err(DecodeError::BadField("potion notice"));
                             }
                             WireEvent::PotionNotice { notice }

@@ -1,4 +1,4 @@
-//! The golden vectors: deterministic sample messages, and frames that must be rejected. `protocol/fixtures/v8.json` is
+//! The golden vectors: deterministic sample messages, and frames that must be rejected. `protocol/fixtures/v9.json` is
 //! generated from these (`cargo run -p rh-protocol --bin protocol-fixtures`) and read by the Rust, C# and JS tests. A
 //! Snapshot or Fx vector also carries what a client must DECODE (floats as their exact bit patterns), so the three decoders are
 //! held to the same quantization, not just to the same bytes.
@@ -171,6 +171,7 @@ fn state_sample() -> ServerMsg {
                 active_slot: 1,
                 slots: [None, Some(2)],
                 potion_small: 5,
+                potion_large: 4,
                 potions_healing: 3,
             })),
             StateItem::Props(WireProps {
@@ -282,7 +283,7 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
             "potion_notices",
             ServerMsg::Events {
                 tick: 11,
-                events: (1..=7)
+                events: (1..=10)
                     .map(|notice| WireEvent::PotionNotice { notice })
                     .collect(),
             },
@@ -953,7 +954,7 @@ pub fn malformed_server() -> Vec<(&'static str, Vec<u8>)> {
     trailing.push(0);
     vec![
         ("potion_notice_zero", vec![0x84, 0, 0, 0, 0, 1, 0, 7, 0]),
-        ("potion_notice_unknown", vec![0x84, 0, 0, 0, 0, 1, 0, 7, 8]),
+        ("potion_notice_unknown", vec![0x84, 0, 0, 0, 0, 1, 0, 7, 11]),
         ("state_too_many_projectiles", vec![0x88, 0, 1, 7, 0x81, 4]),
         (
             "projectile_kind",
@@ -1112,7 +1113,7 @@ pub fn malformed_server() -> Vec<(&'static str, Vec<u8>)> {
         ("state_too_many_rewards", vec![0x88, 0, 1, 4, 0x81, 4]),
         (
             "state_bad_potion_count",
-            vec![0x88, 0, 1, 1, 1, 0, 0, 0, 6, 0],
+            vec![0x88, 0, 1, 1, 1, 0, 0, 0, 6, 0, 0],
         ),
         ("state_zero_prop_handle", vec![0x88, 0, 1, 2, 1, 0]),
         ("state_missing_focus", vec![0x88, 0, 1, 2, 0, 1, 0]),

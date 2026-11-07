@@ -29,6 +29,7 @@ fn inventory(value: Inventory) -> WireInventory {
         active_slot: value.active_slot,
         slots: value.slots.map(|v| v.map(|w| w.code())),
         potion_small: value.potion_small,
+        potion_large: value.potion_large,
         potions_healing: value.potions_healing,
     }
 }
@@ -308,6 +309,7 @@ mod tests {
                 active_slot: 0,
                 slots: [None, None],
                 potion_small: 5,
+                potion_large: 4,
                 potions_healing: 3,
             }),
             ..Observation::default()

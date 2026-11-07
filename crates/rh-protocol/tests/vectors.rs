@@ -4,9 +4,9 @@ use rh_protocol::*;
 #[test]
 fn committed_vectors_match_the_encoder() {
     let path =
-        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../protocol/fixtures/v8.json");
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../protocol/fixtures/v9.json");
     let committed = std::fs::read_to_string(&path)
-        .expect("protocol/fixtures/v8.json (run the protocol-fixtures bin)");
+        .expect("protocol/fixtures/v9.json (run the protocol-fixtures bin)");
     assert_eq!(
         committed,
         manifest(),

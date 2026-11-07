@@ -1453,11 +1453,11 @@ static CAMP_CLEARED: [Link; 3] = [
         Gate::Quests,
         "P-QUEST-1",
     ),
-    pending_link(
+    ported_link(
         "campHeal.payCampHeal",
         Mode::Append,
         Gate::Always,
-        "P-MOBS-2",
+        crate::systems::camp_heal::pay,
     ),
     pending_link(
         "bruiserPassives.<arrow>",

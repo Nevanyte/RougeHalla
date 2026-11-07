@@ -44,8 +44,8 @@ namespace Roguehalla.Net.Tests
             foreach(var bad in new[]{new WireCamp{MobType=30},new WireCamp{Elite=31},new WireCamp{Alive=513},new WireCamp{State=3},new WireCamp{ClearedAt=-1},new WireCamp{RespawnAt=double.NaN},new WireCamp{ClearedAt=2,RespawnAt=1}})
                 Assert.Throws<EncodeException>(()=>new ServerMsg.State{Items=new StateItem[]{new CampsState{Rows=new[]{bad}}}}.Encode());
             Assert.Throws<DecodeException>(()=>ServerMsg.Decode(new byte[]{0x88,0,1,8}));Assert.Throws<DecodeException>(()=>ServerMsg.Decode(new byte[]{0x88,0,8}));
-            for(byte n=1;n<=7;n++){var events=new ServerMsg.Events{List=new List<WireEvent>{new WireEvent{Kind=EventKind.PotionNotice,PotionNotice=n}}};Assert.AreEqual(n,((ServerMsg.Events)ServerMsg.Decode(events.Encode())).List[0].PotionNotice);}
-            Assert.Throws<DecodeException>(()=>ServerMsg.Decode(new byte[]{0x84,0,0,0,0,1,0,7,0}));Assert.Throws<DecodeException>(()=>ServerMsg.Decode(new byte[]{0x84,0,0,0,0,1,0,7,8}));
+            for(byte n=1;n<=10;n++){var events=new ServerMsg.Events{List=new List<WireEvent>{new WireEvent{Kind=EventKind.PotionNotice,PotionNotice=n}}};Assert.AreEqual(n,((ServerMsg.Events)ServerMsg.Decode(events.Encode())).List[0].PotionNotice);}
+            Assert.Throws<DecodeException>(()=>ServerMsg.Decode(new byte[]{0x84,0,0,0,0,1,0,7,0}));Assert.Throws<DecodeException>(()=>ServerMsg.Decode(new byte[]{0x84,0,0,0,0,1,0,7,11}));
         }
 
         [Test] public void ProjectileRowsPreserveOrderDuplicatesAndStrictOptionalOwners()
