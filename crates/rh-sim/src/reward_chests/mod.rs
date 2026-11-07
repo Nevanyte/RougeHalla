@@ -1,6 +1,8 @@
 //! Source chest transaction. Producers call these narrow crate-only functions; no public spawn/grant command.
+mod pools;
 mod rules;
 mod view;
+pub use pools::*;
 pub use rules::{visit_content, Definition, DEFINITION};
 pub(crate) mod observer;
 use crate::{cards::CardId, state::World, statics::MatchStatic, Event, PlayerId, Vec2};

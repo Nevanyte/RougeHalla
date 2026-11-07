@@ -62,6 +62,14 @@ impl Build {
             .into_iter()
             .filter(move |id| self.counts.0[id.index()] > 0)
     }
+    /// Build a count map from (card, count) pairs (tests and trusted producers).
+    pub fn from_counts(pairs: impl IntoIterator<Item = (CardId, u8)>) -> Self {
+        let mut build = Self::default();
+        for (id, count) in pairs {
+            build.counts.0[id.index()] = count;
+        }
+        build
+    }
     pub fn counts(&self) -> [u8; 80] {
         self.counts.0
     }
