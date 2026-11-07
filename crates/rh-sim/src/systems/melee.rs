@@ -117,10 +117,19 @@ fn resolve_swings(cx: &mut Cx) {
             let mut critical = false;
             let mut critical_mult = None;
             if let Some(ai) = w.idx(req.attacker) {
+                let mut baked = 1.;
                 if crate::cards::roll_attack_crit(&mut w.players[ai]) {
                     critical = true;
-                    critical_mult = Some(crate::status_runtime::stats::CRIT_MULT);
-                    packet.raw *= crate::status_runtime::stats::CRIT_MULT;
+                    baked *= crate::status_runtime::stats::CRIT_MULT;
+                }
+                // Plant Your Feet: an armed attack carries its bonus and spends the clock.
+                if crate::cards::plant_armed(&w.players[ai], w.server_time) {
+                    baked *= 1. + crate::constants::PLANT_FEET_BONUS;
+                    crate::cards::spend_plant(&mut w.players[ai], w.server_time);
+                }
+                if baked > 1. {
+                    packet.raw *= baked;
+                    critical_mult = Some(baked);
                 }
             }
             let target = w.core(ti);
