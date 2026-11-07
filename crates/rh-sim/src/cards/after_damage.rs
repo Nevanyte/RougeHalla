@@ -44,13 +44,28 @@ pub(crate) fn after_damage(cx: &mut Cx) {
     let tick = w.tick;
     let order_salt = k.secrets.order_salt;
     let landed = &s.landed;
+    let blocks = &s.blocks;
     for i in 0..w.players.len() {
         let by = w.players[i].id;
+        let best_offense = w.players[i]
+            .build
+            .has_flag(crate::stat_fold::EffectFlag::BlockHits);
+        // A block under Best Offense is a hit by the holder on the blocked attacker: it counts for the streak.
+        let hits_for = |victim: PlayerId| -> (f64, u32) {
+            let (mut damage, mut n) = sum_for(landed, by, victim);
+            if best_offense {
+                for b in blocks {
+                    if b.holder == by && !b.passive && b.attacker == victim {
+                        n += 1;
+                    }
+                }
+            }
+            (damage, n)
+        };
         let mem = w.players[i].card_streak;
         let live = mem.is_some_and(|m| now - m.last < STREAK_GAP_MS);
-        // Keep the streak when its target was hit this tick: one more per hit.
         if let Some(m) = mem.filter(|_| live) {
-            let (_, n) = sum_for(landed, by, m.target);
+            let (_, n) = hits_for(m.target);
             if n > 0 {
                 w.players[i].card_streak = Some(Streak {
                     target: m.target,
@@ -63,24 +78,31 @@ pub(crate) fn after_damage(cx: &mut Cx) {
         // Otherwise restart on the biggest hit; ties by the tick's hash rank.
         let mut target: Option<PlayerId> = None;
         let mut best = -1.;
+        let mut consider = |victim: PlayerId, target: &mut Option<PlayerId>, best: &mut f64| {
+            let (damage, _) = hits_for(victim);
+            let better = target.is_none()
+                || damage > *best
+                || (damage == *best
+                    && tie_rank(w, order_salt, tick, victim)
+                        < tie_rank(w, order_salt, tick, target.unwrap()));
+            if better {
+                *target = Some(victim);
+                *best = damage;
+            }
+        };
         for h in landed
             .iter()
             .filter(|h| h.by == Some(by) && is_weapon_hit(h))
         {
-            let victim = h.victim;
-            let (damage, _) = sum_for(landed, by, victim);
-            let better = target.is_none()
-                || damage > best
-                || (damage == best
-                    && tie_rank(w, order_salt, tick, victim)
-                        < tie_rank(w, order_salt, tick, target.unwrap()));
-            if better {
-                target = Some(victim);
-                best = damage;
+            consider(h.victim, &mut target, &mut best);
+        }
+        if best_offense {
+            for b in blocks.iter().filter(|b| b.holder == by && !b.passive) {
+                consider(b.attacker, &mut target, &mut best);
             }
         }
         if let Some(t) = target {
-            let (_, n) = sum_for(landed, by, t);
+            let (_, n) = hits_for(t);
             w.players[i].card_streak = Some(Streak {
                 target: t,
                 count: n as u16,
