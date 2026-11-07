@@ -1,7 +1,7 @@
 //! P-CARDS-1: the generated 80-card table against the accepted source corpus (differential, independent of the emitter).
 use rh_sim::cards::{
-    BaseStatId, CardId, CardKind, CardRow, MechanicTag, ScaleSrc, Side, TriggerAction, TriggerOn,
-    VsTest,
+    BaseStatId, BlockReason, CardId, CardKind, CardRow, MechanicTag, ScaleSrc, Side, TriggerAction,
+    TriggerOn, VsTest, WhyCode,
 };
 use rh_sim::stat_fold::{
     ConvertFrom, ConvertTo, EffectFlag, EffectKind, EffectStat, FlatStat, MultKey, StatKey,
@@ -443,6 +443,22 @@ fn the_generated_catalog_matches_the_source_corpus() {
     }
 }
 
+fn why_code_name(c: WhyCode) -> &'static str {
+    match c {
+        WhyCode::New => "new",
+        WhyCode::Deepens => "deepens",
+        WhyCode::Synergy => "synergy",
+        WhyCode::Augment => "augment",
+    }
+}
+
+fn reason_name(r: BlockReason) -> &'static str {
+    match r {
+        BlockReason::Owned => "owned",
+        BlockReason::Needs => "needs",
+    }
+}
+
 #[test]
 fn eligibility_cases_match_the_catalog() {
     let corpus = corpus();
@@ -506,6 +522,39 @@ fn eligibility_cases_match_the_catalog() {
             let held = build.get(id_str).and_then(|c| c.as_u64()).unwrap_or(0);
             assert_eq!(e["count"].as_u64().unwrap(), held, "count {id_str}");
             assert_eq!(v["held"].as_u64().unwrap(), held, "held {id_str}");
+            let has_required = def.requires.map_or(false, |req| {
+                build.as_object().unwrap().keys().any(|k| {
+                    CardId::ALL
+                        .into_iter()
+                        .any(|c| c.as_str() == k.as_str() && c.definition().base == Some(req))
+                })
+            });
+            let why = def.why(held > 0, has_required);
+            let mut why_json = json!({"code": why_code_name(why.code), "text": why.text()});
+            if let Some(base) = why.base {
+                why_json["base"] = json!(base_name(base));
+            }
+            if let Some(has) = why.has {
+                why_json["has"] = json!(has);
+            }
+            assert!(
+                json_eq(&why_json, &v["why"]),
+                "why {id_str}: generated {why_json} vs source {}",
+                v["why"]
+            );
+            match (&v["blocked"], def.blocked(held > 0, has_required)) {
+                (V::Null, None) => {}
+                (V::Object(_), Some(blocked)) => {
+                    let blocked_json =
+                        json!({"reason": reason_name(blocked.reason), "text": blocked.text()});
+                    assert!(
+                        json_eq(&blocked_json, &v["blocked"]),
+                        "blocked {id_str}: generated {blocked_json} vs source {}",
+                        v["blocked"]
+                    );
+                }
+                (want, got) => panic!("blocked {id_str}: source {want} vs generated {got:?}"),
+            }
             let mut owned: Vec<String> = build
                 .as_object()
                 .unwrap()

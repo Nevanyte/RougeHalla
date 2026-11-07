@@ -435,3 +435,165 @@ impl CardDef {
         (self.text, self.rows)
     }
 }
+
+/// Why a card appears offerable in a build (source eligibility view).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum WhyCode {
+    New,
+    Deepens,
+    Synergy,
+    Augment,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Why {
+    pub code: WhyCode,
+    pub base: Option<BaseStatId>,
+    pub has: Option<bool>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum BlockReason {
+    Owned,
+    Needs,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Blocked {
+    pub reason: BlockReason,
+    pub base: Option<BaseStatId>,
+}
+
+impl BaseStatId {
+    /// The source's display name for a base stat ("Offense", "Soul Offence", "Defense", ...).
+    pub const fn label(self) -> &'static str {
+        match self {
+            BaseStatId::Ad => "Offense",
+            BaseStatId::Ap => "Soul Offence",
+            BaseStatId::Haste => "Haste",
+            BaseStatId::Vitality => "Vitality",
+            BaseStatId::Armor => "Defense",
+            BaseStatId::Mr => "Soul Defense",
+            BaseStatId::Leech => "Leech",
+            BaseStatId::Fleet => "Fleet",
+        }
+    }
+
+    const fn deepens_label(self) -> &'static str {
+        match self {
+            BaseStatId::Ad => "Deepens your Offense",
+            BaseStatId::Ap => "Deepens your Soul Offence",
+            BaseStatId::Haste => "Deepens your Haste",
+            BaseStatId::Vitality => "Deepens your Vitality",
+            BaseStatId::Armor => "Deepens your Defense",
+            BaseStatId::Mr => "Deepens your Soul Defense",
+            BaseStatId::Leech => "Deepens your Leech",
+            BaseStatId::Fleet => "Deepens your Fleet",
+        }
+    }
+
+    const fn needs_label(self) -> &'static str {
+        match self {
+            BaseStatId::Ad => "Needs Offense",
+            BaseStatId::Ap => "Needs Soul Offence",
+            BaseStatId::Haste => "Needs Haste",
+            BaseStatId::Vitality => "Needs Vitality",
+            BaseStatId::Armor => "Needs Defense",
+            BaseStatId::Mr => "Needs Soul Defense",
+            BaseStatId::Leech => "Needs Leech",
+            BaseStatId::Fleet => "Needs Fleet",
+        }
+    }
+
+    const fn have_label(self) -> &'static str {
+        match self {
+            BaseStatId::Ad => "You have Offense",
+            BaseStatId::Ap => "You have Soul Offence",
+            BaseStatId::Haste => "You have Haste",
+            BaseStatId::Vitality => "You have Vitality",
+            BaseStatId::Armor => "You have Defense",
+            BaseStatId::Mr => "You have Soul Defense",
+            BaseStatId::Leech => "You have Leech",
+            BaseStatId::Fleet => "You have Fleet",
+        }
+    }
+}
+
+impl Why {
+    pub fn text(&self) -> &'static str {
+        match self.code {
+            WhyCode::New => "New",
+            WhyCode::Deepens => self.base.map_or("", BaseStatId::deepens_label),
+            WhyCode::Synergy => match (self.base, self.has) {
+                (Some(base), Some(true)) => base.have_label(),
+                (Some(base), _) => base.needs_label(),
+                _ => "",
+            },
+            WhyCode::Augment => "",
+        }
+    }
+}
+
+impl Blocked {
+    pub fn text(&self) -> &'static str {
+        match self.reason {
+            BlockReason::Owned => "Already yours",
+            BlockReason::Needs => self.base.map_or("", BaseStatId::needs_label),
+        }
+    }
+}
+
+impl CardDef {
+    /// The source's offer reason for this card in a build that holds `held` copies and owns (or not) its required base.
+    pub fn why(&self, held: bool, has_required_base: bool) -> Why {
+        match self.kind {
+            CardKind::Base => Why {
+                code: if held { WhyCode::Deepens } else { WhyCode::New },
+                base: self.base,
+                has: None,
+            },
+            CardKind::Conditional => Why {
+                code: WhyCode::Synergy,
+                base: self.requires,
+                has: Some(has_required_base),
+            },
+            CardKind::Augment => Why {
+                code: WhyCode::Augment,
+                base: None,
+                has: None,
+            },
+        }
+    }
+
+    /// The source's offer blocker for this card, if any.
+    pub fn blocked(&self, held: bool, has_required_base: bool) -> Option<Blocked> {
+        match self.kind {
+            CardKind::Base => None,
+            CardKind::Conditional => {
+                if !has_required_base {
+                    Some(Blocked {
+                        reason: BlockReason::Needs,
+                        base: self.requires,
+                    })
+                } else if held {
+                    Some(Blocked {
+                        reason: BlockReason::Owned,
+                        base: None,
+                    })
+                } else {
+                    None
+                }
+            }
+            CardKind::Augment => {
+                if held {
+                    Some(Blocked {
+                        reason: BlockReason::Owned,
+                        base: None,
+                    })
+                } else {
+                    None
+                }
+            }
+        }
+    }
+}
