@@ -43,13 +43,17 @@ catalog to a generated, corpus-verified table and the build to the source count 
    pending-block note. **Wishful Thinking** is now consumed too: the same group of hits trims a cast Wish's cooldown by the
    owned hit-trigger's 1000 ms each, at most 30 s in a 60 s window, never below half the cast cooldown, shifting the charged
    stock clock as well and recording the trims (`Player.card_trims`); focused tests cover the cut, budget, floor and window.
-   The non-dot on-hit families stay open.
+7. **Heal over time is a real system** (`factions.healOverTime` is ported): `start_over_time` spreads an amount over
+   round(ms/500) equal steps through the ordinary heal funnel (the first now, the rest as `Player.card_hots` runs), and the
+   scheduled system pays the due steps, drops the rest for a downed fighter and clears on raid start. A focused test pins the
+   25-per-step spread of 100 over 2 s. This is the mechanism Second Wind's hpBelow heal row will call. The non-dot on-hit
+   families stay open.
 
 ## Measurements
 
-- `cargo test --workspace --all-features --locked` (throwaway PostgreSQL): **1,394 passed, 0 failed, 3 ignored, 151 test
+- `cargo test --workspace --all-features --locked` (throwaway PostgreSQL): **1,395 passed, 0 failed, 3 ignored, 151 test
   binaries, exit 0** (after the full-pool drop, the 21/21 terrain kernel, the allocation-free on-hit hook, the Fists of Fury
-  multiplicity, the streak memory and Wishful Thinking).
+  multiplicity, the streak memory, Wishful Thinking and heal over time).
 - Catalog differentials: **2/2** (80 cards × all rows/selections; 80 × 4 eligibility entries incl. reasons).
 - Protocol: Rust **11/11**, JS decoder **24 server vectors / 89 malformed / 10 chains / 15,454 checks**, C# **267/267**.
 - Browser proof (`node tools/browser-proof/proof.mjs`): **PASS**, protocol 7.
