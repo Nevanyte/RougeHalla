@@ -39,6 +39,7 @@ const NON_GAMEPLAY: &[(&str, &str, &str)] = &[
     ("cards/catalog_data.rs", "DEFINITIONS", "typed 80-card catalog table generated from the accepted source corpus; the gameplay numbers are the registered source constants"),
     ("cards/mod.rs", "SUPPORTED", "the three-card native subset selector (identifiers only), not a game rule"),
     ("cards/mod.rs", "MAX_FOLD_ROWS", "fixed scratch bound equal to the generated catalog's total fold rows, not a game rule"),
+    ("reward_chests/pools.rs", "INTERACTIVE", "the source interactive augment id list (identifiers only); tiers and rows are the registered catalog"),
     ("reward_chests/tests.rs", "FIXTURE_FNV", "cfg(test)-only frozen source fixture integrity; not runtime policy"),
     ("mapgen/style_zones/tests.rs", "CASES", "cfg(test)-only exact source open-case/provenance inventory; never read by runtime policy"),
     ("mapgen/style_zones/tests.rs", "SOURCE_NAMES", "cfg(test)-only exact source open-case/provenance inventory; never read by runtime policy"),
