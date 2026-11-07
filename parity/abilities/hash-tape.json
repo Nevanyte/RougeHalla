@@ -130,23 +130,23 @@
       "ticks": 8
     },
     "laststand-antiheal-common-healing": {
-      "fold": "c1cfe5367b0f18df",
+      "fold": "987b6dfad14cbc5c",
       "ticks": 104
     },
     "laststand-mia-does-not-pay": {
-      "fold": "a281353b889e6197",
+      "fold": "3f983315dcdaaba2",
       "ticks": 4
     },
     "laststand-overkill-and-natural-payback": {
-      "fold": "744a22b947df2f72",
+      "fold": "2be60c4dc8ddf90c",
       "ticks": 104
     },
     "laststand-run-end-does-not-pay": {
-      "fold": "34131fc509da212b",
+      "fold": "89bf178fc850d18e",
       "ticks": 3
     },
     "laststand-teleport-payback-without-cooldown-refund": {
-      "fold": "f061445557ae4b32",
+      "fold": "bd0a24d21b198886",
       "ticks": 8
     },
     "normal-45s-lock-ready-boundary": {
@@ -162,7 +162,7 @@
       "ticks": 9
     },
     "pending-freeze-real-sword-death-paylater": {
-      "fold": "536614676222d271",
+      "fold": "bb37f6245a532472",
       "ticks": 8
     },
     "pending-freeze-run-end-keeps-spending": {
@@ -182,11 +182,11 @@
       "ticks": 14
     },
     "swarm-independent-walk-reveal-and-expiry": {
-      "fold": "47d027903f907870",
+      "fold": "464408989977fdb7",
       "ticks": 171
     },
     "swarm-unknown-hidden-target-and-next-tick-reveal": {
-      "fold": "cfaf270f6c1e7da3",
+      "fold": "4cf8fe060d320971",
       "ticks": 17
     },
     "teleport-grace-and-immunity-boundaries": {
