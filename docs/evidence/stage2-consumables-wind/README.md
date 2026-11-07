@@ -79,8 +79,15 @@ this README and the ledger.
       vectors, 89 malformed, 10 chains, 15,498 checks against `v10.json`; `dotnet test client-unity/RoguehallaNet.Tests`
       — 272 passed.
 - [x] `cargo fmt --all --check`; both strict Clippy workspace modes.
-- [ ] `cargo test --workspace --all-features --locked` (throwaway PostgreSQL) — RUNNING.
-- [ ] `node tools/browser-proof/proof.mjs` — RUNNING.
+- [x] Content identity: the new wind constants move the content hash to `0x12c3d617f6c33463` (was `0xb9ea06c370690603`);
+      the golden and the packet's replay/wire declarations carry it, so older replays are refused as designed.
+- [x] `cargo test --workspace --all-features --locked` (throwaway PostgreSQL) — **1,406 passed, 0 failed, 2 ignored,
+      151 test binaries, exit 0**.
+- [x] `node tools/browser-proof/proof.mjs` — **15/15 checks PASS**, protocol **10**, content hash `12c3d617f6c33463`,
+      no page errors.
+- [x] The packet's tool changes (`tools/consumable-fixtures/potions.ts`, `run-mutants.sh`, the protocol-10 JS/proof
+      mirrors) are protected card-corpus inputs: the catalog → runtime → witness chain is recaptured and all three
+      `capture.sh --check` paths pass (expected values unchanged).
 
 ## 7. Commands
 

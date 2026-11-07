@@ -60,12 +60,12 @@ try {
   const state0 = await a.evaluate(() => ({frames:window.__probe.stateFrames,first:window.__probe.firstStateAfterWelcome,keys:Object.keys(window.__probe.collections)}));
   state0.first[0].join() === "1,2,3,4,5,6,7" && state0.keys.join() === "1,2,3,4,5,6,7" ? pass("join_receives_complete_reliable_state",state0) : fail("join_receives_complete_reliable_state",JSON.stringify(state0));
 
-  // Protocol 9: the first snapshot of a connection is Full, and the stream that follows is deltas the page's own decoder applies.
+  // Protocol 10: the first snapshot of a connection is Full, and the stream that follows is deltas the page's own decoder applies.
   await wait(a, () => window.__probe.deltaSnapshots > 20);
   const kinds = await a.evaluate(() => ({ first: window.__probe.firstSnapshotAfterWelcome, full: window.__probe.fullSnapshots, delta: window.__probe.deltaSnapshots, refused: window.__probe.refused, resyncs: window.__probe.resyncs }));
   const info0 = await a.evaluate(() => fetch("/info", { cache: "no-store" }).then((r) => r.json()));
-  info0.protocol === 9 && kinds.first[0] === "full" && kinds.delta > kinds.full && kinds.refused.length === 0 && kinds.resyncs === 0
-    ? pass("protocol_9_full_first_then_deltas", { protocol: info0.protocol, ...kinds }) : fail("protocol_9_full_first_then_deltas", JSON.stringify([info0.protocol, kinds]));
+  info0.protocol === 10 && kinds.first[0] === "full" && kinds.delta > kinds.full && kinds.refused.length === 0 && kinds.resyncs === 0
+    ? pass("protocol_10_full_first_then_deltas", { protocol: info0.protocol, ...kinds }) : fail("protocol_10_full_first_then_deltas", JSON.stringify([info0.protocol, kinds]));
 
   // A resync request is answered with a Full snapshot, and deltas continue from it.
   const f0 = await a.evaluate(() => window.__probe.fullSnapshots);
