@@ -64,7 +64,8 @@ taken reset, then the haste. Plus the row numbers and the self/target pass order
 - [x] Negative controls: **8/8 mutants killed** (Freeze side, Swarm cloud radius, Trial convicted radius, Last Stand
   heal-back, Blaze trail, refused-zone removal, DeathFloor taken reset, Last Stand haste value); unchanged control passes.
 - [x] `cargo fmt --all --check`; both strict Clippy workspace modes.
-- [ ] `cargo test --workspace --all-features --locked` (throwaway PostgreSQL) — RUNNING.
+- [x] `cargo test --workspace --all-features --locked` (throwaway PostgreSQL) — **1,384 passed, 0 failed, 3 ignored,
+      149 test binaries, exit 0**.
 
 ## 7. Commands
 
