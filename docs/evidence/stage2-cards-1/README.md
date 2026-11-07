@@ -153,8 +153,9 @@ catalog to a generated, corpus-verified table and the build to the source count 
   mapping. **The matched witness case is now reproduced**: `crates/rh-sim/src/card_witness_tests.rs` builds the rig's 40x24
   room (border walls, the five rig spawns), derives the order salt from the main seed's first mulberry32 draw, places the three
   Holy players with the reward salt, submits the target and the held attack, and steps until the swing lands — the landed
-  damage matches the source's `actualLandedAmount` (36.13796707603867) exactly. The positive case needs the harness's
-  test-only witness card.
+  damage matches the source's `actualLandedAmount` (36.13796707603867) exactly. **Both witness cases now pass**: the positive
+  case grants the live `Witness` card, and the ledger's `thirdParty` probe (the victim's weapon lock or last signature target
+  on someone other than the attacker) applies its +8% — landing 39.029004442121774, matching the source exactly.
 - The chest ownership/skip **certification edge cases** beyond the refusal table (owner-private trophies, the skip's heal-lockout
   GV path) and the guard-by-guard certification against the runtime diagnostic cases.
 - The packet's final acceptance evidence: source probes per runtime family, the mutant controls, and the coordinator's
