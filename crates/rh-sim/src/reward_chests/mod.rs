@@ -148,7 +148,8 @@ pub(crate) fn choose(
         .and_then(|id| w.reward_chests.iter().position(|c| c.id == id))
         .ok_or(Refusal::Gone)?;
     let c = &w.reward_chests[ci];
-    if c.held_until_tick >= w.tick || w.server_time >= c.expires_at {
+    // Only the birth tick refuses (source bornThisTick): the hold is the last refused tick plus one.
+    if c.held_until_tick > w.tick || w.server_time >= c.expires_at {
         return Err(Refusal::Gone);
     }
     if c.owner.is_some_and(|owner| owner != who) {

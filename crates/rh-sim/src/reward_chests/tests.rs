@@ -539,3 +539,89 @@ fn source_fixture_changes_refuse_before_replay() {
         assert!(admit_fixture(changed.as_bytes()).is_err())
     }
 }
+
+#[test]
+fn the_refusal_sequence_matches_the_source_toast_tape() {
+    let mut s = sim(FactionId::Holy);
+    let p0 = s.players()[0].id;
+    let p1 = s.players()[1].id;
+    assert!(crate::cards::grant(
+        &s.k,
+        &mut s.w,
+        p0,
+        crate::cards::CardId::Gambler
+    ));
+    let at = s.players()[0].pos();
+    let id = s.w.next_entity_id();
+    s.w.reward_chests.push(Chest {
+        id,
+        at,
+        expires_at: s.w.server_time + DEFINITION.lifetime_ms,
+        held_until_tick: s.w.tick + DEFINITION.birth_hold_ticks,
+        options: [
+            Some(OptionId::Card(crate::cards::CardId::Gambler)),
+            Some(OptionId::Card(crate::cards::CardId::Overkill)),
+            None,
+        ],
+        taken: [None; 3],
+        pickers: Vec::new(),
+        camp: None,
+        owner: None,
+    });
+    let mut ev = Vec::new();
+    // Born this tick: "Chest gone".
+    assert_eq!(
+        choose(&s.k, &mut s.w, &mut ev, p0, Some(id), 0),
+        Err(Refusal::Gone)
+    );
+    s.step();
+    // Near, but the option is a card the picker already holds: "Already yours".
+    assert_eq!(
+        choose(&s.k, &mut s.w, &mut ev, p0, Some(id), 0),
+        Err(Refusal::Owned)
+    );
+    // Out of range: "Too far away".
+    s.w.players[0].core.body.x = 1000.;
+    assert_eq!(
+        choose(&s.k, &mut s.w, &mut ev, p0, Some(id), 0),
+        Err(Refusal::Far)
+    );
+    s.w.players[0].core.body.x = at.x;
+    // Stunned: "Can't do that now".
+    let stun = crate::status_runtime::StatusApply {
+        kind: crate::status_runtime::StatusKind::Stun,
+        source: crate::status_runtime::StatusSource {
+            id: None,
+            name: "stun".into(),
+            owner_id: None,
+        },
+        ms: 100.,
+        ability: None,
+        tag: None,
+        value: None,
+        add: None,
+        data: None,
+    };
+    let stats = crate::status_runtime::stats::Inputs::default();
+    crate::systems::status::operations::apply_with(&s.k, &mut s.w, &mut ev, p0, stun, true, stats);
+    assert_eq!(
+        choose(&s.k, &mut s.w, &mut ev, p0, Some(id), 0),
+        Err(Refusal::Busy)
+    );
+    // The stun lapses; pick 1: success.
+    s.w.server_time += 200.;
+    assert_eq!(choose(&s.k, &mut s.w, &mut ev, p0, Some(id), 1), Ok(()));
+    // Another player on the taken option: "Already taken".
+    assert_eq!(
+        choose(&s.k, &mut s.w, &mut ev, p1, Some(id), 1),
+        Err(Refusal::Taken)
+    );
+    // Another player on the untaken option: success.
+    assert_eq!(choose(&s.k, &mut s.w, &mut ev, p1, Some(id), 0), Ok(()));
+    // Expired: "Chest gone".
+    s.w.server_time += DEFINITION.lifetime_ms;
+    assert_eq!(
+        choose(&s.k, &mut s.w, &mut ev, p0, Some(id), 1),
+        Err(Refusal::Gone)
+    );
+}
