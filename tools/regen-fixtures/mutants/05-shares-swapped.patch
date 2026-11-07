@@ -1,0 +1,14 @@
+--- a/crates/rh-sim/src/systems/regen.rs
++++ b/crates/rh-sim/src/systems/regen.rs
+@@ -50,9 +50,9 @@
+             .regen_at
+             .is_none_or(|last| now - last >= PLAYER_REGEN_QUIET_MS);
+         let share = if quiet {
++            PLAYER_REGEN_SHARE_IN
++        } else {
+             PLAYER_REGEN_SHARE_OUT
+-        } else {
+-            PLAYER_REGEN_SHARE_IN
+         };
+         heal::apply(w, ev, i, max_hp * share * dt, heal::Kind::QuietRegen);
+     }

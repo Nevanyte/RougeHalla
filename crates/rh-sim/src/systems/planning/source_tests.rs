@@ -1191,7 +1191,9 @@ fn compare_owned_hook_order(sim: &mut Sim, case: &Value, f: &Value, ctx: &str) {
             if !roster && ["chests", "mobLife"].contains(&module) {
                 return None;
             }
-            if ["cardHooks", "consumables"].contains(&module) {
+            // Core source profiles do not install these modules; the native callbacks are inert with the empty
+            // owned stores or the config gate regen is off behind.
+            if ["cardHooks", "consumables", "regen"].contains(&module) {
                 return None;
             }
             Some(json!({"hook":hook,"installer":module,"time":sim.w.server_time,"tick":sim.w.tick}))

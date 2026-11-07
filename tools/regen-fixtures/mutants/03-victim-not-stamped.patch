@@ -1,0 +1,10 @@
+--- a/crates/rh-sim/src/systems/regen.rs
++++ b/crates/rh-sim/src/systems/regen.rs
+@@ -27,7 +27,6 @@
+     }
+     let now = w.server_time;
+     for h in landed {
+-        stamp(w, h.victim, now);
+         if let Some(by) = h.by {
+             stamp(w, by, now);
+         }

@@ -848,7 +848,7 @@ static SYSTEMS: [Item<SystemFn>; 24] = [
         "P-TERRAIN-1",
         crate::systems::terrain::light,
     ),
-    pending("regen.regenPass", Gate::Always, "P-MOBS-2"),
+    ported("regen.regenPass", Gate::Always, crate::systems::regen::pass),
     ported(
         "abilities.abilityDotFx",
         Gate::Always,
@@ -1224,7 +1224,12 @@ static RAID_STARTED: [Link; 14] = [
         Gate::Always,
         crate::systems::terrain::raid_started,
     ),
-    pending_link("regen.<arrow>", Mode::Append, Gate::Always, "P-MOBS-2"),
+    ported_link(
+        "regen.<arrow>",
+        Mode::Append,
+        Gate::Always,
+        crate::systems::regen::raid_started,
+    ),
     // Status/field reset only; Wish charges/cooldown/landing remain P-ABIL-1.
     partial_link(
         "abilities.armWishes",
@@ -1828,6 +1833,7 @@ mod tests {
                 "mobLife.respawnCamps",
                 "mobAI.thinkMobs",
                 "terrainEffects.lightPass",
+                "regen.regenPass",
                 "abilities.abilityDotFx",
                 "vision.refreshVision",
                 "consumables.updateConsumables",
