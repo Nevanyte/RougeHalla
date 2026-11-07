@@ -50,15 +50,22 @@ pub(crate) fn apply(hx: &mut Hx, args: &HookArgs) {
                 }
             }
         }
-        // Fists of Fury: one more application while the active hand is empty.
+        // Fists of Fury: one more application while the active hand is empty. Third Time's the Charm: one more on every
+        // third hit in a row on the same target (read at the pass start, so this tick's write cannot see itself).
         let w = &p.core.weapon;
         let hand_empty = (if w.slot == 0 { w.weapon0 } else { w.weapon1 }).is_none();
+        let streak = crate::cards::streak_before(
+            p.card_streak.as_ref(),
+            hx.w.server_time,
+            entry.victim,
+            crate::constants::STREAK_GAP_MS,
+        );
+        let third =
+            p.build.has_flag(crate::stat_fold::EffectFlag::ThirdCharm) && (streak + 1) % 3 == 0;
         let applications =
-            if p.build.has_flag(crate::stat_fold::EffectFlag::TwiceUnarmed) && hand_empty {
-                2.
-            } else {
-                1.
-            };
+            1. + f64::from(u8::from(
+                p.build.has_flag(crate::stat_fold::EffectFlag::TwiceUnarmed) && hand_empty,
+            )) + f64::from(u8::from(third));
         (
             crate::content::on_hit_power(weapon) * applications,
             p.modifiers.hit_mult(),
@@ -357,5 +364,108 @@ mod tests {
             .expect("hemorrhage bleed");
         // fists 1.2 x two applications, per 0.1: 100 * 0.1 * 2.4 = 24 over 2 s = 12 per second.
         assert!((dot.value - 12.).abs() < 1e-9, "value {}", dot.value);
+    }
+
+    #[test]
+    fn third_times_the_charm_doubles_every_third_streak_hit() {
+        use crate::content::WeaponId;
+        use crate::state::Packet;
+        use crate::{arenas, FactionId, Placement, PlayerId, Secrets, Sim, SimConfig, Vec2};
+
+        let ps = [
+            Placement {
+                profile: "a".into(),
+                faction: FactionId::Fire,
+                bot: false,
+                at: Vec2::new(400., 400.),
+                hp: None,
+                weapon0: None,
+                weapon1: None,
+            },
+            Placement {
+                profile: "b".into(),
+                faction: FactionId::Holy,
+                bot: false,
+                at: Vec2::new(456., 400.),
+                hp: None,
+                weapon0: None,
+                weapon1: None,
+            },
+        ];
+        let mut sim = Sim::reset_active(
+            SimConfig::default(),
+            arenas::practice_arena(),
+            Secrets::from_seed(7),
+            &ps,
+        );
+        assert!(crate::cards::grant(
+            &sim.k,
+            &mut sim.w,
+            PlayerId(1),
+            crate::cards::CardId::Hemorrhage
+        ));
+        assert!(crate::cards::grant(
+            &sim.k,
+            &mut sim.w,
+            PlayerId(1),
+            crate::cards::CardId::ThirdTimesTheCharm
+        ));
+        let now = sim.w.server_time;
+        let by_ix = sim.w.idx(PlayerId(1)).unwrap();
+        sim.w.players[by_ix].card_streak = Some(crate::cards::Streak {
+            target: PlayerId(2),
+            count: 2,
+            last: now,
+        });
+        let mut ev = Vec::new();
+        let entry = crate::systems::ledger::Entry {
+            terrain: false,
+            dot: false,
+            ability: None,
+            arena: false,
+            source: None,
+            critical: false,
+            critical_mult: None,
+            sig: None,
+            execute: false,
+            victim: PlayerId(2),
+            by: Some(PlayerId(1)),
+            packet: Packet {
+                raw: 100.,
+                phys: 1.,
+                magic: 0.,
+                true_: 0.,
+            },
+            weapon: Some(WeaponId::Sword),
+            stagger: false,
+            projectile: None,
+            scale: 1.,
+            derived: false,
+            passive: false,
+        };
+        let mut hx = crate::hooks::Hx {
+            stats: Default::default(),
+            fx: None,
+            k: &sim.k,
+            w: &mut sim.w,
+            ev: &mut ev,
+        };
+        apply(
+            &mut hx,
+            &crate::hooks::HookArgs::HitLanded {
+                entry,
+                amount: 100.,
+            },
+        );
+        let victim = hx.w.player(PlayerId(2)).unwrap();
+        let dot = victim
+            .core
+            .statuses
+            .instances
+            .iter()
+            .find(|s| s.kind == StatusKind::Dot && s.source.id == Some(PlayerId(1)))
+            .expect("hemorrhage bleed");
+        // Third hit in the row: sword 1.5 x 2 applications, per 0.1 => 100 * 0.1 * 3 = 30 over 2 s = 15 per second.
+        assert!((dot.value - 15.).abs() < 1e-9, "value {}", dot.value);
     }
 }

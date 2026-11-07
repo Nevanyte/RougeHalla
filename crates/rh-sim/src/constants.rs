@@ -95,6 +95,7 @@ content! {
     SHIELD_HALF_ARC: f64 = std::f64::consts::PI / 3.0, "rad";
     SHIELD_BLOCK_SHARE: f64 = 0.07, "fraction";
     RIPOSTE_SHARE: f64 = 0.5, "fraction";
+    STREAK_GAP_MS: f64 = 3000.0, "ms";
     SWORD_ON_HIT_POWER: f64 = 1.5, "x";
     FISTS_ON_HIT_POWER: f64 = 1.2, "x";
     PLAIN_ON_HIT_POWER: f64 = 1.0, "x";

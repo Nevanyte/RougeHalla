@@ -37,6 +37,28 @@ impl<'de> serde::Deserialize<'de> for Counts {
     }
 }
 
+/// Source card-state streak memory: consecutive weapon hits on one target, read at the pass start and written after it.
+#[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Streak {
+    pub target: crate::PlayerId,
+    pub count: u16,
+    pub last: f64,
+}
+
+/// Source `streakBefore`: hits landed in a row on `victim` before this tick's pass (0 without a live same-target streak).
+pub fn streak_before(
+    streak: Option<&Streak>,
+    now: f64,
+    victim: crate::PlayerId,
+    gap_ms: f64,
+) -> u16 {
+    match streak {
+        Some(s) if s.target == victim && now - s.last < gap_ms => s.count,
+        _ => 0,
+    }
+}
+
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Build {
