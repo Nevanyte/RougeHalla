@@ -216,11 +216,48 @@ pub(crate) fn execute_denied(hx: &mut Hx, args: &HookArgs) {
         p.signature.mark.denied = true;
         p.credit.sentence = p.credit.sentence.saturating_add(1).min(MARK_KILL_STACK_CAP);
     }
-    for (id, _) in denied.rows.into_iter().flatten() {
+    let final_verdict = p.build.has_flag(crate::stat_fold::EffectFlag::FinalVerdict);
+    let weapon = p.core.active_weapon();
+    let mut returns = [(crate::PlayerId(0), 0f64); crate::constants::MAX_PLAYERS];
+    let mut n = 0;
+    for (id, amount) in denied.rows.into_iter().flatten() {
         if hx.w.idx(id).is_some() {
             hx.ev.push(crate::Event::MarkNotice {
                 recipient: id,
                 notice: crate::events::MarkNotice::ExecuteBlocked,
+            });
+        }
+        if final_verdict && amount > 0. && n < returns.len() {
+            returns[n] = (id, amount);
+            n += 1;
+        }
+    }
+    if final_verdict {
+        for &(foe, amount) in &returns[..n] {
+            hx.w.deferred.defer_hit(crate::systems::ledger::Entry {
+                terrain: false,
+                dot: false,
+                ability: None,
+                arena: false,
+                source: None,
+                critical: false,
+                critical_mult: None,
+                sig: None,
+                execute: false,
+                victim: foe,
+                by: Some(owner),
+                packet: crate::state::Packet {
+                    raw: amount,
+                    phys: 0.,
+                    magic: 0.,
+                    true_: 1.,
+                },
+                weapon: Some(weapon),
+                stagger: false,
+                projectile: None,
+                scale: 1.,
+                derived: false,
+                passive: true,
             });
         }
     }
