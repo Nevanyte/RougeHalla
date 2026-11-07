@@ -38,8 +38,9 @@ catalog to a generated, corpus-verified table and the build to the source count 
    read at the pass start by `streak_before` with the 3 s source gap): the third hit in a row adds an application, pinned by
    a seeded test (15/s). The **after-damage writer is ported** (`cardHooks.afterDamage` is no longer pending): it groups the
    tick's weapon hits from the existing scratch landed list by attacker, keeps a live streak when its target was hit (one per
-   hit), else restarts on the biggest hit with the source tie rank, and writes the memory without allocating. The non-dot
-   on-hit families stay open.
+   hit), else restarts on the biggest hit with the source tie rank, and writes the memory without allocating. **Best Offense
+   blocks count as streak hits** under the `blockHits` flag (zero-damage notes on the blocked attacker), matching the source
+   pending-block note. The non-dot on-hit families and Wishful Thinking's cooldown consumer stay open.
 
 ## Measurements
 
