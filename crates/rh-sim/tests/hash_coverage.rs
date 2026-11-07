@@ -1722,8 +1722,8 @@ fn the_serde_skips_are_exactly_the_documented_ones() {
         ),
         (
             "state.rs",
-            2,
-            "World: the same-tick payout queue (empty at every step boundary) and the schedule trace (tests only)",
+            3,
+            "World: the same-tick payout queue (empty at every step boundary), the schedule trace (tests only) and the Overkill splash requests (recorded during the pass and drained by the after-damage system)",
         ),
         (
             "statics.rs",
