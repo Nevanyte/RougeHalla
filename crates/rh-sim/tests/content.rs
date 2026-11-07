@@ -39,6 +39,8 @@ const NON_GAMEPLAY: &[(&str, &str, &str)] = &[
     ("cards/catalog_data.rs", "DEFINITIONS", "typed 80-card catalog table generated from the accepted source corpus; the gameplay numbers are the registered source constants"),
     ("cards/mod.rs", "SUPPORTED", "the three-card native subset selector (identifiers only), not a game rule"),
     ("cards/mod.rs", "MAX_FOLD_ROWS", "fixed scratch bound equal to the generated catalog's total fold rows, not a game rule"),
+    ("modifiers/mod.rs", "MAX_FOLD_INPUT", "fixed fold scratch bound (the catalog rows plus the test-only diagnostic overlay), not a game rule"),
+    ("modifiers/mod.rs", "NO_BIT", "sentinel marking a row that owns no while bit, not a game rule"),
     ("reward_chests/pools.rs", "INTERACTIVE", "the source interactive augment id list (identifiers only); tiers and rows are the registered catalog"),
     ("cards/on_hit.rs", "MAX_ON_HIT_ROWS", "fixed stack buffer bound for the owned on-hit rows; never a game rule"),
     ("cards/on_hurt.rs", "MAX_ROWS", "fixed stack buffer bound for the owned hpBelow rows; never a game rule"),

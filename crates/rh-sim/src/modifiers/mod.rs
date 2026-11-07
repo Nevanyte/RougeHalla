@@ -14,7 +14,9 @@ pub(crate) fn grant_mob_stat(
     farm::grant_mob_stat(k, w, id, mob, amount)
 }
 pub(crate) mod hit_window;
-use crate::stat_fold::{self as fold, FoldContext, MultSums, StatSums, WireMirrors};
+use crate::stat_fold::{
+    self as fold, EffectKind, FoldContext, MultSums, RowLocation, StatSums, WhileRow, WireMirrors,
+};
 pub use hit_window::HitWindow;
 pub use rules::{visit_content, Definition, DEFINITION};
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -27,6 +29,9 @@ pub struct Runtime {
     max_hp_mult: f64,
     /// Plague's dot-crit conversion (its DoT crit chance paid as steady DoT damage; 1 for everyone else).
     plague_dot: f64,
+    /// Which of the build's `while` rows held at the last fold (source `Build.holds`), bit i for the i-th `while` row in
+    /// build row order. The cached fold is only meaningful with them, so a restored runtime re-folds with exactly this.
+    holds: u64,
 }
 impl Default for Runtime {
     fn default() -> Self {
@@ -37,6 +42,7 @@ impl Default for Runtime {
             wire: fold::wire_identity_mirrors().source_values(),
             max_hp_mult: 1.,
             plague_dot: 1.,
+            holds: 0,
         }
     }
 }
@@ -95,7 +101,28 @@ impl Runtime {
         {
             return false;
         }
-        let folded = fold_build(build, farm, base_hp, faction);
+        // The fold depends on which `while` rows held (source Build.holds): the stored bits are the cache's input, so
+        // re-fold with exactly them and demand the exact answer. Bits past the build's while rows are inert (the fold
+        // never asks about those rows), which is harmless: they cannot buy any stat.
+        let (rows, n) = build.rows(faction);
+        let (bit_of, _) = while_bit_of(&rows[..n]);
+        let holds = |loc: RowLocation, _: &WhileRow| {
+            bit_of
+                .get(loc.index)
+                .is_some_and(|bit| *bit != NO_BIT && (self.holds >> *bit) & 1 == 1)
+        };
+        let (farm_rows, farm_len) = farm.rows();
+        let boosts = fold::BoostCounts::from_source_values(build.boosts().map(f64::from));
+        let folded = fold::fold_rows(
+            &rows[..n],
+            &FoldContext {
+                base_max_hp: base_hp,
+                farm_rows: &farm_rows[..farm_len],
+                boosts: Some(&boosts),
+                holds: Some(&holds),
+                ..Default::default()
+            },
+        );
         if self.sums != folded.sums.source_values()
             || self.farm != folded.farm_sums.source_values()
             || self.mults != folded.mults.source_values()
@@ -147,6 +174,18 @@ pub(crate) fn recompute_with(
     ix: crate::fighter::FighterIx,
     inputs: crate::status_runtime::stats::Inputs,
 ) {
+    recompute_core(k, w, ix, inputs, &[]);
+}
+
+/// Re-folds one fighter's stats from its rows, the diagnostic overlay and every registered source, and stores the mirrors.
+/// [`recompute_with`] is this with no overlay: production never carries rows outside a build.
+fn recompute_core<'a>(
+    k: &crate::statics::MatchStatic,
+    w: &mut crate::state::World,
+    ix: crate::fighter::FighterIx,
+    inputs: crate::status_runtime::stats::Inputs,
+    extra_rows: &[fold::EffectRow<'a>],
+) {
     let build = if w.is_player(ix) {
         w.players[ix.slot()].build
     } else {
@@ -158,7 +197,55 @@ pub(crate) fn recompute_with(
         Farm::default()
     };
     let faction = w.core(ix).vitals.faction;
-    let folded = fold_build(&build, &farm, crate::content::faction(faction).hp, faction);
+    let base_hp = crate::content::faction(faction).hp;
+    let boosts = fold::BoostCounts::from_source_values(build.boosts().map(f64::from));
+    let (rows, n) = build.rows(faction);
+    let combined: Vec<fold::EffectRow<'_>>;
+    let fold_rows: &[fold::EffectRow<'_>] = if extra_rows.is_empty() {
+        &rows[..n]
+    } else {
+        combined = {
+            let mut all: Vec<fold::EffectRow<'_>> = Vec::with_capacity(n + extra_rows.len());
+            all.extend_from_slice(&rows[..n]);
+            all.extend_from_slice(extra_rows);
+            all
+        };
+        &combined
+    };
+    // Source Build.holds: ask each `while` row's condition once, from the fighter as it stands now (the source does the
+    // same on every refold and again in its per-tick updateMods pass, which refolds only on a flip).
+    let now = w.server_time;
+    let is_player = w.is_player(ix);
+    let (bit_of, _) = while_bit_of(fold_rows);
+    let mut holds = 0u64;
+    {
+        let core = w.core(ix);
+        for (i, row) in fold_rows.iter().enumerate() {
+            let EffectKind::While(while_row) = row.kind else {
+                continue;
+            };
+            let bit = bit_of.get(i).copied().unwrap_or(NO_BIT);
+            if bit != NO_BIT && holds_now(now, core, is_player, &while_row) {
+                holds |= 1u64 << bit;
+            }
+        }
+    }
+    let answers = |loc: RowLocation, _: &WhileRow| {
+        bit_of
+            .get(loc.index)
+            .is_some_and(|bit| *bit != NO_BIT && (holds >> *bit) & 1 == 1)
+    };
+    let (farm_rows, farm_len) = farm.rows();
+    let folded = fold::fold_rows(
+        fold_rows,
+        &FoldContext {
+            base_max_hp: base_hp,
+            farm_rows: &farm_rows[..farm_len],
+            boosts: Some(&boosts),
+            holds: Some(&answers),
+            ..Default::default()
+        },
+    );
     let mut src = fold::SourceMods::default();
     for (_, source) in crate::schedule::Plan::of(k).mod_sources.live() {
         if let Some(m) = source(w, w.core(ix), inputs.view(w.core(ix))) {
@@ -210,7 +297,78 @@ pub(crate) fn recompute_with(
             .max_hp_floor_share
             .max(1. + folded.sums.max_hp + folded.farm_sums.max_hp),
         plague_dot,
+        holds,
     };
+}
+
+/// The flattened rows one fold can read (`cards::MAX_FOLD_ROWS`) plus the small diagnostic overlay of the test-only
+/// `setExtraRows` seam. A row past this bound (impossible for a real build) participates with its while answer off.
+const MAX_FOLD_INPUT: usize = crate::cards::MAX_FOLD_ROWS + 4;
+/// No `while` bit: an ordinary row, or a while row past the 64 the cached fold remembers.
+const NO_BIT: u8 = u8::MAX;
+
+/// For each flattened row, the bit of the build's `while` rows that names it (`NO_BIT` otherwise), in row order: bit i is
+/// the i-th `while` row of the fold input (source `Build.whiles`). A real build's catalog rows are far below 64 while rows.
+fn while_bit_of(rows: &[fold::EffectRow<'_>]) -> ([u8; MAX_FOLD_INPUT], u8) {
+    let mut bit_of = [NO_BIT; MAX_FOLD_INPUT];
+    let mut while_rows = 0u8;
+    for (i, row) in rows.iter().enumerate() {
+        if matches!(row.kind, EffectKind::While(_)) {
+            if while_rows < 64 {
+                if let Some(bit) = bit_of.get_mut(i) {
+                    *bit = while_rows;
+                }
+            }
+            while_rows = while_rows.saturating_add(1);
+        }
+    }
+    (bit_of, while_rows)
+}
+
+/// Source `holdsNow`: does a `while` row's condition hold for this fighter now? `unarmed` needs a seated player's hands;
+/// `afterCast` waits for the cast runtime (the shipped rows are status-gated away; source R6); `fightTime` waits for the
+/// source fight clock (`mods.noteFights`), which no Rust state owns yet, so no such row holds.
+fn holds_now(
+    now: f64,
+    core: &crate::fighter::FighterCore,
+    is_player: bool,
+    row: &WhileRow,
+) -> bool {
+    use crate::stat_fold::WhileCond;
+    match row.cond {
+        WhileCond::ChasingLock => core.weapon.targeting.target.is_some(),
+        WhileCond::HpBelow => {
+            core.vitals.max_hp > 0. && core.vitals.hp / core.vitals.max_hp < row.arg
+        }
+        WhileCond::AfterCast => false,
+        WhileCond::NotShooting => {
+            if core
+                .weapon
+                .action
+                .is_some_and(|action| action.kind != crate::state::ActionKind::Swing)
+            {
+                return false;
+            }
+            core.weapon
+                .last_shot_at
+                .is_none_or(|shot| now - shot >= row.ms.unwrap_or(0.))
+        }
+        WhileCond::Unarmed => is_player && core.active_weapon() == crate::WeaponId::Fists,
+        WhileCond::FightTime => false,
+    }
+}
+
+/// Test-only projection of the source `setExtraRows` diagnostic seam: re-folds the fighter with `extra` rows on top of its
+/// build (the G8 capture's out-of-build `maxHp` row). Production has no such rows; the caller syncs max hp itself, as the
+/// source's seam does (`sim/buffs.ts syncMaxHp`).
+#[cfg(test)]
+pub(crate) fn refold_with_extra_rows(
+    k: &crate::statics::MatchStatic,
+    w: &mut crate::state::World,
+    ix: crate::fighter::FighterIx,
+    extra: &[fold::EffectRow<'_>],
+) {
+    recompute_core(k, w, ix, Default::default(), extra);
 }
 pub(crate) fn sync_max_hp(p: &mut crate::state::Player) {
     let max =
@@ -419,6 +577,7 @@ fn fold_build(
     farm: &Farm,
     base: f64,
     faction: crate::FactionId,
+    holds: Option<&fold::WhileAnswer<'_>>,
 ) -> fold::Folded {
     let (rows, n) = build.rows(faction);
     let boosts = fold::BoostCounts::from_source_values(build.boosts().map(f64::from));
@@ -430,43 +589,50 @@ fn fold_build(
                 base_max_hp: base,
                 farm_rows: &farm_rows[..len],
                 boosts: Some(&boosts),
+                holds,
                 ..Default::default()
             },
         )
     }
 }
-/// Conservative supported-source envelope for snapshots fired before the present build/refold.
+/// Conservative supported-source envelope for snapshots fired before the present build/refold. It folds the all-cards build
+/// under both while assignments and keeps the largest packet: whichever way a build's conditional rows land, a real packet
+/// is at most this (the rows only add attack speed and damage when they hold).
 pub(crate) fn maximum_packet(weapon: crate::WeaponId) -> f64 {
-    crate::FactionId::ALL
-        .into_iter()
-        .map(|id| {
+    let build = crate::cards::Build {
+        counts: {
+            let mut counts = crate::cards::Counts::default();
+            for id in crate::cards::SUPPORTED {
+                counts.0[id.index()] = 1;
+            }
+            counts
+        },
+        boosts: [crate::stat_fold::default_definition().chest_boost_max_picks as u8; 8],
+    };
+    let farm = Farm::maximum();
+    let mut out = 0f64;
+    for all_while in [false, true] {
+        let holds = |_: RowLocation, _: &WhileRow| all_while;
+        for id in crate::FactionId::ALL {
             let f = crate::content::paced(id);
             let base_hp = crate::content::faction(id).hp;
-            let build = crate::cards::Build {
-                counts: {
-                    let mut counts = crate::cards::Counts::default();
-                    for id in crate::cards::SUPPORTED {
-                        counts.0[id.index()] = 1;
-                    }
-                    counts
-                },
-                boosts: [crate::stat_fold::default_definition().chest_boost_max_picks as u8; 8],
-            };
-            let folded = fold_build(&build, &Farm::maximum(), base_hp, id);
+            let folded = fold_build(&build, &farm, base_hp, id, Some(&holds));
             let m = fold::decode_mirrors(&fold::encode_mirrors(&fold::mirrors_from_fold(&folded)));
             let rate = m.as_mult.max(fold::cap_as_mult(f64::MAX));
             let interval = crate::content::attack_interval(&f, weapon, rate);
             let sc = DEFINITION.weapon_scaling[weapon.code() as usize];
             // Summing both dominant sides is conservative; every real snapshot is <= this envelope.
-            crate::content::damage_per_hit(&f, weapon, rate)
+            let packet = crate::content::damage_per_hit(&f, weapon, rate)
                 + (sc[0] * m.ad_bonus
                     + sc[1] * m.ap_bonus
                     + sc[2] * (folded.max_hp - base_hp).max(0.)
                     + sc[3] * (m.armor_bonus.max(0.) + m.shield_bonus))
                     * rate
-                    * interval
-        })
-        .fold(0., f64::max)
+                    * interval;
+            out = out.max(packet);
+        }
+    }
+    out
 }
 
 /// The damage kind of an entry (source `OutgoingKind`), for the outgoing row cap.
@@ -732,6 +898,39 @@ mod guard_tests {
                 row = row(frac)
             );
         }
+    }
+
+    #[test]
+    fn a_cached_while_hold_is_validated_against_its_bits() {
+        // Bloodthirst's while row folds only below half health. The runtime caches which rows held (source Build.holds) and
+        // `valid` re-folds with exactly those bits, so a checkpoint cannot claim the doubled rows without the bit.
+        let mut sim = setup();
+        let i = sim.w.idx(PlayerId(1)).unwrap();
+        let hp = sim.w.players[i].vitals.max_hp * 0.2;
+        sim.w.players[i].vitals.hp = hp;
+        assert!(crate::cards::grant(
+            &sim.k,
+            &mut sim.w,
+            PlayerId(1),
+            crate::cards::CardId::Bloodthirst
+        ));
+        let valid = |p: &crate::state::Player| {
+            p.modifiers.valid(
+                &p.build,
+                &p.farm,
+                crate::content::faction(p.vitals.faction).hp,
+                p.vitals.faction,
+            )
+        };
+        let p = &sim.w.players[i];
+        assert_eq!(p.modifiers.holds, 1, "the row held below half health");
+        assert!(valid(p), "the honest fold validates");
+        let mut damaged = p.clone();
+        damaged.modifiers.holds = 0;
+        assert!(
+            !valid(&damaged),
+            "a fold without the hold bit is not a legal cache"
+        );
     }
 
     #[test]
