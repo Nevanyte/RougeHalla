@@ -132,25 +132,43 @@ catalog to a generated, corpus-verified table and the build to the source count 
 26. **Gallows Patience extends the Trial ring**: a player owning the card casts the zone with `GALLOWS_PATIENCE_EXTRA_MS` (2 s)
    more life and `GALLOWS_PATIENCE_STUN_MS` (2.25 s) as its exit stun, replacing the row's own; a focused test pins both on the
    Trial ability. Content hash `0x9f7a0ff31bf3b6d4`.
+27. **The cached while context is live** (source `Build.holds` / `mods.holdsNow`): every refold asks each owned `while` row's
+   condition from the fighter's current state and caches the answer bits in the runtime, so the fold follows the source — below
+   max health (Bloodthirst's x2 lifesteal multiplier, Last Rites' haste), unarmed (Fists of Fury's attack speed), not shooting
+   (Fleet I–III's move speed) and a chase lock. The bits are validated state (a checkpoint re-folds with exactly them); the
+   shipped `afterCast` rows are status-gated away and `fightTime` waits for the source fight clock (below). A focused test pins
+   the shipped conditions and their boundaries, and **the G5 lifesteal composition now reproduces**: the G4 case heals the
+   source's **51** (two 30-damage hits x the 0.85 cap: Holy's 0.55 own share + the rows' 0.25 x Bloodthirst's x2) and **12.9**,
+   with every landed hit still the source's 187.5.
+28. **The G8 runtime-floor diagnostic reproduces**: the source's `diagnostic-G8-runtime-floor-extra-rows` puts an out-of-build
+   `maxHp -2` row on p0 through its test-only `setExtraRows` seam and syncs max hp. The port projects that seam into a test
+   helper that re-folds with the extra row: G8's floor holds the bar at `572.5 = 1145 x 0.5`, the source's 1-damage physical
+   sword hit is mitigated by holy armor 78 to `0.5617977528089888`, taking the row away restores `1145` with the hit kept as a
+   deficit (`1144.438202247191`), and the next pass-start fraction is `0.9995093469407781` — all matching the source's
+   numbers. (The seam is outside any legal card build, as the source's own domain field states, so the test is certification,
+   not admission.)
 
 ## Measurements
 
-- `cargo test --workspace --all-features --locked` (throwaway PostgreSQL): **1,416 passed, 0 failed, 3 ignored, 151 test
+- `cargo test --workspace --all-features --locked` (throwaway PostgreSQL): **1,419 passed, 0 failed, 3 ignored, 151 test
   binaries, exit 0** (after the full-pool drop, the 21/21 terrain kernel, the allocation-free on-hit hook, the Fists of Fury
-  multiplicity, the streak memory, Wishful Thinking, heal over time, Second Wind's trigger, Spiked Shell's return, Tank Engine's fortify, Adrenaline's boost and the teleport resets).
+  multiplicity, the streak memory, Wishful Thinking, heal over time, Second Wind's trigger, Spiked Shell's return, Tank Engine's
+  fortify, Adrenaline's boost, the teleport resets, the Race to 0 diagnostic, the live while context and the G8 floor).
 - Catalog differentials: **2/2** (80 cards × all rows/selections; 80 × 4 eligibility entries incl. reasons).
 - Protocol: Rust **11/11**, JS decoder **24 server vectors / 89 malformed / 10 chains / 15,454 checks**, C# **267/267**.
 - Browser proof (`node tools/browser-proof/proof.mjs`): **PASS**, protocol 7.
 - Reward pools/draw: **4/4** (30 pool cases, 181 roll cases, interactive order, five zone themes).
-- Declared state change: the build map is hashed state, so this branch recalibrates the ability per-tick hash tape and
-  `content_hash` (now `0x9f7a0ff31bf3b6d4`); the hash-coverage contract documents the new leaves.
+- Declared state change: the cached while bits (`modifiers.holds`) are hashed state, so this branch recalibrates the
+  ability per-tick hash tape (`parity/abilities/hash-tape.json`, re-recorded with the ignored `record_ability_hash_tape`
+  test) and moves the checkpoint layout to `rh-checkpoint/20`. No content rule moved, so `content_hash` stays
+  `0x9f7a0ff31bf3b6d4`; the hash-coverage test auto-covers the new leaf and the state hash still has 0 unhashed leaves.
 
 ## Still missing (the packet is INCOMPLETE)
 
-- The **runtime witness consumer**: the 65-case `parity/card-runtime/source.json` and the 2-case witness corpus are captured but
-  no Rust consumer reproduces them yet. The witness cases (map `room`, `mainSeed`/`rewardSalt`, the harness's test-only
-  `witness` card, `target`/`attack`/`release` actions) first need the capture rig's world-seed mapping and the action-to-input
-  mapping. **The matched witness case is now reproduced**: `crates/rh-sim/src/card_witness_tests.rs` builds the rig's 40x24
+- The **runtime witness consumer**: the 65-case `parity/card-runtime/source.json` and the 2-case witness corpus are captured
+  and a Rust consumer now reproduces both witness cases (map `room`, `mainSeed`/`rewardSalt`, the harness's test-only
+  `witness` card, `target`/`attack`/`release` actions, the capture rig's world-seed and action-to-input mapping).
+  **The matched witness case is reproduced**: `crates/rh-sim/src/card_witness_tests.rs` builds the rig's 40x24
   room (border walls, the five rig spawns), derives the order salt from the main seed's first mulberry32 draw, places the three
   Holy players with the reward salt, submits the target and the held attack, and steps until the swing lands — the landed
   damage matches the source's `actualLandedAmount` (36.13796707603867) exactly. **Both witness cases now pass**: the positive
@@ -172,9 +190,16 @@ catalog to a generated, corpus-verified table and the build to the source count 
   source's dots share the per-source budget.
 - **The G4 Race pass-start case reproduces**: two Race to 0 holders at 20% and 40% health trading 30 true-damage hits land at the
   source's `187.5` each — the dealer's and the victim's races multiply the hit (2.5 × 2.5 × 30) — and the landed hit carries the
-  race share the lifesteal feed divides out. The source's heal amounts (51 and 12.9) are an **open certification item**: this
-  partial pipeline skips the pre-ledger signature/mod systems, so the heal composition is not yet reproduced.
+  race share the lifesteal feed divides out. Its heal composition now reproduces the source's **51** and **12.9** exactly through
+  the live while context (item 27).
+- **The G8 runtime-floor diagnostic reproduces** (item 28) through the `setExtraRows` projection, with the source's floor,
+  mitigation, restore and pass-start fraction exact.
+- The one `while` condition still pending is **`fightTime`** (Slow Starter's +65% after 3 s in a fight): it needs the source's
+  per-player fight clock (`mods.noteFights`, start/last, updated from the tick's landed hits), a new runtime state component
+  that this packet does not add. No other shipped `while` row is inert.
 - The packet's final acceptance evidence: source probes per runtime family, the mutant controls, and the coordinator's
   acceptance.
 
-No `DEVIATIONS.md` row; no coordinator-owned files touched.
+No `DEVIATIONS.md` row; no coordinator-owned files touched. Coordinator follow-ups for this branch: `docs/CONTRACTS.md`'s
+current-identity line still names `rh-checkpoint/19` (this branch moves the layout to `rh-checkpoint/20`), and its C-DET row
+names older replay/checkpoint tags than the code.
