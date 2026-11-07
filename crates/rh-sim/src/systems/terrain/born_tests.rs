@@ -616,10 +616,8 @@ fn terrain_born_kernel_twenty_complete_one_reward_gap() {
             full_cases += 1
         }
     }
-    if std::env::var_os("RH_TERRAIN_REQUIRE_FULL").is_some() {
-        assert_eq!((full_cases, partial_cases), (21, 0));
-    } else {
-        assert_eq!((full_cases, partial_cases), (20, 1));
-        eprintln!("TERRAIN KERNEL: 21 cases; 20 fully compared, 1 partial reward case; FULL TERRAIN INCOMPLETE");
-    }
+    // The last partial case was the reward gap: the full interactive pool drop now matches the source exactly, so every
+    // born-kernel case is fully compared (P-CARDS-1).
+    assert_eq!((full_cases, partial_cases), (21, 0));
+    eprintln!("TERRAIN KERNEL: 21 cases; 21 fully compared; FULL TERRAIN COMPLETE");
 }

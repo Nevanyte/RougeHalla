@@ -27,7 +27,8 @@ catalog to a generated, corpus-verified table and the build to the source count 
    continuation). **Wired into `drop_augment`**: a chest drop now rolls the eligible pickers' full interactive pool with the
    real reward RNG and the source draw order. The legacy `parity/cards` option rows were recaptured from the legacy source
    without the old three-card restriction (the corpus now shows full-pool options such as Overkill/Third Time's the Charm)
-   and the reward suite passes against them.
+   and the reward suite passes against them. This also closes the last terrain born-kernel partial case: the kernel is now
+   **21/21 fully compared** (the old reward gap is gone).
 
 ## Measurements
 
