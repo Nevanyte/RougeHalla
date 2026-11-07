@@ -6,7 +6,7 @@
       "ticks": 3609
     },
     "arcane-overload-wishful-stock-trim": {
-      "fold": "1d3d1bd5ee3a0a8a",
+      "fold": "cc61b243c1707659",
       "ticks": 11
     },
     "atomic-due-batch-fizzle-with-surviving-swarm": {
@@ -214,7 +214,7 @@
       "ticks": 14
     },
     "trial-gallows-card-exit": {
-      "fold": "3034990a72ed6122",
+      "fold": "cdd64867e8532740",
       "ticks": 89
     },
     "trial-inclusive-edge-then-ordinary-exit": {
@@ -222,14 +222,14 @@
       "ticks": 67
     },
     "trial-other-owner-convicted-is-not-own-mark": {
-      "fold": "35d78ba049caa74e",
+      "fold": "12fa4425e8b599f0",
       "ticks": 59
     },
     "trial-own-convicted-mark-from-real-weapon-hits": {
-      "fold": "1657dfabd79a1f47",
+      "fold": "70ba8229359b5a3f",
       "ticks": 59
     }
   },
   "format": "rh-ability-hash-tape/1",
-  "note": "per-tick state hashes of every admitted ability source case, folded FNV-style; the 53 base records were generated at 856618eb and the four P-ABIL-1 coupled cases were appended at the P-ABIL-1 integration (their producers were not admitted at the base; every base value is unchanged)"
+  "note": "per-tick state hashes of every admitted ability source case, folded FNV-style; the 53 base records were generated at 856618eb and the four P-ABIL-1 coupled cases were appended at the P-ABIL-1 integration (their producers were not admitted at the base; every base value is unchanged, re-verified on the restacked P-FACTION-1 base)"
 }
