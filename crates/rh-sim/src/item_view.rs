@@ -39,9 +39,17 @@ pub struct Inventory {
 #[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, serde::Serialize, serde::Deserialize)]
 pub enum PropKind {
     Ground(WeaponId),
-    Chest { open: bool },
-    Body { label: Arc<str> },
-    Corpse { label: Arc<str> },
+    Chest {
+        open: bool,
+    },
+    Body {
+        label: Arc<str>,
+    },
+    Corpse {
+        label: Arc<str>,
+    },
+    /// A walk-over wind emblem (no inventory item; the fixed label is the source's).
+    WindEmblem,
 }
 
 /// Position is already encoded on the public 1/8-unit grid. Field order is the canonical sort key.
@@ -215,6 +223,7 @@ impl ItemObserver {
                         label: label.clone(),
                     }
                 }
+                ContainerKind::WindEmblem => PropKind::WindEmblem,
             };
             let cue = PropCue {
                 x: position(c.at.x)?,
@@ -593,8 +602,11 @@ mod tests {
         };
         let mut arena = practice_arena();
         arena.spawns = vec![Vec2::new(x, y)];
+        // These scripted racks must keep their handle order: no wind emblems in this world.
+        let mut config = SimConfig::default();
+        config.consumables = false;
         Sim::reset_active(
-            SimConfig::default(),
+            config,
             arena,
             Secrets::from_seed(4),
             &[

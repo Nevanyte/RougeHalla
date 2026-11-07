@@ -213,6 +213,10 @@ impl OutcomeDigest {
                 self.w(id.0.into());
                 self.s(notice.message());
             }
+            Event::WindEmblem { id } => {
+                self.s("wind_emblem");
+                self.w(id.0.into());
+            }
             Event::MobArmed { id, weapon } => {
                 self.s("mob_armed");
                 self.w(id.0.into());

@@ -181,6 +181,7 @@ fn camp_arena() -> crate::Arena {
 fn camp_sim() -> Sim {
     let mut sim = Sim::new(
         SimConfig {
+            consumables: true,
             initial_loot: true,
             mob_mode: MobMode::Pve,
             min_players: 2,

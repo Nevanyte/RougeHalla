@@ -1,4 +1,4 @@
-// Browser-to-Rust proof (Stage 1): real Chromium pages speak protocol v9 (Full and delta snapshots) over WSS to rh-server through the browser's own
+// Browser-to-Rust proof (Stage 1): real Chromium pages speak protocol v10 (Full and delta snapshots) over WSS to rh-server through the browser's own
 // WebSocket API (the transport a Unity Web build's jslib bridge uses). Two players join, the match starts, a movement order
 // is acknowledged, one player drops and resumes its seat, they fight, and both receive authoritative results.
 //
@@ -142,13 +142,13 @@ try {
   report.measured = { joinMs: pa.joinMs, resumeHelloToWelcomeMs: resumeMs, snapshots: pa.snapshots, fullSnapshots: pa.fullSnapshots, deltaSnapshots: pa.deltaSnapshots, resyncs: pa.resyncs, refusedDeltas: pa.refusedDeltas, fxFrames: pa.fx, rttMsP50: sorted[sorted.length >> 1], rttMsMax: sorted[sorted.length - 1], pageErrors: pa.errors, rejects: pa.rejects };
   report.serverInfo = await a.evaluate(() => fetch("/info", { cache: "no-store" }).then((r) => r.json()));
   consoleErrors.length === 0 && pa.errors.length === 0 ? pass("no_page_errors") : fail("no_page_errors", JSON.stringify([consoleErrors, pa.errors]));
-  const vectors = JSON.parse(readFileSync(resolve(repo, "protocol/fixtures/v9.json"), "utf8"));
+  const vectors = JSON.parse(readFileSync(resolve(repo, "protocol/fixtures/v10.json"), "utf8"));
   const mismatch = await a.evaluate((hex) => {
     const bytes = Uint8Array.from(hex.match(/../g), h => parseInt(h, 16)); bytes[1] = 4;
     const before = JSON.stringify({ welcome: window.__probe.welcome, snapshots: window.__probe.snapshots, base: tracker.base });
     ws.onmessage({ data: bytes.buffer });
     // Even a subsequently queued valid Welcome cannot revive this rejected connection.
-    bytes[1] = 9; ws.onmessage({ data: bytes.buffer });
+    bytes[1] = 10; ws.onmessage({ data: bytes.buffer });
     return { preserved: before === JSON.stringify({ welcome: window.__probe.welcome, snapshots: window.__probe.snapshots, base: tracker.base }), reject: window.__probe.rejects.at(-1), closing: ws.readyState >= 2 };
   }, vectors.server.find(v => v.name === "welcome").hex);
   mismatch.preserved && mismatch.reject?.code === 1 && mismatch.closing ? pass("wrong_protocol_welcome_refused_before_state", mismatch) : fail("wrong_protocol_welcome_refused_before_state", JSON.stringify(mismatch));

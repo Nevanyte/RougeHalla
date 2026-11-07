@@ -860,12 +860,10 @@ static SYSTEMS: [Item<SystemFn>; 24] = [
     ),
     pending("quests.questSystem", Gate::Quests, "P-QUEST-1"),
     ported("vision.refreshVision", Gate::Always, crate::vision::refresh),
-    partial(
+    ported(
         "consumables.updateConsumables",
         Gate::Always,
-        "Small potion Hot",
-        "P-CONS-1",
-        crate::systems::potions::update,
+        crate::systems::consumables::update,
     ),
     pending("traders.updateTraders", Gate::NotTraining, "P-TRADE-1"),
     pending("cardHooks.afterDamage", Gate::Always, "P-CARDS-1"),
@@ -941,7 +939,11 @@ static MOD_SOURCES: [Item<SourceFn>; 6] = [
         Gate::Always,
         crate::systems::status::attack_source,
     ),
-    pending("consumables.<anonymous>", Gate::Always, "P-CONS-1"),
+    ported(
+        "consumables.<anonymous>",
+        Gate::Always,
+        crate::systems::consumables::speed_source,
+    ),
     ported("cardHooks.cardSource", Gate::Always, items::shred_source),
     pending("fireRoam.roamingSpeed", Gate::Signatures, "P-FACTION-2"),
     pending(
@@ -1258,11 +1260,11 @@ static RAID_STARTED: [Link; 14] = [
         Gate::Always,
         crate::vision::raid_started,
     ),
-    pending_link(
+    ported_link(
         "consumables.<arrow>",
         Mode::Append,
         Gate::Always,
-        "P-CONS-1",
+        crate::systems::consumables::raid_started,
     ),
     pending_link(
         "traders.spawnTraders",
@@ -1389,13 +1391,11 @@ static FIGHTER_OUT: [Link; 8] = [
         Gate::Always,
         crate::vision::fighter_out,
     ),
-    partial_link(
+    ported_link(
         "consumables.<arrow>",
         Mode::Append,
         Gate::Always,
-        "Small potion cleanup",
-        "P-CONS-1",
-        crate::systems::potions::fighter_out,
+        crate::systems::consumables::fighter_out,
     ),
     ported_link(
         "plagueCorpses.leaveCorpse",

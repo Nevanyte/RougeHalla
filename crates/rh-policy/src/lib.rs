@@ -875,6 +875,7 @@ mod temporal_tests {
     fn scene_with(fire: bool) -> Sim {
         Sim::reset_active(
             SimConfig {
+                consumables: true,
                 faction_mode: if fire {
                     FactionMode::EngagementHolyPlagueFire
                 } else {
@@ -1223,6 +1224,7 @@ mod frost_tests {
     fn frost_policy_receives_public_chill_and_moves_through_normal_intake() {
         let mut s = Sim::reset_active(
             SimConfig {
+                consumables: true,
                 faction_mode: FactionMode::EngagementHolyPlagueFireFrost,
                 ..Default::default()
             },
@@ -1281,6 +1283,7 @@ mod sentenced_temporal_tests {
     fn scene() -> Sim {
         Sim::reset_active(
             rh_sim::SimConfig {
+                consumables: true,
                 faction_mode: rh_sim::FactionMode::EngagementHolyPlagueFireFrostSentenced,
                 ..Default::default()
             },

@@ -66,6 +66,7 @@ fn actual_camp_clear_uses_headless_inputs_and_visible_mob_fx() {
     secrets.reward_salt = [1, 2, 3, 4];
     let mut direct = Sim::reset_active(
         SimConfig {
+            consumables: true,
             mob_mode: rh_sim::mob_runtime::MobMode::Pve,
             ..Default::default()
         },

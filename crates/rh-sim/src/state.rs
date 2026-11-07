@@ -400,6 +400,9 @@ pub enum ContainerKind {
     Ground,
     Chest,
     Body(PlayerId),
+    /// A walk-over wind emblem (legacy container kind "consumable" carrying `windEmblem`): it holds no inventory
+    /// item and is consumed by the wind system, never by the pickup action.
+    WindEmblem,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -520,6 +523,9 @@ pub struct Player {
     /// Camps this player's clear counted for (legacy `campsCleared`; the only consumer is a later card).
     #[serde(default)]
     pub camps_cleared: u16,
+    /// Legacy `speedBoostUntil`: the wind emblem's +50% movement speed ends at this server time.
+    #[serde(default)]
+    pub speed_boost_until: f64,
 }
 
 impl Keyed for Player {
@@ -558,6 +564,7 @@ impl Player {
             potion_small: 0,
             potion_large: 0,
             camps_cleared: 0,
+            speed_boost_until: 0.,
             healing_until: 0.,
             potions_healing: 0,
             farm: Default::default(),
@@ -740,6 +747,10 @@ pub(crate) struct World {
     pub(crate) joined: usize,
     pub(crate) spawn_rng: Mulberry32,
     pub(crate) reward_rng: crate::private_rng::Sfc32,
+    /// Legacy `windRandom`: the private emblem stream, mulberry32(orderSalt ^ WIND_SEED_XOR). Hashed state.
+    pub(crate) wind_rng: Mulberry32,
+    /// Legacy `windTimers`: when the next emblem may spawn.
+    pub(crate) wind_next_at: f64,
     pub(crate) rt: ArenaRt,
     /// Events emitted between steps (a leave's result) wait here for the next step: part of a checkpoint and the hash.
     pub(crate) pending_events: Vec<Event>,
@@ -995,6 +1006,12 @@ impl World {
     }
 
     pub(crate) fn new(secrets: &Secrets) -> Self {
+        // Legacy consumables.install: one draw seeds the first wind timer; `raidStarted` draws again. The lobby never runs
+        // the system, so only the RNG state after both draws is observable in a run.
+        let mut wind_rng = Mulberry32::new(secrets.order_salt ^ crate::constants::WIND_SEED_XOR);
+        let wind_next_at = crate::constants::WIND_SPAWN_MIN_MS
+            + wind_rng.next_f64()
+                * (crate::constants::WIND_SPAWN_MAX_MS - crate::constants::WIND_SPAWN_MIN_MS);
         Self {
             planning: None,
             plan_ends_at: 0.,
@@ -1013,7 +1030,8 @@ impl World {
             actor_history: Store::new(),
             mob_runtime: None,
             next_id: 1,
-            containers: Vec::with_capacity(4 * MAX_PLAYERS),
+            // Room for the loot of a full match plus every wind emblem at once, so a spawn never grows the list.
+            containers: Vec::with_capacity(4 * MAX_PLAYERS + crate::constants::WIND_EMBLEM_LIMIT),
             plague_corpses: Vec::new(),
             initial_birth_serial: 0,
             potion_healing: Vec::with_capacity(MAX_PLAYERS),
@@ -1024,6 +1042,8 @@ impl World {
             joined: 0,
             spawn_rng: Mulberry32::new(secrets.spawn_seed),
             reward_rng: crate::private_rng::Sfc32::from_words(secrets.reward_salt),
+            wind_rng,
+            wind_next_at,
             rt: ArenaRt::default(),
             pending_events: Vec::new(),
             deferred: DeferredQueue::default(),

@@ -332,6 +332,7 @@ impl ClientMsg {
 
 fn event_len(e: &WireEvent) -> usize {
     match e {
+        WireEvent::WindEmblem => 1,
         WireEvent::PickupRefused { .. } => 2,
         WireEvent::ChestRefused { .. } | WireEvent::PotionNotice { .. } => 2,
         WireEvent::Death { by, .. } => 1 + 4 + opt_len(by.is_some(), 4),
@@ -993,6 +994,9 @@ impl Frame for ServerMsg {
                         WireEvent::ChestRefused { reason } => {
                             w.u8(6);
                             w.u8(*reason);
+                        }
+                        WireEvent::WindEmblem => {
+                            w.u8(8);
                         }
                         WireEvent::PickupRefused { reason } => {
                             w.u8(5);

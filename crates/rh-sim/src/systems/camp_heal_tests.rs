@@ -38,6 +38,7 @@ fn arena() -> crate::Arena {
 fn sim() -> Sim {
     let mut sim = Sim::new(
         SimConfig {
+            consumables: true,
             initial_loot: true,
             mob_mode: MobMode::Pve,
             min_players: 3,

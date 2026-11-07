@@ -614,14 +614,14 @@ fn melee_packet_covers_equipment_statuses_and_settlement() {
 }
 
 #[test]
-fn unported_emblem_is_detected_in_a_full_module_capture() {
+fn ported_emblem_is_reproduced_in_a_full_module_capture() {
     let fixture = load(&fixtures_dir().join("emblem_during_melee.json"));
     let report = compare(&fixture);
     assert!(
-        report
+        !report
             .mismatches
             .iter()
-            .any(|m| m.contains("tick 238: containers.length")),
+            .any(|m| m.contains("containers.length")),
         "{:?}",
         report.mismatches
     );

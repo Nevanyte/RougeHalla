@@ -48,6 +48,7 @@ fn harness() -> Harness {
         .collect();
     let sim = Sim::reset_active(
         SimConfig {
+            consumables: true,
             faction_mode: FactionMode::Off,
             pvp_rules: false,
             ..Default::default()

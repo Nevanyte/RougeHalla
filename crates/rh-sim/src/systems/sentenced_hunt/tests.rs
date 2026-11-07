@@ -8,6 +8,7 @@ use crate::{FactionMode, Placement, Secrets, Sim, SimConfig, Vec2, WeaponId};
 fn scene() -> Sim {
     Sim::reset_active(
         SimConfig {
+            consumables: true,
             faction_mode: FactionMode::EngagementHolyPlagueFireFrostSentenced,
             ..Default::default()
         },

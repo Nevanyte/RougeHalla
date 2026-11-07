@@ -106,7 +106,8 @@ pub(crate) fn use_potion(
         },
     );
 }
-pub(crate) fn update(cx: &mut Cx) {
+/// The potion Hot loop (legacy `updateConsumables`'s second half).
+pub(crate) fn update_hots(cx: &mut Cx) {
     let now = cx.w.server_time;
     let mut i = 0;
     while i < cx.w.potion_healing.len() {

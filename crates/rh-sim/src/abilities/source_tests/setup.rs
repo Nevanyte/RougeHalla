@@ -113,6 +113,8 @@ pub(super) fn construct(input: &V) -> Sim {
         .collect();
     let mut sim = Sim::new(
         SimConfig {
+            consumables: false,
+            // The ability source capture installs weapons and abilities only: no consumables module, so no wind timer.
             min_players: placements.iter().filter(|p| !p.bot).count(),
             fill_seconds: 0.,
             abilities: Mode::Full,

@@ -14,6 +14,7 @@ fn env() -> Env {
         EnvConfig {
             arena,
             sim: SimConfig {
+                consumables: true,
                 faction_mode: FactionMode::EngagementHolyPlagueFireFrostSentenced,
                 ..Default::default()
             },

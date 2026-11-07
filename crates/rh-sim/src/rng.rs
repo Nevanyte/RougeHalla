@@ -24,6 +24,11 @@ impl Mulberry32 {
     pub fn next_f64(&mut self) -> f64 {
         self.next_u32() as f64 / 4_294_967_296.0
     }
+
+    /// The raw stream state (hashed and checkpointed; a test pins the wind stream's seed derivation).
+    pub(crate) fn state(&self) -> u32 {
+        self.state
+    }
 }
 
 /// The secret per-tick order in which players' inputs apply (legacy `actionOrder`): a Fisher-Yates shuffle of the join

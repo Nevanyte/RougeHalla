@@ -34,6 +34,10 @@ pub enum Event {
         id: PlayerId,
         weapon: WeaponId,
     },
+    /// A player walked over a wind emblem: private "+50% movement for 5s" feedback.
+    WindEmblem {
+        id: PlayerId,
+    },
     CampCleared {
         camp: u32,
     },
@@ -241,9 +245,9 @@ impl Event {
             | Event::AttackCancelled { id }
             | Event::Stagger { id }
             | Event::Death { id, .. } => Visibility::IfSeen(id),
-            Event::PickupRefused { id, .. } | Event::PotionNotice { id, .. } => {
-                Visibility::Owner(id)
-            }
+            Event::PickupRefused { id, .. }
+            | Event::PotionNotice { id, .. }
+            | Event::WindEmblem { id } => Visibility::Owner(id),
             Event::Bounty { .. } | Event::Victory { .. } => Visibility::Everyone,
             Event::AbilityHit { .. }
             | Event::MarkNotice { .. }
@@ -283,7 +287,9 @@ impl Event {
             | Event::Heal { .. }
             | Event::AttackCancelled { .. }
             | Event::Stagger { .. } => Class::Fx,
-            Event::PickupRefused { .. } | Event::PotionNotice { .. } => Class::Important,
+            Event::PickupRefused { .. } | Event::PotionNotice { .. } | Event::WindEmblem { .. } => {
+                Class::Important
+            }
             Event::AbilityHit { .. }
             | Event::MarkNotice { .. }
             | Event::PlagueNotice { .. }

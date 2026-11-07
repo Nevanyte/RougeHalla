@@ -58,6 +58,9 @@ pub(crate) fn canon(e: &Event, sim: &Sim) -> Option<Value> {
         Event::ChestRefused { id, reason } => {
             json!({"kind":"toast","to":fid(*id),"text":reason.message()})
         }
+        Event::WindEmblem { id } => {
+            json!({"kind":"toast","to":fid(*id),"text":"Wind emblem · +50% movement for 5s"})
+        }
         Event::ChestTaken { chest, by, pick } => {
             json!({"kind":"chestTaken","chest":super::combat::id36(*chest),"by":fid(*by),"option":pick})
         }

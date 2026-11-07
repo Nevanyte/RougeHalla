@@ -1917,6 +1917,7 @@ mod tests {
     #[should_panic(expected = "Source arena lifecycle requires protocol 8")]
     fn arena_profile_director_construction_refuses_before_runtime_spawn() {
         let sim = SimConfig {
+            consumables: true,
             lifecycle: rh_sim::ArenaMode::Source(Default::default()),
             ..Default::default()
         };
@@ -1932,6 +1933,7 @@ mod tests {
     #[should_panic(expected = "Full Wish casting requires protocol 8")]
     fn wish_profile_director_construction_refuses_before_runtime_spawn() {
         let sim = SimConfig {
+            consumables: true,
             abilities: rh_sim::abilities::Mode::Full,
             lifecycle: rh_sim::ArenaMode::Off,
             ..Default::default()
@@ -1946,6 +1948,7 @@ mod tests {
 
     fn director_with(store: MemoryStore) -> Arc<Director> {
         let sim = SimConfig {
+            consumables: true,
             abilities: rh_sim::abilities::Mode::Off,
             wish_lock_ms: rh_sim::abilities::WISH_LOCK_MS,
             hazards: rh_sim::terrain::Mode::Off,
