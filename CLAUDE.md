@@ -9,6 +9,11 @@ bootstrap. Full gameplay and client flows remain in progress; use the current ch
 Packets that edit `crates/rh-sim` follow the core layout rules in their write scopes
 ([docs/sweep/PACKAGES.md](docs/sweep/PACKAGES.md)).
 
+**Work follows [docs/ORDER_OF_OPERATIONS.md](docs/ORDER_OF_OPERATIONS.md)** (owner direction 2026-11-07): every packet states
+which phase/item it serves and meets its per-operation checklist. Its decisions D1–D8 are not yet ADRs; where they conflict
+with an Accepted record (listed in its section 5, e.g. D1 vs the parity non-negotiable below), the existing record governs
+until resolved and the conflict is flagged to the owner.
+
 Read in this order: [docs/MIGRATION.md](docs/MIGRATION.md) (state, checkpoint, commands, results), [docs/REQUIREMENTS.md](docs/REQUIREMENTS.md),
 [docs/CONTRACTS.md](docs/CONTRACTS.md), [docs/backlog/README.md](docs/backlog/README.md) and its ready packets,
 [docs/adr/](docs/adr/README.md). Legacy architecture (long, partly stale; code wins): [docs/legacy/CLAUDE_LEGACY.md](docs/legacy/CLAUDE_LEGACY.md)
