@@ -112,6 +112,11 @@ catalog to a generated, corpus-verified table and the build to the source count 
    (`HP_RACE_CAP` 2.5), the ledger multiplies each entry by the dealer's and the victim's race (already-multiplied
    passive/derived entries take only the victim's), and the landed hit carries the race share so the lifesteal feed divides it
    out — the extra damage is nobody's earnings. A focused test pins the capped values; content hash `0x360863ef426f9f37`.
+22. **The tier-4 mark denies the execute share of a hit (R7)**: `execute_share` is the source's
+   `1 - (multiplier without the attacker's vs-hpBelow rows) / (with them)`; the denial weights every entry of the marked foe by
+   its share (the whole entry when it is an execute), keeps the execute total from taking the victim below 1 hp, cuts each entry
+   by the held-back fraction and reports the denied amounts per foe. The parts reuse a scratch buffer (no per-victim
+   allocation).
 
 ## Measurements
 
