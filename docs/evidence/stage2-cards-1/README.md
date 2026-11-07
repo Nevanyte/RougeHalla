@@ -36,8 +36,10 @@ catalog to a generated, corpus-verified table and the build to the source count 
    rows apply one extra time (fists 1.2 × 2 → 12/s in the test). Two focused tests pin the base 7.5/s and the doubled unarmed
    case. **Third Time's the Charm** is wired to the new card-state streak memory (`Player.card_streak`: target/count/last,
    read at the pass start by `streak_before` with the 3 s source gap): the third hit in a row adds an application, pinned by
-   a seeded test (15/s). The after-damage write system that records the tick's weapon hits into the streak is the remaining
-   half; the non-dot on-hit families stay open.
+   a seeded test (15/s). The **after-damage writer is ported** (`cardHooks.afterDamage` is no longer pending): it groups the
+   tick's weapon hits from the existing scratch landed list by attacker, keeps a live streak when its target was hit (one per
+   hit), else restarts on the biggest hit with the source tie rank, and writes the memory without allocating. The non-dot
+   on-hit families stay open.
 
 ## Measurements
 
