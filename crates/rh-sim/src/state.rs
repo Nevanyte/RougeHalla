@@ -494,6 +494,9 @@ pub struct Player {
     /// The once-trigger cards that already fired this run (source `PlayerRuntime.fired`).
     #[serde(default)]
     pub card_fired: Vec<crate::cards::CardId>,
+    /// The attack-critical accumulator (source `cards.critAcc`): deterministic, fires at 1.
+    #[serde(default)]
+    pub card_crit_acc: f64,
     /// Adrenaline's running boost (source `cards.boostAs/boostMove/boostUntil`).
     #[serde(default)]
     pub card_boost: crate::cards::Boost,
@@ -556,6 +559,7 @@ impl Player {
             card_trims: Vec::new(),
             card_hots: Vec::new(),
             card_fired: Vec::new(),
+            card_crit_acc: 0.,
             card_boost: crate::cards::Boost::default(),
             card_prevented: 0.,
             card_tank_hp: 0.,

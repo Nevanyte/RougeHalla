@@ -61,6 +61,11 @@ impl Runtime {
         MultSums::from_source_values(self.mults).get(fold::MultKey::Returned)
     }
 
+    /// The folded critical-strike chance sum (source `sums.critChance`), before the noCrit flag and the cap.
+    pub fn crit_chance(&self) -> f64 {
+        StatSums::from_source_values(self.sums).crit_chance
+    }
+
     pub fn dot_mult(&self) -> f64 {
         MultSums::from_source_values(self.mults).get(fold::MultKey::Dot)
     }

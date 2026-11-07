@@ -95,6 +95,29 @@ impl Default for Boost {
     }
 }
 
+/// Source `rollAttackCrit`: a player's deterministic critical accumulator takes its crit chance (the `critChance` sum,
+/// zero under the noCrit flag, never above CRIT_CHANCE_MAX) and fires at 1.
+pub(crate) fn roll_attack_crit(p: &mut crate::state::Player) -> bool {
+    let sum = p.modifiers.crit_chance();
+    let no_crit = p.build.has_flag(crate::stat_fold::EffectFlag::NoCrit);
+    let chance = if no_crit || !(sum > 0.) {
+        0.
+    } else {
+        sum.min(crate::status_runtime::stats::CRIT_CHANCE_MAX)
+    };
+    if !(chance > 0.) {
+        return false;
+    }
+    let next = p.card_crit_acc + chance;
+    if next >= 1. - crate::status_runtime::stats::CRIT_EPSILON {
+        p.card_crit_acc = next - 1.;
+        true
+    } else {
+        p.card_crit_acc = next;
+        false
+    }
+}
+
 /// Source `startBoost`: a running boost keeps its stronger factors, a lapsed one starts over; the end moves to the later time.
 pub fn start_boost(p: &mut crate::state::Player, now: f64, as_: f64, move_: f64, ms: f64) {
     let b = &mut p.card_boost;
@@ -630,5 +653,58 @@ mod teleport_tests {
         assert_eq!(p.card_boost.until, 0.);
         assert!(p.card_hots.is_empty());
         assert!(hx.w.deferred.hits.is_empty());
+    }
+}
+
+#[cfg(test)]
+mod crit_tests {
+    use super::roll_attack_crit;
+    use crate::{arenas, FactionId, Placement, PlayerId, Secrets, Sim, SimConfig, Vec2};
+
+    #[test]
+    fn the_attack_crit_accumulator_fires_at_one() {
+        let ps = [
+            Placement {
+                profile: "a".into(),
+                faction: FactionId::Fire,
+                bot: false,
+                at: Vec2::new(400., 400.),
+                hp: None,
+                weapon0: None,
+                weapon1: None,
+            },
+            Placement {
+                profile: "b".into(),
+                faction: FactionId::Holy,
+                bot: false,
+                at: Vec2::new(456., 400.),
+                hp: None,
+                weapon0: None,
+                weapon1: None,
+            },
+        ];
+        let mut sim = Sim::reset_active(
+            SimConfig::default(),
+            arenas::practice_arena(),
+            Secrets::from_seed(7),
+            &ps,
+        );
+        assert!(crate::cards::grant(
+            &sim.k,
+            &mut sim.w,
+            PlayerId(1),
+            crate::cards::CardId::CruelWounds
+        ));
+        let i = sim.w.idx(PlayerId(1)).unwrap();
+        assert!((sim.w.players[i].modifiers.crit_chance() - 0.2).abs() < 1e-9);
+        let p = &mut sim.w.players[i];
+        let mut fires = 0;
+        for _ in 0..5 {
+            if roll_attack_crit(p) {
+                fires += 1;
+            }
+        }
+        assert_eq!(fires, 1, "the fifth 20% step fires");
+        assert!(p.card_crit_acc.abs() < 1e-9, "acc {}", p.card_crit_acc);
     }
 }

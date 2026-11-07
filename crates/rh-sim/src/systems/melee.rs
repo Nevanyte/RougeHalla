@@ -113,6 +113,16 @@ fn resolve_swings(cx: &mut Cx) {
             ) {
                 continue;
             }
+            let mut packet = req.packet;
+            let mut critical = false;
+            let mut critical_mult = None;
+            if let Some(ai) = w.idx(req.attacker) {
+                if crate::cards::roll_attack_crit(&mut w.players[ai]) {
+                    critical = true;
+                    critical_mult = Some(crate::status_runtime::stats::CRIT_MULT);
+                    packet.raw *= crate::status_runtime::stats::CRIT_MULT;
+                }
+            }
             let target = w.core(ti);
             let dx = origin.x - at.x;
             let dy = origin.y - at.y;
@@ -127,13 +137,13 @@ fn resolve_swings(cx: &mut Cx) {
                 ability: None,
                 arena: false,
                 source: None,
-                critical: false,
-                critical_mult: None,
+                critical,
+                critical_mult,
                 sig: None,
                 execute: false,
                 victim: target.id,
                 by: Some(req.attacker),
-                packet: req.packet,
+                packet,
                 weapon: Some(req.weapon),
                 stagger: staggers(req.weapon),
                 projectile: None,
