@@ -54,13 +54,18 @@ catalog to a generated, corpus-verified table and the build to the source count 
 9. **Spiked Shell returns damage**: the on-hit hook first runs the victim's \`hitTaken\` rows; a \`Return\` above its max-hp
    threshold defers a physical hit back at the attacker (\`share x applied x returned multiplier\`, the victim's active weapon,
    passive entry for the next tick's ledger, the first real user of \`DeferredQueue\`). A focused test pins the 15 = 0.15 x 100
-   return. The non-dot on-hit families, the boost/fortify actions and the \`vs\`/\`scale\` contexts stay open.
+   return.
+10. **Tank Engine's fortify is live**: the block hook dispatches the owned block trigger rows generically (Pocket Sand's status
+   with the block tag, Tank Engine's fortify). Fortify adds the damage the block really kept (`mitigate_shares` over the
+   prevented packet and the holder's armor/shield) to `Player.card_prevented` and earns `min(cap, tally x per)` flat max hp,
+   which `sync_max_hp` adds on top of the folded maximum; a focused test pins the tally, the cap and the max-hp increase. The
+   non-dot on-hit families, Adrenaline's boost and the \`vs\`/\`scale\` contexts stay open.
 
 ## Measurements
 
-- `cargo test --workspace --all-features --locked` (throwaway PostgreSQL): **1,397 passed, 0 failed, 3 ignored, 151 test
+- `cargo test --workspace --all-features --locked` (throwaway PostgreSQL): **1,398 passed, 0 failed, 3 ignored, 151 test
   binaries, exit 0** (after the full-pool drop, the 21/21 terrain kernel, the allocation-free on-hit hook, the Fists of Fury
-  multiplicity, the streak memory, Wishful Thinking, heal over time, Second Wind's trigger and Spiked Shell's return).
+  multiplicity, the streak memory, Wishful Thinking, heal over time, Second Wind's trigger, Spiked Shell's return and Tank Engine's fortify).
 - Catalog differentials: **2/2** (80 cards × all rows/selections; 80 × 4 eligibility entries incl. reasons).
 - Protocol: Rust **11/11**, JS decoder **24 server vectors / 89 malformed / 10 chains / 15,454 checks**, C# **267/267**.
 - Browser proof (`node tools/browser-proof/proof.mjs`): **PASS**, protocol 7.
