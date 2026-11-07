@@ -8,6 +8,9 @@ use crate::hooks::{HookArgs, Hx};
 use crate::status_runtime::{AddValue, Payload, StatusApply, StatusKind, StatusSource, StatusTag};
 use std::sync::Arc;
 
+/// Fixed capacity for the owned cards' on-hit rows; a hit takes no allocation.
+pub(crate) const MAX_ON_HIT_ROWS: usize = 8;
+
 pub(crate) fn apply(hx: &mut Hx, args: &HookArgs) {
     let HookArgs::HitLanded { ref entry, .. } = *args else {
         return;
@@ -33,13 +36,17 @@ pub(crate) fn apply(hx: &mut Hx, args: &HookArgs) {
     let Some(name) = hx.w.roster.label(by).cloned() else {
         return;
     };
-    let (k, hit, rows) = {
+    let (k, hit, rows, n) = {
         let Some(p) = hx.w.player(by) else { return };
-        let mut rows = Vec::with_capacity(2);
+        let mut rows = [(StatusKind::Dot, 0., None, 0.); MAX_ON_HIT_ROWS];
+        let mut n = 0;
         for id in p.build.cards() {
             for row in id.definition().rows {
                 if let CardRow::OnHit(o) = row {
-                    rows.push((o.status, o.per, o.cap, o.ms));
+                    if n < rows.len() {
+                        rows[n] = (o.status, o.per, o.cap, o.ms);
+                        n += 1;
+                    }
                 }
             }
         }
@@ -47,6 +54,7 @@ pub(crate) fn apply(hx: &mut Hx, args: &HookArgs) {
             crate::content::on_hit_power(weapon),
             p.modifiers.hit_mult(),
             rows,
+            n,
         )
     };
     let tick = hx.w.tick;
@@ -55,7 +63,7 @@ pub(crate) fn apply(hx: &mut Hx, args: &HookArgs) {
         name,
         owner_id: None,
     };
-    for (status, per, cap, ms) in rows {
+    for &(status, per, cap, ms) in &rows[..n] {
         if !(ms > 0.) {
             continue;
         }
