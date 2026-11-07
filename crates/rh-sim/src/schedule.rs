@@ -864,7 +864,11 @@ static SYSTEMS: [Item<SystemFn>; 24] = [
         crate::systems::potions::update,
     ),
     pending("traders.updateTraders", Gate::NotTraining, "P-TRADE-1"),
-    pending("cardHooks.afterDamage", Gate::Always, "P-CARDS-1"),
+    ported(
+        "cardHooks.afterDamage",
+        Gate::Always,
+        crate::cards::after_damage,
+    ),
     pending("plagueCorpses.<anonymous>", Gate::Signatures, "P-FACTION-3"),
     pending("bruiserPassives.update", Gate::Signatures, "P-FACTION-5"),
     // Current status sources are axe shred and attack slow. P-CARDS-1 extends this fold with cards.
@@ -1831,6 +1835,7 @@ mod tests {
                 "abilities.abilityDotFx",
                 "vision.refreshVision",
                 "consumables.updateConsumables",
+                "cardHooks.afterDamage",
                 "mods.updateMods"
             ]
         );

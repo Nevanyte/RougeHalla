@@ -5,8 +5,10 @@ pub use rules::{visit_content, Definition, DEFINITION};
 
 /// The three cards the current native build/chest path supports (the catalog is all 80).
 pub const SUPPORTED: [CardId; 3] = [CardId::SlowBurn, CardId::PocketSand, CardId::Siphon];
+mod after_damage;
 mod catalog;
 mod catalog_data;
+pub(crate) use after_damage::after_damage;
 pub(crate) mod on_hit;
 pub use catalog::*;
 
