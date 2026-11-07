@@ -78,6 +78,7 @@ import type { Scenario, Input, Ctx } from "./scenarios/types";
 import { projectileScenarios } from "./scenarios/projectiles";
 import { meleeScenarios } from "./scenarios/melee";
 import { catalogue } from "./scenarios/catalogue";
+import { regenScenarios } from "./scenarios/regen";
 
 function run(sc: Scenario): unknown {
   if(sc.factionSlice === "player-engagement-holy-plague-fire-frost-sentenced/1" && (process.version!=="v22.23.4" || process.platform!=="linux" || process.arch!=="x64")) throw new Error("Sentenced source fixtures require Linux x64 Node22.23.4");
@@ -583,7 +584,7 @@ const lockTwin: Scenario = {
   modules: DEFAULT_MODULES.filter(m => m !== "consumables"), record: ["combat", "containers", "statuses", "locks"],
   requires: ["input:target", "launch", "projEnd", "death"],
 };
-for (const sc of [...SCENARIOS, ...catalogue, ...meleeScenarios, ...projectileScenarios, ...visionScenarios, ...targetingScenarios, ...holyScenarios, ...plagueScenarios, ...fireScenarios, ...frostScenarios, ...sentencedScenarios, lockTwin]) {
+for (const sc of [...SCENARIOS, ...catalogue, ...meleeScenarios, ...projectileScenarios, ...visionScenarios, ...targetingScenarios, ...holyScenarios, ...plagueScenarios, ...fireScenarios, ...frostScenarios, ...sentencedScenarios, ...regenScenarios, lockTwin]) {
   if (only && sc.name !== only) continue;
   const t0 = performance.now();
   const fx = run(sc) as { ticks: unknown[]; results: unknown[]; legacyConfig: { unexpectedEventTypes: string[]; mobsPresent: number } };

@@ -1,0 +1,12 @@
+--- a/crates/rh-sim/src/systems/regen.rs
++++ b/crates/rh-sim/src/systems/regen.rs
+@@ -28,9 +28,6 @@
+     let now = w.server_time;
+     for h in landed {
+         stamp(w, h.victim, now);
+-        if let Some(by) = h.by {
+-            stamp(w, by, now);
+-        }
+     }
+     // The locked coliseum is sudden death's ground: no regeneration against its burn. The hits above still stamped the
+     // clock first, as the source does.

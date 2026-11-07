@@ -1,0 +1,23 @@
+{
+  "format": "rh-source-manifest/1",
+  "packet": "P-MOBS-2",
+  "scenario": "regen_clock",
+  "revision": "856618eb948555adefc6ff0bf4628d879d556250",
+  "base": "origin/optimization_port",
+  "container": "node:22.23.4-bookworm-slim@sha256:aaa4b5baf1ecff3b283486bb1f90405cdda225a3e6f79660d2c559fa510a7292 (linux/amd64)",
+  "node": "v22.23.4",
+  "command": "tools/regen-fixtures/capture.sh capture (npm ci --ignore-scripts --no-audit --no-fund; node --import tsx parity/legacy-capture/capture.ts --out /out --only regen_clock)",
+  "check": "tools/regen-fixtures/capture.sh --check (byte-for-byte cmp against parity/fixtures/regen_clock.json)",
+  "sources": {
+    "packages/server/src/sim/regen.ts": "7cef735927facfb3de588ce2c3f9e9c21bb784f24c783ee0f117f6128bb19050",
+    "packages/server/src/sim/factions.ts": "9ea65429b48b9aa43578922642534d82a1369778fbcec502e62cc9e21dacbf1c",
+    "packages/shared/src/constants.ts": "51ce4dd800ec868abee525fb1ae375688066f336972a7da878644df1235924e7",
+    "packages/server/src/sim/world.ts": "b98376a7f022ec6f9b681e368d62c18fbe524d95408b2d4eec93909934454d54",
+    "packages/server/src/sim/gameplay.ts": "70f6f2b67571783f3042309bef01dc75aabd2656c59a184d0f97c9c0a8b8cf78",
+    "parity/legacy-capture/capture.ts": "0c166ac376ebfb9b7eb07bb33ab647d56cc8ede5d6200c9f843664a7d353e97d",
+    "parity/legacy-capture/scenarios/regen.ts": "65e801d5971cd93f8b8aab69fa37c9e8b00429558841f31944108b82fdd68699"
+  },
+  "fixture": {
+    "parity/fixtures/regen_clock.json": "078c54ae05cfefb59227a0f15a3701643b5ee6b77fff26e241429010eeaf4bfc"
+  }
+}
