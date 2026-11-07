@@ -1,0 +1,35 @@
+diff --git a/crates/rh-sim/src/systems/mob_life.rs b/crates/rh-sim/src/systems/mob_life.rs
+index 65a775c6..b2271ed9 100644
+--- a/crates/rh-sim/src/systems/mob_life.rs
++++ b/crates/rh-sim/src/systems/mob_life.rs
+@@ -432,29 +432,13 @@ pub(crate) fn pay(k: &MatchStatic, w: &mut World, ev: &mut Vec<Event>, a: Award)
+             crate::reward_chests::drop_augment(w, at, Some(a.camp as u16), a.zone, true, &eligible);
+         }
+     }
+     // Source payMobKill: credit, stat, the settled weapon awards, the chests link (the inline elite stand-in above) and
+     // finally the chainable `mobKilled` hook. The source chests/quests consumers remain Pending; the producer position
+     // and typed arguments are ported here so their owners chain onto the real call site.
+-    crate::hooks::fire(
+-        &mut crate::hooks::Hx {
+-            stats: Default::default(),
+-            k,
+-            w,
+-            ev,
+-            fx: None,
+-        },
+-        crate::hooks::HookArgs::MobKilled {
+-            killer: id,
+-            mob_type: a.mob_type,
+-            zone: a.zone,
+-            camp: a.camp as i32,
+-            elite: a.elite,
+-            at: a.at,
+-        },
+-    );
++    // mutated: the mobKilled producer call is dropped.
+ }
+ #[cfg(all(test, feature = "trusted-status-probes"))]
+ mod mob_lifecycle_tests;
+ 
+ pub(crate) fn reap(cx: &mut Cx) {
+     if !mob_ai::enabled(cx.w) {
