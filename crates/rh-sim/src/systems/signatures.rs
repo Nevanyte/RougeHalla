@@ -25,6 +25,8 @@ pub struct LandedHit {
     pub victim: PlayerId,
     pub by: Option<PlayerId>,
     pub amount: f64,
+    /// The Race to 0 share of the entry's multiplier (G4: lifesteal must not feed on it; 1 for none).
+    pub race: f64,
 }
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct Contact {
@@ -323,7 +325,7 @@ pub(crate) fn after_damage(cx: &mut Cx) {
         }
         let Some(by) = h.by else { continue };
         let dot = h.dot || h.sig.is_some_and(crate::factions::SignatureKind::is_dot);
-        let fed = h.amount / h.cut;
+        let fed = h.amount / h.cut / if h.race > 0. { h.race } else { 1. };
         if let Some((_, amount, dot_amount)) = s.dealt.iter_mut().find(|(id, _, _)| *id == by) {
             *amount += fed;
             if dot {

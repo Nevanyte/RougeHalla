@@ -107,6 +107,7 @@ content! {
     FESTERING_TICKS: u32 = 4, "ticks";
     FESTERING_TICK_MS: f64 = 1000.0, "ms";
     FESTERING_AP_SHARE: f64 = 0.125, "share";
+    HP_RACE_CAP: f64 = 2.5, "x";
     PLANT_FEET_MS: f64 = 1000.0, "ms";
     PLANT_FEET_BONUS: f64 = 0.25, "share";
 

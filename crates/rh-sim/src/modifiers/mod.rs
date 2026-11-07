@@ -283,6 +283,20 @@ pub(crate) fn frost_chill(p: &crate::fighter::FighterCore) -> f64 {
                 + DEFINITION.frost_as * (m.as_mult - 1.).max(0.),
         )
 }
+/// Source `hpRaceCapOf`: the folded `hpRace` mult (the Race to 0 ceiling; 0 for none).
+pub(crate) fn hp_race_cap(core: &crate::fighter::FighterCore) -> f64 {
+    MultSums::from_source_values(core.modifiers.mults).get(fold::MultKey::HpRace)
+}
+
+/// Source `hpRaceMult`: the hp-fraction multiplier of a Race to 0, capped.
+pub(crate) fn hp_race_mult(hp_frac: f64, cap: f64) -> f64 {
+    let ceiling = cap.clamp(1., crate::constants::HP_RACE_CAP);
+    if !(hp_frac > 0.) {
+        return ceiling;
+    }
+    (1. / hp_frac).max(1.).min(ceiling)
+}
+
 pub(crate) fn mark_pulse(
     p: &crate::state::Player,
     w: crate::WeaponId,
@@ -471,4 +485,17 @@ pub(crate) fn outgoing_damage(
         return 1f64.min(ceiling).max(0.) + farm;
     }
     (1. + sum).min(ceiling).max(0.) + farm
+}
+
+#[cfg(test)]
+mod race_tests {
+    use super::hp_race_mult;
+
+    #[test]
+    fn the_race_multiplier_is_the_inverse_hp_fraction_capped() {
+        assert!((hp_race_mult(1.0, 2.5) - 1.0).abs() < 1e-12);
+        assert!((hp_race_mult(0.5, 2.5) - 2.0).abs() < 1e-12);
+        assert!((hp_race_mult(0.2, 2.5) - 2.5).abs() < 1e-12, "capped");
+        assert!((hp_race_mult(0.8, 1.2) - 1.2).abs() < 1e-12);
+    }
 }

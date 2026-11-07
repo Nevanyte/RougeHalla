@@ -335,6 +335,7 @@ fn apply_inner(
         downed_this_tick,
         victims,
         ledger_mults: mults,
+        ledger_races: races,
         slot_head,
         slot_tail,
         entry_next,
@@ -360,6 +361,7 @@ fn apply_inner(
         slot_tail.resize(w.fighter_count(), NONE);
     }
     mults.clear();
+    races.clear();
     for (n, e) in ledger.iter().enumerate() {
         let vix = w.fighter_idx(e.victim);
         let bix = e.credit_id().and_then(|b| w.fighter_idx(b));
@@ -464,9 +466,31 @@ fn apply_inner(
         } else {
             1.
         };
+        let dealt = bix.map_or(1., |i| {
+            let core = w.core(i);
+            let cap = crate::modifiers::hp_race_cap(core);
+            if cap > 1. {
+                crate::modifiers::hp_race_mult(core.vitals.hp / core.vitals.max_hp.max(1e-9), cap)
+            } else {
+                1.
+            }
+        });
+        let taken = vix.map_or(1., |v| {
+            let core = w.core(v);
+            let cap = crate::modifiers::hp_race_cap(core);
+            if cap > 1. {
+                crate::modifiers::hp_race_mult(core.vitals.hp / core.vitals.max_hp.max(1e-9), cap)
+            } else {
+                1.
+            }
+        });
+        // Already multiplied entries (returned damage, a splash) only take the victim's Race to 0 (G4).
+        let final_entry = e.passive || e.derived;
+        races.push(if final_entry { taken } else { dealt * taken });
         mults.push(
             farm_mult
                 * gambler
+                * (if final_entry { taken } else { dealt * taken })
                 * (if k.config.pvp_rules
                     && !e.arena
                     && e.ability.is_none()
@@ -530,7 +554,7 @@ fn apply_inner(
         }
         slot_head[vi] = NONE;
         slot_tail[vi] = NONE;
-        apply_victim(&mut pass, &mut bufs, vi, ledger, mults, entry_rank);
+        apply_victim(&mut pass, &mut bufs, vi, ledger, mults, races, entry_rank);
     }
     pay_all_with(pass.k, pass.w, pass.ev, pf, pass.stats);
     ledger.clear();
@@ -542,6 +566,7 @@ fn apply_victim(
     vi: usize,
     ledger: &[Entry],
     mults: &[f64],
+    races: &[f64],
     entry_rank: &[u32],
 ) {
     let ix = FighterIx::of_slot(vi);
@@ -780,6 +805,7 @@ fn apply_victim(
                     victim: v,
                     by: e.by,
                     amount: amounts[j] * landed_share,
+                    race: races[k],
                 });
             }
             if let Some(sig) = e.sig.filter(|sig| !sig.is_dot()) {
