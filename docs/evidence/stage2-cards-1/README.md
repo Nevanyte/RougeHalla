@@ -20,6 +20,11 @@ catalog to a generated, corpus-verified table and the build to the source count 
    allocation.
 4. **Protocol 7** carries the 80-byte count map (`WireBuild`), with the regenerated `protocol/fixtures/v7.json`, the Rust/JS/C#
    decoders and the Unity sync; browser proof PASS at protocol 7.
+5. **The reward pools and the exact draw protocol are verified** (`reward_chests::pools`): the 14 interactive augment ids in
+   source order, `conditionalPool`/`rewardAugmentPool` with held-by-all picker exclusion, the nearest-tier fallback with one
+   tier draw plus one index draw per pick, the themed first slot and all five `ZONE_AUGMENT_THEMES`. The differential replays
+   the corpus's **30 pool cases** and **181 roll cases** (options, every draw's cursor/value, final cursor, unused tape
+   continuation). Not yet wired into chest drops — that is the runtime slice.
 
 ## Measurements
 
@@ -28,6 +33,7 @@ catalog to a generated, corpus-verified table and the build to the source count 
 - Catalog differentials: **2/2** (80 cards × all rows/selections; 80 × 4 eligibility entries incl. reasons).
 - Protocol: Rust **11/11**, JS decoder **24 server vectors / 89 malformed / 10 chains / 15,454 checks**, C# **267/267**.
 - Browser proof (`node tools/browser-proof/proof.mjs`): **PASS**, protocol 7.
+- Reward pools/draw: **4/4** (30 pool cases, 181 roll cases, interactive order, five zone themes).
 - Declared state change: the build map is hashed state, so this branch recalibrates the ability per-tick hash tape and
   `content_hash` (now `0x2835ca4eadc286bd`); the hash-coverage contract documents the new leaves.
 
