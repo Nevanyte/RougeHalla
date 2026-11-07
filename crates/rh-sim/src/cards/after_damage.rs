@@ -89,7 +89,7 @@ pub(crate) fn after_damage(cx: &mut Cx) {
         }
         // A block under Best Offense is a hit by the holder on the blocked attacker: it counts for the streak.
         let hits_for = |victim: PlayerId| -> (f64, u32) {
-            let (mut damage, mut n) = sum_for(landed, by, victim);
+            let (damage, mut n) = sum_for(landed, by, victim);
             if best_offense {
                 for b in blocks {
                     if b.holder == by && !b.passive && b.attacker == victim {
@@ -115,7 +115,7 @@ pub(crate) fn after_damage(cx: &mut Cx) {
         // Otherwise restart on the biggest hit; ties by the tick's hash rank.
         let mut target: Option<PlayerId> = None;
         let mut best = -1.;
-        let mut consider = |victim: PlayerId, target: &mut Option<PlayerId>, best: &mut f64| {
+        let consider = |victim: PlayerId, target: &mut Option<PlayerId>, best: &mut f64| {
             let (damage, _) = hits_for(victim);
             let better = target.is_none()
                 || damage > *best

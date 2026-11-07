@@ -813,7 +813,11 @@ static SYSTEMS: [Item<SystemFn>; 24] = [
         Gate::Signatures,
         crate::systems::signatures::after_damage,
     ),
-    pending("factions.healOverTime", Gate::Signatures, "P-FACTION-1"),
+    ported(
+        "factions.healOverTime",
+        Gate::Signatures,
+        crate::systems::heal::over_time,
+    ),
     pending("mobs.resetDummies", Gate::Always, "P-MOBS-1"),
     pending("buffs.expireBoosts", Gate::Always, "P-CARDS-2"),
     ported(

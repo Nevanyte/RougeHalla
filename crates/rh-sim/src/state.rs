@@ -488,6 +488,9 @@ pub struct Player {
     /// Wishful Thinking's trims inside the source window (written by the after-damage system).
     #[serde(default)]
     pub card_trims: Vec<crate::cards::Trim>,
+    /// Pending heal-over-time runs (Second Wind and other trigger heals).
+    #[serde(default)]
+    pub card_hots: Vec<crate::cards::Hot>,
     pub plan_ready: bool,
     pub build: crate::cards::Build,
     pub potion_small: u8,
@@ -539,6 +542,7 @@ impl Player {
             card_runtime: None,
             card_streak: None,
             card_trims: Vec::new(),
+            card_hots: Vec::new(),
             build: Default::default(),
             potion_small: 0,
             healing_until: 0.,

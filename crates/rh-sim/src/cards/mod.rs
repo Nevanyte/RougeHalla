@@ -48,6 +48,21 @@ pub struct Streak {
     pub last: f64,
 }
 
+/// One pending heal-over-time step run (source `PlayerRuntime.hots`).
+#[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Hot {
+    pub next: f64,
+    pub left: u32,
+    pub amount: f64,
+    pub ignore_lockout: bool,
+}
+
+/// Source `healOverTimeSteps`: at least one round step per HEAL_OVER_TIME_STEP_MS.
+pub fn heal_over_time_steps(ms: f64) -> u32 {
+    ((ms / crate::constants::HEAL_OVER_TIME_STEP_MS).round() as u32).max(1)
+}
+
 /// One Wishful Thinking trim inside the source window (source `cards.trims`).
 #[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(deny_unknown_fields)]

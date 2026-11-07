@@ -99,6 +99,7 @@ content! {
     WISHFUL_BUDGET_MS: f64 = 30_000.0, "ms";
     WISHFUL_WINDOW_MS: f64 = 60_000.0, "ms";
     WISHFUL_FLOOR_SHARE: f64 = 0.5, "share";
+    HEAL_OVER_TIME_STEP_MS: f64 = 500.0, "ms";
     SWORD_ON_HIT_POWER: f64 = 1.5, "x";
     FISTS_ON_HIT_POWER: f64 = 1.2, "x";
     PLAIN_ON_HIT_POWER: f64 = 1.0, "x";
