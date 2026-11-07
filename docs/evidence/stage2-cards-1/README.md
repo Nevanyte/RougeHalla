@@ -120,10 +120,14 @@ catalog to a generated, corpus-verified table and the build to the source count 
 23. **The chest refuses a conditional card without its base**: an option whose card `requires` a base the picker does not hold
    returns `Refusal::Needs(<Base>)`, whose message is the source's "Needs <Base>" (the refusal message is a `Cow`; the wire maps
    the new reason to code 10). `BaseStatId` gains the serde derives the refusal needs.
+24. **Eye for an Eye applies on-hit to returned damage**: the on-hit gate separates a weapon hit (the victim's hitTaken triggers
+   plus the attacker's rows) from a returned hit (the attacker's rows only, and only with the `eyeForAnEye` flag); a DoT tick, an
+   ability, a signature or a derived follow-on sets off nothing. A focused test pins the bleed on a returned hit with the card
+   and its absence without it.
 
 ## Measurements
 
-- `cargo test --workspace --all-features --locked` (throwaway PostgreSQL): **1,405 passed, 0 failed, 3 ignored, 151 test
+- `cargo test --workspace --all-features --locked` (throwaway PostgreSQL): **1,406 passed, 0 failed, 3 ignored, 151 test
   binaries, exit 0** (after the full-pool drop, the 21/21 terrain kernel, the allocation-free on-hit hook, the Fists of Fury
   multiplicity, the streak memory, Wishful Thinking, heal over time, Second Wind's trigger, Spiked Shell's return, Tank Engine's fortify, Adrenaline's boost and the teleport resets).
 - Catalog differentials: **2/2** (80 cards × all rows/selections; 80 × 4 eligibility entries incl. reasons).
