@@ -104,7 +104,25 @@ this README and the ledger.
 
 ## 6. Acceptance checks
 
-TBD
+- [x] Actual-source probe `parity/cannons/source.json` (pinned container, `tools/cannon-fixtures/capture.sh`):
+      **11 cases / 23 compared steps** — the constructor's 45 containers and five cannons with their half-way-round
+      destinations, and the blast, reload refusals/boundaries, seal ordering, root cannot-move, blocked landing, clears
+      and chest control; `--check` matches **byte for byte** (sha256 `78de24ff6d4495c0172c8a3d7e8780ae5de6280768fa5e86bacbff81edd7233e`).
+- [x] `cargo test -p rh-sim systems::cannons --lib` — 2 passed: the source replay compares every frame exactly,
+      restores a checkpoint mid-blast and continues, and the observer resolves the itemless cannon's focused pickup.
+- [x] Negative controls: **15/15 mutants killed** by semantic test failures (`tools/cannon-fixtures/run-mutants.sh`),
+      unchanged control passes.
+- [x] Protocol 9: `cargo test -p rh-protocol` all suites; `node tools/protocol-js/check-vectors.mjs` — 28 server
+      vectors, 94 malformed, 10 chains, 15,633 checks against `v9.json`; `dotnet test client-unity/RoguehallaNet.Tests`
+      — 279 passed; `node tools/protocol-js/check-first-playable.mjs` — 61 checks.
+- [x] Identity: content hash moves to `a93f0a500ea89235` (one new registry row, `CANNON_COOLDOWN_MS`); the
+      `SimConfig.consumables` module leaf and the two container leaves are hashed/checkpointed; OBSERVATION_VERSION
+      15 -> 16; wire 8 -> 9; checkpoint `rh-checkpoint/20`, replay `rh-replay/17` and policy contract 12 unchanged but
+      the CONTRACTS identity line must be advanced by the coordinator.
+- [x] The ability hash tape was **re-recorded through its declared recorder** (`--ignored record_ability_hash_tape`;
+      53 folds moved) because the rules identity grows the module flag and the registry row — the tape's base cases are
+      not hand-edited.
+- [ ] Full workspace gate / strict clippy / fmt / browser proof: RUNNING
 
 ## 7. Commands
 

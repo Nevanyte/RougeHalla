@@ -81,6 +81,7 @@ fn sim_for(case: &Value) -> Sim {
             // The certified seed1 map carries the real initial crate/ground spots; the MVP sink is the admitted
             // storage mode for them (the camp/world state the probes read is independent of it).
             initial_loot: true,
+            consumables: true,
             ..Default::default()
         },
         seed1_arena(),

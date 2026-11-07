@@ -117,6 +117,7 @@ pub(super) fn construct(input: &V) -> Sim {
             fill_seconds: 0.,
             abilities: Mode::Full,
             initial_loot: input["profile"] == "roster",
+            consumables: true,
             lifecycle: crate::ArenaMode::Source(crate::ArenaRules {
                 plan_seconds: input["config"]["planSeconds"].as_f64().unwrap_or(0.),
                 first_patience_seconds: input["config"]["firstPatienceSeconds"].as_f64(),

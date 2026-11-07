@@ -81,6 +81,20 @@ fn reference(
                     rh_sim::potions::Notice::Empty => 7,
                 },
             }),
+            SeenEvent::CannonNotice { notice } => events.push(WireEvent::CannonNotice {
+                code: match notice {
+                    rh_sim::events::CannonNotice::Sealed => 1,
+                    rh_sim::events::CannonNotice::CantEnter => 2,
+                    rh_sim::events::CannonNotice::Blast => 3,
+                    rh_sim::events::CannonNotice::Reloading { .. } => 4,
+                },
+                seconds: match notice {
+                    rh_sim::events::CannonNotice::Reloading { seconds } => {
+                        u16::try_from(seconds).ok()
+                    }
+                    _ => None,
+                },
+            }),
             SeenEvent::MobArmed { .. } | SeenEvent::CampCleared { .. } => {}
             SeenEvent::ChestRefused { reason } => events.push(WireEvent::ChestRefused {
                 reason: match reason {
@@ -305,6 +319,7 @@ impl Hand {
                 hazards: rh_sim::terrain::Mode::Off,
                 mob_mode: rh_sim::mob_runtime::MobMode::Off,
                 initial_loot: false,
+                consumables: true,
                 min_players: 1,
                 lobby_seconds: 1.0,
                 fill_seconds: 0.0,

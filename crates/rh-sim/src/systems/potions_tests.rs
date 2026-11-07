@@ -34,6 +34,7 @@ fn sim(input: &Value) -> Sim {
     let mut s = Sim::new(
         SimConfig {
             initial_loot: true,
+            consumables: true,
             min_players: 2,
             fill_seconds: 0.,
             ..Default::default()
