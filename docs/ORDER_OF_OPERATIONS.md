@@ -6,7 +6,7 @@ operation follows from now on, by owner direction. Where an item says "owner act
 means delegable under the existing packet rules; "coordinator" follows `CLAUDE.md` (only the coordinator edits shared
 status records and `Cargo.lock`).
 
-**Status of this document.** Adopted by the owner on 2026-11-07. Decisions D1–D8 below are **not yet recorded as ADRs**
+**Status of this document.** Adopted by the owner on 2026-11-07. Decisions D1–D9 below are **not yet recorded as ADRs**
 (Phase 0, item 4) and three of them conflict with existing accepted records (section 5). Until those are resolved,
 where this file and an Accepted ADR/contract disagree, the ADR/contract still governs and the worker flags the conflict
 instead of choosing.
@@ -25,6 +25,8 @@ instead of choosing.
 | D6 | **Disconnect observability is a requirement.** The new stack classifies and logs every disconnect: which side closed, which code, which timeout, recent RTT. Every staging playtest ends with a review of that log. | The legacy disconnects were never root-caused (cause assumed, unproven, to be the cheap Cloudflare host). The port's main player-facing justification is currently an assumption; the log decides, in one line, whether a recurrence is server code, hosting or client. |
 | D7 | **Unity WebGL weak-hardware verification is a pre-release gate**, run when a weak machine is available. The band: beat the legacy Phaser client on the same hardware (P-LOAD-3 comparator), with absolute backstops of p99 frame time ≤ 16.7 ms at 960×600, browser tab ≤ 1.5 GB, time-to-playable ≤ 10 s on a 20 Mbit/s link, on the weakest machine the owner can physically borrow. **Numbers plus a named machine; the band is ratified before the test runs.** | All current frame data is from an M5 Pro with 2–6 actors; the 204-fighter run was a decode/render replay. The client is the least-proven layer. A server or throttled run is a proxy and does not satisfy this gate. |
 | D8 | **The Rust layer is kept, justified as deterministic, dense and agent-verifiable, not merely "fast."** Unity was a forced move (artist pipeline: Unity or Unreal; Unity chosen). Unity-only is rejected on: the existing proven playable core, the headless determinism substrate (ML and agent gates) and hosting density. The triple-codec tax (Rust/C#/JS) is accepted as permanent. | Records the reasoning so later re-litigation starts from facts. |
+
+| D9 | **The play loop is server-authoritative, locally predicted for the player's own walk only, server-reconciled by input acknowledgment, with remote entities interpolated and the final presentation smoothed.** Full statement and staged build order: Appendix A. Rust decides every outcome (hits, damage, rewards, randomness, results). | It gives responsiveness without a second gameplay authority. It matches R-AUTH-2 and ADR 0008, and the protocol already carries the input `seq` and `Snapshot.ack_input` it needs. Without it written down, "prediction" drifts into predicting attacks or outcomes. |
 
 Also settled: `DEVIATIONS.md` is live with 8 seeded rows; the backlog table is coordinator-owned (the P-BALANCE-1 row
 lands only on coordinator confirmation); and a cross-cutting rule — **a packet whose behaviour intentionally differs from
@@ -64,7 +66,7 @@ first even while the long mechanic grind runs under the workers. Phases overlap;
 3. **Commit the ledger, the packet, the row and this file.** Add the untracked prompt files
    (`[1-6]_*_Prompt.md`, `5_Codex_Rust_Handoff_To_DeepSeek.md`) and `context_copy/` to `.gitignore` (or move them out of
    the repo) before an agent commits them into history.
-4. **Record D1–D8 as ADRs** (short; the table above is the draft) and resolve the three conflicts in section 5.
+4. **Record D1–D9 as ADRs** (short; the table above is the draft) and resolve the three conflicts in section 5.
 5. **Add the two cross-cutting rules** to the record: the `DEVIATIONS.md` hand-off rule, and the D6 disconnect
    classification requirement (R-PROC or a new R-OBS line in `REQUIREMENTS.md`), enforced by the playtest checklist.
 6. **Ratify the D7 band** (numbers and the machine's name) before any run, so the test is a verdict.
@@ -113,6 +115,10 @@ first even while the long mechanic grind runs under the workers. Phases overlap;
     the future ML seat, so this is on the milestone's critical path.
 16. **Unity UI packets** (P-UI-1..5 as needed for M-full-loop; the rest after), then **P-UNITY-PERF-1 resumed.** The
     archived instancing patch is untested: finish and measure it, or delete it.
+16a. **D9 play loop, in Appendix A's order** (P-NET-1 and the P-UI packets, worker; coordinator-reviewed). Stage 1
+    remote interpolation and immediate presentation are on the M-full-loop path. Stages 4–5 (own-walk prediction with
+    reconciliation) land with P-NET-1 and are required before the D7 gate, because correction frequency under real
+    latency is part of what that gate measures. Stage 7 (a shared Rust/WASM predictor) is deferred and needs its own ADR.
 17. **D7 gate when the weak machine exists:** worst-case scene (8 players, about 160 mobs, projectiles, particles) at
     960×600 against the band, plus the browser matrix (current Chrome, Edge, Firefox, Safari). Failure here is a
     project-level event: it reopens the visual bar, not just a packet. (The worst-case scene does not exist yet; building
@@ -141,7 +147,8 @@ first even while the long mechanic grind runs under the workers. Phases overlap;
 
 1. Which phase and item of this file it serves (or "not in the plan: owner approval needed").
 2. Whether it touches a D-rule: D1 (parity standard used), D2 (harness verdict attached or "not applicable"),
-   D5 (inside the freeze: no new design), D6 (disconnect classification kept intact).
+   D5 (inside the freeze: no new design), D6 (disconnect classification kept intact), D9 (nothing outcome-bearing is
+   predicted or trusted from the client).
 3. Any intentional difference from legacy has a `DEVIATIONS.md` row, with reversibility and re-validation filled in.
 4. Shared status records (MIGRATION checkpoint, CONTRACTS table, backlog table, `Cargo.lock`) are left for the
    coordinator; the hand-off lists the proposed edits.
@@ -187,6 +194,11 @@ first even while the long mechanic grind runs under the workers. Phases overlap;
   single-host staging as the working default.
 - **D4 vs C-PERSIST / R-AWS-2** (latency-aware regional placement): record that regional placement is deferred.
 
+- **D9 vs the wording of R-AUTH-2** ("never attacks"). Appendix A lets Unity start an attack animation, sound and UI
+  response at the click, as the legacy client already does (`docs/PLAYER_PREDICTION.md`, "draw your own actions at the
+  click"). That is presentation only: no damage number, hit, reward or state change before the server confirms. The
+  owner should confirm that reading, and R-AUTH-2 should say it explicitly.
+
 **M-full-loop acceptance checklist (tripwire milestone, 2027-01-02):**
 
 - [ ] One Unity browser match: 8 seats, bots filling, mobs and camps live, full 80-card pool in chests, Wishes castable,
@@ -196,6 +208,9 @@ first even while the long mechanic grind runs under the workers. Phases overlap;
 - [ ] `DEVIATIONS.md`: every row signed; every balance-affecting row harness-validated or explicitly accepted as risk.
 - [ ] Parity: compared scenarios still MATCH; capture-only audit done with dispositions.
 - [ ] Disconnect log from the milestone playtest reviewed; every disconnect has a classified reason.
+- [ ] D9 loop: remote interpolation and immediate presentation working; own-walk prediction with reconciliation passing
+      Rust-produced vectors, with the correction rate measured under injected latency, jitter and loss (Appendix A,
+      stage 6).
 - [ ] D7 band: passed on the weak machine, or the release bar explicitly reset by the owner with the measurement attached.
 
 If the boxes are green on 2027-01-02, the freeze lifts on schedule and queued design work goes Rust-first. If not, the
@@ -226,3 +241,56 @@ Changes made against the repo on 2026-11-07:
 
 Unverified in this file: the t4g.small price (from memory); the 8-week estimate (judgment); whether the bots, UI and
 host packets fit in the weeks given; the hours-per-packet baseline (no data yet).
+
+---
+
+## Appendix A. The play loop (D9)
+
+Source: owner-supplied design, 2026-11-07, checked against `REQUIREMENTS.md` R-AUTH-2, ADR 0008,
+`docs/PLAYER_PREDICTION.md` and `crates/rh-protocol`.
+
+**Statement.** Predict your own responsive walk locally, send intentions immediately, simulate authoritatively in Rust,
+reconcile your own entity using input acknowledgments, interpolate remote entities, and let Unity smooth the final
+presentation. Local prediction supplies responsiveness; server observations supply truth.
+
+**Rules.**
+
+1. The client sends **intent only** (a sequenced input command), never a position, hit, damage, reward or outcome.
+2. **Only the local player's walk is predicted** (R-AUTH-2, ADR 0008). Attacks, abilities, cards, interactions,
+   damage, deaths, rewards, randomness and match results are server-confirmed. Unity may give *non-committal*
+   feedback at the click (animation start, sound, button response, selection highlight). Damage numbers and state
+   changes appear only on confirmation.
+3. **Reconciliation replays pending inputs.** On each authoritative self-state, Unity finds its prediction at the
+   acknowledged input sequence and compares. On disagreement it restores the server state and **reapplies the
+   unacknowledged inputs**. Replacing the position with an older server position without replay makes the character
+   jump backward. Small corrections are smoothed visually; large or gameplay-critical ones snap.
+4. **Remote players and mobs are interpolated, never predicted.** Unity buffers approved observations, renders slightly
+   in the past and draws between recent states. It invents no authoritative movement or combat.
+5. **Rates are independent.** `rh-sim` advances at fixed 20 Hz; the network delivers observations as scheduled; Unity
+   renders at the device's rate.
+6. **Persistence stays off the loop.** PostgreSQL is touched only at deliberate boundaries (finalized results, via
+   `rh-persist`: atomic, idempotent, fenced), never per tick or per input.
+7. Prediction improves *perceived* latency. It does not reduce server work or necessarily bandwidth.
+
+**What already exists (verified in the repo).**
+- Protocol: the client Input frame carries a `seq` (`crates/rh-protocol/src/lib.rs`, "echoed in `Snapshot.ack_input`
+  (prediction reconciliation)"); ADR 0002 lists the ack as a snapshot field.
+- Client: ADR 0008 says the current Unity client presents accepted authoritative self positions and interpolates remote
+  presentation in the past. The earlier straight-line local walk was removed on 2026-11-05 because it did not mirror
+  Rust. Prediction may return only after mirroring Rust movement, passing Rust-produced vectors and keeping server
+  correction (P-NET-1). Headless and policy runs never use it.
+- Map: the collision layer is sent to the client (ADR 0003), which is the "authorized static geometry" stage 4 needs.
+
+**Staged build order.**
+1. Server-authoritative baseline: all inputs and observations reliable. *(done for the MVP loop)*
+2. Immediate presentation: camera, UI, animation, audio.
+3. Remote interpolation for players and mobs.
+4. Own-walk prediction against the authorized static geometry, mirrored from Rust and checked with Rust vectors (P-NET-1).
+5. Sequence acknowledgment and reconciliation with replay of unacknowledged inputs.
+6. Real-network testing: latency, jitter, packet loss, reconnects, correction frequency (also feeds D7).
+7. **Deferred:** a shared Rust/WASM predictor, only if maintaining a mirrored C# predictor becomes a real correctness
+   burden. It would replace the ADR 0008 approach (mirrored C# + Rust vectors) and needs its own ADR.
+
+**Not in the supplied design but required by existing packets.** P-NET-1 also owns the render-time attack timestamp and
+the `MAX_REWIND` bound measured against RTT (melee lag compensation in the legacy client). Keep it: it is part of making
+an attack feel right without the client deciding the hit.

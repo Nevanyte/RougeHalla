@@ -10,7 +10,7 @@ Packets that edit `crates/rh-sim` follow the core layout rules in their write sc
 ([docs/sweep/PACKAGES.md](docs/sweep/PACKAGES.md)).
 
 **Work follows [docs/ORDER_OF_OPERATIONS.md](docs/ORDER_OF_OPERATIONS.md)** (owner direction 2026-11-07): every packet states
-which phase/item it serves and meets its per-operation checklist. Its decisions D1–D8 are not yet ADRs; where they conflict
+which phase/item it serves and meets its per-operation checklist. Its decisions D1–D9 are not yet ADRs; where they conflict
 with an Accepted record (listed in its section 5, e.g. D1 vs the parity non-negotiable below), the existing record governs
 until resolved and the conflict is flagged to the owner.
 
