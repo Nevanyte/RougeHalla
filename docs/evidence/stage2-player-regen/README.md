@@ -114,6 +114,9 @@ respawn and elite chests are already ported at this base (`sim/mob_life.rs`, `si
       failed, 2 ignored, 151 test binaries, exit 0** on the head tree.
 - [x] `node tools/browser-proof/proof.mjs` after `cargo build -p rh-server` — 15/15 checks PASS, 4 Full + 415 delta
       snapshots, no page errors; the server advertises the new `contentHash 898f82bbb6215c5b` (protocol unchanged at 6).
+- [x] `python3 tools/perfproof/perfproof.py --self-test` — 13 cases pass. The PR declares
+      `Perf-Allow-Fingerprint: stateHashFold, finalStateHash, finalHash`; with the rerecord rule the recorded starting
+      conditions and inputs are compared (the candidate's extra `regen` config key, default false, is normalised away).
 - [x] `cargo test -p rh-sim --test schedule` was not needed: the `rh-parity` schedule test (`14 passed`) is the
       legacy-record conformance gate.
 - [ ] Live server: keeps `regen: false` in its staged profile (owner question 1).
@@ -159,6 +162,12 @@ eval "$(PGBIN=/opt/homebrew/opt/postgresql@16/bin bash tools/pgtest/start.sh)" &
 - `crates/rh-sim/tests/content.rs`: `GOLDEN_CONTENT_HASH` `0xe95d_55ba_96b2_feca` → `0x898f_82bb_b621_5c5b`.
 - `crates/rh-parity/src/lib.rs`: the `regen` option accepted from `legacyConfig.options`.
 - `crates/rh-sim/tests/no_alloc.rs`: maps `options.regen` and counts `regen_clock`.
+- `tools/perfproof/perfproof.py`: the perf gate's `--rerecord` path is selected automatically when the declared
+  fingerprint change is `stateHashFold`, `finalStateHash` or `finalHash` (a declared state-hash redefinition is exactly
+  what it exists for), and the rerecord input comparison drops a config key that only the candidate build has (the
+  baseline predates it and cannot define that dimension); every shared key is still compared exactly, and a removed key
+  or a changed shared value still fails. Without this, the gate at this base refuses every replay replay of a changed
+  state hash.
 - The exhaustive `SimConfig` literals (one `regen: false` line each): `rh-server/src/{main,room,director}.rs`,
   `rh-server/src/bin/densitybench/engine.rs`, `rh-server/examples/connheap.rs`,
   `rh-server/tests/{account_api,account_api_memory,control,density,equivalence,lifecycle,live,pg_e2e,publish,result_recovery,transport}.rs`,

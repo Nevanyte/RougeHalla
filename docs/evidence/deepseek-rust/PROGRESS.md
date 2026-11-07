@@ -26,6 +26,10 @@ Base: `856618eb948555adefc6ff0bf4628d879d556250` (`origin/optimization_port`, 20
 - `cargo run -p rh-parity --bin parity-report` — 98 slice scenarios + 13 capture-only, 300 pathfinding queries: all MATCH.
 - `node tools/browser-proof/proof.mjs` — 15/15 checks PASS, 4 Full + 415 delta snapshots, content hash
   `898f82bbb6215c5b`; protocol unchanged.
+- `python3 tools/perfproof/perfproof.py --self-test` — 13 cases pass. The first CI perf run failed on the changed
+  `finalStateHash`/`stateHashFold` and on a baseline-recorded replay that the candidate cannot verify (the base's perf
+  tool has no rerecord path); the packet adds the declared-rerecord rule and the additive-config-key normalisation shown
+  in the PR.
 - `tools/regen-fixtures/run-mutants.sh` — 8/8 mutants killed by semantic test failures; unchanged control passes.
 - `cargo fmt --all --check`, `cargo clippy --workspace --all-targets --all-features -- -D warnings` and
   `cargo clippy --workspace --all-targets -- -D warnings` — clean.
