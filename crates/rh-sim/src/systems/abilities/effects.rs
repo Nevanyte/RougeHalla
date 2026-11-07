@@ -72,71 +72,63 @@ fn field(
     }
 }
 pub(super) fn self_effects(cx: &mut Cx, l: Landing) {
+    let effects = a::definition(l.cast.ability).effects;
+    for e in effects.iter().copied() {
+        if a::effect_side(e) == a::Side::Self_ {
+            run(cx, l, None, e);
+        }
+    }
+}
+
+pub(super) fn target_effects(cx: &mut Cx, l: Landing) {
+    let Some(target) = l.cast.producer.unwrap().target else {
+        return;
+    };
+    let effects = a::definition(l.cast.ability).effects;
+    for e in effects.iter().copied() {
+        if a::effect_side(e) == a::Side::Target {
+            run(cx, l, Some(target), e);
+        }
+    }
+}
+
+/// The one interpreter: an exhaustive match over the closed verb set. A new verb is a compile error until it is handled.
+fn run(cx: &mut Cx, l: Landing, target: Option<PlayerId>, e: a::Effect) {
     let now = cx.w.server_time;
     let ability = l.cast.ability;
     let src = source(cx, l.id);
-    match ability {
-        AbilityId::Swarm => {
-            apply(
-                cx,
-                l.id,
-                src.clone(),
-                ability,
-                K::Hidden,
-                a::SWARM_MS,
-                None,
-                None,
-            );
-            if let Some(rt) = &mut cx.w.abilities {
-                rt.fields.retain(|f| {
-                    !(f.kind == FieldKind::Cloud
-                        && f.owner.id == Some(l.id)
-                        && f.ability == ability)
-                });
-            }
-            let p = cx.w.player(l.id).unwrap().pos();
-            super::super::fields::add(
-                cx.w,
-                field(
-                    src,
-                    ability,
-                    FieldKind::Cloud,
-                    p,
-                    now,
-                    a::SWARM_MS,
-                    a::SWARM_RADIUS,
-                ),
-            );
+    match e {
+        a::Effect::Status {
+            to,
+            kind,
+            ms,
+            value,
+        } => {
+            let id = match to {
+                a::Side::Self_ => l.id,
+                a::Side::Target => match target {
+                    Some(t) => t,
+                    None => return,
+                },
+            };
+            apply(cx, id, src, ability, kind, ms, value, None);
         }
-        AbilityId::Blaze => {
-            if let Some(to) = l.to {
-                super::super::displace::apply(cx.k, cx.w, cx.pf, l.id, to);
-                let mut f = field(
-                    src,
-                    ability,
-                    FieldKind::Trail,
-                    l.origin,
-                    now,
-                    a::BLAZE_TRAIL_MS,
-                    a::BLAZE_HALF_WIDTH,
-                );
-                f.x2 = to.x;
-                f.y2 = to.y;
-                super::super::fields::add(cx.w, f);
-            }
-        }
-        AbilityId::LastStand => {
+        a::Effect::DeathFloor {
+            ms,
+            floor_hp,
+            heal_back,
+        } => {
             let result = apply(
                 cx,
                 l.id,
                 src.clone(),
                 ability,
                 K::DeathFloor,
-                a::LAST_STAND_MS,
+                ms,
                 None,
                 Some(Payload {
-                    floor_hp: Some(a::LAST_STAND_FLOOR),
-                    heal_share: Some(a::LAST_STAND_HEAL),
+                    floor_hp: Some(floor_hp),
+                    heal_share: Some(heal_back),
                     ..Default::default()
                 }),
             );
@@ -149,40 +141,19 @@ pub(super) fn self_effects(cx: &mut Cx, l: Landing) {
                     cx.w.players[i].statuses.instances[r.index].taken = Some(0.);
                 }
             }
-            apply(
-                cx,
-                l.id,
-                src,
-                ability,
-                K::Haste,
-                a::LAST_STAND_MS,
-                Some(a::LAST_STAND_HASTE),
-                None,
-            );
         }
-        AbilityId::Freeze | AbilityId::Trial => {}
-    }
-}
-pub(super) fn target_effects(cx: &mut Cx, l: Landing) {
-    let Some(target) = l.cast.producer.unwrap().target else {
-        return;
-    };
-    let src = source(cx, l.id);
-    let ability = l.cast.ability;
-    match ability {
-        AbilityId::Freeze => {
-            apply(
-                cx,
-                target,
-                src,
-                ability,
-                K::Stun,
-                a::FREEZE_STUN_MS,
-                None,
-                None,
-            );
-        }
-        AbilityId::Trial => {
+        a::Effect::Zone {
+            ms,
+            radius,
+            convicted_radius,
+            dealt_mult,
+            taken_from_source_mult,
+            move_mult,
+            exit_stun_ms,
+        } => {
+            let Some(target) = target else {
+                return;
+            };
             let Some(j) = cx.w.fighter_idx(target) else {
                 return;
             };
@@ -192,21 +163,13 @@ pub(super) fn target_effects(cx: &mut Cx, l: Landing) {
                     .filter(|p| p.signature.target == Some(target))
                     .map_or(0, |p| p.signature.mark.tier);
             let radius = if own_mark >= 3 {
-                a::TRIAL_CONVICTED_RADIUS
+                convicted_radius.unwrap_or(radius)
             } else {
-                a::TRIAL_RADIUS
+                radius
             };
-            let mut f = field(
-                src.clone(),
-                ability,
-                FieldKind::Zone,
-                p,
-                cx.w.server_time,
-                a::TRIAL_MS,
-                radius,
-            );
+            let mut f = field(src.clone(), ability, FieldKind::Zone, p, now, ms, radius);
             f.subject = Some(target);
-            f.exit_stun_ms = rt::TRIAL_FIELD_POLICY.exit_stun_ms;
+            f.exit_stun_ms = exit_stun_ms;
             let field_id = super::super::fields::add(cx.w, f);
             if apply(
                 cx,
@@ -214,13 +177,13 @@ pub(super) fn target_effects(cx: &mut Cx, l: Landing) {
                 src,
                 ability,
                 K::Zoned,
-                a::TRIAL_MS,
-                Some(a::TRIAL_DEALT_MULT),
+                ms,
+                Some(dealt_mult),
                 Some(Payload {
                     field_id: Some(field_id),
-                    dealt_mult: Some(a::TRIAL_DEALT_MULT),
-                    taken_from_source_mult: Some(a::TRIAL_TAKEN_MULT),
-                    move_mult: Some(a::TRIAL_MOVE_MULT),
+                    dealt_mult: Some(dealt_mult),
+                    taken_from_source_mult: Some(taken_from_source_mult),
+                    move_mult: Some(move_mult),
                     ..Default::default()
                 }),
             )
@@ -229,6 +192,40 @@ pub(super) fn target_effects(cx: &mut Cx, l: Landing) {
                 super::super::fields::remove(cx.w, field_id);
             }
         }
-        _ => {}
+        a::Effect::Cloud { ms, radius } => {
+            if let Some(rt) = &mut cx.w.abilities {
+                rt.fields.retain(|f| {
+                    !(f.kind == FieldKind::Cloud
+                        && f.owner.id == Some(l.id)
+                        && f.ability == ability)
+                });
+            }
+            let p = cx.w.player(l.id).unwrap().pos();
+            super::super::fields::add(
+                cx.w,
+                field(src, ability, FieldKind::Cloud, p, now, ms, radius),
+            );
+        }
+        a::Effect::Blink => {
+            if let Some(to) = l.to {
+                super::super::displace::apply(cx.k, cx.w, cx.pf, l.id, to);
+            }
+        }
+        a::Effect::Trail { ms, half_width } => {
+            if let Some(to) = l.to {
+                let mut f = field(
+                    src,
+                    ability,
+                    FieldKind::Trail,
+                    l.origin,
+                    now,
+                    ms,
+                    half_width,
+                );
+                f.x2 = to.x;
+                f.y2 = to.y;
+                super::super::fields::add(cx.w, f);
+            }
+        }
     }
 }

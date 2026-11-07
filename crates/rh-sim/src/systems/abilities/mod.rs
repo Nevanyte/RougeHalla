@@ -1,7 +1,7 @@
 //! Actual Cast intake and atomic, current-combat-rank landing.
 use super::Cx;
 use crate::{
-    abilities::{self as a, Slot, Target},
+    abilities::{self as a, Target},
     events::Event,
     fighter::FighterIx,
     input::ActionCmd,
@@ -74,7 +74,6 @@ pub(crate) fn handle(cx: &mut Cx, ix: FighterIx, cmd: &ActionCmd) {
         cx.w.players[ix.slot()].motion.move_seq = seq;
     }
     if cx.k.config.abilities != a::Mode::Full
-        || slot != Slot::Wish
         || cx.w.phase != crate::Phase::Active
         || !cx.w.standing(ix)
     {
@@ -82,7 +81,10 @@ pub(crate) fn handle(cx: &mut Cx, ix: FighterIx, cmd: &ActionCmd) {
     }
     let now = cx.w.server_time;
     let p = &cx.w.players[ix.slot()];
-    let ability = a::wish(p.vitals.faction);
+    // One generic slot path: the table says what each slot casts (Q/E have no rows yet). No branch on an ability id.
+    let Some(ability) = a::ability_in_slot(slot, p.vitals.faction) else {
+        return;
+    };
     let def = a::definition(ability);
     if cx
         .w

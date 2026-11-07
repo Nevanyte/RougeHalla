@@ -40,15 +40,72 @@ pub enum Target {
     Self_,
     Point,
 }
+/// Which pass of a landing applies an effect (legacy `effectSide`): all self effects of the tick's due casts run first.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Side {
+    Self_,
+    Target,
+}
+
+/// One effect step: a closed verb plus its row numbers (legacy `AbilityEffect`). The prose is the definition; the
+/// interpreter in `systems/abilities/effects.rs` is the ONLY place a verb is executed.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum Effect {
+    Status {
+        to: Side,
+        kind: crate::status_runtime::StatusKind,
+        ms: f64,
+        value: Option<f64>,
+    },
+    DeathFloor {
+        ms: f64,
+        floor_hp: f64,
+        heal_back: f64,
+    },
+    Zone {
+        ms: f64,
+        radius: f64,
+        /// The radius instead when the target carries the caster's mark at tier 3 or more as the area lands.
+        convicted_radius: Option<f64>,
+        dealt_mult: f64,
+        taken_from_source_mult: f64,
+        move_mult: f64,
+        exit_stun_ms: Option<f64>,
+    },
+    Cloud {
+        ms: f64,
+        radius: f64,
+    },
+    Blink,
+    Trail {
+        ms: f64,
+        half_width: f64,
+    },
+}
+
+/// The pass an effect belongs to (legacy `effectSide`); the interpreter filters on it, not on the ability.
+pub const fn effect_side(e: Effect) -> Side {
+    match e {
+        Effect::Status { to, .. } => to,
+        Effect::Zone { .. } => Side::Target,
+        Effect::DeathFloor { .. } | Effect::Cloud { .. } | Effect::Blink | Effect::Trail { .. } => {
+            Side::Self_
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Definition {
     pub id: AbilityId,
+    pub slot: Slot,
     pub cast_ms: f64,
     pub cooldown_ms: f64,
     pub charges: u8,
     pub target: Target,
     pub own_order: bool,
     pub drops_lock: bool,
+    /// The ordered effect steps. Numbers reference the registered constants, so `content_hash` does not change.
+    pub effects: &'static [Effect],
 }
 pub const CANCELLED_BY: CancelCauses = CancelCauses {
     stun: true,
@@ -85,22 +142,116 @@ pub const fn wish(faction: FactionId) -> AbilityId {
         FactionId::Holy => AbilityId::LastStand,
     }
 }
-pub const fn definition(id: AbilityId) -> Definition {
-    let (cast_ms, cooldown_ms, charges, target, own_order, drops_lock) = match id {
-        AbilityId::Freeze => (250., 45000., 1, Target::Unit(450.), false, false),
-        AbilityId::Swarm => (250., 120000., 1, Target::Self_, false, true),
-        AbilityId::Trial => (350., 180000., 1, Target::Unit(400.), false, false),
-        AbilityId::Blaze => (0., 30000., 2, Target::Point, true, false),
-        AbilityId::LastStand => (0., 150000., 1, Target::Self_, false, false),
+/// The definition row for an id. A row holds everything that varies; the match only selects the row.
+pub fn definition(id: AbilityId) -> Definition {
+    let (cast_ms, cooldown_ms, charges, target, own_order, drops_lock, effects) = match id {
+        AbilityId::Freeze => (
+            250.,
+            45000.,
+            1,
+            Target::Unit(450.),
+            false,
+            false,
+            &[Effect::Status {
+                to: Side::Target,
+                kind: crate::status_runtime::StatusKind::Stun,
+                ms: FREEZE_STUN_MS,
+                value: None,
+            }] as &[Effect],
+        ),
+        AbilityId::Swarm => (
+            250.,
+            120000.,
+            1,
+            Target::Self_,
+            false,
+            true,
+            &[
+                Effect::Status {
+                    to: Side::Self_,
+                    kind: crate::status_runtime::StatusKind::Hidden,
+                    ms: SWARM_MS,
+                    value: None,
+                },
+                Effect::Cloud {
+                    ms: SWARM_MS,
+                    radius: SWARM_RADIUS,
+                },
+            ] as &[Effect],
+        ),
+        AbilityId::Trial => (
+            350.,
+            180000.,
+            1,
+            Target::Unit(400.),
+            false,
+            false,
+            &[Effect::Zone {
+                ms: TRIAL_MS,
+                radius: TRIAL_RADIUS,
+                convicted_radius: Some(TRIAL_CONVICTED_RADIUS),
+                dealt_mult: TRIAL_DEALT_MULT,
+                taken_from_source_mult: TRIAL_TAKEN_MULT,
+                move_mult: TRIAL_MOVE_MULT,
+                exit_stun_ms: crate::status_runtime::TRIAL_FIELD_POLICY.exit_stun_ms,
+            }] as &[Effect],
+        ),
+        AbilityId::Blaze => (
+            0.,
+            30000.,
+            2,
+            Target::Point,
+            true,
+            false,
+            &[
+                Effect::Blink,
+                Effect::Trail {
+                    ms: BLAZE_TRAIL_MS,
+                    half_width: BLAZE_HALF_WIDTH,
+                },
+            ] as &[Effect],
+        ),
+        AbilityId::LastStand => (
+            0.,
+            150000.,
+            1,
+            Target::Self_,
+            false,
+            false,
+            &[
+                Effect::DeathFloor {
+                    ms: LAST_STAND_MS,
+                    floor_hp: LAST_STAND_FLOOR,
+                    heal_back: LAST_STAND_HEAL,
+                },
+                Effect::Status {
+                    to: Side::Self_,
+                    kind: crate::status_runtime::StatusKind::Haste,
+                    ms: LAST_STAND_MS,
+                    value: Some(LAST_STAND_HASTE),
+                },
+            ] as &[Effect],
+        ),
     };
     Definition {
         id,
+        slot: Slot::Wish,
         cast_ms,
         cooldown_ms,
         charges,
         target,
         own_order,
         drops_lock,
+        effects,
+    }
+}
+
+/// The ability a slot casts for a faction; Q/E have none until a later packet's rows add them. Data, not a branch on an
+/// ability id.
+pub const fn ability_in_slot(slot: Slot, faction: FactionId) -> Option<AbilityId> {
+    match slot {
+        Slot::Wish => Some(wish(faction)),
+        Slot::Q | Slot::E => None,
     }
 }
 pub fn cooldown(id: AbilityId, training: bool, wish_mult: Option<f64>) -> f64 {
