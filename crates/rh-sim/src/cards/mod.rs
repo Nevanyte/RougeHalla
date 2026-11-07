@@ -345,13 +345,16 @@ impl Build {
         let mut n = 0;
         for id in self.cards() {
             let (_, def_rows) = id.definition().selection(faction);
-            for row in def_rows {
-                if let CardRow::Fold(kind) = row {
-                    if n == rows.len() {
-                        return (rows, n);
+            // A base card stacks: its rows apply once per copy (source countIn); a unique card is held once.
+            for _ in 0..self.count(id) {
+                for row in def_rows {
+                    if let CardRow::Fold(kind) = row {
+                        if n == rows.len() {
+                            return (rows, n);
+                        }
+                        rows[n] = EffectRow::new(*kind);
+                        n += 1;
                     }
-                    rows[n] = EffectRow::new(*kind);
-                    n += 1;
                 }
             }
         }

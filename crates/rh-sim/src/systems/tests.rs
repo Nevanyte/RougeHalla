@@ -745,3 +745,104 @@ fn shared_rewound_positions_give_the_ledger_of_the_per_pair_pass() {
     }
     assert!(hits > 200, "the swings connect: {hits}");
 }
+
+#[test]
+fn the_pvp_caps_match_the_diagnostic_case() {
+    // The source's diagnostic-G1-G2-G3-ledger-caps: a Boom/Glass Cannon attacker's huge weapon hit and two of its own huge
+    // dots, plus another source's dot, against a 5x vitality victim: the hit is cut to the PvP hit cap and each source's dots
+    // share the per-source budget.
+    let ps: Vec<Placement> = [
+        (300., 320., FactionId::Holy),
+        (332., 320., FactionId::Holy),
+        (1100., 600., FactionId::Fire),
+    ]
+    .iter()
+    .enumerate()
+    .map(|(i, &(x, y, faction))| Placement {
+        profile: format!("P{i}"),
+        faction,
+        bot: false,
+        at: Vec2::new(x, y),
+        hp: None,
+        weapon0: None,
+        weapon1: None,
+    })
+    .collect();
+    let mut s = Sim::reset_active(
+        SimConfig::default(),
+        practice_arena(),
+        Secrets::from_seed(12),
+        &ps,
+    );
+    for card in [
+        crate::cards::CardId::HereComesTheBoom,
+        crate::cards::CardId::GlassCannon,
+        crate::cards::CardId::FirstImpressions,
+        crate::cards::CardId::TunnelVision,
+        crate::cards::CardId::Haste1,
+        crate::cards::CardId::Rhythm,
+    ] {
+        assert!(crate::cards::grant(&s.k, &mut s.w, PlayerId(1), card));
+    }
+    for _ in 0..5 {
+        assert!(crate::cards::grant(
+            &s.k,
+            &mut s.w,
+            PlayerId(2),
+            crate::cards::CardId::Vitality3
+        ));
+    }
+    let max_hp = s.w.players[1].vitals.max_hp;
+    let mut ev = Vec::new();
+    let mut cx = Cx {
+        stats: crate::status_runtime::stats::Inputs::default(),
+        #[cfg(feature = "trusted-status-probes")]
+        probe: None,
+        k: &s.k,
+        w: &mut s.w,
+        s: &mut s.s,
+        ev: &mut ev,
+        pf: &mut s.pf,
+    };
+    settle::mark_tick_start(&mut cx);
+    inputs::action_order(&mut cx);
+    let mut weapon_hit = hit(1, 2, 1.0e6);
+    weapon_hit.weapon = Some(crate::content::WeaponId::Sword);
+    weapon_hit.packet.phys = 1.0;
+    cx.s.ledger.push(weapon_hit);
+    for by in [1u32, 1u32, 3u32] {
+        let mut dot = hit(by, 2, 1.0e6);
+        dot.dot = true;
+        dot.weapon = None;
+        dot.packet.phys = 1.0;
+        cx.s.ledger.push(dot);
+    }
+    ledger::apply(&mut cx);
+    let weapon_amount =
+        cx.s.landed
+            .iter()
+            .filter(|h| h.by == Some(PlayerId(1)))
+            .map(|h| h.amount)
+            .fold(0., f64::max);
+    let cap = crate::constants::PVP_HIT_CAP_SHARE * max_hp;
+    assert!(
+        (weapon_amount - cap).abs() < 1e-6,
+        "the weapon hit is cut to the hit cap: {weapon_amount} vs {cap}"
+    );
+    // The source's recorded diagnostic amount for this build.
+    assert!(
+        (cap - 901.6874999999999).abs() < 1e-6,
+        "the diagnostic case's hit cap: {cap} (max hp {max_hp})"
+    );
+    let one_source_dots: f64 =
+        cx.s.landed
+            .iter()
+            .filter(|h| h.by == Some(PlayerId(1)) && h.dot)
+            .map(|h| h.amount)
+            .sum();
+    let dot_budget = crate::constants::PVP_DOT_CAP_SHARE * max_hp * 0.05;
+    assert!(
+        one_source_dots <= dot_budget + 1e-6,
+        "one source's dots share the budget: {one_source_dots} vs {dot_budget}"
+    );
+}
