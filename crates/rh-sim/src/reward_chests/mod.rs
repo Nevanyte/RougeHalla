@@ -5,7 +5,7 @@ mod view;
 pub use pools::*;
 pub use rules::{visit_content, Definition, DEFINITION};
 pub(crate) mod observer;
-use crate::{cards::CardId, state::World, statics::MatchStatic, Event, PlayerId, Vec2};
+use crate::{state::World, statics::MatchStatic, Event, PlayerId, Vec2};
 pub use observer::*;
 pub use view::*;
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -77,34 +77,7 @@ pub(crate) fn drop_stat(w: &mut World, at: Vec2) -> u32 {
     });
     insert(w, at, options, None)
 }
-fn tiered(rng: &mut crate::private_rng::Sfc32, pool: &[CardId], elite: bool) -> Option<CardId> {
-    if pool.is_empty() {
-        return None;
-    }
-    let weights = DEFINITION.tier_weights[usize::from(elite)];
-    let r = rng.next_f64() * weights.iter().sum::<f64>();
-    let want = if r < weights[0] {
-        1u8
-    } else if r < weights[0] + weights[1] {
-        2
-    } else {
-        3
-    };
-    let tier = pool
-        .iter()
-        .map(|v| v.tier())
-        .min_by_key(|v| (v.abs_diff(want), *v))?;
-    let mut matching = [CardId::SlowBurn; 3];
-    let mut n = 0;
-    for id in pool {
-        if id.tier() == tier {
-            matching[n] = *id;
-            n += 1
-        }
-    }
-    Some(matching[((rng.next_f64() * n as f64).floor() as usize).min(n - 1)])
-}
-/// Supported availability intersects source interactive eligibility; callers supply real eligible contributor IDs.
+/// Source chest drop: the interactive augment pool of the eligible pickers, rolled with the reward RNG (exact draw order).
 #[allow(dead_code)] // serial integration: actual credited elite-death producer
 pub(crate) fn drop_augment(
     w: &mut World,
@@ -114,40 +87,18 @@ pub(crate) fn drop_augment(
     elite: bool,
     eligible: &[PlayerId],
 ) -> u32 {
-    let mut pool = [CardId::SlowBurn; 3];
-    let mut n = 0;
-    for id in crate::cards::SUPPORTED {
-        let held_all = !eligible.is_empty()
-            && eligible
-                .iter()
-                .all(|pid| w.player(*pid).is_some_and(|p| p.build.owns(id)));
-        if !held_all {
-            pool[n] = id;
-            n += 1
-        }
-    }
-    let theme = DEFINITION.themed_first[zone.code() as usize];
+    let pickers: Vec<crate::cards::Build> = eligible
+        .iter()
+        .filter_map(|pid| w.player(*pid).map(|p| p.build))
+        .collect();
+    let pool = augment_pool(&pickers);
     let mut options = [None; 3];
-    let themed = theme.filter(|id| pool[..n].contains(id));
-    options[0] = tiered(
-        &mut w.reward_rng,
-        themed
-            .as_ref()
-            .map(std::slice::from_ref)
-            .unwrap_or(&pool[..n]),
-        elite,
-    )
-    .map(OptionId::Card);
-    for i in 1..3 {
-        let mut available = [CardId::SlowBurn; 3];
-        let mut count = 0;
-        for id in &pool[..n] {
-            if !options[..i].contains(&Some(OptionId::Card(*id))) {
-                available[count] = *id;
-                count += 1
-            }
+    if !pool.is_empty() {
+        let mut draw = || w.reward_rng.next_f64();
+        let rolled = roll_with(&mut draw, &pool, elite, Some(zone));
+        for (i, id) in rolled.into_iter().enumerate() {
+            options[i] = Some(OptionId::Card(id));
         }
-        options[i] = tiered(&mut w.reward_rng, &available[..count], elite).map(OptionId::Card);
     }
     insert(w, at, options, camp)
 }

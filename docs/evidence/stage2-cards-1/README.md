@@ -24,7 +24,10 @@ catalog to a generated, corpus-verified table and the build to the source count 
    source order, `conditionalPool`/`rewardAugmentPool` with held-by-all picker exclusion, the nearest-tier fallback with one
    tier draw plus one index draw per pick, the themed first slot and all five `ZONE_AUGMENT_THEMES`. The differential replays
    the corpus's **30 pool cases** and **181 roll cases** (options, every draw's cursor/value, final cursor, unused tape
-   continuation). Not yet wired into chest drops — that is the runtime slice.
+   continuation). **Wired into `drop_augment`**: a chest drop now rolls the eligible pickers' full interactive pool with the
+   real reward RNG and the source draw order. The legacy `parity/cards` option rows were recaptured from the legacy source
+   without the old three-card restriction (the corpus now shows full-pool options such as Overkill/Third Time's the Charm)
+   and the reward suite passes against them.
 
 ## Measurements
 
