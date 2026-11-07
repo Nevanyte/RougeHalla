@@ -97,6 +97,9 @@ catalog to a generated, corpus-verified table and the build to the source count 
    secret salt (mixed from the reward salt and the gamble tag), the tick, the attacker/victim ids and the entry's place among
    the attacker's entries on that victim, doubling below GAMBLER_CHANCE, halving below twice it, else 1. The ledger multiplies
    each Gambler entry by the factor. A focused test pins the determinism and the index sensitivity.
+18. **Final Verdict returns denied execute damage**: when the Sentenced owner has the `finalVerdict` flag, every denied execute
+   hit is deferred back at the denying foe as **true damage** with the owner's active weapon, passive (the source's final hit),
+   paid by the next tick's ledger.
 
 ## Measurements
 
