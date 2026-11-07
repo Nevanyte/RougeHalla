@@ -4,7 +4,7 @@
 
 - Base: `e0e69981` (`deepseek/p-vision-1`, protocol 8; PR #42 targets `deepseek/p-arena-1`). This packet was prepared
   on the arena protocol-8 snapshot and is rebased onto the pushed vision head before the PR.
-- Branch/PR: `deepseek/p-cons-1c`, commits `e0e69981..f374a9d5`, [PR #43](https://github.com/Nevanyte/RougeHalla/pull/43) (base `deepseek/p-vision-1`).
+- Branch/PR: `deepseek/p-cons-1c`, mechanics/evidence commits `e0e69981..f374a9d5` (docs record after), [PR #43](https://github.com/Nevanyte/RougeHalla/pull/43) (base `deepseek/p-vision-1`).
 - Stack: **A)** faction -> abil (#38) -> terrain (#40) -> mobs (#41), protocol 7. **B)** faction -> arena (#39,
   protocol 8) -> vision (#42, stays 8) -> this packet (protocol 9). The union's wire version is 9: this is the only wire
   move on either line after arena. Branch A's commits are not in this branch by design.
