@@ -306,6 +306,7 @@ fn to_wire(e: &SeenEvent) -> Wire {
             },
         }),
         SeenEvent::MobArmed { .. } | SeenEvent::CampCleared { .. } => Wire::Omitted,
+        SeenEvent::WindEmblem => Wire::Event(WireEvent::WindEmblem),
         SeenEvent::ChestRefused { reason } => Wire::Event(WireEvent::ChestRefused {
             reason: match reason {
                 rh_sim::reward_chests::Refusal::Busy => 1,
@@ -663,6 +664,7 @@ mod tests {
 
     fn arena_env() -> Env {
         profile_env(SimConfig {
+            consumables: true,
             lifecycle: rh_sim::ArenaMode::Source(rh_sim::ArenaRules::default()),
             min_players: 2,
             lobby_seconds: 0.,
@@ -743,6 +745,7 @@ mod tests {
     fn full_wishes_refuse_even_with_arena_off_before_frames_or_offers() {
         let mut sim = rh_sim::Sim::new(
             SimConfig {
+                consumables: true,
                 abilities: rh_sim::abilities::Mode::Full,
                 lifecycle: rh_sim::ArenaMode::Off,
                 min_players: 2,
@@ -1193,7 +1196,7 @@ mod tests {
     #[test]
     fn omitted_effect_announcements_leave_frames_and_redaction_unchanged() {
         use rh_sim::status_runtime::{AbilityId, CastEndReason, StatusKind};
-        assert_eq!(rh_protocol::PROTOCOL_VERSION, 9);
+        assert_eq!(rh_protocol::PROTOCOL_VERSION, 10);
         let env = seed1_match(1);
         let id = env.sim.players()[0].id;
         let mut publisher = Publisher::default();

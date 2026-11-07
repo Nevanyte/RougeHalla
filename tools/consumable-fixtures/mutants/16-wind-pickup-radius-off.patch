@@ -1,0 +1,11 @@
+--- a/crates/rh-sim/src/systems/wind.rs
++++ b/crates/rh-sim/src/systems/wind.rs
+@@ -58,7 +58,7 @@
+             }
+             let pos = p.pos();
+             let d = hypot(pos.x - at.x, pos.y - at.y);
+-            if d > WIND_PICKUP_RADIUS || !has_line_of_sight(map, pos, at, MASK_MOVE) {
++            if d > -1.0 || !has_line_of_sight(map, pos, at, MASK_MOVE) {
+                 continue;
+             }
+             let rank = crate::rng::tie_rank_origin(

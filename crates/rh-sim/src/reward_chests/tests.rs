@@ -46,6 +46,7 @@ fn sim_mode(faction: FactionId, signatures: bool) -> Sim {
     ];
     let mut s = Sim::reset_active(
         SimConfig {
+            consumables: true,
             pvp_rules: false,
             faction_mode: if signatures {
                 crate::FactionMode::EngagementHolyPlagueFireFrostSentenced

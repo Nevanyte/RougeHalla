@@ -437,6 +437,7 @@ async fn director_renews_live_seats_by_id_and_expires_only_the_stalled_seat() {
     }
     let mut cfg = DirectorConfig::new(
         rh_sim::SimConfig {
+            consumables: true,
             min_players: 3,
             fill_seconds: 0.,
             ..Default::default()
@@ -746,6 +747,7 @@ mod admission_identity {
         fn director(&self, min_players: usize) -> Arc<Director> {
             let mut cfg = DirectorConfig::new(
                 rh_sim::SimConfig {
+                    consumables: true,
                     min_players,
                     fill_seconds: 0.0,
                     ..Default::default()

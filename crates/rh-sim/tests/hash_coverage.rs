@@ -257,6 +257,7 @@ fn holy_engaged() -> Sim {
         .collect();
     let mut sim = Sim::reset_active(
         SimConfig {
+            consumables: true,
             faction_mode: rh_sim::FactionMode::EngagementHoly,
             ..Default::default()
         },
@@ -354,12 +355,14 @@ fn mob_audit_states() -> (Sim, Sim) {
     secrets.spawn_seed = 12;
     secrets.reward_salt = [1, 2, 3, 4];
     let config = SimConfig {
+        consumables: true,
         mob_mode: rh_sim::mob_runtime::MobMode::Pve,
         ..Default::default()
     };
     let mut cleared = Sim::reset_active(config.clone(), arena.clone(), secrets, &placements);
     let mut engaged = Sim::reset_active(
         SimConfig {
+            consumables: true,
             faction_mode: rh_sim::FactionMode::EngagementHolyPlagueFire,
             ..config
         },
@@ -449,6 +452,7 @@ fn native_ice_slide() -> Sim {
     ];
     let mut sim = Sim::reset_active(
         SimConfig {
+            consumables: true,
             lifecycle: rh_sim::ArenaMode::Off,
             hazards: rh_sim::terrain::Mode::Map,
             ..Default::default()
@@ -474,6 +478,7 @@ fn native_ice_slide() -> Sim {
 fn source_lifecycle_states() -> (Sim, Sim, Sim) {
     let mut sim = Sim::new(
         SimConfig {
+            consumables: true,
             lifecycle: rh_sim::ArenaMode::Source(rh_sim::ArenaRules {
                 plan_seconds: 0.2,
                 first_patience_seconds: Some(0.1),
@@ -553,6 +558,7 @@ fn wish_states() -> Vec<(&'static str, Sim)> {
         .collect::<Vec<_>>();
         let mut sim = Sim::reset_active(
             SimConfig {
+                consumables: true,
                 abilities: rh_sim::abilities::Mode::Full,
                 lifecycle: rh_sim::ArenaMode::Source(rh_sim::ArenaRules {
                     plan_seconds: 0.,
@@ -1840,6 +1846,7 @@ fn derived_blink_ring_clone_and_restore_preserve_actual_locked_casts() {
         serde_json::from_str(include_str!("../src/mapdata/fixtures/seed1.map.json")).unwrap();
     let mut original = Sim::new(
         SimConfig {
+            consumables: true,
             abilities: rh_sim::abilities::Mode::Full,
             wish_lock_ms: 0.,
             min_players: 2,

@@ -170,6 +170,23 @@ fn blocked_through(tick: u32, wait_for_publication: bool) -> u32 {
     }
 }
 
+/// A walk-over wind emblem (legacy `addContainer(world, "consumable", at, "Wind emblem · walk over it", [windEmblem])`).
+/// The emblem holds no inventory item; the wind system consumes it. No allocation: the container list is reserved for
+/// the emblem cap, and an empty item list never allocates.
+pub(crate) fn add_wind_emblem(w: &mut World, at: Vec2, tick: u32) -> u32 {
+    let id = w.next_entity_id();
+    w.containers.push(Container {
+        id,
+        kind: ContainerKind::WindEmblem,
+        at,
+        opened: false,
+        items: Vec::new(),
+        stat_offer: false,
+        born_tick: tick,
+    });
+    id
+}
+
 pub(crate) fn add_container(
     w: &mut World,
     kind: ContainerKind,

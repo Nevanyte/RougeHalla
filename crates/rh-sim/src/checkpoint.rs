@@ -398,6 +398,7 @@ fn check_world(k: &MatchStatic, w: &World) -> Result<(), String> {
                 && (c.items.len() != 1
                     || !matches!(c.items[0].def, crate::initial_world::ItemDef::Weapon(_))))
             || (c.kind != crate::ContainerKind::Chest && c.opened)
+            || (c.kind == crate::ContainerKind::WindEmblem && !c.items.is_empty())
             || matches!(c.kind, crate::ContainerKind::Body(id) if w.roster.name(id).is_none())
         {
             return Err(format!("invalid container {}", c.id));
@@ -552,6 +553,13 @@ fn check_world(k: &MatchStatic, w: &World) -> Result<(), String> {
         }
         if !p.bush.check(w.server_time, w.phase) {
             return Err(format!("invalid bush exposure for player {}", p.id.0));
+        }
+        // A wind boost is a deadline at most one boost length ahead; anything else would never expire sanely.
+        if !p.speed_boost_until.is_finite()
+            || !(0.0..=w.server_time + crate::constants::SPEED_BOOST_MS)
+                .contains(&p.speed_boost_until)
+        {
+            return Err(format!("player {}: invalid speed boost deadline", p.id.0));
         }
         // Samples are appended in time order and never dated after the clock: a future-dated one is never trimmed and
         // fills the ring.

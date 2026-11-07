@@ -67,8 +67,9 @@ fn reference(
             SeenEvent::Teleported
             | SeenEvent::Plan(_)
             | SeenEvent::CastStarted { .. }
-            | SeenEvent::CastLanded { .. } => {
-                panic!("protocol 6 reference encoder does not support Source arena or Full Wish events")
+            | SeenEvent::CastLanded { .. }
+            | SeenEvent::WindEmblem => {
+                panic!("protocol 6 reference encoder does not support Source arena, Full Wish or protocol-10 events")
             }
             SeenEvent::PotionNotice { notice } => events.push(WireEvent::PotionNotice {
                 notice: match notice {
@@ -301,6 +302,7 @@ impl Hand {
         let now = Instant::now();
         let cfg = RoomConfig {
             sim: SimConfig {
+                consumables: true,
                 abilities: rh_sim::abilities::Mode::Off,
                 wish_lock_ms: rh_sim::abilities::WISH_LOCK_MS,
                 lifecycle: rh_sim::ArenaMode::Off,

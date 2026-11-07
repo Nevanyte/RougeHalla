@@ -52,6 +52,8 @@ fn containers(sim: &Sim) -> Vec<Value> {
             ContainerKind::Ground => ("ground",match c.items[0].def {rh_sim::initial_world::ItemDef::Weapon(w)=>format!("{w:?}"), _=>unreachable!("ground loot is a weapon")}),
             ContainerKind::Chest => ("chest","Chest".to_string()),
             ContainerKind::Body(id) => ("body",sim.player_name(id).unwrap().to_string()),
+            // Legacy container kind "consumable" carrying one windEmblem item.
+            ContainerKind::WindEmblem => ("consumable","Wind emblem · walk over it".to_string()),
         };
         let items=c.items.iter().map(|i|json!({"def":i.def.as_str(),"uid":i.uid.to_string()})).collect::<Vec<_>>();
         // The shared legacy schema also supplies neutral fields for other container kinds

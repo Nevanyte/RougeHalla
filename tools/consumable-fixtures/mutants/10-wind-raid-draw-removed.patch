@@ -1,0 +1,11 @@
+--- a/crates/rh-sim/src/systems/wind.rs
++++ b/crates/rh-sim/src/systems/wind.rs
+@@ -28,7 +28,7 @@
+ /// Legacy `consumables.install`'s `raidStarted` link: re-arm the first timer of the run.
+ pub(crate) fn raid_started(hx: &mut Hx, _: &HookArgs) {
+     if hx.k.config.consumables {
+-        arm(hx.w);
++        hx.w.wind_next_at = hx.w.server_time + WIND_SPAWN_MIN_MS;
+     }
+ }
+ 

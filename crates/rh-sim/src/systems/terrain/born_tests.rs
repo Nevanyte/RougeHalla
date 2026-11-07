@@ -391,6 +391,7 @@ fn terrain_born_kernel_twenty_complete_one_reward_gap() {
         secrets.reward_salt = [1, 2, 3, 4];
         let mut sim = Sim::new(
             SimConfig {
+                consumables: true,
                 min_players: 2,
                 fill_seconds: 0.,
                 mob_mode: crate::mob_runtime::MobMode::Pve,

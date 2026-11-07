@@ -644,6 +644,8 @@ fn try_build(fx: &Fixture) -> Result<Sim, String> {
         } else {
             rh_sim::FactionMode::Off
         },
+        // The capture's module list decides whether the consumables module (and its wind timer) is installed.
+        consumables: fx.requires.iter().any(|r| r == "state:consumable"),
         ..Default::default()
     };
     for (key, value) in &fx.legacy_config.options {

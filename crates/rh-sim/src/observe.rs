@@ -94,6 +94,8 @@ pub enum SeenEvent {
     PotionNotice {
         notice: crate::potions::Notice,
     },
+    /// A wind emblem was walked over (the fixed "+50% movement for 5s" feedback).
+    WindEmblem,
     ChestRefused {
         reason: crate::reward_chests::Refusal,
     },
@@ -227,7 +229,8 @@ impl SeenEvent {
             | SeenEvent::ChestRefused { .. }
             | SeenEvent::MobArmed { .. }
             | SeenEvent::CampCleared { .. }
-            | SeenEvent::PotionNotice { .. } => Class::Important,
+            | SeenEvent::PotionNotice { .. }
+            | SeenEvent::WindEmblem => Class::Important,
         }
     }
 }
@@ -242,6 +245,7 @@ fn to_seen(e: &Event, can_see: &impl Fn(PlayerId) -> bool) -> Option<SeenEvent> 
         Event::MobArmed { weapon, .. } => Some(SeenEvent::MobArmed { weapon }),
         Event::CampCleared { camp } => Some(SeenEvent::CampCleared { camp }),
         Event::PotionNotice { notice, .. } => Some(SeenEvent::PotionNotice { notice }),
+        Event::WindEmblem { .. } => Some(SeenEvent::WindEmblem),
         Event::ChestRefused { reason, .. } => Some(SeenEvent::ChestRefused { reason }),
         Event::ChestTaken { .. } => None,
         Event::Swing {

@@ -10,6 +10,7 @@
 
 pub(crate) mod abilities;
 pub(crate) mod camp_heal;
+pub(crate) mod consumables;
 #[cfg(test)]
 #[path = "consumables_source_tests.rs"]
 mod consumables_source_tests;
@@ -41,6 +42,7 @@ pub(crate) mod status;
 pub(crate) mod targeting;
 pub(crate) mod terrain;
 pub(crate) mod weapons;
+pub(crate) mod wind;
 
 use crate::events::Event;
 use crate::input::{validate, Command, RawCommand, Reject};

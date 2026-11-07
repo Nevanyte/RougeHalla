@@ -542,7 +542,7 @@
     },
     {
       "path": "tools/card-runtime-fixtures/capture.mts",
-      "sha256": "dadfb539afdc2abe2b56bf7e8a970192de61025330fb36de4880c1f57d94bf4a"
+      "sha256": "56f6a09d2954230bdb7f42b3bf4401928ea661740d9b5558344c5f60357760b7"
     },
     {
       "path": "tools/card-runtime-fixtures/capture.sh",
@@ -580,7 +580,7 @@
   "immutableReferences": [
     {
       "path": "parity/card-catalog/source.json",
-      "sha256": "13324f9aca1951f53d51ef227862369e2e5fd4603e1f96d5f96372c01b10aa2d",
+      "sha256": "d3d73b8ecf76a81478a3cfb5ba0fa6bf6362fd70486b77e237de092f1df440e0",
       "reuse": [
         "catalog/*",
         "eligibility/*",

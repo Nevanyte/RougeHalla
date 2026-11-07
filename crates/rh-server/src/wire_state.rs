@@ -60,6 +60,7 @@ fn props(observation: &Observation) -> WireProps {
                     PropKind::Corpse { label } => WirePropKind::Corpse {
                         label: label.to_string(),
                     },
+                    PropKind::WindEmblem => WirePropKind::WindEmblem,
                 },
             }
         })

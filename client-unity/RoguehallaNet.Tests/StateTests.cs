@@ -16,7 +16,8 @@ namespace Roguehalla.Net.Tests
                 new PropsState { Rows=new [] {
                     new WireProp {Handle=new PickupHandle(1),X=800,Y=900,Kind=PropKind.Ground,GroundWeapon=0},
                     new WireProp {Handle=new PickupHandle(2),X=801,Y=902,Kind=PropKind.Chest,Open=true},
-                    new WireProp {Handle=new PickupHandle(3),X=802,Y=903,Kind=PropKind.Body,BodyLabel="\ufeffBÖB"}
+                    new WireProp {Handle=new PickupHandle(3),X=802,Y=903,Kind=PropKind.Body,BodyLabel="\ufeffBÖB"},
+                    new WireProp {Handle=new PickupHandle(4),X=803,Y=904,Kind=PropKind.WindEmblem}
                 },Focus=new WireFocus{Handle=new PickupHandle(3),BodyHint=4} },
                 new FieldsState {Rows=new [] {new WireField {Kind=2,Ability=3,Owner=null,Subject=1,X=20,Y=30,X2=40,Y2=50,Radius=12,Vx=-2,Vy=0,StartedAt=1000.5,EndsAt=6000.5}}},
                 new RewardChestsState {Rows=new [] {new WireRewardChest {Handle=new RewardChestHandle(uint.MaxValue),X=100,Y=200,ExpiresAt=15000,Options=new [] {
@@ -58,12 +59,12 @@ namespace Roguehalla.Net.Tests
             var t=new FakeTransport();double now=0;
             var s=new Session(t,new SessionOptions{Url="ws://x/ws",Profile="p",Ticket=new byte[0],Now=()=>now});
             s.Connect();t.Open();t.Deliver(Welcome());t.Deliver(Full(10));
-            Assert.IsTrue(s.Collections.HasFullState);Assert.AreEqual(MobTypeId.Archon,s.Collections.Camps[0].Elite);Assert.AreEqual(3,s.Collections.Props.Count);Assert.AreEqual(2,s.Collections.Projectiles.Count);
+            Assert.IsTrue(s.Collections.HasFullState);Assert.AreEqual(MobTypeId.Archon,s.Collections.Camps[0].Elite);Assert.AreEqual(4,s.Collections.Props.Count);Assert.AreEqual(2,s.Collections.Projectiles.Count);
             Assert.AreEqual(new PickupHandle(3),s.Collections.Focus.Value.Handle);
             t.Deliver(new ServerMsg.Snapshot{Tick=100,Phase=1});
             t.Deliver(new ServerMsg.State{Tick=11,Items=new StateItem[]{new InventoryState{Value=null}}});
             Assert.AreEqual(11,s.Collections.Tick,"reliable state is not discarded against a newer snapshot");
-            Assert.IsNull(s.Collections.Inventory);Assert.AreEqual(3,s.Collections.Props.Count,"missing key retains value");
+            Assert.IsNull(s.Collections.Inventory);Assert.AreEqual(4,s.Collections.Props.Count,"missing key retains value");
             t.Deliver(new ServerMsg.State{Tick=12,Items=new StateItem[]{new PropsState()}});
             Assert.AreEqual(0,s.Collections.Props.Count);Assert.IsNull(s.Collections.Focus);
             t.Drop();now=1000;s.Update();t.Open();t.Deliver(Welcome());

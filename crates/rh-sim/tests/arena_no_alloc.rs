@@ -11,6 +11,7 @@ fn warmed_planning_and_locked_movement_allocate_no_blocks() {
         serde_json::from_str(include_str!("../src/mapdata/fixtures/seed1.map.json")).unwrap();
     let arena: Arena = export.validate().unwrap().into_arena().unwrap();
     let config = |plan| SimConfig {
+        consumables: true,
         lifecycle: ArenaMode::Source(ArenaRules {
             plan_seconds: plan,
             first_patience_seconds: Some(0.1),

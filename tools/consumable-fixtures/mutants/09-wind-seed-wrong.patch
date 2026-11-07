@@ -1,0 +1,11 @@
+--- a/crates/rh-sim/src/state.rs
++++ b/crates/rh-sim/src/state.rs
+@@ -1008,7 +1008,7 @@
+     pub(crate) fn new(secrets: &Secrets) -> Self {
+         // Legacy consumables.install: one draw seeds the first wind timer; `raidStarted` draws again. The lobby never runs
+         // the system, so only the RNG state after both draws is observable in a run.
+-        let mut wind_rng = Mulberry32::new(secrets.order_salt ^ crate::constants::WIND_SEED_XOR);
++        let mut wind_rng = Mulberry32::new(secrets.order_salt ^ 1);
+         let wind_next_at = crate::constants::WIND_SPAWN_MIN_MS
+             + wind_rng.next_f64()
+                 * (crate::constants::WIND_SPAWN_MAX_MS - crate::constants::WIND_SPAWN_MIN_MS);

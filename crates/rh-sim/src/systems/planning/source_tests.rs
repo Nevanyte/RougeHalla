@@ -129,6 +129,7 @@ pub(super) fn make(source: &Value, input: &Value) -> Sim {
     };
     Sim::new(
         SimConfig {
+            consumables: true,
             min_players: input["players"].as_array().unwrap().len(),
             lobby_seconds: 30.,
             fill_seconds: 0.,

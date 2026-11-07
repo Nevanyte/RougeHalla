@@ -7,6 +7,7 @@ mod cases;
 fn setup(c: &cases::Input) -> Sim {
     let mut s = Sim::new(
         SimConfig {
+            consumables: true,
             min_players: 3,
             fill_seconds: 0.,
             ..Default::default()
@@ -245,6 +246,7 @@ fn private_choice_and_result_metadata_do_not_change_observations() {
 fn replay_keeps_explicit_choice_and_between_tick_result() {
     use crate::replay::{apply_input, run_replay, Recorder, ReplayInput, ReplayStart};
     let config = SimConfig {
+        consumables: true,
         min_players: 3,
         fill_seconds: 0.,
         ..Default::default()

@@ -67,6 +67,8 @@ fn actual_source_pve_frames_and_restore() {
         secrets.reward_salt = [1, 2, 3, 4];
         let mut sim = Sim::reset_active(
             SimConfig {
+                // The PvE source capture installs the mob modules only: no consumables, no wind spawns.
+                consumables: false,
                 mob_mode: MobMode::Pve,
                 ..Default::default()
             },

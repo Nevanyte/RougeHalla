@@ -1,0 +1,11 @@
+--- a/crates/rh-sim/src/systems/wind.rs
++++ b/crates/rh-sim/src/systems/wind.rs
+@@ -103,7 +103,7 @@
+         let x = ((cx.w.wind_rng.next_f64() * mw).floor() + 0.5) * TILE;
+         let y = ((cx.w.wind_rng.next_f64() * mh).floor() + 0.5) * TILE;
+         let at = crate::Vec2::new(x, y);
+-        if !circle_clear(map, at, PLAYER_RADIUS, MASK_MOVE) {
++        if false {
+             continue;
+         }
+         if cx.w.containers.iter().any(|c| {

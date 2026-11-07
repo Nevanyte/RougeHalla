@@ -202,6 +202,14 @@ pub struct SimConfig {
     pub faction_mode: FactionMode,
     #[serde(default)]
     pub mob_mode: crate::mob_runtime::MobMode,
+    /// Whether the world installs the consumables module (potions, wind emblems; cannons later). Capture worlds that
+    /// omit the module have no wind spawn timer; the live server and the production captures install it.
+    #[serde(default = "consumables_installed")]
+    pub consumables: bool,
+}
+
+fn consumables_installed() -> bool {
+    true
 }
 
 fn default_wish_lock() -> f64 {
@@ -227,6 +235,7 @@ impl Default for SimConfig {
             weapon_specials: true,
             faction_mode: FactionMode::Off,
             mob_mode: crate::mob_runtime::MobMode::Off,
+            consumables: true,
         }
     }
 }

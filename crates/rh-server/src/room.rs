@@ -1338,6 +1338,7 @@ mod tests {
         let assets = MapAssets::new(rh_sim::arenas::practice_arena()).unwrap();
         RoomConfig {
             sim: SimConfig {
+                consumables: true,
                 abilities: rh_sim::abilities::Mode::Off,
                 wish_lock_ms: rh_sim::abilities::WISH_LOCK_MS,
                 hazards: rh_sim::terrain::Mode::Off,
@@ -1584,6 +1585,7 @@ mod tests {
             .collect::<Vec<_>>();
         room.sim = Sim::reset_active(
             SimConfig {
+                consumables: true,
                 faction_mode: rh_sim::FactionMode::EngagementHolyPlagueFire,
                 ..Default::default()
             },

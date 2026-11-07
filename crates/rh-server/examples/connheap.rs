@@ -48,6 +48,7 @@ async fn server(args: &[String], conns: usize, secs: u64) {
         None => rh_sim::arenas::practice_arena(),
     };
     let sim = rh_sim::SimConfig {
+        consumables: true,
         abilities: rh_sim::abilities::Mode::Off,
         wish_lock_ms: rh_sim::abilities::WISH_LOCK_MS,
         lifecycle: rh_sim::ArenaMode::Off,

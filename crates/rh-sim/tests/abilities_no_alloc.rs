@@ -43,6 +43,8 @@ fn all_five_warmed_casts_allocate_no_heap_blocks() {
         .collect::<Vec<_>>();
         let mut sim = Sim::reset_active(
             SimConfig {
+                // This scenario measures the five Wish casts; it installs no consumables module (no wind spawns).
+                consumables: false,
                 abilities: Mode::Full,
                 lifecycle: rh_sim::ArenaMode::Source(rh_sim::ArenaRules {
                     plan_seconds: 0.,

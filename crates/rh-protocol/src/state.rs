@@ -106,9 +106,17 @@ pub struct WireInventory {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum WirePropKind {
     Ground(u8),
-    Chest { open: bool },
-    Body { label: String },
-    Corpse { label: String },
+    Chest {
+        open: bool,
+    },
+    Body {
+        label: String,
+    },
+    Corpse {
+        label: String,
+    },
+    /// A walk-over wind emblem (the label is the source's fixed one).
+    WindEmblem,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -370,6 +378,7 @@ impl WireProps {
                 WirePropKind::Body { label } | WirePropKind::Corpse { label } => {
                     str_fits("prop label", label)?
                 }
+                WirePropKind::WindEmblem => {}
             }
         }
         if let Some(focus) = self.focus {
@@ -397,6 +406,7 @@ impl WireProps {
                         + 5
                         + match &row.kind {
                             WirePropKind::Ground(_) | WirePropKind::Chest { .. } => 1,
+                            WirePropKind::WindEmblem => 0,
                             WirePropKind::Body { label } | WirePropKind::Corpse { label } => {
                                 str_len(label)
                             }
@@ -429,6 +439,9 @@ impl WireProps {
                     w.u8(4);
                     w.str(label);
                 }
+                WirePropKind::WindEmblem => {
+                    w.u8(5);
+                }
             }
         }
         w.varint(self.focus.map_or(0, |f| f.handle.get()));
@@ -458,6 +471,7 @@ impl WireProps {
                 },
                 3 => WirePropKind::Body { label: r.str()? },
                 4 => WirePropKind::Corpse { label: r.str()? },
+                5 => WirePropKind::WindEmblem,
                 _ => return Err(DecodeError::BadField("prop kind")),
             };
             rows.push(WireProp { handle, x, y, kind });

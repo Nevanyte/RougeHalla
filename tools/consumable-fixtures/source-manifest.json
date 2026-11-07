@@ -1,9 +1,9 @@
 {
   "format": "rh-source-manifest/1",
-  "packet": "P-CONS-1a",
-  "probe": "potions + camp-clear reward",
-  "revision": "33ee92c7f1914e6813c17ef50f36da6e12e0503e",
-  "base": "deepseek/p-faction-3 (protocol 8) at 33ee92c7",
+  "packet": "P-CONS-1b",
+  "probe": "potions, camp-clear reward and wind emblems",
+  "revision": "38697071",
+  "base": "deepseek/p-cons-1a (protocol 9) at 38697071",
   "container": "node:22.23.4-bookworm-slim@sha256:aaa4b5baf1ecff3b283486bb1f90405cdda225a3e6f79660d2c559fa510a7292 (linux/amd64)",
   "node": "v22.23.4",
   "command": "tools/consumable-fixtures/capture.sh capture (npm ci --ignore-scripts --no-audit --no-fund; node --import tsx tools/consumable-fixtures/potions.ts /out/source.json)",
@@ -16,9 +16,9 @@
     "packages/shared/src/constants.ts": "51ce4dd800ec868abee525fb1ae375688066f336972a7da878644df1235924e7",
     "packages/server/src/sim/gameplay.ts": "70f6f2b67571783f3042309bef01dc75aabd2656c59a184d0f97c9c0a8b8cf78",
     "parity/legacy-capture/intake.ts": "389e1fb1a3d3ed27f9e102804e50e5bc2fb5776025fdfc905cf90bad1025f238",
-    "tools/consumable-fixtures/potions.ts": "9e4587b5dc5225ee5e85722c1e90119aa6cf63d531727b199671dae097378991"
+    "tools/consumable-fixtures/potions.ts": "e54addc3d9b3fbc266c6b90bfcf20d26a294bd0dc502bcb2d505e9cc12a860a3"
   },
   "fixture": {
-    "parity/consumables/source.json": "28b0eb3a9c46329996317e5b38b09967ce5b7dc74e0f9afa77bc92a5a8b0745f"
+    "parity/consumables/source.json": "0eb324902d44571caa3c8c6663b06460e0796aaffc0ec2efd63f895c9ff4407a"
   }
 }

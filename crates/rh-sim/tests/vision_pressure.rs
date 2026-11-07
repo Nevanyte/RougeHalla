@@ -38,7 +38,11 @@ fn moving_trail_and_full_hidden_rack() {
         ..p.clone()
     };
     let mut s = Sim::reset_active(
-        SimConfig::default(),
+        SimConfig {
+            // The pressure scenario models a world with no consumables module (no wind props in the vision budget).
+            consumables: false,
+            ..SimConfig::default()
+        },
         Arena {
             map: TileMap::from_rows(&rows).unwrap(),
             spawns: vec![from],

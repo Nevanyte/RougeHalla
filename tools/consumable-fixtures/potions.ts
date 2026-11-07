@@ -156,12 +156,44 @@ const campCases = [
   campCase('nobody', () => {}),
 ];
 
+// The wind timer's private stream: the consumables module on the layered map, one parked player, 400 ticks. The source
+// draw order is pinned by comparing every tick's emblem positions and the boost clock.
+function windCase() {
+  const w = scenario(layeredMap(), inertModules);
+  addPlayer(w, 'p0', 'P0', { faction: 'fire' });
+  addPlayer(w, 'p1', 'P1', { faction: 'holy' });
+  step(w, TICK_MS);
+  const [p0, p1] = players(w);
+  // Keep the second player away from the emblem field so the parked pair never moves.
+  p1.s.x = 1400;
+  p1.s.y = 1400;
+  const start = [
+    { id: 'p0', x: p0.s.x, y: p0.s.y },
+    { id: 'p1', x: 1400, y: 1400 },
+  ];
+  const frames: Any[] = [];
+  const pickups: Any[] = [];
+  for (let i = 0; i < 1600; i++) {
+    const events = step(w, TICK_MS);
+    const emblems = [...w.state.containers.values()]
+      .filter((c: Any) => c.kind === 'consumable' && c.items?.[0]?.def === 'windEmblem')
+      .map((c: Any) => ({ x: c.x, y: c.y }))
+      .sort((a: Any, b: Any) => a.x - b.x || a.y - b.y);
+    const boosts = [p0.s.speedBoostUntil ?? 0, p1.s.speedBoostUntil ?? 0];
+    frames.push({ tick: w.state.tick, emblems, boosts });
+    const toasts = toast(events);
+    if (toasts.length) pickups.push({ tick: w.state.tick, toasts, boosts });
+  }
+  return { orderSalt: w.orderSalt, start, frames, pickups };
+}
+
 const out = {
   format: 'rh-consumables-source/1',
   potionCases,
   grantRefusal: grantRefusal(),
   campCases,
+  wind: windCase(),
 };
 const path = process.argv[2] ?? 'parity/consumables/source.json';
 writeFileSync(path, JSON.stringify(out, null, 2) + '\n');
-console.log(`captured ${potionCases.length} potion cases, ${campCases.length} camp cases`);
+console.log(`captured ${potionCases.length} potion cases, ${campCases.length} camp cases, ${out.wind.frames.length} wind ticks`);

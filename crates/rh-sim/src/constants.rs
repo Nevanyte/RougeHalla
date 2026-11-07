@@ -322,4 +322,15 @@ content! {
     TERRAIN_EPS: f64 = 1e-9, "terrain source rule";
     TERRAIN_V_EPS: f64 = 1e-6, "terrain source rule";
 
+    // ---- wind emblems (consumables.ts updateWindEmblems) ----
+    WIND_SPAWN_MIN_MS: f64 = 8000.0, "ms";
+    WIND_SPAWN_MAX_MS: f64 = 15000.0, "ms";
+    WIND_EMBLEM_LIMIT: usize = 12, "emblems";
+    WIND_PICKUP_RADIUS: f64 = 30.0, "u";
+    /// Minimum spacing between emblems, in tiles.
+    WIND_EMBLEM_SPACING: f64 = 3.0, "tiles";
+    /// The private wind stream is mulberry32(orderSalt ^ this), as source.
+    WIND_SEED_XOR: u32 = 0x6a2c_581f, "seed xor";
+    SPEED_BOOST_MS: f64 = 5000.0, "ms";
+    SPEED_BOOST_MULT: f64 = 1.5, "multiplier";
 }

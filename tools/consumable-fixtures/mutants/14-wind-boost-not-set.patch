@@ -1,0 +1,11 @@
+--- a/crates/rh-sim/src/systems/wind.rs
++++ b/crates/rh-sim/src/systems/wind.rs
+@@ -76,7 +76,7 @@
+         }
+         if let Some((_, _, slot)) = best {
+             let id = cx.w.players[slot].id;
+-            cx.w.players[slot].speed_boost_until = now + SPEED_BOOST_MS;
++            cx.w.players[slot].speed_boost_until = 0.;
+             crate::modifiers::recompute_with(cx.k, cx.w, FighterIx::of_slot(slot), cx.stats);
+             cx.w.containers.remove(i);
+             cx.ev.push(Event::WindEmblem { id });

@@ -53,7 +53,7 @@ INVENTORY_SIM_KEYS = {
     "weapon_specials", "faction_mode",
 }
 SIM_KEYS = INVENTORY_SIM_KEYS | {
-    "abilities", "wish_lock_ms", "lifecycle", "hazards", "initial_loot", "mob_mode",
+    "abilities", "wish_lock_ms", "lifecycle", "hazards", "initial_loot", "mob_mode", "consumables",
 }
 REPLAY_KEYS = {
     "format", "content_hash", "build", "match_id", "config", "arena", "secrets",

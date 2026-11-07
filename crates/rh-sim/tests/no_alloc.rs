@@ -61,6 +61,7 @@ fn load(name: &str) -> Scenario {
         reward_salt: [0x12345678, 0x9abcdef0, 0x31415926, 0x27182818],
     };
     let config = SimConfig {
+        consumables: false,
         faction_mode: if fx["legacyConfig"]["rustSlice"]
             == "player-engagement-holy-plague-fire-frost/1"
         {
@@ -209,6 +210,7 @@ fn holy_crowded() {
         .collect();
     let mut sim = Sim::reset_active(
         SimConfig {
+            consumables: false,
             faction_mode: rh_sim::FactionMode::EngagementHoly,
             ..Default::default()
         },
@@ -286,6 +288,7 @@ fn frost_crowded() {
         .collect();
     let mut sim = Sim::reset_active(
         SimConfig {
+            consumables: false,
             faction_mode: rh_sim::FactionMode::EngagementHolyPlagueFireFrost,
             ..Default::default()
         },
@@ -394,6 +397,7 @@ fn sentenced_crowded() {
         .collect();
     let mut sim = Sim::reset_active(
         SimConfig {
+            consumables: false,
             faction_mode: rh_sim::FactionMode::EngagementHolyPlagueFireFrostSentenced,
             ..Default::default()
         },
@@ -546,6 +550,7 @@ fn sentenced_denial_refills() {
         .collect();
     let sim = Sim::reset_active(
         SimConfig {
+            consumables: false,
             faction_mode: rh_sim::FactionMode::EngagementHolyPlagueFireFrostSentenced,
             ..Default::default()
         },
@@ -620,6 +625,7 @@ fn sentenced_denial_refills() {
 fn a_steady_state_step_allocates_nothing() {
     let _profiler = dhat::Profiler::builder().testing().build();
     holy_crowded();
+    wind_hot();
     potion_hot_ticks();
     frost_crowded();
     sentenced_crowded();
@@ -695,6 +701,92 @@ fn a_steady_state_step_allocates_nothing() {
         assert!(steady > 10, "{name}");
         assert_eq!(allocs, 0, "{name}: first allocation at {bad:?}");
     }
+}
+
+/// Wind emblems: one natural spawn and a real walk-over in setup, then 100 steady boost/expiry steps with the system live.
+fn wind_hot() {
+    let ps = vec![
+        Placement {
+            profile: "wind0".into(),
+            faction: FactionId::Fire,
+            bot: false,
+            at: Vec2::new(320., 320.),
+            hp: Some(300.),
+            weapon0: None,
+            weapon1: None,
+        },
+        Placement {
+            profile: "wind1".into(),
+            faction: FactionId::Holy,
+            bot: false,
+            at: Vec2::new(1400., 272.),
+            hp: None,
+            weapon0: None,
+            weapon1: None,
+        },
+    ];
+    let mut sim = Sim::reset_active(
+        SimConfig {
+            consumables: true,
+            ..Default::default()
+        },
+        rh_sim::arenas::practice_arena(),
+        Secrets::from_seed(77),
+        &ps,
+    );
+    let mut at = None;
+    for _ in 0..600 {
+        sim.step();
+        if let Some(c) = sim
+            .containers()
+            .iter()
+            .find(|c| c.kind == rh_sim::state::ContainerKind::WindEmblem)
+        {
+            at = Some(c.at);
+            break;
+        }
+    }
+    let at = at.expect("a wind emblem spawns");
+    sim.submit(
+        PlayerId(1),
+        validate(RawCommand::Move {
+            x: at.x,
+            y: at.y,
+            seq: None,
+        })
+        .unwrap(),
+    )
+    .unwrap();
+    let mut ev = Vec::new();
+    let mut walked = 0u32;
+    while sim.players()[0].speed_boost_until == 0. && walked < 400 {
+        sim.step_into(&mut ev);
+        walked += 1;
+    }
+    assert!(
+        sim.players()[0].speed_boost_until > 0.,
+        "walked over an emblem in {walked} steps"
+    );
+    sim.submit(
+        PlayerId(1),
+        validate(RawCommand::Stop { seq: None }).unwrap(),
+    )
+    .unwrap();
+    sim.step_into(&mut ev);
+    let mut out = Vec::with_capacity(64);
+    let (mut measured, mut allocations) = (0u32, 0u64);
+    for _ in 0..120 {
+        #[cfg(feature = "schedule-trace")]
+        sim.clear_schedule_trace();
+        out.clear();
+        let before = dhat::HeapStats::get().total_blocks;
+        sim.step_into(&mut out);
+        allocations += dhat::HeapStats::get().total_blocks - before;
+        measured += 1;
+    }
+    assert_eq!(sim.players()[0].speed_boost_until, 0., "the boost expired");
+    eprintln!("wind emblem: {measured} measured steps, {allocations} allocations");
+    assert_eq!(allocations, 0, "wind emblem allocations");
 }
 
 /// A potion's Hot ticks: three potions are drunk in setup (the use action allocates its Hot vector by design), then every

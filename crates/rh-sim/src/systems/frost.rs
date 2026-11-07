@@ -267,6 +267,7 @@ mod tests {
     fn scene() -> Sim {
         Sim::reset_active(
             SimConfig {
+                consumables: true,
                 faction_mode: crate::FactionMode::EngagementHolyPlagueFireFrost,
                 ..Default::default()
             },
