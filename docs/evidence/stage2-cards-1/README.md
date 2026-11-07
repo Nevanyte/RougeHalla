@@ -1,5 +1,7 @@
 # P-CARDS-1 — complete authoritative cards and rewards (INCOMPLETE)
 
+Draft PR: [#36](https://github.com/Nevanyte/RougeHalla/pull/36), stacked on the P-CONTENT-1 branch (PR #35).
+
 Phase: the card catalog/runtime foundation of [ORDER_OF_OPERATIONS](../../ORDER_OF_OPERATIONS.md) phase 1, serving the
 backlog packet [P-CARDS-1](../backlog/packets/P-CARDS-1.md). Branch `deepseek/p-cards-1`, based on `856618eb`
 (`optimization_port`) stacked over P-CONTENT-1. Content rule §6A: card effects are typed rows; this packet moves the
