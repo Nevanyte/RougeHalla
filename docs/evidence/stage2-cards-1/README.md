@@ -135,7 +135,7 @@ catalog to a generated, corpus-verified table and the build to the source count 
 
 ## Measurements
 
-- `cargo test --workspace --all-features --locked` (throwaway PostgreSQL): **1,415 passed, 0 failed, 3 ignored, 151 test
+- `cargo test --workspace --all-features --locked` (throwaway PostgreSQL): **1,416 passed, 0 failed, 3 ignored, 151 test
   binaries, exit 0** (after the full-pool drop, the 21/21 terrain kernel, the allocation-free on-hit hook, the Fists of Fury
   multiplicity, the streak memory, Wishful Thinking, heal over time, Second Wind's trigger, Spiked Shell's return, Tank Engine's fortify, Adrenaline's boost and the teleport resets).
 - Catalog differentials: **2/2** (80 cards × all rows/selections; 80 × 4 eligibility entries incl. reasons).
@@ -170,6 +170,10 @@ catalog to a generated, corpus-verified table and the build to the source count 
   +25% — the fold previously emitted each owned card's rows once. That makes the **diagnostic G1-G2-G3 case reproduce exactly**:
   the injected weapon hit is cut to `901.6874999999999` (the PvP hit share of the source's 2576.25 victim max hp) and one
   source's dots share the per-source budget.
+- **The G4 Race pass-start case reproduces**: two Race to 0 holders at 20% and 40% health trading 30 true-damage hits land at the
+  source's `187.5` each — the dealer's and the victim's races multiply the hit (2.5 × 2.5 × 30) — and the landed hit carries the
+  race share the lifesteal feed divides out. The source's heal amounts (51 and 12.9) are an **open certification item**: this
+  partial pipeline skips the pre-ledger signature/mod systems, so the heal composition is not yet reproduced.
 - The packet's final acceptance evidence: source probes per runtime family, the mutant controls, and the coordinator's
   acceptance.
 
