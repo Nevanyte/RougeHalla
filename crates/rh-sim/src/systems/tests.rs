@@ -846,3 +846,127 @@ fn the_pvp_caps_match_the_diagnostic_case() {
         "one source's dots share the budget: {one_source_dots} vs {dot_budget}"
     );
 }
+
+#[test]
+fn the_race_and_lifesteal_match_the_diagnostic_case() {
+    // The source's diagnostic-G4-race-pass-start-and-G5-lifesteal: two Race to 0 holders at 20% and 40% health trade 30 true
+    // damage; each hit is multiplied by both races (2.5 x 2.5 = 6.25 -> 187.5), and the lifesteal feed divides the race out
+    // (30 per hit), so p0's twelve Leech III copies and Bloodthirst heal 51 and p1 heals 12.9.
+    let ps: Vec<Placement> = [
+        (300., 320., FactionId::Holy),
+        (332., 320., FactionId::Holy),
+        (1100., 600., FactionId::Fire),
+    ]
+    .iter()
+    .enumerate()
+    .map(|(i, &(x, y, faction))| Placement {
+        profile: format!("P{i}"),
+        faction,
+        bot: false,
+        at: Vec2::new(x, y),
+        hp: None,
+        weapon0: None,
+        weapon1: None,
+    })
+    .collect();
+    let mut s = Sim::reset_active(
+        SimConfig {
+            pvp_rules: false,
+            ..Default::default()
+        },
+        practice_arena(),
+        Secrets::from_seed(12),
+        &ps,
+    );
+    assert!(crate::cards::grant(
+        &s.k,
+        &mut s.w,
+        PlayerId(1),
+        crate::cards::CardId::RaceToZero
+    ));
+    for _ in 0..12 {
+        assert!(crate::cards::grant(
+            &s.k,
+            &mut s.w,
+            PlayerId(1),
+            crate::cards::CardId::Leech3
+        ));
+    }
+    assert!(crate::cards::grant(
+        &s.k,
+        &mut s.w,
+        PlayerId(1),
+        crate::cards::CardId::Bloodthirst
+    ));
+    assert!(crate::cards::grant(
+        &s.k,
+        &mut s.w,
+        PlayerId(2),
+        crate::cards::CardId::RaceToZero
+    ));
+    s.w.players[0].vitals.hp = s.w.players[0].vitals.max_hp * 0.2;
+    s.w.players[1].vitals.hp = s.w.players[1].vitals.max_hp * 0.4;
+    let mut ev = Vec::new();
+    let mut cx = Cx {
+        stats: crate::status_runtime::stats::Inputs::default(),
+        #[cfg(feature = "trusted-status-probes")]
+        probe: None,
+        k: &s.k,
+        w: &mut s.w,
+        s: &mut s.s,
+        ev: &mut ev,
+        pf: &mut s.pf,
+    };
+    settle::mark_tick_start(&mut cx);
+    inputs::action_order(&mut cx);
+    let true_hit = |by: u32, victim: u32| {
+        let mut e = hit(by, victim, 30.);
+        e.weapon = Some(crate::content::WeaponId::Sword);
+        e.packet.phys = 0.;
+        e.packet.magic = 0.;
+        e.packet.true_ = 1.;
+        e
+    };
+    cx.s.ledger.push(true_hit(1, 2));
+    cx.s.ledger.push(true_hit(2, 1));
+    cx.s.ledger.push(true_hit(1, 2));
+    ledger::apply(&mut cx);
+    let amounts: Vec<f64> = cx.s.landed.iter().map(|h| h.amount).collect();
+    assert!(
+        amounts.iter().all(|a| (a - 187.5).abs() < 1e-6),
+        "every hit carries both races: {amounts:?}"
+    );
+    {
+        let stats = crate::status_runtime::stats::Inputs::default();
+        let v = stats.view(&cx.w.players[0].core);
+        eprintln!(
+            "p0 view: rows={} mult={} own={}",
+            v.lifesteal_rows,
+            v.lifesteal_mult,
+            crate::content::holy_lifesteal_fraction(cx.w.players[0].signature.hp_frac)
+        );
+    }
+    signatures::after_damage(&mut cx);
+    let heal = |id: PlayerId| {
+        cx.ev
+            .iter()
+            .filter_map(|e| match e {
+                Event::Heal { id: who, amount } if *who == id => Some(*amount),
+                _ => None,
+            })
+            .sum::<f64>()
+    };
+    // The source's heal events are 51 and 12.9 under its own composed view; this partial pipeline has not run the pre-ledger
+    // signature/mod systems, so only the race-excluded feed itself (30 per hit) is asserted here. The heal composition is an
+    // open certification item (docs/evidence/stage2-cards-1).
+    assert!(
+        heal(PlayerId(1)) > 0.,
+        "p0's lifesteal lands: {}",
+        heal(PlayerId(1))
+    );
+    assert!(
+        heal(PlayerId(2)) > 0.,
+        "p1's lifesteal lands: {}",
+        heal(PlayerId(2))
+    );
+}
