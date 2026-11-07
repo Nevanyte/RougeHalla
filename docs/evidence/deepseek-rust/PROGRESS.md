@@ -46,7 +46,14 @@ Base: `856618eb948555adefc6ff0bf4628d879d556250` (`origin/optimization_port`, 20
 
 ## Next action
 
-Open the P-MOBS-2 regen-slice PR from `deepseek/p-mobs-2`. Remaining Pending rows at this base: `factions.healOverTime`,
-`factions.markTaxSource`, `mobs.resetDummies`, `buffs.expireBoosts`, `quests.questSystem`, `traders.updateTraders`,
-`cardHooks.afterDamage`, `bruiserPassives.update` (×2), `fireRoam.update` (×2 + hook/mod rows), `campHeal.payCampHeal`,
-`walkHint.updateWalkHints`, `consumables.<anonymous>` and the remaining P-ARENA-2 rows.
+PR #32 (P-MOBS-2 regen slice) is open; collect its CI (the perf gate must honour the declared
+`Perf-Allow-Fingerprint: stateHashFold`) before starting the next packet. Remaining Pending rows at this base:
+`factions.healOverTime`, `factions.markTaxSource`, `mobs.resetDummies`, `buffs.expireBoosts`, `quests.questSystem`,
+`traders.updateTraders`, `cardHooks.afterDamage`, `bruiserPassives.update` (×2), `fireRoam.update` (×2 + hook/mod rows),
+`campHeal.payCampHeal`, `walkHint.updateWalkHints`, `consumables.<anonymous>` and the remaining P-ARENA-2 rows.
+
+Suggested next packet (dependency order, unreserved): **P-MOBS-2's camp-clear reward** is blocked on the large potion
+(P-CONS-1), so take **P-FACTION-1's `factions.healOverTime` + the `hurt` trigger rows** (Second Wind / Blood Saint's
+`trigger` rows: `heal` with `ms` and `ignoreLockout`, `barrier`, plus `PlayerRuntime.fired`), which is self-contained and
+unblocks the faction-passive wave. `factions.markTaxSource` needs the card attack-speed rows of P-CARDS-1 and should wait.
+Start it from a fresh `origin/optimization_port` base the same way (standalone branch, its own evidence README).
