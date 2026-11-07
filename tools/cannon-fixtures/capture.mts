@@ -241,6 +241,11 @@ const cases: Array<Opts & { name: string; description: string }> = (() => {
       commands: [{ tick: 1, player: "p0", type: "pickup", msg: { containerId: cannonId } }],
     },
     {
+      name: "sealed-before-reload", description: "Source order: the arena gate seal wins over a still-running reload clock.", steps: 2,
+      setup: [place("p1", 624, 400), place("p0", cannon.x, cannon.y), { tick: 0, op: "gates", locked: true }, { tick: 0, op: "container", id: cannonId, readyAt: 50 + 2000 }],
+      commands: [{ tick: 1, player: "p0", type: "pickup", msg: { containerId: cannonId } }],
+    },
+    {
       name: "cannot-enter", description: "A real root status refuses entry after the reload check (a stun is refused earlier by the pickup admission).", steps: 2,
       setup: [place("p1", 624, 400), place("p0", cannon.x, cannon.y), { tick: 0, op: "status", kind: "root", id: "p0", source: "p1", ms: 5000 }],
       commands: [{ tick: 1, player: "p0", type: "pickup", msg: { containerId: cannonId } }],

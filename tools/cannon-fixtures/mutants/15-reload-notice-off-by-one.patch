@@ -1,0 +1,13 @@
+diff --git a/crates/rh-sim/src/events.rs b/crates/rh-sim/src/events.rs
+index 66e4c752..33ae00c1 100644
+--- a/crates/rh-sim/src/events.rs
++++ b/crates/rh-sim/src/events.rs
+@@ -317,7 +317,7 @@ impl CannonNotice {
+     pub fn message(self) -> String {
+         match self {
+             Self::Sealed => "Cannons are sealed during the coliseum fight".into(),
+-            Self::Reloading { seconds } => format!("Cannon reloads in {seconds}s"),
++            Self::Reloading { seconds } => format!("Cannon reloads in {}s", seconds + 1),
+             Self::CantEnter => "Can't enter a cannon now".into(),
+             Self::Blast => "Cannon blast! Reloading for 75s".into(),
+         }

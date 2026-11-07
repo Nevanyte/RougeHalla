@@ -114,10 +114,16 @@ pub struct WireInventory {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum WirePropKind {
     Ground(u8),
-    Chest { open: bool },
-    Body { label: String },
+    Chest {
+        open: bool,
+    },
+    Body {
+        label: String,
+    },
     /// A travel cannon with its server-time reload clock (the legacy `readyAt` countdown).
-    Cannon { ready_at: u32 },
+    Cannon {
+        ready_at: u32,
+    },
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -619,9 +625,7 @@ impl WireProps {
                         + match &row.kind {
                             WirePropKind::Ground(_) | WirePropKind::Chest { .. } => 1,
                             WirePropKind::Body { label } => str_len(label),
-                            WirePropKind::Cannon { ready_at } => {
-                                varint_len(*ready_at)
-                            }
+                            WirePropKind::Cannon { ready_at } => varint_len(*ready_at),
                         }
                 })
                 .sum::<usize>()

@@ -1,0 +1,13 @@
+diff --git a/crates/rh-sim/src/initial_world/mod.rs b/crates/rh-sim/src/initial_world/mod.rs
+index 50d62eb5..6a8aced2 100644
+--- a/crates/rh-sim/src/initial_world/mod.rs
++++ b/crates/rh-sim/src/initial_world/mod.rs
+@@ -283,7 +283,7 @@ fn build(
+     }
+     if sites.len() >= 2 {
+         for (i, &at) in sites.iter().enumerate() {
+-            let target = sites[(i + (sites.len() / 2).max(1)) % sites.len()];
++            let target = sites[(i + 1) % sites.len()];
+             let id = sink.next_entity_id();
+             sink.insert(InitialContainer {
+                 id,

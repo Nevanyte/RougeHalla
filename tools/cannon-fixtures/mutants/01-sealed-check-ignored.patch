@@ -1,0 +1,13 @@
+diff --git a/crates/rh-sim/src/systems/cannons.rs b/crates/rh-sim/src/systems/cannons.rs
+index cd2d9c5f..a7ada503 100644
+--- a/crates/rh-sim/src/systems/cannons.rs
++++ b/crates/rh-sim/src/systems/cannons.rs
+@@ -16,7 +16,7 @@ pub(crate) fn use_cannon(cx: &mut Cx, ix: FighterIx, i: usize) {
+     let now = cx.w.server_time;
+     let id = cx.w.core(ix).id;
+     // Source: cannons are sealed during the coliseum fight.
+-    if cx.w.rt.gates_locked {
++    if false {
+         cx.ev.push(Event::CannonNotice {
+             id,
+             notice: CannonNotice::Sealed,

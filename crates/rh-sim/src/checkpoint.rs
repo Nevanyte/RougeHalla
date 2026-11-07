@@ -395,8 +395,7 @@ fn check_world(k: &MatchStatic, w: &World) -> Result<(), String> {
                     || c.target.is_none_or(|t| !near(t.x, t.y))
                     || !c.ready_at.is_finite()
                     || !(0.0..=u32::MAX as f64).contains(&c.ready_at)))
-            || (c.kind != crate::ContainerKind::Cannon
-                && (c.target.is_some() || c.ready_at != 0.0))
+            || (c.kind != crate::ContainerKind::Cannon && (c.target.is_some() || c.ready_at != 0.0))
         {
             return Err(format!("invalid container {}", c.id));
         }
@@ -563,11 +562,15 @@ fn check_world(k: &MatchStatic, w: &World) -> Result<(), String> {
             ));
         }
         // Samples are appended one tick apart at least (a trim keeps the ring within its window only then); closer ones
-        // fill the ring within a few steps. The gap test also covers time order.
+        // fill the ring within a few steps. The gap test also covers time order. The one source shape with equal times
+        // is a displacement during the actions phase (a Blaze charge, a travel-cannon blast) that resets the history and
+        // is followed by the movement phase appending the same tick's final sample: the source keeps both and readers
+        // clamp, so only the first pair may share its timestamp.
         let h = p.body.history.as_slice();
         if h.windows(2).enumerate().any(|(i, s)| {
             !(s[1].t - s[0].t >= TICK_MS)
-                && !(i == 0 && crate::abilities::checkpoint::blaze_history(k, p))
+                && !(i == 0
+                    && (h[0].t == h[1].t || crate::abilities::checkpoint::blaze_history(k, p)))
         }) {
             return Err(format!(
                 "player {}: rewind history is not in time order, a tick apart",

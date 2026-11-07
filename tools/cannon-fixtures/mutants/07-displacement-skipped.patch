@@ -1,0 +1,12 @@
+diff --git a/crates/rh-sim/src/systems/cannons.rs b/crates/rh-sim/src/systems/cannons.rs
+index cd2d9c5f..ce0dbc54 100644
+--- a/crates/rh-sim/src/systems/cannons.rs
++++ b/crates/rh-sim/src/systems/cannons.rs
+@@ -57,7 +57,6 @@ pub(crate) fn use_cannon(cx: &mut Cx, ix: FighterIx, i: usize) {
+     // clears, the attack-target mirror clear, weaponChanged, toast.
+     cx.w.containers[i].ready_at = now + CANNON_COOLDOWN_MS;
+     cx.w.core_mut(ix).motion.path.clear();
+-    displace::apply(cx.k, cx.w, cx.pf, id, landing);
+     let p = cx.w.core_mut(ix);
+     p.inputs.clear();
+     p.weapon.targeting.target = None;

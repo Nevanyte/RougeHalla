@@ -304,9 +304,7 @@ pub enum CannonNotice {
     /// The coliseum fight locks every travel cannon.
     Sealed,
     /// The cannon is still reloading, with the source's rounded-up remaining whole seconds.
-    Reloading {
-        seconds: u32,
-    },
+    Reloading { seconds: u32 },
     /// A stun or cast blocks entering a cannon.
     CantEnter,
     /// The blast landed and the cannon reloads for 75 s.

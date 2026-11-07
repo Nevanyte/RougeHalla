@@ -100,7 +100,7 @@ namespace Roguehalla.Net.Tests
         }
 
         [TestCase(0)]
-        [TestCase(8)]
+        [TestCase(9)]
         [TestCase(255)]
         public void EventsEncoderRefusesUndefinedKindsBeforeWriting(int kind)
         {
@@ -381,13 +381,14 @@ namespace Roguehalla.Net.Tests
                 case "projectile_owner_flag": case "hit_bad_passive": want = DecodeError.BadTag; break;
                 case "projectile_kind": case "projectile_owner_zero":
                 case "potion_notice_zero": case "potion_notice_unknown":
+                case "cannon_notice_zero": case "cannon_notice_unknown": case "cannon_notice_bad_seconds": case "cannon_notice_seconds_over":
                 case "camp_mob_type": case "camp_elite": case "camp_alive": case "camp_state": case "camp_negative_time": case "camp_nonfinite_time": case "camp_time_order":
                 case "actor_mob_type_over_30": case "delta_actor_mob_type_over_30":
                 case "chest_bad_reason_zero": case "chest_bad_reason_unknown":
                 case "pickup_bad_reason_zero": case "pickup_bad_reason_unknown": want = DecodeError.BadField; break;
                 case "unknown_tag": case "client_tag_from_server": case "fx_bad_tag": want = DecodeError.BadTag; break;
                 case "trailing_byte": case "state_trailing_byte": want = DecodeError.Trailing; break;
-                case "state_truncated": want = DecodeError.Truncated; break;
+                case "state_truncated": case "cannon_notice_missing_seconds": want = DecodeError.Truncated; break;
                 case "overlong_varint": case "varint_past_u32": case "varint_too_long": case "head_overlong_varint": case "actor_mask_overlong_varint":
                 case "projectile_owner_overlong": case "delta_head_overlong_varint":
                     want = DecodeError.BadVarint; break;

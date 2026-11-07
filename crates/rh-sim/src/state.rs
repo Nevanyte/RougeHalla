@@ -133,17 +133,6 @@ impl History {
     /// than `now - MAX_REWIND_MS - TICK_MS`, always keeping two (legacy `recordHistory`: push, then trim while longer than
     /// two). The trim runs first here, so the ring never holds more than the window; the resulting sequence is the same.
     pub fn record(&mut self, now: f64, x: f64, y: f64) {
-        // A displacement/reset earlier in this tick already recorded this tick's final position: the movement phase must
-        // not append a second sample with the same timestamp (the legacy list can hold the duplicate; a reader of the
-        // rewind history cannot tell the difference, and the checkpoint invariant requires samples a tick apart).
-        if self.len > 0 {
-            let last = (self.head as usize + self.len as usize - 1) % history_cap();
-            if self.buf[last].t == now {
-                self.buf[last] = Sample { t: now, x, y };
-                self.buf[last + history_cap()] = self.buf[last];
-                return;
-            }
-        }
         let cutoff = now - MAX_REWIND_MS - TICK_MS;
         let cap = history_cap();
         let (mut head, mut len) = (self.head as usize, self.len as usize);

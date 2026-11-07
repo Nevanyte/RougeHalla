@@ -38,10 +38,16 @@ pub struct Inventory {
 #[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, serde::Serialize, serde::Deserialize)]
 pub enum PropKind {
     Ground(WeaponId),
-    Chest { open: bool },
-    Body { label: Arc<str> },
+    Chest {
+        open: bool,
+    },
+    Body {
+        label: Arc<str>,
+    },
     /// A travel cannon, with its server-time reload clock (the legacy `readyAt` countdown).
-    Cannon { ready_at: u32 },
+    Cannon {
+        ready_at: u32,
+    },
 }
 
 /// Position is already encoded on the public 1/8-unit grid. Field order is the canonical sort key.

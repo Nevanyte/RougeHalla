@@ -156,8 +156,12 @@ fn frame(s: &Sim, events: &[Event]) -> Value {
     let notices: Vec<Value> = events
         .iter()
         .filter_map(|e| match e {
-            Event::PotionNotice { id, notice } => Some(json!({"to": name(s, *id), "text": notice.message()})),
-            Event::CannonNotice { id, notice } => Some(json!({"to": name(s, *id), "text": notice.message()})),
+            Event::PotionNotice { id, notice } => {
+                Some(json!({"to": name(s, *id), "text": notice.message()}))
+            }
+            Event::CannonNotice { id, notice } => {
+                Some(json!({"to": name(s, *id), "text": notice.message()}))
+            }
             _ => None,
         })
         .collect();
@@ -180,7 +184,11 @@ fn frame(s: &Sim, events: &[Event]) -> Value {
 fn exact(a: &Value, b: &Value, path: &str) {
     match (a, b) {
         (Value::Number(a), Value::Number(b)) => {
-            assert_eq!(a.as_f64().unwrap().to_bits(), b.as_f64().unwrap().to_bits(), "{path}")
+            assert_eq!(
+                a.as_f64().unwrap().to_bits(),
+                b.as_f64().unwrap().to_bits(),
+                "{path}"
+            )
         }
         (Value::Array(a), Value::Array(b)) => {
             assert_eq!(a.len(), b.len(), "{path}");
@@ -189,7 +197,11 @@ fn exact(a: &Value, b: &Value, path: &str) {
             }
         }
         (Value::Object(a), Value::Object(b)) => {
-            assert_eq!(a.keys().collect::<Vec<_>>(), b.keys().collect::<Vec<_>>(), "{path}");
+            assert_eq!(
+                a.keys().collect::<Vec<_>>(),
+                b.keys().collect::<Vec<_>>(),
+                "{path}"
+            );
             for (k, a) in a {
                 exact(a, &b[k], &format!("{path}.{k}"))
             }
@@ -288,9 +300,7 @@ fn apply_setup(s: &mut Sim, op: &Value) {
             let ix = player_ix(s, op["id"].as_str().unwrap());
             let p = &mut s.w.players[ix];
             p.weapon.weapon0 = crate::WeaponId::parse(op["weapon0"].as_str().unwrap());
-            p.weapon.weapon1 = op["weapon1"]
-                .as_str()
-                .and_then(crate::WeaponId::parse);
+            p.weapon.weapon1 = op["weapon1"].as_str().and_then(crate::WeaponId::parse);
         }
         "private" => {
             let ix = player_ix(s, op["id"].as_str().unwrap());
@@ -301,9 +311,9 @@ fn apply_setup(s: &mut Sim, op: &Value) {
                 .map(|q| Vec2::new(q["x"].as_f64().unwrap(), q["y"].as_f64().unwrap()))
                 .collect();
             let target = s.players()[player_ix(s, op["attackTarget"].as_str().unwrap())].id;
-            let attack_move = op["attackMove"].as_object().map(|g| {
-                Vec2::new(g["x"].as_f64().unwrap(), g["y"].as_f64().unwrap())
-            });
+            let attack_move = op["attackMove"]
+                .as_object()
+                .map(|g| Vec2::new(g["x"].as_f64().unwrap(), g["y"].as_f64().unwrap()));
             let held = op["held"].as_bool().unwrap();
             let p = &mut s.w.players[ix];
             p.motion.path.set_from(&path);
@@ -324,7 +334,8 @@ fn send(s: &mut Sim, cmd: &Value) {
         other => panic!("unknown command {other}"),
     };
     let command = validate(raw).expect("a valid source order");
-    s.submit_unbudgeted(player, command).expect("the order is queued");
+    s.submit_unbudgeted(player, command)
+        .expect("the order is queued");
 }
 
 #[test]
@@ -340,7 +351,10 @@ fn travel_cannons_match_the_actual_source_constructor_and_frames() {
     assert_eq!(src["provenance"]["node"], "v22.23.4");
     assert_eq!(src["provenance"]["platform"], "linux");
     assert_eq!(src["provenance"]["arch"], "x64");
-    assert_eq!(src["configuration"]["modules"].as_array().unwrap().len(), 16);
+    assert_eq!(
+        src["configuration"]["modules"].as_array().unwrap().len(),
+        16
+    );
     drop(arena);
 
     // The actual source constructor: every container id, position, kind, target and empty cannon clock.
@@ -357,7 +371,10 @@ fn travel_cannons_match_the_actual_source_constructor_and_frames() {
         let mut s = sim();
         let mut restored: Option<Sim> = None;
         let frames = case["frames"].as_array().unwrap();
-        assert_eq!(frames.len() as u64, case["input"]["steps"].as_u64().unwrap() + 1);
+        assert_eq!(
+            frames.len() as u64,
+            case["input"]["steps"].as_u64().unwrap() + 1
+        );
         // Frame 0 is the trusted pre-state after the bootstrap step.
         for op in case["input"]["setup"].as_array().unwrap() {
             if op["tick"].as_u64().unwrap() == 0 {
@@ -384,9 +401,8 @@ fn travel_cannons_match_the_actual_source_constructor_and_frames() {
             // rewrites it, so that case is not checkpoint-restored.
             if name == "blast" && tick == 1 {
                 let bytes = serde_json::to_vec(&s).unwrap();
-                restored = Some(
-                    Sim::restore(&mut serde_json::Deserializer::from_slice(&bytes)).unwrap(),
-                );
+                restored =
+                    Some(Sim::restore(&mut serde_json::Deserializer::from_slice(&bytes)).unwrap());
             }
             if let Some(r) = &mut restored {
                 if name == "blast" && tick > 1 {
@@ -410,11 +426,15 @@ fn travel_cannons_match_the_actual_source_constructor_and_frames() {
         ) {
             let bytes = serde_json::to_vec(&s).unwrap();
             let r = Sim::restore(&mut serde_json::Deserializer::from_slice(&bytes)).unwrap();
-            assert_eq!(r.state_hash(), s.state_hash(), "{name}: checkpoint identity");
+            assert_eq!(
+                r.state_hash(),
+                s.state_hash(),
+                "{name}: checkpoint identity"
+            );
         }
         assert!(s.check_layout().is_ok(), "{name}: layout");
     }
-    assert_eq!(compared, 21);
+    assert_eq!(compared, 23);
 }
 
 #[test]
@@ -426,7 +446,12 @@ fn cannon_is_focusable_without_items_and_never_a_weapon_offer() {
         .find(|c| c.kind == ContainerKind::Cannon)
         .unwrap()
         .id;
-    let cannon_at = s.containers().iter().find(|c| c.id == cannon_id).unwrap().at;
+    let cannon_at = s
+        .containers()
+        .iter()
+        .find(|c| c.id == cannon_id)
+        .unwrap()
+        .at;
     let ix = player_ix(&s, "p0");
     let p0 = s.players()[ix].id;
     let now = s.server_time();
@@ -451,9 +476,12 @@ fn cannon_is_focusable_without_items_and_never_a_weapon_offer() {
     let focused = observation.props.iter().find(|p| p.cue.focused).unwrap();
     assert_eq!(focused.cue.kind, crate::PropKind::Cannon { ready_at: 0 });
     let command = observer
-        .resolve(&s, PublicCommand::Pickup {
-            handle: focused.handle,
-        })
+        .resolve(
+            &s,
+            PublicCommand::Pickup {
+                handle: focused.handle,
+            },
+        )
         .unwrap();
     s.submit(p0, command).unwrap();
     s.step();
