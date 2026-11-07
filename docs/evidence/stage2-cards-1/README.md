@@ -143,14 +143,17 @@ catalog to a generated, corpus-verified table and the build to the source count 
 - Browser proof (`node tools/browser-proof/proof.mjs`): **PASS**, protocol 7.
 - Reward pools/draw: **4/4** (30 pool cases, 181 roll cases, interactive order, five zone themes).
 - Declared state change: the build map is hashed state, so this branch recalibrates the ability per-tick hash tape and
-  `content_hash` (now `0x2835ca4eadc286bd`); the hash-coverage contract documents the new leaves.
+  `content_hash` (now `0x9f7a0ff31bf3b6d4`); the hash-coverage contract documents the new leaves.
 
 ## Still missing (the packet is INCOMPLETE)
 
-- The reward/chest runtime over the verified pools (14-card interactive pool, theme/tier/distinctness/picker exclusion,
-  exact roll draws), the chest choice/skip/expiry flow and grants that update the map.
-- The card runtime/hook layer: `cardState` readers/writers, `cardHooks`/`onHit` multiplicity, streaks/stillness/bleeds,
-  vs/scale contexts, guards G1–G13, and the wish/card coupling.
-- Runtime source probes per family, mutant controls, and the packet's final accepted evidence.
+- The **runtime witness consumer**: the 65-case `parity/card-runtime/source.json` and the 2-case witness corpus are captured but
+  no Rust consumer reproduces them yet. The witness cases (map `room`, `mainSeed`/`rewardSalt`, the harness's test-only
+  `witness` card, `target`/`attack`/`release` actions) first need the capture rig's world-seed mapping and the action-to-input
+  mapping.
+- The chest ownership/skip **certification edge cases** beyond the refusal table (owner-private trophies, the skip's heal-lockout
+  GV path) and the guard-by-guard certification against the runtime diagnostic cases.
+- The packet's final acceptance evidence: source probes per runtime family, the mutant controls, and the coordinator's
+  acceptance.
 
 No `DEVIATIONS.md` row; no coordinator-owned files touched.
