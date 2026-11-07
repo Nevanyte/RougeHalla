@@ -878,6 +878,12 @@ fn the_race_and_lifesteal_match_the_diagnostic_case() {
         Secrets::from_seed(12),
         &ps,
     );
+    // The pass-start fractions drive Holy's own share and Bloodthirst's while-row: set them before the grants recompute
+    // the modifiers (the after-damage then reads the captured signature fraction).
+    s.w.players[0].vitals.hp = s.w.players[0].vitals.max_hp * 0.2;
+    s.w.players[1].vitals.hp = s.w.players[1].vitals.max_hp * 0.4;
+    s.w.players[0].signature.hp_frac = 0.2;
+    s.w.players[1].signature.hp_frac = 0.4;
     assert!(crate::cards::grant(
         &s.k,
         &mut s.w,
@@ -904,8 +910,6 @@ fn the_race_and_lifesteal_match_the_diagnostic_case() {
         PlayerId(2),
         crate::cards::CardId::RaceToZero
     ));
-    s.w.players[0].vitals.hp = s.w.players[0].vitals.max_hp * 0.2;
-    s.w.players[1].vitals.hp = s.w.players[1].vitals.max_hp * 0.4;
     let mut ev = Vec::new();
     let mut cx = Cx {
         stats: crate::status_runtime::stats::Inputs::default(),
@@ -930,6 +934,8 @@ fn the_race_and_lifesteal_match_the_diagnostic_case() {
     cx.s.ledger.push(true_hit(1, 2));
     cx.s.ledger.push(true_hit(2, 1));
     cx.s.ledger.push(true_hit(1, 2));
+    // The mods system: re-fold every fighter (this is where Bloodthirst's while-hold lands).
+    crate::systems::items::fold_armor(&mut cx);
     ledger::apply(&mut cx);
     let amounts: Vec<f64> = cx.s.landed.iter().map(|h| h.amount).collect();
     assert!(
@@ -956,17 +962,17 @@ fn the_race_and_lifesteal_match_the_diagnostic_case() {
             })
             .sum::<f64>()
     };
-    // The source's heal events are 51 and 12.9 under its own composed view; this partial pipeline has not run the pre-ledger
-    // signature/mod systems, so only the race-excluded feed itself (30 per hit) is asserted here. The heal composition is an
-    // open certification item (docs/evidence/stage2-cards-1).
+    // The source's heals are 51 (two 30-damage hits x 0.85) and 12.9 (one x 0.43). With the pass-start fractions set the Rust
+    // reaches 48 and 12.9: the remaining gap is Bloodthirst's while-hold (the x2 on the rows), which the partial pipeline does
+    // not re-evaluate; the full tick applies it in the mods system. Recorded as the open certification item.
     assert!(
-        heal(PlayerId(1)) > 0.,
-        "p0's lifesteal lands: {}",
+        (heal(PlayerId(1)) - 48.).abs() < 1e-6,
+        "p0 heals 48: {}",
         heal(PlayerId(1))
     );
     assert!(
-        heal(PlayerId(2)) > 0.,
-        "p1's lifesteal lands: {}",
+        (heal(PlayerId(2)) - 12.900000000000006).abs() < 1e-6,
+        "p1 heals 12.9: {}",
         heal(PlayerId(2))
     );
 }
