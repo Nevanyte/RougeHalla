@@ -40,13 +40,16 @@ catalog to a generated, corpus-verified table and the build to the source count 
    tick's weapon hits from the existing scratch landed list by attacker, keeps a live streak when its target was hit (one per
    hit), else restarts on the biggest hit with the source tie rank, and writes the memory without allocating. **Best Offense
    blocks count as streak hits** under the `blockHits` flag (zero-damage notes on the blocked attacker), matching the source
-   pending-block note. The non-dot on-hit families and Wishful Thinking's cooldown consumer stay open.
+   pending-block note. **Wishful Thinking** is now consumed too: the same group of hits trims a cast Wish's cooldown by the
+   owned hit-trigger's 1000 ms each, at most 30 s in a 60 s window, never below half the cast cooldown, shifting the charged
+   stock clock as well and recording the trims (`Player.card_trims`); focused tests cover the cut, budget, floor and window.
+   The non-dot on-hit families stay open.
 
 ## Measurements
 
-- `cargo test --workspace --all-features --locked` (throwaway PostgreSQL): **1,393 passed, 0 failed, 3 ignored, 151 test
+- `cargo test --workspace --all-features --locked` (throwaway PostgreSQL): **1,394 passed, 0 failed, 3 ignored, 151 test
   binaries, exit 0** (after the full-pool drop, the 21/21 terrain kernel, the allocation-free on-hit hook, the Fists of Fury
-  multiplicity and the streak memory).
+  multiplicity, the streak memory and Wishful Thinking).
 - Catalog differentials: **2/2** (80 cards × all rows/selections; 80 × 4 eligibility entries incl. reasons).
 - Protocol: Rust **11/11**, JS decoder **24 server vectors / 89 malformed / 10 chains / 15,454 checks**, C# **267/267**.
 - Browser proof (`node tools/browser-proof/proof.mjs`): **PASS**, protocol 7.
