@@ -53,6 +53,17 @@ impl Build {
     pub fn count(&self, id: CardId) -> u8 {
         self.counts.0[id.index()]
     }
+    /// Any owned card's fold row carries this flag (source `hasFlag`).
+    pub fn has_flag(&self, flag: crate::stat_fold::EffectFlag) -> bool {
+        self.cards().any(|id| {
+            id.definition().rows.iter().any(|row| {
+                matches!(
+                    row,
+                    CardRow::Fold(EffectKind::Flag { flag: f }) if *f == flag
+                )
+            })
+        })
+    }
     pub fn power(&self) -> f64 {
         self.cards()
             .map(|id| f64::from(id.tier()) * f64::from(self.count(id)))

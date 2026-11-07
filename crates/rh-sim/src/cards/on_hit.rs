@@ -50,8 +50,17 @@ pub(crate) fn apply(hx: &mut Hx, args: &HookArgs) {
                 }
             }
         }
+        // Fists of Fury: one more application while the active hand is empty.
+        let w = &p.core.weapon;
+        let hand_empty = (if w.slot == 0 { w.weapon0 } else { w.weapon1 }).is_none();
+        let applications =
+            if p.build.has_flag(crate::stat_fold::EffectFlag::TwiceUnarmed) && hand_empty {
+                2.
+            } else {
+                1.
+            };
         (
-            crate::content::on_hit_power(weapon),
+            crate::content::on_hit_power(weapon) * applications,
             p.modifiers.hit_mult(),
             rows,
             n,
@@ -252,5 +261,101 @@ mod tests {
         assert!((dot.until - (now + 2000.)).abs() < 1e-9);
         assert_eq!(dot.data.shares.unwrap().phys, 1.);
         assert!(dot.tag.as_ref().unwrap().as_str().starts_with("bleed:"));
+    }
+
+    #[test]
+    fn fists_of_fury_doubles_the_on_hit_rows_while_unarmed() {
+        use crate::content::WeaponId;
+        use crate::state::Packet;
+        use crate::{arenas, FactionId, Placement, PlayerId, Secrets, Sim, SimConfig, Vec2};
+
+        let ps = [
+            Placement {
+                profile: "a".into(),
+                faction: FactionId::Fire,
+                bot: false,
+                at: Vec2::new(400., 400.),
+                hp: None,
+                weapon0: None,
+                weapon1: None,
+            },
+            Placement {
+                profile: "b".into(),
+                faction: FactionId::Holy,
+                bot: false,
+                at: Vec2::new(456., 400.),
+                hp: None,
+                weapon0: None,
+                weapon1: None,
+            },
+        ];
+        let mut sim = Sim::reset_active(
+            SimConfig::default(),
+            arenas::practice_arena(),
+            Secrets::from_seed(7),
+            &ps,
+        );
+        assert!(crate::cards::grant(
+            &sim.k,
+            &mut sim.w,
+            PlayerId(1),
+            crate::cards::CardId::Hemorrhage
+        ));
+        assert!(crate::cards::grant(
+            &sim.k,
+            &mut sim.w,
+            PlayerId(1),
+            crate::cards::CardId::FistsOfFury
+        ));
+        let mut ev = Vec::new();
+        let entry = crate::systems::ledger::Entry {
+            terrain: false,
+            dot: false,
+            ability: None,
+            arena: false,
+            source: None,
+            critical: false,
+            critical_mult: None,
+            sig: None,
+            execute: false,
+            victim: PlayerId(2),
+            by: Some(PlayerId(1)),
+            packet: Packet {
+                raw: 100.,
+                phys: 1.,
+                magic: 0.,
+                true_: 0.,
+            },
+            weapon: Some(WeaponId::Fists),
+            stagger: false,
+            projectile: None,
+            scale: 1.,
+            derived: false,
+            passive: false,
+        };
+        let mut hx = crate::hooks::Hx {
+            stats: Default::default(),
+            fx: None,
+            k: &sim.k,
+            w: &mut sim.w,
+            ev: &mut ev,
+        };
+        apply(
+            &mut hx,
+            &crate::hooks::HookArgs::HitLanded {
+                entry,
+                amount: 100.,
+            },
+        );
+        let victim = hx.w.player(PlayerId(2)).unwrap();
+        let dot = victim
+            .core
+            .statuses
+            .instances
+            .iter()
+            .find(|s| s.kind == StatusKind::Dot && s.source.id == Some(PlayerId(1)))
+            .expect("hemorrhage bleed");
+        // fists 1.2 x two applications, per 0.1: 100 * 0.1 * 2.4 = 24 over 2 s = 12 per second.
+        assert!((dot.value - 12.).abs() < 1e-9, "value {}", dot.value);
     }
 }
