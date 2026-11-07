@@ -1,5 +1,13 @@
 # P-MOBS-2 (regen slice): passive player regeneration
 
+## 0. Revisions
+
+- Base: `856618eb948555adefc6ff0bf4628d879d556250` (`origin/optimization_port`).
+- Packet head: `d94da7bf` on `deepseek/p-mobs-2`, [PR #32](https://github.com/Nevanyte/RougeHalla/pull/32).
+- Toolchain: `cargo 1.97.0 (c980f4866 2026-06-30)`, `rust-toolchain.toml` channel 1.97.0. Capture container
+  `node:22.23.4-bookworm-slim@sha256:aaa4b5baf1ecff3b283486bb1f90405cdda225a3e6f79660d2c559fa510a7292`, linux/amd64,
+  Node v22.23.4.
+
 ## 1. Outcome
 
 Port `packages/server/src/sim/regen.ts` into `rh-sim`: the config-gated passive regeneration system that heals a standing
