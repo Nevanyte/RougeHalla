@@ -1504,11 +1504,11 @@ static BLOCKED: [Link; 2] = [
         "P-FACTION-5",
     ),
 ];
-static OVERKILLED: [Link; 1] = [pending_link(
+static OVERKILLED: [Link; 1] = [ported_link(
     "cardHooks.onOverkilled",
     Mode::Append,
     Gate::Always,
-    "P-CARDS-1",
+    crate::cards::on_overkilled::on_overkilled,
 )];
 static HOOKS: [HookRow; 19] = [
     HookRow {

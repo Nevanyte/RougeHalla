@@ -740,6 +740,9 @@ pub(crate) struct World {
     /// `hash.rs`); `default` still reads checkpoints written while it was omitted.
     #[serde(default)]
     pub(crate) deferred: DeferredQueue,
+    /// Overkill splash requests recorded during the pass and resolved by the after-damage system (never serialized).
+    #[serde(skip)]
+    pub(crate) card_splashes: Vec<crate::cards::SplashReq>,
     /// The same-tick payouts (legacy `payLater`, `combat.collecting` and `combat.payouts`): queued while the ledger pass
     /// runs, paid at its end, or at once outside it. Never part of a checkpoint or the hash: it is empty and not
     /// collecting at every step boundary, where both are taken.
@@ -1000,6 +1003,7 @@ impl World {
             rt: ArenaRt::default(),
             pending_events: Vec::new(),
             deferred: DeferredQueue::default(),
+            card_splashes: Vec::new(),
             pay: PayQueue::default(),
             #[cfg(feature = "schedule-trace")]
             trace: Default::default(),

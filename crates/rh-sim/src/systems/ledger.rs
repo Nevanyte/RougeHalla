@@ -52,6 +52,13 @@ impl Entry {
         self.source.as_ref().and_then(|s| s.owner_id).or(self.by)
     }
 }
+/// One entry that hit a victim the pass killed with damage to spare (source `OverkillHit`): the entry and its applied share.
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct OverkillHit {
+    pub(crate) entry: Entry,
+    pub(crate) raw: f64,
+}
+
 #[derive(Clone, Debug)]
 pub(crate) struct Hit {
     pub(crate) terrain: bool,
@@ -616,6 +623,31 @@ fn apply_victim(
         if let Some(probe) = pass.probe.as_deref_mut() {
             probe.fire(pass.k, pass.w, pass.ev, v, pass.stats);
         }
+    }
+    if !pass.w.standing(ix) && total > hp_before {
+        let hits: Vec<OverkillHit> = idxs
+            .iter()
+            .enumerate()
+            .map(|(j, &index)| OverkillHit {
+                entry: ledger[index].clone(),
+                raw: amounts[j],
+            })
+            .collect();
+        crate::hooks::fire(
+            &mut crate::hooks::Hx {
+                stats: pass.stats,
+                k: pass.k,
+                w: pass.w,
+                ev: pass.ev,
+                fx: None,
+            },
+            crate::hooks::HookArgs::Overkilled {
+                victim: v,
+                hits,
+                overkill: total - hp_before,
+                total,
+            },
+        );
     }
     let landed_share = if !player && total > applied {
         applied / total

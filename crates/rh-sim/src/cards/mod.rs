@@ -11,6 +11,7 @@ mod catalog_data;
 pub(crate) use after_damage::after_damage;
 pub(crate) mod on_hit;
 pub(crate) mod on_hurt;
+pub(crate) mod on_overkilled;
 pub use catalog::*;
 
 /// The source build's card count map (one byte per card in wire order). A newtype so the 80-byte array has Default and a
@@ -62,6 +63,17 @@ pub struct Hot {
 /// Source `healOverTimeSteps`: at least one round step per HEAL_OVER_TIME_STEP_MS.
 pub fn heal_over_time_steps(ms: f64) -> u32 {
     ((ms / crate::constants::HEAL_OVER_TIME_STEP_MS).round() as u32).max(1)
+}
+
+/// One Overkill splash waiting for the pass to settle (the source's payLater closure data).
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct SplashReq {
+    pub holder: crate::PlayerId,
+    pub victim: crate::PlayerId,
+    pub at: crate::math::Vec2,
+    pub radius: f64,
+    pub entry: crate::systems::ledger::Entry,
+    pub raw: f64,
 }
 
 /// Adrenaline's runtime boost (source `cards.boostAs/boostMove/boostUntil`): factors applied while `until` is in the future.

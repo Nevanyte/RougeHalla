@@ -152,4 +152,82 @@ pub(crate) fn after_damage(cx: &mut Cx) {
             });
         }
     }
+    resolve_splashes(w);
+}
+
+/// Resolve the recorded Overkill splash requests after the pass (source splashOverkill).
+pub(crate) fn resolve_splashes(w: &mut crate::state::World) {
+    // Overkill's splash: a share of each contributing hit goes to the nearest hostile within the card's radius of the
+    // victim, queued for the next tick's ledger (source splashOverkill).
+    let splashes = std::mem::take(&mut w.card_splashes);
+    for req in splashes {
+        let holder_faction = w.player(req.holder).map(|p| p.vitals.faction);
+        let mut best: Option<(PlayerId, f64)> = None;
+        for i in 0..w.players.len() {
+            let p = &w.players[i];
+            let id = p.core.id;
+            if id == req.holder || id == req.victim || holder_faction.is_none() {
+                continue;
+            }
+            if holder_faction == Some(p.vitals.faction) || w.server_time < p.vitals.immune_until {
+                continue;
+            }
+            if crate::status_runtime::untargetable(&p.core.statuses.instances, w.server_time) {
+                continue;
+            }
+            let pos = p.core.pos();
+            let d = crate::math::hypot(pos.x - req.at.x, pos.y - req.at.y);
+            if d > req.radius {
+                continue;
+            }
+            if best.is_none() || d < best.unwrap().1 - 1e-9 {
+                best = Some((id, d));
+            }
+        }
+        for i in 0..w.mobs.len() {
+            let m = &w.mobs[i];
+            let id = m.core.id;
+            if id == req.victim {
+                continue;
+            }
+            if crate::status_runtime::untargetable(&m.core.statuses.instances, w.server_time) {
+                continue;
+            }
+            let pos = m.core.pos();
+            let d = crate::math::hypot(pos.x - req.at.x, pos.y - req.at.y);
+            if d > req.radius {
+                continue;
+            }
+            if best.is_none() || d < best.unwrap().1 - 1e-9 {
+                best = Some((id, d));
+            }
+        }
+        if let Some((target, _)) = best {
+            w.deferred.defer_hit(crate::systems::ledger::Entry {
+                terrain: false,
+                dot: false,
+                ability: None,
+                arena: false,
+                source: None,
+                critical: false,
+                critical_mult: None,
+                sig: None,
+                execute: false,
+                victim: target,
+                by: Some(req.holder),
+                packet: crate::state::Packet {
+                    raw: req.raw,
+                    phys: req.entry.packet.phys,
+                    magic: req.entry.packet.magic,
+                    true_: req.entry.packet.true_,
+                },
+                weapon: req.entry.weapon,
+                stagger: false,
+                projectile: None,
+                scale: 1.,
+                derived: true,
+                passive: true,
+            });
+        }
+    }
 }
