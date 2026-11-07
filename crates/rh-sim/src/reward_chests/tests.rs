@@ -625,3 +625,96 @@ fn the_refusal_sequence_matches_the_source_toast_tape() {
         Err(Refusal::Gone)
     );
 }
+
+#[test]
+fn the_skip_pays_gv_when_the_heal_is_wasted_and_the_trophy_is_private() {
+    // A full-health skip heals nothing and pays the source's GV_SKIP.
+    let mut s = sim(FactionId::Holy);
+    let p0 = s.players()[0].id;
+    let at = s.players()[0].pos();
+    let id = s.w.next_entity_id();
+    s.w.reward_chests.push(Chest {
+        id,
+        at,
+        expires_at: s.w.server_time + DEFINITION.lifetime_ms,
+        held_until_tick: s.w.tick,
+        options: [
+            Some(OptionId::Card(crate::cards::CardId::Gambler)),
+            None,
+            None,
+        ],
+        taken: [None; 3],
+        pickers: Vec::new(),
+        camp: Some(1),
+        owner: None,
+    });
+    let mut ev = Vec::new();
+    assert_eq!(choose(&s.k, &mut s.w, &mut ev, p0, Some(id), -1), Ok(()));
+    assert!(
+        ev.iter().any(|e| matches!(
+            e,
+            crate::Event::Gv {
+                reason: crate::results::GvReason::Skip,
+                ..
+            }
+        )),
+        "a wasted skip pays GV: {ev:?}"
+    );
+    assert!(s.players()[0].credit.gv > 0);
+
+    // A hurt player's skip heals and pays no GV.
+    let mut s = sim(FactionId::Holy);
+    let p0 = s.players()[0].id;
+    let at = s.players()[0].pos();
+    s.w.players[0].vitals.hp = s.w.players[0].vitals.max_hp * 0.5;
+    let id = s.w.next_entity_id();
+    s.w.reward_chests.push(Chest {
+        id,
+        at,
+        expires_at: s.w.server_time + DEFINITION.lifetime_ms,
+        held_until_tick: s.w.tick,
+        options: [None; 3],
+        taken: [None; 3],
+        pickers: Vec::new(),
+        camp: Some(1),
+        owner: None,
+    });
+    let mut ev = Vec::new();
+    let before = s.w.players[0].vitals.hp;
+    assert_eq!(choose(&s.k, &mut s.w, &mut ev, p0, Some(id), -1), Ok(()));
+    assert!(s.w.players[0].vitals.hp > before, "the skip heals");
+    assert!(!ev.iter().any(|e| matches!(
+        e,
+        crate::Event::Gv {
+            reason: crate::results::GvReason::Skip,
+            ..
+        }
+    )));
+
+    // A trophy is private to its owner.
+    let mut s = sim(FactionId::Holy);
+    let p0 = s.players()[0].id;
+    let p1 = s.players()[1].id;
+    let at = s.players()[0].pos();
+    let id = s.w.next_entity_id();
+    s.w.reward_chests.push(Chest {
+        id,
+        at,
+        expires_at: s.w.server_time + DEFINITION.lifetime_ms,
+        held_until_tick: s.w.tick,
+        options: [
+            Some(OptionId::Card(crate::cards::CardId::Overkill)),
+            None,
+            None,
+        ],
+        taken: [None; 3],
+        pickers: Vec::new(),
+        camp: None,
+        owner: Some(p1),
+    });
+    let mut ev = Vec::new();
+    assert_eq!(
+        choose(&s.k, &mut s.w, &mut ev, p0, Some(id), 0),
+        Err(Refusal::NotYours)
+    );
+}
