@@ -84,11 +84,15 @@ catalog to a generated, corpus-verified table and the build to the source count 
 15. **The attack-critical accumulator is live**: `roll_attack_crit` takes the folded crit chance (zero under the noCrit flag,
    capped at CRIT_CHANCE_MAX) and accumulates deterministically, firing at 1; the melee hit path rolls it for a player
    attacker, marks the entry critical and multiplies the packet by CRIT_MULT before blocking. A focused test fires exactly on
-   the fifth 20% step. The dot-crit accumulator and Plant Your Feet's stillness clock remain.
+   the fifth 20% step.
+16. **Plant Your Feet's stillness clock is live**: `card_still_x/y/since` mirror the source `stillX/stillY/stillSince`; the
+   after-damage system marks a moved (or downed) owner as last seen moving now, `plant_armed` reads the flag and
+   `PLANT_FEET_MS` (1 s), and `spend_plant` restarts the clock when the armed attack is spent. A focused test pins the arming
+   and the spend. (The dot-crit accumulator was already ported on the shared core; no duplicate was kept.)
 
 ## Measurements
 
-- `cargo test --workspace --all-features --locked` (throwaway PostgreSQL): **1,402 passed, 0 failed, 3 ignored, 151 test
+- `cargo test --workspace --all-features --locked` (throwaway PostgreSQL): **1,403 passed, 0 failed, 3 ignored, 151 test
   binaries, exit 0** (after the full-pool drop, the 21/21 terrain kernel, the allocation-free on-hit hook, the Fists of Fury
   multiplicity, the streak memory, Wishful Thinking, heal over time, Second Wind's trigger, Spiked Shell's return, Tank Engine's fortify, Adrenaline's boost and the teleport resets).
 - Catalog differentials: **2/2** (80 cards × all rows/selections; 80 × 4 eligibility entries incl. reasons).
