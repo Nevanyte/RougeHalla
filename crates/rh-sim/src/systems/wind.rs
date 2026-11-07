@@ -19,6 +19,15 @@ use crate::systems::{items, Cx};
 #[path = "wind_tests.rs"]
 mod tests;
 
+/// Legacy `consumables.install`: seed the private stream from the FINAL order salt (the order salt itself is drawn
+/// during initial-world setup) and draw the first timer. `raidStarted` re-arms it before the run.
+pub(crate) fn seed_install(w: &mut World, order_salt: u32) {
+    w.wind_rng = crate::rng::Mulberry32::new(order_salt ^ crate::constants::WIND_SEED_XOR);
+    let first = w.wind_rng.next_f64();
+    w.wind_next_at =
+        w.server_time + WIND_SPAWN_MIN_MS + first * (WIND_SPAWN_MAX_MS - WIND_SPAWN_MIN_MS);
+}
+
 fn arm(w: &mut World) {
     w.wind_next_at = w.server_time
         + WIND_SPAWN_MIN_MS

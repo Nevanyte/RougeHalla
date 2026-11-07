@@ -603,8 +603,10 @@ mod tests {
         let mut arena = practice_arena();
         arena.spawns = vec![Vec2::new(x, y)];
         // These scripted racks must keep their handle order: no wind emblems in this world.
-        let mut config = SimConfig::default();
-        config.consumables = false;
+        let config = SimConfig {
+            consumables: false,
+            ..SimConfig::default()
+        };
         Sim::reset_active(
             config,
             arena,

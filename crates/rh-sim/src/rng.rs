@@ -26,6 +26,7 @@ impl Mulberry32 {
     }
 
     /// The raw stream state (hashed and checkpointed; a test pins the wind stream's seed derivation).
+    #[cfg(test)]
     pub(crate) fn state(&self) -> u32 {
         self.state
     }

@@ -344,4 +344,3 @@ fn wind_emblems_match_the_source_tick_by_tick() {
     }
     assert_eq!(compared, 1600);
 }
-

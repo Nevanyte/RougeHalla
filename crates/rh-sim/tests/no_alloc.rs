@@ -703,9 +703,6 @@ fn a_steady_state_step_allocates_nothing() {
     }
 }
 
-/// A potion's Hot ticks: three potions are drunk in setup (the use action allocates its Hot vector by design), then every
-/// 500 ms step heals; the warmed steps after the use must allocate nothing.
-
 /// Wind emblems: one natural spawn and a real walk-over in setup, then 100 steady boost/expiry steps with the system live.
 fn wind_hot() {
     let ps = vec![
@@ -766,9 +763,15 @@ fn wind_hot() {
         sim.step_into(&mut ev);
         walked += 1;
     }
-    assert!(sim.players()[0].speed_boost_until > 0., "walked over an emblem in {walked} steps");
-    sim.submit(PlayerId(1), validate(RawCommand::Stop { seq: None }).unwrap())
-        .unwrap();
+    assert!(
+        sim.players()[0].speed_boost_until > 0.,
+        "walked over an emblem in {walked} steps"
+    );
+    sim.submit(
+        PlayerId(1),
+        validate(RawCommand::Stop { seq: None }).unwrap(),
+    )
+    .unwrap();
     sim.step_into(&mut ev);
     let mut out = Vec::with_capacity(64);
     let (mut measured, mut allocations) = (0u32, 0u64);
@@ -786,6 +789,8 @@ fn wind_hot() {
     assert_eq!(allocations, 0, "wind emblem allocations");
 }
 
+/// A potion's Hot ticks: three potions are drunk in setup (the use action allocates its Hot vector by design), then every
+/// 500 ms step heals; the warmed steps after the use must allocate nothing.
 fn potion_hot_ticks() {
     let ps: Vec<_> = (0..2)
         .map(|i| Placement {
