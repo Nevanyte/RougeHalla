@@ -495,12 +495,6 @@ pub struct Player {
     pub plan_ready: bool,
     pub build: crate::cards::Build,
     pub potion_small: u8,
-    /// Camp potions (legacy `potionLarge`): a bigger share than the small one, stored separately.
-    #[serde(default)]
-    pub potion_large: u8,
-    /// Camps this player's clear counted for (legacy `campsCleared`; the only consumer is a later card).
-    #[serde(default)]
-    pub camps_cleared: u16,
     pub(crate) healing_until: f64,
     pub potions_healing: u8,
     pub farm: crate::modifiers::Farm,
@@ -519,6 +513,13 @@ pub struct Player {
     /// Completed hunts; multiplies this player's Mark strength (legacy `huntStacks`).
     #[serde(default)]
     pub hunt_stacks: u8,
+    /// Camp potions (legacy `potionLarge`): a bigger share than the small one, stored separately. Appended after the
+    /// hot core so every pre-existing field keeps its offset.
+    #[serde(default)]
+    pub potion_large: u8,
+    /// Camps this player's clear counted for (legacy `campsCleared`; the only consumer is a later card).
+    #[serde(default)]
+    pub camps_cleared: u16,
 }
 
 impl Keyed for Player {
