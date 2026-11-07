@@ -91,7 +91,8 @@ ledger.
       malformed, 10 chains, 15,484 checks against `v9.json`; `dotnet test client-unity/RoguehallaNet.Tests` — 271 passed.
 - [x] `cargo fmt --all --check`; both strict Clippy workspace modes.
 - [ ] `cargo test --workspace --all-features --locked` (throwaway PostgreSQL) — RUNNING.
-- [ ] `node tools/browser-proof/proof.mjs` — RUNNING.
+- [x] `node tools/browser-proof/proof.mjs` — **15/15 checks PASS**, protocol **9**, 4 Full + 415 delta snapshots, no page
+      errors, content hash `b9ea06c370690603` (the page's own decoder reads the new `potionLarge` inventory byte).
 
 ## 7. Commands
 

@@ -732,6 +732,9 @@ fn potion_hot_ticks() {
     let (mut measured, mut allocations, mut heals) = (0u32, 0u64, 0u32);
     for _ in 0..100 {
         out.clear();
+        // The schedule trace (a test-only feature) is a growing log: keep it bounded so it is not counted as the tick's.
+        #[cfg(feature = "schedule-trace")]
+        sim.clear_schedule_trace();
         let before = dhat::HeapStats::get().total_blocks;
         sim.step_into(&mut out);
         let used = dhat::HeapStats::get().total_blocks - before;
