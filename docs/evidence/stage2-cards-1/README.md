@@ -104,6 +104,10 @@ catalog to a generated, corpus-verified table and the build to the source count 
    signature is running on; when it changes, the old target receives the card's magic damage-over-time (4 ticks x 1 s, value
    AP x 1/8, magic shares) when the owner owns the card and has AP, the target stands and is targetable. The hash tape is
    recalibrated for the new signature leaf.
+20. **The mark's card flags are live**: the mark tier's swap steps include **No Commutation** (each weapon swap counts twice) and
+   **Swift Judgment** (every second mark hit adds a step); **Heavier Sentence** multiplies the mark share by
+   `1 + 1.5 x (bonus max hp / base hp)`. (The shipped mark amplifier params are 1, so the source's top-tier/linger amp is a
+   no-op there.) Content hash `0x96d795398cfcc4fb`; the hash tape is verified.
 
 ## Measurements
 
