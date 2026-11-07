@@ -51,6 +51,11 @@ impl Runtime {
     pub fn wish_cooldown_mult(&self) -> f64 {
         MultSums::from_source_values(self.mults).get(fold::MultKey::WishCooldown)
     }
+    /// The attacker's folded damage multiplier (legacy `hitMultOf`), used to normalize a recorded hit before a bleed.
+    pub fn hit_mult(&self) -> f64 {
+        MultSums::from_source_values(self.mults).get(fold::MultKey::Hit)
+    }
+
     pub fn dot_mult(&self) -> f64 {
         MultSums::from_source_values(self.mults).get(fold::MultKey::Dot)
     }

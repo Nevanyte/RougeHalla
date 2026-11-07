@@ -7,6 +7,7 @@ pub use rules::{visit_content, Definition, DEFINITION};
 pub const SUPPORTED: [CardId; 3] = [CardId::SlowBurn, CardId::PocketSand, CardId::Siphon];
 mod catalog;
 mod catalog_data;
+pub(crate) mod on_hit;
 pub use catalog::*;
 
 /// The source build's card count map (one byte per card in wire order). A newtype so the 80-byte array has Default and a

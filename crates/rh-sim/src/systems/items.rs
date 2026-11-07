@@ -72,9 +72,15 @@ impl WeaponRt {
     }
 }
 
+/// The legacy hitLanded hook: the axe shred first, then the owned cards' on-hit rows.
+pub(crate) fn hit_landed(hx: &mut Hx, args: &HookArgs) {
+    axe_shred(hx, args);
+    crate::cards::on_hit::apply(hx, args);
+}
+
 /// Axe shred is the first effect of the legacy hitLanded hook. Returned hits
 /// do not proc it; the status is paid after every victim in the pass.
-pub(crate) fn hit_landed(hx: &mut Hx, args: &HookArgs) {
+fn axe_shred(hx: &mut Hx, args: &HookArgs) {
     let HookArgs::HitLanded { ref entry, .. } = *args else {
         return;
     };

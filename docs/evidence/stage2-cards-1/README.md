@@ -29,6 +29,11 @@ catalog to a generated, corpus-verified table and the build to the source count 
    without the old three-card restriction (the corpus now shows full-pool options such as Overkill/Third Time's the Charm)
    and the reward suite passes against them. This also closes the last terrain born-kernel partial case: the kernel is now
    **21/21 fully compared** (the old reward gap is gone).
+6. **The first card runtime hook is live**: `cardHooks.onHitLanded` now applies the owned cards' on-hit rows after the
+   weapon's special (Hemorrhage's bleed) with the source formula — the recorded hit normalized by the attacker's hit
+   multiplier, scaled by the weapon's on-hit power (sword 1.5, fists 1.2), as a physical damage-over-time with the
+   `bleed:<tick>` tag. A focused test pins the exact 7.5/s over 2 s value. The remaining on-hit families (non-dot statuses,
+   multiplicity flags, streak memory) and the rest of the card runtime stay open.
 
 ## Measurements
 
