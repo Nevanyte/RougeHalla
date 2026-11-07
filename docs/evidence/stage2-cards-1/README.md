@@ -124,10 +124,15 @@ catalog to a generated, corpus-verified table and the build to the source count 
    plus the attacker's rows) from a returned hit (the attacker's rows only, and only with the `eyeForAnEye` flag); a DoT tick, an
    ability, a signature or a derived follow-on sets off nothing. A focused test pins the bleed on a returned hit with the card
    and its absence without it.
+25. **Faction card columns apply at runtime, and Plague's dot-crit conversion is live**: the fold now reads each owned card's
+   faction `selection` (not the base rows only), so a Plague's Cruel Wounds is really its `byFaction` column (crit chance plus
+   the conversion flag); recompute stores the conversion factor `1 + crit chance x (CRIT_MULT - 1)` when the folded flags hold
+   `plagueDotCritConversion` on a Plague player, and `dot_mult` multiplies it in. Two focused tests pin the conversion and its
+   absence off-faction. The hash tape is recalibrated for the changed fold.
 
 ## Measurements
 
-- `cargo test --workspace --all-features --locked` (throwaway PostgreSQL): **1,406 passed, 0 failed, 3 ignored, 151 test
+- `cargo test --workspace --all-features --locked` (throwaway PostgreSQL): **1,408 passed, 0 failed, 3 ignored, 151 test
   binaries, exit 0** (after the full-pool drop, the 21/21 terrain kernel, the allocation-free on-hit hook, the Fists of Fury
   multiplicity, the streak memory, Wishful Thinking, heal over time, Second Wind's trigger, Spiked Shell's return, Tank Engine's fortify, Adrenaline's boost and the teleport resets).
 - Catalog differentials: **2/2** (80 cards × all rows/selections; 80 × 4 eligibility entries incl. reasons).
