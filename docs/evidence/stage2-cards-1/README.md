@@ -50,14 +50,17 @@ catalog to a generated, corpus-verified table and the build to the source count 
 8. **The hpBelow trigger runner is live** (`factions.onHurt` is ported): the Hurt hook walks the owned cards' hpBelow rows; a
    `once` row fires the first time a hurt leaves the fighter below its threshold (remembered in `Player.card_fired`), a
    repeat row fires when the hurt crosses it, and a `Heal` with `ms` starts the heal-over-time run (without `ms` it heals
-   at once). **Second Wind** is the reachable row and a focused test proves exactly one four-step run starts. The non-dot
-   on-hit families and the remaining trigger actions stay open.
+   at once). **Second Wind** is the reachable row and a focused test proves exactly one four-step run starts.
+9. **Spiked Shell returns damage**: the on-hit hook first runs the victim's \`hitTaken\` rows; a \`Return\` above its max-hp
+   threshold defers a physical hit back at the attacker (\`share x applied x returned multiplier\`, the victim's active weapon,
+   passive entry for the next tick's ledger, the first real user of \`DeferredQueue\`). A focused test pins the 15 = 0.15 x 100
+   return. The non-dot on-hit families, the boost/fortify actions and the \`vs\`/\`scale\` contexts stay open.
 
 ## Measurements
 
-- `cargo test --workspace --all-features --locked` (throwaway PostgreSQL): **1,396 passed, 0 failed, 3 ignored, 151 test
+- `cargo test --workspace --all-features --locked` (throwaway PostgreSQL): **1,397 passed, 0 failed, 3 ignored, 151 test
   binaries, exit 0** (after the full-pool drop, the 21/21 terrain kernel, the allocation-free on-hit hook, the Fists of Fury
-  multiplicity, the streak memory, Wishful Thinking, heal over time and Second Wind's trigger).
+  multiplicity, the streak memory, Wishful Thinking, heal over time, Second Wind's trigger and Spiked Shell's return).
 - Catalog differentials: **2/2** (80 cards × all rows/selections; 80 × 4 eligibility entries incl. reasons).
 - Protocol: Rust **11/11**, JS decoder **24 server vectors / 89 malformed / 10 chains / 15,454 checks**, C# **267/267**.
 - Browser proof (`node tools/browser-proof/proof.mjs`): **PASS**, protocol 7.
