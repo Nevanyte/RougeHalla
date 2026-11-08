@@ -23,6 +23,8 @@ pub mod wish;
 #[cfg(test)]
 mod knowledge_parity_tests;
 #[cfg(test)]
+mod knowledge_repair_tests;
+#[cfg(test)]
 mod mob_hunt_parity_tests;
 #[cfg(test)]
 mod parity_tests;
@@ -53,7 +55,7 @@ pub use mob_hunt::{
 pub use paths::{PathBudget, PathStats, RoomPathService, WalkAnswer, BOT_PATH_BUDGET_PER_TICK};
 pub use perception::Perception;
 pub use planning::{PlanDeal, PlanIntent, PlanLearned, PlanMap, PlanModule, PlanState};
-pub use random::Rng;
+pub use random::{derive, Rng};
 pub use types::{
     BotWeapon, Command, CommandType, ExGaussian, Intent, IntentBody, IntentChannel, IntentKind,
     IntentTiming, PerceptExtras, PersonaId, PersonaParams, Stimulus, StimulusKind, TierId,

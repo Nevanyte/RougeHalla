@@ -8,7 +8,7 @@ use crate::bots::knowledge::Knowledge;
 use crate::bots::paths::{PathBudget, RoomPathService};
 use crate::bots::perception::Perception;
 use crate::bots::planning::{PlanDeal, PlanLearned, PlanMap, PlanModule};
-use crate::bots::random::Rng;
+use crate::bots::random::{derive, Rng};
 use crate::bots::types::{
     Intent, IntentBody, IntentTiming, Percept, PersonaId, PersonaParams, Stimulus, StimulusKind,
     TierId, TierParams,
@@ -124,8 +124,14 @@ impl HumanBot {
     pub fn persona(&self) -> PersonaId {
         self.persona
     }
+
     fn tier_params(&self) -> &'static TierParams {
         TierParams::by_id(self.tier)
+    }
+    /// The decision stream's seed for a seat seed (unchanged by the Knowledge repair; the other streams use their own
+    /// hashes and are not touched either).
+    fn decide_seed(seed: u64) -> u32 {
+        (seed as u32).wrapping_mul(0x27d4_eb2d) ^ 0x1b56_c4e9
     }
     fn persona_params(&self) -> &'static PersonaParams {
         PersonaParams::by_id(self.persona)
@@ -286,7 +292,7 @@ impl Policy for HumanBot {
         let seed = m.seed;
         self.motor = Rng::new((seed as u32) ^ 0x9e37_79b9);
         self.lapse = Rng::new(((seed >> 32) as u32) ^ 0x85eb_ca6b);
-        self.decide = Rng::new((seed as u32).wrapping_mul(0x27d4_eb2d) ^ 0x1b56_c4e9);
+        self.decide = Rng::new(Self::decide_seed(seed));
         let map = BotMap::from_tile_map(&m.arena.map);
         self.map = Some(map.clone());
         self.humanizer = Some(Humanizer::new(TierParams::by_id(self.tier), map));
@@ -301,10 +307,11 @@ impl Policy for HumanBot {
         self.planning.reset();
         self.plan_map = PlanMap::from_arena(&m.arena);
         self.plan_learned = PlanLearned::default();
-        // Source brain construction: the Knowledge layer is drawn from the decide stream before any decision.
+        // Source brain.ts 141-147: the Knowledge layer has its own stream, mulberry32(derive(cfg.seed, 3)); the
+        // decision stream is untouched, so the first decision draw is the decision stream's first draw.
         self.knowledge = Some(Knowledge::create(
             TierParams::by_id(self.tier),
-            &mut self.decide,
+            &mut Rng::new(derive(seed as u32, 3)),
         ));
     }
     fn decide(&mut self, obs: &Observation) -> Vec<PublicCommand> {
@@ -479,5 +486,88 @@ impl HumanBot {
             // Pickup and Choose need the delivered item/chest handle, which this bounded fair view does not carry yet.
             C::Pickup { .. } | C::Choose { .. } => {}
         }
+    }
+}
+
+/// P-BOTS repair (Knowledge stream): the seat-level regression for the reset wiring. The source brain (brain.ts 141-147)
+/// creates the Knowledge layer from its own stream, mulberry32(derive(cfg.seed, 3)), before any decision; the port used
+/// to draw it from the decision stream (70 draws), which moved every later decision.
+#[cfg(test)]
+mod knowledge_repair_reset_tests {
+    use super::*;
+    use crate::bots::types::TIERS;
+    use rh_sim::constants::TICK_MS;
+
+    fn start(seed: u64) -> MatchStart {
+        MatchStart {
+            me: PlayerId(1),
+            seed,
+            arena: std::sync::Arc::new(rh_sim::arenas::practice_arena()),
+            content_hash: rh_sim::content::content_hash(),
+            observation_version: rh_sim::OBSERVATION_VERSION,
+            tick_ms: TICK_MS,
+        }
+    }
+
+    #[test]
+    fn knowledge_repair_reset_uses_the_separate_tag3_stream() {
+        let tier = TierId::Normal;
+        for seed in [0u64, 1, 7, 42] {
+            let mut bot = HumanBot::new(tier, PersonaId::Farmer);
+            bot.reset(&start(seed));
+            // (1) Knowledge is the separate tag3 construction (source brain.ts 146-147).
+            let expected = Knowledge::create(
+                TierParams::by_id(tier),
+                &mut Rng::new(derive(seed as u32, 3)),
+            );
+            assert_eq!(
+                bot.knowledge(),
+                Some(&expected),
+                "seed {seed}: reset must build Knowledge from mulberry32(derive(seed, 3))"
+            );
+            // The old wiring (Knowledge drawn from the decision stream) is a different layer: the regression cannot pass
+            // by coincidence for these declared seeds.
+            let wrong = Knowledge::create(
+                TierParams::by_id(tier),
+                &mut Rng::new(HumanBot::decide_seed(seed)),
+            );
+            assert_ne!(
+                &wrong, &expected,
+                "seed {seed}: the decision stream is not the tag3 stream"
+            );
+            // (2) The decision stream was not consumed: its next draw is the stream's first draw.
+            let mut decide = Rng::new(HumanBot::decide_seed(seed));
+            assert_eq!(
+                bot.decide.next_f64().to_bits(),
+                decide.next_f64().to_bits(),
+                "seed {seed}: reset must not advance the decision stream"
+            );
+        }
+    }
+
+    #[test]
+    fn knowledge_repair_tag3_vectors_are_the_source_derived_ones() {
+        // The packet's source-derived vector; the corpus test also checks these against the captured source derive.
+        assert_eq!(derive(0, 3), 3_971_731_199);
+        assert_eq!(derive(1, 3), 197_380_189);
+        assert_eq!(derive(7, 3), 2_057_029_952);
+        assert_eq!(derive(42, 3), 3_268_108_958);
+        assert_eq!(derive(u32::MAX, 3), 1_587_572_149);
+    }
+
+    #[test]
+    fn knowledge_repair_seat_tiers_still_draw_their_own_knowledge() {
+        // The tier table drives the layer (the capture varies it): a blind and a seer tier build different Knowledge.
+        let start = start(7);
+        let mut easy = HumanBot::new(TierId::Easy, PersonaId::Hunter);
+        easy.reset(&start);
+        let mut hard = HumanBot::new(TierId::Hard, PersonaId::Hunter);
+        hard.reset(&start);
+        assert_ne!(easy.knowledge(), hard.knowledge());
+        let tier = TierParams::by_id(TierId::Easy);
+        assert_eq!(
+            tier.knowledge, TIERS[0].knowledge,
+            "the layer is built from the tier table"
+        );
     }
 }

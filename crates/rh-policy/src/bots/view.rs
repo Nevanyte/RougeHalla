@@ -112,7 +112,12 @@ pub fn detect_features(probe: &FeatureProbe) -> Features {
             MessageData::Obj(members) => members.first().map(|(_, p)| p),
             _ => None,
         });
-    let player = probe.player.as_ref().or(first_player);
+    // Source probe.player ?? firstPlayer(probe.state): an explicit null player is missing, not an instance.
+    let player = probe
+        .player
+        .as_ref()
+        .filter(|player| !matches!(player, MessageData::Null))
+        .or(first_player);
     let has = |o: Option<&MessageData>, key: &str| o.is_some_and(|o| o.has(key));
     let hazards = probe.map_terrain.as_deref().is_some_and(has_floor_hazard) || probe.map_hazards;
     Features {

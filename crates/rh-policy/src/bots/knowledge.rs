@@ -73,7 +73,7 @@ fn share_key(me: FactionId, region: FactionId, elite: bool) -> usize {
 }
 
 /// One bot's Knowledge (types.ts Knowledge): immutable after creation.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Knowledge {
     faction_known: [bool; 10],
     weapon_known: [bool; 10],
@@ -184,7 +184,13 @@ impl Knowledge {
             edge: clamp(score + lead_term, -MAX_EDGE, MAX_EDGE),
             score: clamp(score, -MAX_EDGE, MAX_EDGE),
             known,
-            why: format!("{source} {score:.2}, hp lead {lead_term:.2}"),
+            // Source knowledge.ts uses Number.toFixed(2): JavaScript's decimal ties round away from zero, which
+            // Rust's formatter does not reproduce (0.125 formats as 0.12 there and 0.13 in JavaScript).
+            why: format!(
+                "{source} {}, hp lead {}",
+                rh_sim::kill_augments::js_to_fixed(score, 2),
+                rh_sim::kill_augments::js_to_fixed(lead_term, 2)
+            ),
         }
     }
 }

@@ -24,6 +24,15 @@ pub fn ln(x: f64) -> f64 {
     y
 }
 
+/// A seed for one of a bot's streams (source brain.ts derive): the bot's 32-bit seed mixed with a tag, so no two
+/// streams of a bot (or of two bots) march in step. The same murmur finaliser the manager and the tournament use.
+pub fn derive(seed: u32, tag: u32) -> u32 {
+    let mut h = seed.wrapping_mul(0x9e37_79b1) ^ tag.wrapping_add(1).wrapping_mul(0x85eb_ca6b);
+    h = (h ^ (h >> 16)).wrapping_mul(0x7feb_352d);
+    h = (h ^ (h >> 15)).wrapping_mul(0x846c_a68b);
+    h ^ (h >> 16)
+}
+
 /// The legacy shared Rng: mulberry32, floats in [0, 1).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Rng {

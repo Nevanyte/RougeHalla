@@ -1,0 +1,4977 @@
+{
+ "format": "rh-bot-knowledge-repair-source/1",
+ "profile": {
+  "node": "v22.23.4",
+  "platform": "linux",
+  "arch": "x64",
+  "sourceFiles": {
+   "packages/server/src/bots/brain/brain.ts": "e5068026aba10f5bfe85d806b33cb76c4fc7e4408a958d87703dc1f3a391f800",
+   "packages/server/src/bots/brain/knowledge.ts": "5709954e5f8d65411ff5606b4b337b5cfc19af163833cd1f147279affd9ce263",
+   "packages/server/src/bots/brain/perception.ts": "059dba28d67a588be8b9f491cd69a242e841545a3b1863ce798da2e3f085390a",
+   "packages/server/src/bots/brain/random.ts": "a23fb8d369ffced9e30719706b12eb5ec65afb14da16429a7cdc9dbc7e3f92f7",
+   "packages/server/src/bots/brain/types.ts": "12b3cae05bcde760cd642b9c5eb9919bfc47189882c81258994c9f1122d3d361",
+   "packages/server/src/bots/mobHunt.ts": "88fc22040e62b1bc5226c37c16095032533df1e104dee0b27fdcb671c33fe6ff",
+   "packages/shared/src/factions.ts": "aa0cebf1c17af17b64bc1e020c4613ab10788ec66d82a72232aef8915d5403f3",
+   "packages/shared/src/weapons.ts": "2f22f037502fe63fae6b47f20408cfd35ebc72bfea081194ae8d18cfc21df99b",
+   "packages/shared/src/rng.ts": "412bdcee4a5adcb6163bff3561cb4a07eff423dc7e30e9ba0694cb41b05b1bec",
+   "packages/shared/src/constants.ts": "51ce4dd800ec868abee525fb1ae375688066f336972a7da878644df1235924e7",
+   "packages/shared/src/planning.ts": "8d52b212f6fec391359787cf9d81b8fa31a067ea839a2b9ccadc58c059027cb2",
+   "packages/shared/src/mobs.ts": "3b567c08363d8d4f1e9a897240b3d99d5b8ded7757b6809a4b534b63d72b5522",
+   "packages/shared/src/mark.ts": "44870381fa48b9c8f65f180ff74995725644d7264df5b069a3c43c2291540661",
+   "packages/shared/src/signatureShares.ts": "e6996931487dde9d4e3f71481a9da996f7500fbcd2148f7924ed730a78eba1a4",
+   "packages/shared/src/map.ts": "35caac04108a3bd0e1d880a9502f14bdccb3a9a17d262cba335c3d6436995eed",
+   "packages/shared/src/signatures.ts": "0a6befbb5a6fe9870b13a540d72235085c491668c8cae3674fa8faf89816e191"
+  },
+  "tool": "958872a86840d871c708342ef342e6b9edc09f81d235157c616fb3cd725a163e",
+  "captureSha256": "e4b284d588ad93028d1c71f21bd41e249e8e944faa21ed0a904b1e64691ecbc3"
+ },
+ "wiring": {
+  "file": "packages/server/src/bots/brain/brain.ts",
+  "line": 146,
+  "createLine": 147,
+  "lines": [
+   {
+    "line": 141,
+    "text": "const rng: BrainRngs = {"
+   },
+   {
+    "line": 142,
+    "text": "decide: mulberry32(derive(cfg.seed, 0)),"
+   },
+   {
+    "line": 143,
+    "text": "motor: mulberry32(derive(cfg.seed, 1)),"
+   },
+   {
+    "line": 144,
+    "text": "lapse: mulberry32(derive(cfg.seed, 2)),"
+   },
+   {
+    "line": 146,
+    "text": "const knowledgeRng: Rng = mulberry32(derive(cfg.seed, 3));"
+   }
+  ],
+  "tag": 3,
+  "deriveTextSha256": "6e570bd6126a1d7e596b34ace7f94416e7852c3c957ec4902e2e42b84eaab565",
+  "fingerprintPair": {
+   "me": {
+    "weapons": [
+     "fists",
+     "sword"
+    ],
+    "slot": 0,
+    "faction": "fire",
+    "hp": 80,
+    "maxHp": 100
+   },
+   "them": {
+    "id": "foe",
+    "faction": "frost",
+    "inHand": "axe",
+    "otherSlot": null,
+    "hpFrac": 0.4,
+    "bounty": 30,
+    "dist": 300,
+    "tint": 0
+   }
+  },
+  "probes": [
+   {
+    "seed": 0,
+    "tag": 3,
+    "derived": 3971731199,
+    "firstDraws": [
+     0.9278074121102691,
+     0.5370454592630267,
+     0.020639754366129637
+    ],
+    "tag3Fingerprint": {
+     "factions": [
+      {
+       "a": "fire",
+       "b": "sentenced",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "fire",
+       "b": "plague",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "sentenced",
+       "b": "plague",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "sentenced",
+       "b": "frost",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "plague",
+       "b": "frost",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "plague",
+       "b": "holy",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "frost",
+       "b": "holy",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "frost",
+       "b": "fire",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "holy",
+       "b": "fire",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "holy",
+       "b": "sentenced",
+       "ab": 0,
+       "ba": 0
+      }
+     ],
+     "weapons": [
+      {
+       "a": "sword",
+       "b": "axe",
+       "ab": 1,
+       "ba": -1
+      },
+      {
+       "a": "sword",
+       "b": "wand",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "bow",
+       "b": "sword",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "bow",
+       "b": "axe",
+       "ab": 1,
+       "ba": -1
+      },
+      {
+       "a": "wand",
+       "b": "bow",
+       "ab": 1,
+       "ba": -1
+      },
+      {
+       "a": "wand",
+       "b": "shield",
+       "ab": 1,
+       "ba": -1
+      },
+      {
+       "a": "shield",
+       "b": "sword",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "shield",
+       "b": "bow",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "axe",
+       "b": "wand",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "axe",
+       "b": "shield",
+       "ab": 0,
+       "ba": 0
+      }
+     ],
+     "mobShare": [
+      {
+       "me": "fire",
+       "region": "fire",
+       "elite": false,
+       "share": 1
+      },
+      {
+       "me": "fire",
+       "region": "fire",
+       "elite": true,
+       "share": 0
+      },
+      {
+       "me": "fire",
+       "region": "sentenced",
+       "elite": false,
+       "share": 1
+      },
+      {
+       "me": "fire",
+       "region": "sentenced",
+       "elite": true,
+       "share": 0
+      },
+      {
+       "me": "fire",
+       "region": "plague",
+       "elite": false,
+       "share": 0.975181
+      },
+      {
+       "me": "fire",
+       "region": "plague",
+       "elite": true,
+       "share": 0.050151
+      },
+      {
+       "me": "fire",
+       "region": "frost",
+       "elite": false,
+       "share": 0.879985
+      },
+      {
+       "me": "fire",
+       "region": "frost",
+       "elite": true,
+       "share": 0
+      },
+      {
+       "me": "fire",
+       "region": "holy",
+       "elite": false,
+       "share": 0.881596
+      },
+      {
+       "me": "fire",
+       "region": "holy",
+       "elite": true,
+       "share": 0.001986
+      },
+      {
+       "me": "sentenced",
+       "region": "fire",
+       "elite": false,
+       "share": 0.958423
+      },
+      {
+       "me": "sentenced",
+       "region": "fire",
+       "elite": true,
+       "share": 0.249815
+      },
+      {
+       "me": "sentenced",
+       "region": "sentenced",
+       "elite": false,
+       "share": 0.984534
+      },
+      {
+       "me": "sentenced",
+       "region": "sentenced",
+       "elite": true,
+       "share": 0.307069
+      },
+      {
+       "me": "sentenced",
+       "region": "plague",
+       "elite": false,
+       "share": 0.820586
+      },
+      {
+       "me": "sentenced",
+       "region": "plague",
+       "elite": true,
+       "share": 0.34986
+      },
+      {
+       "me": "sentenced",
+       "region": "frost",
+       "elite": false,
+       "share": 0.995059
+      },
+      {
+       "me": "sentenced",
+       "region": "frost",
+       "elite": true,
+       "share": 0.120916
+      },
+      {
+       "me": "sentenced",
+       "region": "holy",
+       "elite": false,
+       "share": 0.864754
+      },
+      {
+       "me": "sentenced",
+       "region": "holy",
+       "elite": true,
+       "share": 0.338882
+      },
+      {
+       "me": "plague",
+       "region": "fire",
+       "elite": false,
+       "share": 0.90121
+      },
+      {
+       "me": "plague",
+       "region": "fire",
+       "elite": true,
+       "share": 0.053663
+      },
+      {
+       "me": "plague",
+       "region": "sentenced",
+       "elite": false,
+       "share": 0.952967
+      },
+      {
+       "me": "plague",
+       "region": "sentenced",
+       "elite": true,
+       "share": 0.074977
+      },
+      {
+       "me": "plague",
+       "region": "plague",
+       "elite": false,
+       "share": 0.947154
+      },
+      {
+       "me": "plague",
+       "region": "plague",
+       "elite": true,
+       "share": 0
+      },
+      {
+       "me": "plague",
+       "region": "frost",
+       "elite": false,
+       "share": 0.860032
+      },
+      {
+       "me": "plague",
+       "region": "frost",
+       "elite": true,
+       "share": 0.012527
+      },
+      {
+       "me": "plague",
+       "region": "holy",
+       "elite": false,
+       "share": 0.983539
+      },
+      {
+       "me": "plague",
+       "region": "holy",
+       "elite": true,
+       "share": 0.129197
+      },
+      {
+       "me": "frost",
+       "region": "fire",
+       "elite": false,
+       "share": 0.809831
+      },
+      {
+       "me": "frost",
+       "region": "fire",
+       "elite": true,
+       "share": 0.034386
+      },
+      {
+       "me": "frost",
+       "region": "sentenced",
+       "elite": false,
+       "share": 0.941831
+      },
+      {
+       "me": "frost",
+       "region": "sentenced",
+       "elite": true,
+       "share": 0.030268
+      },
+      {
+       "me": "frost",
+       "region": "plague",
+       "elite": false,
+       "share": 0.924467
+      },
+      {
+       "me": "frost",
+       "region": "plague",
+       "elite": true,
+       "share": 0
+      },
+      {
+       "me": "frost",
+       "region": "frost",
+       "elite": false,
+       "share": 0.912534
+      },
+      {
+       "me": "frost",
+       "region": "frost",
+       "elite": true,
+       "share": 0.134828
+      },
+      {
+       "me": "frost",
+       "region": "holy",
+       "elite": false,
+       "share": 1
+      },
+      {
+       "me": "frost",
+       "region": "holy",
+       "elite": true,
+       "share": 0
+      },
+      {
+       "me": "holy",
+       "region": "fire",
+       "elite": false,
+       "share": 1
+      },
+      {
+       "me": "holy",
+       "region": "fire",
+       "elite": true,
+       "share": 0.213671
+      },
+      {
+       "me": "holy",
+       "region": "sentenced",
+       "elite": false,
+       "share": 0.955079
+      },
+      {
+       "me": "holy",
+       "region": "sentenced",
+       "elite": true,
+       "share": 0.174635
+      },
+      {
+       "me": "holy",
+       "region": "plague",
+       "elite": false,
+       "share": 0.974658
+      },
+      {
+       "me": "holy",
+       "region": "plague",
+       "elite": true,
+       "share": 0.388729
+      },
+      {
+       "me": "holy",
+       "region": "frost",
+       "elite": false,
+       "share": 0.888106
+      },
+      {
+       "me": "holy",
+       "region": "frost",
+       "elite": true,
+       "share": 0.181981
+      },
+      {
+       "me": "holy",
+       "region": "holy",
+       "elite": false,
+       "share": 0.835525
+      },
+      {
+       "me": "holy",
+       "region": "holy",
+       "elite": true,
+       "share": 0.508205
+      }
+     ],
+     "odds": {
+      "edge": 0.8,
+      "score": 0,
+      "known": true,
+      "why": "known 0.00, hp lead 0.80"
+     }
+    },
+    "decideFingerprint": {
+     "factions": [
+      {
+       "a": "fire",
+       "b": "sentenced",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "fire",
+       "b": "plague",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "sentenced",
+       "b": "plague",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "sentenced",
+       "b": "frost",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "plague",
+       "b": "frost",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "plague",
+       "b": "holy",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "frost",
+       "b": "holy",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "frost",
+       "b": "fire",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "holy",
+       "b": "fire",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "holy",
+       "b": "sentenced",
+       "ab": 0,
+       "ba": 0
+      }
+     ],
+     "weapons": [
+      {
+       "a": "sword",
+       "b": "axe",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "sword",
+       "b": "wand",
+       "ab": 1,
+       "ba": -1
+      },
+      {
+       "a": "bow",
+       "b": "sword",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "bow",
+       "b": "axe",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "wand",
+       "b": "bow",
+       "ab": 1,
+       "ba": -1
+      },
+      {
+       "a": "wand",
+       "b": "shield",
+       "ab": 1,
+       "ba": -1
+      },
+      {
+       "a": "shield",
+       "b": "sword",
+       "ab": 1,
+       "ba": -1
+      },
+      {
+       "a": "shield",
+       "b": "bow",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "axe",
+       "b": "wand",
+       "ab": 1,
+       "ba": -1
+      },
+      {
+       "a": "axe",
+       "b": "shield",
+       "ab": 0,
+       "ba": 0
+      }
+     ],
+     "mobShare": [
+      {
+       "me": "fire",
+       "region": "fire",
+       "elite": false,
+       "share": 0.870637
+      },
+      {
+       "me": "fire",
+       "region": "fire",
+       "elite": true,
+       "share": 0.059367
+      },
+      {
+       "me": "fire",
+       "region": "sentenced",
+       "elite": false,
+       "share": 0.849085
+      },
+      {
+       "me": "fire",
+       "region": "sentenced",
+       "elite": true,
+       "share": 0.102975
+      },
+      {
+       "me": "fire",
+       "region": "plague",
+       "elite": false,
+       "share": 0.928879
+      },
+      {
+       "me": "fire",
+       "region": "plague",
+       "elite": true,
+       "share": 0
+      },
+      {
+       "me": "fire",
+       "region": "frost",
+       "elite": false,
+       "share": 1
+      },
+      {
+       "me": "fire",
+       "region": "frost",
+       "elite": true,
+       "share": 0
+      },
+      {
+       "me": "fire",
+       "region": "holy",
+       "elite": false,
+       "share": 0.891903
+      },
+      {
+       "me": "fire",
+       "region": "holy",
+       "elite": true,
+       "share": 0.064279
+      },
+      {
+       "me": "sentenced",
+       "region": "fire",
+       "elite": false,
+       "share": 1
+      },
+      {
+       "me": "sentenced",
+       "region": "fire",
+       "elite": true,
+       "share": 0.235335
+      },
+      {
+       "me": "sentenced",
+       "region": "sentenced",
+       "elite": false,
+       "share": 0.909713
+      },
+      {
+       "me": "sentenced",
+       "region": "sentenced",
+       "elite": true,
+       "share": 0.262302
+      },
+      {
+       "me": "sentenced",
+       "region": "plague",
+       "elite": false,
+       "share": 0.949065
+      },
+      {
+       "me": "sentenced",
+       "region": "plague",
+       "elite": true,
+       "share": 0.428843
+      },
+      {
+       "me": "sentenced",
+       "region": "frost",
+       "elite": false,
+       "share": 0.951445
+      },
+      {
+       "me": "sentenced",
+       "region": "frost",
+       "elite": true,
+       "share": 0.214723
+      },
+      {
+       "me": "sentenced",
+       "region": "holy",
+       "elite": false,
+       "share": 0.949223
+      },
+      {
+       "me": "sentenced",
+       "region": "holy",
+       "elite": true,
+       "share": 0.460811
+      },
+      {
+       "me": "plague",
+       "region": "fire",
+       "elite": false,
+       "share": 0.904016
+      },
+      {
+       "me": "plague",
+       "region": "fire",
+       "elite": true,
+       "share": 0.055383
+      },
+      {
+       "me": "plague",
+       "region": "sentenced",
+       "elite": false,
+       "share": 0.857527
+      },
+      {
+       "me": "plague",
+       "region": "sentenced",
+       "elite": true,
+       "share": 0
+      },
+      {
+       "me": "plague",
+       "region": "plague",
+       "elite": false,
+       "share": 0.849429
+      },
+      {
+       "me": "plague",
+       "region": "plague",
+       "elite": true,
+       "share": 0
+      },
+      {
+       "me": "plague",
+       "region": "frost",
+       "elite": false,
+       "share": 1
+      },
+      {
+       "me": "plague",
+       "region": "frost",
+       "elite": true,
+       "share": 0
+      },
+      {
+       "me": "plague",
+       "region": "holy",
+       "elite": false,
+       "share": 1
+      },
+      {
+       "me": "plague",
+       "region": "holy",
+       "elite": true,
+       "share": 0.016799
+      },
+      {
+       "me": "frost",
+       "region": "fire",
+       "elite": false,
+       "share": 1
+      },
+      {
+       "me": "frost",
+       "region": "fire",
+       "elite": true,
+       "share": 0.103331
+      },
+      {
+       "me": "frost",
+       "region": "sentenced",
+       "elite": false,
+       "share": 1
+      },
+      {
+       "me": "frost",
+       "region": "sentenced",
+       "elite": true,
+       "share": 0
+      },
+      {
+       "me": "frost",
+       "region": "plague",
+       "elite": false,
+       "share": 1
+      },
+      {
+       "me": "frost",
+       "region": "plague",
+       "elite": true,
+       "share": 0.149398
+      },
+      {
+       "me": "frost",
+       "region": "frost",
+       "elite": false,
+       "share": 0.952838
+      },
+      {
+       "me": "frost",
+       "region": "frost",
+       "elite": true,
+       "share": 0
+      },
+      {
+       "me": "frost",
+       "region": "holy",
+       "elite": false,
+       "share": 1
+      },
+      {
+       "me": "frost",
+       "region": "holy",
+       "elite": true,
+       "share": 0
+      },
+      {
+       "me": "holy",
+       "region": "fire",
+       "elite": false,
+       "share": 0.860448
+      },
+      {
+       "me": "holy",
+       "region": "fire",
+       "elite": true,
+       "share": 0.134548
+      },
+      {
+       "me": "holy",
+       "region": "sentenced",
+       "elite": false,
+       "share": 0.996932
+      },
+      {
+       "me": "holy",
+       "region": "sentenced",
+       "elite": true,
+       "share": 0.249237
+      },
+      {
+       "me": "holy",
+       "region": "plague",
+       "elite": false,
+       "share": 0.863255
+      },
+      {
+       "me": "holy",
+       "region": "plague",
+       "elite": true,
+       "share": 0.153669
+      },
+      {
+       "me": "holy",
+       "region": "frost",
+       "elite": false,
+       "share": 0.957467
+      },
+      {
+       "me": "holy",
+       "region": "frost",
+       "elite": true,
+       "share": 0.181647
+      },
+      {
+       "me": "holy",
+       "region": "holy",
+       "elite": false,
+       "share": 1
+      },
+      {
+       "me": "holy",
+       "region": "holy",
+       "elite": true,
+       "share": 0.36948
+      }
+     ],
+     "odds": {
+      "edge": 0.8,
+      "score": 0,
+      "known": true,
+      "why": "known 0.00, hp lead 0.80"
+     }
+    },
+    "differs": true
+   },
+   {
+    "seed": 1,
+    "tag": 3,
+    "derived": 197380189,
+    "firstDraws": [
+     0.9471195223741233,
+     0.19349638815037906,
+     0.9382299722637981
+    ],
+    "tag3Fingerprint": {
+     "factions": [
+      {
+       "a": "fire",
+       "b": "sentenced",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "fire",
+       "b": "plague",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "sentenced",
+       "b": "plague",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "sentenced",
+       "b": "frost",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "plague",
+       "b": "frost",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "plague",
+       "b": "holy",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "frost",
+       "b": "holy",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "frost",
+       "b": "fire",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "holy",
+       "b": "fire",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "holy",
+       "b": "sentenced",
+       "ab": 0,
+       "ba": 0
+      }
+     ],
+     "weapons": [
+      {
+       "a": "sword",
+       "b": "axe",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "sword",
+       "b": "wand",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "bow",
+       "b": "sword",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "bow",
+       "b": "axe",
+       "ab": 1,
+       "ba": -1
+      },
+      {
+       "a": "wand",
+       "b": "bow",
+       "ab": 1,
+       "ba": -1
+      },
+      {
+       "a": "wand",
+       "b": "shield",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "shield",
+       "b": "sword",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "shield",
+       "b": "bow",
+       "ab": 1,
+       "ba": -1
+      },
+      {
+       "a": "axe",
+       "b": "wand",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "axe",
+       "b": "shield",
+       "ab": 0,
+       "ba": 0
+      }
+     ],
+     "mobShare": [
+      {
+       "me": "fire",
+       "region": "fire",
+       "elite": false,
+       "share": 0.909378
+      },
+      {
+       "me": "fire",
+       "region": "fire",
+       "elite": true,
+       "share": 0.043475
+      },
+      {
+       "me": "fire",
+       "region": "sentenced",
+       "elite": false,
+       "share": 1
+      },
+      {
+       "me": "fire",
+       "region": "sentenced",
+       "elite": true,
+       "share": 0
+      },
+      {
+       "me": "fire",
+       "region": "plague",
+       "elite": false,
+       "share": 1
+      },
+      {
+       "me": "fire",
+       "region": "plague",
+       "elite": true,
+       "share": 0
+      },
+      {
+       "me": "fire",
+       "region": "frost",
+       "elite": false,
+       "share": 0.864883
+      },
+      {
+       "me": "fire",
+       "region": "frost",
+       "elite": true,
+       "share": 0
+      },
+      {
+       "me": "fire",
+       "region": "holy",
+       "elite": false,
+       "share": 1
+      },
+      {
+       "me": "fire",
+       "region": "holy",
+       "elite": true,
+       "share": 0.076502
+      },
+      {
+       "me": "sentenced",
+       "region": "fire",
+       "elite": false,
+       "share": 0.836329
+      },
+      {
+       "me": "sentenced",
+       "region": "fire",
+       "elite": true,
+       "share": 0.294587
+      },
+      {
+       "me": "sentenced",
+       "region": "sentenced",
+       "elite": false,
+       "share": 0.882541
+      },
+      {
+       "me": "sentenced",
+       "region": "sentenced",
+       "elite": true,
+       "share": 0.139893
+      },
+      {
+       "me": "sentenced",
+       "region": "plague",
+       "elite": false,
+       "share": 1
+      },
+      {
+       "me": "sentenced",
+       "region": "plague",
+       "elite": true,
+       "share": 0.31363
+      },
+      {
+       "me": "sentenced",
+       "region": "frost",
+       "elite": false,
+       "share": 0.867509
+      },
+      {
+       "me": "sentenced",
+       "region": "frost",
+       "elite": true,
+       "share": 0.240164
+      },
+      {
+       "me": "sentenced",
+       "region": "holy",
+       "elite": false,
+       "share": 1
+      },
+      {
+       "me": "sentenced",
+       "region": "holy",
+       "elite": true,
+       "share": 0.37924
+      },
+      {
+       "me": "plague",
+       "region": "fire",
+       "elite": false,
+       "share": 0.957672
+      },
+      {
+       "me": "plague",
+       "region": "fire",
+       "elite": true,
+       "share": 0.009533
+      },
+      {
+       "me": "plague",
+       "region": "sentenced",
+       "elite": false,
+       "share": 0.972405
+      },
+      {
+       "me": "plague",
+       "region": "sentenced",
+       "elite": true,
+       "share": 0.010299
+      },
+      {
+       "me": "plague",
+       "region": "plague",
+       "elite": false,
+       "share": 0.984947
+      },
+      {
+       "me": "plague",
+       "region": "plague",
+       "elite": true,
+       "share": 0.016796
+      },
+      {
+       "me": "plague",
+       "region": "frost",
+       "elite": false,
+       "share": 1
+      },
+      {
+       "me": "plague",
+       "region": "frost",
+       "elite": true,
+       "share": 0.125603
+      },
+      {
+       "me": "plague",
+       "region": "holy",
+       "elite": false,
+       "share": 0.869186
+      },
+      {
+       "me": "plague",
+       "region": "holy",
+       "elite": true,
+       "share": 0.032546
+      },
+      {
+       "me": "frost",
+       "region": "fire",
+       "elite": false,
+       "share": 0.985079
+      },
+      {
+       "me": "frost",
+       "region": "fire",
+       "elite": true,
+       "share": 0
+      },
+      {
+       "me": "frost",
+       "region": "sentenced",
+       "elite": false,
+       "share": 1
+      },
+      {
+       "me": "frost",
+       "region": "sentenced",
+       "elite": true,
+       "share": 0.082546
+      },
+      {
+       "me": "frost",
+       "region": "plague",
+       "elite": false,
+       "share": 0.975496
+      },
+      {
+       "me": "frost",
+       "region": "plague",
+       "elite": true,
+       "share": 0
+      },
+      {
+       "me": "frost",
+       "region": "frost",
+       "elite": false,
+       "share": 1
+      },
+      {
+       "me": "frost",
+       "region": "frost",
+       "elite": true,
+       "share": 0
+      },
+      {
+       "me": "frost",
+       "region": "holy",
+       "elite": false,
+       "share": 0.855182
+      },
+      {
+       "me": "frost",
+       "region": "holy",
+       "elite": true,
+       "share": 0
+      },
+      {
+       "me": "holy",
+       "region": "fire",
+       "elite": false,
+       "share": 0.872718
+      },
+      {
+       "me": "holy",
+       "region": "fire",
+       "elite": true,
+       "share": 0.056159
+      },
+      {
+       "me": "holy",
+       "region": "sentenced",
+       "elite": false,
+       "share": 1
+      },
+      {
+       "me": "holy",
+       "region": "sentenced",
+       "elite": true,
+       "share": 0.109112
+      },
+      {
+       "me": "holy",
+       "region": "plague",
+       "elite": false,
+       "share": 0.900847
+      },
+      {
+       "me": "holy",
+       "region": "plague",
+       "elite": true,
+       "share": 0.409104
+      },
+      {
+       "me": "holy",
+       "region": "frost",
+       "elite": false,
+       "share": 0.925382
+      },
+      {
+       "me": "holy",
+       "region": "frost",
+       "elite": true,
+       "share": 0.209681
+      },
+      {
+       "me": "holy",
+       "region": "holy",
+       "elite": false,
+       "share": 1
+      },
+      {
+       "me": "holy",
+       "region": "holy",
+       "elite": true,
+       "share": 0.499285
+      }
+     ],
+     "odds": {
+      "edge": 0.8,
+      "score": 0,
+      "known": false,
+      "why": "partial 0.00, hp lead 0.80"
+     }
+    },
+    "decideFingerprint": {
+     "factions": [
+      {
+       "a": "fire",
+       "b": "sentenced",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "fire",
+       "b": "plague",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "sentenced",
+       "b": "plague",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "sentenced",
+       "b": "frost",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "plague",
+       "b": "frost",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "plague",
+       "b": "holy",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "frost",
+       "b": "holy",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "frost",
+       "b": "fire",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "holy",
+       "b": "fire",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "holy",
+       "b": "sentenced",
+       "ab": 0,
+       "ba": 0
+      }
+     ],
+     "weapons": [
+      {
+       "a": "sword",
+       "b": "axe",
+       "ab": 1,
+       "ba": -1
+      },
+      {
+       "a": "sword",
+       "b": "wand",
+       "ab": 1,
+       "ba": -1
+      },
+      {
+       "a": "bow",
+       "b": "sword",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "bow",
+       "b": "axe",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "wand",
+       "b": "bow",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "wand",
+       "b": "shield",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "shield",
+       "b": "sword",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "shield",
+       "b": "bow",
+       "ab": 1,
+       "ba": -1
+      },
+      {
+       "a": "axe",
+       "b": "wand",
+       "ab": 1,
+       "ba": -1
+      },
+      {
+       "a": "axe",
+       "b": "shield",
+       "ab": 1,
+       "ba": -1
+      }
+     ],
+     "mobShare": [
+      {
+       "me": "fire",
+       "region": "fire",
+       "elite": false,
+       "share": 1
+      },
+      {
+       "me": "fire",
+       "region": "fire",
+       "elite": true,
+       "share": 0.109626
+      },
+      {
+       "me": "fire",
+       "region": "sentenced",
+       "elite": false,
+       "share": 1
+      },
+      {
+       "me": "fire",
+       "region": "sentenced",
+       "elite": true,
+       "share": 0
+      },
+      {
+       "me": "fire",
+       "region": "plague",
+       "elite": false,
+       "share": 1
+      },
+      {
+       "me": "fire",
+       "region": "plague",
+       "elite": true,
+       "share": 0
+      },
+      {
+       "me": "fire",
+       "region": "frost",
+       "elite": false,
+       "share": 1
+      },
+      {
+       "me": "fire",
+       "region": "frost",
+       "elite": true,
+       "share": 0
+      },
+      {
+       "me": "fire",
+       "region": "holy",
+       "elite": false,
+       "share": 0.886365
+      },
+      {
+       "me": "fire",
+       "region": "holy",
+       "elite": true,
+       "share": 0
+      },
+      {
+       "me": "sentenced",
+       "region": "fire",
+       "elite": false,
+       "share": 1
+      },
+      {
+       "me": "sentenced",
+       "region": "fire",
+       "elite": true,
+       "share": 0.037647
+      },
+      {
+       "me": "sentenced",
+       "region": "sentenced",
+       "elite": false,
+       "share": 0.954908
+      },
+      {
+       "me": "sentenced",
+       "region": "sentenced",
+       "elite": true,
+       "share": 0.177093
+      },
+      {
+       "me": "sentenced",
+       "region": "plague",
+       "elite": false,
+       "share": 0.89475
+      },
+      {
+       "me": "sentenced",
+       "region": "plague",
+       "elite": true,
+       "share": 0.281717
+      },
+      {
+       "me": "sentenced",
+       "region": "frost",
+       "elite": false,
+       "share": 0.97495
+      },
+      {
+       "me": "sentenced",
+       "region": "frost",
+       "elite": true,
+       "share": 0.066124
+      },
+      {
+       "me": "sentenced",
+       "region": "holy",
+       "elite": false,
+       "share": 1
+      },
+      {
+       "me": "sentenced",
+       "region": "holy",
+       "elite": true,
+       "share": 0.320354
+      },
+      {
+       "me": "plague",
+       "region": "fire",
+       "elite": false,
+       "share": 0.946833
+      },
+      {
+       "me": "plague",
+       "region": "fire",
+       "elite": true,
+       "share": 0
+      },
+      {
+       "me": "plague",
+       "region": "sentenced",
+       "elite": false,
+       "share": 1
+      },
+      {
+       "me": "plague",
+       "region": "sentenced",
+       "elite": true,
+       "share": 0.05727
+      },
+      {
+       "me": "plague",
+       "region": "plague",
+       "elite": false,
+       "share": 1
+      },
+      {
+       "me": "plague",
+       "region": "plague",
+       "elite": true,
+       "share": 0.029355
+      },
+      {
+       "me": "plague",
+       "region": "frost",
+       "elite": false,
+       "share": 0.828166
+      },
+      {
+       "me": "plague",
+       "region": "frost",
+       "elite": true,
+       "share": 0
+      },
+      {
+       "me": "plague",
+       "region": "holy",
+       "elite": false,
+       "share": 0.97059
+      },
+      {
+       "me": "plague",
+       "region": "holy",
+       "elite": true,
+       "share": 0.139421
+      },
+      {
+       "me": "frost",
+       "region": "fire",
+       "elite": false,
+       "share": 1
+      },
+      {
+       "me": "frost",
+       "region": "fire",
+       "elite": true,
+       "share": 0
+      },
+      {
+       "me": "frost",
+       "region": "sentenced",
+       "elite": false,
+       "share": 0.821579
+      },
+      {
+       "me": "frost",
+       "region": "sentenced",
+       "elite": true,
+       "share": 0.049834
+      },
+      {
+       "me": "frost",
+       "region": "plague",
+       "elite": false,
+       "share": 0.964874
+      },
+      {
+       "me": "frost",
+       "region": "plague",
+       "elite": true,
+       "share": 0
+      },
+      {
+       "me": "frost",
+       "region": "frost",
+       "elite": false,
+       "share": 0.908066
+      },
+      {
+       "me": "frost",
+       "region": "frost",
+       "elite": true,
+       "share": 0
+      },
+      {
+       "me": "frost",
+       "region": "holy",
+       "elite": false,
+       "share": 0.840902
+      },
+      {
+       "me": "frost",
+       "region": "holy",
+       "elite": true,
+       "share": 0.065291
+      },
+      {
+       "me": "holy",
+       "region": "fire",
+       "elite": false,
+       "share": 0.98768
+      },
+      {
+       "me": "holy",
+       "region": "fire",
+       "elite": true,
+       "share": 0.126594
+      },
+      {
+       "me": "holy",
+       "region": "sentenced",
+       "elite": false,
+       "share": 0.823767
+      },
+      {
+       "me": "holy",
+       "region": "sentenced",
+       "elite": true,
+       "share": 0.153607
+      },
+      {
+       "me": "holy",
+       "region": "plague",
+       "elite": false,
+       "share": 0.886366
+      },
+      {
+       "me": "holy",
+       "region": "plague",
+       "elite": true,
+       "share": 0.329166
+      },
+      {
+       "me": "holy",
+       "region": "frost",
+       "elite": false,
+       "share": 0.874851
+      },
+      {
+       "me": "holy",
+       "region": "frost",
+       "elite": true,
+       "share": 0.184584
+      },
+      {
+       "me": "holy",
+       "region": "holy",
+       "elite": false,
+       "share": 1
+      },
+      {
+       "me": "holy",
+       "region": "holy",
+       "elite": true,
+       "share": 0.354847
+      }
+     ],
+     "odds": {
+      "edge": 0.8,
+      "score": 0,
+      "known": true,
+      "why": "known 0.00, hp lead 0.80"
+     }
+    },
+    "differs": true
+   },
+   {
+    "seed": 7,
+    "tag": 3,
+    "derived": 2057029952,
+    "firstDraws": [
+     0.9701626852620393,
+     0.016678885091096163,
+     0.42593536362983286
+    ],
+    "tag3Fingerprint": {
+     "factions": [
+      {
+       "a": "fire",
+       "b": "sentenced",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "fire",
+       "b": "plague",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "sentenced",
+       "b": "plague",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "sentenced",
+       "b": "frost",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "plague",
+       "b": "frost",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "plague",
+       "b": "holy",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "frost",
+       "b": "holy",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "frost",
+       "b": "fire",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "holy",
+       "b": "fire",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "holy",
+       "b": "sentenced",
+       "ab": 0,
+       "ba": 0
+      }
+     ],
+     "weapons": [
+      {
+       "a": "sword",
+       "b": "axe",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "sword",
+       "b": "wand",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "bow",
+       "b": "sword",
+       "ab": 1,
+       "ba": -1
+      },
+      {
+       "a": "bow",
+       "b": "axe",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "wand",
+       "b": "bow",
+       "ab": 1,
+       "ba": -1
+      },
+      {
+       "a": "wand",
+       "b": "shield",
+       "ab": 1,
+       "ba": -1
+      },
+      {
+       "a": "shield",
+       "b": "sword",
+       "ab": 1,
+       "ba": -1
+      },
+      {
+       "a": "shield",
+       "b": "bow",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "axe",
+       "b": "wand",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "axe",
+       "b": "shield",
+       "ab": 0,
+       "ba": 0
+      }
+     ],
+     "mobShare": [
+      {
+       "me": "fire",
+       "region": "fire",
+       "elite": false,
+       "share": 0.844952
+      },
+      {
+       "me": "fire",
+       "region": "fire",
+       "elite": true,
+       "share": 0
+      },
+      {
+       "me": "fire",
+       "region": "sentenced",
+       "elite": false,
+       "share": 1
+      },
+      {
+       "me": "fire",
+       "region": "sentenced",
+       "elite": true,
+       "share": 0
+      },
+      {
+       "me": "fire",
+       "region": "plague",
+       "elite": false,
+       "share": 0.838491
+      },
+      {
+       "me": "fire",
+       "region": "plague",
+       "elite": true,
+       "share": 0
+      },
+      {
+       "me": "fire",
+       "region": "frost",
+       "elite": false,
+       "share": 1
+      },
+      {
+       "me": "fire",
+       "region": "frost",
+       "elite": true,
+       "share": 0
+      },
+      {
+       "me": "fire",
+       "region": "holy",
+       "elite": false,
+       "share": 0.901498
+      },
+      {
+       "me": "fire",
+       "region": "holy",
+       "elite": true,
+       "share": 0.058144
+      },
+      {
+       "me": "sentenced",
+       "region": "fire",
+       "elite": false,
+       "share": 1
+      },
+      {
+       "me": "sentenced",
+       "region": "fire",
+       "elite": true,
+       "share": 0.27526
+      },
+      {
+       "me": "sentenced",
+       "region": "sentenced",
+       "elite": false,
+       "share": 0.979941
+      },
+      {
+       "me": "sentenced",
+       "region": "sentenced",
+       "elite": true,
+       "share": 0.353818
+      },
+      {
+       "me": "sentenced",
+       "region": "plague",
+       "elite": false,
+       "share": 0.936123
+      },
+      {
+       "me": "sentenced",
+       "region": "plague",
+       "elite": true,
+       "share": 0.313729
+      },
+      {
+       "me": "sentenced",
+       "region": "frost",
+       "elite": false,
+       "share": 1
+      },
+      {
+       "me": "sentenced",
+       "region": "frost",
+       "elite": true,
+       "share": 0.230316
+      },
+      {
+       "me": "sentenced",
+       "region": "holy",
+       "elite": false,
+       "share": 0.87756
+      },
+      {
+       "me": "sentenced",
+       "region": "holy",
+       "elite": true,
+       "share": 0.55091
+      },
+      {
+       "me": "plague",
+       "region": "fire",
+       "elite": false,
+       "share": 0.938608
+      },
+      {
+       "me": "plague",
+       "region": "fire",
+       "elite": true,
+       "share": 0
+      },
+      {
+       "me": "plague",
+       "region": "sentenced",
+       "elite": false,
+       "share": 0.95069
+      },
+      {
+       "me": "plague",
+       "region": "sentenced",
+       "elite": true,
+       "share": 0.117883
+      },
+      {
+       "me": "plague",
+       "region": "plague",
+       "elite": false,
+       "share": 0.811973
+      },
+      {
+       "me": "plague",
+       "region": "plague",
+       "elite": true,
+       "share": 0
+      },
+      {
+       "me": "plague",
+       "region": "frost",
+       "elite": false,
+       "share": 1
+      },
+      {
+       "me": "plague",
+       "region": "frost",
+       "elite": true,
+       "share": 0
+      },
+      {
+       "me": "plague",
+       "region": "holy",
+       "elite": false,
+       "share": 0.989326
+      },
+      {
+       "me": "plague",
+       "region": "holy",
+       "elite": true,
+       "share": 0
+      },
+      {
+       "me": "frost",
+       "region": "fire",
+       "elite": false,
+       "share": 1
+      },
+      {
+       "me": "frost",
+       "region": "fire",
+       "elite": true,
+       "share": 0.094471
+      },
+      {
+       "me": "frost",
+       "region": "sentenced",
+       "elite": false,
+       "share": 0.89919
+      },
+      {
+       "me": "frost",
+       "region": "sentenced",
+       "elite": true,
+       "share": 0
+      },
+      {
+       "me": "frost",
+       "region": "plague",
+       "elite": false,
+       "share": 0.979295
+      },
+      {
+       "me": "frost",
+       "region": "plague",
+       "elite": true,
+       "share": 0
+      },
+      {
+       "me": "frost",
+       "region": "frost",
+       "elite": false,
+       "share": 0.907434
+      },
+      {
+       "me": "frost",
+       "region": "frost",
+       "elite": true,
+       "share": 0
+      },
+      {
+       "me": "frost",
+       "region": "holy",
+       "elite": false,
+       "share": 0.879802
+      },
+      {
+       "me": "frost",
+       "region": "holy",
+       "elite": true,
+       "share": 0
+      },
+      {
+       "me": "holy",
+       "region": "fire",
+       "elite": false,
+       "share": 0.880527
+      },
+      {
+       "me": "holy",
+       "region": "fire",
+       "elite": true,
+       "share": 0.261719
+      },
+      {
+       "me": "holy",
+       "region": "sentenced",
+       "elite": false,
+       "share": 1
+      },
+      {
+       "me": "holy",
+       "region": "sentenced",
+       "elite": true,
+       "share": 0.225482
+      },
+      {
+       "me": "holy",
+       "region": "plague",
+       "elite": false,
+       "share": 1
+      },
+      {
+       "me": "holy",
+       "region": "plague",
+       "elite": true,
+       "share": 0.151508
+      },
+      {
+       "me": "holy",
+       "region": "frost",
+       "elite": false,
+       "share": 0.831818
+      },
+      {
+       "me": "holy",
+       "region": "frost",
+       "elite": true,
+       "share": 0.135403
+      },
+      {
+       "me": "holy",
+       "region": "holy",
+       "elite": false,
+       "share": 0.85351
+      },
+      {
+       "me": "holy",
+       "region": "holy",
+       "elite": true,
+       "share": 0.521706
+      }
+     ],
+     "odds": {
+      "edge": 0.8,
+      "score": 0,
+      "known": false,
+      "why": "partial 0.00, hp lead 0.80"
+     }
+    },
+    "decideFingerprint": {
+     "factions": [
+      {
+       "a": "fire",
+       "b": "sentenced",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "fire",
+       "b": "plague",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "sentenced",
+       "b": "plague",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "sentenced",
+       "b": "frost",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "plague",
+       "b": "frost",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "plague",
+       "b": "holy",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "frost",
+       "b": "holy",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "frost",
+       "b": "fire",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "holy",
+       "b": "fire",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "holy",
+       "b": "sentenced",
+       "ab": 0,
+       "ba": 0
+      }
+     ],
+     "weapons": [
+      {
+       "a": "sword",
+       "b": "axe",
+       "ab": 1,
+       "ba": -1
+      },
+      {
+       "a": "sword",
+       "b": "wand",
+       "ab": 1,
+       "ba": -1
+      },
+      {
+       "a": "bow",
+       "b": "sword",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "bow",
+       "b": "axe",
+       "ab": 1,
+       "ba": -1
+      },
+      {
+       "a": "wand",
+       "b": "bow",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "wand",
+       "b": "shield",
+       "ab": 1,
+       "ba": -1
+      },
+      {
+       "a": "shield",
+       "b": "sword",
+       "ab": 1,
+       "ba": -1
+      },
+      {
+       "a": "shield",
+       "b": "bow",
+       "ab": 1,
+       "ba": -1
+      },
+      {
+       "a": "axe",
+       "b": "wand",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "axe",
+       "b": "shield",
+       "ab": 1,
+       "ba": -1
+      }
+     ],
+     "mobShare": [
+      {
+       "me": "fire",
+       "region": "fire",
+       "elite": false,
+       "share": 0.84839
+      },
+      {
+       "me": "fire",
+       "region": "fire",
+       "elite": true,
+       "share": 0
+      },
+      {
+       "me": "fire",
+       "region": "sentenced",
+       "elite": false,
+       "share": 0.975177
+      },
+      {
+       "me": "fire",
+       "region": "sentenced",
+       "elite": true,
+       "share": 0
+      },
+      {
+       "me": "fire",
+       "region": "plague",
+       "elite": false,
+       "share": 0.863619
+      },
+      {
+       "me": "fire",
+       "region": "plague",
+       "elite": true,
+       "share": 0
+      },
+      {
+       "me": "fire",
+       "region": "frost",
+       "elite": false,
+       "share": 0.902141
+      },
+      {
+       "me": "fire",
+       "region": "frost",
+       "elite": true,
+       "share": 0
+      },
+      {
+       "me": "fire",
+       "region": "holy",
+       "elite": false,
+       "share": 0.855083
+      },
+      {
+       "me": "fire",
+       "region": "holy",
+       "elite": true,
+       "share": 0.053064
+      },
+      {
+       "me": "sentenced",
+       "region": "fire",
+       "elite": false,
+       "share": 0.829578
+      },
+      {
+       "me": "sentenced",
+       "region": "fire",
+       "elite": true,
+       "share": 0.24097
+      },
+      {
+       "me": "sentenced",
+       "region": "sentenced",
+       "elite": false,
+       "share": 1
+      },
+      {
+       "me": "sentenced",
+       "region": "sentenced",
+       "elite": true,
+       "share": 0.344592
+      },
+      {
+       "me": "sentenced",
+       "region": "plague",
+       "elite": false,
+       "share": 0.994953
+      },
+      {
+       "me": "sentenced",
+       "region": "plague",
+       "elite": true,
+       "share": 0.343662
+      },
+      {
+       "me": "sentenced",
+       "region": "frost",
+       "elite": false,
+       "share": 0.883844
+      },
+      {
+       "me": "sentenced",
+       "region": "frost",
+       "elite": true,
+       "share": 0.335069
+      },
+      {
+       "me": "sentenced",
+       "region": "holy",
+       "elite": false,
+       "share": 1
+      },
+      {
+       "me": "sentenced",
+       "region": "holy",
+       "elite": true,
+       "share": 0.436418
+      },
+      {
+       "me": "plague",
+       "region": "fire",
+       "elite": false,
+       "share": 0.81033
+      },
+      {
+       "me": "plague",
+       "region": "fire",
+       "elite": true,
+       "share": 0
+      },
+      {
+       "me": "plague",
+       "region": "sentenced",
+       "elite": false,
+       "share": 0.873575
+      },
+      {
+       "me": "plague",
+       "region": "sentenced",
+       "elite": true,
+       "share": 0.127851
+      },
+      {
+       "me": "plague",
+       "region": "plague",
+       "elite": false,
+       "share": 1
+      },
+      {
+       "me": "plague",
+       "region": "plague",
+       "elite": true,
+       "share": 0
+      },
+      {
+       "me": "plague",
+       "region": "frost",
+       "elite": false,
+       "share": 0.809658
+      },
+      {
+       "me": "plague",
+       "region": "frost",
+       "elite": true,
+       "share": 0
+      },
+      {
+       "me": "plague",
+       "region": "holy",
+       "elite": false,
+       "share": 0.940285
+      },
+      {
+       "me": "plague",
+       "region": "holy",
+       "elite": true,
+       "share": 0
+      },
+      {
+       "me": "frost",
+       "region": "fire",
+       "elite": false,
+       "share": 0.806976
+      },
+      {
+       "me": "frost",
+       "region": "fire",
+       "elite": true,
+       "share": 0
+      },
+      {
+       "me": "frost",
+       "region": "sentenced",
+       "elite": false,
+       "share": 0.909723
+      },
+      {
+       "me": "frost",
+       "region": "sentenced",
+       "elite": true,
+       "share": 0
+      },
+      {
+       "me": "frost",
+       "region": "plague",
+       "elite": false,
+       "share": 1
+      },
+      {
+       "me": "frost",
+       "region": "plague",
+       "elite": true,
+       "share": 0.014639
+      },
+      {
+       "me": "frost",
+       "region": "frost",
+       "elite": false,
+       "share": 0.946951
+      },
+      {
+       "me": "frost",
+       "region": "frost",
+       "elite": true,
+       "share": 0
+      },
+      {
+       "me": "frost",
+       "region": "holy",
+       "elite": false,
+       "share": 0.94465
+      },
+      {
+       "me": "frost",
+       "region": "holy",
+       "elite": true,
+       "share": 0
+      },
+      {
+       "me": "holy",
+       "region": "fire",
+       "elite": false,
+       "share": 0.850198
+      },
+      {
+       "me": "holy",
+       "region": "fire",
+       "elite": true,
+       "share": 0.199277
+      },
+      {
+       "me": "holy",
+       "region": "sentenced",
+       "elite": false,
+       "share": 0.839871
+      },
+      {
+       "me": "holy",
+       "region": "sentenced",
+       "elite": true,
+       "share": 0.241456
+      },
+      {
+       "me": "holy",
+       "region": "plague",
+       "elite": false,
+       "share": 1
+      },
+      {
+       "me": "holy",
+       "region": "plague",
+       "elite": true,
+       "share": 0.320633
+      },
+      {
+       "me": "holy",
+       "region": "frost",
+       "elite": false,
+       "share": 1
+      },
+      {
+       "me": "holy",
+       "region": "frost",
+       "elite": true,
+       "share": 0.104133
+      },
+      {
+       "me": "holy",
+       "region": "holy",
+       "elite": false,
+       "share": 0.843242
+      },
+      {
+       "me": "holy",
+       "region": "holy",
+       "elite": true,
+       "share": 0.281869
+      }
+     ],
+     "odds": {
+      "edge": 0.8,
+      "score": 0,
+      "known": true,
+      "why": "known 0.00, hp lead 0.80"
+     }
+    },
+    "differs": true
+   },
+   {
+    "seed": 42,
+    "tag": 3,
+    "derived": 3268108958,
+    "firstDraws": [
+     0.14411832974292338,
+     0.17324369633570313,
+     0.36995706451125443
+    ],
+    "tag3Fingerprint": {
+     "factions": [
+      {
+       "a": "fire",
+       "b": "sentenced",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "fire",
+       "b": "plague",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "sentenced",
+       "b": "plague",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "sentenced",
+       "b": "frost",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "plague",
+       "b": "frost",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "plague",
+       "b": "holy",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "frost",
+       "b": "holy",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "frost",
+       "b": "fire",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "holy",
+       "b": "fire",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "holy",
+       "b": "sentenced",
+       "ab": 0,
+       "ba": 0
+      }
+     ],
+     "weapons": [
+      {
+       "a": "sword",
+       "b": "axe",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "sword",
+       "b": "wand",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "bow",
+       "b": "sword",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "bow",
+       "b": "axe",
+       "ab": 1,
+       "ba": -1
+      },
+      {
+       "a": "wand",
+       "b": "bow",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "wand",
+       "b": "shield",
+       "ab": 1,
+       "ba": -1
+      },
+      {
+       "a": "shield",
+       "b": "sword",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "shield",
+       "b": "bow",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "axe",
+       "b": "wand",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "axe",
+       "b": "shield",
+       "ab": 0,
+       "ba": 0
+      }
+     ],
+     "mobShare": [
+      {
+       "me": "fire",
+       "region": "fire",
+       "elite": false,
+       "share": 0.902366
+      },
+      {
+       "me": "fire",
+       "region": "fire",
+       "elite": true,
+       "share": 0.034975
+      },
+      {
+       "me": "fire",
+       "region": "sentenced",
+       "elite": false,
+       "share": 1
+      },
+      {
+       "me": "fire",
+       "region": "sentenced",
+       "elite": true,
+       "share": 0
+      },
+      {
+       "me": "fire",
+       "region": "plague",
+       "elite": false,
+       "share": 0.997141
+      },
+      {
+       "me": "fire",
+       "region": "plague",
+       "elite": true,
+       "share": 0.094986
+      },
+      {
+       "me": "fire",
+       "region": "frost",
+       "elite": false,
+       "share": 0.823692
+      },
+      {
+       "me": "fire",
+       "region": "frost",
+       "elite": true,
+       "share": 0.100317
+      },
+      {
+       "me": "fire",
+       "region": "holy",
+       "elite": false,
+       "share": 0.997547
+      },
+      {
+       "me": "fire",
+       "region": "holy",
+       "elite": true,
+       "share": 0.027256
+      },
+      {
+       "me": "sentenced",
+       "region": "fire",
+       "elite": false,
+       "share": 0.929324
+      },
+      {
+       "me": "sentenced",
+       "region": "fire",
+       "elite": true,
+       "share": 0.123394
+      },
+      {
+       "me": "sentenced",
+       "region": "sentenced",
+       "elite": false,
+       "share": 0.91977
+      },
+      {
+       "me": "sentenced",
+       "region": "sentenced",
+       "elite": true,
+       "share": 0.333773
+      },
+      {
+       "me": "sentenced",
+       "region": "plague",
+       "elite": false,
+       "share": 0.955875
+      },
+      {
+       "me": "sentenced",
+       "region": "plague",
+       "elite": true,
+       "share": 0.339187
+      },
+      {
+       "me": "sentenced",
+       "region": "frost",
+       "elite": false,
+       "share": 0.914419
+      },
+      {
+       "me": "sentenced",
+       "region": "frost",
+       "elite": true,
+       "share": 0.097993
+      },
+      {
+       "me": "sentenced",
+       "region": "holy",
+       "elite": false,
+       "share": 0.820903
+      },
+      {
+       "me": "sentenced",
+       "region": "holy",
+       "elite": true,
+       "share": 0.384735
+      },
+      {
+       "me": "plague",
+       "region": "fire",
+       "elite": false,
+       "share": 0.960995
+      },
+      {
+       "me": "plague",
+       "region": "fire",
+       "elite": true,
+       "share": 0
+      },
+      {
+       "me": "plague",
+       "region": "sentenced",
+       "elite": false,
+       "share": 0.935719
+      },
+      {
+       "me": "plague",
+       "region": "sentenced",
+       "elite": true,
+       "share": 0
+      },
+      {
+       "me": "plague",
+       "region": "plague",
+       "elite": false,
+       "share": 0.886254
+      },
+      {
+       "me": "plague",
+       "region": "plague",
+       "elite": true,
+       "share": 0
+      },
+      {
+       "me": "plague",
+       "region": "frost",
+       "elite": false,
+       "share": 1
+      },
+      {
+       "me": "plague",
+       "region": "frost",
+       "elite": true,
+       "share": 0
+      },
+      {
+       "me": "plague",
+       "region": "holy",
+       "elite": false,
+       "share": 0.840325
+      },
+      {
+       "me": "plague",
+       "region": "holy",
+       "elite": true,
+       "share": 0.032033
+      },
+      {
+       "me": "frost",
+       "region": "fire",
+       "elite": false,
+       "share": 0.985116
+      },
+      {
+       "me": "frost",
+       "region": "fire",
+       "elite": true,
+       "share": 0.063707
+      },
+      {
+       "me": "frost",
+       "region": "sentenced",
+       "elite": false,
+       "share": 0.806288
+      },
+      {
+       "me": "frost",
+       "region": "sentenced",
+       "elite": true,
+       "share": 0
+      },
+      {
+       "me": "frost",
+       "region": "plague",
+       "elite": false,
+       "share": 1
+      },
+      {
+       "me": "frost",
+       "region": "plague",
+       "elite": true,
+       "share": 0
+      },
+      {
+       "me": "frost",
+       "region": "frost",
+       "elite": false,
+       "share": 0.817989
+      },
+      {
+       "me": "frost",
+       "region": "frost",
+       "elite": true,
+       "share": 0
+      },
+      {
+       "me": "frost",
+       "region": "holy",
+       "elite": false,
+       "share": 1
+      },
+      {
+       "me": "frost",
+       "region": "holy",
+       "elite": true,
+       "share": 0
+      },
+      {
+       "me": "holy",
+       "region": "fire",
+       "elite": false,
+       "share": 1
+      },
+      {
+       "me": "holy",
+       "region": "fire",
+       "elite": true,
+       "share": 0.142595
+      },
+      {
+       "me": "holy",
+       "region": "sentenced",
+       "elite": false,
+       "share": 1
+      },
+      {
+       "me": "holy",
+       "region": "sentenced",
+       "elite": true,
+       "share": 0.266647
+      },
+      {
+       "me": "holy",
+       "region": "plague",
+       "elite": false,
+       "share": 0.899007
+      },
+      {
+       "me": "holy",
+       "region": "plague",
+       "elite": true,
+       "share": 0.273581
+      },
+      {
+       "me": "holy",
+       "region": "frost",
+       "elite": false,
+       "share": 0.917552
+      },
+      {
+       "me": "holy",
+       "region": "frost",
+       "elite": true,
+       "share": 0.234022
+      },
+      {
+       "me": "holy",
+       "region": "holy",
+       "elite": false,
+       "share": 1
+      },
+      {
+       "me": "holy",
+       "region": "holy",
+       "elite": true,
+       "share": 0.528206
+      }
+     ],
+     "odds": {
+      "edge": 0.8,
+      "score": 0,
+      "known": true,
+      "why": "known 0.00, hp lead 0.80"
+     }
+    },
+    "decideFingerprint": {
+     "factions": [
+      {
+       "a": "fire",
+       "b": "sentenced",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "fire",
+       "b": "plague",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "sentenced",
+       "b": "plague",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "sentenced",
+       "b": "frost",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "plague",
+       "b": "frost",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "plague",
+       "b": "holy",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "frost",
+       "b": "holy",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "frost",
+       "b": "fire",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "holy",
+       "b": "fire",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "holy",
+       "b": "sentenced",
+       "ab": 0,
+       "ba": 0
+      }
+     ],
+     "weapons": [
+      {
+       "a": "sword",
+       "b": "axe",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "sword",
+       "b": "wand",
+       "ab": 1,
+       "ba": -1
+      },
+      {
+       "a": "bow",
+       "b": "sword",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "bow",
+       "b": "axe",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "wand",
+       "b": "bow",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "wand",
+       "b": "shield",
+       "ab": 1,
+       "ba": -1
+      },
+      {
+       "a": "shield",
+       "b": "sword",
+       "ab": 1,
+       "ba": -1
+      },
+      {
+       "a": "shield",
+       "b": "bow",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "axe",
+       "b": "wand",
+       "ab": 1,
+       "ba": -1
+      },
+      {
+       "a": "axe",
+       "b": "shield",
+       "ab": 1,
+       "ba": -1
+      }
+     ],
+     "mobShare": [
+      {
+       "me": "fire",
+       "region": "fire",
+       "elite": false,
+       "share": 0.806354
+      },
+      {
+       "me": "fire",
+       "region": "fire",
+       "elite": true,
+       "share": 0
+      },
+      {
+       "me": "fire",
+       "region": "sentenced",
+       "elite": false,
+       "share": 0.925752
+      },
+      {
+       "me": "fire",
+       "region": "sentenced",
+       "elite": true,
+       "share": 0.149589
+      },
+      {
+       "me": "fire",
+       "region": "plague",
+       "elite": false,
+       "share": 1
+      },
+      {
+       "me": "fire",
+       "region": "plague",
+       "elite": true,
+       "share": 0.070812
+      },
+      {
+       "me": "fire",
+       "region": "frost",
+       "elite": false,
+       "share": 0.966339
+      },
+      {
+       "me": "fire",
+       "region": "frost",
+       "elite": true,
+       "share": 0.140757
+      },
+      {
+       "me": "fire",
+       "region": "holy",
+       "elite": false,
+       "share": 0.903543
+      },
+      {
+       "me": "fire",
+       "region": "holy",
+       "elite": true,
+       "share": 0
+      },
+      {
+       "me": "sentenced",
+       "region": "fire",
+       "elite": false,
+       "share": 1
+      },
+      {
+       "me": "sentenced",
+       "region": "fire",
+       "elite": true,
+       "share": 0.263491
+      },
+      {
+       "me": "sentenced",
+       "region": "sentenced",
+       "elite": false,
+       "share": 0.920429
+      },
+      {
+       "me": "sentenced",
+       "region": "sentenced",
+       "elite": true,
+       "share": 0.312367
+      },
+      {
+       "me": "sentenced",
+       "region": "plague",
+       "elite": false,
+       "share": 0.808127
+      },
+      {
+       "me": "sentenced",
+       "region": "plague",
+       "elite": true,
+       "share": 0.477972
+      },
+      {
+       "me": "sentenced",
+       "region": "frost",
+       "elite": false,
+       "share": 1
+      },
+      {
+       "me": "sentenced",
+       "region": "frost",
+       "elite": true,
+       "share": 0.316237
+      },
+      {
+       "me": "sentenced",
+       "region": "holy",
+       "elite": false,
+       "share": 0.887591
+      },
+      {
+       "me": "sentenced",
+       "region": "holy",
+       "elite": true,
+       "share": 0.402585
+      },
+      {
+       "me": "plague",
+       "region": "fire",
+       "elite": false,
+       "share": 0.931216
+      },
+      {
+       "me": "plague",
+       "region": "fire",
+       "elite": true,
+       "share": 0.024553
+      },
+      {
+       "me": "plague",
+       "region": "sentenced",
+       "elite": false,
+       "share": 0.926293
+      },
+      {
+       "me": "plague",
+       "region": "sentenced",
+       "elite": true,
+       "share": 0
+      },
+      {
+       "me": "plague",
+       "region": "plague",
+       "elite": false,
+       "share": 1
+      },
+      {
+       "me": "plague",
+       "region": "plague",
+       "elite": true,
+       "share": 0.069165
+      },
+      {
+       "me": "plague",
+       "region": "frost",
+       "elite": false,
+       "share": 1
+      },
+      {
+       "me": "plague",
+       "region": "frost",
+       "elite": true,
+       "share": 0.092128
+      },
+      {
+       "me": "plague",
+       "region": "holy",
+       "elite": false,
+       "share": 1
+      },
+      {
+       "me": "plague",
+       "region": "holy",
+       "elite": true,
+       "share": 0
+      },
+      {
+       "me": "frost",
+       "region": "fire",
+       "elite": false,
+       "share": 0.829172
+      },
+      {
+       "me": "frost",
+       "region": "fire",
+       "elite": true,
+       "share": 0.014561
+      },
+      {
+       "me": "frost",
+       "region": "sentenced",
+       "elite": false,
+       "share": 0.885218
+      },
+      {
+       "me": "frost",
+       "region": "sentenced",
+       "elite": true,
+       "share": 0
+      },
+      {
+       "me": "frost",
+       "region": "plague",
+       "elite": false,
+       "share": 1
+      },
+      {
+       "me": "frost",
+       "region": "plague",
+       "elite": true,
+       "share": 0
+      },
+      {
+       "me": "frost",
+       "region": "frost",
+       "elite": false,
+       "share": 0.952717
+      },
+      {
+       "me": "frost",
+       "region": "frost",
+       "elite": true,
+       "share": 0
+      },
+      {
+       "me": "frost",
+       "region": "holy",
+       "elite": false,
+       "share": 0.974916
+      },
+      {
+       "me": "frost",
+       "region": "holy",
+       "elite": true,
+       "share": 0
+      },
+      {
+       "me": "holy",
+       "region": "fire",
+       "elite": false,
+       "share": 0.877247
+      },
+      {
+       "me": "holy",
+       "region": "fire",
+       "elite": true,
+       "share": 0.205261
+      },
+      {
+       "me": "holy",
+       "region": "sentenced",
+       "elite": false,
+       "share": 0.847311
+      },
+      {
+       "me": "holy",
+       "region": "sentenced",
+       "elite": true,
+       "share": 0.111182
+      },
+      {
+       "me": "holy",
+       "region": "plague",
+       "elite": false,
+       "share": 0.984597
+      },
+      {
+       "me": "holy",
+       "region": "plague",
+       "elite": true,
+       "share": 0.150967
+      },
+      {
+       "me": "holy",
+       "region": "frost",
+       "elite": false,
+       "share": 1
+      },
+      {
+       "me": "holy",
+       "region": "frost",
+       "elite": true,
+       "share": 0.059946
+      },
+      {
+       "me": "holy",
+       "region": "holy",
+       "elite": false,
+       "share": 0.929173
+      },
+      {
+       "me": "holy",
+       "region": "holy",
+       "elite": true,
+       "share": 0.322117
+      }
+     ],
+     "odds": {
+      "edge": 0.8,
+      "score": 0,
+      "known": false,
+      "why": "partial 0.00, hp lead 0.80"
+     }
+    },
+    "differs": true
+   },
+   {
+    "seed": 4294967295,
+    "tag": 3,
+    "derived": 1587572149,
+    "firstDraws": [
+     0.8173827701248229,
+     0.31925252405926585,
+     0.17198067042045295
+    ],
+    "tag3Fingerprint": {
+     "factions": [
+      {
+       "a": "fire",
+       "b": "sentenced",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "fire",
+       "b": "plague",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "sentenced",
+       "b": "plague",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "sentenced",
+       "b": "frost",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "plague",
+       "b": "frost",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "plague",
+       "b": "holy",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "frost",
+       "b": "holy",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "frost",
+       "b": "fire",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "holy",
+       "b": "fire",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "holy",
+       "b": "sentenced",
+       "ab": 0,
+       "ba": 0
+      }
+     ],
+     "weapons": [
+      {
+       "a": "sword",
+       "b": "axe",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "sword",
+       "b": "wand",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "bow",
+       "b": "sword",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "bow",
+       "b": "axe",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "wand",
+       "b": "bow",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "wand",
+       "b": "shield",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "shield",
+       "b": "sword",
+       "ab": 1,
+       "ba": -1
+      },
+      {
+       "a": "shield",
+       "b": "bow",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "axe",
+       "b": "wand",
+       "ab": 1,
+       "ba": -1
+      },
+      {
+       "a": "axe",
+       "b": "shield",
+       "ab": 0,
+       "ba": 0
+      }
+     ],
+     "mobShare": [
+      {
+       "me": "fire",
+       "region": "fire",
+       "elite": false,
+       "share": 0.873411
+      },
+      {
+       "me": "fire",
+       "region": "fire",
+       "elite": true,
+       "share": 0.098848
+      },
+      {
+       "me": "fire",
+       "region": "sentenced",
+       "elite": false,
+       "share": 1
+      },
+      {
+       "me": "fire",
+       "region": "sentenced",
+       "elite": true,
+       "share": 0.059465
+      },
+      {
+       "me": "fire",
+       "region": "plague",
+       "elite": false,
+       "share": 0.982141
+      },
+      {
+       "me": "fire",
+       "region": "plague",
+       "elite": true,
+       "share": 0
+      },
+      {
+       "me": "fire",
+       "region": "frost",
+       "elite": false,
+       "share": 0.965507
+      },
+      {
+       "me": "fire",
+       "region": "frost",
+       "elite": true,
+       "share": 0.058648
+      },
+      {
+       "me": "fire",
+       "region": "holy",
+       "elite": false,
+       "share": 0.938183
+      },
+      {
+       "me": "fire",
+       "region": "holy",
+       "elite": true,
+       "share": 0
+      },
+      {
+       "me": "sentenced",
+       "region": "fire",
+       "elite": false,
+       "share": 0.966092
+      },
+      {
+       "me": "sentenced",
+       "region": "fire",
+       "elite": true,
+       "share": 0.201892
+      },
+      {
+       "me": "sentenced",
+       "region": "sentenced",
+       "elite": false,
+       "share": 1
+      },
+      {
+       "me": "sentenced",
+       "region": "sentenced",
+       "elite": true,
+       "share": 0.136118
+      },
+      {
+       "me": "sentenced",
+       "region": "plague",
+       "elite": false,
+       "share": 1
+      },
+      {
+       "me": "sentenced",
+       "region": "plague",
+       "elite": true,
+       "share": 0.454729
+      },
+      {
+       "me": "sentenced",
+       "region": "frost",
+       "elite": false,
+       "share": 1
+      },
+      {
+       "me": "sentenced",
+       "region": "frost",
+       "elite": true,
+       "share": 0.335203
+      },
+      {
+       "me": "sentenced",
+       "region": "holy",
+       "elite": false,
+       "share": 0.846583
+      },
+      {
+       "me": "sentenced",
+       "region": "holy",
+       "elite": true,
+       "share": 0.355677
+      },
+      {
+       "me": "plague",
+       "region": "fire",
+       "elite": false,
+       "share": 1
+      },
+      {
+       "me": "plague",
+       "region": "fire",
+       "elite": true,
+       "share": 0
+      },
+      {
+       "me": "plague",
+       "region": "sentenced",
+       "elite": false,
+       "share": 0.922185
+      },
+      {
+       "me": "plague",
+       "region": "sentenced",
+       "elite": true,
+       "share": 0
+      },
+      {
+       "me": "plague",
+       "region": "plague",
+       "elite": false,
+       "share": 1
+      },
+      {
+       "me": "plague",
+       "region": "plague",
+       "elite": true,
+       "share": 0.060144
+      },
+      {
+       "me": "plague",
+       "region": "frost",
+       "elite": false,
+       "share": 0.879651
+      },
+      {
+       "me": "plague",
+       "region": "frost",
+       "elite": true,
+       "share": 0
+      },
+      {
+       "me": "plague",
+       "region": "holy",
+       "elite": false,
+       "share": 0.861098
+      },
+      {
+       "me": "plague",
+       "region": "holy",
+       "elite": true,
+       "share": 0
+      },
+      {
+       "me": "frost",
+       "region": "fire",
+       "elite": false,
+       "share": 1
+      },
+      {
+       "me": "frost",
+       "region": "fire",
+       "elite": true,
+       "share": 0.04009
+      },
+      {
+       "me": "frost",
+       "region": "sentenced",
+       "elite": false,
+       "share": 0.977077
+      },
+      {
+       "me": "frost",
+       "region": "sentenced",
+       "elite": true,
+       "share": 0
+      },
+      {
+       "me": "frost",
+       "region": "plague",
+       "elite": false,
+       "share": 0.921481
+      },
+      {
+       "me": "frost",
+       "region": "plague",
+       "elite": true,
+       "share": 0.067898
+      },
+      {
+       "me": "frost",
+       "region": "frost",
+       "elite": false,
+       "share": 0.83482
+      },
+      {
+       "me": "frost",
+       "region": "frost",
+       "elite": true,
+       "share": 0.01146
+      },
+      {
+       "me": "frost",
+       "region": "holy",
+       "elite": false,
+       "share": 1
+      },
+      {
+       "me": "frost",
+       "region": "holy",
+       "elite": true,
+       "share": 0.126913
+      },
+      {
+       "me": "holy",
+       "region": "fire",
+       "elite": false,
+       "share": 1
+      },
+      {
+       "me": "holy",
+       "region": "fire",
+       "elite": true,
+       "share": 0.191791
+      },
+      {
+       "me": "holy",
+       "region": "sentenced",
+       "elite": false,
+       "share": 0.851092
+      },
+      {
+       "me": "holy",
+       "region": "sentenced",
+       "elite": true,
+       "share": 0.199071
+      },
+      {
+       "me": "holy",
+       "region": "plague",
+       "elite": false,
+       "share": 0.843367
+      },
+      {
+       "me": "holy",
+       "region": "plague",
+       "elite": true,
+       "share": 0.185351
+      },
+      {
+       "me": "holy",
+       "region": "frost",
+       "elite": false,
+       "share": 0.983737
+      },
+      {
+       "me": "holy",
+       "region": "frost",
+       "elite": true,
+       "share": 0.013904
+      },
+      {
+       "me": "holy",
+       "region": "holy",
+       "elite": false,
+       "share": 1
+      },
+      {
+       "me": "holy",
+       "region": "holy",
+       "elite": true,
+       "share": 0.379875
+      }
+     ],
+     "odds": {
+      "edge": 0.8,
+      "score": 0,
+      "known": false,
+      "why": "partial 0.00, hp lead 0.80"
+     }
+    },
+    "decideFingerprint": {
+     "factions": [
+      {
+       "a": "fire",
+       "b": "sentenced",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "fire",
+       "b": "plague",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "sentenced",
+       "b": "plague",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "sentenced",
+       "b": "frost",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "plague",
+       "b": "frost",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "plague",
+       "b": "holy",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "frost",
+       "b": "holy",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "frost",
+       "b": "fire",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "holy",
+       "b": "fire",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "holy",
+       "b": "sentenced",
+       "ab": 0,
+       "ba": 0
+      }
+     ],
+     "weapons": [
+      {
+       "a": "sword",
+       "b": "axe",
+       "ab": 1,
+       "ba": -1
+      },
+      {
+       "a": "sword",
+       "b": "wand",
+       "ab": 1,
+       "ba": -1
+      },
+      {
+       "a": "bow",
+       "b": "sword",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "bow",
+       "b": "axe",
+       "ab": 1,
+       "ba": -1
+      },
+      {
+       "a": "wand",
+       "b": "bow",
+       "ab": 1,
+       "ba": -1
+      },
+      {
+       "a": "wand",
+       "b": "shield",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "shield",
+       "b": "sword",
+       "ab": 1,
+       "ba": -1
+      },
+      {
+       "a": "shield",
+       "b": "bow",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "axe",
+       "b": "wand",
+       "ab": 0,
+       "ba": 0
+      },
+      {
+       "a": "axe",
+       "b": "shield",
+       "ab": 0,
+       "ba": 0
+      }
+     ],
+     "mobShare": [
+      {
+       "me": "fire",
+       "region": "fire",
+       "elite": false,
+       "share": 1
+      },
+      {
+       "me": "fire",
+       "region": "fire",
+       "elite": true,
+       "share": 0
+      },
+      {
+       "me": "fire",
+       "region": "sentenced",
+       "elite": false,
+       "share": 0.849969
+      },
+      {
+       "me": "fire",
+       "region": "sentenced",
+       "elite": true,
+       "share": 0.037072
+      },
+      {
+       "me": "fire",
+       "region": "plague",
+       "elite": false,
+       "share": 0.994986
+      },
+      {
+       "me": "fire",
+       "region": "plague",
+       "elite": true,
+       "share": 0
+      },
+      {
+       "me": "fire",
+       "region": "frost",
+       "elite": false,
+       "share": 0.869668
+      },
+      {
+       "me": "fire",
+       "region": "frost",
+       "elite": true,
+       "share": 0
+      },
+      {
+       "me": "fire",
+       "region": "holy",
+       "elite": false,
+       "share": 0.932118
+      },
+      {
+       "me": "fire",
+       "region": "holy",
+       "elite": true,
+       "share": 0.126077
+      },
+      {
+       "me": "sentenced",
+       "region": "fire",
+       "elite": false,
+       "share": 0.838347
+      },
+      {
+       "me": "sentenced",
+       "region": "fire",
+       "elite": true,
+       "share": 0.218598
+      },
+      {
+       "me": "sentenced",
+       "region": "sentenced",
+       "elite": false,
+       "share": 0.859783
+      },
+      {
+       "me": "sentenced",
+       "region": "sentenced",
+       "elite": true,
+       "share": 0.28248
+      },
+      {
+       "me": "sentenced",
+       "region": "plague",
+       "elite": false,
+       "share": 0.973991
+      },
+      {
+       "me": "sentenced",
+       "region": "plague",
+       "elite": true,
+       "share": 0.367224
+      },
+      {
+       "me": "sentenced",
+       "region": "frost",
+       "elite": false,
+       "share": 0.992967
+      },
+      {
+       "me": "sentenced",
+       "region": "frost",
+       "elite": true,
+       "share": 0.269554
+      },
+      {
+       "me": "sentenced",
+       "region": "holy",
+       "elite": false,
+       "share": 0.935427
+      },
+      {
+       "me": "sentenced",
+       "region": "holy",
+       "elite": true,
+       "share": 0.440545
+      },
+      {
+       "me": "plague",
+       "region": "fire",
+       "elite": false,
+       "share": 1
+      },
+      {
+       "me": "plague",
+       "region": "fire",
+       "elite": true,
+       "share": 0.094569
+      },
+      {
+       "me": "plague",
+       "region": "sentenced",
+       "elite": false,
+       "share": 0.831167
+      },
+      {
+       "me": "plague",
+       "region": "sentenced",
+       "elite": true,
+       "share": 0
+      },
+      {
+       "me": "plague",
+       "region": "plague",
+       "elite": false,
+       "share": 0.832507
+      },
+      {
+       "me": "plague",
+       "region": "plague",
+       "elite": true,
+       "share": 0
+      },
+      {
+       "me": "plague",
+       "region": "frost",
+       "elite": false,
+       "share": 0.978996
+      },
+      {
+       "me": "plague",
+       "region": "frost",
+       "elite": true,
+       "share": 0.147758
+      },
+      {
+       "me": "plague",
+       "region": "holy",
+       "elite": false,
+       "share": 0.96153
+      },
+      {
+       "me": "plague",
+       "region": "holy",
+       "elite": true,
+       "share": 0.113979
+      },
+      {
+       "me": "frost",
+       "region": "fire",
+       "elite": false,
+       "share": 0.907394
+      },
+      {
+       "me": "frost",
+       "region": "fire",
+       "elite": true,
+       "share": 0
+      },
+      {
+       "me": "frost",
+       "region": "sentenced",
+       "elite": false,
+       "share": 0.905564
+      },
+      {
+       "me": "frost",
+       "region": "sentenced",
+       "elite": true,
+       "share": 0.066744
+      },
+      {
+       "me": "frost",
+       "region": "plague",
+       "elite": false,
+       "share": 1
+      },
+      {
+       "me": "frost",
+       "region": "plague",
+       "elite": true,
+       "share": 0.093447
+      },
+      {
+       "me": "frost",
+       "region": "frost",
+       "elite": false,
+       "share": 0.936942
+      },
+      {
+       "me": "frost",
+       "region": "frost",
+       "elite": true,
+       "share": 0.028479
+      },
+      {
+       "me": "frost",
+       "region": "holy",
+       "elite": false,
+       "share": 0.844018
+      },
+      {
+       "me": "frost",
+       "region": "holy",
+       "elite": true,
+       "share": 0
+      },
+      {
+       "me": "holy",
+       "region": "fire",
+       "elite": false,
+       "share": 0.833235
+      },
+      {
+       "me": "holy",
+       "region": "fire",
+       "elite": true,
+       "share": 0.256047
+      },
+      {
+       "me": "holy",
+       "region": "sentenced",
+       "elite": false,
+       "share": 1
+      },
+      {
+       "me": "holy",
+       "region": "sentenced",
+       "elite": true,
+       "share": 0.209304
+      },
+      {
+       "me": "holy",
+       "region": "plague",
+       "elite": false,
+       "share": 0.830398
+      },
+      {
+       "me": "holy",
+       "region": "plague",
+       "elite": true,
+       "share": 0.254004
+      },
+      {
+       "me": "holy",
+       "region": "frost",
+       "elite": false,
+       "share": 0.856182
+      },
+      {
+       "me": "holy",
+       "region": "frost",
+       "elite": true,
+       "share": 0.157185
+      },
+      {
+       "me": "holy",
+       "region": "holy",
+       "elite": false,
+       "share": 1
+      },
+      {
+       "me": "holy",
+       "region": "holy",
+       "elite": true,
+       "share": 0.53601
+      }
+     ],
+     "odds": {
+      "edge": 0.8,
+      "score": 0,
+      "known": true,
+      "why": "known 0.00, hp lead 0.80"
+     }
+    },
+    "differs": true
+   }
+  ]
+ },
+ "halfTieSetup": {
+  "seed": 20261108,
+  "knowledge": 0,
+  "noise": 0.15
+ },
+ "deriveSource": "function derive(seed: number, tag: number): number {\n  let h = (Math.imul(seed | 0, 0x9e3779b1) ^ Math.imul(tag + 1, 0x85ebca6b)) >>> 0;\n  h = Math.imul(h ^ (h >>> 16), 0x7feb352d);\n  h = Math.imul(h ^ (h >>> 15), 0x846ca68b);\n  return (h ^ (h >>> 16)) >>> 0;\n}",
+ "tagVectors": [
+  {
+   "seed": 0,
+   "tag": 0,
+   "expected": 520022130
+  },
+  {
+   "seed": 1,
+   "tag": 0,
+   "expected": 3955302380
+  },
+  {
+   "seed": 7,
+   "tag": 0,
+   "expected": 2000300536
+  },
+  {
+   "seed": 42,
+   "tag": 0,
+   "expected": 1924735956
+  },
+  {
+   "seed": 0,
+   "tag": 1,
+   "expected": 861682017
+  },
+  {
+   "seed": 1,
+   "tag": 1,
+   "expected": 1605550031
+  },
+  {
+   "seed": 7,
+   "tag": 1,
+   "expected": 4106939371
+  },
+  {
+   "seed": 42,
+   "tag": 1,
+   "expected": 3203913649
+  },
+  {
+   "seed": 0,
+   "tag": 2,
+   "expected": 4076735348
+  },
+  {
+   "seed": 1,
+   "tag": 2,
+   "expected": 1056998858
+  },
+  {
+   "seed": 7,
+   "tag": 2,
+   "expected": 3750188617
+  },
+  {
+   "seed": 42,
+   "tag": 2,
+   "expected": 1052354177
+  },
+  {
+   "seed": 0,
+   "tag": 3,
+   "expected": 3971731199
+  },
+  {
+   "seed": 1,
+   "tag": 3,
+   "expected": 197380189
+  },
+  {
+   "seed": 7,
+   "tag": 3,
+   "expected": 2057029952
+  },
+  {
+   "seed": 42,
+   "tag": 3,
+   "expected": 3268108958
+  }
+ ],
+ "halfTies": [
+  {
+   "name": "lead-half-125",
+   "me": {
+    "weapons": [
+     null,
+     null
+    ],
+    "slot": 0,
+    "faction": null,
+    "hp": 6.25,
+    "maxHp": 100
+   },
+   "them": {
+    "id": "foe",
+    "faction": null,
+    "inHand": null,
+    "otherSlot": null,
+    "hpFrac": 0,
+    "bounty": 0,
+    "dist": 300,
+    "tint": 0
+   },
+   "result": {
+    "edge": 0.125,
+    "score": 0,
+    "known": false,
+    "why": "partial 0.00, hp lead 0.13"
+   }
+  },
+  {
+   "name": "lead-half-neg-125",
+   "me": {
+    "weapons": [
+     null,
+     null
+    ],
+    "slot": 0,
+    "faction": null,
+    "hp": 0,
+    "maxHp": 100
+   },
+   "them": {
+    "id": "foe",
+    "faction": null,
+    "inHand": null,
+    "otherSlot": null,
+    "hpFrac": 0.0625,
+    "bounty": 0,
+    "dist": 300,
+    "tint": 0
+   },
+   "result": {
+    "edge": -0.125,
+    "score": 0,
+    "known": false,
+    "why": "partial 0.00, hp lead -0.13"
+   }
+  },
+  {
+   "name": "lead-half-375",
+   "me": {
+    "weapons": [
+     null,
+     null
+    ],
+    "slot": 0,
+    "faction": null,
+    "hp": 18.75,
+    "maxHp": 100
+   },
+   "them": {
+    "id": "foe",
+    "faction": null,
+    "inHand": null,
+    "otherSlot": null,
+    "hpFrac": 0,
+    "bounty": 0,
+    "dist": 300,
+    "tint": 0
+   },
+   "result": {
+    "edge": 0.375,
+    "score": 0,
+    "known": false,
+    "why": "partial 0.00, hp lead 0.38"
+   }
+  },
+  {
+   "name": "lead-half-neg-375",
+   "me": {
+    "weapons": [
+     null,
+     null
+    ],
+    "slot": 0,
+    "faction": null,
+    "hp": 0,
+    "maxHp": 100
+   },
+   "them": {
+    "id": "foe",
+    "faction": null,
+    "inHand": null,
+    "otherSlot": null,
+    "hpFrac": 0.1875,
+    "bounty": 0,
+    "dist": 300,
+    "tint": 0
+   },
+   "result": {
+    "edge": -0.375,
+    "score": 0,
+    "known": false,
+    "why": "partial 0.00, hp lead -0.38"
+   }
+  },
+  {
+   "name": "score-half-125",
+   "me": {
+    "weapons": [
+     null,
+     null
+    ],
+    "slot": 0,
+    "faction": null,
+    "hp": 100,
+    "maxHp": 100
+   },
+   "them": {
+    "id": "foe",
+    "faction": null,
+    "inHand": null,
+    "otherSlot": null,
+    "hpFrac": 0,
+    "bounty": 0,
+    "dist": 300,
+    "tint": 0.0625
+   },
+   "result": {
+    "edge": 2,
+    "score": 0.125,
+    "known": false,
+    "why": "tint 0.13, hp lead 2.00"
+   }
+  },
+  {
+   "name": "score-half-neg-125",
+   "me": {
+    "weapons": [
+     null,
+     null
+    ],
+    "slot": 0,
+    "faction": null,
+    "hp": 100,
+    "maxHp": 100
+   },
+   "them": {
+    "id": "foe",
+    "faction": null,
+    "inHand": null,
+    "otherSlot": null,
+    "hpFrac": 0,
+    "bounty": 0,
+    "dist": 300,
+    "tint": -0.0625
+   },
+   "result": {
+    "edge": 1.875,
+    "score": -0.125,
+    "known": false,
+    "why": "tint -0.13, hp lead 2.00"
+   }
+  },
+  {
+   "name": "score-half-1625",
+   "me": {
+    "weapons": [
+     null,
+     null
+    ],
+    "slot": 0,
+    "faction": null,
+    "hp": 100,
+    "maxHp": 100
+   },
+   "them": {
+    "id": "foe",
+    "faction": null,
+    "inHand": null,
+    "otherSlot": null,
+    "hpFrac": 0,
+    "bounty": 0,
+    "dist": 300,
+    "tint": 0.8125
+   },
+   "result": {
+    "edge": 2,
+    "score": 1.625,
+    "known": false,
+    "why": "tint 1.63, hp lead 2.00"
+   }
+  },
+  {
+   "name": "score-half-neg-1625",
+   "me": {
+    "weapons": [
+     null,
+     null
+    ],
+    "slot": 0,
+    "faction": null,
+    "hp": 100,
+    "maxHp": 100
+   },
+   "them": {
+    "id": "foe",
+    "faction": null,
+    "inHand": null,
+    "otherSlot": null,
+    "hpFrac": 0,
+    "bounty": 0,
+    "dist": 300,
+    "tint": -0.8125
+   },
+   "result": {
+    "edge": 0.375,
+    "score": -1.625,
+    "known": false,
+    "why": "tint -1.63, hp lead 2.00"
+   }
+  }
+ ],
+ "explicitNull": [
+  {
+   "name": "explicit-null-falls-back-to-first-player",
+   "player": "null",
+   "players": [
+    {
+     "wishReadyAt": 0,
+     "effects": 0,
+     "build": {},
+     "qReadyAt": 0,
+     "eReadyAt": 0
+    }
+   ],
+   "fields": [],
+   "camps": [],
+   "messageTypes": [
+    "cast",
+    "plan",
+    "choose"
+   ],
+   "result": {
+    "messageTypes": [
+     "cast",
+     "plan",
+     "choose"
+    ],
+    "wishes": true,
+    "statusEffects": true,
+    "fields": true,
+    "planning": true,
+    "chests": true,
+    "skills": false,
+    "relics": true,
+    "camps": true,
+    "hazards": false
+   }
+  },
+  {
+   "name": "explicit-null-first-player-empty-flags",
+   "player": "null",
+   "players": [
+    {}
+   ],
+   "messageTypes": [
+    "cast",
+    "plan",
+    "choose"
+   ],
+   "result": {
+    "messageTypes": [
+     "cast",
+     "plan",
+     "choose"
+    ],
+    "wishes": false,
+    "statusEffects": false,
+    "fields": false,
+    "planning": true,
+    "chests": true,
+    "skills": false,
+    "relics": false,
+    "camps": false,
+    "hazards": false
+   }
+  },
+  {
+   "name": "explicit-object-wins-over-first-player",
+   "player": {
+    "wishReadyAt": 0,
+    "effects": 0,
+    "build": {}
+   },
+   "players": [
+    {}
+   ],
+   "messageTypes": [
+    "cast",
+    "plan",
+    "choose"
+   ],
+   "result": {
+    "messageTypes": [
+     "cast",
+     "plan",
+     "choose"
+    ],
+    "wishes": true,
+    "statusEffects": true,
+    "fields": false,
+    "planning": true,
+    "chests": true,
+    "skills": false,
+    "relics": true,
+    "camps": false,
+    "hazards": false
+   }
+  },
+  {
+   "name": "missing-player-falls-back-to-first-player",
+   "player": "missing",
+   "players": [
+    {
+     "wishReadyAt": 0,
+     "effects": 0,
+     "build": {},
+     "qReadyAt": 0,
+     "eReadyAt": 0
+    }
+   ],
+   "fields": [],
+   "camps": [],
+   "messageTypes": [
+    "cast",
+    "plan",
+    "choose"
+   ],
+   "result": {
+    "messageTypes": [
+     "cast",
+     "plan",
+     "choose"
+    ],
+    "wishes": true,
+    "statusEffects": true,
+    "fields": true,
+    "planning": true,
+    "chests": true,
+    "skills": false,
+    "relics": true,
+    "camps": true,
+    "hazards": false
+   }
+  },
+  {
+   "name": "explicit-null-no-players",
+   "player": "null",
+   "players": [],
+   "messageTypes": [
+    "cast"
+   ],
+   "result": {
+    "messageTypes": [
+     "cast"
+    ],
+    "wishes": false,
+    "statusEffects": false,
+    "fields": false,
+    "planning": false,
+    "chests": false,
+    "skills": false,
+    "relics": false,
+    "camps": false,
+    "hazards": false
+   }
+  },
+  {
+   "name": "explicit-null-no-state-player-fields",
+   "player": "null",
+   "fields": [],
+   "camps": [],
+   "messageTypes": [
+    "plan"
+   ],
+   "result": {
+    "messageTypes": [
+     "plan"
+    ],
+    "wishes": false,
+    "statusEffects": false,
+    "fields": true,
+    "planning": true,
+    "chests": false,
+    "skills": false,
+    "relics": false,
+    "camps": true,
+    "hazards": false
+   }
+  }
+ ]
+}

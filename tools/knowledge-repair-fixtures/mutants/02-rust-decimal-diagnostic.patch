@@ -1,0 +1,17 @@
+diff --git a/crates/rh-policy/src/bots/knowledge.rs b/crates/rh-policy/src/bots/knowledge.rs
+index c094986b..08a485fe 100644
+--- a/crates/rh-policy/src/bots/knowledge.rs
++++ b/crates/rh-policy/src/bots/knowledge.rs
+@@ -186,11 +186,7 @@ impl Knowledge {
+             known,
+             // Source knowledge.ts uses Number.toFixed(2): JavaScript's decimal ties round away from zero, which
+             // Rust's formatter does not reproduce (0.125 formats as 0.12 there and 0.13 in JavaScript).
+-            why: format!(
+-                "{source} {}, hp lead {}",
+-                rh_sim::kill_augments::js_to_fixed(score, 2),
+-                rh_sim::kill_augments::js_to_fixed(lead_term, 2)
+-            ),
++            why: format!("{source} {score:.2}, hp lead {lead_term:.2}"),
+         }
+     }
+ }
