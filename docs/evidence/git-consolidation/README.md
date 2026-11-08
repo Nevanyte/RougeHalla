@@ -291,3 +291,9 @@ tapes stay lead-owned. Art now implements the delivered Wish/barrier interface f
 the explicitly released MatchClient lifecycle-only hunks. Next DeepSeek work is bounded Frost→basic-NPC recipients,
 source human Wish witnesses and disjoint source Trophy lifecycle/text evidence. Main identities and served artifact
 remain unchanged; no cloud mutation or new Web/player performance claim follows.
+
+Private continuation `bc9cdd7b` composes reviewed Sentenced restore repairs `e6f9680a` and `c5b11341` atop the private
+G6/Frost branch. Root independently passes26 affected tests, including the10 new real-producer/history regressions.
+The worker's separate70-test/lint/fmt evidence is retained in its packet evidence; do not sum overlapping runs. No
+gameplay, serialized schema, identity or source expected output changes. Missing Gathering Storm MarkRate gameplay
+remains separate and explicitly assigned; its implementation will revisit progress bounds and final content identity.

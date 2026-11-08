@@ -123,6 +123,11 @@ The subsequent [CI42492522571](https://github.com/Nevanyte/RougeHalla/actions/ru
 all four jobs, including the newly admitted source barrier capture. Later lead changes are documentation only; this
 does not validate the private protocol12/gameplay union. Cross-feature testing of private G6+Frost found a legitimate
 Iron Will/Sentenced Mark checkpoint rejected by the old two-increment progress validator; its isolated repair is active.
+That private repair now includes reviewed `e6f9680a`/`c5b11341`: historical resisted/deepened progress and monotonic
+card-tier bounds, with real grant/swap/training Clear controls. Root composes it in `bc9cdd7b` and independently passes
+all26 affected Sentenced tests; lane70 focused tests/both strict lint modes/fmt pass. This changes restore validation,
+not gameplay, schema or identities. The separately diagnosed Gathering Storm MarkRate consumer remains the next
+bounded native/source task; it is not covered by the restore repair's gameplay-parity claim.
 
 The initial pushed CI passes C#, native card-runtime source, legacy recapture, hosting and latency-report checks. Rust
 CI exposed an admission-test lifecycle race: two fixture players could start/end a match, so an expired reservation

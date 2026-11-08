@@ -40,7 +40,7 @@ protocol12/Observation18 privately; main remains11/17. Existing candidate checkp
 | DeepSeek Rust / second worker | [Frost resistance](coordination/P-FROST-RESISTANCE-1.md), delivered `6cfb7a41`; next [basic-NPC recipients](coordination/P-FROST-NPC-RECIPIENTS-1.md) | Player resistance bounded review passes; continuation owns Frost recipient code/tests only, no NPC source/gate expansion or shared identity files |
 | DeepSeek Post Rust | Barrier-view source `70a6790c` admitted in `33d72c34`; next [Wish public witness](coordination/P-WISH-PUBLIC-WITNESS-1.md) | Source evidence only; no native/codec/Unity changes |
 | Native observation specialist | Private production `ec9a9028`, source consumer `bbb7b012` | Production complete/reviewed; observe/item_view/wire lease handed to networking; remaining G6/transport/client proof held |
-| Native integration specialist | `codex/sentenced-resistance` from private union `80a4e130` | Repair actual Iron Will/Frost/Sentenced Mark restore rejection in sentenced.rs and dedicated tests; no schema/checkpoint/content or active networking edits |
+| Native integration specialist | Restore repairs `e6f9680a`/`c5b11341` reviewed/composed privately in `bc9cdd7b` | Production lease closed; root26-test Sentenced check passes. Next [MarkRate packet](coordination/P-SENTENCED-MARK-RATE-1.md) may own sentenced.rs/modifier accessor without shared schema/content edits |
 | Networking chat | [P-NET-12-WISH-BARRIER](coordination/P-NET-12-WISH-BARRIER.md), `codex/wish-barrier-net12` from `5e9f2ac1` | PhaseB observe/wire and G6 state/checkpoint/format/hash-coverage leases released. Merge full G6 `2a384510`; retain25/19. Headless event-time hashing released; content and derived tapes remain lead-owned |
 | Art chat | [Wish/barrier presentation](coordination/P-UNITY-WISH-BARRIER-1.md), stable client checkpoint `abd1ccfe` | Own HUD/Arena/presenter and released MatchClient lifecycle-only hunks. No input/Protocol/Net changes; one focused Editor batch before final-union Web proof |
 
@@ -114,7 +114,8 @@ must be resolved before dependent implementations; release evidence must test th
   No Commutation/Swift Judgment promotion history. The isolated resistance/tier repair owns that file and tests; actual
   gameplay arithmetic is unchanged. A separate diagnosed source gap remains: ready unique Gathering Storm folds
   MarkRate+0.5, source markStep uses markRateOf/chill, but native before_damage currently adds1/chill. Complete that
-  runtime/source-parity/content-registration packet after the restore worker releases the file; do not silently include
+  [runtime/source-parity packet](coordination/P-SENTENCED-MARK-RATE-1.md) now that the restore worker released the file;
+  root owns content registration. Do not silently include
   the missing multiplier in a restore-only claim or broaden history bounds as though it already executes.
 
 ## Completion evidence

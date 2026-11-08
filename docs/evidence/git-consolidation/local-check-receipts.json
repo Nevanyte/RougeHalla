@@ -432,6 +432,11 @@
       "file": "barrier-observation-source-native.log",
       "bytes": 1331,
       "sha256": "83446c9d137352db6025904c75523438c6a0688a6f40e357b2c3fb83d0ab9b2a"
+    },
+    {
+      "file": "sentenced-root-admission.log",
+      "bytes": 3195,
+      "sha256": "2057c6d0f293bce7b802a9ae996e2a289f047da7c542b16de3a3b5b8c83cc4d7"
     }
   ]
 }
