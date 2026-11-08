@@ -479,3 +479,166 @@ fn labels_use_utf8_byte_bound_without_rewriting() {
         "this seam does not invent ingress sanitization"
     );
 }
+
+#[test]
+fn publication_between_preview_preparation_and_commit_never_grants_action() {
+    let mut s = sim();
+    let (id, at, def) = {
+        let o =
+            s.w.quests
+                .as_ref()
+                .unwrap()
+                .offers
+                .iter()
+                .find(|o| {
+                    !o.published && catalog::DEFINITION[o.def as usize].kind != catalog::Kind::Kill
+                })
+                .unwrap();
+        (o.id, o.at, catalog::DEFINITION[o.def as usize].id)
+    };
+    teleport(&mut s, PlayerId(1), at);
+    s.step();
+    let mut observer = QuestObserver::new(PlayerId(1));
+    let prepared = observer.prepare(&s).unwrap();
+    let preview = prepared.view.rows.iter().find(|r| r.def == def).unwrap();
+    assert_eq!(preview.state, RowState::Preview);
+    let handle = preview.handle;
+    // The guard retains only its own staged snapshot; the world may advance before delivery.
+    for _ in 0..81 {
+        s.step();
+    }
+    assert!(s
+        .w
+        .quests
+        .as_ref()
+        .unwrap()
+        .offers
+        .iter()
+        .any(|o| o.id == id && o.published && o.status == Status::Open));
+    prepared.commit();
+    let miss = validate(RawCommand::QuestAccept { quest_id: None }).unwrap();
+    assert_eq!(observer.resolve_accept(&s, handle), miss);
+    let public = observer.prepare(&s).unwrap();
+    assert_eq!(
+        public
+            .view
+            .rows
+            .iter()
+            .find(|r| r.def == def)
+            .unwrap()
+            .handle,
+        handle
+    );
+    public.commit();
+    assert_ne!(observer.resolve_accept(&s, handle), miss);
+}
+
+#[test]
+fn hidden_roster_and_exhaustion_do_not_change_projection_or_failure() {
+    let mut a = sim();
+    let mut b = a.clone();
+    // Deliberately malformed hidden accepted state tests the filtering boundary, not a reachable bot/input path.
+    b.w.quests
+        .as_mut()
+        .unwrap()
+        .offers
+        .iter_mut()
+        .find(|o| !o.published)
+        .unwrap()
+        .accepted
+        .push(PlayerId(3));
+    let mut oa = QuestObserver::new(PlayerId(1));
+    let mut ob = QuestObserver::new(PlayerId(1));
+    oa.state.next_roster = u64::from(u32::MAX) + 1;
+    ob.state.next_roster = u64::from(u32::MAX) + 1;
+    let pa = oa.prepare(&a).unwrap();
+    let pb = ob.prepare(&b).unwrap();
+    assert_eq!(pa.view, pb.view);
+    pa.commit();
+    pb.commit();
+    // Now a public participant requires allocation in both; both fail with no grant or partial binding.
+    for s in [&mut a, &mut b] {
+        s.w.quests
+            .as_mut()
+            .unwrap()
+            .offers
+            .iter_mut()
+            .find(|o| o.published)
+            .unwrap()
+            .accepted
+            .push(PlayerId(2));
+    }
+    assert!(matches!(oa.prepare(&a), Err(Error::IdExhausted)));
+    assert!(matches!(ob.prepare(&b), Err(Error::IdExhausted)));
+    assert!(oa.state.roster.is_empty());
+    assert!(ob.state.roster.is_empty());
+}
+
+#[test]
+fn adding_a_published_participant_preserves_the_existing_roster_identity() {
+    let mut s = sim();
+    let (quest_id, at) = {
+        let o =
+            s.w.quests
+                .as_ref()
+                .unwrap()
+                .offers
+                .iter()
+                .find(|o| o.published)
+                .unwrap();
+        (o.id, o.at)
+    };
+    let mut observer = QuestObserver::new(PlayerId(3));
+    teleport(&mut s, PlayerId(1), at);
+    s.submit(
+        PlayerId(1),
+        validate(RawCommand::QuestAccept {
+            quest_id: Some(quest_id),
+        })
+        .unwrap(),
+    )
+    .unwrap();
+    s.step();
+    let first = observer.prepare(&s).unwrap();
+    let id = first
+        .view
+        .roster
+        .iter()
+        .find(|entry| entry.label == "holy")
+        .unwrap()
+        .id;
+    first.commit();
+    teleport(&mut s, PlayerId(2), at);
+    s.submit(
+        PlayerId(2),
+        validate(RawCommand::QuestAccept {
+            quest_id: Some(quest_id),
+        })
+        .unwrap(),
+    )
+    .unwrap();
+    s.step();
+    let second = observer.prepare(&s).unwrap();
+    assert_eq!(
+        second
+            .view
+            .roster
+            .iter()
+            .find(|entry| entry.label == "holy")
+            .unwrap()
+            .id,
+        id
+    );
+    assert_ne!(
+        second
+            .view
+            .roster
+            .iter()
+            .find(|entry| entry.label == "fire")
+            .unwrap()
+            .id,
+        id
+    );
+    let row = second.view.rows.iter().find(|row| row.giver == at).unwrap();
+    assert_eq!(row.participants.len(), 2);
+}

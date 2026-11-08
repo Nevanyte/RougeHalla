@@ -64,5 +64,5 @@ before delivery. Bounds, handle exhaustion and earlier-tick errors fail closed w
    verify real human WSS input, updates and reconnection in an actual client. Test capped quest GV through the existing
    fenced, idempotent result/spool/profile path. No additional profile fields are assumed.
 
-The existing lifecycle corpus and this candidate's focused native unit tests cover only their stated surfaces. They do not
+The native observer test fires the actual `Teleported` hook directly; it does not exercise the arena teleport producer. Test position changes are declared setup helpers. The existing lifecycle corpus and this candidate's focused native unit tests cover only their stated surfaces. They do not
 prove wire publication, browser interaction, full replay identity, giver equivalence, actor privacy or durable production.
