@@ -159,6 +159,9 @@ pub enum RoomReport {
         match_id: MatchId,
         profile: String,
         bot: bool,
+        /// A bot's fill spec when it is a managed fill bot (the learning record caller's tier/persona/faction); None
+        /// for a human or an unmanaged bot.
+        bot_spec: Option<BotSeatSpec>,
         fence: Option<i64>,
         result: RunResult,
         roster: Roster,
@@ -360,6 +363,9 @@ pub struct Room {
     sim: Sim,
     humans: Vec<HumanSeat>,
     bots: Vec<Seat>,
+    /// The fill policy's spec per seated bot (tier/persona/faction), for the P-BOTS-5 record caller.
+    bot_specs: Vec<(PlayerId, BotSeatSpec)>,
+    reported_bots: std::collections::BTreeSet<u32>,
     fill_to: usize,
     /// The scheduled fill policy (legacy BotManager). None keeps the immediate placeholder fill.
     fill: Option<BotFillState>,
@@ -463,6 +469,8 @@ impl Room {
             sim,
             humans: Vec::new(),
             bots: Vec::new(),
+            bot_specs: Vec::new(),
+            reported_bots: Default::default(),
             fill_to: if training { 0 } else { cfg.fill_bots_to },
             fill: None,
             min_players,
@@ -901,6 +909,13 @@ impl Room {
         self
     }
 
+    pub fn with_learning(mut self, sink: Arc<dyn crate::bot_learning::LearningSink>) -> Self {
+        if let Some(fill) = &mut self.fill {
+            fill.set_learning_sink(sink);
+        }
+        self
+    }
+
     /// One lobby step of the fill policy, before the step it applies to (the manager's lobbyTick and, on the closing
     /// step, lobbyClosing): draws the arrivals that are due and seats them, then seats whoever is still missing when the
     /// lobby is about to close into the raid.
@@ -978,6 +993,7 @@ impl Room {
         );
         seat.bind_fx(&self.sim).expect("new bot is unbound");
         self.bots.push(seat);
+        self.bot_specs.push((id, spec));
     }
 
     /// The newest bot gives its seat up (legacy BotManager.yieldSeat): the fill policy forgets it and the player leaves.
@@ -1000,6 +1016,7 @@ impl Room {
         self.record(ReplayInput::Leave { player: id });
         self.sim.remove_player(id);
         self.bots.retain(|seat| seat.player() != id);
+        self.bot_specs.retain(|(player, _)| *player != id);
         true
     }
 
@@ -1333,7 +1350,7 @@ impl Room {
     }
 
     /// Every resolved result goes to the director (durable storage), with the fence it was earned under.
-    fn report_results(&self, events: &[Event]) {
+    fn report_results(&mut self, events: &[Event]) {
         // A training room never settles or banks a run: no result reaches the director (and so no durable match).
         if self.training {
             return;
@@ -1352,11 +1369,25 @@ impl Room {
                     };
                     (seat.fence, seat.admission)
                 };
+                let bot_spec = if *bot {
+                    self.bot_specs
+                        .iter()
+                        .find(|(player, _)| player == id)
+                        .map(|(_, spec)| spec.clone())
+                } else {
+                    None
+                };
+                if let Some(spec) = &bot_spec {
+                    if !self.reported_bots.insert(spec.number) {
+                        continue;
+                    }
+                }
                 let _ = self.reports.send(RoomReport::Result {
                     admission,
                     match_id: self.id,
                     profile: result.profile.clone(),
                     bot: *bot,
+                    bot_spec,
                     fence,
                     result: result.clone(),
                     roster: Roster {
@@ -2553,5 +2584,71 @@ mod tests {
         assert_eq!(fill.stats().yielded, 1);
         assert_eq!(fill.specs().len(), specs_before - 1);
         assert_eq!(fill.stats().arrived, 7);
+    }
+
+    /// P-BOTS-5 remainder: a resolved fill bot's report carries the spec the record caller needs (tier/persona/faction),
+    /// so the director can build the learning summary without guessing from the wire result.
+    #[test]
+    fn a_bot_result_report_carries_its_fill_spec_once() {
+        use rh_policy::bots::{PersonaId, TierId};
+        let (reports, mut rx) = mpsc::unbounded_channel();
+        let mut room = Room::new(
+            [7; 16],
+            cfg(Duration::from_millis(50)),
+            reports,
+            Instant::now(),
+        );
+        let spec = BotSeatSpec {
+            number: 1,
+            name: "Wren".into(),
+            tier: TierId::Hard,
+            persona: PersonaId::Hunter,
+            faction: FactionId::Plague,
+            seed: 5,
+        };
+        let bot = PlayerId(1);
+        room.bot_specs.push((bot, spec.clone()));
+        let result = rh_sim::RunResult {
+            outcome: rh_sim::Outcome::Died,
+            profile: "Wren".into(),
+            faction: Some(FactionId::Plague),
+            weapon: None,
+            duration_sec: 3,
+            kills: 1,
+            killed_by: None,
+            killed_by_bot: false,
+            place: 2,
+            players: 2,
+            gv: Default::default(),
+            win_bonus_withheld: false,
+            win_bonus_why: None,
+        };
+        room.report_results(&[Event::Resolved {
+            id: bot,
+            result: result.clone(),
+            bot: true,
+        }]);
+        // Source BotManager.onResult's ended guard: a repeated native event must not train the cell twice.
+        room.report_results(&[Event::Resolved {
+            id: bot,
+            result: result.clone(),
+            bot: true,
+        }]);
+        match rx.try_recv().expect("a bot result report") {
+            RoomReport::Result {
+                bot: true,
+                bot_spec: Some(got),
+                result: reported,
+                ..
+            } => {
+                assert_eq!(got, spec);
+                assert_eq!(reported, result);
+            }
+            other => panic!("expected a bot result with its fill spec, got {other:?}"),
+        }
+        assert!(
+            rx.try_recv().is_err(),
+            "one managed seat records at most one result"
+        );
     }
 }

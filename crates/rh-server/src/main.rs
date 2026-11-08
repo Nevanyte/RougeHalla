@@ -5,6 +5,7 @@
 //!       [--control 127.0.0.1:7778] [--map parity/maps/seed1.map.json] [--max-rooms 16] [--fill-bots 8]
 //!       [--min-players 1] [--lobby-seconds 10] [--fill-seconds 3] [--auth dev|static:<file>]
 //!       [--database-url postgres://... [--instance-id id]]   (build with --features postgres)
+//!       [--bot-learning off|single-writer]   (default off; single-writer needs PostgreSQL and its exclusive lease)
 //!       [--new-profiles-per-hour 30] [--new-profiles-per-ip-per-hour 10] [--passcode-fails-per-minute 6]
 //!       [--passcode-fails-per-minute-all 40] [--shop-burst 6] [--shop-per-second 3]
 //!       [--lookup-burst 40] [--lookup-per-second 20] [--api-db-concurrency 6] [--api-timeout-secs 10]
@@ -477,11 +478,6 @@ async fn main() {
             .map_or_else(|| num("--fill-bots", 0.) as usize, |p| p.fill_bots),
         ..DirectorConfig::new(sim, arena)
     };
-    // The live server fills its lobbies with the legacy manager policy (BOTS_FILL_TO from --fill-bots); tests and
-    // benches construct rooms directly and keep the immediate placeholder fill unless they opt in.
-    cfg.bot_fill = Some(rh_server::bot_fill::BotFillConfig::with_fill_to(
-        cfg.fill_bots_to,
-    ));
     cfg.require_admit = hosted.require_admit;
     if let Some(ttl) = hosted.admit_ttl {
         cfg.admit_ttl = ttl;
@@ -505,6 +501,77 @@ async fn main() {
         None => (Persistence::memory(), auth),
         Some(url) => durable(&url, &args).await,
     };
+    // Explicit opt-in only: ordinary database/profile writers never start learning implicitly.
+    let learning_mode =
+        rh_server::bot_learning::LearningMode::from_args(&args).unwrap_or_else(|error| {
+            eprintln!("[server] {error}");
+            std::process::exit(2);
+        });
+    if learning_mode == rh_server::bot_learning::LearningMode::SingleWriter
+        && matches!(persistence, Persistence::Memory(_))
+    {
+        eprintln!("[server] --bot-learning single-writer requires PostgreSQL");
+        std::process::exit(2);
+    }
+    #[cfg(feature = "postgres")]
+    let learning: Option<
+        Arc<rh_server::bot_learning::LiveLearning<rh_server::bot_learning::PgBackend>>,
+    > = if learning_mode == rh_server::bot_learning::LearningMode::SingleWriter {
+        if let Persistence::Postgres { store, .. } = &persistence {
+            let budget = rh_server::bot_learning::LearningBudget::default();
+            let acquired = tokio::time::timeout(
+                budget.attempt,
+                rh_server::bot_learning::PgBackend::acquire(store.pool()),
+            )
+            .await;
+            match acquired {
+                Ok(Ok(Some(backend))) => {
+                    let clock = Arc::new(|| {
+                        std::time::SystemTime::now()
+                            .duration_since(std::time::UNIX_EPOCH)
+                            .map(|d| d.as_millis() as i64)
+                            .unwrap_or(0)
+                    });
+                    match rh_server::bot_learning::LiveLearning::start(backend, clock).await {
+                        Ok(live) => Some(live),
+                        Err(error) => {
+                            eprintln!("[server] learning disabled: {error}");
+                            None
+                        }
+                    }
+                }
+                Ok(Ok(None)) => {
+                    eprintln!("[server] learning disabled: database writer lease busy");
+                    None
+                }
+                Ok(Err(error)) => {
+                    eprintln!("[server] learning disabled: {error}");
+                    None
+                }
+                Err(_) => {
+                    eprintln!("[server] learning disabled: writer acquisition deadline exceeded");
+                    None
+                }
+            }
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+    #[cfg(feature = "postgres")]
+    let learned = learning
+        .as_ref()
+        .map_or(rh_policy::bots::learning::LearnedBias::NO_BIAS, |live| {
+            live.snapshot()
+        });
+    #[cfg(not(feature = "postgres"))]
+    let learned = rh_policy::bots::learning::LearnedBias::NO_BIAS;
+    // The live server fills its lobbies with the legacy manager policy (BOTS_FILL_TO from --fill-bots); tests and
+    // benches construct rooms directly and keep the immediate placeholder fill unless they opt in.
+    cfg.bot_fill = Some(
+        rh_server::bot_fill::BotFillConfig::with_fill_to(cfg.fill_bots_to).with_learned(learned),
+    );
     let api_cfg = api_config(&args).unwrap_or_else(|e| {
         eprintln!("[server] invalid account API settings: {e}");
         std::process::exit(2);
@@ -568,6 +635,11 @@ async fn main() {
         Arc::new(auth),
         lifecycle.clone(),
     );
+    // The record caller and the next lobby's bias snapshot come from the live store (P-BOTS-5).
+    #[cfg(feature = "postgres")]
+    if let Some(live) = &learning {
+        director.install_learning(live.clone());
+    }
     // Replay what an earlier process left in the spool (original fence and metadata), before any admission. This runs in
     // the background against the database: an outage delays the replay, never startup or a tick.
     #[cfg(feature = "postgres")]
@@ -624,13 +696,25 @@ async fn main() {
     let h2 = handle.clone();
     let lc = lifecycle.clone();
     let writes = director.clone();
+    // The live learning store flushes and closes with the process (the source manager's dispose flush).
+    #[cfg(feature = "postgres")]
+    let shutdown_learning = learning.clone();
     tokio::spawn(async move {
         lc.terminated.notified().await;
         // Results still being written survive the shutdown (bounded: a dead database cannot hold the process forever).
         if !writes.wait_for_writes(Duration::from_secs(150)).await {
             eprintln!("[server] exiting with result writes still pending");
         }
-        h2.graceful_shutdown(Some(Duration::from_secs(5)));
+        let shutdown = || h2.graceful_shutdown(Some(Duration::from_secs(5)));
+        #[cfg(feature = "postgres")]
+        if let Some(live) = &shutdown_learning {
+            let report = rh_server::bot_learning::close_then(live, shutdown).await;
+            if !report.flushed {
+                eprintln!("[server] learning closed with unflushed statistics: {report:?}");
+            }
+            return;
+        }
+        shutdown();
     });
     let tls = if args.iter().any(|a| a == "--self-signed") {
         let cert = rcgen::generate_simple_self_signed(vec!["localhost".into(), "127.0.0.1".into()])

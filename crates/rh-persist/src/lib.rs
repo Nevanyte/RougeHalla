@@ -13,6 +13,7 @@
 pub mod account;
 pub mod achievements;
 pub mod admin;
+pub mod bot_stats_db;
 pub mod cosmetics;
 pub mod legacy;
 pub mod model;

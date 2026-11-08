@@ -1,0 +1,125 @@
+{
+  "revision": "75eaa42e003f45827c1428c63a8508a90b9104a4",
+  "sourceSha256": {
+    "packages/server/src/bots/learning/BotStatsStore.ts": "3241143a09e1a3cd66f469afcba0e8b7a24b2198ad87142b1daf300f16e6b1fa",
+    "packages/server/src/bots/brain/types.ts": "12b3cae05bcde760cd642b9c5eb9919bfc47189882c81258994c9f1122d3d361"
+  },
+  "initialKeys": {
+    "first": "opener|z-oldest|flank",
+    "second": "opener|a-second|flank",
+    "fillerCount": 1998,
+    "fillerPattern": "opener|m%04d|flank"
+  },
+  "cases": [
+    {
+      "name": "runtime_nonlexical_tie",
+      "firstCount": 1,
+      "operations": [
+        {
+          "choices": [
+            "opener|new|flank"
+          ],
+          "evicted": [
+            "opener|z-oldest|flank"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "update_retains_age",
+      "firstCount": 0,
+      "operations": [
+        {
+          "choices": [
+            "opener|z-oldest|flank",
+            "opener|z-oldest|flank"
+          ],
+          "evicted": []
+        },
+        {
+          "choices": [
+            "opener|new|flank"
+          ],
+          "evicted": [
+            "opener|z-oldest|flank"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "remove_reinsert_appends",
+      "firstCount": 1,
+      "operations": [
+        {
+          "choices": [
+            "opener|new|flank"
+          ],
+          "evicted": [
+            "opener|z-oldest|flank"
+          ]
+        },
+        {
+          "choices": [
+            "opener|z-oldest|flank"
+          ],
+          "evicted": [
+            "opener|a-second|flank"
+          ]
+        },
+        {
+          "choices": [
+            "opener|newer|flank"
+          ],
+          "evicted": [
+            "opener|m0000|flank"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "restart_restores_serialized_key_order",
+      "firstCount": 0,
+      "operations": [
+        {
+          "choices": [
+            "opener|z-oldest|flank",
+            "opener|z-oldest|flank"
+          ],
+          "evicted": []
+        },
+        {
+          "reload": true
+        },
+        {
+          "choices": [
+            "opener|new|flank"
+          ],
+          "evicted": [
+            "opener|a-second|flank"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "runtime_without_restart_keeps_original_order",
+      "firstCount": 0,
+      "operations": [
+        {
+          "choices": [
+            "opener|z-oldest|flank",
+            "opener|z-oldest|flank"
+          ],
+          "evicted": []
+        },
+        {
+          "choices": [
+            "opener|new|flank"
+          ],
+          "evicted": [
+            "opener|z-oldest|flank"
+          ]
+        }
+      ]
+    }
+  ]
+}

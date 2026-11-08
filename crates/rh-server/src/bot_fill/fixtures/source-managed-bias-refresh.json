@@ -1,0 +1,270 @@
+{
+  "format": "rh-managed-faction-bias-refresh-source/1",
+  "revision": "75eaa42e003f45827c1428c63a8508a90b9104a4",
+  "profile": {
+    "node": "v25.8.1",
+    "platform": "darwin",
+    "arch": "arm64",
+    "sourceArchiveSha256": "d6f6a26ef994edff48c4e52cc2cfad857211332c0bfe19008a49d36b104651b6",
+    "toolSha256": "ffaa99ed7ce84c08fd8798b08df96395ce5b1c079dd42c09380610777ed7f902",
+    "sourceSha256": {
+      "packages/server/src/bots/BotManager.ts": "06f2e2957c1528a838777c54d505ce4a7fc402ee6bb11b38e171761a205e3fae",
+      "packages/server/src/bots/brain/types.ts": "12b3cae05bcde760cd642b9c5eb9919bfc47189882c81258994c9f1122d3d361",
+      "packages/server/src/bots/brain/random.ts": "a23fb8d369ffced9e30719706b12eb5ec65afb14da16429a7cdc9dbc7e3f92f7",
+      "packages/server/src/bots/callsigns.ts": "5ce870d6764b49cdbbfa1b35946b4ce1bf18eaf25904529133dcf97b1f911a84",
+      "packages/server/src/sim/gameplay.ts": "70f6f2b67571783f3042309bef01dc75aabd2656c59a184d0f97c9c0a8b8cf78",
+      "packages/server/src/sim/world.ts": "b98376a7f022ec6f9b681e368d62c18fbe524d95408b2d4eec93909934454d54",
+      "packages/server/src/sim/step.ts": "5ff90451b4b27b12ddfe8175745cf38892eaf07a851282c904076edc46896634",
+      "packages/shared/src/factions.ts": "aa0cebf1c17af17b64bc1e020c4613ab10788ec66d82a72232aef8915d5403f3",
+      "packages/shared/src/rng.ts": "412bdcee4a5adcb6163bff3561cb4a07eff423dc7e30e9ba0694cb41b05b1bec"
+    }
+  },
+  "inputs": {
+    "managerSeed": 7,
+    "worldSeed": 1234,
+    "arrivalMethod": "BotManager.addBot",
+    "arrivalCount": 2,
+    "config": {
+      "fillTo": 3,
+      "arrivalSeconds": 12,
+      "tierMix": {
+        "easy": 0.3,
+        "normal": 0.45,
+        "hard": 0.25
+      },
+      "personaMix": {
+        "farmer": 4,
+        "hunter": 1,
+        "opportunist": 2,
+        "cautious": 3
+      },
+      "latencyMs": 30,
+      "jitterMs": 8,
+      "statsFile": null,
+      "seed": null
+    },
+    "initialBiases": {
+      "faction|farmer|fire": 0,
+      "faction|farmer|sentenced": 0,
+      "faction|farmer|plague": 0,
+      "faction|farmer|frost": 0,
+      "faction|farmer|holy": 0,
+      "faction|hunter|fire": 0,
+      "faction|hunter|sentenced": 0,
+      "faction|hunter|plague": 0,
+      "faction|hunter|frost": 0,
+      "faction|hunter|holy": 0,
+      "faction|opportunist|fire": 0,
+      "faction|opportunist|sentenced": 0,
+      "faction|opportunist|plague": 0,
+      "faction|opportunist|frost": 0,
+      "faction|opportunist|holy": 0,
+      "faction|cautious|fire": 0,
+      "faction|cautious|sentenced": 0,
+      "faction|cautious|plague": 0,
+      "faction|cautious|frost": 0,
+      "faction|cautious|holy": 0
+    },
+    "changedBiases": {
+      "faction|farmer|fire": 0.25,
+      "faction|farmer|sentenced": -0.25,
+      "faction|farmer|plague": -0.25,
+      "faction|farmer|frost": -0.25,
+      "faction|farmer|holy": -0.25,
+      "faction|hunter|fire": 0.25,
+      "faction|hunter|sentenced": -0.25,
+      "faction|hunter|plague": -0.25,
+      "faction|hunter|frost": -0.25,
+      "faction|hunter|holy": -0.25,
+      "faction|opportunist|fire": 0.25,
+      "faction|opportunist|sentenced": -0.25,
+      "faction|opportunist|plague": -0.25,
+      "faction|opportunist|frost": -0.25,
+      "faction|opportunist|holy": -0.25,
+      "faction|cautious|fire": 0.25,
+      "faction|cautious|sentenced": -0.25,
+      "faction|cautious|plague": -0.25,
+      "faction|cautious|frost": -0.25,
+      "faction|cautious|holy": -0.25
+    },
+    "isNameTaken": false,
+    "brainFactory": "inert test seam; no tick/end invoked"
+  },
+  "dynamic": {
+    "mode": "current-store-snapshot-each-arrival",
+    "initialPlayers": [
+      {
+        "name": "human1",
+        "faction": "fire"
+      }
+    ],
+    "snapshotReads": [
+      0,
+      1
+    ],
+    "brainSnapshots": [
+      {
+        "fire": 0,
+        "sentenced": 0,
+        "plague": 0,
+        "frost": 0,
+        "holy": 0
+      },
+      {
+        "fire": 0.25,
+        "sentenced": -0.25,
+        "plague": -0.25,
+        "frost": -0.25,
+        "holy": -0.25
+      }
+    ],
+    "brainFrames": 0,
+    "arrivals": [
+      {
+        "arrival": 1,
+        "requestedStoreVersion": 0,
+        "suppliedSnapshotVersion": 0,
+        "preFactions": [
+          "fire"
+        ],
+        "namesLower": [
+          "human1"
+        ],
+        "draws": [
+          0.890012247255072,
+          0.8843999071978033,
+          0.4762176154181361,
+          0.9157360186800361,
+          0.12353306449949741
+        ],
+        "spec": {
+          "id": "bot~1",
+          "name": "Pip",
+          "tier": "hard",
+          "persona": "cautious",
+          "faction": "holy",
+          "seed": 3412348123
+        },
+        "line": "bot~1 Pip hard cautious holy 3412348123"
+      },
+      {
+        "arrival": 2,
+        "requestedStoreVersion": 1,
+        "suppliedSnapshotVersion": 1,
+        "preFactions": [
+          "fire",
+          "holy"
+        ],
+        "namesLower": [
+          "human1",
+          "pip"
+        ],
+        "draws": [
+          0.9872043312061578,
+          0.9191137845627964,
+          0.23257361049763858,
+          0.501379023771733,
+          0.6462854682467878
+        ],
+        "spec": {
+          "id": "bot~2",
+          "name": "Torvald",
+          "tier": "hard",
+          "persona": "cautious",
+          "faction": "fire",
+          "seed": 812051035
+        },
+        "line": "bot~2 Torvald hard cautious fire 812051035"
+      }
+    ]
+  },
+  "fixedLobbySnapshotControl": {
+    "mode": "injected-store-frozen-at-lobby-snapshot-control",
+    "initialPlayers": [
+      {
+        "name": "human1",
+        "faction": "fire"
+      }
+    ],
+    "snapshotReads": [
+      0,
+      0
+    ],
+    "brainSnapshots": [
+      {
+        "fire": 0,
+        "sentenced": 0,
+        "plague": 0,
+        "frost": 0,
+        "holy": 0
+      },
+      {
+        "fire": 0,
+        "sentenced": 0,
+        "plague": 0,
+        "frost": 0,
+        "holy": 0
+      }
+    ],
+    "brainFrames": 0,
+    "arrivals": [
+      {
+        "arrival": 1,
+        "requestedStoreVersion": 0,
+        "suppliedSnapshotVersion": 0,
+        "preFactions": [
+          "fire"
+        ],
+        "namesLower": [
+          "human1"
+        ],
+        "draws": [
+          0.890012247255072,
+          0.8843999071978033,
+          0.4762176154181361,
+          0.9157360186800361,
+          0.12353306449949741
+        ],
+        "spec": {
+          "id": "bot~1",
+          "name": "Pip",
+          "tier": "hard",
+          "persona": "cautious",
+          "faction": "holy",
+          "seed": 3412348123
+        },
+        "line": "bot~1 Pip hard cautious holy 3412348123"
+      },
+      {
+        "arrival": 2,
+        "requestedStoreVersion": 1,
+        "suppliedSnapshotVersion": 0,
+        "preFactions": [
+          "fire",
+          "holy"
+        ],
+        "namesLower": [
+          "human1",
+          "pip"
+        ],
+        "draws": [
+          0.9872043312061578,
+          0.9191137845627964,
+          0.23257361049763858,
+          0.501379023771733,
+          0.6462854682467878
+        ],
+        "spec": {
+          "id": "bot~2",
+          "name": "Torvald",
+          "tier": "hard",
+          "persona": "cautious",
+          "faction": "plague",
+          "seed": 812051035
+        },
+        "line": "bot~2 Torvald hard cautious plague 812051035"
+      }
+    ]
+  },
+  "secondFactionChanged": true
+}
