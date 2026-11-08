@@ -297,6 +297,26 @@ fn the_module_retries_only_after_the_rule_gap_and_forgets_an_old_hit() {
 }
 
 #[test]
+fn the_easy_filter_keeps_only_the_defensive_tags() {
+    let freeze = crate::bots::wish::wish_by_id(AbilityId::Freeze).expect("a row");
+    let blaze = crate::bots::wish::wish_by_id(AbilityId::Blaze).expect("a row");
+    assert!(
+        crate::bots::wish::played_ai(freeze, TierId::Easy).is_none(),
+        "easy never spends an engage/control Wish"
+    );
+    assert_eq!(
+        crate::bots::wish::played_ai(blaze, TierId::Easy),
+        Some(&[crate::bots::wish::AiIntent::Escape][..]),
+        "easy keeps the defensive tag"
+    );
+    assert_eq!(
+        crate::bots::wish::played_ai(blaze, TierId::Normal),
+        Some(blaze.ai),
+        "other tiers play every tag"
+    );
+}
+
+#[test]
 fn the_wish_view_is_a_fair_copy_of_the_observation_slot() {
     let obs = observation(1_000., wish(AbilityId::Trial, 250.), 0, 900., false, None);
     let frame = Perception::default().build(&obs, 1.).expect("a frame");

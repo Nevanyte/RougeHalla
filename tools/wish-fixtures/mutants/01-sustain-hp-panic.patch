@@ -1,0 +1,13 @@
+diff --git a/crates/rh-policy/src/bots/wish.rs b/crates/rh-policy/src/bots/wish.rs
+index da116c5a..03637707 100644
+--- a/crates/rh-policy/src/bots/wish.rs
++++ b/crates/rh-policy/src/bots/wish.rs
+@@ -38,7 +38,7 @@ pub const TARGET_SNAP_RADIUS: f64 = 64.;
+ pub const ESCAPE_THREAT_DISTANCE: f64 = 260.;
+ pub const ESCAPE_HP_THREATENED: f64 = 0.5;
+ pub const ESCAPE_HP_HIT: f64 = 0.55;
+-pub const SUSTAIN_HP: f64 = 0.35;
++pub const SUSTAIN_HP: f64 = 0.2;
+ pub const ENGAGE_RANGE_MARGIN: f64 = 16.;
+ pub const PEEL_DISTANCE: f64 = 150.;
+ pub const ENGAGE_BLINK_MIN_DISTANCE: f64 = 120.;

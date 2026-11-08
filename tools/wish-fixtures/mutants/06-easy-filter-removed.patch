@@ -1,0 +1,13 @@
+diff --git a/crates/rh-policy/src/bots/wish.rs b/crates/rh-policy/src/bots/wish.rs
+index da116c5a..b48c5d7b 100644
+--- a/crates/rh-policy/src/bots/wish.rs
++++ b/crates/rh-policy/src/bots/wish.rs
+@@ -213,7 +213,7 @@ pub fn wish_rank(def: &WishDef, rank: u8) -> &WishRank {
+ }
+ /// The Easy tier's tag filter, per Wish row (only the defensive tags keep the panic button).
+ const EASY_AI: [&[AiIntent]; 5] = [
+-    &[],
++    &[AiIntent::Engage],
+     &[AiIntent::Escape],
+     &[],
+     &[AiIntent::Escape],

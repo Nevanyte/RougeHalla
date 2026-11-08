@@ -220,7 +220,7 @@ const EASY_AI: [&[AiIntent]; 5] = [
     &[AiIntent::Sustain, AiIntent::Escape],
 ];
 /// The tags this tier plays the Wish with (legacy playedDef: Easy filters to escape/sustain, null when none remains).
-fn played_ai(def: &WishDef, tier: TierId) -> Option<&'static [AiIntent]> {
+pub(crate) fn played_ai(def: &WishDef, tier: TierId) -> Option<&'static [AiIntent]> {
     if tier != TierId::Easy {
         return Some(def.ai);
     }
