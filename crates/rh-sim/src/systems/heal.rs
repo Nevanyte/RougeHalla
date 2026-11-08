@@ -64,7 +64,7 @@ pub(crate) fn apply_with(
         });
     }
     #[cfg(feature = "trusted-status-probes")]
-    if gained > 0. && w.is_player(ix) {
+    if gained > 0. {
         crate::status_runtime::probe::record_heal(w, i, gained, kind);
     }
     gained

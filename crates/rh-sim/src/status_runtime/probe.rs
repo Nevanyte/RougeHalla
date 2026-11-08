@@ -12,7 +12,52 @@ use crate::{
 use crate::{Event, PlayerId, RawCommand, Sim, Vec2};
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize)]
+pub struct NpcSnapshot {
+    pub actor: Box<crate::mob_runtime::Mob>,
+    pub origin: crate::mob_runtime::ActorOrigin,
+}
+fn npc_snapshot(w: &World, id: PlayerId) -> Option<NpcSnapshot> {
+    w.mobs.get(id).map(|m| NpcSnapshot {
+        actor: Box::new(m.clone()),
+        origin: w
+            .actor_origin(id)
+            .expect("actual typed NPC provenance")
+            .clone(),
+    })
+}
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct AfterWeaponsActor {
+    pub core: Box<crate::fighter::FighterCore>,
+    pub origin: crate::mob_runtime::ActorOrigin,
+}
+#[derive(Clone, Debug)]
+/// Trusted completed ordinary-hook boundary, separate from the player harness snapshot format.
+pub struct Invocation {
+    pub name: &'static str,
+    pub tick: u32,
+    pub time: f64,
+}
+
+#[derive(Clone, Debug, PartialEq, serde::Serialize)]
 pub enum HookRecord {
+    NpcAttackStarted {
+        snapshot: NpcSnapshot,
+    },
+    NpcHurt {
+        snapshot: NpcSnapshot,
+        amount: f64,
+        before: f64,
+    },
+    NpcStatusApplied {
+        snapshot: NpcSnapshot,
+        status: StatusInstance,
+        fresh: bool,
+    },
+    NpcHealed {
+        snapshot: NpcSnapshot,
+        amount: f64,
+        source: HealSource,
+    },
     CastAccepted {
         actor: Box<Player>,
         ability: AbilityId,
@@ -89,12 +134,66 @@ pub(crate) struct ProbeLog {
     pub enabled: bool,
     pub records: Vec<HookRecord>,
     pub callbacks: Vec<CallbackRecord>,
+    pub after_weapons: Vec<AfterWeaponsActor>,
+    pub after_weapons_hook_count: usize,
+    pub invocations: Vec<Invocation>,
+}
+/// Read-only exact phase snapshot; the disabled path does nothing beyond the guard.
+pub(crate) fn after_weapons(w: &mut World) {
+    if !w.trace.1.enabled {
+        return;
+    }
+    let rows = w
+        .players
+        .iter()
+        .map(|p| &p.core)
+        .chain(w.mobs.iter().map(|m| &m.core))
+        .map(|c| AfterWeaponsActor {
+            core: Box::new(c.clone()),
+            origin: w
+                .actor_origin(c.id)
+                .expect("actual typed actor provenance")
+                .clone(),
+        })
+        .collect();
+    w.trace.1.after_weapons = rows;
+    w.trace.1.after_weapons_hook_count = w.trace.1.records.len();
 }
 pub(crate) fn record_hook(w: &mut World, args: &HookArgs) {
     if !w.trace.1.enabled {
         return;
     }
+    w.trace.1.invocations.push(Invocation {
+        name: args.hook().key(),
+        tick: w.tick,
+        time: w.server_time,
+    });
     let record = match args {
+        HookArgs::StatusApplied {
+            id, index, fresh, ..
+        } if w.mobs.get(*id).is_some() => npc_snapshot(w, *id).and_then(|snapshot| {
+            snapshot
+                .actor
+                .core
+                .statuses
+                .instances
+                .get(*index)
+                .cloned()
+                .map(|status| HookRecord::NpcStatusApplied {
+                    snapshot,
+                    status,
+                    fresh: *fresh,
+                })
+        }),
+        HookArgs::Hurt { id, amount, before } if w.mobs.get(*id).is_some() => npc_snapshot(w, *id)
+            .map(|snapshot| HookRecord::NpcHurt {
+                snapshot,
+                amount: *amount,
+                before: *before,
+            }),
+        HookArgs::AttackStarted(id) if w.mobs.get(*id).is_some() => {
+            npc_snapshot(w, *id).map(|snapshot| HookRecord::NpcAttackStarted { snapshot })
+        }
         HookArgs::StatusApplied {
             id, index, fresh, ..
         } => w.player(*id).and_then(|p| {
@@ -178,18 +277,42 @@ pub(crate) fn record_cast(w: &mut World, id: PlayerId, ability: AbilityId, reaso
                 reason,
             };
             w.trace.1.records.push(r);
+            w.trace.1.invocations.push(Invocation {
+                name: "castEnded",
+                tick: w.tick,
+                time: w.server_time,
+            });
         }
     }
 }
 pub(crate) fn record_heal(w: &mut World, i: usize, amount: f64, kind: systems::heal::Kind) {
     if w.trace.1.enabled {
+        w.trace.1.invocations.push(Invocation {
+            name: "healed",
+            tick: w.tick,
+            time: w.server_time,
+        });
         let source = match kind {
             systems::heal::Kind::Ordinary => HealSource::Ordinary,
             systems::heal::Kind::Lifesteal => HealSource::Lifesteal,
             systems::heal::Kind::IgnoreLockout => HealSource::IgnoreLockout,
             systems::heal::Kind::DeathFloor => HealSource::DeathFloor,
-            systems::heal::Kind::QuietRegen | systems::heal::Kind::QuietOrdinary => return,
+            systems::heal::Kind::QuietRegen | systems::heal::Kind::QuietOrdinary => {
+                if w.is_player(crate::fighter::FighterIx::of_slot(i)) {
+                    return;
+                }
+                HealSource::Ordinary
+            }
         };
+        let id = w.core(crate::fighter::FighterIx::of_slot(i)).id;
+        if let Some(snapshot) = npc_snapshot(w, id) {
+            w.trace.1.records.push(HookRecord::NpcHealed {
+                snapshot,
+                amount,
+                source,
+            });
+            return;
+        }
         w.trace.1.records.push(HookRecord::Healed {
             actor: Box::new(w.players[i].clone()),
             amount,
@@ -1259,6 +1382,11 @@ pub(crate) fn record_cast_accepted(w: &mut World, id: PlayerId, ability: Ability
                 ability,
             };
             w.trace.1.records.push(record);
+            w.trace.1.invocations.push(Invocation {
+                name: "castAccepted",
+                tick: w.tick,
+                time: w.server_time,
+            });
         }
     }
 }
@@ -1270,6 +1398,11 @@ pub(crate) fn record_cast_landed(w: &mut World, id: PlayerId, ability: AbilityId
                 ability,
             };
             w.trace.1.records.push(record);
+            w.trace.1.invocations.push(Invocation {
+                name: "castEnded",
+                tick: w.tick,
+                time: w.server_time,
+            });
         }
     }
 }

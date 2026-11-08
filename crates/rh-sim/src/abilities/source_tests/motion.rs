@@ -31,7 +31,7 @@ pub(super) fn compare_motion(
     });
     compare_value(&slip, &private["slip"], &format!("{context}/slip"));
     let w = &p.weapon;
-    let action=w.action.map(|a|json!({"kind":format!("{:?}",a.kind).to_lowercase(),"weapon":a.weapon.as_str(),"startedAt":a.started_at,"landsAt":a.lands_at,"a":a.a,"packet":{"raw":a.packet.raw,"phys":a.packet.phys,"magic":a.packet.magic,"true":a.packet.true_},"target":a.target.map_or_else(|| json!({"$undefined":true}), |id|json!(label(id)))}));
+    let action = action(w.action);
     let value = json!({"action":action,"rootUntil":w.root_until,"staggerImmuneUntil":w.stagger_immune_until,"held":w.held,"pressedAt":w.pressed_at,"bufferedUntil":w.buffered_until,"aim":w.aim,"aimAt":w.aim_at,"lagMs":w.lag_ms,"lock":w.targeting.target.map(label),"lockSeen":w.targeting.seen,"lockLosLostAt":w.targeting.lost_at.unwrap_or(0.),"lockPlanAt":minus_infinity(w.targeting.plan_at),"lockGoal":w.targeting.goal,"lockSearchAt":minus_infinity(w.targeting.search_at),"attackMoveGoal":w.targeting.attack_move,"lastShotAt":minus_infinity(w.last_shot_at)});
     let mut expected_weapon = private["weapon"].clone();
     if let Some(action) = expected_weapon["action"].as_object_mut() {
@@ -48,4 +48,8 @@ pub(super) fn compare_motion(
             &format!("{context}/drawStartedAt"),
         );
     }
+}
+
+pub(super) fn action(a: Option<crate::state::PendingAction>) -> V {
+    a.map_or(V::Null,|a|json!({"kind":format!("{:?}",a.kind).to_lowercase(),"weapon":a.weapon.as_str(),"startedAt":a.started_at,"landsAt":a.lands_at,"a":a.a,"packet":{"raw":a.packet.raw,"phys":a.packet.phys,"magic":a.packet.magic,"true":a.packet.true_},"target":a.target.map_or_else(||json!({"$undefined":true}),|id|json!(label(id)))}))
 }

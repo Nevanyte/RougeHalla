@@ -433,17 +433,27 @@ pub(crate) fn after_damage(cx: &mut Cx) {
     }
     super::plague::after_damage(k, w, ev, &mut s.fx);
     // Festering Arcana: the damage-over-time signature stopped running on a target (source engagedOn).
-    for i in 0..w.players.len() {
-        let faction = w.players[i].vitals.faction;
-        let deals_dot = matches!(faction, FactionId::Fire | FactionId::Plague);
-        let engaged = w.players[i].signature.engaged;
+    for slot in 0..w.fighter_count() {
+        let ix = FighterIx::of_slot(slot);
+        let p = w.core(ix);
+        let has_spec = w.is_player(ix)
+            || w.mobs
+                .get(p.id)
+                .is_some_and(|m| m.mob_type.is_some() && m.zombie.is_none());
+        let deals_dot = has_spec && matches!(p.vitals.faction, FactionId::Fire | FactionId::Plague);
+        let engaged = p.signature.engaged;
         let current = if deals_dot && engaged {
-            w.players[i].signature.target
+            p.signature.target
         } else {
             None
         };
-        let was = w.players[i].signature.engaged_on;
-        w.players[i].signature.engaged_on = current;
+        let was = p.signature.engaged_on;
+        w.core_mut(ix).signature.engaged_on = current;
+        // Every real faction combatant owns the cache; only a player owns a Festering card/build/seat.
+        if !w.is_player(ix) {
+            continue;
+        }
+        let i = ix.slot();
         if was.is_none() || was == current || !deals_dot {
             continue;
         }
@@ -558,3 +568,6 @@ pub(crate) fn validate_basic(
 mod pve_tests;
 #[cfg(test)]
 mod teleport_tests;
+
+#[cfg(test)]
+mod cache_tests;

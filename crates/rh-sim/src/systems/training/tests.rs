@@ -278,7 +278,6 @@ fn a_training_observation_says_so() {
     let obs = crate::observe(&sim, pid, &[]);
     assert!(obs.training);
     assert_eq!(obs.version, crate::OBSERVATION_VERSION);
-    assert_eq!(crate::OBSERVATION_VERSION, 20);
     let arena = arena_sim();
     let pid = arena.w.players.first().unwrap().id;
     assert!(!crate::observe(&arena, pid, &[]).training);

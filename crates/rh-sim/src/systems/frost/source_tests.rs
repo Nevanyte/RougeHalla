@@ -360,14 +360,11 @@ fn frost_sources_canonical_restore_history_hash_and_gates() {
         .chillers
         .contains(&owner));
     Sim::restore(serde_json::to_value(&sim).unwrap()).unwrap();
-    for mode in [
-        crate::FactionMode::EngagementHolyPlagueFireFrostSentenced,
-        crate::FactionMode::EngagementHolyPlagueFireFrostSentencedFireRoam,
-    ] {
-        let mut b = value.clone();
-        b["statics"]["config"]["faction_mode"] = json!(mode);
-        assert!(Sim::restore(b).is_err(), "Full mode stays closed");
-    }
+    // Genuine both-mode Full constructor/restore/Clone/replay positives now live in full_profile.rs. Retain the
+    // incomplete-capability negative instead of mutating an old Frost checkpoint and expecting supported Full refusal.
+    let mut lower = value.clone();
+    lower["statics"]["config"]["faction_mode"] = json!(crate::FactionMode::EngagementHolyPlagueFire);
+    assert!(Sim::restore(lower).is_err(), "Frost sources require the Frost capability");
     // The source budget comes from real Frost map spots, and training's live practice limit, never the old eight.
     assert_eq!(
         super::super::source_budget(&sim.k).unwrap(),
