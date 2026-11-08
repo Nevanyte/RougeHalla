@@ -12,7 +12,8 @@ namespace Roguehalla.Client
         sealed class Art
         {
             public GameObject Root;
-            public SpriteRenderer Body, Shadow, Halo, RuneBack, Rune, Hp, HpBack, Weapon, Status;
+            public SpriteRenderer Body, Shadow, Halo, RuneBack, Rune, Hp, HpBack, Barrier, Weapon, Status;
+            public SpriteRenderer[] BarrierRing;
             public SpriteRenderer[] StatusIcons;
             public SpriteRenderer[] SignatureIcons;
             public SpriteRenderer[] SignatureBackers;
@@ -22,7 +23,7 @@ namespace Roguehalla.Client
             public Vector3 LastPosition;
             public float MovingUntil, AttackUntil;
             public float AttackAt, HitAt, BlockAt, DeadAt, HitUntil, BlockUntil;
-            public bool Dead;
+            public bool Dead, HoldDeathFrame;
             public WeaponId WeaponId;
             public int Stamp;
         }
@@ -45,6 +46,18 @@ namespace Roguehalla.Client
 
         public SpriteActorPresenter(Transform parent, ShowcaseCatalog catalog) { _parent = parent; _catalog = catalog; }
         public bool Contains(uint id) { return _active.ContainsKey(id); }
+        public bool IsLiving(uint id) { return _active.TryGetValue(id, out var art) && !art.Dead; }
+        /// <summary>Clears local-time animation phases after a presentation clock cut.</summary>
+        public void ResetTransientTimers()
+        {
+            foreach (var pair in _active)
+            {
+                var a = pair.Value;
+                a.MovingUntil = a.AttackUntil = a.HitUntil = a.BlockUntil = 0;
+                a.AttackAt = a.HitAt = a.BlockAt = a.DeadAt = 0;
+                a.HoldDeathFrame = a.Dead;
+            }
+        }
         public bool TryPosition(uint id, out Vector3 position)
         {
             if (_active.TryGetValue(id, out var art)) { position = art.Root.transform.position; return true; }
@@ -99,20 +112,22 @@ namespace Roguehalla.Client
             art.Light.SetVisible(false);
             foreach (var icon in art.SignatureIcons) icon.enabled = false;
             foreach (var backing in art.SignatureBackers) backing.enabled = false;
+            art.Barrier.enabled = false;
+            foreach (var segment in art.BarrierRing) segment.enabled = false;
             art.UnknownSignature.enabled = false;
             art.UnknownSignatureBacker.enabled = false;
             art.Root.SetActive(false);
             _active.Remove(id);_pool.Push(art);
         }
 
-        public void Present(uint id, float x, float y, float facing, int hp, FactionId faction, ActorStatus status, WeaponId weapon,
-            ActorKind kind, MobTypeId? mob, ushort effects, byte signature, bool local)
+        public void Present(uint id, float x, float y, float facing, float hp, FactionId faction, ActorStatus status, WeaponId weapon,
+            ActorKind kind, MobTypeId? mob, ushort effects, byte signature, bool local, float barrierPct = 0f, byte barrierRingStep = 0)
         {
             if (!_active.TryGetValue(id, out var a))
             {
                 a = _pool.Count > 0 ? _pool.Pop() : Create(); _active.Add(id, a);
                 a.Root.SetActive(true); a.LastPosition = ArenaView.WorldPoint(x, y); a.MovingUntil = a.AttackUntil = 0;
-                a.HitUntil=a.BlockUntil=0;a.Dead=false;
+                a.HitUntil=a.BlockUntil=0;a.Dead=false;a.HoldDeathFrame=false;
             }
             a.Stamp = _stamp;
             var position = ArenaView.WorldPoint(x, y);
@@ -121,7 +136,8 @@ namespace Roguehalla.Client
             int order = 2000 + Mathf.RoundToInt(y * .5f);
             Color color = ShowcasePalette.Faction((int)faction);
             bool dead = status == ActorStatus.Dead || status == ActorStatus.Mia;
-            if(dead && !a.Dead) a.DeadAt=Time.unscaledTime;
+            if(dead && !a.Dead) { a.DeadAt=Time.unscaledTime; a.HoldDeathFrame=false; }
+            if(!dead) a.HoldDeathFrame=false;
             a.Dead=dead;a.WeaponId=weapon;
             bool isMob = kind != ActorKind.Player;
             string key = kind == ActorKind.TrainingDummy ? "knight" : isMob ? ((mob.HasValue && (int)mob.Value % 2 == 0) ? "goblin" : "skeleton") : ((int)faction == 1 || (int)faction == 2 ? "hero-female" : "hero");
@@ -152,7 +168,8 @@ namespace Roguehalla.Client
                 // Flare: SW,W,NW,N,NE,E,SE,S; server facing zero is screen east.
                 int direction = ((Mathf.RoundToInt(facing / (Mathf.PI / 4)) + 5) % 8 + 8) % 8;
                 int rawFrame=Mathf.Max(0,Mathf.FloorToInt(elapsed*Mathf.Max(1,fps)));
-                int frame = reduced ? (dead ? count-1 : 0) : loop ? rawFrame%Mathf.Max(1,count) : Mathf.Min(count-1,rawFrame);
+                int frame = dead && a.HoldDeathFrame ? count - 1 :
+                    reduced ? (dead ? count-1 : 0) : loop ? rawFrame%Mathf.Max(1,count) : Mathf.Min(count-1,rawFrame);
                 a.Body.sprite = frames[Mathf.Min(frames.Length - 1, direction * count + frame)];
                 float height = appearance.WorldHeight;
                 a.Body.transform.localScale = Vector3.one * height;
@@ -185,11 +202,30 @@ namespace Roguehalla.Client
             a.Rune.color = color;
             a.Rune.transform.localScale = new Vector3(.4f, .4f, 1);
             a.HpBack.sortingOrder = order + 4; a.Hp.sortingOrder = order + 5;
-            float width = Mathf.Clamp01(hp / 100f) * .85f;
+            float healthShare = dead ? 0f : Mathf.Clamp01(hp / 100f);
+            float barrierShare = dead || isMob ? 0f : Mathf.Clamp01(barrierPct / 100f);
+            const float unitWidth = .85f;
+            float width = healthShare * unitWidth;
+            float totalTrackWidth = Mathf.Max(.98f, unitWidth * (healthShare + barrierShare) + .04f);
+            a.HpBack.transform.localScale = new Vector3(totalTrackWidth, .11f, 1);
+            a.HpBack.transform.localPosition = new Vector3(-.49f + totalTrackWidth / 2, 1.8f, 0);
             a.Hp.transform.localScale = new Vector3(width, .055f, 1);
-            a.Hp.transform.localPosition = new Vector3((width - .85f) / 2, 1.8f, 0);
+            a.Hp.transform.localPosition = new Vector3(-.49f + width / 2, 1.8f, 0);
             a.Hp.color = local ? new Color(.55f, .94f, .72f) : color;
             a.Hp.enabled = !dead; a.HpBack.enabled = !dead;
+            float barrierWidth = barrierShare * unitWidth;
+            a.Barrier.transform.localScale = new Vector3(barrierWidth, .095f, 1);
+            a.Barrier.transform.localPosition = new Vector3(-.49f + width + barrierWidth / 2, 1.8f, 0);
+            a.Barrier.color = (Color)ShowcasePalette.Gold;
+            a.Barrier.enabled = !dead && barrierWidth > 0;
+            int ringSteps = dead || isMob ? 0 : Mathf.Clamp(barrierRingStep, (byte)0, (byte)8);
+            for (int i = 0; i < a.BarrierRing.Length; i++)
+            {
+                var segment = a.BarrierRing[i];
+                segment.enabled = i < ringSteps;
+                segment.color = (Color)ShowcasePalette.Gold;
+                segment.sortingOrder = order + 10;
+            }
             a.Weapon.sortingOrder = order + 2;
             a.Weapon.transform.localPosition = new Vector3(Mathf.Cos(facing) * .42f, .6f - Mathf.Sin(facing) * .12f, 0);
             a.Weapon.sprite = ShowcaseSprites.Get("weapon" + Mathf.Clamp((int)weapon,0,5));
@@ -241,8 +277,20 @@ namespace Roguehalla.Client
             a.Body = ShowcaseSprites.Create(t, "Authored character", "rune", 2, Color.white, Vector2.one, Vector3.zero);
             a.RuneBack = ShowcaseSprites.Create(t, "Faction insignia backplate", "bar", 2, new Color(.008f, .012f, .022f, .96f), new Vector2(.46f, .46f), Vector3.zero, false);
             a.Rune = ShowcaseSprites.Create(t, "Faction insignia", "rune", 3, Color.white, Vector2.one, Vector3.zero, false);
-            a.HpBack = ShowcaseSprites.Create(t, "Health track", "bar", 4, new Color(.015f, .02f, .035f), new Vector2(.94f, .11f), new Vector3(0, 1.8f), false);
+            a.HpBack = ShowcaseSprites.Create(t, "Health and barrier track", "bar", 4, new Color(.015f, .02f, .035f), new Vector2(.98f, .11f), new Vector3(0, 1.8f), false);
             a.Hp = ShowcaseSprites.Create(t, "Confirmed health", "bar", 5, Color.white, Vector2.one, Vector3.zero, false);
+            a.Barrier = ShowcaseSprites.Create(t, "Confirmed barrier", "bar", 6, ShowcasePalette.Gold, Vector2.one, Vector3.zero, false);
+            a.BarrierRing = new SpriteRenderer[8];
+            for (int i = 0; i < a.BarrierRing.Length; i++)
+            {
+                float angle = i * Mathf.PI / 4f - Mathf.PI / 2f;
+                var segment = ShowcaseSprites.Create(t, "Barrier ring step " + (i + 1), "bar", 10,
+                    ShowcasePalette.Gold, new Vector2(.16f, .045f),
+                    new Vector3(Mathf.Cos(angle) * .19f, 2.18f + Mathf.Sin(angle) * .19f, 0), false);
+                segment.transform.localRotation = Quaternion.Euler(0, 0, angle * Mathf.Rad2Deg);
+                segment.enabled = false;
+                a.BarrierRing[i] = segment;
+            }
             a.Weapon = ShowcaseSprites.Create(t, "Equipped weapon cue", "bar", 3, new Color(.9f, .86f, .72f), Vector2.one, Vector3.zero, false);
             a.Status = ShowcaseSprites.Create(t, "Public status cue", "rune", 6, Color.white, new Vector2(.18f, .18f), new Vector3(.55f, 1.5f), false);
             a.StatusIcons = new SpriteRenderer[13];

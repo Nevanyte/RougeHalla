@@ -166,6 +166,12 @@ namespace Roguehalla.Client
                     if (voice.Source != null) voice.Source.volume = _settings.SfxVolume;
         }
 
+        public void ResetTransientCues()
+        {
+            _pendingFxCount = 0;
+            StopAllVoices();
+        }
+
         void DetachSession()
         {
             _pendingFxCount = 0;

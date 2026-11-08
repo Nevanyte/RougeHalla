@@ -22,6 +22,7 @@ namespace Roguehalla.Client
         public Camera Cam;
 
         public Session Session { get; private set; }
+        Session _presentationSession;
         readonly List<InterpActor> _actors = new List<InterpActor>();
         readonly List<InterpActor> _targetActors = new List<InterpActor>();
         const double SteerRepeatMs = 100;
@@ -44,7 +45,7 @@ namespace Roguehalla.Client
 
         public void Join(string nickname, int faction)
         {
-            if (Session != null) { Session.FxReceived -= PresentFx; Session.Leave(); }
+            if (Session != null) { UnbindPresentationSession(); ResetPresentationTimeline(); Session.Leave(); }
             Profile = string.IsNullOrWhiteSpace(nickname) ? Profile : nickname.Trim();
             Faction = faction;
             _actors.Clear(); _steering = false; _attackHeld = false;
@@ -61,13 +62,14 @@ namespace Roguehalla.Client
                 Debug.Log("[net] " + state + (Session.RejectCode.HasValue ? " " + Session.RejectCode + ": " + Session.RejectReason : "") + (Session.Error != null ? " " + Session.Error : ""));
             };
             Hud.Bind(Session);
-            Session.FxReceived += PresentFx;
+            BindPresentationSession(Session);
             Session.Connect();
         }
 
         public void Leave()
         {
-            if (Session != null) { Session.FxReceived -= PresentFx; Session.Leave(); }
+            UnbindPresentationSession(); ResetPresentationTimeline();
+            if (Session != null) Session.Leave();
             if (Arena != null) Destroy(Arena.gameObject);
             Session = null;
             Hud.ShowMenu();
@@ -81,7 +83,31 @@ namespace Roguehalla.Client
             _attackHeld = _steering = false;
         }
 
-        void OnDestroy() { if (Session != null) { Session.FxReceived -= PresentFx; Session.Leave(); } }
+        void OnDestroy() { UnbindPresentationSession(); ResetPresentationTimeline(); if (Session != null) Session.Leave(); }
+
+        void BindPresentationSession(Session session)
+        {
+            UnbindPresentationSession();
+            _presentationSession = session;
+            ResetPresentationTimeline();
+            if (session == null) return;
+            session.FxReceived += PresentFx;
+            session.TimelineReset += ResetPresentationTimeline;
+        }
+        void UnbindPresentationSession()
+        {
+            if (_presentationSession == null) return;
+            _presentationSession.FxReceived -= PresentFx;
+            _presentationSession.TimelineReset -= ResetPresentationTimeline;
+            _presentationSession = null;
+        }
+        void ResetPresentationTimeline()
+        {
+            if (Arena != null) Arena.ResetTransientPresentation(Session != null ? Session.ServerTimeMs : 0);
+            if (Hud != null) Hud.ResetTransientPresentation();
+            var soundscape = GetComponent<ShowcaseSoundscape>();
+            if (soundscape != null) soundscape.ResetTransientCues();
+        }
 
         void PresentFx(ServerMsg.Fx fx) { if (Arena != null) Arena.ConfirmedFx(fx); }
 
