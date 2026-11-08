@@ -57,6 +57,12 @@ acquisition/Build increase, trusted Unity credited kill, trusted HUD Choose and 
 Incomplete driver attempts are retained. Browser wire has no cumulative killStats: exact native grant is separate
 matching-source backend proof. No display/input-to-photon, final full-game performance or cloud claim follows.
 
+A later valid native training growth case uncovered another transient-scratch preparation hole: two ordinary Camp
+commands create more actors than the eight-seat default before the same step's after-weapons pass. The minimal
+[backport](evidence/ci-card-catalog-protocol13/TRAINING_GROWTH.md) prepares actual actor scratch immediately after
+birth, without extra input, altered rules or identity changes. Root passes the new growth and two existing input-free
+restore/Clone regressions. The public training admission gate stays unchanged.
+
 The [actual-source quest/trader public witnesses](evidence/quest-trade-public/ADMISSION.md) throughf034ace7 are now
 admitted. Root pinned bytechecks and8semantic mutant kills/two provenance-only non-kills/restored controls pass. These
 are declared method/schema/receiver rigs, not Room/socket/Unity proof. Finder-adjusted hidden count is distinguished
