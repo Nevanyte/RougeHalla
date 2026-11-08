@@ -1,0 +1,15 @@
+diff --git a/crates/rh-sim/src/reward_chests/mod.rs b/crates/rh-sim/src/reward_chests/mod.rs
+index 8d235145..23cac995 100644
+--- a/crates/rh-sim/src/reward_chests/mod.rs
++++ b/crates/rh-sim/src/reward_chests/mod.rs
+@@ -260,9 +260,7 @@ pub(crate) fn choose(
+     if !birth_available(c.held_until_tick, w.tick) || w.server_time >= c.expires_at {
+         return Err(Refusal::Gone);
+     }
+-    if c.owner.is_some_and(|owner| owner != who) {
+-        return Err(Refusal::NotYours);
+-    }
++    // MUTANT: owner guard bypassed
+     reach(k, w.rt.gates_locked, w.players[pi].pos(), c.at)?;
+     if c.pickers.contains(&who) {
+         return Err(Refusal::Picked);
