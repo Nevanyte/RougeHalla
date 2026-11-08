@@ -98,15 +98,17 @@ namespace Roguehalla.Client
             if (visible == IsVisible) return;
             if (visible)
             {
-                _returnFocus = EventSystem.current == null ? null : EventSystem.current.currentSelectedGameObject;
+                var eventSystem = ResolveEventSystem();
+                _returnFocus = eventSystem == null ? null : eventSystem.currentSelectedGameObject;
                 _overlay.gameObject.SetActive(true);
                 Focus(_tabButtons[(int)_currentTab]);
             }
             else
             {
                 _overlay.gameObject.SetActive(false);
-                if (EventSystem.current != null && _returnFocus != null && _returnFocus.activeInHierarchy)
-                    EventSystem.current.SetSelectedGameObject(_returnFocus);
+                var eventSystem = ResolveEventSystem();
+                if (eventSystem != null && _returnFocus != null && _returnFocus.activeInHierarchy)
+                    eventSystem.SetSelectedGameObject(_returnFocus);
             }
         }
 
@@ -210,6 +212,7 @@ namespace Roguehalla.Client
             if (_content == null) return;
             if (_counterWheel != null) { _counterWheel.Destroy(); _counterWheel = null; }
             for (int i = _content.childCount - 1; i >= 0; i--) DestroyOwned(_content.GetChild(i).gameObject);
+            _cardSequence = 0;
             _factionButtons = null;
             _weaponButtons = null;
             _scroll.verticalNormalizedPosition = 1;
@@ -366,9 +369,12 @@ namespace Roguehalla.Client
 
         static void Focus(Selectable selectable)
         {
-            if (EventSystem.current == null || selectable == null) return;
-            EventSystem.current.SetSelectedGameObject(selectable.gameObject);
+            var eventSystem = ResolveEventSystem();
+            if (eventSystem == null || selectable == null) return;
+            eventSystem.SetSelectedGameObject(selectable.gameObject);
         }
+
+        static EventSystem ResolveEventSystem() => EventSystem.current != null ? EventSystem.current : UnityEngine.Object.FindObjectOfType<EventSystem>();
 
         static void DestroyOwned(GameObject obj)
         {

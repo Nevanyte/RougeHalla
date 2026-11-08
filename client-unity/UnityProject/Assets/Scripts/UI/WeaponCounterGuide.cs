@@ -26,6 +26,7 @@ namespace Roguehalla.Client
 
         readonly Action<string> _onSelect;
         readonly RectTransform _wheel;
+        readonly RectTransform _artRoot;
         readonly RawImage _art;
         readonly Texture2D _texture;
         readonly Button[] _nodes;
@@ -76,10 +77,11 @@ namespace Roguehalla.Client
             _wheel.pivot = new Vector2(.5f, 1);
             _wheel.sizeDelta = new Vector2(0, 410);
             _wheel.gameObject.AddComponent<LayoutElement>().preferredHeight = 410;
-            var fit = _wheel.gameObject.AddComponent<AspectRatioFitter>();
+            _artRoot = MythicUi.Rect(_wheel, "SquareWheelArt", Vector2.zero, Vector2.one);
+            var fit = _artRoot.gameObject.AddComponent<AspectRatioFitter>();
             fit.aspectMode = AspectRatioFitter.AspectMode.FitInParent;
             fit.aspectRatio = 1f;
-            _art = _wheel.gameObject.AddComponent<RawImage>();
+            _art = _artRoot.gameObject.AddComponent<RawImage>();
             _art.raycastTarget = false;
             _texture = new Texture2D(512, 512, TextureFormat.RGBA32, false) { filterMode = FilterMode.Bilinear, wrapMode = TextureWrapMode.Clamp, name = "Weapon counter wheel" };
             _art.texture = _texture;
@@ -91,7 +93,7 @@ namespace Roguehalla.Client
                 float x = .5f + Mathf.Cos((float)angle) * .34f;
                 float y = .5f - Mathf.Sin((float)angle) * .34f;
                 string id = RingData[i];
-                var button = MythicUi.Button(_wheel, "Weapon_" + id, Labels[id], new Vector2(x, y), new Vector2(x, y), () => Select(RingData[index]));
+                var button = MythicUi.Button(_artRoot, "Weapon_" + id, Labels[id], new Vector2(x, y), new Vector2(x, y), () => Select(RingData[index]));
                 button.GetComponent<RectTransform>().sizeDelta = new Vector2(104, 46);
                 button.GetComponent<LayoutElement>().minHeight = 44;
                 _nodes[i] = button;
