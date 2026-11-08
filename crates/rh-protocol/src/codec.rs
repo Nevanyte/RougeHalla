@@ -198,6 +198,7 @@ impl Writer {
     }
 }
 
+#[derive(Clone)]
 pub struct Reader<'a> {
     buf: &'a [u8],
     pos: usize,
@@ -212,6 +213,12 @@ impl<'a> Reader<'a> {
             pos: 0,
             finite_only: false,
         }
+    }
+    pub(crate) fn position(&self) -> usize {
+        self.pos
+    }
+    pub(crate) fn remaining(&self) -> usize {
+        self.buf.len() - self.pos
     }
     fn take(&mut self, n: usize) -> Result<&'a [u8], DecodeError> {
         let end = self.pos.checked_add(n).ok_or(DecodeError::Truncated)?;

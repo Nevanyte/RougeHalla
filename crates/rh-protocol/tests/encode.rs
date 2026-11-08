@@ -1,6 +1,6 @@
 //! The encoder paths (encode, try_encode, encode_into, encode_welcome) all write the golden-vector bytes,
 //! size every frame exactly, and refuse instead of repair any frame a decoder would reject.
-use rh_protocol::map::MapBlob;
+use rh_protocol::map::{EncodedMap, MapBlob};
 use rh_protocol::quant::POS_MAX;
 use rh_protocol::samples::*;
 use rh_protocol::*;
@@ -374,25 +374,76 @@ fn a_pre_encoded_map_gives_the_same_welcome() {
         let mut w = Writer::default();
         map.write(&mut w);
         let body = w.finish();
-        assert_eq!(pre.as_bytes(), &body[..]);
+        assert_eq!(pre.static_bytes().len() + 5, body.len());
+        let mut cached = Writer::default();
+        pre.write_with_mode(&mut cached, map.terrain_mode);
+        assert_eq!(cached.finish(), body);
         assert_eq!(pre.len(), map.encoded_len());
         assert_eq!(
             (pre.w(), pre.h(), pre.layer_hash()),
             (map.w, map.h, map.layer_hash)
         );
+        let mode = map.terrain_mode;
         let msg = welcome(map);
         let want = msg.encode();
-        let got = encode_welcome(&welcome_header(), &pre);
+        let got = encode_welcome(&welcome_header(), &pre, mode);
         assert_eq!(got, want);
         assert_eq!(got.capacity(), got.len());
         let mut out = vec![1];
         assert_eq!(
-            encode_welcome_into(&welcome_header(), &pre, &mut out),
+            encode_welcome_into(&welcome_header(), &pre, mode, &mut out),
             Ok(want.len())
         );
         assert_eq!(&out[1..], &want[..]);
         assert_eq!(ServerMsg::decode(&got), Ok(msg));
     }
+}
+
+#[test]
+fn cached_static_map_is_content_bound_while_mode_is_per_welcome() {
+    let tiles = [0, 0];
+    let terrain = [0, 4];
+    let cached = EncodedMap::from_slices(2, 1, &tiles, Some(&terrain), None).unwrap();
+    assert!(cached.matches_slices(2, 1, &tiles, Some(&terrain), None));
+    assert!(!cached.matches_slices(2, 1, &tiles, None, None));
+    assert!(!cached.matches_slices(2, 1, &tiles, Some(&[0, 5]), None));
+    assert!(!cached.matches_slices(2, 1, &[0, 1], Some(&terrain), None));
+
+    let off = encode_welcome(&welcome_header(), &cached, GroundMode::Off);
+    let all = encode_welcome(&welcome_header(), &cached, GroundMode::All);
+    let ServerMsg::Welcome { map: off_map, .. } = ServerMsg::decode(&off).unwrap() else {
+        panic!("welcome")
+    };
+    let ServerMsg::Welcome { map: all_map, .. } = ServerMsg::decode(&all).unwrap() else {
+        panic!("welcome")
+    };
+    assert_eq!(off_map.terrain_mode, GroundMode::Off);
+    assert_eq!(all_map.terrain_mode, GroundMode::All);
+    assert_eq!(off_map.terrain, Some(terrain.to_vec()));
+    assert_eq!(all_map.terrain, Some(terrain.to_vec()));
+    assert_ne!(off_map.context_hash, all_map.context_hash);
+}
+
+#[test]
+fn maximum_three_plane_decode_stays_within_the_documented_budget() {
+    let cells = MapBlob::new_with_ground(
+        1024,
+        1024,
+        vec![0; map::MAX_MAP_TILES],
+        Some(vec![0; map::MAX_MAP_TILES]),
+        Some(vec![0; map::MAX_MAP_TILES]),
+        GroundMode::All,
+    )
+    .unwrap();
+    let frame = welcome(cells).try_encode().unwrap();
+    assert!(frame.len() <= MAX_SERVER_FRAME);
+    let ServerMsg::Welcome { map, .. } = ServerMsg::decode(&frame).unwrap() else {
+        panic!("welcome")
+    };
+    assert_eq!(
+        map.tiles.len() + map.terrain.as_ref().unwrap().len() + map.regions.as_ref().unwrap().len(),
+        3 * map::MAX_MAP_TILES
+    );
 }
 
 #[test]
@@ -430,21 +481,22 @@ fn maps_decoders_reject_are_refused_for_the_same_reason() {
     }
     // A legal map whose Welcome exceeds MAX_SERVER_FRAME (alternating tiles: one run per tile).
     let striped = MapBlob::new(400, 400, (0..160_000u32).map(|i| (i % 2) as u8).collect());
-    assert!(striped.check().is_ok());
+    assert!(matches!(striped.check(), Err(EncodeError::TooLarge { .. })));
     assert_eq!(
         welcome(striped.clone()).try_encode(),
         Err(EncodeError::TooLarge {
-            len: 60 + 12 + 3 * 160_000,
+            len: 60 + 12 + 3 * 160_000 + 4 + 11,
             max: MAX_SERVER_FRAME
         })
     );
-    let pre = striped.pre_encode().unwrap();
-    let mut out = vec![];
     assert!(matches!(
-        encode_welcome_into(&welcome_header(), &pre, &mut out),
+        striped.pre_encode(),
         Err(EncodeError::TooLarge { .. })
     ));
-    assert!(out.is_empty());
+    assert!(matches!(
+        EncodedMap::from_slices(400, 400, &striped.tiles, None, None),
+        Err(EncodeError::TooLarge { .. })
+    ));
 }
 
 /// A remote actor or swing outside the 0 ..= POS_MAX grid is refused (never clamped), on every encoder path; one at the

@@ -1,0 +1,125 @@
+{
+  "format": "rh-public-ground-packet/1",
+  "base": "cc7790b70fbb617fc42fdf1c1cce23f3e2d35898",
+  "branch": "codex/public-ground-seam",
+  "protocol": 14,
+  "sectionVersion": 1,
+  "contentIdentityUnchanged": "67183626db240b6a",
+  "preservedRefs": {
+    "bf59b1f965881a51942bf5b3b3fef5b739a9f34c": "commit",
+    "f4054732bc88510f83c26b4adfac96e8cd823004": "commit",
+    "690abede53a54f3875896c02a8c1f4b4ccd176b0": "commit"
+  },
+  "packetFiles": {
+    "client-unity/RoguehallaNet.Tests/MapBlobGroundTests.cs": {
+      "bytes": 7419,
+      "sha256": "39f4f856a4202d736b439af6d75e476594e6cbae0c887dc35b5d38655bab435b"
+    },
+    "client-unity/RoguehallaNet.Tests/ProtocolVectorTests.cs": {
+      "bytes": 51838,
+      "sha256": "3747dbdd9758c1d334c45a81dc514e6da31c29b18a7dd7cdd9c9f2d26e13f77a"
+    },
+    "client-unity/RoguehallaNet.Tests/WishBarrierProtocolTests.cs": {
+      "bytes": 11538,
+      "sha256": "82b313b7045a5e73f568a02ce1902eb458f7db36267bca575afb837be2aa66da"
+    },
+    "client-unity/RoguehallaNet/Protocol/Codec.cs": {
+      "bytes": 13034,
+      "sha256": "d6977f013d6ebd97d775ae0ffd386f59cfc5eaa6e1cf069ebaaf54109c814370"
+    },
+    "client-unity/RoguehallaNet/Protocol/MapBlob.cs": {
+      "bytes": 20801,
+      "sha256": "91e66cb2afa0b0bd2f21a3b34dc73ed023d3cf72e5ae4ab997ae077337966bc1"
+    },
+    "client-unity/UnityProject/Assets/RoguehallaNet/Protocol/Codec.cs": {
+      "bytes": 13034,
+      "sha256": "d6977f013d6ebd97d775ae0ffd386f59cfc5eaa6e1cf069ebaaf54109c814370"
+    },
+    "client-unity/UnityProject/Assets/RoguehallaNet/Protocol/MapBlob.cs": {
+      "bytes": 20801,
+      "sha256": "91e66cb2afa0b0bd2f21a3b34dc73ed023d3cf72e5ae4ab997ae077337966bc1"
+    },
+    "crates/rh-protocol/src/codec.rs": {
+      "bytes": 11098,
+      "sha256": "0c1aad69bf86d2859c51fac99173c9b3a7538140f131afdb557945774e35d73c"
+    },
+    "crates/rh-protocol/src/encode.rs": {
+      "bytes": 55794,
+      "sha256": "703adc86a89e3823dcdefb33d843f9bdec3135c52de9f5810d684dc58ec14a4f"
+    },
+    "crates/rh-protocol/src/ground.rs": {
+      "bytes": 2300,
+      "sha256": "29334a11fa3c06407a9ada7d6f028469bb0350cf585de7a9bdf26adbc3f5b430"
+    },
+    "crates/rh-protocol/src/lib.rs": {
+      "bytes": 60761,
+      "sha256": "f164a201b0f44587ed54c23d472409ed595aa4b385f1b4c5d733e875c1db5730"
+    },
+    "crates/rh-protocol/src/map.rs": {
+      "bytes": 26087,
+      "sha256": "3610dea813c3df460ce93741cdcb9c49ea20c42db31ab522c873ce17f8a4c03d"
+    },
+    "crates/rh-protocol/src/samples.rs": {
+      "bytes": 104035,
+      "sha256": "2f626649a1585969ae7159dfb2fc119b5a254af46d7ada75b4a9f51976590c2a"
+    },
+    "crates/rh-protocol/tests/encode.rs": {
+      "bytes": 17376,
+      "sha256": "3cf97915f7efed01a1493a9942b97c9930830c78bdb6f9d4e55501b87a86ee33"
+    },
+    "crates/rh-protocol/tests/envelope.rs": {
+      "bytes": 6651,
+      "sha256": "9625748ed0b0b54dd22945faa18bb437e3c1d6dc8df935150a3601e29abfab5b"
+    },
+    "crates/rh-protocol/tests/vectors.rs": {
+      "bytes": 13619,
+      "sha256": "346980e94dedc738e8321b0f38b953944ac3bc7c1df8b3b966bb06084cd114df"
+    },
+    "crates/rh-server/src/bin/wirebench.rs": {
+      "bytes": 30577,
+      "sha256": "074349c8469cfb247f1da4c137f818ed45725dabc5909429ea90e7184bdcb51d"
+    },
+    "crates/rh-server/src/lib.rs": {
+      "bytes": 7413,
+      "sha256": "153150a3668e63e04a1770b1896890537ec099ffb174c3eb85bcd6267f50c2a2"
+    },
+    "crates/rh-server/src/public_ground.rs": {
+      "bytes": 1937,
+      "sha256": "0de15ec056dbe3a39ade1be318b7c97b5646ee544fdb164412a4b5ad51fd7318"
+    },
+    "crates/rh-server/src/room.rs": {
+      "bytes": 145820,
+      "sha256": "8d99f3590e0b7b8ca2b74e581b51a53ed4077c02039c2e6bcbee809be4b81297"
+    },
+    "crates/rh-server/src/room/ground_tests.rs": {
+      "bytes": 7422,
+      "sha256": "f578e1fc60ad7796ba88c7fb47f53072c7c780ffa72ce34b061786201fc17a85"
+    },
+    "crates/rh-server/tests/live.rs": {
+      "bytes": 44823,
+      "sha256": "7227a9ddac3db2cc7987a8ec38a70d61f4d880ea5f840e697b91fe20acbf5c85"
+    },
+    "crates/rh-server/web/probe.html": {
+      "bytes": 50694,
+      "sha256": "4897ea77fe2d22d10a0f6f596bce4ebde5f7b8c47f6fdde54a51096ad2925993"
+    },
+    "protocol/fixtures/v14.json": {
+      "bytes": 201942,
+      "sha256": "e22c8eca2ba7f13a21983a14c4ce8b4d00998cff091b1b52561bab1fb53665b4"
+    },
+    "tools/protocol-js/check-vectors.mjs": {
+      "bytes": 29496,
+      "sha256": "61f4d0da3ef8f7fa27a34607e3ca682e40e2358c1e3c6d611f63a12a83a16464"
+    }
+  },
+  "sourceAssets": {
+    "maps/first-playable.json": {
+      "bytes": 23635,
+      "sha256": "90bc4c8e82b7d4ba4819843001ae59da35c20ee870b5591b20192082b5bd16aa"
+    },
+    "crates/rh-sim/src/mapdata/fixtures/seed1.map.json": {
+      "bytes": 319166,
+      "sha256": "7c95efad61f47942d10921d7f1bc16acb43306f370cf368e0693a69d456441e7"
+    }
+  }
+}

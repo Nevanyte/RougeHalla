@@ -156,6 +156,18 @@ fn malformed_server_frames_are_rejected_for_the_documented_reason() {
             "map_bad_tile" | "map_zero_run" | "map_run_past_size" => BadMap("run"),
             "map_short" => BadMap("length"),
             "map_hash_mismatch" => BadMap("hash"),
+            "map_ext_short" => BadMap("extension length"),
+            "map_ext_version" => BadMap("section version"),
+            "map_ext_presence" => BadMap("presence"),
+            "map_ext_run_zero" | "map_ext_plane_length" => BadMap("run"),
+            "map_ext_terrain_value" => BadMap("terrain value"),
+            "map_ext_region_value" => BadMap("region value"),
+            "map_ext_terrain_collision" => BadMap("terrain collision"),
+            "map_ext_semantic_hash" => BadMap("semantic hash"),
+            "map_ext_mode" => BadField("terrain mode"),
+            "map_ext_context_hash" => BadMap("context hash"),
+            "map_ext_trailing" => BadMap("extension trailing"),
+            "welcome_trailing" => Trailing(1),
             other => panic!("no expectation for {other}"),
         }
     };

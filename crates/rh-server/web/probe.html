@@ -15,14 +15,14 @@
 <body>
 <main>
   <h1>Roguehalla protocol probe</h1>
-  <p>A browser client for protocol v13 over the browser WebSocket API (the transport a Unity Web build uses). It is a test
+  <p>A browser client for protocol v14 over the browser WebSocket API (the transport a Unity Web build uses). It is a test
   harness for Stage 1, not the game client. Click to walk; hold Space to attack toward the cursor.</p>
   <canvas id="c" width="960" height="640"></canvas>
   <pre id="s">connecting…</pre>
 </main>
 <script>
 "use strict";
-// ---- protocol v13 (mirror of crates/rh-protocol; tools/protocol-js/check-vectors.mjs holds this block to protocol/fixtures/v13.json) ----
+// ---- protocol v14 (mirror of crates/rh-protocol; tools/protocol-js/check-vectors.mjs holds this block to protocol/fixtures/v14.json) ----
 class W {
   constructor() { this.b = new Uint8Array(256); this.n = 0; this.v = new DataView(this.b.buffer); }
   need(k) { if (this.n + k > this.b.length) { const nb = new Uint8Array(this.b.length * 2 + k); nb.set(this.b); this.b = nb; this.v = new DataView(nb.buffer); } }
@@ -41,10 +41,11 @@ class W {
   out() { return this.b.slice(0, this.n); }
 }
 class R {
-  constructor(buf) { this.v = new DataView(buf); this.p = 0; }
-  u8() { const x = this.v.getUint8(this.p); this.p += 1; return x; }
-  u16() { const x = this.v.getUint16(this.p, true); this.p += 2; return x; }
-  u32() { const x = this.v.getUint32(this.p, true); this.p += 4; return x; }
+  constructor(buf, p = 0, limit = buf.byteLength) { this.v = new DataView(buf); this.p = p; this.limit = limit; }
+  need(k) { if (this.p + k > this.limit) throw new Error("truncated"); }
+  u8() { this.need(1); const x = this.v.getUint8(this.p); this.p += 1; return x; }
+  u16() { this.need(2); const x = this.v.getUint16(this.p, true); this.p += 2; return x; }
+  u32() { this.need(4); const x = this.v.getUint32(this.p, true); this.p += 4; return x; }
   // Canonical unsigned LEB128 into a u32 (a Number); anything else is malformed.
   varint() {
     let v = 0;
@@ -59,16 +60,22 @@ class R {
   varintU16(what) { const v = this.varint(); if (v > 65535) throw new Error("bad " + what); return v; }
   // A byte that must be at most `max` (a status or phase code).
   code(max, what) { const v = this.u8(); if (v > max) throw new Error("bad " + what); return v; }
-  u64() { const x = this.v.getBigUint64(this.p, true); this.p += 8; return x; }
-  f32() { const x = this.v.getFloat32(this.p, true); this.p += 4; return x; }
-  f64() { const x = this.v.getFloat64(this.p, true); this.p += 8; return x; }
-  bytes(n) { if (this.p + n > this.v.byteLength) throw new Error("truncated"); const a = new Uint8Array(this.v.buffer.slice(this.p, this.p + n)); this.p += n; return a; }
+  u64() { this.need(8); const x = this.v.getBigUint64(this.p, true); this.p += 8; return x; }
+  f32() { this.need(4); const x = this.v.getFloat32(this.p, true); this.p += 4; return x; }
+  f64() { this.need(8); const x = this.v.getFloat64(this.p, true); this.p += 8; return x; }
+  bytes(n) { this.need(n); const a = new Uint8Array(this.v.buffer.slice(this.p, this.p + n)); this.p += n; return a; }
   // Strict UTF-8 (fatal), like rh-protocol (String::from_utf8) and the C# mirror.
   str() { const b = this.bytes(this.u8()); try { return UTF8.decode(b); } catch { throw new Error("bad utf-8"); } }
   opt(f) { const t = this.u8(); if (t === 0) return null; if (t === 1) return f(); throw new Error("bad option"); }
 }
+function cursor(view, p = 0, limit = view.byteLength) {
+  const r = Object.create(R.prototype); r.v = view; r.p = p; r.limit = limit; return r;
+}
 const UTF8 = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true });
 const MAX_MAP_TILES = 1024 * 1024;
+const MAX_MAP_DECODED_BYTES = 3 * 1024 * 1024;
+const MAX_MAP_RUNS = 3 * 1024 * 1024;
+const TERRAIN_MAX = 7, REGION_MAX = 6, GROUND_VERSION = 1;
 function fnv(w, h, tiles) {
   let x = 0x811c9dc5;
   const eat = (b) => { x ^= b; x = Math.imul(x, 0x01000193) >>> 0; };
@@ -76,7 +83,43 @@ function fnv(w, h, tiles) {
   for (const t of tiles) eat(t);
   return x >>> 0;
 }
-const PROTOCOL = 13;
+function fnvByte(x, b) { return Math.imul((x ^ b) >>> 0, 0x01000193) >>> 0; }
+function fnvU32(x, v) { v >>>= 0; for (let i = 0; i < 4; i++) x = fnvByte(x, (v >>> (8 * i)) & 255); return x; }
+function fnvText(x, s) { for (let i = 0; i < s.length; i++) x = fnvByte(x, s.charCodeAt(i)); return x; }
+function fnvRuns(x, r, runs) {
+  for (let i = 0; i < runs; i++) { const value = r.u8(), len = r.u16(); for (let j = 0; j < len; j++) x = fnvByte(x, value); }
+  return x;
+}
+function fnvPlane(x, r, descriptor) { r.u32(); return fnvRuns(x, r, descriptor.runs); }
+function readPlane(r, n, maxValue, reserveBytes, what) {
+  const start = r.p, runs = r.u32();
+  if (runs < 1 || runs > n || runs > MAX_MAP_RUNS || runs * 3 > r.limit - r.p - reserveBytes) throw new Error("bad " + what + " runs");
+  let cells = 0;
+  for (let i = 0; i < runs; i++) {
+    const value = r.u8(), len = r.u16();
+    if (value > maxValue || len === 0 || cells + len > n) throw new Error("bad " + what + " run");
+    cells += len;
+  }
+  if (cells !== n) throw new Error("bad " + what + " length");
+  return { start, runs, limit: r.limit };
+}
+function fillPlane(buf, descriptor, n) {
+  const r = cursor(buf, descriptor.start, descriptor.limit);
+  const runs = r.u32(), out = new Uint8Array(n); let p = 0;
+  for (let i = 0; i < runs; i++) { const value = r.u8(), len = r.u16(); out.fill(value, p, p + len); p += len; }
+  return out;
+}
+function checkTerrainAgainstCollision(collisionBuf, collision, terrainBuf, terrain, n) {
+  const a = cursor(collisionBuf, collision.start, collision.limit), b = cursor(terrainBuf, terrain.start, terrain.limit);
+  let ar = a.u32(), br = b.u32(), av = 0, bv = 0, an = 0, bn = 0, left = n;
+  while (left > 0) {
+    if (!an) { av = a.u8(); an = a.u16(); ar--; }
+    if (!bn) { bv = b.u8(); bn = b.u16(); br--; }
+    if (bv !== 0 && !((bv <= 3 && (av === 1 || av === 2)) || (bv >= 4 && av === 0))) throw new Error("bad terrain collision");
+    const take = Math.min(an, bn); an -= take; bn -= take; left -= take;
+  }
+}
+const PROTOCOL = 14;
 const MAX_TICKET = 448;
 // Quantized remote actors and swings (rh-protocol quant.rs): positions are u16 at 1/8 u, angles u16 over 2 pi read as a signed code.
 const FACING_STEP_F32 = Math.fround(2 * Math.PI / 65536);
@@ -251,18 +294,57 @@ function decodeBody(r) {
   const tag = r.u8();
   if (tag === 0x81) {
     const m = { t: "welcome", protocol: r.u16(), content: r.u64(), match: r.bytes(16), player: r.u32(), session: r.bytes(16), tickRate: r.u8(), tick: r.u32(), serverMs: r.f64() };
-    // The MapBlob rules of rh-protocol map.rs, in its order: size before anything is allocated, then every run, length, hash.
-    const w = r.u16(), h = r.u16(), hash = r.u32(), runs = r.u32();
-    if (w === 0 || h === 0 || w * h > MAX_MAP_TILES) throw new Error("bad map size");
-    const tiles = new Uint8Array(w * h); let n = 0;
-    for (let i = 0; i < runs; i++) {
-      const v = r.u8(), k = r.u16();
-      if (v > 2 || k === 0 || n + k > w * h) throw new Error("bad map run");
-      tiles.fill(v, n, n + k); n += k;
+    // Preflight a copied bounded suffix first. No decoded plane allocation occurs until every byte,
+    // run, domain, terrain/collision relation, and hash in the complete map has been checked.
+    const p = cursor(r.v, r.p, r.limit);
+    const w = p.u16(), h = p.u16(), hash = p.u32(), n = w * h;
+    if (w === 0 || h === 0 || n > MAX_MAP_TILES) throw new Error("bad map size");
+    const collision = readPlane(p, n, 2, 4 + 11, "map");
+    let collisionHash = fnvU32(fnvU32(0x811c9dc5, w), h);
+    collisionHash = fnvPlane(collisionHash, cursor(p.v, collision.start, collision.limit), collision);
+    if ((collisionHash >>> 0) !== hash) throw new Error("bad map hash");
+    const extensionLength = p.u32();
+    if (extensionLength < 11 || extensionLength > p.v.byteLength - p.p) throw new Error("bad map extension length");
+    const extStart = p.p, extEnd = extStart + extensionLength, ext = cursor(p.v, extStart, extEnd);
+    const sectionVersion = ext.u8(), flags = ext.u8(), semanticHash = ext.u32();
+    if (sectionVersion !== GROUND_VERSION) throw new Error("bad ground version");
+    if (flags & ~3) throw new Error("bad ground presence");
+    const hasTerrain = (flags & 1) !== 0, hasRegions = (flags & 2) !== 0;
+    if (n * (1 + Number(hasTerrain) + Number(hasRegions)) > MAX_MAP_DECODED_BYTES) throw new Error("map decoded data too large");
+    const cumulativeRuns = { count: collision.runs };
+    let terrain = null, regions = null;
+    const semanticStart = fnvText(0x811c9dc5, "rh-ground/1\0");
+    let semantic = fnvU32(fnvU32(semanticStart, w), h);
+    semantic = fnvByte(semantic, sectionVersion); semantic = fnvByte(semantic, flags);
+    if (hasTerrain) {
+      terrain = readPlane(ext, n, TERRAIN_MAX, (hasRegions ? 4 + 3 : 0) + 5, "terrain");
+      cumulativeRuns.count += terrain.runs;
+      if (cumulativeRuns.count > MAX_MAP_RUNS) throw new Error("too many map runs");
+      const tr = cursor(p.v, terrain.start, extEnd); semantic = fnvPlane(semantic, tr, terrain);
     }
-    if (n !== w * h) throw new Error("bad map length");
-    if (fnv(w, h, tiles) !== hash) throw new Error("bad map hash");
-    m.map = { w, h, tiles, hash }; return m;
+    if (hasRegions) {
+      regions = readPlane(ext, n, REGION_MAX, 5, "region");
+      cumulativeRuns.count += regions.runs;
+      if (cumulativeRuns.count > MAX_MAP_RUNS) throw new Error("too many map runs");
+      const rr = cursor(p.v, regions.start, extEnd); semantic = fnvPlane(semantic, rr, regions);
+    }
+    if (terrain) checkTerrainAgainstCollision(p.v, collision, p.v, terrain, n);
+    const terrainMode = ext.u8(), contextHash = ext.u32();
+    if (terrainMode > 2) throw new Error("bad terrain mode");
+    if (ext.p !== extEnd) throw new Error("bad map extension length");
+    if ((semantic >>> 0) !== semanticHash) throw new Error("bad semantic hash");
+    let expectedContext = fnvText(0x811c9dc5, "rh-map-context/1\0");
+    expectedContext = fnvU32(expectedContext, hash); expectedContext = fnvU32(expectedContext, semanticHash);
+    expectedContext = fnvByte(expectedContext, terrainMode);
+    if ((expectedContext >>> 0) !== contextHash) throw new Error("bad context hash");
+    const mapEnd = p.p + extensionLength;
+    if (mapEnd !== r.limit) throw new Error("trailing bytes");
+    const tiles = fillPlane(p.v, collision, n);
+    const terrainBytes = terrain ? fillPlane(p.v, terrain, n) : null;
+    const regionBytes = regions ? fillPlane(p.v, regions, n) : null;
+    r.p = mapEnd;
+    m.map = { w, h, tiles, hash, terrain: terrainBytes, regions: regionBytes, terrainMode, semanticHash, contextHash };
+    return m;
   }
   if (tag === 0x82) {
     const code = r.u16();

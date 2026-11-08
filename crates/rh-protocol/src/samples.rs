@@ -378,6 +378,20 @@ fn state_sample() -> ServerMsg {
     }
 }
 
+fn welcome_map_msg(map: MapBlob) -> ServerMsg {
+    ServerMsg::Welcome {
+        protocol: PROTOCOL_VERSION,
+        content_hash: 0x0102_0304_0506_0708,
+        match_id: [1; 16],
+        player_id: 3,
+        session: [2; 16],
+        tick_rate: 20,
+        tick: 100,
+        server_ms: 5000.0,
+        map,
+    }
+}
+
 #[allow(clippy::approx_constant)]
 pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
     let tiles: Vec<u8> = (0..12)
@@ -809,19 +823,69 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
                     .collect(),
             },
         ),
+        ("welcome", welcome_map_msg(MapBlob::new(4, 3, tiles))),
         (
-            "welcome",
-            ServerMsg::Welcome {
-                protocol: PROTOCOL_VERSION,
-                content_hash: 0x0102_0304_0506_0708,
-                match_id: [1; 16],
-                player_id: 3,
-                session: [2; 16],
-                tick_rate: 20,
-                tick: 100,
-                server_ms: 5000.0,
-                map: MapBlob::new(4, 3, tiles),
-            },
+            "welcome_ground_both",
+            welcome_map_msg(
+                MapBlob::new_with_ground(
+                    2,
+                    2,
+                    vec![0, 1, 2, 0],
+                    Some(vec![0, 1, 2, 7]),
+                    Some(vec![0, 1, 5, 6]),
+                    crate::GroundMode::Map,
+                )
+                .unwrap(),
+            ),
+        ),
+        (
+            "welcome_ground_terrain_only",
+            welcome_map_msg(
+                MapBlob::new_with_ground(
+                    2,
+                    2,
+                    vec![0, 1, 2, 0],
+                    Some(vec![0, 1, 2, 7]),
+                    None,
+                    crate::GroundMode::Off,
+                )
+                .unwrap(),
+            ),
+        ),
+        (
+            "welcome_ground_regions_only",
+            welcome_map_msg(
+                MapBlob::new_with_ground(
+                    2,
+                    2,
+                    vec![0, 1, 2, 0],
+                    None,
+                    Some(vec![0, 1, 5, 6]),
+                    crate::GroundMode::All,
+                )
+                .unwrap(),
+            ),
+        ),
+        (
+            "welcome_ground_present_zero",
+            welcome_map_msg(
+                MapBlob::new_with_ground(
+                    2,
+                    2,
+                    vec![0; 4],
+                    Some(vec![0; 4]),
+                    Some(vec![0; 4]),
+                    crate::GroundMode::Off,
+                )
+                .unwrap(),
+            ),
+        ),
+        (
+            "welcome_ground_mode_all",
+            welcome_map_msg(
+                MapBlob::new_with_ground(2, 2, vec![0; 4], None, None, crate::GroundMode::All)
+                    .unwrap(),
+            ),
         ),
         (
             "reject",
@@ -1401,7 +1465,43 @@ fn welcome_map(w: u16, h: u16, hash: Option<u32>, runs: &[(u8, u16)]) -> Vec<u8>
         b.u8(t);
         b.u16(n);
     }
+    let semantic = crate::ground::semantic_hash(w, h, 0, None, None);
+    b.u32(11);
+    b.u8(crate::ground::SECTION_VERSION);
+    b.u8(0);
+    b.u32(semantic);
+    b.u8(crate::GroundMode::Off as u8);
+    b.u32(crate::ground::context_hash(
+        hash.unwrap_or_else(|| crate::map::layer_hash(w as u32, h as u32, &tiles)),
+        semantic,
+        crate::GroundMode::Off,
+    ));
     b.finish()
+}
+
+fn ground_welcome_bytes(
+    terrain: Option<Vec<u8>>,
+    regions: Option<Vec<u8>>,
+    mode: crate::GroundMode,
+) -> Vec<u8> {
+    let map = MapBlob::new_with_ground(1, 1, vec![0], terrain, regions, mode).unwrap();
+    let mut w = Writer::default();
+    w.u8(0x81);
+    w.u16(PROTOCOL_VERSION);
+    w.u64(0x1234);
+    w.bytes(&[7; 16]);
+    w.u32(1);
+    w.bytes(&[9; 16]);
+    w.u8(20);
+    w.u32(0);
+    w.f64(0.0);
+    map.write(&mut w);
+    w.finish()
+}
+
+fn mutate_ground_welcome(mut frame: Vec<u8>, at: usize, bytes: &[u8]) -> Vec<u8> {
+    frame[at..at + bytes.len()].copy_from_slice(bytes);
+    frame
 }
 
 /// One minimal actor record: id 1, `mask`, x y facing all 0, then `extra`.
@@ -1875,6 +1975,104 @@ pub fn malformed_server() -> Vec<(&'static str, Vec<u8>)> {
                 &[(0, 1)],
             ),
         ),
+        (
+            "map_ext_short",
+            mutate_ground_welcome(
+                ground_welcome_bytes(None, None, crate::GroundMode::Off),
+                75,
+                &10u32.to_le_bytes(),
+            ),
+        ),
+        (
+            "map_ext_version",
+            mutate_ground_welcome(
+                ground_welcome_bytes(None, None, crate::GroundMode::Off),
+                79,
+                &[2],
+            ),
+        ),
+        (
+            "map_ext_presence",
+            mutate_ground_welcome(
+                ground_welcome_bytes(None, None, crate::GroundMode::Off),
+                80,
+                &[4],
+            ),
+        ),
+        ("map_ext_run_zero", {
+            let mut frame = ground_welcome_bytes(Some(vec![0]), None, crate::GroundMode::Off);
+            frame[85..89].copy_from_slice(&0u32.to_le_bytes());
+            frame.drain(89..92);
+            frame[75..79].copy_from_slice(&15u32.to_le_bytes());
+            frame
+        }),
+        (
+            "map_ext_terrain_value",
+            mutate_ground_welcome(
+                ground_welcome_bytes(Some(vec![0]), None, crate::GroundMode::Off),
+                89,
+                &[8],
+            ),
+        ),
+        (
+            "map_ext_region_value",
+            mutate_ground_welcome(
+                ground_welcome_bytes(Some(vec![0]), Some(vec![0]), crate::GroundMode::Off),
+                96,
+                &[7],
+            ),
+        ),
+        (
+            "map_ext_plane_length",
+            mutate_ground_welcome(
+                ground_welcome_bytes(Some(vec![0]), None, crate::GroundMode::Off),
+                90,
+                &2u16.to_le_bytes(),
+            ),
+        ),
+        (
+            "map_ext_terrain_collision",
+            mutate_ground_welcome(
+                ground_welcome_bytes(Some(vec![0]), None, crate::GroundMode::Off),
+                89,
+                &[1],
+            ),
+        ),
+        (
+            "map_ext_semantic_hash",
+            mutate_ground_welcome(
+                ground_welcome_bytes(None, None, crate::GroundMode::Off),
+                81,
+                &[0, 0, 0, 0],
+            ),
+        ),
+        (
+            "map_ext_mode",
+            mutate_ground_welcome(
+                ground_welcome_bytes(None, None, crate::GroundMode::Off),
+                85,
+                &[3],
+            ),
+        ),
+        (
+            "map_ext_context_hash",
+            mutate_ground_welcome(
+                ground_welcome_bytes(None, None, crate::GroundMode::Off),
+                86,
+                &[0, 0, 0, 0],
+            ),
+        ),
+        ("map_ext_trailing", {
+            let mut frame = ground_welcome_bytes(None, None, crate::GroundMode::Off);
+            frame.push(0);
+            frame[75..79].copy_from_slice(&12u32.to_le_bytes());
+            frame
+        }),
+        ("welcome_trailing", {
+            let mut frame = ground_welcome_bytes(None, None, crate::GroundMode::Off);
+            frame.push(0);
+            frame
+        }),
     ]
     .into_iter()
     .chain(malformed_deltas())
@@ -2655,8 +2853,15 @@ fn decoded_snapshot_json(m: &ServerMsg) -> String {
             s.kills,
             s.bounty,
             s.gv,
-            s.move_seq, s.effects, s.displace_seq, s.sig,
-            s.hunt_target.map_or("null".to_string(), |v| v.to_string()), s.hunt_stacks, json_wish(s.wish), bits(s.barrier), s.barrier_ring_step
+            s.move_seq,
+            s.effects,
+            s.displace_seq,
+            s.sig,
+            s.hunt_target.map_or("null".to_string(), |v| v.to_string()),
+            s.hunt_stacks,
+            json_wish(s.wish),
+            bits(s.barrier),
+            s.barrier_ring_step
         ),
     };
     let actors: Vec<String> = actors
@@ -2681,6 +2886,34 @@ fn decoded_snapshot_json(m: &ServerMsg) -> String {
         "{{\"tick\": {tick}, \"serverMs\": {}, \"phase\": {phase}, \"ack\": {ack_input}, \"training\": {training}, \"me\": {me}, \"actors\": [{}]}}",
         server_time,
         actors.join(", ")
+    )
+}
+
+fn decoded_map_json(m: &ServerMsg) -> String {
+    let ServerMsg::Welcome { map, .. } = m else {
+        unreachable!()
+    };
+    let nums = |values: &[u8]| {
+        values
+            .iter()
+            .map(u8::to_string)
+            .collect::<Vec<_>>()
+            .join(",")
+    };
+    let plane = |values: Option<&[u8]>| {
+        values.map_or_else(|| "null".to_string(), |v| format!("[{}]", nums(v)))
+    };
+    format!(
+        "{{\"map\":{{\"w\":{},\"h\":{},\"tiles\":[{}],\"layerHash\":{},\"terrain\":{},\"regions\":{},\"terrainMode\":{},\"semanticHash\":{},\"contextHash\":{}}}}}",
+        map.w,
+        map.h,
+        nums(&map.tiles),
+        map.layer_hash,
+        plane(map.terrain.as_deref()),
+        plane(map.regions.as_deref()),
+        map.terrain_mode as u8,
+        map.semantic_hash,
+        map.context_hash,
     )
 }
 
@@ -2776,6 +3009,7 @@ pub fn manifest() -> String {
                 format!(", \"decoded\": {}", decoded_snapshot_json(&decoded))
             }
             ServerMsg::Fx { .. } => format!(", \"decoded\": {}", decoded_fx_json(&decoded)),
+            ServerMsg::Welcome { .. } => format!(", \"decoded\": {}", decoded_map_json(&decoded)),
             ServerMsg::State { .. } if *name == "state_trophy_reward_keys" => {
                 format!(", \"decoded\": {}", decoded_trophy_state_json(&decoded))
             }

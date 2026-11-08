@@ -33,7 +33,7 @@ namespace Roguehalla.Net.Tests
             throw new KeyNotFoundException(name);
         }
 
-        [Test] public void FixtureIsProtocolV13() { Assert.AreEqual(13, Wire.ProtocolVersion); Assert.AreEqual(Wire.ProtocolVersion, Fixture().GetProperty("protocol").GetInt32()); }
+        [Test] public void FixtureIsProtocolV14() { Assert.AreEqual(14, Wire.ProtocolVersion); Assert.AreEqual(Wire.ProtocolVersion, Fixture().GetProperty("protocol").GetInt32()); }
 
         [TestCaseSource(nameof(ClientVectors))]
         public void ClientVectorRoundTripsByteForByte(string name, string hex)
@@ -446,7 +446,32 @@ namespace Roguehalla.Net.Tests
                 }
                 return;
             }
+            if (msg is ServerMsg.Welcome welcome)
+            {
+                var expectedMap = d.GetProperty("map");
+                Assert.AreEqual(expectedMap.GetProperty("w").GetUInt16(), welcome.Map.W);
+                Assert.AreEqual(expectedMap.GetProperty("h").GetUInt16(), welcome.Map.H);
+                Assert.AreEqual(expectedMap.GetProperty("layerHash").GetUInt32(), welcome.Map.LayerHash);
+                Assert.AreEqual(expectedMap.GetProperty("terrainMode").GetByte(), welcome.Map.TerrainMode);
+                Assert.AreEqual(expectedMap.GetProperty("semanticHash").GetUInt32(), welcome.Map.SemanticHash);
+                Assert.AreEqual(expectedMap.GetProperty("contextHash").GetUInt32(), welcome.Map.ContextHash);
+                CollectionAssert.AreEqual(JsonBytes(expectedMap.GetProperty("tiles")), welcome.Map.Tiles);
+                JsonElement terrain = expectedMap.GetProperty("terrain");
+                JsonElement regions = expectedMap.GetProperty("regions");
+                if (terrain.ValueKind == JsonValueKind.Null) Assert.IsNull(welcome.Map.Terrain);
+                else CollectionAssert.AreEqual(JsonBytes(terrain), welcome.Map.Terrain);
+                if (regions.ValueKind == JsonValueKind.Null) Assert.IsNull(welcome.Map.Regions);
+                else CollectionAssert.AreEqual(JsonBytes(regions), welcome.Map.Regions);
+                return;
+            }
             CheckSnapshot(d, (ServerMsg.Snapshot)msg);
+        }
+
+        static byte[] JsonBytes(JsonElement values)
+        {
+            var result = new byte[values.GetArrayLength()];
+            for (int i = 0; i < result.Length; i++) result[i] = values[i].GetByte();
+            return result;
         }
 
         /// <summary>A snapshot equals the vector's decoded form field for field (floats as bit patterns).</summary>
@@ -574,7 +599,12 @@ namespace Roguehalla.Net.Tests
                 case "server_bad_utf8": want = DecodeError.BadUtf8; break;
                 case "map_zero_size": case "map_too_large": case "map_bad_tile": case "map_zero_run": case "map_run_past_size":
                 case "map_short": case "map_hash_mismatch":
+                case "map_ext_short": case "map_ext_version": case "map_ext_presence": case "map_ext_run_zero":
+                case "map_ext_terrain_value": case "map_ext_region_value": case "map_ext_plane_length":
+                case "map_ext_terrain_collision": case "map_ext_semantic_hash": case "map_ext_context_hash": case "map_ext_trailing":
                     want = DecodeError.BadMap; break;
+                case "map_ext_mode": want = DecodeError.BadField; break;
+                case "welcome_trailing": want = DecodeError.Trailing; break;
                 default: throw new KeyNotFoundException("no expectation for " + name);
             }
             Assert.AreEqual(want, Assert.Throws<DecodeException>(() => ServerMsg.Decode(Util.FromHex(hex)), name).Error, name);

@@ -634,6 +634,28 @@ async fn refusals_happen_before_a_seat_is_taken() {
         ),
         other => panic!("{other:?}"),
     }
+    // Protocol 13 has no ground section. It must be refused before admission, without a compatibility fallback.
+    let mut ws = connect(&s.url).await;
+    send(
+        &mut ws,
+        ClientMsg::Hello {
+            protocol: 13,
+            content_hash: rh_sim::content::content_hash(),
+            build: String::new(),
+            profile: "x1v13".into(),
+            ticket: Vec::new(),
+            faction: None,
+            resume: None,
+        },
+    )
+    .await;
+    assert!(matches!(
+        recv(&mut ws).await,
+        Some(ServerMsg::Reject {
+            code: RejectCode::ProtocolMismatch,
+            ..
+        })
+    ));
     // Wrong content hash: the reason names the server's.
     let mut ws = connect(&s.url).await;
     send(

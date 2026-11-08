@@ -15,7 +15,7 @@ use rh_policy::bots::delay::DelayLine;
 use rh_policy::bots::random::Rng;
 use rh_policy::bots::HumanBot;
 use rh_policy::{drive_seats_queued, scripted, MatchStart, Policy, Seat};
-use rh_protocol::map::{EncodedMap, MapBlob};
+use rh_protocol::map::EncodedMap;
 use rh_protocol::{encode_welcome, RejectCode, ServerMsg, WelcomeHeader, WireEvent, WireResult};
 use rh_sim::constants::TICK_MS;
 use rh_sim::replay::{BotPolicy, Recorder, Replay, ReplayInput, ReplayStart};
@@ -299,8 +299,7 @@ impl MapAssets {
     /// Fails (with the protocol's reason) for a map a client would refuse to decode.
     pub fn new(arena: impl Into<Arc<Arena>>) -> Result<Self, rh_protocol::EncodeError> {
         let arena = arena.into();
-        let m = &arena.map;
-        let welcome_map = MapBlob::new(m.w as u16, m.h as u16, m.tiles.clone()).pre_encode()?;
+        let welcome_map = crate::public_ground::encode_static_map(&arena.map)?;
         Ok(Self {
             arena,
             welcome_map: Arc::new(welcome_map),
@@ -465,6 +464,10 @@ impl Room {
         now: Instant,
     ) -> Self {
         wire::profile_supported(&cfg.sim).expect("refusing to host unsupported simulation profile");
+        assert!(
+            crate::public_ground::matches_static_map(&cfg.welcome_map, &cfg.arena.map),
+            "refusing a Welcome cache that differs from the room's canonical public map"
+        );
         let training = cfg.sim.training;
         // Match secrets come from the OS CSPRNG and never leave this task (docs/CONTRACTS.md C-RNG).
         let secrets = cfg.fixed_secrets.unwrap_or_else(|| Secrets {
@@ -572,6 +575,7 @@ impl Room {
                 server_ms: self.sim.server_time(),
             },
             &self.welcome_map,
+            crate::public_ground::mode(self.sim.config().hazards),
         )
     }
 
@@ -1726,6 +1730,10 @@ pub async fn run_room(mut room: Room, mut rx: mpsc::Receiver<RoomCmd>) {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "room/ground_tests.rs"]
+mod public_ground_tests;
 
 #[cfg(test)]
 mod tests {

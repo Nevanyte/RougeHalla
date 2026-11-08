@@ -24,7 +24,7 @@ pub mod delta;
 
 /// Welcome up to the map: `tag, protocol u16, content_hash u64, match_id 16, player_id u32, session 16, tick_rate u8,
 /// tick u32, server_ms f64`.
-const WELCOME_HEAD_LEN: usize = 60;
+pub const WELCOME_HEADER_LEN: usize = 60;
 
 const fn opt_len(present: bool, len: usize) -> usize {
     if present {
@@ -229,7 +229,7 @@ impl Frame for ClientMsg {
                 }
             }
             ClientMsg::Ping { client_ms, .. } if !client_ms.is_finite() => {
-                return Err(EncodeError::NonFinite)
+                return Err(EncodeError::NonFinite);
             }
             _ => {}
         }
@@ -1058,7 +1058,7 @@ impl Frame for ServerMsg {
 
     fn encoded_len(&self) -> usize {
         match self {
-            ServerMsg::Welcome { map, .. } => WELCOME_HEAD_LEN + map.encoded_len(),
+            ServerMsg::Welcome { map, .. } => WELCOME_HEADER_LEN + map.encoded_len(),
             ServerMsg::Reject { reason, .. } => 1 + 2 + str_len(reason),
             ServerMsg::Snapshot {
                 tick,
@@ -1555,15 +1555,15 @@ impl WelcomeHeader {
 
 /// A Welcome frame with a pre-encoded map: the same bytes as `ServerMsg::Welcome { .., map }.encode()`, without RLE
 /// encoding (or cloning) the map per joining player. One allocation of the exact size.
-pub fn encode_welcome(h: &WelcomeHeader, map: &EncodedMap) -> Vec<u8> {
-    let len = WELCOME_HEAD_LEN + map.len();
+pub fn encode_welcome(h: &WelcomeHeader, map: &EncodedMap, mode: GroundMode) -> Vec<u8> {
+    let len = WELCOME_HEADER_LEN + map.encoded_len_for_mode(mode);
     debug_assert!(
         len <= MAX_SERVER_FRAME,
         "a Welcome of {len} bytes exceeds MAX_SERVER_FRAME"
     );
     let mut w = Writer::with_capacity(len);
     h.write(&mut w);
-    w.bytes(map.as_bytes());
+    map.write_with_mode(&mut w, mode);
     w.finish()
 }
 
@@ -1571,14 +1571,15 @@ pub fn encode_welcome(h: &WelcomeHeader, map: &EncodedMap) -> Vec<u8> {
 pub fn encode_welcome_into(
     h: &WelcomeHeader,
     map: &EncodedMap,
+    mode: GroundMode,
     out: &mut Vec<u8>,
 ) -> Result<usize, EncodeError> {
-    let len = WELCOME_HEAD_LEN + map.len();
+    let len = WELCOME_HEADER_LEN + map.encoded_len_for_mode(mode);
     frame_size(len, MAX_SERVER_FRAME)?;
     let mut w = Writer::from_vec(std::mem::take(out));
     w.reserve(len);
     h.write(&mut w);
-    w.bytes(map.as_bytes());
+    map.write_with_mode(&mut w, mode);
     *out = w.finish();
     Ok(len)
 }

@@ -3,10 +3,10 @@ using System.Text;
 
 namespace Roguehalla.Net.Protocol
 {
-    /// <summary>Wire constants of rh-protocol v5 (crates/rh-protocol/src/lib.rs).</summary>
+    /// <summary>Wire constants of rh-protocol v14 (crates/rh-protocol/src/lib.rs).</summary>
     public static class Wire
     {
-        public const ushort ProtocolVersion = 13;
+        public const ushort ProtocolVersion = 14;
         /// <summary>Most ticks a snapshot delta's base may be behind it (a writer that skipped more sends a Full snapshot).</summary>
         public const uint MaxDeltaAge = 64;
         /// <summary>Milliseconds per server tick: a snapshot without a source-time override defaults to Tick * TickMs.</summary>
@@ -22,6 +22,8 @@ namespace Roguehalla.Net.Protocol
         public const int MaxCommandsPerInput = 16;
         public const int MaxActors = 512;
         public const int MaxMapTiles = 1024 * 1024;
+        public const int MaxMapRuns = 3 * MaxMapTiles;
+        public const int MaxMapDecodedBytes = 3 * MaxMapTiles;
     }
 
     public enum DecodeError { Truncated, TooLarge, TooMany, BadTag, BadUtf8, NonFinite, Trailing, BadMap, BadVarint, BadField }
@@ -162,6 +164,12 @@ namespace Roguehalla.Net.Protocol
         /// <summary>Reject NaN and infinities (client frames).</summary>
         public bool FiniteOnly;
 
+        /// <summary>Bytes consumed from this reader's bounded input.</summary>
+        public int Position { get { return _pos; } }
+
+        /// <summary>Bytes remaining in this reader's bounded input.</summary>
+        public int Remaining { get { return _end - _pos; } }
+
         public Reader(byte[] buf, int length = -1)
         {
             _buf = buf;
@@ -170,12 +178,30 @@ namespace Roguehalla.Net.Protocol
             FiniteOnly = false;
         }
 
+        Reader(byte[] buf, int start, int end, bool finiteOnly)
+        {
+            _buf = buf;
+            _end = end;
+            _pos = start;
+            FiniteOnly = finiteOnly;
+        }
+
         int Take(int n)
         {
             if (n < 0 || n > _end - _pos) throw new DecodeException(DecodeError.Truncated);
             int p = _pos;
             _pos += n;
             return p;
+        }
+
+        /// <summary>
+        /// Advances this reader by exactly <paramref name="length"/> and returns a reader bounded to those bytes. The child
+        /// shares the input buffer and cannot read into a following field or frame.
+        /// </summary>
+        public Reader TakeReader(int length)
+        {
+            int start = Take(length);
+            return new Reader(_buf, start, start + length, FiniteOnly);
         }
 
         public byte U8() { return _buf[Take(1)]; }

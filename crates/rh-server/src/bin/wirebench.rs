@@ -491,8 +491,18 @@ fn run(
         tick: 0,
         server_ms: 0.0,
         map: rh_protocol::map::MapBlob::new(
-            src.sim().arena().map.w as u16,
-            src.sim().arena().map.h as u16,
+            src.sim()
+                .arena()
+                .map
+                .w
+                .try_into()
+                .expect("diagnostic map width fits protocol"),
+            src.sim()
+                .arena()
+                .map
+                .h
+                .try_into()
+                .expect("diagnostic map height fits protocol"),
             src.sim().arena().map.tiles.clone(),
         ),
     }
@@ -514,6 +524,20 @@ fn run(
     if let Some(w) = trace.as_mut() {
         let viewer_id = ids.first().expect("at least one viewer").0;
         let map = &src.sim().arena().map;
+        let encoded = rh_protocol::map::MapBlob::new(
+            map.w
+                .try_into()
+                .expect("diagnostic map width fits protocol"),
+            map.h
+                .try_into()
+                .expect("diagnostic map height fits protocol"),
+            map.tiles.clone(),
+        )
+        .pre_encode()
+        .expect("valid map");
+        let mut writer = rh_protocol::codec::Writer::with_capacity(encoded.len());
+        encoded.write_with_mode(&mut writer, rh_protocol::GroundMode::Off);
+        let map_blob_hex = hex(&writer.finish());
         trace_line(
             w,
             &serde_json::json!({
@@ -524,7 +548,7 @@ fn run(
                 "syntheticFighters": synthetic, "seed": seed, "requestedTicks": ticks,
                 "map": if synthetic.is_some() { "practice-arena".to_owned() } else { arg(args, "--map").unwrap_or_else(|| "parity/maps/seed1.map.json".to_owned()) }, "mapWidth":map.w, "mapHeight":map.h,
                 "viewerPlayerId":viewer_id, "tickRate":20,
-                "mapBlobHex":hex(rh_protocol::map::MapBlob::new(map.w as u16, map.h as u16, map.tiles.clone()).pre_encode().expect("valid map").as_bytes()),
+                "mapBlobHex":map_blob_hex,
                 "welcomeHex":hex(&welcome)
             }),
         );

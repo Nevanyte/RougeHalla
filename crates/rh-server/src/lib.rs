@@ -12,6 +12,7 @@ pub mod metrics;
 pub mod outbox;
 pub mod pacer;
 pub mod persist;
+pub mod public_ground;
 pub mod room;
 #[cfg(feature = "postgres")]
 pub mod spool;

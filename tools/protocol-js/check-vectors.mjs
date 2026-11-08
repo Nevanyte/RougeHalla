@@ -153,6 +153,17 @@ const wrongWelcome = Uint8Array.from(new Uint8Array(bytes(fx.server.find(v => v.
 const welcomeTracker = new Tracker(); welcomeTracker.base = { tick: 99 };
 let wrongVersion; try { welcomeTracker.decode(wrongWelcome.buffer); } catch (e) { wrongVersion = e; }
 eq(wrongVersion?.protocolMismatch, true, "wrong Welcome version"); eq(welcomeTracker.base.tick, 99, "wrong Welcome retains baseline");
+const oldFx = JSON.parse(readFileSync(join(root, "protocol/fixtures/v13.json"), "utf8"));
+const oldWelcome = bytes(oldFx.server.find(v => v.name === "welcome").hex);
+let oldVersion; try { decode(oldWelcome); } catch (e) { oldVersion = e; }
+eq(oldVersion?.protocolMismatch, true, "protocol 13 Welcome refused");
+if (version >= 14) {
+  const malformedMap = bytes(fx.malformedServer.find(v => v.name === "map_ext_semantic_hash").hex);
+  const heldMapBase = { tick: 99, actors: [] }, mapTracker = new Tracker(); mapTracker.base = heldMapBase;
+  let malformedWelcome; try { mapTracker.decode(malformedMap); } catch (e) { malformedWelcome = e; }
+  eq(!!malformedWelcome, true, "malformed ground Welcome refused");
+  eq(mapTracker.base, heldMapBase, "malformed ground Welcome retains baseline");
+}
 
 function checkSnapshot(m, d, n) {
     eq(m.tick, d.tick, `${n} tick`); eq(m.serverMs, d.serverMs, `${n} serverMs`); eq(m.phase, d.phase, `${n} phase`); eq(m.ack, d.ack, `${n} ack`); eq(m.training, d.training, `${n} training`);
@@ -176,6 +187,7 @@ function checkSnapshot(m, d, n) {
 }
 
 const wishFxCoverage = new Set();
+const groundMapCoverage = { modes: new Set(), presence: new Set(), names: new Set(), presentZero: false };
 const wishBarrierCoverage = {
   fullDefault: false, fullReset: false, deltaWishClear: false, deltaSelfBarrierClear: false,
   deltaActorBarrierClear: false, newActorBarrierDefault: false, sourceOverride: false, sourceDefaultAfterOverride: false,
@@ -215,12 +227,33 @@ for (const v of fx.server) {
       else if (e.k === "castEnded") for (const k of ["eventTime", "caster", "ability", "reason"]) eq(s[k], e[k], `${n} fx ${i}.${k}`);
       else { eq(s.passive, e.passive, `${n} passive`); eq(s.victim, e.victim, `${n} victim`); eq(s.by, e.by, `${n} by`); eq(bits(s.amount), e.amountBits, `${n} amount`); }
     });
+  } else if (m.t === "welcome") {
+    if (!d.map) throw new Error(`${n} missing Rust-decoded map`);
+    const e = d.map, s = m.map;
+    eq(s.w, e.w, `${n} map.w`); eq(s.h, e.h, `${n} map.h`);
+    eq(s.hash, e.layerHash, `${n} collision layer hash`);
+    eqJson(Array.from(s.tiles), e.tiles, `${n} collision cells`);
+    eqJson(s.terrain === null ? null : Array.from(s.terrain), e.terrain, `${n} terrain plane`);
+    eqJson(s.regions === null ? null : Array.from(s.regions), e.regions, `${n} region plane`);
+    eq(s.terrainMode, e.terrainMode, `${n} terrain mode`);
+    eq(s.semanticHash, e.semanticHash, `${n} semantic hash`);
+    eq(s.contextHash, e.contextHash, `${n} context hash`);
+    groundMapCoverage.modes.add(s.terrainMode);
+    groundMapCoverage.presence.add(`${s.terrain === null ? 0 : 1}${s.regions === null ? 0 : 1}`);
+    groundMapCoverage.names.add(n);
+    if (s.terrain !== null && s.terrain.every(x => x === 0)) groundMapCoverage.presentZero = true;
   }
 }
 
 for (const name of ["wish_fx_started", "wish_fx_landed", "wish_fx_ended"]) {
   if (!fx.server.some((v) => v.name === name)) throw new Error(`missing Rust-generated ${name} vector`);
 }
+for (const name of ["welcome_ground_both", "welcome_ground_terrain_only", "welcome_ground_regions_only", "welcome_ground_present_zero", "welcome_ground_mode_all"]) {
+  if (!groundMapCoverage.names.has(name)) throw new Error(`missing Rust-generated ${name} vector`);
+}
+for (const mode of [0, 1, 2]) if (!groundMapCoverage.modes.has(mode)) throw new Error(`missing Rust Welcome terrain mode ${mode}`);
+for (const presence of ["00", "10", "01", "11"]) if (!groundMapCoverage.presence.has(presence)) throw new Error(`missing Rust Welcome map plane presence ${presence}`);
+if (!groundMapCoverage.presentZero) throw new Error("missing Rust Welcome present all-zero map plane");
 
 // The JS decoder reports a reason as an Error message (RangeError for a read past the end).
 const reason = {
@@ -255,6 +288,11 @@ const reason = {
   reject_code_zero: /reject code/, server_bad_utf8: /utf-8/,
   map_zero_size: /map size/, map_too_large: /map size/, map_bad_tile: /map run/, map_zero_run: /map run/,
   map_run_past_size: /map run/, map_short: /map length/, map_hash_mismatch: /map hash/,
+  map_ext_short: /map extension/, map_ext_version: /ground version/, map_ext_presence: /presence/,
+  map_ext_run_zero: /terrain|region|map.*run/, map_ext_terrain_value: /terrain/, map_ext_region_value: /region/,
+  map_ext_plane_length: /terrain|region.*length/, map_ext_terrain_collision: /terrain collision/,
+  map_ext_semantic_hash: /semantic hash/, map_ext_mode: /terrain mode/, map_ext_context_hash: /context hash/,
+  map_ext_trailing: /extension|trailing/, welcome_trailing: /trailing/,
   wish_ability_over_4: /bad ability/, wish_charge_count_invalid: /bad Wish charges/, wish_time_nonfinite: /bad Wish clock/,
   wish_option_over_1: /bad option/, wish_cast_time_order: /bad Wish cast order/,
   wish_fx_caster_zero: /bad actor reference/, wish_fx_ability_over_4: /bad ability/, wish_fx_time_nonfinite: /bad Wish event time/,
@@ -275,6 +313,11 @@ for (const name of ["state_reward_kind_unknown", "state_reward_kill_key_unknown"
   "state_reward_kill_gain_negative", "state_reward_kill_gain_nan", "state_reward_kill_gain_infinity",
   "state_reward_kill_truncated_key", "state_reward_kill_truncated_gain", "state_reward_options_too_many"]) {
   if (!fx.malformedServer.some((v) => v.name === name)) throw new Error(`missing Rust-generated ${name} control`);
+}
+for (const name of ["map_ext_short", "map_ext_version", "map_ext_presence", "map_ext_run_zero", "map_ext_terrain_value",
+  "map_ext_region_value", "map_ext_plane_length", "map_ext_terrain_collision", "map_ext_semantic_hash", "map_ext_mode",
+  "map_ext_context_hash", "map_ext_trailing", "welcome_trailing"]) {
+  if (!fx.malformedServer.some((v) => v.name === name)) throw new Error(`missing Rust-generated ${name} map control`);
 }
 
 for (const v of fx.server) {

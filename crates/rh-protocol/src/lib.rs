@@ -141,6 +141,7 @@
 
 pub mod codec;
 mod encode;
+pub mod ground;
 pub use encode::delta;
 pub mod map;
 pub mod quant;
@@ -157,10 +158,11 @@ pub use delta::{
     ActorDelta, ConnEncoder, DeltaError, FrameKind, QActor, SelfDelta, SnapshotData, SnapshotDelta,
     SnapshotTracker, TrackError, MAX_DELTA_AGE,
 };
-pub use encode::{encode_welcome, encode_welcome_into, WelcomeHeader};
+pub use encode::{encode_welcome, encode_welcome_into, WelcomeHeader, WELCOME_HEADER_LEN};
+pub use ground::GroundMode;
 
 /// Bump on any incompatible change (a new tag or field in an existing message). Both ends refuse another major version.
-pub const PROTOCOL_VERSION: u16 = 13;
+pub const PROTOCOL_VERSION: u16 = 14;
 /// Milliseconds per server tick (20 Hz). A Snapshot carries `tick` only: its server time is `tick * TICK_MS` exactly.
 pub const TICK_MS: u32 = 50;
 
