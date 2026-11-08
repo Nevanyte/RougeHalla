@@ -304,11 +304,18 @@ pub(crate) fn handle_trade(cx: &mut Cx, ix: crate::fighter::FighterIx, cmd: &Act
         if held == Some(second) {
             return;
         }
+        // Source traders.ts:87: the second slot is only a target while the folded `lockSecondSlot` flag is off. The
+        // flag is the existing owned-card accessor (`Build::has_flag`), which equals the folded FlagSet for every
+        // player: LockSecondSlot's only producer is the ungated Committed catalog row (no other row type makes flags).
         let empty = if slot_item(p, p.weapon.slot).is_none() {
             Some(p.weapon.slot)
         } else if p.weapon.weapon0.is_none() {
             Some(0)
-        } else if p.weapon.weapon1.is_none() {
+        } else if p.weapon.weapon1.is_none()
+            && !p
+                .build
+                .has_flag(crate::stat_fold::EffectFlag::LockSecondSlot)
+        {
             Some(1)
         } else {
             None

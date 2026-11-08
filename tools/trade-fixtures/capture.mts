@@ -10,6 +10,8 @@ import {generateMap} from '/repo/packages/shared/src/mapgen.ts';
 import {createGameWorld} from '/repo/packages/server/src/sim/gameplay.ts';
 import {addPlayer, step} from '/repo/packages/server/src/sim/step.ts';
 import {enqueueClientMessage} from '/repo/packages/server/src/sim/inputs.ts';
+import {combatant} from '/repo/packages/server/src/sim/combatant.ts';
+import {grantCard} from '/repo/packages/server/src/sim/chests.ts';
 
 const args = process.argv.slice(2);
 assert(args.length === 2 && (args[0] === '--write' || args[0] === '--check') && typeof args[1] === 'string', 'closed capture arguments');
@@ -108,6 +110,14 @@ function runner(name: string) {
     s.weapon0 = weapon; s.weapon1 = ''; s.slot = 0;
     push('weapon', {actor: Number(actor.slice(1)), weapon});
   };
+  const grant = (actor: string, card: string): void => {
+    assert.notEqual(grantCard(w, combatant(w, actor) as any, card), null, 'the source granted the card');
+    push('grantCard', {actor: Number(actor.slice(1)), card});
+  };
+  const setPotion = (actor: string, count: number): void => {
+    w.state.players.get(actor)!.potionSmall = count;
+    push('potion', {actor: Number(actor.slice(1)), count});
+  };
   const trade = (actor: string, trader: string, pick: number): void => {
     assert.equal(enqueueClientMessage(w.players.get(actor)!.inputs, 'trade', {trader, pick}), true, 'the source parsed the trade message');
     push('input', {actor: Number(actor.slice(1)), type: 'trade', payload: {trader, pick}});
@@ -132,7 +142,7 @@ function runner(name: string) {
   });
   const snapshot = snap;
   snapshot('start');
-  return {w, trade, place, setWeapon, snap, runSteps, output, frames, actions};
+  return {w, trade, place, setWeapon, grant, setPotion, snap, runSteps, output, frames, actions};
 }
 
 const trader = (w: any, kind: string): any => [...w.state.traders.values()].find((t: any) => t.kind === kind)!;
@@ -213,6 +223,40 @@ const cases: any[] = [];
   r.runSteps(1);
   r.snap('fists-refused');
   cases.push(r.output({}));
+}
+
+// 6. The Committed lockSecondSlot refusal: p0 owns Committed (the real grantCard producer) so the only empty slot is the
+// locked second one and the potion -> second-weapon trade must refuse without spending the potion or starting the
+// cooldown; p1, without the card, makes the same trade into slot 1.
+{
+  const r = runner('barter-locked-second-slot');
+  const villager = trader(r.w, 'barter');
+  r.grant('p0', 'committed');
+  r.setWeapon('p0', 'sword');
+  r.setPotion('p0', 1);
+  r.place('p0', villager.x, villager.y);
+  r.runSteps(1);
+  r.trade('p0', 'trader-barter', 2);
+  r.runSteps(1);
+  r.snap('locked-refused');
+  const p0 = r.w.state.players.get('p0')!;
+  assert.equal(p0.weapon0, 'sword');
+  assert.equal(p0.weapon1, '', 'the locked slot stays empty');
+  assert.equal(p0.potionSmall, 1, 'the refusal spends no potion');
+  assert.equal(r.w.traders.barterAt.has('p0'), false, 'the refusal does not start the cooldown');
+  // Positive control in the same world: the same trade without Committed succeeds.
+  r.setWeapon('p1', 'sword');
+  r.setPotion('p1', 1);
+  r.place('p1', villager.x, villager.y);
+  r.runSteps(1);
+  r.trade('p1', 'trader-barter', 2);
+  r.runSteps(1);
+  r.snap('unlocked-traded');
+  const p1 = r.w.state.players.get('p1')!;
+  assert.equal(p1.weapon1, 'wand', 'the free second slot takes the cycle weapon');
+  assert.equal(p1.potionSmall, 0);
+  assert.equal(r.w.traders.barterAt.has('p1'), true);
+  cases.push(r.output({lockedPlayer: 0, unlockedPlayer: 1}));
 }
 
 const repeat = cases.map((c) => ({name: c.input.name, script: c.script, actions: c.actions, frames: c.frames}));
