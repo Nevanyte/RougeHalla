@@ -36,6 +36,9 @@ pub mod math;
 pub mod mob_catalog;
 pub mod mob_runtime;
 pub mod observe;
+// Approved private projection leaf; intentionally unbound until prepared/public delivery is admitted.
+#[cfg_attr(not(test), allow(dead_code))]
+mod owner_combat;
 pub mod pathfind;
 pub mod potions;
 pub mod private_rng;

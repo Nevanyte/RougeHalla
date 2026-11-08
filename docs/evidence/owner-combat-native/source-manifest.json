@@ -1,0 +1,85 @@
+{
+  "base": "130cbab167bf2354928feb783bc75f58f26ba189",
+  "carried_root_repair": "8e6a5562eef4b743e33e3c295cbe1ff4f5e191bc",
+  "source_seal": "d061aacd61c2338d00dd51119cab4d2651f4a23d",
+  "excludes": [
+    "this manifest itself"
+  ],
+  "files": [
+    {
+      "path": "crates/rh-sim/src/lib.rs",
+      "bytes": 3486,
+      "sha256": "2a958c68575f79d5ca5b249b8d813b27fd013e51acd788b4d1de8621baff5092"
+    },
+    {
+      "path": "crates/rh-sim/src/modifiers/mod.rs",
+      "bytes": 40401,
+      "sha256": "c3abbc8cd0e87bf63e634ce9ce1913abafae131657c096d3f557ff00742958fc"
+    },
+    {
+      "path": "crates/rh-sim/src/owner_combat.rs",
+      "bytes": 2592,
+      "sha256": "2a2e5bf6ce308418a628e780da2fe2c5d7613430cfdd036b3c0ead84feb13672"
+    },
+    {
+      "path": "crates/rh-sim/src/owner_combat/tests.rs",
+      "bytes": 13207,
+      "sha256": "c6725ea76c04868c91419fd5413eea876e80dd933b75a0fa0849de95922e9c99"
+    },
+    {
+      "path": "crates/rh-sim/tests/content.rs",
+      "bytes": 56944,
+      "sha256": "48680a785848425f0845c739d01678d3f1472bd2e9643a5db435f4b2130ec8f5"
+    },
+    {
+      "path": "docs/evidence/owner-combat-native/README.md",
+      "bytes": 6041,
+      "sha256": "b73f1556338fe6573aa5132e551e8adb41c8e3fe3dce9921706279ecc0bcecde"
+    },
+    {
+      "path": "docs/evidence/owner-combat-native/allocation.log",
+      "bytes": 462,
+      "sha256": "535dd03b918492c9bb6bdcc07f322ac50032d9c722c7bcf31540d4c284d1164c"
+    },
+    {
+      "path": "docs/evidence/owner-combat-native/checks.json",
+      "bytes": 2308,
+      "sha256": "60da582c69ed7e4bbd8688e08f600dab23c501be1c8c7f4397439e313122edae"
+    },
+    {
+      "path": "docs/evidence/owner-combat-native/clippy.log",
+      "bytes": 206,
+      "sha256": "17fb949ac0ce8394972e8f29b2074d1f8bd17eb6d66152d713be9a3d1bd71475"
+    },
+    {
+      "path": "docs/evidence/owner-combat-native/content-hash.log",
+      "bytes": 371,
+      "sha256": "bea334d155e3f5bcce2e1a8fbf4f09271e2f253fd501b14bf0273778af400adc"
+    },
+    {
+      "path": "docs/evidence/owner-combat-native/content-scan.log",
+      "bytes": 563,
+      "sha256": "87d54dcfca563dd93d7ce8f3062e8000614886bb52883b8ce68fc1bb108bc3b4"
+    },
+    {
+      "path": "docs/evidence/owner-combat-native/fmt.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/evidence/owner-combat-native/focused.log",
+      "bytes": 1364,
+      "sha256": "26bef1197fc5be988a39b19696de0ca3539cabe1c0b8e2e83565fe724884e8ed"
+    },
+    {
+      "path": "parity/policy/owner-combat/boundaries.json",
+      "bytes": 41479,
+      "sha256": "6b040642ad184405b9c924cb10821fb3d174a6a539b802d5d9597500ee427e60"
+    },
+    {
+      "path": "parity/policy/owner-combat/producer.json",
+      "bytes": 2483560,
+      "sha256": "399758fd97403383c57c8e0395f9196d4d6ad23afa2ee57e7c5396bce6911ba2"
+    }
+  ]
+}

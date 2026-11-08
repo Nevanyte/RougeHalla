@@ -1,0 +1,85 @@
+{
+  "base": "130cbab167bf2354928feb783bc75f58f26ba189",
+  "carried_root_repair": "8e6a5562eef4b743e33e3c295cbe1ff4f5e191bc",
+  "source_seal": "d061aacd61c2338d00dd51119cab4d2651f4a23d",
+  "focused": {
+    "passed": 6,
+    "failed": 0,
+    "ignored_allocation_test": 1,
+    "native_source_prefix_cases": [
+      "L01",
+      "L02",
+      "L03",
+      "D01"
+    ],
+    "native_frames": 136,
+    "source_transform_frames": 808,
+    "clock_conversions": 1616,
+    "source_schema_bot_boundary_rows": 26
+  },
+  "allocation": {
+    "separate_exact_ignored_test_executed": true,
+    "passed": 1,
+    "projection_calls": 90000,
+    "measured_blocks_per_membership": [
+      0,
+      0,
+      0
+    ],
+    "scope": "all-process dhat total_blocks; conservative upper bound for invoking thread; isolated run",
+    "runtime_allocator_change": false
+  },
+  "content_scanner": {
+    "passed": 1
+  },
+  "content_golden": {
+    "passed": 1,
+    "hash": "67183626db240b6a"
+  },
+  "strict_clippy": {
+    "command": "cargo clippy -p rh-sim --lib --tests -- -D warnings",
+    "passed": true
+  },
+  "format": {
+    "command": "cargo fmt --all --check",
+    "passed": true
+  },
+  "not_run": [
+    "broad workspace or simulation suites",
+    "new legacy captures/mutants",
+    "public observer/codec/policy binding",
+    "Editor/Web/browser/cloud"
+  ],
+  "source_limits": {
+    "passed_source_rows": 10,
+    "blocked_source_rows": 2,
+    "fourth_producer_kill_claimed": false,
+    "complete_lifecycle_claimed": false
+  },
+  "logs": {
+    "focused.log": {
+      "bytes": 1364,
+      "sha256": "26bef1197fc5be988a39b19696de0ca3539cabe1c0b8e2e83565fe724884e8ed"
+    },
+    "allocation.log": {
+      "bytes": 462,
+      "sha256": "535dd03b918492c9bb6bdcc07f322ac50032d9c722c7bcf31540d4c284d1164c"
+    },
+    "content-scan.log": {
+      "bytes": 563,
+      "sha256": "87d54dcfca563dd93d7ce8f3062e8000614886bb52883b8ce68fc1bb108bc3b4"
+    },
+    "content-hash.log": {
+      "bytes": 371,
+      "sha256": "bea334d155e3f5bcce2e1a8fbf4f09271e2f253fd501b14bf0273778af400adc"
+    },
+    "clippy.log": {
+      "bytes": 206,
+      "sha256": "17fb949ac0ce8394972e8f29b2074d1f8bd17eb6d66152d713be9a3d1bd71475"
+    },
+    "fmt.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  }
+}

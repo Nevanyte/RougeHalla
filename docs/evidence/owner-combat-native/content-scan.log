@@ -1,0 +1,9 @@
+   Compiling rh-sim v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/owner-combat-native/repo/crates/rh-sim)
+    Finished `test` profile [unoptimized] target(s) in 0.35s
+     Running tests/content.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/owner-combat-native/target/debug/deps/content-507fd2a384d05cbb)
+
+running 1 test
+test every_const_in_the_source_tree_is_registered_or_explained ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 20 filtered out; finished in 0.05s
+

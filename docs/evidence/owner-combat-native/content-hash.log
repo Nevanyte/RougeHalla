@@ -1,0 +1,8 @@
+    Finished `test` profile [unoptimized] target(s) in 0.03s
+     Running tests/content.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/owner-combat-native/target/debug/deps/content-507fd2a384d05cbb)
+
+running 1 test
+test hash_golden ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 20 filtered out; finished in 0.00s
+

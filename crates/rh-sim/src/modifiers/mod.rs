@@ -120,6 +120,12 @@ impl Runtime {
     pub fn attack_rate_wire(&self) -> f64 {
         self.wire[0]
     }
+    /// Read-only owner-combat projection input: exact cached wire values, never decoded/refolded.
+    #[cfg_attr(not(test), allow(dead_code))]
+    pub(crate) fn owner_combat_mirrors(&self) -> [f64; 3] {
+        let wire = WireMirrors::from_source_values(self.wire);
+        [wire.as_mult, wire.windup_mult, wire.speed_mult]
+    }
     pub fn wish_cooldown_mult(&self) -> f64 {
         MultSums::from_source_values(self.mults).get(fold::MultKey::WishCooldown)
     }
