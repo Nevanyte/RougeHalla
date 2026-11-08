@@ -57,8 +57,9 @@ Additive actual-source cases (all evaluated by the unchanged legacy source in th
   predicate, proves it differs from the captured membership exactly at U+0085, and reproduces both reviewer-named
   behaviours through BotFillConfig::from_env; its positive real-whitespace controls trim.
 - Restoring the broad property is a committed mutant:
-  tools/bot-runtime-fixtures/mutants/01-restore-is-whitespace.patch with tools/bot-runtime-fixtures/run-mutants.sh; it
-  must fail a semantic parity test (the bot_fill corpus/number checks) while the unchanged control passes.
+  tools/bot-runtime-fixtures/mutants/01-restore-is-whitespace.patch with tools/bot-runtime-fixtures/run-mutants.sh.
+  Measured: "1/1 mutants killed; unchanged control passes" — the restored wide predicate fails the semantic bot_fill
+  parity tests (NEL number oracle and the exhaustive membership check), not a compile or setup error.
 - Focused checks run for this lane: cargo test -p rh-server --lib --all-features bot_fill (12 passed, including the two
   new repair tests and the additive corpus/oracle cases); cargo fmt --all --check clean; cargo clippy -p rh-server
   --all-targets --all-features -- -D warnings clean; bash tools/bot-runtime-fixtures/capture.sh --check PASS. The lead
