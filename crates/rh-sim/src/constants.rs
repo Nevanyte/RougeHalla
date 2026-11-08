@@ -408,5 +408,6 @@ content! {
     TRAIN_CHEST_TARGET_TILES: f64 = 2., "tiles";
     PRACTICE_CAMP_FIRST: u32 = 101, "camp ref";
     PRACTICE_CAMP_LAST: u32 = 255, "camp ref";
+    CANNON_COOLDOWN_MS: f64 = 75_000., "ms";
 
 }

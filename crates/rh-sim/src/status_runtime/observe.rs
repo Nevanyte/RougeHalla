@@ -81,10 +81,11 @@ pub(crate) fn project(
     let Some(me) = sim.player(viewer) else { return };
     let Some(a) = &sim.w.abilities else { return };
     let map = sim.collision_view();
+    let wards = crate::vision::WardSight::of_sim(sim);
     for f in &a.fields {
-        if !crate::vision::point_visible(map, me, Vec2::new(f.x, f.y), sim.w.tick)
+        if !crate::vision::point_visible(map, me, Vec2::new(f.x, f.y), sim.w.tick, wards)
             || (f.kind == FieldKind::Trail
-                && !crate::vision::point_visible(map, me, Vec2::new(f.x2, f.y2), sim.w.tick))
+                && !crate::vision::point_visible(map, me, Vec2::new(f.x2, f.y2), sim.w.tick, wards))
         {
             continue;
         }
@@ -233,7 +234,13 @@ mod tests {
             hidden.server_time()
         ));
         assert!(
-            !crate::vision::actor_visible(&hidden.k.arena.map, viewer, target, hidden.tick()),
+            !crate::vision::actor_visible(
+                &hidden.k.arena.map,
+                viewer,
+                target,
+                hidden.tick(),
+                crate::vision::WardSight::none(),
+            ),
             "presentation still has the previous effects mirror"
         );
         assert!(
@@ -241,7 +248,8 @@ mod tests {
                 &hidden.k.arena.map,
                 viewer,
                 target,
-                hidden.tick()
+                hidden.tick(),
+                crate::vision::WardSight::none(),
             ),
             "terrain visibility does not override current targetability readers"
         );

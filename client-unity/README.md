@@ -1,6 +1,6 @@
 # client-unity: Roguehalla Unity (Web) client
 
-Client for the Rust authoritative server (`crates/rh-server`), speaking rh-protocol v6 (`crates/rh-protocol`, golden vectors in `protocol/fixtures/v6.json`, [ADR 0018](../docs/adr/0018-keyed-state-protocol-v6.md); a snapshot carries `tick` only and `Snapshot.ServerMs` is derived as `Tick * 50`; remote actors arrive quantized, see `Quant`; snapshots arrive as Full frames and deltas against the last one received, which `SnapshotTracker` applies, and `Session` asks for a Full one with `Resync` when it refuses a delta).
+Client for the Rust authoritative server (`crates/rh-server`), speaking rh-protocol v9 (`crates/rh-protocol`, golden vectors in `protocol/fixtures/v9.json`, [ADR 0018](../docs/adr/0018-keyed-state-protocol-v6.md); a snapshot carries `tick` only and `Snapshot.ServerMs` is derived as `Tick * 50`; remote actors arrive quantized, see `Quant`; snapshots arrive as Full frames and deltas against the last one received, which `SnapshotTracker` applies, and `Session` asks for a Full one with `Resync` when it refuses a delta).
 
 The first-playable profile is documented in [maps/README](../maps/README.md). Start `rh-server --first-playable`,
 serve `UnityProject/Build/Web`, and use `?server=ws%3A%2F%2F127.0.0.1%3A7777%2Fws` locally. Ordinary visits show the

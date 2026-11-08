@@ -89,6 +89,7 @@ impl From<&SimSpec> for SimConfig {
             faction_mode: spec.faction_mode,
             mob_mode: rh_sim::mob_runtime::MobMode::Off,
             initial_loot: false,
+            consumables: true,
             hazards: rh_sim::terrain::Mode::Off,
             abilities: rh_sim::abilities::Mode::Off,
             wish_lock_ms: 45_000.,

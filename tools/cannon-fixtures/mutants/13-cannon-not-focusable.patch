@@ -1,0 +1,13 @@
+diff --git a/crates/rh-sim/src/item_view.rs b/crates/rh-sim/src/item_view.rs
+index 76eb5149..70411e53 100644
+--- a/crates/rh-sim/src/item_view.rs
++++ b/crates/rh-sim/src/item_view.rs
+@@ -237,7 +237,7 @@ impl ItemObserver {
+             // Birth is a private execution guard. The legacy F prompt uses present contents and reach; a travel
+             // cannon always offers it (its blast needs no item).
+             if me.standing()
+-                && (!c.items.is_empty() || c.kind == ContainerKind::Cannon)
++                && !c.items.is_empty()
+                 && pickup_reach(&map, from, c.at).is_ok()
+             {
+                 let dx = from.x - f64::from(cue.x) / 8.0;

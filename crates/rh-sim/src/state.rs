@@ -396,6 +396,8 @@ pub enum ContainerKind {
     /// A quest token or fetch parcel (source `ContainerKind` "quest"): its one item names the offer, and the pickup path
     /// hands it to the quest runtime instead of the weapon/potion logic.
     Quest,
+    /// A travel cannon: no items; the public reload clock and landing live on the container.
+    Cannon,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -407,6 +409,12 @@ pub struct Container {
     pub opened: bool,
     /// First item at index zero, second if a body held both weapons.
     pub items: Vec<crate::initial_world::Item>,
+    /// A travel cannon's landing point (legacy `ContainerState.targetX/targetY`); `None` on every other kind.
+    #[serde(default)]
+    pub target: Option<Vec2>,
+    /// Server time the cannon reloads (legacy `ContainerState.readyAt`, uint32 ms); zero on every other kind.
+    #[serde(default)]
+    pub ready_at: f64,
     pub(crate) stat_offer: bool,
     pub(crate) born_tick: u32,
 }

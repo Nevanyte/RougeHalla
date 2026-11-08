@@ -40,6 +40,7 @@ fn setup(mode: Mode, mobs: bool, kind: u8) -> Sim {
         SimConfig {
             quests: false,
             initial_loot: mobs,
+            consumables: true,
             hazards: mode,
             mob_mode: if mobs {
                 crate::mob_runtime::MobMode::Pve
@@ -234,6 +235,7 @@ fn terrain_checkpoint_rejects_malformed_clocks_identity_and_slips() {
     let mut config = SimConfig {
         quests: false,
         initial_loot: true,
+        consumables: true,
         hazards: Mode::Map,
         mob_mode: crate::mob_runtime::MobMode::SpawnFoundation,
         ..Default::default()

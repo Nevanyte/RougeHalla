@@ -24,11 +24,13 @@ impl InitialSink for Sink<'_> {
             kind: match o.kind {
                 Kind::Chest => ContainerKind::Chest,
                 Kind::Ground => ContainerKind::Ground,
-                Kind::Cannon => unreachable!("MVP excludes travel"),
+                Kind::Cannon => ContainerKind::Cannon,
             },
             at: o.at,
             opened: o.opened,
             items: o.items,
+            target: o.target,
+            ready_at: 0.,
             born_tick: 0,
             stat_offer: o.stat_offer,
         });
@@ -82,7 +84,14 @@ pub(crate) fn initialize(k: &mut MatchStatic, w: &mut World) -> Result<(), &'sta
         }
     } else {
         let mut main = w.spawn_rng.clone();
-        crate::initial_world::build_loot(
+        // The full constructor profile includes the consumables installer's travel producer after the loot prefix; the
+        // capture profiles that omit the module install no travel (build_loot is the same source prefix without it).
+        let build = if k.config.consumables {
+            crate::initial_world::build_initial
+        } else {
+            crate::initial_world::build_loot
+        };
+        build(
             &input(k),
             false,
             &mut main,
@@ -100,7 +109,12 @@ pub(crate) fn replay(k: &MatchStatic) -> Result<Replay, String> {
     if k.config.initial_loot {
         let mut main = Mulberry32::new(k.secrets.spawn_seed);
         main.next_u32();
-        crate::initial_world::build_loot(
+        let build = if k.config.consumables {
+            crate::initial_world::build_initial
+        } else {
+            crate::initial_world::build_loot
+        };
+        build(
             &input(k),
             false,
             &mut main,
@@ -160,9 +174,17 @@ pub(crate) fn validate(k: &MatchStatic, w: &World) -> Result<(), String> {
                 || c.born_tick != 0
                 || (c.kind == ContainerKind::Chest && !c.opened && c.items != original.items)
                 || c.items.iter().any(|item| !original.items.contains(item))
+                || (c.kind == ContainerKind::Cannon
+                    && (c.opened
+                        || c.target != original.target
+                        || !c.ready_at.is_finite()
+                        || c.ready_at < 0.))
+                || (c.kind != ContainerKind::Cannon && (c.target.is_some() || c.ready_at != 0.))
                 || !matches!(
                     (c.kind, original.kind),
-                    (ContainerKind::Chest, Kind::Chest) | (ContainerKind::Ground, Kind::Ground)
+                    (ContainerKind::Chest, Kind::Chest)
+                        | (ContainerKind::Ground, Kind::Ground)
+                        | (ContainerKind::Cannon, Kind::Cannon)
                 )
             {
                 return Err("initial object provenance mismatch".into());

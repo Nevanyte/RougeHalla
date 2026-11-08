@@ -1,0 +1,17 @@
+diff --git a/crates/rh-sim/src/systems/initial_loot.rs b/crates/rh-sim/src/systems/initial_loot.rs
+index 6caf0ee1..1955ab76 100644
+--- a/crates/rh-sim/src/systems/initial_loot.rs
++++ b/crates/rh-sim/src/systems/initial_loot.rs
+@@ -86,11 +86,7 @@ pub(crate) fn initialize(k: &mut MatchStatic, w: &mut World) -> Result<(), &'sta
+         let mut main = w.spawn_rng.clone();
+         // The full constructor profile includes the consumables installer's travel producer after the loot prefix; the
+         // capture profiles that omit the module install no travel (build_loot is the same source prefix without it).
+-        let build = if k.config.consumables {
+-            crate::initial_world::build_initial
+-        } else {
+-            crate::initial_world::build_loot
+-        };
++        let build = crate::initial_world::build_loot;
+         build(
+             &input(k),
+             false,

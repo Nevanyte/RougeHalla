@@ -58,6 +58,7 @@ async fn server(args: &[String], conns: usize, secs: u64) {
         hazards: rh_sim::terrain::Mode::Off,
         mob_mode: rh_sim::mob_runtime::MobMode::Off,
         initial_loot: false,
+        consumables: true,
         min_players: 2,
         lobby_seconds: 30.0,
         fill_seconds: 5.0,

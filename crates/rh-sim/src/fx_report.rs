@@ -160,6 +160,7 @@ impl Sim {
             return;
         }
         r.viewers.extend(self.w.players.iter().map(|p| p.id));
+        let wards = crate::vision::WardSight::of(&self.k, &self.w);
         for me in &self.w.players {
             let mut mask = 0;
             for (j, p) in self.w.players.iter().enumerate() {
@@ -169,6 +170,7 @@ impl Sim {
                         me,
                         p,
                         self.w.tick,
+                        wards,
                     )
                 {
                     mask |= 1 << j;
@@ -185,6 +187,7 @@ impl Sim {
                         me,
                         mob.core.pos(),
                         self.w.tick,
+                        wards,
                     ) {
                         mask |= 1 << i;
                     }

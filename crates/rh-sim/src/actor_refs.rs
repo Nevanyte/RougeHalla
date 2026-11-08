@@ -57,6 +57,7 @@ fn event_refs(event: &mut SeenEvent, map: &impl Fn(PlayerId) -> Option<PlayerId>
         | SeenEvent::MobArmed { .. }
         | SeenEvent::CampCleared { .. }
         | SeenEvent::PotionNotice { .. }
+        | SeenEvent::CannonNotice { .. }
         | SeenEvent::ChestRefused { .. }
         | SeenEvent::PickupRefused { .. }
         | SeenEvent::Toast { .. } => (None, None),

@@ -223,6 +223,47 @@ fn in_radius(a: Vec2, b: Vec2) -> bool {
     dx * dx + dy * dy <= VISION_RADIUS * VISION_RADIUS
 }
 
+/// Live camp-ward sight sources. The source's `canPlayerSee` scans the published camps for an unexpired ward owned by
+/// the viewer and treats each owned camp's centre as a transient sight origin (`isInVision`): current only, never
+/// remembered. The camp state is the authority, so no copy is stored on the viewer.
+#[derive(Clone, Copy, Default)]
+pub(crate) struct WardSight<'a> {
+    camps: &'a [crate::mapdata::CampDef],
+    life: &'a [crate::mob_runtime::CampLife],
+}
+impl<'a> WardSight<'a> {
+    pub(crate) const fn none() -> Self {
+        Self {
+            camps: &[],
+            life: &[],
+        }
+    }
+    pub(crate) fn of(k: &'a crate::statics::MatchStatic, w: &'a crate::state::World) -> Self {
+        match (k.arena.map.layers(), w.mob_runtime.as_ref()) {
+            (Some(layers), Some(rt)) => Self {
+                camps: &layers.data().camps,
+                life: &rt.life,
+            },
+            _ => Self::none(),
+        }
+    }
+    pub(crate) fn of_sim(sim: &'a Sim) -> Self {
+        Self::of(&sim.k, &sim.w)
+    }
+    /// Legacy `canPlayerSee`'s ward clause: `camp.wardOwner === viewer && now < wardExpiresAt` and
+    /// `isInVision(collisionMap, map.camps[i], point)`. An expired timestamp cannot leak sight, and a dead viewer never
+    /// reaches here (the caller checks its status).
+    fn sees(self, map: View<'_>, viewer: PlayerId, point: Vec2, tick: u32) -> bool {
+        let now = f64::from(tick) * TICK_MS;
+        self.camps.iter().zip(self.life).any(|(camp, life)| {
+            life.ward_owner == Some(viewer)
+                && now < life.ward_expires_at
+                && in_radius(Vec2::new(camp.x, camp.y), point)
+                && !scene_line_blocked(map.current(), camp.x, camp.y, point.x, point.y)
+        })
+    }
+}
+
 /// Legacy hasVisionLineOfSight: first wall face visible; crossing a corner adjacent to either
 /// wall blocks. Stop upon reaching the destination tile, even when the point is on its boundary.
 pub(crate) fn scene_line_blocked(map: &TileMap, x: f64, y: f64, end_x: f64, end_y: f64) -> bool {
@@ -284,12 +325,14 @@ pub(crate) fn point_with<'a>(
     viewer: &Player,
     point: Vec2,
     tick: u32,
+    wards: WardSight<'_>,
     line_blocked: impl FnOnce() -> bool,
 ) -> bool {
     let map = map.into();
     viewer.status == Status::Alive
         && ((in_radius(viewer.pos(), point) && !line_blocked())
-            || viewer.vision.remembers(map, point, tick))
+            || viewer.vision.remembers(map, point, tick)
+            || wards.sees(map, viewer.id, point, tick))
 }
 /// Bush concealment applies only to living actors, after point visibility is established.
 /// Actor-specific sight never grants discovery of nearby props or terrain.
@@ -298,13 +341,14 @@ pub(crate) fn actor_with<'a>(
     viewer: &Player,
     target: &Player,
     tick: u32,
+    wards: WardSight<'_>,
     line_blocked: impl FnOnce() -> bool,
 ) -> bool {
     let map = map.into();
     if (viewer.id != target.id
         && target.statuses.effects & crate::status_runtime::StatusKind::Hidden.rule().bit != 0)
         || target.status == Status::Lobby
-        || !point_with(map, viewer, target.pos(), tick, line_blocked)
+        || !point_with(map, viewer, target.pos(), tick, wards, line_blocked)
     {
         return false;
     }
@@ -334,9 +378,10 @@ pub(crate) fn actor_visible<'a>(
     viewer: &Player,
     target: &Player,
     tick: u32,
+    wards: WardSight<'_>,
 ) -> bool {
     let map = map.into();
-    actor_with(map, viewer, target, tick, || {
+    actor_with(map, viewer, target, tick, wards, || {
         scene_line_blocked(
             &map,
             viewer.body.x,
@@ -354,12 +399,13 @@ pub(crate) fn gameplay_actor_visible<'a>(
     viewer: &Player,
     target: &Player,
     tick: u32,
+    wards: WardSight<'_>,
 ) -> bool {
     let map = map.into();
     // Presentation uses the last source-timed hidden mirror; gameplay targetability uses
     // current status readers at its own phase, so terrain sight must not reuse that mirror.
     if target.status != Status::Lobby
-        && point_visible(map, viewer, target.pos(), tick)
+        && point_visible(map, viewer, target.pos(), tick, wards)
         && bush_visible(&map, viewer, target, tick)
     {
         return true;
@@ -391,10 +437,11 @@ pub(crate) fn point_visible<'a>(
     viewer: &Player,
     point: Vec2,
     tick: u32,
+    wards: WardSight<'_>,
 ) -> bool {
     let map = map.into();
     let from = viewer.pos();
-    point_with(map, viewer, point, tick, || {
+    point_with(map, viewer, point, tick, wards, || {
         scene_line_blocked(&map, from.x, from.y, point.x, point.y)
     })
 }
@@ -538,10 +585,11 @@ impl TileVisionCache {
         viewer: &Player,
         point: Vec2,
         tick: u32,
+        wards: WardSight<'_>,
     ) -> bool {
         let map = map.into();
         if self.tick != Some(tick) {
-            return point_visible(map, viewer, point, tick);
+            return point_visible(map, viewer, point, tick, wards);
         }
         if viewer.status != Status::Alive {
             return false;
@@ -583,14 +631,16 @@ impl TileVisionCache {
             last_seen,
         });
         last_seen.is_some_and(|t| tick - t < trail_ticks())
+            || wards.sees(map, viewer.id, point, tick)
     }
 }
 
 impl Sim {
     /// Read-only public point visibility on the frozen tick. Samples never change a viewer's trail.
     pub fn can_see_point(&self, viewer: PlayerId, point: Vec2) -> bool {
+        let wards = WardSight::of(&self.k, &self.w);
         self.player(viewer)
-            .is_some_and(|p| point_visible(self.collision_view(), p, point, self.tick()))
+            .is_some_and(|p| point_visible(self.collision_view(), p, point, self.tick(), wards))
     }
 }
 
@@ -881,6 +931,10 @@ mod tests {
 #[cfg(test)]
 #[path = "vision_arena_tests.rs"]
 mod arena_tests;
+
+#[cfg(test)]
+#[path = "vision_ward_tests.rs"]
+mod ward_tests;
 
 /// Casts feed the same delayed bush exposure queue as attacks.
 pub(crate) fn cast_exposure(

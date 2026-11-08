@@ -1,0 +1,13 @@
+diff --git a/crates/rh-sim/src/systems/cannons.rs b/crates/rh-sim/src/systems/cannons.rs
+index cd2d9c5f..b2315062 100644
+--- a/crates/rh-sim/src/systems/cannons.rs
++++ b/crates/rh-sim/src/systems/cannons.rs
+@@ -25,7 +25,7 @@ pub(crate) fn use_cannon(cx: &mut Cx, ix: FighterIx, i: usize) {
+     }
+     // Source: the whole-second rounded-up reload notice (a large remaining clock still renders exactly).
+     let ready_at = cx.w.containers[i].ready_at;
+-    if ready_at > now {
++    if ready_at > now + CANNON_COOLDOWN_MS * 2. {
+         let seconds = ((ready_at - now) / 1000.).ceil().clamp(0., u32::MAX as f64) as u32;
+         cx.ev.push(Event::CannonNotice {
+             id,

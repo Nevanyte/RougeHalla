@@ -1,7 +1,7 @@
 {
   "format": "rh-card-runtime-witness-pins/1",
   "baseRevision": "64052f09212ea857b2aa6327cf996b1860deb91b",
-  "frozenSourceSha256": "032d49aad1e204f9f57754e7fdbbe0121ca1f4e99a265e10437ff3cb266f1e51",
+  "frozenSourceSha256": "43d25f5e25354fe599ed81e1285a9dc05bd0f4a0579cbb558aaf2d5a90f9ccdf",
   "files": [
     {
       "path": "parity/card-runtime/ATTEMPTS.json",
@@ -13,7 +13,7 @@
       "path": "parity/card-runtime/INPUT_SHA256.json",
       "bytes": 23376,
       "mode": "100644",
-      "sha256": "37bb94fac9fa8b80688629f19cd5b4c15be5898430a6560b0a522ec2c9370da8"
+      "sha256": "1a41a679ddcbcfc7c130bb53250a5ba1f4edd7cbadd1411204a2d7c2547e05e0"
     },
     {
       "path": "parity/card-runtime/README.md",
@@ -25,7 +25,7 @@
       "path": "parity/card-runtime/source.json",
       "bytes": 53033468,
       "mode": "100644",
-      "sha256": "032d49aad1e204f9f57754e7fdbbe0121ca1f4e99a265e10437ff3cb266f1e51"
+      "sha256": "43d25f5e25354fe599ed81e1285a9dc05bd0f4a0579cbb558aaf2d5a90f9ccdf"
     },
     {
       "path": "tools/card-runtime-fixtures/assertions.mts",
@@ -43,7 +43,7 @@
       "path": "tools/card-runtime-fixtures/capture.mts",
       "bytes": 6091,
       "mode": "100644",
-      "sha256": "e39d1906ccfcddd8734559dbf03da3bcff79ef097afe99e1c9a283a760d4192b"
+      "sha256": "a4570514b42c37c998146e9c3861402acad833fa950eb238c6fd6a55721ee0df"
     },
     {
       "path": "tools/card-runtime-fixtures/capture.sh",

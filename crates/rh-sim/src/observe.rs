@@ -91,6 +91,10 @@ pub enum SeenEvent {
     Toast {
         text: String,
     },
+    /// A private travel-cannon notice (sealed, still reloading, cannot enter, or the blast).
+    CannonNotice {
+        notice: crate::events::CannonNotice,
+    },
     ChestRefused {
         reason: crate::reward_chests::Refusal,
     },
@@ -227,7 +231,8 @@ impl SeenEvent {
             | SeenEvent::MobArmed { .. }
             | SeenEvent::CampCleared { .. }
             | SeenEvent::PotionNotice { .. }
-            | SeenEvent::Toast { .. } => Class::Important,
+            | SeenEvent::Toast { .. }
+            | SeenEvent::CannonNotice { .. } => Class::Important,
         }
     }
 }
@@ -243,6 +248,7 @@ fn to_seen(e: &Event, can_see: &impl Fn(PlayerId) -> bool) -> Option<SeenEvent> 
         Event::CampCleared { camp } => Some(SeenEvent::CampCleared { camp }),
         Event::PotionNotice { notice, .. } => Some(SeenEvent::PotionNotice { notice }),
         Event::Toast { ref text, .. } => Some(SeenEvent::Toast { text: text.clone() }),
+        Event::CannonNotice { notice, .. } => Some(SeenEvent::CannonNotice { notice }),
         Event::ChestRefused { reason, .. } => Some(SeenEvent::ChestRefused { reason }),
         Event::ChestTaken { .. } => None,
         Event::Swing {
@@ -380,9 +386,10 @@ impl Default for Observation {
 /// The same current line and private trail apply to full observations and event-only catch-up.
 fn sees(sim: &Sim, me: &Player, other: &Player, cache: &mut Option<&mut SightCache>) -> bool {
     let map = sim.collision_view();
+    let wards = crate::vision::WardSight::of_sim(sim);
     let a = me.pos();
     let b = other.pos();
-    actor_with(map, me, other, sim.tick(), || match cache {
+    actor_with(map, me, other, sim.tick(), wards, || match cache {
         Some(c) => c.blocked(&map, me.id, other.id, a.x, a.y, b.x, b.y),
         None => scene_line_blocked(&map, a.x, a.y, b.x, b.y),
     })
@@ -520,6 +527,7 @@ pub(crate) fn observe_with(
     out.visible.clear();
     if let Some(m) = me {
         let map = sim.collision_view();
+        let wards = crate::vision::WardSight::of_sim(sim);
         let (ax, ay) = (m.body.x, m.body.y);
         // Use the same actor verdict as the event-only pass; the table memoizes direct lines only.
         out.visible.reserve(sim.players().len());
@@ -532,7 +540,7 @@ pub(crate) fn observe_with(
             if o.id == m.id || o.status == Status::Lobby {
                 continue;
             }
-            if actor_with(map, m, o, sim.tick(), || match &mut cache {
+            if actor_with(map, m, o, sim.tick(), wards, || match &mut cache {
                 Some(c) if probing => c.probe(&map, m.id, o.id, ax, ay, o.body.x, o.body.y),
                 _ => scene_line_blocked(&map, ax, ay, o.body.x, o.body.y),
             }) {
@@ -569,9 +577,15 @@ pub(crate) fn observe_with(
     // Public id order, never join order (a no-op scan when the store already iterates in id order).
     // Ids are unique, so any sort gives this order; the unstable one never allocates (the stable one does from ~85 entries).
     if let Some(me) = me {
+        let wards = crate::vision::WardSight::of_sim(sim);
         for mob in sim.mobs() {
-            if crate::vision::point_visible(sim.collision_view(), me, mob.core.pos(), sim.tick())
-                && !crate::status_runtime::hidden(&mob.core.statuses.instances, now)
+            if crate::vision::point_visible(
+                sim.collision_view(),
+                me,
+                mob.core.pos(),
+                sim.tick(),
+                wards,
+            ) && !crate::status_runtime::hidden(&mob.core.statuses.instances, now)
             {
                 out.visible.push(mob_view(mob));
             }
@@ -650,6 +664,7 @@ fn observe_events_with(
     let cache = std::cell::RefCell::new(cache);
     let me = sim.player(viewer);
     let me_id = me.map(|m| m.id);
+    let wards = crate::vision::WardSight::of_sim(sim);
     let can_see = |id: PlayerId| {
         Some(id) == me_id
             || me.is_some_and(|m| {
@@ -665,6 +680,7 @@ fn observe_events_with(
                             m,
                             mob.core.pos(),
                             sim.tick(),
+                            wards,
                         ) && !crate::status_runtime::hidden(
                             &mob.core.statuses.instances,
                             sim.server_time(),

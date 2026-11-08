@@ -49,6 +49,7 @@ fn active_potion_payments_do_not_allocate_in_the_steady_tick() {
         SimConfig {
             quests: false,
             initial_loot: true,
+            consumables: true,
             ..Default::default()
         },
         arena,

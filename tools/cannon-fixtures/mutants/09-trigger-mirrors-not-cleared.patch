@@ -1,0 +1,14 @@
+diff --git a/crates/rh-sim/src/systems/cannons.rs b/crates/rh-sim/src/systems/cannons.rs
+index cd2d9c5f..c19c3677 100644
+--- a/crates/rh-sim/src/systems/cannons.rs
++++ b/crates/rh-sim/src/systems/cannons.rs
+@@ -60,9 +60,6 @@ pub(crate) fn use_cannon(cx: &mut Cx, ix: FighterIx, i: usize) {
+     displace::apply(cx.k, cx.w, cx.pf, id, landing);
+     let p = cx.w.core_mut(ix);
+     p.inputs.clear();
+-    p.weapon.targeting.target = None;
+-    p.weapon.targeting.attack_move = None;
+-    p.weapon.held = false;
+     items::weapon_changed(p, now);
+     cx.ev.push(Event::CannonNotice {
+         id,

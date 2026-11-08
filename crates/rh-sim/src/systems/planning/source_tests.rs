@@ -136,6 +136,8 @@ pub(super) fn make(source: &Value, input: &Value) -> Sim {
             hazards: crate::terrain::Mode::Off,
             lifecycle: crate::ArenaMode::Source(rules),
             initial_loot: roster,
+            // The recorded arena capture profiles list no `consumables` installer: no travel cannons there.
+            consumables: false,
             mob_mode: if roster {
                 crate::mob_runtime::MobMode::Pve
             } else {
@@ -861,7 +863,8 @@ fn vision_check(sim: &mut Sim, action: &Value, e: &Value, ctx: &str) {
                 sim.collision_view(),
                 viewer,
                 at,
-                tick
+                tick,
+                crate::vision::WardSight::none(),
             )),
             &q["sourceCanPlayerSee"],
             ctx,
@@ -874,7 +877,8 @@ fn vision_check(sim: &mut Sim, action: &Value, e: &Value, ctx: &str) {
                     sim.collision_view(),
                     viewer,
                     target,
-                    tick
+                    tick,
+                    crate::vision::WardSight::none(),
                 )),
                 &q["sourceCanPlayerSeeActor"],
                 ctx,

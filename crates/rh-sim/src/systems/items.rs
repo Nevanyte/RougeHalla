@@ -217,6 +217,8 @@ fn add_items(
         at,
         opened: false,
         items,
+        target: None,
+        ready_at: 0.,
         stat_offer: false,
         born_tick: blocked_through(tick, between_ticks || kind == ContainerKind::Chest),
     });
@@ -321,6 +323,7 @@ fn pickup_check(
         &cx.w.players[ix.slot()],
         c.at,
         cx.w.tick,
+        crate::vision::WardSight::of(cx.k, cx.w),
     ) {
         return Err(PickupRefusal::NothingThere);
     }
@@ -363,6 +366,7 @@ pub(crate) fn pickup(cx: &mut Cx, ix: FighterIx, cmd: &ActionCmd) {
                     viewer,
                     at,
                     cx.w.tick,
+                    crate::vision::WardSight::of(cx.k, cx.w),
                 )
             }
         };
@@ -379,6 +383,11 @@ fn take(cx: &mut Cx, ix: FighterIx, i: usize) -> Result<(), PickupRefusal> {
     // silently); it never becomes a weapon or potion pickup.
     if cx.w.containers[i].kind == ContainerKind::Quest {
         crate::quests::live::pickup(cx, ix, i);
+        return Ok(());
+    }
+    // Source: the cannon branch sits after the pickup admission and before the chest/consumable/weapon branches.
+    if cx.w.containers[i].kind == ContainerKind::Cannon {
+        super::cannons::use_cannon(cx, ix, i);
         return Ok(());
     }
     if cx.w.containers[i].kind == ContainerKind::Chest {

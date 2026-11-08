@@ -1,0 +1,13 @@
+diff --git a/crates/rh-sim/src/systems/cannons.rs b/crates/rh-sim/src/systems/cannons.rs
+index cd2d9c5f..0f5ba929 100644
+--- a/crates/rh-sim/src/systems/cannons.rs
++++ b/crates/rh-sim/src/systems/cannons.rs
+@@ -45,7 +45,7 @@ pub(crate) fn use_cannon(cx: &mut Cx, ix: FighterIx, i: usize) {
+         return;
+     };
+     // The source silently declines a blocked landing; this is not a refusal toast.
+-    if !crate::geometry::circle_clear(
++    if false && !crate::geometry::circle_clear(
+         cx.k.collision_map(cx.w.rt.gates_locked),
+         landing,
+         PLAYER_RADIUS,

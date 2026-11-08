@@ -38,8 +38,16 @@ pub struct Inventory {
 #[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, serde::Serialize, serde::Deserialize)]
 pub enum PropKind {
     Ground(WeaponId),
-    Chest { open: bool },
-    Body { label: Arc<str> },
+    Chest {
+        open: bool,
+    },
+    Body {
+        label: Arc<str>,
+    },
+    /// A travel cannon, with its server-time reload clock (the legacy `readyAt` countdown).
+    Cannon {
+        ready_at: u32,
+    },
 }
 
 /// Position is already encoded on the public 1/8-unit grid. Field order is the canonical sort key.
@@ -85,6 +93,15 @@ pub(crate) fn pickup_reach(map: &TileMap, from: Vec2, at: Vec2) -> Result<(), Pi
         return Err(PickupRefusal::Unreachable);
     }
     Ok(())
+}
+
+/// Server-time milliseconds as the legacy uint32 `readyAt`; validated state is finite and non-negative.
+fn ready_ms(v: f64) -> u32 {
+    if v.is_finite() && v > 0.0 {
+        v.min(u32::MAX as f64) as u32
+    } else {
+        0
+    }
 }
 
 pub(crate) fn position(v: f64) -> Result<u16, OfferError> {
@@ -184,6 +201,7 @@ impl ItemObserver {
         self.vision.begin(sim, me, self.sampled.is_some());
         let from = me.pos();
         let map = sim.collision_view();
+        let wards = crate::vision::WardSight::of_sim(sim);
         let mut best: Option<(usize, f64, Option<WeaponId>)> = None;
         for c in sim.containers() {
             // Quest tokens and parcels are not in the public item observation until the coordinator-owned transport
@@ -191,7 +209,7 @@ impl ItemObserver {
             if c.kind == ContainerKind::Quest {
                 continue;
             }
-            if !self.vision.sees(map, me, c.at, sim.tick()) {
+            if !self.vision.sees(map, me, c.at, sim.tick(), wards) {
                 continue;
             }
             if self.scratch.len() == MAX_VISIBLE_PROPS {
@@ -220,6 +238,9 @@ impl ItemObserver {
                 }
                 // Unreachable: quest containers are skipped above; kept so the closed kind stays explicit.
                 ContainerKind::Quest => continue,
+                ContainerKind::Cannon => PropKind::Cannon {
+                    ready_at: ready_ms(c.ready_at),
+                },
             };
             let cue = PropCue {
                 x: position(c.at.x)?,
@@ -228,8 +249,12 @@ impl ItemObserver {
                 focused: false,
                 body_hint: None,
             };
-            // Birth is a private execution guard. The legacy F prompt uses present contents and reach.
-            if me.standing() && !c.items.is_empty() && pickup_reach(&map, from, c.at).is_ok() {
+            // Birth is a private execution guard. The legacy F prompt uses present contents and reach; a travel
+            // cannon always offers it (its blast needs no item).
+            if me.standing()
+                && (!c.items.is_empty() || c.kind == ContainerKind::Cannon)
+                && pickup_reach(&map, from, c.at).is_ok()
+            {
                 let dx = from.x - f64::from(cue.x) / 8.0;
                 let dy = from.y - f64::from(cue.y) / 8.0;
                 let distance = dx * dx + dy * dy;
@@ -392,9 +417,10 @@ impl ItemObserver {
                 self.actors.binary_search(&actor).is_ok().then_some(actor)
             };
             let visible = id.filter(|&id| {
+                let wards = crate::vision::WardSight::of_sim(sim);
                 sim.player(self.viewer).is_some_and(|me| {
                     sim.player(id).is_some_and(|p| {
-                        crate::vision::actor_visible(sim.collision_view(), me, p, sim.tick())
+                        crate::vision::actor_visible(sim.collision_view(), me, p, sim.tick(), wards)
                     }) || sim
                         .mobs()
                         .iter()
@@ -405,6 +431,7 @@ impl ItemObserver {
                                 me,
                                 m.core.pos(),
                                 sim.tick(),
+                                wards,
                             ) && !crate::status_runtime::hidden(
                                 &m.core.statuses.instances,
                                 sim.server_time(),
@@ -445,18 +472,21 @@ impl ItemObserver {
                     me,
                     sim.containers()[i].at,
                     sim.tick(),
+                    crate::vision::WardSight::of_sim(sim),
                 )
                 .then_some(id)
             },
             |actor| {
                 self.actors.binary_search(&actor).is_ok()
                     && sim.player(self.viewer).is_some_and(|me| {
+                        let wards = crate::vision::WardSight::of_sim(sim);
                         sim.player(actor).is_some_and(|other| {
                             crate::vision::actor_visible(
                                 sim.collision_view(),
                                 me,
                                 other,
                                 sim.tick(),
+                                wards,
                             )
                         }) || sim
                             .mobs()
@@ -468,6 +498,7 @@ impl ItemObserver {
                                     me,
                                     m.core.pos(),
                                     sim.tick(),
+                                    wards,
                                 ) && !crate::status_runtime::hidden(
                                     &m.core.statuses.instances,
                                     sim.server_time(),

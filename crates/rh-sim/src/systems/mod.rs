@@ -10,6 +10,9 @@
 
 pub(crate) mod abilities;
 pub(crate) mod bruiser;
+pub(crate) mod cannons;
+#[cfg(test)]
+mod cannons_source_tests;
 pub(crate) mod credit;
 pub(crate) mod displace;
 pub(crate) mod fields;

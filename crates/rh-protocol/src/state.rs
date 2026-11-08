@@ -3,7 +3,7 @@ use crate::codec::{str_fits, str_len, varint_len};
 use crate::{DecodeError, EncodeError, Reader, Writer};
 use std::num::NonZeroU32;
 
-pub const MAX_STATE_KEYS: usize = 7;
+pub const MAX_STATE_KEYS: usize = 9;
 pub const MAX_VISIBLE_PROPS: usize = 512;
 pub const MAX_VISIBLE_FIELDS: usize = 512;
 pub const MAX_REWARD_CHESTS: usize = 512;
@@ -114,8 +114,16 @@ pub struct WireInventory {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum WirePropKind {
     Ground(u8),
-    Chest { open: bool },
-    Body { label: String },
+    Chest {
+        open: bool,
+    },
+    Body {
+        label: String,
+    },
+    /// A travel cannon with its server-time reload clock (the legacy `readyAt` countdown).
+    Cannon {
+        ready_at: u32,
+    },
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -157,6 +165,215 @@ pub struct WireField {
     pub ends_at: f64,
 }
 
+/// The viewer's own private planning deal (key 8). Never another player's options; the server resolves every fact so a
+/// client chooses an index and never computes a path or a deal.
+#[derive(Clone, Debug, PartialEq)]
+pub struct WirePlan {
+    /// Server time planning ends (the same value as RaidView.plan_ends_at; it can end sooner when everyone is ready).
+    pub ends_at: f64,
+    /// The two spawns dealt, as indexes into the map's spawn pool; absent only on a map with no spawn pool.
+    pub spawns: [Option<u32>; 2],
+    /// That option is held by another player's pick (never set for the viewer's own pick).
+    pub taken: [bool; 2],
+    /// The viewer's own pick (an index into `spawns`), absent for none yet.
+    pub pick: Option<u8>,
+    /// Start boons dealt (empty until a boon producer exists; source had none in a normal run).
+    pub boons: Vec<String>,
+    /// The viewer's own boon pick, absent for none.
+    pub boon: Option<u8>,
+    /// `ready` latches and freezes picks.
+    pub ready: bool,
+    /// The server-resolved facts for the two options (position, zone and walk time), so a client needs no spawn pool.
+    pub options: [Option<WirePlanOption>; 2],
+}
+/// One resolved planning option: where it is, which zone it is in and how long it takes to walk there.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct WirePlanOption {
+    pub index: u32,
+    /// Position: u16 at 1/8 world unit on the same grid as remote actors.
+    pub x: u16,
+    pub y: u16,
+    /// Source zone code: 1 fire, 2 sentenced, 3 plague, 4 frost, 5 holy.
+    pub zone: u8,
+    /// Absent when the source did not resolve a walk for this spawn (the deal fallback).
+    pub walk_seconds: Option<f32>,
+}
+impl WirePlanOption {
+    fn valid(&self) -> bool {
+        (1..=5).contains(&self.zone) && self.walk_seconds.is_none_or(|v| v.is_finite() && v >= 0.)
+    }
+    fn len(&self) -> usize {
+        varint_len(self.index) + 5 + 1 + self.walk_seconds.map_or(0, |_| 4)
+    }
+    fn write(&self, w: &mut Writer) {
+        w.varint(self.index);
+        w.u16(self.x);
+        w.u16(self.y);
+        w.u8(self.zone);
+        w.opt(self.walk_seconds.as_ref(), |w, v| w.f32(*v));
+    }
+    fn read(r: &mut Reader<'_>) -> Result<Self, DecodeError> {
+        let result = Self {
+            index: r.varint()?,
+            x: r.u16()?,
+            y: r.u16()?,
+            zone: r.u8()?,
+            walk_seconds: r.opt(Reader::f32)?,
+        };
+        if result.valid() {
+            Ok(result)
+        } else {
+            Err(DecodeError::BadField("plan option"))
+        }
+    }
+}
+impl WirePlan {
+    fn valid(&self) -> bool {
+        self.ends_at.is_finite()
+            && self.pick.is_none_or(|v| v <= 1)
+            && self.boon.is_none_or(|v| v <= 1)
+            && self.boons.len() <= 4
+            && self.boons.iter().all(|b| str_fits("boon", b).is_ok())
+            && self.options.iter().flatten().all(WirePlanOption::valid)
+    }
+    fn len(&self) -> usize {
+        8 + self
+            .spawns
+            .iter()
+            .map(|s| 1 + s.map_or(0, varint_len))
+            .sum::<usize>()
+            + 2
+            + 1
+            + 1
+            + self.boons.iter().map(|b| 1 + b.len()).sum::<usize>()
+            + 1
+            + 1
+            + self
+                .options
+                .iter()
+                .map(|o| 1 + o.as_ref().map_or(0, WirePlanOption::len))
+                .sum::<usize>()
+    }
+    fn write(&self, w: &mut Writer) {
+        w.f64(self.ends_at);
+        for spawn in self.spawns {
+            w.opt(spawn.as_ref(), |w, v| w.varint(*v));
+        }
+        for taken in self.taken {
+            w.u8(u8::from(taken));
+        }
+        w.u8(self.pick.map_or(0, |v| v + 1));
+        w.u8(self.boons.len() as u8);
+        for boon in &self.boons {
+            w.str(boon);
+        }
+        w.u8(self.boon.map_or(0, |v| v + 1));
+        w.u8(u8::from(self.ready));
+        for option in self.options {
+            w.opt(option.as_ref(), |w, v| v.write(w));
+        }
+    }
+    fn read(r: &mut Reader<'_>) -> Result<Self, DecodeError> {
+        let ends_at = r.f64()?;
+        let spawns = [r.opt(Reader::varint)?, r.opt(Reader::varint)?];
+        let taken = [bool_flag(r)?, bool_flag(r)?];
+        let code = |v: u8| match v {
+            0 => Ok(None),
+            1 => Ok(Some(0)),
+            2 => Ok(Some(1)),
+            _ => Err(DecodeError::BadField("plan pick")),
+        };
+        let pick = code(r.u8()?)?;
+        let n = r.u8()? as usize;
+        if n > 4 {
+            return Err(DecodeError::TooMany(n));
+        }
+        let mut boons = Vec::with_capacity(n);
+        for _ in 0..n {
+            boons.push(r.str()?);
+        }
+        let boon = code(r.u8()?)?;
+        let ready = bool_flag(r)?;
+        let options = [r.opt(WirePlanOption::read)?, r.opt(WirePlanOption::read)?];
+        let result = Self {
+            ends_at,
+            spawns,
+            taken,
+            pick,
+            boons,
+            boon,
+            ready,
+            options,
+        };
+        if result.valid() {
+            Ok(result)
+        } else {
+            Err(DecodeError::BadField("plan"))
+        }
+    }
+}
+/// The public source arena lifecycle view (key 9). Timers are server milliseconds; a typed absent deadline is `None`, never
+/// Infinity.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct WireArena {
+    pub lobby_ends_at: f64,
+    pub plan_ends_at: f64,
+    pub raid_started_at: f64,
+    pub patience_ends_at: Option<f64>,
+    pub in_coliseum: bool,
+    pub gates_locked: bool,
+    pub sudden_death_at: f64,
+    pub started_with: u32,
+}
+impl WireArena {
+    fn valid(&self) -> bool {
+        [self.lobby_ends_at, self.plan_ends_at, self.raid_started_at]
+            .into_iter()
+            .chain(self.patience_ends_at)
+            .chain([self.sudden_death_at])
+            .all(|v| v.is_finite() && v >= 0.)
+            && self.patience_ends_at.is_none_or(|v| v >= 0.)
+            && self.started_with <= 512
+    }
+    fn len(&self) -> usize {
+        8 + 8
+            + 8
+            + 1
+            + usize::from(self.patience_ends_at.is_some()) * 8
+            + 1
+            + 1
+            + 8
+            + varint_len(self.started_with)
+    }
+    fn write(&self, w: &mut Writer) {
+        w.f64(self.lobby_ends_at);
+        w.f64(self.plan_ends_at);
+        w.f64(self.raid_started_at);
+        w.opt(self.patience_ends_at.as_ref(), |w, v| w.f64(*v));
+        w.u8(u8::from(self.in_coliseum));
+        w.u8(u8::from(self.gates_locked));
+        w.f64(self.sudden_death_at);
+        w.varint(self.started_with);
+    }
+    fn read(r: &mut Reader<'_>) -> Result<Self, DecodeError> {
+        let result = Self {
+            lobby_ends_at: r.f64()?,
+            plan_ends_at: r.f64()?,
+            raid_started_at: r.f64()?,
+            patience_ends_at: r.opt(Reader::f64)?,
+            in_coliseum: bool_flag(r)?,
+            gates_locked: bool_flag(r)?,
+            sudden_death_at: r.f64()?,
+            started_with: r.varint()?,
+        };
+        if result.valid() {
+            Ok(result)
+        } else {
+            Err(DecodeError::BadField("arena"))
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub enum StateItem {
     Inventory(Option<WireInventory>),
@@ -166,6 +383,10 @@ pub enum StateItem {
     Build(Option<WireBuild>),
     Camps(Vec<WireCamp>),
     Projectiles(Vec<WireProjectile>),
+    /// Key 8: the viewer's own plan, never another player's deal.
+    Plan(Option<WirePlan>),
+    /// Key 9: the public source arena lifecycle view (only present when the source lifecycle runs).
+    Arena(Option<WireArena>),
 }
 
 /// Public camp summary; no private actor identity is carried.
@@ -375,6 +596,7 @@ impl WireProps {
                 WirePropKind::Ground(v) => check_weapon(Some(*v))?,
                 WirePropKind::Chest { .. } => {}
                 WirePropKind::Body { label } => str_fits("body label", label)?,
+                WirePropKind::Cannon { .. } => {}
             }
         }
         if let Some(focus) = self.focus {
@@ -403,6 +625,7 @@ impl WireProps {
                         + match &row.kind {
                             WirePropKind::Ground(_) | WirePropKind::Chest { .. } => 1,
                             WirePropKind::Body { label } => str_len(label),
+                            WirePropKind::Cannon { ready_at } => varint_len(*ready_at),
                         }
                 })
                 .sum::<usize>()
@@ -427,6 +650,10 @@ impl WireProps {
                 WirePropKind::Body { label } => {
                     w.u8(3);
                     w.str(label);
+                }
+                WirePropKind::Cannon { ready_at } => {
+                    w.u8(4);
+                    w.varint(*ready_at);
                 }
             }
         }
@@ -456,6 +683,9 @@ impl WireProps {
                     open: bool_flag(r)?,
                 },
                 3 => WirePropKind::Body { label: r.str()? },
+                4 => WirePropKind::Cannon {
+                    ready_at: r.varint()?,
+                },
                 _ => return Err(DecodeError::BadField("prop kind")),
             };
             rows.push(WireProp { handle, x, y, kind });
@@ -537,6 +767,8 @@ impl StateItem {
             Self::Build(_) => 5,
             Self::Camps(_) => 6,
             Self::Projectiles(_) => 7,
+            Self::Plan(_) => 8,
+            Self::Arena(_) => 9,
         }
     }
     pub(crate) fn encoded_len(&self) -> usize {
@@ -559,6 +791,8 @@ impl StateItem {
                 Self::Camps(value) => {
                     varint_len(value.len() as u32) + value.iter().map(WireCamp::len).sum::<usize>()
                 }
+                Self::Plan(value) => 1 + value.as_ref().map_or(0, WirePlan::len),
+                Self::Arena(value) => 1 + value.as_ref().map_or(0, WireArena::len),
             }
     }
     pub(crate) fn check(&self) -> Result<(), EncodeError> {
@@ -629,6 +863,17 @@ impl StateItem {
                     return Err(EncodeError::BadValue("camp"));
                 }
             }
+            Self::Plan(Some(value)) => {
+                if !value.valid() {
+                    return Err(EncodeError::BadValue("plan"));
+                }
+            }
+            Self::Plan(None) | Self::Arena(None) => {}
+            Self::Arena(Some(value)) => {
+                if !value.valid() {
+                    return Err(EncodeError::BadValue("arena"));
+                }
+            }
         }
         Ok(())
     }
@@ -674,6 +919,8 @@ impl StateItem {
                 w.bytes(&v.cards);
                 w.bytes(&v.boosts);
             }),
+            Self::Plan(value) => w.opt(value.as_ref(), |w, v| v.write(w)),
+            Self::Arena(value) => w.opt(value.as_ref(), |w, v| v.write(w)),
         }
     }
     pub(crate) fn read(r: &mut Reader<'_>, key: u32) -> Result<Self, DecodeError> {
@@ -753,6 +1000,8 @@ impl StateItem {
                 }
                 Self::Projectiles(rows)
             }
+            8 => Self::Plan(r.opt(WirePlan::read)?),
+            9 => Self::Arena(r.opt(WireArena::read)?),
             _ => return Err(DecodeError::BadField("state key")),
         })
     }
