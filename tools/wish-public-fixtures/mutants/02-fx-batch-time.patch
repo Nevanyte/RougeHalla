@@ -1,0 +1,5 @@
+--- a/packages/server/src/rooms/FxChannel.ts
++++ b/packages/server/src/rooms/FxChannel.ts
+@@ -67,1 +67,1 @@
+-    const batch = fxs.length > 0 || launches.length > 0 ? packFx(fxs, t, { announced: this.announced, launches, roster: this.sent }) : null;
++    const batch = fxs.length > 0 || launches.length > 0 ? packFx(fxs, t - 1, { announced: this.announced, launches, roster: this.sent }) : null;

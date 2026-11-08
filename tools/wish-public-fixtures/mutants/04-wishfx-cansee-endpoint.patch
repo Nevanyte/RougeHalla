@@ -1,0 +1,5 @@
+--- a/packages/client/src/render/WishFx.ts
++++ b/packages/client/src/render/WishFx.ts
+@@ -166,1 +166,1 @@
+-      if (p >= ends || (this.host.canSee && (!anchor || !this.host.canSee(anchor) || !this.host.canSee({ x: e.x2, y: e.y2 })))) {
++      if (p >= ends || (this.host.canSee && (!anchor || !this.host.canSee(anchor) || this.host.canSee({ x: e.x2, y: e.y2 }) === undefined))) {

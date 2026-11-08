@@ -1,0 +1,101 @@
+{
+  "base": "1e5cea7e57e453c0a5b83854fa91e4380126f5a1",
+  "scope": "source-only new Wish witness tools/corpora/evidence; no production or older golden edits",
+  "counts": {
+    "rInputProbes": 31,
+    "stockCases": 9,
+    "stockFrames": 121,
+    "hookRows": 94,
+    "fxBatches": 32,
+    "humanMethodCases": 26,
+    "perceiveCases": 14
+  },
+  "comparison": {
+    "base": "1e5cea7e57e453c0a5b83854fa91e4380126f5a1",
+    "corpora": {
+      "r-input.json": {
+        "bytes": 80716,
+        "sha256": "13bf70921c836dbca456afd8aa826182884e845b4bff4ea0e3dfdad49bc484ba",
+        "captureSha256": "3a966c82c42e2cb6729f3ce86c2d516cd154d2535df61f764dde975bd2a68b9b",
+        "semanticCasesChanged": [],
+        "productionSourcePinsChanged": []
+      },
+      "queued-stock-clocks.json": {
+        "bytes": 214621,
+        "sha256": "6eb80e575d7d684952112828b9ba2318c9a0d9318c7aa59201e70308093373cf",
+        "captureSha256": "2b15ec879dbc5809458307fc6b51d3ce96a208687b1b348805235789675ff596",
+        "semanticCasesChanged": [],
+        "productionSourcePinsChanged": []
+      },
+      "fx-timing.json": {
+        "bytes": 61577,
+        "sha256": "7f26b51ee987436926dc85826498d0f50de23d18ec6f318d5ad239bb8c03d21b",
+        "captureSha256": "b7b4804dd45b9669e4113be38cb97a3e7b43f77a0a87a60a5b994f7e6f2a100a",
+        "semanticCasesChanged": [],
+        "productionSourcePinsChanged": []
+      },
+      "wishfx-endpoints.json": {
+        "bytes": 97342,
+        "sha256": "5cb0f0f422850c1e6834f146b2b7de4cd96bd70c2a6f8c316e61b9bbfc9b87c5",
+        "captureSha256": "ed4be51d00f5eb97a4f0cde77f2b33719dd2ec3059f19d2077aaccc56855718f",
+        "semanticCasesChanged": [],
+        "productionSourcePinsChanged": []
+      },
+      "perceive-wish.json": {
+        "bytes": 64856,
+        "sha256": "2ac1419f4869f25e2f3c053843ebdd46eafc08b1e4917a37d5b71296a7c01757",
+        "captureSha256": "76b48dd73be06596c68d4c8a5c0bf5e1326a56474699e7a38cd903fa125168c1",
+        "semanticCasesChanged": [
+          "teleport-cancelled-visible",
+          "between-step-cancelled"
+        ],
+        "productionSourcePinsChanged": []
+      }
+    },
+    "unaffectedPerceptionCases": 12,
+    "rawRemovedActorOutputUnchanged": true
+  },
+  "commands": [
+    {
+      "command": "bash tools/wish-public-fixtures/capture.sh",
+      "exit": 0
+    },
+    {
+      "command": "bash tools/wish-public-fixtures/capture.sh --check",
+      "exit": 0
+    },
+    {
+      "command": "bash tools/wish-public-fixtures/run-mutants.sh",
+      "exit": 0,
+      "semanticKills": 5,
+      "restoredControl": "PASS"
+    },
+    {
+      "command": "node tools/wish-public-fixtures/compare.mjs each-corpus provenance-only-copy",
+      "exit": 0,
+      "identicalControls": 5
+    }
+  ],
+  "receipts": {
+    "canonical-check.log": {
+      "bytes": 1529,
+      "sha256": "6149b7f8d99fef7d35fc08e8524848a3df80ab01ac263ee1ec7db7523be6f386",
+      "location": "task artifact directory beside isolated repo"
+    },
+    "semantic-mutants.log": {
+      "bytes": 1130,
+      "sha256": "0774b76bbe756e956761069b9ed416752aef68fc91aefdeb836012a5fa76d69b",
+      "location": "task artifact directory beside isolated repo"
+    },
+    "comparator-provenance-control.log": {
+      "bytes": 149,
+      "sha256": "1139ba42842e8ec3d36fb697445007d3e02a27a1d8c03eb5ead74e2033e874e5",
+      "location": "task artifact directory beside isolated repo"
+    },
+    "semantic-comparison.json": {
+      "bytes": 1761,
+      "sha256": "584ae4934ac62ed910689b8b33bb40b5deb4148750a68e1ae940df9eef78be4a",
+      "location": "task artifact directory beside isolated repo"
+    }
+  }
+}
