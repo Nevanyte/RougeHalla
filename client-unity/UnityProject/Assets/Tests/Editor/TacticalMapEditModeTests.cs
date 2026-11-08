@@ -1,11 +1,13 @@
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 using NUnit.Framework;
 using Roguehalla.Net;
 using Roguehalla.Net.Protocol;
 using Roguehalla.Net.Ui;
 using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEngine.UI;
 
 namespace Roguehalla.Client.Tests
 {
@@ -14,6 +16,10 @@ namespace Roguehalla.Client.Tests
         GameObject _root;
         Session _session;
         DeliveredTransport _transport;
+        GameObject _controllerObject, _clientObject, _uiRoot;
+        TacticalMapController _controller;
+        MatchClient _client;
+        Session _reboundSession;
         [SetUp]
         public void SetUp()
         {
@@ -24,7 +30,102 @@ namespace Roguehalla.Client.Tests
             _transport.Deliver(new ServerMsg.Welcome { Protocol = Wire.ProtocolVersion, MatchId = new byte[16], Session = new byte[16],
                 PlayerId = 1, TickRate = 20, Map = new MapBlob(4, 4, new byte[16]) });
         }
-        [TearDown] public void TearDown() { _session.Leave(); UnityEngine.Object.DestroyImmediate(_root); }
+        [TearDown]
+        public void TearDown()
+        {
+            if (_controller != null) _controller.Bind(null);
+            if (_session != null) _session.Leave();
+            if (_reboundSession != null) _reboundSession.Leave();
+            if (_controllerObject != null) UnityEngine.Object.DestroyImmediate(_controllerObject);
+            if (_uiRoot != null) UnityEngine.Object.DestroyImmediate(_uiRoot);
+            if (_clientObject != null) UnityEngine.Object.DestroyImmediate(_clientObject);
+            UnityEngine.Object.DestroyImmediate(_root);
+        }
+
+        [Test]
+        public void NewSnapshotInvalidatesPaintThrottleAndClearsBothObservedMapSurfaces()
+        {
+            CreateController(_session);
+            _transport.Deliver(Snapshot(1, new WireActor { Id = 2, X = 48, Y = 48, HpPct = 100, Status = 1 }));
+            _controller.SetOpen(true);
+            _controller.Tick();
+            Assert.AreEqual(1, LargeMarks().ContactCount);
+            Assert.AreEqual(1, MinimapMarks().ContactCount);
+
+            SetNextPaint(Time.realtimeSinceStartupAsDouble + 60);
+            _transport.Deliver(Snapshot(2));
+            _controller.Tick();
+
+            Assert.AreEqual(0, LargeMarks().ContactCount, "new accepted snapshots must invalidate a far-future paint throttle");
+            Assert.AreEqual(0, MinimapMarks().ContactCount, "the minimap must use the same current delivered contact set");
+        }
+
+        [Test]
+        public void DisconnectAndRebindClearMarksAndRefreshSingleObservedContactRail()
+        {
+            CreateController(_session);
+            _transport.Deliver(Snapshot(1, new WireActor { Id = 2, X = 48, Y = 48, HpPct = 100, Status = 1 }));
+            _controller.SetOpen(true);
+            _controller.Tick();
+            Assert.AreEqual(1, LargeMarks().ContactCount);
+            Assert.AreEqual(1, MinimapMarks().ContactCount);
+            StringAssert.DoesNotContain("No other contacts", ContactsText());
+
+            SetNextPaint(Time.realtimeSinceStartupAsDouble + 60);
+            _transport.Drop();
+            _controller.Tick();
+            Assert.AreEqual(0, LargeMarks().ContactCount, "disconnect must clear the large map's cached marks");
+            Assert.AreEqual(0, MinimapMarks().ContactCount, "disconnect must clear the minimap's cached marks");
+
+            _controller.Bind(null);
+            Assert.AreEqual(string.Empty, ContactsText(), "unbinding clears the prior session's contact rail");
+            Assert.AreEqual(0, LargeMarks().ContactCount);
+            Assert.AreEqual(0, MinimapMarks().ContactCount);
+
+            var nextTransport = new DeliveredTransport();
+            _reboundSession = NewSession(nextTransport, 3);
+            _controller.Bind(_reboundSession);
+            nextTransport.Deliver(Snapshot(1, new WireActor { Id = 3, X = 80, Y = 80, Faction = 2, HpPct = 100, Status = 1 }));
+            _controller.SetOpen(true);
+            SetNextPaint(Time.realtimeSinceStartupAsDouble + 60);
+            _controller.Tick();
+
+            StringAssert.Contains("Plague · Player", ContactsText());
+            StringAssert.DoesNotContain("No other contacts", ContactsText(), "one observed enemy is still an observed contact");
+            Assert.AreEqual(1, LargeMarks().ContactCount);
+            Assert.AreEqual(1, MinimapMarks().ContactCount);
+        }
+
+        void CreateController(Session session)
+        {
+            _uiRoot = new GameObject("Tactical map controller canvas", typeof(RectTransform), typeof(Canvas), typeof(GraphicRaycaster));
+            _clientObject = new GameObject("Disabled map test client");
+            _client = _clientObject.AddComponent<MatchClient>();
+            _client.enabled = false;
+            _client.Url = "ws://localhost/map-test"; _client.Profile = "fixture";
+            _controllerObject = new GameObject("Tactical map controller");
+            _controller = _controllerObject.AddComponent<TacticalMapController>();
+            _controller.Initialize(_client, _uiRoot.transform);
+            _controller.Bind(session);
+        }
+
+        TacticalMapMarks LargeMarks() => _uiRoot.transform.Find("TacticalMap/MapFrame/PublicMap/Delivered contacts and personal route").GetComponent<TacticalMapMarks>();
+        TacticalMapMarks MinimapMarks() => _uiRoot.transform.Find("Minimap/TerrainFrame/Delivered contacts and personal route").GetComponent<TacticalMapMarks>();
+        string ContactsText() => _uiRoot.transform.Find("TacticalMap/TacticalInformation/ContactsPage/DeliveredContacts/Viewport/Content").GetComponent<TMPro.TMP_Text>().text;
+        void SetNextPaint(double value) => typeof(TacticalMapController).GetField("_nextPaint", BindingFlags.Instance | BindingFlags.NonPublic).SetValue(_controller, value);
+
+        static ServerMsg.Snapshot Snapshot(uint tick, params WireActor[] actors)
+            => new ServerMsg.Snapshot { Tick = tick, Phase = 1, Actors = actors };
+
+        static Session NewSession(DeliveredTransport transport, byte id)
+        {
+            var session = new Session(transport, new SessionOptions { Url = "ws://localhost/ws", Profile = "fixture", Now = () => 1000 });
+            session.Connect(); transport.Open();
+            var matchId = new byte[16]; matchId[0] = id;
+            transport.Deliver(new ServerMsg.Welcome { Protocol = Wire.ProtocolVersion, MatchId = matchId, Session = new byte[16],
+                PlayerId = 1, TickRate = 20, Map = new MapBlob(4, 4, new byte[16]) });
+            return session;
+        }
 
         [Test]
         public void ReplacingDeliveredMembershipRemovesHiddenContactsImmediately()
