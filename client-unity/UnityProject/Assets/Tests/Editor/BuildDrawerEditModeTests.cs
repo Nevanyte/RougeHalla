@@ -94,6 +94,30 @@ namespace Roguehalla.Client.Tests
         }
 
         [Test]
+        public void HighestCardStackChangeRefreshesWithoutResettingInspectionOrScroll()
+        {
+            var collections = new CollectionsView();
+            var cards = new List<byte>(new byte[80]); cards[79] = 1;
+            SetView(collections, "HasBuild", true); SetView(collections, "Cards", cards);
+            _drawer.SetVisible(true); _drawer.Refresh(collections, null, 1);
+            Canvas.ForceUpdateCanvases(); LayoutRebuilder.ForceRebuildLayoutImmediate(_drawer.Content); Canvas.ForceUpdateCanvases();
+            var highest = _drawer.Content.Find("Card79");
+            highest.GetComponent<Button>().onClick.Invoke();
+            _drawer.Scroll.verticalNormalizedPosition = .31f;
+            Assert.That(highest.Find("CardTitle").GetComponent<TMP_Text>().text, Is.EqualTo("Final Verdict"));
+            Assert.That(highest.Find("OwnedCount").GetComponent<TMP_Text>().text, Is.EqualTo("×1"));
+
+            cards[79] = 2; // The distinct-card summary stays the same; the full build must still refresh this stack.
+            _drawer.Refresh(collections, null, 1);
+
+            Assert.That(highest.Find("OwnedCount").GetComponent<TMP_Text>().text, Is.EqualTo("×2"));
+            Assert.That(_drawer.SelectedIndex, Is.EqualTo(79));
+            Assert.That(_drawer.Scroll.verticalNormalizedPosition, Is.EqualTo(.31f).Within(.01f));
+            var detail = typeof(BuildDrawer).GetField("_detail", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(_drawer) as TMP_Text;
+            StringAssert.StartsWith("Final Verdict", detail.text);
+        }
+
+        [Test]
         public void FactoryButtonsHaveAccessibleMinimumSizeAndGeneratedIcons()
         {
             var button = MythicUi.Button(_canvasObject.transform, "MinimumButton", "Action", new Vector2(.5f, .5f), new Vector2(.5f, .5f), () => { });

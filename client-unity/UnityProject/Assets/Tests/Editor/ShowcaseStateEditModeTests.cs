@@ -41,8 +41,8 @@ namespace Roguehalla.Client.Tests
             string previous = label.text;
             RefreshCollections(hud, BuildView(1));
 
-            Assert.That(previous, Does.Contain("SlowBurn×1"));
-            Assert.That(label.text, Does.Contain("79×1"));
+            Assert.That(previous, Is.EqualTo("B · BUILD DETAILS · 2 card stacks"));
+            Assert.That(label.text, Is.EqualTo("B · BUILD DETAILS · 3 card stacks"));
             Assert.That(label.text, Is.Not.EqualTo(previous));
         }
 
