@@ -1,0 +1,20 @@
+[
+  {
+    "path": "parity/card-catalog/source.json",
+    "before": "ec7559927a25b4af93b6479f5344da2f9381da88fc4fa0c7a50d9860fb2894e0",
+    "after": "d50c03e471f9d11ff790cac0f31d4ab82b5bb45f1b963b41725d58814cc6f74e",
+    "semantic": "a6dea59a42669c8b2aa88a642c17dda7b630de3b51cbd447badc4da5712a80f7"
+  },
+  {
+    "path": "parity/card-runtime/source.json",
+    "before": "43d25f5e25354fe599ed81e1285a9dc05bd0f4a0579cbb558aaf2d5a90f9ccdf",
+    "after": "c2e5d1a071f3f7a05a6c3e8bf46fbdba8f0c7ae47d4de1aea8e62a1726ecd019",
+    "semantic": "a086c168baa3e0844a5524662e9fc68675b7335e95248db5ced95bc863878fe7"
+  },
+  {
+    "path": "parity/card-runtime-witness/source.json",
+    "before": "477f05384cd2adff551f8dda6aaaa0070e7f653954031f791186ff2c064147f7",
+    "after": "c6ca8218b6958c41a3a17908066c007984646d94ec01f904f4f79a22721fc111",
+    "semantic": "0ef72417008fab778bd68dc05aed90134415eb3411db6406d12b697bc921c9c4"
+  }
+]

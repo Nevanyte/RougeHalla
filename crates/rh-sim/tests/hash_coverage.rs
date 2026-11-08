@@ -843,6 +843,7 @@ const VALIDATED: &[(&str, &str)] = &[
     ("world.mobs.*.zombie", "only a raised Plague companion carries zombie runtime; regional mobs leave it None"),
 
     // Full Wish producer tuples are coupled. Accepted edits still always have to change the hash.
+    ("world.abilities.fields.#len", "a live refreshed Swarm Hidden status must retain its exact source-owned cloud through its current end; removing that cloud is refused by abilities/effect_checkpoint.rs"),
     ("world.abilities.fields.*.owner.owner_id", "ordinary player Wish fields have no secondary/summoner owner; Full producer source requires None"),
     ("world.players.*.core.statuses.instances.*.data.shares.phys", "Full Blaze Dot payload is the exact pure true-damage shares tuple"),
     ("world.players.*.core.statuses.instances.*.data.shares.magic", "Full Blaze Dot payload is the exact pure true-damage shares tuple"),
