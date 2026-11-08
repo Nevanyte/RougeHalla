@@ -1,7 +1,7 @@
 # P-BOTS-1: the human-like bot brain's ported core on deterministic policy seats
 
 Stacked PR: [#50](https://github.com/Nevanyte/RougeHalla/pull/50), `deepseek/p-bots-1` → `deepseek/p-cards-3` @
-`9c2b97b9`; commits `4b6cc2d6`..`64b23ac1`. No wire/protocol change (protocol 7) and no dependency or `Cargo.lock` change.
+`9c2b97b9`; commits `4b6cc2d6`..`69a1569e`. No wire/protocol change (protocol 7) and no dependency or `Cargo.lock` change.
 
 Status: **this slice is DONE-VERIFIED; P-BOTS-1 (and the bot packet family) remains INCOMPLETE.** There is no packet file
 for P-BOTS-1; the scope below was derived from the backlog row (`docs/backlog/README.md` line 157), the legacy sources it
