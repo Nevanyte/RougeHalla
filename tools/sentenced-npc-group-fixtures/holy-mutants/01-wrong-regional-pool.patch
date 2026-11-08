@@ -1,0 +1,12 @@
+--- a/packages/server/src/sim/factions.ts
++++ b/packages/server/src/sim/factions.ts
+@@ -646,8 +646,7 @@
+  * would be nothing: it reads the hp of a player-sized fighter of the mob's zone (the sheet's), as every other flat number a player deals does.
+  */
+ function markPool(t: Combatant): number {
+-  const f = isFactionId(t.s.faction) ? FACTIONS[t.s.faction] : null;
+-  return t.kind === "mob" && isRegionalKind(t.s.kind) && f ? f.hp : t.s.maxHp;
++  return t.s.maxHp;
+ }
+ 
+ /** Camp members share a mark; camp-less mobs and players remain singleton groups. */
