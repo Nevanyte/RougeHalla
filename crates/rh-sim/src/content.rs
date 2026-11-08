@@ -1427,6 +1427,8 @@ fn content_hash_of_definitions(
     for k in 0..10 {
         h.u64(bounty_for(k) as u64);
     }
+    // Domain revision: player Frost sources now affect every supported fighter recipient. NPC sources remain gated.
+    h.str("frost/player-sources-all-recipients/1");
     h.str("frost/formulas/1");
     for multiplier in [1.0, 1.0 - FROST_SLOW] {
         for remaining in [-1.0, 0.0, 1.0, 33.999, 34.0, 50.0, 75.0] {
@@ -1480,6 +1482,11 @@ fn content_hash_of_definitions(
         ] {
             h.f64(crate::modifiers::mark_progress_increment(rate, chill));
         }
+    }
+    // Source birth and held ticks both refuse; Choose and observation use this exact runtime predicate.
+    h.str("reward-chests/birth-availability/2");
+    for (held, tick) in [(0, 0), (0, 1), (2, 1), (2, 2), (2, 3), (u32::MAX, u32::MAX)] {
+        h.u64(u64::from(crate::reward_chests::birth_available(held, tick)));
     }
     h.str("sentenced/base-pulse/1");
     for weapon in WeaponId::ALL {

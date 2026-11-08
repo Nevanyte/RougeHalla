@@ -92,6 +92,11 @@ impl RewardChestObserver {
             self.vision.begin(sim, me, self.sampled.is_some());
             let wards = crate::vision::WardSight::of_sim(sim);
             for c in &sim.w.reward_chests {
+                // Source human readReward and bot seeChests hide another player's Trophy entirely.
+                // Reject it before inspecting position/options or staging any public handle/binding.
+                if c.owner.is_some_and(|owner| owner != self.viewer) {
+                    continue;
+                }
                 if !self
                     .vision
                     .sees(sim.collision_view(), me, c.at, tick, wards)
@@ -152,7 +157,7 @@ impl RewardChestObserver {
                             )
                             && !picked
                             && c.owner.is_none_or(|id| id == self.viewer)
-                            && c.held_until_tick < tick
+                            && super::birth_available(c.held_until_tick, tick)
                             && sim.server_time() < c.expires_at
                             && super::reach(&sim.k, sim.w.rt.gates_locked, me.pos(), c.at).is_ok(),
                     },
@@ -234,12 +239,21 @@ impl RewardChestObserver {
     }
 }
 fn public_cmp(a: &RewardChestView, b: &RewardChestView) -> std::cmp::Ordering {
-    // A stable public ordering code: cards, then boosts, then kill-augment keys (codes are only a deterministic
-    // tie-break, never part of the observation).
-    let code = |v: OptionId| match v {
-        OptionId::Card(c) => c.index() as u8,
-        OptionId::Boost(s) => 3 + s.index() as u8,
-        OptionId::Kill(a) => 12 + a.key.index() as u8,
+    // Compare complete public identities, never colliding numeric ranges or private entity IDs.
+    let option_cmp = |a: &RewardOptionView, b: &RewardOptionView| {
+        let key = |id: OptionId| match id {
+            OptionId::Card(c) => (0, c.index()),
+            OptionId::Boost(s) => (1, s.index()),
+            OptionId::Kill(a) => (2, a.key.index()),
+        };
+        key(a.id)
+            .cmp(&key(b.id))
+            .then_with(|| match (a.id, b.id) {
+                (OptionId::Kill(a), OptionId::Kill(b)) => a.gain.total_cmp(&b.gain),
+                _ => std::cmp::Ordering::Equal,
+            })
+            .then(a.taken.cmp(&b.taken))
+            .then(a.taken_by.cmp(&b.taken_by))
     };
     a.at.x
         .total_cmp(&b.at.x)
@@ -248,8 +262,10 @@ fn public_cmp(a: &RewardChestView, b: &RewardChestView) -> std::cmp::Ordering {
         .then_with(|| {
             a.options
                 .iter()
-                .map(|o| (code(o.id), o.taken, o.taken_by))
-                .cmp(b.options.iter().map(|o| (code(o.id), o.taken, o.taken_by)))
+                .zip(&b.options)
+                .map(|(a, b)| option_cmp(a, b))
+                .find(|order| !order.is_eq())
+                .unwrap_or_else(|| a.options.len().cmp(&b.options.len()))
         })
         .then(a.picked.cmp(&b.picked))
         .then(a.can_choose.cmp(&b.can_choose))
@@ -418,3 +434,7 @@ mod presentation_filter_tests {
         assert!(native.ids.contains(&mixed));
     }
 }
+
+#[cfg(test)]
+#[path = "trophy_observer_tests.rs"]
+mod trophy_observer_tests;

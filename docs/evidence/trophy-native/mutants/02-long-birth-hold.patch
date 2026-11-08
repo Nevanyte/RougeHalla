@@ -1,0 +1,13 @@
+diff --git a/crates/rh-sim/src/reward_chests/mod.rs b/crates/rh-sim/src/reward_chests/mod.rs
+index 8d235145..307bd66c 100644
+--- a/crates/rh-sim/src/reward_chests/mod.rs
++++ b/crates/rh-sim/src/reward_chests/mod.rs
+@@ -133,7 +133,7 @@ pub(crate) fn drop_trophy(
+         id,
+         at,
+         expires_at: w.server_time + crate::constants::KILL_AUG_SECONDS * 1000.,
+-        held_until_tick: w.tick + DEFINITION.birth_hold_ticks,
++        held_until_tick: w.tick + DEFINITION.birth_hold_ticks + 1,
+         options: slots,
+         taken: [None; 3],
+         pickers: Vec::with_capacity(crate::constants::MAX_PLAYERS),

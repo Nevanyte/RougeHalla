@@ -100,10 +100,16 @@ jobs:
           bash tools/heal-barrier-callers/capture.sh --check
           bash tools/frost-resistance-fixtures/capture.sh --check
           bash tools/mark-rate-fixtures/capture.sh --check
+      - name: Bounded Frost NPC recipients, weapon draws and return paths remain source exact
+        run: |
+          bash tools/frost-npc-fixtures/capture.sh --check
+          bash tools/frost-npc-fixtures/capture-boundary.sh --check
+          bash tools/frost-npc-fixtures/capture-return.sh --check
       - name: Human Wish and Trophy source witnesses remain byte exact
         run: |
           bash tools/wish-public-fixtures/capture.sh --check
           bash tools/trophy-witness-fixtures/capture.sh --check
+          bash tools/trophy-format-fixtures/capture.sh --check
       - name: First-playable cards, constructor, potions and PvE still match the actual source
         run: |
           bash tools/cards-fixtures/capture.sh --check

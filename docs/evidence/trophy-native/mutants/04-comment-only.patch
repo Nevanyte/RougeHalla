@@ -1,0 +1,12 @@
+diff --git a/crates/rh-sim/src/reward_chests/mod.rs b/crates/rh-sim/src/reward_chests/mod.rs
+index 8d235145..49004db2 100644
+--- a/crates/rh-sim/src/reward_chests/mod.rs
++++ b/crates/rh-sim/src/reward_chests/mod.rs
+@@ -238,6 +238,7 @@ fn reach(k: &MatchStatic, locked: bool, from: Vec2, at: Vec2) -> Result<(), Refu
+     }
+     Ok(())
+ }
++// provenance-equivalent non-semantic source comment (must NOT be a kill)
+ pub(crate) fn choose(
+     k: &MatchStatic,
+     w: &mut World,

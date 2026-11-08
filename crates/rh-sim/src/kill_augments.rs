@@ -447,6 +447,12 @@ pub(crate) fn grant(
 }
 
 #[cfg(test)]
+mod format_consumer;
+#[cfg(test)]
+mod helper_consumer;
+#[cfg(test)]
+mod lifecycle_consumer;
+#[cfg(test)]
 mod tests;
 
 /// The source `playerKilled` hook link (`sim/killAugments.ts install`): a credited player death drops the killer's private

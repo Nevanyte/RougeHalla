@@ -1,0 +1,13 @@
+diff --git a/crates/rh-sim/src/reward_chests/mod.rs b/crates/rh-sim/src/reward_chests/mod.rs
+index 8d235145..2ab0ee5f 100644
+--- a/crates/rh-sim/src/reward_chests/mod.rs
++++ b/crates/rh-sim/src/reward_chests/mod.rs
+@@ -257,7 +257,7 @@ pub(crate) fn choose(
+         .ok_or(Refusal::Gone)?;
+     let c = &w.reward_chests[ci];
+     // Source bornThisTick: the birth tick and the held tick both refuse; the hold is shared with the observer.
+-    if !birth_available(c.held_until_tick, w.tick) || w.server_time >= c.expires_at {
++    if c.held_until_tick > w.tick || w.server_time >= c.expires_at {
+         return Err(Refusal::Gone);
+     }
+     if c.owner.is_some_and(|owner| owner != who) {
