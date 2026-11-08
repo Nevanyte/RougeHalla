@@ -307,8 +307,6 @@ fn faulty_content_is_refused_with_the_message_encoders_reason() {
             ack_input,
             me,
             actors,
-
-            training: _,
             ..
         } = &m
         else {

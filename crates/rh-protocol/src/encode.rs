@@ -1013,17 +1013,27 @@ fn snapshot_len(
             .sum::<usize>()
 }
 
-/// Everything of a Snapshot before the actors: header, self and the actor count.
-fn write_snapshot_head(
-    w: &mut Writer,
+struct SnapshotHeader<'a> {
     tick: u32,
     server_time: f64,
     phase: u8,
     ack_input: u32,
-    me: Option<&WireSelf>,
+    me: Option<&'a WireSelf>,
     training: bool,
     actors: usize,
-) {
+}
+
+/// Everything of a Snapshot before the actors: header, self and the actor count.
+fn write_snapshot_head(w: &mut Writer, header: SnapshotHeader<'_>) {
+    let SnapshotHeader {
+        tick,
+        server_time,
+        phase,
+        ack_input,
+        me,
+        training,
+        actors,
+    } = header;
     let mut f = Fixed::<MAX_HEAD_LEN>::new();
     f.u8(T_SNAPSHOT);
     f.varint(tick);
@@ -1293,13 +1303,15 @@ impl Frame for ServerMsg {
             } => {
                 write_snapshot_head(
                     w,
-                    *tick,
-                    *server_time,
-                    *phase,
-                    *ack_input,
-                    me.as_ref(),
-                    *training,
-                    actors.len(),
+                    SnapshotHeader {
+                        tick: *tick,
+                        server_time: *server_time,
+                        phase: *phase,
+                        ack_input: *ack_input,
+                        me: me.as_ref(),
+                        training: *training,
+                        actors: actors.len(),
+                    },
                 );
                 let mut prev = None;
                 for a in actors {

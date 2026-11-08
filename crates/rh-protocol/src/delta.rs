@@ -17,7 +17,7 @@
 
 use super::{
     actor_looks_bad, head_len, head_word, id_field, kit, list, self_len, snapshot_fault,
-    write_snapshot_head, Fixed, MAX_ACTOR_LEN,
+    write_snapshot_head, Fixed, SnapshotHeader, MAX_ACTOR_LEN,
 };
 use crate::codec::{varint_len, DecodeError, EncodeError, Reader, Writer};
 use crate::*;
@@ -608,7 +608,7 @@ impl SnapshotData {
         self.min_len as usize
     }
 
-    /// Appends this snapshot as a Full frame (the v2 layout): the same bytes `ServerMsg::Snapshot` encodes to for
+    /// Appends this snapshot as a Full frame: the same bytes `ServerMsg::Snapshot` encodes to for
     /// [`SnapshotData::decoded`].
     pub fn encode_full_into(&self, out: &mut Vec<u8>) -> usize {
         let start = out.len();
@@ -616,13 +616,15 @@ impl SnapshotData {
         w.reserve(self.min_len());
         write_snapshot_head(
             &mut w,
-            self.tick,
-            self.server_time,
-            self.phase,
-            self.ack_input,
-            self.me.as_ref(),
-            self.training,
-            self.actors.len(),
+            SnapshotHeader {
+                tick: self.tick,
+                server_time: self.server_time,
+                phase: self.phase,
+                ack_input: self.ack_input,
+                me: self.me.as_ref(),
+                training: self.training,
+                actors: self.actors.len(),
+            },
         );
         let mut prev = None;
         for q in &self.actors {
