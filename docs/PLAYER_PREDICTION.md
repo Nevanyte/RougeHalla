@@ -504,6 +504,19 @@ number for them is claimed here. Reasons:
   test can measure server and protocol behaviour but not input-to-photon without a client that renders, so the requested
   figure needs infrastructure beyond this phase's write scope.
 
+The Unity rendering client is real and has been exercised end-to-end in a browser:
+[`evidence/stage2-unity/`](evidence/stage2-unity/README.md) (the actual IL2CPP/WebGL build driven by Chromium over a real
+browser WebSocket with acknowledged WASD movement) and [`evidence/first-playable-calgary/`](evidence/first-playable-calgary/README.md)
+(the actual Unity Web player completed the MVP loop against the Rust server in Calgary on 2026-11-06; bounded temporary
+staging, since removed). What is missing for input-to-photon and p95 jitter at 50/100/150 ms RTT with about 1% loss is the
+instrumentation: photon timestamps plus an opt-in client trace over a controlled lossy link. That harness is owned by the
+parallel Unity input-latency workstream (`tools/latency/**` plus opt-in browser/Unity trace hooks, owner-authorized
+2026-11-08), so this phase defers the end-to-end numbers there instead of duplicating or colliding with that work.
+
+Playwright 1.64.1 is available for the browser proof in this checkout (isolated install; point `NODE_PATH` at
+`/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/browser/node_modules`), so `node tools/browser-proof/proof.mjs` is
+runnable here and is not skipped for a missing dependency.
+
 What *was* measurable is above: the server's own per-tick cost. On the heavy run one tick is 11.4 us of sim step plus
 0.83 us per viewer for observe + encode (8 viewers: about 18 us, roughly 0.04% of the 50 ms tick budget); idle and
 typical are lower. The structural server-side input-to-snapshot delay is bounded by one tick (commands queue and are
