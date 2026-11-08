@@ -20,8 +20,12 @@ one differing leaf:
 
 - `/protectedSha256/tools/browser-proof/proof.mjs`: `a49aa61cdb1adeef60031b3e87407233c85f3203b7a6c464c4b5119c8bd1850f` -> `6aea66795ed18edd941a4bc65c62070d6a6e2fce1b57cd98d0238db134fcfd66`
 
-All 409 cases/family counts, 325 protected entries and the three inventory entries are identical; semantic digest
-`bbfef8a0aa8bea212c5cca6c865ab4a7fc3448d9688d63b2b7ce590ea1e53a64` is unchanged. Positive catalog `--check` exits 0.
+All 409 cases/family counts, 325 protected entries, the three inventory entries and the 78 source/5 harness pins are
+deep-equal and every pin matches its actual file. The established catalog semantic projection used by
+`docs/evidence/git-consolidation/source-metadata-refresh.json` (`format`, `baseRevision`, `environment`,
+`inventory`, `cases`) gives `a6dea59a42669c8b2aa88a642c17dda7b630de3b51cbd447badc4da5712a80f7` for both old and current
+(equal). The earlier `bbfef8a0…` value was not reproducible under any subset/order of the catalog's semantic fields; it
+is corrected here, with semantic equality independently confirmed either way. Positive catalog `--check` exits 0.
 
 ## Runtime and witness accepted chain
 

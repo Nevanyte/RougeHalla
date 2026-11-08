@@ -26,8 +26,16 @@
     "cases": 409,
     "protectedEntries": 325,
     "inventoryEntries": 3,
-    "semanticDigestOld": "bbfef8a0aa8bea212c5cca6c865ab4a7fc3448d9688d63b2b7ce590ea1e53a64",
-    "semanticDigestNew": "bbfef8a0aa8bea212c5cca6c865ab4a7fc3448d9688d63b2b7ce590ea1e53a64"
+    "semanticDigestOld": "a6dea59a42669c8b2aa88a642c17dda7b630de3b51cbd447badc4da5712a80f7",
+    "semanticDigestNew": "a6dea59a42669c8b2aa88a642c17dda7b630de3b51cbd447badc4da5712a80f7",
+    "semanticProjection": [
+      "format",
+      "baseRevision",
+      "environment",
+      "inventory",
+      "cases"
+    ],
+    "semanticDigestCorrection": "The earlier bbfef8a0 value was not reproducible under any subset/order of the catalog semantic fields; the established projection documented in docs/evidence/git-consolidation/source-metadata-refresh.json gives a6dea59a for both old and current. Semantic equality holds."
   },
   "runtime": {
     "old": {
@@ -311,7 +319,21 @@
   "externalWorkspace": "/tmp/ci-browser-provenance",
   "limits": "provenance-only metadata refresh; no production/native/browser/protocol/Unity/Cargo/status edit; expected semantics, cases, private records, clean controls and comparisons unchanged; no map/full-workspace/Web/cloud/ML campaign; root owns merge/status/lock/identities; separate checker result appended by final evidence commit",
   "checker": {
-    "status": "separate checker running; result appended by the final evidence commit"
+    "main": {
+      "verdict": "PASS WITH DISCREPANCIES",
+      "auditedHead": "9952a996ad40336c7ba19d4854546c70033d6ab3",
+      "scope": "independently reproduced external pinned catalog/runtime/witness recaptures; byte-identical rechecks; catalog one-leaf diff; runtime 8/0 and witness 24/0 allowed/forbidden; semantic digests a086c168/0ef72417 equal; overlay narrowness; FROZEN 7ed10869 intact; auditor positive/disposable controls; tracked logs/SHA256SUMS/negative SHAs",
+      "discrepancy": "reported catalog semantic digest bbfef8a0 was not reproducible; corrected to established projection a6dea59a (semantic equality still holds)"
+    },
+    "narrowAuditorAddition": {
+      "verdict": "PASS WITH DISCREPANCIES",
+      "auditedHead": "39f7657e9c029cdaa2c3b4f3f680c9da66e1aedd",
+      "scope": "scope/parent; auditor diffs + inventory fail-closed checks; positive/controls/shape probes; evidence SHA256SUMS",
+      "discrepancy": "tracked inventory-control log showed parent feb9e956 because controls ran pre-commit with auditor copied in; fixed in 9952a996 by re-running controls at child HEAD and replacing logs"
+    },
+    "traceabilityFix": {
+      "status": "tiny independent checker running; result appended if it finds anything material"
+    }
   },
   "controlsTraceability": "All tracked disposable-worktree control logs are from a fresh worktree at child HEAD 39f7657e; the earlier pre-commit parent-worktree run produced the same failure kinds and its logs were replaced for accuracy."
 }
