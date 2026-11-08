@@ -174,6 +174,15 @@ const humanizerCases: any[] = [
     ]}],
     frameStep: 20, frameCount: 80,
   },
+  ...[80, 81, 82, 83, 84, 85].map((seed) => ({
+    name: 'two-independent-channels-' + seed, tier: seed % 2 === 0 ? 'hard' : 'normal', percept: 'duel',
+    engaged: false, motorSeed: seed, lapseSeed: seed + 1,
+    frames: [{now: 3000 + seed * 100, intents: [
+      react('lock', 1, stimulus('newThreat', 3000 + seed * 100, 'p1'), {target: 'p1', at: {x: 380, y: 300}}),
+      react('swap', 1, stimulus('foeSwapped', 3000 + seed * 100, 'p2'), {slot: 1}),
+    ]}],
+    frameStep: 20, frameCount: 80,
+  })),
   {
     name: 'move-steps-and-timed', tier: 'normal', percept: 'duel', engaged: false, motorSeed: 47, lapseSeed: 48,
     frames: [

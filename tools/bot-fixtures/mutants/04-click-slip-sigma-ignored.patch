@@ -1,0 +1,20 @@
+diff --git a/crates/rh-policy/src/bots/clicks.rs b/crates/rh-policy/src/bots/clicks.rs
+index 94048273..eefc8a55 100644
+--- a/crates/rh-policy/src/bots/clicks.rs
++++ b/crates/rh-policy/src/bots/clicks.rs
+@@ -149,13 +149,14 @@ pub fn lock_click(
+     p: &Percept,
+     target: &crate::bots::types::LockTarget,
+     snap_radius: f64,
+ ) -> LockClick {
+     let s = tier.target_scatter;
+     let seen = drawn_at(p, &target.id);
+-    let slipped = chance(lapse, s.slip_p);
++    let slipped = false;
++    let _ = lapse;
+     let sigma = if slipped {
+         s.sigma * s.slip_mult
+     } else {
+         s.sigma
+     };
+     let cursor = match seen {

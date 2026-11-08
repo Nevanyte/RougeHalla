@@ -1,0 +1,19 @@
+diff --git a/crates/rh-policy/src/bots/types.rs b/crates/rh-policy/src/bots/types.rs
+index 8abcfb19..34ccbec7 100644
+--- a/crates/rh-policy/src/bots/types.rs
++++ b/crates/rh-policy/src/bots/types.rs
+@@ -386,13 +386,13 @@ pub const TIERS: [TierParams; 3] = [
+             start_hp: 0.6,
+         },
+     },
+     TierParams {
+         id: TierId::Hard,
+         reaction: ExGaussian {
+-            mu: 160.,
++            mu: 161.,
+             sigma: 25.,
+             tau: 40.,
+             floor: 140.,
+             cap: 700.,
+         },
+         step: ExGaussian {
