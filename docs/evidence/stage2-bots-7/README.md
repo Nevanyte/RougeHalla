@@ -100,3 +100,52 @@ only: brains, the command delay line (latency/jitter), the learning store and th
 
 This slice reads only public Observation through the seats, submits only through validate + submit, keeps the fill
 deterministic from its seed, and changes no wire, schedule or serialized state; P-BOTS-7 INCOMPLETE covers 1-5 above.
+
+## Remainder round (P-BOTS-7b): the delay line, the env surface and the profile-name seam
+
+On `deepseek/p-bots-7b` (PR against `deepseek/p-bots-5`), the first three items of the exact remainder are delivered:
+
+1. **The command delay line** (source `BotManager.deliver`/`beforeStep`): a fill bot's proposal is clicked at `at`, reaches
+   the server `latencyMs +- jitterMs` later (jitter from the manager's own line stream, `mix(seed, 1)`), never before the
+   command ahead of it, and is applied by the first step at or after its arrival. `rh-policy::bots::delay::DelayLine`
+   implements the queue (including the source 256-command cap) and the room owns one line per seated fill bot: it collects
+   the proposals from the new `drive_seats_queued` driver, enqueues them with the fill config's latency/jitter, and before
+   each step resolves and submits every command whose arrival has come through `Sim::submit` (validate included) — the
+   same intake a human message takes. The placeholder fill (no policy configured) stays immediate, as before. The replay
+   records the commands at delivery time. Native counters `sent/applied/refused/lost` are exposed by `Room::bot_delivery`
+   and the per-bot telemetry tags by `Room::bot_specs`; the control-API/HUD exposure stays with the client/coordinator.
+2. **The env/config surface** (source `config.ts parseBots`): `BotFillConfig::from_env` parses BOTS_FILL_TO,
+   BOTS_ARRIVAL_SECONDS, BOTS_TIER_MIX, BOTS_PERSONA_MIX, BOTS_LATENCY_MS, BOTS_JITTER_MS, BOTS_SEED and BOT_STATS_FILE with
+   the source semantics (`parseMix` rules, non-negative clamping/fallback, the MAX_PLAYERS clamp, the seed `>>> 0`); the
+   server binary reads it and `--fill-bots` (or first-playable) overrides only the count, keeping the Rust server's
+   historical fill-off default unless the environment or the CLI asks for fill. `BOT_STATS_FILE` is parsed and reported but
+   the file store itself is superseded by the PostgreSQL learning store (P-BOTS-5). The captured env cases are compared
+   field by field against `parity/policy/bot-runtime.json`.
+3. **The profile-name seam** (source `BotManager.isNameTaken`): the persistence reads every durable callsign once at
+   startup (`rh-persist::Store::profile_callsigns`, `Persistence::bot_names`) and the director passes the lower-cased
+   read-only set to each new room (`Room::with_bot_names`), whose fill policy consults it before drawing a callsign — no
+   fill bot ever draws a profile-owned name, and bots never read or write a profile, token or quest.
+
+### Remainder-round verification
+
+- `parity/policy/bot-runtime.json` (`rh-bot-runtime-source/1`, 32,184 bytes, SHA256
+  `b2964101f594ed5fd8cf3a7d9fee7098db658b3829ef2d603353373bcfe43540`), captured by `tools/bot-runtime-fixtures/capture.mts`
+  in the pinned linux/amd64 Node 22.23.4 container from the unchanged source: 4 delay-line cases (declared latency/jitter/
+  seed/`at` batches, arrivals compared bit for bit, plus the 256/4 queue-cap split), 8 `parseMix` cases and 12
+  `loadConfig(env).bots` cases. `capture.sh --check` is byte-identical.
+- `cargo test -p rh-policy --lib bots::delay`: 3 passed (the pinned arrivals, delivery order/boundary, seeded stream).
+- `cargo test -p rh-server --lib --all-features bot_fill`: 7 passed (the existing parity plus the captured env surface).
+- Native room tests: the 100 ms-latency test proves a proposal is not applied on its own or the next 50 ms step and lands
+  on the one after (and replays from its seed); the name test takes every callsign pool name as profile-owned and shows
+  every seated fill bot draws another name.
+- PostgreSQL, pinned throwaway cluster (feature `postgres`): `cargo test -p rh-server --features postgres --test bot_names`
+  — 1 passed: the durable callsigns read read-only and lower-cased, nothing changed by the read.
+- Workspace gate: GATE_TBD; clippy `-D warnings` and fmt: CLIPPY_TBD.
+
+### Remainder after this round
+
+- The fill bots' tournament/`addBot` overrides and the live-room continuation of the brains (P-BOTS-1/3/4).
+- The per-bot frames/errors/results counters (brain-side; the delivery half is native now) and their room-metric/telemetry
+  exposition (coordinator/client owned, with the lobby HUD).
+- A live refresh of the profile-name set after a profile is created while the server runs (the startup snapshot covers
+  every profile that exists then; the account/control path owns later creations).

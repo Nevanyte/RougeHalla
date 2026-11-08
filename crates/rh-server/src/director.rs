@@ -312,6 +312,8 @@ pub struct Director {
     spool_permits: tokio::sync::Semaphore,
     /// The P-BOTS-5 live learning sink: the record caller for bot results and the bias view the next lobby reads.
     learning: Mutex<Option<Arc<dyn LearningSink>>>,
+    /// The bot fill's read-only profile-name set (source isNameTaken). Refreshed by the server; a new lobby reads it.
+    bot_names: std::sync::RwLock<Arc<std::collections::HashSet<String>>>,
 }
 
 /// How long an admission waits, in all (one deadline shared by its retries), for a profile that is mid-release (its lease
@@ -400,6 +402,7 @@ impl Director {
             freed: Notify::new(),
             me: me.clone(),
             learning: Mutex::new(None),
+            bot_names: std::sync::RwLock::new(Arc::new(std::collections::HashSet::new())),
             #[cfg(feature = "postgres")]
             spool,
             #[cfg(feature = "postgres")]
@@ -709,6 +712,15 @@ impl Director {
         *self.learning.lock().expect("director") = Some(sink);
     }
 
+    /// Installs the read-only profile-name set a new lobby's fill policy consults (nobody profile-owned is ever drawn).
+    pub fn set_bot_names(&self, names: Arc<std::collections::HashSet<String>>) {
+        *self.bot_names.write().expect("director") = names;
+    }
+
+    fn bot_names(&self) -> Arc<std::collections::HashSet<String>> {
+        self.bot_names.read().expect("director").clone()
+    }
+
     /// The bias snapshot the next lobby's fill policy reads (refreshed after every recorded run).
     fn learning_snapshot(&self) -> Option<rh_policy::bots::learning::LearnedBias> {
         self.learning
@@ -774,7 +786,7 @@ impl Director {
         };
         let mut room = Room::new(id, rc, self.reports.clone(), tokio::time::Instant::now());
         if let Some(fill) = self.fill_policy(fill_bots_to) {
-            room = room.with_bot_fill(fill);
+            room = room.with_bot_fill(fill).with_bot_names(self.bot_names());
         }
         // A panic in the room still reports `Closed` (room.rs `run_room`), so its seats are freed.
         tokio::spawn(run_room(room, rx));

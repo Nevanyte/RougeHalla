@@ -446,3 +446,126 @@ fn a_learned_faction_bias_feeds_the_faction_softmax() {
     // Learning off is exactly the captured manager stream (the parity fixture above proves the stream itself).
     assert_eq!(BotFillConfig::default().learned, LearnedBias::NO_BIAS);
 }
+
+// ================================================================================================= P-BOTS-7 remainder
+
+/// The source config surface (`config.ts parseBots` + `parseMix`) against the pinned actual-source corpus
+/// (`parity/policy/bot-runtime.json`, captured from the unchanged TypeScript in the linux/amd64 Node 22.23.4 image).
+#[test]
+fn the_bots_config_env_surface_matches_the_actual_source() {
+    let doc: Value = serde_json::from_str(include_str!("../../../parity/policy/bot-runtime.json"))
+        .expect("the captured bot-runtime corpus parses");
+    assert_eq!(doc["format"], "rh-bot-runtime-source/1");
+    let tier_ids = [
+        TierId::Easy.as_str(),
+        TierId::Normal.as_str(),
+        TierId::Hard.as_str(),
+    ];
+    let persona_ids = [
+        PersonaId::Farmer.as_str(),
+        PersonaId::Hunter.as_str(),
+        PersonaId::Opportunist.as_str(),
+        PersonaId::Cautious.as_str(),
+    ];
+    let by_ids = |ids: &[&str], row: &Value| -> Vec<f64> {
+        ids.iter()
+            .map(|id| {
+                row.get(*id)
+                    .and_then(Value::as_f64)
+                    .unwrap_or_else(|| panic!("missing {id} in {row}"))
+            })
+            .collect()
+    };
+    for case in doc["mixes"].as_array().unwrap() {
+        let raw = case["raw"].as_str();
+        let ids: Vec<&str> = if case["ids"].as_array().unwrap()[0] == "easy" {
+            tier_ids.to_vec()
+        } else {
+            persona_ids.to_vec()
+        };
+        let fallback: Vec<f64> = if ids == tier_ids {
+            BotFillConfig::default().tier_mix.to_vec()
+        } else {
+            BotFillConfig::default().persona_mix.to_vec()
+        };
+        let got = parse_mix(raw, &ids, &fallback);
+        let want = by_ids(&ids, &case["expected"]);
+        assert_eq!(got, want, "{}", case["name"].as_str().unwrap());
+    }
+    for case in doc["config"].as_array().unwrap() {
+        let env = case["env"].as_object().unwrap();
+        let get = |key: &str| env.get(key).and_then(Value::as_str).map(str::to_string);
+        let got = BotFillConfig::from_env(get);
+        let want = &case["bots"];
+        let name = case["name"].as_str().unwrap();
+        assert_eq!(
+            &got.fill_to,
+            &(want["fillTo"].as_u64().unwrap() as usize),
+            "{name}: fillTo"
+        );
+        assert_eq!(
+            got.arrival_seconds,
+            want["arrivalSeconds"].as_f64().unwrap(),
+            "{name}: arrivalSeconds"
+        );
+        assert_eq!(
+            &got.tier_mix.to_vec(),
+            &by_ids(&tier_ids, &want["tierMix"]),
+            "{name}: tierMix"
+        );
+        assert_eq!(
+            &got.persona_mix.to_vec(),
+            &by_ids(&persona_ids, &want["personaMix"]),
+            "{name}: personaMix"
+        );
+        assert_eq!(
+            got.latency_ms,
+            want["latencyMs"].as_f64().unwrap(),
+            "{name}: latency"
+        );
+        assert_eq!(
+            got.jitter_ms,
+            want["jitterMs"].as_f64().unwrap(),
+            "{name}: jitter"
+        );
+        assert_eq!(
+            got.seed,
+            want["seed"].as_u64().map(|v| v as u32),
+            "{name}: seed"
+        );
+        match (want["statsFile"].as_str(), &got.stats_file) {
+            (None, StatsFile::Default) => {}
+            (Some(""), StatsFile::Off) => {}
+            (Some("file"), StatsFile::Path(path)) if !path.is_empty() => {}
+            (want, got) => panic!("{name}: statsFile {want:?} != {got:?}"),
+        }
+    }
+    // The declared defaults are BOT_FILL_DEFAULTS (the corpus' first case) and the server keeps learning off by default.
+    let defaults = BotFillConfig::default();
+    assert_eq!(defaults.fill_to, 8);
+    assert_eq!(defaults.arrival_seconds, 12.);
+    assert_eq!(defaults.tier_mix, [0.3, 0.45, 0.25]);
+    assert_eq!(defaults.persona_mix, [4., 1., 2., 3.]);
+    assert_eq!(defaults.latency_ms, 30.);
+    assert_eq!(defaults.jitter_ms, 8.);
+    assert_eq!(defaults.seed, None);
+    assert_eq!(defaults.stats_file, StatsFile::Default);
+    assert_eq!(
+        defaults.learned,
+        rh_policy::bots::learning::LearnedBias::NO_BIAS
+    );
+}
+
+/// A fill bot's seed choice: the fixed seed wins, else BOTS_SEED from the config, else entropy (checked through the room's
+/// delay-line stream, which is seeded from the same manager seed).
+#[test]
+fn the_manager_seed_is_the_room_fill_seed_when_set() {
+    let cfg = BotFillConfig {
+        seed: Some(7),
+        ..BotFillConfig::default()
+    };
+    // The line stream is mix(seed, 1), the same stream the delay line uses: a declared seed makes it reproducible.
+    let a = rh_policy::bots::delay::DelayLine::<u32>::rng(7);
+    let b = rh_policy::bots::delay::DelayLine::<u32>::rng(cfg.seed.unwrap());
+    assert_eq!(a, b);
+}

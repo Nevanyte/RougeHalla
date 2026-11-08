@@ -7,8 +7,10 @@ use crate::metrics::{self, Histogram, Metrics};
 use crate::outbox::{Outbox, OutboxCounters};
 use crate::pacer::Pacer;
 use crate::wire;
+use rh_policy::bots::delay::DelayLine;
+use rh_policy::bots::random::Rng;
 use rh_policy::bots::HumanBot;
-use rh_policy::{drive_seats_with, scripted, MatchStart, Policy, Seat};
+use rh_policy::{drive_seats_queued, scripted, MatchStart, Policy, Seat};
 use rh_protocol::map::{EncodedMap, MapBlob};
 use rh_protocol::{encode_welcome, RejectCode, ServerMsg, WelcomeHeader, WireEvent, WireResult};
 use rh_sim::replay::{BotPolicy, Recorder, Replay, ReplayInput, ReplayStart};
@@ -349,6 +351,16 @@ pub struct Room {
     publisher: wire::Publisher,
     /// The bots' line-of-sight memo (derived, outside the sim; the publisher keeps its own for the humans).
     bot_sight: rh_sim::SightCache,
+    /// The fill bots' source delay lines (P-BOTS-7): one per seated fill bot, seeded from the manager's line stream.
+    bot_lines: Vec<(PlayerId, DelayLine<rh_sim::PublicCommand>)>,
+    line_rng: Rng,
+    /// The read-only profile callsign set (source isNameTaken): a fill bot never draws one. Lower-cased.
+    taken_names: Arc<std::collections::HashSet<String>>,
+    /// Delay-line delivery counters (source BotManagerStats' delivery half: sent/applied/refused/lost).
+    bot_sent: u64,
+    bot_applied: u64,
+    bot_refused: u64,
+    bot_lost: u64,
     reports: mpsc::UnboundedSender<RoomReport>,
     clock: Arc<AtomicU64>,
     /// Step wall times: a fixed-size histogram (384 bytes at any uptime; was a Vec growing to 288 KB).
@@ -431,6 +443,13 @@ impl Room {
             wake_events: Vec::new(),
             publisher: wire::Publisher::default(),
             bot_sight: rh_sim::SightCache::new(),
+            bot_lines: Vec::new(),
+            line_rng: Rng::new(0),
+            taken_names: Arc::new(std::collections::HashSet::new()),
+            bot_sent: 0,
+            bot_applied: 0,
+            bot_refused: 0,
+            bot_lost: 0,
             reports,
             clock: Arc::new(AtomicU64::new(0f64.to_bits())),
             step_us: Histogram::new(),
@@ -799,11 +818,115 @@ impl Room {
     /// The policy's seed comes from the room's fixed bot seed when set (tests, replay determinism), else OS entropy: the
     /// fill seed is not a match secret (docs/CONTRACTS.md C-RNG does not cover bot identity).
     pub fn with_bot_fill(mut self, cfg: BotFillConfig) -> Self {
+        // Source BOTS_SEED seeds every manager stream; the rooms' fixed bot seed (tests, replays) wins over it.
         let seed = self
             .fixed_bot_seed
+            .or_else(|| cfg.seed.map(u64::from))
             .unwrap_or_else(|| (u64::from(random_u32()) << 32) | u64::from(random_u32()));
+        self.line_rng = DelayLine::<rh_sim::PublicCommand>::rng(seed as u32);
         self.fill = Some(BotFillState::new(cfg, seed));
         self
+    }
+
+    /// The manager's read-only profile-name seam (source isNameTaken): callsigns real profiles own, lower-cased. The set
+    /// is a snapshot the director refreshes per lobby; bots never read or write a profile.
+    pub fn with_bot_names(mut self, names: Arc<std::collections::HashSet<String>>) -> Self {
+        self.taken_names = names;
+        self
+    }
+
+    /// The delay line's send half (source BotManager.deliver): a fill bot's proposal gets its arrival from the manager's
+    /// line stream; a seat with no fill spec (the immediate placeholder fill) submits now, as before.
+    fn enqueue_bot_commands(&mut self, proposed: Vec<(PlayerId, rh_sim::PublicCommand)>) {
+        if proposed.is_empty() {
+            return;
+        }
+        let (latency, jitter) = self.fill.as_ref().map_or((0., 0.), |fill| {
+            (fill.config().latency_ms, fill.config().jitter_ms)
+        });
+        let at = self.sim.server_time();
+        for (player, cmd) in proposed {
+            if let Some(pos) = self.bot_lines.iter().position(|(p, _)| *p == player) {
+                let accepted = self.bot_lines[pos]
+                    .1
+                    .enqueue(&mut self.line_rng, at, latency, jitter, cmd)
+                    .is_some();
+                if accepted {
+                    self.bot_sent += 1;
+                } else {
+                    self.bot_refused += 1;
+                }
+            } else {
+                self.submit_bot_now(player, cmd);
+            }
+        }
+    }
+
+    /// The delay line's delivery half (source BotManager.beforeStep, called with the upcoming step's time): a command
+    /// arrives, is resolved against the state at that step and goes through validate + submit, the intake a human's
+    /// message takes.
+    fn deliver_bot_commands(&mut self) {
+        if self.bot_lines.is_empty() {
+            return;
+        }
+        let step_t = self.sim.server_time() + rh_sim::constants::TICK_MS;
+        let mut due: Vec<(PlayerId, rh_sim::PublicCommand)> = Vec::new();
+        for (player, line) in &mut self.bot_lines {
+            let mut out = Vec::new();
+            line.pop_due(step_t, &mut out);
+            due.extend(out.into_iter().map(|cmd| (*player, cmd)));
+        }
+        for (player, cmd) in due {
+            if self.sim.player(player).is_none() {
+                self.bot_lost += 1;
+                continue;
+            }
+            self.submit_bot_now(player, cmd);
+        }
+    }
+
+    fn submit_bot_now(&mut self, player: PlayerId, cmd: rh_sim::PublicCommand) {
+        let Some(index) = self.bots.iter().position(|seat| seat.player() == player) else {
+            self.bot_lost += 1;
+            return;
+        };
+        let Some(command) = self.bots[index].resolve(&self.sim, cmd) else {
+            self.bot_refused += 1;
+            self.bots[index].note_delivery(false);
+            return;
+        };
+        if let Some(r) = self.recorder.as_mut() {
+            r.record(ReplayInput::Command {
+                player,
+                cmd: command,
+            });
+        }
+        match self.sim.submit(player, command) {
+            Ok(()) => {
+                self.bot_applied += 1;
+                self.bots[index].note_delivery(true);
+            }
+            Err(_) => {
+                self.bot_refused += 1;
+                self.bots[index].note_delivery(false);
+            }
+        }
+    }
+
+    /// The delay-line counters (source manager stats: sent, applied, refused, lost), for telemetry.
+    pub fn bot_delivery(&self) -> (u64, u64, u64, u64) {
+        (
+            self.bot_sent,
+            self.bot_applied,
+            self.bot_refused,
+            self.bot_lost,
+        )
+    }
+
+    /// The seated fill bots' telemetry tags (id, callsign, tier, persona, faction, seed). The lobby HUD's head count and
+    /// its presentation stay with the client/coordinator; this is the native per-bot telemetry surface.
+    pub fn bot_specs(&self) -> &[(PlayerId, BotSeatSpec)] {
+        &self.bot_specs
     }
 
     /// One lobby step of the fill policy, before the step it applies to (the manager's lobbyTick and, on the closing
@@ -829,13 +952,14 @@ impl Room {
             }
         }
         let players = self.sim.players().len();
-        let never = |_: &str| false;
+        let taken_names = self.taken_names.clone();
+        let taken = |name: &str| taken_names.contains(&name.to_ascii_lowercase());
         let view = FillView {
             players,
             humans,
             factions,
             names_lower,
-            taken: &never,
+            taken: &taken,
         };
         // The step closes the lobby when the countdown is out, when the lobby is full, or when enough humans are in and
         // the fill time is zero (the sim's updateLobby rule). The manager seats its remaining arrivals on that step.
@@ -884,6 +1008,7 @@ impl Room {
         seat.bind_fx(&self.sim).expect("new bot is unbound");
         self.bots.push(seat);
         self.bot_specs.push((id, spec));
+        self.bot_lines.push((id, DelayLine::new()));
     }
 
     /// The newest bot gives its seat up (legacy BotManager.yieldSeat): the fill policy forgets it and the player leaves.
@@ -907,6 +1032,7 @@ impl Room {
         self.sim.remove_player(id);
         self.bots.retain(|seat| seat.player() != id);
         self.bot_specs.retain(|(player, _)| *player != id);
+        self.bot_lines.retain(|(player, _)| *player != id);
         true
     }
 
@@ -1024,18 +1150,16 @@ impl Room {
         for _ in 0..steps {
             self.fill_step();
             let t = std::time::Instant::now();
-            let rec = &mut self.recorder;
-            drive_seats_with(
+            let mut proposed: Vec<(PlayerId, rh_sim::PublicCommand)> = Vec::new();
+            drive_seats_queued(
                 &mut self.sim,
                 &mut self.bots,
                 &self.last_events,
                 &mut self.bot_sight,
-                |player, cmd| {
-                    if let Some(r) = rec.as_mut() {
-                        r.record(ReplayInput::Command { player, cmd });
-                    }
-                },
+                |player, cmd| proposed.push((player, cmd)),
             );
+            self.enqueue_bot_commands(proposed);
+            self.deliver_bot_commands();
             self.expire_leases(Instant::now().max(now));
             self.step_events.clear();
             self.sim.step_into(&mut self.step_events);
@@ -2074,6 +2198,116 @@ mod tests {
                 assert_eq!(reported, result);
             }
             other => panic!("expected a bot result with its fill spec, got {other:?}"),
+        }
+    }
+
+    /// P-BOTS-7 remainder: a fill room with a running raid, for the delay-line and name-seam tests.
+    fn running_fill_room(
+        latency_ms: f64,
+        seed: u32,
+        taken: Arc<std::collections::HashSet<String>>,
+    ) -> (Room, Instant) {
+        let start = Instant::now();
+        let tick = Duration::from_millis(50);
+        let (tx, _rx) = mpsc::unbounded_channel();
+        let mut config = cfg(tick);
+        config.fill_bots_to = 0;
+        config.fixed_bot_seed = Some(u64::from(seed) + 100);
+        config.fixed_secrets = Some(Secrets::from_seed(7));
+        let mut room = Room::new([21; 16], config, tx, start)
+            .with_bot_fill(BotFillConfig {
+                fill_to: 4,
+                arrival_seconds: 0.,
+                latency_ms,
+                jitter_ms: 0.,
+                seed: Some(seed),
+                ..BotFillConfig::default()
+            })
+            .with_bot_names(taken);
+        for i in 0..2u64 {
+            room.join(
+                format!("human{i}"),
+                None,
+                Arc::new(Outbox::default()),
+                i + 1,
+                1,
+                None,
+            )
+            .unwrap();
+        }
+        let mut last = start;
+        for i in 1..=600u32 {
+            last = start + tick * i;
+            room.wake(last);
+            if room.sim.phase() == Phase::Active {
+                break;
+            }
+        }
+        assert_eq!(
+            room.sim.phase(),
+            Phase::Active,
+            "the lobby fills and closes"
+        );
+        assert!(!room.bot_specs.is_empty(), "the fill seated bots");
+        (room, last)
+    }
+
+    #[test]
+    fn a_fill_bots_command_arrives_after_the_configured_latency() {
+        let (mut room, last) =
+            running_fill_room(100., 9, Arc::new(std::collections::HashSet::new()));
+        let tick = Duration::from_millis(50);
+        // Find the first wake on which the seated bots propose: with a 100 ms one-way latency those proposals cannot be
+        // applied by the same or the next 50 ms step (the source deliver/beforeStep rule).
+        let mut first = None;
+        for i in 1..=12u32 {
+            room.wake(last + tick * i);
+            let (sent, applied, _, _) = room.bot_delivery();
+            if sent > 0 {
+                first = Some((i, sent, applied));
+                break;
+            }
+        }
+        let (i, sent, applied) = first.expect("the seated bots propose commands");
+        assert!(sent > 0);
+        assert_eq!(
+            applied, 0,
+            "a 100 ms command cannot arrive within the first step"
+        );
+        // The arrival is due before the next step.
+        room.wake(last + tick * (i + 1));
+        let (_, applied, refused, lost) = room.bot_delivery();
+        assert!(applied > 0, "the command arrives at the next step");
+        assert!(refused <= sent);
+        assert_eq!(lost, 0);
+        // Determinism: the same fixed seed draws the same manager stream and the same counters.
+        let (mut again, last_again) =
+            running_fill_room(100., 9, Arc::new(std::collections::HashSet::new()));
+        for k in 1..=i + 1 {
+            again.wake(last_again + tick * k);
+        }
+        assert_eq!(
+            room.bot_delivery(),
+            again.bot_delivery(),
+            "the delay line replays from its seed"
+        );
+    }
+
+    #[test]
+    fn a_fill_bot_never_draws_a_profile_owned_callsign() {
+        let taken = crate::bot_fill::name_set(
+            crate::bot_fill::CALLSIGN_POOL
+                .iter()
+                .map(|name| (*name).to_string()),
+        );
+        let (room, _last) = running_fill_room(30., 11, taken.clone());
+        assert!(!room.bot_specs.is_empty());
+        for (_, spec) in &room.bot_specs {
+            assert!(
+                !taken.contains(&spec.name.to_ascii_lowercase()),
+                "drew a profile-owned callsign {}",
+                spec.name
+            );
         }
     }
 }

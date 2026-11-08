@@ -529,11 +529,21 @@ async fn main() {
         });
     #[cfg(not(feature = "postgres"))]
     let learned = rh_policy::bots::learning::LearnedBias::NO_BIAS;
-    // The live server fills its lobbies with the legacy manager policy (BOTS_FILL_TO from --fill-bots); tests and
-    // benches construct rooms directly and keep the immediate placeholder fill unless they opt in.
-    cfg.bot_fill = Some(
-        rh_server::bot_fill::BotFillConfig::with_fill_to(cfg.fill_bots_to).with_learned(learned),
-    );
+    // The manager's isNameTaken seam: the profile callsigns this server knows, read once before the first lobby (a fill
+    // bot never draws one; bots still never read or write a profile).
+    let bot_names = persistence.bot_names().await;
+    // The source config surface (docs/BOTS.md 7.3): the BOTS_* environment supplies the fill policy and --fill-bots (or
+    // first-playable) overrides only the count, the CLI is this server's addition. Fill stays off unless one of them asks
+    // for it, the Rust server's historical default (the source distribution defaults to 8).
+    let mut bot_fill = rh_server::bot_fill::BotFillConfig::from_env(|key| std::env::var(key).ok());
+    let cli_fill = first_playable.is_some() || arg(&args, "--fill-bots").is_some();
+    if cli_fill {
+        bot_fill.fill_to = cfg.fill_bots_to;
+    } else if std::env::var_os("BOTS_FILL_TO").is_none() {
+        bot_fill.fill_to = 0;
+    }
+    cfg.fill_bots_to = bot_fill.fill_to;
+    cfg.bot_fill = Some(bot_fill.with_learned(learned));
     let api_cfg = api_config(&args).unwrap_or_else(|e| {
         eprintln!("[server] invalid account API settings: {e}");
         std::process::exit(2);
@@ -602,6 +612,8 @@ async fn main() {
     if let Some(live) = &learning {
         director.install_learning(live.clone());
     }
+    // The fill bots' read-only profile-name seam (P-BOTS-7 remainder).
+    director.set_bot_names(rh_server::bot_fill::name_set(bot_names));
     // Replay what an earlier process left in the spool (original fence and metadata), before any admission. This runs in
     // the background against the database: an outage delays the replay, never startup or a tick.
     #[cfg(feature = "postgres")]

@@ -211,6 +211,13 @@ impl Store {
         }
     }
 
+    /// Every profile callsign (read-only): the bot fill's isNameTaken seam never creates or changes a profile.
+    pub async fn profile_callsigns(&self) -> Result<Vec<String>> {
+        Ok(sqlx::query_scalar("SELECT callsign FROM profiles")
+            .fetch_all(&self.pool)
+            .await?)
+    }
+
     pub fn pool(&self) -> &PgPool {
         &self.pool
     }

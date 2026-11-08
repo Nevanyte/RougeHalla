@@ -115,6 +115,22 @@ pub struct BotFillConfig {
     /// The learning store's frozen bias snapshot (P-BOTS-5). [`LearnedBias::NO_BIAS`] is learning off: every faction
     /// utility is 0 and the draw reproduces the captured manager stream exactly.
     pub learned: LearnedBias,
+    /// The manager seed (source BOTS_SEED): `None` seeds every room from entropy; `Some` makes the fill and delay
+    /// streams deterministic (tests and reproducible servers).
+    pub seed: Option<u32>,
+    /// The source BOT_STATS_FILE setting. The file store itself is replaced by the PostgreSQL learning store (P-BOTS-5);
+    /// the setting is parsed for the config surface and reported, and the live store is on when the server has a database.
+    pub stats_file: StatsFile,
+}
+
+/// Source BOT_STATS_FILE: unset (the default profile-adjacent path), `off` (learning off) or an explicit file path. The
+/// port's learning store is the PostgreSQL one; this setting only records what the environment asked for.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub enum StatsFile {
+    #[default]
+    Default,
+    Off,
+    Path(String),
 }
 
 impl Default for BotFillConfig {
@@ -128,6 +144,8 @@ impl Default for BotFillConfig {
             latency_ms: 30.,
             jitter_ms: 8.,
             learned: LearnedBias::NO_BIAS,
+            seed: None,
+            stats_file: StatsFile::Default,
         }
     }
 }
@@ -444,10 +462,7 @@ fn faction_index(faction: FactionId) -> usize {
 
 /// A 32-bit mix of a seed and a tag (a murmur finaliser; source BotManager.mix).
 pub fn mix(seed: u32, tag: u32) -> u32 {
-    let mut h = seed.wrapping_mul(0x9e37_79b1) ^ tag.wrapping_add(1).wrapping_mul(0x85eb_ca6b);
-    h = (h ^ (h >> 16)).wrapping_mul(0x7feb_352d);
-    h = (h ^ (h >> 15)).wrapping_mul(0x846c_a68b);
-    h ^ (h >> 16)
+    rh_policy::bots::random::mix(seed, tag)
 }
 
 /// An id by cumulative weight (source BotManager.pickWeighted): weights are relative, not normalised; a mix with
@@ -540,3 +555,153 @@ pub fn pick_callsign(rng: &mut Mulberry32, taken: impl Fn(&str) -> bool) -> Stri
 #[cfg(test)]
 #[path = "bot_fill_tests.rs"]
 mod tests;
+
+/// The manager's read-only profile-name set (source isNameTaken): lower-cased callsigns no fill bot may draw.
+pub fn name_set<I: IntoIterator<Item = String>>(
+    names: I,
+) -> std::sync::Arc<std::collections::HashSet<String>> {
+    std::sync::Arc::new(
+        names
+            .into_iter()
+            .map(|name| name.to_ascii_lowercase())
+            .collect(),
+    )
+}
+
+impl BotFillConfig {
+    /// The source `config.ts parseBots` surface (docs/BOTS.md 7.3): BOTS_FILL_TO, BOTS_ARRIVAL_SECONDS, BOTS_TIER_MIX,
+    /// BOTS_PERSONA_MIX, BOTS_LATENCY_MS, BOTS_JITTER_MS, BOTS_SEED and BOT_STATS_FILE. `get` is the environment lookup
+    /// (a closure so tests can pass a declared map). The CLI's --fill-bots still overrides `fill_to` at the server edge.
+    pub fn from_env(get: impl Fn(&str) -> Option<String>) -> Self {
+        let default = Self::default();
+        let env = |key: &str| get(key);
+        let tier_ids = [
+            TierId::Easy.as_str(),
+            TierId::Normal.as_str(),
+            TierId::Hard.as_str(),
+        ];
+        let persona_ids = [
+            PersonaId::Farmer.as_str(),
+            PersonaId::Hunter.as_str(),
+            PersonaId::Opportunist.as_str(),
+            PersonaId::Cautious.as_str(),
+        ];
+        let fill_to =
+            (non_negative(env("BOTS_FILL_TO").as_deref(), default.fill_to as f64) + 0.5).floor();
+        let stats_file = match env("BOT_STATS_FILE").map(|s| s.trim().to_string()) {
+            None => StatsFile::Default,
+            Some(text) if text.is_empty() => StatsFile::Default,
+            Some(text) if text.eq_ignore_ascii_case("off") => StatsFile::Off,
+            Some(text) => StatsFile::Path(text),
+        };
+        Self {
+            fill_to: (fill_to.min(MAX_PLAYERS as f64)).max(0.) as usize,
+            arrival_seconds: non_negative(
+                env("BOTS_ARRIVAL_SECONDS").as_deref(),
+                default.arrival_seconds,
+            ),
+            tier_mix: array_mix(parse_mix(
+                env("BOTS_TIER_MIX").as_deref(),
+                &tier_ids,
+                &default.tier_mix,
+            )),
+            persona_mix: array_mix(parse_mix(
+                env("BOTS_PERSONA_MIX").as_deref(),
+                &persona_ids,
+                &default.persona_mix,
+            )),
+            latency_ms: non_negative(env("BOTS_LATENCY_MS").as_deref(), default.latency_ms),
+            jitter_ms: non_negative(env("BOTS_JITTER_MS").as_deref(), default.jitter_ms),
+            learned: default.learned,
+            seed: env("BOTS_SEED").and_then(|raw| {
+                let text = raw.trim().to_string();
+                if text.is_empty() {
+                    None
+                } else {
+                    let n = js_number(&text);
+                    n.is_finite().then(|| to_uint32(n.trunc()))
+                }
+            }),
+            stats_file,
+        }
+    }
+}
+
+fn array_mix<const N: usize>(mix: Vec<f64>) -> [f64; N] {
+    let mut out = [0.; N];
+    out[..mix.len()].copy_from_slice(&mix[..mix.len()]);
+    out
+}
+
+/// JS `Number(v)`: an empty string and a non-number are NaN; `Infinity`/`-Infinity` parse.
+fn js_number(raw: &str) -> f64 {
+    let text = raw.trim();
+    if text.is_empty() {
+        return f64::NAN;
+    }
+    match text {
+        "Infinity" | "+Infinity" => f64::INFINITY,
+        "-Infinity" => f64::NEG_INFINITY,
+        _ => text.parse::<f64>().unwrap_or(f64::NAN),
+    }
+}
+
+/// Source `nonNegative`: a bad value falls back, a negative one is 0.
+fn non_negative(raw: Option<&str>, fallback: f64) -> f64 {
+    let n = match raw {
+        None => fallback,
+        Some(text) => {
+            let n = js_number(text);
+            if n.is_finite() {
+                n
+            } else {
+                fallback
+            }
+        }
+    };
+    n.max(0.)
+}
+
+/// Source `parseMix`: "name:weight,..." over `ids`; a name with no weight counts 1, an unknown name or a non-numeric or
+/// extra-part entry is ignored, a negative weight is 0, a listed set with nothing above 0 (or an unset/empty value) is the
+/// fallback mix. Returns the mix in `ids` order.
+fn parse_mix(raw: Option<&str>, ids: &[&str], fallback: &[f64]) -> Vec<f64> {
+    let mut given: Vec<Option<f64>> = vec![None; ids.len()];
+    for part in raw.unwrap_or("").split(',') {
+        let pieces: Vec<&str> = part.split(':').map(str::trim).collect();
+        let Some(name) = pieces.first() else { continue };
+        let Some(index) = ids.iter().position(|id| *id == name.to_ascii_lowercase()) else {
+            continue;
+        };
+        if pieces.len() > 2 {
+            continue;
+        }
+        let weight = match pieces.get(1).copied() {
+            None => 1.,
+            Some("") => f64::NAN,
+            Some(text) => js_number(text),
+        };
+        if weight.is_finite() {
+            given[index] = Some(weight.max(0.));
+        }
+    }
+    let mix: Vec<f64> = ids
+        .iter()
+        .enumerate()
+        .map(|(i, _)| given[i].unwrap_or(0.))
+        .collect();
+    if mix.iter().sum::<f64>() > 0. {
+        mix
+    } else {
+        fallback.to_vec()
+    }
+}
+
+/// JS `>>> 0` of a finite number: truncate toward zero, then modulo 2^32.
+fn to_uint32(value: f64) -> u32 {
+    if !value.is_finite() {
+        return 0;
+    }
+    let modulo = value.trunc().rem_euclid(4_294_967_296.);
+    modulo as u32
+}

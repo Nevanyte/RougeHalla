@@ -256,6 +256,34 @@ impl CompatibilityReceipts {
 }
 
 impl Persistence {
+    /// The bot fill's read-only profile-name set (source isNameTaken): every durable profile callsign lower-cased. In
+    /// memory mode there is no profile registry, so the names of the seats this process has seen are the set.
+    pub async fn bot_names(&self) -> std::collections::HashSet<String> {
+        match self {
+            Persistence::Memory(m) => m
+                .fences
+                .lock()
+                .map(|fences| {
+                    fences
+                        .keys()
+                        .map(|name| name.to_ascii_lowercase())
+                        .collect()
+                })
+                .unwrap_or_default(),
+            #[cfg(feature = "postgres")]
+            Persistence::Postgres { store, .. } => store
+                .profile_callsigns()
+                .await
+                .map(|names| {
+                    names
+                        .into_iter()
+                        .map(|name| name.to_ascii_lowercase())
+                        .collect()
+                })
+                .unwrap_or_default(),
+        }
+    }
+
     pub fn memory() -> Self {
         Persistence::Memory(Box::default())
     }

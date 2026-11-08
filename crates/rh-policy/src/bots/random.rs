@@ -45,6 +45,15 @@ impl Rng {
     }
 }
 
+/// A 32-bit seed for one stream (source BotManager.ts `mix`): the seed mixed with a tag (a murmur finaliser), so no
+/// two streams of a manager march in step.
+pub fn mix(seed: u32, tag: u32) -> u32 {
+    let mut h = seed.wrapping_mul(0x9e37_79b1) ^ (tag.wrapping_add(1)).wrapping_mul(0x85eb_ca6b);
+    h = (h ^ (h >> 16)).wrapping_mul(0x7feb_352d);
+    h = (h ^ (h >> 15)).wrapping_mul(0x846c_a68b);
+    h ^ (h >> 16)
+}
+
 pub fn uniform(rng: &mut Rng, lo: f64, hi: f64) -> f64 {
     lo + (hi - lo) * rng.next_f64()
 }
