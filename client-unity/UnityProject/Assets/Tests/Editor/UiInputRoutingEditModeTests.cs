@@ -212,6 +212,7 @@ namespace Roguehalla.Client.Tests
             _typingField.transform.SetParent(_root.transform, false);
             EventSystem.current.SetSelectedGameObject(_typingField.gameObject);
             _typingField.ActivateInputField();
+            Invoke(_typingField, "LateUpdate"); // TMP activates a requested field in its real LateUpdate lifecycle.
             Assert.That(_typingField.isFocused, Is.True);
             _hud.transform.Find("MatchUI/JoinMenu").gameObject.SetActive(false);
 
