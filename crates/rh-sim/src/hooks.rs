@@ -137,8 +137,9 @@ pub(crate) enum HookArgs {
         at: Vec2,
     },
     /// The last member of a regional camp died (legacy `campCleared(world, camp)`, the camp's 0-based index): the
-    /// clear was paid after the ledger pass. The source chest/heal/quest/bruiser links stay Pending (P-CARDS-2,
-    /// P-MOBS-2, P-QUEST-1, P-FACTION-5); this packet owns only the producer call site.
+    /// clear was paid after the ledger pass. The source chest/heal/quest links stay Pending (P-CARDS-2, P-MOBS-2,
+    /// P-QUEST-1); P-FACTION-5 ports the Frost guard refresh here (its camp-clear mirror still needs the P-MOBS-2
+    /// producer).
     CampCleared {
         camp: u32,
     },

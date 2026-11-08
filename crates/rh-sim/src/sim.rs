@@ -140,8 +140,11 @@ impl Sim {
             assert!(
                 placements
                     .iter()
-                    .all(|p| crate::systems::mobs::basic_faction(p.faction)),
-                "unsupported faction in basic PvE placement"
+                    .all(|p| crate::systems::mobs::admitted_player_faction(
+                        config.faction_mode,
+                        p.faction
+                    )),
+                "unsupported faction in PvE placement"
             );
         }
         let mut sim = Sim::new(
@@ -286,7 +289,7 @@ impl Sim {
         });
         if self.k.config.mob_mode == crate::mob_runtime::MobMode::Pve
             && self.k.config.faction_mode.engagement()
-            && !crate::systems::mobs::basic_faction(faction)
+            && !crate::systems::mobs::admitted_player_faction(self.k.config.faction_mode, faction)
         {
             return None;
         }

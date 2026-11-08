@@ -1198,6 +1198,10 @@ const VALIDATED: &[(&str, &str)] = &[
         "world.roster.names.*.#len",
         "a roster entry is a (id, name) pair",
     ),
+    (
+        "world.players.*.frost_guard.active",
+        "only a live Frost seat in an active run may hold the guard; every other seat's flag is refused (checkpoint.rs)",
+    ),
 ];
 
 /// `Some` values for optional leaves that no scripted match produces between steps (an item slot has no flow in the slice,

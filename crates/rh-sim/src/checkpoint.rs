@@ -20,7 +20,7 @@ use serde::ser::{SerializeStruct, Serializer};
 use std::fmt;
 
 /// The tag every checkpoint carries. Bump it when the layout of `statics` or `world` changes incompatibly.
-pub const CHECKPOINT_FORMAT: &str = "rh-checkpoint/20";
+pub const CHECKPOINT_FORMAT: &str = "rh-checkpoint/21";
 
 /// How far past the map edge a fighter, waypoint or spawn may be and still restore (real states stay inside the map).
 const COORD_MARGIN: f64 = 1024.0;
@@ -585,11 +585,28 @@ fn check_world(k: &MatchStatic, w: &World) -> Result<(), String> {
         {
             return Err(format!("player {}: invalid carried weapon or slot", p.id.0));
         }
+        // Frost's Frozen Justice guard: only a live Frost seat in an active run may hold the clock, the clock never
+        // outlives its own linger, and the synced flag is exactly the clock's answer on every other seat.
+        let guard = &p.frost_guard;
+        let passive_seat = p.vitals.faction == crate::FactionId::Frost
+            && p.status == crate::state::Status::Alive
+            && w.phase == crate::Phase::Active;
+        if guard.until.is_some_and(|t| {
+            !(0.0..=w.server_time + crate::constants::FROST_ELITE_GUARD_LINGER_MS).contains(&t)
+        }) || (!passive_seat && (guard.active || guard.until.is_some()))
+            || (passive_seat && guard.active != guard.until.is_some_and(|t| t > w.server_time))
+        {
+            return Err(format!(
+                "player {}: invalid Frost elite guard state",
+                p.id.0
+            ));
+        }
         if !p.modifiers.valid(
             &p.build,
             &p.farm,
             crate::content::faction(p.vitals.faction).hp,
             p.vitals.faction,
+            passive_seat && guard.active,
         ) {
             return Err(format!("player {}: invalid armor mirror", p.id.0));
         }

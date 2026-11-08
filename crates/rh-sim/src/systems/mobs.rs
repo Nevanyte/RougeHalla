@@ -11,16 +11,29 @@ use crate::{
 pub(crate) fn basic_faction(f: FactionId) -> bool {
     matches!(f, FactionId::Fire | FactionId::Plague | FactionId::Holy)
 }
+
+/// A player seat admitted in a PvE world. The basic three always are (their player and regional consumers are ported); a
+/// Frost seat joins only in the explicit engagement level that has Frost's player slice, because the Frozen Justice
+/// witness needs a real Frost player. Regional Frost/Sentenced mob content stays excluded: camps must remain basic.
+pub(crate) fn admitted_player_faction(mode: crate::FactionMode, f: FactionId) -> bool {
+    basic_faction(f) || (f == FactionId::Frost && mode.frost())
+}
 pub(crate) fn admit_factions(k: &MatchStatic, w: &World) -> Result<(), &'static str> {
     if k.config.faction_mode == crate::FactionMode::Off {
         return Ok(());
     }
     if k.config.mob_mode != MobMode::Pve
-        || k.config.faction_mode != crate::FactionMode::EngagementHolyPlagueFire
+        || !matches!(
+            k.config.faction_mode,
+            crate::FactionMode::EngagementHolyPlagueFire
+                | crate::FactionMode::EngagementHolyPlagueFireFrost
+        )
     {
         return Err("unsupported PvE faction mode");
     }
-    if w.players.iter().any(|p| !basic_faction(p.vitals.faction))
+    if w.players
+        .iter()
+        .any(|p| !admitted_player_faction(k.config.faction_mode, p.vitals.faction))
         || k.arena.map.layers().is_none_or(|l| {
             l.data()
                 .camps

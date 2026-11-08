@@ -513,6 +513,9 @@ pub struct Player {
     /// Tank Engine's earned flat max-health bonus (source `cards.tankHp`).
     #[serde(default)]
     pub card_tank_hp: f64,
+    /// Frost's Frozen Justice elite-contact clock and its synced guard flag (source `sim/bruiserPassives.ts`).
+    #[serde(default)]
+    pub(crate) frost_guard: crate::systems::bruiser::FrostGuard,
     pub plan_ready: bool,
     pub build: crate::cards::Build,
     pub potion_small: u8,
@@ -573,6 +576,7 @@ impl Player {
             card_boost: crate::cards::Boost::default(),
             card_prevented: 0.,
             card_tank_hp: 0.,
+            frost_guard: Default::default(),
             build: Default::default(),
             potion_small: 0,
             healing_until: 0.,
