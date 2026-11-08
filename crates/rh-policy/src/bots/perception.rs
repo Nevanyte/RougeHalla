@@ -187,7 +187,7 @@ impl Perception {
         // A stimulus is what a human would notice in this frame: an enemy appearing in view, self hp loss, a low-hp line.
         let mut stimuli = Vec::new();
         for f in &percept.fighters {
-            if !self.known.iter().any(|k| *k == f.id) {
+            if !self.known.contains(&f.id) {
                 stimuli.push(Stimulus {
                     kind: StimulusKind::NewThreat,
                     at: now,

@@ -188,9 +188,9 @@ impl HumanBot {
             }
         } else {
             // Roam: pick a fresh point from the policy's own decide stream when the last one is reached.
-            let need = self.roam.map_or(true, |r| {
-                rh_sim::math::hypot(r.x - self_at.x, r.y - self_at.y) < 64.
-            });
+            let need = self
+                .roam
+                .is_none_or(|r| rh_sim::math::hypot(r.x - self_at.x, r.y - self_at.y) < 64.);
             if need {
                 let map = self.map.clone().expect("map at reset");
                 let x = self.decide.next_f64() * map.map_w();

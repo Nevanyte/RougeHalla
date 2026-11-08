@@ -820,7 +820,7 @@ fn bot_core_humanizer_matches_source() {
         let declared = arr(obj(expected_case, "frames"));
         assert_eq!(declared.len(), frame_count, "{name} frame count");
         let mut humanizer = Humanizer::new(tier, map.clone());
-        for i in 0..frame_count {
+        for (i, want) in declared.iter().enumerate() {
             let now = frame_start + frame_step * i as f64;
             let spec = obj(input, "frames")
                 .as_array()
@@ -854,7 +854,6 @@ fn bot_core_humanizer_matches_source() {
                 humanizer.release(&mut ctx)
             };
             let misses = humanizer.drain_misses();
-            let want = &declared[i];
             assert_eq!(num(obj(want, "now")), now, "{name} frame {i} now");
             check_commands(
                 &released,

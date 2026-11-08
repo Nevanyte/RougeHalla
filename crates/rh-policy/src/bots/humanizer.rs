@@ -265,7 +265,7 @@ impl Humanizer {
     pub fn submit(&mut self, intents: &[Intent], ctx: &mut Context) {
         let now = ctx.p.now;
         self.decision_due
-            .retain(|(_, due)| !(*due < now - DECISION_KEEP_MS));
+            .retain(|(_, due)| *due >= now - DECISION_KEEP_MS);
         let mut ordered: Vec<Intent> = intents.to_vec();
         if ordered.len() > 1 {
             ordered.sort_by_key(|i| i.priority);

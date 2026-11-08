@@ -58,7 +58,10 @@ plus misses and the final stats.
 - `cargo test -p rh-headless --test bots`: **3 passed, 0 failed** (deterministic replay, observation purity, seat mix).
 - `bash tools/bot-fixtures/run-mutants.sh`: **6/6 mutants killed; unchanged control passes**.
 - `bash tools/bot-fixtures/capture.sh --check`: **PASS**, byte-identical in the pinned container.
-- GATE_NUMBERS_PLACEHOLDER
+- `cargo fmt --all --check`, both strict Clippy modes
+  (`cargo clippy --workspace --all-targets --all-features -- -D warnings` and `... --all-targets -- -D warnings`) and
+  `eval "$(bash tools/pgtest/start.sh)" && cargo test --workspace --all-features --locked`: **1,446 passed, 0 failed,
+  152 test-result groups, exit 0**.
 
 ## Still missing (P-BOTS-1 stays INCOMPLETE)
 
