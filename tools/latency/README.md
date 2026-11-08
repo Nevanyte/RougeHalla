@@ -19,6 +19,17 @@ confirmed movement echo; a future local predictor may display movement before th
 
 ## Local run
 
+Use the repository's Node setup and install the pinned browser-proof dependency from the repository root, as in
+`CONTRIBUTING.md` (once per environment):
+
+```sh
+npm i --no-save playwright@1.63.0 && npx playwright install chromium
+```
+
+The harness resolves `playwright` from this checkout using normal Node resolution (`NODE_PATH` also works).
+`RH_PLAYWRIGHT_MODULE=/absolute/path/to/playwright` overrides that resolution for an existing private install.
+No machine-specific module path is assumed; `--help` works before Playwright is installed.
+
 Build and run the Rust server on the duel map with exactly two real players and no bot fill. For this checkout:
 
 ```sh
@@ -35,8 +46,7 @@ python3 -m http.server 8097 -d client-unity/UnityProject/Build/Web
 Run the four added-RTT profiles (0, 50, 100 and 150 ms). The TCP proxy splits RTT evenly across both directions. Jitter is split the same way and sampled deterministically from a seeded stream. Every byte remains reliable and ordered. Optional periodic stalls model TCP head-of-line blocking; they do not emulate packet loss.
 
 ```sh
-RH_PLAYWRIGHT_MODULE=/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/browser/node_modules/playwright \
-  node tools/latency/e2e.cjs --sweep --trials 2 --jitter-ms 10
+node tools/latency/e2e.cjs --sweep --trials 2 --jitter-ms 10
 ```
 
 For a single profile use `--rtt-ms 50 --jitter-ms 10`. For separate stall experiments use `--rtt-ms 50 --stall-every 20 --stall-ms 100`; keep stall runs distinct from jitter-only runs when comparing. The JSON report defaults to `tools/latency/latency-report.json`; override with `RH_LATENCY_OUTPUT`.
@@ -58,8 +68,8 @@ Direct mode reports `injected: false` and rejects requested RTT/jitter injection
 server URL, it uses the same origin's `/ws` endpoint.
 
 For the local TLS fixture only, start `rh-server` with `--self-signed` and run with
-`RH_LATENCY_ALLOW_SELF_SIGNED=1 --server-url wss://localhost:7798/ws`. That environment variable is rejected for an external
-hostname. This tests Unity WSS behaviour while explicitly skipping trust for the generated loopback certificate; it does
+`RH_LATENCY_ALLOW_SELF_SIGNED=1 --server-url wss://localhost:7798/ws`. That environment variable requires both the player URL and server URL to use loopback
+hostnames. This tests Unity WSS behaviour while explicitly skipping trust for the generated loopback certificate; it does
 not prove public certificate/DNS readiness.
 
 Run the fast contract/scheduler tests with:

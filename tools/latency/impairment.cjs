@@ -36,17 +36,19 @@ class FifoDelay {
     this.onForward = onForward;
     this.tailAt = 0;
     this.closed = false;
+    this.ended = false;
+    this.onDrained = null;
     this.queue = [];
     this.stats = { chunks: 0, bytes: 0, sampledDelayMs: [], queueWaitMs: [] };
   }
 
   push(bytes, write) {
-    if (this.closed) return;
+    if (this.closed || this.ended) return;
     this.pushWithDelay(bytes, write, sampleDelay(this.oneWayMs, this.jitterMs, this.random), false);
   }
 
   pushWithDelay(bytes, write, sampledMs, stall = false) {
-    if (this.closed) return;
+    if (this.closed || this.ended) return;
     const now = performance.now();
     const dueAt = Math.max(now + sampledMs, this.tailAt);
     this.tailAt = dueAt;
@@ -55,14 +57,29 @@ class FifoDelay {
     this.#schedule();
   }
 
+  // A TCP FIN follows the bytes already queued in this direction. It is not an abort.
+  end(onDrained) {
+    if (this.closed || this.ended) return;
+    this.ended = true;
+    this.onDrained = onDrained;
+    this.#schedule();
+  }
+
   close() {
     this.closed = true;
+    this.onDrained = null;
     if (this.timer) clearTimeout(this.timer);
     this.queue.length = 0;
   }
 
   #schedule() {
-    if (this.timer || this.closed || this.queue.length === 0) return;
+    if (this.timer || this.closed) return;
+    if (this.queue.length === 0) {
+      const onDrained = this.onDrained;
+      this.onDrained = null;
+      if (onDrained) onDrained();
+      return;
+    }
     const waitMs = Math.max(0, this.queue[0].dueAt - performance.now());
     this.timer = setTimeout(() => {
       this.timer = null;

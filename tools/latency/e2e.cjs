@@ -2,10 +2,9 @@
 
 // Real Unity WebGL latency proof. Inputs are Playwright keyboard events; no protocol frames or simulation state are injected/read.
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
-const { chromium } = require(process.env.RH_PLAYWRIGHT_MODULE || path.join(os.homedir(), '.codex/tools/rougehalla-stage2/browser/node_modules/playwright'));
-const { startProxy } = require('./ws-proxy.cjs');
+const { loadPlaywright, finalizeRun } = require('./runtime.cjs');
+const { startProxy, validateSelfSignedOrigins } = require('./ws-proxy.cjs');
 const { attachSummary } = require('./report.cjs');
 
 function argsOf(argv) {
@@ -152,12 +151,12 @@ async function settledBaseline(driver, observer, remoteId, settleMs, timeout) {
 }
 
 async function run() {
+  const { chromium } = loadPlaywright(root);
   const httpInfoUrl = new URL('/info', serverUrl);
   httpInfoUrl.protocol = serverUrl.protocol === 'wss:' ? 'https:' : 'http:';
   httpInfoUrl.port = serverUrl.port;
   const allowSelfSigned = process.env.RH_LATENCY_ALLOW_SELF_SIGNED === '1';
-  if (allowSelfSigned && !['localhost', '127.0.0.1', '[::1]'].includes(serverUrl.hostname))
-    throw new Error('Self-signed TLS test mode is restricted to loopback endpoints.');
+  validateSelfSignedOrigins({ allowSelfSigned, playerUrl: webUrl, serverUrl: serverUrl.toString() });
   let serverInfo;
   if (allowSelfSigned && httpInfoUrl.protocol === 'https:') {
     serverInfo = await new Promise((resolve, reject) => {
@@ -255,15 +254,14 @@ async function run() {
           traceBefore.wire),
           timeoutMs, 'real Unity websocket Move frame');
 
-        const data = await driver.page.evaluate((counts, base) => ({
+        const data = await driver.page.evaluate(counts => ({
           timeOrigin: performance.timeOrigin,
           overflow: window.__rhLatency.overflow,
           errors: [...window.__rhLatency.errors],
           events: window.__rhLatency.events.slice(counts.events),
           keyEvents: window.__rhLatency.keyEvents.slice(counts.keyEvents),
-          wire: window.__rhLatency.wire.slice(counts.wire),
-          baseline: base
-        }), traceBefore, { x: driverBefore.x, y: driverBefore.y });
+          wire: window.__rhLatency.wire.slice(counts.wire)
+        }), traceBefore);
         const trialKeyEvent = data.keyEvents.find(e => e.code === `Key${key.toUpperCase()}`);
         const sample = data.events.find(e => e.kind === 'sampleMove' && e.moveSeq !== 0);
         if (!sample) throw new Error('no nonzero sampleMove sequence observed');
@@ -335,21 +333,21 @@ async function run() {
     report.errors.push(String(error?.stack || error));
   } finally {
     report.pageErrors = pages.flatMap(page => page.errors.map(error => `${page.label}: ${error}`));
-    if (browser) await browser.close();
-    report.proxyRun = proxy?.report() || { direct, note: 'Direct endpoint observation; no impairment proxy.' };
-    if (proxy) await proxy.close();
-    attachSummary(report);
-    fs.mkdirSync(path.dirname(output), { recursive: true });
-    let serialized = JSON.stringify(report, null, 2);
-    for (const credential of Object.values(credentials || {})) {
-      if (credential?.token) serialized = serialized.split(credential.token).join('[redacted]');
-    }
-    serialized = serialized.replace(/([?&](?:token|ticket|resume)=)[^&\s"\\]+/gi, '$1[redacted]');
-    fs.writeFileSync(output, serialized + '\n');
-    const saved = JSON.parse(serialized);
-    console.log(JSON.stringify({ status: report.summary.status, profiles: profileRtts, trials: report.trials.length,
-      summary: report.summary, errors: saved.errors, report: output }, null, 2));
-    process.exitCode = report.summary.verdict.exitCode;
+    if (!proxy) report.proxyRun = { direct, note: 'Direct endpoint observation; no impairment proxy.' };
+    await finalizeRun({ browser, proxy, report, saveReport: () => {
+      attachSummary(report);
+      fs.mkdirSync(path.dirname(output), { recursive: true });
+      let serialized = JSON.stringify(report, null, 2);
+      for (const credential of Object.values(credentials || {})) {
+        if (credential?.token) serialized = serialized.split(credential.token).join('[redacted]');
+      }
+      serialized = serialized.replace(/([?&](?:token|ticket|resume)=)[^&\s"\\]+/gi, '$1[redacted]');
+      fs.writeFileSync(output, serialized + '\n');
+      const saved = JSON.parse(serialized);
+      console.log(JSON.stringify({ status: report.summary.status, profiles: profileRtts, trials: report.trials.length,
+        summary: report.summary, errors: saved.errors, report: output }, null, 2));
+      process.exitCode = report.summary.verdict.exitCode;
+    } });
   }
 }
 

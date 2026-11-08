@@ -11,17 +11,25 @@ function summarize(values) {
   return { count: values.length, p50: at(.5), p95: at(.95), max: sorted[sorted.length - 1] };
 }
 
+function validateSelfSignedOrigins({ allowSelfSigned, playerUrl, serverUrl }) {
+  if (!allowSelfSigned) return;
+  const loopback = new Set(['localhost', '127.0.0.1', '[::1]']);
+  if (![playerUrl, serverUrl].every(url => loopback.has(new URL(url).hostname)))
+    throw new Error('Self-signed TLS test mode is restricted to loopback player and server endpoints.');
+}
+
 async function startProxy({ listenHost = '127.0.0.1', listenPort = 0, targetHost = '127.0.0.1', targetPort,
   targetTls = false, targetServerName = targetHost, oneWayMs = 0, jitterMs = 0, seed = 1, stallEvery = 0, stallMs = 0 } = {}) {
   if (!Number.isInteger(targetPort) || targetPort < 1 || targetPort > 65535) throw new RangeError('targetPort is required');
   if (!Number.isInteger(stallEvery) || stallEvery < 0 || !Number.isFinite(stallMs) || stallMs < 0) throw new RangeError('invalid ordered stall configuration');
-  const server = net.createServer();
+  // Half-closes are forwarded only after their direction's delayed bytes have drained.
+  const server = net.createServer({ allowHalfOpen: true });
   const connections = new Set();
   const closedConnections = [];
   let directionSeed = seed >>> 0;
   const profile = { oneWayMs, jitterMs, seed, stallEvery, stallMs };
   server.on('connection', client => {
-    const target = targetTls ? tls.connect({ host: targetHost, port: targetPort, servername: targetServerName }) : net.connect({ host: targetHost, port: targetPort });
+    const target = targetTls ? tls.connect({ host: targetHost, port: targetPort, servername: targetServerName, allowHalfOpen: true }) : net.connect({ host: targetHost, port: targetPort, allowHalfOpen: true });
     const record = { openedAt: Date.now(), clientAddress: client.remoteAddress, directions: {}, client, target, closed: false };
     connections.add(record);
     const direction = (name, source, destination) => {
@@ -52,21 +60,23 @@ async function startProxy({ listenHost = '127.0.0.1', listenPort = 0, targetHost
         const delayMs = sampled + (isStall ? profile.stallMs : 0);
         fifo.pushWithDelay(bytes, data => { if (!destination.destroyed) destination.write(data); }, delayMs, isStall);
       });
-      source.on('end', () => destination.end());
+      source.on('end', () => fifo.end(() => { if (!destination.destroyed) destination.end(); }));
       source.on('error', () => destination.destroy());
       record.directions[name] = { delays, stalls, fifo, get summary() { return summarize(delays); } };
     };
     direction('clientToServer', client, target);
     direction('serverToClient', target, client);
+    let closedSides = 0;
     const close = () => {
-      if (record.closed) return;
+      // One socket can finish while the opposite direction still has delayed response bytes to deliver.
+      if (++closedSides < 2 || record.closed) return;
       record.closed = true;
       for (const value of Object.values(record.directions)) value.fifo.close();
       record.closedAt = Date.now();
       closedConnections.push(record);
       connections.delete(record);
     };
-    client.on('close', close); target.on('close', close);
+    client.once('close', close); target.once('close', close);
     client.on('error', () => target.destroy()); target.on('error', () => client.destroy());
   });
   await new Promise((resolve, reject) => { server.once('error', reject); server.listen(listenPort, listenHost, resolve); });
@@ -111,4 +121,4 @@ async function startProxy({ listenHost = '127.0.0.1', listenPort = 0, targetHost
   };
 }
 
-module.exports = { startProxy, summarize };
+module.exports = { startProxy, summarize, validateSelfSignedOrigins };
