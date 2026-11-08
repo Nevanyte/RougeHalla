@@ -871,6 +871,7 @@ fn the_race_and_lifesteal_match_the_diagnostic_case() {
     .collect();
     let mut s = Sim::reset_active(
         SimConfig {
+            quests: false,
             pvp_rules: false,
             ..Default::default()
         },
@@ -1000,6 +1001,7 @@ fn the_g8_runtime_floor_case_reproduces_the_source() {
     .collect();
     let mut s = Sim::reset_active(
         SimConfig {
+            quests: false,
             pvp_rules: false,
             ..Default::default()
         },

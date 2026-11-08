@@ -390,6 +390,9 @@ pub enum ContainerKind {
     Ground,
     Chest,
     Body(PlayerId),
+    /// A quest token or fetch parcel (source `ContainerKind` "quest"): its one item names the offer, and the pickup path
+    /// hands it to the quest runtime instead of the weapon/potion logic.
+    Quest,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -725,6 +728,10 @@ pub(crate) struct World {
     pub(crate) plan_ends_at: f64,
     pub(crate) terrain: crate::terrain::Runtime,
     pub(crate) reward_chests: Vec<crate::reward_chests::Chest>,
+    /// The quest runtime (source `world.quests`): absent until `spawnQuests`; serialized and hashed like every other
+    /// lifecycle state.
+    #[serde(default)]
+    pub(crate) quests: Option<crate::quests::live::Quests>,
     pub(crate) factions: crate::factions::FactionRuntime,
     pub(crate) abilities: Option<crate::status_runtime::AbilityRuntime>,
     pub(crate) tick: u32,
@@ -995,6 +1002,7 @@ impl World {
             planning: None,
             plan_ends_at: 0.,
             reward_chests: Vec::new(),
+            quests: None,
             terrain: Default::default(),
             factions: Default::default(),
             abilities: None,

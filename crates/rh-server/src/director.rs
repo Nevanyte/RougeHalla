@@ -1917,6 +1917,7 @@ mod tests {
     #[should_panic(expected = "Source arena lifecycle requires protocol 7")]
     fn arena_profile_director_construction_refuses_before_runtime_spawn() {
         let sim = SimConfig {
+            quests: false,
             lifecycle: rh_sim::ArenaMode::Source(Default::default()),
             ..Default::default()
         };
@@ -1958,7 +1959,9 @@ mod tests {
             pvp_rules: true,
             weapon_specials: true,
             faction_mode: rh_sim::FactionMode::Off,
+            quests: false,
         };
+
         let map = rh_sim::TileMap::from_rows(&["####", "#..#", "#..#", "####"]).unwrap();
         let arena = Arena {
             map,

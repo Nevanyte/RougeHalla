@@ -866,6 +866,7 @@ mod tests {
             .collect();
         Sim::reset_active(
             crate::SimConfig {
+                quests: false,
                 pvp_rules: false,
                 ..Default::default()
             },
@@ -1050,6 +1051,7 @@ mod scheduled_view_tests {
             .collect();
         Sim::reset_active(
             crate::SimConfig {
+                quests: false,
                 pvp_rules: false,
                 faction_mode: crate::FactionMode::EngagementHoly,
                 ..Default::default()

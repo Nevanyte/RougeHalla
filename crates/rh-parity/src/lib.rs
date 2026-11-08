@@ -624,6 +624,7 @@ fn try_build(fx: &Fixture) -> Result<Sim, String> {
         spawn_seed: vision::source(fx).map_or(0, |m| m.spawn_seed),
     };
     let mut config = SimConfig {
+        quests: false,
         faction_mode: if sentenced::enabled(fx) {
             rh_sim::FactionMode::EngagementHolyPlagueFireFrostSentenced
         } else if plague::frost(fx) {

@@ -355,6 +355,7 @@ fn the_staggered_hook_interrupts_only_casts_that_list_it() {
     ];
     let mut s = Sim::reset_active(
         SimConfig {
+            quests: false,
             abilities: crate::abilities::Mode::Full,
             wish_lock_ms: 0.,
             ..SimConfig::default()

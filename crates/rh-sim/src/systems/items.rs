@@ -370,6 +370,12 @@ pub(crate) fn pickup(cx: &mut Cx, ix: FighterIx, cmd: &ActionCmd) {
 }
 
 fn take(cx: &mut Cx, ix: FighterIx, i: usize) -> Result<(), PickupRefusal> {
+    // Source loot.handlePickup: a quest token or parcel is handed to the quest runtime (which uses the item up or refuses
+    // silently); it never becomes a weapon or potion pickup.
+    if cx.w.containers[i].kind == ContainerKind::Quest {
+        crate::quests::live::pickup(cx, ix, i);
+        return Ok(());
+    }
     if cx.w.containers[i].kind == ContainerKind::Chest {
         if !cx.w.containers[i].opened && cx.w.containers[i].stat_offer {
             let at = cx.w.containers[i].at;

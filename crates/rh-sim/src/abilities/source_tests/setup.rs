@@ -113,6 +113,7 @@ pub(super) fn construct(input: &V) -> Sim {
         .collect();
     let mut sim = Sim::new(
         SimConfig {
+            quests: false,
             min_players: placements.iter().filter(|p| !p.bot).count(),
             fill_seconds: 0.,
             abilities: Mode::Full,

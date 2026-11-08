@@ -623,6 +623,7 @@ mod tests {
             .collect();
         Sim::reset_active(
             SimConfig {
+                quests: false,
                 weapon_specials: specials,
                 ..Default::default()
             },

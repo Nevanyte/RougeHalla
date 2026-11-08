@@ -6,6 +6,7 @@ use serde_json::{json, Value};
 fn marked() -> Sim {
     let mut sim = Sim::reset_active(
         SimConfig {
+            quests: false,
             faction_mode: FactionMode::EngagementHolyPlagueFireFrostSentenced,
             ..Default::default()
         },

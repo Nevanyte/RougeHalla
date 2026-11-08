@@ -5,7 +5,7 @@ set -euo pipefail
 REPO=$(cd "$(dirname "$0")/../.." && pwd)
 cd "$REPO"
 CARGO=${CARGO:-cargo}
-FILES=(crates/rh-sim/src/quests/rules.rs crates/rh-sim/src/quests/roster.rs crates/rh-sim/src/quests/placement.rs)
+FILES=(crates/rh-sim/src/quests/rules.rs crates/rh-sim/src/quests/roster.rs crates/rh-sim/src/quests/placement.rs crates/rh-sim/src/quests/live.rs)
 BACKUP=$(mktemp -d)
 LOG=$(mktemp)
 backup_name() { printf '%s' "${1//\//__}"; }

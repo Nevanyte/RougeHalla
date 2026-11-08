@@ -29,6 +29,7 @@ fn acquired_cards_use_the_warmed_real_tick_without_allocating() {
     ];
     let base = Sim::reset_active(
         SimConfig {
+            quests: false,
             pvp_rules: false,
             faction_mode: rh_sim::FactionMode::EngagementHolyPlagueFire,
             ..Default::default()

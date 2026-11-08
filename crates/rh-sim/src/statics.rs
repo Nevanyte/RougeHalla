@@ -202,6 +202,9 @@ pub struct SimConfig {
     pub faction_mode: FactionMode,
     #[serde(default)]
     pub mob_mode: crate::mob_runtime::MobMode,
+    /// The K1 quest module (legacy config.quests): a config switch so a test/experiment can turn it off.
+    #[serde(default)]
+    pub quests: bool,
 }
 
 fn default_wish_lock() -> f64 {
@@ -227,6 +230,7 @@ impl Default for SimConfig {
             weapon_specials: true,
             faction_mode: FactionMode::Off,
             mob_mode: crate::mob_runtime::MobMode::Off,
+            quests: false,
         }
     }
 }

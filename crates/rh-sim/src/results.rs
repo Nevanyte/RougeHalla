@@ -22,6 +22,8 @@ pub enum GvReason {
     Kill,
     Bounty,
     Win,
+    /// A completed quest's GV (source `awardQuestGv`).
+    Quest,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]

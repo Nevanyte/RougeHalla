@@ -54,6 +54,7 @@ fn selected_cards_basic_pve_use_same_headless_and_restore_path() {
     secrets.reward_salt = [1, 2, 3, 4];
     let mut direct = Sim::reset_active(
         SimConfig {
+            quests: false,
             mob_mode: rh_sim::mob_runtime::MobMode::Pve,
             faction_mode: rh_sim::FactionMode::EngagementHolyPlagueFire,
             ..Default::default()

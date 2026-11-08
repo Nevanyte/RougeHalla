@@ -133,6 +133,7 @@ mod tests {
                 .collect::<Vec<_>>();
             let mut sim = Sim::reset_active(
                 SimConfig {
+                    quests: false,
                     faction_mode: crate::FactionMode::EngagementHolyPlagueFire,
                     pvp_rules: c["pvp"].as_bool().unwrap_or(true),
                     ..Default::default()
@@ -240,6 +241,7 @@ mod privacy {
     fn scene(n: usize) -> Sim {
         let mut s = Sim::reset_active(
             SimConfig {
+                quests: false,
                 faction_mode: FactionMode::EngagementHolyPlagueFire,
                 ..Default::default()
             },

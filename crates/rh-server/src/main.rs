@@ -426,6 +426,7 @@ async fn main() {
             .unwrap_or(d)
     };
     let sim = rh_sim::SimConfig {
+        quests: false,
         hazards: rh_sim::terrain::Mode::Off,
         abilities: rh_sim::abilities::Mode::Off,
         wish_lock_ms: rh_sim::abilities::WISH_LOCK_MS,

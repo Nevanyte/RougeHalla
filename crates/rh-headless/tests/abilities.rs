@@ -24,6 +24,7 @@ fn config() -> EnvConfig {
             ],
         },
         sim: SimConfig {
+            quests: false,
             abilities: Mode::Full,
             lifecycle: rh_sim::ArenaMode::Source(rh_sim::ArenaRules {
                 plan_seconds: 0.,

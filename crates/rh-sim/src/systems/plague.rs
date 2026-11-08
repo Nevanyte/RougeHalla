@@ -252,6 +252,7 @@ mod tests {
                 .collect::<Vec<_>>();
             let mut sim = Sim::reset_active(
                 SimConfig {
+                    quests: false,
                     faction_mode: crate::FactionMode::EngagementHolyPlague,
                     pvp_rules: c["pvp"].as_bool().unwrap_or(true),
                     ..Default::default()

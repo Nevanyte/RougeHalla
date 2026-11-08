@@ -257,6 +257,7 @@ fn holy_engaged() -> Sim {
         .collect();
     let mut sim = Sim::reset_active(
         SimConfig {
+            quests: false,
             faction_mode: rh_sim::FactionMode::EngagementHoly,
             ..Default::default()
         },
@@ -354,12 +355,14 @@ fn mob_audit_states() -> (Sim, Sim) {
     secrets.spawn_seed = 12;
     secrets.reward_salt = [1, 2, 3, 4];
     let config = SimConfig {
+        quests: false,
         mob_mode: rh_sim::mob_runtime::MobMode::Pve,
         ..Default::default()
     };
     let mut cleared = Sim::reset_active(config.clone(), arena.clone(), secrets, &placements);
     let mut engaged = Sim::reset_active(
         SimConfig {
+            quests: false,
             faction_mode: rh_sim::FactionMode::EngagementHolyPlagueFire,
             ..config
         },
@@ -449,6 +452,7 @@ fn native_ice_slide() -> Sim {
     ];
     let mut sim = Sim::reset_active(
         SimConfig {
+            quests: false,
             lifecycle: rh_sim::ArenaMode::Off,
             hazards: rh_sim::terrain::Mode::Map,
             ..Default::default()
@@ -474,6 +478,7 @@ fn native_ice_slide() -> Sim {
 fn source_lifecycle_states() -> (Sim, Sim, Sim) {
     let mut sim = Sim::new(
         SimConfig {
+            quests: false,
             lifecycle: rh_sim::ArenaMode::Source(rh_sim::ArenaRules {
                 plan_seconds: 0.2,
                 first_patience_seconds: Some(0.1),
@@ -553,6 +558,7 @@ fn wish_states() -> Vec<(&'static str, Sim)> {
         .collect::<Vec<_>>();
         let mut sim = Sim::reset_active(
             SimConfig {
+                quests: false,
                 abilities: rh_sim::abilities::Mode::Full,
                 lifecycle: rh_sim::ArenaMode::Source(rh_sim::ArenaRules {
                     plan_seconds: 0.,
@@ -905,6 +911,7 @@ const VALIDATED: &[(&str, &str)] = &[
     ("world.players.*.kill_stats.values.#len", "the killStats store is exactly the nine readable investment totals; serde fixes the array length"),
     ("world.players.*.kill_stats.values.*", "a kill-augment grant is non-negative and finite; negative or non-finite totals are refused"),
     ("world.reward_chests.*.owner", "an owner-bound Trophy is produced only by a credited player kill; a non-null owner must name a roster member, and these corpora have no player kill"),
+    ("world.quests", "the quest runtime is absent in these corpora (config.quests off); when it is present its offers, carriers, timers and containers are validated and every nested leaf is hashed"),
     ("world.players.*.vision.reveals.*.ordinal", "first retained reveal is ordinal zero; same-tick successors increment exactly once"),
     ("world.players.*.vision.reveals.*.variant", "locked history requires admitted Source raid producer; repeated origins coalesce only for equal variants"),
     ("world.rt.in_coliseum", "disabled lifecycle forbids coliseum state; Source locked phase requires matching in-coliseum flag"),
@@ -1839,6 +1846,7 @@ fn derived_blink_ring_clone_and_restore_preserve_actual_locked_casts() {
         serde_json::from_str(include_str!("../src/mapdata/fixtures/seed1.map.json")).unwrap();
     let mut original = Sim::new(
         SimConfig {
+            quests: false,
             abilities: rh_sim::abilities::Mode::Full,
             wish_lock_ms: 0.,
             min_players: 2,

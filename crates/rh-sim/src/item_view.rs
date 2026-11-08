@@ -186,6 +186,11 @@ impl ItemObserver {
         let map = sim.collision_view();
         let mut best: Option<(usize, f64, Option<WeaponId>)> = None;
         for c in sim.containers() {
+            // Quest tokens and parcels are not in the public item observation until the coordinator-owned transport
+            // packet adds their cue; the quest runtime still accepts an exact run-local id (headless/policy path).
+            if c.kind == ContainerKind::Quest {
+                continue;
+            }
             if !self.vision.sees(map, me, c.at, sim.tick()) {
                 continue;
             }
@@ -194,7 +199,8 @@ impl ItemObserver {
             }
             let first = c.items.first().and_then(|item| match item.def {
                 crate::initial_world::ItemDef::Weapon(w) => Some(w),
-                crate::initial_world::ItemDef::PotionSmall => None,
+                crate::initial_world::ItemDef::PotionSmall
+                | crate::initial_world::ItemDef::Quest(_) => None,
             });
             let kind = match c.kind {
                 ContainerKind::Ground => PropKind::Ground(first.ok_or(OfferError::InvalidGround)?),
@@ -212,6 +218,8 @@ impl ItemObserver {
                         label: label.clone(),
                     }
                 }
+                // Unreachable: quest containers are skipped above; kept so the closed kind stays explicit.
+                ContainerKind::Quest => continue,
             };
             let cue = PropCue {
                 x: position(c.at.x)?,

@@ -96,7 +96,7 @@ impl Gates {
     /// The match uses the baseline capture plan or the explicitly partial Holy foundation.
     /// Other signature producers remain Pending even in the latter plan.
     pub(crate) const fn of(k: &MatchStatic) -> Gates {
-        if matches!(
+        let mut g = if matches!(
             k.config.mob_mode,
             crate::mob_runtime::MobMode::SpawnFoundation | crate::mob_runtime::MobMode::Pve
         ) {
@@ -109,7 +109,10 @@ impl Gates {
             Gates::HOLY_FOUNDATION
         } else {
             Gates::CAPTURE
-        }
+        };
+        // The quest module's install guard is config.quests && !config.training; every other slot stays as the plan had it.
+        g.quests = k.config.quests;
+        g
     }
     /// Partial explicit-module plan: only engagement and Holy sustain are implemented.
     pub const MOB_BASIC_FACTIONS: Gates = Gates {
@@ -588,6 +591,33 @@ impl Plan {
     /// The plan of a match's world.
     pub(crate) fn of(k: &MatchStatic) -> &'static Plan {
         let g = Gates::of(k);
+        if g.quests && g != Gates::PRODUCTION {
+            if g == (Gates {
+                quests: true,
+                ..Gates::CAPTURE
+            }) {
+                return &QUESTS_CAPTURE_PLAN;
+            }
+            if g == (Gates {
+                quests: true,
+                ..Gates::MOB_FOUNDATION
+            }) {
+                return &QUESTS_MOB_FOUNDATION_PLAN;
+            }
+            if g == (Gates {
+                quests: true,
+                ..Gates::HOLY_FOUNDATION
+            }) {
+                return &QUESTS_HOLY_FOUNDATION_PLAN;
+            }
+            if g == (Gates {
+                quests: true,
+                ..Gates::MOB_BASIC_FACTIONS
+            }) {
+                return &QUESTS_MOB_BASIC_FACTIONS_PLAN;
+            }
+            panic!("no compiled quest plan for gate set {g:?}: add one with the config switch that made it");
+        }
         if g == Gates::PRODUCTION {
             &PRODUCTION_PLAN
         } else if g == Gates::HOLY_FOUNDATION {
@@ -616,6 +646,22 @@ static PRODUCTION_PLAN: Plan = Plan::compile(&Gates::PRODUCTION);
 static CAPTURE_PLAN: Plan = Plan::compile(&Gates::CAPTURE);
 static HOLY_FOUNDATION_PLAN: Plan = Plan::compile(&Gates::HOLY_FOUNDATION);
 static TRAINING_PLAN: Plan = Plan::compile(&Gates::TRAINING);
+static QUESTS_CAPTURE_PLAN: Plan = Plan::compile(&Gates {
+    quests: true,
+    ..Gates::CAPTURE
+});
+static QUESTS_MOB_FOUNDATION_PLAN: Plan = Plan::compile(&Gates {
+    quests: true,
+    ..Gates::MOB_FOUNDATION
+});
+static QUESTS_HOLY_FOUNDATION_PLAN: Plan = Plan::compile(&Gates {
+    quests: true,
+    ..Gates::HOLY_FOUNDATION
+});
+static QUESTS_MOB_BASIC_FACTIONS_PLAN: Plan = Plan::compile(&Gates {
+    quests: true,
+    ..Gates::MOB_BASIC_FACTIONS
+});
 
 /// Runs compiled phases in order: the one place `updateActive`'s systems are called from.
 pub(crate) fn run_steps(cx: &mut Cx, steps: &[(&'static str, PhaseFn)]) -> Flow {
@@ -853,7 +899,11 @@ static SYSTEMS: [Item<SystemFn>; 24] = [
         Gate::Always,
         crate::systems::status::dot::report,
     ),
-    pending("quests.questSystem", Gate::Quests, "P-QUEST-1"),
+    ported(
+        "quests.questSystem",
+        Gate::Quests,
+        crate::quests::live::system,
+    ),
     ported("vision.refreshVision", Gate::Always, crate::vision::refresh),
     partial(
         "consumables.updateConsumables",
@@ -998,7 +1048,7 @@ pub(crate) static ACTIONS: [ActionRow; 13] = [
         "questAccept",
         "quests",
         Gate::Quests,
-        Run::Pending("P-QUEST-1"),
+        Run::Ported(crate::quests::live::handle_accept),
     ),
     action(
         ActionId::UseConsumable,
@@ -1064,7 +1114,12 @@ static DROP_BODY: [Link; 4] = [
         Gate::Training,
         "P-ARENA-2",
     ),
-    pending_link("quests.<arrow>", Mode::Wrap, Gate::Quests, "P-QUEST-1"),
+    ported_link(
+        "quests.<arrow>",
+        Mode::Wrap,
+        Gate::Quests,
+        crate::quests::live::on_drop_body,
+    ),
 ];
 static TELEPORTED: [Link; 13] = [
     ported_link(
@@ -1109,7 +1164,12 @@ static TELEPORTED: [Link; 13] = [
         Gate::Always,
         crate::systems::status::teleported,
     ),
-    pending_link("quests.<arrow>", Mode::Append, Gate::Quests, "P-QUEST-1"),
+    ported_link(
+        "quests.<arrow>",
+        Mode::Append,
+        Gate::Quests,
+        crate::quests::live::on_teleported,
+    ),
     ported_link(
         "vision.refreshAllVision",
         Mode::Append,
@@ -1189,11 +1249,11 @@ static PLAYER_KILLED: [Link; 3] = [
         Gate::Always,
         crate::kill_augments::on_player_killed,
     ),
-    pending_link(
+    ported_link(
         "quests.onPlayerKilled",
         Mode::Append,
         Gate::Quests,
-        "P-QUEST-1",
+        crate::quests::live::on_player_killed,
     ),
 ];
 static EXECUTE_DENIED: [Link; 1] = [ported_link(
@@ -1237,11 +1297,11 @@ static RAID_STARTED: [Link; 14] = [
         "P-ABIL-1",
         crate::systems::status::raid_started,
     ),
-    pending_link(
+    ported_link(
         "quests.raidStarted",
         Mode::Append,
         Gate::Quests,
-        "P-QUEST-1",
+        crate::quests::live::on_raid_started,
     ),
     ported_link(
         "vision.refreshAllVision",
@@ -1307,7 +1367,12 @@ static RUN_ENDED: [Link; 12] = [
         Gate::Always,
         crate::systems::status::run_ended,
     ),
-    pending_link("quests.<arrow>", Mode::Append, Gate::Quests, "P-QUEST-1"),
+    ported_link(
+        "quests.<arrow>",
+        Mode::Append,
+        Gate::Quests,
+        crate::quests::live::on_run_ended,
+    ),
     ported_link(
         "cardHooks.dropDeferred",
         Mode::Append,
@@ -1359,11 +1424,11 @@ static MOB_KILLED: [Link; 2] = [
         Gate::Always,
         crate::reward_chests::on_mob_killed,
     ),
-    pending_link(
+    ported_link(
         "quests.onMobKilled",
         Mode::Append,
         Gate::Quests,
-        "P-QUEST-1",
+        crate::quests::live::on_mob_killed,
     ),
 ];
 static ARENA_HURT: [Link; 1] = [ported_link(
@@ -1436,18 +1501,18 @@ static STAGGERED: [Link; 1] = [ported_link(
     Gate::Always,
     crate::systems::status::staggered,
 )];
-static PLANNING_STARTED: [Link; 1] = [pending_link(
+static PLANNING_STARTED: [Link; 1] = [ported_link(
     "quests.spawnQuests",
     Mode::Append,
     Gate::Quests,
-    "P-QUEST-1",
+    crate::quests::live::on_planning_started,
 )];
 static CAMP_CLEARED: [Link; 3] = [
-    pending_link(
+    ported_link(
         "quests.onCampCleared",
         Mode::Append,
         Gate::Quests,
-        "P-QUEST-1",
+        crate::quests::live::on_camp_cleared,
     ),
     pending_link(
         "campHeal.payCampHeal",

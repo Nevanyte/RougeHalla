@@ -23,6 +23,7 @@ fn player(n: u32, x: f64, slots: [Option<WeaponId>; 2]) -> Placement {
 fn world(ps: &[Placement], specials: bool) -> Sim {
     Sim::reset_active(
         SimConfig {
+            quests: false,
             weapon_specials: specials,
             ..Default::default()
         },

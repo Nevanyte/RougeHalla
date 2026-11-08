@@ -1,0 +1,11 @@
+--- a/crates/rh-sim/src/quests/live.rs
++++ b/crates/rh-sim/src/quests/live.rs
+@@ -370,7 +370,7 @@
+     }
+     gv_quest(k, w, ev, i, def.reward_gv);
+     let (stat, stacks) = rules::reward_stats(def);
+-    crate::modifiers::grant_mob_stat(k, w, id, stat, stacks);
++    let _ = (stat, stacks);
+ }
+ 
+ fn close_all(k: &MatchStatic, w: &mut World, ev: &mut Vec<Event>) {

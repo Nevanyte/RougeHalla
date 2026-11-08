@@ -12,6 +12,7 @@ fn env() -> Env {
         EnvConfig {
             arena,
             sim: SimConfig {
+                quests: false,
                 faction_mode: FactionMode::EngagementHolyPlagueFireFrost,
                 ..Default::default()
             },

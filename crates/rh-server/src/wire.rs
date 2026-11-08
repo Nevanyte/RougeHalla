@@ -12,6 +12,7 @@ use rh_sim::sim::{Outcome, Phase, Status};
 use rh_sim::Class;
 use rh_sim::RunResult;
 
+/// The public command projection. A quest accept has no protocol message yet: the sim's QuestAccept command is reachable /// only through the headless/policy C-INPUT door until the coordinator-owned transport packet adds the wire message (with /// its protocol bump, fixtures and decoders). This is the one place a transport packet flips.
 pub fn command(c: WireCommand) -> rh_sim::PublicCommand {
     use rh_sim::PublicCommand as Public;
     match c {
@@ -653,6 +654,7 @@ mod tests {
 
     fn arena_env() -> Env {
         profile_env(SimConfig {
+            quests: false,
             lifecycle: rh_sim::ArenaMode::Source(rh_sim::ArenaRules::default()),
             min_players: 2,
             lobby_seconds: 0.,
@@ -733,6 +735,7 @@ mod tests {
     fn full_wishes_refuse_even_with_arena_off_before_frames_or_offers() {
         let mut sim = rh_sim::Sim::new(
             SimConfig {
+                quests: false,
                 abilities: rh_sim::abilities::Mode::Full,
                 lifecycle: rh_sim::ArenaMode::Off,
                 min_players: 2,

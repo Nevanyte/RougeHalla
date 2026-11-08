@@ -27,6 +27,7 @@ fn scene() -> Sim {
     secrets.reward_salt = [1, 2, 3, 4];
     Sim::reset_active(
         SimConfig {
+            quests: false,
             mob_mode: rh_sim::mob_runtime::MobMode::Pve,
             ..Default::default()
         },

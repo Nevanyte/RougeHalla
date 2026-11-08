@@ -86,6 +86,9 @@ pub(super) fn credit(w: &mut World, ev: &mut Vec<Event>, i: usize, reason: GvRea
         }
         GvReason::Skip | GvReason::Mob | GvReason::Elite => p.credit.gv_parts.mobs += amount,
         GvReason::Win => {}
+        // The quest GV is computed and capped by the quest runtime itself (source awardQuestGv); this arm exists so the
+        // reason stays in the closed set.
+        GvReason::Quest => {}
     }
     p.credit.gv = p
         .credit

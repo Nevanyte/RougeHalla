@@ -175,6 +175,7 @@ fn build(case: &Value) -> Sim {
         .collect();
     let mut sim = Sim::reset_active(
         SimConfig {
+            quests: false,
             faction_mode: crate::FactionMode::EngagementHolyPlagueFireFrostSentenced,
             ..Default::default()
         },
@@ -527,6 +528,7 @@ fn the_mutation_guard_sees_a_changed_cleared_field() {
 fn the_coliseum_producer_runs_the_reset_link() {
     let mut sim = Sim::new(
         SimConfig {
+            quests: false,
             faction_mode: crate::FactionMode::EngagementHolyPlagueFireFrostSentenced,
             min_players: 2,
             fill_seconds: 0.,

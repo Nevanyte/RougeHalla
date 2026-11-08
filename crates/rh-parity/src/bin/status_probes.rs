@@ -618,6 +618,7 @@ fn build(v: &V, ids: &mut Ids) -> R<Harness> {
         .map_err(|e| e.to_string())?;
     let sim = Sim::reset_active(
         SimConfig {
+            quests: false,
             min_players: usize::try_from(v["config"]["minPlayers"].as_u64().ok_or("minPlayers")?)
                 .map_err(|_| "minPlayers overflow")?,
             lobby_seconds: n(&v["config"]["lobbySeconds"])?,

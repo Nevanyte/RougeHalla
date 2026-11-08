@@ -428,6 +428,7 @@ impl OutcomeDigest {
                     GvReason::Skip => "skip",
                     GvReason::Mob => "mob",
                     GvReason::Elite => "elite",
+                    GvReason::Quest => "quest",
                 });
             }
             Event::Bounty { id, bounty } => {

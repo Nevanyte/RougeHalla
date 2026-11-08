@@ -45,6 +45,7 @@ fn arena() -> Arena {
 
 fn sim_config() -> SimConfig {
     SimConfig {
+        quests: false,
         abilities: rh_sim::abilities::Mode::Off,
         wish_lock_ms: rh_sim::abilities::WISH_LOCK_MS,
         lifecycle: rh_sim::ArenaMode::Off,
@@ -428,6 +429,7 @@ async fn room_heap_probe() {
     let arena = rh_headless::load_arena(&map).expect("map");
     // One human closes the lobby on the first step: the next admission opens a room of its own.
     let sim = SimConfig {
+        quests: false,
         abilities: rh_sim::abilities::Mode::Off,
         wish_lock_ms: rh_sim::abilities::WISH_LOCK_MS,
         lifecycle: rh_sim::ArenaMode::Off,

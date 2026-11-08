@@ -92,6 +92,10 @@ pub enum RawCommand {
         chest_id: Option<u32>,
         pick: i8,
     },
+    /// Accept a quest offer at its giver (legacy questAccept): a run-local offer id.
+    QuestAccept {
+        quest_id: Option<u32>,
+    },
     Target {
         id: crate::PlayerId,
     },
@@ -171,6 +175,9 @@ enum Kind {
     Choose {
         chest_id: Option<u32>,
         pick: i8,
+    },
+    QuestAccept {
+        quest_id: Option<u32>,
     },
     Target {
         id: crate::PlayerId,
@@ -287,6 +294,7 @@ impl Kind {
             Kind::Plan { spawn, boon, ready } => RawCommand::Plan { spawn, boon, ready },
             Kind::UseConsumable => RawCommand::UseConsumable,
             Kind::Choose { chest_id, pick } => RawCommand::Choose { chest_id, pick },
+            Kind::QuestAccept { quest_id } => RawCommand::QuestAccept { quest_id },
             Kind::Target { id } => RawCommand::Target { id },
             Kind::MissingTarget => RawCommand::MissingTarget,
             Kind::AttackMove { x, y, seq } => RawCommand::AttackMove { x, y, seq },
@@ -395,6 +403,8 @@ pub fn validate(raw: RawCommand) -> Result<Command, Reject> {
             return Err(Reject::InvalidContainer)
         }
         RawCommand::Choose { chest_id, pick } => Kind::Choose { chest_id, pick },
+        RawCommand::QuestAccept { quest_id: Some(0) } => return Err(Reject::InvalidContainer),
+        RawCommand::QuestAccept { quest_id } => Kind::QuestAccept { quest_id },
         RawCommand::Swap { slot } if slot.is_some_and(|i| i > 1) => {
             return Err(Reject::InvalidSlot)
         }
@@ -452,6 +462,9 @@ pub(crate) enum ActionCmd {
     Choose {
         chest_id: Option<u32>,
         pick: i8,
+    },
+    QuestAccept {
+        quest_id: Option<u32>,
     },
     Target {
         id: crate::PlayerId,
@@ -587,6 +600,10 @@ impl InputQueue {
                     RawCommand::Choose { chest_id, pick },
                     Kind::Choose { chest_id, pick },
                 )?,
+                ActionCmd::QuestAccept { quest_id } => same(
+                    RawCommand::QuestAccept { quest_id },
+                    Kind::QuestAccept { quest_id },
+                )?,
                 ActionCmd::Target { id } => same(RawCommand::Target { id }, Kind::Target { id })?,
                 ActionCmd::MissingTarget => same(RawCommand::MissingTarget, Kind::MissingTarget)?,
                 ActionCmd::MissingPickup => same(RawCommand::MissingPickup, Kind::MissingPickup)?,
@@ -703,6 +720,9 @@ impl InputQueue {
             }
             Kind::Choose { chest_id, pick } => {
                 return self.push_action(ActionCmd::Choose { chest_id, pick })
+            }
+            Kind::QuestAccept { quest_id } => {
+                return self.push_action(ActionCmd::QuestAccept { quest_id })
             }
             Kind::MissingPickup => return self.push_action(ActionCmd::MissingPickup),
             Kind::Swap { slot } => return self.push_action(ActionCmd::Swap { slot }),

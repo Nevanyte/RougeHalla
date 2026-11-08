@@ -61,6 +61,7 @@ fn load(name: &str) -> Scenario {
         reward_salt: [0x12345678, 0x9abcdef0, 0x31415926, 0x27182818],
     };
     let config = SimConfig {
+        quests: false,
         faction_mode: if fx["legacyConfig"]["rustSlice"]
             == "player-engagement-holy-plague-fire-frost/1"
         {
@@ -209,6 +210,7 @@ fn holy_crowded() {
         .collect();
     let mut sim = Sim::reset_active(
         SimConfig {
+            quests: false,
             faction_mode: rh_sim::FactionMode::EngagementHoly,
             ..Default::default()
         },
@@ -286,6 +288,7 @@ fn frost_crowded() {
         .collect();
     let mut sim = Sim::reset_active(
         SimConfig {
+            quests: false,
             faction_mode: rh_sim::FactionMode::EngagementHolyPlagueFireFrost,
             ..Default::default()
         },
@@ -394,6 +397,7 @@ fn sentenced_crowded() {
         .collect();
     let mut sim = Sim::reset_active(
         SimConfig {
+            quests: false,
             faction_mode: rh_sim::FactionMode::EngagementHolyPlagueFireFrostSentenced,
             ..Default::default()
         },
@@ -546,6 +550,7 @@ fn sentenced_denial_refills() {
         .collect();
     let sim = Sim::reset_active(
         SimConfig {
+            quests: false,
             faction_mode: rh_sim::FactionMode::EngagementHolyPlagueFireFrostSentenced,
             ..Default::default()
         },

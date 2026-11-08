@@ -29,6 +29,7 @@ fn nonseat_mobs_survive_headless_record_and_restore() {
     let config = EnvConfig {
         arena,
         sim: SimConfig {
+            quests: false,
             mob_mode: rh_sim::mob_runtime::MobMode::SpawnFoundation,
             ..SimConfig::default()
         },

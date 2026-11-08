@@ -74,6 +74,7 @@ fn config(c: &Value) -> SimConfig {
         min_gap_seconds: n(s, "minGapSeconds"),
     };
     SimConfig {
+        quests: false,
         min_players: p["minPlayers"].as_u64().unwrap() as usize,
         lobby_seconds: n(p, "lobbySeconds"),
         fill_seconds: n(p, "fillSeconds"),

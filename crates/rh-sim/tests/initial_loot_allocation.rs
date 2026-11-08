@@ -47,6 +47,7 @@ fn active_potion_payments_do_not_allocate_in_the_steady_tick() {
     ];
     let mut s = Sim::reset_active(
         SimConfig {
+            quests: false,
             initial_loot: true,
             ..Default::default()
         },
