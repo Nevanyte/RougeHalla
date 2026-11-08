@@ -1,0 +1,95 @@
+{
+  "source_repository": "https://github.com/flareteam/flare-game",
+  "source_commit": "af6eee6d339ac98011864bfe89da837fe7769c28",
+  "credit_ledger": "https://github.com/flareteam/flare-game/wiki/Credits",
+  "assets": [
+    {
+      "file": "music/battle_theme.ogg",
+      "source_path": "mods/fantasycore/music/battle_theme.ogg",
+      "source_url": "https://github.com/flareteam/flare-game/blob/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/music/battle_theme.ogg",
+      "upstream_git_blob_sha1": "7abf078078fd8359ceb58abd095a7b55246ef421",
+      "sha256": "c16834bde4cd332f6751afd77bc411f781406f68ce89f3a1026d67ba63a53494",
+      "bytes": 3327365,
+      "credit": "remaxim",
+      "license": "CC BY-SA 3.0",
+      "intended_slot": "Main combat music"
+    },
+    {
+      "file": "music/dungeon_theme.ogg",
+      "source_path": "mods/fantasycore/music/dungeon_theme.ogg",
+      "source_url": "https://github.com/flareteam/flare-game/blob/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/music/dungeon_theme.ogg",
+      "upstream_git_blob_sha1": "f8e956fc6ccc941c5d43ce165b1cb68fac28ee7a",
+      "sha256": "11dbd96e8ddb7312b849c128525416c5e33f0ca1bc19c7768ece678e654edef1",
+      "bytes": 2902019,
+      "credit": "remaxim",
+      "license": "CC BY-SA 3.0",
+      "intended_slot": "Dungeon exploration music"
+    },
+    {
+      "file": "ambience/bird_twitter_loop.ogg",
+      "source_path": "mods/fantasycore/soundfx/environment/bird_twitter_loop.ogg",
+      "source_url": "https://github.com/flareteam/flare-game/blob/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/soundfx/environment/bird_twitter_loop.ogg",
+      "upstream_git_blob_sha1": "ac5fd3573baca78c71a5ade1451ee94f6206cbe8",
+      "sha256": "8ff20108708b024b2790252815753fdc6335a2790a3a9d777bfe55fb2fc46d3f",
+      "bytes": 222530,
+      "credit": "Chris Castiglione (alienistcog)",
+      "license": "CC0",
+      "intended_slot": "Ambient wildlife loop"
+    },
+    {
+      "file": "sfx/melee_attack.ogg",
+      "source_path": "mods/fantasycore/soundfx/melee_attack.ogg",
+      "source_url": "https://github.com/flareteam/flare-game/blob/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/soundfx/melee_attack.ogg",
+      "upstream_git_blob_sha1": "f55748aae50d6239b0d75ebdc748d5ca10a08a5a",
+      "sha256": "bcb5d618730de5568b5dad1a9c741b5907aa8098ff69de76d2393752d16d165b",
+      "bytes": 8914,
+      "credit": "Not identified in upstream credit ledger",
+      "license": "CC BY-SA 3.0 (project default; no per-file ledger entry)",
+      "intended_slot": "Melee swing"
+    },
+    {
+      "file": "sfx/zombie_hit.ogg",
+      "source_path": "mods/fantasycore/soundfx/enemies/zombie_hit.ogg",
+      "source_url": "https://github.com/flareteam/flare-game/blob/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/soundfx/enemies/zombie_hit.ogg",
+      "upstream_git_blob_sha1": "0e357fdbfcfdd0a1047968ed2a752320a398c477",
+      "sha256": "53bbac8f52093aa768235666d564c73ca2ee575b69551a1458585265f06a7e50",
+      "bytes": 8715,
+      "credit": "Ljudbank",
+      "license": "Public Domain / CC0",
+      "intended_slot": "Combat hit"
+    },
+    {
+      "file": "sfx/inventory_book.ogg",
+      "source_path": "mods/fantasycore/soundfx/inventory/inventory_book.ogg",
+      "source_url": "https://github.com/flareteam/flare-game/blob/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/soundfx/inventory/inventory_book.ogg",
+      "upstream_git_blob_sha1": "fcc5802a9f6fea520c6c9873dc492e2d463111ec",
+      "sha256": "9ee30dce3da512fe10a6e249e6c321636cad4cb008d0db228eff9eaacdf3e2b5",
+      "bytes": 6180,
+      "credit": "Cori Samuel",
+      "license": "Public Domain / CC0",
+      "intended_slot": "UI/menu interaction"
+    },
+    {
+      "file": "sfx/inventory_object.ogg",
+      "source_path": "mods/fantasycore/soundfx/inventory/inventory_object.ogg",
+      "source_url": "https://github.com/flareteam/flare-game/blob/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/soundfx/inventory/inventory_object.ogg",
+      "upstream_git_blob_sha1": "d0a862447e50adb63aee77070f1221efc9070daf",
+      "sha256": "b0f21e97642328271f3a68cbf35b6cba6dd9f3f6b16e94aa32881e6c71972ec7",
+      "bytes": 6699,
+      "credit": "Michel Baradari",
+      "license": "CC BY 3.0",
+      "intended_slot": "Item pickup / inventory interaction"
+    },
+    {
+      "file": "sfx/inventory_coins.ogg",
+      "source_path": "mods/fantasycore/soundfx/inventory/inventory_coins.ogg",
+      "source_url": "https://github.com/flareteam/flare-game/blob/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/soundfx/inventory/inventory_coins.ogg",
+      "upstream_git_blob_sha1": "7f27477d09580c8f50b4525fd1e6551b541c0a3a",
+      "sha256": "2d787246ba719d70a2580f04cb5d178180235d66147207b5fcd4d2aea318f3dd",
+      "bytes": 7887,
+      "credit": "artisticdude",
+      "license": "Public Domain / CC BY 3.0",
+      "intended_slot": "Item pickup / coin interaction"
+    }
+  ]
+}
