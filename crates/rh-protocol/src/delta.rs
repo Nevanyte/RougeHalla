@@ -1137,8 +1137,10 @@ impl SelfDelta {
         if m & DH_HUNT_STACKS != 0 {
             s.hunt_stacks = self.hunt_stacks;
         }
-        if let Some(wish) = self.wish {
-            s.wish = wish;
+        if m & DH_WISH != 0 {
+            if let Some(wish) = self.wish {
+                s.wish = wish;
+            }
         }
         if m & DH_BARRIER != 0 {
             s.barrier = self.barrier;

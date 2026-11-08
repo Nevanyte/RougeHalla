@@ -184,3 +184,35 @@ fn landed_fx_rejects_open_or_mismatched_geometry() {
     assert!(fx(1, None, point, Some(7)).try_encode().is_err());
     assert!(fx(3, None, None, None).try_encode().is_err());
 }
+
+#[test]
+fn self_delta_wish_payload_is_ignored_without_its_mask_bit() {
+    use rh_protocol::delta::DH_WISH;
+
+    let base_wish = wish();
+    let base = self_view(Some(base_wish), 0.0, 0);
+    let replacement = WireWishOwner {
+        ready_at: 9_999.0,
+        ..wish()
+    };
+
+    let unmasked = SelfDelta {
+        wish: Some(Some(replacement)),
+        ..SelfDelta::default()
+    };
+    assert_eq!(unmasked.apply(&base).wish, Some(base_wish));
+
+    let present = SelfDelta {
+        mask: DH_WISH,
+        wish: Some(Some(replacement)),
+        ..SelfDelta::default()
+    };
+    assert_eq!(present.apply(&base).wish, Some(replacement));
+
+    let clear = SelfDelta {
+        mask: DH_WISH,
+        wish: Some(None),
+        ..SelfDelta::default()
+    };
+    assert_eq!(clear.apply(&base).wish, None);
+}
