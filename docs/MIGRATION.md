@@ -57,6 +57,11 @@ non-provenance payloads/private records, checks every source/harness pin and ori
 evidence hashes. The separate checker reproduces both positive/negative controls. The original workflow remains
 **failed**; both repairs now await the next exact integration-head CI run.
 
+The follow-up CI42525598022 at `a894574f` passes simulation, C# and the card-runtime source job, but the Rust job
+fails its catalog capture: the browser-driver repair changed the exact protected `tools/browser-proof/proof.mjs` hash.
+This is a second provenance dependency, not a changed409-case source payload. A bounded metadata-chain repair and fast
+read-only provenance auditor are assigned; this run is **failed**, and no final green-CI claim follows.
+
 One actual final Unity Web build passes,14files/74,247,550bytes. Generated BakedContent is aa64c642; the manifest binds
 frozen1310 source, exact as-built serialization overlay and the dev server binary SHA20d5b70e…5b4b0. Independent checks
 verify82source hashes,24packaged build-evidence files and all14served resources. There is no embedded runtime revision
@@ -89,6 +94,18 @@ passes four JsonUtility/PlayerPrefs tests; root verifies489 tested project hashe
 serialization overlay) and21 exact adapter files. It does not yet wire normal menu/Join, implement full-profile maps,
 prove browser reload durability or establish bank completion. The account owner supplies reusable lifetime/origin APIs;
 the separately owner-approved Unity UI modernization lane owns their functional Bootstrap/MatchClient/MatchHud integration.
+
+The [local cold-backup/restore proof](evidence/backup-restore-proof/ADMISSION.md) is admitted through `b9785ecf` after
+independent fresh execution and focused assertion strengthening. Distinct durable PostgreSQL clusters, actual HTTP and
+combat-produced pending spool records, explicit old-writer fencing, logical dump/restore, exact metadata/original-time
+retention, duplicate replay, live-lease and successor-fence controls pass. Root verifies all19 portable evidence hashes;
+production server/persistence code is unchanged from the tested base. This extends the earlier service-reconstruction
+proof to a quiescent local cold restore; cloud/PITR/power-loss and populated purchase/bot-learning recovery remain open.
+
+A [fresh-import Unity settings repair](evidence/unity-tagmanager-parser/README.md) is admitted at `f4f418be`. Two isolated
+pinned Editor probes show27 bare empty layer entries caused parser errors; explicit empty strings remove those errors
+while retaining all32 layer names and sorting-layer values. The existing live Editor was untouched. This is settings
+parser evidence, not acceptance of the pending combined UI/Web build.
 
 [Frozen gate scopes and receipts](evidence/native-wish-union/FROZEN13_GATE.md) supersede the private pre-admission status
 below. The older results and artifact descriptions that follow retain their historical revision limits.
