@@ -134,6 +134,10 @@ pub(crate) fn after_damage(w: &mut World) {
             .filter_map(|id| w.player(*id))
             .map(|p| crate::modifiers::frost_chill(p))
             .fold(1., f64::min);
+        // Iron Will: the victim's folded slow_resist weakens the cut by the resisted share, exactly like the source's
+        // resistSlow(m, slowResistOf(victim)) — read before the mutable victim borrow.
+        let resist = crate::modifiers::view(&w.players[i].core).slow_resist;
+        let chill = crate::status_runtime::resist_slow(chill, resist);
         let p = &mut w.players[i].core;
         let f = &mut p.signature;
         f.chill = chill;
@@ -165,7 +169,10 @@ pub(crate) fn after_damage(w: &mut World) {
             1.
         };
         let raw = near_mult.min(ranged_mult);
-        f.frost_move_mult = (raw * FROST_MOVE_QUANTIZATION + 0.5).floor() / FROST_MOVE_QUANTIZATION;
+        // Same source order: the victim's resistance applies to the combined near/ranged result before quantization.
+        let move_mult = crate::status_runtime::resist_slow(raw, resist);
+        f.frost_move_mult =
+            (move_mult * FROST_MOVE_QUANTIZATION + 0.5).floor() / FROST_MOVE_QUANTIZATION;
         if f.chill < 1. {
             f.bits |= SIG_CHILLED;
             p.weapon.ready_at = stretch_until(p.weapon.ready_at, now, TICK_MS, f.chill);
@@ -221,9 +228,13 @@ pub(crate) fn validate_signature(
     let valid_time = |t: f64| (0. ..=w.server_time).contains(&t);
     if (!enabled && !identity)
         || count > MAX_PLAYERS
+        // Reachable chill values are the image of resist_slow over the source range [1 - FROST_SLOW - frost_cap,
+        // 1 - FROST_SLOW] and a resistance in [0, 1]: the union is the same lower bound up to 1 (a full resistance
+        // leaves no cut), so partly resisted values above the unresisted ceiling are legitimate. A restore may also
+        // happen after the victim's folded resistance changed, so the cached value is not required to equal a fresh
+        // recomputation from the current stats.
         || !(f.chill == 1.
-            || ((1. - FROST_SLOW - crate::modifiers::DEFINITION.frost_cap)..=(1. - FROST_SLOW))
-                .contains(&f.chill))
+            || ((1. - FROST_SLOW - crate::modifiers::DEFINITION.frost_cap)..=1.).contains(&f.chill))
         || !f.frost_move_mult.is_finite()
         || !(CHILL_MOVE_MULT..=1.).contains(&f.frost_move_mult)
         || (f.frost_move_mult * FROST_MOVE_QUANTIZATION).round() / FROST_MOVE_QUANTIZATION
@@ -486,7 +497,7 @@ mod tests {
         let base = serde_json::to_value(&s).unwrap();
         Sim::restore(base.clone()).unwrap();
         let mutations = [
-            ("chill", json!(0.68)),
+            ("chill", json!(0.479)),
             ("chiller_count", json!(9)),
             (
                 "chillers",
@@ -705,5 +716,451 @@ mod tests {
                 "{c}"
             );
         }
+    }
+
+    fn grant_iron_will(s: &mut Sim, slot: usize) {
+        s.w.players[slot].build =
+            crate::cards::Build::from_counts([(crate::cards::CardId::IronWill, 1)]);
+        crate::modifiers::recompute(&s.k, &mut s.w, crate::fighter::FighterIx::of_slot(slot));
+        crate::modifiers::sync_max_hp(&mut s.w.players[slot]);
+    }
+    fn engage(s: &mut Sim, a: usize, b: usize) {
+        let now = s.w.server_time;
+        for (i, j) in [(a, b), (b, a)] {
+            let f = &mut s.w.players[i].signature;
+            f.target = Some(PlayerId(j as u32 + 1));
+            f.engaged = true;
+            f.in_reach = true;
+            f.contact_at = Some(now);
+            f.reach_at = Some(now);
+        }
+    }
+    fn landed(victim: u32, by: u32) -> LandedHit {
+        LandedHit {
+            critical: false,
+            cut: 1.,
+            ability: None,
+            dot: false,
+            sig: None,
+            weapon: Some(WeaponId::Bow),
+            victim: PlayerId(victim),
+            by: Some(PlayerId(by)),
+            amount: 100.,
+            race: 1.,
+        }
+    }
+    /// Source updateChill: the victim's folded slow_resist (Iron Will 0.4) weakens the attack chill and the combined
+    /// near/ranged movement result before quantization. The no-card values must stay the existing ones.
+    #[test]
+    fn iron_will_weakens_attack_chill_and_near_movement() {
+        let mut baseline = scene();
+        baseline.w.server_time = 10_000.;
+        engage(&mut baseline, 0, 1);
+        after_damage(&mut baseline.w);
+        let f = &baseline.w.players[1].signature;
+        assert_eq!(f.chill, 1. - FROST_SLOW);
+        assert_eq!(f.frost_move_mult, CHILL_MOVE_MULT);
+        assert_ne!(f.bits & SIG_CHILLED, 0);
+
+        let mut s = scene();
+        grant_iron_will(&mut s, 1);
+        assert_eq!(
+            crate::modifiers::view(&s.w.players[1].core).slow_resist,
+            0.4
+        );
+        s.w.server_time = 10_000.;
+        engage(&mut s, 0, 1);
+        after_damage(&mut s.w);
+        let f = &s.w.players[1].signature;
+        let expected = crate::status_runtime::resist_slow(1. - FROST_SLOW, 0.4);
+        assert!((f.chill - expected).abs() < 1e-15);
+        assert!(
+            (f.chill - 0.808).abs() < 1e-12,
+            "source witness attack 0.68->0.808: {}",
+            f.chill
+        );
+        assert_eq!(f.chillers[0], Some(PlayerId(1)));
+        assert!(
+            (f.frost_move_mult - 0.82).abs() < 1e-12,
+            "source witness near 0.70->0.82: {}",
+            f.frost_move_mult
+        );
+        assert_ne!(f.bits & SIG_CHILLED, 0);
+    }
+    #[test]
+    fn iron_will_weakens_ranged_movement_and_overlap_and_source_card_is_neutral() {
+        let mut baseline = scene();
+        baseline.w.server_time = 10_000.;
+        ranged_hits(&mut baseline.w, &[landed(2, 1)]);
+        after_damage(&mut baseline.w);
+        assert_eq!(
+            baseline.w.players[1].signature.frost_move_mult,
+            FROST_RANGED_CHILL_MULT
+        );
+
+        let mut s = scene();
+        grant_iron_will(&mut s, 1);
+        s.w.server_time = 10_000.;
+        ranged_hits(&mut s.w, &[landed(2, 1)]);
+        after_damage(&mut s.w);
+        assert!(
+            (s.w.players[1].signature.frost_move_mult - 0.91).abs() < 1e-12,
+            "source witness ranged 0.85->0.91: {}",
+            s.w.players[1].signature.frost_move_mult
+        );
+        // Overlap (near and ranged in the same tick) resists the source minimum, never the larger term.
+        let mut o = scene();
+        grant_iron_will(&mut o, 1);
+        o.w.server_time = 10_000.;
+        engage(&mut o, 0, 1);
+        ranged_hits(&mut o.w, &[landed(2, 1)]);
+        after_damage(&mut o.w);
+        assert!((o.w.players[1].signature.frost_move_mult - 0.82).abs() < 1e-12);
+
+        // Iron Will on the Frost source does not change the chill it produces.
+        let mut source_card = scene();
+        grant_iron_will(&mut source_card, 0);
+        source_card.w.server_time = 10_000.;
+        engage(&mut source_card, 0, 1);
+        after_damage(&mut source_card.w);
+        assert_eq!(source_card.w.players[1].signature.chill, 1. - FROST_SLOW);
+    }
+    #[test]
+    fn resisted_chill_stretches_buffered_melee_and_bow_draw_clocks() {
+        let mut s = scene();
+        grant_iron_will(&mut s, 1);
+        s.w.server_time = 10_000.;
+        engage(&mut s, 0, 1);
+        let m = crate::status_runtime::resist_slow(1. - FROST_SLOW, 0.4);
+        let p = &mut s.w.players[1];
+        // 100 ms left is above m*dt for m about 0.808: the kept time grows by (1-m)*dt each chilled tick.
+        p.weapon.ready_at = 10_100.;
+        p.weapon.buffered_until = 10_100.;
+        p.weapon.action = Some(crate::state::PendingAction {
+            kind: ActionKind::Draw,
+            weapon: WeaponId::Bow,
+            target: None,
+            started_at: 9_900.,
+            lands_at: 10_100.,
+            a: 0.,
+            packet: crate::state::Packet {
+                raw: 1.,
+                phys: 1.,
+                magic: 0.,
+                true_: 0.,
+            },
+            roam_armed: false,
+        });
+        p.weapon.draw_started_at = 9_900.;
+        after_damage(&mut s.w);
+        let p = &s.w.players[1];
+        assert!((p.signature.chill - m).abs() < 1e-15);
+        let expected_ready = 10_100. + (1. - m) * TICK_MS;
+        assert!((p.weapon.ready_at - expected_ready).abs() < 1e-12);
+        assert!((p.weapon.buffered_until - expected_ready).abs() < 1e-12);
+        let a = p.weapon.action.expect("draw survives");
+        assert!((a.lands_at - expected_ready).abs() < 1e-12);
+        assert!((a.started_at - (9_900. + (1. - m) * TICK_MS)).abs() < 1e-12);
+        assert!((p.weapon.draw_started_at - a.started_at).abs() < 1e-12);
+    }
+    #[test]
+    fn resisted_chill_state_restores_continues_and_replays() {
+        let mut s = scene();
+        grant_iron_will(&mut s, 1);
+        s.w.server_time = 10_000.;
+        engage(&mut s, 0, 1);
+        after_damage(&mut s.w);
+        let partial = s.w.players[1].signature.chill;
+        assert!(partial > 1. - FROST_SLOW && partial < 1.);
+        let checkpoint = serde_json::to_value(&s).unwrap();
+        let mut a =
+            Sim::restore(checkpoint.clone()).expect("a reachable partly resisted chill restores");
+        let mut b = Sim::restore(checkpoint).unwrap();
+        assert_eq!(a.player(PlayerId(2)).unwrap().signature.chill, partial);
+        for _ in 0..20 {
+            for sim in [&mut a, &mut b] {
+                sim.w.server_time += TICK_MS;
+                engage(sim, 0, 1);
+                after_damage(&mut sim.w);
+            }
+            assert_eq!(a.state_hash(), b.state_hash(), "continue replay");
+            a = Sim::restore(serde_json::to_value(&a).unwrap())
+                .expect("restore each continued tick");
+        }
+        // A cached resisted chill may predate a resistance change (the restore must not demand a fresh recomputation).
+        let before_change = serde_json::to_value(&s).unwrap();
+        s.w.players[1].build = crate::cards::Build::default();
+        crate::modifiers::recompute(&s.k, &mut s.w, crate::fighter::FighterIx::of_slot(1));
+        assert_eq!(crate::modifiers::view(&s.w.players[1].core).slow_resist, 0.);
+        Sim::restore(before_change)
+            .expect("a cached resisted chill survives a later resistance change");
+    }
+
+    // ---- P-FROST-RESISTANCE-1 pinned source witnesses (actual-source corpus; no out-of-scope parity test file) ----
+    const FR_CORPUS: &str = include_str!("../../../../parity/frost-resistance/source.json");
+    const FR_QUANT: f64 = 1000.;
+    fn fr_corpus() -> Value {
+        serde_json::from_str(FR_CORPUS).expect("the Frost-resistance source corpus parses")
+    }
+    fn fr_cases() -> Vec<Value> {
+        fr_corpus()["cases"].as_array().expect("cases").to_vec()
+    }
+    fn fr_case(name: &str) -> Value {
+        fr_cases()
+            .into_iter()
+            .find(|c| c["name"] == name)
+            .unwrap_or_else(|| panic!("missing captured case {name}"))
+    }
+    fn fr_num(v: &Value, key: &str) -> f64 {
+        v[key]
+            .as_f64()
+            .unwrap_or_else(|| panic!("{key} is not a number: {v}"))
+    }
+    fn fr_find_witness(case: &Value, tick: u64) -> Option<Value> {
+        case["witnesses"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|w| w["tick"].as_u64() == Some(tick))
+            .cloned()
+    }
+    fn fr_witness(case: &Value, tick: u64, id: &str) -> Value {
+        let w = fr_find_witness(case, tick)
+            .unwrap_or_else(|| panic!("{}: missing witness tick {tick}", case["name"]));
+        w["frost"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|f| f["id"] == id)
+            .unwrap_or_else(|| panic!("{}: missing {id} at tick {tick}", case["name"]))
+            .clone()
+    }
+    fn fr_close(actual: f64, expected: f64, label: &str) {
+        assert!(
+            (actual - expected).abs() < 1e-12,
+            "{label}: {actual} != {expected}"
+        );
+    }
+    /// Source updateChill: Iron Will weakens the attack chill and the near/ranged movement result by the resisted
+    /// share, before movement quantization. The witnesses come from the pinned actual-source capture (real grantCard
+    /// folding and real client-message producers); they are evidence, not injected expectations.
+    #[test]
+    fn source_witnesses_show_the_resisted_slower_cuts() {
+        let c = fr_corpus();
+        assert_eq!(c["format"], "rh-frost-resistance-source/1");
+        let p = &c["provenance"];
+        assert_eq!(p["node"], "v22.23.4");
+        assert_eq!(p["platform"], "linux");
+        assert_eq!(p["arch"], "x64");
+        assert_eq!(p["fixedStepMs"], 50);
+        assert_eq!(
+            p["image"],
+            "node:22.23.4-bookworm-slim@sha256:aaa4b5baf1ecff3b283486bb1f90405cdda225a3e6f79660d2c559fa510a7292"
+        );
+        for key in ["tool", "packageLock"] {
+            let h = p[key].as_str().unwrap();
+            assert_eq!(h.len(), 64, "{key} pins a sha256");
+            assert!(h.chars().all(|ch| ch.is_ascii_hexdigit()), "{key} hex");
+        }
+        for (path, h) in p["sourceFiles"].as_object().unwrap() {
+            let h = h.as_str().unwrap();
+            assert_eq!(h.len(), 64, "{path} pins a sha256");
+            assert!(h.chars().all(|ch| ch.is_ascii_hexdigit()), "{path} hex");
+        }
+        assert_eq!(fr_cases().len(), 13);
+        assert_eq!(crate::constants::FROST_SLOW, 0.32);
+        assert_eq!(crate::constants::CHILL_MOVE_MULT, 0.7);
+        assert_eq!(crate::constants::FROST_RANGED_CHILL_MULT, 0.85);
+
+        let base_attack = fr_witness(&fr_case("attack-baseline"), 5, "p1");
+        fr_close(
+            fr_num(&base_attack, "chill"),
+            1. - crate::constants::FROST_SLOW,
+            "baseline attack chill",
+        );
+        fr_close(
+            fr_num(&base_attack, "move"),
+            crate::constants::CHILL_MOVE_MULT,
+            "baseline near move",
+        );
+        assert_eq!(fr_num(&base_attack, "slowResist"), 0.);
+        let card_attack = fr_witness(&fr_case("attack-iron-will-victim"), 5, "p1");
+        assert_eq!(fr_num(&card_attack, "slowResist"), 0.4);
+        fr_close(
+            fr_num(&card_attack, "chill"),
+            crate::status_runtime::resist_slow(fr_num(&base_attack, "chill"), 0.4),
+            "resisted attack chill",
+        );
+        fr_close(
+            fr_num(&card_attack, "chill"),
+            0.808,
+            "source witness 0.68->0.808",
+        );
+        fr_close(
+            fr_num(&card_attack, "move"),
+            0.82,
+            "source witness near 0.70->0.82",
+        );
+        let source_card = fr_witness(&fr_case("attack-iron-will-source"), 5, "p1");
+        fr_close(
+            fr_num(&source_card, "chill"),
+            fr_num(&base_attack, "chill"),
+            "source card neutrality",
+        );
+        let base_ranged = fr_witness(&fr_case("ranged-baseline"), 30, "p1");
+        fr_close(
+            fr_num(&base_ranged, "move"),
+            crate::constants::FROST_RANGED_CHILL_MULT,
+            "baseline ranged move",
+        );
+        let card_ranged = fr_witness(&fr_case("ranged-iron-will"), 30, "p1");
+        fr_close(
+            fr_num(&card_ranged, "move"),
+            crate::status_runtime::resist_slow(fr_num(&base_ranged, "move"), 0.4),
+            "resisted ranged move",
+        );
+        fr_close(
+            fr_num(&card_ranged, "move"),
+            0.91,
+            "source witness 0.85->0.91",
+        );
+    }
+    /// Thaw via the no-card counterpart, departed-source/reset, both clock families and a real mid-run grantCard.
+    #[test]
+    fn source_thaw_departure_clock_and_resistance_change_witnesses_hold() {
+        let card_thaw = fr_case("near-thaw-reset-iron-will");
+        let base_thaw = fr_case("near-thaw-reset-baseline");
+        for tick in [20u64, 30, 60, 100] {
+            let card = fr_witness(&card_thaw, tick, "p1");
+            let base = fr_witness(&base_thaw, tick, "p1");
+            export_close_resisted(&card, &base, "resisted thaw movement");
+            fr_close(fr_num(&base, "chill"), 0.68, "baseline thaw chill");
+            fr_close(
+                fr_num(&card, "chill"),
+                crate::status_runtime::resist_slow(fr_num(&base, "chill"), 0.4),
+                "resisted thaw chill",
+            );
+        }
+        let departed = fr_witness(&card_thaw, 112, "p1");
+        fr_close(
+            fr_num(&departed, "chill"),
+            1.,
+            "source departure ends the chill",
+        );
+        assert_eq!(departed["chillers"].as_array().unwrap().len(), 0);
+        let reset = fr_witness(&card_thaw, 196, "p1");
+        assert!(
+            reset["exposureStartedAt"].is_null(),
+            "thaw reset clears episode start"
+        );
+        assert!(
+            reset["lastNearAt"].is_null(),
+            "thaw reset clears the last-near mark"
+        );
+
+        // Melee: the buffered window compares the same pre-tick state (the unresisted case later starts its next
+        // attack later, so only the buffer witnesses are directly comparable).
+        let melee_card = fr_case("clocks-buffered-melee-iron-will");
+        let melee_base = fr_case("clocks-buffered-melee-baseline");
+        let mut buffered_pairs = 0;
+        for tick in [11u64, 12] {
+            let Some(cw) = fr_find_witness(&melee_card, tick) else {
+                continue;
+            };
+            let bw = fr_find_witness(&melee_base, tick).expect("baseline witness");
+            let card = cw["frost"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|f| f["id"] == "p1")
+                .unwrap()
+                .clone();
+            let base = bw["frost"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|f| f["id"] == "p1")
+                .unwrap()
+                .clone();
+            if fr_num(&card, "bufferedUntil") > 0. && fr_num(&base, "bufferedUntil") > 0. {
+                buffered_pairs += 1;
+                assert!(
+                    fr_num(&card, "bufferedUntil") < fr_num(&base, "bufferedUntil"),
+                    "buffered melee: resisted chill stretches the buffer less"
+                );
+                assert!(
+                    fr_num(&card, "readyAt") < fr_num(&base, "readyAt"),
+                    "buffered melee: resisted chill stretches readyAt less"
+                );
+            }
+        }
+        assert_eq!(buffered_pairs, 2);
+        // Bow: each witness that still carries the live draw action.
+        let draw_card = fr_case("clocks-bow-draw-iron-will");
+        let draw_base = fr_case("clocks-bow-draw-baseline");
+        let mut draw_pairs = 0;
+        for tick in [20u64, 60, 80] {
+            let Some(cw) = fr_find_witness(&draw_card, tick) else {
+                continue;
+            };
+            let bw = fr_find_witness(&draw_base, tick).expect("baseline witness");
+            let card = cw["frost"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|f| f["id"] == "p1")
+                .unwrap()
+                .clone();
+            let base = bw["frost"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|f| f["id"] == "p1")
+                .unwrap()
+                .clone();
+            if let (Some(cl), Some(bl)) = (
+                card["action"]["landsAt"].as_f64(),
+                base["action"]["landsAt"].as_f64(),
+            ) {
+                if fr_num(&card, "chill") > fr_num(&base, "chill") {
+                    draw_pairs += 1;
+                    assert!(cl < bl, "bow draw: resisted chill delays the draw less");
+                    assert!(
+                        fr_num(&card, "drawStartedAt") < fr_num(&base, "drawStartedAt"),
+                        "bow draw: the draw start is stretched less"
+                    );
+                }
+            }
+        }
+        assert_eq!(draw_pairs, 3);
+
+        // Real mid-run grantCard: the cached chill moves to the resisted value on the next tick.
+        let change = fr_case("resistance-change-mid-run");
+        let before_change = fr_witness(&change, 12, "p1");
+        fr_close(
+            fr_num(&before_change, "chill"),
+            0.68,
+            "unresisted before the grant",
+        );
+        assert_eq!(fr_num(&before_change, "slowResist"), 0.);
+        let after_change = fr_witness(&change, 13, "p1");
+        assert_eq!(fr_num(&after_change, "slowResist"), 0.4);
+        fr_close(
+            fr_num(&after_change, "chill"),
+            crate::status_runtime::resist_slow(fr_num(&before_change, "chill"), 0.4),
+            "the mid-run grant re-chills at the resisted value",
+        );
+        fr_close(
+            fr_num(&after_change, "move"),
+            0.82,
+            "resisted movement after the change",
+        );
+    }
+    fn export_close_resisted(card: &Value, base: &Value, label: &str) {
+        let expected = (crate::status_runtime::resist_slow(fr_num(base, "move"), 0.4) * FR_QUANT
+            + 0.5)
+            .floor()
+            / FR_QUANT;
+        fr_close(fr_num(card, "move"), expected, label);
     }
 }
