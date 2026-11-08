@@ -1,0 +1,11 @@
+--- a/packages/server/src/sim/quests.ts
++++ b/packages/server/src/sim/quests.ts
+@@ -444,7 +444,7 @@
+     let finder: string | null = null;
+     for (const [pid, p] of world.state.players) {
+       const rt = world.players.get(pid);
+-      if (!standing(p, rt)) continue;
++      if (!(p.status === "alive" && rt && !rt.down && !rt.resolved)) continue;
+       if (Math.hypot(p.x - qt.s.x, p.y - qt.s.y) > QUEST_REVEAL_RADIUS) continue;
+       if (finder !== null && tieRank(world, pid) > tieRank(world, finder)) continue;
+       finder = pid;

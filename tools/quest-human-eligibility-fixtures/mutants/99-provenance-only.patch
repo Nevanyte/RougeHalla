@@ -1,0 +1,11 @@
+--- a/packages/server/src/sim/quests.ts
++++ b/packages/server/src/sim/quests.ts
+@@ -52,7 +52,7 @@
+ }
+ 
+ /**
+- * Fill bots (docs/BOTS.md) take no part in quests, whatever they stand next to. They have no quest policy, so a bot that
++ * Fill bots (docs/BOTS.md) take no part in quests, whatever they stand next to. (Provenance-only mutant: comment text only.) They have no quest policy, so a bot that
+  * happened to stand at a token, a parcel or a giver would win an offer a human was racing for, and a bot's death pays no GV
+  * (arena.ts creditKill), so it must not advance or pay a kill quest either. This is the one test every entry point asks:
+  * kills and deaths, pickups, the finder of a hidden giver, the turn-in, the early-closure supply count.

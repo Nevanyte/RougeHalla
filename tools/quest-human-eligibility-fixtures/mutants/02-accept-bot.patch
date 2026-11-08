@@ -1,0 +1,11 @@
+--- a/packages/server/src/sim/quests.ts
++++ b/packages/server/src/sim/quests.ts
+@@ -189,7 +189,7 @@
+  */
+ export const handleQuestAccept: ActionHandler = (world, c, cmd) => {
+   const q = world.quests;
+-  if (cmd.kind !== "questAccept" || c.kind !== "player" || !q || world.state.phase !== "active" || !fighterStanding(c) || !takesPart(c.rt)) return;
++  if (cmd.kind !== "questAccept" || c.kind !== "player" || !q || world.state.phase !== "active" || !fighterStanding(c)) return;
+   if (actionBlocked(world, c)) { toast(world, c.id, QUEST_REFUSAL.busy); return; }
+   const qt = q.quests.get(cmd.quest);
+   if (!qt || !qt.published || qt.s.status !== "open" || qt.npcId === "" || !world.state.mobs.has(qt.npcId)) {

@@ -1,0 +1,12 @@
+--- a/packages/server/src/sim/quests.ts
++++ b/packages/server/src/sim/quests.ts
+@@ -364,7 +364,8 @@
+   const def = qt.def;
+   let anyone = false;
+   for (const [pid, p] of world.state.players) {
+-    if (!standing(p, world.players.get(pid))) continue;
++    const supplyRt = world.players.get(pid);
++    if (!(p.status === "alive" && supplyRt && !supplyRt.down && !supplyRt.resolved)) continue;
+     anyone = true;
+     const have = qt.s.progress.get(pid) ?? 0;
+     const need = def.count - have; // zero or less: the whole objective is done and only the turn-in is left
