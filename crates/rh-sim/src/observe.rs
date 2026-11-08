@@ -606,7 +606,7 @@ pub(crate) fn observe_with(
         let vitals = public_vitals(p.vitals.hp, p.vitals.max_hp, p.vitals.barrier)?;
         Some(SelfView {
             wish: (sim.k.config.abilities == crate::abilities::Mode::Full)
-                .then(|| crate::abilities::OwnerView::of(p)),
+                .then(|| crate::abilities::OwnerView::of(p, now, sim.k.config.training)),
             effects: p.statuses.effects,
             displace_seq: p.motion.displace_seq,
             mark_tier: crate::systems::sentenced::public_mark_tier(&sim.w, p.id),

@@ -1,0 +1,297 @@
+{
+  "format": "rh-wish-display-source/1",
+  "provenance": {
+    "runtime": "Node.js 22.23.4 linux amd64",
+    "image": "node:22.23.4-bookworm-slim@sha256:aaa4b5baf1ecff3b283486bb1f90405cdda225a3e6f79660d2c559fa510a7292",
+    "compiler": {
+      "tsx": "4.23.15",
+      "esbuild": "0.28.2",
+      "packageLockSha256": "991869bdfbbefb6874220500197c61db302a4d2b2603dfc2288fd7032ce1d481"
+    },
+    "sourceInventory": [
+      {
+        "path": "packages/shared/src/abilities.ts",
+        "sha256": "95ef39376a9d9f40cc529a0f7300700a97427050628941e801aaa1e299862518"
+      },
+      {
+        "path": "packages/shared/src/constants.ts",
+        "sha256": "51ce4dd800ec868abee525fb1ae375688066f336972a7da878644df1235924e7"
+      },
+      {
+        "path": "packages/client/src/ui/abilitySlot.ts",
+        "sha256": "964c0c4fa949308e57e789e3abac46b3e203fd829a6262884f7192cbadecb49a"
+      },
+      {
+        "path": "packages/client/src/ui/combatTip.ts",
+        "sha256": "24d642b585bc131c0850f074e2d4a861ba453a64fc72c78f205e4873ed719cec"
+      }
+    ],
+    "harnessInventory": [
+      {
+        "path": "tools/wish-publication-fixtures/capture.mts",
+        "sha256": "1a2c093ef75600c2a60c713a77af5ea7ba6fb11d24dd98b9967a4e1d9d68ec65"
+      },
+      {
+        "path": "tools/wish-publication-fixtures/capture.sh",
+        "sha256": "4e503f6b96b6350e2279b9f67f7b6778d17ccb1b1906a095068cc79053bcb985"
+      }
+    ],
+    "capture": "Direct imports of legacy stock/cooldown helpers and the actual abilitySlotModel; no seeded game state or expected output injection."
+  },
+  "stock": [
+    {
+      "input": {
+        "name": "zero_recharge_full",
+        "fullAt": 0,
+        "now": 0,
+        "max": 2,
+        "rechargeMs": 0
+      },
+      "charges": 2,
+      "next": 0
+    },
+    {
+      "input": {
+        "name": "zero_recharge_future",
+        "fullAt": 100,
+        "now": 0,
+        "max": 2,
+        "rechargeMs": 0
+      },
+      "charges": 0,
+      "next": 100
+    },
+    {
+      "input": {
+        "name": "zero_recharge_future_fractional",
+        "fullAt": 100.5,
+        "now": 0.5,
+        "max": 2,
+        "rechargeMs": 0
+      },
+      "charges": 0,
+      "next": 100.5
+    },
+    {
+      "input": {
+        "name": "blaze_one_charge",
+        "fullAt": 130000,
+        "now": 100000,
+        "max": 2,
+        "rechargeMs": 30000
+      },
+      "charges": 1,
+      "next": 130000
+    },
+    {
+      "input": {
+        "name": "blaze_empty",
+        "fullAt": 160000,
+        "now": 110000,
+        "max": 2,
+        "rechargeMs": 30000
+      },
+      "charges": 0,
+      "next": 130000
+    }
+  ],
+  "cooldown": [
+    {
+      "input": {
+        "ability": "freeze",
+        "context": {
+          "training": false,
+          "wishCooldownMult": 1
+        }
+      },
+      "output": 45000
+    },
+    {
+      "input": {
+        "ability": "freeze",
+        "context": {
+          "training": true,
+          "wishCooldownMult": 2
+        }
+      },
+      "output": 5000
+    },
+    {
+      "input": {
+        "ability": "swarm",
+        "context": {
+          "training": false,
+          "wishCooldownMult": 1
+        }
+      },
+      "output": 120000
+    },
+    {
+      "input": {
+        "ability": "swarm",
+        "context": {
+          "training": true,
+          "wishCooldownMult": 2
+        }
+      },
+      "output": 5000
+    },
+    {
+      "input": {
+        "ability": "trial",
+        "context": {
+          "training": false,
+          "wishCooldownMult": 1
+        }
+      },
+      "output": 180000
+    },
+    {
+      "input": {
+        "ability": "trial",
+        "context": {
+          "training": true,
+          "wishCooldownMult": 2
+        }
+      },
+      "output": 5000
+    },
+    {
+      "input": {
+        "ability": "blaze",
+        "context": {
+          "training": false,
+          "wishCooldownMult": 1
+        }
+      },
+      "output": 30000
+    },
+    {
+      "input": {
+        "ability": "blaze",
+        "context": {
+          "training": true,
+          "wishCooldownMult": 2
+        }
+      },
+      "output": 5000
+    },
+    {
+      "input": {
+        "ability": "lastStand",
+        "context": {
+          "training": false,
+          "wishCooldownMult": 1
+        }
+      },
+      "output": 150000
+    },
+    {
+      "input": {
+        "ability": "lastStand",
+        "context": {
+          "training": true,
+          "wishCooldownMult": 2
+        }
+      },
+      "output": 5000
+    }
+  ],
+  "display": [
+    {
+      "name": "full_at_absent_fallback",
+      "input": {
+        "ability": "blaze",
+        "now": 100000
+      },
+      "output": {
+        "state": "ready",
+        "charges": 2,
+        "maxCharges": 2,
+        "secondsLeft": 0,
+        "sweep": 0
+      }
+    },
+    {
+      "name": "full_at_null_fallback",
+      "input": {
+        "ability": "blaze",
+        "now": 100000,
+        "fullAt": null
+      },
+      "output": {
+        "state": "ready",
+        "charges": 2,
+        "maxCharges": 2,
+        "secondsLeft": 0,
+        "sweep": 0
+      }
+    },
+    {
+      "name": "opening_lock",
+      "input": {
+        "ability": "blaze",
+        "now": 100000,
+        "readyAt": 145000,
+        "fullAt": 145000,
+        "cooldownLen": 45000
+      },
+      "output": {
+        "state": "cooldown",
+        "charges": 0,
+        "maxCharges": 2,
+        "secondsLeft": 45,
+        "sweep": 1
+      }
+    },
+    {
+      "name": "blaze_partial",
+      "input": {
+        "ability": "blaze",
+        "now": 100000,
+        "fullAt": 130000
+      },
+      "output": {
+        "state": "ready",
+        "charges": 1,
+        "maxCharges": 2,
+        "secondsLeft": 30,
+        "sweep": 1
+      }
+    },
+    {
+      "name": "blaze_empty",
+      "input": {
+        "ability": "blaze",
+        "now": 110000,
+        "readyAt": 130000,
+        "fullAt": 160000
+      },
+      "output": {
+        "state": "cooldown",
+        "charges": 0,
+        "maxCharges": 2,
+        "secondsLeft": 20,
+        "sweep": 0.6666666666666666
+      }
+    },
+    {
+      "name": "training_blaze",
+      "input": {
+        "ability": "blaze",
+        "now": 0,
+        "training": true,
+        "readyAt": 5000,
+        "fullAt": 5000,
+        "cooldownLen": 5000
+      },
+      "output": {
+        "state": "cooldown",
+        "charges": 1,
+        "maxCharges": 2,
+        "secondsLeft": 5,
+        "sweep": 1
+      }
+    }
+  ]
+}

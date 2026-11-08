@@ -414,6 +414,9 @@ pub struct OwnerView {
     pub ready_at: f64,
     pub full_at: Option<f64>,
     pub max_charges: u8,
+    pub recharge_ms: f64,
+    pub charges: u8,
+    pub next_charge_at: Option<f64>,
     pub cast: Option<CastView>,
 }
 #[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -423,13 +426,22 @@ pub struct CastView {
     pub lands_at: f64,
 }
 impl OwnerView {
-    pub(crate) fn of(p: &crate::state::Player) -> Self {
+    pub(crate) fn of(p: &crate::state::Player, now: f64, training: bool) -> Self {
         let ability = wish(p.vitals.faction);
+        let recharge_ms = cooldown(ability, training, Some(p.modifiers.wish_cooldown_mult()));
+        // Legacy abilitySlot reads `fullAt ?? 0`; preserve that fallback during the pre-raid interval.
+        let full_at = p.stocks.wish_full_at.unwrap_or(0.);
+        let max_charges = definition(ability).charges;
+        let charges = charges_at(full_at, now, max_charges, recharge_ms);
         Self {
             ability,
             ready_at: p.stocks.wish_ready_at,
             full_at: p.stocks.wish_full_at,
-            max_charges: definition(ability).charges,
+            max_charges,
+            recharge_ms,
+            charges,
+            next_charge_at: (charges < max_charges)
+                .then(|| next_charge_at(full_at, now, recharge_ms)),
             cast: p
                 .statuses
                 .cast
@@ -442,8 +454,11 @@ impl OwnerView {
         }
     }
 }
+
 pub(crate) mod checkpoint;
 mod effect_checkpoint;
+#[cfg(test)]
+mod owner_view_tests;
 #[cfg(test)]
 mod source_tests;
 
