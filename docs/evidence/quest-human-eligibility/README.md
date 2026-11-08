@@ -2,16 +2,18 @@
 
 Source-only evidence for the legacy quest guards that exclude fill bots from every quest entry point. This packet
 supports the GPT-owned native fix 2de68ba5 and does not implement or mirror that fix in Rust. It adds only
-tools/quest-human-eligibility-fixtures/**, parity/quest-human-eligibility/** and this evidence file.
+tools/quest-human-eligibility-fixtures/**, parity/quest-human-eligibility/** and these new evidence files.
 
 ## Base, branch and commits
 
 - Immutable continuation base: f034ace7d1f6617ed64a1eb194469e0b4531caa9.
 - Branch: deepseek/quest-human-eligibility.
 - Capture/tool commit: a43120036a5ef4281b786640952b45d92e013d44 (test: capture quest human eligibility source witnesses).
-- Evidence commit: the commit that adds this README; resolve it with
-  git log -1 --format=%H -- docs/evidence/quest-human-eligibility/README.md.
-- Packet head at review: git rev-parse HEAD on this branch (the evidence commit unless a later evidence-only commit lands).
+- Initial evidence commit: 16234ebc00a2cb499af8ef7d3bc672752e6e7ff9.
+- Safety-correction commit: c869090c915a40eb6abab7817919070b5b48921f (real SIGTERM driver + tool-hash-only
+  recapture; see CORRECTION.md).
+- Final head: the commit containing this documentation update (docs-only after c869090c; behavior and corpus bytes
+  unchanged). Resolve with git rev-parse HEAD on the branch.
 
 ## Declared world and seats
 
@@ -107,10 +109,11 @@ The exact anchors with their source text are also in every corpus profile.source
 3. Collect pickup, bot then human. Target ashcap-fire (quest7c), token container c7e with item uid U46
    def quest:quest7c. The bot at the token gets the source's generic "Nothing to take" fallback; the container and item
    remain, progress stays empty and carrier stays empty. The accepted human p0 picks the same token: progress p0 = 1,
-   container c7e is removed (global quest container count 70 -> 69), and the toast "Ashcaps: 1/3" goes to p0.
+   container c7e is removed (total container count 70 -> 69; quest containers 25 -> 24), and the toast "Ashcaps: 1/3" goes to p0.
 4. Fetch pickup, bot then human. Target banner-frost (quest7o), parcel container c7q with item uid U52
    def quest:quest7o. The bot gets "Nothing to take"; the container remains and carrier stays empty. The accepted human p0
-   picks the parcel: carrier becomes p0, carried contains [p0, quest7o], the container is removed (70 -> 69), and the toast
+   picks the parcel: carrier becomes p0, carried contains [p0, quest7o], the container is removed (total containers
+   70 -> 69; quest containers 25 -> 24), and the toast
    "Picked up: The Frozen Standard — carry it to Skald Runa" goes to p0.
 5. Camp clear, bot-only standing. Target cull-fire (quest7k, region fire). The human reveals and publishes the offer, then
    the declared bot p1 kills the human with a real sword attack; the run stays active with two standing bots and zero standing
@@ -197,7 +200,7 @@ corrected in CORRECTION.md.
     bash tools/quest-human-eligibility-fixtures/capture.sh --check   (run twice)
       each run: check 1/2 and 2/2 pass against sha256 bc16.../51f6.../eef0...; read-only output unchanged
     bash tools/quest-human-eligibility-fixtures/capture.sh
-      write recapture byte-identical (WRITE_RECAPTURE_IDENTICAL)
+      write recapture byte-identical (verified by sha256; capture.sh itself prints only check 1/2 and 2/2)
     bash tools/quest-human-eligibility-fixtures/run-mutants.sh
       5 semantic KILLs, provenance NON-KILL, RESTORED CONTROL PASS, HOST GUARD PASS
     RH_QUEST_MUTANT_SELFTEST=1 bash tools/quest-human-eligibility-fixtures/run-mutants.sh
@@ -217,6 +220,11 @@ corrected in CORRECTION.md.
   progress, carrier, container removal or quest-specific toast. This is recorded as the actual source output, not sanitized.
 - Two simultaneous ready humans on a kill offer is not fabricated. The real player-kill case leaves the victim dead and
   resolved; the collect case exhausts the source token supply; the fetch case has one parcel/carrier.
+- Tool-quality notes from the independent checker: the inner backup copy uses tar|tar without an explicit pipefail, but
+  the completed backup is byte-compared and sha256-manifest-verified (and self-checked) before traps are armed, so a
+  truncated copy fails closed before use; the host signal gate trusts the inner restore proof, which itself compares and
+  re-verifies the manifests before printing SIGNAL_RESTORE_PASS, and the host independently guards /repo before/after.
+  A dead handle_mutants() helper remains in the host script but is never called; it has no effect on the run.
 - The native observer/UI/protocol/giver/runtime/privacy contract remains GPT/root work. The diagnostic tieRank case forges
   only bot state and is labelled; it is not a normal-history claim.
 - The prior P-QUEST-TRADE-PUBLIC-WITNESSES finding is preserved separately: PlayerState.tradeOffers, tradeStats and
