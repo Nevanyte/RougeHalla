@@ -2,6 +2,7 @@
 //! resume, and the off-tick handling of what rooms report (results to durable storage with retries, freed profiles).
 //! Several matches run in one process (one tokio task each); the hosting layer decides how many processes run per host.
 
+use crate::bot_learning::{BotRunFacts, LearningSink};
 use crate::control::{ControlBook, CtlError, EndMode, LeaveMode};
 use crate::hosting::Lifecycle;
 use crate::outbox::Outbox;
@@ -309,6 +310,8 @@ pub struct Director {
     /// Bounds the spooled writes in flight at once, so a recovery pass cannot stampede the connection pool.
     #[cfg(feature = "postgres")]
     spool_permits: tokio::sync::Semaphore,
+    /// The P-BOTS-5 live learning sink: the record caller for bot results and the bias view the next lobby reads.
+    learning: Mutex<Option<Arc<dyn LearningSink>>>,
 }
 
 /// How long an admission waits, in all (one deadline shared by its retries), for a profile that is mid-release (its lease
@@ -396,6 +399,7 @@ impl Director {
             lifecycle,
             freed: Notify::new(),
             me: me.clone(),
+            learning: Mutex::new(None),
             #[cfg(feature = "postgres")]
             spool,
             #[cfg(feature = "postgres")]
@@ -699,16 +703,52 @@ impl Director {
         }
     }
 
-    /// The fill policy a new room gets, with the room's fill count (the config's own fill_to is the default for
-    /// direct room construction): None leaves the room on its immediate placeholder fill.
-    fn fill_policy(&self, fill_bots_to: usize) -> Option<crate::bot_fill::BotFillConfig> {
-        self.cfg
-            .bot_fill
+    /// Installs the P-BOTS-5 record caller (the live learning store). The server calls it once at startup; tests install
+    /// a probe sink. Learning stays off (the NO_BIAS zeros) when nothing is installed.
+    pub fn install_learning(&self, sink: Arc<dyn LearningSink>) {
+        *self.learning.lock().expect("director") = Some(sink);
+    }
+
+    /// The bias snapshot the next lobby's fill policy reads (refreshed after every recorded run).
+    fn learning_snapshot(&self) -> Option<rh_policy::bots::learning::LearnedBias> {
+        self.learning
+            .lock()
+            .expect("director")
             .as_ref()
-            .map(|fill| crate::bot_fill::BotFillConfig {
+            .map(|sink| sink.snapshot())
+    }
+
+    /// The record caller (source BotManager.onResult): a resolved fill bot's run goes to the learning store with the
+    /// facts the room has. The brain's own choice list needs the ported memory layer (P-BOTS-1 remainder); the manager's
+    /// managed faction key is recorded now.
+    fn record_bot_result(&self, spec: &crate::bot_fill::BotSeatSpec, result: &rh_sim::RunResult) {
+        let Some(sink) = self.learning.lock().expect("director").clone() else {
+            return;
+        };
+        sink.record(BotRunFacts {
+            tier: crate::bot_learning::learning_tier(spec.tier),
+            persona: spec.persona,
+            faction: spec.faction,
+            outcome: BotRunFacts::outcome(result.outcome),
+            place: result.place,
+            players: result.players,
+        });
+    }
+
+    /// The fill policy a new room gets, with the room's fill count (the config's own fill_to is the default for
+    /// direct room construction): None leaves the room on its immediate placeholder fill. The learning snapshot is read
+    /// here, once per lobby, so a lobby sees every run recorded before it opened.
+    fn fill_policy(&self, fill_bots_to: usize) -> Option<crate::bot_fill::BotFillConfig> {
+        self.cfg.bot_fill.as_ref().map(|fill| {
+            let mut config = crate::bot_fill::BotFillConfig {
                 fill_to: fill_bots_to,
                 ..fill.clone()
-            })
+            };
+            if let Some(learned) = self.learning_snapshot() {
+                config.learned = learned;
+            }
+            config
+        })
     }
 
     /// Spawns a room task and registers it (the lock is held). Used by admission (a lobby opened on demand) and by the
@@ -969,12 +1009,18 @@ impl Director {
                     match_id,
                     profile,
                     bot,
+                    bot_spec,
                     fence,
                     result,
                     roster,
                 } => {
                     if bot {
-                        continue; // bots never touch persistence (legacy rule)
+                        // Bots never touch profile persistence (legacy rule), but a resolved fill bot's run is the
+                        // learning store's record (source BotManager.onResult).
+                        if let Some(spec) = &bot_spec {
+                            this.record_bot_result(spec, &result);
+                        }
+                        continue;
                     }
                     let key =
                         ProfileKey::from_report(&profile, admission.and_then(|a| a.profile_id));
@@ -2125,6 +2171,7 @@ mod tests {
                     profile: "subject".into(),
                     fence: Some(fence),
                     bot,
+                    bot_spec: None,
                     result: result.clone(),
                     roster: Roster::default(),
                 })
@@ -2273,6 +2320,7 @@ mod tests {
                 profile: "archer".into(),
                 fence: Some(lease.fence),
                 bot: false,
+                bot_spec: None,
                 result: some_result("archer"),
                 roster: Roster::default(),
             })
@@ -2452,6 +2500,7 @@ mod tests {
                 match_id: m,
                 profile: "papa".into(),
                 bot: false,
+                bot_spec: None,
                 fence: Some(fence),
                 result: some_result("papa"),
                 roster: Roster::default(),
@@ -2567,6 +2616,7 @@ mod tests {
                 match_id: m,
                 profile: "papa".into(),
                 bot: false,
+                bot_spec: None,
                 fence: Some(fence),
                 result: some_result("papa"),
                 roster: Roster::default(),
@@ -2885,6 +2935,7 @@ mod tests {
                 match_id: m,
                 profile: "papa".into(),
                 bot: false,
+                bot_spec: None,
                 fence: Some(f2),
                 result: some_result("papa"),
                 roster: Roster::default(),
@@ -3000,5 +3051,87 @@ mod tests {
             .await
             .unwrap()
             .is_none());
+    }
+
+    /// P-BOTS-5 remainder: the director is the record caller (BotManager.onResult), reads the live store's bias once
+    /// per lobby (fill_policy), and hands a bot's resolved run over with the spec facts the room had.
+    #[tokio::test(start_paused = true)]
+    async fn bot_results_reach_the_record_caller_and_a_new_lobby_reads_the_refreshed_bias() {
+        use rh_policy::bots::learning::Tier;
+        use rh_policy::bots::{PersonaId, TierId};
+
+        #[derive(Default)]
+        struct ProbeSink {
+            runs: std::sync::Mutex<Vec<BotRunFacts>>,
+            bias: rh_policy::bots::learning::LearnedBias,
+        }
+        impl LearningSink for ProbeSink {
+            fn snapshot(&self) -> rh_policy::bots::learning::LearnedBias {
+                self.bias.clone()
+            }
+            fn record(&self, facts: BotRunFacts) {
+                self.runs.lock().unwrap().push(facts);
+            }
+        }
+        let mut cfg = DirectorConfig::new(SimConfig::default(), rh_sim::arenas::practice_arena());
+        cfg.bot_fill = Some(crate::bot_fill::BotFillConfig::with_fill_to(4));
+        let d = Director::new(
+            cfg,
+            Arc::new(Persistence::Memory(Box::<MemoryStore>::default())),
+            Arc::new(Auth::Dev),
+            Arc::new(Lifecycle::default()),
+        );
+        let mut biases = std::collections::BTreeMap::new();
+        biases.insert("faction|hunter|plague".to_string(), 0.25);
+        let probe = Arc::new(ProbeSink {
+            runs: std::sync::Mutex::new(Vec::new()),
+            bias: rh_policy::bots::learning::LearnedBias::with_biases(biases),
+        });
+        d.install_learning(probe.clone());
+        // The next lobby's fill config reads the store's snapshot (here: the probe's).
+        let fill = d.fill_policy(4).expect("configured fill");
+        assert!(fill.learned.enabled());
+        assert_eq!(fill.learned.bias("faction|hunter|plague"), 0.25);
+        // A resolved fill bot's report becomes the learning summary (outcome/place/players + the spec's
+        // tier/persona/faction).
+        let spec = crate::bot_fill::BotSeatSpec {
+            number: 1,
+            name: "Wren".into(),
+            tier: TierId::Hard,
+            persona: PersonaId::Hunter,
+            faction: FactionId::Plague,
+            seed: 5,
+        };
+        let mut result = some_result("Wren");
+        result.outcome = rh_sim::Outcome::Died;
+        result.place = 2;
+        result.players = 4;
+        d.reports
+            .send(RoomReport::Result {
+                admission: None,
+                match_id: id(1),
+                profile: "Wren".into(),
+                bot: true,
+                bot_spec: Some(spec),
+                fence: None,
+                result,
+                roster: Roster::default(),
+            })
+            .unwrap();
+        settle().await;
+        let runs = probe.runs.lock().unwrap();
+        assert_eq!(runs.len(), 1, "one resolved bot run is recorded");
+        assert_eq!(
+            runs[0],
+            BotRunFacts {
+                tier: Tier::Hard,
+                persona: PersonaId::Hunter,
+                faction: FactionId::Plague,
+                outcome: rh_policy::bots::learning::RunOutcome::Died,
+                place: 2,
+                players: 4,
+            }
+        );
+        assert_eq!(runs[0].faction_key(), "faction|hunter|plague");
     }
 }

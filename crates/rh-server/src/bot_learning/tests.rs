@@ -289,8 +289,8 @@ async fn damaged_rows_are_dropped_on_their_own() {
     assert_eq!(store.snapshot().len(), 1);
     assert_eq!(store.snapshot().bias("faction|farmer|fire"), 0.);
     // The damaged hard baseline started fresh; the unknown tier was ignored.
-    assert_eq!(store.stats.baseline(Tier::Hard), Cell::ZERO);
-    assert_eq!(store.stats.baseline(Tier::Normal).n(), 1.);
+    assert_eq!(store.core.stats.baseline(Tier::Hard), Cell::ZERO);
+    assert_eq!(store.core.stats.baseline(Tier::Normal).n(), 1.);
 }
 
 #[tokio::test]
@@ -349,4 +349,106 @@ async fn a_store_snapshot_is_the_fill_policy_read_path() {
     let want = 11. / 18. - 0.5;
     assert!((cfg.learned.bias("faction|farmer|fire") - want).abs() < 1e-12);
     assert_eq!(cfg.learned.bias("faction|hunter|fire"), 0.);
+}
+
+// ================================================================================================= live store (P-BOTS-5 remainder)
+
+fn facts(outcome: RunOutcome, place: u32) -> BotRunFacts {
+    BotRunFacts {
+        tier: Tier::Normal,
+        persona: rh_policy::bots::PersonaId::Farmer,
+        faction: FactionId::Fire,
+        outcome,
+        place,
+        players: 4,
+    }
+}
+
+fn clock(ms: u64) -> (Arc<dyn Fn() -> i64 + Send + Sync>, Arc<Mutex<i64>>) {
+    let cell = Arc::new(Mutex::new(ms as i64));
+    let handle = cell.clone();
+    (Arc::new(move || *handle.lock().unwrap()), cell)
+}
+
+#[tokio::test]
+async fn a_live_sink_updates_the_snapshot_and_persists_the_batch() {
+    let backend = Fake::default();
+    let (clock, cell) = clock(1_000);
+    let live = LiveLearning::start(backend.clone(), clock).await.unwrap();
+    let key = facts(RunOutcome::Won, 1).faction_key();
+    assert_eq!(key, "faction|farmer|fire");
+    assert!(live.snapshot().is_empty());
+    live.record(facts(RunOutcome::Won, 1));
+    // The snapshot is refreshed immediately (the source manager's snapshot reflected the in-memory model), and the first
+    // run of a tier says nothing.
+    assert!(live.snapshot().enabled());
+    assert_eq!(live.snapshot().bias(&key), 0.);
+    live.flush().await;
+    let loaded = backend.loaded();
+    assert_eq!(loaded.baseline, vec![("normal".to_string(), 1., 1.)]);
+    assert_eq!(loaded.entries, vec![(key.clone(), 1., 0.5)]);
+    // A second run within the write window is in the snapshot at once but only reaches the backend on a flush.
+    *cell.lock().unwrap() = 2_000;
+    live.record(facts(RunOutcome::Died, 4));
+    let mut expected = Stats::default();
+    let one = choices(&["faction|farmer|fire"]);
+    assert!(expected.apply(&summary(Tier::Normal, RunOutcome::Won, 1., 4., &one)));
+    assert!(expected.apply(&summary(Tier::Normal, RunOutcome::Died, 4., 4., &one)));
+    let want = expected.snapshot().bias(&key);
+    assert!((live.snapshot().bias(&key) - want).abs() < 1e-12);
+    assert_eq!(
+        backend.loaded().entries[0].2,
+        0.5,
+        "within the window nothing is written yet"
+    );
+    live.flush().await;
+    let loaded = backend.loaded();
+    assert!((loaded.baseline[0].1 - 1.99).abs() < 1e-12);
+    let expected_cell = expected.entries().get(&key).copied().unwrap();
+    assert!((loaded.entries[0].1 - expected_cell.n()).abs() < 1e-12);
+    assert!((loaded.entries[0].2 - expected_cell.s()).abs() < 1e-12);
+    live.close().await;
+}
+
+#[tokio::test]
+async fn a_failed_live_write_keeps_the_rows_and_the_next_flush_writes_them() {
+    let backend = Fake::default();
+    let (clock, _) = clock(1_000);
+    let live = LiveLearning::start(backend.clone(), clock).await.unwrap();
+    backend.fail(true);
+    live.record(facts(RunOutcome::Won, 1));
+    live.flush().await;
+    assert!(
+        backend.loaded().entries.is_empty(),
+        "a failed write persists nothing"
+    );
+    backend.fail(false);
+    live.flush().await;
+    assert_eq!(
+        backend.loaded().entries.len(),
+        1,
+        "the rows stayed dirty and the next write landed"
+    );
+    live.close().await;
+}
+
+#[tokio::test]
+async fn a_closed_live_sink_refuses_further_records() {
+    let backend = Fake::default();
+    let (clock, _) = clock(1_000);
+    let live = LiveLearning::start(backend.clone(), clock).await.unwrap();
+    live.record(facts(RunOutcome::Won, 1));
+    live.close().await;
+    assert_eq!(
+        backend.loaded().entries.len(),
+        1,
+        "close flushed the pending run"
+    );
+    live.record(facts(RunOutcome::Died, 4));
+    live.flush().await;
+    assert_eq!(
+        backend.loaded().entries.len(),
+        1,
+        "a closed sink records nothing more"
+    );
 }

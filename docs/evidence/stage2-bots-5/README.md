@@ -84,3 +84,42 @@ no import of the profile store). Its model, kept exactly:
    is one live store process per database (the file-store contract), not a conflict-free merge.
 5. **Write-error logging:** the source logged a failed file write; the store keeps `last_write_error()` for the caller, and
    the caller-side logging/telemetry comes with the producer wiring.
+
+## Remainder round: the live store and the record caller
+
+On the same branch/PR (P-BOTS-5 remainder), the store now runs live in the server and the source manager's `onResult` has its
+Rust caller:
+
+- **Room facts**: the room keeps the fill policy's `BotSeatSpec` per seated bot and its `RoomReport::Result` carries the spec
+  for a managed bot (`bot_spec: Option<BotSeatSpec>`); a bot still never touches profile persistence.
+- **The record caller**: the director's report loop now builds the source summary from the facts the room actually has —
+  tier/persona/faction from the spec, outcome/place/players from the resolved `RunResult` — and the manager's own managed
+  choice key `faction|<persona>|<faction>`. Those are exactly the keys the fill read path consumes.
+- **The live store**: `rh-server::bot_learning::LiveLearning<Backend>` is the director-owned store: `record` updates the
+  in-memory model and the shared `LearnedBias` snapshot synchronously (so the very next lobby sees a just-resolved run),
+  one background writer task performs the off-tick batch writes and logs a failed one (keeping every dirty row), and
+  `flush`/`close` drain on shutdown. The director reads a fresh snapshot in `fill_policy`, so every new lobby sees every run
+  recorded before it opened. `main.rs` opens the live store from `--database-url` (one store per database/process),
+  installs it, and closes it in the shutdown task after the durable result writes.
+- **Dependency on the brain memory (exact)**: the source summary also carries the brain's `choices` from
+  `memory.recordChoice` (opener/second/spawn/boon/skill/relic/camp — the strategy/tactics layer). The ported server does not
+  retain that memory (P-BOTS-1 remainder), so only the manager's managed faction key is recorded; the store/bias path is
+  key-agnostic and the remaining keys join when the memory layer lands. The `strategy.ts` `LEARN.weight × bias` consumer
+  stays with that layer too.
+- **Multi-writer contract (unchanged)**: the legacy file-store contract is one live store per database/process; the tables
+  replace rows per upsert rather than merging two writers.
+
+### Remainder-round tests
+
+- `cargo test -p rh-server --lib --all-features bot_`: 21 passed — the P-BOTS-5 store discipline (10) plus the live-store
+  tests: immediate snapshot refresh, window vs flush, failed-write retention and retry, close refusal, and the
+  snapshot → `BotFillConfig` bridge.
+- `cargo test -p rh-server --lib --all-features a_bot_result_report`: 1 passed — a resolved fill bot's report carries its
+  spec.
+- Director record-caller test (inside `--lib bot_`? no: `bot_results_reach_the_record_caller_and_a_new_lobby_reads_the_refreshed_bias`):
+  1 passed — a bot result reaches the installed sink as the exact summary facts, and `fill_policy` reads the refreshed bias
+  per lobby.
+- PostgreSQL, pinned throwaway cluster (feature `postgres`): `cargo test -p rh-server --features postgres --test
+  learning_live`: 1 passed — the live store's record → immediate snapshot → flushed rows → reload, and the second live
+  store observing the persisted model (close is idempotent).
+- Workspace gate: GATE_TBD.

@@ -497,20 +497,36 @@ async fn main() {
     };
     // The learning read path (P-BOTS-5): the durable store's frozen bias snapshot feeds the fill policy's faction softmax.
     // Without a database the utilities are the NO_BIAS zeros, exactly as the captured manager stream was drawn.
+    // The P-BOTS-5 live learning store: one store per database/process, off-tick writes only, its writer task logging a
+    // failed batch. Without PostgreSQL learning stays off (the NO_BIAS zeros).
     #[cfg(feature = "postgres")]
-    let learned = match &persistence {
+    let learning: Option<
+        Arc<rh_server::bot_learning::LiveLearning<rh_server::bot_learning::PgBackend>>,
+    > = match &persistence {
         Persistence::Postgres { store, .. } => {
             let backend = rh_server::bot_learning::PgBackend::new(store.pool().clone());
-            match rh_server::bot_learning::BotStatsStore::open(backend).await {
-                Ok(mut stats) => stats.snapshot(),
+            let clock = Arc::new(|| {
+                std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .map(|d| d.as_millis() as i64)
+                    .unwrap_or(0)
+            });
+            match rh_server::bot_learning::LiveLearning::start(backend, clock).await {
+                Ok(live) => Some(live),
                 Err(e) => {
-                    eprintln!("[server] bot learning stats unreadable, learning off: {e}");
-                    rh_policy::bots::learning::LearnedBias::NO_BIAS
+                    eprintln!("[server] bot learning store unreadable, learning off: {e}");
+                    None
                 }
             }
         }
-        Persistence::Memory(_) => rh_policy::bots::learning::LearnedBias::NO_BIAS,
+        Persistence::Memory(_) => None,
     };
+    #[cfg(feature = "postgres")]
+    let learned = learning
+        .as_ref()
+        .map_or(rh_policy::bots::learning::LearnedBias::NO_BIAS, |live| {
+            live.snapshot()
+        });
     #[cfg(not(feature = "postgres"))]
     let learned = rh_policy::bots::learning::LearnedBias::NO_BIAS;
     // The live server fills its lobbies with the legacy manager policy (BOTS_FILL_TO from --fill-bots); tests and
@@ -581,6 +597,11 @@ async fn main() {
         Arc::new(auth),
         lifecycle.clone(),
     );
+    // The record caller and the next lobby's bias snapshot come from the live store (P-BOTS-5).
+    #[cfg(feature = "postgres")]
+    if let Some(live) = &learning {
+        director.install_learning(live.clone());
+    }
     // Replay what an earlier process left in the spool (original fence and metadata), before any admission. This runs in
     // the background against the database: an outage delays the replay, never startup or a tick.
     #[cfg(feature = "postgres")]
@@ -637,11 +658,18 @@ async fn main() {
     let h2 = handle.clone();
     let lc = lifecycle.clone();
     let writes = director.clone();
+    // The live learning store flushes and closes with the process (the source manager's dispose flush).
+    #[cfg(feature = "postgres")]
+    let shutdown_learning = learning.clone();
     tokio::spawn(async move {
         lc.terminated.notified().await;
         // Results still being written survive the shutdown (bounded: a dead database cannot hold the process forever).
         if !writes.wait_for_writes(Duration::from_secs(150)).await {
             eprintln!("[server] exiting with result writes still pending");
+        }
+        #[cfg(feature = "postgres")]
+        if let Some(live) = &shutdown_learning {
+            live.close().await;
         }
         h2.graceful_shutdown(Some(Duration::from_secs(5)));
     });
