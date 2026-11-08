@@ -1,5 +1,7 @@
 # Measured showcase performance
 
+This is the retained `ebff286b` baseline record. The newer `4f37e9f0` repair build and its three GPU windows are pinned in [REPAIR_VERIFICATION.md](REPAIR_VERIFICATION.md) and [repair evidence](evidence/repair/summary.json).
+
 Runtime: `ebff286bc68027d4e32eee3607d2ae6807038f9d`; Unity 6000.0.85f2 / URP 17.0.4 / WebGL2 / protocol 11.
 
 **The 144 FPS display acceptance gate remains incomplete.** The M5 Pro host reports one main E2212F display at 1920×1080/60 Hz. Headed Chromium windows reported 1900×941–943 in normal mode. The viewport and actual WebGL drawing buffer were 2560×1440, but that is not evidence of native 1440p/144 Hz scan-out.

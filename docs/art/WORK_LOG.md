@@ -37,6 +37,18 @@ Evidence root: `/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/evidence/
 329 C# tests, source-copy checks, eleven actual Unity EditMode tests, five fail-closed browser-contract tests,
 source integrity/palette checks and the 125-cue readiness checker pass.
 
+## Audit follow-up checkpoint (2026-11-08)
+
+The formatter change is `8c9d777c`; the combined repair runtime is `4f37e9f0`, faction marker is `8190325c`, central enum fix `717fe5c0` is cherry-picked as `2833a28f`, build evidence harness is `9f139ec4`, and test-hygiene change is `b445ca76`. The repair Web build succeeded with a 14-file, 74,041,096-byte manifest whose HTTP and disk hashes pass; 27/27 actual Unity EditMode tests and the 1/1 diagnostic hygiene test pass. The repair browser report passes all 19 outcomes with no page/decoder errors. Keep it distinct from the older accepted `ebff286b` artifact (74,029,313 bytes, nine profiles).
+
+[DEMO_CONTENT.md](DEMO_CONTENT.md) inventories retained final-match and profile evidence as lower bounds. It records which faction, mob, weapon, event, inventory, reward, ability and projectile facts were actually captured, and distinguishes requested faction from server-delivered faction. Unknown or absent retained status/ability/event evidence means it is unproven in these reports, not that it did not occur. The selected demo's five-faction and content coverage remain required work under the user plan; the arbitrary two hero body designs, enum-parity mob reuse and procedural weapon glyphs are not approved scope exceptions. Runtime customization beyond the selected demo can remain outside this milestone.
+
+The earlier audit found small faction marks hard to distinguish and normals disabled in the accepted Torch preset. The repair adds backed marks/footprint shapes and authored mutually exclusive High/Disabled point-light variants. [COLOR_REVIEW.md](COLOR_REVIEW.md) records the completed bounded static-sample review, and [NORMAL_MAPS.md](NORMAL_MAPS.md) records the repaired, unforced-High response check. These do not establish complete art or accessibility acceptance.
+
+The repair crowded profile completed three 15-second Manual High/motion-on windows at a 2560×1440 drawing buffer. GPU p99 was 5.848 / 5.795 / 5.813 ms, maxima 6.384 / 5.947 / 5.918 ms, over 905 / 902 / 910 samples with zero disjoint samples; CPU callback p99 was 5.2 / 5.6 / 5.3 ms. Rows had medians 6 / 5 / 6 and maxima 7 / 7 / 7. Server fill-bots 8 does not mean eight actual players. These met the diagnostic 6.944 ms hold threshold, not native displayed 144 Hz acceptance; do not claim a cost improvement against older profiles with a different load. Managed allocation, total browser GPU memory, native 144 Hz, and full art coverage remain open.
+
+The repair live-content inventory and evidence limits are in [REPAIR_VERIFICATION.md](REPAIR_VERIFICATION.md). Portable evidence was copied under `docs/art/evidence/repair/`; do not alter those evidence files. The repaired CVD candidate has been inspected at Fit and native scale; all-five-faction live, crowded-motion and full-telegraph coverage remain open. The normal-map source configuration gap is fixed and a no-override staged-light response A/B is recorded, while three fixed-High GPU diagnostic windows passed below 6.944 ms p99. Overall acceptance remains governed by the open gates above. Native displayed 144 Hz acceptance remains separately open on the attached 1920×1080 at 60 Hz display.
+
 ## Current acceptance work
 
 The final browser runner is owned by Luna `/root/web_showcase_proof`, scoped to

@@ -1,5 +1,7 @@
 # Unity showcase verification
 
+This is the retained `ebff286b` baseline record. The newer `4f37e9f0` repair build and its three GPU windows are pinned in [REPAIR_VERIFICATION.md](REPAIR_VERIFICATION.md) and [repair evidence](evidence/repair/summary.json).
+
 The art branch is `codex/unity-art-direction`, based on coordinator-approved gameplay revision `e90a38f6`.
 The latest runtime revision is `ebff286b`. Unity remains 6000.0.85f2, URP 17.0.4 and WebGL2.
 Rust remains authoritative; this branch does not alter simulation, protocol, prediction or input scheduling.

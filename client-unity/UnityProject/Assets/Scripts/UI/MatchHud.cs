@@ -261,7 +261,7 @@ namespace Roguehalla.Client
         {
             foreach (var ev in events.List)
             {
-                if (ev.Kind == EventKind.PotionNotice) _feedback = "Potion: " + (PotionNotice)ev.PotionNotice;
+                if (ev.Kind == EventKind.PotionNotice) _feedback = PotionNoticeFormatter.Format((PotionNotice)ev.PotionNotice);
                 else if (ev.Kind == EventKind.PickupRefused) _feedback = "Pickup refused by server (" + ev.PickupReason + ")";
                 else if (ev.Kind == EventKind.ChestRefused) _feedback = "Choice refused by server (" + ev.ChestReason + ")";
             }

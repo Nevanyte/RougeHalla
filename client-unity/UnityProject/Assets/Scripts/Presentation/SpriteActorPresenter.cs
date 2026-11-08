@@ -12,9 +12,9 @@ namespace Roguehalla.Client
         sealed class Art
         {
             public GameObject Root;
-            public SpriteRenderer Body, Shadow, Halo, Rune, Hp, HpBack, Weapon, Status;
+            public SpriteRenderer Body, Shadow, Halo, RuneBack, Rune, Hp, HpBack, Weapon, Status;
             public SpriteRenderer[] StatusIcons;
-            public Light2D Light;
+            public ShowcasePointLight Light;
             public ShowcaseCatalog.Appearance Appearance;
             public Vector3 LastPosition;
             public float MovingUntil, AttackUntil;
@@ -82,7 +82,7 @@ namespace Roguehalla.Client
         }
         void Evict(uint id)
         {
-            var art=_active[id];art.Root.SetActive(false);art.Light.enabled=false;
+            var art=_active[id];art.Light.SetVisible(false);art.Root.SetActive(false);
             _active.Remove(id);_pool.Push(art);
         }
 
@@ -149,15 +149,22 @@ namespace Roguehalla.Client
             a.Body.sortingOrder = order;
             a.Body.transform.localRotation = Quaternion.Euler(0, 0, dead && (appearance==null || appearance.Death==null || appearance.Death.Length==0) ? 75 : 0);
             a.Shadow.sortingOrder = order - 8;
-            a.Halo.color = local ? new Color(color.r, color.g, color.b, .8f) : new Color(color.r, color.g, color.b, .38f);
             a.Halo.sortingOrder = order - 7;
             a.Halo.transform.localScale = new Vector3(local ? 1.05f : .9f, .48f, 1);
+            a.Halo.sprite = FactionIndicators.GetFootprint((int)faction);
+            a.Halo.color = color;
+            a.Halo.enabled = true;
+            a.RuneBack.sortingOrder = order + 2;
+            a.RuneBack.transform.localPosition = new Vector3(-.72f, isMob ? 1.23f : 1.55f, 0);
+            a.RuneBack.transform.localScale = new Vector3(.46f, .46f, 1);
+            a.RuneBack.color = new Color(.008f, .012f, .022f, .96f);
             a.Rune.sortingOrder = order + 3;
-            a.Rune.sprite = ShowcaseSprites.Get("sigil" + Mathf.Clamp((int)faction,0,4));
-            a.Rune.transform.localPosition = new Vector3(0, isMob ? 1.23f : 1.55f, 0);
+            bool knownFaction = (int)faction >= 0 && (int)faction < 5;
+            a.Rune.sprite = ShowcaseSprites.Get(knownFaction ? "sigil" + (int)faction : "rune");
+            a.Rune.transform.localPosition = new Vector3(-.72f, isMob ? 1.23f : 1.55f, 0);
             a.Rune.transform.localRotation = Quaternion.identity;
             a.Rune.color = color;
-            a.Rune.transform.localScale = new Vector3(.16f + (int)faction * .018f, .2f, 1);
+            a.Rune.transform.localScale = new Vector3(.4f, .4f, 1);
             a.HpBack.sortingOrder = order + 4; a.Hp.sortingOrder = order + 5;
             float width = Mathf.Clamp01(hp / 100f) * .85f;
             a.Hp.transform.localScale = new Vector3(width, .055f, 1);
@@ -180,8 +187,8 @@ namespace Roguehalla.Client
                 icon.transform.localPosition = new Vector3(-.45f + shown++ * .16f, 2, 0);
                 icon.sortingOrder = order + 7;
             }
-            a.Light.color = color; a.Light.intensity = local ? .65f : .2f;
-            a.Light.enabled = !dead && local && (ShowcaseSettings.Current == null || ShowcaseSettings.Current.EffectiveQuality == ShowcaseQuality.High);
+            a.Light.Configure(color, local ? .65f : .2f, .3f, 2.4f, .5f, false, true);
+            a.Light.SetVisible(!dead && local);
         }
 
         Art Create()
@@ -192,6 +199,7 @@ namespace Roguehalla.Client
             a.Shadow = ShowcaseSprites.Create(t, "Contact shadow", "shadow", 0, Color.white, new Vector2(1.2f, .45f), new Vector3(.13f, -.04f), false);
             a.Halo = ShowcaseSprites.Create(t, "Faction footprint", "ring", 1, Color.white, Vector2.one, Vector3.zero, false);
             a.Body = ShowcaseSprites.Create(t, "Authored character", "rune", 2, Color.white, Vector2.one, Vector3.zero);
+            a.RuneBack = ShowcaseSprites.Create(t, "Faction insignia backplate", "bar", 2, new Color(.008f, .012f, .022f, .96f), new Vector2(.46f, .46f), Vector3.zero, false);
             a.Rune = ShowcaseSprites.Create(t, "Faction insignia", "rune", 3, Color.white, Vector2.one, Vector3.zero, false);
             a.HpBack = ShowcaseSprites.Create(t, "Health track", "bar", 4, new Color(.015f, .02f, .035f), new Vector2(.94f, .11f), new Vector3(0, 1.8f), false);
             a.Hp = ShowcaseSprites.Create(t, "Confirmed health", "bar", 5, Color.white, Vector2.one, Vector3.zero, false);
@@ -201,9 +209,8 @@ namespace Roguehalla.Client
             for(int bit=0;bit<a.StatusIcons.Length;bit++)
                 a.StatusIcons[bit] = ShowcaseSprites.Create(t, "Public status bit " + bit, "sigil" + bit%5, 7,
                     bit<3 ? new Color(1,.8f,.4f) : bit<5 ? new Color(.5f,.85f,1) : bit<7 ? new Color(1,.45f,.35f) : new Color(.8f,.7f,1), new Vector2(.14f,.14f), Vector3.zero,false);
-            a.Light = ShowcaseSprites.CreateLight(t, "Observed local accent", new Vector3(0, .6f, -1)); a.Light.lightType = Light2D.LightType.Point;
-            a.Light.shadowsEnabled = false;
-            a.Light.pointLightOuterRadius = 2.4f; a.Light.pointLightInnerRadius = .3f;
+            a.Light = ShowcaseSprites.CreateLight(t, "Observed local accent", new Vector3(0, .6f, -1));
+            a.Light.Configure(Color.white, .2f, .3f, 2.4f, .5f, false, true);
             return a;
         }
     }

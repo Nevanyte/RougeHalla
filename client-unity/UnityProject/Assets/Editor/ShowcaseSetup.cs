@@ -3,6 +3,42 @@ namespace Roguehalla.Editor
 {
     public static class ShowcaseSetup
     {
+        [UnityEditor.MenuItem("Roguehalla/Art/Configure Torch Presets")]
+        public static void ConfigureTorchPresets()
+        {
+            const string source = "Assets/Resources/Showcase/Torch.prefab";
+            if (UnityEditor.AssetDatabase.LoadAssetAtPath<UnityEngine.GameObject>(source) == null)
+                throw new System.InvalidOperationException("The tracked Disabled Torch authoring source is required.");
+            foreach (bool accurate in new[] { false, true })
+            {
+                var root = UnityEditor.PrefabUtility.LoadPrefabContents(source);
+                try
+                {
+                    root.name = accurate ? "TorchAccurate" : "Torch";
+                    var light = root.GetComponent<UnityEngine.Rendering.Universal.Light2D>();
+                    var serialized = new UnityEditor.SerializedObject(light);
+                    // URP declares Disabled first, but its numeric value is 2. enumValueIndex is not the wire value.
+                    serialized.FindProperty("m_NormalMapQuality").intValue = accurate ? 1 : 2;
+                    serialized.FindProperty("m_NormalMapDistance").floatValue = .4f;
+                    serialized.FindProperty("m_UseNormalMap").boolValue = accurate;
+                    serialized.ApplyModifiedPropertiesWithoutUndo();
+                    light.enabled = false; // The owner configures both variants before choosing either.
+                    UnityEditor.PrefabUtility.SaveAsPrefabAsset(root, accurate ? "Assets/Resources/Showcase/TorchAccurate.prefab" : source);
+                }
+                finally { UnityEditor.PrefabUtility.UnloadPrefabContents(root); }
+            }
+            UnityEditor.AssetDatabase.SaveAssets();
+            ValidateTorchPresets();
+        }
+
+        public static void ValidateTorchPresets()
+        {
+            var low = UnityEngine.Resources.Load<UnityEngine.GameObject>("Showcase/Torch");
+            var high = UnityEngine.Resources.Load<UnityEngine.GameObject>("Showcase/TorchAccurate");
+            if (!Roguehalla.Client.ShowcasePointLight.ValidatePresets(low, high, out string reason))
+                throw new UnityEditor.Build.BuildFailedException("Invalid showcase light presets: " + reason);
+        }
+
         [UnityEditor.MenuItem("Roguehalla/Art/Play Presentation Study")]
         public static void PlayStudy()
         {
@@ -15,6 +51,7 @@ namespace Roguehalla.Editor
         public static void Configure()
         {
             System.IO.Directory.CreateDirectory("Assets/Resources/Showcase");
+            ConfigureTorchPresets();
             var renderer = UnityEditor.AssetDatabase.LoadAssetAtPath<UnityEngine.Rendering.Universal.Renderer2DData>("Assets/Settings/Roguehalla2DRenderer.asset");
             if (renderer == null) { renderer = UnityEngine.ScriptableObject.CreateInstance<UnityEngine.Rendering.Universal.Renderer2DData>(); UnityEditor.AssetDatabase.CreateAsset(renderer, "Assets/Settings/Roguehalla2DRenderer.asset"); }
             var rs = new UnityEditor.SerializedObject(renderer);
@@ -53,5 +90,11 @@ namespace Roguehalla.Editor
             UnityEditor.AssetDatabase.SaveAssets();
             UnityEngine.Debug.Log("Showcase 2D setup complete");
         }
+    }
+
+    public sealed class ShowcaseLightBuildValidation : UnityEditor.Build.IPreprocessBuildWithReport
+    {
+        public int callbackOrder { get { return 0; } }
+        public void OnPreprocessBuild(UnityEditor.Build.Reporting.BuildReport report) { ShowcaseSetup.ValidateTorchPresets(); }
     }
 }

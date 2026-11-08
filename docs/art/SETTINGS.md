@@ -23,11 +23,14 @@ uses the selected tier without adaptation. The quality control cycles Adaptive â
 | --- | --- | --- | --- |
 | Nearby map torch lights | At most 6 | At most 3 | Off |
 | Selective 2D torch shadows | On | Off | Off |
+| Existing point-light normal evaluation | Accurate | Disabled | Disabled |
 | Volume / bloom / grading | On | On | Off |
 | Map ember glows, 32 ambient motes, 3 haze layers | On | On | Off |
 | Actor artwork, faction insignia, health/status/weapon cues | Retained | Retained | Retained |
 | Delivered fields, projectiles, props and reward indicators | Retained | Retained | Retained |
 | Confirmed cosmetic flashes / damage amounts | Shared cap of 48 | Shared cap of 48 | Shared cap of 48 |
+
+Each point-light anchor owns two authored preset instances. Only one may be enabled at an enabled anchor; both receive the same color, intensity, radii, falloff and shadow policy before selection. The local-player accent remains High-only. Missing or invalid presets disable optional point lighting and fail the build precheck; essential unlit indicators and the ambient light remain available.
 
 The 2D light render texture uses half scale; the main scene render scale remains 1.0. The separate staged study
 has five fixed elemental demonstration lights and is an art review, not a live-game quality/performance acceptance run.

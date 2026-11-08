@@ -5,6 +5,7 @@ const path = require('node:path');
 const os = require('node:os');
 const crypto = require('node:crypto');
 const { evaluateShowcaseProof } = require('./showcase-contract.cjs');
+const { PublicContentCensus } = require('./public-content-census.cjs');
 const prefix = process.env.RH_STAGE2_PREFIX || path.join(os.homedir(), '.codex/tools/rougehalla-stage2');
 let chromium, playwrightLoadError;
 try { ({ chromium } = require(process.env.RH_PLAYWRIGHT_MODULE || path.join(prefix, 'browser/node_modules/playwright'))); }
@@ -49,6 +50,7 @@ fs.mkdirSync(out, { recursive: true });
 
 (async () => {
   let browser, page, latest = null, collections = new Map(), publicCollisionGrid = null, welcomeCount = 0, leaving = false, maxVisibleMobs = 0;
+  const publicContentCensus = new PublicContentCensus();
   const commands = [], events = [], hellos = [], welcomes = [], stateKeys = new Set();
   const report = { timestamp: new Date().toISOString(), url: displayedUrl.toString(), runtime: runtimeIdentity, nickname, expectedMap, protocol: 11, checks: {}, console: [], pageErrors: [], observerErrors: [], rejects: [], frames: { sent: 0, received: 0, snapshots: 0 }, artifacts: [] };
   const failures = [];
@@ -236,11 +238,12 @@ fs.mkdirSync(out, { recursive: true });
     });
     page.on('websocket', ws => {
       const tracker = new Tracker();
+      const connection = publicContentCensus.openConnection();
       ws.on('framesent', f => {
         report.frames.sent++;
         try {
           const m = decodeClient(asBuffer(f.payload));
-          if (m.t === 'hello') hellos.push({ protocol: m.protocol, profile: m.profile, faction: m.faction, resumed: m.resume !== null, at: Date.now() });
+          if (m.t === 'hello') { publicContentCensus.hello(connection, m); hellos.push({ protocol: m.protocol, profile: m.profile, faction: m.faction, resumed: m.resume !== null, at: Date.now() }); }
           if (m.t === 'input') for (const c of m.cmds) commands.push({ ...c, inputSeq: m.seq, at: Date.now() });
         } catch (e) { report.observerErrors.push('client decoder: ' + redact(e)); }
       });
@@ -248,15 +251,18 @@ fs.mkdirSync(out, { recursive: true });
         report.frames.received++;
         try {
           const m = decode(asBuffer(f.payload));
+          publicContentCensus.received(connection, m);
           if (m.t === 'welcome') {
             welcomeCount++;
+            publicContentCensus.welcome(connection, m);
             publicCollisionGrid = { width: m.map.w, height: m.map.h, tiles: Array.from(m.map.tiles) };
             welcomes.push({ player: m.player, protocol: m.protocol, map: { width: m.map.w, height: m.map.h, hash: m.map.hash, hex: m.map.hash.toString(16).padStart(8, '0'), exactCollisionGrid: m.map.w === expectedGrid.w && m.map.h === expectedGrid.h && m.map.tiles.length === expectedGrid.tiles.length && m.map.tiles.every((v, i) => v === expectedGrid.tiles[i]) }, at: Date.now() });
           }
           const applied = tracker.apply(m);
-          if (m.t === 'state') { for (const item of m.items) stateKeys.add(item.key); collections = tracker.collections; }
-          if (applied?.t === 'snapshot') { latest = applied; report.frames.snapshots++; maxVisibleMobs = Math.max(maxVisibleMobs, latest.actors.filter(a => a.kind === 1).length); }
-          if (m.t === 'events') for (const event of m.events) events.push({ ...event, tick: m.tick, at: Date.now() });
+          if (m.t === 'state') { for (const item of m.items) stateKeys.add(item.key); collections = tracker.collections; publicContentCensus.state(connection, m); }
+          if (applied?.t === 'snapshot') { latest = applied; report.frames.snapshots++; maxVisibleMobs = Math.max(maxVisibleMobs, latest.actors.filter(a => a.kind === 1).length); publicContentCensus.snapshot(connection, applied); }
+          if (m.t === 'events') { publicContentCensus.events(connection, m); for (const event of m.events) events.push({ ...event, tick: m.tick, at: Date.now() }); }
+          if (m.t === 'fx') publicContentCensus.fx(connection, m);
           if (m.t === 'reject') { report.rejects.push({ code: m.code, reason: redact(m.reason), duringLeave: leaving, at: Date.now() }); if (!(leaving && m.reason === 'closed')) failures.push('server rejected: ' + redact(m.reason)); }
         } catch (e) { report.observerErrors.push('server decoder: ' + redact(e)); }
       });
@@ -341,6 +347,9 @@ fs.mkdirSync(out, { recursive: true });
       const count = commandCount('useConsumable'), eventIndex = events.length, before = snapshot();
       await key('e'); await wait(() => commandCount('useConsumable') > count); await wait(() => events.slice(eventIndex).some(e => e.k === 'potionNotice'));
       check('potionInputAndNotice', commandCount('useConsumable') > count && events.slice(eventIndex).some(e => e.k === 'potionNotice'), { before, after: snapshot(), notices: events.slice(eventIndex).filter(e => e.k === 'potionNotice') });
+      await page.waitForTimeout(150);
+      await screenshot('potion-notice');
+      report.potionFeedbackArtifact = { screenshot: path.join(out, 'potion-notice.png'), deliveredNotices: copy(events.slice(eventIndex).filter(e => e.k === 'potionNotice')), verification: 'Screenshot requires visual comparison with delivered notice; no UI text pass is inferred.' };
       // The chest interaction may move focus onto a nearby ground weapon. Exercise that delivered
       // focus while it is current; later movement would correctly clear it.
       const props = collection(2), focus = props?.focus, focusedRow = focus && props.rows?.find(row => row.handle === focus.handle);
@@ -512,6 +521,7 @@ fs.mkdirSync(out, { recursive: true });
       } finally { if (previewPage) await previewPage.close(); }
     }
     report.checks.visibleMobs = status(maxVisibleMobs > 0 ? 'pass' : 'unexercised', { maximumDeliveredVisibleMobs: maxVisibleMobs });
+    report.publicContentByConnection = publicContentCensus.toJSON();
     report.commands = commands; report.events = events; report.hellos = hellos; report.welcomes = welcomes;
     report.failures = failures;
     const verdict = evaluateShowcaseProof(report);

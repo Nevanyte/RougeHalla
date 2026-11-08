@@ -1,0 +1,32 @@
+{
+  "runtimeRevision": "4f37e9f0",
+  "settings": "ManualHigh, motion on, frozen staged poses; no normal-quality probe override",
+  "pixels": 3686400,
+  "changedPixels": 442688,
+  "changedPercent": 12.008680555555555,
+  "meanAbsoluteDifferenceRGB": [
+    0.21409912109375,
+    0.16311116536458334,
+    0.10599500868055556
+  ],
+  "mae": 0.16106843171296295,
+  "rmse": 0.7532874277357363,
+  "percentiles": {
+    "50": 0.0,
+    "95": 1.0,
+    "99": 3.0,
+    "100": 25.0
+  },
+  "captures": [
+    {
+      "file": "repair-normals-relief.png",
+      "bytes": 4049818,
+      "sha256": "cc1d5b6ff57fa27d0144f8646c35ad342588d0f19db25e8bbedf9a6843852dd9"
+    },
+    {
+      "file": "repair-normals-flat.png",
+      "bytes": 4041975,
+      "sha256": "1f26d77c3d2bc77ef6cfb01dcf76898be9806d0035f3282950c671b0cbe9d15d"
+    }
+  ]
+}
