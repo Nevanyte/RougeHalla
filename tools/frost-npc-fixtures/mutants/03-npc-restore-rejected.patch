@@ -1,0 +1,12 @@
+--- a/crates/rh-sim/src/systems/frost.rs
++++ b/crates/rh-sim/src/systems/frost.rs
+@@ -250,6 +250,9 @@
+     f: &crate::fighter::Signature,
+ ) -> Result<(), String> {
+     let count = usize::from(f.chiller_count);
++    if w.player(id).is_none() && count > 0 {
++        return Err("npc chill rejected by mutant".into());
++    }
+     let identity = f.chill == 1.
+         && count == 0
+         && f.chillers.iter().all(Option::is_none)

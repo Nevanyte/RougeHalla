@@ -1,0 +1,11 @@
+--- a/crates/rh-sim/src/systems/frost.rs
++++ b/crates/rh-sim/src/systems/frost.rs
+@@ -118,7 +118,7 @@
+     let now = w.server_time;
+     // Source updateChill walks standingCombatants (players and basic regional NPCs). Chiller sources remain roster PLAYER
+     // ids: only a player's Frost structural chill is admitted; Frost/Sentenced NPC sources stay out of scope.
+-    let fighters = w.fighter_count();
++    let fighters = w.players.len();
+     for i in 0..fighters {
+         let ix = crate::fighter::FighterIx::of_slot(i);
+         if !w.standing(ix) {
