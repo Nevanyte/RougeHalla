@@ -58,9 +58,19 @@ pub(super) fn room(input: &V) -> crate::TileMap {
 }
 
 pub(super) fn construct(input: &V) -> Sim {
+    construct_with_birth(input, &mut |_, _| {})
+}
+pub(super) fn construct_with_birth(input: &V, on_birth: &mut dyn FnMut(&Sim, &[Event])) -> Sim {
+    construct_with_stages(input, &mut |_, _| {}, on_birth)
+}
+pub(super) fn construct_with_stages(
+    input: &V,
+    on_stage: &mut dyn FnMut(&Sim, &str),
+    on_birth: &mut dyn FnMut(&Sim, &[Event]),
+) -> Sim {
     assert!(matches!(
         input["profile"].as_str(),
-        Some("core" | "signatures" | "roster" | "cards" | "training")
+        Some("core" | "signatures" | "roster" | "rosterSignatures" | "cards" | "training")
     ));
     PLAYER_COUNT.set(input["players"].as_array().unwrap().len() as u32);
     assert!(matches!(
@@ -112,54 +122,70 @@ pub(super) fn construct(input: &V) -> Sim {
         })
         .collect();
     let training = input["profile"] == "training" || input["config"]["training"] == true;
-    let mut sim = Sim::new(
-        SimConfig {
-            quests: false,
-            consumables: false,
-            // The ability source capture installs weapons and abilities only: no consumables module, so no wind timer.
-            min_players: placements.iter().filter(|p| !p.bot).count(),
-            fill_seconds: 0.,
-            abilities: Mode::Full,
-            // Both source profiles install loot; in an empty room this consumes only the constructor order draw.
-            initial_loot: matches!(input["profile"].as_str(), Some("roster" | "training")),
-            training,
-            dummies: input["config"]["dummies"] == true,
-            lifecycle: if training {
-                crate::ArenaMode::Off
-            } else {
-                crate::ArenaMode::Source(crate::ArenaRules {
-                    plan_seconds: input["config"]["planSeconds"].as_f64().unwrap_or(0.),
-                    first_patience_seconds: input["config"]["firstPatienceSeconds"].as_f64(),
-                    coliseum_schedule: None,
-                    patience_seconds: input["config"]["patienceSeconds"].as_f64().unwrap_or(3600.),
-                    patience_min_seconds: input["config"]["patienceMinSeconds"]
-                        .as_f64()
-                        .unwrap_or(3600.),
-                    sudden_death_seconds: input["config"]["suddenDeathSeconds"]
-                        .as_f64()
-                        .unwrap_or(60.),
-                })
-            },
-            mob_mode: if input["profile"] == "roster" {
-                crate::mob_runtime::MobMode::Pve
-            } else {
-                crate::mob_runtime::MobMode::Off
-            },
-            faction_mode: if input["profile"] == "signatures" {
-                crate::FactionMode::EngagementHolyPlagueFireFrostSentenced
-            } else {
-                crate::FactionMode::Off
-            },
-            wish_lock_ms: input["config"]["wishLockSeconds"].as_f64().unwrap_or(0.) * 1000.,
-            ..Default::default()
+    let config = SimConfig {
+        quests: false,
+        consumables: false,
+        // The ability source capture installs weapons and abilities only: no consumables module, so no wind timer.
+        min_players: placements.iter().filter(|p| !p.bot).count(),
+        fill_seconds: 0.,
+        abilities: Mode::Full,
+        // Both source profiles install loot; in an empty room this consumes only the constructor order draw.
+        initial_loot: matches!(
+            input["profile"].as_str(),
+            Some("roster" | "rosterSignatures" | "training")
+        ),
+        training,
+        dummies: input["config"]["dummies"] == true,
+        lifecycle: if training {
+            crate::ArenaMode::Off
+        } else {
+            crate::ArenaMode::Source(crate::ArenaRules {
+                plan_seconds: input["config"]["planSeconds"].as_f64().unwrap_or(0.),
+                first_patience_seconds: input["config"]["firstPatienceSeconds"].as_f64(),
+                coliseum_schedule: None,
+                patience_seconds: input["config"]["patienceSeconds"].as_f64().unwrap_or(3600.),
+                patience_min_seconds: input["config"]["patienceMinSeconds"]
+                    .as_f64()
+                    .unwrap_or(3600.),
+                sudden_death_seconds: input["config"]["suddenDeathSeconds"]
+                    .as_f64()
+                    .unwrap_or(60.),
+            })
         },
-        arena,
-        secrets,
-    );
-    for p in &placements {
-        sim.add_player(&p.profile, Some(p.faction), p.bot).unwrap();
+        mob_mode: if matches!(
+            input["profile"].as_str(),
+            Some("roster" | "rosterSignatures")
+        ) {
+            crate::mob_runtime::MobMode::Pve
+        } else {
+            crate::mob_runtime::MobMode::Off
+        },
+        faction_mode: if matches!(
+            input["profile"].as_str(),
+            Some("signatures" | "rosterSignatures")
+        ) {
+            crate::FactionMode::EngagementHolyPlagueFireFrostSentenced
+        } else {
+            crate::FactionMode::Off
+        },
+        wish_lock_ms: input["config"]["wishLockSeconds"].as_f64().unwrap_or(0.) * 1000.,
+        ..Default::default()
+    };
+    let closed = input["profile"] == "rosterSignatures";
+    let mut sim =
+        Sim::try_new(config, arena, secrets).expect("admitted source profile constructor");
+    on_stage(&sim, "constructed");
+    #[cfg(feature = "trusted-status-probes")]
+    if closed {
+        sim.w.trace.1.enabled = true;
     }
-    sim.step();
+    for p in &placements {
+        sim.add_player(&p.profile, Some(p.faction), p.bot)
+            .expect("admitted source profile join");
+    }
+    on_stage(&sim, "joined");
+    let events = sim.step();
+    on_birth(&sim, &events);
     let now = sim.w.server_time;
     for ((p, declared), spec) in sim
         .w
@@ -263,7 +289,12 @@ pub(super) fn enqueue(s: &mut Sim, input: &V) {
         other => panic!("unsupported source action {other}"),
     };
     let command = crate::validate(command).unwrap();
-    let _ = s.submit_unbudgeted(id(&input["actor"]).unwrap(), command);
+    let result = s.submit_unbudgeted(id(&input["actor"]).unwrap(), command);
+    if s.k.config.mob_mode == crate::mob_runtime::MobMode::Pve
+        && s.k.config.faction_mode.sentenced()
+    {
+        result.expect("declared strict Full command passes the real input door");
+    }
 }
 
 pub(super) fn born_arena(input: &V) -> Arena {

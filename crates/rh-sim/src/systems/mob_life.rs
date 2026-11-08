@@ -413,7 +413,7 @@ fn drop_weapon(w: &mut World, a: &Award) {
         );
     }
 }
-fn award_weapon(w: &mut World, ev: &mut Vec<Event>, a: &Award) {
+fn award_weapon(k: &MatchStatic, w: &mut World, ev: &mut Vec<Event>, a: &Award) {
     if a.weapon == WeaponId::Fists {
         return;
     }
@@ -436,8 +436,19 @@ fn award_weapon(w: &mut World, ev: &mut Vec<Event>, a: &Award) {
             p.weapon.weapon1 = Some(a.weapon)
         }
         super::items::weapon_changed(p, w.server_time);
+        let id = p.id;
+        crate::hooks::fire(
+            &mut crate::hooks::Hx {
+                stats: Default::default(),
+                k,
+                w,
+                ev,
+                fx: None,
+            },
+            crate::hooks::HookArgs::WeaponSwapped(id),
+        );
         ev.push(Event::MobArmed {
-            id: p.id,
+            id,
             weapon: a.weapon,
         });
         return;
@@ -486,13 +497,27 @@ pub(crate) fn pay(k: &MatchStatic, w: &mut World, ev: &mut Vec<Event>, a: Award)
         amount,
     );
     if !a.elite {
-        crate::modifiers::grant_mob_stat(
+        let gained = crate::modifiers::grant_mob_stat(
             k,
             w,
             id,
             a.mob_type,
             crate::modifiers::farm::DEFINITION.kill_stacks,
         );
+        if gained > 0 {
+            ev.push(Event::Toast {
+                to: id,
+                text: format!(
+                    "{}: +{gained} kill {} · {} total",
+                    crate::modifiers::farm_text::mob_name(a.mob_type),
+                    if gained == 1 { "stack" } else { "stacks" },
+                    crate::modifiers::farm_text::stat_text(
+                        a.mob_type,
+                        w.players[i].farm.count(a.mob_type)
+                    )
+                ),
+            });
+        }
     }
     if !w.pay.mob_settled.contains(&id) {
         w.pay.mob_settled.push(id);
@@ -505,7 +530,7 @@ pub(crate) fn pay(k: &MatchStatic, w: &mut World, ev: &mut Vec<Event>, a: Award)
             .collect();
         awards.sort_by_key(|d| d.serial);
         for a in awards {
-            award_weapon(w, ev, &a);
+            award_weapon(k, w, ev, &a);
         }
     }
     // Source payMobKill: credit, stat, the settled weapon awards and the chainable `mobKilled` hook. The chests link
@@ -531,6 +556,8 @@ pub(crate) fn pay(k: &MatchStatic, w: &mut World, ev: &mut Vec<Event>, a: Award)
 }
 #[cfg(all(test, feature = "trusted-status-probes"))]
 mod mob_lifecycle_tests;
+#[cfg(test)]
+mod pay_tests;
 
 pub(crate) fn reap(cx: &mut Cx) {
     if !mob_ai::enabled(cx.w) {

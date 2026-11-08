@@ -795,31 +795,6 @@ fn apply_victim(
             probe.fire(pass.k, pass.w, pass.ev, v, pass.stats);
         }
     }
-    if !pass.w.standing(ix) && total > hp_before {
-        let hits: Vec<OverkillHit> = idxs
-            .iter()
-            .enumerate()
-            .map(|(j, &index)| OverkillHit {
-                entry: ledger[index].clone(),
-                raw: amounts[j],
-            })
-            .collect();
-        crate::hooks::fire(
-            &mut crate::hooks::Hx {
-                stats: pass.stats,
-                k: pass.k,
-                w: pass.w,
-                ev: pass.ev,
-                fx: None,
-            },
-            crate::hooks::HookArgs::Overkilled {
-                victim: v,
-                hits,
-                overkill: total - hp_before,
-                total,
-            },
-        );
-    }
     let landed_share = if !player && total > applied {
         applied / total
     } else if total > 0.0 {
@@ -929,6 +904,32 @@ fn apply_victim(
             );
             weapons::stagger_cancel(pass.w.core_mut(ix), now, pass.ev);
         }
+    }
+    // Source ledger: every hitLanded and stagger callback precedes overkilled.
+    if !pass.w.standing(ix) && total > hp_before {
+        let hits: Vec<OverkillHit> = idxs
+            .iter()
+            .enumerate()
+            .map(|(j, &index)| OverkillHit {
+                entry: ledger[index].clone(),
+                raw: amounts[j],
+            })
+            .collect();
+        crate::hooks::fire(
+            &mut crate::hooks::Hx {
+                stats: pass.stats,
+                k: pass.k,
+                w: pass.w,
+                ev: pass.ev,
+                fx: None,
+            },
+            crate::hooks::HookArgs::Overkilled {
+                victim: v,
+                hits,
+                overkill: total - hp_before,
+                total,
+            },
+        );
     }
 }
 
