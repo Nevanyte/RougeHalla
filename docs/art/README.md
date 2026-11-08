@@ -1,5 +1,7 @@
 # Roguehalla visual art board
 
+Current owner-requested audit: [original-game asset inventory and incomplete list](inventory/README.md), with 125 cue families, 176 visual source modules, 57 cosmetics and 80 card IDs. The new opt-in [Flare expansion](ASSET_EXPANSION.md) and [particle kit](PARTICLE_KIT.md) are prepared separately from live integration. The accepted protocol13 Web build remains unchanged; the older repair reports below retain their original revision scope.
+
 Open [index.html](index.html) for the curated source preview and visual direction. The selected primary family is Flare game art: credited fantasy characters with animation-frame/anchor metadata and a matching isometric dungeon atlas. The Unity-facing frame inventory is `client-unity/UnityProject/Assets/Art/ThirdParty/Flare/sprite-frame-metadata.json`.
 
 The project now includes selected Flare audio as well as art: two music tracks, one ambience loop, and five UI/combat/item effects. The original source files are unchanged. Exact pins, hashes, attribution and license records are kept beside the assets. See [ARMOR.md](ARMOR.md), [AUDIO.md](AUDIO.md), and [client-unity/THIRD_PARTY_ASSETS.md](../../client-unity/THIRD_PARTY_ASSETS.md) before redistribution. No Asset Store package, paid asset, 3D asset, or generated artwork was acquired.

@@ -1,0 +1,1394 @@
+{
+  "format": "rh-legacy-world-inventory/1",
+  "legacySourceRevision": "70579162ce41a1325aaed1a65a34b65b779ad1e7",
+  "unityEvidence": "docs/unity/presentation-inventory.json (legacyRevision 7e131bac788a6d654ebfdeb3b6ab02b7771f704c); current Unity mapping is presentation-contract inventory, not an independent rendered completeness claim.",
+  "scope": "Original Phaser client visual world, actors, combat, and VFX. Excludes UI-owned screens/HUD/audio/static web assets; those have separate owners. This is not the entire game asset inventory.",
+  "assetReality": {
+    "rasterAudioFontFiles": "docs/legacy/INVENTORY.md §8 reports no legacy client image/audio/font files; this domain is rendered through Phaser Graphics, text, generated/baked Canvas/texture art and source data.",
+    "proceduralFamilies": [
+      "actor figures, faction badges and cosmetics",
+      "weapons/projectiles/trails and hit/cast feedback",
+      "terrain/map floors/walls/zone features/props",
+      "camps, containers, quest/trader/corpse markers",
+      "selection/target/range/routes/visibility feedback"
+    ],
+    "dynamicGeneratedInputs": [
+      "seeded map zones/features/props/terrain/camps/spawn positions",
+      "camp rosters and mob types/roles/elite status",
+      "quest givers, quest items/carriers and tracked objective markers",
+      "active attacks, projectiles, fields, signatures/statuses and one-shot Fx"
+    ]
+  },
+  "statusLegend": {
+    "complete": "A named presentation slice has direct current runtime/browser evidence; never use an upstream available fact/readiness entry alone to claim rendered completion.",
+    "partial": "Some visual behaviors are implemented, while visual family completeness, selected-demo scope or readability remains open.",
+    "missing": "No verified current Unity presentation path for the named visual family.",
+    "blocked-by-delivered-facts": "The Unity visual depends on a public server fact that is not delivered. Do not infer hidden/private state.",
+    "readiness-vs-rendering": "docs/unity/presentation-inventory.json status is a facts/readiness contract and can be stale relative to later source/evidence. It is recorded separately as inventoryStatus; it is not direct proof of an implemented Unity visual."
+  },
+  "families": [
+    {
+      "id": "factions-and-player-figures",
+      "members": [
+        "Fire",
+        "Sentenced",
+        "Plague",
+        "Frost",
+        "Holy",
+        "player figure silhouette/facing/pose/shadow/ground ring",
+        "faction insignia/color",
+        "player name/identity label",
+        "cosmetic skin core/outline/title/halo/weapon treatment/movement trail"
+      ],
+      "legacySource": [
+        "packages/shared/src/factions.ts: FactionId, FACTIONS, FACTION_IDS",
+        "packages/shared/src/cosmetics.ts: COSMETICS",
+        "packages/client/src/render/PlayerView.ts: PlayerView",
+        "packages/client/src/render/FighterArt.ts: drawFighter/drawWeapon",
+        "packages/client/src/render/FigureJuice.ts; packages/client/src/render/MarkPlate.ts"
+      ],
+      "unity": [
+        "actor.faction-body",
+        "actor.names",
+        "actor.cosmetics",
+        "actor.health"
+      ],
+      "unityStatus": "partial",
+      "note": "Five faction-coded actors exist in legacy graphics but there are no authored image assets. Unity uses two Flare hero bodies plus faction marks/colors. All five normal R scenarios passed frozen protocol-13 browser proof (docs/evidence/frozen-browser-1310/README.md); silhouette/art uniqueness, non-hue readability and crowded-motion review remain open.",
+      "unityEvidence": [
+        {
+          "id": "actor.faction-body",
+          "inventoryStatus": "available",
+          "interpretation": "readiness-contract-only; not implementation proof"
+        },
+        {
+          "id": "actor.names",
+          "inventoryStatus": "missing-in-protocol",
+          "interpretation": "readiness-contract-only; not implementation proof"
+        },
+        {
+          "id": "actor.cosmetics",
+          "inventoryStatus": "missing-in-protocol",
+          "interpretation": "readiness-contract-only; not implementation proof"
+        },
+        {
+          "id": "actor.health",
+          "inventoryStatus": "available",
+          "interpretation": "readiness-contract-only; not implementation proof"
+        }
+      ],
+      "runtimePresentationStatus": "partial",
+      "runtimePresentationEvidence": "Five-faction scenarios are accepted in frozen browser proof; body silhouette and visual identity/readability are still partial."
+    },
+    {
+      "id": "cosmetics-catalog",
+      "members": [
+        "skins: Crimson, Amber, Lime, Teal, Azure, Violet, Magenta, Slate, Bone, Obsidian, Coral, Laurel, Ghost",
+        "outlines: White edge, Black edge, Neon edge, Red edge, Cyan edge, Magenta edge, Bounty edge",
+        "trails: Ember, Mist, Sparks, Toxic, Frostbite, Void, Comet",
+        "titles: Rookie, Wanderer, Gladiator, Unbroken, Bloodied, Slayer, Reaper, Bounty Hunter, Victor, Champion, Warlord, Rampage, Veteran, Glorious, Cycle Breaker, Pyre Lord, The Judge, Rat King, Ice Wall, Holy",
+        "gilded factions: Gilded Fire, Gilded Sentenced, Gilded Plague, Gilded Frost, Gilded Holy",
+        "golden weapons: Golden Sword, Golden Axe, Golden Bow, Golden Wand, Golden Shield",
+        "silhouette bits: body fill/skin color, body-disc outline width/color, moving trail style (dots/streak/sparks), title text under feet, faction/weapon golden treatment"
+      ],
+      "legacySource": [
+        "packages/shared/src/cosmetics.ts: Cosmetic, COSMETICS",
+        "packages/client/src/render/PlayerView.ts: cosmetic rendering path"
+      ],
+      "unity": [
+        "actor.cosmetics"
+      ],
+      "unityStatus": "missing",
+      "note": "Legacy cosmetic catalog has procedural/simple presentation; Unity inventory marks cosmetics missing-in-protocol.",
+      "unityEvidence": [
+        {
+          "id": "actor.cosmetics",
+          "inventoryStatus": "missing-in-protocol",
+          "interpretation": "readiness-contract-only; not implementation proof"
+        }
+      ],
+      "runtimePresentationStatus": "missing",
+      "runtimePresentationEvidence": "No complete Unity cosmetics runtime evidence in this world inventory."
+    },
+    {
+      "id": "mob-kind-role-and-type-catalog",
+      "members": [
+        "kind dummy, mob, elite, zombie",
+        "roles grunt, swarm, brute, skirmisher, caster",
+        "Fire: Ember Imp, Cinder Hound, Magma Brute, Flame Caller, Wyrmling (elite), Ash Drake (elite)",
+        "Sentenced: Bailiff, Chain Warden, Inquisitor, Pardoner, Executioner (elite), Gaoler (elite)",
+        "Plague: Plague Rat, Bloatfly, Rot Monk, Miasma Witch, Rat Ogre (elite), Pox Behemoth (elite)",
+        "Frost: Frost Wisp, Ice Golem, Rime Stalker, Frostbow Sentry, Glacial Warden (elite), Avalanche Troll (elite)",
+        "Holy: Acolyte, Seraph Shard, Penitent, Zealot, Blood Saint (elite), Archon (elite)",
+        "role glyphs, role labels, elite double rim/star/name treatment, two-layer elite emblems, health bars, weapon and faction readout"
+      ],
+      "legacySource": [
+        "packages/shared/src/mobs.ts: MobKind, MobRole, MOB_ROLE_DEFS, MOB_TYPES, mobTypesOf, normalTypesOf, elitesOf",
+        "packages/client/src/render/MobView.ts: MobView, role glyph/render functions",
+        "packages/client/src/render/eliteArt.ts: ELITE_ART, eliteArtOf, drawEliteLayer",
+        "packages/client/src/render/displayName.ts: mob display name mapping"
+      ],
+      "unity": [
+        "actor.faction-body",
+        "actor.health",
+        "actor.weapons",
+        "mob.role-elite-art"
+      ],
+      "unityStatus": "partial",
+      "note": "Legacy names and role/elite cues are identified. Unity currently maps mobs coarsely onto goblin/skeleton visual families; no per-type bespoke art is required, but distinguishable delivered type/role/elite coverage is not established.",
+      "unityEvidence": [
+        {
+          "id": "actor.faction-body",
+          "inventoryStatus": "available",
+          "interpretation": "readiness-contract-only; not implementation proof"
+        },
+        {
+          "id": "actor.health",
+          "inventoryStatus": "available",
+          "interpretation": "readiness-contract-only; not implementation proof"
+        },
+        {
+          "id": "actor.weapons",
+          "inventoryStatus": "available",
+          "interpretation": "readiness-contract-only; not implementation proof"
+        },
+        {
+          "id": "mob.role-elite-art",
+          "inventoryStatus": "available",
+          "interpretation": "readiness-contract-only; not implementation proof"
+        }
+      ],
+      "runtimePresentationStatus": "partial",
+      "runtimePresentationEvidence": "Goblin/skeleton reuse is verified; do not claim unique mob models. Role/elite identities still need full live visual review."
+    },
+    {
+      "id": "weapons-and-held-poses",
+      "members": [
+        "sword",
+        "bow",
+        "wand",
+        "shield",
+        "axe",
+        "fists (empty-hand, non-item)",
+        "held weapon silhouettes and active hand",
+        "bow pull/draw, wand charge, shield-side block posture, swing arcs/lunge",
+        "ground weapons and weapon drops"
+      ],
+      "legacySource": [
+        "packages/shared/src/weapons.ts: WeaponId, WEAPON_IDS, ALL_WEAPON_IDS, WEAPONS",
+        "packages/client/src/render/FighterArt.ts: drawWeapon",
+        "packages/client/src/render/PlayerView.ts: held equipment",
+        "packages/client/src/render/MobView.ts: mob weapon draw"
+      ],
+      "unity": [
+        "actor.weapons",
+        "actor.weapon-draw-state",
+        "loot.world-props",
+        "combat.swing",
+        "combat.block"
+      ],
+      "unityStatus": "partial",
+      "note": "Unity has six procedural glyphs, acknowledged as schematic; exact timing-sensitive draw state remains missing.",
+      "unityEvidence": [
+        {
+          "id": "actor.weapons",
+          "inventoryStatus": "available",
+          "interpretation": "readiness-contract-only; not implementation proof"
+        },
+        {
+          "id": "actor.weapon-draw-state",
+          "inventoryStatus": "missing-in-protocol",
+          "interpretation": "readiness-contract-only; not implementation proof"
+        },
+        {
+          "id": "loot.world-props",
+          "inventoryStatus": "available",
+          "interpretation": "readiness-contract-only; not implementation proof"
+        },
+        {
+          "id": "combat.swing",
+          "inventoryStatus": "available",
+          "interpretation": "readiness-contract-only; not implementation proof"
+        },
+        {
+          "id": "combat.block",
+          "inventoryStatus": "available",
+          "interpretation": "readiness-contract-only; not implementation proof"
+        }
+      ],
+      "runtimePresentationStatus": "partial",
+      "runtimePresentationEvidence": "Procedural glyphs and currently rendered poses are schematic; full visual distinction not accepted."
+    },
+    {
+      "id": "projectiles-trails-and-impact-endings",
+      "members": [
+        "arrow projectile shaft/tip/trail",
+        "wand ball layered projectile/glow",
+        "projectile launch/recoil/trajectory/homing target follow",
+        "arrow/ball trail",
+        "projectile termination: hit, wall, range, reflected, deleted, destroyed, cleared, blocked",
+        "weapon-specific impact/burst and wand splash",
+        "Blaze Step trail between blink endpoints"
+      ],
+      "legacySource": [
+        "packages/shared/src/weapons.ts: ProjectileKind, projectile shapes",
+        "packages/client/src/render/ProjectileView.ts: ProjectileView, shapeOf, projectile lifecycle",
+        "packages/client/src/render/TrailView.ts: TrailView",
+        "packages/client/src/render/FxView.ts: projEnd handling",
+        "packages/client/src/render/FieldView.ts: blaze trail field"
+      ],
+      "unity": [
+        "projectile.flight",
+        "projectile.launch-homing",
+        "projectile.end",
+        "field.blaze-trail"
+      ],
+      "unityStatus": "partial",
+      "note": "Basic flight has Unity counterpart; authoritative launch trajectory and reason-specific terminal cues are missing.",
+      "unityEvidence": [
+        {
+          "id": "projectile.flight",
+          "inventoryStatus": "available",
+          "interpretation": "readiness-contract-only; not implementation proof"
+        },
+        {
+          "id": "projectile.launch-homing",
+          "inventoryStatus": "missing-in-protocol",
+          "interpretation": "readiness-contract-only; not implementation proof"
+        },
+        {
+          "id": "projectile.end",
+          "inventoryStatus": "missing-in-protocol",
+          "interpretation": "readiness-contract-only; not implementation proof"
+        },
+        {
+          "id": "field.blaze-trail",
+          "inventoryStatus": "available",
+          "interpretation": "readiness-contract-only; not implementation proof"
+        }
+      ],
+      "runtimePresentationStatus": "partial",
+      "runtimePresentationEvidence": "Basic projectile path exists; terminal causes/impact distinctions not fully covered."
+    },
+    {
+      "id": "combat-feedback-and-telegraphs",
+      "members": [
+        "windup sector/gathering glow",
+        "attack-cancel removes unlanded warning",
+        "landed melee sector and figure lunge/swing",
+        "damage numbers/body flash/impact bloom/reaction",
+        "critical and signature/ability damage number distinctions",
+        "heal +N number",
+        "shield block spark/burst",
+        "stagger stars and cancelled windup",
+        "death X/burst/fade/kill announcement",
+        "respawn/re-entry world cue when applicable",
+        "bounty/rampage and victory/draw",
+        "coliseum teleport flash and sudden-death warning",
+        "camp clear/heal/reward/bounty notices that manifest in world"
+      ],
+      "legacySource": [
+        "packages/client/src/render/FxView.ts: FxView.update, event dispatch, per-kind drawing",
+        "packages/client/src/render/FigureJuice.ts; packages/client/src/render/screenJuice.ts",
+        "packages/client/src/render/WishFx.ts: WishFx",
+        "packages/client/src/render/TrailView.ts: TrailView"
+      ],
+      "unity": [
+        "combat.swing",
+        "combat.windup",
+        "combat.attack-cancel",
+        "combat.hit-numbers-flash",
+        "combat.critical-numbers",
+        "combat.signature-hits",
+        "combat.ability-hits",
+        "combat.heal-numbers",
+        "combat.block",
+        "combat.stagger",
+        "combat.death-decal",
+        "combat.teleport-flash",
+        "combat.victory-announcement",
+        "combat.bounty-announcement",
+        "status.application-burst"
+      ],
+      "unityStatus": "partial",
+      "note": "Current Fx coverage spans ordinary hits, block, stagger, swing, teleport and victory; distinct cue groups remain missing. Do not substitute HUD toasts owned by UI inventory.",
+      "unityEvidence": [
+        {
+          "id": "combat.swing",
+          "inventoryStatus": "available",
+          "interpretation": "readiness-contract-only; not implementation proof"
+        },
+        {
+          "id": "combat.windup",
+          "inventoryStatus": "missing-in-protocol",
+          "interpretation": "readiness-contract-only; not implementation proof"
+        },
+        {
+          "id": "combat.attack-cancel",
+          "inventoryStatus": "missing-in-protocol",
+          "interpretation": "readiness-contract-only; not implementation proof"
+        },
+        {
+          "id": "combat.hit-numbers-flash",
+          "inventoryStatus": "available",
+          "interpretation": "readiness-contract-only; not implementation proof"
+        },
+        {
+          "id": "combat.critical-numbers",
+          "inventoryStatus": "missing-in-protocol",
+          "interpretation": "readiness-contract-only; not implementation proof"
+        },
+        {
+          "id": "combat.signature-hits",
+          "inventoryStatus": "missing-in-protocol",
+          "interpretation": "readiness-contract-only; not implementation proof"
+        },
+        {
+          "id": "combat.ability-hits",
+          "inventoryStatus": "missing-in-protocol",
+          "interpretation": "readiness-contract-only; not implementation proof"
+        },
+        {
+          "id": "combat.heal-numbers",
+          "inventoryStatus": "missing-in-protocol",
+          "interpretation": "readiness-contract-only; not implementation proof"
+        },
+        {
+          "id": "combat.block",
+          "inventoryStatus": "available",
+          "interpretation": "readiness-contract-only; not implementation proof"
+        },
+        {
+          "id": "combat.stagger",
+          "inventoryStatus": "available",
+          "interpretation": "readiness-contract-only; not implementation proof"
+        },
+        {
+          "id": "combat.death-decal",
+          "inventoryStatus": "missing-in-protocol",
+          "interpretation": "readiness-contract-only; not implementation proof"
+        },
+        {
+          "id": "combat.teleport-flash",
+          "inventoryStatus": "available",
+          "interpretation": "readiness-contract-only; not implementation proof"
+        },
+        {
+          "id": "combat.victory-announcement",
+          "inventoryStatus": "available",
+          "interpretation": "readiness-contract-only; not implementation proof"
+        },
+        {
+          "id": "combat.bounty-announcement",
+          "inventoryStatus": "missing-in-protocol",
+          "interpretation": "readiness-contract-only; not implementation proof"
+        },
+        {
+          "id": "status.application-burst",
+          "inventoryStatus": "missing-in-protocol",
+          "interpretation": "readiness-contract-only; not implementation proof"
+        }
+      ],
+      "runtimePresentationStatus": "partial",
+      "runtimePresentationEvidence": "Ordinary cues exist; several detailed cue distinctions remain open."
+    },
+    {
+      "id": "faction-signatures",
+      "members": [
+        "Fire: burn, backlash",
+        "Sentenced: mark tiers, attack-speed tax, suppression, execute-blocked",
+        "Plague: disease, low-health execute",
+        "Frost: chilled rim/film/shards",
+        "Holy: sustain/radiant and Last Stand adjacency"
+      ],
+      "legacySource": [
+        "packages/shared/src/signatures.ts: SignatureKind, SIG_* bits, damage helpers",
+        "packages/client/src/render/SignatureArt.ts: signature draw",
+        "packages/client/src/render/MarkPlate.ts and markPresentation.ts"
+      ],
+      "unity": [
+        "signature.burning",
+        "signature.chilled",
+        "signature.disease-execute",
+        "signature.brand",
+        "signature.mark-plate",
+        "combat.signature-hits"
+      ],
+      "unityStatus": "partial",
+      "note": "Burn/chill/disease execute have entries available; brand progression, mark plate and full signature-hit number cues are absent.",
+      "unityEvidence": [
+        {
+          "id": "signature.burning",
+          "inventoryStatus": "available",
+          "interpretation": "readiness-contract-only; not implementation proof"
+        },
+        {
+          "id": "signature.chilled",
+          "inventoryStatus": "available",
+          "interpretation": "readiness-contract-only; not implementation proof"
+        },
+        {
+          "id": "signature.disease-execute",
+          "inventoryStatus": "available",
+          "interpretation": "readiness-contract-only; not implementation proof"
+        },
+        {
+          "id": "signature.brand",
+          "inventoryStatus": "missing-in-protocol",
+          "interpretation": "readiness-contract-only; not implementation proof"
+        },
+        {
+          "id": "signature.mark-plate",
+          "inventoryStatus": "missing-in-protocol",
+          "interpretation": "readiness-contract-only; not implementation proof"
+        },
+        {
+          "id": "combat.signature-hits",
+          "inventoryStatus": "missing-in-protocol",
+          "interpretation": "readiness-contract-only; not implementation proof"
+        }
+      ],
+      "runtimePresentationStatus": "partial",
+      "runtimePresentationEvidence": "Some steady marks exist; mark brand/plate and differentiated hits remain open."
+    },
+    {
+      "id": "statuses-and-combat-states",
+      "members": [
+        "stun",
+        "root",
+        "silence",
+        "slowMove",
+        "slowAttack",
+        "antiHeal",
+        "dot",
+        "invulnerable",
+        "untargetable",
+        "hidden",
+        "zoned",
+        "deathFloor/Last Stand",
+        "haste",
+        "shred",
+        "casting",
+        "visible status orbit/shackle/badge/trail/outline/rim cues"
+      ],
+      "legacySource": [
+        "packages/shared/src/status.ts: StatusKind, STATUS_KINDS, EFFECT_*",
+        "packages/client/src/render/StatusArt.ts: status presentation",
+        "packages/client/src/render/PlayerView.ts and MobView.ts: effects attachment"
+      ],
+      "unity": [
+        "status.stunned",
+        "status.rooted",
+        "status.silenced",
+        "status.slowed",
+        "status.attack-slowed",
+        "status.anti-heal",
+        "status.dot",
+        "status.untargetable",
+        "status.hidden",
+        "status.zoned",
+        "status.last-stand",
+        "status.haste",
+        "status.casting",
+        "status.application-burst",
+        "status.invulnerability-shred"
+      ],
+      "unityStatus": "partial",
+      "note": "Unity contract marks steady-state status cues available; one-shot application and some invulnerability/shred presentation are still missing. Hidden actors and dependent FX must remain suppressed.",
+      "unityEvidence": [
+        {
+          "id": "status.stunned",
+          "inventoryStatus": "available",
+          "interpretation": "readiness-contract-only; not implementation proof"
+        },
+        {
+          "id": "status.rooted",
+          "inventoryStatus": "available",
+          "interpretation": "readiness-contract-only; not implementation proof"
+        },
+        {
+          "id": "status.silenced",
+          "inventoryStatus": "available",
+          "interpretation": "readiness-contract-only; not implementation proof"
+        },
+        {
+          "id": "status.slowed",
+          "inventoryStatus": "available",
+          "interpretation": "readiness-contract-only; not implementation proof"
+        },
+        {
+          "id": "status.attack-slowed",
+          "inventoryStatus": "available",
+          "interpretation": "readiness-contract-only; not implementation proof"
+        },
+        {
+          "id": "status.anti-heal",
+          "inventoryStatus": "available",
+          "interpretation": "readiness-contract-only; not implementation proof"
+        },
+        {
+          "id": "status.dot",
+          "inventoryStatus": "available",
+          "interpretation": "readiness-contract-only; not implementation proof"
+        },
+        {
+          "id": "status.untargetable",
+          "inventoryStatus": "available",
+          "interpretation": "readiness-contract-only; not implementation proof"
+        },
+        {
+          "id": "status.hidden",
+          "inventoryStatus": "available",
+          "interpretation": "readiness-contract-only; not implementation proof"
+        },
+        {
+          "id": "status.zoned",
+          "inventoryStatus": "available",
+          "interpretation": "readiness-contract-only; not implementation proof"
+        },
+        {
+          "id": "status.last-stand",
+          "inventoryStatus": "available",
+          "interpretation": "readiness-contract-only; not implementation proof"
+        },
+        {
+          "id": "status.haste",
+          "inventoryStatus": "available",
+          "interpretation": "readiness-contract-only; not implementation proof"
+        },
+        {
+          "id": "status.casting",
+          "inventoryStatus": "available",
+          "interpretation": "readiness-contract-only; not implementation proof"
+        },
+        {
+          "id": "status.application-burst",
+          "inventoryStatus": "missing-in-protocol",
+          "interpretation": "readiness-contract-only; not implementation proof"
+        },
+        {
+          "id": "status.invulnerability-shred",
+          "inventoryStatus": "missing-in-protocol",
+          "interpretation": "readiness-contract-only; not implementation proof"
+        }
+      ],
+      "runtimePresentationStatus": "partial",
+      "runtimePresentationEvidence": "Steady effects exist; application/teleport/shred distinctions remain open."
+    },
+    {
+      "id": "wishes-and-ability-fx",
+      "members": [
+        "Freeze: beam telegraph, freeze/stun landing ice burst",
+        "Swarm: caster motes/swirl, cloud and settling puff",
+        "Trial: expanding cast ring and landing slam, convicted tighter ring",
+        "Blaze Step: gathering flare, blink, trail and ember landing",
+        "Last Stand: gathering aura and golden radial burst",
+        "ability icon family: snowflake, swarm, scales, flame, cross",
+        "cast preview/confirm/refusal/fizzle lifecycle"
+      ],
+      "legacySource": [
+        "packages/shared/src/abilities.ts: AbilityId, ABILITIES, WISHES, AbilityIcon, TelegraphArt",
+        "packages/client/src/render/WishFx.ts: WishFx prediction and telegraph/landing",
+        "packages/client/src/render/wishArt.ts: drawAbilityIcon",
+        "packages/client/src/render/FieldView.ts: FieldView"
+      ],
+      "unity": [
+        "wish.freeze",
+        "wish.swarm",
+        "wish.trial",
+        "wish.blaze",
+        "wish.last-stand",
+        "wish.cast-input-lifecycle",
+        "wish.owner-hud",
+        "field.trial-zone",
+        "field.swarm-cloud",
+        "field.blaze-trail"
+      ],
+      "unityStatus": "partial",
+      "note": "Unity has existing field/cue paths for some effects; all five Wish-specific cast/landing families and input lifecycle are marked missing. Treat all Wishes as covered only if status evidence changes.",
+      "unityEvidence": [
+        {
+          "id": "wish.freeze",
+          "inventoryStatus": "missing-in-protocol",
+          "interpretation": "readiness-contract-only; not implementation proof"
+        },
+        {
+          "id": "wish.swarm",
+          "inventoryStatus": "missing-in-protocol",
+          "interpretation": "readiness-contract-only; not implementation proof"
+        },
+        {
+          "id": "wish.trial",
+          "inventoryStatus": "missing-in-protocol",
+          "interpretation": "readiness-contract-only; not implementation proof"
+        },
+        {
+          "id": "wish.blaze",
+          "inventoryStatus": "missing-in-protocol",
+          "interpretation": "readiness-contract-only; not implementation proof"
+        },
+        {
+          "id": "wish.last-stand",
+          "inventoryStatus": "missing-in-protocol",
+          "interpretation": "readiness-contract-only; not implementation proof"
+        },
+        {
+          "id": "wish.cast-input-lifecycle",
+          "inventoryStatus": "missing-in-protocol",
+          "interpretation": "readiness-contract-only; not implementation proof"
+        },
+        {
+          "id": "wish.owner-hud",
+          "inventoryStatus": "missing-in-protocol",
+          "interpretation": "readiness-contract-only; not implementation proof"
+        },
+        {
+          "id": "field.trial-zone",
+          "inventoryStatus": "available",
+          "interpretation": "readiness-contract-only; not implementation proof"
+        },
+        {
+          "id": "field.swarm-cloud",
+          "inventoryStatus": "available",
+          "interpretation": "readiness-contract-only; not implementation proof"
+        },
+        {
+          "id": "field.blaze-trail",
+          "inventoryStatus": "available",
+          "interpretation": "readiness-contract-only; not implementation proof"
+        }
+      ],
+      "runtimePresentationStatus": "complete",
+      "runtimePresentationEvidence": "All five Wish cues have protocol-13 browser proof of applied Unity presentation; this is a verified slice, not all detailed adjacent cues."
+    },
+    {
+      "id": "map-ground-zone-and-features",
+      "members": [
+        "procedural floor and wall tiles, LOW collision/cover tiles, y-sorted wall faces",
+        "five faction zone identities: fire, sentenced, plague, frost, holy",
+        "feature kinds landmark, crater, lavaRiver, fenceRow, gallows, barrow, mere, headland, spire, causeway, hall, infill, bush",
+        "landmark variants forge, guardHouse, burrow, watchtower, shrine",
+        "wall looks plain, rim, mound, pier, forge, guardHouse, burrow, watchtower, shrine, shard, gallows",
+        "floor looks plain, bowl, tunnel, hall, shore, causeway, forge, guardHouse, burrow, watchtower, shrine, door, ford, bush",
+        "gate/portcullis closed and open markings; zone boundaries/edges; map culling/fog/hazards"
+      ],
+      "legacySource": [
+        "packages/shared/src/map.ts: FEATURE_KINDS, FEATURE_JOBS, MapFeature, TILE_*",
+        "packages/shared/src/mapgen.ts: generateMap, map features and gates",
+        "packages/shared/src/zones.ts: zone partition/placement",
+        "packages/client/src/render/MapView.ts: MapView",
+        "packages/client/src/render/zoneArt/featureArt.ts: WALL_LOOKS, FLOOR_LOOKS",
+        "packages/client/src/render/zoneArt/zoneStyle.ts, zoneEdges.ts, groundShapes.ts"
+      ],
+      "unity": [
+        "map.collision",
+        "map.zone-art",
+        "map.gates",
+        "minimap.static-terrain",
+        "vision.trail-and-fog"
+      ],
+      "unityStatus": "partial",
+      "note": "Unity live map is procedural simplified floor/wall geometry. Zone identity, exact feature/terrain looks and gates remain dependent on facts identified as missing by the Unity contract.",
+      "unityEvidence": [
+        {
+          "id": "map.collision",
+          "inventoryStatus": "available",
+          "interpretation": "readiness-contract-only; not implementation proof"
+        },
+        {
+          "id": "map.zone-art",
+          "inventoryStatus": "missing-in-protocol",
+          "interpretation": "readiness-contract-only; not implementation proof"
+        },
+        {
+          "id": "map.gates",
+          "inventoryStatus": "missing-in-protocol",
+          "interpretation": "readiness-contract-only; not implementation proof"
+        },
+        {
+          "id": "minimap.static-terrain",
+          "inventoryStatus": "missing-in-protocol",
+          "interpretation": "readiness-contract-only; not implementation proof"
+        },
+        {
+          "id": "vision.trail-and-fog",
+          "inventoryStatus": "missing-in-protocol",
+          "interpretation": "readiness-contract-only; not implementation proof"
+        }
+      ],
+      "runtimePresentationStatus": "partial",
+      "runtimePresentationEvidence": "Live map uses simplified procedural geometry; complete zone/feature art not accepted."
+    },
+    {
+      "id": "map-props-terrain-and-hazards",
+      "members": [
+        "fire: ember_vent, glow_crack, basalt_shard, ash_drift, crater_lip, anvil, slag_heap",
+        "sentenced: banner, chain, gallows, cell_bars, lantern, gate_post, stocks",
+        "plague: fungus_cap, bubble, drip, pipe, tunnel_beam, burrow_rubble, reed",
+        "frost: ice_spire, snow_drift, frost_sparkle, icicle, tower_frost, ice_crack",
+        "holy: column_cap, banner_red, candelabra, rubble, stained_glass, altar, brazier",
+        "terrain keys none, lava, fence, crevasse, ember, bog, ice, light",
+        "zone-specific terrain color/overlays, lava/ember/bog/ice/light particles, underfoot burn/slow/ice/rest cues"
+      ],
+      "legacySource": [
+        "packages/shared/src/propKinds.ts: PROP_KINDS",
+        "packages/shared/src/terrain.ts: TerrainKey, TERRAINS, surfaceAt",
+        "packages/client/src/render/zoneArt/propsView.ts: PropsView",
+        "packages/client/src/render/zoneArt/TerrainFx.ts; terrainFeedback.ts",
+        "packages/client/src/render/zoneArt/featureStyle.ts"
+      ],
+      "unity": [
+        "map.terrain-animation",
+        "terrain.feedback-chips",
+        "map.zone-art",
+        "minimap.static-terrain"
+      ],
+      "unityStatus": "partial",
+      "note": "Legacy is procedural art over dynamic map-prop records; Unity has some decorative/terrain fallback paths, but named terrain/feature coverage is not established.",
+      "unityEvidence": [
+        {
+          "id": "map.terrain-animation",
+          "inventoryStatus": "missing-in-protocol",
+          "interpretation": "readiness-contract-only; not implementation proof"
+        },
+        {
+          "id": "terrain.feedback-chips",
+          "inventoryStatus": "missing-in-protocol",
+          "interpretation": "readiness-contract-only; not implementation proof"
+        },
+        {
+          "id": "map.zone-art",
+          "inventoryStatus": "missing-in-protocol",
+          "interpretation": "readiness-contract-only; not implementation proof"
+        },
+        {
+          "id": "minimap.static-terrain",
+          "inventoryStatus": "missing-in-protocol",
+          "interpretation": "readiness-contract-only; not implementation proof"
+        }
+      ],
+      "runtimePresentationStatus": "partial",
+      "runtimePresentationEvidence": "Procedural props and some terrain fallbacks exist; named full terrain family not accepted."
+    },
+    {
+      "id": "camps-and-territory",
+      "members": [
+        "ordinary camp and camp ring",
+        "camp roster/type/zone identity",
+        "elite camp/two elite types per zone",
+        "alive, disturbed, cleared, respawn timer markers",
+        "camp patience/leash range outline",
+        "ward flag/beacon and owned/other/expiry states",
+        "camp reward badges and camp-cleared/heal effects"
+      ],
+      "legacySource": [
+        "packages/shared/src/mobs.ts: mob camps and elite catalog",
+        "packages/shared/src/zones.ts: placeCamps",
+        "packages/client/src/render/CampWards.ts, CampPatience.ts, CampBuffs.ts",
+        "packages/client/src/render/MapView.ts and MobView.ts"
+      ],
+      "unity": [
+        "camp.state-markers",
+        "camp.clear-notice",
+        "camp.clear-heal",
+        "camp.reward-badges",
+        "camp.wards",
+        "camp.patience-outline"
+      ],
+      "unityStatus": "partial",
+      "note": "Some reward badges/recovery have Unity paths; state markers, ward and territory cues are missing.",
+      "unityEvidence": [
+        {
+          "id": "camp.state-markers",
+          "inventoryStatus": "missing-in-protocol",
+          "interpretation": "readiness-contract-only; not implementation proof"
+        },
+        {
+          "id": "camp.clear-notice",
+          "inventoryStatus": "missing-in-protocol",
+          "interpretation": "readiness-contract-only; not implementation proof"
+        },
+        {
+          "id": "camp.clear-heal",
+          "inventoryStatus": "available",
+          "interpretation": "readiness-contract-only; not implementation proof"
+        },
+        {
+          "id": "camp.reward-badges",
+          "inventoryStatus": "available",
+          "interpretation": "readiness-contract-only; not implementation proof"
+        },
+        {
+          "id": "camp.wards",
+          "inventoryStatus": "missing-in-protocol",
+          "interpretation": "readiness-contract-only; not implementation proof"
+        },
+        {
+          "id": "camp.patience-outline",
+          "inventoryStatus": "missing-in-protocol",
+          "interpretation": "readiness-contract-only; not implementation proof"
+        }
+      ],
+      "runtimePresentationStatus": "partial",
+      "runtimePresentationEvidence": "Some markers/camp effects exist; all camp/ward/territory states not accepted."
+    },
+    {
+      "id": "chests-loot-corpses-and-traders",
+      "members": [
+        "ground weapon drops and items",
+        "closed/open reward chest, tier/rarity marks, timer/range ring, expiry",
+        "potion bottles and extended consumables",
+        "travel cannon",
+        "plague corpse low marker; owned zombie model/bond ring/owner label/growth/HP/death",
+        "neutral trader figure/name/range/trade state"
+      ],
+      "legacySource": [
+        "packages/client/src/render/ContainerView.ts: ContainerView",
+        "packages/client/src/render/ContainerHighlight.ts",
+        "packages/client/src/render/PlagueCorpseView.ts: PlagueCorpseView",
+        "packages/client/src/render/ZombieView.ts: zombieScale and view",
+        "packages/client/src/render/TraderView.ts: TraderView",
+        "packages/client/src/render/interact.ts"
+      ],
+      "unity": [
+        "loot.world-props",
+        "chest.world-timer",
+        "chest.choice-panel",
+        "consumables.potion",
+        "consumables.extended-props",
+        "plague.corpses",
+        "plague.zombie",
+        "trade.world-and-panel"
+      ],
+      "unityStatus": "partial",
+      "note": "Unity basic loot/chest/potion/corpse paths exist. Extended props, zombies, traders and some chest facts lack presentation/data.",
+      "unityEvidence": [
+        {
+          "id": "loot.world-props",
+          "inventoryStatus": "available",
+          "interpretation": "readiness-contract-only; not implementation proof"
+        },
+        {
+          "id": "chest.world-timer",
+          "inventoryStatus": "available",
+          "interpretation": "readiness-contract-only; not implementation proof"
+        },
+        {
+          "id": "chest.choice-panel",
+          "inventoryStatus": "available",
+          "interpretation": "readiness-contract-only; not implementation proof"
+        },
+        {
+          "id": "consumables.potion",
+          "inventoryStatus": "available",
+          "interpretation": "readiness-contract-only; not implementation proof"
+        },
+        {
+          "id": "consumables.extended-props",
+          "inventoryStatus": "missing-in-protocol",
+          "interpretation": "readiness-contract-only; not implementation proof"
+        },
+        {
+          "id": "plague.corpses",
+          "inventoryStatus": "available",
+          "interpretation": "readiness-contract-only; not implementation proof"
+        },
+        {
+          "id": "plague.zombie",
+          "inventoryStatus": "missing-in-protocol",
+          "interpretation": "readiness-contract-only; not implementation proof"
+        },
+        {
+          "id": "trade.world-and-panel",
+          "inventoryStatus": "missing-mechanic",
+          "interpretation": "readiness-contract-only; not implementation proof"
+        }
+      ],
+      "runtimePresentationStatus": "partial",
+      "runtimePresentationEvidence": "Real Trophy choose/taken state accepted; this is a narrow chest flow, not all loot/world prop completeness."
+    },
+    {
+      "id": "quests-and-objectives-world-markers",
+      "members": [
+        "quest givers from QUEST_DEFS (kill/collect/fetch) and named giver roster",
+        "offer/accepted/tracked/turn-in marker variants",
+        "fetch/collect quest items on containers",
+        "carrier marker",
+        "objective/route/map markers and hidden offer handling"
+      ],
+      "legacySource": [
+        "packages/shared/src/quests.ts: QuestKind, QUEST_DEFS, placement and questRewardText",
+        "packages/client/src/render/QuestView.ts: QuestView",
+        "packages/client/src/render/GroundRoute.ts; groundRouteModel.ts",
+        "packages/client/src/scenes/RaidScene.ts: questView update/visibility"
+      ],
+      "unity": [
+        "quest.world-markers",
+        "quest.map-planning",
+        "quest.log-dialog",
+        "quest.notifications"
+      ],
+      "unityStatus": "partial",
+      "note": "Legacy world markers are present and sourced; Unity presentation inventory currently marks quest world/UI mechanics missing.",
+      "unityEvidence": [
+        {
+          "id": "quest.world-markers",
+          "inventoryStatus": "missing-mechanic",
+          "interpretation": "readiness-contract-only; not implementation proof"
+        },
+        {
+          "id": "quest.map-planning",
+          "inventoryStatus": "missing-mechanic",
+          "interpretation": "readiness-contract-only; not implementation proof"
+        },
+        {
+          "id": "quest.log-dialog",
+          "inventoryStatus": "missing-mechanic",
+          "interpretation": "readiness-contract-only; not implementation proof"
+        },
+        {
+          "id": "quest.notifications",
+          "inventoryStatus": "missing-mechanic",
+          "interpretation": "readiness-contract-only; not implementation proof"
+        }
+      ],
+      "runtimePresentationStatus": "missing",
+      "runtimePresentationEvidence": "No verified Unity world quest presentation flow in the current evidence set."
+    },
+    {
+      "id": "vision-selection-target-and-route",
+      "members": [
+        "hover ring and target lock double ring/acquisition pulse/breath",
+        "weapon reach and area indicator",
+        "focused container ring/label, nearest interaction marker",
+        "local move-order/route dashes and ripple",
+        "planned route and next-stop markers",
+        "personal revealed-tile trail, ward overlays, world fog and minimap visible cells",
+        "hidden actor suppression; hunted rival tracking and threat edge marks"
+      ],
+      "legacySource": [
+        "packages/client/src/render/TargetRings.ts: hover/lock art",
+        "packages/client/src/render/WeaponRangeView.ts: WeaponRangeView",
+        "packages/client/src/render/GroundRoute.ts; groundRouteModel.ts",
+        "packages/client/src/render/RaidVision.ts: RaidVision",
+        "packages/client/src/render/ContainerHighlight.ts; interact.ts"
+      ],
+      "unity": [
+        "target.hover",
+        "target.lock",
+        "target.range-and-interaction",
+        "planning.shell-route",
+        "vision.trail-and-fog",
+        "vision.hunted-actor",
+        "vision.edge-indicators"
+      ],
+      "unityStatus": "partial",
+      "note": "Hover, range, route shell and edge glows have some Unity path; lock, fog/trail and hunted actor remain missing.",
+      "unityEvidence": [
+        {
+          "id": "target.hover",
+          "inventoryStatus": "available",
+          "interpretation": "readiness-contract-only; not implementation proof"
+        },
+        {
+          "id": "target.lock",
+          "inventoryStatus": "missing-in-protocol",
+          "interpretation": "readiness-contract-only; not implementation proof"
+        },
+        {
+          "id": "target.range-and-interaction",
+          "inventoryStatus": "available",
+          "interpretation": "readiness-contract-only; not implementation proof"
+        },
+        {
+          "id": "planning.shell-route",
+          "inventoryStatus": "available",
+          "interpretation": "readiness-contract-only; not implementation proof"
+        },
+        {
+          "id": "vision.trail-and-fog",
+          "inventoryStatus": "missing-in-protocol",
+          "interpretation": "readiness-contract-only; not implementation proof"
+        },
+        {
+          "id": "vision.hunted-actor",
+          "inventoryStatus": "missing-in-protocol",
+          "interpretation": "readiness-contract-only; not implementation proof"
+        },
+        {
+          "id": "vision.edge-indicators",
+          "inventoryStatus": "available",
+          "interpretation": "readiness-contract-only; not implementation proof"
+        }
+      ],
+      "runtimePresentationStatus": "partial",
+      "runtimePresentationEvidence": "Selection/range/route surfaces exist; fog/trail/lock/hunt breadth not accepted."
+    },
+    {
+      "id": "hub-walkable-world-dressing",
+      "members": [
+        "walkable shell with checker floor and walls",
+        "stone courses and trim on back wall",
+        "floor runner and counter-wheel plate",
+        "stairs, lit portal and paired banners",
+        "east doorway/threshold and posts",
+        "kiosks",
+        "pillars and flame accents",
+        "weapon pedestals, weapon wheel/decal and station rings",
+        "gem display"
+      ],
+      "legacySource": [
+        "packages/client/src/scenes/HubScene.ts: createWorld/draw scene setup",
+        "packages/client/src/hub/hubArt.ts: drawShell, drawFloorDecor, drawStairs, drawDoor and other draw* functions",
+        "packages/client/src/hub/hubLayout.ts: station/layout data"
+      ],
+      "unity": [
+        "hub.world"
+      ],
+      "unityStatus": "available",
+      "runtimePresentationStatus": "partial",
+      "runtimePresentationEvidence": "Unity readiness contract lists hub world; no hub visual selected-demo evidence is recorded by this world inventory. Hub shell visuals are separately owned from raid-map art.",
+      "note": "Procedural Phaser Graphics, no external image files. Keep as hub world dressing; parent UI/static inventory can account for static/resource overlap."
+    }
+  ],
+  "criticalReadability": [
+    "Essential gameplay cues are shape/position/action readable at normal detail; do not substitute hue alone for faction, threat, status, or target identity.",
+    "Low detail must preserve state, identity, targeting and warning silhouettes/markers; decorative particles and subtle surface noise may be reduced.",
+    "Reduced motion may freeze or shorten decorative motion, but must preserve windup/cast timing warnings, hit/block/stagger/death and map/terrain hazard state.",
+    "Unity presentation code is not allowed to reimplement game rules; it consumes public authoritative facts and the narrow documented local movement prediction only."
+  ],
+  "counts": {
+    "domains": 16,
+    "familyRows": 16,
+    "scope": "world/actors/combat/VFX only; counts are family rows, not distinct art assets"
+  },
+  "manualReview": [
+    "MOB_TYPES is a dynamic 30-type catalog (6 per faction); art member list is fixed in this snapshot but camp assignment/elite presentation is runtime-driven.",
+    "Map features, terrain, props, gates, camps, and quest placements are generated from map seed/attempt; source catalog membership is enumerable but concrete scene instances are not.",
+    "Cosmetics list may grow; inventory names catalog containers and role categories; validate exact named COSMETICS on catalog change.",
+    "Legacy implementation distributes visuals across graphics code, generated textures, and source data; this inventory is family-level and does not claim individual raster files that do not exist."
+  ],
+  "currentUnityEvidence": [
+    {
+      "scope": "Five-faction normal R scenarios",
+      "status": "complete",
+      "source": "docs/evidence/frozen-browser-1310/README.md",
+      "limit": "Live scenario coverage is accepted; distinct faction silhouette/art readability and full crowded-motion review remain open."
+    },
+    {
+      "scope": "All five Wish cues",
+      "status": "complete",
+      "source": "docs/evidence/frozen-browser-1310/README.md",
+      "limit": "Frozen protocol-13 browser proof establishes applied presentation markers for Blaze, Trial, Swarm, Freeze and Last Stand; this is not a claim that all Wish-adjacent art/telegraph semantics are complete."
+    },
+    {
+      "scope": "Real Trophy selection",
+      "status": "complete",
+      "source": "docs/evidence/frozen-browser-1310/README.md",
+      "limit": "Real chosen/taken chest state was browser-proven. This does not close unrelated loot, chest or item family cues."
+    },
+    {
+      "scope": "Wish/barrier source presentation draft",
+      "status": "partial",
+      "source": "docs/evidence/wish-barrier-presentation/README.md",
+      "limit": "This evidence is marked ready for coordinator review and explicitly says completed server transport is not recorded; do not use it alone as accepted live evidence."
+    }
+  ],
+  "sourceModuleIndex": [
+    {
+      "path": "packages/client/src/render/CameraFollow.ts",
+      "scope": "supporting-helper",
+      "reason": "Projection, culling, pose, targeting, interaction, timing, pool, or runtime utility; checked for links to visible families, not an independent asset family."
+    },
+    {
+      "path": "packages/client/src/render/CampBuffs.ts",
+      "scope": "visual-owner",
+      "reason": "Direct world/actor/combat visual owner; read as part of family inventory."
+    },
+    {
+      "path": "packages/client/src/render/CampPatience.ts",
+      "scope": "visual-owner",
+      "reason": "Direct world/actor/combat visual owner; read as part of family inventory."
+    },
+    {
+      "path": "packages/client/src/render/CampWards.ts",
+      "scope": "visual-owner",
+      "reason": "Direct world/actor/combat visual owner; read as part of family inventory."
+    },
+    {
+      "path": "packages/client/src/render/ContainerHighlight.ts",
+      "scope": "visual-owner",
+      "reason": "Direct world/actor/combat visual owner; read as part of family inventory."
+    },
+    {
+      "path": "packages/client/src/render/ContainerView.ts",
+      "scope": "visual-owner",
+      "reason": "Direct world/actor/combat visual owner; read as part of family inventory."
+    },
+    {
+      "path": "packages/client/src/render/FieldView.ts",
+      "scope": "visual-owner",
+      "reason": "Direct world/actor/combat visual owner; read as part of family inventory."
+    },
+    {
+      "path": "packages/client/src/render/FighterArt.ts",
+      "scope": "visual-owner",
+      "reason": "Direct world/actor/combat visual owner; read as part of family inventory."
+    },
+    {
+      "path": "packages/client/src/render/FigureJuice.ts",
+      "scope": "visual-owner",
+      "reason": "Direct world/actor/combat visual owner; read as part of family inventory."
+    },
+    {
+      "path": "packages/client/src/render/FxView.ts",
+      "scope": "visual-owner",
+      "reason": "Direct world/actor/combat visual owner; read as part of family inventory."
+    },
+    {
+      "path": "packages/client/src/render/GroundRoute.ts",
+      "scope": "visual-owner",
+      "reason": "Direct world/actor/combat visual owner; read as part of family inventory."
+    },
+    {
+      "path": "packages/client/src/render/MapView.ts",
+      "scope": "visual-owner",
+      "reason": "Direct world/actor/combat visual owner; read as part of family inventory."
+    },
+    {
+      "path": "packages/client/src/render/MarkPlate.ts",
+      "scope": "supporting-helper",
+      "reason": "Projection, culling, pose, targeting, interaction, timing, pool, or runtime utility; checked for links to visible families, not an independent asset family."
+    },
+    {
+      "path": "packages/client/src/render/MobView.ts",
+      "scope": "visual-owner",
+      "reason": "Direct world/actor/combat visual owner; read as part of family inventory."
+    },
+    {
+      "path": "packages/client/src/render/PlagueCorpseView.ts",
+      "scope": "visual-owner",
+      "reason": "Direct world/actor/combat visual owner; read as part of family inventory."
+    },
+    {
+      "path": "packages/client/src/render/PlayerView.ts",
+      "scope": "visual-owner",
+      "reason": "Direct world/actor/combat visual owner; read as part of family inventory."
+    },
+    {
+      "path": "packages/client/src/render/ProjectileView.ts",
+      "scope": "visual-owner",
+      "reason": "Direct world/actor/combat visual owner; read as part of family inventory."
+    },
+    {
+      "path": "packages/client/src/render/QuestView.ts",
+      "scope": "visual-owner",
+      "reason": "Direct world/actor/combat visual owner; read as part of family inventory."
+    },
+    {
+      "path": "packages/client/src/render/RaidVision.ts",
+      "scope": "visual-owner",
+      "reason": "Direct world/actor/combat visual owner; read as part of family inventory."
+    },
+    {
+      "path": "packages/client/src/render/SignatureArt.ts",
+      "scope": "visual-owner",
+      "reason": "Direct world/actor/combat visual owner; read as part of family inventory."
+    },
+    {
+      "path": "packages/client/src/render/StatusArt.ts",
+      "scope": "visual-owner",
+      "reason": "Direct world/actor/combat visual owner; read as part of family inventory."
+    },
+    {
+      "path": "packages/client/src/render/TargetRings.ts",
+      "scope": "visual-owner",
+      "reason": "Direct world/actor/combat visual owner; read as part of family inventory."
+    },
+    {
+      "path": "packages/client/src/render/TraderView.ts",
+      "scope": "visual-owner",
+      "reason": "Direct world/actor/combat visual owner; read as part of family inventory."
+    },
+    {
+      "path": "packages/client/src/render/TrailView.ts",
+      "scope": "visual-owner",
+      "reason": "Direct world/actor/combat visual owner; read as part of family inventory."
+    },
+    {
+      "path": "packages/client/src/render/WeaponRangeView.ts",
+      "scope": "visual-owner",
+      "reason": "Direct world/actor/combat visual owner; read as part of family inventory."
+    },
+    {
+      "path": "packages/client/src/render/WishFx.ts",
+      "scope": "visual-owner",
+      "reason": "Direct world/actor/combat visual owner; read as part of family inventory."
+    },
+    {
+      "path": "packages/client/src/render/ZombieView.ts",
+      "scope": "supporting-helper",
+      "reason": "Projection, culling, pose, targeting, interaction, timing, pool, or runtime utility; checked for links to visible families, not an independent asset family."
+    },
+    {
+      "path": "packages/client/src/render/bake.ts",
+      "scope": "visual-source-or-generated-art",
+      "reason": "generated texture bake"
+    },
+    {
+      "path": "packages/client/src/render/displayName.ts",
+      "scope": "visual-source-or-generated-art",
+      "reason": "actor name labels"
+    },
+    {
+      "path": "packages/client/src/render/eliteArt.ts",
+      "scope": "visual-source-or-generated-art",
+      "reason": "elite/role art"
+    },
+    {
+      "path": "packages/client/src/render/figurePose.ts",
+      "scope": "supporting-helper",
+      "reason": "Projection, culling, pose, targeting, interaction, timing, pool, or runtime utility; checked for links to visible families, not an independent asset family."
+    },
+    {
+      "path": "packages/client/src/render/groundRouteModel.ts",
+      "scope": "supporting-helper",
+      "reason": "Projection, culling, pose, targeting, interaction, timing, pool, or runtime utility; checked for links to visible families, not an independent asset family."
+    },
+    {
+      "path": "packages/client/src/render/groundShapes.ts",
+      "scope": "visual-source-or-generated-art",
+      "reason": "generated map geometry"
+    },
+    {
+      "path": "packages/client/src/render/interact.ts",
+      "scope": "supporting-helper",
+      "reason": "Projection, culling, pose, targeting, interaction, timing, pool, or runtime utility; checked for links to visible families, not an independent asset family."
+    },
+    {
+      "path": "packages/client/src/render/juice.ts",
+      "scope": "supporting-helper",
+      "reason": "Projection, culling, pose, targeting, interaction, timing, pool, or runtime utility; checked for links to visible families, not an independent asset family."
+    },
+    {
+      "path": "packages/client/src/render/mapCull.ts",
+      "scope": "supporting-helper",
+      "reason": "Projection, culling, pose, targeting, interaction, timing, pool, or runtime utility; checked for links to visible families, not an independent asset family."
+    },
+    {
+      "path": "packages/client/src/render/markPresentation.ts",
+      "scope": "visual-source-or-generated-art",
+      "reason": "mark/brand effects"
+    },
+    {
+      "path": "packages/client/src/render/mobRole.ts",
+      "scope": "supporting-helper",
+      "reason": "Projection, culling, pose, targeting, interaction, timing, pool, or runtime utility; checked for links to visible families, not an independent asset family."
+    },
+    {
+      "path": "packages/client/src/render/phaserFixes.ts",
+      "scope": "supporting-helper",
+      "reason": "Projection, culling, pose, targeting, interaction, timing, pool, or runtime utility; checked for links to visible families, not an independent asset family."
+    },
+    {
+      "path": "packages/client/src/render/projection.ts",
+      "scope": "supporting-helper",
+      "reason": "Projection, culling, pose, targeting, interaction, timing, pool, or runtime utility; checked for links to visible families, not an independent asset family."
+    },
+    {
+      "path": "packages/client/src/render/screenJuice.ts",
+      "scope": "supporting-helper",
+      "reason": "Projection, culling, pose, targeting, interaction, timing, pool, or runtime utility; checked for links to visible families, not an independent asset family."
+    },
+    {
+      "path": "packages/client/src/render/signatureLook.ts",
+      "scope": "supporting-helper",
+      "reason": "Projection, culling, pose, targeting, interaction, timing, pool, or runtime utility; checked for links to visible families, not an independent asset family."
+    },
+    {
+      "path": "packages/client/src/render/targeting.ts",
+      "scope": "supporting-helper",
+      "reason": "Projection, culling, pose, targeting, interaction, timing, pool, or runtime utility; checked for links to visible families, not an independent asset family."
+    },
+    {
+      "path": "packages/client/src/render/visibility.ts",
+      "scope": "supporting-helper",
+      "reason": "Projection, culling, pose, targeting, interaction, timing, pool, or runtime utility; checked for links to visible families, not an independent asset family."
+    },
+    {
+      "path": "packages/client/src/render/wishArt.ts",
+      "scope": "visual-source-or-generated-art",
+      "reason": "Wish icons"
+    },
+    {
+      "path": "packages/client/src/render/zoneArt/TerrainFx.ts",
+      "scope": "visual-source-or-generated-art",
+      "reason": "terrain particles/effects"
+    },
+    {
+      "path": "packages/client/src/render/zoneArt/artBase.ts",
+      "scope": "visual-source-or-generated-art",
+      "reason": "procedural art primitive helpers"
+    },
+    {
+      "path": "packages/client/src/render/zoneArt/bake.ts",
+      "scope": "visual-source-or-generated-art",
+      "reason": "zone art bake"
+    },
+    {
+      "path": "packages/client/src/render/zoneArt/featureArt.ts",
+      "scope": "visual-source-or-generated-art",
+      "reason": "feature wall/floor looks"
+    },
+    {
+      "path": "packages/client/src/render/zoneArt/featureStyle.ts",
+      "scope": "visual-source-or-generated-art",
+      "reason": "feature styling"
+    },
+    {
+      "path": "packages/client/src/render/zoneArt/palette.ts",
+      "scope": "visual-source-or-generated-art",
+      "reason": "zone palette"
+    },
+    {
+      "path": "packages/client/src/render/zoneArt/propsView.ts",
+      "scope": "visual-source-or-generated-art",
+      "reason": "generated map props"
+    },
+    {
+      "path": "packages/client/src/render/zoneArt/terrainFeedback.ts",
+      "scope": "visual-source-or-generated-art",
+      "reason": "terrain feedback"
+    },
+    {
+      "path": "packages/client/src/render/zoneArt/zoneStyle.ts",
+      "scope": "visual-source-or-generated-art",
+      "reason": "zone palette/style"
+    },
+    {
+      "path": "packages/client/src/render/zoneEdges.ts",
+      "scope": "visual-source-or-generated-art",
+      "reason": "generated zone boundaries"
+    },
+    {
+      "path": "packages/client/src/scenes/RaidScene.ts",
+      "scope": "scene-wiring",
+      "reason": "Instantiates/updates world renderers, route, vision and interaction; no independent art catalog."
+    },
+    {
+      "path": "packages/client/src/scenes/HubScene.ts",
+      "scope": "hub-world-visual-owner",
+      "reason": "Client-only walkable hub geometry and world dressing."
+    },
+    {
+      "path": "packages/client/src/hub/hubArt.ts",
+      "scope": "hub-procedural-art",
+      "reason": "Shell, floor decor, stairs/portal/banners, door, kiosk, pillar/flame, pedestal, counter wheel, station ring and gem are generated Graphics."
+    },
+    {
+      "path": "packages/client/src/hub/hubLayout.ts",
+      "scope": "hub-layout-data",
+      "reason": "Station and scene geometry locations; generated positions/layout, not separate image assets."
+    }
+  ]
+}
