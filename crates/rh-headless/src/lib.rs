@@ -400,6 +400,11 @@ impl Env {
         );
     }
 
+    /// The policy telemetry snapshots, in seat order (the tournament report's behaviour block).
+    pub fn seat_telemetry(&self) -> Vec<Option<rh_policy::PolicyStats>> {
+        self.seats.iter().map(Seat::stats).collect()
+    }
+
     pub fn seat_stats(&self) -> Vec<(PlayerId, SeatStats, Option<rh_policy::Fault>)> {
         self.seats
             .iter()

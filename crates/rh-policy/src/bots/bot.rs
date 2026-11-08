@@ -266,6 +266,29 @@ impl Policy for HumanBot {
             decision_interval_ticks: 1,
         }
     }
+    fn stats(&self) -> Option<crate::PolicyStats> {
+        let h = self.humanizer.as_ref()?;
+        let s = h.stats();
+        Some(crate::PolicyStats {
+            commands: crate::bots::types::COMMAND_TYPES
+                .iter()
+                .map(|t| (t.as_str().to_owned(), s.command(*t)))
+                .collect(),
+            reactions: s
+                .reactions
+                .iter()
+                .map(|(k, v)| (k.as_str().to_owned(), v.clone()))
+                .collect(),
+            target_clicks: s.target_clicks,
+            click_missed: s.click_missed,
+            click_wrong: s.click_wrong,
+            hesitations: s.hesitations,
+            lapses: s.lapses,
+            throttled: s.throttled,
+            superseded: s.superseded,
+            apm_peak: s.apm_peak,
+        })
+    }
     fn reset(&mut self, m: &MatchStart) {
         let seed = m.seed;
         self.motor = Rng::new((seed as u32) ^ 0x9e37_79b9);

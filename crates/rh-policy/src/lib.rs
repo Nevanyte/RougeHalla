@@ -101,8 +101,29 @@ pub struct PolicySpec {
     pub decision_interval_ticks: u32,
 }
 
+/// The policy's own telemetry counters, as the source BrainStats exposes them for the tournament report: the humanizer
+/// block only (commands/reactions/clicks/APM). The source hunts/tactics/goals counters are not ported into the policy yet
+/// (P-BOTS-1/P-BOTS-3/P-BOTS-4 remainder), so they are absent from the summary, never zeroed. Owned snapshot.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct PolicyStats {
+    pub commands: Vec<(String, u64)>,
+    pub reactions: Vec<(String, Vec<f64>)>,
+    pub target_clicks: u64,
+    pub click_missed: u64,
+    pub click_wrong: u64,
+    pub hesitations: u64,
+    pub lapses: u64,
+    pub throttled: u64,
+    pub superseded: u64,
+    pub apm_peak: u64,
+}
+
 pub trait Policy: Send {
     fn spec(&self) -> PolicySpec;
+    /// The policy's telemetry counters for a tournament summary (None: a policy that reports none).
+    fn stats(&self) -> Option<PolicyStats> {
+        None
+    }
     /// Called at the start of every match (independent environment resets) with the match's public context. `m.seed` is
     /// the policy's OWN randomness (never a match secret).
     fn reset(&mut self, m: &MatchStart);
@@ -173,6 +194,11 @@ pub struct Seat {
 pub const MAX_PENDING_EVENTS: usize = 256;
 
 impl Seat {
+    /// The seat policy telemetry snapshot (source manager.brainOf(id).stats).
+    pub fn stats(&self) -> Option<PolicyStats> {
+        self.policy.stats()
+    }
+
     /// A seat for `m.me`. A policy whose contract or observation version does not match is attached already faulted: its
     /// fallback plays the whole match.
     pub fn new(m: &MatchStart, mut policy: Box<dyn Policy>, mut fallback: Box<dyn Policy>) -> Self {

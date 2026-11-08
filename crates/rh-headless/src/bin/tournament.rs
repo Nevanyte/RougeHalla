@@ -2,11 +2,9 @@
 //! full source option surface, the deterministic plan, the printed report and the --json export. The wall clock is read
 //! only here, for the progress line, the throughput meta and the per-game wall; the tournament itself is a pure function
 //! of its plan.
-use rh_headless::tournament::{
-    aggregate, format_report, run_game, GameSummary, TournamentMeta, TournamentReport,
-};
+use rh_headless::tournament::{aggregate, format_report_with, run_game, GameSummary, ReportMeta};
 use rh_headless::tournament_cli::{
-    default_arena, default_config, json_payload, parse_args, plan_of, USAGE,
+    default_arena, default_config, json_payload, lineup_text, parse_args, plan_of, USAGE,
 };
 use std::io::Write;
 use std::time::Instant;
@@ -95,19 +93,17 @@ fn main() -> std::process::ExitCode {
             games.len() as f64 / started.elapsed().as_secs_f64().max(1e-9)
         );
     }
-    let tournament = TournamentReport {
-        meta: TournamentMeta {
-            games: plan.games,
-            seed: plan.seed,
-            lineup: plan.tiers.clone(),
-            persona: plan.persona.as_str().to_owned(),
-            faction: plan.faction.as_str().to_owned(),
-            max_sim_ms: plan.max_sim_ms,
-        },
-        report: report.clone(),
-        games: games.clone(),
+    let meta = ReportMeta {
+        lineup: lineup_text(&plan.tiers),
+        seed: plan.seed,
+        learn: plan.learn,
+        persona: plan.persona.as_str().to_owned(),
+        faction: plan.faction.as_str().to_owned(),
+        workers: plan.workers,
+        wall_ms: Some(wall_ms),
+        game_ms: Some(game_ms),
     };
-    print!("{}", format_report(&tournament));
+    print!("{}", format_report_with(&report, &meta));
     if args.json.is_some() {
         let payload = json_payload(&plan, &report, &games, Some(wall_ms), Some(game_ms));
         if let Some(path) = &args.json {
