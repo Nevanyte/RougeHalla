@@ -114,6 +114,13 @@ root executes the real-runner disposable controls and exact payload verifier, pl
 its strict lint. Giver evidence does not implement a native neutral actor. The terminal test changes no gameplay and
 does not close the five strict source-born NPC signature prerequisites.
 
+The [reusable account coordinator/full-profile APIs](evidence/account-full-profile/ADMISSION.md) are admitted through
+`538de384`. Independent review and repair close current-leaderboard-error binding and exact purchase409 classification;
+root verifies all36 authored manifest files. Ownership-safe rich reads, stable purchase intents, explicit uncertain
+outcomes, immutable presentation catalogs and generation-fenced leaderboard data are available to the UI lane.
+The separate frozen first-UI/account composition passes554 C# tests at `cc7790b7`; actual combined Editor/Web screens,
+UPM direct pin, deployed preflight and reload/banking guarantees remain open. No native gameplay/wire identity changes.
+
 [Frozen gate scopes and receipts](evidence/native-wish-union/FROZEN13_GATE.md) supersede the private pre-admission status
 below. The older results and artifact descriptions that follow retain their historical revision limits.
 
