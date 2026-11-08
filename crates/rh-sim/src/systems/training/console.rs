@@ -498,6 +498,8 @@ fn clear(k: &MatchStatic, w: &mut World, ev: &mut Vec<Event>, ix: FighterIx) {
         p.farm.clear();
         crate::cards::runtime::reset_player(p);
         p.core.vitals.barrier = 0.;
+        p.barrier_until = 0.;
+        p.barrier_decays = false;
         p.card_tank_hp = 0.;
         p.card_prevented = 0.;
     }

@@ -448,4 +448,10 @@ content! {
     WIND_SEED_XOR: u32 = 0x6a2c_581f, "seed xor";
     SPEED_BOOST_MS: f64 = 5000.0, "ms";
     SPEED_BOOST_MULT: f64 = 1.5, "multiplier";
+
+    // ---- G6 barrier (shared/constants.ts BARRIER_MAX_SHARE / BARRIER_DECAY_SHARE_PER_SECOND) ----
+    /// G6: the most barrier a grant may leave on a fighter, as a share of its then-current max hp.
+    BARRIER_MAX_SHARE: f64 = 0.25, "fraction of max hp";
+    /// G6: a heal-made barrier loses this share of max hp every second.
+    BARRIER_DECAY_SHARE_PER_SECOND: f64 = 0.05, "fraction of max hp/s";
 }

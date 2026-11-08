@@ -66,6 +66,7 @@ impl Modifiers {
             lifesteal_dot: f.sums.lifesteal_dot.max(0.),
             farm_lifesteal_rows: f.farm_sums.lifesteal.max(0.),
             heal_taken_mult: (1. + f.sums.heal_taken).max(0.),
+            heal_barrier: f.sums.heal_barrier.max(0.),
             mark_suppression: None,
         }
     }

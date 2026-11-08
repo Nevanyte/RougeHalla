@@ -1109,6 +1109,7 @@ const VALIDATED: &[(&str, &str)] = &[
     ("world.raid_started_at", "mob_checkpoint requires initial typed birth tick times TICK_MS equal raid_started_at"),
     ("world.mob_runtime", "PvE requires Some runtime; Off rejects it, so optional presence cannot change independently of mode and typed births"),
     ("world.containers.*.stat_offer", "initial crate entitlement must match the constructor replay; other props cannot retain one"),
+    ("world.players.*.barrier_decays", "G6 decay flag is only valid with a positive private deadline; it is a bool, not a gameplay number"),
     ("world.players.*.healing_until", "expiry mirror must equal the active Small potion queue or zero when absent"),
     ("world.players.*.potions_healing", "active-count mirror must equal the actual Small potion queue length"),
     ("statics.config.mob_mode", "mode requires matching admitted camp layers and typed runtime/provenance"),

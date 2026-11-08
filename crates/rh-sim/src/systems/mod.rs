@@ -116,6 +116,8 @@ mod tests;
 #[cfg(test)]
 mod loot_world_tests;
 
+pub(crate) mod buffs;
+
 pub(crate) mod mob_ai;
 
 pub(crate) mod mob_life;

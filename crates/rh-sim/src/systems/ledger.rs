@@ -1063,6 +1063,43 @@ fn apply_hits(pass: &mut Pass, vi: usize, hits: &[Hit]) -> f64 {
     before
 }
 
+/// Test-only: the real player-damage path for a declared, already-mitigated hit (the pinned capture's declared
+/// `applyDamage` producer). No kill credit or PvP factor: a declared source is the arena's own damage. The caller keeps
+/// the hit non-lethal (the captured damage cases are), so the downed list must stay empty.
+#[cfg(test)]
+pub(crate) fn apply_declared_hit(
+    k: &MatchStatic,
+    w: &mut World,
+    ev: &mut Vec<Event>,
+    vi: usize,
+    amount: f64,
+) -> f64 {
+    let mut downed = Vec::new();
+    let mut landed = Vec::new();
+    let mut pass = Pass {
+        #[cfg(feature = "trusted-status-probes")]
+        standalone: true,
+        stats: crate::status_runtime::stats::Inputs::default(),
+        #[cfg(feature = "trusted-status-probes")]
+        probe: None,
+        denies: [None; MAX_PLAYERS],
+        k,
+        w,
+        ev,
+        bounty_at_tick_start: &[],
+        downed: &mut downed,
+        landed: &mut landed,
+    };
+    let hit = Hit {
+        terrain: false,
+        amount,
+        by: None,
+        name: None,
+    };
+    let applied = apply_hits(&mut pass, vi, &[hit]);
+    assert!(downed.is_empty(), "a declared non-lethal hit never downs");
+    applied
+}
 /// Source recordHit, before a later melee interception may reduce the stored projectile scale.
 pub(crate) fn record_hit(w: &mut World, ledger: &mut Vec<Entry>, mut entry: Entry) {
     if entry.by.is_some_and(|id| w.mobs.contains(id)) && w.mobs.contains(entry.victim) {

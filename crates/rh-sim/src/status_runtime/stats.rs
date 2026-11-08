@@ -11,6 +11,8 @@ pub struct StatView {
     pub lifesteal_dot: f64,
     pub farm_lifesteal_rows: f64,
     pub heal_taken_mult: f64,
+    /// Folded `healBarrier` (Second Skin 0.3): the share of a received heal also granted as a barrier.
+    pub heal_barrier: f64,
     pub mark_suppression: Option<f64>,
 }
 impl Default for StatView {
@@ -26,6 +28,7 @@ impl Default for StatView {
             lifesteal_dot: 0.,
             farm_lifesteal_rows: 0.,
             heal_taken_mult: 1.,
+            heal_barrier: 0.,
             mark_suppression: None,
         }
     }
