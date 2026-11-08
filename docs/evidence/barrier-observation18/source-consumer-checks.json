@@ -27,6 +27,7 @@
     "source-clippy-all.log": "eae4495501678f49c0f8fb75ced7494b2c2e54532b883461a2de62c0e6975543",
     "source-fmt.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
   },
-  "source_admission": "lead independent review pending; consumer does not authorize admission",
+  "import_readme_annotation": "Source README was subsequently narrowed to NPC row-array invariance and annotated with the coordinator admission report from fb738cd9; immutable_import_sha256 retains its historical imported identity.",
+  "source_admission": "coordinator reports admission via 33d72c34/fb738cd9; consumer does not authorize native union admission",
   "G6_and_protocol12": "pending composition"
 }
