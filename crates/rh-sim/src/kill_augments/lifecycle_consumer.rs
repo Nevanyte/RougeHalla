@@ -182,8 +182,8 @@ fn open(input: &serde_json::Value) -> Sim {
 }
 
 /// The source Trophy id -> owner index relation declared by the corpus frames (never used as a native id alias), plus
-/// the admitted-corpus single-birth invariant: at most one Trophy id/owner across the case, exactly one Trophy per
-/// frame, and exactly one option/takenBy slot. The invariant is what makes the native birth/ownership relation
+/// the admitted-corpus single-birth invariant: at most one Trophy id/owner across the case, at most one Trophy per
+/// frame, and exactly one option/takenBy slot on a Trophy frame. The invariant is what makes the native birth/ownership relation
 /// unambiguous, so later frames cannot silently remap the source id to a different container.
 fn source_trophy_owners(case: &serde_json::Value) -> BTreeMap<String, usize> {
     let mut out = BTreeMap::new();
@@ -822,7 +822,8 @@ fn compare_frame(sim: &Sim, frame: &serde_json::Value, events: &[Event]) -> Resu
 }
 
 /// Drive a case through the declared action stream, comparing every frame. stop_before limits the comparison to a prefix
-/// of frames (used only for the reported birth-hold divergence in case 0). Returns the final sim.
+/// of frames (used only by drive_to for the checkpoint-prefix states; the six-case test passes None). Returns the final
+/// sim.
 fn drive(case: &serde_json::Value, stop_before: Option<usize>) -> Result<Sim, String> {
     let input = &case["input"];
     let mut sim = open(input);
@@ -952,7 +953,8 @@ fn birth_hold_owner_pick_reproduces() {
 }
 
 /// The admitted lifecycles satisfy the single-birth identity invariant that source_trophy_owners asserts on every
-/// consumer call: one Trophy id/owner, one Trophy per frame, one option/takenBy slot, and an owner-bound container.
+/// consumer call: at most one Trophy id/owner, at most one Trophy per frame, one option/takenBy slot, and an
+/// owner-bound container.
 #[test]
 fn trophy_identity_corpus_invariants_hold() {
     let doc = corpus();
@@ -1328,8 +1330,7 @@ fn lifecycle_frame_comparator_detects_semantic_mutations() {
     compare_frame(&expiry_at, expiry_frame, &[]).expect("restored expiry grant frame");
 }
 
-/// The native observer already models the source two-tick birth hold even though choose does not: false at ticks 2 and 3,
-/// true at tick 4.
+/// The native observer and Choose both model the source two-tick birth hold: false at ticks 2 and 3, true at tick 4.
 #[test]
 fn observer_can_choose_follows_the_source_hold() {
     use crate::{ItemObserver, Observation};

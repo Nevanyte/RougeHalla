@@ -1,9 +1,10 @@
 # P-TROPHY-NATIVE-CONSUMER-1 + P-TROPHY-BIRTH-HOLD-REPAIR - native Trophy consumers, repaired birth hold
 
-Status: repair applied on the isolated branch deepseek/trophy-native-consumer-1. Immutable task base
+Status: repair applied and checked on the isolated branch deepseek/trophy-native-consumer-1. Immutable task base
 be22be35ef041f9f4389e74425af1c2966f1b615; consumer work 67fe9632 (implementation/corpus), e6e9f64b (evidence),
-7bf5806c (evidence precision corrections); P-TROPHY-BIRTH-HOLD-REPAIR production repair cd76ad35, with this evidence
-update as the following commit. The repair is the only production change beyond the three cfg(test) mod declarations in
+7bf5806c (evidence precision corrections); P-TROPHY-BIRTH-HOLD-REPAIR production repair cd76ad35, repair evidence
+75adaa03, with this checker-correction README update as the following commit (exact final head is in the coordination
+report). The repair is the only production change beyond the three cfg(test) mod declarations in
 crates/rh-sim/src/kill_augments.rs: reward_chests/mod.rs (one shared pure predicate + Choose), observer.rs (reads the
 same predicate) and the fabricated/boundary tests in reward_chests/tests.rs. No schema, version, content, tape,
 checkpoint format, hash, schedule, protocol, server, client, policy, Cargo.lock or shared-status change; no merge/push.
@@ -202,11 +203,28 @@ failure would not count as a kill.
 
 ## Independent verification (Lead and separate checker)
 
-Lead verification (this session): focused tests above pass; both clippy modes, fmt and warm allocation checks pass;
-all six lifecycle cases are consumed with no stop; the three compiled mutants produce the exact actual mismatches above
-and the comment-only/restored controls pass. The separate checker result is appended by the final evidence commit
-(the checker independently reproduces the focused tests, boundary/full-lifecycle behavior, mutant failures/restore,
-scope/source-corpus audit and lint/allocation checks).
+Lead verification: focused tests above pass; both clippy modes, fmt and warm allocation checks pass; all six lifecycle
+cases are consumed with no stop; the three compiled mutants produce the exact actual mismatches above and the
+comment-only/restored controls pass.
+
+Separate checker (independent, read-only, own target/temporary mutant worktree): reproduced the 10-file diff scope (no
+Cargo.lock/schema/content/checkpoint/hash/schedule/tape/wire/protocol/server/client/policy/status changes; all corpus
+tree hashes identical to 7bf5806c, including lifecycle b8954e0f, helpers 00335b6e, format b75078a3 and map 7c95efad);
+confirmed the one pub(crate) const predicate at mod.rs:44, Choose using !birth_available at the same guard position
+(mod.rs:260) and observer using super::birth_available (observer.rs:155), with fields/constants/order/expiry/owner
+checks unchanged and the legacy loot.bornThisTick/holdBirth two-tick hold; reran reward_chests 13/13 and kill_augments
+22/22, fmt, both clippy modes and both warm allocation tests (all exit 0); confirmed all 7 case-0 labels and every
+action consumed through drive(case, None), the old divergence test removed, the focused real-Trophy and ordinary/Trophy
+boundary behavior, the live-vs-one-restored checkpoint comparisons, the command-stream-only Recorder claim, the
+single-birth identity invariant, the captured-roll and simulated-wire labels, and the unchanged production wire files.
+It independently applied the stored mutant patches in a disposable worktree at HEAD: 01/02/03 failed the expected tests
+with the same actual mismatches (early grant, shifted hold, "Too far away" vs "Not yours"; exit 101), 04 comment-only
+passed all four tests, and the restored control passed with a clean tree. Verdict: PASS WITH DISCREPANCIES (no
+functional failures). The only discrepancies were these documentation/presentation items, now fixed: the stale
+stop_before/divergence comment in lifecycle_consumer.rs, the stale "choose does not model the hold" observer comment, the
+"exactly one Trophy per frame" wording for an at-most-one assert, the helper/format controls still being called
+"compiled" although they are in-test expected-JSON mutations, and the README's test-count breakdown (corrected above:
+22 = 6 existing + 12 lifecycle + 2 helper + 2 format; the ordinary/Trophy boundary test is in the reward_chests filter).
 
 ## Honest gaps / limits
 
@@ -230,8 +248,10 @@ scope/source-corpus audit and lint/allocation checks).
 
 - Exactly six admitted lifecycle cases and seven admitted helper cases are consumed, plus the additive format corpus;
   no other corpus was regenerated, edited or counted.
-- "22 passed" = six existing kill_augments tests + 16 consumer/repair tests (13 lifecycle incl. invariant, 2 helper, 2
-  format, 1 boundary/repair group as counted by cargo); it is not a gameplay/coverage claim.
+- "22 passed" = six existing kill_augments tests + 12 lifecycle_consumer tests (incl. the invariant and the
+  repaired real-Trophy boundary) + 2 helper_consumer + 2 format_consumer. The focused ordinary/Trophy birth-hold
+  boundary test lives in the reward_chests filter (13 passed: 10 reward_chests::tests + the observer presentation,
+  chest_runtime and training tests). This is not a gameplay/coverage claim.
 - All six full lifecycle cases are compared with no early stop and no skipped frame; the former blocked tail is now
   covered by the repair.
 - Source hook-only probes are compared as facts, never counted as native producers.

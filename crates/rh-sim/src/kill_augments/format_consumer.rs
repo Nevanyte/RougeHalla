@@ -227,7 +227,8 @@ fn actual_source_format_ties_and_adjacent_values_match_natively() {
     compare_all(&doc).unwrap_or_else(|e| panic!("format consumer: {e}"));
 }
 
-/// Compiled semantic control: a provenance-only mutation is not a kill; a rounding, wording or binary64-bit mutation is.
+/// Comparator-sensitivity control (in-test expected-JSON mutation, NOT a compiled source mutant): a provenance-only
+/// mutation is not a kill; a rounding, wording or binary64-bit mutation is reported.
 #[test]
 fn format_semantic_controls_require_an_output_difference() {
     let doc = corpus();

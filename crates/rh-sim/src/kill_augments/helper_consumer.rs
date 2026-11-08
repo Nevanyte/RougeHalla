@@ -632,7 +632,8 @@ fn all_nine_key_helper_cases_reproduce_natively() {
         .contains("NOT runtime lifecycle outputs"));
 }
 
-/// Compiled semantic control: a provenance-only mutation is NOT a kill; every semantic mutation is.
+/// Comparator-sensitivity control (in-test expected-JSON mutation, NOT a compiled source mutant): a provenance-only
+/// mutation is NOT a kill; every semantic expected-JSON mutation is reported.
 #[test]
 fn helper_semantic_controls_require_a_field_difference() {
     let doc = corpus();
