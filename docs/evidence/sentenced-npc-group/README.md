@@ -48,9 +48,9 @@ campaign.
 ## Checks / provenance
 
 `bash tools/sentenced-npc-group-fixtures/capture.sh --check` is byte-identical. Corpus SHA256
-`d64e822b3e79540e99a0c82d4bfe331aa16df547587456fe35f5c237e5fda780`, 555,087 bytes, 6 cases. Pinned
+`3808dac248d5fd01286ceb2abe4d2a179a1702e3b8c4bd863a02250654a3d5a3`, 555,087 bytes, 6 cases. Pinned
 node:22.23.4-bookworm-slim linux/amd64; tool hashes `capture.mts` `40904ce4…`, `capture.sh` `4bf4b233…`,
-`run-mutants.sh` `c768493a…`; package-lock `991869bd…`; 127 source files digest `e6efe7f3…`. Three committed actual
+`run-mutants.sh` `4de4ac33…`; package-lock `991869bd…`; 127 source files digest `e6efe7f3…`. Three committed actual
 semantic mutants are killed by actual runtime-output mismatches (3/3): `01-duplicate-or-unscaled-group-pulse`,
 `02-current-survivor-size-wrong`, `03-wrong-regional-pool`; restoration exact, unchanged control passes. A comment-only
 provenance mutation produced identical runtime cases/differing provenance, so it is not a kill.
@@ -64,3 +64,18 @@ No semantic payload changed. Runner hardening: complete backup copies + manifest
 backup is verified (size>0 + SHA-256) against manifest/source before EXIT/HUP/INT/TERM is armed; backup failures are
 fail-closed with the source untouched; unique mktemp logs; hash-verified exact restoration and nonzero failure
 propagation retain recovery bytes; SIGKILL is untrappable and not claimed.
+
+Metadata-only recapture chain (task-94 single-shot signal cleanup): old `82f1c909…` -> `d64e822b…` -> new
+`3808dac248d5fd01286ceb2abe4d2a179a1702e3b8c4bd863a02250654a3d5a3`; the canonical format+cases payload SHA256
+`4481b6add3e685b4202bf80e814d9dea821285d3a688fe3ecfab44d68308cf82` is identical (deep-equal cases, 555,087 bytes);
+complete metadata except provenance.tools.runMutantsSh (`c768493a…` -> `4de4ac33…`) is identical;
+capture.mts/captureSh/packageLock hashes are unchanged and capture.mts format/cases were not edited.
+
+Signal-path hardening: cleanup is single-shot (CLEANED guard), resets EXIT/HUP/INT/TERM traps before restoring, and
+exits with conventional signal codes 129/130/143 while the EXIT disposition preserves the normal program result; restore
+still verifies bytes, retains recovery bytes on failure and propagates nonzero, and no re-entrant restore is possible.
+The runner has deterministic test-only pause/ready seams (unset in normal use) exercised by
+tools/sentenced-npc-group-fixtures/tests/signal-path.sh: SIGTERM before arming and during an applied mutation both
+produce nonzero exits, exact source restoration, clean tree and no duplicate/re-entrant errors. A deterministic SIGINT
+delivery could not be produced by this non-interactive background environment and is reported honestly; the runner
+installs the INT hander with exit 130. SIGKILL is untrappable and is not claimed.

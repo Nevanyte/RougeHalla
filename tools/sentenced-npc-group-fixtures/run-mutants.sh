@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 # Actual-source mutant runner. Backups are completed and verified (size>0 + SHA-256) before the EXIT/HUP/INT/TERM trap
 # is armed; backup failures are fail-closed with the source untouched. SIGKILL is untrappable and is not claimed.
-set -euo pipefail
+set -eo pipefail
 REPO=$(cd "$(dirname "$0")/../.." && pwd); cd "$REPO"
 FILES="packages/server/src/sim/factions.ts"
 BACKUP=$(mktemp -d); OUT=$(mktemp -d); MANIFEST="$BACKUP/manifest.sha256"
 ARMED=0
+CLEANED=0
 sha_of(){
   if command -v sha256sum >/dev/null 2>&1; then sha256sum "$1" | awk '{print $1}'; else shasum -a 256 "$1" | awk '{print $1}'; fi
 }
@@ -29,7 +30,10 @@ restore(){
   return "$rc"
 }
 cleanup(){
-  local rc=$?
+  local rc=$1
+  if [ "$CLEANED" -eq 1 ]; then exit "$rc"; fi
+  CLEANED=1
+  trap - EXIT HUP INT TERM
   if [ "$ARMED" -eq 1 ]; then
     if restore; then rm -rf "$BACKUP" "$OUT"; else echo "RESTORATION FAILED; recovery bytes retained at $BACKUP" >&2; rc=1; fi
   else
@@ -37,6 +41,8 @@ cleanup(){
   fi
   exit "$rc"
 }
+on_exit(){ local rc=$?; cleanup "$rc"; }
+on_signal(){ cleanup "$1"; }
 # 1. Copy every file, then build the manifest, then verify the completed backup against both the manifest and source.
 set -- $FILES
 count=$#
@@ -59,8 +65,18 @@ while read -r want f; do
 done <"$MANIFEST"
 if [ "$verified" -ne "$count" ]; then echo "MANIFEST INCOMPLETE $verified/$count (trap not armed)" >&2; exit 1; fi
 # 2. Only a complete, size/SHA-verified backup may arm the restoration trap.
+# Deterministic test seam: sleep before arming, after the verified backup exists. Unset in normal use.
+pause_before_arm="$SNG_TEST_PAUSE_BEFORE_ARM"
+if [ -n "$pause_before_arm" ]; then
+  ready_before="$SNG_TEST_READY_FILE"
+  if [ -n "$ready_before" ]; then : >"$ready_before"; fi
+  sleep "$pause_before_arm"
+fi
 ARMED=1
-trap cleanup EXIT HUP INT TERM
+trap on_exit EXIT
+trap 'on_signal 129' HUP
+trap 'on_signal 130' INT
+trap 'on_signal 143' TERM
 runtime_equal(){
   python3 - "$1" "$2" <<'PY'
 import json,sys
@@ -74,6 +90,13 @@ for patch in tools/sentenced-npc-group-fixtures/mutants/*.patch; do
   LOG=$(mktemp /tmp/sng-patch-log.XXXXXX)
   if ! git apply --check "$patch"; then echo "FAIL $pname: patch does not apply"; exit 1; fi
   git apply "$patch"
+  # Deterministic test seam: signals during the applied-mutation window are exercised with this pause.
+  pause_after_mutation="$SNG_TEST_PAUSE_AFTER_MUTATION"
+  if [ -n "$pause_after_mutation" ]; then
+    ready_after="$SNG_TEST_READY_FILE"
+    if [ -n "$ready_after" ]; then : >"$ready_after"; fi
+    sleep "$pause_after_mutation"
+  fi
   set +e; RH_SENTENCED_NPC_GROUP_OUTPUT=$OUT bash tools/sentenced-npc-group-fixtures/capture.sh >"$LOG" 2>&1; status=$?; set -e
   if ! restore; then echo "RESTORATION FAILED $pname (recovery bytes retained at $BACKUP; log $LOG)"; exit 1; fi
   if [ "$status" -ne 0 ]; then echo "NOT AN ACTUAL OUTPUT MISMATCH (capture failed): $pname"; tail -8 "$LOG"; exit 1; fi
