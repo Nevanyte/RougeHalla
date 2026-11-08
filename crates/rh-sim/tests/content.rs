@@ -38,6 +38,7 @@ const NON_GAMEPLAY: &[(&str, &str, &str)] = &[
     ("actor_refs.rs", "NPC_REFERENCE_BLOCK", "observer presentation block capacity, not a gameplay number"),
     ("actor_refs.rs", "NPC_REFERENCE_BASE", "disjoint non-reused presentation reference namespace, not a game rule"),
     ("cards/catalog.rs", "ALL", "the 80 source card ids in wire order (identifiers only); the definitions live in the catalog table"),
+    ("mob_catalog/mod.rs", "ALL", "the 30 source mob types in catalog order (identifiers only); a wire code is the position and the definitions live in the catalog table"),
     ("cards/catalog_data.rs", "DEFINITIONS", "typed 80-card catalog table generated from the accepted source corpus; the gameplay numbers are the registered source constants"),
     ("cards/mod.rs", "SUPPORTED", "the three-card native subset selector (identifiers only), not a game rule"),
     ("cards/mod.rs", "MAX_FOLD_ROWS", "fixed scratch bound equal to the generated catalog's total fold rows, not a game rule"),

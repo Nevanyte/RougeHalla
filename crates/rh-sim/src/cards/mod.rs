@@ -278,6 +278,11 @@ impl Build {
     pub fn count(&self, id: CardId) -> u8 {
         self.counts.0[id.index()]
     }
+
+    /// Sets a card's copy count (the practice console's build.set; production picks go through add).
+    pub(crate) fn set(&mut self, id: CardId, count: u8) {
+        self.counts.0[id.index()] = count;
+    }
     /// Any owned card's fold row carries this flag (source `hasFlag`).
     pub fn has_flag(&self, flag: crate::stat_fold::EffectFlag) -> bool {
         self.cards().any(|id| {

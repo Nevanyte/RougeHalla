@@ -1047,7 +1047,7 @@ pub(crate) static ACTIONS: [ActionRow; 13] = [
         "train",
         "training",
         Gate::Training,
-        Run::Pending("P-ARENA-2"),
+        Run::Ported(crate::systems::training::handle_train),
     ),
 ];
 

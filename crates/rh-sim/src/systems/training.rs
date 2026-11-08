@@ -6,6 +6,9 @@
 //! (dummies that never die and a rack of every weapon, then the `train` console's practice mobs and chests) is placed at
 //! the raid-start hook at its recorded chain position, deterministically and without drawing from any RNG stream.
 
+mod console;
+pub(crate) use console::handle_train;
+
 use super::Cx;
 use crate::{
     constants::*,
@@ -293,6 +296,20 @@ pub(crate) fn validate_actors(
     let Some(rt) = w.mob_runtime.as_ref() else {
         return Err("training world needs the shared actor runtime");
     };
+    let Some(practice) = w.practice.as_ref() else {
+        return Err("training world needs the practice console state");
+    };
+    if practice.spawned > TRAIN_MAX_MOBS_SPAWNED
+        || !(PRACTICE_CAMP_FIRST..=PRACTICE_CAMP_LAST).contains(&practice.next_camp)
+        || practice
+            .last_camp_at
+            .is_some_and(|t| !t.is_finite() || t > w.server_time)
+        || practice
+            .last_chest_at
+            .is_some_and(|t| !t.is_finite() || t > w.server_time)
+    {
+        return Err("invalid practice console state");
+    }
     if !rt.camps.is_empty() || !rt.life.is_empty() {
         return Err("training world has no map camps");
     }
@@ -316,7 +333,7 @@ pub(crate) fn validate_actors(
                 let Some(ty) = m.mob_type else {
                     return Err("practice mob without a catalog type");
                 };
-                if !(PRACTICE_CAMP_FIRST..=PRACTICE_CAMP_LAST).contains(&m.camp) {
+                if !((PRACTICE_CAMP_FIRST - 1)..=(PRACTICE_CAMP_LAST - 1)).contains(&m.camp) {
                     return Err("practice mob camp ref out of range");
                 }
                 let row = crate::mob_catalog::mob_type_by_id(ty.as_str())

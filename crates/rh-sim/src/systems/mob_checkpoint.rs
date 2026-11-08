@@ -14,6 +14,9 @@ pub(crate) fn validate(
     if k.config.mob_mode != MobMode::Pve {
         return Err("wrong PvE mode".into());
     }
+    if w.practice.is_some() {
+        return Err("training practice state in a PvE world".into());
+    }
     super::mobs::admit_factions(k, w).map_err(str::to_owned)?;
     let rt = w.mob_runtime.as_ref().ok_or("missing mob runtime")?;
     let map = k.arena.map.layers().ok_or("missing mob layers")?.data();

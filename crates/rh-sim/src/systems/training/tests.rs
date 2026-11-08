@@ -1,8 +1,44 @@
 //! The practice world: the deterministic setup, dummies that never die, the training settle and the arena control.
 
 use super::*;
+use crate::input::TrainRaw;
 use crate::systems::ledger::Hit;
-use crate::{Outcome, PlayerId, Secrets, Sim, SimConfig};
+use crate::{Outcome, PlayerId, RawCommand, Secrets, Sim, SimConfig};
+
+fn train_raw(command: u8, id: u32, count: u64) -> TrainRaw {
+    TrainRaw {
+        command,
+        id,
+        count,
+        options: [0; 3],
+        option_count: 0,
+    }
+}
+
+fn submit_train(sim: &mut Sim, raw: TrainRaw) {
+    let cmd = crate::input::validate(RawCommand::Train(raw)).expect("valid train command");
+    let pid = sim.w.players.first().unwrap().id;
+    sim.submit(pid, cmd)
+        .expect("training world accepts the console");
+}
+
+fn toasts(events: &[crate::Event]) -> Vec<&str> {
+    events
+        .iter()
+        .filter_map(|e| match e {
+            crate::Event::Toast { text, .. } => Some(text.as_str()),
+            _ => None,
+        })
+        .collect()
+}
+
+fn practice_mobs(sim: &Sim) -> Vec<&crate::mob_runtime::Mob> {
+    sim.w
+        .mobs
+        .iter()
+        .filter(|m| m.kind == MobKind::Practice)
+        .collect()
+}
 
 fn training_sim(dummies: bool) -> Sim {
     let config = SimConfig {
@@ -218,4 +254,221 @@ fn a_training_run_never_ends_or_banks_a_result() {
             .all(|e| !matches!(e, crate::Event::Resolved { .. })));
     }
     assert_eq!(sim.phase(), crate::Phase::Active);
+}
+
+// ================================================================================================= the practice console
+
+/// A practice-console command is refused by an arena world at the submit door (the source has no train action there).
+#[test]
+fn the_console_command_is_refused_outside_a_training_world() {
+    let mut sim = arena_sim();
+    let cmd = crate::input::validate(RawCommand::Train(train_raw(5, 0, 0))).expect("valid");
+    let pid = sim.w.players.first().unwrap().id;
+    assert_eq!(
+        sim.submit(pid, cmd),
+        Err(crate::input::Reject::InvalidTrain)
+    );
+}
+
+/// The public observation carries the source's training fact (and the version moved with it).
+#[test]
+fn a_training_observation_says_so() {
+    let sim = training_sim(true);
+    let pid = sim.w.players.first().unwrap().id;
+    let obs = crate::observe(&sim, pid, &[]);
+    assert!(obs.training);
+    assert_eq!(obs.version, crate::OBSERVATION_VERSION);
+    assert_eq!(crate::OBSERVATION_VERSION, 16);
+    let arena = arena_sim();
+    let pid = arena.w.players.first().unwrap().id;
+    assert!(!crate::observe(&arena, pid, &[]).training);
+}
+
+/// card: sets copies, re-folds the rows and syncs max hp; 0 removes it; toasts are the source's.
+#[test]
+fn the_console_sets_and_removes_a_card() {
+    let mut sim = training_sim(true);
+    let id = crate::cards::CardId::TankEngine;
+    let def = id.definition();
+    assert!(def.unique);
+    submit_train(&mut sim, train_raw(1, id.index() as u32, 3));
+    let events = sim.step();
+    let toast = toasts(&events);
+    assert_eq!(toast.len(), 1);
+    assert_eq!(toast[0], format!("{}: {}", def.title, def.text));
+    let p = sim.w.players.first().unwrap();
+    assert_eq!(p.build.count(id), 1, "a unique card is held once");
+    submit_train(&mut sim, train_raw(1, id.index() as u32, 0));
+    let events = sim.step();
+    assert_eq!(toasts(&events), [format!("{} removed", def.title)]);
+    assert_eq!(sim.w.players.first().unwrap().build.count(id), 0);
+}
+
+/// A card that is not a live interactive augment is ignored silently (source cardLive/isInteractive).
+#[test]
+fn the_console_ignores_unsupported_cards() {
+    let mut sim = training_sim(true);
+    let id = crate::cards::CardId::Ad1;
+    assert!(id.definition().kind != crate::cards::CardKind::Augment);
+    submit_train(&mut sim, train_raw(1, id.index() as u32, 2));
+    let events = sim.step();
+    assert!(toasts(&events).is_empty());
+    assert_eq!(sim.w.players.first().unwrap().build.count(id), 0);
+}
+
+/// stat: sets a normal type's stacks and reports the cumulative bonus in the source's text.
+#[test]
+fn the_console_sets_a_mob_stat() {
+    let mut sim = training_sim(true);
+    let ty = crate::mob_catalog::MobTypeId::EmberImp;
+    submit_train(&mut sim, train_raw(2, ty as u32, 3));
+    let events = sim.step();
+    let toast = toasts(&events);
+    assert_eq!(toast.len(), 1);
+    assert!(
+        toast[0].contains("+3% damage total"),
+        "unexpected stat toast {:?}",
+        toast[0]
+    );
+    assert_eq!(sim.w.players.first().unwrap().farm.count(ty), 3);
+    submit_train(&mut sim, train_raw(2, ty as u32, 0));
+    let events = sim.step();
+    assert!(toasts(&events)[0].contains("+0% damage total"));
+    assert_eq!(sim.w.players.first().unwrap().farm.count(ty), 0);
+}
+
+/// camp: three practice mobs on a new camp ref, the 300 ms gap, and the alive cap of 12.
+#[test]
+fn the_console_drops_a_practice_camp_with_gaps_and_caps() {
+    let mut sim = training_sim(true);
+    let ty = crate::mob_catalog::MobTypeId::EmberImp;
+    submit_train(&mut sim, train_raw(3, ty as u32, 0));
+    let events = sim.step();
+    let toast = toasts(&events);
+    assert_eq!(toast.len(), 1);
+    assert!(
+        toast[0].starts_with("Practice camp: 3 x "),
+        "unexpected camp toast {:?}",
+        toast[0]
+    );
+    let mut mobs = practice_mobs(&sim);
+    assert_eq!(mobs.len(), 3);
+    let camp = mobs[0].camp;
+    assert!(((PRACTICE_CAMP_FIRST - 1)..=(PRACTICE_CAMP_LAST - 1)).contains(&camp));
+    assert!(mobs.iter().all(|m| m.camp == camp));
+    assert_eq!(sim.w.practice.unwrap().spawned, 3);
+    submit_train(&mut sim, train_raw(3, ty as u32, 0));
+    let events = sim.step();
+    assert_eq!(toasts(&events), ["Slow down"]);
+    assert_eq!(practice_mobs(&sim).len(), 3);
+    for _ in 0..6 {
+        sim.step();
+    }
+    submit_train(&mut sim, train_raw(3, ty as u32, 0));
+    let events = sim.step();
+    assert!(toasts(&events)[0].starts_with("Practice camp: 3 x "));
+    mobs = practice_mobs(&sim);
+    assert_eq!(mobs.len(), 6);
+    assert!(mobs.iter().any(|m| m.camp != camp), "a new camp ref");
+    for _ in 0..2 {
+        for _ in 0..6 {
+            sim.step();
+        }
+        submit_train(&mut sim, train_raw(3, ty as u32, 0));
+        sim.step();
+    }
+    assert_eq!(practice_mobs(&sim).len(), 12);
+    for _ in 0..6 {
+        sim.step();
+    }
+    submit_train(&mut sim, train_raw(3, ty as u32, 0));
+    let events = sim.step();
+    assert_eq!(
+        toasts(&events),
+        [format!(
+            "At most {TRAIN_MAX_MOBS} practice mobs at once: clear some first"
+        )]
+    );
+    assert_eq!(practice_mobs(&sim).len(), 12);
+    for _ in 0..40 {
+        sim.step();
+    }
+    assert_eq!(practice_mobs(&sim).len(), 12);
+}
+
+/// chest: chosen live interactive augments become the chest's options; the 300 ms gap and the six-chest cap hold.
+#[test]
+fn the_console_drops_reward_chests_with_chosen_options_and_caps() {
+    let mut sim = training_sim(true);
+    let id = crate::cards::CardId::TankEngine;
+    let mut raw = train_raw(4, 0, 0);
+    raw.options[0] = id.index() as u8;
+    raw.option_count = 1;
+    submit_train(&mut sim, raw);
+    let events = sim.step();
+    let def = id.definition();
+    assert_eq!(toasts(&events), [format!("Chest: {}", def.title)]);
+    assert_eq!(sim.w.reward_chests.len(), 1);
+    assert_eq!(
+        sim.w.reward_chests[0].options[0],
+        Some(crate::reward_chests::OptionId::Card(id))
+    );
+    submit_train(&mut sim, raw);
+    let events = sim.step();
+    assert_eq!(toasts(&events), ["Slow down"]);
+    for _ in 0..6 {
+        for _ in 0..6 {
+            sim.step();
+        }
+        if sim.w.reward_chests.len() < TRAIN_MAX_CHESTS as usize {
+            submit_train(&mut sim, raw);
+            sim.step();
+        }
+    }
+    assert_eq!(sim.w.reward_chests.len(), TRAIN_MAX_CHESTS as usize);
+    submit_train(&mut sim, raw);
+    let events = sim.step();
+    assert_eq!(
+        toasts(&events),
+        [format!(
+            "At most {TRAIN_MAX_CHESTS} chests at once: wait for them to expire or clear them"
+        )]
+    );
+}
+
+/// clear: every card, mob stat, practice mob and chest goes, with the source's toast; the counters stay.
+#[test]
+fn the_console_clears_cards_stats_mobs_and_chests() {
+    let mut sim = training_sim(true);
+    let ty = crate::mob_catalog::MobTypeId::EmberImp;
+    let card = crate::cards::CardId::TankEngine;
+    submit_train(&mut sim, train_raw(1, card.index() as u32, 1));
+    sim.step();
+    submit_train(&mut sim, train_raw(2, ty as u32, 2));
+    sim.step();
+    submit_train(&mut sim, train_raw(3, ty as u32, 0));
+    sim.step();
+    for _ in 0..6 {
+        sim.step();
+    }
+    let mut raw = train_raw(4, 0, 0);
+    raw.options[0] = card.index() as u8;
+    raw.option_count = 1;
+    submit_train(&mut sim, raw);
+    sim.step();
+    assert_eq!(practice_mobs(&sim).len(), 3);
+    assert_eq!(sim.w.reward_chests.len(), 1);
+    submit_train(&mut sim, train_raw(5, 0, 0));
+    let events = sim.step();
+    assert_eq!(
+        toasts(&events),
+        ["Cleared: cards, practice mobs and chests"]
+    );
+    let p = sim.w.players.first().unwrap();
+    assert_eq!(p.build, crate::cards::Build::default());
+    assert_eq!(p.farm, crate::modifiers::Farm::default());
+    assert_eq!(practice_mobs(&sim).len(), 0);
+    assert!(sim.w.reward_chests.is_empty());
+    assert_eq!(dummy_ids(&sim).len(), 2);
+    assert_eq!(sim.w.practice.unwrap().spawned, 3);
 }

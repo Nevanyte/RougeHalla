@@ -1269,7 +1269,7 @@ mod frost_tests {
         assert!(seen
             .iter()
             .any(|o| o.me.as_ref().is_some_and(|p| p.sig & 1 != 0)));
-        assert!(seen.iter().all(|o| o.version == 15));
+        assert!(seen.iter().all(|o| o.version == OBSERVATION_VERSION));
         assert_eq!(POLICY_CONTRACT_VERSION, 12);
     }
 }

@@ -72,6 +72,22 @@ impl Farm {
             .position(|r| r.mob == id)
             .map_or(0, |i| self.counts[i])
     }
+    /// Sets one type's stacks (the practice console's setMobStat; production grants go through grant_mob_stat).
+    pub(crate) fn set(&mut self, id: M, count: u64) {
+        if let Some(i) = DEFINITION.rows.iter().position(|r| r.mob == id) {
+            self.counts[i] = count.min(DEFINITION.max_count);
+        }
+    }
+
+    pub(crate) fn clear(&mut self) {
+        self.counts = [0; 20];
+    }
+
+    /// The reward fact for one type; None for an unknown or elite type (source mobStatReward).
+    pub(crate) fn reward_of(id: M) -> Option<&'static Reward> {
+        DEFINITION.rows.iter().find(|r| r.mob == id)
+    }
+
     pub(crate) fn valid(&self) -> bool {
         self.counts.iter().all(|n| *n <= DEFINITION.max_count)
     }

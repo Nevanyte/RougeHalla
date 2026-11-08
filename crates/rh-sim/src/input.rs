@@ -11,6 +11,89 @@
 use crate::constants::{MAX_ACTIONS_PER_TICK, ORDER_BURST, ORDER_PER_SECOND, WORLD_H, WORLD_W};
 use crate::math::wrap_angle;
 
+/// A raw practice-console command as it arrives from the wire (ids are catalog positions, unvalidated).
+#[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct TrainRaw {
+    /// 1 card, 2 stat, 3 camp, 4 chest, 5 clear (the source `train` union).
+    pub command: u8,
+    /// A card catalog index, or a mob-type catalog position.
+    pub id: u32,
+    /// The requested stack/copy count (the source clamps per command).
+    pub count: u64,
+    /// Chest choices: the first `option_count` bytes are card catalog indices.
+    pub options: [u8; 3],
+    pub option_count: u8,
+}
+
+/// A validated practice-console command (only a training world admits one).
+#[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+pub enum TrainCommand {
+    Card {
+        id: crate::cards::CardId,
+        count: u8,
+    },
+    Stat {
+        id: crate::mob_catalog::MobTypeId,
+        count: u64,
+    },
+    Camp {
+        id: crate::mob_catalog::MobTypeId,
+    },
+    Chest {
+        options: [Option<crate::cards::CardId>; 3],
+    },
+    Clear,
+}
+
+impl TrainCommand {
+    /// The wire/replay shape; `validate(raw()) == self` for every admitted command.
+    pub(crate) fn raw(self) -> TrainRaw {
+        let empty = TrainRaw {
+            command: 0,
+            id: 0,
+            count: 0,
+            options: [0; 3],
+            option_count: 0,
+        };
+        match self {
+            Self::Card { id, count } => TrainRaw {
+                command: 1,
+                id: id.index() as u32,
+                count: u64::from(count),
+                ..empty
+            },
+            Self::Stat { id, count } => TrainRaw {
+                command: 2,
+                id: id as u32,
+                count,
+                ..empty
+            },
+            Self::Camp { id } => TrainRaw {
+                command: 3,
+                id: id as u32,
+                ..empty
+            },
+            Self::Chest { options } => {
+                let mut raw = TrainRaw {
+                    command: 4,
+                    ..empty
+                };
+                for (i, option) in options.iter().enumerate() {
+                    if let Some(id) = option {
+                        raw.options[i] = id.index() as u8;
+                        raw.option_count += 1;
+                    }
+                }
+                raw
+            }
+            Self::Clear => TrainRaw {
+                command: 5,
+                ..empty
+            },
+        }
+    }
+}
+
 /// A proposal from a public seat. Pickup names an issued item handle; target names an actor
 /// from the viewer’s most recently delivered complete observation.
 #[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -69,6 +152,8 @@ pub enum PublicCommand {
     Pickup {
         handle: crate::PickupHandle,
     },
+    /// The practice console (accepted only by a training world; validated again by `validate`).
+    Train(TrainRaw),
 }
 
 /// Trusted fixture/replay-side proposal. Public seats use [`PublicCommand`].
@@ -129,6 +214,8 @@ pub enum RawCommand {
     Pickup {
         container_id: u32,
     },
+    /// The practice console (see `TrainRaw`); refused outside a training world by the submit door.
+    Train(TrainRaw),
     /// A nonzero public handle did not resolve at intake. Still spends the normal budget.
     MissingPickup,
 }
@@ -144,6 +231,10 @@ pub struct Command(Kind);
 impl Command {
     pub(crate) fn is_mob_combat(&self) -> bool {
         matches!(self.0, Kind::Attack { .. } | Kind::Release { .. })
+    }
+    /// The practice console is the one action a training world adds (the source's `train` handler).
+    pub(crate) fn is_train(&self) -> bool {
+        matches!(self.0, Kind::Train(_))
     }
     pub(crate) fn is_foundation_movement(self) -> bool {
         matches!(
@@ -207,6 +298,7 @@ enum Kind {
         container_id: u32,
     },
     MissingPickup,
+    Train(TrainCommand),
 }
 
 impl PublicCommand {
@@ -262,6 +354,7 @@ impl PublicCommand {
             Self::Attack { a, t } => RawCommand::Attack { a, t },
             Self::Release { a, t } => RawCommand::Release { a, t },
             Self::Swap { slot } => RawCommand::Swap { slot },
+            Self::Train(raw) => RawCommand::Train(raw),
         })
     }
 }
@@ -298,6 +391,7 @@ impl Kind {
             Kind::Aim { a } => RawCommand::Aim { a },
             Kind::Attack { a, t } => RawCommand::Attack { a, t },
             Kind::Release { a, t } => RawCommand::Release { a, t },
+            Kind::Train(cmd) => RawCommand::Train(cmd.raw()),
         }
     }
 }
@@ -334,10 +428,69 @@ pub enum Reject {
     NonFinite,
     InvalidSlot,
     InvalidContainer,
+    /// A malformed practice-console command, or one submitted outside a training world.
+    InvalidTrain,
     /// Over the seat's order budget (dropped silently on the wire, counted for diagnostics).
     OverBudget,
     /// The input queue already holds MAX_ACTIONS_PER_TICK actions this tick.
     QueueFull,
+}
+
+fn card_at(index: u32) -> Option<crate::cards::CardId> {
+    usize::try_from(index)
+        .ok()
+        .and_then(|i| crate::cards::CardId::ALL.get(i).copied())
+}
+
+fn mob_at(code: u32) -> Option<crate::mob_catalog::MobTypeId> {
+    usize::try_from(code)
+        .ok()
+        .and_then(|i| crate::mob_catalog::MobTypeId::ALL.get(i).copied())
+}
+
+/// The source's `parseTrain` (`sim/inputs.ts`): the command byte names one of the five console commands, ids are catalog
+/// positions, and each count is clamped to the source cap. An elite type is admitted here (the console then ignores it, as
+/// the source's `mobStatReward` does); only unknown ids are refused.
+fn validate_train(raw: TrainRaw) -> Result<TrainCommand, Reject> {
+    let empty_ok = TrainRaw {
+        command: raw.command,
+        id: 0,
+        count: 0,
+        options: [0; 3],
+        option_count: 0,
+    };
+    let _ = empty_ok;
+    match raw.command {
+        1 => Ok(TrainCommand::Card {
+            id: card_at(raw.id).ok_or(Reject::InvalidTrain)?,
+            count: raw
+                .count
+                .min(u64::from(crate::constants::TRAIN_MAX_CARD_COUNT)) as u8,
+        }),
+        2 => Ok(TrainCommand::Stat {
+            id: mob_at(raw.id).ok_or(Reject::InvalidTrain)?,
+            count: raw
+                .count
+                .min(crate::constants::TRAIN_MAX_MOB_STAT_COUNT as u64),
+        }),
+        3 => Ok(TrainCommand::Camp {
+            id: mob_at(raw.id).ok_or(Reject::InvalidTrain)?,
+        }),
+        4 => {
+            if raw.option_count > 3 {
+                return Err(Reject::InvalidTrain);
+            }
+            let mut options = [None; 3];
+            for (i, option) in options.iter_mut().enumerate() {
+                if i < usize::from(raw.option_count) {
+                    *option = Some(card_at(u32::from(raw.options[i])).ok_or(Reject::InvalidTrain)?);
+                }
+            }
+            Ok(TrainCommand::Chest { options })
+        }
+        5 => Ok(TrainCommand::Clear),
+        _ => Err(Reject::InvalidTrain),
+    }
 }
 
 /// Legacy `enqueueClientMessage` rules: a non-finite point or angle rejects the command; a non-finite render time only costs
@@ -423,6 +576,7 @@ pub fn validate(raw: RawCommand) -> Result<Command, Reject> {
             a: angle(a)?,
             t: time(t),
         },
+        RawCommand::Train(raw) => Kind::Train(validate_train(raw)?),
     }))
 }
 
@@ -472,6 +626,7 @@ pub(crate) enum ActionCmd {
         container_id: u32,
     },
     MissingPickup,
+    Train(TrainCommand),
 }
 
 /// The actions queued for one tick: the first `len` of `MAX_ACTIONS_PER_TICK` inline slots (the cap is a constant, so the
@@ -601,6 +756,7 @@ impl InputQueue {
                 ActionCmd::Release { a, t } => {
                     same(RawCommand::Release { a, t }, Kind::Release { a, t })?
                 }
+                ActionCmd::Train(cmd) => same(RawCommand::Train(cmd.raw()), Kind::Train(cmd))?,
             }
         }
         Ok(())
@@ -706,6 +862,7 @@ impl InputQueue {
             }
             Kind::MissingPickup => return self.push_action(ActionCmd::MissingPickup),
             Kind::Swap { slot } => return self.push_action(ActionCmd::Swap { slot }),
+            Kind::Train(cmd) => return self.push_action(ActionCmd::Train(cmd)),
             Kind::Pickup { container_id } => {
                 return self.push_action(ActionCmd::Pickup { container_id })
             }

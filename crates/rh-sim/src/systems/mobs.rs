@@ -42,6 +42,12 @@ pub(crate) fn initialize(k: &mut MatchStatic, w: &mut World) -> Result<(), &'sta
             camps: Vec::new(),
             life: Vec::new(),
         });
+        w.practice = Some(crate::state::PracticeRuntime {
+            spawned: 0,
+            last_camp_at: None,
+            last_chest_at: None,
+            next_camp: crate::constants::PRACTICE_CAMP_FIRST,
+        });
         return Ok(());
     }
     if k.config.mob_mode == MobMode::Off {
@@ -168,6 +174,9 @@ pub(crate) fn validate(
 ) -> Result<(), String> {
     if k.config.training {
         return super::training::validate_actors(k, w, near).map_err(str::to_owned);
+    }
+    if w.practice.is_some() {
+        return Err("training practice state in an arena world".into());
     }
     if k.config.mob_mode == MobMode::Pve {
         return super::mob_checkpoint::validate(k, w, near);
@@ -398,6 +407,35 @@ pub(crate) fn validate(
         }
     }
     Ok(())
+}
+
+/// Adds a practice-console mob (`sim/training.ts` `trainCamp` -> `placeMob`): a regional actor with a camp ref beyond the
+/// map's camps (101..255) and a real brain; the training hurt/death path never indexes a map-camp roster for it.
+pub(crate) fn place_practice_mob(
+    w: &mut World,
+    mob_type: crate::mob_catalog::MobTypeId,
+    elite: bool,
+    camp: u32,
+    at: Vec2,
+    facing: f64,
+) -> PlayerId {
+    let serial = w.next_entity_id();
+    let id = PlayerId(w.next_id);
+    w.next_id = w.next_id.checked_add(1).expect("actor id exhausted");
+    let provenance = ActorProvenance {
+        id,
+        origin: ActorOrigin::Practice {
+            birth_serial: serial,
+            born_tick: w.tick,
+            camp,
+            mob_type,
+            elite,
+        },
+    };
+    let mob = Mob::born(&provenance, at, facing, w.server_time);
+    w.actor_history.push(provenance);
+    w.mobs.push(mob);
+    id
 }
 
 /// Adds a training dummy (`sim/mobs.ts` `addMob` with kind dummy): no faction, no camp, no catalog type, never dies.

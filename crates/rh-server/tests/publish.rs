@@ -82,6 +82,8 @@ fn reference(
                 },
             }),
             SeenEvent::MobArmed { .. } | SeenEvent::CampCleared { .. } => {}
+            // Native-only in this slice: protocol 7 has no Toast event (the protocol-8 set is deferred).
+            SeenEvent::Toast { .. } => {}
             SeenEvent::ChestRefused { reason } => events.push(WireEvent::ChestRefused {
                 reason: match reason {
                     rh_sim::reward_chests::Refusal::Busy => 1,

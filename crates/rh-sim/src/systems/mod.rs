@@ -62,6 +62,9 @@ impl Cx<'_> {
     /// `Sim::submit` (the seat's order budget in sim time, then the queue's arrival-order rules), the only way anything
     /// acts (C-INPUT). A command for a seat that is not present is dropped, as `Sim::submit` does.
     pub(crate) fn submit(&mut self, id: PlayerId, cmd: Command) -> Result<(), Reject> {
+        if cmd.is_train() && !self.k.config.training {
+            return Err(Reject::InvalidTrain);
+        }
         inputs::submit(self.w, id, cmd)
     }
 

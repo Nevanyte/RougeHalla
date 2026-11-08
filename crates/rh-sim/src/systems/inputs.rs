@@ -143,6 +143,7 @@ fn action_id(cmd: &ActionCmd) -> Option<ActionId> {
         ActionCmd::Pickup { .. } | ActionCmd::MissingPickup => ActionId::Pickup,
         ActionCmd::Attack { .. } => ActionId::Attack,
         ActionCmd::Release { .. } => ActionId::Release,
+        ActionCmd::Train(_) => ActionId::Train,
     })
 }
 

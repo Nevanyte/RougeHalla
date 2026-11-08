@@ -295,6 +295,9 @@ fn to_wire(e: &SeenEvent) -> Wire {
             },
         }),
         SeenEvent::MobArmed { .. } | SeenEvent::CampCleared { .. } => Wire::Omitted,
+        // Owner-only practice-console notice: native observation only in this slice (the protocol-8 Toast transport is part
+        // of the deferred wire set; dropping it here never leaks anything and keeps protocol 7 byte-compatible).
+        SeenEvent::Toast { .. } => Wire::Omitted,
         SeenEvent::ChestRefused { reason } => Wire::Event(WireEvent::ChestRefused {
             reason: match reason {
                 rh_sim::reward_chests::Refusal::Busy => 1,
