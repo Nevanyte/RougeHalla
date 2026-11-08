@@ -1,6 +1,6 @@
 {
   "nativeRef": "1310ae002870bf3fc674c7b65f38ff5ea55a7d75",
-  "note": "Revision-scoped logs, including intentional failing mutants, supplement prior receipts. See FROZEN13_GATE.md for successful scopes and limitations. Browser driver handoff is pending Trophy completion; the five-Wish report below is read-only evidence, not copied or modified. JS 18,205 output was observed in the original tool session and has no invented raw log.",
+  "note": "Revision-scoped logs, including intentional failing mutants, supplement prior receipts. See FROZEN13_GATE.md for successful scopes and limitations. Browser handoff c4c0563f is admitted with all attempts preserved; five-Wish bytes remain unchanged. JS 18,205 output was observed in the original tool session and has no invented raw log.",
   "archive": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08",
   "artifacts": [
     {
@@ -172,12 +172,18 @@
       "file": "candidate-backend-gate/sealed-1310ae002870-fmt.log",
       "bytes": 0,
       "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "frozen13-browser-contracts-root.log",
+      "bytes": 2489,
+      "sha256": "1a46e2028720a981f38ffa840a9e5d0965f2d384ef0490bc7c495296cf5ffe51"
     }
   ],
   "fiveWishReport": {
     "externalPath": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-trophy-wire13/docs/evidence/frozen-browser-1310/wish-attempt-1.json",
     "bytes": 44391,
-    "sha256": "237fcac7c61303c9fee6e307182671742f089408496b158a75a686c4b60ef8a3"
+    "sha256": "237fcac7c61303c9fee6e307182671742f089408496b158a75a686c4b60ef8a3",
+    "repositoryPath": "docs/evidence/frozen-browser-1310/wish-attempt-1.json"
   },
   "backend": {
     "ref": "1310ae002870bf3fc674c7b65f38ff5ea55a7d75",
@@ -255,5 +261,13 @@
       }
     ]
   },
-  "featureCountCaution": "Feature suites overlap default tests; do not add counts as distinct tests. Prior cumulative824 belongs only to prefix history."
+  "featureCountCaution": "Feature suites overlap default tests; do not add counts as distinct tests. Prior cumulative824 belongs only to prefix history.",
+  "trophyReport": {
+    "file": "docs/evidence/frozen-browser-1310/trophy-attempt-5/trophy-e2e.json",
+    "bytes": 401465,
+    "sha256": "26e9f5da97db2c78764511167951663a7c7718dd0147a94ace478777a49d0e46",
+    "status": "PASS",
+    "rootActualReportValidator": "PASS",
+    "rootPureContractChecks": 28
+  }
 }

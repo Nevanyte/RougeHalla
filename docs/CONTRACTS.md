@@ -12,7 +12,27 @@ revision; [sweep/README.md](sweep/README.md) says which (H-sim and H-server-2 ha
 
 ## Status table
 
-### November 8 union validation (takes precedence over older addenda)
+### November 8 Wish/Trophy admission (takes precedence over older addenda)
+
+Current identity is protocol13/checkpoint25/replay19/observation19/policy13/content `67183626db240b6a`.
+[ADR0023](adr/0023-protocol13-wish-trophy-admission.md) admits the checked barrier/Wish and private owner Trophy union.
+C-INPUT/C-TICK preserve Rust-only validate+submit at20Hz; C-RNG secrets stay private. C-OBS freezes per-step Wish spatial
+eligibility and producer clocks, redacts hidden target coordinates, filters foreign Trophy rows before numeric work or
+bindings, and stages complete option/baseline/reference changes with successful reliable enqueue. Strict source
+held_until_tick<tick applies to both Trophy observer and Choose. Clients consume stock, barrier/ring and exact gain
+facts without implementing their gameplay formulas. Restore/Clone transient fighter scratch is prepared without input.
+
+At frozen1310ae00 the fresh workspace-excluding-sim gate passes830/two existing ignores, real PG server332/two ignores
+and placement postgres+fault236 overlap default coverage, strict workspace lint modes/fmt and parity109+13capture-only/
+300paths pass. Prior609non-map simulation tests and later affected checks stay revision-scoped. Rust protocol93,
+C#399, JS18,205 and actual Editor62 pass their recorded scopes. CI follows final push; no new full-sim/unchanged-map
+local run is implied. The single matched14-file Web build and five trusted-input Wish cases pass; the separate genuine
+Trophy earned-kill/HUD selection reaches authoritative taken state. [Evidence](evidence/native-wish-union/FROZEN13_GATE.md)
+binds exact source, binary, build overlay, artifact and proof limits. No photon timing, displayed144FPS, final full-game
+performance, full NPC/source prerequisite, hosting or complete-port acceptance follows. Future Frost26/20, Sentenced
+NPC/groups, full bot brain, quest/trade/account/public flows and durable regional lifecycle remain open.
+
+### Earlier November 8 protocol11 consolidation
 
 Current native identity is checkpoint24/replay18/observation17/policy13/content `801a76cde4cfd305`; wire is protocol11.
 [ADR0021](adr/0021-protocol11-union.md) binds shared tags, State/readiness and three-codec behavior. C-INPUT/C-TICK remain

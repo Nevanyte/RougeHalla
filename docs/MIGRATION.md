@@ -16,21 +16,46 @@ The primary project checkout now owns **`optimization_port`**. The former manage
 review snapshot. Use `git worktree list` to locate the checkout on the branch before writing; do not edit the detached
 snapshot. Worker checkouts remain isolated, and the original loose owner prompts remain available locally.
 
-The integration branch is **`optimization_port`**. Current identity: **protocol 11 / checkpoint 24 / replay 18 /
-observation 17 / policy 13 / content `801a76cde4cfd305`**. [ADR0021](adr/0021-protocol11-union.md) records the union
+The integration branch is **`optimization_port`**. Current identity: **protocol13 / checkpoint25 / replay19 /
+observation19 / policy13 / content `67183626db240b6a`**. [ADR0021](adr/0021-protocol11-union.md) records the union
 of parallel transports and their exact tag/readiness assignments. Earlier protocol/checkpoint numbers in packet reports
 are branch-local history. Native integration includes the 80-card runtime, faction/consumable/mob continuations, Source
 arena/training, quests/traders, bot core/planning/fill and tournament prefixes; none of those labels certifies all packet
 remainders or complete public/client flows. The Cursor card runtime was reviewed against the wider admitted native
 runtime; its native training fix was retained, and competing runtime/schema changes were not layered on top.
 
-Unity net/prediction now reconciles authoritative cuts and pathfinding with current Rust vectors. Session polling,
-input read/flush and presentation preserve same-frame submission. All three codecs agree on protocol 11. Unsupported
-Kill/Trophy reward rows are omitted whole **before** offer bindings are staged, preserving ordinary publications and
-native/headless choices; prerequisite refusals use private Toast feedback. Full Wish public input/owner facts remain
-refused; Kill/Trophy, quest/trade and several public fact/cue surfaces remain open. Measured connection RTT now bounds
-Attack/Release timestamps at intake; compulsory one-shot Pongs do not consume the lawful user-frame budget. Held
-attacks retain source press-time lag until a new command; this is not dynamic per-swing revalidation.
+The admitted Wish/Trophy union is based on frozen native/runtime `1310ae002870bf3fc674c7b65f38ff5ea55a7d75`.
+[ADR0023](adr/0023-protocol13-wish-trophy-admission.md) records its final identity and extends ADR0022's checked
+barrier/Wish contract. G6 Second Skin producer/decay, player Frost resistance and basic-NPC recipients, MarkRate history,
+private owner Trophy lifecycle/format/availability and all supported wire options are composed. Gathering Storm remains
+a direct-grant compatibility domain, not ordinary INTERACTIVE acquisition. Frost NPC sources/checkpoint26/replay20 are a
+separate reviewed future candidate; Sentenced NPC/group combat and five strict source-born Wish cases remain pending.
+
+Unity keeps authoritative movement reconciliation and same-frame input submission. All three codecs agree on13; owner
+Trophy rows are now published whole after eligibility, with exact typed binary64 gain and ordinary Choose. Checked
+barrier views and all five ordinary player Wish input/stock/lifecycle facts are supported under explicit --wish-full.
+No hidden target coordinate fallback or partial option compaction is introduced. Quest/trade and remaining player flows
+stay open. Measured RTT admission and source held-attack lag semantics remain unchanged.
+
+The fresh frozen gate passes830 workspace-excluding-sim tests; real PostgreSQL16.15 server332/two existing ignores and
+placement postgres+fault236 are separate overlapping feature suites. Both strict workspace Clippy modes, formatting and
+parity109compared +13capture-only +300paths pass. Simulation coverage remains split by revision, including the earlier
+609 non-map prefix and later affected checks; unchanged191 map units were not repeated locally. Rust protocol93,
+C#399, JS18,205 and actual pinned Editor62 tests pass at their recorded source identities. These are not an inflated
+single full-workspace count. CI for the new admitted union follows its push; older green runs are historical evidence.
+
+One actual final Unity Web build passes,14files/74,247,550bytes. Generated BakedContent is aa64c642; the manifest binds
+frozen1310 source, exact as-built serialization overlay and the dev server binary SHA20d5b70e…5b4b0. Independent checks
+verify82source hashes,24packaged build-evidence files and all14served resources. There is no embedded runtime revision
+stamp; build identity relies on that recorded chain. [Actual browser acceptance](evidence/frozen-browser-1310/README.md)
+passes all five normal R abilities through trusted input, same-frame Cast, own server FX, exact applied presentation and
+stock spending, with the normal45second readiness. A separate real three-seat Trophy path passes ordinary victim Boost
+acquisition/Build increase, trusted Unity credited kill, trusted HUD Choose and authoritative Picked/Taken/TakenBy.
+Incomplete driver attempts are retained. Browser wire has no cumulative killStats: exact native grant is separate
+matching-source backend proof. No display/input-to-photon, final full-game performance or cloud claim follows.
+
+[Frozen gate scopes and receipts](evidence/native-wish-union/FROZEN13_GATE.md) supersede the private pre-admission status
+below. The older results and artifact descriptions that follow retain their historical revision limits.
 
 Validation is recorded as split, revision-scoped gates rather than an inflated aggregate: **1,401 distinct Rust tests**
 passed across the consolidated native and remaining-workspace batches, including real private PostgreSQL. The 191
@@ -161,8 +186,10 @@ bundle/common-dir archive preserve recovery. Historical nonancestor legacy branc
 Rust port. No production deployment or new cloud resource was made by this consolidation.
 
 Calgary/practice-domain staging remains removed. CAD20 is a **total** cap; no account-plan or spend expansion is implied.
-Current cloud access points to the earlier account rather than the approved staging account, so AWS readiness is blocked
-on that connection. Native/local development continues. Complete gameplay parity/headless, public transports, browser/
+Fresh CLI identity verifies the approved staging account ending3033 with explicit Calgary ca-west-1; scoped old EC2,
+volume, address, bucket, stack and VPC resources are absent. AWS Core connector authentication remains unavailable; its
+state is separate from working CLI access. The owner session Billing console was inspected read-only; detailed evidence
+stays in the local coordination archive. No new launch, paid billing API query, account-plan or DNS change was made. Complete gameplay parity/headless, public transports, browser/
 account flows, durable progression, regional lifecycle and matched full-game performance still gate completion.
 
 ## Stage 2 working checkpoint (2026-11-06)

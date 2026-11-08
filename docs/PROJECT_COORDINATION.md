@@ -31,32 +31,26 @@ then one integration gate; do not repeat unchanged expensive map campaigns after
 
 ## Active private write leases
 
-These are assignments/candidates, not admitted main behaviour. [ADR0022](adr/0022-barrier-wish-publication.md) assigns
-the composed private protocol12/Observation18 prefix. The [owner Trophy extension](coordination/P-TROPHY-WIRE13.md)
-now reserves protocol13/Observation19 privately; main remains11/17. Candidate checkpoint25/replay19 remains unchanged
-by these publication changes. Final content/tapes and matched Web build follow the repaired native composition once.
+The reviewed protocol13/Observation19 Wish/barrier/Trophy union is admitted under [ADR0023](adr/0023-protocol13-wish-trophy-admission.md),
+with checkpoint25/replay19/policy13/content67183626db240b6a. Earlier12/18 reservations and omission-guard phases below
+are historical. One matched Web build and one successful all-five R campaign plus the genuine Trophy selection pass.
+Root owns final integration/push and CI; no worker is authorized to rebase main or repeat an unchanged campaign.
 
 | Worker | Current packet / branch | Exclusive boundary |
 |---|---|---|
-| DeepSeek Rust / G6 and MarkRate | G6 `2a384510`, MarkRate `df7cd0e8` plus expert history `69e47239`, privately composed | Production leases closed; root owns content/tapes. Gathering Storm is compatibility-granted, not normally INTERACTIVE-offered; acquisition replay remains unproved |
-| DeepSeek Rust / Frost | Repaired recipients `ee07c9d0`, expert Draw-clock repair `7187ee27`, typed comparator `16c19c52` | Root composes/reviews; no Full NPC gate/source widening. Next [all-Wish clock matrix](coordination/P-WISH-LIFECYCLE-CLOCK-MATRIX.md) is isolated test-only work |
-| DeepSeek Post Rust | Native Trophy consumer `7bf5806c`; [birth-hold repair](coordination/P-TROPHY-BIRTH-HOLD-REPAIR.md) active | Shared strict availability predicate, full six-case consumer and real compiled mutants. No content/schema/tape/wire edits |
-| Native observation specialist | Owner-only Trophy filter and complete option kind/key/gain comparison, Observation19 | Exclusive reward_chests/observer.rs and observe.rs version/focused tests; preserve separate DS birth predicate. No public wire or gameplay grant changes |
-| Native integration specialist | Reviewed strict restore `7187ee27`; independent typed-comparator review | Private review/repair only. No worker-tree edits or removal of Full Frost/Sentenced NPC guards |
-| Networking chat | Native `a40e1c6e`, real-input harness `41529a39` and stock proof `1d3b394e` composed; [Trophy wire13 PhaseA](coordination/P-TROPHY-WIRE13.md) active | Own codecs/canonical net mirror/focused Trophy HUD labels/server adapters; keep omission guard until root PhaseB release. No native observer/content/schema/tapes |
-| Art chat | Presentation `7d5a496b`, relative HUD copy `46c7a2e8` reviewed/composed | Editor idle pending final matched protocol13 build/proof. Networking owns focused Trophy MatchHud text now; no concurrent UI edits or stale Web build |
+| DeepSeek Rust | Terminal-test633c303c held for backup-arm signal window; giver witness38f6dcaa delivered, separate checker | Bounded new tools/corpus/test/evidence only; no native/shared/wire changes. Root assigns next packet |
+| DeepSeek Post Rust | Human quest/trader public-source witness packet | New quest-public/trade-public tools/corpora/evidence only; no publication policy or runtime authority |
+| Frost specialist | Future96bbe136 with reviewed e38d16c3 sources; Sentenced draft2fa23d95 | Separate26/20 candidate preserves root scratch repair; final content/tapes/admission root-owned. Full/Sentenced and strict5 stay closed |
+| GPT quest owner | Reviewed human eligibility2de68ba5; private native quest observer continuation | Opt-in native prepare/commit seam, no production wire/Observation19 changes. Viewer-lazy nonspatial public participant identities; hidden preview and accepted navigation source entitlements. Shared transport waits for review |
+| Networking chat | Sealed actual browser evidence c4c0563f | Current campaign complete; additive harness/evidence only. Next native/public/account packet comes from root |
+| Art chat | Final Web evidence9456aaee and generated Bakedaa64c642 | Build frozen; no new build or visual expansion without concrete root assignment |
 
-The lead sequences shared files, retains current guards and owns final identity/tape composition. Native source-born
-Frost/Sentenced NPC signature prerequisites remain genuine pending work; removing the current gate is not a port.
-Corrected [source Trophy lifecycle/text witnesses](coordination/P-TROPHY-WITNESS-1.md) through `f9dcaea0` are admitted
-in `3af96c1a`. Root reproduces both new source families byte-exact and their5/4 semantic mutants with controls. These
-are source-only admissions, not native/client transport completion. The separate reviewed wire13 contract above assigns
-the next private version; it does not follow automatically from source evidence.
-
-The native prefix passes revision-scoped split checks:609 simulation and824 remaining-workspace default tests, plus
-separate real-PG server328/placement236 suites, parity109+300 and both strict workspace lint modes. Feature suites
-overlap defaults and are not added to the total. C#383 and JS18,032 checks pass. Later NPC/Trophy repairs need focused
-composition checks; these numbers are neither a new whole-port run nor a final browser/performance acceptance.
+Frozen1310 passes fresh830 remaining-workspace tests and separate real-PG332/236 overlapping suites, strict workspace
+lints/fmt/parity109+300. Rust93/C#399/JS18,205 and actual Editor62 pass recorded scopes. [Final gate](evidence/native-wish-union/FROZEN13_GATE.md)
+keeps earlier split609simulation coverage, source limits, unmatched future work and physical-performance exclusions explicit.
+The current root admission retains source expected payloads and all five strict NPC prerequisites. Future Frost-source
+formats are not claimed by the25/19 browser proof. Quest giver source evidence is being reviewed before choosing its
+native actor representation; immunity alone does not prove no terrain/ledger/history effects.
 
 ## Current priorities
 

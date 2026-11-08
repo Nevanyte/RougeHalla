@@ -1,7 +1,7 @@
 # ADR0022: checked barrier and complete Wish publication
 
-Status: accepted for PRIVATE implementation; validation and live admission pending. Main is still protocol11 /
-Observation17. This decision reserves protocol12 / Observation18 for one composed publication contract. Policy
+Status: accepted and admitted in the protocol13/Observation19 union under [ADR0023](0023-protocol13-wish-trophy-admission.md).
+The allocation and implementation history below records the earlier private protocol12/Observation18 prefix. This decision reserves protocol12 / Observation18 for one composed publication contract. Policy
 interface13 stays unchanged. Native checkpoint25/replay19 are the existing private G6 reservation and will include
 required pending Wish event timestamps before final admission; no private candidate format is a released compatibility
 promise. Gameplay content identity is reconciled by the lead after G6/Frost composition.
