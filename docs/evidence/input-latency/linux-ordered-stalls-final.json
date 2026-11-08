@@ -1,0 +1,422 @@
+{
+  "startedAt": "2026-11-08T08:21:48.964Z",
+  "playerUrl": "http://127.0.0.1:8097/",
+  "direct": false,
+  "tls": "normal certificate validation",
+  "serverIdentity": {
+    "protocol": 11,
+    "contentHash": "801a76cde4cfd305"
+  },
+  "serverUrl": "ws://127.0.0.1:7796/ws",
+  "profiles": [
+    {
+      "rttMs": 100,
+      "jitterMs": 10,
+      "injected": true,
+      "meaning": "added delay, not total measured RTT",
+      "seed": 72617
+    }
+  ],
+  "trials": [
+    {
+      "profile": {
+        "rttMs": 100,
+        "jitterMs": 10,
+        "injected": true
+      },
+      "index": 1,
+      "key": "a",
+      "keyboardEvent": {
+        "at": 1794126112835.8
+      },
+      "inputSample": {
+        "at": 1794126112842.6,
+        "frame": 40,
+        "player": 2,
+        "seq": 1,
+        "x": 144,
+        "y": 144
+      },
+      "moveSent": {
+        "at": 1794126112842.6,
+        "frame": 40,
+        "seq": 1,
+        "x": 144,
+        "y": 144,
+        "sameUnityFrame": true
+      },
+      "selfEcho": {
+        "at": 1794126112995.7002,
+        "seq": 1,
+        "x": 199.5,
+        "y": 144,
+        "tick": 14
+      },
+      "selfPresented": {
+        "at": 1794126113007.7002,
+        "seq": 1,
+        "x": 199.5,
+        "y": 144,
+        "frame": 50
+      },
+      "opponentBaseline": {
+        "at": 1794126112807.4001,
+        "actor": 2,
+        "kind": 0,
+        "x": 208,
+        "y": 144,
+        "tick": 10,
+        "stableMs": 379
+      },
+      "keyboardToSendMs": 6.800048828125,
+      "sampleToSendMs": 0,
+      "sendToEchoMs": 153.10009765625,
+      "echoToPresentMs": 12,
+      "sampleToPresentMs": 165.10009765625,
+      "opponentPresented": {
+        "at": 1794126113057.7002,
+        "actor": 2,
+        "x": 206.98170471191406,
+        "y": 144,
+        "frame": 52
+      },
+      "sampleToOpponentMs": 215.10009765625,
+      "traceOverflow": false,
+      "traceErrors": []
+    },
+    {
+      "profile": {
+        "rttMs": 100,
+        "jitterMs": 10,
+        "injected": true
+      },
+      "index": 2,
+      "key": "d",
+      "keyboardEvent": {
+        "at": 1794126113664
+      },
+      "inputSample": {
+        "at": 1794126113674.3,
+        "frame": 90,
+        "player": 2,
+        "seq": 4,
+        "x": 238,
+        "y": 144
+      },
+      "moveSent": {
+        "at": 1794126113674.3,
+        "frame": 90,
+        "seq": 4,
+        "x": 238,
+        "y": 144,
+        "sameUnityFrame": true
+      },
+      "selfEcho": {
+        "at": 1794126113789.4001,
+        "seq": 4,
+        "x": 182.5,
+        "y": 144,
+        "tick": 30
+      },
+      "selfPresented": {
+        "at": 1794126113789.8,
+        "seq": 4,
+        "x": 182.5,
+        "y": 144,
+        "frame": 97
+      },
+      "opponentBaseline": {
+        "at": 1794126113657.6,
+        "actor": 2,
+        "kind": 0,
+        "x": 174,
+        "y": 144,
+        "tick": 27,
+        "stableMs": 382
+      },
+      "keyboardToSendMs": 10.300048828125,
+      "sampleToSendMs": 0,
+      "sendToEchoMs": 115.10009765625,
+      "echoToPresentMs": 0.39990234375,
+      "sampleToPresentMs": 115.5,
+      "opponentPresented": {
+        "at": 1794126113873.3,
+        "actor": 2,
+        "x": 174.1699981689453,
+        "y": 144,
+        "frame": 101
+      },
+      "sampleToOpponentMs": 199,
+      "traceOverflow": false,
+      "traceErrors": []
+    },
+    {
+      "profile": {
+        "rttMs": 100,
+        "jitterMs": 10,
+        "injected": true
+      },
+      "index": 3,
+      "key": "a",
+      "keyboardEvent": {
+        "at": 1794126114373
+      },
+      "inputSample": {
+        "at": 1794126114373.6,
+        "frame": 132,
+        "player": 2,
+        "seq": 7,
+        "x": 135.5,
+        "y": 144
+      },
+      "moveSent": {
+        "at": 1794126114373.6,
+        "frame": 132,
+        "seq": 7,
+        "x": 135.5,
+        "y": 144,
+        "sameUnityFrame": true
+      },
+      "selfEcho": {
+        "at": 1794126114494.7002,
+        "seq": 7,
+        "x": 191,
+        "y": 144,
+        "tick": 44
+      },
+      "selfPresented": {
+        "at": 1794126114506.3,
+        "seq": 7,
+        "x": 191,
+        "y": 144,
+        "frame": 140
+      },
+      "opponentBaseline": {
+        "at": 1794126114357,
+        "actor": 2,
+        "kind": 0,
+        "x": 199.5,
+        "y": 144,
+        "tick": 41,
+        "stableMs": 376
+      },
+      "keyboardToSendMs": 0.60009765625,
+      "sampleToSendMs": 0,
+      "sendToEchoMs": 121.10009765625,
+      "echoToPresentMs": 11.599853515625,
+      "sampleToPresentMs": 132.699951171875,
+      "opponentPresented": {
+        "at": 1794126114589.5,
+        "actor": 2,
+        "x": 196.77999877929688,
+        "y": 144,
+        "frame": 144
+      },
+      "sampleToOpponentMs": 215.89990234375,
+      "traceOverflow": false,
+      "traceErrors": []
+    }
+  ],
+  "errors": [],
+  "notes": [
+    "sampleMove is emitted by Unity ReadInput after sampling the browser keyboard input and includes the actual order sequence.",
+    "WebSocket send/receive times are captured inside the browser with performance.now and use the page timeOrigin for correlation.",
+    "Self echo is an accepted decoded snapshot whose me.moveSeq matches the sent order; ack_input is deliberately not used.",
+    "Self/opponent presentation endpoints are post-Present Unity traces, not photon emission or confirmed display scanout.",
+    "The proxy delays ordered TCP byte-stream chunks. It preserves reliability/order; configured stalls are head-of-line delays, not packet loss."
+  ],
+  "expectedTrials": 3,
+  "players": {
+    "driver": 2,
+    "observerSelf": 1,
+    "observerRemoteHumanCount": 1
+  },
+  "currentProfile": {
+    "rttMs": 100,
+    "jitterMs": 10
+  },
+  "proxyRun": {
+    "config": {
+      "oneWayMs": 50,
+      "jitterMs": 5,
+      "seed": 72617,
+      "stallEvery": 20,
+      "stallMs": 60,
+      "targetTls": false,
+      "semantics": "TCP reliable ordered stream with FIFO chunk delay/jitter; optional periodic ordered stalls model head-of-line blocking, not packet loss.",
+      "configuredRttMs": 100,
+      "configuredJitterMs": 10
+    },
+    "connections": [
+      {
+        "openedAt": 1794126111876,
+        "closedAt": null,
+        "clientAddress": "127.0.0.1",
+        "directions": {
+          "clientToServer": {
+            "chunks": 72,
+            "bytes": 1829,
+            "actualQueueDelayMs": {
+              "count": 72,
+              "p50": 50.162500000000364,
+              "p95": 81.69700000000012,
+              "max": 114.15704100000039
+            },
+            "orderedStalls": 3,
+            "stallDelayMs": {
+              "count": 3,
+              "p50": 108.59217059332877,
+              "p95": 113.8757612137124,
+              "max": 113.8757612137124
+            }
+          },
+          "serverToClient": {
+            "chunks": 53,
+            "bytes": 946,
+            "actualQueueDelayMs": {
+              "count": 53,
+              "p50": 51.291707999999744,
+              "p95": 68.5498749999997,
+              "max": 113.10433300000022
+            },
+            "orderedStalls": 2,
+            "stallDelayMs": {
+              "count": 2,
+              "p50": 110.05734373582527,
+              "p95": 112.74356849258766,
+              "max": 112.74356849258766
+            }
+          }
+        }
+      },
+      {
+        "openedAt": 1794126111876,
+        "closedAt": null,
+        "clientAddress": "127.0.0.1",
+        "directions": {
+          "clientToServer": {
+            "chunks": 77,
+            "bytes": 1987,
+            "actualQueueDelayMs": {
+              "count": 77,
+              "p50": 49.72633399999995,
+              "p95": 80.36633299999994,
+              "max": 112.20187500000065
+            },
+            "orderedStalls": 3,
+            "stallDelayMs": {
+              "count": 3,
+              "p50": 111.52251687832177,
+              "p95": 111.61137577146292,
+              "max": 111.61137577146292
+            }
+          },
+          "serverToClient": {
+            "chunks": 51,
+            "bytes": 954,
+            "actualQueueDelayMs": {
+              "count": 51,
+              "p50": 51.36591700000008,
+              "p95": 67.69562500000029,
+              "max": 113.28162499999962
+            },
+            "orderedStalls": 2,
+            "stallDelayMs": {
+              "count": 2,
+              "p50": 110.47918305033818,
+              "p95": 112.98769002081826,
+              "max": 112.98769002081826
+            }
+          }
+        }
+      }
+    ]
+  },
+  "pageErrors": [],
+  "transportObservations": [
+    {
+      "client": "driver",
+      "socketRtt": {
+        "count": 3,
+        "p50Ms": 102.60000038146973,
+        "p95Ms": 108.59999990463257,
+        "maxMs": 108.59999990463257
+      },
+      "snapshotDeliveryGap": {
+        "count": 47,
+        "p50Ms": 49.5,
+        "p95Ms": 85.2000002861023,
+        "maxMs": 115.30000019073486
+      },
+      "unityFrameGap": {
+        "count": 150,
+        "p50Ms": 16.600000381469727,
+        "p95Ms": 18,
+        "maxMs": 299.30000019073486
+      }
+    },
+    {
+      "client": "observer",
+      "socketRtt": {
+        "count": 3,
+        "p50Ms": 121,
+        "p95Ms": 142.90000009536743,
+        "maxMs": 142.90000009536743
+      },
+      "snapshotDeliveryGap": {
+        "count": 47,
+        "p50Ms": 48.69999980926514,
+        "p95Ms": 82.2000002861023,
+        "maxMs": 119.39999961853027
+      },
+      "unityFrameGap": {
+        "count": 149,
+        "p50Ms": 16.699999809265137,
+        "p95Ms": 18.5,
+        "maxMs": 299.2000002861023
+      }
+    }
+  ],
+  "summary": {
+    "status": "PASS",
+    "verdict": {
+      "status": "PASS",
+      "exitCode": 0,
+      "failures": [],
+      "incomplete": [],
+      "complete": true
+    },
+    "latency": {
+      "sampleToSend": {
+        "count": 3,
+        "p50Ms": 0,
+        "p95Ms": 0,
+        "maxMs": 0
+      },
+      "sendToSelfEcho": {
+        "count": 3,
+        "p50Ms": 121.10009765625,
+        "p95Ms": 153.10009765625,
+        "maxMs": 153.10009765625
+      },
+      "selfEchoToPresentation": {
+        "count": 3,
+        "p50Ms": 11.599853515625,
+        "p95Ms": 12,
+        "maxMs": 12
+      },
+      "inputToSelfPresentation": {
+        "count": 3,
+        "p50Ms": 132.699951171875,
+        "p95Ms": 165.10009765625,
+        "maxMs": 165.10009765625
+      },
+      "inputToOpponentPresentation": {
+        "count": 3,
+        "p50Ms": 215.10009765625,
+        "p95Ms": 215.89990234375,
+        "maxMs": 215.89990234375
+      }
+    }
+  }
+}

@@ -1,0 +1,174 @@
+{
+  "startedAt": "2026-11-08T08:03:51.436Z",
+  "playerUrl": "http://127.0.0.1:8097/",
+  "direct": false,
+  "tls": "normal certificate validation",
+  "serverIdentity": {
+    "protocol": 11,
+    "contentHash": "801a76cde4cfd305"
+  },
+  "serverUrl": "ws://127.0.0.1:7799/ws",
+  "profiles": [
+    {
+      "rttMs": 0,
+      "jitterMs": 0,
+      "injected": true,
+      "meaning": "added delay, not total measured RTT",
+      "seed": 72617
+    }
+  ],
+  "trials": [],
+  "errors": [
+    "Error: required opponent observation needs exactly one remote human actor; saw 0\n    at run (/Users/nevinmckinnon/Documents/Projects/RogueHalla-input-latency/tools/latency/e2e.cjs:233:43)"
+  ],
+  "notes": [
+    "sampleMove is emitted by Unity ReadInput after sampling the browser keyboard input and includes the actual order sequence.",
+    "WebSocket send/receive times are captured inside the browser with performance.now and use the page timeOrigin for correlation.",
+    "Self echo is an accepted decoded snapshot whose me.moveSeq matches the sent order; ack_input is deliberately not used.",
+    "Self/opponent presentation endpoints are post-Present Unity traces, not photon emission or confirmed display scanout.",
+    "The proxy delays ordered TCP byte-stream chunks. It preserves reliability/order; configured stalls are head-of-line delays, not packet loss."
+  ],
+  "expectedTrials": 1,
+  "pageErrors": [],
+  "proxyRun": {
+    "config": {
+      "oneWayMs": 0,
+      "jitterMs": 0,
+      "seed": 72617,
+      "stallEvery": 0,
+      "stallMs": 0,
+      "targetTls": false,
+      "semantics": "TCP reliable ordered stream with FIFO chunk delay/jitter; optional periodic ordered stalls model head-of-line blocking, not packet loss."
+    },
+    "connections": [
+      {
+        "openedAt": 1794125034910,
+        "closedAt": 1794125035388,
+        "clientAddress": "127.0.0.1",
+        "directions": {
+          "clientToServer": {
+            "chunks": 3,
+            "bytes": 567,
+            "actualQueueDelayMs": {
+              "count": 3,
+              "p50": 1.5930000000007567,
+              "p95": 3.5132910000002084,
+              "max": 3.5132910000002084
+            },
+            "orderedStalls": 0,
+            "stallDelayMs": {
+              "count": 0,
+              "p50": null,
+              "p95": null,
+              "max": null
+            }
+          },
+          "serverToClient": {
+            "chunks": 4,
+            "bytes": 939,
+            "actualQueueDelayMs": {
+              "count": 4,
+              "p50": 1.403041999999914,
+              "p95": 2.816208000000188,
+              "max": 2.816208000000188
+            },
+            "orderedStalls": 0,
+            "stallDelayMs": {
+              "count": 0,
+              "p50": null,
+              "p95": null,
+              "max": null
+            }
+          }
+        }
+      },
+      {
+        "openedAt": 1794125034910,
+        "closedAt": 1794125035389,
+        "clientAddress": "127.0.0.1",
+        "directions": {
+          "clientToServer": {
+            "chunks": 3,
+            "bytes": 567,
+            "actualQueueDelayMs": {
+              "count": 3,
+              "p50": 0.48158299999977316,
+              "p95": 1.4039170000000922,
+              "max": 1.4039170000000922
+            },
+            "orderedStalls": 0,
+            "stallDelayMs": {
+              "count": 0,
+              "p50": null,
+              "p95": null,
+              "max": null
+            }
+          },
+          "serverToClient": {
+            "chunks": 4,
+            "bytes": 962,
+            "actualQueueDelayMs": {
+              "count": 4,
+              "p50": 1.3032499999999345,
+              "p95": 1.379917000000205,
+              "max": 1.379917000000205
+            },
+            "orderedStalls": 0,
+            "stallDelayMs": {
+              "count": 0,
+              "p50": null,
+              "p95": null,
+              "max": null
+            }
+          }
+        }
+      }
+    ]
+  },
+  "summary": {
+    "status": "FAIL",
+    "verdict": {
+      "status": "FAIL",
+      "exitCode": 1,
+      "failures": [
+        "runtime_or_page_errors"
+      ],
+      "incomplete": [
+        "trial_coverage_0_of_1"
+      ],
+      "complete": false
+    },
+    "latency": {
+      "sampleToSend": {
+        "count": 0,
+        "p50Ms": null,
+        "p95Ms": null,
+        "maxMs": null
+      },
+      "sendToSelfEcho": {
+        "count": 0,
+        "p50Ms": null,
+        "p95Ms": null,
+        "maxMs": null
+      },
+      "selfEchoToPresentation": {
+        "count": 0,
+        "p50Ms": null,
+        "p95Ms": null,
+        "maxMs": null
+      },
+      "inputToSelfPresentation": {
+        "count": 0,
+        "p50Ms": null,
+        "p95Ms": null,
+        "maxMs": null
+      },
+      "inputToOpponentPresentation": {
+        "count": 0,
+        "p50Ms": null,
+        "p95Ms": null,
+        "maxMs": null
+      }
+    }
+  }
+}

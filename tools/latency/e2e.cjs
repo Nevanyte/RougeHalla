@@ -5,7 +5,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { loadPlaywright, finalizeRun } = require('./runtime.cjs');
 const { startProxy, validateSelfSignedOrigins } = require('./ws-proxy.cjs');
-const { attachSummary } = require('./report.cjs');
+const { attachSummary, quantiles } = require('./report.cjs');
 
 function argsOf(argv) {
   const out = {};
@@ -189,6 +189,7 @@ async function run() {
   }
   let browser;
   let pages = [];
+  let activeAttempt = null;
   const report = { startedAt: new Date().toISOString(), playerUrl: safePlayerUrl.toString(), direct,
     tls: allowSelfSigned ? 'loopback self-signed fixture; certificate validation skipped explicitly' : 'normal certificate validation',
     serverIdentity: { protocol: serverInfo.protocol, contentHash: serverInfo.contentHash },
@@ -273,6 +274,7 @@ async function run() {
         const actualSend = sendRecord || sendAnyFrame;
         const sentCommand = actualSend?.message.cmds.find(c => c.k === 'move' && c.seq === sample.moveSeq);
         const sendAt = actualSend ? epochMs(data.timeOrigin, actualSend.at) : null;
+        activeAttempt = { profile: { rttMs, jitterMs }, index: trialIndex + 1, sampleAt, seq: sample.moveSeq };
         await waitFor(() => driver.page.evaluate(({seq, since}) => window.__rhLatency.wire.some(e => e.at >= since && e.kind === 'receive' &&
           e.message?.t === 'snapshot' && e.me?.moveSeq === seq), {seq: sample.moveSeq, since: sample.at}), timeoutMs, `accepted self move_seq echo ${sample.moveSeq}`);
         await waitFor(() => driver.page.evaluate(({seq, since}) => window.__rhLatency.events.some(e => e.at >= since && e.kind === 'presentSelf' && e.moveSeq === seq), {seq: sample.moveSeq, since: sample.at}),
@@ -325,6 +327,7 @@ async function run() {
         trial.traceOverflow = data.overflow || final.overflow || observerData.overflow;
         trial.traceErrors = [...data.errors, ...final.errors, ...observerData.errors];
         report.trials.push(trial);
+        activeAttempt = null;
         await new Promise(resolve => setTimeout(resolve, 100));
       }
     }
@@ -333,6 +336,50 @@ async function run() {
     report.errors.push(String(error?.stack || error));
   } finally {
     report.pageErrors = pages.flatMap(page => page.errors.map(error => `${page.label}: ${error}`));
+    if (activeAttempt) {
+      report.incompleteAttempt = { ...activeAttempt, clients: [] };
+      for (const state of pages) {
+        try {
+          const trace = await state.page.evaluate(({ sampleAt }) => {
+            const trace = window.__rhLatency;
+            const nearby = event => {
+              const epoch = performance.timeOrigin + event.at;
+              return epoch >= sampleAt - 50 && epoch <= sampleAt + 1000;
+            };
+            return {
+              timeOrigin: performance.timeOrigin,
+              events: trace.events.filter(e => nearby(e) && ['frameStart', 'sampleMove', 'sampleStop', 'presentSelf'].includes(e.kind)).slice(0, 200),
+              wire: trace.wire.filter(e => nearby(e) && ['input', 'snapshot'].includes(e.message?.t)).slice(0, 100).map(e => ({
+                kind: e.kind, at: e.at, frame: e.frame, type: e.message.t, cmds: e.message.cmds,
+                me: e.me ? { id: e.me.id, moveSeq: e.me.moveSeq, x: e.me.x, y: e.me.y } : undefined,
+                tick: e.message.tick
+              }))
+            };
+          }, activeAttempt);
+          report.incompleteAttempt.clients.push({ client: state.label, ...trace });
+        } catch (error) { report.errors.push(`incomplete attempt observer ${state.label}: ${error}`); }
+      }
+    }
+    report.transportObservations = [];
+    for (const state of pages) {
+      try {
+        const observed = await state.page.evaluate(() => {
+          const trace = window.__rhLatency;
+          const pings = new Map(), rtts = [], snapshots = [], frames = [];
+          for (const event of trace.wire) {
+            if (event.kind === 'send' && event.message?.t === 'ping') pings.set(event.message.nonce, event.at);
+            if (event.kind === 'receive' && event.message?.t === 'pong' && pings.has(event.message.nonce))
+              rtts.push(event.at - pings.get(event.message.nonce));
+            if (event.kind === 'receive' && event.message?.t === 'snapshot') snapshots.push(event.at);
+          }
+          for (const event of trace.events) if (event.kind === 'frameStart') frames.push(event.at);
+          const gaps = list => list.slice(1).map((at, index) => at - list[index]);
+          return { rtts, snapshotGaps: gaps(snapshots), frameGaps: gaps(frames) };
+        });
+        report.transportObservations.push({ client: state.label, socketRtt: quantiles(observed.rtts),
+          snapshotDeliveryGap: quantiles(observed.snapshotGaps), unityFrameGap: quantiles(observed.frameGaps) });
+      } catch (error) { report.errors.push(`transport observer ${state.label}: ${error}`); }
+    }
     if (!proxy) report.proxyRun = { direct, note: 'Direct endpoint observation; no impairment proxy.' };
     await finalizeRun({ browser, proxy, report, saveReport: () => {
       attachSummary(report);

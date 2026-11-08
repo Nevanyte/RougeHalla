@@ -1,0 +1,40 @@
+name: Latency report checks
+
+on:
+  pull_request:
+    paths:
+      - 'tools/latency/**'
+      - 'docs/evidence/input-latency/**'
+      - 'client-unity/RoguehallaNet/**'
+      - 'client-unity/UnityProject/Assets/Scripts/Net/**'
+      - 'client-unity/UnityProject/Assets/Plugins/WebGL/**'
+      - 'hosting/staging-mvp/staging.py'
+      - 'hosting/staging-mvp/test_latency_render.py'
+      - '.github/workflows/input-latency.yml'
+  push:
+    branches: [optimization_port]
+    paths:
+      - 'tools/latency/**'
+      - 'docs/evidence/input-latency/**'
+      - 'hosting/staging-mvp/staging.py'
+      - 'hosting/staging-mvp/test_latency_render.py'
+      - '.github/workflows/input-latency.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  report-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.23.4'
+      - run: node --test tools/latency/latency.test.cjs
+      - run: python3 hosting/staging-mvp/test_latency_render.py
+      - name: Check saved measurements against current completeness rules
+        run: node tools/latency/check-evidence.cjs
+      # A fresh real-Unity run requires the pinned Editor/build and a running test match.
+      # This job checks the harness and saved evidence; it does not report new network measurements.

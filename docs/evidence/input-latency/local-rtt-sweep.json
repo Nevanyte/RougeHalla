@@ -1,0 +1,962 @@
+{
+  "startedAt": "2026-11-08T07:46:47.074Z",
+  "playerUrl": "http://127.0.0.1:8097/",
+  "direct": false,
+  "serverUrl": "ws://127.0.0.1:7797/ws",
+  "profiles": [
+    {
+      "rttMs": 0,
+      "jitterMs": 10,
+      "seed": 72617
+    },
+    {
+      "rttMs": 50,
+      "jitterMs": 10,
+      "seed": 72618
+    },
+    {
+      "rttMs": 100,
+      "jitterMs": 10,
+      "seed": 72619
+    },
+    {
+      "rttMs": 150,
+      "jitterMs": 10,
+      "seed": 72620
+    }
+  ],
+  "trials": [
+    {
+      "profile": {
+        "rttMs": 0,
+        "jitterMs": 10
+      },
+      "index": 1,
+      "key": "d",
+      "keyboardEvent": {
+        "at": 1794124010426.7
+      },
+      "inputSample": {
+        "at": 1794124010435.2,
+        "frame": 14,
+        "player": 1,
+        "seq": 1,
+        "x": 272,
+        "y": 144
+      },
+      "moveSent": {
+        "at": 1794124010435.2,
+        "frame": 14,
+        "seq": 1,
+        "x": 272,
+        "y": 144,
+        "sameUnityFrame": true
+      },
+      "selfEcho": {
+        "at": 1794124010465,
+        "seq": 1,
+        "x": 216.5,
+        "y": 144,
+        "tick": 5
+      },
+      "selfPresented": {
+        "at": 1794124010469.5,
+        "seq": 1,
+        "x": 216.5,
+        "y": 144,
+        "frame": 16
+      },
+      "opponentBaseline": {
+        "at": 1794124010478,
+        "actor": 1,
+        "kind": 0,
+        "x": 208,
+        "y": 144,
+        "tick": 5
+      },
+      "keyboardToSendMs": 8.5,
+      "sampleToSendMs": 0,
+      "sendToEchoMs": 29.800048828125,
+      "echoToPresentMs": 4.5,
+      "sampleToPresentMs": 34.300048828125,
+      "opponentPresented": {
+        "at": 1794124010521.8,
+        "actor": 1,
+        "x": 208.2532958984375,
+        "y": 144,
+        "frame": 18
+      },
+      "sampleToOpponentMs": 86.60009765625,
+      "traceOverflow": false,
+      "traceErrors": []
+    },
+    {
+      "profile": {
+        "rttMs": 0,
+        "jitterMs": 10
+      },
+      "index": 2,
+      "key": "a",
+      "keyboardEvent": {
+        "at": 1794124010690.7
+      },
+      "inputSample": {
+        "at": 1794124010702.5,
+        "frame": 30,
+        "player": 1,
+        "seq": 3,
+        "x": 152.5,
+        "y": 144
+      },
+      "moveSent": {
+        "at": 1794124010702.5,
+        "frame": 30,
+        "seq": 3,
+        "x": 152.5,
+        "y": 144,
+        "sameUnityFrame": true
+      },
+      "selfEcho": {
+        "at": 1794124010714.0999,
+        "seq": 3,
+        "x": 208,
+        "y": 144,
+        "tick": 10
+      },
+      "selfPresented": {
+        "at": 1794124010719.0999,
+        "seq": 3,
+        "x": 208,
+        "y": 144,
+        "frame": 31
+      },
+      "opponentBaseline": {
+        "at": 1794124010740,
+        "actor": 1,
+        "kind": 0,
+        "x": 216.5,
+        "y": 144,
+        "tick": 10
+      },
+      "keyboardToSendMs": 11.800048828125,
+      "sampleToSendMs": 0,
+      "sendToEchoMs": 11.599853515625,
+      "echoToPresentMs": 5,
+      "sampleToPresentMs": 16.599853515625,
+      "opponentPresented": {
+        "at": 1794124010771.8,
+        "actor": 1,
+        "x": 215.8217010498047,
+        "y": 144,
+        "frame": 33
+      },
+      "sampleToOpponentMs": 69.300048828125,
+      "traceOverflow": false,
+      "traceErrors": []
+    },
+    {
+      "profile": {
+        "rttMs": 0,
+        "jitterMs": 10
+      },
+      "index": 3,
+      "key": "s",
+      "keyboardEvent": {
+        "at": 1794124010925
+      },
+      "inputSample": {
+        "at": 1794124010935.0999,
+        "frame": 44,
+        "player": 1,
+        "seq": 5,
+        "x": 208,
+        "y": 208
+      },
+      "moveSent": {
+        "at": 1794124010935.0999,
+        "frame": 44,
+        "seq": 5,
+        "x": 208,
+        "y": 208,
+        "sameUnityFrame": true
+      },
+      "selfEcho": {
+        "at": 1794124010964.4,
+        "seq": 5,
+        "x": 208,
+        "y": 152.5,
+        "tick": 15
+      },
+      "selfPresented": {
+        "at": 1794124010968.5,
+        "seq": 5,
+        "x": 208,
+        "y": 152.5,
+        "frame": 46
+      },
+      "opponentBaseline": {
+        "at": 1794124010974,
+        "actor": 1,
+        "kind": 0,
+        "x": 208,
+        "y": 144,
+        "tick": 15
+      },
+      "keyboardToSendMs": 10.099853515625,
+      "sampleToSendMs": 0,
+      "sendToEchoMs": 29.300048828125,
+      "echoToPresentMs": 4.10009765625,
+      "sampleToPresentMs": 33.400146484375,
+      "opponentPresented": {
+        "at": 1794124011021.7,
+        "actor": 1,
+        "x": 208,
+        "y": 145.10330200195312,
+        "frame": 48
+      },
+      "sampleToOpponentMs": 86.60009765625,
+      "traceOverflow": false,
+      "traceErrors": []
+    },
+    {
+      "profile": {
+        "rttMs": 50,
+        "jitterMs": 10
+      },
+      "index": 1,
+      "key": "w",
+      "keyboardEvent": {
+        "at": 1794124011190.7998
+      },
+      "inputSample": {
+        "at": 1794124011202.4,
+        "frame": 60,
+        "player": 1,
+        "seq": 7,
+        "x": 208,
+        "y": 88.5
+      },
+      "moveSent": {
+        "at": 1794124011202.4,
+        "frame": 60,
+        "seq": 7,
+        "x": 208,
+        "y": 88.5,
+        "sameUnityFrame": true
+      },
+      "selfEcho": {
+        "at": 1794124011288.7,
+        "seq": 7,
+        "x": 208,
+        "y": 144,
+        "tick": 21
+      },
+      "selfPresented": {
+        "at": 1794124011302.2,
+        "seq": 7,
+        "x": 208,
+        "y": 144,
+        "frame": 66
+      },
+      "opponentBaseline": {
+        "at": 1794124011324,
+        "actor": 1,
+        "kind": 0,
+        "x": 208,
+        "y": 152.5,
+        "tick": 21
+      },
+      "keyboardToSendMs": 11.60009765625,
+      "sampleToSendMs": 0,
+      "sendToEchoMs": 86.300048828125,
+      "echoToPresentMs": 13.5,
+      "sampleToPresentMs": 99.800048828125,
+      "opponentPresented": {
+        "at": 1794124011321.5999,
+        "actor": 1,
+        "x": 208,
+        "y": 150.88670349121094,
+        "frame": 66
+      },
+      "sampleToOpponentMs": 119.199951171875,
+      "traceOverflow": false,
+      "traceErrors": []
+    },
+    {
+      "profile": {
+        "rttMs": 50,
+        "jitterMs": 10
+      },
+      "index": 2,
+      "key": "d",
+      "keyboardEvent": {
+        "at": 1794124011458.5
+      },
+      "inputSample": {
+        "at": 1794124011468.9,
+        "frame": 76,
+        "player": 1,
+        "seq": 10,
+        "x": 272,
+        "y": 135.5
+      },
+      "moveSent": {
+        "at": 1794124011468.9,
+        "frame": 76,
+        "seq": 10,
+        "x": 272,
+        "y": 135.5,
+        "sameUnityFrame": true
+      },
+      "selfEcho": {
+        "at": 1794124011541.2,
+        "seq": 10,
+        "x": 216.5,
+        "y": 135.5,
+        "tick": 26
+      },
+      "selfPresented": {
+        "at": 1794124011551.5999,
+        "seq": 10,
+        "x": 216.5,
+        "y": 135.5,
+        "frame": 81
+      },
+      "opponentBaseline": {
+        "at": 1794124011590,
+        "actor": 1,
+        "kind": 0,
+        "x": 208,
+        "y": 135.5,
+        "tick": 26
+      },
+      "keyboardToSendMs": 10.39990234375,
+      "sampleToSendMs": 0,
+      "sendToEchoMs": 72.300048828125,
+      "echoToPresentMs": 10.39990234375,
+      "sampleToPresentMs": 82.699951171875,
+      "opponentPresented": {
+        "at": 1794124011571.3,
+        "actor": 1,
+        "x": 210.03829956054688,
+        "y": 135.5,
+        "frame": 81
+      },
+      "sampleToOpponentMs": 102.400146484375,
+      "traceOverflow": false,
+      "traceErrors": []
+    },
+    {
+      "profile": {
+        "rttMs": 50,
+        "jitterMs": 10
+      },
+      "index": 3,
+      "key": "a",
+      "keyboardEvent": {
+        "at": 1794124011724.7998
+      },
+      "inputSample": {
+        "at": 1794124011735.7998,
+        "frame": 92,
+        "player": 1,
+        "seq": 13,
+        "x": 169.5,
+        "y": 135.5
+      },
+      "moveSent": {
+        "at": 1794124011735.7998,
+        "frame": 92,
+        "seq": 13,
+        "x": 169.5,
+        "y": 135.5,
+        "sameUnityFrame": true
+      },
+      "selfEcho": {
+        "at": 1794124011791.4,
+        "seq": 13,
+        "x": 225,
+        "y": 135.5,
+        "tick": 31
+      },
+      "selfPresented": {
+        "at": 1794124011802.4,
+        "seq": 13,
+        "x": 225,
+        "y": 135.5,
+        "frame": 96
+      },
+      "opponentBaseline": {
+        "at": 1794124011812,
+        "actor": 1,
+        "kind": 0,
+        "x": 233.5,
+        "y": 135.5,
+        "tick": 31
+      },
+      "keyboardToSendMs": 11,
+      "sampleToSendMs": 0,
+      "sendToEchoMs": 55.60009765625,
+      "echoToPresentMs": 11,
+      "sampleToPresentMs": 66.60009765625,
+      "opponentPresented": {
+        "at": 1794124011704.8,
+        "actor": 1,
+        "x": 232.87440490722656,
+        "y": 135.5,
+        "frame": 89
+      },
+      "sampleToOpponentMs": -30.999755859375,
+      "traceOverflow": false,
+      "traceErrors": []
+    },
+    {
+      "profile": {
+        "rttMs": 100,
+        "jitterMs": 10
+      },
+      "index": 1,
+      "key": "s",
+      "keyboardEvent": {
+        "at": 1794124011940.0999
+      },
+      "inputSample": {
+        "at": 1794124011952.2998,
+        "frame": 105,
+        "player": 1,
+        "seq": 15,
+        "x": 216.5,
+        "y": 199.5
+      },
+      "moveSent": {
+        "at": 1794124011952.2998,
+        "frame": 105,
+        "seq": 15,
+        "x": 216.5,
+        "y": 199.5,
+        "sameUnityFrame": true
+      },
+      "selfEcho": {
+        "at": 1794124012063.4,
+        "seq": 15,
+        "x": 216.5,
+        "y": 144,
+        "tick": 36
+      },
+      "selfPresented": {
+        "at": 1794124012068.2,
+        "seq": 15,
+        "x": 216.5,
+        "y": 144,
+        "frame": 112
+      },
+      "opponentBaseline": {
+        "at": 1794124012108,
+        "actor": 1,
+        "kind": 0,
+        "x": 216.5,
+        "y": 135.5,
+        "tick": 36
+      },
+      "keyboardToSendMs": 12.199951171875,
+      "sampleToSendMs": 0,
+      "sendToEchoMs": 111.10009765625,
+      "echoToPresentMs": 4.800048828125,
+      "sampleToPresentMs": 115.900146484375,
+      "opponentPresented": {
+        "at": 1794124012071.4,
+        "actor": 1,
+        "x": 216.5,
+        "y": 135.94200134277344,
+        "frame": 111
+      },
+      "sampleToOpponentMs": 119.10009765625,
+      "traceOverflow": false,
+      "traceErrors": []
+    },
+    {
+      "profile": {
+        "rttMs": 100,
+        "jitterMs": 10
+      },
+      "index": 2,
+      "key": "w",
+      "keyboardEvent": {
+        "at": 1794124012240.5999
+      },
+      "inputSample": {
+        "at": 1794124012251.5,
+        "frame": 123,
+        "player": 1,
+        "seq": 18,
+        "x": 216.5,
+        "y": 105.5
+      },
+      "moveSent": {
+        "at": 1794124012251.5,
+        "frame": 123,
+        "seq": 18,
+        "x": 216.5,
+        "y": 105.5,
+        "sameUnityFrame": true
+      },
+      "selfEcho": {
+        "at": 1794124012358.4,
+        "seq": 18,
+        "x": 216.5,
+        "y": 161,
+        "tick": 42
+      },
+      "selfPresented": {
+        "at": 1794124012368.9,
+        "seq": 18,
+        "x": 216.5,
+        "y": 161,
+        "frame": 130
+      },
+      "opponentBaseline": {
+        "at": 1794124012410,
+        "actor": 1,
+        "kind": 0,
+        "x": 216.5,
+        "y": 161,
+        "tick": 42
+      },
+      "keyboardToSendMs": 10.900146484375,
+      "sampleToSendMs": 0,
+      "sendToEchoMs": 106.89990234375,
+      "echoToPresentMs": 10.5,
+      "sampleToPresentMs": 117.39990234375,
+      "opponentPresented": {
+        "at": 1794124012238.2,
+        "actor": 1,
+        "x": 216.5,
+        "y": 163.88999938964844,
+        "frame": 121
+      },
+      "sampleToOpponentMs": -13.300048828125,
+      "traceOverflow": false,
+      "traceErrors": []
+    },
+    {
+      "profile": {
+        "rttMs": 100,
+        "jitterMs": 10
+      },
+      "index": 3,
+      "key": "d",
+      "keyboardEvent": {
+        "at": 1794124012591.2
+      },
+      "inputSample": {
+        "at": 1794124012601.7,
+        "frame": 144,
+        "player": 1,
+        "seq": 21,
+        "x": 280.5,
+        "y": 135.5
+      },
+      "moveSent": {
+        "at": 1794124012601.7998,
+        "frame": 144,
+        "seq": 21,
+        "x": 280.5,
+        "y": 135.5,
+        "sameUnityFrame": true
+      },
+      "selfEcho": {
+        "at": 1794124012711.2998,
+        "seq": 21,
+        "x": 225,
+        "y": 135.5,
+        "tick": 49
+      },
+      "selfPresented": {
+        "at": 1794124012719,
+        "seq": 21,
+        "x": 225,
+        "y": 135.5,
+        "frame": 151
+      },
+      "opponentBaseline": {
+        "at": 1794124012759,
+        "actor": 1,
+        "kind": 0,
+        "x": 216.5,
+        "y": 135.5,
+        "tick": 49
+      },
+      "keyboardToSendMs": 10.599853515625,
+      "sampleToSendMs": 0.099853515625,
+      "sendToEchoMs": 109.5,
+      "echoToPresentMs": 7.7001953125,
+      "sampleToPresentMs": 117.300048828125,
+      "opponentPresented": {
+        "at": 1794124012737.9,
+        "actor": 1,
+        "x": 219.22000122070312,
+        "y": 135.5,
+        "frame": 151
+      },
+      "sampleToOpponentMs": 136.199951171875,
+      "traceOverflow": false,
+      "traceErrors": []
+    },
+    {
+      "profile": {
+        "rttMs": 150,
+        "jitterMs": 10
+      },
+      "index": 1,
+      "key": "a",
+      "keyboardEvent": {
+        "at": 1794124012891.7
+      },
+      "inputSample": {
+        "at": 1794124012901.4,
+        "frame": 162,
+        "player": 1,
+        "seq": 24,
+        "x": 186.5,
+        "y": 135.5
+      },
+      "moveSent": {
+        "at": 1794124012901.4,
+        "frame": 162,
+        "seq": 24,
+        "x": 186.5,
+        "y": 135.5,
+        "sameUnityFrame": true
+      },
+      "selfEcho": {
+        "at": 1794124013089.9,
+        "seq": 24,
+        "x": 242,
+        "y": 135.5,
+        "tick": 56
+      },
+      "selfPresented": {
+        "at": 1794124013101.7,
+        "seq": 24,
+        "x": 242,
+        "y": 135.5,
+        "frame": 174
+      },
+      "opponentBaseline": {
+        "at": 1794124013107,
+        "actor": 1,
+        "kind": 0,
+        "x": 250.5,
+        "y": 135.5,
+        "tick": 56
+      },
+      "keyboardToSendMs": 9.699951171875,
+      "sampleToSendMs": 0,
+      "sendToEchoMs": 188.5,
+      "echoToPresentMs": 11.800048828125,
+      "sampleToPresentMs": 200.300048828125,
+      "opponentPresented": {
+        "at": 1794124012871.4,
+        "actor": 1,
+        "x": 242,
+        "y": 135.5,
+        "frame": 159
+      },
+      "sampleToOpponentMs": -30,
+      "traceOverflow": false,
+      "traceErrors": []
+    },
+    {
+      "profile": {
+        "rttMs": 150,
+        "jitterMs": 10
+      },
+      "index": 2,
+      "key": "s",
+      "keyboardEvent": {
+        "at": 1794124013239.9
+      },
+      "inputSample": {
+        "at": 1794124013251.5,
+        "frame": 183,
+        "player": 1,
+        "seq": 28,
+        "x": 216.5,
+        "y": 199.5
+      },
+      "moveSent": {
+        "at": 1794124013251.5999,
+        "frame": 183,
+        "seq": 28,
+        "x": 216.5,
+        "y": 199.5,
+        "sameUnityFrame": true
+      },
+      "selfEcho": {
+        "at": 1794124013437.9,
+        "seq": 28,
+        "x": 216.5,
+        "y": 144,
+        "tick": 63
+      },
+      "selfPresented": {
+        "at": 1794124013452.2998,
+        "seq": 28,
+        "x": 216.5,
+        "y": 144,
+        "frame": 195
+      },
+      "opponentBaseline": {
+        "at": 1794124013492,
+        "actor": 1,
+        "kind": 0,
+        "x": 225,
+        "y": 135.5,
+        "tick": 64
+      },
+      "keyboardToSendMs": 11.699951171875,
+      "sampleToSendMs": 0.099853515625,
+      "sendToEchoMs": 186.300048828125,
+      "echoToPresentMs": 14.39990234375,
+      "sampleToPresentMs": 200.7998046875,
+      "opponentPresented": {
+        "at": 1794124013221.5999,
+        "actor": 1,
+        "x": 230.61000061035156,
+        "y": 135.5,
+        "frame": 180
+      },
+      "sampleToOpponentMs": -29.900146484375,
+      "traceOverflow": false,
+      "traceErrors": []
+    },
+    {
+      "profile": {
+        "rttMs": 150,
+        "jitterMs": 10
+      },
+      "index": 3,
+      "key": "w",
+      "keyboardEvent": {
+        "at": 1794124013624.5
+      },
+      "inputSample": {
+        "at": 1794124013635.5999,
+        "frame": 206,
+        "player": 1,
+        "seq": 32,
+        "x": 216.5,
+        "y": 105.5
+      },
+      "moveSent": {
+        "at": 1794124013635.5999,
+        "frame": 206,
+        "seq": 32,
+        "x": 216.5,
+        "y": 105.5,
+        "sameUnityFrame": true
+      },
+      "selfEcho": {
+        "at": 1794124013788.7,
+        "seq": 32,
+        "x": 216.5,
+        "y": 169.5,
+        "tick": 70
+      },
+      "selfPresented": {
+        "at": 1794124013801.4,
+        "seq": 32,
+        "x": 216.5,
+        "y": 169.5,
+        "frame": 216
+      },
+      "opponentBaseline": {
+        "at": 1794124013840,
+        "actor": 1,
+        "kind": 0,
+        "x": 216.5,
+        "y": 169.5,
+        "tick": 71
+      },
+      "keyboardToSendMs": 11.099853515625,
+      "sampleToSendMs": 0,
+      "sendToEchoMs": 153.10009765625,
+      "echoToPresentMs": 12.699951171875,
+      "sampleToPresentMs": 165.800048828125,
+      "opponentPresented": {
+        "at": 1794124013604.9,
+        "actor": 1,
+        "x": 216.5,
+        "y": 161,
+        "frame": 203
+      },
+      "sampleToOpponentMs": -30.699951171875,
+      "traceOverflow": false,
+      "traceErrors": []
+    }
+  ],
+  "errors": [],
+  "notes": [
+    "sampleMove is emitted by Unity ReadInput after sampling the physical-key input and includes the actual order sequence.",
+    "WebSocket send/receive times are captured inside the browser with performance.now and use the page timeOrigin for correlation.",
+    "Self echo is an accepted decoded snapshot whose me.moveSeq matches the sent order; ack_input is deliberately not used.",
+    "Self/opponent presentation endpoints are post-Present Unity traces, not photon emission or confirmed display scanout.",
+    "The proxy delays ordered TCP byte-stream chunks. It preserves reliability/order; configured stalls are head-of-line delays, not packet loss."
+  ],
+  "expectedTrials": 12,
+  "players": {
+    "driver": 1,
+    "observerSelf": 2,
+    "observerRemoteHumanCount": 1
+  },
+  "currentProfile": {
+    "rttMs": 150,
+    "jitterMs": 10
+  },
+  "proxyRun": {
+    "config": {
+      "oneWayMs": 75,
+      "jitterMs": 5,
+      "seed": 72617,
+      "stallEvery": 0,
+      "stallMs": 0,
+      "targetTls": false,
+      "semantics": "TCP reliable ordered stream with FIFO chunk delay/jitter; optional periodic ordered stalls model head-of-line blocking, not packet loss.",
+      "configuredRttMs": 150,
+      "configuredJitterMs": 10
+    },
+    "connections": [
+      {
+        "openedAt": 1794124009855,
+        "closedAt": 1794124013946,
+        "clientAddress": "127.0.0.1",
+        "directions": {
+          "clientToServer": {
+            "chunks": 128,
+            "bytes": 3398,
+            "actualQueueDelayMs": {
+              "count": 128,
+              "p50": 45.149750000000495,
+              "p95": 78.88058400000045,
+              "max": 80.29025000000001
+            },
+            "orderedStalls": 0,
+            "stallDelayMs": {
+              "count": 0,
+              "p50": null,
+              "p95": null,
+              "max": null
+            }
+          },
+          "serverToClient": {
+            "chunks": 79,
+            "bytes": 1624,
+            "actualQueueDelayMs": {
+              "count": 79,
+              "p50": 44.87475000000086,
+              "p95": 77.42662500000006,
+              "max": 78.99041699999998
+            },
+            "orderedStalls": 0,
+            "stallDelayMs": {
+              "count": 0,
+              "p50": null,
+              "p95": null,
+              "max": null
+            }
+          }
+        }
+      },
+      {
+        "openedAt": 1794124009857,
+        "closedAt": 1794124013946,
+        "clientAddress": "127.0.0.1",
+        "directions": {
+          "clientToServer": {
+            "chunks": 111,
+            "bytes": 2532,
+            "actualQueueDelayMs": {
+              "count": 111,
+              "p50": 46.28029199999946,
+              "p95": 78.03000000000065,
+              "max": 80.79058299999997
+            },
+            "orderedStalls": 0,
+            "stallDelayMs": {
+              "count": 0,
+              "p50": null,
+              "p95": null,
+              "max": null
+            }
+          },
+          "serverToClient": {
+            "chunks": 79,
+            "bytes": 1459,
+            "actualQueueDelayMs": {
+              "count": 79,
+              "p50": 46.15337499999987,
+              "p95": 79.13462499999969,
+              "max": 80.33650000000034
+            },
+            "orderedStalls": 0,
+            "stallDelayMs": {
+              "count": 0,
+              "p50": null,
+              "p95": null,
+              "max": null
+            }
+          }
+        }
+      }
+    ]
+  },
+  "pageErrors": [],
+  "summary": {
+    "status": "FAIL",
+    "verdict": {
+      "status": "FAIL",
+      "exitCode": 1,
+      "failures": [
+        "trial_6_negative_sampleToOpponentMs",
+        "trial_8_negative_sampleToOpponentMs",
+        "trial_10_negative_sampleToOpponentMs",
+        "trial_11_negative_sampleToOpponentMs",
+        "trial_12_negative_sampleToOpponentMs"
+      ],
+      "incomplete": [],
+      "complete": true
+    },
+    "latency": {
+      "sampleToSend": {
+        "count": 12,
+        "p50Ms": 0,
+        "p95Ms": 0.099853515625,
+        "maxMs": 0.099853515625
+      },
+      "sendToSelfEcho": {
+        "count": 12,
+        "p50Ms": 86.300048828125,
+        "p95Ms": 188.5,
+        "maxMs": 188.5
+      },
+      "selfEchoToPresentation": {
+        "count": 12,
+        "p50Ms": 10.39990234375,
+        "p95Ms": 14.39990234375,
+        "maxMs": 14.39990234375
+      },
+      "inputToSelfPresentation": {
+        "count": 12,
+        "p50Ms": 99.800048828125,
+        "p95Ms": 200.7998046875,
+        "maxMs": 200.7998046875
+      },
+      "inputToOpponentPresentation": {
+        "count": 12,
+        "p50Ms": 69.300048828125,
+        "p95Ms": 136.199951171875,
+        "maxMs": 136.199951171875
+      }
+    }
+  }
+}

@@ -1,0 +1,10 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.12s
+     Running tests/bridge_e2e.rs (target/debug/deps/bridge_e2e-aed3782d66fe7012)
+
+running 1 test
+test the_real_bridge_drives_the_real_server_through_a_whole_game_session ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 17.53s
+
+
+SCRIPT_EXIT_CODE=0

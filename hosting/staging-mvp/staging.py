@@ -19,6 +19,19 @@ ACCOUNT = "048226733033"
 AMI_PARAMETER = "/aws/service/canonical/ubuntu/server/24.04/stable/current/arm64/hvm/ebs-gp3/ami-id"
 OWNER = "099720109477"
 LIFETIME = 4 * 3600 + 30 * 60
+LATENCY_DUEL_MAP = "maps/latency-duel.map.json"
+LATENCY_DUEL_MAP_SHA256 = "f824d887443832f13208d7eb5ef7eb3317e44924f7972a63236b0c41ff344511"
+DEFAULT_SERVICE = """ExecStart=/opt/rougehalla/bin/rh-server --first-playable --bind 127.0.0.1:7777 --min-players 1 --fill-bots 4 --max-rooms 2 --lobby-seconds 5 --fill-seconds 3
+# The four-hour game bound must not restart into another four-hour process.
+Restart=no
+KillSignal=SIGTERM
+TimeoutStopSec=180"""
+LATENCY_DUEL_SERVICE = """ExecStart=/opt/rougehalla/bin/rh-server --bind 127.0.0.1:7777 --map /opt/rougehalla/maps/latency-duel.map.json --min-players 2 --fill-bots 0 --max-rooms 2 --lobby-seconds 3 --fill-seconds 0
+# Keep an independent process cap after removing the first-playable watchdog.
+RuntimeMaxSec=4h
+Restart=no
+KillSignal=SIGTERM
+TimeoutStopSec=180"""
 
 
 def fail(message):
@@ -68,24 +81,51 @@ class Aws:
         return identity
 
 
-def render():
+def profile_name(latency_duel):
+    return "latency-duel" if latency_duel else "first-playable"
+
+
+def render_bootstrap(bootstrap, latency_duel=False):
+    if not latency_duel:
+        return bootstrap
+    if bootstrap.count(DEFAULT_SERVICE) != 1:
+        fail("default systemd game service block changed; refusing latency-duel substitution")
+    return bootstrap.replace(DEFAULT_SERVICE, LATENCY_DUEL_SERVICE, 1)
+
+
+def render(latency_duel=False):
     template = json.loads((HERE / "stack.base.json").read_text())
     template["Resources"]["Host"]["Properties"]["UserData"] = {
-        "Fn::Base64": {"Fn::Sub": (HERE / "bootstrap.sh.in").read_text()}}
+        "Fn::Base64": {"Fn::Sub": render_bootstrap((HERE / "bootstrap.sh.in").read_text(), latency_duel)}}
     return template
 
 
-def validate_bundle(path):
+def validate_bundle(path, latency_duel=False):
     required = {"bin/rh-server", "bin/caddy", "web/index.html"}
+    if latency_duel:
+        required.add(LATENCY_DUEL_MAP)
     with tarfile.open(path, "r:gz") as archive:
         found = set()
         size = 0
+        duel_maps = 0
         for item in archive:
             name = PurePosixPath(item.name)
             if name.is_absolute() or ".." in name.parts or not (item.isfile() or item.isdir()):
                 fail("bundle contains an unsafe path, link or special file")
             size += item.size
             found.add(str(name))
+            if latency_duel and str(name) == LATENCY_DUEL_MAP:
+                duel_maps += 1
+                if duel_maps != 1 or not item.isfile():
+                    fail("latency-duel map must be exactly one regular file")
+                if item.size > 1024 * 1024:
+                    fail("latency-duel map exceeds the controlled fixture allowance")
+                digest = hashlib.sha256()
+                with archive.extractfile(item) as handle:
+                    for part in iter(lambda: handle.read(65536), b""):
+                        digest.update(part)
+                if digest.hexdigest() != LATENCY_DUEL_MAP_SHA256:
+                    fail("latency-duel map content does not match the controlled fixture")
             if str(name) in {"bin/rh-server", "bin/caddy"} and not item.mode & 0o111:
                 fail("bundle binary is not executable")
         if not required <= found or size > 1024 * 1024 * 1024:
@@ -97,10 +137,14 @@ def load_state(directory):
     run = state.get("run_id", "")
     if not re.fullmatch(r"[0-9]{8}t[0-9]{6}z-[a-f0-9]{6}", run):
         fail("invalid ownership run ID")
+    profile = state.get("profile", "first-playable")
+    if profile not in {"first-playable", "latency-duel"}:
+        fail("ownership manifest has an unknown staging profile")
     expected = {"account": ACCOUNT, "region": REGION, "stack": "rougehalla-mvp-" + run,
                 "bucket": "rougehalla-mvp-" + ACCOUNT + "-" + run, "key": "release.tar.gz"}
     if any(state.get(k) != v for k, v in expected.items()):
         fail("ownership manifest does not match this dedicated account/run")
+    state.setdefault("profile", profile)
     return state
 
 
@@ -126,11 +170,23 @@ def verify_stack(aws, state, missing=False):
         tags = {x["Key"]: x["Value"] for x in change.get("Tags", [])}
         if (state.get("change_set_type") != "CREATE" or change.get("StackId") != stack["StackId"]
                 or change.get("StackName") != state["stack"] or tags.get("RoguehallaRun") != state["run_id"]
-                or tags.get("Purpose") != "DisposableFirstPlayable"):
+                or tags.get("Purpose") != purpose_for_profile(state.get("profile", "first-playable"))):
             fail("review change set ownership mismatch")
-    elif {x["Key"]: x["Value"] for x in stack.get("Tags", [])}.get("RoguehallaRun") != state["run_id"]:
-        fail("stack ownership tag mismatch")
+    else:
+        tags = {x["Key"]: x["Value"] for x in stack.get("Tags", [])}
+        if tags.get("RoguehallaRun") != state["run_id"]:
+            fail("stack ownership tag mismatch")
+        if state.get("profile") == "latency-duel" and tags.get("Purpose") != "DisposableLatencyDuel":
+            fail("stack ownership tag mismatch")
     return stack
+
+
+def purpose_for_profile(profile):
+    if profile == "first-playable":
+        return "DisposableFirstPlayable"
+    if profile == "latency-duel":
+        return "DisposableLatencyDuel"
+    fail("unknown staging profile")
 
 
 def prepare(aws, args):
@@ -140,13 +196,13 @@ def prepare(aws, args):
         fail("prepare requires --bundle and --source-manifest")
     if args.state_dir.exists():
         fail("state directory already exists; never overwrite a run’s cleanup manifest")
-    validate_bundle(args.bundle)
+    validate_bundle(args.bundle, args.latency_duel)
     now = dt.datetime.now(dt.timezone.utc)
     run = now.strftime("%Y%m%dt%H%M%Sz") + "-" + secrets.token_hex(3)
     state = {"run_id": run, "account": ACCOUNT, "region": REGION, "stack": "rougehalla-mvp-" + run,
              "bucket": "rougehalla-mvp-" + ACCOUNT + "-" + run, "key": "release.tar.gz",
              "created_at": now.isoformat(), "deadline_unix": int(now.timestamp()) + LIFETIME,
-             "change_set_type": "CREATE",
+             "change_set_type": "CREATE", "profile": profile_name(args.latency_duel),
              "bundle_sha256": sha256(args.bundle), "source_manifest_sha256": sha256(args.source_manifest)}
     ami = aws.call("ssm", "get-parameter", "--name", AMI_PARAMETER)["Parameter"]["Value"]
     images = aws.call("ec2", "describe-images", "--image-ids", ami, "--owners", OWNER).get("Images", [])
@@ -156,12 +212,13 @@ def prepare(aws, args):
     args.state_dir.mkdir(mode=0o700, parents=True)
     args.state_dir.chmod(0o700)
     private_json(args.state_dir / "ownership.json", state)  # Written before the first mutation for partial-failure cleanup.
-    private_json(args.state_dir / "template.json", render())
+    private_json(args.state_dir / "template.json", render(args.latency_duel))
     aws.call("cloudformation", "validate-template", "--template-body", "file://" + str(args.state_dir / "template.json"))
     aws.call("s3api", "create-bucket", "--bucket", state["bucket"], "--create-bucket-configuration", "LocationConstraint=" + REGION)
     state["bucket_created"] = True
     private_json(args.state_dir / "ownership.json", state)
-    tags = {"TagSet": [{"Key": "RoguehallaRun", "Value": run}, {"Key": "Purpose", "Value": "DisposableFirstPlayable"}]}
+    purpose = purpose_for_profile(state["profile"])
+    tags = {"TagSet": [{"Key": "RoguehallaRun", "Value": run}, {"Key": "Purpose", "Value": purpose}]}
     aws.call("s3api", "put-bucket-tagging", "--bucket", state["bucket"], "--tagging", json.dumps(tags))
     aws.call("s3api", "put-public-access-block", "--bucket", state["bucket"], "--public-access-block-configuration",
              "BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true")
@@ -176,10 +233,11 @@ def prepare(aws, args):
         "AmiId": ami, "BundleUrl": url, "BundleSha256": state["bundle_sha256"],
         "DeadlineUnix": str(state["deadline_unix"]), "RunId": run}.items()]
     private_json(args.state_dir / "parameters.private.json", params)
-    response = aws.call("cloudformation", "create-change-set", "--stack-name", state["stack"], "--change-set-name", "first-playable",
+    change_set_name = state["profile"]
+    response = aws.call("cloudformation", "create-change-set", "--stack-name", state["stack"], "--change-set-name", change_set_name,
                         "--change-set-type", "CREATE", "--template-body", "file://" + str(args.state_dir / "template.json"),
                         "--parameters", "file://" + str(args.state_dir / "parameters.private.json"),
-                        "--tags", "Key=RoguehallaRun,Value=" + run, "Key=Purpose,Value=DisposableFirstPlayable")
+                        "--tags", "Key=RoguehallaRun,Value=" + run, "Key=Purpose,Value=" + purpose)
     state["change_set"] = response["Id"]
     private_json(args.state_dir / "ownership.json", state)
     print(json.dumps({"prepared": True, "executed": False, "stack": state["stack"], "deadline_unix": state["deadline_unix"],
@@ -250,10 +308,14 @@ def main():
     parser.add_argument("--bundle", type=Path)
     parser.add_argument("--source-manifest", type=Path)
     parser.add_argument("--apply", action="store_true")
+    parser.add_argument("--latency-duel", action="store_true",
+                        help="render/prepare a bounded two-human duel profile using the bundled controlled map")
     args = parser.parse_args()
     args.state_dir = args.state_dir.resolve()
+    if args.latency_duel and args.action not in {"render", "prepare"}:
+        fail("--latency-duel is supported only with render or prepare")
     if args.action == "render":
-        private_json(args.state_dir / "template.json", render())
+        private_json(args.state_dir / "template.json", render(args.latency_duel))
         print(args.state_dir / "template.json")
         return
     aws = Aws(args.aws, args.profile)
