@@ -53,10 +53,11 @@ every patched file from the read-only mount before the next mutant and reruns th
 
 ## Concrete facts
 
-- R input: the actual imported `RaidScene.prototype.castSlot` (private at runtime) ran with a declared receiver; 31
-  probes emitted 14 actual `sendInput(room,"cast",{slot,x,y,id?,seq})` messages and the actual denial texts/cooldown,
-  blocker, target, LOS, immunity, pending, teleport-grace, planning, peek, blink and range gates. This is method-level,
-  not keyboard/DOM/browser proof.
+- R input: the actual imported `RaidScene.prototype.castSlot` (private at runtime) ran with a declared receiver; 13 of
+  the 31 probes emitted one actual `sendInput(room,"cast",{slot,x,y,id?,seq})` message each (13 messages total; the
+  other 18 probes exercised only the refusal/gating paths), with the actual denial texts/cooldown, blocker, target, LOS,
+  immunity, pending, teleport-grace, planning, peek, blink and range gates. This is method-level, not
+  keyboard/DOM/browser proof.
 - Opening lock: `wishReadyAt = raidStartedAt + wishLockSeconds*1000` (45050 = 50 + 45000); t=45000 refused without
   spending, t=45050 accepted. Training arms at 0 and uses the 5000 ms training Wish recharge.
 - Blaze stock: accepted casts at 100/150/30100/60100; `wishFullAt` 30100 -> 60100 -> 90100 -> 120100; a charge is back
@@ -75,6 +76,22 @@ every patched file from the read-only mount before the next mutant and reruns th
   `data.target` masked but `data.x/y` (and Blaze x2/y2) retained: this is a labelled SOURCE FINDING for the native
   privacy correction, preserved, not rewritten. A removed caster yields an anonymous point from x/y; a removed target
   id is copied as a string. Human WishFx and perceive remain distinct outputs.
+
+## Independent verification (Lead)
+
+The Lead re-ran the slice independently after delivery:
+
+- `capture.sh --check` twice with the output mounted read-only: byte-identical both times, same six printed sha256
+  values (r-input `190fcef5…`, queued-stock-clocks `794bd790…`, fx-timing `99e11d74…`, wishfx-endpoints
+  `505afa8f…`, perceive-wish `36c0e8ed…`).
+- Write-mode recapture: the five corpora + manifest stayed byte-identical (`git status` clean).
+- `run-mutants.sh`: all five compiled semantic mutants killed with exactly the signatures above; the restored
+  read-only control reproduced the corpora byte for byte.
+- A separate Lead cross-probe ran the actual `perceive` and `WishFx` methods over its own declared setup: visible
+  caster+visible unit target produced two `ext` events with target and coordinates; visible caster+hidden unit target
+  produced `data.target = null` with `data.x/y = 350` retained (the labelled source leak); a hidden caster produced no
+  event; and Blaze `castLand` gave destination-hidden 1 active after play → 0 after update, origin-hidden 0/0, and
+  both-visible 1/1 with 51 recorded graphics calls — matching this corpus.
 
 ## Blocked / prerequisites
 
