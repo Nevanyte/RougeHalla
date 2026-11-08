@@ -37,38 +37,60 @@ namespace Roguehalla.Client.Tests
         {
             var me = new SelfView { Hp = 60, MaxHp = 100, Barrier = 25, BarrierRingStep = 5, Kills = 2, Gv = 4, Status = ActorStatus.Alive };
             me.Wish = new WishView {
-                Ability = AbilityId.Blaze, Charges = 1, MaxCharges = 2, ReadyAt = 5000,
+                Ability = AbilityId.Blaze, Charges = 1, MaxCharges = 2, ReadyAt = 5500,
                 FullAt = 12000, NextChargeAt = 7000, RechargeMs = 4000,
-                Cast = new WishCastView { Ability = AbilityId.Blaze, StartedAt = 2000, LandsAt = 3000 }
+                Cast = new WishCastView { Ability = AbilityId.Blaze, StartedAt = 4500, LandsAt = 6500 }
             };
 
-            Invoke("RefreshOwnerPresentation", me, 2500d);
+            Invoke("RefreshOwnerPresentation", me, 5000d);
             StringAssert.Contains("Barrier 25", _vitals.text);
-            StringAssert.Contains("ring 5/8", _vitals.text);
+            StringAssert.DoesNotContain("ring", _vitals.text);
             StringAssert.Contains("Blaze", _wish.text); StringAssert.Contains("1/2", _wish.text);
-            StringAssert.Contains("next 7000", _wish.text); StringAssert.Contains("Cast Blaze", _wish.text);
-            StringAssert.Contains("(in 500 ms)", _wish.text);
+            StringAssert.Contains("Wish timer: 0.5s", _wish.text);
+            StringAssert.Contains("Recharge 4.0s", _wish.text);
+            StringAssert.Contains("Next charge in 2.0s", _wish.text);
+            StringAssert.Contains("Full charges in 7.0s", _wish.text);
+            StringAssert.Contains("Casting Blaze · 1.5s", _wish.text);
+            StringAssert.DoesNotContain("5500", _wish.text); StringAssert.DoesNotContain("7000", _wish.text);
+            StringAssert.DoesNotContain("12000", _wish.text); StringAssert.DoesNotContain("4500", _wish.text);
+            StringAssert.DoesNotContain("6500", _wish.text); StringAssert.DoesNotContain("Opening", _wish.text);
             Assert.That(_health.anchorMax.x, Is.EqualTo(.60f).Within(.001f));
             Assert.That(_barrier.anchorMin.x, Is.EqualTo(.60f).Within(.001f));
             Assert.That(_barrier.anchorMax.x, Is.EqualTo(.85f).Within(.001f));
-            Invoke("RefreshOwnerPresentation", me, 2700d);
-            StringAssert.Contains("(in 300 ms)", _wish.text);
+            Invoke("RefreshOwnerPresentation", me, 5250d);
+            StringAssert.Contains("Wish timer: 0.3s", _wish.text);
+            StringAssert.Contains("Next charge in 1.8s", _wish.text);
+            StringAssert.Contains("Full charges in 6.8s", _wish.text);
+            StringAssert.Contains("Casting Blaze · 1.3s", _wish.text);
+
+            Invoke("RefreshOwnerPresentation", me, 13000d);
+            StringAssert.Contains("Wish timer: 0.0s", _wish.text);
+            StringAssert.Contains("Next charge in 0.0s", _wish.text);
+            StringAssert.Contains("Full charges in 0.0s", _wish.text);
+            StringAssert.Contains("Casting Blaze · 0.0s", _wish.text);
+            StringAssert.Contains("1/2", _wish.text, "elapsed labels never predict stock");
 
             var stock = me.Wish.Value;
             stock.Charges = 0; me.Wish = stock;
-            Invoke("RefreshOwnerPresentation", me, 3000d);
+            Invoke("RefreshOwnerPresentation", me, 13010d);
             StringAssert.Contains("0/2", _wish.text);
             stock.Charges = 2; stock.NextChargeAt = null; stock.FullAt = null; stock.Cast = null;
             me.Wish = stock;
-            Invoke("RefreshOwnerPresentation", me, 6000d);
+            Invoke("RefreshOwnerPresentation", me, 13020d);
             StringAssert.Contains("2/2", _wish.text);
-            StringAssert.DoesNotContain("Cast Blaze", _wish.text);
-            StringAssert.DoesNotContain("next 7000", _wish.text);
+            StringAssert.DoesNotContain("Casting Blaze", _wish.text);
+            StringAssert.DoesNotContain("Next charge in ", _wish.text);
+            StringAssert.DoesNotContain("Full charges in ", _wish.text);
+
+            Invoke("RefreshOwnerPresentation", me, 13030d);
+            StringAssert.Contains("Wish timer: 0.0s", _wish.text);
+            StringAssert.Contains("Recharge 4.0s", _wish.text);
 
             me.Wish = null; me.Barrier = 0;
-            Invoke("RefreshOwnerPresentation", me, 4000d);
+            Invoke("RefreshOwnerPresentation", me, 13040d);
             StringAssert.Contains("None delivered", _wish.text);
             StringAssert.Contains("Barrier 0", _vitals.text);
+            StringAssert.DoesNotContain("ring", _vitals.text);
             Assert.That(_barrier.anchorMax.x, Is.EqualTo(_barrier.anchorMin.x).Within(.001f));
 
             Invoke("ClearOwnerPresentation", "Awaiting server");
