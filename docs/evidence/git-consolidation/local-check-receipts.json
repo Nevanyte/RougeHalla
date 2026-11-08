@@ -265,6 +265,16 @@
       "file": "art-final-contract.log",
       "bytes": 504,
       "sha256": "9d83d0bb6c17253837376edd70060a8f0b77f590372604a2f79decd807ddd24e"
+    },
+    {
+      "file": "art-repair-http-hashes.json",
+      "bytes": 3469,
+      "sha256": "bcdc635055dee295f6870bc9b2f1dcde30237364b6168c462f0170a64aa5a2b7"
+    },
+    {
+      "file": "art-repair-contract.log",
+      "bytes": 603,
+      "sha256": "4e96fd26d7d3451c66b1d15cab0e418f197a673fce7b66b8b370cb35f4e3277a"
     }
   ]
 }

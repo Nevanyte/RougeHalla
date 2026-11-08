@@ -98,7 +98,7 @@ retained without approving leaves. Bot learning is integrated in `3619280f` with
 PostgreSQL session lease, default-Off mode, sticky detected-loss behavior, bounded shutdown and source order. The
 [learning evidence](../stage2-bots-5/README.md) records246 actual-union test passes and limits; both strict Clippy modes
 and formatting pass. New fair observation leaves require a concrete approved design and unused version. The active
-unreviewed tournament/quest continuations stay isolated. The final art handoff is admitted through `a401a510`; later art
+unreviewed tournament/quest continuations stay isolated. The bounded art repair is admitted through `55825c10`; later art
 evidence work remains separate. Primary/remote organization must preserve these branch refs and never reset WIP.
 
 Full public Wish/Trophy/quest/trade/fact transports, native strict remainders, full bot brain, browser/account flows,
@@ -148,6 +148,27 @@ Five proof-contract tests and syntax checks pass after merge. Asset/notice prove
 artifact uses native basee90a38f6/protocol11/content801a76cde4cfd305; it is not a fresh final-union build. Actual144Hz
 display/fullscreen proof, managed allocation throughput and full-game coverage remain open. See
 [verification](../../art/VERIFICATION.md) and [performance](../../art/PERFORMANCE.md).
+
+The subsequent bounded lighting/readability handoff through `55825c10` is integrated in `46ceebba`. Source reviews admit
+the native notice formatter, cached distinct faction shapes/backed sigils and mutually exclusive High Accurate/lower
+Disabled point-light presets. Active map budgets6/3/0 and the High-only local accent remain; private state and gameplay
+authority are unchanged. Actual27-test Editor results and the affected diagnostic-state cleanup pass. Independent raw/
+portable comparison verifies the19 browser outcomes, per-socket/Welcome census, real five-player Result and all three
+High GPU summaries. Notice6/tick96 visibly reads "Already at full health"; this is not all-notice browser coverage.
+
+All14 new distribution files independently match disk and HTTP hashes, totaling74,041,096bytes. The staged A/B changes
+only secondary normals with byte-identical albedo; bounded rendered color-vision findings remain static and acknowledge
+HUD occlusion and partial live factions. Three warmed native-eight-seat-config windows at Manual High/motion on/
+actual2560×1440 pass the6.944ms diagnostic GPU p99 limit (5.848/5.795/5.813ms), with no disjoint samples or resource errors.
+Observed actor rows max7 are not eight rendered players. Different old/new workloads do not prove an isolated cost
+improvement. Six post-merge proof/census checks, script syntax and net-source synchronization pass. The manifest,
+raw-report hashes, summaries and open gates are in [repair evidence](../../art/evidence/repair/summary.json).
+
+The `ebff286b` artifact/nine-window evidence is preserved separately. New runtime `4f37e9f0` still uses native base
+`e90a38f6`; no final-union artifact, physical144Hz, managed allocation throughput, full content or game-wide accessibility
+acceptance follows. Accidental primary evidence-harness WIP was preserved with exact bytes/patches, verified against its
+isolated copies, then removed/restored only after the writer stopped. Both private recovery receipts remain available;
+no worker edits were discarded. Primary integration remains lead-owned.
 
 ## Cumulative CI timeout and preserved coverage
 

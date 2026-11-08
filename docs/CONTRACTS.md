@@ -42,10 +42,12 @@ membership is checked against pinned Node over every Unicode scalar. Root preser
 requests a name snapshot only for enabled fill. Rust-side prediction fixture consumers reproduce300 paths/723 walk
 samples with unchanged goldens. The reviewed presentation prefix owns latest membership independently of audio, clears
 empty post-Welcome state/voices and tracks all80 cards;329 net tests and five proof-contract checks pass after merge.
-The final art handoff through `a401a510` is integrated in `3bf64d42`: the14-file manifest matches the74,029,313-byte
-distribution on disk and over local HTTP; revision-scoped11 EditMode tests,19 browser outcomes and nine profile windows
-are verified. Runtime `ebff286b` is based on gameplay `e90a38f6`, not a new final-union build. Actual144Hz display,
-managed allocation throughput and full-game content coverage remain open; no full-port completion follows.
+The bounded art repair through `55825c10` is integrated in `46ceebba`: the14-file manifest matches the74,041,096-byte
+distribution on disk and over local HTTP; revision-scoped27 EditMode tests,19 browser outcomes and three High GPU windows
+are verified. GPU p99 is5.848/5.795/5.813ms, under the6.944ms diagnostic limit. Six proof/census checks pass after merge.
+Readability and normal-input findings stay scoped to their actual static/staged samples. Runtime `4f37e9f0` is based on
+gameplay `e90a38f6`, not a new final-union build. Earlier `ebff286b` evidence remains separate. Actual144Hz display,
+managed allocation throughput and full-game content/accessibility coverage remain open; no full-port completion follows.
 
 The `b01fc9e2` CI workspace component passes all1,520 default tests with three existing ignores, including the191 map
 tests excluded locally. Its whole job later exceeds the cumulative40-minute budget during a separate terrain feature

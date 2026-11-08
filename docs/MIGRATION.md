@@ -44,14 +44,19 @@ exact batch scopes, code repairs, receipts and preserved recovery refs. Source m
 expected gameplay payloads or claim a new capture; the derived ability hash tape admits 58 cases and retains five
 named full-source prerequisites as strict pending work.
 
-The reviewed Unity 2D presentation through `a401a510` is integrated in `3bf64d42`, with runtime `ebff286b` based on native
-gameplay `e90a38f6`. It includes licensed assets, HUD/settings/audio, current-visibility rendering, safe teardown and a
-brief hollow impact ring. The exact 74,029,313-byte Web distribution matches all 14 manifest hashes on disk and over
-local HTTP. Eleven EditMode tests, all 19 required browser outcomes and nine profile captures are verified against the
-revision-scoped evidence; five proof-contract tests also pass after merge. See [verification](art/VERIFICATION.md) and
-[performance](art/PERFORMANCE.md). Captures use a real 2560×1440 backbuffer, but the only online physical display is
-1920×1080/60Hz. Displayed 144 FPS, managed allocation throughput and full-game art coverage remain open. CPU/GPU
-headroom diagnostics are not displayed-frame proof, and this older-base artifact is not a fresh final-union build.
+The reviewed Unity 2D presentation through `55825c10` is integrated in `46ceebba`, with runtime `4f37e9f0` based on native
+gameplay `e90a38f6`. The bounded follow-up adds readable native potion notices, five distinct unlit faction footprints/
+backed insignia and Accurate normal lighting on High via mutually exclusive authored presets. Existing light budgets,
+visibility removal and lower tiers are preserved. All 14 files in the 74,041,096-byte Web distribution match on disk
+and over local HTTP. Twenty-seven EditMode tests, the test-only diagnostic cleanup, all 19 required browser outcomes
+and three new High GPU windows are verified against revision-scoped evidence; six proof/census tests pass after merge.
+GPU p99 is 5.848/5.795/5.813 ms under the 6.944 ms diagnostic limit, with no disjoint observations or resource errors.
+[Repair verification](art/REPAIR_VERIFICATION.md) and [portable evidence](art/evidence/repair/summary.json) keep the
+earlier `ebff286b` artifact and nine profiles separate. Workloads differ, so no isolated performance improvement follows.
+The staged normal-input A/B and bounded static color-vision review pass their stated scopes; full live faction, motion,
+telegraph and art coverage remain open. Captures use a real 2560×1440 backbuffer, but the physical display is
+1920×1080/60Hz. Displayed 144 FPS and managed allocation throughput remain open. Callback/GPU diagnostics do not prove
+displayed frames, and the older-base artifact is not a fresh final-union build.
 
 The latency lane's controlled measurements remain bound to its
 recorded older candidate, not the new union or display/input-to-photon latency. The bot Knowledge/fair-view prefix now includes the independently reviewed
@@ -76,7 +81,8 @@ all checks; CI symbols are disabled and each job is bounded at60minutes. [Run424
 at `48f4bb28` passes all four jobs: Rust, simulation, C# and card-runtime source. The subsequent art admission changes no
 native code, net library or workflow. The observation-leaf proposal needs lead approval and a fresh version before
 brain memory/strategy consumers proceed. Further tournament telemetry and quest continuations stay isolated until
-reviewed. The art lane's next bounded content/CVD/normal-response evidence audit does not authorize shared runtime edits.
+reviewed. The bounded art lighting/readability repair is admitted; future visual gaps return to the lead before new
+implementation, preserving Rust/full-game public-flow priority.
 
 Git metadata was backed up before repair; renamed worktree links were repaired, stable dirty histories were committed
 to recovery refs, and 46 clean merged historical worktrees were removed without force while their refs were retained.

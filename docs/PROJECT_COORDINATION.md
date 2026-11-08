@@ -40,13 +40,12 @@ then one integration gate; do not repeat unchanged expensive map campaigns after
 3. Close the missing public transports and source consumers: full Wish input/owner facts, Kill/Trophy options,
    quest/trade flows and the remaining public facts/cues. Inventory exact native prerequisites before assigning each
    packet. Reconcile incompatible identities and all three codecs centrally. Native fixtures alone do not prove the UI.
-4. The final functional Unity art handoff through `a401a510` is integrated in `3bf64d42`: exact-build19-outcome browser
-   proof and nine profile captures are verified. Retain the owner’s at-least-144-FPS target at2560×1440 on the M5 Pro;
-   the current60Hz physical display cannot certify it. Managed allocation throughput and full-game coverage remain open.
-   The audit found disabled normal-light presets and weak non-hue faction cues. The lead-approved
-   [bounded repair](coordination/ART_LIGHTING_READABILITY_REPAIR.md) covers existing-light High normals, essential faction
-   shapes/badges and readable native potion notices, with separate commits and one final Web build. GPU cost must pass
-   the stated diagnostic gate before admission. Callback/headroom rates remain separate from displayed frames.
+4. The functional Unity art follow-up through `55825c10` is integrated in `46ceebba`. The
+   [bounded repair](coordination/ART_LIGHTING_READABILITY_REPAIR.md) passes its source, 27-test Editor, exact-build
+   19-outcome browser, normal-input and static color-vision checks. Three High GPU windows pass the 6.944 ms p99
+   diagnostic limit. Retain the owner’s at-least-144-FPS target at2560×1440 on the M5 Pro; the current60Hz physical
+   display cannot certify it. Allocation throughput, full live content and crowded-motion accessibility remain open.
+   Later art gaps return to the lead before implementation; callback/headroom rates remain separate from displayed frames.
 5. Complete browser/account flows, durable progression, cloud/provider/region lifecycle and the original full-port
    release/performance gates. Rebuild artifacts from the final union before any staging run. Use the practice domain
    `rougehalla.com`, Calgary preference and **CAD20 total** cap; production remains separately controlled.
@@ -72,7 +71,7 @@ must be resolved before dependent implementations; release evidence must test th
 - `570dee45` repairs the measured-RTT packet’s compulsory Pong budget and is integrated. This is command-time admission
   clamping: held attacks retain the source press-time lag until a new Attack/Release. It does not introduce a dynamic
   per-swing rule or certify input-to-photon latency. The [Pong repair packet](coordination/PONG_REPAIR.md) records its gate.
-- The art branch is admitted through `a401a510`; later work and remaining bot/fixture branches stay isolated until their
+- The art branch is admitted through `55825c10`; later work and remaining bot/fixture branches stay isolated until their
   reports and focused reviews pass. Preserve their active checkouts and refs.
 
 ## Completion evidence
