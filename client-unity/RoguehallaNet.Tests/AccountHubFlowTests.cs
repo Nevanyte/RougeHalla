@@ -183,6 +183,116 @@ namespace Roguehalla.Net.Tests
             Assert.IsTrue(owner.CanJoin(intent)); Assert.IsFalse(other.CanJoin(intent));
         }
 
+        [Test]
+        public async Task ReentrantIdleSelectionSwitchNeverClaimsAliceOrProducesHerIntentWhileBobIsSelected()
+        {
+            var transport = new Transport(); var flow = Flow(transport);
+            flow.Changed += snapshot =>
+            {
+                if (snapshot.State == AccountHubState.Idle && snapshot.SelectedName == "Alice") flow.SelectName("Bob");
+            };
+            var preparing = flow.PrepareJoinAsync("Alice", "wss://game.example/ws");
+            // Complete any erroneous request so the old implementation produces the reported wrong, joinable intent.
+            foreach (var request in transport.Requests) request.Reply.TrySetResult(new AccountHttpResponse(200, Owned()));
+            var intent = await preparing;
+            Assert.AreEqual("Bob", flow.Snapshot.SelectedName);
+            Assert.AreEqual(0, transport.Requests.Count, "selection changed before HTTP: Alice must not be claimed");
+            Assert.IsNull(intent); Assert.IsFalse(flow.CanJoin(intent)); Assert.IsNull(flow.Snapshot.Profile);
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ReentrantCancellationDuringOpeningOrPreparingStateStartsNoHttp(bool join)
+        {
+            var transport = new Transport(); var flow = Flow(transport);
+            flow.Changed += snapshot =>
+            {
+                if (snapshot.State == AccountHubState.Opening || snapshot.State == AccountHubState.PreparingJoin) flow.Cancel();
+            };
+            Task<AccountJoinIntent> preparing = join ? flow.PrepareJoinAsync("Alice", "wss://game.example/ws") : null;
+            Task<bool> opening = join ? null : flow.OpenProfileAsync("Alice");
+            foreach (var request in transport.Requests) request.Reply.TrySetResult(new AccountHttpResponse(200, Owned()));
+            if (join) Assert.IsNull(await preparing); else Assert.IsFalse(await opening);
+            Assert.AreEqual(0, transport.Requests.Count, "the opening callback cancelled before a claim could start");
+            Assert.AreEqual(AccountHubState.Idle, flow.Snapshot.State); Assert.IsNull(flow.Snapshot.Profile);
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ReentrantNewOpenDuringAliceSelectionOwnsOnlyBobsRequestAndPublication(bool openingCallback)
+        {
+            var transport = new Transport(); var flow = Flow(transport); Task<bool> bob = null;
+            flow.Changed += snapshot =>
+            {
+                if (snapshot.State == (openingCallback ? AccountHubState.PreparingJoin : AccountHubState.Idle) && snapshot.SelectedName == "Alice" && bob == null)
+                    bob = flow.OpenProfileAsync("Bob");
+            };
+            var preparing = flow.PrepareJoinAsync("Alice", "wss://game.example/ws");
+            foreach (var request in transport.Requests)
+                request.Reply.TrySetResult(new AccountHttpResponse(200, Owned(request.Url.EndsWith("/Bob") ? "Bob" : "Alice")));
+            Assert.IsNull(await preparing); Assert.IsTrue(await bob);
+            Assert.AreEqual(1, transport.Requests.Count); Assert.IsTrue(transport.Requests[0].Url.EndsWith("/Bob"));
+            Assert.AreEqual("Bob", flow.Snapshot.SelectedName); Assert.AreEqual("Bob", flow.Snapshot.Profile.Name);
+        }
+
+        [Test]
+        public async Task ReentrantNewOpenKeepsAnAlreadyStartedLateClaimRecoverableWithoutOldJoinPublication()
+        {
+            var transport = new Transport(); var flow = Flow(transport, new Store { Blocked = true });
+            var alice = flow.PrepareJoinAsync("Alice", "wss://game.example/ws");
+            Task<bool> bob = null;
+            flow.Changed += snapshot =>
+            {
+                if (snapshot.State == AccountHubState.Idle && snapshot.SelectedName == "Bob" && bob == null)
+                    bob = flow.OpenProfileAsync("Bob");
+            };
+            flow.SelectName("Bob");
+            transport.Requests[1].Reply.SetResult(new AccountHttpResponse(200, Owned("Bob")));
+            Assert.IsTrue(await bob);
+            transport.Requests[0].Reply.SetResult(new AccountHttpResponse(200, Owned()));
+            Assert.IsNull(await alice); Assert.AreEqual("Bob", flow.Snapshot.Profile.Name);
+            var revisit = flow.PrepareJoinAsync("Alice", "wss://game.example/ws");
+            await Until(() => transport.Requests.Count == 3);
+            Assert.IsTrue(transport.Requests[2].Token == new string('a', 64));
+            transport.Requests[2].Reply.SetResult(new AccountHttpResponse(200, Owned(created: false)));
+            Assert.IsTrue(flow.CanJoin(await revisit)); Assert.AreEqual(AccountCredentialRecovery.PageLifetimeOnly, flow.Snapshot.Recovery);
+        }
+
+        [Test]
+        public async Task ReentrantOwnedCallbackSwitchInvalidatesIntentButPreservesAlreadyConfirmedPageCredential()
+        {
+            var transport = new Transport(); var flow = Flow(transport, new Store { Blocked = true }); bool switchOnce = true;
+            flow.Changed += snapshot =>
+            {
+                if (switchOnce && snapshot.State == AccountHubState.Owned && snapshot.SelectedName == "Alice")
+                { switchOnce = false; flow.SelectName("Bob"); }
+            };
+            var preparing = flow.PrepareJoinAsync("Alice", "wss://game.example/ws");
+            transport.Requests[0].Reply.SetResult(new AccountHttpResponse(200, Owned()));
+            Assert.IsNull(await preparing); Assert.AreEqual("Bob", flow.Snapshot.SelectedName); Assert.IsNull(flow.Snapshot.Profile);
+            var revisit = flow.PrepareJoinAsync("Alice", "wss://game.example/ws");
+            Assert.IsTrue(transport.Requests[1].Token == new string('a', 64));
+            transport.Requests[1].Reply.SetResult(new AccountHttpResponse(200, Owned(created: false)));
+            Assert.IsTrue(flow.CanJoin(await revisit));
+        }
+
+        [Test]
+        public async Task ReentrantSelectionStopsDeliveringAnObsoleteSnapshotToLaterSubscribers()
+        {
+            var transport = new Transport(); var flow = Flow(transport); bool staleDelivered = false, bobDelivered = false;
+            flow.Changed += snapshot =>
+            {
+                if (snapshot.State == AccountHubState.Idle && snapshot.SelectedName == "Alice") flow.SelectName("Bob");
+            };
+            flow.Changed += snapshot =>
+            {
+                if (snapshot.SelectedName == "Alice") staleDelivered = true;
+                if (snapshot.SelectedName == "Bob") bobDelivered = true;
+            };
+            Assert.IsNull(await flow.PrepareJoinAsync("Alice", "wss://game.example/ws"));
+            Assert.IsFalse(staleDelivered); Assert.IsTrue(bobDelivered); Assert.AreEqual(0, transport.Requests.Count);
+        }
+
         [TestCase(401, AccountFailure.PasscodeRequired)]
         [TestCase(403, AccountFailure.Taken)]
         [TestCase(503, AccountFailure.Unavailable)]

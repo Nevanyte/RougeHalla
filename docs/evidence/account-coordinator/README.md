@@ -66,6 +66,30 @@ Private raw receipts are under `return-cleanup-2026-11-08/account-ui/logs/`: `hu
 `hub-unity-api-compile.log`. The new-file candidate does not refresh the separate PostgreSQL, browser or prior four
 Editor claims, and does not claim ordinary functional UI wiring from pure coordinator tests.
 
+## Synchronous selection reentrancy repair
+
+Independent review held the initial `425943e9` source: a Changed subscriber switching Alice→Bob during the Idle event
+could be overwritten by a second implicit selection, after which an Alice request/intent was incorrectly associated with
+Bob's selected state. Opening-state cancellation could also still start HTTP. Added regressions reproduced four failures
+and one passing late-recovery control against the unchanged original runtime; `reentrancy-before-repair.log` retains that
+receipt. This was an account coordinator bug, not a UI or server defect.
+
+The fresh continuation binds an operation's generation, requested spelling and normalized expected selection before
+the first event. Begin selects only once. It checks those captured values after selection/opening callbacks and before
+HTTP, after awaiting the account result, after Owned callbacks, and before constructing an intent. CanJoin also checks
+the intent's expected normalized selection and immutable canonical identity, rather than accepting the latest generation
+on behalf of an older request. Event delivery stops forwarding an obsolete snapshot after a subscriber replaces it.
+
+The final35focused cases pass, including the exact Idle Alice→Select Bob regression, cancellation during both Opening
+and PreparingJoin notifications, reentrant new opens from Idle and PreparingJoin, an Owned-callback switch, suppression
+of stale snapshots to later subscribers, and preservation/reuse of an already-started late confirmed token with blocked
+storage. A switch/cancel before HTTP starts no old claim; an already-started valid claim retains the accepted recovery
+behavior. One final full C# suite passes470tests; actual pinned managed-API compilation remains zero warnings/errors and
+mirrors/whitespace checks pass. Final receipts are `reentrancy-final-focused.log`, `reentrancy-full.log` and
+`reentrancy-unity-api-compile.log` in the same private logs directory. The original27/462 checks above remain historical.
+No existing shared UI, connection-origin policy, diagnostics restriction, server or protocol was changed by this repair;
+new Editor tests and actual UI/browser adoption still require their separate coordinated gates.
+
 ## Handoff and limits
 
 The modernization UI owner retains Bootstrap/MatchClient/MatchHud and can integrate this API under its lease. Actual

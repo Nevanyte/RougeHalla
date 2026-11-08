@@ -52,8 +52,9 @@ namespace Roguehalla.Net
         public string MatchUrl { get; }
         internal AccountHubFlow Owner { get; }
         internal long Generation { get; }
-        internal AccountJoinIntent(AccountHubFlow owner, long generation, OwnedAccount account, string matchUrl)
-        { Owner = owner; Generation = generation; Account = account; MatchUrl = matchUrl; }
+        internal string ExpectedSelection { get; }
+        internal AccountJoinIntent(AccountHubFlow owner, long generation, string expectedSelection, OwnedAccount account, string matchUrl)
+        { Owner = owner; Generation = generation; ExpectedSelection = expectedSelection; Account = account; MatchUrl = matchUrl; }
     }
 
     /// <summary>One main-thread page coordinator. Owns no UI hierarchy, gameplay, socket, placement or operator API.</summary>
@@ -62,7 +63,13 @@ namespace Roguehalla.Net
         readonly AccountSession _accounts;
         long _generation;
         string _selected = "";
+        string _normalizedSelection;
         AccountHubProfile _profile;
+        sealed class Operation
+        {
+            public long Generation;
+            public string Name, ExpectedSelection;
+        }
         public AccountHubSnapshot Snapshot { get; private set; }
         public event Action<AccountHubSnapshot> Changed;
 
@@ -76,7 +83,7 @@ namespace Roguehalla.Net
         {
             name = name ?? "";
             if (string.Equals(_selected, name, StringComparison.Ordinal)) return;
-            ++_generation; _selected = name; _profile = null; _accounts.ClearSelection();
+            ++_generation; _selected = name; _normalizedSelection = NormalizeOrNull(name); _profile = null; _accounts.ClearSelection();
             Set(AccountHubState.Idle, AccountFailure.None, AccountConnectionFailure.None, AccountRefreshReason.None);
         }
 
@@ -94,42 +101,75 @@ namespace Roguehalla.Net
         }
 
         public async Task<bool> OpenProfileAsync(string name, string pendingKey = null, string passcode = null, CancellationToken cancellation = default)
-        { return await Open(name, pendingKey, passcode, cancellation, AccountRefreshReason.User) != null; }
+        { return await Open(Begin(name), pendingKey, passcode, cancellation, AccountRefreshReason.User) != null; }
 
         public async Task<AccountJoinIntent> PrepareJoinAsync(string name, string matchUrl, string pendingKey = null,
             string passcode = null, CancellationToken cancellation = default)
         {
-            SelectName(name);
+            Operation operation = Begin(name);
+            if (!Current(operation)) return null;
             var failure = AccountConnectionPolicy.CheckOwnedTarget(_accounts.Endpoint, matchUrl);
             if (failure != AccountConnectionFailure.None)
             {
-                ++_generation; _accounts.ClearSelection();
                 Set(AccountHubState.Failed, AccountFailure.None, failure, AccountRefreshReason.Join);
                 return null;
             }
-            OwnedAccount owned = await Open(name, pendingKey, passcode, cancellation, AccountRefreshReason.Join);
-            if (owned == null || !_accounts.CanJoin(owned)) return null;
-            return new AccountJoinIntent(this, _generation, owned, matchUrl);
+            OwnedAccount owned = await Open(operation, pendingKey, passcode, cancellation, AccountRefreshReason.Join);
+            if (!Current(operation) || !Matches(owned, operation.ExpectedSelection)) return null;
+            return new AccountJoinIntent(this, operation.Generation, operation.ExpectedSelection, owned, matchUrl);
         }
 
         /// <summary>No await may intervene between this check and actual synchronous session creation.</summary>
         public bool CanJoin(AccountJoinIntent intent) => intent != null && ReferenceEquals(intent.Owner, this) &&
             intent.Generation == _generation && Snapshot.State == AccountHubState.Owned && _accounts.CanJoin(intent.Account) &&
+            intent.ExpectedSelection == _normalizedSelection && Matches(intent.Account, intent.ExpectedSelection) &&
             AccountConnectionPolicy.CheckOwnedTarget(_accounts.Endpoint, intent.MatchUrl) == AccountConnectionFailure.None;
 
         /// <summary>Reads the saved profile only. Its counters remain authoritative and may still precede result banking.</summary>
         public async Task<bool> RefreshAfterResultAsync(CancellationToken cancellation = default)
-        { return await Open(_selected, null, null, cancellation, AccountRefreshReason.Result) != null; }
+        { return await Open(Begin(_selected), null, null, cancellation, AccountRefreshReason.Result) != null; }
 
-        async Task<OwnedAccount> Open(string name, string pendingKey, string passcode, CancellationToken cancellation, AccountRefreshReason reason)
+        static string NormalizeOrNull(string name)
         {
-            SelectName(name);
-            long generation = ++_generation;
+            try { return AccountEndpoint.NormalizeName(name); } catch (ArgumentException) { return null; }
+        }
+
+        Operation Begin(string name)
+        {
+            name = name ?? "";
+            bool changed = !string.Equals(_selected, name, StringComparison.Ordinal);
+            // Bind both identity and generation before the first event. A callback may select/cancel/start another open.
+            var operation = new Operation { Generation = ++_generation, Name = name, ExpectedSelection = NormalizeOrNull(name) };
+            _selected = name; _normalizedSelection = operation.ExpectedSelection;
+            if (changed) _profile = null;
+            _accounts.ClearSelection();
+            if (changed) Set(AccountHubState.Idle, AccountFailure.None, AccountConnectionFailure.None, AccountRefreshReason.None);
+            return operation;
+        }
+
+        bool Current(Operation operation) => operation.Generation == _generation &&
+            string.Equals(operation.Name, _selected, StringComparison.Ordinal) && operation.ExpectedSelection == _normalizedSelection;
+
+        bool Matches(OwnedAccount account, string expected) => account != null && expected != null &&
+            NormalizeOrNull(account.CanonicalName) == expected && _accounts.CanJoin(account);
+
+        async Task<OwnedAccount> Open(Operation operation, string pendingKey, string passcode, CancellationToken cancellation, AccountRefreshReason reason)
+        {
+            if (!Current(operation)) return null;
+            if (cancellation.IsCancellationRequested) { Cancel(); return null; }
+            if (operation.ExpectedSelection == null)
+            {
+                Set(AccountHubState.Failed, AccountFailure.InvalidName, AccountConnectionFailure.None, reason);
+                return null;
+            }
             Set(reason == AccountRefreshReason.Join ? AccountHubState.PreparingJoin : reason == AccountRefreshReason.Result ?
                 AccountHubState.Refreshing : AccountHubState.Opening, AccountFailure.None, AccountConnectionFailure.None, reason);
-            AccountOpenResult result = await _accounts.OpenAsync(name, pendingKey, passcode, cancellation);
-            if (generation != _generation) { RefreshRecovery(); return null; }
-            if (result.Account == null || !_accounts.CanJoin(result.Account))
+            // Opening-state subscribers run synchronously. Never start a now-stale claim after those callbacks.
+            if (!Current(operation)) return null;
+            if (cancellation.IsCancellationRequested) { Cancel(); return null; }
+            AccountOpenResult result = await _accounts.OpenAsync(operation.Name, pendingKey, passcode, cancellation);
+            if (!Current(operation)) { RefreshRecovery(); return null; }
+            if (!Matches(result.Account, operation.ExpectedSelection))
             {
                 Set(result.Failure == AccountFailure.Cancelled ? AccountHubState.Idle : AccountHubState.Failed,
                     result.Failure, AccountConnectionFailure.None, reason);
@@ -137,7 +177,7 @@ namespace Roguehalla.Net
             }
             _profile = new AccountHubProfile(result.Account);
             Set(AccountHubState.Owned, AccountFailure.None, AccountConnectionFailure.None, reason);
-            return generation == _generation && _accounts.CanJoin(result.Account) ? result.Account : null;
+            return Current(operation) && Matches(result.Account, operation.ExpectedSelection) ? result.Account : null;
         }
 
         AccountCredentialRecovery ReadRecovery()
@@ -150,7 +190,14 @@ namespace Roguehalla.Net
         void Set(AccountHubState state, AccountFailure failure, AccountConnectionFailure connectionFailure, AccountRefreshReason reason)
         {
             Snapshot = new AccountHubSnapshot(_selected, state, failure, connectionFailure, ReadRecovery(), _profile, reason);
-            Changed?.Invoke(Snapshot);
+            var published = Snapshot;
+            var subscribers = Changed;
+            if (subscribers == null) return;
+            foreach (Action<AccountHubSnapshot> subscriber in subscribers.GetInvocationList())
+            {
+                if (!ReferenceEquals(Snapshot, published)) break;
+                subscriber(published);
+            }
         }
     }
 }
