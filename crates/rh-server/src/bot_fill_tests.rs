@@ -361,3 +361,88 @@ fn the_arrival_schedule_and_yield_seat_match_the_actual_source() {
         );
     }
 }
+
+/// Seats one full lobby through the arrival schedule and the closing top-up (source lobbyTick + lobbyClosing).
+fn seat_all(cfg: BotFillConfig, seed: u64) -> Vec<BotSeatSpec> {
+    let never = |_: &str| false;
+    let mut state = BotFillState::new(cfg, seed);
+    let mut players: Vec<Player> = vec![Player {
+        name_lower: "human".into(),
+        faction: Some(FactionId::Fire),
+        bot: false,
+    }];
+    let ends = 30_000.;
+    let mut now = 0.;
+    while now <= ends {
+        let due = {
+            let v = view(&players, &never);
+            state.lobby_tick(now, ends, &v)
+        };
+        for spec in &due {
+            apply(&mut players, spec);
+        }
+        now += 50.;
+    }
+    let rest = {
+        let v = view(&players, &never);
+        state.lobby_closing(&v)
+    };
+    let mut specs = state.specs().to_vec();
+    assert_eq!(rest, Vec::new(), "the schedule already seated everyone");
+    specs.sort_by_key(|s| s.number);
+    specs
+}
+
+#[test]
+fn a_learned_faction_bias_feeds_the_faction_softmax() {
+    use rh_policy::bots::learning::{LearnedBias, LEARN_CAP};
+    let plain = seat_all(BotFillConfig::with_fill_to(8), 11);
+    let none = LearnedBias::NO_BIAS;
+    let mut biases = std::collections::BTreeMap::new();
+    for persona in PersonaId::ALL {
+        for faction in FactionId::ALL {
+            biases.insert(
+                format!("faction|{}|{}", persona.as_str(), faction.as_str()),
+                if faction == FactionId::Fire {
+                    LEARN_CAP
+                } else {
+                    0.
+                },
+            );
+        }
+    }
+    let learned = LearnedBias::with_biases(biases);
+    assert!(learned.enabled());
+    assert!(!none.enabled());
+    // Compare one seed exactly (the lines differ) and the Fire share over many seeds (the +cap bias raises it; the
+    // softmax keeps every faction possible).
+    let biased = seat_all(
+        BotFillConfig::with_fill_to(8).with_learned(learned.clone()),
+        11,
+    );
+    assert_ne!(
+        plain.iter().map(BotSeatSpec::line).collect::<Vec<_>>(),
+        biased.iter().map(BotSeatSpec::line).collect::<Vec<_>>(),
+        "a learning snapshot changes the drawn factions"
+    );
+    let fire = |specs: &[BotSeatSpec]| {
+        specs
+            .iter()
+            .filter(|s| s.faction == FactionId::Fire)
+            .count()
+    };
+    let (mut plain_total, mut biased_total) = (0, 0);
+    for seed in 1..=40u64 {
+        plain_total += fire(&seat_all(BotFillConfig::with_fill_to(8), seed));
+        biased_total += fire(&seat_all(
+            BotFillConfig::with_fill_to(8).with_learned(learned.clone()),
+            seed,
+        ));
+    }
+    assert!(
+        biased_total > plain_total,
+        "the +cap Fire bias pulls more seats: {biased_total} vs {plain_total}"
+    );
+    // Learning off is exactly the captured manager stream (the parity fixture above proves the stream itself).
+    assert_eq!(BotFillConfig::default().learned, LearnedBias::NO_BIAS);
+}

@@ -1,0 +1,352 @@
+//! P-BOTS-5: the store's write discipline, eviction and read path against an in-memory backend. The durable SQL boundary
+//! (batch/upsert/delete/atomicity and the schema guards) is pinned against the throwaway PostgreSQL cluster in
+//! `crates/rh-persist/tests/bot_stats_db.rs`; the reference numbers here are the legacy `BotStatsStore.ts` formulas.
+use std::sync::{Arc, Mutex};
+
+use super::*;
+use rh_policy::bots::learning::{
+    Cell, LearnedBias, RunOutcome, RunSummary, Tier, LEARN_MAX_ENTRIES, LEARN_WRITE_EVERY_MS,
+};
+
+#[derive(Clone, Default)]
+struct Inner {
+    loaded: Loaded,
+    fail: bool,
+    saves: usize,
+    last_batch: Batch,
+}
+
+#[derive(Clone, Default)]
+struct Fake {
+    inner: Arc<Mutex<Inner>>,
+}
+
+impl Fake {
+    fn with(loaded: Loaded) -> Self {
+        Self {
+            inner: Arc::new(Mutex::new(Inner {
+                loaded,
+                ..Inner::default()
+            })),
+        }
+    }
+    fn fail(&self, fail: bool) {
+        self.inner.lock().unwrap().fail = fail;
+    }
+    fn saves(&self) -> usize {
+        self.inner.lock().unwrap().saves
+    }
+    fn loaded(&self) -> Loaded {
+        self.inner.lock().unwrap().loaded.clone()
+    }
+    fn last_batch(&self) -> Batch {
+        self.inner.lock().unwrap().last_batch.clone()
+    }
+}
+
+impl Backend for Fake {
+    async fn load(&self) -> Result<Loaded, String> {
+        Ok(self.inner.lock().unwrap().loaded.clone())
+    }
+    async fn save(&self, batch: &Batch) -> Result<(), String> {
+        let mut inner = self.inner.lock().unwrap();
+        if inner.fail {
+            return Err("the peer is down".into());
+        }
+        inner.saves += 1;
+        inner.last_batch = batch.clone();
+        let mut loaded = inner.loaded.clone();
+        for (tier, n, s) in &batch.baseline {
+            match loaded.baseline.iter_mut().find(|(t, _, _)| t == tier) {
+                Some(row) => {
+                    row.1 = *n;
+                    row.2 = *s;
+                }
+                None => loaded.baseline.push((tier.clone(), *n, *s)),
+            }
+        }
+        for key in &batch.deletes {
+            loaded.entries.retain(|(k, _, _)| k != key);
+        }
+        for (key, n, s) in &batch.upserts {
+            match loaded.entries.iter_mut().find(|(k, _, _)| k == key) {
+                Some(row) => {
+                    row.1 = *n;
+                    row.2 = *s;
+                }
+                None => loaded.entries.push((key.clone(), *n, *s)),
+            }
+        }
+        inner.loaded = loaded;
+        Ok(())
+    }
+}
+
+fn choices(keys: &[&str]) -> Vec<String> {
+    keys.iter().map(|k| (*k).to_string()).collect()
+}
+
+fn summary<'a>(
+    tier: Tier,
+    outcome: RunOutcome,
+    place: f64,
+    players: f64,
+    choices: &'a [String],
+) -> RunSummary<'a> {
+    RunSummary {
+        tier,
+        outcome,
+        place,
+        players,
+        choices,
+    }
+}
+
+#[tokio::test]
+async fn an_empty_store_is_learning_on_with_no_bias() {
+    let backend = Fake::default();
+    let mut store = BotStatsStore::open(backend.clone()).await.unwrap();
+    let snapshot = store.snapshot();
+    assert!(snapshot.enabled());
+    assert!(snapshot.is_empty());
+    assert_eq!(snapshot.bias("faction|farmer|fire"), 0.);
+    assert_eq!(backend.saves(), 0, "opening writes nothing");
+}
+
+#[tokio::test]
+async fn the_write_window_holds_writes_but_flush_does_not() {
+    let backend = Fake::default();
+    let mut store = BotStatsStore::open(backend.clone()).await.unwrap();
+    let keys = choices(&["opener|north|flank", "camp|fire|elite"]);
+    assert!(
+        store
+            .record(&summary(Tier::Easy, RunOutcome::Won, 1., 4., &keys), 1_000)
+            .await
+    );
+    assert_eq!(backend.saves(), 1, "the first record writes");
+    let first = backend.loaded();
+    assert_eq!(first.baseline.len(), 1);
+    assert_eq!(first.entries.len(), 2);
+    assert_eq!(first.baseline[0], ("easy".to_string(), 1., 1.));
+    assert_eq!(backend.last_batch().deletes, Vec::<String>::new());
+    // Within the window nothing is written (source: at most one write per LEARN.writeEveryMs).
+    assert!(
+        store
+            .record(
+                &summary(Tier::Easy, RunOutcome::Died, 4., 4., &keys),
+                1_000 + LEARN_WRITE_EVERY_MS - 1
+            )
+            .await
+    );
+    assert_eq!(backend.saves(), 1);
+    assert_eq!(backend.loaded(), first);
+    // A flush is never subject to the window.
+    store.flush(1_000 + LEARN_WRITE_EVERY_MS - 1).await;
+    assert_eq!(backend.saves(), 2);
+    let after = backend.loaded();
+    assert!((after.baseline[0].1 - 1.99).abs() < 1e-12);
+    assert_eq!(store.last_write_error(), None);
+}
+
+#[tokio::test]
+async fn a_failed_batch_keeps_every_dirty_row_for_the_next_write() {
+    let backend = Fake::default();
+    let mut store = BotStatsStore::open(backend.clone()).await.unwrap();
+    let keys = choices(&["second|bow|kite"]);
+    assert!(
+        store
+            .record(&summary(Tier::Hard, RunOutcome::Won, 1., 3., &keys), 1_000)
+            .await
+    );
+    assert_eq!(backend.saves(), 1);
+    backend.fail(true);
+    let more = choices(&["second|wand|burst", "relic|ember|tempo"]);
+    assert!(
+        store
+            .record(
+                &summary(Tier::Hard, RunOutcome::Died, 3., 3., &more),
+                30_000
+            )
+            .await
+    );
+    assert_eq!(store.last_write_error(), Some("the peer is down"));
+    assert_eq!(
+        backend.loaded().entries.len(),
+        1,
+        "a failed write persists nothing"
+    );
+    backend.fail(false);
+    store.flush(31_000).await;
+    assert_eq!(store.last_write_error(), None);
+    let loaded = backend.loaded();
+    assert_eq!(loaded.entries.len(), 3);
+    let row = loaded
+        .entries
+        .iter()
+        .find(|(k, _, _)| k == "relic|ember|tempo")
+        .unwrap();
+    // A new key starts at n=1 and the run's residual: 0.5 + 0 - 0.99/1.99 after the baseline's two runs.
+    let r = 0.5 - 0.99 / 1.99;
+    assert_eq!(row.1, 1.);
+    assert!((row.2 - r).abs() < 1e-12, "{}", row.2);
+}
+
+#[tokio::test]
+async fn a_full_table_keeps_the_smallest_n_and_deletes_the_victims() {
+    let mut loaded = Loaded::default();
+    for i in 1..=LEARN_MAX_ENTRIES + 1 {
+        loaded
+            .entries
+            .push((format!("opener|{i}|flank"), i as f64, i as f64 / 2.));
+    }
+    let backend = Fake::with(loaded);
+    let mut store = BotStatsStore::open(backend.clone()).await.unwrap();
+    assert_eq!(store.snapshot().len(), LEARN_MAX_ENTRIES);
+    store.flush(0).await;
+    let trimmed = backend.loaded();
+    assert_eq!(trimmed.entries.len(), LEARN_MAX_ENTRIES);
+    assert!(!trimmed
+        .entries
+        .iter()
+        .any(|(k, _, _)| k == "opener|1|flank"));
+    let fresh = choices(&["opener|new|flank"]);
+    assert!(
+        store
+            .record(&summary(Tier::Easy, RunOutcome::Won, 1., 2., &fresh), 1_000)
+            .await
+    );
+    store.flush(1_000).await;
+    let after = backend.loaded();
+    assert_eq!(after.entries.len(), LEARN_MAX_ENTRIES);
+    assert!(!after.entries.iter().any(|(k, _, _)| k == "opener|2|flank"));
+    assert!(after
+        .entries
+        .iter()
+        .any(|(k, _, _)| k == "opener|new|flank"));
+}
+
+#[tokio::test]
+async fn void_and_too_small_runs_never_touch_the_backend() {
+    let backend = Fake::default();
+    let mut store = BotStatsStore::open(backend.clone()).await.unwrap();
+    let keys = choices(&["spawn|north|close"]);
+    assert!(
+        !store
+            .record(&summary(Tier::Easy, RunOutcome::Void, 1., 3., &keys), 1_000)
+            .await
+    );
+    assert!(
+        !store
+            .record(&summary(Tier::Easy, RunOutcome::Won, 1., 1.5, &keys), 1_000)
+            .await
+    );
+    assert_eq!(backend.saves(), 0);
+}
+
+#[tokio::test]
+async fn a_read_path_builds_the_bias_view_from_the_rows() {
+    // The source's smoothed mean: (s + 0.5*8)/(n + 8) - 0.5.
+    let mut loaded = Loaded::default();
+    loaded
+        .entries
+        .push(("faction|hunter|frost".into(), 10., 7.));
+    loaded
+        .entries
+        .push(("faction|farmer|fire".into(), 100., 0.));
+    loaded.baseline.push(("normal".into(), 10., 7.));
+    let backend = Fake::with(loaded);
+    let mut store = BotStatsStore::open(backend.clone()).await.unwrap();
+    let snapshot = store.snapshot();
+    assert!(snapshot.enabled());
+    let want = 11. / 18. - 0.5;
+    assert!((snapshot.bias("faction|hunter|frost") - want).abs() < 1e-12);
+    assert_eq!(
+        snapshot.bias("faction|farmer|fire"),
+        -0.25,
+        "the cap clamps a hopeless cell"
+    );
+    assert_eq!(
+        snapshot.bias("faction|farmer|holy"),
+        0.,
+        "unknown keys read 0"
+    );
+    assert_eq!(LearnedBias::NO_BIAS.bias("faction|hunter|frost"), 0.);
+    // The snapshot is cached until the next record.
+    assert_eq!(store.snapshot(), snapshot);
+}
+
+#[tokio::test]
+async fn damaged_rows_are_dropped_on_their_own() {
+    let mut loaded = Loaded::default();
+    loaded.baseline.push(("normal".into(), 1., 1.));
+    loaded.baseline.push(("impossible".into(), 1., 1.));
+    loaded.baseline.push(("hard".into(), 1., 2.));
+    loaded.entries.push(("faction|farmer|fire".into(), 1., 0.5));
+    loaded.entries.push(("faction|hunter|frost".into(), 1., 2.));
+    loaded.entries.push(("bad".into(), 1., 0.5));
+    let backend = Fake::with(loaded);
+    let mut store = BotStatsStore::open(backend.clone()).await.unwrap();
+    assert_eq!(store.snapshot().len(), 1);
+    assert_eq!(store.snapshot().bias("faction|farmer|fire"), 0.);
+    // The damaged hard baseline started fresh; the unknown tier was ignored.
+    assert_eq!(store.stats.baseline(Tier::Hard), Cell::ZERO);
+    assert_eq!(store.stats.baseline(Tier::Normal).n(), 1.);
+}
+
+#[tokio::test]
+async fn a_closed_store_writes_nothing_more() {
+    let backend = Fake::default();
+    let mut store = BotStatsStore::open(backend.clone()).await.unwrap();
+    let keys = choices(&["opener|north|flank"]);
+    assert!(
+        store
+            .record(&summary(Tier::Easy, RunOutcome::Won, 1., 4., &keys), 1_000)
+            .await
+    );
+    store.close(1_000).await;
+    assert!(store.is_closed());
+    assert_eq!(backend.saves(), 1, "close flushed nothing new");
+    assert!(
+        store
+            .record(
+                &summary(Tier::Easy, RunOutcome::Died, 4., 4., &keys),
+                30_000
+            )
+            .await
+    );
+    store.flush(30_000).await;
+    assert_eq!(backend.saves(), 1, "a closed store refuses further writes");
+}
+
+#[tokio::test]
+async fn a_clock_that_went_backwards_does_not_hold_the_next_write_off() {
+    let backend = Fake::default();
+    let mut store = BotStatsStore::open(backend.clone()).await.unwrap();
+    let keys = choices(&["opener|north|flank"]);
+    assert!(
+        store
+            .record(&summary(Tier::Easy, RunOutcome::Won, 1., 4., &keys), 5_000)
+            .await
+    );
+    assert_eq!(backend.saves(), 1);
+    assert!(
+        store
+            .record(&summary(Tier::Easy, RunOutcome::Won, 1., 4., &keys), 4_000)
+            .await
+    );
+    assert_eq!(backend.saves(), 2, "a backwards clock is due, not blocked");
+}
+
+#[tokio::test]
+async fn a_store_snapshot_is_the_fill_policy_read_path() {
+    // The store's frozen snapshot is exactly what BotFillConfig reads for the faction softmax (P-BOTS-5 read path).
+    let mut loaded = Loaded::default();
+    loaded.entries.push(("faction|farmer|fire".into(), 10., 7.));
+    let backend = Fake::with(loaded);
+    let mut store = BotStatsStore::open(backend).await.unwrap();
+    let cfg = crate::bot_fill::BotFillConfig::with_fill_to(4).with_learned(store.snapshot());
+    assert!(cfg.learned.enabled());
+    let want = 11. / 18. - 0.5;
+    assert!((cfg.learned.bias("faction|farmer|fire") - want).abs() < 1e-12);
+    assert_eq!(cfg.learned.bias("faction|hunter|fire"), 0.);
+}

@@ -3,6 +3,7 @@
 
 pub mod api;
 pub mod bot_fill;
+pub mod bot_learning;
 pub mod conn;
 pub mod control;
 pub mod director;

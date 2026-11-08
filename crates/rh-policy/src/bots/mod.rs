@@ -10,6 +10,7 @@ pub mod build_route;
 pub mod clicks;
 pub mod humanizer;
 pub mod kite;
+pub mod learning;
 pub mod mob_hunt;
 pub mod paths;
 pub mod perception;

@@ -472,11 +472,6 @@ async fn main() {
             .map_or_else(|| num("--fill-bots", 0.) as usize, |p| p.fill_bots),
         ..DirectorConfig::new(sim, arena)
     };
-    // The live server fills its lobbies with the legacy manager policy (BOTS_FILL_TO from --fill-bots); tests and
-    // benches construct rooms directly and keep the immediate placeholder fill unless they opt in.
-    cfg.bot_fill = Some(rh_server::bot_fill::BotFillConfig::with_fill_to(
-        cfg.fill_bots_to,
-    ));
     cfg.require_admit = hosted.require_admit;
     if let Some(ttl) = hosted.admit_ttl {
         cfg.admit_ttl = ttl;
@@ -500,6 +495,29 @@ async fn main() {
         None => (Persistence::memory(), auth),
         Some(url) => durable(&url, &args).await,
     };
+    // The learning read path (P-BOTS-5): the durable store's frozen bias snapshot feeds the fill policy's faction softmax.
+    // Without a database the utilities are the NO_BIAS zeros, exactly as the captured manager stream was drawn.
+    #[cfg(feature = "postgres")]
+    let learned = match &persistence {
+        Persistence::Postgres { store, .. } => {
+            let backend = rh_server::bot_learning::PgBackend::new(store.pool().clone());
+            match rh_server::bot_learning::BotStatsStore::open(backend).await {
+                Ok(mut stats) => stats.snapshot(),
+                Err(e) => {
+                    eprintln!("[server] bot learning stats unreadable, learning off: {e}");
+                    rh_policy::bots::learning::LearnedBias::NO_BIAS
+                }
+            }
+        }
+        Persistence::Memory(_) => rh_policy::bots::learning::LearnedBias::NO_BIAS,
+    };
+    #[cfg(not(feature = "postgres"))]
+    let learned = rh_policy::bots::learning::LearnedBias::NO_BIAS;
+    // The live server fills its lobbies with the legacy manager policy (BOTS_FILL_TO from --fill-bots); tests and
+    // benches construct rooms directly and keep the immediate placeholder fill unless they opt in.
+    cfg.bot_fill = Some(
+        rh_server::bot_fill::BotFillConfig::with_fill_to(cfg.fill_bots_to).with_learned(learned),
+    );
     let api_cfg = api_config(&args).unwrap_or_else(|e| {
         eprintln!("[server] invalid account API settings: {e}");
         std::process::exit(2);

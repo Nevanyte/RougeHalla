@@ -10,6 +10,7 @@
 //! stats file are not part of this slice; the drawn spec (tier/persona/faction/name/seed) is applied to the room's seats.
 //! A bot never touches a profile, a token or quest progress; the draw never creates a profile.
 
+use rh_policy::bots::learning::LearnedBias;
 use rh_policy::bots::{PersonaId, TierId};
 use rh_sim::constants::MAX_PLAYERS;
 use rh_sim::content::FactionId;
@@ -25,9 +26,9 @@ pub const MAX_PER_FACTION: u32 = 2;
 pub const FACTION_TEMPERATURE: f64 = 0.3;
 /// The last arrival is this long before the countdown ends (source ARRIVAL_END_MARGIN_MS).
 pub const ARRIVAL_END_MARGIN_MS: f64 = 1000.;
-/// The learning store's exploration floor (source LEARN.explore); the store itself is P-BOTS-5 remainder, but the draw
-/// is part of the manager's stream and is reproduced.
-pub const LEARN_EXPLORE: f64 = 0.05;
+/// The learning store's exploration floor (source LEARN.explore) re-exported: the store itself is `rh-persist::bot_stats`
+/// (P-BOTS-5) and its read path is the `learned` snapshot on [`BotFillConfig`].
+pub use rh_policy::bots::learning::LEARN_EXPLORE;
 
 /// The callsigns (source callsigns.ts CALLSIGN_POOL, in order).
 pub const CALLSIGN_POOL: [&str; 64] = [
@@ -111,6 +112,9 @@ pub struct BotFillConfig {
     /// Simulated one-way latency and jitter of the bots' commands (ms): the delay line is not part of this slice.
     pub latency_ms: f64,
     pub jitter_ms: f64,
+    /// The learning store's frozen bias snapshot (P-BOTS-5). [`LearnedBias::NO_BIAS`] is learning off: every faction
+    /// utility is 0 and the draw reproduces the captured manager stream exactly.
+    pub learned: LearnedBias,
 }
 
 impl Default for BotFillConfig {
@@ -123,6 +127,7 @@ impl Default for BotFillConfig {
             persona_mix: [4., 1., 2., 3.],
             latency_ms: 30.,
             jitter_ms: 8.,
+            learned: LearnedBias::NO_BIAS,
         }
     }
 }
@@ -134,6 +139,12 @@ impl BotFillConfig {
             fill_to,
             ..Self::default()
         }
+    }
+
+    /// The same config reading one learning snapshot (a store's `snapshot()`); learning off is the default.
+    pub fn with_learned(mut self, learned: LearnedBias) -> Self {
+        self.learned = learned;
+        self
     }
 }
 
@@ -352,7 +363,7 @@ impl BotFillState {
         self.next_n = n;
         let tier = TierId::ALL[pick_weighted(&mut self.fill_rng, &self.cfg.tier_mix)];
         let persona = PersonaId::ALL[pick_weighted(&mut self.fill_rng, &self.cfg.persona_mix)];
-        let faction = self.pick_faction(&shadow.factions);
+        let faction = self.pick_faction(&shadow.factions, persona);
         let name = {
             let taken = |candidate: &str| {
                 (*shadow.taken)(candidate)
@@ -380,9 +391,9 @@ impl BotFillState {
     }
 
     /// A softmax over the learned faction biases among the factions with room, plus an exploration floor (source
-    /// pickFaction). The learning store is P-BOTS-5 remainder: the biases are the NO_BIAS zeros, but every draw of the
-    /// stream is reproduced in the source order.
-    fn pick_faction(&mut self, counts: &[u32; 5]) -> FactionId {
+    /// pickFaction). The utilities are the store's `faction|<persona>|<faction>` biases (0 with learning off, which is
+    /// exactly the captured manager stream); every draw of the stream stays in the source order.
+    fn pick_faction(&mut self, counts: &[u32; 5], persona: PersonaId) -> FactionId {
         let mut open: Vec<usize> = (0..5).filter(|&i| counts[i] < MAX_PER_FACTION).collect();
         if open.is_empty() {
             open = (0..5).collect();
@@ -391,7 +402,16 @@ impl BotFillState {
             let idx = (self.fill_rng.next_f64() * open.len() as f64) as usize % open.len();
             return FactionId::ALL[open[idx]];
         }
-        let utilities = vec![0.; open.len()];
+        let utilities: Vec<f64> = open
+            .iter()
+            .map(|&i| {
+                self.cfg.learned.bias(&format!(
+                    "faction|{}|{}",
+                    persona.as_str(),
+                    FactionId::ALL[i].as_str()
+                ))
+            })
+            .collect();
         FactionId::ALL[open[softmax_index(&mut self.fill_rng, &utilities, FACTION_TEMPERATURE)]]
     }
 }
