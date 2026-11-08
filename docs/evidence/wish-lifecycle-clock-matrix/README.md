@@ -85,3 +85,17 @@ diff.
   pending-cancellation domain do not apply to them (their narrower domain is asserted instead).
 - No complete lifecycle reason matrix is claimed; no NPC/full-signature gate, source corpus, recorder or production code
   was changed.
+
+## Coordinator correction and independent check
+
+Review found the finite-past clock control compared its original checkpoint to a live sim already advanced12 steps.
+That inequality could pass even if the hash omitted event_time. The control now compares the changed checkpoint with
+the saved hash of the same original pre-continuation checkpoint. The ordinary instant case also accumulates later
+start/landing occurrences before checking their totals, rather than checking only its first-step landing list.
+
+Root runs the four new tests plus five existing time and seven spatial tests successfully at the composed
+checkpoint25/Observation19/content67183626db240b6a prefix. A compiled temporary HashSer mutation omits only event_time
+from hashing, leaving checkpoint validation/serialization intact. The old pending-clock test still passes under that
+mutation; the corrected test fails specifically at `past clock hashes`. After exact source restoration all16 tests
+pass. This proves the repaired control detects the omitted leaf; no production hash or expected corpus is changed.
+Raw logs and the exact control sequence are receipted with the native union evidence.

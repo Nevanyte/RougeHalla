@@ -212,6 +212,8 @@ fn all_five_wishes_emit_real_start_landing_and_instant_distinctions() {
             // The public event stream has no CastStarted and no fabricated CastEnded for an instant landing.
             for _ in 0..5 {
                 let events = sim.step();
+                started_count += cast_times(&events, caster, ability, false).len();
+                landed.extend(cast_times(&events, caster, ability, true));
                 all.extend(events);
             }
         }
@@ -377,9 +379,10 @@ fn pending_wishes_cancel_between_steps_with_retained_clock_and_controls() {
             serde_json::json!("cancelled"),
             "{ability:?}: real removal reason"
         );
+        let checkpoint_hash = original.state_hash();
         let mut restored = Sim::restore(&checkpoint).unwrap();
         assert_eq!(
-            original.state_hash(),
+            checkpoint_hash,
             restored.state_hash(),
             "{ability:?}: removal hash"
         );
@@ -433,7 +436,7 @@ fn pending_wishes_cancel_between_steps_with_retained_clock_and_controls() {
             .unwrap_or_else(|err| panic!("{ability:?}: past mutation: {err}"));
         assert_ne!(
             changed.state_hash(),
-            original.state_hash(),
+            checkpoint_hash,
             "{ability:?}: past clock hashes"
         );
         for bad in [serde_json::json!(-1.), serde_json::json!(cancelled_at + 1.)] {
