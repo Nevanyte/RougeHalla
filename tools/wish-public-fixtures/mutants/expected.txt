@@ -1,0 +1,5 @@
+01-armwishes-opening-lock|stock-clocks.json|/cases/0/frames/0/players/0/wishReadyAt|45050|44050
+02-fx-batch-time|fx-timing.json|/batches/0/batchTime|45050|45049
+03-fx-same-tick-multiplicity|fx-timing.json|/batches/2/batch/l/6|[15,4,4,null,800,500]|undefined
+04-wishfx-cansee-endpoint|wishfx-endpoints.json|/cases/11/actual/graphics/0/calls/8/call|"setVisible"|"setPosition"
+05-perceive-ext-coordinate|perceive-wish.json|/cases/0/actual/events/0/data/x|350|undefined

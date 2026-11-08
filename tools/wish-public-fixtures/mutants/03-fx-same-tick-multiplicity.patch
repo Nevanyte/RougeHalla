@@ -1,0 +1,10 @@
+--- a/packages/shared/src/fxCodec.ts
++++ b/packages/shared/src/fxCodec.ts
+@@ -131,5 +131,6 @@
+   const l: FxTuple[] = [];
++  let castLands = 0;
+   for (const fx of fxs) {
+     const tuple = packOne(fx, opts.announced);
+-    if (tuple) l.push(tuple);
++    if (tuple && (fx.kind !== "castLand" || ++castLands === 1)) l.push(tuple);
+   }
