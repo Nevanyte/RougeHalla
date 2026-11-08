@@ -10,14 +10,20 @@ pub mod build_route;
 pub mod clicks;
 pub mod humanizer;
 pub mod kite;
+pub mod knowledge;
 pub mod mob_hunt;
 pub mod paths;
 pub mod perception;
 pub mod planning;
 pub mod random;
 pub mod types;
+pub mod view;
 pub mod wish;
 
+#[cfg(test)]
+mod knowledge_parity_tests;
+#[cfg(test)]
+mod knowledge_repair_tests;
 #[cfg(test)]
 mod mob_hunt_parity_tests;
 #[cfg(test)]
@@ -26,6 +32,8 @@ mod parity_tests;
 mod paths_parity_tests;
 #[cfg(test)]
 mod planning_parity_tests;
+#[cfg(test)]
+mod view_parity_tests;
 #[cfg(test)]
 mod wish_module_tests;
 #[cfg(test)]
@@ -39,6 +47,7 @@ pub use build_route::{
 pub use clicks::{BotMap, MoveClickKind};
 pub use humanizer::{Context, Humanizer, HumanizerStats};
 pub use kite::{away_point, LENGTHS as KITE_LENGTHS, TURNS as KITE_TURNS};
+pub use knowledge::Knowledge;
 pub use mob_hunt::{
     best_edge, best_slot_vs_mob, hunt_config_for, is_ranged, mob_weapon, retreat_point, useless,
     wants_mobs, weapon_edge, HuntDecision, MobHuntConfig, MobLike, MOB_HUNT, NO_MOB_IN_REACH,
@@ -46,11 +55,15 @@ pub use mob_hunt::{
 pub use paths::{PathBudget, PathStats, RoomPathService, WalkAnswer, BOT_PATH_BUDGET_PER_TICK};
 pub use perception::Perception;
 pub use planning::{PlanDeal, PlanIntent, PlanLearned, PlanMap, PlanModule, PlanState};
-pub use random::Rng;
+pub use random::{derive, Rng};
 pub use types::{
     BotWeapon, Command, CommandType, ExGaussian, Intent, IntentBody, IntentChannel, IntentKind,
     IntentTiming, PerceptExtras, PersonaId, PersonaParams, Stimulus, StimulusKind, TierId,
     TierParams, TimedCommand, WishView, PERSONAS, TIERS,
+};
+pub use view::{
+    detect_features, field_in_view, in_view, plain_copy, FeatureProbe, Features, FieldInView,
+    CLIENT_MESSAGE_TYPES,
 };
 pub use wish::{
     CastChoice, CastSituation, FoeView, MeView, ThreatView, WishDef, WishFoe, WishModule, WISHES,

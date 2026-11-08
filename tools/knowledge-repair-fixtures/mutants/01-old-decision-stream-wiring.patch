@@ -1,0 +1,13 @@
+diff --git a/crates/rh-policy/src/bots/bot.rs b/crates/rh-policy/src/bots/bot.rs
+index 55c6fdc8..0c57a727 100644
+--- a/crates/rh-policy/src/bots/bot.rs
++++ b/crates/rh-policy/src/bots/bot.rs
+@@ -311,7 +311,7 @@ impl Policy for HumanBot {
+         // decision stream is untouched, so the first decision draw is the decision stream's first draw.
+         self.knowledge = Some(Knowledge::create(
+             TierParams::by_id(self.tier),
+-            &mut Rng::new(derive(seed as u32, 3)),
++            &mut self.decide,
+         ));
+     }
+     fn decide(&mut self, obs: &Observation) -> Vec<PublicCommand> {

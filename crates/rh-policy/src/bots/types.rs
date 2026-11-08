@@ -1101,6 +1101,33 @@ pub struct WishView {
     pub rank: u8,
 }
 
+/// An opponent as seen now (a FighterView) or remembered (a FighterMemory), as the Knowledge layer sizes it up
+/// (types.ts OpponentSnapshot).
+#[derive(Clone, Debug, PartialEq, Default)]
+pub struct OpponentSnapshot {
+    pub id: FighterId,
+    pub faction: Option<rh_sim::FactionId>,
+    pub in_hand: Option<BotWeapon>,
+    pub other_slot: Option<BotWeapon>,
+    pub hp_frac: f64,
+    pub bounty: u32,
+    pub dist: f64,
+    /// The UI matchup tint when on screen, else 0.
+    pub tint: f64,
+}
+
+/// Who would win a fight with that opponent, on what the bot knows (types.ts FightOdds).
+#[derive(Clone, Debug, PartialEq, Default)]
+pub struct FightOdds {
+    /// -2..+2: the known matchup score (or the tint's sign) plus 2 x the hp-share lead, clamped.
+    pub edge: f64,
+    /// -2..+2: the matchup score alone, without the hp lead.
+    pub score: f64,
+    /// Both wheels' edges were known (not just the tint).
+    pub known: bool,
+    pub why: String,
+}
+
 /// Everything the hand may know about the present (Percept, narrowed to what it reads). Plain data: no state handle,
 /// no hidden field.
 #[derive(Clone, Debug, PartialEq, Default)]
