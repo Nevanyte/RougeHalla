@@ -5,8 +5,8 @@
 //! Evidence only: no production change. The pre-existing C-OBS controls (crates/rh-sim/tests/observe.rs) and the human
 //! publish controls (crates/rh-server/tests/publish.rs) remain the existing privacy suite and are run unchanged; these
 //! tests add only the P-PERCEPTION-WITNESS-1 facts: Windup emission -> observation/human-wire absence, the delivered
-//! Swing/Hit controls, hidden actor privacy on the human frames (plain and ItemObserver-prepared paths), and the
-//! run-summary absence in Observation17.
+//! Swing/Hit controls, paired-world privacy on fresh plain publication, one-world fresh prepared-frame actor-id
+//! absence (without committing the offer), and run-summary absence in Observation17.
 
 use rh_protocol::{ServerMsg, WireFx};
 use rh_server::wire::Publisher;
@@ -14,8 +14,8 @@ use rh_sim::arenas::practice_arena;
 use rh_sim::events::Visibility;
 use rh_sim::observe::{observe, observe_events_into, SeenEvent};
 use rh_sim::{
-    validate, Command, Event, FactionId, ItemObserver, Placement, PlayerId, RawCommand, Secrets, Sim, SimConfig,
-    Vec2,
+    validate, Command, Event, FactionId, ItemObserver, Placement, PlayerId, RawCommand, Secrets,
+    Sim, SimConfig, Vec2,
 };
 
 fn cmd(raw: RawCommand) -> Command {
@@ -100,19 +100,23 @@ fn decode_frames(frames: rh_server::wire::ViewFrames) -> Decoded {
         .as_ref()
         .expect("the observation encodes")
         .encode_full_into(&mut snapshot);
-    Decoded { important, fx, snapshot }
+    Decoded {
+        important,
+        fx,
+        snapshot,
+    }
 }
 
-/// Publish one wake exactly as the room does for a plain viewer.
+/// Project one wake for a plain viewer through a fresh Publisher.
 fn published(sim: &Sim, viewer: PlayerId, events: &[Event]) -> Decoded {
     let mut publisher = Publisher::default();
     let mut earlier = Vec::new();
     decode_frames(publisher.frames(sim, viewer, 0, events, &mut earlier, events))
 }
 
-/// Publish one wake through the action-producing observer path (ItemObserver actor references), as the room does for
-/// a seat: the same frames are built from the observer's projected observation.
-fn published_prepared(
+/// Project one wake through a fresh Publisher and the supplied fresh ItemObserver. The offer is deliberately dropped:
+/// this checks decoded snapshot actor-id absence only, not committed bindings, retained carry or paired-world equality.
+fn fresh_prepared_projection_without_commit(
     sim: &Sim,
     observer: &mut ItemObserver,
     events: &[Event],
@@ -121,7 +125,7 @@ fn published_prepared(
     let mut earlier = Vec::new();
     let (frames, _offer) = publisher
         .frames_prepared(observer, None, sim, 0, events, &mut earlier, events)
-        .expect("supported profile, accepted offer");
+        .expect("supported profile prepares frames; the offer is not committed");
     decode_frames(frames)
 }
 
@@ -177,20 +181,14 @@ fn the_real_producer_emits_windup_and_current_native_carries_it_nowhere() {
         "ServerOnly: the observation event filter drops every Windup"
     );
     let decoded = published(&sim, PlayerId(1), &windups);
-    assert!(decoded.important.is_none(), "a windup alone produces no reliable frame");
-    for effect in fx_list(&decoded.fx) {
-        assert!(
-            matches!(
-                effect,
-                WireFx::Swing { .. }
-                    | WireFx::Hit { .. }
-                    | WireFx::Block { .. }
-                    | WireFx::Stagger { .. }
-                    | WireFx::Teleport
-            ),
-            "protocol 11 has no windup fx variant"
-        );
-    }
+    assert!(
+        decoded.important.is_none(),
+        "a windup alone produces no reliable frame"
+    );
+    assert!(
+        decoded.fx.is_none(),
+        "windup-only input produces no human FX frame"
+    );
 }
 
 /// The already-delivered controls: a real melee fight's Swing and Hit reach the observing human's observation and
@@ -229,9 +227,9 @@ fn delivered_swing_and_hit_reach_the_human_wire_without_the_windup() {
 }
 
 /// Hidden identity/coordinate privacy on the current human frames: two otherwise-identical worlds where only the
-/// hidden player acts differently produce equal observations, equal reliable/fx frames byte for byte, and equal Full
-/// snapshot bytes; the hidden raw id never appears in snapshot actors, and the ItemObserver-prepared path projects
-/// presentation refs instead of raw ids.
+/// hidden player acts differently produce equal observations, equal decoded reliable/fx messages, and equal Full
+/// snapshot bytes through fresh plain Publishers. A separate one-world fresh ItemObserver/Publisher projection checks
+/// hidden raw-id absence only; it does not exercise committed offers, persistent carry or paired prepared equality.
 #[test]
 fn a_hidden_player_identity_or_position_never_leaks_into_the_human_frames() {
     let viewer = PlayerId(1);
@@ -271,9 +269,15 @@ fn a_hidden_player_identity_or_position_never_leaks_into_the_human_frames() {
         );
         let da = published(&a, viewer, &ea);
         let db = published(&b, viewer, &eb);
-        assert_eq!(da.important, db.important, "tick {tick}: reliable frames equal");
+        assert_eq!(
+            da.important, db.important,
+            "tick {tick}: reliable frames equal"
+        );
         assert_eq!(da.fx, db.fx, "tick {tick}: fx frames equal");
-        assert_eq!(da.snapshot, db.snapshot, "tick {tick}: Full snapshot bytes equal");
+        assert_eq!(
+            da.snapshot, db.snapshot,
+            "tick {tick}: Full snapshot bytes equal"
+        );
         let ids = snapshot_actor_ids(&da.snapshot);
         assert!(
             !ids.contains(&PlayerId(2).0),
@@ -284,11 +288,11 @@ fn a_hidden_player_identity_or_position_never_leaks_into_the_human_frames() {
             "tick {tick}: the plain actor is a positive control"
         );
         let mut observer = ItemObserver::new(viewer);
-        let projected = published_prepared(&a, &mut observer, &ea);
+        let projected = fresh_prepared_projection_without_commit(&a, &mut observer, &ea);
         let projected_ids = snapshot_actor_ids(&projected.snapshot);
         assert!(
             !projected_ids.contains(&PlayerId(2).0),
-            "tick {tick}: the ItemObserver path carries no hidden raw id"
+            "tick {tick}: the fresh uncommitted ItemObserver projection has no hidden raw id"
         );
     }
 }
@@ -311,7 +315,14 @@ fn observation_has_no_legacy_run_summary_aggregates_but_keeps_started_with() {
             _ => false,
         }
     }
-    for absent in ["alive", "playerCount", "player_count", "minPlayers", "min_players", "winner"] {
+    for absent in [
+        "alive",
+        "playerCount",
+        "player_count",
+        "minPlayers",
+        "min_players",
+        "winner",
+    ] {
         assert!(
             !has_key(&json, absent),
             "Observation17 must not carry the legacy run-summary field {absent}"

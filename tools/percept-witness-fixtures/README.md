@@ -17,16 +17,18 @@ bash tools/percept-witness-fixtures/run-mutants.sh        # three compiled seman
 
 `RH_PERCEPT_WITNESS_OUTPUT` redirects the capture; the path must stay inside this isolated worktree. The canonical
 serialization is `JSON.stringify(corpus) + "\n"`; each corpus carries `format: "rh-percept-witness/1"`, a profile (Node/
-linux/x64 asserts, image digest, sha256 of the full TypeScript import closure, sha256 of the capture tools) and
-`captureSha256` over the JSON without it. `--check` compares the bytes, not parsed JSON.
+linux/x64 asserts, image digest, sha256 of the internal static TypeScript/style import graph, sha256 of the capture tools) and
+`captureSha256` over the JSON including the profile and excluding only `captureSha256` itself.
+External npm import names are listed; external package contents are outside this graph. Supplemental base-checkout
+lockfile/manifest/TypeScript-config hashes are in `docs/evidence/percept-witness/admission-provenance.json`. `--check` compares the bytes, not parsed JSON.
 
 ## Corpora
 
 - `run-summary.json` — 192 declared source-schema `perceive()` probes (Lobby/Planning/Active/Ended x training x four player
   cases x schema-default/fixed thresholds x empty/unique/64-character winner), each recording the full `frame.hud`, the
   sight-filtered `fighters` rows and `frame.self`; the hidden-status witness (one hidden player Alive -> Dead changes
-  `hud.alive` while `fighters` is unchanged); current-row versus retained-roster counts; the real `RaidState` uint8
-  boundary (0/1/254/255/256/257/-1 set, host value, encode/decode result); schema defaults; and `statusLine`/`winnerLabel`
+  `hud.alive` while `fighters` is unchanged); current-row versus retained-roster counts; the real `RaidState.minPlayers` uint8
+  boundary (0/1/254/255/256/257/-1 set, host value, encode/decode result); schema defaults and `startedWith` type reflection (not its value-boundary round trip); and `statusLine`/`winnerLabel`
   strings over a declared human-HUD matrix. Every probe is `provenance: "declared-probe"`.
 - `availability.json` — `planningModeFor` over phase x training x held Tab; `mapRosterRows` over declared synced rows
   (dead, far, bot and EFFECT_HIDDEN rows included) with a `perceive()` contrast on the same rows; `LobbyStatus.snapshot`
@@ -37,7 +39,8 @@ linux/x64 asserts, image digest, sha256 of the full TypeScript import closure, s
   fx step records the raw `SimEvent`s, `packFx(events, t, {roster})`, the packed tuples, `unpackFx` `TimedFx` and the
   `perceive()` observations for visible, hidden, out-of-frame, `canSee=false`, two-batch and same-step-two-source states.
   Emission/packing is `actual-producer`; the actor state handed to `perceive` is a declared projection of the actual
-  fighters plus a declared observer.
+  fighters plus a declared observer. Setup/actions live in the hashed tool; the corpus records producer steps,
+  not the collected action arrays.
 
 ## Semantic mutants
 
@@ -58,5 +61,5 @@ After the three mutants the script reruns the unmutated capture with `--check` a
 ## Boundaries of this evidence
 
 These are source and projection witnesses, not full lifecycle traces: winner strings and player rows are declared schema
-probes, and no reconnect/removal lifecycle is replayed. The mutex between legacy frame-time visibility and native
+probes, and no reconnect/removal lifecycle is replayed. The equivalence between legacy frame-time visibility and native
 completed-step visibility is not established here. Only the declared imports and the captured scenarios are covered.

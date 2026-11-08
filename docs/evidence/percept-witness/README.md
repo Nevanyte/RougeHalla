@@ -23,18 +23,20 @@ no production, schema, protocol, observation, policy, Cargo.lock or shared-statu
 
 ## Artifacts, hashes and provenance
 
-| artifact | size | sha256 | capture sha256 (over the corpus, profile excluded) |
+| artifact | size | sha256 | capture sha256 (includes profile; excludes only captureSha256 itself) |
 |---|---:|---|---|
 | `parity/policy/percept-witness/run-summary.json` | 274,260 B | `a383ca2317fb6c3e58046b2983165df4981eb89de1c852f2e24123a119a8c08e` | `1ab9ee01e399614524f5cf76682e9c43ad7322e4072666f5465076e1dd9b82d4` |
 | `parity/policy/percept-witness/availability.json` | 41,581 B | `ba009e3407a257467bddbcbc1db7712ea5d6a5627e164709c55a98489a723b40` | `307afc12ac67582441de0f03df29687177c9caa6ea4d9af12aa351c2369e4f38` |
 | `parity/policy/percept-witness/windup-path.json` | 45,974 B | `704b928cee21b46ca0cfc776ba74e13ff674ec81da8bd1401fabca71e73daf07` | `c6cb4c66daaa2909d2c2c14975bfd893961a2a37419d9e5792c323705695320c` |
 
 Every corpus is `format: "rh-percept-witness/1"` and carries a profile with the pinned image digest, the Node/linux/x64
-asserts, the sha256 of the full TypeScript import closure (**191 source files + 16 style files**) and the sha256 of the
+asserts, the sha256 of the internal static TypeScript/style import graph (**191 source files + 16 style files**) and the sha256 of the
 capture tools (`capture.mts` `9f7f2189fba0a00febd2439f848200480663cfbb6d07936be70d5f60d337092f`, `capture.sh`
 `2bf30b21864357789bc69f16262543b3abf7caff3453e5b14717d99cb355c6ff`, `css-stub-loader.mjs`
 `ddf8e37fdac4707cc0960891deecdf780729a378e14a879862decfeb84cd8e7b`). All expected values come from the actual
-TypeScript; nothing is regenerated or compared from Rust. Declared projection probes are labelled `declared-probe`; the
+TypeScript; nothing is regenerated or compared from Rust. External npm import names are listed, but external package
+contents are not included in that static graph. Supplemental `admission-provenance.json` pins the base checkout
+lockfile, package manifests and TypeScript configs; it is additional metadata, not part of the captured profile. Declared projection probes are labelled `declared-probe`; the
 Windup emission/packing vectors are labelled `actual-producer vector + declared-state probe`.
 
 ## Commands and actual results (Lead re-ran independently)
@@ -80,9 +82,9 @@ the clock fields. Provenance: declared source-schema probes.
   is `players.size` (6); `hud.alive` counts stored rows by status; `hud.startedWith` is the fixed run denominator and
   does not shrink.
 - **uint8 schema boundary (actual `@colyseus/schema` encode/decode):** schema defaults `minPlayers` 0, `startedWith` 0,
-  `winner` ""; reflection `minPlayers`/`startedWith` are uint8 (indices 5/6), `winner` a string (index 11). The host
-  accepts 0, 1, 254, 255, 256, 257 and -1 **without throwing** and stores them; `Encoder.encodeAll` (66 bytes) +
-  `Decoder.decode` returns **0, 1, 254, 255, 0, 1, 255** — silent modulo-256 truncation, no refusal. A future transport
+  `winner` ""; reflection `minPlayers`/`startedWith` are uint8 (indices 5/6), `winner` a string (index 11). The **minPlayers-only**
+  boundary probe accepts 0, 1, 254, 255, 256, 257 and -1 **without throwing** and stores them; `Encoder.encodeAll` (66 bytes) +
+  `Decoder.decode` returns **0, 1, 254, 255, 0, 1, 255** — silent modulo-256 truncation, no refusal. `startedWith` is reflected/defaulted only; its value boundary is not round-tripped. A future transport
   must define representable input/refusal bounds rather than inherit this.
 - Human run-summary formatter (`statusLine`) 29 declared-input probes and `winnerLabel` 6 probes captured from the actual
   client sources (formatter strings; the DOM update that only computes `alive` for non-training Active is a source anchor,
@@ -108,7 +110,9 @@ the clock fields. Provenance: declared source-schema probes.
 
 Two real `createGameWorld`/`step` runs (seed 7; sword-vs-shield and wand) with the actual source producers and the
 actual `packFx`/`unpackFx`: 14 fx steps and 7 observations (emission/packing labelled actual-producer; the actor state
-handed to `perceive` is a declared projection of the real fighters plus a declared observer).
+handed to `perceive` is a declared projection of the real fighters plus a declared observer). Setup/actions are recoverable
+from the hashed capture tool; `rawProducerCapture` serializes steps, not the collected action arrays. The corpus is not
+a serialized input-action tape.
 
 - Sword step t=100: raw fx `windup(ms=0)`, `swing`, `block`, two `hit`s, `heal`; packed batch t=100; observed frame
   keeps `windup`, `swing`, `block`, both `hit`s all at t=100 (the heal is below the client's shown threshold and is
@@ -129,8 +133,11 @@ handed to `perceive` is a declared projection of the real fighters plus a declar
 2. Delivered controls: a real melee fight's `Swing` and `Hit` reach the observing human's `Observation` and decoded
    human frames.
 3. Hidden identity/position privacy: two worlds differing only in the pillar-hidden player's action produce equal
-   observations, equal reliable/fx frames byte-for-byte and equal Full snapshot bytes across 20 ticks; the hidden raw id
-   never appears in decoded snapshot actors; the `ItemObserver`-prepared (actor-reference) path carries no hidden raw id.
+   observations, equal decoded reliable/fx messages and equal Full snapshot bytes across 20 ticks through fresh plain
+   Publishers; the hidden raw id never appears in decoded snapshot actors. Separately, one world is projected each tick
+   through a fresh `ItemObserver` and fresh Publisher, and its decoded snapshot has no hidden raw id. That prepared
+   control drops the offer: it does **not** prove committed bindings, persistent retained carry, or paired-world
+   equality through the prepared publication path.
 4. Observation17 JSON has no `alive`/`playerCount`/`minPlayers`/`winner` aggregates; `ArenaView.started_with` is present
    (the fixed public run denominator).
 
@@ -142,13 +149,13 @@ handed to `perceive` is a declared projection of the real fighters plus a declar
 | `playerCount` current rows | `perceive.hud.playerCount` (`players.size`) | absent | **ABSENT native** |
 | `minPlayers` threshold | `perceive.hud.minPlayers`; uint8 schema (modulo-256 on the wire) | room config only (`usize`) | **ABSENT from observation/wire**; representable bounds undecided |
 | `startedWith` fixed denominator | `perceive.hud.startedWith` | `ArenaView.started_with` (lifecycle profiles only) | **PRESENT native** |
-| Winner display name ("" before/draw/nobody; retained after leaving) | `perceive.hud.winner`; `winnerLabel` | `SeenEvent::Ended { winner: PlayerId, draw }`; `WireResult` has no winner name | **DELIBERATELY NARROWER** (id/draw only); durable winner name not evidenced |
+| Winner display name (declared empty/unique/64-character string probes; no lifecycle trace) | `perceive.hud.winner`; `winnerLabel` | `SeenEvent::Ended { winner: PlayerId, draw }`; `WireResult` has no winner name | **DELIBERATELY NARROWER** (id/draw only); winner retention after leaving and durable winner name not evidenced |
 | Held-Tab roster: all synced player rows, identities/kit/dead flags, unsighted | `mapRosterRows` (non-training Active + Tab + results closed) | human wire actors are sight-filtered; no all-row roster projection | **DELIBERATELY NARROWER** (legacy human disclosure surface; roster identities are not carried) |
 | Menu lobby activity: first non-training room, human/bot seats, alive flags, waiting hub | `LobbyStatus.snapshot` | no equivalent projection in the current observation/wire | **ABSENT native** |
 | Event originating step time | `TimedFx.t` = source batch step time, preserved into `ObservedEvent.t` | `SeenEvent` has no timestamp; human catch-up batches carry the final observation tick | **NARROWER/ABSENT**; equivalence not established |
 | Windup event (actual producer → pack → decode → perceive when seen) | legacy fx kind `windup` | `Event::Windup` is `ServerOnly`; no `SeenEvent`/`WireFx` variant | **ABSENT native/wire** (visible windup gap recorded) |
 | Swing / Hit / Block | legacy fx + perception | `SeenEvent` + `WireFx` | **PRESENT native** (controls pass) |
-| Hidden actor identity/coordinate privacy | legacy `perceive` sight-filters fighters/events, but synced state and roster disclose all player rows to clients | observation/wire sight-filtered; ItemObserver presentation refs; hidden absent | **NARROWER native** (no leak; legacy disclosure recorded) |
+| Hidden actor identity/coordinate privacy | legacy `perceive` sight-filters fighters/events, but synced state and roster disclose all player rows to clients | observation/wire sight-filtered; ItemObserver presentation refs; hidden absent | **NARROWER native** (paired plain-frame control; fresh uncommitted prepared snapshot absence only; legacy disclosure recorded) |
 
 ## Remainder and prerequisites (INCOMPLETE)
 
@@ -165,7 +172,11 @@ handed to `perceive` is a declared projection of the real fighters plus a declar
 5. **Native admission is a design decision.** Run-summary aggregates, an all-row public roster, lobby activity and
    event originating times are absent/narrower natively; admitting any needs the lead's transport/observation decision
    and (for aggregates) a reviewed ADR with a named aggregate exception (C-OBS unchanged today).
-6. The three mutants kill source-witness discrimination only; they are not native parity and do not certify any missing
+6. **Prepared publication lifecycle remains unproved by these new tests.** The prepared check uses one world with a
+   fresh observer/Publisher each tick and discards its offer. Committed binding correctness, retained carry and
+   paired-world prepared-frame equality require a separate persistent observer/Publisher control with proper offer
+   commit; no such result is claimed here.
+7. The three mutants kill source-witness discrimination only; they are not native parity and do not certify any missing
    adapter.
 
 ## Constraints honoured
@@ -174,3 +185,16 @@ No production/schema/observation/visibility/protocol/version/policy/Cargo.lock/s
 modified; no invented events, times or identities; no account data, secrets, ML or cloud resources; no privileged test
 seams added (the pre-existing trusted-status-probe feature is only run, unchanged); no merge or push. Verified partial
 handoff: the packet remains INCOMPLETE with the prerequisites above.
+
+## Admission-review repair
+
+The windup-only native control now requires `decoded.fx.is_none()` directly, rather than matching every existing
+`WireFx` variant. Privacy and winner claims above are narrowed to the paths and declared probes actually exercised.
+No source capture, corpus or production behavior changed; this evidence packet remains INCOMPLETE.
+
+Repair verification (isolated base `32ebb94f`, own target directory):
+
+- `cargo test -p rh-server --test percept_witness --locked`: 4 passed, 0 failed.
+- `cargo fmt --all -- --check` and `git diff --check`: passed.
+- Source captures and source mutants were not rerun in this repair; the lead's independently recorded checks above remain
+  their evidence. Only test assertions/comments, evidence documentation and supplemental provenance metadata changed.
