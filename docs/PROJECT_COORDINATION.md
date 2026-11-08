@@ -110,6 +110,13 @@ must be resolved before dependent implementations; release evidence must test th
   Later art work and remaining native candidate/fixture branches stay isolated until their
   reports and focused reviews pass. Preserve their active checkouts and refs.
 
+- Cross-feature private testing found that Sentenced restore assumes only unresisted base-Frost progress and ignores
+  No Commutation/Swift Judgment promotion history. The isolated resistance/tier repair owns that file and tests; actual
+  gameplay arithmetic is unchanged. A separate diagnosed source gap remains: ready unique Gathering Storm folds
+  MarkRate+0.5, source markStep uses markRateOf/chill, but native before_damage currently adds1/chill. Complete that
+  runtime/source-parity/content-registration packet after the restore worker releases the file; do not silently include
+  the missing multiplier in a restore-only claim or broaden history bounds as though it already executes.
+
 ## Completion evidence
 
 The original five full-port gates remain open in the [requirements audit](evidence/stage2-scope-audit/README.md).
