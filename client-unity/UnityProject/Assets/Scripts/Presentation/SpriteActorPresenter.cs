@@ -14,6 +14,9 @@ namespace Roguehalla.Client
             public GameObject Root;
             public SpriteRenderer Body, Shadow, Halo, RuneBack, Rune, Hp, HpBack, Weapon, Status;
             public SpriteRenderer[] StatusIcons;
+            public SpriteRenderer[] SignatureIcons;
+            public SpriteRenderer[] SignatureBackers;
+            public SpriteRenderer UnknownSignature, UnknownSignatureBacker;
             public ShowcasePointLight Light;
             public ShowcaseCatalog.Appearance Appearance;
             public Vector3 LastPosition;
@@ -29,6 +32,16 @@ namespace Roguehalla.Client
         readonly List<uint> _remove = new List<uint>();
         readonly ShowcaseCatalog _catalog;
         int _stamp;
+        const byte KnownSignatureMask = 1 | 2 | 4 | 8 | 64;
+        static readonly byte[] SignatureBits = { 1, 2, 4, 8, 64 };
+        static readonly string[] SignatureSpriteKeys = { "sigil3", "spark", "sigil2", "weapon0", "sigil4" };
+        static readonly Color[] SignatureColors =
+        {
+            ShowcasePalette.Faction((int)FactionId.Frost), ShowcasePalette.Faction((int)FactionId.Fire),
+            ShowcasePalette.Faction((int)FactionId.Plague), ShowcasePalette.Faction((int)FactionId.Sentenced),
+            ShowcasePalette.MutedText
+        };
+        const int UnknownSignatureSlot = 5;
 
         public SpriteActorPresenter(Transform parent, ShowcaseCatalog catalog) { _parent = parent; _catalog = catalog; }
         public bool Contains(uint id) { return _active.ContainsKey(id); }
@@ -82,7 +95,13 @@ namespace Roguehalla.Client
         }
         void Evict(uint id)
         {
-            var art=_active[id];art.Light.SetVisible(false);art.Root.SetActive(false);
+            var art=_active[id];
+            art.Light.SetVisible(false);
+            foreach (var icon in art.SignatureIcons) icon.enabled = false;
+            foreach (var backing in art.SignatureBackers) backing.enabled = false;
+            art.UnknownSignature.enabled = false;
+            art.UnknownSignatureBacker.enabled = false;
+            art.Root.SetActive(false);
             _active.Remove(id);_pool.Push(art);
         }
 
@@ -177,8 +196,11 @@ namespace Roguehalla.Client
             a.Weapon.transform.localRotation = Quaternion.Euler(0, 0, -facing * Mathf.Rad2Deg - 90);
             a.Weapon.transform.localScale = Vector3.one * (weapon == WeaponId.Fists ? .35f : .65f);
             a.Weapon.enabled = !dead;
-            a.Status.enabled = !dead && (effects != 0 || signature != 0);
+            byte unknownSignature = (byte)(signature & ~KnownSignatureMask);
+            bool hasUnknownSignature = unknownSignature != 0;
+            a.Status.enabled = !dead && effects != 0;
             a.Status.sortingOrder = order + 6; a.Status.color = color;
+            a.Status.transform.localPosition = new Vector3(.55f, 1.5f, 0);
             int shown = 0;
             for (int bit = 0; bit < a.StatusIcons.Length; bit++)
             {
@@ -187,6 +209,24 @@ namespace Roguehalla.Client
                 icon.transform.localPosition = new Vector3(-.45f + shown++ * .16f, 2, 0);
                 icon.sortingOrder = order + 7;
             }
+            for (int bit = 0; bit < SignatureBits.Length; bit++)
+            {
+                var icon = a.SignatureIcons[bit];
+                icon.enabled = !dead && (signature & SignatureBits[bit]) != 0;
+                var backing = a.SignatureBackers[bit];
+                backing.enabled = icon.enabled;
+                if (!icon.enabled) continue;
+                icon.transform.localPosition = SignatureSlotPosition(bit);
+                backing.transform.localPosition = SignatureSlotPosition(bit);
+                icon.sortingOrder = order + 8;
+                backing.sortingOrder = order + 7;
+            }
+            a.UnknownSignature.enabled = !dead && hasUnknownSignature;
+            a.UnknownSignatureBacker.enabled = a.UnknownSignature.enabled;
+            a.UnknownSignature.transform.localPosition = SignatureSlotPosition(UnknownSignatureSlot);
+            a.UnknownSignatureBacker.transform.localPosition = SignatureSlotPosition(UnknownSignatureSlot);
+            a.UnknownSignature.sortingOrder = order + 8;
+            a.UnknownSignatureBacker.sortingOrder = order + 7;
             a.Light.Configure(color, local ? .65f : .2f, .3f, 2.4f, .5f, false, true);
             a.Light.SetVisible(!dead && local);
         }
@@ -209,9 +249,41 @@ namespace Roguehalla.Client
             for(int bit=0;bit<a.StatusIcons.Length;bit++)
                 a.StatusIcons[bit] = ShowcaseSprites.Create(t, "Public status bit " + bit, "sigil" + bit%5, 7,
                     bit<3 ? new Color(1,.8f,.4f) : bit<5 ? new Color(.5f,.85f,1) : bit<7 ? new Color(1,.45f,.35f) : new Color(.8f,.7f,1), new Vector2(.14f,.14f), Vector3.zero,false);
+            a.SignatureIcons = new SpriteRenderer[SignatureBits.Length];
+            a.SignatureBackers = new SpriteRenderer[SignatureBits.Length];
+            for (int i = 0; i < a.SignatureIcons.Length; i++)
+            {
+                a.SignatureBackers[i] = ShowcaseSprites.Create(t, SignatureName(SignatureBits[i]) + " backer", "bar", 7,
+                    ShowcasePalette.Panel, new Vector2(.34f, .34f), Vector3.zero, false);
+                a.SignatureIcons[i] = ShowcaseSprites.Create(t, SignatureName(SignatureBits[i]), SignatureSpriteKeys[i], 8,
+                    SignatureColors[i], new Vector2(.3f, .3f), Vector3.zero, false);
+            }
+            a.UnknownSignatureBacker = ShowcaseSprites.Create(t, "Unknown signature backer", "bar", 7,
+                ShowcasePalette.Panel, new Vector2(.34f, .34f), Vector3.zero, false);
+            a.UnknownSignature = ShowcaseSprites.Create(t, "Unknown signature", "rune", 8,
+                ShowcasePalette.MutedText, new Vector2(.3f, .3f), Vector3.zero, false);
+            foreach (var icon in a.SignatureIcons) icon.enabled = false;
+            foreach (var backing in a.SignatureBackers) backing.enabled = false;
+            a.UnknownSignature.enabled = false;
+            a.UnknownSignatureBacker.enabled = false;
             a.Light = ShowcaseSprites.CreateLight(t, "Observed local accent", new Vector3(0, .6f, -1));
             a.Light.Configure(Color.white, .2f, .3f, 2.4f, .5f, false, true);
             return a;
+        }
+
+        static Vector3 SignatureSlotPosition(int slot) { return new Vector3(-.9f + slot * .36f, 2.4f, 0); }
+
+        static string SignatureName(byte bit)
+        {
+            switch (bit)
+            {
+                case 1: return "Signature chilled (1)";
+                case 2: return "Signature burning (2)";
+                case 4: return "Signature diseased (4)";
+                case 8: return "Signature execute (8)";
+                case 64: return "Signature execute-blocked (64)";
+                default: return "Signature unknown";
+            }
         }
     }
 }
