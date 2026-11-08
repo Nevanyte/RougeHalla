@@ -540,7 +540,7 @@
     },
     {
       "path": "tools/card-runtime-witness-fixtures/capture.mts",
-      "sha256": "09796001fc5033499ff481402db5b1e3a5ff1b7b1d2fccc13e46f6efbcc576a2"
+      "sha256": "a67e3c151af164e7a1dd44ae6162bd998f67fbcc265a36c461e21a08bd391d24"
     },
     {
       "path": "tools/card-runtime-witness-fixtures/capture.sh",
@@ -658,6 +658,29 @@
     "acceptedCoordinatorSha256": "d0fa1b753a7016e07c9bb3b3db4ae55ef483df176c343296c80e2c8756ba5ed8",
     "scope": "documentation-only coordinator corrections: marker sampling does not imply identical Worlds; original recursive reason-strip comparison caveat; individual SlowBurn/Gambler assertion wording and Fire damage description. No executable/map/corpus semantics change."
   },
+  "acceptedProvenanceOverlay": [
+    {
+      "path": "parity/card-runtime/source.json",
+      "originalSha256": "c2e5d1a071f3f7a05a6c3e8bf46fbdba8f0c7ae47d4de1aea8e62a1726ecd019",
+      "effectiveSha256": "80516466ca231b88d16cd0d187f90260f141042ba59b37322b99016ebcae33e1",
+      "scope": "metadata-only runtime provenance overlay: custom catalog immutable reference hash and runtime capture harness pin changed, plus the acceptedProvenanceOverlay record; all 65 witness cases/cleanControls/comparison/privateOracleRecords/controlCorrection unchanged",
+      "evidence": "docs/evidence/ci-card-runtime-provenance/README.md"
+    },
+    {
+      "path": "parity/card-runtime/INPUT_SHA256.json",
+      "originalSha256": "2ea71ac15addc60e406aebbb7defedf8492c135d0a787a15808b69e4bc34d39a",
+      "effectiveSha256": "84ffcc7ff49536cc0d1d542a25f42994b68c049f28877d9375da08aa73186e79",
+      "scope": "metadata-only runtime input inventory overlay: the same accepted catalog reference/harness/overlay metadata; sourceInputs and inventory semantics unchanged",
+      "evidence": "docs/evidence/ci-card-runtime-provenance/README.md"
+    },
+    {
+      "path": "tools/card-runtime-fixtures/capture.mts",
+      "originalSha256": "24df22055a3c77b75e01b478d04a477a57690d7f71220916d0816551102fff9e",
+      "effectiveSha256": "5ca446a1934846ffa14e561a10b06230b55a73f924d7853c5c9ecec79b13857d",
+      "scope": "narrow accepted-provenance overlay implementation in the pinned runtime capture tool only (catalog reference check + overlay metadata record); executable engine/cases/inspection/controls unchanged",
+      "evidence": "docs/evidence/ci-card-runtime-provenance/README.md"
+    }
+  ],
   "actualPinnedInputs": [
     {
       "path": "parity/card-runtime/ATTEMPTS.json",
@@ -668,10 +691,16 @@
     },
     {
       "path": "parity/card-runtime/INPUT_SHA256.json",
-      "bytes": 23376,
-      "sha256": "2ea71ac15addc60e406aebbb7defedf8492c135d0a787a15808b69e4bc34d39a",
+      "bytes": 24239,
+      "sha256": "84ffcc7ff49536cc0d1d542a25f42994b68c049f28877d9375da08aa73186e79",
       "frozenOriginalSha256": "2ea71ac15addc60e406aebbb7defedf8492c135d0a787a15808b69e4bc34d39a",
-      "docOverlayApplied": false
+      "docOverlayApplied": false,
+      "acceptedProvenanceOverlayApplied": true,
+      "acceptedProvenanceOverlay": {
+        "originalSha256": "2ea71ac15addc60e406aebbb7defedf8492c135d0a787a15808b69e4bc34d39a",
+        "effectiveSha256": "84ffcc7ff49536cc0d1d542a25f42994b68c049f28877d9375da08aa73186e79",
+        "evidence": "docs/evidence/ci-card-runtime-provenance/README.md"
+      }
     },
     {
       "path": "parity/card-runtime/README.md",
@@ -682,10 +711,16 @@
     },
     {
       "path": "parity/card-runtime/source.json",
-      "bytes": 53033468,
-      "sha256": "c2e5d1a071f3f7a05a6c3e8bf46fbdba8f0c7ae47d4de1aea8e62a1726ecd019",
+      "bytes": 53034288,
+      "sha256": "80516466ca231b88d16cd0d187f90260f141042ba59b37322b99016ebcae33e1",
       "frozenOriginalSha256": "c2e5d1a071f3f7a05a6c3e8bf46fbdba8f0c7ae47d4de1aea8e62a1726ecd019",
-      "docOverlayApplied": false
+      "docOverlayApplied": false,
+      "acceptedProvenanceOverlayApplied": true,
+      "acceptedProvenanceOverlay": {
+        "originalSha256": "c2e5d1a071f3f7a05a6c3e8bf46fbdba8f0c7ae47d4de1aea8e62a1726ecd019",
+        "effectiveSha256": "80516466ca231b88d16cd0d187f90260f141042ba59b37322b99016ebcae33e1",
+        "evidence": "docs/evidence/ci-card-runtime-provenance/README.md"
+      }
     },
     {
       "path": "tools/card-runtime-fixtures/assertions.mts",
@@ -703,10 +738,16 @@
     },
     {
       "path": "tools/card-runtime-fixtures/capture.mts",
-      "bytes": 6091,
-      "sha256": "24df22055a3c77b75e01b478d04a477a57690d7f71220916d0816551102fff9e",
+      "bytes": 6927,
+      "sha256": "5ca446a1934846ffa14e561a10b06230b55a73f924d7853c5c9ecec79b13857d",
       "frozenOriginalSha256": "24df22055a3c77b75e01b478d04a477a57690d7f71220916d0816551102fff9e",
-      "docOverlayApplied": false
+      "docOverlayApplied": false,
+      "acceptedProvenanceOverlayApplied": true,
+      "acceptedProvenanceOverlay": {
+        "originalSha256": "24df22055a3c77b75e01b478d04a477a57690d7f71220916d0816551102fff9e",
+        "effectiveSha256": "5ca446a1934846ffa14e561a10b06230b55a73f924d7853c5c9ecec79b13857d",
+        "evidence": "docs/evidence/ci-card-runtime-provenance/README.md"
+      }
     },
     {
       "path": "tools/card-runtime-fixtures/capture.sh",
