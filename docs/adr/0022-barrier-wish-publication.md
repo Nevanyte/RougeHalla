@@ -75,6 +75,21 @@ Existing tags/bits stay fixed; v11 fixtures remain immutable. The following rese
 | Full actor mask |9 barrier-share/ring pair |
 | Delta actor mask |12 barrier-share/ring pair |
 
+New optional payloads use a strict0/1 byte, followed by the value only for1; reject other flags without globally
+tightening older option readers. Exact new payload order (existing endian/varint conventions apply):
+
+| Record | Bytes after its tag |
+|---|---|
+| Cast16 | slot u8, x f32, y f32, opt actor FIXED u32, opt time f64, opt seq u8 |
+| Started6 | event_time f64, caster VARINT u32, ability u8, duration f64, opt target VARINT u32, opt anchor |
+| Landed7 | event_time f64, ability u8, opt caster VARINT u32, opt target VARINT u32, opt anchor, opt destination |
+| Ended8 | event_time f64, caster VARINT u32, ability u8, reason u8 |
+
+A point is quantized u16 x then u16 y. Every required/present actor ID is nonzero. Each point/actor/time/order option
+has its own strict tag. New self payloads follow all existing self fields: Wish then barrier/ring. The existing phase
+payload follows self as before, then the global source-time override, then actor-count/changed-count. This applies to
+both Full and Delta. Training stays flag-only. The time bit is never a self-field bit and works with self absent.
+
 Owner barrier is f32 plus ring u8. Actor barrier is integer percent derived from twentieth steps, plus ring u8. Ring is
 0..8 and bar percent0..100; independently rounded shares may total105%. Preserve negative-zero owner bits. Full defaults
 are absent Wish/zero barrier/zero ring. Delta groups transmit changes to zero/None; new actors/full/resync/session/pool
@@ -82,7 +97,8 @@ resets restore those defaults. Wish Full bit denotes Some; its Delta group has a
 No new reliable collection key or item binding is needed.
 
 Wish record fields: ability u8; ready_at f64; optional full_at f64; max_charges u8; recharge_ms f64; charges u8; optional
-next_charge_at f64; optional cast {ability u8, started_at f64, lands_at f64}. Use canonical closed ability codes0..4.
+next_charge_at f64; optional cast {ability u8, started_at f64, lands_at f64}. This listed order is the record byte order.
+Every inner option is strict0/1. Use canonical closed ability codes0..4 and max_charges1..2, with charges<=max_charges.
 Reject unknown fields/flags, nonfinite/negative clock or duration values, out-of-range counts, count>max and malformed
 cast ordering. Do not duplicate cooldown/gameplay formulas in a decoder. Actual zero-duration/stock edge semantics must
 be witnessed from the authoritative helper, not inferred. Source reason mapping is the closed table above.
