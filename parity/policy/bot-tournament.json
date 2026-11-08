@@ -18,8 +18,8 @@
    "packages/shared/src/rng.ts": "412bdcee4a5adcb6163bff3561cb4a07eff423dc7e30e9ba0694cb41b05b1bec"
   },
   "sourceTree": "bf621f3b2df0733584dd34b3b8b59bdc6c53b211e33f4317fe98af549b0e72ba",
-  "tool": "e74308a4deddca0fdffaf95913cfc66deeb0f2cfcd30783ff6914df3b04df156",
-  "captureSha256": "94c72584d125d30b0b7af354fbf955e161abeab992b6b2adc30c09fe357c5610"
+  "tool": "3a8bde247d7a3b27760b4754fa8e579d832ca4ae8be3e7c36e59db1ca16c9222",
+  "captureSha256": "2de94028bdae6f408b8e40b0e225d91523ef8a018ee9ef34bb74c63e9ef73125"
  },
  "constants": {
   "MAX_GAME_MS": 720000,
@@ -17867,6 +17867,864 @@
     "hard"
    ],
    "error": null
+  }
+ ],
+ "parseArgs": [
+  {
+   "argv": [],
+   "expected": {
+    "games": 400,
+    "workers": 6,
+    "tiers": [
+     "easy",
+     "easy",
+     "normal",
+     "normal",
+     "hard",
+     "hard"
+    ],
+    "seed": 1,
+    "learn": true,
+    "persona": "mix",
+    "faction": "mix",
+    "json": null,
+    "maxMinutes": 12,
+    "patience": null,
+    "sudden": null,
+    "latencyMs": null,
+    "jitterMs": null,
+    "tune": null,
+    "quiet": false,
+    "help": false,
+    "telemetryDir": null
+   },
+   "error": null
+  },
+  {
+   "argv": [
+    "--games",
+    "5"
+   ],
+   "expected": {
+    "games": 5,
+    "workers": 6,
+    "tiers": [
+     "easy",
+     "easy",
+     "normal",
+     "normal",
+     "hard",
+     "hard"
+    ],
+    "seed": 1,
+    "learn": true,
+    "persona": "mix",
+    "faction": "mix",
+    "json": null,
+    "maxMinutes": 12,
+    "patience": null,
+    "sudden": null,
+    "latencyMs": null,
+    "jitterMs": null,
+    "tune": null,
+    "quiet": false,
+    "help": false,
+    "telemetryDir": null
+   },
+   "error": null
+  },
+  {
+   "argv": [
+    "--games=5",
+    "--seed=7",
+    "--lineup",
+    "e,n"
+   ],
+   "expected": {
+    "games": 5,
+    "workers": 6,
+    "tiers": [
+     "easy",
+     "normal"
+    ],
+    "seed": 7,
+    "learn": true,
+    "persona": "mix",
+    "faction": "mix",
+    "json": null,
+    "maxMinutes": 12,
+    "patience": null,
+    "sudden": null,
+    "latencyMs": null,
+    "jitterMs": null,
+    "tune": null,
+    "quiet": false,
+    "help": false,
+    "telemetryDir": null
+   },
+   "error": null
+  },
+  {
+   "argv": [
+    "--lineup",
+    "easy,normal,hard"
+   ],
+   "expected": {
+    "games": 400,
+    "workers": 6,
+    "tiers": [
+     "easy",
+     "normal",
+     "hard"
+    ],
+    "seed": 1,
+    "learn": true,
+    "persona": "mix",
+    "faction": "mix",
+    "json": null,
+    "maxMinutes": 12,
+    "patience": null,
+    "sudden": null,
+    "latencyMs": null,
+    "jitterMs": null,
+    "tune": null,
+    "quiet": false,
+    "help": false,
+    "telemetryDir": null
+   },
+   "error": null
+  },
+  {
+   "argv": [
+    "--learn",
+    "OFF"
+   ],
+   "expected": {
+    "games": 400,
+    "workers": 6,
+    "tiers": [
+     "easy",
+     "easy",
+     "normal",
+     "normal",
+     "hard",
+     "hard"
+    ],
+    "seed": 1,
+    "learn": false,
+    "persona": "mix",
+    "faction": "mix",
+    "json": null,
+    "maxMinutes": 12,
+    "patience": null,
+    "sudden": null,
+    "latencyMs": null,
+    "jitterMs": null,
+    "tune": null,
+    "quiet": false,
+    "help": false,
+    "telemetryDir": null
+   },
+   "error": null
+  },
+  {
+   "argv": [
+    "--learn=on"
+   ],
+   "expected": {
+    "games": 400,
+    "workers": 6,
+    "tiers": [
+     "easy",
+     "easy",
+     "normal",
+     "normal",
+     "hard",
+     "hard"
+    ],
+    "seed": 1,
+    "learn": true,
+    "persona": "mix",
+    "faction": "mix",
+    "json": null,
+    "maxMinutes": 12,
+    "patience": null,
+    "sudden": null,
+    "latencyMs": null,
+    "jitterMs": null,
+    "tune": null,
+    "quiet": false,
+    "help": false,
+    "telemetryDir": null
+   },
+   "error": null
+  },
+  {
+   "argv": [
+    "--persona",
+    "hunter"
+   ],
+   "expected": {
+    "games": 400,
+    "workers": 6,
+    "tiers": [
+     "easy",
+     "easy",
+     "normal",
+     "normal",
+     "hard",
+     "hard"
+    ],
+    "seed": 1,
+    "learn": true,
+    "persona": "hunter",
+    "faction": "mix",
+    "json": null,
+    "maxMinutes": 12,
+    "patience": null,
+    "sudden": null,
+    "latencyMs": null,
+    "jitterMs": null,
+    "tune": null,
+    "quiet": false,
+    "help": false,
+    "telemetryDir": null
+   },
+   "error": null
+  },
+  {
+   "argv": [
+    "--persona",
+    "mix"
+   ],
+   "expected": {
+    "games": 400,
+    "workers": 6,
+    "tiers": [
+     "easy",
+     "easy",
+     "normal",
+     "normal",
+     "hard",
+     "hard"
+    ],
+    "seed": 1,
+    "learn": true,
+    "persona": "mix",
+    "faction": "mix",
+    "json": null,
+    "maxMinutes": 12,
+    "patience": null,
+    "sudden": null,
+    "latencyMs": null,
+    "jitterMs": null,
+    "tune": null,
+    "quiet": false,
+    "help": false,
+    "telemetryDir": null
+   },
+   "error": null
+  },
+  {
+   "argv": [
+    "--faction",
+    "Frost"
+   ],
+   "expected": {
+    "games": 400,
+    "workers": 6,
+    "tiers": [
+     "easy",
+     "easy",
+     "normal",
+     "normal",
+     "hard",
+     "hard"
+    ],
+    "seed": 1,
+    "learn": true,
+    "persona": "mix",
+    "faction": "frost",
+    "json": null,
+    "maxMinutes": 12,
+    "patience": null,
+    "sudden": null,
+    "latencyMs": null,
+    "jitterMs": null,
+    "tune": null,
+    "quiet": false,
+    "help": false,
+    "telemetryDir": null
+   },
+   "error": null
+  },
+  {
+   "argv": [
+    "--json",
+    "out.json",
+    "--quiet"
+   ],
+   "expected": {
+    "games": 400,
+    "workers": 6,
+    "tiers": [
+     "easy",
+     "easy",
+     "normal",
+     "normal",
+     "hard",
+     "hard"
+    ],
+    "seed": 1,
+    "learn": true,
+    "persona": "mix",
+    "faction": "mix",
+    "json": "out.json",
+    "maxMinutes": 12,
+    "patience": null,
+    "sudden": null,
+    "latencyMs": null,
+    "jitterMs": null,
+    "tune": null,
+    "quiet": true,
+    "help": false,
+    "telemetryDir": null
+   },
+   "error": null
+  },
+  {
+   "argv": [
+    "--max-minutes",
+    "3.5"
+   ],
+   "expected": {
+    "games": 400,
+    "workers": 6,
+    "tiers": [
+     "easy",
+     "easy",
+     "normal",
+     "normal",
+     "hard",
+     "hard"
+    ],
+    "seed": 1,
+    "learn": true,
+    "persona": "mix",
+    "faction": "mix",
+    "json": null,
+    "maxMinutes": 3.5,
+    "patience": null,
+    "sudden": null,
+    "latencyMs": null,
+    "jitterMs": null,
+    "tune": null,
+    "quiet": false,
+    "help": false,
+    "telemetryDir": null
+   },
+   "error": null
+  },
+  {
+   "argv": [
+    "--patience",
+    "60",
+    "--sudden",
+    "15"
+   ],
+   "expected": {
+    "games": 400,
+    "workers": 6,
+    "tiers": [
+     "easy",
+     "easy",
+     "normal",
+     "normal",
+     "hard",
+     "hard"
+    ],
+    "seed": 1,
+    "learn": true,
+    "persona": "mix",
+    "faction": "mix",
+    "json": null,
+    "maxMinutes": 12,
+    "patience": 60,
+    "sudden": 15,
+    "latencyMs": null,
+    "jitterMs": null,
+    "tune": null,
+    "quiet": false,
+    "help": false,
+    "telemetryDir": null
+   },
+   "error": null
+  },
+  {
+   "argv": [
+    "--latency",
+    "30",
+    "--jitter",
+    "8"
+   ],
+   "expected": {
+    "games": 400,
+    "workers": 6,
+    "tiers": [
+     "easy",
+     "easy",
+     "normal",
+     "normal",
+     "hard",
+     "hard"
+    ],
+    "seed": 1,
+    "learn": true,
+    "persona": "mix",
+    "faction": "mix",
+    "json": null,
+    "maxMinutes": 12,
+    "patience": null,
+    "sudden": null,
+    "latencyMs": 30,
+    "jitterMs": 8,
+    "tune": null,
+    "quiet": false,
+    "help": false,
+    "telemetryDir": null
+   },
+   "error": null
+  },
+  {
+   "argv": [
+    "--telemetry",
+    "dir"
+   ],
+   "expected": {
+    "games": 400,
+    "workers": 6,
+    "tiers": [
+     "easy",
+     "easy",
+     "normal",
+     "normal",
+     "hard",
+     "hard"
+    ],
+    "seed": 1,
+    "learn": true,
+    "persona": "mix",
+    "faction": "mix",
+    "json": null,
+    "maxMinutes": 12,
+    "patience": null,
+    "sudden": null,
+    "latencyMs": null,
+    "jitterMs": null,
+    "tune": null,
+    "quiet": false,
+    "help": false,
+    "telemetryDir": "dir"
+   },
+   "error": null
+  },
+  {
+   "argv": [
+    "--telemetry-dir=dir2"
+   ],
+   "expected": {
+    "games": 400,
+    "workers": 6,
+    "tiers": [
+     "easy",
+     "easy",
+     "normal",
+     "normal",
+     "hard",
+     "hard"
+    ],
+    "seed": 1,
+    "learn": true,
+    "persona": "mix",
+    "faction": "mix",
+    "json": null,
+    "maxMinutes": 12,
+    "patience": null,
+    "sudden": null,
+    "latencyMs": null,
+    "jitterMs": null,
+    "tune": null,
+    "quiet": false,
+    "help": false,
+    "telemetryDir": "dir2"
+   },
+   "error": null
+  },
+  {
+   "argv": [
+    "--tune",
+    "{\"tiers\":{\"easy\":{\"knowledge\":0.95}}}"
+   ],
+   "expected": {
+    "games": 400,
+    "workers": 6,
+    "tiers": [
+     "easy",
+     "easy",
+     "normal",
+     "normal",
+     "hard",
+     "hard"
+    ],
+    "seed": 1,
+    "learn": true,
+    "persona": "mix",
+    "faction": "mix",
+    "json": null,
+    "maxMinutes": 12,
+    "patience": null,
+    "sudden": null,
+    "latencyMs": null,
+    "jitterMs": null,
+    "tune": {
+     "tiers": {
+      "easy": {
+       "knowledge": 0.95
+      }
+     }
+    },
+    "quiet": false,
+    "help": false,
+    "telemetryDir": null
+   },
+   "error": null
+  },
+  {
+   "argv": [
+    "--workers",
+    "2"
+   ],
+   "expected": {
+    "games": 400,
+    "workers": 2,
+    "tiers": [
+     "easy",
+     "easy",
+     "normal",
+     "normal",
+     "hard",
+     "hard"
+    ],
+    "seed": 1,
+    "learn": true,
+    "persona": "mix",
+    "faction": "mix",
+    "json": null,
+    "maxMinutes": 12,
+    "patience": null,
+    "sudden": null,
+    "latencyMs": null,
+    "jitterMs": null,
+    "tune": null,
+    "quiet": false,
+    "help": false,
+    "telemetryDir": null
+   },
+   "error": null
+  },
+  {
+   "argv": [
+    "--",
+    "--games",
+    "2"
+   ],
+   "expected": {
+    "games": 2,
+    "workers": 6,
+    "tiers": [
+     "easy",
+     "easy",
+     "normal",
+     "normal",
+     "hard",
+     "hard"
+    ],
+    "seed": 1,
+    "learn": true,
+    "persona": "mix",
+    "faction": "mix",
+    "json": null,
+    "maxMinutes": 12,
+    "patience": null,
+    "sudden": null,
+    "latencyMs": null,
+    "jitterMs": null,
+    "tune": null,
+    "quiet": false,
+    "help": false,
+    "telemetryDir": null
+   },
+   "error": null
+  },
+  {
+   "argv": [
+    "--help"
+   ],
+   "expected": {
+    "games": 400,
+    "workers": 6,
+    "tiers": [
+     "easy",
+     "easy",
+     "normal",
+     "normal",
+     "hard",
+     "hard"
+    ],
+    "seed": 1,
+    "learn": true,
+    "persona": "mix",
+    "faction": "mix",
+    "json": null,
+    "maxMinutes": 12,
+    "patience": null,
+    "sudden": null,
+    "latencyMs": null,
+    "jitterMs": null,
+    "tune": null,
+    "quiet": false,
+    "help": true,
+    "telemetryDir": null
+   },
+   "error": null
+  },
+  {
+   "argv": [
+    "--games",
+    "0"
+   ],
+   "expected": null,
+   "error": "--games needs an integer of at least 1, got \"0\""
+  },
+  {
+   "argv": [
+    "--games",
+    "1.5"
+   ],
+   "expected": null,
+   "error": "--games needs an integer of at least 1, got \"1.5\""
+  },
+  {
+   "argv": [
+    "--games"
+   ],
+   "expected": null,
+   "error": "--games needs a value"
+  },
+  {
+   "argv": [
+    "--learn",
+    "maybe"
+   ],
+   "expected": null,
+   "error": "--learn takes on or off, got \"maybe\""
+  },
+  {
+   "argv": [
+    "--persona",
+    "nope"
+   ],
+   "expected": null,
+   "error": "--persona takes mix or one of farmer, hunter, opportunist, cautious, got \"nope\""
+  },
+  {
+   "argv": [
+    "--faction",
+    "nope"
+   ],
+   "expected": null,
+   "error": "--faction takes mix or one of fire, sentenced, plague, frost, holy, got \"nope\""
+  },
+  {
+   "argv": [
+    "--unknown"
+   ],
+   "expected": null,
+   "error": "unknown option \"--unknown\""
+  },
+  {
+   "argv": [
+    "--max-minutes",
+    "0"
+   ],
+   "expected": null,
+   "error": "--max-minutes needs a number of at least 0.1, got \"0\""
+  },
+  {
+   "argv": [
+    "--seed",
+    "-1"
+   ],
+   "expected": null,
+   "error": "--seed needs an integer of at least 0, got \"-1\""
+  }
+ ],
+ "planOf": [
+  {
+   "argv": [],
+   "expected": {
+    "games": 400,
+    "seed": 1,
+    "tiers": [
+     "easy",
+     "easy",
+     "normal",
+     "normal",
+     "hard",
+     "hard"
+    ],
+    "persona": "mix",
+    "faction": "mix",
+    "learn": true,
+    "maxSimMs": 720000
+   }
+  },
+  {
+   "argv": [
+    "--games",
+    "2",
+    "--lineup",
+    "h,h,n,e"
+   ],
+   "expected": {
+    "games": 2,
+    "seed": 1,
+    "tiers": [
+     "hard",
+     "hard",
+     "normal",
+     "easy"
+    ],
+    "persona": "mix",
+    "faction": "mix",
+    "learn": true,
+    "maxSimMs": 720000
+   }
+  },
+  {
+   "argv": [
+    "--seed",
+    "99",
+    "--persona",
+    "farmer",
+    "--faction",
+    "holy"
+   ],
+   "expected": {
+    "games": 400,
+    "seed": 99,
+    "tiers": [
+     "easy",
+     "easy",
+     "normal",
+     "normal",
+     "hard",
+     "hard"
+    ],
+    "persona": "farmer",
+    "faction": "holy",
+    "learn": true,
+    "maxSimMs": 720000
+   }
+  },
+  {
+   "argv": [
+    "--patience",
+    "60",
+    "--sudden",
+    "15"
+   ],
+   "expected": {
+    "games": 400,
+    "seed": 1,
+    "tiers": [
+     "easy",
+     "easy",
+     "normal",
+     "normal",
+     "hard",
+     "hard"
+    ],
+    "persona": "mix",
+    "faction": "mix",
+    "learn": true,
+    "maxSimMs": 720000,
+    "config": {
+     "patienceSeconds": 60,
+     "patienceMinSeconds": 24,
+     "suddenDeathSeconds": 15
+    }
+   }
+  },
+  {
+   "argv": [
+    "--latency",
+    "30",
+    "--jitter",
+    "8",
+    "--telemetry",
+    "runs"
+   ],
+   "expected": {
+    "games": 400,
+    "seed": 1,
+    "tiers": [
+     "easy",
+     "easy",
+     "normal",
+     "normal",
+     "hard",
+     "hard"
+    ],
+    "persona": "mix",
+    "faction": "mix",
+    "learn": true,
+    "maxSimMs": 720000,
+    "latencyMs": 30,
+    "jitterMs": 8,
+    "telemetryDir": "runs"
+   }
+  },
+  {
+   "argv": [
+    "--tune",
+    "{\"tiers\":{\"hard\":{\"knowledge\":1}}}",
+    "--max-minutes",
+    "2"
+   ],
+   "expected": {
+    "games": 400,
+    "seed": 1,
+    "tiers": [
+     "easy",
+     "easy",
+     "normal",
+     "normal",
+     "hard",
+     "hard"
+    ],
+    "persona": "mix",
+    "faction": "mix",
+    "learn": true,
+    "maxSimMs": 120000,
+    "tune": {
+     "tiers": {
+      "hard": {
+       "knowledge": 1
+      }
+     }
+    }
+   }
   }
  ]
 }

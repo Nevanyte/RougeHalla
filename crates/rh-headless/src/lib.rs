@@ -5,6 +5,7 @@
 
 pub mod digest;
 pub mod tournament;
+pub mod tournament_cli;
 
 use rh_policy::{drive_seats_with, scripted, submit_all, MatchStart, Policy, Seat, SeatStats};
 use rh_sim::replay::{Recorder, Replay, ReplayInput, ReplayStart};

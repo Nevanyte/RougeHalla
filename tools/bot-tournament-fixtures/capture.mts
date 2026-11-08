@@ -7,7 +7,7 @@ import {readFileSync, writeFileSync, readdirSync} from 'node:fs';
 import {join} from 'node:path';
 import {wilson, percentile, meanInterval, tableReactionMean, aggregate} from '/repo/packages/server/src/bots/tournament/report.ts';
 import {mix, dealEvenly, planGame} from '/repo/packages/server/src/bots/tournament/worker.ts';
-import {parseLineup, split, defaultWorkers} from '/repo/packages/server/src/bots/tournament/runTournament.ts';
+import {parseLineup, split, defaultWorkers, parseArgs, planOf} from '/repo/packages/server/src/bots/tournament/runTournament.ts';
 import {MAX_GAME_MS} from '/repo/packages/server/src/bots/tournament/game.ts';
 import {HEADLESS_CONFIG} from '/repo/packages/server/src/bots/tournament/headlessRoom.ts';
 import {PERSONA_IDS, TIER_IDS} from '/repo/packages/server/src/bots/brain/types.ts';
@@ -101,6 +101,36 @@ const plans = [
 ];
 const planCases = [];
 for (const plan of plans) for (const index of [0, 1, 2, 3, 7, 8, 11]) planCases.push({plan, index, expected: planGame(plan, index)});
+
+// The CLI surface (runTournament.ts parseArgs/planOf): argv in, the normalized arguments or the plain error message out;
+// then the plan payload each accepted set describes. Fixed cores = 8 so the default worker count is pinned.
+const CORES = 8;
+const normalizeArgs = (a) => ({
+  games: a.games, workers: a.workers, tiers: a.tiers, seed: a.seed, learn: a.learn, persona: a.persona, faction: a.faction,
+  json: a.json, maxMinutes: a.maxMinutes, patience: a.patience, sudden: a.sudden, latencyMs: a.latencyMs, jitterMs: a.jitterMs,
+  tune: a.tune, quiet: a.quiet, help: a.help, telemetryDir: a.telemetryDir,
+});
+const ARGV_CASES = [
+  [], ['--games', '5'], ['--games=5', '--seed=7', '--lineup', 'e,n'], ['--lineup', 'easy,normal,hard'],
+  ['--learn', 'OFF'], ['--learn=on'], ['--persona', 'hunter'], ['--persona', 'mix'], ['--faction', 'Frost'],
+  ['--json', 'out.json', '--quiet'], ['--max-minutes', '3.5'], ['--patience', '60', '--sudden', '15'],
+  ['--latency', '30', '--jitter', '8'], ['--telemetry', 'dir'], ['--telemetry-dir=dir2'],
+  ['--tune', '{"tiers":{"easy":{"knowledge":0.95}}}'], ['--workers', '2'], ['--', '--games', '2'], ['--help'],
+  ['--games', '0'], ['--games', '1.5'], ['--games'], ['--learn', 'maybe'], ['--persona', 'nope'],
+  ['--faction', 'nope'], ['--unknown'], ['--max-minutes', '0'], ['--seed', '-1'],
+];
+const argsCases = [];
+for (const argv of ARGV_CASES) {
+  try { argsCases.push({argv, expected: normalizeArgs(parseArgs(argv, CORES)), error: null}); }
+  catch (err) { argsCases.push({argv, expected: null, error: err.message}); }
+}
+const planCases2 = [];
+for (const argv of [[], ['--games', '2', '--lineup', 'h,h,n,e'], ['--seed', '99', '--persona', 'farmer', '--faction', 'holy'],
+  ['--patience', '60', '--sudden', '15'], ['--latency', '30', '--jitter', '8', '--telemetry', 'runs'],
+  ['--tune', '{"tiers":{"hard":{"knowledge":1}}}', '--max-minutes', '2']]) {
+  planCases2.push({argv, expected: planOf(parseArgs(argv, CORES))});
+}
+
 const splitCases = [];
 for (const [games, workers] of [[400, 6], [5, 3], [2, 8], [1, 1], [3, 10], [7, 4]]) splitCases.push({games, workers, expected: split(games, workers)});
 const workerCases = [];
@@ -158,13 +188,16 @@ const corpus = {
   split: splitCases,
   defaultWorkers: workerCases,
   parseLineup: lineupCases,
+  parseArgs: argsCases,
+  planOf: planCases2,
 };
 corpus.profile.captureSha256 = createHash('sha256').update(JSON.stringify(corpus)).digest('hex');
 const out = JSON.stringify(corpus, null, 1) + String.fromCharCode(10);
 if (args[0] === '--write') {
   writeFileSync(outPath, out);
   console.log('captured ' + (wilsonCases.length + percentileCases.length + meanCases.length + reactionCases.length + aggregateCases.length
-    + mixCases.length + dealCases.length + planCases.length + splitCases.length + workerCases.length + lineupCases.length) + ' cases');
+    + mixCases.length + dealCases.length + planCases.length + splitCases.length + workerCases.length + lineupCases.length
+    + argsCases.length + planCases2.length) + ' cases');
 } else {
   assert.equal(readFileSync(outPath, 'utf8'), out, 'the checked-in tournament corpus differs from the source capture');
   console.log('tournament corpus matches: ' + outPath);

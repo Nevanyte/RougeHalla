@@ -91,6 +91,25 @@ pub struct TournamentPlan {
     pub faction: FactionChoice,
     /// Simulated-time cap of one game, since its raid started (0 or less means MAX_GAME_MS).
     pub max_sim_ms: f64,
+    /// Worker count the plan is split across the plan is split across (the runner plays them in order in one thread; the report
+    /// meta keeps the source number).
+    pub workers: u32,
+    /// The bots' learning store: absent in this port (P-BOTS-5); the source meta still prints it.
+    pub learn: bool,
+    /// Patience seconds at a full lobby, scaling to 40% (source planOf config.patienceSeconds; None = the headless
+    /// defaults).
+    pub patience_seconds: Option<f64>,
+    /// Sudden death seconds (source planOf config.suddenDeathSeconds; None = the headless default).
+    pub sudden_death_seconds: Option<f64>,
+    /// One-way latency and jitter of the bots' commands: parsed and carried for the source plan payload; the ported
+    /// runner has no simulated latency (P-BOTS-6 remainder item 4).
+    pub latency_ms: Option<f64>,
+    pub jitter_ms: Option<f64>,
+    /// The source tune.ts table patch: parsed and carried; the ported runner refuses to run a diagnostic it cannot apply.
+    pub tune: Option<serde_json::Value>,
+    /// Write every game's reduced summary NDJSON to this directory (the source telemetry record is the P-BOTS-6
+    /// remainder item 3; this is the ported telemetry surface).
+    pub telemetry_dir: Option<String>,
 }
 
 impl Default for TournamentPlan {
@@ -102,6 +121,14 @@ impl Default for TournamentPlan {
             persona: PersonaChoice::Mix,
             faction: FactionChoice::Mix,
             max_sim_ms: MAX_GAME_MS,
+            workers: 1,
+            learn: true,
+            patience_seconds: None,
+            sudden_death_seconds: None,
+            latency_ms: None,
+            jitter_ms: None,
+            tune: None,
+            telemetry_dir: None,
         }
     }
 }
@@ -116,6 +143,14 @@ impl TournamentPlan {
             persona: PersonaChoice::Mix,
             faction: FactionChoice::Mix,
             max_sim_ms,
+            workers: 1,
+            learn: true,
+            patience_seconds: None,
+            sudden_death_seconds: None,
+            latency_ms: None,
+            jitter_ms: None,
+            tune: None,
+            telemetry_dir: None,
         }
     }
 }
@@ -274,6 +309,22 @@ pub fn default_sim_config() -> SimConfig {
         }),
         ..SimConfig::default()
     }
+}
+
+/// The headless sim config a plan asks for: the source plan.config patience/sudden-death overrides over the fixed
+/// headless defaults (a tournament is a pure function of its plan).
+pub fn sim_config_for(plan: &TournamentPlan) -> SimConfig {
+    let mut config = default_sim_config();
+    if let ArenaMode::Source(rules) = &mut config.lifecycle {
+        if let Some(patience) = plan.patience_seconds {
+            rules.patience_seconds = patience;
+            rules.patience_min_seconds = patience * 0.4;
+        }
+        if let Some(sudden) = plan.sudden_death_seconds {
+            rules.sudden_death_seconds = sudden;
+        }
+    }
+    config
 }
 
 /// A bot's outcome in one game: the source RunOutcome, plus the source "capped" for survivors of a cut-off game.
