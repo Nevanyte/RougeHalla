@@ -52,10 +52,9 @@ namespace Roguehalla.Client.Tests
         FakeTransport _transport;
         Keyboard _keyboard;
         Keyboard _previousKeyboard;
+        InputSettings _originalInputSettings, _fixtureInputSettings;
         TMP_InputField _typingField;
         bool _oldToggleMode;
-        InputSettings.BackgroundBehavior _oldBackgroundBehavior;
-        bool _savedBackgroundBehavior;
 
         [SetUp]
         public void SetUp()
@@ -70,12 +69,16 @@ namespace Roguehalla.Client.Tests
             ownedSystem.enabled = true;
             EventSystem.current = ownedSystem;
             Assert.That(EventSystem.current, Is.SameAs(ownedSystem), "test EventSystem must be registered before UI setup");
-            // The Unity package's own IntegrationTests use IgnoreFocus for injected devices: the default
-            // ResetAndDisableNonBackgroundDevices policy can disable a synthetic keyboard when the test runner
-            // has the editor focus, so QueueStateEvent appears to succeed while no key state reaches consumers.
-            _oldBackgroundBehavior = InputSystem.settings.backgroundBehavior;
-            _savedBackgroundBehavior = true;
-            InputSystem.settings.backgroundBehavior = InputSettings.BackgroundBehavior.IgnoreFocus;
+            // EditMode's no-argument InputSystem.Update() normally selects the Editor update. In Input System 1.20,
+            // that path swaps editor buffers without advancing InputDevice.m_CurrentUpdateStepCount, so button edges
+            // fail the wasUpdatedThisFrame guard used by wasPressedThisFrame. Use a temporary settings clone with the
+            // package's supported player-updates-in-EditMode feature enabled, and restore the original settings asset.
+            _originalInputSettings = InputSystem.settings;
+            _fixtureInputSettings = ScriptableObject.Instantiate(_originalInputSettings);
+            _fixtureInputSettings.updateMode = InputSettings.UpdateMode.ProcessEventsInDynamicUpdate;
+            _fixtureInputSettings.backgroundBehavior = InputSettings.BackgroundBehavior.IgnoreFocus;
+            _fixtureInputSettings.SetInternalFeatureFlag("RUN_PLAYER_UPDATES_IN_EDIT_MODE", true);
+            InputSystem.settings = _fixtureInputSettings;
             _previousKeyboard = Keyboard.current;
             _keyboard = InputSystem.AddDevice<Keyboard>();
             _keyboard.MakeCurrent();
@@ -129,20 +132,27 @@ namespace Roguehalla.Client.Tests
         [TearDown]
         public void TearDown()
         {
-            if (_typingField != null) _typingField.DeactivateInputField();
-            if (_ownedEvents != null)
+            try
             {
-                var ownedSystem = _ownedEvents.GetComponent<EventSystem>();
-                if (ownedSystem != null && EventSystem.current == ownedSystem) ownedSystem.SetSelectedGameObject(null);
+                if (_typingField != null) _typingField.DeactivateInputField();
+                if (_ownedEvents != null)
+                {
+                    var ownedSystem = _ownedEvents.GetComponent<EventSystem>();
+                    if (ownedSystem != null && EventSystem.current == ownedSystem) ownedSystem.SetSelectedGameObject(null);
+                }
+                if (_hud != null && _hud.TacticalMap != null) _hud.TacticalMap.SetToggleMode(_oldToggleMode);
+                if (_keyboard != null && _keyboard.added) InputSystem.RemoveDevice(_keyboard);
+                if (_previousKeyboard != null && _previousKeyboard.added) _previousKeyboard.MakeCurrent();
+                if (_root != null) UnityEngine.Object.DestroyImmediate(_root);
+                if (_ownedEvents != null) UnityEngine.Object.DestroyImmediate(_ownedEvents);
+                Assert.That(_previousEvents == null || EventSystem.current == _previousEvents,
+                    "destroying the test EventSystem should restore the previously current system");
             }
-            if (_hud != null && _hud.TacticalMap != null) _hud.TacticalMap.SetToggleMode(_oldToggleMode);
-            if (_keyboard != null && _keyboard.added) InputSystem.RemoveDevice(_keyboard);
-            if (_previousKeyboard != null && _previousKeyboard.added) _previousKeyboard.MakeCurrent();
-            if (_root != null) UnityEngine.Object.DestroyImmediate(_root);
-            if (_ownedEvents != null) UnityEngine.Object.DestroyImmediate(_ownedEvents);
-            if (_savedBackgroundBehavior) InputSystem.settings.backgroundBehavior = _oldBackgroundBehavior;
-            Assert.That(_previousEvents == null || EventSystem.current == _previousEvents,
-                "destroying the test EventSystem should restore the previously current system");
+            finally
+            {
+                if (_originalInputSettings != null) InputSystem.settings = _originalInputSettings;
+                if (_fixtureInputSettings != null) UnityEngine.Object.DestroyImmediate(_fixtureInputSettings);
+            }
         }
 
         Session CreateSession()
@@ -271,6 +281,8 @@ namespace Roguehalla.Client.Tests
             _keyboard.MakeCurrent();
             InputSystem.QueueStateEvent(_keyboard, new KeyboardState(keys));
             InputSystem.Update();
+            Assert.That(InputState.currentUpdateType, Is.EqualTo(InputUpdateType.Dynamic), "input update must use player semantics in EditMode");
+            Assert.That(_keyboard.wasUpdatedThisFrame, Is.True, "player update must advance the device's frame counter");
             Assert.That(Keyboard.current, Is.SameAs(_keyboard), "queued event must target the keyboard consumers read");
             foreach (var key in keys)
             {
