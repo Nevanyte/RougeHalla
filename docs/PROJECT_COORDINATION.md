@@ -41,8 +41,10 @@ Root owns final integration/push and CI; no worker is authorized to rebase main 
 | DeepSeek Rust | Terminal-test633c303c held for backup-arm signal window; giver witness38f6dcaa delivered, separate checker | Bounded new tools/corpus/test/evidence only; no native/shared/wire changes. Root assigns next packet |
 | DeepSeek Post Rust | Human quest/trader public-source witness packet | New quest-public/trade-public tools/corpora/evidence only; no publication policy or runtime authority |
 | Frost specialist | Future96bbe136 with reviewed e38d16c3 sources; Sentenced draft2fa23d95 | Separate26/20 candidate preserves root scratch repair; final content/tapes/admission root-owned. Full/Sentenced and strict5 stay closed |
-| GPT quest owner | Reviewed human eligibility2de68ba5; private native quest observer continuation | Opt-in native prepare/commit seam, no production wire/Observation19 changes. Viewer-lazy nonspatial public participant identities; hidden preview and accepted navigation source entitlements. Shared transport waits for review |
-| Networking chat | Sealed actual browser evidence c4c0563f | Current campaign complete; additive harness/evidence only. Next native/public/account packet comes from root |
+| GPT quest owner | Reviewed human eligibility2de68ba5; private native observer0a866db0 | Opt-in native prepare/commit seam, no production wire/Observation19 changes. Viewer-lazy nonspatial public participant identities; hidden preview and accepted navigation source entitlements. Shared transport waits for review |
+| Networking chat | Browser proof c4c0563f closed; P-NET-2 walk-hint source/native design active | New leaf/captures only until per-tick state/reset/publication leases; no shared version/tag allocation yet |
+| GPT account/durability owner | HTTP→hosted match/spool→profile proof45daa414 delivered; new-file client adapter active | Profile HTTP/credential core and tests; shared Bootstrap/MatchClient/MatchHud need root sequential lease; no cloud mutations |
+| GPT bot owner | Fair-observation reconciliation and lawful policy continuation active | Current19/13 facts first; no new private/public field or shared wire change without root decision |
 | Art chat | Final Web evidence9456aaee and generated Bakedaa64c642 | Build frozen; no new build or visual expansion without concrete root assignment |
 
 Frozen1310 passes fresh830 remaining-workspace tests and separate real-PG332/236 overlapping suites, strict workspace

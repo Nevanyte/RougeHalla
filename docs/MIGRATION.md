@@ -42,7 +42,10 @@ placement postgres+fault236 are separate overlapping feature suites. Both strict
 parity109compared +13capture-only +300paths pass. Simulation coverage remains split by revision, including the earlier
 609 non-map prefix and later affected checks; unchanged191 map units were not repeated locally. Rust protocol93,
 C#399, JS18,205 and actual pinned Editor62 tests pass at their recorded source identities. These are not an inflated
-single full-workspace count. CI for the new admitted union follows its push; older green runs are historical evidence.
+single full-workspace count. CI42517747299 at70579162 exposed a stale training observation18 guard and one stale protected protocol13 JS-checker
+metadata pin in the card-catalog capture. The focused fixes retain all409 source cases and pass13 training tests;
+[the follow-up](evidence/ci-card-catalog-protocol13/COORDINATOR.md) records the failed run and exact repair scope.
+Subsequent CI remains revision-scoped; older green runs are historical evidence.
 
 One actual final Unity Web build passes,14files/74,247,550bytes. Generated BakedContent is aa64c642; the manifest binds
 frozen1310 source, exact as-built serialization overlay and the dev server binary SHA20d5b70e…5b4b0. Independent checks
@@ -187,8 +190,8 @@ Rust port. No production deployment or new cloud resource was made by this conso
 
 Calgary/practice-domain staging remains removed. CAD20 is a **total** cap; no account-plan or spend expansion is implied.
 Fresh CLI identity verifies the approved staging account ending3033 with explicit Calgary ca-west-1; scoped old EC2,
-volume, address, bucket, stack and VPC resources are absent. AWS Core connector authentication remains unavailable; its
-state is separate from working CLI access. The owner session Billing console was inspected read-only; detailed evidence
+volume, address, bucket, stack and VPC resources are absent. AWS Core also freshly verifies account3033 and Calgary opted-in through the explicitly selected staging connection;
+both read APIs succeed. CLI and connector access are available, without new permissions or account changes. The owner session Billing console was inspected read-only; detailed evidence
 stays in the local coordination archive. No new launch, paid billing API query, account-plan or DNS change was made. Complete gameplay parity/headless, public transports, browser/
 account flows, durable progression, regional lifecycle and matched full-game performance still gate completion.
 
