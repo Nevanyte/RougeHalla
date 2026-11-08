@@ -642,6 +642,45 @@ pub async fn stale_write_under_the_same_claim_is_refused<L: Ledger>(fx: &Fx<L>) 
     );
 }
 
+pub async fn unresolved_dns_sends_forbid_offers_completion_and_purge<L: Ledger>(fx: &Fx<L>) {
+    use rh_placement::ledger::DnsUpsert;
+    for (id, pending) in [
+        ("reviewpending", DnsUpsert::InFlight),
+        ("reviewsticky", DnsUpsert::Ambiguous),
+    ] {
+        let c = started(&*fx.a, id, LONG).await;
+        let mut state = offered_state(id);
+        state.attempts[0].dns_upsert = pending;
+        for phase in [Phase::Offered, Phase::Finished, Phase::Released] {
+            assert!(matches!(
+                fx.a.write(&c, &state, phase, LONG).await,
+                Err(LedgerError::Refused(_))
+            ));
+        }
+        state.offer = None;
+        state.attempts[0].resolution = Resolution::CleanedUp;
+        state.attempts[0].dns = DnsStep::Deleted {
+            host: offer(id).hostname,
+        };
+        assert_eq!(
+            fx.a.write(&c, &state, Phase::Active, LONG).await.unwrap(),
+            WriteOutcome::Written
+        );
+        fx.a.relinquish(&c.next()).await.unwrap();
+        assert_eq!(fx.b.purge(100, Duration::ZERO).await.unwrap(), 0);
+        let row = fx.b.get(id).await.unwrap().unwrap();
+        assert!(row.state.attempts[0].is_open());
+        assert_eq!(row.state.attempts[0].dns_upsert, pending);
+    }
+    assert_eq!(
+        fx.b.claim_reapable("recovery", LONG, 100)
+            .await
+            .unwrap()
+            .len(),
+        2
+    );
+}
+
 pub async fn versions_follow_every_write_and_claim<L: Ledger>(fx: &Fx<L>) {
     let c = started(&*fx.a, "req00041", SHORT).await;
     let mut s = LedgerState::default();
@@ -686,7 +725,8 @@ macro_rules! conformance_cases {
             concurrent_epoch_open_agrees,
             illegal_phase_moves_are_refused,
             stale_write_under_the_same_claim_is_refused,
-            versions_follow_every_write_and_claim
+            versions_follow_every_write_and_claim,
+            unresolved_dns_sends_forbid_offers_completion_and_purge
         );
     };
     (@each [$attr:meta] $setup:path, $teardown:path; $($case:ident),+) => {

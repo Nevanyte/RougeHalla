@@ -7,9 +7,9 @@ use crate::backend::*;
 use crate::hostname::game_hostname;
 use crate::ledger::memory::MemoryLedger;
 use crate::ledger::{
-    fp, mutant, AttemptRec, Begin, Claim, DnsStep, Fulfilled, Identity, Ledger, LedgerError,
-    LedgerState, Mutant, OfferRecord, Phase, ReleaseClaim, ReleaseRec, Resolution, Scope,
-    StartStep, StopStep, TermStep,
+    fp, mutant, AttemptRec, Begin, Claim, DnsStep, DnsUpsert, Fulfilled, Identity, Ledger,
+    LedgerError, LedgerState, Mutant, OfferRecord, Phase, ReleaseClaim, ReleaseRec, Resolution,
+    Scope, StartStep, StopStep, TermStep,
 };
 use crate::model::*;
 use crate::score::{self, Attempt, AttemptKind, Plan, PlanError};
@@ -170,8 +170,8 @@ pub struct DurabilityConfig {
     pub db_op_timeout: Duration,
     /// Every backend (GameLift/DNS) call runs under this budget; elapsed is treated as `Unavailable` (ambiguous).
     pub backend_op_timeout: Duration,
-    /// A start that never produced a receipt is `Settled` only after two NotFound answers AND this long after its intent.
-    /// Boundary: a provider start delayed beyond it is untracked (the game host's unclaimed-session timeout bounds its cost).
+    /// Compatibility-only setting; ignored. No elapsed duration or number of NotFound
+    /// responses proves that an already-sent start cannot still be accepted.
     pub start_settle_after: Duration,
     /// Rows one `reap_abandoned` pass claims.
     pub reap_batch: usize,
@@ -1101,7 +1101,12 @@ mod tests {
             .place(&req("req00011", vec![alice()]))
             .await
             .unwrap_err();
-        assert_eq!(e, PlaceError::DnsUnavailable);
+        assert!(matches!(e, PlaceError::ServiceUnavailable(_)));
+        assert_eq!(
+            svc.abandoned_count(),
+            1,
+            "ambiguous upserts stay recoverable"
+        );
         assert!(
             !svc.gamelift.terminated().is_empty(),
             "every placed session without a name is terminated"

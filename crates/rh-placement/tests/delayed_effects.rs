@@ -351,27 +351,180 @@ async fn an_ambiguous_start_accepted_late_is_reconciled_and_never_offered() {
     h.finish().await;
 }
 
-/// The documented boundary: once the settle window has passed and two NotFounds were seen, the start is settled, and a
-/// provider start applied after that is no longer tracked (the game host's unclaimed-session timeout bounds its cost).
-/// This test pins the boundary so nobody mistakes it for a guarantee.
+/// Coordinator contract regression: elapsed time and repeated absence cannot prove an already-sent start is canceled.
 #[tokio::test]
-async fn a_start_applied_after_the_settle_window_is_untracked_by_design() {
+async fn late_start_intent_stays_reapable_until_definitive_provider_evidence() {
     let (h, id) = ambiguous_start(Duration::ZERO).await;
     let row = h.row(&id).await;
     assert_eq!(
         (row.phase, row.state.attempts[0].resolution),
-        (Phase::Finished, Resolution::Settled)
+        (Phase::Active, Resolution::Open),
+        "an ambiguous start must remain tracked even after any configured settling interval"
     );
-    assert!(
-        h.fake.placements().contains_key(&pid(&id)),
-        "the late placement exists at the provider"
-    );
+    assert_eq!(h.counts().await.unresolved, 1);
     let b = h.worker(ZONE, 20_000, dur(300)).await;
-    assert_eq!(
-        b.reap_abandoned().await,
-        0,
-        "nothing in the ledger refers to it any more"
+    h.wait_reapable(&id).await;
+    assert_eq!(b.reap_abandoned().await, 1);
+    let row = h.row(&id).await;
+    assert_eq!(row.phase, Phase::Finished);
+    assert!(row.state.offer.is_none());
+    h.assert_no_orphans();
+    h.finish().await;
+}
+
+/// Coordinator contract regression: an already-sent upsert can arrive after the replacement worker deleted the name.
+#[tokio::test]
+async fn late_dns_upsert_keeps_recovery_discoverable_until_the_name_is_cleaned() {
+    let h = H::new(fulfil()).await;
+    let (a, b) = (
+        h.worker(ZONE, 20_000, dur(20_000)).await,
+        h.worker(ZONE, 20_000, dur(20_000)).await,
     );
-    assert!(h.fake.terminated().is_empty());
+    let id = "delayF01";
+    let host = host_of(id, ZONE);
+    h.fake.hold_effect(Op::DnsUpsert, Matcher::key(&host));
+    let held = h
+        .fake
+        .notify_on(Op::DnsUpsert, Matcher::key(&host), Stage::Arrived);
+    let rq = request(id, "alice");
+    let scope = rh_placement::ledger::Scope::default();
+    let (res, ()) = tokio::join!(a.place_scoped(&scope, &rq), async {
+        bounded(held.wait()).await;
+        assert!(matches!(
+            h.row(id).await.state.attempts[0].dns,
+            DnsStep::Intent { .. }
+        ));
+        h.wait_reapable(id).await;
+        b.reap_abandoned().await;
+        let applied = h
+            .fake
+            .notify_on(Op::DnsUpsert, Matcher::key(&host), Stage::Applied);
+        assert_eq!(h.fake.release_all(), 1);
+        bounded(applied.wait()).await;
+    });
+    assert!(unavailable(&res), "{res:?}");
+    let row = h.row(id).await;
+    assert!(row.state.offer.is_none());
+    assert!(h
+        .mine(id, ZONE)
+        .iter()
+        .any(|m| m.op == Op::DnsUpsert && m.late));
+    assert!(
+        !h.fake.dns().contains_key(&host)
+            || (row.phase == Phase::Active && row.state.attempts[0].resolution == Resolution::Open),
+        "late DNS remains outside recovery: phase={:?}, resolution={:?}, trace={:?}",
+        row.phase,
+        row.state.attempts[0].resolution,
+        h.mine(id, ZONE)
+    );
+    h.wait_reapable(id).await;
+    b.reap_abandoned().await;
+    h.assert_no_orphans();
+    h.finish().await;
+}
+
+/// Independent repair regression: a successful retry acknowledges only itself. Three unknown
+/// sends also remain three potential late effects; neither restart, deletion nor purge drains them.
+#[tokio::test]
+async fn ambiguous_dns_retries_survive_restarts_age_and_purge_in_the_original_zone() {
+    use rh_placement::ledger::DnsUpsert;
+    for held_count in [1, 3] {
+        let h = H::new(fulfil()).await;
+        let id = if held_count == 1 {
+            "reviewG1"
+        } else {
+            "reviewG3"
+        };
+        let host = host_of(id, ZONE);
+        let mut d = dur(150);
+        d.retention = Duration::ZERO;
+        h.fake
+            .hold_effect(Op::DnsUpsert, Matcher::key(&host).times(held_count));
+        let a = h.worker(ZONE, 20_000, d.clone()).await;
+        let result = a.place(&request(id, "alice")).await;
+        assert!(
+            unavailable(&result),
+            "an ambiguous earlier send forbids publication: {result:?}"
+        );
+        assert_eq!(h.fake.held().len(), held_count);
+        assert_eq!(
+            h.row(id).await.state.attempts[0].dns_upsert,
+            DnsUpsert::Ambiguous
+        );
+        assert!(h.row(id).await.state.offer.is_none());
+        drop(a);
+        // Arbitrarily old persistence metadata must not turn missing evidence into certainty.
+        sqlx::query("UPDATE rh_placement_requests SET created_at = clock_timestamp() - interval '100 years', updated_at = clock_timestamp() - interval '100 years', finished_at = clock_timestamp() - interval '100 years' WHERE request_id = $1")
+            .bind(id).execute(h.ledger.pool()).await.unwrap();
+        for _ in 0..3 {
+            let b = h.worker("changed.example.com", 20_000, d.clone()).await;
+            assert_eq!(b.reap_abandoned().await, 0);
+            assert_eq!(b.purge_retained().await.unwrap(), 0);
+            let row = h.row(id).await;
+            assert_eq!(
+                (row.phase, row.state.attempts[0].resolution),
+                (Phase::Active, Resolution::Open)
+            );
+            assert_eq!(row.state.attempts[0].dns_upsert, DnsUpsert::Ambiguous);
+            assert_eq!(h.counts().await.unresolved, 1);
+            drop(b);
+        }
+        // Apply each held send after a prior successful deletion, then restart and reconcile it.
+        for held in h.fake.held() {
+            let applied = h
+                .fake
+                .notify_on(Op::DnsUpsert, Matcher::key(&host), Stage::Applied);
+            assert!(h.fake.release_held(held.id));
+            bounded(applied.wait()).await;
+            assert!(h.fake.dns().contains_key(&host));
+            let b = h.worker("changed.example.com", 20_000, d.clone()).await;
+            assert_eq!(b.reap_abandoned().await, 0);
+            assert!(!h.fake.dns().contains_key(&host));
+            assert_eq!(b.purge_retained().await.unwrap(), 0);
+            assert_eq!(
+                h.row(id).await.state.attempts[0].dns_upsert,
+                DnsUpsert::Ambiguous
+            );
+        }
+        assert!(h.fake.trace_of(Op::DnsDelete).iter().all(|m| m.key == host));
+        assert_eq!(h.counts().await.offered, 0);
+        h.assert_no_orphans();
+        h.finish().await;
+    }
+}
+
+#[tokio::test]
+async fn held_start_survives_a_century_of_age_restarts_repeated_absence_and_purge() {
+    let h = H::new(fulfil()).await;
+    let id = "reviewH1";
+    let mut d = dur(150);
+    d.start_settle_after = Duration::ZERO;
+    d.retention = Duration::ZERO;
+    h.fake.start_accepted_later(Matcher::key(&pid(id)).times(3));
+    let a = h.worker(ZONE, 20_000, d.clone()).await;
+    assert!(unavailable(&a.place(&request(id, "alice")).await));
+    drop(a);
+    sqlx::query("UPDATE rh_placement_requests SET state = jsonb_set(state, '{attempts,0,start,at_ms}', '-3000000000000'), created_at = clock_timestamp() - interval '100 years', finished_at = clock_timestamp() - interval '100 years' WHERE request_id = $1")
+        .bind(id).execute(h.ledger.pool()).await.unwrap();
+    for n in 1..=4 {
+        let b = h.worker("changed.example.com", 20_000, d.clone()).await;
+        assert_eq!(b.reap_abandoned().await, 0);
+        assert_eq!(b.purge_retained().await.unwrap(), 0);
+        let row = h.row(id).await;
+        assert_eq!(
+            (row.phase, row.state.attempts[0].resolution),
+            (Phase::Active, Resolution::Open)
+        );
+        assert_eq!(row.state.attempts[0].not_found.count, n);
+        assert_eq!(h.counts().await.unresolved, 1);
+    }
+    let applied = h.fake.notify_on(Op::Start, Matcher::any(), Stage::Applied);
+    assert_eq!(h.fake.release_all(), 3);
+    bounded(applied.wait()).await;
+    let b = h.worker("changed.example.com", 20_000, d).await;
+    assert_eq!(b.reap_abandoned().await, 1);
+    assert_eq!(h.row(id).await.phase, Phase::Finished);
+    assert!(h.row(id).await.state.offer.is_none());
+    h.assert_no_orphans();
     h.finish().await;
 }

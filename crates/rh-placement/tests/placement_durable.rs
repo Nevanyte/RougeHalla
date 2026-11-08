@@ -634,7 +634,7 @@ async fn start_that_was_never_seen_is_not_settled_by_one_not_found<L: Ledger + '
     );
 }
 
-async fn two_not_found_answers_long_after_the_start_settle_it<L: Ledger + 'static>(l: Shared<L>) {
+async fn repeated_absence_never_settles_a_sent_start<L: Ledger + 'static>(l: Shared<L>) {
     let w = World::new(l, RegionBehaviour::NoHost);
     let d = DurabilityConfig {
         start_settle_after: Duration::ZERO,
@@ -654,12 +654,60 @@ async fn two_not_found_answers_long_after_the_start_settle_it<L: Ledger + 'stati
     }
     tokio::time::sleep(s.durability.worker_lease * 2).await;
     assert_eq!(s.reap_abandoned().await, 0, "one NotFound proves nothing");
-    assert_eq!(s.reap_abandoned().await, 1);
+    assert_eq!(s.reap_abandoned().await, 0);
     let rec = w.row("req00016").await;
     assert_eq!(
         (rec.phase, rec.state.attempts[0].resolution),
-        (Phase::Finished, Resolution::Settled)
+        (Phase::Active, Resolution::Open)
     );
+}
+
+// Independent repair regression: an unreadable outcome for the DNS acknowledgement
+// leaves the persisted state authoritative, with no cleanup by the uncertain worker.
+async fn uncertain_dns_acknowledgement_keeps_the_persisted_obligation<L: Ledger + 'static>(
+    l: Shared<L>,
+) {
+    use rh_placement::ledger::DnsUpsert;
+    let w = World::new(l, fulfil());
+    for (id, mode, pending) in [
+        ("reviewack1", FAIL_BEFORE, true),
+        ("reviewack2", COMMIT_THEN_FAIL, false),
+    ] {
+        let s = w.svc(1).await;
+        w.fl.dns_ack_write.store(mode, Ordering::SeqCst);
+        let before = w.gl.inner.terminated().len();
+        assert!(s.place(&req(id)).await.is_err());
+        assert_eq!(
+            w.gl.inner.terminated().len(),
+            before,
+            "unknown commit never initiates cleanup"
+        );
+        w.fl.get_down.store(false, Ordering::SeqCst);
+        w.fl.dns_ack_write.store(PASS, Ordering::SeqCst);
+        let row = w.row(id).await;
+        assert_eq!(row.phase, Phase::Active);
+        assert!(row.state.offer.is_none());
+        assert_eq!(
+            row.state.attempts[0].dns_upsert,
+            if pending {
+                DnsUpsert::InFlight
+            } else {
+                DnsUpsert::Idle
+            }
+        );
+        let restarted = w.svc(2).await;
+        restarted.reap_abandoned().await;
+        let row = w.row(id).await;
+        assert_eq!(
+            row.phase,
+            if pending {
+                Phase::Active
+            } else {
+                Phase::Finished
+            }
+        );
+        assert!(row.state.offer.is_none());
+    }
 }
 
 // ---- explicit release ----
@@ -853,7 +901,8 @@ async fn every_effect_is_preceded_by_its_committed_intent<L: Ledger + 'static>(l
     .await
     .unwrap();
     let e = s.place(&req("probe001")).await.unwrap_err();
-    assert_eq!(e, PlaceError::DnsUnavailable);
+    assert!(matches!(e, PlaceError::ServiceUnavailable(_)));
+    assert_eq!(s.unresolved_count().await.unwrap(), 1);
     let mut seen = s.gamelift().effects();
     seen.extend(s.dns().effects());
     for kind in ["start", "upsert", "delete", "terminate"] {
@@ -1159,6 +1208,44 @@ async fn a_slow_row_does_not_run_out_the_claims_of_the_rows_queued_behind_it<
     assert_eq!(w.gl.inner.terminated().len(), 3);
 }
 
+async fn cancelled_reaper_keeps_current_and_unvisited_work_reclaimable<L: Ledger + 'static>(
+    l: Shared<L>,
+) {
+    let w = World::new(l, fulfil());
+    let d = DurabilityConfig {
+        reaper_lease: Duration::from_millis(150),
+        ..dur()
+    };
+    let s = w.svc_with(1, cfg(), d.clone()).await;
+    w.fl.offer_write.store(FAIL_BEFORE, Ordering::SeqCst);
+    for id in ["reviewcancel1", "reviewcancel2"] {
+        assert!(s.place(&req(id)).await.is_err());
+    }
+    w.fl.offer_write.store(PASS, Ordering::SeqCst);
+    let gate = Arc::new(Gate::default());
+    *w.gl.hold_describe.lock().unwrap() = Some(gate.clone());
+    {
+        let reaper = s.reap_abandoned();
+        tokio::pin!(reaper);
+        tokio::select! {
+            _ = &mut reaper => panic!("reaper finished before its barrier"),
+            _ = gate.arrived.notified() => {}
+        }
+        // Dropping this pending future cancels the pass; no destructor can complete its work.
+    }
+    assert!(w.gl.inner.terminated().is_empty());
+    assert_eq!(s.unresolved_count().await.unwrap(), 2);
+    tokio::time::sleep(d.reaper_lease * 2).await;
+    let restarted = w.svc_with(2, cfg(), d).await;
+    assert_eq!(restarted.reap_abandoned().await, 2);
+    assert_eq!(w.gl.inner.terminated().len(), 2);
+    for id in ["reviewcancel1", "reviewcancel2"] {
+        let row = w.row(id).await;
+        assert_eq!(row.phase, Phase::Finished);
+        assert!(row.state.offer.is_none());
+    }
+}
+
 async fn a_lost_claim_during_the_best_effort_stop_is_propagated<L: Ledger + 'static>(l: Shared<L>) {
     let w = World::new(l, fulfil());
     let s = w.svc(1).await;
@@ -1246,7 +1333,8 @@ macro_rules! all_cases {
             stale_worker_cannot_complete_after_takeover,
             stale_worker_cannot_overwrite_a_takeover_that_left_work_unresolved,
             start_that_was_never_seen_is_not_settled_by_one_not_found,
-            two_not_found_answers_long_after_the_start_settle_it,
+            repeated_absence_never_settles_a_sent_start,
+            uncertain_dns_acknowledgement_keeps_the_persisted_obligation,
             release_session_is_bound_to_scope_request_and_placement,
             release_of_a_request_without_an_offer_is_refused,
             release_uses_the_original_zone,
@@ -1263,6 +1351,7 @@ macro_rules! all_cases {
             contradictory_evidence_on_the_live_path_after_acceptance_resolves_nothing,
             a_slow_row_does_not_run_out_the_claims_of_the_rows_queued_behind_it,
             a_lost_claim_during_the_best_effort_stop_is_propagated,
+            cancelled_reaper_keeps_current_and_unvisited_work_reclaimable,
             a_tombstoned_release_still_requires_the_matching_placement,
         );
     };

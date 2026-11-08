@@ -18,6 +18,7 @@ use std::str::FromStr;
 
 const MIGRATION_1: &str = include_str!("../../migrations/0001_placement_ledger.sql");
 const MIGRATION_2: &str = include_str!("../../migrations/0002_placement_ledger_version.sql");
+const MIGRATION_3: &str = include_str!("../../migrations/0003_dns_send_obligations.sql");
 const MIGRATION_LOCK: i64 = 0x7268_706c_6163_6531; // "rhplace1"
 
 #[derive(Clone, Debug)]
@@ -206,7 +207,24 @@ impl PgLedger {
                     "database schema is newer than this binary".into(),
                 )));
             }
-            for (version, script) in [(1_i64, MIGRATION_1), (2_i64, MIGRATION_2)] {
+            if current > 0 && current < 3 {
+                // Old writers do not take the migration advisory lock. Serialize their
+                // inserts/writes with the emptiness check and v3 constraint installation.
+                sqlx::query("LOCK TABLE rh_placement_requests IN ACCESS EXCLUSIVE MODE")
+                    .execute(&mut *tx)
+                    .await?;
+                let nonempty: bool = sqlx::query_scalar(
+                    "SELECT EXISTS (SELECT 1 FROM rh_placement_requests)",
+                )
+                .fetch_one(&mut *tx)
+                .await?;
+                if nonempty {
+                    return Ok(Err(LedgerError::Incompatible(
+                        "nonempty pre-v3 placement ledger requires quiesced operator reconciliation before upgrade".into(),
+                    )));
+                }
+            }
+            for (version, script) in [(1_i64, MIGRATION_1), (2_i64, MIGRATION_2), (3_i64, MIGRATION_3)] {
                 if current < version {
                     sqlx::raw_sql(script).execute(&mut *tx).await?;
                     sqlx::query("INSERT INTO rh_placement_schema (version) VALUES ($1)")

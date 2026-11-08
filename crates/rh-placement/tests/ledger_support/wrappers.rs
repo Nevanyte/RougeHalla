@@ -130,6 +130,7 @@ pub const COMMIT_THEN_FAIL: u8 = 2;
 pub struct FaultLedger<L> {
     pub inner: L,
     pub offer_write: AtomicU8,
+    pub dns_ack_write: AtomicU8,
     /// After a `COMMIT_THEN_FAIL` write, reads fail too (the database is gone).
     pub get_down_after_commit: AtomicBool,
     pub get_down: AtomicBool,
@@ -163,6 +164,7 @@ impl<L> FaultLedger<L> {
         Self {
             inner,
             offer_write: AtomicU8::new(PASS),
+            dns_ack_write: AtomicU8::new(PASS),
             get_down_after_commit: AtomicBool::new(false),
             get_down: AtomicBool::new(false),
             all_down: AtomicBool::new(false),
@@ -224,6 +226,23 @@ impl<L: Ledger> Ledger for FaultLedger<L> {
         {
             self.get_down.store(true, Ordering::SeqCst);
             return Err(down());
+        }
+        if s.attempts.iter().any(|a| {
+            matches!(a.dns, DnsStep::Intent { .. })
+                && a.dns_upsert == rh_placement::ledger::DnsUpsert::Idle
+        }) {
+            match self.dns_ack_write.load(Ordering::SeqCst) {
+                FAIL_BEFORE => {
+                    self.get_down.store(true, Ordering::SeqCst);
+                    return Err(down());
+                }
+                COMMIT_THEN_FAIL => {
+                    self.inner.write(c, s, p, l).await?;
+                    self.get_down.store(true, Ordering::SeqCst);
+                    return Err(down());
+                }
+                _ => {}
+            }
         }
         if p == Phase::Offered {
             self.offer_writes.fetch_add(1, Ordering::SeqCst);

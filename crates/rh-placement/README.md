@@ -31,23 +31,32 @@ request or config under an id is `Invalid` and fails before any backend call.
 
 Per attempt, intent first, effect second: `start Intent` -> `start_placement` -> `Accepted` (verified receipt) -> poll ->
 timeout: `stop Intent` -> `stop`/describe (identity verified, only a terminal status resolves it) -> `Resolved`;
-fulfilled -> `fulfilled` -> `dns Intent` -> upsert + authoritative verify -> `Verified` -> **offer committed with phase
+fulfilled -> `fulfilled` -> `dns Intent` + `dns_upsert InFlight` -> upsert -> fenced acknowledgement (`dns_upsert Idle`)
+-> authoritative verify -> `Verified` -> **offer committed with phase
 `offered`** -> only then returned. Publication failure runs the same cleanup routine the reaper uses
-(`DeleteIntent`/`terminate Intent`, then delete + terminate, then `CleanedUp`). The store refuses an `offered` write when
+(`DeleteIntent`/`terminate Intent`, then delete + terminate, then `CleanedUp` only if no upsert remains unresolved). The store refuses an `offered` write when
 cleanup or a stop is in flight for that placement, and refuses `finished` with an unresolved attempt.
 
 **Reaper** (`reap_abandoned`, bounded by `reap_batch`): claims `active`/`releasing` rows whose claim expired
 (`FOR UPDATE SKIP LOCKED`, fence + 1). `offered`, `released`, `finished`, `tombstone` are never selected: offer age and
 lease expiry never imply session end. Per open attempt: describe -> not found: resolved only if accepted and last seen
-terminal; otherwise counted, and `Settled` only after two NotFounds AND `start_settle_after` (1 h) since the start intent
-(a provider start delayed beyond that is untracked; the game host's unclaimed-session timeout bounds its cost). Pending ->
+terminal; otherwise counted and retained indefinitely. Neither repeated NotFound nor any elapsed duration proves that a
+sent start cannot still be accepted. `start_settle_after` remains a compatibility-only, ignored setting. Pending ->
 stop; fulfilled -> delete DNS (stored original zone) + terminate. Errors leave work unresolved. Rows are claimed one at a
 time (so a slow backend on one row cannot run out the leases of the rows behind it); a row that could not be settled keeps its
 claim until the pass ends, and a cancelled pass frees them.
 
 Conservative rules (a row stays **open**, visible in `unresolved_count`, rather than losing owned work):
-* An attempt with an open cleanup intent (`terminate Intent`, or a `dns` Intent/Verified/DeleteIntent) is never `Settled` by
-  NotFound answers: the cleanup is finished from the stored arn and host.
+* DNS send obligations are separate from `DnsStep` cleanup progress. Before **each** upsert the service commits
+  `dns_upsert InFlight`; a successful receipt clears only that send through the same fenced/versioned claim. If another send
+  is retried while the previous one is unresolved, it becomes `Ambiguous`, which no later receipt, resolve, delete or
+  termination can discharge. A crash or unreadable acknowledgement outcome retains whatever was actually committed.
+* Any unresolved DNS send forbids offers and finalization. Cleanup continues deleting the original hostname on bounded
+  reaper passes indefinitely, even after a prior delete/termination succeeded or the provider forgot the placement.
+  This is necessary because the backend has no operation identity, cancellation or drain barrier. Ordinary first-send
+  success is acknowledged and can publish/release normally.
+* An attempt with an open cleanup intent or unresolved upsert is never settled by NotFound answers: cleanup is retried
+  from the stored arn and hostname, preserving the separate obligation.
 * A refused (`Invalid`) start proves nothing was started only on the very first try; after an unavailable or timed-out try the
   attempt is left open for the reaper.
 * Receipts that contradict an attempt already proven ours (acceptance recorded, a fulfilment, or any DNS/terminate intent) are
@@ -84,20 +93,30 @@ epoch wins; a candidate is stored only when there is no epoch and no records; re
 Pass a fresh CSPRNG candidate (this crate generates no randomness). `PlacementService::new(nonce, ..)` is a fresh memory
 ledger with that nonce.
 
-Known boundary: database fencing cannot recall a request already sent to a provider. A stale worker's in-flight DNS upsert
-may land after takeover cleanup (a never-offered hostname remains), and a stale start may be accepted later (covered by the
-NotFound rule). Cleanup operations must be idempotent; nothing is exactly-once. A held connection during a backend call is
-never a lock: no transaction or row lock spans an external await.
+Known boundary: database fencing cannot recall a request already sent to a provider. A stale upsert may recreate the
+never-offered hostname after takeover cleanup; the durable unresolved obligation keeps reconciliation discoverable.
+A name may remain present until the next reaper pass. There is deliberately no automatic finalization for an uncertain
+upsert without stronger backend evidence. A stale start is retained until exact owned terminal/cancel evidence or
+confirmed session cleanup. Cleanup operations must be idempotent; nothing is exactly-once. No transaction or row lock
+spans an external await.
 
 ## PostgreSQL store (feature `postgres`)
 
 `PgLedger::connect(url, PgLedgerConfig)` makes a bounded pool (acquire timeout, server `statement_timeout`/`lock_timeout`,
-per-call timeout) and applies `migrations/0001_placement_ledger.sql` and `0002_placement_ledger_version.sql` (**schema version 2**, `ledger::SCHEMA_VERSION`; 0002 adds the per-row `version` write counter, starting at 1 for existing rows, and `final_placement_id`; a version 1 binary refuses a version 2 database, so move every instance together) in one
+per-call timeout) and applies migrations 0001–0003 (**schema version 3**, `ledger::SCHEMA_VERSION`) in one
 transaction under an advisory lock. Compatibility: own tables `rh_placement_epoch`, `rh_placement_requests` and version
 table `rh_placement_schema`; sqlx's migrator is not used, so `_sqlx_migrations` (rh-persist's) is never touched and both can
-share a database. A database with a newer schema version is refused. Statements are parameterized; errors keep only a
+share a database. A database with a newer schema version is refused.
+Version 3 refuses a **nonempty** v1/v2 placement ledger with `LedgerError::Incompatible`, without changing rows, schema
+version or nonce: older state may already have forgotten ambiguous work, so it cannot be upgraded safely by inference.
+Such a database needs a quiesced, explicit operator reconciliation/migration plan; no automatic deletion or rewriting is
+performed. Empty old ledgers upgrade and preserve their epoch. Stop all older instances before upgrading; the version check
+prevents them reopening a v3 database. An already-open older connection is also blocked: migration 0003 installs a database
+CHECK requiring explicit valid `dns_upsert` metadata on every attempt, so an old binary cannot commit its field-less start
+or cleanup intent before sending effects. An exclusive table lock serializes the old-version emptiness check with concurrent
+legacy inserts/writes. This ledger has not been deployed to production. Statements are parameterized; errors keep only a
 category and SQLSTATE, never the URL or any binding or nonce. `DurabilityConfig` (worker/reaper lease, `db_op_timeout`,
-`backend_op_timeout` wrapping every backend call, `start_settle_after`, `reap_batch`, `retention`) is separate from
+`backend_op_timeout` wrapping every backend call, `reap_batch`, `retention`) is separate from
 `ServiceConfig`, so bindings are unchanged.
 
 ## Fault injection (feature `fault-injection`, off by default, test builds only)

@@ -583,8 +583,6 @@ impl<'a, G: GameLiftBackend, D: DnsBackend, L: Ledger> Run<'a, G, D, L> {
             });
         }
         self.commit("fulfilled", Phase::Active).await?;
-        self.state.attempts[idx].dns = DnsStep::Intent { host: host.clone() };
-        self.intent("dns_intent").await?;
 
         let mut warnings = plan.warnings.clone();
         if let (Some(s), false) = (
@@ -623,10 +621,25 @@ impl<'a, G: GameLiftBackend, D: DnsBackend, L: Ledger> Run<'a, G, D, L> {
         let ttl = svc.cfg.policy.dns_ttl_s;
         let mut ok = false;
         for i in 0..3 {
-            self.touch().await?;
+            // Persist each send separately. The prior send may still apply even if this
+            // retry succeeds, resolves, or is subsequently deleted.
+            let a = &mut self.state.attempts[idx];
+            a.dns = DnsStep::Intent { host: host.clone() };
+            a.dns_upsert = if a.dns_upsert == DnsUpsert::Idle {
+                DnsUpsert::InFlight
+            } else {
+                DnsUpsert::Ambiguous
+            };
+            self.intent("dns_intent").await?;
             match svc.bk_upsert(&host, &ip, ttl).await {
                 Ok(()) => {
-                    ok = true;
+                    if self.state.attempts[idx].dns_upsert == DnsUpsert::InFlight {
+                        self.state.attempts[idx].dns_upsert = DnsUpsert::Idle;
+                    }
+                    // A lost claim or uncertain DB outcome cannot let this receipt
+                    // discharge a newer worker's obligation.
+                    self.commit("dns_acknowledged", Phase::Active).await?;
+                    ok = self.state.attempts[idx].dns_upsert == DnsUpsert::Idle;
                     break;
                 }
                 Err(BackendError::Invalid(_)) => break,
@@ -728,9 +741,12 @@ impl<'a, G: GameLiftBackend, D: DnsBackend, L: Ledger> Run<'a, G, D, L> {
             }
             self.state.attempts[idx].dns = DnsStep::Deleted { host };
         }
-        self.resolve(idx, Resolution::NoHost);
+        let resolved = self.state.attempts[idx].dns_upsert == DnsUpsert::Idle;
+        if resolved {
+            self.resolve(idx, Resolution::NoHost);
+        }
         self.commit("cleanup_done", Phase::Active).await?;
-        Ok(true)
+        Ok(resolved)
     }
 
     /// Delete the hostname, terminate the session; both idempotent. Intent first, completion after the effects.
@@ -773,25 +789,29 @@ impl<'a, G: GameLiftBackend, D: DnsBackend, L: Ledger> Run<'a, G, D, L> {
             a.dns = DnsStep::Deleted { host: h };
         }
         a.terminate = TermStep::Done;
-        a.resolution = Resolution::CleanedUp;
+        let resolved = a.dns_upsert == DnsUpsert::Idle;
+        if resolved {
+            a.resolution = Resolution::CleanedUp;
+        }
         if self.phase == Phase::Active
             && self.committed.attempts[idx].resolution == Resolution::CleanedUp
         {
             return Ok(true);
         }
         self.commit("cleanup_done", Phase::Active).await?;
-        Ok(true)
+        Ok(resolved)
     }
 
     /// The provider does not know the placement. Only evidence settles it: a terminal non-fulfilled status last seen after
-    /// an accepted start; a stored fulfilment (cleanup from the stored arn and host); or two NotFound answers long
-    /// after the start intent (a start can still be accepted late, so a single NotFound proves nothing).
+    /// an accepted start; or a stored fulfilment (cleanup from the stored arn and host).
+    /// Repeated absence and elapsed time never cancel an already-sent start.
     async fn not_found(&mut self, idx: usize) -> Result<bool, Stop> {
         let a = self.state.attempts[idx].clone();
         let accepted = matches!(a.start, StartStep::Accepted { .. });
         // A cleanup already begun (name deletion or termination recorded) is finished from the stored session and name,
         // never abandoned: the provider forgetting the placement does not mean the session or the record is gone.
-        let cleanup_open = matches!(a.terminate, TermStep::Intent { .. })
+        let cleanup_open = a.dns_upsert != DnsUpsert::Idle
+            || matches!(a.terminate, TermStep::Intent { .. })
             || matches!(
                 a.dns,
                 DnsStep::Intent { .. } | DnsStep::Verified { .. } | DnsStep::DeleteIntent { .. }
@@ -831,15 +851,9 @@ impl<'a, G: GameLiftBackend, D: DnsBackend, L: Ledger> Run<'a, G, D, L> {
         let now = self.now().await?;
         let nf = &mut self.state.attempts[idx].not_found;
         nf.first_at_ms.get_or_insert(now);
-        nf.count += 1;
-        let count = nf.count;
-        let settle = self.svc.durability.start_settle_after.as_millis() as i64;
-        let settled = count >= 2 && now - a.start_at_ms() >= settle;
-        if settled {
-            self.resolve(idx, Resolution::Settled);
-        }
+        nf.count = nf.count.saturating_add(1);
         self.commit("not_found", Phase::Active).await?;
-        Ok(settled)
+        Ok(false)
     }
 
     // ---- reaper and release ----

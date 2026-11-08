@@ -1,5 +1,7 @@
 # Placement durability evidence (P-CLAUDE-PLACEMENT-2)
 
+> Historical producer record. Its late-start settling and late-DNS finalization boundaries were rejected during independent review. See [REPAIR_REVIEW.md](REPAIR_REVIEW.md) for the repaired contract, schema v3 and verified results.
+
 Base `de6f1c196f9b6a42e50dfdf19327d72bd3683fc8` (origin/optimization_port, contains 5b1a7aae). Branch `claude/durable-placement-ledger`;
 head is the commit that contains this file (`git log -1 --format=%H -- docs/evidence/placement-durability/README.md`).
 Ledger schema version **2** (`ledger::SCHEMA_VERSION`; migrations 0001 + 0002 `version` column, per-write CAS).

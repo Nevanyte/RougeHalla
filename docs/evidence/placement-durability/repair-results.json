@@ -1,0 +1,689 @@
+{
+  "producer": "4843cd51551f71e43228a75dd3c83effe0228bb3",
+  "schemaVersion": 3,
+  "environment": {
+    "rust": "1.97.0",
+    "postgres": "16.15",
+    "host": "aarch64-apple-darwin",
+    "cargoIncremental": "0",
+    "cargoBuildJobs": "2",
+    "target": "shared warm server-target"
+  },
+  "gates": [
+    {
+      "name": "repair-v1-default-tests",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "rh-placement"
+      ],
+      "exit": 0,
+      "seconds": 7.840264167,
+      "logSha256": "edb356850c19c1c40b3b384ba5fa6636a43eb38ed5ec3f3a8cbf02176fe68985",
+      "expectedExit": 0,
+      "testResults": [
+        {
+          "passed": 46,
+          "failed": 0,
+          "ignored": 0,
+          "filtered": 0
+        },
+        {
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "filtered": 0
+        },
+        {
+          "passed": 16,
+          "failed": 0,
+          "ignored": 0,
+          "filtered": 0
+        },
+        {
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "filtered": 0
+        },
+        {
+          "passed": 11,
+          "failed": 0,
+          "ignored": 0,
+          "filtered": 0
+        },
+        {
+          "passed": 23,
+          "failed": 0,
+          "ignored": 0,
+          "filtered": 0
+        },
+        {
+          "passed": 38,
+          "failed": 0,
+          "ignored": 0,
+          "filtered": 0
+        },
+        {
+          "passed": 10,
+          "failed": 0,
+          "ignored": 0,
+          "filtered": 0
+        },
+        {
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "filtered": 0
+        }
+      ],
+      "totals": {
+        "passed": 144,
+        "failed": 0,
+        "ignored": 0,
+        "filtered": 0
+      }
+    },
+    {
+      "name": "repair-v1-default-clippy",
+      "command": [
+        "cargo",
+        "clippy",
+        "--locked",
+        "-p",
+        "rh-placement",
+        "--all-targets",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit": 0,
+      "seconds": 2.254586709,
+      "logSha256": "a12885f631f53c5a27f3c8a472efd19cb1cceaec394d6f20cf7a7165269f00f6",
+      "expectedExit": 0,
+      "testResults": []
+    },
+    {
+      "name": "repair-v8-final-tests",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "rh-placement",
+        "--features",
+        "postgres,fault-injection",
+        "--no-fail-fast",
+        "--",
+        "--test-threads=2"
+      ],
+      "exit": 0,
+      "seconds": 52.389807833,
+      "logSha256": "367cb79346143c28ec8dfcce6af80e0d06e7a8ca4982e83b49a6f8ae381e1295",
+      "expectedExit": 0,
+      "testResults": [
+        {
+          "passed": 46,
+          "failed": 0,
+          "ignored": 0,
+          "filtered": 0
+        },
+        {
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "filtered": 0
+        },
+        {
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "filtered": 0
+        },
+        {
+          "passed": 16,
+          "failed": 0,
+          "ignored": 0,
+          "filtered": 0
+        },
+        {
+          "passed": 11,
+          "failed": 0,
+          "ignored": 0,
+          "filtered": 0
+        },
+        {
+          "passed": 9,
+          "failed": 0,
+          "ignored": 0,
+          "filtered": 0
+        },
+        {
+          "passed": 4,
+          "failed": 0,
+          "ignored": 0,
+          "filtered": 0
+        },
+        {
+          "passed": 11,
+          "failed": 0,
+          "ignored": 0,
+          "filtered": 0
+        },
+        {
+          "passed": 23,
+          "failed": 0,
+          "ignored": 0,
+          "filtered": 0
+        },
+        {
+          "passed": 29,
+          "failed": 0,
+          "ignored": 0,
+          "filtered": 0
+        },
+        {
+          "passed": 74,
+          "failed": 0,
+          "ignored": 0,
+          "filtered": 0
+        },
+        {
+          "passed": 10,
+          "failed": 0,
+          "ignored": 0,
+          "filtered": 0
+        },
+        {
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "filtered": 0
+        }
+      ],
+      "totals": {
+        "passed": 233,
+        "failed": 0,
+        "ignored": 0,
+        "filtered": 0
+      }
+    },
+    {
+      "name": "repair-v2-fmt-check",
+      "command": [
+        "cargo",
+        "fmt",
+        "--all",
+        "--check"
+      ],
+      "exit": 0,
+      "seconds": 0.598628916,
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "expectedExit": 0,
+      "testResults": []
+    },
+    {
+      "name": "repair-v3-all-clippy",
+      "command": [
+        "cargo",
+        "clippy",
+        "--locked",
+        "-p",
+        "rh-placement",
+        "--all-targets",
+        "--all-features",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit": 0,
+      "seconds": 2.430203667,
+      "logSha256": "1e81bf2933fbcf1ff62c9a2ac03242a6c25de8f40299b35425bc86622a3ae233",
+      "expectedExit": 0,
+      "testResults": []
+    },
+    {
+      "name": "repair-v2-negative-controls",
+      "command": [
+        "env",
+        "LOGDIR=/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/placement-durability-review/negative-v2",
+        "bash",
+        "docs/evidence/placement-durability/negative-controls.sh"
+      ],
+      "exit": 0,
+      "seconds": 166.234655667,
+      "logSha256": "14a6ecd50dd78a588bf2df255e08751ce8588252a37b20d74409fdf6cffdaba7",
+      "expectedExit": 0,
+      "testResults": []
+    },
+    {
+      "name": "repair-missing-database",
+      "command": [
+        "env",
+        "-u",
+        "DATABASE_URL",
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "rh-placement",
+        "--features",
+        "postgres,fault-injection",
+        "--test",
+        "ledger_conformance_postgres",
+        "postgres_schema_version_is_recorded_and_a_newer_database_is_refused",
+        "--",
+        "--exact",
+        "--nocapture"
+      ],
+      "exit": 101,
+      "seconds": 0.079911459,
+      "logSha256": "8ede1242a26510bbb727265f901eb205e2d101a3002722265f286a6917672a44",
+      "expectedExit": 101,
+      "testResults": [
+        {
+          "passed": 0,
+          "failed": 1,
+          "ignored": 0,
+          "filtered": 28
+        }
+      ],
+      "totals": {
+        "passed": 0,
+        "failed": 1,
+        "ignored": 0,
+        "filtered": 28
+      }
+    },
+    {
+      "name": "repair-environment-rust",
+      "command": [
+        "rustc",
+        "--version",
+        "--verbose"
+      ],
+      "exit": 0,
+      "seconds": 0.022493083000000004,
+      "logSha256": "e0a03bccf22d7879cab5f3dffa6589dd425c6085ccb22507e3d2e2e8c60f9148",
+      "expectedExit": 0,
+      "testResults": []
+    },
+    {
+      "name": "repair-environment-postgres",
+      "command": [
+        "/opt/homebrew/opt/postgresql@16/bin/postgres",
+        "--version"
+      ],
+      "exit": 0,
+      "seconds": 0.009028083,
+      "logSha256": "35d68bbf12bf8662960742f3fafe274c03f333d678a3672c656f9f6bd59eac85",
+      "expectedExit": 0,
+      "testResults": []
+    },
+    {
+      "name": "repair-v2-legacy-writer-before",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "rh-placement",
+        "--features",
+        "postgres",
+        "--test",
+        "ledger_conformance_postgres",
+        "an_already_open_v2_writer_is_rejected_by_the_database_after_upgrade",
+        "--",
+        "--exact",
+        "--nocapture"
+      ],
+      "exit": 101,
+      "seconds": 2.120051625,
+      "logSha256": "895c7e0a6e80e83e63448b64eb21c9fef8e81e6b112eccc588ff29787950b282",
+      "expectedExit": 101,
+      "testResults": [
+        {
+          "passed": 0,
+          "failed": 1,
+          "ignored": 0,
+          "filtered": 27
+        }
+      ],
+      "totals": {
+        "passed": 0,
+        "failed": 1,
+        "ignored": 0,
+        "filtered": 27
+      }
+    },
+    {
+      "name": "repair-v2-legacy-writer-after",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "rh-placement",
+        "--features",
+        "postgres",
+        "--test",
+        "ledger_conformance_postgres",
+        "an_already_open_v2_writer_is_rejected_by_the_database_after_upgrade",
+        "--",
+        "--exact",
+        "--nocapture"
+      ],
+      "exit": 0,
+      "seconds": 2.112568708,
+      "logSha256": "7f7898d899a20d0cb134e1ea09fa2e1de239f1e308d5e93a6d71b7c88df2c2ff",
+      "expectedExit": 0,
+      "testResults": [
+        {
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "filtered": 27
+        }
+      ],
+      "totals": {
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "filtered": 27
+      }
+    }
+  ],
+  "negativeControls": [
+    {
+      "log": "negative-v2/build.log",
+      "sha256": "06f46cee4a5d3a0b78f1e304619dc633ca03c8a8a209eabe5b8d87132ad815cc",
+      "failedCases": [],
+      "caseResults": []
+    },
+    {
+      "log": "negative-v2/none.crash_restart.log",
+      "sha256": "239475757a4401db87aa5959cdf8f6c09a56e56fa78101425c27be045c47a5b8",
+      "failedCases": [],
+      "caseResults": [
+        "test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 13.00s"
+      ]
+    },
+    {
+      "log": "negative-v2/none.delayed_effects.log",
+      "sha256": "7e22e5f732635b30f700cd9dc1f7b714aecadf4e6f91beea163f179c37129004",
+      "failedCases": [],
+      "caseResults": [
+        "test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.17s"
+      ]
+    },
+    {
+      "log": "negative-v2/none.ledger_conformance_postgres.log",
+      "sha256": "277e9a0e96a3847099cc3cebd4fbf166ad0da6ee6534d742396d0bcbd21fad0d",
+      "failedCases": [],
+      "caseResults": [
+        "test result: ok. 29 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.49s"
+      ]
+    },
+    {
+      "log": "negative-v2/none.placement_durable.log",
+      "sha256": "050eeabc9e9b73e1bd92b9025b789836196e08e49fb23a1294eb12547ce31960",
+      "failedCases": [],
+      "caseResults": [
+        "test result: ok. 74 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.95s"
+      ]
+    },
+    {
+      "log": "negative-v2/premature_completion.crash_restart.log",
+      "sha256": "1b9076d82da936124a473c1f4bfa7ebfcbf88ac2502113d7fe7757fb06e62462",
+      "failedCases": [
+        "release_deletes_in_the_zone_the_request_was_placed_under",
+        "release_is_bound_to_scope_request_and_placement_and_is_idempotent",
+        "a_release_that_died_midway_is_resumed_by_the_reaper_and_never_by_age",
+        "an_offer_committed_before_the_response_survives_and_is_replayed_to_the_same_request_only",
+        "dns_written_and_verified_but_not_yet_offered_is_cleaned_after_a_crash",
+        "a_cleanup_effect_accepted_before_local_completion_is_repeated_idempotently_after_a_crash",
+        "a_fulfilled_placement_whose_dns_receipt_was_lost_is_cleaned_not_offered"
+      ],
+      "caseResults": [
+        "test result: FAILED. 4 passed; 7 failed; 0 ignored; 0 measured; 0 filtered out; finished in 30.17s"
+      ]
+    },
+    {
+      "log": "negative-v2/premature_completion.delayed_effects.log",
+      "sha256": "8c2b99b2c8943446be81626593693ba63510fcf991cdac080c08393583f7ca9d",
+      "failedCases": [
+        "ambiguous_dns_retries_survive_restarts_age_and_purge_in_the_original_zone",
+        "a_dns_delete_applied_after_takeover_is_idempotent_and_the_stale_worker_cannot_finish",
+        "a_terminate_applied_after_takeover_is_idempotent_and_the_stale_worker_cannot_finish",
+        "a_stale_worker_whose_dns_check_succeeds_late_cannot_publish_an_offer",
+        "late_dns_upsert_keeps_recovery_discoverable_until_the_name_is_cleaned"
+      ],
+      "caseResults": [
+        "test result: FAILED. 4 passed; 5 failed; 0 ignored; 0 measured; 0 filtered out; finished in 30.18s"
+      ]
+    },
+    {
+      "log": "negative-v2/premature_completion.ledger_conformance_postgres.log",
+      "sha256": "5b51a9d21c8b08e337cc813b19e4890c4481d96b1b9e1073816358b4942b849b",
+      "failedCases": [],
+      "caseResults": [
+        "test result: ok. 29 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.49s"
+      ]
+    },
+    {
+      "log": "negative-v2/premature_completion.placement_durable.log",
+      "sha256": "06cc57d5cf418f533de581461585b72965b0344304236ee90b3cab9bbbf6723d",
+      "failedCases": [
+        "memory::contradictory_evidence_for_an_attempt_we_proved_ours_is_not_resolved_foreign",
+        "memory::a_half_done_release_is_resumed_by_retry_and_by_the_reaper",
+        "memory::a_delayed_write_under_the_same_claim_cannot_roll_state_back",
+        "memory::a_fenced_retry_after_the_delayed_original_landed_is_recognised_as_committed",
+        "memory::conflicting_retries_fail_before_any_backend_call",
+        "memory::a_tombstoned_release_still_requires_the_matching_placement",
+        "memory::cleanup_effect_failure_keeps_the_attempt_unresolved",
+        "memory::conflicting_retry_while_another_worker_is_in_progress_fails_before_effects",
+        "memory::every_effect_is_preceded_by_its_committed_intent",
+        "memory::failed_offer_commit_is_not_turned_into_cleanup",
+        "memory::release_uses_the_original_zone",
+        "memory::original_zone_is_used_after_the_configured_zone_changes",
+        "memory::release_session_is_bound_to_scope_request_and_placement",
+        "memory::open_cleanup_is_finished_from_stored_data_when_the_provider_forgets_the_placement",
+        "memory::retention_purge_keeps_tombstones_that_never_replay",
+        "memory::restart_recovers_a_committed_offer_and_keeps_the_epoch",
+        "memory::scope_is_part_of_identity",
+        "memory::uncertain_commit_that_landed_returns_the_offer_and_is_protected",
+        "memory::uncertain_dns_acknowledgement_keeps_the_persisted_obligation",
+        "memory::uncertain_commit_with_an_unreadable_database_stops_without_cleanup",
+        "memory::lease_renewal_keeps_a_slow_attempt_claimed",
+        "postgres::a_tombstoned_release_still_requires_the_matching_placement",
+        "postgres::a_half_done_release_is_resumed_by_retry_and_by_the_reaper",
+        "postgres::conflicting_retries_fail_before_any_backend_call",
+        "postgres::a_fenced_retry_after_the_delayed_original_landed_is_recognised_as_committed",
+        "postgres::conflicting_retry_while_another_worker_is_in_progress_fails_before_effects",
+        "postgres::a_delayed_write_under_the_same_claim_cannot_roll_state_back",
+        "postgres::every_effect_is_preceded_by_its_committed_intent",
+        "postgres::cleanup_effect_failure_keeps_the_attempt_unresolved",
+        "postgres::failed_offer_commit_is_not_turned_into_cleanup",
+        "postgres::contradictory_evidence_for_an_attempt_we_proved_ours_is_not_resolved_foreign",
+        "postgres::release_session_is_bound_to_scope_request_and_placement",
+        "postgres::original_zone_is_used_after_the_configured_zone_changes",
+        "postgres::restart_recovers_a_committed_offer_and_keeps_the_epoch",
+        "postgres::release_uses_the_original_zone",
+        "postgres::retention_purge_keeps_tombstones_that_never_replay",
+        "postgres::scope_is_part_of_identity",
+        "postgres::uncertain_commit_that_landed_returns_the_offer_and_is_protected",
+        "postgres::uncertain_dns_acknowledgement_keeps_the_persisted_obligation",
+        "postgres::uncertain_commit_with_an_unreadable_database_stops_without_cleanup",
+        "postgres::open_cleanup_is_finished_from_stored_data_when_the_provider_forgets_the_placement"
+      ],
+      "caseResults": [
+        "test result: FAILED. 33 passed; 41 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.74s"
+      ]
+    },
+    {
+      "log": "negative-v2/skip_fencing.crash_restart.log",
+      "sha256": "ebad8cc3bc644d6200e042cb1f16a6054deaa732c95b7259a66605d0c300ebdd",
+      "failedCases": [],
+      "caseResults": [
+        "test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 12.94s"
+      ]
+    },
+    {
+      "log": "negative-v2/skip_fencing.delayed_effects.log",
+      "sha256": "a8fbdfbab5bb60cf3e90fe4ac01a7bf19c1a53f59f9ad2def61c220f994c6fe3",
+      "failedCases": [
+        "a_stale_worker_whose_dns_check_succeeds_late_cannot_publish_an_offer",
+        "late_dns_upsert_keeps_recovery_discoverable_until_the_name_is_cleaned"
+      ],
+      "caseResults": [
+        "test result: FAILED. 7 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.18s"
+      ]
+    },
+    {
+      "log": "negative-v2/skip_fencing.ledger_conformance_postgres.log",
+      "sha256": "1369ca1d094dd19538b3515176ffb64f441fc55957991bfd750ce2ac1df29919",
+      "failedCases": [
+        "postgres::stale_write_under_the_same_claim_is_refused",
+        "postgres::stale_worker_cannot_commit_offer_or_finish",
+        "postgres::write_is_fenced_after_takeover"
+      ],
+      "caseResults": [
+        "test result: FAILED. 26 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.50s"
+      ]
+    },
+    {
+      "log": "negative-v2/skip_fencing.placement_durable.log",
+      "sha256": "8835cbf9e394e1ddc7f4d9039d24614daac02452378f083cce921c231e3ba66b",
+      "failedCases": [
+        "memory::a_delayed_write_under_the_same_claim_cannot_roll_state_back",
+        "memory::a_fenced_retry_after_the_delayed_original_landed_is_recognised_as_committed",
+        "memory::stale_worker_cannot_overwrite_a_takeover_that_left_work_unresolved",
+        "postgres::a_delayed_write_under_the_same_claim_cannot_roll_state_back",
+        "postgres::stale_worker_cannot_overwrite_a_takeover_that_left_work_unresolved"
+      ],
+      "caseResults": [
+        "test result: FAILED. 69 passed; 5 failed; 0 ignored; 0 measured; 0 filtered out; finished in 21.24s"
+      ]
+    },
+    {
+      "log": "negative-v2/skip_ownership_check.crash_restart.log",
+      "sha256": "65eed496e6b035d964554f4519a6004b95a6260f49d8b6928089a223d1fa163e",
+      "failedCases": [
+        "a_foreign_placement_under_our_id_is_never_adopted_stopped_or_offered",
+        "a_committed_start_intent_survives_a_crash_before_the_start_is_sent"
+      ],
+      "caseResults": [
+        "test result: FAILED. 9 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 13.02s"
+      ]
+    },
+    {
+      "log": "negative-v2/skip_ownership_check.delayed_effects.log",
+      "sha256": "6ab23886c38b36ee9b314d73847fe57020f318413c1abebbd8ce7a7df18cb0f5",
+      "failedCases": [],
+      "caseResults": [
+        "test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.19s"
+      ]
+    },
+    {
+      "log": "negative-v2/skip_ownership_check.ledger_conformance_postgres.log",
+      "sha256": "b0c67c102156c7e46b3ce3172134b6058d1e0904b290c8a34aec52aa1fe7f668",
+      "failedCases": [],
+      "caseResults": [
+        "test result: ok. 29 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.41s"
+      ]
+    },
+    {
+      "log": "negative-v2/skip_ownership_check.placement_durable.log",
+      "sha256": "0f8bc8dc5e92a05752ec6465b53855aa8a1bfde492c207b555a6d054b1f3ef7d",
+      "failedCases": [
+        "memory::contradictory_evidence_for_an_attempt_we_proved_ours_is_not_resolved_foreign",
+        "memory::contradictory_evidence_on_the_live_path_after_acceptance_resolves_nothing",
+        "memory::foreign_receipts_never_authorize_cleanup",
+        "memory::missing_and_foreign_receipts_stay_unresolved_or_untouched",
+        "memory::stale_worker_cannot_overwrite_a_takeover_that_left_work_unresolved",
+        "postgres::contradictory_evidence_for_an_attempt_we_proved_ours_is_not_resolved_foreign",
+        "postgres::contradictory_evidence_on_the_live_path_after_acceptance_resolves_nothing",
+        "postgres::foreign_receipts_never_authorize_cleanup",
+        "postgres::missing_and_foreign_receipts_stay_unresolved_or_untouched",
+        "postgres::stale_worker_cannot_overwrite_a_takeover_that_left_work_unresolved"
+      ],
+      "caseResults": [
+        "test result: FAILED. 64 passed; 10 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.12s"
+      ]
+    },
+    {
+      "log": "negative-v2/skip_write_ahead.crash_restart.log",
+      "sha256": "09af33a4368998ee7426986ace3724a74655b5c3938f395718c35787a7dc0fc8",
+      "failedCases": [
+        "a_start_accepted_with_a_lost_receipt_is_found_by_its_binding_and_cleaned",
+        "a_fulfilled_placement_whose_dns_receipt_was_lost_is_cleaned_not_offered",
+        "a_committed_start_intent_survives_a_crash_before_the_start_is_sent",
+        "a_cleanup_effect_accepted_before_local_completion_is_repeated_idempotently_after_a_crash"
+      ],
+      "caseResults": [
+        "test result: FAILED. 7 passed; 4 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.31s"
+      ]
+    },
+    {
+      "log": "negative-v2/skip_write_ahead.delayed_effects.log",
+      "sha256": "c5ceae4e7889e9ecd92e46b77f1bef2a0e091566ffe884d557e66cc59fefa7c9",
+      "failedCases": [
+        "late_dns_upsert_keeps_recovery_discoverable_until_the_name_is_cleaned",
+        "a_stale_worker_whose_dns_check_succeeds_late_cannot_publish_an_offer",
+        "a_stop_applied_after_takeover_changes_nothing_and_the_stale_worker_cannot_finish",
+        "a_dns_delete_applied_after_takeover_is_idempotent_and_the_stale_worker_cannot_finish",
+        "a_terminate_applied_after_takeover_is_idempotent_and_the_stale_worker_cannot_finish",
+        "ambiguous_dns_retries_survive_restarts_age_and_purge_in_the_original_zone"
+      ],
+      "caseResults": [
+        "test result: FAILED. 3 passed; 6 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.63s"
+      ]
+    },
+    {
+      "log": "negative-v2/skip_write_ahead.ledger_conformance_postgres.log",
+      "sha256": "efa97c664b9a8d1b71c0865b3e8317d25f2cbb8a45538f24c050da60533ec7aa",
+      "failedCases": [],
+      "caseResults": [
+        "test result: ok. 29 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.42s"
+      ]
+    },
+    {
+      "log": "negative-v2/skip_write_ahead.placement_durable.log",
+      "sha256": "f7923d5d0de043c9897a66ea4abfdedd7633ca3faa4ac2501f122316ef4b5613",
+      "failedCases": [
+        "memory::cleanup_effect_failure_keeps_the_attempt_unresolved",
+        "memory::invalid_on_a_start_retry_after_an_ambiguous_try_is_not_definitive",
+        "memory::a_lost_claim_during_the_best_effort_stop_is_propagated",
+        "memory::every_effect_is_preceded_by_its_committed_intent",
+        "memory::lost_receipt_is_recovered_by_the_reaper_with_the_stored_binding",
+        "memory::open_cleanup_is_finished_from_stored_data_when_the_provider_forgets_the_placement",
+        "memory::missing_and_foreign_receipts_stay_unresolved_or_untouched",
+        "memory::repeated_absence_never_settles_a_sent_start",
+        "memory::stale_worker_cannot_overwrite_a_takeover_that_left_work_unresolved",
+        "memory::stale_worker_cannot_complete_after_takeover",
+        "memory::start_that_was_never_seen_is_not_settled_by_one_not_found",
+        "memory::uncertain_dns_acknowledgement_keeps_the_persisted_obligation",
+        "memory::a_stop_is_preceded_by_its_committed_intent",
+        "postgres::invalid_on_a_start_retry_after_an_ambiguous_try_is_not_definitive",
+        "postgres::cleanup_effect_failure_keeps_the_attempt_unresolved",
+        "postgres::a_lost_claim_during_the_best_effort_stop_is_propagated",
+        "postgres::a_stop_is_preceded_by_its_committed_intent",
+        "postgres::every_effect_is_preceded_by_its_committed_intent",
+        "postgres::uncertain_dns_acknowledgement_keeps_the_persisted_obligation",
+        "postgres::lost_receipt_is_recovered_by_the_reaper_with_the_stored_binding",
+        "postgres::open_cleanup_is_finished_from_stored_data_when_the_provider_forgets_the_placement",
+        "postgres::missing_and_foreign_receipts_stay_unresolved_or_untouched",
+        "postgres::repeated_absence_never_settles_a_sent_start",
+        "postgres::start_that_was_never_seen_is_not_settled_by_one_not_found",
+        "postgres::stale_worker_cannot_overwrite_a_takeover_that_left_work_unresolved",
+        "postgres::stale_worker_cannot_complete_after_takeover"
+      ],
+      "caseResults": [
+        "test result: FAILED. 48 passed; 26 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.11s"
+      ]
+    }
+  ],
+  "broaderIntegrationGates": "Coordinator-owned; not run in this bounded private review"
+}

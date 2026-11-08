@@ -28,8 +28,8 @@ use std::time::Duration;
 
 /// Version of the PostgreSQL schema this crate writes (`rh_placement_schema.version`).
 ///
-/// Version 2 adds `rh_placement_requests.version`, the per-row write counter every write is compare-and-swapped on.
-pub const SCHEMA_VERSION: i64 = 2;
+/// Version 3 requires explicit DNS-send obligations. Nonempty older ledgers require operator reconciliation.
+pub const SCHEMA_VERSION: i64 = 3;
 
 /// A trusted, caller-supplied namespace (for example the authenticated account or party id). It is part of request identity
 /// equality. It is NOT authentication: the HTTP boundary must authenticate and pass the right scope.
@@ -226,6 +226,9 @@ pub struct AttemptRec {
     pub fulfilled: Option<Fulfilled>,
     pub stop: StopStep,
     pub dns: DnsStep,
+    /// Independent of cleanup: an earlier upsert can still land after a delete.
+    #[serde(default)]
+    pub dns_upsert: DnsUpsert,
     pub terminate: TermStep,
     pub not_found: NotFoundRec,
     pub resolution: Resolution,
@@ -249,6 +252,7 @@ impl AttemptRec {
             fulfilled: None,
             stop: StopStep::None,
             dns: DnsStep::None,
+            dns_upsert: DnsUpsert::Idle,
             terminate: TermStep::None,
             not_found: NotFoundRec::default(),
             resolution: Resolution::Open,
@@ -260,7 +264,7 @@ impl AttemptRec {
         }
     }
     pub fn is_open(&self) -> bool {
-        self.resolution == Resolution::Open
+        self.resolution == Resolution::Open || self.dns_upsert != DnsUpsert::Idle
     }
 }
 
@@ -289,6 +293,19 @@ pub enum DnsStep {
     Verified { host: String },
     DeleteIntent { host: String },
     Deleted { host: String },
+}
+
+/// The obligation for DNS sends, separate from the last DNS cleanup step.
+/// Only the same fenced run can acknowledge its one InFlight send. A retry after an
+/// unknown outcome makes the obligation Ambiguous forever: the backend has no drain barrier.
+/// Missing legacy metadata fails closed; new attempts explicitly begin Idle.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DnsUpsert {
+    Idle,
+    InFlight,
+    #[default]
+    Ambiguous,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -361,6 +378,7 @@ impl std::fmt::Debug for AttemptRec {
             .field("fulfilled", &self.fulfilled)
             .field("stop", &self.stop)
             .field("dns", &self.dns)
+            .field("dns_upsert", &self.dns_upsert)
             .field("terminate", &self.terminate)
             .field("not_found", &self.not_found)
             .field("resolution", &self.resolution)
@@ -461,6 +479,13 @@ pub fn validate_write(state: &LedgerState, phase: Phase) -> Result<(), LedgerErr
             let Some(offer) = &state.offer else {
                 return refuse("no offer recorded");
             };
+            if state
+                .attempts
+                .iter()
+                .any(|a| a.dns_upsert != DnsUpsert::Idle)
+            {
+                return refuse("offer or release with an unresolved DNS upsert");
+            }
             if phase == Phase::Offered {
                 if let Some(a) = state
                     .attempts
@@ -489,6 +514,8 @@ pub fn validate_write(state: &LedgerState, phase: Phase) -> Result<(), LedgerErr
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum LedgerError {
+    /// A schema/state generation cannot be upgraded safely without explicit reconciliation.
+    Incompatible(String),
     /// The store could not be reached or failed: the outcome of a write is UNKNOWN.
     Unavailable(String),
     /// The per-call budget elapsed: the outcome of a write is UNKNOWN.
@@ -509,6 +536,7 @@ impl LedgerError {
 impl std::fmt::Display for LedgerError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            LedgerError::Incompatible(m) => write!(f, "ledger incompatible: {m}"),
             LedgerError::Unavailable(m) => write!(f, "ledger unavailable: {m}"),
             LedgerError::Timeout => write!(f, "ledger call timed out"),
             LedgerError::Corrupt(m) => write!(f, "ledger corrupt: {m}"),

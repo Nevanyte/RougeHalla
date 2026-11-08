@@ -207,7 +207,10 @@ async fn a_fulfilled_placement_whose_dns_receipt_was_lost_is_cleaned_not_offered
     h.wait_reapable("crashC01").await;
 
     let r = h.run(&["reap"], &[]).await;
-    assert_eq!(r["resolved"], 1, "{r}");
+    assert_eq!(
+        r["resolved"], 0,
+        "a lost upsert receipt cannot discharge the send: {r}"
+    );
     assert_eq!(
         h.ops("crashC01", ZONE),
         vec![Op::Start, Op::DnsUpsert, Op::DnsDelete, Op::Terminate]
@@ -215,7 +218,7 @@ async fn a_fulfilled_placement_whose_dns_receipt_was_lost_is_cleaned_not_offered
     let row = h.row("crashC01").await;
     assert_eq!(
         (row.phase, row.state.attempts[0].resolution),
-        (Phase::Finished, Resolution::CleanedUp)
+        (Phase::Active, Resolution::Open)
     );
     assert_eq!(
         row.state.attempts[0].dns,

@@ -105,6 +105,8 @@ async fn points_fire_around_every_write_and_effect_in_write_ahead_order() {
         "before.write.dns_intent",
         "before.backend.dns_upsert",
         "after.backend.dns_upsert",
+        "before.write.dns_acknowledged",
+        "after.write.dns_acknowledged",
         "before.backend.dns_resolve",
         "before.write.dns_verified",
         "before.write.offer",

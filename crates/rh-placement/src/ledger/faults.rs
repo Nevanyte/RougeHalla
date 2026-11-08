@@ -2,7 +2,7 @@
 //! nothing in a default or production build reads any of this.
 //!
 //! Points are named `<before|after>.<what>`. Durable writes are `write.<label>` with labels `start_intent`, `start_accepted`,
-//! `stop_intent`, `stop_resolved`, `attempt_resolved`, `fulfilled`, `dns_intent`, `dns_verified`, `offer`, `cleanup_intent`,
+//! `stop_intent`, `stop_resolved`, `attempt_resolved`, `fulfilled`, `dns_intent`, `dns_acknowledged`, `dns_verified`, `offer`, `cleanup_intent`,
 //! `cleanup_done`, `not_found`, `lease`, `finished`, `release_intent`, `released`. Backend calls are `backend.<call>` with
 //! `start_placement`, `describe_placement`, `stop_placement`, `terminate_game_session`, `capacity`, `dns_upsert`,
 //! `dns_delete`, `dns_resolve`. `after.backend.*` runs once the effect happened and before the receipt is used, so
