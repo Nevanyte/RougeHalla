@@ -1,0 +1,53 @@
+{
+  "scope": "Supplemental provenance only; source corpora and capture profiles unchanged; external package contents are not hashed here.",
+  "evidenceCandidateBase": "32ebb94fd495b31fdbd86467429258b0fc43da0d",
+  "sourceWitnessCommit": "6867f132afb9d1f86bba9ecd9706a9412c4d4452",
+  "repairCommit": "The commit containing this file; parent is evidenceCandidateBase.",
+  "files": [
+    {
+      "path": "package-lock.json",
+      "bytes": 153409,
+      "sha256": "991869bdfbbefb6874220500197c61db302a4d2b2603dfc2288fd7032ce1d481"
+    },
+    {
+      "path": "package.json",
+      "bytes": 2247,
+      "sha256": "9da8ab00050db3ec14c083365ab0c3a5b8986e38fd13c086b2913249d531422c"
+    },
+    {
+      "path": "tsconfig.base.json",
+      "bytes": 410,
+      "sha256": "017575ec3101f44df43b5a7cc850779582650d9e01a2090b7e311b213b98ef88"
+    },
+    {
+      "path": "packages/server/package.json",
+      "bytes": 981,
+      "sha256": "d4965c850237876a64a02cd1c7c554f1a64d97392344cae3b63d4bd688e2f7b8"
+    },
+    {
+      "path": "packages/server/tsconfig.json",
+      "bytes": 153,
+      "sha256": "38a209200ba0dde3bbaeee8df1e29755aa35b63c588367da486b31a83b90cd15"
+    },
+    {
+      "path": "packages/shared/package.json",
+      "bytes": 427,
+      "sha256": "6e9c040348c50e0ad5043ec4cb9b4206f68f29cf4eeb4dec5f635f37a6f87f35"
+    },
+    {
+      "path": "packages/shared/tsconfig.json",
+      "bytes": 124,
+      "sha256": "e81b194f96f35e0d1e9e8069998a30740b08703e085bb7d0f92922d7b6d06193"
+    },
+    {
+      "path": "packages/client/package.json",
+      "bytes": 430,
+      "sha256": "05f2c477239869cf8879ea6b94ca490aa9717ba28e58712bb6bbe8cb0313b3e3"
+    },
+    {
+      "path": "packages/client/tsconfig.json",
+      "bytes": 149,
+      "sha256": "c101d39672c0d5e91b35160566e6e85bae9fe7490b694c729b5bb4fe12daf88a"
+    }
+  ]
+}
