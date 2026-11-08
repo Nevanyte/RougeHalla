@@ -94,7 +94,7 @@ bash tools/barrier-view-fixtures/run-mutants.sh
   `barrierStrength` result in 0..1.
 - **NPC forms.** `mob`/`elite`/`dummy`/`quest`/`zombie` rows appear through actual `perceive`; only living `mob`/
   `elite` rows get minimap dots. `MobSeen` has no barrier/barrierFrac leaf and `MobState` has no barrier field; a
-  declared stray barrier of 50/1e39/NaN leaves the frames byte-identical.
+  declared stray barrier of 50/1e39/NaN leaves the NPC row arrays byte-identical (the control compares frame.mobs).
 - **Hidden controls.** The EFFECT_HIDDEN row, the out-of-frame row and a `canSee = false` control carry no actor
   fact; neither hidden nor far id occurs anywhere in the frame JSON; swapping the hidden row's barrier to 1e39 leaves
   the frame identical; the owner self barrier is still projected.
@@ -128,3 +128,11 @@ refusal-seam and ring-projection decisions plus the G6 producer/publication gate
 Source evidence only; no production/observation/policy/protocol/version/profile/card/Unity/precision change; no Rust
 work or duplicated G6 corpus; all outputs inside the isolated worktree; no older golden regenerated; declared probes
 and stubs labelled; numeric-domain diagnostics separated; commits only on the isolated branch; no merge or push.
+
+## Coordinator admission
+
+Source candidate `70a6790c` is integrated in `33d72c34`, followed by the reviewed NPC-row claim correction.
+Root independently reproduces all six corpora byte-exact, kills all four compiled semantic source mutants at the
+expected mismatch paths and restores the unchanged control. This is source-only admission; it does not validate
+PlayerView.draw/scene propagation, native G6 caller timing, protocol12 or a real client. CI now includes this capture.
+The private native consumer and source-domain refusal tests remain separately revision-scoped.

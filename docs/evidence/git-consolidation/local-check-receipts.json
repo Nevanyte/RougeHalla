@@ -396,6 +396,22 @@
       "bytes": 1112,
       "sha256": "91c990c3ce1f0169716fb23d5c82ec2e3b06c9f1e6e85cabe302d001b7a37bdf",
       "result": "Initial strict lint failed on a needless test borrow; corrected in follow-up. Final log passes."
+    },
+    {
+      "file": "barrier-view-capture.log",
+      "bytes": 971,
+      "sha256": "7017d633bb4d1e2999091be63816d3f140d7e1eb6f2fbf0e8d53c366ba067fac"
+    },
+    {
+      "file": "barrier-view-mutants.log",
+      "bytes": 1891,
+      "sha256": "48119abe1cf6dfcb9421a18f02ff3f5fa14028d06c8667541e8b072e2617483a"
+    },
+    {
+      "file": "g6-source-capture.log",
+      "bytes": 133,
+      "sha256": "b0fe58fe3f67e6d0c59c2d93371bb5c831ed29e4ff956f27756a1b08ecf8bfed",
+      "scope": "Original10 source cases byte-exact only; real caller timing/anti-heal/feature build remain held."
     }
   ]
 }

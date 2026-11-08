@@ -99,7 +99,9 @@ remains11/24/18/17/13/content `801a76cde4cfd305`. The [fair-view review](coordin
 keeps broad observation changes held. The corrected partial source [witness](evidence/percept-witness/README.md) is
 integrated in `b0310e73`, with no production/version changes. Root source recapture, three semantic mutants/restored
 control and four focused native tests pass; actual room lifecycle, committed prepared carry and visibility-time
-equivalence remain unproved. Post Rust's next task is evidence-only barrier-view arithmetic, not new public leaves.
+equivalence remain unproved. The later barrier-view source slice is admitted in `33d72c34`: six corpora reproduce
+byte-exact with four compiled semantic mutants and restored control. This is source-only method/schema evidence;
+real G6 caller and native/client publication proof remain separate. Post Rust next owns source human Wish witnesses.
 The next G6 heal-barrier assignment
 is a private native candidate under its [packet](coordination/P-G6-HEAL-BARRIER-NATIVE.md), with checkpoint25/replay19
 reserved only for that candidate and a new content identity required. It cannot activate on the public profile before

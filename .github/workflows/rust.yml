@@ -93,6 +93,7 @@ jobs:
           bash tools/bot-tournament-fixtures/capture.sh --check
           bash tools/bot-telemetry-fixtures/capture.sh --check
           bash tools/percept-witness-fixtures/capture.sh --check
+          bash tools/barrier-view-fixtures/capture.sh --check
       - name: First-playable cards, constructor, potions and PvE still match the actual source
         run: |
           bash tools/cards-fixtures/capture.sh --check

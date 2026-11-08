@@ -252,3 +252,17 @@ G6 producer/expiry remains the separate private Rust lane. The art source batch 
 `f16bca0d` after compile and42 Editor passes. Root verifies all nine raw artifacts,31 source hashes and the entire
 byte-identical tested Unity tree. The separate audio commit is excluded. See its [admission record](../../art/evidence/source-cues/ADMISSION.md);
 no fresh Web build, visual result or performance claim follows.
+
+## Barrier source admission and private production handover
+
+The six actual-source barrier-view corpora in `70a6790c` are integrated in `33d72c34`. Root independently verifies
+byte-exact capture, four compiled semantic mutant kills and restored control. A reviewed wording correction limits
+NPC stray-barrier noninterference to NPC row arrays; player hidden/far controls separately compare full frames.
+Method-level graphics recorders do not prove a real scene. [Receipts](local-check-receipts.json) pin root logs.
+
+The private checked-observation production candidate `ec9a9028` has root and independent source review with no blocker;
+its observe/item_view/wire lease passes to the networking candidate. Source-consumer follow-up `bbb7b012` reports
+55 bit/ring comparisons and8 explicit numeric refusals over5 tests. Neither is admitted to main until complete
+protocol12/G6/client composition. G6 `b50871d1` reproduces its original10 source cases but remains held for genuine
+before/after-slot caller and anti-heal witnesses plus the disclosed feature-gated StatView build repair. The apparent
+lifesteal mismatch had inconsistent installer/config binding and is not accepted as proof of a combat-rule defect.
