@@ -1,0 +1,93 @@
+{
+  "base": "198902f42970bd3d71d431931020819b0e36f008",
+  "branch": "codex/bot-fair-observation-completion",
+  "scope": "Private source helper/FSM module; no seat activation or full-brain parity. Protocol13 / Observation19 / policy13 unchanged. No gameplay/native/wire/content/lock/status or older-corpus changes.",
+  "corpus": {
+    "path": "parity/policy/bot-hazards.json",
+    "bytes": 1630726,
+    "sha256": "748efe3d43fc7eb11e17024f9ab8702603629f376a776a3ba2319d7dbe1396d9",
+    "captureSha256": "6abdc1e0663e9d41acce40b8f1309a6cdf5258daaff043edf90313b311645d73",
+    "sourcePins": 107,
+    "toolPins": 4,
+    "classifications": 75,
+    "fsmSteps": 28,
+    "adjustCases": 20,
+    "persona": "hunter",
+    "reengageHp": 0.5
+  },
+  "checks": [
+    {
+      "command": "bash tools/bot-hazards-fixtures/capture.sh --check",
+      "result": "PASS exact bytes"
+    },
+    {
+      "command": "RH_BOT_HAZARDS_MUTANT_OUTPUT=<own external>/mutants bash tools/bot-hazards-fixtures/run-mutants.sh",
+      "result": "PASS 3 actual compiled semantic result mutants; before/restored controls and provenance-only nonkill"
+    },
+    {
+      "command": "cargo test --locked -p rh-policy bots::hazards",
+      "result": "PASS 4 tests, 0 failures, 74 filtered out"
+    },
+    {
+      "command": "cargo clippy --locked -p rh-policy --all-targets -- -D warnings",
+      "result": "PASS"
+    },
+    {
+      "command": "cargo clippy --locked -p rh-policy --all-targets --all-features -- -D warnings",
+      "result": "PASS"
+    },
+    {
+      "command": "cargo fmt -p rh-policy -- --check",
+      "result": "PASS"
+    },
+    {
+      "command": "git diff --check",
+      "result": "PASS"
+    }
+  ],
+  "targets": {
+    "cargoTargetDir": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/bot-fair-observation/target",
+    "sourceCheckout": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/bot-fair-observation/repo",
+    "externalEvidenceDirectory": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/bot-fair-observation"
+  },
+  "rawEvidence": {
+    "capture.log": {
+      "bytes": 278,
+      "sha256": "075d68224e581faff0272ac22a62be147b1c025ac3c92e867a4da0e7b976497a"
+    },
+    "source-check.log": {
+      "bytes": 139,
+      "sha256": "2d37dac1fc8a517392a7af18e7e5831868da7325c34ba8fbf92d919dc82d9b56"
+    },
+    "mutants.log": {
+      "bytes": 1087,
+      "sha256": "e322ea68b4a7c7f3202e9b9fc18be3e2f7bd1c72b1ec6a602b18fa9355b6ca0a"
+    },
+    "native-tests.log": {
+      "bytes": 892,
+      "sha256": "0f1ac9fd3fca81dd6e81402fcbea807a6ef9cc85e7907c901aea5947cc8419e8"
+    },
+    "clippy-default.log": {
+      "bytes": 213,
+      "sha256": "e18d0992a491547ee1c59ea45ee7d1536fe66c9d433b9a65cd60559265b060a6"
+    },
+    "clippy-all-features.log": {
+      "bytes": 60,
+      "sha256": "492249c9f550482a9a491739745144c5a474b15b27fd7de5717f8cd83c68916d"
+    },
+    "fmt.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "bot-branch-inventory.json": {
+      "bytes": 3133,
+      "sha256": "0ae236b830c808124a21a60515cab78cb4240d57d5cf6e9a61897b80196f6d1f"
+    }
+  },
+  "limits": [
+    "Declared public contexts; not real headless game producer/outcome evidence.",
+    "Owner canonical lock absent from human13; activation requires reviewed shared disclosure. Public hazards remain Off.",
+    "No paired-world/persistent-publication proof, full FrameRing/memory/strategy/hunter parity or warmed allocation/time claim.",
+    "Future shared public/write leases are listed in ADVANCED_BOT_DEPENDENCIES.md; no versions allocated."
+  ]
+}

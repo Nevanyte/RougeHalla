@@ -9,6 +9,7 @@ pub mod bot;
 pub mod build_route;
 pub mod clicks;
 pub mod delay;
+pub mod hazards;
 pub mod humanizer;
 pub mod kite;
 pub mod knowledge;
