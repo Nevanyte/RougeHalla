@@ -97,6 +97,9 @@ fn update_active(cx: &mut Cx) {
 #[cfg(test)]
 mod tests;
 
+#[cfg(test)]
+mod loot_world_tests;
+
 pub(crate) mod mob_ai;
 
 pub(crate) mod mob_life;

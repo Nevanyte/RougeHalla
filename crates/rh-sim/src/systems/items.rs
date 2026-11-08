@@ -145,10 +145,15 @@ pub(crate) fn swap(cx: &mut Cx, ix: FighterIx, cmd: &ActionCmd) {
         return;
     };
     let now = cx.w.server_time;
+    // P-STATUS-1 supplies actionBlocked (stun/ability cast), P-CARDS-1 supplies lockSecondSlot: legacy
+    // weapons.ts handleSwap reads the Committed flag through the same shared swap rule the client predicts.
+    let second_locked = cx.w.players[ix.slot()]
+        .build
+        .has_flag(crate::stat_fold::EffectFlag::LockSecondSlot);
     let p = cx.w.core_mut(ix);
     let target = slot.unwrap_or(1 - p.weapon.slot);
-    // P-STATUS-1 supplies actionBlocked (stun/ability cast), P-CARDS-1 supplies lockSecondSlot.
-    if !crate::status_runtime::action_blocked(&p.statuses, now) && p.weapon.can_swap(target, false)
+    if !crate::status_runtime::action_blocked(&p.statuses, now)
+        && p.weapon.can_swap(target, second_locked)
     {
         p.weapon.slot = target;
         weapon_changed(p, now);
@@ -403,8 +408,13 @@ fn take(cx: &mut Cx, ix: FighterIx, i: usize) -> Result<(), PickupRefusal> {
     let vanished =
         cx.w.containers[i].kind == ContainerKind::Ground && cx.w.containers[i].items.is_empty();
     let now = cx.w.server_time;
+    // Legacy loot.ts handlePickup: Committed's lockSecondSlot keeps an empty second slot empty; the
+    // weapon replaces the hand's instead (and drops what it held).
+    let second_locked = cx.w.players[ix.slot()]
+        .build
+        .has_flag(crate::stat_fold::EffectFlag::LockSecondSlot);
     let p = cx.w.core_mut(ix);
-    let slot = p.weapon.pickup_slot(false);
+    let slot = p.weapon.pickup_slot(second_locked);
     let old = if slot == 0 {
         p.weapon.weapon0.replace(weapon)
     } else {
