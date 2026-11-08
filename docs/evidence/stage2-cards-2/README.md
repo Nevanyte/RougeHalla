@@ -1,7 +1,7 @@
 # P-CARDS-2: camp/stat chests and the chest-drop consumer chain (slice DONE-VERIFIED)
 
-Stacked PR: [P-CARDS-2]() -> `deepseek/p-mobs-1` @ `039ceb47` (line A: cards -> faction -> abil -> terrain -> mobs).
-Commits `bd5ba81a`..`COMMITS_TBD`.
+Stacked PR: [#45](https://github.com/Nevanyte/RougeHalla/pull/45) -> `deepseek/p-mobs-1` @ `039ceb47` (line A: cards ->
+faction -> abil -> terrain -> mobs). Commits `bd5ba81a`..`c23a3cc2`.
 
 Phase: the cards/rewards slice of [ORDER_OF_OPERATIONS](../../ORDER_OF_OPERATIONS.md) phase 1 serving the backlog row
 [P-CARDS-2](../../backlog/README.md) ("Camp chests, `choose`, augments, stat chests/crates, chest boosts, skip heal/GV").
