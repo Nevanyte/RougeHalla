@@ -26,9 +26,20 @@ server-only producer evidence. No production source change, no expected event in
 Cases: Freeze and Trial target-removal Fizzle; Freeze-, Swarm- and Trial-pending Interrupted by a real Freeze landing's
 Stun. Instant Blaze/LastStand have no pending Fizzle/Interrupted domain and are reported as such.
 
-## Mutation runner
+## Mutation runner and backup safety
 
 run-mutants.sh temporarily patches production, compiles, runs the actual new target, requires a semantic failure
 (test result: FAILED; compile errors are not kills), restores the file byte-for-byte, and then requires the unchanged
 target to pass. Mutations: wrong Fizzle reason, refunded Fizzle stock, wrong retained producer clock, and an unlawful
 late landing. Expected final line: control passes after four killed lines.
+
+lib/runner-guard.sh makes the recovery backup safe: it checks mktemp and cp success, verifies the completed backup size
+and SHA-256 against the source, and arms MUT_FILE only after all checks pass. Every backup failure is fail-closed with
+the original untouched; restoration failure returns nonzero and retains recovery bytes. EXIT/HUP/INT/TERM restore the
+armed source; SIGKILL is untrappable and is not claimed.
+
+    bash tools/wish-terminal-fixtures/tests/runner-safety.sh
+
+The isolated safety suite uses disposable files/mocked commands (never an active worker source) to exercise mktemp
+failure, cp failure, partial backup, HUP/INT/TERM during the backup window, and restoration failure/nonzero with
+retained recovery.
