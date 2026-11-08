@@ -1,0 +1,11 @@
+--- a/packages/server/src/sim/ledger.ts
++++ b/packages/server/src/sim/ledger.ts
+@@ -401,7 +401,7 @@
+     const overkill = total - absorbed - applied;
+     if (overkill > 1e-9) {
+       const hits: OverkillHit[] = [];
+-      entries.forEach((e, i) => { if (amounts[i]! > 0 && !e.arena) hits.push({ entry: e, amount: amounts[i]!, raw: raws[i]! }); });
++      entries.forEach((e, i) => { if (amounts[i]! > 0) hits.push({ entry: e, amount: amounts[i]!, raw: raws[i]! }); });
+       world.hooks.overkilled(world, c, hits, overkill, total);
+     }
+   }

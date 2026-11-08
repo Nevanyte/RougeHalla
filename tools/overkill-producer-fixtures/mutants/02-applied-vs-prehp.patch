@@ -1,0 +1,11 @@
+--- a/packages/server/src/sim/ledger.ts
++++ b/packages/server/src/sim/ledger.ts
+@@ -398,7 +398,7 @@
+   // The pass killed it with damage to spare (what a barrier swallowed was never aimed at its hp): cards answer that (Overkill).
+   if (!standing(c) && world.hooks.overkilled) {
+     const absorbed = c.kind === "player" ? Math.max(0, barrierBefore - c.s.barrier) : 0;
+-    const overkill = total - absorbed - applied;
++    const overkill = total - hpBefore;
+     if (overkill > 1e-9) {
+       const hits: OverkillHit[] = [];
+       entries.forEach((e, i) => { if (amounts[i]! > 0 && !e.arena) hits.push({ entry: e, amount: amounts[i]!, raw: raws[i]! }); });
