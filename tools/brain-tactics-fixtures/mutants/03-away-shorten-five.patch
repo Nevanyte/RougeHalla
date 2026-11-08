@@ -1,0 +1,13 @@
+diff --git a/crates/rh-policy/src/bots/kite.rs b/crates/rh-policy/src/bots/kite.rs
+index 92b0aed2..ed283cb8 100644
+--- a/crates/rh-policy/src/bots/kite.rs
++++ b/crates/rh-policy/src/bots/kite.rs
+@@ -5,7 +5,7 @@ use rh_sim::Vec2;
+ use crate::bots::paths::RoomPathService;
+ 
+ pub const TURNS: [f64; 5] = [0., 0.5, -0.5, 1.05, -1.05];
+-pub const LENGTHS: [f64; 2] = [1., 0.6];
++pub const LENGTHS: [f64; 2] = [1., 0.5];
+ 
+ /// A point about step_u straight away from threat (turned by jitter radians), turned or shortened until the walk to it is
+ /// clear. None when no heading is clear: cornered, so the caller stands and trades.

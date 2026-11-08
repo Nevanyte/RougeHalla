@@ -598,8 +598,8 @@
    "packages/shared/src/map.ts": "35caac04108a3bd0e1d880a9502f14bdccb3a9a17d262cba335c3d6436995eed"
   },
   "sourceTree": "ea34d1c010d96ed47804929e98cea06e3b8dc27b184d4ceb8d0e7b4a7f747f18",
-  "tool": "625d00ae516f67b36e54734c531586899eb03a04d51724bf4c6505e1650423e7",
-  "captureSha256": "67c0e65bf738f563ee4e0c8378f63f37fd2e46074f2096884351b971fb93a8f2"
+  "tool": "434131a25beeecd03ae1cb6082c51219ecfd7c142cc6a96fdd8575ef385d04b8",
+  "captureSha256": "030c00d5e120f5ddaa982144961386cc1b1a83ee968e5701712a625422e74685"
  },
  "script": [
   {
@@ -874,107 +874,134 @@
    "left": 2
   },
   {
-   "op": "frame",
-   "now": 9500,
-   "gated": false,
-   "stats": {
-    "searches": 5,
-    "hits": 5,
-    "fallbacks": 0
-   },
-   "left": 3
-  },
-  {
    "op": "walk",
    "from": {
-    "x": 80,
-    "y": 80
+    "x": 400,
+    "y": 400
    },
    "to": {
-    "x": 720,
-    "y": 720
+    "x": 400,
+    "y": 500
    },
-   "result": null,
+   "result": {
+    "dist": 64,
+    "exact": true
+   },
    "stats": {
     "searches": 6,
-    "hits": 5,
-    "fallbacks": 0
-   },
-   "left": 2
-  },
-  {
-   "op": "walk",
-   "from": {
-    "x": 88,
-    "y": 80
-   },
-   "to": {
-    "x": 720,
-    "y": 728
-   },
-   "result": null,
-   "stats": {
-    "searches": 7,
     "hits": 5,
     "fallbacks": 0
    },
    "left": 1
   },
   {
-   "op": "frame",
-   "now": 40000,
-   "gated": true,
+   "op": "walk",
+   "from": {
+    "x": 80,
+    "y": 400
+   },
+   "to": {
+    "x": 80,
+    "y": 500
+   },
+   "result": null,
    "stats": {
     "searches": 7,
     "hits": 5,
     "fallbacks": 0
+   },
+   "left": 0
+  },
+  {
+   "op": "walk",
+   "from": {
+    "x": 720,
+    "y": 80
+   },
+   "to": {
+    "x": 720,
+    "y": 400
+   },
+   "result": {
+    "dist": 416,
+    "exact": false
+   },
+   "stats": {
+    "searches": 7,
+    "hits": 5,
+    "fallbacks": 1
+   },
+   "left": 0
+  },
+  {
+   "op": "walk",
+   "from": {
+    "x": 400,
+    "y": 80
+   },
+   "to": {
+    "x": 500,
+    "y": 400
+   },
+   "result": {
+    "dist": 435.83942,
+    "exact": false
+   },
+   "stats": {
+    "searches": 7,
+    "hits": 5,
+    "fallbacks": 2
+   },
+   "left": 0
+  },
+  {
+   "op": "frame",
+   "now": 2600,
+   "gated": false,
+   "stats": {
+    "searches": 7,
+    "hits": 5,
+    "fallbacks": 2
    },
    "left": 3
   },
   {
    "op": "walk",
    "from": {
-    "x": 80,
+    "x": 400,
     "y": 80
    },
    "to": {
-    "x": 720,
-    "y": 720
+    "x": 500,
+    "y": 400
    },
    "result": null,
    "stats": {
     "searches": 8,
     "hits": 5,
-    "fallbacks": 0
-   },
-   "left": 2
-  },
-  {
-   "op": "walk",
-   "from": {
-    "x": 80,
-    "y": 80
-   },
-   "to": {
-    "x": 720,
-    "y": 720
-   },
-   "result": null,
-   "stats": {
-    "searches": 8,
-    "hits": 6,
-    "fallbacks": 0
+    "fallbacks": 2
    },
    "left": 2
   },
   {
    "op": "frame",
-   "now": 40100,
+   "now": 3500,
    "gated": false,
    "stats": {
     "searches": 8,
-    "hits": 6,
-    "fallbacks": 0
+    "hits": 5,
+    "fallbacks": 2
+   },
+   "left": 3
+  },
+  {
+   "op": "frame",
+   "now": 9500,
+   "gated": false,
+   "stats": {
+    "searches": 8,
+    "hits": 5,
+    "fallbacks": 2
    },
    "left": 3
   },
@@ -991,8 +1018,102 @@
    "result": null,
    "stats": {
     "searches": 9,
+    "hits": 5,
+    "fallbacks": 2
+   },
+   "left": 2
+  },
+  {
+   "op": "walk",
+   "from": {
+    "x": 88,
+    "y": 80
+   },
+   "to": {
+    "x": 720,
+    "y": 728
+   },
+   "result": null,
+   "stats": {
+    "searches": 10,
+    "hits": 5,
+    "fallbacks": 2
+   },
+   "left": 1
+  },
+  {
+   "op": "frame",
+   "now": 40000,
+   "gated": true,
+   "stats": {
+    "searches": 10,
+    "hits": 5,
+    "fallbacks": 2
+   },
+   "left": 3
+  },
+  {
+   "op": "walk",
+   "from": {
+    "x": 80,
+    "y": 80
+   },
+   "to": {
+    "x": 720,
+    "y": 720
+   },
+   "result": null,
+   "stats": {
+    "searches": 11,
+    "hits": 5,
+    "fallbacks": 2
+   },
+   "left": 2
+  },
+  {
+   "op": "walk",
+   "from": {
+    "x": 80,
+    "y": 80
+   },
+   "to": {
+    "x": 720,
+    "y": 720
+   },
+   "result": null,
+   "stats": {
+    "searches": 11,
     "hits": 6,
-    "fallbacks": 0
+    "fallbacks": 2
+   },
+   "left": 2
+  },
+  {
+   "op": "frame",
+   "now": 40100,
+   "gated": false,
+   "stats": {
+    "searches": 11,
+    "hits": 6,
+    "fallbacks": 2
+   },
+   "left": 3
+  },
+  {
+   "op": "walk",
+   "from": {
+    "x": 80,
+    "y": 80
+   },
+   "to": {
+    "x": 720,
+    "y": 720
+   },
+   "result": null,
+   "stats": {
+    "searches": 12,
+    "hits": 6,
+    "fallbacks": 2
    },
    "left": 2
   },
@@ -1011,9 +1132,9 @@
     "exact": true
    },
    "stats": {
-    "searches": 10,
+    "searches": 13,
     "hits": 6,
-    "fallbacks": 0
+    "fallbacks": 2
    },
    "left": 1
   },
@@ -1029,9 +1150,9 @@
    },
    "result": null,
    "stats": {
-    "searches": 10,
+    "searches": 13,
     "hits": 6,
-    "fallbacks": 0
+    "fallbacks": 2
    },
    "left": 1
   },
@@ -1052,9 +1173,9 @@
     }
    ],
    "stats": {
-    "searches": 11,
+    "searches": 14,
     "hits": 6,
-    "fallbacks": 0
+    "fallbacks": 2
    },
    "left": 0
   },
@@ -1644,6 +1765,285 @@
    },
    "stepU": 300,
    "jitter": 0.4,
+   "result": null
+  },
+  {
+   "op": "away",
+   "self": {
+    "x": 272,
+    "y": 80
+   },
+   "threat": {
+    "x": 312,
+    "y": 80
+   },
+   "stepU": 300,
+   "jitter": 0,
+   "result": {
+    "x": 92,
+    "y": 80
+   }
+  },
+  {
+   "op": "away",
+   "self": {
+    "x": 272,
+    "y": 80
+   },
+   "threat": {
+    "x": 272,
+    "y": 40
+   },
+   "stepU": 300,
+   "jitter": 0,
+   "result": {
+    "x": 272,
+    "y": 260
+   }
+  },
+  {
+   "op": "away",
+   "self": {
+    "x": 272,
+    "y": 80
+   },
+   "threat": {
+    "x": 242,
+    "y": 110
+   },
+   "stepU": 300,
+   "jitter": 0,
+   "result": null
+  },
+  {
+   "op": "away",
+   "self": {
+    "x": 272,
+    "y": 112
+   },
+   "threat": {
+    "x": 312,
+    "y": 112
+   },
+   "stepU": 300,
+   "jitter": 0,
+   "result": {
+    "x": 92,
+    "y": 112
+   }
+  },
+  {
+   "op": "away",
+   "self": {
+    "x": 272,
+    "y": 112
+   },
+   "threat": {
+    "x": 272,
+    "y": 72
+   },
+   "stepU": 300,
+   "jitter": 0,
+   "result": {
+    "x": 185.703403,
+    "y": 269.964861
+   }
+  },
+  {
+   "op": "away",
+   "self": {
+    "x": 272,
+    "y": 112
+   },
+   "threat": {
+    "x": 242,
+    "y": 142
+   },
+   "stepU": 300,
+   "jitter": 0,
+   "result": null
+  },
+  {
+   "op": "away",
+   "self": {
+    "x": 624,
+    "y": 112
+   },
+   "threat": {
+    "x": 664,
+    "y": 112
+   },
+   "stepU": 300,
+   "jitter": 0,
+   "result": null
+  },
+  {
+   "op": "away",
+   "self": {
+    "x": 624,
+    "y": 112
+   },
+   "threat": {
+    "x": 624,
+    "y": 72
+   },
+   "stepU": 300,
+   "jitter": 0,
+   "result": null
+  },
+  {
+   "op": "away",
+   "self": {
+    "x": 624,
+    "y": 112
+   },
+   "threat": {
+    "x": 594,
+    "y": 142
+   },
+   "stepU": 300,
+   "jitter": 0,
+   "result": null
+  },
+  {
+   "op": "away",
+   "self": {
+    "x": 272,
+    "y": 144
+   },
+   "threat": {
+    "x": 312,
+    "y": 144
+   },
+   "stepU": 300,
+   "jitter": 0,
+   "result": {
+    "x": 92,
+    "y": 144
+   }
+  },
+  {
+   "op": "away",
+   "self": {
+    "x": 272,
+    "y": 144
+   },
+   "threat": {
+    "x": 272,
+    "y": 104
+   },
+   "stepU": 300,
+   "jitter": 0,
+   "result": {
+    "x": 115.863819,
+    "y": 233.562789
+   }
+  },
+  {
+   "op": "away",
+   "self": {
+    "x": 272,
+    "y": 144
+   },
+   "threat": {
+    "x": 242,
+    "y": 174
+   },
+   "stepU": 300,
+   "jitter": 0,
+   "result": null
+  },
+  {
+   "op": "away",
+   "self": {
+    "x": 272,
+    "y": 176
+   },
+   "threat": {
+    "x": 312,
+    "y": 176
+   },
+   "stepU": 300,
+   "jitter": 0,
+   "result": {
+    "x": 92,
+    "y": 176
+   }
+  },
+  {
+   "op": "away",
+   "self": {
+    "x": 272,
+    "y": 176
+   },
+   "threat": {
+    "x": 272,
+    "y": 136
+   },
+   "stepU": 300,
+   "jitter": 0,
+   "result": {
+    "x": 115.863819,
+    "y": 265.562789
+   }
+  },
+  {
+   "op": "away",
+   "self": {
+    "x": 272,
+    "y": 176
+   },
+   "threat": {
+    "x": 242,
+    "y": 206
+   },
+   "stepU": 300,
+   "jitter": 0,
+   "result": null
+  },
+  {
+   "op": "away",
+   "self": {
+    "x": 272,
+    "y": 208
+   },
+   "threat": {
+    "x": 312,
+    "y": 208
+   },
+   "stepU": 300,
+   "jitter": 0,
+   "result": {
+    "x": 92,
+    "y": 208
+   }
+  },
+  {
+   "op": "away",
+   "self": {
+    "x": 272,
+    "y": 208
+   },
+   "threat": {
+    "x": 272,
+    "y": 168
+   },
+   "stepU": 300,
+   "jitter": 0,
+   "result": null
+  },
+  {
+   "op": "away",
+   "self": {
+    "x": 272,
+    "y": 208
+   },
+   "threat": {
+    "x": 242,
+    "y": 238
+   },
+   "stepU": 300,
+   "jitter": 0,
    "result": null
   }
  ]

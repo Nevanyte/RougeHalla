@@ -67,6 +67,9 @@ struct Trip {
     dist: f64,
 }
 
+/// (x, y, x, y, gated) rounded to the cache key unit.
+type TripKey = (i64, i64, i64, i64, bool);
+
 /// The room path service: the shared budget, the 1 s cache, the 8 s stale answer, the prune sweep and the sight/move queries.
 pub struct RoomPathService {
     map: TileMap,
@@ -75,7 +78,7 @@ pub struct RoomPathService {
     now: f64,
     gated: bool,
     pruned_at: f64,
-    trips: Vec<((i64, i64, i64, i64, bool), Trip)>,
+    trips: Vec<(TripKey, Trip)>,
     stats: PathStats,
 }
 impl RoomPathService {
@@ -111,7 +114,7 @@ impl RoomPathService {
         let now = self.now;
         self.trips.retain(|(_, t)| now - t.at <= PATH_KEEP_MS);
     }
-    fn key(&self, from: Vec2, to: Vec2) -> (i64, i64, i64, i64, bool) {
+    fn key(&self, from: Vec2, to: Vec2) -> TripKey {
         let r = |v: f64| (v / PATH_KEY_U).round() as i64;
         (r(from.x), r(from.y), r(to.x), r(to.y), self.gated)
     }

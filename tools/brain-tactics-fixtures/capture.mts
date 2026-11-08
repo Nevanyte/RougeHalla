@@ -46,6 +46,13 @@ frame(1500, false);
 walk(P[0], P[3]); // stale-cache search window
 frame(2500, false);
 walk(P[0], P[3]);
+walk(P[2], pt(400, 500)); // fresh search
+walk(P[1], pt(80, 500)); // fresh search
+walk(P[5], pt(720, 400)); // fresh search: the allowance is spent
+walk(P[4], pt(500, 400)); // over budget with no usable answer: straight line x 1.3
+frame(2600, false);
+walk(P[4], pt(500, 400)); // cached exact now
+frame(3500, false);
 frame(9500, false);
 walk(P[0], P[3]); // stale expired -> new search
 walk(pt(88, 80), pt(720, 728)); // key rounding shares a stale trip
@@ -65,6 +72,21 @@ for (const self of PTS) {
       const at = awayPoint(svc, self, threat, 300, jitter);
       script.push({op: 'away', self, threat, stepU: 300, jitter, result: at === null ? null : {x: r6(at.x), y: r6(at.y)}});
     }
+  }
+}
+// Away cases beside walls: the full step is blocked, so the shortened headings/LENGTHS are exercised.
+const walls = [];
+for (let y = 2; y < map.h - 2 && walls.length < 6; y++) {
+  for (let x = 2; x < map.w - 2 && walls.length < 6; x++) {
+    if ((map.tiles[y * map.w + x] & 1) !== 0) continue;
+    if ((map.tiles[y * map.w + x + 1] & 1) === 0 && (map.tiles[(y + 1) * map.w + x] & 1) === 0) continue;
+    walls.push({x: x * TILE + TILE / 2, y: y * TILE + TILE / 2});
+  }
+}
+for (const self of walls) {
+  for (const threat of [{x: self.x + 40, y: self.y}, {x: self.x, y: self.y - 40}, {x: self.x - 30, y: self.y + 30}]) {
+    const at = awayPoint(svc, self, threat, 300, 0);
+    script.push({op: 'away', self, threat, stepU: 300, jitter: 0, result: at === null ? null : {x: r6(at.x), y: r6(at.y)}});
   }
 }
 const SOURCE = [

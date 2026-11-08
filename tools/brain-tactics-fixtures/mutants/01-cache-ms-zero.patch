@@ -1,0 +1,13 @@
+diff --git a/crates/rh-policy/src/bots/paths.rs b/crates/rh-policy/src/bots/paths.rs
+index 0ab31ac0..0010b258 100644
+--- a/crates/rh-policy/src/bots/paths.rs
++++ b/crates/rh-policy/src/bots/paths.rs
+@@ -6,7 +6,7 @@ use rh_sim::map::{MASK_MOVE, MASK_SIGHT};
+ use rh_sim::pathfind::Pathfinder;
+ use rh_sim::{constants::PLAYER_RADIUS, TileMap, Vec2};
+ 
+-pub const PATH_CACHE_MS: f64 = 1000.;
++pub const PATH_CACHE_MS: f64 = 0.;
+ pub const PATH_KEY_U: f64 = 8.;
+ pub const PATH_STALE_MS: f64 = 8000.;
+ const PATH_KEEP_MS: f64 = 20_000.;
