@@ -14,9 +14,30 @@ permissions:
   contents: read
 
 jobs:
+  # Keep the complete pure-simulation suite independent of transport/PG/source recapture work. The default workspace
+  # suite passed 1,520 tests at b01fc9e2, but consumed 31 minutes of the old job's cumulative 40-minute allowance.
+  simulation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      CARGO_TERM_COLOR: always
+      CARGO_PROFILE_DEV_DEBUG: "0"
+      CARGO_PROFILE_TEST_DEBUG: "0"
+    steps:
+      - uses: actions/checkout@v4
+      - name: Toolchain (from rust-toolchain.toml)
+        run: rustup show active-toolchain || rustup toolchain install
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: simulation
+      # rh-headless/rh-parity dev dependencies enable these in the former workspace invocation. Preserve that union,
+      # including the required-feature privacy/allocation targets, when selecting rh-sim in its own job.
+      - name: Complete workspace-unified simulation suite, including map generators and documentation
+        run: cargo test --locked -p rh-sim --features trusted-status-probes
+
   rust:
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 60
     services:
       postgres:
         image: postgres:16
@@ -28,6 +49,10 @@ jobs:
     env:
       DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/postgres
       CARGO_TERM_COLOR: always
+      # Symbols are unnecessary for these assertion/source gates and greatly enlarge repeated feature builds.
+      # Optimization levels, debug assertions, overflow checks and the complete test selection remain unchanged.
+      CARGO_PROFILE_DEV_DEBUG: "0"
+      CARGO_PROFILE_TEST_DEBUG: "0"
     steps:
       - uses: actions/checkout@v4
       - name: Toolchain (from rust-toolchain.toml)
@@ -40,7 +65,8 @@ jobs:
         run: |
           cargo fmt --manifest-path tools/map-bench/Cargo.toml -- --check
           cargo check --locked --manifest-path tools/map-bench/Cargo.toml --target-dir "$RUNNER_TEMP/map-bench-target"
-      - run: cargo test --workspace
+      - name: Remaining default workspace tests (full rh-sim suite runs in the simulation job)
+        run: cargo test --locked --workspace --exclude rh-sim
       - name: Server with the durable store (every PostgreSQL-backed server test, incl. pg_e2e and the lease conformance suite)
         run: cargo test -p rh-server --features postgres
       - name: Durable placement ownership and process recovery (real PostgreSQL and persistent fake)
