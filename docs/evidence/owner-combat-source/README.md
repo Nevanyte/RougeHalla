@@ -50,20 +50,23 @@ bash tools/owner-combat-fixtures/run-mutants.sh        # 4 KILL + 2 SURVIVOR + R
 
 ## Case matrix
 
+Twelve rows are recorded: **10 PASS + 2 BLOCKED** (M02/M03 are genuine source refusals). This is a coherent slice, not the
+full packet; remaining required cases are listed below.
+
 | case | profile | frames | result |
 |---|---|---|---|
 | L01 acquire/re-click/retarget | arena-weapon-only | 26 | **PASS**: lock at step 1 (`attackTarget="tgt"`); re-click at step 4 leaves the mirror and `readyAt` unchanged; retarget to `thr` at step 8 moves the mirror |
 | L02 move clear | arena-weapon-only | 32 | **PASS**: the lock's own cast is pending at steps 5-13; the ordinary move at step 6 clears `attackTarget` to "" while the committed ranged cast survives (`action.target` kept, projectile lands at step 20); `readyAt` stays 1360.1010101010102 (not refunded) |
 | L03 stop clear | arena-weapon-only | 32 | **PASS**: same acquisition; the ordinary stop at step 6 clears the mirror and the cast survives to step 13 |
-| L04 lost direct LOS with trail entitlement | arena-weapon-only | 300 | **PASS**: owner pre-walks the doorway (arrive step 91, back step 180), locks at step 180, target walks round the wall (move at 182); first direct-LOS false at step 210 (t=10600); the grace timer runs 212-240 (50…1450 ms) and the canonical lock clears at step 241 (t=12100) — exactly **1500 ms** after the loss |
+| L04 lost direct LOS with trail entitlement | arena-weapon-only | 300 | **PASS**: owner pre-walks the doorway (arrive step 91, back step 180), locks at step 180, target walks round the wall (move at 182); first after-lock direct-LOS false at step 210 (t=10600; an earlier pre-lock false at step 63/t=3250 is unrelated), the source records `lockLosLostAt` at step 211 (t=10650), the grace timer runs 212-240 (50…1450 ms) and the canonical lock clears at step 241 (t=12150) — exactly **1500 ms** after `lockLosLostAt` (1550 ms after the first LOS-false completed step) |
 | L05 lost entitlement (bush) | arena-weapon-only | 60 | **PASS**: the target walks into the declared bush; at step 23 (t=1250) `bushConceals` is true and `canPlayerSeeActor` is false while `attackTarget` is still "tgt"; the lock clears at step 24. One completed step of entitlement-lost lock |
 | L06 hidden then reappears (Swarm) | arena-full-module | 198 (steps 897-1094) | **PASS**: Plague target waits its own natural `wishReadyAt` (idle ordinary steps), casts Swarm at step 899 (casting bit 4096); the cast lands at step 904 (hidden bit 256) and the canonical lock clears **in the same completed step**; hidden expires after 8000 ms (step 1064) and one fresh ordinary `target` message reacquires at step 1065 |
 | D01 bow draw/release/ready | arena-weapon-only | 46 | **PASS**: draw starts step 5 (350 → cleared step 15 at launch); second draw starts step 23 (1204.7008547008547) and clears at step 32; release at step 33; `readyAt` 350 → 1204.7008547008547 → 2059.4017094017095 |
 | D03 fractional clock 100000.25 | arena-weapon-only | 26 | **PASS**: host `drawStartedAt` 100350.25 / `readyAt` 101204.95085470086; schema owner 100350 / 101204; bot (host state) 100350 / 101204 |
 | D04 near-u32 wrap 2^32-75.25 | arena-weapon-only | 26 | **PASS**: host `drawStartedAt` 4294967570.75 / `readyAt` 4294968425.450854; schema owner **274** / **1129** (wrapped); bot 274 / 1129; UI `DrawTrack`/cooldown see the wrapped values |
 | M01 canonical identity mirrors | arena-weapon-only | 14 | **PASS**: two pickups, two swaps and one attack; `asMult/windupMult/speedMult` stay 1000 in the host, the wire and the decoded row (never filled in by hand) |
-| M02 haste3 (proposed producer) | training-console | 28 | **BLOCKED**: the ordinary `train {cmd:'card',id:'haste3'}` message is accepted by the queue and **refused by `sim/training.ts trainCard`** (base cards are not `isInteractiveAugment`); the build stays empty and `asMult` stays 1000 |
-| M03 quickdraw (proposed producer) | training-console | 20 | **BLOCKED**: same refusal for `quickdraw` (an augment outside `INTERACTIVE_AUGMENT_IDS`); `windupMult` never moves |
+| M02 haste3 (proposed producer) | training-console | 28 | **BLOCKED**: the ordinary `train {cmd:'card',id:'haste3'}` message is accepted by the queue and **refused by `sim/training.ts trainCard`**; `trainCard` rejects base cards and accepts only the 14 `INTERACTIVE_AUGMENT_IDS`, so `haste3` (a base card) is refused. The build stays empty and `asMult` stays 1000 |
+| M03 quickdraw (proposed producer) | training-console | 20 | **BLOCKED**: same refusal for `quickdraw`, which is not in `INTERACTIVE_AUGMENT_IDS`; `windupMult` never moves |
 
 **Not attempted / REMAINING** (honest gaps, not silently skipped): L07 (target death), L08 (permanent departure/removal),
 D02 (cancel vs swap), M04 (speed conditional/clear), M05 (training down/reset), and the training/status profiles' remaining
@@ -84,9 +87,11 @@ disclosed by the owner's source perception / human projection?
   concealment) while `attackTarget="tgt"` — **1 completed step = 50 ms**, cleared at step 24. The human perception still
   lists that fighter because `perceive`'s `canSee` is `canPlayerSee` (trail/LOS), which does not apply `bushConceals`; so
   the bush-concealed fighter is disclosed by the projection but not entitled by the source's own targeting predicate.
-- **Direct-LOS-only gap (not hidden)**: L04 keeps the canonical lock for **1500 ms** (steps 210-241) with
-  `hasLineOfSight=false` while the target remains entitled by the owner's own vision trail; the lock clears exactly at the
-  source's `TARGET_LOS_GRACE_MS=1500` boundary.
+- **Direct-LOS-only gap (not hidden)**: L04 records its first *after-lock* direct-LOS false at step 210 (t=10600); the
+  source's `lockLosLostAt` is step 211 (t=10650); the canonical lock clears at step 241 (t=12150), i.e. **1500 ms after
+  `lockLosLostAt`** and 1550 ms after the first LOS-false completed step, exactly at the source's
+  `TARGET_LOS_GRACE_MS=1500` boundary. The target remains entitled by the owner's vision trail the whole time.
+  (`caseFacts.firstDirectLosFalse` step 63/t=3250 is a pre-lock unrelated false; it must be qualified as such.)
 - **Classification of every critical frame** is in the frame probes: `present/standing/hidden/untargetable/canSeePoint/
   entitled/directLos/bushConcealed/lockable` plus the lock runtime's `lockSeen/lockLosLostAt/lockLosLostMs`, and the
   owner's perception listing (`bot.fighters`). No global roster is granted.
@@ -130,10 +135,34 @@ the full run.
 
 **Deviation from the proposal's suggested four.** Three of the four suggested *producer* categories are killed
 (setLock, clearLock, perceive-u32). The fourth suggested category (`writeMirrors` windupMult) is **unreachable in this
-source** through ordinary inputs, because `sim/training.ts trainCard` accepts only base cards and the 14
-`INTERACTIVE_AUGMENT_IDS` (M02/M03 record the refusals). The fourth kill therefore comes from the proposal's "optional
+source** through ordinary inputs, because `sim/training.ts trainCard` **rejects base cards and accepts only the 14
+`INTERACTIVE_AUGMENT_IDS`** (M02/M03 record the refusals; `quickdraw` and the base `haste3` card are refused). The fourth kill therefore comes from the proposal's "optional
 separate UI-nextCooldown mutant" category, killed in the human projection. The fact that `windupMult` has no reachable
 producer is reported as evidence, not hidden.
+
+## Checker corrections (documentation; no corpus/outcome change)
+
+The independent checker's six findings are recorded here. None changes a raw frame, root-critical answer or mutant result;
+the corpora are intentionally not recaptured for prose-only corrections.
+
+1. **Fourth producer kill is absent.** Only three of the proposal's four *producer* categories are killed (setLock,
+   clearLock, perceive-u32). The fourth suggested producer category (writeMirrors windupMult) has no reachable ordinary
+   producer (`quickdraw` is refused; direct build writes are forbidden), so KILL 05 is the proposal's optional
+   UI-nextCooldown helper kill, not a producer kill. The slice therefore **does not satisfy the proposed four-producer-kill
+   requirement**; the windupMult unreachability is evidence, and a root waiver/decision is required rather than a helper
+   substitution being counted as producer coverage.
+2. **Transitions arrays.** The corpus `transitions` arrays were generated with object-identity comparison and therefore
+   include every recorded frame rather than only real changes. Raw `frames`, the root-critical intervals and all mutant
+   first-mismatch paths are unaffected; no outcome depends on the transitions indexes. Recorded as a known evidence defect.
+3. **Perception-disclosure label.** The `perceptionDisclosure` criterion is computed on the host bot state
+   (`frame.bot.fighters`), although its label/root-answer wording says "decoded client state". Host and decoded
+   perception are both zero intervals in every case; the label is clarified here.
+4. **L04 firstDirectLosFalse.** `caseFacts.firstDirectLosFalse` step 63/t=3250 is a pre-lock unrelated LOS-false; the
+   evidence text now qualifies the after-lock loss as step 210/t=10600 and the clean `lockLosLostAt` boundary as step
+   211/t=10650, with clear at step 241/t=12150 (1500 ms after `lockLosLostAt`).
+5. **D01 release semantics.** The queued release at step 33 occurs after the second draw launched at step 32; it ends the
+   held attack rather than cancelling a draw. The README does not claim a draw-cancel.
+6. **Case count.** Twelve recorded rows are 10 PASS + 2 BLOCKED (M02/M03), not 12 PASS.
 
 ## Honest limits
 
