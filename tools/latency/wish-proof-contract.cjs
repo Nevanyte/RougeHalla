@@ -110,6 +110,7 @@ function evaluateWishProof(report) {
       const occurrences = item.confirmedFxEvents;
       if (!Array.isArray(occurrences) || occurrences.length === 0 ||
           occurrences.some((event, index) => !event || event.occurrence !== index || !Number.isInteger(event.tick) || event.tick < 0 ||
+            !['castStarted', 'castLanded', 'castEnded'].includes(event.kind) || event.ability !== spec.ability ||
             !finite(event.eventTime) || !finite(event.receivedAt) || !Number.isInteger(event.fxIndex) || !Number.isInteger(event.frameIndex)) ||
           occurrences.some((event, index) => index > 0 && (event.frameIndex < occurrences[index - 1].frameIndex ||
             event.receivedAt < occurrences[index - 1].receivedAt ||
@@ -132,10 +133,30 @@ function evaluateWishProof(report) {
       const occurrences = item.wishPresentationEvents;
       if (!Array.isArray(occurrences) || occurrences.length === 0 ||
           occurrences.some((event, index) => !event || event.occurrence !== index || !finite(event.sourceTime) || !finite(event.at) ||
+            !['presentWishStarted', 'presentWishLanded', 'presentWishEnded'].includes(event.kind) || event.ability !== spec.ability ||
             (index > 0 && event.at < occurrences[index - 1].at)) ||
           !occurrences.some(event => event.kind === shown.kind && event.ability === shown.ability &&
             event.sourceTime === shown.sourceTime && event.at === shown.at))
         failures.push(`${prefix}_presentation_occurrences_not_preserved`);
+    }
+    if (Array.isArray(item.confirmedFxEvents) && Array.isArray(item.wishPresentationEvents)) {
+      const landedFx = item.confirmedFxEvents.filter(event => event?.kind === 'castLanded' &&
+        event.ability === spec.ability && event.caster === item.players?.driver);
+      const landedPresentation = item.wishPresentationEvents.filter(event => event?.kind === 'presentWishLanded' &&
+        event.ability === spec.ability && event.player === item.players?.driver);
+      if (landedFx.length !== landedPresentation.length)
+        failures.push(`${prefix}_landed_occurrence_pair_count_mismatch`);
+      const pairs = Math.min(landedFx.length, landedPresentation.length);
+      for (let index = 0; index < pairs; index++) {
+        const serverEvent = landedFx[index];
+        const presentationEvent = landedPresentation[index];
+        if (serverEvent.eventTime !== presentationEvent.sourceTime || !(presentationEvent.at > serverEvent.receivedAt))
+          failures.push(`${prefix}_landed_occurrence_pair_mismatch`);
+      }
+      if (fx && landedFx[0] && (landedFx[0].eventTime !== fx.eventTime || landedFx[0].receivedAt !== fx.receivedAt ||
+          landedFx[0].fxIndex !== fx.fxIndex)) failures.push(`${prefix}_primary_landing_not_first_occurrence`);
+      if (shown && landedPresentation[0] && (landedPresentation[0].sourceTime !== shown.sourceTime ||
+          landedPresentation[0].at !== shown.at)) failures.push(`${prefix}_primary_presentation_not_first_occurrence`);
     }
     if (owner) {
       if (owner.ability !== spec.ability || !finite(owner.receivedAt) || !owner.before || !owner.after ||

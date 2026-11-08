@@ -129,3 +129,16 @@ execution remain the subsequent composition proof; this observer API alone does 
 A temporary pinned .NET 8.0.427 check with a Unity time stub also compiled ordinary player, Editor and WebGL branches;
 ordinary stayed disabled and Editor begin/end/reset/request/cap/occurrence behavior passed. Native Web imports were not
 invoked by that check. This is an observer compiler/contract check, not a Unity or input run.
+
+## Browser proof harness review controls
+
+The runner selects the last trusted pointer event that reached the requested endpoint, so a two-step move cannot retain
+the intermediate point as evidence. Own-caster landed FX and applied landed markers require ordered one-to-one pairing,
+including identical producer timestamps; dropping one duplicate presentation fails. The synthetic report suite passes
+15/15, including the intermediate-pointer and dropped-duplicate negative controls.
+
+Before opening either client, the runner requires the spawned direct child PID to own the exact `127.0.0.1:port` TCP
+listener both before and after `/info`. Four local Node-child process controls pass: owned readiness, a healthy foreign
+listener plus an alive non-listening child, ownership lost during HTTP readiness, and invalid/exited child identity.
+The foreign listener remains untouched. The runner's syntax, help path and diff checks pass. These are harness controls;
+no live all-five browser/Unity input proof is claimed by these checks.

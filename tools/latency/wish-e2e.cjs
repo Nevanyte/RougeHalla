@@ -9,6 +9,7 @@ const { spawn } = require('node:child_process');
 const net = require('node:net');
 const { loadPlaywright } = require('./runtime.cjs');
 const { CASES, attachWishSummary } = require('./wish-proof-contract.cjs');
+const { waitOwnedServer } = require('./wish-server-readiness.cjs');
 
 function argsOf(argv) {
   const out = {};
@@ -144,29 +145,6 @@ function latestSnapshot(page) {
   });
 }
 
-async function waitServer(port, child, getLogs, spawnFailure) {
-  const address = `http://127.0.0.1:${port}/info`;
-  const deadline = Date.now() + 15000;
-  while (Date.now() < deadline && child.exitCode === null && child.signalCode === null) {
-    if (spawnFailure()) throw new MissingHookError(`rh-server could not be started: ${spawnFailure()}`);
-    try {
-      const response = await fetch(address);
-      if (response.ok) {
-        const info = await response.json();
-        if (info.protocol !== 12) throw new Error(`server protocol is ${info.protocol}; expected 12`);
-        if (info.state && info.state !== 'ready') { await new Promise(resolve => setTimeout(resolve, 100)); continue; }
-        return info;
-      }
-    } catch (error) {
-      if (/expected 12/.test(String(error))) throw error;
-    }
-    await new Promise(resolve => setTimeout(resolve, 100));
-  }
-  if (child.exitCode !== null || child.signalCode !== null)
-    throw new Error(`rh-server exited before ready (code=${child.exitCode}, signal=${child.signalCode}): ${getLogs()}`);
-  throw new Error(`server did not become ready on port ${port}: ${getLogs()}`);
-}
-
 function startServer(port) {
   const child = spawn(serverBin, [
     '--bind', `127.0.0.1:${port}`, '--map', path.relative(root, mapFile), '--min-players', '2',
@@ -228,9 +206,9 @@ async function runCase(browser, spec, index, report) {
   try {
     const startedServer = startServer(port);
     child = startedServer.child;
-    const info = await waitServer(port, child, startedServer.getLogs, startedServer.spawnFailure);
+    const { info, ownership } = await waitOwnedServer(port, child, startedServer.getLogs, startedServer.spawnFailure);
     result.server = { protocol: info.protocol, contentHash: info.contentHash, info, port,
-      bind: `127.0.0.1:${port}`, binary: report.identities.serverBinary, map: report.identities.map };
+      bind: `127.0.0.1:${port}`, ownership, binary: report.identities.serverBinary, map: report.identities.map };
     const serverUrl = `ws://127.0.0.1:${port}/ws`;
     driver = await createClient(browser, 'driver', spec.faction, serverUrl);
     observer = await createClient(browser, 'observer', (spec.faction + 1) % 5, serverUrl);
@@ -343,7 +321,9 @@ async function runCase(browser, spec, index, report) {
       wire: window.__rhLatency.wire.length }));
     await driver.page.mouse.move(cursor.x, cursor.y, { steps: 2 });
     await driver.page.locator('#unity-canvas').focus();
-    await waitFor(() => driver.page.evaluate(n => window.__rhLatency.pointerEvents.slice(n).some(e => e.isTrusted), before.pointerEvents),
+    await waitFor(() => driver.page.evaluate(({ n, x, y }) => window.__rhLatency.pointerEvents.slice(n).some(e =>
+      e.isTrusted && Math.abs(e.x - x) <= 1.5 && Math.abs(e.y - y) <= 1.5),
+    { n: before.pointerEvents, x: cursor.x, y: cursor.y }),
       3000, 'actual browser pointer move over Unity canvas');
     await driver.page.keyboard.down('r');
     try {
@@ -358,7 +338,9 @@ async function runCase(browser, spec, index, report) {
 
     const sample = await driver.page.evaluate(n => window.__rhLatency.events.slice(n).find(e => e.kind === 'sampleWish'), before.events);
     const keyEvent = await driver.page.evaluate(n => window.__rhLatency.keyEvents.slice(n).find(e => e.code === 'KeyR'), before.keyEvents);
-    const pointerEvent = await driver.page.evaluate(n => window.__rhLatency.pointerEvents.slice(n).find(e => e.isTrusted), before.pointerEvents);
+    const pointerEvent = await driver.page.evaluate(({ n, x, y }) => window.__rhLatency.pointerEvents.slice(n)
+      .filter(e => e.isTrusted && Math.abs(e.x - x) <= 1.5 && Math.abs(e.y - y) <= 1.5).at(-1),
+    { n: before.pointerEvents, x: cursor.x, y: cursor.y });
     if (!pointerEvent || Math.abs(pointerEvent.x - cursor.x) > 1.5 || Math.abs(pointerEvent.y - cursor.y) > 1.5)
       throw new Error('trusted browser pointer event did not reach the selected Unity screen point');
     const epoch = await driver.page.evaluate(() => performance.timeOrigin);
@@ -510,7 +492,7 @@ async function main() {
       'Each faction runs against a fresh server started with --wish-full, two legal duel-map human spawns, zero bot fill, and no training.',
       'Each case uses fresh browser pages and a fresh server process. High-volume Unity trace recording stays disabled during the opening-lock warm-up; browser and decoder errors and wire records remain active and are retained.',
       'Confirmed FX and Unity presentation occurrences are retained in receive/presentation order, including multiple same-tick events; the required own-caster landed pair is linked by exact kind and original eventTime.',
-      'All endpoints are loopback-only. Server ports are dynamically selected by a short bind-zero probe; a bind race fails without stopping another listener.',
+      'All endpoints are loopback-only. Server ports are dynamically selected by a short bind-zero probe; lsof verifies the direct child PID owns the exact loopback TCP listener before and after /info, before opening clients. A bind race fails without stopping another listener.',
       'Evidence records the actual server port, complete /info response, and SHA-256 identities for the server binary and duel map.',
     ] };
 

@@ -77,6 +77,14 @@ test('sample sequence and Unity frame must match the actual Cast send', () => {
   assert.ok(verdict.failures.includes('trial_sample_send_mismatch'));
 });
 
+test('pointer evidence must be the trusted final cursor endpoint, not an intermediate step', () => {
+  const report = completeReport();
+  report.cases[0].cursorGesture.x = 507;
+  report.cases[0].cursorGesture.y = 414;
+  const verdict = evaluateWishProof(report);
+  assert.ok(verdict.failures.includes('blaze_pointer_did_not_reach_selected_cursor'));
+});
+
 test('unit cast target must be the currently delivered actor', () => {
   const report = completeReport();
   report.cases.find(x => x.faction === 1).castSent.actorRef = 88;
@@ -107,6 +115,14 @@ test('same-ability same-tick FX and presentation occurrences remain separately o
   assert.equal(evaluateWishProof(report).status, 'PASS');
   assert.deepEqual(item.confirmedFxEvents.map(x => x.kind), ['castStarted', 'castLanded', 'castLanded', 'castEnded']);
   assert.deepEqual(item.wishPresentationEvents.map(x => x.kind), ['presentWishStarted', 'presentWishLanded', 'presentWishLanded', 'presentWishEnded']);
+});
+
+test('a dropped duplicate landed presentation occurrence fails multiplicity pairing', () => {
+  const report = completeReport();
+  const item = report.cases[0];
+  item.confirmedFxEvents.push({ kind: 'castLanded', ability: item.ability, caster: 1, tick: 5, eventTime: 250,
+    receivedAt: 110, fxIndex: 1, frameIndex: 1, occurrence: 1 });
+  assert.ok(evaluateWishProof(report).failures.includes('blaze_landed_occurrence_pair_count_mismatch'));
 });
 
 test('Started-only does not satisfy completed ability landing', () => {
