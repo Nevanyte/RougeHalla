@@ -79,6 +79,7 @@ pub use state::{
     Container, ContainerKind, ProjectileEnd, ProjectileKind, ProjectileLaunch, WeaponItem,
 };
 pub mod terrain;
+pub mod traders;
 pub use statics::FactionMode;
 pub use store::{EntityId, Store};
 

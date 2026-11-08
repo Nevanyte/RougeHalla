@@ -96,6 +96,11 @@ pub enum RawCommand {
     QuestAccept {
         quest_id: Option<u32>,
     },
+    /// Trade with a neutral trader (legacy trade): the trader kind code and the option index.
+    Trade {
+        trader: Option<u8>,
+        pick: i8,
+    },
     Target {
         id: crate::PlayerId,
     },
@@ -178,6 +183,10 @@ enum Kind {
     },
     QuestAccept {
         quest_id: Option<u32>,
+    },
+    Trade {
+        trader: u8,
+        pick: i8,
     },
     Target {
         id: crate::PlayerId,
@@ -295,6 +304,10 @@ impl Kind {
             Kind::UseConsumable => RawCommand::UseConsumable,
             Kind::Choose { chest_id, pick } => RawCommand::Choose { chest_id, pick },
             Kind::QuestAccept { quest_id } => RawCommand::QuestAccept { quest_id },
+            Kind::Trade { trader, pick } => RawCommand::Trade {
+                trader: Some(trader),
+                pick,
+            },
             Kind::Target { id } => RawCommand::Target { id },
             Kind::MissingTarget => RawCommand::MissingTarget,
             Kind::AttackMove { x, y, seq } => RawCommand::AttackMove { x, y, seq },
@@ -405,6 +418,10 @@ pub fn validate(raw: RawCommand) -> Result<Command, Reject> {
         RawCommand::Choose { chest_id, pick } => Kind::Choose { chest_id, pick },
         RawCommand::QuestAccept { quest_id: Some(0) } => return Err(Reject::InvalidContainer),
         RawCommand::QuestAccept { quest_id } => Kind::QuestAccept { quest_id },
+        RawCommand::Trade { trader, pick } => match trader {
+            Some(trader) if trader < 2 && (0..=2).contains(&pick) => Kind::Trade { trader, pick },
+            _ => return Err(Reject::InvalidContainer),
+        },
         RawCommand::Swap { slot } if slot.is_some_and(|i| i > 1) => {
             return Err(Reject::InvalidSlot)
         }
@@ -465,6 +482,10 @@ pub(crate) enum ActionCmd {
     },
     QuestAccept {
         quest_id: Option<u32>,
+    },
+    Trade {
+        trader: u8,
+        pick: i8,
     },
     Target {
         id: crate::PlayerId,
@@ -604,6 +625,13 @@ impl InputQueue {
                     RawCommand::QuestAccept { quest_id },
                     Kind::QuestAccept { quest_id },
                 )?,
+                ActionCmd::Trade { trader, pick } => same(
+                    RawCommand::Trade {
+                        trader: Some(trader),
+                        pick,
+                    },
+                    Kind::Trade { trader, pick },
+                )?,
                 ActionCmd::Target { id } => same(RawCommand::Target { id }, Kind::Target { id })?,
                 ActionCmd::MissingTarget => same(RawCommand::MissingTarget, Kind::MissingTarget)?,
                 ActionCmd::MissingPickup => same(RawCommand::MissingPickup, Kind::MissingPickup)?,
@@ -723,6 +751,9 @@ impl InputQueue {
             }
             Kind::QuestAccept { quest_id } => {
                 return self.push_action(ActionCmd::QuestAccept { quest_id })
+            }
+            Kind::Trade { trader, pick } => {
+                return self.push_action(ActionCmd::Trade { trader, pick })
             }
             Kind::MissingPickup => return self.push_action(ActionCmd::MissingPickup),
             Kind::Swap { slot } => return self.push_action(ActionCmd::Swap { slot }),

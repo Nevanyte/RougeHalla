@@ -1,0 +1,11 @@
+--- a/crates/rh-sim/src/constants.rs
++++ b/crates/rh-sim/src/constants.rs
+@@ -352,7 +352,7 @@
+ 
+     // ---- neutral traders (shared/traders.ts, server/src/sim/traders.ts) ----
+     TRADER_RANGE: f64 = 112., "u";
+-    TRADER_SPEED: f64 = 42., "u/s";
++    TRADER_SPEED: f64 = 45., "u/s";
+     TRADER_STOP_MS: f64 = 8000., "ms";
+     TRADER_BARTER_COOLDOWN_MS: f64 = 5000., "ms";
+     TRADER_DEST_STEP_TILES: u32 = 4, "tiles";

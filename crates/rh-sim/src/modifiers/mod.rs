@@ -51,6 +51,10 @@ impl Runtime {
     pub(crate) fn test_set_attack_wire(&mut self, value: f64) {
         self.wire[0] = value;
     }
+    /// One folded multiplicative stat (source multOf).
+    pub fn mult_of(&self, key: fold::MultKey) -> f64 {
+        MultSums::from_source_values(self.mults).get(key)
+    }
     pub fn mirrors(&self) -> fold::StatMirrors {
         fold::decode_mirrors(&WireMirrors::from_source_values(self.wire))
     }
@@ -86,6 +90,7 @@ impl Runtime {
         build: &crate::cards::Build,
         farm: &Farm,
         kill_stats: &crate::kill_augments::KillStats,
+        trade_stats: &[(crate::traders::Stat, f64)],
         base_hp: f64,
         faction: crate::FactionId,
     ) -> bool {
@@ -112,7 +117,7 @@ impl Runtime {
                 .get(loc.index)
                 .is_some_and(|bit| *bit != NO_BIT && (self.holds >> *bit) & 1 == 1)
         };
-        let combined_farm = combined_farm_rows(farm, kill_stats);
+        let combined_farm = combined_farm_rows(farm, kill_stats, trade_stats);
         let boosts = fold::BoostCounts::from_source_values(build.boosts().map(f64::from));
         let folded = fold::fold_rows(
             &rows[..n],
@@ -202,6 +207,11 @@ fn recompute_core<'a>(
     } else {
         crate::kill_augments::KillStats::default()
     };
+    let trade_stats = if w.is_player(ix) {
+        w.players[ix.slot()].trade_stats.clone()
+    } else {
+        Vec::new()
+    };
     let faction = w.core(ix).vitals.faction;
     let base_hp = crate::content::faction(faction).hp;
     let boosts = fold::BoostCounts::from_source_values(build.boosts().map(f64::from));
@@ -241,7 +251,7 @@ fn recompute_core<'a>(
             .get(loc.index)
             .is_some_and(|bit| *bit != NO_BIT && (holds >> *bit) & 1 == 1)
     };
-    let combined_farm = combined_farm_rows(&farm, &kill_stats);
+    let combined_farm = combined_farm_rows(&farm, &kill_stats, &trade_stats);
     let folded = fold::fold_rows(
         fold_rows,
         &FoldContext {
@@ -334,7 +344,7 @@ fn while_bit_of(rows: &[fold::EffectRow<'_>]) -> ([u8; MAX_FOLD_INPUT], u8) {
 /// The fold's farm rows: the credited-kill stacks plus the kill-augment `killStats` (source `farmRowsOf`: both are farm
 /// rows, outside the card caps). A fixed scratch keeps the recompute allocation-free.
 struct CombinedFarm {
-    rows: [fold::EffectRow<'static>; 29],
+    rows: [fold::EffectRow<'static>; 36],
     len: usize,
 }
 impl CombinedFarm {
@@ -342,15 +352,22 @@ impl CombinedFarm {
         &self.rows[..self.len]
     }
 }
-fn combined_farm_rows(farm: &Farm, kill_stats: &crate::kill_augments::KillStats) -> CombinedFarm {
+fn combined_farm_rows(
+    farm: &Farm,
+    kill_stats: &crate::kill_augments::KillStats,
+    trade_stats: &[(crate::traders::Stat, f64)],
+) -> CombinedFarm {
     let (farm_rows, farm_len) = farm.rows();
+    let (trade_rows, trade_len) = crate::traders::trade_effects(trade_stats);
     let (kill_rows, kill_len) = kill_stats.rows();
-    let mut rows = [fold::EffectRow::new(EffectKind::Trigger); 29];
+    let mut rows = [fold::EffectRow::new(EffectKind::Trigger); 36];
     rows[..farm_len].copy_from_slice(&farm_rows[..farm_len]);
-    rows[farm_len..farm_len + kill_len].copy_from_slice(&kill_rows[..kill_len]);
+    rows[farm_len..farm_len + trade_len].copy_from_slice(&trade_rows[..trade_len]);
+    let start = farm_len + trade_len;
+    rows[start..start + kill_len].copy_from_slice(&kill_rows[..kill_len]);
     CombinedFarm {
         rows,
-        len: farm_len + kill_len,
+        len: start + kill_len,
     }
 }
 
@@ -948,6 +965,7 @@ mod guard_tests {
                 &p.build,
                 &p.farm,
                 &p.kill_stats,
+                &p.trade_stats,
                 crate::content::faction(p.vitals.faction).hp,
                 p.vitals.faction,
             )

@@ -912,7 +912,11 @@ static SYSTEMS: [Item<SystemFn>; 24] = [
         "P-CONS-1",
         crate::systems::potions::update,
     ),
-    pending("traders.updateTraders", Gate::NotTraining, "P-TRADE-1"),
+    ported(
+        "traders.updateTraders",
+        Gate::NotTraining,
+        crate::traders::runtime::update,
+    ),
     ported(
         "cardHooks.afterDamage",
         Gate::Always,
@@ -1066,7 +1070,7 @@ pub(crate) static ACTIONS: [ActionRow; 13] = [
         "trade",
         "traders",
         Gate::NotTraining,
-        Run::Pending("P-TRADE-1"),
+        Run::Ported(crate::traders::runtime::handle_trade),
     ),
     action(
         ActionId::ConsumeCorpse,
@@ -1315,11 +1319,11 @@ static RAID_STARTED: [Link; 14] = [
         Gate::Always,
         "P-CONS-1",
     ),
-    pending_link(
+    ported_link(
         "traders.spawnTraders",
         Mode::Append,
         Gate::NotTraining,
-        "P-TRADE-1",
+        crate::traders::runtime::spawn,
     ),
     partial_link(
         "cardHooks.resetAll",
@@ -1904,6 +1908,9 @@ mod tests {
                 "abilities.abilityDotFx",
                 "vision.refreshVision",
                 "consumables.updateConsumables",
+                // The production schedule installs traders for every non-training world; the card-runtime CAPTURE
+                // profile runs them inert (the live-content switch is off there), so the entry is in the plan.
+                "traders.updateTraders",
                 "cardHooks.afterDamage",
                 "mods.updateMods"
             ]

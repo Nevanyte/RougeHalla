@@ -12,7 +12,10 @@ use rh_sim::sim::{Outcome, Phase, Status};
 use rh_sim::Class;
 use rh_sim::RunResult;
 
-/// The public command projection. A quest accept has no protocol message yet: the sim's QuestAccept command is reachable /// only through the headless/policy C-INPUT door until the coordinator-owned transport packet adds the wire message (with /// its protocol bump, fixtures and decoders). This is the one place a transport packet flips.
+/// The public command projection. Neither a quest accept nor a trade has a protocol message yet: the sim's QuestAccept
+/// and Trade commands are reachable only through the headless/policy C-INPUT door until the coordinator-owned transport
+/// packet adds those wire messages (with its protocol bump, fixtures and decoders). This is the one place a transport
+/// packet flips.
 pub fn command(c: WireCommand) -> rh_sim::PublicCommand {
     use rh_sim::PublicCommand as Public;
     match c {

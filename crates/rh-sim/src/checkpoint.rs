@@ -20,7 +20,7 @@ use serde::ser::{SerializeStruct, Serializer};
 use std::fmt;
 
 /// The tag every checkpoint carries. Bump it when the layout of `statics` or `world` changes incompatibly.
-pub const CHECKPOINT_FORMAT: &str = "rh-checkpoint/22";
+pub const CHECKPOINT_FORMAT: &str = "rh-checkpoint/23";
 
 /// How far past the map edge a fighter, waypoint or spawn may be and still restore (real states stay inside the map).
 const COORD_MARGIN: f64 = 1024.0;
@@ -260,6 +260,7 @@ fn check_world(k: &MatchStatic, w: &World) -> Result<(), String> {
     crate::systems::arena_validation::validate(k, w)?;
     crate::systems::planning::validate(k, w)?;
     crate::quests::live::validate(k, w)?;
+    crate::traders::runtime::validate(k, w)?;
     // Every coordinate the kernel will read must be a real place near the arena: a huge or non-finite one overflows the
     // tile arithmetic of the next path request (debug panic, release wrap), and two huge opposite ones cancel in a
     // finiteness sum.
@@ -590,6 +591,7 @@ fn check_world(k: &MatchStatic, w: &World) -> Result<(), String> {
             &p.build,
             &p.farm,
             &p.kill_stats,
+            &p.trade_stats,
             crate::content::faction(p.vitals.faction).hp,
             p.vitals.faction,
         ) {

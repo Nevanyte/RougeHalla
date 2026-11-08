@@ -1200,7 +1200,9 @@ fn compare_owned_hook_order(sim: &mut Sim, case: &Value, f: &Value, ctx: &str) {
             if !roster && ["chests", "mobLife"].contains(&module) {
                 return None;
             }
-            if ["cardHooks", "consumables"].contains(&module) {
+            // The planning corpora were captured from a source world without these installers; the native traders
+            // ride the live-content switch and are inert here (as the captured world never installed them).
+            if ["cardHooks", "consumables", "traders"].contains(&module) {
                 return None;
             }
             Some(json!({"hook":hook,"installer":module,"time":sim.w.server_time,"tick":sim.w.tick}))

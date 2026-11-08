@@ -46,6 +46,8 @@ const NON_GAMEPLAY: &[(&str, &str, &str)] = &[
     ("reward_chests/pools.rs", "INTERACTIVE", "the source interactive augment id list (identifiers only); tiers and rows are the registered catalog"),
     ("kill_augments.rs", "ALL", "the nine readable investment keys in source order (identifiers only); the UNIT numbers are the registered kill-augments table"),
     ("quests/catalog.rs", "ALL", "the three quest verb kinds in source order (identifiers only); the rows are the registered quests table"),
+    ("traders/mod.rs", "ALL", "the two trader kinds in source order (identifiers only); the visitors fold their kind/name/id rows"),
+    ("traders/mod.rs", "ALL", "the seven trade stats in source order (identifiers only); the visitors fold their stat/name/flat rows"),
     ("quests/rules.rs", "REFUSAL", "the five source refusal phrases (wording, not numbers); the accept action is not ported yet"),
     ("cards/on_hit.rs", "MAX_ON_HIT_ROWS", "fixed stack buffer bound for the owned on-hit rows; never a game rule"),
     ("cards/on_hurt.rs", "MAX_ROWS", "fixed stack buffer bound for the owned hpBelow rows; never a game rule"),
@@ -510,7 +512,7 @@ fn hash_golden() {
         content_hash()
     );
 }
-const GOLDEN_CONTENT_HASH: u64 = 0xb6f9_d4c2_aa07_e30b;
+const GOLDEN_CONTENT_HASH: u64 = 0xe239_9d02_688e_d977;
 
 #[test]
 fn every_registry_row_perturbs_the_hash() {

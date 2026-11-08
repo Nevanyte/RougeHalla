@@ -912,6 +912,7 @@ const VALIDATED: &[(&str, &str)] = &[
     ("world.players.*.kill_stats.values.*", "a kill-augment grant is non-negative and finite; negative or non-finite totals are refused"),
     ("world.reward_chests.*.owner", "an owner-bound Trophy is produced only by a credited player kill; a non-null owner must name a roster member, and these corpora have no player kill"),
     ("world.quests", "the quest runtime is absent in these corpora (config.quests off); when it is present its offers, carriers, timers and containers are validated and every nested leaf is hashed"),
+    ("world.traders", "the trader runtime is absent in these corpora (traders ride the quests live-content switch, config.quests off); when it is present its actors, walkers and barter cooldowns are validated and every nested leaf is hashed (the pinned trade replay covers the present state), and the per-player tradeUsed/tradeOffers/tradeStats leaves are hashed here"),
     ("world.players.*.vision.reveals.*.ordinal", "first retained reveal is ordinal zero; same-tick successors increment exactly once"),
     ("world.players.*.vision.reveals.*.variant", "locked history requires admitted Source raid producer; repeated origins coalesce only for equal variants"),
     ("world.rt.in_coliseum", "disabled lifecycle forbids coliseum state; Source locked phase requires matching in-coliseum flag"),
