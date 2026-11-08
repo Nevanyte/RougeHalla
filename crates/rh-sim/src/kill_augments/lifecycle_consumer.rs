@@ -822,7 +822,7 @@ fn compare_frame(sim: &Sim, frame: &serde_json::Value, events: &[Event]) -> Resu
 }
 
 /// Drive a case through the declared action stream, comparing every frame. stop_before limits the comparison to a prefix
-/// of frames (used only for the reported birth-hold divergence in case 0). Returns the final sim.
+/// of frames for named setup diagnostics; the six lifecycle consumers compare every frame. Returns the final sim.
 fn drive(case: &serde_json::Value, stop_before: Option<usize>) -> Result<Sim, String> {
     let input = &case["input"];
     let mut sim = open(input);

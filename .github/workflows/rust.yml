@@ -109,6 +109,7 @@ jobs:
         run: |
           bash tools/wish-public-fixtures/capture.sh --check
           bash tools/trophy-witness-fixtures/capture.sh --check
+          bash tools/trophy-format-fixtures/capture.sh --check
       - name: First-playable cards, constructor, potions and PvE still match the actual source
         run: |
           bash tools/cards-fixtures/capture.sh --check

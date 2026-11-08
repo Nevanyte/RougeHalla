@@ -230,8 +230,8 @@ scope/source-corpus audit and lint/allocation checks).
 
 - Exactly six admitted lifecycle cases and seven admitted helper cases are consumed, plus the additive format corpus;
   no other corpus was regenerated, edited or counted.
-- "22 passed" = six existing kill_augments tests + 16 consumer/repair tests (13 lifecycle incl. invariant, 2 helper, 2
-  format, 1 boundary/repair group as counted by cargo); it is not a gameplay/coverage claim.
+- "22 passed" = six existing kill_augments tests +16 new consumer tests (12 lifecycle,2 helper,2 format).
+  The separate birth-boundary diagnostic belongs to reward_chests; it is not added to the22 or a broad coverage claim.
 - All six full lifecycle cases are compared with no early stop and no skipped frame; the former blocked tail is now
   covered by the repair.
 - Source hook-only probes are compared as facts, never counted as native producers.
