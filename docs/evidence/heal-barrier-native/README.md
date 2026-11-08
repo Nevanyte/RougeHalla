@@ -82,8 +82,12 @@ corrected. The superseded ready-to-apply patch file was removed because it no lo
 ## Real caller evidence (P-G6-CALLER-REPAIR)
 
 New additive surfaces, separate from the preserved ten-case corpus: `tools/heal-barrier-callers/**`,
-`parity/heal-barrier-callers/runtime.json` (3 cases, 44,973 B, SHA256
-`c371db95e29f5efa08c14462f96299e08f96f74c8914a701b8c7719297bf739d`) and the native consumer
+`parity/heal-barrier-callers/runtime.json` (3 cases, 45,245 B, SHA256
+`5a5a0462fc56f23dcb5f65f44e7b13c934e6c80b89a285787b264bacd458c393`; provenance now also names the caller capture
+tool hashes (`capture.mts` `52fc282e6b198988442a07f4bd4af1f22a75d849f4b552bc9c7decd0c67a6f5f`, `capture.sh`
+`668518906191cbcf48ca00663cb4ee082f4ef89a463054ad28a52fc6bed3d386`) and the `package-lock.json` hash
+`991869bdfbbefb6874220500197c61db302a4d2b2603dfc2288fd7032ce1d481`; the 127 imported source files are unchanged
+(digest `e6efe7f3048659701a589433d1690651e8a43d28aa2610bedad744cc3705e1a1`)) and the native consumer
 `crates/rh-sim/src/systems/buffs/caller_tests.rs`. The profile is a genuine player-only/no-mobs full-player faction
 world, recorded and BOUND explicitly (`config.mobs:false`, `modules.signatures:true`, quests/training/dummies false;
 native asserts `mob_mode: Off`, `FactionMode::EngagementHoly`, the resolved gate flags and an empty mob store). This
@@ -91,7 +95,7 @@ resolves the earlier discarded mismatch: the old harness recorded the module fla
 native replay read the constant `config`; the caller replay binds the actual profile.
 
 - `lifesteal-before-slot`: real cards + recorded declared wound (real `applyDamage`) + a real validated sword attack.
-  Source: hit 36.137967, lifesteal heal 13.089361, new barrier 1.0640625 = 0.3*13.089361 - 2.8625 — the heal happens
+  Source: hit 36.137967, lifesteal heal 13.089361, new barrier 1.064308 = 0.3*13.089361 - 2.8625 — the heal happens
   before the buffs slot, so the grant tick is decayed once (same-tick side proven by actual output).
 - `potion-after-slot`: the actually installed potion path through the real `useConsumable` command (declared potion
   setup). Source grant tick: heal 28.625, barrier 8.5875 with NO decay; next tick 5.725 (one decay) — the

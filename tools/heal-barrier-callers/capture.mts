@@ -204,11 +204,18 @@ const sourceFiles = ['packages/shared/src', 'packages/server/src/sim'].flatMap((
   readdirSync('/repo/' + dir, {recursive: true}).filter((p: string) => p.endsWith('.ts')).map((p: string) => dir + '/' + p),
 );
 const sourceSha256 = Object.fromEntries(sourceFiles.map((p: string) => [p, createHash('sha256').update(readFileSync('/repo/' + p)).digest('hex')]));
+const fileSha = (p: string): string => createHash('sha256').update(readFileSync(p)).digest('hex');
+const toolHashes = {
+  captureMts: fileSha('/repo/tools/heal-barrier-callers/capture.mts'),
+  captureSh: fileSha('/repo/tools/heal-barrier-callers/capture.sh'),
+  packageLock: fileSha('/repo/package-lock.json'),
+};
 const body = {
   format: 'rh-heal-barrier-callers-source/1',
   provenance: {
     image: 'node:22.23.4-bookworm-slim@sha256:aaa4b5baf1ecff3b283486bb1f90405cdda225a3e6f79660d2c559fa510a7292',
-    platform: 'linux/amd64', node: process.version, sourceSha256, map: {seed: SEED, attempt: ATTEMPT, decor: false},
+    platform: 'linux/amd64', node: process.version, tools: toolHashes, sourceSha256,
+    map: {seed: SEED, attempt: ATTEMPT, decor: false},
   },
   cases,
 };
