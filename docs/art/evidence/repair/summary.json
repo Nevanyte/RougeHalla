@@ -1,0 +1,1343 @@
+{
+  "schemaVersion": 1,
+  "runtimeRevision": "4f37e9f0f882631230dbb7e4d7d20fab9fa2b5c0",
+  "buildSourceRevision": "9f139ec448025a3de466e574419a547a8e8682f1",
+  "testOnlyFollowupRevision": "b445ca76",
+  "rawEvidenceRoot": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/evidence",
+  "rawEvidence": [
+    {
+      "path": "repair-web/showcase-web.json",
+      "bytes": 510031,
+      "sha256": "0a95faa23bb0009283585072f94ce5ff8f474a2eb89d356964920aca6a9702dd"
+    },
+    {
+      "path": "repair-profile-crowded/showcase-profile.json",
+      "bytes": 644903,
+      "sha256": "45704df0f438055a48959a0801f36cb297a5b5a4f9f9c8801ddff649c6521c67"
+    },
+    {
+      "path": "repair-build.json",
+      "bytes": 130,
+      "sha256": "e5e00739b580dc8458cd2cd878d2d2eedb3c6f5549efcc93cac52d23146df05a"
+    },
+    {
+      "path": "repair-build-manifest.json",
+      "bytes": 2566,
+      "sha256": "bb1262ad049f0420688d94c2689b631ebbe2526e816f6b12564415529f2babfe"
+    },
+    {
+      "path": "repair-editor-tests.json",
+      "bytes": 5886,
+      "sha256": "565a9ddcd565b1bca063b460a662a1393fb642812d5f24fc4708852a02a72525"
+    },
+    {
+      "path": "repair-diagnostic-hygiene-test.json",
+      "bytes": 539,
+      "sha256": "5bcdad7f1ed2c29d6a42db0114e87b07d1131cbdc509b245c614acf26ad6ee23"
+    },
+    {
+      "path": "repair-normal-control.json",
+      "bytes": 360,
+      "sha256": "8c3107ae789df50f122a885179ec69fb9d2f280c2259b2020df660b53342528f"
+    },
+    {
+      "path": "repair-normal-comparison.json",
+      "bytes": 816,
+      "sha256": "cea31277e1d20fb81cfb41512dece7d8c7829515d245bce323d050dff62cdea6"
+    },
+    {
+      "path": "color-review-repair/render-log.json",
+      "bytes": 3282,
+      "sha256": "606b032015eef9f53e4926fb8fc9e36792ab12bb935bfeb67b9b1ea23c514fed"
+    }
+  ],
+  "distribution": {
+    "files": 14,
+    "totalBytes": 74041096,
+    "manifest": "build-manifest.json",
+    "diskAndHttpHashVerification": "PASS; parent and lead independently verified"
+  },
+  "editorTests": {
+    "Total": 27,
+    "Passed": 27,
+    "Failed": 0,
+    "Skipped": 0,
+    "Inconclusive": 0
+  },
+  "diagnosticHygieneTest": {
+    "Total": 1,
+    "Passed": 1,
+    "Failed": 0,
+    "Skipped": 0,
+    "Inconclusive": 0
+  },
+  "browser": {
+    "status": "PASS",
+    "requiredOutcomes": 19,
+    "checks": {
+      "menuNoSocketBeforeJoin": "pass",
+      "settingsQualityClickable": "pass",
+      "settingsReducedMotionClickable": "pass",
+      "settingsMusicMuteClickable": "pass",
+      "menuJoin": "pass",
+      "mapAndCollections": "pass",
+      "focusedPickupInput": "pass",
+      "pickupOutcome": "changed",
+      "potionInputAndNotice": "pass",
+      "hudBlocksWorldClick": "pass",
+      "worldAttackClick": "pass",
+      "swapInput": "pass",
+      "movement": "pass",
+      "rewardChoice": "pass",
+      "reconnect": "pass",
+      "results": "pass",
+      "leaveAndRejoin": "pass",
+      "separatePreviewScreenshot": "pass",
+      "visibleMobs": "pass"
+    },
+    "pageErrors": [],
+    "observerErrors": [],
+    "results": {
+      "k": "result",
+      "outcome": 2,
+      "place": 4,
+      "players": 5,
+      "kills": 0,
+      "killedBy": "Blood Saint",
+      "gvTotal": 6,
+      "gvWin": 0,
+      "durationSec": 76,
+      "withheld": false,
+      "tick": 1581,
+      "at": 1794137642673
+    },
+    "potionFeedback": {
+      "notice": 6,
+      "tick": 96,
+      "screenshot": "potion-notice.png",
+      "visualText": "Already at full health",
+      "visualReview": "Parent and lead inspected actual PNG; no all-notice UI claim"
+    }
+  },
+  "publicContentByConnection": {
+    "basis": "finite codes in decoded Welcome/Events/FX/State frames and applied snapshots only",
+    "coverage": "Observed values only; absent categories mean no such fact was observed by this harness, not nonoccurrence or full coverage.",
+    "actorMobTypeCodesOneBased": "Applied snapshot Tracker mobTypeCode values; protocol codes are one-based, and omitted/default zero is excluded.",
+    "campRosterMobTypesZeroBased": "Decoded publicState key 6 camp roster mobType values; kept distinct from rendered actor mob type codes.",
+    "inventorySlotWeaponsZeroBased": "Decoded publicState key 1 slot values after the probe decoder subtracts one from the wire code.",
+    "propWeaponCodesZeroBased": "Decoded publicState key 2 ground weapon enum values, zero-based (the probe does not subtract one here).",
+    "fieldAbilityIdsZeroBased": "Decoded publicState key 3 ability enum values, zero-based.",
+    "connections": [
+      {
+        "label": "socket-1",
+        "socketSequence": 1,
+        "requestedHello": {
+          "protocol": 11,
+          "faction": 4,
+          "resumed": false
+        },
+        "totals": {
+          "decodedMessages": 1228
+        },
+        "segments": [
+          {
+            "welcomeOrdinal": 1,
+            "welcomePlayerId": 1,
+            "totals": {
+              "appliedSnapshots": 660,
+              "stateMessages": 327,
+              "eventRows": 5,
+              "fxRows": 280
+            },
+            "categories": {
+              "actorEffectMasks": {
+                "observations": 4230,
+                "uniqueValues": [
+                  0
+                ]
+              },
+              "actorFactions": {
+                "observations": 4230,
+                "uniqueValues": [
+                  0,
+                  2,
+                  4
+                ]
+              },
+              "actorKindCodes": {
+                "observations": 4230,
+                "uniqueValues": [
+                  0,
+                  1
+                ]
+              },
+              "actorMobTypeCodesOneBased": {
+                "observations": 1830,
+                "uniqueValues": [
+                  1,
+                  15,
+                  26,
+                  29
+                ]
+              },
+              "actorSignatureCodes": {
+                "observations": 4230,
+                "uniqueValues": [
+                  0,
+                  2
+                ]
+              },
+              "actorStatusCodes": {
+                "observations": 4230,
+                "uniqueValues": [
+                  1,
+                  2
+                ]
+              },
+              "actorWeapons": {
+                "observations": 4230,
+                "uniqueValues": [
+                  1,
+                  2,
+                  4,
+                  5
+                ]
+              },
+              "campRosterEliteMobCodesOneBased": {
+                "observations": 4,
+                "uniqueValues": [
+                  29
+                ]
+              },
+              "campRosterMobTypesZeroBased": {
+                "observations": 12,
+                "uniqueValues": [
+                  0,
+                  14,
+                  25
+                ]
+              },
+              "eventKinds": {
+                "observations": 5,
+                "uniqueValues": [
+                  "death",
+                  "potionNotice"
+                ]
+              },
+              "fxKinds": {
+                "observations": 280,
+                "uniqueValues": [
+                  "hit",
+                  "swing"
+                ]
+              },
+              "fxWeaponCodes": {
+                "observations": 194,
+                "uniqueValues": [
+                  5
+                ]
+              },
+              "inventorySlotWeaponsZeroBased": {
+                "observations": 1,
+                "uniqueValues": [
+                  1
+                ]
+              },
+              "meEffectMasks": {
+                "observations": 660,
+                "uniqueValues": [
+                  0
+                ]
+              },
+              "meFactions": {
+                "observations": 660,
+                "uniqueValues": [
+                  4
+                ]
+              },
+              "meSignatureCodes": {
+                "observations": 660,
+                "uniqueValues": [
+                  0,
+                  2,
+                  4
+                ]
+              },
+              "meStatusCodes": {
+                "observations": 660,
+                "uniqueValues": [
+                  0,
+                  1
+                ]
+              },
+              "meWeapons": {
+                "observations": 660,
+                "uniqueValues": [
+                  1,
+                  5
+                ]
+              },
+              "phases": {
+                "observations": 660,
+                "uniqueValues": [
+                  0,
+                  1
+                ]
+              },
+              "potionNoticeCodes": {
+                "observations": 3,
+                "uniqueValues": [
+                  1,
+                  6,
+                  8
+                ]
+              },
+              "projectileKindCodes": {
+                "observations": 675,
+                "uniqueValues": [
+                  0,
+                  1
+                ]
+              },
+              "propKindCodes": {
+                "observations": 724,
+                "uniqueValues": [
+                  1,
+                  2,
+                  3,
+                  5,
+                  6
+                ]
+              },
+              "propWeaponCodesZeroBased": {
+                "observations": 289,
+                "uniqueValues": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4
+                ]
+              },
+              "rewardOptionKindId": {
+                "observations": 54,
+                "uniqueValues": [
+                  "2:1",
+                  "2:2",
+                  "2:3"
+                ]
+              }
+            }
+          }
+        ]
+      },
+      {
+        "label": "socket-2",
+        "socketSequence": 2,
+        "requestedHello": {
+          "protocol": 11,
+          "faction": 4,
+          "resumed": true
+        },
+        "totals": {
+          "decodedMessages": 2148
+        },
+        "segments": [
+          {
+            "welcomeOrdinal": 2,
+            "welcomePlayerId": 1,
+            "totals": {
+              "appliedSnapshots": 923,
+              "stateMessages": 902,
+              "eventRows": 2,
+              "fxRows": 310
+            },
+            "categories": {
+              "actorEffectMasks": {
+                "observations": 6349,
+                "uniqueValues": [
+                  0
+                ]
+              },
+              "actorFactions": {
+                "observations": 6349,
+                "uniqueValues": [
+                  0,
+                  2,
+                  4
+                ]
+              },
+              "actorKindCodes": {
+                "observations": 6349,
+                "uniqueValues": [
+                  0,
+                  1
+                ]
+              },
+              "actorMobTypeCodesOneBased": {
+                "observations": 2721,
+                "uniqueValues": [
+                  1,
+                  26,
+                  29
+                ]
+              },
+              "actorSignatureCodes": {
+                "observations": 6349,
+                "uniqueValues": [
+                  0,
+                  2
+                ]
+              },
+              "actorStatusCodes": {
+                "observations": 6349,
+                "uniqueValues": [
+                  1,
+                  2
+                ]
+              },
+              "actorWeapons": {
+                "observations": 6349,
+                "uniqueValues": [
+                  2,
+                  4,
+                  5
+                ]
+              },
+              "campRosterEliteMobCodesOneBased": {
+                "observations": 1,
+                "uniqueValues": [
+                  29
+                ]
+              },
+              "campRosterMobTypesZeroBased": {
+                "observations": 3,
+                "uniqueValues": [
+                  0,
+                  14,
+                  25
+                ]
+              },
+              "eventKinds": {
+                "observations": 2,
+                "uniqueValues": [
+                  "death",
+                  "result"
+                ]
+              },
+              "fxKinds": {
+                "observations": 310,
+                "uniqueValues": [
+                  "hit",
+                  "swing"
+                ]
+              },
+              "fxWeaponCodes": {
+                "observations": 242,
+                "uniqueValues": [
+                  5
+                ]
+              },
+              "inventorySlotWeaponsZeroBased": {
+                "observations": 1,
+                "uniqueValues": [
+                  1
+                ]
+              },
+              "meEffectMasks": {
+                "observations": 923,
+                "uniqueValues": [
+                  0
+                ]
+              },
+              "meFactions": {
+                "observations": 923,
+                "uniqueValues": [
+                  4
+                ]
+              },
+              "meSignatureCodes": {
+                "observations": 923,
+                "uniqueValues": [
+                  0
+                ]
+              },
+              "meStatusCodes": {
+                "observations": 923,
+                "uniqueValues": [
+                  1,
+                  2
+                ]
+              },
+              "meWeapons": {
+                "observations": 923,
+                "uniqueValues": [
+                  1,
+                  5
+                ]
+              },
+              "phases": {
+                "observations": 923,
+                "uniqueValues": [
+                  1
+                ]
+              },
+              "projectileKindCodes": {
+                "observations": 2789,
+                "uniqueValues": [
+                  1
+                ]
+              },
+              "propKindCodes": {
+                "observations": 1217,
+                "uniqueValues": [
+                  1,
+                  2,
+                  3,
+                  5,
+                  6
+                ]
+              },
+              "propWeaponCodesZeroBased": {
+                "observations": 435,
+                "uniqueValues": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4
+                ]
+              }
+            }
+          }
+        ]
+      },
+      {
+        "label": "socket-3",
+        "socketSequence": 3,
+        "requestedHello": {
+          "protocol": 11,
+          "faction": 4,
+          "resumed": false
+        },
+        "totals": {
+          "decodedMessages": 12
+        },
+        "segments": [
+          {
+            "welcomeOrdinal": 3,
+            "welcomePlayerId": 1,
+            "totals": {
+              "appliedSnapshots": 9,
+              "stateMessages": 1,
+              "eventRows": 0,
+              "fxRows": 0
+            },
+            "categories": {
+              "campRosterEliteMobCodesOneBased": {
+                "observations": 1,
+                "uniqueValues": [
+                  29
+                ]
+              },
+              "campRosterMobTypesZeroBased": {
+                "observations": 3,
+                "uniqueValues": [
+                  0,
+                  12,
+                  25
+                ]
+              },
+              "meEffectMasks": {
+                "observations": 9,
+                "uniqueValues": [
+                  0
+                ]
+              },
+              "meFactions": {
+                "observations": 9,
+                "uniqueValues": [
+                  4
+                ]
+              },
+              "meSignatureCodes": {
+                "observations": 9,
+                "uniqueValues": [
+                  0
+                ]
+              },
+              "meStatusCodes": {
+                "observations": 9,
+                "uniqueValues": [
+                  0
+                ]
+              },
+              "meWeapons": {
+                "observations": 9,
+                "uniqueValues": [
+                  5
+                ]
+              },
+              "phases": {
+                "observations": 9,
+                "uniqueValues": [
+                  0
+                ]
+              }
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "profile": {
+    "status": "PASS",
+    "headed": true,
+    "uncappedDiagnostic": false,
+    "physicalDisplays": {
+      "status": "observed",
+      "displays": [
+        {
+          "name": "E2212F",
+          "main": true,
+          "mode": "1920 x 1080 @ 60.00Hz",
+          "width": 1920,
+          "height": 1080,
+          "refreshHz": 60
+        }
+      ]
+    },
+    "displayProof": {
+      "eligible": false,
+      "reason": "Host-reported main display does not match the requested native 2560x1440 at >=144Hz mode (1920 x 1080 @ 60.00Hz)."
+    },
+    "diagnosticGpuBudgetMs": 6.944,
+    "runs": [
+      {
+        "id": "run-1",
+        "status": "PASS",
+        "liveWindow": {
+          "startedAt": "2026-11-08T11:35:40.040Z",
+          "observedSeconds": 15.074,
+          "requestedSeconds": 15,
+          "endedEarly": false,
+          "terminalPhase": 1
+        },
+        "quality": {
+          "observedThroughUnityMarker": {
+            "quality": "High",
+            "mode": "Manual",
+            "reducedMotion": false,
+            "textScale": 1,
+            "musicVolume": 0.7200000286102295
+          },
+          "passed": true
+        },
+        "canvasAfterMeasurement": {
+          "width": 2560,
+          "height": 1440,
+          "css": {
+            "width": 2560,
+            "height": 1440
+          },
+          "drawingBuffer": {
+            "width": 2560,
+            "height": 1440
+          }
+        },
+        "activeActorCount": {
+          "samples": 301,
+          "p50": 6,
+          "p95": 7,
+          "p99": 7,
+          "max": 7
+        },
+        "activeVisibleMobCount": {
+          "samples": 301,
+          "p50": 3,
+          "p95": 4,
+          "p99": 4,
+          "max": 4
+        },
+        "raf": {
+          "callbacks": 905,
+          "callbackIntervalsMs": {
+            "samples": 904,
+            "p50": 16.7,
+            "p95": 18.1,
+            "p99": 18.6,
+            "max": 18.7
+          },
+          "callbackCpuMs": {
+            "samples": 905,
+            "p50": 3.1,
+            "p95": 4.5,
+            "p99": 5.2,
+            "max": 8.5
+          },
+          "callbackRateHz": 60.037,
+          "intervalRateHzP50": 59.88,
+          "intervalRateHzMean": 60.111
+        },
+        "submittedFrames": {
+          "callbacksWithGlDraws": 905,
+          "intervalsMs": {
+            "samples": 904,
+            "p50": 16.7,
+            "p95": 18.1,
+            "p99": 18.6,
+            "max": 18.7
+          },
+          "drawRateHz": 60.037,
+          "cpuCallbackMs": {
+            "samples": 905,
+            "p50": 3.1,
+            "p95": 4.5,
+            "p99": 5.2,
+            "max": 8.5
+          },
+          "drawCalls": {
+            "samples": 905,
+            "p50": 220,
+            "p95": 235,
+            "p99": 242,
+            "max": 244
+          },
+          "instances": {
+            "samples": 905,
+            "p50": 220,
+            "p95": 235,
+            "p99": 242,
+            "max": 244
+          }
+        },
+        "gpuTimer": {
+          "samples": 905,
+          "elapsedMs": {
+            "samples": 905,
+            "p50": 5.259,
+            "p95": 5.732,
+            "p99": 5.848,
+            "max": 6.384
+          },
+          "disjointObservations": 0,
+          "extensionAvailable": true
+        },
+        "diagnosticGpuHoldPassed": true,
+        "memory": {
+          "jsHeapUsedBytes": {
+            "samples": 905,
+            "p50": 43702512,
+            "p95": 44196938,
+            "p99": 44326718,
+            "max": 44396422
+          },
+          "wasmBytes": {
+            "samples": 905,
+            "p50": 126353408,
+            "p95": 126353408,
+            "p99": 126353408,
+            "max": 126353408
+          },
+          "browserAfter": {
+            "usedJSHeapSize": 44210564,
+            "totalJSHeapSize": 46536512,
+            "jsHeapSizeLimit": 4395630592
+          },
+          "wasmMemoriesAfter": [
+            126353408
+          ]
+        },
+        "unityMetricsAfterMeasurement": {
+          "available": true,
+          "value": {
+            "totalWASMHeapSize": 126353408,
+            "usedWASMHeapSize": 116160736,
+            "totalJSHeapSize": 46536512,
+            "usedJSHeapSize": 44210564,
+            "pageLoadTime": 639,
+            "pageLoadTimeToFrame1": 661,
+            "fps": 60.00053039029077,
+            "movingAverageFps": 57.35067703906283,
+            "assetLoadTime": 353,
+            "webAssemblyStartupTime": 350.69999980926514,
+            "codeDownloadTime": 13,
+            "gameStartupTime": 242,
+            "numJankedFrames": 3
+          }
+        },
+        "load": {
+          "canvasReadyMs": 667,
+          "timeToActiveMs": 5906,
+          "navigation": {
+            "domContentLoadedMs": 18,
+            "loadEventMs": 80.30000019073486,
+            "responseMs": 2.1999998092651367,
+            "transferSize": 8220,
+            "encodedBodySize": 7920,
+            "decodedBodySize": 7920
+          },
+          "resourceCount": 4,
+          "totalTransferBytes": 73993342,
+          "totalEncodedBytes": 73992142,
+          "largestResources": [
+            {
+              "name": "http://127.0.0.1:18897/Build/Web.wasm",
+              "initiatorType": "fetch",
+              "durationMs": 62.19999980926514,
+              "transferSize": 45939313,
+              "encodedBodySize": 45939013,
+              "decodedBodySize": 45939013
+            },
+            {
+              "name": "http://127.0.0.1:18897/Build/Web.data",
+              "initiatorType": "fetch",
+              "durationMs": 11.200000286102295,
+              "transferSize": 27564178,
+              "encodedBodySize": 27563878,
+              "decodedBodySize": 27563878
+            },
+            {
+              "name": "http://127.0.0.1:18897/Build/Web.framework.js",
+              "initiatorType": "script",
+              "durationMs": 1.5,
+              "transferSize": 463096,
+              "encodedBodySize": 462796,
+              "decodedBodySize": 462796
+            },
+            {
+              "name": "http://127.0.0.1:18897/Build/Web.loader.js",
+              "initiatorType": "script",
+              "durationMs": 4.099999904632568,
+              "transferSize": 26755,
+              "encodedBodySize": 26455,
+              "decodedBodySize": 26455
+            }
+          ]
+        },
+        "errorAssessment": {
+          "unexpectedHttpErrors": [],
+          "fatalConsoleErrors": []
+        },
+        "pageErrors": [],
+        "observerErrors": []
+      },
+      {
+        "id": "run-2",
+        "status": "PASS",
+        "liveWindow": {
+          "startedAt": "2026-11-08T11:36:05.905Z",
+          "observedSeconds": 15.026,
+          "requestedSeconds": 15,
+          "endedEarly": false,
+          "terminalPhase": 1
+        },
+        "quality": {
+          "observedThroughUnityMarker": {
+            "quality": "High",
+            "mode": "Manual",
+            "reducedMotion": false,
+            "textScale": 1,
+            "musicVolume": 0.7200000286102295
+          },
+          "passed": true
+        },
+        "canvasAfterMeasurement": {
+          "width": 2560,
+          "height": 1440,
+          "css": {
+            "width": 2560,
+            "height": 1440
+          },
+          "drawingBuffer": {
+            "width": 2560,
+            "height": 1440
+          }
+        },
+        "activeActorCount": {
+          "samples": 300,
+          "p50": 5,
+          "p95": 7,
+          "p99": 7,
+          "max": 7
+        },
+        "activeVisibleMobCount": {
+          "samples": 300,
+          "p50": 1,
+          "p95": 2,
+          "p99": 2,
+          "max": 2
+        },
+        "raf": {
+          "callbacks": 902,
+          "callbackIntervalsMs": {
+            "samples": 901,
+            "p50": 16.7,
+            "p95": 18.4,
+            "p99": 18.7,
+            "max": 18.8
+          },
+          "callbackCpuMs": {
+            "samples": 902,
+            "p50": 3.2,
+            "p95": 4.5,
+            "p99": 5.6,
+            "max": 8.1
+          },
+          "callbackRateHz": 60.029,
+          "intervalRateHzP50": 59.88,
+          "intervalRateHzMean": 60.15
+        },
+        "submittedFrames": {
+          "callbacksWithGlDraws": 902,
+          "intervalsMs": {
+            "samples": 901,
+            "p50": 16.7,
+            "p95": 18.4,
+            "p99": 18.7,
+            "max": 18.8
+          },
+          "drawRateHz": 60.029,
+          "cpuCallbackMs": {
+            "samples": 902,
+            "p50": 3.2,
+            "p95": 4.5,
+            "p99": 5.6,
+            "max": 8.1
+          },
+          "drawCalls": {
+            "samples": 902,
+            "p50": 263,
+            "p95": 273,
+            "p99": 276,
+            "max": 280
+          },
+          "instances": {
+            "samples": 902,
+            "p50": 263,
+            "p95": 273,
+            "p99": 276,
+            "max": 280
+          }
+        },
+        "gpuTimer": {
+          "samples": 902,
+          "elapsedMs": {
+            "samples": 902,
+            "p50": 5.328,
+            "p95": 5.644,
+            "p99": 5.795,
+            "max": 5.947
+          },
+          "disjointObservations": 0,
+          "extensionAvailable": true
+        },
+        "diagnosticGpuHoldPassed": true,
+        "memory": {
+          "jsHeapUsedBytes": {
+            "samples": 902,
+            "p50": 43775173,
+            "p95": 44618957,
+            "p99": 44761564,
+            "max": 44789131
+          },
+          "wasmBytes": {
+            "samples": 902,
+            "p50": 126353408,
+            "p95": 126353408,
+            "p99": 126353408,
+            "max": 126353408
+          },
+          "browserAfter": {
+            "usedJSHeapSize": 44808202,
+            "totalJSHeapSize": 45761106,
+            "jsHeapSizeLimit": 4395630592
+          },
+          "wasmMemoriesAfter": [
+            126353408
+          ]
+        },
+        "unityMetricsAfterMeasurement": {
+          "available": true,
+          "value": {
+            "totalWASMHeapSize": 126353408,
+            "usedWASMHeapSize": 116449216,
+            "totalJSHeapSize": 45761106,
+            "usedJSHeapSize": 44808202,
+            "pageLoadTime": 300,
+            "pageLoadTimeToFrame1": 312,
+            "fps": 60.0005321562571,
+            "movingAverageFps": 58.892980007419936,
+            "assetLoadTime": 73,
+            "webAssemblyStartupTime": 71.30000019073486,
+            "codeDownloadTime": 16,
+            "gameStartupTime": 213,
+            "numJankedFrames": 1
+          }
+        },
+        "load": {
+          "canvasReadyMs": 317,
+          "timeToActiveMs": 5536,
+          "navigation": {
+            "domContentLoadedMs": 9.299999713897705,
+            "loadEventMs": 38,
+            "responseMs": 1,
+            "transferSize": 8220,
+            "encodedBodySize": 7920,
+            "decodedBodySize": 7920
+          },
+          "resourceCount": 4,
+          "totalTransferBytes": 73993342,
+          "totalEncodedBytes": 73992142,
+          "largestResources": [
+            {
+              "name": "http://127.0.0.1:18897/Build/Web.wasm",
+              "initiatorType": "fetch",
+              "durationMs": 44,
+              "transferSize": 45939313,
+              "encodedBodySize": 45939013,
+              "decodedBodySize": 45939013
+            },
+            {
+              "name": "http://127.0.0.1:18897/Build/Web.data",
+              "initiatorType": "fetch",
+              "durationMs": 23.800000190734863,
+              "transferSize": 27564178,
+              "encodedBodySize": 27563878,
+              "decodedBodySize": 27563878
+            },
+            {
+              "name": "http://127.0.0.1:18897/Build/Web.framework.js",
+              "initiatorType": "script",
+              "durationMs": 1.700000286102295,
+              "transferSize": 463096,
+              "encodedBodySize": 462796,
+              "decodedBodySize": 462796
+            },
+            {
+              "name": "http://127.0.0.1:18897/Build/Web.loader.js",
+              "initiatorType": "script",
+              "durationMs": 3,
+              "transferSize": 26755,
+              "encodedBodySize": 26455,
+              "decodedBodySize": 26455
+            }
+          ]
+        },
+        "errorAssessment": {
+          "unexpectedHttpErrors": [],
+          "fatalConsoleErrors": []
+        },
+        "pageErrors": [],
+        "observerErrors": []
+      },
+      {
+        "id": "run-3",
+        "status": "PASS",
+        "liveWindow": {
+          "startedAt": "2026-11-08T11:36:31.786Z",
+          "observedSeconds": 15.158,
+          "requestedSeconds": 15,
+          "endedEarly": false,
+          "terminalPhase": 1
+        },
+        "quality": {
+          "observedThroughUnityMarker": {
+            "quality": "High",
+            "mode": "Manual",
+            "reducedMotion": false,
+            "textScale": 1,
+            "musicVolume": 0.7200000286102295
+          },
+          "passed": true
+        },
+        "canvasAfterMeasurement": {
+          "width": 2560,
+          "height": 1440,
+          "css": {
+            "width": 2560,
+            "height": 1440
+          },
+          "drawingBuffer": {
+            "width": 2560,
+            "height": 1440
+          }
+        },
+        "activeActorCount": {
+          "samples": 303,
+          "p50": 6,
+          "p95": 7,
+          "p99": 7,
+          "max": 7
+        },
+        "activeVisibleMobCount": {
+          "samples": 303,
+          "p50": 2,
+          "p95": 3,
+          "p99": 3,
+          "max": 3
+        },
+        "raf": {
+          "callbacks": 910,
+          "callbackIntervalsMs": {
+            "samples": 909,
+            "p50": 16.7,
+            "p95": 18.7,
+            "p99": 18.7,
+            "max": 18.8
+          },
+          "callbackCpuMs": {
+            "samples": 910,
+            "p50": 3.1,
+            "p95": 4.4,
+            "p99": 5.3,
+            "max": 6.2
+          },
+          "callbackRateHz": 60.034,
+          "intervalRateHzP50": 59.88,
+          "intervalRateHzMean": 60.275
+        },
+        "submittedFrames": {
+          "callbacksWithGlDraws": 910,
+          "intervalsMs": {
+            "samples": 909,
+            "p50": 16.7,
+            "p95": 18.7,
+            "p99": 18.7,
+            "max": 18.8
+          },
+          "drawRateHz": 60.034,
+          "cpuCallbackMs": {
+            "samples": 910,
+            "p50": 3.2,
+            "p95": 4.4,
+            "p99": 5.3,
+            "max": 6.2
+          },
+          "drawCalls": {
+            "samples": 910,
+            "p50": 237,
+            "p95": 245,
+            "p99": 247,
+            "max": 250
+          },
+          "instances": {
+            "samples": 910,
+            "p50": 237,
+            "p95": 245,
+            "p99": 247,
+            "max": 250
+          }
+        },
+        "gpuTimer": {
+          "samples": 910,
+          "elapsedMs": {
+            "samples": 910,
+            "p50": 5.345,
+            "p95": 5.694,
+            "p99": 5.813,
+            "max": 5.918
+          },
+          "disjointObservations": 0,
+          "extensionAvailable": true
+        },
+        "diagnosticGpuHoldPassed": true,
+        "memory": {
+          "jsHeapUsedBytes": {
+            "samples": 910,
+            "p50": 43582772,
+            "p95": 44244987,
+            "p99": 44350039,
+            "max": 45266671
+          },
+          "wasmBytes": {
+            "samples": 910,
+            "p50": 126353408,
+            "p95": 126353408,
+            "p99": 126353408,
+            "max": 126353408
+          },
+          "browserAfter": {
+            "usedJSHeapSize": 44379456,
+            "totalJSHeapSize": 45502600,
+            "jsHeapSizeLimit": 4395630592
+          },
+          "wasmMemoriesAfter": [
+            126353408
+          ]
+        },
+        "unityMetricsAfterMeasurement": {
+          "available": true,
+          "value": {
+            "totalWASMHeapSize": 126353408,
+            "usedWASMHeapSize": 116582200,
+            "totalJSHeapSize": 45502527,
+            "usedJSHeapSize": 44350039,
+            "pageLoadTime": 298,
+            "pageLoadTimeToFrame1": 309,
+            "fps": 59.99762385685859,
+            "movingAverageFps": 58.9008176803743,
+            "assetLoadTime": 72,
+            "webAssemblyStartupTime": 69.7999997138977,
+            "codeDownloadTime": 16,
+            "gameStartupTime": 212,
+            "numJankedFrames": 1
+          }
+        },
+        "load": {
+          "canvasReadyMs": 313,
+          "timeToActiveMs": 5538,
+          "navigation": {
+            "domContentLoadedMs": 8.900000095367432,
+            "loadEventMs": 43.10000038146973,
+            "responseMs": 0.9000000953674316,
+            "transferSize": 8220,
+            "encodedBodySize": 7920,
+            "decodedBodySize": 7920
+          },
+          "resourceCount": 4,
+          "totalTransferBytes": 73993342,
+          "totalEncodedBytes": 73992142,
+          "largestResources": [
+            {
+              "name": "http://127.0.0.1:18897/Build/Web.wasm",
+              "initiatorType": "fetch",
+              "durationMs": 43.299999713897705,
+              "transferSize": 45939313,
+              "encodedBodySize": 45939013,
+              "decodedBodySize": 45939013
+            },
+            {
+              "name": "http://127.0.0.1:18897/Build/Web.data",
+              "initiatorType": "fetch",
+              "durationMs": 19.600000381469727,
+              "transferSize": 27564178,
+              "encodedBodySize": 27563878,
+              "decodedBodySize": 27563878
+            },
+            {
+              "name": "http://127.0.0.1:18897/Build/Web.framework.js",
+              "initiatorType": "script",
+              "durationMs": 1.6999998092651367,
+              "transferSize": 463096,
+              "encodedBodySize": 462796,
+              "decodedBodySize": 462796
+            },
+            {
+              "name": "http://127.0.0.1:18897/Build/Web.loader.js",
+              "initiatorType": "script",
+              "durationMs": 2.8000001907348633,
+              "transferSize": 26755,
+              "encodedBodySize": 26455,
+              "decodedBodySize": 26455
+            }
+          ]
+        },
+        "errorAssessment": {
+          "unexpectedHttpErrors": [],
+          "fatalConsoleErrors": []
+        },
+        "pageErrors": [],
+        "observerErrors": []
+      }
+    ]
+  },
+  "normalComparison": {
+    "runtimeRevision": "4f37e9f0",
+    "settings": "ManualHigh, motion on, frozen staged poses; no normal-quality probe override",
+    "pixels": 3686400,
+    "changedPixels": 442688,
+    "changedPercent": 12.008680555555555,
+    "meanAbsoluteDifferenceRGB": [
+      0.21409912109375,
+      0.16311116536458334,
+      0.10599500868055556
+    ],
+    "mae": 0.16106843171296295,
+    "rmse": 0.7532874277357363,
+    "percentiles": {
+      "50": 0.0,
+      "95": 1.0,
+      "99": 3.0,
+      "100": 25.0
+    },
+    "captures": [
+      {
+        "file": "repair-normals-relief.png",
+        "bytes": 4049818,
+        "sha256": "cc1d5b6ff57fa27d0144f8646c35ad342588d0f19db25e8bbedf9a6843852dd9"
+      },
+      {
+        "file": "repair-normals-flat.png",
+        "bytes": 4041975,
+        "sha256": "1f26d77c3d2bc77ef6cfb01dcf76898be9806d0035f3282950c671b0cbe9d15d"
+      }
+    ]
+  },
+  "visualReview": {
+    "runtimeRevision": "4f37e9f0f882631230dbb7e4d7d20fab9fa2b5c0",
+    "staged": "study.png",
+    "live": "live.png",
+    "status": "Bounded static samples reviewed at Fit and native size in original, grayscale, protanopia, deuteranopia and tritanopia; no game-wide accessibility pass",
+    "limitations": [
+      "Only three factions in delivered live facts; five-faction lineup is staged",
+      "No exhaustive crowded-motion or telegraph review",
+      "HUD can occlude actors at its edge"
+    ]
+  },
+  "openGates": [
+    "Native 2560x1440 / >=144Hz displayed performance and fullscreen proof",
+    "Managed allocation throughput and total browser/GPU memory",
+    "Complete selected-demo art and authoritative cue coverage",
+    "Game-wide accessibility and full telegraph/motion coverage"
+  ],
+  "earlierAcceptedArtifact": {
+    "runtimeRevision": "ebff286b",
+    "totalBytes": 74029313,
+    "rawDistribution": "accepted-web-ebff286b",
+    "profileWindows": 9,
+    "scope": "Preserved separately; workload differs; no isolated cost-improvement comparison"
+  },
+  "portableFiles": [
+    {
+      "path": "build-manifest.json",
+      "bytes": 2566,
+      "sha256": "bb1262ad049f0420688d94c2689b631ebbe2526e816f6b12564415529f2babfe"
+    },
+    {
+      "path": "diagnostic-hygiene-test.json",
+      "bytes": 539,
+      "sha256": "5bcdad7f1ed2c29d6a42db0114e87b07d1131cbdc509b245c614acf26ad6ee23"
+    },
+    {
+      "path": "editor-tests.json",
+      "bytes": 5886,
+      "sha256": "565a9ddcd565b1bca063b460a662a1393fb642812d5f24fc4708852a02a72525"
+    },
+    {
+      "path": "live.png",
+      "bytes": 2209926,
+      "sha256": "e28deb66caa37d25ae52139baeeba0f121fbec26c701d95b19bc6b78e37382b5"
+    },
+    {
+      "path": "normal-comparison.json",
+      "bytes": 816,
+      "sha256": "cea31277e1d20fb81cfb41512dece7d8c7829515d245bce323d050dff62cdea6"
+    },
+    {
+      "path": "normal-control.json",
+      "bytes": 360,
+      "sha256": "8c3107ae789df50f122a885179ec69fb9d2f280c2259b2020df660b53342528f"
+    },
+    {
+      "path": "potion-notice.png",
+      "bytes": 749512,
+      "sha256": "f864dbf63d6382c7c87c14111fde28c28e637dedce27c89d758a6eee0cf75cdd"
+    },
+    {
+      "path": "study.png",
+      "bytes": 1294361,
+      "sha256": "be11b83b293fbc3e1ae9c5891ef550a279d610fabd021bb9a2e59bebd696d531"
+    }
+  ]
+}
