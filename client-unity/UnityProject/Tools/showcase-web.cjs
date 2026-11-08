@@ -26,7 +26,7 @@ url.searchParams.delete('profile'); url.searchParams.delete('auto');
 if (server === 'same-origin') url.searchParams.delete('server');
 else url.searchParams.set('server', server);
 const nickname = process.env.RH_UNITY_SHOWCASE_NICKNAME || process.env.RH_UNITY_PLAYABLE_NICKNAME || `art${Date.now().toString(36)}`;
-const resultWait = Math.min(90000, Math.max(0, Number(process.env.RH_UNITY_SHOWCASE_RESULT_WAIT_MS || process.env.RH_UNITY_PLAYABLE_RESULT_WAIT_MS || 60000)));
+const resultWait = Math.min(300000, Math.max(0, Number(process.env.RH_UNITY_SHOWCASE_RESULT_WAIT_MS || process.env.RH_UNITY_PLAYABLE_RESULT_WAIT_MS || 300000)));
 const displayedUrl = new URL(url); if (displayedUrl.searchParams.has('token')) displayedUrl.searchParams.set('token', '[redacted]');
 const knownSecret = url.searchParams.get('token');
 const redact = value => { let s = String(value); if (knownSecret) s = s.split(knownSecret).join('[redacted]'); return s.replace(/([?&](?:token|resume|ticket|session)=)[^&\s]+/gi, '$1[redacted]'); };
@@ -393,8 +393,10 @@ fs.mkdirSync(out, { recursive: true });
         mobHpDecreaseObservations: 0, campStateObservations: [], rewardAttempts };
       const liveWorldTop = box.y + .77 * box.height;
       const endAt = Date.now() + combat.durationLimitMs;
-      while (Date.now() < endAt && latest?.phase === 1 && latest?.me?.status === 1 && report.checks.rewardChoice?.status !== 'pass') {
-        if (await pickAvailableReward()) break;
+      while (Date.now() < endAt && latest?.phase === 1 && latest?.me?.status === 1) {
+        // Choosing a reward proves that UI flow; keep exercising ordinary live combat afterward.
+        // Attempt another reward only if no authoritative build change has confirmed a choice yet.
+        if (report.checks.rewardChoice?.status !== 'pass') await pickAvailableReward();
         const target = (latest.actors || []).filter(actor => actor.kind === 1 && actor.status === 1 && Number.isFinite(actor.x) && Number.isFinite(actor.y))
           .reduce((best, actor) => {
             const distance = Math.hypot(actor.x - latest.me.x, actor.y - latest.me.y);
@@ -408,10 +410,10 @@ fs.mkdirSync(out, { recursive: true });
         const actor = target.actor, actorPoint = observedPointer(actor.x, actor.y);
         const before = { tick: latest.tick, self: { x: latest.me.x, y: latest.me.y }, actor: copy(actor), distance: target.distance };
         // Approach with ordinary WASD whenever the delivered mob is distant or still under the HUD.
-        if (target.distance > 78 || actorPoint.y >= liveWorldTop || actorPoint.x < box.x || actorPoint.x > box.x + box.width) {
+        if (target.distance > 36 || actorPoint.y >= liveWorldTop || actorPoint.x < box.x || actorPoint.x > box.x + box.width) {
           const dx = actor.x - latest.me.x, dy = actor.y - latest.me.y;
           const keyName = Math.abs(dx) >= Math.abs(dy) ? (dx >= 0 ? 'd' : 'a') : (dy >= 0 ? 's' : 'w');
-          await clearWorldPointer(); await holdKeys([keyName], 550);
+          await clearWorldPointer(); await holdKeys([keyName], 160);
           await wait(() => latest?.tick > before.tick, 1200);
           combat.actions.push({ type: 'WASD-approach', key: keyName, before, after: snapshot() });
           continue;

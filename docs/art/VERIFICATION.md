@@ -1,7 +1,7 @@
 # Unity showcase verification
 
 The art branch is `codex/unity-art-direction`, based on coordinator-approved gameplay revision `e90a38f6`.
-The latest runtime revision is `c6fe0b18`. Unity remains 6000.0.85f2, URP 17.0.4 and WebGL2.
+The latest runtime revision is `ebff286b`. Unity remains 6000.0.85f2, URP 17.0.4 and WebGL2.
 Rust remains authoritative; this branch does not alter simulation, protocol, prediction or input scheduling.
 
 ## Reproduce locally
@@ -44,7 +44,7 @@ Separate staged art study: <http://127.0.0.1:18897/?preview=1>. The study opens 
 | Asset/source integrity | Original Flare art/metadata, armor, audio and font hashes pass. No original source pixels/audio were edited. Derived composited atlases retain their art license. |
 | Palette | Text/muted text pass 4.5:1 on the three dark UI surfaces. Slider thumb passes 3:1 against track and fill. Grayscale and three CVD simulations flag similar lightness; names and distinct insignia supplement hue. |
 | Existing readiness inventory | 125 cues / 162 modules / 228 protocol symbols validated; 57 existing gap entries remain explicit. |
-| Browser match | All 19 outcomes passed on `c6fe0b18` in `evidence/final-web4/showcase-web.json`, with no page or observer/decoder errors. A real offered reward choice changed the authoritative build. |
+| Browser match | All 19 outcomes passed on `ebff286b` in `evidence/final-web-impact-eight-seat/showcase-web.json`, with no page or observer/decoder errors. A real offered reward choice changed the authoritative build. |
 | Performance | Three normal, three native eight-seat and three uncapped diagnostic captures completed. See [PERFORMANCE.md](PERFORMANCE.md). Native display acceptance is unavailable: the only attached main display currently reports 1920×1080 at 60 Hz. |
 
 The browser proof requires all 19 outcomes and fails closed for missing evidence, errors or refused actions.
@@ -52,11 +52,7 @@ Its five behavioral contract tests pass. A regular camp clear does not guarantee
 must open publicly observed crates through ordinary focus/Pickup and select only actual server-offered options.
 Raw State prop/chest positions are quantized wire codes; navigation uses the same `/8` conversion as the C# typed views.
 
-The earlier recorded reward example opened focused public prop handle 7 at world `(432,208)` with the ordinary F input.
-The server then supplied reward chest handle 6 with three options and `CanChoose=true`. Clicking option 0 sent
-the normal Choose command; the authoritative build's boost slot 2 changed from 0 to 1. No producer was inferred
-from a seed, normal camp kill, stale observer ID or local artwork. The browser AudioContext was running at
-44.1 kHz stereo and its clock advanced after a real settings gesture; the music-mute preference reached zero.
+The final match completed with a wire Result: outcome 2, place 4, 4 reported players, killed by `vexx`, duration 41 seconds. The proof used ordinary input and a real server-offered reward choice; it did not inspect private producer selection or synthesize a result. The eight-seat server configuration is not substituted for the actual Result player count or delivered actor counts. AudioContext time advanced at 44.1 kHz stereo after a real settings gesture, and the music-mute preference reached zero.
 
 ## Measurement limits
 
@@ -73,3 +69,5 @@ Asset preparation and live acceptance are tracked separately in [COVERAGE.md](CO
 stay in the existing [readiness inventory](../unity/PRESENTATION_CONTRACT.md); this report does not change coordinator status.
 
 Maximum text size (1.50) was exercised through the real slider at a 2560×1440 backbuffer. Visual review of the settings panel and active HUD found no clipped labels or controls; captures are in `evidence/text-150-settings.png` and `evidence/text-150-hud.png`.
+
+Final impact-art review passed: the brief hollow rim preserves character silhouettes and health bars during overlapping confirmed cues. The text-size captures were made before that impact-only change; the UI source is unchanged.

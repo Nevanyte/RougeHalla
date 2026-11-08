@@ -1,16 +1,16 @@
 {
-  "runtimeRevision": "c6fe0b18de87a870aefc28f2652f32236777a334",
+  "runtimeRevision": "ebff286bc68027d4e32eee3607d2ae6807038f9d",
   "baseGameplayRevision": "e90a38f6",
   "unity": "6000.0.85f2",
   "urp": "17.0.4",
   "protocol": 11,
   "contentHash": "801a76cde4cfd305",
-  "totalBytes": 74029211,
+  "totalBytes": 74029313,
   "files": [
     {
       "path": "Build/Web.data",
       "bytes": 27559288,
-      "sha256": "4003b4ae48278f94dc35cb34d2972ba26fd770cc3cc068ed7848e5f25460d458"
+      "sha256": "2d9cd5e513c073d33fdbc98d8b99c5b21762db4ca065a3838e916e51418ac6c7"
     },
     {
       "path": "Build/Web.framework.js",
@@ -20,12 +20,12 @@
     {
       "path": "Build/Web.loader.js",
       "bytes": 26455,
-      "sha256": "16934d8ea921e938b70c471595271eb1a9a0f59cbcd3bd0dff32e3ac59d287d8"
+      "sha256": "9732ce8b8162cc2f7d2fb9238a5eb9181935f4895ce8c18a2264711e585115dc"
     },
     {
       "path": "Build/Web.wasm",
-      "bytes": 45932069,
-      "sha256": "4e0104bd8ba38a1c60e7de1a7505d9875f267fd84090ce85eff6302362f979f5"
+      "bytes": 45932171,
+      "sha256": "18efa9cda2bbc8519b182b4387c7d44b39eb47222f456533f3193a331e04a101"
     },
     {
       "path": "Licenses/CinzelDecorative-OFL.txt",
