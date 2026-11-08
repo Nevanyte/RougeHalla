@@ -89,8 +89,11 @@ be witnessed from the authoritative helper, not inferred. Source reason mapping 
 
 Every Wish Fx carries its original f64 event_time. Started has required caster, ability, duration, optional target and
 anchor. Landed has optional caster/target/anchor and optional paired blink destination. Ended has required caster,
-ability and reason. Reuse checked public position quantization and observer references. A destination requires an
-anchor, and the producer enforces the spatial rules above; codecs never reconstruct missing coordinates.
+ability and reason. Reuse checked public position quantization and observer references. Closed landing shapes are:
+Blaze has both anchor and destination or neither; every other ability has no blink destination. A record with neither
+caster nor permitted geometry is refused, even if it names a target. These shape rules apply in all codecs; the producer
+also enforces the spatial permissions above. Decoders/renderers never reconstruct missing coordinates or turn a
+one-ended Blaze into a fallback flash.
 
 Snapshot source time is explicit logically. For ordinary frames it defaults to f64(tick)*50 with no added payload;
 the reserved server-time override bit carries an absolute f64 when its bits differ from that default. This is a

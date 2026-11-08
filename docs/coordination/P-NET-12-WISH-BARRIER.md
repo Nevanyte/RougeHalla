@@ -21,6 +21,11 @@ room/director/main adapters. Raw timestamp fields join reserved candidate checkp
 old formats or default missing times. Do not touch G6 heal/stat/content/schedule files or broaden admitted NPC domains.
 Report any genuine new shared dependency before expanding scope. No change to other raw event kinds/public facts.
 
+Separate G6 lease: checkpoint.rs, shared state.rs changes, hash-coverage tests, format constants and derived tapes
+remain LOCKED until G6's clean handover and explicit lead release, even after the observation lease is released.
+The lead may own that final schema/hash/tape composition instead. Never claim the pending timestamp restore/format
+gate passes before it is actually integrated; continue the independent producer/report/codec scopes meanwhile.
+
 Phase C: engine-independent session and Unity MatchClient R-input integration. The art lane will receive a separate
 HUD/confirmed-cue/barrier-render packet once the public C# API is stable; do not concurrently edit its MatchHud,
 ArenaView or SpriteActorPresenter. Coordinate exact exposed names/semantics with the lead. Final source/Editor/Web
@@ -58,6 +63,9 @@ Preserve all old source corpora and v11 fixtures. Add v12 canonical vectors from
 all three decoders/trackers. Cover every optional Cast combination, malformed slot/ref/flags/nonfinite point/time,
 new owner/cast/barrier clear-to-zero/None groups, full/new actor/resync/resume/pool reset, unknown masks/truncation,
 maximum encoded sizes and held-baseline/offer atomicity on failure. Source-copy checks must pass.
+Explicitly reject anchor-only/destination-only Blaze, destinations on other abilities and a Landed record with no
+caster or geometry. Exercise offset-clock Full -> default-clock Delta, including pooled reuse: no override means the
+CURRENT frame's tick*50, not its base's clock.
 
 Use existing genuine ability corpora plus a small additive actual-source control for R message production, queued Cast,
 all-five ordinary50ms execution, owner schema/stock clocks and actual Fx pack/unpack/perceive. Add a labelled actual
