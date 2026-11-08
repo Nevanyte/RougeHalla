@@ -47,7 +47,29 @@ namespace Roguehalla.Client
             text.enableAutoSizing = true; text.color = color ?? ShowcasePalette.Text;
             text.alignment = alignment; text.enableWordWrapping = true;
             text.raycastTarget = false;
+            var scale = text.gameObject.AddComponent<MythicTextScale>(); scale.BaseSize = fontSize * 1.5f;
+            scale.Apply(ShowcaseSettings.Current != null ? ShowcaseSettings.Current.TextScale : 1f);
             return text;
+        }
+
+        public static void ApplyTextScale(Transform root, float scale)
+        {
+            foreach (var style in root.GetComponentsInChildren<MythicTextScale>(true)) style.Apply(scale);
+        }
+
+        public static TMP_Text ScrollText(Transform parent, string name, string value, Vector2 min, Vector2 max, float size)
+        {
+            var frame = Rect(parent, name, min, max);
+            var scroll = frame.gameObject.AddComponent<UnityEngine.UI.ScrollRect>();
+            scroll.horizontal = false; scroll.movementType = ScrollRect.MovementType.Clamped; scroll.scrollSensitivity = 36;
+            var viewport = Rect(frame, "Viewport", Vector2.zero, Vector2.one);
+            var image = viewport.gameObject.AddComponent<UnityEngine.UI.Image>(); image.color = Color.clear; image.raycastTarget = true;
+            viewport.gameObject.AddComponent<UnityEngine.UI.RectMask2D>();
+            var label = Text(viewport, "Content", value, new Vector2(0, 1), Vector2.one, size);
+            label.rectTransform.pivot = new Vector2(.5f, 1); label.enableAutoSizing = false;
+            label.gameObject.AddComponent<UnityEngine.UI.ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+            scroll.viewport = viewport; scroll.content = label.rectTransform;
+            return label;
         }
 
         public static Button Button(Transform parent, string name, string label, Vector2 anchorMin, Vector2 anchorMax,
@@ -62,10 +84,16 @@ namespace Roguehalla.Client
             var minimum = rect.gameObject.AddComponent<LayoutElement>(); minimum.minWidth = 44; minimum.minHeight = 44;
             if (Mathf.Approximately(anchorMin.x, anchorMax.x) && Mathf.Approximately(rect.sizeDelta.x, 0)) rect.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, 44);
             if (Mathf.Approximately(anchorMin.y, anchorMax.y) && Mathf.Approximately(rect.sizeDelta.y, 0)) rect.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, 44);
+            var edge = rect.gameObject.AddComponent<UnityEngine.UI.Outline>();
+            edge.effectColor = ShowcasePalette.GoldDim; edge.effectDistance = new Vector2(2, -2); edge.useGraphicAlpha = false;
+            image.color = Color.white;
             var colors = button.colors;
-            colors.normalColor = image.color; colors.highlightedColor = style == ButtonStyle.Primary ? ShowcasePalette.Gold : ShowcasePalette.PanelStroke;
-            colors.pressedColor = ShowcasePalette.GoldDim; colors.selectedColor = colors.highlightedColor;
-            colors.disabledColor = new Color32(55, 62, 71, 255); button.colors = colors;
+            colors.normalColor = ShowcasePalette.PanelRaised;
+            colors.highlightedColor = ShowcasePalette.PanelStroke;
+            colors.pressedColor = new Color32(96, 69, 31, 255);
+            colors.selectedColor = ShowcasePalette.PanelStroke;
+            colors.disabledColor = new Color32(37, 43, 51, 255); colors.fadeDuration = .08f;
+            button.colors = colors;
             button.onClick.AddListener(onClick);
             Text(rect, "Label", label, Vector2.zero, Vector2.one, 16,
                 style == ButtonStyle.Primary ? ShowcasePalette.Text : ShowcasePalette.MutedText,
@@ -123,7 +151,7 @@ namespace Roguehalla.Client
             }
         }
 
-        static Sprite GlyphSprite(MythicGlyph glyph)
+        public static Sprite GlyphSprite(MythicGlyph glyph)
         {
             int index = Mathf.Clamp((int)glyph, 0, GlyphSprites.Length - 1);
             if (GlyphSprites[index] != null) return GlyphSprites[index];
@@ -172,4 +200,5 @@ namespace Roguehalla.Client
         static void Star(Color32[] p,int s,int cx,int cy,int outer,int inner,int points,Color32 c)
         { Vector2 prev=Vector2.zero; for(int i=0;i<points*2;i++){float a=-Mathf.PI/2+i*Mathf.PI/points;float r=(i%2==0)?outer:inner;var v=new Vector2(cx+Mathf.Cos(a)*r,cy+Mathf.Sin(a)*r);if(i>0)Line(p,s,(int)prev.x,(int)prev.y,(int)v.x,(int)v.y,c,2);prev=v;} Line(p,s,(int)prev.x,(int)prev.y,(int)(cx+0),(int)(cy-outer),c,2); }
     }
+
 }

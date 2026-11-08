@@ -1,4 +1,5 @@
 using System;
+using UnityEngine.InputSystem;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
@@ -71,6 +72,7 @@ namespace Roguehalla.Client
         float _scale = 1;
 
         public bool IsVisible { get { return _overlay != null && _overlay.gameObject.activeSelf; } }
+        public RectTransform FocusRoot => _panel;
         public GuideTab CurrentTab { get { return _currentTab; } }
         public int SelectedFaction { get { return _selectedFaction; } }
         public string SelectedWeapon { get { return _selectedWeapon; } }
@@ -113,8 +115,8 @@ namespace Roguehalla.Client
 
         public void RefreshScale(float scale)
         {
-            _scale = Mathf.Clamp(scale, .78f, 1.25f);
-            if (_panel != null) _panel.localScale = Vector3.one * _scale;
+            _scale = Mathf.Clamp(scale, .85f, 1.5f);
+            if (_panel != null) MythicUi.ApplyTextScale(_panel, _scale);
         }
 
         public void SetFaction(int faction)
@@ -139,7 +141,7 @@ namespace Roguehalla.Client
 
         void Update()
         {
-            if (IsVisible && Input.GetKeyDown(KeyCode.Escape)) HandleEscape();
+            if (IsVisible && Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame) HandleEscape();
         }
 
         void ShowTab(GuideTab tab, bool open)
@@ -155,6 +157,7 @@ namespace Roguehalla.Client
                 if (label != null) label.color = selected ? ShowcasePalette.Text : ShowcasePalette.MutedText;
             }
             BuildPage(tab);
+            RefreshScale(_scale);
             if (open) Focus(_tabButtons[(int)tab]);
         }
 
@@ -173,7 +176,7 @@ namespace Roguehalla.Client
             var panelBlocker = _panel.gameObject.AddComponent<Button>();
             panelBlocker.targetGraphic = panelSurface;
             panelBlocker.onClick.AddListener(() => { });
-            _panel.localScale = Vector3.one * _scale;
+            _panel.localScale = Vector3.one;
             var head = MythicUi.Text(_panel, "Heading", "THE FIELD GUIDE", new Vector2(.035f, .91f), new Vector2(.72f, .99f), 27, ShowcasePalette.Gold);
             head.fontStyle = FontStyles.Bold;
             MythicUi.Text(_panel, "Subheading", "Champions, weapons, and the intended weapon matchups", new Vector2(.035f, .865f), new Vector2(.8f, .92f), 15, ShowcasePalette.MutedText);

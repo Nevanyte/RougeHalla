@@ -1,4 +1,5 @@
 using System;
+using UnityEngine.InputSystem;
 using Roguehalla.Net.Ui;
 using TMPro;
 using UnityEngine;
@@ -111,13 +112,16 @@ namespace Roguehalla.Client
             if (!IsVisible) return;
             float horizontal = 0f, vertical = 0f;
             bool activate = false;
-            if (allowKeyboard)
+            var keys = Keyboard.current;
+            if (allowKeyboard && keys != null)
             {
-                if (Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.LeftArrow)) horizontal -= 1f;
-                if (Input.GetKey(KeyCode.D) || Input.GetKey(KeyCode.RightArrow)) horizontal += 1f;
-                if (Input.GetKey(KeyCode.S) || Input.GetKey(KeyCode.DownArrow)) vertical -= 1f;
-                if (Input.GetKey(KeyCode.W) || Input.GetKey(KeyCode.UpArrow)) vertical += 1f;
-                activate = Input.GetKeyDown(KeyCode.E);
+                bool controlsHaveFocus = EventSystem.current != null && EventSystem.current.currentSelectedGameObject != null;
+                if (keys.aKey.isPressed || !controlsHaveFocus && keys.leftArrowKey.isPressed) horizontal -= 1f;
+                if (keys.dKey.isPressed || !controlsHaveFocus && keys.rightArrowKey.isPressed) horizontal += 1f;
+                if (keys.sKey.isPressed || !controlsHaveFocus && keys.downArrowKey.isPressed) vertical -= 1f;
+                if (keys.wKey.isPressed || !controlsHaveFocus && keys.upArrowKey.isPressed) vertical += 1f;
+                if (horizontal != 0 || vertical != 0) EventSystem.current?.SetSelectedGameObject(null);
+                activate = keys.eKey.wasPressedThisFrame;
             }
 
             bool manualMove = horizontal != 0f || vertical != 0f;

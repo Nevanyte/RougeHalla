@@ -70,15 +70,15 @@ namespace Roguehalla.Client
                     ShowcasePalette.MutedText, TextAlignmentOptions.Center);
             }
 
-            _scroll = MythicUi.ScrollView(_root, "CardCatalogScroll", new Vector2(.025f, .075f), new Vector2(.975f, .718f), out var content);
+            _scroll = MythicUi.ScrollView(_root, "CardCatalogScroll", new Vector2(.025f, .245f), new Vector2(.975f, .718f), out var content);
             Content = content;
             _cardButtons = new Button[CardSlots]; _cardCounts = new TMP_Text[CardSlots]; _cardBorders = new Image[CardSlots];
             _grid = Content.GetComponent<GridLayoutGroup>();
-            _grid.cellSize = new Vector2(210, 150); _grid.spacing = new Vector2(10, 10);
+            _grid.cellSize = new Vector2(210, 220); _grid.spacing = new Vector2(10, 10);
             _viewport = _scroll.viewport;
             for (int i = 0; i < CardSlots; i++) CreateCard(i, content);
-            _detail = MythicUi.Text(_root, "SelectionDetail", "Select a card to inspect its server catalog description.",
-                new Vector2(.035f, .012f), new Vector2(.97f, .065f), 13, ShowcasePalette.MutedText);
+            _detail = MythicUi.ScrollText(_root, "SelectionDetail", "Select a card to inspect its server catalog description.",
+                new Vector2(.035f, .015f), new Vector2(.97f, .23f), 16);
 
             _root.gameObject.SetActive(false);
             RefreshVisuals();
@@ -224,25 +224,18 @@ namespace Roguehalla.Client
         }
         void ApplyTextScale()
         {
-            var texts = _root.GetComponentsInChildren<TMP_Text>(true);
-            foreach (var text in texts) text.fontSize *= _textScale / Mathf.Max(.01f, text.GetComponent<BuildTextScale>()?.LastScale ?? 1f);
-            foreach (var text in texts)
-            {
-                var marker = text.GetComponent<BuildTextScale>() ?? text.gameObject.AddComponent<BuildTextScale>();
-                marker.LastScale = _textScale;
-                text.fontSizeMin = Mathf.Max(9, text.fontSize * .72f); text.fontSizeMax = text.fontSize;
-            }
+            MythicUi.ApplyTextScale(_root, _textScale);
+            if (_grid != null) _grid.cellSize = new Vector2(_grid.cellSize.x, 220 * _textScale);
         }
         static void Set(TMP_Text text, string value) { if (text != null && text.text != value) text.text = value; }
         void LateUpdate() { FitGrid(); }
         void FitGrid()
         {
             if (_grid == null || _viewport == null || _viewport.rect.width <= 0) return;
-            float cell = Mathf.Clamp((_viewport.rect.width - _grid.padding.horizontal - _grid.spacing.x - 4) * .5f, 152, 226);
+            float cell = Mathf.Max(152, (_viewport.rect.width - _grid.padding.horizontal - _grid.spacing.x - 4) * .5f);
             if (!Mathf.Approximately(_grid.cellSize.x, cell)) _grid.cellSize = new Vector2(cell, _grid.cellSize.y);
         }
         void Close() { SetVisible(false); if (_onClose != null) _onClose(); }
     }
 
-    sealed class BuildTextScale : MonoBehaviour { public float LastScale = 1f; }
 }

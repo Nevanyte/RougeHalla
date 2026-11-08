@@ -48,7 +48,7 @@ namespace Roguehalla.Client.Tests
             Deliver(.0625, false, true, false);
             StringAssert.StartsWith("Trophy ", _title.text);
             Assert.AreEqual("+6.3% damage", Text(1));
-            Assert.AreEqual("SlowBurn", Text(0));
+            Assert.AreEqual("Slow Burn", Text(0));
             Assert.AreEqual("Lifesteal", Text(2));
             Assert.IsTrue(_buttons[1].interactable);
             Deliver(.064, false, true, false); // Same row, key and eligibility; only the delivered f64 changed.

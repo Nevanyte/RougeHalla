@@ -2,6 +2,7 @@
 // in any (even empty) scene. Query string in WebGL: ?server=wss://host/ws&profile=name&token=secret&hash=<u64>&faction=<0-4>
 using System;
 using UnityEngine;
+using Roguehalla.Net;
 #if UNITY_WEBGL && !UNITY_EDITOR
 using System.Runtime.InteropServices;
 #endif
@@ -55,6 +56,15 @@ namespace Roguehalla.Client
             Application.targetFrameRate = -1;
             camGo.tag = "MainCamera";
 
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            string uiReview = Query(s, "uiReview", "");
+            if (uiReview == "hud" || uiReview == "planning" || uiReview == "map")
+            {
+                new GameObject("Offline UI layout review").AddComponent<UiLayoutReview>().Initialize(cam, uiReview);
+                return;
+            }
+#endif
+
             if (Query(s, "preview", "0") == "1")
             {
                 new GameObject("Presentation study").AddComponent<ShowcasePreview>().Initialize(cam);
@@ -68,13 +78,19 @@ namespace Roguehalla.Client
             mc.Arena = arena;
             mc.Cam = cam;
             go.AddComponent<ShowcaseSoundscape>().Initialize(mc);
-            mc.Url = Query(s, "server", DefaultUrl);
-            mc.Profile = Query(s, "profile", "web" + UnityEngine.Random.Range(1000, 9999));
-            mc.Token = Query(s, "token", Guid.NewGuid().ToString("N"));
+            mc.PageUrl = Uri.TryCreate(Application.absoluteURL, UriKind.Absolute, out var pageUri) ? pageUri.GetLeftPart(UriPartial.Path) : "";
+            string defaultWs = DefaultUrl;
+            try { defaultWs = AccountConnectionPolicy.DefaultMatchUrl(mc.PageUrl); } catch (ArgumentException) { }
+            mc.Url = Query(s, "server", defaultWs);
+            mc.AccountApi = Query(s, "accountApi", Application.isEditor ? "http://127.0.0.1:7777/api" : "");
+            mc.Profile = Query(s, "profile", PlayerPrefs.GetString("rh.ui.profile", ""));
+            mc.DiagnosticRequested = Query(s, "diagnostic", "0") == "1";
+            mc.Token = mc.IsDiagnostic ? Query(s, "token", "") : "";
+            mc.PendingSignInKey = mc.IsDiagnostic ? "" : UiBrowserStorage.ConsumeSignInKey();
             ulong hash; if (ulong.TryParse(Query(s, "hash", BakedContent.Hash.ToString(System.Globalization.CultureInfo.InvariantCulture)), out hash)) mc.ContentHash = hash;
             int faction; if (int.TryParse(Query(s, "faction", "4"), out faction)) mc.Faction = faction;
-            // Explicit profile keeps existing automated/browser links joining immediately. Ordinary visits show the menu.
-            mc.AutoJoin = Query(s, "auto", Query(s, "profile", "") != "" ? "1" : "0") == "1";
+            // Synthetic joins require explicit loopback diagnostics. Ordinary profile/token/auto queries never bypass ownership.
+            mc.AutoJoin = mc.IsDiagnostic && Query(s, "auto", "1") == "1";
         }
     }
 }
