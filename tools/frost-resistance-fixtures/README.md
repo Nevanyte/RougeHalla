@@ -30,3 +30,19 @@ runs every case twice to assert a deterministic source replay. Consumers live on
 source_witnesses_* tests check provenance and the witness relations through resistSlow + quantization (thaw/departure/
 reset, clock witnesses, resistance change); the runtime/restore/replay and trusted-fold tests are the other new tests
 there.
+## Re-runnable semantic mutants
+
+The three compiled mutants are committed as re-appliable patches in mutants/, with run-mutants.sh (same pattern as the
+other tools: git apply on a disposable working copy, targeted consumer test must fail semantically, restore, then the
+unchanged frost module control must pass):
+
+- 01-attack-resistance-removed.patch: the resistSlow on the attack chill dropped -> the attack/near runtime test fails.
+- 02-movement-resistance-removed.patch: the resistSlow on the near/ranged movement result dropped -> the ranged/overlap
+  runtime test fails.
+- 03-resisted-restore-acceptance-reverted.patch: the restore acceptance reverted to the old unresisted ceiling -> the
+  restore/replay test fails inside Sim::restore (the actual consumer); the malformed-restore control still passes.
+
+    bash tools/frost-resistance-fixtures/run-mutants.sh
+    # CARGO=/path/to/pinned/cargo bash tools/frost-resistance-fixtures/run-mutants.sh
+
+Expected final line: 3/3 mutants killed; unchanged control passes.

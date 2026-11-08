@@ -57,3 +57,9 @@ is not required to equal a fresh recomputation after the victim's stats changed.
 - Not produced in this bounded packet: a Rust replay of the captured source tape (no public Rust card-grant producer on the
   parity path; the runtime tests use the real stat-fold setup instead), full NPC Frost/Sentenced admission stays held, and
   Iron Will resistance extremes beyond the real 0.4 card value are helper-only diagnostics, not runtime witnesses.
+## Re-runnable mutant artifacts
+
+The three mutants above are committed and re-appliable: tools/frost-resistance-fixtures/mutants/*.patch with
+tools/frost-resistance-fixtures/run-mutants.sh (disposable copy, targeted actual-consumer failure required, restore, then
+the unchanged frost-module control must pass). The runner prints 3/3 mutants killed; unchanged control passes, matching
+the originally reported per-mutant exit codes (101/101/101 with the malformed-restore control exit 0).
