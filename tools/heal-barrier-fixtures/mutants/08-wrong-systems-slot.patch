@@ -1,0 +1,22 @@
+--- a/crates/rh-sim/src/schedule.rs
++++ b/crates/rh-sim/src/schedule.rs
+@@ -938,14 +938,14 @@
+         crate::systems::training::reset_dummies,
+     ),
+     ported(
++        "feed.flushAnnouncements",
++        Gate::Always,
++        credit::flush_announcements,
++    ),
++    ported(
+         "buffs.expireBoosts",
+         Gate::Always,
+         crate::systems::buffs::expire,
+-    ),
+-    ported(
+-        "feed.flushAnnouncements",
+-        Gate::Always,
+-        credit::flush_announcements,
+     ),
+     ported(
+         "chests.expireChests",

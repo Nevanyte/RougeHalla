@@ -1,0 +1,11 @@
+--- a/crates/rh-sim/src/systems/buffs.rs
++++ b/crates/rh-sim/src/systems/buffs.rs
+@@ -8,7 +8,7 @@
+ 
+ /// Legacy `barrierCap`: the most barrier a grant may leave at this max hp.
+ pub(crate) fn cap(max_hp: f64) -> f64 {
+-    BARRIER_MAX_SHARE * max_hp.max(0.)
++    max_hp.max(0.)
+ }
+ 
+ /// Legacy `clampBarrier`: a barrier amount held to [`cap`] and never negative.

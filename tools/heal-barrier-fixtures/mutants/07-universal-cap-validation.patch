@@ -1,0 +1,10 @@
+--- a/crates/rh-sim/src/checkpoint.rs
++++ b/crates/rh-sim/src/checkpoint.rs
+@@ -601,6 +601,7 @@
+             || (p.barrier_decays && !(p.barrier_until > 0.))
+             || !p.vitals.barrier.is_finite()
+             || p.vitals.barrier < 0.
++            || p.vitals.barrier > 0.25 * p.vitals.max_hp + 1e-9
+         {
+             return Err(format!("player {}: invalid G6 barrier state", p.id.0));
+         }

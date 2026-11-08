@@ -593,6 +593,12 @@ pub struct Player {
     /// Legacy `speedBoostUntil`: the wind emblem's +50% movement speed ends at this server time.
     #[serde(default)]
     pub speed_boost_until: f64,
+    /// Legacy sim/buffs.ts BoostRuntime for G6: when a heal-made barrier ends (server ms; 0 = none).
+    #[serde(default)]
+    pub barrier_until: f64,
+    /// Legacy sim/buffs.ts `decays`: a heal-made barrier loses BARRIER_DECAY_SHARE_PER_SECOND of max hp a second.
+    #[serde(default)]
+    pub barrier_decays: bool,
 }
 
 impl Keyed for Player {
@@ -645,6 +651,8 @@ impl Player {
             potion_large: 0,
             camps_cleared: 0,
             speed_boost_until: 0.,
+            barrier_until: 0.,
+            barrier_decays: false,
             healing_until: 0.,
             potions_healing: 0,
             farm: Default::default(),

@@ -1,0 +1,11 @@
+--- a/crates/rh-sim/src/systems/buffs.rs
++++ b/crates/rh-sim/src/systems/buffs.rs
+@@ -62,7 +62,7 @@
+             p.barrier_decays = false;
+             p.vitals.barrier = 0.;
+         } else if p.barrier_decays {
+-            p.vitals.barrier = decay(p.vitals.barrier, p.vitals.max_hp, TICK_MS / 1000.);
++            // decay dropped
+         }
+     }
+ }

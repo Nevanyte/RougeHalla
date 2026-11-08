@@ -1,5 +1,7 @@
 //! Shared heal funnel for supported player sources and supplied status modifiers.
-//! Card acquisition and heal-barrier production remain pending. No public healing command.
+//! The Second Skin heal-barrier producer is wired through the folded `healBarrier` stat and the source grant/decay
+//! helpers in `systems::buffs`; card acquisition and the remaining caller producers stay pending, and there is no
+//! public healing command.
 use crate::{constants::HEAL_LOCKOUT_MS, events::Event, state::World};
 #[derive(Clone, Copy)]
 pub(crate) enum Kind {
@@ -30,21 +32,28 @@ pub(crate) fn apply_with(
     if !(amount > 0.0) || !w.standing(ix) {
         return 0.0;
     }
-    let p = w.core_mut(ix);
     if matches!(kind, Kind::Ordinary | Kind::QuietOrdinary)
-        && p.signature
+        && w.core(ix)
+            .signature
             .combat_at
             .is_some_and(|at| now - at < HEAL_LOCKOUT_MS)
     {
         return 0.0;
     }
-    let mut amount = amount * crate::status_runtime::heal_factor(&p.statuses.instances, now);
+    let mut amount =
+        amount * crate::status_runtime::heal_factor(&w.core(ix).statuses.instances, now);
     if !matches!(kind, Kind::Lifesteal) {
         amount *= stats.heal_taken_mult;
     }
     if !(amount > 0.) {
         return 0.;
     }
+    // Legacy factions.ts heal(): the share of the heal as received (overheal and lifesteal included) stands as a
+    // barrier before the hp clamp. The regen caller is the source's noBarrier heal; mobs never hold a barrier.
+    if w.is_player(ix) && !matches!(kind, Kind::QuietRegen) && stats.heal_barrier > 0. {
+        crate::systems::buffs::grant_heal_barrier(w, i, stats.heal_barrier * amount, now);
+    }
+    let p = w.core_mut(ix);
     let before = p.vitals.hp;
     p.vitals.hp = p.vitals.max_hp.min(before + amount);
     let gained = p.vitals.hp - before;

@@ -193,6 +193,7 @@ pub(crate) fn view(p: &crate::fighter::FighterCore) -> crate::status_runtime::St
         lifesteal_dot: sums.get(fold::StatKey::LifestealDot).max(0.),
         farm_lifesteal_rows: farm.get(fold::StatKey::Lifesteal).max(0.),
         heal_taken_mult: (1. + sums.get(fold::StatKey::HealTaken)).max(0.),
+        heal_barrier: sums.get(fold::StatKey::HealBarrier).max(0.),
         ..Default::default()
     }
 }
