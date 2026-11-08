@@ -1,0 +1,7 @@
+--- a/packages/server/src/bots/brain/perception.ts
++++ b/packages/server/src/bots/brain/perception.ts
+@@ -193,3 +193,3 @@
+ const f32 = Math.fround;
+ /** A uint32 timer as the wire carries it: whole ms. */
+-const u32 = (v: number): number => v >>> 0;
++const u32 = (v: number): number => v;

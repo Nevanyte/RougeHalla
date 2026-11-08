@@ -1,0 +1,12 @@
+--- a/packages/server/src/sim/weapons.ts
++++ b/packages/server/src/sim/weapons.ts
+@@ -57,9 +57,8 @@
+ /** Locks `id` (a fresh chase; the re-plan throttle carries over) and mirrors it in the synced state. */
+ export function setLock(c: Combatant, id: string): void {
+   const w = c.rt.weapon;
+   w.lock = id;
+   w.lockSeen = false;
+   w.lockLosLostAt = 0;
+   w.lockGoal = null;
+-  if (c.kind === "player" && c.s.attackTarget !== id) c.s.attackTarget = id;
+ }

@@ -1,0 +1,7 @@
+--- a/packages/server/src/sim/weapons.ts
++++ b/packages/server/src/sim/weapons.ts
+@@ -353,3 +353,4 @@
+   else emit(world, { type: "fx", fx: { kind: "windup", by: c.id, weapon, a: w.aim, ms: Math.max(0, landsAt - now) } });
+   world.hooks.attackStarted?.(world, c);
+ }
++// provenance-only mutation: a comment, no semantic change

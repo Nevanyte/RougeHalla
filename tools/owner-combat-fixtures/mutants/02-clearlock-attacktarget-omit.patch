@@ -1,0 +1,12 @@
+--- a/packages/server/src/sim/weapons.ts
++++ b/packages/server/src/sim/weapons.ts
+@@ -67,9 +67,8 @@
+ /** Forgets the lock and the chase's memory, and clears the synced mirror. */
+ export function clearLock(c: Combatant): void {
+   const w = c.rt.weapon;
+   w.lock = null;
+   w.lockSeen = false;
+   w.lockLosLostAt = 0;
+   w.lockGoal = null;
+-  if (c.kind === "player" && c.s.attackTarget !== "") c.s.attackTarget = "";
+ }
