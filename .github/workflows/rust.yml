@@ -94,6 +94,11 @@ jobs:
           bash tools/bot-telemetry-fixtures/capture.sh --check
           bash tools/percept-witness-fixtures/capture.sh --check
           bash tools/barrier-view-fixtures/capture.sh --check
+      - name: Heal-barrier callers and victim Frost resistance remain source exact
+        run: |
+          bash tools/heal-barrier-fixtures/capture.sh --check
+          bash tools/heal-barrier-callers/capture.sh --check
+          bash tools/frost-resistance-fixtures/capture.sh --check
       - name: First-playable cards, constructor, potions and PvE still match the actual source
         run: |
           bash tools/cards-fixtures/capture.sh --check
