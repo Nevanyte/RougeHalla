@@ -1,0 +1,11 @@
+--- a/packages/shared/src/mark.ts
++++ b/packages/shared/src/mark.ts
+@@ -44,7 +44,7 @@
+ export function markWeight(f: Pick<FactionSpec, "rate">, w: WeaponId, asMult = 1, asExponent = 1): number {
+   const safeAs = Number.isFinite(asMult) && asMult > 0 ? asMult : 1;
+   const safeExponent = Number.isFinite(asExponent) ? Math.max(0, asExponent) : 1;
+-  return f.rate * WEAPONS[w].dpsMult * safeAs ** safeExponent * attackInterval(f, w, safeAs);
++  return f.rate * safeAs ** safeExponent;
+ }
+ 
+ /**
