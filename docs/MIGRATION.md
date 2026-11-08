@@ -58,6 +58,11 @@ telegraph and art coverage remain open. Captures use a real 2560×1440 backbuffe
 1920×1080/60Hz. Displayed 144 FPS and managed allocation throughput remain open. Callback/GPU diagnostics do not prove
 displayed frames, and the older-base artifact is not a fresh final-union build.
 
+The camp-potion stock follow-up `289a01e2` is integrated in `ecf9564c`: the HUD invalidates and shows the canonical large/
+camp count, including large-only changes and inventory clearing. One actual-HUD Editor regression and a1.50-text
+maximum-stock layout check pass. This is source/Editor evidence; the served Web artifact remains `4f37e9f0`. The delivered-
+cue proposal `88dbc5cf` is retained in `ae11f90e`; its later drafts and audio research are not admitted runtime work.
+
 The latency lane's controlled measurements remain bound to its
 recorded older candidate, not the new union or display/input-to-photon latency. The bot Knowledge/fair-view prefix now includes the independently reviewed
 [RNG/rounding/null repair](coordination/KNOWLEDGE_REPAIR.md) `fdea457b` (57 policy tests, three semantic mutants and
@@ -71,6 +76,25 @@ Effective fill precedes optional profile-name lookup; disabled fill performs non
 isolated. New Rust consumers reproduce 300 pathfinding queries and all 723 prediction walk samples exactly; no goldens
 were rewritten.
 
+The completed DeepSeek composition was reviewed as four units against its actual base `455a202f`. A–C are integrated
+in `fdf65513`: explicit bot-seat overrides preserve automatic-fill draws/defaults, Committed refuses second-slot barter
+before spending/cooldown, and quest run-end/camp-clear captures use actual producers. Candidate D was held for semantic
+defects despite green lane tests. The reviewed repair `c9bdf0d8` is integrated with it in `8ce725db`: learning defaults
+Off/refuses unsupported On, gameMs averages individual worker durations,256-command queues bound jitter consumption,
+and delayed commands resolve before every actual step even when the policy is not due. Advanced damage/first-hit
+telemetry is explicitly unavailable, rather than understated. Full manager timing, active learning, recorder production
+and full-brain outcomes remain open.
+
+At the composed union, **956 remaining-workspace tests** pass with real private PostgreSQL (two existing manual ignores),
+plus20 disjoint affected simulation tests. Bot-fill16/16 is already included in956; do not double-count it. Both strict
+workspace Clippy modes, formatting and15-check real Chromium WSS pass. All five affected pinned source-capture commands
+reproduce byte exactly. Unchanged map campaigns were not repeated locally; full CI remains revision-scoped. Identity
+remains11/24/18/17/13/content `801a76cde4cfd305`. The [fair-view review](coordination/FAIR_OBSERVATION_ADMISSION_REVIEW.md)
+keeps broad observation changes held; Post Rust owns its evidence-only witness task. The next G6 heal-barrier assignment
+is a private native candidate under its [packet](coordination/P-G6-HEAL-BARRIER-NATIVE.md), with checkpoint25/replay19
+reserved only for that candidate and a new content identity required. It cannot activate on the public profile before
+the lead resolves barrier publication/gating.
+
 The initial pushed CI passes C#, native card-runtime source, legacy recapture, hosting and latency-report checks. Rust
 CI exposed an admission-test lifecycle race: two fixture players could start/end a match, so an expired reservation
 retry correctly met session_ended precedence. `36a3222b` keeps that TTL scenario in Lobby and asserts HTTP/phase facts;
@@ -80,8 +104,9 @@ complete simulation suite from remaining backend/source checks in parallel, pres
 all checks; CI symbols are disabled and each job is bounded at60minutes. [Run42471329922](https://github.com/Nevanyte/RougeHalla/actions/runs/42471329922)
 at `48f4bb28` passes all four jobs: Rust, simulation, C# and card-runtime source. The subsequent art admission changes no
 native code, net library or workflow. The observation-leaf proposal needs lead approval and a fresh version before
-brain memory/strategy consumers proceed. Further tournament telemetry and quest continuations stay isolated until
-reviewed. The bounded art lighting/readability repair is admitted; future visual gaps return to the lead before new
+brain memory/strategy consumers proceed. Full recorder/brain and public-flow continuations stay isolated until
+reviewed. The bounded art lighting/readability repair is admitted; source-only delivered-cue drafts are separately scoped
+and future visual gaps return to the lead before new
 implementation, preserving Rust/full-game public-flow priority.
 
 Git metadata was backed up before repair; renamed worktree links were repaired, stable dirty histories were committed

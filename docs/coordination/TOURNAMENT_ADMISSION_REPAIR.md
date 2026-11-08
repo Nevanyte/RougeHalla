@@ -2,7 +2,8 @@
 
 Lead decision, 2026-11-08. `deepseek/pending-compose-r2` at `b9f149c9` contains four composed units against base
 `455a202f`: A bot-fill overrides, B Committed barter-slot refusal, C quest producer captures, D tournament/telemetry.
-Independent source reviews admit A–C subject to the focused union gate. **D is held** despite the lane's green tests.
+Independent source reviews admit A–C subject to the focused union gate. **Original D was held** despite green lane tests.
+The repaired candidate `c9bdf0d8` is now integrated in `8ce725db`; the requirements below record the admission repair.
 Merge commits/prefixes, not a whole-tree replacement against a newer lead tip; keep the accepted Unity work and enum names.
 
 The expert repair worker uses a private `codex/tournament-admission-repair` worktree from `b9f149c9`, with an isolated

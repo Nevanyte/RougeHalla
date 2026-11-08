@@ -35,8 +35,10 @@ then one integration gate; do not repeat unchanged expensive map campaigns after
    `48f4bb28` passes Rust, simulation, C# and card-runtime source jobs; new changes retain revision-scoped validation.
 2. Complete native gameplay/parity/headless acceptance. The bot Knowledge repair is admitted; approve a concrete fair
    observation design before memory/strategy/tactics work. The repaired learning store is integrated and defaults Off.
-   Bot fill/configuration through `43abe070` and tournament timer/write-error repairs are integrated. New tournament
-   telemetry work remains isolated; do not duplicate it.
+   Bot fill/configuration through `43abe070` and the reviewed A–C continuation are integrated in `fdf65513`. The bounded
+   tournament/shape candidate plus admission repair `c9bdf0d8` is integrated in `8ce725db`; full recorder/brain remains
+   incomplete. The [G6 native packet](coordination/P-G6-HEAL-BARRIER-NATIVE.md) is assigned as a private candidate with
+   public activation held; do not duplicate it.
 3. Close the missing public transports and source consumers: full Wish input/owner facts, Kill/Trophy options,
    quest/trade flows and the remaining public facts/cues. Inventory exact native prerequisites before assigning each
    packet. Reconcile incompatible identities and all three codecs centrally. Native fixtures alone do not prove the UI.
@@ -45,7 +47,9 @@ then one integration gate; do not repeat unchanged expensive map campaigns after
    19-outcome browser, normal-input and static color-vision checks. Three High GPU windows pass the 6.944 ms p99
    diagnostic limit. Retain the owner’s at-least-144-FPS target at2560×1440 on the M5 Pro; the current60Hz physical
    display cannot certify it. Allocation throughput, full live content and crowded-motion accessibility remain open.
-   Later art gaps return to the lead before implementation; callback/headroom rates remain separate from displayed frames.
+   Camp-stock source/Editor follow-up `289a01e2` is integrated in `ecf9564c`, with Web verification deferred. The
+   delivered-cue proposal is retained; isolated source-only prop/signature drafts are authorized, with tests/builds
+   reported separately. Audio research stays unadmitted. Callback/headroom rates remain separate from displayed frames.
 5. Complete browser/account flows, durable progression, cloud/provider/region lifecycle and the original full-port
    release/performance gates. Rebuild artifacts from the final union before any staging run. Use the practice domain
    `rougehalla.com`, Calgary preference and **CAD20 total** cap; production remains separately controlled.
@@ -59,7 +63,9 @@ must be resolved before dependent implementations; release evidence must test th
 - The Knowledge/fair-view prefix through `13d38a41` is admitted with the independently reviewed
   [Knowledge repair](coordination/KNOWLEDGE_REPAIR.md) `fdea457b`: source-derived independent RNG, ECMAScript diagnostic
   rounding and null fallback. The docs-only observation proposal `47ffd063` is retained **without leaf approval**.
-  Clarify its public-counter exception and allocation proof first; observation17 is already used and cannot be reassigned.
+  The [admission review](coordination/FAIR_OBSERVATION_ADMISSION_REVIEW.md) rejects its blanket wire-unchanged premise;
+  public counters, exact fields/event timing and allocation need evidence and a shared human transport decision.
+  Post Rust owns [P-PERCEPTION-WITNESS-1](coordination/P-PERCEPTION-WITNESS-1.md); observation17 cannot be reassigned.
 - `75eaa42e` learning prefix is integrated with the independently reviewed repair in `3619280f`: explicit opt-in,
   exclusive lease on the actual PostgreSQL I/O session, sticky detected-loss behavior and bounded shutdown. Runtime
   insertion-order/source-sorted restart and per-arrival bias are checked. Default remains Off; do not enable alongside
@@ -67,11 +73,13 @@ must be resolved before dependent implementations; release evidence must test th
 - The fill/configuration continuation and [exact trim repair](coordination/BOT_TRIM_REPAIR.md) are integrated in
   `43abe070`, preserving explicit learning activation and conditional profile-name startup lookup. The
   tournament CLI/timer/write-error prefix through `2b9212c1` is integrated in `cc2cbb69` after 13 focused tests, including
-  a flush-only failure control. Additional tournament telemetry remains isolated and does not certify outcome parity.
+  a flush-only failure control. The composed runner is integrated in `8ce725db` with the bounded admission repairs;
+  full manager/outcome/recorder parity stays open.
 - `570dee45` repairs the measured-RTT packet’s compulsory Pong budget and is integrated. This is command-time admission
   clamping: held attacks retain the source press-time lag until a new Attack/Release. It does not introduce a dynamic
   per-swing rule or certify input-to-photon latency. The [Pong repair packet](coordination/PONG_REPAIR.md) records its gate.
-- The art branch is admitted through `55825c10`; later work and remaining bot/fixture branches stay isolated until their
+- The art branch is admitted through source follow-up `289a01e2`; proposal `88dbc5cf` is retained without activating it.
+  Later art work and remaining native candidate/fixture branches stay isolated until their
   reports and focused reviews pass. Preserve their active checkouts and refs.
 
 ## Completion evidence

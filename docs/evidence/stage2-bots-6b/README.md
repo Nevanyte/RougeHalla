@@ -128,22 +128,20 @@ those columns (the source's own absent-figure rendering) and emits null in JSON 
 them needs the brain layers, not a report change. The remaining P-BOTS-6 items also include the full docs/TELEMETRY.md
 record body, worker-thread parallel play and the source simulated latency/jitter and learning store.
 
-## Exact remainder for P-BOTS-6 (this slice does not claim these)
+## Current exact remainder after composed-runner admission
 
-1. **formatReport's full source column layout and evaluate() pass criteria**, and with them the full report fields:
-   per-tier damage/mob-damage/mob-kills splits, never-fought, reactions (p10/p50/p90/table/ratio and pooled), clicks/
-   miss/wrong, APM (mean/peak/limit/breaches), dodges/jukes/orb-walk/hesitations/throttled/max stall and the source
-   criteria lines. They need the humanizer telemetry block of the bot brain (the P-BOTS-6 remainder item 1), which the
-   reduced GameSummary does not carry; the printed report stays the reduced layout and the JSON report keeps the reduced
-   fields.
-2. **--json payload completeness**: the source `criteria: evaluate(report)` array and the full source GameSummary fields
-   (firstKill, deathLog, firstHits, firstMobKill, tp hp, behaviour block) are absent with the same dependency.
-3. **tune.ts table overrides**: parse (done) and apply the TIERS/PERSONAS patch through the policy tables; the runner
-   currently refuses it explicitly instead of ignoring it.
-4. **full docs/TELEMETRY.md records**: the ported telemetry surface writes the reduced summary per game; the source
-   record (behaviour/reactions/manager detail and the day file semantics) lands with item 1.
-5. **worker-thread parallel play** (split is ported; the runner stays single-threaded by design here) and the source
-   simulated latency/jitter of the bot fill config (`--latency`/`--jitter` are parsed and carried, not simulated), plus
-   the learning store (`--learn` is carried, P-BOTS-5).
+The earlier sections retain their slice-local history. Parallel play, the full report/evaluate arithmetic/layout,
+expanded JSON and command-delay diagnostics now exist; they are not pending features. See the admission repair for
+current learning defaults, per-game timing and diagnostic boundaries.
 
-Items 1-5 are exactly the P-BOTS-6 evidence remainder; no game-outcome parity is claimed against the legacy tournament.
+1. Full brain/outcome parity, the remaining hunt/tactics counters and complete native telemetry **values** remain open.
+   Missing counters stay unavailable. Advanced gameplay profiles deliberately report damage/first-hit values as null
+   until the native landed-contribution tally has its own source-equivalence proof.
+2. Full manager identity/seed construction, manager-wide jitter and self/world observation-delay parity remain open.
+   The implemented delay is bounded command-only simulation with independent per-seat jitter, not that full model.
+3. Applying `--tune` and connecting tournament learning remain unimplemented and explicitly refused. Learning defaults
+   Off; the source parser's On default is retained as a documented fixture-level deviation, not active learning.
+4. The full RunRecord is still a captured fixture-consumer shape. A runtime recorder/writer, complete producers and day
+   file semantics remain open; reduced per-game summary output does not establish full-record production.
+
+No full-game outcome, full manager/network or complete recorder parity is claimed.

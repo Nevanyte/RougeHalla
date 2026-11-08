@@ -275,6 +275,96 @@
       "file": "art-repair-contract.log",
       "bytes": 603,
       "sha256": "4e96fd26d7d3451c66b1d15cab0e418f197a673fce7b66b8b370cb35f4e3277a"
+    },
+    {
+      "file": "compose-abc-bot-fill.log",
+      "bytes": 2281,
+      "sha256": "114a21bd103045631356c0472f9ea42c667e33ef3c03d510afbbf0346a233c89"
+    },
+    {
+      "file": "compose-abc-traders.log",
+      "bytes": 1552,
+      "sha256": "28f4ac852f6e34174e1388a7d3e63530c814c634b5827d9feb8661c50b19abbf"
+    },
+    {
+      "file": "compose-abc-quests.log",
+      "bytes": 1686,
+      "sha256": "cef3f02f69c6039b84ca87807f153c9af75a1f67180ec797b5be0d3307ace334"
+    },
+    {
+      "file": "compose-abc-fmt.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "compose-abc-clippy.log",
+      "bytes": 1152,
+      "sha256": "19e44e3016ebdcebe81988930b1676cce6f2e1d77b60affa939200a0ee525e6a"
+    },
+    {
+      "file": "compose-abc-capture-addbot.log",
+      "bytes": 27,
+      "sha256": "c527e940c4b3fea89b0054a8939ccdb2488b301cbbbc7f443ddffc45469c7db1"
+    },
+    {
+      "file": "compose-abc-capture-trade.log",
+      "bytes": 132,
+      "sha256": "c43f4c3e898e47bea952b9f515c767e43cd5d366df0999e88d34caf16fcdae06"
+    },
+    {
+      "file": "compose-abc-capture-quests.log",
+      "bytes": 270,
+      "sha256": "789871f8720f644b2005c9bdc1a4c57251b38348a40d251c2c5ea6775c5f69cf"
+    },
+    {
+      "file": "compose-native-workspace.log",
+      "bytes": 106668,
+      "sha256": "59689198af9b94f769227bad74c428b54342a4d15b5ece54f146cce8e24196eb"
+    },
+    {
+      "file": "compose-native-clippy-all.log",
+      "bytes": 766,
+      "sha256": "7531672232816d86b7e6bd2a3f5ef344cb9787913b6243e30b05f8922a02b226"
+    },
+    {
+      "file": "compose-native-clippy-default.log",
+      "bytes": 655,
+      "sha256": "e0b089d9933e8efeaba3dfc23646c1ffaad283bd194651514318ee3ac0eae27e"
+    },
+    {
+      "file": "compose-native-fmt.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "compose-d-capture-telemetry.log",
+      "bytes": 121,
+      "sha256": "8dec107bfec4fb4750b2cb0ef1a20efaa473b7803877f637433b45c9a8206061"
+    },
+    {
+      "file": "compose-d-capture-tournament.log",
+      "bytes": 52,
+      "sha256": "3fd5037ccf1600d4bd9cbaa56aeda4515e754d494d96f552ff138a71132c8de1"
+    },
+    {
+      "file": "compose-native-server-build.log",
+      "bytes": 364,
+      "sha256": "cf4b3050314d79966449cb070fecd1550530d029dfe06285c977edff1de4200c"
+    },
+    {
+      "file": "compose-native-wss.json",
+      "bytes": 4420,
+      "sha256": "5e25896689a7d614e302500f116334d4c618f4d515fcd632de6b91e1737d633b"
+    },
+    {
+      "file": "compose-native-wss.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "compose-native-parity-report.log",
+      "bytes": 14821,
+      "sha256": "055c49c70257d05ee2976f96b01177211cc501d8021d8b71cd634e19f98f7122"
     }
   ]
 }

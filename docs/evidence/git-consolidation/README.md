@@ -190,3 +190,39 @@ After verifying the primary checkout was tracked-clean and every running Unity p
 lead released optimization_port from the managed checkout and switched the primary project back to that branch with
 ignored-file overwrite disabled. Original prompts remained present. The managed tree is a clean detached review snapshot,
 and active worker checkouts were unchanged. Future writes use the primary branch checkout.
+
+## Completed DeepSeek composition and corrective admission
+
+The lane's `pending-compose-r2` candidate `b9f149c9` has actual base `455a202f`. Independent reviews split its four
+units. A–C (`f0bd176a`, `cb2f6a67`, `f9124b48`) are integrated in `fdf65513`: explicit bot overrides retain source draws
+and automatic-fill behavior; Committed refuses second-slot barter before potion/cooldown mutation; quest source traces
+close run-end offers and recheck camp impossibility through actual producers. They do not complete public trade/quest
+transport. Original source branches and recovery refs remain.
+
+D initially passed lane tests but failed source review: false active-learning output, wall/game timing conflation,
+uncapped delayed inputs, an extra application tick and incomplete rich damage tallies. The independently reviewed
+`c9bdf0d8` repair is integrated with D in `8ce725db`. Learning defaults Off and unsupported On refuses; individual worker
+durations feed gameMs separately from total wallMs; per-seat256 caps precede jitter draws; delivery resolves/submits
+before every actual step, including non-decision steps. Unsupported advanced damage/first-hit values are typed missing
+and remain unavailable in dependent reports. Full source manager seeds/jitter/observation delay, active learning,
+recorder production and complete brain outcomes remain outside this admission. See [repair evidence](../tournament-admission-repair/README.md).
+
+The root gate passes956 all-feature remaining-workspace tests across126 verdict groups with real private PostgreSQL,
+two existing ignores (external glbridge session E2E and valgrind heap probe), plus20 disjoint simulation tests (traders5,
+quests15). Bot-fill16 is included in956. Both strict workspace Clippy modes, formatting, rebuilt native15-check Chromium
+WSS and parity report109 scenarios/300 paths MATCH (13 separate capture-only) pass. No unchanged map campaign was
+repeated locally; current full simulation CI remains required. Identity stays protocol11/checkpoint24/replay18/
+observation17/policy13/content801a76cde4cfd305. New CI gates cover the five affected source-capture tools.
+
+All five pinned source commands independently reproduce bytes: addBot5 scenarios, trade6 cases, quest6 placements/
+10 lifecycle cases, tournament and base telemetry plus11 matrix records. Initial primary checks hit existing ignored
+workspace Vite caches on the read-only bind; a clean detached checkout with an empty ignored node_modules mountpoint
+resolved that environment issue. Failure logs are retained and not counted as passing captures. Both temporary capture
+worktrees were removed cleanly after checks; source goldens and owner caches were untouched. The private PG cluster was
+stopped after the gate. [Receipts](local-check-receipts.json) pin the actual logs.
+
+Camp-stock source follow-up `289a01e2` is integrated in `ecf9564c`: canonical count comparison/display, actual-HUD1/1
+regression and maximum-stock1.50-text Editor layout evidence. It has no new browser build; served runtime4f37e9f0 is
+unchanged. Proposal88dbc5cf is retained inae11f90e without activating its future cues. Later art source drafts/audio
+research remain isolated. Post Rust is assigned the evidence-only fair-view witness; the G6 producer is authorized only
+as a private native candidate, with new state/content identity and live publication/gating still held.

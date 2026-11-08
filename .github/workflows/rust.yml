@@ -85,6 +85,13 @@ jobs:
         with:
           node-version: "22.23.4"
       - run: npm ci
+      - name: Composed bot, quest, trade and telemetry witnesses remain byte exact
+        run: |
+          bash tools/bot-addbot-fixtures/capture.sh --check
+          bash tools/trade-fixtures/capture.sh --check
+          bash tools/quest-fixtures/capture.sh --check
+          bash tools/bot-tournament-fixtures/capture.sh --check
+          bash tools/bot-telemetry-fixtures/capture.sh --check
       - name: First-playable cards, constructor, potions and PvE still match the actual source
         run: |
           bash tools/cards-fixtures/capture.sh --check
