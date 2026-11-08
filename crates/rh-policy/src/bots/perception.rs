@@ -126,6 +126,7 @@ impl Perception {
                 rh_sim::item_view::PropKind::Cannon { .. } => ("cannon", None),
                 rh_sim::item_view::PropKind::Corpse { .. } => ("corpse", None),
                 rh_sim::item_view::PropKind::WindEmblem => ("consumable", None),
+                rh_sim::item_view::PropKind::QuestItem { .. } => continue,
             };
             containers.push(ContainerView {
                 id: format!("c{}", i),

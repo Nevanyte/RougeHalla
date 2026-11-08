@@ -1,6 +1,6 @@
 # Quest public-flow design candidate
 
-This is a **private native candidate** in `crates/rh-sim/src/quest_view/mod.rs`, compiled as an opt-in module but not attached to Observation, any server publisher or transport. It reserves no wire numbers or version and does not establish source parity. The public-room source witness is in progress; the delivered giver source witness awaits lead admission. Lead review and a shared-file lease precede integration.
+This is a **private native candidate** in `crates/rh-sim/src/quest_view/mod.rs`, composed with `ItemObserver` and Observation20 / policy14 in this isolated branch. Server adapters refuse the quest profile and facts; no wire tag or transport is enabled. It does not establish source parity. The source quest/trade witness is lead-approved for its bounded scope; it does not run an actual Room/socket. The delivered giver source witness awaits lead admission. Lead review and a shared-file lease precede integration.
 
 ## Entitlements and facts
 
@@ -18,8 +18,9 @@ This is a **private native candidate** in `crates/rh-sim/src/quest_view/mod.rs`,
   ground marker. Kill offers never expose ground objective coordinates. Hidden previews, unaccepted offers, closed offers and bots
   grant no such objective knowledge. An objective coordinate is not itself an actionable pickup handle. Other visible
   quest item cues can follow ordinary sight and source refusal behavior; the exact source/observer mapping awaits witnesses.
-- The sim decides eligibility and current action consequences. Unity presents delivered facts, selects actions and renders
-  navigation; it does not determine quest rules, outcomes, rewards, physics or hidden actor state.
+- The sim supplies `can_accept` for published rows using the same ordered checks as the acceptance handler; a private
+  preview is never eligible. The action rechecks that result when executed. Unity presents delivered facts, selects actions
+  and renders navigation; it does not determine quest rules, outcomes, rewards, physics or hidden actor state.
 
 ## Identity and atomicity
 
@@ -35,10 +36,9 @@ bindings, retains counters, and requires a complete new projection. No cross-rec
 `QuestObserver::prepare` extracts actual immutable Sim state and stages IDs and rows in a private guard. Dropping or failing
 preparation discards staged grants; `commit` is the only way to make a row actionable. `resolve_accept` uses only committed
 published bindings and rechecks current publication; previews, stale and unknown handles yield the usual budgeted miss.
-This separate guard is a native seam only: no claim is made that it commits atomically with `ItemObserver`, roster/quest
-collection baselines or a server queue. A later shared lease must integrate those under one successful enqueue transaction.
+The composed `ItemObserver` preparation stages quest facts, quest handles, pickup handles, reward handles and actor references under one guard. Dropping that guard discards all their authority. Reliable collection baselines and actual server enqueue remain a later shared lease; no end-to-end queue atomicity is claimed.
 
-Each viewer also needs nonreused offer and pickup handles, resolved only against committed seat-owned bindings. A preview
+Quest and pickup handles resolve only against committed seat-owned bindings. Pickup cues are generated only for currently visible, in-range, reachable, standing/unblocked, birth-eligible, accepted items; out-of-sight objective coordinates remain navigation facts. A preview
 retains a nonactionable row identity for promotion to the published offer; its action binding must not exist until a public
 row has itself been committed. On reconnect, old action bindings are revoked and a full current projection is delivered; distinguish row
 identity continuity from action authority. Current sim phase, human standing, status, range, line of sight, giver and quest

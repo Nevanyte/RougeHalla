@@ -99,7 +99,12 @@ pub fn status(s: Status) -> u8 {
 
 /// Full Wish mode has protocol 12 input, owner, and event transport. The binary keeps it disabled unless explicitly
 /// selected; library callers that set `Mode::Full` are already making that opt-in.
-pub fn profile_supported(_config: &rh_sim::SimConfig) -> Result<(), rh_protocol::EncodeError> {
+pub fn profile_supported(config: &rh_sim::SimConfig) -> Result<(), rh_protocol::EncodeError> {
+    if config.quests {
+        return Err(rh_protocol::EncodeError::BadValue(
+            "quest transport unsupported",
+        ));
+    }
     Ok(())
 }
 
@@ -120,6 +125,16 @@ pub fn phase(p: Phase) -> u8 {
 
 fn observation_supported(obs: &Observation) -> Result<(), rh_protocol::EncodeError> {
     checked_phase(obs.phase)?;
+    if obs.quests.is_some()
+        || obs
+            .props
+            .iter()
+            .any(|p| matches!(p.cue.kind, rh_sim::PropKind::QuestItem { .. }))
+    {
+        return Err(rh_protocol::EncodeError::BadValue(
+            "quest transport unsupported",
+        ));
+    }
     Ok(())
 }
 
@@ -1976,5 +1991,19 @@ mod tests {
             ServerMsg::decode(&frame),
             Ok(ServerMsg::Events { .. })
         ));
+    }
+    #[test]
+    fn quest_profile_and_quest_facts_refuse_unsupported_transport() {
+        let config = rh_sim::SimConfig {
+            quests: true,
+            ..Default::default()
+        };
+        assert!(profile_supported(&config).is_err());
+        let obs = Observation {
+            quests: Some(rh_sim::quest_view::QuestView::default()),
+            ..Default::default()
+        };
+        assert!(observation_supported(&obs).is_err());
+        assert!(profile_supported(&rh_sim::SimConfig::default()).is_ok());
     }
 }

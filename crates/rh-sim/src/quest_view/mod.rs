@@ -1,4 +1,4 @@
-//! Private native quest observation candidate. This opt-in seam is not part of Observation or any transport.
+//! Native quest observation. Public wire transport remains gated until its codecs are implemented.
 //! Preparation never grants authority; callers commit only after all related output has been accepted for delivery.
 use std::collections::{BTreeMap, BTreeSet};
 use std::num::NonZeroU32;
@@ -7,7 +7,9 @@ use crate::quests::{catalog, live::Status};
 use crate::{validate, Command, PlayerId, RawCommand, Sim, Vec2};
 
 /// A quest-only presentation identity, never an actor reference or a target handle.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
+)]
 pub struct RosterId(NonZeroU32);
 impl RosterId {
     pub fn get(self) -> u32 {
@@ -15,61 +17,68 @@ impl RosterId {
     }
 }
 /// A seat-scoped quest-row identity. A preview carries this but cannot authorize acceptance.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
+)]
 pub struct QuestHandle(NonZeroU32);
 impl QuestHandle {
     pub fn get(self) -> u32 {
         self.0.get()
     }
+    pub fn new(value: u32) -> Option<Self> {
+        NonZeroU32::new(value).map(Self)
+    }
 }
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum RowState {
     Preview,
     Open,
     Done,
     Expired,
 }
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct RosterEntry {
     pub id: RosterId,
     pub label: String,
 }
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct Participant {
     pub id: RosterId,
     pub accepted: bool,
     pub progress: u32,
     pub visited: u8,
 }
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct QuestRow {
     pub handle: QuestHandle,
-    pub def: &'static str,
+    pub def: String,
     pub giver: Vec2,
     pub state: RowState,
     pub expires_at: f64,
     pub participants: Vec<Participant>,
     pub carrier: Option<RosterId>,
     pub done_by: Option<String>,
-    /// Current server-side acceptance eligibility is intentionally not inferred by this candidate.
+    /// The current authoritative action checks permit acceptance at this sample.
+    pub can_accept: bool,
     pub owner_accepted: bool,
     /// The server-owned objective is complete; the giver is the return destination.
     pub owner_ready: bool,
 }
 /// A navigation fact only: it is not a pickup handle or a promise of current reach or visibility.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Objective {
     pub quest: QuestHandle,
     pub at: Vec2,
 }
-#[derive(Clone, Debug, Default, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct QuestView {
     pub unknown_count: u32,
+    pub display_unknown_count: u32,
     pub roster: Vec<RosterEntry>,
     pub rows: Vec<QuestRow>,
     pub objectives: Vec<Objective>,
 }
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum Error {
     EarlierTick,
     IdExhausted,
@@ -113,6 +122,14 @@ impl QuestObserver {
         };
     }
     pub fn prepare<'a>(&'a mut self, sim: &Sim) -> Result<Prepared<'a>, Error> {
+        let (next, view) = self.stage(sim)?;
+        Ok(Prepared {
+            observer: self,
+            next,
+            view,
+        })
+    }
+    pub(crate) fn stage(&self, sim: &Sim) -> Result<(QuestStage, QuestView), Error> {
         if self.state.tick.is_some_and(|tick| tick > sim.tick()) {
             return Err(Error::EarlierTick);
         }
@@ -122,20 +139,12 @@ impl QuestObserver {
         let Some(me) = sim.player(self.viewer).filter(|p| !p.seat.bot) else {
             next.quests.clear();
             next.actionable.clear();
-            return Ok(Prepared {
-                observer: self,
-                next,
-                view,
-            });
+            return Ok((QuestStage(next), view));
         };
         let Some(quests) = &sim.w.quests else {
             next.quests.clear();
             next.actionable.clear();
-            return Ok(Prepared {
-                observer: self,
-                next,
-                view,
-            });
+            return Ok((QuestStage(next), view));
         };
         view.unknown_count = quests
             .offers
@@ -144,6 +153,18 @@ impl QuestObserver {
             .count()
             .try_into()
             .map_err(|_| Error::InvalidState)?;
+        view.display_unknown_count = view.unknown_count.saturating_sub(
+            quests
+                .offers
+                .iter()
+                .filter(|o| {
+                    !o.published
+                        && o.status == Status::Open
+                        && o.finder == Some(me.id)
+                        && o.publish_at > 0.
+                })
+                .count() as u32,
+        );
         // Sort only entitled facts. Unpublished rows and raw entity allocation order cannot advance public IDs.
         let mut offers: Vec<_> = quests
             .offers
@@ -242,6 +263,9 @@ impl QuestObserver {
             }
             let def = &catalog::DEFINITION[o.def as usize];
             let owner_accepted = o.published && o.accepted.contains(&me.id);
+            let can_accept = o.published
+                && crate::quests::live::accept_eligibility(&sim.k, &sim.w, me.id, Some(o.id))
+                    .is_ok();
             let live = o.status == Status::Open
                 && (o.expires_at == 0. || sim.server_time() < o.expires_at);
             let progress = o
@@ -295,13 +319,14 @@ impl QuestObserver {
             };
             view.rows.push(QuestRow {
                 handle: h,
-                def: catalog::DEFINITION[o.def as usize].id,
+                def: catalog::DEFINITION[o.def as usize].id.to_owned(),
                 giver: o.at,
                 state,
                 expires_at: o.expires_at,
                 participants,
                 carrier,
                 done_by,
+                can_accept,
                 owner_accepted,
                 owner_ready,
             });
@@ -309,11 +334,10 @@ impl QuestObserver {
         // A retired or no-longer-entitled quest must no longer resolve through a previously issued handle.
         next.quests
             .retain(|_, h| view.rows.iter().any(|row| row.handle == *h));
-        Ok(Prepared {
-            observer: self,
-            next,
-            view,
-        })
+        Ok((QuestStage(next), view))
+    }
+    pub(crate) fn commit_stage(&mut self, stage: QuestStage) {
+        self.state = stage.0;
     }
     /// Resolve a previously committed published row. Missing, stale, preview and foreign handles become normal misses.
     pub fn resolve_accept(&self, sim: &Sim, handle: QuestHandle) -> Command {
@@ -349,14 +373,24 @@ fn checked_label(label: &str) -> Result<String, Error> {
     Ok(label.to_owned())
 }
 #[must_use = "commit only after all corresponding publication succeeds; dropping discards staged authority"]
+pub(crate) struct QuestStage(Committed);
+impl QuestStage {
+    pub(crate) fn published_handle(&self, id: u32) -> Option<QuestHandle> {
+        self.0
+            .actionable
+            .contains(&id)
+            .then(|| self.0.quests.get(&id).copied())
+            .flatten()
+    }
+}
 pub struct Prepared<'a> {
     observer: &'a mut QuestObserver,
-    next: Committed,
+    next: QuestStage,
     pub view: QuestView,
 }
 impl Prepared<'_> {
     pub fn commit(self) {
-        self.observer.state = self.next;
+        self.observer.commit_stage(self.next);
     }
 }
 

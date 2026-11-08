@@ -642,3 +642,456 @@ fn adding_a_published_participant_preserves_the_existing_roster_identity() {
     let row = second.view.rows.iter().find(|row| row.giver == at).unwrap();
     assert_eq!(row.participants.len(), 2);
 }
+
+#[test]
+fn combined_observer_commits_quest_and_pickup_authority_together() {
+    use crate::{ItemObserver, Observation, PublicCommand};
+    let mut s = sim();
+    let (qid, at, token, box_id, def) = {
+        let o = s
+            .w
+            .quests
+            .as_ref()
+            .unwrap()
+            .offers
+            .iter()
+            .find(|o| {
+                o.published && catalog::DEFINITION[o.def as usize].kind == catalog::Kind::Collect
+            })
+            .unwrap();
+        (
+            o.id,
+            o.at,
+            o.tokens[0],
+            o.containers[0],
+            catalog::DEFINITION[o.def as usize].id,
+        )
+    };
+    let mut observer = ItemObserver::new(PlayerId(1));
+    let mut observation = Observation::default();
+    let pending = observer
+        .prepare_into(&s, &[], &mut observation, None)
+        .unwrap();
+    let handle = observation
+        .quests
+        .as_ref()
+        .unwrap()
+        .rows
+        .iter()
+        .find(|r| r.def == def)
+        .unwrap()
+        .handle;
+    drop(pending);
+    let miss = validate(RawCommand::QuestAccept { quest_id: None }).unwrap();
+    assert_eq!(
+        observer
+            .resolve(&s, PublicCommand::QuestAccept { handle })
+            .unwrap(),
+        miss
+    );
+    observer
+        .prepare_into(&s, &[], &mut observation, None)
+        .unwrap()
+        .commit();
+    teleport(&mut s, PlayerId(1), at);
+    let command = observer
+        .resolve(&s, PublicCommand::QuestAccept { handle })
+        .unwrap();
+    s.submit(PlayerId(1), command).unwrap();
+    s.step();
+    teleport(&mut s, PlayerId(1), token);
+    s.step();
+    let pending = observer
+        .prepare_into(&s, &[], &mut observation, None)
+        .unwrap();
+    let item = observation
+        .props
+        .iter()
+        .find(|p| matches!(p.cue.kind, crate::PropKind::QuestItem { quest, .. } if quest == handle))
+        .unwrap()
+        .handle;
+    assert!(observation
+        .quests
+        .as_ref()
+        .unwrap()
+        .objectives
+        .iter()
+        .any(|o| o.quest == handle));
+    drop(pending);
+    assert_eq!(
+        observer
+            .resolve(&s, PublicCommand::Pickup { handle: item })
+            .unwrap(),
+        validate(RawCommand::MissingPickup).unwrap()
+    );
+    observer
+        .prepare_into(&s, &[], &mut observation, None)
+        .unwrap()
+        .commit();
+    let command = observer
+        .resolve(&s, PublicCommand::Pickup { handle: item })
+        .unwrap();
+    assert_ne!(command, validate(RawCommand::MissingPickup).unwrap());
+    s.submit(PlayerId(1), command).unwrap();
+    s.step();
+    let offer =
+        s.w.quests
+            .as_ref()
+            .unwrap()
+            .offers
+            .iter()
+            .find(|o| o.id == qid)
+            .unwrap();
+    assert!(!offer.containers.contains(&box_id));
+    assert_eq!(
+        offer
+            .progress
+            .iter()
+            .find(|(id, _)| *id == PlayerId(1))
+            .unwrap()
+            .1,
+        1
+    );
+    assert_eq!(
+        observer
+            .resolve(&s, PublicCommand::Pickup { handle: item })
+            .unwrap(),
+        validate(RawCommand::MissingPickup).unwrap()
+    );
+}
+
+#[test]
+fn combined_preview_reports_both_unknown_counts_and_cannot_accept() {
+    use crate::{ItemObserver, Observation, PublicCommand};
+    let mut s = sim();
+    let o =
+        s.w.quests
+            .as_ref()
+            .unwrap()
+            .offers
+            .iter()
+            .find(|o| !o.published)
+            .unwrap();
+    let at = o.at;
+    let id = o.id;
+    let def = catalog::DEFINITION[o.def as usize].id;
+    // Declared setup isolates one finder preview; placement fidelity is covered by the pinned source corpus.
+    for o in &mut s.w.quests.as_mut().unwrap().offers {
+        if !o.published && o.id != id {
+            o.at = Vec2::new(8000., 8000.);
+        }
+    }
+    teleport(&mut s, PlayerId(1), at);
+    s.step();
+    let mut observer = ItemObserver::new(PlayerId(1));
+    let mut observation = Observation::default();
+    let pending = observer
+        .prepare_into(&s, &[], &mut observation, None)
+        .unwrap();
+    let q = observation.quests.as_ref().unwrap();
+    assert_eq!(q.unknown_count, 10);
+    assert_eq!(q.display_unknown_count, 9);
+    let handle = q.rows.iter().find(|r| r.def == def).unwrap().handle;
+    pending.commit();
+    assert_eq!(
+        observer
+            .resolve(&s, PublicCommand::QuestAccept { handle })
+            .unwrap(),
+        validate(RawCommand::QuestAccept { quest_id: None }).unwrap()
+    );
+}
+
+#[test]
+fn navigation_never_grants_a_far_or_newborn_pickup_handle() {
+    use crate::{ItemObserver, Observation};
+    let mut s = sim();
+    let (id, at, token, box_id) = {
+        let o = s
+            .w
+            .quests
+            .as_ref()
+            .unwrap()
+            .offers
+            .iter()
+            .find(|o| {
+                o.published && catalog::DEFINITION[o.def as usize].kind == catalog::Kind::Collect
+            })
+            .unwrap();
+        (o.id, o.at, o.tokens[0], o.containers[0])
+    };
+    teleport(&mut s, PlayerId(1), at);
+    s.submit(
+        PlayerId(1),
+        validate(RawCommand::QuestAccept { quest_id: Some(id) }).unwrap(),
+    )
+    .unwrap();
+    s.step();
+    let mut observer = ItemObserver::new(PlayerId(1));
+    let mut observation = Observation::default();
+    let pending = observer
+        .prepare_into(&s, &[], &mut observation, None)
+        .unwrap();
+    assert!(!observation.quests.as_ref().unwrap().objectives.is_empty());
+    assert!(!observation
+        .props
+        .iter()
+        .any(|p| matches!(p.cue.kind, crate::PropKind::QuestItem { .. })));
+    pending.commit();
+    // Declared birth-tick setup checks that a visible in-range fresh item has no actionable binding.
+    teleport(&mut s, PlayerId(1), token);
+    let c = s.w.containers.iter_mut().find(|c| c.id == box_id).unwrap();
+    c.born_tick = s.w.tick;
+    let pending = observer
+        .prepare_into(&s, &[], &mut observation, None)
+        .unwrap();
+    assert!(!observation
+        .props
+        .iter()
+        .any(|p| matches!(p.cue.kind, crate::PropKind::QuestItem { .. })));
+    pending.commit();
+    s.step();
+    let pending = observer
+        .prepare_into(&s, &[], &mut observation, None)
+        .unwrap();
+    let handle = observation
+        .props
+        .iter()
+        .find(|p| matches!(p.cue.kind, crate::PropKind::QuestItem { .. }))
+        .unwrap()
+        .handle;
+    pending.commit();
+    // Declared stun setup tests that a previously delivered handle is rechecked against current action state.
+    let now = s.server_time();
+    s.w.players[0]
+        .statuses
+        .instances
+        .push(crate::status_runtime::StatusInstance {
+            kind: crate::status_runtime::StatusKind::Stun,
+            source: crate::status_runtime::StatusSource {
+                id: None,
+                owner_id: None,
+                name: "test".into(),
+            },
+            ability: None,
+            tag: None,
+            started_at: now,
+            until: now + 500.,
+            value: 1.,
+            reveal_from: None,
+            taken: None,
+            data: Default::default(),
+        });
+    assert_eq!(
+        observer
+            .resolve(&s, crate::PublicCommand::Pickup { handle })
+            .unwrap(),
+        validate(RawCommand::MissingPickup).unwrap()
+    );
+    let pending = observer
+        .prepare_into(&s, &[], &mut observation, None)
+        .unwrap();
+    assert!(!observation
+        .props
+        .iter()
+        .any(|p| matches!(p.cue.kind, crate::PropKind::QuestItem { .. })));
+    pending.commit();
+}
+
+#[test]
+fn combined_bot_observer_never_receives_quest_rows_or_props() {
+    use crate::{ItemObserver, Observation};
+    let mut s = sim_with_bots([true, false, false]);
+    let (quest_id, token) = {
+        let o = s
+            .w
+            .quests
+            .as_ref()
+            .unwrap()
+            .offers
+            .iter()
+            .find(|o| {
+                o.published && catalog::DEFINITION[o.def as usize].kind == catalog::Kind::Collect
+            })
+            .unwrap();
+        (o.id, o.tokens[0])
+    };
+    // Forged acceptance is a defense-in-depth control; bots cannot legally acquire it through the input door.
+    s.w.quests
+        .as_mut()
+        .unwrap()
+        .offers
+        .iter_mut()
+        .find(|o| o.id == quest_id)
+        .unwrap()
+        .accepted
+        .push(PlayerId(1));
+    teleport(&mut s, PlayerId(1), token);
+    s.step();
+    let mut observer = ItemObserver::new(PlayerId(1));
+    let mut observation = Observation::default();
+    observer
+        .prepare_into(&s, &[], &mut observation, None)
+        .unwrap()
+        .commit();
+    assert!(observation.quests.is_none());
+    assert!(!observation
+        .props
+        .iter()
+        .any(|p| matches!(p.cue.kind, crate::PropKind::QuestItem { .. })));
+}
+
+#[test]
+fn published_accept_eligibility_tracks_authoritative_action_outcomes() {
+    use crate::quests::live::{accept_eligibility, AcceptRefusal};
+    use crate::{ItemObserver, Observation, PublicCommand};
+    let mut s = sim();
+    let (qid, at, def) = {
+        let o =
+            s.w.quests
+                .as_ref()
+                .unwrap()
+                .offers
+                .iter()
+                .find(|o| o.published)
+                .unwrap();
+        (o.id, o.at, catalog::DEFINITION[o.def as usize].id)
+    };
+    let mut observer = ItemObserver::new(PlayerId(1));
+    let mut observation = Observation::default();
+    teleport(&mut s, PlayerId(1), Vec2::new(at.x + 1000., at.y + 1000.));
+    let pending = observer
+        .prepare_into(&s, &[], &mut observation, None)
+        .unwrap();
+    let row = observation
+        .quests
+        .as_ref()
+        .unwrap()
+        .rows
+        .iter()
+        .find(|r| r.def == def)
+        .unwrap();
+    assert!(!row.can_accept);
+    let handle = row.handle;
+    pending.commit();
+    s.submit(
+        PlayerId(1),
+        observer
+            .resolve(&s, PublicCommand::QuestAccept { handle })
+            .unwrap(),
+    )
+    .unwrap();
+    s.step();
+    assert!(s
+        .w
+        .quests
+        .as_ref()
+        .unwrap()
+        .offers
+        .iter()
+        .find(|o| o.id == qid)
+        .unwrap()
+        .accepted
+        .is_empty());
+    teleport(&mut s, PlayerId(1), at);
+    // Declared status setup: source checks busy before offer lookup, even for a made-up ID.
+    let now = s.server_time();
+    s.w.players[0]
+        .statuses
+        .instances
+        .push(crate::status_runtime::StatusInstance {
+            kind: crate::status_runtime::StatusKind::Stun,
+            source: crate::status_runtime::StatusSource {
+                id: None,
+                owner_id: None,
+                name: "test".into(),
+            },
+            ability: None,
+            tag: None,
+            started_at: now,
+            until: now + 500.,
+            value: 1.,
+            reveal_from: None,
+            taken: None,
+            data: Default::default(),
+        });
+    assert_eq!(
+        accept_eligibility(&s.k, &s.w, PlayerId(1), Some(u32::MAX)),
+        Err(AcceptRefusal::Busy)
+    );
+    let pending = observer
+        .prepare_into(&s, &[], &mut observation, None)
+        .unwrap();
+    assert!(
+        !observation
+            .quests
+            .as_ref()
+            .unwrap()
+            .rows
+            .iter()
+            .find(|r| r.def == def)
+            .unwrap()
+            .can_accept
+    );
+    pending.commit();
+    s.submit(
+        PlayerId(1),
+        observer
+            .resolve(&s, PublicCommand::QuestAccept { handle })
+            .unwrap(),
+    )
+    .unwrap();
+    s.step();
+    assert!(s
+        .w
+        .quests
+        .as_ref()
+        .unwrap()
+        .offers
+        .iter()
+        .find(|o| o.id == qid)
+        .unwrap()
+        .accepted
+        .is_empty());
+    s.w.players[0].statuses.instances.clear();
+    let pending = observer
+        .prepare_into(&s, &[], &mut observation, None)
+        .unwrap();
+    assert!(
+        observation
+            .quests
+            .as_ref()
+            .unwrap()
+            .rows
+            .iter()
+            .find(|r| r.def == def)
+            .unwrap()
+            .can_accept
+    );
+    pending.commit();
+    s.submit(
+        PlayerId(1),
+        observer
+            .resolve(&s, PublicCommand::QuestAccept { handle })
+            .unwrap(),
+    )
+    .unwrap();
+    s.step();
+    let pending = observer
+        .prepare_into(&s, &[], &mut observation, None)
+        .unwrap();
+    let row = observation
+        .quests
+        .as_ref()
+        .unwrap()
+        .rows
+        .iter()
+        .find(|r| r.def == def)
+        .unwrap();
+    assert!(row.owner_accepted);
+    assert!(!row.can_accept);
+    assert_eq!(
+        accept_eligibility(&s.k, &s.w, PlayerId(1), Some(qid)),
+        Err(AcceptRefusal::Already)
+    );
+    pending.commit();
+}

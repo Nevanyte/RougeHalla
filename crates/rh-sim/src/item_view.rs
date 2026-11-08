@@ -54,6 +54,11 @@ pub enum PropKind {
     },
     /// A walk-over wind emblem (no inventory item; the fixed label is the source's).
     WindEmblem,
+    /// A currently eligible, visible quest token or parcel.
+    QuestItem {
+        quest: crate::quest_view::QuestHandle,
+        fetch: bool,
+    },
 }
 
 /// Position is already encoded on the public 1/8-unit grid. Field order is the canonical sort key.
@@ -82,6 +87,7 @@ pub enum OfferError {
     ActorReferencesExhausted,
     TooManyActors,
     Rewards(crate::reward_chests::OfferError),
+    Quests(crate::quest_view::Error),
     FxProjection(crate::FxError),
     TooManyProps,
     PositionOutOfRange,
@@ -101,6 +107,49 @@ pub(crate) fn pickup_reach(map: &TileMap, from: Vec2, at: Vec2) -> Result<(), Pi
         return Err(PickupRefusal::Unreachable);
     }
     Ok(())
+}
+
+/// Admission for a quest pickup cue; the sim checks the action again when it executes.
+fn eligible_quest_item(
+    sim: &Sim,
+    me: &crate::state::Player,
+    c: &crate::Container,
+) -> Option<(u32, bool)> {
+    if me.seat.bot
+        || !me.standing()
+        || sim.phase() != crate::Phase::Active
+        || crate::status_runtime::action_blocked(&me.statuses, sim.server_time())
+        || (c.born_tick != 0 && c.born_tick >= sim.tick())
+        || pickup_reach(&sim.collision_view(), me.pos(), c.at).is_err()
+    {
+        return None;
+    }
+    let crate::initial_world::ItemDef::Quest(id) = c.items.first()?.def else {
+        return None;
+    };
+    let q = sim.w.quests.as_ref()?;
+    let o = q.offers.iter().find(|o| {
+        o.id == id
+            && o.published
+            && o.status == crate::quests::live::Status::Open
+            && (o.expires_at == 0. || sim.server_time() < o.expires_at)
+            && o.accepted.contains(&me.id)
+    })?;
+    let def = &crate::quests::catalog::DEFINITION[o.def as usize];
+    let eligible = match def.kind {
+        crate::quests::catalog::Kind::Collect => {
+            o.progress
+                .iter()
+                .find(|(p, _)| *p == me.id)
+                .map_or(0, |(_, n)| *n)
+                < def.count
+        }
+        crate::quests::catalog::Kind::Fetch => {
+            o.carrier.is_none() && !q.carried.iter().any(|(p, _)| *p == me.id)
+        }
+        crate::quests::catalog::Kind::Kill => false,
+    };
+    eligible.then_some((id, def.kind == crate::quests::catalog::Kind::Fetch))
 }
 
 /// Server-time milliseconds as the legacy uint32 `readyAt`; validated state is finite and non-negative.
@@ -148,6 +197,7 @@ struct Candidate {
 pub struct ItemObserver {
     actor_refs: crate::actor_refs::ActorRefs,
     rewards: crate::reward_chests::RewardChestObserver,
+    quests: crate::quest_view::QuestObserver,
     viewer: PlayerId,
     next: u64, // one past u32::MAX means permanently exhausted
     sampled: Option<u32>,
@@ -167,6 +217,7 @@ impl ItemObserver {
         Self {
             actor_refs: Default::default(),
             rewards: crate::reward_chests::RewardChestObserver::new(viewer),
+            quests: crate::quest_view::QuestObserver::new(viewer),
             viewer,
             next: 1,
             sampled: None,
@@ -194,14 +245,24 @@ impl ItemObserver {
         rewards.reconnect();
         let mut actor_refs = std::mem::take(&mut self.actor_refs);
         actor_refs.reconnect();
+        let mut quests = std::mem::replace(
+            &mut self.quests,
+            crate::quest_view::QuestObserver::new(self.viewer),
+        );
+        quests.reconnect();
         let next = self.next;
         *self = Self::new(self.viewer);
         self.next = next;
         self.rewards = rewards;
+        self.quests = quests;
         self.actor_refs = actor_refs;
     }
 
-    fn candidates(&mut self, sim: &Sim) -> Result<(), OfferError> {
+    fn candidates(
+        &mut self,
+        sim: &Sim,
+        quests: &crate::quest_view::QuestStage,
+    ) -> Result<(), OfferError> {
         self.scratch.clear();
         let Some(me) = sim.player(self.viewer) else {
             return Ok(());
@@ -212,11 +273,17 @@ impl ItemObserver {
         let wards = crate::vision::WardSight::of_sim(sim);
         let mut best: Option<(usize, f64, Option<WeaponId>)> = None;
         for c in sim.containers() {
-            // Quest tokens and parcels are not in the public item observation until the coordinator-owned transport
-            // packet adds their cue; the quest runtime still accepts an exact run-local id (headless/policy path).
-            if c.kind == ContainerKind::Quest {
-                continue;
-            }
+            let quest = if c.kind == ContainerKind::Quest {
+                let Some((quest_id, fetch)) = eligible_quest_item(sim, me, c) else {
+                    continue;
+                };
+                let Some(handle) = quests.published_handle(quest_id) else {
+                    continue;
+                };
+                Some((handle, fetch))
+            } else {
+                None
+            };
             if !self.vision.sees(map, me, c.at, sim.tick(), wards) {
                 continue;
             }
@@ -245,8 +312,10 @@ impl ItemObserver {
                         label: label.clone(),
                     }
                 }
-                // Unreachable: quest containers are skipped above; kept so the closed kind stays explicit.
-                ContainerKind::Quest => continue,
+                ContainerKind::Quest => {
+                    let (quest, fetch) = quest.expect("eligible quest item");
+                    PropKind::QuestItem { quest, fetch }
+                }
                 ContainerKind::Cannon => PropKind::Cannon {
                     ready_at: ready_ms(c.ready_at),
                 },
@@ -358,6 +427,7 @@ impl ItemObserver {
         accept_reward: impl Fn(&[crate::reward_chests::RewardOptionView]) -> bool,
     ) -> Result<PreparedOffer<'a>, OfferError> {
         let tick = sim.tick();
+        let (quests, quest_view) = self.quests.stage(sim).map_err(OfferError::Quests)?;
         if self.sampled.is_some_and(|t| t > tick) {
             return Err(OfferError::EarlierTick);
         }
@@ -366,8 +436,8 @@ impl ItemObserver {
         if absent {
             self.scratch.clear();
             changed = !self.rows.is_empty();
-        } else if self.sampled != Some(tick) {
-            self.candidates(sim)?;
+        } else if self.sampled != Some(tick) || sim.w.quests.is_some() {
+            self.candidates(sim, &quests)?;
             changed = !self
                 .scratch
                 .iter()
@@ -379,6 +449,9 @@ impl ItemObserver {
             return Err(OfferError::HandlesExhausted);
         }
         crate::observe::observe_with(sim, self.viewer, events, out, cache)?;
+        if sim.w.quests.is_some() && sim.player(self.viewer).is_some_and(|p| !p.seat.bot) {
+            out.quests = Some(quest_view);
+        }
         self.staged_actors.clear();
         self.staged_actors.extend(
             out.visible
@@ -417,6 +490,7 @@ impl ItemObserver {
         Ok(PreparedOffer {
             actors,
             rewards,
+            quests,
             observer: self,
             tick,
             changed,
@@ -439,6 +513,9 @@ impl ItemObserver {
     /// Return exactly the command to submit and record, including a normal budgeted miss for an absent,
     /// expired or now-invisible target. A handle cannot resolve outside this viewer's bindings.
     pub fn resolve(&self, sim: &Sim, proposal: PublicCommand) -> Result<Command, Reject> {
+        if let PublicCommand::QuestAccept { handle } = proposal {
+            return Ok(self.quests.resolve_accept(sim, handle));
+        }
         if let PublicCommand::Choose { handle, pick } = proposal {
             return self.rewards.resolve(sim, handle, pick);
         }
@@ -520,6 +597,10 @@ impl ItemObserver {
                 })?;
                 let me = sim.player(self.viewer)?;
                 let i = sim.containers().binary_search_by_key(&id, |c| c.id).ok()?;
+                let c = &sim.containers()[i];
+                if c.kind == ContainerKind::Quest && eligible_quest_item(sim, me, c).is_none() {
+                    return None;
+                }
                 crate::vision::point_visible(
                     sim.collision_view(),
                     me,
@@ -567,6 +648,7 @@ impl ItemObserver {
 pub struct PreparedOffer<'a> {
     actors: crate::actor_refs::ActorStage,
     rewards: crate::reward_chests::observer::RewardStage,
+    quests: crate::quest_view::QuestStage,
     observer: &'a mut ItemObserver,
     tick: u32,
     changed: bool,
@@ -584,6 +666,7 @@ impl PreparedOffer<'_> {
     pub fn commit(self) {
         let s = self.observer;
         s.rewards.commit_stage(self.rewards);
+        s.quests.commit_stage(self.quests);
         s.actor_refs.commit(self.actors);
         std::mem::swap(&mut s.actors, &mut s.staged_actors);
         if self.absent {

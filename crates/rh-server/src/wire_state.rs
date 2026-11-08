@@ -36,7 +36,7 @@ fn inventory(value: Inventory) -> WireInventory {
     }
 }
 
-fn props(observation: &Observation) -> WireProps {
+fn props(observation: &Observation) -> Result<WireProps, EncodeError> {
     let mut focus = None;
     let rows = observation
         .props
@@ -49,7 +49,7 @@ fn props(observation: &Observation) -> WireProps {
                     body_hint: row.cue.body_hint.map(|w| w.code()),
                 });
             }
-            WireProp {
+            Ok(WireProp {
                 handle,
                 x: row.cue.x,
                 y: row.cue.y,
@@ -66,11 +66,14 @@ fn props(observation: &Observation) -> WireProps {
                         label: label.to_string(),
                     },
                     PropKind::WindEmblem => WirePropKind::WindEmblem,
+                    PropKind::QuestItem { .. } => {
+                        return Err(EncodeError::BadValue("quest item transport unsupported"))
+                    }
                 },
-            }
+            })
         })
-        .collect();
-    WireProps { rows, focus }
+        .collect::<Result<Vec<_>, _>>()?;
+    Ok(WireProps { rows, focus })
 }
 
 fn fields(observation: &Observation) -> Vec<WireField> {
@@ -249,6 +252,16 @@ impl CollectionPublisher {
         rewards_changed: bool,
         resync_requested: bool,
     ) -> Result<PendingState, EncodeError> {
+        if observation.quests.is_some() {
+            return Err(EncodeError::BadValue("quest transport unsupported"));
+        }
+        if observation
+            .props
+            .iter()
+            .any(|p| matches!(p.cue.kind, PropKind::QuestItem { .. }))
+        {
+            return Err(EncodeError::BadValue("quest item transport unsupported"));
+        }
         let forced = resync_requested
             && self.last_forced.is_none_or(|tick| {
                 observation.tick.saturating_sub(tick) >= rh_protocol::delta::MIN_FORCED_FULL_TICKS
@@ -269,7 +282,7 @@ impl CollectionPublisher {
             items.push(StateItem::Inventory(next_inventory));
         }
         if full || props_changed {
-            items.push(StateItem::Props(props(observation)));
+            items.push(StateItem::Props(props(observation)?));
         }
         if full || next_fields != self.fields {
             items.push(StateItem::Fields(next_fields));
@@ -773,5 +786,34 @@ mod tests {
         let mut shifted = first.clone();
         shifted.spawns[0] = Some(shifted.spawns[0].map_or(0, |v| v + 1));
         assert_ne!(shifted, first);
+    }
+    #[test]
+    fn unsupported_quest_item_cannot_be_partially_encoded() {
+        let mut obs = Observation::default();
+        obs.props.push(rh_sim::VisibleProp {
+            handle: rh_sim::PickupHandle::new(1).unwrap(),
+            cue: rh_sim::PropCue {
+                x: 8,
+                y: 8,
+                focused: false,
+                body_hint: None,
+                kind: PropKind::QuestItem {
+                    quest: rh_sim::quest_view::QuestHandle::new(1).unwrap(),
+                    fetch: false,
+                },
+            },
+        });
+        assert!(props(&obs).is_err());
+        assert!(CollectionPublisher::default()
+            .prepare(&obs, true, false, false)
+            .is_err());
+        assert!(CollectionPublisher::default()
+            .prepare(&obs, false, false, false)
+            .is_err());
+        obs.props.clear();
+        obs.quests = Some(rh_sim::quest_view::QuestView::default());
+        assert!(CollectionPublisher::default()
+            .prepare(&obs, false, false, false)
+            .is_err());
     }
 }

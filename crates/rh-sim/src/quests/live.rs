@@ -551,39 +551,67 @@ fn accept_blocked(k: &MatchStatic, w: &World) -> bool {
     false
 }
 
+/// Source-ordered acceptance outcome. It contains no quest facts and may be used only after row entitlement filtering.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum AcceptRefusal {
+    Silent,
+    Busy,
+    Over,
+    Far,
+    Blocked,
+    Already,
+}
+
+/// Shared authoritative check for the action and the owner's published eligibility fact.
+pub(crate) fn accept_eligibility(
+    k: &MatchStatic,
+    w: &World,
+    id: PlayerId,
+    quest_id: Option<u32>,
+) -> Result<usize, AcceptRefusal> {
+    if accept_blocked(k, w) || !standing(w, id) {
+        return Err(AcceptRefusal::Silent);
+    }
+    let player = w.player(id).ok_or(AcceptRefusal::Silent)?;
+    if crate::status_runtime::action_blocked(&player.statuses, w.server_time) {
+        return Err(AcceptRefusal::Busy);
+    }
+    let offers = quests(w).ok_or(AcceptRefusal::Silent)?;
+    let oi = offers
+        .offers
+        .iter()
+        .position(|o| {
+            Some(o.id) == quest_id && o.published && o.status == Status::Open && o.npc_alive
+        })
+        .ok_or(AcceptRefusal::Over)?;
+    let offer = &offers.offers[oi];
+    let pos = player.pos();
+    if crate::math::hypot(pos.x - offer.at.x, pos.y - offer.at.y) > QUEST_ACCEPT_RANGE {
+        return Err(AcceptRefusal::Far);
+    }
+    let map = k.collision_map(w.rt.gates_locked);
+    if !crate::geometry::has_line_of_sight(map, pos, offer.at, crate::map::MASK_SIGHT) {
+        return Err(AcceptRefusal::Blocked);
+    }
+    if offer.accepted.contains(&id) {
+        return Err(AcceptRefusal::Already);
+    }
+    Ok(oi)
+}
+
 /// Source `handleQuestAccept`, called from the ACTION table. Refusals are private (no toast transport yet).
 pub(crate) fn handle_accept(cx: &mut Cx, ix: crate::fighter::FighterIx, cmd: &ActionCmd) {
     let ActionCmd::QuestAccept { quest_id } = *cmd else {
         return;
     };
-    if !cx.w.is_player(ix) || accept_blocked(cx.k, cx.w) {
+    if !cx.w.is_player(ix) {
         return;
     }
     let id = cx.w.core(ix).id;
-    if !standing(cx.w, id) {
-        return;
-    }
-    if crate::status_runtime::action_blocked(&cx.w.core(ix).statuses, cx.w.server_time) {
-        return;
-    }
-    let Some(offers) = quests(cx.w) else { return };
-    let Some(oi) = offers.offers.iter().position(|o| {
-        Some(o.id) == quest_id && o.published && o.status == Status::Open && o.npc_alive
-    }) else {
+    let Ok(oi) = accept_eligibility(cx.k, cx.w, id, quest_id) else {
         return;
     };
     let offer = &cx.w.quests.as_ref().unwrap().offers[oi];
-    let pos = cx.w.players[ix.slot()].pos();
-    if crate::math::hypot(pos.x - offer.at.x, pos.y - offer.at.y) > QUEST_ACCEPT_RANGE {
-        return;
-    }
-    let map = cx.k.collision_map(cx.w.rt.gates_locked);
-    if !crate::geometry::has_line_of_sight(map, pos, offer.at, crate::map::MASK_SIGHT) {
-        return;
-    }
-    if offer.accepted.contains(&id) {
-        return;
-    }
     let now = cx.w.server_time;
     let expires = catalog::DEFINITION[offer.def as usize].expires_at_sec;
     let q = cx.w.quests.as_mut().unwrap();
