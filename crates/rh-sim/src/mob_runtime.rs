@@ -24,6 +24,7 @@ pub enum MobKind {
     Regional,
     Practice,
     Dummy,
+    QuestGiver,
 }
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -56,6 +57,13 @@ pub enum ActorOrigin {
         /// The source's shield dummy carries a shield it blocks and reflects with (`spawnTraining`).
         shield: bool,
     },
+    /// A neutral quest actor, including retained provenance after retirement.
+    QuestGiver {
+        birth_serial: u32,
+        born_tick: u32,
+        quest_id: u32,
+        def: u16,
+    },
     /// A Plague-owned companion (legacy MobState kind "zombie").
     Zombie {
         owner: PlayerId,
@@ -68,7 +76,8 @@ impl ActorOrigin {
             Self::Player { .. } | Self::Zombie { .. } => None,
             Self::Mob { birth_serial, .. }
             | Self::Practice { birth_serial, .. }
-            | Self::Dummy { birth_serial, .. } => Some(birth_serial),
+            | Self::Dummy { birth_serial, .. }
+            | Self::QuestGiver { birth_serial, .. } => Some(birth_serial),
         }
     }
 }
@@ -97,7 +106,7 @@ pub struct CampRoster {
 #[serde(deny_unknown_fields)]
 pub struct Mob {
     pub core: FighterCore,
-    pub(crate) brain: Brain,
+    pub(crate) brain: Option<Brain>,
     pub(crate) last_hit_at: f64,
     pub kind: MobKind,
     /// The regional catalog type. Training dummies and Plague companions have none.
@@ -131,6 +140,18 @@ impl Keyed for Mob {
     }
 }
 impl Mob {
+    pub(crate) fn returning(&self) -> bool {
+        self.brain
+            .as_ref()
+            .is_some_and(|b| b.mode == BrainMode::Return)
+    }
+    pub(crate) fn regional_brain(&self) -> &Brain {
+        self.brain.as_ref().expect("validated regional brain")
+    }
+    pub(crate) fn regional_brain_mut(&mut self) -> &mut Brain {
+        self.brain.as_mut().expect("validated regional brain")
+    }
+
     /// A Plague-owned companion, with no regional catalog type.
     pub(crate) fn zombie(
         provenance: &ActorProvenance,
@@ -150,7 +171,7 @@ impl Mob {
             y: at.y,
         });
         Self {
-            brain: Brain::default(),
+            brain: None,
             last_hit_at: 0.,
             core: FighterCore {
                 id,
@@ -161,7 +182,7 @@ impl Mob {
                     history,
                 },
                 vitals: Vitals {
-                    faction: crate::FactionId::Plague,
+                    faction: crate::FactionId::Plague.into(),
                     hp: max_hp,
                     max_hp,
                     barrier: 0.,
@@ -203,7 +224,7 @@ impl Mob {
         facing: f64,
         now: f64,
         hp: f64,
-        faction: FactionId,
+        faction: crate::fighter::FighterAffiliation,
         weapon: Option<WeaponId>,
     ) -> FighterCore {
         let mut history = History::default();
@@ -251,7 +272,7 @@ impl Mob {
             bool,
             u32,
             f64,
-            FactionId,
+            crate::fighter::FighterAffiliation,
             Option<WeaponId>,
         ) = match *origin {
             ActorOrigin::Mob {
@@ -268,7 +289,7 @@ impl Mob {
                     elite,
                     camp,
                     spawn_hp(ty.zone, elite, mob_type),
-                    ty.zone,
+                    ty.zone.into(),
                     Some(ty.weapon),
                 )
             }
@@ -286,7 +307,7 @@ impl Mob {
                     elite,
                     camp,
                     spawn_hp(ty.zone, elite, mob_type),
-                    ty.zone,
+                    ty.zone.into(),
                     Some(ty.weapon),
                 )
             }
@@ -298,8 +319,17 @@ impl Mob {
                 false,
                 0,
                 crate::constants::DUMMY_HP,
-                FactionId::Fire,
+                FactionId::Fire.into(),
                 if shield { Some(WeaponId::Shield) } else { None },
+            ),
+            ActorOrigin::QuestGiver { .. } => (
+                MobKind::QuestGiver,
+                None,
+                false,
+                0,
+                crate::constants::DUMMY_HP,
+                crate::fighter::FighterAffiliation::Neutral,
+                None,
             ),
             ActorOrigin::Player { .. } | ActorOrigin::Zombie { .. } => {
                 unreachable!("only a typed non-seat birth constructs Mob")
@@ -307,7 +337,7 @@ impl Mob {
         };
         let id = provenance.id;
         Self {
-            brain: Brain::default(),
+            brain: matches!(kind, MobKind::Regional | MobKind::Practice).then(Brain::default),
             last_hit_at: 0.,
             core: Self::core(id, at, facing, now, hp, faction, weapon),
             kind,
@@ -317,9 +347,12 @@ impl Mob {
             status: Status::Alive,
             home: at,
             home_facing: facing,
-            repath_phase: ((u64::from(serial) * u64::from(crate::constants::MOB_REPATH_PHASE_MULT))
-                % u64::from(crate::constants::MOB_REPATH_PHASE_PERIOD))
-                as u32,
+            repath_phase: if matches!(kind, MobKind::Regional | MobKind::Practice) {
+                ((u64::from(serial) * u64::from(crate::constants::MOB_REPATH_PHASE_MULT))
+                    % u64::from(crate::constants::MOB_REPATH_PHASE_PERIOD)) as u32
+            } else {
+                0
+            },
             owner: None,
             zombie: None,
             display_name: None,
@@ -380,4 +413,40 @@ pub(crate) struct CampLife {
     pub contributors: Vec<PlayerId>,
     pub ward_owner: Option<PlayerId>,
     pub ward_expires_at: f64,
+}
+
+#[cfg(test)]
+mod neutral_tests {
+    use super::*;
+    #[test]
+    fn neutral_giver_constructor_has_no_combat_kit_or_regional_brain() {
+        // Declared constructor fixture; birth is not wired into quest publication in Slice 1.
+        let origin = ActorProvenance {
+            id: PlayerId(8),
+            origin: ActorOrigin::QuestGiver {
+                birth_serial: 73,
+                born_tick: 2,
+                quest_id: 4,
+                def: 0,
+            },
+        };
+        let m = Mob::born(&origin, Vec2::new(200., 300.), 1.25, 100.);
+        assert_eq!(m.kind, MobKind::QuestGiver);
+        assert_eq!(m.core.faction_id(), None);
+        assert!(m.brain.is_none());
+        assert!(m.mob_type.is_none() && m.owner.is_none() && m.zombie.is_none());
+        assert_eq!((m.camp, m.elite, m.repath_phase), (0, false, 0));
+        assert_eq!((m.core.weapon.weapon0, m.core.weapon.weapon1), (None, None));
+        assert_eq!((m.core.vitals.hp, m.core.vitals.max_hp), (5000., 5000.));
+        assert_eq!(
+            m.core.body.history.as_slice(),
+            &[Sample {
+                t: 100.,
+                x: 200.,
+                y: 300.
+            }]
+        );
+        assert!(m.core.motion.path.is_empty() && m.core.inputs.actions.as_slice().is_empty());
+        assert_eq!(origin.origin.birth_serial(), Some(73));
+    }
 }

@@ -132,14 +132,20 @@ impl OutcomeDigest {
             self.w(snap.mobs.len() as u64);
             for m in &snap.mobs {
                 self.w(m.id.0.into());
-                self.w(m.kind.into());
+                match m.kind {
+                    rh_sim::observe::ActorKind::Player => self.w(0),
+                    rh_sim::observe::ActorKind::Regional => self.w(1),
+                    rh_sim::observe::ActorKind::Zombie => self.w(2),
+                    rh_sim::observe::ActorKind::Dummy => self.w(3),
+                    rh_sim::observe::ActorKind::QuestGiver => self.s("quest_giver"),
+                }
                 self.s(m.mob_type.map_or("", |ty| ty.as_str()));
-                self.s(m.faction.as_str());
+                self.s(m.faction.faction_id().map_or("neutral", |f| f.as_str()));
                 for n in [m.x, m.y, m.facing, m.hp_frac] {
                     self.f(n);
                 }
                 self.s(status(m.status));
-                self.s(m.weapon.as_str());
+                self.s(m.weapon.map_or("unarmed", |w| w.as_str()));
                 self.w(m.effects.into());
                 self.w(m.displace_seq.into());
             }

@@ -204,7 +204,7 @@ fn snapshot(sim: &Sim) -> serde_json::Value {
             serde_json::json!({
                 "id": i,
                 "name": format!("name{i}"),
-                "faction": p.vitals.faction.as_str(),
+                "faction": p.vitals.faction.faction_id().expect("declared faction actor").as_str(),
                 "status": status_name(p.status),
                 "resolved": p.resolved,
                 "gv": {

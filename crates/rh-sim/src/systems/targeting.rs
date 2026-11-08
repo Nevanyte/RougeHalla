@@ -269,7 +269,7 @@ fn follow(cx: &mut Cx, i: usize, id: PlayerId) {
         resume(cx, i);
         return;
     }
-    let faction = paced(p.vitals.faction);
+    let faction = paced(p.faction());
     let tm = player_timings(
         WeaponId::Wand,
         attack_interval(&faction, WeaponId::Wand, p.modifiers.mirrors().as_mult),

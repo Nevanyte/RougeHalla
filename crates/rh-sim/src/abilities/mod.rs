@@ -427,7 +427,7 @@ pub struct CastView {
 }
 impl OwnerView {
     pub(crate) fn of(p: &crate::state::Player, now: f64, training: bool) -> Self {
-        let ability = wish(p.vitals.faction);
+        let ability = wish(p.faction());
         let recharge_ms = cooldown(ability, training, Some(p.modifiers.wish_cooldown_mult()));
         // Legacy abilitySlot reads `fullAt ?? 0`; preserve that fallback during the pre-raid interval.
         let full_at = p.stocks.wish_full_at.unwrap_or(0.);

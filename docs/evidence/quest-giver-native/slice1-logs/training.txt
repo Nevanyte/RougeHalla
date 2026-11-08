@@ -1,0 +1,21 @@
+    Finished `test` profile [unoptimized] target(s) in 0.04s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/quest-giver-native/target/debug/deps/rh_sim-bebc1724c13fdcb0)
+
+running 14 tests
+test systems::training::tests::an_arena_world_has_no_dummies_or_rack ... ok
+test systems::training::tests::the_console_command_is_refused_outside_a_training_world ... ok
+test systems::training::tests::the_console_ignores_unsupported_cards ... ok
+test systems::training::tests::a_down_player_is_revived_where_they_fell_with_their_weapons ... ok
+test systems::training::tests::the_console_sets_and_removes_a_card ... ok
+test systems::training::tests::a_training_world_is_active_from_the_first_tick_with_the_practice_setup ... ok
+test systems::training::tests::the_console_sets_a_mob_stat ... ok
+test systems::training::tests::a_training_observation_says_so ... ok
+test systems::training::tests::the_console_clears_cards_stats_mobs_and_chests ... ok
+test systems::training::tests::the_console_drops_reward_chests_with_chosen_options_and_caps ... ok
+test systems::training::tests::a_dummy_never_dies_and_heals_after_the_reset_clock ... ok
+test systems::training::tests::the_console_drops_a_practice_camp_with_gaps_and_caps ... ok
+test systems::training::tests::a_training_run_never_ends_or_banks_a_result ... ok
+test systems::training::corpus_tests::the_captured_training_corpus_matches_the_source ... ok
+
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 705 filtered out; finished in 0.53s
+

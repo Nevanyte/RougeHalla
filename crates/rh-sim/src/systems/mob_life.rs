@@ -159,7 +159,7 @@ pub(crate) fn hurt(
         return super::plague_zombies::hurt(k, w, ev, id, total);
     }
     let m = w.mobs.get(id).expect("mob victim");
-    if m.status != Status::Alive {
+    if m.status != Status::Alive || m.kind == crate::mob_runtime::MobKind::QuestGiver {
         return 0.;
     }
     // A training dummy has no brain and never dies (legacy `mobs.ts damageMob`): a hit that would empty it refills it to
@@ -222,7 +222,7 @@ pub(crate) fn hurt(
         return total;
     }
     let m = w.mobs.get(id).unwrap();
-    let mut dealt = m.brain.threat.clone();
+    let mut dealt = m.regional_brain().threat.clone();
     dealt.retain(|(id, _)| w.player(*id).is_some_and(|p| !p.resolved));
     let share = if total > before { before / total } else { 1. };
     for h in hits {
@@ -265,7 +265,7 @@ pub(crate) fn hurt(
         at: m.core.pos(),
         elite: m.elite,
         mob_type: m.mob_type.expect("map mob has a catalog type"),
-        zone: m.core.vitals.faction,
+        zone: m.core.faction_id().expect("regional faction"),
         mult: killer.map_or(1., |p| reward(w, p)),
         contributors: if m.elite {
             w.mob_runtime.as_ref().unwrap().life[camp as usize]
@@ -297,13 +297,13 @@ pub(crate) fn hurt(
         let m = w.mobs.get_mut(id).unwrap();
         m.status = Status::Dead;
         m.core.vitals.hp = 0.;
-        m.brain.died_at = now;
-        m.brain.mode = BrainMode::Idle;
-        m.brain.target = None;
-        m.brain.threat.clear();
-        m.brain.goal = None;
-        m.brain.moving = false;
-        m.brain.holding = false;
+        m.regional_brain_mut().died_at = now;
+        m.regional_brain_mut().mode = BrainMode::Idle;
+        m.regional_brain_mut().target = None;
+        m.regional_brain_mut().threat.clear();
+        m.regional_brain_mut().goal = None;
+        m.regional_brain_mut().moving = false;
+        m.regional_brain_mut().holding = false;
         m.core.inputs.clear();
         m.core.motion.path.clear();
         m.core.motion.slip = None;
@@ -353,13 +353,13 @@ fn kill_training_mob(
         let m = w.mobs.get_mut(id).expect("mob victim");
         m.status = Status::Dead;
         m.core.vitals.hp = 0.;
-        m.brain.died_at = now;
-        m.brain.mode = BrainMode::Idle;
-        m.brain.target = None;
-        m.brain.threat.clear();
-        m.brain.goal = None;
-        m.brain.moving = false;
-        m.brain.holding = false;
+        m.regional_brain_mut().died_at = now;
+        m.regional_brain_mut().mode = BrainMode::Idle;
+        m.regional_brain_mut().target = None;
+        m.regional_brain_mut().threat.clear();
+        m.regional_brain_mut().goal = None;
+        m.regional_brain_mut().moving = false;
+        m.regional_brain_mut().holding = false;
         m.core.inputs.clear();
         m.core.motion.path.clear();
         m.core.motion.slip = None;
@@ -540,17 +540,21 @@ pub(crate) fn reap(cx: &mut Cx) {
     let mut gone = Vec::new();
     for i in 0..cx.w.mobs.len() {
         let m = &cx.w.mobs[i];
+        if m.brain.is_none() {
+            continue;
+        }
         if m.status == Status::Dead {
-            if now - m.brain.died_at >= MOB_CORPSE_MS {
+            if now - m.regional_brain().died_at >= MOB_CORPSE_MS {
                 gone.push(m.core.id)
             }
         } else if m.kind != crate::mob_runtime::MobKind::Dummy
             && m.core.vitals.hp < m.core.vitals.max_hp
-            && (m.brain.mode == BrainMode::Return
-                || (m.brain.mode == BrainMode::Idle && now - m.last_hit_at >= MOB_REGEN_LOCK_MS))
+            && (m.regional_brain().mode == BrainMode::Return
+                || (m.regional_brain().mode == BrainMode::Idle
+                    && now - m.last_hit_at >= MOB_REGEN_LOCK_MS))
         {
             let amount = m.core.vitals.max_hp * TICK_MS
-                / (if m.brain.mode == BrainMode::Return {
+                / (if m.regional_brain().mode == BrainMode::Return {
                     MOB_RETURN_REGEN_SECONDS
                 } else {
                     MOB_REGEN_SECONDS
@@ -600,15 +604,15 @@ pub(crate) fn respawn(cx: &mut Cx) {
 pub(crate) fn teleported(hx: &mut crate::hooks::Hx, _: &crate::hooks::HookArgs) {
     let now = hx.w.server_time;
     for m in &mut hx.w.mobs {
-        if m.status != Status::Alive {
+        if m.status != Status::Alive || m.brain.is_none() {
             continue;
         }
-        m.brain.target = None;
-        m.brain.threat.clear();
-        m.brain.goal = None;
-        m.brain.last_move_at = 0.;
-        m.brain.moving = false;
-        m.brain.holding = false;
+        m.regional_brain_mut().target = None;
+        m.regional_brain_mut().threat.clear();
+        m.regional_brain_mut().goal = None;
+        m.regional_brain_mut().last_move_at = 0.;
+        m.regional_brain_mut().moving = false;
+        m.regional_brain_mut().holding = false;
         m.core.inputs.clear();
         m.core.motion.path.clear();
         m.core.motion.slip = None;
@@ -624,6 +628,6 @@ pub(crate) fn teleported(hx: &mut crate::hooks::Hx, _: &crate::hooks::HookArgs) 
             x: m.home.x,
             y: m.home.y,
         });
-        m.brain.mode = BrainMode::Idle;
+        m.regional_brain_mut().mode = BrainMode::Idle;
     }
 }

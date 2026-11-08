@@ -1,0 +1,12 @@
+    Finished `test` profile [unoptimized] target(s) in 0.07s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/quest-giver-native/target/debug/deps/rh_sim-bebc1724c13fdcb0)
+
+running 5 tests
+test mob_runtime::neutral_tests::neutral_giver_constructor_has_no_combat_kit_or_regional_brain ... ok
+test observe::tests::neutral_giver_native_view_carries_no_invented_faction_or_weapon ... ok
+test systems::frost::tests::iron_will_weakens_ranged_movement_and_overlap_and_source_card_is_neutral ... ok
+test checkpoint::tests::neutral_affiliation_is_distinct_in_canonical_hash_and_roundtrips_as_null ... ok
+test checkpoint::tests::neutral_player_is_refused_before_any_validated_faction_facade ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 714 filtered out; finished in 0.04s
+

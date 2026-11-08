@@ -410,7 +410,7 @@ pub(crate) fn on_blocked(hx: &mut crate::hooks::Hx, args: &crate::hooks::HookArg
             }
         }
         (
-            crate::content::faction(p.vitals.faction),
+            crate::content::faction(p.faction()),
             p.modifiers.mirrors(),
             rows,
             n,

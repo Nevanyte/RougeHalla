@@ -139,7 +139,12 @@ fn actual_hidden_respawn_history_does_not_change_scene_references_or_fx() {
     place(&mut initial, PlayerId(3), Vec2::new(80., 112.));
     let old = observe(&initial, &mut oa);
     assert_eq!(old, observe(&initial, &mut ob));
-    let old_reference = old.visible.iter().find(|r| r.kind == 1).unwrap().id;
+    let old_reference = old
+        .visible
+        .iter()
+        .find(|r| r.kind == crate::observe::ActorKind::Regional)
+        .unwrap()
+        .id;
     let aa = observe(&a, &mut oa);
     let bb = observe(&b, &mut ob);
     assert_eq!(aa, bb);
@@ -184,7 +189,12 @@ fn actual_hidden_respawn_history_does_not_change_scene_references_or_fx() {
         .unwrap()
         .commit();
     assert_eq!(aa, bb);
-    let reference = aa.visible.iter().find(|r| r.kind == 1).unwrap().id;
+    let reference = aa
+        .visible
+        .iter()
+        .find(|r| r.kind == crate::observe::ActorKind::Regional)
+        .unwrap()
+        .id;
     assert!(u64::from(reference.0) >= NPC_REFERENCE_BASE);
     assert_ne!(
         oa.resolve(&a, PublicCommand::Target { actor: reference })
@@ -201,7 +211,12 @@ fn fixed_blocks_commit_grace_and_reconnect_preserve_exact_clicks() {
     drop(o.prepare_into(&s, &[], &mut dropped, None).unwrap());
     let first = observe(&s, &mut o);
     assert_eq!(dropped, first);
-    let reference = first.visible.iter().find(|a| a.kind == 1).unwrap().id;
+    let reference = first
+        .visible
+        .iter()
+        .find(|a| a.kind == crate::observe::ActorKind::Regional)
+        .unwrap()
+        .id;
     let command = o
         .resolve(&s, PublicCommand::Target { actor: reference })
         .unwrap();
@@ -209,7 +224,16 @@ fn fixed_blocks_commit_grace_and_reconnect_preserve_exact_clicks() {
     s.step();
     let second = observe(&s, &mut o);
     assert_eq!(
-        u64::from(second.visible.iter().find(|a| a.kind == 1).unwrap().id.0 - reference.0),
+        u64::from(
+            second
+                .visible
+                .iter()
+                .find(|a| a.kind == crate::observe::ActorKind::Regional)
+                .unwrap()
+                .id
+                .0
+                - reference.0
+        ),
         NPC_REFERENCE_BLOCK
     );
     assert_eq!(
@@ -235,7 +259,7 @@ fn fixed_blocks_commit_grace_and_reconnect_preserve_exact_clicks() {
     assert!(renewed
         .visible
         .iter()
-        .filter(|a| a.kind == 1)
+        .filter(|a| a.kind == crate::observe::ActorKind::Regional)
         .all(|a| a.id > reference));
     let mut a = ItemObserver::new(PlayerId(3));
     let mut b = ItemObserver::new(PlayerId(3));
@@ -306,7 +330,12 @@ fn all_actor_fields_use_one_projection_and_reference_bounds_fail_closed() {
     ));
     let mut raw = Observation::default();
     crate::observe::observe_with(&s, PlayerId(1), &[], &mut raw, None).unwrap();
-    let mob = raw.visible.iter().find(|a| a.kind == 1).unwrap().clone();
+    let mob = raw
+        .visible
+        .iter()
+        .find(|a| a.kind == crate::observe::ActorKind::Regional)
+        .unwrap()
+        .clone();
     raw.visible = vec![mob; NPC_REFERENCE_BLOCK as usize + 1];
     assert!(matches!(
         ActorRefs::default().stage(&s, &raw),

@@ -157,7 +157,7 @@ fn terrain_native_born_mobs_burn_ice_death_and_return_restore() {
             let m = &mut sim.w.mobs[index];
             m.core.body.x = ember.x;
             m.core.body.y = ember.y;
-            m.brain.mode = crate::mob_runtime::BrainMode::Return;
+            m.regional_brain_mut().mode = crate::mob_runtime::BrainMode::Return;
         }
         let before = sim.w.core(ix).vitals.hp;
         run(&mut sim, &mut ev, burn);
@@ -170,7 +170,7 @@ fn terrain_native_born_mobs_burn_ice_death_and_return_restore() {
             let m = &mut sim.w.mobs[index];
             m.core.body.x = ember.x;
             m.core.body.y = ember.y;
-            m.brain.mode = crate::mob_runtime::BrainMode::Idle;
+            m.regional_brain_mut().mode = crate::mob_runtime::BrainMode::Idle;
             m.core.vitals.hp = 0.001;
             m.core.motion.slip = None;
         }

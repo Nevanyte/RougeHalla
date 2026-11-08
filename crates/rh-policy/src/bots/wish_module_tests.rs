@@ -102,7 +102,7 @@ fn observation(
     });
     if let Some((x, y)) = enemy {
         o.visible.push(ActorView {
-            kind: 0,
+            kind: rh_sim::observe::ActorKind::Player,
             owner: None,
             mob_type: None,
             effects: 0,
@@ -113,7 +113,7 @@ fn observation(
             mark_tax: 0,
             sig: 0,
             id: ENEMY,
-            faction: FactionId::Fire,
+            faction: FactionId::Fire.into(),
             x,
             y,
             facing: 0.,
@@ -121,7 +121,7 @@ fn observation(
             barrier_frac: 0.,
             barrier_ring_step: 0,
             status: Status::Alive,
-            weapon: WeaponId::Sword,
+            weapon: Some(WeaponId::Sword),
             bounty: 0,
         });
         if recent_hit {

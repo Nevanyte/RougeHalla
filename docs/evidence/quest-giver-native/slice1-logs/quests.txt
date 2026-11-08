@@ -1,0 +1,25 @@
+    Finished `test` profile [unoptimized] target(s) in 0.05s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/quest-giver-native/target/debug/deps/rh_sim-bebc1724c13fdcb0)
+
+running 18 tests
+test quests::tests::the_captured_rosters_match_the_source_selection ... ok
+test quests::tests::the_captured_catalog_rows_and_reward_rules_match_the_source ... ok
+test quests::tests::the_captured_wording_matches_the_source ... ok
+test quests::live_tests::camp_clear_ignores_bots_when_deciding_whether_anyone_can_finish ... ok
+test quests::live_tests::the_fetch_parcel_rides_a_carrier_and_drops_on_death ... ok
+test quests::live_tests::malformed_bot_acceptance_cannot_take_fetch_parcel ... ok
+test quests::live_tests::kill_progress_hooks_and_the_camp_clear_recheck_close_impossible_offers ... ok
+test quests::live_tests::the_teleport_and_run_end_hooks_close_every_open_offer ... ok
+test quests::live_tests::accepting_through_the_input_door_starts_the_offer ... ok
+test quests::live_tests::the_raid_start_spawns_the_source_roster_and_publishes_the_known_half ... ok
+test quests::live_tests::an_accepted_offer_expires_after_its_deadline_and_lingers_then_sweeps ... ok
+test quests::live_tests::collect_tokens_and_the_turn_in_pay_the_two_reward_channels ... ok
+test quests::live_tests::malformed_bot_acceptance_cannot_pick_up_or_block_human_turn_in ... ok
+test quests::live_tests::hidden_offers_reveal_with_the_head_start_and_publish_their_pieces ... ok
+test quests::live_tests::bot_cannot_accept_or_discover_but_human_can_after_restore ... ok
+test quests::live_tests::the_quest_runtime_checkpoints_restores_and_perturbs_the_hash ... ok
+test quests::tests::the_captured_placements_match_the_source_on_the_pinned_maps ... ok
+test quests::lifecycle_tests::the_captured_lifecycle_replays_through_the_input_door ... ok
+
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 701 filtered out; finished in 9.97s
+

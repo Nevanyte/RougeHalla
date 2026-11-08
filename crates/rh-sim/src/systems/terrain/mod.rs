@@ -16,7 +16,9 @@ fn effect(k: &MatchStatic, w: &World, ix: FighterIx) -> terrain::Effect {
         &k.arena.map,
         p.body.x,
         p.body.y,
-        (k.config.hazards != Mode::All).then_some(p.vitals.faction),
+        (k.config.hazards != Mode::All)
+            .then(|| p.faction_id())
+            .flatten(),
     )
 }
 pub(crate) fn bog(
@@ -51,9 +53,7 @@ fn burn_dt(cx: &mut Cx, dt_ms: f64) {
             e,
             w.standing(ix),
             false,
-            w.mobs
-                .get(w.core(ix).id)
-                .is_some_and(|m| m.brain.mode == crate::mob_runtime::BrainMode::Return),
+            w.mobs.get(w.core(ix).id).is_some_and(|m| m.returning()),
             w.rt.gates_locked,
         );
         if !(share > 0.) {

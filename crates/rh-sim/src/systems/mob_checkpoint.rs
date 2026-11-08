@@ -56,7 +56,9 @@ pub(crate) fn validate(
                 }
                 players += 1;
             }
-            ActorOrigin::Practice { .. } | ActorOrigin::Dummy { .. } => {
+            ActorOrigin::Practice { .. }
+            | ActorOrigin::Dummy { .. }
+            | ActorOrigin::QuestGiver { .. } => {
                 return Err("non-regional actor in a regional world".into());
             }
             ActorOrigin::Zombie { owner } => {
@@ -294,7 +296,7 @@ pub(crate) fn validate(
                 &[],
                 crate::modifiers::ValidationOwner {
                     base_hp: p.vitals.max_hp,
-                    faction: p.vitals.faction,
+                    faction: p.faction_id().ok_or("neutral regional actor")?,
                     frozen_guard: false,
                 },
             )
@@ -365,7 +367,7 @@ pub(crate) fn validate(
                 return Err("invalid mob pending attack".into());
             }
         }
-        let b = &m.brain;
+        let b = m.brain.as_ref().ok_or("missing regional brain")?;
         if ![m.last_hit_at, b.last_combat_at, b.last_move_at, b.died_at]
             .iter()
             .all(|v| (0. ..=w.server_time).contains(v))

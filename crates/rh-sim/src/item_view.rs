@@ -456,7 +456,7 @@ impl ItemObserver {
         self.staged_actors.extend(
             out.visible
                 .iter()
-                .filter(|actor| actor.kind == 0)
+                .filter(|actor| actor.kind == crate::observe::ActorKind::Player)
                 .map(|actor| actor.id),
         );
         out.inventory = sim.player(self.viewer).map(|me| Inventory {

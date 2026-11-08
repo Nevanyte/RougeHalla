@@ -123,7 +123,15 @@ fn a_training_world_is_active_from_the_first_tick_with_the_practice_setup() {
         assert_eq!(m.core.vitals.max_hp, DUMMY_HP);
         assert!(m.mob_type.is_none());
         assert_eq!(m.camp, 0);
-        assert_eq!(m.core.vitals.faction.code(), crate::FactionId::Fire.code());
+        assert_eq!(
+            m.core
+                .vitals
+                .faction
+                .faction_id()
+                .expect("declared faction actor")
+                .code(),
+            crate::FactionId::Fire.code()
+        );
         if m.core.weapon.weapon0 == Some(WeaponId::Shield) {
             seen_shield += 1;
             // The shield dummy faces the spawn (a reflected arrow flies back at the shooter).
@@ -159,7 +167,11 @@ fn a_training_world_is_active_from_the_first_tick_with_the_practice_setup() {
     assert_eq!(rack, want);
     // The dummies are observable with the dummy actor kind (2) and no catalog type.
     let obs = crate::observe(&sim, p.id, &[]);
-    let visible: Vec<_> = obs.visible.iter().filter(|a| a.kind == 3).collect();
+    let visible: Vec<_> = obs
+        .visible
+        .iter()
+        .filter(|a| a.kind == crate::observe::ActorKind::Dummy)
+        .collect();
     assert_eq!(visible.len(), 2);
     assert!(visible.iter().all(|a| a.mob_type.is_none()));
 }

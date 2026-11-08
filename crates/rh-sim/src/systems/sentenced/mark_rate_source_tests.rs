@@ -102,7 +102,7 @@ fn view(sim: &Sim) -> Value {
         let tier = super::public_mark_tier(&sim.w, p.id);
         json!({
             "id": p.core.id.0 as u64 - 1,
-            "faction": p.vitals.faction.as_str(),
+            "faction": p.vitals.faction.faction_id().expect("declared faction actor").as_str(),
             "hp": r6(p.vitals.hp), "maxHp": r6(p.vitals.max_hp), "status": status_name(p.status),
             "weapon0": p.weapon.weapon0.map_or("", |w| w.as_str()),
             "weapon1": p.weapon.weapon1.map_or("", |w| w.as_str()),

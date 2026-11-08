@@ -33,7 +33,7 @@ pub(crate) fn admit_factions(k: &MatchStatic, w: &World) -> Result<(), &'static 
     }
     if w.players
         .iter()
-        .any(|p| !admitted_player_faction(k.config.faction_mode, p.vitals.faction))
+        .any(|p| !admitted_player_faction(k.config.faction_mode, p.faction()))
         || k.arena.map.layers().is_none_or(|l| {
             l.data().camps.iter().any(|c| {
                 FactionId::parse(c.zone.as_str())
@@ -247,7 +247,9 @@ pub(crate) fn validate(
                 }
                 players += 1;
             }
-            ActorOrigin::Practice { .. } | ActorOrigin::Dummy { .. } => {
+            ActorOrigin::Practice { .. }
+            | ActorOrigin::Dummy { .. }
+            | ActorOrigin::QuestGiver { .. } => {
                 return Err("non-regional actor in a regional world".into());
             }
             ActorOrigin::Zombie { owner } => {

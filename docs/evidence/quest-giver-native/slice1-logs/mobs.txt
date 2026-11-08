@@ -1,0 +1,11 @@
+   Compiling rh-sim v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/quest-giver-native/repo/crates/rh-sim)
+    Finished `test` profile [unoptimized] target(s) in 32.09s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/quest-giver-native/target/debug/deps/rh_sim-0ad75f2b040c28b6)
+
+running 3 tests
+test systems::mob_life::mob_lifecycle_tests::mob_lifecycle_returning_mob_damage_adds_threat_without_reaggro ... ok
+test systems::mob_life::mob_lifecycle_tests::mob_lifecycle_camp_clear_is_the_only_loose_weapon ... ok
+test systems::mob_life::mob_lifecycle_tests::mob_lifecycle_captured_source_hooks_rewards_and_180s_respawn ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 728 filtered out; finished in 0.33s
+

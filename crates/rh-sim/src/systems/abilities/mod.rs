@@ -89,7 +89,7 @@ pub(crate) fn handle(cx: &mut Cx, ix: FighterIx, cmd: &ActionCmd) {
     let now = cx.w.server_time;
     let p = &cx.w.players[ix.slot()];
     // One generic slot path: the table says what each slot casts (Q/E have no rows yet). No branch on an ability id.
-    let Some(ability) = a::ability_in_slot(slot, p.vitals.faction) else {
+    let Some(ability) = a::ability_in_slot(slot, p.faction()) else {
         return;
     };
     let def = a::definition(ability);

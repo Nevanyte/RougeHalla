@@ -72,7 +72,7 @@ fn observe(sim: &Sim) -> Value {
             };
             json!({
                 "id": p.core.id.0 as usize - 1,
-                "faction": p.vitals.faction.as_str(),
+                "faction": p.vitals.faction.faction_id().expect("declared faction actor").as_str(),
                 "x": r6(p.body.x),
                 "y": r6(p.body.y),
                 "hp": r6(p.vitals.hp),

@@ -125,6 +125,9 @@ pub fn phase(p: Phase) -> u8 {
 
 fn observation_supported(obs: &Observation) -> Result<(), rh_protocol::EncodeError> {
     checked_phase(obs.phase)?;
+    for actor in &obs.visible {
+        actor_supported(actor).map_err(rh_protocol::EncodeError::BadValue)?;
+    }
     if obs.quests.is_some()
         || obs
             .props
@@ -206,25 +209,42 @@ fn hp_pct(f: f64) -> u8 {
     rh_protocol::quant::round_half_away(f * 100.0).clamp(0, 100) as u8
 }
 
-fn wire_actor(a: &rh_sim::observe::ActorView) -> WireActor {
-    WireActor {
+fn actor_supported(
+    a: &ActorView,
+) -> Result<(u8, rh_sim::FactionId, rh_sim::WeaponId), &'static str> {
+    use rh_sim::observe::ActorKind;
+    let kind = match a.kind {
+        ActorKind::Player => 0,
+        ActorKind::Regional => 1,
+        ActorKind::Zombie => 2,
+        ActorKind::Dummy => 3,
+        ActorKind::QuestGiver => return Err("quest giver actor unsupported"),
+    };
+    let faction = a.faction.faction_id().ok_or("neutral actor unsupported")?;
+    let weapon = a.weapon.ok_or("unarmed actor unsupported")?;
+    Ok((kind, faction, weapon))
+}
+
+fn wire_actor(a: &ActorView) -> Result<WireActor, &'static str> {
+    let (kind, faction, weapon) = actor_supported(a)?;
+    Ok(WireActor {
         sig: a.sig,
         mob_type_code: a.mob_type.map_or(0, |id| id as u8 + 1),
         effects: a.effects,
         displace_seq: a.displace_seq,
         id: a.id.0,
-        faction: a.faction.code(),
+        faction: faction.code(),
         x: a.x as f32,
         y: a.y as f32,
         facing: a.facing as f32,
         hp_pct: hp_pct(a.hp_frac),
         status: status(a.status),
-        weapon: a.weapon.code(),
+        weapon: weapon.code(),
         bounty: sat16(a.bounty),
-        kind: a.kind,
+        kind,
         barrier_pct: hp_pct(a.barrier_frac),
         barrier_ring_step: a.barrier_ring_step,
-    }
+    })
 }
 
 fn ability_code(ability: rh_sim::status_runtime::AbilityId) -> u8 {
@@ -291,14 +311,19 @@ pub fn checked_snapshot(
         phase: checked_phase(obs.phase)?,
         ack_input,
         me: obs.me.as_ref().map(wire_self),
-        actors: obs.visible.iter().map(wire_actor).collect(),
+        actors: obs
+            .visible
+            .iter()
+            .map(wire_actor)
+            .collect::<Result<_, _>>()
+            .map_err(rh_protocol::EncodeError::BadValue)?,
     })
 }
 
 /// An actor checked and quantized for the wire: [`QActor::checked`] of its [`wire_actor`].
 #[inline]
 fn checked_actor(a: &ActorView) -> Result<QActor, &'static str> {
-    QActor::checked(&wire_actor(a))
+    QActor::checked(&wire_actor(a)?)
 }
 
 /// Whether the protocol-6 actor fields match bit for bit (`0.0` and `-0.0`, or two NaNs, never count as equal).
@@ -1296,7 +1321,7 @@ mod tests {
                     phase(obs.phase),
                     t,
                     obs.me.as_ref().map(wire_self),
-                    obs.visible.iter().map(wire_actor),
+                    obs.visible.iter().map(|a| wire_actor(a).unwrap()),
                 )
                 .expect("builds");
                 assert_eq!(got, want);
@@ -1314,7 +1339,7 @@ mod tests {
 
     fn view(id: u32) -> ActorView {
         ActorView {
-            kind: 0,
+            kind: rh_sim::observe::ActorKind::Player,
             owner: None,
             mob_type: None,
             effects: 0,
@@ -1325,7 +1350,7 @@ mod tests {
             mark_tax: 0,
             sig: 0,
             id: rh_sim::PlayerId(id),
-            faction: FactionId::ALL[1],
+            faction: FactionId::ALL[1].into(),
             x: 100.3,
             y: 50.7,
             facing: 0.5,
@@ -1333,7 +1358,7 @@ mod tests {
             barrier_frac: 0.,
             barrier_ring_step: 0,
             status: Status::Alive,
-            weapon: rh_sim::content::WeaponId::ALL[2],
+            weapon: Some(rh_sim::content::WeaponId::ALL[2]),
             bounty: 3,
         }
     }
@@ -1353,7 +1378,10 @@ mod tests {
                 "mob type",
                 Box::new(|a| a.mob_type = Some(rh_sim::mob_catalog::MobTypeId::Archon)),
             ),
-            ("kind", Box::new(|a| a.kind = 1)),
+            (
+                "kind",
+                Box::new(|a| a.kind = rh_sim::observe::ActorKind::Regional),
+            ),
             ("effects", Box::new(|a| a.effects = 4096)),
             ("displacement", Box::new(|a| a.displace_seq = 255)),
             ("x", Box::new(|a| a.x = 101.25)),
@@ -1364,10 +1392,13 @@ mod tests {
             ("barrier ring", Box::new(|a| a.barrier_ring_step = 4)),
             ("bounty", Box::new(|a| a.bounty = 70_000)),
             ("status", Box::new(|a| a.status = Status::Dead)),
-            ("faction", Box::new(|a| a.faction = FactionId::ALL[3])),
+            (
+                "faction",
+                Box::new(|a| a.faction = FactionId::ALL[3].into()),
+            ),
             (
                 "weapon",
-                Box::new(|a| a.weapon = rh_sim::content::WeaponId::ALL[4]),
+                Box::new(|a| a.weapon = Some(rh_sim::content::WeaponId::ALL[4])),
             ),
             ("zero", Box::new(|a| a.x = 0.0)),
             ("negative zero", Box::new(|a| a.x = -0.0)),
@@ -1443,9 +1474,9 @@ mod tests {
                 for (w, a) in actors.iter().zip(&obs.visible) {
                     actors_seen += 1;
                     assert_eq!(w.id, a.id.0);
-                    assert_eq!(w.faction, a.faction.code());
+                    assert_eq!(w.faction, a.faction.faction_id().unwrap().code());
                     assert_eq!(w.status, status(a.status));
-                    assert_eq!(w.weapon, a.weapon.code());
+                    assert_eq!(w.weapon, a.weapon.unwrap().code());
                     assert_eq!(w.bounty, sat16(a.bounty));
                     assert_eq!(w.hp_pct, hp_pct(a.hp_frac));
                     worst_pos = worst_pos
@@ -1858,12 +1889,12 @@ mod tests {
         actor.barrier_ring_step = 3;
         actor.sig = 255;
         actor.mob_type = Some(rh_sim::mob_catalog::MobTypeId::Archon);
-        let wire = wire_actor(&actor);
+        let wire = wire_actor(&actor).unwrap();
         assert_eq!((wire.sig, wire.mob_type_code), (255, 30));
         assert_eq!((wire.barrier_pct, wire.barrier_ring_step), (25, 3));
         actor.sig = 0;
         actor.mob_type = None;
-        let wire = wire_actor(&actor);
+        let wire = wire_actor(&actor).unwrap();
         assert_eq!((wire.sig, wire.mob_type_code), (0, 0));
     }
 
@@ -1983,6 +2014,66 @@ mod tests {
             Ok(ServerMsg::Events { .. })
         ));
     }
+    #[test]
+    fn neutral_giver_and_unarmed_views_refuse_before_publisher_work() {
+        use rh_sim::{fighter::FighterAffiliation, observe::ActorKind};
+        let mut publisher = Publisher::default();
+        let good = view(5);
+        let expected = publisher.actors.get(&good);
+        let before = publisher.actors.slots.clone();
+        for actor in [
+            ActorView {
+                kind: ActorKind::QuestGiver,
+                ..good.clone()
+            },
+            ActorView {
+                faction: FighterAffiliation::Neutral,
+                ..good.clone()
+            },
+            ActorView {
+                weapon: None,
+                ..good.clone()
+            },
+            ActorView {
+                kind: ActorKind::QuestGiver,
+                faction: FighterAffiliation::Neutral,
+                weapon: None,
+                ..good.clone()
+            },
+        ] {
+            assert!(checked_actor(&actor).is_err());
+            publisher.obs.visible = vec![good.clone(), actor];
+            assert!(checked_snapshot(&publisher.obs, 0).is_err());
+            // Full, delta's spare buffer, and a new/resync publisher share this strict gate.
+            for spare in [
+                None,
+                Some(
+                    SnapshotData::build(0, 1, 0, None, [wire_actor(&good).unwrap()].into_iter())
+                        .unwrap(),
+                ),
+            ] {
+                let frames =
+                    publisher.build_observation_frames(spare, good.id, 0, &mut Vec::new(), &[]);
+                assert!(frames.snapshot.is_err() && frames.refused.is_some());
+                assert!(frames.important.is_none() && frames.fx.is_none());
+                assert_eq!(
+                    publisher.actors.slots, before,
+                    "refusal must not quantize/cache a prefix"
+                );
+            }
+            let mut fresh = Publisher {
+                obs: publisher.obs.clone(),
+                ..Default::default()
+            };
+            assert!(fresh
+                .build_observation_frames(None, good.id, 0, &mut Vec::new(), &[])
+                .snapshot
+                .is_err());
+            assert!(fresh.actors.slots.is_empty());
+        }
+        assert_eq!(publisher.actors.get(&good), expected);
+    }
+
     #[test]
     fn quest_profile_and_quest_facts_refuse_unsupported_transport() {
         let config = rh_sim::SimConfig {

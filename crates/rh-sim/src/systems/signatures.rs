@@ -135,9 +135,7 @@ fn largest<'a>(
     best.map(|(id, _)| id)
 }
 fn returning(w: &World, id: PlayerId) -> bool {
-    w.mobs
-        .get(id)
-        .is_some_and(|m| m.brain.mode == crate::mob_runtime::BrainMode::Return)
+    w.mobs.get(id).is_some_and(|m| m.returning())
 }
 pub(crate) fn after_weapons(cx: &mut Cx) {
     if cx.k.config.faction_mode.frost() {
@@ -333,12 +331,15 @@ pub(crate) fn before_damage(cx: &mut Cx) {
         // Source signature cadence deliberately excludes the attack-speed mirror.
         let cadence = |i| {
             let p = w.core(i);
-            content::attack_interval(&w.paced_sheet(i), p.active_weapon(), 1.) / p.signature.chill
+            // Source cadence returns zero when factionOf has no spec (e.g. a zombie recipient).
+            w.paced_faction_spec(i).map_or(0., |sheet| {
+                content::attack_interval(&sheet, p.active_weapon(), 1.) / p.signature.chill
+            })
         };
         let trade = ENGAGE_TRADE_SECONDS
             .max(cadence(ix).max(cadence(ti)) + ENGAGE_TRADE_SLACK_SECONDS)
             * 1000.;
-        let linger = if matches!(p.vitals.faction, FactionId::Fire | FactionId::Plague) {
+        let linger = if matches!(p.faction_id(), Some(FactionId::Fire | FactionId::Plague)) {
             p.modifiers.linger_mult()
         } else {
             1.
@@ -434,7 +435,7 @@ pub(crate) fn after_damage(cx: &mut Cx) {
     super::plague::after_damage(k, w, ev, &mut s.fx);
     // Festering Arcana: the damage-over-time signature stopped running on a target (source engagedOn).
     for i in 0..w.players.len() {
-        let faction = w.players[i].vitals.faction;
+        let faction = w.players[i].faction();
         let deals_dot = matches!(faction, FactionId::Fire | FactionId::Plague);
         let engaged = w.players[i].signature.engaged;
         let current = if deals_dot && engaged {

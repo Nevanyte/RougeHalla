@@ -501,12 +501,21 @@ fn compare_frame(sim: &Sim, frame: &serde_json::Value, events: &[Event]) -> Resu
         let got = got.ok_or_else(|| format!("{}: players[{i}] missing natively", ctx()))?;
         let prefix = || format!("{}: players[{i}]", ctx());
         check(
-            got.vitals.faction.as_str() == want["faction"].as_str().unwrap(),
+            got.vitals
+                .faction
+                .faction_id()
+                .expect("declared faction actor")
+                .as_str()
+                == want["faction"].as_str().unwrap(),
             || {
                 format!(
                     "{} faction {} != {}",
                     prefix(),
-                    got.vitals.faction.as_str(),
+                    got.vitals
+                        .faction
+                        .faction_id()
+                        .expect("declared faction actor")
+                        .as_str(),
                     want["faction"]
                 )
             },

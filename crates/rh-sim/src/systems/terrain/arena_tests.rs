@@ -251,7 +251,11 @@ fn compare_frame(sim: &Sim, f: &Value, ctx: &str, ev: &[Event]) {
             "{ctx}/{id}/status"
         );
         assert_eq!(
-            pl.vitals.faction.as_str(),
+            pl.vitals
+                .faction
+                .faction_id()
+                .expect("declared faction actor")
+                .as_str(),
             st["faction"].as_str().unwrap(),
             "{ctx}/{id}/faction"
         );

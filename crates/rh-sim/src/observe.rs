@@ -57,10 +57,22 @@ pub struct SelfView {
     pub plague_zombie: Option<PlayerId>,
 }
 
+/// Native actor identity; public protocol tags are checked by the server adapter.
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
+)]
+pub enum ActorKind {
+    Player,
+    Regional,
+    Zombie,
+    Dummy,
+    QuestGiver,
+}
+
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct ActorView {
     /// Kind 0 preserves human IDs; kind 1 uses the delivering observer's NPC reference namespace.
-    pub kind: u8,
+    pub kind: ActorKind,
     pub mob_type: Option<crate::mob_catalog::MobTypeId>,
     pub effects: u16,
     pub displace_seq: u8,
@@ -72,7 +84,7 @@ pub struct ActorView {
     /// The Plague owner of a kind-2 companion; None for players and regional mobs.
     pub owner: Option<PlayerId>,
     pub id: PlayerId,
-    pub faction: FactionId,
+    pub faction: crate::fighter::FighterAffiliation,
     pub x: f64,
     pub y: f64,
     pub facing: f64,
@@ -82,7 +94,7 @@ pub struct ActorView {
     /// Human ring cue (0..=8); NPCs have no source barrier cue.
     pub barrier_ring_step: u8,
     pub status: Status,
-    pub weapon: WeaponId,
+    pub weapon: Option<WeaponId>,
     pub bounty: u32,
 }
 
@@ -687,7 +699,7 @@ pub(crate) fn observe_with(
             ),
             attack_target: None,
             id: p.id,
-            faction: p.vitals.faction,
+            faction: p.faction(),
             x: p.body.x,
             y: p.body.y,
             facing: p.body.facing,
@@ -734,7 +746,7 @@ pub(crate) fn observe_with(
             }) {
                 let vitals = public_vitals(o.vitals.hp, o.vitals.max_hp, o.vitals.barrier)?;
                 out.visible.push(ActorView {
-                    kind: 0,
+                    kind: ActorKind::Player,
                     owner: None,
                     mob_type: None,
                     effects: o.statuses.effects,
@@ -756,7 +768,7 @@ pub(crate) fn observe_with(
                     barrier_frac: vitals.barrier_frac,
                     barrier_ring_step: vitals.ring,
                     status: o.status,
-                    weapon: o.active_weapon(),
+                    weapon: Some(o.active_weapon()),
                     bounty: o.credit.bounty,
                 });
             }
@@ -943,7 +955,7 @@ pub fn try_public_snapshot(sim: &Sim) -> Result<PublicSnapshot, crate::OfferErro
                 id: p.id,
                 name: p.seat.name.clone(),
                 bot: p.seat.bot,
-                faction: p.vitals.faction,
+                faction: p.faction(),
                 x: p.body.x,
                 y: p.body.y,
                 facing: p.body.facing,
@@ -989,11 +1001,14 @@ fn mob_view(
     let vitals = public_vitals(core.vitals.hp, core.vitals.max_hp, 0.)?;
     Ok(ActorView {
         kind: if mob.zombie.is_some() {
-            2
+            ActorKind::Zombie
         } else {
             match mob.kind {
-                crate::mob_runtime::MobKind::Dummy => 3,
-                crate::mob_runtime::MobKind::Regional | crate::mob_runtime::MobKind::Practice => 1,
+                crate::mob_runtime::MobKind::Dummy => ActorKind::Dummy,
+                crate::mob_runtime::MobKind::QuestGiver => ActorKind::QuestGiver,
+                crate::mob_runtime::MobKind::Regional | crate::mob_runtime::MobKind::Practice => {
+                    ActorKind::Regional
+                }
             }
         },
         owner: mob.owner,
@@ -1018,7 +1033,7 @@ fn mob_view(
         barrier_frac: 0.,
         barrier_ring_step: 0,
         status: mob.status,
-        weapon: core.active_weapon(),
+        weapon: (mob.kind != crate::mob_runtime::MobKind::QuestGiver).then(|| core.active_weapon()),
         bounty: 0,
     })
 }
@@ -1122,6 +1137,40 @@ mod tests {
                 },
             },
         ]
+    }
+
+    #[test]
+    fn neutral_giver_native_view_carries_no_invented_faction_or_weapon() {
+        use crate::mob_runtime::{ActorOrigin, ActorProvenance, Mob};
+        let sim = Sim::new(
+            Default::default(),
+            crate::arenas::practice_arena(),
+            crate::Secrets::from_seed(5),
+        );
+        // Declared constructor-only fixture; no quest publication or source outcome is installed.
+        let mob = Mob::born(
+            &ActorProvenance {
+                id: PlayerId(8),
+                origin: ActorOrigin::QuestGiver {
+                    birth_serial: 73,
+                    born_tick: 0,
+                    quest_id: 4,
+                    def: 0,
+                },
+            },
+            crate::Vec2::new(200., 300.),
+            1.25,
+            0.,
+        );
+        let view = mob_view(&sim.w, &mob).unwrap();
+        assert_eq!(view.kind, ActorKind::QuestGiver);
+        assert_eq!(view.faction, crate::fighter::FighterAffiliation::Neutral);
+        assert_eq!(view.weapon, None);
+        assert_eq!(view.mob_type, None);
+        assert_eq!(
+            (view.x, view.y, view.facing, view.hp_frac),
+            (200., 300., 1.25, 1.)
+        );
     }
 
     #[test]

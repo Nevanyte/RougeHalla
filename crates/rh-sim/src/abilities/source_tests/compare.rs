@@ -175,7 +175,7 @@ pub(super) fn compare(s: &Sim, frame: &V, name: &str, input: &V) {
             "source-born identity"
         );
         let dummy = m.kind == crate::mob_runtime::MobKind::Dummy;
-        let actual = json!({"x":p.body.x,"y":p.body.y,"facing":p.body.facing,"hp":p.vitals.hp,"maxHp":p.vitals.max_hp,"effects":p.statuses.effects,"displaceSeq":p.motion.displace_seq,"status":format!("{:?}",m.status).to_lowercase(),"faction":if dummy { "" } else { p.vitals.faction.as_str() },"type":m.mob_type.map_or("", |t|t.as_str()),"camp":if dummy { 0 } else { m.camp+1 },"home":if dummy { V::Null } else { json!(m.home) },"homeFacing":if dummy { V::Null } else { json!(m.home_facing) },"cast":p.statuses.cast.map(cast),"statuses":statuses(p)});
+        let actual = json!({"x":p.body.x,"y":p.body.y,"facing":p.body.facing,"hp":p.vitals.hp,"maxHp":p.vitals.max_hp,"effects":p.statuses.effects,"displaceSeq":p.motion.displace_seq,"status":format!("{:?}",m.status).to_lowercase(),"faction":if dummy { "" } else { p.vitals.faction.faction_id().expect("declared faction actor").as_str() },"type":m.mob_type.map_or("", |t|t.as_str()),"camp":if dummy { 0 } else { m.camp+1 },"home":if dummy { V::Null } else { json!(m.home) },"homeFacing":if dummy { V::Null } else { json!(m.home_facing) },"cast":p.statuses.cast.map(cast),"statuses":statuses(p)});
         let mut expected = json!({});
         for key in [
             "x",

@@ -80,7 +80,8 @@ pub(crate) fn tie_rank_origin(
         crate::mob_runtime::ActorOrigin::Player { join_ordinal } => (b"p", *join_ordinal, 10),
         crate::mob_runtime::ActorOrigin::Mob { birth_serial, .. }
         | crate::mob_runtime::ActorOrigin::Practice { birth_serial, .. }
-        | crate::mob_runtime::ActorOrigin::Dummy { birth_serial, .. } => {
+        | crate::mob_runtime::ActorOrigin::Dummy { birth_serial, .. }
+        | crate::mob_runtime::ActorOrigin::QuestGiver { birth_serial, .. } => {
             (b"mob", *birth_serial, 36)
         }
         crate::mob_runtime::ActorOrigin::Zombie { owner } => (b"zombie", owner.0, 10),

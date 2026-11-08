@@ -565,7 +565,7 @@ fn diagnostic_npc_bonus_mirrors_do_not_enter_base_mark_and_return_clears_mark() 
     let mut rows = vec![entry(id, PlayerId(1), 1., false)];
     before_damage(&s.k, &mut s.w, &mut rows, &mut Vec::new());
     assert_eq!(s.w.core(ix).signature.mark.hits, 1);
-    s.w.mobs.get_mut(id).unwrap().brain.mode = crate::mob_runtime::BrainMode::Return;
+    s.w.mobs.get_mut(id).unwrap().regional_brain_mut().mode = crate::mob_runtime::BrainMode::Return;
     let mut rows = vec![entry(id, PlayerId(1), 1., false)];
     before_damage(&s.k, &mut s.w, &mut rows, &mut Vec::new());
     assert_eq!(rows.len(), 1);

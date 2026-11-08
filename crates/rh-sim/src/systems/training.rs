@@ -344,7 +344,9 @@ pub(crate) fn validate_actors(
                     return Err("practice mob zone mismatch");
                 }
             }
-            MobKind::Regional => return Err("training world has a map-camp mob"),
+            MobKind::QuestGiver | MobKind::Regional => {
+                return Err("training world has a map-camp mob")
+            }
         }
         // The generic Frost recipient loops also reach admitted practice mobs and dummies: their shared signature tuple
         // must be validated on restore instead of being left unchecked.

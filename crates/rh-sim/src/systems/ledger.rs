@@ -597,11 +597,15 @@ fn apply_victim(
     if !pass.w.standing(ix) {
         return;
     }
-    let vf = pass.w.base_sheet(ix);
+    let defense = pass.w.defense(ix);
     // The armor mirror was folded after last tick's damage pass. A shred reaching
     // its boundary now still affects this hit; an axe in this pass takes effect afterwards.
-    let armor = (vf.armor + pass.w.core(ix).modifiers.mirrors().armor_bonus).max(0.0);
-    let shield = vf.shield + pass.w.core(ix).modifiers.mirrors().shield_bonus;
+    let (armor, shield) = defense.map_or((0., 0.), |(base_armor, base_shield)| {
+        (
+            (base_armor + pass.w.core(ix).modifiers.mirrors().armor_bonus).max(0.),
+            base_shield + pass.w.core(ix).modifiers.mirrors().shield_bonus,
+        )
+    });
     let Bufs {
         idxs,
         amounts,
@@ -1109,7 +1113,9 @@ pub(crate) fn record_hit(w: &mut World, ledger: &mut Vec<Entry>, mut entry: Entr
     if entry.scale > 0. && w.players.contains(entry.victim) {
         let now = w.server_time;
         if let Some(m) = entry.by.and_then(|id| w.mobs.get_mut(id)) {
-            m.brain.last_combat_at = now;
+            if let Some(brain) = &mut m.brain {
+                brain.last_combat_at = now;
+            }
         }
     }
     ledger.push(entry);

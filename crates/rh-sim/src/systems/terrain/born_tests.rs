@@ -162,7 +162,14 @@ fn snapshot(sim: &Sim, f: &Value, context: &str) {
             st["weapon1"].as_str().unwrap()
         );
         assert_eq!(c.weapon.slot as u64, st["slot"].as_u64().unwrap());
-        assert_eq!(c.vitals.faction.as_str(), st["faction"].as_str().unwrap());
+        assert_eq!(
+            c.vitals
+                .faction
+                .faction_id()
+                .expect("declared faction actor")
+                .as_str(),
+            st["faction"].as_str().unwrap()
+        );
         compare(
             &json!(c.motion.path.as_slice()),
             &rt["path"],
@@ -266,8 +273,8 @@ fn snapshot(sim: &Sim, f: &Value, context: &str) {
                 format!("{:?}", m.status).to_lowercase(),
                 st["status"].as_str().unwrap()
             );
-            let b = &m.brain;
-            let brain = json!({"region":c.vitals.faction.as_str(),"elite":m.elite,"home":m.home,"homeFacing":m.home_facing,"mode":format!("{:?}",b.mode).to_lowercase(),"target":b.target.map(label),"threat":rows(&b.threat),"lastCombatAt":b.last_combat_at,"lastMoveAt":b.last_move_at,"goal":b.goal,"moving":b.moving,"holding":b.holding,"phase":m.repath_phase,"diedAt":b.died_at,"lastAim":b.last_aim.map_or(json!("NaN"),|x|json!(x))});
+            let b = m.regional_brain();
+            let brain = json!({"region":c.vitals.faction.faction_id().expect("declared faction actor").as_str(),"elite":m.elite,"home":m.home,"homeFacing":m.home_facing,"mode":format!("{:?}",b.mode).to_lowercase(),"target":b.target.map(label),"threat":rows(&b.threat),"lastCombatAt":b.last_combat_at,"lastMoveAt":b.last_move_at,"goal":b.goal,"moving":b.moving,"holding":b.holding,"phase":m.repath_phase,"diedAt":b.died_at,"lastAim":b.last_aim.map_or(json!("NaN"),|x|json!(x))});
             compare(&brain, &rt["brain"], &format!("{ctx}/brain"));
             close(m.last_hit_at, n(rt, "lastHitAt"), &ctx);
         }
@@ -439,7 +446,7 @@ fn terrain_born_kernel_all_cases_fully_compared() {
                         c.body.history = serde_json::from_value(a["history"].clone()).unwrap();
                     }
                     if a["mode"] == "return" {
-                        sim.w.mobs[ix.slot() - 2].brain.mode =
+                        sim.w.mobs[ix.slot() - 2].regional_brain_mut().mode =
                             crate::mob_runtime::BrainMode::Return;
                     }
                 }

@@ -1071,7 +1071,7 @@ impl Room {
             if !player.seat.bot {
                 humans += 1;
             }
-            let faction = player.core.vitals.faction;
+            let faction = player.faction();
             if let Some(index) = FactionId::ALL.iter().position(|known| *known == faction) {
                 factions[index] += 1;
             }
@@ -3323,7 +3323,7 @@ mod tests {
                 .sim
                 .players()
                 .iter()
-                .map(|p| (p.seat.name.clone(), p.core.vitals.faction, p.seat.bot))
+                .map(|p| (p.seat.name.clone(), p.faction(), p.seat.bot))
                 .collect();
             (before, first_arrival, lines, players, room.sim.phase())
         };

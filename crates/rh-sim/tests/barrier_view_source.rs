@@ -350,7 +350,7 @@ fn source_npc_absence_and_hidden_invalid_barriers_remain_explicitly_narrow() {
     let dummy = seen
         .visible
         .iter()
-        .find(|v| v.kind == 3)
+        .find(|v| v.kind == rh_sim::observe::ActorKind::Dummy)
         .expect("actual training NPC is visible");
     let expected = npc["supported"]["frameMobs"]
         .as_array()

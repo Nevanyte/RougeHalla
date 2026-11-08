@@ -211,7 +211,7 @@ pub fn roll_stat_trades(
         TRADE_FLAT_SCALE, TRADE_GAIN_FLAT_FLOOR, TRADE_GAIN_SHARE, TRADE_OFFER_COUNT,
         TRADE_PCT_SCALE,
     };
-    let faction = crate::content::faction(p.vitals.faction);
+    let faction = crate::content::faction(p.faction());
     let m = p.modifiers.mirrors();
     let base_hp = faction.hp;
     let mult_of_ap = p.modifiers.mult_of(crate::stat_fold::MultKey::Ap);

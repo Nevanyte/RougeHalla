@@ -129,7 +129,7 @@ pub(crate) fn canon(e: &Event, sim: &Sim) -> Option<Value> {
                     format!(
                         "Hunting {} · {}",
                         p.map_or("", |p| p.seat.name.as_str()),
-                        p.map_or("", |p| p.vitals.faction.as_str())
+                        p.map_or("", |p| p.faction().as_str())
                     )
                 }
                 rh_sim::events::MarkNotice::HuntComplete { .. } => format!(

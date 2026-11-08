@@ -120,6 +120,7 @@ fn role(sim: &Sim, id: PlayerId) -> &'static str {
             }
             MobKind::Practice => "practice",
             MobKind::Regional => "mob",
+            MobKind::QuestGiver => panic!("givers are not admitted in training"),
         },
     }
 }
@@ -192,7 +193,7 @@ fn project(sim: &Sim) -> Value {
             .collect(),
     );
     let player = json!({
-        "faction": p.core.vitals.faction.as_str(),
+        "faction": p.core.vitals.faction.faction_id().expect("declared faction actor").as_str(),
         "x": num(r6(p.core.pos().x)),
         "y": num(r6(p.core.pos().y)),
         "hp": num(r6(p.core.vitals.hp)),
@@ -219,6 +220,7 @@ fn project(sim: &Sim) -> Value {
                 "kind": match m.kind {
                     MobKind::Dummy => "dummy",
                     MobKind::Practice | MobKind::Regional => "mob",
+            MobKind::QuestGiver => panic!("givers are not admitted in training"),
                 },
                 "type": m.mob_type.map_or("", |t| t.as_str()),
                 "elite": m.elite,
