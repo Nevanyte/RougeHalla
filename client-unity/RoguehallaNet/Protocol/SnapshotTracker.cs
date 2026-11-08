@@ -109,11 +109,19 @@ namespace Roguehalla.Net.Protocol
             _tick = d.Tick;
             if (d.HasPhase) _phase = d.Phase;
             s.Tick = d.Tick; s.Phase = _phase; s.AckInput = d.AckInput; s.Training = d.Training; _training = d.Training;
+            // Source time is per-frame: an absent override means this delta's tick clock, never the base snapshot's value.
+            s.ServerTimeOverrideMs = d.ServerTimeOverrideMs;
             if (d.HasSelf)
             {
                 var me = s.Me ?? new WireSelf();
                 me.CopyFrom(_me);
                 d.Me.ApplyTo(me);
+                if (d.HasWish)
+                {
+                    if (d.Wish == null) me.Wish = null;
+                    else { if (me.Wish == null) me.Wish = new WireWishOwner(); me.Wish.CopyFrom(d.Wish); }
+                }
+                if (d.HasBarrier) { me.Barrier = d.Barrier; me.BarrierRingStep = d.BarrierRingStep; }
                 _me.CopyFrom(me);
                 s.Me = me;
             }
@@ -150,6 +158,7 @@ namespace Roguehalla.Net.Protocol
             if ((ch.Mask & ActorDelta.MDisplace) != 0) a.DisplaceSeq = ch.DisplaceSeq;
             if ((ch.Mask & ActorDelta.MMobType) != 0) a.MobTypeCode = ch.MobTypeCode;
             if ((ch.Mask & ActorDelta.MSig) != 0) a.Sig = ch.Sig;
+            if ((ch.Mask & ActorDelta.MBarrier) != 0) { a.BarrierPct = ch.BarrierPct; a.BarrierRingStep = ch.BarrierRingStep; }
             return a;
         }
 

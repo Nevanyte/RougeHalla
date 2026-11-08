@@ -8,7 +8,7 @@ namespace Roguehalla.Net.Tests
     /// <summary>
     /// Heap garbage of the per-snapshot client paths, measured with GC.GetAllocatedBytesForCurrentThread (exact, per thread)
     /// over many iterations. Unity WebGL's GC is non-generational, so steady-state garbage is what makes frames hitch.
-    /// Budget: decode at most 24 B per actor + 64 B per snapshot; Sample 0 B. (Before value-type actors: 200 + 48 B per actor
+    /// Budget: decode at most 32 B per actor + 88 B per snapshot; Sample 0 B. (Before value-type actors: 200 + 48 B per actor
     /// with a self, 144 + 48 per actor without.)
     /// </summary>
     public class GarbageTests
@@ -28,12 +28,35 @@ namespace Roguehalla.Net.Tests
             return new ServerMsg.Snapshot { Tick = tick, Phase = 1, AckInput = tick, Me = me ? Self(tick) : null, Actors = a };
         }
 
+        static ServerMsg.Snapshot WishSnap(uint tick)
+        {
+            return new ServerMsg.Snapshot
+            {
+                Tick = tick, AckInput = tick,
+                Me = new WireSelf
+                {
+                    Id = 3,
+                    Wish = new WireWishOwner
+                    {
+                        Ability = 3, ReadyAt = 1200, FullAt = 2000, MaxCharges = 2, RechargeMs = 800, Charges = 1, NextChargeAt = 1600,
+                        Cast = new WireWishCast { Ability = 3, StartedAt = 1100, LandsAt = 1250 }
+                    }
+                }
+            };
+        }
+
         /// <summary>First tick whose varint is three bytes: a frame encoded at <see cref="BaseTick"/> can be re-stamped in place.</summary>
         const uint BaseTick = 20000;
 
         /// <summary>Overwrites a Snapshot frame's tick (the three-byte varint at bytes 1..3) in place, so one frame can be delivered
         /// as a stream. The frame must have been encoded with a tick of 16384 to 2097151.</summary>
         static void SetTick(byte[] frame, uint tick)
+        {
+            if (tick < 16384u || tick > 2097151u) throw new ArgumentOutOfRangeException(nameof(tick));
+            frame[1] = (byte)((tick & 0x7f) | 0x80); frame[2] = (byte)(((tick >> 7) & 0x7f) | 0x80); frame[3] = (byte)(tick >> 14);
+        }
+
+        static void SetDeltaTick(byte[] frame, uint tick)
         {
             if (tick < 16384u || tick > 2097151u) throw new ArgumentOutOfRangeException(nameof(tick));
             frame[1] = (byte)((tick & 0x7f) | 0x80); frame[2] = (byte)(((tick >> 7) & 0x7f) | 0x80); frame[3] = (byte)(tick >> 14);
@@ -64,9 +87,9 @@ namespace Roguehalla.Net.Tests
         {
             double withMe = DecodeGarbage(actors, true), spectator = DecodeGarbage(actors, false);
             TestContext.Progress.WriteLine("plain decode, {0} actors: {1} B with a self, {2} B without", actors, withMe, spectator);
-            // Snapshot object (56 B) + array header (24 B) + 28 B per actor (v6 effects/displacement); a self adds one 72 B object (v7 hunt fields). No reader object.
-            Assert.LessOrEqual(spectator, 28.0 * actors + 80);
-            Assert.LessOrEqual(withMe, 28.0 * actors + 160);
+            // Snapshot object (64 B) + array header (24 B) + 32 B per actor (v12 barrier share); a self adds one 88 B object (wish and barrier owner facts). No reader object.
+            Assert.LessOrEqual(spectator, 32.0 * actors + 88);
+            Assert.LessOrEqual(withMe, 32.0 * actors + 176);
         }
 
         /// <summary>Decode into the buffer's spare, as Session does. <paramref name="vary"/> alternates the actor count every
@@ -97,7 +120,39 @@ namespace Roguehalla.Net.Tests
             double steady = PooledGarbage(actors, false), varying = PooledGarbage(actors, true);
             TestContext.Progress.WriteLine("decode into spare, {0} actors: {1} B steady, {2} B when the count changes every snapshot", actors, steady, varying);
             Assert.AreEqual(0.0, steady);
-            Assert.LessOrEqual(varying, 28.0 * (actors + 1) + 64);
+            Assert.LessOrEqual(varying, 32.0 * (actors + 1) + 64);
+        }
+
+        [Test]
+        public void DecodeIntoTheSpareReusesPresentWishOwnerAndCastWithoutSteadyAllocations()
+        {
+            byte[] frame = WishSnap(BaseTick).Encode();
+            var buf = new SnapshotBuffer(); int refused = 0;
+            double allocated = PerCall(i =>
+            {
+                SetTick(frame, BaseTick + (uint)i);
+                var spare = buf.TakeSpare();
+                var msg = (ServerMsg.Snapshot)ServerMsg.Decode(frame, frame.Length, spare);
+                if (!buf.Add(msg)) refused++;
+            });
+            Assert.AreEqual(0, refused); Assert.AreEqual(40, buf.Count); Assert.AreEqual(0.0, allocated);
+        }
+
+        [Test]
+        public void SnapshotTrackerCopiesUnchangedWishOwnerAndCastWithoutSteadyAllocations()
+        {
+            var tracker = new SnapshotTracker();
+            byte[] full = WishSnap(BaseTick).Encode();
+            tracker.Decode(full, full.Length, new ServerMsg.Snapshot());
+            var delta = new ServerMsg.SnapshotDelta { Tick = BaseTick + 1, BaseTick = BaseTick, AckInput = 0, HasSelf = true };
+            byte[] frame = delta.Encode(); var reuse = new ServerMsg.Snapshot(); object sink = null;
+            double allocated = PerCall(i =>
+            {
+                SetDeltaTick(frame, BaseTick + 1u + (uint)i);
+                sink = tracker.Decode(frame, frame.Length, reuse);
+            });
+            GC.KeepAlive(sink);
+            Assert.AreSame(reuse, sink); Assert.IsNotNull(reuse.Me.Wish); Assert.IsNotNull(reuse.Me.Wish.Cast); Assert.AreEqual(0.0, allocated);
         }
 
         [TestCase(1)]
@@ -346,7 +401,7 @@ namespace Roguehalla.Net.Tests
         {
             Assert.IsTrue(typeof(WireActor).IsValueType);
             Assert.IsFalse(typeof(WireSelf).IsValueType, "WireSelf stays a class: Snapshot.Me is null for a spectator");
-            Assert.AreEqual(28, System.Runtime.CompilerServices.Unsafe.SizeOf<WireActor>());
+            Assert.AreEqual(32, System.Runtime.CompilerServices.Unsafe.SizeOf<WireActor>());
         }
 
         [Test]

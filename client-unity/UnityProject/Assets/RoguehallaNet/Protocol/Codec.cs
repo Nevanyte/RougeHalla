@@ -6,10 +6,10 @@ namespace Roguehalla.Net.Protocol
     /// <summary>Wire constants of rh-protocol v5 (crates/rh-protocol/src/lib.rs).</summary>
     public static class Wire
     {
-        public const ushort ProtocolVersion = 11;
+        public const ushort ProtocolVersion = 12;
         /// <summary>Most ticks a snapshot delta's base may be behind it (a writer that skipped more sends a Full snapshot).</summary>
         public const uint MaxDeltaAge = 64;
-        /// <summary>Milliseconds per server tick: a Snapshot's server time is Tick * TickMs, exactly (it is not sent).</summary>
+        /// <summary>Milliseconds per server tick: a snapshot without a source-time override defaults to Tick * TickMs.</summary>
         public const int TickMs = 50;
         /// <summary>Largest faction and weapon (4 bits each in the kit byte), status and phase (2 bits each) a frame can carry.</summary>
         public const int MaxKitCode = 15, MaxStatusCode = 3, MaxPhaseCode = 3;

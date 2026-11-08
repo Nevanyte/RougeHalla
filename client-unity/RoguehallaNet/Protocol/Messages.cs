@@ -11,7 +11,7 @@ namespace Roguehalla.Net.Protocol
         Malformed = 7, TooSlow = 8, ServerDraining = 9, NoSuchSession = 10, Kicked = 11,
     }
 
-    public enum CommandKind : byte { Move = 1, Stop = 2, Aim = 3, Attack = 4, Release = 5, Swap = 6, Pickup = 7, Choose = 8, UseConsumable = 9, Target = 10, AttackMove = 11, HuntTarget = 12, ConsumeCorpse = 13, Plan = 14, Train = 15 }
+    public enum CommandKind : byte { Move = 1, Stop = 2, Aim = 3, Attack = 4, Release = 5, Swap = 6, Pickup = 7, Choose = 8, UseConsumable = 9, Target = 10, AttackMove = 11, HuntTarget = 12, ConsumeCorpse = 13, Plan = 14, Train = 15, Cast = 16 }
 
     /// <summary>A client command. Only the fields of its Kind are meaningful.</summary>
     public sealed class WireCommand
@@ -41,6 +41,14 @@ namespace Roguehalla.Net.Protocol
         public ulong TrainCount;
         /// <summary>The chest's chosen card positions (Train, chest only; at most three).</summary>
         public byte[] TrainOptions = Array.Empty<byte>();
+
+        /// <summary>A user-initiated cast request. Slot is a client command slot; server-owned ability and outcome are never sent.</summary>
+        public static WireCommand Cast(byte slot, float x, float y, uint? actor = null, double? t = null, byte? seq = null)
+        {
+            if (slot > 2) throw new ArgumentOutOfRangeException(nameof(slot));
+            if (actor == 0) throw new ArgumentOutOfRangeException(nameof(actor));
+            return new WireCommand { Kind = CommandKind.Cast, Slot = slot, X = x, Y = y, ActorRef = actor ?? 0, T = t, Seq = seq };
+        }
 
         public static WireCommand Train(byte command, uint id, ulong count, byte[] options = null)
         {
@@ -125,6 +133,16 @@ namespace Roguehalla.Net.Protocol
                                 var opts = on == 0 ? Array.Empty<byte>() : new byte[on];
                                 for (int k = 0; k < on; k++) opts[k] = r.U8();
                                 inp.Commands.Add(WireCommand.Train(cmd, id, count, opts));
+                                break;
+                            }
+                            case 16:
+                            {
+                                byte slot = r.U8(); if (slot > 2) throw new DecodeException(DecodeError.BadField, "cast slot");
+                                float x = r.F32(), y = r.F32();
+                                uint? actor = null; if (r.Flag()) { uint id = r.U32(); if (id == 0) throw new DecodeException(DecodeError.BadField, "cast actor reference"); actor = id; }
+                                double? t = r.Flag() ? r.F64() : (double?)null;
+                                byte? seq = r.Flag() ? r.U8() : (byte?)null;
+                                inp.Commands.Add(WireCommand.Cast(slot, x, y, actor, t, seq));
                                 break;
                             }
                             case 1: { float x = r.F32(), y = r.F32(); inp.Commands.Add(WireCommand.Move(x, y, r.Flag() ? r.U8() : (byte?)null)); break; }
@@ -220,6 +238,14 @@ namespace Roguehalla.Net.Protocol
                             w.U8(c.TrainCommand); w.Varint(c.TrainId); w.U64(c.TrainCount); w.U8((byte)c.TrainOptions.Length);
                             foreach (byte o in c.TrainOptions) w.U8(o);
                             break;
+                        case CommandKind.Cast:
+                            if (!c.Slot.HasValue || c.Slot.Value > 2) throw new ArgumentException("cast slot");
+                            if (float.IsNaN(c.X) || float.IsInfinity(c.X) || float.IsNaN(c.Y) || float.IsInfinity(c.Y) || (c.T.HasValue && (double.IsNaN(c.T.Value) || double.IsInfinity(c.T.Value)))) throw new ArgumentException("cast values must be finite");
+                            w.U8(c.Slot ?? 0); w.F32(c.X); w.F32(c.Y);
+                            w.U8(c.ActorRef != 0 ? (byte)1 : (byte)0); if (c.ActorRef != 0) w.U32(c.ActorRef);
+                            if (c.T.HasValue) { w.U8(1); w.F64(c.T.Value); } else w.U8(0);
+                            Opt(w, c.Seq);
+                            break;
                     }
                 }
                 return w.Finish();
@@ -246,6 +272,7 @@ namespace Roguehalla.Net.Protocol
                     case CommandKind.Attack:
                     case CommandKind.Release: return 5 + (c.T.HasValue ? 9 : 1);
                     case CommandKind.Train: return 3 + Writer.VarintLength(c.TrainId) + 8 + c.TrainOptions.Length;
+                    case CommandKind.Cast: return 13 + (c.ActorRef != 0 ? 4 : 0) + (c.T.HasValue ? 8 : 0) + (c.Seq.HasValue ? 1 : 0);
                     default: throw new ArgumentException("command kind");
                 }
             }
@@ -282,19 +309,28 @@ namespace Roguehalla.Net.Protocol
         public ushort Effects;
         public uint? HuntTarget;
         public ushort HuntStacks;
+        /// <summary>Optional authoritative Wish owner record. Null means no owner publication is present.</summary>
+        public WireWishOwner Wish;
+        /// <summary>Authoritative owner barrier amount.</summary>
+        public float Barrier;
+        /// <summary>Authoritative owner barrier ring step (0..8).</summary>
+        public byte BarrierRingStep;
 
         internal void CopyFrom(WireSelf o)
         {
             Id = o.Id; Faction = o.Faction; X = o.X; Y = o.Y; Facing = o.Facing; Hp = o.Hp; MaxHp = o.MaxHp; Status = o.Status; Weapon = o.Weapon;
             ReadyInMs = o.ReadyInMs; Kills = o.Kills; Bounty = o.Bounty; Gv = o.Gv; MoveSeq = o.MoveSeq; Effects = o.Effects; DisplaceSeq = o.DisplaceSeq; Sig = o.Sig;
             HuntTarget = o.HuntTarget; HuntStacks = o.HuntStacks;
+            if (o.Wish == null) Wish = null;
+            else { if (Wish == null) Wish = new WireWishOwner(); Wish.CopyFrom(o.Wish); }
+            Barrier = o.Barrier; BarrierRingStep = o.BarrierRingStep;
         }
 
         // Head bits (rh-protocol lib.rs, append only): a varint, so bits below 7 take one byte.
         internal const uint HPresent = 1 << 0, HKit = 1 << 1, HHp = 1 << 2, HReady = 1 << 3, HKills = 1 << 4, HBounty = 1 << 5,
             HMoveSeq = 1 << 6, HGv = 1 << 7, HMaxHpF32 = 1 << 8, HStatus = 1 << 9, HPhase = 1 << 10, HEffects = 1 << 11, HDisplace = 1 << 12, HSig = 1 << 13,
-            HHuntTarget = 1 << 14, HHuntStacks = 1 << 15, HTraining = 1 << 16;
-        internal const uint SelfBits = 0x03ff | HEffects | HDisplace | HSig | HHuntTarget | HHuntStacks, Known = SelfBits | HPhase | HTraining;
+            HHuntTarget = 1 << 14, HHuntStacks = 1 << 15, HTraining = 1 << 16, HWish = 1 << 17, HBarrier = 1 << 18, HServerTime = 1 << 19;
+        internal const uint SelfBits = 0x03ff | HEffects | HDisplace | HSig | HHuntTarget | HHuntStacks, Known = SelfBits | HPhase | HTraining | HWish | HBarrier | HServerTime;
 
         static bool MaxHpIsVarint(float v)
         {
@@ -323,6 +359,8 @@ namespace Roguehalla.Net.Protocol
             if (Sig != 0) m |= HSig;
             if (HuntTarget.HasValue) m |= HHuntTarget;
             if (HuntStacks != 0) m |= HHuntStacks;
+            if (Wish != null) m |= HWish;
+            if (BitConverter.SingleToInt32Bits(Barrier) != BitConverter.SingleToInt32Bits(0f) || BarrierRingStep != 0) m |= HBarrier;
             return m;
         }
 
@@ -347,7 +385,15 @@ namespace Roguehalla.Net.Protocol
             if ((head & HSig) != 0) n += 1;
             if (HuntTarget.HasValue) n += Writer.VarintLength(HuntTarget.Value);
             if ((head & HHuntStacks) != 0) n += Writer.VarintLength(HuntStacks);
+            if ((head & HWish) != 0) n += WireWishOwnerLength(Wish);
+            if ((head & HBarrier) != 0) n += 5;
             return n;
+        }
+
+        static int WireWishOwnerLength(WireWishOwner v)
+        {
+            WishWire.ValidateOwner(v);
+            return 1 + 8 + (v.FullAt.HasValue ? 9 : 1) + 1 + 8 + 1 + (v.NextChargeAt.HasValue ? 9 : 1) + 1 + (v.Cast == null ? 0 : 17);
         }
 
         /// <summary>Reads the self after its head (<paramref name="head"/> has HPresent set); the phase, if the head has one, is the caller's.</summary>
@@ -368,6 +414,11 @@ namespace Roguehalla.Net.Protocol
             Sig = (head & HSig) != 0 ? r.U8() : (byte)0;
             if ((head & HHuntTarget) != 0) { uint t = r.Varint(); if (t == 0) throw new DecodeException(DecodeError.BadField, "hunt target"); HuntTarget = t; } else HuntTarget = null;
             HuntStacks = (head & HHuntStacks) != 0 ? r.VarintU16("hunt_stacks") : (ushort)0;
+            Wish = (head & HWish) != 0 ? WishWire.ReadOwner(ref r, Wish) : null;
+            if ((head & HBarrier) != 0) { Barrier = r.F32(); BarrierRingStep = r.U8(); }
+            else { Barrier = 0f; BarrierRingStep = 0; }
+            if (Barrier < 0 || float.IsNaN(Barrier) || float.IsInfinity(Barrier) || BarrierRingStep > 8)
+                throw new DecodeException(DecodeError.BadField, "barrier");
         }
 
         internal void Write(Writer w, uint head)
@@ -387,7 +438,98 @@ namespace Roguehalla.Net.Protocol
             if ((head & HSig) != 0) w.U8(Sig);
             if (HuntTarget.HasValue) w.Varint(HuntTarget.Value);
             if ((head & HHuntStacks) != 0) w.Varint(HuntStacks);
+            if ((head & HWish) != 0) WishWire.WriteOwner(w, Wish);
+            if ((head & HBarrier) != 0) { WishWire.ValidateBarrier(Barrier, BarrierRingStep); w.F32(Barrier); w.U8(BarrierRingStep); }
         }
+    }
+
+    /// <summary>Server-published stock and timing facts for the receiving player's Wish.</summary>
+    public sealed class WireWishOwner
+    {
+        public byte Ability;
+        public double ReadyAt, RechargeMs;
+        public double? FullAt, NextChargeAt;
+        public byte MaxCharges, Charges;
+        public WireWishCast Cast;
+
+        internal void CopyFrom(WireWishOwner o)
+        {
+            Ability = o.Ability; ReadyAt = o.ReadyAt; FullAt = o.FullAt; MaxCharges = o.MaxCharges;
+            RechargeMs = o.RechargeMs; Charges = o.Charges; NextChargeAt = o.NextChargeAt;
+            if (o.Cast == null) Cast = null;
+            else { if (Cast == null) Cast = new WireWishCast(); Cast.CopyFrom(o.Cast); }
+        }
+    }
+
+    /// <summary>Public authoritative identity and deadlines of the currently active Wish cast.</summary>
+    public sealed class WireWishCast
+    {
+        public byte Ability;
+        public double StartedAt, LandsAt;
+
+        internal void CopyFrom(WireWishCast o) { Ability = o.Ability; StartedAt = o.StartedAt; LandsAt = o.LandsAt; }
+    }
+
+    /// <summary>Field validation and shared wire primitives for protocol-12 Wish and barrier facts.</summary>
+    internal static class WishWire
+    {
+        internal const byte MaxAbility = 4, BlazeAbility = 3;
+
+        static bool Clock(double v) { return v >= 0 && !double.IsNaN(v) && !double.IsInfinity(v); }
+        static bool Amount(float v) { return v >= 0 && !float.IsNaN(v) && !float.IsInfinity(v); }
+        internal static void ValidateOwner(WireWishOwner v)
+        {
+            if (v == null || v.Ability > MaxAbility || !Clock(v.ReadyAt) || (v.FullAt.HasValue && !Clock(v.FullAt.Value)) ||
+                v.MaxCharges < 1 || v.MaxCharges > 2 || !Clock(v.RechargeMs) || v.Charges > v.MaxCharges ||
+                (v.NextChargeAt.HasValue && !Clock(v.NextChargeAt.Value))) throw new ArgumentException("wish owner fields");
+            if (v.Cast != null && (v.Cast.Ability > MaxAbility || !Clock(v.Cast.StartedAt) || !Clock(v.Cast.LandsAt) || v.Cast.StartedAt > v.Cast.LandsAt))
+                throw new ArgumentException("wish cast fields");
+        }
+        internal static void ValidateBarrier(float barrier, byte ring)
+        {
+            if (!Amount(barrier) || ring > 8) throw new ArgumentException("barrier");
+        }
+        internal static void ValidateClock(double time, string what)
+        {
+            if (!Clock(time)) throw new ArgumentException(what);
+        }
+        internal static void WriteOwner(Writer w, WireWishOwner v)
+        {
+            ValidateOwner(v);
+            w.U8(v.Ability); w.F64(v.ReadyAt); OptF64(w, v.FullAt); w.U8(v.MaxCharges); w.F64(v.RechargeMs); w.U8(v.Charges);
+            OptF64(w, v.NextChargeAt);
+            w.U8(v.Cast == null ? (byte)0 : (byte)1);
+            if (v.Cast != null) { w.U8(v.Cast.Ability); w.F64(v.Cast.StartedAt); w.F64(v.Cast.LandsAt); }
+        }
+        internal static WireWishOwner ReadOwner(ref Reader r, WireWishOwner reuse = null)
+        {
+            var v = reuse ?? new WireWishOwner();
+            v.Ability = r.Code(MaxAbility, "wish ability"); v.ReadyAt = r.F64();
+            v.FullAt = r.Flag() ? r.F64() : (double?)null;
+            v.MaxCharges = r.U8(); v.RechargeMs = r.F64(); v.Charges = r.U8();
+            v.NextChargeAt = r.Flag() ? r.F64() : (double?)null;
+            if (r.Flag())
+            {
+                if (v.Cast == null) v.Cast = new WireWishCast();
+                v.Cast.Ability = r.Code(MaxAbility, "wish cast ability"); v.Cast.StartedAt = r.F64(); v.Cast.LandsAt = r.F64();
+            }
+            else v.Cast = null;
+            if (!Clock(v.ReadyAt) || (v.FullAt.HasValue && !Clock(v.FullAt.Value)) || v.MaxCharges < 1 || v.MaxCharges > 2 ||
+                !Clock(v.RechargeMs) || v.Charges > v.MaxCharges || (v.NextChargeAt.HasValue && !Clock(v.NextChargeAt.Value)) ||
+                (v.Cast != null && (!Clock(v.Cast.StartedAt) || !Clock(v.Cast.LandsAt) || v.Cast.StartedAt > v.Cast.LandsAt)))
+                throw new DecodeException(DecodeError.BadField, "wish owner");
+            return v;
+        }
+        internal static void WritePoint(Writer w, float x, float y)
+        {
+            if (!Quant.PosInRange(x) || !Quant.PosInRange(y)) throw new ArgumentException("position");
+            w.U16(Quant.QuantizePos(x)); w.U16(Quant.QuantizePos(y));
+        }
+        internal static void ReadPoint(ref Reader r, out float x, out float y)
+        {
+            x = Quant.DequantizePos(r.U16()); y = Quant.DequantizePos(r.U16());
+        }
+        internal static void OptF64(Writer w, double? v) { if (v.HasValue) { w.U8(1); w.F64(v.Value); } else w.U8(0); }
     }
 
     /// <summary>
@@ -407,9 +549,11 @@ namespace Roguehalla.Net.Protocol
         /// <summary>What the entity is: 0 = player (the default; costs no byte). The id namespace is shared by every kind.</summary>
         public byte Kind, DisplaceSeq, MobTypeCode, Sig;
         public ushort Effects;
+        /// <summary>Authoritative per-observer barrier share.</summary>
+        public byte BarrierPct, BarrierRingStep;
 
         // Full actor mask bits (append only): 0 kit, 1 hp, 2 status, 3 bounty, 4 kind. A varint.
-        internal const uint MKit = 1 << 0, MHp = 1 << 1, MStatus = 1 << 2, MBounty = 1 << 3, MKind = 1 << 4, MEffects = 1 << 5, MDisplace = 1 << 6, MMobType = 1 << 7, MSig = 1 << 8, MKnown = MKit | MHp | MStatus | MBounty | MKind | MEffects | MDisplace | MMobType | MSig;
+        internal const uint MKit = 1 << 0, MHp = 1 << 1, MStatus = 1 << 2, MBounty = 1 << 3, MKind = 1 << 4, MEffects = 1 << 5, MDisplace = 1 << 6, MMobType = 1 << 7, MSig = 1 << 8, MBarrier = 1 << 9, MKnown = MKit | MHp | MStatus | MBounty | MKind | MEffects | MDisplace | MMobType | MSig | MBarrier;
         internal const byte DefaultHpPct = 100;
 
         internal uint Mask()
@@ -425,6 +569,7 @@ namespace Roguehalla.Net.Protocol
             if (MobTypeCode > 30) throw new ArgumentException("mob type");
             if (MobTypeCode != 0) m |= MMobType;
             if (Sig != 0) m |= MSig;
+            if (BarrierPct != 0 || BarrierRingStep != 0) m |= MBarrier;
             return m;
         }
 
@@ -434,13 +579,13 @@ namespace Roguehalla.Net.Protocol
         {
             uint m = Mask();
             return Writer.VarintLength(IdField(Id, first, prev)) + Writer.VarintLength(m) + 6 + ((m & MKit) != 0 ? 1 : 0) + ((m & MHp) != 0 ? 1 : 0)
-                + ((m & MStatus) != 0 ? 1 : 0) + ((m & MBounty) != 0 ? Writer.VarintLength(Bounty) : 0) + ((m & MKind) != 0 ? 1 : 0) + ((m & MEffects) != 0 ? 2 : 0) + ((m & MDisplace) != 0 ? 1 : 0) + ((m & MMobType) != 0 ? 1 : 0) + ((m & MSig) != 0 ? 1 : 0);
+                + ((m & MStatus) != 0 ? 1 : 0) + ((m & MBounty) != 0 ? Writer.VarintLength(Bounty) : 0) + ((m & MKind) != 0 ? 1 : 0) + ((m & MEffects) != 0 ? 2 : 0) + ((m & MDisplace) != 0 ? 1 : 0) + ((m & MMobType) != 0 ? 1 : 0) + ((m & MSig) != 0 ? 1 : 0) + ((m & MBarrier) != 0 ? 2 : 0);
         }
 
         /// <summary>Reads one actor; the first has an absolute id, each later one the (non-zero) gap from <paramref name="prev"/>.</summary>
         internal static WireActor Read(ref Reader r, bool first, uint prev)
         {
-            WireActor a;
+            WireActor a = default(WireActor);
             uint field = r.Varint();
             if (first) a.Id = field;
             else
@@ -462,6 +607,8 @@ namespace Roguehalla.Net.Protocol
             a.DisplaceSeq = (mask & MDisplace) != 0 ? r.U8() : (byte)0;
             a.MobTypeCode = (mask & MMobType) != 0 ? r.Code(30,"mob type") : (byte)0;
             a.Sig = (mask & MSig) != 0 ? r.U8() : (byte)0;
+            if ((mask & MBarrier) != 0) { a.BarrierPct = r.U8(); a.BarrierRingStep = r.U8(); }
+            if (a.BarrierPct > 100 || a.BarrierRingStep > 8) throw new DecodeException(DecodeError.BadField, "barrier");
             return a;
         }
 
@@ -479,6 +626,7 @@ namespace Roguehalla.Net.Protocol
             if ((m & MDisplace) != 0) w.U8(DisplaceSeq);
             if ((m & MMobType) != 0) w.U8(MobTypeCode);
             if ((m & MSig) != 0) w.U8(Sig);
+            if ((m & MBarrier) != 0) { if (BarrierPct > 100 || BarrierRingStep > 8) throw new ArgumentException("barrier"); w.U8(BarrierPct); w.U8(BarrierRingStep); }
         }
     }
 
@@ -578,11 +726,11 @@ namespace Roguehalla.Net.Protocol
     public struct ActorDelta
     {
         public const uint MX = 1 << 0, MY = 1 << 1, MFacing = 1 << 2, MKit = 1 << 3, MHp = 1 << 4, MBounty = 1 << 5, MStatus = 1 << 6,
-            MKind = 1 << 7, MEffects = 1 << 8, MDisplace = 1 << 9, MMobType = 1 << 10, MSig = 1 << 11, MAll = 0xfff, MNew = MX | MY | MFacing;
+            MKind = 1 << 7, MEffects = 1 << 8, MDisplace = 1 << 9, MMobType = 1 << 10, MSig = 1 << 11, MBarrier = 1 << 12, MAll = 0x1fff, MNew = MX | MY | MFacing;
         public uint Id;
         public uint Mask;
         public ushort X, Y, Facing;
-        public byte Kit, HpPct, Status, Kind, DisplaceSeq, MobTypeCode, Sig;
+        public byte Kit, HpPct, Status, Kind, DisplaceSeq, MobTypeCode, Sig, BarrierPct, BarrierRingStep;
         public ushort Bounty, Effects;
     }
 
@@ -612,7 +760,7 @@ namespace Roguehalla.Net.Protocol
         public bool WinBonusWithheld;
     }
 
-    public enum FxKind : byte { Swing = 1, Hit = 2, Block = 3, Stagger = 4, Teleport = 5 }
+    public enum FxKind : byte { Swing = 1, Hit = 2, Block = 3, Stagger = 4, Teleport = 5, WishStarted = 6, WishLanded = 7, WishEnded = 8 }
 
     public sealed class WireFx
     {
@@ -622,6 +770,11 @@ namespace Roguehalla.Net.Protocol
         public bool Passive;
         public byte Weapon;
         public float X, Y, A, Amount;
+        public double EventTime, Duration;
+        public byte Ability, Reason;
+        public uint? Caster, Target;
+        public bool HasAnchor, HasDestination;
+        public float AnchorX, AnchorY, DestinationX, DestinationY;
     }
 
     public abstract class ServerMsg
@@ -728,6 +881,26 @@ namespace Roguehalla.Net.Protocol
                             case 4: f.List.Add(new WireFx { Kind = FxKind.Stagger, Id = r.Varint() }); break;
                             case 5: f.List.Add(new WireFx { Kind = FxKind.Teleport }); break;
                             case 2: { uint victim = r.Varint(), by = r.Varint(); f.List.Add(new WireFx { Kind = FxKind.Hit, Victim = victim, By = by, Amount = r.F32(), Passive = r.Flag() }); break; }
+                            case 6:
+                            {
+                                var fx = new WireFx { Kind = FxKind.WishStarted, EventTime = r.F64(), Caster = Fx.ReadRequiredRef(ref r), Ability = r.Code(WishWire.MaxAbility, "wish ability"), Duration = r.F64() };
+                                fx.Target = Fx.ReadOptionalRef(ref r);
+                                fx.HasAnchor = r.Flag(); if (fx.HasAnchor) WishWire.ReadPoint(ref r, out fx.AnchorX, out fx.AnchorY);
+                                Fx.ValidateStarted(fx, false); f.List.Add(fx); break;
+                            }
+                            case 7:
+                            {
+                                var fx = new WireFx { Kind = FxKind.WishLanded, EventTime = r.F64(), Ability = r.Code(WishWire.MaxAbility, "wish ability") };
+                                fx.Caster = Fx.ReadOptionalRef(ref r); fx.Target = Fx.ReadOptionalRef(ref r);
+                                fx.HasAnchor = r.Flag(); if (fx.HasAnchor) WishWire.ReadPoint(ref r, out fx.AnchorX, out fx.AnchorY);
+                                fx.HasDestination = r.Flag(); if (fx.HasDestination) WishWire.ReadPoint(ref r, out fx.DestinationX, out fx.DestinationY);
+                                Fx.ValidateLanded(fx, false); f.List.Add(fx); break;
+                            }
+                            case 8:
+                            {
+                                var fx = new WireFx { Kind = FxKind.WishEnded, EventTime = r.F64(), Caster = Fx.ReadRequiredRef(ref r), Ability = r.Code(WishWire.MaxAbility, "wish ability"), Reason = r.U8() };
+                                Fx.ValidateEnded(fx, false); f.List.Add(fx); break;
+                            }
                             default: throw new DecodeException(DecodeError.BadTag, tag.ToString());
                         }
                     }
@@ -788,8 +961,16 @@ namespace Roguehalla.Net.Protocol
             /// <summary>Protocol 11: the source's public training fact (head bit 16). False for every ordinary match.</summary>
             public bool Training;
 
-            /// <summary>The server time of this snapshot in ms. Not on the wire: the server's clock is always Tick * 50 ms.</summary>
-            public double ServerMs { get { return Tick * (double)Wire.TickMs; } }
+            /// <summary>Optional per-frame authoritative source time in ms. Null encodes the canonical Tick * 50 default.</summary>
+            public double? ServerTimeOverrideMs;
+
+            /// <summary>The accepted source time for this frame, using Tick * 50 only when the frame has no override.</summary>
+            public double ServerMs { get { return ServerTimeOverrideMs ?? Tick * (double)Wire.TickMs; } }
+
+            bool HasNonDefaultTime
+            {
+                get { return ServerTimeOverrideMs.HasValue && BitConverter.DoubleToInt64Bits(ServerTimeOverrideMs.Value) != BitConverter.DoubleToInt64Bits(Tick * (double)Wire.TickMs); }
+            }
 
             /// <summary>Exact size of <see cref="Encode"/>'s frame.</summary>
             public int EncodedLength
@@ -798,8 +979,10 @@ namespace Roguehalla.Net.Protocol
                 {
                     uint head = Me != null ? Me.Head(Phase) : (Phase != Wire.DefaultPhase ? WireSelf.HPhase : 0);
                     if (Training) head |= WireSelf.HTraining;
+                    if (HasNonDefaultTime) head |= WireSelf.HServerTime;
                     int n = 1 + Writer.VarintLength(Tick) + Writer.VarintLength(AckInput) + WireSelf.HeadLength(head);
                     if (Me != null) n += Me.Length(head);
+                    if ((head & WireSelf.HServerTime) != 0) n += 8;
                     n += Writer.VarintLength((uint)Actors.Length);
                     uint prev = 0;
                     for (int i = 0; i < Actors.Length; i++) { n += Actors[i].Length(i == 0, prev); prev = Actors[i].Id; }
@@ -814,6 +997,8 @@ namespace Roguehalla.Net.Protocol
                 if (Phase > Wire.MaxPhaseCode) throw new ArgumentException("phase");
                 if (Me != null && (Me.Faction > Wire.MaxKitCode || Me.Weapon > Wire.MaxKitCode || Me.Status > Wire.MaxStatusCode)) throw new ArgumentException("self faction/weapon/status");
                 if (Me != null && Me.HuntTarget == 0) throw new ArgumentException("hunt target");
+                if (ServerTimeOverrideMs.HasValue) WishWire.ValidateClock(ServerTimeOverrideMs.Value, "server time");
+                if (Me != null) WishWire.ValidateBarrier(Me.Barrier, Me.BarrierRingStep);
                 for (int i = 0; i < Actors.Length; i++)
                 {
                     var a = Actors[i];
@@ -826,9 +1011,11 @@ namespace Roguehalla.Net.Protocol
                 w.U8(TSnapshot); w.Varint(Tick); w.Varint(AckInput);
                 uint head = Me != null ? Me.Head(Phase) : (Phase != Wire.DefaultPhase ? WireSelf.HPhase : 0);
                 if (Training) head |= WireSelf.HTraining;
+                if (HasNonDefaultTime) head |= WireSelf.HServerTime;
                 w.Varint(head);
                 if (Me != null) Me.Write(w, head);
                 if ((head & WireSelf.HPhase) != 0) w.U8(Phase);
+                if ((head & WireSelf.HServerTime) != 0) w.F64(ServerTimeOverrideMs.Value);
                 w.Varint((uint)Actors.Length);
                 uint prev = 0;
                 for (int i = 0; i < Actors.Length; i++) { Actors[i].Write(w, i == 0, prev); prev = Actors[i].Id; }
@@ -840,7 +1027,8 @@ namespace Roguehalla.Net.Protocol
             {
                 s.Tick = r.Varint(); s.AckInput = r.Varint();
                 uint head = r.Varint();
-                if ((head & ~WireSelf.Known) != 0 || ((head & WireSelf.HPresent) == 0 && (head & WireSelf.SelfBits) != 0))
+                if ((head & ~WireSelf.Known) != 0 || ((head & WireSelf.HPresent) == 0 && (head & WireSelf.SelfBits) != 0) ||
+                    ((head & (WireSelf.HWish | WireSelf.HBarrier)) != 0 && (head & WireSelf.HPresent) == 0))
                     throw new DecodeException(DecodeError.BadField, "head");
                 s.Training = (head & WireSelf.HTraining) != 0;
                 if ((head & WireSelf.HPresent) != 0)
@@ -851,6 +1039,9 @@ namespace Roguehalla.Net.Protocol
                 }
                 else s.Me = null;
                 s.Phase = (head & WireSelf.HPhase) != 0 ? r.Code(Wire.MaxPhaseCode, "phase") : Wire.DefaultPhase;
+                s.ServerTimeOverrideMs = (head & WireSelf.HServerTime) != 0 ? r.F64() : (double?)null;
+                if (s.ServerTimeOverrideMs.HasValue && (s.ServerTimeOverrideMs.Value < 0 || double.IsNaN(s.ServerTimeOverrideMs.Value) || double.IsInfinity(s.ServerTimeOverrideMs.Value)))
+                    throw new DecodeException(DecodeError.BadField, "server time");
                 uint count = r.Varint();
                 if (count > (uint)Wire.MaxActors) throw new DecodeException(DecodeError.TooMany, count.ToString());
                 int n = (int)count;
@@ -884,8 +1075,19 @@ namespace Roguehalla.Net.Protocol
             /// <summary>Protocol 11: the source's public training fact (delta head bit 20). False for every ordinary match.</summary>
             public bool Training;
 
-            // Head bits (append only): 0 a self follows (its fields are SelfDelta.Fields), 7 a departed list follows, 8 the phase changed, 18 training.
-            const uint HPresent = 1 << 0, HDeparted = 1 << 7, HPhase = 1 << 8, HTraining = 1 << 20, Known = HPresent | SelfDelta.Fields | HPhase | HDeparted | HTraining;
+            /// <summary>Whether this delta carries the Wish owner group; Wish=null explicitly clears a prior record.</summary>
+            public bool HasWish;
+            public WireWishOwner Wish;
+            /// <summary>Whether this delta carries an owner barrier/ring pair, including a zero clear.</summary>
+            public bool HasBarrier;
+            public float Barrier;
+            public byte BarrierRingStep;
+            /// <summary>Optional absolute per-frame source time; absent means Tick * 50, never the base's time.</summary>
+            public double? ServerTimeOverrideMs;
+
+            // Head bits (append only): 0 self fields, 7 departed, 8 phase, 20 training, 21 Wish, 22 barrier, 23 server time.
+            const uint HPresent = 1 << 0, HDeparted = 1 << 7, HPhase = 1 << 8, HTraining = 1 << 20,
+                HWish = 1 << 21, HBarrier = 1 << 22, HServerTime = 1 << 23, Known = HPresent | SelfDelta.Fields | HPhase | HDeparted | HTraining | HWish | HBarrier | HServerTime;
 
             /// <summary>Reads the body of a delta frame (after the tag): syntax and ranges only; whether it applies is the tracker's question.</summary>
             internal static SnapshotDelta Read(ref Reader r, SnapshotDelta d)
@@ -899,9 +1101,22 @@ namespace Roguehalla.Net.Protocol
                 if ((head & ~Known) != 0 || ((head & HPresent) == 0 && (head & SelfDelta.Fields) != 0)) throw new DecodeException(DecodeError.BadField, "head");
                 d.Training = (head & HTraining) != 0;
                 d.HasSelf = (head & HPresent) != 0;
+                d.HasWish = (head & HWish) != 0;
+                d.HasBarrier = (head & HBarrier) != 0;
+                if ((d.HasWish || d.HasBarrier) && !d.HasSelf) throw new DecodeException(DecodeError.BadField, "owner group without self");
                 d.Me = d.HasSelf ? SelfDelta.Read(ref r, head & SelfDelta.Fields) : default(SelfDelta);
+                d.Wish = d.HasWish && r.Flag() ? WishWire.ReadOwner(ref r, d.Wish) : null;
+                if (d.HasBarrier)
+                {
+                    d.Barrier = r.F32(); d.BarrierRingStep = r.U8();
+                    if (d.Barrier < 0 || float.IsNaN(d.Barrier) || float.IsInfinity(d.Barrier) || d.BarrierRingStep > 8)
+                        throw new DecodeException(DecodeError.BadField, "barrier");
+                }
                 d.HasPhase = (head & HPhase) != 0;
                 d.Phase = d.HasPhase ? r.Code(Wire.MaxPhaseCode, "phase") : (byte)0;
+                d.ServerTimeOverrideMs = (head & HServerTime) != 0 ? r.F64() : (double?)null;
+                if (d.ServerTimeOverrideMs.HasValue && (d.ServerTimeOverrideMs.Value < 0 || double.IsNaN(d.ServerTimeOverrideMs.Value) || double.IsInfinity(d.ServerTimeOverrideMs.Value)))
+                    throw new DecodeException(DecodeError.BadField, "server time");
                 uint n = r.Varint();
                 if (n > (uint)Wire.MaxActors) throw new DecodeException(DecodeError.TooMany, n.ToString());
                 if (d.Changed.Length < n) d.Changed = new ActorDelta[Math.Max((int)n, d.Changed.Length * 2)];
@@ -929,6 +1144,7 @@ namespace Roguehalla.Net.Protocol
                     if ((a.Mask & ActorDelta.MDisplace) != 0) a.DisplaceSeq = r.U8();
                     if ((a.Mask & ActorDelta.MMobType) != 0) a.MobTypeCode = r.Code(30,"mob type");
                     if ((a.Mask & ActorDelta.MSig) != 0) a.Sig = r.U8();
+                    if ((a.Mask & ActorDelta.MBarrier) != 0) { a.BarrierPct = r.U8(); a.BarrierRingStep = r.U8(); if (a.BarrierPct > 100 || a.BarrierRingStep > 8) throw new DecodeException(DecodeError.BadField, "barrier"); }
                     d.Changed[i] = a;
                 }
                 d.DepartedCount = 0;
@@ -958,6 +1174,10 @@ namespace Roguehalla.Net.Protocol
                 if (HasPhase && Phase > Wire.MaxPhaseCode) throw new ArgumentException("phase");
                 if (ChangedCount > Wire.MaxActors || DepartedCount > Wire.MaxActors) throw new ArgumentException("too many actors");
                 if (HasSelf && (Me.Mask & ~SelfDelta.Fields) != 0) throw new ArgumentException("head");
+                if ((HasWish || HasBarrier) && !HasSelf) throw new ArgumentException("owner group without self");
+                if (HasWish && Wish != null) WishWire.ValidateOwner(Wish);
+                if (HasBarrier) WishWire.ValidateBarrier(Barrier, BarrierRingStep);
+                if (ServerTimeOverrideMs.HasValue) WishWire.ValidateClock(ServerTimeOverrideMs.Value, "server time");
                 if (HasSelf && (Me.Mask & SelfDelta.FStatus) != 0 && Me.StatusValue > Wire.MaxStatusCode) throw new ArgumentException("status");
                 for (int i = 0; i < ChangedCount; i++)
                 {
@@ -973,11 +1193,18 @@ namespace Roguehalla.Net.Protocol
                 uint head = 0;
                 if (Training) head |= HTraining;
                 if (HasSelf) head |= HPresent | (Me.Mask & SelfDelta.Fields);
+                if (HasWish) head |= HWish;
+                if (HasBarrier) head |= HBarrier;
+                bool hasTime = ServerTimeOverrideMs.HasValue && BitConverter.DoubleToInt64Bits(ServerTimeOverrideMs.Value) != BitConverter.DoubleToInt64Bits(Tick * (double)Wire.TickMs);
+                if (hasTime) head |= HServerTime;
                 if (HasPhase) head |= HPhase;
                 if (DepartedCount > 0) head |= HDeparted;
                 w.Varint(head);
                 if (HasSelf) Me.Write(w);
+                if (HasWish) { w.U8(Wish == null ? (byte)0 : (byte)1); if (Wish != null) WishWire.WriteOwner(w, Wish); }
+                if (HasBarrier) { w.F32(Barrier); w.U8(BarrierRingStep); }
                 if (HasPhase) w.U8(Phase);
+                if (hasTime) w.F64(ServerTimeOverrideMs.Value);
                 w.Varint((uint)ChangedCount);
                 for (int i = 0; i < ChangedCount; i++)
                 {
@@ -997,6 +1224,7 @@ namespace Roguehalla.Net.Protocol
                     if ((a.Mask & ActorDelta.MDisplace) != 0) w.U8(a.DisplaceSeq);
                     if ((a.Mask & ActorDelta.MMobType) != 0) w.U8(a.MobTypeCode);
                     if ((a.Mask & ActorDelta.MSig) != 0) w.U8(a.Sig);
+                    if ((a.Mask & ActorDelta.MBarrier) != 0) { if (a.BarrierPct > 100 || a.BarrierRingStep > 8) throw new ArgumentException("barrier"); w.U8(a.BarrierPct); w.U8(a.BarrierRingStep); }
                 }
                 if (DepartedCount > 0)
                 {
@@ -1074,19 +1302,81 @@ namespace Roguehalla.Net.Protocol
             public uint Tick;
             public List<WireFx> List = new List<WireFx>();
 
+            internal static uint ReadRequiredRef(ref Reader r)
+            {
+                uint id = r.Varint(); if (id == 0) throw new DecodeException(DecodeError.BadField, "wish actor reference"); return id;
+            }
+            internal static uint? ReadOptionalRef(ref Reader r)
+            {
+                if (!r.Flag()) return null;
+                uint id = r.Varint(); if (id == 0) throw new DecodeException(DecodeError.BadField, "wish actor reference"); return id;
+            }
+            internal static void ValidateStarted(WireFx f, bool encoding)
+            {
+                if (f.EventTime < 0 || double.IsNaN(f.EventTime) || double.IsInfinity(f.EventTime) || f.Duration < 0 || double.IsNaN(f.Duration) || double.IsInfinity(f.Duration) ||
+                    !f.Caster.HasValue || f.Caster.Value == 0 || (f.Target.HasValue && f.Target.Value == 0) || f.Ability > WishWire.MaxAbility ||
+                    (f.HasAnchor && (!Quant.PosInRange(f.AnchorX) || !Quant.PosInRange(f.AnchorY))))
+                {
+                    if (encoding) throw new ArgumentException("wish started fields");
+                    throw new DecodeException(DecodeError.BadField, "wish started");
+                }
+            }
+            internal static void ValidateLanded(WireFx f, bool encoding)
+            {
+                bool invalid = f.EventTime < 0 || double.IsNaN(f.EventTime) || double.IsInfinity(f.EventTime) || f.Ability > WishWire.MaxAbility ||
+                    (f.Caster.HasValue && f.Caster.Value == 0) || (f.Target.HasValue && f.Target.Value == 0) ||
+                    (f.HasAnchor && (!Quant.PosInRange(f.AnchorX) || !Quant.PosInRange(f.AnchorY))) ||
+                    (f.HasDestination && (!Quant.PosInRange(f.DestinationX) || !Quant.PosInRange(f.DestinationY))) ||
+                    (f.Ability == WishWire.BlazeAbility ? f.HasAnchor != f.HasDestination : f.HasDestination) ||
+                    (!f.Caster.HasValue && !f.HasAnchor);
+                if (invalid)
+                {
+                    if (encoding) throw new ArgumentException("wish landed fields");
+                    throw new DecodeException(DecodeError.BadField, "wish landed");
+                }
+            }
+            internal static void ValidateEnded(WireFx f, bool encoding)
+            {
+                if (f.EventTime < 0 || double.IsNaN(f.EventTime) || double.IsInfinity(f.EventTime) || !f.Caster.HasValue || f.Caster.Value == 0 ||
+                    f.Ability > WishWire.MaxAbility || f.Reason > 2)
+                {
+                    if (encoding) throw new ArgumentException("wish ended fields");
+                    throw new DecodeException(DecodeError.BadField, "wish ended");
+                }
+            }
+            static int WishLength(WireFx f)
+            {
+                switch (f.Kind)
+                {
+                    case FxKind.WishStarted:
+                        ValidateStarted(f, true);
+                        return 1 + 8 + Writer.VarintLength(f.Caster.Value) + 1 + 8 + (f.Target.HasValue ? 1 + Writer.VarintLength(f.Target.Value) : 1) + (f.HasAnchor ? 5 : 1);
+                    case FxKind.WishLanded:
+                        ValidateLanded(f, true);
+                        return 1 + 8 + 1 + (f.Caster.HasValue ? 1 + Writer.VarintLength(f.Caster.Value) : 1) +
+                            (f.Target.HasValue ? 1 + Writer.VarintLength(f.Target.Value) : 1) + (f.HasAnchor ? 5 : 1) + (f.HasDestination ? 5 : 1);
+                    case FxKind.WishEnded:
+                        ValidateEnded(f, true);
+                        return 1 + 8 + Writer.VarintLength(f.Caster.Value) + 1 + 1;
+                    default: return 0;
+                }
+            }
+
             public override byte[] Encode()
             {
                 if (List.Count > ushort.MaxValue) throw new ArgumentException("too many fx");
                 // Like rh-protocol: a swing off the position grid is refused, never saturated.
                 foreach (var f in List)
                 {
-                    if (f.Kind != FxKind.Swing && f.Kind != FxKind.Hit && f.Kind != FxKind.Block && f.Kind != FxKind.Stagger && f.Kind != FxKind.Teleport)
+                    if (f.Kind != FxKind.Swing && f.Kind != FxKind.Hit && f.Kind != FxKind.Block && f.Kind != FxKind.Stagger && f.Kind != FxKind.Teleport &&
+                        f.Kind != FxKind.WishStarted && f.Kind != FxKind.WishLanded && f.Kind != FxKind.WishEnded)
                         throw new EncodeException("fx kind");
                     if (f.Kind == FxKind.Swing && (!Quant.PosInRange(f.X) || !Quant.PosInRange(f.Y))) throw new ArgumentException("position");
                 }
                 int len = 1 + Writer.VarintLength(Tick) + Writer.VarintLength((uint)List.Count);
                 foreach (var f in List)
-                    len += f.Kind == FxKind.Teleport ? 1 : f.Kind == FxKind.Block ? 2 + Writer.VarintLength(f.Id) + Writer.VarintLength(f.By) : f.Kind == FxKind.Stagger ? 1 + Writer.VarintLength(f.Id) : f.Kind == FxKind.Swing ? 1 + Writer.VarintLength(f.By) + 1 + 6 : 1 + Writer.VarintLength(f.Victim) + Writer.VarintLength(f.By) + 5;
+                    len += f.Kind == FxKind.WishStarted || f.Kind == FxKind.WishLanded || f.Kind == FxKind.WishEnded ? WishLength(f) :
+                        f.Kind == FxKind.Teleport ? 1 : f.Kind == FxKind.Block ? 2 + Writer.VarintLength(f.Id) + Writer.VarintLength(f.By) : f.Kind == FxKind.Stagger ? 1 + Writer.VarintLength(f.Id) : f.Kind == FxKind.Swing ? 1 + Writer.VarintLength(f.By) + 1 + 6 : 1 + Writer.VarintLength(f.Victim) + Writer.VarintLength(f.By) + 5;
                 if (len > Wire.MaxServerFrame) throw new ArgumentException("frame too large");
                 var w = new Writer(len);
                 w.U8(TFx); w.Varint(Tick); w.Varint((uint)List.Count);
@@ -1097,9 +1387,30 @@ namespace Roguehalla.Net.Protocol
                     else if (f.Kind == FxKind.Block) { w.Varint(f.Id); w.Varint(f.By); w.U8(f.Weapon); }
                     else if (f.Kind == FxKind.Stagger) w.Varint(f.Id);
                     else if (f.Kind == FxKind.Teleport) { }
+                    else if (f.Kind == FxKind.WishStarted)
+                    {
+                        w.F64(f.EventTime); w.Varint(f.Caster.Value); w.U8(f.Ability); w.F64(f.Duration); WriteOptRef(w, f.Target);
+                        w.U8(f.HasAnchor ? (byte)1 : (byte)0); if (f.HasAnchor) WishWire.WritePoint(w, f.AnchorX, f.AnchorY);
+                    }
+                    else if (f.Kind == FxKind.WishLanded)
+                    {
+                        w.F64(f.EventTime); w.U8(f.Ability); WriteOptRef(w, f.Caster); WriteOptRef(w, f.Target);
+                        WriteOptPoint(w, f.HasAnchor, f.AnchorX, f.AnchorY); WriteOptPoint(w, f.HasDestination, f.DestinationX, f.DestinationY);
+                    }
+                    else if (f.Kind == FxKind.WishEnded) { w.F64(f.EventTime); w.Varint(f.Caster.Value); w.U8(f.Ability); w.U8(f.Reason); }
                     else { w.Varint(f.Victim); w.Varint(f.By); w.F32(f.Amount); w.U8((byte)(f.Passive ? 1 : 0)); }
                 }
                 return w.Finish();
+            }
+
+            static void WriteOptRef(Writer w, uint? id)
+            {
+                if (id.HasValue) { if (id.Value == 0) throw new ArgumentException("wish actor reference"); w.U8(1); w.Varint(id.Value); }
+                else w.U8(0);
+            }
+            static void WriteOptPoint(Writer w, bool has, float x, float y)
+            {
+                w.U8(has ? (byte)1 : (byte)0); if (has) WishWire.WritePoint(w, x, y);
             }
         }
 
