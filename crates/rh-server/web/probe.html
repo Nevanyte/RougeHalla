@@ -15,14 +15,14 @@
 <body>
 <main>
   <h1>Roguehalla protocol probe</h1>
-  <p>A browser client for protocol v11 over the browser WebSocket API (the transport a Unity Web build uses). It is a test
+  <p>A browser client for protocol v12 over the browser WebSocket API (the transport a Unity Web build uses). It is a test
   harness for Stage 1, not the game client. Click to walk; hold Space to attack toward the cursor.</p>
   <canvas id="c" width="960" height="640"></canvas>
   <pre id="s">connecting…</pre>
 </main>
 <script>
 "use strict";
-// ---- protocol v11 (mirror of crates/rh-protocol; tools/protocol-js/check-vectors.mjs holds this block to protocol/fixtures/v11.json) ----
+// ---- protocol v12 (mirror of crates/rh-protocol; tools/protocol-js/check-vectors.mjs holds this block to protocol/fixtures/v12.json) ----
 class W {
   constructor() { this.b = new Uint8Array(256); this.n = 0; this.v = new DataView(this.b.buffer); }
   need(k) { if (this.n + k > this.b.length) { const nb = new Uint8Array(this.b.length * 2 + k); nb.set(this.b); this.b = nb; this.v = new DataView(nb.buffer); } }
@@ -76,7 +76,7 @@ function fnv(w, h, tiles) {
   for (const t of tiles) eat(t);
   return x >>> 0;
 }
-const PROTOCOL = 11;
+const PROTOCOL = 12;
 const MAX_TICKET = 448;
 // Quantized remote actors and swings (rh-protocol quant.rs): positions are u16 at 1/8 u, angles u16 over 2 pi read as a signed code.
 const FACING_STEP_F32 = Math.fround(2 * Math.PI / 65536);
@@ -110,6 +110,17 @@ function input(seq, cmds) {
     else if(c.k === "target") { if(!Number.isInteger(c.actorRef)||c.actorRef<=0||c.actorRef>0xffffffff) throw new Error("bad actor reference");w.u8(10);w.u32(c.actorRef); }
     else if(c.k === "huntTarget") { if(!Number.isInteger(c.actorRef)||c.actorRef<=0||c.actorRef>0xffffffff) throw new Error("bad hunt target");w.u8(12);w.u32(c.actorRef); }
     else if(c.k === "consumeCorpse") { if(!Number.isInteger(c.handle)||c.handle<=0||c.handle>0xffffffff) throw new Error("bad corpse handle");w.u8(13);w.u32(c.handle); }
+    else if(c.k === "cast") {
+      if (!Number.isInteger(c.slot) || c.slot < 0 || c.slot > 2) throw new Error("bad cast slot");
+      if (!Number.isFinite(c.x) || !Number.isFinite(c.y) || !Number.isFinite(Math.fround(c.x)) || !Number.isFinite(Math.fround(c.y))) throw new Error("non-finite");
+      if (c.actorRef != null && (!Number.isInteger(c.actorRef) || c.actorRef <= 0 || c.actorRef > 0xffffffff)) throw new Error("bad actor reference");
+      if (c.t != null && !Number.isFinite(c.t)) throw new Error("non-finite");
+      if (c.seq != null && (!Number.isInteger(c.seq) || c.seq < 0 || c.seq > 255)) throw new Error("bad order sequence");
+      w.u8(16); w.u8(c.slot); w.f32(c.x); w.f32(c.y);
+      if (c.actorRef == null) w.u8(0); else { w.u8(1); w.u32(c.actorRef); }
+      if (c.t == null) w.u8(0); else { w.u8(1); w.f64(c.t); }
+      if (c.seq == null) w.u8(0); else { w.u8(1); w.u8(c.seq); }
+    }
     else if (c.k === "stop") { w.u8(2); if (c.seq == null) w.u8(0); else { w.u8(1); w.u8(c.seq); } }
     else if (c.k === "aim") { w.u8(3); w.f32(c.a); }
     else if (c.k === "attack") { w.u8(4); w.f32(c.a); if (c.t == null) w.u8(0); else { w.u8(1); w.f64(c.t); } }
@@ -144,6 +155,13 @@ function decodeClient(buf) {
       else if(k === 10) {const actorRef=r.u32();if(!actorRef)throw new Error("bad actor reference");c={k:"target",actorRef};}
       else if(k === 12) {const actorRef=r.u32();if(!actorRef)throw new Error("bad hunt target");c={k:"huntTarget",actorRef};}
       else if(k === 13) {const handle=r.u32();if(!handle)throw new Error("bad corpse handle");c={k:"consumeCorpse",handle};}
+      else if (k === 16) {
+        const slot = r.code(2, "cast slot"), x = finite(r.f32()), y = finite(r.f32());
+        const actorRef = strictOpt(r, () => { const v = r.u32(); if (!v) throw new Error("bad actor reference"); return v; });
+        const t = strictOpt(r, () => finite(r.f64()));
+        const seq = strictOpt(r, () => r.u8());
+        c = { k: "cast", slot, x, y, actorRef, t, seq };
+      }
       else if (k === 2) c = { k: "stop", seq: r.opt(() => r.u8()) };
       else if (k === 3) c = { k: "aim", a: finite(r.f32()) };
       else if (k === 4 || k === 5) c = { k: k === 4 ? "attack" : "release", a: finite(r.f32()), t: r.opt(() => finite(r.f64())) };
@@ -189,6 +207,46 @@ function decode(buf) {
   if (r.p !== buf.byteLength) throw new Error("trailing bytes");
   return m;
 }
+// Protocol-12 options are explicitly strict without changing the v1..v11 option rules.
+function strictOpt(r, f) {
+  const tag = r.u8();
+  if (tag === 0) return null;
+  if (tag !== 1) throw new Error("bad option");
+  return f();
+}
+function nonnegative(x, what) {
+  if (!Number.isFinite(x) || x < 0) throw new Error("bad " + what);
+  return x;
+}
+function readAbility(r) { return r.code(4, "ability"); }
+function readWish(r) {
+  const ability = readAbility(r);
+  const readyAt = nonnegative(r.f64(), "Wish clock");
+  const fullAt = strictOpt(r, () => nonnegative(r.f64(), "Wish clock"));
+  const maxCharges = r.u8();
+  const rechargeMs = nonnegative(r.f64(), "Wish duration");
+  const charges = r.u8();
+  if (maxCharges < 1 || maxCharges > 2 || charges > maxCharges) throw new Error("bad Wish charges");
+  const nextChargeAt = strictOpt(r, () => nonnegative(r.f64(), "Wish clock"));
+  const cast = strictOpt(r, () => {
+    const ability = readAbility(r), startedAt = nonnegative(r.f64(), "Wish clock"), landsAt = nonnegative(r.f64(), "Wish clock");
+    if (landsAt < startedAt) throw new Error("bad Wish cast order");
+    return { ability, startedAt, landsAt };
+  });
+  return { ability, readyAt, fullAt, maxCharges, rechargeMs, charges, nextChargeAt, cast };
+}
+function readOwnerBarrier(r) {
+  const amount = r.f32(), ring = r.u8();
+  if (!Number.isFinite(amount) || amount < 0 || ring > 8) throw new Error("bad owner barrier");
+  return { amount, ring };
+}
+function readActorBarrier(r) {
+  const pct = r.u8(), ring = r.u8();
+  if (pct > 100 || ring > 8) throw new Error("bad actor barrier");
+  return { pct, ring };
+}
+function readWishPoint(r) { return strictOpt(r, () => ({ x: dqPos(r.u16()), y: dqPos(r.u16()) })); }
+function readWishActor(r) { return strictOpt(r, () => { const id = r.varint(); if (!id) throw new Error("bad actor reference"); return id; }); }
 function decodeBody(r) {
   const tag = r.u8();
   if (tag === 0x81) {
@@ -213,8 +271,8 @@ function decodeBody(r) {
   }
   if (tag === 0x83) {
     const tick = r.varint(), ack = r.varint(), head = r.varint();
-    // Append-only varint head: bit 0 a self follows, bits 1..9 its fields, bit 10 the phase; any other bit is refused.
-    if ((head & ~0x1ffff) !== 0 || ((head & 1) === 0 && (head & 0xfbff) !== 0)) throw new Error("bad head");
+    // Append-only varint head: bits 17/18 are the Wish and barrier self groups; bit 19 overrides tick*50 for this frame.
+    if ((head & ~0xfffff) !== 0 || ((head & 1) === 0 && (head & (0xfbff | 0x60000)) !== 0)) throw new Error("bad head");
     const s = { t: "snapshot", tick, serverMs: tick * 50, phase: 1, ack, training: (head & 0x10000) !== 0, me: null, actors: [] };
     if (head & 1) {
       const id = r.varint(), x = r.f32(), y = r.f32(), facing = r.f32();
@@ -231,9 +289,12 @@ function decodeBody(r) {
       const effects = (head & 0x800) ? r.u16() : 0, displaceSeq = (head & 0x1000) ? r.u8() : 0, sig = (head & 0x2000) ? r.u8() : 0;
       let huntTarget = null; if (head & 0x4000) { huntTarget = r.varint(); if (huntTarget === 0) throw new Error("bad hunt target"); }
       const huntStacks = (head & 0x8000) ? r.varintU16("hunt_stacks") : 0;
-      s.me = { id, faction, x, y, facing, hp, maxHp, status, weapon, readyIn, kills, bounty, gv, moveSeq, effects, displaceSeq, sig, huntTarget, huntStacks };
+      const wish = (head & 0x20000) ? readWish(r) : null;
+      const barrier = (head & 0x40000) ? readOwnerBarrier(r) : { amount: 0, ring: 0 };
+      s.me = { id, faction, x, y, facing, hp, maxHp, status, weapon, readyIn, kills, bounty, gv, moveSeq, effects, displaceSeq, sig, huntTarget, huntStacks, wish, barrierBits: barrier.amount, barrierRingStep: barrier.ring };
     }
     if (head & 0x400) s.phase = r.code(3, "phase");
+    if (head & 0x80000) s.serverMs = nonnegative(r.f64(), "server time");
     const n = r.varint();
     if (n > 512) throw new Error("too many actors");
     let prev = null;
@@ -243,7 +304,7 @@ function decodeBody(r) {
       if (prev !== null) { id = prev + field; if (field === 0 || id > 0xffffffff) throw new Error("bad actor order"); }
       prev = id;
       const mask = r.varint();
-      if (mask & ~0x1ff) throw new Error("bad actor mask");
+      if (mask & ~0x3ff) throw new Error("bad actor mask");
       const x = dqPos(r.u16()), y = dqPos(r.u16()), facing = dqAngle(r.u16());
       let faction = 0, weapon = 0;
       if (mask & 1) { const k = r.u8(); faction = k & 15; weapon = k >> 4; }
@@ -253,7 +314,8 @@ function decodeBody(r) {
       const bounty = (mask & 8) ? r.varintU16("bounty") : 0;
       const kind = (mask & 0x10) ? r.u8() : 0;
       const effects = (mask & 0x20) ? r.u16() : 0, displaceSeq = (mask & 0x40) ? r.u8() : 0, mobTypeCode=(mask & 0x80)?r.code(30,"mob type"):0,sig=(mask & 0x100)?r.u8():0;
-      s.actors.push({ id, faction, x, y, facing, hpPct, status, weapon, bounty, kind, effects, displaceSeq, mobTypeCode, sig });
+      const barrier = (mask & 0x200) ? readActorBarrier(r) : { pct: 0, ring: 0 };
+      s.actors.push({ id, faction, x, y, facing, hpPct, status, weapon, bounty, kind, effects, displaceSeq, mobTypeCode, sig, barrierPct: barrier.pct, barrierRingStep: barrier.ring });
     }
     return s;
   }
@@ -262,9 +324,9 @@ function decodeBody(r) {
     const tick = r.varint(), age = r.varint();
     if (age < 1 || age > 64 || age > tick) throw new Error("bad base age");
     const ack = r.varint(), head = r.varint();
-    // Append-only varint head: bit 0 a self follows (fields: bits 1..6 and 9..14), bit 7 a departed list follows, bit 8 the phase changed.
-    if ((head & ~0x1fffff) !== 0 || ((head & 1) === 0 && (head & 0xffe7e) !== 0)) throw new Error("bad head");
-    const d = { t: "delta", tick, baseTick: tick - age, phase: null, ack, training: (head & 0x100000) !== 0, me: null, changed: [], departed: [] };
+    // Append-only varint head: bits 21/22 are self Wish/barrier groups; bit 23 overrides tick*50 per frame.
+    if ((head & ~0xffffff) !== 0 || ((head & 1) === 0 && (head & (0xffe7e | 0x600000)) !== 0)) throw new Error("bad head");
+    const d = { t: "delta", tick, baseTick: tick - age, serverMs: tick * 50, phase: null, ack, training: (head & 0x100000) !== 0, me: null, changed: [], departed: [] };
     if (head & 1) {
       const m = head & 0xffe7e, s = { mask: m };
       if (m & 0x0002) s.x = r.f32();
@@ -284,9 +346,12 @@ function decodeBody(r) {
       if (m & 0x20000) s.sig=r.u8();
       if (m & 0x40000) { const target = r.varint(); s.huntTarget = target === 0 ? null : target; }
       if (m & 0x80000) s.huntStacks = r.varintU16("hunt_stacks");
+      if (head & 0x200000) s.wish = strictOpt(r, () => readWish(r));
+      if (head & 0x400000) { const barrier = readOwnerBarrier(r); s.barrierBits = barrier.amount; s.barrierRingStep = barrier.ring; }
       d.me = s;
     }
     if (head & 0x100) d.phase = r.code(3, "phase");
+    if (head & 0x800000) d.serverMs = nonnegative(r.f64(), "server time");
     const n = r.varint();
     if (n > 512) throw new Error("too many actors");
     let prev = null;
@@ -296,7 +361,7 @@ function decodeBody(r) {
       if (prev !== null) { id = prev + field; if (field === 0 || id > 0xffffffff) throw new Error("bad actor order"); }
       prev = id;
       const mask = r.varint();
-      if (mask & ~0xfff) throw new Error("bad actor mask");
+      if (mask & ~0x1fff) throw new Error("bad actor mask");
       const a = { id, mask };
       if (mask & 1) a.x = r.u16();
       if (mask & 2) a.y = r.u16();
@@ -310,6 +375,7 @@ function decodeBody(r) {
       if (mask & 512) a.displaceSeq = r.u8();
       if (mask & 1024) a.mobTypeCode=r.code(30,"mob type");
       if (mask & 2048) a.sig=r.u8();
+      if (mask & 4096) { const barrier = readActorBarrier(r); a.barrierPct = barrier.pct; a.barrierRingStep = barrier.ring; }
       d.changed.push(a);
     }
     if (head & 0x80) {
@@ -359,6 +425,25 @@ function decodeBody(r) {
       else if (k === 3) f.fx.push({ k: "block", id: r.varint(), by: r.varint(), weapon: r.u8() });
       else if (k === 4) f.fx.push({ k: "stagger", id: r.varint() });
       else if (k === 5) f.fx.push({ k: "teleport" });
+      else if (k === 6) {
+        const eventTime = nonnegative(r.f64(), "Wish event time"), caster = r.varint();
+        if (!caster) throw new Error("bad actor reference");
+        const ability = readAbility(r), duration = nonnegative(r.f64(), "Wish duration"), target = readWishActor(r), anchor = readWishPoint(r);
+        f.fx.push({ k: "castStarted", eventTime, caster, ability, duration, target, anchor });
+      }
+      else if (k === 7) {
+        const eventTime = nonnegative(r.f64(), "Wish event time"), ability = readAbility(r);
+        const caster = readWishActor(r), target = readWishActor(r), anchor = readWishPoint(r), destination = readWishPoint(r);
+        if ((ability === 3 && ((anchor === null) !== (destination === null))) || (ability !== 3 && destination !== null)) throw new Error("bad Wish landing geometry");
+        if (target !== null && caster === null && anchor === null && destination === null) throw new Error("bad anonymous Wish landing");
+        f.fx.push({ k: "castLanded", eventTime, ability, caster, target, anchor, destination });
+      }
+      else if (k === 8) {
+        const eventTime = nonnegative(r.f64(), "Wish event time"), caster = r.varint();
+        if (!caster) throw new Error("bad actor reference");
+        const ability = readAbility(r), reason = r.code(2, "Wish end reason");
+        f.fx.push({ k: "castEnded", eventTime, caster, ability, reason });
+      }
       else throw new Error("bad fx");
     }
     return f;
@@ -478,7 +563,7 @@ class Tracker {
   apply(m) {
     if (m.t === "welcome") { this.reset(); return m; }
     if (m.t === "state") { for (const item of m.items) this.collections.set(item.key, item.value); return m; }
-    if (m.t === "snapshot") { this.base = { tick: m.tick, phase: m.phase, training: m.training, me: m.me, actors: m.actors }; return m; }
+    if (m.t === "snapshot") { this.base = { tick: m.tick, serverMs: m.serverMs, phase: m.phase, training: m.training, me: m.me, actors: m.actors }; return m; }
     if (m.t !== "delta") return m;
     const b = this.base;
     if (!b) throw refused("no_base");
@@ -503,6 +588,7 @@ class Tracker {
       if (ch.mask & 512) n.displaceSeq = ch.displaceSeq;
       if (ch.mask & 1024) n.mobTypeCode=ch.mobTypeCode;
       if (ch.mask & 2048) n.sig=ch.sig;
+      if (ch.mask & 4096) { n.barrierPct = ch.barrierPct; n.barrierRingStep = ch.barrierRingStep; }
       if (ch.mask & 1) n.x = dqPos(ch.x);
       if (ch.mask & 2) n.y = dqPos(ch.y);
       if (ch.mask & 4) n.facing = dqAngle(ch.facing);
@@ -520,7 +606,7 @@ class Tracker {
       } else {
         // A new actor starts from the default actor and must carry its position (bits 0..2).
         if ((ch.mask & 7) !== 7) throw refused("incomplete_new_actor");
-        out.push(upd({ faction: 0, weapon: 0, hpPct: 100, status: 1, bounty: 0, kind: 0, effects: 0, displaceSeq: 0, mobTypeCode:0,sig:0 }, ch));
+        out.push(upd({ faction: 0, weapon: 0, hpPct: 100, status: 1, bounty: 0, kind: 0, effects: 0, displaceSeq: 0, mobTypeCode:0,sig:0,barrierPct:0,barrierRingStep:0 }, ch));
       }
     }
     flush(null);
@@ -546,10 +632,12 @@ class Tracker {
       if (d.mask & 0x20000) s.sig=d.sig;
       if (d.mask & 0x40000) s.huntTarget = d.huntTarget;
       if (d.mask & 0x80000) s.huntStacks = d.huntStacks;
+      if (Object.prototype.hasOwnProperty.call(d, "wish")) s.wish = d.wish;
+      if (Object.prototype.hasOwnProperty.call(d, "barrierBits")) { s.barrierBits = d.barrierBits; s.barrierRingStep = d.barrierRingStep; }
       me = s;
     }
-    const s = { t: "snapshot", tick: m.tick, serverMs: m.tick * 50, phase: m.phase === null ? b.phase : m.phase, ack: m.ack, training: m.training, me, actors: out };
-    this.base = { tick: s.tick, phase: s.phase, training: s.training, me: s.me, actors: s.actors };
+    const s = { t: "snapshot", tick: m.tick, serverMs: m.serverMs, phase: m.phase === null ? b.phase : m.phase, ack: m.ack, training: m.training, me, actors: out };
+    this.base = { tick: s.tick, serverMs: s.serverMs, phase: s.phase, training: s.training, me: s.me, actors: s.actors };
     return s;
   }
 }
@@ -606,6 +694,7 @@ async function connect(resume) {
 }
 function send(bytes) { if (ws && ws.readyState === 1) ws.send(bytes); }
 P.move = (x, y) => { P.moveSeq = (P.moveSeq + 1) & 255; send(input(++P.inputSeq, [{ k: "move", x, y, seq: P.moveSeq }])); return P.moveSeq; };
+P.cast = (slot, x, y, actorRef = null, t = null, seq = null) => send(input(++P.inputSeq, [{ k: "cast", slot, x, y, actorRef, t, seq }]));
 P.choose = (handle,pick) => send(input(++P.inputSeq,[{k:"choose",handle,pick}]));
 P.pickup = (handle) => send(input(++P.inputSeq,[{k:"pickup",handle}]));
 P.attack = (a) => send(input(++P.inputSeq, [{ k: "attack", a, t: null }]));

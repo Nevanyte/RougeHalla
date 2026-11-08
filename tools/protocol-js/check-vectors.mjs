@@ -23,17 +23,38 @@ const f32 = new Float32Array(1), u32 = new Uint32Array(f32.buffer);
 const bits = (x) => { f32[0] = x; return u32[0]; };
 
 let checks = 0;
+const castOptionalCoverage = new Set();
+const castSlotCoverage = new Set();
+const castVectors = new Set();
 const eq = (got, want, what) => {
   checks++;
   if (got !== want) throw new Error(`${what}: got ${got}, want ${want}`);
 };
+const canonical = (v) => Array.isArray(v) ? v.map(canonical) : v && typeof v === "object"
+  ? Object.fromEntries(Object.keys(v).sort().map((k) => [k, canonical(v[k])])) : v;
+const eqJson = (got, want, what) => eq(JSON.stringify(canonical(got)), JSON.stringify(canonical(want)), what);
 
 for (const v of fx.client) {
   const m = decodeClient(bytes(v.hex)); checks++;
   if (m.t === "input") eq(Buffer.from(input(m.seq, m.cmds)).toString("hex"), v.hex, v.name + " input encoding");
+  if (v.decoded !== undefined && v.decoded.k === "input" && Array.isArray(v.decoded.commands)) {
+    const commands = m.cmds.map((c) => c.k === "cast"
+      ? { k: c.k, slot: c.slot, xBits: bits(c.x), yBits: bits(c.y), actor: c.actorRef, t: c.t, seq: c.seq }
+      : c);
+    eqJson(commands, v.decoded.commands, v.name + " decoded client commands");
+  } else if (v.decoded !== undefined) eqJson(m, v.decoded, v.name + " decoded client");
+  for (const c of m.cmds ?? []) if (c.k === "cast") {
+    if (v.decoded === undefined) throw new Error(`${v.name} Cast vector lacks Rust-decoded JSON`);
+    castVectors.add(v.name);
+    castSlotCoverage.add(c.slot);
+    castOptionalCoverage.add((c.actorRef === null ? 0 : 1) | (c.t === null ? 0 : 2) | (c.seq === null ? 0 : 4));
+  }
   for (let n = 0; n < v.hex.length / 2; n++) { let threw = false; try { decodeClient(bytes(v.hex.slice(0, n * 2))); } catch { threw = true; } eq(threw, true, v.name + " truncated client"); }
 }
 for (const v of fx.malformedClient) { let threw = false; try { decodeClient(bytes(v.hex)); } catch { threw = true; } eq(threw, true, v.name + " malformed client"); }
+for (let i = 0; i <= 2; i++) if (!castSlotCoverage.has(i)) throw new Error(`missing Rust Cast vector for slot ${i}`);
+for (let i = 0; i < 8; i++) if (!castOptionalCoverage.has(i)) throw new Error(`missing Rust Cast optional-field combination ${i}`);
+if (!castVectors.has("input_cast_matrix")) throw new Error("missing Rust-generated input_cast_matrix vector");
 const combat = decodeClient(bytes(fx.client.find(v => v.name === "input_combat").hex));
 eq(JSON.stringify(combat.cmds), JSON.stringify([{ k: "swap", slot: null }, { k: "swap", slot: 0 }, { k: "swap", slot: 1 }, { k: "pickup", handle: 42 }]), "combat command fields");
 const choices=decodeClient(bytes(fx.client.find(v=>v.name==="input_choices").hex));
@@ -123,14 +144,25 @@ function checkSnapshot(m, d, n) {
       const e = d.me, s = m.me;
       for (const [k, jk] of [["id", "id"], ["faction", "faction"], ["status", "status"], ["weapon", "weapon"], ["readyIn", "readyInMs"], ["kills", "kills"], ["bounty", "bounty"], ["gv", "gv"], ["moveSeq", "moveSeq"], ["effects", "effects"], ["displaceSeq", "displaceSeq"], ["sig", "sig"], ["huntTarget", "huntTarget"], ["huntStacks", "huntStacks"]]) eq(s[k], e[jk], `${n} me.${k}`);
       for (const [k, jk] of [["x", "xBits"], ["y", "yBits"], ["facing", "facingBits"], ["hp", "hpBits"], ["maxHp", "maxHpBits"]]) eq(bits(s[k]), e[jk], `${n} me.${k}`);
+      eqJson(s.wish, e.wish, `${n} me.wish`);
+      eq(bits(s.barrierBits), e.barrierBits, `${n} me.barrierBits`);
+      eq(s.barrierRingStep, e.barrierRingStep, `${n} me.barrierRingStep`);
     }
     eq(m.actors.length, d.actors.length, `${n} actors`);
     d.actors.forEach((e, i) => {
       const s = m.actors[i];
       for (const k of ["id", "faction", "hpPct", "status", "weapon", "bounty", "kind", "effects", "displaceSeq", "mobTypeCode", "sig"]) eq(s[k], e[k], `${n} actor ${i}.${k}`);
       for (const [k, jk] of [["x", "xBits"], ["y", "yBits"], ["facing", "facingBits"]]) eq(bits(s[k]), e[jk], `${n} actor ${i}.${k}`);
+      eq(s.barrierPct, e.barrierPct, `${n} actor ${i}.barrierPct`);
+      eq(s.barrierRingStep, e.barrierRingStep, `${n} actor ${i}.barrierRingStep`);
     });
 }
+
+const wishFxCoverage = new Set();
+const wishBarrierCoverage = {
+  fullDefault: false, fullReset: false, deltaWishClear: false, deltaSelfBarrierClear: false,
+  deltaActorBarrierClear: false, newActorBarrierDefault: false, sourceOverride: false, sourceDefaultAfterOverride: false,
+};
 
 for (const v of fx.server) {
   const m = decode(bytes(v.hex));
@@ -143,14 +175,34 @@ for (const v of fx.server) {
     eq(m.tick, d.tick, `${n} tick`); eq(m.fx.length, d.fx.length, `${n} fx`);
     d.fx.forEach((e, i) => {
       const s = m.fx[i];
+      if (e.k === "castStarted" || e.k === "castLanded" || e.k === "castEnded") wishFxCoverage.add(e.k);
       eq(s.k, e.k, `${n} fx ${i}.k`);
       if (e.k === "swing") { eq(s.by, e.by, `${n} by`); eq(s.weapon, e.weapon, `${n} weapon`); eq(bits(s.x), e.xBits, `${n} x`); eq(bits(s.y), e.yBits, `${n} y`); eq(bits(s.a), e.aBits, `${n} a`); }
       else if (e.k === "block") { eq(s.id, e.id, `${n} id`); eq(s.by, e.by, `${n} by`); eq(s.weapon, e.weapon, `${n} weapon`); }
       else if (e.k === "stagger") eq(s.id, e.id, `${n} id`);
       else if (e.k === "teleport") { /* no fields */ }
+      else if (e.k === "castStarted") {
+        for (const k of ["eventTime", "caster", "ability", "duration", "target"]) eq(s[k], e[k], `${n} fx ${i}.${k}`);
+        for (const k of ["anchor"]) {
+          if (e[k] === null) eq(s[k], null, `${n} fx ${i}.${k}`);
+          else { eq(bits(s[k].x), e[k].xBits, `${n} fx ${i}.${k}.x`); eq(bits(s[k].y), e[k].yBits, `${n} fx ${i}.${k}.y`); }
+        }
+      }
+      else if (e.k === "castLanded") {
+        for (const k of ["eventTime", "ability", "caster", "target"]) eq(s[k], e[k], `${n} fx ${i}.${k}`);
+        for (const k of ["anchor", "destination"]) {
+          if (e[k] === null) eq(s[k], null, `${n} fx ${i}.${k}`);
+          else { eq(bits(s[k].x), e[k].xBits, `${n} fx ${i}.${k}.x`); eq(bits(s[k].y), e[k].yBits, `${n} fx ${i}.${k}.y`); }
+        }
+      }
+      else if (e.k === "castEnded") for (const k of ["eventTime", "caster", "ability", "reason"]) eq(s[k], e[k], `${n} fx ${i}.${k}`);
       else { eq(s.passive, e.passive, `${n} passive`); eq(s.victim, e.victim, `${n} victim`); eq(s.by, e.by, `${n} by`); eq(bits(s.amount), e.amountBits, `${n} amount`); }
     });
   }
+}
+
+for (const name of ["wish_fx_started", "wish_fx_landed", "wish_fx_ended"]) {
+  if (!fx.server.some((v) => v.name === name)) throw new Error(`missing Rust-generated ${name} vector`);
 }
 
 // The JS decoder reports a reason as an Error message (RangeError for a read past the end).
@@ -216,11 +268,44 @@ for (const c of fx.chains) {
       eq(JSON.stringify(t.base && { tick: t.base.tick, n: t.base.actors.length }), JSON.stringify(held), `${at} state kept`);
       return;
     }
-    const m = t.decode(bytes(st.hex));
+    const frame = bytes(st.hex), tag = new Uint8Array(frame)[0], previous = t.base;
+    const m = t.decode(frame);
     if (st.reset) { eq(m.t, "welcome", `${at} welcome`); eq(t.base, null, `${at} reset`); }
     else if (st.held) { eq(t.base.tick, st.held.tick, `${at} held tick`); eq(t.base.actors.length, st.held.actors, `${at} held actors`); }
-    else checkSnapshot(m, st.decoded, at);
+    else {
+      checkSnapshot(m, st.decoded, at);
+      if (c.name === "wish_barrier_lifecycle") {
+        const zeroSelf = m.me === null || (m.me.wish === null && bits(m.me.barrierBits) === 0 && m.me.barrierRingStep === 0);
+        const zeroActors = m.actors.every((a) => a.barrierPct === 0 && a.barrierRingStep === 0);
+        if (tag === 0x83 && !previous && zeroSelf && zeroActors) wishBarrierCoverage.fullDefault = true;
+        if (tag === 0x83 && previous) {
+          const hadData = (previous.me?.wish != null) || (previous.me && (previous.me.barrierBits !== 0 || previous.me.barrierRingStep !== 0))
+            || previous.actors.some((a) => a.barrierPct !== 0 || a.barrierRingStep !== 0);
+          if (hadData && zeroSelf && zeroActors) wishBarrierCoverage.fullReset = true;
+        }
+        if (tag === 0x87 && previous?.me?.wish != null && m.me?.wish === null) wishBarrierCoverage.deltaWishClear = true;
+        if (tag === 0x87 && previous?.me && (previous.me.barrierBits !== 0 || previous.me.barrierRingStep !== 0)
+          && m.me && bits(m.me.barrierBits) === 0 && m.me.barrierRingStep === 0) wishBarrierCoverage.deltaSelfBarrierClear = true;
+        if (tag === 0x87 && previous) {
+          const oldActors = new Set(previous.actors.map((a) => a.id));
+          if (m.actors.some((a) => !oldActors.has(a.id) && a.barrierPct === 0 && a.barrierRingStep === 0)) wishBarrierCoverage.newActorBarrierDefault = true;
+          if (previous.actors.some((a) => {
+            const now = m.actors.find((n) => n.id === a.id);
+            return (a.barrierPct !== 0 || a.barrierRingStep !== 0) && now?.barrierPct === 0 && now?.barrierRingStep === 0;
+          })) wishBarrierCoverage.deltaActorBarrierClear = true;
+        }
+      }
+      if (c.name === "wish_source_time_per_frame" && tag === 0x87 && previous
+        && previous.serverMs !== previous.tick * 50 && m.serverMs === m.tick * 50) wishBarrierCoverage.sourceDefaultAfterOverride = true;
+    }
+    if (c.name === "wish_source_time_per_frame" && m.t === "snapshot" && m.serverMs !== m.tick * 50) wishBarrierCoverage.sourceOverride = true;
   });
 }
+
+for (const name of ["wish_barrier_lifecycle", "wish_source_time_per_frame"]) {
+  if (!fx.chains.some((c) => c.name === name)) throw new Error(`missing Rust-generated ${name} chain`);
+}
+for (const [name, ok] of Object.entries(wishBarrierCoverage)) if (!ok) throw new Error(`missing protocol12 tracker coverage: ${name}`);
+for (const kind of ["castStarted", "castLanded", "castEnded"]) if (!wishFxCoverage.has(kind)) throw new Error(`missing Rust-generated Wish Fx ${kind}`);
 
 console.log(`JS decoder agrees with protocol/fixtures/v${version}.json: ${fx.server.length} server vectors, ${fx.malformedServer.length} malformed, ${fx.chains.length} chains, ${checks} checks`);
