@@ -107,6 +107,13 @@ pinned Editor probes show27 bare empty layer entries caused parser errors; expli
 while retaining all32 layer names and sorting-layer values. The existing live Editor was untouched. This is settings
 parser evidence, not acceptance of the pending combined UI/Web build.
 
+The [eight source quest-giver witnesses](evidence/quest-giver/ADMISSION.md) and
+[five native/source pending-Wish terminal cases](evidence/wish-terminal-producers/ADMISSION.md) are admitted through
+`146264b8`. Independent review exposed and repaired runner exit-status, failed-hasher and double-restoration defects;
+root executes the real-runner disposable controls and exact payload verifier, plus the integrated terminal consumer and
+its strict lint. Giver evidence does not implement a native neutral actor. The terminal test changes no gameplay and
+does not close the five strict source-born NPC signature prerequisites.
+
 [Frozen gate scopes and receipts](evidence/native-wish-union/FROZEN13_GATE.md) supersede the private pre-admission status
 below. The older results and artifact descriptions that follow retain their historical revision limits.
 
