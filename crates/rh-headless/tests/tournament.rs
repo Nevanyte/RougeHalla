@@ -8,9 +8,9 @@
 //! brain and gameplay producer remainder, documented in docs/evidence/stage2-bots-6/README.md.
 use rh_headless::tournament::{
     aggregate, deal_evenly, default_sim_config, default_workers, format_report, mean_interval, mix,
-    parse_lineup, percentile, plan_game, run, split, table_reaction_mean, wilson, BotSummary,
-    DiedTo, FactionChoice, GameOutcome, GameSummary, ManagerCounts, MeanInterval, PersonaChoice,
-    Proportion, SeatSpec, TournamentPlan, MAX_GAME_MS, PERSONA_IDS, TIER_IDS,
+    parse_lineup, percentile, plan_game, run, split, table_reaction_mean, wilson, BotBehaviour,
+    BotSummary, DiedTo, FactionChoice, GameOutcome, GameSummary, ManagerCounts, MeanInterval,
+    PersonaChoice, Proportion, SeatSpec, TournamentPlan, MAX_GAME_MS, PERSONA_IDS, TIER_IDS,
 };
 use rh_policy::bots::{PersonaId, TierId};
 use rh_sim::arenas::practice_arena;
@@ -75,6 +75,11 @@ fn bot_summary(row: &Value, index: u32) -> BotSummary {
         place: num(&row["place"]),
         outcome: outcome(row["outcome"].as_str().unwrap()),
         kills: num(&row["kills"]),
+        mob_kills: row.get("mobKills").map_or(0., num),
+        damage: row.get("damage").map_or(0., num),
+        mob_damage: row.get("mobDamage").map_or(0., num),
+        first_mob_kill_ms: row.get("firstMobKillMs").and_then(Value::as_f64),
+        tp_hp: row.get("tpHp").and_then(Value::as_f64),
         deaths: num(&row["deaths"]),
         gv: num(&row["gv"]),
         died_at_ms: row["diedAtMs"].as_f64(),
@@ -85,6 +90,69 @@ fn bot_summary(row: &Value, index: u32) -> BotSummary {
             None => None,
             Some(other) => panic!("unconsumed diedTo {other}"),
         },
+        behaviour: behaviour_of(&row["behaviour"]),
+    }
+}
+
+/// The source BotBehaviour JSON (analyse rows), or the default block when the case does not carry one.
+fn behaviour_of(v: &Value) -> BotBehaviour {
+    if v.is_null() {
+        return BotBehaviour::default();
+    }
+    let mut commands: Vec<(String, u64)> = v["commands"]
+        .as_object()
+        .map(|o| {
+            o.iter()
+                .map(|(k, n)| (k.clone(), n.as_u64().unwrap_or(0)))
+                .collect()
+        })
+        .unwrap_or_default();
+    commands.sort_by(|a, b| a.0.cmp(&b.0));
+    let mut reactions: Vec<(String, Vec<u64>)> = v["reactions"]
+        .as_object()
+        .map(|o| {
+            o.iter()
+                .map(|(kind, list)| {
+                    (
+                        kind.clone(),
+                        list.as_array()
+                            .unwrap()
+                            .iter()
+                            .map(|x| x.as_f64().unwrap() as u64)
+                            .collect(),
+                    )
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+    reactions.sort_by(|a, b| a.0.cmp(&b.0));
+    let field = |name: &str| -> Option<u64> { v.get(name).and_then(Value::as_u64) };
+    BotBehaviour {
+        commands,
+        commands_total: v.get("commandsTotal").and_then(Value::as_u64).unwrap_or(0),
+        reactions,
+        target_clicks: v.get("targetClicks").and_then(Value::as_u64).unwrap_or(0),
+        click_missed: v.get("clickMissed").and_then(Value::as_u64).unwrap_or(0),
+        click_wrong: v.get("clickWrong").and_then(Value::as_u64).unwrap_or(0),
+        hesitations: v.get("hesitations").and_then(Value::as_u64).unwrap_or(0),
+        lapses: v.get("lapses").and_then(Value::as_u64).unwrap_or(0),
+        throttled: v.get("throttled").and_then(Value::as_u64).unwrap_or(0),
+        superseded: v.get("superseded").and_then(Value::as_u64).unwrap_or(0),
+        apm_peak: v.get("apmPeak").and_then(Value::as_u64).unwrap_or(0),
+        mob_targets: field("mobTargets"),
+        mob_drops: field("mobDrops"),
+        retreats: field("retreats"),
+        mob_focus_ms: field("mobFocusMs"),
+        grabs: field("grabs"),
+        max_stall_ms: field("maxStallMs"),
+        dodges: field("dodges"),
+        jukes: field("jukes"),
+        kite_cycles: field("kiteCycles"),
+        goals: v.get("goals").and_then(Value::as_object).map(|o| {
+            o.iter()
+                .map(|(k, n)| (k.clone(), n.as_u64().unwrap_or(0)))
+                .collect()
+        }),
     }
 }
 fn plan_from(v: &Value) -> TournamentPlan {
@@ -167,6 +235,9 @@ fn game_summary(case: &Value) -> GameSummary {
         duration_ms: num(&case["durationMs"]),
         ticks: case["ticks"].as_u64().unwrap() as u32,
         first_death_ms: case["firstDeathMs"].as_f64(),
+        first_kill_ms: case.get("firstKillMs").and_then(Value::as_f64),
+        death_log: Vec::new(),
+        first_hits: Vec::new(),
         teleport_ms: case["teleportMs"].as_f64(),
         sudden_death_ms: case["suddenDeathMs"].as_f64(),
         bots,
@@ -579,7 +650,13 @@ fn a_small_tournament_runs_deterministically_and_reports_invariants() {
     let plan = small_plan(2, 60_000.);
     let a = run(&plan, &arena, &sim);
     let b = run(&plan, &arena, &sim);
-    assert_eq!(a, b, "the same plan replays byte-identically");
+    // The report carries the absent-telemetry figures as NaN; NaN is not reflexive, so determinism is byte identity of
+    // the rendered report rather than PartialEq of the values.
+    assert_eq!(
+        format!("{a:?}"),
+        format!("{b:?}"),
+        "the same plan replays byte-identically"
+    );
     assert_eq!(a.games.len(), 2);
     assert_eq!(a.meta.games, 2);
     assert_eq!(a.meta.lineup, plan.tiers);
@@ -619,8 +696,14 @@ fn a_small_tournament_runs_deterministically_and_reports_invariants() {
     assert!(report.duration.min_s <= report.duration.p50_s);
     assert!(report.duration.p50_s <= report.duration.max_s);
     let text = format_report(&a);
-    assert!(text.contains("tournament: 2 games"));
-    assert!(text.contains("tier easy:"));
+    assert!(
+        text.contains("TOURNAMENT  2 games"),
+        "the source header layout"
+    );
+    assert!(
+        text.contains("PER TIER") && text.contains("\neasy "),
+        "the source per-tier table"
+    );
     assert_eq!(
         report.refused as u64,
         a.games.iter().map(|g| g.manager.refused).sum::<u64>()
@@ -663,9 +746,11 @@ fn a_real_teleport_is_in_the_summary() {
         "the source coliseum schedule teleports after the patience timer"
     );
     assert!(out.report.teleport_share > 0.);
-    // The public Env has no sudden-death event, so the port cannot observe a start: the share stays 0 (the source's share
-    // of games whose start it saw), never a fabricated 1. An empty report is NaN, as in the source.
+    // Timer semantics belong to the lead's timer-repair slice: this runner keeps sudden_death_ms null (the public Env
+    // exposes no burn-start event here), so the share stays 0 as at the base; the source field is still rendered from
+    // declared source games in the pinned report corpus. An empty report is NaN, as in the source.
     assert_eq!(out.report.sudden_death_share, 0.);
+    assert!(game.sudden_death_ms.is_none());
 }
 
 #[test]
@@ -789,4 +874,80 @@ fn the_json_export_keeps_the_source_names_and_null_for_absent_figures() {
     assert_eq!(payload["report"]["duration"]["meanS"], Value::Null);
     assert_eq!(payload["report"]["firstDeathMedianS"], Value::Null);
     assert!(payload["games"].as_array().unwrap().is_empty());
+    // The source payload carries evaluate()'s criteria and the full report shape.
+    let criteria = payload["criteria"].as_array().unwrap();
+    assert_eq!(
+        criteria.len(),
+        rh_headless::tournament::evaluate(&report).len()
+    );
+    assert_eq!(
+        criteria[0]["ok"],
+        Value::Null,
+        "no tier can be judged on no games"
+    );
+    assert!(criteria[0]["text"]
+        .as_str()
+        .unwrap()
+        .contains("needs two tiers"));
+    assert_eq!(payload["report"]["tiers"], serde_json::json!([]));
+}
+
+/// The report views are the actual source pipeline: source GameSummary rows (with the full behaviour block) through
+/// aggregate, then formatReport with the source meta and evaluate. The Rust aggregate must reproduce the source report
+/// JSON exactly, the printed layout exactly (including the columns fed by the humanizer telemetry), and the criteria
+/// exactly; the empty and stored-games views pin the no-data rendering and the null wall meta.
+#[test]
+fn the_report_views_match_the_actual_source() {
+    use rh_headless::tournament::{evaluate, format_report_with, ReportMeta};
+    use rh_headless::tournament_cli::report_json;
+    let f = fixture();
+    let views = f["reportViews"].as_array().expect("report views");
+    assert_eq!(views.len(), 3);
+    for view in views {
+        let name = view["name"].as_str().unwrap();
+        let games: Vec<GameSummary> = view["games"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(game_summary)
+            .collect();
+        let report = aggregate(&games);
+        let meta = &view["meta"];
+        let meta = ReportMeta {
+            lineup: meta["lineup"].as_str().unwrap().to_owned(),
+            seed: meta["seed"].as_u64().unwrap() as u32,
+            learn: meta["learn"].as_bool().unwrap(),
+            persona: meta["persona"].as_str().unwrap().to_owned(),
+            faction: meta["faction"].as_str().unwrap().to_owned(),
+            workers: meta["workers"].as_u64().unwrap() as u32,
+            wall_ms: meta["wallMs"].as_f64(),
+            game_ms: meta["gameMs"].as_f64(),
+        };
+        same_json(
+            &report_json(&report),
+            &view["report"],
+            &format!("{name}: report"),
+        );
+        assert_eq!(
+            format_report_with(&report, &meta),
+            view["format"].as_str().unwrap(),
+            "{name}: printed layout"
+        );
+        let criteria = evaluate(&report);
+        let expected = view["criteria"].as_array().unwrap();
+        assert_eq!(criteria.len(), expected.len(), "{name}: criteria count");
+        for (i, (got, want)) in criteria.iter().zip(expected).enumerate() {
+            assert_eq!(
+                want["text"].as_str().unwrap(),
+                got.text,
+                "{name}: criterion {i} text"
+            );
+            let want_ok = match &want["ok"] {
+                Value::Null => None,
+                Value::Bool(ok) => Some(*ok),
+                other => panic!("{name}: bad criterion ok {other}"),
+            };
+            assert_eq!(want_ok, got.ok, "{name}: criterion {i} verdict");
+        }
+    }
 }

@@ -1,0 +1,11 @@
+--- a/crates/rh-headless/src/tournament.rs
++++ b/crates/rh-headless/src/tournament.rs
+@@ -1697,7 +1697,7 @@
+                     f0(x.p90),
+                     f0(x.mean),
+                     f0(x.table),
+-                    f2(x.mean / x.table),
++                    f2(x.mean / (x.table + 1.)),
+                 ]
+             })
+             .collect();

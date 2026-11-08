@@ -16,11 +16,15 @@
 //! plan, so the same plan replays byte-identically (the CLI wrapper may time itself outside).
 
 use crate::{Agent, AgentSpec, Env, EnvConfig};
-use rh_policy::bots::{HumanBot, PersonaId, TierId};
+use rh_policy::bots::{HumanBot, PersonaId, Rng, TierId};
+use rh_policy::{MatchStart, Policy, PolicySpec, PolicyStats};
 use rh_sim::constants::{MAX_PLAYERS, TICK_MS};
 use rh_sim::content::FactionId;
 use rh_sim::rng::Mulberry32;
-use rh_sim::{Arena, ArenaMode, ArenaRules, Event, Outcome, PlayerId, RunResult, SimConfig};
+use rh_sim::{
+    Arena, ArenaMode, ArenaRules, Event, Observation, Outcome, PlayerId, PublicCommand, RunResult,
+    SimConfig, Status,
+};
 
 /// A game is cut off after this much simulated time since it started (12 minutes; source game.ts MAX_GAME_MS).
 pub const MAX_GAME_MS: f64 = 12. * 60_000.;
@@ -367,8 +371,37 @@ impl DiedTo {
     }
 }
 
-/// What one bot measured about itself in a game, as the ported Env exposes it (source game.ts BotGameSummary, reduced:
-/// the humanizer behaviour block is not ported here and stays absent, never zeroed).
+/// The humanizer/brain telemetry block of one bot-game (source game.ts BotBehaviour). The humanizer counters are ported
+/// and always present; the hunt/tactics/goals counters are written by the brain layers that are still the
+/// P-BOTS-1/P-BOTS-3/P-BOTS-4 remainder, so they are None (absent, never zeroed) until those layers land.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct BotBehaviour {
+    /// Command type -> count, sorted by name (source sortedRecord).
+    pub commands: Vec<(String, u64)>,
+    pub commands_total: u64,
+    /// Stimulus kind -> click delays (ms, rounded), sorted by kind (source game.ts rounds with Math.round).
+    pub reactions: Vec<(String, Vec<u64>)>,
+    pub target_clicks: u64,
+    pub click_missed: u64,
+    pub click_wrong: u64,
+    pub hesitations: u64,
+    pub lapses: u64,
+    pub throttled: u64,
+    pub superseded: u64,
+    pub apm_peak: u64,
+    pub mob_targets: Option<u64>,
+    pub mob_drops: Option<u64>,
+    pub retreats: Option<u64>,
+    pub mob_focus_ms: Option<u64>,
+    pub grabs: Option<u64>,
+    pub max_stall_ms: Option<u64>,
+    pub dodges: Option<u64>,
+    pub jukes: Option<u64>,
+    pub kite_cycles: Option<u64>,
+    pub goals: Option<Vec<(String, u64)>>,
+}
+
+/// What one bot measured about itself in a game, as the ported Env exposes it (source game.ts BotGameSummary).
 #[derive(Clone, Debug, PartialEq)]
 pub struct BotSummary {
     pub seat: SeatSpec,
@@ -378,11 +411,20 @@ pub struct BotSummary {
     pub place: f64,
     pub outcome: GameOutcome,
     pub kills: f64,
+    pub mob_kills: f64,
+    /// Damage to players and to mobs, from the public hit events (the same hit fx the source tallies).
+    pub damage: f64,
+    pub mob_damage: f64,
     pub deaths: f64,
     pub gv: f64,
     /// Milliseconds since the raid started, null while standing at the end (or at the cap).
     pub died_at_ms: Option<f64>,
+    /// Since the raid started: the first mob this bot killed (null: none). A tuning diagnostic.
+    pub first_mob_kill_ms: Option<f64>,
+    /// Its hp share when the coliseum teleport came (null: it was down already, or there was no teleport).
+    pub tp_hp: Option<f64>,
     pub died_to: Option<DiedTo>,
+    pub behaviour: BotBehaviour,
 }
 
 /// The manager's command counters (source GameSummary.manager): what the seats proposed and what validate + submit
@@ -397,7 +439,11 @@ pub struct ManagerCounts {
     pub errors: u64,
 }
 
-/// One tournament game, summarised as plain data (source game.ts GameSummary, reduced to the publicly observable part).
+/// One hit between two players: [ms since the raid started, attacker index, victim index, attacker hp share, victim hp
+/// share, victim busy, attacker busy] (source game.ts firstHits tuple).
+pub type FirstHit = (f64, usize, usize, f64, f64, u8, u8);
+
+/// One tournament game, summarised as plain data (source game.ts GameSummary).
 #[derive(Clone, Debug, PartialEq)]
 pub struct GameSummary {
     /// The world seed this game played under (source planGame seed).
@@ -414,26 +460,134 @@ pub struct GameSummary {
     pub ticks: u32,
     /// Since the raid started; null when it never happened.
     pub first_death_ms: Option<f64>,
+    /// Since the raid started: the first player a bot killed; null when none. A tuning diagnostic.
+    pub first_kill_ms: Option<f64>,
+    /// Every bot's death in order: (ms since the raid started, victim index, killer index or None for a mob/arena).
+    pub death_log: Vec<(f64, usize, Option<usize>)>,
+    pub first_hits: Vec<FirstHit>,
     /// The coliseum teleport, since the raid started; null when it never happened.
     pub teleport_ms: Option<f64>,
-    /// The moment sudden death's burn began; the public Env exposes no such event, so this is always null (reported as
-    /// NaN, the source prints "-").
+    /// The moment sudden death's burn began; null when it never happened.
     pub sudden_death_ms: Option<f64>,
     pub bots: Vec<BotSummary>,
     pub manager: ManagerCounts,
 }
 
-/// One game's result: its plan index and summary (source worker.ts GameResult; the source wallMs is not part of the
-/// deterministic summary and is not read here).
+/// One game's result: its plan index and summary (source worker.ts GameResult).
 #[derive(Clone, Debug, PartialEq)]
 pub struct GameResult {
     pub index: u32,
     pub summary: GameSummary,
 }
 
+/// The hp share the source prints: the fraction, rounded to hundredths (Math.round(x * 100) / 100).
+fn hp_share(p: &rh_sim::state::Player) -> f64 {
+    if p.vitals.max_hp > 0. {
+        (p.vitals.hp / p.vitals.max_hp * 100.).round() / 100.
+    } else {
+        0.
+    }
+}
+
+/// Round to the nearest integer the way the source Math.round does for the non-negative reaction delays.
+fn js_round(x: f64) -> u64 {
+    if !x.is_finite() || x <= 0. {
+        0
+    } else {
+        (x + 0.5).floor() as u64
+    }
+}
+
+/// One bot's combat tally while a game plays (source game.ts Tally and the fx observer).
+#[derive(Clone, Default)]
+struct Tally {
+    kills: u64,
+    mob_kills: u64,
+    damage: f64,
+    mob_damage: f64,
+    died_at: Option<f64>,
+    first_mob_kill: Option<f64>,
+    tp_hp: Option<f64>,
+    /// The last hit between bots: (since ms, other bot index).
+    last_trade: Option<(f64, usize)>,
+}
+
+/// The plan's simulated command delay line, when the plan asks for one: latencyMs/jitterMs (None or 0 = no line, so the
+/// zero-delay behaviour is exactly the unwrapped runner and stays byte-identical).
+fn plan_delay(plan: &TournamentPlan) -> Option<(f64, f64)> {
+    let latency = plan.latency_ms.unwrap_or(0.).max(0.);
+    let jitter = plan.jitter_ms.unwrap_or(0.).max(0.);
+    (latency > 0. || jitter > 0.).then_some((latency, jitter))
+}
+
+/// The source tournament's simulated command delay line (tournament/game.ts latencyMs/jitterMs and BotManager.deliver):
+/// a bot clicks at the frame's time and the command reaches the server at
+/// max(previous arrival, clicked + latency + jitter), where the jitter is uniform in -jitterMs..=+jitterMs from the
+/// seat's own line stream. The wrapper is an ordinary rh-policy seat, so the commands are still only proposed through the
+/// policy seam and validated + submitted by the Env; it changes arrival time, never a rule.
+///
+/// The stream is the manager's line-stream family (mulberry32(mix(seed, 1))), derived here from the seat's own match seed:
+/// one independent stream per seat, so the jitter is deterministic and independent of game/thread ordering.
+struct DelayLinePolicy {
+    inner: Box<dyn Policy>,
+    latency_ms: f64,
+    jitter_ms: f64,
+    line: Rng,
+    last_arrival: f64,
+    /// Commands clicked but not arrived yet, in click order (arrivals are never out of order).
+    pending: std::collections::VecDeque<(f64, PublicCommand)>,
+}
+
+impl DelayLinePolicy {
+    fn new(inner: Box<dyn Policy>, latency_ms: f64, jitter_ms: f64) -> Self {
+        Self {
+            inner,
+            latency_ms,
+            jitter_ms,
+            line: Rng::new(1),
+            last_arrival: f64::NEG_INFINITY,
+            pending: std::collections::VecDeque::new(),
+        }
+    }
+}
+
+impl Policy for DelayLinePolicy {
+    fn spec(&self) -> PolicySpec {
+        self.inner.spec()
+    }
+    fn stats(&self) -> Option<PolicyStats> {
+        self.inner.stats()
+    }
+    fn reset(&mut self, m: &MatchStart) {
+        self.inner.reset(m);
+        self.line = Rng::new(mix(m.seed as u32, 1));
+        self.last_arrival = f64::NEG_INFINITY;
+        self.pending.clear();
+    }
+    fn decide(&mut self, obs: &Observation) -> Vec<PublicCommand> {
+        let now = obs.server_time;
+        for cmd in self.inner.decide(obs) {
+            let jitter = (self.line.next_f64() * 2. - 1.) * self.jitter_ms;
+            let arrival = self.last_arrival.max(now + self.latency_ms + jitter);
+            self.last_arrival = arrival;
+            self.pending.push_back((arrival, cmd));
+        }
+        let mut out = Vec::new();
+        while let Some((arrival, _)) = self.pending.front() {
+            if *arrival > now {
+                break;
+            }
+            let (_, cmd) = self.pending.pop_front().expect("the front command");
+            out.push(cmd);
+        }
+        out
+    }
+}
+
 /// Play one game of the plan through rh-headless policy seats (source game.ts runGame).
 pub fn run_game(index: u32, plan: &TournamentPlan, arena: &Arena, sim: &SimConfig) -> GameSummary {
     let game = plan_game(plan, index);
+    let delay = plan_delay(plan);
     let agents: Vec<AgentSpec> = game
         .lineup
         .iter()
@@ -443,7 +597,15 @@ pub fn run_game(index: u32, plan: &TournamentPlan, arena: &Arena, sim: &SimConfi
             faction: seat.faction,
             bot: true,
             agent: Agent::Policy {
-                policy: Box::new(HumanBot::new(seat.tier, seat.persona)),
+                policy: {
+                    let policy: Box<dyn Policy> = Box::new(HumanBot::new(seat.tier, seat.persona));
+                    match delay {
+                        Some((latency, jitter)) => {
+                            Box::new(DelayLinePolicy::new(policy, latency, jitter))
+                        }
+                        None => policy,
+                    }
+                },
             },
         })
         .collect();
@@ -467,36 +629,106 @@ pub fn run_game(index: u32, plan: &TournamentPlan, arena: &Arena, sim: &SimConfi
     );
     let ids: Vec<PlayerId> = env.sim.players().iter().map(|p| p.id).collect();
     let mut resolved: Vec<Option<RunResult>> = vec![None; ids.len()];
-    let mut deaths: Vec<Option<(f64, Option<usize>)>> = vec![None; ids.len()];
+    let mut tallies: Vec<Tally> = vec![Tally::default(); ids.len()];
     let mut raid_start_tick: Option<u32> = None;
     let mut teleport_tick: Option<u32> = None;
     let mut first_death_ms: Option<f64> = None;
+    let mut first_kill_ms: Option<f64> = None;
+    let mut death_log: Vec<(f64, usize, Option<usize>)> = Vec::new();
+    let mut first_hits: Vec<FirstHit> = Vec::new();
+    let mut pair_seen: std::collections::BTreeSet<u32> = std::collections::BTreeSet::new();
     let mut end_tick;
     let ended;
     loop {
         let progress = env.advance(&[]);
         end_tick = progress.tick;
-        for event in env.last_events() {
+        for event in env.last_events().to_vec() {
             match event {
                 Event::RaidStarted if raid_start_tick.is_none() => {
                     raid_start_tick = Some(progress.tick);
                 }
                 Event::Teleported if teleport_tick.is_none() => {
                     teleport_tick = Some(progress.tick);
+                    for (i, tally) in tallies.iter_mut().enumerate() {
+                        let player = env.sim.player(ids[i]).expect("the seat's player");
+                        tally.tp_hp = (player.status == Status::Alive).then(|| hp_share(player));
+                    }
+                }
+                Event::Hit {
+                    victim,
+                    by: Some(by),
+                    amount,
+                    ..
+                } if by != victim => {
+                    let Some(victim_index) = ids.iter().position(|id| *id == victim) else {
+                        // A mob victim: attribute to the attacker (source tally.mobDamage).
+                        if let Some(by_index) = ids.iter().position(|id| *id == by) {
+                            tallies[by_index].mob_damage += amount;
+                        }
+                        continue;
+                    };
+                    let Some(by_index) = ids.iter().position(|id| *id == by) else {
+                        continue;
+                    };
+                    tallies[by_index].damage += amount;
+                    let at = since_ms(raid_start_tick, progress.tick);
+                    let a = by_index;
+                    let v = victim_index;
+                    let key = (a.min(v) * 16 + a.max(v)) as u32;
+                    if pair_seen.insert(key) {
+                        let hp = |player: &rh_sim::state::Player| hp_share(player);
+                        let attacker = env.sim.player(ids[a]).expect("attacker");
+                        let victim_player = env.sim.player(ids[v]).expect("victim");
+                        let busy = |who: usize, other: usize| -> u8 {
+                            match tallies[who].last_trade {
+                                Some((last, partner)) if partner != other && at - last <= 3000. => {
+                                    1
+                                }
+                                _ => 0,
+                            }
+                        };
+                        first_hits.push((
+                            at,
+                            a,
+                            v,
+                            hp(attacker),
+                            hp(victim_player),
+                            busy(v, a),
+                            busy(a, v),
+                        ));
+                    }
+                    tallies[a].last_trade = Some((at, v));
+                    tallies[v].last_trade = Some((at, a));
                 }
                 Event::Death { id, by, .. } => {
-                    let Some(victim) = ids.iter().position(|candidate| candidate == id) else {
+                    let at = since_ms(raid_start_tick, progress.tick);
+                    let Some(victim) = ids.iter().position(|candidate| *candidate == id) else {
+                        // A mob death: the player who dealt it killed a mob.
+                        if let Some(killer_id) = by {
+                            if let Some(killer) =
+                                ids.iter().position(|candidate| *candidate == killer_id)
+                            {
+                                tallies[killer].mob_kills += 1;
+                                tallies[killer].first_mob_kill = Some(
+                                    tallies[killer].first_mob_kill.map_or(at, |old| old.min(at)),
+                                );
+                            }
+                        }
                         continue;
                     };
                     let killer = by.and_then(|killer| ids.iter().position(|c| *c == killer));
-                    let at = since_ms(raid_start_tick, progress.tick);
-                    if deaths[victim].is_none() {
-                        deaths[victim] = Some((at, killer));
+                    if tallies[victim].died_at.is_none() {
+                        tallies[victim].died_at = Some(at);
                         first_death_ms = Some(first_death_ms.map_or(at, |old| old.min(at)));
+                        death_log.push((at, victim, killer));
+                    }
+                    if let Some(killer) = killer.filter(|k| *k != victim) {
+                        tallies[killer].kills += 1;
+                        first_kill_ms = Some(first_kill_ms.map_or(at, |old| old.min(at)));
                     }
                 }
                 Event::Resolved { id, result, .. } => {
-                    if let Some(i) = ids.iter().position(|candidate| candidate == id) {
+                    if let Some(i) = ids.iter().position(|candidate| *candidate == id) {
                         resolved[i] = Some(result.clone());
                     }
                 }
@@ -508,6 +740,44 @@ pub fn run_game(index: u32, plan: &TournamentPlan, arena: &Arena, sim: &SimConfi
             break;
         }
     }
+    let telemetry = env.seat_telemetry();
+    let behaviour = |stats: Option<rh_policy::PolicyStats>| -> BotBehaviour {
+        let Some(stats) = stats else {
+            return BotBehaviour::default();
+        };
+        let mut commands = stats.commands;
+        commands.sort_by(|a, b| a.0.cmp(&b.0));
+        let commands_total = commands.iter().map(|(_, n)| *n).sum();
+        let mut reactions: Vec<(String, Vec<u64>)> = stats
+            .reactions
+            .into_iter()
+            .map(|(kind, samples)| (kind, samples.into_iter().map(js_round).collect()))
+            .collect();
+        reactions.sort_by(|a, b| a.0.cmp(&b.0));
+        BotBehaviour {
+            commands,
+            commands_total,
+            reactions,
+            target_clicks: stats.target_clicks,
+            click_missed: stats.click_missed,
+            click_wrong: stats.click_wrong,
+            hesitations: stats.hesitations,
+            lapses: stats.lapses,
+            throttled: stats.throttled,
+            superseded: stats.superseded,
+            apm_peak: stats.apm_peak,
+            mob_targets: None,
+            mob_drops: None,
+            retreats: None,
+            mob_focus_ms: None,
+            grabs: None,
+            max_stall_ms: None,
+            dodges: None,
+            jukes: None,
+            kite_cycles: None,
+            goals: None,
+        }
+    };
     let mut bots = Vec::with_capacity(ids.len());
     let mut winner = None;
     let mut draw = false;
@@ -533,44 +803,35 @@ pub fn run_game(index: u32, plan: &TournamentPlan, arena: &Arena, sim: &SimConfi
                 }
             }
         };
-        let died_to = result.as_ref().and_then(|r| {
-            (r.outcome == Outcome::Died).then(|| {
-                if r.killed_by.as_deref() == Some("sudden death") {
-                    DiedTo::Arena
-                } else if r.killed_by_bot {
-                    DiedTo::Bot
-                } else {
-                    DiedTo::Mob
-                }
-            })
-        });
+        let tally = &tallies[i];
         bots.push(BotSummary {
             seat: *seat,
             index: i as u32,
             place: result.as_ref().map_or(1., |r| f64::from(r.place)),
             outcome,
-            kills: result.as_ref().map_or(0., |r| f64::from(r.kills)),
-            deaths: if matches!(outcome, GameOutcome::Died | GameOutcome::Mia) {
-                1.
-            } else {
-                0.
-            },
+            kills: tally.kills as f64,
+            mob_kills: tally.mob_kills as f64,
+            damage: tally.damage.round(),
+            mob_damage: tally.mob_damage.round(),
+            deaths: result.as_ref().map_or(0., |r| {
+                if matches!(r.outcome, Outcome::Died | Outcome::Mia) {
+                    1.
+                } else {
+                    0.
+                }
+            }),
             gv: result.as_ref().map_or(0., |r| f64::from(r.gv.total)),
-            died_at_ms: deaths[i].map(|(at, _)| at),
-            died_to,
+            died_at_ms: tally.died_at,
+            first_mob_kill_ms: tally.first_mob_kill,
+            tp_hp: tally.tp_hp,
+            died_to: match outcome {
+                GameOutcome::Died | GameOutcome::Mia => result.as_ref().map(died_to),
+                _ => None,
+            },
+            behaviour: behaviour(telemetry[i].clone()),
         });
     }
-    let mut manager = ManagerCounts::default();
-    for (_, stats, fault) in env.seat_stats() {
-        manager.sent += stats.proposed;
-        manager.applied += stats.accepted;
-        manager.refused += stats.rejected;
-        manager.frames += stats.decisions;
-        if fault.is_some() {
-            manager.errors += 1;
-        }
-    }
-    let duration_ms = raid_start_tick.map_or(0., |start| since_ms(Some(start), end_tick));
+    let duration_ms = since_ms(raid_start_tick, end_tick);
     GameSummary {
         seed: game.seed,
         lineup: game.lineup,
@@ -580,12 +841,13 @@ pub fn run_game(index: u32, plan: &TournamentPlan, arena: &Arena, sim: &SimConfi
         duration_ms,
         ticks: end_tick,
         first_death_ms,
-        teleport_ms: teleport_tick.and_then(|tick| {
-            raid_start_tick.map(|start| (f64::from(tick.saturating_sub(start))) * TICK_MS)
-        }),
+        first_kill_ms,
+        death_log,
+        first_hits,
+        teleport_ms: teleport_tick.map(|tick| since_ms(raid_start_tick, tick)),
         sudden_death_ms: None,
         bots,
-        manager,
+        manager: manager_counts(&env),
     }
 }
 
@@ -691,6 +953,11 @@ fn sum_of(xs: &[f64]) -> f64 {
     xs.iter().fold(0., |sum, x| sum + x)
 }
 
+/// A fold from positive zero: Iterator::sum for f64 starts at -0.0, which the source (0) does not.
+fn sum_iter(xs: impl Iterator<Item = f64>) -> f64 {
+    xs.fold(0., |sum, x| sum + x)
+}
+
 /// Stimuli whose delay is the plain reaction time; the others are scaled by attention or reading, or are the daze
 /// (source report.ts READING_KINDS/SCALED_KINDS).
 const READING_KINDS: [&str; 3] = ["announcement", "chestUp", "planOffer"];
@@ -716,7 +983,7 @@ fn tier_params(id: TierId) -> &'static rh_policy::bots::TierParams {
         .expect("a known tier")
 }
 
-/// A per-key aggregate of bot-games (source report.ts GroupAgg): the source group().
+/// A per-key aggregate of bot-games (source report.ts GroupAgg).
 #[derive(Clone, Debug, PartialEq)]
 pub struct GroupAgg {
     pub key: String,
@@ -748,8 +1015,30 @@ pub struct DiedToCounts {
     pub arena: f64,
 }
 
-/// One tier's aggregate (source report.ts TierAgg, reduced to the columns the ported summary carries: the humanizer
-/// behaviour and reaction blocks are the P-BOTS-1 remainder, not zeroed here).
+/// One reaction-delay row (source report.ts ReactionRow).
+#[derive(Clone, Debug, PartialEq)]
+pub struct ReactionRow {
+    pub kind: String,
+    pub n: f64,
+    pub p10: f64,
+    pub p50: f64,
+    pub p90: f64,
+    pub mean: f64,
+    pub table: f64,
+}
+
+/// The pooled plain-reaction row (source TierAgg.pooled).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct PooledReaction {
+    pub n: f64,
+    pub mean: f64,
+    pub table: f64,
+    pub ratio: f64,
+}
+
+/// One tier's aggregate (source report.ts TierAgg). The hunt/tactics columns whose counters are not in the ported policy
+/// telemetry yet are NaN and print as "-" (the source's own absent-figure rendering); they fill in when the brain layers
+/// land. Nothing is zeroed to stand in for absent data.
 #[derive(Clone, Debug, PartialEq)]
 pub struct TierAgg {
     pub tier: TierId,
@@ -762,10 +1051,30 @@ pub struct TierAgg {
     pub place: MeanInterval,
     pub kills_per_bot: f64,
     pub deaths_per_bot: f64,
+    pub damage_per_bot: f64,
+    pub mob_damage_per_bot: f64,
+    pub mob_kills_per_bot: f64,
     pub gv_per_bot: f64,
-    /// Mean seconds alive since the raid started.
     pub alive_seconds: f64,
+    pub never_fought: f64,
     pub died_to: DiedToCounts,
+    pub reactions: Vec<ReactionRow>,
+    pub pooled: PooledReaction,
+    pub target_clicks: f64,
+    pub miss_rate: f64,
+    pub wrong_rate: f64,
+    pub apm_mean: f64,
+    pub apm_peak_mean: f64,
+    pub apm_peak_max: f64,
+    pub apm_limit: f64,
+    pub apm_breaches: f64,
+    pub dodges_per_bot: f64,
+    pub jukes_per_bot: f64,
+    pub kite_cycles_per_bot: f64,
+    pub hesitations_per_bot: f64,
+    pub throttled_per_bot: f64,
+    pub max_stall_ms: f64,
+    pub stalls: f64,
 }
 
 /// The run-duration summary (source Report.duration).
@@ -777,7 +1086,7 @@ pub struct DurationSummary {
     pub max_s: f64,
 }
 
-/// The whole tournament report (source report.ts Report, reduced as described on TierAgg).
+/// The whole tournament report (source report.ts Report).
 #[derive(Clone, Debug, PartialEq)]
 pub struct Report {
     pub games: f64,
@@ -796,7 +1105,16 @@ pub struct Report {
     pub factions: Vec<GroupAgg>,
 }
 
-/// Aggregate every game into the report (source report.ts aggregate, reduced).
+/// The stimulus kinds the source does not pool as plain reaction (scaled by attention or reading).
+const SCALED_KINDS: [&str; 5] = [
+    "newThreat",
+    "teleport",
+    "announcement",
+    "chestUp",
+    "planOffer",
+];
+
+/// Aggregate every game into the report (source report.ts aggregate).
 pub fn aggregate(games: &[GameSummary]) -> Report {
     let all: Vec<&BotSummary> = games.iter().flat_map(|g| g.bots.iter()).collect();
     let total_wins = all.iter().filter(|b| b.outcome == GameOutcome::Won).count() as f64;
@@ -814,6 +1132,36 @@ pub fn aggregate(games: &[GameSummary]) -> Report {
             games.iter().filter(|g| pred(g)).count() as f64 / games.len() as f64
         }
     };
+    let present = |t: TierId| all.iter().any(|b| b.seat.tier == t);
+    let tiers = TIER_IDS
+        .into_iter()
+        .filter(|t| present(*t))
+        .map(|t| tier_agg(t, games, total_wins))
+        .collect();
+    let personas: Vec<GroupAgg> = PERSONA_IDS
+        .iter()
+        .map(|p| {
+            let rows: Vec<&BotSummary> = all
+                .iter()
+                .copied()
+                .filter(|b| b.seat.persona == *p)
+                .collect();
+            group(p.as_str(), &rows)
+        })
+        .filter(|g| g.bot_games > 0.)
+        .collect();
+    let factions: Vec<GroupAgg> = FACTION_IDS
+        .iter()
+        .map(|f| {
+            let rows: Vec<&BotSummary> = all
+                .iter()
+                .copied()
+                .filter(|b| b.seat.faction == *f)
+                .collect();
+            group(f.as_str(), &rows)
+        })
+        .filter(|g| g.bot_games > 0.)
+        .collect();
     Report {
         games: games.len() as f64,
         decided: games.iter().filter(|g| g.winner.is_some()).count() as f64,
@@ -828,59 +1176,17 @@ pub fn aggregate(games: &[GameSummary]) -> Report {
         first_death_median_s: percentile(&first_deaths, 0.5),
         teleport_share: share(|g| g.teleport_ms.is_some()),
         sudden_death_share: share(|g| g.sudden_death_ms.is_some()),
-        refused: sum_of(
-            &games
-                .iter()
-                .map(|g| g.manager.refused as f64)
-                .collect::<Vec<_>>(),
-        ),
-        lost: sum_of(
-            &games
-                .iter()
-                .map(|g| g.manager.lost as f64)
-                .collect::<Vec<_>>(),
-        ),
-        errors: sum_of(
-            &games
-                .iter()
-                .map(|g| g.manager.errors as f64)
-                .collect::<Vec<_>>(),
-        ),
-        tiers: TIER_IDS
-            .iter()
-            .filter(|tier| all.iter().any(|b| b.seat.tier == **tier))
-            .map(|tier| tier_agg(*tier, games, total_wins))
-            .collect(),
-        personas: PERSONA_IDS
-            .iter()
-            .map(|persona| {
-                group(
-                    persona.as_str(),
-                    &all.iter()
-                        .copied()
-                        .filter(|b| b.seat.persona == *persona)
-                        .collect::<Vec<_>>(),
-                )
-            })
-            .filter(|g| g.bot_games > 0.)
-            .collect(),
-        factions: FACTION_IDS
-            .iter()
-            .map(|faction| {
-                group(
-                    faction.as_str(),
-                    &all.iter()
-                        .copied()
-                        .filter(|b| b.seat.faction == *faction)
-                        .collect::<Vec<_>>(),
-                )
-            })
-            .filter(|g| g.bot_games > 0.)
-            .collect(),
+        refused: sum_iter(games.iter().map(|g| g.manager.refused as f64)),
+        lost: sum_iter(games.iter().map(|g| g.manager.lost as f64)),
+        errors: sum_iter(games.iter().map(|g| g.manager.errors as f64)),
+        tiers,
+        personas,
+        factions,
     }
 }
 
 fn tier_agg(tier: TierId, games: &[GameSummary], total_wins: f64) -> TierAgg {
+    let params = tier_params(tier);
     let mut rows: Vec<&BotSummary> = Vec::new();
     let mut per_game_place: Vec<f64> = Vec::new();
     for game in games {
@@ -896,23 +1202,72 @@ fn tier_agg(tier: TierId, games: &[GameSummary], total_wins: f64) -> TierAgg {
         .iter()
         .filter(|b| b.outcome == GameOutcome::Won)
         .count() as f64;
-    let per = |f: fn(&BotSummary) -> f64| -> f64 {
+    let per = |f: &dyn Fn(&BotSummary) -> f64| -> f64 {
         if n == 0. {
             f64::NAN
         } else {
-            sum_of(&rows.iter().map(|b| f(b)).collect::<Vec<_>>()) / n
+            sum_iter(rows.iter().map(|b| f(b))) / n
         }
     };
-    let alive_ms =
-        |game: &GameSummary, b: &BotSummary| -> f64 { b.died_at_ms.unwrap_or(game.duration_ms) };
-    let mut alive_total = 0.;
-    for game in games {
-        for b in &game.bots {
-            if b.seat.tier == tier {
-                alive_total += alive_ms(game, b);
-            }
+    // Reaction samples per kind, then the pooled plain kinds.
+    let mut by_kind: std::collections::BTreeMap<String, Vec<f64>> =
+        std::collections::BTreeMap::new();
+    for b in &rows {
+        for (kind, samples) in &b.behaviour.reactions {
+            by_kind
+                .entry(kind.clone())
+                .or_default()
+                .extend(samples.iter().map(|x| *x as f64));
         }
     }
+    let mut reactions: Vec<ReactionRow> = Vec::new();
+    let mut pool: Vec<f64> = Vec::new();
+    for (kind, mut xs) in by_kind {
+        xs.sort_by(|a, b| a.total_cmp(b));
+        reactions.push(ReactionRow {
+            kind: kind.clone(),
+            n: xs.len() as f64,
+            p10: percentile(&xs, 0.1),
+            p50: percentile(&xs, 0.5),
+            p90: percentile(&xs, 0.9),
+            mean: mean(&xs),
+            table: table_reaction_mean(tier, &kind),
+        });
+        if !SCALED_KINDS.contains(&kind.as_str()) {
+            pool.extend(xs);
+        }
+    }
+    let pooled_mean = mean(&pool);
+    let table = params.reaction.mu + params.reaction.tau;
+    let alive_ms =
+        |game: &GameSummary, b: &BotSummary| -> f64 { b.died_at_ms.unwrap_or(game.duration_ms) };
+    let mut alive_min = 0.;
+    let mut commands = 0.;
+    let mut clicks = 0.;
+    for game in games {
+        for b in &game.bots {
+            if b.seat.tier != tier {
+                continue;
+            }
+            commands += b.behaviour.commands_total as f64;
+            alive_min += alive_ms(game, b) / 60_000.;
+            clicks += b.behaviour.target_clicks as f64;
+        }
+    }
+    let apm_limit = params.apm + params.burst;
+    let all_opt = |get: &dyn Fn(&BotBehaviour) -> Option<u64>| -> Option<Vec<f64>> {
+        let mut out = Vec::new();
+        for b in &rows {
+            out.push(get(&b.behaviour)?.to_owned() as f64);
+        }
+        (!out.is_empty()).then_some(out)
+    };
+    let opt_mean = |get: &dyn Fn(&BotBehaviour) -> Option<u64>| -> f64 {
+        all_opt(get).map_or(f64::NAN, |xs| mean(&xs))
+    };
+    let opt_max = |get: &dyn Fn(&BotBehaviour) -> Option<u64>| -> f64 {
+        all_opt(get).map_or(f64::NAN, |xs| xs.iter().copied().fold(0., f64::max))
+    };
     TierAgg {
         tier,
         bot_games: n,
@@ -932,14 +1287,29 @@ fn tier_agg(tier: TierId, games: &[GameSummary], total_wins: f64) -> TierAgg {
             wins / total_wins
         },
         place: mean_interval(&per_game_place, 1.645),
-        kills_per_bot: per(|b| b.kills),
-        deaths_per_bot: per(|b| b.deaths),
-        gv_per_bot: per(|b| b.gv),
+        kills_per_bot: per(&|b| b.kills),
+        deaths_per_bot: per(&|b| b.deaths),
+        damage_per_bot: per(&|b| b.damage),
+        mob_damage_per_bot: per(&|b| b.mob_damage),
+        mob_kills_per_bot: per(&|b| b.mob_kills),
+        gv_per_bot: per(&|b| b.gv),
         alive_seconds: if n == 0. {
             f64::NAN
         } else {
-            alive_total / n / 1000.
+            let mut total = 0.;
+            for game in games {
+                for b in &game.bots {
+                    if b.seat.tier == tier {
+                        total += alive_ms(game, b);
+                    }
+                }
+            }
+            total / n / 1000.
         },
+        never_fought: rows
+            .iter()
+            .filter(|b| b.damage == 0. && b.mob_damage == 0.)
+            .count() as f64,
         died_to: DiedToCounts {
             bot: rows
                 .iter()
@@ -954,10 +1324,616 @@ fn tier_agg(tier: TierId, games: &[GameSummary], total_wins: f64) -> TierAgg {
                 .filter(|b| b.died_to == Some(DiedTo::Arena))
                 .count() as f64,
         },
+        reactions,
+        pooled: PooledReaction {
+            n: pool.len() as f64,
+            mean: pooled_mean,
+            table,
+            ratio: pooled_mean / table,
+        },
+        target_clicks: clicks,
+        miss_rate: if clicks == 0. {
+            f64::NAN
+        } else {
+            sum_iter(rows.iter().map(|b| b.behaviour.click_missed as f64)) / clicks
+        },
+        wrong_rate: if clicks == 0. {
+            f64::NAN
+        } else {
+            sum_iter(rows.iter().map(|b| b.behaviour.click_wrong as f64)) / clicks
+        },
+        apm_mean: if alive_min == 0. {
+            f64::NAN
+        } else {
+            commands / alive_min
+        },
+        apm_peak_mean: per(&|b| b.behaviour.apm_peak as f64),
+        apm_peak_max: rows
+            .iter()
+            .map(|b| b.behaviour.apm_peak as f64)
+            .fold(0., f64::max),
+        apm_limit,
+        apm_breaches: rows
+            .iter()
+            .filter(|b| b.behaviour.apm_peak as f64 > apm_limit)
+            .count() as f64,
+        dodges_per_bot: opt_mean(&|b| b.dodges),
+        jukes_per_bot: opt_mean(&|b| b.jukes),
+        kite_cycles_per_bot: opt_mean(&|b| b.kite_cycles),
+        hesitations_per_bot: per(&|b| b.behaviour.hesitations as f64),
+        throttled_per_bot: per(&|b| b.behaviour.throttled as f64),
+        max_stall_ms: opt_max(&|b| b.max_stall_ms),
+        stalls: all_opt(&|b| b.max_stall_ms).map_or(f64::NAN, |xs| {
+            xs.iter().filter(|x| **x > STALL_LIMIT_MS).count() as f64
+        }),
+    }
+}
+/// The source diedTo(result): arena for sudden death, bot when a player dealt the blow, otherwise a mob.
+fn died_to(result: &RunResult) -> DiedTo {
+    if result.killed_by.as_deref() == Some("sudden death") {
+        DiedTo::Arena
+    } else if result.killed_by_bot {
+        DiedTo::Bot
+    } else {
+        DiedTo::Mob
     }
 }
 
-/// What a tournament ran, as plain data (source ReportMeta, reduced: no wall-clock timing here).
+/// The manager counters from the seats (source manager.stats).
+fn manager_counts(env: &Env) -> ManagerCounts {
+    let mut manager = ManagerCounts::default();
+    for (_, stats, fault) in env.seat_stats() {
+        manager.sent += stats.proposed;
+        manager.applied += stats.accepted;
+        manager.refused += stats.rejected;
+        manager.frames += stats.decisions;
+        if fault.is_some() {
+            manager.errors += 1;
+        }
+    }
+    manager
+}
+
+/// A pass criterion (source report.ts Criterion): ok = null when the tier data is missing.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Criterion {
+    pub ok: Option<bool>,
+    pub text: String,
+}
+
+/// Informational bands of docs/BOTS.md 9.3: the starting win shares to tune toward (source WIN_BANDS).
+pub fn win_band(tier: TierId) -> (f64, f64) {
+    match tier {
+        TierId::Hard => (0.25, 0.35),
+        TierId::Normal => (0.13, 0.2),
+        TierId::Easy => (0.04, 0.1),
+    }
+}
+
+fn fixed(x: f64, digits: usize) -> String {
+    if !x.is_finite() {
+        return "-".to_owned();
+    }
+    format!("{:.*}", digits, x)
+}
+fn f0(x: f64) -> String {
+    if x.is_finite() {
+        format!("{}", (x + 0.5).floor())
+    } else {
+        "-".to_owned()
+    }
+}
+fn f1(x: f64) -> String {
+    fixed(x, 1)
+}
+fn f2(x: f64) -> String {
+    fixed(x, 2)
+}
+fn pct(x: f64, d: usize) -> String {
+    if x.is_finite() {
+        format!("{}%", fixed(x * 100., d))
+    } else {
+        "-".to_owned()
+    }
+}
+/// The source String(number) rendering: integers as integers, non-integers shortest, NaN as "NaN".
+fn js_num(x: f64) -> String {
+    if !x.is_finite() {
+        return "NaN".to_owned();
+    }
+    if x.fract() == 0. {
+        format!("{}", x as i64)
+    } else {
+        format!("{x}")
+    }
+}
+fn interval(p: &Proportion) -> String {
+    format!("{} [{}, {}]", pct(p.p, 1), pct(p.lo, 1), pct(p.hi, 1))
+}
+fn pad(s: &str, w: usize) -> String {
+    if s.len() >= w {
+        s.to_owned()
+    } else {
+        format!("{s}{}", " ".repeat(w - s.len()))
+    }
+}
+fn lpad(s: &str, w: usize) -> String {
+    if s.len() >= w {
+        s.to_owned()
+    } else {
+        format!("{}{s}", " ".repeat(w - s.len()))
+    }
+}
+fn table(head: &[&str], rows: &[Vec<String>]) -> Vec<String> {
+    let widths: Vec<usize> = head
+        .iter()
+        .enumerate()
+        .map(|(i, h)| {
+            rows.iter()
+                .map(|r| r.get(i).map_or(0, String::len))
+                .max()
+                .unwrap_or(0)
+                .max(h.len())
+        })
+        .collect();
+    let line = |r: &[String]| -> String {
+        let cells: Vec<String> = r
+            .iter()
+            .enumerate()
+            .map(|(i, c)| {
+                if i == 0 {
+                    pad(c, widths[i])
+                } else {
+                    lpad(c, widths[i])
+                }
+            })
+            .collect();
+        cells.join("  ").trim_end().to_owned()
+    };
+    let mut out = vec![line(
+        &head.iter().map(|h| (*h).to_owned()).collect::<Vec<_>>(),
+    )];
+    out.push(line(
+        &widths.iter().map(|w| "-".repeat(*w)).collect::<Vec<_>>(),
+    ));
+    for r in rows {
+        out.push(line(r));
+    }
+    out
+}
+
+/// The source evaluate(r): the informational pass criteria of docs/BOTS.md 9.3 (a tool always exits 0).
+pub fn evaluate(r: &Report) -> Vec<Criterion> {
+    let by: std::collections::BTreeMap<&str, &TierAgg> =
+        r.tiers.iter().map(|t| (t.tier.as_str(), t)).collect();
+    let easy = by.get("easy").copied();
+    let normal = by.get("normal").copied();
+    let hard = by.get("hard").copied();
+    let mut out = Vec::new();
+    let order = |out: &mut Vec<Criterion>, label: &str, vals: Vec<(&str, f64)>, higher: bool| {
+        let have: Vec<(&str, f64)> = vals.into_iter().filter(|(_, v)| v.is_finite()).collect();
+        if have.len() < 2 {
+            out.push(Criterion {
+                ok: None,
+                text: format!("{label}: needs two tiers in the lineup"),
+            });
+            return;
+        }
+        let mut ok = true;
+        for i in 1..have.len() {
+            ok &= if higher {
+                have[i - 1].1 > have[i].1
+            } else {
+                have[i - 1].1 < have[i].1
+            };
+        }
+        let joined: Vec<String> = have
+            .iter()
+            .map(|(n, v)| format!("{n} {}", f2(*v)))
+            .collect();
+        out.push(Criterion {
+            ok: Some(ok),
+            text: format!(
+                "{label}: {}",
+                joined.join(if higher { " > " } else { " < " })
+            ),
+        });
+    };
+    let tiers: Vec<&TierAgg> = [hard, normal, easy].into_iter().flatten().collect();
+    order(
+        &mut out,
+        "mean placement orders Hard < Normal < Easy (lower is better)",
+        tiers
+            .iter()
+            .map(|t| (t.tier.as_str(), t.place.mean))
+            .collect(),
+        false,
+    );
+    order(
+        &mut out,
+        "win share orders Hard > Normal > Easy (per-bot)",
+        tiers
+            .iter()
+            .map(|t| (t.tier.as_str(), t.win_rate.p))
+            .collect(),
+        true,
+    );
+    for i in 1..tiers.len() {
+        let a = tiers[i - 1];
+        let b = tiers[i];
+        out.push(Criterion {
+            ok: Some(a.place.hi < b.place.lo),
+            text: format!(
+                "mean-placement 90% intervals {} [{}, {}] and {} [{}, {}] do not overlap",
+                a.tier.as_str(),
+                f2(a.place.lo),
+                f2(a.place.hi),
+                b.tier.as_str(),
+                f2(b.place.lo),
+                f2(b.place.hi)
+            ),
+        });
+    }
+    if let Some(hard) = hard {
+        out.push(Criterion {
+            ok: Some(hard.win_rate.p <= 0.4),
+            text: format!("Hard per-bot win share {} <= 0.40", f2(hard.win_rate.p)),
+        });
+    }
+    if let Some(easy) = easy {
+        out.push(Criterion {
+            ok: Some(easy.win_rate.p >= 0.03),
+            text: format!("Easy per-bot win share {} >= 0.03", f2(easy.win_rate.p)),
+        });
+    }
+    for t in &tiers {
+        let (lo, hi) = win_band(t.tier);
+        out.push(Criterion {
+            ok: Some(t.win_rate.p >= lo && t.win_rate.p <= hi),
+            text: format!(
+                "{} per-bot win share {} in the starting band {}-{}",
+                t.tier.as_str(),
+                f2(t.win_rate.p),
+                f2(lo),
+                f2(hi)
+            ),
+        });
+    }
+    for t in tiers.iter().rev() {
+        out.push(Criterion {
+            ok: if t.pooled.ratio.is_finite() {
+                Some((t.pooled.ratio - 1.).abs() <= 0.1)
+            } else {
+                None
+            },
+            text: format!(
+                "{} measured reaction mean {} ms (n={}) within +-10% of the table's {} ms (ratio {})",
+                t.tier.as_str(),
+                f0(t.pooled.mean),
+                f0(t.pooled.n),
+                f0(t.pooled.table),
+                f2(t.pooled.ratio)
+            ),
+        });
+    }
+    out.push(Criterion {
+        ok: Some(r.refused == 0.),
+        text: format!(
+            "zero commands refused by enqueueClientMessage ({})",
+            js_num(r.refused)
+        ),
+    });
+    out.push(Criterion {
+        ok: Some(r.errors == 0.),
+        text: format!("zero brain errors ({})", js_num(r.errors)),
+    });
+    let breaches = sum_iter(r.tiers.iter().map(|t| t.apm_breaches));
+    out.push(Criterion {
+        ok: Some(breaches == 0.),
+        text: format!(
+            "zero APM breaches (a 60 s window above the tier's apm + burst): {}",
+            js_num(breaches)
+        ),
+    });
+    out.push(Criterion {
+        ok: Some(r.capped == 0.),
+        text: format!("no game hit the 12-minute cap ({})", js_num(r.capped)),
+    });
+    let stalls = sum_iter(r.tiers.iter().map(|t| t.stalls));
+    out.push(Criterion {
+        ok: if stalls.is_finite() {
+            Some(stalls == 0.)
+        } else {
+            None
+        },
+        text: format!(
+            "no bot stood stalled for more than {} s ({} bot-games)",
+            STALL_LIMIT_MS / 1000.,
+            f0(stalls)
+        ),
+    });
+    out
+}
+
+/// What a tournament ran, for the printed header and the JSON payload (source report.ts ReportMeta).
+#[derive(Clone, Debug, PartialEq)]
+pub struct ReportMeta {
+    pub lineup: String,
+    pub seed: u32,
+    pub learn: bool,
+    pub persona: String,
+    pub faction: String,
+    pub workers: u32,
+    /// Wall time of the whole run, ms (null when the report is of stored games).
+    pub wall_ms: Option<f64>,
+    /// Mean wall time of one game in a worker, ms (the rate without the workers' start-up).
+    pub game_ms: Option<f64>,
+}
+
+/// The report as the source formatReport prints it, over the source meta.
+pub fn format_report_with(r: &Report, meta: &ReportMeta) -> String {
+    let mut l: Vec<String> = Vec::new();
+    let sim_total_s = r.duration.mean_s * r.games;
+    l.push(format!(
+        "TOURNAMENT  {} games  lineup {}  seed {}  persona {}  faction {}  learning {}",
+        js_num(r.games),
+        meta.lineup,
+        meta.seed,
+        meta.persona,
+        meta.faction,
+        if meta.learn {
+            "on (per worker, in memory)"
+        } else {
+            "off"
+        }
+    ));
+    l.push(format!(
+        "games: {} with a winner, {} draws, {} cut off at the cap",
+        js_num(r.decided),
+        js_num(r.draws),
+        js_num(r.capped)
+    ));
+    l.push(format!(
+        "length: mean {} s, median {} s, min {} s, max {} s (simulated, raid start to end)",
+        f1(r.duration.mean_s),
+        f1(r.duration.p50_s),
+        f1(r.duration.min_s),
+        f1(r.duration.max_s)
+    ));
+    l.push(format!(
+        "first death: median {} s into the raid; teleport in {} of games, sudden death in {}",
+        f1(r.first_death_median_s),
+        pct(r.teleport_share, 0),
+        pct(r.sudden_death_share, 0)
+    ));
+    if let Some(wall) = meta.wall_ms.filter(|wall| *wall > 0.) {
+        let sec = wall / 1000.;
+        l.push(format!(
+            "throughput: {} games in {} s wall = {} games/s with {} worker{} ({} simulated s per wall s)",
+            js_num(r.games),
+            f1(sec),
+            f2(r.games / sec),
+            meta.workers,
+            if meta.workers == 1 { "" } else { "s" },
+            f1(sim_total_s / sec)
+        ));
+        if let Some(game_ms) = meta.game_ms {
+            l.push(format!(
+                "per game: {} ms of wall in a worker on average ({} simulated s per wall s per worker, so {} games/s per worker once started)",
+                f0(game_ms),
+                f1(r.duration.mean_s * 1000. / game_ms),
+                f1(1000. / game_ms)
+            ));
+        }
+    }
+    l.push(String::new());
+    l.push("PER TIER  (a bot-game is one bot in one game; win/bot = wins per bot-game, Wilson 95%; place = mean of the tier's placements per game, 90% interval)".to_owned());
+    let tier_rows: Vec<Vec<String>> = r
+        .tiers
+        .iter()
+        .map(|t| {
+            vec![
+                t.tier.as_str().to_owned(),
+                js_num(t.bot_games),
+                js_num(t.wins),
+                interval(&t.win_rate),
+                pct(t.share_of_wins, 1),
+                js_num(t.draws),
+                format!(
+                    "{} [{}, {}]",
+                    f2(t.place.mean),
+                    f2(t.place.lo),
+                    f2(t.place.hi)
+                ),
+                f2(t.kills_per_bot),
+                f2(t.deaths_per_bot),
+                f0(t.damage_per_bot),
+                f0(t.mob_damage_per_bot),
+                f2(t.mob_kills_per_bot),
+                f1(t.gv_per_bot),
+                f1(t.alive_seconds),
+            ]
+        })
+        .collect();
+    l.extend(table(
+        &[
+            "tier",
+            "bot-games",
+            "wins",
+            "win/bot [95%]",
+            "share of wins",
+            "draws",
+            "place [90%]",
+            "kills",
+            "deaths",
+            "dmg",
+            "mob dmg",
+            "mob kills",
+            "gv",
+            "alive s",
+        ],
+        &tier_rows,
+    ));
+    l.push("(kills, deaths, dmg, mob dmg, mob kills, gv are per bot-game; dmg is damage to players, from the hit fx)".to_owned());
+    l.push(String::new());
+    l.push("HOW THEY DIED  (bot-games; a bot that won or was cut off is in none)".to_owned());
+    let died_rows: Vec<Vec<String>> = r
+        .tiers
+        .iter()
+        .map(|t| {
+            vec![
+                t.tier.as_str().to_owned(),
+                js_num(t.died_to.bot),
+                js_num(t.died_to.mob),
+                js_num(t.died_to.arena),
+                js_num(t.never_fought),
+            ]
+        })
+        .collect();
+    l.extend(table(
+        &[
+            "tier",
+            "to a bot",
+            "to a mob",
+            "to sudden death",
+            "never fought",
+        ],
+        &died_rows,
+    ));
+    l.push(String::new());
+    l.push("REACTION DELAYS  (ms from the percept that first showed the stimulus to the click; the last 256 per bot, pooled)".to_owned());
+    l.push("table = the tier's mu + tau (daze for a teleport, x1.5 for reading); newThreat, teleport and reading are further scaled by attention".to_owned());
+    for t in &r.tiers {
+        let mut rows: Vec<Vec<String>> = t
+            .reactions
+            .iter()
+            .map(|x| {
+                vec![
+                    x.kind.clone(),
+                    js_num(x.n),
+                    f0(x.p10),
+                    f0(x.p50),
+                    f0(x.p90),
+                    f0(x.mean),
+                    f0(x.table),
+                    f2(x.mean / x.table),
+                ]
+            })
+            .collect();
+        rows.push(vec![
+            "pooled (plain)".to_owned(),
+            js_num(t.pooled.n),
+            String::new(),
+            String::new(),
+            String::new(),
+            f0(t.pooled.mean),
+            f0(t.pooled.table),
+            f2(t.pooled.ratio),
+        ]);
+        l.extend(table(
+            &[
+                t.tier.as_str(),
+                "n",
+                "p10",
+                "p50",
+                "p90",
+                "mean",
+                "table",
+                "ratio",
+            ],
+            &rows,
+        ));
+        l.push(String::new());
+    }
+    l.push("CLICKS, RATE AND MANEUVERS  (per bot-game unless stated)".to_owned());
+    let click_rows: Vec<Vec<String>> = r
+        .tiers
+        .iter()
+        .map(|t| {
+            vec![
+                t.tier.as_str().to_owned(),
+                js_num(t.target_clicks),
+                pct(t.miss_rate, 1),
+                pct(t.wrong_rate, 1),
+                f1(t.apm_mean),
+                f1(t.apm_peak_mean),
+                js_num(t.apm_peak_max),
+                js_num(t.apm_limit),
+                js_num(t.apm_breaches),
+                f2(t.dodges_per_bot),
+                f2(t.jukes_per_bot),
+                f2(t.kite_cycles_per_bot),
+                f2(t.hesitations_per_bot),
+                f2(t.throttled_per_bot),
+                js_num(t.max_stall_ms),
+            ]
+        })
+        .collect();
+    l.extend(table(
+        &[
+            "tier",
+            "lock clicks",
+            "miss",
+            "wrong",
+            "APM mean",
+            "APM peak mean",
+            "peak max",
+            "limit",
+            "breaches",
+            "dodges",
+            "jukes",
+            "orb-walk cycles",
+            "hesitations",
+            "throttled",
+            "max stall ms",
+        ],
+        &click_rows,
+    ));
+    l.push("(miss / wrong are per lock click; the table's lone-bot rates: easy ~7.4% / normal ~1.2% / hard ~0.2% misses; move-scatter RMS is not measured)".to_owned());
+    l.push(String::new());
+    for (title, groups) in [("PER PERSONA", &r.personas), ("PER FACTION", &r.factions)] {
+        l.push(title.to_owned());
+        let rows: Vec<Vec<String>> = groups
+            .iter()
+            .map(|g| {
+                vec![
+                    g.key.clone(),
+                    js_num(g.bot_games),
+                    interval(&g.win_rate),
+                    f2(g.mean_place),
+                    f2(g.kills_per_bot),
+                ]
+            })
+            .collect();
+        l.extend(table(
+            &["", "bot-games", "win/bot [95%]", "mean place", "kills"],
+            &rows,
+        ));
+        l.push(String::new());
+    }
+    l.push(format!(
+        "MANAGER  refused {}, lost {}, brain errors {}",
+        js_num(r.refused),
+        js_num(r.lost),
+        js_num(r.errors)
+    ));
+    l.push(String::new());
+    l.push("CRITERIA  (informational; the tool exits 0)".to_owned());
+    for c in evaluate(r) {
+        l.push(format!(
+            "  {}  {}",
+            match c.ok {
+                None => "n/a ",
+                Some(true) => "PASS",
+                Some(false) => "FAIL",
+            },
+            c.text
+        ));
+    }
+    l.join("\n")
+}
+
+/// What a tournament ran, as plain data (source TournamentMeta, reduced: no wall-clock timing here).
 #[derive(Clone, Debug, PartialEq)]
 pub struct TournamentMeta {
     pub games: u32,
@@ -976,6 +1952,45 @@ pub fn play(plan: &TournamentPlan, arena: &Arena, sim: &SimConfig) -> Vec<GameRe
             summary: run_game(index, plan, arena, sim),
         })
         .collect()
+}
+
+/// Play every game across up to the plan's worker count (source worker.ts batches/worker_threads), still with the
+/// plan's per-game seeds: every game is independent, so the results are the serial runner's results (each game is a pure
+/// function of its plan index) and are returned in index order whatever order the workers finish in. A worker count of 1
+/// runs the serial in-order play.
+pub fn play_parallel(
+    plan: &TournamentPlan,
+    arena: &Arena,
+    sim: &SimConfig,
+    workers: u32,
+) -> Vec<GameResult> {
+    let batches = split(plan.games, workers);
+    if batches.len() <= 1 {
+        return play(plan, arena, sim);
+    }
+    let mut results: Vec<GameResult> = std::thread::scope(|scope| {
+        let handles: Vec<_> = batches
+            .into_iter()
+            .map(|batch| {
+                scope.spawn(move || -> Vec<GameResult> {
+                    batch
+                        .into_iter()
+                        .map(|index| GameResult {
+                            index,
+                            summary: run_game(index, plan, arena, sim),
+                        })
+                        .collect()
+                })
+            })
+            .collect();
+        handles
+            .into_iter()
+            .flat_map(|handle| handle.join().expect("a tournament worker panicked"))
+            .collect()
+    });
+    // The shared aggregate is the serial aggregate: index order is the plan's order, not the workers' completion order.
+    results.sort_by_key(|result| result.index);
+    results
 }
 
 /// The whole run: meta, the per-game summaries and their report (source runTournament.ts main's json payload).
@@ -1004,88 +2019,114 @@ pub fn run(plan: &TournamentPlan, arena: &Arena, sim: &SimConfig) -> TournamentR
     }
 }
 
-/// The report as the CLI prints it: the source print layout, reduced to the ported columns. NaN prints as "-".
+/// The report as printed with the pure run meta (no wall clock: a stored-games report).
 pub fn format_report(tournament: &TournamentReport) -> String {
-    let show = |v: f64| -> String {
-        if v.is_finite() {
-            format!("{v:.3}")
-        } else {
-            "-".to_owned()
-        }
-    };
-    let rate = |p: &Proportion| -> String {
-        format!(
-            "{}/{} = {} [{}, {}]",
-            show(p.k),
-            show(p.n),
-            show(p.p),
-            show(p.lo),
-            show(p.hi)
-        )
-    };
-    let mut out = String::new();
     let meta = &tournament.meta;
-    out.push_str(&format!(
-        "tournament: {} games, seed {}, lineup {}, persona {}, faction {}, cap {:.0}s\n",
-        meta.games,
-        meta.seed,
-        meta.lineup
-            .iter()
-            .map(|t| t.as_str().to_uppercase())
-            .collect::<Vec<_>>()
-            .join(","),
-        meta.persona,
-        meta.faction,
-        meta.max_sim_ms / 1000.
-    ));
-    let report = &tournament.report;
-    out.push_str(&format!(
-        "overall: games {}, decided {}, draws {}, capped {}, duration mean {}s p50 {}s min {}s max {}s, first death p50 {}s, teleport {}, sudden death {}, refused {}, lost {}, errors {}\n",
-        show(report.games),
-        show(report.decided),
-        show(report.draws),
-        show(report.capped),
-        show(report.duration.mean_s),
-        show(report.duration.p50_s),
-        show(report.duration.min_s),
-        show(report.duration.max_s),
-        show(report.first_death_median_s),
-        show(report.teleport_share),
-        show(report.sudden_death_share),
-        show(report.refused),
-        show(report.lost),
-        show(report.errors),
-    ));
-    for tier in &report.tiers {
-        out.push_str(&format!(
-            "tier {}: bot-games {}, win rate {}, share {}, place {} [{}, {}], kills/bot {}, deaths/bot {}, gv/bot {}, alive {}s, died to bot/mob/arena {}/{}/{}\n",
-            tier.tier.as_str(),
-            show(tier.bot_games),
-            rate(&tier.win_rate),
-            show(tier.share_of_wins),
-            show(tier.place.mean),
-            show(tier.place.lo),
-            show(tier.place.hi),
-            show(tier.kills_per_bot),
-            show(tier.deaths_per_bot),
-            show(tier.gv_per_bot),
-            show(tier.alive_seconds),
-            show(tier.died_to.bot),
-            show(tier.died_to.mob),
-            show(tier.died_to.arena),
-        ));
-    }
-    for (label, groups) in [("persona", &report.personas), ("faction", &report.factions)] {
-        for group in groups {
-            out.push_str(&format!(
-                "{label} {}: bot-games {}, win rate {}, place {}, kills/bot {}\n",
-                group.key,
-                show(group.bot_games),
-                rate(&group.win_rate),
-                show(group.mean_place),
-                show(group.kills_per_bot),
-            ));
+    let lineup = meta
+        .lineup
+        .iter()
+        .map(|t| t.as_str().to_uppercase())
+        .collect::<Vec<_>>()
+        .join(",");
+    format_report_with(
+        &tournament.report,
+        &ReportMeta {
+            lineup,
+            seed: meta.seed,
+            learn: true,
+            persona: meta.persona.clone(),
+            faction: meta.faction.clone(),
+            workers: 1,
+            wall_ms: None,
+            game_ms: None,
+        },
+    )
+}
+
+/// P-BOTS-6 remainder: the simulated delay line's arrival arithmetic, in isolation from the sim (the CLI/runner regression
+/// exercises the real effects; this pins the offsets and the determinism of the per-seat jitter stream).
+#[cfg(test)]
+mod delay_line_tests {
+    use super::*;
+
+    /// A seat that clicks one Stop per decision (the commands themselves are irrelevant to arrival timing).
+    struct Clicker;
+    impl Policy for Clicker {
+        fn spec(&self) -> PolicySpec {
+            PolicySpec {
+                name: "clicker".into(),
+                version: "1".into(),
+                contract: rh_policy::POLICY_CONTRACT_VERSION,
+                observation_version: rh_sim::OBSERVATION_VERSION,
+                decision_interval_ticks: 1,
+            }
+        }
+        fn reset(&mut self, _: &MatchStart) {}
+        fn decide(&mut self, _: &Observation) -> Vec<PublicCommand> {
+            vec![PublicCommand::Stop { seq: None }]
         }
     }
-    out
+
+    fn start(seed: u64) -> MatchStart {
+        MatchStart {
+            me: PlayerId(1),
+            seed,
+            arena: std::sync::Arc::new(rh_sim::arenas::practice_arena()),
+            content_hash: 0,
+            observation_version: rh_sim::OBSERVATION_VERSION,
+            tick_ms: TICK_MS,
+        }
+    }
+
+    fn at(now: f64) -> Observation {
+        Observation {
+            server_time: now,
+            ..Default::default()
+        }
+    }
+
+    /// Tick times a command came out at, calling decide every tick from 0.
+    fn releases(latency: f64, jitter: f64, seed: u64, ticks: usize) -> Vec<usize> {
+        let mut wrapper = DelayLinePolicy::new(Box::new(Clicker), latency, jitter);
+        wrapper.reset(&start(seed));
+        let mut released = Vec::new();
+        for tick in 0..ticks {
+            let now = tick as f64 * TICK_MS;
+            if !wrapper.decide(&at(now)).is_empty() {
+                released.push(tick);
+            }
+        }
+        released
+    }
+
+    #[test]
+    fn delay_line_offsets_are_the_source_arithmetic() {
+        // With no jitter a click arrives exactly latency later: released at the first decision at or after it.
+        let released = releases(120., 0., 7, 20);
+        assert_eq!(
+            released,
+            vec![3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
+        );
+        // Every click is delayed by the same latency: one release per tick after the first arrival.
+        assert_eq!(released.len(), 20 - 3);
+        // A larger latency shifts the whole sequence by the same 100 ms (two ticks).
+        let later = releases(220., 0., 7, 20);
+        assert_eq!(
+            later,
+            vec![5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
+        );
+    }
+
+    #[test]
+    fn delay_line_jitter_is_deterministic_per_seat_seed() {
+        let a = releases(100., 80., 7, 40);
+        let b = releases(100., 80., 7, 40);
+        assert_eq!(a, b, "the same seat seed replays the same jitter");
+        let other = releases(100., 80., 8, 40);
+        assert_ne!(a, other, "a different seat seed draws its own jitter");
+        assert_ne!(a, releases(100., 0., 7, 40), "jitter moves the arrivals");
+        for tick in &a {
+            assert!(*tick >= 2, "a 100 ms latency never arrives before tick 2");
+        }
+    }
 }

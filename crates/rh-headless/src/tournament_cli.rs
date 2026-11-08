@@ -236,7 +236,8 @@ fn group_json(g: &crate::tournament::GroupAgg) -> Value {
     json!({"key": g.key, "botGames": js_num(g.bot_games), "winRate": proportion_json(&g.win_rate),
         "meanPlace": js_num(g.mean_place), "killsPerBot": js_num(g.kills_per_bot)})
 }
-fn report_json(r: &Report) -> Value {
+/// The report in the source JSON shape (camelCase, NaN figures null).
+pub fn report_json(r: &Report) -> Value {
     let tiers: Vec<Value> = r.tiers.iter().map(|t| json!({
         "tier": t.tier.as_str(),
         "botGames": js_num(t.bot_games),
@@ -248,9 +249,32 @@ fn report_json(r: &Report) -> Value {
         "place": interval_json(&t.place),
         "killsPerBot": js_num(t.kills_per_bot),
         "deathsPerBot": js_num(t.deaths_per_bot),
+        "damagePerBot": js_num(t.damage_per_bot),
+        "mobDamagePerBot": js_num(t.mob_damage_per_bot),
+        "mobKillsPerBot": js_num(t.mob_kills_per_bot),
         "gvPerBot": js_num(t.gv_per_bot),
         "aliveSeconds": js_num(t.alive_seconds),
+        "neverFought": js_num(t.never_fought),
         "diedTo": {"bot": js_num(t.died_to.bot), "mob": js_num(t.died_to.mob), "arena": js_num(t.died_to.arena)},
+        "reactions": t.reactions.iter().map(|x| json!({
+            "kind": x.kind, "n": js_num(x.n), "p10": js_num(x.p10), "p50": js_num(x.p50),
+            "p90": js_num(x.p90), "mean": js_num(x.mean), "table": js_num(x.table)})).collect::<Vec<_>>(),
+        "pooled": {"n": js_num(t.pooled.n), "mean": js_num(t.pooled.mean), "table": js_num(t.pooled.table), "ratio": js_num(t.pooled.ratio)},
+        "targetClicks": js_num(t.target_clicks),
+        "missRate": js_num(t.miss_rate),
+        "wrongRate": js_num(t.wrong_rate),
+        "apmMean": js_num(t.apm_mean),
+        "apmPeakMean": js_num(t.apm_peak_mean),
+        "apmPeakMax": js_num(t.apm_peak_max),
+        "apmLimit": js_num(t.apm_limit),
+        "apmBreaches": js_num(t.apm_breaches),
+        "dodgesPerBot": js_num(t.dodges_per_bot),
+        "jukesPerBot": js_num(t.jukes_per_bot),
+        "kiteCyclesPerBot": js_num(t.kite_cycles_per_bot),
+        "hesitationsPerBot": js_num(t.hesitations_per_bot),
+        "throttledPerBot": js_num(t.throttled_per_bot),
+        "maxStallMs": js_num(t.max_stall_ms),
+        "stalls": js_num(t.stalls),
     })).collect();
     json!({
         "games": js_num(r.games),
@@ -308,17 +332,78 @@ pub fn plan_json(plan: &TournamentPlan) -> Value {
     Value::Object(m)
 }
 fn bot_json(b: &crate::tournament::BotSummary) -> Value {
+    let mut behaviour = Map::new();
+    behaviour.insert(
+        "commands".into(),
+        Value::Object(
+            b.behaviour
+                .commands
+                .iter()
+                .map(|(k, n)| (k.clone(), json!(n)))
+                .collect(),
+        ),
+    );
+    behaviour.insert("commandsTotal".into(), json!(b.behaviour.commands_total));
+    behaviour.insert(
+        "reactions".into(),
+        Value::Object(
+            b.behaviour
+                .reactions
+                .iter()
+                .map(|(k, list)| (k.clone(), json!(list)))
+                .collect(),
+        ),
+    );
+    for (key, value) in [
+        ("targetClicks", b.behaviour.target_clicks),
+        ("clickMissed", b.behaviour.click_missed),
+        ("clickWrong", b.behaviour.click_wrong),
+        ("hesitations", b.behaviour.hesitations),
+        ("lapses", b.behaviour.lapses),
+        ("throttled", b.behaviour.throttled),
+        ("superseded", b.behaviour.superseded),
+        ("apmPeak", b.behaviour.apm_peak),
+    ] {
+        behaviour.insert(key.into(), json!(value));
+    }
+    for (key, value) in [
+        ("mobTargets", b.behaviour.mob_targets),
+        ("mobDrops", b.behaviour.mob_drops),
+        ("retreats", b.behaviour.retreats),
+        ("mobFocusMs", b.behaviour.mob_focus_ms),
+        ("grabs", b.behaviour.grabs),
+        ("maxStallMs", b.behaviour.max_stall_ms),
+        ("dodges", b.behaviour.dodges),
+        ("jukes", b.behaviour.jukes),
+        ("kiteCycles", b.behaviour.kite_cycles),
+    ] {
+        behaviour.insert(key.into(), value.map_or(Value::Null, |v| json!(v)));
+    }
+    behaviour.insert(
+        "goals".into(),
+        b.behaviour.goals.as_ref().map_or(Value::Null, |goals| {
+            Value::Object(goals.iter().map(|(k, n)| (k.clone(), json!(n))).collect())
+        }),
+    );
     json!({
+        "id": format!("bot{}", b.index),
+        "name": format!("bot{}", b.index),
         "tier": b.seat.tier.as_str(),
         "persona": b.seat.persona.as_str(),
         "faction": b.seat.faction.as_str(),
         "place": js_num(b.place),
         "outcome": b.outcome.as_str(),
         "kills": js_num(b.kills),
+        "mobKills": js_num(b.mob_kills),
+        "damage": js_num(b.damage),
+        "mobDamage": js_num(b.mob_damage),
         "deaths": js_num(b.deaths),
         "gv": js_num(b.gv),
         "diedAtMs": b.died_at_ms.map_or(Value::Null, js_num),
+        "firstMobKillMs": b.first_mob_kill_ms.map_or(Value::Null, js_num),
+        "tpHp": b.tp_hp.map_or(Value::Null, js_num),
         "diedTo": b.died_to.map_or(Value::Null, |d| match d { DiedTo::Bot => json!("bot"), DiedTo::Mob => json!("mob"), DiedTo::Arena => json!("arena") }),
+        "behaviour": Value::Object(behaviour),
     })
 }
 fn game_json(g: &GameSummary) -> Value {
@@ -331,6 +416,9 @@ fn game_json(g: &GameSummary) -> Value {
         "durationMs": js_num(g.duration_ms),
         "ticks": g.ticks,
         "firstDeathMs": g.first_death_ms.map_or(Value::Null, js_num),
+        "firstKillMs": g.first_kill_ms.map_or(Value::Null, js_num),
+        "deathLog": g.death_log.iter().map(|(at, victim, killer)| json!([js_num(*at), victim, killer.map_or(Value::Null, |k| json!(k))])).collect::<Vec<_>>(),
+        "firstHits": g.first_hits.iter().map(|(at, a, v, ahp, vhp, vbusy, abusy)| json!([js_num(*at), a, v, js_num(*ahp), js_num(*vhp), vbusy, abusy])).collect::<Vec<_>>(),
         "teleportMs": g.teleport_ms.map_or(Value::Null, js_num),
         "suddenDeathMs": g.sudden_death_ms.map_or(Value::Null, js_num),
         "bots": g.bots.iter().map(bot_json).collect::<Vec<_>>(),
@@ -339,7 +427,11 @@ fn game_json(g: &GameSummary) -> Value {
     })
 }
 
-/// The source --json payload (source runTournament.ts main): the meta, the plan, the report and the games. The ported
+fn criterion_json(c: &crate::tournament::Criterion) -> Value {
+    json!({"ok": c.ok, "text": c.text})
+}
+
+/// The source --json payload (source runTournament.ts main): the meta, the plan, the report, the criteria and the games. The ported
 /// report/games are the reduced summaries (the telemetry columns and the source evaluate() pass criteria are the
 /// P-BOTS-6 remainder); every ported field keeps its source name and JSON shape.
 pub fn json_payload(
@@ -363,6 +455,7 @@ pub fn json_payload(
         "meta": meta,
         "plan": plan_json(plan),
         "report": report_json(report),
+        "criteria": crate::tournament::evaluate(report).iter().map(criterion_json).collect::<Vec<_>>(),
         "games": games.iter().map(game_json).collect::<Vec<_>>(),
     })
 }
