@@ -22,8 +22,8 @@ changed; existing source payloads are read-only.
   source-returned.
 - Capture commands: bash tools/wish-terminal-fixtures/capture.sh and ... --check (own RH_WISH_TERMINAL_OUTPUT).
   Tool hashes: capture.mts fd591d18f5b6cc9714ad78537d2fc7cf2ca709722bcc4a4e6c1cc833c8bc821c, capture.sh
-  2fd1c6c3e4af71474031e92c39578595891e410a5221d02581a9ba928892a746, run-mutants.sh
-  4bc41e73dae02ae9613f4be10e27872318ec5a8824660663a2cb9996ac62aa22, mutants/mutate.py
+  e1e1b577007b4e45f0dc713b39fed03f4af8e33cd16f08d5ad8a66da85a9d181, run-mutants.sh
+  2750515e9fc77cf2bd3a86d6645976ada3c12055e2313d51b8c533067108815a, mutants/mutate.py
   81e7f29ca0df0a265912f9c02ea3bded5d17d27f7cf83f955e41878c6d173acb.
 
 ## Actual producer matrix (source == native replay)
@@ -57,8 +57,9 @@ Case | Real producer | Start clock | Terminal clock/reason | Stock/refund | Orde
   No one-field retained hash mutation is claimed for this domain (absence reported, not zero telemetry; no fabricated
   queued event). The earlier finite-past control lesson was not applicable because no retained event exists.
 - Restored continuation: at the terminal boundary the test restores the same checkpoint (state_hash equal) and drives
-  the remaining source actions through both the original and restored Sim, comparing full event vectors and state hashes
-  at every continuation boundary.
+  the remaining source actions through both the original and restored Sim, comparing the canonical relevant cast/status
+  events plus state hashes over the empty-input continuation steps (2 steps for the Fizzle cases, 5 for the Interrupted
+  cases). This is not a comparison of full private event vectors or of non-empty-input continuations.
 
 ## Tests and checks
 

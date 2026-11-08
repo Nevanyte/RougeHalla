@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Compiled semantic mutations against the actual Wish terminal consumer; restore the control after each.
+# Hardened compiled semantic mutations against the actual Wish terminal consumer.
+# Unique mktemp backups/logs; EXIT/HUP/INT/TERM restore the mutated production file; failure logs are preserved.
 REPO=$(cd "$(dirname "$0")/../.." && pwd)
 cd "$REPO"
 CARGO_HOME_SET="$CARGO_HOME"
@@ -12,24 +13,72 @@ CARGO_BIN="$CARGO"
 [ -n "$CARGO_BIN" ] || CARGO_BIN="$HOME/.codex/tools/rougehalla-stage2/cargo/bin/cargo"
 export CARGO_INCREMENTAL=0
 status=0
+MUT_FILE=""
+MUT_BACKUP=""
+restore_current() {
+  if [ -n "$MUT_FILE" ] && [ -n "$MUT_BACKUP" ] && [ -f "$MUT_BACKUP" ]; then
+    cp "$MUT_BACKUP" "$MUT_FILE"
+  fi
+}
+on_exit() {
+  code=$?
+  restore_current
+  exit $code
+}
+trap on_exit EXIT
+trap 'exit 129' HUP
+trap 'exit 130' INT
+trap 'exit 143' TERM
 for op in reason refund clock landing; do
   case "$op" in
     reason|refund|landing) file=crates/rh-sim/src/systems/abilities/mod.rs ;;
     clock) file=crates/rh-sim/src/systems/status/mod.rs ;;
   esac
-  cp "$file" /tmp/wish-terminal-mut-backup
-  python3 tools/wish-terminal-fixtures/mutants/mutate.py "$op" || { echo "apply failed $op"; status=1; break; }
-  "$CARGO_BIN" test -p rh-sim --all-features --test wish_terminal_producers > "/tmp/wish-terminal-mut-$op.log" 2>&1
+  MUT_BACKUP=$(mktemp /tmp/wish-terminal-mut-backup.XXXXXX)
+  MUT_LOG=$(mktemp /tmp/wish-terminal-mut-log.XXXXXX)
+  MUT_FILE=$file
+  cp "$file" "$MUT_BACKUP"
+  if ! python3 tools/wish-terminal-fixtures/mutants/mutate.py "$op"; then
+    echo "apply failed $op (log $MUT_LOG)"
+    status=1
+    break
+  fi
+  "$CARGO_BIN" test -p rh-sim --all-features --test wish_terminal_producers > "$MUT_LOG" 2>&1
   code=$?
-  cp /tmp/wish-terminal-mut-backup "$file"
-  if git diff --quiet -- "$file"; then echo "restored $op"; else echo "RESTORE FAILED $op"; status=1; break; fi
-  if [ $code -eq 0 ]; then echo "SURVIVED $op"; status=1; break; fi
-  if grep -q "error\[E" "/tmp/wish-terminal-mut-$op.log"; then echo "COMPILE_ERROR $op"; status=1; break; fi
-  if ! grep -q "test result: FAILED" "/tmp/wish-terminal-mut-$op.log"; then echo "NO_SEMANTIC_FAILURE $op"; status=1; break; fi
-  echo "killed $op (actual consumer failure)"
+  cp "$MUT_BACKUP" "$file"
+  if ! git diff --quiet -- "$file"; then
+    echo "RESTORE FAILED $op (log $MUT_LOG)"
+    status=1
+    break
+  fi
+  MUT_FILE=""
+  rm -f "$MUT_BACKUP"
+  MUT_BACKUP=""
+  if [ $code -eq 0 ]; then
+    echo "SURVIVED $op (log $MUT_LOG)"
+    status=1
+    break
+  fi
+  if grep -q "error\[E" "$MUT_LOG"; then
+    echo "COMPILE_ERROR $op (log $MUT_LOG)"
+    status=1
+    break
+  fi
+  if ! grep -q "test result: FAILED" "$MUT_LOG"; then
+    echo "NO_SEMANTIC_FAILURE $op (log $MUT_LOG)"
+    status=1
+    break
+  fi
+  echo "killed $op (actual consumer failure; log $MUT_LOG)"
 done
 if [ $status -eq 0 ]; then
-  "$CARGO_BIN" test -p rh-sim --all-features --test wish_terminal_producers > /tmp/wish-terminal-mut-control.log 2>&1
-  if [ $? -eq 0 ] && grep -q "1 passed" /tmp/wish-terminal-mut-control.log; then echo "control passes"; else echo "CONTROL FAILED"; status=1; fi
+  CONTROL_LOG=$(mktemp /tmp/wish-terminal-mut-control.XXXXXX)
+  "$CARGO_BIN" test -p rh-sim --all-features --test wish_terminal_producers > "$CONTROL_LOG" 2>&1
+  if [ $? -eq 0 ] && grep -q "1 passed" "$CONTROL_LOG"; then
+    echo "control passes (log $CONTROL_LOG)"
+  else
+    echo "CONTROL FAILED (log $CONTROL_LOG)"
+    status=1
+  fi
 fi
 exit $status
