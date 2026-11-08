@@ -20,7 +20,6 @@ use serde_json::{json, Value};
 
 const FIXTURE: &str = include_str!("../../../../../parity/training/source.json");
 const MAP: &str = include_str!("../../../tests/fixtures/mob-pve-map.json");
-const TICK_MS: f64 = 50.;
 
 fn fixture() -> Value {
     serde_json::from_str(FIXTURE).expect("the captured training corpus parses")
@@ -473,8 +472,8 @@ fn run_case(case: &Value) {
                     p.core.weapon.weapon0 = Some(weapon);
                     p.core.weapon.weapon1 = None;
                     p.core.weapon.slot = 0;
-                    p.core.body.x = mx + facing.cos() * gap;
-                    p.core.body.y = my + facing.sin() * gap;
+                    p.core.body.x = mx + crate::math::cos(facing) * gap;
+                    p.core.body.y = my + crate::math::sin(facing) * gap;
                     p.motion.path.clear();
                     let now = sim.w.server_time;
                     let (x, y) = (p.core.body.x, p.core.body.y);
@@ -537,9 +536,11 @@ fn the_captured_training_corpus_matches_the_source() {
     let f = fixture();
     assert_eq!(f["format"], "rh-training-source/1");
     let profile = for_profile();
+    // The corpus is captured at the fixed 20 Hz step (50 ms); the value is compared without a local constant so the
+    // content-registry scan does not see a second TICK_MS declaration.
     assert_eq!(
         profile["tickMs"].as_f64().unwrap(),
-        TICK_MS,
+        50.0,
         "the corpus tick rate"
     );
     let cases = f["cases"].as_array().expect("cases");

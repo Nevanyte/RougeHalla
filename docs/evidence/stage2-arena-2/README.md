@@ -1,28 +1,30 @@
 # P-ARENA-2: training rooms and the `train` console
 
-Status: **INCOMPLETE at packet level; this branch delivers three verified slices.** Round 1: the training world
-lifecycle, the dummy actor kind and the practice setup. Round 2: the `train` console (the sixth schedule row) with its
-caps/gaps/refusals and owner-only toasts, plus the observation bump (OBS 15 → 16: the public training fact and
-`SeenEvent::Toast`). Round 3: the full protocol-8 C-NET set — the Train wire command, the Snapshot training head/delta bit,
-the Toast wire event, the dummy actor kind on the wire, the regenerated `protocol/fixtures/v8.json`, both decoder mirrors and
-the browser proof. The server training-room lifecycle and the pinned-container capture corpus remain (exact list below). Base:
-`deepseek/p-cards-2` @ `2895e05a`. Branch: `deepseek/p-arena-2`. Stack: P-ARENA-2 on P-CARDS-2 on P-MOBS-1 on
-P-TERRAIN-1 on P-ABIL-1 on P-FACTION-1 on P-CARDS-1 on P-CONTENT-1 over `856618eb` `optimization_port`. No packet file
-exists for P-ARENA-2; scope derived from `docs/backlog/README.md` l.148, `packages/server/src/sim/training.ts`,
-`packages/server/src/sim/mobs.ts`, `packages/shared/src/training.ts` and `packages/server/test/training*.test.ts`.
+Status: **DONE-VERIFIED on this branch's stack (all five slices).** Round 1: the training world lifecycle, the dummy
+actor kind and the practice setup. Round 2: the `train` console (the sixth schedule row) with its caps/gaps/refusals and
+owner-only toasts, plus OBS 15 → 16 (the public training fact and `SeenEvent::Toast`). Round 3: the complete protocol-8
+C-NET set (Train wire command, Snapshot training head/delta bit, Toast wire event, dummy actor kind on the wire, the
+regenerated `protocol/fixtures/v8.json`, both decoder mirrors, the JS probe and the browser proof). Round 4: the server
+training-room lifecycle (director isolation, one seat, no bots/results/banking/telemetry, the 300 s accepted-input idle
+close). Round 5: the pinned-container actual-source capture corpus, the native parity test over it and eight killed
+mutants. Base: `deepseek/p-cards-2` @ `2895e05a`; branch `deepseek/p-arena-2`; stack P-ARENA-2 on P-CARDS-2 on P-MOBS-1 on
+P-TERRAIN-1 on P-ABIL-1 on P-FACTION-1 on P-CARDS-1 on P-CONTENT-1 over `856618eb` `optimization_port`. The only
+outstanding item is the coordinator's protocol-9 spine merge/renumber (designated, not this branch's code).
 
-## Lead-approved decisions (2026-11-07)
+## Lead-approved decisions (2026-11-07, as executed)
 
-1. Base `p-cards-2` @ `2895e05a`; the prerequisite chain must stay an ancestor. (This slice makes **no** wire change, so
-   `PROTOCOL_VERSION` stays 7; the approved local 7→8 transport, the protocol-9 spine collision note and the renumbering
-   by the coordinator apply to the transport step that remains.)
-2. Room admission: implement RoomConfig/room behaviour + native `rh-server` tests; the public creation route is a
-   coordinator decision deferred to P-HOST-1/P-NET. (Remains.)
-3. Toasts: owner-only Event/SeenEvent + wire event inside the 8 bump. (Remains with the console.)
-4. Scope: six schedule rows, dummy actor kind, lifecycle + guards, console, room, fixtures/parity/mutants, evidence.
-   This slice delivers items 1–3 and part of 5 below; the rest is named precisely.
-
-## Delivered in this slice (DONE-VERIFIED)
+1. Base `p-cards-2` @ `2895e05a` with the prerequisite chain as an ancestor: done. The approved local protocol 7 → 8
+   transport, its C-NET set and the browser proof are complete on this branch; the protocol-9 spine collision/renumber is
+   designated for the coordinator (see the collision note).
+2. Room admission: RoomConfig/room behaviour + native `rh-server` tests are implemented and the director refuses a training
+   profile; the public creation route stays deferred to P-HOST-1/P-NET (no client route was invented).
+3. Toasts: owner-only `Event`/`SeenEvent` plus the protocol-8 Toast wire event, as part of the 8 bump.
+4. Scope: all six schedule rows, the dummy actor kind, lifecycle + guards, the console, the room, the pinned capture corpus,
+   parity and mutants, evidence and one stacked PR (#48) — all delivered.
+5. Acceptance: full gate + clippy `-D warnings` + fmt on the final tree; the wire set completed end-to-end before
+   `PROTOCOL_VERSION` was bumped; no `docs/MIGRATION.md`, `docs/CONTRACTS.md` status table or `Cargo.lock` edits; no legacy corpus
+   regenerated from Rust output.
+## Verified slices (DONE-VERIFIED)
 
 ### Training configuration and gates
 
@@ -206,28 +208,55 @@ A room constructed with a training simulation config is the practice room; nothi
 - **Wire untouched:** no protocol byte or observation version moves in this round, so the C#/JS/browser-proof set was not
   re-run (the wire round above remains the verified artifact).
 
+### The pinned-container capture corpus and parity (round 5)
+
+The last C-PARITY artifact is the actual-source witness for everything above, captured in the pinned
+`node:22.23.4-bookworm-slim@sha256:aaa4b5ba…` linux/amd64 image:
+
+- **`tools/training-fixtures/`** — `capture.sh` (capture / `--check`, pinned image, the complete
+  `packages/server/src/sim` + `packages/shared/src` TypeScript closure hashed into the provenance, and a two-run
+  byte-identical replay), `capture.mts` (the 17 scoped cases), the declared map input and `README.md`.
+- **`parity/training/source.json`** — the committed corpus: expected values written only by the unmodified source;
+  `capture.sh --check` reproduces it byte for byte. The profile records the seed, the drawn order salt, the reward
+  salt, the declared map hash and the tool/source hashes.
+- **`crates/rh-sim/src/systems/training/corpus_tests.rs`** — the native comparison: every case is replayed against the
+  Rust training world through the same JSON projection and requires exact frame and event equality. Cases: setup and the
+  arena control; a 400-tick training run; a lethal dummy hit refilling and the 3 s reset; a between-tick down revived; a
+  sword riposte and a reflected arrow killing the shooter and being revived in the same tick; console card, stat, camp
+  (300 ms gap, new ref, 12-alive cap, 150-spawn cap), chest (chosen options, the roll, the 6-chest cap) and clear; the
+  door and catalog bounds (unknown ids, count clamps, duplicate/over-long chest options, the 1e9 stat toast); and the arena
+  door. A forced ledger hit is a state witness only; every ordinary attack's events are compared exactly.
+- **The corpus found and the fix integrates six source-fidelity corrections:** a player death names a killer only when a
+  PLAYER landed the fatal damage (a mob-caused death carries no `by`); dummies have no brain in the source (never aggro,
+  wake, fight or return home and reset their hp); a practice mob stores its camp ref as `ref` (source `placeMob` writes
+  `camp + 1`); reward chests occupy their tile for the next drop; the door refuses a 0 stat count and duplicate chest
+  options; and the console's player-facing numbers are grouped with the source's `toLocaleString` shape.
+- **Mutants:** eight committed patches under `tools/training-fixtures/mutants/` with `run-mutants.sh`: dummy refill, dummy
+  reset clock, practice camp ref, chest occupancy, number grouping, the 300 ms gap, the stat-0 door and mob-caused death
+  attribution. The runner applies each patch, requires a semantic training-suite failure, restores the tree, and requires
+  the unchanged control: **8/8 mutants killed; control passes**.
+- **Documented scope note:** `DUMMIES=1` without `training` (an arena world with the practice setup) is not captured: that
+  config combination has no compiled gate plan on this line (the dummies gate only comes with the training world). The
+  console's internal stat removal (count 0) is unreachable from the wire in the source, so only the door refusal is
+  witnessed.
+
 ## What remains for P-ARENA-2 (exact, not approximated)
 
-1. **Pinned-container capture corpus + parity + mutants:** no `tools/training-fixtures` / `parity/training` yet. The scoped
-   case list is unchanged (setup layout, arena control, long run, dummy hit/reset, shield reflect/riposte revive,
-   between-tick downs, console card/stat/camp/chest/clear incl. caps/gaps/refusals/toasts, the door, catalog bounds) with the
-   legacy test line references; the capture is the remaining C-PARITY artifact, and the mutants run against it.
-2. **Integration renumber (coordinator).** This branch is self-consistent at protocol 8 / OBS 16 on its own stack; the
-   protocol-9 spine merge renumbers as described in the collision note above (command tags 12/13, one merged OBS 17, head
-   bits reconciled). No code change is pending here for that; it is the integration step's work.
+1. **Integration renumber (coordinator only).** This branch is self-consistent and DONE-VERIFIED at protocol 8 / OBS 16 on
+   its own stack; the protocol-9 spine merge renumbers as described in the collision note above (command tags 12/13, one
+   merged OBS 17, head bits reconciled). No code change is pending on this branch for that; it is the integration step's
+   work.
+2. **Documented capture scope note (not a branch gap):** the arena-with-dummies config (`DUMMIES=1` without `training`) is not
+   captured because that config combination has no compiled gate plan on this line; every Lead-scoped case is captured.
 
-## Verification (this Mac, pinned toolchain, throwaway PostgreSQL)
+## Verification (final tree, this Mac, pinned toolchain, throwaway pinned PostgreSQL)
 
-- `cargo test --workspace --all-features --locked` (pinned toolchain, throwaway pinned PostgreSQL):
-  **1,450 passed, 0 failed, 3 ignored, 151 test binaries, exit 0** (round-4 room slice; earlier rounds were 1,436,
-  1,444 and 1,445 passed). The C# suite is **275/275**, the JS vector check **15,663 checks** and the browser proof
-  **PASS** (see the round-3 section); the round-4 room tests add 5 native cases.
-- `cargo clippy --workspace --all-targets --all-features --locked -- -D warnings`: **clean, exit 0**.
-- `cargo fmt --all -- --check`: clean.
-- The new training tests and the re-recorded hash tape are included in the workspace run; no protocol/C#/JS vectors were
-  touched (protocol stays 7), so the C# mirror and JS/probe suites are unchanged by this slice. The observation bump is
-  pinned where the policy contract is: the frost policy test reads `OBSERVATION_VERSION` instead of a literal 15 (the
-  policy's own contract version stays 12), and the server event encoder explicitly omits the native-only toast until the
-  protocol-8 transport lands.
-- No edits to `docs/MIGRATION.md`, the `docs/CONTRACTS.md` status table or `Cargo.lock`; no legacy corpus regenerated
-  from Rust output.
+- `cargo test --workspace --all-features --locked`: **1,451 passed, 0 failed, 3 ignored, 151 test binaries, exit 0**
+- `tools/training-fixtures/capture.sh --check`: **byte-identical** to the committed corpus; `run-mutants.sh`:
+  **8/8 mutants killed; unchanged control passes**
+- C# `dotnet test`: **275/275**; JS vector check: **15,663 checks**; browser proof: **PASS** (round-3 wire artifacts; the
+  corpus round moves no wire byte, so they were not re-run — the JS check was re-run as a regression and passes)
+- `cargo clippy --workspace --all-targets --all-features --locked -- -D warnings`: **clean, exit 0**;
+  `cargo fmt --all -- --check`: clean
+- No edits to `docs/MIGRATION.md`, the `docs/CONTRACTS.md` status table or `Cargo.lock`; no legacy corpus regenerated from
+  Rust output (the training corpus is committed source output only).
