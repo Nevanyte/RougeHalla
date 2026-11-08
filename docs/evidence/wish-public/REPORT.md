@@ -1,7 +1,7 @@
 # P-WISH-PUBLIC-WITNESS-1 evidence (source-only)
 
 Immutable base: `fb738cd93d675d4074b7c37c15de6af2dd837ceb` on branch `deepseek/wish-public-witness-1`.
-Capture commit (tools + corpora): `248dbfbb061485d3207076e7ac0bce2bf03a1e34`. The final head is the commit that adds
+Capture commit (tools + corpora): `531c775c9298dc5f0bc9d82b931dbd65edb4dbfa`. The final head is the commit that adds
 this report; `git rev-parse HEAD` is authoritative. No merge or push is made. Worktree:
 `/Users/nevinmckinnon/Documents/Projects/RogueHalla-wish-public` only.
 
