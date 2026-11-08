@@ -339,6 +339,22 @@ impl ItemObserver {
         out: &mut Observation,
         cache: Option<&mut SightCache>,
     ) -> Result<PreparedOffer<'a>, OfferError> {
+        self.prepare_with_seen_rewards_where(sim, events, earlier, out, cache, |_| true)
+    }
+
+    /// Prepare only complete reward rows accepted by a presentation adapter. Selection occurs before
+    /// staging handles and their bindings, and never changes a row's option indices. The default
+    /// observer methods accept every native row; headless/policy behavior remains unchanged.
+    #[allow(clippy::too_many_arguments)]
+    pub fn prepare_with_seen_rewards_where<'a>(
+        &'a mut self,
+        sim: &Sim,
+        events: &[Event],
+        earlier: &[crate::SeenEvent],
+        out: &mut Observation,
+        cache: Option<&mut SightCache>,
+        accept_reward: impl Fn(&[crate::reward_chests::RewardOptionView]) -> bool,
+    ) -> Result<PreparedOffer<'a>, OfferError> {
         let tick = sim.tick();
         if self.sampled.is_some_and(|t| t > tick) {
             return Err(OfferError::EarlierTick);
@@ -388,7 +404,7 @@ impl ItemObserver {
         }
         let rewards = self
             .rewards
-            .stage_into(sim, &mut out.reward_chests, &mut out.build)
+            .stage_into_where(sim, &mut out.reward_chests, &mut out.build, accept_reward)
             .map_err(OfferError::Rewards)?;
         if !earlier.is_empty() {
             out.events.splice(0..0, earlier.iter().cloned());

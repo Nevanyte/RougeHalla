@@ -72,6 +72,16 @@ impl RewardChestObserver {
         out: &mut Vec<RewardChestView>,
         build: &mut Option<BuildView>,
     ) -> Result<RewardStage, OfferError> {
+        self.stage_into_where(sim, out, build, |_| true)
+    }
+
+    pub(crate) fn stage_into_where(
+        &mut self,
+        sim: &Sim,
+        out: &mut Vec<RewardChestView>,
+        build: &mut Option<BuildView>,
+        accept: impl Fn(&[RewardOptionView]) -> bool,
+    ) -> Result<RewardStage, OfferError> {
         let tick = sim.tick();
         if self.sampled.is_some_and(|v| v > tick) {
             return Err(OfferError::EarlierTick);
@@ -87,9 +97,6 @@ impl RewardChestObserver {
                     .sees(sim.collision_view(), me, c.at, tick, wards)
                 {
                     continue;
-                }
-                if self.scratch.len() == crate::item_view::MAX_VISIBLE_PROPS {
-                    return Err(OfferError::TooManyChests);
                 }
                 let encode = |x: f64| -> Result<f64, OfferError> {
                     let x = x as f32;
@@ -120,7 +127,15 @@ impl RewardChestObserver {
                             }),
                         })
                     })
-                    .collect();
+                    .collect::<Vec<_>>();
+                // A presentation adapter may omit an entire unsupported row, never individual options.
+                // Filter before handles/candidate bindings are staged, so an unpublished row grants no action.
+                if !accept(&options) {
+                    continue;
+                }
+                if self.scratch.len() == crate::item_view::MAX_VISIBLE_PROPS {
+                    return Err(OfferError::TooManyChests);
+                }
                 let picked = c.pickers.contains(&self.viewer);
                 self.scratch.push(Candidate {
                     id: c.id,
@@ -286,5 +301,120 @@ impl RewardChestObserver {
         }
         s.retired.retain(|r| stage.tick - r.tick < 20);
         s.sampled = Some(stage.tick);
+    }
+}
+
+#[cfg(test)]
+mod presentation_filter_tests {
+    use super::*;
+
+    #[test]
+    fn unsupported_mixed_rows_have_no_bindings_or_effect_on_supported_epochs() {
+        let mut sim = Sim::reset_active(
+            crate::SimConfig {
+                consumables: false,
+                ..Default::default()
+            },
+            crate::arenas::practice_arena(),
+            crate::Secrets::from_seed(7),
+            &[crate::Placement {
+                profile: "owner".into(),
+                faction: crate::FactionId::Fire,
+                bot: false,
+                at: Vec2::new(200., 320.),
+                hp: None,
+                weapon0: None,
+                weapon1: None,
+            }],
+        );
+        let mixed = super::super::drop_trophy(
+            &mut sim.w,
+            Vec2::new(200., 320.),
+            PlayerId(1),
+            &[crate::kill_augments::KillAugment {
+                key: crate::kill_augments::KillStatKey::Ad,
+                gain: 6.,
+            }],
+        );
+        sim.w
+            .reward_chests
+            .iter_mut()
+            .find(|c| c.id == mixed)
+            .unwrap()
+            .options[1] = Some(OptionId::Card(crate::cards::CardId::ALL[79]));
+        let supported = super::super::drop_stat(&mut sim.w, Vec2::new(220., 320.));
+        let mut observer = RewardChestObserver::new(PlayerId(1));
+        let mut rows = Vec::new();
+        let mut build = None;
+        let accept = |options: &[RewardOptionView]| {
+            options.iter().all(|o| !matches!(o.id, OptionId::Kill(_)))
+        };
+        let stage = observer
+            .stage_into_where(&sim, &mut rows, &mut build, accept)
+            .unwrap();
+        assert!(stage.changed);
+        assert_eq!(rows.len(), 1, "the entire mixed row is omitted");
+        assert!(
+            observer.ids.is_empty(),
+            "preparation did not commit any candidate binding"
+        );
+        assert_eq!(
+            observer.scratch.iter().map(|c| c.id).collect::<Vec<_>>(),
+            vec![supported]
+        );
+        let options = rows[0].options.clone();
+        let handle = rows[0].handle;
+        observer.commit_stage(stage);
+        assert_eq!(observer.ids, vec![supported]);
+        assert_eq!(
+            observer.next,
+            u64::from(handle.wire()) + 1,
+            "omitted rows consume no handle block"
+        );
+        assert_eq!(
+            observer
+                .resolve(
+                    &sim,
+                    RewardChestHandle::from_wire(handle.wire() + 1).unwrap(),
+                    0
+                )
+                .unwrap(),
+            crate::validate(crate::RawCommand::Choose {
+                chest_id: None,
+                pick: 0
+            })
+            .unwrap()
+        );
+        sim.w
+            .reward_chests
+            .iter_mut()
+            .find(|c| c.id == mixed)
+            .unwrap()
+            .options[0] = Some(OptionId::Kill(crate::kill_augments::KillAugment {
+            key: crate::kill_augments::KillStatKey::Ad,
+            gain: 9.,
+        }));
+        sim.step();
+        let stage = observer
+            .stage_into_where(&sim, &mut rows, &mut build, accept)
+            .unwrap();
+        assert!(
+            !stage.changed,
+            "changes in omitted rows cannot renew supported offers"
+        );
+        assert_eq!(rows[0].handle, handle);
+        assert_eq!(
+            rows[0].options, options,
+            "supported option indices remain unchanged"
+        );
+        let mut native = RewardChestObserver::new(PlayerId(1));
+        let native_offer = native.prepare_into(&sim, &mut rows, &mut build).unwrap();
+        assert_eq!(
+            rows.len(),
+            2,
+            "the default native path includes both complete rows"
+        );
+        native_offer.commit();
+        assert!(native.ids.contains(&mixed));
     }
 }

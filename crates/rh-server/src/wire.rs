@@ -80,7 +80,6 @@ pub fn status(s: Status) -> u8 {
 }
 
 const WISH_UNSUPPORTED: &str = "Full Wish casting requires wire input and owner facts";
-const REWARD_PREREQUISITE_UNSUPPORTED: &str = "Reward prerequisite notices require wire transport";
 
 /// Admission guard, independent of the current phase. Protocol 11 carries Source lifecycle, planning, cannons and
 /// training; Full Wish casting still needs input and owner facts, so it remains refused before simulation/offers.
@@ -334,8 +333,10 @@ fn to_wire(e: &SeenEvent) -> Wire {
         SeenEvent::Toast { ref text } => Wire::Event(WireEvent::Toast { text: text.clone() }),
         SeenEvent::WindEmblem => Wire::Event(WireEvent::WindEmblem),
         SeenEvent::ChestRefused {
-            reason: rh_sim::reward_chests::Refusal::Needs(_),
-        } => Wire::Refused(REWARD_PREREQUISITE_UNSUPPORTED),
+            reason: reason @ rh_sim::reward_chests::Refusal::Needs(_),
+        } => Wire::Event(WireEvent::Toast {
+            text: reason.message().into_owned(),
+        }),
         SeenEvent::ChestRefused { reason } => Wire::Event(WireEvent::ChestRefused {
             reason: match reason {
                 rh_sim::reward_chests::Refusal::Busy => 1,
@@ -348,7 +349,7 @@ fn to_wire(e: &SeenEvent) -> Wire {
                 rh_sim::reward_chests::Refusal::Maxed => 8,
                 rh_sim::reward_chests::Refusal::NotYours => 9,
                 rh_sim::reward_chests::Refusal::Needs(_) => {
-                    unreachable!("prerequisite notice refused above")
+                    unreachable!("prerequisite notice projected as a toast above")
                 }
             },
         }),
@@ -547,12 +548,21 @@ impl Publisher {
     ) -> Result<(ViewFrames, rh_sim::item_view::PreparedOffer<'a>), PrepareFramesError> {
         profile_supported(sim.config()).map_err(PrepareFramesError::Unsupported)?;
         let viewer = observer.viewer();
-        let offer = observer.prepare_with_seen(
+        let offer = observer.prepare_with_seen_rewards_where(
             sim,
             last_step,
             earlier,
             &mut self.obs,
             Some(&mut self.sight),
+            |options| {
+                options.iter().all(|o| {
+                    matches!(
+                        o.id,
+                        rh_sim::reward_chests::OptionId::Card(_)
+                            | rh_sim::reward_chests::OptionId::Boost(_)
+                    )
+                })
+            },
         )?;
         observation_supported(&self.obs).map_err(PrepareFramesError::Unsupported)?;
         earlier.clear();
@@ -915,22 +925,35 @@ mod tests {
     }
 
     #[test]
-    fn an_unrepresented_prerequisite_notice_refuses_without_partial_frames() {
+    fn a_prerequisite_refusal_uses_the_existing_owner_toast_without_poisoning_frames() {
         let env = seed1_match(1);
         let viewer = env.sim.players()[0].id;
         let event = SeenEvent::ChestRefused {
             reason: rh_sim::reward_chests::Refusal::Needs(rh_sim::cards::BaseStatId::Ad),
         };
-        assert!(matches!(
-            to_wire(&event),
-            Wire::Refused(REWARD_PREREQUISITE_UNSUPPORTED)
-        ));
-        let frames = Publisher::default().frames(&env.sim, viewer, 0, &[], &mut vec![event], &[]);
-        assert!(frames.important.is_none() && frames.fx.is_none());
-        assert_eq!(
-            frames.snapshot.unwrap_err(),
-            rh_protocol::EncodeError::BadValue(REWARD_PREREQUISITE_UNSUPPORTED)
+        assert!(
+            matches!(to_wire(&event), Wire::Event(WireEvent::Toast { text }) if text == "Needs Offense")
         );
+        let mut publisher = Publisher::default();
+        let mut earlier = vec![event];
+        let frames = publisher.frames(&env.sim, viewer, 0, &[], &mut earlier, &[]);
+        assert!(frames.snapshot.is_ok() && frames.refused.is_none());
+        let ServerMsg::Events { events, .. } =
+            ServerMsg::decode(&frames.important.unwrap()).unwrap()
+        else {
+            panic!()
+        };
+        assert_eq!(
+            events,
+            vec![WireEvent::Toast {
+                text: "Needs Offense".into()
+            }]
+        );
+        assert!(earlier.is_empty());
+        assert!(publisher
+            .frames(&env.sim, viewer, 0, &[], &mut earlier, &[])
+            .snapshot
+            .is_ok());
     }
 
     #[test]

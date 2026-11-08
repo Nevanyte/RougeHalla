@@ -62,8 +62,9 @@ impl BoostId {
 pub enum OptionId {
     Card(CardId),
     Boost(BoostId),
-    /// A kill-augment Trophy option (source `kill:<key>:<gain>`): sim-complete; the public wire projection filters it
-    /// until the transport packet adds a `WireRewardId` variant and its protocol bump (see `wire_state.rs`).
+    /// A kill-augment Trophy option (source `kill:<key>:<gain>`): sim-complete. Until transport adds a complete
+    /// `WireRewardId` variant, the server omits the entire unsupported offer before staging its action bindings;
+    /// the native/headless observer retains it. Individual options must never be filtered or reindexed.
     Kill(crate::kill_augments::KillAugment),
 }
 impl OptionId {
