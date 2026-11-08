@@ -142,3 +142,26 @@ listener both before and after `/info`. Four local Node-child process controls p
 listener plus an alive non-listening child, ownership lost during HTTP readiness, and invalid/exited child identity.
 The foreign listener remains untouched. The runner's syntax, help path and diff checks pass. These are harness controls;
 no live all-five browser/Unity input proof is claimed by these checks.
+
+## Editor proof utility controls
+
+`Assets/Editor/WishProof` is an Editor-only diagnostic assembly. It queues Unity Input System pointer/R device events
+through normal dynamic updates; it does not call `ReadInput`, `Session.Cast` or `InputSystem.Update`. The ready-owner
+gate keeps tracing off through the ordinary opening lock and requires live phase, an alive owner, positive stock and no
+active cast. The recorded R sample must precede an actual byte-decoded native Cast queue record in the same Unity frame,
+from the single active session, with identical order sequence, point and selected actor reference. That queue milestone is not a completed socket
+write. Only input tag `0x02` and received FX tag `0x85` payloads enter the optional native trace; Hello/Welcome credentials
+and tickets are excluded.
+
+Each copied own landing binds its latest preceding native dispatch record, before synchronous Session/art subscribers,
+then its exact packet list position and original source time. Every observed landing after the encoded queue needs one
+distinct applied marker in order; missing/extra duplicates, reused receipts, reordered or wrong-caster markers fail.
+Later presentation frames and equal local clock readings are accepted only with ordered trace evidence. Input release,
+proof-fact or trace overflow cannot retain a complete verdict. Owner facts are copied scalar values; raw pooled DTOs are
+not retained.
+
+The reproducible `tools/latency/editor-proof-contract/WishProofContract.csproj` check links the actual trace, native
+transport, proof and C# protocol sources against Unity API stubs. It passes the ready/no-stock/active-cast, encoded Cast,
+receipt/callback ordering, duplicate occurrence, queue-boundary and overflow controls. It is not a Unity Editor run.
+Real art consumers are still supplied by the coordinator's composition, and the all-five Editor/Web player-loop proof
+remains INCOMPLETE until that composed build is exercised.

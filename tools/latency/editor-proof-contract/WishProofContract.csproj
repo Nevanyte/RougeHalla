@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+    <DefineConstants>UNITY_EDITOR</DefineConstants>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../../client-unity/RoguehallaNet/RoguehallaNet.csproj" />
+    <Compile Include="../../../client-unity/UnityProject/Assets/Scripts/Net/LatencyTrace.cs" Link="LatencyTrace.cs" />
+    <Compile Include="../../../client-unity/UnityProject/Assets/Scripts/Net/NativeTransport.cs" Link="NativeTransport.cs" />
+    <Compile Include="../../../client-unity/UnityProject/Assets/Editor/WishProof/WishProof.cs" Link="WishProof.cs" />
+  </ItemGroup>
+</Project>

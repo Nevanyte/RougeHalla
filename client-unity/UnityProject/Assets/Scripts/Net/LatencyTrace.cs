@@ -31,6 +31,7 @@ namespace Roguehalla.Client
             public int moveSeq, ability;
             public double x, y, sourceTime, at;
             public bool hasSourceTime;
+            public string wireBase64;
         }
 
         const int Limit = 20000;
@@ -67,10 +68,32 @@ namespace Roguehalla.Client
         {
             if (_editorEnabled) Append(new EditorRecord { kind = kind, player = player, moveSeq = moveSeq, x = x, y = y });
         }
+
+        /// <summary>Records only an already encoded ClientMsg.Input frame at NativeTransport's queue boundary.</summary>
+        public static void NativeInputQueued(byte[] frame)
+        {
+#if UNITY_EDITOR
+            if (!_editorEnabled || frame == null || frame.Length == 0 || frame[0] != 0x02) return;
+            try { Append(new EditorRecord { kind = "nativeInputQueued", wireBase64 = Convert.ToBase64String(frame) }); }
+            catch { /* Optional diagnostics never interrupt the transport. */ }
+#endif
+        }
+
+        /// <summary>Records only an already received server FX frame at NativeTransport's main-thread dispatch boundary.</summary>
+        public static void NativeFxReceived(byte[] frame)
+        {
+#if UNITY_EDITOR
+            if (!_editorEnabled || frame == null || frame.Length == 0 || frame[0] != 0x85) return;
+            try { Append(new EditorRecord { kind = "nativeFxReceived", wireBase64 = Convert.ToBase64String(frame) }); }
+            catch { /* Optional diagnostics never interrupt receive dispatch. */ }
+#endif
+        }
 #else
         public static bool Enabled { get { return false; } }
         public static bool TakeTargetRequest() { return false; }
         public static void Mark(string kind, uint player, int moveSeq, double x, double y) { }
+        public static void NativeInputQueued(byte[] frame) { }
+        public static void NativeFxReceived(byte[] frame) { }
 #endif
 
         /// <summary>Opt-in observation after a confirmed cue is applied by its presentation consumer, including a

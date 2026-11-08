@@ -51,7 +51,13 @@ namespace Roguehalla.Client
                     if (!r.EndOfMessage) continue;
                     byte[] frame = ms.ToArray();
                     ms.SetLength(0);
-                    _events.Enqueue(() => { if (gen == _generation && Received != null) Received(frame); });
+                    _events.Enqueue(() =>
+                    {
+                        if (gen != _generation || Received == null) return;
+                        // Capture the FX receive boundary before Session and presentation subscribers run.
+                        LatencyTrace.NativeFxReceived(frame);
+                        Received(frame);
+                    });
                 }
             }
             catch (Exception e) { reason = e.GetType().Name + ": " + e.Message; }
@@ -65,6 +71,8 @@ namespace Roguehalla.Client
             _sendChain = _sendChain.ContinueWith(_ => ws.State == WebSocketState.Open
                 ? ws.SendAsync(new ArraySegment<byte>(frame), WebSocketMessageType.Binary, true, CancellationToken.None)
                 : Task.CompletedTask, TaskScheduler.Default).Unwrap();
+            // This marks only the encoded input queued on the open native transport. It is not proof of a completed socket write.
+            LatencyTrace.NativeInputQueued(frame);
         }
 
         public void Close()
