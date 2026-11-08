@@ -1,0 +1,76 @@
+{
+  "note": "Private pre-admission revision-scoped evidence; preserve failed preflight/stale-test attempts. Counts and exclusions are in PRE_ADMISSION.md. Logs remain in the owner local return-cleanup archive.",
+  "archive": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08",
+  "artifacts": [
+    {
+      "file": "candidate-sim-gate-root.log",
+      "bytes": 60357,
+      "sha256": "610875b8dabb343c09b3862a992aa3817e7f94e377c2732d4c0c41e56aeee1c7"
+    },
+    {
+      "file": "candidate-sim-gate-root-resume.log",
+      "bytes": 8281,
+      "sha256": "a611d4da4ef4d7c3f6bd60e22a609c27c3dd856b609c986bc697b7ded8465a4c"
+    },
+    {
+      "file": "candidate-client-contracts-root.log",
+      "bytes": 5040,
+      "sha256": "145e62243952b8ebb19d933e4f735038897a733009bcdcb9da4ebc413715b2c1"
+    },
+    {
+      "file": "candidate-js-vectors-root.log",
+      "bytes": 109,
+      "sha256": "770a2fdfb355ec52e322edc91f3c26d997b9245373011507c0d3fd70e9a479f5"
+    },
+    {
+      "file": "frost-registered-root.log",
+      "bytes": 3529,
+      "sha256": "6855749592c2eec9d3f6dfd63f2f9ec3f29aae670d650a2e7fe9089ff6638a32"
+    },
+    {
+      "file": "frost-resistance-source-root.log",
+      "bytes": 57,
+      "sha256": "8bbe4f08084b71dbed520a82ab173e2f55f140e9db1e2acbf2b856c70ad89ceb"
+    },
+    {
+      "file": "frost-content-01-attack-resistance-removed.log",
+      "bytes": 925,
+      "sha256": "60f2d03678aff1dc78bbe8e68931555023ab162741d2ce49b188cb9f2d395450"
+    },
+    {
+      "file": "frost-content-02-movement-resistance-removed.log",
+      "bytes": 924,
+      "sha256": "39390d38128f4ed385f48c527fe375f425850914e45014a5c3c193f5be60087a"
+    },
+    {
+      "file": "frost-content-restored-control.log",
+      "bytes": 499,
+      "sha256": "905264bf440bb1e1533adabcce71c0eb7af330446b59329ac5e52bcabce74dab"
+    },
+    {
+      "file": "mark-rate-source-root.log",
+      "bytes": 119,
+      "sha256": "b3371b7dc768ce31e982e9bfe43f90a2a032f2765c65f76d52c0a34bc29e27d3"
+    },
+    {
+      "file": "mark-rate-mutants-root.log",
+      "bytes": 148,
+      "sha256": "1e8a1fd2544c15df5f3cf7c1785fc4020bb8775e9f4e7412dd03ce566741dfad"
+    },
+    {
+      "file": "candidate-backend-gate/third-workspace-excluding-sim.log",
+      "bytes": 87410,
+      "sha256": "4a09ab9b3e0ef3d4ab1ae7833c08e9cf2513358282794085f0cc6de0b6526f48"
+    },
+    {
+      "file": "candidate-backend-gate/fourth-coverage-summary.json",
+      "bytes": 3354,
+      "sha256": "045247c1500dc1ca5739670cb90757d6c09e48848c5c19019898e4002d9f56da"
+    },
+    {
+      "file": "candidate-backend-gate/fourth-progress.json",
+      "bytes": 13309,
+      "sha256": "062670e804d2a141efe2744f02cc145894a24d14ebe27080e23e3d5a34715766"
+    }
+  ]
+}
