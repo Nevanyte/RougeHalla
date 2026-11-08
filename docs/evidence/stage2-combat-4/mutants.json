@@ -1,0 +1,39 @@
+{
+  "format": "rh-loot-world-mutants/1",
+  "note": "External mutant controls: each mutation reverted one landed flag read in the production action path and the parity corpus was rerun; the restored code passes.",
+  "mutants": [
+    {
+      "id": "M1",
+      "mutation": "items::take passes second_locked=false to WeaponRt::pickup_slot (the pre-fix loot.ts line 167 behaviour)",
+      "command": "cargo test -p rh-sim --all-features --lib systems::loot_world_tests::loot_world_runtime",
+      "expected": "FAIL",
+      "observed_exit": "test failed",
+      "observed": [
+        "assertion `left == right` failed: committed-lock-second-slot/frame-2.containers",
+        "left: 4",
+        "right: 3",
+        "failures: systems::loot_world_tests::loot_world_runtime_matches_the_actual_source",
+        "test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 503 filtered out"
+      ],
+      "log": "mutant-1.txt"
+    },
+    {
+      "id": "M2",
+      "mutation": "items::swap passes second_locked=false to WeaponRt::can_swap (the pre-fix weapons.ts line 160 behaviour)",
+      "command": "cargo test -p rh-sim --all-features --lib systems::loot_world_tests::loot_world_runtime",
+      "expected": "FAIL",
+      "observed_exit": "test failed",
+      "observed": [
+        "assertion `left == right` failed: committed-lock-second-slot/frame-3.players[0].readyAt",
+        "failures: systems::loot_world_tests::loot_world_runtime_matches_the_actual_source",
+        "test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 503 filtered out"
+      ],
+      "log": "mutant-2.txt"
+    }
+  ],
+  "restored": "cargo test -p rh-sim --all-features --lib systems::loot_world_tests -> 2 passed / 0 failed",
+  "in_test_guards": [
+    "committed_second_slot_lock_and_container_births_are_load_bearing: omitting the Committed grant must fail the committed frame comparison",
+    "the same test: forcing the between-tick body's born_tick to zero must fail the waiting-tick frame comparison"
+  ]
+}

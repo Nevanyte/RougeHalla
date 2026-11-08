@@ -1,0 +1,11 @@
+mutant: items::swap -> WeaponRt::can_swap(target, false)  (pre-fix weapons.ts line 160)
+command: cargo test -p rh-sim --all-features --lib systems::loot_world_tests::loot_world_runtime
+expected: FAIL
+
+thread '...loot_world_runtime_matches_the_actual_source' panicked at crates/rh-sim/src/systems/loot_world_tests.rs:
+assertion `left == right` failed: committed-lock-second-slot/frame-3.players[0].readyAt
+
+failures:
+    systems::loot_world_tests::loot_world_runtime_matches_the_actual_source
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 503 filtered out

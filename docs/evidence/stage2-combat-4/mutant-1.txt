@@ -1,0 +1,13 @@
+mutant: items::take -> WeaponRt::pickup_slot(false)  (pre-fix loot.ts line 167)
+command: cargo test -p rh-sim --all-features --lib systems::loot_world_tests::loot_world_runtime
+expected: FAIL
+
+thread '...loot_world_runtime_matches_the_actual_source' panicked at crates/rh-sim/src/systems/loot_world_tests.rs:
+assertion `left == right` failed: committed-lock-second-slot/frame-2.containers
+  left: 3
+ right: 4
+
+failures:
+    systems::loot_world_tests::loot_world_runtime_matches_the_actual_source
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 503 filtered out
