@@ -1,0 +1,11 @@
+--- a/packages/server/src/sim/projectiles.ts
++++ b/packages/server/src/sim/projectiles.ts
+@@ -172,7 +172,7 @@
+   for (const b of bodies) {
+     if (b.maxX < lox || b.minX > hix || b.maxY < loy || b.minY > hiy) continue;
+     const c = b.c;
+-    if (c.id === s.pr.owner || (owner ? !hostile(owner, c) : mobShot && c.kind === "mob") || isEvading(c) || isQuestGiver(c)) continue;
++    if (c.id === s.pr.owner || isEvading(c)) continue;
+     const at = positionAt(c.rt, c.s, t);
+     const u = contactShare(s, at);
+     if (u === null) continue;
