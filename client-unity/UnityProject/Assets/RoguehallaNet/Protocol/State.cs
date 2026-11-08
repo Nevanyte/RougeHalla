@@ -47,7 +47,16 @@ namespace Roguehalla.Net.Protocol
         public float X, Y, X2, Y2, Radius, Vx, Vy;
         public double StartedAt, EndsAt;
     }
-    public struct WireRewardOption { public byte Kind, Id; public bool Taken; public uint? TakenBy; }
+    /// <summary>Legacy Trophy stat keys in source declaration order (rh-sim TrophyStatKey).</summary>
+    public enum TrophyStatKey : byte { Ad = 0, Ap = 1, Damage = 2, Health = 3, AttackSpeed = 4, Armor = 5, Mr = 6, Speed = 7, Leech = 8 }
+    public struct WireRewardOption
+    {
+        public byte Kind, Id;
+        public TrophyStatKey? KillKey;
+        public double KillGain;
+        public bool Taken;
+        public uint? TakenBy;
+    }
     public sealed class WireRewardChest
     {
         public RewardChestHandle Handle;
@@ -190,7 +199,30 @@ namespace Roguehalla.Net.Protocol
                             var chest = new WireRewardChest { Handle = new RewardChestHandle(Handle(ref r)), X = r.U16(), Y = r.U16(), ExpiresAt = r.F64() };
                             byte n = r.U8(); if (n > 3) throw new DecodeException(DecodeError.TooMany);
                             chest.Options = new WireRewardOption[n];
-                            for (int k = 0; k < n; k++) chest.Options[k] = new WireRewardOption { Kind = r.U8(), Id = r.U8(), Taken = r.Flag(), TakenBy = ReadActor(ref r) };
+                            for (int k = 0; k < n; k++)
+                            {
+                                byte kind = r.U8();
+                                WireRewardOption option;
+                                switch (kind)
+                                {
+                                    case 1: case 2:
+                                        option = new WireRewardOption { Kind = kind, Id = r.U8() };
+                                        break;
+                                    case 3:
+                                    {
+                                        byte rawKey = r.U8();
+                                        if (rawKey > (byte)TrophyStatKey.Leech) throw new DecodeException(DecodeError.BadField, "Trophy stat key");
+                                        double gain = r.F64();
+                                        if (!Finite(gain) || gain <= 0) throw new DecodeException(DecodeError.BadField, "Trophy gain");
+                                        option = new WireRewardOption { Kind = kind, KillKey = (TrophyStatKey)rawKey, KillGain = gain };
+                                        break;
+                                    }
+                                    default: throw new DecodeException(DecodeError.BadField, "reward option kind");
+                                }
+                                option.Taken = r.Flag();
+                                option.TakenBy = ReadActor(ref r);
+                                chest.Options[k] = option;
+                            }
                             chest.Picked = r.Flag(); chest.CanChoose = r.Flag(); chests.Rows[j] = chest;
                         }
                         item = chests; break;
@@ -332,7 +364,14 @@ namespace Roguehalla.Net.Protocol
             {
                 Require(row != null && row.Handle.Value > previous && Finite(row.ExpiresAt) && row.Options != null && row.Options.Length <= 3, "reward chest");
                 previous = row.Handle.Value;
-                foreach (var o in row.Options) Require((o.Kind == 1 && o.Id < 80 || o.Kind == 2 && o.Id < 8) && o.TakenBy != 0, "reward option");
+                foreach (var o in row.Options)
+                {
+                    bool card = o.Kind == 1 && o.Id < 80 && !o.KillKey.HasValue && o.KillGain == 0;
+                    bool boost = o.Kind == 2 && o.Id < 8 && !o.KillKey.HasValue && o.KillGain == 0;
+                    bool kill = o.Kind == 3 && o.Id == 0 && o.KillKey.HasValue &&
+                        (byte)o.KillKey.Value <= (byte)TrophyStatKey.Leech && Finite(o.KillGain) && o.KillGain > 0;
+                    Require((card || boost || kill) && o.TakenBy != 0, "reward option");
+                }
             }
         }
         internal override void Write(Writer w)
@@ -341,7 +380,13 @@ namespace Roguehalla.Net.Protocol
             foreach (var row in Rows)
             {
                 w.Varint(row.Handle.Value); w.U16(row.X); w.U16(row.Y); w.F64(row.ExpiresAt); w.U8((byte)row.Options.Length);
-                foreach (var o in row.Options) { w.U8(o.Kind); w.U8(o.Id); w.U8(o.Taken ? (byte)1 : (byte)0); WriteActor(w, o.TakenBy); }
+                foreach (var o in row.Options)
+                {
+                    w.U8(o.Kind);
+                    if (o.Kind == 3) { w.U8((byte)o.KillKey.Value); w.F64(o.KillGain); }
+                    else w.U8(o.Id);
+                    w.U8(o.Taken ? (byte)1 : (byte)0); WriteActor(w, o.TakenBy);
+                }
                 w.U8(row.Picked ? (byte)1 : (byte)0); w.U8(row.CanChoose ? (byte)1 : (byte)0);
             }
         }

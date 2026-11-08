@@ -185,6 +185,61 @@ fn unsafe_key_handle_kind_and_count_combinations_are_refused() {
 }
 
 #[test]
+fn trophy_rewards_roundtrip_all_keys_preserve_f64_and_include_exact_size() {
+    let (_, sample) = samples::server_samples()
+        .into_iter()
+        .find(|(name, _)| *name == "state_trophy_reward_keys")
+        .unwrap();
+    let bytes = sample.try_encode().unwrap();
+    assert_eq!(bytes.len(), sample.encoded_len());
+    let ServerMsg::State { items, .. } = ServerMsg::decode(&bytes).unwrap() else {
+        panic!("expected state")
+    };
+    let StateItem::RewardChests(chests) = &items[0] else {
+        panic!("expected reward chests")
+    };
+    let rewards: Vec<_> = chests
+        .iter()
+        .flat_map(|chest| chest.options.iter())
+        .map(|option| match option.id {
+            WireRewardId::Kill { key, gain } => (key as u8, gain.to_bits()),
+            other => panic!("expected Trophy option, got {other:?}"),
+        })
+        .collect();
+    assert_eq!(
+        rewards.iter().map(|(key, _)| *key).collect::<Vec<_>>(),
+        (0..9).collect::<Vec<_>>()
+    );
+    assert_eq!(rewards[8].1, 0x3fb9_9999_9999_999b);
+}
+
+#[test]
+fn trophy_rewards_reject_nonpositive_and_nonfinite_gains_on_encode() {
+    for gain in [0.0, -0.0, -1.0, f64::NAN, f64::INFINITY, f64::NEG_INFINITY] {
+        let message = ServerMsg::State {
+            tick: 1,
+            items: vec![StateItem::RewardChests(vec![WireRewardChest {
+                handle: RewardChestHandle::new(1).unwrap(),
+                x: 0,
+                y: 0,
+                expires_at: 1000.0,
+                options: vec![WireRewardOption {
+                    id: WireRewardId::Kill {
+                        key: TrophyStatKey::Ad,
+                        gain,
+                    },
+                    taken: false,
+                    taken_by: None,
+                }],
+                picked: false,
+                can_choose: true,
+            }])],
+        };
+        assert!(message.try_encode().is_err(), "gain={gain:?}");
+    }
+}
+
+#[test]
 fn scalar_status_changes_and_clears_survive_full_and_fast_delta_paths() {
     let me = WireSelf {
         sig: 255,

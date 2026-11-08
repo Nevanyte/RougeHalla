@@ -52,7 +52,7 @@ async function waitOwnedServer(port, child, getLogs, spawnFailure, options = {})
         // child lost the endpoint while the request was in flight.
         if (!await inspect(child.pid, port)) throw new Error('rh-server lost direct child listener ownership during /info readiness');
         checkChild();
-        if (info.protocol !== 12) throw new Error(`server protocol is ${info.protocol}; expected 12`);
+        if (info.protocol !== 13) throw new Error(`server protocol is ${info.protocol}; expected 13`);
         if (!info.state || info.state === 'ready') return {
           info,
           ownership: { pid: child.pid, endpoint: `127.0.0.1:${port}`, method: 'lsof direct child TCP LISTEN before and after /info',

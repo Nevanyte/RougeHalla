@@ -110,6 +110,14 @@ fn malformed_server_frames_are_rejected_for_the_documented_reason() {
             "chest_bad_reason_zero" | "chest_bad_reason_unknown" => BadField("chest reason"),
             "state_unknown_key" => BadField("state key"),
             "state_reward_card_id_80" => BadField("reward id"),
+            "state_reward_kind_unknown" => BadField("reward kind"),
+            "state_reward_kill_key_unknown" => BadField("reward key"),
+            "state_reward_kill_gain_zero"
+            | "state_reward_kill_gain_negative"
+            | "state_reward_kill_gain_nan"
+            | "state_reward_kill_gain_infinity" => BadField("reward gain"),
+            "state_reward_kill_truncated_key" | "state_reward_kill_truncated_gain" => Truncated,
+            "state_reward_options_too_many" => TooMany(4),
             "state_plan_negative_deadline" => BadField("plan"),
             "state_duplicate_key" | "state_key_order" => BadField("state key order"),
             "state_too_many_keys"

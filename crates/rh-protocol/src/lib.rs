@@ -147,9 +147,9 @@ pub mod quant;
 pub mod samples;
 pub mod state;
 pub use state::{
-    PickupHandle, RewardChestHandle, StateItem, WireArena, WireBuild, WireCamp, WireField,
-    WireFocus, WireInventory, WirePlan, WirePlanOption, WireProjectile, WireProp, WirePropKind,
-    WireProps, WireRewardChest, WireRewardId, WireRewardOption,
+    PickupHandle, RewardChestHandle, StateItem, TrophyStatKey, WireArena, WireBuild, WireCamp,
+    WireField, WireFocus, WireInventory, WirePlan, WirePlanOption, WireProjectile, WireProp,
+    WirePropKind, WireProps, WireRewardChest, WireRewardId, WireRewardOption,
 };
 
 pub use codec::{DecodeError, EncodeError, Reader, Writer};
@@ -160,7 +160,7 @@ pub use delta::{
 pub use encode::{encode_welcome, encode_welcome_into, WelcomeHeader};
 
 /// Bump on any incompatible change (a new tag or field in an existing message). Both ends refuse another major version.
-pub const PROTOCOL_VERSION: u16 = 12;
+pub const PROTOCOL_VERSION: u16 = 13;
 /// Milliseconds per server tick (20 Hz). A Snapshot carries `tick` only: its server time is `tick * TICK_MS` exactly.
 pub const TICK_MS: u32 = 50;
 

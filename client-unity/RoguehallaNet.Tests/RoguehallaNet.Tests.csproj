@@ -18,5 +18,6 @@
   <ItemGroup>
     <ProjectReference Include="..\RoguehallaNet\RoguehallaNet.csproj" />
     <ProjectReference Include="..\RoguehallaNet.Probe\RoguehallaNet.Probe.csproj" />
+    <Compile Include="..\UnityProject\Assets\Scripts\UI\TrophyText.cs" Link="TrophyText.cs" />
   </ItemGroup>
 </Project>

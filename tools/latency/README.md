@@ -124,7 +124,7 @@ a fixed range of five ports and fails closed if the child cannot bind. Use `--ur
 The default timeout is 90 seconds to include the unmodified opening lock. The JSON report defaults to
 `tools/latency/wish-report.json`; screenshots are saved under `tools/latency/wish-evidence/`. These are generated evidence
 outputs and should be reviewed before publication. The report records each actual port, full server `/info` response, and
-SHA-256 hashes for the server binary and map. The runner uses the v12 decoder from `crates/rh-server/web/probe.html`
+SHA-256 hashes for the server binary and map. The runner uses the v13 decoder from `crates/rh-server/web/probe.html`
 as a decoder only; its public probe input helpers are never invoked.
 
 Check the report's fail-closed contract without starting Unity, Chromium, or a server:

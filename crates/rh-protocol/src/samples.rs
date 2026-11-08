@@ -425,6 +425,49 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
             },
         ),
         (
+            "state_trophy_reward_keys",
+            ServerMsg::State {
+                tick: 203,
+                items: vec![StateItem::RewardChests(
+                    (0..3)
+                        .map(|row| WireRewardChest {
+                            handle: RewardChestHandle::new(row + 1).unwrap(),
+                            x: 10 + row as u16,
+                            y: 20 + row as u16,
+                            expires_at: 9000.0,
+                            options: (0..3)
+                                .map(|slot| {
+                                    let code = row * 3 + slot;
+                                    let key = TrophyStatKey::from_code(code as u8).unwrap();
+                                    WireRewardOption {
+                                        id: WireRewardId::Kill {
+                                            key,
+                                            // Exact source-side codec control; deliberately not a gameplay corpus claim.
+                                            gain: match code {
+                                                0 => 0.125,
+                                                1 => 0.25,
+                                                2 => 0.375,
+                                                3 => 0.5,
+                                                4 => 0.625,
+                                                5 => 0.75,
+                                                6 => 0.875,
+                                                7 => 1.0,
+                                                _ => f64::from_bits(0x3fb9_9999_9999_999b),
+                                            },
+                                        },
+                                        taken: false,
+                                        taken_by: None,
+                                    }
+                                })
+                                .collect(),
+                            picked: false,
+                            can_choose: true,
+                        })
+                        .collect(),
+                )],
+            },
+        ),
+        (
             "state_union_props",
             ServerMsg::State {
                 tick: 201,
@@ -1403,6 +1446,21 @@ pub fn malformed_server() -> Vec<(&'static str, Vec<u8>)> {
         .1
         .encode();
     negative_plan[5..13].copy_from_slice(&(-1.0f64).to_le_bytes());
+    let reward_frame = |option_count: u8, option_payload: &[u8]| {
+        let mut w = Writer::default();
+        w.u8(0x88);
+        w.varint(1); // tick
+        w.varint(1); // state item count
+        w.varint(4); // reward chests
+        w.varint(1); // chest count
+        w.varint(1); // owner-issued chest handle
+        w.u16(10);
+        w.u16(20);
+        w.f64(9000.0);
+        w.u8(option_count);
+        w.bytes(option_payload);
+        w.finish()
+    };
     let good = ServerMsg::Snapshot {
         training: false,
         tick: 5,
@@ -1757,6 +1815,30 @@ pub fn malformed_server() -> Vec<(&'static str, Vec<u8>)> {
             vec![0x84, 0, 0, 0, 0, 1, 0, 6, 10],
         ),
         ("state_reward_card_id_80", bad_card_id),
+        ("state_reward_kind_unknown", reward_frame(1, &[4])),
+        (
+            "state_reward_kill_key_unknown",
+            reward_frame(1, &[3, 9, 0, 0, 0, 0, 0, 0, 224, 63]),
+        ),
+        (
+            "state_reward_kill_gain_zero",
+            reward_frame(1, &[3, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
+        ),
+        (
+            "state_reward_kill_gain_negative",
+            reward_frame(1, &[3, 0, 0, 0, 0, 0, 0, 0, 240, 191]),
+        ),
+        (
+            "state_reward_kill_gain_nan",
+            reward_frame(1, &[3, 0, 0, 0, 0, 0, 0, 0, 248, 127]),
+        ),
+        (
+            "state_reward_kill_gain_infinity",
+            reward_frame(1, &[3, 0, 0, 0, 0, 0, 0, 0, 240, 127]),
+        ),
+        ("state_reward_kill_truncated_key", reward_frame(1, &[3])),
+        ("state_reward_kill_truncated_gain", reward_frame(1, &[3, 0])),
+        ("state_reward_options_too_many", reward_frame(4, &[])),
         ("state_plan_negative_deadline", negative_plan),
         ("state_unknown_key", vec![0x88, 0, 1, 10]),
         ("state_duplicate_key", vec![0x88, 0, 2, 1, 0, 1, 0]),
@@ -2631,6 +2713,42 @@ fn decoded_fx_json(m: &ServerMsg) -> String {
     format!("{{\"tick\": {tick}, \"fx\": [{}]}}", items.join(", "))
 }
 
+/// JSON reference for the typed reward-state control vector. Gain is an exact JSON number that round-trips to f64.
+fn decoded_trophy_state_json(m: &ServerMsg) -> String {
+    let ServerMsg::State { tick, items } = m else {
+        unreachable!("not a state vector")
+    };
+    let StateItem::RewardChests(rows) = &items[0] else {
+        unreachable!("not a reward-state vector")
+    };
+    let rows = rows
+        .iter()
+        .map(|row| {
+            let options = row
+                .options
+                .iter()
+                .map(|option| match option.id {
+                    WireRewardId::Kill { key, gain } => format!(
+                        "{{\"kind\":3,\"key\":{},\"gain\":{},\"taken\":{},\"takenBy\":{}}}",
+                        key as u8,
+                        gain,
+                        option.taken,
+                        option.taken_by.map_or("null".to_string(), |id| id.to_string())
+                    ),
+                    _ => unreachable!("trophy-state vector contains only Kill options"),
+                })
+                .collect::<Vec<_>>()
+                .join(",");
+            format!(
+                "{{\"handle\":{},\"x\":{},\"y\":{},\"expiresAt\":{},\"options\":[{}],\"picked\":{},\"canChoose\":{}}}",
+                row.handle.get(), row.x, row.y, row.expires_at, options, row.picked, row.can_choose
+            )
+        })
+        .collect::<Vec<_>>()
+        .join(",");
+    format!("{{\"kind\":\"state\",\"tick\":{tick},\"items\":[{{\"key\":4,\"value\":[{rows}]}}]}}")
+}
+
 /// The manifest JSON (hand-written to keep this crate dependency-free; field names are the C# and JS tests' contract).
 /// A server vector's `debug` is the message a client DECODES (quantized), not the sample as written.
 pub fn manifest() -> String {
@@ -2658,6 +2776,9 @@ pub fn manifest() -> String {
                 format!(", \"decoded\": {}", decoded_snapshot_json(&decoded))
             }
             ServerMsg::Fx { .. } => format!(", \"decoded\": {}", decoded_fx_json(&decoded)),
+            ServerMsg::State { .. } if *name == "state_trophy_reward_keys" => {
+                format!(", \"decoded\": {}", decoded_trophy_state_json(&decoded))
+            }
             _ => String::new(),
         };
         out.push_str(&format!(

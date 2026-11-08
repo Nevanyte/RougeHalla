@@ -1533,7 +1533,7 @@ mod tests {
     #[test]
     fn omitted_effect_announcements_leave_frames_and_redaction_unchanged() {
         use rh_sim::status_runtime::{AbilityId, StatusKind};
-        assert_eq!(rh_protocol::PROTOCOL_VERSION, 12);
+        assert_eq!(rh_protocol::PROTOCOL_VERSION, 13);
         let env = seed1_match(1);
         let id = env.sim.players()[0].id;
         let mut publisher = Publisher::default();

@@ -33,7 +33,7 @@ namespace Roguehalla.Net.Tests
             throw new KeyNotFoundException(name);
         }
 
-        [Test] public void FixtureIsProtocolV12() { Assert.AreEqual(12, Wire.ProtocolVersion); Assert.AreEqual(Wire.ProtocolVersion, Fixture().GetProperty("protocol").GetInt32()); }
+        [Test] public void FixtureIsProtocolV13() { Assert.AreEqual(13, Wire.ProtocolVersion); Assert.AreEqual(Wire.ProtocolVersion, Fixture().GetProperty("protocol").GetInt32()); }
 
         [TestCaseSource(nameof(ClientVectors))]
         public void ClientVectorRoundTripsByteForByte(string name, string hex)
@@ -401,6 +401,51 @@ namespace Roguehalla.Net.Tests
                 }
                 return;
             }
+            if (msg is ServerMsg.State state)
+            {
+                Assert.AreEqual("state", d.GetProperty("kind").GetString());
+                Assert.AreEqual(d.GetProperty("tick").GetUInt32(), state.Tick);
+                var expectedItems = d.GetProperty("items");
+                Assert.AreEqual(expectedItems.GetArrayLength(), state.Items.Length);
+                for (int i = 0; i < state.Items.Length; i++)
+                {
+                    var expectedItem = expectedItems[i];
+                    Assert.AreEqual(expectedItem.GetProperty("key").GetUInt32(), state.Items[i].Key);
+                    if (state.Items[i] is RewardChestsState rewardChests)
+                    {
+                        var expectedRows = expectedItem.GetProperty("value");
+                        Assert.AreEqual(expectedRows.GetArrayLength(), rewardChests.Rows.Length);
+                        for (int rowIndex = 0; rowIndex < rewardChests.Rows.Length; rowIndex++)
+                        {
+                            var row = rewardChests.Rows[rowIndex]; var expectedRow = expectedRows[rowIndex];
+                            Assert.AreEqual(expectedRow.GetProperty("handle").GetUInt32(), row.Handle.Value);
+                            Assert.AreEqual(expectedRow.GetProperty("x").GetUInt16(), row.X);
+                            Assert.AreEqual(expectedRow.GetProperty("y").GetUInt16(), row.Y);
+                            Assert.AreEqual(expectedRow.GetProperty("expiresAt").GetDouble(), row.ExpiresAt);
+                            Assert.AreEqual(expectedRow.GetProperty("picked").GetBoolean(), row.Picked);
+                            Assert.AreEqual(expectedRow.GetProperty("canChoose").GetBoolean(), row.CanChoose);
+                            var expectedOptions = expectedRow.GetProperty("options");
+                            Assert.AreEqual(expectedOptions.GetArrayLength(), row.Options.Length);
+                            for (int optionIndex = 0; optionIndex < row.Options.Length; optionIndex++)
+                            {
+                                var option = row.Options[optionIndex]; var expectedOption = expectedOptions[optionIndex];
+                                Assert.AreEqual(expectedOption.GetProperty("kind").GetByte(), option.Kind);
+                                Assert.AreEqual(expectedOption.GetProperty("taken").GetBoolean(), option.Taken);
+                                var takenBy = expectedOption.GetProperty("takenBy");
+                                Assert.AreEqual(takenBy.ValueKind == JsonValueKind.Null ? (uint?)null : takenBy.GetUInt32(), option.TakenBy);
+                                if (option.Kind == 3)
+                                {
+                                    Assert.AreEqual(expectedOption.GetProperty("key").GetByte(), (byte)option.KillKey.Value);
+                                    Assert.AreEqual(BitConverter.DoubleToInt64Bits(expectedOption.GetProperty("gain").GetDouble()),
+                                        BitConverter.DoubleToInt64Bits(option.KillGain));
+                                }
+                                else Assert.AreEqual(expectedOption.GetProperty("id").GetByte(), option.Id);
+                            }
+                        }
+                    }
+                }
+                return;
+            }
             CheckSnapshot(d, (ServerMsg.Snapshot)msg);
         }
 
@@ -502,15 +547,19 @@ namespace Roguehalla.Net.Tests
                 case "pickup_bad_reason_zero": case "pickup_bad_reason_unknown": want = DecodeError.BadField; break;
                 case "unknown_tag": case "client_tag_from_server": case "fx_bad_tag": want = DecodeError.BadTag; break;
                 case "trailing_byte": case "state_trailing_byte": want = DecodeError.Trailing; break;
-                case "state_truncated": case "cannon_notice_missing_seconds": want = DecodeError.Truncated; break;
+                case "state_truncated": case "state_reward_kill_truncated_key": case "state_reward_kill_truncated_gain":
+                case "cannon_notice_missing_seconds": want = DecodeError.Truncated; break;
                 case "overlong_varint": case "varint_past_u32": case "varint_too_long": case "head_overlong_varint": case "actor_mask_overlong_varint":
                 case "projectile_owner_overlong": case "delta_head_overlong_varint":
                     want = DecodeError.BadVarint; break;
-                case "state_too_many_keys": case "state_too_many_props": case "state_too_many_fields": case "state_too_many_projectiles": case "state_too_many_camps": case "state_too_many_rewards":
+                case "state_too_many_keys": case "state_too_many_props": case "state_too_many_fields": case "state_too_many_projectiles": case "state_too_many_camps": case "state_too_many_rewards": case "state_reward_options_too_many":
                 case "too_many_actors": case "fx_too_many": want = DecodeError.TooMany; break;
                 case "head_self_bit_without_present_bit": case "head_unknown_bit": case "self_max_hp_over_u16": case "actor_reserved_mask_bit":
                 case "self_status_over_3": case "phase_over_3": case "actor_status_over_3": case "actor_unknown_mask_bit_after_kind":
                 case "state_duplicate_key": case "state_key_order": case "state_bad_potion_count": case "state_zero_prop_handle": case "state_missing_focus":
+                case "state_reward_kind_unknown":
+                case "state_reward_kill_key_unknown": case "state_reward_kill_gain_zero": case "state_reward_kill_gain_negative":
+                case "state_reward_kill_gain_nan": case "state_reward_kill_gain_infinity":
                 case "state_reward_card_id_80": case "state_plan_negative_deadline": case "state_unknown_key": case "delta_head_unknown_bit": case "delta_phase_over_3": case "delta_actor_mask_unknown_bit":
                 case "delta_actor_status_over_3":
                 case "actor_id_gap_zero": case "actor_id_overflow": case "actor_hp_over_100": case "actor_bounty_over_u16":
