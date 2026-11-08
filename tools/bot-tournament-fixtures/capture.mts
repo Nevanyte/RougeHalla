@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
 import {readFileSync, writeFileSync, readdirSync} from 'node:fs';
 import {join} from 'node:path';
-import {wilson, percentile, meanInterval, tableReactionMean, aggregate} from '/repo/packages/server/src/bots/tournament/report.ts';
+import {wilson, percentile, meanInterval, tableReactionMean, aggregate, evaluate, formatReport} from '/repo/packages/server/src/bots/tournament/report.ts';
 import {mix, dealEvenly, planGame} from '/repo/packages/server/src/bots/tournament/worker.ts';
 import {parseLineup, split, defaultWorkers, parseArgs, planOf} from '/repo/packages/server/src/bots/tournament/runTournament.ts';
 import {MAX_GAME_MS} from '/repo/packages/server/src/bots/tournament/game.ts';
@@ -49,7 +49,7 @@ const game = (spec) => ({
     id: 'bot' + i, name: 'bot' + i, tier: b.tier, persona: b.persona, faction: b.faction, place: b.place,
     outcome: b.outcome, kills: b.kills ?? 0, mobKills: b.mobKills ?? 0, damage: b.damage ?? 0, mobDamage: b.mobDamage ?? 0,
     deaths: b.deaths ?? (b.outcome === 'died' ? 1 : 0), gv: b.gv ?? 0, diedAtMs: b.diedAtMs ?? null,
-    firstMobKillMs: null, tpHp: null, diedTo: b.diedTo ?? null, behaviour,
+    firstMobKillMs: null, tpHp: null, diedTo: b.diedTo ?? null, behaviour: b.behaviour ?? behaviour,
   })),
   manager: {sent: 100, applied: 100, refused: spec.refused ?? 0, lost: spec.lost ?? 0, frames: 50, errors: spec.errors ?? 0},
 });
@@ -85,6 +85,48 @@ const aggregateCases = [
   {name: 'two-games-one-tier', games: gamesB, expected: aggregate(gamesB)},
   {name: 'empty', games: [], expected: aggregate([])},
 ];
+
+// The report views (report.ts formatReport/evaluate/aggregate over behaviour-populated and empty sets). A behaviour block
+// shaped like the source's BrainStats: the humanizer counters plus the hunt/tactics/goals counters.
+const behaviourOf = (spec = {}) => {
+  const commands = {
+    move: spec.move ?? 20, stop: spec.stop ?? 2, target: spec.target ?? 8, attack: spec.attack ?? 12, release: spec.release ?? 4,
+    swap: spec.swap ?? 3, pickup: spec.pickup ?? 5, cast: spec.cast ?? 0, plan: spec.plan ?? 0, choose: spec.choose ?? 0,
+  };
+  return {
+    commands,
+    commandsTotal: Object.values(commands).reduce((a, b) => a + b, 0),
+    reactions: spec.reactions ?? {newThreat: [120, 80, 300, 90], teleport: [420, 380], announcement: [210, 160], hpLoss: [75], clickMissed: [55]},
+    targetClicks: spec.targetClicks ?? 9, clickMissed: spec.clickMissed ?? 1, clickWrong: spec.clickWrong ?? 2,
+    hesitations: spec.hesitations ?? 3, lapses: spec.lapses ?? 1, throttled: spec.throttled ?? 2, superseded: spec.superseded ?? 1,
+    apmPeak: spec.apmPeak ?? 41, mobTargets: spec.mobTargets ?? 6, mobDrops: spec.mobDrops ?? 4, retreats: spec.retreats ?? 1,
+    mobFocusMs: spec.mobFocusMs ?? 1500, grabs: spec.grabs ?? 2, maxStallMs: spec.maxStallMs ?? 120,
+    dodges: spec.dodges ?? 3, jukes: spec.jukes ?? 1, kiteCycles: spec.kiteCycles ?? 2, goals: spec.goals ?? {fight: 4, farm: 2},
+  };
+};
+const viewGame = (spec) => game({
+  seed: spec.seed, ended: spec.ended, winner: spec.winner ?? null, draw: spec.draw ?? false, durationMs: spec.durationMs,
+  firstDeathMs: spec.firstDeathMs ?? null, teleportMs: spec.teleportMs ?? null, suddenDeathMs: spec.suddenDeathMs ?? null,
+  bots: spec.bots.map((b) => ({...b, behaviour: behaviourOf(b.behaviour)})),
+});
+const viewGames = [
+  viewGame({seed: 31, ended: true, winner: 0, durationMs: 90000, firstDeathMs: 30000, teleportMs: 60000, suddenDeathMs: 90000,
+    bots: [seat('easy', 'farmer', 'fire', {place: 1, outcome: 'won', kills: 2, mobKills: 4, damage: 520, mobDamage: 1200, gv: 30, behaviour: {reactions: {newThreat: [120, 80, 300, 90], teleport: [420, 380]}, apmPeak: 38}}),
+      seat('normal', 'hunter', 'sentenced', {place: 2, outcome: 'died', kills: 1, mobKills: 2, damage: 310, mobDamage: 800, diedAtMs: 30000, diedTo: 'bot', behaviour: {reactions: {newThreat: [160, 240], hpLoss: [75]}, apmPeak: 45, maxStallMs: 9000}}),
+      seat('hard', 'opportunist', 'plague', {place: 3, outcome: 'died', kills: 0, mobKills: 1, damage: 200, mobDamage: 400, diedAtMs: 45000, diedTo: 'mob', behaviour: {reactions: {announcement: [210, 160], clickMissed: [55]}, apmPeak: 52}})]}),
+  viewGame({seed: 32, ended: true, draw: true, durationMs: 120000, firstDeathMs: null,
+    bots: [seat('easy', 'hunter', 'frost', {place: 1, outcome: 'draw', kills: 1, mobKills: 3, damage: 250, mobDamage: 900, behaviour: {reactions: {newThreat: [100, 140], chestUp: [300]}, apmPeak: 30}}),
+      seat('normal', 'farmer', 'holy', {place: 1, outcome: 'draw', kills: 0, mobKills: 5, damage: 100, mobDamage: 1500, behaviour: {reactions: {newThreat: [180], planOffer: [240]}, apmPeak: 35}}),
+      seat('hard', 'cautious', 'fire', {place: 1, outcome: 'draw', kills: 0, mobKills: 0, damage: 0, mobDamage: 0, behaviour: {reactions: {}, apmPeak: 20}})]}),
+];
+const viewMeta = {lineup: 'E,E,N,N,H,H', seed: 7, learn: true, persona: 'mix', faction: 'mix', workers: 2, wallMs: 12345.6, gameMs: 617.2};
+const storedMeta = {...viewMeta, wallMs: null, gameMs: null};
+const reportViews = [
+  {name: 'behaviour-games', games: viewGames, meta: viewMeta, report: aggregate(viewGames), format: formatReport(aggregate(viewGames), viewMeta), criteria: evaluate(aggregate(viewGames))},
+  {name: 'stored-games', games: viewGames, meta: storedMeta, report: aggregate(viewGames), format: formatReport(aggregate(viewGames), storedMeta), criteria: evaluate(aggregate(viewGames))},
+  {name: 'empty', games: [], meta: storedMeta, report: aggregate([]), format: formatReport(aggregate([]), storedMeta), criteria: evaluate(aggregate([]))},
+];
+
 const mixCases = [];
 for (const seed of [0, 1, 2, 7, 99, 123456789]) for (const tag of [0, 1, 2, 100003, 2000000]) mixCases.push({seed, tag, expected: mix(seed, tag)});
 const dealCases = [];
@@ -188,6 +230,7 @@ const corpus = {
   split: splitCases,
   defaultWorkers: workerCases,
   parseLineup: lineupCases,
+  reportViews,
   parseArgs: argsCases,
   planOf: planCases2,
 };
@@ -197,7 +240,7 @@ if (args[0] === '--write') {
   writeFileSync(outPath, out);
   console.log('captured ' + (wilsonCases.length + percentileCases.length + meanCases.length + reactionCases.length + aggregateCases.length
     + mixCases.length + dealCases.length + planCases.length + splitCases.length + workerCases.length + lineupCases.length
-    + argsCases.length + planCases2.length) + ' cases');
+    + argsCases.length + planCases2.length + reportViews.length) + ' cases');
 } else {
   assert.equal(readFileSync(outPath, 'utf8'), out, 'the checked-in tournament corpus differs from the source capture');
   console.log('tournament corpus matches: ' + outPath);

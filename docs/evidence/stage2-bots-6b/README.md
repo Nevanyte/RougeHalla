@@ -1,7 +1,9 @@
-# P-BOTS-6 remainder — the tournament CLI surface, plan payload, --json export and telemetry surface
+# P-BOTS-6 remainder — the tournament CLI surface, the full report/evaluate layout and the complete --json payload
 
-Status: **slice DONE-VERIFIED; the P-BOTS-6 packet remains INCOMPLETE** (the full print layout, evaluate() criteria,
-tune application and full telemetry records are named below). PR #62 in the P-BOTS-6 stack. Branch `deepseek/p-bots-6b`, base
+Historical slice evidence below. The current composed runner boundary, learning gate, command-delay scope,
+measurement fixes and remaining telemetry gaps are recorded in [the admission repair](../tournament-admission-repair/README.md).
+
+Status: **slices 1-2 DONE-VERIFIED; the P-BOTS-6 packet remains INCOMPLETE** (the brain-layer hunt/tactics counters and the items named below are the exact gap). PR #62 in the P-BOTS-6 stack. Branch `deepseek/p-bots-6b`, base
 `deepseek/p-bots-6` @ `f87727dd` (the tournament tip), PR target `deepseek/p-bots-6`, stack stated in the PR.
 
 ## What landed
@@ -49,6 +51,82 @@ errors) and `the_json_export_keeps_the_source_names_and_null_for_absent_figures`
 `--workspace --all-targets --all-features --locked -- -D warnings` => exit 0; `cargo fmt --all -- --check` => exit 0.
 Focused: `cargo test -p rh-headless --test tournament` 10/10 (8 existing + the two new CLI/export tests); the pinned
 container capture `--check` is byte-identical.
+
+## Slice 2 — seat telemetry extraction, the full report layout and the complete --json payload (task-33)
+
+Status: **slice DONE-VERIFIED; the P-BOTS-6 packet remains INCOMPLETE** for the exact gap below (the hunt/tactics counters
+have no producer yet in the ported policy). Everything the source report and evaluate() read from the ported policy and
+from public match facts is now produced, laid out and evaluated exactly.
+
+### What landed
+
+- **Seat telemetry extraction.** `rh_policy::PolicyStats` is the owned snapshot of the source BrainStats humanizer block;
+  `Policy::stats()` (default `None`, so every earlier policy is unchanged) is implemented by `HumanBot` from
+  `HumanizerStats` (all 10 command-type counters, raw reaction samples per stimulus kind, target clicks, miss/wrong,
+  hesitations, lapses, throttled, superseded, APM peak). `Seat::stats()` exposes it per seat and
+  `Env::seat_telemetry()` returns it in seat order after a match.
+- **The runner summary.** `BotBehaviour` carries the humanizer block in the source shape (commands sorted by name like
+  `sortedRecord`, reactions sorted by kind with the source `Math.round` ms, commandsTotal, the click/APM counters) plus the
+  hunt/tactics/goals counters as `Option`s that stay absent (never zeroed) until those brain layers land. `BotSummary` now
+  carries `mobKills`, `damage`, `mobDamage`, `firstMobKillMs` and `tpHp`, tallied from the public hit/death events exactly
+  as the source fx observer does (damage to players vs mobs, kills vs mob kills, first kill/mob kill); `GameSummary` now
+  carries `firstKillMs`, `deathLog` and `firstHits` (pair first-hit tuples with the source's rounded hp shares and busy
+  flags). Timer semantics are explicitly out of this slice: `sudden_death_ms` stays null on real runner games exactly as at
+  the base commit (the lead's timer-repair slice owns the burn clock); the report/format/evaluate/JSON code still carries
+  and renders the source `suddenDeathMs` field from declared source games in the pinned corpus.
+- **The full source report.** `TierAgg`/`Report` are now the complete source shapes, and `aggregate` computes the per-tier
+  damage/mob-damage/mob-kill splits, never-fought, deaths, reactions (per-kind p10/p50/p90/mean/table and the pooled plain
+  kinds), target clicks, miss/wrong rates, APM mean/peak/limit/breaches, dodges/jukes/orb-walk/hesitations/throttled/max
+  stall/stalls, the groups and the duration/first-death/teleport/sudden shares.
+- **formatReport and evaluate().** `format_report_with(report, meta)` is the source `formatReport` layout line for line —
+  header, games/length/first-death lines, the optional throughput and per-game lines, PER TIER, HOW THEY DIED, REACTION
+  DELAYS per tier with the pooled row, CLICKS/RATE/MANEUVERS, PER PERSONA, PER FACTION, MANAGER and the CRITERIA block —
+  and `evaluate()` is the source `evaluate` criterion list (place/win ordering, non-overlap, win bands, reaction ratio,
+  refused/errors/breaches/capped/stalls), with the source's n/a rendering for an uncheckable verdict.
+- **The complete --json payload.** The export is the source `{meta, plan, report, criteria, games}`: report with all source
+  fields, `criteria` as `{ok, text}` (null verdicts preserved), games with the source GameSummary fields (firstKill,
+  deathLog, firstHits, teleport/sudden death, manager) and bots with the full BotGameSummary shape — id/name, kills,
+  mobKills, damage, mobDamage, deaths, gv, diedAt, firstMobKill, tpHp, diedTo and the behaviour block (commands, reactions,
+  clicks/APM counters; the unported hunt/tactics counters as null, never zeroed). `--telemetry` now writes those richer
+  game records as NDJSON (the full docs/TELEMETRY.md record remains the documented remainder).
+- No wire, schema, observation, checkpoint or protocol change; no Cargo.lock edit; no MIGRATION/CONTRACTS status table edit.
+
+### Pinned corpus (new primitives only)
+
+`parity/policy/bot-tournament.json` now also pins a `reportViews` section: three views — two behaviour-populated source
+GameSummary sets (one with wall timing, one stored/report-only) and the empty set — each recording the source `aggregate`
+report JSON, the source `formatReport` string under a declared meta and the source `evaluate` criteria. The corpus is
+**1,208 cases** (302,231 bytes), SHA256 `5d8f1fff55038787e8732d6373d789ba1877c9a1c04cf5d5d5e7c1e9d5182310`, still written
+only by `tools/bot-tournament-fixtures/capture.sh` in the pinned Linux amd64 Node 22.23.4 container and byte-checked by
+`--check`. The new test `the_report_views_match_the_actual_source` replays every view: the Rust aggregate reproduces the
+source report JSON field for field (numbers by value), the printed layout matches the source string exactly and every
+criterion verdict/text matches. The existing runner tests were updated where the port now observes more: the source header
+layout and determinism (compared by the rendered report, because absent telemetry is NaN and NaN is not reflexive); the
+teleport test pins that the timer-owned sudden-death figure stays null in this slice.
+- **Timer scope, no overlap:** this slice does not edit `default_sim_config`, `sim_config_for`, `default_config` or any
+  lifecycle/timer/config wiring, and derives nothing from the timer clocks inside `run_game`; the run_game work here is the
+  per-tick public-event telemetry tally (hit/death/first-hit/tpHp) and the summary builder. The textually overlapping
+  hunks with the lead's timer-repair branch are exactly those `run_game` telemetry/summary hunks; the lead resolves the
+  merge order.
+
+### Mutants
+
+The tournament mutant suite is now **6/6 killed, unchanged control passes**
+(`tools/bot-tournament-fixtures/run-mutants.sh`): the four earlier report/schedule mutants, plus a new evaluate win-band
+mutant and a new printed reaction-ratio mutant; the share-of-wins mutant was regenerated for the rewritten tier aggregate.
+
+### Gate (final tree)
+
+**Gate (final tree).** `cargo test --workspace --all-features --locked` (pinned PostgreSQL) => **1,477 passed, 0 failed, 3 ignored, 154 test binaries, exit 0**; workspace clippy `--all-targets --all-features --locked -- -D warnings` => exit 0; `cargo fmt --all -- --check` => exit 0. Focused: `cargo test -p rh-headless --test tournament` **11/11**; pinned-container corpus `--check` byte-identical; the tournament mutant suite **6/6 killed, unchanged control passes**.
+
+### Exact gap (why the packet stays INCOMPLETE)
+
+The source BrainStats also carries counters written by the hunt/tactics/goals layers (mobTargets, mobDrops, retreats,
+mobFocusMs, grabs, maxStallMs, dodges, jukes, kiteCycles, goals). Those layers are the P-BOTS-1/P-BOTS-3/P-BOTS-4
+remainder and are not ported into the policy, so no producer exists for them: the port keeps them `None`, prints `-` in
+those columns (the source's own absent-figure rendering) and emits null in JSON — it does not invent zeros. Producing
+them needs the brain layers, not a report change. The remaining P-BOTS-6 items also include the full docs/TELEMETRY.md
+record body, worker-thread parallel play and the source simulated latency/jitter and learning store.
 
 ## Exact remainder for P-BOTS-6 (this slice does not claim these)
 

@@ -3,7 +3,9 @@
 //! bot-vs-bot runs, determinism tests and benches. Built-in policies sit in seats; external agents (a test, later a
 //! trainer) act for their own players through [`Env::step`]. Both go through the same input path.
 
+mod command_delay;
 pub mod digest;
+pub mod telemetry_record;
 pub mod tournament;
 pub mod tournament_cli;
 
@@ -72,12 +74,26 @@ pub struct Env {
     recorder: Option<Recorder>,
     last_events: Vec<Event>,
     start_tick: u32,
+    command_delay: Option<command_delay::CommandDelay>,
 }
 
 impl Env {
     /// Builds a match: players placed on the arena's spawns in order, the run active. `seed` derives the match secrets and
     /// every policy's own seed (independent resets: nothing carries over from an earlier match).
     pub fn new(cfg: EnvConfig, agents: Vec<AgentSpec>, seed: u64) -> Self {
+        Self::new_delayed(cfg, agents, seed, None)
+    }
+
+    /// Tournament diagnostic only: delay commands, not observations. Delivery still uses each seat's
+    /// ItemObserver and normal simulation intake. The ordinary Env path is unchanged.
+    pub(crate) fn new_delayed(
+        cfg: EnvConfig,
+        agents: Vec<AgentSpec>,
+        seed: u64,
+        delay: Option<(f64, f64)>,
+    ) -> Self {
+        let mut command_delay =
+            delay.map(|(latency, jitter)| command_delay::CommandDelay::new(latency, jitter));
         let secrets = Secrets::from_seed(seed);
         let spawns = &cfg.arena.spawns;
         let placements: Vec<Placement> = agents
@@ -133,11 +149,14 @@ impl Env {
         for (i, a) in agents.into_iter().enumerate() {
             let id = sim.players()[i].id;
             match a.agent {
-                Agent::Policy { policy } => seats.push(Seat::new(
-                    &MatchStart::of(&sim, id, seed.wrapping_mul(31).wrapping_add(i as u64)),
-                    policy,
-                    Box::new(scripted::Idle),
-                )),
+                Agent::Policy { policy } => {
+                    let start =
+                        MatchStart::of(&sim, id, seed.wrapping_mul(31).wrapping_add(i as u64));
+                    if let Some(delay) = &mut command_delay {
+                        delay.add_seat(id, start.seed);
+                    }
+                    seats.push(Seat::new(&start, policy, Box::new(scripted::Idle)));
+                }
                 Agent::External => external.push(id),
             }
         }
@@ -164,6 +183,7 @@ impl Env {
             recorder,
             last_events: Vec::new(),
             start_tick,
+            command_delay,
             sim,
         }
     }
@@ -195,6 +215,7 @@ impl Env {
             recorder: None,
             last_events: Vec::new(),
             start_tick: sim.tick(),
+            command_delay: None,
             sim,
         };
         let full = env.try_observations()?;
@@ -387,6 +408,50 @@ impl Env {
 
     fn drive_and_record(&mut self) {
         let rec = &mut self.recorder;
+        if let Some(delay) = &mut self.command_delay {
+            let now = self.sim.server_time();
+            let mut refused = Vec::new();
+            rh_policy::drive_seats_queued(
+                &mut self.sim,
+                &mut self.seats,
+                &self.last_events,
+                &mut self.sight,
+                |player, proposal| {
+                    if !delay.enqueue(player, now, proposal) {
+                        refused.push(player);
+                    }
+                },
+            );
+            for player in refused {
+                self.seats
+                    .iter_mut()
+                    .find(|s| s.player() == player)
+                    .expect("owned seat")
+                    .note_delivery(false);
+            }
+            // Source BotManager.beforeStep(stepT): delivery runs at EVERY upcoming fixed step,
+            // including steps where the policy is not due. The observation remains at `now`.
+            for (player, proposal) in delay.drain(now + rh_sim::constants::TICK_MS) {
+                let seat = self
+                    .seats
+                    .iter_mut()
+                    .find(|s| s.player() == player)
+                    .expect("owned seat");
+                let command = if matches!(seat.fault, Some(rh_policy::Fault::FxProjection(_))) {
+                    None
+                } else {
+                    seat.resolve(&self.sim, proposal)
+                };
+                let accepted = command.is_some_and(|cmd| {
+                    if let Some(r) = rec.as_mut() {
+                        r.record(ReplayInput::Command { player, cmd });
+                    }
+                    self.sim.submit(player, cmd).is_ok()
+                });
+                seat.note_delivery(accepted);
+            }
+            return;
+        }
         drive_seats_with(
             &mut self.sim,
             &mut self.seats,
@@ -398,6 +463,11 @@ impl Env {
                 }
             },
         );
+    }
+
+    /// The policy telemetry snapshots, in seat order (the tournament report's behaviour block).
+    pub fn seat_telemetry(&self) -> Vec<Option<rh_policy::PolicyStats>> {
+        self.seats.iter().map(Seat::stats).collect()
     }
 
     pub fn seat_stats(&self) -> Vec<(PlayerId, SeatStats, Option<rh_policy::Fault>)> {

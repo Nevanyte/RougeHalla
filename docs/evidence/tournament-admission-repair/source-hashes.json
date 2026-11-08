@@ -1,0 +1,9 @@
+{
+  "base": "b9f149c99533fa1b8b5a159db2da200c5bcb2e7e",
+  "sha256": {
+    "packages/server/src/bots/BotManager.ts": "06f2e2957c1528a838777c54d505ce4a7fc402ee6bb11b38e171761a205e3fae",
+    "packages/server/src/bots/tournament/runTournament.ts": "a9bc0035fe6f2ccde1fe7377907f70c92a7f0108e3580e108971a55d8fb6230f",
+    "packages/server/src/bots/tournament/worker.ts": "234924c85030238fd933e0e6ba439226128364309fa2d47256caf78dc85f809f",
+    "packages/server/src/bots/tournament/game.ts": "6cf76bd30fea8f983c5d38c69a5f7bad04364b1576bf4080ed0d474cfebe828e"
+  }
+}

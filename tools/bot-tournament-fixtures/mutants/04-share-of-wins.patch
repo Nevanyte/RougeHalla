@@ -1,8 +1,6 @@
-diff --git a/crates/rh-headless/src/tournament.rs b/crates/rh-headless/src/tournament.rs
-index a8dff5c9..dd5bcae1 100644
 --- a/crates/rh-headless/src/tournament.rs
 +++ b/crates/rh-headless/src/tournament.rs
-@@ -878,7 +878,7 @@ fn tier_agg(tier: TierId, games: &[GameSummary], total_wins: f64) -> TierAgg {
+@@ -1191,7 +1191,7 @@
          share_of_wins: if total_wins == 0. {
              f64::NAN
          } else {
@@ -10,4 +8,4 @@ index a8dff5c9..dd5bcae1 100644
 +            wins / (total_wins + 1.)
          },
          place: mean_interval(&per_game_place, 1.645),
-         kills_per_bot: per(|b| b.kills),
+         kills_per_bot: per(&|b| b.kills),
