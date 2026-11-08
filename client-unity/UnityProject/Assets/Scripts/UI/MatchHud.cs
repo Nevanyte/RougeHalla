@@ -15,11 +15,16 @@ namespace Roguehalla.Client
     {
         MatchClient _client;
         Session _session;
-        RectTransform _root, _menu, _hud, _rewards, _results;
+        RectTransform _root, _menu, _hud, _rewards, _results, _settings;
         TMP_InputField _nickname;
-        TMP_Text _factionLabel, _banner, _vitals, _build, _focusLabel, _rewardTitle, _resultText, _notice;
+        TMP_Text _factionLabel, _banner, _vitals, _build, _focusLabel, _rewardTitle, _resultTitle, _resultText, _notice;
         readonly UnityEngine.UI.Button[] _options = new UnityEngine.UI.Button[3];
         UnityEngine.UI.Button _skip, _pickup;
+        TMP_Text _qualitySetting, _motionSetting, _musicValue, _ambienceValue, _sfxValue, _scaleValue;
+        ShowcaseSettings _showcaseSettings;
+        ShowcaseAudio _showcaseAudio;
+        readonly System.Collections.Generic.List<TMP_Text> _scaledText = new System.Collections.Generic.List<TMP_Text>();
+        readonly System.Collections.Generic.List<float> _textBaseSize = new System.Collections.Generic.List<float>();
         readonly UnityEngine.UI.Button[] _slots = new UnityEngine.UI.Button[2];
         int _faction = 4, _chestIndex;
         RewardChestHandle _shownChest;
@@ -36,7 +41,6 @@ namespace Roguehalla.Client
         readonly byte[] _cardsShown = new byte[3], _boostsShown = new byte[8];
         bool _buildShown, _hasBuildShown;
         ulong _rewardSignature = ulong.MaxValue;
-        static readonly Color PanelColor = new Color32(17, 24, 34, 242);
         static readonly string[] Factions = { "Fire", "Sentenced", "Plague", "Frost", "Holy" };
         static readonly string[] Phases = { "Lobby — waiting for players", "Match active", "Match ended", "Match closed" };
         static readonly string[] Outcomes = { "Victory", "Draw", "Defeated", "Missing in action" };
@@ -45,7 +49,7 @@ namespace Roguehalla.Client
         {
             get
             {
-                if (_menu.gameObject.activeSelf || _results.gameObject.activeSelf || _nickname.isFocused) return true;
+                if (_menu.gameObject.activeSelf || _results.gameObject.activeSelf || _settings.gameObject.activeSelf || _nickname.isFocused) return true;
                 return EventSystem.current != null && EventSystem.current.IsPointerOverGameObject();
             }
         }
@@ -63,21 +67,34 @@ namespace Roguehalla.Client
             var go = new GameObject("MatchUI", typeof(RectTransform), typeof(Canvas), typeof(UnityEngine.UI.CanvasScaler), typeof(UnityEngine.UI.GraphicRaycaster));
             go.transform.SetParent(transform, false);
             _root = (RectTransform)go.transform;
+            _showcaseSettings = go.AddComponent<ShowcaseSettings>();
+            _showcaseAudio = go.AddComponent<ShowcaseAudio>();
+            _showcaseSettings.Changed += ApplyTextScale;
             go.GetComponent<Canvas>().renderMode = RenderMode.ScreenSpaceOverlay;
             var scaler = go.GetComponent<UnityEngine.UI.CanvasScaler>();
             scaler.uiScaleMode = UnityEngine.UI.CanvasScaler.ScaleMode.ScaleWithScreenSize;
             scaler.referenceResolution = new Vector2(1280, 800); scaler.matchWidthOrHeight = .5f;
-            _banner = Text(_root, "Connection", "Choose a faction and join", .02f, .92f, .82f, .99f, 23);
+            _banner = Text(_root, "Connection", "Choose a faction and join", .02f, .92f, .66f, .99f, 23);
+            Button(_root, "Settings", "SETTINGS", .68f, .93f, .82f, .99f, ToggleSettings);
             var leave = Button(_root, "Leave", "Leave / menu", .83f, .93f, .98f, .99f, () => _client.Leave());
             _menu = Panel(_root, "JoinMenu", .22f, .25f, .78f, .82f);
-            Text(_menu, "Title", "ROGUEHALLA", .05f, .80f, .95f, .96f, 36);
+            Text(_menu, "Title", "ROGUEHALLA", .05f, .80f, .95f, .96f, 36).color = ShowcasePalette.Gold;
             Text(_menu, "Intro", "Choose your faction. Survive the arena.", .05f, .67f, .95f, .80f, 20);
             _nickname = Input(_menu, client.Profile, .08f, .49f, .92f, .63f);
             _factionLabel = Text(_menu, "Faction", "", .08f, .33f, .92f, .46f, 23);
-            Button(_menu, "Holy", "Holy", .08f, .19f, .34f, .32f, () => SetFaction(4));
-            Button(_menu, "Fire", "Fire", .37f, .19f, .63f, .32f, () => SetFaction(0));
-            Button(_menu, "Plague", "Plague", .66f, .19f, .92f, .32f, () => SetFaction(2));
-            Button(_menu, "Join", "Join match", .25f, .03f, .75f, .16f, () => _client.Join(_nickname.text, _faction));
+            for (int faction = 0; faction < Factions.Length; faction++)
+            {
+                int selected = faction;
+                float left = .035f + faction * .188f;
+                var factionButton = Button(_menu, Factions[faction], ShowcasePalette.GetFactionMark(faction) + " " + Factions[faction].ToUpperInvariant(), left, .19f, left + .177f, .32f,
+                    () => SetFaction(selected));
+                factionButton.GetComponentInChildren<TMP_Text>().color = ShowcasePalette.Faction(faction);
+            }
+            Button(_menu, "Join", "Join match", .25f, .03f, .75f, .16f, () =>
+            {
+                if (_showcaseAudio != null) _showcaseAudio.UnlockFromUserGesture();
+                _client.Join(_nickname.text, _faction);
+            });
             SetFaction(_faction);
             _hud = Panel(_root, "PlayerHUD", .02f, .02f, .98f, .23f);
             _vitals = Text(_hud, "Vitals", "Waiting for player state", .02f, .69f, .64f, .98f, 23);
@@ -91,6 +108,7 @@ namespace Roguehalla.Client
             _notice = Text(_root, "Notice", "", .03f, .24f, .56f, .31f, 19);
             _rewards = Panel(_root, "Rewards", .59f, .34f, .98f, .86f);
             _rewardTitle = Text(_rewards, "RewardTitle", "", .06f, .81f, .94f, .97f, 23);
+            _rewardTitle.color = ShowcasePalette.Gold;
             for (int i = 0; i < 3; i++)
             {
                 sbyte pick = (sbyte)i;
@@ -99,14 +117,107 @@ namespace Roguehalla.Client
             _skip = Button(_rewards, "Skip", "Skip", .06f, .05f, .47f, .19f, () => Choose(-1));
             Button(_rewards, "Next", "Next chest", .51f, .05f, .94f, .19f, () => { _chestIndex++; _dirty = _rewardsDirty = true; });
             _results = Panel(_root, "Results", .22f, .28f, .78f, .85f);
-            Text(_results, "ResultsTitle", "RUN RESULTS", .08f, .80f, .92f, .97f, 30);
+            _resultTitle = Text(_results, "ResultsTitle", "RUN RESULTS", .08f, .80f, .92f, .97f, 30);
+            _resultTitle.color = ShowcasePalette.Gold;
             _resultText = Text(_results, "ResultFacts", "", .08f, .25f, .92f, .79f, 23);
-            Button(_results, "Rejoin", "Play again", .08f, .05f, .48f, .20f, () => _client.Join(_client.Profile, _faction));
+            Button(_results, "Rejoin", "Play again", .08f, .05f, .48f, .20f, JoinAgain);
             Button(_results, "Menu", "Return to menu", .52f, .05f, .92f, .20f, () => _client.Leave());
+            BuildSettingsPanel();
             ShowMenu();
         }
 
-        void SetFaction(int value) { _faction = value; _factionLabel.text = "Faction: " + Factions[value]; }
+        void SetFaction(int value)
+        {
+            _faction = value;
+            _factionLabel.text = "FACTION  " + ShowcasePalette.GetFactionMark(value) + "  " + Factions[value].ToUpperInvariant();
+            _factionLabel.color = ShowcasePalette.Faction(value);
+        }
+
+        void BuildSettingsPanel()
+        {
+            _settings = Panel(_root, "SettingsPanel", .22f, .20f, .78f, .82f);
+            Text(_settings, "SettingsTitle", "PRESENTATION", .06f, .88f, .94f, .98f, 25).color = ShowcasePalette.Gold;
+            Text(_settings, "SettingsHint", "Options save on this device. Adaptive quality responds to measured CPU load.", .06f, .80f, .94f, .89f, 14).color = ShowcasePalette.MutedText;
+            _qualitySetting = Button(_settings, "Quality", "", .06f, .69f, .94f, .79f,
+                () => { _showcaseSettings.CycleQuality(); RefreshSettingsLabels(); }).GetComponentInChildren<TMP_Text>();
+            _motionSetting = Button(_settings, "ReducedMotion", "", .06f, .58f, .94f, .68f,
+                () => { _showcaseSettings.ToggleReducedMotion(); RefreshSettingsLabels(); }).GetComponentInChildren<TMP_Text>();
+            AddSettingSlider("Text size", .48f, .85f, 1.5f, _showcaseSettings.TextScale, _showcaseSettings.SetTextScale, out _scaleValue);
+            AddSettingSlider("Music", .37f, 0f, 1f, _showcaseSettings.MusicVolume, _showcaseSettings.SetMusicVolume, out _musicValue, true);
+            AddSettingSlider("Ambience", .27f, 0f, 1f, _showcaseSettings.AmbienceVolume, _showcaseSettings.SetAmbienceVolume, out _ambienceValue, true);
+            AddSettingSlider("Sound effects", .17f, 0f, 1f, _showcaseSettings.SfxVolume, _showcaseSettings.SetSfxVolume, out _sfxValue, true);
+            Button(_settings, "SettingsClose", "DONE", .32f, .025f, .68f, .115f, ToggleSettings);
+            _settings.gameObject.SetActive(false);
+            RefreshSettingsLabels();
+        }
+
+        void AddSettingSlider(string name, float y, float min, float max, float value,
+            UnityEngine.Events.UnityAction<float> changed, out TMP_Text valueText, bool percentage = false)
+        {
+            Text(_settings, name + "Label", name, .06f, y, .34f, y + .065f, 16);
+            var sliderRect = Rect(_settings, name + "Slider", .36f, y + .005f, .76f, y + .06f);
+            var slider = sliderRect.gameObject.AddComponent<UnityEngine.UI.Slider>();
+            var track = Rect(sliderRect, "Track", 0, .32f, 1, .68f).gameObject.AddComponent<UnityEngine.UI.Image>();
+            track.color = ShowcasePalette.PanelStroke;
+            var fillArea = Rect(sliderRect, "Fill Area", .03f, .32f, .97f, .68f);
+            var fill = Rect(fillArea, "Fill", 0, 0, 1, 1).gameObject.AddComponent<UnityEngine.UI.Image>();
+            fill.color = ShowcasePalette.GoldDim;
+            var handle = Rect(sliderRect, "Handle", 0, 0, 0, 1); handle.sizeDelta = new Vector2(14, 0);
+            var handleImage = handle.gameObject.AddComponent<UnityEngine.UI.Image>(); handleImage.color = ShowcasePalette.Gold;
+            slider.fillRect = fill.rectTransform; slider.handleRect = handle; slider.targetGraphic = handleImage;
+            slider.minValue = min; slider.maxValue = max; slider.value = value;
+            valueText = Text(_settings, name + "Value", "", .78f, y, .94f, y + .065f, 16);
+            valueText.alignment = TextAlignmentOptions.MidlineRight;
+            var label = valueText;
+            slider.onValueChanged.AddListener(v =>
+            {
+                changed.Invoke(v);
+                label.text = percentage ? Mathf.RoundToInt(v * 100f) + "%" : v.ToString("0.00");
+            });
+            valueText.text = percentage ? Mathf.RoundToInt(value * 100f) + "%" : value.ToString("0.00");
+        }
+
+        void ToggleSettings()
+        {
+            if (_showcaseAudio != null) _showcaseAudio.UnlockFromUserGesture();
+            bool show = !_settings.gameObject.activeSelf;
+            _settings.gameObject.SetActive(show);
+            if (show) RefreshSettingsLabels();
+        }
+
+        void JoinAgain()
+        {
+            if (_showcaseAudio != null) _showcaseAudio.UnlockFromUserGesture();
+            _client.Join(_client.Profile, _faction);
+        }
+
+        void RefreshSettingsLabels()
+        {
+            if (_showcaseSettings == null) return;
+            if (_qualitySetting != null)
+            {
+                string mode = _showcaseSettings.QualityMode == ShowcaseQualityMode.Adaptive ? "ADAPTIVE" : "MANUAL";
+                Set(_qualitySetting, "QUALITY  " + mode + " · " + _showcaseSettings.EffectiveQuality.ToString().ToUpperInvariant());
+            }
+            if (_motionSetting != null) Set(_motionSetting, "REDUCED MOTION  " + (_showcaseSettings.ReducedMotion ? "ON" : "OFF"));
+            if (_musicValue != null) Set(_musicValue, Mathf.RoundToInt(_showcaseSettings.MusicVolume * 100f) + "%");
+            if (_ambienceValue != null) Set(_ambienceValue, Mathf.RoundToInt(_showcaseSettings.AmbienceVolume * 100f) + "%");
+            if (_sfxValue != null) Set(_sfxValue, Mathf.RoundToInt(_showcaseSettings.SfxVolume * 100f) + "%");
+            if (_scaleValue != null) Set(_scaleValue, _showcaseSettings.TextScale.ToString("0.00"));
+        }
+
+        void ApplyTextScale()
+        {
+            float scale = _showcaseSettings != null ? _showcaseSettings.TextScale : 1f;
+            for (int i = 0; i < _scaledText.Count; i++)
+            {
+                if (_scaledText[i] == null) continue;
+                _scaledText[i].fontSize = _textBaseSize[i] * scale;
+                _scaledText[i].fontSizeMin = _textBaseSize[i] * .75f * scale;
+                _scaledText[i].fontSizeMax = _textBaseSize[i] * scale;
+            }
+            RefreshSettingsLabels();
+        }
         void Swap(byte slot) { if (Active) _session.Input.Swap(slot); }
         void UsePotion() { if (Active) _session.Input.UseConsumable(); }
         bool Active { get { return _session != null && _session.State == SessionState.InMatch; } }
@@ -116,7 +227,7 @@ namespace Roguehalla.Client
             Unbind(); _session = session;
             session.StateChanged += Changed; session.SnapshotReceived += Snapshot;
             session.CollectionsChanged += Collections; session.EventsReceived += Events;
-            _menu.gameObject.SetActive(false); _hud.gameObject.SetActive(true);
+            _menu.gameObject.SetActive(false); _hud.gameObject.SetActive(true); _settings.gameObject.SetActive(false);
             _results.gameObject.SetActive(false); _rewards.gameObject.SetActive(false);
             _feedback = ""; _lastResult = null; _lastHp = float.NaN; _chestIndex = 0; _shownChest = default;
             _inventoryShown = null; _focusShown = null; _buildShown = false; _rewardSignature = ulong.MaxValue;
@@ -138,7 +249,7 @@ namespace Roguehalla.Client
         public void ShowMenu()
         {
             Unbind(); _menu.gameObject.SetActive(true); _hud.gameObject.SetActive(false);
-            _rewards.gameObject.SetActive(false); _results.gameObject.SetActive(false);
+            _rewards.gameObject.SetActive(false); _results.gameObject.SetActive(false); _settings.gameObject.SetActive(false);
             _banner.text = "Choose a faction and join"; _notice.text = "";
         }
         void OnDestroy() { Unbind(); }
@@ -189,12 +300,14 @@ namespace Roguehalla.Client
             if (_session.LastResult != null && !ReferenceEquals(_lastResult, _session.LastResult))
             {
                 _lastResult = _session.LastResult; var r = _lastResult;
+                _resultTitle.color = r.Outcome == 0 ? ShowcasePalette.Gold : r.Outcome == 2 ? ShowcasePalette.Warning : ShowcasePalette.Text;
                 _resultText.text = (r.Outcome < Outcomes.Length ? Outcomes[r.Outcome] : "Outcome " + r.Outcome) + "\nPlace " + r.Place + " / " + r.Players + " · " + r.Kills + " kills\nGV " + r.GvTotal + " (win " + r.GvWin + ")\nDuration " + r.DurationSec + "s" + (string.IsNullOrEmpty(r.KilledBy) ? "" : "\nKilled by " + r.KilledBy) + (r.WinBonusWithheld ? "\nWin bonus withheld by server" : "");
                 _results.gameObject.SetActive(true); _rewards.gameObject.SetActive(false);
             }
             if ((_session.State == SessionState.Failed || _session.State == SessionState.Rejected || _session.State == SessionState.Ended) && _session.LastResult == null)
             {
                 _resultText.text = banner + "\nNo authoritative result received.";
+                _resultTitle.color = ShowcasePalette.Warning;
                 _results.gameObject.SetActive(true);
             }
         }
@@ -271,10 +384,12 @@ namespace Roguehalla.Client
                 var option = chest.Options[i];
                 Set(_options[i].GetComponentInChildren<TMP_Text>(), (option.Card.HasValue ? option.Card.ToString() : option.Boost.ToString()) + (option.Taken ? " · taken" : ""));
                 _options[i].interactable = Active && chest.CanChoose && !chest.Picked && !option.Taken;
+                _options[i].GetComponentInChildren<TMP_Text>().color = option.Taken ? ShowcasePalette.Success :
+                    _options[i].interactable ? ShowcasePalette.Gold : ShowcasePalette.MutedText;
             }
             _skip.interactable = Active && chest.CanChoose && !chest.Picked;
         }
-        static void Set(TMP_Text text, string value) { if (text.text != value) text.text = value; }
+        static void Set(TMP_Text text, string value) { if (text != null && text.text != value) text.text = value; }
         static RectTransform Rect(Transform parent, string name, float x0, float y0, float x1, float y1)
         {
             var rect = (RectTransform)new GameObject(name, typeof(RectTransform)).transform;
@@ -284,30 +399,69 @@ namespace Roguehalla.Client
         static RectTransform Panel(Transform parent, string name, float x0, float y0, float x1, float y1)
         {
             var r = Rect(parent, name, x0, y0, x1, y1);
-            var image = r.gameObject.AddComponent<UnityEngine.UI.Image>(); image.color = PanelColor; image.raycastTarget = true;
+            var image = r.gameObject.AddComponent<UnityEngine.UI.Image>(); image.color = ShowcasePalette.Panel; image.raycastTarget = true;
+            var outline = r.gameObject.AddComponent<UnityEngine.UI.Outline>();
+            outline.effectColor = new Color32(126, 96, 51, 220); outline.effectDistance = new Vector2(1f, -1f); outline.useGraphicAlpha = true;
+            if (name == "JoinMenu" || name == "PlayerHUD" || name == "Rewards" || name == "Results" || name == "SettingsPanel")
+                AddCornerOrnaments(r);
             return r;
         }
-        static TMP_Text Text(Transform parent, string name, string text, float x0, float y0, float x1, float y1, int size)
+
+        static void AddCornerOrnaments(RectTransform panel)
+        {
+            // Fine, non-interactive corner strokes frame the panels without covering content or stealing clicks.
+            const float length = .026f, thickness = .0025f;
+            AddOrnament(panel, "OrnamentTLH", 0, 1 - thickness, length, 1);
+            AddOrnament(panel, "OrnamentTLV", 0, 1 - length, thickness, 1);
+            AddOrnament(panel, "OrnamentTRH", 1 - length, 1 - thickness, 1, 1);
+            AddOrnament(panel, "OrnamentTRV", 1 - thickness, 1 - length, 1, 1);
+            AddOrnament(panel, "OrnamentBLH", 0, 0, length, thickness);
+            AddOrnament(panel, "OrnamentBLV", 0, 0, thickness, length);
+            AddOrnament(panel, "OrnamentBRH", 1 - length, 0, 1, thickness);
+            AddOrnament(panel, "OrnamentBRV", 1 - thickness, 0, 1, length);
+        }
+
+        static void AddOrnament(Transform parent, string name, float x0, float y0, float x1, float y1)
+        {
+            var rect = Rect(parent, name, x0, y0, x1, y1);
+            var image = rect.gameObject.AddComponent<UnityEngine.UI.Image>();
+            image.color = new Color32(156, 119, 62, 225);
+            image.raycastTarget = false;
+        }
+        TMP_Text Text(Transform parent, string name, string text, float x0, float y0, float x1, float y1, int size)
         {
             var r = Rect(parent, name, x0, y0, x1, y1);
             var label = r.gameObject.AddComponent<TextMeshProUGUI>();
-            label.font = TMP_Settings.defaultFontAsset != null ? TMP_Settings.defaultFontAsset : Resources.Load<TMP_FontAsset>("Fonts & Materials/LiberationSans SDF");
-            label.text = text; label.fontSize = size; label.color = Color.white;
+            bool decorativeTitle = name == "Title" || name == "RewardTitle" || name == "ResultsTitle" || name == "SettingsTitle";
+            var bodyFont = Resources.Load<TMP_FontAsset>("Fonts & Materials/LiberationSans SDF");
+            var titleFont = decorativeTitle ? Resources.Load<TMP_FontAsset>("Showcase/CinzelDecorative") : null;
+            label.font = titleFont != null ? titleFont : bodyFont != null ? bodyFont : TMP_Settings.defaultFontAsset;
+            label.text = text; label.fontSize = size * (_showcaseSettings != null ? _showcaseSettings.TextScale : 1f); label.color = ShowcasePalette.Text;
+            if (decorativeTitle) label.characterSpacing = 2.0f;
             label.alignment = TextAlignmentOptions.MidlineLeft; label.raycastTarget = false; label.richText = false;
-            label.enableAutoSizing = true; label.fontSizeMin = size * .75f; label.fontSizeMax = size;
+            label.enableAutoSizing = true; label.fontSizeMin = size * .75f * (_showcaseSettings != null ? _showcaseSettings.TextScale : 1f); label.fontSizeMax = size * (_showcaseSettings != null ? _showcaseSettings.TextScale : 1f);
+            _scaledText.Add(label); _textBaseSize.Add(size);
             return label;
         }
-        static UnityEngine.UI.Button Button(Transform parent, string name, string text, float x0, float y0, float x1, float y1, UnityEngine.Events.UnityAction action)
+        UnityEngine.UI.Button Button(Transform parent, string name, string text, float x0, float y0, float x1, float y1, UnityEngine.Events.UnityAction action)
         {
             var r = Panel(parent, name, x0, y0, x1, y1);
-            r.GetComponent<UnityEngine.UI.Image>().color = new Color32(44, 67, 83, 255);
+            var background = r.GetComponent<UnityEngine.UI.Image>();
+            background.color = ShowcasePalette.PanelRaised;
             var button = r.gameObject.AddComponent<UnityEngine.UI.Button>();
-            button.targetGraphic = r.GetComponent<UnityEngine.UI.Image>(); button.onClick.AddListener(action);
+            button.targetGraphic = background; button.onClick.AddListener(action);
             var label = Text(r, "Label", text, .04f, .05f, .96f, .95f, 20); label.alignment = TextAlignmentOptions.Center;
-            var colors = button.colors; colors.highlightedColor = new Color(.65f, .87f, 1f); colors.disabledColor = new Color(.42f, .45f, .48f); button.colors = colors;
+            var colors = button.colors;
+            colors.normalColor = ShowcasePalette.PanelRaised;
+            colors.highlightedColor = new Color32(73, 67, 52, 255);
+            colors.selectedColor = new Color32(86, 70, 46, 255);
+            colors.pressedColor = new Color32(96, 69, 31, 255);
+            colors.disabledColor = new Color32(37, 43, 51, 255);
+            colors.fadeDuration = .12f;
+            button.colors = colors;
             return button;
         }
-        static TMP_InputField Input(Transform parent, string value, float x0, float y0, float x1, float y1)
+        TMP_InputField Input(Transform parent, string value, float x0, float y0, float x1, float y1)
         {
             var r = Panel(parent, "Nickname", x0, y0, x1, y1);
             var viewport = Rect(r, "Viewport", .04f, .02f, .96f, .98f);
