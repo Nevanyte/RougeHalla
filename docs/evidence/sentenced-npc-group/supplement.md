@@ -10,7 +10,7 @@ unchanged (corpus SHA256 `3808dac2…`). Only additive new files are added.
 
 Real `createGameWorld` camp with five live catalog members; p0 (Sentenced) attacks the first member with a real bow and
 captures `markGroup='camp:1'`, `markGroupSize=5` in the `mark-original-size` frame. A **second ordinary human attacker**
-p2 (Sentenced, real bow attacks, no installed weapon/outcome) kills a sibling: the `sibling-dead` frame shows that
+p2 (Sentenced; explicitly declared bow loadout and ordinary attack inputs, with no installed combat outcome) kills a sibling: the `sibling-dead` frame shows that
 watched member `mob1b` with status `dead`, the original `markGroupSize` still 5, and the source focus handoff
 `p0.target` changing from `mob1b` to live `mob1c`. Current survivors fall from 5 to 3 live members while the historical
 size stays 5; `after-handoff` records the new focus and pulses. This is an actual weapon/ledger death, not an installed

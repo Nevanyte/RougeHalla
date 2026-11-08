@@ -1,4 +1,4 @@
-# P-SENTENCED-NPC-HOLY-CASES — seam-A component capture/runner
+# P-SENTENCED-NPC-HOLY-CASES — optional seam-B recipient-component capture/runner
 
 Additive new capture (no edits to frozen corpora/scripts). `capture-holy.sh` runs unmodified source in the pinned
 linux/amd64 Node 22.23.4 image and writes `parity/sentenced-npc-group/source-holy-components.json`; `--check` requires
@@ -18,3 +18,5 @@ mktemp logs, exact restore with nonzero propagation, no SIGKILL claim). It compa
 (provenance-only changes are non-kills) and requires the unchanged new control. Two targeted actual semantic mutants:
 `01-wrong-regional-pool` (server Faction HP pool vs target maxHP) and `02-wrong-role-weapon-pace` (shared markWeight
 drops weapon role/attack-interval terms).
+
+This is optional recipient-side evidence; it does not close NPC-owned seam A. Corrected Sentenced-NPC -> Holy-human evidence is source-seam-a-holy.json. Player loadouts/hp/positions are declared trusted setup; NPC weapons/outcomes are not installed.

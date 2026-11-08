@@ -1,4 +1,4 @@
-# P-SENTENCED-NPC-HOLY-CASES — NPC-human component cases (seam A)
+# P-SENTENCED-NPC-HOLY-CASES — Holy-NPC recipient components (optional seam B)
 
 Source-only continuation on `deepseek/p-sentenced-npc-holy-cases` from sealed head
 `c5185b9d5446f1ac255521f02f950c568828af18`. Only NEW files under tools/**, parity/** and docs/evidence/**; all frozen
@@ -24,8 +24,8 @@ read-only tap; no expected values were installed.
 The requested literal **NPC-owned** Mark from a non-Sentenced Holy NPC is **not a source domain**: Mark ownership in
 the source is Sentenced-only, and the Holy NPC fighter records in these frames have empty `group/tier/hits/progress`.
 What is genuinely witnessed is the other component side: a real Holy melee/ranged NPC as the **Mark target component**
-of a Sentenced player-owned Mark, while the Holy NPCs fight the player through ordinary AI. This is the seam-A
-component evidence available from the admitted source; a Holy NPC owning a Mark would require an invented producer and
+of a Sentenced player-owned Mark, while the Holy NPCs fight the player through ordinary AI. This is optional recipient-side seam-B
+component evidence, not the corrected NPC-owned seam A; a Holy NPC owning a Mark would require an invented producer and
 is not claimed.
 
 ## Checks / provenance
@@ -49,3 +49,5 @@ passes. A comment-only provenance mutation produced identical runtime cases/diff
    component is witnessed.
 2. These are bounded map seed1 camp cases; no broader map/campaign, native/hash equality, replacement-kernel or
    final content/format claim is made.
+
+The corrected Sentenced NPC -> ordinary Holy human producer is separate: see [seam-a-holy.md](seam-a-holy.md). Human hp/maxHp, placement and weapon loadouts are explicit trusted scenario setup; NPC weapons are catalog-born, and no expected Mark/combat outcome is installed.

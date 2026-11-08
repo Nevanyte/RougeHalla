@@ -58,24 +58,38 @@ provenance mutation produced identical runtime cases/differing provenance, so it
 Metadata-only recapture (task-92): the runner hardening changed only run-mutants.sh, which capture.mts pins in
 provenance. Old corpus `82f1c909fa8679f5bda697a3537951f72bc89d17d7d2d28cfb87f50a4b29381f` -> new
 `d64e822b3e79540e99a0c82d4bfe331aa16df547587456fe35f5c237e5fda780`; format+cases canonical payload SHA256
-`4481b6add3e685b4202bf80e814d9dea821285d3a688fe3ecfab44d68308cf82` is identical old/new (deep equality, same
-555,087 bytes); complete metadata except `provenance.tools.runMutantsSh` (`9ba3c6bb…` -> `c768493a…`) is identical.
-No semantic payload changed. Runner hardening: complete backup copies + manifest are built first, then the completed
+`d24091c99559bf01ae704c63dbd5247c4dbcb388bdc7a4f45529ade78c1fd27c` is identical old/new (deep equality; each full corpus remains
+555,087 bytes, and the compact payload is291,644 bytes); complete metadata except `provenance.tools.runMutantsSh` (`9ba3c6bb…` -> `c768493a…`) is identical.
+The payload digest is SHA256 of `JSON.stringify({format: corpus.format, cases: corpus.cases})` without a trailing newline; earlier prose quoted an unspecified/unreproduced digest. No semantic payload changed. Runner hardening: complete backup copies + manifest are built first, then the completed
 backup is verified (size>0 + SHA-256) against manifest/source before EXIT/HUP/INT/TERM is armed; backup failures are
 fail-closed with the source untouched; unique mktemp logs; hash-verified exact restoration and nonzero failure
 propagation retain recovery bytes; SIGKILL is untrappable and not claimed.
 
 Metadata-only recapture chain (task-94 single-shot signal cleanup): old `82f1c909…` -> `d64e822b…` -> new
 `3808dac248d5fd01286ceb2abe4d2a179a1702e3b8c4bd863a02250654a3d5a3`; the canonical format+cases payload SHA256
-`4481b6add3e685b4202bf80e814d9dea821285d3a688fe3ecfab44d68308cf82` is identical (deep-equal cases, 555,087 bytes);
+`d24091c99559bf01ae704c63dbd5247c4dbcb388bdc7a4f45529ade78c1fd27c` is identical (deep-equal cases;291,644-byte compact payload,555,087-byte full corpus);
 complete metadata except provenance.tools.runMutantsSh (`c768493a…` -> `4de4ac33…`) is identical;
 capture.mts/captureSh/packageLock hashes are unchanged and capture.mts format/cases were not edited.
 
 Signal-path hardening: cleanup is single-shot (CLEANED guard), resets EXIT/HUP/INT/TERM traps before restoring, and
 exits with conventional signal codes 129/130/143 while the EXIT disposition preserves the normal program result; restore
 still verifies bytes, retains recovery bytes on failure and propagates nonzero, and no re-entrant restore is possible.
-The runner has deterministic test-only pause/ready seams (unset in normal use) exercised by
-tools/sentenced-npc-group-fixtures/tests/signal-path.sh: SIGTERM before arming and during an applied mutation both
-produce nonzero exits, exact source restoration, clean tree and no duplicate/re-entrant errors. A deterministic SIGINT
-delivery could not be produced by this non-interactive background environment and is reported honestly; the runner
-installs the INT hander with exit 130. SIGKILL is untrappable and is not claimed.
+The runner has deterministic test-only pause/ready seams (unset in normal use). The repaired
+`tests/signal-path.sh` runs the unchanged runner in fresh minimal git-archive sandboxes, never restores a host source,
+and requires real TERM exits143 before arming and during the applied-mutation window. Failed initial backup copy and
+partial-success copy controls refuse before arming. The mutation TERM performs exactly one verified restoration; the
+pre-arm TERM performs none. Host bytes/status remain unchanged. No SIGINT/HUP delivery, SIGKILL recovery, Docker,
+source recapture or semantic-mutant rerun follows from these four controls; see [signal-helper-repair.md](signal-helper-repair.md).
+
+## Exact historical mutant meaning and trusted setup
+
+Committed patch names are historical labels. `01-duplicate-or-unscaled-group-pulse` changes markMemberShare to1: it
+proves sensitivity to removing original-size attenuation, not duplicate-emission suppression. `02-current-survivor-size-wrong`
+forces the initial markGroupSize to1: it does not recompute survivors after death. `03-wrong-regional-pool` multiplies
+the existing markPool result by2: it proves raw-damage sensitivity, not the faction/maxHP pool branch. Their actual
+runtime mismatches remain three kills; none is relabelled as a later distinction. The supplement's actual re-fold-after-
+death mutation and the optional Holy-recipient/corrected-A actual pool-branch mutations provide those separate controls.
+
+Player hp/maxHp, placement and weapon loadouts are explicit trusted scenario setup, not ordinary pickup or account
+flows. Gathering Storm is an explicit grantCard setup, not witnessed loot acquisition. Catalog NPC weapons and all
+Mark/hit/pulse/death outcomes remain actual source runtime outputs. No expected combat outcome is installed.

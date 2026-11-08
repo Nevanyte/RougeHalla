@@ -15,3 +15,5 @@ from a labelled read-only `beforeDamage` ledger tap, and events; no Mark target/
 and propagates restoration failure; it compares only `format`+`cases` (provenance excluded) so provenance-only changes
 are not kills. Three committed mutants: `01-duplicate-or-unscaled-group-pulse`, `02-current-survivor-size-wrong`,
 `03-wrong-regional-pool`.
+
+Historical mutant names are not category proofs:01 sets memberShare=1 (attenuation, not duplicate suppression);02 sets initial groupSize=1 (not survivor re-fold after death);03 doubles the existing pool result (not a faction/maxHP branch change). Later supplement and corrected-A controls cover their own distinct faults. Player hp/loadout/placement and the Storm card grant are trusted declared setup, not ordinary item acquisition. The signal helper is isolated/host-read-only; see docs/evidence/sentenced-npc-group/signal-helper-repair.md.

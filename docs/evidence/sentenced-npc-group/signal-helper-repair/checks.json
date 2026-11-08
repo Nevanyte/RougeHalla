@@ -1,0 +1,113 @@
+{
+  "base": "3902ce2ff0a67dc96b24b18dc6b9a670e9ab4965",
+  "scope": "unpinned signal helper and packet documentation only",
+  "actual_controls": [
+    {
+      "name": "failed initial backup cp",
+      "exit": 1,
+      "restore_copies": 0,
+      "source_sha_unchanged": true
+    },
+    {
+      "name": "partial-success initial backup cp",
+      "exit": 1,
+      "restore_copies": 0,
+      "source_sha_unchanged": true
+    },
+    {
+      "name": "real TERM before arm",
+      "exit": 143,
+      "restore_copies": 0,
+      "source_sha_unchanged": true
+    },
+    {
+      "name": "real TERM during applied mutation",
+      "exit": 143,
+      "restore_copies": 1,
+      "source_sha_unchanged": true
+    }
+  ],
+  "host_source_sha256": "9ea65429b48b9aa43578922642534d82a1369778fbcec502e62cc9e21dacbf1c",
+  "host_source_is_ever_restoration_destination": false,
+  "docker_or_source_campaign_executed": false,
+  "source_pins_verified_per_corpus": 127,
+  "not_claimed": [
+    "SIGINT/HUP delivery",
+    "SIGKILL restoration",
+    "new source recapture",
+    "semantic mutant reruns",
+    "native consumer/Full/runtime admission"
+  ],
+  "unchanged_pinned_files": {
+    "parity/sentenced-npc-group/source.json": {
+      "bytes": 555087,
+      "sha256": "3808dac248d5fd01286ceb2abe4d2a179a1702e3b8c4bd863a02250654a3d5a3"
+    },
+    "tools/sentenced-npc-group-fixtures/capture.mts": {
+      "bytes": 12827,
+      "sha256": "40904ce4a37e1c7cc869de21161ddbb2bdb7a6347f3e7f203f0cd221ccc1ad9a"
+    },
+    "tools/sentenced-npc-group-fixtures/capture.sh": {
+      "bytes": 1149,
+      "sha256": "4bf4b233d51220dc8a07ecb735c9ef3cbee7dddc2a506db149ffe21626108fa8"
+    },
+    "tools/sentenced-npc-group-fixtures/run-mutants.sh": {
+      "bytes": 5388,
+      "sha256": "4de4ac33f3667010eb182fee77dc4ea7ffe3d28e4631283201da52b5aff94c54"
+    },
+    "package-lock.json": {
+      "bytes": 153409,
+      "sha256": "991869bdfbbefb6874220500197c61db302a4d2b2603dfc2288fd7032ce1d481"
+    },
+    "parity/sentenced-npc-group/source-supplement.json": {
+      "bytes": 530381,
+      "sha256": "292496f06ddc3edb8ccb142df76e2661fd257b0679a2132809ad9e4560e75183"
+    },
+    "tools/sentenced-npc-group-fixtures/capture-supplement.mts": {
+      "bytes": 13145,
+      "sha256": "d6935b1306622dd68625a519b283a4a7e9b8a93f58496f97ec8c6b2f4f150549"
+    },
+    "tools/sentenced-npc-group-fixtures/capture-supplement.sh": {
+      "bytes": 1182,
+      "sha256": "fbc1b7e678892ac86cf6dd513720ee82a2174a8ce20846bb4b857e8606bc352b"
+    },
+    "tools/sentenced-npc-group-fixtures/run-supplement-mutants.sh": {
+      "bytes": 5484,
+      "sha256": "6563e3e30a9b390312a223ec13f30f0adf6b72d36827ae560c0e886814ca20df"
+    },
+    "parity/sentenced-npc-group/source-holy-components.json": {
+      "bytes": 156324,
+      "sha256": "d1129f2d862da97d17dd90ea84105f04206a8728fd03c6be376fa5f461d1bd40"
+    },
+    "tools/sentenced-npc-group-fixtures/capture-holy.mts": {
+      "bytes": 11337,
+      "sha256": "a4ac0f8a38f0a0d4574b35ed433072097ecc761788d37709de407c674bcff9cb"
+    },
+    "tools/sentenced-npc-group-fixtures/capture-holy.sh": {
+      "bytes": 1164,
+      "sha256": "0570600019e6723c42622aa4b055a1581d6e37312e2268cd244aec056c681dcb"
+    },
+    "tools/sentenced-npc-group-fixtures/run-holy-mutants.sh": {
+      "bytes": 5499,
+      "sha256": "fffee445a616abf6267358db22ed56cfd8c40b2693856ba8eca4e7998a94793b"
+    },
+    "parity/sentenced-npc-group/source-seam-a-holy.json": {
+      "bytes": 140255,
+      "sha256": "88dc9f5d8a54df280d05be0f19390019a3bae6161edc5754b2523c699f133375"
+    },
+    "tools/sentenced-npc-group-fixtures/capture-seam-a.mts": {
+      "bytes": 11714,
+      "sha256": "1067c6a577c8fdbfbea8c6816501033aaa4a609dae0b9879b96b947d0da22ea4"
+    },
+    "tools/sentenced-npc-group-fixtures/capture-seam-a.sh": {
+      "bytes": 1160,
+      "sha256": "91f559ee3cb2998e0dbddd36999b2a102dc71d85faa3831fe37a068d777f6a90"
+    },
+    "tools/sentenced-npc-group-fixtures/run-seam-a-mutants.sh": {
+      "bytes": 5481,
+      "sha256": "0b4973fcae9ab03772c121e4e73d58b5c38d2dc08f04fd3c121c4a7674f85950"
+    }
+  },
+  "proof_log_sha256": "efaea3c8adb18b0dc89f35e412526bcb94d0163b8787923bd6f147bab5aa8299",
+  "helper_sha256": "2ea90630555d5129d3fdf4ae4f284d3fda5a787f517463ad655a94e9307aa4be"
+}
