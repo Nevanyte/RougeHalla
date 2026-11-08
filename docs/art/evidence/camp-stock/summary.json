@@ -1,0 +1,51 @@
+{
+  "scope": "Source/Editor verification only; not present in the served Web build",
+  "baseSourceRevision": "55825c108f46e1f3e7aac7ec89e979f5773e1fb8",
+  "servedRuntimeRevision": "4f37e9f0f882631230dbb7e4d7d20fab9fa2b5c0",
+  "sourceFiles": [
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/UI/MatchHud.cs",
+      "sha256": "8ceabfefd5f0837fe9208867496a4563845783a68e367bc42c09561c96a8225d"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/ShowcaseStateEditModeTests.cs",
+      "sha256": "8c2e13db62e273e5fbe02735152f2cad2e1cbeb246512862e5a6916a7920b831"
+    }
+  ],
+  "focusedEditorTest": {
+    "Total": 1,
+    "Passed": 1,
+    "Failed": 0,
+    "Skipped": 0,
+    "Inconclusive": 0
+  },
+  "visualFixture": {
+    "scene": "Assets/Scenes/Main.unity",
+    "autojoin": false,
+    "connected": false,
+    "stock": "5 small / 5 camp / 3 healing (synthetic maximum UI fixture)",
+    "textScale": 1.5,
+    "capture": "screen-source Game view render, PNG2560x1440",
+    "result": "Parent visually inspected: all counts and HUD controls fit; no label overflow, one line",
+    "editorScreenApi": "752x252 dock dimensions; not a browser/backbuffer or native-display performance proof",
+    "restored": "Stopped Play Mode and restored prior text-scale preference"
+  },
+  "files": [
+    {
+      "path": "camp-stock-editor-test.json",
+      "bytes": 567,
+      "sha256": "01df2ada7ce01a66447da04493a916dc493bd1f8a817e6f368b539742c599e37"
+    },
+    {
+      "path": "camp-stock-text150-final-layout.json",
+      "bytes": 330,
+      "sha256": "9f1f75f9ad4f3df00b5f04c64895c0a7a975058feb2a1727c645ba1068078289"
+    },
+    {
+      "path": "camp-stock-text150.png",
+      "bytes": 208937,
+      "sha256": "1d973f4eda8158824db20c48254c26d8acc9d7d004d34aa2c10fe9c1afc4cd24"
+    }
+  ],
+  "deferred": "Next client/public-flow Web build batch; no new Web, networking or performance acceptance claimed"
+}

@@ -69,3 +69,7 @@ that hardware. Record callback cadence separately from renderer submissions and 
 
 See [VERIFICATION.md](VERIFICATION.md) for reproduction and [COVERAGE.md](COVERAGE.md) for prepared/live limits.
 Only mark the overall goal complete when all required work, including its explicit performance gate, is actually met.
+
+## Camp-potion stock follow-up (source / Editor only)
+
+The HUD now includes the authoritative `PotionLarge` count as camp stock and refreshes when only that field changes. The actual-HUD regression passes for camp stock 1→0 with other facts unchanged and for missing inventory clearing the label during reconnect. A Main-scene Editor fixture at text scale 1.50 and synthetic maximum stock 5 small / 5 camp / 3 healing was visually inspected: the label fits on one line without overflow. Play Mode was stopped and preferences restored. [Portable stock evidence](evidence/camp-stock/summary.json) pins the focused test, layout record and screenshot. This is source/Editor verified only; the served Web build remains runtime `4f37e9f0`. Browser verification is deferred to the coordinator’s next client/public-flow build batch. No controls, eligibility, protocol, lighting or quality settings changed.
