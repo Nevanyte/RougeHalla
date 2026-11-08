@@ -38,6 +38,13 @@ impl Refusal {
         }
     }
 }
+/// Source `loot.bornThisTick` in the one shared form both Choose and `RewardChestObserver` read: a reward container
+/// is available only once its birth hold has passed (`held_until_tick` is stored as birth tick + birth_hold ticks).
+/// The same predicate in both places is what keeps the command and the observer from disagreeing (P-TROPHY-BIRTH-HOLD-REPAIR).
+pub(crate) const fn birth_available(held_until_tick: u32, tick: u32) -> bool {
+    held_until_tick < tick
+}
+
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct Chest {
@@ -249,8 +256,8 @@ pub(crate) fn choose(
         .and_then(|id| w.reward_chests.iter().position(|c| c.id == id))
         .ok_or(Refusal::Gone)?;
     let c = &w.reward_chests[ci];
-    // Only the birth tick refuses (source bornThisTick): the hold is the last refused tick plus one.
-    if c.held_until_tick > w.tick || w.server_time >= c.expires_at {
+    // Source bornThisTick: the birth tick and the held tick both refuse; the hold is shared with the observer.
+    if !birth_available(c.held_until_tick, w.tick) || w.server_time >= c.expires_at {
         return Err(Refusal::Gone);
     }
     if c.owner.is_some_and(|owner| owner != who) {
