@@ -17,6 +17,7 @@ pub mod perception;
 pub mod planning;
 pub mod random;
 pub mod types;
+pub mod view;
 pub mod wish;
 
 #[cfg(test)]
@@ -29,6 +30,8 @@ mod parity_tests;
 mod paths_parity_tests;
 #[cfg(test)]
 mod planning_parity_tests;
+#[cfg(test)]
+mod view_parity_tests;
 #[cfg(test)]
 mod wish_module_tests;
 #[cfg(test)]
@@ -55,6 +58,10 @@ pub use types::{
     BotWeapon, Command, CommandType, ExGaussian, Intent, IntentBody, IntentChannel, IntentKind,
     IntentTiming, PerceptExtras, PersonaId, PersonaParams, Stimulus, StimulusKind, TierId,
     TierParams, TimedCommand, WishView, PERSONAS, TIERS,
+};
+pub use view::{
+    detect_features, field_in_view, in_view, plain_copy, FeatureProbe, Features, FieldInView,
+    CLIENT_MESSAGE_TYPES,
 };
 pub use wish::{
     CastChoice, CastSituation, FoeView, MeView, ThreatView, WishDef, WishFoe, WishModule, WISHES,

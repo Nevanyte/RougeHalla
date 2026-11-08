@@ -1,4 +1,4 @@
-# P-BOTS-3 remainder — the planning feature module and the Knowledge layer (slices DONE-VERIFIED; packet INCOMPLETE)
+# P-BOTS-3 remainder — planning + Knowledge + the fair-view foundation (slices DONE-VERIFIED; packet INCOMPLETE)
 
 Phase: stage 2, backlog [P-BOTS-3](../../backlog/README.md) (planning/chest/hazard modules + chestHunt; deps P-ARENA-1,
 P-CARDS-2, P-TERRAIN-1, P-BOTS-1). **No packet file exists.** Branch `deepseek/p-bots-brain`, created from
@@ -6,7 +6,7 @@ P-CARDS-2, P-TERRAIN-1, P-BOTS-1). **No packet file exists.** Branch `deepseek/p
 `deepseek/p-bots-6`. No wire, schedule, serialized-state or content change.
 
 Pull request: [#58](https://github.com/Nevanyte/RougeHalla/pull/58), stacked on the P-BOTS-6 PR; commit range
-`f87727dd`..`6a432c2b` on `deepseek/p-bots-brain` (slice 1 `1aa8c462`, slice 2 `6a432c2b`). Ledger row:
+`f87727dd`..`SLICE3_COMMIT` on `deepseek/p-bots-brain` (slice 1 `1aa8c462`, slice 2 `6a432c2b`, slice 3 `SLICE3_COMMIT`). Ledger row:
 [`docs/evidence/deepseek-rust/PROGRESS.md`](../deepseek-rust/PROGRESS.md).
 
 ## Assessment before writing (code and git, not memory)
@@ -90,9 +90,33 @@ What landed:
   odds row reproduces with its debug line, the constants are pinned, and four mutants die (drifted creation stream, nudged mob
   share, wrong odds trace, flipped wheel edge).
 
+## Slice 3 — the fair-view foundation (task-26)
+
+The P-BOTS-1 remainder (the full fair perception view model) is the source `brain/perception.ts` constructor: a state-plus-fx
+frame becomes the full client Percept (self/fighter/mob/container/camp/field/minimap views, the decoded event stream and
+projectiles). The constructor needs two things this slice could not both certify in one step: its pure exported foundation
+(landed here), and the fair Observation leaves the Rust side does not carry yet (container labels/contents, minimap repaint
+state, build/potion/barrier HUD facts, and a decoded-fx stream equivalent). This slice lands the foundation value-for-value;
+the constructor itself and the Observation extension are the next slice, and memory.ts stays blocked until they land.
+
+What landed:
+- `crates/rh-policy/src/bots/view.rs`: the exported source helpers over the ported window constants —
+  `detectFeatures` (the room/branch feature flags by runtime presence: the client message gates, the schema fields by key,
+  the fields/camps state keys, the default message set, the first-player fallback, and the map floor-hazard scan when the
+  probe is an instance), `inView`/`fieldInView` (the exact window tests, trails as segments) and `plainCopy` (the JSON-safe
+  message copy with the source depth limit), plus the `Features`/`FeatureProbe` shapes and the client message set. No new
+  crate dependency: the message-data value is a local JSON-like enum (the policy crate has no serialization dependency).
+- Capture `tools/perception-fixtures/` + corpus `parity/policy/bot-perception.json`, sha256
+  `378b0a073ad9b474df5eedbadffa6ef257661cd2f5d74afc2393b5e8447a5782`, from the pinned Linux x64 Node 22.23.4 container:
+  19 declared feature probes (each gate, schema field, state key, default set, first-player fallback and every hazard
+  branch), 81 inView rows and 63 fieldInView rows, and 13 plainCopy values including the depth limit. `--check` is
+  byte-identical.
+- Tests `crates/rh-policy/src/bots/view_parity_tests.rs` (4): every probe/row/value reproduces, and four mutants die
+  (flipped feature flag, flipped window answer, field radius that must matter, an extra copied key).
+
 ## Gates
 
-- `cargo test --workspace --all-features --locked` (pinned PostgreSQL): **1,484 passed, 0 failed, 3 ignored, 154
+- `cargo test --workspace --all-features --locked` (pinned PostgreSQL): **1,488 passed, 0 failed, 3 ignored, 154
   test binaries, exit 0**.
 - `cargo clippy --workspace --all-targets --all-features --locked -- -D warnings`: **clean, exit 0**;
   `cargo fmt --all -- --check` clean.
