@@ -1,0 +1,11 @@
+--- a/packages/client/src/ui/questDialog.ts
++++ b/packages/client/src/ui/questDialog.ts
+@@ -386,7 +386,7 @@
+     }
+     this.refused = null;
+     this.pending = { quest: quest.id, at: now };
+-    this.send({ quest: quest.id });
++    this.send({ quest: quest.def });
+     this.refresh();
+     return true;
+   }

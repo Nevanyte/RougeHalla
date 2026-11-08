@@ -1,0 +1,10 @@
+--- a/packages/shared/src/schema.ts
++++ b/packages/shared/src/schema.ts
+@@ -151,5 +151,5 @@
+   speedBoostUntil: t.uint32().default(0),
+   tradeUsed: t.boolean().default(false),
+-  tradeOffers: t.array("string"),
++  tradeOffers: t.array("string").noSync(),
+   tradeStats: t.map("float64"),
+   /** The one Plague companion, kept while dead so a later corpse revives its accumulated growth. */
+   plagueZombieId: t.string().default(""),

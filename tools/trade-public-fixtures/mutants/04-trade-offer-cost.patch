@@ -1,0 +1,9 @@
+--- a/packages/server/src/sim/traders.ts
++++ b/packages/server/src/sim/traders.ts
+@@ -49,5 +49,5 @@
+     const gain = shuffled(TRADE_STATS.filter(k => k !== cost), w.rewardRandom)[0]!;
+-    const costRaw = current[cost] * .12, gainRaw = Math.max(current[gain], isFlat(gain) ? 60 : 1) * .18;
++    const costRaw = current[cost] * .11, gainRaw = Math.max(current[gain], isFlat(gain) ? 60 : 1) * .18;
+     const costValue = rounded(costRaw / (cost === "ap" ? Math.max(.1, multOf(p, "ap")) : 1), cost);
+     const gainValue = rounded(gainRaw / (gain === "ap" ? Math.max(.1, multOf(p, "ap")) : 1), gain);
+     const shown = (value: number, stat: TradeStat) => stat === "maxHp" ? String(Math.round(value * baseMaxHp(p))) : quote(rounded(value, stat), stat);

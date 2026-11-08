@@ -1,0 +1,10 @@
+--- a/packages/server/src/sim/quests.ts
++++ b/packages/server/src/sim/quests.ts
+@@ -452,6 +452,6 @@
+     if (finder === null) continue;
+     qt.finder = finder;
+-    qt.publishAt = now + QUEST_REVEAL_HEAD_START_MS;
++    qt.publishAt = now;
+     emit(world, {
+       type: "questReveal", to: finder,
+       quest: { id: qt.id, def: qt.def.id, x: qt.s.x, y: qt.s.y, expiresAt: qt.s.expiresAt },

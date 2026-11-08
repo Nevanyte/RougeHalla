@@ -1,0 +1,5 @@
+01-quest-door-payload|doors.json|FIRST_MISMATCH /clientDoor/cases/0/actual/sent/0/payload/quest expected="quest6y" mutant="grand-tour"
+02-quest-intake-parse|doors.json|FIRST_MISMATCH /intake/cases/7/parsed expected=null mutant={"kind":"questAccept","quest":"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}
+03-quest-head-start|doors.json|FIRST_MISMATCH /actions/cases/13/actual/headStart/publicHas expected=false mutant=true
+04-quest-refusal-wording|doors.json|FIRST_MISMATCH /clientDoor/cases/5/actual/afterRefusal/status expected="Too far away" mutant="Not close enough"
+99-provenance-only|IDENTICAL
