@@ -1,0 +1,14 @@
+✔ absent, false and malformed opt-ins neither enable nor throw (1.104041ms)
+✔ valid opt-in records exactly the public CPU milestone payload (0.916ms)
+✔ valid collector caps at 20000 while preserving frame correlation and overflow (5.77ms)
+✔ broken collector access or writes cannot interrupt the game frame (0.513ms)
+✔ target observations require an explicit one-shot request under a valid opt-in (0.287375ms)
+✔ Wish application records retain every occurrence and original fractional source time (0.34825ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 71.944459
