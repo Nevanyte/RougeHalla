@@ -15,6 +15,13 @@ namespace Roguehalla.Client
 #if UNITY_WEBGL && !UNITY_EDITOR
         [DllImport("__Internal")] static extern string RhPage_GetSearch();
         static string Search() { return RhPage_GetSearch(); }
+#elif UNITY_EDITOR
+        static string Search()
+        {
+            var query=UnityEditor.SessionState.GetString("Roguehalla.ArtPreviewQuery", "");
+            UnityEditor.SessionState.EraseString("Roguehalla.ArtPreviewQuery");
+            return query;
+        }
 #else
         static string Search() { return ""; }
 #endif
@@ -36,11 +43,23 @@ namespace Roguehalla.Client
             string s = Search();
             var camGo = new GameObject("Camera");
             var cam = camGo.AddComponent<Camera>();
+            camGo.AddComponent<AudioListener>();
             cam.orthographic = true;
             cam.orthographicSize = 9f;
             cam.clearFlags = CameraClearFlags.SolidColor;
             cam.backgroundColor = new Color32(0x14, 0x17, 0x1b, 255);
+            cam.allowHDR = true;
+            cam.transform.position = new Vector3(24, -14, -30);
+            cam.gameObject.AddComponent<UnityEngine.Rendering.Universal.UniversalAdditionalCameraData>().renderPostProcessing = true;
+            QualitySettings.vSyncCount = 0;
+            Application.targetFrameRate = -1;
             camGo.tag = "MainCamera";
+
+            if (Query(s, "preview", "0") == "1")
+            {
+                new GameObject("Presentation study").AddComponent<ShowcasePreview>().Initialize(cam);
+                return;
+            }
 
             var go = new GameObject("Match");
             var arenaGo = new GameObject("Arena");
@@ -48,6 +67,7 @@ namespace Roguehalla.Client
             var mc = go.AddComponent<MatchClient>();
             mc.Arena = arena;
             mc.Cam = cam;
+            go.AddComponent<ShowcaseSoundscape>().Initialize(mc);
             mc.Url = Query(s, "server", DefaultUrl);
             mc.Profile = Query(s, "profile", "web" + UnityEngine.Random.Range(1000, 9999));
             mc.Token = Query(s, "token", Guid.NewGuid().ToString("N"));

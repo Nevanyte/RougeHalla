@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Roguehalla · Visual Art Board</title>
+  <style>
+    :root { color-scheme: dark; --ink:#f1eee6; --muted:#b7b2aa; --line:#514c49; --panel:#181a20; --ember:#e79a56; --blue:#93b8c7; --moss:#a8ae82; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:#101116; color:var(--ink); font:16px/1.55 ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif; }
+    main { max-width:1180px; margin:auto; padding:42px 26px 80px; }
+    .eyebrow { color:var(--ember); font-size:.78rem; letter-spacing:.16em; font-weight:800; text-transform:uppercase; }
+    h1,h2,h3 { font-family:Georgia,"Times New Roman",serif; font-weight:500; line-height:1.08; }
+    h1 { max-width:850px; margin:.35em 0 .35em; font-size:clamp(2.5rem,7vw,5.8rem); letter-spacing:-.045em; }
+    h2 { margin:2.2em 0 .6em; font-size:2.1rem; }
+    h3 { margin:0 0 .5em; font-size:1.6rem; }
+    p { color:#dad6ce; }
+    .lead { max-width:760px; color:#cec8bd; font-size:1.15rem; }
+    .hero { padding:36px; border:1px solid #554538; border-radius:18px; background:radial-gradient(ellipse at 92% 8%,#75513c66,transparent 40%),linear-gradient(140deg,#222127,#14161b 65%); }
+    .thesis { display:grid; grid-template-columns:1.4fr 1fr; gap:22px; margin-top:28px; }
+    .note { border-left:2px solid var(--ember); padding:4px 0 4px 17px; color:#e2dbce; }
+    .note b { color:#fff3df; }
+    .chips { display:flex; flex-wrap:wrap; gap:8px; margin:22px 0 0; }
+    .chip,.tag { display:inline-block; padding:5px 10px; border:1px solid #605c56; border-radius:999px; color:#ded8cf; font-size:.78rem; }
+    .chip.selected { color:#ffe2ba; border-color:#a97749; background:#704a2733; }
+    .grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:17px; }
+    article { overflow:hidden; border:1px solid var(--line); border-radius:15px; background:var(--panel); }
+    .art { min-height:240px; display:flex; align-items:center; justify-content:center; padding:18px; background-color:#26262b; background-image:linear-gradient(45deg,#ffffff08 25%,transparent 25%),linear-gradient(-45deg,#ffffff08 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#ffffff08 75%),linear-gradient(-45deg,transparent 75%,#ffffff08 75%); background-size:22px 22px; background-position:0 0,0 11px,11px -11px,-11px 0; }
+    .art img { display:block; max-width:100%; max-height:330px; object-fit:contain; image-rendering:auto; }
+    .wide .art img { max-height:410px; }
+    .body { padding:22px; }
+    .body p { margin:.55em 0; color:var(--muted); }
+    .meta { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:9px 18px; margin-top:16px; padding-top:15px; border-top:1px solid #39383c; }
+    .meta div { color:#c8c3ba; font-size:.86rem; }
+    .meta strong { display:block; color:#f2eee5; font-size:.68rem; letter-spacing:.1em; text-transform:uppercase; }
+    a { color:#f2b577; text-decoration-color:#8d6849; text-underline-offset:3px; }
+    .tag { margin:0 5px 4px 0; }
+    .tag.good { color:#c8d9bc; border-color:#64754e; }
+    .tag.caution { color:#f0c4a7; border-color:#8f634d; }
+    .callout { padding:19px 22px; margin:18px 0; border:1px solid #4c5a55; border-radius:12px; background:#1a2220; color:#d8e0d5; }
+    .callout strong { color:#ecf4e8; }
+    table { width:100%; border-collapse:collapse; margin:16px 0 22px; font-size:.9rem; }
+    th,td { padding:11px 12px; border-bottom:1px solid #3b3a3f; text-align:left; vertical-align:top; }
+    th { color:#f0d8b8; font-size:.72rem; letter-spacing:.1em; text-transform:uppercase; }
+    td { color:#d1ccc3; }
+    .license { padding:21px; border:1px solid #554e43; border-radius:12px; background:#1d1c1d; }
+    .small { color:#aaa59e; font-size:.82rem; }
+    footer { margin-top:44px; padding-top:20px; border-top:1px solid #39383c; color:#a39e96; font-size:.85rem; }
+    @media (max-width:760px) { main{padding:22px 14px 50px}.hero{padding:24px}.thesis,.grid{grid-template-columns:1fr}.meta{grid-template-columns:1fr 1fr} }
+  </style>
+</head>
+<body>
+<main>
+  <header class="hero">
+    <div class="eyebrow">Roguehalla · Unity browser art direction</div>
+    <h1>A dark myth, painted in motion.</h1>
+    <p class="lead">A pure 2D presentation with a shallow 2.5D read: oblique fantasy sprites, deep ground planes, restrained colour and atmospheric light. Keep the map and every combat cue legible while the world gains age, depth and mood.</p>
+    <div class="chips">
+      <span class="chip selected">Chosen family · Flare fantasy art</span>
+      <span class="chip">Human credited artists</span>
+      <span class="chip">$0 source assets</span>
+      <span class="chip">No asset purchase</span>
+      <span class="chip">2D sprites + 2D terrain</span>
+    </div>
+    <div class="thesis">
+      <div class="note"><b>Lead visual language</b><br>Painted, isometric RPG sprites from one long-running open-art project. Reuse its directional animation and sprite anchors; tint and frame the live match with original Roguehalla palette, UI and effects.</div>
+      <div class="note"><b>Atmosphere without losing fairness</b><br>Use a dark ink base, cool stone, restrained ember and frost accents, and soft 2D lights. Keep actors, attack reach, telegraphs and pickups at full contrast. Never draw beyond server-visible state.</div>
+    </div>
+  </header>
+
+  <h2>One source family, several useful layers</h2>
+  <div class="grid">
+    <article class="wide">
+      <div class="art"><img src="../../client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/images/enemies/goblin.png" alt="Original Flare goblin directional-animation atlas"></div>
+      <div class="body">
+        <span class="tag good">Primary character source</span><span class="tag">human credited roster</span>
+        <h3>Goblin · an animated combat exemplar</h3>
+        <p>Eight directional facings with stance, run, swing, cast, shoot, block, hit and death actions. The original atlas is preserved unchanged; upstream frame rectangles, anchors and animation timings are included beside it.</p>
+        <p><a href="https://github.com/flareteam/flare-game/tree/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore">Official Flare source at pinned revision</a> · <a href="https://github.com/flareteam/flare-game/wiki/Credits">artist credits</a></p>
+        <div class="meta"><div><strong>Creator</strong>Flare art contributors; source CREDITS and per-file credit notes retained</div><div><strong>Price / license</strong>Free · CC BY-SA 3.0</div><div><strong>Perspective</strong>Isometric 2D, reads as 2.5D</div><div><strong>Animation / layout</strong>8 facings · multi-action atlas · variable sprite rectangles</div></div>
+      </div>
+    </article>
+    <article>
+      <div class="art"><img src="../../client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/images/enemies/skeleton.png" alt="Original Flare skeleton directional-animation atlas"></div>
+      <div class="body">
+        <span class="tag good">Matching character family</span>
+        <h3>Skeleton · role contrast</h3>
+        <p>Shares Flare’s authored RPG rendering and metadata format. Idle, run, melee, casting, ranged, block, hit and death clips support a fast test of silhouette and motion at the match camera scale.</p>
+        <div class="meta"><div><strong>Creator</strong>Flare project artists, with sword concept by Misha per upstream credits</div><div><strong>Price / license</strong>Free · CC BY-SA 3.0</div><div><strong>Perspective</strong>Isometric 2D</div><div><strong>Animation / layout</strong>8 facings · packed atlas + frame table</div></div>
+      </div>
+    </article>
+    <article>
+      <div class="art"><img src="../../client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/images/npcs/knight.png" alt="Original Flare knight idle sprite atlas"></div>
+      <div class="body">
+        <span class="tag">Player base reference</span>
+        <h3>Armoured knight · idle reference</h3>
+        <p>Eight-direction stance atlas. The full player animation set is supplied as coordinated, individually authored male and female body, head, hands, feet and weapon layers; its source definitions include run and sword swing timing.</p>
+        <div class="meta"><div><strong>Creator</strong>Flare project artists; attribution source is preserved</div><div><strong>Price / license</strong>Free · CC BY-SA 3.0</div><div><strong>Perspective</strong>Isometric 2D</div><div><strong>Animation / layout</strong>NPC stance only · player layers add walk/run/swing</div></div>
+      </div>
+    </article>
+    <article class="wide">
+      <div class="art"><img src="../../client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/images/tilesets/tileset_dungeon.png" alt="Original Flare hand-painted dungeon sprite atlas"></div>
+      <div class="body">
+        <span class="tag good">Primary environment source</span><span class="tag">tile pivots included</span>
+        <h3>Dungeon atlas · stone, props and transitions</h3>
+        <p>One authored fantasy environment family, with the official tile definition: atlas rectangles, tile IDs, anchors and small animated tile groups. Use only pieces that fit Roguehalla’s authoritative map footprints; build extra world texture around those shapes.</p>
+        <p><a href="https://github.com/flareteam/flare-game/blob/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/tilesetdefs/tileset_dungeon.txt">Pinned tile definition</a> · <a href="https://github.com/flareteam/flare-game/wiki/Credits">component credits and license details</a></p>
+        <div class="meta"><div><strong>Creator</strong>Flare artists and credited asset contributors</div><div><strong>Price / license</strong>Free · CC BY-SA 3.0 project artwork; per-source credits retained</div><div><strong>Perspective</strong>Isometric / 2.5D tiles and props</div><div><strong>Animation / layout</strong>Static atlas plus animated tiles · source coordinates/pivots</div></div>
+      </div>
+    </article>
+  </div>
+
+  <h2>Character construction source</h2>
+  <div class="grid">
+    <article><div class="art"><img src="../../client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/images/avatar/male/plate_cuirass.png" alt="Original Flare male plate cuirass directional animation layer"></div><div class="body"><h3>Male plate armor layers</h3><p>Dark metal plate cuirass shown from the original directional atlas, paired with matching helm, gauntlets, greaves and boots. Original frame anchors and animation definitions are preserved unchanged. <a href="https://github.com/flareteam/flare-game/blob/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/images/avatar/male/plate_cuirass.png">Pinned official image source</a>.</p><div class="meta"><div><strong>Creator</strong>Flare avatar art; no individual artist named in official credits</div><div><strong>Price / license</strong>Free · CC BY-SA 3.0</div><div><strong>Perspective</strong>Isometric 2D</div><div><strong>Animation / layout</strong>Layered animation set · packed PNG atlases + metadata</div></div></div></article>
+    <article><div class="art"><img src="../../client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/images/avatar/female/plate_cuirass.png" alt="Original Flare female plate cuirass directional animation layer"></div><div class="body"><h3>Female plate armor layers</h3><p>Matching female plate cuirass atlas, with the same complete helm, gauntlets, greaves and boots set. Original frame anchors and animation definitions are preserved unchanged. <a href="https://github.com/flareteam/flare-game/blob/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/images/avatar/female/plate_cuirass.png">Pinned official image source</a>.</p><div class="meta"><div><strong>Creator</strong>Flare avatar art; no individual artist named in official credits</div><div><strong>Price / license</strong>Free · CC BY-SA 3.0</div><div><strong>Perspective</strong>Isometric 2D</div><div><strong>Animation / layout</strong>Layered animation set · packed PNG atlases + metadata</div></div></div></article>
+  </div>
+
+  <h2>Composition rules for the demo</h2>
+  <table><thead><tr><th>Layer</th><th>Direction</th><th>Use in the match</th></tr></thead><tbody>
+    <tr><td>Ground</td><td>Charcoal earth, old stone, narrow warm highlights</td><td>Keep the floor darker and lower-contrast than players, mob outlines and pickup indicators.</td></tr>
+    <tr><td>Players</td><td>Different silhouettes, armor layers and faction emblems</td><td>Use faction hues as trim and badge colour. Keep names, HP and active casts unmistakable.</td></tr>
+    <tr><td>Combat effects</td><td>Fewer, clearer strokes; short ember, frost and violet bursts</td><td>Keep every effect attached to a server-delivered event or state. Respect reduced-motion and actor visibility rules.</td></tr>
+    <tr><td>Environment</td><td>Dungeon stone as the first polished stage</td><td>Keep authoritative footprint edges visible; use purely visual dressing outside the collision truth layer.</td></tr>
+    <tr><td>UI and audio</td><td>Original Roguehalla typography, panels and score; selected Flare music and effects</td><td>Music, ambience and SFX are a small human-created, free Flare sample with per-file credits and licenses documented separately. UI remains original.</td></tr>
+  </tbody></table>
+  <div class="callout"><strong>Free-art coverage gap.</strong> The selected family supplies rich characters and a dungeon environment, but does not provide a complete custom Roguehalla UI or all five faction-specific hero designs. Bridge those gaps with the existing procedural geometry, original faction marks, palette, lighting and bespoke UI. Review any broader paid art brief only if free-source coverage still proves inadequate; no price or budget is proposed here.</div>
+
+  <h2>License and provenance</h2>
+  <div class="license"><strong>Selected source set: Flare game artwork</strong><p>Downloaded directly from the official <a href="https://github.com/flareteam/flare-game/tree/af6eee6d339ac98011864bfe89da837fe7769c28">flareteam/flare-game repository</a> at commit <code>af6eee6d339ac98011864bfe89da837fe7769c28</code>. The repository’s official <a href="https://github.com/flareteam/flare-game/wiki/Credits">credits</a> state that Flare game art is CC BY-SA 3.0, with later versions permitted, and list specific contributor/source exceptions. The source license, credits and animation/tile metadata are retained under <a href="../../client-unity/UnityProject/Assets/Art/ThirdParty/Flare/">Assets/Art/ThirdParty/Flare</a>. No image was recoloured, cropped or otherwise changed for this board.</p><p>Adapted sprites must keep artist/source credit, identify changes, and remain available under the applicable share-alike terms. The share-alike applies to adapted art files; it does not extend to unrelated game code. Check <code>THIRD_PARTY_ASSETS.md</code> before redistributing or changing the art files.</p><p class="small">The Unity Asset Store forest sample from the earlier search was omitted from this selected family: its standard Asset Store EULA is distinct from open-source art, and the page does not establish a complete human-authored five-faction set. This board shows the actual imported source family, not a promise that every ready-made image is a final in-game choice.</p></div>
+
+  <footer>Roguehalla art direction · one polished live-match slice · pure 2D presentation with a 2.5D visual read. Rust remains authoritative for gameplay, geometry and visibility.</footer>
+</main>
+</body>
+</html>

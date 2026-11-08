@@ -65,11 +65,31 @@ namespace Roguehalla.Editor
             PlayerSettings.WebGL.compressionFormat = WebGLCompressionFormat.Disabled;
             PlayerSettings.WebGL.threadsSupport = false;
             PlayerSettings.WebGL.decompressionFallback = false;
+            PlayerSettings.WebGL.template = "PROJECT:Roguehalla";
             PlayerSettings.SetUseDefaultGraphicsAPIs(BuildTarget.WebGL, true); // WebGL2 baseline
             var report = BuildPipeline.BuildPlayer(new BuildPlayerOptions { scenes = new[] { ScenePath }, locationPathName = "Build/Web", target = BuildTarget.WebGL, options = BuildOptions.None });
             Debug.Log("WebGL build: " + report.summary.result + " -> Build/Web; bytes=" + report.summary.totalSize);
             if (report.summary.result != BuildResult.Succeeded)
                 throw new BuildFailedException("WebGL build failed: " + report.summary.result);
+            CopyNotices();
+        }
+
+        static void CopyNotices()
+        {
+            const string destination = "Build/Web/Licenses";
+            Directory.CreateDirectory(destination);
+            foreach (var pair in new[]
+            {
+                new[] { "../../LICENSE", "Roguehalla-MIT.txt" },
+                new[] { "Assets/Art/ThirdParty/Flare/Raw/LICENSE.txt", "Flare-CC-BY-SA-3.0.txt" },
+                new[] { "Assets/Art/ThirdParty/Flare/Raw/CREDITS.txt", "Flare-Credits.txt" },
+                new[] { "Assets/Art/ThirdParty/Flare/Audio/NOTICE.txt", "Flare-Audio-Notice.txt" },
+                new[] { "Assets/Art/ThirdParty/Fonts/OFL-CinzelDecorative.txt", "CinzelDecorative-OFL.txt" },
+                new[] { "../THIRD_PARTY_ASSETS.md", "Third-Party-Assets.md" },
+                new[] { "Assets/TextMesh Pro/License.Unity.md", "Unity-Companion.md" },
+                new[] { "Assets/TextMesh Pro/Fonts/LiberationSans - OFL.txt", "LiberationSans-OFL.txt" },
+                new[] { "Assets/TextMesh Pro/Sprites/EmojiOne Attribution.txt", "EmojiOne-Attribution.txt" },
+            }) if (File.Exists(pair[0])) File.Copy(pair[0], Path.Combine(destination, pair[1]), true);
         }
     }
 }

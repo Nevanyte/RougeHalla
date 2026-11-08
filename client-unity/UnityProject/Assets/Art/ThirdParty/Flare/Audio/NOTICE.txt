@@ -1,0 +1,17 @@
+FLARE AUDIO ASSET NOTICE
+
+Source: Flare: Empyrean Campaign, official repository
+https://github.com/flareteam/flare-game/tree/af6eee6d339ac98011864bfe89da837fe7769c28
+Per-file credits and licenses: https://github.com/flareteam/flare-game/wiki/Credits
+
+music/battle_theme.ogg — Music by remaxim. CC BY-SA 3.0.
+music/dungeon_theme.ogg — Music by remaxim. CC BY-SA 3.0.
+ambience/bird_twitter_loop.ogg — Sound by Chris Castiglione (alienistcog). CC0.
+sfx/melee_attack.ogg — Artist not identified in the official credits ledger. No per-file ledger entry; included under Flare art's general CC BY-SA 3.0 license.
+sfx/zombie_hit.ogg — Sound by Ljudbank. Public Domain / CC0.
+sfx/inventory_book.ogg — Sound by Cori Samuel. Public Domain / CC0.
+sfx/inventory_object.ogg — Sound by Michel Baradari. CC BY 3.0.
+sfx/inventory_coins.ogg — Sound by artisticdude. Public Domain / CC BY 3.0.
+
+Refer to manifest.json for exact source paths, pinned revision, Git blob IDs and SHA-256 hashes. The upstream license text is available at:
+https://github.com/flareteam/flare-game/blob/af6eee6d339ac98011864bfe89da837fe7769c28/LICENSE.txt

@@ -1,0 +1,317 @@
+{
+  "source_repository": "https://github.com/flareteam/flare-game",
+  "source_commit": "af6eee6d339ac98011864bfe89da837fe7769c28",
+  "credit_ledger": "https://github.com/flareteam/flare-game/wiki/Credits",
+  "license_text": "https://github.com/flareteam/flare-game/blob/af6eee6d339ac98011864bfe89da837fe7769c28/LICENSE.txt",
+  "outfit": "male plate armor",
+  "composed_layers": [
+    "head_short (existing male)",
+    "plate_helm",
+    "plate_cuirass",
+    "plate_gauntlets",
+    "plate_greaves",
+    "plate_boots",
+    "head_long (existing female)",
+    "female plate_helm",
+    "female plate_cuirass",
+    "female plate_gauntlets",
+    "female plate_greaves",
+    "female plate_boots"
+  ],
+  "assets": [
+    {
+      "file": "images/avatar/male/plate_helm.png",
+      "asset_type": "image",
+      "source_path": "mods/fantasycore/images/avatar/male/plate_helm.png",
+      "source_url": "https://github.com/flareteam/flare-game/blob/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/images/avatar/male/plate_helm.png",
+      "upstream_git_blob_sha1": "ce55be4dad26f2e7c08ce18603918963a42cc66a",
+      "sha256": "7e03dc8a70d958757c738b6181031b58c11118a55069b92dbbf16c69b9f99d20",
+      "bytes": 1053659,
+      "credit": "No separate artist listed for this file in official Credits ledger",
+      "license": "CC BY-SA 3.0 (Flare project art; no per-file exception listed)"
+    },
+    {
+      "file": "animations/avatar/male/plate_helm.txt",
+      "asset_type": "animation_definition",
+      "source_path": "mods/fantasycore/animations/avatar/male/plate_helm.txt",
+      "source_url": "https://github.com/flareteam/flare-game/blob/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/animations/avatar/male/plate_helm.txt",
+      "upstream_git_blob_sha1": "c01719469e487598011983e818b3b05bad742a23",
+      "sha256": "38e4dd0cc73e4c140bbb9c07a29035975ad765cb383ba492e380ed31b9bfd048",
+      "bytes": 13098,
+      "credit": "No separate artist listed for this file in official Credits ledger",
+      "license": "CC BY-SA 3.0 (Flare project art; no per-file exception listed)"
+    },
+    {
+      "file": "images/avatar/male/plate_cuirass.png",
+      "asset_type": "image",
+      "source_path": "mods/fantasycore/images/avatar/male/plate_cuirass.png",
+      "source_url": "https://github.com/flareteam/flare-game/blob/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/images/avatar/male/plate_cuirass.png",
+      "upstream_git_blob_sha1": "6811024254132e21025c93f1b52e1aa5ee32a16e",
+      "sha256": "f03b991666a5172a8c0e1e198bf1afdea102b388b98094a5f7ad913c82f453cd",
+      "bytes": 2186046,
+      "credit": "No separate artist listed for this file in official Credits ledger",
+      "license": "CC BY-SA 3.0 (Flare project art; no per-file exception listed)"
+    },
+    {
+      "file": "animations/avatar/male/plate_cuirass.txt",
+      "asset_type": "animation_definition",
+      "source_path": "mods/fantasycore/animations/avatar/male/plate_cuirass.txt",
+      "source_url": "https://github.com/flareteam/flare-game/blob/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/animations/avatar/male/plate_cuirass.txt",
+      "upstream_git_blob_sha1": "f35196942df738635854656c890b3d2d2735974b",
+      "sha256": "d82405e8d005ad30c73ab9388826f4b61d02cf4753586f3feb9e62f832db8388",
+      "bytes": 13273,
+      "credit": "No separate artist listed for this file in official Credits ledger",
+      "license": "CC BY-SA 3.0 (Flare project art; no per-file exception listed)"
+    },
+    {
+      "file": "images/avatar/male/plate_gauntlets.png",
+      "asset_type": "image",
+      "source_path": "mods/fantasycore/images/avatar/male/plate_gauntlets.png",
+      "source_url": "https://github.com/flareteam/flare-game/blob/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/images/avatar/male/plate_gauntlets.png",
+      "upstream_git_blob_sha1": "23d04dc0bd1f5bf59c08c9f829f8c7615fdebcf8",
+      "sha256": "3add05fa1d173476af6a23758096fd3800637243ea87769576c1975310a3565d",
+      "bytes": 1068368,
+      "credit": "No separate artist listed for this file in official Credits ledger",
+      "license": "CC BY-SA 3.0 (Flare project art; no per-file exception listed)"
+    },
+    {
+      "file": "animations/avatar/male/plate_gauntlets.txt",
+      "asset_type": "animation_definition",
+      "source_path": "mods/fantasycore/animations/avatar/male/plate_gauntlets.txt",
+      "source_url": "https://github.com/flareteam/flare-game/blob/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/animations/avatar/male/plate_gauntlets.txt",
+      "upstream_git_blob_sha1": "8efb65c75e67fc0c7f2745f234318a39c764c97f",
+      "sha256": "eafa027686cfc3c6d0a9b26c8da9462294c9e68000a61f21a1dd58d863fbc62e",
+      "bytes": 13246,
+      "credit": "No separate artist listed for this file in official Credits ledger",
+      "license": "CC BY-SA 3.0 (Flare project art; no per-file exception listed)"
+    },
+    {
+      "file": "images/avatar/male/plate_greaves.png",
+      "asset_type": "image",
+      "source_path": "mods/fantasycore/images/avatar/male/plate_greaves.png",
+      "source_url": "https://github.com/flareteam/flare-game/blob/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/images/avatar/male/plate_greaves.png",
+      "upstream_git_blob_sha1": "dba6958d5058bb6788613f69b4ae365dfb463db9",
+      "sha256": "78d881710342ee45f6b0ec19056b224ade411d83321848681d24eeb123c2b7de",
+      "bytes": 1393681,
+      "credit": "No separate artist listed for this file in official Credits ledger",
+      "license": "CC BY-SA 3.0 (Flare project art; no per-file exception listed)"
+    },
+    {
+      "file": "animations/avatar/male/plate_greaves.txt",
+      "asset_type": "animation_definition",
+      "source_path": "mods/fantasycore/animations/avatar/male/plate_greaves.txt",
+      "source_url": "https://github.com/flareteam/flare-game/blob/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/animations/avatar/male/plate_greaves.txt",
+      "upstream_git_blob_sha1": "cbe04096599fca87d5b5964a3e7cf6e1e6d4f3eb",
+      "sha256": "d4fd9462bcc6446ff79d6b6ca60fd687d210ea9f2a1a35a91b957c9ce89e7603",
+      "bytes": 12213,
+      "credit": "No separate artist listed for this file in official Credits ledger",
+      "license": "CC BY-SA 3.0 (Flare project art; no per-file exception listed)"
+    },
+    {
+      "file": "images/avatar/male/plate_boots.png",
+      "asset_type": "image",
+      "source_path": "mods/fantasycore/images/avatar/male/plate_boots.png",
+      "source_url": "https://github.com/flareteam/flare-game/blob/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/images/avatar/male/plate_boots.png",
+      "upstream_git_blob_sha1": "0d763dd88dffd54e01793f985dd17a3c7737c142",
+      "sha256": "6b271d3be74734b8e7a0eba82f8431b2c63f918414107aee910677e93b20e67e",
+      "bytes": 1500620,
+      "credit": "No separate artist listed for this file in official Credits ledger",
+      "license": "CC BY-SA 3.0 (Flare project art; no per-file exception listed)"
+    },
+    {
+      "file": "animations/avatar/male/plate_boots.txt",
+      "asset_type": "animation_definition",
+      "source_path": "mods/fantasycore/animations/avatar/male/plate_boots.txt",
+      "source_url": "https://github.com/flareteam/flare-game/blob/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/animations/avatar/male/plate_boots.txt",
+      "upstream_git_blob_sha1": "4381eb3583e15363bd7ea1a6a13d1708c36137ed",
+      "sha256": "894687377ba0117586f8890ba652c273e796c0a755175718dcc9aa14188b541f",
+      "bytes": 12487,
+      "credit": "No separate artist listed for this file in official Credits ledger",
+      "license": "CC BY-SA 3.0 (Flare project art; no per-file exception listed)"
+    },
+    {
+      "file": "images/avatar/female/plate_helm.png",
+      "asset_type": "image",
+      "source_path": "mods/fantasycore/images/avatar/female/plate_helm.png",
+      "source_url": "https://github.com/flareteam/flare-game/blob/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/images/avatar/female/plate_helm.png",
+      "upstream_git_blob_sha1": "6b2da4c637db40d99f3011201f7df67340bbc8a3",
+      "sha256": "97d5a36c730899de56f569e1b3c6431e68b01af8399810c781d70f853ab1fbb0",
+      "bytes": 956640,
+      "credit": "No separate artist listed for this file in official Credits ledger",
+      "license": "CC BY-SA 3.0 (Flare project art; no per-file exception listed)"
+    },
+    {
+      "file": "animations/avatar/female/plate_helm.txt",
+      "asset_type": "animation_definition",
+      "source_path": "mods/fantasycore/animations/avatar/female/plate_helm.txt",
+      "source_url": "https://github.com/flareteam/flare-game/blob/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/animations/avatar/female/plate_helm.txt",
+      "upstream_git_blob_sha1": "1ad214c4cecf9f6ec9994c62a1d84eae6c8b27f2",
+      "sha256": "15f184b5ca202ecf0390a5f5d66c70f05a736f64d7afaf99d5adca06c5d77558",
+      "bytes": 13015,
+      "credit": "No separate artist listed for this file in official Credits ledger",
+      "license": "CC BY-SA 3.0 (Flare project art; no per-file exception listed)"
+    },
+    {
+      "file": "images/avatar/female/plate_cuirass.png",
+      "asset_type": "image",
+      "source_path": "mods/fantasycore/images/avatar/female/plate_cuirass.png",
+      "source_url": "https://github.com/flareteam/flare-game/blob/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/images/avatar/female/plate_cuirass.png",
+      "upstream_git_blob_sha1": "c5c157223fae84c3b6b579e89317b8f8a1466792",
+      "sha256": "a779b051f3379688565ee66cf80e4aa7a225779f591ecab7782eb9afb20e056b",
+      "bytes": 1870537,
+      "credit": "No separate artist listed for this file in official Credits ledger",
+      "license": "CC BY-SA 3.0 (Flare project art; no per-file exception listed)"
+    },
+    {
+      "file": "animations/avatar/female/plate_cuirass.txt",
+      "asset_type": "animation_definition",
+      "source_path": "mods/fantasycore/animations/avatar/female/plate_cuirass.txt",
+      "source_url": "https://github.com/flareteam/flare-game/blob/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/animations/avatar/female/plate_cuirass.txt",
+      "upstream_git_blob_sha1": "1bc446a375bb2ea3ce2d76cd1fdd8c981dae1bfc",
+      "sha256": "c0ebbb79f328cf8087d5a0f13d7ed679aa1c9a6026141fda0c30c038578f5f90",
+      "bytes": 13187,
+      "credit": "No separate artist listed for this file in official Credits ledger",
+      "license": "CC BY-SA 3.0 (Flare project art; no per-file exception listed)"
+    },
+    {
+      "file": "images/avatar/female/plate_gauntlets.png",
+      "asset_type": "image",
+      "source_path": "mods/fantasycore/images/avatar/female/plate_gauntlets.png",
+      "source_url": "https://github.com/flareteam/flare-game/blob/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/images/avatar/female/plate_gauntlets.png",
+      "upstream_git_blob_sha1": "fdfeebe69026a3bd49a5cbbea02c7c52a65375cf",
+      "sha256": "6f6c3aafac15525637bc09f10de613ce133fabb5bb1b7b3febe4e2aa3ea78d0e",
+      "bytes": 982011,
+      "credit": "No separate artist listed for this file in official Credits ledger",
+      "license": "CC BY-SA 3.0 (Flare project art; no per-file exception listed)"
+    },
+    {
+      "file": "animations/avatar/female/plate_gauntlets.txt",
+      "asset_type": "animation_definition",
+      "source_path": "mods/fantasycore/animations/avatar/female/plate_gauntlets.txt",
+      "source_url": "https://github.com/flareteam/flare-game/blob/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/animations/avatar/female/plate_gauntlets.txt",
+      "upstream_git_blob_sha1": "152f4c59c0bcba1da3281a0e31eebd705a8f7e47",
+      "sha256": "e992b1e481d15bb84dd1cc4695149ca86fa9b463c68c1404d186db41682fe9dd",
+      "bytes": 13070,
+      "credit": "No separate artist listed for this file in official Credits ledger",
+      "license": "CC BY-SA 3.0 (Flare project art; no per-file exception listed)"
+    },
+    {
+      "file": "images/avatar/female/plate_greaves.png",
+      "asset_type": "image",
+      "source_path": "mods/fantasycore/images/avatar/female/plate_greaves.png",
+      "source_url": "https://github.com/flareteam/flare-game/blob/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/images/avatar/female/plate_greaves.png",
+      "upstream_git_blob_sha1": "4176466e0e5a802b99bec9de1f246cf495d0c87f",
+      "sha256": "28e07579cca35d333c6c9cedbb72689dfe972512778e93b479f3ef47c996bd86",
+      "bytes": 1183884,
+      "credit": "No separate artist listed for this file in official Credits ledger",
+      "license": "CC BY-SA 3.0 (Flare project art; no per-file exception listed)"
+    },
+    {
+      "file": "animations/avatar/female/plate_greaves.txt",
+      "asset_type": "animation_definition",
+      "source_path": "mods/fantasycore/animations/avatar/female/plate_greaves.txt",
+      "source_url": "https://github.com/flareteam/flare-game/blob/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/animations/avatar/female/plate_greaves.txt",
+      "upstream_git_blob_sha1": "9c528328fa86d6d201a81668dd45739b18513d5e",
+      "sha256": "02e8580d4b3f945330ce298e446dd0b362bb45466f86e631918eba9638557935",
+      "bytes": 12214,
+      "credit": "No separate artist listed for this file in official Credits ledger",
+      "license": "CC BY-SA 3.0 (Flare project art; no per-file exception listed)"
+    },
+    {
+      "file": "images/avatar/female/plate_boots.png",
+      "asset_type": "image",
+      "source_path": "mods/fantasycore/images/avatar/female/plate_boots.png",
+      "source_url": "https://github.com/flareteam/flare-game/blob/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/images/avatar/female/plate_boots.png",
+      "upstream_git_blob_sha1": "64e6b2d63260f17d67b28ec6602afb08691abf95",
+      "sha256": "ddc1a580f739a4a2ad7e14de41d411396e637ac8fe68164268b8230e71cf3ae5",
+      "bytes": 1280338,
+      "credit": "No separate artist listed for this file in official Credits ledger",
+      "license": "CC BY-SA 3.0 (Flare project art; no per-file exception listed)"
+    },
+    {
+      "file": "animations/avatar/female/plate_boots.txt",
+      "asset_type": "animation_definition",
+      "source_path": "mods/fantasycore/animations/avatar/female/plate_boots.txt",
+      "source_url": "https://github.com/flareteam/flare-game/blob/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/animations/avatar/female/plate_boots.txt",
+      "upstream_git_blob_sha1": "82761e736a3151fe6fc85437f3efa8d53e5034a8",
+      "sha256": "3f2b47d99732e4d716394d0210c7c1f702f82c98a7c78aea8519831cf7acc12c",
+      "bytes": 12298,
+      "credit": "No separate artist listed for this file in official Credits ledger",
+      "license": "CC BY-SA 3.0 (Flare project art; no per-file exception listed)"
+    }
+  ],
+  "outfits": {
+    "male": "plate_armor",
+    "female": "plate_armor"
+  },
+  "heads_already_in_project": [
+    {
+      "gender": "male",
+      "file": "images/avatar/male/head_short.png",
+      "source_path": "mods/fantasycore/images/avatar/male/head_short.png",
+      "source_url": "https://github.com/flareteam/flare-game/blob/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/images/avatar/male/head_short.png",
+      "upstream_git_blob_sha1": "c94be4cfb2e3a804eef01a7857f7cef422a19ebb",
+      "sha256": "6505e19ae262a2feedbc93fe42466214633a5387b0d4b18a52f182dfb860a655",
+      "bytes": 589427,
+      "already_in_project": true,
+      "credit": "No separate artist listed in official Credits ledger",
+      "license": "CC BY-SA 3.0 (Flare project art; no per-file exception listed)"
+    },
+    {
+      "gender": "male",
+      "file": "animations/avatar/male/head_short.txt",
+      "source_path": "mods/fantasycore/animations/avatar/male/head_short.txt",
+      "source_url": "https://github.com/flareteam/flare-game/blob/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/animations/avatar/male/head_short.txt",
+      "upstream_git_blob_sha1": "b82273f4ddc4a128f25dfd429f641f8c1923013f",
+      "sha256": "e7e057ddae7278b25938e48290b38cc16ef63a6d0c4142f12051a5998b2e6362",
+      "bytes": 12942,
+      "already_in_project": true,
+      "credit": "No separate artist listed in official Credits ledger",
+      "license": "CC BY-SA 3.0 (Flare project art; no per-file exception listed)"
+    },
+    {
+      "gender": "female",
+      "file": "images/avatar/female/head_long.png",
+      "source_path": "mods/fantasycore/images/avatar/female/head_long.png",
+      "source_url": "https://github.com/flareteam/flare-game/blob/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/images/avatar/female/head_long.png",
+      "upstream_git_blob_sha1": "01979981596028eda77c9a878f0307d4a403cf7f",
+      "sha256": "a167bc2868acec2ba5f3cddb915b83e692b39307ccd232e7fc63b9fb892f3352",
+      "bytes": 713878,
+      "already_in_project": true,
+      "credit": "No separate artist listed in official Credits ledger",
+      "license": "CC BY-SA 3.0 (Flare project art; no per-file exception listed)"
+    },
+    {
+      "gender": "female",
+      "file": "animations/avatar/female/head_long.txt",
+      "source_path": "mods/fantasycore/animations/avatar/female/head_long.txt",
+      "source_url": "https://github.com/flareteam/flare-game/blob/af6eee6d339ac98011864bfe89da837fe7769c28/mods/fantasycore/animations/avatar/female/head_long.txt",
+      "upstream_git_blob_sha1": "808791107fdc39223457b8df052adc513096ba66",
+      "sha256": "4a3f9fa6818d4ad51dd6cbcf1b33f9a8c43fced3093cf6de59451b8b19386a01",
+      "bytes": 13024,
+      "already_in_project": true,
+      "credit": "No separate artist listed in official Credits ledger",
+      "license": "CC BY-SA 3.0 (Flare project art; no per-file exception listed)"
+    }
+  ],
+  "player_layers": {
+    "male": {
+      "head_base": "Raw/images/avatar/male/head_short.png",
+      "helmet": "Raw/images/avatar/male/plate_helm.png",
+      "chest": "Raw/images/avatar/male/plate_cuirass.png",
+      "hands": "Raw/images/avatar/male/plate_gauntlets.png",
+      "legs": "Raw/images/avatar/male/plate_greaves.png",
+      "feet": "Raw/images/avatar/male/plate_boots.png",
+      "animation_definitions": "Raw/animations/avatar/male/plate_*.txt"
+    },
+    "female": {
+      "head_base": "Raw/images/avatar/female/head_long.png",
+      "helmet": "Raw/images/avatar/female/plate_helm.png",
+      "chest": "Raw/images/avatar/female/plate_cuirass.png",
+      "hands": "Raw/images/avatar/female/plate_gauntlets.png",
+      "legs": "Raw/images/avatar/female/plate_greaves.png",
+      "feet": "Raw/images/avatar/female/plate_boots.png",
+      "animation_definitions": "Raw/animations/avatar/female/plate_*.txt"
+    }
+  }
+}

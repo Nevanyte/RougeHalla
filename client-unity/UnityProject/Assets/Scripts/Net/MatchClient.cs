@@ -44,7 +44,7 @@ namespace Roguehalla.Client
 
         public void Join(string nickname, int faction)
         {
-            if (Session != null) Session.Leave();
+            if (Session != null) { Session.FxReceived -= PresentFx; Session.Leave(); }
             Profile = string.IsNullOrWhiteSpace(nickname) ? Profile : nickname.Trim();
             Faction = faction;
             _actors.Clear(); _steering = false; _attackHeld = false;
@@ -61,12 +61,13 @@ namespace Roguehalla.Client
                 Debug.Log("[net] " + state + (Session.RejectCode.HasValue ? " " + Session.RejectCode + ": " + Session.RejectReason : "") + (Session.Error != null ? " " + Session.Error : ""));
             };
             Hud.Bind(Session);
+            Session.FxReceived += PresentFx;
             Session.Connect();
         }
 
         public void Leave()
         {
-            if (Session != null) Session.Leave();
+            if (Session != null) { Session.FxReceived -= PresentFx; Session.Leave(); }
             if (Arena != null) Destroy(Arena.gameObject);
             Session = null;
             Hud.ShowMenu();
@@ -80,7 +81,9 @@ namespace Roguehalla.Client
             _attackHeld = _steering = false;
         }
 
-        void OnDestroy() { if (Session != null) Session.Leave(); }
+        void OnDestroy() { if (Session != null) { Session.FxReceived -= PresentFx; Session.Leave(); } }
+
+        void PresentFx(ServerMsg.Fx fx) { if (Arena != null) Arena.ConfirmedFx(fx); }
 
         void Update()
         {
@@ -193,7 +196,7 @@ namespace Roguehalla.Client
             foreach (var actor in _targetActors)
             {
                 if (actor.Id == Session.PlayerId) continue;
-                var screen = Cam.WorldToScreenPoint(new Vector3(actor.X * ArenaView.Scale, 0, -actor.Y * ArenaView.Scale));
+                var screen = Cam.WorldToScreenPoint(ArenaView.WorldPoint(actor.X, actor.Y));
                 if (screen.z <= 0) continue;
                 float d = ((Vector2)screen - pointer).sqrMagnitude;
                 if (d < best) { best = d; id = actor.Id; }
@@ -204,6 +207,8 @@ namespace Roguehalla.Client
         void Present()
         {
             if (Arena == null) return;
+            // Renderer membership is refreshed independently of optional audio components.
+            Arena.RefreshVisibility(Session);
             Arena.PresentCollections(Session.Collections);
             Arena.Present(_actors, Session.Me, Session.Motion, _aimAngle);
             if (_traceLatency)
