@@ -134,9 +134,13 @@ namespace Roguehalla.Client
         /// <summary>Latest membership wins over delayed interpolation, before the frame is rendered.</summary>
         public void RefreshVisibility(Session session)
         {
-            if(session==null || session.Snapshots.Count==0) return;
-            session.Snapshots.Sample(session.Snapshots.NewestMs,_latestMembership);
-            RetainObservedActors(_latestMembership,session.Me);
+            _latestMembership.Clear();
+            if(session!=null && session.Snapshots.Count>0)
+            {
+                session.Snapshots.Sample(session.Snapshots.NewestMs,_latestMembership);
+                RetainObservedActors(_latestMembership,session.Me);
+            }
+            else RetainObservedActors(_latestMembership,null); // Welcome/resume resets the observation timeline.
         }
         public void RetainObservedActors(List<InterpActor> current,SelfView me)
         {

@@ -162,6 +162,9 @@ namespace Roguehalla.Client.Tests
             present.Invoke(client,null);
             Assert.That(arena.IsObserved(79),Is.True);
             foreach(Transform effect in effects) Assert.That(effect.gameObject.activeSelf,Is.False,"an absent subject's queued cue must not replay later");
+            session.Snapshots.Clear(); // Same timeline reset performed by a resume Welcome.
+            present.Invoke(client,null);
+            Assert.That(arena.IsObserved(79),Is.False,"a new timeline cannot reuse stale NPC membership before its first snapshot");
         }
 
         sealed class SilentTransport : ITransport
