@@ -125,8 +125,7 @@ pub(crate) enum HookArgs {
     /// The run just ended: results are out and the phase is ended (legacy `runEnded(world)`).
     RunEnded,
     /// A regional mob died and its spoils were paid (legacy `mobKilled(world, killerRt, mob)`): the killer's runtime
-    /// and the dead mob's identity/location. The source chests and quests links stay Pending (P-CARDS-2/P-QUEST-1);
-    /// this packet owns only the producer call site at the source position.
+    /// and the dead mob's identity/location. The chests link is ported (P-CARDS-2); the quests link stays Pending.
     MobKilled {
         killer: PlayerId,
         mob_type: crate::mob_catalog::MobTypeId,
@@ -135,10 +134,13 @@ pub(crate) enum HookArgs {
         camp: i32,
         elite: bool,
         at: Vec2,
+        /// The camp's contributors as of the kill: the source `snapshotElitePickers` set, taken before a clear forgets
+        /// them and filtered to eligible pickers when the chest link runs at payout. Empty for a normal mob.
+        contributors: Vec<PlayerId>,
     },
     /// The last member of a regional camp died (legacy `campCleared(world, camp)`, the camp's 0-based index): the
-    /// clear was paid after the ledger pass. The source chest/heal/quest/bruiser links stay Pending (P-CARDS-2,
-    /// P-MOBS-2, P-QUEST-1, P-FACTION-5); this packet owns only the producer call site.
+    /// clear was paid after the ledger pass. Its source consumers are the clear heal (P-MOBS-2), quests (P-QUEST-1) and
+    /// the bruiser passives (P-FACTION-5); elite **chests** are dropped by the `mobKilled` link, not this one.
     CampCleared {
         camp: u32,
     },

@@ -1,0 +1,11 @@
+--- a/crates/rh-sim/src/reward_chests/rules.rs
++++ b/crates/rh-sim/src/reward_chests/rules.rs
+@@ -14,7 +14,7 @@
+     tier_weights: [[50., 45., 5.], [10., 60., 30.]],
+     range: 96.,
+     lifetime_ms: 15000.,
+-    skip_heal_share: 0.15,
++    skip_heal_share: 0.10,
+     birth_hold_ticks: 1,
+     skip_gv: 3,
+     mob_gv_cap: 90,

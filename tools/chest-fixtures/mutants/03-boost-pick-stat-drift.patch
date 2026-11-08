@@ -1,0 +1,11 @@
+--- a/crates/rh-sim/src/reward_chests/mod.rs
++++ b/crates/rh-sim/src/reward_chests/mod.rs
+@@ -180,7 +180,7 @@
+ 
+ pub(crate) fn grant_boost(k: &MatchStatic, w: &mut World, id: PlayerId, boost: BoostId) -> bool {
+     let Some(i) = w.idx(id) else { return false };
+-    let count = &mut w.players[i].build.boosts[boost.index()];
++    let count = &mut w.players[i].build.boosts[(boost.index() + 1) % 8];
+     if u32::from(*count) >= crate::stat_fold::default_definition().chest_boost_max_picks {
+         return false;
+     }

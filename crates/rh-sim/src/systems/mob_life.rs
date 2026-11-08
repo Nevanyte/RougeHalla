@@ -402,39 +402,8 @@ pub(crate) fn pay(k: &MatchStatic, w: &mut World, ev: &mut Vec<Event>, a: Award)
             award_weapon(w, ev, &a);
         }
     }
-    if a.elite {
-        if let Some(c) = k
-            .arena
-            .map
-            .layers()
-            .and_then(|l| l.data().camps.get(a.camp as usize))
-        {
-            let at = if k.arena.map.is_solid(
-                (c.chest.x / TILE).floor() as i64,
-                (c.chest.y / TILE).floor() as i64,
-            ) {
-                Vec2::new(c.x, c.y)
-            } else {
-                Vec2::new(c.chest.x, c.chest.y)
-            };
-            let eligible: Vec<_> = a
-                .contributors
-                .into_iter()
-                .filter(|id| {
-                    w.player(*id).is_some_and(|p| {
-                        p.standing()
-                            && (mob_ai::territory(k, p.pos()) == a.camp + 1
-                                || crate::math::hypot(p.body.x - c.x, p.body.y - c.y)
-                                    <= CAMP_HEAL_RANGE)
-                    })
-                })
-                .collect();
-            crate::reward_chests::drop_augment(w, at, Some(a.camp as u16), a.zone, true, &eligible);
-        }
-    }
-    // Source payMobKill: credit, stat, the settled weapon awards, the chests link (the inline elite stand-in above) and
-    // finally the chainable `mobKilled` hook. The source chests/quests consumers remain Pending; the producer position
-    // and typed arguments are ported here so their owners chain onto the real call site.
+    // Source payMobKill: credit, stat, the settled weapon awards and the chainable `mobKilled` hook. The chests link
+    // (P-CARDS-2) runs inside the hook at its recorded chain position; the quests link stays Pending.
     crate::hooks::fire(
         &mut crate::hooks::Hx {
             stats: Default::default(),
@@ -450,6 +419,7 @@ pub(crate) fn pay(k: &MatchStatic, w: &mut World, ev: &mut Vec<Event>, a: Award)
             camp: a.camp as i32,
             elite: a.elite,
             at: a.at,
+            contributors: a.contributors,
         },
     );
 }

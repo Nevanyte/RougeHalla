@@ -1353,7 +1353,12 @@ static RUN_ENDED: [Link; 12] = [
     pending_link("walkHint.zeroAll", Mode::Append, Gate::WalkHints, "P-NET-2"),
 ];
 static MOB_KILLED: [Link; 2] = [
-    pending_link("chests.<arrow>", Mode::Append, Gate::Always, "P-CARDS-2"),
+    ported_link(
+        "chests.<arrow>",
+        Mode::Append,
+        Gate::Always,
+        crate::reward_chests::on_mob_killed,
+    ),
     pending_link(
         "quests.onMobKilled",
         Mode::Append,

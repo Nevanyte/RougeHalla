@@ -153,6 +153,7 @@ pub(crate) fn record_hook(w: &mut World, args: &HookArgs) {
             camp,
             elite,
             at,
+            ..
         } => Some(HookRecord::MobKilled {
             killer: *killer,
             mob_type: *mob_type,

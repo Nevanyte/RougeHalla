@@ -66,8 +66,7 @@ fn insert(w: &mut World, at: Vec2, options: [Option<OptionId>; 3], camp: Option<
     });
     id
 }
-/// Exact three distinct source boost choices, one actual reward draw per slot.
-#[allow(dead_code)] // serial integration: actual first-open stat-crate producer
+/// Exact three distinct source boost choices, one actual reward draw per slot (the first-open stat-crate producer).
 pub(crate) fn drop_stat(w: &mut World, at: Vec2) -> u32 {
     let mut pool = BoostId::ALL;
     let mut n = pool.len();
@@ -81,7 +80,6 @@ pub(crate) fn drop_stat(w: &mut World, at: Vec2) -> u32 {
     insert(w, at, options, None)
 }
 /// Source chest drop: the interactive augment pool of the eligible pickers, rolled with the reward RNG (exact draw order).
-#[allow(dead_code)] // serial integration: actual credited elite-death producer
 pub(crate) fn drop_augment(
     w: &mut World,
     at: Vec2,
@@ -105,6 +103,76 @@ pub(crate) fn drop_augment(
     }
     insert(w, at, options, camp)
 }
+/// Source `chests.onMobKilled` (legacy `chainHook(world, "mobKilled", ...)`): a credited elite's death drops its
+/// camp's shared augment chest at the camp's chest spot (the centre when that tile is solid), with the source's eligible
+/// pickers and exact reward draw order; a campless elite drops one at its body for the killer alone. The snapshot set
+/// arrives on the hook arguments because a clear forgets its contributors before the pass pays.
+pub(crate) fn on_mob_killed(hx: &mut crate::hooks::Hx, args: &crate::hooks::HookArgs) {
+    let crate::hooks::HookArgs::MobKilled {
+        camp,
+        elite,
+        zone,
+        at,
+        contributors,
+        ..
+    } = args
+    else {
+        return;
+    };
+    if !*elite {
+        return;
+    }
+    let k = hx.k;
+    if *camp >= 0 {
+        let camp = *camp as u32;
+        let Some(spot) = camp_chest_spot(k, camp) else {
+            return; // source rollChest: a camp the map does not have
+        };
+        let eligible: Vec<PlayerId> = contributors
+            .iter()
+            .copied()
+            .filter(|id| {
+                hx.w.player(*id)
+                    .is_some_and(|p| p.standing() && near_camp(k, camp, p.pos()))
+            })
+            .collect();
+        drop_augment(&mut *hx.w, spot, Some(camp as u16), *zone, true, &eligible);
+    } else {
+        // Source: an elite without a camp (a training/dummy death) drops at its body with no eligible pickers, so the
+        // conditional pool is empty and no card is held by all.
+        drop_augment(&mut *hx.w, *at, None, *zone, true, &[]);
+    }
+}
+
+fn camp_def(k: &MatchStatic, camp: u32) -> Option<&crate::mapdata::CampDef> {
+    k.arena
+        .map
+        .layers()
+        .and_then(|l| l.data().camps.get(camp as usize))
+}
+
+/// Source `chests.chestSpot`: the camp's chest tile, or its centre when that tile is solid.
+fn camp_chest_spot(k: &MatchStatic, camp: u32) -> Option<Vec2> {
+    let c = camp_def(k, camp)?;
+    let chest = Vec2::new(c.chest.x, c.chest.y);
+    let solid = k.arena.map.is_solid(
+        (chest.x / crate::constants::TILE).floor() as i64,
+        (chest.y / crate::constants::TILE).floor() as i64,
+    );
+    Some(if solid { Vec2::new(c.x, c.y) } else { chest })
+}
+
+/// Source `campHeal.nearCamp`: inside the camp's territory or within `CAMP_HEAL_RANGE` of its centre.
+fn near_camp(k: &MatchStatic, camp: u32, at: Vec2) -> bool {
+    if crate::systems::mob_ai::territory(k, at) == camp + 1 {
+        return true;
+    }
+    let Some(c) = camp_def(k, camp) else {
+        return true; // source: a camp with no centre counts everyone who fought it
+    };
+    crate::math::hypot(at.x - c.x, at.y - c.y) <= crate::constants::CAMP_HEAL_RANGE
+}
+
 pub(crate) fn grant_boost(k: &MatchStatic, w: &mut World, id: PlayerId, boost: BoostId) -> bool {
     let Some(i) = w.idx(id) else { return false };
     let count = &mut w.players[i].build.boosts[boost.index()];
@@ -290,5 +358,7 @@ pub(crate) fn validate_world(w: &World, near: impl Fn(f64, f64) -> bool) -> Resu
     Ok(())
 }
 
+#[cfg(test)]
+mod chest_runtime_tests;
 #[cfg(test)]
 mod tests;

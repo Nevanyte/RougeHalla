@@ -1,0 +1,21 @@
+--- a/crates/rh-sim/src/reward_chests/mod.rs
++++ b/crates/rh-sim/src/reward_chests/mod.rs
+@@ -128,13 +128,12 @@
+         let Some(spot) = camp_chest_spot(k, camp) else {
+             return; // source rollChest: a camp the map does not have
+         };
+-        let eligible: Vec<PlayerId> = contributors
++        let eligible: Vec<PlayerId> = hx
++            .w
++            .players
+             .iter()
+-            .copied()
+-            .filter(|id| {
+-                hx.w.player(*id)
+-                    .is_some_and(|p| p.standing() && near_camp(k, camp, p.pos()))
+-            })
++            .filter(|p| p.standing())
++            .map(|p| p.id)
+             .collect();
+         drop_augment(&mut *hx.w, spot, Some(camp as u16), *zone, true, &eligible);
+     } else {
