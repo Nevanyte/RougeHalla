@@ -27,3 +27,4 @@ provisional decision is the working default until the named experiment confirms 
 | [0019](0019-first-playable-runtime.md) | Selected first-playable runtime, private constructor provenance and public NPC/projectile facts | Accepted for the staging milestone; full-port validation remains open |
 | [0020](0020-temporary-single-host-staging.md) | Temporary Calgary host for the practice-domain MVP | Accepted for a bounded test; GameLift, durability and scale remain open |
 | [0021](0021-protocol11-union.md) | Protocol 11 unifies parallel gameplay transports and staged observer publication | Accepted for the November 8 integration; remaining public transports stay gated |
+| [0022](0022-barrier-wish-publication.md) | Checked barrier views, complete Wish lifecycle/input/owner facts and the protocol12/Observation18 union | Accepted for private implementation; validation and live admission pending |
