@@ -2024,21 +2024,21 @@ mod tests {
         drop(director);
     }
 
-    #[test]
-    #[should_panic(expected = "Full Wish casting requires")]
-    fn wish_profile_director_construction_refuses_before_runtime_spawn() {
+    #[tokio::test]
+    async fn explicitly_configured_full_wish_profile_is_admitted_by_director() {
         let sim = SimConfig {
             consumables: true,
             abilities: rh_sim::abilities::Mode::Full,
             lifecycle: rh_sim::ArenaMode::Off,
             ..Default::default()
         };
-        Director::new(
+        let director = Director::new(
             DirectorConfig::new(sim, rh_sim::arenas::practice_arena()),
             Arc::new(Persistence::Memory(Box::<MemoryStore>::default())),
             Arc::new(Auth::Dev),
             Arc::new(Lifecycle::default()),
         );
+        drop(director);
     }
 
     fn director_with(store: MemoryStore) -> Arc<Director> {

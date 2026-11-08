@@ -4,18 +4,16 @@
 
 use rh_protocol::quant::POS_MAX;
 use rh_protocol::{
-    QActor, ServerMsg, SnapshotData, WireActor, WireCommand, WireEvent, WireFx, WireResult,
-    WireSelf,
+    QActor, ServerMsg, SnapshotData, WireActor, WireCommand, WireEvent, WireFx, WirePoint,
+    WireResult, WireSelf, WireWishCast, WireWishOwner,
 };
 use rh_sim::observe::{ActorView, Observation, SeenEvent};
 use rh_sim::sim::{Outcome, Phase, Status};
 use rh_sim::Class;
 use rh_sim::RunResult;
 
-/// The public command projection. Neither a quest accept nor a trade has a protocol message yet: the sim's QuestAccept
-/// and Trade commands are reachable only through the headless/policy C-INPUT door until the coordinator-owned transport
-/// packet adds those wire messages (with its protocol bump, fixtures and decoders). This is the one place a transport
-/// packet flips.
+/// The public command projection. Quest accept and trade still have no protocol messages; Cast is projected as untrusted
+/// player aim/selection input and then resolved through the seat's delivered references before submission.
 pub fn command(c: WireCommand) -> rh_sim::PublicCommand {
     use rh_sim::PublicCommand as Public;
     match c {
@@ -54,6 +52,26 @@ pub fn command(c: WireCommand) -> rh_sim::PublicCommand {
         WireCommand::Aim { a } => Public::Aim { a: a as f64 },
         WireCommand::Attack { a, t } => Public::Attack { a: a as f64, t },
         WireCommand::Release { a, t } => Public::Release { a: a as f64, t },
+        WireCommand::Cast {
+            slot,
+            x,
+            y,
+            actor,
+            t,
+            seq,
+        } => Public::Cast {
+            slot: match slot {
+                0 => rh_sim::abilities::Slot::Wish,
+                1 => rh_sim::abilities::Slot::Q,
+                2 => rh_sim::abilities::Slot::E,
+                _ => unreachable!("protocol decoder checks Cast slot"),
+            },
+            x: f64::from(x),
+            y: f64::from(y),
+            id: actor.map(rh_sim::PlayerId),
+            t,
+            seq,
+        },
         WireCommand::Train {
             command,
             id,
@@ -79,14 +97,9 @@ pub fn status(s: Status) -> u8 {
     }
 }
 
-const WISH_UNSUPPORTED: &str = "Full Wish casting requires wire input and owner facts";
-
-/// Admission guard, independent of the current phase. Protocol 11 carries Source lifecycle, planning, cannons and
-/// training; Full Wish casting still needs input and owner facts, so it remains refused before simulation/offers.
-pub fn profile_supported(config: &rh_sim::SimConfig) -> Result<(), rh_protocol::EncodeError> {
-    if config.abilities == rh_sim::abilities::Mode::Full {
-        return Err(rh_protocol::EncodeError::BadValue(WISH_UNSUPPORTED));
-    }
+/// Full Wish mode has protocol 12 input, owner, and event transport. The binary keeps it disabled unless explicitly
+/// selected; library callers that set `Mode::Full` are already making that opt-in.
+pub fn profile_supported(_config: &rh_sim::SimConfig) -> Result<(), rh_protocol::EncodeError> {
     Ok(())
 }
 
@@ -107,17 +120,7 @@ pub fn phase(p: Phase) -> u8 {
 
 fn observation_supported(obs: &Observation) -> Result<(), rh_protocol::EncodeError> {
     checked_phase(obs.phase)?;
-    if obs.me.as_ref().is_some_and(|me| me.wish.is_some()) || obs.events.iter().any(wish_event) {
-        return Err(rh_protocol::EncodeError::BadValue(WISH_UNSUPPORTED));
-    }
     Ok(())
-}
-
-fn wish_event(event: &SeenEvent) -> bool {
-    matches!(
-        event,
-        SeenEvent::CastStarted { .. } | SeenEvent::CastLanded { .. }
-    )
 }
 
 /// Whether the wire can carry every position of a match on `arena`: the world extent (`w * TILE` by `h * TILE` u) and
@@ -175,6 +178,9 @@ fn wire_self(m: &rh_sim::observe::SelfView) -> WireSelf {
         move_seq: m.move_seq,
         hunt_target: m.hunt_target.map(|id| id.0),
         hunt_stacks: sat16(m.hunt_stacks),
+        wish: m.wish.map(wire_wish_owner),
+        barrier: m.barrier as f32,
+        barrier_ring_step: m.barrier_ring_step,
     }
 }
 
@@ -201,7 +207,56 @@ fn wire_actor(a: &rh_sim::observe::ActorView) -> WireActor {
         weapon: a.weapon.code(),
         bounty: sat16(a.bounty),
         kind: a.kind,
+        barrier_pct: hp_pct(a.barrier_frac),
+        barrier_ring_step: a.barrier_ring_step,
     }
+}
+
+fn ability_code(ability: rh_sim::status_runtime::AbilityId) -> u8 {
+    use rh_sim::status_runtime::AbilityId;
+    match ability {
+        AbilityId::Freeze => 0,
+        AbilityId::Swarm => 1,
+        AbilityId::Trial => 2,
+        AbilityId::Blaze => 3,
+        AbilityId::LastStand => 4,
+    }
+}
+
+fn wire_wish_owner(value: rh_sim::abilities::OwnerView) -> WireWishOwner {
+    WireWishOwner {
+        ability: ability_code(value.ability),
+        ready_at: value.ready_at,
+        full_at: value.full_at,
+        max_charges: value.max_charges,
+        recharge_ms: value.recharge_ms,
+        charges: value.charges,
+        next_charge_at: value.next_charge_at,
+        cast: value.cast.map(|cast| WireWishCast {
+            ability: ability_code(cast.ability),
+            started_at: cast.started_at,
+            lands_at: cast.lands_at,
+        }),
+    }
+}
+
+fn wire_point(point: Option<rh_sim::Vec2>) -> Result<Option<WirePoint>, &'static str> {
+    let Some(point) = point else {
+        return Ok(None);
+    };
+    let limit = f64::from(POS_MAX);
+    if !point.x.is_finite()
+        || !point.y.is_finite()
+        || !(0.0..=limit).contains(&point.x)
+        || !(0.0..=limit).contains(&point.y)
+    {
+        return Err("wish position");
+    }
+    let (x, y) = (point.x as f32, point.y as f32);
+    if !rh_protocol::quant::pos_in_range(x) || !rh_protocol::quant::pos_in_range(y) {
+        return Err("wish position");
+    }
+    Ok(Some(WirePoint { x, y }))
 }
 
 pub fn snapshot(obs: &Observation, ack_input: u32) -> ServerMsg {
@@ -217,6 +272,7 @@ pub fn checked_snapshot(
     Ok(ServerMsg::Snapshot {
         training: obs.training,
         tick: obs.tick,
+        server_time: obs.server_time,
         phase: checked_phase(obs.phase)?,
         ack_input,
         me: obs.me.as_ref().map(wire_self),
@@ -238,6 +294,8 @@ fn same_view(a: &ActorView, b: &ActorView) -> bool {
         && a.y.to_bits() == b.y.to_bits()
         && a.facing.to_bits() == b.facing.to_bits()
         && a.hp_frac.to_bits() == b.hp_frac.to_bits()
+        && a.barrier_frac.to_bits() == b.barrier_frac.to_bits()
+        && a.barrier_ring_step == b.barrier_ring_step
         && a.bounty == b.bounty
         && a.status == b.status
         && a.faction == b.faction
@@ -284,8 +342,8 @@ impl ActorMemo {
     }
 }
 
-/// Each observed event's explicit protocol-6 treatment. Exhaustive over [`SeenEvent`] (no wildcard): a new core
-/// event needs a deliberate wire mapping or an explicit omission until a compatible transport is implemented.
+/// Each observed event's explicit wire treatment. Exhaustive over [`SeenEvent`] (no wildcard): a new core event needs a
+/// deliberate wire mapping or explicit omission.
 enum Wire {
     Event(WireEvent),
     Fx(WireFx),
@@ -299,9 +357,42 @@ fn to_wire(e: &SeenEvent) -> Wire {
         // reconnect and would duplicate the key); Teleported is the source's room-wide presentation fx.
         SeenEvent::Plan(..) => Wire::Omitted,
         SeenEvent::Teleported => Wire::Fx(WireFx::Teleport),
-        SeenEvent::CastStarted { .. } | SeenEvent::CastLanded { .. } => {
-            Wire::Refused(WISH_UNSUPPORTED)
-        }
+        SeenEvent::CastStarted {
+            event_time,
+            id,
+            ability,
+            ms,
+            target,
+            at,
+        } => match wire_point(at) {
+            Ok(anchor) => Wire::Fx(WireFx::WishStarted {
+                event_time,
+                caster: id.0,
+                ability: ability_code(ability),
+                duration: ms,
+                target: target.map(|target| target.0),
+                anchor,
+            }),
+            Err(reason) => Wire::Refused(reason),
+        },
+        SeenEvent::CastLanded {
+            event_time,
+            id,
+            ability,
+            target,
+            at,
+            to,
+        } => match (wire_point(at), wire_point(to)) {
+            (Ok(anchor), Ok(destination)) => Wire::Fx(WireFx::WishLanded {
+                event_time,
+                ability: ability_code(ability),
+                caster: id.map(|id| id.0),
+                target: target.map(|target| target.0),
+                anchor,
+                destination,
+            }),
+            (Err(reason), _) | (_, Err(reason)) => Wire::Refused(reason),
+        },
         SeenEvent::PotionNotice { notice } => Wire::Event(WireEvent::PotionNotice {
             notice: match notice {
                 rh_sim::potions::Notice::Stored => 1,
@@ -376,9 +467,22 @@ fn to_wire(e: &SeenEvent) -> Wire {
         SeenEvent::SignatureHit { .. } | SeenEvent::Heal { .. } => Wire::Omitted,
         // Scalar effects and fields have snapshot transport; these distinct event telegraphs
         // remain omitted until their own compatible messages are defined.
-        SeenEvent::AbilityHit { .. }
-        | SeenEvent::CastEnded { .. }
-        | SeenEvent::StatusApplied { .. } => Wire::Omitted,
+        SeenEvent::AbilityHit { .. } | SeenEvent::StatusApplied { .. } => Wire::Omitted,
+        SeenEvent::CastEnded {
+            event_time,
+            id,
+            ability,
+            reason,
+        } => Wire::Fx(WireFx::WishEnded {
+            event_time,
+            caster: id.0,
+            ability: ability_code(ability),
+            reason: match reason {
+                rh_sim::status_runtime::CastEndReason::Fizzle => 0,
+                rh_sim::status_runtime::CastEndReason::Interrupted => 1,
+                rh_sim::status_runtime::CastEndReason::Cancelled => 2,
+            },
+        }),
         SeenEvent::PickupRefused { reason } => Wire::Event(WireEvent::PickupRefused {
             reason: match reason {
                 rh_sim::PickupRefusal::Blocked => 1,
@@ -653,9 +757,10 @@ impl Publisher {
         };
         let memo = &mut self.actors;
         let training = self.obs.training;
-        let snapshot = SnapshotData::build_checked(
+        let snapshot = SnapshotData::build_checked_with_server_time(
             spare,
             tick,
+            self.obs.server_time,
             phase(self.obs.phase),
             ack_input,
             self.obs.me.as_ref().map(wire_self),
@@ -878,7 +983,7 @@ mod tests {
     }
 
     #[test]
-    fn full_wishes_refuse_even_with_arena_off_before_frames_or_offers() {
+    fn full_wish_owner_and_barrier_snapshot_encode_with_arena_off() {
         let mut sim = rh_sim::Sim::new(
             SimConfig {
                 quests: false,
@@ -898,34 +1003,23 @@ mod tests {
         let mut observer = rh_sim::ItemObserver::new(viewer);
         for expected in [Phase::Lobby, Phase::Active] {
             assert_eq!(sim.phase(), expected);
-            assert_eq!(
-                profile_supported(sim.config()),
-                Err(rh_protocol::EncodeError::BadValue(WISH_UNSUPPORTED))
-            );
+            assert!(profile_supported(sim.config()).is_ok());
             let mut earlier = vec![SeenEvent::Stagger { id: viewer }];
-            let original = earlier.clone();
             let frames = publisher.frames(&sim, viewer, 0, &[], &mut earlier, &[]);
-            assert!(frames.important.is_none() && frames.fx.is_none());
-            assert_eq!(frames.bytes(), 0);
-            assert_eq!(
-                frames.snapshot.unwrap_err(),
-                rh_protocol::EncodeError::BadValue(WISH_UNSUPPORTED)
-            );
-            assert_eq!(earlier, original);
-            assert!(matches!(
-                publisher.frames_prepared(&mut observer, None, &sim, 0, &[], &mut earlier, &[]),
-                Err(PrepareFramesError::Unsupported(
-                    rh_protocol::EncodeError::BadValue(WISH_UNSUPPORTED)
-                ))
-            ));
-            assert_eq!(earlier, original);
+            assert!(frames.snapshot.is_ok());
+            assert!(frames.fx.is_some());
+            assert!(publisher
+                .frames_prepared(&mut observer, None, &sim, 0, &[], &mut earlier, &[])
+                .is_ok());
             let obs = rh_sim::observe(&sim, viewer, &[]);
             assert!(obs.me.as_ref().unwrap().wish.is_some());
             assert!(obs.arena.is_none() && obs.plan.is_none());
-            assert_eq!(
-                checked_snapshot(&obs, 0).unwrap_err(),
-                rh_protocol::EncodeError::BadValue(WISH_UNSUPPORTED)
-            );
+            let direct = checked_snapshot(&obs, 0).expect("full Wish owner fact is supported");
+            assert!(!direct.try_encode().unwrap().is_empty());
+            assert!(matches!(
+                direct,
+                ServerMsg::Snapshot { server_time, .. } if server_time == obs.server_time
+            ));
             if expected == Phase::Lobby {
                 sim.step();
             }
@@ -965,34 +1059,79 @@ mod tests {
     }
 
     #[test]
-    fn caught_up_wish_start_and_landing_refuse_without_partial_frames() {
+    fn wish_start_and_landing_encode_as_checked_fx() {
         let env = seed1_match(1);
         let viewer = env.sim.players()[0].id;
         let mut publisher = Publisher::default();
         for event in [
             SeenEvent::CastStarted {
+                event_time: 100.0,
                 id: viewer,
                 ability: rh_sim::status_runtime::AbilityId::Freeze,
                 ms: 250.,
                 target: None,
-                at: None,
+                at: Some(rh_sim::Vec2::new(2.0, 3.0)),
             },
             SeenEvent::CastLanded {
-                id: viewer,
+                event_time: 100.0,
+                id: Some(viewer),
                 ability: rh_sim::status_runtime::AbilityId::Freeze,
                 target: None,
                 at: None,
                 to: None,
             },
         ] {
-            assert!(matches!(to_wire(&event), Wire::Refused(WISH_UNSUPPORTED)));
+            assert!(matches!(to_wire(&event), Wire::Fx(_)));
             let frames = publisher.frames(&env.sim, viewer, 0, &[], &mut vec![event], &[]);
-            assert!(frames.important.is_none() && frames.fx.is_none());
-            assert_eq!(
-                frames.snapshot.unwrap_err(),
-                rh_protocol::EncodeError::BadValue(WISH_UNSUPPORTED)
-            );
+            assert!(frames.fx.is_some());
+            assert!(frames.snapshot.is_ok());
+            assert!(frames.refused.is_none());
         }
+        assert!(matches!(
+            to_wire(&SeenEvent::CastStarted {
+                event_time: 100.0,
+                id: viewer,
+                ability: rh_sim::status_runtime::AbilityId::Freeze,
+                ms: 250.0,
+                target: None,
+                at: Some(rh_sim::Vec2::new(-1.0, 3.0)),
+            }),
+            Wire::Refused("wish position")
+        ));
+    }
+
+    #[test]
+    fn wish_points_check_source_f64_before_narrowing() {
+        let max = f64::from(POS_MAX);
+        assert_eq!(
+            wire_point(Some(rh_sim::Vec2::new(max, max))),
+            Ok(Some(WirePoint {
+                x: POS_MAX,
+                y: POS_MAX
+            }))
+        );
+        let rounds_to_max = max + 0.0001;
+        assert_eq!(
+            rounds_to_max as f32, POS_MAX,
+            "regression input must narrow back into range"
+        );
+        assert_eq!(
+            wire_point(Some(rh_sim::Vec2::new(rounds_to_max, max))),
+            Err("wish position")
+        );
+        let negative_underflow = -f64::MIN_POSITIVE;
+        assert_eq!(
+            negative_underflow as f32, -0.0,
+            "regression input must underflow to negative zero"
+        );
+        assert_eq!(
+            wire_point(Some(rh_sim::Vec2::new(negative_underflow, 1.0))),
+            Err("wish position")
+        );
+        assert_eq!(
+            wire_point(Some(rh_sim::Vec2::new(f64::NAN, 1.0))),
+            Err("wish position")
+        );
     }
 
     #[test]
@@ -1097,8 +1236,8 @@ mod tests {
         }
     }
 
-    /// The v2 Snapshot carries no server time because it is always `tick x 50 ms`: the simulation starts at 0 and adds
-    /// exactly one tick step per step, and an integer multiple of 50 is exact in f64.
+    /// Ordinary source clocks equal `tick * 50 ms`; protocol 12 only needs the absolute clock override when that default
+    /// does not match the observation's source time.
     #[test]
     fn server_time_is_tick_times_50() {
         assert_eq!(rh_sim::constants::TICK_MS, TICK_MS as f64);
@@ -1215,6 +1354,8 @@ mod tests {
             ("y", Box::new(|a| a.y = 51.0)),
             ("facing", Box::new(|a| a.facing = -2.0)),
             ("hp", Box::new(|a| a.hp_frac = 0.01)),
+            ("barrier share", Box::new(|a| a.barrier_frac = 0.25)),
+            ("barrier ring", Box::new(|a| a.barrier_ring_step = 4)),
             ("bounty", Box::new(|a| a.bounty = 70_000)),
             ("status", Box::new(|a| a.status = Status::Dead)),
             ("faction", Box::new(|a| a.faction = FactionId::ALL[3])),
@@ -1275,6 +1416,7 @@ mod tests {
                 let obs = rh_sim::observe(&env.sim, *id, &out.events);
                 let ServerMsg::Snapshot {
                     tick,
+                    server_time,
                     me,
                     actors,
                     phase: p,
@@ -1285,6 +1427,7 @@ mod tests {
                     panic!("a snapshot")
                 };
                 assert_eq!((tick, ack_input, p), (obs.tick, 9, phase(obs.phase)));
+                assert_eq!(server_time, obs.server_time);
                 // Self is exact (the f32 of the sim's f64, as before).
                 assert_eq!(
                     me.map(|m| (m.x, m.y)),
@@ -1389,8 +1532,8 @@ mod tests {
 
     #[test]
     fn omitted_effect_announcements_leave_frames_and_redaction_unchanged() {
-        use rh_sim::status_runtime::{AbilityId, CastEndReason, StatusKind};
-        assert_eq!(rh_protocol::PROTOCOL_VERSION, 11);
+        use rh_sim::status_runtime::{AbilityId, StatusKind};
+        assert_eq!(rh_protocol::PROTOCOL_VERSION, 12);
         let env = seed1_match(1);
         let id = env.sim.players()[0].id;
         let mut publisher = Publisher::default();
@@ -1404,11 +1547,6 @@ mod tests {
                     by,
                     ability: AbilityId::Blaze,
                     amount: 3.,
-                },
-                SeenEvent::CastEnded {
-                    id,
-                    ability: AbilityId::Freeze,
-                    reason: CastEndReason::Interrupted,
                 },
                 SeenEvent::StatusApplied {
                     id,
@@ -1528,16 +1666,21 @@ mod tests {
         }
         for ability in rh_sim::status_runtime::AbilityId::ALL {
             for reason in [
+                rh_sim::status_runtime::CastEndReason::Fizzle,
                 rh_sim::status_runtime::CastEndReason::Interrupted,
                 rh_sim::status_runtime::CastEndReason::Cancelled,
             ] {
                 assert!(matches!(
                     to_wire(&SeenEvent::CastEnded {
+                        event_time: 100.,
                         id,
                         ability,
                         reason
                     }),
-                    Wire::Omitted
+                    Wire::Fx(WireFx::WishEnded {
+                        event_time: 100.,
+                        ..
+                    })
                 ));
             }
         }
@@ -1632,6 +1775,24 @@ mod tests {
                 seq: Some(9)
             }
         );
+        assert_eq!(
+            command(WireCommand::Cast {
+                slot: 0,
+                x: 12.5,
+                y: 20.0,
+                actor: Some(17),
+                t: Some(777.0),
+                seq: Some(9),
+            }),
+            rh_sim::PublicCommand::Cast {
+                slot: rh_sim::abilities::Slot::Wish,
+                x: 12.5,
+                y: 20.0,
+                id: Some(rh_sim::PlayerId(17)),
+                t: Some(777.0),
+                seq: Some(9),
+            }
+        );
         use rh_sim::potions::Notice::*;
         for (notice, code) in [Stored, BagFull, Used, Blocked, Busy, Full, Empty]
             .into_iter()
@@ -1646,15 +1807,54 @@ mod tests {
         let env = seed1_match(2);
         let id = env.sim.players()[0].id;
         let mut own = rh_sim::observe(&env.sim, id, &[]).me.unwrap();
+        own.barrier = 12.5;
+        own.barrier_ring_step = 4;
+        own.wish = Some(rh_sim::abilities::OwnerView {
+            ability: rh_sim::status_runtime::AbilityId::Freeze,
+            ready_at: 12.0,
+            full_at: Some(42.0),
+            max_charges: 1,
+            recharge_ms: 45_000.0,
+            charges: 1,
+            next_charge_at: None,
+            cast: Some(rh_sim::abilities::CastView {
+                ability: rh_sim::status_runtime::AbilityId::Freeze,
+                started_at: 10.0,
+                lands_at: 260.0,
+            }),
+        });
         own.sig = 255;
-        assert_eq!(wire_self(&own).sig, 255);
+        let owner_wire = wire_self(&own);
+        assert_eq!(owner_wire.sig, 255);
+        assert_eq!(
+            (owner_wire.barrier, owner_wire.barrier_ring_step),
+            (12.5, 4)
+        );
+        let wish = owner_wire.wish.unwrap();
+        assert_eq!(wish.ability, ability_code(own.wish.unwrap().ability));
+        assert_eq!(
+            (
+                wish.ready_at,
+                wish.full_at,
+                wish.max_charges,
+                wish.recharge_ms,
+                wish.charges,
+                wish.next_charge_at,
+                wish.cast.unwrap().started_at,
+                wish.cast.unwrap().lands_at,
+            ),
+            (12.0, Some(42.0), 1, 45_000.0, 1, None, 10.0, 260.0)
+        );
         own.sig = 0;
         assert_eq!(wire_self(&own).sig, 0);
         let mut actor = view(9);
+        actor.barrier_frac = 0.25;
+        actor.barrier_ring_step = 3;
         actor.sig = 255;
         actor.mob_type = Some(rh_sim::mob_catalog::MobTypeId::Archon);
         let wire = wire_actor(&actor);
         assert_eq!((wire.sig, wire.mob_type_code), (255, 30));
+        assert_eq!((wire.barrier_pct, wire.barrier_ring_step), (25, 3));
         actor.sig = 0;
         actor.mob_type = None;
         let wire = wire_actor(&actor);

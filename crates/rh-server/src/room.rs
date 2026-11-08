@@ -697,10 +697,8 @@ impl Room {
                     // The clamp is written for the sim time this batch will be applied at: the room applies commands
                     // between steps and the next step adds one tick first, so `note_lag` in the sim will see
                     // `now_apply` as its `now`. P-NET-1 Phase 3: bound an attack render time by the RTT the server
-                    // measured for this connection (never by the client's claim), before `Sim::submit`.
-                    // The clamp applies per Attack/Release command: a held attack keeps the legacy press-time lag until
-                    // another Attack/Release command arrives. Per-swing rewind is outside this packet and needs a
-                    // separate design decision.
+                    // measured for this connection (never by the client's claim), before `Sim::submit`. Cast render-time
+                    // metadata receives the same bound, but Wish effects are not rewound by it.
                     let now_apply = self.sim.server_time() + TICK_MS;
                     let allowed = self.humans[index].rtt.allowed_rewind_ms();
                     let mut accepted = 0u32;
@@ -1928,14 +1926,14 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Full Wish casting requires")]
-    fn wish_profile_direct_room_construction_refuses_before_sim_or_entropy() {
+    fn explicitly_configured_full_wish_room_construction_is_admitted() {
         let mut config = cfg(Duration::from_millis(50));
         config.sim.abilities = rh_sim::abilities::Mode::Full;
         config.sim.lifecycle = rh_sim::ArenaMode::Off;
         config.fixed_secrets = None;
         let (tx, _) = mpsc::unbounded_channel();
-        Room::new([0; 16], config, tx, Instant::now());
+        let room = Room::new([0; 16], config, tx, Instant::now());
+        assert_eq!(room.sim.config().abilities, rh_sim::abilities::Mode::Full);
     }
 
     fn cfg(tick: Duration) -> RoomConfig {
@@ -2162,6 +2160,190 @@ mod tests {
         assert_eq!(room.frame_refusals, 0);
     }
 
+    #[tokio::test(start_paused = true)]
+    async fn failed_publish_holds_wish_barrier_baseline_and_new_pickup_handles() {
+        use rh_protocol::{ServerMsg, StateItem, WirePropKind};
+        use rh_sim::{ContainerKind, FactionId, Placement, Vec2, WeaponId};
+
+        let start = Instant::now();
+        let tick = Duration::from_millis(50);
+        let (reports, _rx) = mpsc::unbounded_channel();
+        let mut config = cfg(tick);
+        config.sim.abilities = rh_sim::abilities::Mode::Full;
+        let mut room = Room::new([12; 16], config, reports, start);
+        let stale = Arc::new(Outbox::default());
+        let joined = room
+            .join(
+                "owner".into(),
+                Some(FactionId::Fire),
+                stale.clone(),
+                1,
+                1,
+                None,
+            )
+            .unwrap();
+        room.join(
+            "peer".into(),
+            Some(FactionId::Holy),
+            Arc::new(Outbox::default()),
+            2,
+            1,
+            None,
+        )
+        .unwrap();
+        room.sim = Sim::reset_active(
+            SimConfig {
+                abilities: rh_sim::abilities::Mode::Full,
+                ..Default::default()
+            },
+            rh_sim::arenas::practice_arena(),
+            Secrets::from_seed(29),
+            &[
+                Placement {
+                    profile: "owner".into(),
+                    faction: FactionId::Fire,
+                    bot: false,
+                    at: Vec2::new(100., 272.),
+                    hp: None,
+                    weapon0: None,
+                    weapon1: None,
+                },
+                Placement {
+                    profile: "peer".into(),
+                    faction: FactionId::Holy,
+                    bot: false,
+                    at: Vec2::new(1400., 272.),
+                    hp: None,
+                    weapon0: None,
+                    weapon1: None,
+                },
+            ],
+        );
+        // Transport-only bootstrap of a checkpoint shape already admitted by rh-sim (timerless seeded barrier). This
+        // deliberately does not claim a gameplay barrier producer; it gives the enqueue guard an unmistakably nonzero
+        // source barrier/ring to retain across the failed and resumed snapshots.
+        let mut admitted = serde_json::to_value(&room.sim).unwrap();
+        admitted["world"]["players"][0]["core"]["vitals"]["barrier"] = serde_json::json!(30.0);
+        admitted["world"]["players"][0]["barrier_until"] = serde_json::json!(0.0);
+        admitted["world"]["players"][0]["barrier_decays"] = serde_json::json!(false);
+        room.sim = Sim::restore(&admitted).expect("admitted timerless barrier checkpoint form");
+        room.sim
+            .seed_weapon_container(
+                ContainerKind::Ground,
+                Vec2::new(100., 272.),
+                &[WeaponId::Sword],
+            )
+            .unwrap();
+        room.sim
+            .seed_weapon_container(
+                ContainerKind::Ground,
+                Vec2::new(116., 272.),
+                &[WeaponId::Axe],
+            )
+            .unwrap();
+        for seat in &mut room.humans {
+            seat.fx.rebind(&room.sim, seat.player);
+            seat.items = rh_sim::ItemObserver::new(seat.player);
+        }
+
+        // The first reliable offer commits normal public handles and the Full Wish owner/zero-barrier fields.
+        room.publish(&[]);
+        let initial = decode(&stale);
+        let initial_props = initial
+            .iter()
+            .find_map(|m| match m {
+                ServerMsg::State { items, .. } => items.iter().find_map(|item| match item {
+                    StateItem::Props(p) => Some(p.clone()),
+                    _ => None,
+                }),
+                _ => None,
+            })
+            .expect("initial public props");
+        assert!(initial.iter().any(|m| matches!(m, ServerMsg::Snapshot { me: Some(me), .. } if me.wish.is_some() && me.barrier == 30. && me.barrier_ring_step > 0)));
+        let max_initial = initial_props
+            .rows
+            .iter()
+            .map(|row| row.handle.get())
+            .max()
+            .unwrap();
+
+        // A newly visible row, owner data, and barrier pair are all staged for a real publish. A closed reliable queue
+        // rejects the whole batch; no candidate action handle can resolve before the fresh connection accepts it.
+        room.sim
+            .seed_weapon_container(
+                ContainerKind::Ground,
+                Vec2::new(108., 272.),
+                &[WeaponId::Bow],
+            )
+            .unwrap();
+        stale.close(RejectCode::TooSlow);
+        room.publish(&[]);
+        let missing_pickup = rh_sim::validate(rh_sim::RawCommand::MissingPickup).unwrap();
+        for raw in max_initial + 1..=max_initial + 3 {
+            let proposal = rh_sim::PublicCommand::Pickup {
+                handle: rh_sim::PickupHandle::new(raw).unwrap(),
+            };
+            assert!(
+                matches!(room.humans[0].items.resolve(&room.sim, proposal), Ok(command) if command == missing_pickup),
+                "uncommitted handle {raw}"
+            );
+        }
+
+        let fresh = Arc::new(Outbox::default());
+        let (reply, resumed) = oneshot::channel();
+        room.handle(
+            RoomCmd::Resume {
+                session: joined.session,
+                outbox: fresh.clone(),
+                conn: 3,
+                reply,
+            },
+            start,
+        );
+        assert_eq!(resumed.await.unwrap().unwrap().player, joined.player);
+        room.publish(&[]);
+        let accepted = decode(&fresh);
+        assert!(accepted.iter().any(|m| matches!(m, ServerMsg::Snapshot { me: Some(me), .. } if me.wish.is_some() && me.barrier == 30. && me.barrier_ring_step > 0)));
+        let delivered = accepted
+            .iter()
+            .find_map(|m| match m {
+                ServerMsg::State { items, .. } => items.iter().find_map(|item| match item {
+                    StateItem::Props(p) => Some(p),
+                    _ => None,
+                }),
+                _ => None,
+            })
+            .expect("fresh complete props offer");
+        let bow = delivered
+            .rows
+            .iter()
+            .find(|row| row.kind == WirePropKind::Ground(1))
+            .expect("new Bow row")
+            .handle;
+        assert_ne!(
+            room.humans[0]
+                .items
+                .resolve(
+                    &room.sim,
+                    rh_sim::PublicCommand::Pickup {
+                        handle: rh_sim::PickupHandle::new(bow.get()).unwrap(),
+                    }
+                )
+                .unwrap(),
+            missing_pickup
+        );
+        assert_eq!(room.frame_refusals, 0);
+
+        fn decode(out: &Outbox) -> Vec<ServerMsg> {
+            let mut bytes = Vec::new();
+            out.drain_into(&mut bytes);
+            bytes
+                .iter()
+                .map(|frame| ServerMsg::decode(frame).unwrap())
+                .collect()
+        }
+    }
+
     #[test]
     fn live_fire_feed_matches_core() {
         let now = Instant::now();
@@ -2230,6 +2412,142 @@ mod tests {
                 .count();
         }
         assert!(signatures > 2);
+        assert_eq!(room.frame_refusals, 0);
+    }
+
+    #[test]
+    fn catch_up_carries_a_real_wish_start_from_its_visible_step() {
+        use rh_protocol::{WireCommand, WireFx};
+        use rh_sim::{FactionId, Placement, Vec2};
+
+        let now = Instant::now();
+        let tick = Duration::from_millis(50);
+        let (tx, _) = mpsc::unbounded_channel();
+        let mut config = cfg(tick);
+        config.sim.abilities = rh_sim::abilities::Mode::Full;
+        let mut room = Room::new([9; 16], config, tx, now);
+        let viewer_out = Arc::new(Outbox::default());
+        let caster_out = Arc::new(Outbox::default());
+        let viewer = room
+            .join(
+                "viewer".into(),
+                Some(FactionId::Fire),
+                viewer_out.clone(),
+                1,
+                1,
+                None,
+            )
+            .unwrap();
+        let caster = room
+            .join(
+                "caster".into(),
+                Some(FactionId::Plague),
+                caster_out.clone(),
+                2,
+                1,
+                None,
+            )
+            .unwrap();
+        room.sim = Sim::reset_active(
+            SimConfig {
+                abilities: rh_sim::abilities::Mode::Full,
+                wish_lock_ms: 0.,
+                ..Default::default()
+            },
+            rh_sim::arenas::practice_arena(),
+            Secrets::from_seed(17),
+            &[
+                Placement {
+                    profile: "viewer".into(),
+                    faction: FactionId::Fire,
+                    bot: false,
+                    at: Vec2::new(400., 272.),
+                    hp: None,
+                    weapon0: None,
+                    weapon1: None,
+                },
+                Placement {
+                    profile: "caster".into(),
+                    faction: FactionId::Plague,
+                    bot: false,
+                    at: Vec2::new(1290., 272.),
+                    hp: None,
+                    weapon0: None,
+                    weapon1: None,
+                },
+            ],
+        );
+        for human in &mut room.humans {
+            human.fx.rebind(&room.sim, human.player);
+        }
+
+        let mut tracker = rh_protocol::SnapshotTracker::new();
+        assert!(room.wake(now + tick));
+        let mut initial_frames = Vec::new();
+        viewer_out.drain_into(&mut initial_frames);
+        for frame in &initial_frames {
+            tracker.decode(frame).unwrap();
+        }
+        let _ = drain(&caster_out);
+        // The viewer is 890 units from the caster: visible at the cast's source step, then walks outside the 900-unit
+        // radius during this single three-step wake. The cast is validated/submitted as a native command, then the Room's
+        // normal per-step projector and publisher carry the genuine producer event to the connection.
+        room.handle(
+            RoomCmd::Input {
+                player: viewer.player,
+                conn: 1,
+                seq: 1,
+                commands: vec![WireCommand::Move {
+                    x: 100.,
+                    y: 272.,
+                    seq: None,
+                }],
+            },
+            now + tick,
+        );
+        room.sim
+            .submit(
+                caster.player,
+                rh_sim::validate(rh_sim::RawCommand::Cast {
+                    slot: rh_sim::abilities::Slot::Wish,
+                    x: 1290.,
+                    y: 272.,
+                    id: None,
+                    t: None,
+                    seq: None,
+                })
+                .unwrap(),
+            )
+            .unwrap();
+        assert!(room.wake(now + tick * 4));
+
+        let mut catchup_frames = Vec::new();
+        viewer_out.drain_into(&mut catchup_frames);
+        let messages = catchup_frames
+            .iter()
+            .map(|frame| tracker.decode(frame).unwrap())
+            .collect::<Vec<_>>();
+        let mut saw_start = false;
+        let mut final_actors = None;
+        for message in messages {
+            match message {
+                ServerMsg::Fx { fx, .. } => {
+                    saw_start |= fx
+                        .iter()
+                        .any(|event| matches!(event, WireFx::WishStarted { ability: 1, .. }));
+                }
+                ServerMsg::Snapshot {
+                    phase: 1, actors, ..
+                } => final_actors = Some(actors),
+                _ => {}
+            }
+        }
+        assert!(
+            saw_start,
+            "the cast was visible at its own step and carried to the wake frame"
+        );
+        assert!(final_actors.expect("final active snapshot").iter().all(|actor| actor.id != caster.player.0),
+            "the caster is outside final visibility, so a final-world re-filter would drop the earlier cue");
         assert_eq!(room.frame_refusals, 0);
     }
 
