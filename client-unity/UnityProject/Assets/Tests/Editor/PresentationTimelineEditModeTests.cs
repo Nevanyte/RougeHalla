@@ -169,6 +169,11 @@ namespace Roguehalla.Client.Tests
             Assert.That((int)Get(_audio, "_pendingFxCount"), Is.Zero);
             _client.Arena = _arena;
             Bind(first);
+            // These runtime MonoBehaviours are not engine-ticked in EditMode. Exercise their
+            // actual teardown hooks explicitly; the staged Play fixture checks engine dispatch.
+            Invoke(_client, "OnDestroy");
+            Invoke(_audio, "OnDisable");
+            Invoke(_hud, "OnDestroy");
             UnityEngine.Object.DestroyImmediate(_root); _root = null;
             Assert.That(Listeners(first, "TimelineReset"), Is.Zero);
             Assert.That(Listeners(first, "FxReceived"), Is.Zero);
