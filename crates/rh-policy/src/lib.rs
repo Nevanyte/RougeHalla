@@ -202,6 +202,22 @@ impl Seat {
     pub fn player(&self) -> PlayerId {
         self.observer.viewer()
     }
+
+    /// Resolve one proposal against the sim now (the delay line's delivery point): `None` when it cannot be resolved
+    /// (a missing pickup, a stale handle, ...), which the runner counts as a refused command.
+    pub fn resolve(&self, sim: &Sim, proposal: PublicCommand) -> Option<rh_sim::Command> {
+        self.observer.resolve(sim, proposal).ok()
+    }
+
+    /// Record a delayed command's delivery outcome (accepted or refused).
+    pub fn note_delivery(&mut self, accepted: bool) {
+        if accepted {
+            self.stats.accepted += 1;
+        } else {
+            self.stats.rejected += 1;
+        }
+    }
+
     /// Establish a fresh presentation session BEFORE its first owned simulation step.
     /// Binding is one-time: a new simulation/session requires a new seat.
     pub fn bind_fx(&mut self, sim: &Sim) -> Result<(), rh_sim::FxError> {
@@ -294,6 +310,60 @@ pub fn drive_seats_with(
     submitted: impl FnMut(PlayerId, rh_sim::Command),
 ) {
     drive_inner(sim, seats, last_events, Some(sight), submitted);
+}
+
+/// Like [`drive_seats`] but hands every proposal back instead of submitting it, for a runner that puts the bot's commands
+/// on a delay line (source BotManager: the bot's adapter sends through `deliver`, and the room applies an arrival later).
+/// The proposal is resolved and submitted at delivery time by the runner (`Seat::resolve` + `Sim::submit`), so a command
+/// is still validated against the state at the step that applies it. The seat stats count the proposals now; the delivery
+/// outcome is recorded by the runner with [`Seat::note_delivery`].
+pub fn drive_seats_queued(
+    sim: &mut Sim,
+    seats: &mut [Seat],
+    _last_events: &[Event],
+    sight: &mut SightCache,
+    mut queued: impl FnMut(PlayerId, PublicCommand),
+) {
+    feed_seats(sim, seats);
+    for seat in seats.iter_mut() {
+        if matches!(seat.fault, Some(Fault::FxProjection(_))) {
+            continue;
+        }
+        if !sim.player(seat.player()).is_some_and(|p| {
+            p.standing()
+                || (sim.phase() == rh_sim::Phase::Planning
+                    && p.status == rh_sim::Status::Lobby
+                    && !p.resolved)
+        }) {
+            continue;
+        }
+        if !seat.wants(sim.tick()) {
+            continue;
+        }
+        let mut obs = std::mem::take(&mut seat.obs);
+        let mut cmds = std::mem::take(&mut seat.cmds);
+        if let Err(err) = seat
+            .observer
+            .prepare_with_seen(sim, &[], &seat.pending, &mut obs, Some(sight))
+            .map(|offer| offer.commit())
+        {
+            seat.fault = Some(Fault::ItemObservation(err));
+            seat.obs = obs;
+            seat.cmds = cmds;
+            continue;
+        }
+        seat.pending.clear();
+        let over = obs.events.len().saturating_sub(MAX_PENDING_EVENTS);
+        obs.events.drain(..over);
+        cmds.clear();
+        seat.decide_into(&obs, &mut cmds);
+        for &proposal in &cmds {
+            seat.stats.proposed += 1;
+            queued(seat.player(), proposal);
+        }
+        seat.obs = obs;
+        seat.cmds = cmds;
+    }
 }
 
 /// Canonical presentation feed. Bind each seat before its first owned step, then call after EVERY step.

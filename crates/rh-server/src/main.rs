@@ -501,12 +501,21 @@ async fn main() {
         None => (Persistence::memory(), auth),
         Some(url) => durable(&url, &args).await,
     };
+    // Parse the source gate before any learning I/O; Off overrides an otherwise valid explicit activation.
+    let env_lookup = |key: &str| std::env::var(key).ok();
+    let startup_fill = rh_server::bot_fill::BotFillConfig::from_env(env_lookup);
+    let learning_allowed = startup_fill.learning_enabled();
     // Explicit opt-in only: ordinary database/profile writers never start learning implicitly.
-    let learning_mode =
-        rh_server::bot_learning::LearningMode::from_args(&args).unwrap_or_else(|error| {
+    let requested_learning_mode = rh_server::bot_learning::LearningMode::from_args(&args)
+        .unwrap_or_else(|error| {
             eprintln!("[server] {error}");
             std::process::exit(2);
         });
+    let learning_mode = if learning_allowed {
+        requested_learning_mode
+    } else {
+        rh_server::bot_learning::LearningMode::Off
+    };
     if learning_mode == rh_server::bot_learning::LearningMode::SingleWriter
         && matches!(persistence, Persistence::Memory(_))
     {
@@ -560,18 +569,32 @@ async fn main() {
         None
     };
     #[cfg(feature = "postgres")]
-    let learned = learning
-        .as_ref()
-        .map_or(rh_policy::bots::learning::LearnedBias::NO_BIAS, |live| {
-            live.snapshot()
-        });
+    let learning_snapshot = learning.as_ref().map(|live| live.snapshot());
     #[cfg(not(feature = "postgres"))]
-    let learned = rh_policy::bots::learning::LearnedBias::NO_BIAS;
-    // The live server fills its lobbies with the legacy manager policy (BOTS_FILL_TO from --fill-bots); tests and
-    // benches construct rooms directly and keep the immediate placeholder fill unless they opt in.
-    cfg.bot_fill = Some(
-        rh_server::bot_fill::BotFillConfig::with_fill_to(cfg.fill_bots_to).with_learned(learned),
+    let learning_snapshot: Option<rh_policy::bots::learning::LearnedBias> = None;
+    // The BOTS_* environment supplies the fill policy and --fill-bots (or first-playable) overrides only the count; fill
+    // stays off unless one of them asks for it (the Rust server's historical default; the source distribution defaults to
+    // 8). The learning snapshot participates under the same BOT_STATS_FILE gate handled inside this composition.
+    let cli_fill = first_playable.is_some() || arg(&args, "--fill-bots").is_some();
+    let bot_fill = rh_server::bot_fill::server_fill_config(
+        env_lookup,
+        cli_fill.then_some(cfg.fill_bots_to),
+        learning_snapshot,
     );
+    // Name exclusion is requested only for an active fill policy. Ordinary profile-only servers need no name snapshot.
+    let bot_names = if bot_fill.fill_to > 0 {
+        persistence
+            .bot_names_for_startup()
+            .await
+            .unwrap_or_else(|e| {
+                eprintln!("[server] {e}");
+                std::process::exit(2);
+            })
+    } else {
+        Default::default()
+    };
+    cfg.fill_bots_to = bot_fill.fill_to;
+    cfg.bot_fill = Some(bot_fill);
     let api_cfg = api_config(&args).unwrap_or_else(|e| {
         eprintln!("[server] invalid account API settings: {e}");
         std::process::exit(2);
@@ -640,6 +663,8 @@ async fn main() {
     if let Some(live) = &learning {
         director.install_learning(live.clone());
     }
+    // The fill bots' read-only profile-name seam (P-BOTS-7 remainder).
+    director.set_bot_names(bot_names);
     // Replay what an earlier process left in the spool (original fence and metadata), before any admission. This runs in
     // the background against the database: an outage delays the replay, never startup or a tick.
     #[cfg(feature = "postgres")]

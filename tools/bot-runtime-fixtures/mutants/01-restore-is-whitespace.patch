@@ -1,0 +1,21 @@
+diff --git a/crates/rh-server/src/bot_fill.rs b/crates/rh-server/src/bot_fill.rs
+index 6826d861..ca120b05 100644
+--- a/crates/rh-server/src/bot_fill.rs
++++ b/crates/rh-server/src/bot_fill.rs
+@@ -831,13 +831,15 @@ fn is_js_trim_space(c: char) -> bool {
+                 | '\u{FEFF}'
+     )
+ }
+ 
+ /// ECMAScript TrimString over those exact members (the source trims env values with String.prototype.trim).
+ fn trim_js_whitespace(text: &str) -> &str {
+-    text.trim_matches(is_js_trim_space)
++    text.trim_matches(|c: char| {
++        c.is_whitespace() || c == '\u{FEFF}' || c == '\u{2028}' || c == '\u{2029}'
++    })
+ }
+ 
+ /// ECMAScript Math.round (non-negative inputs here): halves round toward +Infinity, and the near-half double
+ /// 0.49999999999999994 must stay 0 rather than become 1 through a rounded x + 0.5.
+ fn js_round(x: f64) -> f64 {
+     if !x.is_finite() {

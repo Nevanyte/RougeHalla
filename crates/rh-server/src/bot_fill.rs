@@ -115,6 +115,31 @@ pub struct BotFillConfig {
     /// The learning store's frozen bias snapshot (P-BOTS-5). [`LearnedBias::NO_BIAS`] is learning off: every faction
     /// utility is 0 and the draw reproduces the captured manager stream exactly.
     pub learned: LearnedBias,
+    /// The manager seed (source BOTS_SEED): `None` seeds every room from entropy; `Some` makes the fill and delay
+    /// streams deterministic (tests and reproducible servers).
+    pub seed: Option<u32>,
+    /// The source BOT_STATS_FILE setting. The port has no file backend (its durable learning store is the PostgreSQL one,
+    /// P-BOTS-5), so this setting is this slice's switch: Off suppresses the whole learning subsystem — no store is
+    /// started, no snapshot is applied and no run is recorded through it.
+    pub stats_file: StatsFile,
+}
+
+/// Source BOT_STATS_FILE: unset (the default profile-adjacent path), `off` (learning off) or an explicit file path. The
+/// port's learning store is the PostgreSQL one; this setting only records what the environment asked for.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub enum StatsFile {
+    #[default]
+    Default,
+    Off,
+    Path(String),
+}
+
+impl StatsFile {
+    /// The source's learning switch: an empty statsFile ("off") means no learning store at all — no reads, no updates,
+    /// and no learned bias reaching any decision. The port has no file backend to create, so this is the whole gate.
+    pub fn learning_enabled(&self) -> bool {
+        !matches!(self, StatsFile::Off)
+    }
 }
 
 impl Default for BotFillConfig {
@@ -128,6 +153,8 @@ impl Default for BotFillConfig {
             latency_ms: 30.,
             jitter_ms: 8.,
             learned: LearnedBias::NO_BIAS,
+            seed: None,
+            stats_file: StatsFile::Default,
         }
     }
 }
@@ -146,6 +173,43 @@ impl BotFillConfig {
         self.learned = learned;
         self
     }
+
+    /// Whether this configuration permits learning at all: the source BOT_STATS_FILE gate. The startup must not construct
+    /// or install a learning store when this is false, and no snapshot may be applied (the fill softmax then draws the
+    /// captured NO_BIAS stream).
+    pub fn learning_enabled(&self) -> bool {
+        self.stats_file.learning_enabled()
+    }
+}
+
+/// The server startup's fill configuration (the source config surface plus the runtime learning decision):
+/// - the BOTS_* environment parses through BotFillConfig::from_env;
+/// - the CLI/first-playable fill count overrides fill_to when asked for, otherwise the server keeps its historical
+///   default of no fill unless the environment set BOTS_FILL_TO (the source distribution defaults to 8);
+/// - learning is the live store's frozen snapshot when this startup actually started one. The source BOT_STATS_FILE gate
+///   runs here too: an off statsFile disables the subsystem, so even a snapshot handed in is dropped and the fill policy
+///   receives NO_BIAS (no applied biases).
+///
+/// main builds its config through this function; the focused tests drive the same composition to prove the used
+/// configuration and sink are learning-free under off.
+pub fn server_fill_config(
+    env: impl Fn(&str) -> Option<String>,
+    cli_fill_to: Option<usize>,
+    learning: Option<LearnedBias>,
+) -> BotFillConfig {
+    let env_fill_set = env("BOTS_FILL_TO").is_some();
+    let mut cfg = BotFillConfig::from_env(env);
+    match cli_fill_to {
+        Some(fill_to) => cfg.fill_to = fill_to,
+        None if !env_fill_set => cfg.fill_to = 0,
+        None => {}
+    }
+    cfg.learned = if cfg.learning_enabled() {
+        learning.unwrap_or(LearnedBias::NO_BIAS)
+    } else {
+        LearnedBias::NO_BIAS
+    };
+    cfg
 }
 
 /// One fill bot as the policy draws it (source BotSeatSpec).
@@ -456,10 +520,7 @@ fn faction_index(faction: FactionId) -> usize {
 
 /// A 32-bit mix of a seed and a tag (a murmur finaliser; source BotManager.mix).
 pub fn mix(seed: u32, tag: u32) -> u32 {
-    let mut h = seed.wrapping_mul(0x9e37_79b1) ^ tag.wrapping_add(1).wrapping_mul(0x85eb_ca6b);
-    h = (h ^ (h >> 16)).wrapping_mul(0x7feb_352d);
-    h = (h ^ (h >> 15)).wrapping_mul(0x846c_a68b);
-    h ^ (h >> 16)
+    rh_policy::bots::random::mix(seed, tag)
 }
 
 /// An id by cumulative weight (source BotManager.pickWeighted): weights are relative, not normalised; a mix with
@@ -552,3 +613,302 @@ pub fn pick_callsign(rng: &mut Mulberry32, taken: impl Fn(&str) -> bool) -> Stri
 #[cfg(test)]
 #[path = "bot_fill_tests.rs"]
 mod tests;
+
+/// The manager's read-only profile-name set (source isNameTaken): lower-cased callsigns no fill bot may draw.
+pub fn name_set<I: IntoIterator<Item = String>>(
+    names: I,
+) -> std::sync::Arc<std::collections::HashSet<String>> {
+    std::sync::Arc::new(
+        names
+            .into_iter()
+            .map(|name| name.to_ascii_lowercase())
+            .collect(),
+    )
+}
+
+impl BotFillConfig {
+    /// The source `config.ts parseBots` surface (docs/BOTS.md 7.3): BOTS_FILL_TO, BOTS_ARRIVAL_SECONDS, BOTS_TIER_MIX,
+    /// BOTS_PERSONA_MIX, BOTS_LATENCY_MS, BOTS_JITTER_MS, BOTS_SEED and BOT_STATS_FILE. `get` is the environment lookup
+    /// (a closure so tests can pass a declared map). The CLI's --fill-bots still overrides `fill_to` at the server edge.
+    pub fn from_env(get: impl Fn(&str) -> Option<String>) -> Self {
+        let default = Self::default();
+        let env = |key: &str| get(key);
+        let tier_ids = [
+            TierId::Easy.as_str(),
+            TierId::Normal.as_str(),
+            TierId::Hard.as_str(),
+        ];
+        let persona_ids = [
+            PersonaId::Farmer.as_str(),
+            PersonaId::Hunter.as_str(),
+            PersonaId::Opportunist.as_str(),
+            PersonaId::Cautious.as_str(),
+        ];
+        // Source: Math.min(MAX_PLAYERS, Math.round(nonNegative(BOTS_FILL_TO, default))). Math.round is not
+        // floor(x + 0.5) for every double (0.49999999999999994 must round to 0), so js_round states the rule.
+        let fill_to = js_round(non_negative(
+            env("BOTS_FILL_TO").as_deref(),
+            default.fill_to as f64,
+        ))
+        .min(MAX_PLAYERS as f64);
+        let stats_file = match env("BOT_STATS_FILE").map(|s| trim_js_whitespace(&s).to_string()) {
+            None => StatsFile::Default,
+            Some(text) if text.is_empty() => StatsFile::Default,
+            Some(text) if text.eq_ignore_ascii_case("off") => StatsFile::Off,
+            Some(text) => StatsFile::Path(text),
+        };
+        Self {
+            fill_to: fill_to.max(0.) as usize,
+            arrival_seconds: non_negative(
+                env("BOTS_ARRIVAL_SECONDS").as_deref(),
+                default.arrival_seconds,
+            ),
+            tier_mix: array_mix(parse_mix(
+                env("BOTS_TIER_MIX").as_deref(),
+                &tier_ids,
+                &default.tier_mix,
+            )),
+            persona_mix: array_mix(parse_mix(
+                env("BOTS_PERSONA_MIX").as_deref(),
+                &persona_ids,
+                &default.persona_mix,
+            )),
+            latency_ms: non_negative(env("BOTS_LATENCY_MS").as_deref(), default.latency_ms),
+            jitter_ms: non_negative(env("BOTS_JITTER_MS").as_deref(), default.jitter_ms),
+            learned: default.learned,
+            // Source A: undefined, a whitespace-only value or a non-finite Number keeps the default seed; B: the finite
+            // number is truncated and converted with the specification's ToUint32 (so -1 wraps to 4294967295).
+            seed: env("BOTS_SEED").and_then(|raw| {
+                if trim_js_whitespace(&raw).is_empty() {
+                    None
+                } else {
+                    let n = js_number(&raw);
+                    n.is_finite().then(|| to_uint32(n.trunc()))
+                }
+            }),
+            stats_file,
+        }
+    }
+}
+
+fn array_mix<const N: usize>(mix: Vec<f64>) -> [f64; N] {
+    let mut out = [0.; N];
+    out[..mix.len()].copy_from_slice(&mix[..mix.len()]);
+    out
+}
+
+/// The source config surface's number pipeline, exactly: undefined or the empty string falls back (source num), any other
+/// value goes through ECMAScript Number and a non-finite result falls back; a finite negative value is clamped to 0.
+fn number_or_fallback(raw: Option<&str>, fallback: f64) -> f64 {
+    let Some(text) = raw else {
+        return fallback;
+    };
+    if text.is_empty() {
+        return fallback;
+    }
+    let n = js_number(text);
+    if n.is_finite() {
+        n
+    } else {
+        fallback
+    }
+}
+
+/// The ECMAScript StringToNumber for the classes the declared BOTS_* surface can see: decimal/scientific literals,
+/// hexadecimal/binary/octal literals (unsigned only, as the grammar requires), Infinity/-Infinity, empty and invalid
+/// text. Not a claim of complete ECMAScript certification (numeric separators and BigInt are not accepted, matching the
+/// source): every class is pinned by the additive captured corpus and its negative controls.
+fn js_number(raw: &str) -> f64 {
+    let text = trim_js_whitespace(raw);
+    if text.is_empty() {
+        return 0.;
+    }
+    match text {
+        "Infinity" | "+Infinity" => return f64::INFINITY,
+        "-Infinity" => return f64::NEG_INFINITY,
+        _ => {}
+    }
+    // Non-decimal integer literals: no sign, at least one digit of that radix, exact integer value rounded once.
+    if let Some(digits) = text.strip_prefix("0x").or_else(|| text.strip_prefix("0X")) {
+        return radix_number(digits, 16);
+    }
+    if let Some(digits) = text.strip_prefix("0b").or_else(|| text.strip_prefix("0B")) {
+        return radix_number(digits, 2);
+    }
+    if let Some(digits) = text.strip_prefix("0o").or_else(|| text.strip_prefix("0O")) {
+        return radix_number(digits, 8);
+    }
+    if !decimal_literal(text) {
+        return f64::NAN;
+    }
+    // The grammar above is exactly the decimal literal Rust parses and rounds correctly, like the source engine.
+    text.parse::<f64>().unwrap_or(f64::NAN)
+}
+
+fn radix_number(digits: &str, radix: u32) -> f64 {
+    if digits.is_empty() {
+        return f64::NAN;
+    }
+    // Up to 128 bits the mathematical value is exact, so one final rounding to f64 matches the specification. A longer
+    // literal continues in f64 from the exact prefix (the declared corpus pins one 2^128 case); values past 128 bits are
+    // not certified and are not part of the declared config surface (documented in the evidence).
+    let mut exact: Option<u128> = Some(0);
+    let mut approx = 0f64;
+    for c in digits.chars() {
+        let Some(d) = c.to_digit(radix) else {
+            return f64::NAN;
+        };
+        match exact {
+            Some(v) => match v
+                .checked_mul(u128::from(radix))
+                .and_then(|scaled| scaled.checked_add(u128::from(d)))
+            {
+                Some(next) => exact = Some(next),
+                None => {
+                    approx = v as f64 * f64::from(radix) + f64::from(d);
+                    exact = None;
+                }
+            },
+            None => approx = approx * f64::from(radix) + f64::from(d),
+        }
+    }
+    exact.map_or(approx, |v| v as f64)
+}
+
+/// ECMAScript's StrDecimalLiteral grammar (the sign, digits, optional fraction and optional exponent).
+fn decimal_literal(text: &str) -> bool {
+    let bytes = text.as_bytes();
+    let mut i = 0usize;
+    if matches!(bytes.first(), Some(b'+') | Some(b'-')) {
+        i += 1;
+    }
+    let mut digits = 0usize;
+    while bytes.get(i).is_some_and(u8::is_ascii_digit) {
+        i += 1;
+        digits += 1;
+    }
+    if bytes.get(i) == Some(&b'.') {
+        i += 1;
+        while bytes.get(i).is_some_and(u8::is_ascii_digit) {
+            i += 1;
+            digits += 1;
+        }
+    }
+    if digits == 0 {
+        return false;
+    }
+    if matches!(bytes.get(i), Some(b'e') | Some(b'E')) {
+        i += 1;
+        if matches!(bytes.get(i), Some(b'+') | Some(b'-')) {
+            i += 1;
+        }
+        let mut exponent = 0usize;
+        while bytes.get(i).is_some_and(u8::is_ascii_digit) {
+            i += 1;
+            exponent += 1;
+        }
+        if exponent == 0 {
+            return false;
+        }
+    }
+    i == bytes.len()
+}
+
+/// The source trim membership: the complete ECMAScript trim set as the pinned linux/amd64 Node 22.23.4 runtime evaluates
+/// it for the unchanged legacy config source. Captured exhaustively over every Unicode scalar value through config.ts
+/// parseMix's String.prototype.trim (parity/policy/bot-runtime.json, "trim"); the committed list is the small 25 code
+/// points below. Input scope: exactly the BOTS_* environment surface's trims (num, parseMix items, BOT_STATS_FILE and
+/// BOTS_SEED); runtime scope: the pinned container. NEL U+0085 is NOT a member (Rust's char::is_whitespace wrongly
+/// includes it: that turned BOTS_FILL_TO="\u{85}" into 0 instead of the source fallback 8, and
+/// BOT_STATS_FILE="\u{85}off\u{85}" into learning off instead of a literal path). U+FEFF (BOM) and the line
+/// separators ARE members. Do not replace this with a broad Unicode property.
+fn is_js_trim_space(c: char) -> bool {
+    matches!(
+        c,
+        '\u{0009}'
+            | '\u{000A}'
+            | '\u{000B}'
+            | '\u{000C}'
+            | '\u{000D}'
+            | '\u{0020}'
+            | '\u{00A0}'
+            | '\u{1680}'
+            | '\u{2000}'
+            ..='\u{200A}'
+                | '\u{2028}'
+                | '\u{2029}'
+                | '\u{202F}'
+                | '\u{205F}'
+                | '\u{3000}'
+                | '\u{FEFF}'
+    )
+}
+
+/// ECMAScript TrimString over those exact members (the source trims env values with String.prototype.trim).
+fn trim_js_whitespace(text: &str) -> &str {
+    text.trim_matches(is_js_trim_space)
+}
+
+/// ECMAScript Math.round (non-negative inputs here): halves round toward +Infinity, and the near-half double
+/// 0.49999999999999994 must stay 0 rather than become 1 through a rounded x + 0.5.
+fn js_round(x: f64) -> f64 {
+    if !x.is_finite() {
+        return x;
+    }
+    let floor = x.floor();
+    if x - floor < 0.5 {
+        floor
+    } else {
+        floor + 1.
+    }
+}
+
+/// Source nonNegative: a bad value falls back, a negative one is 0 (0 is meaningful: "no limit").
+fn non_negative(raw: Option<&str>, fallback: f64) -> f64 {
+    number_or_fallback(raw, fallback).max(0.)
+}
+
+/// Source `parseMix`: "name:weight,..." over `ids`; a name with no weight counts 1, an unknown name or a non-numeric or
+/// extra-part entry is ignored, a negative weight is 0, a listed set with nothing above 0 (or an unset/empty value) is the
+/// fallback mix. Returns the mix in `ids` order.
+fn parse_mix(raw: Option<&str>, ids: &[&str], fallback: &[f64]) -> Vec<f64> {
+    let mut given: Vec<Option<f64>> = vec![None; ids.len()];
+    for part in raw.unwrap_or("").split(',') {
+        let pieces: Vec<&str> = part.split(':').map(trim_js_whitespace).collect();
+        let Some(name) = pieces.first() else { continue };
+        let Some(index) = ids.iter().position(|id| *id == name.to_ascii_lowercase()) else {
+            continue;
+        };
+        if pieces.len() > 2 {
+            continue;
+        }
+        let weight = match pieces.get(1).copied() {
+            None => 1.,
+            Some("") => f64::NAN,
+            Some(text) => js_number(text),
+        };
+        if weight.is_finite() {
+            given[index] = Some(weight.max(0.));
+        }
+    }
+    let mix: Vec<f64> = ids
+        .iter()
+        .enumerate()
+        .map(|(i, _)| given[i].unwrap_or(0.))
+        .collect();
+    if mix.iter().sum::<f64>() > 0. {
+        mix
+    } else {
+        fallback.to_vec()
+    }
+}
+
+/// The specification's ToUint32 of a finite number: truncate toward zero, then modulo 2^32 (so -1 wraps to
+/// 4294967295, as source Math.trunc(x) >>> 0). Non-finite input is filtered before this point.
+fn to_uint32(value: f64) -> u32 {
+    if !value.is_finite() {
+        return 0;
+    }
+    let modulo = value.trunc().rem_euclid(4_294_967_296.);
+    modulo as u32
+}

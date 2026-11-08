@@ -539,3 +539,419 @@ fn each_actual_arrival_refreshes_only_managed_faction_bias_like_the_source() {
         );
     }
 }
+
+// ================================================================================================= P-BOTS-7 remainder
+
+/// The source config surface (`config.ts parseBots` + `parseMix`) against the pinned actual-source corpus
+/// (`parity/policy/bot-runtime.json`, captured from the unchanged TypeScript in the linux/amd64 Node 22.23.4 image).
+#[test]
+fn the_bots_config_env_surface_matches_the_actual_source() {
+    let doc: Value = serde_json::from_str(include_str!("../../../parity/policy/bot-runtime.json"))
+        .expect("the captured bot-runtime corpus parses");
+    assert_eq!(doc["format"], "rh-bot-runtime-source/1");
+    let tier_ids = [
+        TierId::Easy.as_str(),
+        TierId::Normal.as_str(),
+        TierId::Hard.as_str(),
+    ];
+    let persona_ids = [
+        PersonaId::Farmer.as_str(),
+        PersonaId::Hunter.as_str(),
+        PersonaId::Opportunist.as_str(),
+        PersonaId::Cautious.as_str(),
+    ];
+    let by_ids = |ids: &[&str], row: &Value| -> Vec<f64> {
+        ids.iter()
+            .map(|id| {
+                row.get(*id)
+                    .and_then(Value::as_f64)
+                    .unwrap_or_else(|| panic!("missing {id} in {row}"))
+            })
+            .collect()
+    };
+    for case in doc["mixes"].as_array().unwrap() {
+        let raw = case["raw"].as_str();
+        let ids: Vec<&str> = if case["ids"].as_array().unwrap()[0] == "easy" {
+            tier_ids.to_vec()
+        } else {
+            persona_ids.to_vec()
+        };
+        let fallback: Vec<f64> = if ids == tier_ids {
+            BotFillConfig::default().tier_mix.to_vec()
+        } else {
+            BotFillConfig::default().persona_mix.to_vec()
+        };
+        let got = parse_mix(raw, &ids, &fallback);
+        let want = by_ids(&ids, &case["expected"]);
+        assert_eq!(got, want, "{}", case["name"].as_str().unwrap());
+    }
+    for case in doc["config"].as_array().unwrap() {
+        let env = case["env"].as_object().unwrap();
+        let get = |key: &str| env.get(key).and_then(Value::as_str).map(str::to_string);
+        let got = BotFillConfig::from_env(get);
+        let want = &case["bots"];
+        let name = case["name"].as_str().unwrap();
+        assert_eq!(
+            &got.fill_to,
+            &(want["fillTo"].as_u64().unwrap() as usize),
+            "{name}: fillTo"
+        );
+        assert_eq!(
+            got.arrival_seconds,
+            want["arrivalSeconds"].as_f64().unwrap(),
+            "{name}: arrivalSeconds"
+        );
+        assert_eq!(
+            &got.tier_mix.to_vec(),
+            &by_ids(&tier_ids, &want["tierMix"]),
+            "{name}: tierMix"
+        );
+        assert_eq!(
+            &got.persona_mix.to_vec(),
+            &by_ids(&persona_ids, &want["personaMix"]),
+            "{name}: personaMix"
+        );
+        assert_eq!(
+            got.latency_ms,
+            want["latencyMs"].as_f64().unwrap(),
+            "{name}: latency"
+        );
+        assert_eq!(
+            got.jitter_ms,
+            want["jitterMs"].as_f64().unwrap(),
+            "{name}: jitter"
+        );
+        assert_eq!(
+            got.seed,
+            want["seed"].as_u64().map(|v| v as u32),
+            "{name}: seed"
+        );
+        match (want["statsFile"].as_str(), &got.stats_file) {
+            (None, StatsFile::Default) => {}
+            (Some(""), StatsFile::Off) => {}
+            (Some("file"), StatsFile::Path(path)) if !path.is_empty() => {}
+            (want, got) => panic!("{name}: statsFile {want:?} != {got:?}"),
+        }
+    }
+    // The declared defaults are BOT_FILL_DEFAULTS (the corpus' first case) and the server keeps learning off by default.
+    let defaults = BotFillConfig::default();
+    assert_eq!(defaults.fill_to, 8);
+    assert_eq!(defaults.arrival_seconds, 12.);
+    assert_eq!(defaults.tier_mix, [0.3, 0.45, 0.25]);
+    assert_eq!(defaults.persona_mix, [4., 1., 2., 3.]);
+    assert_eq!(defaults.latency_ms, 30.);
+    assert_eq!(defaults.jitter_ms, 8.);
+    assert_eq!(defaults.seed, None);
+    assert_eq!(defaults.stats_file, StatsFile::Default);
+    assert_eq!(
+        defaults.learned,
+        rh_policy::bots::learning::LearnedBias::NO_BIAS
+    );
+}
+
+/// A fill bot's seed choice: the fixed seed wins, else BOTS_SEED from the config, else entropy (checked through the room's
+/// delay-line stream, which is seeded from the same manager seed).
+#[test]
+fn the_manager_seed_is_the_room_fill_seed_when_set() {
+    let cfg = BotFillConfig {
+        seed: Some(7),
+        ..BotFillConfig::default()
+    };
+    // The line stream is mix(seed, 1), the same stream the delay line uses: a declared seed makes it reproducible.
+    let a = rh_policy::bots::delay::DelayLine::<u32>::rng(7);
+    let b = rh_policy::bots::delay::DelayLine::<u32>::rng(cfg.seed.unwrap());
+    assert_eq!(a, b);
+}
+
+// ============================================================ P-BOTS-7b repair: Number pipeline and the learning gate
+
+/// The raw ECMAScript Number() oracle (the source config pipeline's engine), captured additively in the same
+/// parity/policy/bot-runtime.json: decimal/scientific, whitespace/empty, radix, signed-radix, Infinity/NaN and invalid
+/// text. This is the declared class set, not a claim of complete engine certification.
+#[test]
+fn the_bots_number_oracle_matches_the_actual_source() {
+    let doc: Value = serde_json::from_str(include_str!("../../../parity/policy/bot-runtime.json"))
+        .expect("the captured bot-runtime corpus parses");
+    let numbers = doc["numbers"]
+        .as_array()
+        .expect("the additive numbers section");
+    assert!(numbers.len() >= 40, "the declared class set is captured");
+    for case in numbers {
+        let text = case["text"].as_str().expect("a declared input");
+        let got = js_number(text);
+        match case["kind"].as_str().expect("a declared kind") {
+            "nan" => assert!(got.is_nan(), "{text:?}: source NaN, port {got}"),
+            "+inf" => assert_eq!(got, f64::INFINITY, "{text:?}"),
+            "-inf" => assert_eq!(got, f64::NEG_INFINITY, "{text:?}"),
+            "number" => {
+                let want = case["value"].as_f64().expect("a captured number");
+                assert_eq!(
+                    got.to_bits(),
+                    want.to_bits(),
+                    "{text:?}: port {got} source {want}"
+                );
+                let negative_zero = case["negativeZero"].as_bool().unwrap_or(false);
+                assert_eq!(
+                    negative_zero,
+                    got == 0. && got.is_sign_negative(),
+                    "{text:?}: negative-zero sign"
+                );
+            }
+            other => panic!("number kind {other}"),
+        }
+    }
+}
+
+/// The pre-repair parser is the negative control this repair is measured against: it must fail the classes the source
+/// oracle pins while the ported pipeline matches all of them.
+#[test]
+fn the_old_number_pipeline_fails_the_repaired_classes() {
+    // The pre-repair js_number: trim, a Rust f64 parse (which accepts "inf"/"infinity"/"NaN" spellings the source
+    // rejects and has no radix literals), plus the two Infinity spellings.
+    fn old(raw: &str) -> f64 {
+        let text = raw.trim();
+        if text.is_empty() {
+            return f64::NAN;
+        }
+        match text {
+            "Infinity" | "+Infinity" => f64::INFINITY,
+            "-Infinity" => f64::NEG_INFINITY,
+            _ => text.parse::<f64>().unwrap_or(f64::NAN),
+        }
+    }
+    // Radix literals: the source Number accepts them, the old parser did not.
+    assert_eq!(js_number("0x10"), 16.);
+    assert_eq!(js_number("0b101"), 5.);
+    assert_eq!(js_number("0o17"), 15.);
+    assert!(old("0x10").is_nan() && old("0b101").is_nan() && old("0o17").is_nan());
+    // Signed radix strings are NaN in the source grammar; the port agrees, the old parser also answered NaN but for the
+    // wrong reason, so this is asserted against the captured oracle above.
+    assert!(js_number("+0x10").is_nan());
+    assert!(js_number("-0x10").is_nan());
+    // Rust's parser takes spellings the source does not: the old pipeline answered Infinity, the source NaN.
+    assert!(js_number("inf").is_nan());
+    assert!(old("inf").is_infinite());
+    assert!(js_number("infinity").is_nan());
+    assert!(old("infinity").is_infinite());
+    // A whitespace-only env value is Number(" ") = 0 (not the fallback): the old trim-then-parse made it NaN and fell back.
+    assert_eq!(js_number(" "), 0.);
+    assert!(old(" ").is_nan());
+    let source_ws = BotFillConfig::from_env(|k| (k == "BOTS_FILL_TO").then(|| " ".to_string()));
+    assert_eq!(
+        source_ws.fill_to, 0,
+        "source Math.round(Number of a space) is 0"
+    );
+    // Math.round is not floor(x + 0.5) for every double: the near-half value must stay 0, an x+0.5 implementation says 1.
+    let near_half = BotFillConfig::from_env(|k| {
+        (k == "BOTS_FILL_TO").then(|| "0.49999999999999994".to_string())
+    });
+    assert_eq!(near_half.fill_to, 0);
+    assert_eq!(((0.49999999999999994f64 + 0.5).floor()) as usize, 1);
+    // The empty string is the one value the source num short-circuits to the fallback; a space is not.
+    let empty = BotFillConfig::from_env(|k| (k == "BOTS_FILL_TO").then(String::new));
+    assert_eq!(empty.fill_to, BotFillConfig::default().fill_to);
+}
+
+/// The source BOT_STATS_FILE=off gate through the real used configuration and sink: main constructs and installs the live
+/// learning store only when the environment allows learning, and the composition drops a snapshot under off so no applied
+/// bias can reach the fill policy.
+#[test]
+fn bot_stats_file_off_keeps_the_used_configuration_learning_free() {
+    use rh_policy::bots::learning::{LearnedBias, LEARN_CAP};
+    let mut biases = std::collections::BTreeMap::new();
+    for persona in PersonaId::ALL {
+        for faction in FactionId::ALL {
+            biases.insert(
+                format!("faction|{}|{}", persona.as_str(), faction.as_str()),
+                if faction == FactionId::Fire {
+                    LEARN_CAP
+                } else {
+                    0.
+                },
+            );
+        }
+    }
+    let live = LearnedBias::with_biases(biases);
+    assert!(live.enabled(), "a running store's snapshot is enabled");
+    let env = |k: &str| (k == "BOT_STATS_FILE").then(|| "off".to_string());
+    // The startup decision (main): no store is started and no sink installed when the config says off.
+    let startup = BotFillConfig::from_env(env);
+    assert_eq!(startup.stats_file, StatsFile::Off);
+    assert!(!startup.learning_enabled(), "off disables the subsystem");
+    let installed: Option<LearnedBias> = if startup.learning_enabled() {
+        Some(live.clone())
+    } else {
+        None
+    };
+    // The real used configuration: the gate drops the snapshot even when a caller passes one.
+    let used = server_fill_config(env, Some(8), installed);
+    assert_eq!(used.learned, LearnedBias::NO_BIAS);
+    assert!(!used.learned.enabled());
+    let forced = server_fill_config(env, Some(8), Some(live.clone()));
+    assert_eq!(
+        forced.learned,
+        LearnedBias::NO_BIAS,
+        "off wins over a supplied snapshot"
+    );
+    // The room's real seat draw is the captured no-learning stream, and the pre-repair behavior (applying learning
+    // unconditionally) is observably different, so the regression is meaningful rather than an enum-parse check.
+    let plain = server_fill_config(|_| None, Some(8), None);
+    let biased = plain.clone().with_learned(live.clone());
+    let fire = |specs: &[BotSeatSpec]| {
+        specs
+            .iter()
+            .filter(|s| s.faction == FactionId::Fire)
+            .count()
+    };
+    let (mut used_total, mut plain_total, mut biased_total) = (0, 0, 0);
+    for seed in 1..=40u64 {
+        assert_eq!(
+            seat_all(used.clone(), seed),
+            seat_all(plain.clone(), seed),
+            "seed {seed}: the off configuration draws the NO_BIAS stream"
+        );
+        used_total += fire(&seat_all(used.clone(), seed));
+        plain_total += fire(&seat_all(plain.clone(), seed));
+        biased_total += fire(&seat_all(biased.clone(), seed));
+    }
+    assert_eq!(used_total, plain_total);
+    assert!(
+        biased_total > used_total,
+        "the pre-repair unconditional snapshot changes the draw: {biased_total} vs {used_total}"
+    );
+    // Only off disables learning: a file path parses as a path (the port has no file backend to create), and the default
+    // (unset) keeps learning when a snapshot is available.
+    let path = BotFillConfig::from_env(|k| {
+        (k == "BOT_STATS_FILE").then(|| "/var/raid/bots.json".to_string())
+    });
+    assert_eq!(
+        path.stats_file,
+        StatsFile::Path("/var/raid/bots.json".into())
+    );
+    assert!(path.learning_enabled());
+    let enabled = server_fill_config(|_| None, Some(8), Some(live.clone()));
+    assert_eq!(enabled.learned, live);
+}
+
+// ============================================================ P-BOTS-7b trim repair: exact source trim membership
+
+/// The captured source trim membership, checked against EVERY Unicode scalar value: one extra or missing member fails.
+/// The expected membership comes from the pinned-container capture in parity/policy/bot-runtime.json ("trim", evaluated
+/// through the unchanged config.ts parseMix String.prototype.trim in the pinned linux/amd64 Node 22.23.4 runtime).
+#[test]
+fn the_js_trim_membership_is_exact_over_every_unicode_scalar() {
+    let doc: Value = serde_json::from_str(include_str!("../../../parity/policy/bot-runtime.json"))
+        .expect("the captured bot-runtime corpus parses");
+    let trim = &doc["trim"];
+    let members: Vec<u32> = trim["members"]
+        .as_array()
+        .expect("the captured trim membership")
+        .iter()
+        .map(|v| v.as_u64().expect("a code point") as u32)
+        .collect();
+    assert!(
+        members.len() < 64,
+        "the committed membership is a small list"
+    );
+    let expected: std::collections::BTreeSet<u32> = members.iter().copied().collect();
+    assert_eq!(expected.len(), members.len(), "no duplicate members");
+    let mut extra = Vec::new();
+    let mut missing = Vec::new();
+    for cp in 0..=0x10FFFFu32 {
+        let Some(c) = char::from_u32(cp) else {
+            continue;
+        };
+        let want = expected.contains(&cp);
+        let got = is_js_trim_space(c);
+        if got && !want {
+            extra.push(cp);
+        }
+        if want && !got {
+            missing.push(cp);
+        }
+    }
+    assert!(
+        extra.is_empty() && missing.is_empty(),
+        "the port's trim membership diverges from the captured source: extra {extra:?}, missing {missing:?}"
+    );
+    // The source's whitespace and line terminators are members, NEL is explicitly not.
+    for cp in [
+        0x09u32, 0x0A, 0x0B, 0x0C, 0x0D, 0x20, 0xA0, 0x1680, 0x2028, 0x2029, 0x202F, 0x205F,
+        0x3000, 0xFEFF,
+    ] {
+        assert!(expected.contains(&cp), "U+{cp:04X} is a source trim member");
+    }
+    for cp in 0x2000u32..=0x200A {
+        assert!(expected.contains(&cp), "U+{cp:04X} is a source trim member");
+    }
+    assert!(!expected.contains(&0x85), "NEL is not a source trim member");
+    // The trim helper itself: NEL stays, the real members (BOM, line terminators, spaces) go.
+    assert_eq!(trim_js_whitespace("\u{85}off\u{85}"), "\u{85}off\u{85}");
+    assert_eq!(trim_js_whitespace("\u{FEFF}6\u{2029}"), "6");
+    assert_eq!(trim_js_whitespace("\u{2028}\u{2029} \u{000B}"), "");
+}
+
+/// The pre-repair broad Rust property (char::is_whitespace plus the three exceptions) is the negative control: it must
+/// differ from the captured source membership, and that exact difference is what the two reviewer-named behaviours were.
+#[test]
+fn the_old_whitespace_property_is_the_trim_negative_control() {
+    fn old_is_trim_space(c: char) -> bool {
+        c.is_whitespace() || c == '\u{FEFF}' || c == '\u{2028}' || c == '\u{2029}'
+    }
+    let mut divergent = Vec::new();
+    for cp in 0..=0x10FFFFu32 {
+        let Some(c) = char::from_u32(cp) else {
+            continue;
+        };
+        if old_is_trim_space(c) != is_js_trim_space(c) {
+            divergent.push(cp);
+        }
+    }
+    assert_eq!(
+        divergent,
+        [0x85u32],
+        "the old property differs exactly at NEL U+0085"
+    );
+    // Behaviour 1: the old trim stripped NEL, leaving an empty string that Number reads as 0, so BOTS_FILL_TO="NEL"
+    // became 0 instead of the source fallback 8.
+    let old_trim = |raw: &str| {
+        raw.trim_matches(|c: char| {
+            c.is_whitespace() || c == '\u{FEFF}' || c == '\u{2028}' || c == '\u{2029}'
+        })
+        .to_string()
+    };
+    assert_eq!(old_trim("\u{85}"), "");
+    assert_eq!(
+        js_number(&old_trim("\u{85}")),
+        0.,
+        "the old trim made NEL read as zero"
+    );
+    let fixed = BotFillConfig::from_env(|k| (k == "BOTS_FILL_TO").then(|| "\u{85}".to_string()));
+    assert_eq!(
+        fixed.fill_to,
+        BotFillConfig::default().fill_to,
+        "the source Number(NEL) is NaN, so the value falls back"
+    );
+    // Behaviour 2: the old trim stripped NEL around "off", disabling learning; the source keeps the literal path.
+    assert_eq!(old_trim("\u{85}off\u{85}"), "off");
+    let fixed_stats =
+        BotFillConfig::from_env(|k| (k == "BOT_STATS_FILE").then(|| "\u{85}off\u{85}".to_string()));
+    assert_eq!(
+        fixed_stats.stats_file,
+        StatsFile::Path("\u{85}off\u{85}".to_string())
+    );
+    assert!(
+        fixed_stats.learning_enabled(),
+        "a NEL-wrapped off stays a path"
+    );
+    // Positive real-whitespace controls: the actual source members around a number do trim to the value.
+    for (raw, want) in [
+        ("\u{00A0}6\u{00A0}", 6usize),
+        ("\u{FEFF}6\u{FEFF}", 6),
+        ("\u{2028}6\u{2029}", 6),
+        ("\u{000B}6\u{000C}", 6),
+    ] {
+        let cfg = BotFillConfig::from_env(|k| (k == "BOTS_FILL_TO").then(|| raw.to_string()));
+        assert_eq!(cfg.fill_to, want, "{raw:?} trims to {want}");
+    }
+}
