@@ -81,3 +81,55 @@ Run the fast contract/scheduler tests with:
 ```sh
 node --test tools/latency/latency.test.cjs
 ```
+
+## All-five Unity Wish input proof
+
+`wish-e2e.cjs` drives five fresh, real Unity WebGL clients through Playwright browser keyboard and pointer input. It
+checks the faction-to-Wish mapping, Unity `ReadInput` sample marker, same-frame actual Cast frame and sequence, an own-caster
+confirmed `castLanded` retaining the server's original `eventTime`, its exact `presentWishLanded` Unity marker, and an authoritative owner charge
+update. It never calls the probe page's `P.cast`, `Session.Cast`, or sends a synthetic game WebSocket frame. Missing Unity
+trace/art hooks produce an `INCOMPLETE` report; a successful run is not claimed until the composed player is built and run.
+Unity trace recording is disabled during the ordinary opening-lock warm-up, while browser errors, decoder errors, and wire
+capture remain active. It is enabled only after the authoritative owner baseline is ready; an overflow during a measured
+case fails the report. Confirmed FX and presentation occurrence arrays retain receive order and keep same-tick events
+separate rather than grouping by tick or ability.
+
+The runner starts a new local `rh-server` process per ability with `--wish-full`, the two-spawn duel map, two humans,
+zero bot fill, and training disabled. The controlled map is `tools/latency/wish-duel.json` (`rh-map/1`), a 16×10 enclosed
+room with clear spawns at `[144,144]` and `[304,144]`. It waits for the server-published owner `readyAt` after the ordinary
+45,000 ms opening lock; it does not change the clock or spend a stock early. The server binary and Unity build must come
+from the same source/content revision. Build the server and use a temporary server on port 7796 to bake the Web content
+hash before building the player:
+
+```sh
+cargo build -p rh-server
+target/debug/rh-server --bind 127.0.0.1:7796 --map tools/latency/wish-duel.json --min-players 2 --lobby-seconds 2 --fill-seconds 1 --fill-bots 0 --wish-full
+RH_SERVER_INFO_URL=http://127.0.0.1:7796/info client-unity/UnityProject/Tools/build-web.sh
+```
+
+Stop that temporary server after the Web build, serve `client-unity/UnityProject/Build/Web` on HTTP port 8097, and run:
+
+```sh
+node tools/latency/wish-e2e.cjs
+```
+
+The runner accepts only loopback `http://` or `https://` Unity Web URLs. Each local server binds `127.0.0.1`; by default,
+the runner picks an ephemeral port with a brief bind-zero probe, then starts its own child. If another process wins the
+release-to-bind race, that case fails and the runner leaves the other listener alone. `--port-base N` optionally requests
+a fixed range of five ports and fails closed if the child cannot bind. Use `--url http://127.0.0.1:8097/`, `--server-bin PATH`,
+`--map PATH`, `--port-base N`, `--headed`, and `--timeout-ms N` to override local defaults. Each case gets a fresh pair of browser clients.
+The default timeout is 90 seconds to include the unmodified opening lock. The JSON report defaults to
+`tools/latency/wish-report.json`; screenshots are saved under `tools/latency/wish-evidence/`. These are generated evidence
+outputs and should be reviewed before publication. The report records each actual port, full server `/info` response, and
+SHA-256 hashes for the server binary and map. The runner uses the v12 decoder from `crates/rh-server/web/probe.html`
+as a decoder only; its public probe input helpers are never invoked.
+
+Check the report's fail-closed contract without starting Unity, Chromium, or a server:
+
+```sh
+node --test tools/latency/wish-proof-contract.test.cjs
+```
+
+These contract tests use synthetic in-memory reports to check verdict rules; they are not executed game evidence. No
+browser/Unity run is included here. A real all-five result requires the composed build and a saved `wish-report.json` with
+five passing cases and their screenshots.
