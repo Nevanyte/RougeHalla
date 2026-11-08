@@ -1,0 +1,35 @@
+{
+  "candidate": "f034ace7d1f6617ed64a1eb194469e0b4531caa9",
+  "scope": "actual source method/schema/receiver witnesses; not Room/browser/native publication",
+  "archive": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08",
+  "logs": [
+    {
+      "file": "quest-public-source-root.log",
+      "bytes": 1755,
+      "sha256": "b86e37d182410fe5c6e0ba5cc4399bcf205a384ee8e206fe29e824625d681d52"
+    },
+    {
+      "file": "trade-public-source-root.log",
+      "bytes": 1753,
+      "sha256": "815a642f944efbff9ff097fa258123d6a0c794ec8b3894091538b5dc1866dbde"
+    },
+    {
+      "file": "quest-public-mutants-root.log",
+      "bytes": 1205,
+      "sha256": "db89c52cfddbc92b8ea8f9eff9cad104d21192cfac3b58ae151fe5685b7c589d"
+    },
+    {
+      "file": "trade-public-mutants-root.log",
+      "bytes": 1259,
+      "sha256": "cf0ab57e94a592e6f20942b2ec7886bc0f1869946a3876b8921a1863a5150a0d"
+    }
+  ],
+  "checks": {
+    "questBytecheck": 0,
+    "tradeBytecheck": 0,
+    "questSemanticKills": 4,
+    "tradeSemanticKills": 4,
+    "provenanceOnlyNonKills": 2,
+    "restoredControls": 2
+  }
+}

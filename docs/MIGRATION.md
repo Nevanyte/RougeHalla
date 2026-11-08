@@ -57,6 +57,15 @@ acquisition/Build increase, trusted Unity credited kill, trusted HUD Choose and 
 Incomplete driver attempts are retained. Browser wire has no cumulative killStats: exact native grant is separate
 matching-source backend proof. No display/input-to-photon, final full-game performance or cloud claim follows.
 
+The [actual-source quest/trader public witnesses](evidence/quest-trade-public/ADMISSION.md) throughf034ace7 are now
+admitted. Root pinned bytechecks and8semantic mutant kills/two provenance-only non-kills/restored controls pass. These
+are declared method/schema/receiver rigs, not Room/socket/Unity proof. Finder-adjusted hidden count is distinguished
+from raw unpublished count; source rolled trade-offer disclosure is recorded without granting Rust publication.
+The [local account cross-path proof](evidence/account-durability/README.md) connects actual HTTP-issued credentials to
+hosted admission, observed away→resume, real combat/results/spool and authenticated profile/leaderboard after service/
+pool reconstruction. Root independently passes the new real-PG test1/1. It does not certify process-kill/database
+restart, cross-volume recovery, backup restoration or missing Unity account/training/placement flows.
+
 [Frozen gate scopes and receipts](evidence/native-wish-union/FROZEN13_GATE.md) supersede the private pre-admission status
 below. The older results and artifact descriptions that follow retain their historical revision limits.
 

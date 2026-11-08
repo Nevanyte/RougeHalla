@@ -110,6 +110,10 @@ jobs:
           bash tools/wish-public-fixtures/capture.sh --check
           bash tools/trophy-witness-fixtures/capture.sh --check
           bash tools/trophy-format-fixtures/capture.sh --check
+      - name: Human quest and trader doors, schema and receivers remain source exact
+        run: |
+          bash tools/quest-public-fixtures/capture.sh --check
+          bash tools/trade-public-fixtures/capture.sh --check
       - name: First-playable cards, constructor, potions and PvE still match the actual source
         run: |
           bash tools/cards-fixtures/capture.sh --check
