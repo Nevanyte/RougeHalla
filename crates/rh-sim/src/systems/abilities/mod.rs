@@ -199,6 +199,7 @@ pub(crate) fn handle(cx: &mut Cx, ix: FighterIx, cmd: &ActionCmd) {
     if def.cast_ms > 0. {
         let at = face.unwrap_or(p.pos());
         cx.ev.push(Event::CastStarted {
+            event_time: now,
             id: p.id,
             ability,
             ms: def.cast_ms,
@@ -283,6 +284,7 @@ pub(crate) fn land(cx: &mut Cx) {
                 .unwrap_or(l.origin)
         };
         cx.ev.push(Event::CastLanded {
+            event_time: now,
             id: l.id,
             ability: l.cast.ability,
             target: if l.to.is_some() { None } else { target },

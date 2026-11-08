@@ -223,9 +223,9 @@ pub(super) fn compare(s: &Sim, frame: &V, name: &str, input: &V) {
 
 pub(super) fn compare_events(s: &Sim, events: &[Event], case: &V) {
     let actual:Vec<V>=events.iter().filter_map(|event|match *event {
- Event::CastStarted{id,ability,ms,target,x,y}=>Some(json!({"kind":"cast","by":label(id),"ability":ability,"ms":ms,"target":target.map(label),"x":x,"y":y})),
- Event::CastEnded{id,ability,reason}=>Some(json!({"kind":"castEnd","by":label(id),"ability":ability,"reason":reason})),
- Event::CastLanded{id,ability,target,x,y,to}=>{let mut v=json!({"kind":"castLand","by":label(id),"ability":ability,"target":target.map(label),"x":x,"y":y});if let Some(to)=to{v["x2"]=json!(to.x);v["y2"]=json!(to.y);}Some(v)},
+ Event::CastStarted{id,ability,ms,target,x,y,..}=>Some(json!({"kind":"cast","by":label(id),"ability":ability,"ms":ms,"target":target.map(label),"x":x,"y":y})),
+ Event::CastEnded{id,ability,reason,..}=>Some(json!({"kind":"castEnd","by":label(id),"ability":ability,"reason":reason})),
+ Event::CastLanded{id,ability,target,x,y,to,..}=>{let mut v=json!({"kind":"castLand","by":label(id),"ability":ability,"target":target.map(label),"x":x,"y":y});if let Some(to)=to{v["x2"]=json!(to.x);v["y2"]=json!(to.y);}Some(v)},
  Event::StatusApplied{id,kind,ms,by}=>Some(json!({"kind":"status","id":label(id),"status":kind,"ms":ms,"by":by.map(label).unwrap_or_default()})),
  Event::Death{id,x,y,by}=>Some(json!({"kind":"death","id":label(id),"x":x,"y":y,"by":by.map(label)})),
  Event::Heal{id,amount}=>Some(json!({"kind":"heal","id":label(id),"amount":amount})),

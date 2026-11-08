@@ -248,6 +248,7 @@ pub(crate) fn cancel_cast(
         return;
     };
     ev.push(Event::CastEnded {
+        event_time: w.server_time,
         id,
         ability: c.ability,
         reason,
