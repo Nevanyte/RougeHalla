@@ -26,7 +26,9 @@ pub const SEND_TIMEOUT: Duration = Duration::from_secs(5);
 /// before the client reads it (seen under load with a flooding client).
 pub const CLOSE_LINGER: Duration = Duration::from_secs(1);
 /// Frames per second a client may send (aim 40/s + orders + pings fit well under it), with a burst. Every inbound frame
-/// counts, WebSocket control frames (Ping, Pong) included: a client cannot keep its socket readable forever for free.
+/// counts, WebSocket control frames (Ping, Pong) included, except a Pong that answers a currently in-flight server RTT
+/// Ping: that Pong is the compulsory answer to a server control frame and is exempt (see `admit_pong`). A client cannot
+/// keep its socket readable forever for free.
 pub const FRAMES_PER_SECOND: f64 = 60.0;
 pub const FRAME_BURST: f64 = 120.0;
 /// Fairness of the reader's biased select: after this many frames in a row, the next wait looks at the writer first (once,
@@ -262,20 +264,24 @@ pub async fn serve(mut sock: WebSocket, director: Arc<Director>) {
                 }
                 continue;
             }
-            // A Pong is the answer to this connection's own RTT Ping (the only use of server control frames): a matching
-            // payload is one server-measured sample for the seat, and a Pong with any other payload is ignored.
+            // A Pong is the answer to this connection's own RTT Ping (the only use of server control frames). A Pong
+            // that answers a currently in-flight challenge is exempt from the user-frame bucket and is one
+            // server-measured sample for the seat; any other Pong is charged like every other inbound frame.
             Ok(Message::Pong(payload)) => {
-                if !bucket.allow(last_seen) {
-                    outbox.close(RejectCode::RateLimited);
-                    break;
-                }
-                if let Some(rtt_ms) = pong_rtt(&pings, &payload, start) {
-                    // Advisory: an overloaded room may drop a sample; the seat keeps its last estimate.
-                    let _ = room.try_send(RoomCmd::RttSample {
-                        player,
-                        conn,
-                        rtt_ms,
-                    });
+                match admit_pong(&mut bucket, &pings, &payload, start, last_seen) {
+                    PongAdmission::Matched(rtt_ms) => {
+                        // Advisory: an overloaded room may drop a sample; the seat keeps its last estimate.
+                        let _ = room.try_send(RoomCmd::RttSample {
+                            player,
+                            conn,
+                            rtt_ms,
+                        });
+                    }
+                    PongAdmission::Unmatched => {}
+                    PongAdmission::RateLimited => {
+                        outbox.close(RejectCode::RateLimited);
+                        break;
+                    }
                 }
                 continue;
             }
@@ -352,6 +358,34 @@ pub async fn serve(mut sock: WebSocket, director: Arc<Director>) {
         }
     })
     .await;
+}
+
+/// What one inbound Pong costs the reader: a matched server challenge is a compulsory control response and costs no
+/// user-frame token; anything else costs one token (or the connection closes because the bucket is depleted).
+enum PongAdmission {
+    Matched(f64),
+    Unmatched,
+    RateLimited,
+}
+
+/// Decides one inbound Pong. The one-shot challenge is validated and consumed *before* the user-frame bucket is
+/// charged, so only a Pong answering a currently in-flight server Ping is exempt. Malformed, unknown, duplicate,
+/// evicted and old-connection payloads are charged exactly like any other inbound frame.
+fn admit_pong(
+    bucket: &mut Bucket,
+    pings: &Mutex<VecDeque<u64>>,
+    payload: &[u8],
+    start: tokio::time::Instant,
+    now: tokio::time::Instant,
+) -> PongAdmission {
+    if let Some(rtt_ms) = pong_rtt(pings, payload, start) {
+        return PongAdmission::Matched(rtt_ms);
+    }
+    if bucket.allow(now) {
+        PongAdmission::Unmatched
+    } else {
+        PongAdmission::RateLimited
+    }
 }
 
 /// Turns one Pong into a server-measured RTT. Only a payload the writer actually sent (and this connection has not
@@ -528,6 +562,39 @@ mod tests {
         assert!(
             (90.0..=140.0).contains(&rtt),
             "now ~100 ms - sent 10 ms: {rtt}"
+        );
+    }
+
+    /// The writer keeps at most `RTT_PINGS_IN_FLIGHT` challenges; when a ninth is sent the oldest is evicted and can
+    /// no longer be answered as a sample. A matched payload is still consumed once (the existing test's duplicate case).
+    #[test]
+    fn an_evicted_server_ping_payload_is_not_a_sample() {
+        let start = tokio::time::Instant::now();
+        let pings = Mutex::new(VecDeque::new());
+        for payload in 0u64..=(RTT_PINGS_IN_FLIGHT as u64) {
+            let mut in_flight = pings
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            if in_flight.len() == RTT_PINGS_IN_FLIGHT {
+                in_flight.pop_front();
+            }
+            in_flight.push_back(payload);
+        }
+        assert_eq!(
+            pong_rtt(&pings, &0u64.to_le_bytes(), start),
+            None,
+            "the ninth challenge evicted payload 0"
+        );
+        for payload in 1u64..=RTT_PINGS_IN_FLIGHT as u64 {
+            assert!(
+                pong_rtt(&pings, &payload.to_le_bytes(), start).is_some(),
+                "payload {payload} is still in flight"
+            );
+        }
+        assert_eq!(
+            pong_rtt(&pings, &(RTT_PINGS_IN_FLIGHT as u64).to_le_bytes(), start),
+            None,
+            "an answered payload is consumed once"
         );
     }
 
@@ -763,6 +830,188 @@ mod tests {
         };
         let allowed = (0..1000).take_while(|_| b.allow(t)).count();
         assert_eq!(allowed, FRAME_BURST as usize);
+    }
+
+    /// One simulated 65 s stream: how far it got and the bucket level it ended at.
+    #[derive(Debug, Default)]
+    struct StreamRun {
+        frames_charged: usize,
+        pongs: usize,
+        matched_pongs: usize,
+        first_frame_failure_s: Option<f64>,
+        first_pong_failure_s: Option<f64>,
+        min_tokens: f64,
+        final_tokens: f64,
+    }
+
+    /// Drives the real [`Bucket`] and [`admit_pong`] over a deterministic timeline: 60 user frames/s for 65 s plus one
+    /// answer to a server control Ping every 500 ms. The first Ping is sent at connection start and the last Pong lands at
+    /// 65.0 s, after the last frame. `charge_matched_pongs` selects the old buggy charge-before-match order as a negative
+    /// control; the fixed path calls `admit_pong` itself, so reordering that function makes the acceptance test fail.
+    fn stream_65s(charge_matched_pongs: bool) -> StreamRun {
+        let start = tokio::time::Instant::now();
+        let mut bucket = Bucket {
+            tokens: FRAME_BURST,
+            at: start,
+        };
+        let pings = Mutex::new(VecDeque::<u64>::new());
+        let mut run = StreamRun {
+            min_tokens: FRAME_BURST,
+            ..Default::default()
+        };
+        // 3,900 frame instants (60/s over 65 s) and 131 Pong instants (the Ping at start plus every 500 ms, 65 s
+        // inclusive); the last Pong follows the last user frame.
+        for i in 0..=3900 {
+            let t = start + Duration::from_secs_f64(i as f64 / FRAMES_PER_SECOND);
+            if i < 3900 {
+                if !bucket.allow(t) {
+                    run.first_frame_failure_s = Some((t - start).as_secs_f64());
+                    break;
+                }
+                run.frames_charged += 1;
+                run.min_tokens = run.min_tokens.min(bucket.tokens);
+            }
+            if i % 30 == 0 {
+                let sent = t.duration_since(start).as_millis() as u64;
+                let payload = sent.to_le_bytes();
+                {
+                    let mut in_flight = pings
+                        .lock()
+                        .unwrap_or_else(std::sync::PoisonError::into_inner);
+                    if in_flight.len() == RTT_PINGS_IN_FLIGHT {
+                        in_flight.pop_front();
+                    }
+                    in_flight.push_back(sent);
+                }
+                run.pongs += 1;
+                if charge_matched_pongs {
+                    // The old reader loop: charge every Pong against the user-frame bucket, then try to match it.
+                    if !bucket.allow(t) {
+                        run.first_pong_failure_s = Some((t - start).as_secs_f64());
+                        break;
+                    }
+                    if pong_rtt(&pings, &payload, start).is_some() {
+                        run.matched_pongs += 1;
+                    }
+                } else {
+                    match admit_pong(&mut bucket, &pings, &payload, start, t) {
+                        PongAdmission::Matched(_) => run.matched_pongs += 1,
+                        PongAdmission::Unmatched | PongAdmission::RateLimited => {
+                            run.first_pong_failure_s = Some((t - start).as_secs_f64());
+                            break;
+                        }
+                    }
+                }
+                run.min_tokens = run.min_tokens.min(bucket.tokens);
+            }
+        }
+        run.final_tokens = bucket.tokens;
+        run
+    }
+
+    /// The PONG_REPAIR acceptance proof: a lawful 60 frames/s client plus the compulsory 2 Pong/s answers to the
+    /// server's 500 ms RTT challenges never drains the user-frame bucket. The negative control in the same test charges
+    /// the matched Pongs as the old reader did and shows the same stream collapsing: the first refusal lands at ~59.0 s.
+    #[test]
+    fn a_lawful_60hz_stream_with_compulsory_pongs_survives_65_seconds() {
+        let fixed = stream_65s(false);
+        assert_eq!(
+            fixed.frames_charged, 3900,
+            "every lawful user frame was charged"
+        );
+        assert_eq!(
+            fixed.first_frame_failure_s, None,
+            "the lawful stream was never RateLimited"
+        );
+        assert_eq!(
+            fixed.first_pong_failure_s, None,
+            "every compulsory Pong matched and was exempt"
+        );
+        assert_eq!(
+            fixed.matched_pongs, 131,
+            "the 500 ms challenges were answered one for one"
+        );
+        assert!(
+            fixed.min_tokens > 1.0,
+            "the bucket never collapsed: min tokens {}",
+            fixed.min_tokens
+        );
+        assert!(
+            fixed.final_tokens > 0.0,
+            "tokens remain after 65 s: {}",
+            fixed.final_tokens
+        );
+
+        let old = stream_65s(true);
+        let failed_at = old
+            .first_frame_failure_s
+            .or(old.first_pong_failure_s)
+            .expect("the old charge-before-match order depletes the bucket");
+        assert!(
+            (59.0..=60.0).contains(&failed_at),
+            "the negative control fails ~59-60 s in, got {failed_at} s"
+        );
+        assert!(
+            old.final_tokens < 1.0,
+            "the negative control ends with a depleted bucket: {}",
+            old.final_tokens
+        );
+        assert!(
+            old.frames_charged > 3_500,
+            "the old order survived most of the stream before refusing"
+        );
+    }
+
+    /// A matched response is free, but the normal 60 frames/s bucket still bounds every Pong that cannot answer a
+    /// currently in-flight challenge: malformed, unknown, duplicate and evicted payloads are charged, exactly
+    /// `FRAME_BURST` are admitted at one instant, and the next one closes the connection.
+    #[test]
+    fn unmatched_pongs_are_charged_but_a_matched_pong_is_free_under_a_flood() {
+        let t = tokio::time::Instant::now();
+        let start = t;
+        // Eight outstanding challenges, as the writer leaves them. Payload 2 is answered first below; payload 1 is
+        // already evicted by a ninth send, mirroring the writer's bounded deque.
+        let pings = Mutex::new(VecDeque::from(vec![2u64, 3, 4, 5, 6, 7, 8, 9]));
+        let mut bucket = Bucket {
+            tokens: FRAME_BURST,
+            at: t,
+        };
+        match admit_pong(&mut bucket, &pings, &2u64.to_le_bytes(), start, t) {
+            PongAdmission::Matched(_) => {}
+            PongAdmission::Unmatched | PongAdmission::RateLimited => {
+                panic!("the first answer to a live challenge must be matched")
+            }
+        }
+        assert_eq!(
+            bucket.tokens, FRAME_BURST,
+            "a matched Pong costs no user-frame token"
+        );
+
+        let mut admitted = 0usize;
+        let mut rate_limited = false;
+        // Every payload below is unmatched: a duplicate of the consumed challenge, a malformed payload, an evicted
+        // challenge and an unknown payload.
+        for i in 0..(FRAME_BURST as usize + 5) {
+            let payload: Vec<u8> = match i % 4 {
+                0 => 2u64.to_le_bytes().to_vec(),
+                1 => vec![0u8; 4],
+                2 => 1u64.to_le_bytes().to_vec(),
+                _ => (1_000u64 + i as u64).to_le_bytes().to_vec(),
+            };
+            match admit_pong(&mut bucket, &pings, &payload, start, t) {
+                PongAdmission::Unmatched => admitted += 1,
+                PongAdmission::RateLimited => {
+                    rate_limited = true;
+                    break;
+                }
+                PongAdmission::Matched(_) => panic!("payload at i={i} must not match"),
+            }
+        }
+        assert!(rate_limited, "the flood is eventually refused");
+        assert_eq!(
+            admitted, FRAME_BURST as usize,
+            "one instant admits exactly the burst, with the matched Pong free"
+        );
     }
 
     /// A sink that never accepts anything (a client with a zero TCP window).

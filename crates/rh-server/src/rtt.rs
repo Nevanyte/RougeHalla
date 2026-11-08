@@ -15,6 +15,9 @@
 //!
 //! and a render time is clamped into `[now_apply - allowed, now_apply]`, where `now_apply` is the server time of the step
 //! that will apply the command (the current sim time plus one tick). A future `t` is clamped like an old one.
+//!
+//! The clamp applies per `Attack`/`Release` command: a held attack keeps the legacy press-time lag until another
+//! `Attack`/`Release` command arrives. Per-swing rewind is outside this packet and needs a separate design decision.
 
 use rh_sim::constants::{MAX_REWIND_MS, TICK_MS};
 use rh_sim::{PlayerId, PublicCommand};

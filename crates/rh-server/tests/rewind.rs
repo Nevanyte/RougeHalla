@@ -102,6 +102,20 @@ impl Hand {
         rx.try_recv().expect("replied").expect("seated")
     }
 
+    fn resume(&mut self, session: [u8; 16], conn: u64) -> JoinOk {
+        let (reply, mut rx) = oneshot::channel();
+        self.room.handle(
+            RoomCmd::Resume {
+                session,
+                outbox: Arc::new(Outbox::default()),
+                conn,
+                reply,
+            },
+            self.now,
+        );
+        rx.try_recv().expect("replied").expect("resumed")
+    }
+
     fn sample(&mut self, player: PlayerId, conn: u64, rtt_ms: f64) {
         self.room.handle(
             RoomCmd::RttSample {
@@ -372,4 +386,54 @@ fn a_locked_attack_without_a_render_time_keeps_the_tick_ms_lag() {
     h.step();
     assert_eq!(h.lag_ms(attacker.player), 50.0, "still the TICK_MS rule");
     assert_eq!(h.room.stats().rewind_clamps, 0);
+}
+
+/// A resume is a new path for the same seat: the estimator is fresh (the new connection's first sample *is* the
+/// estimate, not an EWMA blended with the old connection's), and a late `RttSample` naming the replaced connection is
+/// ignored. These are room-level samples injected through `RoomCmd::RttSample`, not a measured network experiment; the
+/// room's stats counters show exactly which samples were accepted.
+#[test]
+fn a_resume_resets_the_rtt_estimator_and_ignores_the_old_connections_samples() {
+    let mut h = Hand::new();
+    let seat = h.join("resumer", 1);
+    h.sample(seat.player, 1, 200.0);
+    let stats = h.room.stats();
+    assert_eq!((stats.rtt_samples, stats.rtt_last_ms), (1, 200.0));
+
+    let resumed = h.resume(seat.session, 2);
+    assert_eq!(resumed.player, seat.player, "the resume keeps the seat");
+
+    // A late Pong from the connection the resume replaced is ignored, not folded into the fresh estimator.
+    h.sample(seat.player, 1, 20.0);
+    let stats = h.room.stats();
+    assert_eq!(
+        (stats.rtt_samples, stats.rtt_last_ms),
+        (1, 200.0),
+        "a replaced connection's sample is ignored"
+    );
+
+    // The first sample from the new connection is the estimate itself. An inherited 200 ms EWMA would give 160 ms for
+    // this 40 ms sample; a fresh estimator gives 40 ms.
+    h.sample(seat.player, 2, 40.0);
+    let stats = h.room.stats();
+    assert_eq!(
+        (stats.rtt_samples, stats.rtt_last_ms),
+        (2, 40.0),
+        "the resumed connection's first sample is the estimate"
+    );
+
+    // The new estimator then smooths normally, and the replaced connection stays ignored.
+    h.sample(seat.player, 2, 20.0);
+    assert_eq!(
+        h.room.stats().rtt_last_ms,
+        35.0,
+        "0.25 * 20 + 0.75 * 40 = 35"
+    );
+    h.sample(seat.player, 1, 150.0);
+    let stats = h.room.stats();
+    assert_eq!(
+        (stats.rtt_samples, stats.rtt_last_ms),
+        (3, 35.0),
+        "the replaced connection never contributes again"
+    );
 }

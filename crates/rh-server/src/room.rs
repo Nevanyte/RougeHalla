@@ -664,6 +664,9 @@ impl Room {
                     // between steps and the next step adds one tick first, so `note_lag` in the sim will see
                     // `now_apply` as its `now`. P-NET-1 Phase 3: bound an attack render time by the RTT the server
                     // measured for this connection (never by the client's claim), before `Sim::submit`.
+                    // The clamp applies per Attack/Release command: a held attack keeps the legacy press-time lag until
+                    // another Attack/Release command arrives. Per-swing rewind is outside this packet and needs a
+                    // separate design decision.
                     let now_apply = self.sim.server_time() + TICK_MS;
                     let allowed = self.humans[index].rtt.allowed_rewind_ms();
                     let mut accepted = 0u32;
