@@ -17,7 +17,7 @@ use crate::sim::{Event, Phase, PlayerId, Sim, Status};
 use crate::state::Player;
 use crate::vision::{actor_with, scene_line_blocked};
 
-pub const OBSERVATION_VERSION: u16 = 19;
+pub const OBSERVATION_VERSION: u16 = 20;
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct SelfView {
@@ -203,6 +203,8 @@ pub enum SeenEvent {
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Observation {
+    /// Seat-local quest facts; None when quests are disabled or viewer is ineligible.
+    pub quests: Option<crate::quest_view::QuestView>,
     pub arena: Option<crate::ArenaView>,
     pub plan: Option<crate::PlanningView>,
     pub projectiles: Vec<crate::ProjectileView>,
@@ -409,6 +411,7 @@ impl Default for Observation {
     /// An empty observation, for a buffer that [`observe_into`] fills.
     fn default() -> Self {
         Self {
+            quests: None,
             arena: None,
             plan: None,
             projectiles: Vec::new(),
@@ -656,6 +659,7 @@ pub(crate) fn observe_with(
     begin(sim, &mut cache);
     let me = sim.player(viewer);
     let now = sim.server_time();
+    out.quests = None;
     out.projectiles.clear();
     out.reward_chests.clear();
     out.build = me.map(|p| crate::reward_chests::BuildView::from(&p.build));

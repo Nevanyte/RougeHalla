@@ -112,6 +112,9 @@ pub enum PublicCommand {
         ready: Option<bool>,
     },
     UseConsumable,
+    QuestAccept {
+        handle: crate::quest_view::QuestHandle,
+    },
     Choose {
         handle: crate::reward_chests::RewardChestHandle,
         pick: i8,
@@ -367,6 +370,7 @@ impl PublicCommand {
             }
             Self::Plan { spawn, boon, ready } => RawCommand::Plan { spawn, boon, ready },
             Self::UseConsumable => RawCommand::UseConsumable,
+            Self::QuestAccept { .. } => RawCommand::QuestAccept { quest_id: None },
             Self::Choose { pick, .. } => RawCommand::Choose {
                 chest_id: None,
                 pick,

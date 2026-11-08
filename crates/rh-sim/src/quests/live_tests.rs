@@ -33,6 +33,10 @@ fn arena() -> crate::Arena {
 }
 
 fn sim() -> Sim {
+    sim_with_bots([false; 3])
+}
+
+fn sim_with_bots(bots: [bool; 3]) -> Sim {
     let arena = arena();
     let spawns = arena.spawns.clone();
     let placements: Vec<Placement> = spawns
@@ -46,7 +50,7 @@ fn sim() -> Sim {
                 crate::FactionId::Fire,
                 crate::FactionId::Plague,
             ][i],
-            bot: false,
+            bot: bots[i],
             at: *p,
             hp: None,
             weapon0: None,
@@ -516,4 +520,211 @@ fn the_teleport_and_run_end_hooks_close_every_open_offer() {
         "only the published offers linger as expired; hidden ones vanish"
     );
     assert!(q.offers.len() < open_before);
+}
+
+// Actions pass through validate + submit; direct quest-state mutations are explicitly malformed-state controls.
+#[test]
+fn bot_cannot_accept_or_discover_but_human_can_after_restore() {
+    let mut s = sim_with_bots([true, false, false]);
+    let bot = PlayerId(1);
+    let human = PlayerId(2);
+    let (known, known_at, hidden, hidden_at) = {
+        let q = s.w.quests.as_ref().unwrap();
+        let k = q.offers.iter().find(|o| o.published).unwrap();
+        let h = q.offers.iter().find(|o| !o.published).unwrap();
+        (k.id, k.at, h.id, h.at)
+    };
+    for id in [human, PlayerId(3)] {
+        teleport(&mut s, id, Vec2::new(0., 0.));
+    }
+    teleport(&mut s, bot, known_at);
+    submit(
+        &mut s,
+        bot,
+        RawCommand::QuestAccept {
+            quest_id: Some(known),
+        },
+    );
+    s.step();
+    let offer = &s.w.quests.as_ref().unwrap().offers[offer_index(&s, known)];
+    assert!(offer.accepted.is_empty());
+    assert_eq!(offer.expires_at, 0.);
+    teleport(&mut s, bot, hidden_at);
+    s.step();
+    let offer = &s.w.quests.as_ref().unwrap().offers[offer_index(&s, hidden)];
+    assert_eq!(offer.finder, None);
+    assert_eq!(offer.publish_at, 0.);
+    let json = serde_json::to_string(&s).unwrap();
+    let mut s = Sim::restore(&mut serde_json::Deserializer::from_str(&json)).unwrap();
+    teleport(&mut s, bot, Vec2::new(0., 0.));
+    teleport(&mut s, human, hidden_at);
+    s.step();
+    let offer = &s.w.quests.as_ref().unwrap().offers[offer_index(&s, hidden)];
+    assert_eq!(offer.finder, Some(human));
+    assert_eq!(
+        offer.publish_at,
+        s.w.server_time + crate::constants::QUEST_REVEAL_HEAD_START_MS
+    );
+    assert!(!offer.published);
+    teleport(&mut s, human, known_at);
+    submit(
+        &mut s,
+        human,
+        RawCommand::QuestAccept {
+            quest_id: Some(known),
+        },
+    );
+    s.step();
+    let offer = &s.w.quests.as_ref().unwrap().offers[offer_index(&s, known)];
+    assert!(offer.accepted.contains(&human));
+    assert!(offer.expires_at > 0.);
+}
+
+#[test]
+fn malformed_bot_acceptance_cannot_pick_up_or_block_human_turn_in() {
+    let mut s = sim_with_bots([true, false, false]);
+    let bot = PlayerId(1);
+    let human = PlayerId(2);
+    let (qid, at, token, box_id, count) = {
+        let q = s.w.quests.as_ref().unwrap();
+        let o = q
+            .offers
+            .iter()
+            .find(|o| o.published && catalog::DEFINITION[o.def as usize].kind == Kind::Collect)
+            .unwrap();
+        (
+            o.id,
+            o.at,
+            o.tokens[0],
+            o.containers[0],
+            catalog::DEFINITION[o.def as usize].count,
+        )
+    };
+    // Forged/stale acceptance bypasses the real accept door to exercise defense in depth.
+    let oi = offer_index(&s, qid);
+    s.w.quests.as_mut().unwrap().offers[oi].accepted.push(bot);
+    teleport(&mut s, bot, token);
+    submit(
+        &mut s,
+        bot,
+        RawCommand::Pickup {
+            container_id: box_id,
+        },
+    );
+    s.step();
+    let o = &s.w.quests.as_ref().unwrap().offers[oi];
+    assert!(o.containers.contains(&box_id));
+    assert!(!o.progress.iter().any(|(p, _)| *p == bot));
+    // A forged ready bot must not compete with the real human for a turn-in.
+    teleport(&mut s, human, at);
+    submit(
+        &mut s,
+        human,
+        RawCommand::QuestAccept {
+            quest_id: Some(qid),
+        },
+    );
+    s.step();
+    // Arrange a tick on which the bot would win the source tie ranking if improperly admitted.
+    let rank = |tick: u32, id: PlayerId| {
+        let mut h = 7u32 ^ tick.wrapping_mul(0x9e37_79b1);
+        for b in format!("p{}", id.0).bytes() {
+            h = (h ^ u32::from(b)).wrapping_mul(0x0100_0193);
+        }
+        crate::rng::Mulberry32::new(h).next_u32()
+    };
+    while rank(s.w.tick + 1, bot) >= rank(s.w.tick + 1, human) {
+        s.step();
+    }
+    let o = &mut s.w.quests.as_mut().unwrap().offers[oi];
+    o.progress.push((bot, count));
+    o.progress.push((human, count));
+    teleport(&mut s, bot, at);
+    s.step();
+    let o = &s.w.quests.as_ref().unwrap().offers[oi];
+    assert_eq!(o.status, Status::Done);
+    assert_eq!(o.done_by, Some(human));
+    assert_eq!(s.w.players[0].credit.gv_parts.quest, 0);
+}
+
+#[test]
+fn camp_clear_ignores_bots_when_deciding_whether_anyone_can_finish() {
+    // With no standing humans the source leaves the offer alone, even if bots stand and no mobs remain.
+    let mut s = sim_with_bots([true; 3]);
+    let qid =
+        s.w.quests
+            .as_ref()
+            .unwrap()
+            .offers
+            .iter()
+            .find(|o| {
+                o.published
+                    && catalog::DEFINITION[o.def as usize].kind == Kind::Kill
+                    && !catalog::DEFINITION[o.def as usize].players
+            })
+            .unwrap()
+            .id;
+    crate::hooks::fire(
+        &mut crate::hooks::Hx {
+            stats: Default::default(),
+            k: &s.k,
+            w: &mut s.w,
+            ev: &mut Vec::new(),
+            fx: None,
+        },
+        crate::hooks::HookArgs::CampCleared { camp: 0 },
+    );
+    s.step();
+    assert_eq!(
+        s.w.quests.as_ref().unwrap().offers[offer_index(&s, qid)].status,
+        Status::Open
+    );
+    // Declared seat-state setup: introduce a standing human for the same camp-clear control.
+    s.w.players[1].seat.bot = false;
+    crate::hooks::fire(
+        &mut crate::hooks::Hx {
+            stats: Default::default(),
+            k: &s.k,
+            w: &mut s.w,
+            ev: &mut Vec::new(),
+            fx: None,
+        },
+        crate::hooks::HookArgs::CampCleared { camp: 0 },
+    );
+    s.step();
+    assert_eq!(
+        s.w.quests.as_ref().unwrap().offers[offer_index(&s, qid)].status,
+        Status::Expired
+    );
+}
+
+#[test]
+fn malformed_bot_acceptance_cannot_take_fetch_parcel() {
+    let mut s = sim_with_bots([true, false, false]);
+    let bot = PlayerId(1);
+    let (qid, parcel, box_id) = {
+        let q = s.w.quests.as_ref().unwrap();
+        let o = q
+            .offers
+            .iter()
+            .find(|o| o.published && catalog::DEFINITION[o.def as usize].kind == Kind::Fetch)
+            .unwrap();
+        (o.id, o.parcel.unwrap(), o.containers[0])
+    };
+    let oi = offer_index(&s, qid);
+    // Malformed-state control: the source acceptance door would never admit this bot.
+    s.w.quests.as_mut().unwrap().offers[oi].accepted.push(bot);
+    teleport(&mut s, bot, parcel);
+    submit(
+        &mut s,
+        bot,
+        RawCommand::Pickup {
+            container_id: box_id,
+        },
+    );
+    s.step();
+    let q = s.w.quests.as_ref().unwrap();
+    assert!(q.offers[oi].containers.contains(&box_id));
+    assert_eq!(q.offers[oi].carrier, None);
+    assert!(q.carried.is_empty());
 }
