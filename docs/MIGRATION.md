@@ -119,6 +119,10 @@ separately passes5 tests plus warm zero-allocation. A separate
 slow resistance in the admitted player domain. None of these private assignments closes full NPC signatures, brain or
 public/client gates. [CI42485021427](https://github.com/Nevanyte/RougeHalla/actions/runs/42485021427) at `01b14dca`
 passes all four foundation jobs, including full simulation and the corrected partial perception evidence.
+The subsequent [CI42492522571](https://github.com/Nevanyte/RougeHalla/actions/runs/42492522571) at `fb738cd9` also passes
+all four jobs, including the newly admitted source barrier capture. Later lead changes are documentation only; this
+does not validate the private protocol12/gameplay union. Cross-feature testing of private G6+Frost found a legitimate
+Iron Will/Sentenced Mark checkpoint rejected by the old two-increment progress validator; its isolated repair is active.
 
 The initial pushed CI passes C#, native card-runtime source, legacy recapture, hosting and latency-report checks. Rust
 CI exposed an admission-test lifecycle race: two fixture players could start/end a match, so an expired reservation
