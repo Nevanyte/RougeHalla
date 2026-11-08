@@ -1,0 +1,15 @@
+--- a/crates/rh-sim/src/traders/runtime.rs
++++ b/crates/rh-sim/src/traders/runtime.rs
+@@ -311,11 +311,7 @@
+             Some(p.weapon.slot)
+         } else if p.weapon.weapon0.is_none() {
+             Some(0)
+-        } else if p.weapon.weapon1.is_none()
+-            && !p
+-                .build
+-                .has_flag(crate::stat_fold::EffectFlag::LockSecondSlot)
+-        {
++        } else if p.weapon.weapon1.is_none() {
+             Some(1)
+         } else {
+             None
