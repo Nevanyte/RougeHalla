@@ -343,16 +343,17 @@ pub(crate) fn validate(k: &MatchStatic, w: &World, p: &crate::state::Player) -> 
         amp_until: m.amp_until,
         ..empty
     };
-    let max_progress = m.hits as f64 / (1. - FROST_SLOW).max(MARK_CHILL_FLOOR);
-    // A qualifying hit sees only neutral or Frost's prior chill in this base domain.
-    // Sequential binary64 additions may drift from the ideal mixture; retain their error envelope.
-    let increment = 1. / (1. - FROST_SLOW).max(MARK_CHILL_FLOOR);
+    // Mark accumulates the prior tick's cached chill, not today's folded resistance or source stats. Iron Will
+    // weakens Frost, while the source's bonus shield/haste can deepen it as far as frost_cap. Either build can change
+    // during a mark. No per-hit chill history is serialized, so only the admitted per-hit envelope is recoverable;
+    // the old mixture of just neutral and base-Frost increments rejects genuine resisted/deepened hits.
+    let min_chill =
+        (1. - FROST_SLOW - crate::modifiers::DEFINITION.frost_cap).max(MARK_CHILL_FLOOR);
+    let increment = 1. / min_chill;
     let count = m.hits as f64;
+    let max_progress = count * increment;
+    // Retain the conservative sequential-binary64 addition envelope, including long-running restored marks.
     let slack = MARK_TIER_EPS.max(4. * f64::EPSILON * count * count * increment);
-    let chilled = ((m.progress - count) / (increment - 1.)).round();
-    let legal_progress = chilled >= 0.
-        && chilled <= count
-        && (m.progress - (count + chilled * (increment - 1.))).abs() <= slack;
     let tier = if m.progress > 0. || m.swaps > 0 {
         (1. + (m.progress.max(0.) / MARK_TIER_HITS + MARK_TIER_EPS)
             .floor()
@@ -367,7 +368,8 @@ pub(crate) fn validate(k: &MatchStatic, w: &World, p: &crate::state::Player) -> 
         || m.hits > 9_007_199_254_740_991
         || m.swaps > 9_007_199_254_740_991
         || !m.progress.is_finite()
-        || !legal_progress
+        || m.progress < 0.
+        || (m.hits == 0 && m.progress != 0.)
         || m.progress < m.hits as f64 - slack
         || m.progress > max_progress + slack
         || m.tier > MARK_TOP_TIER
@@ -390,3 +392,6 @@ mod actual_source_tests;
 mod public_tests;
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod resistance_tests;

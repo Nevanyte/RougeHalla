@@ -1,0 +1,42 @@
+{
+  "base": "80a4e130a661eae9e9e52420288e0af05f1649ca",
+  "scope": "restore validation only",
+  "first_repair": {
+    "new_tests": 5,
+    "focused_total": 65,
+    "failures": 0,
+    "ignored": 0,
+    "fmt": "pass",
+    "strict_clippy": "deferred until final follow-up per coordinator"
+  },
+  "logs": {
+    "repro-clean.log": {
+      "sha256": "91b74cb7ae6e8e219e4139ad40c26c478fa1f949bf71bff56722bfa470893c76",
+      "bytes": 967
+    },
+    "repair-first.log": {
+      "sha256": "f59a880b0f3bd943e043c37954919910b74f9bf88d64007398eac3c1028cc303",
+      "bytes": 977
+    },
+    "sentenced.log": {
+      "sha256": "2c9470fa3d5e55abe45ee90db542afd554929065ef59087f7e301a84c506ffe8",
+      "bytes": 2705
+    },
+    "frost.log": {
+      "sha256": "70dcdcbc98c54d2a656de20a91d579d47959d59e4fdd7cda4179a598a23b75e1",
+      "bytes": 1263
+    },
+    "restore-content.log": {
+      "sha256": "3dc5f4a10313f91dece370c52cb1dc3aa823e65dda17c2d3c478888a10180148",
+      "bytes": 2760
+    },
+    "fmt.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "adjacent-card-tiers.log": {
+      "sha256": "56671744fcd96284152f545c1375a45ad8ff30c5764008baeab450323c3bcd69",
+      "bytes": 786
+    }
+  }
+}
