@@ -36,15 +36,15 @@ qg_verify_manifest() {
 qg_restore_manifest() {
   if [ "$#" -ne 2 ]; then return 2; fi
   manifest=$1; backup_dir=$2
+  local restore_status=0
   cp_cmd="$QG_CP"
   [ -n "$cp_cmd" ] || cp_cmd=cp
-  rc=0
   while read -r want f; do
     b="$backup_dir/$(qg_name "$f")"
-    [ -f "$b" ] && [ -s "$b" ] || { echo "restore: missing backup $b" >&2; rc=1; continue; }
-    if ! "$cp_cmd" "$b" "$f"; then echo "restore: copy failed for $f; recovery bytes retained at $b" >&2; rc=1; continue; fi
-    now=$(qg_sha "$f") || { echo "restore: cannot hash $f; recovery bytes retained at $b" >&2; rc=1; continue; }
-    if [ "$now" != "$want" ]; then echo "restore: bytes mismatch for $f; recovery bytes retained at $b" >&2; rc=1; fi
+    [ -f "$b" ] && [ -s "$b" ] || { echo "restore: missing backup $b" >&2; restore_status=1; continue; }
+    if ! "$cp_cmd" "$b" "$f"; then echo "restore: copy failed for $f; recovery bytes retained at $b" >&2; restore_status=1; continue; fi
+    now=$(qg_sha "$f") || { echo "restore: cannot hash $f; recovery bytes retained at $b" >&2; restore_status=1; continue; }
+    if [ "$now" != "$want" ]; then echo "restore: bytes mismatch for $f; recovery bytes retained at $b" >&2; restore_status=1; fi
   done <"$manifest"
-  return "$rc"
+  return "$restore_status"
 }
