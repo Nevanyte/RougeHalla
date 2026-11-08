@@ -14,7 +14,7 @@ async function startChild(t, port = 0, listen = true) {
     const server = http.createServer((req, res) => {
       res.setHeader('Content-Type', 'application/json');
       res.setHeader('Connection', 'close');
-      res.end(JSON.stringify({protocol:12, state:'ready', contentHash:'synthetic-fixture'}));
+      res.end(JSON.stringify({protocol:13, state:'ready', contentHash:'synthetic-fixture'}));
     });
     server.on('error', error => { console.error(error.code); process.exit(7); });
     process.on('message', message => {
@@ -42,7 +42,7 @@ test('real direct child loopback listener plus /info yields PID-bound readiness'
   const owned = await startChild(t);
   assert.equal(await ownsLoopbackListener(owned.child.pid, owned.port), true);
   const ready = await waitOwnedServer(owned.port, owned.child, owned.logs, () => null);
-  assert.equal(ready.info.protocol, 12);
+  assert.equal(ready.info.protocol, 13);
   assert.equal(ready.ownership.pid, owned.child.pid);
   assert.equal(ready.ownership.endpoint, `127.0.0.1:${owned.port}`);
   assert.match(ready.ownership.method, /before and after/);
@@ -58,7 +58,7 @@ test('healthy foreign /info and an alive non-listening child never satisfy readi
     fetchInfo: async (...args) => { fetches++; return fetch(...args); },
   }), /direct child ownership/);
   assert.equal(fetches, 0, 'do not even use /info from the process that won the port');
-  assert.equal((await (await fetch(`http://127.0.0.1:${foreign.port}/info`)).json()).protocol, 12);
+  assert.equal((await (await fetch(`http://127.0.0.1:${foreign.port}/info`)).json()).protocol, 13);
   assert.equal(foreign.child.exitCode, null, 'foreign listener was not signalled');
 });
 

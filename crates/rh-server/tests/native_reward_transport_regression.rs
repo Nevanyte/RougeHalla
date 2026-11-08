@@ -135,12 +135,15 @@ fn four_seat_validated_kill_keeps_supported_publication_and_default_native_rewar
         native
             .observe_into(&sim, &events, &mut native_obs, None)
             .unwrap();
-        assert!(
-            native_obs.reward_chests.iter().any(|r| r
-                .options
+        let sees_trophy = native_obs.reward_chests.iter().any(|r| {
+            r.options
                 .iter()
-                .any(|o| matches!(o.id, rh_sim::reward_chests::OptionId::Kill(_)))),
-            "default native observer retains complete rows for {viewer:?}"
+                .any(|o| matches!(o.id, rh_sim::reward_chests::OptionId::Kill(_)))
+        });
+        assert_eq!(
+            sees_trophy,
+            viewer == PlayerId(1),
+            "native Trophy disclosure is owner-only for {viewer:?}"
         );
         let supported: Vec<_> = native_obs
             .reward_chests

@@ -36,6 +36,8 @@ namespace Roguehalla.Net
     {
         public CardId? Card;
         public BoostId? Boost;
+        public TrophyStatKey? KillKey;
+        public double KillGain;
         public bool Taken;
         public uint? TakenBy;
     }
@@ -192,6 +194,7 @@ namespace Roguehalla.Net
                             var o = c.Options[j]; options[j] = new RewardOptionView
                             {
                                 Card = o.Kind == 1 ? (CardId?)o.Id : null, Boost = o.Kind == 2 ? (BoostId?)o.Id : null,
+                                KillKey = o.Kind == 3 ? o.KillKey : null, KillGain = o.Kind == 3 ? o.KillGain : 0,
                                 Taken = o.Taken, TakenBy = o.TakenBy
                             };
                         }

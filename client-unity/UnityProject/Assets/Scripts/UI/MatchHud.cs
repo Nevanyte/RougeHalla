@@ -470,18 +470,24 @@ namespace Roguehalla.Client
                 {
                     signature = signature * 397 ^ (ulong)(option.Card.HasValue ? (int)option.Card.Value + 1 : 0);
                     signature = signature * 397 ^ (ulong)(option.Boost.HasValue ? (int)option.Boost.Value + 1 : 0);
+                    signature = signature * 397 ^ (ulong)(option.KillKey.HasValue ? (int)option.KillKey.Value + 1 : 0);
+                    signature = signature * 397 ^ unchecked((ulong)BitConverter.DoubleToInt64Bits(option.KillGain));
                     signature = signature * 397 ^ (option.Taken ? 1UL : 0UL);
                 }
             }
             if (_rewardSignature == signature) return;
             _rewardSignature = signature;
-            Set(_rewardTitle, "Chest " + (_chestIndex + 1) + " / " + chests.Count + (chest.Picked ? " · chosen" : chest.CanChoose ? " · choose reward" : " · unavailable"));
+            bool trophy = false;
+            foreach (var option in chest.Options) trophy |= option.KillKey.HasValue;
+            Set(_rewardTitle, (trophy ? "Trophy " : "Chest ") + (_chestIndex + 1) + " / " + chests.Count + (chest.Picked ? " · chosen" : chest.CanChoose ? " · choose reward" : " · unavailable"));
             for (int i = 0; i < _options.Length; i++)
             {
                 _options[i].gameObject.SetActive(i < chest.Options.Count);
                 if (i >= chest.Options.Count) continue;
                 var option = chest.Options[i];
-                Set(_options[i].GetComponentInChildren<TMP_Text>(), (option.Card.HasValue ? option.Card.ToString() : option.Boost.ToString()) + (option.Taken ? " · taken" : ""));
+                string label = option.KillKey.HasValue ? TrophyText.Title(option.KillKey.Value, option.KillGain)
+                    : option.Card.HasValue ? option.Card.ToString() : option.Boost.ToString();
+                Set(_options[i].GetComponentInChildren<TMP_Text>(), label + (option.Taken ? " · taken" : ""));
                 _options[i].interactable = Active && chest.CanChoose && !chest.Picked && !option.Taken;
                 _options[i].GetComponentInChildren<TMP_Text>().color = option.Taken ? ShowcasePalette.Success :
                     _options[i].interactable ? ShowcasePalette.Gold : ShowcasePalette.MutedText;

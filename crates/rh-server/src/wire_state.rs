@@ -100,8 +100,8 @@ fn rewards(observation: &Observation) -> Result<Vec<WireRewardChest>, EncodeErro
         .reward_chests
         .iter()
         .map(|c| {
-            // Choosing is index-based: dropping an unsupported option would redirect a public pick to another native
-            // option. Refuse the replacement before either the offer handles or collection baselines can commit.
+            // Phase A understands v13 Trophy facts, but production publication stays gated until the native
+            // owner/source prerequisites are released. Never compact an index-based row or stage a partial offer.
             if c.options
                 .iter()
                 .any(|o| matches!(o.id, rh_sim::reward_chests::OptionId::Kill(_)))

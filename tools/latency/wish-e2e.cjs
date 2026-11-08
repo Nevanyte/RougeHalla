@@ -226,8 +226,8 @@ async function runCase(browser, spec, index, report) {
         throw new MissingHookError(`Unity build does not match the live server protocol/content (${rejection.code})`);
       throw new Error(`server rejected client admission: ${rejection.reason || 'unknown'}`);
     }
-    if (driverState.welcome?.protocol !== 12 || observerState.welcome?.protocol !== 12)
-      throw new MissingHookError('Unity Web build did not complete protocol-12 admission');
+    if (driverState.welcome?.protocol !== 13 || observerState.welcome?.protocol !== 13)
+      throw new MissingHookError('Unity Web build did not complete protocol-13 admission');
     if (!driverState.snapshot?.me || !observerState.snapshot?.me) throw new Error('Unity client did not publish a self snapshot');
     if (driverState.snapshot.training !== false || observerState.snapshot.training !== false)
       throw new Error('proof requires a non-training ordinary match');
@@ -480,7 +480,7 @@ async function main() {
   let parsedPlayerUrl = null;
   try { parsedPlayerUrl = new URL(webUrl); } catch (_) { /* Report a bounded prerequisite below. */ }
   const report = { startedAt: new Date().toISOString(), playerUrl: parsedPlayerUrl?.origin || null,
-    serverMode: 'one fresh local two-human duel server per faction/ability case, loopback only', protocol: 12,
+    serverMode: 'one fresh local two-human duel server per faction/ability case, loopback only', protocol: 13,
     training: false, map: path.relative(root, mapFile),
     identities: { serverBinary: fileIdentity(serverBin), map: fileIdentity(mapFile) },
     expectedCases: CASES.length, cases: [], prerequisites: [], errors: [],

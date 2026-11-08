@@ -76,6 +76,17 @@ eq(JSON.stringify(refusals.events), JSON.stringify([1,2,3,4,5].map(reason => ({ 
 
 const catalogRewards = decode(bytes(fx.server.find(v => v.name === "state_full_catalog_rewards").hex));
 eq(JSON.stringify(catalogRewards.items[0].value[0].options.map(o => [o.kind,o.id])), JSON.stringify([[1,3],[1,79],[2,7]]), "full card catalog reward positions");
+if (version >= 13) {
+  const trophyVector = fx.server.find(v => v.name === "state_trophy_reward_keys");
+  if (!trophyVector?.decoded) throw new Error("missing Rust-decoded state_trophy_reward_keys vector");
+  const trophyState = decode(bytes(trophyVector.hex));
+  const { t, ...stateFields } = trophyState;
+  eqJson({ ...stateFields, kind: t }, trophyVector.decoded, "typed Trophy reward state exact values");
+  const rewards = trophyState.items.find(item => item.key === 4)?.value ?? [];
+  const keys = new Set(rewards.flatMap(row => row.options.filter(option => option.kind === 3).map(option => option.key)));
+  for (let key = 0; key <= 8; key++) if (!keys.has(key)) throw new Error(`missing Rust-generated Trophy key ${key}`);
+  eq(keys.size, 9, "all and only nine Trophy keys");
+}
 const unionProps = decode(bytes(fx.server.find(v => v.name === "state_union_props").hex));
 eq(JSON.stringify(unionProps.items[0].value.rows), JSON.stringify([
   {handle:1,x:80,y:160,kind:4,label:"fallen"}, {handle:2,x:81,y:161,kind:5},
@@ -226,7 +237,13 @@ const reason = {
   head_self_bit_without_present_bit: /head/, head_unknown_bit: /head/, head_overlong_varint: /varint/, self_status_over_3: /status/, phase_over_3: /phase/,
   self_max_hp_over_u16: /max_hp/, actor_status_over_3: /status/, actor_mask_overlong_varint: /varint/, actor_unknown_mask_bit_after_kind: /actor mask/,
   state_duplicate_key: /state key/, state_key_order: /state key/, state_too_many_keys: /too many/, state_too_many_props: /too many/, state_too_many_fields: /too many/, state_too_many_rewards: /too many/, state_bad_potion_count: /potion count/, state_zero_prop_handle: /handle/, state_missing_focus: /prop focus/,
-  state_reward_card_id_80: /reward id/, state_plan_negative_deadline: /plan/, state_unknown_key: /state key/, state_trailing_byte: /trailing/, state_truncated: /./,
+  state_reward_card_id_80: /reward id/, state_reward_kill_key_unknown: /Trophy key/,
+  state_reward_kind_unknown: /bad reward kind/,
+  state_reward_kill_gain_zero: /Trophy gain/, state_reward_kill_gain_negative: /Trophy gain/,
+  state_reward_kill_gain_nan: /Trophy gain/, state_reward_kill_gain_infinity: /Trophy gain/,
+  state_reward_kill_truncated_key: /./, state_reward_kill_truncated_gain: /./,
+  state_reward_options_too_many: /reward options/,
+  state_plan_negative_deadline: /plan/, state_unknown_key: /state key/, state_trailing_byte: /trailing/, state_truncated: /./,
   delta_head_unknown_bit: /head/, delta_head_overlong_varint: /varint/, delta_phase_over_3: /phase/, delta_actor_mask_unknown_bit: /actor mask/,
   delta_actor_status_over_3: /status/,
   too_many_actors: /too many actors/, actor_reserved_mask_bit: /actor mask/, actor_id_gap_zero: /actor order/, actor_id_overflow: /actor order/,
@@ -253,6 +270,11 @@ for (const v of fx.malformedServer) {
   checks++;
   if (!err) throw new Error(`${v.name} was accepted`);
   if (!want.test(String(err.message))) throw new Error(`${v.name}: rejected for "${err.message}", expected ${want}`);
+}
+for (const name of ["state_reward_kind_unknown", "state_reward_kill_key_unknown", "state_reward_kill_gain_zero",
+  "state_reward_kill_gain_negative", "state_reward_kill_gain_nan", "state_reward_kill_gain_infinity",
+  "state_reward_kill_truncated_key", "state_reward_kill_truncated_gain", "state_reward_options_too_many"]) {
+  if (!fx.malformedServer.some((v) => v.name === name)) throw new Error(`missing Rust-generated ${name} control`);
 }
 
 for (const v of fx.server) {
