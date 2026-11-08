@@ -80,6 +80,18 @@ reports 1,229,692 bytes / on-disk 1,229,693 bytes); complete metadata except pro
 (`fb3cfd8f…` -> `345b4cb2…`) is identical; capture.mts/captureSh/packageLock hashes are unchanged. No semantic/runtime
 payload changed.
 
+Canonical format+cases payload SHA procedure (task-110 reproducibility repair): load the corpus JSON; build exactly
+`{format: corpus.format, cases: corpus.cases}` (provenance excluded); serialize with Python
+`json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False)`; encode that string as UTF-8 with
+**no trailing newline**; SHA-256 the encoded bytes. Object keys are recursively sorted, array order is preserved, and
+non-ASCII characters are unescaped UTF-8. The canonical payload is 670,203 bytes and hashes to
+`ad6e10ddd7f2de02530b8ae037101315941aef4da815cdfd279773f32b215b8d`. Verify it with:
+`python3 tools/quest-giver-fixtures/tests/payload-sha.py`; the script defaults to reconstructing the pre-repair corpus
+from git commit `00f9767755414ce3dbf3e7857965ad287fb334d1` (old corpus SHA256 `51c074b4…`) and asserts the current corpus
+SHA256 `039d4e05…`, deep-equal `format`/`cases`, identical canonical text, and that both corpora yield the quoted digest.
+An alternate old-corpus path may be passed as the sole argument. Equivalent Node/jq canonicalizers must sort keys
+recursively, use compact separators and preserve UTF-8, and must not append a newline.
+
 Runner safety: complete backups + manifest are built first and every backup is verified nonempty and SHA-256-identical
 to source/manifest before EXIT/HUP/INT/TERM is armed; backup failures fail closed with originals untouched. Restore is
 SHA-verified, single-shot cleanup uses signal exits 129/130/143 while EXIT preserves the normal result, recovery bytes
