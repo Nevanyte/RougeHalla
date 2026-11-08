@@ -15,14 +15,14 @@
 <body>
 <main>
   <h1>Roguehalla protocol probe</h1>
-  <p>A browser client for protocol v7 over the browser WebSocket API (the transport a Unity Web build uses). It is a test
+  <p>A browser client for protocol v8 over the browser WebSocket API (the transport a Unity Web build uses). It is a test
   harness for Stage 1, not the game client. Click to walk; hold Space to attack toward the cursor.</p>
   <canvas id="c" width="960" height="640"></canvas>
   <pre id="s">connecting…</pre>
 </main>
 <script>
 "use strict";
-// ---- protocol v7 (mirror of crates/rh-protocol; tools/protocol-js/check-vectors.mjs holds this block to protocol/fixtures/v6.json) ----
+// ---- protocol v8 (mirror of crates/rh-protocol; tools/protocol-js/check-vectors.mjs holds this block to protocol/fixtures/v8.json) ----
 class W {
   constructor() { this.b = new Uint8Array(256); this.n = 0; this.v = new DataView(this.b.buffer); }
   need(k) { if (this.n + k > this.b.length) { const nb = new Uint8Array(this.b.length * 2 + k); nb.set(this.b); this.b = nb; this.v = new DataView(nb.buffer); } }
@@ -30,6 +30,7 @@ class W {
   u16(x) { this.need(2); this.v.setUint16(this.n, x, true); this.n += 2; }
   u32(x) { this.need(4); this.v.setUint32(this.n, x >>> 0, true); this.n += 4; }
   u64(x) { this.need(8); this.v.setBigUint64(this.n, BigInt.asUintN(64, x), true); this.n += 8; }
+  varint(x) { x = x >>> 0; while (x > 0x7f) { this.u8((x & 0x7f) | 0x80); x >>>= 7; } this.u8(x); }
   f32(x) { this.need(4); this.v.setFloat32(this.n, x, true); this.n += 4; }
   f64(x) { this.need(8); this.v.setFloat64(this.n, x, true); this.n += 8; }
   bytes(a) { this.need(a.length); this.b.set(a, this.n); this.n += a.length; }
@@ -75,7 +76,7 @@ function fnv(w, h, tiles) {
   for (const t of tiles) eat(t);
   return x >>> 0;
 }
-const PROTOCOL = 7;
+const PROTOCOL = 8;
 const MAX_TICKET = 448;
 // Quantized remote actors and swings (rh-protocol quant.rs): positions are u16 at 1/8 u, angles u16 over 2 pi read as a signed code.
 const FACING_STEP_F32 = Math.fround(2 * Math.PI / 65536);
@@ -103,6 +104,13 @@ function input(seq, cmds) {
     else if (c.k === "aim") { w.u8(3); w.f32(c.a); }
     else if (c.k === "attack") { w.u8(4); w.f32(c.a); if (c.t == null) w.u8(0); else { w.u8(1); w.f64(c.t); } }
     else if (c.k === "release") { w.u8(5); w.f32(c.a); if (c.t == null) w.u8(0); else { w.u8(1); w.f64(c.t); } }
+    else if (c.k === "train") {
+      if (!Number.isInteger(c.command) || c.command < 1 || c.command > 5) throw new Error("bad train command");
+      const options = c.options || [];
+      if (options.length > 3) throw new Error("bad train options");
+      w.u8(13); w.u8(c.command); w.varint(c.id); w.u64(c.count); w.u8(options.length);
+      for (const o of options) w.u8(o);
+    }
     else throw new Error("bad command");
   }
   return w.out();
@@ -130,6 +138,13 @@ function decodeClient(buf) {
       else if (k === 6) { const slot = r.opt(() => r.u8()); if (slot !== null && slot > 1) throw new Error("bad slot"); c = { k: "swap", slot }; }
       else if (k === 7) { const handle = r.u32(); if (handle === 0) throw new Error("bad container"); c = { k: "pickup", handle }; }
       else if(k === 8) { const handle=r.u32(), byte=r.u8(), pick=byte===255?-1:byte; if(!handle || pick>2) throw new Error("bad reward choice"); c={k:"choose",handle,pick}; }
+      else if (k === 13) {
+        const command = r.u8(); if (command < 1 || command > 5) throw new Error("bad train command");
+        const id = r.varint(), count = r.u64(), on = r.u8(); if (on > 3) throw new Error("bad train options");
+        const options = []; for (let j = 0; j < on; j++) options.push(r.u8());
+        c = { k: "train", command, id, count, options };
+        m.cmds.push(c); continue;
+      }
       else throw new Error("bad command");
       m.cmds.push(c);
     }
@@ -179,9 +194,9 @@ function decodeBody(r) {
   }
   if (tag === 0x83) {
     const tick = r.varint(), ack = r.varint(), head = r.varint();
-    // Append-only varint head: bit 0 a self follows, bits 1..9 its fields, bit 10 the phase; any other bit is refused.
-    if ((head & ~0x3fff) !== 0 || ((head & 1) === 0 && (head & 0x3bff) !== 0)) throw new Error("bad head");
-    const s = { t: "snapshot", tick, serverMs: tick * 50, phase: 1, ack, me: null, actors: [] };
+    // Append-only varint head: bit 0 a self follows, bits 1..9 its fields, bit 10 the phase, bit 14 training; any other bit is refused.
+    if ((head & ~0x7fff) !== 0 || ((head & 1) === 0 && (head & 0x3bff) !== 0)) throw new Error("bad head");
+    const s = { t: "snapshot", tick, serverMs: tick * 50, phase: 1, ack, training: (head & 0x4000) !== 0, me: null, actors: [] };
     if (head & 1) {
       const id = r.varint(), x = r.f32(), y = r.f32(), facing = r.f32();
       const maxHp = (head & 0x100) ? r.f32() : r.varintU16("max_hp");
@@ -226,9 +241,9 @@ function decodeBody(r) {
     const tick = r.varint(), age = r.varint();
     if (age < 1 || age > 64 || age > tick) throw new Error("bad base age");
     const ack = r.varint(), head = r.varint();
-    // Append-only varint head: bit 0 a self follows (fields: bits 1..6 and 9..14), bit 7 a departed list follows, bit 8 the phase changed.
-    if ((head & ~0x3ffff) !== 0 || ((head & 1) === 0 && (head & 0x3fe7e) !== 0)) throw new Error("bad head");
-    const d = { t: "delta", tick, baseTick: tick - age, phase: null, ack, me: null, changed: [], departed: [] };
+    // Append-only varint head: bit 0 a self follows (fields: bits 1..6 and 9..14), bit 7 a departed list follows, bit 8 the phase changed, bit 18 training.
+    if ((head & ~0x7ffff) !== 0 || ((head & 1) === 0 && (head & 0x3fe7e) !== 0)) throw new Error("bad head");
+    const d = { t: "delta", tick, baseTick: tick - age, phase: null, ack, training: (head & 0x40000) !== 0, me: null, changed: [], departed: [] };
     if (head & 1) {
       const m = head & 0x3fe7e, s = { mask: m };
       if (m & 0x0002) s.x = r.f32();
@@ -300,6 +315,7 @@ function decodeBody(r) {
       else if (k === 5) { const reason = r.u8(); if (reason < 1 || reason > 5) throw new Error("bad field"); e.events.push({ k: "pickupRefused", reason }); }
       else if(k === 7) {const notice=r.u8();if(notice<1||notice>7)throw new Error("bad potion notice");e.events.push({k:"potionNotice",notice});}
       else if(k === 6) { const reason=r.u8(); if(reason<1 || reason>9) throw new Error("bad chest reason"); e.events.push({k:"chestRefused",reason}); }
+      else if(k === 8) e.events.push({k:"toast",text:r.str()});
       else throw new Error("bad event");
     }
     return e;
@@ -396,7 +412,7 @@ class Tracker {
   apply(m) {
     if (m.t === "welcome") { this.reset(); return m; }
     if (m.t === "state") { for (const item of m.items) this.collections.set(item.key, item.value); return m; }
-    if (m.t === "snapshot") { this.base = { tick: m.tick, phase: m.phase, me: m.me, actors: m.actors }; return m; }
+    if (m.t === "snapshot") { this.base = { tick: m.tick, phase: m.phase, training: m.training, me: m.me, actors: m.actors }; return m; }
     if (m.t !== "delta") return m;
     const b = this.base;
     if (!b) throw refused("no_base");
@@ -464,8 +480,8 @@ class Tracker {
       if (d.mask & 0x20000) s.sig=d.sig;
       me = s;
     }
-    const s = { t: "snapshot", tick: m.tick, serverMs: m.tick * 50, phase: m.phase === null ? b.phase : m.phase, ack: m.ack, me, actors: out };
-    this.base = { tick: s.tick, phase: s.phase, me: s.me, actors: s.actors };
+    const s = { t: "snapshot", tick: m.tick, serverMs: m.tick * 50, phase: m.phase === null ? b.phase : m.phase, ack: m.ack, training: m.training, me, actors: out };
+    this.base = { tick: s.tick, phase: s.phase, training: s.training, me: s.me, actors: s.actors };
     return s;
   }
 }

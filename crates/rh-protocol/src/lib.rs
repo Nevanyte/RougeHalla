@@ -1,7 +1,7 @@
 //! Roguehalla wire protocol, version [`PROTOCOL_VERSION`]. One message per WebSocket BINARY frame (the only transport a
 //! browser build can use; served as wss:// in production). Little-endian, no reflection: the C# mirror
 //! (`client-unity/RoguehallaNet`) and the JS probe decode the same bytes, and all are held to the golden vectors in
-//! `protocol/fixtures/v7.json` (docs/CONTRACTS.md C-NET).
+//! `protocol/fixtures/v<PROTOCOL_VERSION>.json` (docs/CONTRACTS.md C-NET).
 //!
 //! Frame layout: `[tag u8][body]`. Strings: `u8 length + UTF-8`. Blobs: `u16 length + bytes`. Optional values: `u8 flag (0/1) +
 //! value`. Lists: `u16 count + items`. Floats are IEEE-754; a decoder REJECTS non-finite floats in client messages. Unknown
@@ -119,7 +119,11 @@ pub use delta::{
 pub use encode::{encode_welcome, encode_welcome_into, WelcomeHeader};
 
 /// Bump on any incompatible change (a new tag or field in an existing message). Both ends refuse another major version.
-pub const PROTOCOL_VERSION: u16 = 7;
+///
+/// v8 adds the training-room set: the practice console client command (tag 13; tag 12 stays reserved for the pending
+/// P-ARENA-1 plan command and the coordinator renumbers the merged protocols), the owner-only Toast event (tag 8), and the
+/// Snapshot training head bit (bit 14 on a Full frame, bit 18 on a Delta).
+pub const PROTOCOL_VERSION: u16 = 8;
 /// Milliseconds per server tick (20 Hz). A Snapshot carries `tick` only: its server time is `tick * TICK_MS` exactly.
 pub const TICK_MS: u32 = 50;
 
@@ -244,6 +248,17 @@ pub enum WireCommand {
     Release {
         a: f32,
         t: Option<f64>,
+    },
+    /// The training room's practice console (protocol 8, tag 13): the source's five commands. The command byte names
+    /// one (1 card, 2 stat, 3 camp, 4 chest, 5 clear); the id is a catalog position, the count is clamped by the sim, and
+    /// the options are the chest's chosen card positions (at most three).
+    Train {
+        command: u8,
+        id: u32,
+        count: u64,
+        /// The chest's chosen card positions (the first `option_count` are real; at most three).
+        options: [u8; 3],
+        option_count: u8,
     },
 }
 
@@ -383,6 +398,10 @@ pub enum WireEvent {
     ChestRefused {
         reason: u8,
     },
+    /// The practice console's owner-only notice (protocol 8, tag 8): routed only to the connection that owns the event.
+    Toast {
+        text: String,
+    },
 }
 
 /// Presentation effects: a slow client may lose them (the server drops the oldest first under backpressure).
@@ -450,6 +469,9 @@ pub enum ServerMsg {
         ack_input: u32,
         me: Option<WireSelf>,
         actors: Vec<WireActor>,
+        /// Protocol 8: the source's public training fact (head bit 14; absent means false, so a non-training frame is
+        /// byte-identical to v7 apart from the version number).
+        training: bool,
     },
     /// A snapshot as a delta against the last one the connection received (v3); see [`delta`].
     SnapshotDelta(SnapshotDelta),
@@ -560,6 +582,29 @@ impl ClientMsg {
                             }
                             WireCommand::Target { actor }
                         }
+                        13 => {
+                            let command = r.u8()?;
+                            if !(1..=5).contains(&command) {
+                                return Err(DecodeError::BadField("train command"));
+                            }
+                            let id = r.varint()?;
+                            let count = r.u64()?;
+                            let n = r.u8()? as usize;
+                            if n > 3 {
+                                return Err(DecodeError::TooMany(n));
+                            }
+                            let mut options = [0u8; 3];
+                            for option in options.iter_mut().take(n) {
+                                *option = r.u8()?;
+                            }
+                            WireCommand::Train {
+                                command,
+                                id,
+                                count,
+                                options,
+                                option_count: n as u8,
+                            }
+                        }
                         11 => WireCommand::AttackMove {
                             x: r.f32()?,
                             y: r.f32()?,
@@ -617,8 +662,10 @@ pub(crate) const HM_PHASE: u32 = 1 << 10;
 pub(crate) const HM_EFFECTS: u32 = 1 << 11;
 pub(crate) const HM_DISPLACE: u32 = 1 << 12;
 pub(crate) const HM_SIG: u32 = 1 << 13;
+/// Protocol 8: the source's public training fact (a practice room never runs a match). Append-only; independent of the self.
+pub(crate) const HM_TRAINING: u32 = 1 << 14;
 pub(crate) const HM_SELF_BITS: u32 = 0x03ff | HM_EFFECTS | HM_DISPLACE | HM_SIG;
-pub(crate) const HM_KNOWN: u32 = HM_SELF_BITS | HM_PHASE;
+pub(crate) const HM_KNOWN: u32 = HM_SELF_BITS | HM_PHASE | HM_TRAINING;
 /// Full actor mask bits (append only): 0 kit, 1 hp, 2 status, 3 bounty, 4 kind.
 pub(crate) const AM_KIT: u32 = 1 << 0;
 pub(crate) const AM_HP: u32 = 1 << 1;
@@ -839,6 +886,7 @@ impl ServerMsg {
                 } else {
                     DEFAULT_PHASE
                 };
+                let training = head & HM_TRAINING != 0;
                 let n = r.varint()? as usize;
                 if n > MAX_ACTORS {
                     return Err(DecodeError::TooMany(n));
@@ -856,6 +904,7 @@ impl ServerMsg {
                     ack_input,
                     me,
                     actors,
+                    training,
                 }
             }
             T_SNAPSHOT_DELTA => ServerMsg::SnapshotDelta(delta::read_snapshot_delta(&mut r)?),
@@ -872,6 +921,7 @@ impl ServerMsg {
                 let mut events = Vec::with_capacity(n.min(1024));
                 for _ in 0..n {
                     events.push(match r.u8()? {
+                        8 => WireEvent::Toast { text: r.str()? },
                         7 => {
                             let notice = r.u8()?;
                             if !(1..=7).contains(&notice) {

@@ -52,8 +52,10 @@ pub const DH_STATUS: u32 = 1 << 14;
 pub const DH_EFFECTS: u32 = 1 << 15;
 pub const DH_DISPLACE: u32 = 1 << 16;
 pub const DH_SIG: u32 = 1 << 17;
+/// Protocol 8: the source's public training fact (a practice room never runs a match); static per connection.
+pub const DH_TRAINING: u32 = 1 << 18;
 pub const DH_FIELDS: u32 = 0x7e7e | DH_EFFECTS | DH_DISPLACE | DH_SIG;
-pub const DH_KNOWN: u32 = DH_PRESENT | DH_FIELDS | DH_PHASE | DH_DEPARTED;
+pub const DH_KNOWN: u32 = DH_PRESENT | DH_FIELDS | DH_PHASE | DH_DEPARTED | DH_TRAINING;
 
 /// Actor delta mask bits (append only): the fields that follow, in bit order.
 pub const AD_X: u32 = 1 << 0;
@@ -77,8 +79,6 @@ pub const AD_NEW: u32 = AD_X | AD_Y | AD_FACING;
 /// x y facing).
 const MIN_SELF: usize = 1 + 12 + 1;
 const MIN_ACTOR: usize = 1 + 1 + 6;
-/// Fewest bytes a Snapshot head takes (a one-byte varint).
-const MIN_HEAD: usize = 1;
 
 /// Largest self delta after the head: x, y, facing, hp, max_hp (4 each), kit, ready (2), kills, bounty, gv (3 each),
 /// move_seq, status, phase, effects (2), displacement, sig.
@@ -294,6 +294,8 @@ pub struct SnapshotInner {
     ack_input: u32,
     me: Option<WireSelf>,
     actors: Vec<QActor>,
+    /// Protocol 8: the source's public training fact (head bit 14 on a Full frame, bit 18 on a delta).
+    training: bool,
     /// [`SnapshotData::min_len`], worked out once.
     min_len: u32,
 }
@@ -394,7 +396,7 @@ impl SnapshotData {
         b.min_len = (1
             + varint_len(tick)
             + varint_len(ack_input)
-            + MIN_HEAD
+            + head_len(head_word(phase, me.as_ref(), false))
             + varint_len(declared as u32)
             + me.as_ref().map_or(0, |_| MIN_SELF)
             + MIN_ACTOR * declared) as u32;
@@ -402,6 +404,7 @@ impl SnapshotData {
         b.phase = phase;
         b.ack_input = ack_input;
         b.me = me;
+        b.training = false;
         Ok(SnapshotData(b))
     }
 
@@ -414,6 +417,26 @@ impl SnapshotData {
     pub fn ack_input(&self) -> u32 {
         self.ack_input
     }
+    /// The source's public training fact (protocol 8).
+    pub fn training(&self) -> bool {
+        self.training
+    }
+    /// Marks this snapshot as the view of a training world: the wire writes the training head bit (bit 14 on a Full frame,
+    /// bit 18 on a delta). Absent for every ordinary match, so those frames stay byte-identical to v7 apart from the
+    /// version number.
+    pub fn set_training(&mut self, training: bool) {
+        if self.training == training {
+            return;
+        }
+        self.0.training = training;
+        self.0.min_len = (1
+            + varint_len(self.tick)
+            + varint_len(self.ack_input)
+            + head_len(head_word(self.phase, self.me.as_ref(), training))
+            + varint_len(self.actors.len() as u32)
+            + self.me.as_ref().map_or(0, |_| MIN_SELF)
+            + MIN_ACTOR * self.actors.len()) as u32;
+    }
     pub fn me(&self) -> Option<&WireSelf> {
         self.me.as_ref()
     }
@@ -423,7 +446,7 @@ impl SnapshotData {
     /// Exact size of this snapshot's Full frame (a pass over the actors: the writer asks only when a delta is not clearly
     /// smaller).
     pub fn full_len(&self) -> usize {
-        let head = head_word(self.phase, self.me.as_ref());
+        let head = head_word(self.phase, self.me.as_ref(), self.training);
         let mut n = 1
             + varint_len(self.tick)
             + varint_len(self.ack_input)
@@ -462,6 +485,7 @@ impl SnapshotData {
             self.phase,
             self.ack_input,
             self.me.as_ref(),
+            self.training,
             self.actors.len(),
         );
         let mut prev = None;
@@ -482,6 +506,7 @@ impl SnapshotData {
             ack_input: self.ack_input,
             me: self.me,
             actors: self.actors.iter().map(QActor::to_wire).collect(),
+            training: self.training,
         }
     }
 
@@ -676,6 +701,9 @@ fn write_delta(
     let head_at = f.n;
     f.u8(0);
     let mut head = 0u32;
+    if cur.training {
+        head |= DH_TRAINING;
+    }
     if let (Some(bm), Some(cm)) = (&base.me, &cur.me) {
         head |= DH_PRESENT | write_self_delta(&mut f, bm, cm);
     }
@@ -1018,6 +1046,8 @@ impl ActorDelta {
 #[derive(Clone, Debug, PartialEq)]
 pub struct SnapshotDelta {
     pub tick: u32,
+    /// Protocol 8: the source's public training fact (delta head bit 18; static per connection).
+    pub training: bool,
     /// The tick of the snapshot this one is relative to (`tick - base_age`, 1..=[`MAX_DELTA_AGE`] behind).
     pub base_tick: u32,
     /// `Some` when the phase differs from the base's.
@@ -1072,6 +1102,7 @@ pub fn diff(base: &SnapshotData, cur: &SnapshotData) -> Option<SnapshotDelta> {
         .collect();
     Some(SnapshotDelta {
         tick: cur.tick,
+        training: cur.training,
         base_tick: base.tick,
         phase: (cur.phase != base.phase).then_some(cur.phase),
         ack_input: cur.ack_input,
@@ -1115,6 +1146,9 @@ pub(crate) fn write_message(w: &mut Writer, d: &SnapshotDelta) {
     w.varint(d.tick.wrapping_sub(d.base_tick));
     w.varint(d.ack_input);
     let mut head = 0u32;
+    if d.training {
+        head |= DH_TRAINING;
+    }
     if let Some(s) = &d.me {
         head |= DH_PRESENT | (s.mask & DH_FIELDS);
     }
@@ -1352,6 +1386,7 @@ pub(crate) fn read_snapshot_delta(r: &mut Reader) -> Result<SnapshotDelta, Decod
     if head & !DH_KNOWN != 0 || (head & DH_PRESENT == 0 && head & DH_FIELDS != 0) {
         return Err(DecodeError::BadField("head"));
     }
+    let training = head & DH_TRAINING != 0;
     let me = if head & DH_PRESENT != 0 {
         Some(read_self_delta(r, head & DH_FIELDS)?)
     } else {
@@ -1439,6 +1474,7 @@ pub(crate) fn read_snapshot_delta(r: &mut Reader) -> Result<SnapshotDelta, Decod
     }
     Ok(SnapshotDelta {
         tick,
+        training,
         base_tick: tick - age,
         phase,
         ack_input,
@@ -1544,6 +1580,7 @@ impl SnapshotTracker {
     /// The held snapshot as the message a Full frame of it would decode to.
     pub fn snapshot(&self) -> Option<ServerMsg> {
         Some(ServerMsg::Snapshot {
+            training: false,
             tick: self.tick?,
             phase: self.phase,
             ack_input: self.ack_input,
@@ -1572,6 +1609,7 @@ impl SnapshotTracker {
                 ack_input,
                 me,
                 actors,
+                training,
             } => {
                 self.tick = Some(tick);
                 self.phase = phase;
@@ -1585,6 +1623,7 @@ impl SnapshotTracker {
                     ack_input,
                     me,
                     actors,
+                    training,
                 })
             }
             ServerMsg::SnapshotDelta(d) => {

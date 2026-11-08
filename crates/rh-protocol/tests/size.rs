@@ -34,6 +34,7 @@ fn snapshot(n: u32, tick: u32) -> ServerMsg {
         tick,
         phase: 1,
         ack_input: tick * 2,
+        training: false,
         me: Some(WireSelf {
             sig: 0,
             effects: 0,

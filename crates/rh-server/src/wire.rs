@@ -43,6 +43,19 @@ pub fn command(c: WireCommand) -> rh_sim::PublicCommand {
         WireCommand::Aim { a } => Public::Aim { a: a as f64 },
         WireCommand::Attack { a, t } => Public::Attack { a: a as f64, t },
         WireCommand::Release { a, t } => Public::Release { a: a as f64, t },
+        WireCommand::Train {
+            command,
+            id,
+            count,
+            options,
+            option_count,
+        } => Public::Train(rh_sim::input::TrainRaw {
+            command,
+            id,
+            count,
+            options,
+            option_count,
+        }),
     }
 }
 
@@ -191,7 +204,8 @@ fn wire_actor(a: &rh_sim::observe::ActorView) -> WireActor {
 }
 
 pub fn snapshot(obs: &Observation, ack_input: u32) -> ServerMsg {
-    checked_snapshot(obs, ack_input).expect("native observation is unsupported by protocol 7")
+    checked_snapshot(obs, ack_input)
+        .expect("native observation is unsupported by the wire protocol")
 }
 
 pub fn checked_snapshot(
@@ -200,6 +214,7 @@ pub fn checked_snapshot(
 ) -> Result<ServerMsg, rh_protocol::EncodeError> {
     observation_supported(obs)?;
     Ok(ServerMsg::Snapshot {
+        training: obs.training,
         tick: obs.tick,
         phase: checked_phase(obs.phase)?,
         ack_input,
@@ -295,9 +310,8 @@ fn to_wire(e: &SeenEvent) -> Wire {
             },
         }),
         SeenEvent::MobArmed { .. } | SeenEvent::CampCleared { .. } => Wire::Omitted,
-        // Owner-only practice-console notice: native observation only in this slice (the protocol-8 Toast transport is part
-        // of the deferred wire set; dropping it here never leaks anything and keeps protocol 7 byte-compatible).
-        SeenEvent::Toast { .. } => Wire::Omitted,
+        // Protocol 8 owner-only practice-console notice (the publisher routes it to its owner's connection only).
+        SeenEvent::Toast { ref text } => Wire::Event(WireEvent::Toast { text: text.clone() }),
         SeenEvent::ChestRefused { reason } => Wire::Event(WireEvent::ChestRefused {
             reason: match reason {
                 rh_sim::reward_chests::Refusal::Busy => 1,
@@ -594,6 +608,7 @@ impl Publisher {
             frame
         };
         let memo = &mut self.actors;
+        let training = self.obs.training;
         let snapshot = SnapshotData::build_checked(
             spare,
             tick,
@@ -601,7 +616,11 @@ impl Publisher {
             ack_input,
             self.obs.me.as_ref().map(wire_self),
             self.obs.visible.iter().map(|a| memo.get(a)),
-        );
+        )
+        .map(|mut snapshot| {
+            snapshot.set_training(training);
+            snapshot
+        });
         ViewFrames {
             important,
             fx,
@@ -1075,6 +1094,7 @@ mod tests {
                     actors,
                     phase: p,
                     ack_input,
+                    training: _,
                 } = ServerMsg::decode(&snapshot(&obs, 9).encode()).expect("decodes")
                 else {
                     panic!("a snapshot")
@@ -1185,7 +1205,7 @@ mod tests {
     #[test]
     fn omitted_effect_announcements_leave_frames_and_redaction_unchanged() {
         use rh_sim::status_runtime::{AbilityId, CastEndReason, StatusKind};
-        assert_eq!(rh_protocol::PROTOCOL_VERSION, 7);
+        assert_eq!(rh_protocol::PROTOCOL_VERSION, 8);
         let env = seed1_match(1);
         let id = env.sim.players()[0].id;
         let mut publisher = Publisher::default();
@@ -1505,5 +1525,65 @@ mod tests {
                 .unwrap(),
             missing
         );
+    }
+
+    #[test]
+    fn protocol_8_training_frames_carry_the_training_set() {
+        let config = SimConfig {
+            min_players: 1,
+            lobby_seconds: 0.,
+            fill_seconds: 0.,
+            training: true,
+            dummies: true,
+            ..Default::default()
+        };
+        let mut sim = rh_sim::Sim::new(
+            config,
+            rh_sim::arenas::practice_arena(),
+            rh_sim::Secrets::from_seed(7),
+        );
+        sim.add_player("p0", Some(FactionId::Holy), false).unwrap();
+        sim.step();
+        let id = sim.players()[0].id;
+        let obs = rh_sim::observe(&sim, id, &[]);
+        assert!(obs.training, "a training observation says so");
+        let ServerMsg::Snapshot { training, .. } = snapshot(&obs, 0) else {
+            panic!("a snapshot")
+        };
+        assert!(training, "the training head bit reaches the wire");
+        let public = command(WireCommand::Train {
+            command: 4,
+            id: 0,
+            count: 0,
+            options: [3, 7, 12],
+            option_count: 3,
+        });
+        match public {
+            rh_sim::PublicCommand::Train(raw) => assert_eq!(
+                (
+                    raw.command,
+                    raw.id,
+                    raw.count,
+                    raw.options,
+                    raw.option_count
+                ),
+                (4, 0, 0, [3, 7, 12], 3)
+            ),
+            _ => panic!("a train command maps to the public console proposal"),
+        }
+        let Wire::Event(WireEvent::Toast { ref text }) = to_wire(&SeenEvent::Toast {
+            text: "Slow down".into(),
+        }) else {
+            panic!("an owner-only toast maps to the protocol 8 event")
+        };
+        let frame = ServerMsg::Events {
+            tick: 1,
+            events: vec![WireEvent::Toast { text: text.clone() }],
+        }
+        .encode();
+        assert!(matches!(
+            ServerMsg::decode(&frame),
+            Ok(ServerMsg::Events { .. })
+        ));
     }
 }

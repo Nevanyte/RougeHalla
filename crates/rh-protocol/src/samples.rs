@@ -1,4 +1,4 @@
-//! The golden vectors: deterministic sample messages, and frames that must be rejected. `protocol/fixtures/v7.json` is
+//! The golden vectors: deterministic sample messages, and frames that must be rejected. `protocol/fixtures/v<PROTOCOL_VERSION>.json` is
 //! generated from these (`cargo run -p rh-protocol --bin protocol-fixtures`) and read by the Rust, C# and JS tests. A
 //! Snapshot or Fx vector also carries what a client must DECODE (floats as their exact bit patterns), so the three decoders are
 //! held to the same quantization, not just to the same bytes.
@@ -57,6 +57,51 @@ pub fn client_samples() -> Vec<(&'static str, ClientMsg)> {
                     WireCommand::Swap { slot: Some(1) },
                     WireCommand::Pickup {
                         handle: PickupHandle::new(42).unwrap(),
+                    },
+                ],
+            },
+        ),
+        // Protocol 8 practice console: all five commands, including a chest with three chosen card positions and the
+        // largest stat count (a multi-byte varint).
+        (
+            "input_train",
+            ClientMsg::Input {
+                seq: 46,
+                commands: vec![
+                    WireCommand::Train {
+                        command: 1,
+                        id: 2,
+                        count: 3,
+                        options: [0; 3],
+                        option_count: 0,
+                    },
+                    WireCommand::Train {
+                        command: 2,
+                        id: 0,
+                        count: 9_007_199_254_740_991,
+                        options: [0; 3],
+                        option_count: 0,
+                    },
+                    WireCommand::Train {
+                        command: 3,
+                        id: 29,
+                        count: 0,
+                        options: [0; 3],
+                        option_count: 0,
+                    },
+                    WireCommand::Train {
+                        command: 4,
+                        id: 0,
+                        count: 0,
+                        options: [3, 7, 12],
+                        option_count: 3,
+                    },
+                    WireCommand::Train {
+                        command: 5,
+                        id: 0,
+                        count: 0,
+                        options: [0; 3],
+                        option_count: 0,
                     },
                 ],
             },
@@ -287,6 +332,62 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
                     .collect(),
             },
         ),
+        // Protocol 8 owner-only practice-console toasts (the source's exact texts).
+        (
+            "events_toasts",
+            ServerMsg::Events {
+                tick: 31,
+                events: vec![
+                    WireEvent::Toast {
+                        text: "Slow down".into(),
+                    },
+                    WireEvent::Toast {
+                        text: "Cleared: cards, practice mobs and chests".into(),
+                    },
+                ],
+            },
+        ),
+        // Protocol 8: a training snapshot (head bit 14) with a training dummy actor (kind 2, no catalog type, shield in hand).
+        (
+            "snapshot_training",
+            ServerMsg::Snapshot {
+                training: true,
+                tick: 8,
+                phase: 2,
+                ack_input: 3,
+                me: None,
+                actors: vec![WireActor {
+                    sig: 0,
+                    mob_type_code: 0,
+                    effects: 0,
+                    displace_seq: 0,
+                    id: 9,
+                    faction: 1,
+                    x: 336.0,
+                    y: 256.0,
+                    facing: 0.0,
+                    hp_pct: 100,
+                    status: 1,
+                    weapon: 4,
+                    bounty: 0,
+                    kind: 2,
+                }],
+            },
+        ),
+        // Protocol 8: a delta carrying the training bit (head bit 18).
+        (
+            "snapshot_delta_training",
+            ServerMsg::SnapshotDelta(SnapshotDelta {
+                training: true,
+                tick: 12,
+                base_tick: 10,
+                phase: None,
+                ack_input: 4,
+                me: Some(SelfDelta::default()),
+                changed: Vec::new(),
+                departed: Vec::new(),
+            }),
+        ),
         (
             "state_clear",
             ServerMsg::State {
@@ -375,6 +476,7 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
         (
             "snapshot",
             ServerMsg::Snapshot {
+                training: false,
                 tick: 101,
                 phase: 1,
                 ack_input: 42,
@@ -418,6 +520,7 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
         (
             "snapshot_spectator",
             ServerMsg::Snapshot {
+                training: false,
                 tick: 1,
                 phase: 0,
                 ack_input: 0,
@@ -429,6 +532,7 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
         (
             "snapshot_defaults",
             ServerMsg::Snapshot {
+                training: false,
                 tick: 127,
                 phase: 1,
                 ack_input: 128,
@@ -474,6 +578,7 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
         (
             "snapshot_full",
             ServerMsg::Snapshot {
+                training: false,
                 tick: 1_000_000,
                 phase: 2,
                 ack_input: 300,
@@ -568,6 +673,7 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
         (
             "snapshot_zero_hp",
             ServerMsg::Snapshot {
+                training: false,
                 tick: 16384,
                 phase: 3,
                 ack_input: 16383,
@@ -597,6 +703,7 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
         (
             "snapshot_delta_empty",
             ServerMsg::SnapshotDelta(SnapshotDelta {
+                training: false,
                 tick: 102,
                 base_tick: 101,
                 phase: None,
@@ -610,6 +717,7 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
         (
             "snapshot_delta",
             ServerMsg::SnapshotDelta(SnapshotDelta {
+                training: false,
                 tick: 1_000_000,
                 base_tick: 999_990,
                 phase: Some(2),
@@ -891,6 +999,7 @@ fn camp_bytes(mob_type: u8, elite: u8, alive: u32, state: u8, clear: f64, respaw
 
 pub fn malformed_server() -> Vec<(&'static str, Vec<u8>)> {
     let good = ServerMsg::Snapshot {
+        training: false,
         tick: 5,
         phase: 1,
         ack_input: 0,
@@ -981,8 +1090,8 @@ pub fn malformed_server() -> Vec<(&'static str, Vec<u8>)> {
             "head_self_bit_without_present_bit",
             snapshot_bytes(0x0002, &[], 0, &[]),
         ),
-        // Bit 13 is not a field of this version: a mask bit a decoder does not know is refused, never skipped.
-        ("head_unknown_bit", snapshot_bytes(0x4001, &[], 0, &[])),
+        // Bit 15 is not a field of this version: a mask bit a decoder does not know is refused, never skipped.
+        ("head_unknown_bit", snapshot_bytes(0x8001, &[], 0, &[])),
         // The head 0x80 0x00 is a two-byte zero: the canonical form is one byte.
         ("head_overlong_varint", vec![0x83, 0, 0, 0x80, 0x00, 0]),
         ("self_truncated", snapshot_bytes(0x0001, &[], 0, &[])),
@@ -1204,6 +1313,7 @@ fn delta_message(d: SnapshotDelta) -> Vec<u8> {
 /// A delta of the refusal base (tick 10 -> 11) with nothing in it, to be filled in.
 fn empty_delta() -> SnapshotDelta {
     SnapshotDelta {
+        training: false,
         tick: 11,
         base_tick: 10,
         phase: None,
@@ -1368,6 +1478,7 @@ pub fn chain_samples() -> Vec<(&'static str, Vec<ChainStep>)> {
     refusal(
         "delta_base_mismatch",
         SnapshotDelta {
+            training: false,
             base_tick: 9,
             tick: 11,
             ..empty_delta()
@@ -1517,8 +1628,8 @@ pub fn malformed_deltas() -> Vec<(&'static str, Vec<u8>)> {
             "delta_head_field_without_present_bit",
             delta_bytes(10, 1, DH_X, &[0]),
         ),
-        // Bit 18 is not a field of this version.
-        ("delta_head_unknown_bit", delta_bytes(10, 1, 1 << 18, &[0])),
+        // Bit 19 is not a field of this version.
+        ("delta_head_unknown_bit", delta_bytes(10, 1, 1 << 19, &[0])),
         (
             "delta_head_overlong_varint",
             vec![0x87, 10, 1, 0, 0x80, 0x00, 0],
@@ -1597,6 +1708,7 @@ fn decoded_snapshot_json(m: &ServerMsg) -> String {
         ack_input,
         me,
         actors,
+        training,
     } = m
     else {
         unreachable!("only snapshots carry a decoded form")
@@ -1640,7 +1752,7 @@ fn decoded_snapshot_json(m: &ServerMsg) -> String {
         })
         .collect();
     format!(
-        "{{\"tick\": {tick}, \"serverMs\": {}, \"phase\": {phase}, \"ack\": {ack_input}, \"me\": {me}, \"actors\": [{}]}}",
+        "{{\"tick\": {tick}, \"serverMs\": {}, \"phase\": {phase}, \"ack\": {ack_input}, \"training\": {training}, \"me\": {me}, \"actors\": [{}]}}",
         snapshot_server_ms(*tick),
         actors.join(", ")
     )

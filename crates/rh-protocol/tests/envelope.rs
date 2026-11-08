@@ -31,7 +31,7 @@ fn hello_prefix_is_read_without_decoding_the_rest() {
     let previous = [0x01, 4, 0, 0xff];
     assert_eq!(ClientMsg::hello_protocol(&previous), Some(4));
     assert_ne!(ClientMsg::hello_protocol(&previous), Some(PROTOCOL_VERSION));
-    assert_eq!(PROTOCOL_VERSION, 7);
+    assert_eq!(PROTOCOL_VERSION, 8);
     assert_eq!(ClientMsg::hello_protocol(&[0x01, 4]), None);
     assert_eq!(ClientMsg::hello_protocol(&[]), None);
     assert_eq!(ClientMsg::hello_protocol(&[0x02, 3, 0, 0]), None);

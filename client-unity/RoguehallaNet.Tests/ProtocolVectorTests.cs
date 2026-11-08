@@ -33,7 +33,7 @@ namespace Roguehalla.Net.Tests
             throw new KeyNotFoundException(name);
         }
 
-        [Test] public void FixtureIsProtocolV7() { Assert.AreEqual(7, Wire.ProtocolVersion); Assert.AreEqual(Wire.ProtocolVersion, Fixture().GetProperty("protocol").GetInt32()); }
+        [Test] public void FixtureIsProtocolV8() { Assert.AreEqual(8, Wire.ProtocolVersion); Assert.AreEqual(Wire.ProtocolVersion, Fixture().GetProperty("protocol").GetInt32()); }
 
         [TestCaseSource(nameof(ClientVectors))]
         public void ClientVectorRoundTripsByteForByte(string name, string hex)
@@ -99,8 +99,47 @@ namespace Roguehalla.Net.Tests
             Assert.Throws<EncodeException>(() => fx.Encode());
         }
 
+        [Test]
+        public void TrainCommandFieldsAndDecoder()
+        {
+            var input = Client<ClientMsg.Input>("input_train");
+            Assert.AreEqual(5, input.Commands.Count);
+            for (int i = 0; i < 5; i++) Assert.AreEqual(CommandKind.Train, input.Commands[i].Kind);
+            var chest = input.Commands[3];
+            Assert.AreEqual((byte)4, chest.TrainCommand);
+            CollectionAssert.AreEqual(new byte[] { 3, 7, 12 }, chest.TrainOptions);
+            Assert.AreEqual(9_007_199_254_740_991UL, input.Commands[1].TrainCount);
+            var built = new ClientMsg.Input { Seq = 46 };
+            built.Commands.Add(WireCommand.Train(5, 0, 0));
+            var decoded = (ClientMsg.Input)ClientMsg.Decode(built.Encode());
+            Assert.AreEqual(CommandKind.Train, decoded.Commands[0].Kind);
+            Assert.AreEqual((byte)5, decoded.Commands[0].TrainCommand);
+        }
+
+        [Test]
+        public void TrainingSnapshotAndDeltaCarryThePublicFact()
+        {
+            var snap = Server<ServerMsg.Snapshot>("snapshot_training");
+            Assert.IsTrue(snap.Training);
+            Assert.AreEqual(1, snap.Actors.Length);
+            Assert.AreEqual(2, snap.Actors[0].Kind); // protocol 8 training dummy
+            Assert.AreEqual(0, snap.Actors[0].MobTypeCode);
+            Assert.IsTrue(Server<ServerMsg.SnapshotDelta>("snapshot_delta_training").Training);
+            Assert.IsFalse(Server<ServerMsg.Snapshot>("snapshot").Training);
+        }
+
+        [Test]
+        public void ToastEventDecodesWithItsText()
+        {
+            var ev = Server<ServerMsg.Events>("events_toasts");
+            Assert.AreEqual(2, ev.List.Count);
+            Assert.AreEqual(EventKind.Toast, ev.List[0].Kind);
+            Assert.AreEqual("Slow down", ev.List[0].ToastText);
+            Assert.AreEqual("Cleared: cards, practice mobs and chests", ev.List[1].ToastText);
+        }
+
         [TestCase(0)]
-        [TestCase(8)]
+        [TestCase(9)]
         [TestCase(255)]
         public void EventsEncoderRefusesUndefinedKindsBeforeWriting(int kind)
         {

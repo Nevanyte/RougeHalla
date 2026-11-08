@@ -28,6 +28,8 @@ namespace Roguehalla.Net.Protocol
         byte _phase;
         readonly WireSelf _me = new WireSelf();
         bool _hasMe;
+        /// <summary>Protocol 8: the held snapshot's public training fact (static per connection).</summary>
+        bool _training;
         WireActor[] _actors = new WireActor[16];
         WireActor[] _next = new WireActor[16];
         int _count;
@@ -106,7 +108,7 @@ namespace Roguehalla.Net.Protocol
             var swap = _actors; _actors = _next; _next = swap; _count = o;
             _tick = d.Tick;
             if (d.HasPhase) _phase = d.Phase;
-            s.Tick = d.Tick; s.Phase = _phase; s.AckInput = d.AckInput;
+            s.Tick = d.Tick; s.Phase = _phase; s.AckInput = d.AckInput; s.Training = d.Training; _training = d.Training;
             if (d.HasSelf)
             {
                 var me = s.Me ?? new WireSelf();
@@ -156,6 +158,7 @@ namespace Roguehalla.Net.Protocol
             _has = true;
             _tick = s.Tick;
             _phase = s.Phase;
+            _training = s.Training;
             _hasMe = s.Me != null;
             if (_hasMe) _me.CopyFrom(s.Me);
             int n = s.Actors.Length;
