@@ -41,11 +41,15 @@ fn start() -> MatchStart {
 }
 
 fn wish(ability: AbilityId, ready_at: f64) -> Option<OwnerView> {
+    let max_charges = rh_sim::abilities::definition(ability).charges;
     Some(OwnerView {
         ability,
         ready_at,
         full_at: None,
-        max_charges: 1,
+        max_charges,
+        recharge_ms: rh_sim::abilities::cooldown(ability, false, None),
+        charges: max_charges,
+        next_charge_at: None,
         cast: None,
     })
 }
