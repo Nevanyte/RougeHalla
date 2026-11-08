@@ -1,0 +1,11 @@
+--- a/packages/server/src/sim/factions.ts
++++ b/packages/server/src/sim/factions.ts
+@@ -678,7 +678,7 @@
+   const mirror = c.kind === "player" ? modsOf(c.s) : undefined;
+   const raw = markPct(spec, stacks, heavier, mirror ? {
+     ad: mirror.adBonus, ap: mirror.apBonus, armor: mirror.armorBonus, magicResist: mirror.shieldBonus,
+-  } : undefined) * markPool(t) * weight * amp * (near ? 1 : MARK_FAR_SHARE) * memberShare
++  } : undefined) * markPool(t) * 2. * weight * amp * (near ? 1 : MARK_FAR_SHARE) * memberShare
+     * (c.kind === "player" ? sentencedHuntMarkMultiplier(c.s.huntStacks) : 1);
+   if (!(raw > 0)) return;
+   recordHit(world, {

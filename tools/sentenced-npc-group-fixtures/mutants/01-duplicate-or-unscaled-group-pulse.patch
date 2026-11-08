@@ -1,0 +1,11 @@
+--- a/packages/server/src/sim/factions.ts
++++ b/packages/server/src/sim/factions.ts
+@@ -657,7 +657,7 @@
+ 
+ /** Diminishing per-mob pulse share, based on original size so kills cannot increase surviving members' power. */
+ function markMemberShare(f: SigFighter): number {
+-  return Math.min(1, 1 / Math.sqrt(Math.max(1, f.markGroupSize)));
++  return 1;
+ }
+ 
+ /**

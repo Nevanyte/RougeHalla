@@ -1,0 +1,11 @@
+--- a/packages/server/src/sim/factions.ts
++++ b/packages/server/src/sim/factions.ts
+@@ -715,7 +715,7 @@
+     if (f.tier === 0) {
+       f.markGroup = group;
+       f.markGroupSize = group.startsWith("camp:")
+-        ? Math.max(1, fighters.filter((member) => member.kind === "mob" && markGroupOf(member) === group && member.rt.brain?.mode !== "return").length)
++        ? 1
+         : 1;
+     }
+     const members = t.kind === "mob" && t.s.camp > 0
