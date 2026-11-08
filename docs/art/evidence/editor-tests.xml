@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="utf-8"?>
+<test-run id="2" testcasecount="11" result="Passed" total="11" passed="11" failed="0" inconclusive="0" skipped="0" asserts="0" engine-version="3.5.0.0" clr-version="4.0.30319.42000" start-time="2026-11-08 10:20:12Z" end-time="2026-11-08 10:20:12Z" duration="0.8038384">
+  <test-suite type="TestSuite" id="1021" name="Roguehalla" fullname="Roguehalla" runstate="Runnable" testcasecount="11" result="Passed" start-time="2026-11-08 10:20:12Z" end-time="2026-11-08 10:20:12Z" duration="0.803838" total="11" passed="11" failed="0" inconclusive="0" skipped="0" asserts="0">
+    <properties>
+      <property name="platform" value="EditMode" />
+    </properties>
+    <test-suite type="Assembly" id="1014" name="Roguehalla.Client.EditModeTests.dll" fullname="/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Library/ScriptAssemblies/Roguehalla.Client.EditModeTests.dll" runstate="Runnable" testcasecount="11" result="Passed" start-time="2026-11-08 10:20:12Z" end-time="2026-11-08 10:20:12Z" duration="0.702276" total="11" passed="11" failed="0" inconclusive="0" skipped="0" asserts="0">
+      <properties>
+        <property name="_PID" value="9075" />
+        <property name="_APPDOMAIN" value="Unity Child Domain" />
+        <property name="platform" value="EditMode" />
+        <property name="EditorOnly" value="True" />
+      </properties>
+      <test-suite type="TestSuite" id="1015" name="Roguehalla" fullname="Roguehalla" runstate="Runnable" testcasecount="11" result="Passed" start-time="2026-11-08 10:20:12Z" end-time="2026-11-08 10:20:12Z" duration="0.608096" total="11" passed="11" failed="0" inconclusive="0" skipped="0" asserts="0">
+        <properties />
+        <test-suite type="TestSuite" id="1016" name="Client" fullname="Roguehalla.Client" runstate="Runnable" testcasecount="11" result="Passed" start-time="2026-11-08 10:20:12Z" end-time="2026-11-08 10:20:12Z" duration="0.508114" total="11" passed="11" failed="0" inconclusive="0" skipped="0" asserts="0">
+          <properties />
+          <test-suite type="TestSuite" id="1017" name="Tests" fullname="Roguehalla.Client.Tests" runstate="Runnable" testcasecount="11" result="Passed" start-time="2026-11-08 10:20:12Z" end-time="2026-11-08 10:20:12Z" duration="0.406603" total="11" passed="11" failed="0" inconclusive="0" skipped="0" asserts="0">
+            <properties />
+            <test-suite type="TestFixture" id="1001" name="ArenaPresentationEditModeTests" fullname="Roguehalla.Client.Tests.ArenaPresentationEditModeTests" classname="Roguehalla.Client.Tests.ArenaPresentationEditModeTests" runstate="Runnable" testcasecount="9" result="Passed" start-time="2026-11-08 10:20:12Z" end-time="2026-11-08 10:20:12Z" duration="0.228243" total="9" passed="9" failed="0" inconclusive="0" skipped="0" asserts="0">
+              <properties />
+              <test-case id="1009" name="ArenaAndObservedActorsCreateNoPhysicsComponents" fullname="Roguehalla.Client.Tests.ArenaPresentationEditModeTests.ArenaAndObservedActorsCreateNoPhysicsComponents" methodname="ArenaAndObservedActorsCreateNoPhysicsComponents" classname="Roguehalla.Client.Tests.ArenaPresentationEditModeTests" runstate="Runnable" seed="635198359" result="Passed" start-time="2026-11-08 10:20:12Z" end-time="2026-11-08 10:20:12Z" duration="0.068271" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1008" name="ConfirmedBowCueAndDeliveredDeathSelectAuthoredFrames" fullname="Roguehalla.Client.Tests.ArenaPresentationEditModeTests.ConfirmedBowCueAndDeliveredDeathSelectAuthoredFrames" methodname="ConfirmedBowCueAndDeliveredDeathSelectAuthoredFrames" classname="Roguehalla.Client.Tests.ArenaPresentationEditModeTests" runstate="Runnable" seed="313114762" result="Passed" start-time="2026-11-08 10:20:12Z" end-time="2026-11-08 10:20:12Z" duration="0.034942" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1004" name="LatestMembershipRemovesAnActorStillInTheDelayedInterpolationSample" fullname="Roguehalla.Client.Tests.ArenaPresentationEditModeTests.LatestMembershipRemovesAnActorStillInTheDelayedInterpolationSample" methodname="LatestMembershipRemovesAnActorStillInTheDelayedInterpolationSample" classname="Roguehalla.Client.Tests.ArenaPresentationEditModeTests" runstate="Runnable" seed="1613289505" result="Passed" start-time="2026-11-08 10:20:12Z" end-time="2026-11-08 10:20:12Z" duration="0.002529" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1010" name="LoweringShowcaseQualityKeepsObservedActorAndEssentialIndicatorsVisible" fullname="Roguehalla.Client.Tests.ArenaPresentationEditModeTests.LoweringShowcaseQualityKeepsObservedActorAndEssentialIndicatorsVisible" methodname="LoweringShowcaseQualityKeepsObservedActorAndEssentialIndicatorsVisible" classname="Roguehalla.Client.Tests.ArenaPresentationEditModeTests" runstate="Runnable" seed="1628708405" result="Passed" start-time="2026-11-08 10:20:12Z" end-time="2026-11-08 10:20:12Z" duration="0.003607" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1006" name="NormalPresentationRemovesLatestAbsentActorsAndQueuedCuesWithAudioDisabled" fullname="Roguehalla.Client.Tests.ArenaPresentationEditModeTests.NormalPresentationRemovesLatestAbsentActorsAndQueuedCuesWithAudioDisabled" methodname="NormalPresentationRemovesLatestAbsentActorsAndQueuedCuesWithAudioDisabled" classname="Roguehalla.Client.Tests.ArenaPresentationEditModeTests" runstate="Runnable" seed="1615067762" result="Passed" start-time="2026-11-08 10:20:12Z" end-time="2026-11-08 10:20:12Z" duration="0.007537" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1003" name="RemovingObservationDeactivatesActorLightAndConfirmedFlashAndNewIdStartsClean" fullname="Roguehalla.Client.Tests.ArenaPresentationEditModeTests.RemovingObservationDeactivatesActorLightAndConfirmedFlashAndNewIdStartsClean" methodname="RemovingObservationDeactivatesActorLightAndConfirmedFlashAndNewIdStartsClean" classname="Roguehalla.Client.Tests.ArenaPresentationEditModeTests" runstate="Runnable" seed="1987824801" result="Passed" start-time="2026-11-08 10:20:12Z" end-time="2026-11-08 10:20:12Z" duration="0.001500" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1005" name="RenewedNpcHandleUsesLatestTypedFactsAndQueuedFxWithoutIdentityInference" fullname="Roguehalla.Client.Tests.ArenaPresentationEditModeTests.RenewedNpcHandleUsesLatestTypedFactsAndQueuedFxWithoutIdentityInference" methodname="RenewedNpcHandleUsesLatestTypedFactsAndQueuedFxWithoutIdentityInference" classname="Roguehalla.Client.Tests.ArenaPresentationEditModeTests" runstate="Runnable" seed="368141433" result="Passed" start-time="2026-11-08 10:20:12Z" end-time="2026-11-08 10:20:12Z" duration="0.001450" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1007" name="ShowcaseCatalogHasEightDirectionClipsAndAuthoredHumanSprites" fullname="Roguehalla.Client.Tests.ArenaPresentationEditModeTests.ShowcaseCatalogHasEightDirectionClipsAndAuthoredHumanSprites" methodname="ShowcaseCatalogHasEightDirectionClipsAndAuthoredHumanSprites" classname="Roguehalla.Client.Tests.ArenaPresentationEditModeTests" runstate="Runnable" seed="1691418923" result="Passed" start-time="2026-11-08 10:20:12Z" end-time="2026-11-08 10:20:12Z" duration="0.003131" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1002" name="WorldPointAndScreenToServerRoundTripAtFollowedCameraPosition" fullname="Roguehalla.Client.Tests.ArenaPresentationEditModeTests.WorldPointAndScreenToServerRoundTripAtFollowedCameraPosition" methodname="WorldPointAndScreenToServerRoundTripAtFollowedCameraPosition" classname="Roguehalla.Client.Tests.ArenaPresentationEditModeTests" runstate="Runnable" seed="737738957" result="Passed" start-time="2026-11-08 10:20:12Z" end-time="2026-11-08 10:20:12Z" duration="0.001905" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+            </test-suite>
+            <test-suite type="TestFixture" id="1011" name="ShowcaseStateEditModeTests" fullname="Roguehalla.Client.Tests.ShowcaseStateEditModeTests" classname="Roguehalla.Client.Tests.ShowcaseStateEditModeTests" runstate="Runnable" testcasecount="2" result="Passed" start-time="2026-11-08 10:20:12Z" end-time="2026-11-08 10:20:12Z" duration="0.077104" total="2" passed="2" failed="0" inconclusive="0" skipped="0" asserts="0">
+              <properties />
+              <test-case id="1012" name="BuildLabelUpdatesWhenOnlyTheHighestCardIndexChanges" fullname="Roguehalla.Client.Tests.ShowcaseStateEditModeTests.BuildLabelUpdatesWhenOnlyTheHighestCardIndexChanges" methodname="BuildLabelUpdatesWhenOnlyTheHighestCardIndexChanges" classname="Roguehalla.Client.Tests.ShowcaseStateEditModeTests" runstate="Runnable" seed="1763848549" result="Passed" start-time="2026-11-08 10:20:12Z" end-time="2026-11-08 10:20:12Z" duration="0.004731" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1013" name="DetachingStopsAndClearsEveryPooledVoice" fullname="Roguehalla.Client.Tests.ShowcaseStateEditModeTests.DetachingStopsAndClearsEveryPooledVoice" methodname="DetachingStopsAndClearsEveryPooledVoice" classname="Roguehalla.Client.Tests.ShowcaseStateEditModeTests" runstate="Runnable" seed="1204316198" result="Passed" start-time="2026-11-08 10:20:12Z" end-time="2026-11-08 10:20:12Z" duration="0.002296" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+                <output><![CDATA[Saving results to: /Users/nevinmckinnon/Library/Application Support/Roguehalla/Roguehalla/TestResults.xml
+]]></output>
+              </test-case>
+            </test-suite>
+          </test-suite>
+        </test-suite>
+      </test-suite>
+    </test-suite>
+  </test-suite>
+</test-run>

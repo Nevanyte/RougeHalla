@@ -1,0 +1,81 @@
+{
+  "runtimeRevision": "ebff286bc68027d4e32eee3607d2ae6807038f9d",
+  "baseGameplayRevision": "e90a38f6",
+  "unity": "6000.0.85f2",
+  "urp": "17.0.4",
+  "protocol": 11,
+  "contentHash": "801a76cde4cfd305",
+  "totalBytes": 74029313,
+  "files": [
+    {
+      "path": "Build/Web.data",
+      "bytes": 27559288,
+      "sha256": "2d9cd5e513c073d33fdbc98d8b99c5b21762db4ca065a3838e916e51418ac6c7"
+    },
+    {
+      "path": "Build/Web.framework.js",
+      "bytes": 462445,
+      "sha256": "199050631d95beaf4ad3eafe748e215da3ca119e87ef57b2a79570d69f5eafb1"
+    },
+    {
+      "path": "Build/Web.loader.js",
+      "bytes": 26455,
+      "sha256": "9732ce8b8162cc2f7d2fb9238a5eb9181935f4895ce8c18a2264711e585115dc"
+    },
+    {
+      "path": "Build/Web.wasm",
+      "bytes": 45932171,
+      "sha256": "18efa9cda2bbc8519b182b4387c7d44b39eb47222f456533f3193a331e04a101"
+    },
+    {
+      "path": "Licenses/CinzelDecorative-OFL.txt",
+      "bytes": 4393,
+      "sha256": "1e5d6660366ddcfca4f2fc10e2acfba9fa4d97d40aec80d7dbfd41d730a420ae"
+    },
+    {
+      "path": "Licenses/EmojiOne-Attribution.txt",
+      "bytes": 185,
+      "sha256": "4b65f8960e4f4c5c8b35fd139e369265e9bb45667fc16461b2ba01188d464d93"
+    },
+    {
+      "path": "Licenses/Flare-Audio-Notice.txt",
+      "bytes": 1130,
+      "sha256": "64e2de64656079009cfda050f49e1de5075167a387c403f17555c6c651d9b516"
+    },
+    {
+      "path": "Licenses/Flare-CC-BY-SA-3.0.txt",
+      "bytes": 22240,
+      "sha256": "3f941b3b89cf7b8370ceb83cc76d2120d471b58735d8ca60238a751a48d7f72f"
+    },
+    {
+      "path": "Licenses/Flare-Credits.txt",
+      "bytes": 3510,
+      "sha256": "8b0985009dd04911b851553a35941e6862f1df66a6864f9b2a5c7ff330574fbc"
+    },
+    {
+      "path": "Licenses/LiberationSans-OFL.txt",
+      "bytes": 4469,
+      "sha256": "37f8552e9a874ec10710dc0ede6a9adf168e6609fbd02a507f35629373b85a48"
+    },
+    {
+      "path": "Licenses/Roguehalla-MIT.txt",
+      "bytes": 1080,
+      "sha256": "385298d673f01f328553f49d75680ab30254c09d2295171c929fa61efe84b103"
+    },
+    {
+      "path": "Licenses/Third-Party-Assets.md",
+      "bytes": 3566,
+      "sha256": "75994d0600bb013e3a47a78be320b9f4d78e5f4d76a8849e9494793a95b89295"
+    },
+    {
+      "path": "Licenses/Unity-Companion.md",
+      "bytes": 461,
+      "sha256": "6550a14445e6c2116213b2419c4c28b75be4b99039afc8d091ced3192624390c"
+    },
+    {
+      "path": "index.html",
+      "bytes": 7920,
+      "sha256": "3d122f461a72433123a98732aeaf6602377874fabf7e321f1f2740c1ea1b62f5"
+    }
+  ]
+}

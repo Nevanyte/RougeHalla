@@ -256,13 +256,15 @@ namespace Roguehalla.Client
                 if (t >= 1 || !_actors.Contains(f.Actor)) { f.Sprite.gameObject.SetActive(false); f.Text.gameObject.SetActive(false); _flashes.RemoveAt(i); _flashPool.Push(f); continue; }
                 f.Sprite.transform.position = f.Position;
                 f.Sprite.transform.localScale = Vector3.one * f.Size * (reduced ? 1 : 1 + t * .55f);
-                var c = f.Color; c.a = 1 - t; f.Sprite.color = c;
+                // Keep the silhouette readable even when confirmed hits overlap rapidly.
+                // Damage text retains its longer lifetime; the hollow impact rim fades quickly.
+                var c = f.Color; c.a = .55f * Mathf.Clamp01(1 - (Time.unscaledTime - f.Start) / .16f); f.Sprite.color = c;
                 f.Text.transform.position=f.Position+new Vector3(0,.7f+(reduced ? 0 : t*.35f),0); f.Text.color=new Color(1,.9f,.65f,1-t);
             }
         }
         Flash CreateFlash()
         {
-            var sprite=ShowcaseSprites.Create(_fxRoot,"Confirmed impact","spark",30000,Color.white,Vector2.one,Vector3.zero,false);
+            var sprite=ShowcaseSprites.Create(_fxRoot,"Confirmed impact","ring",30000,Color.white,Vector2.one,Vector3.zero,false);
             var go=new GameObject("Confirmed damage amount");go.transform.SetParent(_fxRoot,false);
             var text=go.AddComponent<TextMeshPro>();text.font=TMP_Settings.defaultFontAsset;text.fontSize=3;text.alignment=TextAlignmentOptions.Center;
             text.rectTransform.sizeDelta=new Vector2(3,1);text.GetComponent<MeshRenderer>().sortingOrder=30001;
