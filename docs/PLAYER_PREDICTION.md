@@ -417,3 +417,95 @@ Human factors:
 Local: `bench/predictBench.ts` on the branch where the harness was written, before its port to main, 2026-11-02.
 The cited set is 3 runs of 4 bots, 7,249 rows; the second set is 3 runs, 10,176 rows. The cost figures come from a
 plain-JS microbenchmark. Neither report is in the repository.
+
+## Rust / Unity status — P-NET-1 Phase 0
+
+Measured 2026-11-08 on macOS arm64 (Rust 1.97.0, release `wirebench`), branch `pnet-1/phase-0` based on `f62d3441`
+(with these bench changes uncommitted). Every run
+goes through the shipped observation -> wire -> protocol path (`wire::Publisher` + one `ConnEncoder` per viewer), with 8
+viewers (every player), seed 1, 2400 ticks (120 s at the fixed 20 Hz step), on `parity/maps/seed1.map.json` (160 x 160
+tiles, 32 u/tile). Each number is payload bytes per player per second: Events is the reliable `Events` frame, Fx the
+droppable fx frame, Snapshot the Full-or-delta frame the connection writer sent (one Full frame per viewer at startup,
+then deltas).
+
+### The load model (what idle, typical and heavy mean in the run)
+
+| Scenario | What runs |
+|---|---|
+| `idle` | Eight `rh_policy::scripted::Idle` seats in the same `Env` (same map, spawns, seed); they hold; no combat. The floor cost of eight viewers. |
+| `typical` | Exactly the default bench: eight `Brawler(2)` seats on the map's own spawns; walk to the nearest visible fighter, attack below 80 u, wander otherwise. It is the same source as the no-flag baseline command, so `--scenario typical` reproduces the baseline line. |
+| `heavy` | Same map, all eight fighters on a 36 u ring around the most central open 9x9-tile floor block. Each seat is a `Scrum` load policy: it attacks the nearest visible fighter within 80 u every 13 ticks (about 1.5 swings/s, the fist interval) and re-issues a Move order every 2 ticks (10 orders/s) to circle-strafe that target, both inside the C-INPUT 15 orders/s budget (about 11.5/s). All eight are placed with `hp = 1e6` so nobody dies inside the 120 s window (health goes on the wire as a percent clamped to 100, so this costs no bytes); every viewer sees the other seven for the whole run, and the scrum keeps moving and swinging throughout. It is the replication ceiling of an 8-way melee, not a claim about normal play. |
+
+The slice has no mobs, items or cards in any of these runs (`SimConfig::default()`: lifecycle off, mobs off, no initial
+loot). The heavy scenario adds no game rule: only placement, policy orders and the starting hp pool, all through public
+`rh-sim` / `rh-policy` APIs. In the `typical` run 3 of the 8 bots are still alive at the end (the default bots fight when
+they meet), which is why its mean visible-actor count is below 1.
+
+### Measured
+
+| Scenario | Events B/s | Fx B/s | Snapshot B/s | Total B/s | Total KB/s | Snapshots as Full frames B/s | Frames/player/s | Encode us/player-tick | Sim step us | Mean visible actors | Alive at 120 s |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| idle | 0 | 0 | 139 | 139 | 0.14 | 619 | 20.0 | 0.34 | 6.93 | 1.00 | 8 |
+| typical | 0 | 43 | 249 | 292 | 0.29 | 766 | 22.1 | 2.03 | 19.96 | 0.97 | 3 |
+| heavy | 0 | 1266 | 524 | 1790 | 1.79 | 1819 | 28.2 | 0.83 | 11.40 | 7.00 | 8 |
+
+`Encode us/player-tick` is the wall time of the whole per-viewer pass (observe, wire build, delta encode) divided by
+viewer-ticks; `Sim step us` is the simulation step alone. Both are CPU measurements and vary a few percent between runs
+(the timings above are one run; the byte columns are stable across runs). Events is zero because no reliable event
+(death, bounty, result) was observed by a viewer in any of the three runs: the slice's combat produces hit Fx, not events.
+The heavy row's snapshot column is smaller than a naive "8 moving fighters" estimate because a delta only carries the
+actors whose quantized wire state changed since the previous frame and the scrum's orbit is a small move per tick; the
+Full-frame column (1,819 B/s) is the no-delta upper bound for that same run.
+
+Raw report lines from one run (`--scenario all --compare-full`):
+
+```json
+{"scenario":"idle","aliveAtEnd":8,"map":"160x160","players":8,"steps":2400,"welcomeBytes":4911,"bytesPerPlayerPerSec":139,"snapshotBytesPerPlayerPerSec":139,"fullSnapshotBytesPerPlayerPerSec":619,"fullSnapshotFrames":8,"deltaSnapshotFrames":19192,"eventBytesPerPlayerPerSec":0,"fxBytesPerPlayerPerSec":0,"framesPerPlayerPerSec":20.0,"meanSnapshotBytes":7.0,"meanVisibleActors":1.00,"observeEncodeUsPerPlayerTick":0.34,"simStepUsMean":6.93}
+{"scenario":"typical","aliveAtEnd":3,"map":"160x160","players":8,"steps":2400,"welcomeBytes":4911,"bytesPerPlayerPerSec":292,"snapshotBytesPerPlayerPerSec":249,"fullSnapshotBytesPerPlayerPerSec":766,"fullSnapshotFrames":8,"deltaSnapshotFrames":19192,"eventBytesPerPlayerPerSec":0,"fxBytesPerPlayerPerSec":43,"framesPerPlayerPerSec":22.1,"meanSnapshotBytes":12.4,"meanVisibleActors":0.97,"observeEncodeUsPerPlayerTick":2.03,"simStepUsMean":19.96}
+{"scenario":"heavy","aliveAtEnd":8,"map":"160x160","players":8,"steps":2400,"welcomeBytes":4911,"bytesPerPlayerPerSec":1790,"snapshotBytesPerPlayerPerSec":524,"fullSnapshotBytesPerPlayerPerSec":1819,"fullSnapshotFrames":8,"deltaSnapshotFrames":19192,"eventBytesPerPlayerPerSec":0,"fxBytesPerPlayerPerSec":1266,"framesPerPlayerPerSec":28.2,"meanSnapshotBytes":26.2,"meanVisibleActors":7.00,"observeEncodeUsPerPlayerTick":0.83,"simStepUsMean":11.40}
+```
+
+(The `note` field is the same in all three and is omitted here.)
+
+### Reproduce
+
+```bash
+# the brief's baseline, unchanged
+cargo run --release -p rh-server --bin wirebench -- --map parity/maps/seed1.map.json --ticks 2400 --seed 1
+# the idle / typical / heavy report (one JSON line each, scenario-tagged)
+cargo run --release -p rh-server --bin wirebench -- --map parity/maps/seed1.map.json --ticks 2400 --seed 1 --scenario all
+# the same, plus what each snapshot would cost as a Full frame
+cargo run --release -p rh-server --bin wirebench -- --map parity/maps/seed1.map.json --ticks 2400 --seed 1 --scenario all --compare-full
+```
+
+Run from the repository root. Without `--scenario` the output is the same single line the baseline has always printed
+(same fields, same order; `typical` is that source).
+
+### Decision
+
+> Add delta compression only if the measured *typical* load exceeds the legacy gate of **20 KB/s per client**, or the owner sets a lower budget. Otherwise record **"not needed"** with the numbers.
+
+**Recorded decision: not needed.** The measured typical load is **292 B/s per client (0.29 KB/s), 1.5% of the 20 KB/s
+gate (about 69x under it)**; its snapshot path alone is 249 B/s, and even sending every snapshot as a Full frame would
+cost 766 B/s. The heavy ceiling is 1,790 B/s (1.79 KB/s, 9% of the gate, about 11x under), and 1,819 B/s if every heavy
+snapshot were a Full frame. No delta compression was added and `PROTOCOL_VERSION` is unchanged. The packet's caveat
+stands: the slice sends full observations and heavier mechanics will change the answer, so re-run this bench when mobs,
+items or cards add actors or snapshot fields.
+
+### Latency evidence: not measured
+
+Input-to-photon latency and p95 frame jitter at 50 / 100 / 150 ms RTT with about 1% loss were **not measured**, and no
+number for them is claimed here. Reasons:
+
+- No rendering client exists yet. `client-unity/RoguehallaNet` is an engine-independent library (its `Probe` is a
+  headless session client) and the Unity bootstrap is P-UNITY-1, so there is no photon event to timestamp.
+- The only in-scope network aid would be a new `netsim` proxy or an in-process lossy link. Even with one, a lossy-link
+  test can measure server and protocol behaviour but not input-to-photon without a client that renders, so the requested
+  figure needs infrastructure beyond this phase's write scope.
+
+What *was* measurable is above: the server's own per-tick cost. On the heavy run one tick is 11.4 us of sim step plus
+0.83 us per viewer for observe + encode (8 viewers: about 18 us, roughly 0.04% of the 50 ms tick budget); idle and
+typical are lower. The structural server-side input-to-snapshot delay is bounded by one tick (commands queue and are
+applied at the next 20 Hz step), i.e. 0-50 ms before transport; the network and render shares are exactly what this phase
+cannot measure. Phase 3's RTT-bounded rewind test (in-process link, 150 ms RTT) is the first place a network delay is
+injected.
