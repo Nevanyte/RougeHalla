@@ -56,7 +56,14 @@ source files, and the gap is recorded here.
 - Content hash: `e2399d02688ed977` (the new `TRADER_*`/`TRADE_*` registry rows plus the `traders/1` table).
 - Corpus: `parity/trade/runtime.json`, 56,679 bytes, SHA256 `b241a85bfc03f2d0ab2e9e89939b1485eb47cc2db71cfd334abd9981711cddea`
   (5 cases); `bash tools/trade-fixtures/capture.sh --check`: PASS (pinned container, byte-identical).
-- Workspace gate: GATE_TBD.
+- `cargo test -p rh-sim --lib --all-features -- traders::`: 4 passed (the pinned replay plus the barter cycle, the
+  rolled-offer rules and the trade-door round trip).
+- Content 21/21 with the new golden hash; checkpoint 6/6; hash coverage 6/6 with the new `world.traders` optional-leaf
+  reason; ability hash tape reproduces the re-recorded base; schedule conformance and the planning owned-hook cases keep
+  their source order (traders ride the recorded `NotTraining` gate and are inert in the non-live corpora).
+- Workspace gate: **1,456 passed, 0 failed, 3 ignored, 151 test binaries, exit 0** (with PostgreSQL; the previous 1,452
+  plus the four trade tests).
+- `cargo clippy --workspace --all-targets --all-features -- -D warnings` and `cargo fmt --all -- --check`: clean.
 - Mutants (`bash tools/trade-fixtures/run-mutants.sh`): **5/5 killed, unchanged control passes** — the cost share, the
   walker speed, the used flag, the barter cooldown and the trade-stat fold.
 
