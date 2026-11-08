@@ -1,0 +1,13 @@
+--- a/crates/rh-sim/src/systems/frost.rs
++++ b/crates/rh-sim/src/systems/frost.rs
+@@ -45,8 +45,8 @@
+         return;
+     };
+     let now = hx.w.server_time;
+-    let Some(i) = hx.w.idx(id) else { return };
+-    let p = &mut hx.w.players[i];
++    let Some(ix) = hx.w.fighter_idx(id) else { return };
++    let p = hx.w.core_mut(ix);
+     if let Some(a) = p
+         .weapon
+         .action

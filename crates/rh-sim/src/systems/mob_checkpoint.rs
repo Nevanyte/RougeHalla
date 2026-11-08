@@ -159,7 +159,11 @@ pub(crate) fn validate(
             && (c.alive as usize
                 != w.mobs
                     .iter()
-                    .filter(|m| m.camp as usize == ci && m.status == Status::Alive)
+                    // Owned zombies carry camp 0 but are not a camp member: they must not count against the roster's
+                    // alive total (they are validated by the typed Zombie branch above).
+                    .filter(|m| {
+                        m.camp as usize == ci && m.status == Status::Alive && m.zombie.is_none()
+                    })
                     .count()
                 || latest[ci].is_none_or(|(_, spot, _)| spot as usize + 1 != d.spots.len()))
         {
@@ -203,6 +207,23 @@ pub(crate) fn validate(
                 || !(0. ..=m.core.vitals.max_hp).contains(&m.core.vitals.hp)
             {
                 return Err("invalid zombie body".into());
+            }
+            // Owned zombies are recipients of the generic Frost loops too; validate their shared signature tuple without
+            // adding the regional mob gear/Mark checks this branch deliberately skips.
+            super::frost::validate_signature(
+                k.config.faction_mode.frost(),
+                w,
+                m.core.id,
+                &m.core.signature,
+            )?;
+            if !m.core.signature.ap_hits.valid(w.server_time)
+                || m.core
+                    .signature
+                    .ap_hits
+                    .target
+                    .is_some_and(|t| !w.known_actor(t))
+            {
+                return Err("invalid zombie AP provenance".into());
             }
             continue;
         }
@@ -316,7 +337,21 @@ pub(crate) fn validate(
                 ]
                 .iter()
                 .all(|v| v.is_finite())
-                || a.started_at > w.server_time
+                // The Frost draw correction (source afterWeapons/afterDamage) moves a chilled NPC draw's started_at
+                // forward with its lands_at; that is the source-produced chilled Draw form, not a malformed action. Only
+                // that narrow form is allowed past the ordinary now bound; every other clock/share rule below stands.
+                || (a.started_at > w.server_time
+                    && !(a.kind == ActionKind::Draw
+                        && p.signature.chill < 1.
+                        // weapons starts no later than now + TIE_EPS_MS. afterWeapons interpolates that
+                        // start toward now; afterDamage can then add at most (1 - current chill) * dt.
+                        // Historical chill/resistance can change, so use this step's cached chill only.
+                        // Eight machine epsilons cover the small chain of clock subtraction/addition at
+                        // every admitted server-time magnitude; TIE_EPS_MS also covers weapon readiness.
+                        && a.started_at
+                            <= w.server_time
+                                + (1. - p.signature.chill) * TICK_MS
+                                + TIE_EPS_MS.max(8. * f64::EPSILON * w.server_time.max(1.))))
                 || a.lands_at < a.started_at
                 || pk.raw < 0.
                 || [pk.phys, pk.magic, pk.true_]

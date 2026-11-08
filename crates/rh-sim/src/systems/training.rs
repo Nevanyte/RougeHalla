@@ -291,7 +291,7 @@ mod tests;
 
 /// Checkpoint/world admission for a training world (the `systems/mobs.validate` arm).
 pub(crate) fn validate_actors(
-    _k: &MatchStatic,
+    k: &MatchStatic,
     w: &World,
     near: impl Fn(f64, f64) -> bool,
 ) -> Result<(), &'static str> {
@@ -345,6 +345,26 @@ pub(crate) fn validate_actors(
                 }
             }
             MobKind::Regional => return Err("training world has a map-camp mob"),
+        }
+        // The generic Frost recipient loops also reach admitted practice mobs and dummies: their shared signature tuple
+        // must be validated on restore instead of being left unchecked.
+        crate::systems::frost::validate_signature(
+            k.config.faction_mode.frost(),
+            w,
+            m.core.id,
+            &m.core.signature,
+        )
+        .map_err(|_| "invalid training actor Frost state")?;
+        // The other private rules the basic actor admission checks are not weakened: forged AP provenance is still refused
+        // for a training actor even though the regional gear/Mark checks do not apply here.
+        if !m.core.signature.ap_hits.valid(w.server_time)
+            || m.core
+                .signature
+                .ap_hits
+                .target
+                .is_some_and(|t| !w.known_actor(t))
+        {
+            return Err("invalid training actor AP provenance");
         }
     }
     Ok(())
