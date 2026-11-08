@@ -215,6 +215,26 @@ fn apply_action(sim: &mut Sim, action: &serde_json::Value) {
             action["actor"].as_u64().unwrap(),
             action["weapon"].as_str().unwrap(),
         ),
+        // The capture's declared bootstrap grants a card through the source's real grantCard; the replay uses the
+        // port's real grant producer (which folds the card in and syncs max hp), so the trade check sees the same build.
+        "grantCard" => {
+            let actor = action["actor"].as_u64().unwrap();
+            let name = action["card"].as_str().unwrap();
+            let card = crate::cards::CardId::ALL
+                .iter()
+                .copied()
+                .find(|card| card.as_str() == name)
+                .unwrap_or_else(|| panic!("captured card {name} is a catalog card"));
+            assert!(
+                crate::cards::grant(&sim.k, &mut sim.w, player(actor), card),
+                "the real grant producer accepts the declared card"
+            );
+        }
+        // The capture's declared bootstrap sets the small-potion count (the source state field directly; no producer).
+        "potion" => {
+            let i = action["actor"].as_u64().unwrap() as usize;
+            sim.w.players[i].potion_small = action["count"].as_u64().unwrap() as u8;
+        }
         "input" => {
             let actor = action["actor"].as_u64().unwrap();
             let payload = &action["payload"];
@@ -394,4 +414,116 @@ fn the_trade_message_round_trips_and_rejects_out_of_range_picks() {
             "{bad:?} must be refused at the door"
         );
     }
+}
+
+/// Focused refusal check at the source position (negative control: without the lockSecondSlot branch the locked sim would
+/// trade into slot 1, so every assertion below fails). The captured barter-locked-second-slot case pins the same
+/// behaviour through the real input door and the full captured surfaces.
+#[test]
+fn the_committed_flag_refuses_the_second_weapon_barter() {
+    fn barter_sim(committed: bool) -> Sim {
+        use crate::content::WeaponId;
+        let arena = arena();
+        let spots = arena.spawns.clone();
+        let placements = vec![
+            Placement {
+                profile: "p0".into(),
+                faction: FactionId::Holy,
+                bot: false,
+                at: spots[0],
+                hp: None,
+                weapon0: None,
+                weapon1: None,
+            },
+            Placement {
+                profile: "p1".into(),
+                faction: FactionId::Fire,
+                bot: false,
+                at: spots[1],
+                hp: None,
+                weapon0: None,
+                weapon1: None,
+            },
+        ];
+        let mut sim = Sim::reset_active(
+            SimConfig {
+                quests: true,
+                mob_mode: crate::mob_runtime::MobMode::Pve,
+                initial_loot: true,
+                pvp_rules: false,
+                ..Default::default()
+            },
+            arena,
+            Secrets {
+                order_salt: crate::rng::Mulberry32::new(12).next_u32(),
+                spawn_seed: 0,
+                reward_salt: [1, 2, 3, 4],
+            },
+            &placements,
+        );
+        if committed {
+            assert!(crate::cards::grant(
+                &sim.k,
+                &mut sim.w,
+                player(0),
+                crate::cards::CardId::Committed
+            ));
+        }
+        let p = &mut sim.w.players[0];
+        p.weapon.weapon0 = Some(WeaponId::Sword);
+        p.weapon.weapon1 = None;
+        p.weapon.slot = 0;
+        p.potion_small = 1;
+        let spot = sim.w.players[0].core.pos();
+        let at = Vec2::new(spot.x + 32., spot.y);
+        sim.w.traders = Some(Traders {
+            traders: vec![Trader {
+                kind: Kind::Barter,
+                at,
+                path: Vec::new(),
+                next_walk_at: 0.,
+            }],
+            destinations: Vec::new(),
+            barter_at: Vec::new(),
+        });
+        sim
+    }
+
+    let step_trade = |sim: &mut Sim| {
+        sim.submit(
+            player(0),
+            validate(RawCommand::Trade {
+                trader: Some(0),
+                pick: 2,
+            })
+            .expect("a valid trade command"),
+        )
+        .expect("submitted");
+        sim.step();
+    };
+
+    let mut locked = barter_sim(true);
+    step_trade(&mut locked);
+    assert_eq!(
+        locked.w.players[0].weapon.weapon1, None,
+        "the locked slot stays empty"
+    );
+    assert_eq!(
+        locked.w.players[0].potion_small, 1,
+        "the refusal spends no potion"
+    );
+    assert!(
+        locked.w.traders.as_ref().unwrap().barter_at.is_empty(),
+        "the refusal does not start the barter cooldown"
+    );
+
+    let mut unlocked = barter_sim(false);
+    step_trade(&mut unlocked);
+    // Held sword -> the counter-cycle's second weapon (wand) goes into the free slot; the potion is spent.
+    assert_eq!(
+        unlocked.w.players[0].weapon.weapon1,
+        Some(crate::content::WeaponId::Wand)
+    );
+    assert_eq!(unlocked.w.players[0].potion_small, 0);
+    assert!(!unlocked.w.traders.as_ref().unwrap().barter_at.is_empty());
 }

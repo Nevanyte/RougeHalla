@@ -1,6 +1,6 @@
 --- a/crates/rh-sim/src/traders/runtime.rs
 +++ b/crates/rh-sim/src/traders/runtime.rs
-@@ -253,7 +253,7 @@
+@@ -269,7 +269,7 @@
          let p = &mut cx.w.players[ix.slot()];
          add_trade_stat(p, offer.cost, -offer.cost_value);
          add_trade_stat(p, offer.gain, offer.gain_value);

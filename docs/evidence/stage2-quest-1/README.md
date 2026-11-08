@@ -67,19 +67,23 @@ flipped at its recorded position:
 - **Rewards**: `awardQuestGv` semantics (per-player cumulative `QUEST_GV_CAP`` — the quest GV bucket) and the zone-matched
   mob-stat stack grant through the existing `grant_mob_stat`; fill bots take no part in any quest path.
 
-The pinned-container **lifecycle witness** is `parity/quests/lifecycle.json` (490,650 bytes, SHA256 `5fad488b…`,
+The pinned-container **lifecycle witness** is `parity/quests/lifecycle.json` (633,814 bytes, SHA256 `c292c637…`,
 captured by `tools/quest-fixtures/lifecycle.mts` in the same pinned image from the unmodified source harness
 `createGameWorld` on generated map seed 1 attempt 0 with quests on): it drives the real input queue and records, per
 captured tick, the public quest rows, the private offer table (published/giver/finder/publishAt/tokens/parcel/lastCarrier),
 the giver mobs and quest containers, and each player's GV/farm facts. Cases: spawn, accept (far refusal + accept + repeat
 refusal), hidden reveal + 4 s head start + publication, collect tokens + automatic turn-in (GV and mob-stat channels),
 fetch carrier + real player kill + parcel drop + steal + turn-in, a real player kill for the player-kill offer, expiry +
-linger sweep, and the coliseum teleport close.
+linger sweep, the coliseum teleport close, the run-end close (two real sword kills down to one standing player, so the real
+arena end producer's `endRun` runs the `runEnded` link) and the camp-clear impossible-kill closure (a hidden region cull is
+revealed, then every live mob of its region is wiped through the source's real kill producer with no credited killer, the
+camps clear and the public offer expires).
 
 The native replay (`crates/rh-sim/src/quests/lifecycle_tests.rs`) rebuilds the same generated map, replays every recorded
 action through the real C-INPUT door (the declared setup/teleport helpers are marked as such) and compares every captured
-frame surface; it is green over all eight cases. Eight in-crate unit/wiring tests cover the same slots directly, and a
-checkpoint serialize/restore/perturb round trip pins the new state.
+frame surface; it is green over all ten cases (the original eight case records are byte-identical inside the extended
+corpus). Eight in-crate unit/wiring tests cover the same slots directly, and a checkpoint serialize/restore/perturb round
+trip pins the new state.
 
 ## Captured witness
 
@@ -112,31 +116,32 @@ cargo test --workspace --all-features --locked   # with PostgreSQL from tools/pg
 
 - Content hash: `b6f9d4c2aa07e30b` (the registered `QUEST_*`/`FARM_*` rules rows plus the `quests/1` catalog table).
 - `cargo test -p rh-sim --lib --all-features -- quests::`: **14 passed** (4 data-layer tests + 8 in-crate lifecycle
-  wiring tests + the checkpoint serialize/restore/perturb round trip + the pinned-container lifecycle replay).
+  wiring tests + the checkpoint serialize/restore/perturb round trip + the pinned-container lifecycle replay over all ten
+  cases).
 - `cargo test -p rh-sim --all-features --test content`: 21 passed with the new golden hash.
 - `bash tools/quest-fixtures/capture.sh --check`: PASS (pinned container, byte-identical).
-- Pinned lifecycle corpus: `parity/quests/lifecycle.json`, 490,650 bytes, SHA256 `5fad488b0651fd6fbccf00a200c8fc4e08dd020e391cabfa9c32d0177d161cc7`;
+- Pinned lifecycle corpus: `parity/quests/lifecycle.json`, 633,814 bytes, SHA256 `c292c637c8a76ea3a524465b44ec0b2d66dcdaeee1316e44aeeebdcef2b4b1de`;
   `bash tools/quest-fixtures/capture.sh --check` re-runs both corpora byte-identically in the pinned container; the native
-  replay compares every captured frame across all eight cases.
-- Mutants (`bash tools/quest-fixtures/run-mutants.sh`): **11/11 killed, unchanged control passes** — tier
+  replay compares every captured frame across all ten cases, and the original eight case records are unchanged.
+- Mutants (`bash tools/quest-fixtures/run-mutants.sh`): **13/13 killed, unchanged control passes** — tier
   rounding, the route premium, the feed brake, the kind-cycle order, the known/hidden pass order, the start-clearance
-  relaxation, the accept range, the reveal head start, the turn-in stack grant, the teleport close and the turn-in GV.
+  relaxation, the accept range, the reveal head start, the turn-in stack grant, the teleport close, the turn-in GV, the
+  camp-clear recheck and the run-end close.
 - Checkpoint format `rh-checkpoint/22` (the new `world.quests` and the quest container/item variants); the ability hash
   tape is re-recorded for the new state layout; `hash_coverage` 6 passed with the documented optional quests leaf; the
   content hash is unchanged (`b6f9d4c2aa07e30b`, the lifecycle adds no new registered rule); schedule conformance 14
   passed with the ported quest action/system/links.
-- Workspace gate: **1,452 passed, 0 failed, 3 ignored, 151 test binaries, exit 0** (with PostgreSQL; the previous
-  1,451 plus the pinned-container lifecycle replay).
+- Workspace gate: **1,452 passed, 0 failed, 3 ignored, 151 test binaries, exit 0** (with the pinned PostgreSQL cluster;
+  the replay now covers all ten captured cases, so the counts are unchanged: no test was added, the corpus grew).
 - `cargo fmt --all -- --check` and `cargo clippy --workspace --all-targets --all-features -- -D warnings`: clean.
 
 ## Remaining for the P-QUEST-1 row
 
-1. **Pinned lifecycle witness — remaining surfaces only**: the corpus now captures spawn, accept/refusal + deadline,
-   hidden reveal + head start, collect/pickup + turn-in rewards, fetch carrier + real player kill + drop/steal +
-   turn-in, a real player kill on the player-kill offer, expiry/linger and the teleport close. Still uncaptured: the
-   run-end close (the run-end producer is the arena end path; only the teleport producer's close is captured, while the
-   same close-all link is native-tested) and the camp-clear impossible-kill closure (needs a whole-region mob wipe;
-   native-tested). Presentation toasts/reveal events are not in the corpus because their transport is coordinator-owned.
+1. **Pinned lifecycle witness — complete for the sim slice**: the corpus now captures every lifecycle surface: spawn,
+   accept/refusal + deadline, hidden reveal + head start, collect/pickup + turn-in rewards, fetch carrier + real player
+   kill + drop/steal + turn-in, a real player kill on the player-kill offer, expiry/linger, the teleport close, the run-end
+   close (real arena end producer) and the camp-clear impossible-kill closure (whole-region wipe through the real kill
+   producer). Presentation toasts/reveal events are not in the corpus because their transport is coordinator-owned.
 2. **Public transport (coordinator-owned)**: quest offers, accepted/progress/visited sets, carrier, giver actors and
    `unknownQuests`, plus the accept client message, need observation fields and the full C-NET set (wire state items,
    protocol bump, Rust/C#/JS decoders) before any protocol version change. The two documented single sites are

@@ -19,8 +19,8 @@ wording), captured from the unmodified legacy source in the pinned linux/amd64 N
 - Evidence and scope: [docs/evidence/stage2-quest-1](../../docs/evidence/stage2-quest-1/README.md).
 ## Lifecycle witness
 
-- `lifecycle.json` — `rh-quest-lifecycle-source/1`, 8 cases, 490,650 bytes, SHA256
-  `5fad488b0651fd6fbccf00a200c8fc4e08dd020e391cabfa9c32d0177d161cc7`, captured by `tools/quest-fixtures/lifecycle.mts` in
+- `lifecycle.json` — `rh-quest-lifecycle-source/1`, 10 cases, 633,814 bytes, SHA256
+  `c292c637c8a76ea3a524465b44ec0b2d66dcdaeee1316e44aeeebdcef2b4b1de`, captured by `tools/quest-fixtures/lifecycle.mts` in
   the same pinned image from the unmodified source harness (`createGameWorld`: production module order, quests on, map
   `generateMap(1, attempt 0, {decor:false})`, reward salt `[1,2,3,4]`, world random `mulberry32(12)`). Each case records,
   per captured tick: the public quest rows (status/doneBy/expiresAt/carrier/progress/accepted/visitedRegions), the private
@@ -31,7 +31,13 @@ wording), captured from the unmodified legacy source in the pinned linux/amd64 N
   start, publication + pieces), `collect` (token pickups, one captured refusal, automatic turn-in paying GV and the
   mob-stat row), `fetch` (parcel pickup, real sword kill of the carrier, dropBody drop, steal by another player, turn-in),
   `player-kill` (real sword kill advancing the player-kill offer), `expiry` (declared deadline nudge, expiry + linger
-  sweep) and `teleport-close` (the real coliseum teleport producer closing every open offer).
+  sweep), `teleport-close` (the real coliseum teleport producer closing every open offer), `run-end-close` (two real
+  sword kills down to one standing player; the real arena end producer's `endRun` closes every open offer) and
+  `camp-clear-close` (a hidden region cull is revealed, then EVERY live mob of its region is wiped through the source's
+  real kill producer with no credited killer; the camps clear and the impossible-kill closure expires the public offer).
+  The two new cases' declared setup (victim hp, weapon, place and the whole-region producer call) is marked in the
+  action scripts; all other values are source-written.
 - Native replay: `crates/rh-sim/src/quests/lifecycle_tests.rs` regenerates the same map, replays the recorded actions
-  through the real C-INPUT door (declared setup/teleport helpers marked as such) and compares every captured surface.
+  through the real C-INPUT door (declared setup, teleport and whole-region kill-producer helpers marked as such; the
+  region wipe calls the port's real mob-kill path) and compares every captured surface.
 - `bash tools/quest-fixtures/capture.sh --check` re-runs both corpora in the pinned container and requires identical bytes.
