@@ -1,0 +1,11 @@
+--- a/packages/server/src/bots/brain/perception.ts
++++ b/packages/server/src/bots/brain/perception.ts
+@@ -190,7 +190,7 @@
+ const EFFECT_UNTARGETABLE = 128;
+ const EFFECT_HIDDEN = 256;
+ 
+-const f32 = Math.fround;
++const f32 = (v: number): number => v;
+ /** A uint32 timer as the wire carries it: whole ms. */
+ const u32 = (v: number): number => v >>> 0;
+ const HP_STEPS = Math.round(1 / HP_QUANT);

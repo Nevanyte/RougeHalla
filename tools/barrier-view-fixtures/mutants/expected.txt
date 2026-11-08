@@ -1,0 +1,4 @@
+01-combined-denominator|continuous-bars.json|/cases/2/actual/fractions/barrier/tag|"value"|"+0"
+02-twentieth-precision|owner-fighter.json|/cases/2/actual/fighter/barrierFrac/value|0.05|0.01
+03-f32-identity|owner-fighter.json|/cases/3/actual/selfBarrier/tag|"+0"|"value"
+04-ring-normalization|human-ring.json|/sequences/cacheRepeat/calls/0/stepAfter|4|2
