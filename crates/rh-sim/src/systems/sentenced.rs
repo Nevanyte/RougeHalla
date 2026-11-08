@@ -98,10 +98,15 @@ pub(crate) fn before_damage(
         let swift_judgment = w.players[i]
             .build
             .has_flag(crate::stat_fold::EffectFlag::SwiftJudgment);
+        // Source `markStep`: `f.markProgress += markRateOf(c.s) / Math.max(f.chill, 0.05)` for every qualifying hit.
+        // The folded MarkRate accessor is read here (runtime cache, not a new fold) and the pure progress helper keeps
+        // the source arithmetic order and the prior-tick chill denominator floor.
+        let increment =
+            crate::modifiers::mark_progress_increment(w.players[i].modifiers.mark_rate(), chill);
         let m = &mut w.players[i].signature.mark;
         for _ in 0..count {
             m.hits += 1;
-            m.progress += 1. / chill.max(MARK_CHILL_FLOOR);
+            m.progress += increment;
         }
         if count > 0 || m.tier > 0 {
             // No Commutation counts each weapon swap twice; Swift Judgment adds every second mark hit.
@@ -349,11 +354,17 @@ pub(crate) fn validate(k: &MatchStatic, w: &World, p: &crate::state::Player) -> 
     // the old mixture of just neutral and base-Frost increments rejects genuine resisted/deepened hits.
     let min_chill =
         (1. - FROST_SLOW - crate::modifiers::DEFINITION.frost_cap).max(MARK_CHILL_FLOOR);
-    let increment = 1. / min_chill;
+    // The historical rate is not today's rate: ordinary card ownership only grows and Gathering Storm may be added
+    // mid-Mark, while training Clear may remove it without resetting the Mark, so past increments are never recomputed.
+    // The shipped unique catalog producer bounds every reachable rate (currently 1.5); derive it from the catalog
+    // instead of inventing a permissive constant. The rate itself is never below 1: no shipped card/farm/trade/status
+    // row subtracts MarkRate (verified against the actual catalog and the farm/trade/status registries).
+    let max_increment =
+        crate::modifiers::mark_progress_increment(crate::modifiers::maximum_mark_rate(), min_chill);
     let count = m.hits as f64;
-    let max_progress = count * increment;
+    let max_progress = count * max_increment;
     // Retain the conservative sequential-binary64 addition envelope, including long-running restored marks.
-    let slack = MARK_TIER_EPS.max(4. * f64::EPSILON * count * count * increment);
+    let slack = MARK_TIER_EPS.max(4. * f64::EPSILON * count * count * max_increment);
     let tier_for = |swaps: f64| {
         if m.progress > 0. || swaps > 0. {
             (1. + (m.progress.max(0.) / MARK_TIER_HITS + MARK_TIER_EPS)
@@ -409,6 +420,10 @@ pub(crate) fn validate(k: &MatchStatic, w: &World, p: &crate::state::Player) -> 
 
 #[cfg(test)]
 mod actual_source_tests;
+#[cfg(test)]
+mod mark_rate_source_tests;
+#[cfg(test)]
+mod mark_rate_tests;
 #[cfg(test)]
 mod public_tests;
 #[cfg(test)]
