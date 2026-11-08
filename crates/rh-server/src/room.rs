@@ -1351,6 +1351,8 @@ mod tests {
                 pvp_rules: true,
                 weapon_specials: true,
                 faction_mode: rh_sim::FactionMode::Off,
+                // Off until the coordinator-owned quest transport packet lands; the lifecycle has its own config switch.
+                quests: false,
             },
             arena: assets.arena,
             welcome_map: assets.welcome_map,
@@ -1586,6 +1588,8 @@ mod tests {
         room.sim = Sim::reset_active(
             SimConfig {
                 faction_mode: rh_sim::FactionMode::EngagementHolyPlagueFire,
+                // Off until the coordinator-owned quest transport packet lands; the lifecycle has its own config switch.
+                quests: false,
                 ..Default::default()
             },
             rh_sim::arenas::practice_arena(),

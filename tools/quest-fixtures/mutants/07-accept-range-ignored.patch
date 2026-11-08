@@ -1,0 +1,11 @@
+--- a/crates/rh-sim/src/quests/live.rs
++++ b/crates/rh-sim/src/quests/live.rs
+@@ -561,7 +561,7 @@
+     };
+     let offer = &cx.w.quests.as_ref().unwrap().offers[oi];
+     let pos = cx.w.players[ix.slot()].pos();
+-    if crate::math::hypot(pos.x - offer.at.x, pos.y - offer.at.y) > QUEST_ACCEPT_RANGE {
++    if crate::math::hypot(pos.x - offer.at.x, pos.y - offer.at.y) > 1e9 {
+         return;
+     }
+     let map = cx.k.collision_map(cx.w.rt.gates_locked);

@@ -1,0 +1,11 @@
+--- a/crates/rh-sim/src/quests/live.rs
++++ b/crates/rh-sim/src/quests/live.rs
+@@ -711,7 +711,7 @@
+         }
+         let Some(finder) = finder else { continue };
+         let now_ms = w.server_time;
+-        let head_start = QUEST_REVEAL_HEAD_START_MS;
++        let head_start = 0.;
+         let q = quests_mut(w).unwrap();
+         let offer = &mut q.offers[oi];
+         offer.finder = Some(finder);

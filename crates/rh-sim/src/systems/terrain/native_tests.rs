@@ -38,6 +38,7 @@ fn setup(mode: Mode, mobs: bool, kind: u8) -> Sim {
         .collect::<Vec<_>>();
     Sim::reset_active(
         SimConfig {
+            quests: false,
             initial_loot: mobs,
             hazards: mode,
             mob_mode: if mobs {
@@ -231,6 +232,7 @@ fn terrain_checkpoint_rejects_malformed_clocks_identity_and_slips() {
         assert!(Sim::restore(&v).is_err(), "admitted {pointer}");
     }
     let mut config = SimConfig {
+        quests: false,
         initial_loot: true,
         hazards: Mode::Map,
         mob_mode: crate::mob_runtime::MobMode::SpawnFoundation,

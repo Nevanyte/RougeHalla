@@ -138,6 +138,8 @@ fn action_id(cmd: &ActionCmd) -> Option<ActionId> {
         ActionCmd::Cast { .. } => ActionId::Cast,
         ActionCmd::UseConsumable => ActionId::UseConsumable,
         ActionCmd::Choose { .. } => ActionId::Choose,
+        ActionCmd::QuestAccept { .. } => ActionId::QuestAccept,
+        ActionCmd::Trade { .. } => ActionId::Trade,
         ActionCmd::Target { .. } | ActionCmd::MissingTarget => ActionId::Target,
         ActionCmd::Swap { .. } => ActionId::Swap,
         ActionCmd::Pickup { .. } | ActionCmd::MissingPickup => ActionId::Pickup,

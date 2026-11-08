@@ -79,6 +79,7 @@ fn make_sim(case: &Value) -> Sim {
     if side_of(scenario) {
         Sim::reset_active(
             SimConfig {
+                quests: false,
                 mob_mode: MobMode::Pve,
                 ..Default::default()
             },
@@ -89,6 +90,7 @@ fn make_sim(case: &Value) -> Sim {
     } else {
         let mut sim = Sim::new(
             SimConfig {
+                quests: false,
                 initial_loot: true,
                 min_players: 2,
                 fill_seconds: 0.,
@@ -725,6 +727,7 @@ fn gv_reason(reason: crate::results::GvReason) -> &'static str {
     match reason {
         GvReason::Mob => "mob",
         GvReason::Elite => "elite",
+        GvReason::Quest => "quest",
         GvReason::Skip => "skip",
         GvReason::Kill => "kill",
         GvReason::Bounty => "bounty",

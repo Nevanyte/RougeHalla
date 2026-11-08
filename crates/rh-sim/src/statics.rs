@@ -221,6 +221,9 @@ pub struct SimConfig {
     /// harness keep hp deterministic. The live server turns it on.
     #[serde(default)]
     pub regen: bool,
+    /// The K1 quest module (legacy config.quests): a config switch so a test/experiment can turn it off.
+    #[serde(default)]
+    pub quests: bool,
 }
 
 fn default_wish_lock() -> f64 {
@@ -247,6 +250,7 @@ impl Default for SimConfig {
             faction_mode: FactionMode::Off,
             mob_mode: crate::mob_runtime::MobMode::Off,
             regen: false,
+            quests: false,
         }
     }
 }

@@ -1,0 +1,11 @@
+--- a/crates/rh-sim/src/constants.rs
++++ b/crates/rh-sim/src/constants.rs
+@@ -361,7 +361,7 @@
+     TRADER_GOAL_COUNT: u32 = 8, "goals";
+     TRADER_GOAL_MIN_TILES: u32 = 3, "tiles";
+     TRADE_OFFER_COUNT: u32 = 3, "offers";
+-    TRADE_COST_SHARE: f64 = 0.12, "share";
++    TRADE_COST_SHARE: f64 = 0.2, "share";
+     TRADE_GAIN_SHARE: f64 = 0.18, "share";
+     TRADE_GAIN_FLAT_FLOOR: f64 = 60., "stat";
+     TRADE_COST_MIN_FLAT: f64 = 1., "stat";

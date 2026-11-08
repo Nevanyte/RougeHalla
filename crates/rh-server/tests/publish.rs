@@ -300,6 +300,7 @@ impl Hand {
         let cfg = RoomConfig {
             sim: SimConfig {
                 regen: false,
+                quests: false,
                 abilities: rh_sim::abilities::Mode::Off,
                 wish_lock_ms: rh_sim::abilities::WISH_LOCK_MS,
                 lifecycle: rh_sim::ArenaMode::Off,

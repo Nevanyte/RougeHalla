@@ -70,6 +70,7 @@ fn landed_for(case: &serde_json::Value) -> f64 {
         reward_salt: [1, 2, 3, 4],
     };
     let config = SimConfig {
+        quests: false,
         pvp_rules: false,
         ..Default::default()
     };

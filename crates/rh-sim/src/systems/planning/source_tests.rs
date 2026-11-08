@@ -129,6 +129,7 @@ pub(super) fn make(source: &Value, input: &Value) -> Sim {
     };
     Sim::new(
         SimConfig {
+            quests: false,
             min_players: input["players"].as_array().unwrap().len(),
             lobby_seconds: 30.,
             fill_seconds: 0.,
@@ -1201,7 +1202,7 @@ fn compare_owned_hook_order(sim: &mut Sim, case: &Value, f: &Value, ctx: &str) {
             }
             // Core source profiles do not install these modules; the native callbacks are inert with the empty
             // owned stores or the config gate regen is off behind.
-            if ["cardHooks", "consumables", "regen"].contains(&module) {
+            if ["cardHooks", "consumables", "regen", "traders"].contains(&module) {
                 return None;
             }
             Some(json!({"hook":hook,"installer":module,"time":sim.w.server_time,"tick":sim.w.tick}))

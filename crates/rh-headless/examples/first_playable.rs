@@ -124,6 +124,7 @@ fn main() {
         spawns,
     };
     let sim = SimConfig {
+        quests: false,
         initial_loot: true,
         mob_mode: rh_sim::mob_runtime::MobMode::Pve,
         faction_mode: FactionMode::EngagementHolyPlagueFire,

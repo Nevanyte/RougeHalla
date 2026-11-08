@@ -519,6 +519,7 @@ mod tests {
         let mut cfg = a.clone();
         cfg.k = crate::statics::MatchStatic::new(
             SimConfig {
+                quests: false,
                 pvp_rules: false,
                 ..a.k.config.clone()
             },

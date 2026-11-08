@@ -39,6 +39,7 @@ pub mod observe;
 pub mod pathfind;
 pub mod potions;
 pub mod private_rng;
+pub mod quests;
 pub mod replay;
 pub mod results;
 pub mod rng;
@@ -78,6 +79,7 @@ pub use state::{
     Container, ContainerKind, ProjectileEnd, ProjectileKind, ProjectileLaunch, WeaponItem,
 };
 pub mod terrain;
+pub mod traders;
 pub use statics::FactionMode;
 pub use store::{EntityId, Store};
 

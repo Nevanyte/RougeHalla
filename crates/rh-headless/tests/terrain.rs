@@ -38,6 +38,7 @@ fn terrain_headless_public_inputs_replay_and_restore() {
         EnvConfig {
             arena,
             sim: SimConfig {
+                quests: false,
                 hazards: Mode::All,
                 ..Default::default()
             },

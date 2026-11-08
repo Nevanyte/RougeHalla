@@ -25,6 +25,7 @@ fn scene(hp: f64) -> Sim {
     .collect::<Vec<_>>();
     Sim::reset_active(
         SimConfig {
+            quests: false,
             faction_mode: FactionMode::EngagementHolyPlague,
             ..Default::default()
         },

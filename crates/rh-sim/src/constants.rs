@@ -341,4 +341,50 @@ content! {
     /// The same per second while the player is in a fight.
     PLAYER_REGEN_SHARE_IN: f64 = 0.0025, "fraction/s";
     PLAYER_REGEN_QUIET_MS: f64 = 3000.0, "ms";
+    // ---- K1 quests (shared/quests.ts, shared/constants.ts) ----
+    QUEST_COUNT: u32 = 20, "offers";
+    QUEST_KNOWN_COUNT: u32 = 10, "offers";
+    QUEST_REVEAL_RADIUS: f64 = 12. * TILE, "u";
+    QUEST_REVEAL_HEAD_START_MS: f64 = 4000., "ms";
+    QUEST_TURN_IN_RANGE: f64 = 64., "u";
+    QUEST_ACCEPT_RANGE: f64 = 64., "u";
+    QUEST_NPC_SPAWN_MIN_TILES: u32 = 8, "tiles";
+    QUEST_NPC_GAP_TILES: u32 = 7, "tiles";
+    QUEST_FETCH_MIN_TILES: u32 = 36, "tiles";
+    QUEST_MAX_CARRIED: u32 = 1, "items";
+    QUEST_GV_CAP: u32 = 50, "GV";
+    FARM_SECONDS_PER_MOB: f64 = 12., "s";
+    CAMP_SECONDS: f64 = 4. * FARM_SECONDS_PER_MOB, "s";
+    CARD_TIER_RATE: f64 = 1.35, "tier/camp";
+    FARM_GV_RATE: f64 = 2. / FARM_SECONDS_PER_MOB, "GV/s";
+    TRAVEL_RATE_SHARE: f64 = 0.4, "share";
+    STACK_PREMIUM: f64 = 1.15, "multiplier";
+    QUEST_FEED_BRAKE: f64 = 0.65, "curve";
+    QUEST_MIN_STAT_STACKS: u32 = 10, "stacks";
+    QUEST_MAX_STAT_STACKS: u32 = 20, "stacks";
+    QUEST_STAT_STACKS_PER_FARM_EQUIVALENT: f64 = 2.5, "stacks";
+    CLOSED_QUEST_LINGER_MS: f64 = 20000., "ms";
+    QUEST_SPOT_OVERSAMPLE: u32 = 4, "spots";
+
+    // ---- neutral traders (shared/traders.ts, server/src/sim/traders.ts) ----
+    TRADER_RANGE: f64 = 112., "u";
+    TRADER_SPEED: f64 = 42., "u/s";
+    TRADER_STOP_MS: f64 = 8000., "ms";
+    TRADER_BARTER_COOLDOWN_MS: f64 = 5000., "ms";
+    TRADER_DEST_STEP_TILES: u32 = 4, "tiles";
+    TRADER_DEST_EDGE_TILES: u32 = 2, "tiles";
+    TRADER_PATH_RADIUS: f64 = 12., "u";
+    TRADER_GOAL_COUNT: u32 = 8, "goals";
+    TRADER_GOAL_MIN_TILES: u32 = 3, "tiles";
+    TRADE_OFFER_COUNT: u32 = 3, "offers";
+    TRADE_COST_SHARE: f64 = 0.12, "share";
+    TRADE_GAIN_SHARE: f64 = 0.18, "share";
+    TRADE_GAIN_FLAT_FLOOR: f64 = 60., "stat";
+    TRADE_COST_MIN_FLAT: f64 = 1., "stat";
+    TRADE_COST_MIN_PCT: f64 = 0.3, "stat";
+    TRADE_AP_DIVISOR_FLOOR: f64 = 0.1, "multiplier";
+    TRADE_FLAT_SCALE: f64 = 10., "1/step";
+    TRADE_PCT_SCALE: f64 = 1000., "1/step";
+    QUEST_HIDDEN_MIN_SPOTS_PER_OFFER: u32 = 2, "spots";
+
 }

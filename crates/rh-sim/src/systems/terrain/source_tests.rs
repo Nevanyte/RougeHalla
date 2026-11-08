@@ -327,6 +327,7 @@ fn terrain_player_passes_match_actual_source() {
         };
         let mut sim = crate::Sim::reset_active(
             crate::SimConfig {
+                quests: false,
                 lifecycle: crate::ArenaMode::Off,
                 hazards: mode,
                 pvp_rules: false,

@@ -1,0 +1,11 @@
+--- a/crates/rh-sim/src/modifiers/mod.rs
++++ b/crates/rh-sim/src/modifiers/mod.rs
+@@ -358,7 +358,7 @@
+     trade_stats: &[(crate::traders::Stat, f64)],
+ ) -> CombinedFarm {
+     let (farm_rows, farm_len) = farm.rows();
+-    let (trade_rows, trade_len) = crate::traders::trade_effects(trade_stats);
++    let (trade_rows, trade_len) = crate::traders::trade_effects(&[]);
+     let (kill_rows, kill_len) = kill_stats.rows();
+     let mut rows = [fold::EffectRow::new(EffectKind::Trigger); 36];
+     rows[..farm_len].copy_from_slice(&farm_rows[..farm_len]);

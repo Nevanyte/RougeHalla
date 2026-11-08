@@ -35,6 +35,7 @@ fn lobby() -> Sim {
     secrets.reward_salt = serde_json::from_value(f["input"]["rewardSalt"].clone()).unwrap();
     Sim::try_new(
         SimConfig {
+            quests: false,
             min_players: 2,
             lobby_seconds: 15.,
             fill_seconds: 0.,

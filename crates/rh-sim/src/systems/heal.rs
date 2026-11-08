@@ -81,6 +81,7 @@ mod tests {
             .collect();
         let mut sim = Sim::reset_active(
             SimConfig {
+                quests: false,
                 faction_mode: crate::FactionMode::EngagementHoly,
                 ..Default::default()
             },

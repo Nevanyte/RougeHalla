@@ -41,6 +41,7 @@ async fn start(tls: bool) -> Started {
     let _ = rustls::crypto::ring::default_provider().install_default();
     let sim = SimConfig {
         regen: false,
+        quests: false,
         abilities: rh_sim::abilities::Mode::Off,
         wish_lock_ms: rh_sim::abilities::WISH_LOCK_MS,
         lifecycle: rh_sim::ArenaMode::Off,

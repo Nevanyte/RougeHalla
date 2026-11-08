@@ -393,6 +393,9 @@ pub enum ContainerKind {
     Ground,
     Chest,
     Body(PlayerId),
+    /// A quest token or fetch parcel (source `ContainerKind` "quest"): its one item names the offer, and the pickup path
+    /// hands it to the quest runtime instead of the weapon/potion logic.
+    Quest,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -532,6 +535,14 @@ pub struct Player {
     /// caps, keyed by the source killStats store names.
     #[serde(default)]
     pub kill_stats: crate::kill_augments::KillStats,
+    /// The Soul Broker's per-run stat exchange (source PlayerState.tradeUsed/tradeOffers/tradeStats): one trade per
+    /// player, three offers rolled once on first contact, and the picked stat deltas folded as farm rows.
+    #[serde(default)]
+    pub trade_used: bool,
+    #[serde(default)]
+    pub trade_offers: Vec<crate::traders::StatTrade>,
+    #[serde(default)]
+    pub trade_stats: Vec<(crate::traders::Stat, f64)>,
     pub core: FighterCore,
     pub seat: Seat,
     pub(crate) vision: crate::vision::VisionTrail,
@@ -598,6 +609,9 @@ impl Player {
             potions_healing: 0,
             farm: Default::default(),
             kill_stats: Default::default(),
+            trade_used: false,
+            trade_offers: Vec::new(),
+            trade_stats: Vec::new(),
             vision: Default::default(),
             bush: Default::default(),
             core: FighterCore {
@@ -744,6 +758,13 @@ pub(crate) struct World {
     pub(crate) plan_ends_at: f64,
     pub(crate) terrain: crate::terrain::Runtime,
     pub(crate) reward_chests: Vec<crate::reward_chests::Chest>,
+    /// The quest runtime (source `world.quests`): absent until `spawnQuests`; serialized and hashed like every other
+    /// lifecycle state.
+    #[serde(default)]
+    pub(crate) quests: Option<crate::quests::live::Quests>,
+    /// The neutral traders (source world.traders): absent until the raid-start spawn; serialized and hashed.
+    #[serde(default)]
+    pub(crate) traders: Option<crate::traders::Traders>,
     pub(crate) factions: crate::factions::FactionRuntime,
     pub(crate) abilities: Option<crate::status_runtime::AbilityRuntime>,
     pub(crate) tick: u32,
@@ -1014,6 +1035,8 @@ impl World {
             planning: None,
             plan_ends_at: 0.,
             reward_chests: Vec::new(),
+            quests: None,
+            traders: None,
             terrain: Default::default(),
             factions: Default::default(),
             abilities: None,

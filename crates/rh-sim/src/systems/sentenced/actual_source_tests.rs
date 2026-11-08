@@ -161,6 +161,7 @@ fn trusted_actual_installed_mark_matrix() {
         .contains(&k.as_str())));
         let mut s = crate::Sim::reset_active(
             crate::SimConfig {
+                quests: false,
                 faction_mode: crate::FactionMode::EngagementHolyPlagueFireFrostSentenced,
                 pvp_rules: false,
                 ..Default::default()
@@ -360,6 +361,7 @@ fn helper_only_actual_execute_denial_matrix() {
         assert!(!c["rows"].as_array().unwrap().is_empty());
         let mut s = crate::Sim::reset_active(
             crate::SimConfig {
+                quests: false,
                 faction_mode: crate::FactionMode::EngagementHolyPlagueFireFrostSentenced,
                 pvp_rules: c["pvp"].as_bool().unwrap_or(false),
                 ..Default::default()

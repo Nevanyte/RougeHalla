@@ -7,6 +7,7 @@ use crate::{
 fn sim() -> Sim {
     Sim::reset_active(
         SimConfig {
+            quests: false,
             faction_mode: FactionMode::EngagementHolyPlague,
             ..Default::default()
         },

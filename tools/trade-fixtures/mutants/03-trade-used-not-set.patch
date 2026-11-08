@@ -1,0 +1,11 @@
+--- a/crates/rh-sim/src/traders/runtime.rs
++++ b/crates/rh-sim/src/traders/runtime.rs
+@@ -253,7 +253,7 @@
+         let p = &mut cx.w.players[ix.slot()];
+         add_trade_stat(p, offer.cost, -offer.cost_value);
+         add_trade_stat(p, offer.gain, offer.gain_value);
+-        p.trade_used = true;
++        let _ = p.trade_used;
+         let hp_before = p.vitals.hp;
+         crate::modifiers::recompute(cx.k, cx.w, ix);
+         crate::modifiers::sync_max_hp(&mut cx.w.players[ix.slot()]);
