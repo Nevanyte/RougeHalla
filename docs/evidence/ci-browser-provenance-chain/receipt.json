@@ -160,12 +160,22 @@
   },
   "auditor": {
     "path": "tools/provenance/check-card-chain.mjs",
-    "bytes": 12232,
-    "sha256": "f2a0b4bfdb853a284c98f9a313eaa1814ce281a5c8c447461a1a8ea8cb354231",
+    "bytes": 13665,
+    "sha256": "1b13dcaa434996e23a3fe1de8c208b9623c716b4b53cd80c6e633520e52fa444",
     "readOnly": true,
     "positiveExit": 0,
     "acceptedOverlaysListed": 5,
-    "failures": 0
+    "failures": 0,
+    "catalogInventories": {
+      "sourceSha256": {
+        "entries": 78,
+        "checks": "required non-empty object, exact count, path/hash shape, per-entry actual sha256 (failure kind catalog-source-sha; missing/empty/shape kinds)"
+      },
+      "harnessSha256": {
+        "entries": 5,
+        "checks": "required non-empty object, exact count, path/hash shape, per-entry actual sha256 (failure kind catalog-harness-sha; missing/empty/shape kinds)"
+      }
+    }
   },
   "positiveChecks": {
     "catalog": {
@@ -236,6 +246,60 @@
     "disposablePositive": {
       "auditorExit": 0,
       "failures": 0
+    },
+    "sourceInventoryMutation": {
+      "method": "disposable worktree at HEAD; appended a comment byte to unprotected packages/shared/src/abilities.ts (sha 24d995d5...)",
+      "auditorExit": 1,
+      "failures": [
+        {
+          "kind": "catalog-source-sha",
+          "path": "packages/shared/src/abilities.ts"
+        },
+        {
+          "kind": "runtime-sourceInputs-sha",
+          "path": "packages/shared/src/abilities.ts"
+        },
+        {
+          "kind": "witness-source-input-sha",
+          "path": "packages/shared/src/abilities.ts"
+        }
+      ]
+    },
+    "harnessInventoryMutation": {
+      "method": "disposable worktree; appended an HTML comment to harness leaf tools/card-catalog-fixtures/README.md (sha 314a2887...)",
+      "auditorExit": 1,
+      "failures": [
+        {
+          "kind": "catalog-harness-sha",
+          "path": "tools/card-catalog-fixtures/README.md"
+        }
+      ]
+    },
+    "missingInventory": {
+      "method": "disposable copy with sourceSha256 key deleted",
+      "auditorExit": 1,
+      "failures": [
+        {
+          "kind": "catalog-sourceSha256-missing"
+        },
+        {
+          "kind": "catalog-source-hash",
+          "note": "expected because disposable catalog bytes changed"
+        }
+      ]
+    },
+    "emptyInventory": {
+      "method": "disposable copy with harnessSha256 replaced by {}",
+      "auditorExit": 1,
+      "failures": [
+        {
+          "kind": "catalog-harnessSha256-count"
+        },
+        {
+          "kind": "catalog-source-hash",
+          "note": "expected because disposable catalog bytes changed"
+        }
+      ]
     }
   },
   "trackedEvidence": {

@@ -47,8 +47,10 @@ exits 0. FROZEN_PINS is untouched. No expected payload, private record, clean co
 
 ## Fast read-only chain auditor
 
-New `tools/provenance/check-card-chain.mjs` (12,232 B, sha `f2a0b4bf…`) audits without refreshing: catalog source hash
-and every protectedSha256 entry vs actual files; runtime source/INPUT hashes, immutable catalog reference and explicit
+New `tools/provenance/check-card-chain.mjs` audits without refreshing: catalog source hash and every protectedSha256
+entry vs actual files; the fail-closed catalog `sourceSha256` (78 entries) and `harnessSha256` (5 entries) inventories
+with required presence, exact count, object/shape validation and per-entry actual hashes (missing/empty/unknown-shaped
+inventories cannot silently pass); runtime source/INPUT hashes, immutable catalog reference and explicit
 chain; runtime/witness harness/source pins vs actual files; witness original FROZEN byte/content, all 15 original pins
 (with only the explicit docs/provenance overlays for README/runtime source/INPUT/runtime tool), and exact overlay paths.
 It lists accepted provenance overlays separately from failures, rejects unknown/mismatched overlay paths and stale
@@ -67,7 +69,13 @@ disposable copy (sha `4a1ce2f5…`) makes the auditor exit 1 with exactly `catal
 path `tools/browser-proof/proof.mjs` (expected `6aea6679…`, mutated actual) — this is the pre-CI browser mismatch class.
 Adding an unknown `tools/unknown/extra.mjs` accepted-overlay entry to the disposable witness source makes it exit 1 with
 `witness-overlay-count` and `witness-overlay-unknown-path` (plus the expected witness-source hash failure from the
-modified disposable file), proving unknown/mismatched overlay paths are rejected.
+modified disposable file), proving unknown/mismatched overlay paths are rejected. Catalog inventory controls in a
+disposable worktree at the same HEAD: clean audit exit 0; appending a byte to the unprotected source
+`packages/shared/src/abilities.ts` makes it exit 1 with `catalog-source-sha` at that path (and the runtime/witness
+sourceInputs failures that legitimately consume the same file); appending to the harness leaf
+`tools/card-catalog-fixtures/README.md` makes it exit 1 with exactly `catalog-harness-sha`; deleting `sourceSha256`
+fails closed with `catalog-sourceSha256-missing`; replacing `harnessSha256` with `{}` fails closed with
+`catalog-harnessSha256-count`. No active source was mutated; the disposable worktree was removed.
 
 ## Evidence, logs and limits
 

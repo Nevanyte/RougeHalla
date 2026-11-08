@@ -55,6 +55,26 @@ if (need('parity/card-catalog/source.json')) {
     if (!need(p)) continue;
     eq('catalog-protected-sha', p, expected, sha(p), 'catalog protectedSha256 map is stale vs current file');
   }
+
+  // Fail-closed catalog source/harness inventories: required presence, exact count, shape, and per-entry actual hashes.
+  for (const [inventoryName, expectedCount, failureKind] of [
+    ['sourceSha256', 78, 'catalog-source-sha'],
+    ['harnessSha256', 5, 'catalog-harness-sha'],
+  ]) {
+    const inv = catalog[inventoryName];
+    if (!inv || typeof inv !== 'object' || Array.isArray(inv)) {
+      fail('catalog-' + inventoryName + '-missing', 'parity/card-catalog/source.json ' + inventoryName, 'non-empty object of path->sha256', inv === undefined ? 'missing' : typeof inv);
+      continue;
+    }
+    const entries = Object.entries(inv);
+    eq('catalog-' + inventoryName + '-count', 'parity/card-catalog/source.json ' + inventoryName, expectedCount, entries.length, 'inventory must not be empty or silently shrink');
+    for (const [p, expected] of entries) {
+      if (typeof p !== 'string' || p.length === 0) { fail('catalog-' + inventoryName + '-shape', 'parity/card-catalog/source.json ' + inventoryName, 'non-empty path string', p, 'invalid inventory path'); continue; }
+      if (typeof expected !== 'string' || !/^[0-9a-f]{64}$/.test(expected)) { fail('catalog-' + inventoryName + '-shape', p, '64 lowercase hex sha256', expected, 'invalid inventory hash'); continue; }
+      if (!need(p)) continue;
+      eq(failureKind, p, expected, sha(p), 'catalog ' + inventoryName + ' inventory is stale vs current file');
+    }
+  }
 }
 
 // 2. Runtime corpus/inputs and their explicit accepted catalog chain.

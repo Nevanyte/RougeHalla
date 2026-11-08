@@ -11,9 +11,16 @@ b156efb173eec58ca6378fa520467279dd908e1ec0988fdaedcb31ad229c5685  ./diffs/witnes
 b7a78373c0c95c67b6b8a7b134ee04a7075f7c0d3834537d3109353f46606f7a  ./logs/catalog-check-before.log
 97673b07edb854b30eba94af6ba538a0ac535b7e722b7d1b26130d6c4e3b3b94  ./logs/catalog-fresh.log
 a096d55783eee7fcea3acbfe30a10e890222e0db950aadd9629033f7429fd012  ./logs/chain-audit-disposable-positive.log
+97d3b3ee500ff48128462bc29c0f3a32453901f34cabd2a3b4097f235516c3a5  ./logs/chain-audit-harness-inventory-mismatch.log
+97c4b58080b0bb22e17d8e08567d5fbcf3784a77b18f64692cc71ee29d4a5f13  ./logs/chain-audit-inventory-clean.log
+ff24258a2e2393ea366406c8c925f293678fc9331826d7bc25192c629a10e4f2  ./logs/chain-audit-inventory-empty.log
+09b518603102ca75357a81df2c9cd442c7a736f0d355adf3ca00c7ed64c77e32  ./logs/chain-audit-inventory-missing.log
+afa97b4037a4b1e792ba5cf31ec89c54dff11b0d78525b12695d9cfc2e2114a8  ./logs/chain-audit-inventory-positive.log
 afa97b4037a4b1e792ba5cf31ec89c54dff11b0d78525b12695d9cfc2e2114a8  ./logs/chain-audit-positive.log
 3cd911dbed6d8b1b0d7905442b5c10e47aa1871d5c32fe94f6698a7eb2ad0ed9  ./logs/chain-audit-protected-mismatch.log
+385ef540bd939aa02ed18955fbd2fd6f413995c865713c5f61c9a28c9698d4f7  ./logs/chain-audit-source-inventory-mismatch.log
 caa2152c104d9bb9c5946063a74d54b77b70e18c2c63820d09e5c3f8ac751bd3  ./logs/chain-audit-unknown-overlay.log
+e46b7db9519d3796e63afee2c0d682672a1e44fc86f8c1493ebfdec828e3f962  ./logs/inventory-worktree-add.log
 594de657c40b20414fead7fd49f4e39eae99cbc8bde1b043a69471b43e238a59  ./logs/negative-catalog-check.log
 632debf058ebc03153fd86640ed8b73f95cf5e4829980b31a611c40ff9f7d51f  ./logs/negative-catalog-mutation.log
 dae6ba11dd59fce37f8e91cec871b8e5f53882eddb17036c03bc5bc755b9a926  ./logs/negative-runtime-check.log
@@ -26,5 +33,5 @@ beb0aae93cfd34dec2d490e1b1ce0ea44e2b31f62d7931c5d45852f0bf720e45  ./logs/negativ
 04aab0a45ca2cd95d8a0381312f413318eac8ca794e1952b6f4ee8aec237dfd0  ./logs/witness-check-after.log
 0162002e7108acd3c2591ed663fbff012e2dfc885a16d797f70d0cc8b32f92f3  ./logs/witness-fresh.log
 464e223ce23cf815a40d6d3e4346f14398d5b38a7b77370ce6cd469404848ebf  ./old-SHA256SUMS.txt
-34b4743f024222a210df684fa79f72147ac8f11158d650dbb3f4c3303e004ac5  ./README.md
-b624a7efb794c96ba89f4ee38f7d11c4251adf8924471a1db7bbf3bc6004390b  ./receipt.json
+22911f63f27bfee15449c9f765bb717dd502a077279739230ffd871c5dcc7d63  ./README.md
+c22ddfdfbf3f027e76c0ae9582765cf66fb4f118b85c3dbb3cc1b959c2878a36  ./receipt.json
