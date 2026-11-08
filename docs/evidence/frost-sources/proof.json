@@ -1,0 +1,182 @@
+{
+  "base": "8cd510752ddab9e30b210efce85ca5faced8bbbd",
+  "packet": "138a10de",
+  "private_checkpoint": 26,
+  "private_replay": 20,
+  "source_sha256": "9f5c1a4836ac6ea59b48883eb4beea44ceabfd53e08368cb704aeea26f159b12",
+  "raw_log_location": "Sibling directory of isolated checkout (not a runtime dependency).",
+  "checks": [
+    {
+      "log": "source-bytecheck.log",
+      "sha256": "119c848eb255c85df36fb8a6e2dd51dba316dd60b9e4edf640029c92c6d3ad98",
+      "bytes": 1865,
+      "results": []
+    },
+    {
+      "log": "frost-final.log",
+      "sha256": "2b2ec6e173bb5a2d87b42842e42a937e1d3276e3d2df81382bb7192eebf7eb3c",
+      "bytes": 3376,
+      "results": [
+        "    Finished `test` profile [unoptimized] target(s) in 0.08s",
+        "test result: ok. 28 passed; 0 failed; 1 ignored; 0 measured; 620 filtered out; finished in 10.80s"
+      ]
+    },
+    {
+      "log": "teleport-final.log",
+      "sha256": "a7e7311b2f0afa34017a41d05d31439372c4ad77ebc984c47b62abb201161500",
+      "bytes": 689,
+      "results": [
+        "    Finished `test` profile [unoptimized] target(s) in 16.40s",
+        "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 646 filtered out; finished in 0.01s"
+      ]
+    },
+    {
+      "log": "restore-replay.log",
+      "sha256": "7067e84a9d4ddd4da305819ada7de71eaa99fb94b79d4bf1b781cfe0d3e74619",
+      "bytes": 2287,
+      "results": [
+        "    Finished `test` profile [unoptimized] target(s) in 10.89s",
+        "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s",
+        "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s",
+        "test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s"
+      ]
+    },
+    {
+      "log": "headless-final.log",
+      "sha256": "8ac0c82dc01d577d6c686c7349a73a346b89b382ee6b20df867694de4ab5dcb4",
+      "bytes": 761,
+      "results": [
+        "    Finished `test` profile [unoptimized] target(s) in 4.41s",
+        "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s"
+      ]
+    },
+    {
+      "log": "alloc-final.log",
+      "sha256": "1a715376203fbeed8bf76c95a440fe383c3a4d44eb381b75675b78c826511365",
+      "bytes": 460,
+      "results": [
+        "    Finished `test` profile [unoptimized] target(s) in 0.04s",
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 648 filtered out; finished in 0.45s"
+      ]
+    },
+    {
+      "log": "hash-leaves.log",
+      "sha256": "b58215c635c4e5afa660bd6b7babc6783c0a80d4b082a29d9f2d7c33ec6fe7f3",
+      "bytes": 4948,
+      "results": [
+        "    Finished `test` profile [unoptimized] target(s) in 2.09s",
+        "TOTAL: 91556 leaves, 62907 perturbations changed the hash, 0 unhashed",
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 198.74s"
+      ]
+    },
+    {
+      "log": "clippy-default-final.log",
+      "sha256": "ebae852f54dfc03481a090f0a8be63319acce03cf43974b8fa8e7e3f05d73657",
+      "bytes": 364,
+      "results": [
+        "    Finished `dev` profile [unoptimized] target(s) in 1.83s"
+      ]
+    },
+    {
+      "log": "clippy-allfeatures-final.log",
+      "sha256": "1dde575650f30d3951ab581fedf506f188d26c3abf3bb3bbb10b6cca521a1f15",
+      "bytes": 364,
+      "results": [
+        "    Finished `dev` profile [unoptimized] target(s) in 1.86s"
+      ]
+    },
+    {
+      "log": "clone-red.log",
+      "sha256": "ec2f71aa59c2459ba25d2d4cf63193f2dd99834708047bbe72d727fd0ac1b17b",
+      "bytes": 1229,
+      "results": [
+        "    Finished `test` profile [unoptimized] target(s) in 26.17s",
+        "test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 648 filtered out; finished in 0.36s"
+      ]
+    },
+    {
+      "log": "headless-recipient-red.log",
+      "sha256": "584393dd73bce8178cb78a7ae5c1c40a5894268592436049e4e1b6f37ba090b6",
+      "bytes": 1372,
+      "results": [
+        "    Finished `test` profile [unoptimized] target(s) in 11.57s",
+        "test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s"
+      ]
+    },
+    {
+      "log": "headless-typed-legacy.log",
+      "sha256": "5acbbc5003831edf14acc691c837609321a1d8440524c97f68e0ee26c6ece245",
+      "bytes": 632,
+      "results": [
+        "    Finished `test` profile [unoptimized] target(s) in 1.60s",
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s"
+      ]
+    },
+    {
+      "log": "alloc-repro-stacks-fixed.log",
+      "sha256": "d00ce32fa4b3eb3176cb3172f15ce40b2f8a30b01d6d462d0dbd55bdffeaef3a",
+      "bytes": 1540,
+      "results": [
+        "    Finished `test` profile [unoptimized] target(s) in 29.25s",
+        "test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 645 filtered out; finished in 0.38s"
+      ]
+    },
+    {
+      "log": "mutant-restored-control.log",
+      "sha256": "9f27e692092e734a37597077f67a909541aca43bf2d24a0623fd343be2ee3422",
+      "bytes": 1517,
+      "results": [
+        "    Finished `test` profile [unoptimized] target(s) in 24.61s",
+        "test result: ok. 7 passed; 0 failed; 1 ignored; 0 measured; 641 filtered out; finished in 4.98s"
+      ]
+    }
+  ],
+  "compiled_mutants": {
+    "control_sha256": "5b4e3f11ae59909bbf59442748cebb94015f5d27ff213c29b91b485994e1eba9",
+    "mutants": [
+      {
+        "name": "01-eight-source-truncation",
+        "filter": "frost_sources_actual_runtime_all_frames_and_uninterrupted_restore",
+        "exit": 101,
+        "compiled_semantic_failure": true,
+        "source_sha256": "924d686a20d03ef9e7c6329b386872cb6b59b920b231160b5b73bc2d8e5d7293",
+        "log_sha256": "9e40af1197a8d76c37340bf555d2b159ffdc473de0fcd9257a73ff578902c902",
+        "before": "if !chillers.contains(&source) {",
+        "after": "if chillers.len() < MAX_PLAYERS && !chillers.contains(&source) {"
+      },
+      {
+        "name": "02-returning-source-inclusion",
+        "filter": "frost_sources_declared_helpers_order_return_bonus_and_lifecycle",
+        "exit": 101,
+        "compiled_semantic_failure": true,
+        "source_sha256": "ae5654f364137b59d2d64fbf367edf7c7006feb79c719ceb9b83c579287392f6",
+        "log_sha256": "fcdcadc7f42f726edeff204c2b0e0f02c83c9f2df1b276097f7a6faea0049cba",
+        "before": "        && !returning(w, core.id)\n",
+        "after": ""
+      },
+      {
+        "name": "03-npc-player-bonus",
+        "filter": "frost_sources_declared_helpers_order_return_bonus_and_lifecycle",
+        "exit": 101,
+        "compiled_semantic_failure": true,
+        "source_sha256": "d8ecdbe94c22378a185c638911b062ebf0bb745c09b0c34da434a85d59589d5f",
+        "log_sha256": "57b4ea62f22144b14e8f46efc1f66e69666f27cf688362efe44c5790fc9ecdbc",
+        "before": "    } else {\n        1. - FROST_SLOW\n    }\n}\nfn near",
+        "after": "    } else {\n        crate::modifiers::frost_chill(w.core(ix))\n    }\n}\nfn near"
+      },
+      {
+        "name": "04-reversed-first-insertion",
+        "filter": "frost_sources_actual_runtime_all_frames_and_uninterrupted_restore",
+        "exit": 101,
+        "compiled_semantic_failure": true,
+        "source_sha256": "f08512ce9ecd5ce801f7980a7ca90cf7d093c8ce392320494fd367816e36b252",
+        "log_sha256": "89718143e1eae1c0b34906af2f476ea8eefbf06b81ad41e31ad47e018562a14a",
+        "before": "        chillers.push(source);",
+        "after": "        chillers.insert(0, source);"
+      }
+    ]
+  },
+  "allocation_profile_sha256": {
+    "alloc-birth.json": "798e22171e9d52a7d8f223aa4a31d041ca2d625923d39d9cc189c4a32cefec54"
+  }
+}

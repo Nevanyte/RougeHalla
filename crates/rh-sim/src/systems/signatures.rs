@@ -1,5 +1,5 @@
 //! Shared engagement and basic Holy/Fire/Plague faction consumers.
-//! Regional Frost/Sentenced and auxiliary faction producers remain outside the admitted PvE domain.
+//! Regional Frost joins only with the Frost engagement level; Sentenced NPCs remain outside admitted PvE.
 use super::{heal, Cx};
 use crate::constants::*;
 use crate::content::{self, FactionId, Shape, WeaponId};
@@ -45,12 +45,7 @@ pub(crate) fn raid_started(hx: &mut Hx, args: &HookArgs) {
         }
         for p in hx.w.players.iter_mut() {
             p.credit.sentence = 0;
-            let mut ap_hits = std::mem::take(&mut p.signature.ap_hits);
-            ap_hits.reset();
-            p.signature = crate::fighter::Signature {
-                ap_hits,
-                ..Default::default()
-            };
+            p.signature.reset();
         }
     }
 }
@@ -72,14 +67,9 @@ pub(crate) fn teleported(hx: &mut Hx, args: &HookArgs) {
         // The source clears only the mark-derived bits of the synced `sig` field (taxed, suppressed, exec-blocked) and
         // lets the next after-damage pass rebuild the rest; only the exec-blocked bit exists in the ported domain.
         let bits = core.signature.bits & !crate::constants::SIG_EXEC_BLOCKED;
-        let mut ap_hits = std::mem::take(&mut core.signature.ap_hits);
-        ap_hits.reset();
-        core.signature = crate::fighter::Signature {
-            ap_hits,
-            combat_at,
-            bits,
-            ..Default::default()
-        };
+        core.signature.reset();
+        core.signature.combat_at = combat_at;
+        core.signature.bits = bits;
     }
     hx.w.factions.dot.clear();
     hx.w.factions.dot_since = hx.w.server_time;
@@ -191,7 +181,7 @@ pub(crate) fn before_damage(cx: &mut Cx) {
     for slot in 0..w.fighter_count() {
         let ix = FighterIx::of_slot(slot);
         if !w.standing(ix) {
-            w.core_mut(ix).signature = Default::default();
+            w.core_mut(ix).signature.reset();
             continue;
         }
         let p = w.core(ix);
@@ -500,7 +490,13 @@ pub(crate) fn validate_basic(
     if !sig.ap_hits.valid(w.server_time) || sig.ap_hits.target.is_some_and(|t| !w.known_actor(t)) {
         return Err("invalid AP hit history".into());
     }
-    super::frost::validate_signature(k.config.faction_mode.frost(), w, id, sig)?;
+    super::frost::validate_signature(
+        k.config.faction_mode.frost(),
+        super::frost::source_budget(k).map_err(str::to_owned)?,
+        w,
+        id,
+        sig,
+    )?;
     let owner = id;
     if (!k.config.faction_mode.engagement() && *sig != crate::fighter::Signature::default())
         || !sig.hp_frac.is_finite()

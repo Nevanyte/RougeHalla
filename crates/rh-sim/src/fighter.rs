@@ -196,17 +196,17 @@ pub struct Fate {
     pub killed_by_bot: bool,
 }
 
-/// Player engagement and Holy sustain state. Optional timestamps encode the legacy negative-infinity sentinel.
+/// Shared actor engagement and faction sustain state. Optional timestamps encode the legacy negative-infinity sentinel.
 /// This is trusted checkpoint state, never an observation or a target-admission source.
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Signature {
     pub ap_hits: crate::modifiers::HitWindow,
     pub mark: Mark,
 
     pub chill: f64,
-    /// Stable private source IDs, in source insertion order. Unused cells are None.
-    pub chillers: [Option<PlayerId>; crate::constants::MAX_PLAYERS],
-    pub chiller_count: u8,
+    /// Stable private actor IDs, unique in source first-insertion order. Capacity is retained derived storage.
+    pub chillers: Vec<PlayerId>,
     pub exposure_started_at: Option<f64>,
     pub last_near_at: Option<f64>,
     pub ranged_chill_until: Option<f64>,
@@ -231,8 +231,7 @@ impl Default for Signature {
             ap_hits: Default::default(),
             mark: Mark::default(),
             chill: 1.0,
-            chillers: [None; crate::constants::MAX_PLAYERS],
-            chiller_count: 0,
+            chillers: Vec::new(),
             exposure_started_at: None,
             last_near_at: None,
             ranged_chill_until: None,
@@ -251,6 +250,18 @@ impl Default for Signature {
     }
 }
 impl Signature {
+    /// Reset semantic state while retaining warmed owned buffers. Capacity has no checkpoint/hash meaning.
+    pub(crate) fn reset(&mut self) {
+        let mut chillers = std::mem::take(&mut self.chillers);
+        chillers.clear();
+        let mut ap_hits = std::mem::take(&mut self.ap_hits);
+        ap_hits.reset();
+        *self = Self {
+            chillers,
+            ap_hits,
+            ..Self::default()
+        };
+    }
     pub(crate) fn clear_target(&mut self) {
         self.mark.reset();
         self.target = None;

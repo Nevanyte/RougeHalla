@@ -94,33 +94,51 @@ pub(crate) fn request_wake(
     }
 }
 pub(crate) fn settle_wakes(k: &MatchStatic, w: &mut World) {
-    let requests = std::mem::take(&mut w.pay.mob_wakes);
-    let mut first: Vec<(u32, PlayerId)> = Vec::new();
-    // Action order is recomputed from the same current seats; no structural mutations occur during the pass.
-    let mut order: Vec<u32> = (0..w.players.len() as u32).collect();
+    let mut requests = std::mem::take(&mut w.pay.mob_wakes);
+    let mut order = std::mem::take(&mut w.pay.mob_wake_order);
+    order.clear();
+    // Identical local shuffle, including synthetic measurement seat counts; no world RNG is touched.
+    order.extend(0..w.players.len() as u32);
     crate::rng::action_order_in_place(k.secrets.order_salt, w.tick, &mut order);
+    let used = select_wakes(k, w, &mut requests, &order);
+    for &(camp, target) in &requests[..used] {
+        mob_ai::wake_mates(w, camp, target);
+    }
+    requests.clear();
+    order.clear();
+    w.pay.mob_wakes = requests;
+    w.pay.mob_wake_order = order;
+}
+/// Stable in-place compaction of the pass's owned request snapshot. Pure selection; wakes run only after it completes.
+pub(crate) fn select_wakes(
+    k: &MatchStatic,
+    w: &World,
+    requests: &mut [(u32, PlayerId)],
+    order: &[u32],
+) -> usize {
     let rank = |id| {
         w.idx(id)
             .and_then(|i| order.iter().position(|&s| s as usize == i))
             .unwrap_or(usize::MAX)
     };
-    for &(camp, target) in &requests {
+    // Compact the owned snapshot in place. Every unread request stays ahead of the written prefix, and each camp's
+    // first occurrence fixes its output order; later requests can replace only that camp's selected target.
+    let mut used = 0;
+    for read in 0..requests.len() {
+        let (camp, target) = requests[read];
         if !mob_ai::targetable(w, target) {
             continue;
         }
-        if let Some((_, held)) = first.iter_mut().find(|(c, _)| *c == camp) {
+        if let Some((_, held)) = requests[..used].iter_mut().find(|(c, _)| *c == camp) {
             if (rank(target), tie(k, w, target)) < (rank(*held), tie(k, w, *held)) {
                 *held = target;
             }
         } else {
-            first.push((camp, target));
+            requests[used] = (camp, target);
+            used += 1;
         }
     }
-    for (camp, target) in first {
-        mob_ai::wake_mates(w, camp, target);
-    }
-    w.pay.mob_wakes = requests;
-    w.pay.mob_wakes.clear();
+    used
 }
 /// `hits` is ledger insertion order for a mob; its mitigation already ran in the common pass.
 pub(crate) fn hurt(
@@ -170,22 +188,21 @@ pub(crate) fn hurt(
     if total <= 0. {
         return 0.;
     }
-    let contributors: Vec<_> = hits
-        .iter()
-        .filter(|h| h.amount > 0.)
-        .filter_map(|h| h.by)
-        .filter(|id| w.player(*id).is_some())
-        .collect();
-    // A training world has no map camps (its practice mobs use refs 101..255): no roster state, contributors or camp life.
+    // Exactly the old positive-hit/present-player filter and first-insertion ordering. No hook, actor mutation or
+    // payout occurs between taking the old contributor snapshot and appending it, so streaming these IDs directly
+    // into the existing ordered-unique camp list observes the same player membership without a temporary Vec.
     if !k.config.training {
         let r = w.mob_runtime.as_mut().expect("mob runtime");
         if r.camps[camp as usize].state == 0 {
             r.camps[camp as usize].state = 1;
         }
-        for id in contributors {
-            let ids = &mut r.life[camp as usize].contributors;
-            if !ids.contains(&id) {
-                ids.push(id);
+        for h in hits.iter().filter(|h| h.amount > 0.) {
+            if let Some(by) = h.by.filter(|by| w.player(*by).is_some()) {
+                let ids = &mut w.mob_runtime.as_mut().expect("mob runtime").life[camp as usize]
+                    .contributors;
+                if !ids.contains(&by) {
+                    ids.push(by);
+                }
             }
         }
     }

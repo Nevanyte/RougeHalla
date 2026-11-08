@@ -217,7 +217,7 @@ fn real_between_step_cancel_keeps_time_hash_and_continuation_through_checkpoint(
     let cancelled_at = original.server_time();
     original.remove_player(PlayerId(1));
     let checkpoint = serde_json::to_value(&original).unwrap();
-    assert_eq!(checkpoint["format"], "rh-checkpoint/25");
+    assert_eq!(checkpoint["format"], rh_sim::CHECKPOINT_FORMAT);
     let index = checkpoint["world"]["pending_events"]
         .as_array()
         .unwrap()

@@ -28,7 +28,7 @@ pub(super) fn compare_factions(s: &Sim, frame: &V, name: &str) {
                 "target":f.target.map(label),"inReach":f.in_reach,"engaged":f.engaged,
                 "reachAt":clock(f.reach_at),"contactAt":clock(f.contact_at),"combatAt":clock(f.combat_at),"hpFrac":f.hp_frac,
                 "tier":f.mark.tier,"markHits":f.mark.hits,"markProgress":f.mark.progress,"markSwaps":f.mark.swaps,"markDenied":f.mark.denied,"farSince":clock(f.mark.far_since),"ampUntil":f.mark.amp_until,
-                "chill":f.chill,"chillers":f.chillers[..usize::from(f.chiller_count)].iter().map(|id|label(id.unwrap())).collect::<Vec<_>>(),
+                "chill":f.chill,"chillers":f.chillers.iter().map(|id|label(*id)).collect::<Vec<_>>(),
                 "chillExposureStartedAt":clock(f.exposure_started_at),"chillLastNearAt":clock(f.last_near_at),"rangedChillUntil":clock(f.ranged_chill_until),"frostMoveMult":f.frost_move_mult,"dotPausedUntil":f.dot_paused_until
             });
             let expected: serde_json::Map<_, _> = actual

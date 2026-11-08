@@ -350,6 +350,7 @@ pub(crate) fn validate_actors(
         // must be validated on restore instead of being left unchecked.
         crate::systems::frost::validate_signature(
             k.config.faction_mode.frost(),
+            crate::systems::frost::source_budget(k)?,
             w,
             m.core.id,
             &m.core.signature,
