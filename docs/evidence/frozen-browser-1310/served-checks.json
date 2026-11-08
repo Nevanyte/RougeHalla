@@ -1,0 +1,75 @@
+{
+  "url": "http://127.0.0.1:18913/",
+  "files": [
+    {
+      "path": "Build/Web.data",
+      "bytes": 27589581,
+      "sha256": "846c8e4d77ff6c6c9f9c70582b0f054adb9a40a45db97448ac5d60e9bbe609d8"
+    },
+    {
+      "path": "Build/Web.framework.js",
+      "bytes": 464517,
+      "sha256": "a670ae110ed500a3255059467fafb867de3198abeabab33632cc45507b98397a"
+    },
+    {
+      "path": "Build/Web.loader.js",
+      "bytes": 26455,
+      "sha256": "9257949c30c592243bf5ba605d5d7f7d9fdc71c892120d85f2f081e3edccb540"
+    },
+    {
+      "path": "Build/Web.wasm",
+      "bytes": 46118043,
+      "sha256": "f742851d4acf9fed8c81ceae1b36bc6a75916a46a65cea0e95d08fb97e955e1a"
+    },
+    {
+      "path": "Licenses/CinzelDecorative-OFL.txt",
+      "bytes": 4393,
+      "sha256": "1e5d6660366ddcfca4f2fc10e2acfba9fa4d97d40aec80d7dbfd41d730a420ae"
+    },
+    {
+      "path": "Licenses/EmojiOne-Attribution.txt",
+      "bytes": 185,
+      "sha256": "4b65f8960e4f4c5c8b35fd139e369265e9bb45667fc16461b2ba01188d464d93"
+    },
+    {
+      "path": "Licenses/Flare-Audio-Notice.txt",
+      "bytes": 1130,
+      "sha256": "64e2de64656079009cfda050f49e1de5075167a387c403f17555c6c651d9b516"
+    },
+    {
+      "path": "Licenses/Flare-CC-BY-SA-3.0.txt",
+      "bytes": 22240,
+      "sha256": "3f941b3b89cf7b8370ceb83cc76d2120d471b58735d8ca60238a751a48d7f72f"
+    },
+    {
+      "path": "Licenses/Flare-Credits.txt",
+      "bytes": 3510,
+      "sha256": "8b0985009dd04911b851553a35941e6862f1df66a6864f9b2a5c7ff330574fbc"
+    },
+    {
+      "path": "Licenses/LiberationSans-OFL.txt",
+      "bytes": 4469,
+      "sha256": "37f8552e9a874ec10710dc0ede6a9adf168e6609fbd02a507f35629373b85a48"
+    },
+    {
+      "path": "Licenses/Roguehalla-MIT.txt",
+      "bytes": 1080,
+      "sha256": "385298d673f01f328553f49d75680ab30254c09d2295171c929fa61efe84b103"
+    },
+    {
+      "path": "Licenses/Third-Party-Assets.md",
+      "bytes": 3566,
+      "sha256": "75994d0600bb013e3a47a78be320b9f4d78e5f4d76a8849e9494793a95b89295"
+    },
+    {
+      "path": "Licenses/Unity-Companion.md",
+      "bytes": 461,
+      "sha256": "6550a14445e6c2116213b2419c4c28b75be4b99039afc8d091ced3192624390c"
+    },
+    {
+      "path": "index.html",
+      "bytes": 7920,
+      "sha256": "3d122f461a72433123a98732aeaf6602377874fabf7e321f1f2740c1ea1b62f5"
+    }
+  ]
+}

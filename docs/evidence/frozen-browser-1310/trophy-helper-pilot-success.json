@@ -1,0 +1,88 @@
+{
+  "server": {
+    "binarySha256": "20d5b70e9ed79863f03350fbeb9478fd7f45e0a7a644ea2a802a13c14d75b4b0",
+    "protocol": 13,
+    "contentHash": "67183626db240b6a",
+    "bind": "127.0.0.1:17966"
+  },
+  "seats": {
+    "victim": 1,
+    "killer": 2,
+    "idle": 3
+  },
+  "acquired": {
+    "verified": true,
+    "sourcePosition": {
+      "x": 1104,
+      "y": 208
+    },
+    "sourceCrateIndex": 3,
+    "propHandle": 90,
+    "birthRewardHandle": 1,
+    "readyRewardHandle": 2,
+    "optionIndex": 1,
+    "boostId": 3,
+    "option": {
+      "kind": 2,
+      "id": 3
+    },
+    "beforeBoostCounts": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "afterBoostCounts": [
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0,
+      0
+    ],
+    "wireSequenceEvidence": {
+      "pickup": 3,
+      "choose": 4
+    },
+    "visitedCrates": [
+      {
+        "x": 1296,
+        "y": 208,
+        "sourceIndex": 4,
+        "propHandle": 6,
+        "outcome": "opened-non-stat-chest",
+        "pickupSeq": 1
+      }
+    ]
+  },
+  "approach": {
+    "source": "normal public Move; approach protocol pilot only",
+    "requested": {
+      "x": 461.9693471199359,
+      "y": 177.35581459086112
+    },
+    "from": {
+      "x": 1111.5443115234375,
+      "y": 206.74261474609375
+    },
+    "applied": {
+      "x": 500.1696472167969,
+      "y": 179.08399963378906
+    },
+    "distance": 38.23937173951524,
+    "inputSeq": 5,
+    "acknowledged": true,
+    "tick": 101
+  },
+  "finalStatuses": {
+    "victim": 1,
+    "killer": 1,
+    "idle": 1
+  }
+}

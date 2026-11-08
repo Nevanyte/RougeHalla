@@ -1,0 +1,34 @@
+{
+  "preparedAt": "2026-11-08T19:19:22.243429+00:00",
+  "sourceSha": "1310ae002870bf3fc674c7b65f38ff5ea55a7d75",
+  "sourceTree": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/native-g6-frost/repo",
+  "identities": [
+    {
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/rh-server",
+      "sha256": "20d5b70e9ed79863f03350fbeb9478fd7f45e0a7a644ea2a802a13c14d75b4b0"
+    },
+    {
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/native-g6-frost/repo/tools/latency/wish-e2e.cjs",
+      "sha256": "8ad6a32459c4b95ce01a994d85373c7149fd310b955225280089f1e4a16debbd"
+    },
+    {
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/native-g6-frost/repo/tools/latency/wish-duel.json",
+      "sha256": "5e63711f08435ebaa1024292b55285cea9fb003de4e581334b0e4d046d4a2818"
+    },
+    {
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/native-g6-frost/repo/tools/latency/wish-proof-contract.cjs",
+      "sha256": "7e62fb4a302ffd1840d60f2b29d61cbacb72980ac1ed5b037ddf9744db5021c0"
+    },
+    {
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/native-g6-frost/repo/crates/rh-server/web/probe.html",
+      "sha256": "ccf0a20363d7b04d815368c7f707b324e21d20bc3480ade49a93aaae0be1015f"
+    }
+  ],
+  "expectedProtocol": 13,
+  "expectedContentHash": "67183626db240b6a",
+  "browserTests": "pending actual Unity Web artifact",
+  "contractTests": {
+    "wishProofAndReadiness": 19,
+    "passed": 19
+  }
+}

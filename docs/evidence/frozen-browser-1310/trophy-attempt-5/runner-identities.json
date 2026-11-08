@@ -1,0 +1,25 @@
+{
+  "recordedAt": "2026-11-08T19:49:12.108124+00:00",
+  "files": [
+    {
+      "path": "tools/latency/trophy-e2e.cjs",
+      "sha256": "8d532e4c671cf983a16a5a2cd09943517cd0da17d15a2ad45c165349d8532195"
+    },
+    {
+      "path": "tools/latency/trophy-gameplay.cjs",
+      "sha256": "672a34d29a7cafeb43a0578a9d2f1d896c41b2268f88675a667775c49a071e35"
+    },
+    {
+      "path": "tools/latency/wish-server-readiness.cjs",
+      "sha256": "953e6bd5049fcc4f6d071293e5c325c870f7b059cf6aa9bbb4136886c378e340"
+    },
+    {
+      "path": "crates/rh-server/web/probe.html",
+      "sha256": "ccf0a20363d7b04d815368c7f707b324e21d20bc3480ade49a93aaae0be1015f"
+    },
+    {
+      "path": "maps/first-playable.json",
+      "sha256": "90bc4c8e82b7d4ba4819843001ae59da35c20ee870b5591b20192082b5bd16aa"
+    }
+  ]
+}

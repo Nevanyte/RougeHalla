@@ -1,0 +1,1813 @@
+{
+  "startedAt": "2026-11-08T19:26:39.454Z",
+  "playerUrl": "http://127.0.0.1:18913",
+  "serverMode": "one fresh local two-human duel server per faction/ability case, loopback only",
+  "protocol": 13,
+  "training": false,
+  "map": "tools/latency/wish-duel.json",
+  "identities": {
+    "serverBinary": {
+      "path": "../../final-target/debug/rh-server",
+      "sha256": "20d5b70e9ed79863f03350fbeb9478fd7f45e0a7a644ea2a802a13c14d75b4b0"
+    },
+    "map": {
+      "path": "tools/latency/wish-duel.json",
+      "sha256": "5e63711f08435ebaa1024292b55285cea9fb003de4e581334b0e4d046d4a2818"
+    }
+  },
+  "expectedCases": 5,
+  "cases": [
+    {
+      "faction": 0,
+      "ability": 3,
+      "name": "Blaze",
+      "targetKind": "point",
+      "serverBindAttempt": "127.0.0.1:58298",
+      "status": "pass",
+      "server": {
+        "protocol": 13,
+        "contentHash": "67183626db240b6a",
+        "info": {
+          "closedRooms": [],
+          "contentHash": "67183626db240b6a",
+          "lobbies": 0,
+          "maxRooms": 16,
+          "players": 0,
+          "protocol": 13,
+          "resultsFailed": 0,
+          "resultsOk": 0,
+          "resultsRefused": 0,
+          "rooms": 0,
+          "state": "ready"
+        },
+        "port": 58298,
+        "bind": "127.0.0.1:58298",
+        "ownership": {
+          "pid": 13223,
+          "endpoint": "127.0.0.1:58298",
+          "method": "lsof direct child TCP LISTEN before and after /info",
+          "checkedAt": "2026-11-08T19:26:39.938Z"
+        },
+        "binary": {
+          "path": "../../final-target/debug/rh-server",
+          "sha256": "20d5b70e9ed79863f03350fbeb9478fd7f45e0a7a644ea2a802a13c14d75b4b0"
+        },
+        "map": {
+          "path": "tools/latency/wish-duel.json",
+          "sha256": "5e63711f08435ebaa1024292b55285cea9fb003de4e581334b0e4d046d4a2818"
+        }
+      },
+      "driverRuntimeErrors": [],
+      "observerRuntimeErrors": [],
+      "training": false,
+      "players": {
+        "driver": 1,
+        "observer": 2,
+        "remoteActor": 2
+      },
+      "spawnDistance": 160,
+      "ownerBaseline": {
+        "ability": 3,
+        "readyAt": 46050,
+        "fullAt": 46050,
+        "maxCharges": 2,
+        "rechargeMs": 30000,
+        "charges": 2,
+        "nextChargeAt": null,
+        "cast": null
+      },
+      "traceGate": {
+        "warmupRecording": false,
+        "driverPageStartedAt": 1794166000019.3,
+        "observerPageStartedAt": 1794166000126.3,
+        "ownerReadyObservedAt": 1794166050166.2,
+        "ownerReadyServerMs": 46100,
+        "driverRecordingAt": 1794166050223,
+        "observerRecordingAt": 1794166050251.2,
+        "errorsRetained": true,
+        "wireRetained": true
+      },
+      "cursor": {
+        "unityX": 696,
+        "unityYBottomUp": 375,
+        "pageX": 696,
+        "pageY": 524.9999999999999,
+        "targetActor": null,
+        "coordinateBasis": {
+          "unityWidth": 1280,
+          "unityHeight": 900,
+          "canvasWidthCss": 1280,
+          "canvasHeightCss": 900
+        }
+      },
+      "browserKey": {
+        "code": "KeyR",
+        "at": 1794166051506.9001,
+        "isTrusted": true
+      },
+      "cursorGesture": {
+        "at": 1794166051135.9001,
+        "isTrusted": true,
+        "x": 696,
+        "y": 525,
+        "expectedX": 696,
+        "expectedY": 524.9999999999999
+      },
+      "inputSample": {
+        "at": 1794166051508.6,
+        "frame": 814,
+        "player": 1,
+        "seq": 1,
+        "x": 179.83999633789062,
+        "y": 144.82049560546875
+      },
+      "castSent": {
+        "at": 1794166051508.6,
+        "frame": 814,
+        "slot": 0,
+        "seq": 1,
+        "inputFrameSeq": 809,
+        "x": 179.83999633789062,
+        "y": 144.82049560546875,
+        "actorRef": null,
+        "sameUnityFrame": true
+      },
+      "deliveredTarget": null,
+      "confirmedFxEvents": [
+        {
+          "kind": "castLanded",
+          "ability": 3,
+          "tick": 953,
+          "eventTime": 47650,
+          "caster": 1,
+          "target": null,
+          "frameIndex": 26,
+          "fxIndex": 0,
+          "receivedAt": 1794166051682.7,
+          "occurrence": 0
+        }
+      ],
+      "confirmedFx": {
+        "kind": "castLanded",
+        "ability": 3,
+        "tick": 953,
+        "eventTime": 47650,
+        "caster": 1,
+        "target": null,
+        "frameIndex": 26,
+        "fxIndex": 0,
+        "receivedAt": 1794166051682.7,
+        "presentationKind": "presentWishLanded"
+      },
+      "wishPresented": {
+        "kind": "presentWishLanded",
+        "ability": 3,
+        "sourceTime": 47650,
+        "at": 1794166051684.2,
+        "frame": 817,
+        "player": 1,
+        "occurrence": 0
+      },
+      "wishPresentationEvents": [
+        {
+          "kind": "presentWishLanded",
+          "ability": 3,
+          "sourceTime": 47650,
+          "at": 1794166051684.2,
+          "frame": 817,
+          "player": 1,
+          "occurrence": 0
+        }
+      ],
+      "ownerUpdate": {
+        "ability": 3,
+        "receivedAt": 1794166051682.7,
+        "before": {
+          "ability": 3,
+          "readyAt": 46050,
+          "fullAt": 46050,
+          "maxCharges": 2,
+          "rechargeMs": 30000,
+          "charges": 2,
+          "nextChargeAt": null,
+          "cast": null
+        },
+        "after": {
+          "ability": 3,
+          "readyAt": 47650,
+          "fullAt": 77650,
+          "maxCharges": 2,
+          "rechargeMs": 30000,
+          "charges": 1,
+          "nextChargeAt": 77650,
+          "cast": null
+        },
+        "tick": 953,
+        "serverMs": 47650
+      },
+      "inputAcks": [
+        {
+          "at": 1794166051075.3,
+          "tick": 941,
+          "ack": 799
+        },
+        {
+          "at": 1794166051075.3,
+          "tick": 942,
+          "ack": 800
+        },
+        {
+          "at": 1794166051135.7,
+          "tick": 943,
+          "ack": 801
+        },
+        {
+          "at": 1794166051194.6,
+          "tick": 944,
+          "ack": 802
+        },
+        {
+          "at": 1794166051255.4001,
+          "tick": 945,
+          "ack": 803
+        },
+        {
+          "at": 1794166051317.2,
+          "tick": 946,
+          "ack": 804
+        },
+        {
+          "at": 1794166051377.7,
+          "tick": 947,
+          "ack": 804
+        },
+        {
+          "at": 1794166051377.8,
+          "tick": 948,
+          "ack": 805
+        },
+        {
+          "at": 1794166051440,
+          "tick": 949,
+          "ack": 806
+        },
+        {
+          "at": 1794166051563.2,
+          "tick": 950,
+          "ack": 807
+        },
+        {
+          "at": 1794166051682.4001,
+          "tick": 951,
+          "ack": 808
+        },
+        {
+          "at": 1794166051682.5,
+          "tick": 952,
+          "ack": 808
+        },
+        {
+          "at": 1794166051682.7,
+          "tick": 953,
+          "ack": 809
+        },
+        {
+          "at": 1794166051836.6,
+          "tick": 954,
+          "ack": 810
+        },
+        {
+          "at": 1794166051836.7,
+          "tick": 955,
+          "ack": 811
+        },
+        {
+          "at": 1794166051891.9001,
+          "tick": 956,
+          "ack": 812
+        },
+        {
+          "at": 1794166051891.9001,
+          "tick": 957,
+          "ack": 812
+        },
+        {
+          "at": 1794166051892,
+          "tick": 958,
+          "ack": 812
+        },
+        {
+          "at": 1794166051950.1,
+          "tick": 959,
+          "ack": 813
+        },
+        {
+          "at": 1794166052010,
+          "tick": 960,
+          "ack": 814
+        },
+        {
+          "at": 1794166052067.2,
+          "tick": 961,
+          "ack": 815
+        },
+        {
+          "at": 1794166052067.3,
+          "tick": 962,
+          "ack": 815
+        },
+        {
+          "at": 1794166052128.2,
+          "tick": 963,
+          "ack": 816
+        },
+        {
+          "at": 1794166052187.6,
+          "tick": 964,
+          "ack": 817
+        },
+        {
+          "at": 1794166052243.9001,
+          "tick": 965,
+          "ack": 818
+        }
+      ],
+      "screenshot": "tools/latency/wish-evidence/blaze-unity-web.png",
+      "traceOverflow": false,
+      "traceErrors": [],
+      "pageErrors": []
+    },
+    {
+      "faction": 1,
+      "ability": 2,
+      "name": "Trial",
+      "targetKind": "unit",
+      "serverBindAttempt": "127.0.0.1:58428",
+      "status": "pass",
+      "server": {
+        "protocol": 13,
+        "contentHash": "67183626db240b6a",
+        "info": {
+          "closedRooms": [],
+          "contentHash": "67183626db240b6a",
+          "lobbies": 0,
+          "maxRooms": 16,
+          "players": 0,
+          "protocol": 13,
+          "resultsFailed": 0,
+          "resultsOk": 0,
+          "resultsRefused": 0,
+          "rooms": 0,
+          "state": "ready"
+        },
+        "port": 58428,
+        "bind": "127.0.0.1:58428",
+        "ownership": {
+          "pid": 13571,
+          "endpoint": "127.0.0.1:58428",
+          "method": "lsof direct child TCP LISTEN before and after /info",
+          "checkedAt": "2026-11-08T19:27:35.512Z"
+        },
+        "binary": {
+          "path": "../../final-target/debug/rh-server",
+          "sha256": "20d5b70e9ed79863f03350fbeb9478fd7f45e0a7a644ea2a802a13c14d75b4b0"
+        },
+        "map": {
+          "path": "tools/latency/wish-duel.json",
+          "sha256": "5e63711f08435ebaa1024292b55285cea9fb003de4e581334b0e4d046d4a2818"
+        }
+      },
+      "driverRuntimeErrors": [],
+      "observerRuntimeErrors": [],
+      "training": false,
+      "players": {
+        "driver": 1,
+        "observer": 2,
+        "remoteActor": 2
+      },
+      "spawnDistance": 160,
+      "ownerBaseline": {
+        "ability": 2,
+        "readyAt": 46550,
+        "fullAt": 46550,
+        "maxCharges": 1,
+        "rechargeMs": 180000,
+        "charges": 1,
+        "nextChargeAt": null,
+        "cast": null
+      },
+      "traceGate": {
+        "warmupRecording": false,
+        "driverPageStartedAt": 1794166055542.8,
+        "observerPageStartedAt": 1794166055623.7,
+        "ownerReadyObservedAt": 1794166105430.9001,
+        "ownerReadyServerMs": 46600,
+        "driverRecordingAt": 1794166105493,
+        "observerRecordingAt": 1794166105521.5999,
+        "errorsRetained": true,
+        "wireRetained": true
+      },
+      "cursor": {
+        "unityX": 390,
+        "unityYBottomUp": 375,
+        "pageX": 390,
+        "pageY": 524.9999999999999,
+        "targetActor": 2,
+        "coordinateBasis": {
+          "unityWidth": 1280,
+          "unityHeight": 900,
+          "canvasWidthCss": 1280,
+          "canvasHeightCss": 900
+        }
+      },
+      "browserKey": {
+        "code": "KeyR",
+        "at": 1794166106837.7,
+        "isTrusted": true
+      },
+      "cursorGesture": {
+        "at": 1794166106463.7,
+        "isTrusted": true,
+        "x": 390,
+        "y": 525,
+        "expectedX": 390,
+        "expectedY": 524.9999999999999
+      },
+      "inputSample": {
+        "at": 1794166106838.6,
+        "frame": 786,
+        "player": 1,
+        "seq": 1,
+        "x": 144,
+        "y": 144.82049560546875
+      },
+      "castSent": {
+        "at": 1794166106838.6,
+        "frame": 786,
+        "slot": 0,
+        "seq": 1,
+        "inputFrameSeq": 782,
+        "x": 144,
+        "y": 144.82049560546875,
+        "actorRef": 2,
+        "sameUnityFrame": true
+      },
+      "deliveredTarget": 2,
+      "confirmedFxEvents": [
+        {
+          "kind": "castStarted",
+          "ability": 2,
+          "tick": 964,
+          "eventTime": 48200,
+          "caster": 1,
+          "target": 2,
+          "frameIndex": 25,
+          "fxIndex": 0,
+          "receivedAt": 1794166107025.1,
+          "occurrence": 0
+        },
+        {
+          "kind": "castLanded",
+          "ability": 2,
+          "tick": 971,
+          "eventTime": 48550,
+          "caster": 1,
+          "target": 2,
+          "frameIndex": 37,
+          "fxIndex": 0,
+          "receivedAt": 1794166107315.3,
+          "occurrence": 1
+        }
+      ],
+      "confirmedFx": {
+        "kind": "castLanded",
+        "ability": 2,
+        "tick": 971,
+        "eventTime": 48550,
+        "caster": 1,
+        "target": 2,
+        "frameIndex": 37,
+        "fxIndex": 0,
+        "receivedAt": 1794166107315.3,
+        "presentationKind": "presentWishLanded"
+      },
+      "wishPresented": {
+        "kind": "presentWishLanded",
+        "ability": 2,
+        "sourceTime": 48550,
+        "at": 1794166107316.2,
+        "frame": 792,
+        "player": 1,
+        "occurrence": 1
+      },
+      "wishPresentationEvents": [
+        {
+          "kind": "presentWishStarted",
+          "ability": 2,
+          "sourceTime": 48200,
+          "at": 1794166107027,
+          "frame": 789,
+          "player": 1,
+          "occurrence": 0
+        },
+        {
+          "kind": "presentWishLanded",
+          "ability": 2,
+          "sourceTime": 48550,
+          "at": 1794166107316.2,
+          "frame": 792,
+          "player": 1,
+          "occurrence": 1
+        }
+      ],
+      "ownerUpdate": {
+        "ability": 2,
+        "receivedAt": 1794166107025.3,
+        "before": {
+          "ability": 2,
+          "readyAt": 46550,
+          "fullAt": 46550,
+          "maxCharges": 1,
+          "rechargeMs": 180000,
+          "charges": 1,
+          "nextChargeAt": null,
+          "cast": null
+        },
+        "after": {
+          "ability": 2,
+          "readyAt": 228200,
+          "fullAt": 228200,
+          "maxCharges": 1,
+          "rechargeMs": 180000,
+          "charges": 0,
+          "nextChargeAt": 228200,
+          "cast": {
+            "ability": 2,
+            "startedAt": 48200,
+            "landsAt": 48550
+          }
+        },
+        "tick": 964,
+        "serverMs": 48200
+      },
+      "inputAcks": [
+        {
+          "at": 1794166106401.1,
+          "tick": 952,
+          "ack": 773
+        },
+        {
+          "at": 1794166106401.1,
+          "tick": 953,
+          "ack": 773
+        },
+        {
+          "at": 1794166106463.5,
+          "tick": 954,
+          "ack": 774
+        },
+        {
+          "at": 1794166106526.5,
+          "tick": 955,
+          "ack": 775
+        },
+        {
+          "at": 1794166106589.2,
+          "tick": 956,
+          "ack": 776
+        },
+        {
+          "at": 1794166106648,
+          "tick": 957,
+          "ack": 776
+        },
+        {
+          "at": 1794166106648,
+          "tick": 958,
+          "ack": 777
+        },
+        {
+          "at": 1794166106712.1,
+          "tick": 959,
+          "ack": 778
+        },
+        {
+          "at": 1794166106773.8,
+          "tick": 960,
+          "ack": 779
+        },
+        {
+          "at": 1794166106899.5,
+          "tick": 961,
+          "ack": 780
+        },
+        {
+          "at": 1794166107025,
+          "tick": 962,
+          "ack": 781
+        },
+        {
+          "at": 1794166107025.1,
+          "tick": 963,
+          "ack": 781
+        },
+        {
+          "at": 1794166107025.3,
+          "tick": 964,
+          "ack": 782
+        },
+        {
+          "at": 1794166107197.7,
+          "tick": 965,
+          "ack": 783
+        },
+        {
+          "at": 1794166107197.7,
+          "tick": 966,
+          "ack": 784
+        },
+        {
+          "at": 1794166107256.1,
+          "tick": 967,
+          "ack": 785
+        },
+        {
+          "at": 1794166107256.2,
+          "tick": 968,
+          "ack": 785
+        },
+        {
+          "at": 1794166107256.2,
+          "tick": 969,
+          "ack": 785
+        },
+        {
+          "at": 1794166107256.2,
+          "tick": 970,
+          "ack": 785
+        },
+        {
+          "at": 1794166107315.3,
+          "tick": 971,
+          "ack": 786
+        },
+        {
+          "at": 1794166107376,
+          "tick": 972,
+          "ack": 787
+        },
+        {
+          "at": 1794166107445.8,
+          "tick": 973,
+          "ack": 788
+        },
+        {
+          "at": 1794166107509.6,
+          "tick": 974,
+          "ack": 789
+        },
+        {
+          "at": 1794166107509.7,
+          "tick": 975,
+          "ack": 789
+        },
+        {
+          "at": 1794166107571.7,
+          "tick": 976,
+          "ack": 790
+        },
+        {
+          "at": 1794166107638.3,
+          "tick": 977,
+          "ack": 791
+        }
+      ],
+      "screenshot": "tools/latency/wish-evidence/trial-unity-web.png",
+      "traceOverflow": false,
+      "traceErrors": [],
+      "pageErrors": []
+    },
+    {
+      "faction": 2,
+      "ability": 1,
+      "name": "Swarm",
+      "targetKind": "point",
+      "serverBindAttempt": "127.0.0.1:58550",
+      "status": "pass",
+      "server": {
+        "protocol": 13,
+        "contentHash": "67183626db240b6a",
+        "info": {
+          "closedRooms": [],
+          "contentHash": "67183626db240b6a",
+          "lobbies": 0,
+          "maxRooms": 16,
+          "players": 0,
+          "protocol": 13,
+          "resultsFailed": 0,
+          "resultsOk": 0,
+          "resultsRefused": 0,
+          "rooms": 0,
+          "state": "ready"
+        },
+        "port": 58550,
+        "bind": "127.0.0.1:58550",
+        "ownership": {
+          "pid": 13916,
+          "endpoint": "127.0.0.1:58550",
+          "method": "lsof direct child TCP LISTEN before and after /info",
+          "checkedAt": "2026-11-08T19:28:30.961Z"
+        },
+        "binary": {
+          "path": "../../final-target/debug/rh-server",
+          "sha256": "20d5b70e9ed79863f03350fbeb9478fd7f45e0a7a644ea2a802a13c14d75b4b0"
+        },
+        "map": {
+          "path": "tools/latency/wish-duel.json",
+          "sha256": "5e63711f08435ebaa1024292b55285cea9fb003de4e581334b0e4d046d4a2818"
+        }
+      },
+      "driverRuntimeErrors": [],
+      "observerRuntimeErrors": [],
+      "training": false,
+      "players": {
+        "driver": 1,
+        "observer": 2,
+        "remoteActor": 2
+      },
+      "spawnDistance": 160,
+      "ownerBaseline": {
+        "ability": 1,
+        "readyAt": 46550,
+        "fullAt": 46550,
+        "maxCharges": 1,
+        "rechargeMs": 120000,
+        "charges": 1,
+        "nextChargeAt": null,
+        "cast": null
+      },
+      "traceGate": {
+        "warmupRecording": false,
+        "driverPageStartedAt": 1794166111026.1,
+        "observerPageStartedAt": 1794166111116.1,
+        "ownerReadyObservedAt": 1794166161017.1,
+        "ownerReadyServerMs": 46650,
+        "driverRecordingAt": 1794166161095.9001,
+        "observerRecordingAt": 1794166161134,
+        "errorsRetained": true,
+        "wireRetained": true
+      },
+      "cursor": {
+        "unityX": 696,
+        "unityYBottomUp": 375,
+        "pageX": 696,
+        "pageY": 524.9999999999999,
+        "targetActor": null,
+        "coordinateBasis": {
+          "unityWidth": 1280,
+          "unityHeight": 900,
+          "canvasWidthCss": 1280,
+          "canvasHeightCss": 900
+        }
+      },
+      "browserKey": {
+        "code": "KeyR",
+        "at": 1794166162721.4001,
+        "isTrusted": true
+      },
+      "cursorGesture": {
+        "at": 1794166162257.7002,
+        "isTrusted": true,
+        "x": 696,
+        "y": 525,
+        "expectedX": 696,
+        "expectedY": 524.9999999999999
+      },
+      "inputSample": {
+        "at": 1794166162722.5,
+        "frame": 718,
+        "player": 1,
+        "seq": 1,
+        "x": 179.83999633789062,
+        "y": 144.82049560546875
+      },
+      "castSent": {
+        "at": 1794166162722.5,
+        "frame": 718,
+        "slot": 0,
+        "seq": 1,
+        "inputFrameSeq": 714,
+        "x": 179.83999633789062,
+        "y": 144.82049560546875,
+        "actorRef": null,
+        "sameUnityFrame": true
+      },
+      "deliveredTarget": null,
+      "confirmedFxEvents": [
+        {
+          "kind": "castStarted",
+          "ability": 1,
+          "tick": 972,
+          "eventTime": 48600,
+          "caster": 1,
+          "target": null,
+          "frameIndex": 25,
+          "fxIndex": 0,
+          "receivedAt": 1794166162937.8,
+          "occurrence": 0
+        },
+        {
+          "kind": "castLanded",
+          "ability": 1,
+          "tick": 977,
+          "eventTime": 48850,
+          "caster": 1,
+          "target": null,
+          "frameIndex": 36,
+          "fxIndex": 0,
+          "receivedAt": 1794166163209.2002,
+          "occurrence": 1
+        }
+      ],
+      "confirmedFx": {
+        "kind": "castLanded",
+        "ability": 1,
+        "tick": 977,
+        "eventTime": 48850,
+        "caster": 1,
+        "target": null,
+        "frameIndex": 36,
+        "fxIndex": 0,
+        "receivedAt": 1794166163209.2002,
+        "presentationKind": "presentWishLanded"
+      },
+      "wishPresented": {
+        "kind": "presentWishLanded",
+        "ability": 1,
+        "sourceTime": 48850,
+        "at": 1794166163210.3,
+        "frame": 723,
+        "player": 1,
+        "occurrence": 1
+      },
+      "wishPresentationEvents": [
+        {
+          "kind": "presentWishStarted",
+          "ability": 1,
+          "sourceTime": 48600,
+          "at": 1794166162939.8,
+          "frame": 721,
+          "player": 1,
+          "occurrence": 0
+        },
+        {
+          "kind": "presentWishLanded",
+          "ability": 1,
+          "sourceTime": 48850,
+          "at": 1794166163210.3,
+          "frame": 723,
+          "player": 1,
+          "occurrence": 1
+        }
+      ],
+      "ownerUpdate": {
+        "ability": 1,
+        "receivedAt": 1794166162937.9001,
+        "before": {
+          "ability": 1,
+          "readyAt": 46550,
+          "fullAt": 46550,
+          "maxCharges": 1,
+          "rechargeMs": 120000,
+          "charges": 1,
+          "nextChargeAt": null,
+          "cast": null
+        },
+        "after": {
+          "ability": 1,
+          "readyAt": 168600,
+          "fullAt": 168600,
+          "maxCharges": 1,
+          "rechargeMs": 120000,
+          "charges": 0,
+          "nextChargeAt": 168600,
+          "cast": {
+            "ability": 1,
+            "startedAt": 48600,
+            "landsAt": 48850
+          }
+        },
+        "tick": 972,
+        "serverMs": 48600
+      },
+      "inputAcks": [
+        {
+          "at": 1794166162178.3,
+          "tick": 958,
+          "ack": 705
+        },
+        {
+          "at": 1794166162257.6,
+          "tick": 959,
+          "ack": 706
+        },
+        {
+          "at": 1794166162257.6,
+          "tick": 960,
+          "ack": 706
+        },
+        {
+          "at": 1794166162332.2002,
+          "tick": 961,
+          "ack": 707
+        },
+        {
+          "at": 1794166162410,
+          "tick": 962,
+          "ack": 708
+        },
+        {
+          "at": 1794166162410.1,
+          "tick": 963,
+          "ack": 708
+        },
+        {
+          "at": 1794166162490,
+          "tick": 964,
+          "ack": 709
+        },
+        {
+          "at": 1794166162569.7002,
+          "tick": 965,
+          "ack": 710
+        },
+        {
+          "at": 1794166162569.7002,
+          "tick": 966,
+          "ack": 710
+        },
+        {
+          "at": 1794166162645.8,
+          "tick": 967,
+          "ack": 711
+        },
+        {
+          "at": 1794166162792.4001,
+          "tick": 968,
+          "ack": 711
+        },
+        {
+          "at": 1794166162792.5,
+          "tick": 969,
+          "ack": 712
+        },
+        {
+          "at": 1794166162937.7002,
+          "tick": 970,
+          "ack": 713
+        },
+        {
+          "at": 1794166162937.8,
+          "tick": 971,
+          "ack": 713
+        },
+        {
+          "at": 1794166162937.9001,
+          "tick": 972,
+          "ack": 714
+        },
+        {
+          "at": 1794166163130.7002,
+          "tick": 973,
+          "ack": 715
+        },
+        {
+          "at": 1794166163130.8,
+          "tick": 974,
+          "ack": 716
+        },
+        {
+          "at": 1794166163130.8,
+          "tick": 975,
+          "ack": 716
+        },
+        {
+          "at": 1794166163209,
+          "tick": 976,
+          "ack": 717
+        },
+        {
+          "at": 1794166163209.3,
+          "tick": 977,
+          "ack": 717
+        },
+        {
+          "at": 1794166163209.3,
+          "tick": 978,
+          "ack": 717
+        },
+        {
+          "at": 1794166163209.4001,
+          "tick": 979,
+          "ack": 717
+        },
+        {
+          "at": 1794166163274.6,
+          "tick": 980,
+          "ack": 718
+        },
+        {
+          "at": 1794166163344,
+          "tick": 981,
+          "ack": 719
+        },
+        {
+          "at": 1794166163344.1,
+          "tick": 982,
+          "ack": 719
+        },
+        {
+          "at": 1794166163413.8,
+          "tick": 983,
+          "ack": 720
+        },
+        {
+          "at": 1794166163485.5,
+          "tick": 984,
+          "ack": 721
+        },
+        {
+          "at": 1794166163558.5,
+          "tick": 985,
+          "ack": 722
+        },
+        {
+          "at": 1794166163558.6,
+          "tick": 986,
+          "ack": 722
+        },
+        {
+          "at": 1794166163637.7002,
+          "tick": 987,
+          "ack": 723
+        }
+      ],
+      "screenshot": "tools/latency/wish-evidence/swarm-unity-web.png",
+      "traceOverflow": false,
+      "traceErrors": [],
+      "pageErrors": []
+    },
+    {
+      "faction": 3,
+      "ability": 0,
+      "name": "Freeze",
+      "targetKind": "unit",
+      "serverBindAttempt": "127.0.0.1:58673",
+      "status": "pass",
+      "server": {
+        "protocol": 13,
+        "contentHash": "67183626db240b6a",
+        "info": {
+          "closedRooms": [],
+          "contentHash": "67183626db240b6a",
+          "lobbies": 0,
+          "maxRooms": 16,
+          "players": 0,
+          "protocol": 13,
+          "resultsFailed": 0,
+          "resultsOk": 0,
+          "resultsRefused": 0,
+          "rooms": 0,
+          "state": "ready"
+        },
+        "port": 58673,
+        "bind": "127.0.0.1:58673",
+        "ownership": {
+          "pid": 14323,
+          "endpoint": "127.0.0.1:58673",
+          "method": "lsof direct child TCP LISTEN before and after /info",
+          "checkedAt": "2026-11-08T19:29:27.113Z"
+        },
+        "binary": {
+          "path": "../../final-target/debug/rh-server",
+          "sha256": "20d5b70e9ed79863f03350fbeb9478fd7f45e0a7a644ea2a802a13c14d75b4b0"
+        },
+        "map": {
+          "path": "tools/latency/wish-duel.json",
+          "sha256": "5e63711f08435ebaa1024292b55285cea9fb003de4e581334b0e4d046d4a2818"
+        }
+      },
+      "driverRuntimeErrors": [],
+      "observerRuntimeErrors": [],
+      "training": false,
+      "players": {
+        "driver": 1,
+        "observer": 2,
+        "remoteActor": 2
+      },
+      "spawnDistance": 160,
+      "ownerBaseline": {
+        "ability": 0,
+        "readyAt": 46700,
+        "fullAt": 46700,
+        "maxCharges": 1,
+        "rechargeMs": 45000,
+        "charges": 1,
+        "nextChargeAt": null,
+        "cast": null
+      },
+      "traceGate": {
+        "warmupRecording": false,
+        "driverPageStartedAt": 1794166167161.2,
+        "observerPageStartedAt": 1794166167247.9,
+        "ownerReadyObservedAt": 1794166217536.9,
+        "ownerReadyServerMs": 46800,
+        "driverRecordingAt": 1794166217614.0999,
+        "observerRecordingAt": 1794166217657.5999,
+        "errorsRetained": true,
+        "wireRetained": true
+      },
+      "cursor": {
+        "unityX": 890,
+        "unityYBottomUp": 375,
+        "pageX": 890,
+        "pageY": 524.9999999999999,
+        "targetActor": 2,
+        "coordinateBasis": {
+          "unityWidth": 1280,
+          "unityHeight": 900,
+          "canvasWidthCss": 1280,
+          "canvasHeightCss": 900
+        }
+      },
+      "browserKey": {
+        "code": "KeyR",
+        "at": 1794166219042.9,
+        "isTrusted": true
+      },
+      "cursorGesture": {
+        "at": 1794166218645.9,
+        "isTrusted": true,
+        "x": 890,
+        "y": 525,
+        "expectedX": 890,
+        "expectedY": 524.9999999999999
+      },
+      "inputSample": {
+        "at": 1794166219044.0999,
+        "frame": 650,
+        "player": 1,
+        "seq": 1,
+        "x": 304,
+        "y": 144.82049560546875
+      },
+      "castSent": {
+        "at": 1794166219044.0999,
+        "frame": 650,
+        "slot": 0,
+        "seq": 1,
+        "inputFrameSeq": 646,
+        "x": 304,
+        "y": 144.82049560546875,
+        "actorRef": 2,
+        "sameUnityFrame": true
+      },
+      "deliveredTarget": 2,
+      "confirmedFxEvents": [
+        {
+          "kind": "castStarted",
+          "ability": 0,
+          "tick": 970,
+          "eventTime": 48500,
+          "caster": 1,
+          "target": 2,
+          "frameIndex": 25,
+          "fxIndex": 0,
+          "receivedAt": 1794166219308.3,
+          "occurrence": 0
+        },
+        {
+          "kind": "castLanded",
+          "ability": 0,
+          "tick": 975,
+          "eventTime": 48750,
+          "caster": 1,
+          "target": 2,
+          "frameIndex": 33,
+          "fxIndex": 0,
+          "receivedAt": 1794166219496.2,
+          "occurrence": 1
+        }
+      ],
+      "confirmedFx": {
+        "kind": "castLanded",
+        "ability": 0,
+        "tick": 975,
+        "eventTime": 48750,
+        "caster": 1,
+        "target": 2,
+        "frameIndex": 33,
+        "fxIndex": 0,
+        "receivedAt": 1794166219496.2,
+        "presentationKind": "presentWishLanded"
+      },
+      "wishPresented": {
+        "kind": "presentWishLanded",
+        "ability": 0,
+        "sourceTime": 48750,
+        "at": 1794166219497.3,
+        "frame": 655,
+        "player": 1,
+        "occurrence": 1
+      },
+      "wishPresentationEvents": [
+        {
+          "kind": "presentWishStarted",
+          "ability": 0,
+          "sourceTime": 48500,
+          "at": 1794166219310.3,
+          "frame": 653,
+          "player": 1,
+          "occurrence": 0
+        },
+        {
+          "kind": "presentWishLanded",
+          "ability": 0,
+          "sourceTime": 48750,
+          "at": 1794166219497.3,
+          "frame": 655,
+          "player": 1,
+          "occurrence": 1
+        }
+      ],
+      "ownerUpdate": {
+        "ability": 0,
+        "receivedAt": 1794166219308.4,
+        "before": {
+          "ability": 0,
+          "readyAt": 46700,
+          "fullAt": 46700,
+          "maxCharges": 1,
+          "rechargeMs": 45000,
+          "charges": 1,
+          "nextChargeAt": null,
+          "cast": null
+        },
+        "after": {
+          "ability": 0,
+          "readyAt": 93500,
+          "fullAt": 93500,
+          "maxCharges": 1,
+          "rechargeMs": 45000,
+          "charges": 0,
+          "nextChargeAt": 93500,
+          "cast": {
+            "ability": 0,
+            "startedAt": 48500,
+            "landsAt": 48750
+          }
+        },
+        "tick": 970,
+        "serverMs": 48500
+      },
+      "inputAcks": [
+        {
+          "at": 1794166218581.4,
+          "tick": 958,
+          "ack": 637
+        },
+        {
+          "at": 1794166218645.8,
+          "tick": 959,
+          "ack": 638
+        },
+        {
+          "at": 1794166218645.9,
+          "tick": 960,
+          "ack": 638
+        },
+        {
+          "at": 1794166218713,
+          "tick": 961,
+          "ack": 639
+        },
+        {
+          "at": 1794166218777.0999,
+          "tick": 962,
+          "ack": 640
+        },
+        {
+          "at": 1794166218843.8,
+          "tick": 963,
+          "ack": 641
+        },
+        {
+          "at": 1794166218843.9,
+          "tick": 964,
+          "ack": 641
+        },
+        {
+          "at": 1794166218908.5999,
+          "tick": 965,
+          "ack": 642
+        },
+        {
+          "at": 1794166218975.8,
+          "tick": 966,
+          "ack": 643
+        },
+        {
+          "at": 1794166219111.0999,
+          "tick": 967,
+          "ack": 644
+        },
+        {
+          "at": 1794166219111.0999,
+          "tick": 968,
+          "ack": 644
+        },
+        {
+          "at": 1794166219308.3,
+          "tick": 969,
+          "ack": 645
+        },
+        {
+          "at": 1794166219308.4,
+          "tick": 970,
+          "ack": 646
+        },
+        {
+          "at": 1794166219433.8,
+          "tick": 971,
+          "ack": 647
+        },
+        {
+          "at": 1794166219433.9,
+          "tick": 972,
+          "ack": 647
+        },
+        {
+          "at": 1794166219433.9,
+          "tick": 973,
+          "ack": 648
+        },
+        {
+          "at": 1794166219433.9,
+          "tick": 974,
+          "ack": 648
+        },
+        {
+          "at": 1794166219496.4,
+          "tick": 975,
+          "ack": 649
+        },
+        {
+          "at": 1794166219496.5,
+          "tick": 976,
+          "ack": 649
+        },
+        {
+          "at": 1794166219496.5,
+          "tick": 977,
+          "ack": 649
+        },
+        {
+          "at": 1794166219558.7,
+          "tick": 978,
+          "ack": 650
+        },
+        {
+          "at": 1794166219619.3,
+          "tick": 979,
+          "ack": 651
+        },
+        {
+          "at": 1794166219681.4,
+          "tick": 980,
+          "ack": 652
+        },
+        {
+          "at": 1794166219681.4,
+          "tick": 981,
+          "ack": 652
+        },
+        {
+          "at": 1794166219747.9,
+          "tick": 982,
+          "ack": 653
+        },
+        {
+          "at": 1794166219812,
+          "tick": 983,
+          "ack": 654
+        },
+        {
+          "at": 1794166219879.7,
+          "tick": 984,
+          "ack": 655
+        }
+      ],
+      "screenshot": "tools/latency/wish-evidence/freeze-unity-web.png",
+      "traceOverflow": false,
+      "traceErrors": [],
+      "pageErrors": []
+    },
+    {
+      "faction": 4,
+      "ability": 4,
+      "name": "LastStand",
+      "targetKind": "point",
+      "serverBindAttempt": "127.0.0.1:58799",
+      "status": "pass",
+      "server": {
+        "protocol": 13,
+        "contentHash": "67183626db240b6a",
+        "info": {
+          "closedRooms": [],
+          "contentHash": "67183626db240b6a",
+          "lobbies": 0,
+          "maxRooms": 16,
+          "players": 0,
+          "protocol": 13,
+          "resultsFailed": 0,
+          "resultsOk": 0,
+          "resultsRefused": 0,
+          "rooms": 0,
+          "state": "ready"
+        },
+        "port": 58799,
+        "bind": "127.0.0.1:58799",
+        "ownership": {
+          "pid": 15071,
+          "endpoint": "127.0.0.1:58799",
+          "method": "lsof direct child TCP LISTEN before and after /info",
+          "checkedAt": "2026-11-08T19:30:23.253Z"
+        },
+        "binary": {
+          "path": "../../final-target/debug/rh-server",
+          "sha256": "20d5b70e9ed79863f03350fbeb9478fd7f45e0a7a644ea2a802a13c14d75b4b0"
+        },
+        "map": {
+          "path": "tools/latency/wish-duel.json",
+          "sha256": "5e63711f08435ebaa1024292b55285cea9fb003de4e581334b0e4d046d4a2818"
+        }
+      },
+      "driverRuntimeErrors": [],
+      "observerRuntimeErrors": [],
+      "training": false,
+      "players": {
+        "driver": 1,
+        "observer": 2,
+        "remoteActor": 2
+      },
+      "spawnDistance": 160,
+      "ownerBaseline": {
+        "ability": 4,
+        "readyAt": 46750,
+        "fullAt": 46750,
+        "maxCharges": 1,
+        "rechargeMs": 150000,
+        "charges": 1,
+        "nextChargeAt": null,
+        "cast": null
+      },
+      "traceGate": {
+        "warmupRecording": false,
+        "driverPageStartedAt": 1794166223290.5,
+        "observerPageStartedAt": 1794166223384.4,
+        "ownerReadyObservedAt": 1794166273635.5,
+        "ownerReadyServerMs": 46850,
+        "driverRecordingAt": 1794166273696.3,
+        "observerRecordingAt": 1794166273726.2998,
+        "errorsRetained": true,
+        "wireRetained": true
+      },
+      "cursor": {
+        "unityX": 696,
+        "unityYBottomUp": 375,
+        "pageX": 696,
+        "pageY": 524.9999999999999,
+        "targetActor": null,
+        "coordinateBasis": {
+          "unityWidth": 1280,
+          "unityHeight": 900,
+          "canvasWidthCss": 1280,
+          "canvasHeightCss": 900
+        }
+      },
+      "browserKey": {
+        "code": "KeyR",
+        "at": 1794166274962.4,
+        "isTrusted": true
+      },
+      "cursorGesture": {
+        "at": 1794166274607.7,
+        "isTrusted": true,
+        "x": 696,
+        "y": 525,
+        "expectedX": 696,
+        "expectedY": 524.9999999999999
+      },
+      "inputSample": {
+        "at": 1794166274963.4,
+        "frame": 728,
+        "player": 1,
+        "seq": 1,
+        "x": 179.83999633789062,
+        "y": 144.82049560546875
+      },
+      "castSent": {
+        "at": 1794166274963.5,
+        "frame": 728,
+        "slot": 0,
+        "seq": 1,
+        "inputFrameSeq": 724,
+        "x": 179.83999633789062,
+        "y": 144.82049560546875,
+        "actorRef": null,
+        "sameUnityFrame": true
+      },
+      "deliveredTarget": null,
+      "confirmedFxEvents": [
+        {
+          "kind": "castLanded",
+          "ability": 4,
+          "tick": 967,
+          "eventTime": 48350,
+          "caster": 1,
+          "target": null,
+          "frameIndex": 22,
+          "fxIndex": 0,
+          "receivedAt": 1794166275138.2,
+          "occurrence": 0
+        }
+      ],
+      "confirmedFx": {
+        "kind": "castLanded",
+        "ability": 4,
+        "tick": 967,
+        "eventTime": 48350,
+        "caster": 1,
+        "target": null,
+        "frameIndex": 22,
+        "fxIndex": 0,
+        "receivedAt": 1794166275138.2,
+        "presentationKind": "presentWishLanded"
+      },
+      "wishPresented": {
+        "kind": "presentWishLanded",
+        "ability": 4,
+        "sourceTime": 48350,
+        "at": 1794166275140.2,
+        "frame": 731,
+        "player": 1,
+        "occurrence": 0
+      },
+      "wishPresentationEvents": [
+        {
+          "kind": "presentWishLanded",
+          "ability": 4,
+          "sourceTime": 48350,
+          "at": 1794166275140.2,
+          "frame": 731,
+          "player": 1,
+          "occurrence": 0
+        }
+      ],
+      "ownerUpdate": {
+        "ability": 4,
+        "receivedAt": 1794166275138.4,
+        "before": {
+          "ability": 4,
+          "readyAt": 46750,
+          "fullAt": 46750,
+          "maxCharges": 1,
+          "rechargeMs": 150000,
+          "charges": 1,
+          "nextChargeAt": null,
+          "cast": null
+        },
+        "after": {
+          "ability": 4,
+          "readyAt": 198350,
+          "fullAt": 198350,
+          "maxCharges": 1,
+          "rechargeMs": 150000,
+          "charges": 0,
+          "nextChargeAt": 198350,
+          "cast": null
+        },
+        "tick": 967,
+        "serverMs": 48350
+      },
+      "inputAcks": [
+        {
+          "at": 1794166274549.2,
+          "tick": 956,
+          "ack": 715
+        },
+        {
+          "at": 1794166274607.5,
+          "tick": 957,
+          "ack": 716
+        },
+        {
+          "at": 1794166274667,
+          "tick": 958,
+          "ack": 716
+        },
+        {
+          "at": 1794166274667,
+          "tick": 959,
+          "ack": 717
+        },
+        {
+          "at": 1794166274726.5,
+          "tick": 960,
+          "ack": 718
+        },
+        {
+          "at": 1794166274784.4,
+          "tick": 961,
+          "ack": 719
+        },
+        {
+          "at": 1794166274842.4,
+          "tick": 962,
+          "ack": 720
+        },
+        {
+          "at": 1794166274902.3,
+          "tick": 963,
+          "ack": 721
+        },
+        {
+          "at": 1794166275021.7,
+          "tick": 964,
+          "ack": 722
+        },
+        {
+          "at": 1794166275138.2,
+          "tick": 965,
+          "ack": 722
+        },
+        {
+          "at": 1794166275138.2,
+          "tick": 966,
+          "ack": 723
+        },
+        {
+          "at": 1794166275138.4,
+          "tick": 967,
+          "ack": 724
+        },
+        {
+          "at": 1794166275307.6,
+          "tick": 968,
+          "ack": 725
+        },
+        {
+          "at": 1794166275307.7,
+          "tick": 969,
+          "ack": 726
+        },
+        {
+          "at": 1794166275365.5,
+          "tick": 970,
+          "ack": 727
+        },
+        {
+          "at": 1794166275365.6,
+          "tick": 971,
+          "ack": 727
+        },
+        {
+          "at": 1794166275365.7,
+          "tick": 972,
+          "ack": 727
+        },
+        {
+          "at": 1794166275365.7,
+          "tick": 973,
+          "ack": 727
+        },
+        {
+          "at": 1794166275421.7,
+          "tick": 974,
+          "ack": 728
+        },
+        {
+          "at": 1794166275480.1,
+          "tick": 975,
+          "ack": 729
+        },
+        {
+          "at": 1794166275538.5,
+          "tick": 976,
+          "ack": 730
+        },
+        {
+          "at": 1794166275596.4,
+          "tick": 977,
+          "ack": 731
+        },
+        {
+          "at": 1794166275653.6,
+          "tick": 978,
+          "ack": 732
+        },
+        {
+          "at": 1794166275710.4,
+          "tick": 979,
+          "ack": 733
+        }
+      ],
+      "screenshot": "tools/latency/wish-evidence/laststand-unity-web.png",
+      "traceOverflow": false,
+      "traceErrors": [],
+      "pageErrors": []
+    }
+  ],
+  "prerequisites": [],
+  "errors": [],
+  "notes": [
+    "Only Playwright keyboard and pointer input is used. The probe decoder observes actual WebSocket frames; no protocol input is synthesized.",
+    "R is sampled by Unity MatchClient.ReadInput; the Cast command must carry the same real order sequence and Unity frame.",
+    "FX source eventTime is retained as a server-clock fact and is never subtracted from browser-local timings.",
+    "Unity presentation hooks indicate managed presentation/update completion; they do not claim photon emission or display scanout.",
+    "Each faction runs against a fresh server started with --wish-full, two legal duel-map human spawns, zero bot fill, and no training.",
+    "Each case uses fresh browser pages and a fresh server process. High-volume Unity trace recording stays disabled during the opening-lock warm-up; browser and decoder errors and wire records remain active and are retained.",
+    "Confirmed FX and Unity presentation occurrences are retained in receive/presentation order, including multiple same-tick events; the required own-caster landed pair is linked by exact kind and original eventTime.",
+    "All endpoints are loopback-only. Server ports are dynamically selected by a short bind-zero probe; lsof verifies the direct child PID owns the exact loopback TCP listener before and after /info, before opening clients. A bind race fails without stopping another listener.",
+    "Evidence records the actual server port, complete /info response, and SHA-256 identities for the server binary and duel map."
+  ],
+  "mapSpawns": [
+    [
+      144,
+      144
+    ],
+    [
+      304,
+      144
+    ]
+  ],
+  "mapSpawnDistance": 160,
+  "summary": {
+    "status": "PASS",
+    "verdict": {
+      "status": "PASS",
+      "exitCode": 0,
+      "failures": [],
+      "incomplete": [],
+      "complete": true
+    },
+    "cases": 5,
+    "abilities": [
+      {
+        "faction": 0,
+        "ability": 3,
+        "name": "Blaze",
+        "inputToSampleMs": 1.699951171875,
+        "sampleToSendMs": 0,
+        "sendToConfirmedFxMs": 174.099853515625,
+        "confirmedFxToPresentationMs": 1.5
+      },
+      {
+        "faction": 1,
+        "ability": 2,
+        "name": "Trial",
+        "inputToSampleMs": 0.900146484375,
+        "sampleToSendMs": 0,
+        "sendToConfirmedFxMs": 476.699951171875,
+        "confirmedFxToPresentationMs": 0.89990234375
+      },
+      {
+        "faction": 2,
+        "ability": 1,
+        "name": "Swarm",
+        "inputToSampleMs": 1.099853515625,
+        "sampleToSendMs": 0,
+        "sendToConfirmedFxMs": 486.7001953125,
+        "confirmedFxToPresentationMs": 1.099853515625
+      },
+      {
+        "faction": 3,
+        "ability": 0,
+        "name": "Freeze",
+        "inputToSampleMs": 1.199951171875,
+        "sampleToSendMs": 0,
+        "sendToConfirmedFxMs": 452.10009765625,
+        "confirmedFxToPresentationMs": 1.10009765625
+      },
+      {
+        "faction": 4,
+        "ability": 4,
+        "name": "LastStand",
+        "inputToSampleMs": 1,
+        "sampleToSendMs": 0.10009765625,
+        "sendToConfirmedFxMs": 174.699951171875,
+        "confirmedFxToPresentationMs": 2
+      }
+    ]
+  }
+}

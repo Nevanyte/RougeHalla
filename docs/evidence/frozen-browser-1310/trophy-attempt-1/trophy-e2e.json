@@ -1,0 +1,1681 @@
+{
+  "startedAt": "2026-11-08T19:35:36.328Z",
+  "status": "INCOMPLETE",
+  "protocol": 13,
+  "expectedContentHash": "67183626db240b6a",
+  "expectedServerSha256": "20d5b70e9ed79863f03350fbeb9478fd7f45e0a7a644ea2a802a13c14d75b4b0",
+  "expectedMapHash": "252d18b",
+  "url": "http://127.0.0.1:18913",
+  "identities": {
+    "serverBinary": {
+      "path": "../../../.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/rh-server",
+      "sha256": "20d5b70e9ed79863f03350fbeb9478fd7f45e0a7a644ea2a802a13c14d75b4b0",
+      "bytes": 28812496
+    },
+    "buildManifest": {
+      "path": "../../../.codex/tools/rougehalla-unity-art/evidence/protocol13-final-1310/build-manifest.json",
+      "sha256": "eab8c97fc3ef3593811546982c0ef0980da6b8b09204ca80b623d27c046e299f",
+      "bytes": 6141
+    },
+    "unity": {
+      "manifest": {
+        "path": "../../../.codex/tools/rougehalla-unity-art/evidence/protocol13-final-1310/build-manifest.json",
+        "sha256": "eab8c97fc3ef3593811546982c0ef0980da6b8b09204ca80b623d27c046e299f",
+        "bytes": 6141
+      },
+      "sourceRevision": "1310ae002870bf3fc674c7b65f38ff5ea55a7d75",
+      "unityBuildId": "protocol13-1310ae00",
+      "protocol": 13,
+      "contentHash": "67183626db240b6a",
+      "serverBinarySha256": "20d5b70e9ed79863f03350fbeb9478fd7f45e0a7a644ea2a802a13c14d75b4b0",
+      "archive": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/builds/protocol13-1310ae00",
+      "assets": [
+        {
+          "path": "Build/Web.data",
+          "sha256": "846c8e4d77ff6c6c9f9c70582b0f054adb9a40a45db97448ac5d60e9bbe609d8",
+          "bytes": 27589581
+        },
+        {
+          "path": "Build/Web.framework.js",
+          "sha256": "a670ae110ed500a3255059467fafb867de3198abeabab33632cc45507b98397a",
+          "bytes": 464517
+        },
+        {
+          "path": "Build/Web.loader.js",
+          "sha256": "9257949c30c592243bf5ba605d5d7f7d9fdc71c892120d85f2f081e3edccb540",
+          "bytes": 26455
+        },
+        {
+          "path": "Build/Web.wasm",
+          "sha256": "f742851d4acf9fed8c81ceae1b36bc6a75916a46a65cea0e95d08fb97e955e1a",
+          "bytes": 46118043
+        },
+        {
+          "path": "Licenses/CinzelDecorative-OFL.txt",
+          "sha256": "1e5d6660366ddcfca4f2fc10e2acfba9fa4d97d40aec80d7dbfd41d730a420ae",
+          "bytes": 4393
+        },
+        {
+          "path": "Licenses/EmojiOne-Attribution.txt",
+          "sha256": "4b65f8960e4f4c5c8b35fd139e369265e9bb45667fc16461b2ba01188d464d93",
+          "bytes": 185
+        },
+        {
+          "path": "Licenses/Flare-Audio-Notice.txt",
+          "sha256": "64e2de64656079009cfda050f49e1de5075167a387c403f17555c6c651d9b516",
+          "bytes": 1130
+        },
+        {
+          "path": "Licenses/Flare-CC-BY-SA-3.0.txt",
+          "sha256": "3f941b3b89cf7b8370ceb83cc76d2120d471b58735d8ca60238a751a48d7f72f",
+          "bytes": 22240
+        },
+        {
+          "path": "Licenses/Flare-Credits.txt",
+          "sha256": "8b0985009dd04911b851553a35941e6862f1df66a6864f9b2a5c7ff330574fbc",
+          "bytes": 3510
+        },
+        {
+          "path": "Licenses/LiberationSans-OFL.txt",
+          "sha256": "37f8552e9a874ec10710dc0ede6a9adf168e6609fbd02a507f35629373b85a48",
+          "bytes": 4469
+        },
+        {
+          "path": "Licenses/Roguehalla-MIT.txt",
+          "sha256": "385298d673f01f328553f49d75680ab30254c09d2295171c929fa61efe84b103",
+          "bytes": 1080
+        },
+        {
+          "path": "Licenses/Third-Party-Assets.md",
+          "sha256": "75994d0600bb013e3a47a78be320b9f4d78e5f4d76a8849e9494793a95b89295",
+          "bytes": 3566
+        },
+        {
+          "path": "Licenses/Unity-Companion.md",
+          "sha256": "6550a14445e6c2116213b2419c4c28b75be4b99039afc8d091ced3192624390c",
+          "bytes": 461
+        },
+        {
+          "path": "index.html",
+          "sha256": "3d122f461a72433123a98732aeaf6602377874fabf7e321f1f2740c1ea1b62f5",
+          "bytes": 7920
+        }
+      ],
+      "assetCount": 14
+    }
+  },
+  "allFiveWish": {
+    "status": "PASS",
+    "output": "docs/evidence/frozen-browser-1310/wish-attempt-1.json",
+    "summary": {
+      "status": "PASS",
+      "verdict": {
+        "status": "PASS",
+        "exitCode": 0,
+        "failures": [],
+        "incomplete": [],
+        "complete": true
+      },
+      "cases": 5,
+      "abilities": [
+        {
+          "faction": 0,
+          "ability": 3,
+          "name": "Blaze",
+          "inputToSampleMs": 1.699951171875,
+          "sampleToSendMs": 0,
+          "sendToConfirmedFxMs": 174.099853515625,
+          "confirmedFxToPresentationMs": 1.5
+        },
+        {
+          "faction": 1,
+          "ability": 2,
+          "name": "Trial",
+          "inputToSampleMs": 0.900146484375,
+          "sampleToSendMs": 0,
+          "sendToConfirmedFxMs": 476.699951171875,
+          "confirmedFxToPresentationMs": 0.89990234375
+        },
+        {
+          "faction": 2,
+          "ability": 1,
+          "name": "Swarm",
+          "inputToSampleMs": 1.099853515625,
+          "sampleToSendMs": 0,
+          "sendToConfirmedFxMs": 486.7001953125,
+          "confirmedFxToPresentationMs": 1.099853515625
+        },
+        {
+          "faction": 3,
+          "ability": 0,
+          "name": "Freeze",
+          "inputToSampleMs": 1.199951171875,
+          "sampleToSendMs": 0,
+          "sendToConfirmedFxMs": 452.10009765625,
+          "confirmedFxToPresentationMs": 1.10009765625
+        },
+        {
+          "faction": 4,
+          "ability": 4,
+          "name": "LastStand",
+          "inputToSampleMs": 1,
+          "sampleToSendMs": 0.10009765625,
+          "sendToConfirmedFxMs": 174.699951171875,
+          "confirmedFxToPresentationMs": 2
+        }
+      ]
+    },
+    "serverBinarySha256": "20d5b70e9ed79863f03350fbeb9478fd7f45e0a7a644ea2a802a13c14d75b4b0",
+    "playerUrl": "http://127.0.0.1:18913"
+  },
+  "gameplay": {
+    "helperRole": "victim-and-third-seat are normal protocol-13 peers issuing public Move/Pickup/Choose only; Unity owner uses trusted MatchClient movement, pickup, attack, and HUD selection",
+    "serverBind": "127.0.0.1:59623",
+    "server": {
+      "info": {
+        "closedRooms": [],
+        "contentHash": "67183626db240b6a",
+        "lobbies": 0,
+        "maxRooms": 1,
+        "players": 0,
+        "protocol": 13,
+        "resultsFailed": 0,
+        "resultsOk": 0,
+        "resultsRefused": 0,
+        "rooms": 0,
+        "state": "ready"
+      },
+      "ownership": {
+        "pid": 18581,
+        "endpoint": "127.0.0.1:59623",
+        "method": "lsof direct child TCP LISTEN before and after /info",
+        "checkedAt": "2026-11-08T19:35:36.985Z"
+      },
+      "protocol": 13,
+      "contentHash": "67183626db240b6a",
+      "binary": {
+        "path": "../../../.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/rh-server",
+        "sha256": "20d5b70e9ed79863f03350fbeb9478fd7f45e0a7a644ea2a802a13c14d75b4b0",
+        "bytes": 28812496
+      },
+      "port": 59623
+    },
+    "victimPlayerId": 1,
+    "serverStderrTail": "[server] ws/http (dev only) on 127.0.0.1:59623 | protocol 13 content 67183626db240b6a\n"
+  },
+  "screenshots": {
+    "trophy-failure-owner": "docs/evidence/frozen-browser-1310/trophy-attempt-1/trophy-failure-owner.png"
+  },
+  "errors": [
+    "Error: Welcome map identity mismatch: {\"w\":48,\"h\":40,\"hash\":477571931}\n    at waitDriverActive (/Users/nevinmckinnon/Documents/Projects/RogueHalla-trophy-wire13/tools/latency/trophy-e2e.cjs:156:11)\n    at async main (/Users/nevinmckinnon/Documents/Projects/RogueHalla-trophy-wire13/tools/latency/trophy-e2e.cjs:486:20)"
+  ],
+  "prerequisites": [],
+  "notes": [
+    "The five R cases are an independent Unity browser suite; attach its passing report with --wish-report. This runner does not duplicate that campaign.",
+    "The Trophy case uses --first-playable, its embedded 0252d18b 48x40 map, normal 50 ms simulation steps, no bots and three ordinary human seats.",
+    "The victim stat Boost is discovered from a delivered source crate row, acquired with that seat-local prop handle, and chosen only after a real kind-2 non-Lifesteal reward is eligible; the authoritative Build boost count must increase.",
+    "No Sim state, HP, stats, reward options, handles, kill outcome, or expiry is injected. Helper commands are normal public protocol input, not Unity input; final killer and Trophy HUD selection are actual trusted Unity input.",
+    "Final selection requires decoded Unity Choose to match the actual delivered Trophy handle/original option index and subsequent authoritative Picked/Taken/TakenBy for the Unity owner. Screenshot evidence is retained before and after the trusted click.",
+    "The Unity client view has no cumulative killStats field, so the proof does not claim a browser-visible exact stat delta; server/native exact gain is covered by the source-backed wire regression."
+  ],
+  "observations": {
+    "owner": {
+      "snapshot": {
+        "t": "snapshot",
+        "tick": 101,
+        "serverMs": 5050,
+        "phase": 1,
+        "ack": 1,
+        "training": false,
+        "me": {
+          "id": 3,
+          "faction": 0,
+          "x": 1296,
+          "y": 176,
+          "facing": 2.4555678367614746,
+          "hp": 950,
+          "maxHp": 950,
+          "status": 1,
+          "weapon": 5,
+          "readyIn": 0,
+          "kills": 0,
+          "bounty": 0,
+          "gv": 0,
+          "moveSeq": 0,
+          "effects": 0,
+          "displaceSeq": 0,
+          "sig": 0,
+          "huntTarget": null,
+          "huntStacks": 0,
+          "wish": {
+            "ability": 3,
+            "readyAt": 48850,
+            "fullAt": 48850,
+            "maxCharges": 2,
+            "rechargeMs": 30000,
+            "charges": 0,
+            "nextChargeAt": 18850,
+            "cast": null
+          },
+          "barrierBits": 0,
+          "barrierRingStep": 0
+        },
+        "actors": [
+          {
+            "id": 1,
+            "faction": 2,
+            "x": 1296,
+            "y": 656,
+            "facing": 0,
+            "hpPct": 100,
+            "status": 1,
+            "weapon": 5,
+            "bounty": 0,
+            "kind": 0,
+            "effects": 0,
+            "displaceSeq": 0,
+            "mobTypeCode": 0,
+            "sig": 0,
+            "barrierPct": 0,
+            "barrierRingStep": 0
+          },
+          {
+            "id": 2,
+            "faction": 4,
+            "x": 1104,
+            "y": 176,
+            "facing": 0,
+            "hpPct": 100,
+            "status": 1,
+            "weapon": 5,
+            "bounty": 0,
+            "kind": 0,
+            "effects": 0,
+            "displaceSeq": 0,
+            "mobTypeCode": 0,
+            "sig": 0,
+            "barrierPct": 0,
+            "barrierRingStep": 0
+          },
+          {
+            "faction": 2,
+            "weapon": 1,
+            "hpPct": 100,
+            "status": 1,
+            "bounty": 0,
+            "kind": 1,
+            "effects": 0,
+            "displaceSeq": 0,
+            "mobTypeCode": 13,
+            "sig": 0,
+            "barrierPct": 0,
+            "barrierRingStep": 0,
+            "id": 2147495936,
+            "x": 1200,
+            "y": 432,
+            "facing": -1.5707963705062866
+          }
+        ]
+      },
+      "collections": {
+        "1": {
+          "activeSlot": 0,
+          "slots": [
+            null,
+            null
+          ],
+          "potionSmall": 0,
+          "potionLarge": 0,
+          "potionsHealing": 0
+        },
+        "2": {
+          "rows": [
+            {
+              "handle": 11,
+              "x": 3456,
+              "y": 1664,
+              "kind": 2,
+              "open": false
+            },
+            {
+              "handle": 12,
+              "x": 8832,
+              "y": 1664,
+              "kind": 2,
+              "open": false
+            },
+            {
+              "handle": 13,
+              "x": 9344,
+              "y": 1408,
+              "kind": 1,
+              "weapon": 4
+            },
+            {
+              "handle": 14,
+              "x": 9600,
+              "y": 2688,
+              "kind": 6,
+              "readyAt": 0
+            },
+            {
+              "handle": 15,
+              "x": 9856,
+              "y": 5248,
+              "kind": 1,
+              "weapon": 0
+            },
+            {
+              "handle": 16,
+              "x": 10112,
+              "y": 5504,
+              "kind": 1,
+              "weapon": 1
+            },
+            {
+              "handle": 17,
+              "x": 10368,
+              "y": 896,
+              "kind": 1,
+              "weapon": 1
+            },
+            {
+              "handle": 18,
+              "x": 10368,
+              "y": 1664,
+              "kind": 2,
+              "open": false
+            },
+            {
+              "handle": 19,
+              "x": 10368,
+              "y": 5504,
+              "kind": 2,
+              "open": false
+            },
+            {
+              "handle": 20,
+              "x": 11648,
+              "y": 640,
+              "kind": 6,
+              "readyAt": 0
+            }
+          ],
+          "focus": {
+            "handle": 18,
+            "bodyHint": null
+          }
+        },
+        "3": [],
+        "4": [],
+        "5": {
+          "cards": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "boosts": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "6": [
+          {
+            "mobType": 1,
+            "elite": 0,
+            "alive": 1,
+            "state": 0,
+            "clearedAt": 0,
+            "respawnAt": 0
+          },
+          {
+            "mobType": 12,
+            "elite": 0,
+            "alive": 1,
+            "state": 0,
+            "clearedAt": 0,
+            "respawnAt": 0
+          },
+          {
+            "mobType": 27,
+            "elite": 29,
+            "alive": 2,
+            "state": 0,
+            "clearedAt": 0,
+            "respawnAt": 0
+          }
+        ],
+        "7": [],
+        "8": null,
+        "9": null
+      },
+      "errors": [],
+      "overflow": false,
+      "inputFrames": [
+        {
+          "kind": "send",
+          "at": 4069.0999999046326,
+          "frame": null,
+          "message": {
+            "t": "input",
+            "seq": 1,
+            "cmds": [
+              {
+                "k": "aim",
+                "a": 2.4555678367614746
+              }
+            ]
+          }
+        },
+        {
+          "kind": "send",
+          "at": 4841.800000190735,
+          "frame": null,
+          "message": {
+            "t": "input",
+            "seq": 2,
+            "cmds": [
+              {
+                "k": "aim",
+                "a": 2.4973227977752686
+              }
+            ]
+          }
+        },
+        {
+          "kind": "send",
+          "at": 4875.900000095367,
+          "frame": null,
+          "message": {
+            "t": "input",
+            "seq": 3,
+            "cmds": [
+              {
+                "k": "aim",
+                "a": 2.4973227977752686
+              }
+            ]
+          }
+        }
+      ],
+      "decodedFrames": [
+        {
+          "at": 3824.4000000953674,
+          "message": {
+            "t": "state",
+            "tick": 77,
+            "items": [
+              {
+                "key": 1,
+                "value": {
+                  "activeSlot": 0,
+                  "slots": [
+                    null,
+                    null
+                  ],
+                  "potionSmall": 0,
+                  "potionLarge": 0,
+                  "potionsHealing": 0
+                }
+              },
+              {
+                "key": 2,
+                "value": {
+                  "rows": [
+                    {
+                      "handle": 1,
+                      "x": 3456,
+                      "y": 1664,
+                      "kind": 2,
+                      "open": false
+                    },
+                    {
+                      "handle": 2,
+                      "x": 8832,
+                      "y": 1664,
+                      "kind": 2,
+                      "open": false
+                    },
+                    {
+                      "handle": 3,
+                      "x": 9344,
+                      "y": 1408,
+                      "kind": 1,
+                      "weapon": 4
+                    },
+                    {
+                      "handle": 4,
+                      "x": 9600,
+                      "y": 2688,
+                      "kind": 6,
+                      "readyAt": 0
+                    },
+                    {
+                      "handle": 5,
+                      "x": 9856,
+                      "y": 5248,
+                      "kind": 1,
+                      "weapon": 0
+                    },
+                    {
+                      "handle": 6,
+                      "x": 10112,
+                      "y": 5504,
+                      "kind": 1,
+                      "weapon": 1
+                    },
+                    {
+                      "handle": 7,
+                      "x": 10368,
+                      "y": 896,
+                      "kind": 1,
+                      "weapon": 1
+                    },
+                    {
+                      "handle": 8,
+                      "x": 10368,
+                      "y": 1664,
+                      "kind": 2,
+                      "open": false
+                    },
+                    {
+                      "handle": 9,
+                      "x": 10368,
+                      "y": 5504,
+                      "kind": 2,
+                      "open": false
+                    },
+                    {
+                      "handle": 10,
+                      "x": 11648,
+                      "y": 640,
+                      "kind": 6,
+                      "readyAt": 0
+                    }
+                  ],
+                  "focus": {
+                    "handle": 8,
+                    "bodyHint": null
+                  }
+                }
+              },
+              {
+                "key": 3,
+                "value": []
+              },
+              {
+                "key": 4,
+                "value": []
+              },
+              {
+                "key": 5,
+                "value": {
+                  "cards": [
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0
+                  ],
+                  "boosts": [
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              },
+              {
+                "key": 6,
+                "value": [
+                  {
+                    "mobType": 1,
+                    "elite": 0,
+                    "alive": 1,
+                    "state": 0,
+                    "clearedAt": 0,
+                    "respawnAt": 0
+                  },
+                  {
+                    "mobType": 12,
+                    "elite": 0,
+                    "alive": 1,
+                    "state": 0,
+                    "clearedAt": 0,
+                    "respawnAt": 0
+                  },
+                  {
+                    "mobType": 27,
+                    "elite": 29,
+                    "alive": 2,
+                    "state": 0,
+                    "clearedAt": 0,
+                    "respawnAt": 0
+                  }
+                ]
+              },
+              {
+                "key": 7,
+                "value": []
+              },
+              {
+                "key": 8,
+                "value": null
+              },
+              {
+                "key": 9,
+                "value": null
+              }
+            ]
+          }
+        },
+        {
+          "at": 4875.099999904633,
+          "message": {
+            "t": "state",
+            "tick": 97,
+            "items": [
+              {
+                "key": 2,
+                "value": {
+                  "rows": [
+                    {
+                      "handle": 11,
+                      "x": 3456,
+                      "y": 1664,
+                      "kind": 2,
+                      "open": false
+                    },
+                    {
+                      "handle": 12,
+                      "x": 8832,
+                      "y": 1664,
+                      "kind": 2,
+                      "open": false
+                    },
+                    {
+                      "handle": 13,
+                      "x": 9344,
+                      "y": 1408,
+                      "kind": 1,
+                      "weapon": 4
+                    },
+                    {
+                      "handle": 14,
+                      "x": 9600,
+                      "y": 2688,
+                      "kind": 6,
+                      "readyAt": 0
+                    },
+                    {
+                      "handle": 15,
+                      "x": 9856,
+                      "y": 5248,
+                      "kind": 1,
+                      "weapon": 0
+                    },
+                    {
+                      "handle": 16,
+                      "x": 10112,
+                      "y": 5504,
+                      "kind": 1,
+                      "weapon": 1
+                    },
+                    {
+                      "handle": 17,
+                      "x": 10368,
+                      "y": 896,
+                      "kind": 1,
+                      "weapon": 1
+                    },
+                    {
+                      "handle": 18,
+                      "x": 10368,
+                      "y": 1664,
+                      "kind": 2,
+                      "open": false
+                    },
+                    {
+                      "handle": 19,
+                      "x": 10368,
+                      "y": 5504,
+                      "kind": 2,
+                      "open": false
+                    },
+                    {
+                      "handle": 20,
+                      "x": 11648,
+                      "y": 640,
+                      "kind": 6,
+                      "readyAt": 0
+                    }
+                  ],
+                  "focus": {
+                    "handle": 18,
+                    "bodyHint": null
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "victim": {
+      "open": true,
+      "welcome": {
+        "protocol": 13,
+        "content": "67183626db240b6a",
+        "player": 1,
+        "tick": 0,
+        "tickRate": 20,
+        "map": {
+          "w": 48,
+          "h": 40,
+          "hash": 477571931
+        }
+      },
+      "snapshot": {
+        "t": "snapshot",
+        "tick": 109,
+        "serverMs": 5450,
+        "phase": 1,
+        "ack": 0,
+        "training": false,
+        "me": {
+          "id": 1,
+          "faction": 2,
+          "x": 1296,
+          "y": 656,
+          "facing": 0,
+          "hp": 1020,
+          "maxHp": 1020,
+          "status": 1,
+          "weapon": 5,
+          "readyIn": 0,
+          "kills": 0,
+          "bounty": 0,
+          "gv": 0,
+          "moveSeq": 0,
+          "effects": 0,
+          "displaceSeq": 0,
+          "sig": 0,
+          "huntTarget": null,
+          "huntStacks": 0,
+          "wish": {
+            "ability": 1,
+            "readyAt": 48850,
+            "fullAt": 48850,
+            "maxCharges": 1,
+            "rechargeMs": 120000,
+            "charges": 0,
+            "nextChargeAt": 48850,
+            "cast": null
+          },
+          "barrierBits": 0,
+          "barrierRingStep": 0
+        },
+        "actors": [
+          {
+            "faction": 4,
+            "weapon": 5,
+            "hpPct": 100,
+            "status": 1,
+            "bounty": 0,
+            "kind": 0,
+            "effects": 0,
+            "displaceSeq": 0,
+            "mobTypeCode": 0,
+            "sig": 0,
+            "barrierPct": 0,
+            "barrierRingStep": 0,
+            "id": 2,
+            "x": 1104,
+            "y": 176,
+            "facing": 0
+          },
+          {
+            "faction": 0,
+            "weapon": 5,
+            "hpPct": 100,
+            "status": 1,
+            "bounty": 0,
+            "kind": 0,
+            "effects": 0,
+            "displaceSeq": 0,
+            "mobTypeCode": 0,
+            "sig": 0,
+            "barrierPct": 0,
+            "barrierRingStep": 0,
+            "id": 3,
+            "x": 1296,
+            "y": 176,
+            "facing": 2.4973208904266357
+          },
+          {
+            "faction": 4,
+            "weapon": 2,
+            "hpPct": 100,
+            "status": 1,
+            "bounty": 0,
+            "kind": 1,
+            "effects": 0,
+            "displaceSeq": 0,
+            "mobTypeCode": 29,
+            "sig": 0,
+            "barrierPct": 0,
+            "barrierRingStep": 0,
+            "id": 2147538944,
+            "x": 784,
+            "y": 976,
+            "facing": 1.5707963705062866
+          },
+          {
+            "faction": 2,
+            "weapon": 1,
+            "hpPct": 100,
+            "status": 1,
+            "bounty": 0,
+            "kind": 1,
+            "effects": 0,
+            "displaceSeq": 0,
+            "mobTypeCode": 13,
+            "sig": 0,
+            "barrierPct": 0,
+            "barrierRingStep": 0,
+            "id": 2147538945,
+            "x": 1200,
+            "y": 432,
+            "facing": -1.5707963705062866
+          },
+          {
+            "faction": 4,
+            "weapon": 0,
+            "hpPct": 100,
+            "status": 1,
+            "bounty": 0,
+            "kind": 1,
+            "effects": 0,
+            "displaceSeq": 0,
+            "mobTypeCode": 28,
+            "sig": 0,
+            "barrierPct": 0,
+            "barrierRingStep": 0,
+            "id": 2147538946,
+            "x": 720,
+            "y": 1040,
+            "facing": 0
+          }
+        ]
+      },
+      "collections": {
+        "1": {
+          "activeSlot": 0,
+          "slots": [
+            null,
+            null
+          ],
+          "potionSmall": 0,
+          "potionLarge": 0,
+          "potionsHealing": 0
+        },
+        "2": {
+          "rows": [
+            {
+              "handle": 13,
+              "x": 6272,
+              "y": 8064,
+              "kind": 6,
+              "readyAt": 0
+            },
+            {
+              "handle": 14,
+              "x": 8064,
+              "y": 9088,
+              "kind": 1,
+              "weapon": 1
+            },
+            {
+              "handle": 15,
+              "x": 8320,
+              "y": 9088,
+              "kind": 2,
+              "open": false
+            },
+            {
+              "handle": 16,
+              "x": 8832,
+              "y": 1664,
+              "kind": 2,
+              "open": false
+            },
+            {
+              "handle": 17,
+              "x": 9344,
+              "y": 1408,
+              "kind": 1,
+              "weapon": 4
+            },
+            {
+              "handle": 18,
+              "x": 9600,
+              "y": 2688,
+              "kind": 6,
+              "readyAt": 0
+            },
+            {
+              "handle": 19,
+              "x": 9856,
+              "y": 5248,
+              "kind": 1,
+              "weapon": 0
+            },
+            {
+              "handle": 20,
+              "x": 10112,
+              "y": 5504,
+              "kind": 1,
+              "weapon": 1
+            },
+            {
+              "handle": 21,
+              "x": 10368,
+              "y": 896,
+              "kind": 1,
+              "weapon": 1
+            },
+            {
+              "handle": 22,
+              "x": 10368,
+              "y": 1664,
+              "kind": 2,
+              "open": false
+            },
+            {
+              "handle": 23,
+              "x": 10368,
+              "y": 5504,
+              "kind": 2,
+              "open": false
+            },
+            {
+              "handle": 24,
+              "x": 11648,
+              "y": 640,
+              "kind": 6,
+              "readyAt": 0
+            }
+          ],
+          "focus": {
+            "handle": 23,
+            "bodyHint": null
+          }
+        },
+        "3": [],
+        "4": [],
+        "5": {
+          "cards": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "boosts": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "6": [
+          {
+            "mobType": 1,
+            "elite": 0,
+            "alive": 1,
+            "state": 0,
+            "clearedAt": 0,
+            "respawnAt": 0
+          },
+          {
+            "mobType": 12,
+            "elite": 0,
+            "alive": 1,
+            "state": 0,
+            "clearedAt": 0,
+            "respawnAt": 0
+          },
+          {
+            "mobType": 27,
+            "elite": 29,
+            "alive": 2,
+            "state": 0,
+            "clearedAt": 0,
+            "respawnAt": 0
+          }
+        ],
+        "7": [],
+        "8": null,
+        "9": null
+      },
+      "events": [],
+      "rejects": [],
+      "decodeErrors": [],
+      "received": 112,
+      "sent": []
+    },
+    "third": {
+      "open": true,
+      "welcome": {
+        "protocol": 13,
+        "content": "67183626db240b6a",
+        "player": 2,
+        "tick": 3,
+        "tickRate": 20,
+        "map": {
+          "w": 48,
+          "h": 40,
+          "hash": 477571931
+        }
+      },
+      "snapshot": {
+        "t": "snapshot",
+        "tick": 109,
+        "serverMs": 5450,
+        "phase": 1,
+        "ack": 0,
+        "training": false,
+        "me": {
+          "id": 2,
+          "faction": 4,
+          "x": 1104,
+          "y": 176,
+          "facing": 0,
+          "hp": 1145,
+          "maxHp": 1145,
+          "status": 1,
+          "weapon": 5,
+          "readyIn": 0,
+          "kills": 0,
+          "bounty": 0,
+          "gv": 0,
+          "moveSeq": 0,
+          "effects": 0,
+          "displaceSeq": 0,
+          "sig": 0,
+          "huntTarget": null,
+          "huntStacks": 0,
+          "wish": {
+            "ability": 4,
+            "readyAt": 48850,
+            "fullAt": 48850,
+            "maxCharges": 1,
+            "rechargeMs": 150000,
+            "charges": 0,
+            "nextChargeAt": 48850,
+            "cast": null
+          },
+          "barrierBits": 0,
+          "barrierRingStep": 0
+        },
+        "actors": [
+          {
+            "faction": 2,
+            "weapon": 5,
+            "hpPct": 100,
+            "status": 1,
+            "bounty": 0,
+            "kind": 0,
+            "effects": 0,
+            "displaceSeq": 0,
+            "mobTypeCode": 0,
+            "sig": 0,
+            "barrierPct": 0,
+            "barrierRingStep": 0,
+            "id": 1,
+            "x": 1296,
+            "y": 656,
+            "facing": 0
+          },
+          {
+            "faction": 0,
+            "weapon": 5,
+            "hpPct": 100,
+            "status": 1,
+            "bounty": 0,
+            "kind": 0,
+            "effects": 0,
+            "displaceSeq": 0,
+            "mobTypeCode": 0,
+            "sig": 0,
+            "barrierPct": 0,
+            "barrierRingStep": 0,
+            "id": 3,
+            "x": 1296,
+            "y": 176,
+            "facing": 2.4973208904266357
+          },
+          {
+            "faction": 0,
+            "weapon": 4,
+            "hpPct": 100,
+            "status": 1,
+            "bounty": 0,
+            "kind": 1,
+            "effects": 0,
+            "displaceSeq": 0,
+            "mobTypeCode": 2,
+            "sig": 0,
+            "barrierPct": 0,
+            "barrierRingStep": 0,
+            "id": 2147537408,
+            "x": 336,
+            "y": 432,
+            "facing": -1.5707963705062866
+          },
+          {
+            "faction": 2,
+            "weapon": 1,
+            "hpPct": 100,
+            "status": 1,
+            "bounty": 0,
+            "kind": 1,
+            "effects": 0,
+            "displaceSeq": 0,
+            "mobTypeCode": 13,
+            "sig": 0,
+            "barrierPct": 0,
+            "barrierRingStep": 0,
+            "id": 2147537409,
+            "x": 1200,
+            "y": 432,
+            "facing": -1.5707963705062866
+          }
+        ]
+      },
+      "collections": {
+        "1": {
+          "activeSlot": 0,
+          "slots": [
+            null,
+            null
+          ],
+          "potionSmall": 0,
+          "potionLarge": 0,
+          "potionsHealing": 0
+        },
+        "2": {
+          "rows": [
+            {
+              "handle": 14,
+              "x": 1920,
+              "y": 896,
+              "kind": 1,
+              "weapon": 1
+            },
+            {
+              "handle": 15,
+              "x": 1920,
+              "y": 1664,
+              "kind": 2,
+              "open": false
+            },
+            {
+              "handle": 16,
+              "x": 2688,
+              "y": 2688,
+              "kind": 6,
+              "readyAt": 0
+            },
+            {
+              "handle": 17,
+              "x": 3456,
+              "y": 1664,
+              "kind": 2,
+              "open": false
+            },
+            {
+              "handle": 18,
+              "x": 8832,
+              "y": 1664,
+              "kind": 2,
+              "open": false
+            },
+            {
+              "handle": 19,
+              "x": 9344,
+              "y": 1408,
+              "kind": 1,
+              "weapon": 4
+            },
+            {
+              "handle": 20,
+              "x": 9600,
+              "y": 2688,
+              "kind": 6,
+              "readyAt": 0
+            },
+            {
+              "handle": 21,
+              "x": 9856,
+              "y": 5248,
+              "kind": 1,
+              "weapon": 0
+            },
+            {
+              "handle": 22,
+              "x": 10112,
+              "y": 5504,
+              "kind": 1,
+              "weapon": 1
+            },
+            {
+              "handle": 23,
+              "x": 10368,
+              "y": 896,
+              "kind": 1,
+              "weapon": 1
+            },
+            {
+              "handle": 24,
+              "x": 10368,
+              "y": 1664,
+              "kind": 2,
+              "open": false
+            },
+            {
+              "handle": 25,
+              "x": 10368,
+              "y": 5504,
+              "kind": 2,
+              "open": false
+            },
+            {
+              "handle": 26,
+              "x": 11648,
+              "y": 640,
+              "kind": 6,
+              "readyAt": 0
+            }
+          ],
+          "focus": {
+            "handle": 18,
+            "bodyHint": null
+          }
+        },
+        "3": [],
+        "4": [],
+        "5": {
+          "cards": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "boosts": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "6": [
+          {
+            "mobType": 1,
+            "elite": 0,
+            "alive": 1,
+            "state": 0,
+            "clearedAt": 0,
+            "respawnAt": 0
+          },
+          {
+            "mobType": 12,
+            "elite": 0,
+            "alive": 1,
+            "state": 0,
+            "clearedAt": 0,
+            "respawnAt": 0
+          },
+          {
+            "mobType": 27,
+            "elite": 29,
+            "alive": 2,
+            "state": 0,
+            "clearedAt": 0,
+            "respawnAt": 0
+          }
+        ],
+        "7": [],
+        "8": null,
+        "9": null
+      },
+      "events": [],
+      "rejects": [],
+      "decodeErrors": [],
+      "received": 109,
+      "sent": []
+    }
+  },
+  "finishedAt": "2026-11-08T19:35:45.142Z"
+}
