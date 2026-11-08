@@ -11,7 +11,7 @@ the five older patches were mechanically regenerated against the formatted sourc
 byte-identical, `traders::` 5 passed, fmt/clippy clean; remaining: the coordinator-owned `trade` wire message/transport,
 presentation toasts and trader actor refs; focused-run only (no broad campaign) | `64bd5103`..`464844c5` on
 `deepseek/p-trade-1` (stacked on `deepseek/p-quest-1` @ `64bd5103`); [PR #56](https://github.com/Nevanyte/RougeHalla/pull/56) +
-`f0d7ae70`..`COMMIT_TBD` on `deepseek/p-trade-lock`; [PR #TBD](https://github.com/Nevanyte/RougeHalla/pull/TBD) | [`stage2-trade-1`](../stage2-trade-1/README.md), [`parity/trade`](../../../parity/trade/README.md) |
+`f0d7ae70`..`f75f5b88` on `deepseek/p-trade-lock`; [PR #64](https://github.com/Nevanyte/RougeHalla/pull/64) | [`stage2-trade-1`](../stage2-trade-1/README.md), [`parity/trade`](../../../parity/trade/README.md) |
 
 Branch: `deepseek/p-content-1`
 Base: `856618eb948555adefc6ff0bf4628d879d556250` (`origin/optimization_port`)
