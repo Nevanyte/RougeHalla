@@ -7,9 +7,14 @@ using UnityEngine.UI;
 
 namespace Roguehalla.Client.Tests
 {
+    [ExecuteAlways]
+    public sealed class GuideEditModeEventSystem : EventSystem { }
+
     public sealed class HubGuideViewEditModeTests
     {
         readonly List<GameObject> _objects = new List<GameObject>();
+        EventSystem _previousEvents;
+        GameObject _previousSelection;
 
         GameObject Create(string name, params System.Type[] components)
         {
@@ -20,10 +25,15 @@ namespace Roguehalla.Client.Tests
 
         EventSystem MakeEventSystem()
         {
-            var go = Create("EventSystem", typeof(EventSystem), typeof(StandaloneInputModule));
-            var events = go.GetComponent<EventSystem>();
-            // OnEnable appends systems; promote this fixture so EventSystem.current is the system we assert against.
+            _previousEvents = EventSystem.current;
+            _previousSelection = _previousEvents != null ? _previousEvents.currentSelectedGameObject : null;
+            var go = Create("EventSystem", typeof(GuideEditModeEventSystem), typeof(StandaloneInputModule));
+            var events = go.GetComponent<GuideEditModeEventSystem>();
+            // ExecuteAlways supplies a real edit-mode OnEnable registration; force the cycle before promoting it.
+            events.enabled = false;
+            events.enabled = true;
             EventSystem.current = events;
+            Assert.AreSame(events, EventSystem.current, "The fixture must be registered and current before testing focus.");
             return events;
         }
 
@@ -32,6 +42,13 @@ namespace Roguehalla.Client.Tests
         {
             for (int i = _objects.Count - 1; i >= 0; i--) if (_objects[i] != null) Object.DestroyImmediate(_objects[i]);
             _objects.Clear();
+            if (_previousEvents != null && _previousEvents.gameObject.activeInHierarchy)
+            {
+                if (EventSystem.current != _previousEvents) EventSystem.current = _previousEvents;
+                if (_previousSelection != null && _previousSelection.activeInHierarchy)
+                    _previousEvents.SetSelectedGameObject(_previousSelection);
+            }
+            _previousEvents = null; _previousSelection = null;
         }
 
         [Test]
