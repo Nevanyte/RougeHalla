@@ -47,7 +47,7 @@
    ]
   },
   "tools": {
-   "captureMts": "bf62ea17712e84906e7a105dbdc7ba36e8e4a3e490ef50bebf313c1b7bcf4483",
+   "captureMts": "1162ff2ab9a98c293b465ac34dc65391aa7b6213f6debed9aafed46b933c93ad",
    "captureSh": "e6292c2ac0e0f7296f3f7f2290645d5d8bc29e3565467b12f47184078627884c",
    "runMutantsSh": "6f66c1a0a5a1674f6b7570f30148cb0d8405952dc147e21b654c8872e6abf011",
    "packageLock": "991869bdfbbefb6874220500197c61db302a4d2b2603dfc2288fd7032ce1d481"
@@ -257,7 +257,7 @@
     },
     "diagnostics": [
      {
-      "name": "read-only hitLanded/overkilled/hurt hook taps plus beforeDamage ledger tap",
+      "name": "read-only hitLanded/overkilled/hurt/staggered hook taps plus beforeDamage ledger tap",
       "writesWorld": false
      }
     ]
@@ -374,17 +374,8 @@
       "hitLanded": [],
       "overkilled": [],
       "hurt": [],
-      "fighterOut": [
-       {
-        "hook": "fighterOut",
-        "tick": 2,
-        "time": 100,
-        "actor": "p2",
-        "args": [
-         null
-        ]
-       }
-      ],
+      "fighterOut": [],
+      "staggered": [],
       "hookOrder": []
      }
     },
@@ -452,17 +443,8 @@
       "hitLanded": [],
       "overkilled": [],
       "hurt": [],
-      "fighterOut": [
-       {
-        "hook": "fighterOut",
-        "tick": 2,
-        "time": 100,
-        "actor": "p2",
-        "args": [
-         null
-        ]
-       }
-      ],
+      "fighterOut": [],
+      "staggered": [],
       "hookOrder": []
      }
     },
@@ -530,17 +512,8 @@
       "hitLanded": [],
       "overkilled": [],
       "hurt": [],
-      "fighterOut": [
-       {
-        "hook": "fighterOut",
-        "tick": 2,
-        "time": 100,
-        "actor": "p2",
-        "args": [
-         null
-        ]
-       }
-      ],
+      "fighterOut": [],
+      "staggered": [],
       "hookOrder": []
      }
     },
@@ -747,6 +720,7 @@
         ]
        }
       ],
+      "staggered": [],
       "hookOrder": [
        {
         "hook": "fighterOut",
@@ -913,7 +887,7 @@
     },
     "diagnostics": [
      {
-      "name": "read-only hitLanded/overkilled/hurt hook taps plus beforeDamage ledger tap",
+      "name": "read-only hitLanded/overkilled/hurt/staggered hook taps plus beforeDamage ledger tap",
       "writesWorld": false
      }
     ]
@@ -1054,6 +1028,7 @@
       "overkilled": [],
       "hurt": [],
       "fighterOut": [],
+      "staggered": [],
       "hookOrder": []
      }
     },
@@ -1122,6 +1097,7 @@
       "overkilled": [],
       "hurt": [],
       "fighterOut": [],
+      "staggered": [],
       "hookOrder": []
      }
     },
@@ -1190,6 +1166,7 @@
       "overkilled": [],
       "hurt": [],
       "fighterOut": [],
+      "staggered": [],
       "hookOrder": []
      }
     },
@@ -1275,6 +1252,7 @@
       "overkilled": [],
       "hurt": [],
       "fighterOut": [],
+      "staggered": [],
       "hookOrder": []
      }
     }
@@ -1354,7 +1332,7 @@
     },
     "diagnostics": [
      {
-      "name": "read-only hitLanded/overkilled/hurt hook taps plus beforeDamage ledger tap",
+      "name": "read-only hitLanded/overkilled/hurt/staggered hook taps plus beforeDamage ledger tap",
       "writesWorld": false
      }
     ]
@@ -1494,17 +1472,8 @@
       "hitLanded": [],
       "overkilled": [],
       "hurt": [],
-      "fighterOut": [
-       {
-        "hook": "fighterOut",
-        "tick": 2,
-        "time": 100,
-        "actor": "p2",
-        "args": [
-         null
-        ]
-       }
-      ],
+      "fighterOut": [],
+      "staggered": [],
       "hookOrder": []
      }
     },
@@ -1572,17 +1541,8 @@
       "hitLanded": [],
       "overkilled": [],
       "hurt": [],
-      "fighterOut": [
-       {
-        "hook": "fighterOut",
-        "tick": 2,
-        "time": 100,
-        "actor": "p2",
-        "args": [
-         null
-        ]
-       }
-      ],
+      "fighterOut": [],
+      "staggered": [],
       "hookOrder": []
      }
     },
@@ -1650,17 +1610,8 @@
       "hitLanded": [],
       "overkilled": [],
       "hurt": [],
-      "fighterOut": [
-       {
-        "hook": "fighterOut",
-        "tick": 2,
-        "time": 100,
-        "actor": "p2",
-        "args": [
-         null
-        ]
-       }
-      ],
+      "fighterOut": [],
+      "staggered": [],
       "hookOrder": []
      }
     },
@@ -1867,6 +1818,7 @@
         ]
        }
       ],
+      "staggered": [],
       "hookOrder": [
        {
         "hook": "fighterOut",
@@ -2033,7 +1985,7 @@
     },
     "diagnostics": [
      {
-      "name": "read-only hitLanded/overkilled/hurt hook taps plus beforeDamage ledger tap",
+      "name": "read-only hitLanded/overkilled/hurt/staggered hook taps plus beforeDamage ledger tap",
       "writesWorld": false
      }
     ]
@@ -2178,17 +2130,8 @@
       "hitLanded": [],
       "overkilled": [],
       "hurt": [],
-      "fighterOut": [
-       {
-        "hook": "fighterOut",
-        "tick": 2,
-        "time": 100,
-        "actor": "p2",
-        "args": [
-         null
-        ]
-       }
-      ],
+      "fighterOut": [],
+      "staggered": [],
       "hookOrder": []
      }
     },
@@ -2256,17 +2199,8 @@
       "hitLanded": [],
       "overkilled": [],
       "hurt": [],
-      "fighterOut": [
-       {
-        "hook": "fighterOut",
-        "tick": 2,
-        "time": 100,
-        "actor": "p2",
-        "args": [
-         null
-        ]
-       }
-      ],
+      "fighterOut": [],
+      "staggered": [],
       "hookOrder": []
      }
     },
@@ -2334,17 +2268,8 @@
       "hitLanded": [],
       "overkilled": [],
       "hurt": [],
-      "fighterOut": [
-       {
-        "hook": "fighterOut",
-        "tick": 2,
-        "time": 100,
-        "actor": "p2",
-        "args": [
-         null
-        ]
-       }
-      ],
+      "fighterOut": [],
+      "staggered": [],
       "hookOrder": []
      }
     },
@@ -3338,6 +3263,50 @@
         ]
        }
       ],
+      "staggered": [
+       {
+        "hook": "staggered",
+        "tick": 2,
+        "time": 100,
+        "actor": "p1",
+        "args": []
+       },
+       {
+        "hook": "staggered",
+        "tick": 2,
+        "time": 100,
+        "actor": "p0",
+        "args": []
+       },
+       {
+        "hook": "staggered",
+        "tick": 32,
+        "time": 1600,
+        "actor": "p1",
+        "args": []
+       },
+       {
+        "hook": "staggered",
+        "tick": 32,
+        "time": 1600,
+        "actor": "p0",
+        "args": []
+       },
+       {
+        "hook": "staggered",
+        "tick": 61,
+        "time": 3050,
+        "actor": "p1",
+        "args": []
+       },
+       {
+        "hook": "staggered",
+        "tick": 61,
+        "time": 3050,
+        "actor": "p0",
+        "args": []
+       }
+      ],
       "hookOrder": [
        {
         "hook": "hurt",
@@ -3364,6 +3333,13 @@
          "sig": null
         },
         "amount": 36.137967
+       },
+       {
+        "hook": "staggered",
+        "tick": 2,
+        "time": 100,
+        "actor": "p1",
+        "args": []
        },
        {
         "hook": "fighterOut",
@@ -3491,6 +3467,13 @@
          "sig": "backlash"
         },
         "amount": 42.248291
+       },
+       {
+        "hook": "staggered",
+        "tick": 2,
+        "time": 100,
+        "actor": "p0",
+        "args": []
        },
        {
         "hook": "hurt",
@@ -3623,6 +3606,13 @@
         "amount": 36.137967
        },
        {
+        "hook": "staggered",
+        "tick": 32,
+        "time": 1600,
+        "actor": "p1",
+        "args": []
+       },
+       {
         "hook": "hurt",
         "tick": 32,
         "time": 1600,
@@ -3647,6 +3637,13 @@
          "sig": null
         },
         "amount": 36.137967
+       },
+       {
+        "hook": "staggered",
+        "tick": 32,
+        "time": 1600,
+        "actor": "p0",
+        "args": []
        },
        {
         "hook": "hurt",
@@ -3779,6 +3776,13 @@
         "amount": 36.137967
        },
        {
+        "hook": "staggered",
+        "tick": 61,
+        "time": 3050,
+        "actor": "p1",
+        "args": []
+       },
+       {
         "hook": "hurt",
         "tick": 61,
         "time": 3050,
@@ -3803,6 +3807,13 @@
          "sig": null
         },
         "amount": 36.137967
+       },
+       {
+        "hook": "staggered",
+        "tick": 61,
+        "time": 3050,
+        "actor": "p0",
+        "args": []
        },
        {
         "hook": "hurt",
@@ -3987,7 +3998,7 @@
     },
     "diagnostics": [
      {
-      "name": "read-only hitLanded/overkilled/hurt hook taps plus beforeDamage ledger tap",
+      "name": "read-only hitLanded/overkilled/hurt/staggered hook taps plus beforeDamage ledger tap",
       "writesWorld": false
      }
     ]
@@ -4109,17 +4120,8 @@
       "hitLanded": [],
       "overkilled": [],
       "hurt": [],
-      "fighterOut": [
-       {
-        "hook": "fighterOut",
-        "tick": 2,
-        "time": 100,
-        "actor": "p1",
-        "args": [
-         null
-        ]
-       }
-      ],
+      "fighterOut": [],
+      "staggered": [],
       "hookOrder": []
      }
     },
@@ -4187,17 +4189,8 @@
       "hitLanded": [],
       "overkilled": [],
       "hurt": [],
-      "fighterOut": [
-       {
-        "hook": "fighterOut",
-        "tick": 2,
-        "time": 100,
-        "actor": "p1",
-        "args": [
-         null
-        ]
-       }
-      ],
+      "fighterOut": [],
+      "staggered": [],
       "hookOrder": []
      }
     },
@@ -4265,17 +4258,8 @@
       "hitLanded": [],
       "overkilled": [],
       "hurt": [],
-      "fighterOut": [
-       {
-        "hook": "fighterOut",
-        "tick": 2,
-        "time": 100,
-        "actor": "p1",
-        "args": [
-         null
-        ]
-       }
-      ],
+      "fighterOut": [],
+      "staggered": [],
       "hookOrder": []
      }
     },
@@ -4423,6 +4407,7 @@
         ]
        }
       ],
+      "staggered": [],
       "hookOrder": [
        {
         "hook": "fighterOut",

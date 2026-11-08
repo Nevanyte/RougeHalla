@@ -34,8 +34,8 @@ function open(mapSeed=1):any{
 }
 function runner(name:string,mapSeed=1){
   const w=open(mapSeed); const actions:any[]=[]; const frames:any[]=[]; let seq=0; const hookSeq:any[]=[];
-  const hookTap:any={hitLanded:[],overkilled:[],hurt:[],fighterOut:[]};
-  for(const k of ['hitLanded','overkilled','hurt','fighterOut']){const prev=(w.hooks as any)[k]; (w.hooks as any)[k]=(...a:any[])=>{
+  const hookTap:any={hitLanded:[],overkilled:[],hurt:[],fighterOut:[],staggered:[]};
+  for(const k of ['hitLanded','overkilled','hurt','fighterOut','staggered']){const prev=(w.hooks as any)[k]; (w.hooks as any)[k]=(...a:any[])=>{
     const row:any={hook:k,tick:w.state.tick,time:w.state.serverTime};
     if(k==='hitLanded'){const e=a[1];row.entry={victim:e.victim,by:e.by.id,raw:r6(e.packet?.raw??0),weapon:e.weapon??null,arena:!!e.arena,scale:e.scale??1,ability:e.ability??null,sig:e.sig??null};row.amount=r6(a[2]);}
     else if(k==='overkilled'){const victim=a[1],hits=a[2];row.victim=victim.id;row.overkill=r6(a[3]);row.total=r6(a[4]);row.hits=hits.map((h:any)=>({by:h.entry.by.id,victim:h.entry.victim,amount:r6(h.amount),raw:r6(h.raw),weapon:h.entry.weapon??null,arena:!!h.entry.arena,sig:h.entry.sig??null}));}
@@ -51,10 +51,10 @@ function runner(name:string,mapSeed=1){
   const healOn=(a:string,amount:number)=>{const gained=heal(w,combatant(w,a) as any,amount,{ignoreLockout:true});push('heal',{actor:Number(a.slice(1)),amount,gained:r6(gained)});return gained;};
   const attack=(a:string,target:string)=>{const s=w.state.players.get(a)!;const t=w.state.players.get(target)!;assert.equal(enqueueClientMessage(w.players.get(a)!.inputs,'attack',{a:ang(s.x,s.y,t.x,t.y)}),true);push('input',{actor:Number(a.slice(1)),type:'attack',payload:{target}});};
   const player=(a:string)=>{const s=w.state.players.get(a);if(!s)return null;return {id:Number(a.slice(1)),faction:s.faction,x:r6(s.x),y:r6(s.y),hp:r6(s.hp),maxHp:r6(s.maxHp),barrier:r6(s.barrier),status:s.status,weapon0:s.weapon0,immuneUntil:r6(s.immuneUntil??0)};};
-  const snap=(label:string)=>{frames.push({label,actionCount:actions.length,tick:w.state.tick,time:r6(w.state.serverTime),phase:w.state.phase,idCounter:w.idCounter,world:{players:PLAYERS.map((_,i)=>player('p'+i)),mobs:[...w.state.mobs].map(([id,m]:any)=>({id,kind:m.kind,faction:m.faction,x:r6(m.x),y:r6(m.y),hp:r6(m.hp),maxHp:r6(m.maxHp),barrier:r6(m.barrier??0),status:m.status}))},hooks:{...hookTap,hitLanded:hookTap.hitLanded.splice(0),overkilled:hookTap.overkilled.splice(0),hurt:hookTap.hurt.splice(0),hookOrder:hookSeq.splice(0)}});};
+  const snap=(label:string)=>{frames.push({label,actionCount:actions.length,tick:w.state.tick,time:r6(w.state.serverTime),phase:w.state.phase,idCounter:w.idCounter,world:{players:PLAYERS.map((_,i)=>player('p'+i)),mobs:[...w.state.mobs].map(([id,m]:any)=>({id,kind:m.kind,faction:m.faction,x:r6(m.x),y:r6(m.y),hp:r6(m.hp),maxHp:r6(m.maxHp),barrier:r6(m.barrier??0),status:m.status}))},hooks:{...hookTap,hitLanded:hookTap.hitLanded.splice(0),overkilled:hookTap.overkilled.splice(0),hurt:hookTap.hurt.splice(0),fighterOut:hookTap.fighterOut.splice(0),staggered:hookTap.staggered.splice(0),hookOrder:hookSeq.splice(0)}});};
   const runSteps=(n:number)=>{for(let i=0;i<n;i++)step(w,TICK_MS);};
   const initial=PLAYERS.map((_,i)=>{const s=w.state.players.get('p'+i)!;return {x:r6(s.x),y:r6(s.y),faction:s.faction};});
-  const output=(script:any)=>({input:{name,map:{seed:mapSeed,attempt:ATTEMPT,decor:false},config:CONFIG,players:PLAYERS,initial,seeds:{random:RANDOM_SEED,rewardSalt:REWARD_SALT},diagnostics:[{name:'read-only hitLanded/overkilled/hurt hook taps plus beforeDamage ledger tap',writesWorld:false}]},script,actions,frames});
+  const output=(script:any)=>({input:{name,map:{seed:mapSeed,attempt:ATTEMPT,decor:false},config:CONFIG,players:PLAYERS,initial,seeds:{random:RANDOM_SEED,rewardSalt:REWARD_SALT},diagnostics:[{name:'read-only hitLanded/overkilled/hurt/staggered hook taps plus beforeDamage ledger tap',writesWorld:false}]},script,actions,frames});
   snap('start'); return {w,place,setHp,setWeapon,grant,healOn,attack,snap,runSteps,output,frames,actions,push};
 }
 const cases:any[]=[];
