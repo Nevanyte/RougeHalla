@@ -1,8 +1,12 @@
-# Proposed next delivered-cue packet
+# Delivered-cue source drafts
 
-Proposal for coordinator review; this is not an assigned runtime packet. The completed repair is `55825c10` (served runtime `4f37e9f0`), and the camp-stock source/Editor follow-up is `289a01e2`. Rust and public-flow integration retain priority. Creative reuse of the existing art family is permitted; bespoke assets for every archetype are not a prerequisite.
+The coordinator assigned a bounded, source-only draft from proposal `88dbc5cf` while native validation proceeds. Prop draft `4e51582b3f7662cfae0f885c232661012994bf24` and signature draft `8de291337bef904ec8c86baeb54dab05a25c5ba5` are separate reviewable commits. Both reuse current generated/catalog art; the prop scope excludes Body/Corpse changes, readiness clocks and extra labels. These drafts have received static review and `git diff --check` only. **Compilation is unverified; the seven prepared regressions have not been run**.
 
-## Concrete omissions
+No Unity command, build, browser or profile campaign was run for these drafts. The served runtime remains `4f37e9f0`; its evidence does not validate the new source. The camp-stock follow-up `289a01e2` remains source/Editor verified and is also absent from that served build. Deferred checks are Unity compilation, the prepared Editor regressions, staged and live gameplay-scale/CVD inspection, the required C# and source-copy checks, and the next coordinator-approved client/public-flow Web batch. Check signature-row crowding and the new prop silhouettes in that batch; their readability and cost are not established by static dimensions.
+
+The proposal below is retained as scope context. Rust and public-flow integration retain priority. Creative reuse of the existing art family is permitted; bespoke assets for every archetype are not a prerequisite.
+
+## Concrete omissions in served runtime `4f37e9f0`
 
 - `ArenaView.PresentCollections` renders Ground, WindEmblem and Cannon through the same generic rune, although the public view supplies distinct kinds and Ground weapon IDs. The repair census witnesses kinds 1/2/3/5/6 and Ground weapons 0–4. Chest `Open` is also delivered but not presented.
 - `SpriteActorPresenter.Present` renders every nonzero signature through one generic rune colored by the victim's faction. The repair census witnesses signature values 2 and 4. Rust `constants.rs` defines these as burning and disease; the presentation inventory requires distinct persistent cues.
@@ -31,4 +35,4 @@ These are missing distinctions in delivered gameplay facts, not reasons to acqui
 4. Include this work and camp stock in the next coordinator-approved client/public-flow Web batch. Run the required flow proof and any performance checks the coordinator assigns for the final world-rendering change; do not repeat an unchanged campaign by default.
 5. Pin source/build identities, portable evidence and raw hashes. Native 144 Hz, allocation throughput, total-memory limitations and remaining full-plan requirements stay open until separately demonstrated.
 
-No implementation or new measurement campaign has started under this proposal.
+The bounded source drafts above are prepared for coordinator review. Runtime validation and any further measurement campaign remain deferred.
