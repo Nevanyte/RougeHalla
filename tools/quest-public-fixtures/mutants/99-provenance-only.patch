@@ -1,0 +1,6 @@
+--- a/packages/client/src/ui/questDialog.ts
++++ b/packages/client/src/ui/questDialog.ts
+@@ -1,2 +1,2 @@
+-// The quest dialog: F next to a quest giver opens its offer, and Accept sends `questAccept`. Nothing of an offer counts for a player
++// The quest-dialog: F next to a quest giver opens its offer, and Accept sends `questAccept`. Nothing of an offer counts for a player
+ // until they have accepted it (kills, tokens, the parcel, the turn-in), so this is where a quest starts.

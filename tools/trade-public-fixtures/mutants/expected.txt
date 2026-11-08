@@ -1,0 +1,5 @@
+01-trade-door-payload|doors.json|FIRST_MISMATCH /clientDoor/cases/0/actual/sent/0/payload/trader expected="trader-stats" mutant="Soul Broker"
+02-trade-barter-cooldown|doors.json|FIRST_MISMATCH /actions/cases/4/actual/events/1/text expected="The villager is packing your last trade" mutant="Traded for Wand"
+03-trade-offer-not-synced|schema-receivers.json|FIRST_MISMATCH /schema/kinds/1/fields/9/name expected="tradeOffers" mutant="tradeStats"
+04-trade-offer-cost|doors.json|FIRST_MISMATCH /clientDoor/cases/0/actual/view/choices/0/text expected="−12% attack speed → +18% movement speed" mutant="−11% attack speed → +18% movement speed"
+99-provenance-only|IDENTICAL

@@ -1,0 +1,10 @@
+--- a/packages/client/src/ui/traderPanel.ts
++++ b/packages/client/src/ui/traderPanel.ts
+@@ -62,5 +62,5 @@
+         if (button.disabled) return;
+         this.pendingUntil = (frame.serverNow ?? 0) + 700;
+         this.buttons.forEach(b => { b.disabled = true; });
+-        this.onTrade(trader.id, i);
++        this.onTrade(trader.name, i);
+       });
+       this.buttons.push(button); this.choices.append(button);

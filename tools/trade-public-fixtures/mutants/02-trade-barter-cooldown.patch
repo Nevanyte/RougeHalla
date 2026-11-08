@@ -1,0 +1,9 @@
+--- a/packages/server/src/sim/traders.ts
++++ b/packages/server/src/sim/traders.ts
+@@ -94,5 +94,5 @@
+     setSlot(p, p.slot === 1 ? 1 : 0, cmd.pick === 0 ? first! : null); weaponChanged(w, c);
+   }
+-  w.traders?.barterAt.set(c.id, w.state.serverTime + 5000);
++  w.traders?.barterAt.set(c.id, w.state.serverTime + 0);
+   notify(w, c.id, cmd.pick === 1 ? "Traded weapon for a small healing potion" : `Traded for ${WEAPONS[(cmd.pick === 0 ? first : second)!].name}`);
+ };

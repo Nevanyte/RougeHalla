@@ -1,0 +1,10 @@
+--- a/packages/shared/src/quests.ts
++++ b/packages/shared/src/quests.ts
+@@ -270,6 +270,6 @@
+ export const QUEST_REFUSAL = {
+   busy: "Can't do that now",
+-  far: "Too far away",
++  far: "Not close enough",
+   blocked: "Can't reach that",
+   over: "That quest is over",
+   already: "You already accepted that quest",

@@ -1,0 +1,9 @@
+--- a/packages/server/src/sim/inputs.ts
++++ b/packages/server/src/sim/inputs.ts
+@@ -179,5 +179,5 @@
+ export function parseQuestAccept(msg: unknown): QuestAcceptCommand | null {
+   if (!isRecord(msg)) return null;
+-  const quest = parseId(msg.quest);
++  const quest = typeof msg.quest === "string" ? msg.quest : null;
+   return quest ? { kind: "questAccept", quest } : null;
+ }
