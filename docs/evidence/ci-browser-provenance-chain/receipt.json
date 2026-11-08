@@ -206,10 +206,36 @@
       "assertion": "strict expected-value mismatch"
     },
     "protectedHash": {
-      "status": "run in disposable worktree after commit; result appended by final evidence commit"
+      "method": "disposable git worktree at the same HEAD; appended one comment line to tools/browser-proof/proof.mjs (sha 4a1ce2f5...); no active-source mutation",
+      "auditorExit": 1,
+      "failures": [
+        {
+          "kind": "catalog-protected-sha",
+          "path": "tools/browser-proof/proof.mjs",
+          "expected": "6aea66795ed18edd941a4bc65c62070d6a6e2fce1b57cd98d0238db134fcfd66",
+          "actual": "4a1ce2f594bffd6474d651f760da9a58c67fe95e38203cc319932f4aa159db50"
+        }
+      ]
     },
     "unknownOverlayPath": {
-      "status": "run in disposable worktree after commit; result appended by final evidence commit"
+      "method": "disposable copy of parity/card-runtime-witness/source.json with an added tools/unknown/extra.mjs acceptedProvenanceOverlay entry",
+      "auditorExit": 1,
+      "failures": [
+        {
+          "kind": "witness-overlay-count"
+        },
+        {
+          "kind": "witness-overlay-unknown-path"
+        },
+        {
+          "kind": "witness-source-hash",
+          "note": "expected because the disposable witness source bytes were modified"
+        }
+      ]
+    },
+    "disposablePositive": {
+      "auditorExit": 0,
+      "failures": 0
     }
   },
   "trackedEvidence": {
@@ -218,5 +244,8 @@
     "oldBytes": "external /tmp/ci-browser-provenance/old only; no large corpora committed"
   },
   "externalWorkspace": "/tmp/ci-browser-provenance",
-  "limits": "provenance-only metadata refresh; no production/native/browser/protocol/Unity/Cargo/status edit; expected semantics, cases, private records, clean controls and comparisons unchanged; no map/full-workspace/Web/cloud/ML campaign; root owns merge/status/lock/identities; separate checker result appended by final evidence commit"
+  "limits": "provenance-only metadata refresh; no production/native/browser/protocol/Unity/Cargo/status edit; expected semantics, cases, private records, clean controls and comparisons unchanged; no map/full-workspace/Web/cloud/ML campaign; root owns merge/status/lock/identities; separate checker result appended by final evidence commit",
+  "checker": {
+    "status": "separate checker running; result appended by the final evidence commit"
+  }
 }

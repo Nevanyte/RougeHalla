@@ -61,8 +61,13 @@ Positive pinned bytechecks: catalog `2ddb8f85…`, runtime `9e357ed4…`, witnes
 Negative semantic output controls (canonical bytes untouched): catalog `/cases/0/id` changed
 (sha `279ebd6c…`) -> exit 1 `canonical bytes differ`; runtime `/cases/0/final/label` changed (sha `f52fc78a…`) -> exit 1
 `one canonical source runtime recapture`; witness `/cases/0/expected/name` changed (sha `90346039…`) -> exit 1.
-Disposable-worktree controls for changed protected hash and unknown overlay path are appended by the final evidence
-commit (no in-place mutation of active source).
+Disposable-worktree controls (fresh ~git worktree add /tmp/... at the same HEAD; no in-place mutation of active source):
+the unmodified disposable worktree audit exits 0. Changing the protected `tools/browser-proof/proof.mjs` bytes in that
+disposable copy (sha `4a1ce2f5…`) makes the auditor exit 1 with exactly `catalog-protected-sha`,
+path `tools/browser-proof/proof.mjs` (expected `6aea6679…`, mutated actual) — this is the pre-CI browser mismatch class.
+Adding an unknown `tools/unknown/extra.mjs` accepted-overlay entry to the disposable witness source makes it exit 1 with
+`witness-overlay-count` and `witness-overlay-unknown-path` (plus the expected witness-source hash failure from the
+modified disposable file), proving unknown/mismatched overlay paths are rejected.
 
 ## Evidence, logs and limits
 
