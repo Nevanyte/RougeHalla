@@ -2532,6 +2532,432 @@
     "seed": null,
     "statsFile": null
    }
+  },
+  {
+   "name": "fill-to-nel-only-falls-back",
+   "env": {
+    "BOTS_FILL_TO": ""
+   },
+   "bots": {
+    "fillTo": 8,
+    "arrivalSeconds": 12,
+    "tierMix": {
+     "easy": 0.3,
+     "normal": 0.45,
+     "hard": 0.25
+    },
+    "personaMix": {
+     "farmer": 4,
+     "hunter": 1,
+     "opportunist": 2,
+     "cautious": 3
+    },
+    "latencyMs": 30,
+    "jitterMs": 8,
+    "seed": null,
+    "statsFile": null
+   }
+  },
+  {
+   "name": "fill-to-nel-wrapped-digit-falls-back",
+   "env": {
+    "BOTS_FILL_TO": "6"
+   },
+   "bots": {
+    "fillTo": 8,
+    "arrivalSeconds": 12,
+    "tierMix": {
+     "easy": 0.3,
+     "normal": 0.45,
+     "hard": 0.25
+    },
+    "personaMix": {
+     "farmer": 4,
+     "hunter": 1,
+     "opportunist": 2,
+     "cautious": 3
+    },
+    "latencyMs": 30,
+    "jitterMs": 8,
+    "seed": null,
+    "statsFile": null
+   }
+  },
+  {
+   "name": "arrival-nel-falls-back",
+   "env": {
+    "BOTS_ARRIVAL_SECONDS": ""
+   },
+   "bots": {
+    "fillTo": 8,
+    "arrivalSeconds": 12,
+    "tierMix": {
+     "easy": 0.3,
+     "normal": 0.45,
+     "hard": 0.25
+    },
+    "personaMix": {
+     "farmer": 4,
+     "hunter": 1,
+     "opportunist": 2,
+     "cautious": 3
+    },
+    "latencyMs": 30,
+    "jitterMs": 8,
+    "seed": null,
+    "statsFile": null
+   }
+  },
+  {
+   "name": "seed-nel-wrapped-is-null",
+   "env": {
+    "BOTS_SEED": "7"
+   },
+   "bots": {
+    "fillTo": 8,
+    "arrivalSeconds": 12,
+    "tierMix": {
+     "easy": 0.3,
+     "normal": 0.45,
+     "hard": 0.25
+    },
+    "personaMix": {
+     "farmer": 4,
+     "hunter": 1,
+     "opportunist": 2,
+     "cautious": 3
+    },
+    "latencyMs": 30,
+    "jitterMs": 8,
+    "seed": null,
+    "statsFile": null
+   }
+  },
+  {
+   "name": "stats-file-nel-wrapped-off-is-a-path",
+   "env": {
+    "BOT_STATS_FILE": "off"
+   },
+   "bots": {
+    "fillTo": 8,
+    "arrivalSeconds": 12,
+    "tierMix": {
+     "easy": 0.3,
+     "normal": 0.45,
+     "hard": 0.25
+    },
+    "personaMix": {
+     "farmer": 4,
+     "hunter": 1,
+     "opportunist": 2,
+     "cautious": 3
+    },
+    "latencyMs": 30,
+    "jitterMs": 8,
+    "seed": null,
+    "statsFile": "file"
+   }
+  },
+  {
+   "name": "mix-nel-weight-invalid-keeps-default",
+   "env": {
+    "BOTS_TIER_MIX": "easy:6"
+   },
+   "bots": {
+    "fillTo": 8,
+    "arrivalSeconds": 12,
+    "tierMix": {
+     "easy": 0.3,
+     "normal": 0.45,
+     "hard": 0.25
+    },
+    "personaMix": {
+     "farmer": 4,
+     "hunter": 1,
+     "opportunist": 2,
+     "cautious": 3
+    },
+    "latencyMs": 30,
+    "jitterMs": 8,
+    "seed": null,
+    "statsFile": null
+   }
+  },
+  {
+   "name": "fill-to-nbsp-wrapped",
+   "env": {
+    "BOTS_FILL_TO": " 6 "
+   },
+   "bots": {
+    "fillTo": 6,
+    "arrivalSeconds": 12,
+    "tierMix": {
+     "easy": 0.3,
+     "normal": 0.45,
+     "hard": 0.25
+    },
+    "personaMix": {
+     "farmer": 4,
+     "hunter": 1,
+     "opportunist": 2,
+     "cautious": 3
+    },
+    "latencyMs": 30,
+    "jitterMs": 8,
+    "seed": null,
+    "statsFile": null
+   }
+  },
+  {
+   "name": "fill-to-bom-wrapped",
+   "env": {
+    "BOTS_FILL_TO": "﻿6﻿"
+   },
+   "bots": {
+    "fillTo": 6,
+    "arrivalSeconds": 12,
+    "tierMix": {
+     "easy": 0.3,
+     "normal": 0.45,
+     "hard": 0.25
+    },
+    "personaMix": {
+     "farmer": 4,
+     "hunter": 1,
+     "opportunist": 2,
+     "cautious": 3
+    },
+    "latencyMs": 30,
+    "jitterMs": 8,
+    "seed": null,
+    "statsFile": null
+   }
+  },
+  {
+   "name": "fill-to-ls-ps-wrapped",
+   "env": {
+    "BOTS_FILL_TO": " 6 "
+   },
+   "bots": {
+    "fillTo": 6,
+    "arrivalSeconds": 12,
+    "tierMix": {
+     "easy": 0.3,
+     "normal": 0.45,
+     "hard": 0.25
+    },
+    "personaMix": {
+     "farmer": 4,
+     "hunter": 1,
+     "opportunist": 2,
+     "cautious": 3
+    },
+    "latencyMs": 30,
+    "jitterMs": 8,
+    "seed": null,
+    "statsFile": null
+   }
+  },
+  {
+   "name": "fill-to-tab-lf-wrapped",
+   "env": {
+    "BOTS_FILL_TO": "\u000b6\f"
+   },
+   "bots": {
+    "fillTo": 6,
+    "arrivalSeconds": 12,
+    "tierMix": {
+     "easy": 0.3,
+     "normal": 0.45,
+     "hard": 0.25
+    },
+    "personaMix": {
+     "farmer": 4,
+     "hunter": 1,
+     "opportunist": 2,
+     "cautious": 3
+    },
+    "latencyMs": 30,
+    "jitterMs": 8,
+    "seed": null,
+    "statsFile": null
+   }
+  },
+  {
+   "name": "arrival-nbsp-wrapped",
+   "env": {
+    "BOTS_ARRIVAL_SECONDS": " 3.5 "
+   },
+   "bots": {
+    "fillTo": 8,
+    "arrivalSeconds": 3.5,
+    "tierMix": {
+     "easy": 0.3,
+     "normal": 0.45,
+     "hard": 0.25
+    },
+    "personaMix": {
+     "farmer": 4,
+     "hunter": 1,
+     "opportunist": 2,
+     "cautious": 3
+    },
+    "latencyMs": 30,
+    "jitterMs": 8,
+    "seed": null,
+    "statsFile": null
+   }
+  },
+  {
+   "name": "latency-nel-jitter-nbsp",
+   "env": {
+    "BOTS_LATENCY_MS": "5",
+    "BOTS_JITTER_MS": " 4 "
+   },
+   "bots": {
+    "fillTo": 8,
+    "arrivalSeconds": 12,
+    "tierMix": {
+     "easy": 0.3,
+     "normal": 0.45,
+     "hard": 0.25
+    },
+    "personaMix": {
+     "farmer": 4,
+     "hunter": 1,
+     "opportunist": 2,
+     "cautious": 3
+    },
+    "latencyMs": 30,
+    "jitterMs": 4,
+    "seed": null,
+    "statsFile": null
+   }
+  },
+  {
+   "name": "seed-nbsp-wrapped",
+   "env": {
+    "BOTS_SEED": " 7 "
+   },
+   "bots": {
+    "fillTo": 8,
+    "arrivalSeconds": 12,
+    "tierMix": {
+     "easy": 0.3,
+     "normal": 0.45,
+     "hard": 0.25
+    },
+    "personaMix": {
+     "farmer": 4,
+     "hunter": 1,
+     "opportunist": 2,
+     "cautious": 3
+    },
+    "latencyMs": 30,
+    "jitterMs": 8,
+    "seed": 7,
+    "statsFile": null
+   }
+  },
+  {
+   "name": "stats-file-nbsp-wrapped-off-is-off",
+   "env": {
+    "BOT_STATS_FILE": " off "
+   },
+   "bots": {
+    "fillTo": 8,
+    "arrivalSeconds": 12,
+    "tierMix": {
+     "easy": 0.3,
+     "normal": 0.45,
+     "hard": 0.25
+    },
+    "personaMix": {
+     "farmer": 4,
+     "hunter": 1,
+     "opportunist": 2,
+     "cautious": 3
+    },
+    "latencyMs": 30,
+    "jitterMs": 8,
+    "seed": null,
+    "statsFile": ""
+   }
+  },
+  {
+   "name": "stats-file-bom-wrapped-off-is-off",
+   "env": {
+    "BOT_STATS_FILE": "﻿off﻿"
+   },
+   "bots": {
+    "fillTo": 8,
+    "arrivalSeconds": 12,
+    "tierMix": {
+     "easy": 0.3,
+     "normal": 0.45,
+     "hard": 0.25
+    },
+    "personaMix": {
+     "farmer": 4,
+     "hunter": 1,
+     "opportunist": 2,
+     "cautious": 3
+    },
+    "latencyMs": 30,
+    "jitterMs": 8,
+    "seed": null,
+    "statsFile": ""
+   }
+  },
+  {
+   "name": "mix-nbsp-weight",
+   "env": {
+    "BOTS_TIER_MIX": "easy: 6"
+   },
+   "bots": {
+    "fillTo": 8,
+    "arrivalSeconds": 12,
+    "tierMix": {
+     "easy": 6,
+     "normal": 0,
+     "hard": 0
+    },
+    "personaMix": {
+     "farmer": 4,
+     "hunter": 1,
+     "opportunist": 2,
+     "cautious": 3
+    },
+    "latencyMs": 30,
+    "jitterMs": 8,
+    "seed": null,
+    "statsFile": null
+   }
+  },
+  {
+   "name": "mix-bom-weight",
+   "env": {
+    "BOTS_PERSONA_MIX": "farmer:﻿6"
+   },
+   "bots": {
+    "fillTo": 8,
+    "arrivalSeconds": 12,
+    "tierMix": {
+     "easy": 0.3,
+     "normal": 0.45,
+     "hard": 0.25
+    },
+    "personaMix": {
+     "farmer": 6,
+     "hunter": 0,
+     "opportunist": 0,
+     "cautious": 0
+    },
+    "latencyMs": 30,
+    "jitterMs": 8,
+    "seed": null,
+    "statsFile": null
+   }
   }
  ],
  "numbers": [
@@ -2758,6 +3184,82 @@
    "kind": "number",
    "value": 3.402823669209385e+38,
    "negativeZero": false
+  },
+  {
+   "text": "",
+   "kind": "nan"
+  },
+  {
+   "text": "5",
+   "kind": "nan"
+  },
+  {
+   "text": "5",
+   "kind": "nan"
+  },
+  {
+   "text": " 5 ",
+   "kind": "nan"
+  },
+  {
+   "text": " 5 ",
+   "kind": "nan"
+  },
+  {
+   "text": "﻿ 5 ﻿",
+   "kind": "number",
+   "value": 5,
+   "negativeZero": false
+  },
+  {
+   "text": "  5  ",
+   "kind": "number",
+   "value": 5,
+   "negativeZero": false
+  },
+  {
+   "text": "\u000b5\f",
+   "kind": "number",
+   "value": 5,
+   "negativeZero": false
+  },
+  {
+   "text": "\t5\n",
+   "kind": "number",
+   "value": 5,
+   "negativeZero": false
   }
- ]
+ ],
+ "trim": {
+  "source": "config.ts parseMix String.prototype.trim probe over every Unicode scalar value in the pinned runtime",
+  "inputScope": "the BOTS_* environment surface: num/parseMix/BOT_STATS_FILE/BOTS_SEED trims",
+  "runtimeScope": "node:22.23.4-bookworm-slim linux/amd64 (pinned above)",
+  "members": [
+   9,
+   10,
+   11,
+   12,
+   13,
+   32,
+   160,
+   5760,
+   8192,
+   8193,
+   8194,
+   8195,
+   8196,
+   8197,
+   8198,
+   8199,
+   8200,
+   8201,
+   8202,
+   8232,
+   8233,
+   8239,
+   8287,
+   12288,
+   65279
+  ]
+ }
 }

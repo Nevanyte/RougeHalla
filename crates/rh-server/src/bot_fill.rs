@@ -802,12 +802,39 @@ fn decimal_literal(text: &str) -> bool {
     i == bytes.len()
 }
 
-/// ECMAScript TrimString: the specification's WhiteSpace and LineTerminator set (UTF-8 BOM included; the source trims
-/// env values with String.prototype.trim).
+/// The source trim membership: the complete ECMAScript trim set as the pinned linux/amd64 Node 22.23.4 runtime evaluates
+/// it for the unchanged legacy config source. Captured exhaustively over every Unicode scalar value through config.ts
+/// parseMix's String.prototype.trim (parity/policy/bot-runtime.json, "trim"); the committed list is the small 25 code
+/// points below. Input scope: exactly the BOTS_* environment surface's trims (num, parseMix items, BOT_STATS_FILE and
+/// BOTS_SEED); runtime scope: the pinned container. NEL U+0085 is NOT a member (Rust's char::is_whitespace wrongly
+/// includes it: that turned BOTS_FILL_TO="\u{85}" into 0 instead of the source fallback 8, and
+/// BOT_STATS_FILE="\u{85}off\u{85}" into learning off instead of a literal path). U+FEFF (BOM) and the line
+/// separators ARE members. Do not replace this with a broad Unicode property.
+fn is_js_trim_space(c: char) -> bool {
+    matches!(
+        c,
+        '\u{0009}'
+            | '\u{000A}'
+            | '\u{000B}'
+            | '\u{000C}'
+            | '\u{000D}'
+            | '\u{0020}'
+            | '\u{00A0}'
+            | '\u{1680}'
+            | '\u{2000}'
+            ..='\u{200A}'
+                | '\u{2028}'
+                | '\u{2029}'
+                | '\u{202F}'
+                | '\u{205F}'
+                | '\u{3000}'
+                | '\u{FEFF}'
+    )
+}
+
+/// ECMAScript TrimString over those exact members (the source trims env values with String.prototype.trim).
 fn trim_js_whitespace(text: &str) -> &str {
-    text.trim_matches(|c: char| {
-        c.is_whitespace() || c == '\u{FEFF}' || c == '\u{2028}' || c == '\u{2029}'
-    })
+    text.trim_matches(is_js_trim_space)
 }
 
 /// ECMAScript Math.round (non-negative inputs here): halves round toward +Infinity, and the near-half double

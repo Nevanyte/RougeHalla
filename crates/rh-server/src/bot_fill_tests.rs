@@ -739,3 +739,126 @@ fn bot_stats_file_off_keeps_the_used_configuration_learning_free() {
     let enabled = server_fill_config(|_| None, Some(8), Some(live.clone()));
     assert_eq!(enabled.learned, live);
 }
+
+// ============================================================ P-BOTS-7b trim repair: exact source trim membership
+
+/// The captured source trim membership, checked against EVERY Unicode scalar value: one extra or missing member fails.
+/// The expected membership comes from the pinned-container capture in parity/policy/bot-runtime.json ("trim", evaluated
+/// through the unchanged config.ts parseMix String.prototype.trim in the pinned linux/amd64 Node 22.23.4 runtime).
+#[test]
+fn the_js_trim_membership_is_exact_over_every_unicode_scalar() {
+    let doc: Value = serde_json::from_str(include_str!("../../../parity/policy/bot-runtime.json"))
+        .expect("the captured bot-runtime corpus parses");
+    let trim = &doc["trim"];
+    let members: Vec<u32> = trim["members"]
+        .as_array()
+        .expect("the captured trim membership")
+        .iter()
+        .map(|v| v.as_u64().expect("a code point") as u32)
+        .collect();
+    assert!(
+        members.len() < 64,
+        "the committed membership is a small list"
+    );
+    let expected: std::collections::BTreeSet<u32> = members.iter().copied().collect();
+    assert_eq!(expected.len(), members.len(), "no duplicate members");
+    let mut extra = Vec::new();
+    let mut missing = Vec::new();
+    for cp in 0..=0x10FFFFu32 {
+        let Some(c) = char::from_u32(cp) else {
+            continue;
+        };
+        let want = expected.contains(&cp);
+        let got = is_js_trim_space(c);
+        if got && !want {
+            extra.push(cp);
+        }
+        if want && !got {
+            missing.push(cp);
+        }
+    }
+    assert!(
+        extra.is_empty() && missing.is_empty(),
+        "the port's trim membership diverges from the captured source: extra {extra:?}, missing {missing:?}"
+    );
+    // The source's whitespace and line terminators are members, NEL is explicitly not.
+    for cp in [
+        0x09u32, 0x0A, 0x0B, 0x0C, 0x0D, 0x20, 0xA0, 0x1680, 0x2028, 0x2029, 0x202F, 0x205F,
+        0x3000, 0xFEFF,
+    ] {
+        assert!(expected.contains(&cp), "U+{cp:04X} is a source trim member");
+    }
+    for cp in 0x2000u32..=0x200A {
+        assert!(expected.contains(&cp), "U+{cp:04X} is a source trim member");
+    }
+    assert!(!expected.contains(&0x85), "NEL is not a source trim member");
+    // The trim helper itself: NEL stays, the real members (BOM, line terminators, spaces) go.
+    assert_eq!(trim_js_whitespace("\u{85}off\u{85}"), "\u{85}off\u{85}");
+    assert_eq!(trim_js_whitespace("\u{FEFF}6\u{2029}"), "6");
+    assert_eq!(trim_js_whitespace("\u{2028}\u{2029} \u{000B}"), "");
+}
+
+/// The pre-repair broad Rust property (char::is_whitespace plus the three exceptions) is the negative control: it must
+/// differ from the captured source membership, and that exact difference is what the two reviewer-named behaviours were.
+#[test]
+fn the_old_whitespace_property_is_the_trim_negative_control() {
+    fn old_is_trim_space(c: char) -> bool {
+        c.is_whitespace() || c == '\u{FEFF}' || c == '\u{2028}' || c == '\u{2029}'
+    }
+    let mut divergent = Vec::new();
+    for cp in 0..=0x10FFFFu32 {
+        let Some(c) = char::from_u32(cp) else {
+            continue;
+        };
+        if old_is_trim_space(c) != is_js_trim_space(c) {
+            divergent.push(cp);
+        }
+    }
+    assert_eq!(
+        divergent,
+        [0x85u32],
+        "the old property differs exactly at NEL U+0085"
+    );
+    // Behaviour 1: the old trim stripped NEL, leaving an empty string that Number reads as 0, so BOTS_FILL_TO="NEL"
+    // became 0 instead of the source fallback 8.
+    let old_trim = |raw: &str| {
+        raw.trim_matches(|c: char| {
+            c.is_whitespace() || c == '\u{FEFF}' || c == '\u{2028}' || c == '\u{2029}'
+        })
+        .to_string()
+    };
+    assert_eq!(old_trim("\u{85}"), "");
+    assert_eq!(
+        js_number(&old_trim("\u{85}")),
+        0.,
+        "the old trim made NEL read as zero"
+    );
+    let fixed = BotFillConfig::from_env(|k| (k == "BOTS_FILL_TO").then(|| "\u{85}".to_string()));
+    assert_eq!(
+        fixed.fill_to,
+        BotFillConfig::default().fill_to,
+        "the source Number(NEL) is NaN, so the value falls back"
+    );
+    // Behaviour 2: the old trim stripped NEL around "off", disabling learning; the source keeps the literal path.
+    assert_eq!(old_trim("\u{85}off\u{85}"), "off");
+    let fixed_stats =
+        BotFillConfig::from_env(|k| (k == "BOT_STATS_FILE").then(|| "\u{85}off\u{85}".to_string()));
+    assert_eq!(
+        fixed_stats.stats_file,
+        StatsFile::Path("\u{85}off\u{85}".to_string())
+    );
+    assert!(
+        fixed_stats.learning_enabled(),
+        "a NEL-wrapped off stays a path"
+    );
+    // Positive real-whitespace controls: the actual source members around a number do trim to the value.
+    for (raw, want) in [
+        ("\u{00A0}6\u{00A0}", 6usize),
+        ("\u{FEFF}6\u{FEFF}", 6),
+        ("\u{2028}6\u{2029}", 6),
+        ("\u{000B}6\u{000C}", 6),
+    ] {
+        let cfg = BotFillConfig::from_env(|k| (k == "BOTS_FILL_TO").then(|| raw.to_string()));
+        assert_eq!(cfg.fill_to, want, "{raw:?} trims to {want}");
+    }
+}
