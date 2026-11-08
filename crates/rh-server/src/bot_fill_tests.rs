@@ -508,7 +508,7 @@ fn each_actual_arrival_refreshes_only_managed_faction_bias_like_the_source() {
             }
             let never = |_: &str| false;
             let drawn = state
-                .add_bot(&mut Shadow::from(&view(&players, &never)))
+                .add_bot(&view(&players, &never), &BotSeatOverrides::default())
                 .unwrap();
             assert_eq!(
                 drawn.line(),
@@ -954,4 +954,343 @@ fn the_old_whitespace_property_is_the_trim_negative_control() {
         let cfg = BotFillConfig::from_env(|k| (k == "BOTS_FILL_TO").then(|| raw.to_string()));
         assert_eq!(cfg.fill_to, want, "{raw:?} trims to {want}");
     }
+}
+
+// ============================================================ P-BOTS-7 residual: the explicit addBot override seam
+
+fn addbot_fixture() -> Value {
+    let f: Value = serde_json::from_str(include_str!("../../../parity/policy/bot-addbot.json"))
+        .expect("the captured addBot corpus parses");
+    assert_eq!(f["format"], "rh-bot-addbot-source/1");
+    assert_eq!(f["profile"]["node"], "v22.23.4");
+    assert_eq!(f["profile"]["platform"], "linux");
+    assert_eq!(f["profile"]["arch"], "x64");
+    assert_eq!(f["profile"]["captureSha256"].as_str().unwrap().len(), 64);
+    f
+}
+
+fn overrides_from(value: &Value) -> BotSeatOverrides {
+    let over = value.as_object().expect("an overrides object");
+    BotSeatOverrides {
+        tier: over
+            .get("tier")
+            .and_then(Value::as_str)
+            .map(|s| TierId::parse(s).expect("a source tier")),
+        persona: over
+            .get("persona")
+            .and_then(Value::as_str)
+            .map(|s| PersonaId::parse(s).expect("a source persona")),
+        faction: over.get("faction").and_then(Value::as_str).map(faction),
+        name: over.get("name").and_then(Value::as_str).map(str::to_owned),
+    }
+}
+
+fn rendered_spec_line(value: &Value) -> String {
+    format!(
+        "{} {} {} {} {} {}",
+        value["id"].as_str().unwrap(),
+        value["name"].as_str().unwrap(),
+        value["tier"].as_str().unwrap(),
+        value["persona"].as_str().unwrap(),
+        value["faction"].as_str().unwrap(),
+        value["seed"].as_u64().unwrap()
+    )
+}
+
+/// Replay one captured addBot scenario through the ported fill policy, asserting the direct-seat/seating ops, the per-tick
+/// arrivals and the final seats. The direct seats and the arrival schedule share one id/draw stream, exactly as captured.
+fn replay_addbot_scenario(scenario: &Value) -> Vec<BotSeatSpec> {
+    let name = scenario["name"].as_str().unwrap();
+    let config = BotFillConfig {
+        fill_to: scenario["fillTo"].as_u64().unwrap() as usize,
+        arrival_seconds: num(&scenario["arrivalSeconds"]),
+        ..BotFillConfig::default()
+    };
+    let mut state = BotFillState::new(config, scenario["managerSeed"].as_u64().unwrap());
+    let never = |_: &str| false;
+    let mut players: Vec<Player> = scenario["initialPlayers"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| Player {
+            name_lower: v["name"].as_str().unwrap().to_lowercase(),
+            faction: Some(faction(v["faction"].as_str().unwrap())),
+            bot: false,
+        })
+        .collect();
+    let taken_names: Vec<String> = scenario["takenNames"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| v.as_str().unwrap().to_lowercase())
+        .collect();
+    let taken = move |candidate: &str| {
+        taken_names
+            .iter()
+            .any(|taken| taken.eq_ignore_ascii_case(candidate))
+    };
+    let ops = scenario["ops"].as_array().unwrap();
+    let ops_out = scenario["opsOut"].as_array().unwrap();
+    let mut ops_out_seen = 0usize;
+    let arrivals = scenario["arrivals"].as_array().unwrap();
+    let closed_at = scenario["final"]["closedAt"].as_u64();
+    let mut closing_seen = false;
+    for (t, tick) in scenario["ticks"].as_array().unwrap().iter().enumerate() {
+        let t = t as u64;
+        let mut added: Vec<String> = Vec::new();
+        for op in ops {
+            if op["tick"].as_u64().unwrap() != t {
+                continue;
+            }
+            let expected = &ops_out[ops_out_seen];
+            assert_eq!(
+                expected["tick"].as_u64().unwrap(),
+                t,
+                "{name}: op trace order"
+            );
+            assert_eq!(
+                expected["op"].as_str().unwrap(),
+                op["op"].as_str().unwrap(),
+                "{name}: op kind"
+            );
+            match op["op"].as_str().unwrap() {
+                "human" => {
+                    let human = op["name"].as_str().unwrap();
+                    assert_eq!(
+                        expected["name"].as_str().unwrap(),
+                        human,
+                        "{name}: human op"
+                    );
+                    players.push(Player {
+                        name_lower: human.to_lowercase(),
+                        faction: Some(faction(expected["faction"].as_str().unwrap())),
+                        bot: false,
+                    });
+                }
+                "yield" => {
+                    let yielded = state.yield_seat();
+                    assert_eq!(
+                        expected["result"].as_bool().unwrap(),
+                        yielded.is_some(),
+                        "{name}: yield at {t}"
+                    );
+                    if let Some(spec) = yielded {
+                        let pos = players
+                            .iter()
+                            .rposition(|p| p.bot && p.name_lower == spec.name.to_lowercase())
+                            .expect("a yielded seat is in the room");
+                        players.remove(pos);
+                        // A seat added earlier in this same tick and yielded again before the step never reaches the
+                        // room: the capture lists only players present after the step.
+                        let id = spec.id();
+                        if let Some(pos) = added
+                            .iter()
+                            .position(|line| line.split(' ').next() == Some(id.as_str()))
+                        {
+                            added.remove(pos);
+                        }
+                    }
+                }
+                "addbot" => {
+                    let over = overrides_from(&op["over"]);
+                    let got = state.add_bot(&view(&players, &taken), &over);
+                    match (&expected["result"], &got) {
+                        (Value::Null, None) => {}
+                        (want, Some(spec)) => {
+                            assert_eq!(
+                                spec.line(),
+                                rendered_spec_line(want),
+                                "{name}: explicit seat at {t}"
+                            );
+                            added.push(spec.line());
+                            apply(&mut players, spec);
+                        }
+                        (want, None) => {
+                            panic!("{name}: expected a seat at {t}, got null (captured {want:?})")
+                        }
+                    }
+                }
+                other => panic!("unconsumed op {other}"),
+            }
+            ops_out_seen += 1;
+        }
+        let now = num(&tick["now"]);
+        let ends = num(&tick["ends"]);
+        let due = {
+            let v = view(&players, &never);
+            state.lobby_tick(now, ends, &v)
+        };
+        for spec in &due {
+            added.push(spec.line());
+            apply(&mut players, spec);
+        }
+        if closed_at == Some(t) {
+            closing_seen = true;
+            let rest = {
+                let v = view(&players, &never);
+                state.lobby_closing(&v)
+            };
+            for spec in &rest {
+                added.push(spec.line());
+                apply(&mut players, spec);
+            }
+        }
+        let want: Vec<String> = arrivals
+            .iter()
+            .find(|a| a["tick"].as_u64().unwrap() == t)
+            .map(|a| {
+                a["specs"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .map(|s| s.as_str().unwrap().to_owned())
+                    .collect()
+            })
+            .unwrap_or_default();
+        assert_eq!(added, want, "{name}: arrivals at tick {t}");
+    }
+    assert_eq!(ops_out_seen, ops_out.len(), "{name}: every op ran");
+    if closed_at.is_some() {
+        assert!(closing_seen, "{name}: the closing tick ran in the trace");
+    }
+    let specs: Vec<String> = state.specs().iter().map(BotSeatSpec::line).collect();
+    let want: Vec<String> = scenario["final"]["specs"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(rendered_spec_line)
+        .collect();
+    assert_eq!(specs, want, "{name}: final seats");
+    assert_eq!(
+        state.stats().arrived,
+        scenario["final"]["stats"]["arrived"].as_u64().unwrap(),
+        "{name}: arrived"
+    );
+    assert_eq!(
+        state.stats().yielded,
+        scenario["final"]["stats"]["yielded"].as_u64().unwrap(),
+        "{name}: yielded"
+    );
+    state.specs().to_vec()
+}
+
+/// The source BotManager.addBot override seam: explicit tier/persona/faction/callsign seats, shared with the arrival
+/// schedule's id/draw stream, the yield sequence, the full-lobby null and the profile-taken callsign, all captured from
+/// the unchanged manager in the pinned container (parity/policy/bot-addbot.json).
+#[test]
+fn the_explicit_add_bot_seam_matches_the_actual_source() {
+    let f = addbot_fixture();
+    let scenarios = f["scenarios"].as_array().unwrap();
+    assert!(scenarios.len() >= 5, "the declared override scenarios");
+    for scenario in scenarios {
+        let specs = replay_addbot_scenario(scenario);
+        let name = scenario["name"].as_str().unwrap();
+        assert!(
+            !specs.is_empty() || name == "no-such-scenario",
+            "{name}: the scenario seats bots"
+        );
+    }
+    // The override corpus pins the source constants the seam leans on.
+    assert_eq!(
+        f["constants"]["MAX_PLAYERS"].as_u64().unwrap() as usize,
+        MAX_PLAYERS
+    );
+}
+
+/// The source invariant that makes an override safe: every draw is made whether or not it is overridden, so fixing one
+/// thing never reshuffles the rest. The draw-control pair is the same world/manager seed with empty overrides on the same
+/// ticks; each seat's id, seed and every NOT-overridden field must be identical between the two runs.
+#[test]
+fn the_explicit_add_bot_still_makes_every_draw() {
+    let f = addbot_fixture();
+    let find = |name: &str| {
+        f["scenarios"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|s| s["name"] == name)
+            .unwrap_or_else(|| panic!("the {name} scenario"))
+    };
+    let overrides_scenario = find("addbot-overrides");
+    let control_scenario = find("addbot-draw-control");
+    let overridden = replay_addbot_scenario(overrides_scenario);
+    let control = replay_addbot_scenario(control_scenario);
+    assert_eq!(overridden.len(), control.len(), "both runs seat every bot");
+    assert!(overridden.len() >= 6);
+    for (got, base) in overridden.iter().zip(&control) {
+        assert_eq!(got.id(), base.id(), "the id stream is shared");
+        assert_eq!(got.seed, base.seed, "the seed stream is shared");
+    }
+    let ops: Vec<&Value> = overrides_scenario["opsOut"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|op| op["op"] == "addbot")
+        .collect();
+    assert_eq!(ops.len(), overridden.len());
+    for (i, op) in ops.iter().enumerate() {
+        let over = overrides_from(&op["over"]);
+        let got = &overridden[i];
+        let base = &control[i];
+        assert_eq!(
+            got.tier,
+            over.tier.unwrap_or(base.tier),
+            "tier at seat {i}: the override replaces the drawn value"
+        );
+        assert_eq!(got.persona, over.persona.unwrap_or(base.persona));
+        assert_eq!(got.faction, over.faction.unwrap_or(base.faction));
+        assert_eq!(
+            got.name,
+            over.name.clone().unwrap_or_else(|| base.name.clone())
+        );
+        // The non-overridden draws are exactly the control's: the override consumed nothing and reshuffled nothing.
+        if over.tier.is_none() {
+            assert_eq!(got.tier, base.tier);
+        }
+        if over.persona.is_none() {
+            assert_eq!(got.persona, base.persona);
+        }
+        if over.faction.is_none() {
+            assert_eq!(got.faction, base.faction);
+        }
+        if over.name.is_none() {
+            assert_eq!(got.name, base.name);
+        }
+    }
+    // The empty-override seat (the last op) is identical to the control seat field by field.
+    assert_eq!(overridden.last(), control.last());
+}
+
+/// A full lobby: the explicit seam returns None before any draw and without consuming an id, so a later seating takes the
+/// next number as if the failed call had not happened.
+#[test]
+fn a_full_lobby_explicit_seat_returns_none_without_consuming_a_draw_or_an_id() {
+    let cfg = BotFillConfig::with_fill_to(0);
+    let mut state = BotFillState::new(cfg.clone(), 7);
+    let never = |_: &str| false;
+    let full: Vec<Player> = (0..MAX_PLAYERS)
+        .map(|i| Player {
+            name_lower: format!("p{i}"),
+            faction: None,
+            bot: false,
+        })
+        .collect();
+    let over = BotSeatOverrides {
+        tier: Some(TierId::Hard),
+        name: Some("Fixed".to_string()),
+        ..BotSeatOverrides::default()
+    };
+    assert!(state.add_bot(&view(&full, &never), &over).is_none());
+    assert!(state.specs().is_empty());
+    // The failed call consumed no draw and no id: the first real seat equals a fresh state's first seat, number 1.
+    let mut fresh = BotFillState::new(cfg, 7);
+    let one_short = &full[..MAX_PLAYERS - 1];
+    let first = state
+        .add_bot(&view(one_short, &never), &BotSeatOverrides::default())
+        .expect("a seat");
+    let fresh_first = fresh
+        .add_bot(&view(one_short, &never), &BotSeatOverrides::default())
+        .expect("a seat");
+    assert_eq!(first, fresh_first);
+    assert_eq!(first.number, 1);
 }
