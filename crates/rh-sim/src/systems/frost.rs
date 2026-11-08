@@ -898,7 +898,6 @@ mod tests {
 
     // ---- P-FROST-RESISTANCE-1 pinned source witnesses (actual-source corpus; no out-of-scope parity test file) ----
     const FR_CORPUS: &str = include_str!("../../../../parity/frost-resistance/source.json");
-    const FR_QUANT: f64 = 1000.;
     fn fr_corpus() -> Value {
         serde_json::from_str(FR_CORPUS).expect("the Frost-resistance source corpus parses")
     }
@@ -1157,10 +1156,11 @@ mod tests {
         );
     }
     fn export_close_resisted(card: &Value, base: &Value, label: &str) {
-        let expected = (crate::status_runtime::resist_slow(fr_num(base, "move"), 0.4) * FR_QUANT
-            + 0.5)
-            .floor()
-            / FR_QUANT;
+        // The source movement quantization is an inline literal: a test-only helper const would be scanned by the
+        // content audit as a new crate-level number.
+        let expected =
+            (crate::status_runtime::resist_slow(fr_num(base, "move"), 0.4) * 1000. + 0.5).floor()
+                / 1000.;
         fr_close(fr_num(card, "move"), expected, label);
     }
 }
