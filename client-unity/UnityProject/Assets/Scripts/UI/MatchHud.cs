@@ -349,7 +349,7 @@ namespace Roguehalla.Client
         {
             if (me.Hp != _lastHp || me.MaxHp != _lastMaxHp || me.Kills != _lastKills || me.Gv != _lastGv || me.Status != _lastStatus || me.Barrier != _lastBarrier || me.BarrierRingStep != _lastBarrierRing)
             {
-                Set(_vitals, "HP " + me.Hp.ToString("0.#") + " / " + me.MaxHp.ToString("0.#") + " · Barrier " + me.Barrier.ToString("0.#") + " · ring " + me.BarrierRingStep + "/8\nKills " + me.Kills + " · GV " + me.Gv + " · " + me.Status);
+                Set(_vitals, "HP " + me.Hp.ToString("0.#") + " / " + me.MaxHp.ToString("0.#") + " · Barrier " + me.Barrier.ToString("0.#") + "\nKills " + me.Kills + " · GV " + me.Gv + " · " + me.Status);
                 _lastHp = me.Hp; _lastMaxHp = me.MaxHp; _lastKills = me.Kills; _lastGv = me.Gv; _lastStatus = me.Status; _lastBarrier = me.Barrier; _lastBarrierRing = me.BarrierRingStep;
                 OwnerVitalBars.Percent(me, out float healthPercent, out float barrierPercent);
                 float healthEnd = healthPercent / 100f;
@@ -381,19 +381,22 @@ namespace Roguehalla.Client
             if (!wish.HasValue) return "R · WISH\nNone delivered";
             var w = wish.Value;
             var text = new StringBuilder("R · ").Append(w.Ability).Append(" · ").Append(w.Charges).Append('/').Append(w.MaxCharges);
-            text.Append(" charges\nOpening ").Append(w.ReadyAt.ToString("0"));
-            if (w.ReadyAt > serverTimeMs) text.Append(" (in ").Append((w.ReadyAt - serverTimeMs).ToString("0")).Append(" ms)");
-            text.Append("\nRecharge ").Append(w.RechargeMs.ToString("0")).Append(" ms");
-            if (w.NextChargeAt.HasValue) text.Append(" · next ").Append(w.NextChargeAt.Value.ToString("0"));
-            if (w.FullAt.HasValue) text.Append("\nFull ").Append(w.FullAt.Value.ToString("0"));
+            text.Append(" charges\nWish timer: ").Append(FormatSeconds(w.ReadyAt - serverTimeMs));
+            text.Append("\nRecharge ").Append(FormatSeconds(w.RechargeMs));
+            if (w.NextChargeAt.HasValue) text.Append("\nNext charge in ").Append(FormatSeconds(w.NextChargeAt.Value - serverTimeMs));
+            if (w.FullAt.HasValue) text.Append("\nFull charges in ").Append(FormatSeconds(w.FullAt.Value - serverTimeMs));
             if (w.Cast.HasValue)
             {
                 var cast = w.Cast.Value;
-                text.Append("\nCast ").Append(cast.Ability).Append(" ").Append(cast.StartedAt.ToString("0"));
-                text.Append(" → ").Append(cast.LandsAt.ToString("0"));
-                if (cast.LandsAt > serverTimeMs) text.Append(" (in ").Append((cast.LandsAt - serverTimeMs).ToString("0")).Append(" ms)");
+                text.Append("\nCasting ").Append(cast.Ability).Append(" · ").Append(FormatSeconds(cast.LandsAt - serverTimeMs));
             }
             return text.ToString();
+        }
+
+        static string FormatSeconds(double remainingMs)
+        {
+            double seconds = Math.Max(0d, Math.Ceiling(remainingMs / 100d) / 10d);
+            return seconds.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture) + "s";
         }
 
         static bool WishEquals(WishView a, WishView b)
