@@ -9,6 +9,7 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
+using UnityEngine.InputSystem.Controls;
 using UnityEngine.InputSystem.LowLevel;
 
 namespace Roguehalla.Client.Tests
@@ -50,8 +51,11 @@ namespace Roguehalla.Client.Tests
         Session _session;
         FakeTransport _transport;
         Keyboard _keyboard;
+        Keyboard _previousKeyboard;
         TMP_InputField _typingField;
         bool _oldToggleMode;
+        InputSettings.BackgroundBehavior _oldBackgroundBehavior;
+        bool _savedBackgroundBehavior;
 
         [SetUp]
         public void SetUp()
@@ -66,7 +70,17 @@ namespace Roguehalla.Client.Tests
             ownedSystem.enabled = true;
             EventSystem.current = ownedSystem;
             Assert.That(EventSystem.current, Is.SameAs(ownedSystem), "test EventSystem must be registered before UI setup");
+            // The Unity package's own IntegrationTests use IgnoreFocus for injected devices: the default
+            // ResetAndDisableNonBackgroundDevices policy can disable a synthetic keyboard when the test runner
+            // has the editor focus, so QueueStateEvent appears to succeed while no key state reaches consumers.
+            _oldBackgroundBehavior = InputSystem.settings.backgroundBehavior;
+            _savedBackgroundBehavior = true;
+            InputSystem.settings.backgroundBehavior = InputSettings.BackgroundBehavior.IgnoreFocus;
+            _previousKeyboard = Keyboard.current;
             _keyboard = InputSystem.AddDevice<Keyboard>();
+            _keyboard.MakeCurrent();
+            Assert.That(_keyboard.enabled, Is.True, "injected test keyboard must be enabled");
+            Assert.That(Keyboard.current, Is.SameAs(_keyboard), "keyboard consumers must see the controlled device");
 
             _root = new GameObject("UI input routing fixture");
             _client = _root.AddComponent<MatchClient>();
@@ -123,8 +137,10 @@ namespace Roguehalla.Client.Tests
             }
             if (_hud != null && _hud.TacticalMap != null) _hud.TacticalMap.SetToggleMode(_oldToggleMode);
             if (_keyboard != null && _keyboard.added) InputSystem.RemoveDevice(_keyboard);
+            if (_previousKeyboard != null && _previousKeyboard.added) _previousKeyboard.MakeCurrent();
             if (_root != null) UnityEngine.Object.DestroyImmediate(_root);
             if (_ownedEvents != null) UnityEngine.Object.DestroyImmediate(_ownedEvents);
+            if (_savedBackgroundBehavior) InputSystem.settings.backgroundBehavior = _oldBackgroundBehavior;
             Assert.That(_previousEvents == null || EventSystem.current == _previousEvents,
                 "destroying the test EventSystem should restore the previously current system");
         }
@@ -251,14 +267,40 @@ namespace Roguehalla.Client.Tests
 
         void Press(params Key[] keys)
         {
+            Assert.That(_keyboard != null && _keyboard.added && _keyboard.enabled, Is.True, "synthetic keyboard remains active");
+            _keyboard.MakeCurrent();
             InputSystem.QueueStateEvent(_keyboard, new KeyboardState(keys));
             InputSystem.Update();
+            Assert.That(Keyboard.current, Is.SameAs(_keyboard), "queued event must target the keyboard consumers read");
+            foreach (var key in keys)
+            {
+                Assert.That(KeyControlFor(key).isPressed, Is.True, key + " state was not applied");
+                Assert.That(KeyControlFor(key).wasPressedThisFrame, Is.True, key + " press edge was not observed this input update");
+            }
         }
 
         void ReleaseKeys()
         {
+            Assert.That(_keyboard != null && _keyboard.added && _keyboard.enabled, Is.True, "synthetic keyboard remains active");
             InputSystem.QueueStateEvent(_keyboard, new KeyboardState());
             InputSystem.Update();
+            Assert.That(Keyboard.current, Is.SameAs(_keyboard), "release event must reach the controlled keyboard");
+            Assert.That(_keyboard.cKey.isPressed, Is.False);
+            Assert.That(_keyboard.digit1Key.isPressed, Is.False);
+            Assert.That(_keyboard.tabKey.isPressed, Is.False);
+            Assert.That(_keyboard.wKey.isPressed, Is.False);
+        }
+
+        KeyControl KeyControlFor(Key key)
+        {
+            switch (key)
+            {
+                case Key.C: return _keyboard.cKey;
+                case Key.Digit1: return _keyboard.digit1Key;
+                case Key.Tab: return _keyboard.tabKey;
+                case Key.W: return _keyboard.wKey;
+                default: Assert.Fail("No injected-key precondition configured for " + key); return null;
+            }
         }
 
         static object Invoke(object target, string method, params object[] args)
