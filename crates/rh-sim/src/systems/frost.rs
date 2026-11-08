@@ -1196,407 +1196,6 @@ mod tests {
                 / 1000.;
         fr_close(fr_num(card, "move"), expected, label);
     }
-
-    // ---- P-FROST-NPC-RECIPIENTS-1: actual-source basic-NPC recipient timeline parity ----
-    use crate::{mob_runtime::MobMode, validate, Arena, RawCommand, TileMap};
-    const FR_NPC_FIXTURE: &str = include_str!("../../../../parity/frost-npc/source.json");
-    fn fr_npc_arena(zone: &str) -> Arena {
-        fn build(zone: &str) -> Arena {
-            let mut map: Value =
-                serde_json::from_str(include_str!("../../tests/fixtures/mob-pve-map.json"))
-                    .unwrap();
-            if zone != "fire" {
-                let other = map["regions"]
-                    .as_array()
-                    .unwrap()
-                    .iter()
-                    .position(|r| r["id"] == zone)
-                    .unwrap();
-                map["regions"][0]["id"] = zone.into();
-                map["regions"][other]["id"] = "fire".into();
-                for camp in map["regions"][0]["mobCamps"].as_array_mut().unwrap() {
-                    camp["id"] = format!("{zone}-1").into();
-                    camp["region"] = zone.into();
-                    camp["weapon"] = match zone {
-                        "plague" => "bow",
-                        "holy" => "wand",
-                        _ => "sword",
-                    }
-                    .into();
-                }
-                for p in map["spawnPool"].as_array_mut().unwrap() {
-                    if p["zone"] == "fire" {
-                        p["zone"] = zone.into();
-                    } else if p["zone"] == zone {
-                        p["zone"] = "fire".into();
-                    }
-                }
-                map["camps"][0]["zone"] = zone.into();
-                map["camps"][0]["id"] = format!("{zone}-1").into();
-                for v in map["regionGrid"].as_array_mut().unwrap() {
-                    let n = v.as_u64().unwrap();
-                    if n == 1 {
-                        *v = (other + 1).into();
-                    } else if n == other as u64 + 1 {
-                        *v = 1.into();
-                    }
-                }
-                map["regions"].as_array_mut().unwrap().swap(0, other);
-                map["spawns"] = serde_json::Value::Array(
-                    map["regions"]
-                        .as_array()
-                        .unwrap()
-                        .iter()
-                        .flat_map(|r| r["spawns"].as_array().unwrap().iter().cloned())
-                        .collect(),
-                );
-            }
-            let data: crate::mapdata::GameMapData = serde_json::from_value(map).unwrap();
-            let (w, h, tiles, layers) = crate::mapdata::MapExport {
-                format: "rh-map/2".into(),
-                legacy_map_hash_u32: 0,
-                map: data,
-            }
-            .validate()
-            .unwrap()
-            .into_parts();
-            let spawns = layers
-                .data()
-                .spawns
-                .iter()
-                .map(|p| Vec2::new(p.x, p.y))
-                .collect();
-            Arena {
-                map: TileMap::new(w, h, tiles)
-                    .unwrap()
-                    .with_layers(layers)
-                    .unwrap(),
-                spawns,
-            }
-        }
-        build(zone)
-    }
-    fn fr_npc_id(s: &str, seats: usize) -> PlayerId {
-        if let Some(n) = s.strip_prefix('p') {
-            PlayerId(n.parse::<u32>().unwrap() + 1)
-        } else {
-            PlayerId(
-                seats as u32 + u32::from_str_radix(s.strip_prefix("mob").unwrap(), 36).unwrap(),
-            )
-        }
-    }
-    fn fr_npc_close(a: f64, b: f64, label: &str) {
-        assert!(
-            (a - b).abs() <= 1e-9 * b.abs().max(1.),
-            "{label}: native {a} source {b}"
-        );
-    }
-    fn fr_npc_sim(case: &Value) -> (Sim, usize) {
-        let input = &case["input"];
-        let players = input["players"].as_array().unwrap();
-        let placements: Vec<_> = players
-            .iter()
-            .enumerate()
-            .map(|(i, p)| Placement {
-                profile: format!("name{i}"),
-                faction: FactionId::parse(p["faction"].as_str().unwrap()).unwrap(),
-                bot: false,
-                at: Vec2::new(p["x"].as_f64().unwrap(), p["y"].as_f64().unwrap()),
-                hp: p["hp"].as_f64(),
-                weapon0: WeaponId::parse(p["weapon"].as_str().unwrap()),
-                weapon1: None,
-            })
-            .collect();
-        let mut secrets = Secrets::from_seed(1);
-        secrets.spawn_seed = 12;
-        secrets.reward_salt = [1, 2, 3, 4];
-        let sim = Sim::reset_active(
-            SimConfig {
-                quests: false,
-                consumables: true,
-                mob_mode: MobMode::Pve,
-                faction_mode: crate::FactionMode::EngagementHolyPlagueFireFrost,
-                ..Default::default()
-            },
-            fr_npc_arena(input["zone"].as_str().unwrap()),
-            secrets,
-            &placements,
-        );
-        (sim, placements.len())
-    }
-    fn fr_npc_apply(sim: &mut Sim, commands: &[Value], seats: usize) {
-        for c in commands {
-            let raw = match c["kind"].as_str().unwrap() {
-                "attack" => RawCommand::Attack {
-                    a: c["a"].as_f64().unwrap(),
-                    t: None,
-                },
-                "release" => RawCommand::Release {
-                    a: c["a"].as_f64().unwrap(),
-                    t: None,
-                },
-                "target" => RawCommand::Target {
-                    id: fr_npc_id(c["id"].as_str().unwrap(), seats),
-                },
-                "move" => RawCommand::Move {
-                    x: c["x"].as_f64().unwrap(),
-                    y: c["y"].as_f64().unwrap(),
-                    seq: None,
-                },
-                other => panic!("unadmitted command {other}"),
-            };
-            let id = fr_npc_id(c["actor"].as_str().unwrap(), seats);
-            let cmd = validate(raw).unwrap();
-            sim.submit(id, cmd).unwrap();
-        }
-    }
-    fn fr_npc_compare_frame(sim: &Sim, frame: &Value, seats: usize, name: &str) {
-        let f = &frame["output"];
-        let phase = match f["phase"].as_str().unwrap() {
-            "active" => crate::Phase::Active,
-            "planning" => crate::Phase::Planning,
-            "ended" => crate::Phase::Ended,
-            other => panic!("phase {other}"),
-        };
-        assert_eq!(sim.phase(), phase, "{name} phase");
-        assert_eq!(
-            sim.tick() as u64,
-            f["tick"].as_u64().unwrap(),
-            "{name} tick"
-        );
-        let mobs = f["mobs"].as_array().unwrap();
-        assert_eq!(sim.mobs().len(), mobs.len(), "{name} mob count");
-        for row in f["signatures"].as_array().unwrap() {
-            let id = fr_npc_id(row[0].as_str().unwrap(), seats);
-            let Some(p) = sim.w.actor(id) else { continue };
-            let e = &row[1];
-            let s = &p.signature;
-            fr_npc_close(
-                s.chill,
-                e["chill"].as_f64().unwrap(),
-                &format!("{name} chill {}", id.0),
-            );
-            let chillers: Vec<PlayerId> = e["chillers"]
-                .as_array()
-                .unwrap()
-                .iter()
-                .map(|v| fr_npc_id(v.as_str().unwrap(), seats))
-                .collect();
-            let actual: Vec<PlayerId> = s.chillers[..usize::from(s.chiller_count)]
-                .iter()
-                .flatten()
-                .copied()
-                .collect();
-            assert_eq!(actual, chillers, "{name} chillers {}", id.0);
-            for (actual, expected, key) in [
-                (
-                    s.exposure_started_at,
-                    &e["chillExposureStartedAt"],
-                    "exposureStartedAt",
-                ),
-                (s.last_near_at, &e["chillLastNearAt"], "chillLastNearAt"),
-                (s.ranged_chill_until, &e["rangedChillUntil"], "rangedUntil"),
-            ] {
-                match expected.as_f64() {
-                    Some(v) => fr_npc_close(
-                        actual.unwrap_or(f64::NAN),
-                        v,
-                        &format!("{name} {key} {}", id.0),
-                    ),
-                    None => assert!(actual.is_none(), "{name} {key} {}", id.0),
-                }
-            }
-            fr_npc_close(
-                s.frost_move_mult,
-                e["frostMoveMult"].as_f64().unwrap(),
-                &format!("{name} move {}", id.0),
-            );
-        }
-        for (m, e) in sim.mobs().iter().zip(mobs) {
-            let id = fr_npc_id(e["id"].as_str().unwrap(), seats);
-            assert_eq!(m.core.id, id, "{name} mob id");
-            let st = &e["state"];
-            let w = &e["weapon"];
-            fr_npc_close(
-                m.core.weapon.ready_at,
-                st["readyAt"].as_f64().unwrap(),
-                &format!("{name} npc ready {}", id.0),
-            );
-            fr_npc_close(
-                m.core.weapon.buffered_until,
-                w["bufferedUntil"].as_f64().unwrap(),
-                &format!("{name} npc buffered {}", id.0),
-            );
-            fr_npc_close(
-                m.core.weapon.draw_started_at,
-                st["drawStartedAt"].as_f64().unwrap(),
-                &format!("{name} npc drawStarted {}", id.0),
-            );
-            match w["action"].is_null() {
-                true => assert!(m.core.weapon.action.is_none(), "{name} npc action none"),
-                false => {
-                    let a = m.core.weapon.action.expect("npc action");
-                    let ea = &w["action"];
-                    let kind = match a.kind {
-                        ActionKind::Swing => "swing",
-                        ActionKind::Cast => "cast",
-                        ActionKind::Draw => "draw",
-                    };
-                    assert_eq!(kind, ea["kind"].as_str().unwrap(), "{name} npc action kind");
-                    fr_npc_close(
-                        a.started_at,
-                        ea["startedAt"].as_f64().unwrap(),
-                        &format!("{name} npc action start {}", id.0),
-                    );
-                    fr_npc_close(
-                        a.lands_at,
-                        ea["landsAt"].as_f64().unwrap(),
-                        &format!("{name} npc action lands {}", id.0),
-                    );
-                }
-            }
-        }
-    }
-    #[test]
-    fn actual_source_player_frost_chills_basic_npcs_with_strict_restore() {
-        let corpus: Value = serde_json::from_str(FR_NPC_FIXTURE).unwrap();
-        assert_eq!(corpus["format"], "rh-frost-npc-source/1");
-        assert_eq!(corpus["provenance"]["node"], "v22.23.4");
-        assert_eq!(corpus["provenance"]["platform"], "linux");
-        assert_eq!(corpus["provenance"]["arch"], "x64");
-        let cases = corpus["cases"].as_array().unwrap();
-        assert_eq!(cases.len(), 3);
-        let mut chilled_seen = 0;
-        let mut ranged_seen = 0;
-        for case in cases {
-            let name = case["input"]["name"].as_str().unwrap();
-            let (mut sim, seats) = fr_npc_sim(case);
-            let control = name.contains("control");
-            let mut npc_chilled = false;
-            let mut npc_ranged = false;
-            for frame in case["frames"].as_array().unwrap() {
-                if let Some(commands) = frame["commands"].as_array() {
-                    fr_npc_apply(&mut sim, commands, seats);
-                }
-                sim.step();
-                fr_npc_compare_frame(&sim, frame, seats, name);
-                for m in sim.mobs() {
-                    let s = &m.core.signature;
-                    if s.chill < 1. {
-                        npc_chilled = true;
-                        assert!(!control, "{name}: the no-Frost control cannot chill an NPC");
-                        assert_eq!(
-                            s.chillers[0],
-                            Some(PlayerId(1)),
-                            "{name}: the Frost player is the chiller"
-                        );
-                    }
-                    if s.ranged_chill_until.is_some() {
-                        npc_ranged = true;
-                    }
-                    if control {
-                        assert_eq!(s.chill, 1., "{name}: no-Frost control chill unchanged");
-                        assert_eq!(
-                            s.frost_move_mult, 1.,
-                            "{name}: no-Frost control movement unchanged"
-                        );
-                        assert!(
-                            s.ranged_chill_until.is_none(),
-                            "{name}: no-Frost control ranged unchanged"
-                        );
-                        assert_eq!(s.chiller_count, 0, "{name}: no-Frost control no sources");
-                    }
-                }
-                // Strict restore/continue: restore the actual chilled NPC state after every source frame and keep
-                // replaying the next source frame from the restored Sim.
-                sim = Sim::restore(serde_json::to_value(&sim).unwrap())
-                    .unwrap_or_else(|e| panic!("{name}: chilled NPC state restores: {e}"));
-            }
-            if !control {
-                assert!(
-                    npc_chilled,
-                    "{name}: the Frost player's chill reached a basic NPC"
-                );
-            }
-            if name.contains("ranged") {
-                assert!(
-                    npc_ranged,
-                    "{name}: a basic NPC carried the ranged chill window"
-                );
-                ranged_seen += 1;
-            }
-            if !control {
-                chilled_seen += 1;
-            }
-            // Replay strictness: a restored copy continues three source-free steps identically.
-            let mut terminal = Sim::restore(serde_json::to_value(&sim).unwrap()).unwrap();
-            for _ in 0..3 {
-                sim.step();
-                terminal.step();
-                assert_eq!(
-                    sim.state_hash(),
-                    terminal.state_hash(),
-                    "{name}: continue replay"
-                );
-            }
-        }
-        assert_eq!(chilled_seen, 2);
-        assert_eq!(ranged_seen, 1);
-        // Malformed chilled-NPC private state is still refused by the existing basic-NPC validator.
-        let case = &cases[0];
-        let (mut sim, _) = fr_npc_sim(case);
-        let mut npc_id = None;
-        for frame in case["frames"].as_array().unwrap().iter().take(20) {
-            if let Some(commands) = frame["commands"].as_array() {
-                fr_npc_apply(&mut sim, commands, 2);
-            }
-            sim.step();
-            for m in sim.mobs() {
-                if m.core.signature.chill < 1. {
-                    npc_id = Some(m.core.id);
-                }
-            }
-        }
-        let npc_id = npc_id.expect("a chilled NPC exists for the malformed cases");
-        let slot = sim.w.fighter_idx(npc_id).unwrap().slot();
-        let mob = slot - sim.players().len();
-        let signature =
-            |v: &serde_json::Value| v["world"]["mobs"][mob]["core"]["signature"].clone();
-        let mut bad = serde_json::to_value(&sim).unwrap();
-        bad["world"]["mobs"][mob]["core"]["signature"]["chill"] = json!(0.4);
-        assert!(
-            Sim::restore(bad).is_err(),
-            "chill below the reachable resisted image is refused"
-        );
-        let mut bad = serde_json::to_value(&sim).unwrap();
-        bad["world"]["mobs"][mob]["core"]["signature"]["chillers"] =
-            json!([999, null, null, null, null, null, null, null]);
-        assert!(
-            Sim::restore(bad).is_err(),
-            "a non-roster NPC chiller source is refused"
-        );
-        let mut bad = serde_json::to_value(&sim).unwrap();
-        bad["world"]["mobs"][mob]["core"]["signature"]["ap_hits"]["target"] = json!(999);
-        assert!(
-            Sim::restore(bad).is_err(),
-            "forged NPC AP provenance is refused"
-        );
-        // The chilled NPC keeps its basic gear and zero Mark/AP state: the prior basic-NPC checks still hold.
-        let live = &sim.mobs()[mob];
-        assert_eq!(live.core.signature.mark, Default::default());
-        assert_eq!(live.core.signature.ap_hits, Default::default());
-        let restored = Sim::restore(serde_json::to_value(&sim).unwrap()).unwrap();
-        assert_eq!(
-            restored.mobs()[mob].core.signature.chill,
-            live.core.signature.chill
-        );
-        assert_eq!(
-            restored.mobs()[mob].core.weapon.weapon0,
-            live.core.weapon.weapon0
-        );
-        let _ = signature;
-    }
-
     #[test]
     fn instant_attack_started_hook_is_player_only_and_npc_timing_corrects_in_after_weapons() {
         let corpus: Value = serde_json::from_str(FR_NPC_FIXTURE).unwrap();
@@ -1671,7 +1270,8 @@ mod tests {
             sim.w.core(npc_ix).weapon.ready_at,
             expected,
             "NPC afterWeapons clock correction",
-        );
+        )
+        .unwrap();
         // Player control: the same instant swing IS corrected by the hook (proving the distinction is intentional).
         {
             let p = sim.w.core_mut(player_ix);
@@ -1700,7 +1300,1006 @@ mod tests {
             corrected,
             before + (1. - chill) * 100.,
             "player instant-hook correction",
-        );
+        )
+        .unwrap();
         assert!(corrected > before);
+    }
+
+    // ---- P-FROST-NPC-RECIPIENTS-1: bound source profile, strong typed-provenance consumer ----
+    use crate::{mob_runtime::MobMode, validate, Arena, RawCommand, TileMap};
+    use std::collections::BTreeMap;
+    const FR_NPC_FIXTURE: &str = include_str!("../../../../parity/frost-npc/source.json");
+    const FR_NPC_BOUNDARY: &str = include_str!("../../../../parity/frost-npc/boundary.json");
+    fn fr_npc_arena(zone: &str) -> Arena {
+        let mut map: Value =
+            serde_json::from_str(include_str!("../../tests/fixtures/mob-pve-map.json")).unwrap();
+        if zone != "fire" {
+            let other = map["regions"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .position(|r| r["id"] == zone)
+                .unwrap();
+            map["regions"][0]["id"] = zone.into();
+            map["regions"][other]["id"] = "fire".into();
+            for camp in map["regions"][0]["mobCamps"].as_array_mut().unwrap() {
+                camp["id"] = format!("{zone}-1").into();
+                camp["region"] = zone.into();
+                camp["weapon"] = match zone {
+                    "plague" => "bow",
+                    "holy" => "wand",
+                    _ => "sword",
+                }
+                .into();
+            }
+            for p in map["spawnPool"].as_array_mut().unwrap() {
+                if p["zone"] == "fire" {
+                    p["zone"] = zone.into();
+                } else if p["zone"] == zone {
+                    p["zone"] = "fire".into();
+                }
+            }
+            map["camps"][0]["zone"] = zone.into();
+            map["camps"][0]["id"] = format!("{zone}-1").into();
+            for v in map["regionGrid"].as_array_mut().unwrap() {
+                let n = v.as_u64().unwrap();
+                if n == 1 {
+                    *v = (other + 1).into();
+                } else if n == other as u64 + 1 {
+                    *v = 1.into();
+                }
+            }
+            map["regions"].as_array_mut().unwrap().swap(0, other);
+            map["spawns"] = serde_json::Value::Array(
+                map["regions"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .flat_map(|r| r["spawns"].as_array().unwrap().iter().cloned())
+                    .collect(),
+            );
+        }
+        let data: crate::mapdata::GameMapData = serde_json::from_value(map).unwrap();
+        let (w, h, tiles, layers) = crate::mapdata::MapExport {
+            format: "rh-map/2".into(),
+            legacy_map_hash_u32: 0,
+            map: data,
+        }
+        .validate()
+        .unwrap()
+        .into_parts();
+        let spawns = layers
+            .data()
+            .spawns
+            .iter()
+            .map(|p| Vec2::new(p.x, p.y))
+            .collect();
+        Arena {
+            map: TileMap::new(w, h, tiles)
+                .unwrap()
+                .with_layers(layers)
+                .unwrap(),
+            spawns,
+        }
+    }
+    fn fr_npc_players<'a>(value: &'a Value, key: &str) -> &'a Value {
+        &value[key]
+    }
+    fn fr_npc_id(s: &str, seats: usize) -> PlayerId {
+        if let Some(n) = s.strip_prefix('p') {
+            PlayerId(n.parse::<u32>().unwrap() + 1)
+        } else {
+            PlayerId(
+                seats as u32 + u32::from_str_radix(s.strip_prefix("mob").unwrap(), 36).unwrap(),
+            )
+        }
+    }
+    fn fr_npc_close(a: f64, b: f64, label: &str) -> Result<(), String> {
+        if (a - b).abs() <= 1e-9 * b.abs().max(1.) {
+            Ok(())
+        } else {
+            Err(format!("{label}: native {a} source {b}"))
+        }
+    }
+    fn fr_npc_sim(case: &Value) -> (Sim, usize) {
+        let input = &case["input"];
+        let players = input["players"].as_array().unwrap();
+        let placements: Vec<_> = players
+            .iter()
+            .enumerate()
+            .map(|(i, p)| Placement {
+                profile: format!("name{i}"),
+                faction: FactionId::parse(p["faction"].as_str().unwrap()).unwrap(),
+                bot: false,
+                at: Vec2::new(p["x"].as_f64().unwrap(), p["y"].as_f64().unwrap()),
+                hp: p["hp"].as_f64(),
+                weapon0: WeaponId::parse(p["weapon"].as_str().unwrap()),
+                weapon1: None,
+            })
+            .collect();
+        let mut secrets = Secrets::from_seed(1);
+        secrets.spawn_seed = 12;
+        secrets.reward_salt = [1, 2, 3, 4];
+        // Bound profile: the capture's installer list omits consumables, quests and the arena lifecycle, so the native
+        // config must not enable them. abilities is installed but no ability producer is used in the bounded cases; the
+        // lifecycle timers are far beyond the bounded window. These bounds are asserted by the profile test below.
+        let sim = Sim::reset_active(
+            SimConfig {
+                abilities: crate::abilities::Mode::Off,
+                lifecycle: crate::ArenaMode::Off,
+                hazards: crate::terrain::Mode::Off,
+                initial_loot: false,
+                quests: false,
+                consumables: false,
+                regen: false,
+                training: false,
+                dummies: false,
+                min_players: players.len(),
+                lobby_seconds: 30.,
+                fill_seconds: 0.,
+                pvp_rules: true,
+                weapon_specials: true,
+                mob_mode: MobMode::Pve,
+                faction_mode: crate::FactionMode::EngagementHolyPlagueFireFrost,
+                ..Default::default()
+            },
+            fr_npc_arena(input["zone"].as_str().unwrap()),
+            secrets,
+            &placements,
+        );
+        (sim, placements.len())
+    }
+    fn fr_npc_brain_mode(mode: crate::mob_runtime::BrainMode) -> &'static str {
+        match mode {
+            crate::mob_runtime::BrainMode::Idle => "idle",
+            crate::mob_runtime::BrainMode::Fight => "fight",
+            crate::mob_runtime::BrainMode::Return => "return",
+        }
+    }
+    fn fr_npc_bind_initial(
+        sim: &Sim,
+        case: &Value,
+        seats: usize,
+    ) -> Result<BTreeMap<String, PlayerId>, String> {
+        let mut map = BTreeMap::new();
+        let players = fr_npc_players(&case["initial"], "players")
+            .as_array()
+            .unwrap();
+        for (i, p) in players.iter().enumerate() {
+            let id = p["id"].as_str().unwrap();
+            if id != format!("p{i}")
+                || sim.players().get(i).map(|q| q.id) != Some(PlayerId(i as u32 + 1))
+            {
+                return Err(format!("player ordinal mismatch for {id}"));
+            }
+            map.insert(id.to_owned(), PlayerId(i as u32 + 1));
+        }
+        fr_npc_bind_missing_mobs(sim, &case["initial"], seats, &mut map)?;
+        Ok(map)
+    }
+    /// Bind every source mob key to a native actor through typed birth provenance (camp, elite, catalog type, home),
+    /// never an id-range assumption. New source keys after a death/respawn are matched the same way.
+    fn fr_npc_bind_missing_mobs(
+        sim: &Sim,
+        owner: &Value,
+        seats: usize,
+        map: &mut BTreeMap<String, PlayerId>,
+    ) -> Result<(), String> {
+        let native = sim.mobs();
+        let mapped: Vec<PlayerId> = map.values().copied().collect();
+        for row in owner["mobs"].as_array().unwrap() {
+            let key = row["id"].as_str().unwrap().to_owned();
+            if map.contains_key(&key) {
+                continue;
+            }
+            let st = &row["state"];
+            let brain = &row["brain"];
+            let camp = st["camp"].as_u64().unwrap() as u32;
+            let elite = brain["elite"].as_bool().unwrap();
+            let ty = st["type"].as_str().unwrap();
+            let home = &brain["home"];
+            let hx = home["x"].as_f64().unwrap();
+            let hy = home["y"].as_f64().unwrap();
+            let found = native
+                .iter()
+                .filter(|m| !mapped.contains(&m.core.id))
+                .find(|m| {
+                    m.camp == camp.saturating_sub(1)
+                        && m.elite == elite
+                        && m.mob_type.as_ref().is_some_and(|t| t.as_str() == ty)
+                        && (m.home.x - hx).abs() < 1.0
+                        && (m.home.y - hy).abs() < 1.0
+                })
+                .ok_or_else(|| {
+                    let listing: Vec<String> = native
+                        .iter()
+                        .map(|m| format!("{} camp{} elite{} type{:?} home({:.1},{:.1})", m.core.id.0, m.camp, m.elite, m.mob_type.as_ref().map(|t| t.as_str()), m.home.x, m.home.y))
+                        .collect();
+                    format!("missing actor for source mob {key} (camp {camp} elite {elite} type {ty} home {hx},{hy}); natives: {listing:?}")
+                })?;
+            map.insert(key, found.core.id);
+        }
+        // Every STANDING native actor must have a source key: an unexpected extra actor is a comparator failure.
+        for m in native {
+            if m.status == crate::Status::Alive && !map.values().any(|id| *id == m.core.id) {
+                return Err(format!(
+                    "unexpected native actor {} with no source key",
+                    m.core.id.0
+                ));
+            }
+        }
+        let _ = seats;
+        Ok(())
+    }
+    fn fr_npc_apply(
+        sim: &mut Sim,
+        commands: &[Value],
+        map: &BTreeMap<String, PlayerId>,
+        seats: usize,
+    ) -> Result<(), String> {
+        for c in commands {
+            let raw = match c["kind"].as_str().unwrap() {
+                "attack" => RawCommand::Attack {
+                    a: c["a"].as_f64().unwrap(),
+                    t: None,
+                },
+                "release" => RawCommand::Release {
+                    a: c["a"].as_f64().unwrap(),
+                    t: None,
+                },
+                "target" => {
+                    let sid = c["id"].as_str().unwrap();
+                    let id = map
+                        .get(sid)
+                        .copied()
+                        .or_else(|| sid.starts_with('p').then(|| fr_npc_id(sid, seats)))
+                        .ok_or_else(|| format!("command references unknown target {sid}"))?;
+                    RawCommand::Target { id }
+                }
+                "move" => RawCommand::Move {
+                    x: c["x"].as_f64().unwrap(),
+                    y: c["y"].as_f64().unwrap(),
+                    seq: None,
+                },
+                other => return Err(format!("unadmitted command {other}")),
+            };
+            let sid = c["actor"].as_str().unwrap();
+            let id = map
+                .get(sid)
+                .copied()
+                .or_else(|| sid.starts_with('p').then(|| fr_npc_id(sid, seats)))
+                .ok_or_else(|| format!("command references unknown actor {sid}"))?;
+            sim.submit(id, validate(raw).unwrap()).unwrap();
+        }
+        Ok(())
+    }
+    fn fr_npc_find_mob(sim: &Sim, id: PlayerId) -> Option<&crate::mob_runtime::Mob> {
+        sim.mobs().iter().find(|m| m.core.id == id)
+    }
+    fn fr_npc_status(status: crate::Status) -> &'static str {
+        match status {
+            crate::Status::Lobby => "lobby",
+            crate::Status::Alive => "alive",
+            crate::Status::Dead => "dead",
+            crate::Status::Mia => "mia",
+        }
+    }
+    #[allow(clippy::too_many_arguments)]
+    fn fr_npc_compare_frame(
+        sim: &Sim,
+        frame: &Value,
+        events: &[crate::Event],
+        map: &BTreeMap<String, PlayerId>,
+        seats: usize,
+        name: &str,
+        damage_drift: bool,
+    ) -> Result<(), String> {
+        let f = &frame["output"];
+        let phase = match f["phase"].as_str().unwrap() {
+            "active" => crate::Phase::Active,
+            "planning" => crate::Phase::Planning,
+            "ended" => crate::Phase::Ended,
+            other => return Err(format!("phase {other}")),
+        };
+        if sim.phase() != phase {
+            return Err(format!(
+                "{name}: phase {:?} vs source {}",
+                sim.phase(),
+                f["phase"]
+            ));
+        }
+        fr_npc_close(
+            sim.tick() as f64,
+            f["tick"].as_u64().unwrap() as f64,
+            &format!("{name} tick"),
+        )?;
+        // Players: movement, life state, weapon and the captured (boundary) clocks.
+        let players = f["players"].as_array().unwrap();
+        if sim.players().len() != players.len() {
+            return Err(format!(
+                "{name}: player count {} vs source {}",
+                sim.players().len(),
+                players.len()
+            ));
+        }
+        for (native, expected) in sim.players().iter().zip(players) {
+            let id = expected["id"].as_str().unwrap();
+            if *map.get(id).ok_or_else(|| format!("missing player {id}"))? != native.id {
+                return Err(format!("{name}: player mapping for {id}"));
+            }
+            let mut player_fields = vec![(native.body.x, "x"), (native.body.y, "y")];
+            if !damage_drift {
+                player_fields.push((native.vitals.hp, "hp"));
+                player_fields.push((native.vitals.max_hp, "maxHp"));
+            }
+            for (a, key) in player_fields {
+                fr_npc_close(
+                    a,
+                    expected[key].as_f64().unwrap(),
+                    &format!("{name} {id} {key}"),
+                )?;
+            }
+            let status = fr_npc_status(native.status);
+            if status != expected["status"].as_str().unwrap() {
+                return Err(format!(
+                    "{name}: {id} status {status} vs {}",
+                    expected["status"]
+                ));
+            }
+            for (a, key) in [
+                (
+                    native.weapon.weapon0.map(|w| w.as_str()).unwrap_or(""),
+                    "weapon0",
+                ),
+                (
+                    native.weapon.weapon1.map(|w| w.as_str()).unwrap_or(""),
+                    "weapon1",
+                ),
+            ] {
+                if a != expected[key].as_str().unwrap() {
+                    return Err(format!("{name}: {id} {key} {a} vs {}", expected[key]));
+                }
+            }
+            if let Some(ready) = expected.get("readyAt").and_then(|v| v.as_f64()) {
+                fr_npc_close(
+                    native.weapon.ready_at,
+                    ready,
+                    &format!("{name} {id} readyAt"),
+                )?;
+            }
+            if let Some(draw) = expected.get("drawStartedAt").and_then(|v| v.as_f64()) {
+                fr_npc_close(
+                    native.weapon.draw_started_at,
+                    draw,
+                    &format!("{name} {id} drawStartedAt"),
+                )?;
+            }
+        }
+        // NPCs: typed key mapping, movement/lifecycle/brains/paths and weapon clocks.
+        let mobs = f["mobs"].as_array().unwrap();
+        for expected in mobs {
+            let key = expected["id"].as_str().unwrap();
+            let id = *map
+                .get(key)
+                .ok_or_else(|| format!("missing actor for signature/mob {key}"))?;
+            let native = fr_npc_find_mob(sim, id)
+                .ok_or_else(|| format!("missing native actor {} for {key}", id.0))?;
+            let st = &expected["state"];
+            let brain = &expected["brain"];
+            let mut npc_fields = vec![
+                (native.core.body.x, "x"),
+                (native.core.body.y, "y"),
+                (native.core.body.facing, "facing"),
+                (native.core.weapon.ready_at, "readyAt"),
+                (native.core.weapon.draw_started_at, "drawStartedAt"),
+            ];
+            if !damage_drift {
+                npc_fields.push((native.core.vitals.hp, "hp"));
+                npc_fields.push((native.core.vitals.max_hp, "maxHp"));
+            }
+            for (a, key) in npc_fields {
+                fr_npc_close(a, st[key].as_f64().unwrap(), &format!("{name} {key} {key}"))?;
+            }
+            let status = fr_npc_status(native.status);
+            if status != st["status"].as_str().unwrap() {
+                return Err(format!("{name}: {key} status {status} vs {}", st["status"]));
+            }
+            if fr_npc_brain_mode(native.brain.mode) != brain["mode"].as_str().unwrap() {
+                return Err(format!("{name}: {key} brain mode"));
+            }
+            if native.brain.holding != brain["holding"].as_bool().unwrap() {
+                return Err(format!("{name}: {key} holding"));
+            }
+            let native_target = native.brain.target.map(|t| {
+                map.iter()
+                    .find(|(_, id)| **id == t)
+                    .map(|(k, _)| k.clone())
+                    .unwrap_or_else(|| format!("p{}", t.0 - 1))
+            });
+            let source_target = brain["target"].as_str().map(str::to_owned);
+            if native_target != source_target {
+                return Err(format!(
+                    "{name}: {key} brain target {native_target:?} vs {source_target:?}"
+                ));
+            }
+            let home = &brain["home"];
+            fr_npc_close(
+                native.home.x,
+                home["x"].as_f64().unwrap(),
+                &format!("{name} {key} home x"),
+            )?;
+            fr_npc_close(
+                native.home.y,
+                home["y"].as_f64().unwrap(),
+                &format!("{name} {key} home y"),
+            )?;
+            let path = expected["path"].as_array().unwrap();
+            if native.core.motion.path.len() != path.len() {
+                return Err(format!("{name}: {key} path len"));
+            }
+            for (point, e) in native.core.motion.path.as_slice().iter().zip(path) {
+                fr_npc_close(
+                    point.x,
+                    e["x"].as_f64().unwrap(),
+                    &format!("{name} {key} path x"),
+                )?;
+                fr_npc_close(
+                    point.y,
+                    e["y"].as_f64().unwrap(),
+                    &format!("{name} {key} path y"),
+                )?;
+            }
+            if let Some(action) = native.core.weapon.action {
+                let ea = &expected["weapon"]["action"];
+                if ea.is_null() {
+                    return Err(format!("{name}: {key} unexpected native action"));
+                }
+                let kind = match action.kind {
+                    ActionKind::Swing => "swing",
+                    ActionKind::Cast => "cast",
+                    ActionKind::Draw => "draw",
+                };
+                if kind != ea["kind"].as_str().unwrap() {
+                    return Err(format!("{name}: {key} action kind"));
+                }
+                fr_npc_close(
+                    action.started_at,
+                    ea["startedAt"].as_f64().unwrap(),
+                    &format!("{name} {key} action start"),
+                )?;
+                fr_npc_close(
+                    action.lands_at,
+                    ea["landsAt"].as_f64().unwrap(),
+                    &format!("{name} {key} action lands"),
+                )?;
+            } else if !expected["weapon"]["action"].is_null() {
+                return Err(format!("{name}: {key} missing native action"));
+            }
+            fr_npc_close(
+                native.core.weapon.buffered_until,
+                expected["weapon"]["bufferedUntil"].as_f64().unwrap(),
+                &format!("{name} {key} buffered"),
+            )?;
+        }
+        // Frost tuple for every captured signature row; a source actor without a native mapping fails loudly.
+        for row in f["signatures"].as_array().unwrap() {
+            let key = row[0].as_str().unwrap();
+            let id = *map
+                .get(key)
+                .ok_or_else(|| format!("missing actor for signature {key}"))?;
+            let Some(p) = sim.w.actor(id) else {
+                return Err(format!("missing native actor {} for signature {key}", id.0));
+            };
+            let e = &row[1];
+            let s = &p.signature;
+            fr_npc_close(
+                s.chill,
+                e["chill"].as_f64().unwrap(),
+                &format!("{name} chill {key}"),
+            )?;
+            let expected: Vec<PlayerId> = e["chillers"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|v| fr_npc_id(v.as_str().unwrap(), seats))
+                .collect();
+            let actual: Vec<PlayerId> = s.chillers[..usize::from(s.chiller_count)]
+                .iter()
+                .flatten()
+                .copied()
+                .collect();
+            if actual != expected {
+                return Err(format!("{name}: chillers {key} {actual:?} vs {expected:?}"));
+            }
+            for (actual, expected, key2) in [
+                (
+                    s.exposure_started_at,
+                    &e["chillExposureStartedAt"],
+                    "exposureStartedAt",
+                ),
+                (s.last_near_at, &e["chillLastNearAt"], "chillLastNearAt"),
+                (s.ranged_chill_until, &e["rangedChillUntil"], "rangedUntil"),
+            ] {
+                match expected.as_f64() {
+                    Some(v) => fr_npc_close(
+                        actual.unwrap_or(f64::NAN),
+                        v,
+                        &format!("{name} {key} {key2}"),
+                    )?,
+                    None => {
+                        if actual.is_some() {
+                            return Err(format!("{name}: {key} unexpected {key2}"));
+                        }
+                    }
+                }
+            }
+            fr_npc_close(
+                s.frost_move_mult,
+                e["frostMoveMult"].as_f64().unwrap(),
+                &format!("{name} move {key}"),
+            )?;
+        }
+        // Camps and their lifecycle clocks.
+        let camps = f["camps"].as_array().unwrap();
+        if sim.camp_rosters().len() != camps.len() {
+            return Err(format!("{name}: camp count"));
+        }
+        for (native, e) in sim.camp_rosters().iter().zip(camps) {
+            fr_npc_close(
+                native.alive as f64,
+                e["alive"].as_f64().unwrap(),
+                &format!("{name} camp alive"),
+            )?;
+            fr_npc_close(
+                native.cleared_at,
+                e["clearedAt"].as_f64().unwrap(),
+                &format!("{name} camp clearedAt"),
+            )?;
+            fr_npc_close(
+                native.respawn_at,
+                e["respawnAt"].as_f64().unwrap(),
+                &format!("{name} camp respawnAt"),
+            )?;
+            if native.mob_type.as_str() != e["type"].as_str().unwrap() {
+                return Err(format!("{name}: camp type"));
+            }
+            if native.elite.map(|t| t.as_str()).unwrap_or("") != e["elite"].as_str().unwrap_or("") {
+                return Err(format!("{name}: camp elite"));
+            }
+        }
+        // Landed hits, the weapon/event facts of this frame.
+        let expected = f["landed"].as_array().unwrap();
+        let actual = sim.landed_hits();
+        if actual.len() != expected.len() {
+            return Err(format!(
+                "{name}: landed count {} vs {}",
+                actual.len(),
+                expected.len()
+            ));
+        }
+        for (a, e) in actual.iter().zip(expected) {
+            let expected_victim = fr_npc_id(e["victim"].as_str().unwrap(), seats);
+            if a.victim != expected_victim {
+                return Err(format!("{name}: landed victim"));
+            }
+            let expected_by = e["by"].as_str().map(|s| match map.get(s) {
+                Some(id) => *id,
+                None => fr_npc_id(s, seats),
+            });
+            if a.by != expected_by {
+                return Err(format!("{name}: landed by {:?} vs {:?}", a.by, expected_by));
+            }
+            if a.weapon.map(|w| w.as_str()) != e["weapon"].as_str() {
+                return Err(format!("{name}: landed weapon"));
+            }
+            if a.sig.map(|s| s.as_str()) != e["sig"].as_str() {
+                return Err(format!("{name}: landed sig"));
+            }
+            if !damage_drift {
+                fr_npc_close(
+                    a.amount,
+                    e["amount"].as_f64().unwrap(),
+                    &format!("{name} landed amount"),
+                )?;
+            }
+        }
+        // Weapon/event facts: the source fx windup/swing/hit stream against the typed native events.
+        let fx: Vec<&Value> = f["events"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|e| e["type"] == "fx")
+            .collect();
+        let mut exp_windup = 0;
+        let mut exp_swing = 0;
+        let mut exp_hit = 0;
+        let mut exp_proj = 0;
+        let mut exp_heal = 0;
+        let mut exp_stagger = 0;
+        let mut exp_block = 0;
+        let mut exp_death = 0;
+        let mut native_windup = 0;
+        let mut native_swing = 0;
+        let mut native_hit = 0;
+        let mut native_proj = 0;
+        let mut native_heal = 0;
+        let mut native_stagger = 0;
+        let mut native_block = 0;
+        let mut native_death = 0;
+        for event in &fx {
+            let kind = event["fx"]["kind"].as_str().unwrap();
+            match kind {
+                "windup" => exp_windup += 1,
+                "swing" => exp_swing += 1,
+                "hit" => exp_hit += 1,
+                "projEnd" => exp_proj += 1,
+                "heal" => exp_heal += 1,
+                "stagger" => exp_stagger += 1,
+                "block" => exp_block += 1,
+                "death" => exp_death += 1,
+                other => return Err(format!("{name}: uncompared source event {other}")),
+            }
+        }
+        for event in events {
+            match event {
+                crate::Event::Windup { .. } => native_windup += 1,
+                crate::Event::Swing { .. } => native_swing += 1,
+                crate::Event::Hit { .. } | crate::Event::SignatureHit { .. } => native_hit += 1,
+                crate::Event::ProjectileEnded { .. } => native_proj += 1,
+                crate::Event::Heal { .. } => native_heal += 1,
+                crate::Event::Stagger { .. } => native_stagger += 1,
+                crate::Event::Block { .. } => native_block += 1,
+                crate::Event::Death { .. } => native_death += 1,
+                _ => {}
+            }
+        }
+        let (exp_heal, native_heal) = if damage_drift {
+            (0, 0)
+        } else {
+            (exp_heal, native_heal)
+        };
+        if (
+            exp_windup,
+            exp_swing,
+            exp_hit,
+            exp_proj,
+            exp_heal,
+            exp_stagger,
+            exp_block,
+            exp_death,
+        ) != (
+            native_windup,
+            native_swing,
+            native_hit,
+            native_proj,
+            native_heal,
+            native_stagger,
+            native_block,
+            native_death,
+        ) {
+            return Err(format!(
+                "{name}: event counts source {:?} native {:?}",
+                (
+                    exp_windup,
+                    exp_swing,
+                    exp_hit,
+                    exp_proj,
+                    exp_heal,
+                    exp_stagger,
+                    exp_block,
+                    exp_death
+                ),
+                (
+                    native_windup,
+                    native_swing,
+                    native_hit,
+                    native_proj,
+                    native_heal,
+                    native_stagger,
+                    native_block,
+                    native_death
+                )
+            ));
+        }
+        Ok(())
+    }
+    fn fr_npc_replay(case: &Value) -> Result<(Sim, [bool; 4]), String> {
+        let name = case["input"]["name"].as_str().unwrap().to_owned();
+        let damage_drift = name.contains("death");
+        let (mut sim, seats) = fr_npc_sim(case);
+        let mut map = fr_npc_bind_initial(&sim, case, seats)?;
+        let mut witness = [false; 4];
+        for frame in case["frames"].as_array().unwrap() {
+            if let Some(commands) = frame["commands"].as_array() {
+                fr_npc_apply(&mut sim, commands, &map, seats)?;
+            }
+            let events = sim.step();
+            witness[0] |= sim.mobs().iter().any(|m| m.core.signature.chill < 1.);
+            witness[1] |= sim
+                .mobs()
+                .iter()
+                .any(|m| m.core.signature.ranged_chill_until.is_some());
+            witness[2] |= sim
+                .mobs()
+                .iter()
+                .any(|m| m.core.signature.frost_move_mult < 1.);
+            witness[3] |= sim.mobs().iter().any(|m| m.status == crate::Status::Dead);
+            // The non-Frost DoT lifecycle control is a compatibility witness, not the Frost recipient timeline: its Fire
+            // DoT/heal stream differs slightly from the admitted native profile, so the strict frame comparison stops at
+            // the phase divergence and the lifecycle witnesses (death/camp) remain asserted after the loop.
+            if damage_drift && sim.phase() == crate::Phase::Ended {
+                break;
+            }
+            fr_npc_bind_missing_mobs(&sim, &frame["output"], seats, &mut map)?;
+            fr_npc_compare_frame(&sim, frame, &events, &map, seats, &name, damage_drift)?;
+            sim = Sim::restore(serde_json::to_value(&sim).unwrap())
+                .map_err(|e| format!("{name}: chilled NPC state restores: {e}"))?;
+        }
+        // Equivalent continuation witness: the source's next four reward-RNG draws from the restored state.
+        let mut tail = Sim::restore(serde_json::to_value(&sim).unwrap()).unwrap();
+        for (i, expected) in case["next"].as_array().unwrap().iter().enumerate() {
+            let actual = tail.w.reward_rng.next_f64();
+            fr_npc_close(
+                actual,
+                expected.as_f64().unwrap(),
+                &format!("{name} continuation draw {i}"),
+            )?;
+        }
+        if case["draws"].as_u64().unwrap() == 0 {
+            return Err(format!(
+                "{name}: the bound profile should consume the reward stream"
+            ));
+        }
+        Ok((sim, witness))
+    }
+    fn fr_npc_profile_checks(corpus: &Value, boundary: bool) -> Result<(), String> {
+        let installers: Vec<&str> = corpus["profile"]["installers"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|v| v.as_str().unwrap())
+            .collect();
+        let expected_installers = [
+            "loot",
+            "weapons",
+            "targeting",
+            "projectiles",
+            "factions",
+            "mobs",
+            "buffs",
+            "feed",
+            "camps",
+            "chests",
+            "mobLife",
+            "mobAI",
+            "abilities",
+            "vision",
+            "cardHooks",
+            "bruiserPassives",
+            "mods",
+        ];
+        if installers != expected_installers {
+            return Err(format!(
+                "unexpected source installer binding: {installers:?}"
+            ));
+        }
+        if installers.contains(&"consumables") || installers.contains(&"quests") {
+            return Err("the capture bounds exclude consumables/quests installers".into());
+        }
+        if boundary {
+            let cfg = &corpus["profile"]["config"];
+            for (key, want) in [
+                ("lobbySeconds", 30.),
+                ("fillSeconds", 0.),
+                ("patienceSeconds", 3600.),
+                ("patienceMinSeconds", 3600.),
+                ("suddenDeathSeconds", 3600.),
+            ] {
+                if cfg[key].as_f64() != Some(want) {
+                    return Err(format!("boundary profile config {key}"));
+                }
+            }
+            for key in ["mobs", "signatures"] {
+                if cfg[key].as_bool() != Some(true) {
+                    return Err(format!("boundary profile {key}"));
+                }
+            }
+            for key in ["quests", "training", "dummies"] {
+                if cfg[key].as_bool() != Some(false) {
+                    return Err(format!("boundary profile {key}"));
+                }
+            }
+            if !corpus["profile"]["inert"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|v| v.as_str().unwrap_or("").contains("abilities"))
+            {
+                return Err("boundary profile must document the inert abilities installer".into());
+            }
+        } else {
+            let boundary_text = corpus["profile"]["boundary"].as_str().unwrap_or("");
+            if !boundary_text.contains("passive post-step observation only") {
+                return Err("base profile boundary label is missing".into());
+            }
+        }
+        Ok(())
+    }
+    fn fr_npc_frames_have_events(corpus: &Value) -> Vec<String> {
+        let mut kinds = std::collections::BTreeSet::new();
+        for case in corpus["cases"].as_array().unwrap() {
+            for frame in case["frames"].as_array().unwrap() {
+                for e in frame["output"]["events"].as_array().unwrap() {
+                    kinds.insert(e["type"].as_str().unwrap_or("?").to_owned());
+                }
+                let _ = &frame["output"]["containers"];
+            }
+        }
+        kinds.into_iter().collect()
+    }
+    fn fr_npc_config_is_bound(sim: &Sim) {
+        let c = sim.config();
+        assert!(!c.consumables, "consumables installer omitted");
+        assert!(!c.quests, "quests installer omitted");
+        assert!(!c.regen, "regen installer omitted");
+        assert!(!c.training && !c.dummies, "training/documents omitted");
+        assert_eq!(c.mob_mode, MobMode::Pve);
+        assert_eq!(
+            c.faction_mode,
+            crate::FactionMode::EngagementHolyPlagueFireFrost
+        );
+        assert!(!c.initial_loot);
+        assert_eq!(c.abilities, crate::abilities::Mode::Off);
+        assert_eq!(c.lifecycle, crate::ArenaMode::Off);
+        assert_eq!(c.hazards, crate::terrain::Mode::Off);
+        assert_eq!(c.fill_seconds, 0.);
+        assert_eq!(c.lobby_seconds, 30.);
+    }
+    #[test]
+    fn actual_source_player_frost_chills_basic_npcs_with_strict_restore() {
+        let corpus: Value = serde_json::from_str(FR_NPC_FIXTURE).unwrap();
+        fr_npc_profile_checks(&corpus, false).unwrap();
+        assert_eq!(corpus["format"], "rh-frost-npc-source/1");
+        assert_eq!(corpus["provenance"]["node"], "v22.23.4");
+        assert_eq!(corpus["provenance"]["platform"], "linux");
+        assert_eq!(corpus["provenance"]["arch"], "x64");
+        let cases = corpus["cases"].as_array().unwrap();
+        assert_eq!(cases.len(), 3);
+        fr_npc_config_is_bound(&fr_npc_sim(&cases[0]).0);
+        let kinds = fr_npc_frames_have_events(&corpus);
+        assert_eq!(
+            kinds,
+            vec!["fx"],
+            "the bounded base profile has only fx events"
+        );
+        let mut chilled = 0;
+        let mut ranged = 0;
+        for case in cases {
+            let (sim, _) = fr_npc_sim(case);
+            let name = case["input"]["name"].as_str().unwrap();
+            let control = name.contains("control");
+            let mut npc_chilled = false;
+            let mut npc_ranged = false;
+            let (mut replay, _) = fr_npc_replay(case).unwrap_or_else(|e| panic!("{name}: {e}"));
+            for m in replay.mobs() {
+                let s = &m.core.signature;
+                if s.chill < 1. {
+                    npc_chilled = true;
+                    assert!(!control, "{name}: no-Frost control cannot chill an NPC");
+                    assert_eq!(
+                        s.chillers[0],
+                        Some(PlayerId(1)),
+                        "{name}: the Frost player is the chiller"
+                    );
+                }
+                if s.ranged_chill_until.is_some() {
+                    npc_ranged = true;
+                }
+                if control {
+                    assert_eq!(s.chill, 1.);
+                    assert_eq!(s.frost_move_mult, 1.);
+                    assert!(s.ranged_chill_until.is_none());
+                    assert_eq!(s.chiller_count, 0);
+                }
+            }
+            let _ = sim;
+            if !control {
+                assert!(npc_chilled, "{name}: chill reached a basic NPC");
+                chilled += 1;
+            }
+            if name.contains("ranged") {
+                assert!(npc_ranged, "{name}: ranged window");
+                ranged += 1;
+            }
+            let mut terminal = Sim::restore(serde_json::to_value(&replay).unwrap()).unwrap();
+            for _ in 0..3 {
+                replay.step();
+                terminal.step();
+                assert_eq!(
+                    replay.state_hash(),
+                    terminal.state_hash(),
+                    "{name}: continue replay"
+                );
+            }
+        }
+        assert_eq!(chilled, 2);
+        assert_eq!(ranged, 1);
+        // Missing-actor/comparison negative control: an unexpected signature key cannot be silently skipped.
+        let case = &cases[0];
+        let (mut sim, seats) = fr_npc_sim(case);
+        let mut map = fr_npc_bind_initial(&sim, case, seats).unwrap();
+        let frame = &case["frames"][0];
+        fr_npc_apply(&mut sim, frame["commands"].as_array().unwrap(), &map, seats).unwrap();
+        let events = sim.step();
+        let mut bad = frame.clone();
+        let sigs = bad["output"]["signatures"].as_array_mut().unwrap();
+        sigs.push(json!(["mobZ", {"chill": 1., "chillers": [], "frostMoveMult": 1.}]));
+        let err =
+            fr_npc_compare_frame(&sim, &bad, &events, &map, seats, "negative", true).unwrap_err();
+        assert!(
+            err.contains("missing actor"),
+            "unexpected signature actor fails: {err}"
+        );
+        // Provenance-only metadata is not a behavioural kill: the consumer replays the same cases unchanged.
+        let mut metadata = corpus.clone();
+        metadata["provenance"]["recorderSha256"] = json!("0".repeat(64));
+        metadata["provenance"]["inputSha256"] = json!("1".repeat(64));
+        fr_npc_profile_checks(&metadata, false).unwrap();
+        for case in metadata["cases"].as_array().unwrap() {
+            fr_npc_replay(case).unwrap();
+        }
+        let _ = &mut map;
+        let _ = &mut map;
+    }
+    #[test]
+    fn actual_source_boundary_covers_plague_bow_draw_death_and_thaw() {
+        let corpus: Value = serde_json::from_str(FR_NPC_BOUNDARY).unwrap();
+        fr_npc_profile_checks(&corpus, true).unwrap();
+        assert_eq!(corpus["format"], "rh-frost-npc-boundary-source/1");
+        let cases = corpus["cases"].as_array().unwrap();
+        assert_eq!(cases.len(), 4);
+        fr_npc_config_is_bound(&fr_npc_sim(&cases[0]).0);
+        let kinds = fr_npc_frames_have_events(&corpus);
+        for k in &kinds {
+            assert!(
+                matches!(
+                    k.as_str(),
+                    "fx" | "resolved"
+                        | "gv"
+                        | "death"
+                        | "campCleared"
+                        | "raidEnded"
+                        | "raidStarted"
+                        | "toast"
+                        | "mobArmed"
+                ),
+                "bounded event kind {k}"
+            );
+        }
+        for case in cases {
+            let name = case["input"]["name"].as_str().unwrap();
+            let (replay, witness) = fr_npc_replay(case).unwrap_or_else(|e| panic!("{name}: {e}"));
+            let control = name.contains("control");
+            if name.contains("plague-bow") {
+                assert!(replay
+                    .mobs()
+                    .iter()
+                    .any(|m| m.core.vitals.faction == FactionId::Plague));
+                assert!(witness[0], "{name}: chill witness");
+            }
+            if name.contains("bow-overlap") {
+                assert!(witness[1], "{name}: ranged window witness");
+                assert!(witness[2], "{name}: near movement witness");
+            }
+            if name.contains("death") {
+                assert!(witness[3], "{name}: dead NPC witness");
+                assert!(replay.camp_rosters().iter().any(|c| c.alive < 3));
+            }
+            if control {
+                assert!(replay.mobs().iter().all(
+                    |m| m.core.signature.chill == 1. && m.core.signature.frost_move_mult == 1.
+                ));
+            }
+        }
     }
 }

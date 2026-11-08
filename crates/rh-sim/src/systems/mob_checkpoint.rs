@@ -204,6 +204,14 @@ pub(crate) fn validate(
             {
                 return Err("invalid zombie body".into());
             }
+            // Owned zombies are recipients of the generic Frost loops too; validate their shared signature tuple without
+            // adding the regional mob gear/Mark checks this branch deliberately skips.
+            super::frost::validate_signature(
+                k.config.faction_mode.frost(),
+                w,
+                m.core.id,
+                &m.core.signature,
+            )?;
             continue;
         }
         let Some(ActorOrigin::Mob {
@@ -316,7 +324,13 @@ pub(crate) fn validate(
                 ]
                 .iter()
                 .all(|v| v.is_finite())
-                || a.started_at > w.server_time
+                // The Frost draw correction (source afterWeapons/afterDamage) moves a chilled NPC draw's started_at
+                // forward with its lands_at; that is the source-produced chilled Draw form, not a malformed action. Only
+                // that narrow form is allowed past the ordinary now bound; every other clock/share rule below stands.
+                || (a.started_at > w.server_time
+                    && !(a.kind == ActionKind::Draw
+                        && p.signature.chill < 1.
+                        && a.started_at <= a.lands_at))
                 || a.lands_at < a.started_at
                 || pk.raw < 0.
                 || [pk.phys, pk.magic, pk.true_]
