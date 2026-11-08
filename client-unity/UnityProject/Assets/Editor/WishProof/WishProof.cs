@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using Roguehalla.Client;
 using Roguehalla.Net;
 using Roguehalla.Net.Protocol;
+using SessionState = Roguehalla.Net.SessionState;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.InputSystem;
