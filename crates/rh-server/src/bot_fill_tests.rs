@@ -569,3 +569,173 @@ fn the_manager_seed_is_the_room_fill_seed_when_set() {
     let b = rh_policy::bots::delay::DelayLine::<u32>::rng(cfg.seed.unwrap());
     assert_eq!(a, b);
 }
+
+// ============================================================ P-BOTS-7b repair: Number pipeline and the learning gate
+
+/// The raw ECMAScript Number() oracle (the source config pipeline's engine), captured additively in the same
+/// parity/policy/bot-runtime.json: decimal/scientific, whitespace/empty, radix, signed-radix, Infinity/NaN and invalid
+/// text. This is the declared class set, not a claim of complete engine certification.
+#[test]
+fn the_bots_number_oracle_matches_the_actual_source() {
+    let doc: Value = serde_json::from_str(include_str!("../../../parity/policy/bot-runtime.json"))
+        .expect("the captured bot-runtime corpus parses");
+    let numbers = doc["numbers"]
+        .as_array()
+        .expect("the additive numbers section");
+    assert!(numbers.len() >= 40, "the declared class set is captured");
+    for case in numbers {
+        let text = case["text"].as_str().expect("a declared input");
+        let got = js_number(text);
+        match case["kind"].as_str().expect("a declared kind") {
+            "nan" => assert!(got.is_nan(), "{text:?}: source NaN, port {got}"),
+            "+inf" => assert_eq!(got, f64::INFINITY, "{text:?}"),
+            "-inf" => assert_eq!(got, f64::NEG_INFINITY, "{text:?}"),
+            "number" => {
+                let want = case["value"].as_f64().expect("a captured number");
+                assert_eq!(
+                    got.to_bits(),
+                    want.to_bits(),
+                    "{text:?}: port {got} source {want}"
+                );
+                let negative_zero = case["negativeZero"].as_bool().unwrap_or(false);
+                assert_eq!(
+                    negative_zero,
+                    got == 0. && got.is_sign_negative(),
+                    "{text:?}: negative-zero sign"
+                );
+            }
+            other => panic!("number kind {other}"),
+        }
+    }
+}
+
+/// The pre-repair parser is the negative control this repair is measured against: it must fail the classes the source
+/// oracle pins while the ported pipeline matches all of them.
+#[test]
+fn the_old_number_pipeline_fails_the_repaired_classes() {
+    // The pre-repair js_number: trim, a Rust f64 parse (which accepts "inf"/"infinity"/"NaN" spellings the source
+    // rejects and has no radix literals), plus the two Infinity spellings.
+    fn old(raw: &str) -> f64 {
+        let text = raw.trim();
+        if text.is_empty() {
+            return f64::NAN;
+        }
+        match text {
+            "Infinity" | "+Infinity" => f64::INFINITY,
+            "-Infinity" => f64::NEG_INFINITY,
+            _ => text.parse::<f64>().unwrap_or(f64::NAN),
+        }
+    }
+    // Radix literals: the source Number accepts them, the old parser did not.
+    assert_eq!(js_number("0x10"), 16.);
+    assert_eq!(js_number("0b101"), 5.);
+    assert_eq!(js_number("0o17"), 15.);
+    assert!(old("0x10").is_nan() && old("0b101").is_nan() && old("0o17").is_nan());
+    // Signed radix strings are NaN in the source grammar; the port agrees, the old parser also answered NaN but for the
+    // wrong reason, so this is asserted against the captured oracle above.
+    assert!(js_number("+0x10").is_nan());
+    assert!(js_number("-0x10").is_nan());
+    // Rust's parser takes spellings the source does not: the old pipeline answered Infinity, the source NaN.
+    assert!(js_number("inf").is_nan());
+    assert!(old("inf").is_infinite());
+    assert!(js_number("infinity").is_nan());
+    assert!(old("infinity").is_infinite());
+    // A whitespace-only env value is Number(" ") = 0 (not the fallback): the old trim-then-parse made it NaN and fell back.
+    assert_eq!(js_number(" "), 0.);
+    assert!(old(" ").is_nan());
+    let source_ws = BotFillConfig::from_env(|k| (k == "BOTS_FILL_TO").then(|| " ".to_string()));
+    assert_eq!(
+        source_ws.fill_to, 0,
+        "source Math.round(Number of a space) is 0"
+    );
+    // Math.round is not floor(x + 0.5) for every double: the near-half value must stay 0, an x+0.5 implementation says 1.
+    let near_half = BotFillConfig::from_env(|k| {
+        (k == "BOTS_FILL_TO").then(|| "0.49999999999999994".to_string())
+    });
+    assert_eq!(near_half.fill_to, 0);
+    assert_eq!(((0.49999999999999994f64 + 0.5).floor()) as usize, 1);
+    // The empty string is the one value the source num short-circuits to the fallback; a space is not.
+    let empty = BotFillConfig::from_env(|k| (k == "BOTS_FILL_TO").then(String::new));
+    assert_eq!(empty.fill_to, BotFillConfig::default().fill_to);
+}
+
+/// The source BOT_STATS_FILE=off gate through the real used configuration and sink: main constructs and installs the live
+/// learning store only when the environment allows learning, and the composition drops a snapshot under off so no applied
+/// bias can reach the fill policy.
+#[test]
+fn bot_stats_file_off_keeps_the_used_configuration_learning_free() {
+    use rh_policy::bots::learning::{LearnedBias, LEARN_CAP};
+    let mut biases = std::collections::BTreeMap::new();
+    for persona in PersonaId::ALL {
+        for faction in FactionId::ALL {
+            biases.insert(
+                format!("faction|{}|{}", persona.as_str(), faction.as_str()),
+                if faction == FactionId::Fire {
+                    LEARN_CAP
+                } else {
+                    0.
+                },
+            );
+        }
+    }
+    let live = LearnedBias::with_biases(biases);
+    assert!(live.enabled(), "a running store's snapshot is enabled");
+    let env = |k: &str| (k == "BOT_STATS_FILE").then(|| "off".to_string());
+    // The startup decision (main): no store is started and no sink installed when the config says off.
+    let startup = BotFillConfig::from_env(env);
+    assert_eq!(startup.stats_file, StatsFile::Off);
+    assert!(!startup.learning_enabled(), "off disables the subsystem");
+    let installed: Option<LearnedBias> = if startup.learning_enabled() {
+        Some(live.clone())
+    } else {
+        None
+    };
+    // The real used configuration: the gate drops the snapshot even when a caller passes one.
+    let used = server_fill_config(env, Some(8), installed);
+    assert_eq!(used.learned, LearnedBias::NO_BIAS);
+    assert!(!used.learned.enabled());
+    let forced = server_fill_config(env, Some(8), Some(live.clone()));
+    assert_eq!(
+        forced.learned,
+        LearnedBias::NO_BIAS,
+        "off wins over a supplied snapshot"
+    );
+    // The room's real seat draw is the captured no-learning stream, and the pre-repair behavior (applying learning
+    // unconditionally) is observably different, so the regression is meaningful rather than an enum-parse check.
+    let plain = server_fill_config(|_| None, Some(8), None);
+    let biased = plain.clone().with_learned(live.clone());
+    let fire = |specs: &[BotSeatSpec]| {
+        specs
+            .iter()
+            .filter(|s| s.faction == FactionId::Fire)
+            .count()
+    };
+    let (mut used_total, mut plain_total, mut biased_total) = (0, 0, 0);
+    for seed in 1..=40u64 {
+        assert_eq!(
+            seat_all(used.clone(), seed),
+            seat_all(plain.clone(), seed),
+            "seed {seed}: the off configuration draws the NO_BIAS stream"
+        );
+        used_total += fire(&seat_all(used.clone(), seed));
+        plain_total += fire(&seat_all(plain.clone(), seed));
+        biased_total += fire(&seat_all(biased.clone(), seed));
+    }
+    assert_eq!(used_total, plain_total);
+    assert!(
+        biased_total > used_total,
+        "the pre-repair unconditional snapshot changes the draw: {biased_total} vs {used_total}"
+    );
+    // Only off disables learning: a file path parses as a path (the port has no file backend to create), and the default
+    // (unset) keeps learning when a snapshot is available.
+    let path = BotFillConfig::from_env(|k| {
+        (k == "BOT_STATS_FILE").then(|| "/var/raid/bots.json".to_string())
+    });
+    assert_eq!(
+        path.stats_file,
+        StatsFile::Path("/var/raid/bots.json".into())
+    );
+    assert!(path.learning_enabled());
+    let enabled = server_fill_config(|_| None, Some(8), Some(live.clone()));
+    assert_eq!(enabled.learned, live);
+}

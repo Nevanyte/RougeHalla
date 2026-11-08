@@ -257,10 +257,17 @@ impl CompatibilityReceipts {
 
 impl Persistence {
     /// The bot fill's read-only profile-name set (source isNameTaken): every durable profile callsign lower-cased. In
-    /// memory mode there is no profile registry, so the names of the seats this process has seen are the set.
-    pub async fn bot_names(&self) -> std::collections::HashSet<String> {
+    /// memory mode there is no profile registry, so the names of the seats this process has seen are the set (memory
+    /// behavior is unchanged and cannot fail here).
+    ///
+    /// A durable read failure is returned, never reported as an empty set: the caller fails its startup (see
+    /// `Persistence::bot_names_for_startup`) so a claimable profile can never be silently handed to the bot name draw.
+    /// LIMITATION: the names are a startup snapshot. Profiles created after this read are not dynamically reserved for the
+    /// rest of the process (the source's isNameTaken reads the live profile store when a claim happens); this repair does
+    /// not build a new reservation service, it only stops pretending an unreadable set is empty.
+    pub async fn bot_names(&self) -> Result<std::collections::HashSet<String>, String> {
         match self {
-            Persistence::Memory(m) => m
+            Persistence::Memory(m) => Ok(m
                 .fences
                 .lock()
                 .map(|fences| {
@@ -269,19 +276,29 @@ impl Persistence {
                         .map(|name| name.to_ascii_lowercase())
                         .collect()
                 })
-                .unwrap_or_default(),
+                .unwrap_or_default()),
             #[cfg(feature = "postgres")]
-            Persistence::Postgres { store, .. } => store
-                .profile_callsigns()
-                .await
-                .map(|names| {
-                    names
-                        .into_iter()
-                        .map(|name| name.to_ascii_lowercase())
-                        .collect()
-                })
-                .unwrap_or_default(),
+            Persistence::Postgres { store, .. } => {
+                let names = store
+                    .profile_callsigns()
+                    .await
+                    .map_err(|e| format!("profile-name set unreadable: {e}"))?;
+                Ok(names
+                    .into_iter()
+                    .map(|name| name.to_ascii_lowercase())
+                    .collect())
+            }
         }
+    }
+
+    /// The startup seam `main` uses for the fill policy's read-only name exclusion: the lower-cased profile callsigns,
+    /// or Err when the durable profile registry cannot be read. `main` reports the error and exits 2 instead of pretending an
+    /// empty set (a claimed name would else be drawn by a fill bot). Memory mode keeps its behavior: Ok over the seats this
+    /// process has seen.
+    pub async fn bot_names_for_startup(
+        &self,
+    ) -> Result<std::sync::Arc<std::collections::HashSet<String>>, String> {
+        Ok(std::sync::Arc::new(self.bot_names().await?))
     }
 
     pub fn memory() -> Self {

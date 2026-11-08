@@ -356,10 +356,16 @@ pub struct Room {
     line_rng: Rng,
     /// The read-only profile callsign set (source isNameTaken): a fill bot never draws one. Lower-cased.
     taken_names: Arc<std::collections::HashSet<String>>,
-    /// Delay-line delivery counters (source BotManagerStats' delivery half: sent/applied/refused/lost).
+    /// Delay-line delivery counters. The source manager counts a command as refused only at DELIVERY time, when the
+    /// delivered message is refused by the intake (enqueueClientMessage false); its MAX_QUEUED / unsupported-type
+    /// rejections in deliver are not part of that refused (deliver returns false before sent++). The port keeps those
+    /// separate in bot_line_dropped, so refused here is the source's delivery-time intake refusal and the counters are
+    /// deliberately not parity-identical to the source's stats as a whole. lost also covers a seat that left between
+    /// queuing and delivery, which the source never observes (it reads the runtime at delivery).
     bot_sent: u64,
     bot_applied: u64,
     bot_refused: u64,
+    bot_line_dropped: u64,
     bot_lost: u64,
     reports: mpsc::UnboundedSender<RoomReport>,
     clock: Arc<AtomicU64>,
@@ -449,6 +455,7 @@ impl Room {
             bot_sent: 0,
             bot_applied: 0,
             bot_refused: 0,
+            bot_line_dropped: 0,
             bot_lost: 0,
             reports,
             clock: Arc::new(AtomicU64::new(0f64.to_bits())),
@@ -854,7 +861,9 @@ impl Room {
                 if accepted {
                     self.bot_sent += 1;
                 } else {
-                    self.bot_refused += 1;
+                    // The line is at its 256-command cap (source MAX_QUEUED): a delivery-stage rejection, not an intake
+                    // refusal. Kept apart from bot_refused so the source's delivery-time accounting stays legible.
+                    self.bot_line_dropped += 1;
                 }
             } else {
                 self.submit_bot_now(player, cmd);
@@ -913,7 +922,9 @@ impl Room {
         }
     }
 
-    /// The delay-line counters (source manager stats: sent, applied, refused, lost), for telemetry.
+    /// The delay-line counters (source manager stats' delivery half: sent, applied, refused, lost), for telemetry.
+    /// refused is delivery-time intake refusal only (see the field docs); line-cap drops are reported by
+    /// bot_line_dropped and are not part of these four.
     pub fn bot_delivery(&self) -> (u64, u64, u64, u64) {
         (
             self.bot_sent,
@@ -921,6 +932,12 @@ impl Room {
             self.bot_refused,
             self.bot_lost,
         )
+    }
+
+    /// Commands the delay line dropped because it already held its 256-command cap (source MAX_QUEUED). The source reports
+    /// no such counter at all; it is kept here so the delivery-time refused count stays the source's meaning.
+    pub fn bot_line_dropped(&self) -> u64 {
+        self.bot_line_dropped
     }
 
     /// The seated fill bots' telemetry tags (id, callsign, tier, persona, faction, seed). The lobby HUD's head count and
@@ -2309,5 +2326,53 @@ mod tests {
                 spec.name
             );
         }
+    }
+
+    /// P-BOTS-7b repair: bot_refused is the source's DELIVERY-time intake refusal; a delay-line cap rejection (source
+    /// MAX_QUEUED, which the source stats do not report at all) is the separate native bot_line_dropped counter.
+    #[test]
+    fn bot_refused_is_delivery_intake_only_and_line_drops_are_separate() {
+        let (mut room, _last) =
+            running_fill_room(0., 13, Arc::new(std::collections::HashSet::new()));
+        assert!(
+            !room.bot_lines.is_empty(),
+            "the fill seated bots with delay lines"
+        );
+        let player = room.bot_lines[0].0;
+        let (sent0, _applied0, refused0, _lost0) = room.bot_delivery();
+        let dropped0 = room.bot_line_dropped();
+        let cap = rh_policy::bots::delay::MAX_QUEUED;
+        let batch: Vec<(PlayerId, rh_sim::PublicCommand)> = (0..cap + 5)
+            .map(|_| (player, rh_sim::PublicCommand::Stop { seq: None }))
+            .collect();
+        room.enqueue_bot_commands(batch);
+        let (sent, _applied, refused, _lost) = room.bot_delivery();
+        let accepted = sent - sent0;
+        let dropped = room.bot_line_dropped() - dropped0;
+        assert_eq!(dropped, 5, "the overflow past MAX_QUEUED is a line drop");
+        assert_eq!(
+            accepted + dropped,
+            cap as u64 + 5,
+            "every proposal is either queued or dropped"
+        );
+        assert!(accepted <= cap as u64);
+        assert_eq!(
+            refused, refused0,
+            "a line-cap drop is not a delivery refusal"
+        );
+        // A delivery-time refusal (a delivered proposal the resolver rejects) is exactly what the source counts. Actor 0
+        // is the reserved "no actor" id: the resolver refuses the target instead of validating a missing-target command.
+        room.submit_bot_now(player, rh_sim::PublicCommand::Target { actor: PlayerId(0) });
+        let (_, _, refused, _) = room.bot_delivery();
+        assert_eq!(
+            refused,
+            refused0 + 1,
+            "an unresolvable delivered command is refused"
+        );
+        assert_eq!(
+            room.bot_line_dropped() - dropped0,
+            5,
+            "intake refusal is not a line drop"
+        );
     }
 }

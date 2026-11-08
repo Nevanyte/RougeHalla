@@ -495,55 +495,68 @@ async fn main() {
         None => (Persistence::memory(), auth),
         Some(url) => durable(&url, &args).await,
     };
+    // The source config surface (docs/BOTS.md 7.3) is parsed BEFORE learning starts: BOT_STATS_FILE=off is the source gate
+    // on the whole learning subsystem (P-BOTS-7b repair). An off stats file must prevent the store from being constructed
+    // at all — no reads, no updates, no applied biases — not merely be recorded on the config.
+    let env_lookup = |key: &str| std::env::var(key).ok();
+    let startup_fill = rh_server::bot_fill::BotFillConfig::from_env(env_lookup);
+    let learning_allowed = startup_fill.learning_enabled();
     // The learning read path (P-BOTS-5): the durable store's frozen bias snapshot feeds the fill policy's faction softmax.
-    // Without a database the utilities are the NO_BIAS zeros, exactly as the captured manager stream was drawn.
-    // The P-BOTS-5 live learning store: one store per database/process, off-tick writes only, its writer task logging a
-    // failed batch. Without PostgreSQL learning stays off (the NO_BIAS zeros).
+    // Without a database, or with learning off, the utilities are the NO_BIAS zeros, exactly as the captured manager
+    // stream was drawn. The P-BOTS-5 live learning store: one store per database/process, off-tick writes only, its writer
+    // task logging a failed batch.
     #[cfg(feature = "postgres")]
     let learning: Option<
         Arc<rh_server::bot_learning::LiveLearning<rh_server::bot_learning::PgBackend>>,
-    > = match &persistence {
-        Persistence::Postgres { store, .. } => {
-            let backend = rh_server::bot_learning::PgBackend::new(store.pool().clone());
-            let clock = Arc::new(|| {
-                std::time::SystemTime::now()
-                    .duration_since(std::time::UNIX_EPOCH)
-                    .map(|d| d.as_millis() as i64)
-                    .unwrap_or(0)
-            });
-            match rh_server::bot_learning::LiveLearning::start(backend, clock).await {
-                Ok(live) => Some(live),
-                Err(e) => {
-                    eprintln!("[server] bot learning store unreadable, learning off: {e}");
-                    None
+    > = if !learning_allowed {
+        eprintln!("[server] bot learning disabled: BOT_STATS_FILE=off");
+        None
+    } else {
+        match &persistence {
+            Persistence::Postgres { store, .. } => {
+                let backend = rh_server::bot_learning::PgBackend::new(store.pool().clone());
+                let clock = Arc::new(|| {
+                    std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .map(|d| d.as_millis() as i64)
+                        .unwrap_or(0)
+                });
+                match rh_server::bot_learning::LiveLearning::start(backend, clock).await {
+                    Ok(live) => Some(live),
+                    Err(e) => {
+                        eprintln!("[server] bot learning store unreadable, learning off: {e}");
+                        None
+                    }
                 }
             }
+            Persistence::Memory(_) => None,
         }
-        Persistence::Memory(_) => None,
     };
     #[cfg(feature = "postgres")]
-    let learned = learning
-        .as_ref()
-        .map_or(rh_policy::bots::learning::LearnedBias::NO_BIAS, |live| {
-            live.snapshot()
-        });
+    let learning_snapshot = learning.as_ref().map(|live| live.snapshot());
     #[cfg(not(feature = "postgres"))]
-    let learned = rh_policy::bots::learning::LearnedBias::NO_BIAS;
-    // The manager's isNameTaken seam: the profile callsigns this server knows, read once before the first lobby (a fill
-    // bot never draws one; bots still never read or write a profile).
-    let bot_names = persistence.bot_names().await;
-    // The source config surface (docs/BOTS.md 7.3): the BOTS_* environment supplies the fill policy and --fill-bots (or
-    // first-playable) overrides only the count, the CLI is this server's addition. Fill stays off unless one of them asks
-    // for it, the Rust server's historical default (the source distribution defaults to 8).
-    let mut bot_fill = rh_server::bot_fill::BotFillConfig::from_env(|key| std::env::var(key).ok());
+    let learning_snapshot: Option<rh_policy::bots::learning::LearnedBias> = None;
+    // The manager's isNameTaken seam: the profile callsigns this server knows, read once at startup before the first lobby
+    // (a fill bot never draws one; bots still never read or write a profile). A durable read failure is fatal for this
+    // requested seam rather than an empty set: a claimable profile must never be silently exposed to the bot draw.
+    let bot_names = persistence
+        .bot_names_for_startup()
+        .await
+        .unwrap_or_else(|e| {
+            eprintln!("[server] {e}");
+            std::process::exit(2);
+        });
+    // The BOTS_* environment supplies the fill policy and --fill-bots (or first-playable) overrides only the count; fill
+    // stays off unless one of them asks for it (the Rust server's historical default; the source distribution defaults to
+    // 8). The learning snapshot participates under the same BOT_STATS_FILE gate handled inside this composition.
     let cli_fill = first_playable.is_some() || arg(&args, "--fill-bots").is_some();
-    if cli_fill {
-        bot_fill.fill_to = cfg.fill_bots_to;
-    } else if std::env::var_os("BOTS_FILL_TO").is_none() {
-        bot_fill.fill_to = 0;
-    }
+    let bot_fill = rh_server::bot_fill::server_fill_config(
+        env_lookup,
+        cli_fill.then_some(cfg.fill_bots_to),
+        learning_snapshot,
+    );
     cfg.fill_bots_to = bot_fill.fill_to;
-    cfg.bot_fill = Some(bot_fill.with_learned(learned));
+    cfg.bot_fill = Some(bot_fill);
     let api_cfg = api_config(&args).unwrap_or_else(|e| {
         eprintln!("[server] invalid account API settings: {e}");
         std::process::exit(2);
@@ -613,7 +626,7 @@ async fn main() {
         director.install_learning(live.clone());
     }
     // The fill bots' read-only profile-name seam (P-BOTS-7 remainder).
-    director.set_bot_names(rh_server::bot_fill::name_set(bot_names));
+    director.set_bot_names(bot_names);
     // Replay what an earlier process left in the spool (original fence and metadata), before any admission. This runs in
     // the background against the database: an outage delays the replay, never startup or a tick.
     #[cfg(feature = "postgres")]
