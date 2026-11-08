@@ -31,7 +31,8 @@ then one integration gate; do not repeat unchanged expensive map campaigns after
 1. Finish the consolidated Git checkpoint and its current Rust/C#/JS checks. Preserve active workers and recovery refs.
 2. Complete native gameplay/parity/headless acceptance. The bot Knowledge repair is admitted; approve a concrete fair
    observation design before memory/strategy/tactics work. The repaired learning store is integrated and defaults Off.
-   Complete the reviewed bot-fill configuration/name and tournament timer/write-error repairs; do not duplicate them.
+   Complete the reviewed bot-fill configuration/name repair; the tournament timer/write-error repair is integrated.
+   New tournament telemetry work remains isolated; do not duplicate it.
 3. Close the missing public transports and source consumers: full Wish input/owner facts, Kill/Trophy options,
    quest/trade flows and the remaining public facts/cues. Inventory exact native prerequisites before assigning each
    packet. Reconcile incompatible identities and all three codecs centrally. Native fixtures alone do not prove the UI.
@@ -57,7 +58,8 @@ must be resolved before dependent implementations; release evidence must test th
   insertion-order/source-sorted restart and per-arrival bias are checked. Default remains Off; do not enable alongside
   old noncooperating writers. Only managed-faction learning is connected. See [scope/evidence](evidence/stage2-bots-5/README.md).
 - The newer fill continuation is held for [configuration/name/parser repair](coordination/BOT_FILL_REPAIR.md), and the
-  tournament continuation for [real timer wiring and write-error handling](coordination/TOURNAMENT_TIMER_REPAIR.md).
+  tournament CLI/timer/write-error prefix through `2b9212c1` is integrated in `cc2cbb69` after13 focused tests, including
+  a flush-only failure control. Additional tournament telemetry remains isolated and does not certify outcome parity.
 - `570dee45` repairs the measured-RTT packet’s compulsory Pong budget and is integrated. This is command-time admission
   clamping: held attacks retain the source press-time lag until a new Attack/Release. It does not introduce a dynamic
   per-swing rule or certify input-to-photon latency. The [Pong repair packet](coordination/PONG_REPAIR.md) records its gate.

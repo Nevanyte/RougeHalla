@@ -1,0 +1,168 @@
+{
+  "scope": "November8 consolidation; branch refs preserved and active worker checks excluded",
+  "pushedCoreCheckpoint": "7d71bcc1",
+  "explicitlyClosedPrs": [
+    59,
+    58,
+    57,
+    56,
+    55,
+    53,
+    52,
+    51,
+    50,
+    49,
+    48,
+    47,
+    46,
+    45,
+    44,
+    43,
+    42,
+    41,
+    40,
+    39,
+    38,
+    37,
+    36,
+    34,
+    33,
+    31,
+    60
+  ],
+  "autoMergedPrs": [
+    30,
+    32,
+    35,
+    54
+  ],
+  "reason": "Reviewed head ancestry is already in optimization_port. GitHub refuses retargeting with no new commits; stacked PRs were explicitly closed with immutable integration links. Closed is not falsely relabeled merged.",
+  "performanceRunDispositions": [
+    {
+      "id": 42466326220,
+      "branch": "deepseek/p-bots-5",
+      "status": "completed",
+      "conclusion": "cancelled"
+    },
+    {
+      "id": 42465867626,
+      "branch": "deepseek/p-faction-3",
+      "status": "completed",
+      "conclusion": "cancelled"
+    },
+    {
+      "id": 42465865018,
+      "branch": "deepseek/p-cons-1a",
+      "status": "completed",
+      "conclusion": "cancelled"
+    },
+    {
+      "id": 42465862834,
+      "branch": "deepseek/p-cons-1b",
+      "status": "completed",
+      "conclusion": "cancelled"
+    },
+    {
+      "id": 42465860760,
+      "branch": "deepseek/p-cards-1",
+      "status": "completed",
+      "conclusion": "cancelled"
+    },
+    {
+      "id": 42465859305,
+      "branch": "deepseek/p-faction-1",
+      "status": "completed",
+      "conclusion": "cancelled"
+    },
+    {
+      "id": 42465856201,
+      "branch": "deepseek/p-abil-1",
+      "status": "completed",
+      "conclusion": "cancelled"
+    },
+    {
+      "id": 42465854603,
+      "branch": "deepseek/p-arena-1",
+      "status": "completed",
+      "conclusion": "cancelled"
+    },
+    {
+      "id": 42465853635,
+      "branch": "deepseek/p-terrain-1",
+      "status": "completed",
+      "conclusion": "cancelled"
+    },
+    {
+      "id": 42465851071,
+      "branch": "deepseek/p-mobs-1",
+      "status": "completed",
+      "conclusion": "cancelled"
+    },
+    {
+      "id": 42465850634,
+      "branch": "deepseek/p-vision-1",
+      "status": "completed",
+      "conclusion": "cancelled"
+    },
+    {
+      "id": 42465847633,
+      "branch": "deepseek/p-cons-1c",
+      "status": "completed",
+      "conclusion": "failure"
+    },
+    {
+      "id": 42465843292,
+      "branch": "deepseek/p-cards-2",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 42465838123,
+      "branch": "deepseek/p-arena-2",
+      "status": "completed",
+      "conclusion": "cancelled"
+    },
+    {
+      "id": 42465836224,
+      "branch": "deepseek/p-bots-1",
+      "status": "completed",
+      "conclusion": "cancelled"
+    },
+    {
+      "id": 42465832963,
+      "branch": "deepseek/p-quest-1",
+      "status": "completed",
+      "conclusion": "cancelled"
+    },
+    {
+      "id": 42465831389,
+      "branch": "deepseek/p-bots-2",
+      "status": "completed",
+      "conclusion": "cancelled"
+    },
+    {
+      "id": 42465830004,
+      "branch": "deepseek/p-bots-3",
+      "status": "completed",
+      "conclusion": "cancelled"
+    },
+    {
+      "id": 42465827568,
+      "branch": "deepseek/p-bots-4",
+      "status": "completed",
+      "conclusion": "cancelled"
+    },
+    {
+      "id": 42465826615,
+      "branch": "deepseek/p-trade-1",
+      "status": "completed",
+      "conclusion": "failure"
+    },
+    {
+      "id": 42465825062,
+      "branch": "deepseek/p-bots-6",
+      "status": "completed",
+      "conclusion": "cancelled"
+    }
+  ]
+}

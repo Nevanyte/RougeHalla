@@ -165,6 +165,41 @@
       "file": "browser-proof-learning-final.json",
       "bytes": 4381,
       "sha256": "15f5572810fb9c3453cc463b2be8d6d79c38afbed2e22f2ba22d00e5c97584a8"
+    },
+    {
+      "file": "tournament-repair-final.log",
+      "bytes": 1549,
+      "sha256": "03394250964f1e2aef7e732679d123fc857b7d2961138b67e695df2547e283c3"
+    },
+    {
+      "file": "control-default-final.log",
+      "bytes": 2443,
+      "sha256": "f479fe74ce98d759f9291102e7f046997f0d3a11d40e855eb9d2d2aedb698824"
+    },
+    {
+      "file": "control-all-final.log",
+      "bytes": 2571,
+      "sha256": "06dc74b625a7d08928989d71809d8497ff049ceaf2898ff7e7788e749b1e23d2"
+    },
+    {
+      "file": "clippy-tournament-final.log",
+      "bytes": 432,
+      "sha256": "f3fc17b8529514c4729b1a291f20813dae518d54b36fc5fbe9cc02a94c35c036"
+    },
+    {
+      "file": "clippy-tournament-default-final.log",
+      "bytes": 432,
+      "sha256": "5e4ac486691d66582346340da12d5b76466d8587c1fd51630df26f593dee6395"
+    },
+    {
+      "file": "fmt-tournament-final.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "ci-failed-rust.log",
+      "bytes": 142939,
+      "sha256": "085ed080c0e22a194ef0601adc9b372dfe2cfe606b33fc016c0d8001e81e2934"
     }
   ]
 }

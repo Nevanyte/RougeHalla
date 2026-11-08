@@ -105,7 +105,26 @@ Full public Wish/Trophy/quest/trade/fact transports, native strict remainders, f
 durable cloud/provider/regional operation and comparable full-game performance remain unfinished. The old Calgary
 staging run was removed; this cleanup makes no production or AWS resource changes and does not enlarge CAD20 total.
 
-The6b tournament continuation is held for the [real CLI timer repair](../../coordination/TOURNAMENT_TIMER_REPAIR.md):
-its parsed/exported overrides were not reaching the configuration actually passed to the runner. The active7b continuation
-is held for [configuration/name/parser repairs](../../coordination/BOT_FILL_REPAIR.md) and composition on the repaired learning API. Both remain isolated; holding them is an explicit failed/review gate, not
-an omitted branch.
+The6b CLI/JSON prefix is admitted through `2b9212c1` with real timer wiring and propagated telemetry write/flush errors
+(`cc2cbb69`). Thirteen focused tournament/CLI tests pass on the union, including a root-added flush-only sink failure.
+Its further telemetry continuation remains active and separate; no full brain or outcome parity is claimed. The7b fill
+continuation remains held for [configuration/name/parser repairs](../../coordination/BOT_FILL_REPAIR.md) and composition
+on the repaired learning API.
+
+## GitHub and CI follow-through
+
+The first clean checkpoint was pushed as7d71bcc1, then the learning union as53bbead3. Thirty-one reviewed PR heads are
+accounted for: four GitHub auto-merges and27 explicitly closed stacked PRs with immutable integration receipts. GitHub
+refuses retargeting a head already wholly included in optimization_port; those closures are not falsely called new PR
+merges. Branch refs remain for descendants. [The disposition receipt](github-dispositions.json) records individual PRs.
+
+Twenty-one obsolete performance runs were checked against integrated HEAD ancestry:18 cancellations were confirmed,
+and three had already completed (one success, two failures). Active worker runs were preserved. This frees capacity for
+the current union rather than using obsolete branch numbers as its performance evidence.
+
+Initial pushed CI passes C#, card-runtime source, legacy recapture, hosting and latency-report checks. Rust failed the
+admission TTL integration scenario because its two clients could start a match; one leaving then closed the room. Closure
+marks unused reservations expired, but the next retry correctly returns409 session_ended before idempotent replay. A
+private forced-active HTTP witness proves that sequence. The fixture-only repair36a3222b uses a three-player threshold
+for that scenario and explicit Lobby/HTTP assertions, preserving production error precedence and sleep durations. All24
+control tests pass in both default/all-feature modes. Corrected CI remains separately tracked; the failed run is retained.

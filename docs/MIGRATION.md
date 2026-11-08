@@ -46,8 +46,15 @@ recorded older candidate, not the new union or display/input-to-photon latency. 
 [RNG/rounding/null repair](coordination/KNOWLEDGE_REPAIR.md) `fdea457b` (57 policy tests, three semantic mutants and
 canonical byte comparison pass). Bot learning is admitted with the independently reviewed exclusive-session lease,
 bounded shutdown and source-order repair `3619280f`. It defaults Off and connects only managed-faction learning;246
-affected server/persistence/policy tests, both strict Clippy modes and formatting pass. New fill/config/name and
-tournament timer/write-error continuations remain held for the [bounded repairs](PROJECT_COORDINATION.md#held-work-and-concrete-repair-gates). The observation-leaf proposal needs lead approval and a fresh version before
+affected server/persistence/policy tests, both strict Clippy modes and formatting pass. The tournament CLI/JSON prefix
+now includes the reviewed timer/write-error repair in `cc2cbb69` (13 focused tests, including a flush-only failure
+control). New fill/config/name repairs and further tournament telemetry remain isolated.
+
+The initial pushed CI passes C#, native card-runtime source, legacy recapture, hosting and latency-report checks. Rust
+CI exposed an admission-test lifecycle race: two fixture players could start/end a match, so an expired reservation
+retry correctly met session_ended precedence. `36a3222b` keeps that TTL scenario in Lobby and asserts HTTP/phase facts;
+all24 control tests pass in default and all-feature modes, with no production behavior or longer sleeps. The corrected
+union needs its own CI result; earlier CI failure is retained, not relabeled success. The observation-leaf proposal needs lead approval and a fresh version before
 brain memory/strategy consumers proceed. Active bot-fill and fixture-integrity work stays isolated until reviewed.
 
 Git metadata was backed up before repair; renamed worktree links were repaired, stable dirty histories were committed
