@@ -29,7 +29,7 @@ then one integration gate; do not repeat unchanged expensive map campaigns after
 ## Current priorities
 
 1. Finish the consolidated Git checkpoint and its current Rust/C#/JS checks. Preserve active workers and recovery refs.
-2. Complete native gameplay/parity/headless acceptance. Review the bot Knowledge repair, then approve a concrete fair
+2. Complete native gameplay/parity/headless acceptance. The bot Knowledge repair is admitted; approve a concrete fair
    observation design before memory/strategy/tactics work. Repair bot learning lease/shutdown/source ordering before
    explicit live activation. Review the existing bounded bot-fill continuation; do not duplicate it.
 3. Close the missing public transports and source consumers: full Wish input/owner facts, Kill/Trophy options,
@@ -48,9 +48,10 @@ must be resolved before dependent implementations; release evidence must test th
 
 ## Held work and concrete repair gates
 
-- `13d38a41` bot Knowledge/fair-view prefix is held pending the [Knowledge repair](coordination/KNOWLEDGE_REPAIR.md):
-  source-derived independent RNG, ECMAScript diagnostic rounding and null fallback. The docs-only observation proposal
-  `47ffd063` awaits review; observation 17 is already used and must not be reassigned.
+- The Knowledge/fair-view prefix through `13d38a41` is admitted with the independently reviewed
+  [Knowledge repair](coordination/KNOWLEDGE_REPAIR.md) `fdea457b`: source-derived independent RNG, ECMAScript diagnostic
+  rounding and null fallback. The docs-only observation proposal `47ffd063` is retained **without leaf approval**.
+  Clarify its public-counter exception and allocation proof first; observation17 is already used and cannot be reassigned.
 - `75eaa42e` learning prefix is held pending an opt-in, exclusive single-writer database lease held on the actual I/O
   connection, safe loss behavior and bounded shutdown. Preserve source runtime insertion-order ties and sorted restart
   semantics, plus per-arriving-bot bias refresh. Do not activate learning simply because a database URL exists.

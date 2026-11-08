@@ -88,8 +88,10 @@ archive and are not counted as successful gates. The legacy source/capture expec
 
 ## Explicit holds
 
-The repaired Knowledge prefix requires independent admission; bot learning remains held for lease, safe shutdown and
-source-order repairs. New fair observation leaves require a concrete approved design and unused version. The active
+The Knowledge/fair-view prefix through `fdea457b` is admitted after independent57-test/three-mutant/canonical-capture
+review. Its source/tool hashes match and prior fixtures remain unchanged; the stale decide-stream descriptions and
+fresh-checkout capture mountpoint were corrected at integration. The docs-only `47ffd063` observation proposal is
+retained without approving leaves. Bot learning remains held for lease, safe shutdown and source-order repairs. New fair observation leaves require a concrete approved design and unused version. The active
 bot-fill/tournament continuations and source-fixture consumers stay isolated until reviewed. The art lane has separate
 browser/performance work underway. Primary/remote organization must preserve these branch refs and never reset WIP.
 

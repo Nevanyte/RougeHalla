@@ -42,9 +42,10 @@ named full-source prerequisites as strict pending work.
 
 The new Unity art lane is isolated pending actual browser match and M5 Pro performance proof; its current commits are
 not part of this accepted presentation checkpoint. The latency lane's controlled measurements remain bound to its
-recorded older candidate, not the new union or display/input-to-photon latency. The bot Knowledge prefix is held for
-the [RNG/rounding/null repair](coordination/KNOWLEDGE_REPAIR.md), and bot learning for expert single-writer lease,
-shutdown and source-order repairs. The observation-leaf proposal needs lead approval and a fresh version before
+recorded older candidate, not the new union or display/input-to-photon latency. The bot Knowledge/fair-view prefix now includes the independently reviewed
+[RNG/rounding/null repair](coordination/KNOWLEDGE_REPAIR.md) `fdea457b` (57 policy tests, three semantic mutants and
+canonical byte comparison pass). Bot learning remains held for expert single-writer lease, shutdown and source-order
+repairs. The observation-leaf proposal needs lead approval and a fresh version before
 brain memory/strategy consumers proceed. Active bot-fill and fixture-integrity work stays isolated until reviewed.
 
 Git metadata was backed up before repair; renamed worktree links were repaired, stable dirty histories were committed

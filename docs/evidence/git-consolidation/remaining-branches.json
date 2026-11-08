@@ -28,11 +28,6 @@
       "disposition": "active or newly delivered isolated work; review required"
     },
     {
-      "branch": "deepseek/knowledge-repair",
-      "head": "fdea457bb75623f7a507efe9f2d580b75fb4af02",
-      "disposition": "active or newly delivered isolated work; review required"
-    },
-    {
       "branch": "deepseek/p-bots-5",
       "head": "75eaa42e003f45827c1428c63a8508a90b9104a4",
       "disposition": "active or newly delivered isolated work; review required"
@@ -45,11 +40,6 @@
     {
       "branch": "deepseek/p-bots-7b",
       "head": "bc47f8335979ecce78ad3e37fd2ba1b6dd03df88",
-      "disposition": "active or newly delivered isolated work; review required"
-    },
-    {
-      "branch": "deepseek/p-bots-brain",
-      "head": "47ffd0637b7d2c6b5647a08fc7f7df5ccc42e257",
       "disposition": "active or newly delivered isolated work; review required"
     },
     {
@@ -97,5 +87,6 @@
       "head": "f2ddceb1987094993899c7fd8e8829131150ac9e",
       "disposition": "preserved pre-port legacy history; do not wholesale merge into the Rust port"
     }
-  ]
+  ],
+  "primaryCheckout": "Retained on kimi/unity-readiness while multiple live agent/tool processes use its cwd; managed checkout owns optimization_port. Do not switch beneath active workers."
 }
