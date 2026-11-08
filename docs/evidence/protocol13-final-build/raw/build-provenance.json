@@ -1,0 +1,15 @@
+{
+  "manifestSha256": "eab8c97fc3ef3593811546982c0ef0980da6b8b09204ca80b623d27c046e299f",
+  "source": "1310ae002870bf3fc674c7b65f38ff5ea55a7d75",
+  "generatedBakedContent": {
+    "value": "67183626db240b6a",
+    "sha256": "e65ad6a55c3bec7e87e006d378c5dc3a8cc28dd592c87f3f4228540e409fc7da",
+    "bytes": 212,
+    "generated_from": "http://127.0.0.1:7796/info"
+  },
+  "asBuiltOverlayPath": "as-built-source-overlay.json",
+  "asBuiltOverlaySha256": "2021b94bb211e53c989d272b3273a7808289d3c0a04da606c64d1831d05b4f53",
+  "normalizationReceipt": "project-normalization.json",
+  "scope": "build and HTTP artifact integrity only; networking owns browser gameplay campaign",
+  "buildInvocations": 1
+}

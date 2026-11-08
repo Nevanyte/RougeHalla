@@ -1,0 +1,232 @@
+{
+  "scope": "External source and artifact identity preparation only; no repository files, refs, Unity, tests, servers, browser, or network changed/used.",
+  "source": {
+    "path": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art",
+    "branch": "codex/unity-protocol13-web-proof",
+    "head": "1310ae002870bf3fc674c7b65f38ff5ea55a7d75",
+    "preserved_ref_79af41a6": "79af41a69185047554ffbd32ec1c907c76e65ac3",
+    "preserved_ref_46c7": "46c7a2e85b5a2189a3c2f98b7ea3451916afe76f",
+    "clean_worktree": true
+  },
+  "unity": {
+    "editor_version": "6000.0.85f2",
+    "editor_revision": "b028303d8e7d",
+    "package_dependencies": {
+      "com.unity.inputsystem": "1.20.0",
+      "com.unity.pipeline": "0.10.0-exp.1",
+      "com.unity.render-pipelines.universal": "17.0.4",
+      "com.unity.test-framework": "1.6.0",
+      "com.unity.ugui": "2.0.0",
+      "com.unity.modules.accessibility": "1.0.0",
+      "com.unity.modules.animation": "1.0.0",
+      "com.unity.modules.assetbundle": "1.0.0",
+      "com.unity.modules.audio": "1.0.0",
+      "com.unity.modules.imageconversion": "1.0.0",
+      "com.unity.modules.imgui": "1.0.0",
+      "com.unity.modules.jsonserialize": "1.0.0",
+      "com.unity.modules.particlesystem": "1.0.0",
+      "com.unity.modules.physics": "1.0.0",
+      "com.unity.modules.physics2d": "1.0.0",
+      "com.unity.modules.screencapture": "1.0.0",
+      "com.unity.modules.subsystems": "1.0.0",
+      "com.unity.modules.ui": "1.0.0",
+      "com.unity.modules.uielements": "1.0.0",
+      "com.unity.modules.umbra": "1.0.0",
+      "com.unity.modules.unitywebrequest": "1.0.0",
+      "com.unity.modules.unitywebrequestassetbundle": "1.0.0",
+      "com.unity.modules.unitywebrequestaudio": "1.0.0",
+      "com.unity.modules.unitywebrequesttexture": "1.0.0",
+      "com.unity.modules.unitywebrequestwww": "1.0.0"
+    }
+  },
+  "source_hashes_sha256": {
+    "client-unity/RoguehallaNet/Net/ClockSync.cs": "46e6e707b2264831b8ea60c059a6fd8049dab23c7f08557fc204eb737325befd",
+    "client-unity/RoguehallaNet/Net/Collections.cs": "9018d9de767406fa97e4d8dc387fb083d4904ed9030037d4ec6f050f3fdfe28f",
+    "client-unity/RoguehallaNet/Net/InputSender.cs": "b1b902eef4b80e593f83a5cf8d1cef55754caad7815d615ad709ea6adeb9977d",
+    "client-unity/RoguehallaNet/Net/LocalMotion.cs": "85b1e2e31584b1909a2e175af53d5914009257645ce7f7f31d815327f9157516",
+    "client-unity/RoguehallaNet/Net/Pathfinder.cs": "841a12fe5fef246778470ee33b44221d38833593f53c1c68c333a99290ad63f8",
+    "client-unity/RoguehallaNet/Net/RenderClock.cs": "b80eb3874050c27e5e1593c19f590000c61ab92b51f88808e0db6900bd22eafe",
+    "client-unity/RoguehallaNet/Net/Session.cs": "bfd5815d08e508a8a7b0e5587cd80092c7d2c37757f6df525d3f1307966e8efb",
+    "client-unity/RoguehallaNet/Net/SnapshotBuffer.cs": "f81721f7451cd73916dec7b839940bd87a5197ce55e93da57dbcb14250f76ebd",
+    "client-unity/RoguehallaNet/Net/Views.cs": "b292b091d43c34313b003365bce96a73d72c68ad4858702250e85bd2def6762c",
+    "client-unity/RoguehallaNet/Protocol/Codec.cs": "fc050a513a90b4dfabd685f55428ed0317d74f132696af60427827485d8ced07",
+    "client-unity/RoguehallaNet/Protocol/MapBlob.cs": "84d0c4396a26026c8c5b464a7d4c8931a19a0cc6e54e7f0d4434a778a306f051",
+    "client-unity/RoguehallaNet/Protocol/Messages.cs": "6f6c9b081955cc6a65d6458277e1e96f3c6553b8af908944529210a58d9cb8f1",
+    "client-unity/RoguehallaNet/Protocol/SnapshotTracker.cs": "401cd6a7a17c8c467ccec306078cc965d6d9431e649aa6dbaf4620a99d6e9843",
+    "client-unity/RoguehallaNet/Protocol/State.cs": "9275e0bbdc25fe5e5a7c5ea3ed6f334021cff5e606dc5a2d3ad9346f6efa81b5",
+    "client-unity/UnityProject/Assets/Editor/RhBuild.cs": "2a85f12f86e3e2f8c17f2ccad0edacf26569eba556588963c93f70d54cecea0d",
+    "client-unity/UnityProject/Assets/RoguehallaNet/Net/ClockSync.cs": "46e6e707b2264831b8ea60c059a6fd8049dab23c7f08557fc204eb737325befd",
+    "client-unity/UnityProject/Assets/RoguehallaNet/Net/Collections.cs": "9018d9de767406fa97e4d8dc387fb083d4904ed9030037d4ec6f050f3fdfe28f",
+    "client-unity/UnityProject/Assets/RoguehallaNet/Net/InputSender.cs": "b1b902eef4b80e593f83a5cf8d1cef55754caad7815d615ad709ea6adeb9977d",
+    "client-unity/UnityProject/Assets/RoguehallaNet/Net/LocalMotion.cs": "85b1e2e31584b1909a2e175af53d5914009257645ce7f7f31d815327f9157516",
+    "client-unity/UnityProject/Assets/RoguehallaNet/Net/Pathfinder.cs": "841a12fe5fef246778470ee33b44221d38833593f53c1c68c333a99290ad63f8",
+    "client-unity/UnityProject/Assets/RoguehallaNet/Net/RenderClock.cs": "b80eb3874050c27e5e1593c19f590000c61ab92b51f88808e0db6900bd22eafe",
+    "client-unity/UnityProject/Assets/RoguehallaNet/Net/Session.cs": "bfd5815d08e508a8a7b0e5587cd80092c7d2c37757f6df525d3f1307966e8efb",
+    "client-unity/UnityProject/Assets/RoguehallaNet/Net/SnapshotBuffer.cs": "f81721f7451cd73916dec7b839940bd87a5197ce55e93da57dbcb14250f76ebd",
+    "client-unity/UnityProject/Assets/RoguehallaNet/Net/Views.cs": "b292b091d43c34313b003365bce96a73d72c68ad4858702250e85bd2def6762c",
+    "client-unity/UnityProject/Assets/RoguehallaNet/Protocol/Codec.cs": "fc050a513a90b4dfabd685f55428ed0317d74f132696af60427827485d8ced07",
+    "client-unity/UnityProject/Assets/RoguehallaNet/Protocol/MapBlob.cs": "84d0c4396a26026c8c5b464a7d4c8931a19a0cc6e54e7f0d4434a778a306f051",
+    "client-unity/UnityProject/Assets/RoguehallaNet/Protocol/Messages.cs": "6f6c9b081955cc6a65d6458277e1e96f3c6553b8af908944529210a58d9cb8f1",
+    "client-unity/UnityProject/Assets/RoguehallaNet/Protocol/SnapshotTracker.cs": "401cd6a7a17c8c467ccec306078cc965d6d9431e649aa6dbaf4620a99d6e9843",
+    "client-unity/UnityProject/Assets/RoguehallaNet/Protocol/State.cs": "9275e0bbdc25fe5e5a7c5ea3ed6f334021cff5e606dc5a2d3ad9346f6efa81b5",
+    "client-unity/UnityProject/Assets/Scripts/Net/LatencyTrace.cs": "f230659a3bd758f5325806860b92d8b8152a54c513a9a5d7d09d930ace92834c",
+    "client-unity/UnityProject/Assets/Scripts/Net/MatchClient.cs": "e1c4e2191f3753693e1b56d18e04a2d593633944c4673f460db0e74175ff01ce",
+    "client-unity/UnityProject/Assets/Scripts/Net/NativeTransport.cs": "88432ad26abe5f91bd6c1e21dcf664b6d14423ed65bcf644a3e444750f4ef107",
+    "client-unity/UnityProject/Assets/Scripts/Net/TransportFactory.cs": "da71cce01240e1c898f55ec6d93bb3dc38a25fcefd008da6951a8a0fb1ed3b21",
+    "client-unity/UnityProject/Assets/Scripts/Net/WebGLTransport.cs": "0372caff91a144a41699cfef0eead6ec05e16a08088a77d6d819aa28c64b9238",
+    "client-unity/UnityProject/Assets/Scripts/Presentation/ConfirmedWishPresenter.cs": "155cd0d89409986fb6097afb98d4856f3c9f01422491f1cd234f56adb3ed2f87",
+    "client-unity/UnityProject/Assets/Scripts/Presentation/FactionIndicators.cs": "3b1fe78075c2023526a92fbbdd694ea08758913e472c0048604ddc11647ba69d",
+    "client-unity/UnityProject/Assets/Scripts/Presentation/OwnerVitalBars.cs": "bffa7d9e226adace466a732821dd9e4d5515d261ce7c4cd8f5b908dd7f1b00d1",
+    "client-unity/UnityProject/Assets/Scripts/Presentation/ShowcaseAnimationPreview.cs": "16c5ae53ca66d4e5aff89adb26fa9bc6f9997f049339c371c9a6288d2baf1f2e",
+    "client-unity/UnityProject/Assets/Scripts/Presentation/ShowcaseAudio.cs": "c8e4c5f38eb254bcdaa5cd2232fbd78fcbf0ac2198cf4fc6a541bcc82347bcc1",
+    "client-unity/UnityProject/Assets/Scripts/Presentation/ShowcaseCatalog.cs": "fad749068e5795fcc84d01959cc0777d0bfea868f336deb0379acef5bdd08cc8",
+    "client-unity/UnityProject/Assets/Scripts/Presentation/ShowcasePalette.cs": "448167a68b83d879b3022fac91c0d9fa4ff9d111841dd94e4be4c555a623057f",
+    "client-unity/UnityProject/Assets/Scripts/Presentation/ShowcasePointLight.cs": "36a6bb87ce8da5e159b9118d1c7c802a4945aa687a1503bcd8109809dd83a2a5",
+    "client-unity/UnityProject/Assets/Scripts/Presentation/ShowcasePreview.cs": "30fcbbafb4d6a14c18272921801c9dc7b6a97ea460fc8e1db55c68662ef7ef06",
+    "client-unity/UnityProject/Assets/Scripts/Presentation/ShowcaseSettings.cs": "35a722201350e8f7d41ea3c83e534270aeafdbd45146d3ff047552480cbfbf32",
+    "client-unity/UnityProject/Assets/Scripts/Presentation/ShowcaseSoundscape.cs": "1f6cb9b5f3c5c30ac5004d3450409483ec71729722f7d6a17d5114b42f3a5591",
+    "client-unity/UnityProject/Assets/Scripts/Presentation/ShowcaseSprites.cs": "0682613ae0ae9c949bcc50e77d6dfa2e71e14340abad6f29e5e26933428951fb",
+    "client-unity/UnityProject/Assets/Scripts/Presentation/SpriteActorPresenter.cs": "fa593d2435630e8ea267acb98804ac9a81cc4c8baec8a7c339e3dc3c2ff225c8",
+    "client-unity/UnityProject/Assets/Scripts/UI/MatchHud.cs": "e3461babd9e8d793b1cd4d8f56b8f857c34d3bef1f2ef2c266f41c0b123d5bc9",
+    "client-unity/UnityProject/Assets/Scripts/UI/PotionNoticeFormatter.cs": "c1c690ab286a9dcfef1a73b4e7df356b3f2942bc76309fae6caac5521928a441",
+    "client-unity/UnityProject/Assets/Scripts/UI/TrophyText.cs": "9696c8fba4f4d19eadbed9242a219b1e510ec83d637befbad0f56f1007187fd1",
+    "client-unity/UnityProject/Assets/Scripts/View/ActorView.cs": "7ff6b5a6242d05cce62663026a328e85b859cd76ce4c7b8f874b75a30bd4a830",
+    "client-unity/UnityProject/Assets/Scripts/View/ArenaView.cs": "90c92fc642d9def58abdfb8a345f457369ca6300300bfa812f1a20d9156c9a0a",
+    "client-unity/UnityProject/Assets/Scripts/View/MeshUtil.cs": "c6e74906c07254f88dc099132e21eee42dd4899b45bc766094051dc84e77a829",
+    "client-unity/UnityProject/Assets/Tests/Editor/ArenaPresentationEditModeTests.cs": "9925c4209fb4d0901e045c057bcf73b86256ca63c3a110adcf63f94ce60478b8",
+    "client-unity/UnityProject/Assets/Tests/Editor/ArenaPropCueEditModeTests.cs": "88dd792e27512909e8c65d100e0633c828cefe0b441ae7c5be350a31ffc44a36",
+    "client-unity/UnityProject/Assets/Tests/Editor/ConfirmedWishPresenterEditModeTests.cs": "7a03a328ff3235ba49ea834746aefcbb8a423e9fbbe695163971f73e0df5c5cc",
+    "client-unity/UnityProject/Assets/Tests/Editor/MatchHudTrophyEditModeTests.cs": "0b57c086d5297122dca35a249c38f72adf079daf7530630fdfe8c307d72d8632",
+    "client-unity/UnityProject/Assets/Tests/Editor/MatchHudWishBarrierEditModeTests.cs": "ad4aa4201f4a6a6b3c1b487e27e639151170135a5ae158bf35bc9ea8ec4105b1",
+    "client-unity/UnityProject/Assets/Tests/Editor/PotionNoticeFormatterEditModeTests.cs": "4fa452cc87b3d2acd09f8e5eca7ee86f30fc7ada7ad884cb83e5d6eef89fa029",
+    "client-unity/UnityProject/Assets/Tests/Editor/PresentationTimelineEditModeTests.cs": "c2cc60e13c23b0166ef37e4b5f3a977c01c24d91d3fa8de8e5216c01057e4945",
+    "client-unity/UnityProject/Assets/Tests/Editor/ShowcaseAnimationPreviewEditModeTests.cs": "034ed5412aa223a82475b4bf154b59e6d684eb88475878a410d72a6e005d670d",
+    "client-unity/UnityProject/Assets/Tests/Editor/ShowcasePointLightEditModeTests.cs": "04fe88d1809d51dec564038f1650187e8367ac8466b87f2c7673c7c94faeb931",
+    "client-unity/UnityProject/Assets/Tests/Editor/ShowcasePreviewSelectionEditModeTests.cs": "82e37c91123e7ebd394f6afdee29da8f5029f12a1a85286817dc20111a287ba0",
+    "client-unity/UnityProject/Assets/Tests/Editor/ShowcaseStateEditModeTests.cs": "8c2e13db62e273e5fbe02735152f2cad2e1cbeb246512862e5a6916a7920b831",
+    "client-unity/UnityProject/Assets/Tests/Editor/SpriteActorBarrierEditModeTests.cs": "93ebd9f761bdaae9bb38c3b2f906ec899813ab82c8e50564999b24886de49aed",
+    "client-unity/UnityProject/Assets/Tests/Editor/SpriteActorSignatureEditModeTests.cs": "5266c4b947fe4fdc7687c9a5839b1ee5a2ad5554b40843ced82e89258cceeb47",
+    "client-unity/UnityProject/Assets/Tests/Editor/WishPresentationTraceEditModeTests.cs": "de23cac7b5d92dc2f50c649ae83150181c4da57ed529e02766acfaaab77506d6",
+    "client-unity/UnityProject/Tools/build-web.sh": "9ba5351501bcde7e8e120758f949ec3905b5e280b81b8d5e8a50a1c31a00a448",
+    "tools/browser-proof/proof.mjs": "a49aa61cdb1adeef60031b3e87407233c85f3203b7a6c464c4b5119c8bd1850f",
+    "tools/latency/check-evidence.cjs": "ab956ef2a86b0f7090f7d4c731edf2e7beee9b9c2facd19c602770b11d500417",
+    "tools/latency/e2e.cjs": "82551e48a49e649f9aed719befd5e4e36853893fc494066a78023f9c77060a07",
+    "tools/latency/impairment.cjs": "dedac638105d1fc1c69bd318d576a5bd3fb7908fbb948c2f9cd79f7dd3a0c374",
+    "tools/latency/latency.test.cjs": "31e9976fff3df5421a7448aded41a23fe214d00c19f319ffb00079438883693b",
+    "tools/latency/report.cjs": "eca799eb381206c31528c79f6b03313d0d6f216b00bf6eeb9da8a691be222b43",
+    "tools/latency/runtime.cjs": "678dd07183dc7a8c39f9a9f882d06d759f747d345cb868c7fec2ade4f920d0ac",
+    "tools/latency/trace-guard.test.mjs": "8ea5fedaf025d06593040bac00f05d1be4e757de5ec487466ac90abe02a8f5b6",
+    "tools/latency/wish-e2e.cjs": "8ad6a32459c4b95ce01a994d85373c7149fd310b955225280089f1e4a16debbd",
+    "tools/latency/wish-proof-contract.cjs": "7e62fb4a302ffd1840d60f2b29d61cbacb72980ac1ed5b037ddf9744db5021c0",
+    "tools/latency/wish-proof-contract.test.cjs": "257f37c8682d3d7df9e6304f0cf9476c14e7389b2bf817ddb87cd04dc7ee4727",
+    "tools/latency/wish-server-readiness.cjs": "953e6bd5049fcc4f6d071293e5c325c870f7b059cf6aa9bbb4136886c378e340",
+    "tools/latency/wish-server-readiness.test.cjs": "8b7b114fb5aaf430ffdcb244990d379162fff7b33198eee272babb60b68587b5",
+    "tools/latency/ws-proxy.cjs": "fc2104fc9fa8f71400530b26fdd2950c0dc81dcdde4f85f7a50c76f75e13a1e6"
+  },
+  "comparison_to_79af": {
+    "paths": "client-unity/UnityProject, client-unity/RoguehallaNet, tools/latency",
+    "changed_path_count": 0,
+    "git_diff_stat": "",
+    "conclusion": "All tracked UnityProject, standalone RoguehallaNet, and tools/latency bytes are identical to 79af41a6; thus the prior actual 62-test Unity source inputs under these trees remain byte-identical. This is source identity only, not rerun test evidence."
+  },
+  "baked_content": {
+    "file": "client-unity/UnityProject/Assets/Scripts/BakedContent.cs",
+    "sha256": "4147b66e5278ee2e5abee4f683eda1c3bd6997fb79e250342eefd7ad2bb0be7a",
+    "literal_hash": "801a76cde4cfd305",
+    "server_info_queried": false,
+    "server_info_value": "not observed; no identity accepted"
+  },
+  "current_build_web": {
+    "path": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Build/Web",
+    "file_count": 14,
+    "total_bytes": 74041096,
+    "files": [
+      {
+        "path": "Build/Web.data",
+        "bytes": 27563878,
+        "sha256": "dd5a21f2672ac85579f53c206e4f77653da0893157da74aad9f71c3cb4aae066"
+      },
+      {
+        "path": "Build/Web.framework.js",
+        "bytes": 462796,
+        "sha256": "6d2ce31dc958300038a38a648a9b3a63b500e0e28f1e19901081b43d3f4a7f67"
+      },
+      {
+        "path": "Build/Web.loader.js",
+        "bytes": 26455,
+        "sha256": "9309c97db2fade5db5312db96d81e63508364f43523f924a7f17c8943a629b4e"
+      },
+      {
+        "path": "Build/Web.wasm",
+        "bytes": 45939013,
+        "sha256": "5cc1bc73b57b75c45985a1ce7139572121ca1d98754bf42ab8c5d59bd3ee2dda"
+      },
+      {
+        "path": "Licenses/CinzelDecorative-OFL.txt",
+        "bytes": 4393,
+        "sha256": "1e5d6660366ddcfca4f2fc10e2acfba9fa4d97d40aec80d7dbfd41d730a420ae"
+      },
+      {
+        "path": "Licenses/EmojiOne-Attribution.txt",
+        "bytes": 185,
+        "sha256": "4b65f8960e4f4c5c8b35fd139e369265e9bb45667fc16461b2ba01188d464d93"
+      },
+      {
+        "path": "Licenses/Flare-Audio-Notice.txt",
+        "bytes": 1130,
+        "sha256": "64e2de64656079009cfda050f49e1de5075167a387c403f17555c6c651d9b516"
+      },
+      {
+        "path": "Licenses/Flare-CC-BY-SA-3.0.txt",
+        "bytes": 22240,
+        "sha256": "3f941b3b89cf7b8370ceb83cc76d2120d471b58735d8ca60238a751a48d7f72f"
+      },
+      {
+        "path": "Licenses/Flare-Credits.txt",
+        "bytes": 3510,
+        "sha256": "8b0985009dd04911b851553a35941e6862f1df66a6864f9b2a5c7ff330574fbc"
+      },
+      {
+        "path": "Licenses/LiberationSans-OFL.txt",
+        "bytes": 4469,
+        "sha256": "37f8552e9a874ec10710dc0ede6a9adf168e6609fbd02a507f35629373b85a48"
+      },
+      {
+        "path": "Licenses/Roguehalla-MIT.txt",
+        "bytes": 1080,
+        "sha256": "385298d673f01f328553f49d75680ab30254c09d2295171c929fa61efe84b103"
+      },
+      {
+        "path": "Licenses/Third-Party-Assets.md",
+        "bytes": 3566,
+        "sha256": "75994d0600bb013e3a47a78be320b9f4d78e5f4d76a8849e9494793a95b89295"
+      },
+      {
+        "path": "Licenses/Unity-Companion.md",
+        "bytes": 461,
+        "sha256": "6550a14445e6c2116213b2419c4c28b75be4b99039afc8d091ced3192624390c"
+      },
+      {
+        "path": "index.html",
+        "bytes": 7920,
+        "sha256": "3d122f461a72433123a98732aeaf6602377874fabf7e321f1f2740c1ea1b62f5"
+      }
+    ],
+    "matching_existing_manifest": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/evidence/repair-build-manifest.json",
+    "manifest_runtimeRevision": "4f37e9f0f882631230dbb7e4d7d20fab9fa2b5c0",
+    "manifest_buildSourceRevision": "9f139ec448025a3de466e574419a547a8e8682f1",
+    "manifest_total_bytes": 74041096,
+    "manifest_file_count": 14
+  },
+  "existing_archives": {
+    "accepted_old": {
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/evidence/accepted-web-ebff286b",
+      "manifest": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/evidence/accepted-web-ebff286b-manifest.json",
+      "runtimeRevision": "ebff286bc68027d4e32eee3607d2ae6807038f9d",
+      "file_count": 14,
+      "total_bytes": 74029313
+    },
+    "current_4f37_archive": "No separate copy found; current in-repository Build/Web matches repair-build-manifest.json (4f37e9f0...) exactly. Preserve by copying the directory externally before invoking fixed RhBuild.BuildWeb, which overwrites the Build/Web destination."
+  },
+  "identity_caveat": "Root packet expected identity values 13/25/19/Obs19/policy13/content67183626db240b6a were not checked against live /info and are not asserted or accepted."
+}

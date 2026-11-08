@@ -1,0 +1,142 @@
+{
+  "source_revision": "1310ae002870bf3fc674c7b65f38ff5ea55a7d75",
+  "source_branch": "codex/unity-protocol13-web-proof",
+  "server": {
+    "info_url": "http://127.0.0.1:7796/info",
+    "info_response_sha256": "d5160b7a21cc8e6b7ddff0b6269665caa4b769c6fc57a70316bfcbd744c04c1a",
+    "protocol": 13,
+    "content_hash": "67183626db240b6a",
+    "state": "ready",
+    "binary_path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/rh-server",
+    "binary_sha256": "20d5b70e9ed79863f03350fbeb9478fd7f45e0a7a644ea2a802a13c14d75b4b0",
+    "binary_bytes": 28812496
+  },
+  "generated_baked_content": {
+    "value": "67183626db240b6a",
+    "sha256": "e65ad6a55c3bec7e87e006d378c5dc3a8cc28dd592c87f3f4228540e409fc7da",
+    "bytes": 212,
+    "generated_from": "http://127.0.0.1:7796/info"
+  },
+  "unity": {
+    "editor_version": "6000.0.85f2",
+    "urp": "17.0.4",
+    "webgl_api": "WebGL 2.0"
+  },
+  "build": {
+    "source_path": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Build/Web",
+    "archive_path": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/builds/protocol13-1310ae00",
+    "completed_receipt": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/evidence/protocol13-final-1310/build-result.json",
+    "file_count": 14,
+    "source_total_bytes": 74247550,
+    "archive_total_bytes": 74247550,
+    "source_unchanged_during_archive": true,
+    "all_files_identical": true,
+    "files": [
+      {
+        "path": "Build/Web.data",
+        "bytes": 27589581,
+        "source_sha256": "846c8e4d77ff6c6c9f9c70582b0f054adb9a40a45db97448ac5d60e9bbe609d8",
+        "archive_sha256": "846c8e4d77ff6c6c9f9c70582b0f054adb9a40a45db97448ac5d60e9bbe609d8",
+        "identical": true
+      },
+      {
+        "path": "Build/Web.framework.js",
+        "bytes": 464517,
+        "source_sha256": "a670ae110ed500a3255059467fafb867de3198abeabab33632cc45507b98397a",
+        "archive_sha256": "a670ae110ed500a3255059467fafb867de3198abeabab33632cc45507b98397a",
+        "identical": true
+      },
+      {
+        "path": "Build/Web.loader.js",
+        "bytes": 26455,
+        "source_sha256": "9257949c30c592243bf5ba605d5d7f7d9fdc71c892120d85f2f081e3edccb540",
+        "archive_sha256": "9257949c30c592243bf5ba605d5d7f7d9fdc71c892120d85f2f081e3edccb540",
+        "identical": true
+      },
+      {
+        "path": "Build/Web.wasm",
+        "bytes": 46118043,
+        "source_sha256": "f742851d4acf9fed8c81ceae1b36bc6a75916a46a65cea0e95d08fb97e955e1a",
+        "archive_sha256": "f742851d4acf9fed8c81ceae1b36bc6a75916a46a65cea0e95d08fb97e955e1a",
+        "identical": true
+      },
+      {
+        "path": "Licenses/CinzelDecorative-OFL.txt",
+        "bytes": 4393,
+        "source_sha256": "1e5d6660366ddcfca4f2fc10e2acfba9fa4d97d40aec80d7dbfd41d730a420ae",
+        "archive_sha256": "1e5d6660366ddcfca4f2fc10e2acfba9fa4d97d40aec80d7dbfd41d730a420ae",
+        "identical": true
+      },
+      {
+        "path": "Licenses/EmojiOne-Attribution.txt",
+        "bytes": 185,
+        "source_sha256": "4b65f8960e4f4c5c8b35fd139e369265e9bb45667fc16461b2ba01188d464d93",
+        "archive_sha256": "4b65f8960e4f4c5c8b35fd139e369265e9bb45667fc16461b2ba01188d464d93",
+        "identical": true
+      },
+      {
+        "path": "Licenses/Flare-Audio-Notice.txt",
+        "bytes": 1130,
+        "source_sha256": "64e2de64656079009cfda050f49e1de5075167a387c403f17555c6c651d9b516",
+        "archive_sha256": "64e2de64656079009cfda050f49e1de5075167a387c403f17555c6c651d9b516",
+        "identical": true
+      },
+      {
+        "path": "Licenses/Flare-CC-BY-SA-3.0.txt",
+        "bytes": 22240,
+        "source_sha256": "3f941b3b89cf7b8370ceb83cc76d2120d471b58735d8ca60238a751a48d7f72f",
+        "archive_sha256": "3f941b3b89cf7b8370ceb83cc76d2120d471b58735d8ca60238a751a48d7f72f",
+        "identical": true
+      },
+      {
+        "path": "Licenses/Flare-Credits.txt",
+        "bytes": 3510,
+        "source_sha256": "8b0985009dd04911b851553a35941e6862f1df66a6864f9b2a5c7ff330574fbc",
+        "archive_sha256": "8b0985009dd04911b851553a35941e6862f1df66a6864f9b2a5c7ff330574fbc",
+        "identical": true
+      },
+      {
+        "path": "Licenses/LiberationSans-OFL.txt",
+        "bytes": 4469,
+        "source_sha256": "37f8552e9a874ec10710dc0ede6a9adf168e6609fbd02a507f35629373b85a48",
+        "archive_sha256": "37f8552e9a874ec10710dc0ede6a9adf168e6609fbd02a507f35629373b85a48",
+        "identical": true
+      },
+      {
+        "path": "Licenses/Roguehalla-MIT.txt",
+        "bytes": 1080,
+        "source_sha256": "385298d673f01f328553f49d75680ab30254c09d2295171c929fa61efe84b103",
+        "archive_sha256": "385298d673f01f328553f49d75680ab30254c09d2295171c929fa61efe84b103",
+        "identical": true
+      },
+      {
+        "path": "Licenses/Third-Party-Assets.md",
+        "bytes": 3566,
+        "source_sha256": "75994d0600bb013e3a47a78be320b9f4d78e5f4d76a8849e9494793a95b89295",
+        "archive_sha256": "75994d0600bb013e3a47a78be320b9f4d78e5f4d76a8849e9494793a95b89295",
+        "identical": true
+      },
+      {
+        "path": "Licenses/Unity-Companion.md",
+        "bytes": 461,
+        "source_sha256": "6550a14445e6c2116213b2419c4c28b75be4b99039afc8d091ced3192624390c",
+        "archive_sha256": "6550a14445e6c2116213b2419c4c28b75be4b99039afc8d091ced3192624390c",
+        "identical": true
+      },
+      {
+        "path": "index.html",
+        "bytes": 7920,
+        "source_sha256": "3d122f461a72433123a98732aeaf6602377874fabf7e321f1f2740c1ea1b62f5",
+        "archive_sha256": "3d122f461a72433123a98732aeaf6602377874fabf7e321f1f2740c1ea1b62f5",
+        "identical": true
+      }
+    ]
+  },
+  "runtime_source_stamp": null,
+  "runtime_source_stamp_note": "No recognizable runtime/source revision stamp found in readable build output; none inferred.",
+  "prior_source_hash_scope": {
+    "file": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/evidence/protocol13-final-1310/source-preparation.json",
+    "hash_count": 82,
+    "note": "Hashes were captured before generated BakedContent overlay; see generated_baked_content separately."
+  }
+}
