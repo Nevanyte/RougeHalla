@@ -1,0 +1,4989 @@
+{
+ "format": "rh-bot-planning-source/1",
+ "profile": {
+  "node": "v22.23.4",
+  "platform": "linux",
+  "arch": "x64",
+  "maps": {
+   "format": "rh-bot-planning-maps/1",
+   "note": "Declared planning-screen inputs: the fields the shared planning maths reads (spawnPool positions/zones and camp centres/zones/elite spots). pve is the camp/pool pair of the admitted mob map; spread is a declared 5-camp layout that separates the two dealt spawns.",
+   "maps": {
+    "pve": {
+     "spawnPool": [
+      {
+       "x": 624,
+       "y": 112,
+       "zone": "sentenced"
+      },
+      {
+       "x": 112,
+       "y": 624,
+       "zone": "plague"
+      },
+      {
+       "x": 624,
+       "y": 624,
+       "zone": "frost"
+      },
+      {
+       "x": 656,
+       "y": 400,
+       "zone": "holy"
+      }
+     ],
+     "camps": [
+      {
+       "id": "fire-1",
+       "zone": "fire",
+       "x": 112,
+       "y": 112,
+       "eliteSpot": 0
+      }
+     ]
+    },
+    "spread": {
+     "spawnPool": [
+      {
+       "x": 80,
+       "y": 80,
+       "zone": "fire"
+      },
+      {
+       "x": 720,
+       "y": 80,
+       "zone": "plague"
+      },
+      {
+       "x": 80,
+       "y": 720,
+       "zone": "frost"
+      },
+      {
+       "x": 720,
+       "y": 720,
+       "zone": "holy"
+      }
+     ],
+     "camps": [
+      {
+       "id": "a-fire",
+       "zone": "fire",
+       "x": 112,
+       "y": 112,
+       "eliteSpot": -1
+      },
+      {
+       "id": "b-plague",
+       "zone": "plague",
+       "x": 700,
+       "y": 120,
+       "eliteSpot": 0
+      },
+      {
+       "id": "c-frost",
+       "zone": "frost",
+       "x": 120,
+       "y": 700,
+       "eliteSpot": 1
+      },
+      {
+       "id": "d-holy",
+       "zone": "holy",
+       "x": 700,
+       "y": 700,
+       "eliteSpot": -1
+      },
+      {
+       "id": "e-sentenced",
+       "zone": "sentenced",
+       "x": 400,
+       "y": 400,
+       "eliteSpot": 0
+      }
+     ]
+    }
+   }
+  },
+  "constants": {
+   "planSecondsMs": 45000,
+   "planCamps": 2,
+   "rules": {
+    "read": {
+     "easy": [
+      4000,
+      8000
+     ],
+     "normal": [
+      3000,
+      6000
+     ],
+     "hard": [
+      2000,
+      4000
+     ]
+    },
+    "settle": {
+     "easy": [
+      800,
+      2200
+     ],
+     "normal": [
+      500,
+      1400
+     ],
+     "hard": [
+      300,
+      800
+     ]
+    },
+    "readShare": 0.55,
+    "readyBeforeMs": 2500,
+    "readyBeforeShare": 0.3,
+    "noDealMs": 1000,
+    "resendMs": 400,
+    "maxAsks": 3
+   },
+   "tiers": {
+    "easy": {
+     "softmaxT": 0.25,
+     "lapseP": 0.08,
+     "reactionMu": 330
+    },
+    "normal": {
+     "softmaxT": 0.12,
+     "lapseP": 0.04,
+     "reactionMu": 210
+    },
+    "hard": {
+     "softmaxT": 0.06,
+     "lapseP": 0.02,
+     "reactionMu": 160
+    }
+   }
+  },
+  "sourceFiles": {
+   "packages/server/src/bots/brain/modules/planning.ts": "66a75aa8f29216d428151e680792388ac4f587f762d2cb822b59b546f63fb51b",
+   "packages/server/src/bots/brain/random.ts": "a23fb8d369ffced9e30719706b12eb5ec65afb14da16429a7cdc9dbc7e3f92f7",
+   "packages/server/src/bots/brain/types.ts": "12b3cae05bcde760cd642b9c5eb9919bfc47189882c81258994c9f1122d3d361",
+   "packages/server/src/bots/mobHunt.ts": "88fc22040e62b1bc5226c37c16095032533df1e104dee0b27fdcb671c33fe6ff",
+   "packages/shared/src/planning.ts": "8d52b212f6fec391359787cf9d81b8fa31a067ea839a2b9ccadc58c059027cb2",
+   "packages/shared/src/factions.ts": "aa0cebf1c17af17b64bc1e020c4613ab10788ec66d82a72232aef8915d5403f3",
+   "packages/shared/src/mobs.ts": "3b567c08363d8d4f1e9a897240b3d99d5b8ded7757b6809a4b534b63d72b5522",
+   "packages/shared/src/mark.ts": "44870381fa48b9c8f65f180ff74995725644d7264df5b069a3c43c2291540661",
+   "packages/shared/src/signatureShares.ts": "e6996931487dde9d4e3f71481a9da996f7500fbcd2148f7924ed730a78eba1a4",
+   "packages/shared/src/map.ts": "35caac04108a3bd0e1d880a9502f14bdccb3a9a17d262cba335c3d6436995eed",
+   "packages/shared/src/constants.ts": "51ce4dd800ec868abee525fb1ae375688066f336972a7da878644df1235924e7",
+   "packages/shared/src/pathfind.ts": "300caa48788f84bdc780befe8c50db41c2c0b2be520d3fb43a7f91e16de424d9"
+  },
+  "tool": "373ea1191494c42c6f30bef975bd5e021441f394759ce0f6277afb522ec9d047",
+  "captureSha256": "db8dac25157691c54b01c922e42291d8dc3a973c1a1346c15fad52fca501aac4"
+ },
+ "helpers": {
+  "matchup": [
+   {
+    "me": "fire",
+    "region": "fire",
+    "elite": false,
+    "share": 0.951436
+   },
+   {
+    "me": "fire",
+    "region": "fire",
+    "elite": true,
+    "share": 0
+   },
+   {
+    "me": "fire",
+    "region": "sentenced",
+    "elite": false,
+    "share": 0.952874
+   },
+   {
+    "me": "fire",
+    "region": "sentenced",
+    "elite": true,
+    "share": 0
+   },
+   {
+    "me": "fire",
+    "region": "plague",
+    "elite": false,
+    "share": 0.96106
+   },
+   {
+    "me": "fire",
+    "region": "plague",
+    "elite": true,
+    "share": 0
+   },
+   {
+    "me": "fire",
+    "region": "frost",
+    "elite": false,
+    "share": 0.951432
+   },
+   {
+    "me": "fire",
+    "region": "frost",
+    "elite": true,
+    "share": 0
+   },
+   {
+    "me": "fire",
+    "region": "holy",
+    "elite": false,
+    "share": 0.96239
+   },
+   {
+    "me": "fire",
+    "region": "holy",
+    "elite": true,
+    "share": 0
+   },
+   {
+    "me": "sentenced",
+    "region": "fire",
+    "elite": false,
+    "share": 0.937005
+   },
+   {
+    "me": "sentenced",
+    "region": "fire",
+    "elite": true,
+    "share": 0.1826
+   },
+   {
+    "me": "sentenced",
+    "region": "sentenced",
+    "elite": false,
+    "share": 0.937468
+   },
+   {
+    "me": "sentenced",
+    "region": "sentenced",
+    "elite": true,
+    "share": 0.229858
+   },
+   {
+    "me": "sentenced",
+    "region": "plague",
+    "elite": false,
+    "share": 0.950186
+   },
+   {
+    "me": "sentenced",
+    "region": "plague",
+    "elite": true,
+    "share": 0.353464
+   },
+   {
+    "me": "sentenced",
+    "region": "frost",
+    "elite": false,
+    "share": 0.937385
+   },
+   {
+    "me": "sentenced",
+    "region": "frost",
+    "elite": true,
+    "share": 0.198529
+   },
+   {
+    "me": "sentenced",
+    "region": "holy",
+    "elite": false,
+    "share": 0.95267
+   },
+   {
+    "me": "sentenced",
+    "region": "holy",
+    "elite": true,
+    "share": 0.40643
+   },
+   {
+    "me": "plague",
+    "region": "fire",
+    "elite": false,
+    "share": 0.951541
+   },
+   {
+    "me": "plague",
+    "region": "fire",
+    "elite": true,
+    "share": 0
+   },
+   {
+    "me": "plague",
+    "region": "sentenced",
+    "elite": false,
+    "share": 0.95167
+   },
+   {
+    "me": "plague",
+    "region": "sentenced",
+    "elite": true,
+    "share": 0
+   },
+   {
+    "me": "plague",
+    "region": "plague",
+    "elite": false,
+    "share": 0.961132
+   },
+   {
+    "me": "plague",
+    "region": "plague",
+    "elite": true,
+    "share": 0
+   },
+   {
+    "me": "plague",
+    "region": "frost",
+    "elite": false,
+    "share": 0.951485
+   },
+   {
+    "me": "plague",
+    "region": "frost",
+    "elite": true,
+    "share": 0
+   },
+   {
+    "me": "plague",
+    "region": "holy",
+    "elite": false,
+    "share": 0.962536
+   },
+   {
+    "me": "plague",
+    "region": "holy",
+    "elite": true,
+    "share": 0
+   },
+   {
+    "me": "frost",
+    "region": "fire",
+    "elite": false,
+    "share": 0.951722
+   },
+   {
+    "me": "frost",
+    "region": "fire",
+    "elite": true,
+    "share": 0
+   },
+   {
+    "me": "frost",
+    "region": "sentenced",
+    "elite": false,
+    "share": 0.95242
+   },
+   {
+    "me": "frost",
+    "region": "sentenced",
+    "elite": true,
+    "share": 0
+   },
+   {
+    "me": "frost",
+    "region": "plague",
+    "elite": false,
+    "share": 0.961204
+   },
+   {
+    "me": "frost",
+    "region": "plague",
+    "elite": true,
+    "share": 0
+   },
+   {
+    "me": "frost",
+    "region": "frost",
+    "elite": false,
+    "share": 0.951596
+   },
+   {
+    "me": "frost",
+    "region": "frost",
+    "elite": true,
+    "share": 0
+   },
+   {
+    "me": "frost",
+    "region": "holy",
+    "elite": false,
+    "share": 0.962524
+   },
+   {
+    "me": "frost",
+    "region": "holy",
+    "elite": true,
+    "share": 0
+   },
+   {
+    "me": "holy",
+    "region": "fire",
+    "elite": false,
+    "share": 0.965435
+   },
+   {
+    "me": "holy",
+    "region": "fire",
+    "elite": true,
+    "share": 0.144363
+   },
+   {
+    "me": "holy",
+    "region": "sentenced",
+    "elite": false,
+    "share": 0.966524
+   },
+   {
+    "me": "holy",
+    "region": "sentenced",
+    "elite": true,
+    "share": 0.173401
+   },
+   {
+    "me": "holy",
+    "region": "plague",
+    "elite": false,
+    "share": 0.978605
+   },
+   {
+    "me": "holy",
+    "region": "plague",
+    "elite": true,
+    "share": 0.270208
+   },
+   {
+    "me": "holy",
+    "region": "frost",
+    "elite": false,
+    "share": 0.966257
+   },
+   {
+    "me": "holy",
+    "region": "frost",
+    "elite": true,
+    "share": 0.160605
+   },
+   {
+    "me": "holy",
+    "region": "holy",
+    "elite": false,
+    "share": 0.98395
+   },
+   {
+    "me": "holy",
+    "region": "holy",
+    "elite": true,
+    "share": 0.406391
+   }
+  ],
+  "campMatchup": [
+   {
+    "map": "pve",
+    "me": "fire",
+    "camp": "fire-1",
+    "share": 0
+   },
+   {
+    "map": "spread",
+    "me": "fire",
+    "camp": "a-fire",
+    "share": 0.951436
+   },
+   {
+    "map": "spread",
+    "me": "fire",
+    "camp": "b-plague",
+    "share": 0
+   },
+   {
+    "map": "spread",
+    "me": "fire",
+    "camp": "c-frost",
+    "share": 0
+   },
+   {
+    "map": "spread",
+    "me": "fire",
+    "camp": "d-holy",
+    "share": 0.96239
+   },
+   {
+    "map": "spread",
+    "me": "fire",
+    "camp": "e-sentenced",
+    "share": 0
+   },
+   {
+    "map": "pve",
+    "me": "sentenced",
+    "camp": "fire-1",
+    "share": 0.1826
+   },
+   {
+    "map": "spread",
+    "me": "sentenced",
+    "camp": "a-fire",
+    "share": 0.937005
+   },
+   {
+    "map": "spread",
+    "me": "sentenced",
+    "camp": "b-plague",
+    "share": 0.353464
+   },
+   {
+    "map": "spread",
+    "me": "sentenced",
+    "camp": "c-frost",
+    "share": 0.198529
+   },
+   {
+    "map": "spread",
+    "me": "sentenced",
+    "camp": "d-holy",
+    "share": 0.95267
+   },
+   {
+    "map": "spread",
+    "me": "sentenced",
+    "camp": "e-sentenced",
+    "share": 0.229858
+   },
+   {
+    "map": "pve",
+    "me": "plague",
+    "camp": "fire-1",
+    "share": 0
+   },
+   {
+    "map": "spread",
+    "me": "plague",
+    "camp": "a-fire",
+    "share": 0.951541
+   },
+   {
+    "map": "spread",
+    "me": "plague",
+    "camp": "b-plague",
+    "share": 0
+   },
+   {
+    "map": "spread",
+    "me": "plague",
+    "camp": "c-frost",
+    "share": 0
+   },
+   {
+    "map": "spread",
+    "me": "plague",
+    "camp": "d-holy",
+    "share": 0.962536
+   },
+   {
+    "map": "spread",
+    "me": "plague",
+    "camp": "e-sentenced",
+    "share": 0
+   },
+   {
+    "map": "pve",
+    "me": "frost",
+    "camp": "fire-1",
+    "share": 0
+   },
+   {
+    "map": "spread",
+    "me": "frost",
+    "camp": "a-fire",
+    "share": 0.951722
+   },
+   {
+    "map": "spread",
+    "me": "frost",
+    "camp": "b-plague",
+    "share": 0
+   },
+   {
+    "map": "spread",
+    "me": "frost",
+    "camp": "c-frost",
+    "share": 0
+   },
+   {
+    "map": "spread",
+    "me": "frost",
+    "camp": "d-holy",
+    "share": 0.962524
+   },
+   {
+    "map": "spread",
+    "me": "frost",
+    "camp": "e-sentenced",
+    "share": 0
+   },
+   {
+    "map": "pve",
+    "me": "holy",
+    "camp": "fire-1",
+    "share": 0.144363
+   },
+   {
+    "map": "spread",
+    "me": "holy",
+    "camp": "a-fire",
+    "share": 0.965435
+   },
+   {
+    "map": "spread",
+    "me": "holy",
+    "camp": "b-plague",
+    "share": 0.270208
+   },
+   {
+    "map": "spread",
+    "me": "holy",
+    "camp": "c-frost",
+    "share": 0.160605
+   },
+   {
+    "map": "spread",
+    "me": "holy",
+    "camp": "d-holy",
+    "share": 0.98395
+   },
+   {
+    "map": "spread",
+    "me": "holy",
+    "camp": "e-sentenced",
+    "share": 0.173401
+   }
+  ],
+  "nearestCamps": [
+   {
+    "map": "pve",
+    "at": {
+     "x": 80,
+     "y": 80
+    },
+    "ids": [
+     "fire-1"
+    ]
+   },
+   {
+    "map": "pve",
+    "at": {
+     "x": 400,
+     "y": 400
+    },
+    "ids": [
+     "fire-1"
+    ]
+   },
+   {
+    "map": "pve",
+    "at": {
+     "x": 600,
+     "y": 600
+    },
+    "ids": [
+     "fire-1"
+    ]
+   },
+   {
+    "map": "spread",
+    "at": {
+     "x": 80,
+     "y": 80
+    },
+    "ids": [
+     "a-fire",
+     "e-sentenced"
+    ]
+   },
+   {
+    "map": "spread",
+    "at": {
+     "x": 400,
+     "y": 400
+    },
+    "ids": [
+     "e-sentenced",
+     "a-fire"
+    ]
+   },
+   {
+    "map": "spread",
+    "at": {
+     "x": 600,
+     "y": 600
+    },
+    "ids": [
+     "d-holy",
+     "e-sentenced"
+    ]
+   }
+  ],
+  "spawnScore": [
+   {
+    "map": "pve",
+    "pool": 0,
+    "me": "fire",
+    "weapon": null,
+    "score": 0
+   },
+   {
+    "map": "pve",
+    "pool": 0,
+    "me": "fire",
+    "weapon": "sword",
+    "score": 0
+   },
+   {
+    "map": "pve",
+    "pool": 0,
+    "me": "fire",
+    "weapon": "bow",
+    "score": 0
+   },
+   {
+    "map": "pve",
+    "pool": 0,
+    "me": "fire",
+    "weapon": "wand",
+    "score": 0
+   },
+   {
+    "map": "pve",
+    "pool": 0,
+    "me": "fire",
+    "weapon": "axe",
+    "score": 0
+   },
+   {
+    "map": "pve",
+    "pool": 0,
+    "me": "fire",
+    "weapon": "shield",
+    "score": 0
+   },
+   {
+    "map": "pve",
+    "pool": 0,
+    "me": "sentenced",
+    "weapon": null,
+    "score": 0.1826
+   },
+   {
+    "map": "pve",
+    "pool": 0,
+    "me": "sentenced",
+    "weapon": "sword",
+    "score": 0.1826
+   },
+   {
+    "map": "pve",
+    "pool": 0,
+    "me": "sentenced",
+    "weapon": "bow",
+    "score": 0.1826
+   },
+   {
+    "map": "pve",
+    "pool": 0,
+    "me": "sentenced",
+    "weapon": "wand",
+    "score": 0.04565
+   },
+   {
+    "map": "pve",
+    "pool": 0,
+    "me": "sentenced",
+    "weapon": "axe",
+    "score": 0.1826
+   },
+   {
+    "map": "pve",
+    "pool": 0,
+    "me": "sentenced",
+    "weapon": "shield",
+    "score": 0.1826
+   },
+   {
+    "map": "pve",
+    "pool": 0,
+    "me": "plague",
+    "weapon": null,
+    "score": 0
+   },
+   {
+    "map": "pve",
+    "pool": 0,
+    "me": "plague",
+    "weapon": "sword",
+    "score": 0
+   },
+   {
+    "map": "pve",
+    "pool": 0,
+    "me": "plague",
+    "weapon": "bow",
+    "score": 0
+   },
+   {
+    "map": "pve",
+    "pool": 0,
+    "me": "plague",
+    "weapon": "wand",
+    "score": 0
+   },
+   {
+    "map": "pve",
+    "pool": 0,
+    "me": "plague",
+    "weapon": "axe",
+    "score": 0
+   },
+   {
+    "map": "pve",
+    "pool": 0,
+    "me": "plague",
+    "weapon": "shield",
+    "score": 0
+   },
+   {
+    "map": "pve",
+    "pool": 0,
+    "me": "frost",
+    "weapon": null,
+    "score": 0
+   },
+   {
+    "map": "pve",
+    "pool": 0,
+    "me": "frost",
+    "weapon": "sword",
+    "score": 0
+   },
+   {
+    "map": "pve",
+    "pool": 0,
+    "me": "frost",
+    "weapon": "bow",
+    "score": 0
+   },
+   {
+    "map": "pve",
+    "pool": 0,
+    "me": "frost",
+    "weapon": "wand",
+    "score": 0
+   },
+   {
+    "map": "pve",
+    "pool": 0,
+    "me": "frost",
+    "weapon": "axe",
+    "score": 0
+   },
+   {
+    "map": "pve",
+    "pool": 0,
+    "me": "frost",
+    "weapon": "shield",
+    "score": 0
+   },
+   {
+    "map": "pve",
+    "pool": 0,
+    "me": "holy",
+    "weapon": null,
+    "score": 0.144363
+   },
+   {
+    "map": "pve",
+    "pool": 0,
+    "me": "holy",
+    "weapon": "sword",
+    "score": 0.144363
+   },
+   {
+    "map": "pve",
+    "pool": 0,
+    "me": "holy",
+    "weapon": "bow",
+    "score": 0.144363
+   },
+   {
+    "map": "pve",
+    "pool": 0,
+    "me": "holy",
+    "weapon": "wand",
+    "score": 0.036091
+   },
+   {
+    "map": "pve",
+    "pool": 0,
+    "me": "holy",
+    "weapon": "axe",
+    "score": 0.144363
+   },
+   {
+    "map": "pve",
+    "pool": 0,
+    "me": "holy",
+    "weapon": "shield",
+    "score": 0.144363
+   },
+   {
+    "map": "pve",
+    "pool": 1,
+    "me": "fire",
+    "weapon": null,
+    "score": 0
+   },
+   {
+    "map": "pve",
+    "pool": 1,
+    "me": "fire",
+    "weapon": "sword",
+    "score": 0
+   },
+   {
+    "map": "pve",
+    "pool": 1,
+    "me": "fire",
+    "weapon": "bow",
+    "score": 0
+   },
+   {
+    "map": "pve",
+    "pool": 1,
+    "me": "fire",
+    "weapon": "wand",
+    "score": 0
+   },
+   {
+    "map": "pve",
+    "pool": 1,
+    "me": "fire",
+    "weapon": "axe",
+    "score": 0
+   },
+   {
+    "map": "pve",
+    "pool": 1,
+    "me": "fire",
+    "weapon": "shield",
+    "score": 0
+   },
+   {
+    "map": "pve",
+    "pool": 1,
+    "me": "sentenced",
+    "weapon": null,
+    "score": 0.1826
+   },
+   {
+    "map": "pve",
+    "pool": 1,
+    "me": "sentenced",
+    "weapon": "sword",
+    "score": 0.1826
+   },
+   {
+    "map": "pve",
+    "pool": 1,
+    "me": "sentenced",
+    "weapon": "bow",
+    "score": 0.1826
+   },
+   {
+    "map": "pve",
+    "pool": 1,
+    "me": "sentenced",
+    "weapon": "wand",
+    "score": 0.04565
+   },
+   {
+    "map": "pve",
+    "pool": 1,
+    "me": "sentenced",
+    "weapon": "axe",
+    "score": 0.1826
+   },
+   {
+    "map": "pve",
+    "pool": 1,
+    "me": "sentenced",
+    "weapon": "shield",
+    "score": 0.1826
+   },
+   {
+    "map": "pve",
+    "pool": 1,
+    "me": "plague",
+    "weapon": null,
+    "score": 0
+   },
+   {
+    "map": "pve",
+    "pool": 1,
+    "me": "plague",
+    "weapon": "sword",
+    "score": 0
+   },
+   {
+    "map": "pve",
+    "pool": 1,
+    "me": "plague",
+    "weapon": "bow",
+    "score": 0
+   },
+   {
+    "map": "pve",
+    "pool": 1,
+    "me": "plague",
+    "weapon": "wand",
+    "score": 0
+   },
+   {
+    "map": "pve",
+    "pool": 1,
+    "me": "plague",
+    "weapon": "axe",
+    "score": 0
+   },
+   {
+    "map": "pve",
+    "pool": 1,
+    "me": "plague",
+    "weapon": "shield",
+    "score": 0
+   },
+   {
+    "map": "pve",
+    "pool": 1,
+    "me": "frost",
+    "weapon": null,
+    "score": 0
+   },
+   {
+    "map": "pve",
+    "pool": 1,
+    "me": "frost",
+    "weapon": "sword",
+    "score": 0
+   },
+   {
+    "map": "pve",
+    "pool": 1,
+    "me": "frost",
+    "weapon": "bow",
+    "score": 0
+   },
+   {
+    "map": "pve",
+    "pool": 1,
+    "me": "frost",
+    "weapon": "wand",
+    "score": 0
+   },
+   {
+    "map": "pve",
+    "pool": 1,
+    "me": "frost",
+    "weapon": "axe",
+    "score": 0
+   },
+   {
+    "map": "pve",
+    "pool": 1,
+    "me": "frost",
+    "weapon": "shield",
+    "score": 0
+   },
+   {
+    "map": "pve",
+    "pool": 1,
+    "me": "holy",
+    "weapon": null,
+    "score": 0.144363
+   },
+   {
+    "map": "pve",
+    "pool": 1,
+    "me": "holy",
+    "weapon": "sword",
+    "score": 0.144363
+   },
+   {
+    "map": "pve",
+    "pool": 1,
+    "me": "holy",
+    "weapon": "bow",
+    "score": 0.144363
+   },
+   {
+    "map": "pve",
+    "pool": 1,
+    "me": "holy",
+    "weapon": "wand",
+    "score": 0.036091
+   },
+   {
+    "map": "pve",
+    "pool": 1,
+    "me": "holy",
+    "weapon": "axe",
+    "score": 0.144363
+   },
+   {
+    "map": "pve",
+    "pool": 1,
+    "me": "holy",
+    "weapon": "shield",
+    "score": 0.144363
+   },
+   {
+    "map": "pve",
+    "pool": 2,
+    "me": "fire",
+    "weapon": null,
+    "score": 0
+   },
+   {
+    "map": "pve",
+    "pool": 2,
+    "me": "fire",
+    "weapon": "sword",
+    "score": 0
+   },
+   {
+    "map": "pve",
+    "pool": 2,
+    "me": "fire",
+    "weapon": "bow",
+    "score": 0
+   },
+   {
+    "map": "pve",
+    "pool": 2,
+    "me": "fire",
+    "weapon": "wand",
+    "score": 0
+   },
+   {
+    "map": "pve",
+    "pool": 2,
+    "me": "fire",
+    "weapon": "axe",
+    "score": 0
+   },
+   {
+    "map": "pve",
+    "pool": 2,
+    "me": "fire",
+    "weapon": "shield",
+    "score": 0
+   },
+   {
+    "map": "pve",
+    "pool": 2,
+    "me": "sentenced",
+    "weapon": null,
+    "score": 0.1826
+   },
+   {
+    "map": "pve",
+    "pool": 2,
+    "me": "sentenced",
+    "weapon": "sword",
+    "score": 0.1826
+   },
+   {
+    "map": "pve",
+    "pool": 2,
+    "me": "sentenced",
+    "weapon": "bow",
+    "score": 0.1826
+   },
+   {
+    "map": "pve",
+    "pool": 2,
+    "me": "sentenced",
+    "weapon": "wand",
+    "score": 0.04565
+   },
+   {
+    "map": "pve",
+    "pool": 2,
+    "me": "sentenced",
+    "weapon": "axe",
+    "score": 0.1826
+   },
+   {
+    "map": "pve",
+    "pool": 2,
+    "me": "sentenced",
+    "weapon": "shield",
+    "score": 0.1826
+   },
+   {
+    "map": "pve",
+    "pool": 2,
+    "me": "plague",
+    "weapon": null,
+    "score": 0
+   },
+   {
+    "map": "pve",
+    "pool": 2,
+    "me": "plague",
+    "weapon": "sword",
+    "score": 0
+   },
+   {
+    "map": "pve",
+    "pool": 2,
+    "me": "plague",
+    "weapon": "bow",
+    "score": 0
+   },
+   {
+    "map": "pve",
+    "pool": 2,
+    "me": "plague",
+    "weapon": "wand",
+    "score": 0
+   },
+   {
+    "map": "pve",
+    "pool": 2,
+    "me": "plague",
+    "weapon": "axe",
+    "score": 0
+   },
+   {
+    "map": "pve",
+    "pool": 2,
+    "me": "plague",
+    "weapon": "shield",
+    "score": 0
+   },
+   {
+    "map": "pve",
+    "pool": 2,
+    "me": "frost",
+    "weapon": null,
+    "score": 0
+   },
+   {
+    "map": "pve",
+    "pool": 2,
+    "me": "frost",
+    "weapon": "sword",
+    "score": 0
+   },
+   {
+    "map": "pve",
+    "pool": 2,
+    "me": "frost",
+    "weapon": "bow",
+    "score": 0
+   },
+   {
+    "map": "pve",
+    "pool": 2,
+    "me": "frost",
+    "weapon": "wand",
+    "score": 0
+   },
+   {
+    "map": "pve",
+    "pool": 2,
+    "me": "frost",
+    "weapon": "axe",
+    "score": 0
+   },
+   {
+    "map": "pve",
+    "pool": 2,
+    "me": "frost",
+    "weapon": "shield",
+    "score": 0
+   },
+   {
+    "map": "pve",
+    "pool": 2,
+    "me": "holy",
+    "weapon": null,
+    "score": 0.144363
+   },
+   {
+    "map": "pve",
+    "pool": 2,
+    "me": "holy",
+    "weapon": "sword",
+    "score": 0.144363
+   },
+   {
+    "map": "pve",
+    "pool": 2,
+    "me": "holy",
+    "weapon": "bow",
+    "score": 0.144363
+   },
+   {
+    "map": "pve",
+    "pool": 2,
+    "me": "holy",
+    "weapon": "wand",
+    "score": 0.036091
+   },
+   {
+    "map": "pve",
+    "pool": 2,
+    "me": "holy",
+    "weapon": "axe",
+    "score": 0.144363
+   },
+   {
+    "map": "pve",
+    "pool": 2,
+    "me": "holy",
+    "weapon": "shield",
+    "score": 0.144363
+   },
+   {
+    "map": "pve",
+    "pool": 3,
+    "me": "fire",
+    "weapon": null,
+    "score": 0
+   },
+   {
+    "map": "pve",
+    "pool": 3,
+    "me": "fire",
+    "weapon": "sword",
+    "score": 0
+   },
+   {
+    "map": "pve",
+    "pool": 3,
+    "me": "fire",
+    "weapon": "bow",
+    "score": 0
+   },
+   {
+    "map": "pve",
+    "pool": 3,
+    "me": "fire",
+    "weapon": "wand",
+    "score": 0
+   },
+   {
+    "map": "pve",
+    "pool": 3,
+    "me": "fire",
+    "weapon": "axe",
+    "score": 0
+   },
+   {
+    "map": "pve",
+    "pool": 3,
+    "me": "fire",
+    "weapon": "shield",
+    "score": 0
+   },
+   {
+    "map": "pve",
+    "pool": 3,
+    "me": "sentenced",
+    "weapon": null,
+    "score": 0.1826
+   },
+   {
+    "map": "pve",
+    "pool": 3,
+    "me": "sentenced",
+    "weapon": "sword",
+    "score": 0.1826
+   },
+   {
+    "map": "pve",
+    "pool": 3,
+    "me": "sentenced",
+    "weapon": "bow",
+    "score": 0.1826
+   },
+   {
+    "map": "pve",
+    "pool": 3,
+    "me": "sentenced",
+    "weapon": "wand",
+    "score": 0.04565
+   },
+   {
+    "map": "pve",
+    "pool": 3,
+    "me": "sentenced",
+    "weapon": "axe",
+    "score": 0.1826
+   },
+   {
+    "map": "pve",
+    "pool": 3,
+    "me": "sentenced",
+    "weapon": "shield",
+    "score": 0.1826
+   },
+   {
+    "map": "pve",
+    "pool": 3,
+    "me": "plague",
+    "weapon": null,
+    "score": 0
+   },
+   {
+    "map": "pve",
+    "pool": 3,
+    "me": "plague",
+    "weapon": "sword",
+    "score": 0
+   },
+   {
+    "map": "pve",
+    "pool": 3,
+    "me": "plague",
+    "weapon": "bow",
+    "score": 0
+   },
+   {
+    "map": "pve",
+    "pool": 3,
+    "me": "plague",
+    "weapon": "wand",
+    "score": 0
+   },
+   {
+    "map": "pve",
+    "pool": 3,
+    "me": "plague",
+    "weapon": "axe",
+    "score": 0
+   },
+   {
+    "map": "pve",
+    "pool": 3,
+    "me": "plague",
+    "weapon": "shield",
+    "score": 0
+   },
+   {
+    "map": "pve",
+    "pool": 3,
+    "me": "frost",
+    "weapon": null,
+    "score": 0
+   },
+   {
+    "map": "pve",
+    "pool": 3,
+    "me": "frost",
+    "weapon": "sword",
+    "score": 0
+   },
+   {
+    "map": "pve",
+    "pool": 3,
+    "me": "frost",
+    "weapon": "bow",
+    "score": 0
+   },
+   {
+    "map": "pve",
+    "pool": 3,
+    "me": "frost",
+    "weapon": "wand",
+    "score": 0
+   },
+   {
+    "map": "pve",
+    "pool": 3,
+    "me": "frost",
+    "weapon": "axe",
+    "score": 0
+   },
+   {
+    "map": "pve",
+    "pool": 3,
+    "me": "frost",
+    "weapon": "shield",
+    "score": 0
+   },
+   {
+    "map": "pve",
+    "pool": 3,
+    "me": "holy",
+    "weapon": null,
+    "score": 0.144363
+   },
+   {
+    "map": "pve",
+    "pool": 3,
+    "me": "holy",
+    "weapon": "sword",
+    "score": 0.144363
+   },
+   {
+    "map": "pve",
+    "pool": 3,
+    "me": "holy",
+    "weapon": "bow",
+    "score": 0.144363
+   },
+   {
+    "map": "pve",
+    "pool": 3,
+    "me": "holy",
+    "weapon": "wand",
+    "score": 0.036091
+   },
+   {
+    "map": "pve",
+    "pool": 3,
+    "me": "holy",
+    "weapon": "axe",
+    "score": 0.144363
+   },
+   {
+    "map": "pve",
+    "pool": 3,
+    "me": "holy",
+    "weapon": "shield",
+    "score": 0.144363
+   },
+   {
+    "map": "spread",
+    "pool": 0,
+    "me": "fire",
+    "weapon": null,
+    "score": 0.951436
+   },
+   {
+    "map": "spread",
+    "pool": 0,
+    "me": "fire",
+    "weapon": "sword",
+    "score": 0.951436
+   },
+   {
+    "map": "spread",
+    "pool": 0,
+    "me": "fire",
+    "weapon": "bow",
+    "score": 0.951436
+   },
+   {
+    "map": "spread",
+    "pool": 0,
+    "me": "fire",
+    "weapon": "wand",
+    "score": 0.237859
+   },
+   {
+    "map": "spread",
+    "pool": 0,
+    "me": "fire",
+    "weapon": "axe",
+    "score": 0.951436
+   },
+   {
+    "map": "spread",
+    "pool": 0,
+    "me": "fire",
+    "weapon": "shield",
+    "score": 0.951436
+   },
+   {
+    "map": "spread",
+    "pool": 0,
+    "me": "sentenced",
+    "weapon": null,
+    "score": 1.166863
+   },
+   {
+    "map": "spread",
+    "pool": 0,
+    "me": "sentenced",
+    "weapon": "sword",
+    "score": 1.166863
+   },
+   {
+    "map": "spread",
+    "pool": 0,
+    "me": "sentenced",
+    "weapon": "bow",
+    "score": 1.166863
+   },
+   {
+    "map": "spread",
+    "pool": 0,
+    "me": "sentenced",
+    "weapon": "wand",
+    "score": 0.464109
+   },
+   {
+    "map": "spread",
+    "pool": 0,
+    "me": "sentenced",
+    "weapon": "axe",
+    "score": 1.166863
+   },
+   {
+    "map": "spread",
+    "pool": 0,
+    "me": "sentenced",
+    "weapon": "shield",
+    "score": 0.994469
+   },
+   {
+    "map": "spread",
+    "pool": 0,
+    "me": "plague",
+    "weapon": null,
+    "score": 0.951541
+   },
+   {
+    "map": "spread",
+    "pool": 0,
+    "me": "plague",
+    "weapon": "sword",
+    "score": 0.951541
+   },
+   {
+    "map": "spread",
+    "pool": 0,
+    "me": "plague",
+    "weapon": "bow",
+    "score": 0.951541
+   },
+   {
+    "map": "spread",
+    "pool": 0,
+    "me": "plague",
+    "weapon": "wand",
+    "score": 0.237885
+   },
+   {
+    "map": "spread",
+    "pool": 0,
+    "me": "plague",
+    "weapon": "axe",
+    "score": 0.951541
+   },
+   {
+    "map": "spread",
+    "pool": 0,
+    "me": "plague",
+    "weapon": "shield",
+    "score": 0.951541
+   },
+   {
+    "map": "spread",
+    "pool": 0,
+    "me": "frost",
+    "weapon": null,
+    "score": 0.951722
+   },
+   {
+    "map": "spread",
+    "pool": 0,
+    "me": "frost",
+    "weapon": "sword",
+    "score": 0.951722
+   },
+   {
+    "map": "spread",
+    "pool": 0,
+    "me": "frost",
+    "weapon": "bow",
+    "score": 0.951722
+   },
+   {
+    "map": "spread",
+    "pool": 0,
+    "me": "frost",
+    "weapon": "wand",
+    "score": 0.237931
+   },
+   {
+    "map": "spread",
+    "pool": 0,
+    "me": "frost",
+    "weapon": "axe",
+    "score": 0.951722
+   },
+   {
+    "map": "spread",
+    "pool": 0,
+    "me": "frost",
+    "weapon": "shield",
+    "score": 0.951722
+   },
+   {
+    "map": "spread",
+    "pool": 0,
+    "me": "holy",
+    "weapon": null,
+    "score": 1.138836
+   },
+   {
+    "map": "spread",
+    "pool": 0,
+    "me": "holy",
+    "weapon": "sword",
+    "score": 1.138836
+   },
+   {
+    "map": "spread",
+    "pool": 0,
+    "me": "holy",
+    "weapon": "bow",
+    "score": 1.138836
+   },
+   {
+    "map": "spread",
+    "pool": 0,
+    "me": "holy",
+    "weapon": "wand",
+    "score": 0.41476
+   },
+   {
+    "map": "spread",
+    "pool": 0,
+    "me": "holy",
+    "weapon": "axe",
+    "score": 1.138836
+   },
+   {
+    "map": "spread",
+    "pool": 0,
+    "me": "holy",
+    "weapon": "shield",
+    "score": 1.008785
+   },
+   {
+    "map": "spread",
+    "pool": 1,
+    "me": "fire",
+    "weapon": null,
+    "score": 0
+   },
+   {
+    "map": "spread",
+    "pool": 1,
+    "me": "fire",
+    "weapon": "sword",
+    "score": 0
+   },
+   {
+    "map": "spread",
+    "pool": 1,
+    "me": "fire",
+    "weapon": "bow",
+    "score": 0
+   },
+   {
+    "map": "spread",
+    "pool": 1,
+    "me": "fire",
+    "weapon": "wand",
+    "score": 0
+   },
+   {
+    "map": "spread",
+    "pool": 1,
+    "me": "fire",
+    "weapon": "axe",
+    "score": 0
+   },
+   {
+    "map": "spread",
+    "pool": 1,
+    "me": "fire",
+    "weapon": "shield",
+    "score": 0
+   },
+   {
+    "map": "spread",
+    "pool": 1,
+    "me": "sentenced",
+    "weapon": null,
+    "score": 0.583322
+   },
+   {
+    "map": "spread",
+    "pool": 1,
+    "me": "sentenced",
+    "weapon": "sword",
+    "score": 0.583322
+   },
+   {
+    "map": "spread",
+    "pool": 1,
+    "me": "sentenced",
+    "weapon": "bow",
+    "score": 0.583322
+   },
+   {
+    "map": "spread",
+    "pool": 1,
+    "me": "sentenced",
+    "weapon": "wand",
+    "score": 0.583322
+   },
+   {
+    "map": "spread",
+    "pool": 1,
+    "me": "sentenced",
+    "weapon": "axe",
+    "score": 0.583322
+   },
+   {
+    "map": "spread",
+    "pool": 1,
+    "me": "sentenced",
+    "weapon": "shield",
+    "score": 0.14583
+   },
+   {
+    "map": "spread",
+    "pool": 1,
+    "me": "plague",
+    "weapon": null,
+    "score": 0
+   },
+   {
+    "map": "spread",
+    "pool": 1,
+    "me": "plague",
+    "weapon": "sword",
+    "score": 0
+   },
+   {
+    "map": "spread",
+    "pool": 1,
+    "me": "plague",
+    "weapon": "bow",
+    "score": 0
+   },
+   {
+    "map": "spread",
+    "pool": 1,
+    "me": "plague",
+    "weapon": "wand",
+    "score": 0
+   },
+   {
+    "map": "spread",
+    "pool": 1,
+    "me": "plague",
+    "weapon": "axe",
+    "score": 0
+   },
+   {
+    "map": "spread",
+    "pool": 1,
+    "me": "plague",
+    "weapon": "shield",
+    "score": 0
+   },
+   {
+    "map": "spread",
+    "pool": 1,
+    "me": "frost",
+    "weapon": null,
+    "score": 0
+   },
+   {
+    "map": "spread",
+    "pool": 1,
+    "me": "frost",
+    "weapon": "sword",
+    "score": 0
+   },
+   {
+    "map": "spread",
+    "pool": 1,
+    "me": "frost",
+    "weapon": "bow",
+    "score": 0
+   },
+   {
+    "map": "spread",
+    "pool": 1,
+    "me": "frost",
+    "weapon": "wand",
+    "score": 0
+   },
+   {
+    "map": "spread",
+    "pool": 1,
+    "me": "frost",
+    "weapon": "axe",
+    "score": 0
+   },
+   {
+    "map": "spread",
+    "pool": 1,
+    "me": "frost",
+    "weapon": "shield",
+    "score": 0
+   },
+   {
+    "map": "spread",
+    "pool": 1,
+    "me": "holy",
+    "weapon": null,
+    "score": 0.443609
+   },
+   {
+    "map": "spread",
+    "pool": 1,
+    "me": "holy",
+    "weapon": "sword",
+    "score": 0.443609
+   },
+   {
+    "map": "spread",
+    "pool": 1,
+    "me": "holy",
+    "weapon": "bow",
+    "score": 0.443609
+   },
+   {
+    "map": "spread",
+    "pool": 1,
+    "me": "holy",
+    "weapon": "wand",
+    "score": 0.443609
+   },
+   {
+    "map": "spread",
+    "pool": 1,
+    "me": "holy",
+    "weapon": "axe",
+    "score": 0.443609
+   },
+   {
+    "map": "spread",
+    "pool": 1,
+    "me": "holy",
+    "weapon": "shield",
+    "score": 0.110902
+   },
+   {
+    "map": "spread",
+    "pool": 2,
+    "me": "fire",
+    "weapon": null,
+    "score": 0
+   },
+   {
+    "map": "spread",
+    "pool": 2,
+    "me": "fire",
+    "weapon": "sword",
+    "score": 0
+   },
+   {
+    "map": "spread",
+    "pool": 2,
+    "me": "fire",
+    "weapon": "bow",
+    "score": 0
+   },
+   {
+    "map": "spread",
+    "pool": 2,
+    "me": "fire",
+    "weapon": "wand",
+    "score": 0
+   },
+   {
+    "map": "spread",
+    "pool": 2,
+    "me": "fire",
+    "weapon": "axe",
+    "score": 0
+   },
+   {
+    "map": "spread",
+    "pool": 2,
+    "me": "fire",
+    "weapon": "shield",
+    "score": 0
+   },
+   {
+    "map": "spread",
+    "pool": 2,
+    "me": "sentenced",
+    "weapon": null,
+    "score": 0.428387
+   },
+   {
+    "map": "spread",
+    "pool": 2,
+    "me": "sentenced",
+    "weapon": "sword",
+    "score": 0.27949
+   },
+   {
+    "map": "spread",
+    "pool": 2,
+    "me": "sentenced",
+    "weapon": "bow",
+    "score": 0.27949
+   },
+   {
+    "map": "spread",
+    "pool": 2,
+    "me": "sentenced",
+    "weapon": "wand",
+    "score": 0.428387
+   },
+   {
+    "map": "spread",
+    "pool": 2,
+    "me": "sentenced",
+    "weapon": "axe",
+    "score": 0.428387
+   },
+   {
+    "map": "spread",
+    "pool": 2,
+    "me": "sentenced",
+    "weapon": "shield",
+    "score": 0.107097
+   },
+   {
+    "map": "spread",
+    "pool": 2,
+    "me": "plague",
+    "weapon": null,
+    "score": 0
+   },
+   {
+    "map": "spread",
+    "pool": 2,
+    "me": "plague",
+    "weapon": "sword",
+    "score": 0
+   },
+   {
+    "map": "spread",
+    "pool": 2,
+    "me": "plague",
+    "weapon": "bow",
+    "score": 0
+   },
+   {
+    "map": "spread",
+    "pool": 2,
+    "me": "plague",
+    "weapon": "wand",
+    "score": 0
+   },
+   {
+    "map": "spread",
+    "pool": 2,
+    "me": "plague",
+    "weapon": "axe",
+    "score": 0
+   },
+   {
+    "map": "spread",
+    "pool": 2,
+    "me": "plague",
+    "weapon": "shield",
+    "score": 0
+   },
+   {
+    "map": "spread",
+    "pool": 2,
+    "me": "frost",
+    "weapon": null,
+    "score": 0
+   },
+   {
+    "map": "spread",
+    "pool": 2,
+    "me": "frost",
+    "weapon": "sword",
+    "score": 0
+   },
+   {
+    "map": "spread",
+    "pool": 2,
+    "me": "frost",
+    "weapon": "bow",
+    "score": 0
+   },
+   {
+    "map": "spread",
+    "pool": 2,
+    "me": "frost",
+    "weapon": "wand",
+    "score": 0
+   },
+   {
+    "map": "spread",
+    "pool": 2,
+    "me": "frost",
+    "weapon": "axe",
+    "score": 0
+   },
+   {
+    "map": "spread",
+    "pool": 2,
+    "me": "frost",
+    "weapon": "shield",
+    "score": 0
+   },
+   {
+    "map": "spread",
+    "pool": 2,
+    "me": "holy",
+    "weapon": null,
+    "score": 0.334005
+   },
+   {
+    "map": "spread",
+    "pool": 2,
+    "me": "holy",
+    "weapon": "sword",
+    "score": 0.213552
+   },
+   {
+    "map": "spread",
+    "pool": 2,
+    "me": "holy",
+    "weapon": "bow",
+    "score": 0.213552
+   },
+   {
+    "map": "spread",
+    "pool": 2,
+    "me": "holy",
+    "weapon": "wand",
+    "score": 0.334005
+   },
+   {
+    "map": "spread",
+    "pool": 2,
+    "me": "holy",
+    "weapon": "axe",
+    "score": 0.334005
+   },
+   {
+    "map": "spread",
+    "pool": 2,
+    "me": "holy",
+    "weapon": "shield",
+    "score": 0.083501
+   },
+   {
+    "map": "spread",
+    "pool": 3,
+    "me": "fire",
+    "weapon": null,
+    "score": 0.96239
+   },
+   {
+    "map": "spread",
+    "pool": 3,
+    "me": "fire",
+    "weapon": "sword",
+    "score": 0.96239
+   },
+   {
+    "map": "spread",
+    "pool": 3,
+    "me": "fire",
+    "weapon": "bow",
+    "score": 0.240598
+   },
+   {
+    "map": "spread",
+    "pool": 3,
+    "me": "fire",
+    "weapon": "wand",
+    "score": 0.96239
+   },
+   {
+    "map": "spread",
+    "pool": 3,
+    "me": "fire",
+    "weapon": "axe",
+    "score": 0.96239
+   },
+   {
+    "map": "spread",
+    "pool": 3,
+    "me": "fire",
+    "weapon": "shield",
+    "score": 0.96239
+   },
+   {
+    "map": "spread",
+    "pool": 3,
+    "me": "sentenced",
+    "weapon": null,
+    "score": 1.182528
+   },
+   {
+    "map": "spread",
+    "pool": 3,
+    "me": "sentenced",
+    "weapon": "sword",
+    "score": 1.182528
+   },
+   {
+    "map": "spread",
+    "pool": 3,
+    "me": "sentenced",
+    "weapon": "bow",
+    "score": 0.468025
+   },
+   {
+    "map": "spread",
+    "pool": 3,
+    "me": "sentenced",
+    "weapon": "wand",
+    "score": 1.182528
+   },
+   {
+    "map": "spread",
+    "pool": 3,
+    "me": "sentenced",
+    "weapon": "axe",
+    "score": 1.182528
+   },
+   {
+    "map": "spread",
+    "pool": 3,
+    "me": "sentenced",
+    "weapon": "shield",
+    "score": 1.010135
+   },
+   {
+    "map": "spread",
+    "pool": 3,
+    "me": "plague",
+    "weapon": null,
+    "score": 0.962536
+   },
+   {
+    "map": "spread",
+    "pool": 3,
+    "me": "plague",
+    "weapon": "sword",
+    "score": 0.962536
+   },
+   {
+    "map": "spread",
+    "pool": 3,
+    "me": "plague",
+    "weapon": "bow",
+    "score": 0.240634
+   },
+   {
+    "map": "spread",
+    "pool": 3,
+    "me": "plague",
+    "weapon": "wand",
+    "score": 0.962536
+   },
+   {
+    "map": "spread",
+    "pool": 3,
+    "me": "plague",
+    "weapon": "axe",
+    "score": 0.962536
+   },
+   {
+    "map": "spread",
+    "pool": 3,
+    "me": "plague",
+    "weapon": "shield",
+    "score": 0.962536
+   },
+   {
+    "map": "spread",
+    "pool": 3,
+    "me": "frost",
+    "weapon": null,
+    "score": 0.962524
+   },
+   {
+    "map": "spread",
+    "pool": 3,
+    "me": "frost",
+    "weapon": "sword",
+    "score": 0.962524
+   },
+   {
+    "map": "spread",
+    "pool": 3,
+    "me": "frost",
+    "weapon": "bow",
+    "score": 0.240631
+   },
+   {
+    "map": "spread",
+    "pool": 3,
+    "me": "frost",
+    "weapon": "wand",
+    "score": 0.962524
+   },
+   {
+    "map": "spread",
+    "pool": 3,
+    "me": "frost",
+    "weapon": "axe",
+    "score": 0.962524
+   },
+   {
+    "map": "spread",
+    "pool": 3,
+    "me": "frost",
+    "weapon": "shield",
+    "score": 0.962524
+   },
+   {
+    "map": "spread",
+    "pool": 3,
+    "me": "holy",
+    "weapon": null,
+    "score": 1.157351
+   },
+   {
+    "map": "spread",
+    "pool": 3,
+    "me": "holy",
+    "weapon": "sword",
+    "score": 1.157351
+   },
+   {
+    "map": "spread",
+    "pool": 3,
+    "me": "holy",
+    "weapon": "bow",
+    "score": 0.419388
+   },
+   {
+    "map": "spread",
+    "pool": 3,
+    "me": "holy",
+    "weapon": "wand",
+    "score": 1.157351
+   },
+   {
+    "map": "spread",
+    "pool": 3,
+    "me": "holy",
+    "weapon": "axe",
+    "score": 1.157351
+   },
+   {
+    "map": "spread",
+    "pool": 3,
+    "me": "holy",
+    "weapon": "shield",
+    "score": 1.0273
+   }
+  ],
+  "planPick": [
+   {
+    "map": "pve",
+    "spawns": [
+     0,
+     1
+    ],
+    "taken": [
+     false,
+     false
+    ],
+    "me": "fire",
+    "weapon": null,
+    "pick": 0
+   },
+   {
+    "map": "pve",
+    "spawns": [
+     0,
+     1
+    ],
+    "taken": [
+     false,
+     false
+    ],
+    "me": "sentenced",
+    "weapon": null,
+    "pick": 0
+   },
+   {
+    "map": "pve",
+    "spawns": [
+     0,
+     1
+    ],
+    "taken": [
+     false,
+     false
+    ],
+    "me": "plague",
+    "weapon": null,
+    "pick": 0
+   },
+   {
+    "map": "pve",
+    "spawns": [
+     0,
+     1
+    ],
+    "taken": [
+     false,
+     false
+    ],
+    "me": "frost",
+    "weapon": null,
+    "pick": 0
+   },
+   {
+    "map": "pve",
+    "spawns": [
+     0,
+     1
+    ],
+    "taken": [
+     false,
+     false
+    ],
+    "me": "holy",
+    "weapon": null,
+    "pick": 0
+   },
+   {
+    "map": "pve",
+    "spawns": [
+     0,
+     1
+    ],
+    "taken": [
+     true,
+     false
+    ],
+    "me": "fire",
+    "weapon": null,
+    "pick": 1
+   },
+   {
+    "map": "pve",
+    "spawns": [
+     0,
+     1
+    ],
+    "taken": [
+     true,
+     false
+    ],
+    "me": "sentenced",
+    "weapon": null,
+    "pick": 1
+   },
+   {
+    "map": "pve",
+    "spawns": [
+     0,
+     1
+    ],
+    "taken": [
+     true,
+     false
+    ],
+    "me": "plague",
+    "weapon": null,
+    "pick": 1
+   },
+   {
+    "map": "pve",
+    "spawns": [
+     0,
+     1
+    ],
+    "taken": [
+     true,
+     false
+    ],
+    "me": "frost",
+    "weapon": null,
+    "pick": 1
+   },
+   {
+    "map": "pve",
+    "spawns": [
+     0,
+     1
+    ],
+    "taken": [
+     true,
+     false
+    ],
+    "me": "holy",
+    "weapon": null,
+    "pick": 1
+   },
+   {
+    "map": "pve",
+    "spawns": [
+     0,
+     1
+    ],
+    "taken": [
+     false,
+     true
+    ],
+    "me": "fire",
+    "weapon": null,
+    "pick": 0
+   },
+   {
+    "map": "pve",
+    "spawns": [
+     0,
+     1
+    ],
+    "taken": [
+     false,
+     true
+    ],
+    "me": "sentenced",
+    "weapon": null,
+    "pick": 0
+   },
+   {
+    "map": "pve",
+    "spawns": [
+     0,
+     1
+    ],
+    "taken": [
+     false,
+     true
+    ],
+    "me": "plague",
+    "weapon": null,
+    "pick": 0
+   },
+   {
+    "map": "pve",
+    "spawns": [
+     0,
+     1
+    ],
+    "taken": [
+     false,
+     true
+    ],
+    "me": "frost",
+    "weapon": null,
+    "pick": 0
+   },
+   {
+    "map": "pve",
+    "spawns": [
+     0,
+     1
+    ],
+    "taken": [
+     false,
+     true
+    ],
+    "me": "holy",
+    "weapon": null,
+    "pick": 0
+   },
+   {
+    "map": "pve",
+    "spawns": [
+     0,
+     1
+    ],
+    "taken": [
+     true,
+     true
+    ],
+    "me": "fire",
+    "weapon": null,
+    "pick": -1
+   },
+   {
+    "map": "pve",
+    "spawns": [
+     0,
+     1
+    ],
+    "taken": [
+     true,
+     true
+    ],
+    "me": "sentenced",
+    "weapon": null,
+    "pick": -1
+   },
+   {
+    "map": "pve",
+    "spawns": [
+     0,
+     1
+    ],
+    "taken": [
+     true,
+     true
+    ],
+    "me": "plague",
+    "weapon": null,
+    "pick": -1
+   },
+   {
+    "map": "pve",
+    "spawns": [
+     0,
+     1
+    ],
+    "taken": [
+     true,
+     true
+    ],
+    "me": "frost",
+    "weapon": null,
+    "pick": -1
+   },
+   {
+    "map": "pve",
+    "spawns": [
+     0,
+     1
+    ],
+    "taken": [
+     true,
+     true
+    ],
+    "me": "holy",
+    "weapon": null,
+    "pick": -1
+   },
+   {
+    "map": "pve",
+    "spawns": [
+     -1,
+     1
+    ],
+    "taken": [
+     false,
+     false
+    ],
+    "me": "fire",
+    "weapon": null,
+    "pick": 1
+   },
+   {
+    "map": "pve",
+    "spawns": [
+     -1,
+     1
+    ],
+    "taken": [
+     false,
+     false
+    ],
+    "me": "sentenced",
+    "weapon": null,
+    "pick": 1
+   },
+   {
+    "map": "pve",
+    "spawns": [
+     -1,
+     1
+    ],
+    "taken": [
+     false,
+     false
+    ],
+    "me": "plague",
+    "weapon": null,
+    "pick": 1
+   },
+   {
+    "map": "pve",
+    "spawns": [
+     -1,
+     1
+    ],
+    "taken": [
+     false,
+     false
+    ],
+    "me": "frost",
+    "weapon": null,
+    "pick": 1
+   },
+   {
+    "map": "pve",
+    "spawns": [
+     -1,
+     1
+    ],
+    "taken": [
+     false,
+     false
+    ],
+    "me": "holy",
+    "weapon": null,
+    "pick": 1
+   },
+   {
+    "map": "pve",
+    "spawns": [
+     0,
+     0
+    ],
+    "taken": [
+     false,
+     false
+    ],
+    "me": "fire",
+    "weapon": null,
+    "pick": 0
+   },
+   {
+    "map": "pve",
+    "spawns": [
+     0,
+     0
+    ],
+    "taken": [
+     false,
+     false
+    ],
+    "me": "sentenced",
+    "weapon": null,
+    "pick": 0
+   },
+   {
+    "map": "pve",
+    "spawns": [
+     0,
+     0
+    ],
+    "taken": [
+     false,
+     false
+    ],
+    "me": "plague",
+    "weapon": null,
+    "pick": 0
+   },
+   {
+    "map": "pve",
+    "spawns": [
+     0,
+     0
+    ],
+    "taken": [
+     false,
+     false
+    ],
+    "me": "frost",
+    "weapon": null,
+    "pick": 0
+   },
+   {
+    "map": "pve",
+    "spawns": [
+     0,
+     0
+    ],
+    "taken": [
+     false,
+     false
+    ],
+    "me": "holy",
+    "weapon": null,
+    "pick": 0
+   },
+   {
+    "map": "pve",
+    "spawns": [
+     2,
+     3
+    ],
+    "taken": [
+     false,
+     false
+    ],
+    "me": "fire",
+    "weapon": null,
+    "pick": 0
+   },
+   {
+    "map": "pve",
+    "spawns": [
+     2,
+     3
+    ],
+    "taken": [
+     false,
+     false
+    ],
+    "me": "sentenced",
+    "weapon": null,
+    "pick": 0
+   },
+   {
+    "map": "pve",
+    "spawns": [
+     2,
+     3
+    ],
+    "taken": [
+     false,
+     false
+    ],
+    "me": "plague",
+    "weapon": null,
+    "pick": 0
+   },
+   {
+    "map": "pve",
+    "spawns": [
+     2,
+     3
+    ],
+    "taken": [
+     false,
+     false
+    ],
+    "me": "frost",
+    "weapon": null,
+    "pick": 0
+   },
+   {
+    "map": "pve",
+    "spawns": [
+     2,
+     3
+    ],
+    "taken": [
+     false,
+     false
+    ],
+    "me": "holy",
+    "weapon": null,
+    "pick": 0
+   },
+   {
+    "map": "spread",
+    "spawns": [
+     0,
+     1
+    ],
+    "taken": [
+     false,
+     false
+    ],
+    "me": "fire",
+    "weapon": null,
+    "pick": 0
+   },
+   {
+    "map": "spread",
+    "spawns": [
+     0,
+     1
+    ],
+    "taken": [
+     false,
+     false
+    ],
+    "me": "sentenced",
+    "weapon": null,
+    "pick": 0
+   },
+   {
+    "map": "spread",
+    "spawns": [
+     0,
+     1
+    ],
+    "taken": [
+     false,
+     false
+    ],
+    "me": "plague",
+    "weapon": null,
+    "pick": 0
+   },
+   {
+    "map": "spread",
+    "spawns": [
+     0,
+     1
+    ],
+    "taken": [
+     false,
+     false
+    ],
+    "me": "frost",
+    "weapon": null,
+    "pick": 0
+   },
+   {
+    "map": "spread",
+    "spawns": [
+     0,
+     1
+    ],
+    "taken": [
+     false,
+     false
+    ],
+    "me": "holy",
+    "weapon": null,
+    "pick": 0
+   },
+   {
+    "map": "spread",
+    "spawns": [
+     0,
+     1
+    ],
+    "taken": [
+     true,
+     false
+    ],
+    "me": "fire",
+    "weapon": null,
+    "pick": 1
+   },
+   {
+    "map": "spread",
+    "spawns": [
+     0,
+     1
+    ],
+    "taken": [
+     true,
+     false
+    ],
+    "me": "sentenced",
+    "weapon": null,
+    "pick": 1
+   },
+   {
+    "map": "spread",
+    "spawns": [
+     0,
+     1
+    ],
+    "taken": [
+     true,
+     false
+    ],
+    "me": "plague",
+    "weapon": null,
+    "pick": 1
+   },
+   {
+    "map": "spread",
+    "spawns": [
+     0,
+     1
+    ],
+    "taken": [
+     true,
+     false
+    ],
+    "me": "frost",
+    "weapon": null,
+    "pick": 1
+   },
+   {
+    "map": "spread",
+    "spawns": [
+     0,
+     1
+    ],
+    "taken": [
+     true,
+     false
+    ],
+    "me": "holy",
+    "weapon": null,
+    "pick": 1
+   },
+   {
+    "map": "spread",
+    "spawns": [
+     0,
+     1
+    ],
+    "taken": [
+     false,
+     true
+    ],
+    "me": "fire",
+    "weapon": null,
+    "pick": 0
+   },
+   {
+    "map": "spread",
+    "spawns": [
+     0,
+     1
+    ],
+    "taken": [
+     false,
+     true
+    ],
+    "me": "sentenced",
+    "weapon": null,
+    "pick": 0
+   },
+   {
+    "map": "spread",
+    "spawns": [
+     0,
+     1
+    ],
+    "taken": [
+     false,
+     true
+    ],
+    "me": "plague",
+    "weapon": null,
+    "pick": 0
+   },
+   {
+    "map": "spread",
+    "spawns": [
+     0,
+     1
+    ],
+    "taken": [
+     false,
+     true
+    ],
+    "me": "frost",
+    "weapon": null,
+    "pick": 0
+   },
+   {
+    "map": "spread",
+    "spawns": [
+     0,
+     1
+    ],
+    "taken": [
+     false,
+     true
+    ],
+    "me": "holy",
+    "weapon": null,
+    "pick": 0
+   },
+   {
+    "map": "spread",
+    "spawns": [
+     0,
+     1
+    ],
+    "taken": [
+     true,
+     true
+    ],
+    "me": "fire",
+    "weapon": null,
+    "pick": -1
+   },
+   {
+    "map": "spread",
+    "spawns": [
+     0,
+     1
+    ],
+    "taken": [
+     true,
+     true
+    ],
+    "me": "sentenced",
+    "weapon": null,
+    "pick": -1
+   },
+   {
+    "map": "spread",
+    "spawns": [
+     0,
+     1
+    ],
+    "taken": [
+     true,
+     true
+    ],
+    "me": "plague",
+    "weapon": null,
+    "pick": -1
+   },
+   {
+    "map": "spread",
+    "spawns": [
+     0,
+     1
+    ],
+    "taken": [
+     true,
+     true
+    ],
+    "me": "frost",
+    "weapon": null,
+    "pick": -1
+   },
+   {
+    "map": "spread",
+    "spawns": [
+     0,
+     1
+    ],
+    "taken": [
+     true,
+     true
+    ],
+    "me": "holy",
+    "weapon": null,
+    "pick": -1
+   },
+   {
+    "map": "spread",
+    "spawns": [
+     -1,
+     1
+    ],
+    "taken": [
+     false,
+     false
+    ],
+    "me": "fire",
+    "weapon": null,
+    "pick": 1
+   },
+   {
+    "map": "spread",
+    "spawns": [
+     -1,
+     1
+    ],
+    "taken": [
+     false,
+     false
+    ],
+    "me": "sentenced",
+    "weapon": null,
+    "pick": 1
+   },
+   {
+    "map": "spread",
+    "spawns": [
+     -1,
+     1
+    ],
+    "taken": [
+     false,
+     false
+    ],
+    "me": "plague",
+    "weapon": null,
+    "pick": 1
+   },
+   {
+    "map": "spread",
+    "spawns": [
+     -1,
+     1
+    ],
+    "taken": [
+     false,
+     false
+    ],
+    "me": "frost",
+    "weapon": null,
+    "pick": 1
+   },
+   {
+    "map": "spread",
+    "spawns": [
+     -1,
+     1
+    ],
+    "taken": [
+     false,
+     false
+    ],
+    "me": "holy",
+    "weapon": null,
+    "pick": 1
+   },
+   {
+    "map": "spread",
+    "spawns": [
+     0,
+     0
+    ],
+    "taken": [
+     false,
+     false
+    ],
+    "me": "fire",
+    "weapon": null,
+    "pick": 0
+   },
+   {
+    "map": "spread",
+    "spawns": [
+     0,
+     0
+    ],
+    "taken": [
+     false,
+     false
+    ],
+    "me": "sentenced",
+    "weapon": null,
+    "pick": 0
+   },
+   {
+    "map": "spread",
+    "spawns": [
+     0,
+     0
+    ],
+    "taken": [
+     false,
+     false
+    ],
+    "me": "plague",
+    "weapon": null,
+    "pick": 0
+   },
+   {
+    "map": "spread",
+    "spawns": [
+     0,
+     0
+    ],
+    "taken": [
+     false,
+     false
+    ],
+    "me": "frost",
+    "weapon": null,
+    "pick": 0
+   },
+   {
+    "map": "spread",
+    "spawns": [
+     0,
+     0
+    ],
+    "taken": [
+     false,
+     false
+    ],
+    "me": "holy",
+    "weapon": null,
+    "pick": 0
+   },
+   {
+    "map": "spread",
+    "spawns": [
+     2,
+     3
+    ],
+    "taken": [
+     false,
+     false
+    ],
+    "me": "fire",
+    "weapon": null,
+    "pick": 1
+   },
+   {
+    "map": "spread",
+    "spawns": [
+     2,
+     3
+    ],
+    "taken": [
+     false,
+     false
+    ],
+    "me": "sentenced",
+    "weapon": null,
+    "pick": 1
+   },
+   {
+    "map": "spread",
+    "spawns": [
+     2,
+     3
+    ],
+    "taken": [
+     false,
+     false
+    ],
+    "me": "plague",
+    "weapon": null,
+    "pick": 1
+   },
+   {
+    "map": "spread",
+    "spawns": [
+     2,
+     3
+    ],
+    "taken": [
+     false,
+     false
+    ],
+    "me": "frost",
+    "weapon": null,
+    "pick": 1
+   },
+   {
+    "map": "spread",
+    "spawns": [
+     2,
+     3
+    ],
+    "taken": [
+     false,
+     false
+    ],
+    "me": "holy",
+    "weapon": null,
+    "pick": 1
+   }
+  ]
+ },
+ "cases": [
+  {
+   "name": "no_deal_ready",
+   "tier": "normal",
+   "map": "spread",
+   "faction": null,
+   "weapon": null,
+   "decideSeed": 3,
+   "lapseSeed": 4,
+   "learned": null,
+   "frames": [
+    {
+     "now": 0,
+     "phase": "planning",
+     "faction": null,
+     "weapon": null,
+     "deal": null,
+     "result": null,
+     "probe": {
+      "decide": 0.7202267837710679,
+      "lapse": 0.9236361971125007
+     }
+    },
+    {
+     "now": 500,
+     "phase": "planning",
+     "faction": null,
+     "weapon": null,
+     "deal": null,
+     "result": null,
+     "probe": {
+      "decide": 0.03866216051392257,
+      "lapse": 0.33304587937891483
+     }
+    },
+    {
+     "now": 999,
+     "phase": "planning",
+     "faction": null,
+     "weapon": null,
+     "deal": null,
+     "result": null,
+     "probe": {
+      "decide": 0.4561921926215291,
+      "lapse": 0.2216679009143263
+     }
+    },
+    {
+     "now": 1000,
+     "phase": "planning",
+     "faction": null,
+     "weapon": null,
+     "deal": null,
+     "result": {
+      "spawn": null,
+      "boon": null,
+      "ready": true,
+      "why": "no deal came: ready, the server picks",
+      "priority": 2,
+      "timing": "step"
+     },
+     "probe": {
+      "decide": 0.07492800964973867,
+      "lapse": 0.08184101991355419
+     }
+    },
+    {
+     "now": 1200,
+     "phase": "planning",
+     "faction": null,
+     "weapon": null,
+     "deal": null,
+     "result": null,
+     "probe": {
+      "decide": 0.7630053898319602,
+      "lapse": 0.23399724275805056
+     }
+    }
+   ]
+  },
+  {
+   "name": "read_then_pick_and_ready",
+   "tier": "normal",
+   "map": "spread",
+   "faction": null,
+   "weapon": null,
+   "decideSeed": 5,
+   "lapseSeed": 6,
+   "learned": null,
+   "frames": [
+    {
+     "now": 0,
+     "phase": "planning",
+     "faction": null,
+     "weapon": null,
+     "deal": {
+      "endsAt": 45000,
+      "spawns": [
+       0,
+       1
+      ],
+      "taken": [
+       false,
+       false
+      ],
+      "pick": -1,
+      "boons": [],
+      "boon": -1
+     },
+     "result": null,
+     "probe": {
+      "decide": 0.21976301027461886,
+      "lapse": 0.5257466111797839
+     }
+    },
+    {
+     "now": 500,
+     "phase": "planning",
+     "faction": null,
+     "weapon": null,
+     "deal": {
+      "endsAt": 45000,
+      "spawns": [
+       0,
+       1
+      ],
+      "taken": [
+       false,
+       false
+      ],
+      "pick": -1,
+      "boons": [],
+      "boon": -1
+     },
+     "result": null,
+     "probe": {
+      "decide": 0.6231788222212344,
+      "lapse": 0.002343546599149704
+     }
+    },
+    {
+     "now": 1000,
+     "phase": "planning",
+     "faction": null,
+     "weapon": null,
+     "deal": {
+      "endsAt": 45000,
+      "spawns": [
+       0,
+       1
+      ],
+      "taken": [
+       false,
+       false
+      ],
+      "pick": -1,
+      "boons": [],
+      "boon": -1
+     },
+     "result": null,
+     "probe": {
+      "decide": 0.08513720124028623,
+      "lapse": 0.6631714215036482
+     }
+    },
+    {
+     "now": 2000,
+     "phase": "planning",
+     "faction": null,
+     "weapon": null,
+     "deal": {
+      "endsAt": 45000,
+      "spawns": [
+       0,
+       1
+      ],
+      "taken": [
+       false,
+       false
+      ],
+      "pick": -1,
+      "boons": [],
+      "boon": -1
+     },
+     "result": null,
+     "probe": {
+      "decide": 0.5921649402007461,
+      "lapse": 0.20216270093806088
+     }
+    },
+    {
+     "now": 3000,
+     "phase": "planning",
+     "faction": null,
+     "weapon": null,
+     "deal": {
+      "endsAt": 45000,
+      "spawns": [
+       0,
+       1
+      ],
+      "taken": [
+       false,
+       false
+      ],
+      "pick": -1,
+      "boons": [],
+      "boon": -1
+     },
+     "result": null,
+     "probe": {
+      "decide": 0.7201022456865758,
+      "lapse": 0.5421195910312235
+     }
+    },
+    {
+     "now": 4000,
+     "phase": "planning",
+     "faction": null,
+     "weapon": null,
+     "deal": {
+      "endsAt": 45000,
+      "spawns": [
+       0,
+       1
+      ],
+      "taken": [
+       false,
+       false
+      ],
+      "pick": -1,
+      "boons": [],
+      "boon": -1
+     },
+     "result": null,
+     "probe": {
+      "decide": 0.45810421253554523,
+      "lapse": 0.07076386851258576
+     }
+    },
+    {
+     "now": 5000,
+     "phase": "planning",
+     "faction": null,
+     "weapon": null,
+     "deal": {
+      "endsAt": 45000,
+      "spawns": [
+       0,
+       1
+      ],
+      "taken": [
+       false,
+       false
+      ],
+      "pick": 0,
+      "boons": [],
+      "boon": -1
+     },
+     "result": null,
+     "probe": {
+      "decide": 0.9056215002201498,
+      "lapse": 0.004537841537967324
+     }
+    },
+    {
+     "now": 6000,
+     "phase": "planning",
+     "faction": null,
+     "weapon": null,
+     "deal": {
+      "endsAt": 45000,
+      "spawns": [
+       0,
+       1
+      ],
+      "taken": [
+       false,
+       false
+      ],
+      "pick": 0,
+      "boons": [],
+      "boon": -1
+     },
+     "result": null,
+     "probe": {
+      "decide": 0.22942897235043347,
+      "lapse": 0.9209264013916254
+     }
+    },
+    {
+     "now": 7000,
+     "phase": "planning",
+     "faction": null,
+     "weapon": null,
+     "deal": {
+      "endsAt": 45000,
+      "spawns": [
+       0,
+       1
+      ],
+      "taken": [
+       false,
+       false
+      ],
+      "pick": 0,
+      "boons": [],
+      "boon": -1
+     },
+     "result": null,
+     "probe": {
+      "decide": 0.7798634143546224,
+      "lapse": 0.9705556405242532
+     }
+    },
+    {
+     "now": 8000,
+     "phase": "planning",
+     "faction": null,
+     "weapon": null,
+     "deal": {
+      "endsAt": 45000,
+      "spawns": [
+       0,
+       1
+      ],
+      "taken": [
+       false,
+       false
+      ],
+      "pick": 0,
+      "boons": [],
+      "boon": -1
+     },
+     "result": {
+      "spawn": null,
+      "boon": null,
+      "ready": true,
+      "why": "choices made",
+      "priority": 2,
+      "timing": "step"
+     },
+     "probe": {
+      "decide": 0.7406128125730902,
+      "lapse": 0.21005285810679197
+     }
+    }
+   ]
+  },
+  {
+   "name": "taken_spawn",
+   "tier": "normal",
+   "map": "spread",
+   "faction": null,
+   "weapon": null,
+   "decideSeed": 7,
+   "lapseSeed": 8,
+   "learned": null,
+   "frames": [
+    {
+     "now": 0,
+     "phase": "planning",
+     "faction": null,
+     "weapon": null,
+     "deal": {
+      "endsAt": 45000,
+      "spawns": [
+       0,
+       1
+      ],
+      "taken": [
+       true,
+       false
+      ],
+      "pick": -1,
+      "boons": [],
+      "boon": -1
+     },
+     "result": null,
+     "probe": {
+      "decide": 0.97690763277933,
+      "lapse": 0.15629516984336078
+     }
+    },
+    {
+     "now": 3000,
+     "phase": "planning",
+     "faction": null,
+     "weapon": null,
+     "deal": {
+      "endsAt": 45000,
+      "spawns": [
+       0,
+       1
+      ],
+      "taken": [
+       true,
+       false
+      ],
+      "pick": -1,
+      "boons": [],
+      "boon": -1
+     },
+     "result": null,
+     "probe": {
+      "decide": 0.6990287057124078,
+      "lapse": 0.6251922610681504
+     }
+    },
+    {
+     "now": 5000,
+     "phase": "planning",
+     "faction": null,
+     "weapon": null,
+     "deal": {
+      "endsAt": 45000,
+      "spawns": [
+       0,
+       1
+      ],
+      "taken": [
+       true,
+       false
+      ],
+      "pick": -1,
+      "boons": [],
+      "boon": -1
+     },
+     "result": {
+      "spawn": 1,
+      "boon": null,
+      "ready": null,
+      "why": "spawn 1 (option 1)",
+      "priority": 2,
+      "timing": "step"
+     },
+     "probe": {
+      "decide": 0.5214452685322613,
+      "lapse": 0.3006645820569247
+     }
+    },
+    {
+     "now": 9000,
+     "phase": "planning",
+     "faction": null,
+     "weapon": null,
+     "deal": {
+      "endsAt": 45000,
+      "spawns": [
+       0,
+       1
+      ],
+      "taken": [
+       true,
+       false
+      ],
+      "pick": -1,
+      "boons": [],
+      "boon": -1
+     },
+     "result": {
+      "spawn": 1,
+      "boon": null,
+      "ready": null,
+      "why": "spawn 1 (option 1)",
+      "priority": 2,
+      "timing": "step"
+     },
+     "probe": {
+      "decide": 0.4055216880515218,
+      "lapse": 0.6959542871918529
+     }
+    }
+   ]
+  },
+  {
+   "name": "resend_asks",
+   "tier": "normal",
+   "map": "spread",
+   "faction": null,
+   "weapon": null,
+   "decideSeed": 9,
+   "lapseSeed": 10,
+   "learned": null,
+   "frames": [
+    {
+     "now": 0,
+     "phase": "planning",
+     "faction": null,
+     "weapon": null,
+     "deal": {
+      "endsAt": 45000,
+      "spawns": [
+       0,
+       1
+      ],
+      "taken": [
+       false,
+       false
+      ],
+      "pick": -1,
+      "boons": [],
+      "boon": -1
+     },
+     "result": null,
+     "probe": {
+      "decide": 0.1417661067098379,
+      "lapse": 0.5019920116756111
+     }
+    },
+    {
+     "now": 3000,
+     "phase": "planning",
+     "faction": null,
+     "weapon": null,
+     "deal": {
+      "endsAt": 45000,
+      "spawns": [
+       0,
+       1
+      ],
+      "taken": [
+       false,
+       false
+      ],
+      "pick": -1,
+      "boons": [],
+      "boon": -1
+     },
+     "result": null,
+     "probe": {
+      "decide": 0.8216717173345387,
+      "lapse": 0.9174868050031364
+     }
+    },
+    {
+     "now": 5000,
+     "phase": "planning",
+     "faction": null,
+     "weapon": null,
+     "deal": {
+      "endsAt": 45000,
+      "spawns": [
+       0,
+       1
+      ],
+      "taken": [
+       false,
+       false
+      ],
+      "pick": -1,
+      "boons": [],
+      "boon": -1
+     },
+     "result": {
+      "spawn": 0,
+      "boon": null,
+      "ready": null,
+      "why": "spawn 0 (option 0)",
+      "priority": 2,
+      "timing": "step"
+     },
+     "probe": {
+      "decide": 0.7238044005353004,
+      "lapse": 0.6913183077704161
+     }
+    },
+    {
+     "now": 5600,
+     "phase": "planning",
+     "faction": null,
+     "weapon": null,
+     "deal": {
+      "endsAt": 45000,
+      "spawns": [
+       0,
+       1
+      ],
+      "taken": [
+       false,
+       false
+      ],
+      "pick": -1,
+      "boons": [],
+      "boon": -1
+     },
+     "result": null,
+     "probe": {
+      "decide": 0.6888616101350635,
+      "lapse": 0.8021026765927672
+     }
+    },
+    {
+     "now": 6200,
+     "phase": "planning",
+     "faction": null,
+     "weapon": null,
+     "deal": {
+      "endsAt": 45000,
+      "spawns": [
+       0,
+       1
+      ],
+      "taken": [
+       false,
+       false
+      ],
+      "pick": -1,
+      "boons": [],
+      "boon": -1
+     },
+     "result": {
+      "spawn": 0,
+      "boon": null,
+      "ready": null,
+      "why": "spawn 0 (option 0)",
+      "priority": 2,
+      "timing": "step"
+     },
+     "probe": {
+      "decide": 0.2627184335142374,
+      "lapse": 0.45741763804107904
+     }
+    },
+    {
+     "now": 6800,
+     "phase": "planning",
+     "faction": null,
+     "weapon": null,
+     "deal": {
+      "endsAt": 45000,
+      "spawns": [
+       0,
+       1
+      ],
+      "taken": [
+       false,
+       false
+      ],
+      "pick": -1,
+      "boons": [],
+      "boon": -1
+     },
+     "result": null,
+     "probe": {
+      "decide": 0.919454253045842,
+      "lapse": 0.44834619434550405
+     }
+    },
+    {
+     "now": 7400,
+     "phase": "planning",
+     "faction": null,
+     "weapon": null,
+     "deal": {
+      "endsAt": 45000,
+      "spawns": [
+       0,
+       1
+      ],
+      "taken": [
+       false,
+       false
+      ],
+      "pick": -1,
+      "boons": [],
+      "boon": -1
+     },
+     "result": {
+      "spawn": 0,
+      "boon": null,
+      "ready": null,
+      "why": "spawn 0 (option 0)",
+      "priority": 2,
+      "timing": "step"
+     },
+     "probe": {
+      "decide": 0.13086165417917073,
+      "lapse": 0.20228695822879672
+     }
+    },
+    {
+     "now": 8000,
+     "phase": "planning",
+     "faction": null,
+     "weapon": null,
+     "deal": {
+      "endsAt": 45000,
+      "spawns": [
+       0,
+       1
+      ],
+      "taken": [
+       false,
+       false
+      ],
+      "pick": -1,
+      "boons": [],
+      "boon": -1
+     },
+     "result": null,
+     "probe": {
+      "decide": 0.6322905202396214,
+      "lapse": 0.0835612874943763
+     }
+    },
+    {
+     "now": 42000,
+     "phase": "planning",
+     "faction": null,
+     "weapon": null,
+     "deal": {
+      "endsAt": 45000,
+      "spawns": [
+       0,
+       1
+      ],
+      "taken": [
+       false,
+       false
+      ],
+      "pick": -1,
+      "boons": [],
+      "boon": -1
+     },
+     "result": null,
+     "probe": {
+      "decide": 0.6980157732032239,
+      "lapse": 0.034126831917092204
+     }
+    },
+    {
+     "now": 42800,
+     "phase": "planning",
+     "faction": null,
+     "weapon": null,
+     "deal": {
+      "endsAt": 45000,
+      "spawns": [
+       0,
+       1
+      ],
+      "taken": [
+       false,
+       false
+      ],
+      "pick": -1,
+      "boons": [],
+      "boon": -1
+     },
+     "result": {
+      "spawn": null,
+      "boon": null,
+      "ready": true,
+      "why": "the timer is nearly out",
+      "priority": 2,
+      "timing": "step"
+     },
+     "probe": {
+      "decide": 0.5872853912878782,
+      "lapse": 0.9967185999266803
+     }
+    }
+   ]
+  },
+  {
+   "name": "boons",
+   "tier": "hard",
+   "map": "spread",
+   "faction": null,
+   "weapon": null,
+   "decideSeed": 11,
+   "lapseSeed": 12,
+   "learned": null,
+   "frames": [
+    {
+     "now": 0,
+     "phase": "planning",
+     "faction": null,
+     "weapon": null,
+     "deal": {
+      "endsAt": 45000,
+      "spawns": [
+       0,
+       1
+      ],
+      "taken": [
+       false,
+       false
+      ],
+      "pick": 0,
+      "boons": [
+       "relic-a",
+       "relic-b"
+      ],
+      "boon": -1
+     },
+     "result": null,
+     "probe": {
+      "decide": 0.6081185641232878,
+      "lapse": 0.2881509135477245
+     }
+    },
+    {
+     "now": 2500,
+     "phase": "planning",
+     "faction": null,
+     "weapon": null,
+     "deal": {
+      "endsAt": 45000,
+      "spawns": [
+       0,
+       1
+      ],
+      "taken": [
+       false,
+       false
+      ],
+      "pick": 0,
+      "boons": [
+       "relic-a",
+       "relic-b"
+      ],
+      "boon": -1
+     },
+     "result": null,
+     "probe": {
+      "decide": 0.5901576359756291,
+      "lapse": 0.07566750887781382
+     }
+    },
+    {
+     "now": 4000,
+     "phase": "planning",
+     "faction": null,
+     "weapon": null,
+     "deal": {
+      "endsAt": 45000,
+      "spawns": [
+       0,
+       1
+      ],
+      "taken": [
+       false,
+       false
+      ],
+      "pick": 0,
+      "boons": [
+       "relic-a",
+       "relic-b"
+      ],
+      "boon": -1
+     },
+     "result": {
+      "spawn": null,
+      "boon": 1,
+      "ready": null,
+      "why": "boon relic-b",
+      "priority": 2,
+      "timing": "step"
+     },
+     "probe": {
+      "decide": 0.5380222974345088,
+      "lapse": 0.9413604403380305
+     }
+    },
+    {
+     "now": 5000,
+     "phase": "planning",
+     "faction": null,
+     "weapon": null,
+     "deal": {
+      "endsAt": 45000,
+      "spawns": [
+       0,
+       1
+      ],
+      "taken": [
+       false,
+       false
+      ],
+      "pick": 0,
+      "boons": [
+       "relic-a",
+       "relic-b"
+      ],
+      "boon": -1
+     },
+     "result": {
+      "spawn": null,
+      "boon": 0,
+      "ready": null,
+      "why": "boon relic-a",
+      "priority": 2,
+      "timing": "step"
+     },
+     "probe": {
+      "decide": 0.5305055116768926,
+      "lapse": 0.013687808066606522
+     }
+    },
+    {
+     "now": 5600,
+     "phase": "planning",
+     "faction": null,
+     "weapon": null,
+     "deal": {
+      "endsAt": 45000,
+      "spawns": [
+       0,
+       1
+      ],
+      "taken": [
+       false,
+       false
+      ],
+      "pick": 0,
+      "boons": [
+       "relic-a",
+       "relic-b"
+      ],
+      "boon": 1
+     },
+     "result": null,
+     "probe": {
+      "decide": 0.6077365837991238,
+      "lapse": 0.6960037930402905
+     }
+    },
+    {
+     "now": 7000,
+     "phase": "planning",
+     "faction": null,
+     "weapon": null,
+     "deal": {
+      "endsAt": 45000,
+      "spawns": [
+       0,
+       1
+      ],
+      "taken": [
+       false,
+       false
+      ],
+      "pick": 0,
+      "boons": [
+       "relic-a",
+       "relic-b"
+      ],
+      "boon": 1
+     },
+     "result": {
+      "spawn": null,
+      "boon": null,
+      "ready": true,
+      "why": "choices made",
+      "priority": 2,
+      "timing": "step"
+     },
+     "probe": {
+      "decide": 0.45032489066943526,
+      "lapse": 0.6401303138118237
+     }
+    }
+   ]
+  },
+  {
+   "name": "late_deal_timer",
+   "tier": "easy",
+   "map": "spread",
+   "faction": null,
+   "weapon": null,
+   "decideSeed": 13,
+   "lapseSeed": 14,
+   "learned": null,
+   "frames": [
+    {
+     "now": 40000,
+     "phase": "planning",
+     "faction": null,
+     "weapon": null,
+     "deal": {
+      "endsAt": 45000,
+      "spawns": [
+       0,
+       1
+      ],
+      "taken": [
+       false,
+       false
+      ],
+      "pick": -1,
+      "boons": [],
+      "boon": -1
+     },
+     "result": null,
+     "probe": {
+      "decide": 0.0705908453091979,
+      "lapse": 0.447958143427968
+     }
+    },
+    {
+     "now": 41000,
+     "phase": "planning",
+     "faction": null,
+     "weapon": null,
+     "deal": {
+      "endsAt": 45000,
+      "spawns": [
+       0,
+       1
+      ],
+      "taken": [
+       false,
+       false
+      ],
+      "pick": -1,
+      "boons": [],
+      "boon": -1
+     },
+     "result": {
+      "spawn": 0,
+      "boon": null,
+      "ready": null,
+      "why": "spawn 0 (option 0)",
+      "priority": 2,
+      "timing": "step"
+     },
+     "probe": {
+      "decide": 0.04816685197874904,
+      "lapse": 0.4258096602279693
+     }
+    },
+    {
+     "now": 42200,
+     "phase": "planning",
+     "faction": null,
+     "weapon": null,
+     "deal": {
+      "endsAt": 45000,
+      "spawns": [
+       0,
+       1
+      ],
+      "taken": [
+       false,
+       false
+      ],
+      "pick": -1,
+      "boons": [],
+      "boon": -1
+     },
+     "result": {
+      "spawn": 0,
+      "boon": null,
+      "ready": null,
+      "why": "spawn 0 (option 0)",
+      "priority": 2,
+      "timing": "step"
+     },
+     "probe": {
+      "decide": 0.03677086811512709,
+      "lapse": 0.5107000032439828
+     }
+    },
+    {
+     "now": 42600,
+     "phase": "planning",
+     "faction": null,
+     "weapon": null,
+     "deal": {
+      "endsAt": 45000,
+      "spawns": [
+       0,
+       1
+      ],
+      "taken": [
+       false,
+       false
+      ],
+      "pick": -1,
+      "boons": [],
+      "boon": -1
+     },
+     "result": null,
+     "probe": {
+      "decide": 0.006773725617676973,
+      "lapse": 0.35384935210458934
+     }
+    },
+    {
+     "now": 43400,
+     "phase": "planning",
+     "faction": null,
+     "weapon": null,
+     "deal": {
+      "endsAt": 45000,
+      "spawns": [
+       0,
+       1
+      ],
+      "taken": [
+       false,
+       false
+      ],
+      "pick": -1,
+      "boons": [],
+      "boon": -1
+     },
+     "result": {
+      "spawn": 0,
+      "boon": null,
+      "ready": null,
+      "why": "spawn 0 (option 0)",
+      "priority": 2,
+      "timing": "step"
+     },
+     "probe": {
+      "decide": 0.09120745095424354,
+      "lapse": 0.19429797329939902
+     }
+    },
+    {
+     "now": 43600,
+     "phase": "planning",
+     "faction": null,
+     "weapon": null,
+     "deal": {
+      "endsAt": 45000,
+      "spawns": [
+       0,
+       1
+      ],
+      "taken": [
+       false,
+       false
+      ],
+      "pick": -1,
+      "boons": [],
+      "boon": -1
+     },
+     "result": {
+      "spawn": null,
+      "boon": null,
+      "ready": true,
+      "why": "the timer is nearly out",
+      "priority": 2,
+      "timing": "step"
+     },
+     "probe": {
+      "decide": 0.35417386959306896,
+      "lapse": 0.42553471657447517
+     }
+    }
+   ]
+  },
+  {
+   "name": "not_planning",
+   "tier": "normal",
+   "map": "spread",
+   "faction": null,
+   "weapon": null,
+   "decideSeed": 15,
+   "lapseSeed": 16,
+   "learned": null,
+   "frames": [
+    {
+     "now": 0,
+     "phase": "lobby",
+     "faction": null,
+     "weapon": null,
+     "deal": {
+      "endsAt": 45000,
+      "spawns": [
+       0,
+       1
+      ],
+      "taken": [
+       false,
+       false
+      ],
+      "pick": -1,
+      "boons": [],
+      "boon": -1
+     },
+     "result": null,
+     "probe": {
+      "decide": 0.402795132715255,
+      "lapse": 0.6313952072523534
+     }
+    },
+    {
+     "now": 500,
+     "phase": "active",
+     "faction": null,
+     "weapon": null,
+     "deal": {
+      "endsAt": 45000,
+      "spawns": [
+       0,
+       1
+      ],
+      "taken": [
+       false,
+       false
+      ],
+      "pick": -1,
+      "boons": [],
+      "boon": -1
+     },
+     "result": null,
+     "probe": {
+      "decide": 0.4461680904496461,
+      "lapse": 0.14432188915088773
+     }
+    },
+    {
+     "now": 1000,
+     "phase": "planning",
+     "faction": null,
+     "weapon": null,
+     "deal": {
+      "endsAt": 45000,
+      "spawns": [
+       0,
+       1
+      ],
+      "taken": [
+       false,
+       false
+      ],
+      "pick": -1,
+      "boons": [],
+      "boon": -1
+     },
+     "result": null,
+     "probe": {
+      "decide": 0.22275040484964848,
+      "lapse": 0.7523378010373563
+     }
+    }
+   ]
+  },
+  {
+   "name": "learned_spawn_bias",
+   "tier": "hard",
+   "map": "spread",
+   "faction": null,
+   "weapon": null,
+   "decideSeed": 17,
+   "lapseSeed": 18,
+   "learned": {
+    "spawn|holy|fire": 0.25,
+    "spawn|holy|plague": -0.25
+   },
+   "frames": [
+    {
+     "now": 0,
+     "phase": "planning",
+     "faction": "holy",
+     "weapon": null,
+     "deal": {
+      "endsAt": 45000,
+      "spawns": [
+       0,
+       1
+      ],
+      "taken": [
+       false,
+       false
+      ],
+      "pick": -1,
+      "boons": [],
+      "boon": -1
+     },
+     "result": null,
+     "probe": {
+      "decide": 0.5313839064911008,
+      "lapse": 0.39816198823973536
+     }
+    },
+    {
+     "now": 2500,
+     "phase": "planning",
+     "faction": "holy",
+     "weapon": null,
+     "deal": {
+      "endsAt": 45000,
+      "spawns": [
+       0,
+       1
+      ],
+      "taken": [
+       false,
+       false
+      ],
+      "pick": -1,
+      "boons": [],
+      "boon": -1
+     },
+     "result": null,
+     "probe": {
+      "decide": 0.1654723146930337,
+      "lapse": 0.6033986730035394
+     }
+    },
+    {
+     "now": 6000,
+     "phase": "planning",
+     "faction": "holy",
+     "weapon": null,
+     "deal": {
+      "endsAt": 45000,
+      "spawns": [
+       0,
+       1
+      ],
+      "taken": [
+       false,
+       false
+      ],
+      "pick": -1,
+      "boons": [],
+      "boon": -1
+     },
+     "result": {
+      "spawn": 0,
+      "boon": null,
+      "ready": null,
+      "why": "spawn 0 (option 0)",
+      "priority": 2,
+      "timing": "step"
+     },
+     "probe": {
+      "decide": 0.76082274899818,
+      "lapse": 0.1989340395666659
+     }
+    },
+    {
+     "now": 9000,
+     "phase": "planning",
+     "faction": "holy",
+     "weapon": null,
+     "deal": {
+      "endsAt": 45000,
+      "spawns": [
+       0,
+       1
+      ],
+      "taken": [
+       false,
+       false
+      ],
+      "pick": -1,
+      "boons": [],
+      "boon": -1
+     },
+     "result": {
+      "spawn": 0,
+      "boon": null,
+      "ready": null,
+      "why": "spawn 0 (option 0)",
+      "priority": 2,
+      "timing": "step"
+     },
+     "probe": {
+      "decide": 0.5464509064331651,
+      "lapse": 0.5322087784297764
+     }
+    }
+   ]
+  },
+  {
+   "name": "weapon_weighted_spawn",
+   "tier": "normal",
+   "map": "spread",
+   "faction": null,
+   "weapon": null,
+   "decideSeed": 19,
+   "lapseSeed": 20,
+   "learned": null,
+   "frames": [
+    {
+     "now": 0,
+     "phase": "planning",
+     "faction": "sentenced",
+     "weapon": "shield",
+     "deal": {
+      "endsAt": 45000,
+      "spawns": [
+       0,
+       3
+      ],
+      "taken": [
+       false,
+       false
+      ],
+      "pick": -1,
+      "boons": [],
+      "boon": -1
+     },
+     "result": null,
+     "probe": {
+      "decide": 0.4525164095684886,
+      "lapse": 0.7526106622535735
+     }
+    },
+    {
+     "now": 3000,
+     "phase": "planning",
+     "faction": "sentenced",
+     "weapon": "shield",
+     "deal": {
+      "endsAt": 45000,
+      "spawns": [
+       0,
+       3
+      ],
+      "taken": [
+       false,
+       false
+      ],
+      "pick": -1,
+      "boons": [],
+      "boon": -1
+     },
+     "result": null,
+     "probe": {
+      "decide": 0.7569362374488264,
+      "lapse": 0.38500334043055773
+     }
+    },
+    {
+     "now": 6500,
+     "phase": "planning",
+     "faction": "sentenced",
+     "weapon": "shield",
+     "deal": {
+      "endsAt": 45000,
+      "spawns": [
+       0,
+       3
+      ],
+      "taken": [
+       false,
+       false
+      ],
+      "pick": -1,
+      "boons": [],
+      "boon": -1
+     },
+     "result": {
+      "spawn": 1,
+      "boon": null,
+      "ready": null,
+      "why": "spawn 3 (option 1)",
+      "priority": 2,
+      "timing": "step"
+     },
+     "probe": {
+      "decide": 0.3225233582779765,
+      "lapse": 0.287116238148883
+     }
+    },
+    {
+     "now": 8000,
+     "phase": "planning",
+     "faction": "sentenced",
+     "weapon": "shield",
+     "deal": {
+      "endsAt": 45000,
+      "spawns": [
+       0,
+       3
+      ],
+      "taken": [
+       false,
+       false
+      ],
+      "pick": -1,
+      "boons": [],
+      "boon": -1
+     },
+     "result": {
+      "spawn": 1,
+      "boon": null,
+      "ready": null,
+      "why": "spawn 3 (option 1)",
+      "priority": 2,
+      "timing": "step"
+     },
+     "probe": {
+      "decide": 0.5312770754098892,
+      "lapse": 0.19179544528014958
+     }
+    }
+   ]
+  },
+  {
+   "name": "factionless_spawn",
+   "tier": "normal",
+   "map": "spread",
+   "faction": null,
+   "weapon": null,
+   "decideSeed": 21,
+   "lapseSeed": 22,
+   "learned": null,
+   "frames": [
+    {
+     "now": 0,
+     "phase": "planning",
+     "faction": null,
+     "weapon": null,
+     "deal": {
+      "endsAt": 45000,
+      "spawns": [
+       0,
+       1
+      ],
+      "taken": [
+       false,
+       false
+      ],
+      "pick": -1,
+      "boons": [],
+      "boon": -1
+     },
+     "result": null,
+     "probe": {
+      "decide": 0.2832840313203633,
+      "lapse": 0.6218683323822916
+     }
+    },
+    {
+     "now": 3000,
+     "phase": "planning",
+     "faction": null,
+     "weapon": null,
+     "deal": {
+      "endsAt": 45000,
+      "spawns": [
+       0,
+       1
+      ],
+      "taken": [
+       false,
+       false
+      ],
+      "pick": -1,
+      "boons": [],
+      "boon": -1
+     },
+     "result": null,
+     "probe": {
+      "decide": 0.38238615170121193,
+      "lapse": 0.23673223098739982
+     }
+    },
+    {
+     "now": 6000,
+     "phase": "planning",
+     "faction": null,
+     "weapon": null,
+     "deal": {
+      "endsAt": 45000,
+      "spawns": [
+       0,
+       1
+      ],
+      "taken": [
+       false,
+       false
+      ],
+      "pick": -1,
+      "boons": [],
+      "boon": -1
+     },
+     "result": {
+      "spawn": 0,
+      "boon": null,
+      "ready": null,
+      "why": "spawn 0 (option 0)",
+      "priority": 2,
+      "timing": "step"
+     },
+     "probe": {
+      "decide": 0.476709007518366,
+      "lapse": 0.22517993114888668
+     }
+    }
+   ]
+  }
+ ]
+}
