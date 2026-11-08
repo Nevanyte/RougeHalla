@@ -1,8 +1,9 @@
 # P-QUEST-1 — K1 quests: the data layer (catalog, roster, placement, rewards)
 
-`INCOMPLETE` for the full P-QUEST-1 row; **the quest data layer is DONE-VERIFIED** against a pinned-container actual-source
-corpus, stacked on the P-CARDS-3 head (`9c2b97b9`). The remaining lifecycle/consumer scope is listed at the bottom with
-its exact current state, so the next packet can start from the verified layer instead of the source.
+`INCOMPLETE` for the full P-QUEST-1 row; **the quest data layer and the native lifecycle are DONE-VERIFIED** — the data
+layer against a pinned-container actual-source corpus, the lifecycle by in-crate wiring tests over the real action/hook/
+system slots — stacked on the P-CARDS-3 head (`9c2b97b9`). The remaining scope (a pinned-container lifecycle witness and
+the coordinator-owned public transport/NPC bodies) is listed at the bottom with its exact current state.
 
 **No `P-QUEST-1` packet file exists** in `docs/backlog/packets/`: the backlog row is the only textual record, so the scope
 below is derived from that row, `packages/shared/src/quests.ts`, `packages/server/src/sim/quests.ts`, `docs/quests.md` and
@@ -32,6 +33,46 @@ the schedule slots the base already reserved (`questAccept` action, `quests.*` h
 
 Nothing in this slice changes serialized state, the tick order, observation, wire or protocol: it is pure data/rules over
 the ported map contract (`TileMap` components, terrain, collision, camps/spawnPool/regions/coliseum from P-MAP-1).
+
+## Lifecycle round (native wiring, verified in-crate)
+
+The source `sim/quests.ts` lifecycle is now ported on top of the verified data layer, with every reserved schedule slot
+flipped at its recorded position:
+
+- **State** (`quests/live.rs`): the run's offers (id, catalog row, known, giver spot, tokens/parcel, status, deadline,
+  accepted set, progress, tour zone masks, carrier/last carrier, giver presence, published/publish_at/finder, closed_at,
+  done_by, container ids), the carried map and the camp-clear recheck flag, plus the private quest stream. Serialized and
+  hashed as `world.quests`; checkpoint format moves to `rh-checkpoint/22` (the coordinator will take the union identity
+  with the sibling /21 moves) and the ability hash tape is re-recorded.
+- **Spawn**: `planningStarted` and `raidStarted` links call `spawnQuests` (idempotent): the stream is
+  `Sfc32::from_words(questSaltFrom(rewardSalt))` (`mixedSalt` "QUES"), the roster and placements come from the verified
+  data layer, known offers publish at once, and every published offer places its giver presence and its token/parcel
+  containers at the raid start.
+- **System** `quests.questSystem`: closed linger sweep (20 s), camp-clear supply recheck and impossible-kill closure
+  (hidden offers are never closed early, only on their own deadline/teleport/run end), deadlines, hidden reveals
+  (reveal radius, tick tie rank, the 4 s head start, publish + placement), and automatic turn-ins (range, LOS, tie rank,
+  ready by progress or by carrier).
+- **Hooks**: `mobKilled` (region/any/elite/tour kill offers), `playerKilled` (the player-kill offer, died only),
+  `campCleared` (recheck flag), `teleported`/`runEnded` (close every open offer; hidden ones vanish, public rows linger as
+  expired), and the `dropBody` wrap (a dying carrier drops the parcel where they fall).
+- **Accept**: `questAccept` is a real action through the C-INPUT door — `RawCommand::QuestAccept` / `ActionCmd::QuestAccept`
+  with the source check order (busy, offer published/open/giver present, accept range, LOS, already accepted) and the
+  deadline started on the first acceptance. The client wire message stays coordinator-owned: `rh-server/src/wire.rs`'s
+  command projection carries the one documented gap (no quest message until the transport packet), and the headless/policy
+  door is what the tests use.
+- **Pieces**: quest tokens/parcels are native containers (`ContainerKind::Quest`, one `ItemDef::Quest(id)`) created and
+  removed with the offer's lifecycle; the ordinary pickup path hands them to the runtime (collect progress, fetch carrier,
+  "one item" carry cap, accepted-first and carried-steal rules) instead of the weapon/potion logic. They are excluded from
+  the public item observation (single site in `item_view.rs`), like the rest of the quest transport.
+- **Rewards**: `awardQuestGv` semantics (per-player cumulative `QUEST_GV_CAP`` — the quest GV bucket) and the zone-matched
+  mob-stat stack grant through the existing `grant_mob_stat`; fill bots take no part in any quest path.
+
+Verified by eight in-crate lifecycle tests driving the real hooks/action/system: raid-start spawn (20 offers/10 known,
+pieces placed), accept through `Sim::submit` (far refusal, accept, timer, repeat no-op), collect tokens → progress →
+automatic turn-in paying both GV and the mob-stack row, fetch parcel → carrier → dropBody drop, hidden reveal + head start +
+placement, deadline expiry + linger sweep, kill progress + camp-clear impossible closure, teleport close-all, and a
+checkpoint serialize/restore/perturb round trip for the new state. There are no captured lifecycle frames yet: the pinned
+container corpus covers the data layer only (see the remaining list for the exact uncaptured surfaces).
 
 ## Captured witness
 
@@ -63,39 +104,42 @@ cargo test --workspace --all-features --locked   # with PostgreSQL from tools/pg
 ## Measurements
 
 - Content hash: `b6f9d4c2aa07e30b` (the registered `QUEST_*`/`FARM_*` rules rows plus the `quests/1` catalog table).
-- `cargo test -p rh-sim --lib --all-features -- quests::`: 4 passed (catalog+rules, rosters, placements, wording).
+- `cargo test -p rh-sim --lib --all-features -- quests::`: **14 passed** (4 data-layer tests + 8 lifecycle tests + the
+  checkpoint serialize/restore/perturb round trip).
 - `cargo test -p rh-sim --all-features --test content`: 21 passed with the new golden hash.
 - `bash tools/quest-fixtures/capture.sh --check`: PASS (pinned container, byte-identical).
-- Mutants (`bash tools/quest-fixtures/run-mutants.sh`): **6/6 killed, unchanged control passes** — tier rounding, the
-  route premium, the feed brake, the kind-cycle order, the known/hidden pass order, and the start-clearance relaxation.
-- Workspace gate: **1,442 passed, 0 failed, 3 ignored, 151 test binaries, exit 0** (with PostgreSQL; the base
-  P-CARDS-3 gate plus the four quest data tests).
+- Mutants (`bash tools/quest-fixtures/run-mutants.sh`): **9/9 killed, unchanged control passes** — tier
+  rounding, the route premium, the feed brake, the kind-cycle order, the known/hidden pass order, the start-clearance
+  relaxation, the accept range, the reveal head start and the turn-in stack grant.
+- Checkpoint format `rh-checkpoint/22` (the new `world.quests` and the quest container/item variants); the ability hash
+  tape is re-recorded for the new state layout; `hash_coverage` 6 passed with the documented optional quests leaf; the
+  content hash is unchanged (`b6f9d4c2aa07e30b`, the lifecycle adds no new registered rule); schedule conformance 14
+  passed with the ported quest action/system/links.
+- Workspace gate: **GATE_TBD** (with PostgreSQL).
 - `cargo fmt --all -- --check` and `cargo clippy --workspace --all-targets --all-features -- -D warnings`: clean.
 
-## Remaining for the P-QUEST-1 row (not in this slice)
+## Remaining for the P-QUEST-1 row
 
-1. **Accept action**: the schedule reserves `ActionId::QuestAccept` (`Run::Pending("P-QUEST-1")`). It needs a
-   `RawCommand`/`ActionCmd` variant through the C-INPUT door (plus a wire/command projection decision), the busy/over/far/
-   LOS/already check order from `handleQuestAccept`, and the accepted-set write.
-2. **Lifecycle state + systems**: `QuestsRuntime` (offers, published flags, progress/visited-region maps, carriers,
-   timers, closed linger) as serialized/hashed world state (checkpoint format bump + hash tape), `spawnQuests` at
-   planning/raid start from a private quest stream (deriving `questSaltFrom(rewardSalt)` exactly, source `mixedSalt` "QUES"),
-   the `questSystem` slot (hidden reveal radius + head start + tie rank, expiry, closed linger sweep, automatic turn-in
-   with range/LOS, camp-clear supply recheck and impossible-kill closure), the `mobKilled`/`playerKilled`/`campCleared`
-   progress hooks, `teleported`/`runEnded` close-all and the `dropBody` parcel-drop wrap — every slot already exists in
-   `schedule.rs` as Pending with the source link names.
-3. **Quest pieces as world objects**: quest NPC givers (source mobs of kind `quest`, currently no native actor kind),
-   ground quest-item containers and the parcel carrier link (source `ContainerKind` "quest" + `quest:<id>` items), and the
-   pickup override that advances collect progress / starts a fetch carry.
-4. **Rewards path**: `awardQuestGv` into the existing quest GV bucket (`credit.gv_parts.quest`, cap `QUEST_GV_CAP`) and
-   the mob-stat stack grant through the existing `grant_mob_stat`, plus the `questAccepted`/`questCompleted` hook taps.
-5. **Public transport (coordinator-owned)**: the source syncs quest rows, the public accepted/progress/visited sets, the
-   carrier and `unknownQuests`; the Rust observation has no quest facts yet. Adding them needs the C-NET set (observation
-   fields + wire `StateItem` + fixtures/decoders) and a protocol bump, which this slice deliberately does not touch
-   (line A is protocol 7; never bump without the full set).
-6. **Tour/feeding and bots**: `tiers`/`tours` progress bookkeeping, bot exclusion (`takesPart`) and the quest HUD text
-   transport ride with items 2–5.
+1. **Pinned lifecycle witness**: no captured lifecycle frames exist yet. The uncaptured surfaces are exactly: spawn
+   (offer ids/positions/pieces/known flags at raid start), accept/refusal ordering and the deadline start, hidden reveal
+   timing and head start, collect/fetch pickup outcomes and carrier/drop/steal rules, automatic turn-in rewards
+   (GV bucket + mob-stack counts), expiry/linger/camp-clear closure and teleport/run-end close. They are verified natively
+   in-crate; a pinned-container capture driver is the follow-up (the data-layer corpus already pins the roster/placement
+   inputs those frames would start from).
+2. **Public transport (coordinator-owned)**: quest offers, accepted/progress/visited sets, carrier, giver actors and
+   `unknownQuests`, plus the accept client message, need observation fields and the full C-NET set (wire state items,
+   protocol bump, Rust/C#/JS decoders) before any protocol version change. The two documented single sites are
+   `crates/rh-sim/src/item_view.rs` (quest props excluded) and `crates/rh-server/src/wire.rs` (no `questAccept` message);
+   the live `room.rs` config keeps `quests: false` until that packet lands.
+3. **Quest giver actor bodies**: the sim tracks giver presence as quest state (`npc_alive`); the source spawns a mob of kind
+   `quest` (render/target/collision body). Adding that native actor kind and its observation facts rides with item 2.
+4. **Toast/reveal event transport and telemetry taps**: the sim emits no toasts, `questReveal` or the
+   `questAccepted`/`questCompleted` hook taps; those are presentation/telemetry surfaces for the same transport packet.
+5. **Tours/tiers beyond the kill offers and the feed/quest-card legacy fields** stay as registered catalog metadata; the
+   active rewards are the GV + mob-stack channels the source now pays.
+6. The release script/CI capture wiring for `tools/quest-fixtures` (data layer) and a future lifecycle driver.
 
+## Coordinator files
 ## Coordinator files
 
 No `docs/MIGRATION.md`, `docs/CONTRACTS.md` status table or `Cargo.lock` edit; no merge; no protocol bump; no wire change.
