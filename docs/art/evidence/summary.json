@@ -1,0 +1,3784 @@
+{
+  "runtime": {
+    "manifestPath": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/evidence/build-manifest.json",
+    "manifestSha256": "98a14a9d11b323adbfce17005cd4fb7d4443afd94b9775cf5bcd5a07460bdf1f",
+    "runtimeRevision": "c6fe0b18de87a870aefc28f2652f32236777a334",
+    "baseGameplayRevision": "e90a38f6",
+    "unity": "6000.0.85f2",
+    "urp": "17.0.4",
+    "protocol": 11,
+    "contentHash": "801a76cde4cfd305",
+    "totalBytes": 74029211
+  },
+  "acceptance": {
+    "assetPreparation": "prepared for the selected demo; broader gaps are in COVERAGE.md",
+    "liveMatchIntegration": "verified: 19/19 browser outcomes",
+    "native144HzPerformance": "INCOMPLETE: only 1920x1080@60Hz physical display available"
+  },
+  "checks": {
+    "menuNoSocketBeforeJoin": "pass",
+    "menuJoin": "pass",
+    "mapAndCollections": "pass",
+    "focusedPickupInput": "pass",
+    "pickupOutcome": "changed",
+    "rewardChoice": "pass",
+    "potionInputAndNotice": "pass",
+    "hudBlocksWorldClick": "pass",
+    "worldAttackClick": "pass",
+    "swapInput": "pass",
+    "movement": "pass",
+    "reconnect": "pass",
+    "results": "pass",
+    "leaveAndRejoin": "pass",
+    "visibleMobs": "pass",
+    "settingsQualityClickable": "pass",
+    "settingsReducedMotionClickable": "pass",
+    "settingsMusicMuteClickable": "pass",
+    "separatePreviewScreenshot": "pass"
+  },
+  "automatedTests": {
+    "networkingCSharp": 329,
+    "unityPresentation": 11,
+    "browserContract": 5
+  },
+  "profiles": {
+    "profile-final3": {
+      "captureStatus": "PASS",
+      "physicalDisplays": {
+        "status": "observed",
+        "displays": [
+          {
+            "name": "E2212F",
+            "main": true,
+            "mode": "1920 x 1080 @ 60.00Hz",
+            "width": 1920,
+            "height": 1080,
+            "refreshHz": 60
+          }
+        ]
+      },
+      "displayProof": {
+        "eligible": false,
+        "reason": "Host-reported main display does not match the requested native 2560x1440 at >=144Hz mode (1920 x 1080 @ 60.00Hz)."
+      },
+      "target": {
+        "width": 2560,
+        "height": 1440,
+        "requestedDisplayHz": 144,
+        "runs": 3,
+        "warmupSeconds": 4,
+        "activeSecondsPerRun": 15,
+        "server": "ws://127.0.0.1:18797/ws",
+        "viewport": "2560x1440",
+        "deviceScaleFactor": 1
+      },
+      "browser": {
+        "version": "156.0.8078.4",
+        "launchArgs": [
+          "--window-size=2560,1440",
+          "--window-position=0,0",
+          "--start-fullscreen",
+          "--force-device-scale-factor=1",
+          "--use-angle=metal",
+          "--enable-gpu"
+        ],
+        "headless": false
+      },
+      "sha256": "636696b7a63401ec7ded6df05dfce9a8e8dceaa30aa7ae26854072c74a3e551b",
+      "runs": [
+        {
+          "id": "run-1",
+          "status": "PASS",
+          "quality": {
+            "observedThroughUnityMarker": {
+              "quality": "High",
+              "mode": "Manual",
+              "reducedMotion": false,
+              "textScale": 1,
+              "musicVolume": 0.7200000286102295
+            },
+            "passed": true
+          },
+          "liveWindow": {
+            "startedAt": "2026-11-08T09:58:52.560Z",
+            "observedSeconds": 15.162,
+            "requestedSeconds": 15,
+            "endedEarly": false,
+            "terminalPhase": 1
+          },
+          "combatInput": {
+            "durationMs": 15162,
+            "screenshot": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/evidence/profile-final3/run-1-combat.png",
+            "sentInputCounts": {
+              "aim": 455,
+              "move": 56,
+              "stop": 28,
+              "attack": 28,
+              "release": 28
+            },
+            "publicFxCount": 150,
+            "confirmedSwingFxFromSelf": 18,
+            "confirmedHitFxFromSelf": 17,
+            "approachThresholdUnits": 36,
+            "hitFxFromSelf": [
+              {
+                "k": "hit",
+                "victim": 2147603457,
+                "by": 1,
+                "amount": 25.003389358520508,
+                "passive": false,
+                "tick": 235,
+                "observedAt": 1794131936140
+              },
+              {
+                "k": "hit",
+                "victim": 2147614209,
+                "by": 1,
+                "amount": 25.003389358520508,
+                "passive": false,
+                "tick": 256,
+                "observedAt": 1794131937191
+              },
+              {
+                "k": "hit",
+                "victim": 2147619841,
+                "by": 1,
+                "amount": 25.003389358520508,
+                "passive": false,
+                "tick": 267,
+                "observedAt": 1794131937740
+              },
+              {
+                "k": "hit",
+                "victim": 2147624961,
+                "by": 1,
+                "amount": 25.003389358520508,
+                "passive": false,
+                "tick": 277,
+                "observedAt": 1794131938241
+              },
+              {
+                "k": "hit",
+                "victim": 2147630081,
+                "by": 1,
+                "amount": 25.003389358520508,
+                "passive": false,
+                "tick": 287,
+                "observedAt": 1794131938741
+              },
+              {
+                "k": "hit",
+                "victim": 2147635201,
+                "by": 1,
+                "amount": 25.003389358520508,
+                "passive": false,
+                "tick": 297,
+                "observedAt": 1794131939240
+              },
+              {
+                "k": "hit",
+                "victim": 2147640833,
+                "by": 1,
+                "amount": 25.003389358520508,
+                "passive": false,
+                "tick": 308,
+                "observedAt": 1794131939793
+              },
+              {
+                "k": "hit",
+                "victim": 2147645953,
+                "by": 1,
+                "amount": 25.003389358520508,
+                "passive": false,
+                "tick": 318,
+                "observedAt": 1794131940292
+              },
+              {
+                "k": "hit",
+                "victim": 2147651585,
+                "by": 1,
+                "amount": 25.003389358520508,
+                "passive": false,
+                "tick": 329,
+                "observedAt": 1794131940841
+              },
+              {
+                "k": "hit",
+                "victim": 2147656705,
+                "by": 1,
+                "amount": 25.003389358520508,
+                "passive": false,
+                "tick": 339,
+                "observedAt": 1794131941341
+              },
+              {
+                "k": "hit",
+                "victim": 2147661313,
+                "by": 1,
+                "amount": 25.003389358520508,
+                "passive": false,
+                "tick": 348,
+                "observedAt": 1794131941791
+              },
+              {
+                "k": "hit",
+                "victim": 2147665409,
+                "by": 1,
+                "amount": 25.003389358520508,
+                "passive": false,
+                "tick": 356,
+                "observedAt": 1794131942191
+              },
+              {
+                "k": "hit",
+                "victim": 2147670529,
+                "by": 1,
+                "amount": 25.003389358520508,
+                "passive": false,
+                "tick": 366,
+                "observedAt": 1794131942690
+              },
+              {
+                "k": "hit",
+                "victim": 2147675649,
+                "by": 1,
+                "amount": 25.003389358520508,
+                "passive": false,
+                "tick": 376,
+                "observedAt": 1794131943191
+              },
+              {
+                "k": "hit",
+                "victim": 2147684353,
+                "by": 1,
+                "amount": 25.003389358520508,
+                "passive": false,
+                "tick": 393,
+                "observedAt": 1794131944042
+              },
+              {
+                "k": "hit",
+                "victim": 2147689473,
+                "by": 1,
+                "amount": 25.003389358520508,
+                "passive": false,
+                "tick": 403,
+                "observedAt": 1794131944541
+              },
+              {
+                "k": "hit",
+                "victim": 2147694081,
+                "by": 1,
+                "amount": 25.003389358520508,
+                "passive": false,
+                "tick": 412,
+                "observedAt": 1794131944991
+              }
+            ],
+            "confirmed": true,
+            "note": "Ordinary keyboard/mouse inputs targeted delivered visible mobs; hit/swing confirmations are server public FX by the welcomed player ID."
+          },
+          "metrics": {
+            "raf": {
+              "callbacks": 910,
+              "callbackIntervalsMs": {
+                "samples": 909,
+                "p50": 16.7,
+                "p95": 18.1,
+                "p99": 18.6,
+                "max": 18.7
+              },
+              "callbackCpuMs": {
+                "samples": 910,
+                "p50": 2.9,
+                "p95": 4.1,
+                "p99": 4.5,
+                "max": 5.8
+              },
+              "callbackRateHz": 60.018,
+              "intervalRateHzP50": 59.88,
+              "intervalRateHzMean": 60.142
+            },
+            "submittedFrames": {
+              "callbacksWithGlDraws": 910,
+              "intervalsMs": {
+                "samples": 909,
+                "p50": 16.7,
+                "p95": 18.1,
+                "p99": 18.6,
+                "max": 18.7
+              },
+              "drawRateHz": 60.018,
+              "cpuCallbackMs": {
+                "samples": 910,
+                "p50": 2.9,
+                "p95": 4.1,
+                "p99": 4.6,
+                "max": 5.8
+              },
+              "drawCalls": {
+                "samples": 910,
+                "p50": 214,
+                "p95": 230,
+                "p99": 233,
+                "max": 236
+              },
+              "instances": {
+                "samples": 910,
+                "p50": 214,
+                "p95": 230,
+                "p99": 233,
+                "max": 236
+              }
+            },
+            "gpuTimer": {
+              "samples": 910,
+              "elapsedMs": {
+                "samples": 910,
+                "p50": 5.074,
+                "p95": 6.184,
+                "p99": 6.565,
+                "max": 7.003
+              },
+              "disjointObservations": 0,
+              "extensionAvailable": true
+            },
+            "memory": {
+              "jsHeapUsedBytes": {
+                "samples": 910,
+                "p50": 43396431,
+                "p95": 44130671,
+                "p99": 44313753,
+                "max": 44385964
+              },
+              "wasmBytes": {
+                "samples": 910,
+                "p50": 126353408,
+                "p95": 126353408,
+                "p99": 126353408,
+                "max": 126353408
+              },
+              "browserAfter": {
+                "usedJSHeapSize": 44147844,
+                "totalJSHeapSize": 47285512,
+                "jsHeapSizeLimit": 4395630592
+              },
+              "wasmMemoriesAfter": [
+                126353408
+              ]
+            },
+            "webgl": {
+              "contexts": [
+                {
+                  "timerQuery": true,
+                  "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5 Pro, Unspecified Version)",
+                  "width": 960,
+                  "height": 600
+                }
+              ],
+              "buffers": {
+                "created": 3804,
+                "deleted": 848
+              },
+              "backbufferChanges": []
+            }
+          },
+          "unityMetricsBeforeMeasurement": {
+            "available": true,
+            "value": {
+              "totalWASMHeapSize": 126353408,
+              "usedWASMHeapSize": 111774160,
+              "totalJSHeapSize": 45418643,
+              "usedJSHeapSize": 42505083,
+              "pageLoadTime": 661,
+              "pageLoadTimeToFrame1": 684,
+              "fps": 55.831434460793034,
+              "movingAverageFps": 55.831434460793034,
+              "assetLoadTime": 384,
+              "webAssemblyStartupTime": 378.2000002861023,
+              "codeDownloadTime": 15,
+              "gameStartupTime": 246,
+              "numJankedFrames": 2
+            }
+          },
+          "unityMetricsAfterMeasurement": {
+            "available": true,
+            "value": {
+              "totalWASMHeapSize": 126353408,
+              "usedWASMHeapSize": 112088120,
+              "totalJSHeapSize": 47285512,
+              "usedJSHeapSize": 44147844,
+              "pageLoadTime": 661,
+              "pageLoadTimeToFrame1": 684,
+              "fps": 60.0002637378003,
+              "movingAverageFps": 57.915849099296665,
+              "assetLoadTime": 384,
+              "webAssemblyStartupTime": 378.2000002861023,
+              "codeDownloadTime": 15,
+              "gameStartupTime": 246,
+              "numJankedFrames": 2
+            }
+          },
+          "load": {
+            "canvasReadyMs": 938,
+            "timeToActiveMs": 5964,
+            "navigation": {
+              "domContentLoadedMs": 10.699999809265137,
+              "loadEventMs": 69.2999997138977,
+              "responseMs": 1.5,
+              "transferSize": 8220,
+              "encodedBodySize": 7920,
+              "decodedBodySize": 7920
+            },
+            "resourceCount": 4,
+            "totalTransferBytes": 73981457,
+            "totalEncodedBytes": 73980257,
+            "largestResources": [
+              {
+                "name": "http://127.0.0.1:18897/Build/Web.wasm",
+                "initiatorType": "fetch",
+                "durationMs": 49.59999990463257,
+                "transferSize": 45932369,
+                "encodedBodySize": 45932069,
+                "decodedBodySize": 45932069
+              },
+              {
+                "name": "http://127.0.0.1:18897/Build/Web.data",
+                "initiatorType": "fetch",
+                "durationMs": 79.40000009536743,
+                "transferSize": 27559588,
+                "encodedBodySize": 27559288,
+                "decodedBodySize": 27559288
+              },
+              {
+                "name": "http://127.0.0.1:18897/Build/Web.framework.js",
+                "initiatorType": "script",
+                "durationMs": 2.6999998092651367,
+                "transferSize": 462745,
+                "encodedBodySize": 462445,
+                "decodedBodySize": 462445
+              },
+              {
+                "name": "http://127.0.0.1:18897/Build/Web.loader.js",
+                "initiatorType": "script",
+                "durationMs": 4.900000095367432,
+                "transferSize": 26755,
+                "encodedBodySize": 26455,
+                "decodedBodySize": 26455
+              }
+            ]
+          },
+          "canvasAfterMeasurement": {
+            "width": 2560,
+            "height": 1440,
+            "css": {
+              "width": 2560,
+              "height": 1440
+            },
+            "drawingBuffer": {
+              "width": 2560,
+              "height": 1440
+            }
+          },
+          "authoritativeCounts": {
+            "activeSnapshots": 303,
+            "activePhaseSecondsFromWire": 15.19,
+            "activeActorCount": {
+              "samples": 303,
+              "p50": 4,
+              "p95": 5,
+              "p99": 5,
+              "max": 5
+            },
+            "activeVisibleMobCount": {
+              "samples": 303,
+              "p50": 2,
+              "p95": 2,
+              "p99": 2,
+              "max": 2
+            }
+          }
+        },
+        {
+          "id": "run-2",
+          "status": "PASS",
+          "quality": {
+            "observedThroughUnityMarker": {
+              "quality": "High",
+              "mode": "Manual",
+              "reducedMotion": false,
+              "textScale": 1,
+              "musicVolume": 0.7200000286102295
+            },
+            "passed": true
+          },
+          "liveWindow": {
+            "startedAt": "2026-11-08T09:59:18.789Z",
+            "observedSeconds": 15.045,
+            "requestedSeconds": 15,
+            "endedEarly": false,
+            "terminalPhase": 1
+          },
+          "combatInput": {
+            "durationMs": 15045,
+            "screenshot": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/evidence/profile-final3/run-2-combat.png",
+            "sentInputCounts": {
+              "aim": 451,
+              "move": 16,
+              "stop": 8,
+              "attack": 46,
+              "release": 46
+            },
+            "publicFxCount": 125,
+            "confirmedSwingFxFromSelf": 27,
+            "confirmedHitFxFromSelf": 27,
+            "approachThresholdUnits": 36,
+            "hitFxFromSelf": [
+              {
+                "k": "hit",
+                "victim": 2147589634,
+                "by": 1,
+                "amount": 24.8629207611084,
+                "passive": false,
+                "tick": 208,
+                "observedAt": 1794131960892
+              },
+              {
+                "k": "hit",
+                "victim": 2147597314,
+                "by": 1,
+                "amount": 24.8629207611084,
+                "passive": false,
+                "tick": 223,
+                "observedAt": 1794131961640
+              },
+              {
+                "k": "hit",
+                "victim": 2147601922,
+                "by": 1,
+                "amount": 24.8629207611084,
+                "passive": false,
+                "tick": 232,
+                "observedAt": 1794131962092
+              },
+              {
+                "k": "hit",
+                "victim": 2147606018,
+                "by": 1,
+                "amount": 24.8629207611084,
+                "passive": false,
+                "tick": 240,
+                "observedAt": 1794131962491
+              },
+              {
+                "k": "hit",
+                "victim": 2147611650,
+                "by": 1,
+                "amount": 24.8629207611084,
+                "passive": false,
+                "tick": 251,
+                "observedAt": 1794131963041
+              },
+              {
+                "k": "hit",
+                "victim": 2147616770,
+                "by": 1,
+                "amount": 24.8629207611084,
+                "passive": false,
+                "tick": 261,
+                "observedAt": 1794131963541
+              },
+              {
+                "k": "hit",
+                "victim": 2147622402,
+                "by": 1,
+                "amount": 24.8629207611084,
+                "passive": false,
+                "tick": 272,
+                "observedAt": 1794131964092
+              },
+              {
+                "k": "hit",
+                "victim": 2147627010,
+                "by": 1,
+                "amount": 24.8629207611084,
+                "passive": false,
+                "tick": 281,
+                "observedAt": 1794131964540
+              },
+              {
+                "k": "hit",
+                "victim": 2147631106,
+                "by": 1,
+                "amount": 24.8629207611084,
+                "passive": false,
+                "tick": 289,
+                "observedAt": 1794131964941
+              },
+              {
+                "k": "hit",
+                "victim": 2147636226,
+                "by": 1,
+                "amount": 24.8629207611084,
+                "passive": false,
+                "tick": 299,
+                "observedAt": 1794131965440
+              },
+              {
+                "k": "hit",
+                "victim": 2147641858,
+                "by": 1,
+                "amount": 24.8629207611084,
+                "passive": false,
+                "tick": 310,
+                "observedAt": 1794131965992
+              },
+              {
+                "k": "hit",
+                "victim": 2147646466,
+                "by": 1,
+                "amount": 24.8629207611084,
+                "passive": false,
+                "tick": 319,
+                "observedAt": 1794131966441
+              },
+              {
+                "k": "hit",
+                "victim": 2147650562,
+                "by": 1,
+                "amount": 24.8629207611084,
+                "passive": false,
+                "tick": 327,
+                "observedAt": 1794131966841
+              },
+              {
+                "k": "hit",
+                "victim": 2147656194,
+                "by": 1,
+                "amount": 24.8629207611084,
+                "passive": false,
+                "tick": 338,
+                "observedAt": 1794131967392
+              },
+              {
+                "k": "hit",
+                "victim": 2147661314,
+                "by": 1,
+                "amount": 24.8629207611084,
+                "passive": false,
+                "tick": 348,
+                "observedAt": 1794131967892
+              },
+              {
+                "k": "hit",
+                "victim": 2147665922,
+                "by": 1,
+                "amount": 24.8629207611084,
+                "passive": false,
+                "tick": 357,
+                "observedAt": 1794131968341
+              },
+              {
+                "k": "hit",
+                "victim": 2147670018,
+                "by": 1,
+                "amount": 24.8629207611084,
+                "passive": false,
+                "tick": 365,
+                "observedAt": 1794131968740
+              },
+              {
+                "k": "hit",
+                "victim": 2147675138,
+                "by": 1,
+                "amount": 24.8629207611084,
+                "passive": false,
+                "tick": 375,
+                "observedAt": 1794131969240
+              },
+              {
+                "k": "hit",
+                "victim": 2147680770,
+                "by": 1,
+                "amount": 24.8629207611084,
+                "passive": false,
+                "tick": 386,
+                "observedAt": 1794131969793
+              },
+              {
+                "k": "hit",
+                "victim": 2147685378,
+                "by": 1,
+                "amount": 24.8629207611084,
+                "passive": false,
+                "tick": 395,
+                "observedAt": 1794131970242
+              },
+              {
+                "k": "hit",
+                "victim": 2147689474,
+                "by": 1,
+                "amount": 24.8629207611084,
+                "passive": false,
+                "tick": 403,
+                "observedAt": 1794131970641
+              },
+              {
+                "k": "hit",
+                "victim": 2147694594,
+                "by": 1,
+                "amount": 24.8629207611084,
+                "passive": false,
+                "tick": 413,
+                "observedAt": 1794131971141
+              },
+              {
+                "k": "hit",
+                "victim": 2147699714,
+                "by": 1,
+                "amount": 24.8629207611084,
+                "passive": false,
+                "tick": 423,
+                "observedAt": 1794131971640
+              },
+              {
+                "k": "hit",
+                "victim": 2147705346,
+                "by": 1,
+                "amount": 24.8629207611084,
+                "passive": false,
+                "tick": 434,
+                "observedAt": 1794131972192
+              },
+              {
+                "k": "hit",
+                "victim": 2147709954,
+                "by": 1,
+                "amount": 24.8629207611084,
+                "passive": false,
+                "tick": 443,
+                "observedAt": 1794131972640
+              },
+              {
+                "k": "hit",
+                "victim": 2147714050,
+                "by": 1,
+                "amount": 24.8629207611084,
+                "passive": false,
+                "tick": 451,
+                "observedAt": 1794131973042
+              },
+              {
+                "k": "hit",
+                "victim": 2147718658,
+                "by": 1,
+                "amount": 24.8629207611084,
+                "passive": false,
+                "tick": 460,
+                "observedAt": 1794131973493
+              }
+            ],
+            "confirmed": true,
+            "note": "Ordinary keyboard/mouse inputs targeted delivered visible mobs; hit/swing confirmations are server public FX by the welcomed player ID."
+          },
+          "metrics": {
+            "raf": {
+              "callbacks": 903,
+              "callbackIntervalsMs": {
+                "samples": 902,
+                "p50": 16.7,
+                "p95": 18.1,
+                "p99": 18.5,
+                "max": 18.7
+              },
+              "callbackCpuMs": {
+                "samples": 903,
+                "p50": 2.7,
+                "p95": 4.3,
+                "p99": 4.7,
+                "max": 6.2
+              },
+              "callbackRateHz": 60.02,
+              "intervalRateHzP50": 59.88,
+              "intervalRateHzMean": 60.142
+            },
+            "submittedFrames": {
+              "callbacksWithGlDraws": 903,
+              "intervalsMs": {
+                "samples": 902,
+                "p50": 16.7,
+                "p95": 18.1,
+                "p99": 18.5,
+                "max": 18.7
+              },
+              "drawRateHz": 60.02,
+              "cpuCallbackMs": {
+                "samples": 903,
+                "p50": 2.7,
+                "p95": 4.3,
+                "p99": 4.8,
+                "max": 6.2
+              },
+              "drawCalls": {
+                "samples": 903,
+                "p50": 125,
+                "p95": 129,
+                "p99": 154,
+                "max": 183
+              },
+              "instances": {
+                "samples": 903,
+                "p50": 125,
+                "p95": 129,
+                "p99": 154,
+                "max": 183
+              }
+            },
+            "gpuTimer": {
+              "samples": 903,
+              "elapsedMs": {
+                "samples": 903,
+                "p50": 4.844,
+                "p95": 5.895,
+                "p99": 6.279,
+                "max": 6.422
+              },
+              "disjointObservations": 0,
+              "extensionAvailable": true
+            },
+            "memory": {
+              "jsHeapUsedBytes": {
+                "samples": 903,
+                "p50": 43519265,
+                "p95": 44966031,
+                "p99": 45253069,
+                "max": 45288829
+              },
+              "wasmBytes": {
+                "samples": 903,
+                "p50": 126353408,
+                "p95": 126353408,
+                "p99": 126353408,
+                "max": 126353408
+              },
+              "browserAfter": {
+                "usedJSHeapSize": 43649805,
+                "totalJSHeapSize": 45748213,
+                "jsHeapSizeLimit": 4395630592
+              },
+              "wasmMemoriesAfter": [
+                126353408
+              ]
+            },
+            "webgl": {
+              "contexts": [
+                {
+                  "timerQuery": true,
+                  "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5 Pro, Unspecified Version)",
+                  "width": 960,
+                  "height": 600
+                }
+              ],
+              "buffers": {
+                "created": 1988,
+                "deleted": 255
+              },
+              "backbufferChanges": []
+            }
+          },
+          "unityMetricsBeforeMeasurement": {
+            "available": true,
+            "value": {
+              "totalWASMHeapSize": 126353408,
+              "usedWASMHeapSize": 111669728,
+              "totalJSHeapSize": 51218427,
+              "usedJSHeapSize": 43720199,
+              "pageLoadTime": 339,
+              "pageLoadTimeToFrame1": 352,
+              "fps": 57.590459612098414,
+              "movingAverageFps": 57.590459612098414,
+              "assetLoadTime": 97,
+              "webAssemblyStartupTime": 79.80000019073486,
+              "codeDownloadTime": 26,
+              "gameStartupTime": 233,
+              "numJankedFrames": 1
+            }
+          },
+          "unityMetricsAfterMeasurement": {
+            "available": true,
+            "value": {
+              "totalWASMHeapSize": 126353408,
+              "usedWASMHeapSize": 111920840,
+              "totalJSHeapSize": 45748213,
+              "usedJSHeapSize": 43649805,
+              "pageLoadTime": 339,
+              "pageLoadTimeToFrame1": 352,
+              "fps": 60.00318953907482,
+              "movingAverageFps": 58.79682457558661,
+              "assetLoadTime": 97,
+              "webAssemblyStartupTime": 79.80000019073486,
+              "codeDownloadTime": 26,
+              "gameStartupTime": 233,
+              "numJankedFrames": 1
+            }
+          },
+          "load": {
+            "canvasReadyMs": 357,
+            "timeToActiveMs": 5591,
+            "navigation": {
+              "domContentLoadedMs": 9.900000095367432,
+              "loadEventMs": 44,
+              "responseMs": 1.0999999046325684,
+              "transferSize": 8220,
+              "encodedBodySize": 7920,
+              "decodedBodySize": 7920
+            },
+            "resourceCount": 4,
+            "totalTransferBytes": 73981457,
+            "totalEncodedBytes": 73980257,
+            "largestResources": [
+              {
+                "name": "http://127.0.0.1:18897/Build/Web.wasm",
+                "initiatorType": "fetch",
+                "durationMs": 37.5,
+                "transferSize": 45932369,
+                "encodedBodySize": 45932069,
+                "decodedBodySize": 45932069
+              },
+              {
+                "name": "http://127.0.0.1:18897/Build/Web.data",
+                "initiatorType": "fetch",
+                "durationMs": 35.30000019073486,
+                "transferSize": 27559588,
+                "encodedBodySize": 27559288,
+                "decodedBodySize": 27559288
+              },
+              {
+                "name": "http://127.0.0.1:18897/Build/Web.framework.js",
+                "initiatorType": "script",
+                "durationMs": 1.1999998092651367,
+                "transferSize": 462745,
+                "encodedBodySize": 462445,
+                "decodedBodySize": 462445
+              },
+              {
+                "name": "http://127.0.0.1:18897/Build/Web.loader.js",
+                "initiatorType": "script",
+                "durationMs": 3,
+                "transferSize": 26755,
+                "encodedBodySize": 26455,
+                "decodedBodySize": 26455
+              }
+            ]
+          },
+          "canvasAfterMeasurement": {
+            "width": 2560,
+            "height": 1440,
+            "css": {
+              "width": 2560,
+              "height": 1440
+            },
+            "drawingBuffer": {
+              "width": 2560,
+              "height": 1440
+            }
+          },
+          "authoritativeCounts": {
+            "activeSnapshots": 301,
+            "activePhaseSecondsFromWire": 15.098,
+            "activeActorCount": {
+              "samples": 301,
+              "p50": 3,
+              "p95": 3,
+              "p99": 3,
+              "max": 3
+            },
+            "activeVisibleMobCount": {
+              "samples": 301,
+              "p50": 3,
+              "p95": 3,
+              "p99": 3,
+              "max": 3
+            }
+          }
+        },
+        {
+          "id": "run-3",
+          "status": "PASS",
+          "quality": {
+            "observedThroughUnityMarker": {
+              "quality": "High",
+              "mode": "Manual",
+              "reducedMotion": false,
+              "textScale": 1,
+              "musicVolume": 0.7200000286102295
+            },
+            "passed": true
+          },
+          "liveWindow": {
+            "startedAt": "2026-11-08T09:59:44.802Z",
+            "observedSeconds": 15.018,
+            "requestedSeconds": 15,
+            "endedEarly": false,
+            "terminalPhase": 1
+          },
+          "combatInput": {
+            "durationMs": 15018,
+            "screenshot": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/evidence/profile-final3/run-3-combat.png",
+            "sentInputCounts": {
+              "aim": 451,
+              "move": 52,
+              "stop": 26,
+              "attack": 30,
+              "release": 30
+            },
+            "publicFxCount": 115,
+            "confirmedSwingFxFromSelf": 16,
+            "confirmedHitFxFromSelf": 17,
+            "approachThresholdUnits": 36,
+            "hitFxFromSelf": [
+              {
+                "k": "hit",
+                "victim": 2147602945,
+                "by": 1,
+                "amount": 36.880001068115234,
+                "passive": false,
+                "tick": 234,
+                "observedAt": 1794131988293
+              },
+              {
+                "k": "hit",
+                "victim": 2147608577,
+                "by": 1,
+                "amount": 36.880001068115234,
+                "passive": false,
+                "tick": 245,
+                "observedAt": 1794131988841
+              },
+              {
+                "k": "hit",
+                "victim": 2147613697,
+                "by": 1,
+                "amount": 36.880001068115234,
+                "passive": false,
+                "tick": 255,
+                "observedAt": 1794131989341
+              },
+              {
+                "k": "hit",
+                "victim": 3,
+                "by": 1,
+                "amount": 29.125743865966797,
+                "passive": false,
+                "tick": 264,
+                "observedAt": 1794131989793
+              },
+              {
+                "k": "hit",
+                "victim": 2147622400,
+                "by": 1,
+                "amount": 36.880001068115234,
+                "passive": false,
+                "tick": 272,
+                "observedAt": 1794131990193
+              },
+              {
+                "k": "hit",
+                "victim": 2147627520,
+                "by": 1,
+                "amount": 36.880001068115234,
+                "passive": false,
+                "tick": 282,
+                "observedAt": 1794131990692
+              },
+              {
+                "k": "hit",
+                "victim": 2,
+                "by": 1,
+                "amount": 19.252609252929688,
+                "passive": false,
+                "tick": 293,
+                "observedAt": 1794131991242
+              },
+              {
+                "k": "hit",
+                "victim": 2147633152,
+                "by": 1,
+                "amount": 36.880001068115234,
+                "passive": false,
+                "tick": 293,
+                "observedAt": 1794131991242
+              },
+              {
+                "k": "hit",
+                "victim": 2147638272,
+                "by": 1,
+                "amount": 36.880001068115234,
+                "passive": false,
+                "tick": 303,
+                "observedAt": 1794131991742
+              },
+              {
+                "k": "hit",
+                "victim": 2147643904,
+                "by": 1,
+                "amount": 36.880001068115234,
+                "passive": false,
+                "tick": 314,
+                "observedAt": 1794131992293
+              },
+              {
+                "k": "hit",
+                "victim": 2147649024,
+                "by": 1,
+                "amount": 36.880001068115234,
+                "passive": false,
+                "tick": 324,
+                "observedAt": 1794131992791
+              },
+              {
+                "k": "hit",
+                "victim": 2147654656,
+                "by": 1,
+                "amount": 36.880001068115234,
+                "passive": false,
+                "tick": 335,
+                "observedAt": 1794131993342
+              },
+              {
+                "k": "hit",
+                "victim": 2147660288,
+                "by": 1,
+                "amount": 36.880001068115234,
+                "passive": false,
+                "tick": 346,
+                "observedAt": 1794131993891
+              },
+              {
+                "k": "hit",
+                "victim": 2147665408,
+                "by": 1,
+                "amount": 36.880001068115234,
+                "passive": false,
+                "tick": 356,
+                "observedAt": 1794131994392
+              },
+              {
+                "k": "hit",
+                "victim": 2147670528,
+                "by": 1,
+                "amount": 36.880001068115234,
+                "passive": false,
+                "tick": 366,
+                "observedAt": 1794131994891
+              },
+              {
+                "k": "hit",
+                "victim": 2147676160,
+                "by": 1,
+                "amount": 36.880001068115234,
+                "passive": false,
+                "tick": 377,
+                "observedAt": 1794131995442
+              },
+              {
+                "k": "hit",
+                "victim": 2147681792,
+                "by": 1,
+                "amount": 36.880001068115234,
+                "passive": false,
+                "tick": 388,
+                "observedAt": 1794131995992
+              }
+            ],
+            "confirmed": true,
+            "note": "Ordinary keyboard/mouse inputs targeted delivered visible mobs; hit/swing confirmations are server public FX by the welcomed player ID."
+          },
+          "metrics": {
+            "raf": {
+              "callbacks": 902,
+              "callbackIntervalsMs": {
+                "samples": 901,
+                "p50": 16.7,
+                "p95": 18.1,
+                "p99": 18.6,
+                "max": 18.7
+              },
+              "callbackCpuMs": {
+                "samples": 902,
+                "p50": 2.5,
+                "p95": 4,
+                "p99": 4.5,
+                "max": 5.7
+              },
+              "callbackRateHz": 60.061,
+              "intervalRateHzP50": 59.88,
+              "intervalRateHzMean": 60.162
+            },
+            "submittedFrames": {
+              "callbacksWithGlDraws": 902,
+              "intervalsMs": {
+                "samples": 901,
+                "p50": 16.7,
+                "p95": 18.1,
+                "p99": 18.6,
+                "max": 18.7
+              },
+              "drawRateHz": 60.061,
+              "cpuCallbackMs": {
+                "samples": 902,
+                "p50": 2.5,
+                "p95": 4,
+                "p99": 4.5,
+                "max": 5.7
+              },
+              "drawCalls": {
+                "samples": 902,
+                "p50": 210,
+                "p95": 222,
+                "p99": 224,
+                "max": 225
+              },
+              "instances": {
+                "samples": 902,
+                "p50": 210,
+                "p95": 222,
+                "p99": 224,
+                "max": 225
+              }
+            },
+            "gpuTimer": {
+              "samples": 902,
+              "elapsedMs": {
+                "samples": 902,
+                "p50": 5.139,
+                "p95": 6.338,
+                "p99": 6.694,
+                "max": 7.003
+              },
+              "disjointObservations": 0,
+              "extensionAvailable": true
+            },
+            "memory": {
+              "jsHeapUsedBytes": {
+                "samples": 902,
+                "p50": 43564197,
+                "p95": 44938932,
+                "p99": 45211239,
+                "max": 45263222
+              },
+              "wasmBytes": {
+                "samples": 902,
+                "p50": 126353408,
+                "p95": 126353408,
+                "p99": 126353408,
+                "max": 126353408
+              },
+              "browserAfter": {
+                "usedJSHeapSize": 43714667,
+                "totalJSHeapSize": 44433039,
+                "jsHeapSizeLimit": 4395630592
+              },
+              "wasmMemoriesAfter": [
+                126353408
+              ]
+            },
+            "webgl": {
+              "contexts": [
+                {
+                  "timerQuery": true,
+                  "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5 Pro, Unspecified Version)",
+                  "width": 960,
+                  "height": 600
+                }
+              ],
+              "buffers": {
+                "created": 3076,
+                "deleted": 659
+              },
+              "backbufferChanges": []
+            }
+          },
+          "unityMetricsBeforeMeasurement": {
+            "available": true,
+            "value": {
+              "totalWASMHeapSize": 126353408,
+              "usedWASMHeapSize": 111720968,
+              "totalJSHeapSize": 50693655,
+              "usedJSHeapSize": 43841411,
+              "pageLoadTime": 340,
+              "pageLoadTimeToFrame1": 354,
+              "fps": 57.560265689933196,
+              "movingAverageFps": 57.560265689933196,
+              "assetLoadTime": 93,
+              "webAssemblyStartupTime": 82.39999961853027,
+              "codeDownloadTime": 24,
+              "gameStartupTime": 229,
+              "numJankedFrames": 1
+            }
+          },
+          "unityMetricsAfterMeasurement": {
+            "available": true,
+            "value": {
+              "totalWASMHeapSize": 126353408,
+              "usedWASMHeapSize": 112055216,
+              "totalJSHeapSize": 44433039,
+              "usedJSHeapSize": 43714667,
+              "pageLoadTime": 340,
+              "pageLoadTimeToFrame1": 354,
+              "fps": 59.999334818904444,
+              "movingAverageFps": 58.77980025441882,
+              "assetLoadTime": 93,
+              "webAssemblyStartupTime": 82.39999961853027,
+              "codeDownloadTime": 24,
+              "gameStartupTime": 229,
+              "numJankedFrames": 1
+            }
+          },
+          "load": {
+            "canvasReadyMs": 354,
+            "timeToActiveMs": 5680,
+            "navigation": {
+              "domContentLoadedMs": 15,
+              "loadEventMs": 50.200000286102295,
+              "responseMs": 1.200000286102295,
+              "transferSize": 8220,
+              "encodedBodySize": 7920,
+              "decodedBodySize": 7920
+            },
+            "resourceCount": 4,
+            "totalTransferBytes": 73981457,
+            "totalEncodedBytes": 73980257,
+            "largestResources": [
+              {
+                "name": "http://127.0.0.1:18897/Build/Web.wasm",
+                "initiatorType": "fetch",
+                "durationMs": 53.799999713897705,
+                "transferSize": 45932369,
+                "encodedBodySize": 45932069,
+                "decodedBodySize": 45932069
+              },
+              {
+                "name": "http://127.0.0.1:18897/Build/Web.data",
+                "initiatorType": "fetch",
+                "durationMs": 17.700000286102295,
+                "transferSize": 27559588,
+                "encodedBodySize": 27559288,
+                "decodedBodySize": 27559288
+              },
+              {
+                "name": "http://127.0.0.1:18897/Build/Web.framework.js",
+                "initiatorType": "script",
+                "durationMs": 1.0999999046325684,
+                "transferSize": 462745,
+                "encodedBodySize": 462445,
+                "decodedBodySize": 462445
+              },
+              {
+                "name": "http://127.0.0.1:18897/Build/Web.loader.js",
+                "initiatorType": "script",
+                "durationMs": 3.200000286102295,
+                "transferSize": 26755,
+                "encodedBodySize": 26455,
+                "decodedBodySize": 26455
+              }
+            ]
+          },
+          "canvasAfterMeasurement": {
+            "width": 2560,
+            "height": 1440,
+            "css": {
+              "width": 2560,
+              "height": 1440
+            },
+            "drawingBuffer": {
+              "width": 2560,
+              "height": 1440
+            }
+          },
+          "authoritativeCounts": {
+            "activeSnapshots": 300,
+            "activePhaseSecondsFromWire": 15.032,
+            "activeActorCount": {
+              "samples": 300,
+              "p50": 4,
+              "p95": 5,
+              "p99": 5,
+              "max": 5
+            },
+            "activeVisibleMobCount": {
+              "samples": 300,
+              "p50": 2,
+              "p95": 3,
+              "p99": 3,
+              "max": 3
+            }
+          }
+        }
+      ]
+    },
+    "profile-uncapped": {
+      "captureStatus": "PASS",
+      "physicalDisplays": {
+        "status": "observed",
+        "displays": [
+          {
+            "name": "E2212F",
+            "main": true,
+            "mode": "1920 x 1080 @ 60.00Hz",
+            "width": 1920,
+            "height": 1080,
+            "refreshHz": 60
+          }
+        ]
+      },
+      "displayProof": {
+        "eligible": false,
+        "reason": "Uncapped diagnostic flags disable normal display pacing; this run only measures submission headroom."
+      },
+      "target": {
+        "width": 2560,
+        "height": 1440,
+        "requestedDisplayHz": 144,
+        "runs": 3,
+        "warmupSeconds": 4,
+        "activeSecondsPerRun": 15,
+        "server": "ws://127.0.0.1:18797/ws",
+        "viewport": "2560x1440",
+        "deviceScaleFactor": 1
+      },
+      "browser": {
+        "version": "156.0.8078.4",
+        "launchArgs": [
+          "--window-size=2560,1440",
+          "--window-position=0,0",
+          "--start-fullscreen",
+          "--force-device-scale-factor=1",
+          "--disable-frame-rate-limit",
+          "--disable-gpu-vsync",
+          "--use-angle=metal",
+          "--enable-gpu"
+        ],
+        "headless": false
+      },
+      "sha256": "93be9ebf1870a6f9865a17cb4a580db185623201e55259c319eed47803b5b80c",
+      "runs": [
+        {
+          "id": "run-1",
+          "status": "PASS",
+          "quality": {
+            "observedThroughUnityMarker": {
+              "quality": "High",
+              "mode": "Manual",
+              "reducedMotion": false,
+              "textScale": 1,
+              "musicVolume": 0.7200000286102295
+            },
+            "passed": true
+          },
+          "liveWindow": {
+            "startedAt": "2026-11-08T10:02:14.372Z",
+            "observedSeconds": 15.248,
+            "requestedSeconds": 15,
+            "endedEarly": false,
+            "terminalPhase": 1
+          },
+          "combatInput": {
+            "durationMs": 15248,
+            "screenshot": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/evidence/profile-uncapped/run-1-combat.png",
+            "sentInputCounts": {
+              "aim": 583,
+              "move": 88,
+              "stop": 44,
+              "attack": 15,
+              "release": 15
+            },
+            "publicFxCount": 43,
+            "confirmedSwingFxFromSelf": 8,
+            "confirmedHitFxFromSelf": 8,
+            "approachThresholdUnits": 36,
+            "hitFxFromSelf": [
+              {
+                "k": "hit",
+                "victim": 2147603969,
+                "by": 1,
+                "amount": 36.880001068115234,
+                "passive": false,
+                "tick": 236,
+                "observedAt": 1794132137957
+              },
+              {
+                "k": "hit",
+                "victim": 2147609089,
+                "by": 1,
+                "amount": 36.880001068115234,
+                "passive": false,
+                "tick": 246,
+                "observedAt": 1794132138461
+              },
+              {
+                "k": "hit",
+                "victim": 2147614209,
+                "by": 1,
+                "amount": 36.880001068115234,
+                "passive": false,
+                "tick": 256,
+                "observedAt": 1794132138893
+              },
+              {
+                "k": "hit",
+                "victim": 2147619329,
+                "by": 1,
+                "amount": 36.880001068115234,
+                "passive": false,
+                "tick": 266,
+                "observedAt": 1794132139382
+              },
+              {
+                "k": "hit",
+                "victim": 2147624449,
+                "by": 1,
+                "amount": 36.880001068115234,
+                "passive": false,
+                "tick": 276,
+                "observedAt": 1794132139929
+              },
+              {
+                "k": "hit",
+                "victim": 2147630081,
+                "by": 1,
+                "amount": 36.880001068115234,
+                "passive": false,
+                "tick": 287,
+                "observedAt": 1794132140473
+              },
+              {
+                "k": "hit",
+                "victim": 2147635201,
+                "by": 1,
+                "amount": 36.880001068115234,
+                "passive": false,
+                "tick": 297,
+                "observedAt": 1794132140974
+              },
+              {
+                "k": "hit",
+                "victim": 2147640321,
+                "by": 1,
+                "amount": 36.880001068115234,
+                "passive": false,
+                "tick": 307,
+                "observedAt": 1794132141481
+              }
+            ],
+            "confirmed": true,
+            "note": "Ordinary keyboard/mouse inputs targeted delivered visible mobs; hit/swing confirmations are server public FX by the welcomed player ID."
+          },
+          "metrics": {
+            "raf": {
+              "callbacks": 6529,
+              "callbackIntervalsMs": {
+                "samples": 6528,
+                "p50": 2.1,
+                "p95": 3.7,
+                "p99": 4.2,
+                "max": 5.8
+              },
+              "callbackCpuMs": {
+                "samples": 6529,
+                "p50": 2,
+                "p95": 3.5,
+                "p99": 4.1,
+                "max": 5.6
+              },
+              "callbackRateHz": 428.187,
+              "intervalRateHzP50": 476.19,
+              "intervalRateHzMean": 468.698
+            },
+            "submittedFrames": {
+              "callbacksWithGlDraws": 6529,
+              "intervalsMs": {
+                "samples": 6528,
+                "p50": 2.1,
+                "p95": 3.7,
+                "p99": 4.2,
+                "max": 5.8
+              },
+              "drawRateHz": 428.187,
+              "cpuCallbackMs": {
+                "samples": 6529,
+                "p50": 2,
+                "p95": 3.5,
+                "p99": 4.1,
+                "max": 5.6
+              },
+              "drawCalls": {
+                "samples": 6529,
+                "p50": 200,
+                "p95": 213,
+                "p99": 214,
+                "max": 214
+              },
+              "instances": {
+                "samples": 6529,
+                "p50": 200,
+                "p95": 213,
+                "p99": 214,
+                "max": 214
+              }
+            },
+            "gpuTimer": {
+              "samples": 4864,
+              "elapsedMs": {
+                "samples": 4864,
+                "p50": 3.506,
+                "p95": 4.85,
+                "p99": 5.675,
+                "max": 8.899
+              },
+              "disjointObservations": 0,
+              "extensionAvailable": true
+            },
+            "memory": {
+              "jsHeapUsedBytes": {
+                "samples": 6529,
+                "p50": 49850538,
+                "p95": 53446044,
+                "p99": 54153029,
+                "max": 54391708
+              },
+              "wasmBytes": {
+                "samples": 6529,
+                "p50": 126353408,
+                "p95": 126353408,
+                "p99": 126353408,
+                "max": 126353408
+              },
+              "browserAfter": {
+                "usedJSHeapSize": 54248549,
+                "totalJSHeapSize": 66602161,
+                "jsHeapSizeLimit": 4395630592
+              },
+              "wasmMemoriesAfter": [
+                126353408
+              ]
+            },
+            "webgl": {
+              "contexts": [
+                {
+                  "timerQuery": true,
+                  "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5 Pro, Unspecified Version)",
+                  "width": 960,
+                  "height": 600
+                }
+              ],
+              "buffers": {
+                "created": 39897,
+                "deleted": 29199
+              },
+              "backbufferChanges": []
+            }
+          },
+          "unityMetricsBeforeMeasurement": {
+            "available": true,
+            "value": {
+              "totalWASMHeapSize": 126353408,
+              "usedWASMHeapSize": 112339552,
+              "totalJSHeapSize": 61377695,
+              "usedJSHeapSize": 50010631,
+              "pageLoadTime": 793,
+              "pageLoadTimeToFrame1": 809,
+              "fps": 559.7377567617094,
+              "movingAverageFps": 559.7377567617094,
+              "assetLoadTime": 503,
+              "webAssemblyStartupTime": 498.19999980926514,
+              "codeDownloadTime": 17,
+              "gameStartupTime": 259,
+              "numJankedFrames": 3
+            }
+          },
+          "unityMetricsAfterMeasurement": {
+            "available": true,
+            "value": {
+              "totalWASMHeapSize": 126353408,
+              "usedWASMHeapSize": 112554392,
+              "totalJSHeapSize": 66602161,
+              "usedJSHeapSize": 54248549,
+              "pageLoadTime": 793,
+              "pageLoadTimeToFrame1": 809,
+              "fps": 427.99643390397557,
+              "movingAverageFps": 493.8670953328425,
+              "assetLoadTime": 503,
+              "webAssemblyStartupTime": 498.19999980926514,
+              "codeDownloadTime": 17,
+              "gameStartupTime": 259,
+              "numJankedFrames": 3
+            }
+          },
+          "load": {
+            "canvasReadyMs": 934,
+            "timeToActiveMs": 6998,
+            "navigation": {
+              "domContentLoadedMs": 11.200000286102295,
+              "loadEventMs": 63.40000009536743,
+              "responseMs": 1.6000003814697266,
+              "transferSize": 8220,
+              "encodedBodySize": 7920,
+              "decodedBodySize": 7920
+            },
+            "resourceCount": 4,
+            "totalTransferBytes": 73981457,
+            "totalEncodedBytes": 73980257,
+            "largestResources": [
+              {
+                "name": "http://127.0.0.1:18897/Build/Web.wasm",
+                "initiatorType": "fetch",
+                "durationMs": 65.80000019073486,
+                "transferSize": 45932369,
+                "encodedBodySize": 45932069,
+                "decodedBodySize": 45932069
+              },
+              {
+                "name": "http://127.0.0.1:18897/Build/Web.data",
+                "initiatorType": "fetch",
+                "durationMs": 27.09999990463257,
+                "transferSize": 27559588,
+                "encodedBodySize": 27559288,
+                "decodedBodySize": 27559288
+              },
+              {
+                "name": "http://127.0.0.1:18897/Build/Web.framework.js",
+                "initiatorType": "script",
+                "durationMs": 2.6000003814697266,
+                "transferSize": 462745,
+                "encodedBodySize": 462445,
+                "decodedBodySize": 462445
+              },
+              {
+                "name": "http://127.0.0.1:18897/Build/Web.loader.js",
+                "initiatorType": "script",
+                "durationMs": 4.300000190734863,
+                "transferSize": 26755,
+                "encodedBodySize": 26455,
+                "decodedBodySize": 26455
+              }
+            ]
+          },
+          "canvasAfterMeasurement": {
+            "width": 2560,
+            "height": 1440,
+            "css": {
+              "width": 2560,
+              "height": 1440
+            },
+            "drawingBuffer": {
+              "width": 2560,
+              "height": 1440
+            }
+          },
+          "authoritativeCounts": {
+            "activeSnapshots": 306,
+            "activePhaseSecondsFromWire": 15.57,
+            "activeActorCount": {
+              "samples": 306,
+              "p50": 3,
+              "p95": 4,
+              "p99": 4,
+              "max": 4
+            },
+            "activeVisibleMobCount": {
+              "samples": 306,
+              "p50": 2,
+              "p95": 3,
+              "p99": 3,
+              "max": 3
+            }
+          }
+        },
+        {
+          "id": "run-2",
+          "status": "PASS",
+          "quality": {
+            "observedThroughUnityMarker": {
+              "quality": "High",
+              "mode": "Manual",
+              "reducedMotion": false,
+              "textScale": 1,
+              "musicVolume": 0.7200000286102295
+            },
+            "passed": true
+          },
+          "liveWindow": {
+            "startedAt": "2026-11-08T10:02:41.900Z",
+            "observedSeconds": 15.057,
+            "requestedSeconds": 15,
+            "endedEarly": false,
+            "terminalPhase": 1
+          },
+          "combatInput": {
+            "durationMs": 15057,
+            "screenshot": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/evidence/profile-uncapped/run-2-combat.png",
+            "sentInputCounts": {
+              "aim": 578,
+              "move": 76,
+              "stop": 38,
+              "attack": 20,
+              "release": 20
+            },
+            "publicFxCount": 79,
+            "confirmedSwingFxFromSelf": 15,
+            "confirmedHitFxFromSelf": 20,
+            "approachThresholdUnits": 36,
+            "hitFxFromSelf": [
+              {
+                "k": "hit",
+                "victim": 2147608578,
+                "by": 1,
+                "amount": 24.8629207611084,
+                "passive": false,
+                "tick": 245,
+                "observedAt": 1794132165817
+              },
+              {
+                "k": "hit",
+                "victim": 2147613698,
+                "by": 1,
+                "amount": 24.8629207611084,
+                "passive": false,
+                "tick": 255,
+                "observedAt": 1794132166337
+              },
+              {
+                "k": "hit",
+                "victim": 3,
+                "by": 1,
+                "amount": 19.252609252929688,
+                "passive": false,
+                "tick": 265,
+                "observedAt": 1794132166800
+              },
+              {
+                "k": "hit",
+                "victim": 2147618818,
+                "by": 1,
+                "amount": 24.8629207611084,
+                "passive": false,
+                "tick": 265,
+                "observedAt": 1794132166800
+              },
+              {
+                "k": "hit",
+                "victim": 2147629058,
+                "by": 1,
+                "amount": 24.8629207611084,
+                "passive": false,
+                "tick": 285,
+                "observedAt": 1794132167832
+              },
+              {
+                "k": "hit",
+                "victim": 2147634178,
+                "by": 1,
+                "amount": 24.8629207611084,
+                "passive": false,
+                "tick": 295,
+                "observedAt": 1794132168334
+              },
+              {
+                "k": "hit",
+                "victim": 2147641858,
+                "by": 1,
+                "amount": 24.8629207611084,
+                "passive": false,
+                "tick": 310,
+                "observedAt": 1794132169078
+              },
+              {
+                "k": "hit",
+                "victim": 2147646978,
+                "by": 1,
+                "amount": 24.8629207611084,
+                "passive": false,
+                "tick": 320,
+                "observedAt": 1794132169580
+              },
+              {
+                "k": "hit",
+                "victim": 2147652096,
+                "by": 1,
+                "amount": 24.8629207611084,
+                "passive": false,
+                "tick": 330,
+                "observedAt": 1794132170083
+              },
+              {
+                "k": "hit",
+                "victim": 2147657218,
+                "by": 1,
+                "amount": 24.8629207611084,
+                "passive": false,
+                "tick": 340,
+                "observedAt": 1794132170578
+              },
+              {
+                "k": "hit",
+                "victim": 2147657216,
+                "by": 1,
+                "amount": 24.8629207611084,
+                "passive": false,
+                "tick": 340,
+                "observedAt": 1794132170578
+              },
+              {
+                "k": "hit",
+                "victim": 3,
+                "by": 1,
+                "amount": 19.252609252929688,
+                "passive": false,
+                "tick": 360,
+                "observedAt": 1794132171578
+              },
+              {
+                "k": "hit",
+                "victim": 2147667458,
+                "by": 1,
+                "amount": 24.8629207611084,
+                "passive": false,
+                "tick": 360,
+                "observedAt": 1794132171578
+              },
+              {
+                "k": "hit",
+                "victim": 3,
+                "by": 1,
+                "amount": 19.252609252929688,
+                "passive": false,
+                "tick": 370,
+                "observedAt": 1794132172077
+              },
+              {
+                "k": "hit",
+                "victim": 2147672578,
+                "by": 1,
+                "amount": 24.8629207611084,
+                "passive": false,
+                "tick": 370,
+                "observedAt": 1794132172077
+              },
+              {
+                "k": "hit",
+                "victim": 2147672576,
+                "by": 1,
+                "amount": 24.8629207611084,
+                "passive": false,
+                "tick": 370,
+                "observedAt": 1794132172077
+              },
+              {
+                "k": "hit",
+                "victim": 2147685376,
+                "by": 1,
+                "amount": 24.8629207611084,
+                "passive": false,
+                "tick": 395,
+                "observedAt": 1794132173326
+              },
+              {
+                "k": "hit",
+                "victim": 2147698176,
+                "by": 1,
+                "amount": 24.8629207611084,
+                "passive": false,
+                "tick": 420,
+                "observedAt": 1794132174569
+              },
+              {
+                "k": "hit",
+                "victim": 2147713536,
+                "by": 1,
+                "amount": 24.8629207611084,
+                "passive": false,
+                "tick": 450,
+                "observedAt": 1794132176065
+              },
+              {
+                "k": "hit",
+                "victim": 2147718656,
+                "by": 1,
+                "amount": 24.8629207611084,
+                "passive": false,
+                "tick": 460,
+                "observedAt": 1794132176561
+              }
+            ],
+            "confirmed": true,
+            "note": "Ordinary keyboard/mouse inputs targeted delivered visible mobs; hit/swing confirmations are server public FX by the welcomed player ID."
+          },
+          "metrics": {
+            "raf": {
+              "callbacks": 7098,
+              "callbackIntervalsMs": {
+                "samples": 7097,
+                "p50": 2,
+                "p95": 3.4,
+                "p99": 3.9,
+                "max": 5.3
+              },
+              "callbackCpuMs": {
+                "samples": 7098,
+                "p50": 1.8,
+                "p95": 3.3,
+                "p99": 3.8,
+                "max": 5.2
+              },
+              "callbackRateHz": 471.409,
+              "intervalRateHzP50": 500,
+              "intervalRateHzMean": 532.902
+            },
+            "submittedFrames": {
+              "callbacksWithGlDraws": 7098,
+              "intervalsMs": {
+                "samples": 7097,
+                "p50": 2,
+                "p95": 3.4,
+                "p99": 3.9,
+                "max": 5.3
+              },
+              "drawRateHz": 471.409,
+              "cpuCallbackMs": {
+                "samples": 7098,
+                "p50": 1.9,
+                "p95": 3.3,
+                "p99": 3.8,
+                "max": 5.2
+              },
+              "drawCalls": {
+                "samples": 7098,
+                "p50": 141,
+                "p95": 167,
+                "p99": 190,
+                "max": 192
+              },
+              "instances": {
+                "samples": 7098,
+                "p50": 141,
+                "p95": 167,
+                "p99": 190,
+                "max": 192
+              }
+            },
+            "gpuTimer": {
+              "samples": 3879,
+              "elapsedMs": {
+                "samples": 3879,
+                "p50": 3.382,
+                "p95": 4.929,
+                "p99": 5.42,
+                "max": 6.018
+              },
+              "disjointObservations": 0,
+              "extensionAvailable": true
+            },
+            "memory": {
+              "jsHeapUsedBytes": {
+                "samples": 7098,
+                "p50": 50755621,
+                "p95": 54800576,
+                "p99": 55412684,
+                "max": 55609637
+              },
+              "wasmBytes": {
+                "samples": 7098,
+                "p50": 126353408,
+                "p95": 126353408,
+                "p99": 126353408,
+                "max": 126353408
+              },
+              "browserAfter": {
+                "usedJSHeapSize": 55538473,
+                "totalJSHeapSize": 68923141,
+                "jsHeapSizeLimit": 4395630592
+              },
+              "wasmMemoriesAfter": [
+                126353408
+              ]
+            },
+            "webgl": {
+              "contexts": [
+                {
+                  "timerQuery": true,
+                  "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5 Pro, Unspecified Version)",
+                  "width": 960,
+                  "height": 600
+                }
+              ],
+              "buffers": {
+                "created": 44127,
+                "deleted": 33224
+              },
+              "backbufferChanges": []
+            }
+          },
+          "unityMetricsBeforeMeasurement": {
+            "available": true,
+            "value": {
+              "totalWASMHeapSize": 126353408,
+              "usedWASMHeapSize": 112390888,
+              "totalJSHeapSize": 61738239,
+              "usedJSHeapSize": 46122151,
+              "pageLoadTime": 412,
+              "pageLoadTimeToFrame1": 427,
+              "fps": 557.0931014627727,
+              "movingAverageFps": 557.0931014627727,
+              "assetLoadTime": 93,
+              "webAssemblyStartupTime": 92.59999990463257,
+              "codeDownloadTime": 17,
+              "gameStartupTime": 302,
+              "numJankedFrames": 3
+            }
+          },
+          "unityMetricsAfterMeasurement": {
+            "available": true,
+            "value": {
+              "totalWASMHeapSize": 126353408,
+              "usedWASMHeapSize": 112943312,
+              "totalJSHeapSize": 68923141,
+              "usedJSHeapSize": 55538473,
+              "pageLoadTime": 412,
+              "pageLoadTimeToFrame1": 427,
+              "fps": 471.26154418756755,
+              "movingAverageFps": 514.1773228251701,
+              "assetLoadTime": 93,
+              "webAssemblyStartupTime": 92.59999990463257,
+              "codeDownloadTime": 17,
+              "gameStartupTime": 302,
+              "numJankedFrames": 3
+            }
+          },
+          "load": {
+            "canvasReadyMs": 431,
+            "timeToActiveMs": 6461,
+            "navigation": {
+              "domContentLoadedMs": 14.200000286102295,
+              "loadEventMs": 43.80000019073486,
+              "responseMs": 1.4000000953674316,
+              "transferSize": 8220,
+              "encodedBodySize": 7920,
+              "decodedBodySize": 7920
+            },
+            "resourceCount": 4,
+            "totalTransferBytes": 73981457,
+            "totalEncodedBytes": 73980257,
+            "largestResources": [
+              {
+                "name": "http://127.0.0.1:18897/Build/Web.wasm",
+                "initiatorType": "fetch",
+                "durationMs": 61.30000019073486,
+                "transferSize": 45932369,
+                "encodedBodySize": 45932069,
+                "decodedBodySize": 45932069
+              },
+              {
+                "name": "http://127.0.0.1:18897/Build/Web.data",
+                "initiatorType": "fetch",
+                "durationMs": 67.40000009536743,
+                "transferSize": 27559588,
+                "encodedBodySize": 27559288,
+                "decodedBodySize": 27559288
+              },
+              {
+                "name": "http://127.0.0.1:18897/Build/Web.framework.js",
+                "initiatorType": "script",
+                "durationMs": 1.8000001907348633,
+                "transferSize": 462745,
+                "encodedBodySize": 462445,
+                "decodedBodySize": 462445
+              },
+              {
+                "name": "http://127.0.0.1:18897/Build/Web.loader.js",
+                "initiatorType": "script",
+                "durationMs": 3.3999996185302734,
+                "transferSize": 26755,
+                "encodedBodySize": 26455,
+                "decodedBodySize": 26455
+              }
+            ]
+          },
+          "canvasAfterMeasurement": {
+            "width": 2560,
+            "height": 1440,
+            "css": {
+              "width": 2560,
+              "height": 1440
+            },
+            "drawingBuffer": {
+              "width": 2560,
+              "height": 1440
+            }
+          },
+          "authoritativeCounts": {
+            "activeSnapshots": 301,
+            "activePhaseSecondsFromWire": 15.365,
+            "activeActorCount": {
+              "samples": 301,
+              "p50": 4,
+              "p95": 7,
+              "p99": 7,
+              "max": 7
+            },
+            "activeVisibleMobCount": {
+              "samples": 301,
+              "p50": 3,
+              "p95": 4,
+              "p99": 4,
+              "max": 4
+            }
+          }
+        },
+        {
+          "id": "run-3",
+          "status": "PASS",
+          "quality": {
+            "observedThroughUnityMarker": {
+              "quality": "High",
+              "mode": "Manual",
+              "reducedMotion": false,
+              "textScale": 1,
+              "musicVolume": 0.7200000286102295
+            },
+            "passed": true
+          },
+          "liveWindow": {
+            "startedAt": "2026-11-08T10:03:09.127Z",
+            "observedSeconds": 15.212,
+            "requestedSeconds": 15,
+            "endedEarly": false,
+            "terminalPhase": 1
+          },
+          "combatInput": {
+            "durationMs": 15212,
+            "screenshot": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/evidence/profile-uncapped/run-3-combat.png",
+            "sentInputCounts": {
+              "aim": 586,
+              "move": 96,
+              "stop": 48,
+              "attack": 11,
+              "release": 11
+            },
+            "publicFxCount": 40,
+            "confirmedSwingFxFromSelf": 6,
+            "confirmedHitFxFromSelf": 6,
+            "approachThresholdUnits": 36,
+            "hitFxFromSelf": [
+              {
+                "k": "hit",
+                "victim": 2147601409,
+                "by": 1,
+                "amount": 36.880001068115234,
+                "passive": false,
+                "tick": 231,
+                "observedAt": 1794132192449
+              },
+              {
+                "k": "hit",
+                "victim": 2147606529,
+                "by": 1,
+                "amount": 36.880001068115234,
+                "passive": false,
+                "tick": 241,
+                "observedAt": 1794132192951
+              },
+              {
+                "k": "hit",
+                "victim": 2147611649,
+                "by": 1,
+                "amount": 36.880001068115234,
+                "passive": false,
+                "tick": 251,
+                "observedAt": 1794132193430
+              },
+              {
+                "k": "hit",
+                "victim": 2147616769,
+                "by": 1,
+                "amount": 36.880001068115234,
+                "passive": false,
+                "tick": 261,
+                "observedAt": 1794132193967
+              },
+              {
+                "k": "hit",
+                "victim": 2147621889,
+                "by": 1,
+                "amount": 36.880001068115234,
+                "passive": false,
+                "tick": 271,
+                "observedAt": 1794132194467
+              },
+              {
+                "k": "hit",
+                "victim": 2147627010,
+                "by": 1,
+                "amount": 36.880001068115234,
+                "passive": false,
+                "tick": 281,
+                "observedAt": 1794132194969
+              }
+            ],
+            "confirmed": true,
+            "note": "Ordinary keyboard/mouse inputs targeted delivered visible mobs; hit/swing confirmations are server public FX by the welcomed player ID."
+          },
+          "metrics": {
+            "raf": {
+              "callbacks": 6461,
+              "callbackIntervalsMs": {
+                "samples": 6460,
+                "p50": 2.1,
+                "p95": 3.7,
+                "p99": 4.3,
+                "max": 6.8
+              },
+              "callbackCpuMs": {
+                "samples": 6461,
+                "p50": 2,
+                "p95": 3.6,
+                "p99": 4.1,
+                "max": 6.7
+              },
+              "callbackRateHz": 424.73,
+              "intervalRateHzP50": 476.19,
+              "intervalRateHzMean": 474.626
+            },
+            "submittedFrames": {
+              "callbacksWithGlDraws": 6461,
+              "intervalsMs": {
+                "samples": 6460,
+                "p50": 2.1,
+                "p95": 3.7,
+                "p99": 4.3,
+                "max": 6.8
+              },
+              "drawRateHz": 424.73,
+              "cpuCallbackMs": {
+                "samples": 6461,
+                "p50": 2,
+                "p95": 3.6,
+                "p99": 4.1,
+                "max": 6.7
+              },
+              "drawCalls": {
+                "samples": 6461,
+                "p50": 207,
+                "p95": 215,
+                "p99": 219,
+                "max": 219
+              },
+              "instances": {
+                "samples": 6461,
+                "p50": 207,
+                "p95": 215,
+                "p99": 219,
+                "max": 219
+              }
+            },
+            "gpuTimer": {
+              "samples": 5208,
+              "elapsedMs": {
+                "samples": 5208,
+                "p50": 3.511,
+                "p95": 4.789,
+                "p99": 5.417,
+                "max": 8.201
+              },
+              "disjointObservations": 0,
+              "extensionAvailable": true
+            },
+            "memory": {
+              "jsHeapUsedBytes": {
+                "samples": 6461,
+                "p50": 49724752,
+                "p95": 53249631,
+                "p99": 53998025,
+                "max": 54253716
+              },
+              "wasmBytes": {
+                "samples": 6461,
+                "p50": 126353408,
+                "p95": 126353408,
+                "p99": 126353408,
+                "max": 126353408
+              },
+              "browserAfter": {
+                "usedJSHeapSize": 54253716,
+                "totalJSHeapSize": 66213032,
+                "jsHeapSizeLimit": 4395630592
+              },
+              "wasmMemoriesAfter": [
+                126353408
+              ]
+            },
+            "webgl": {
+              "contexts": [
+                {
+                  "timerQuery": true,
+                  "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5 Pro, Unspecified Version)",
+                  "width": 960,
+                  "height": 600
+                }
+              ],
+              "buffers": {
+                "created": 35500,
+                "deleted": 24934
+              },
+              "backbufferChanges": []
+            }
+          },
+          "unityMetricsBeforeMeasurement": {
+            "available": true,
+            "value": {
+              "totalWASMHeapSize": 126353408,
+              "usedWASMHeapSize": 111856552,
+              "totalJSHeapSize": 60854570,
+              "usedJSHeapSize": 44583826,
+              "pageLoadTime": 402,
+              "pageLoadTimeToFrame1": 417,
+              "fps": 559.3749731294697,
+              "movingAverageFps": 559.3749731294697,
+              "assetLoadTime": 379,
+              "webAssemblyStartupTime": 84.40000009536743,
+              "codeDownloadTime": 19,
+              "gameStartupTime": 295,
+              "numJankedFrames": 3
+            }
+          },
+          "unityMetricsAfterMeasurement": {
+            "available": true,
+            "value": {
+              "totalWASMHeapSize": 126353408,
+              "usedWASMHeapSize": 112024304,
+              "totalJSHeapSize": 66213032,
+              "usedJSHeapSize": 54253716,
+              "pageLoadTime": 402,
+              "pageLoadTimeToFrame1": 417,
+              "fps": 424.6076601534861,
+              "movingAverageFps": 491.9913166414779,
+              "assetLoadTime": 379,
+              "webAssemblyStartupTime": 84.40000009536743,
+              "codeDownloadTime": 19,
+              "gameStartupTime": 295,
+              "numJankedFrames": 3
+            }
+          },
+          "load": {
+            "canvasReadyMs": 420,
+            "timeToActiveMs": 6443,
+            "navigation": {
+              "domContentLoadedMs": 14.899999618530273,
+              "loadEventMs": 44.09999990463257,
+              "responseMs": 1.5,
+              "transferSize": 8220,
+              "encodedBodySize": 7920,
+              "decodedBodySize": 7920
+            },
+            "resourceCount": 4,
+            "totalTransferBytes": 73981457,
+            "totalEncodedBytes": 73980257,
+            "largestResources": [
+              {
+                "name": "http://127.0.0.1:18897/Build/Web.wasm",
+                "initiatorType": "fetch",
+                "durationMs": 46.299999713897705,
+                "transferSize": 45932369,
+                "encodedBodySize": 45932069,
+                "decodedBodySize": 45932069
+              },
+              {
+                "name": "http://127.0.0.1:18897/Build/Web.data",
+                "initiatorType": "fetch",
+                "durationMs": 87.19999980926514,
+                "transferSize": 27559588,
+                "encodedBodySize": 27559288,
+                "decodedBodySize": 27559288
+              },
+              {
+                "name": "http://127.0.0.1:18897/Build/Web.framework.js",
+                "initiatorType": "script",
+                "durationMs": 1.5,
+                "transferSize": 462745,
+                "encodedBodySize": 462445,
+                "decodedBodySize": 462445
+              },
+              {
+                "name": "http://127.0.0.1:18897/Build/Web.loader.js",
+                "initiatorType": "script",
+                "durationMs": 3.9000000953674316,
+                "transferSize": 26755,
+                "encodedBodySize": 26455,
+                "decodedBodySize": 26455
+              }
+            ]
+          },
+          "canvasAfterMeasurement": {
+            "width": 2560,
+            "height": 1440,
+            "css": {
+              "width": 2560,
+              "height": 1440
+            },
+            "drawingBuffer": {
+              "width": 2560,
+              "height": 1440
+            }
+          },
+          "authoritativeCounts": {
+            "activeSnapshots": 305,
+            "activePhaseSecondsFromWire": 15.507,
+            "activeActorCount": {
+              "samples": 305,
+              "p50": 4,
+              "p95": 5,
+              "p99": 5,
+              "max": 5
+            },
+            "activeVisibleMobCount": {
+              "samples": 305,
+              "p50": 3,
+              "p95": 4,
+              "p99": 4,
+              "max": 4
+            }
+          }
+        }
+      ]
+    },
+    "profile-crowded": {
+      "captureStatus": "PASS",
+      "physicalDisplays": {
+        "status": "observed",
+        "displays": [
+          {
+            "name": "E2212F",
+            "main": true,
+            "mode": "1920 x 1080 @ 60.00Hz",
+            "width": 1920,
+            "height": 1080,
+            "refreshHz": 60
+          }
+        ]
+      },
+      "displayProof": {
+        "eligible": false,
+        "reason": "Host-reported main display does not match the requested native 2560x1440 at >=144Hz mode (1920 x 1080 @ 60.00Hz)."
+      },
+      "target": {
+        "width": 2560,
+        "height": 1440,
+        "requestedDisplayHz": 144,
+        "runs": 3,
+        "warmupSeconds": 4,
+        "activeSecondsPerRun": 15,
+        "server": "ws://127.0.0.1:18798/ws",
+        "viewport": "2560x1440",
+        "deviceScaleFactor": 1
+      },
+      "browser": {
+        "version": "156.0.8078.4",
+        "launchArgs": [
+          "--window-size=2560,1440",
+          "--window-position=0,0",
+          "--start-fullscreen",
+          "--force-device-scale-factor=1",
+          "--use-angle=metal",
+          "--enable-gpu"
+        ],
+        "headless": false
+      },
+      "sha256": "2f6f9a9d4ff9728c99265515880a1e2d2e7b5f925cf38657fca201da47b47b34",
+      "runs": [
+        {
+          "id": "run-1",
+          "status": "PASS",
+          "quality": {
+            "observedThroughUnityMarker": {
+              "quality": "High",
+              "mode": "Manual",
+              "reducedMotion": false,
+              "textScale": 1,
+              "musicVolume": 0.7200000286102295
+            },
+            "passed": true
+          },
+          "liveWindow": {
+            "startedAt": "2026-11-08T10:04:20.598Z",
+            "observedSeconds": 15.251,
+            "requestedSeconds": 15,
+            "endedEarly": false,
+            "terminalPhase": 1
+          },
+          "combatInput": {
+            "durationMs": 15251,
+            "screenshot": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/evidence/profile-crowded/run-1-combat.png",
+            "sentInputCounts": {
+              "aim": 458,
+              "move": 16,
+              "stop": 8,
+              "attack": 47,
+              "release": 47
+            },
+            "publicFxCount": 209,
+            "confirmedSwingFxFromSelf": 28,
+            "confirmedHitFxFromSelf": 28,
+            "approachThresholdUnits": 36,
+            "hitFxFromSelf": [
+              {
+                "k": "hit",
+                "victim": 2147589634,
+                "by": 1,
+                "amount": 24.8629207611084,
+                "passive": false,
+                "tick": 208,
+                "observedAt": 1794132262708
+              },
+              {
+                "k": "hit",
+                "victim": 2147597314,
+                "by": 1,
+                "amount": 24.8629207611084,
+                "passive": false,
+                "tick": 223,
+                "observedAt": 1794132263459
+              },
+              {
+                "k": "hit",
+                "victim": 2147601922,
+                "by": 1,
+                "amount": 24.8629207611084,
+                "passive": false,
+                "tick": 232,
+                "observedAt": 1794132263907
+              },
+              {
+                "k": "hit",
+                "victim": 2147606018,
+                "by": 1,
+                "amount": 24.8629207611084,
+                "passive": false,
+                "tick": 240,
+                "observedAt": 1794132264308
+              },
+              {
+                "k": "hit",
+                "victim": 2147611138,
+                "by": 1,
+                "amount": 24.8629207611084,
+                "passive": false,
+                "tick": 250,
+                "observedAt": 1794132264809
+              },
+              {
+                "k": "hit",
+                "victim": 2147616258,
+                "by": 1,
+                "amount": 24.8629207611084,
+                "passive": false,
+                "tick": 260,
+                "observedAt": 1794132265307
+              },
+              {
+                "k": "hit",
+                "victim": 2147620866,
+                "by": 1,
+                "amount": 24.8629207611084,
+                "passive": false,
+                "tick": 269,
+                "observedAt": 1794132265759
+              },
+              {
+                "k": "hit",
+                "victim": 2147624962,
+                "by": 1,
+                "amount": 24.8629207611084,
+                "passive": false,
+                "tick": 277,
+                "observedAt": 1794132266157
+              },
+              {
+                "k": "hit",
+                "victim": 2147630594,
+                "by": 1,
+                "amount": 24.8629207611084,
+                "passive": false,
+                "tick": 288,
+                "observedAt": 1794132266709
+              },
+              {
+                "k": "hit",
+                "victim": 2147635714,
+                "by": 1,
+                "amount": 24.8629207611084,
+                "passive": false,
+                "tick": 298,
+                "observedAt": 1794132267207
+              },
+              {
+                "k": "hit",
+                "victim": 2147640322,
+                "by": 1,
+                "amount": 24.8629207611084,
+                "passive": false,
+                "tick": 307,
+                "observedAt": 1794132267658
+              },
+              {
+                "k": "hit",
+                "victim": 2147644418,
+                "by": 1,
+                "amount": 24.8629207611084,
+                "passive": false,
+                "tick": 315,
+                "observedAt": 1794132268059
+              },
+              {
+                "k": "hit",
+                "victim": 2147650050,
+                "by": 1,
+                "amount": 24.8629207611084,
+                "passive": false,
+                "tick": 326,
+                "observedAt": 1794132268607
+              },
+              {
+                "k": "hit",
+                "victim": 2147655682,
+                "by": 1,
+                "amount": 24.8629207611084,
+                "passive": false,
+                "tick": 337,
+                "observedAt": 1794132269158
+              },
+              {
+                "k": "hit",
+                "victim": 2147660802,
+                "by": 1,
+                "amount": 24.8629207611084,
+                "passive": false,
+                "tick": 347,
+                "observedAt": 1794132269657
+              },
+              {
+                "k": "hit",
+                "victim": 2147665410,
+                "by": 1,
+                "amount": 24.8629207611084,
+                "passive": false,
+                "tick": 356,
+                "observedAt": 1794132270107
+              },
+              {
+                "k": "hit",
+                "victim": 2147669506,
+                "by": 1,
+                "amount": 24.8629207611084,
+                "passive": false,
+                "tick": 364,
+                "observedAt": 1794132270508
+              },
+              {
+                "k": "hit",
+                "victim": 2147674626,
+                "by": 1,
+                "amount": 24.8629207611084,
+                "passive": false,
+                "tick": 374,
+                "observedAt": 1794132271007
+              },
+              {
+                "k": "hit",
+                "victim": 2147679234,
+                "by": 1,
+                "amount": 24.8629207611084,
+                "passive": false,
+                "tick": 383,
+                "observedAt": 1794132271457
+              },
+              {
+                "k": "hit",
+                "victim": 2147683330,
+                "by": 1,
+                "amount": 24.8629207611084,
+                "passive": false,
+                "tick": 391,
+                "observedAt": 1794132271857
+              },
+              {
+                "k": "hit",
+                "victim": 2147687938,
+                "by": 1,
+                "amount": 24.8629207611084,
+                "passive": false,
+                "tick": 400,
+                "observedAt": 1794132272307
+              },
+              {
+                "k": "hit",
+                "victim": 2147692034,
+                "by": 1,
+                "amount": 24.8629207611084,
+                "passive": false,
+                "tick": 408,
+                "observedAt": 1794132272707
+              },
+              {
+                "k": "hit",
+                "victim": 2147697154,
+                "by": 1,
+                "amount": 24.8629207611084,
+                "passive": false,
+                "tick": 418,
+                "observedAt": 1794132273207
+              },
+              {
+                "k": "hit",
+                "victim": 2147702786,
+                "by": 1,
+                "amount": 24.8629207611084,
+                "passive": false,
+                "tick": 429,
+                "observedAt": 1794132273757
+              },
+              {
+                "k": "hit",
+                "victim": 2147708418,
+                "by": 1,
+                "amount": 24.8629207611084,
+                "passive": false,
+                "tick": 440,
+                "observedAt": 1794132274306
+              },
+              {
+                "k": "hit",
+                "victim": 2147714050,
+                "by": 1,
+                "amount": 24.8629207611084,
+                "passive": false,
+                "tick": 451,
+                "observedAt": 1794132274858
+              },
+              {
+                "k": "hit",
+                "victim": 2147719170,
+                "by": 1,
+                "amount": 24.8629207611084,
+                "passive": false,
+                "tick": 461,
+                "observedAt": 1794132275357
+              },
+              {
+                "k": "hit",
+                "victim": 2147723778,
+                "by": 1,
+                "amount": 24.8629207611084,
+                "passive": false,
+                "tick": 470,
+                "observedAt": 1794132275806
+              }
+            ],
+            "confirmed": true,
+            "note": "Ordinary keyboard/mouse inputs targeted delivered visible mobs; hit/swing confirmations are server public FX by the welcomed player ID."
+          },
+          "metrics": {
+            "raf": {
+              "callbacks": 916,
+              "callbackIntervalsMs": {
+                "samples": 915,
+                "p50": 16.7,
+                "p95": 18.4,
+                "p99": 18.6,
+                "max": 18.8
+              },
+              "callbackCpuMs": {
+                "samples": 916,
+                "p50": 2.8,
+                "p95": 4,
+                "p99": 4.9,
+                "max": 6
+              },
+              "callbackRateHz": 60.062,
+              "intervalRateHzP50": 59.88,
+              "intervalRateHzMean": 60.208
+            },
+            "submittedFrames": {
+              "callbacksWithGlDraws": 916,
+              "intervalsMs": {
+                "samples": 915,
+                "p50": 16.7,
+                "p95": 18.4,
+                "p99": 18.6,
+                "max": 18.8
+              },
+              "drawRateHz": 60.062,
+              "cpuCallbackMs": {
+                "samples": 916,
+                "p50": 2.8,
+                "p95": 4.1,
+                "p99": 4.9,
+                "max": 6
+              },
+              "drawCalls": {
+                "samples": 916,
+                "p50": 126,
+                "p95": 131,
+                "p99": 158,
+                "max": 185
+              },
+              "instances": {
+                "samples": 916,
+                "p50": 126,
+                "p95": 131,
+                "p99": 158,
+                "max": 185
+              }
+            },
+            "gpuTimer": {
+              "samples": 916,
+              "elapsedMs": {
+                "samples": 916,
+                "p50": 4.962,
+                "p95": 6.044,
+                "p99": 6.47,
+                "max": 6.932
+              },
+              "disjointObservations": 0,
+              "extensionAvailable": true
+            },
+            "memory": {
+              "jsHeapUsedBytes": {
+                "samples": 916,
+                "p50": 43244102,
+                "p95": 44023192,
+                "p99": 44157449,
+                "max": 44205334
+              },
+              "wasmBytes": {
+                "samples": 916,
+                "p50": 126353408,
+                "p95": 126353408,
+                "p99": 126353408,
+                "max": 126353408
+              },
+              "browserAfter": {
+                "usedJSHeapSize": 44205334,
+                "totalJSHeapSize": 47508790,
+                "jsHeapSizeLimit": 4395630592
+              },
+              "wasmMemoriesAfter": [
+                126353408
+              ]
+            },
+            "webgl": {
+              "contexts": [
+                {
+                  "timerQuery": true,
+                  "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5 Pro, Unspecified Version)",
+                  "width": 960,
+                  "height": 600
+                }
+              ],
+              "buffers": {
+                "created": 2047,
+                "deleted": 277
+              },
+              "backbufferChanges": []
+            }
+          },
+          "unityMetricsBeforeMeasurement": {
+            "available": true,
+            "value": {
+              "totalWASMHeapSize": 126353408,
+              "usedWASMHeapSize": 111781016,
+              "totalJSHeapSize": 45895285,
+              "usedJSHeapSize": 42440241,
+              "pageLoadTime": 667,
+              "pageLoadTimeToFrame1": 683,
+              "fps": 55.95588301394072,
+              "movingAverageFps": 55.95588301394072,
+              "assetLoadTime": 401,
+              "webAssemblyStartupTime": 395.80000019073486,
+              "codeDownloadTime": 15,
+              "gameStartupTime": 245,
+              "numJankedFrames": 2
+            }
+          },
+          "unityMetricsAfterMeasurement": {
+            "available": true,
+            "value": {
+              "totalWASMHeapSize": 126353408,
+              "usedWASMHeapSize": 112033576,
+              "totalJSHeapSize": 47508790,
+              "usedJSHeapSize": 44205334,
+              "pageLoadTime": 667,
+              "pageLoadTimeToFrame1": 683,
+              "fps": 60.00118035183934,
+              "movingAverageFps": 57.97853168289003,
+              "assetLoadTime": 401,
+              "webAssemblyStartupTime": 395.80000019073486,
+              "codeDownloadTime": 15,
+              "gameStartupTime": 245,
+              "numJankedFrames": 2
+            }
+          },
+          "load": {
+            "canvasReadyMs": 914,
+            "timeToActiveMs": 5917,
+            "navigation": {
+              "domContentLoadedMs": 10.400000095367432,
+              "loadEventMs": 52.69999980926514,
+              "responseMs": 1.299999713897705,
+              "transferSize": 8220,
+              "encodedBodySize": 7920,
+              "decodedBodySize": 7920
+            },
+            "resourceCount": 4,
+            "totalTransferBytes": 73981457,
+            "totalEncodedBytes": 73980257,
+            "largestResources": [
+              {
+                "name": "http://127.0.0.1:18897/Build/Web.wasm",
+                "initiatorType": "fetch",
+                "durationMs": 55.40000009536743,
+                "transferSize": 45932369,
+                "encodedBodySize": 45932069,
+                "decodedBodySize": 45932069
+              },
+              {
+                "name": "http://127.0.0.1:18897/Build/Web.data",
+                "initiatorType": "fetch",
+                "durationMs": 36.700000286102295,
+                "transferSize": 27559588,
+                "encodedBodySize": 27559288,
+                "decodedBodySize": 27559288
+              },
+              {
+                "name": "http://127.0.0.1:18897/Build/Web.framework.js",
+                "initiatorType": "script",
+                "durationMs": 1.8000001907348633,
+                "transferSize": 462745,
+                "encodedBodySize": 462445,
+                "decodedBodySize": 462445
+              },
+              {
+                "name": "http://127.0.0.1:18897/Build/Web.loader.js",
+                "initiatorType": "script",
+                "durationMs": 3.9000000953674316,
+                "transferSize": 26755,
+                "encodedBodySize": 26455,
+                "decodedBodySize": 26455
+              }
+            ]
+          },
+          "canvasAfterMeasurement": {
+            "width": 2560,
+            "height": 1440,
+            "css": {
+              "width": 2560,
+              "height": 1440
+            },
+            "drawingBuffer": {
+              "width": 2560,
+              "height": 1440
+            }
+          },
+          "authoritativeCounts": {
+            "activeSnapshots": 305,
+            "activePhaseSecondsFromWire": 15.276,
+            "activeActorCount": {
+              "samples": 305,
+              "p50": 5,
+              "p95": 5,
+              "p99": 5,
+              "max": 5
+            },
+            "activeVisibleMobCount": {
+              "samples": 305,
+              "p50": 3,
+              "p95": 3,
+              "p99": 3,
+              "max": 3
+            }
+          }
+        },
+        {
+          "id": "run-2",
+          "status": "PASS",
+          "quality": {
+            "observedThroughUnityMarker": {
+              "quality": "High",
+              "mode": "Manual",
+              "reducedMotion": false,
+              "textScale": 1,
+              "musicVolume": 0.7200000286102295
+            },
+            "passed": true
+          },
+          "liveWindow": {
+            "startedAt": "2026-11-08T10:04:46.844Z",
+            "observedSeconds": 15.141,
+            "requestedSeconds": 15,
+            "endedEarly": false,
+            "terminalPhase": 1
+          },
+          "combatInput": {
+            "durationMs": 15140,
+            "screenshot": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/evidence/profile-crowded/run-2-combat.png",
+            "sentInputCounts": {
+              "aim": 454,
+              "move": 102,
+              "stop": 51,
+              "attack": 6,
+              "release": 6
+            },
+            "publicFxCount": 26,
+            "confirmedSwingFxFromSelf": 6,
+            "confirmedHitFxFromSelf": 6,
+            "approachThresholdUnits": 36,
+            "hitFxFromSelf": [
+              {
+                "k": "hit",
+                "victim": 2147589120,
+                "by": 1,
+                "amount": 24.8629207611084,
+                "passive": false,
+                "tick": 207,
+                "observedAt": 1794132288937
+              },
+              {
+                "k": "hit",
+                "victim": 2147607040,
+                "by": 1,
+                "amount": 24.8629207611084,
+                "passive": false,
+                "tick": 242,
+                "observedAt": 1794132290688
+              },
+              {
+                "k": "hit",
+                "victim": 2147622912,
+                "by": 1,
+                "amount": 24.8629207611084,
+                "passive": false,
+                "tick": 273,
+                "observedAt": 1794132292239
+              },
+              {
+                "k": "hit",
+                "victim": 2147662336,
+                "by": 1,
+                "amount": 24.8629207611084,
+                "passive": false,
+                "tick": 350,
+                "observedAt": 1794132296088
+              },
+              {
+                "k": "hit",
+                "victim": 2147667968,
+                "by": 1,
+                "amount": 24.8629207611084,
+                "passive": false,
+                "tick": 361,
+                "observedAt": 1794132296639
+              },
+              {
+                "k": "hit",
+                "victim": 2147707394,
+                "by": 1,
+                "amount": 24.8629207611084,
+                "passive": false,
+                "tick": 438,
+                "observedAt": 1794132300488
+              }
+            ],
+            "confirmed": true,
+            "note": "Ordinary keyboard/mouse inputs targeted delivered visible mobs; hit/swing confirmations are server public FX by the welcomed player ID."
+          },
+          "metrics": {
+            "raf": {
+              "callbacks": 909,
+              "callbackIntervalsMs": {
+                "samples": 908,
+                "p50": 16.7,
+                "p95": 18.5,
+                "p99": 18.6,
+                "max": 18.7
+              },
+              "callbackCpuMs": {
+                "samples": 909,
+                "p50": 2.7,
+                "p95": 3.8,
+                "p99": 4.7,
+                "max": 6.6
+              },
+              "callbackRateHz": 60.036,
+              "intervalRateHzP50": 59.88,
+              "intervalRateHzMean": 60.228
+            },
+            "submittedFrames": {
+              "callbacksWithGlDraws": 909,
+              "intervalsMs": {
+                "samples": 908,
+                "p50": 16.7,
+                "p95": 18.5,
+                "p99": 18.6,
+                "max": 18.7
+              },
+              "drawRateHz": 60.036,
+              "cpuCallbackMs": {
+                "samples": 909,
+                "p50": 2.7,
+                "p95": 3.8,
+                "p99": 4.7,
+                "max": 6.6
+              },
+              "drawCalls": {
+                "samples": 909,
+                "p50": 129,
+                "p95": 162,
+                "p99": 165,
+                "max": 185
+              },
+              "instances": {
+                "samples": 909,
+                "p50": 129,
+                "p95": 162,
+                "p99": 165,
+                "max": 185
+              }
+            },
+            "gpuTimer": {
+              "samples": 909,
+              "elapsedMs": {
+                "samples": 909,
+                "p50": 4.882,
+                "p95": 6.099,
+                "p99": 6.445,
+                "max": 6.819
+              },
+              "disjointObservations": 0,
+              "extensionAvailable": true
+            },
+            "memory": {
+              "jsHeapUsedBytes": {
+                "samples": 909,
+                "p50": 43137547,
+                "p95": 43638417,
+                "p99": 43756708,
+                "max": 43812274
+              },
+              "wasmBytes": {
+                "samples": 909,
+                "p50": 126353408,
+                "p95": 126353408,
+                "p99": 126353408,
+                "max": 126353408
+              },
+              "browserAfter": {
+                "usedJSHeapSize": 43495645,
+                "totalJSHeapSize": 45232661,
+                "jsHeapSizeLimit": 4395630592
+              },
+              "wasmMemoriesAfter": [
+                126353408
+              ]
+            },
+            "webgl": {
+              "contexts": [
+                {
+                  "timerQuery": true,
+                  "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5 Pro, Unspecified Version)",
+                  "width": 960,
+                  "height": 600
+                }
+              ],
+              "buffers": {
+                "created": 2200,
+                "deleted": 396
+              },
+              "backbufferChanges": []
+            }
+          },
+          "unityMetricsBeforeMeasurement": {
+            "available": true,
+            "value": {
+              "totalWASMHeapSize": 126353408,
+              "usedWASMHeapSize": 111675168,
+              "totalJSHeapSize": 44927267,
+              "usedJSHeapSize": 42462599,
+              "pageLoadTime": 331,
+              "pageLoadTimeToFrame1": 344,
+              "fps": 57.70501568170971,
+              "movingAverageFps": 57.70501568170971,
+              "assetLoadTime": 80,
+              "webAssemblyStartupTime": 75.19999980926514,
+              "codeDownloadTime": 17,
+              "gameStartupTime": 238,
+              "numJankedFrames": 1
+            }
+          },
+          "unityMetricsAfterMeasurement": {
+            "available": true,
+            "value": {
+              "totalWASMHeapSize": 126353408,
+              "usedWASMHeapSize": 112128976,
+              "totalJSHeapSize": 45232661,
+              "usedJSHeapSize": 43495645,
+              "pageLoadTime": 331,
+              "pageLoadTimeToFrame1": 344,
+              "fps": 60.0003960418404,
+              "movingAverageFps": 58.85270586177506,
+              "assetLoadTime": 80,
+              "webAssemblyStartupTime": 75.19999980926514,
+              "codeDownloadTime": 17,
+              "gameStartupTime": 238,
+              "numJankedFrames": 1
+            }
+          },
+          "load": {
+            "canvasReadyMs": 355,
+            "timeToActiveMs": 5561,
+            "navigation": {
+              "domContentLoadedMs": 10.700000286102295,
+              "loadEventMs": 37.90000009536743,
+              "responseMs": 1.200000286102295,
+              "transferSize": 8220,
+              "encodedBodySize": 7920,
+              "decodedBodySize": 7920
+            },
+            "resourceCount": 4,
+            "totalTransferBytes": 73981457,
+            "totalEncodedBytes": 73980257,
+            "largestResources": [
+              {
+                "name": "http://127.0.0.1:18897/Build/Web.wasm",
+                "initiatorType": "fetch",
+                "durationMs": 43.19999980926514,
+                "transferSize": 45932369,
+                "encodedBodySize": 45932069,
+                "decodedBodySize": 45932069
+              },
+              {
+                "name": "http://127.0.0.1:18897/Build/Web.data",
+                "initiatorType": "fetch",
+                "durationMs": 74.90000009536743,
+                "transferSize": 27559588,
+                "encodedBodySize": 27559288,
+                "decodedBodySize": 27559288
+              },
+              {
+                "name": "http://127.0.0.1:18897/Build/Web.framework.js",
+                "initiatorType": "script",
+                "durationMs": 1.700000286102295,
+                "transferSize": 462745,
+                "encodedBodySize": 462445,
+                "decodedBodySize": 462445
+              },
+              {
+                "name": "http://127.0.0.1:18897/Build/Web.loader.js",
+                "initiatorType": "script",
+                "durationMs": 3.8999996185302734,
+                "transferSize": 26755,
+                "encodedBodySize": 26455,
+                "decodedBodySize": 26455
+              }
+            ]
+          },
+          "canvasAfterMeasurement": {
+            "width": 2560,
+            "height": 1440,
+            "css": {
+              "width": 2560,
+              "height": 1440
+            },
+            "drawingBuffer": {
+              "width": 2560,
+              "height": 1440
+            }
+          },
+          "authoritativeCounts": {
+            "activeSnapshots": 303,
+            "activePhaseSecondsFromWire": 15.141,
+            "activeActorCount": {
+              "samples": 303,
+              "p50": 4,
+              "p95": 4,
+              "p99": 4,
+              "max": 4
+            },
+            "activeVisibleMobCount": {
+              "samples": 303,
+              "p50": 4,
+              "p95": 4,
+              "p99": 4,
+              "max": 4
+            }
+          }
+        },
+        {
+          "id": "run-3",
+          "status": "PASS",
+          "quality": {
+            "observedThroughUnityMarker": {
+              "quality": "High",
+              "mode": "Manual",
+              "reducedMotion": false,
+              "textScale": 1,
+              "musicVolume": 0.7200000286102295
+            },
+            "passed": true
+          },
+          "liveWindow": {
+            "startedAt": "2026-11-08T10:05:12.808Z",
+            "observedSeconds": 15.137,
+            "requestedSeconds": 15,
+            "endedEarly": false,
+            "terminalPhase": 1
+          },
+          "combatInput": {
+            "durationMs": 15136,
+            "screenshot": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/evidence/profile-crowded/run-3-combat.png",
+            "sentInputCounts": {
+              "aim": 454,
+              "move": 94,
+              "stop": 47,
+              "attack": 10,
+              "release": 10
+            },
+            "publicFxCount": 106,
+            "confirmedSwingFxFromSelf": 6,
+            "confirmedHitFxFromSelf": 6,
+            "approachThresholdUnits": 36,
+            "hitFxFromSelf": [
+              {
+                "k": "hit",
+                "victim": 2147601920,
+                "by": 1,
+                "amount": 36.880001068115234,
+                "passive": false,
+                "tick": 232,
+                "observedAt": 1794132316304
+              },
+              {
+                "k": "hit",
+                "victim": 2147610624,
+                "by": 1,
+                "amount": 36.880001068115234,
+                "passive": false,
+                "tick": 249,
+                "observedAt": 1794132317154
+              },
+              {
+                "k": "hit",
+                "victim": 2147615744,
+                "by": 1,
+                "amount": 36.880001068115234,
+                "passive": false,
+                "tick": 259,
+                "observedAt": 1794132317653
+              },
+              {
+                "k": "hit",
+                "victim": 2,
+                "by": 1,
+                "amount": 19.252609252929688,
+                "passive": false,
+                "tick": 269,
+                "observedAt": 1794132318154
+              },
+              {
+                "k": "hit",
+                "victim": 2147620864,
+                "by": 1,
+                "amount": 36.880001068115234,
+                "passive": false,
+                "tick": 269,
+                "observedAt": 1794132318154
+              },
+              {
+                "k": "hit",
+                "victim": 2147625984,
+                "by": 1,
+                "amount": 36.880001068115234,
+                "passive": false,
+                "tick": 279,
+                "observedAt": 1794132318654
+              }
+            ],
+            "confirmed": true,
+            "note": "Ordinary keyboard/mouse inputs targeted delivered visible mobs; hit/swing confirmations are server public FX by the welcomed player ID."
+          },
+          "metrics": {
+            "raf": {
+              "callbacks": 908,
+              "callbackIntervalsMs": {
+                "samples": 907,
+                "p50": 16.7,
+                "p95": 18.5,
+                "p99": 18.6,
+                "max": 18.7
+              },
+              "callbackCpuMs": {
+                "samples": 908,
+                "p50": 2.7,
+                "p95": 4.1,
+                "p99": 4.5,
+                "max": 5.3
+              },
+              "callbackRateHz": 59.985,
+              "intervalRateHzP50": 59.88,
+              "intervalRateHzMean": 60.222
+            },
+            "submittedFrames": {
+              "callbacksWithGlDraws": 908,
+              "intervalsMs": {
+                "samples": 907,
+                "p50": 16.7,
+                "p95": 18.5,
+                "p99": 18.6,
+                "max": 18.7
+              },
+              "drawRateHz": 59.985,
+              "cpuCallbackMs": {
+                "samples": 908,
+                "p50": 2.7,
+                "p95": 4.1,
+                "p99": 4.5,
+                "max": 5.3
+              },
+              "drawCalls": {
+                "samples": 908,
+                "p50": 209,
+                "p95": 221,
+                "p99": 224,
+                "max": 225
+              },
+              "instances": {
+                "samples": 908,
+                "p50": 209,
+                "p95": 221,
+                "p99": 224,
+                "max": 225
+              }
+            },
+            "gpuTimer": {
+              "samples": 908,
+              "elapsedMs": {
+                "samples": 908,
+                "p50": 5.11,
+                "p95": 6.183,
+                "p99": 6.571,
+                "max": 6.962
+              },
+              "disjointObservations": 0,
+              "extensionAvailable": true
+            },
+            "memory": {
+              "jsHeapUsedBytes": {
+                "samples": 908,
+                "p50": 43586088,
+                "p95": 44990732,
+                "p99": 45257746,
+                "max": 45301252
+              },
+              "wasmBytes": {
+                "samples": 908,
+                "p50": 126353408,
+                "p95": 126353408,
+                "p99": 126353408,
+                "max": 126353408
+              },
+              "browserAfter": {
+                "usedJSHeapSize": 43856146,
+                "totalJSHeapSize": 45217606,
+                "jsHeapSizeLimit": 4395630592
+              },
+              "wasmMemoriesAfter": [
+                126353408
+              ]
+            },
+            "webgl": {
+              "contexts": [
+                {
+                  "timerQuery": true,
+                  "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5 Pro, Unspecified Version)",
+                  "width": 960,
+                  "height": 600
+                }
+              ],
+              "buffers": {
+                "created": 3092,
+                "deleted": 732
+              },
+              "backbufferChanges": []
+            }
+          },
+          "unityMetricsBeforeMeasurement": {
+            "available": true,
+            "value": {
+              "totalWASMHeapSize": 126353408,
+              "usedWASMHeapSize": 111653632,
+              "totalJSHeapSize": 51478668,
+              "usedJSHeapSize": 44154976,
+              "pageLoadTime": 320,
+              "pageLoadTimeToFrame1": 333,
+              "fps": 57.76521418665697,
+              "movingAverageFps": 57.76521418665697,
+              "assetLoadTime": 74,
+              "webAssemblyStartupTime": 71.30000019073486,
+              "codeDownloadTime": 17,
+              "gameStartupTime": 229,
+              "numJankedFrames": 1
+            }
+          },
+          "unityMetricsAfterMeasurement": {
+            "available": true,
+            "value": {
+              "totalWASMHeapSize": 126353408,
+              "usedWASMHeapSize": 112715392,
+              "totalJSHeapSize": 45217606,
+              "usedJSHeapSize": 43856146,
+              "pageLoadTime": 320,
+              "pageLoadTimeToFrame1": 333,
+              "fps": 60.00449372747073,
+              "movingAverageFps": 58.884853957063854,
+              "assetLoadTime": 74,
+              "webAssemblyStartupTime": 71.30000019073486,
+              "codeDownloadTime": 17,
+              "gameStartupTime": 229,
+              "numJankedFrames": 1
+            }
+          },
+          "load": {
+            "canvasReadyMs": 343,
+            "timeToActiveMs": 5557,
+            "navigation": {
+              "domContentLoadedMs": 12.400000095367432,
+              "loadEventMs": 38.799999713897705,
+              "responseMs": 1,
+              "transferSize": 8220,
+              "encodedBodySize": 7920,
+              "decodedBodySize": 7920
+            },
+            "resourceCount": 4,
+            "totalTransferBytes": 73981457,
+            "totalEncodedBytes": 73980257,
+            "largestResources": [
+              {
+                "name": "http://127.0.0.1:18897/Build/Web.wasm",
+                "initiatorType": "fetch",
+                "durationMs": 45.5,
+                "transferSize": 45932369,
+                "encodedBodySize": 45932069,
+                "decodedBodySize": 45932069
+              },
+              {
+                "name": "http://127.0.0.1:18897/Build/Web.data",
+                "initiatorType": "fetch",
+                "durationMs": 54.10000038146973,
+                "transferSize": 27559588,
+                "encodedBodySize": 27559288,
+                "decodedBodySize": 27559288
+              },
+              {
+                "name": "http://127.0.0.1:18897/Build/Web.framework.js",
+                "initiatorType": "script",
+                "durationMs": 1.8000001907348633,
+                "transferSize": 462745,
+                "encodedBodySize": 462445,
+                "decodedBodySize": 462445
+              },
+              {
+                "name": "http://127.0.0.1:18897/Build/Web.loader.js",
+                "initiatorType": "script",
+                "durationMs": 3.1999998092651367,
+                "transferSize": 26755,
+                "encodedBodySize": 26455,
+                "decodedBodySize": 26455
+              }
+            ]
+          },
+          "canvasAfterMeasurement": {
+            "width": 2560,
+            "height": 1440,
+            "css": {
+              "width": 2560,
+              "height": 1440
+            },
+            "drawingBuffer": {
+              "width": 2560,
+              "height": 1440
+            }
+          },
+          "authoritativeCounts": {
+            "activeSnapshots": 302,
+            "activePhaseSecondsFromWire": 15.145,
+            "activeActorCount": {
+              "samples": 302,
+              "p50": 5,
+              "p95": 5,
+              "p99": 5,
+              "max": 5
+            },
+            "activeVisibleMobCount": {
+              "samples": 302,
+              "p50": 3,
+              "p95": 3,
+              "p99": 3,
+              "max": 3
+            }
+          }
+        }
+      ]
+    }
+  },
+  "rawEvidenceRoot": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/evidence",
+  "browserReportSha256": "6b97ddb4387099e76aec84ebc551cee246d0680d0c808b022359d7713519eff1",
+  "textSizeQA": {
+    "status": "CAPTURED",
+    "settings": {
+      "quality": "High",
+      "mode": "Adaptive",
+      "reducedMotion": false,
+      "textScale": 1.5,
+      "musicVolume": 0.7200000286102295
+    },
+    "canvas": {
+      "width": 2560,
+      "height": 1440
+    },
+    "visualReview": {
+      "status": "PASS",
+      "notes": "Visually inspected 2560x1440 settings and active HUD at textScale=1.5; headings, values and controls fit their frames without clipping."
+    },
+    "pageErrors": []
+  },
+  "requiredChecks": [
+    "menuNoSocketBeforeJoin",
+    "menuJoin",
+    "mapAndCollections",
+    "focusedPickupInput",
+    "pickupOutcome",
+    "rewardChoice",
+    "potionInputAndNotice",
+    "hudBlocksWorldClick",
+    "worldAttackClick",
+    "swapInput",
+    "movement",
+    "reconnect",
+    "results",
+    "leaveAndRejoin",
+    "visibleMobs",
+    "settingsQualityClickable",
+    "settingsReducedMotionClickable",
+    "settingsMusicMuteClickable",
+    "separatePreviewScreenshot"
+  ],
+  "remainingAcceptance": "Confirmed 144Hz display and full on-screen target-window repeat; current physical mode is 60Hz. Managed allocation throughput was unavailable in release capture."
+}
