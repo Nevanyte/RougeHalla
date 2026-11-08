@@ -128,6 +128,18 @@ outcomes, immutable presentation catalogs and generation-fenced leaderboard data
 The separate frozen first-UI/account composition passes554 C# tests at `cc7790b7`; actual combined Editor/Web screens,
 UPM direct pin, deployed preflight and reload/banking guarantees remain open. No native gameplay/wire identity changes.
 
+The [explicit current-owner recovery-key read](evidence/account-recovery-key/ADMISSION.md) is admitted at `ab95420a`
+after independent generation/selection/account-reference review; it performs no I/O or state change. The UI still owns
+deliberate masked reveal and clearing. The [actual UPM package pin](evidence/unity-combined-d660/package-pin/README.md)
+is separately admitted at `86ead858`: official Newtonsoft3.2.2 is now direct rather than transitive, with no version or
+unrelated dependency drift. The combined candidate's actual Editor run remains **failed:71/82 passed**, with11 UI/test
+failures and a separate invalid offline fixture. No layout/Web acceptance follows; repairs are isolated from main.
+
+The [human/bot quest-eligibility source evidence](evidence/quest-human-eligibility/ADMISSION.md) is admitted through
+`b6d8ae75`: six producer scenarios, three bounded unreachable histories and two labelled malformed-state diagnostics.
+Independent review verifies125 source/14 tool pins and the corrected real-signal driver. Declared region-wipe helper
+and unreachable/mutant limits are preserved. This source-only admission does not close native/public quest flows.
+
 [Frozen gate scopes and receipts](evidence/native-wish-union/FROZEN13_GATE.md) supersede the private pre-admission status
 below. The older results and artifact descriptions that follow retain their historical revision limits.
 
