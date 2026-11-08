@@ -115,7 +115,8 @@ cargo test --workspace --all-features --locked   # with PostgreSQL from tools/pg
   tape is re-recorded for the new state layout; `hash_coverage` 6 passed with the documented optional quests leaf; the
   content hash is unchanged (`b6f9d4c2aa07e30b`, the lifecycle adds no new registered rule); schedule conformance 14
   passed with the ported quest action/system/links.
-- Workspace gate: **GATE_TBD** (with PostgreSQL).
+- Workspace gate: **1,451 passed, 0 failed, 3 ignored, 151 test binaries, exit 0** (with PostgreSQL; the previous
+  1,442 plus the eight lifecycle tests and the checkpoint round trip).
 - `cargo fmt --all -- --check` and `cargo clippy --workspace --all-targets --all-features -- -D warnings`: clean.
 
 ## Remaining for the P-QUEST-1 row
