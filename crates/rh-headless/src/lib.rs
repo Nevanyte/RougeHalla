@@ -4,6 +4,7 @@
 //! trainer) act for their own players through [`Env::step`]. Both go through the same input path.
 
 pub mod digest;
+pub mod telemetry_record;
 pub mod tournament;
 pub mod tournament_cli;
 
@@ -398,6 +399,11 @@ impl Env {
                 }
             },
         );
+    }
+
+    /// The policy telemetry snapshots, in seat order (the tournament report's behaviour block).
+    pub fn seat_telemetry(&self) -> Vec<Option<rh_policy::PolicyStats>> {
+        self.seats.iter().map(Seat::stats).collect()
     }
 
     pub fn seat_stats(&self) -> Vec<(PlayerId, SeatStats, Option<rh_policy::Fault>)> {

@@ -3,11 +3,10 @@
 //! only here, for the progress line, the throughput meta and the per-game wall; the tournament itself is a pure function
 //! of its plan.
 use rh_headless::tournament::{
-    aggregate, format_report, run_game, sim_config_for, GameSummary, TournamentMeta,
-    TournamentReport,
+    aggregate, format_report_with, play, play_parallel, sim_config_for, GameSummary, ReportMeta,
 };
 use rh_headless::tournament_cli::{
-    default_arena, json_payload, parse_args, plan_of, write_telemetry, USAGE,
+    default_arena, json_payload, lineup_text, parse_args, plan_of, write_telemetry, USAGE,
 };
 use std::time::Instant;
 
@@ -59,34 +58,41 @@ fn main() -> std::process::ExitCode {
     // planOf config), so --patience/--sudden reach the real sim timers instead of being carried only in the payload.
     let config = sim_config_for(&plan);
     let started = Instant::now();
-    let mut games: Vec<GameSummary> = Vec::with_capacity(plan.games as usize);
-    let mut game_wall = 0.;
-    let mut telemetry: Vec<String> = Vec::new();
-    for index in 0..plan.games {
-        let at = Instant::now();
-        let summary = run_game(index, &plan, &arena, &config);
-        game_wall += at.elapsed().as_secs_f64() * 1000.;
-        if args.telemetry_dir.is_some() {
-            // The ported telemetry surface: the reduced summary per game (the source docs/TELEMETRY.md record is the
-            // P-BOTS-6 remainder item 3).
-            telemetry.push(
-                json_payload(
-                    &plan,
-                    &aggregate(std::slice::from_ref(&summary)),
-                    std::slice::from_ref(&summary),
-                    None,
-                    None,
-                )["games"][0]
-                    .to_string(),
-            );
-        }
-        games.push(summary);
-    }
+    // The source plays independent games in worker threads (worker.ts): each game is a pure function of its plan index,
+    // so the parallel runner returns the serial result in index order (only the wall-clock meta can differ).
+    let results = if plan.workers <= 1 {
+        play(&plan, &arena, &config)
+    } else {
+        play_parallel(&plan, &arena, &config, plan.workers)
+    };
+    let games: Vec<GameSummary> = results
+        .iter()
+        .map(|result| result.summary.clone())
+        .collect();
     let wall_ms = started.elapsed().as_secs_f64() * 1000.;
     let game_ms = if games.is_empty() {
         f64::NAN
     } else {
-        game_wall / games.len() as f64
+        wall_ms / games.len() as f64
+    };
+    // The ported telemetry surface: the per-game summary record, in plan order (the full docs/TELEMETRY.md record body
+    // is the P-BOTS-6 remainder item 3).
+    let telemetry: Vec<String> = if args.telemetry_dir.is_some() {
+        games
+            .iter()
+            .map(|summary| {
+                json_payload(
+                    &plan,
+                    &aggregate(std::slice::from_ref(summary)),
+                    std::slice::from_ref(summary),
+                    None,
+                    None,
+                )["games"][0]
+                    .to_string()
+            })
+            .collect()
+    } else {
+        Vec::new()
     };
     let report = aggregate(&games);
     if !args.quiet {
@@ -97,19 +103,17 @@ fn main() -> std::process::ExitCode {
             games.len() as f64 / started.elapsed().as_secs_f64().max(1e-9)
         );
     }
-    let tournament = TournamentReport {
-        meta: TournamentMeta {
-            games: plan.games,
-            seed: plan.seed,
-            lineup: plan.tiers.clone(),
-            persona: plan.persona.as_str().to_owned(),
-            faction: plan.faction.as_str().to_owned(),
-            max_sim_ms: plan.max_sim_ms,
-        },
-        report: report.clone(),
-        games: games.clone(),
+    let meta = ReportMeta {
+        lineup: lineup_text(&plan.tiers),
+        seed: plan.seed,
+        learn: plan.learn,
+        persona: plan.persona.as_str().to_owned(),
+        faction: plan.faction.as_str().to_owned(),
+        workers: plan.workers,
+        wall_ms: Some(wall_ms),
+        game_ms: Some(game_ms),
     };
-    print!("{}", format_report(&tournament));
+    print!("{}", format_report_with(&report, &meta));
     if args.json.is_some() {
         let payload = json_payload(&plan, &report, &games, Some(wall_ms), Some(game_ms));
         if let Some(path) = &args.json {

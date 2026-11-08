@@ -1,0 +1,11 @@
+--- a/crates/rh-headless/src/tournament.rs
++++ b/crates/rh-headless/src/tournament.rs
+@@ -1301,7 +1301,7 @@
+     match tier {
+         TierId::Hard => (0.25, 0.35),
+         TierId::Normal => (0.13, 0.2),
+-        TierId::Easy => (0.04, 0.1),
++        TierId::Easy => (0.05, 0.1),
+     }
+ }
+ 

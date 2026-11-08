@@ -1,0 +1,352 @@
+{
+ "format": "rh-bot-telemetry-source/1",
+ "profile": {
+  "node": "v22.23.4",
+  "platform": "linux",
+  "arch": "x64",
+  "sourceFiles": {
+   "docs/TELEMETRY.md": "bd42b803d154c490672e528e8667f3b8af38205ea4eeb7349c3741f1cdc2aa2f",
+   "packages/shared/src/telemetry.ts": "3310df401408a2a4a893a40febe40dda72afe20a13898e6f63620a127d2ba8e2",
+   "packages/shared/src/index.ts": "2a78a73307372ea1a5ffe753f2f16fb11386c124100455f45339fe985b01dfcb",
+   "packages/server/src/sim/telemetry.ts": "2c4e86f4fb02bceeca6ccdc1d17f73ec00b3632c95c53354d289b118d0d7e6d8",
+   "packages/server/src/telemetry/runtime.ts": "426e795b31ca1450f283b40e7171cd48bac418ad575c6b340469a6ae2015e570",
+   "packages/server/src/telemetry/sink.ts": "e9d1ad5f16aa89b77cfae2227388d975b354c3d2d6bbe326a13c98a816c1457e",
+   "packages/server/src/telemetry/identity.ts": "ba4202464b4341a33c7b717d2b14b4acf50c3e6355fb9a7ce421662c1fdcf90d",
+   "packages/server/src/telemetry/config.ts": "2decb42b508b78bd62220e639cda910b7041b0774da3d6cd9a2d1ce9af4514cd",
+   "packages/server/src/sim/gameplay.ts": "70f6f2b67571783f3042309bef01dc75aabd2656c59a184d0f97c9c0a8b8cf78",
+   "packages/server/src/sim/step.ts": "5ff90451b4b27b12ddfe8175745cf38892eaf07a851282c904076edc46896634",
+   "packages/server/src/sim/ledger.ts": "cc73151c50c43f65a85fc922050b2ea6a34973794ec893c7b7d51d657a4e6437",
+   "packages/server/src/sim/inputs.ts": "47bda82b978e67922c9d2361bfcd51be4555a55691453a4e0393deb917be4cde",
+   "packages/server/src/sim/chests.ts": "d8cd2785536280d24070259f9dc4cd062f42c7ffe9308b4899e683bb299623a4",
+   "packages/server/test/support/telemetryRig.ts": "92bd813f2ab7ec90f03d3a2c5d285e3d45860325c88f6abdb53d946236375f25"
+  },
+  "tool": "d8a547389a74ba03658cabd09a1282abd4c965246d8984bbaa04f42cc89bcbb8",
+  "schemaVersion": 1,
+  "captureSha256": "3e2e640fbee759a5a2259158a36cad45097ae10bd5a01ae537d15b7a7afcf2f1"
+ },
+ "scenario": {
+  "name": "two-player duel with one stat-chest offer",
+  "map": "open 60x40 hand-built floor with eight spawns",
+  "simConfig": {
+   "minPlayers": 2,
+   "lobbySeconds": 15,
+   "fillSeconds": 0,
+   "patienceSeconds": 10000,
+   "patienceMinSeconds": 10000,
+   "suddenDeathSeconds": 10000,
+   "pvpRules": false
+  },
+  "seed": 11,
+  "players": [
+   {
+    "id": "p0",
+    "profile": "player0",
+    "faction": "fire"
+   },
+   {
+    "id": "p1",
+    "profile": "player1",
+    "faction": "frost"
+   }
+  ],
+  "script": [
+   "one step closes the lobby into the run (raidStarted)",
+   "drop one stat chest by p0; one step; p0 chooses pick 1",
+   "p0 hits p1 for 30 (duel opens); one step",
+   "p0 hits p1 for 500 (kill; duel closes); two steps; the run ends",
+   "finalize through the real sink"
+  ],
+  "normalizedFields": {
+   "runId": "00000000-0000-4000-8000-000000000000",
+   "clock": "runtime.now() declared constant 1700000000000"
+  }
+ },
+ "record": {
+  "v": 1,
+  "kind": "run",
+  "durationMs": 250,
+  "end": "winner",
+  "seed": 0,
+  "attempt": 0,
+  "mapHash": 4105729181,
+  "config": {
+   "planSeconds": 0,
+   "quests": false,
+   "mobs": false,
+   "coliseumSchedule": false,
+   "botsFillTo": 0
+  },
+  "humans": 2,
+  "bots": 0,
+  "players": [
+   {
+    "slot": 0,
+    "bot": false,
+    "faction": "fire",
+    "spawn": {
+     "zone": "none",
+     "tx": 36,
+     "ty": 20,
+     "picked": false
+    },
+    "place": 1,
+    "outcome": "won",
+    "aliveMs": 250,
+    "death": null,
+    "kills": 1,
+    "botKills": 0,
+    "weaponMs": {},
+    "mainWeapon": "fists",
+    "zoneMs": {},
+    "final": {
+     "maxHp": 950,
+     "ad": 0,
+     "ap": 0,
+     "armor": 0,
+     "shield": 0,
+     "asMult": 1,
+     "speedMult": 1,
+     "cards": {},
+     "cardPower": 0,
+     "boosts": {
+      "lifesteal": 1
+     },
+     "boostsTotal": 1,
+     "trophies": {},
+     "mobStats": {},
+     "mobStatsTotal": 0
+    },
+    "snapshots": [],
+    "mobKills": {},
+    "eliteKills": 0,
+    "campsCleared": 0,
+    "farmMs": 0,
+    "dealt": {
+     "players": {
+      "weapon": 530
+     },
+     "mobs": {}
+    },
+    "taken": {},
+    "overkill": 330,
+    "healed": {},
+    "wish": {
+     "casts": 0,
+     "landed": 0,
+     "fizzled": 0,
+     "interrupted": 0,
+     "cancelled": 0,
+     "hits": 0,
+     "damage": 0
+    },
+    "potions": {
+     "small": 0,
+     "large": 0,
+     "granted": 0
+    },
+    "quests": {
+     "accepted": [],
+     "completed": []
+    },
+    "gv": {
+     "kills": 10
+    },
+    "winBonusWithheld": true,
+    "winBonusWhy": "starters",
+    "quit": false,
+    "tiles": "",
+    "pid": null,
+    "net": {
+     "drops": 0,
+     "reconnects": 0
+    },
+    "afkMs": 0,
+    "afk": false
+   },
+   {
+    "slot": 1,
+    "bot": false,
+    "faction": "frost",
+    "spawn": {
+     "zone": "none",
+     "tx": 12,
+     "ty": 20,
+     "picked": false
+    },
+    "place": 2,
+    "outcome": "died",
+    "aliveMs": 250,
+    "death": {
+     "kind": "player",
+     "at": 250,
+     "zone": "none",
+     "coliseum": false,
+     "bySlot": 0,
+     "weapon": "sword"
+    },
+    "kills": 0,
+    "botKills": 0,
+    "weaponMs": {},
+    "mainWeapon": "fists",
+    "zoneMs": {},
+    "final": {
+     "maxHp": 200,
+     "ad": 0,
+     "ap": 0,
+     "armor": 0,
+     "shield": 0,
+     "asMult": 1,
+     "speedMult": 1,
+     "cards": {},
+     "cardPower": 0,
+     "boosts": {},
+     "boostsTotal": 0,
+     "trophies": {},
+     "mobStats": {},
+     "mobStatsTotal": 0
+    },
+    "snapshots": [],
+    "mobKills": {},
+    "eliteKills": 0,
+    "campsCleared": 0,
+    "farmMs": 0,
+    "dealt": {
+     "players": {},
+     "mobs": {}
+    },
+    "taken": {
+     "weapon": 530
+    },
+    "overkill": 0,
+    "healed": {},
+    "wish": {
+     "casts": 0,
+     "landed": 0,
+     "fizzled": 0,
+     "interrupted": 0,
+     "cancelled": 0,
+     "hits": 0,
+     "damage": 0
+    },
+    "potions": {
+     "small": 0,
+     "large": 0,
+     "granted": 0
+    },
+    "quests": {
+     "accepted": [],
+     "completed": []
+    },
+    "gv": {},
+    "winBonusWithheld": false,
+    "quit": false,
+    "tiles": "",
+    "pid": null,
+    "net": {
+     "drops": 0,
+     "reconnects": 0
+    },
+    "afkMs": 0,
+    "afk": false
+   }
+  ],
+  "winnerSlot": 0,
+  "winBonusPaid": false,
+  "coliseum": {
+   "teleports": [],
+   "suddenDeath": []
+  },
+  "firstBlood": {
+   "at": 250,
+   "victim": 1,
+   "killer": 0
+  },
+  "duels": [
+   {
+    "i": 0,
+    "start": 150,
+    "end": 250,
+    "sides": [
+     {
+      "slot": 0,
+      "bot": false,
+      "faction": "fire",
+      "weapon": "fists",
+      "weaponsUsed": [
+       "sword"
+      ],
+      "augments": [],
+      "cardPower": 0,
+      "mobStatsTotal": 0,
+      "boostsTotal": 1,
+      "hp": 1,
+      "hpEnd": 1,
+      "dmg": {
+       "weapon": 530
+      },
+      "wishes": 0,
+      "terrain": ""
+     },
+     {
+      "slot": 1,
+      "bot": false,
+      "faction": "frost",
+      "weapon": "fists",
+      "weaponsUsed": [],
+      "augments": [],
+      "cardPower": 0,
+      "mobStatsTotal": 0,
+      "boostsTotal": 0,
+      "hp": 1,
+      "hpEnd": 0,
+      "dmg": {},
+      "wishes": 0,
+      "terrain": ""
+     }
+    ],
+    "first": 0,
+    "outcome": "kill",
+    "winner": 0,
+    "third": 0,
+    "clean": true,
+    "zone": "none",
+    "coliseum": false,
+    "comeback": false
+   }
+  ],
+  "offers": [
+   {
+    "i": 0,
+    "kind": "stat",
+    "at": 0,
+    "camp": -1,
+    "elite": false,
+    "options": [
+     "boost:maxHp",
+     "boost:lifesteal",
+     "boost:attackSpeed"
+    ],
+    "eligible": [
+     0
+    ],
+    "picks": [
+     {
+      "slot": 0,
+      "option": 1,
+      "at": 100
+     }
+    ]
+   }
+  ],
+  "camps": [],
+  "runId": "00000000-0000-4000-8000-000000000000",
+  "source": "test",
+  "build": {
+   "server": "capture-build",
+   "commit": "declared-commit"
+  },
+  "startedAtEpoch": 1700000000000,
+  "endedAtEpoch": 1700000000000
+ },
+ "recordLine": "{\"v\":1,\"kind\":\"run\",\"durationMs\":250,\"end\":\"winner\",\"seed\":0,\"attempt\":0,\"mapHash\":4105729181,\"config\":{\"planSeconds\":0,\"quests\":false,\"mobs\":false,\"coliseumSchedule\":false,\"botsFillTo\":0},\"humans\":2,\"bots\":0,\"players\":[{\"slot\":0,\"bot\":false,\"faction\":\"fire\",\"spawn\":{\"zone\":\"none\",\"tx\":36,\"ty\":20,\"picked\":false},\"place\":1,\"outcome\":\"won\",\"aliveMs\":250,\"death\":null,\"kills\":1,\"botKills\":0,\"weaponMs\":{},\"mainWeapon\":\"fists\",\"zoneMs\":{},\"final\":{\"maxHp\":950,\"ad\":0,\"ap\":0,\"armor\":0,\"shield\":0,\"asMult\":1,\"speedMult\":1,\"cards\":{},\"cardPower\":0,\"boosts\":{\"lifesteal\":1},\"boostsTotal\":1,\"trophies\":{},\"mobStats\":{},\"mobStatsTotal\":0},\"snapshots\":[],\"mobKills\":{},\"eliteKills\":0,\"campsCleared\":0,\"farmMs\":0,\"dealt\":{\"players\":{\"weapon\":530},\"mobs\":{}},\"taken\":{},\"overkill\":330,\"healed\":{},\"wish\":{\"casts\":0,\"landed\":0,\"fizzled\":0,\"interrupted\":0,\"cancelled\":0,\"hits\":0,\"damage\":0},\"potions\":{\"small\":0,\"large\":0,\"granted\":0},\"quests\":{\"accepted\":[],\"completed\":[]},\"gv\":{\"kills\":10},\"winBonusWithheld\":true,\"winBonusWhy\":\"starters\",\"quit\":false,\"tiles\":\"\",\"pid\":null,\"net\":{\"drops\":0,\"reconnects\":0},\"afkMs\":0,\"afk\":false},{\"slot\":1,\"bot\":false,\"faction\":\"frost\",\"spawn\":{\"zone\":\"none\",\"tx\":12,\"ty\":20,\"picked\":false},\"place\":2,\"outcome\":\"died\",\"aliveMs\":250,\"death\":{\"kind\":\"player\",\"at\":250,\"zone\":\"none\",\"coliseum\":false,\"bySlot\":0,\"weapon\":\"sword\"},\"kills\":0,\"botKills\":0,\"weaponMs\":{},\"mainWeapon\":\"fists\",\"zoneMs\":{},\"final\":{\"maxHp\":200,\"ad\":0,\"ap\":0,\"armor\":0,\"shield\":0,\"asMult\":1,\"speedMult\":1,\"cards\":{},\"cardPower\":0,\"boosts\":{},\"boostsTotal\":0,\"trophies\":{},\"mobStats\":{},\"mobStatsTotal\":0},\"snapshots\":[],\"mobKills\":{},\"eliteKills\":0,\"campsCleared\":0,\"farmMs\":0,\"dealt\":{\"players\":{},\"mobs\":{}},\"taken\":{\"weapon\":530},\"overkill\":0,\"healed\":{},\"wish\":{\"casts\":0,\"landed\":0,\"fizzled\":0,\"interrupted\":0,\"cancelled\":0,\"hits\":0,\"damage\":0},\"potions\":{\"small\":0,\"large\":0,\"granted\":0},\"quests\":{\"accepted\":[],\"completed\":[]},\"gv\":{},\"winBonusWithheld\":false,\"quit\":false,\"tiles\":\"\",\"pid\":null,\"net\":{\"drops\":0,\"reconnects\":0},\"afkMs\":0,\"afk\":false}],\"winnerSlot\":0,\"winBonusPaid\":false,\"coliseum\":{\"teleports\":[],\"suddenDeath\":[]},\"firstBlood\":{\"at\":250,\"victim\":1,\"killer\":0},\"duels\":[{\"i\":0,\"start\":150,\"end\":250,\"sides\":[{\"slot\":0,\"bot\":false,\"faction\":\"fire\",\"weapon\":\"fists\",\"weaponsUsed\":[\"sword\"],\"augments\":[],\"cardPower\":0,\"mobStatsTotal\":0,\"boostsTotal\":1,\"hp\":1,\"hpEnd\":1,\"dmg\":{\"weapon\":530},\"wishes\":0,\"terrain\":\"\"},{\"slot\":1,\"bot\":false,\"faction\":\"frost\",\"weapon\":\"fists\",\"weaponsUsed\":[],\"augments\":[],\"cardPower\":0,\"mobStatsTotal\":0,\"boostsTotal\":0,\"hp\":1,\"hpEnd\":0,\"dmg\":{},\"wishes\":0,\"terrain\":\"\"}],\"first\":0,\"outcome\":\"kill\",\"winner\":0,\"third\":0,\"clean\":true,\"zone\":\"none\",\"coliseum\":false,\"comeback\":false}],\"offers\":[{\"i\":0,\"kind\":\"stat\",\"at\":0,\"camp\":-1,\"elite\":false,\"options\":[\"boost:maxHp\",\"boost:lifesteal\",\"boost:attackSpeed\"],\"eligible\":[0],\"picks\":[{\"slot\":0,\"option\":1,\"at\":100}]}],\"camps\":[],\"runId\":\"00000000-0000-4000-8000-000000000000\",\"source\":\"test\",\"build\":{\"server\":\"capture-build\",\"commit\":\"declared-commit\"},\"startedAtEpoch\":1700000000000,\"endedAtEpoch\":1700000000000}"
+}
