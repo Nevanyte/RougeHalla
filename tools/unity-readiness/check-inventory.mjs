@@ -19,7 +19,7 @@ const PROTOCOL_FILES = {
   "crates/rh-protocol/src/map.rs": ["MapBlob"],
   "crates/rh-protocol/src/state.rs": [
     "WireRewardOption", "WireRewardChest", "WireBuild", "WireInventory", "WireProp", "WireFocus", "WireProps",
-    "WireField", "StateItem", "WireCamp", "WireProjectile",
+    "WireField", "StateItem", "WireCamp", "WireProjectile", "WirePlan", "WirePlanOption", "WireArena",
   ],
   "crates/rh-sim/src/observe.rs": ["SelfView", "ActorView", "SeenEvent", "Observation"],
 };
@@ -153,11 +153,11 @@ export function generateGaps(inventory) {
     "",
     `Inspected protocol source: \`${inventory.protocol.ref}\` at \`${inventory.protocol.revision}\`; protocol ${inventory.protocol.protocolVersion}, observation ${inventory.protocol.observationVersion}.`,
     "",
-    "Each section is one inventory mechanic. Names under Events and Fields are requested public presentation additions or existing observation facts that still need wire support; Mechanics records missing authoritative producers or external flows. An empty list is intentional.",
+    "Each section is one inventory cue. Events and Fields list missing public data or transport; Mechanics lists missing authoritative producers or external flows. Source availability does not mean a Unity cue is implemented, tested or visually complete. An empty list is intentional.",
     "",
   ];
   const missing = inventory.entries.filter((entry) => entry.status !== "available");
-  lines.push(`Status: ${missing.length} entries need work; ${inventory.entries.length - missing.length} entries are available.`, "");
+  lines.push(`Source status: ${missing.length} entries have gaps; ${inventory.entries.length - missing.length} entries have the required source facts. Unity implementation is not certified by this inventory.`, "");
   for (const entry of missing) {
     lines.push(`## ${entry.id}: ${entry.cue}`, "", `Status: **${entry.status}**. ${entry.trigger.reason || entry.notes}`, "");
     for (const [label, key] of [["Events", "events"], ["Fields", "fields"], ["Mechanics", "mechanics"]]) {
@@ -262,6 +262,11 @@ export function verifySourcePins(root, inventory) {
   const actualProtocol = execFileSync("git", ["rev-parse", inventory.protocol.ref], { cwd: root, encoding: "utf8" }).trim();
   if (actualProtocol !== inventory.protocol.revision) {
     throw new Error(`protocol ref ${inventory.protocol.ref} is ${actualProtocol}, not reviewed revision ${inventory.protocol.revision}`);
+  }
+  try {
+    execFileSync("git", ["diff", "--quiet", inventory.protocol.revision, "--", ...Object.keys(PROTOCOL_FILES), "crates/rh-server/src/wire.rs", "crates/rh-server/src/wire_state.rs"], { cwd: root, stdio: "pipe" });
+  } catch {
+    throw new Error(`protocol/observation/adapter source differs from reviewed revision ${inventory.protocol.revision}`);
   }
   try {
     execFileSync("git", ["diff", "--quiet", inventory.legacyRevision, "--", "packages/client"], { cwd: root, stdio: "pipe" });

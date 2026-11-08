@@ -418,7 +418,9 @@ Local: `bench/predictBench.ts` on the branch where the harness was written, befo
 The cited set is 3 runs of 4 bots, 7,249 rows; the second set is 3 runs, 10,176 rows. The cost figures come from a
 plain-JS microbenchmark. Neither report is in the repository.
 
-## Rust / Unity status — P-NET-1 Phase 0
+## Historical Rust / Unity measurement — P-NET-1 Phase 0
+
+These are historical protocol-6 slice measurements at `f62d3441`, not a benchmark of the integrated protocol-11/native-17 game. Later gameplay, collection State, transport and client changes need their own measurements. The earlier TypeScript research and learned-model proposals are historical context, not adopted Rust/Unity work; current R-ML prohibits training, models, datasets, Python bindings and inference services.
 
 Measured 2026-11-08 on macOS arm64 (Rust 1.97.0, release `wirebench`), branch `pnet-1/phase-0` based on `f62d3441`
 (with these bench changes uncommitted). Every run
@@ -487,8 +489,8 @@ Run from the repository root. Without `--scenario` the output is the same single
 
 **Recorded decision: not needed.** The measured typical load is **292 B/s per client (0.29 KB/s), 1.5% of the 20 KB/s
 gate (about 69x under it)**; its snapshot path alone is 249 B/s, and even sending every snapshot as a Full frame would
-cost 766 B/s. The heavy ceiling is 1,790 B/s (1.79 KB/s, 9% of the gate, about 11x under), and 1,819 B/s if every heavy
-snapshot were a Full frame. No delta compression was added and `PROTOCOL_VERSION` is unchanged. The packet's caveat
+cost 766 B/s. The heavy ceiling is 1,790 B/s (1.79 KB/s, 9% of the gate, about 11x under), and **3,085 B/s total** if every heavy
+snapshot were a Full frame (**1,819 B/s snapshots + 1,266 B/s Fx**). No delta compression was added and `PROTOCOL_VERSION` is unchanged. The packet's caveat
 stands: the slice sends full observations and heavier mechanics will change the answer, so re-run this bench when mobs,
 items or cards add actors or snapshot fields.
 
@@ -497,8 +499,7 @@ items or cards add actors or snapshot fields.
 Input-to-photon latency and p95 frame jitter at 50 / 100 / 150 ms RTT with about 1% loss were **not measured**, and no
 number for them is claimed here. Reasons:
 
-- No rendering client exists yet. `client-unity/RoguehallaNet` is an engine-independent library (its `Probe` is a
-  headless session client) and the Unity bootstrap is P-UNITY-1, so there is no photon event to timestamp.
+- This phase measured an engine-independent headless session and did not instrument a rendering client. Later Unity bootstrap/first-playable evidence does not retroactively provide input-to-photon timestamps for these runs.
 - The only in-scope network aid would be a new `netsim` proxy or an in-process lossy link. Even with one, a lossy-link
   test can measure server and protocol behaviour but not input-to-photon without a client that renders, so the requested
   figure needs infrastructure beyond this phase's write scope.

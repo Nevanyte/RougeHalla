@@ -83,10 +83,19 @@ test("unknown, reclassified and newly added protocol members fail closed", () =>
   assert.ok(added.errors.some((error) => error.includes("WireSelf.future_cue")));
 });
 
+test("new planning and arena codec members cannot silently escape classification", () => {
+  const sources = { ...protocolSources };
+  const path = "crates/rh-protocol/src/state.rs";
+  sources[path] = sources[path].replace("pub struct WirePlanOption {", "pub struct WirePlanOption {\n    pub future_owner_fact: u32,");
+  assert.ok(check(inventory, sources).errors.some((error) => error.includes("WirePlanOption.future_owner_fact")));
+  assert.ok(check().symbols.has("WireArena.gates_locked"));
+  assert.ok(check().symbols.has("WirePlan.ready"));
+});
+
 test("version and available/missing status drift are rejected", () => {
   const version = structuredClone(inventory);
   version.protocol.protocolVersion = 6;
-  assert.ok(check(version).errors.some((error) => error.includes("protocolVersion 6 != inspected 7")));
+  assert.ok(check(version).errors.some((error) => error.includes(`protocolVersion 6 != inspected ${inventory.protocol.protocolVersion}`)));
 
   const status = structuredClone(inventory);
   entry(status, "combat.hit-numbers-flash").status = "missing-in-protocol";
@@ -102,10 +111,13 @@ test("generated gaps retain exact per-mechanic events, fields and mechanics", ()
   assert.match(report, /## combat\.windup:/);
   assert.match(report, /WireFx\.Windup \{ by, weapon, a, ms \}/);
   assert.match(report, /## planning\.deal:/);
-  assert.match(report, /PlanningView\.options\[\] \{ index, at, zone, walk_distance, walk_seconds \}/);
+  assert.match(report, /Public MapBlob\.camps positions\/types needed for nearest-camp labels/);
   assert.match(report, /## quest\.world-markers:/);
   assert.match(report, /Port quest definitions, acceptance, carriers, hidden offers and lifecycle/);
   assert.ok(!report.includes("## map.collision:"));
+  assert.ok(!report.includes("## combat.teleport-flash:"));
+  assert.ok(!report.includes("## training.flow-console:"));
+  assert.match(report, /Unity implementation is not certified/);
 
   const changed = structuredClone(inventory);
   entry(changed, "combat.windup").protocolNeeds.fields = ["WireFx.Windup.exact_test_field"];

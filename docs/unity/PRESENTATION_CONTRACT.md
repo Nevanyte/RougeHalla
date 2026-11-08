@@ -5,10 +5,9 @@ This is the presentation inventory and implementation boundary for the Unity bro
 ## Source and version inspected
 
 - Legacy presentation source is `packages/client` at `7e131bac788a6d654ebfdeb3b6ab02b7771f704c` (the workstream base). Every cue names its real legacy file and symbol. Pure layout/model/stylesheet modules are either included in an owning cue or explicitly excluded with that owner.
-- The base checkout and its Unity netcode describe protocol 6. That is **not** the protocol version used for this contract.
-- Current upstream source was inspected read-only from `origin/deepseek/rust-completion` at **`9f79a3acbe8dbf67ebde52df4657ef4a38ceaa3b`**: `PROTOCOL_VERSION = 7` in `crates/rh-protocol/src/lib.rs` and `OBSERVATION_VERSION = 16` in `crates/rh-sim/src/observe.rs`.
-- Protocol names in `trigger` and `protocolUnused` come from that revision's `WireSelf`, `WireActor`, `WireEvent`, `WireFx`, `WireResult`, `MapBlob`, keyed-State records, `Observation`, `SelfView`, `ActorView` and `SeenEvent`. `crates/rh-server/src/wire.rs` was also inspected read-only to distinguish wire omissions from explicit refusals.
-- The CLI checks that the named upstream ref still resolves to the reviewed commit and that `packages/client` still matches the legacy revision. An upstream or legacy change therefore fails until the inventory is reviewed and re-pinned deliberately.
+- The integrated Rust source is pinned at **`7b19e3bdf2eb1db9590934095736444946179f41`**: protocol **11**, observation **17**. Older protocol-6/7 branch labels are historical, not this review boundary.
+- Protocol names in `trigger` and `protocolUnused` come from that revision's `WireSelf`, `WireActor`, `WireEvent`, `WireFx`, `WireResult`, `MapBlob`, keyed-State records including `WirePlan`, `WirePlanOption` and `WireArena`, plus `Observation`, `SelfView`, `ActorView` and `SeenEvent`. Both server wire adapters are pinned too, to distinguish transported facts from omitted/refused facts.
+- The CLI checks the immutable reviewed ref, actual codec/observation/adapter source against it, and the legacy client against its separate reviewed revision. A later source change fails until the inventory is reviewed and re-pinned deliberately.
 
 No DeepSeek-owned source, protocol fixture, shared status table or central ledger is changed by this workstream.
 
@@ -42,7 +41,7 @@ The following rules apply to every entry, including particles, light, shadow, an
 1. Render only `SelfView` and entities/facts delivered for that observer. A public roster, camp count, event id or result is never permission to create a hidden actor/contact.
 2. `Option`/redacted source and target fields stay absent. `WIRE_NO_SOURCE` is not an actor id. Observer-local pickup/reward/actor handles are not global runtime identities and cannot be used to discover concealed objects.
 3. Hidden actors lose all dependent cues: body, shadow, light, particles, status art, telegraph, target ring, projectile target, sound, minimap dot, edge indicator and objective marker. The owner-only faint hidden self is the legacy exception.
-4. `CastStarted`/`CastLanded` already redact hidden targets and coordinates in observation 16. Unity must also stop an existing beam/ring if an endpoint becomes hidden; it cannot recover the point from history.
+4. `CastStarted`/`CastLanded` already redact hidden targets and coordinates in observation 17. Unity must also stop an existing beam/ring if an endpoint becomes hidden; it cannot recover the point from history.
 5. Hits use the public per-step contribution. Private delayed signature windows, exact private damage rows, hidden sources and concealed recipient healing never enter presentation.
 6. Static map, zone, camp and public respawn facts may remain visible under fog where legacy says so. They never include live mob/player positions. Ward/hunted vision remains actor/cell scoped exactly as delivered.
 7. Secret deals, hidden quests/offers, chest rolls, drop contents, credentials, tickets, resume tokens, RNG and server-private diagnostics are never presentation inputs or logged output.
@@ -128,4 +127,8 @@ The first command validates and writes `docs/unity/PROTOCOL_GAPS.md`. The second
 
 ## Evidence boundary
 
-Existing evidence proves a selected protocol-6 MVP loop, not this full presentation surface. In particular, full Wish and Source arena/planning observations are explicitly refused by the inspected protocol-7 adapter; stable projectile identity/end events, public map layers, trail cells, quest/trade/training flows, full build/result details and several one-shot cues remain open. The generated report is the authoritative list of those gaps. No full-port, final-art, browser-matrix, performance or release claim follows from this contract.
+Existing Unity/bootstrap and first-playable evidence covers selected earlier slices, not all 125 inventory cues on protocol 11. The union now supplies owner planning deals, public arena state, teleport Fx, training mode/console notices, typed dummy/zombie actors, Plague corpse props, large-potion counts, wind/cannon transport and 80-card counted builds. These source facts do not certify their Unity presentation.
+
+Full Wish owner/cast transport remains explicitly refused. Public map/gate geometry, stable projectile lifecycle, trail/ward marker data, several signature/owner/stat mirrors, quest/trade flows, full result details and one-shot cues remain open. Native ward, camp recovery, zombie/corpse and Fire roam producers must not be relisted as unimplemented merely because their full presentation data is missing. Current camp recovery grants a Camp potion; the dormant historical campHeal effect does not justify inventing an immediate heal.
+
+The generated report lists exact remaining source gaps. Renderer choices, audio policy and performance targets remain proposals unless separately adopted and verified. Integrating this inventory does not approve pending deviation-ledger rows or resolve conflicts between the owner plan and Accepted ADRs/contracts. No full-port, final-art, browser-matrix, performance or release claim follows from this contract.
