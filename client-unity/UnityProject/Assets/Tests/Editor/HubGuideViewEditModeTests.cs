@@ -21,7 +21,10 @@ namespace Roguehalla.Client.Tests
         EventSystem MakeEventSystem()
         {
             var go = Create("EventSystem", typeof(EventSystem), typeof(StandaloneInputModule));
-            return go.GetComponent<EventSystem>();
+            var events = go.GetComponent<EventSystem>();
+            // OnEnable appends systems; promote this fixture so EventSystem.current is the system we assert against.
+            EventSystem.current = events;
+            return events;
         }
 
         [TearDown]
