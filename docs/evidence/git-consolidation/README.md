@@ -235,3 +235,18 @@ jobs pass; Rust and full simulation are still running at this receipt. G6 was de
 from immutable `febf1f3f` and its Running state verified; the evidence-only Post Rust lane is also running. The art
 prop/signature source drafts passed read-only review but remain isolated and uncompiled; a source-only no-socket
 action/direction selector is authorized, with build/browser/performance validation deferred to the next client batch.
+
+## Corrected partial perception evidence
+
+The source-witness branch `32ebb94f` plus reviewed test/claim/provenance repair `8d903b7c` is integrated in
+`b0310e73`. Only new source corpora/tools, native controls and evidence are added; production, old goldens and all
+current identities remain unchanged. Root reproduces the three corpora byte-exact, kills all three compiled semantic
+source mutants and restores the control. Four focused all-feature native tests pass after integration. Strict affected
+Clippy initially found a needless test borrow; the follow-up removes it, and final lint/format checks pass.
+[Receipts](local-check-receipts.json) retain both the initial failure and final results.
+
+This is admitted partial evidence, not approval for hidden-state aggregates or wider observations. Room lifecycle,
+committed prepared binding/carry equality and legacy/native visibility-time equivalence remain unproved. The source
+capture is now included in CI. The next Post Rust scope is source-only barrier-view arithmetic/schema/ring witnesses;
+G6 producer/expiry remains the separate private Rust lane. Source-only art drafts now have one bounded compilation/
+EditMode batch authorized; no fresh Web build or performance claim follows.

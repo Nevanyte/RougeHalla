@@ -53,7 +53,9 @@ The later A–D composition keeps the same native identities. Reviewed barter/ad
 tournament diagnostic runner are integrated in `fdf65513`/`8ce725db`. The composed gate passes956 remaining-workspace
 tests with private PG plus20 disjoint simulation tests, both strict workspace Clippy modes, formatting,15-check WSS and
 five actual-source byte recaptures. Two existing manual backend tests remain ignored; unchanged map campaigns are left
-to full CI. The fair-view proposal remains unapproved; evidence-only work does not widen C-OBS. G6 is authorized only as
+to full CI. Corrected partial perception evidence is integrated in `b0310e73`; source capture/mutants and four native
+controls pass, while room lifecycle, committed prepared carry and visibility-time equivalence remain unproved.
+The fair-view proposal remains unapproved; evidence-only work does not widen C-OBS. G6 is authorized only as
 a private candidate, with new state/content identity and public admission held under its packet.
 
 The `b01fc9e2` CI workspace component passes all1,520 default tests with three existing ignores, including the191 map

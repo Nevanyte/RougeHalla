@@ -365,6 +365,37 @@
       "file": "compose-native-parity-report.log",
       "bytes": 14821,
       "sha256": "055c49c70257d05ee2976f96b01177211cc501d8021d8b71cd634e19f98f7122"
+    },
+    {
+      "file": "percept-witness-capture.log",
+      "bytes": 445,
+      "sha256": "8913a6108462a6761a125c972a19c0623e2dd122045f12052ab932b73eb586a6"
+    },
+    {
+      "file": "percept-witness-mutants.log",
+      "bytes": 1175,
+      "sha256": "dc04f758b2babcb7239e26e73aa5a1f68edccfcd05c8d0c02ebcbe92ccfd403d"
+    },
+    {
+      "file": "percept-witness-integrated.log",
+      "bytes": 773,
+      "sha256": "df010c35ec40b274226b941663718b42ae655bfa05dd7da6e83b0f9278829f79"
+    },
+    {
+      "file": "percept-witness-fmt-final.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "percept-witness-clippy-final.log",
+      "bytes": 160,
+      "sha256": "6e1f664fd1b6b7635cb07dc8127f75b6632bbc91983b53e208c0d467c2d5c086"
+    },
+    {
+      "file": "percept-witness-clippy.log",
+      "bytes": 1112,
+      "sha256": "91c990c3ce1f0169716fb23d5c82ec2e3b06c9f1e6e85cabe302d001b7a37bdf",
+      "result": "Initial strict lint failed on a needless test borrow; corrected in follow-up. Final log passes."
     }
   ]
 }

@@ -67,7 +67,10 @@ must be resolved before dependent implementations; release evidence must test th
   rounding and null fallback. The docs-only observation proposal `47ffd063` is retained **without leaf approval**.
   The [admission review](coordination/FAIR_OBSERVATION_ADMISSION_REVIEW.md) rejects its blanket wire-unchanged premise;
   public counters, exact fields/event timing and allocation need evidence and a shared human transport decision.
-  Post Rust owns [P-PERCEPTION-WITNESS-1](coordination/P-PERCEPTION-WITNESS-1.md); observation17 cannot be reassigned.
+  The corrected partial [perception evidence](evidence/percept-witness/README.md) is integrated in `b0310e73`; genuine
+  lifecycle, committed prepared carry and visibility-time equivalence remain unproved. Observation17 cannot be
+  reassigned. Post Rust's next evidence-only packet is [barrier views](coordination/P-BARRIER-VIEW-WITNESS-1.md),
+  distinct from the private G6 producer. No new publication or precision change is approved by those captures.
 - `75eaa42e` learning prefix is integrated with the independently reviewed repair in `3619280f`: explicit opt-in,
   exclusive lease on the actual PostgreSQL I/O session, sticky detected-loss behavior and bounded shutdown. Runtime
   insertion-order/source-sorted restart and per-arrival bias are checked. Default remains Off; do not enable alongside

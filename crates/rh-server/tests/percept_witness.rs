@@ -340,7 +340,7 @@ fn observation_has_no_legacy_run_summary_aggregates_but_keeps_started_with() {
         sudden_death_at: 0.0,
         started_with: 3,
     };
-    let arena_json = serde_json::to_value(&arena).expect("ArenaView is serializable");
+    let arena_json = serde_json::to_value(arena).expect("ArenaView is serializable");
     assert_eq!(
         arena_json["started_with"],
         serde_json::json!(3),

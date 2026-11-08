@@ -90,7 +90,11 @@ plus20 disjoint affected simulation tests. Bot-fill16/16 is already included in9
 workspace Clippy modes, formatting and15-check real Chromium WSS pass. All five affected pinned source-capture commands
 reproduce byte exactly. Unchanged map campaigns were not repeated locally; full CI remains revision-scoped. Identity
 remains11/24/18/17/13/content `801a76cde4cfd305`. The [fair-view review](coordination/FAIR_OBSERVATION_ADMISSION_REVIEW.md)
-keeps broad observation changes held; Post Rust owns its evidence-only witness task. The next G6 heal-barrier assignment
+keeps broad observation changes held. The corrected partial source [witness](evidence/percept-witness/README.md) is
+integrated in `b0310e73`, with no production/version changes. Root source recapture, three semantic mutants/restored
+control and four focused native tests pass; actual room lifecycle, committed prepared carry and visibility-time
+equivalence remain unproved. Post Rust's next task is evidence-only barrier-view arithmetic, not new public leaves.
+The next G6 heal-barrier assignment
 is a private native candidate under its [packet](coordination/P-G6-HEAL-BARRIER-NATIVE.md), with checkpoint25/replay19
 reserved only for that candidate and a new content identity required. It cannot activate on the public profile before
 the lead resolves barrier publication/gating.
