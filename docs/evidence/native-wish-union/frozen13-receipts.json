@@ -1,0 +1,259 @@
+{
+  "nativeRef": "1310ae002870bf3fc674c7b65f38ff5ea55a7d75",
+  "note": "Revision-scoped logs, including intentional failing mutants, supplement prior receipts. See FROZEN13_GATE.md for successful scopes and limitations. Browser driver handoff is pending Trophy completion; the five-Wish report below is read-only evidence, not copied or modified. JS 18,205 output was observed in the original tool session and has no invented raw log.",
+  "archive": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08",
+  "artifacts": [
+    {
+      "file": "candidate-protocol13-root.log",
+      "bytes": 10687,
+      "sha256": "060ca5cbb90518b7c6b834a0be73dfdf4358dfa91521b7166f779e8aa348ded9"
+    },
+    {
+      "file": "candidate-csharp13-root.log",
+      "bytes": 1133,
+      "sha256": "1db70a7c4db4016522372449ea125eefb6ee5e51d834f2e165a9b937ae4e6ec9"
+    },
+    {
+      "file": "candidate-editor-stock-root.log",
+      "bytes": 466,
+      "sha256": "7366f20abe0fd10703d9c7388334911d2b2c701cb2d042d54034b5db53a5d857"
+    },
+    {
+      "file": "candidate-frost-npc-root.log",
+      "bytes": 2189,
+      "sha256": "cb4be3901f56176bfc2203482f1c8a5a5cc01102c4683fcfb66a22312c7faa26"
+    },
+    {
+      "file": "candidate-frost-typed-root.log",
+      "bytes": 2484,
+      "sha256": "f5745789120a0b846f173b242c6fd07bf822a22f81baa76ff175a3d3e6c369cf"
+    },
+    {
+      "file": "candidate-trophy-native-root.log",
+      "bytes": 7057,
+      "sha256": "07fabce7ef48d455a186ecc72988603dc74ee376524a610f3c635192f89933da"
+    },
+    {
+      "file": "candidate-trophy-observer-root.log",
+      "bytes": 2167,
+      "sha256": "03ef0ec65c87c037095c7ba55166cacf24798eaa968467623364471a46046361"
+    },
+    {
+      "file": "trophy-corrected-root.log",
+      "bytes": 463,
+      "sha256": "6a2865bde4397c47c5c0eeda64938d8041bcbcfc01b8796cd8afe82185678c22"
+    },
+    {
+      "file": "trophy-merged-root.log",
+      "bytes": 245,
+      "sha256": "4a80be7d07b3ae9a303635ffbcdb489a05ef81da0b97aebfcc5b94921bca49e1"
+    },
+    {
+      "file": "trophy-format-merged-root.log",
+      "bytes": 244,
+      "sha256": "63d5fb0bdea2e0b2d5e6643a49f30554a7a76069ae1dbf73833fe369fb0086e7"
+    },
+    {
+      "file": "frost-npc-boundary-root.log",
+      "bytes": 669,
+      "sha256": "2f4207163efbc01b4685cfcb2a26593e5f846ef4117ff6dd6680556448b003d6"
+    },
+    {
+      "file": "frost-npc-return-root.log",
+      "bytes": 302,
+      "sha256": "2152fee7174d77a84f31d426a6c5707640799a8d312b55b8d8399ef70da1a5ee"
+    },
+    {
+      "file": "wish-clock-fixed-root.log",
+      "bytes": 2323,
+      "sha256": "8710a0f00ddb7e3de2e246c7d9000e5b98b5f6a88a1e98a3f64d04196cf3209a"
+    },
+    {
+      "file": "wish-clock-root-controls.json",
+      "bytes": 737,
+      "sha256": "5b299edee3056489580009030fdf02d31d5b5e78f06df30fe48974b052b53b3c"
+    },
+    {
+      "file": "wish-clock-old-test-omitted-hash-root.log",
+      "bytes": 595,
+      "sha256": "4548de8c792f2db8b67434f37fab8ae7abae4cb3ed716d49b6e249f5b986b4db"
+    },
+    {
+      "file": "wish-clock-fixed-test-omitted-hash-root.log",
+      "bytes": 1221,
+      "sha256": "e53cd0d25cdfa425ac966b78031e6d790cc16ea44aa92665ba508cc69e781dbe"
+    },
+    {
+      "file": "wish-clock-restored-root.log",
+      "bytes": 2323,
+      "sha256": "348bc510065128558e7250d29951ec74a16a08d11cd5f700ad46a454e31d2e21"
+    },
+    {
+      "file": "backport25-actor-scratch-root.log",
+      "bytes": 2056,
+      "sha256": "7e2c1a694259dc4bd5f8389f21d3fc3e7efbb0dc5e23d13d34f0474018a4a7e4"
+    },
+    {
+      "file": "trophy-root-mutation-results.json",
+      "bytes": 1150,
+      "sha256": "dc93f24cc260b38e0f154cc3d7b9a196785b8d39f36a6bb3ec1fc8713fdb2191"
+    },
+    {
+      "file": "trophy-root-01-early-choose.log",
+      "bytes": 1195,
+      "sha256": "1b7cb15d2724014fa322b0c4912b0741a4bf4c8ccb6a77f9182db3f52d126623"
+    },
+    {
+      "file": "trophy-root-02-long-birth-hold.log",
+      "bytes": 1189,
+      "sha256": "ec39328d820e45a7b7f8c3f5bece2406d5abbd2ace1c68c05f209f794a66274b"
+    },
+    {
+      "file": "trophy-root-03-owner-guard-bypass.log",
+      "bytes": 1212,
+      "sha256": "088c60d614bfe3d8b20897db33c31706eb6d86239fe211bdc966c4177079d371"
+    },
+    {
+      "file": "trophy-root-04-comment-only.log",
+      "bytes": 572,
+      "sha256": "17552595942cf2a762df7f3cdb751b721e626c7dd3fb8bded27e555edace3318"
+    },
+    {
+      "file": "trophy-root-restored-control.log",
+      "bytes": 2484,
+      "sha256": "43ab294b486ae6b75ba41d30e207acdee76d365d6fc1cdf678f0f70fb7997e91"
+    },
+    {
+      "file": "frozen13-server-build-root.log",
+      "bytes": 651,
+      "sha256": "659d970c3097fe99d5ad3ac167fbf76ae1601e279899ad9927d813936c8b3358"
+    },
+    {
+      "file": "combined-content-markrate-tape-root.log",
+      "bytes": 6320,
+      "sha256": "b889227132891d5368d3808ae5a2ba9d45997d829585663603fdf1894821c6f1"
+    },
+    {
+      "file": "candidate-backend-gate/sealed-1310ae002870-progress.json",
+      "bytes": 5350,
+      "sha256": "0a4b7fb2e0c82d1fecf66be43734625b1d81bf565c4609a653e97aeea1451af5"
+    },
+    {
+      "file": "candidate-backend-gate/sealed-1310ae002870-workspace-excluding-sim.log",
+      "bytes": 98466,
+      "sha256": "af7705e218b0a3d717cf871e3cb567e1f96fb806231feabb94ec7255f10ffdcb"
+    },
+    {
+      "file": "candidate-backend-gate/sealed-1310ae002870-server-postgres.log",
+      "bytes": 36091,
+      "sha256": "3835cbca746dbbff8edd1572f480b861e690bdbe814cf18ab2f08520666cacbc"
+    },
+    {
+      "file": "candidate-backend-gate/sealed-1310ae002870-placement-postgres-faults.log",
+      "bytes": 21248,
+      "sha256": "a814c75e667897e4d92d9209d6d33695bd86fe1a9521cd67ce66a925810da348"
+    },
+    {
+      "file": "candidate-backend-gate/sealed-1310ae002870-parity-report.log",
+      "bytes": 14948,
+      "sha256": "e8c3ed3c239d26d170ca8309628babf932d39d1d1230a274589b969669a475c8"
+    },
+    {
+      "file": "candidate-backend-gate/sealed-1310ae002870-clippy-all-features.log",
+      "bytes": 1809,
+      "sha256": "b01c54d27426e1c860940a2815954fbfe54c5be94ccdfcec399d4b1992843d45"
+    },
+    {
+      "file": "candidate-backend-gate/sealed-1310ae002870-clippy-default.log",
+      "bytes": 985,
+      "sha256": "959aefca407dc7e1571429c6661395d1959a41b0376e46d1a3519d0898c422f8"
+    },
+    {
+      "file": "candidate-backend-gate/sealed-1310ae002870-fmt.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "fiveWishReport": {
+    "externalPath": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-trophy-wire13/docs/evidence/frozen-browser-1310/wish-attempt-1.json",
+    "bytes": 44391,
+    "sha256": "237fcac7c61303c9fee6e307182671742f089408496b158a75a686c4b60ef8a3"
+  },
+  "backend": {
+    "ref": "1310ae002870bf3fc674c7b65f38ff5ea55a7d75",
+    "status": "PASS",
+    "suites": [
+      {
+        "name": "workspace-excluding-sim",
+        "status": "pass",
+        "testResults": {
+          "groups": 123,
+          "passed": 830,
+          "failed": 0,
+          "ignored": 2
+        }
+      },
+      {
+        "name": "server-postgres",
+        "status": "pass",
+        "testResults": {
+          "groups": 28,
+          "passed": 332,
+          "failed": 0,
+          "ignored": 2
+        }
+      },
+      {
+        "name": "placement-postgres-faults",
+        "status": "pass",
+        "testResults": {
+          "groups": 14,
+          "passed": 236,
+          "failed": 0,
+          "ignored": 0
+        }
+      },
+      {
+        "name": "parity-report",
+        "status": "pass",
+        "testResults": {
+          "groups": 0,
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0
+        }
+      },
+      {
+        "name": "clippy-all-features",
+        "status": "pass",
+        "testResults": {
+          "groups": 0,
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0
+        }
+      },
+      {
+        "name": "clippy-default",
+        "status": "pass",
+        "testResults": {
+          "groups": 0,
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0
+        }
+      },
+      {
+        "name": "fmt",
+        "status": "pass",
+        "testResults": {
+          "groups": 0,
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0
+        }
+      }
+    ]
+  },
+  "featureCountCaution": "Feature suites overlap default tests; do not add counts as distinct tests. Prior cumulative824 belongs only to prefix history."
+}
