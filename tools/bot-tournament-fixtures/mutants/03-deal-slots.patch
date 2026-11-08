@@ -1,0 +1,13 @@
+diff --git a/crates/rh-headless/src/tournament.rs b/crates/rh-headless/src/tournament.rs
+index a8dff5c9..866ca944 100644
+--- a/crates/rh-headless/src/tournament.rs
++++ b/crates/rh-headless/src/tournament.rs
+@@ -150,7 +150,7 @@ pub fn deal_evenly<K: Clone>(kinds: &[K], seats: usize, seed: u32, tag: u32, ind
+     let mut rng = Mulberry32::new(mix(seed, tag.wrapping_mul(100_003).wrapping_add(block)));
+     let mut order = kinds.to_vec();
+     shuffle(&mut rng, &mut order);
+-    let mut slots: Vec<u32> = (0..seats).map(|i| (i % k) as u32).collect();
++    let mut slots: Vec<u32> = (0..seats).map(|i| ((i + 1) % k) as u32).collect();
+     shuffle(&mut rng, &mut slots);
+     slots
+         .into_iter()

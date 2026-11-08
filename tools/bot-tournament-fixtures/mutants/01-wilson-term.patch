@@ -1,0 +1,13 @@
+diff --git a/crates/rh-headless/src/tournament.rs b/crates/rh-headless/src/tournament.rs
+index a8dff5c9..48e6da9b 100644
+--- a/crates/rh-headless/src/tournament.rs
++++ b/crates/rh-headless/src/tournament.rs
+@@ -563,7 +563,7 @@ pub fn wilson(k: f64, n: f64, z: f64) -> Proportion {
+         };
+     }
+     let p = k / n;
+-    let z2 = z * z;
++    let z2 = 2. * z;
+     let denom = 1. + z2 / n;
+     let centre = (p + z2 / (2. * n)) / denom;
+     let half = (z * ((p * (1. - p)) / n + z2 / (4. * n * n)).sqrt()) / denom;
