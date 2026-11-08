@@ -4,6 +4,7 @@
 //! strategy scoring and feature modules are P-BOTS-2..4 and remain unported.
 use crate::bots::clicks::BotMap;
 use crate::bots::humanizer::{Context, Humanizer};
+use crate::bots::paths::{PathBudget, RoomPathService};
 use crate::bots::perception::Perception;
 use crate::bots::random::Rng;
 use crate::bots::types::{
@@ -74,8 +75,10 @@ pub struct HumanBot {
     prev_hp_frac: f64,
     roam: Option<rh_sim::Vec2>,
     plan_sent: bool,
-    /// The Wish module (P-BOTS-2): its availability/remember/retry state, and the public static map its blink landing reads.
+    /// The Wish module: its availability/remember/retry and slip state, and the public static map its blink landing reads.
     wish: WishModule,
+    /// The room path service the tactics read (P-BOTS-3): the shared budget, the cache and the clear/sight queries.
+    paths: Option<RoomPathService>,
 }
 
 impl HumanBot {
@@ -96,6 +99,7 @@ impl HumanBot {
             roam: None,
             plan_sent: false,
             wish: WishModule::new(),
+            paths: None,
         }
     }
     pub fn tier(&self) -> TierId {
@@ -278,6 +282,7 @@ impl Policy for HumanBot {
         self.roam = None;
         self.plan_sent = false;
         self.wish.reset(&m.arena.map);
+        self.paths = Some(RoomPathService::new(&m.arena.map, PathBudget::default()));
     }
     fn decide(&mut self, obs: &Observation) -> Vec<PublicCommand> {
         let mut out = Vec::new();
@@ -331,12 +336,31 @@ impl Policy for HumanBot {
         stimuli.extend(frame.stimuli);
         // The Wish module sees the same observation and the front end's chosen foe, and its cast is offered first: arming it is
         // part of deciding it, and the humanizer arbitrates by priority and channel as it does for every intent.
+        if let Some(paths) = self.paths.as_mut() {
+            paths.budget_mut().start_tick();
+            paths.set_frame(p.now, p.hud.gates_locked);
+        }
         self.wish.observe(&p, self.tier, &mut self.decide);
+        let slip_active = self.wish.goal_active(&p);
         let foe = self.front_foe(&p);
-        let mut intents =
-            self.wish
-                .intents(&p, &stimuli, foe.as_ref(), self.tier, &mut self.decide);
-        intents.extend(self.intents(&p, &stimuli));
+        let mut intents = {
+            let Some(paths) = self.paths.as_mut() else {
+                return;
+            };
+            self.wish.intents(
+                &p,
+                &stimuli,
+                foe.as_ref(),
+                self.tier,
+                &mut self.decide,
+                paths,
+            )
+        };
+        // While the Wish module holds the slip goal, the bot casts and walks away and locks nobody: the module goal is above
+        // every front-end goal (legacy strategy scores it 1.4 over a flee at 1.1), so the front end's intents are not offered.
+        if !slip_active {
+            intents.extend(self.intents(&p, &stimuli));
+        }
         let Some(humanizer) = self.humanizer.as_mut() else {
             return;
         };

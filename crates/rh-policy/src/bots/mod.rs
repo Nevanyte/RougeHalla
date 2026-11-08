@@ -8,6 +8,8 @@
 pub mod bot;
 pub mod clicks;
 pub mod humanizer;
+pub mod kite;
+pub mod paths;
 pub mod perception;
 pub mod random;
 pub mod types;
@@ -16,6 +18,8 @@ pub mod wish;
 #[cfg(test)]
 mod parity_tests;
 #[cfg(test)]
+mod paths_parity_tests;
+#[cfg(test)]
 mod wish_module_tests;
 #[cfg(test)]
 mod wish_parity_tests;
@@ -23,6 +27,8 @@ mod wish_parity_tests;
 pub use bot::{assign_seats, HumanBot};
 pub use clicks::{BotMap, MoveClickKind};
 pub use humanizer::{Context, Humanizer, HumanizerStats};
+pub use kite::{away_point, LENGTHS as KITE_LENGTHS, TURNS as KITE_TURNS};
+pub use paths::{PathBudget, PathStats, RoomPathService, WalkAnswer, BOT_PATH_BUDGET_PER_TICK};
 pub use perception::Perception;
 pub use random::Rng;
 pub use types::{

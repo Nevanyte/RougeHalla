@@ -17,6 +17,8 @@
 //! means in sight; a visible mob is targetable), since the bounded view does not carry the client's los flags; and the
 //! gate-locked collision variant is not available to the policy's static view (the open map is used; the declared corpus keeps
 //! gates unlocked, and the sim's blink landing rule is already parity-pinned in P-ABIL-1).
+use crate::bots::kite::away_point;
+use crate::bots::paths::RoomPathService;
 use crate::bots::random::Rng;
 use crate::bots::types::{
     Intent, IntentBody, IntentTiming, Percept, ServerMs, Stimulus, StimulusKind, TierId,
@@ -30,6 +32,8 @@ use rh_sim::{TileMap, Vec2};
 pub const EFFECT_STUNNED: u16 = 1;
 pub const EFFECT_ROOTED: u16 = 2;
 pub const EFFECT_SILENCED: u16 = 4;
+/// The hidden status bit (shared/status.ts EFFECT_HIDDEN): a hiding Wish puts it on its caster.
+pub const EFFECT_HIDDEN: u16 = 256;
 pub const EFFECT_CASTING: u16 = rh_sim::status_runtime::EFFECT_CASTING;
 /// shared/constants.ts TARGET_SNAP_RADIUS.
 pub const TARGET_SNAP_RADIUS: f64 = 64.;
@@ -538,6 +542,13 @@ pub struct WishModule {
     fighter_hits: Vec<(String, f64)>,
     map: Option<TileMap>,
     ring: Option<blink::Ring>,
+    /// A hiding Wish was decided at this time (None: none outstanding); its cast time and the time its cast showed in the bits.
+    armed_at: Option<f64>,
+    cast_ms: f64,
+    sent_at: Option<f64>,
+    /// Where the enemy the bot slips from last stood, and the slip's current leg.
+    from: Option<Vec2>,
+    leg: Option<(Vec2, f64)>,
 }
 impl Default for WishModule {
     fn default() -> Self {
@@ -554,6 +565,11 @@ impl WishModule {
             fighter_hits: Vec::new(),
             map: None,
             ring: None,
+            armed_at: None,
+            cast_ms: 0.,
+            sent_at: None,
+            from: None,
+            leg: None,
         }
     }
     /// Match start: independent state, and the public static map the landing search reads.
@@ -608,32 +624,56 @@ impl WishModule {
         foe: Option<&WishFoe>,
         tier: TierId,
         decide: &mut Rng,
+        paths: &mut RoomPathService,
     ) -> Vec<Intent> {
-        let Some(view) = p.extras.wish.as_ref() else {
-            return Vec::new();
-        };
-        let Some(def) = wish_by_id(view.ability) else {
-            return Vec::new();
-        };
+        let _ = decide;
+        let mut out = Vec::new();
+        if let Some(intent) = self.cast_intent(p, stimuli, foe, tier) {
+            out.push(intent);
+        }
+        if self.slipping(p) {
+            if let Some(step) = self.slip_intent(p, stimuli, paths) {
+                out.push(step);
+            }
+        }
+        out
+    }
+
+    /// The cast intent for this think, or None (the legacy castIntent: readiness, casting, the retry gap, the tier filter, the
+    /// situation, the decision; arming the slip when the Wish hides its caster).
+    fn cast_intent(
+        &mut self,
+        p: &Percept,
+        stimuli: &[Stimulus],
+        foe: Option<&WishFoe>,
+        tier: TierId,
+    ) -> Option<Intent> {
+        let view = p.extras.wish.as_ref()?;
+        let def = wish_by_id(view.ability)?;
         if !self.remembers
             || !usable(p, view)
             || view.casting
             || p.now - self.last_try_at < WISH_RULES.retry_ms
         {
-            return Vec::new();
+            return None;
         }
-        let Some(ai) = played_ai(def, tier) else {
-            return Vec::new();
-        };
-        let Some((map, ring)) = self.map.as_ref().zip(self.ring.as_ref()) else {
-            return Vec::new();
-        };
+        let ai = played_ai(def, tier)?;
+        let (map, ring) = self.map.as_ref().zip(self.ring.as_ref())?;
         let s = cast_situation(p, self, foe, map, ring);
-        let Some(choice) = decide_cast_with(def, ai, view.rank, &s) else {
-            return Vec::new();
-        };
+        let choice = decide_cast_with(def, ai, view.rank, &s)?;
         self.last_try_at = p.now;
         let rank = wish_rank(def, view.rank);
+        if hides_caster(def, view.rank) {
+            self.armed_at = Some(p.now);
+            self.cast_ms = rank.cast_ms;
+            self.sent_at = None;
+            self.leg = None;
+            self.from = s
+                .threat
+                .as_ref()
+                .map(|t| Vec2::new(t.x, t.y))
+                .or_else(|| s.foe.as_ref().map(|f| Vec2::new(f.x, f.y)));
+        }
         let priority = if s.me.hp_frac < ESCAPE_HP_HIT {
             PRIORITY_REFLEX
         } else {
@@ -643,10 +683,8 @@ impl WishModule {
             TargetRule::Unit { snap_radius, .. } => snap_radius,
             _ => TARGET_SNAP_RADIUS,
         };
-        let timing = timing_of(stimuli);
-        let _ = decide;
         let (x, y) = (choice.x, choice.y);
-        let intent = Intent {
+        Some(Intent {
             body: IntentBody::Cast {
                 slot: "wish".into(),
                 x,
@@ -656,10 +694,90 @@ impl WishModule {
                 snap_radius: Some(snap_radius),
             },
             priority,
-            timing,
+            timing: timing_of(stimuli),
             why: format!("cast {}", def.name),
+        })
+    }
+
+    /// Hidden, casting a hiding Wish, or having just decided to (the legacy slipping predicate): after the cast's time plus the
+    /// grace once the server shows the casting bit, the armed state is dropped.
+    pub fn slipping(&mut self, p: &Percept) -> bool {
+        if p.self_view.effects & EFFECT_HIDDEN != 0 {
+            return true;
+        }
+        let Some(armed) = self.armed_at else {
+            return false;
         };
-        vec![intent]
+        let casting = p.self_view.effects & EFFECT_CASTING != 0;
+        let keep = if let Some(sent) = self.sent_at {
+            casting || p.now < sent + self.cast_ms + WISH_RULES.slip_grace_ms
+        } else if casting {
+            self.sent_at = Some(p.now);
+            true
+        } else {
+            p.now < armed + WISH_RULES.slip_pending_ms
+        };
+        if !keep {
+            self.armed_at = None;
+            self.sent_at = None;
+            self.from = None;
+            self.leg = None;
+        }
+        keep
+    }
+
+    /// The module goal holds while slipping with somebody to slip from (the legacy goals() condition).
+    pub fn goal_active(&mut self, p: &Percept) -> bool {
+        self.slipping(p) && (self.from.is_some() || p.fighters.iter().any(|f| f.status == "alive"))
+    }
+
+    /// The walk away from the nearest enemy (or from where it last stood), re-chosen from where that is now once its leg has run
+    /// its time or been walked; offered again at every think, so a lock cannot take the order channel.
+    fn slip_intent(
+        &mut self,
+        p: &Percept,
+        stimuli: &[Stimulus],
+        paths: &mut RoomPathService,
+    ) -> Option<Intent> {
+        let self_at = Vec2::new(p.self_view.x, p.self_view.y);
+        if let Some((x, y)) = p
+            .fighters
+            .iter()
+            .filter(|f| f.status == "alive")
+            .map(|f| {
+                (
+                    f.x,
+                    f.y,
+                    rh_sim::math::hypot(f.x - self_at.x, f.y - self_at.y),
+                )
+            })
+            .min_by(|a, b| a.2.total_cmp(&b.2))
+            .map(|(x, y, _)| (x, y))
+        {
+            self.from = Some(Vec2::new(x, y));
+        }
+        let from = self.from?;
+        let mut to = self.leg.and_then(|(leg_to, leg_at)| {
+            if p.now - leg_at < WISH_RULES.slip_keep_ms
+                && rh_sim::math::hypot(leg_to.x - self_at.x, leg_to.y - self_at.y)
+                    > WISH_RULES.slip_arrived_u
+            {
+                Some(leg_to)
+            } else {
+                None
+            }
+        });
+        if to.is_none() {
+            let point = away_point(paths, self_at, from, WISH_RULES.slip_step_u, 0.)?;
+            self.leg = Some((point, p.now));
+            to = Some(point);
+        }
+        Some(Intent {
+            body: IntentBody::Move { to: to? },
+            priority: PRIORITY_REFLEX,
+            timing: timing_of(stimuli),
+            why: "slip away: hidden or about to be".into(),
+        })
     }
 }
 

@@ -2,6 +2,7 @@
 //! and the emitted commands are the one validated PublicCommand shape. These tests cover the hook (a cast through the humanizer
 //! and the intent channels), the tier filter, the blocked/casting/ready gates, the retry window and the fair hit memory.
 use crate::bots::bot::HumanBot;
+use crate::bots::paths::{PathBudget, RoomPathService};
 use crate::bots::perception::Perception;
 use crate::bots::types::{PersonaId, TierId, WishView};
 use crate::bots::wish::{WishModule, WISH_RULES};
@@ -241,6 +242,7 @@ fn the_module_retries_only_after_the_rule_gap_and_forgets_an_old_hit() {
     let start = start();
     let mut module = WishModule::new();
     module.reset(&start.arena.map);
+    let mut paths = RoomPathService::new(&start.arena.map, PathBudget::default());
     let mut perception = Perception::default();
     let mut decide = crate::bots::random::Rng::new(3);
     // Last Stand sustains at low hp while being hit: a hit 1000 ms ago counts, one older than the rule does not.
@@ -254,6 +256,7 @@ fn the_module_retries_only_after_the_rule_gap_and_forgets_an_old_hit() {
         None,
         TierId::Normal,
         &mut decide,
+        &mut paths,
     );
     assert_eq!(intents.len(), 1, "the fresh hit sustains");
     // Within the retry gap nothing is asked again.
@@ -268,7 +271,8 @@ fn the_module_retries_only_after_the_rule_gap_and_forgets_an_old_hit() {
                 &frame.stimuli,
                 None,
                 TierId::Normal,
-                &mut decide
+                &mut decide,
+                &mut paths,
             )
             .is_empty(),
         "the retry gap holds"
@@ -291,7 +295,8 @@ fn the_module_retries_only_after_the_rule_gap_and_forgets_an_old_hit() {
                 &frame.stimuli,
                 None,
                 TierId::Normal,
-                &mut decide
+                &mut decide,
+                &mut paths,
             )
             .is_empty(),
         "an old hit does not sustain"
@@ -315,6 +320,35 @@ fn the_easy_filter_keeps_only_the_defensive_tags() {
         crate::bots::wish::played_ai(blaze, TierId::Normal),
         Some(blaze.ai),
         "other tiers play every tag"
+    );
+}
+
+#[test]
+fn a_hidden_bot_slips_away_and_locks_nobody() {
+    // Hidden (the Swarm bit), with an enemy on screen: the Wish module's slip goal holds, so the seat walks away and offers no
+    // lock/attack intent for the front end (legacy strategy scores the module goal above every goal while it holds).
+    let commands = drives_to_cast(bot(TierId::Normal), |now| {
+        observation(
+            now,
+            wish(AbilityId::Swarm, 4_000.),
+            256,
+            900.,
+            false,
+            Some((600., 400.)),
+        )
+    });
+    assert!(
+        commands
+            .iter()
+            .any(|c| matches!(c, PublicCommand::Move { .. })),
+        "the seat slips: {commands:?}"
+    );
+    assert!(
+        !commands.iter().any(|c| matches!(
+            c,
+            PublicCommand::Target { .. } | PublicCommand::Attack { .. }
+        )),
+        "a slipping seat locks nobody: {commands:?}"
     );
 }
 

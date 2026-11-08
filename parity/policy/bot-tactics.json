@@ -1,0 +1,1650 @@
+{
+ "format": "rh-bot-paths-source/1",
+ "profile": {
+  "node": "v22.23.4",
+  "platform": "linux",
+  "arch": "x64",
+  "map": {
+   "w": 24,
+   "h": 24,
+   "seed": 1,
+   "tiles": [
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    0,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    1,
+    1,
+    1,
+    1,
+    0,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    0,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    0,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1
+   ]
+  },
+  "budgetPerTick": 3,
+  "sourceFiles": {
+   "packages/server/src/bots/brain/services.ts": "be3f915c4788b8e8406b6739d364fb3957935903555c26168c5892f93f7567fb",
+   "packages/server/src/bots/brain/tactics/kite.ts": "b7ceff483d51fe1d58d79ef34562e28a079027623527f11264c21439c2b6e2be",
+   "packages/server/src/bots/brain/types.ts": "12b3cae05bcde760cd642b9c5eb9919bfc47189882c81258994c9f1122d3d361",
+   "packages/server/src/bots/mobHunt.ts": "88fc22040e62b1bc5226c37c16095032533df1e104dee0b27fdcb671c33fe6ff",
+   "packages/shared/src/pathfind.ts": "300caa48788f84bdc780befe8c50db41c2c0b2be520d3fb43a7f91e16de424d9",
+   "packages/shared/src/geometry.ts": "b1a91a65281f8642b1779b81764768569311966ab493941101a2f988cfdc1f5d",
+   "packages/shared/src/map.ts": "35caac04108a3bd0e1d880a9502f14bdccb3a9a17d262cba335c3d6436995eed"
+  },
+  "sourceTree": "ea34d1c010d96ed47804929e98cea06e3b8dc27b184d4ceb8d0e7b4a7f747f18",
+  "tool": "625d00ae516f67b36e54734c531586899eb03a04d51724bf4c6505e1650423e7",
+  "captureSha256": "67c0e65bf738f563ee4e0c8378f63f37fd2e46074f2096884351b971fb93a8f2"
+ },
+ "script": [
+  {
+   "op": "frame",
+   "now": 0,
+   "gated": false,
+   "stats": {
+    "searches": 0,
+    "hits": 0,
+    "fallbacks": 0
+   },
+   "left": 3
+  },
+  {
+   "op": "walk",
+   "from": {
+    "x": 80,
+    "y": 80
+   },
+   "to": {
+    "x": 720,
+    "y": 720
+   },
+   "result": null,
+   "stats": {
+    "searches": 1,
+    "hits": 0,
+    "fallbacks": 0
+   },
+   "left": 2
+  },
+  {
+   "op": "walk",
+   "from": {
+    "x": 80,
+    "y": 80
+   },
+   "to": {
+    "x": 720,
+    "y": 720
+   },
+   "result": null,
+   "stats": {
+    "searches": 1,
+    "hits": 1,
+    "fallbacks": 0
+   },
+   "left": 2
+  },
+  {
+   "op": "path",
+   "from": {
+    "x": 80,
+    "y": 80
+   },
+   "to": {
+    "x": 720,
+    "y": 720
+   },
+   "result": null,
+   "stats": {
+    "searches": 1,
+    "hits": 2,
+    "fallbacks": 0
+   },
+   "left": 2
+  },
+  {
+   "op": "los",
+   "a": {
+    "x": 80,
+    "y": 80
+   },
+   "b": {
+    "x": 720,
+    "y": 720
+   },
+   "result": false,
+   "stats": {
+    "searches": 1,
+    "hits": 2,
+    "fallbacks": 0
+   },
+   "left": 2
+  },
+  {
+   "op": "clear",
+   "a": {
+    "x": 80,
+    "y": 80
+   },
+   "b": {
+    "x": 720,
+    "y": 720
+   },
+   "result": false,
+   "stats": {
+    "searches": 1,
+    "hits": 2,
+    "fallbacks": 0
+   },
+   "left": 2
+  },
+  {
+   "op": "walk",
+   "from": {
+    "x": 80,
+    "y": 400
+   },
+   "to": {
+    "x": 720,
+    "y": 80
+   },
+   "result": null,
+   "stats": {
+    "searches": 2,
+    "hits": 2,
+    "fallbacks": 0
+   },
+   "left": 1
+  },
+  {
+   "op": "walk",
+   "from": {
+    "x": 400,
+    "y": 400
+   },
+   "to": {
+    "x": 400,
+    "y": 500
+   },
+   "result": {
+    "dist": 64,
+    "exact": true
+   },
+   "stats": {
+    "searches": 3,
+    "hits": 2,
+    "fallbacks": 0
+   },
+   "left": 0
+  },
+  {
+   "op": "path",
+   "from": {
+    "x": 400,
+    "y": 400
+   },
+   "to": {
+    "x": 400,
+    "y": 500
+   },
+   "result": [
+    {
+     "x": 400,
+     "y": 464
+    }
+   ],
+   "stats": {
+    "searches": 3,
+    "hits": 3,
+    "fallbacks": 0
+   },
+   "left": 0
+  },
+  {
+   "op": "frame",
+   "now": 50,
+   "gated": false,
+   "stats": {
+    "searches": 3,
+    "hits": 3,
+    "fallbacks": 0
+   },
+   "left": 3
+  },
+  {
+   "op": "walk",
+   "from": {
+    "x": 80,
+    "y": 80
+   },
+   "to": {
+    "x": 720,
+    "y": 720
+   },
+   "result": null,
+   "stats": {
+    "searches": 3,
+    "hits": 4,
+    "fallbacks": 0
+   },
+   "left": 3
+  },
+  {
+   "op": "walk",
+   "from": {
+    "x": 400,
+    "y": 400
+   },
+   "to": {
+    "x": 400,
+    "y": 500
+   },
+   "result": {
+    "dist": 64,
+    "exact": true
+   },
+   "stats": {
+    "searches": 3,
+    "hits": 5,
+    "fallbacks": 0
+   },
+   "left": 3
+  },
+  {
+   "op": "frame",
+   "now": 1500,
+   "gated": false,
+   "stats": {
+    "searches": 3,
+    "hits": 5,
+    "fallbacks": 0
+   },
+   "left": 3
+  },
+  {
+   "op": "walk",
+   "from": {
+    "x": 80,
+    "y": 80
+   },
+   "to": {
+    "x": 720,
+    "y": 720
+   },
+   "result": null,
+   "stats": {
+    "searches": 4,
+    "hits": 5,
+    "fallbacks": 0
+   },
+   "left": 2
+  },
+  {
+   "op": "frame",
+   "now": 2500,
+   "gated": false,
+   "stats": {
+    "searches": 4,
+    "hits": 5,
+    "fallbacks": 0
+   },
+   "left": 3
+  },
+  {
+   "op": "walk",
+   "from": {
+    "x": 80,
+    "y": 80
+   },
+   "to": {
+    "x": 720,
+    "y": 720
+   },
+   "result": null,
+   "stats": {
+    "searches": 5,
+    "hits": 5,
+    "fallbacks": 0
+   },
+   "left": 2
+  },
+  {
+   "op": "frame",
+   "now": 9500,
+   "gated": false,
+   "stats": {
+    "searches": 5,
+    "hits": 5,
+    "fallbacks": 0
+   },
+   "left": 3
+  },
+  {
+   "op": "walk",
+   "from": {
+    "x": 80,
+    "y": 80
+   },
+   "to": {
+    "x": 720,
+    "y": 720
+   },
+   "result": null,
+   "stats": {
+    "searches": 6,
+    "hits": 5,
+    "fallbacks": 0
+   },
+   "left": 2
+  },
+  {
+   "op": "walk",
+   "from": {
+    "x": 88,
+    "y": 80
+   },
+   "to": {
+    "x": 720,
+    "y": 728
+   },
+   "result": null,
+   "stats": {
+    "searches": 7,
+    "hits": 5,
+    "fallbacks": 0
+   },
+   "left": 1
+  },
+  {
+   "op": "frame",
+   "now": 40000,
+   "gated": true,
+   "stats": {
+    "searches": 7,
+    "hits": 5,
+    "fallbacks": 0
+   },
+   "left": 3
+  },
+  {
+   "op": "walk",
+   "from": {
+    "x": 80,
+    "y": 80
+   },
+   "to": {
+    "x": 720,
+    "y": 720
+   },
+   "result": null,
+   "stats": {
+    "searches": 8,
+    "hits": 5,
+    "fallbacks": 0
+   },
+   "left": 2
+  },
+  {
+   "op": "walk",
+   "from": {
+    "x": 80,
+    "y": 80
+   },
+   "to": {
+    "x": 720,
+    "y": 720
+   },
+   "result": null,
+   "stats": {
+    "searches": 8,
+    "hits": 6,
+    "fallbacks": 0
+   },
+   "left": 2
+  },
+  {
+   "op": "frame",
+   "now": 40100,
+   "gated": false,
+   "stats": {
+    "searches": 8,
+    "hits": 6,
+    "fallbacks": 0
+   },
+   "left": 3
+  },
+  {
+   "op": "walk",
+   "from": {
+    "x": 80,
+    "y": 80
+   },
+   "to": {
+    "x": 720,
+    "y": 720
+   },
+   "result": null,
+   "stats": {
+    "searches": 9,
+    "hits": 6,
+    "fallbacks": 0
+   },
+   "left": 2
+  },
+  {
+   "op": "walk",
+   "from": {
+    "x": 16,
+    "y": 16
+   },
+   "to": {
+    "x": 80,
+    "y": 400
+   },
+   "result": {
+    "dist": 282.509668,
+    "exact": true
+   },
+   "stats": {
+    "searches": 10,
+    "hits": 6,
+    "fallbacks": 0
+   },
+   "left": 1
+  },
+  {
+   "op": "walk",
+   "from": {
+    "x": null,
+    "y": 0
+   },
+   "to": {
+    "x": 80,
+    "y": 400
+   },
+   "result": null,
+   "stats": {
+    "searches": 10,
+    "hits": 6,
+    "fallbacks": 0
+   },
+   "left": 1
+  },
+  {
+   "op": "path",
+   "from": {
+    "x": 80,
+    "y": 80
+   },
+   "to": {
+    "x": 16,
+    "y": 16
+   },
+   "result": [
+    {
+     "x": 80,
+     "y": 80
+    }
+   ],
+   "stats": {
+    "searches": 11,
+    "hits": 6,
+    "fallbacks": 0
+   },
+   "left": 0
+  },
+  {
+   "op": "away",
+   "self": {
+    "x": 80,
+    "y": 400
+   },
+   "threat": {
+    "x": 400,
+    "y": 400
+   },
+   "stepU": 300,
+   "jitter": 0,
+   "result": null
+  },
+  {
+   "op": "away",
+   "self": {
+    "x": 80,
+    "y": 400
+   },
+   "threat": {
+    "x": 400,
+    "y": 400
+   },
+   "stepU": 300,
+   "jitter": 0.4,
+   "result": null
+  },
+  {
+   "op": "away",
+   "self": {
+    "x": 80,
+    "y": 400
+   },
+   "threat": {
+    "x": 80,
+    "y": 400
+   },
+   "stepU": 300,
+   "jitter": 0,
+   "result": null
+  },
+  {
+   "op": "away",
+   "self": {
+    "x": 80,
+    "y": 400
+   },
+   "threat": {
+    "x": 80,
+    "y": 400
+   },
+   "stepU": 300,
+   "jitter": 0.4,
+   "result": null
+  },
+  {
+   "op": "away",
+   "self": {
+    "x": 80,
+    "y": 400
+   },
+   "threat": {
+    "x": 700,
+    "y": 700
+   },
+   "stepU": 300,
+   "jitter": 0,
+   "result": null
+  },
+  {
+   "op": "away",
+   "self": {
+    "x": 80,
+    "y": 400
+   },
+   "threat": {
+    "x": 700,
+    "y": 700
+   },
+   "stepU": 300,
+   "jitter": 0.4,
+   "result": null
+  },
+  {
+   "op": "away",
+   "self": {
+    "x": 85,
+    "y": 400
+   },
+   "threat": {
+    "x": 400,
+    "y": 400
+   },
+   "stepU": 300,
+   "jitter": 0,
+   "result": null
+  },
+  {
+   "op": "away",
+   "self": {
+    "x": 85,
+    "y": 400
+   },
+   "threat": {
+    "x": 400,
+    "y": 400
+   },
+   "stepU": 300,
+   "jitter": 0.4,
+   "result": null
+  },
+  {
+   "op": "away",
+   "self": {
+    "x": 85,
+    "y": 400
+   },
+   "threat": {
+    "x": 80,
+    "y": 400
+   },
+   "stepU": 300,
+   "jitter": 0,
+   "result": null
+  },
+  {
+   "op": "away",
+   "self": {
+    "x": 85,
+    "y": 400
+   },
+   "threat": {
+    "x": 80,
+    "y": 400
+   },
+   "stepU": 300,
+   "jitter": 0.4,
+   "result": null
+  },
+  {
+   "op": "away",
+   "self": {
+    "x": 85,
+    "y": 400
+   },
+   "threat": {
+    "x": 700,
+    "y": 700
+   },
+   "stepU": 300,
+   "jitter": 0,
+   "result": null
+  },
+  {
+   "op": "away",
+   "self": {
+    "x": 85,
+    "y": 400
+   },
+   "threat": {
+    "x": 700,
+    "y": 700
+   },
+   "stepU": 300,
+   "jitter": 0.4,
+   "result": null
+  },
+  {
+   "op": "away",
+   "self": {
+    "x": 400,
+    "y": 400
+   },
+   "threat": {
+    "x": 400,
+    "y": 400
+   },
+   "stepU": 300,
+   "jitter": 0,
+   "result": null
+  },
+  {
+   "op": "away",
+   "self": {
+    "x": 400,
+    "y": 400
+   },
+   "threat": {
+    "x": 400,
+    "y": 400
+   },
+   "stepU": 300,
+   "jitter": 0.4,
+   "result": null
+  },
+  {
+   "op": "away",
+   "self": {
+    "x": 400,
+    "y": 400
+   },
+   "threat": {
+    "x": 80,
+    "y": 400
+   },
+   "stepU": 300,
+   "jitter": 0,
+   "result": null
+  },
+  {
+   "op": "away",
+   "self": {
+    "x": 400,
+    "y": 400
+   },
+   "threat": {
+    "x": 80,
+    "y": 400
+   },
+   "stepU": 300,
+   "jitter": 0.4,
+   "result": null
+  },
+  {
+   "op": "away",
+   "self": {
+    "x": 400,
+    "y": 400
+   },
+   "threat": {
+    "x": 700,
+    "y": 700
+   },
+   "stepU": 300,
+   "jitter": 0,
+   "result": null
+  },
+  {
+   "op": "away",
+   "self": {
+    "x": 400,
+    "y": 400
+   },
+   "threat": {
+    "x": 700,
+    "y": 700
+   },
+   "stepU": 300,
+   "jitter": 0.4,
+   "result": null
+  },
+  {
+   "op": "away",
+   "self": {
+    "x": 600,
+    "y": 400
+   },
+   "threat": {
+    "x": 400,
+    "y": 400
+   },
+   "stepU": 300,
+   "jitter": 0,
+   "result": null
+  },
+  {
+   "op": "away",
+   "self": {
+    "x": 600,
+    "y": 400
+   },
+   "threat": {
+    "x": 400,
+    "y": 400
+   },
+   "stepU": 300,
+   "jitter": 0.4,
+   "result": null
+  },
+  {
+   "op": "away",
+   "self": {
+    "x": 600,
+    "y": 400
+   },
+   "threat": {
+    "x": 80,
+    "y": 400
+   },
+   "stepU": 300,
+   "jitter": 0,
+   "result": null
+  },
+  {
+   "op": "away",
+   "self": {
+    "x": 600,
+    "y": 400
+   },
+   "threat": {
+    "x": 80,
+    "y": 400
+   },
+   "stepU": 300,
+   "jitter": 0.4,
+   "result": null
+  },
+  {
+   "op": "away",
+   "self": {
+    "x": 600,
+    "y": 400
+   },
+   "threat": {
+    "x": 700,
+    "y": 700
+   },
+   "stepU": 300,
+   "jitter": 0,
+   "result": null
+  },
+  {
+   "op": "away",
+   "self": {
+    "x": 600,
+    "y": 400
+   },
+   "threat": {
+    "x": 700,
+    "y": 700
+   },
+   "stepU": 300,
+   "jitter": 0.4,
+   "result": null
+  },
+  {
+   "op": "away",
+   "self": {
+    "x": 500,
+    "y": 500
+   },
+   "threat": {
+    "x": 400,
+    "y": 400
+   },
+   "stepU": 300,
+   "jitter": 0,
+   "result": null
+  },
+  {
+   "op": "away",
+   "self": {
+    "x": 500,
+    "y": 500
+   },
+   "threat": {
+    "x": 400,
+    "y": 400
+   },
+   "stepU": 300,
+   "jitter": 0.4,
+   "result": null
+  },
+  {
+   "op": "away",
+   "self": {
+    "x": 500,
+    "y": 500
+   },
+   "threat": {
+    "x": 80,
+    "y": 400
+   },
+   "stepU": 300,
+   "jitter": 0,
+   "result": null
+  },
+  {
+   "op": "away",
+   "self": {
+    "x": 500,
+    "y": 500
+   },
+   "threat": {
+    "x": 80,
+    "y": 400
+   },
+   "stepU": 300,
+   "jitter": 0.4,
+   "result": null
+  },
+  {
+   "op": "away",
+   "self": {
+    "x": 500,
+    "y": 500
+   },
+   "threat": {
+    "x": 700,
+    "y": 700
+   },
+   "stepU": 300,
+   "jitter": 0,
+   "result": null
+  },
+  {
+   "op": "away",
+   "self": {
+    "x": 500,
+    "y": 500
+   },
+   "threat": {
+    "x": 700,
+    "y": 700
+   },
+   "stepU": 300,
+   "jitter": 0.4,
+   "result": null
+  },
+  {
+   "op": "away",
+   "self": {
+    "x": 16,
+    "y": 16
+   },
+   "threat": {
+    "x": 400,
+    "y": 400
+   },
+   "stepU": 300,
+   "jitter": 0,
+   "result": null
+  },
+  {
+   "op": "away",
+   "self": {
+    "x": 16,
+    "y": 16
+   },
+   "threat": {
+    "x": 400,
+    "y": 400
+   },
+   "stepU": 300,
+   "jitter": 0.4,
+   "result": null
+  },
+  {
+   "op": "away",
+   "self": {
+    "x": 16,
+    "y": 16
+   },
+   "threat": {
+    "x": 80,
+    "y": 400
+   },
+   "stepU": 300,
+   "jitter": 0,
+   "result": null
+  },
+  {
+   "op": "away",
+   "self": {
+    "x": 16,
+    "y": 16
+   },
+   "threat": {
+    "x": 80,
+    "y": 400
+   },
+   "stepU": 300,
+   "jitter": 0.4,
+   "result": null
+  },
+  {
+   "op": "away",
+   "self": {
+    "x": 16,
+    "y": 16
+   },
+   "threat": {
+    "x": 700,
+    "y": 700
+   },
+   "stepU": 300,
+   "jitter": 0,
+   "result": null
+  },
+  {
+   "op": "away",
+   "self": {
+    "x": 16,
+    "y": 16
+   },
+   "threat": {
+    "x": 700,
+    "y": 700
+   },
+   "stepU": 300,
+   "jitter": 0.4,
+   "result": null
+  },
+  {
+   "op": "away",
+   "self": {
+    "x": 400,
+    "y": 80
+   },
+   "threat": {
+    "x": 400,
+    "y": 400
+   },
+   "stepU": 300,
+   "jitter": 0,
+   "result": null
+  },
+  {
+   "op": "away",
+   "self": {
+    "x": 400,
+    "y": 80
+   },
+   "threat": {
+    "x": 400,
+    "y": 400
+   },
+   "stepU": 300,
+   "jitter": 0.4,
+   "result": null
+  },
+  {
+   "op": "away",
+   "self": {
+    "x": 400,
+    "y": 80
+   },
+   "threat": {
+    "x": 80,
+    "y": 400
+   },
+   "stepU": 300,
+   "jitter": 0,
+   "result": null
+  },
+  {
+   "op": "away",
+   "self": {
+    "x": 400,
+    "y": 80
+   },
+   "threat": {
+    "x": 80,
+    "y": 400
+   },
+   "stepU": 300,
+   "jitter": 0.4,
+   "result": null
+  },
+  {
+   "op": "away",
+   "self": {
+    "x": 400,
+    "y": 80
+   },
+   "threat": {
+    "x": 700,
+    "y": 700
+   },
+   "stepU": 300,
+   "jitter": 0,
+   "result": null
+  },
+  {
+   "op": "away",
+   "self": {
+    "x": 400,
+    "y": 80
+   },
+   "threat": {
+    "x": 700,
+    "y": 700
+   },
+   "stepU": 300,
+   "jitter": 0.4,
+   "result": null
+  }
+ ]
+}
