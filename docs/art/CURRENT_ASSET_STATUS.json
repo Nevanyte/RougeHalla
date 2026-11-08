@@ -1,0 +1,148 @@
+{
+  "schema": "rougehalla-current-asset-status/1",
+  "snapshotDate": "2026-11-08",
+  "statusOnly": true,
+  "sourceInventory": {
+    "path": "docs/art/inventory/asset-checklist.json",
+    "format": 1,
+    "sourceRevision": "70579162ce41a1325aaed1a65a34b65b779ad1e7",
+    "historicalInventoryModified": false
+  },
+  "checkpointBinding": {
+    "baseCommit": "4b58dbf3",
+    "continuationCommit": "9181dc323720da3049a5db7b11cfa264b9502376",
+    "additionalOriginalPropReview": "current isolated continuation; compile and actual Unity review receipts included"
+  },
+  "coverage": [
+    {
+      "inventoryIds": [
+        "actor.faction-body"
+      ],
+      "state": "bound_compiled",
+      "counts": {
+        "appearances": 12,
+        "persistentFrameSprites": 3008,
+        "factionMappings": 5
+      },
+      "limits": [
+        "Authored eight-direction clips are retained.",
+        "The static knight intentionally has idle only."
+      ]
+    },
+    {
+      "inventoryIds": [
+        "mob.role-elite-art"
+      ],
+      "state": "bound_compiled",
+      "counts": {
+        "canonicalMobMappings": 30,
+        "eliteEmblems": 10
+      },
+      "limits": [
+        "Mob types reuse authored appearance families; there are not thirty unique species artworks."
+      ]
+    },
+    {
+      "inventoryIds": [
+        "loot.world-props"
+      ],
+      "state": "imported_opt_in_review_catalog",
+      "counts": {
+        "sourcedPropSprites": 42,
+        "physicsShapes": 0,
+        "originalGapPropSpritesReviewedInUnity": 9
+      },
+      "limits": [
+        "No world placement or zone mapping is inferred.",
+        "Candidate samples do not prove complete geometry for all prop kinds."
+      ]
+    },
+    {
+      "inventoryIds": [
+        "combat.swing",
+        "combat.block"
+      ],
+      "state": "audio_library_bound_supported_mappings_compiled",
+      "counts": {
+        "pinnedFreeClips": 24,
+        "semanticCueGroups": 21
+      },
+      "limits": [
+        "Not a final mix acceptance.",
+        "Only currently supported delivered cues are mapped."
+      ]
+    },
+    {
+      "inventoryIds": [
+        "map.zone-art",
+        "map.terrain-animation",
+        "terrain.feedback-chips"
+      ],
+      "state": "compiled_review_study_runtime_mapping_protocol_gated",
+      "counts": {
+        "biomeFloors": 5,
+        "terrainEffectStudies": 4,
+        "biomeTerrainIdentitiesInMapProtocol": 0
+      },
+      "limits": [
+        "No biome-specific runtime placement was proved."
+      ],
+      "mapCollisionFactKinds": [
+        "Floor",
+        "Wall",
+        "Low"
+      ]
+    },
+    {
+      "inventoryIds": [
+        "hud.vitals-build",
+        "settings.display-accessibility",
+        "connection.banner-errors"
+      ],
+      "state": "icon_art_compiled_ui_implementation_separate_lane",
+      "counts": {
+        "proceduralIconSprites": 35
+      },
+      "limits": [
+        "Icon art is not integrated UI; related UI implementation is outside this checkpoint."
+      ]
+    }
+  ],
+  "verification": {
+    "editMode": {
+      "passed": 62,
+      "failed": 0
+    },
+    "domainReload": {
+      "appearances": 12,
+      "persistentFrameSprites": 3008,
+      "nonNullAudioVariants": 24
+    },
+    "nativeUnityProof": {
+      "protocolVersion": 13,
+      "separateInputPasses": [
+        {
+          "swings": 3,
+          "hits": 3
+        },
+        {
+          "swings": 3,
+          "hits": 0
+        }
+      ],
+      "cameraScreenshot": "evidence/live-integration-2026-11-08/native-combat.png",
+      "screenshotIsBrowserCapture": false,
+      "wishFxObserved": false
+    },
+    "notClaimed": [
+      "new Web build",
+      "browser proof",
+      "completed final mix",
+      "physical performance acceptance",
+      "thirty unique mob species artworks"
+    ]
+  },
+  "externalStagingOnly": [
+    "audio gain audition candidates pending context playback review"
+  ]
+}
