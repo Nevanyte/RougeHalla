@@ -1307,7 +1307,7 @@ mod tests {
 
     // ---- P-FROST-NPC-RECIPIENTS-1: bound source profile, strong typed-provenance consumer ----
     use crate::{mob_runtime::MobMode, validate, Arena, RawCommand, TileMap};
-    use std::collections::BTreeMap;
+    use std::collections::{BTreeMap, BTreeSet};
     const FR_NPC_FIXTURE: &str = include_str!("../../../../parity/frost-npc/source.json");
     const FR_NPC_BOUNDARY: &str = include_str!("../../../../parity/frost-npc/boundary.json");
     const FR_NPC_RETURN: &str = include_str!("../../../../parity/frost-npc/return.json");
@@ -1386,14 +1386,16 @@ mod tests {
     fn fr_npc_players<'a>(value: &'a Value, key: &str) -> &'a Value {
         &value[key]
     }
-    fn fr_npc_id(s: &str, seats: usize) -> PlayerId {
-        if let Some(n) = s.strip_prefix('p') {
-            PlayerId(n.parse::<u32>().unwrap() + 1)
-        } else {
-            PlayerId(
-                seats as u32 + u32::from_str_radix(s.strip_prefix("mob").unwrap(), 36).unwrap(),
-            )
-        }
+    /// Resolve a captured source actor label through the typed source -> native binding. Players and NPCs are both
+    /// bound explicitly; an unknown label is a hard comparison failure, never contiguous-id arithmetic.
+    fn fr_npc_ref(
+        map: &BTreeMap<String, PlayerId>,
+        label: &str,
+        what: &str,
+    ) -> Result<PlayerId, String> {
+        map.get(label)
+            .copied()
+            .ok_or_else(|| format!("unknown source actor {label} in {what}"))
     }
     fn fr_npc_close(a: f64, b: f64, label: &str) -> Result<(), String> {
         if (a - b).abs() <= 1e-9 * b.abs().max(1.) {
@@ -1478,16 +1480,31 @@ mod tests {
         fr_npc_bind_missing_mobs(sim, &case["initial"], seats, &mut map)?;
         Ok(map)
     }
+    fn fr_npc_assert_unique(map: &BTreeMap<String, PlayerId>) -> Result<(), String> {
+        let mut seen = BTreeSet::new();
+        for id in map.values() {
+            if !seen.insert(*id) {
+                return Err(format!(
+                    "duplicate native binding for native actor {}",
+                    id.0
+                ));
+            }
+        }
+        Ok(())
+    }
     /// Bind every source mob key to a native actor through typed birth provenance (camp, elite, catalog type, home),
-    /// never an id-range assumption. New source keys after a death/respawn are matched the same way.
+    /// never an id-range assumption. New source keys after a death/respawn are matched the same way. Every accepted
+    /// binding is recorded immediately, so one native identity can never be selected twice; missing, duplicate and
+    /// ambiguous provenance matches are hard failures.
     fn fr_npc_bind_missing_mobs(
         sim: &Sim,
         owner: &Value,
-        seats: usize,
+        _seats: usize,
         map: &mut BTreeMap<String, PlayerId>,
     ) -> Result<(), String> {
         let native = sim.mobs();
-        let mapped: Vec<PlayerId> = map.values().copied().collect();
+        fr_npc_assert_unique(map)?;
+        let mut mapped: Vec<PlayerId> = map.values().copied().collect();
         for row in owner["mobs"].as_array().unwrap() {
             let key = row["id"].as_str().unwrap().to_owned();
             if map.contains_key(&key) {
@@ -1501,24 +1518,55 @@ mod tests {
             let home = &brain["home"];
             let hx = home["x"].as_f64().unwrap();
             let hy = home["y"].as_f64().unwrap();
-            let found = native
+            let candidates: Vec<PlayerId> = native
                 .iter()
-                .filter(|m| !mapped.contains(&m.core.id))
-                .find(|m| {
-                    m.camp == camp.saturating_sub(1)
+                .filter(|m| {
+                    !mapped.contains(&m.core.id)
+                        && m.camp == camp.saturating_sub(1)
                         && m.elite == elite
                         && m.mob_type.as_ref().is_some_and(|t| t.as_str() == ty)
                         && (m.home.x - hx).abs() < 1.0
                         && (m.home.y - hy).abs() < 1.0
                 })
-                .ok_or_else(|| {
+                .map(|m| m.core.id)
+                .collect();
+            let found = match candidates.as_slice() {
+                [] => {
                     let listing: Vec<String> = native
                         .iter()
-                        .map(|m| format!("{} camp{} elite{} type{:?} home({:.1},{:.1})", m.core.id.0, m.camp, m.elite, m.mob_type.as_ref().map(|t| t.as_str()), m.home.x, m.home.y))
+                        .map(|m| {
+                            format!(
+                                "{} camp{} elite{} type{:?} home({:.1},{:.1})",
+                                m.core.id.0,
+                                m.camp,
+                                m.elite,
+                                m.mob_type.as_ref().map(|t| t.as_str()),
+                                m.home.x,
+                                m.home.y
+                            )
+                        })
                         .collect();
-                    format!("missing actor for source mob {key} (camp {camp} elite {elite} type {ty} home {hx},{hy}); natives: {listing:?}")
-                })?;
-            map.insert(key, found.core.id);
+                    return Err(format!(
+                        "missing actor for source mob {key} (camp {camp} elite {elite} type {ty} home {hx},{hy}); natives: {listing:?}"
+                    ));
+                }
+                [id] => *id,
+                _ => {
+                    return Err(format!(
+                        "ambiguous actor binding for source mob {key}: native candidates {:?}",
+                        candidates.iter().map(|id| id.0).collect::<Vec<_>>()
+                    ));
+                }
+            };
+            if mapped.contains(&found) {
+                return Err(format!(
+                    "duplicate native binding for source mob {key}: native actor {}",
+                    found.0
+                ));
+            }
+            mapped.push(found);
+            map.insert(key, found);
+            fr_npc_assert_unique(map)?;
         }
         // Every STANDING native actor must have a source key: an unexpected extra actor is a comparator failure.
         for m in native {
@@ -1529,14 +1577,13 @@ mod tests {
                 ));
             }
         }
-        let _ = seats;
         Ok(())
     }
     fn fr_npc_apply(
         sim: &mut Sim,
         commands: &[Value],
         map: &BTreeMap<String, PlayerId>,
-        seats: usize,
+        _seats: usize,
     ) -> Result<(), String> {
         for c in commands {
             let raw = match c["kind"].as_str().unwrap() {
@@ -1550,11 +1597,7 @@ mod tests {
                 },
                 "target" => {
                     let sid = c["id"].as_str().unwrap();
-                    let id = map
-                        .get(sid)
-                        .copied()
-                        .or_else(|| sid.starts_with('p').then(|| fr_npc_id(sid, seats)))
-                        .ok_or_else(|| format!("command references unknown target {sid}"))?;
+                    let id = fr_npc_ref(map, sid, "command target")?;
                     RawCommand::Target { id }
                 }
                 "move" => RawCommand::Move {
@@ -1565,11 +1608,7 @@ mod tests {
                 other => return Err(format!("unadmitted command {other}")),
             };
             let sid = c["actor"].as_str().unwrap();
-            let id = map
-                .get(sid)
-                .copied()
-                .or_else(|| sid.starts_with('p').then(|| fr_npc_id(sid, seats)))
-                .ok_or_else(|| format!("command references unknown actor {sid}"))?;
+            let id = fr_npc_ref(map, sid, "command actor")?;
             sim.submit(id, validate(raw).unwrap()).unwrap();
         }
         Ok(())
@@ -1591,7 +1630,7 @@ mod tests {
         frame: &Value,
         events: &[crate::Event],
         map: &BTreeMap<String, PlayerId>,
-        seats: usize,
+        _seats: usize,
         name: &str,
         damage_drift: bool,
     ) -> Result<(), String> {
@@ -1711,12 +1750,20 @@ mod tests {
             if native.brain.holding != brain["holding"].as_bool().unwrap() {
                 return Err(format!("{name}: {key} holding"));
             }
-            let native_target = native.brain.target.map(|t| {
-                map.iter()
-                    .find(|(_, id)| **id == t)
-                    .map(|(k, _)| k.clone())
-                    .unwrap_or_else(|| format!("p{}", t.0 - 1))
-            });
+            let native_target = match native.brain.target {
+                None => None,
+                Some(t) => Some(
+                    map.iter()
+                        .find(|(_, id)| **id == t)
+                        .map(|(k, _)| k.clone())
+                        .ok_or_else(|| {
+                            format!(
+                                "{name}: {key} native brain target {} has no source binding",
+                                t.0
+                            )
+                        })?,
+                ),
+            };
             let source_target = brain["target"].as_str().map(str::to_owned);
             if native_target != source_target {
                 return Err(format!(
@@ -1802,8 +1849,8 @@ mod tests {
                 .as_array()
                 .unwrap()
                 .iter()
-                .map(|v| fr_npc_id(v.as_str().unwrap(), seats))
-                .collect();
+                .map(|v| fr_npc_ref(map, v.as_str().unwrap(), "chillers"))
+                .collect::<Result<_, _>>()?;
             let actual: Vec<PlayerId> = s.chillers[..usize::from(s.chiller_count)]
                 .iter()
                 .flatten()
@@ -1879,14 +1926,14 @@ mod tests {
             ));
         }
         for (a, e) in actual.iter().zip(expected) {
-            let expected_victim = fr_npc_id(e["victim"].as_str().unwrap(), seats);
+            let expected_victim = fr_npc_ref(map, e["victim"].as_str().unwrap(), "landed victim")?;
             if a.victim != expected_victim {
                 return Err(format!("{name}: landed victim"));
             }
-            let expected_by = e["by"].as_str().map(|s| match map.get(s) {
-                Some(id) => *id,
-                None => fr_npc_id(s, seats),
-            });
+            let expected_by = match e["by"].as_str() {
+                Some(s) => Some(fr_npc_ref(map, s, "landed by")?),
+                None => None,
+            };
             if a.by != expected_by {
                 return Err(format!("{name}: landed by {:?} vs {:?}", a.by, expected_by));
             }
@@ -2255,6 +2302,242 @@ mod tests {
         }
         let _ = &mut map;
         let _ = &mut map;
+    }
+
+    fn fr_npc_relabel(value: &mut Value, mapping: &BTreeMap<String, String>) {
+        match value {
+            Value::String(s) => {
+                if let Some(new) = mapping.get(s) {
+                    *s = new.clone();
+                }
+            }
+            Value::Array(rows) => {
+                for row in rows {
+                    fr_npc_relabel(row, mapping);
+                }
+            }
+            Value::Object(fields) => {
+                for field in fields.values_mut() {
+                    fr_npc_relabel(field, mapping);
+                }
+            }
+            _ => {}
+        }
+    }
+    #[test]
+    fn typed_noncontiguous_npc_labels_compare_the_same_captured_payload() {
+        let corpus: Value = serde_json::from_str(FR_NPC_FIXTURE).unwrap();
+        let case = &corpus["cases"][0];
+        let ids: Vec<String> = case["initial"]["mobs"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|m| m["id"].as_str().unwrap().to_owned())
+            .collect();
+        assert_eq!(ids.len(), 3);
+        let labels = ["mobZed", "mobQuux", "mob-rc"];
+        let mut mapping = BTreeMap::new();
+        for (old, new) in ids.iter().zip(labels) {
+            mapping.insert(old.clone(), new.to_owned());
+        }
+        // The labels are consistently non-contiguous and do not parse as the old base-36 scheme; every actor reference
+        // (commands, brain targets, signatures, chillers, landed by/victim) is rewritten, not the payload semantics.
+        let mut relabeled = case.clone();
+        fr_npc_relabel(&mut relabeled, &mapping);
+        let (original_sim, _) = fr_npc_replay(case).unwrap();
+        let (relabeled_sim, _) = fr_npc_replay(&relabeled)
+            .unwrap_or_else(|e| panic!("typed non-contiguous labels replay: {e}"));
+        assert_eq!(
+            original_sim.state_hash(),
+            relabeled_sim.state_hash(),
+            "same captured frame/event payload through different source labels"
+        );
+        let bound = fr_npc_bind_initial(&relabeled_sim, &relabeled, 2).unwrap();
+        for new in labels {
+            assert!(bound.keys().any(|k| k == new), "typed binding for {new}");
+        }
+        assert!(
+            !bound.keys().any(|k| ids.contains(k)),
+            "old labels are gone"
+        );
+    }
+    #[test]
+    fn typed_landed_mismatch_and_unknown_actor_reference_fail() {
+        let corpus: Value = serde_json::from_str(FR_NPC_FIXTURE).unwrap();
+        let case = &corpus["cases"][0];
+        let (mut sim, seats) = fr_npc_sim(case);
+        let mut map = fr_npc_bind_initial(&sim, case, seats).unwrap();
+        let mut checked = false;
+        for frame in case["frames"].as_array().unwrap() {
+            if let Some(commands) = frame["commands"].as_array() {
+                fr_npc_apply(&mut sim, commands, &map, seats).unwrap();
+            }
+            let events = sim.step();
+            fr_npc_bind_missing_mobs(&sim, &frame["output"], seats, &mut map).unwrap();
+            let landed = frame["output"]["landed"].as_array().unwrap();
+            let Some(slot) = landed
+                .iter()
+                .position(|l| l["victim"].as_str().is_some_and(|v| v.starts_with("mob")))
+            else {
+                sim = Sim::restore(serde_json::to_value(&sim).unwrap()).unwrap();
+                continue;
+            };
+            fr_npc_compare_frame(&sim, frame, &events, &map, seats, "typed landed", false).unwrap();
+            let old_victim = landed[slot]["victim"].as_str().unwrap().to_owned();
+            let other = map
+                .keys()
+                .find(|k| k.starts_with("mob") && **k != old_victim)
+                .cloned()
+                .expect("a second typed NPC label");
+            // An unknown source id must fail instead of falling back to contiguous NPC arithmetic.
+            let mut unknown = frame.clone();
+            unknown["output"]["landed"][slot]["victim"] = json!("mobZUnknown");
+            let err =
+                fr_npc_compare_frame(&sim, &unknown, &events, &map, seats, "typed landed", false)
+                    .unwrap_err();
+            assert!(
+                err.contains("unknown source actor mobZUnknown") && err.contains("landed victim"),
+                "unknown landed victim fails typed resolution: {err}"
+            );
+            // A valid but different typed victim mapping must fail the landed comparison.
+            let mut mismapped = frame.clone();
+            mismapped["output"]["landed"][slot]["victim"] = json!(other);
+            let err = fr_npc_compare_frame(
+                &sim,
+                &mismapped,
+                &events,
+                &map,
+                seats,
+                "typed landed",
+                false,
+            )
+            .unwrap_err();
+            assert!(
+                err.contains("landed victim"),
+                "mismapped landed victim fails: {err}"
+            );
+            // An unknown landed by label is a typed-resolution failure too.
+            if let Some(by_row) = landed.iter().position(|l| l["by"].is_string()) {
+                let mut unknown_by = frame.clone();
+                unknown_by["output"]["landed"][by_row]["by"] = json!("mobZUnknown");
+                let err = fr_npc_compare_frame(
+                    &sim,
+                    &unknown_by,
+                    &events,
+                    &map,
+                    seats,
+                    "typed landed",
+                    false,
+                )
+                .unwrap_err();
+                assert!(
+                    err.contains("unknown source actor mobZUnknown in landed by"),
+                    "unknown landed by fails typed resolution: {err}"
+                );
+            }
+            // Unknown command actor/target labels also fail without a contiguous fallback.
+            let err = fr_npc_apply(
+                &mut sim,
+                &[json!({"kind": "target", "actor": "p0", "id": "mobZUnknown"})],
+                &map,
+                seats,
+            )
+            .unwrap_err();
+            assert!(
+                err.contains("unknown source actor mobZUnknown in command target"),
+                "unknown command target fails typed resolution: {err}"
+            );
+            checked = true;
+            break;
+        }
+        assert!(
+            checked,
+            "the captured corpus has a landed NPC victim to audit"
+        );
+    }
+    #[test]
+    fn typed_binding_rejects_duplicate_ambiguous_and_unknown_native_bindings() {
+        let corpus: Value = serde_json::from_str(FR_NPC_FIXTURE).unwrap();
+        let case = &corpus["cases"][0];
+        let (sim, seats) = fr_npc_sim(case);
+        let full = fr_npc_bind_initial(&sim, case, seats).unwrap();
+        let mut players_only = BTreeMap::new();
+        for (key, id) in &full {
+            if key.starts_with('p') {
+                players_only.insert(key.clone(), *id);
+            }
+        }
+        let base_row = case["initial"]["mobs"][0].clone();
+        // Two fresh rows with identical typed provenance cannot reuse the one native identity: the second row fails.
+        let mut fresh_a = base_row.clone();
+        fresh_a["id"] = json!("mobFreshA");
+        let mut fresh_b = base_row.clone();
+        fresh_b["id"] = json!("mobFreshB");
+        let mut reused = players_only.clone();
+        let err = fr_npc_bind_missing_mobs(
+            &sim,
+            &json!({"mobs": [fresh_a, fresh_b]}),
+            seats,
+            &mut reused,
+        )
+        .unwrap_err();
+        assert!(
+            err.contains("missing actor for source mob mobFreshB"),
+            "the same native identity cannot be bound twice: {err}"
+        );
+        assert!(!reused.contains_key("mobFreshB"));
+        let mut seen = BTreeSet::new();
+        for id in reused.values() {
+            assert!(seen.insert(*id), "no duplicate native binding survives");
+        }
+        // Two native candidates for one typed row are an explicit ambiguity, not a first-match pick.
+        let (mut ambiguous_sim, _) = fr_npc_sim(case);
+        let mut clone = ambiguous_sim.w.mobs[0].clone();
+        let next_id = ambiguous_sim.w.mobs.last().unwrap().core.id.0 + 1;
+        clone.core.id = PlayerId(next_id);
+        // A synthetic second native row with the same typed birth provenance (unique id, ascending append) exercises
+        // the ambiguous-candidate branch without touching any production state.
+        ambiguous_sim.w.mobs.push(clone);
+        let mut ambiguous_row = base_row.clone();
+        ambiguous_row["id"] = json!("mobAmbiguous");
+        let mut ambiguous_map = players_only.clone();
+        let err = fr_npc_bind_missing_mobs(
+            &ambiguous_sim,
+            &json!({"mobs": [ambiguous_row]}),
+            seats,
+            &mut ambiguous_map,
+        )
+        .unwrap_err();
+        assert!(
+            err.contains("ambiguous actor binding for source mob mobAmbiguous"),
+            "two native candidates fail explicitly: {err}"
+        );
+        // A duplicate value already present in the source -> native map is refused.
+        let mut duplicate_map = players_only.clone();
+        let duplicate = duplicate_map["p0"];
+        duplicate_map.insert("duplicate".into(), duplicate);
+        let err = fr_npc_bind_missing_mobs(&sim, &json!({"mobs": []}), seats, &mut duplicate_map)
+            .unwrap_err();
+        assert!(
+            err.contains("duplicate native binding"),
+            "duplicate native map value fails: {err}"
+        );
+        // Unknown typed provenance (no native candidate) is a hard missing-actor failure.
+        let mut unknown_row = base_row.clone();
+        unknown_row["id"] = json!("mobUnknownProv");
+        unknown_row["state"]["camp"] = json!(999);
+        let mut unknown_map = players_only.clone();
+        let err = fr_npc_bind_missing_mobs(
+            &sim,
+            &json!({"mobs": [unknown_row]}),
+            seats,
+            &mut unknown_map,
+        )
+        .unwrap_err();
+        assert!(
+            err.contains("missing actor for source mob mobUnknownProv"),
+            "unknown native provenance fails: {err}"
+        );
     }
 
     fn fr_adapter_training() -> Sim {
