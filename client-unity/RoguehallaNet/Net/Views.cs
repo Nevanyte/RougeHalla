@@ -49,6 +49,33 @@ namespace Roguehalla.Net
     /// <summary>Weapon code: <c>WeaponId::ALL</c> order (append only). A value outside the named ones is a newer server's.</summary>
     public enum WeaponId : byte { Sword = 0, Bow = 1, Wand = 2, Shield = 3, Axe = 4, Fists = 5 }
 
+    public struct WishCastView
+    {
+        public AbilityId Ability;
+        public double StartedAt, LandsAt;
+    }
+
+    /// <summary>Owned authoritative display facts. Read charges and deadlines directly; do not derive eligibility.</summary>
+    public struct WishView
+    {
+        public AbilityId Ability;
+        public double ReadyAt, RechargeMs;
+        public double? FullAt, NextChargeAt;
+        public byte MaxCharges, Charges;
+        public WishCastView? Cast;
+
+        internal static WishView From(Protocol.WireWishOwner w)
+        {
+            return new WishView {
+                Ability = (AbilityId)w.Ability, ReadyAt = w.ReadyAt, FullAt = w.FullAt,
+                MaxCharges = w.MaxCharges, RechargeMs = w.RechargeMs, Charges = w.Charges,
+                NextChargeAt = w.NextChargeAt,
+                Cast = w.Cast == null ? (WishCastView?)null : new WishCastView {
+                    Ability = (AbilityId)w.Cast.Ability, StartedAt = w.Cast.StartedAt, LandsAt = w.Cast.LandsAt }
+            };
+        }
+    }
+
     /// <summary>
     /// The local player's state as of the newest applied snapshot: an OWNED copy (<see cref="Session.Me"/> returns the one instance
     /// the session keeps and overwrites per snapshot), never one of the recycled snapshot objects. Copy a value out to keep it past
@@ -66,6 +93,9 @@ namespace Roguehalla.Net
         public ushort Effects;
         public uint? HuntTarget;
         public ushort HuntStacks;
+        public float Barrier;
+        public byte BarrierRingStep;
+        public WishView? Wish;
 
         /// <summary>Health as a whole percent, 100 when the maximum is unknown (0).</summary>
         public int HpPct
@@ -85,6 +115,8 @@ namespace Roguehalla.Net
             Status = (ActorStatus)w.Status; Weapon = (WeaponId)w.Weapon; ReadyInMs = w.ReadyInMs; Kills = w.Kills; Bounty = w.Bounty;
             HuntTarget = w.HuntTarget; HuntStacks = w.HuntStacks;
             Gv = w.Gv; MoveSeq = w.MoveSeq; Effects = w.Effects; DisplaceSeq = w.DisplaceSeq; SelfSig=w.Sig;
+            Barrier = w.Barrier; BarrierRingStep = w.BarrierRingStep;
+            Wish = w.Wish == null ? (WishView?)null : WishView.From(w.Wish);
         }
     }
 }

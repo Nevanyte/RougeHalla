@@ -67,6 +67,15 @@ namespace Roguehalla.Net
         // The outstanding order and the walk it started.
         bool _pending;
         byte _lastSeq;
+        // One fixed byte-domain set for casts issued AFTER the current movement. A new move/stop resets the set;
+        // an older cast must never acknowledge a newer walk, even across the 255 -> 1 sequence wrap.
+        readonly WireCommand[] _nonMovementAcks = new WireCommand[256];
+        readonly bool[] _sentNonMovementAcks = new bool[256];
+        readonly uint[] _nonMovementFrames = new uint[256];
+        byte _observedSeq;
+        WireCommand _movementOrder;
+        bool _movementSent;
+        uint _movementFrame;
         double _orderAtMs;
         double _goalX, _goalY;
         bool _goalHeld;
@@ -110,6 +119,7 @@ namespace Roguehalla.Net
         {
             _predictionSuspended = true;
             _pending = false;
+            ClearNonMovementAcks();
             _goalHeld = false;
             ClearPath();
             _modelX = _simX;
@@ -135,10 +145,15 @@ namespace Roguehalla.Net
         /// position whenever the walk is settled, so the plan root is where the server will apply the order). <paramref name="seq"/>
         /// 0 means the input was dropped and is ignored.
         /// </summary>
-        public void Order(float x, float y, byte seq, double nowMs)
+        public void Order(float x, float y, byte seq, double nowMs) { Order(x, y, seq, nowMs, null); }
+
+        internal void Order(float x, float y, byte seq, double nowMs, WireCommand order)
         {
             if (seq == 0 || _predictionSuspended || Initialized && !_alive) return;
             ExpireOrders(nowMs);
+            ClearNonMovementAcks();
+            _movementOrder = order;
+            _movementSent = false;
             _lastSeq = seq;
             _pending = true;
             _orderAtMs = nowMs;
@@ -151,16 +166,71 @@ namespace Roguehalla.Net
         }
 
         /// <summary>Records a stop order: the predicted walk ends now and waits for the stop's echo. Sequence 0 is ignored.</summary>
-        public void StopOrder(byte seq, double nowMs)
+        public void StopOrder(byte seq, double nowMs) { StopOrder(seq, nowMs, null); }
+
+        internal void StopOrder(byte seq, double nowMs, WireCommand order)
         {
             if (seq == 0 || _predictionSuspended || Initialized && !_alive) return;
             ExpireOrders(nowMs);
+            ClearNonMovementAcks();
+            _movementOrder = order;
+            _movementSent = false;
             _lastSeq = seq;
             _pending = true;
             _orderAtMs = nowMs;
             _goalHeld = false;
             ClearPath();
             MarkStepClock(nowMs);
+        }
+
+        /// <summary>
+        /// Remembers a nonmovement order after the outstanding move/stop. Cast echoes do not change the walk's goal,
+        /// path, pending age or step clock. Membership, rather than numeric byte ordering, handles wrap and coalescing.
+        /// </summary>
+        internal void NoteNonMovementOrder(WireCommand command, double nowMs)
+        {
+            ExpireOrders(nowMs);
+            byte seq = command.Seq.GetValueOrDefault();
+            // A reused byte equal to the currently held echo cannot prove a new cast was applied. In that ambiguous
+            // case keep waiting for the movement echo/normal expiry instead of guessing from a repeated snapshot.
+            if (_pending && seq != 0 && seq != _observedSeq)
+            {
+                _nonMovementAcks[seq] = command;
+                _sentNonMovementAcks[seq] = false;
+            }
+        }
+
+        internal void NonMovementOrderSent(WireCommand command, uint frame)
+        {
+            byte seq = command.Seq.GetValueOrDefault();
+            if (!ReferenceEquals(_nonMovementAcks[seq], command)) return;
+            _sentNonMovementAcks[seq] = true;
+            _nonMovementFrames[seq] = frame;
+        }
+
+        internal void MovementOrderSent(WireCommand command, uint frame)
+        {
+            if (!ReferenceEquals(_movementOrder, command)) return;
+            _movementSent = true;
+            _movementFrame = frame;
+        }
+
+        void ClearNonMovementAcks()
+        {
+            Array.Clear(_nonMovementAcks, 0, _nonMovementAcks.Length);
+            Array.Clear(_sentNonMovementAcks, 0, _sentNonMovementAcks.Length);
+            _movementOrder = null;
+            _movementSent = false;
+        }
+
+        /// <summary>
+        /// Rebases presentation integration at an authoritative source-clock cut. Orders and their expiry are measured
+        /// on the injected local clock, so their goal/path/ack bookkeeping survives without a resend or a fresh lifetime.
+        /// </summary>
+        internal void RebasePresentationClock(double nowMs)
+        {
+            _lastStepMs = nowMs;
+            _stepClock = true;
         }
 
         /// <summary>
@@ -186,13 +256,21 @@ namespace Roguehalla.Net
         /// <c>move_seq</c> echoes the order's sequence. The echo is checked before the one-second expiry, so a sample at the
         /// boundary acknowledges the order instead of counting it as forgotten.
         /// </summary>
-        public void OnSnapshot(WireSelf me, double nowMs)
+        public void OnSnapshot(WireSelf me, double nowMs, uint? ackInput = null)
         {
             if (me == null) { Clear(); return; }
             bool alive = me.Status == 1;
             bool hardCut = Initialized && (me.DisplaceSeq != _displaceSeq || !alive || !_alive);
             // Echo before advancing the clock: an acknowledgement at the expiry boundary is not a lost order.
-            if (_pending && me.MoveSeq == _lastSeq) _pending = false;
+            bool castAck = ackInput.HasValue && _nonMovementAcks[me.MoveSeq] != null && _sentNonMovementAcks[me.MoveSeq] &&
+                unchecked((int)(ackInput.Value - _nonMovementFrames[me.MoveSeq])) >= 0;
+            bool moveAck = me.MoveSeq == _lastSeq && (!ackInput.HasValue ||
+                _movementSent && unchecked((int)(ackInput.Value - _movementFrame)) >= 0);
+            if (_pending && (moveAck || castAck))
+            {
+                _pending = false;
+                ClearNonMovementAcks();
+            }
             if (!Initialized && _pending) ExpireOrders(nowMs);
             // Real Session.Poll delivers snapshots before its frame Step. Spend elapsed walk time against the old model
             // first; the frame's later Step(same now) then spends zero. Direct callers that already stepped also spend zero.
@@ -202,6 +280,7 @@ namespace Roguehalla.Net
             _simY = me.Y;
             _alive = alive;
             _displaceSeq = me.DisplaceSeq;
+            _observedSeq = me.MoveSeq;
             if (first || hardCut || _predictionSuspended)
             {
                 Initialized = true;
@@ -213,6 +292,7 @@ namespace Roguehalla.Net
                 if (hardCut || !alive || _predictionSuspended)
                 {
                     _pending = false;
+                    ClearNonMovementAcks();
                     _goalHeld = false;
                     ClearPath();
                 }
@@ -235,7 +315,11 @@ namespace Roguehalla.Net
             _alive = false;
             _displaceSeq = 0;
             _pending = false;
+            ClearNonMovementAcks();
             _lastSeq = 0;
+            _observedSeq = 0;
+            _movementOrder = null;
+            _movementSent = false;
             _orderAtMs = 0;
             _goalX = _goalY = 0;
             _goalHeld = false;
@@ -392,6 +476,7 @@ namespace Roguehalla.Net
             // Forgotten: the pending gate clears so the next sample reconciles; the walk itself keeps its path (stopping it
             // here would freeze the player if the server did apply the order and only the echo was lost).
             _pending = false;
+            ClearNonMovementAcks();
             if (ExpiredOrders < int.MaxValue) ExpiredOrders++;
         }
 

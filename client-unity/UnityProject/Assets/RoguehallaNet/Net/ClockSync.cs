@@ -9,6 +9,8 @@ namespace Roguehalla.Net
         readonly double[] _rtt = new double[N], _off = new double[N];
         int _count, _head;
         uint _nonce;
+        uint _epochNonce;
+        bool _epochGuard;
 
         public bool HasSample { get { return _count > 0; } }
         public double LastRttMs { get; private set; }
@@ -18,8 +20,18 @@ namespace Roguehalla.Net
 
         public ClientMsg.Ping MakePing(double nowMs) { return new ClientMsg.Ping { Nonce = ++_nonce, ClientMs = nowMs }; }
 
+        /// <summary>Forgets offsets from an older source-clock/connection epoch, including its delayed Pongs.</summary>
+        public void Reset()
+        {
+            _count = _head = 0;
+            LastRttMs = RttMs = OffsetMs = 0;
+            _epochNonce = _nonce;
+            _epochGuard = true;
+        }
+
         public void OnPong(ServerMsg.Pong p, double nowMs)
         {
+            if (_epochGuard && unchecked((int)(p.Nonce - _epochNonce)) <= 0) return;
             double rtt = nowMs - p.ClientMs;
             if (rtt < 0 || double.IsNaN(rtt)) return; // a pong for a ping we did not send
             LastRttMs = rtt;

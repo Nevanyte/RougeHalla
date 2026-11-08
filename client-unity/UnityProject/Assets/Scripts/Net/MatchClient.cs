@@ -150,6 +150,11 @@ namespace Roguehalla.Client
             }
             var kb = Keyboard.current;
             if (kb == null) return;
+            if (kb.rKey.wasPressedThisFrame)
+            {
+                uint target = haveCursor && mouse != null ? VisibleActorAt(mouse.position.ReadValue()) : 0;
+                Session.CollectWishInput(true, blocked, haveCursor, sx, sy, target == 0 ? (uint?)null : target);
+            }
             if (kb.digit1Key.wasPressedThisFrame) Session.Input.Swap(0);
             if (kb.digit2Key.wasPressedThisFrame) Session.Input.Swap(1);
             if (kb.qKey.wasPressedThisFrame) Session.Input.Swap();

@@ -18,6 +18,7 @@ namespace Roguehalla.Net
         public ActorKind Kind;
         public MobTypeId? MobType;
         public byte SourceSig;
+        public byte BarrierPct, BarrierRingStep;
     }
 
     /// <summary>
@@ -53,10 +54,14 @@ namespace Roguehalla.Net
         {
             if (replaceCurrentTick && Newest != null && Newest.Tick == s.Tick)
             {
+                if (s.ServerMs != NewestMs) { _snaps.Clear(); _snaps.Add(s); return true; }
                 _snaps[_snaps.Count - 1] = s;
                 return true;
             }
-            if (_snaps.Count > 0 && s.ServerMs <= NewestMs) return false;
+            if (_snaps.Count > 0 && s.Tick <= Newest.Tick) return false;
+            // Tick orders frames. A restored/diagnostic source-clock cut starts a fresh interpolation segment;
+            // equal or earlier source time must not discard a newer authoritative frame or divide by a zero span.
+            if (_snaps.Count > 0 && s.ServerMs <= NewestMs) _snaps.Clear();
             _snaps.Add(s);
             if (_snaps.Count > Capacity)
             {
@@ -122,7 +127,7 @@ namespace Roguehalla.Net
             for (int i = 0; i < cur.Length; i++)
             {
                 ref readonly WireActor c = ref cur[i];
-                var o = new InterpActor { Id = c.Id, Faction = (FactionId)c.Faction, HpPct = c.HpPct, Status = (ActorStatus)c.Status, Weapon = (WeaponId)c.Weapon, Bounty = c.Bounty, Effects=c.Effects, DisplaceSeq=c.DisplaceSeq, Kind=(ActorKind)c.Kind, MobType=c.MobTypeCode==0?(MobTypeId?)null:(MobTypeId)(c.MobTypeCode-1),SourceSig=c.Sig, X = c.X, Y = c.Y, Facing = c.Facing };
+                var o = new InterpActor { Id = c.Id, Faction = (FactionId)c.Faction, HpPct = c.HpPct, Status = (ActorStatus)c.Status, Weapon = (WeaponId)c.Weapon, Bounty = c.Bounty, Effects=c.Effects, DisplaceSeq=c.DisplaceSeq, Kind=(ActorKind)c.Kind, MobType=c.MobTypeCode==0?(MobTypeId?)null:(MobTypeId)(c.MobTypeCode-1),SourceSig=c.Sig, BarrierPct=c.BarrierPct, BarrierRingStep=c.BarrierRingStep, X = c.X, Y = c.Y, Facing = c.Facing };
                 int k = -1;
                 if (merge)
                 {

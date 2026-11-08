@@ -28,7 +28,7 @@ namespace Roguehalla.Net.Tests
         {
             return new WireSelf { Id = 3, X = (float)x, Y = (float)y, Hp = 10, MaxHp = 10, Status = status, MoveSeq = seq, DisplaceSeq = cut };
         }
-        static ServerMsg.Snapshot Snapshot(uint tick, WireSelf self) { return new ServerMsg.Snapshot { Tick = tick, Phase = 1, Me = self }; }
+        static ServerMsg.Snapshot Snapshot(uint tick, WireSelf self, uint ack = 0) { return new ServerMsg.Snapshot { Tick = tick, Phase = 1, Me = self, AckInput = ack }; }
         static Session Start(QueuedTransport t, MapBlob map, Func<double> now, WireSelf self)
         {
             var s = new Session(t, new SessionOptions { Url = "ws://x/ws", Profile = "p", Now = now });
@@ -65,7 +65,7 @@ namespace Roguehalla.Net.Tests
                     now = k * 50.0;
                     var tick = ticks[k];
                     double x = tick.GetProperty("x").GetDouble(), y = tick.GetProperty("y").GetDouble();
-                    t.Enqueue(Snapshot((uint)(k + 1), Self(x, y, 1)));
+                    t.Enqueue(Snapshot((uint)(k + 1), Self(x, y, 1), 1));
                     s.Poll(); // incoming snapshot callback, then frame Step -- the real caller order
                     s.FlushInput();
                     double dx = s.Motion.DrawnX - x, dy = s.Motion.DrawnY - y;
@@ -116,7 +116,7 @@ namespace Roguehalla.Net.Tests
             double now = 0; var t = new QueuedTransport();
             var s = Start(t, new MapBlob(32, 32, new byte[1024]), () => now, Self(100, 100));
             s.OrderMove(600, 100); s.FlushInput();
-            now = 1000; t.Enqueue(Snapshot(2, Self(117, 100, 1))); s.Poll();
+            now = 1000; t.Enqueue(Snapshot(2, Self(117, 100, 1), 1)); s.Poll();
             Assert.AreEqual(0, s.Motion.ExpiredOrders); Assert.IsFalse(s.Motion.OrderPending);
             s.OrderMove(600, 100); s.FlushInput();
             now = 2000; t.Enqueue(Snapshot(3, Self(117, 100, 1))); s.Poll();
