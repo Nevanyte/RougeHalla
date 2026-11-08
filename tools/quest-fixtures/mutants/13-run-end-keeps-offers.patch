@@ -1,0 +1,11 @@
+--- a/crates/rh-sim/src/quests/live.rs
++++ b/crates/rh-sim/src/quests/live.rs
+@@ -404,7 +404,7 @@
+ }
+ 
+ pub(crate) fn on_run_ended(hx: &mut crate::hooks::Hx, _: &crate::hooks::HookArgs) {
+-    close_all(hx.k, hx.w, hx.ev);
++    let _ = (&hx.k, &hx.w, &hx.ev);
+ }
+ 
+ /// Source `onMobKilled`: kill offers progress for standing humans that accepted them.
