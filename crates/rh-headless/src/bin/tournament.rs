@@ -6,8 +6,9 @@ use rh_headless::tournament::{
     aggregate, format_report, run_game, sim_config_for, GameSummary, TournamentMeta,
     TournamentReport,
 };
-use rh_headless::tournament_cli::{default_arena, json_payload, parse_args, plan_of, USAGE};
-use std::io::Write;
+use rh_headless::tournament_cli::{
+    default_arena, json_payload, parse_args, plan_of, write_telemetry, USAGE,
+};
 use std::time::Instant;
 
 /// The source telemetry file name: runs-<UTC day>.ndjson.
@@ -131,8 +132,11 @@ fn main() -> std::process::ExitCode {
         });
         match created {
             Ok(mut file) => {
-                for line in &telemetry {
-                    let _ = writeln!(file, "{line}");
+                // The shared write path propagates every record/flush error: a partial telemetry file is a run failure,
+                // never a printed success.
+                if let Err(error) = write_telemetry(&mut file, &telemetry) {
+                    eprintln!("cannot write telemetry in {dir}: {error}");
+                    return std::process::ExitCode::from(2);
                 }
                 if !args.quiet {
                     eprintln!(

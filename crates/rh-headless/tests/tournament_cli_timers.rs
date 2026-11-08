@@ -1,8 +1,12 @@
 //! Actual CLI regression for the tournament timer wiring (lead packet TOURNAMENT_TIMER_REPAIR): the binary must derive the
 //! simulation configuration from its plan at the run call site, so --patience and --sudden change the real sim timers and
 //! phase transitions rather than only the exported plan. Each test drives the built binary exactly as a user does and
-//! reads the --json payload; the deterministic default control replays the same plan.
+//! reads the --json payload; the deterministic default control replays the same plan. The addendum adds the shared
+//! telemetry write path: a failing Writer must surface its error (the old binary discarded writeln errors and printed
+//! success), while a healthy sink still receives the byte-identical NDJSON records.
+use rh_headless::tournament_cli::write_telemetry;
 use serde_json::Value;
+use std::io::{self, Write};
 use std::path::PathBuf;
 use std::process::Command;
 use std::sync::atomic::{AtomicU32, Ordering};
@@ -65,6 +69,105 @@ fn without_wall(payload: &Value) -> Value {
 
 fn teleport(payload: &Value) -> Option<f64> {
     game(payload)["teleportMs"].as_f64()
+}
+
+/// A portable failing sink for the shared telemetry write path: it accepts bytes until its budget runs out, then fails
+/// every further write the way a full or broken sink would (no environment tricks, no disk filling).
+struct FailingWriter {
+    remaining: usize,
+    written: usize,
+}
+
+impl Write for FailingWriter {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        if buf.len() > self.remaining {
+            return Err(io::Error::other("telemetry sink is full"));
+        }
+        self.remaining -= buf.len();
+        self.written += buf.len();
+        Ok(buf.len())
+    }
+    fn flush(&mut self) -> io::Result<()> {
+        Ok(())
+    }
+}
+
+#[test]
+fn telemetry_write_errors_are_propagated_not_swallowed() {
+    let lines = vec![
+        r#"{"seed":7,"game":1}"#.to_string(),
+        r#"{"seed":7,"game":2}"#.to_string(),
+    ];
+    // A sink that fails on the very first record must make the shared write path fail, not report success.
+    let mut broken = FailingWriter {
+        remaining: 0,
+        written: 0,
+    };
+    let error = write_telemetry(&mut broken, &lines)
+        .expect_err("a failing telemetry sink must surface its error");
+    assert_eq!(error.kind(), io::ErrorKind::Other);
+    assert_eq!(broken.written, 0);
+    // A sink that takes the first record and then fails must also fail the run (no silent partial success).
+    let first = lines[0].len() + 1;
+    let mut partial = FailingWriter {
+        remaining: first,
+        written: 0,
+    };
+    let error = write_telemetry(&mut partial, &lines)
+        .expect_err("a mid-stream telemetry failure must surface");
+    assert_eq!(error.kind(), io::ErrorKind::Other);
+    assert!(partial.written > 0, "the first record reached the sink");
+    assert!(
+        partial.written < lines[0].len() + lines[1].len() + 2,
+        "the second record was refused"
+    );
+    // Default output preserved byte for byte: one NDJSON record per line, newline terminated.
+    let mut healthy: Vec<u8> = Vec::new();
+    write_telemetry(&mut healthy, &lines).expect("a Vec sink writes");
+    assert_eq!(
+        String::from_utf8(healthy).expect("utf-8 output"),
+        "{\"seed\":7,\"game\":1}\n{\"seed\":7,\"game\":2}\n"
+    );
+}
+
+#[test]
+fn the_cli_fails_when_the_telemetry_destination_cannot_be_opened() {
+    // The real binary run path: a telemetry destination that cannot be created must exit non-zero and say why, instead of
+    // printing the success line. (Byte-level write failures are covered by the shared-Writer test above; this exercises
+    // the same CLI propagation end to end for the openable-path failure that is portable to force.)
+    let blocker: PathBuf = std::env::temp_dir().join(format!(
+        "rh-tournament-telemetry-blocker-{}-{}",
+        std::process::id(),
+        NEXT.fetch_add(1, Ordering::Relaxed)
+    ));
+    std::fs::write(&blocker, b"a file, not a directory").expect("the blocker file writes");
+    let output = Command::new(env!("CARGO_BIN_EXE_tournament"))
+        .args([
+            "--games",
+            "1",
+            "--lineup",
+            "E,E",
+            "--seed",
+            "3",
+            "--max-minutes",
+            "1",
+            "--quiet",
+            "--telemetry",
+        ])
+        .arg(&blocker)
+        .output()
+        .expect("the tournament binary runs");
+    let _ = std::fs::remove_file(&blocker);
+    assert!(
+        !output.status.success(),
+        "a telemetry destination that cannot be opened must fail the run: {:?}",
+        output.status
+    );
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("cannot write telemetry"),
+        "the failure is reported on stderr: {stderr}"
+    );
 }
 
 #[test]
