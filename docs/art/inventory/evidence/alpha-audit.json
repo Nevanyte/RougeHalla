@@ -1,0 +1,37 @@
+[
+  {
+    "key": "mob-antlion",
+    "spritesWithAlpha": 272,
+    "minClearance": 3
+  },
+  {
+    "key": "mob-skeleton-archer",
+    "spritesWithAlpha": 272,
+    "minClearance": 11
+  },
+  {
+    "key": "mage",
+    "spritesWithAlpha": 272,
+    "minClearance": 2
+  },
+  {
+    "key": "mob-zombie",
+    "spritesWithAlpha": 272,
+    "minClearance": 52
+  },
+  {
+    "key": "mage-female",
+    "spritesWithAlpha": 272,
+    "minClearance": 3
+  },
+  {
+    "key": "mob-goblin-elite",
+    "spritesWithAlpha": 264,
+    "minClearance": 20
+  },
+  {
+    "key": "mob-skeleton-mage",
+    "spritesWithAlpha": 272,
+    "minClearance": 19
+  }
+]

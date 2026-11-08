@@ -1,0 +1,1 @@
+{"state":"met","met":true,"timedOut":false,"member":"UnityEngine.Time.frameCount","op":"changed","value":52,"initialValue":50,"elapsedMs":285,"framesObserved":2,"history":[{"value":50,"elapsedMs":88},{"value":52,"elapsedMs":285}]}

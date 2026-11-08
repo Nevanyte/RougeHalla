@@ -1,0 +1,433 @@
+{
+  "scope": "Isolated asset preparation; no new live/browser acceptance",
+  "baseRevision": "70579162ce41a1325aaed1a65a34b65b779ad1e7",
+  "branch": "codex/unity-asset-readiness",
+  "unity": "6000.0.85f2",
+  "urp": "17.0.4",
+  "editorPid": 9075,
+  "pipelinePort": 7800,
+  "dotnet": {
+    "total": 399,
+    "passed": 399,
+    "failed": 0
+  },
+  "sourceCopyCheck": "passed",
+  "compile": {
+    "status": "completed",
+    "failed": false,
+    "errors": [],
+    "compilationFailed": false
+  },
+  "editMode": {
+    "Total": 62,
+    "Passed": 62,
+    "Failed": 0,
+    "Skipped": 0,
+    "Inconclusive": 0
+  },
+  "validation": {
+    "playing": true,
+    "frame": 160,
+    "appearances": [
+      "mob-goblin-elite",
+      "mob-antlion",
+      "mob-skeleton-archer",
+      "mob-skeleton-mage",
+      "mob-zombie",
+      "mage",
+      "mage-female"
+    ],
+    "sprites": 1896,
+    "directionalChecks": 896,
+    "environment": [
+      "cave-floor-16",
+      "cave-floor-17",
+      "cave-floor-18",
+      "cave-floor-19",
+      "cave-floor-20",
+      "cave-floor-21",
+      "cave-wall-64",
+      "cave-wall-65",
+      "cave-wall-66",
+      "cave-wall-67",
+      "cave-prop-128",
+      "cave-prop-129"
+    ],
+    "particleSystems": 5,
+    "configuredTotalCap": 160,
+    "particlesBeforeReduced": 30,
+    "reducedMotionCleared": true,
+    "persistentIdentifierCount": 10,
+    "noLiveMatch": true
+  },
+  "alphaAudit": [
+    {
+      "key": "mob-antlion",
+      "spritesWithAlpha": 272,
+      "minClearance": 3
+    },
+    {
+      "key": "mob-skeleton-archer",
+      "spritesWithAlpha": 272,
+      "minClearance": 11
+    },
+    {
+      "key": "mage",
+      "spritesWithAlpha": 272,
+      "minClearance": 2
+    },
+    {
+      "key": "mob-zombie",
+      "spritesWithAlpha": 272,
+      "minClearance": 52
+    },
+    {
+      "key": "mage-female",
+      "spritesWithAlpha": 272,
+      "minClearance": 3
+    },
+    {
+      "key": "mob-goblin-elite",
+      "spritesWithAlpha": 264,
+      "minClearance": 20
+    },
+    {
+      "key": "mob-skeleton-mage",
+      "spritesWithAlpha": 272,
+      "minClearance": 19
+    }
+  ],
+  "factionLabelSamples": [
+    {
+      "faction": "Fire",
+      "foregroundSampleRGB": [
+        220,
+        132,
+        101
+      ],
+      "backgroundSampleRGB": [
+        22,
+        29,
+        41
+      ],
+      "contrastRatio": 6.06
+    },
+    {
+      "faction": "Sentenced",
+      "foregroundSampleRGB": [
+        195,
+        181,
+        221
+      ],
+      "backgroundSampleRGB": [
+        22,
+        29,
+        41
+      ],
+      "contrastRatio": 8.84
+    },
+    {
+      "faction": "Plague",
+      "foregroundSampleRGB": [
+        177,
+        203,
+        136
+      ],
+      "backgroundSampleRGB": [
+        22,
+        29,
+        41
+      ],
+      "contrastRatio": 9.48
+    },
+    {
+      "faction": "Frost",
+      "foregroundSampleRGB": [
+        127,
+        197,
+        213
+      ],
+      "backgroundSampleRGB": [
+        22,
+        29,
+        41
+      ],
+      "contrastRatio": 8.74
+    },
+    {
+      "faction": "Holy",
+      "foregroundSampleRGB": [
+        222,
+        208,
+        152
+      ],
+      "backgroundSampleRGB": [
+        22,
+        29,
+        41
+      ],
+      "contrastRatio": 10.94
+    }
+  ],
+  "capture": {
+    "source": "Unity Pipeline capture game_view source=camera with overlay",
+    "width": 2560,
+    "height": 1440,
+    "nativeDisplayOrBrowserProof": false
+  },
+  "acceptedProtocol13Artifact": {
+    "fileCount": 14,
+    "bytes": 74247550,
+    "hashMismatches": 0,
+    "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/builds/protocol13-1310ae00"
+  },
+  "files": [
+    {
+      "path": "client-unity/UnityProject/Assets/Editor/FlareExpansionImporter.cs",
+      "bytes": 22871,
+      "sha256": "beafab8af37803e301a56eaf097a448e44b0e4afae25b013ac4a1bb055c00971"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Editor/AssetReadinessPreviewMenu.cs",
+      "bytes": 1968,
+      "sha256": "9d2da21e3bb6d42531b9a6eadaba0a5da36ebb3fc2198decacdc191557a10fea"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Presentation/AssetReadinessCatalog.cs",
+      "bytes": 1308,
+      "sha256": "2891fd5c74a0b0161c3cc46eb9cc689add99662b5236ce26dabaf72d0b10e467"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Presentation/AssetReadinessEffects.cs",
+      "bytes": 10374,
+      "sha256": "c543ee778c51caa28d195a498f65ecd95ff8122385870796ff3d5d803595f5ae"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Presentation/AssetReadinessPreview.cs",
+      "bytes": 10086,
+      "sha256": "5e172aca68ed9fb4756e2590be1930a134a03eaff3672fb575f45e0aac7fb612"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/Derived/FlareExpansion/Actors/mage-female.png",
+      "bytes": 6173184,
+      "sha256": "aa6ff959e6c0c0e85c00e829c0e817843b3636f7c2bd601892d379504e076f89"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/Derived/FlareExpansion/Actors/mage-female.png.meta",
+      "bytes": 153437,
+      "sha256": "12bbb27dfe938f90e8a1664061d458b5974fa3985f94650743543866681dd9dd"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/Derived/FlareExpansion/Actors/mage.png",
+      "bytes": 6871688,
+      "sha256": "4e29c66da560347693188941ab12fa5e2ccb07076718ad124b5d65ab2859ab84"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/Derived/FlareExpansion/Actors/mage.png.meta",
+      "bytes": 153437,
+      "sha256": "2159e3d5e5497385bc73bb521b4ac7e86aef98434a107b0e72de9854ab660fc3"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/Derived/FlareExpansion/Actors/mob-antlion.png",
+      "bytes": 7866261,
+      "sha256": "0434c0fb1d5ca2df962da83d1211e644ff9889e31184863e29d749173890749d"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/Derived/FlareExpansion/Actors/mob-antlion.png.meta",
+      "bytes": 153470,
+      "sha256": "9a54934506c3bc764c85df2fa4ed3d5abfa96df8ce0e4c57b6a6eaaf6f870a2a"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/Derived/FlareExpansion/Actors/mob-goblin-elite.png",
+      "bytes": 6905238,
+      "sha256": "272fd0c1a1747d8d1616b188a4ada5711f0d3fcf8f2633162b1a3a1697ca2bd1"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/Derived/FlareExpansion/Actors/mob-goblin-elite.png.meta",
+      "bytes": 147182,
+      "sha256": "40e471f28e6dba61e6504fb31feb79f3a66d1d2ec8d4c7cc3e27c37dc108af93"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/Derived/FlareExpansion/Actors/mob-skeleton-archer.png",
+      "bytes": 8590008,
+      "sha256": "2a5f9a6b58214e665a1c7b63e15aa26f14b58896794a3e4332334c60057fd593"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/Derived/FlareExpansion/Actors/mob-skeleton-archer.png.meta",
+      "bytes": 151566,
+      "sha256": "b65ba4ae21000634bacb1ed1681c11d7487312ff0bb396fec2ca185535abb3c8"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/Derived/FlareExpansion/Actors/mob-skeleton-mage.png",
+      "bytes": 8061603,
+      "sha256": "3a09f54e91b4c3a63133239ce276e7d266d1eff14259749075a86646694e99f0"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/Derived/FlareExpansion/Actors/mob-skeleton-mage.png.meta",
+      "bytes": 151566,
+      "sha256": "c09466b4d7e37cb0a25dfe529df0ebec93b1473458383ba292e6371dacb3a50c"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/Derived/FlareExpansion/Actors/mob-zombie.png",
+      "bytes": 5967387,
+      "sha256": "7af08dc4a3bc0d4f9aea261e6629192c9ce098ef811dbff4a04a11295553020f"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/Derived/FlareExpansion/Actors/mob-zombie.png.meta",
+      "bytes": 151566,
+      "sha256": "e150c09921858e216f6aaede71f4f67fd2051be08d0603f6fa4b7e5a295d923e"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/Derived/FlareExpansion/Actors.meta",
+      "bytes": 172,
+      "sha256": "2498a2b497d77dcd94f9bf92e77ed720c849a9d25e87e6bc756985548cea1991"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/Derived/FlareExpansion/AssetReadiness.asset",
+      "bytes": 165814,
+      "sha256": "db102676b9d2db352d0938c25948e84956900f8fb978ebf4b7df4ac0a2b5286f"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/Derived/FlareExpansion/AssetReadiness.asset.meta",
+      "bytes": 189,
+      "sha256": "c03b7c0dc28126c750682016625b4a64272a5a8adef93f5cc2367a306672d13d"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/Derived/FlareExpansion/Environment/cave-floor-16.png",
+      "bytes": 21228,
+      "sha256": "ec30dd41536404e557336fe6b01ae196e70cfaf77c3354d53e66c5d3fd7f733e"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/Derived/FlareExpansion/Environment/cave-floor-16.png.meta",
+      "bytes": 3039,
+      "sha256": "5fffd42b16ac0ed9f07bf06af90d61f312f6e48ed108444e20acca5d9a9a87b3"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/Derived/FlareExpansion/Environment/cave-floor-17.png",
+      "bytes": 21279,
+      "sha256": "87e49db28d4884166a70e860de90ef0ae11215eb13b3abc582c809f2db1436b4"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/Derived/FlareExpansion/Environment/cave-floor-17.png.meta",
+      "bytes": 3039,
+      "sha256": "00e2cf015e947c37bd64469226cc4cdd89e55dc90e8efff3b89d0ef704c01693"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/Derived/FlareExpansion/Environment/cave-floor-18.png",
+      "bytes": 21577,
+      "sha256": "d160c4485c4e616cacb4e2fe173f7aba0c8d13e283184a530ee42cfc13f2f8cc"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/Derived/FlareExpansion/Environment/cave-floor-18.png.meta",
+      "bytes": 3039,
+      "sha256": "3612f66475dad558f008be901fc47e227bf3c23e4811d39b5d3566faa0222e41"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/Derived/FlareExpansion/Environment/cave-floor-19.png",
+      "bytes": 21194,
+      "sha256": "753036c79054477a13835f4456541d5ceb971d948438edd0fd343b56854efd45"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/Derived/FlareExpansion/Environment/cave-floor-19.png.meta",
+      "bytes": 3039,
+      "sha256": "0651da29beb023b3056c5ee6bb939044d9630a3eab5ad28b83dacc73ae11843a"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/Derived/FlareExpansion/Environment/cave-floor-20.png",
+      "bytes": 20682,
+      "sha256": "bc33d4e7022e9f8266e1fb6e15f58681a69bd1a7f847d35c4d63c34e5411dbc4"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/Derived/FlareExpansion/Environment/cave-floor-20.png.meta",
+      "bytes": 3039,
+      "sha256": "f896ac5d92d1ab98f986b1827d729af86ba541eb1f1f7defecec8573ed6104a2"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/Derived/FlareExpansion/Environment/cave-floor-21.png",
+      "bytes": 21626,
+      "sha256": "09898d9961f7a3d00c573877697ed6663f415c635d7b2aaa26e90b2cc44b91fe"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/Derived/FlareExpansion/Environment/cave-floor-21.png.meta",
+      "bytes": 3039,
+      "sha256": "88d73b4e930db5e21033a1219b967ac3b5e0105b1a62f623463291f76fc633d0"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/Derived/FlareExpansion/Environment/cave-prop-128.png",
+      "bytes": 9623,
+      "sha256": "9de57441b3f9d71d5b1d9d236c5d22812a0a4c8b40efb695002088ece93d1250"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/Derived/FlareExpansion/Environment/cave-prop-128.png.meta",
+      "bytes": 3053,
+      "sha256": "2a9e30ea3fb9b61f06c8d78ca9970e04649e5e8403049b8ed9ae983efd14867e"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/Derived/FlareExpansion/Environment/cave-prop-129.png",
+      "bytes": 9631,
+      "sha256": "626aff0f8e181bf4b7c8333683ce4aff6a4d2f9fb54cb0b46b006bc6bd064ba8"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/Derived/FlareExpansion/Environment/cave-prop-129.png.meta",
+      "bytes": 3053,
+      "sha256": "d3acdda3921a4b20b064c5356a355e9f9c751b5ea7fead3930fd85a5e959aa2e"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/Derived/FlareExpansion/Environment/cave-wall-64.png",
+      "bytes": 56669,
+      "sha256": "da6fe3d50d0e5060d292a0247c176488e6ce37c61a7c1251ff24176cc1c6e036"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/Derived/FlareExpansion/Environment/cave-wall-64.png.meta",
+      "bytes": 3054,
+      "sha256": "8f3ab08c04116009147543c81ce61772723d5beac3eb0d5ba9d120dd9caf696c"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/Derived/FlareExpansion/Environment/cave-wall-65.png",
+      "bytes": 61371,
+      "sha256": "73e744c0e097dce5fc4e61b0d717731c00f4c56da8ca9a674ce12fd8274d0c97"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/Derived/FlareExpansion/Environment/cave-wall-65.png.meta",
+      "bytes": 3054,
+      "sha256": "c7ff69f8ffda87429daf1df7f1f2f548d2e091b73d0af82ea58c0faaa5f156ad"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/Derived/FlareExpansion/Environment/cave-wall-66.png",
+      "bytes": 8069,
+      "sha256": "f8e824ef27eaa3aec84ee8298b378433bb24e40ed3786373146a095386e2ba81"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/Derived/FlareExpansion/Environment/cave-wall-66.png.meta",
+      "bytes": 3052,
+      "sha256": "4ce93f8cc624edf9da57e8b81bc863fa8fda8ab1adbd08d3eb3d0b6b1d89ff21"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/Derived/FlareExpansion/Environment/cave-wall-67.png",
+      "bytes": 10422,
+      "sha256": "515af596773bbca8e98d5bca0d2ca607c41e110b38c23c70d45111a46f1ebcf1"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/Derived/FlareExpansion/Environment/cave-wall-67.png.meta",
+      "bytes": 3052,
+      "sha256": "5d88c3e4044d990506a0dc0168ba16706364b1f17b006f51034c02b5ecbbb469"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/Derived/FlareExpansion/Environment.meta",
+      "bytes": 172,
+      "sha256": "02918595820a2abd44ac55f870ff9a9963957555ba00aa3e696a7358f686ae38"
+    },
+    {
+      "path": "docs/art/inventory/evidence/workshop-unity.png",
+      "bytes": 744729,
+      "sha256": "c231e3a8d1b5018a0df4c0604bfaef34e5073a3a6e53a89569fedc889523c728"
+    },
+    {
+      "path": "docs/art/inventory/evidence/workshop-reduced-motion.png",
+      "bytes": 742587,
+      "sha256": "fb82706dce18bf8609037dcbba730b324b2f80c182d4092c3c107c023e3747fd"
+    }
+  ],
+  "sourceRevision": "bff5e01415010cdafa553ec5811fe6b92de976c5",
+  "capturedUtc": "2026-11-08T20:41:52Z"
+}
