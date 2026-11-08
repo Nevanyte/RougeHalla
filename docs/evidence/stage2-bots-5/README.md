@@ -122,4 +122,6 @@ Rust caller:
 - PostgreSQL, pinned throwaway cluster (feature `postgres`): `cargo test -p rh-server --features postgres --test
   learning_live`: 1 passed — the live store's record → immediate snapshot → flushed rows → reload, and the second live
   store observing the persisted model (close is idempotent).
-- Workspace gate: GATE_TBD.
+- Workspace gate: **1,509 passed, 0 failed, 3 ignored, 156 test binaries, exit 0** (with the pinned PostgreSQL cluster;
+  the previous 1,503 plus the six remainder-round tests: 3 live-store, 1 room spec report, 1 director record caller and the
+  pinned-PostgreSQL `learning_live` live-store test, which is the 156th binary).
