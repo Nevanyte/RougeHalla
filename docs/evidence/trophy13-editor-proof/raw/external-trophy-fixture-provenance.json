@@ -1,0 +1,76 @@
+{
+  "purpose": "Fixture input provenance for formatter-boundary HUD presentation; no runtime outcome claims.",
+  "sourceCapture": {
+    "path": "docs/evidence/trophy-wire13/source-format.json",
+    "captureSha256": "b75078a3286913391d5c7f309536bc6e8e8c4ea2f101a8ad939ad1f235e4673c",
+    "scope": "cases.keys, cases.ties, cases.tiny",
+    "selectionMeaning": "Longest rendered title and largest parsed gain found among these captured rows; these are formatter-capture extrema, not gameplay-attainability maxima.",
+    "embeddedSourceClosureDigest": "2ac73144203dcad4985ce1ba8cdfec8f3013a193478df0d60ca43e6131a8539d"
+  },
+  "options": [
+    {
+      "fixtureIndex": 0,
+      "captureRow": "cases.ties[25].rows.at",
+      "tie": {
+        "key": "speed",
+        "kind": "percentage-text-1dp",
+        "value": 1.1875
+      },
+      "raw": 1.1875,
+      "bits": "0x3ff3000000000000",
+      "encoded": "kill:speed:1.1875",
+      "parsed": {
+        "key": "speed",
+        "gain": 1.1875
+      },
+      "renderedTitle": "+118.8% movement speed",
+      "titleLengthCharacters": 22,
+      "classification": "Captured formatter stress row; longest rendered title in cases.keys/ties/tiny. Not asserted as gameplay-attainable maximum."
+    },
+    {
+      "fixtureIndex": 1,
+      "captureRow": "cases.ties[3].rows.at",
+      "tie": {
+        "key": "ap",
+        "kind": "flat-1dp",
+        "value": 3.25
+      },
+      "raw": 3.25,
+      "bits": "0x400a000000000000",
+      "encoded": "kill:ap:3.3",
+      "parsed": {
+        "key": "ap",
+        "gain": 3.3
+      },
+      "renderedTitle": "+3.3 Soul Offence",
+      "titleLengthCharacters": 17,
+      "classification": "Largest parsed gain in cases.keys/ties/tiny. Captured flat-format tie row; not asserted as gameplay-attainable maximum."
+    },
+    {
+      "fixtureIndex": 2,
+      "captureRow": "cases.ties[23].rows.at",
+      "tie": {
+        "key": "attackSpeed",
+        "kind": "percentage-text-1dp",
+        "value": 1.1875
+      },
+      "raw": 1.1875,
+      "bits": "0x3ff3000000000000",
+      "encoded": "kill:attackSpeed:1.1875",
+      "parsed": {
+        "key": "attackSpeed",
+        "gain": 1.1875
+      },
+      "renderedTitle": "+118.8% attack speed",
+      "titleLengthCharacters": 20,
+      "classification": "Captured percentage-format stress row; not asserted as gameplay-attainable maximum."
+    }
+  ],
+  "presentation": {
+    "protocolVersion": 13,
+    "optionKind": 3,
+    "decodePath": "synthetic transport bytes -> Session.Poll -> Session.Collections -> MatchHud presentation",
+    "fixtureCaption": "SYNTHETIC PROTOCOL13 TROPHY EDITOR FIXTURE / no server / input disabled",
+    "chooseInvoked": false
+  }
+}

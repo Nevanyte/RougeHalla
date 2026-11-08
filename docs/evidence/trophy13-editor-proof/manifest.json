@@ -1,0 +1,304 @@
+{
+  "scope": "P-UNITY-TROPHY13-EDITOR-PROOF",
+  "base": "4a649e17bf54ec2ff50b86374c0979f044ef4866",
+  "source_head": "f4ba7cfe3a3dc2473e3c642d91b5288de191d343",
+  "branch": "codex/unity-trophy13-editor-proof",
+  "evidence_files": [
+    {
+      "path": "README.md",
+      "bytes": 5485,
+      "sha256": "3fde8ea702c62a01a893ef18b454ecdc5bbd13daa4143dcfae3d9db7b2698a02"
+    },
+    {
+      "path": "raw/autotick.json",
+      "bytes": 101,
+      "sha256": "db4b8c66312249ee644383d5a8d75efa983694353a05fb553684ab15874dcbef"
+    },
+    {
+      "path": "raw/baked-content-after.json",
+      "bytes": 309,
+      "sha256": "60c449fe2cf42ea4e58a8d9e794325853fbc6b15d13a31372ae8cc69fb2fd671"
+    },
+    {
+      "path": "raw/baked-content-before.json",
+      "bytes": 355,
+      "sha256": "20e3e3fb5cd9a169a4067a68165c79efb1f06113854660fd7c2799f96ade250b"
+    },
+    {
+      "path": "raw/compile-after-alias.json",
+      "bytes": 76,
+      "sha256": "557b4b332f7528cefa6e865b86ceadbd17bf1074d7d7ba0c72199248f6e2b2dd"
+    },
+    {
+      "path": "raw/compile-initial-failed.json",
+      "bytes": 2999,
+      "sha256": "d94b72803b72be33bedefe5fa52bae210e984634d2b115fa14eb05f46d69d29a"
+    },
+    {
+      "path": "raw/console-after-captures.json",
+      "bytes": 10708,
+      "sha256": "7fe7635d9cab17bc3793e91603b4c4ad95c851cacaa1a0fc45c24d1fa2652478"
+    },
+    {
+      "path": "raw/console-before.json",
+      "bytes": 337,
+      "sha256": "7c39fc3c082899270d70d3b37147ffd641e9077585f2dc402b5b888e96c9bf25"
+    },
+    {
+      "path": "raw/console-clear-recorded.json",
+      "bytes": 17,
+      "sha256": "af30b9b4fa3610cee4c64b1d187646d4a2f8cff4dbbe22b950d6d6aeaf06a8fc"
+    },
+    {
+      "path": "raw/console-idle.json",
+      "bytes": 336,
+      "sha256": "9a2639d3821f65e50764ab8b92e1b2607b1698c55f669b9a27f4f2f618642a64"
+    },
+    {
+      "path": "raw/editmode-results.json",
+      "bytes": 13228,
+      "sha256": "b0449f115c23a1475e993aae5817a3dc890e62386b9a4524763eaa6c3fb23508"
+    },
+    {
+      "path": "raw/editor-console-entries.json",
+      "bytes": 2230,
+      "sha256": "eccefd0aeb1a3f86d6d7788666d923e26d70e52edac3e73686e1e762ca30ee59"
+    },
+    {
+      "path": "raw/editor-idle.json",
+      "bytes": 1105,
+      "sha256": "d76f027e77bc1c8b8b6b3f97398d67b0efa0d2470f77b3ed4e64b56cd83b6607"
+    },
+    {
+      "path": "raw/editor-whitespace-normalization.json",
+      "bytes": 868,
+      "sha256": "9a263920fd0909ace5923566058242caa82faa6b996e9f35a107a6d574c4ca7c"
+    },
+    {
+      "path": "raw/external-trophy-fixture-provenance.json",
+      "bytes": 2678,
+      "sha256": "e2bbe5c11182c8287324c787e41c911306c0977bb690f5a5cf9d8a14edeaa9c2"
+    },
+    {
+      "path": "raw/fixture-setup.json",
+      "bytes": 375,
+      "sha256": "ddc930191c6d0d40512f3da97cf20194beae1aed49f9d780ebe328ebadc1d3e8"
+    },
+    {
+      "path": "raw/gameview-target.json",
+      "bytes": 199,
+      "sha256": "cdde78eaa5f99131d2f655d04b787bb3b0f9a8227a491e4f46e8d7f8eb9faabd"
+    },
+    {
+      "path": "raw/high-capture.json",
+      "bytes": 217,
+      "sha256": "a89011e94734f105b7d51daa27677e96b3ab440514d37bad707f3876b0cdfa1b"
+    },
+    {
+      "path": "raw/high-layout.json",
+      "bytes": 1257,
+      "sha256": "81a55a78d52d4bb401e7dae636a4124b6e087b71c453228667bd67b47cc40169"
+    },
+    {
+      "path": "raw/high-trophy-options.json",
+      "bytes": 656,
+      "sha256": "4c69b34bceb6253a74704d527d7d3b21f34e1c6b2c16843c72709d1f79543309"
+    },
+    {
+      "path": "raw/low-reduced-capture.json",
+      "bytes": 224,
+      "sha256": "e734d62e06030842d4b25f219689422d5fef61db75db4ea1f565674b12925fb0"
+    },
+    {
+      "path": "raw/low-reduced-layout.json",
+      "bytes": 1493,
+      "sha256": "6140f51cf6d68bf5d6b661e85c69e5e565cfc8818112dee1442ace31852b1fa5"
+    },
+    {
+      "path": "raw/play-frames.json",
+      "bytes": 242,
+      "sha256": "bca5c2cce0209ca2ace0317b94b97b36bb7ad184219a155f8ad449258f9fb96b"
+    },
+    {
+      "path": "raw/play-ready.json",
+      "bytes": 1105,
+      "sha256": "d76f027e77bc1c8b8b6b3f97398d67b0efa0d2470f77b3ed4e64b56cd83b6607"
+    },
+    {
+      "path": "raw/play-start.json",
+      "bytes": 20,
+      "sha256": "c42131b3c09a58be76523c63da85d5cc1fe3e60794a3b2511a0210bab4cb142a"
+    },
+    {
+      "path": "raw/play-stop.json",
+      "bytes": 19,
+      "sha256": "07ca3fedcb7f611bfecfc8584183d5d78170933ace3e4996cfe3227132e22671"
+    },
+    {
+      "path": "raw/preferences-restored.json",
+      "bytes": 430,
+      "sha256": "9ad4b6e5aecc1a8e18e6b0d161028bf91430d4649d3e926a1057dde14f2a4a3c"
+    },
+    {
+      "path": "raw/preferences-saved.json",
+      "bytes": 122,
+      "sha256": "8c2b673846a3f128ff0b6896b12872428a16630f317759121c66e8f160636c22"
+    },
+    {
+      "path": "raw/recompile-after-alias.json",
+      "bytes": 104,
+      "sha256": "540d3abd313694a97e1359aeb14b3eb4ac2a312838e027fcdebb4b1a2f271df9"
+    },
+    {
+      "path": "raw/recompile-trigger.json",
+      "bytes": 104,
+      "sha256": "540d3abd313694a97e1359aeb14b3eb4ac2a312838e027fcdebb4b1a2f271df9"
+    },
+    {
+      "path": "raw/source-copy-observed.json",
+      "bytes": 264,
+      "sha256": "72153e5af669f1271e8e7c49b978588b1ba22b3e158319a2a281ae83953fed39"
+    },
+    {
+      "path": "raw/source-corpus-check.json",
+      "bytes": 534,
+      "sha256": "09b2e225e2144ac82c72728bea01ebcb6c5a7fb2399629c9c91bc2cc2b124a9b"
+    },
+    {
+      "path": "raw/source-format.json",
+      "bytes": 47713,
+      "sha256": "b75078a3286913391d5c7f309536bc6e8e8c4ea2f101a8ad939ad1f235e4673c"
+    },
+    {
+      "path": "raw/trophy-fixture.cs",
+      "bytes": 6095,
+      "sha256": "f86863012f15d7acf3b44e74d5f3c32fe026e330ee76762f39d13c8c13113867"
+    },
+    {
+      "path": "screenshots/high-trophy-text150.png",
+      "bytes": 2243117,
+      "sha256": "547b07dbf1571789bcca5d782844a297f7fb3753f0241ef14934d2b1f5d9ff42"
+    },
+    {
+      "path": "screenshots/low-reduced-trophy-text150.png",
+      "bytes": 2515951,
+      "sha256": "8f556b74d516aae8905a2e3de966873b54fbde09795fb98f7945510e9e9939fb"
+    }
+  ],
+  "source_files": [
+    {
+      "path": "client-unity/UnityProject/Assets/Editor/WishProof/WishProof.cs",
+      "bytes": 38934,
+      "sha256": "4dc981ac2ad8f6e628427a040fdea0aa39d1cf45cc2faf276e971e1241a96c2e",
+      "revision": "f4ba7cfe3a3dc2473e3c642d91b5288de191d343"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/UI/MatchHud.cs",
+      "bytes": 38130,
+      "sha256": "e3461babd9e8d793b1cd4d8f56b8f857c34d3bef1f2ef2c266f41c0b123d5bc9",
+      "revision": "f4ba7cfe3a3dc2473e3c642d91b5288de191d343"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/UI/TrophyText.cs",
+      "bytes": 3513,
+      "sha256": "9696c8fba4f4d19eadbed9242a219b1e510ec83d637befbad0f56f1007187fd1",
+      "revision": "f4ba7cfe3a3dc2473e3c642d91b5288de191d343"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/MatchHudTrophyEditModeTests.cs",
+      "bytes": 6159,
+      "sha256": "0b57c086d5297122dca35a249c38f72adf079daf7530630fdfe8c307d72d8632",
+      "revision": "f4ba7cfe3a3dc2473e3c642d91b5288de191d343"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/MatchHudWishBarrierEditModeTests.cs",
+      "bytes": 6519,
+      "sha256": "ad4aa4201f4a6a6b3c1b487e27e639151170135a5ae158bf35bc9ea8ec4105b1",
+      "revision": "f4ba7cfe3a3dc2473e3c642d91b5288de191d343"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/PresentationTimelineEditModeTests.cs",
+      "bytes": 11466,
+      "sha256": "c2cc60e13c23b0166ef37e4b5f3a977c01c24d91d3fa8de8e5216c01057e4945",
+      "revision": "f4ba7cfe3a3dc2473e3c642d91b5288de191d343"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/RoguehallaNet/Protocol/Codec.cs",
+      "bytes": 12013,
+      "sha256": "fc050a513a90b4dfabd685f55428ed0317d74f132696af60427827485d8ced07",
+      "revision": "f4ba7cfe3a3dc2473e3c642d91b5288de191d343"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/RoguehallaNet/Protocol/State.cs",
+      "bytes": 27348,
+      "sha256": "9275e0bbdc25fe5e5a7c5ea3ed6f334021cff5e606dc5a2d3ad9346f6efa81b5",
+      "revision": "f4ba7cfe3a3dc2473e3c642d91b5288de191d343"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/RoguehallaNet/Protocol/Messages.cs",
+      "bytes": 87554,
+      "sha256": "6f6c9b081955cc6a65d6458277e1e96f3c6553b8af908944529210a58d9cb8f1",
+      "revision": "f4ba7cfe3a3dc2473e3c642d91b5288de191d343"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/RoguehallaNet/Net/Collections.cs",
+      "bytes": 12755,
+      "sha256": "9018d9de767406fa97e4d8dc387fb083d4904ed9030037d4ec6f050f3fdfe28f",
+      "revision": "f4ba7cfe3a3dc2473e3c642d91b5288de191d343"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/RoguehallaNet/Net/Session.cs",
+      "bytes": 23273,
+      "sha256": "bfd5815d08e508a8a7b0e5587cd80092c7d2c37757f6df525d3f1307966e8efb",
+      "revision": "f4ba7cfe3a3dc2473e3c642d91b5288de191d343"
+    },
+    {
+      "path": "client-unity/RoguehallaNet/Protocol/Codec.cs",
+      "bytes": 12013,
+      "sha256": "fc050a513a90b4dfabd685f55428ed0317d74f132696af60427827485d8ced07",
+      "revision": "f4ba7cfe3a3dc2473e3c642d91b5288de191d343"
+    },
+    {
+      "path": "client-unity/RoguehallaNet/Protocol/State.cs",
+      "bytes": 27348,
+      "sha256": "9275e0bbdc25fe5e5a7c5ea3ed6f334021cff5e606dc5a2d3ad9346f6efa81b5",
+      "revision": "f4ba7cfe3a3dc2473e3c642d91b5288de191d343"
+    },
+    {
+      "path": "client-unity/RoguehallaNet/Protocol/Messages.cs",
+      "bytes": 87554,
+      "sha256": "6f6c9b081955cc6a65d6458277e1e96f3c6553b8af908944529210a58d9cb8f1",
+      "revision": "f4ba7cfe3a3dc2473e3c642d91b5288de191d343"
+    },
+    {
+      "path": "client-unity/RoguehallaNet/Net/Collections.cs",
+      "bytes": 12755,
+      "sha256": "9018d9de767406fa97e4d8dc387fb083d4904ed9030037d4ec6f050f3fdfe28f",
+      "revision": "f4ba7cfe3a3dc2473e3c642d91b5288de191d343"
+    },
+    {
+      "path": "client-unity/RoguehallaNet/Net/Session.cs",
+      "bytes": 23273,
+      "sha256": "bfd5815d08e508a8a7b0e5587cd80092c7d2c37757f6df525d3f1307966e8efb",
+      "revision": "f4ba7cfe3a3dc2473e3c642d91b5288de191d343"
+    },
+    {
+      "path": "client-unity/RoguehallaNet/RoguehallaNet.csproj",
+      "bytes": 664,
+      "sha256": "e0a48e06b401090238dc438cbf865007c22264cab8631d59965207074c6070ad",
+      "revision": "f4ba7cfe3a3dc2473e3c642d91b5288de191d343"
+    },
+    {
+      "path": "client-unity/RoguehallaNet.Tests/TrophyTextTests.cs",
+      "bytes": 4072,
+      "sha256": "a8c2871270bca93f5ea14e9ce7fe7ca56f75a66f738ab05d4542868c646370ca",
+      "revision": "f4ba7cfe3a3dc2473e3c642d91b5288de191d343"
+    },
+    {
+      "path": "docs/evidence/trophy-wire13/source-format.json",
+      "bytes": 47713,
+      "sha256": "b75078a3286913391d5c7f309536bc6e8e8c4ea2f101a8ad939ad1f235e4673c",
+      "revision": "f4ba7cfe3a3dc2473e3c642d91b5288de191d343"
+    }
+  ]
+}
