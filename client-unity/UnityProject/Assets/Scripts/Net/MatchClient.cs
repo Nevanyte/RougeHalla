@@ -22,6 +22,7 @@ namespace Roguehalla.Client
         public Camera Cam;
 
         public Session Session { get; private set; }
+        Session _presentationSession;
         readonly List<InterpActor> _actors = new List<InterpActor>();
         readonly List<InterpActor> _targetActors = new List<InterpActor>();
         const double SteerRepeatMs = 100;
@@ -44,7 +45,7 @@ namespace Roguehalla.Client
 
         public void Join(string nickname, int faction)
         {
-            if (Session != null) { Session.FxReceived -= PresentFx; Session.Leave(); }
+            if (Session != null) { UnbindPresentationSession(); ResetPresentationTimeline(); Session.Leave(); }
             Profile = string.IsNullOrWhiteSpace(nickname) ? Profile : nickname.Trim();
             Faction = faction;
             _actors.Clear(); _steering = false; _attackHeld = false;
@@ -61,13 +62,14 @@ namespace Roguehalla.Client
                 Debug.Log("[net] " + state + (Session.RejectCode.HasValue ? " " + Session.RejectCode + ": " + Session.RejectReason : "") + (Session.Error != null ? " " + Session.Error : ""));
             };
             Hud.Bind(Session);
-            Session.FxReceived += PresentFx;
+            BindPresentationSession(Session);
             Session.Connect();
         }
 
         public void Leave()
         {
-            if (Session != null) { Session.FxReceived -= PresentFx; Session.Leave(); }
+            UnbindPresentationSession(); ResetPresentationTimeline();
+            if (Session != null) Session.Leave();
             if (Arena != null) Destroy(Arena.gameObject);
             Session = null;
             Hud.ShowMenu();
@@ -81,7 +83,36 @@ namespace Roguehalla.Client
             _attackHeld = _steering = false;
         }
 
-        void OnDestroy() { if (Session != null) { Session.FxReceived -= PresentFx; Session.Leave(); } }
+        void OnDestroy()
+        {
+            UnbindPresentationSession(); ResetPresentationTimeline();
+            if (Session != null) Session.Leave();
+            if (Arena != null) { Arena.gameObject.SetActive(false); Destroy(Arena.gameObject); }
+        }
+
+        void BindPresentationSession(Session session)
+        {
+            UnbindPresentationSession();
+            _presentationSession = session;
+            ResetPresentationTimeline();
+            if (session == null) return;
+            session.FxReceived += PresentFx;
+            session.TimelineReset += ResetPresentationTimeline;
+        }
+        void UnbindPresentationSession()
+        {
+            if (_presentationSession == null) return;
+            _presentationSession.FxReceived -= PresentFx;
+            _presentationSession.TimelineReset -= ResetPresentationTimeline;
+            _presentationSession = null;
+        }
+        void ResetPresentationTimeline()
+        {
+            if (Arena != null) Arena.ResetTransientPresentation(Session != null ? Session.ServerTimeMs : 0);
+            if (Hud != null) Hud.ResetTransientPresentation();
+            var soundscape = GetComponent<ShowcaseSoundscape>();
+            if (soundscape != null) soundscape.ResetTransientCues();
+        }
 
         void PresentFx(ServerMsg.Fx fx) { if (Arena != null) Arena.ConfirmedFx(fx); }
 
@@ -94,6 +125,7 @@ namespace Roguehalla.Client
             if (Session.State != SessionState.InMatch && Session.State != SessionState.Ended) return;
             if (Arena != null && !Arena.HasMap && Session.Map != null) Arena.Build(Session.Map);
             Session.Snapshots.Sample(Session.Clock.RenderMs, _actors);
+            if (_traceLatency && LatencyTrace.TakeTargetRequest()) TraceTargetScreens();
             if (Session.State == SessionState.InMatch)
             {
                 ReadInput();
@@ -153,7 +185,8 @@ namespace Roguehalla.Client
             if (kb.rKey.wasPressedThisFrame)
             {
                 uint target = haveCursor && mouse != null ? VisibleActorAt(mouse.position.ReadValue()) : 0;
-                Session.CollectWishInput(true, blocked, haveCursor, sx, sy, target == 0 ? (uint?)null : target);
+                byte seq = Session.CollectWishInput(true, blocked, haveCursor, sx, sy, target == 0 ? (uint?)null : target);
+                if (_traceLatency && seq != 0) LatencyTrace.Mark("sampleWish", Session.PlayerId, seq, sx, sy);
             }
             if (kb.digit1Key.wasPressedThisFrame) Session.Input.Swap(0);
             if (kb.digit2Key.wasPressedThisFrame) Session.Input.Swap(1);
@@ -191,6 +224,22 @@ namespace Roguehalla.Client
         {
             if (Session != null && Session.State == SessionState.InMatch && Session.Collections.Focus.HasValue)
                 Session.Input.Pickup(Session.Collections.Focus.Value.Handle);
+        }
+
+        // One-shot, explicitly enabled proof data from the same delivered set and camera as the input picker.
+        void TraceTargetScreens()
+        {
+            if (Cam == null || Arena == null || Session.Me == null) return;
+            LatencyTrace.Mark("targetViewport", 0, 0, Screen.width, Screen.height);
+            var self = Cam.WorldToScreenPoint(ArenaView.WorldPoint(Session.Me.X, Session.Me.Y));
+            if (self.z > 0) LatencyTrace.Mark("targetSelf", Session.PlayerId, 0, self.x, self.y);
+            Session.Snapshots.Sample(Session.Snapshots.NewestMs, _targetActors);
+            foreach (var actor in _targetActors)
+            {
+                if (actor.Id == Session.PlayerId) continue;
+                var screen = Cam.WorldToScreenPoint(ArenaView.WorldPoint(actor.X, actor.Y));
+                if (screen.z > 0) LatencyTrace.Mark("targetActor", actor.Id, (int)actor.Kind, screen.x, screen.y);
+            }
         }
 
         uint VisibleActorAt(Vector2 pointer)

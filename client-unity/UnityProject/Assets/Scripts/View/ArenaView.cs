@@ -16,6 +16,8 @@ namespace Roguehalla.Client
         public static Vector3 WorldPoint(float x, float y) { return new Vector3(x * Scale, -y * Scale * GroundSquash, 0); }
         public bool HasMap { get; private set; }
         SpriteActorPresenter _actors;
+        ConfirmedWishPresenter _wishes;
+        double _sourceTimeMs;
         ShowcaseCatalog _catalog;
         Transform _mapRoot, _propsRoot, _fxRoot;
         readonly List<SpriteRenderer> _props = new List<SpriteRenderer>();
@@ -45,6 +47,7 @@ namespace Roguehalla.Client
             _catalog = Resources.Load<ShowcaseCatalog>("Showcase/Catalog");
             _actors = new SpriteActorPresenter(transform, _catalog);
             _mapRoot = Child("Authoritative map artwork"); _propsRoot = Child("Observed collections"); _fxRoot = Child("Confirmed effects");
+            _wishes = new ConfirmedWishPresenter(_fxRoot, _actors);
             var global = Child("Ambient light");
             _ambient = global.gameObject.AddComponent<Light2D>(); _ambient.lightType = Light2D.LightType.Global;
             _ambient.color = new Color(.81f, .83f, .9f); _ambient.intensity = .86f;
@@ -120,22 +123,25 @@ namespace Roguehalla.Client
                 // NPC observer handles may renew on every observation. Never infer continuity
                 // from appearance or position; draw their latest typed public facts instead.
                 if (_hasMembership && a.Kind != ActorKind.Player) continue;
-                _actors.Present(a.Id, a.X, a.Y, a.Facing, a.HpPct, a.Faction, a.Status, a.Weapon, a.Kind, a.MobType, a.Effects, a.SourceSig, false);
+                _actors.Present(a.Id, a.X, a.Y, a.Facing, a.HpPct, a.Faction, a.Status, a.Weapon, a.Kind, a.MobType, a.Effects, a.SourceSig, false, a.BarrierPct, a.BarrierRingStep);
             }
             if (_hasMembership) PresentLatestNpcs();
             if (me != null && (!_hasMembership || _membership.Contains(me.Id)))
             {
                 bool initialized = motion != null && motion.Initialized;
-                _actors.Present(me.Id, initialized ? motion.DrawnX : me.X, initialized ? motion.DrawnY : me.Y, aimAngle, me.HpPct,
-                    me.Faction, me.Status, me.Weapon, ActorKind.Player, null, me.Effects, me.SelfSig, true);
+                OwnerVitalBars.Percent(me, out float healthPercent, out float barrierPercent);
+                _actors.Present(me.Id, initialized ? motion.DrawnX : me.X, initialized ? motion.DrawnY : me.Y, aimAngle, healthPercent,
+                    me.Faction, me.Status, me.Weapon, ActorKind.Player, null, me.Effects, me.SelfSig, true, barrierPercent, me.BarrierRingStep);
             }
             _actors.End();
             UpdateEffects();
+            _wishes.Tick(_sourceTimeMs);
         }
 
         /// <summary>Latest membership wins over delayed interpolation, before the frame is rendered.</summary>
         public void RefreshVisibility(Session session)
         {
+            _sourceTimeMs = session != null ? session.ServerTimeMs : 0;
             _latestMembership.Clear();
             if(session!=null && session.Snapshots.Count>0)
             {
@@ -154,6 +160,7 @@ namespace Roguehalla.Client
             }
             if(me!=null) _membership.Add(me.Id);
             _hasMembership=true; _actors.Retain(_membership);
+            _wishes.Retain(_membership);
             // This also runs after Poll/Present, before rendering, so new observer handles
             // are visible immediately and removed handles leave no cosmetic residue.
             PresentLatestNpcs();
@@ -164,7 +171,7 @@ namespace Roguehalla.Client
         void PresentLatestNpcs()
         {
             foreach(var a in _latestNpcs)
-                _actors.Present(a.Id,a.X,a.Y,a.Facing,a.HpPct,a.Faction,a.Status,a.Weapon,a.Kind,a.MobType,a.Effects,a.SourceSig,false);
+                _actors.Present(a.Id,a.X,a.Y,a.Facing,a.HpPct,a.Faction,a.Status,a.Weapon,a.Kind,a.MobType,a.Effects,a.SourceSig,false,0,0);
         }
 
         public void PresentCollections(CollectionsView collections)
@@ -264,14 +271,35 @@ namespace Roguehalla.Client
         }
         public void ConfirmedFx(ServerMsg.Fx fx)
         {
+            if (fx == null) return;
             foreach (var f in fx.List)
             {
+                if (f.Kind == FxKind.WishStarted || f.Kind == FxKind.WishLanded || f.Kind == FxKind.WishEnded)
+                {
+                    _wishes.Accept(f);
+                    continue;
+                }
                 uint subject = f.Kind == FxKind.Hit ? f.Victim : f.Kind == FxKind.Stagger || f.Kind == FxKind.Block ? f.Id : f.By;
                 var cue=new PendingFx{Kind=f.Kind,Subject=subject,Amount=f.Amount};
                 if (_actors.Contains(subject)) PresentFx(cue);
                 else if(_pendingFx.Count<64) _pendingFx.Add(cue); // Copy scalars; decoded messages are recycled.
             }
         }
+        /// <summary>A clock epoch cut clears cosmetics only; latest membership and collections remain intact.</summary>
+        public void ResetTransientPresentation(double serverTimeMs = 0)
+        {
+            _sourceTimeMs = serverTimeMs;
+            _pendingFx.Clear();
+            _wishes.Reset();
+            for (int i = _flashes.Count - 1; i >= 0; i--)
+            {
+                var flash = _flashes[i];
+                flash.Sprite.gameObject.SetActive(false); flash.Text.gameObject.SetActive(false);
+                _flashes.RemoveAt(i); _flashPool.Push(flash);
+            }
+            _actors.ResetTransientTimers();
+        }
+
         void PresentFx(PendingFx f)
         {
                 if (!_actors.TryPosition(f.Subject, out var p)) return;

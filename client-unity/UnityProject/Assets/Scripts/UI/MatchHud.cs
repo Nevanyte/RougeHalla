@@ -17,7 +17,8 @@ namespace Roguehalla.Client
         Session _session;
         RectTransform _root, _menu, _hud, _rewards, _results, _settings;
         TMP_InputField _nickname;
-        TMP_Text _factionLabel, _banner, _vitals, _build, _focusLabel, _rewardTitle, _resultTitle, _resultText, _notice;
+        TMP_Text _factionLabel, _banner, _vitals, _build, _focusLabel, _wishCard, _rewardTitle, _resultTitle, _resultText, _notice;
+        RectTransform _healthBarFill, _barrierBarFill;
         readonly UnityEngine.UI.Button[] _options = new UnityEngine.UI.Button[3];
         UnityEngine.UI.Button _skip, _pickup;
         TMP_Text _qualitySetting, _motionSetting, _musicValue, _ambienceValue, _sfxValue, _scaleValue;
@@ -32,6 +33,10 @@ namespace Roguehalla.Client
         SessionState _bannerState = (SessionState)(-1);
         int _bannerPhase = -1, _bannerAttempt = -1;
         float _lastHp = float.NaN, _lastMaxHp;
+        WishView? _lastWish;
+        float _lastBarrier = float.NaN;
+        byte _lastBarrierRing;
+        double _lastServerTime = double.NaN;
         ushort _lastKills, _lastGv;
         ActorStatus _lastStatus;
         WireResult _lastResult;
@@ -97,16 +102,27 @@ namespace Roguehalla.Client
                 _client.Join(_nickname.text, _faction);
             });
             SetFaction(_faction);
-            _hud = Panel(_root, "PlayerHUD", .02f, .02f, .98f, .23f);
-            _vitals = Text(_hud, "Vitals", "Waiting for player state", .02f, .69f, .64f, .98f, 23);
-            _slots[0] = Button(_hud, "Slot1", "1 —", .02f, .39f, .19f, .69f, () => Swap(0));
-            _slots[1] = Button(_hud, "Slot2", "2 —", .20f, .39f, .37f, .69f, () => Swap(1));
-            Button(_hud, "Potion", "E · Use potion", .39f, .39f, .57f, .69f, UsePotion);
-            _pickup = Button(_hud, "Pickup", "F · Pick up", .59f, .39f, .77f, .69f, () => _client.PickupFocus());
-            _focusLabel = Text(_hud, "Focus", "", .65f, .70f, .98f, .98f, 19);
-            _build = Text(_hud, "Build", "Build: awaiting server", .02f, .20f, .98f, .39f, 17);
-            Text(_hud, "Controls", "WASD / arrows · move    Click · attack    Right click · move    Shift + right click · attack move    1 / 2 / Q · swap", .02f, .01f, .98f, .19f, 16);
-            _notice = Text(_root, "Notice", "", .03f, .24f, .56f, .31f, 19);
+            _hud = Panel(_root, "PlayerHUD", .02f, .02f, .98f, .26f);
+            _vitals = Text(_hud, "Vitals", "Waiting for player state", .02f, .64f, .38f, .99f, 19);
+            var vitalBar = Rect(_hud, "OwnerVitalBar", .02f, .60f, .68f, .625f);
+            var barBackground = vitalBar.gameObject.AddComponent<UnityEngine.UI.Image>();
+            barBackground.color = ShowcasePalette.PanelStroke; barBackground.raycastTarget = false;
+            _healthBarFill = Rect(vitalBar, "HealthFill", 0, 0, 0, 1);
+            var healthImage = _healthBarFill.gameObject.AddComponent<UnityEngine.UI.Image>();
+            healthImage.color = ShowcasePalette.Success; healthImage.raycastTarget = false;
+            _barrierBarFill = Rect(vitalBar, "BarrierFill", 0, 0, 0, 1);
+            var barrierImage = _barrierBarFill.gameObject.AddComponent<UnityEngine.UI.Image>();
+            barrierImage.color = ShowcasePalette.Gold; barrierImage.raycastTarget = false;
+            _wishCard = Text(_hud, "WishCard", "R · WISH\nAwaiting server", .70f, .04f, .98f, .98f, 16);
+            _wishCard.color = ShowcasePalette.Gold;
+            _slots[0] = Button(_hud, "Slot1", "1 —", .02f, .34f, .19f, .58f, () => Swap(0));
+            _slots[1] = Button(_hud, "Slot2", "2 —", .20f, .34f, .37f, .58f, () => Swap(1));
+            Button(_hud, "Potion", "E · Use potion", .39f, .34f, .57f, .58f, UsePotion);
+            _pickup = Button(_hud, "Pickup", "F · Pick up", .59f, .34f, .68f, .58f, () => _client.PickupFocus());
+            _focusLabel = Text(_hud, "Focus", "", .39f, .70f, .68f, .98f, 16);
+            _build = Text(_hud, "Build", "Build: awaiting server", .02f, .18f, .68f, .33f, 17);
+            Text(_hud, "Controls", "WASD/arrows move · Click attack · RMB move · Shift+RMB attack move · Q/1/2 swap", .02f, .01f, .68f, .18f, 16);
+            _notice = Text(_root, "Notice", "", .03f, .27f, .56f, .34f, 19);
             _rewards = Panel(_root, "Rewards", .59f, .34f, .98f, .86f);
             _rewardTitle = Text(_rewards, "RewardTitle", "", .06f, .81f, .94f, .97f, 23);
             _rewardTitle.color = ShowcasePalette.Gold;
@@ -231,9 +247,10 @@ namespace Roguehalla.Client
             _menu.gameObject.SetActive(false); _hud.gameObject.SetActive(true); _settings.gameObject.SetActive(false);
             _results.gameObject.SetActive(false); _rewards.gameObject.SetActive(false);
             _feedback = ""; _lastResult = null; _lastHp = float.NaN; _chestIndex = 0; _shownChest = default;
+            _lastWish = null; _lastBarrier = float.NaN; _lastBarrierRing = 0; _lastServerTime = double.NaN;
             _inventoryShown = null; _focusShown = null; _buildShown = false; _rewardSignature = ulong.MaxValue;
             _dirty = _rewardsDirty = true; _bannerState = (SessionState)(-1); _bannerPhase = -1;
-            _vitals.text = "Waiting for player state";
+            ClearOwnerPresentation("Awaiting server");
             _pickup.interactable = false; _pickup.GetComponentInChildren<TMP_Text>().text = "F · No pickup";
             _focusLabel.text = "Potions: awaiting server";
             _slots[0].GetComponentInChildren<TMP_Text>().text = "1 · awaiting server";
@@ -251,8 +268,21 @@ namespace Roguehalla.Client
         {
             Unbind(); _menu.gameObject.SetActive(true); _hud.gameObject.SetActive(false);
             _rewards.gameObject.SetActive(false); _results.gameObject.SetActive(false); _settings.gameObject.SetActive(false);
+            ClearOwnerPresentation("Awaiting server");
             _banner.text = "Choose a faction and join"; _notice.text = "";
         }
+
+        /// <summary>Clears ephemeral notices and redraws owner facts after an accepted presentation clock cut.</summary>
+        public void ResetTransientPresentation()
+        {
+            _feedback = "";
+            Set(_notice, "");
+            if (_session == null) ClearOwnerPresentation("Awaiting server");
+            else if (_session.Me == null) ClearOwnerPresentation(_session.Latest == null ? "Awaiting server" : "Unavailable");
+            else RefreshOwnerPresentation(_session.Me, _session.ServerTimeMs);
+            _dirty = true;
+        }
+
         void OnDestroy() { Unbind(); }
         void Changed(SessionState state) { if (_session != null) RefreshCollections(_session.Collections); _dirty = _rewardsDirty = true; }
         void Snapshot(ServerMsg.Snapshot snapshot) { _dirty = true; }
@@ -291,11 +321,13 @@ namespace Roguehalla.Client
             }
             Set(_notice, _feedback);
             var me = _session.Me;
-            if (me == null) { Set(_vitals, "Waiting / spectating"); _lastHp = float.NaN; }
-            if (me != null && (me.Hp != _lastHp || me.MaxHp != _lastMaxHp || me.Kills != _lastKills || me.Gv != _lastGv || me.Status != _lastStatus))
+            if (me == null)
             {
-                Set(_vitals, "HP " + me.Hp.ToString("0.#") + " / " + me.MaxHp.ToString("0.#") + "   Kills " + me.Kills + "   GV " + me.Gv + "   " + me.Status);
-                _lastHp = me.Hp; _lastMaxHp = me.MaxHp; _lastKills = me.Kills; _lastGv = me.Gv; _lastStatus = me.Status;
+                ClearOwnerPresentation(_session.Latest == null ? "Awaiting server" : "Unavailable");
+            }
+            else
+            {
+                RefreshOwnerPresentation(me, _session.ServerTimeMs);
             }
             if (_rewardsDirty) { _rewardsDirty = false; RefreshRewards(); }
             if (_session.LastResult != null && !ReferenceEquals(_lastResult, _session.LastResult))
@@ -311,6 +343,63 @@ namespace Roguehalla.Client
                 _resultTitle.color = ShowcasePalette.Warning;
                 _results.gameObject.SetActive(true);
             }
+        }
+        /// <summary>Renders only delivered owner facts; the accepted server clock is used for elapsed-time labels.</summary>
+        internal void RefreshOwnerPresentation(SelfView me, double serverTimeMs)
+        {
+            if (me.Hp != _lastHp || me.MaxHp != _lastMaxHp || me.Kills != _lastKills || me.Gv != _lastGv || me.Status != _lastStatus || me.Barrier != _lastBarrier || me.BarrierRingStep != _lastBarrierRing)
+            {
+                Set(_vitals, "HP " + me.Hp.ToString("0.#") + " / " + me.MaxHp.ToString("0.#") + " · Barrier " + me.Barrier.ToString("0.#") + " · ring " + me.BarrierRingStep + "/8\nKills " + me.Kills + " · GV " + me.Gv + " · " + me.Status);
+                _lastHp = me.Hp; _lastMaxHp = me.MaxHp; _lastKills = me.Kills; _lastGv = me.Gv; _lastStatus = me.Status; _lastBarrier = me.Barrier; _lastBarrierRing = me.BarrierRingStep;
+                OwnerVitalBars.Percent(me, out float healthPercent, out float barrierPercent);
+                float healthEnd = healthPercent / 100f;
+                float barrierEnd = (healthPercent + barrierPercent) / 100f;
+                _healthBarFill.anchorMax = new Vector2(healthEnd, 1f);
+                _barrierBarFill.anchorMin = new Vector2(healthEnd, 0f);
+                _barrierBarFill.anchorMax = new Vector2(barrierEnd, 1f);
+            }
+            bool wishChanged = _lastWish.HasValue != me.Wish.HasValue;
+            if (!wishChanged && me.Wish.HasValue && _lastWish.HasValue) wishChanged = !WishEquals(me.Wish.Value, _lastWish.Value);
+            if (wishChanged || serverTimeMs != _lastServerTime)
+            {
+                Set(_wishCard, FormatWishCard(me.Wish, serverTimeMs));
+                _lastWish = me.Wish; _lastServerTime = serverTimeMs;
+            }
+        }
+
+        internal void ClearOwnerPresentation(string reason)
+        {
+            _lastHp = float.NaN; _lastBarrier = 0f; _lastBarrierRing = 0; _lastWish = null; _lastServerTime = double.NaN;
+            Set(_vitals, reason == "Unavailable" ? "Waiting / spectating" : "Waiting for player state");
+            Set(_wishCard, "R · WISH\n" + reason);
+            if (_healthBarFill != null) _healthBarFill.anchorMax = Vector2.zero;
+            if (_barrierBarFill != null) { _barrierBarFill.anchorMin = Vector2.zero; _barrierBarFill.anchorMax = Vector2.zero; }
+        }
+
+        internal static string FormatWishCard(WishView? wish, double serverTimeMs)
+        {
+            if (!wish.HasValue) return "R · WISH\nNone delivered";
+            var w = wish.Value;
+            var text = new StringBuilder("R · ").Append(w.Ability).Append(" · ").Append(w.Charges).Append('/').Append(w.MaxCharges);
+            text.Append(" charges\nOpening ").Append(w.ReadyAt.ToString("0"));
+            if (w.ReadyAt > serverTimeMs) text.Append(" (in ").Append((w.ReadyAt - serverTimeMs).ToString("0")).Append(" ms)");
+            text.Append("\nRecharge ").Append(w.RechargeMs.ToString("0")).Append(" ms");
+            if (w.NextChargeAt.HasValue) text.Append(" · next ").Append(w.NextChargeAt.Value.ToString("0"));
+            if (w.FullAt.HasValue) text.Append("\nFull ").Append(w.FullAt.Value.ToString("0"));
+            if (w.Cast.HasValue)
+            {
+                var cast = w.Cast.Value;
+                text.Append("\nCast ").Append(cast.Ability).Append(" ").Append(cast.StartedAt.ToString("0"));
+                text.Append(" → ").Append(cast.LandsAt.ToString("0"));
+                if (cast.LandsAt > serverTimeMs) text.Append(" (in ").Append((cast.LandsAt - serverTimeMs).ToString("0")).Append(" ms)");
+            }
+            return text.ToString();
+        }
+
+        static bool WishEquals(WishView a, WishView b)
+        {
+            if (a.Ability != b.Ability || a.ReadyAt != b.ReadyAt || a.FullAt != b.FullAt || a.MaxCharges != b.MaxCharges || a.RechargeMs != b.RechargeMs || a.Charges != b.Charges || a.NextChargeAt != b.NextChargeAt || a.Cast.HasValue != b.Cast.HasValue) return false;
+            return !a.Cast.HasValue || a.Cast.Value.Ability == b.Cast.Value.Ability && a.Cast.Value.StartedAt == b.Cast.Value.StartedAt && a.Cast.Value.LandsAt == b.Cast.Value.LandsAt;
         }
         void RefreshCollections(CollectionsView view)
         {

@@ -98,3 +98,30 @@ it or relabeled it as the final transport/Frost union. Historical source corpora
 The separate source human R/queued FX/renderer witness, art's transient reset controls, and final composed Editor/Web
 all-five R-to-server proof remain INCOMPLETE. Existing strict NPC-signature gates remain in place. No cloud deployment
 or spend is part of this candidate work.
+
+## Opt-in client proof API
+
+`LatencyTrace` remains disabled in ordinary players. The Web collector is explicitly installed by the browser harness;
+the Editor observer requires `LatencyTrace.BeginEditor()` and stops with `EndEditor()`. Both cap records at 20,000 and
+flag overflow; `ReadEditor()` copies only the bounded Editor records. These CPU milestones do not prove display scanout.
+
+- `sampleWish` is recorded only after the actual R-key `ReadInput` path queues a nonzero Cast sequence. It uses the
+  existing `moveSeq` trace field for that order sequence, plus the actual cursor ground point and Unity frame. The input
+  path, command contents, eligibility and Poll/Flush scheduling are unchanged.
+- `collector.targetsRequested = true` requests one Web observation; `RequestEditorTargets()` does the same in Editor.
+  `targetViewport` carries Unity screen width/height, `targetSelf` carries the owner's projected screen position, and
+  `targetActor` carries each current delivered reference, actor kind in `moveSeq`, and projected screen position.
+  Screen Y is bottom-up. The harness must convert through the actual canvas rectangle and confirm the outgoing actor
+  reference; these observations do not select or submit an action.
+- Art calls `LatencyTrace.WishPresented(string kind, uint caster, int ability, double sourceTime)` only after applying
+  the actual confirmed occurrence, including nonspatial termination. Accepted kinds are `presentWishStarted`,
+  `presentWishLanded`, `presentWishEnded`; absent caster is 0. Ability and original source time are copied from the
+  delivered fact. Each record also includes Unity frame and local observation time; no tick-derived restamping or
+  same-frame/ability/time deduplication occurs.
+
+The JS guard suite passes 6/6, including malformed/absent opt-ins, broken collectors, one-shot requests, shared cap and
+two identical-timestamp anonymous Wish occurrences. Actual Unity compilation, art hook application and live input
+execution remain the subsequent composition proof; this observer API alone does not satisfy them.
+A temporary pinned .NET 8.0.427 check with a Unity time stub also compiled ordinary player, Editor and WebGL branches;
+ordinary stayed disabled and Editor begin/end/reset/request/cap/occurrence behavior passed. Native Web imports were not
+invoked by that check. This is an observer compiler/contract check, not a Unity or input run.

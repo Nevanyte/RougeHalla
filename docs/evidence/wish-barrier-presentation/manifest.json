@@ -1,0 +1,329 @@
+{
+  "scope": "P-UNITY-WISH-BARRIER-1 evidence package",
+  "base": "abd1ccfe6edc90df16c64283af09c913bddbd81d",
+  "source_head": "5a1b5af9bb41a6c39e1473f7442ea2d396bf4f64",
+  "files": [
+    {
+      "path": "README.md",
+      "bytes": 6001,
+      "sha256": "237378487854d0ff7fdd5aeb2d25ec257d5a74557d2b6aa69bcc4cd74cb80cf5"
+    },
+    {
+      "path": "raw/diagnostic-history/README.md",
+      "bytes": 1075,
+      "sha256": "43a6ddc05932937bf340de9a3f59b603f388c0f353b62decba59db2178a1042f"
+    },
+    {
+      "path": "raw/diagnostic-history/editmode-complete-initial.json",
+      "bytes": 12683,
+      "sha256": "5e7580424342f52cd14456995b7bee7807a5400b24ea3c7fbf9390b00b622527"
+    },
+    {
+      "path": "raw/diagnostic-history/editmode-final.json",
+      "bytes": 12305,
+      "sha256": "e89908c37687332e4ff23659eae172571acf31a151be9b519e6e65ddd5dbb20b"
+    },
+    {
+      "path": "raw/diagnostic-history/editmode-initial.json",
+      "bytes": 11514,
+      "sha256": "dfaced4cfcfc27b4f0e8c700d1fb38fd04175bb9fee819cff92facb64b2ae7ef"
+    },
+    {
+      "path": "raw/diagnostic-history/engine-destroy-observed.json",
+      "bytes": 167,
+      "sha256": "59f17c455cf310f7688aaa6b54e2922434cd2aefed4d6c5ce0fecef983126773"
+    },
+    {
+      "path": "raw/diagnostic-history/refresh-errors.json",
+      "bytes": 9901,
+      "sha256": "5d7e724fcd93d7188d993f19b35c148329dcdbff05055a4f6e83cbe356ba350c"
+    },
+    {
+      "path": "raw/diagnostic-history/teardown-affected-tests.json",
+      "bytes": 691,
+      "sha256": "7f01263e7b978ca63bb6543ed0a807fd4e45c7bc64f46c317abd854cd6fab1cd"
+    },
+    {
+      "path": "raw/dotnet-tests.txt",
+      "bytes": 973,
+      "sha256": "dd8ef3a3cd96f5d5391f912c3e3b78d98a3637491919079f90614f1c10a6bafe"
+    },
+    {
+      "path": "raw/editmode-source-final.json",
+      "bytes": 12819,
+      "sha256": "1ed82bfdd72179cda010c554bc18d47bbfc7c67af5a3c0b3be7bac961ecec03b"
+    },
+    {
+      "path": "raw/editor-fixture.cs",
+      "bytes": 5311,
+      "sha256": "3dd6dd9c579657083a3c7772341f8f444b6e0074486efb2f69001a6d0dc520eb"
+    },
+    {
+      "path": "raw/editor-generated-whitespace.patch.json",
+      "bytes": 888,
+      "sha256": "7a5d901661e9c26a1785108bf82f4269267adfd561bbaaa90d1c752dbd5dc93d"
+    },
+    {
+      "path": "raw/final-console-clear-after-recording.json",
+      "bytes": 17,
+      "sha256": "af30b9b4fa3610cee4c64b1d187646d4a2f8cff4dbbe22b950d6d6aeaf06a8fc"
+    },
+    {
+      "path": "raw/final-console-idle.json",
+      "bytes": 334,
+      "sha256": "958660950475a260a15dead997f3b8ab791b35bb76a736c9c3114446709dfde2"
+    },
+    {
+      "path": "raw/final-console-status.json",
+      "bytes": 337,
+      "sha256": "e07fed1b5eeebfb9d5c293ede2beb6981658e99a2ce9f2bbffc4ecbf3f75cbea"
+    },
+    {
+      "path": "raw/final-console-warnings.json",
+      "bytes": 2994,
+      "sha256": "309cafc02c4a92543cc0be1a759cccd1892f289823e91dc4e1c414d95387adee"
+    },
+    {
+      "path": "raw/final-editor-console-entries.json",
+      "bytes": 2230,
+      "sha256": "eccefd0aeb1a3f86d6d7788666d923e26d70e52edac3e73686e1e762ca30ee59"
+    },
+    {
+      "path": "raw/final-editor-ready.json",
+      "bytes": 1105,
+      "sha256": "d76f027e77bc1c8b8b6b3f97398d67b0efa0d2470f77b3ed4e64b56cd83b6607"
+    },
+    {
+      "path": "raw/final-engine-destroy-observed.json",
+      "bytes": 188,
+      "sha256": "2956916faf160e5ba9f32ba5ee98a4aebf77ac5eeee46d24cb330b57d4ec86d9"
+    },
+    {
+      "path": "raw/final-engine-destroy-request.json",
+      "bytes": 123,
+      "sha256": "51cbb5769865e0b7027a25c00e712d310e6c5a8bbcce8bfc0c3efeae06e766fc"
+    },
+    {
+      "path": "raw/final-fixture-setup.json",
+      "bytes": 248,
+      "sha256": "0587867860349954e146da3ed9394d7b857c496832ba6bd8ed665a0a94e76b40"
+    },
+    {
+      "path": "raw/final-high-capture.json",
+      "bytes": 220,
+      "sha256": "1a4d7cb518803e77c12d67223995671656609666d6b27f7fcd07e058ead7a60d"
+    },
+    {
+      "path": "raw/final-high-reduced-capture.json",
+      "bytes": 228,
+      "sha256": "e6b8520fefafd53c5b9544a9b5a79bf08edfa446de7f5597ffeb5cb3d36b9e67"
+    },
+    {
+      "path": "raw/final-high-reduced-state.json",
+      "bytes": 159,
+      "sha256": "1d96a1a5dd85a3583dbefb7a6270ca0581ed1aeee0b84593fe8c76dc378f5075"
+    },
+    {
+      "path": "raw/final-layout-high.json",
+      "bytes": 1096,
+      "sha256": "7d822c848c141ce8bdfe29f7ef6e885448da8b8702352c07d5286c559385384f"
+    },
+    {
+      "path": "raw/final-low-reduced-capture.json",
+      "bytes": 227,
+      "sha256": "c645f1435c077d0e754d0ac52feae496229d0eb4862f42f215b39bc6bd413b9e"
+    },
+    {
+      "path": "raw/final-low-reduced-state.json",
+      "bytes": 199,
+      "sha256": "72e5b7b6d9302f61dbcab25f6d7834ae51735686c6b27462a84c99bca8c0ce92"
+    },
+    {
+      "path": "raw/final-play-frames-advance.json",
+      "bytes": 242,
+      "sha256": "00f85e546884040e01e2d2edfb97e313cd7b789806d93c8584ede69554ad46c1"
+    },
+    {
+      "path": "raw/final-play-ready.json",
+      "bytes": 1105,
+      "sha256": "d76f027e77bc1c8b8b6b3f97398d67b0efa0d2470f77b3ed4e64b56cd83b6607"
+    },
+    {
+      "path": "raw/final-play-stop.json",
+      "bytes": 19,
+      "sha256": "07ca3fedcb7f611bfecfc8584183d5d78170933ace3e4996cfe3227132e22671"
+    },
+    {
+      "path": "raw/final-preferences-restored.json",
+      "bytes": 450,
+      "sha256": "4cdec1a77d912cf5b90f864e3373308e9e4f804125ea5c18c9fb7673915cd5a0"
+    },
+    {
+      "path": "raw/final-source-compile-status.json",
+      "bytes": 76,
+      "sha256": "557b4b332f7528cefa6e865b86ceadbd17bf1074d7d7ba0c72199248f6e2b2dd"
+    },
+    {
+      "path": "raw/final-source-compile-trigger.json",
+      "bytes": 104,
+      "sha256": "540d3abd313694a97e1359aeb14b3eb4ac2a312838e027fcdebb4b1a2f271df9"
+    },
+    {
+      "path": "raw/fixture-aged-to-5250.json",
+      "bytes": 104,
+      "sha256": "609a3f517d34306635c21755d32bbf52332b5ac5cace77c623f32c6deb0145ac"
+    },
+    {
+      "path": "raw/gameview-sizes.json",
+      "bytes": 540,
+      "sha256": "71ed69dbf74bf8d1dd22d98a82241e7176e2e64b8c20b7e80efa90f80a38ecc9"
+    },
+    {
+      "path": "raw/independent-review.md",
+      "bytes": 2154,
+      "sha256": "29392b45a22c47bbdf830ea41c31a71c7c2998d555c906ef4de2600838b763db"
+    },
+    {
+      "path": "raw/source-copy-check.txt",
+      "bytes": 25,
+      "sha256": "df5a45a2ab7772bde9308c3f020adece1eccb98c913e246a29a1455036b29683"
+    },
+    {
+      "path": "raw/trace-source-guards.txt",
+      "bytes": 635,
+      "sha256": "663f7b662a8e3970838606a5fbe956b2bd5dd7cdec1e283ad98030b79859a418"
+    },
+    {
+      "path": "screenshots/final-high-reduced-text150.png",
+      "bytes": 2907672,
+      "sha256": "ad30e6c36195a1830c4076b2df3f2f00b2d5148ec7dbd33126a303bd388d8ac7"
+    },
+    {
+      "path": "screenshots/final-high-text150.png",
+      "bytes": 2907791,
+      "sha256": "04047652c20e7b59ceb17cfd2b17b7b891d8e3d7376c5b53b05ff8347a8e238d"
+    },
+    {
+      "path": "screenshots/final-low-reduced-text150.png",
+      "bytes": 3296043,
+      "sha256": "ea17c8c45cb8c14ac1588dc94cf213140291f57f88ed41d5b2c23dcce54e2586"
+    }
+  ],
+  "source_files": [
+    {
+      "path": "client-unity/UnityProject/Assets/Plugins/WebGL/RhLatency.jslib",
+      "bytes": 1847,
+      "sha256": "ab1f97e4c0d1c8cf6be3ebe8630e6df88928a8684cb3cf509512f9bbcd083ad2"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Net/LatencyTrace.cs",
+      "bytes": 4135,
+      "sha256": "605bfbd7e9b2546424ed544eb49facdd6ed0e7a2f8414765beacfef98d40209d"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Net/MatchClient.cs",
+      "bytes": 12810,
+      "sha256": "e1c4e2191f3753693e1b56d18e04a2d593633944c4673f460db0e74175ff01ce"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Presentation/ConfirmedWishPresenter.cs",
+      "bytes": 9973,
+      "sha256": "155cd0d89409986fb6097afb98d4856f3c9f01422491f1cd234f56adb3ed2f87"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Presentation/ConfirmedWishPresenter.cs.meta",
+      "bytes": 60,
+      "sha256": "91f2edc0744d3a0bb3ca2f265115bcc9e9f6a295dd08c1cb5e569e7e715889d9"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Presentation/OwnerVitalBars.cs",
+      "bytes": 1139,
+      "sha256": "bffa7d9e226adace466a732821dd9e4d5515d261ce7c4cd8f5b908dd7f1b00d1"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Presentation/OwnerVitalBars.cs.meta",
+      "bytes": 60,
+      "sha256": "89fcde33d622e5ced250561c57d23a896ec978d8e2ead087af8ee90b0e2f18ef"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Presentation/ShowcaseSoundscape.cs",
+      "bytes": 10097,
+      "sha256": "1f6cb9b5f3c5c30ac5004d3450409483ec71729722f7d6a17d5114b42f3a5591"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Presentation/SpriteActorPresenter.cs",
+      "bytes": 20246,
+      "sha256": "fa593d2435630e8ea267acb98804ac9a81cc4c8baec8a7c339e3dc3c2ff225c8"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/UI/MatchHud.cs",
+      "bytes": 37649,
+      "sha256": "78b0bd267351e300e9196f103bb06b704a27d7ae57b80e683cfb03146ba89fcb"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/View/ArenaView.cs",
+      "bytes": 24529,
+      "sha256": "90c92fc642d9def58abdfb8a345f457369ca6300300bfa812f1a20d9156c9a0a"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/ConfirmedWishPresenterEditModeTests.cs",
+      "bytes": 14745,
+      "sha256": "7a03a328ff3235ba49ea834746aefcbb8a423e9fbbe695163971f73e0df5c5cc"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/ConfirmedWishPresenterEditModeTests.cs.meta",
+      "bytes": 240,
+      "sha256": "2511174c52a360da1a66c2414eeac22262390fea580e75d1de266a7de7f8e5b4"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/MatchHudWishBarrierEditModeTests.cs",
+      "bytes": 5019,
+      "sha256": "aff3e848cd91934a056d2c9987210ac532107166fbf6a57dc6a35647790303b6"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/MatchHudWishBarrierEditModeTests.cs.meta",
+      "bytes": 60,
+      "sha256": "9ee7ff34ea32460af0edf8df0acfc74a71f3bdeb0609b3b204017591b89cdb70"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/PresentationTimelineEditModeTests.cs",
+      "bytes": 11466,
+      "sha256": "c2cc60e13c23b0166ef37e4b5f3a977c01c24d91d3fa8de8e5216c01057e4945"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/PresentationTimelineEditModeTests.cs.meta",
+      "bytes": 60,
+      "sha256": "4c18f44c0968037393d9df0cfd5632e4f44cd4aad0854c0949010a4e92039a7c"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/SpriteActorBarrierEditModeTests.cs",
+      "bytes": 7932,
+      "sha256": "93ebd9f761bdaae9bb38c3b2f906ec899813ab82c8e50564999b24886de49aed"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/SpriteActorBarrierEditModeTests.cs.meta",
+      "bytes": 240,
+      "sha256": "b23c1a0ae0f2be8a3fbfa29740a36887c3621ee17397294c52020c19c7ffd811"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/WishPresentationTraceEditModeTests.cs",
+      "bytes": 7686,
+      "sha256": "de23cac7b5d92dc2f50c649ae83150181c4da57ed529e02766acfaaab77506d6"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/WishPresentationTraceEditModeTests.cs.meta",
+      "bytes": 240,
+      "sha256": "89a21242661b13cf8c3244e65e8861b860d9c8aa04be5b77fb24e0f1e56c1611"
+    },
+    {
+      "path": "docs/evidence/wish-barrier-net12/README.md",
+      "bytes": 10916,
+      "sha256": "4d3bafc7359f265d64da69deba205cdbb138a8632cb8db3af5d354a01e3a6c32"
+    },
+    {
+      "path": "tools/latency/trace-guard.test.mjs",
+      "bytes": 4906,
+      "sha256": "4ece5417dbf225bba6f4f0a6c7d97e400daf842accda27149dc4362300fcdc95"
+    }
+  ]
+}
