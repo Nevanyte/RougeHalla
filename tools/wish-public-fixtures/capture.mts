@@ -3,7 +3,7 @@
  *
  * Every recorded value below is returned by the unchanged legacy TypeScript this witness imports:
  *   A r-input.json         RaidScene.prototype.castSlot.call(declaredReceiver, "wish")
- *   B stock-clocks.json    tools/ability-fixtures/engine.mts run(): real enqueueClientMessage -> ordinary 50 ms step
+ *   B queued-stock-clocks.json    tools/ability-fixtures/engine.mts run(): real enqueueClientMessage -> ordinary 50 ms step
  *   C fx-timing.json       the real FxChannel/PackFx batches of those runs, producer time kept separately
  *   D wishfx-endpoints.json WishFx.prototype.play/update with declared graphics/host recorders
  *   E perceive-wish.json   the real perceive() over declared projection states and the real packed batches of C
@@ -20,7 +20,7 @@ import { dirname, join, resolve } from "node:path";
 const IMAGE = "node:22.23.4-bookworm-slim@sha256:aaa4b5baf1ecff3b283486bb1f90405cdda225a3e6f79660d2c559fa510a7292";
 const IMAGE_DIGEST = "sha256:aaa4b5baf1ecff3b283486bb1f90405cdda225a3e6f79660d2c559fa510a7292";
 const FORMAT = "rh-wish-public-witness/1";
-const OUTPUTS = ["r-input.json", "stock-clocks.json", "fx-timing.json", "wishfx-endpoints.json", "perceive-wish.json"];
+const OUTPUTS = ["r-input.json", "queued-stock-clocks.json", "fx-timing.json", "wishfx-endpoints.json", "perceive-wish.json"];
 
 const args = process.argv.slice(2);
 const mode = args[0];
@@ -1127,7 +1127,7 @@ const eCorpus: any = {
 // ================================================================================================== write / check
 const corpora: Record<string, any> = {
   "r-input.json": rCorpus,
-  "stock-clocks.json": stockCorpus,
+  "queued-stock-clocks.json": stockCorpus,
   "fx-timing.json": fxCorpus,
   "wishfx-endpoints.json": dCorpus,
   "perceive-wish.json": eCorpus,
@@ -1146,7 +1146,7 @@ const manifest: any = {
       sha256: sha256(bytes[name]!),
       captureSha256: corpus.profile.captureSha256,
       counts: name === "r-input.json" ? { probes: corpus.probes.length }
-        : name === "stock-clocks.json" ? { cases: corpus.cases.length, frames: corpus.cases.reduce((a: number, c: any) => a + c.frames.length, 0), hooks: corpus.cases.reduce((a: number, c: any) => a + c.hooks.length, 0) }
+        : name === "queued-stock-clocks.json" ? { cases: corpus.cases.length, frames: corpus.cases.reduce((a: number, c: any) => a + c.frames.length, 0), hooks: corpus.cases.reduce((a: number, c: any) => a + c.hooks.length, 0) }
         : name === "fx-timing.json" ? { batches: corpus.batches.length }
         : name === "wishfx-endpoints.json" ? { cases: corpus.cases.length }
         : { cases: corpus.cases.length },

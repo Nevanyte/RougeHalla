@@ -18,12 +18,12 @@ run-mutants.sh, README.md, mutants/*), `parity/wish-public/**` (five corpora + m
 
 | file | bytes | sha256 | captureSha256 | counts |
 |---|---:|---|---|---|
-| r-input.json | 80716 | 02be9e81d8ef48fbfbe62ff32ffe154e372679d748e63d7aae25fdce6010a516 | 7e2a315116f37ed847a11d6a02557ffa46afc693fff5393638dff34dda16d2b4 | 31 probes |
-| stock-clocks.json | 214621 | 5d8f343d46d8370a764480b58c23c324c1a4ed6ec16ac55f240205da8315583b | b5230ddc100b24061620583ca48c720c71486d3129a444b1f20509d50116c1c9 | 9 cases, 121 frames, 94 hook rows |
-| fx-timing.json | 61577 | 025d18e5e9330a4b2d5139b2433777da7985240ca8bf378685739d9f5c83f106 | a94d2dd451b2d81fa43dd43a5b8bc8ebb8db6eb1efcb190a7b673d5ffe10d168 | 32 batches |
-| wishfx-endpoints.json | 97342 | 082d27335ef8771c370656f5e29791bfe1004716ed3e4a3af05aca8fe28ef0f3 | 76f4f586e0d2d7711f8a2d8de11e91eaba4ae6ab7ae6e21c69903444f5c92398 | 26 cases |
-| perceive-wish.json | 63884 | 2b29f4d2f2969768839f5b6f0e16d0706e39e75d26bddddda32dcd0897966e05 | b2f74f0fee906891c8de9fc132dc73e7cb0d764dd6db300742988c28d55cb739 | 14 cases |
-| manifest.json | 1417 | 260a20988fcad16f9a79da8478b7b1859b4affedbda2cba5336cef88335bedac | n/a (own file) | lists all above |
+| r-input.json | 80716 | 190fcef53bbd9aabf8fc5ff7c133658e55789ac3bcafaaf41e9ff48053a6a3d2 | 2a484b76cde333080b620b79bef194804a574772c510fb72ba8ecda2faaaee1e | 31 probes |
+| queued-stock-clocks.json | 214621 | 794bd790a58aff22ca726ab6cde66abd282aed344f78b9b5c58bd09122349047 | 76f4c1cda401fab7727b916003c5d3c18f055d8497863e34b1aa9be7d844dd77 | 9 cases, 121 frames, 94 hook rows |
+| fx-timing.json | 61577 | 99e11d745af9686af5d074d70fd95d82834975546d2110b1e16e630ab8c47c01 | f9f879dcd2eff420c830e398495f264c563333ab9bf2c585691b0c9cc7921013 | 32 batches |
+| wishfx-endpoints.json | 97342 | 505afa8f64f758afb74eda498eb84e1dce990c8927118073db938da195da5235 | f585902aa5aa4718138ba5ebcb3943e07c9d6da557cbe78059244a6d1893810d | 26 cases |
+| perceive-wish.json | 63884 | 36c0e8ed0463a71f01ab91a7d12066de6fbc3ce9db524c27cef3a1173518b3d8 | f8951cb16e88f70d1c5bd93d21be632df1a26b74f38fb66402606f494b519124 | 14 cases |
+| manifest.json | 1424 | eb79f391ce503b3e356f0d784a5cf9439c833f81e34678a24500386a5f7e68ea | n/a (own file) | lists all above |
 
 Profile in every corpus: pinned image digest
 `node:22.23.4-bookworm-slim@sha256:aaa4b5baf1ecff3b283486bb1f90405cdda225a3e6f79660d2c559fa510a7292`,
@@ -42,7 +42,7 @@ bash tools/wish-public-fixtures/run-mutants.sh        # 5 semantic kills; restor
 
 Mutant first mismatches (exact signatures in `tools/wish-public-fixtures/mutants/expected.txt`):
 
-1. `01-armwishes-opening-lock`: stock-clocks.json `/cases/0/frames/0/players/0/wishReadyAt` 45050 -> 44050.
+1. `01-armwishes-opening-lock`: queued-stock-clocks.json `/cases/0/frames/0/players/0/wishReadyAt` 45050 -> 44050.
 2. `02-fx-batch-time`: fx-timing.json `/batches/0/batchTime` 45050 -> 45049.
 3. `03-fx-same-tick-multiplicity`: fx-timing.json `/batches/2/batch/l/6` `[15,4,4,null,800,500]` -> missing.
 4. `04-wishfx-cansee-endpoint`: wishfx-endpoints.json `/cases/11/actual/graphics/0/calls/8/call` "setVisible" -> "setPosition".

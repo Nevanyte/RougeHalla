@@ -14,7 +14,7 @@ mkdir -p "$OUTPUT"
 OUTPUT=$(cd "$OUTPUT" && pwd)
 case "$OUTPUT" in "$REPO"/*) ;; *) printf 'refusing an output outside the isolated worktree: %s\n' "$OUTPUT" >&2; exit 2 ;; esac
 if [ "$MODE" = "--check" ]; then
-  for f in r-input.json stock-clocks.json fx-timing.json wishfx-endpoints.json perceive-wish.json manifest.json; do
+  for f in r-input.json queued-stock-clocks.json fx-timing.json wishfx-endpoints.json perceive-wish.json manifest.json; do
     [ -f "$OUTPUT/$f" ] || { echo "Missing corpus: $OUTPUT/$f" >&2; exit 1; }
   done
   MOUNT="type=bind,src=$OUTPUT,dst=/out,readonly"
@@ -32,4 +32,4 @@ docker run --rm --platform linux/amd64 -e MODE="$MODE" \
  if [ "$MODE" = "--check" ]; then node --import tsx $LOADER /capture/capture.mts --check /out --repo /repo;
  else node --import tsx $LOADER /capture/capture.mts --write /out --repo /repo; fi
  '
-if [ "$MODE" != "--check" ]; then printf 'Captured Wish-public corpora: %s/{r-input,stock-clocks,fx-timing,wishfx-endpoints,perceive-wish,manifest}.json\n' "$OUTPUT"; fi
+if [ "$MODE" != "--check" ]; then printf 'Captured Wish-public corpora: %s/{r-input,queued-stock-clocks,fx-timing,wishfx-endpoints,perceive-wish,manifest}.json\n' "$OUTPUT"; fi

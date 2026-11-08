@@ -39,7 +39,7 @@ PATCHFILES
    fi
    grep -q "mode.*--write" "/tmp/out/$name/capture.log" || { echo "MUTANT $name: capture did not finish"; cat "/tmp/out/$name/capture.log"; exit 1; }
    got=""
-   for corpus in r-input.json stock-clocks.json fx-timing.json wishfx-endpoints.json perceive-wish.json; do
+   for corpus in r-input.json queued-stock-clocks.json fx-timing.json wishfx-endpoints.json perceive-wish.json; do
      out=$(node /capture/compare.mjs "/baseline/$corpus" "/tmp/out/$name/$corpus")
      case "$out" in
        FIRST_MISMATCH*) got="$corpus|$(printf "%s" "$out" | head -1)"; break ;;
