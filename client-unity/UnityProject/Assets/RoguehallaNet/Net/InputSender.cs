@@ -37,6 +37,13 @@ namespace Roguehalla.Net
         }
 
         public void UseConsumable() { _queue.Add(WireCommand.UseConsumable()); }
+
+        /// <summary>Queues a planning intent. The server decides whether the choice is available and whether Ready is accepted.</summary>
+        public void Plan(byte? spawn = null, byte? boon = null, bool? ready = null)
+        {
+            _queue.Add(WireCommand.Plan(spawn, boon, ready));
+        }
+
         public void Target(uint actorRef) { if(actorRef==0) { Dropped++; return; } _queue.Add(WireCommand.Target(actorRef)); }
         public byte AttackMove(float x,float y) { if(!Finite(x)||!Finite(y)) {Dropped++;return 0;} byte s=NextOrderSeq();LastMovementOrder=WireCommand.AttackMove(x,y,s);_queue.Add(LastMovementOrder);return s; }
         public byte Stop()
