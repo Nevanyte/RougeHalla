@@ -135,16 +135,18 @@ namespace Roguehalla.Net
         }
 
         /// <summary>Order a move: sent with the next Update; the local view follows accepted server snapshots.</summary>
-        public void OrderMove(float x, float y)
+        public byte OrderMove(float x, float y)
         {
             byte seq = Input.Move(x, y);
             if (seq != 0 && Motion != null) Motion.Order(x, y, seq, Now);
+            return seq;
         }
 
-        public void OrderStop()
+        public byte OrderStop()
         {
             byte seq = Input.Stop();
             if (Motion != null) Motion.StopOrder(seq, Now);
+            return seq;
         }
 
         public void Leave()

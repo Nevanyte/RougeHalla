@@ -86,6 +86,7 @@ namespace Roguehalla.Client
         {
             if (Session == null) return;
             _traceLatency = LatencyTrace.Enabled;
+            if (_traceLatency) LatencyTrace.Mark("frameStart", Session.PlayerId, 0, 0, 0);
             Session.Poll();
             if (Session.State != SessionState.InMatch && Session.State != SessionState.Ended) return;
             if (Arena != null && !Arena.HasMap && Session.Map != null) Arena.Build(Session.Map);
@@ -168,14 +169,14 @@ namespace Roguehalla.Client
 
         void OrderMove(float x, float y)
         {
-            Session.OrderMove(x, y);
-            if (_traceLatency) LatencyTrace.Mark("sampleMove", Session.PlayerId, 0, x, y);
+            byte seq = Session.OrderMove(x, y);
+            if (_traceLatency && seq != 0) LatencyTrace.Mark("sampleMove", Session.PlayerId, seq, x, y);
         }
 
         void OrderStop()
         {
-            Session.OrderStop();
-            if (_traceLatency) LatencyTrace.Mark("sampleStop", Session.PlayerId, 0, 0, 0);
+            byte seq = Session.OrderStop();
+            if (_traceLatency) LatencyTrace.Mark("sampleStop", Session.PlayerId, seq, 0, 0);
         }
 
         public void PickupFocus()
