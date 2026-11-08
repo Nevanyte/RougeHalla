@@ -1,0 +1,48 @@
+{
+  "base": "198902f42970bd3d71d431931020819b0e36f008",
+  "oldSha256": "d50c03e471f9d11ff790cac0f31d4ab82b5bb45f1b963b41725d58814cc6f74e",
+  "newSha256": "9e76292b7ae74d305da2729a2ceba63965e64aa9fd670ab85568ae7909270507",
+  "oldBytes": 1045681,
+  "newBytes": 1045681,
+  "recursiveDifferences": [
+    {
+      "path": "/protectedSha256/tools/protocol-js/check-vectors.mjs",
+      "old": "775ab7cf7738c421a9b858850153a2ca1008e3f7f726520d940be20698314f27",
+      "new": "3c96f5b013d7ee647b4d4b67c762e5db5b38dc8fd7e669c7a4b139c9a0778a90"
+    }
+  ],
+  "all409CasesInputsExpectedEqual": true,
+  "inventoryEqual": true,
+  "sourcePinsEqual": true,
+  "harnessPinsEqual": true,
+  "caseSemanticDigest": "5b682bec2da4e3db0946b3155844ae276360280596c85bcf5f9498989d6bba64",
+  "inventoryDigest": "27e33e86a14e8929714bab77a9048db68b6713167291fb6eb06937edd29c37d4",
+  "untrackedIgnoredInputContamination": false,
+  "checks": {
+    "fresh-capture.log": {
+      "bytes": 549,
+      "sha256": "62c0113b2dc07b2dcb04e1a1df1727dbf9e005977c321179faedef7bdc6971d1"
+    },
+    "fresh-capture-with-mountpoint.log": {
+      "bytes": 242,
+      "sha256": "4609920d4d0e975a56ae465ba507cc6eafd1194c86f6eccd80b44095500435b2"
+    },
+    "negative-check.log": {
+      "bytes": 23281,
+      "sha256": "fac4c208c01ab3ba9b6af3a2b939be5aec321e564276ad792d40512b15174dc8"
+    },
+    "refreshed-canonical-check.log": {
+      "bytes": 240,
+      "sha256": "db9663f9b72ffb3b3bca0667b1a5f75e189bf8e1b161ebe609d3aef0ebe9507b"
+    }
+  },
+  "results": {
+    "freshPinnedCapture": 0,
+    "negativeOneLineExpectedTitle": 1,
+    "refreshedCanonicalBytecheck": 0,
+    "negativeSemanticPath": "/cases/0/expected/title",
+    "negativeChangedLineBlocks": 1,
+    "initialDockerMountpointFailure": "Before capture; fresh checkout had no node_modules directory for tmpfs under read-only/repo. Created ignored mountpoint only; no tool change."
+  },
+  "rawEvidenceDirectory": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/ci-card-catalog"
+}

@@ -377,7 +377,7 @@
     "tools/plague-fixtures/hidden-history.ts": "04f5c36277292f2bb82bab270efb7ccec3fe44285e71f63fc74c809263f5ce01",
     "tools/plague-fixtures/ledger-matrix.ts": "9fe07e9c262bb0314a42c8f7b99847f81aaa71fd65a6fb853fa2458e05170c62",
     "tools/protocol-js/check-first-playable.mjs": "ff675e15c7e3f3ce571a81b0d922d516b2e8e3d9e708c8b6459bf0ce7e4ef654",
-    "tools/protocol-js/check-vectors.mjs": "775ab7cf7738c421a9b858850153a2ca1008e3f7f726520d940be20698314f27",
+    "tools/protocol-js/check-vectors.mjs": "3c96f5b013d7ee647b4d4b67c762e5db5b38dc8fd7e669c7a4b139c9a0778a90",
     "tools/pve-dot/capture.mts": "1c14558876899cb8b30fa70e16dd66615321a6615cc2f395c7d9a75aa7d867ac",
     "tools/pve-dot/capture.sh": "3bbc110fbe815b3ba1d1c8cafea9fed345f645f121f4dc5aa66e4c03c49e172b",
     "tools/pve-dot/declared-map-input.json": "5ee388ca61234bae0e7dc04adca00702fbc6199f048487490fcbca25b2cffb16",
