@@ -1,0 +1,165 @@
+{
+  "sourceHead": "04d8de08561007239dcf7ef57ab9cafd751b8393",
+  "commits": {
+    "props": "4e51582b3f7662cfae0f885c232661012994bf24",
+    "signatures": "8de291337bef904ec8c86baeb54dab05a25c5ba5",
+    "preview": "01ce403d19b6fe405b652a1404bc29c7ead57a9d"
+  },
+  "files": [
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/BakedContent.cs",
+      "bytes": 212,
+      "sha256": "4147b66e5278ee2e5abee4f683eda1c3bd6997fb79e250342eefd7ad2bb0be7a"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Bootstrap.cs",
+      "bytes": 3550,
+      "sha256": "f7d0a0527c3cc37f7c72b4fd7e4821d79a85aecc2db72cf17ccf29a9109e5198"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Net/LatencyTrace.cs",
+      "bytes": 924,
+      "sha256": "f75cf3f72922a2a5db49057399f069466c091d9536f1fd328f6bb5d303eaaaaf"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Net/MatchClient.cs",
+      "bytes": 10094,
+      "sha256": "ca04461970f3d101d70037553f4ab728b2c1af307027f3b7b8ef0f07afbfb46b"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Net/NativeTransport.cs",
+      "bytes": 3614,
+      "sha256": "0cfcc090ba34fa70b629c0c7e2c259d953cb4c4e63013774a71e7f9596242a3a"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Net/TransportFactory.cs",
+      "bytes": 299,
+      "sha256": "da71cce01240e1c898f55ec6d93bb3dc38a25fcefd008da6951a8a0fb1ed3b21"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Net/WebGLTransport.cs",
+      "bytes": 3520,
+      "sha256": "0372caff91a144a41699cfef0eead6ec05e16a08088a77d6d819aa28c64b9238"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Presentation/FactionIndicators.cs",
+      "bytes": 3902,
+      "sha256": "3b1fe78075c2023526a92fbbdd694ea08758913e472c0048604ddc11647ba69d"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Presentation/ShowcaseAnimationPreview.cs",
+      "bytes": 4083,
+      "sha256": "16c5ae53ca66d4e5aff89adb26fa9bc6f9997f049339c371c9a6288d2baf1f2e"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Presentation/ShowcaseAudio.cs",
+      "bytes": 2259,
+      "sha256": "c8e4c5f38eb254bcdaa5cd2232fbd78fcbf0ac2198cf4fc6a541bcc82347bcc1"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Presentation/ShowcaseCatalog.cs",
+      "bytes": 1156,
+      "sha256": "fad749068e5795fcc84d01959cc0777d0bfea868f336deb0379acef5bdd08cc8"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Presentation/ShowcasePalette.cs",
+      "bytes": 2985,
+      "sha256": "448167a68b83d879b3022fac91c0d9fa4ff9d111841dd94e4be4c555a623057f"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Presentation/ShowcasePointLight.cs",
+      "bytes": 4926,
+      "sha256": "36a6bb87ce8da5e159b9118d1c7c802a4945aa687a1503bcd8109809dd83a2a5"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Presentation/ShowcasePreview.cs",
+      "bytes": 19947,
+      "sha256": "30fcbbafb4d6a14c18272921801c9dc7b6a97ea460fc8e1db55c68662ef7ef06"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Presentation/ShowcaseSettings.cs",
+      "bytes": 8304,
+      "sha256": "35a722201350e8f7d41ea3c83e534270aeafdbd45146d3ff047552480cbfbf32"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Presentation/ShowcaseSoundscape.cs",
+      "bytes": 9973,
+      "sha256": "c70e463e5b879c83644d7dd45c5413f1dcea51533b3bf78b61338a7f370c6d82"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Presentation/ShowcaseSprites.cs",
+      "bytes": 9130,
+      "sha256": "0682613ae0ae9c949bcc50e77d6dfa2e71e14340abad6f29e5e26933428951fb"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Presentation/SpriteActorPresenter.cs",
+      "bytes": 17259,
+      "sha256": "4a3fe436f99b4e2f8d6f7a5d858ef1f09e7a786188d7a1a3c8e42715ca80e1af"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/UI/MatchHud.cs",
+      "bytes": 31918,
+      "sha256": "8ceabfefd5f0837fe9208867496a4563845783a68e367bc42c09561c96a8225d"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/UI/PotionNoticeFormatter.cs",
+      "bytes": 1227,
+      "sha256": "c1c690ab286a9dcfef1a73b4e7df356b3f2942bc76309fae6caac5521928a441"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/View/ActorView.cs",
+      "bytes": 4326,
+      "sha256": "7ff6b5a6242d05cce62663026a328e85b859cd76ce4c7b8f874b75a30bd4a830"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/View/ArenaView.cs",
+      "bytes": 23164,
+      "sha256": "89f00295dfbc655466a2dad371a58853cdb17dfdbf911c2e480b191c349fb947"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/View/MeshUtil.cs",
+      "bytes": 6484,
+      "sha256": "c6e74906c07254f88dc099132e21eee42dd4899b45bc766094051dc84e77a829"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/ArenaPresentationEditModeTests.cs",
+      "bytes": 22988,
+      "sha256": "9925c4209fb4d0901e045c057bcf73b86256ca63c3a110adcf63f94ce60478b8"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/ArenaPropCueEditModeTests.cs",
+      "bytes": 8549,
+      "sha256": "88dd792e27512909e8c65d100e0633c828cefe0b441ae7c5be350a31ffc44a36"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/PotionNoticeFormatterEditModeTests.cs",
+      "bytes": 1291,
+      "sha256": "4fa452cc87b3d2acd09f8e5eca7ee86f30fc7ada7ad884cb83e5d6eef89fa029"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/ShowcaseAnimationPreviewEditModeTests.cs",
+      "bytes": 10586,
+      "sha256": "034ed5412aa223a82475b4bf154b59e6d684eb88475878a410d72a6e005d670d"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/ShowcasePointLightEditModeTests.cs",
+      "bytes": 16229,
+      "sha256": "04fe88d1809d51dec564038f1650187e8367ac8466b87f2c7673c7c94faeb931"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/ShowcasePreviewSelectionEditModeTests.cs",
+      "bytes": 6313,
+      "sha256": "82e37c91123e7ebd394f6afdee29da8f5029f12a1a85286817dc20111a287ba0"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/ShowcaseStateEditModeTests.cs",
+      "bytes": 7475,
+      "sha256": "8c2e13db62e273e5fbe02735152f2cad2e1cbeb246512862e5a6916a7920b831"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/SpriteActorSignatureEditModeTests.cs",
+      "bytes": 12384,
+      "sha256": "5266c4b947fe4fdc7687c9a5839b1ee5a2ad5554b40843ced82e89258cceeb47"
+    }
+  ]
+}

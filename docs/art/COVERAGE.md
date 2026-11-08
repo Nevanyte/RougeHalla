@@ -2,7 +2,7 @@
 
 This is an asset/presentation inventory, not a gameplay parity or release-readiness claim. “Prepared” means source bytes, metadata, or Unity assets are present. “Live” means the server-fed arena path currently consumes a fact or catalog entry. A staged preview is explicitly not evidence of live game coverage. Creative reuse of the current art family is permitted; bespoke species, hero or weapon artwork is not a prerequisite. Delivered identities and essential cues still need readable presentation and selected-demo evidence.
 
-The server-fed coverage below describes the served `4f37e9f0` runtime. Later prop/signature and animation-selector source drafts are not built or browser-verified; see [WORK_LOG.md](WORK_LOG.md).
+The server-fed coverage below describes the served `4f37e9f0` runtime. Later prop/signature and animation-selector source drafts compiled and passed 42 Unity Editor tests, but remain unbuilt and browser-unverified; see [source-cue evidence](evidence/source-cues/summary.json) and [WORK_LOG.md](WORK_LOG.md). These tests do not establish visual readability, performance, or live server-fed coverage.
 
 ## Coverage matrix
 

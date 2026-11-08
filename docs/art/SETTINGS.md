@@ -70,7 +70,7 @@ surfaces at the WCAG AA 4.5:1 normal-text threshold.
 
 ## Staged animation selector (source draft)
 
-Source commit `01ce403d` adds a dedicated catalog animation podium to the no-socket `?preview=1` study. This follow-up is **not in the served `4f37e9f0` Web build**; compilation, prepared tests, keyboard operation and rendered layout remain unverified. The existing staged lineup and faction accents are retained. The podium is labeled `STAGED ANIMATION PREVIEW / NO NETWORK`; it does not show authoritative gameplay or prove live cue integration.
+Source commit `01ce403d` adds a dedicated catalog animation podium to the no-socket `?preview=1` study. It compiled in Unity `6000.0.85f2`, and the filtered Editor suite passed 42/42 tests at source head `04d8de08`; portable details are in [source-cue evidence](evidence/source-cues/summary.json). This follow-up is **not in the served `4f37e9f0` Web build**; keyboard operation and rendered layout remain unverified. The existing staged lineup and faction accents are retained. The podium is labeled `STAGED ANIMATION PREVIEW / NO NETWORK`; it does not show authoritative gameplay or prove live cue integration.
 
 | Key | Preview selection |
 | --- | --- |
@@ -81,4 +81,4 @@ Source commit `01ce403d` adds a dedicated catalog animation podium to the no-soc
 
 The initial selection is hero / Idle / E when the hero entry exists, otherwise the first available appearance. Appearance and action changes restart at frame zero; direction changes preserve the clip phase. Actions loop except Death, which holds its final frame. Reduced motion selects the first frame for ordinary actions and the final Death frame. Missing or malformed clips clear and hide the podium sprite and show `MISSING CLIP`, rather than substituting another action. The new card captures the current text scale when created; it has no independent settings controls.
 
-The next approved validation batch should exercise all control groups, a stance-only knight's missing action and recovery to a valid appearance, reduced motion, zero WebSockets, ground contact and text at 1.50 scale. Visual clearance from the lineup and podium remains a rendered check. These are deferred checks, not passing evidence.
+The next approved validation batch should exercise all control groups, a stance-only knight's missing action and recovery to a valid appearance, reduced motion, zero WebSockets, ground contact and text at 1.50 scale. Visual clearance from the lineup and podium remains a rendered check. These build/browser/layout checks are still deferred; the Editor test pass does not cover them.

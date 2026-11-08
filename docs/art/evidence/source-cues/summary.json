@@ -1,0 +1,132 @@
+{
+  "schemaVersion": 1,
+  "evidenceId": "source-cue-editor-validation-2026-11-08",
+  "scope": "Bounded Unity Editor source validation only; no build, browser, visual, or performance campaign.",
+  "sourceRefs": {
+    "head": "04d8de08561007239dcf7ef57ab9cafd751b8393",
+    "props": "4e51582b3f7662cfae0f885c232661012994bf24",
+    "signatures": "8de291337bef904ec8c86baeb54dab05a25c5ba5",
+    "preview": "01ce403d19b6fe405b652a1404bc29c7ead57a9d"
+  },
+  "editor": {
+    "version": "6000.0.85f2",
+    "ownership": "existing isolated art Editor",
+    "pinned": "6000.0.85f2",
+    "playing": false,
+    "compilingAfterRecompile": false,
+    "building": false,
+    "finalState": "Edit/idle",
+    "pid": 9075,
+    "pipelinePort": 7800
+  },
+  "recompile": {
+    "status": "completed",
+    "failed": false,
+    "errors": [],
+    "compilationFailed": false
+  },
+  "editMode": {
+    "mode": "editor",
+    "filterType": "assembly",
+    "filter": "Roguehalla.Client.EditModeTests",
+    "async": false,
+    "timeoutSeconds": 60,
+    "summary": {
+      "Total": 42,
+      "Passed": 42,
+      "Failed": 0,
+      "Skipped": 0,
+      "Inconclusive": 0
+    },
+    "durationSeconds": 6.64,
+    "success": true,
+    "perClassCounts": {
+      "ArenaPresentationEditModeTests": 10,
+      "ArenaPropCueEditModeTests": 3,
+      "PotionNoticeFormatterEditModeTests": 11,
+      "ShowcaseAnimationPreviewEditModeTests": 5,
+      "ShowcasePointLightEditModeTests": 4,
+      "ShowcasePreviewSelectionEditModeTests": 2,
+      "ShowcaseStateEditModeTests": 3,
+      "SpriteActorSignatureEditModeTests": 4
+    }
+  },
+  "console": {
+    "before": {
+      "groundTruthErrors": 0,
+      "groundTruthWarnings": 5,
+      "compilationFailed": false
+    },
+    "after": {
+      "groundTruthErrors": 0,
+      "groundTruthWarnings": 6,
+      "compilationFailed": false
+    },
+    "historicalCapturedErrorCount": 19,
+    "warningClassification": {
+      "obsoleteApiWarnings": 5,
+      "expectedNegativeFixtureWarnings": 1
+    },
+    "obsoleteApiWarningsBySite": {
+      "ArenaShadow": 1,
+      "oldPreviewWrap": 1,
+      "newPreviewWrap": 1,
+      "FlareImporter": 2
+    },
+    "expectedNegativeFixture": "Optional showcase point lighting unavailable: both Torch and TorchAccurate point-light resources are required",
+    "note": "Captured counts.error=19 is historical buffer state, not the current ground-truth error count; current ground-truth errors are 0."
+  },
+  "notRun": [
+    ".NET network C# suite",
+    "source-copy checks",
+    "Player/Web build",
+    "browser proof",
+    "profile/performance campaign",
+    "visual/readability campaign",
+    "144 Hz display campaign",
+    "audio campaign",
+    "final native union"
+  ],
+  "runtime": "Served runtime 4f37e9f0 is unchanged; native febf1f3f composition is not integrated into this isolated branch. Separate audio evidence e81d70a4 is not admitted.",
+  "rawFiles": {
+    "editor-ownership.json": {
+      "bytes": 292,
+      "sha256": "9098702e366a8b93f1596e09a0f08c7c926e49730a17b97c6807a888b7c8e27a"
+    },
+    "recompile-trigger.json": {
+      "bytes": 104,
+      "sha256": "540d3abd313694a97e1359aeb14b3eb4ac2a312838e027fcdebb4b1a2f271df9"
+    },
+    "recompile-final.json": {
+      "bytes": 76,
+      "sha256": "557b4b332f7528cefa6e865b86ceadbd17bf1074d7d7ba0c72199248f6e2b2dd"
+    },
+    "console-before-tests.json": {
+      "bytes": 340,
+      "sha256": "c25b56206d80123b759c546b6b10dd3a32f6140182aabae51417179a688a04c9"
+    },
+    "editmode-results.json": {
+      "bytes": 8982,
+      "sha256": "1f0e8447a20e7864c203e55ae8a2f2af3999923a43e8cb92a8c46bb72d0eede2"
+    },
+    "console-after-tests.json": {
+      "bytes": 340,
+      "sha256": "2498a38bb771f5208d88d63a763f55c274a417461bea93ee4a60c90954c9abb5"
+    },
+    "console-warnings.json": {
+      "bytes": 3500,
+      "sha256": "9aedd8925f52600792929bf1f68779373be17347ca3653d4f542eef4a3731e2b"
+    },
+    "editor-after-tests.json": {
+      "bytes": 292,
+      "sha256": "9098702e366a8b93f1596e09a0f08c7c926e49730a17b97c6807a888b7c8e27a"
+    },
+    "source-manifest.json": {
+      "bytes": 6639,
+      "sha256": "654318051986354f2e063d11ec3c0d1660f18af59d2c96240dbd526889421a76"
+    }
+  },
+  "cliVersion": "1.0.0-beta.17 (self-update check reported current)",
+  "sourceRepairCommits": [],
+  "editorGeneratedChange": "Only two ShaderGraphSettings trailing spaces were generated; the raw patch was retained locally and whitespace normalized back to the original file."
+}
