@@ -209,6 +209,13 @@ content! {
     SIG_BURNING: u8 = 2, "bits";
     LANDMARK_GAP: f64 = 3.0, "tiles";
 
+    // Fire roam (shared/fireRoam.ts).
+    FIRE_ROAM_RAMP_MS: f64 = 20_000.0, "ms";
+    FIRE_ROAM_MAX_SPEED_MULT: f64 = 1.5, "multiplier";
+    FIRE_ROAM_CHARGE_MAX: f64 = 1_000.0, "charge units";
+    FIRE_ROAM_BURST_BASE: f64 = 50.0, "damage";
+    FIRE_ROAM_BURST_AD_SHARE: f64 = 0.4, "damage per bonus Offense";
+
     // Base power-zero player Frost (shared factions/signatures).
     FROST_SLOW: f64 = 0.32, "fraction";
     CHILL_MOVE_RADIUS: f64 = 100., "u";

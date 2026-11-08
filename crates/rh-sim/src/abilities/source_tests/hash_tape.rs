@@ -1,5 +1,7 @@
 //! P-CONTENT-1: the per-tick state-hash tape for every admitted ability source case, recorded at the base revision.
 //! The tape is generated once, at the base, with `--ignored record_ability_hash_tape`; the packet's branch must reproduce it.
+//! P-FACTION-2 re-records it on the packet branch: the serialized world layout moved (`rh-checkpoint/20` -> `/21`) for the
+//! Fire roam state, so every state digest changes by construction (the cases' tick counts are unchanged).
 use super::*;
 use serde_json::{json, Map, Value as V};
 
@@ -38,7 +40,7 @@ fn ability_hash_tape_matches_the_base() {
     )
     .unwrap();
     assert_eq!(tape["format"], "rh-ability-hash-tape/1");
-    assert_eq!(tape["base"], "856618eb");
+    assert_eq!(tape["base"], "039ceb47");
     let want = tape["cases"].as_object().unwrap();
     let got = digests();
     for (name, value) in &got {
@@ -47,15 +49,16 @@ fn ability_hash_tape_matches_the_base() {
     assert_eq!(want.len(), got.len(), "hash tape case set");
 }
 
-/// Records the tape at the base revision. Run with `--ignored` in a base worktree; never in the packet's branch.
+/// Records the tape at the base revision. Normally run with `--ignored` in a base worktree; a packet whose serialized
+/// world layout moves re-records it on its branch and documents the move in its evidence (P-FACTION-2: checkpoint/21).
 #[test]
 #[ignore = "records the base hash tape"]
 fn record_ability_hash_tape() {
     let cases = digests();
     let tape = json!({
         "format": "rh-ability-hash-tape/1",
-        "base": "856618eb",
-        "note": "per-tick state hashes of every admitted ability source case, folded FNV-style; generated at the base",
+        "base": "039ceb47",
+        "note": "per-tick state hashes of every admitted ability source case, folded FNV-style; re-recorded for the P-FACTION-2 checkpoint/21 layout move",
         "cases": cases,
     });
     std::fs::write(tape_path(), serde_json::to_string_pretty(&tape).unwrap()).unwrap();

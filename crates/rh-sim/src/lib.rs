@@ -83,6 +83,17 @@ pub use store::{EntityId, Store};
 
 pub use systems::signatures::LandedHit;
 
+/// Trusted diagnostics of one player's Fire roaming state (the source's synced `roamCharge`/`roamReady`), never an
+/// observation: this slice adds no wire field (the evidence records the deferred client mirror).
+#[derive(Clone, Copy, Debug, PartialEq, serde::Serialize)]
+pub struct FireRoamState {
+    pub id: PlayerId,
+    /// The derived charge mirror in 0..=1000 (0 for a non-Fire or inactive seat).
+    pub charge: f64,
+    /// The independent armed-burst flag.
+    pub ready: bool,
+}
+
 pub mod cards;
 pub(crate) mod combat_policy;
 pub mod modifiers;

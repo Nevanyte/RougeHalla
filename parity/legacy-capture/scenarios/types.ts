@@ -19,10 +19,10 @@ export interface Scenario {
   modules?: string[];
   config?: Partial<SimConfig>;
   secrets?: { rewardSalt?: [number, number, number, number]; questSalt?: [number, number, number, number] };
-  record?: Array<"mobs" | "fields" | "statuses" | "containers" | "combat" | "locks" | "signatures" | "landed" | "holyInactive" | "plague">;
+  record?: Array<"mobs" | "fields" | "statuses" | "containers" | "combat" | "locks" | "signatures" | "landed" | "holyInactive" | "plague" | "roam">;
   generatedMapSeed?: number;
   vision?: { viewers: string[]; points: Vec2[]; spawnSeed?: number };
-  factionSlice?: "player-engagement-holy-plague/1" | "player-engagement-holy-plague-fire/1" | "player-engagement-holy-plague-fire-frost/1" | "player-engagement-holy-plague-fire-frost-sentenced/1";
+  factionSlice?: "player-engagement-holy-plague/1" | "player-engagement-holy-plague-fire/1" | "player-engagement-holy-plague-fire-frost/1" | "player-engagement-holy-plague-fire-frost-sentenced/1" | "player-engagement-holy-plague-fire-frost-sentenced-fireroam/1";
   containers?: Array<{ weapon: string; at: Vec2 }>;
   /** Explicit trusted raid bootstrap for the bounded Sentenced public producer triple. */
   bootstrapSpawns?: Vec2[];

@@ -15,6 +15,7 @@ use rh_sim::{
 };
 mod canon;
 mod combat;
+mod fire_roam;
 mod frost;
 mod holy;
 mod mapping;
@@ -203,6 +204,8 @@ pub struct FixTick {
     pub holy_inactive: Option<Value>,
     #[serde(default)]
     pub vision: Option<Vec<VisionView>>,
+    #[serde(default)]
+    pub roam: Option<Vec<Value>>,
 }
 
 #[derive(Deserialize, Debug)]
@@ -624,7 +627,9 @@ fn try_build(fx: &Fixture) -> Result<Sim, String> {
         spawn_seed: vision::source(fx).map_or(0, |m| m.spawn_seed),
     };
     let mut config = SimConfig {
-        faction_mode: if sentenced::enabled(fx) {
+        faction_mode: if fire_roam::enabled(fx) {
+            rh_sim::FactionMode::EngagementHolyPlagueFireFrostSentencedFireRoam
+        } else if sentenced::enabled(fx) {
             rh_sim::FactionMode::EngagementHolyPlagueFireFrostSentenced
         } else if plague::frost(fx) {
             rh_sim::FactionMode::EngagementHolyPlagueFireFrost
@@ -695,7 +700,9 @@ pub fn preconditions(fx: &Fixture, sim: &Sim) -> Vec<String> {
     );
     need(
         c.rust_slice.as_deref()
-            == if sentenced::enabled(fx) {
+            == if fire_roam::enabled(fx) {
+                Some(fire_roam::SLICE)
+            } else if sentenced::enabled(fx) {
                 Some("player-engagement-holy-plague-fire-frost-sentenced/1")
             } else if plague::frost(fx) {
                 Some("player-engagement-holy-plague-fire-frost/1")
@@ -814,7 +821,9 @@ pub fn preconditions(fx: &Fixture, sim: &Sim) -> Vec<String> {
             "mods",
         ];
         need(
-            if plague::enabled(fx) {
+            if fire_roam::enabled(fx) {
+                fire_roam::modules(fx)
+            } else if plague::enabled(fx) {
                 plague::modules_match(fx)
             } else if holy::enabled(fx) {
                 holy::modules_match(fx)
@@ -1043,6 +1052,7 @@ pub fn compare(fx: &Fixture) -> Report {
                     Some("P-COMBAT-1" | "P-COMBAT-2" | "P-COMBAT-3")
                 ),
         );
+        fire_roam::compare(&mut rep, &sim, fx, t);
         plague::compare(&mut rep, &sim, fx, t);
         frost::compare(&mut rep, &sim, fx, t);
         sentenced::compare(&mut rep, &sim, fx, t, &ours, &mark_visuals);

@@ -123,7 +123,9 @@ impl Secrets {
     }
 }
 
-/// Explicitly partial faction installations. Unimplemented factions never silently activate.
+/// Explicitly partial faction installations. Unimplemented factions never silently activate. The last variant is the
+/// full five-faction foundation plus the explicit Fire roam auxiliary installer (legacy `signatures: true` installs both
+/// together; the parity capture worlds name the module set instead).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum FactionMode {
     #[default]
@@ -133,10 +135,15 @@ pub enum FactionMode {
     EngagementHolyPlagueFire,
     EngagementHolyPlagueFireFrost,
     EngagementHolyPlagueFireFrostSentenced,
+    EngagementHolyPlagueFireFrostSentencedFireRoam,
 }
 impl FactionMode {
     pub const fn engagement(self) -> bool {
         !matches!(self, Self::Off)
+    }
+    /// The explicit Fire roam auxiliary installer is part of this partial foundation.
+    pub const fn fire_roam(self) -> bool {
+        matches!(self, Self::EngagementHolyPlagueFireFrostSentencedFireRoam)
     }
     pub const fn fire(self) -> bool {
         matches!(
@@ -144,16 +151,23 @@ impl FactionMode {
             Self::EngagementHolyPlagueFire
                 | Self::EngagementHolyPlagueFireFrost
                 | Self::EngagementHolyPlagueFireFrostSentenced
+                | Self::EngagementHolyPlagueFireFrostSentencedFireRoam
         )
     }
     pub const fn frost(self) -> bool {
         matches!(
             self,
-            Self::EngagementHolyPlagueFireFrost | Self::EngagementHolyPlagueFireFrostSentenced
+            Self::EngagementHolyPlagueFireFrost
+                | Self::EngagementHolyPlagueFireFrostSentenced
+                | Self::EngagementHolyPlagueFireFrostSentencedFireRoam
         )
     }
     pub const fn sentenced(self) -> bool {
-        matches!(self, Self::EngagementHolyPlagueFireFrostSentenced)
+        matches!(
+            self,
+            Self::EngagementHolyPlagueFireFrostSentenced
+                | Self::EngagementHolyPlagueFireFrostSentencedFireRoam
+        )
     }
     pub const fn supports(self, sig: crate::factions::SignatureKind) -> bool {
         match sig {
@@ -171,6 +185,7 @@ impl FactionMode {
                 | Self::EngagementHolyPlagueFire
                 | Self::EngagementHolyPlagueFireFrost
                 | Self::EngagementHolyPlagueFireFrostSentenced
+                | Self::EngagementHolyPlagueFireFrostSentencedFireRoam
         )
     }
 }

@@ -182,6 +182,7 @@ fn start_attack(
         lands_at,
         a: aim,
         packet,
+        roam_armed: false,
     });
     p.weapon.ready_at = start + tm.interval * 1000.0;
     if tm.root > 0.0 {
@@ -236,6 +237,7 @@ fn land(cx: &mut Cx, ix: FighterIx, act: PendingAction) {
                 weapon: act.weapon,
                 aim,
                 packet: act.packet,
+                roam_armed: act.roam_armed,
             });
             p.weapon.draw_started_at = 0.0;
         }
