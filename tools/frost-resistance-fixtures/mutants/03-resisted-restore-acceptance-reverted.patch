@@ -1,0 +1,13 @@
+diff --git a/crates/rh-sim/src/systems/frost.rs b/crates/rh-sim/src/systems/frost.rs
+index f3a275e8..6cf8f5ff 100644
+--- a/crates/rh-sim/src/systems/frost.rs
++++ b/crates/rh-sim/src/systems/frost.rs
+@@ -234,7 +234,7 @@ pub(crate) fn validate_signature(
+         // happen after the victim's folded resistance changed, so the cached value is not required to equal a fresh
+         // recomputation from the current stats.
+         || !(f.chill == 1.
+-            || ((1. - FROST_SLOW - crate::modifiers::DEFINITION.frost_cap)..=1.).contains(&f.chill))
++            || ((1. - FROST_SLOW - crate::modifiers::DEFINITION.frost_cap)..=(1. - FROST_SLOW)).contains(&f.chill))
+         || !f.frost_move_mult.is_finite()
+         || !(CHILL_MOVE_MULT..=1.).contains(&f.frost_move_mult)
+         || (f.frost_move_mult * FROST_MOVE_QUANTIZATION).round() / FROST_MOVE_QUANTIZATION
