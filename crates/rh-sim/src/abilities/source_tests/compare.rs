@@ -171,7 +171,11 @@ pub(super) fn compare(s: &Sim, frame: &V, name: &str, input: &V) {
             expected["id"].as_str().unwrap(),
             "source-born identity"
         );
-        let actual = json!({"x":p.body.x,"y":p.body.y,"facing":p.body.facing,"hp":p.vitals.hp,"maxHp":p.vitals.max_hp,"effects":p.statuses.effects,"displaceSeq":p.motion.displace_seq,"status":format!("{:?}",m.status).to_lowercase(),"faction":p.vitals.faction.as_str(),"type":m.mob_type.as_str(),"camp":m.camp+1,"home":m.home,"homeFacing":m.home_facing,"cast":p.statuses.cast.map(cast),"statuses":statuses(p)});
+        let actual = if m.dummy {
+            json!({"x":p.body.x,"y":p.body.y,"facing":p.body.facing,"hp":p.vitals.hp,"maxHp":p.vitals.max_hp,"effects":p.statuses.effects,"displaceSeq":p.motion.displace_seq,"status":format!("{:?}",m.status).to_lowercase(),"faction":"","type":"","camp":0,"home":V::Null,"homeFacing":V::Null,"cast":p.statuses.cast.map(cast),"statuses":statuses(p)})
+        } else {
+            json!({"x":p.body.x,"y":p.body.y,"facing":p.body.facing,"hp":p.vitals.hp,"maxHp":p.vitals.max_hp,"effects":p.statuses.effects,"displaceSeq":p.motion.displace_seq,"status":format!("{:?}",m.status).to_lowercase(),"faction":p.vitals.faction.as_str(),"type":m.mob_type.as_str(),"camp":m.camp+1,"home":m.home,"homeFacing":m.home_facing,"cast":p.statuses.cast.map(cast),"statuses":statuses(p)})
+        };
         let mut expected = json!({});
         for key in [
             "x",
@@ -190,8 +194,13 @@ pub(super) fn compare(s: &Sim, frame: &V, name: &str, input: &V) {
         }
         expected["cast"] = r["cast"].clone();
         expected["statuses"] = r["statuses"].clone();
-        expected["home"] = r["brain"]["home"].clone();
-        expected["homeFacing"] = r["brain"]["homeFacing"].clone();
+        if r.get("brain").is_some() {
+            expected["home"] = r["brain"]["home"].clone();
+            expected["homeFacing"] = r["brain"]["homeFacing"].clone();
+        } else {
+            expected["home"] = V::Null;
+            expected["homeFacing"] = V::Null;
+        }
         compare_value(
             &actual,
             &expected,

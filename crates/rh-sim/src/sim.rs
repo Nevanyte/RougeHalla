@@ -286,6 +286,8 @@ impl Sim {
         });
         if self.k.config.mob_mode == crate::mob_runtime::MobMode::Pve
             && self.k.config.faction_mode.engagement()
+            && self.k.config.faction_mode
+                != crate::FactionMode::EngagementHolyPlagueFireFrostSentenced
             && !crate::systems::mobs::basic_faction(faction)
         {
             return None;

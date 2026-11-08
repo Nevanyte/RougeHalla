@@ -60,7 +60,7 @@ pub(super) fn room(input: &V) -> crate::TileMap {
 pub(super) fn construct(input: &V) -> Sim {
     assert!(matches!(
         input["profile"].as_str(),
-        Some("core" | "signatures" | "roster" | "cards")
+        Some("core" | "signatures" | "roster" | "rosterSignatures" | "cards" | "training")
     ));
     PLAYER_COUNT.set(input["players"].as_array().unwrap().len() as u32);
     assert!(matches!(
@@ -111,35 +111,50 @@ pub(super) fn construct(input: &V) -> Sim {
             }),
         })
         .collect();
+    let training = input["profile"] == "training" || input["config"]["training"] == true;
     let mut sim = Sim::new(
         SimConfig {
             min_players: placements.iter().filter(|p| !p.bot).count(),
             fill_seconds: 0.,
             abilities: Mode::Full,
-            initial_loot: input["profile"] == "roster",
-            lifecycle: crate::ArenaMode::Source(crate::ArenaRules {
-                plan_seconds: input["config"]["planSeconds"].as_f64().unwrap_or(0.),
-                first_patience_seconds: input["config"]["firstPatienceSeconds"].as_f64(),
-                coliseum_schedule: None,
-                patience_seconds: input["config"]["patienceSeconds"].as_f64().unwrap_or(3600.),
-                patience_min_seconds: input["config"]["patienceMinSeconds"]
-                    .as_f64()
-                    .unwrap_or(3600.),
-                sudden_death_seconds: input["config"]["suddenDeathSeconds"]
-                    .as_f64()
-                    .unwrap_or(60.),
-            }),
-            mob_mode: if input["profile"] == "roster" {
+            initial_loot: matches!(
+                input["profile"].as_str(),
+                Some("roster" | "rosterSignatures")
+            ),
+            lifecycle: if training {
+                crate::ArenaMode::Off
+            } else {
+                crate::ArenaMode::Source(crate::ArenaRules {
+                    plan_seconds: input["config"]["planSeconds"].as_f64().unwrap_or(0.),
+                    first_patience_seconds: input["config"]["firstPatienceSeconds"].as_f64(),
+                    coliseum_schedule: None,
+                    patience_seconds: input["config"]["patienceSeconds"].as_f64().unwrap_or(3600.),
+                    patience_min_seconds: input["config"]["patienceMinSeconds"]
+                        .as_f64()
+                        .unwrap_or(3600.),
+                    sudden_death_seconds: input["config"]["suddenDeathSeconds"]
+                        .as_f64()
+                        .unwrap_or(60.),
+                })
+            },
+            mob_mode: if matches!(
+                input["profile"].as_str(),
+                Some("roster" | "rosterSignatures")
+            ) {
                 crate::mob_runtime::MobMode::Pve
             } else {
                 crate::mob_runtime::MobMode::Off
             },
-            faction_mode: if input["profile"] == "signatures" {
+            faction_mode: if matches!(
+                input["profile"].as_str(),
+                Some("signatures" | "rosterSignatures")
+            ) {
                 crate::FactionMode::EngagementHolyPlagueFireFrostSentenced
             } else {
                 crate::FactionMode::Off
             },
             wish_lock_ms: input["config"]["wishLockSeconds"].as_f64().unwrap_or(0.) * 1000.,
+            training: input["profile"] == "training" || input["config"]["training"] == true,
             ..Default::default()
         },
         arena,
@@ -147,6 +162,18 @@ pub(super) fn construct(input: &V) -> Sim {
     );
     for p in &placements {
         sim.add_player(&p.profile, Some(p.faction), p.bot).unwrap();
+    }
+    if sim.k.config.training {
+        let now = sim.w.server_time;
+        for (p, spec) in sim.w.players.iter_mut().zip(&placements) {
+            p.body.x = spec.at.x;
+            p.body.y = spec.at.y;
+            p.body.history.reset(crate::state::Sample {
+                t: now,
+                x: spec.at.x,
+                y: spec.at.y,
+            });
+        }
     }
     sim.step();
     let now = sim.w.server_time;

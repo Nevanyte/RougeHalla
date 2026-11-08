@@ -202,6 +202,13 @@ pub struct SimConfig {
     pub faction_mode: FactionMode,
     #[serde(default)]
     pub mob_mode: crate::mob_runtime::MobMode,
+    /// Training rooms replace Wish cooldowns and spawn dummies. Absent on every other world.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub training: bool,
+}
+
+fn is_false(v: &bool) -> bool {
+    !*v
 }
 
 fn default_wish_lock() -> f64 {
@@ -227,6 +234,7 @@ impl Default for SimConfig {
             weapon_specials: true,
             faction_mode: FactionMode::Off,
             mob_mode: crate::mob_runtime::MobMode::Off,
+            training: false,
         }
     }
 }

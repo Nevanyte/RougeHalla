@@ -629,6 +629,7 @@ fn a_match_runs_its_ported_rows_in_table_order() {
                     "cardHooks.dropDeferred" | "cardHooks.flushBleeds",
                 ) => {}
                 TraceEntry::Hook("raidStarted", "cardHooks.resetAll") => {}
+                TraceEntry::Hook("raidStarted", "mobs.spawnTraining") => {}
                 TraceEntry::Hook("fighterOut", "consumables.<arrow>") => {} // actual Small potion cleanup; other consumables remain pending.
                 TraceEntry::Hook("fighterOut", "vision.<arrow>") => {}
                 TraceEntry::Hook("raidStarted", "abilities.armWishes") => {} // status reset only; P-ABIL remainder is explicit.

@@ -78,7 +78,9 @@ pub(super) fn validate(w: &World) -> Result<(), String> {
                         && st.taken.is_none()
                 }
                 (AbilityId::Swarm, rt::StatusKind::Hidden) => {
-                    exact_duration(SWARM_MS)
+                    // A second cast inside the first window keeps started_at and extends until.
+                    (st.until - st.started_at) >= SWARM_MS - 1e-6
+                        && (st.until - st.started_at) <= SWARM_MS * 2. + 1e-6
                         && st.value == 0.
                         && st.data
                             == rt::Payload {

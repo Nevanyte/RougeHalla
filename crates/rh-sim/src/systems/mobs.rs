@@ -15,17 +15,19 @@ pub(crate) fn admit_factions(k: &MatchStatic, w: &World) -> Result<(), &'static 
     if k.config.faction_mode == crate::FactionMode::Off {
         return Ok(());
     }
+    let full = k.config.faction_mode == crate::FactionMode::EngagementHolyPlagueFireFrostSentenced;
     if k.config.mob_mode != MobMode::Pve
-        || k.config.faction_mode != crate::FactionMode::EngagementHolyPlagueFire
+        || (!full && k.config.faction_mode != crate::FactionMode::EngagementHolyPlagueFire)
     {
         return Err("unsupported PvE faction mode");
     }
-    if w.players.iter().any(|p| !basic_faction(p.vitals.faction))
+    let allowed = |f: FactionId| full || basic_faction(f);
+    if w.players.iter().any(|p| !allowed(p.vitals.faction))
         || k.arena.map.layers().is_none_or(|l| {
             l.data()
                 .camps
                 .iter()
-                .any(|c| FactionId::parse(c.zone.as_str()).is_none_or(|f| !basic_faction(f)))
+                .any(|c| FactionId::parse(c.zone.as_str()).is_none_or(|f| !allowed(f)))
         })
     {
         return Err("unsupported PvE faction content");
@@ -82,6 +84,11 @@ pub(crate) fn initialize(k: &mut MatchStatic, w: &mut World) -> Result<(), &'sta
     Ok(())
 }
 
+pub(crate) fn spawn_training_hook(hx: &mut Hx, _: &HookArgs) {
+    if hx.k.config.training {
+        spawn_training(hx.k, hx.w);
+    }
+}
 pub(crate) fn raid_started(hx: &mut Hx, _: &HookArgs) {
     if hx.w.mob_runtime.is_none() {
         return;
@@ -153,6 +160,18 @@ pub(crate) fn validate(
     w: &World,
     near: impl Fn(f64, f64) -> bool,
 ) -> Result<(), String> {
+    if k.config.training {
+        if w.mob_runtime.is_some() {
+            return Err("training keeps regional runtime off".into());
+        }
+        if w.mobs
+            .iter()
+            .any(|m| !m.dummy || m.core.vitals.max_hp != 5000.)
+        {
+            return Err("training mob is not a dummy".into());
+        }
+        return Ok(());
+    }
     if k.config.mob_mode == MobMode::Pve {
         return super::mob_checkpoint::validate(k, w, near);
     }
@@ -428,3 +447,115 @@ pub(super) fn initial_prefix(
 }
 
 type InitialReplay = crate::systems::initial_loot::Replay;
+
+fn spawn_training(k: &MatchStatic, w: &mut World) {
+    use crate::geometry::has_line_of_sight;
+    use crate::math::atan2;
+    use crate::pathfind::{plan_path, Pathfinder};
+    let map = &k.arena.map;
+    let mut pf = Pathfinder::default();
+    let players: Vec<Vec2> = w.players.iter().map(|p| p.pos()).collect();
+    for from in players {
+        let tiles = training_tiles(map, from);
+        let mut taken = std::collections::BTreeSet::new();
+        let mut reachable = std::collections::BTreeMap::<i64, bool>::new();
+        let mut pick = |pf: &mut Pathfinder,
+                        taken: &mut std::collections::BTreeSet<i64>,
+                        visible_only: bool| {
+            for at in &tiles {
+                let key = tile_key(*at);
+                if taken.contains(&key) {
+                    continue;
+                }
+                if visible_only && !has_line_of_sight(map, from, *at, crate::constants::MASK_SIGHT)
+                {
+                    continue;
+                }
+                let ok = *reachable
+                    .entry(key)
+                    .or_insert_with(|| !plan_path(pf, map, from, *at).is_empty());
+                if ok {
+                    taken.insert(key);
+                    return Some(*at);
+                }
+            }
+            None
+        };
+        if let Some(at) =
+            pick(&mut pf, &mut taken, true).or_else(|| pick(&mut pf, &mut taken, false))
+        {
+            push_dummy(w, at, atan2(from.y - at.y, from.x - at.x), None);
+        }
+        if let Some(at) =
+            pick(&mut pf, &mut taken, true).or_else(|| pick(&mut pf, &mut taken, false))
+        {
+            push_dummy(
+                w,
+                at,
+                atan2(from.y - at.y, from.x - at.x),
+                Some(crate::WeaponId::Shield),
+            );
+        }
+        for weapon in [
+            crate::WeaponId::Sword,
+            crate::WeaponId::Bow,
+            crate::WeaponId::Wand,
+            crate::WeaponId::Shield,
+            crate::WeaponId::Axe,
+        ] {
+            if let Some(at) = pick(&mut pf, &mut taken, false) {
+                super::items::add_container(
+                    w,
+                    crate::state::ContainerKind::Ground,
+                    at,
+                    [Some(weapon), None],
+                    w.tick,
+                    false,
+                );
+            }
+        }
+    }
+}
+
+fn push_dummy(w: &mut World, at: Vec2, facing: f64, weapon: Option<crate::WeaponId>) {
+    let id = PlayerId(w.next_id);
+    w.next_id = w.next_id.checked_add(1).expect("actor id exhausted");
+    let _serial = w.next_entity_id();
+    w.mobs.push(crate::mob_runtime::Mob::training_dummy(
+        id,
+        at,
+        facing,
+        weapon,
+        w.server_time,
+    ));
+}
+
+fn tile_key(v: Vec2) -> i64 {
+    let tx = (v.x / crate::constants::TILE).floor() as i64;
+    let ty = (v.y / crate::constants::TILE).floor() as i64;
+    ty * 65536 + tx
+}
+
+fn training_tiles(map: &crate::TileMap, from: Vec2) -> Vec<Vec2> {
+    use crate::constants::*;
+    use crate::geometry::circle_clear;
+    use crate::math::hypot;
+    let tx0 = (from.x / TILE).floor() as i64;
+    let ty0 = (from.y / TILE).floor() as i64;
+    let mut out = Vec::new();
+    for ty in ty0 - 6..=ty0 + 6 {
+        for tx in tx0 - 6..=tx0 + 6 {
+            if tx < 0 || ty < 0 || tx >= i64::from(map.w) || ty >= i64::from(map.h) {
+                continue;
+            }
+            let at = Vec2::new((tx as f64 + 0.5) * TILE, (ty as f64 + 0.5) * TILE);
+            let d = hypot(at.x - from.x, at.y - from.y) / TILE;
+            if !(3. ..=6.).contains(&d) || !circle_clear(map, at, PLAYER_RADIUS, MASK_MOVE) {
+                continue;
+            }
+            out.push((d, out.len(), at));
+        }
+    }
+    out.sort_by(|a, b| a.0.total_cmp(&b.0).then(a.1.cmp(&b.1)));
+    out.into_iter().map(|(_, _, at)| at).collect()
+}

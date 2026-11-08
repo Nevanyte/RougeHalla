@@ -83,6 +83,15 @@ impl Gates {
         dummies: false,
         training: false,
     };
+    /// A training room without regional mobs or faction signatures.
+    pub const TRAINING_ROOM: Gates = Gates {
+        signatures: false,
+        walk_hints: false,
+        mobs: false,
+        quests: false,
+        dummies: true,
+        training: true,
+    };
     /// The practice room: the training config, then `installTraining`.
     pub const TRAINING: Gates = Gates {
         signatures: true,
@@ -96,6 +105,9 @@ impl Gates {
     /// The match uses the baseline capture plan or the explicitly partial Holy foundation.
     /// Other signature producers remain Pending even in the latter plan.
     pub(crate) const fn of(k: &MatchStatic) -> Gates {
+        if k.config.training {
+            return Gates::TRAINING_ROOM;
+        }
         if matches!(
             k.config.mob_mode,
             crate::mob_runtime::MobMode::SpawnFoundation | crate::mob_runtime::MobMode::Pve
@@ -598,6 +610,8 @@ impl Plan {
             &MOB_FOUNDATION_PLAN
         } else if g == Gates::TRAINING {
             &TRAINING_PLAN
+        } else if g == Gates::TRAINING_ROOM {
+            &TRAINING_ROOM_PLAN
         } else {
             // A config switch that makes another combination
             // must add its plan (and its record) here: it never silently plays the capture world.
@@ -616,6 +630,7 @@ static PRODUCTION_PLAN: Plan = Plan::compile(&Gates::PRODUCTION);
 static CAPTURE_PLAN: Plan = Plan::compile(&Gates::CAPTURE);
 static HOLY_FOUNDATION_PLAN: Plan = Plan::compile(&Gates::HOLY_FOUNDATION);
 static TRAINING_PLAN: Plan = Plan::compile(&Gates::TRAINING);
+static TRAINING_ROOM_PLAN: Plan = Plan::compile(&Gates::TRAINING_ROOM);
 
 /// Runs compiled phases in order: the one place `updateActive`'s systems are called from.
 pub(crate) fn run_steps(cx: &mut Cx, steps: &[(&'static str, PhaseFn)]) -> Flow {
@@ -1210,11 +1225,11 @@ static RAID_STARTED: [Link; 14] = [
         Gate::Signatures,
         crate::systems::signatures::raid_started,
     ),
-    pending_link(
+    ported_link(
         "mobs.spawnTraining",
         Mode::Append,
         Gate::Dummies,
-        "P-ARENA-2",
+        crate::systems::mobs::spawn_training_hook,
     ),
     ported_link(
         "mobLife.spawnRegionalMobs",
@@ -1776,6 +1791,7 @@ mod tests {
             (&PRODUCTION_PLAN, Gates::PRODUCTION),
             (&CAPTURE_PLAN, Gates::CAPTURE),
             (&TRAINING_PLAN, Gates::TRAINING),
+            (&TRAINING_ROOM_PLAN, Gates::TRAINING_ROOM),
             (&MOB_FOUNDATION_PLAN, Gates::MOB_FOUNDATION),
             (&MOB_BASIC_FACTIONS_PLAN, Gates::MOB_BASIC_FACTIONS),
         ] {

@@ -47,11 +47,6 @@ fn frozen_full_source_all_63_cases() {
     assert_eq!(cases.len(), 63);
     let expected_pending = [
         (
-            "training-swarm-real-five-second-recast-replacement",
-            "training",
-            "actual training lifecycle and dummy constructor",
-        ),
-        (
             "full-signature-source-born-holy-wish-recipients",
             "rosterSignatures",
             "full five-faction source-born NPC signatures",

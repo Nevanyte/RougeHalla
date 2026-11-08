@@ -60,6 +60,9 @@ pub struct Mob {
     pub(crate) last_hit_at: f64,
     pub mob_type: MobTypeId,
     pub elite: bool,
+    /// Training dummy. Omitted when false so camp mobs keep their checkpoint shape.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub dummy: bool,
     pub camp: u32,
     pub status: Status,
     pub home: Vec2,
@@ -124,6 +127,7 @@ impl Mob {
             },
             mob_type,
             elite,
+            dummy: false,
             camp,
             status: Status::Alive,
             home: at,
@@ -131,6 +135,60 @@ impl Mob {
             repath_phase: ((u64::from(serial) * u64::from(crate::constants::MOB_REPATH_PHASE_MULT))
                 % u64::from(crate::constants::MOB_REPATH_PHASE_PERIOD))
                 as u32,
+        }
+    }
+
+    pub(crate) fn training_dummy(
+        id: PlayerId,
+        at: Vec2,
+        facing: f64,
+        weapon: Option<crate::WeaponId>,
+        now: f64,
+    ) -> Self {
+        let mut history = History::default();
+        history.reset(Sample {
+            t: now,
+            x: at.x,
+            y: at.y,
+        });
+        Self {
+            brain: Brain::default(),
+            last_hit_at: 0.,
+            core: FighterCore {
+                id,
+                body: Body {
+                    x: at.x,
+                    y: at.y,
+                    facing,
+                    history,
+                },
+                vitals: Vitals {
+                    faction: FactionId::Holy,
+                    hp: 5000.,
+                    max_hp: 5000.,
+                    barrier: 0.,
+                    immune_until: 0.,
+                    hp_frac_at_tick_start: 1.,
+                },
+                weapon: WeaponRt {
+                    weapon0: weapon,
+                    ..WeaponRt::default()
+                },
+                signature: Default::default(),
+                statuses: Default::default(),
+                modifiers: crate::modifiers::Runtime::default(),
+                card_dot_crit: None,
+                motion: Motion::default(),
+                inputs: InputQueue::default(),
+            },
+            mob_type: MobTypeId::EmberImp,
+            elite: false,
+            dummy: true,
+            camp: 0,
+            status: Status::Alive,
+            home: at,
+            home_facing: facing,
+            repath_phase: 0,
         }
     }
 }
@@ -188,4 +246,8 @@ pub(crate) struct CampLife {
     pub contributors: Vec<PlayerId>,
     pub ward_owner: Option<PlayerId>,
     pub ward_expires_at: f64,
+}
+
+fn is_false(v: &bool) -> bool {
+    !*v
 }

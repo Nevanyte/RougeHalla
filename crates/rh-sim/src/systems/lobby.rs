@@ -45,6 +45,10 @@ pub(super) fn start_raid(
     w.raid_started_at = w.server_time;
     w.plan_ends_at = 0.;
     let mut spawns = k.arena.spawns.clone();
+    // Training's main stream counts the order-salt draw before the spawn shuffle.
+    if k.config.training {
+        let _ = w.spawn_rng.next_u32();
+    }
     let mut i = spawns.len();
     while i > 1 {
         i -= 1;

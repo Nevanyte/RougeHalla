@@ -355,7 +355,11 @@ pub(crate) fn raid_started(hx: &mut Hx, args: &HookArgs) {
         return;
     }
     if hx.k.config.abilities == crate::abilities::Mode::Full {
-        let ready = hx.w.raid_started_at + hx.k.config.wish_lock_ms.max(0.);
+        let ready = if hx.k.config.training {
+            0.
+        } else {
+            hx.w.raid_started_at + hx.k.config.wish_lock_ms.max(0.)
+        };
         for p in &mut hx.w.players {
             p.stocks = crate::abilities::Stocks {
                 wish_ready_at: ready,
