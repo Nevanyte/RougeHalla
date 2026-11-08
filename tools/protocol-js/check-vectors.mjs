@@ -238,6 +238,12 @@ const reason = {
   reject_code_zero: /reject code/, server_bad_utf8: /utf-8/,
   map_zero_size: /map size/, map_too_large: /map size/, map_bad_tile: /map run/, map_zero_run: /map run/,
   map_run_past_size: /map run/, map_short: /map length/, map_hash_mismatch: /map hash/,
+  wish_ability_over_4: /bad ability/, wish_charge_count_invalid: /bad Wish charges/, wish_time_nonfinite: /bad Wish clock/,
+  wish_option_over_1: /bad option/, wish_cast_time_order: /bad Wish cast order/,
+  wish_fx_caster_zero: /bad actor reference/, wish_fx_ability_over_4: /bad ability/, wish_fx_time_nonfinite: /bad Wish event time/,
+  wish_fx_option_over_1: /bad option/, wish_fx_blaze_one_point: /bad Wish landing geometry/,
+  wish_fx_nonblaze_destination: /bad Wish landing geometry/, wish_fx_anonymous_landed_target: /bad anonymous Wish landing/,
+  wish_fx_anonymous_landed_no_target: /bad anonymous Wish landing/, wish_fx_end_reason_over_2: /bad Wish end reason/,
 };
 for (const v of fx.malformedServer) {
   const want = reason[v.name];
