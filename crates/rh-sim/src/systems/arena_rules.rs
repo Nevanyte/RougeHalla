@@ -94,8 +94,12 @@ pub(crate) fn validate_config(k: &MatchStatic) -> Result<(), &'static str> {
     if k.config.mob_mode == crate::mob_runtime::MobMode::SpawnFoundation {
         return Err("source arena requires runtime mobs, not the constructor-only foundation");
     }
-    if k.config.faction_mode != crate::FactionMode::Off {
-        return Err("source arena faction teleport producers are not yet admitted");
+    if k.config.faction_mode != crate::FactionMode::Off
+        && (k.config.mob_mode != crate::mob_runtime::MobMode::Off || k.config.initial_loot)
+    {
+        return Err(
+            "source faction lifecycle admits base players only, without NPC or loot/card producers",
+        );
     }
     if k.arena.spawns.is_empty()
         && k.arena

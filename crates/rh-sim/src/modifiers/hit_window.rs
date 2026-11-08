@@ -6,6 +6,10 @@ pub struct HitWindow {
     hits: Vec<f64>,
 }
 impl HitWindow {
+    pub(crate) fn reset(&mut self) {
+        self.target = None;
+        self.hits.clear();
+    }
     pub(crate) fn note(&mut self, target: crate::PlayerId, now: f64, count: usize) {
         if self.target != Some(target) {
             self.target = Some(target);

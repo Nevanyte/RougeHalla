@@ -1076,11 +1076,13 @@ static TELEPORTED: [Link; 13] = [
         Gate::Always,
         projectiles::teleported,
     ),
-    pending_link(
+    partial_link(
         "factions.<arrow>",
         Mode::Append,
         Gate::Signatures,
-        "P-FACTION-1",
+        "base-player resetAll keeps combat clock and clears fight state",
+        "P-CARDS-1",
+        crate::systems::signatures::teleported,
     ),
     ported_link(
         "chests.clearChests",

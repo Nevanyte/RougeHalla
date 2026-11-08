@@ -6,6 +6,7 @@ use serde_json::{json, Value as V};
 mod arena_refund;
 mod compare;
 mod motion;
+mod player_lifecycle;
 mod repair_tests;
 mod runner;
 mod setup;
@@ -24,8 +25,10 @@ fn frozen_core_source_casts() {
     let mut failures = Vec::new();
     for case in c["cases"].as_array().unwrap() {
         let i = &case["input"];
-        if !matches!(i["profile"].as_str(), Some("core" | "roster"))
-            || !matches!(i["map"].as_str(), Some("room" | "born" | "seed1"))
+        if !matches!(
+            i["profile"].as_str(),
+            Some("core" | "roster" | "signatures")
+        ) || !matches!(i["map"].as_str(), Some("room" | "born" | "seed1"))
         {
             continue;
         }
@@ -35,7 +38,7 @@ fn frozen_core_source_casts() {
         }
         n += 1;
     }
-    assert_eq!(n, 53);
+    assert_eq!(n, 55);
     assert!(failures.is_empty(), "source failures: {failures:?}");
 }
 /// Always executes every admitted source case and pins the exact outstanding inventory.
@@ -55,16 +58,6 @@ fn frozen_full_source_all_63_cases() {
             "arcane-overload-wishful-stock-trim",
             "cards",
             "actual Arcane Overload/Wishful Thinking/Gallows card producers",
-        ),
-        (
-            "trial-own-convicted-mark-from-real-weapon-hits",
-            "signatures",
-            "actual Source lifecycle player faction teleport reset producers",
-        ),
-        (
-            "trial-other-owner-convicted-is-not-own-mark",
-            "signatures",
-            "actual Source lifecycle player faction teleport reset producers",
         ),
         (
             "training-swarm-real-five-second-recast-replacement",
@@ -129,6 +122,8 @@ fn frozen_full_source_all_63_cases() {
     arena_refund::arena_genuine_freeze_laststand_and_teleport_refund();
     repair_tests::overlapping_real_blaze_charges_restore_player_and_born_npc();
     repair_tests::real_refunded_wish_survives_a_later_source_teleport();
+    player_lifecycle::all_five_player_lifecycle_source_witnesses();
+    player_lifecycle::genuine_axe_shred_reset_and_continuation();
     let diagnostic = format!(
         "P-ABIL-1 FULL INCOMPLETE: {} named prerequisite cases were not attempted:\n{}",
         pending.len(),

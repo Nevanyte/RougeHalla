@@ -5,8 +5,9 @@ use crate::constants::*;
 use crate::content::{self, FactionId, Shape, WeaponId};
 use crate::fighter::FighterIx;
 use crate::geometry::has_line_of_sight;
-use crate::hooks::{HookArgs, Hx};
+mod lifecycle;
 use crate::state::{PlayerId, World};
+pub(crate) use lifecycle::{raid_started, teleported, validate_source_lifecycle};
 
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct BlockContact {
@@ -34,19 +35,6 @@ pub(crate) struct Contact {
     passive: bool,
 }
 
-pub(crate) fn raid_started(hx: &mut Hx, args: &HookArgs) {
-    if *args == HookArgs::RaidStarted {
-        hx.w.factions.dot.clear();
-        hx.w.factions.dot_since = hx.w.server_time;
-        if let Some(fx) = hx.fx.as_deref_mut() {
-            fx.ops.push(crate::fx_report::Op::Reset(hx.ev.len()));
-        }
-        for p in hx.w.players.iter_mut() {
-            p.credit.sentence = 0;
-            p.signature = Default::default();
-        }
-    }
-}
 fn contact(
     w: &World,
     out: &mut Vec<Contact>,

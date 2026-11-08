@@ -27,7 +27,7 @@ pub(super) fn run_case(c: &V) -> Sim {
                 compare(&s, timeline, name, input);
                 checkpoint(&mut s, name);
             }
-            "span" | "untilOwnMark" => {
+            "span" | "untilOwnMark" | "untilTeleport" => {
                 let mut stopped = false;
                 for step in 1..=a["count"]
                     .as_u64()
@@ -43,6 +43,15 @@ pub(super) fn run_case(c: &V) -> Sim {
                     {
                         compare(&s, frame, name, input);
                         checkpoint(&mut s, name);
+                    }
+                    if a["kind"] == "untilTeleport" && s.w.rt.gates_locked {
+                        assert_eq!(
+                            step,
+                            timeline["executed"].as_u64().unwrap(),
+                            "actual teleport stopping step"
+                        );
+                        stopped = true;
+                        break;
                     }
                     if a["kind"] == "untilOwnMark" {
                         let p = s.w.player(id(&a["owner"]).unwrap()).unwrap();
@@ -60,9 +69,27 @@ pub(super) fn run_case(c: &V) -> Sim {
                     }
                 }
                 assert!(
-                    a["kind"] != "untilOwnMark" || stopped,
+                    (a["kind"] != "untilOwnMark" && a["kind"] != "untilTeleport") || stopped,
                     "own Mark was never earned"
                 );
+            }
+            "healProbe" => {
+                let ix = s.w.fighter_idx(id(&a["actor"]).unwrap()).unwrap();
+                let mut events = vec![];
+                let gained = crate::systems::heal::apply(
+                    &mut s.w,
+                    &mut events,
+                    ix.slot(),
+                    num(&a["amount"]),
+                    crate::systems::heal::Kind::Ordinary,
+                );
+                compare_value(
+                    &json!(gained),
+                    &timeline["healGained"],
+                    "declared source heal helper",
+                );
+                compare(&s, timeline, name, input);
+                checkpoint(&mut s, name);
             }
             "place" => {
                 let now = s.w.server_time;

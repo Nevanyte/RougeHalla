@@ -37,6 +37,7 @@ pub(crate) fn validate(k: &MatchStatic, w: &World) -> Result<(), String> {
     }) {
         return Err("Source lifecycle has no admitted Wish cast producer; bare CastFact is a trusted Off kernel state".into());
     }
+    super::signatures::validate_source_lifecycle(k, w)?;
     if !w.deferred.hits.is_empty() {
         return Err(
             "Source lifecycle has no admitted deferred card producer or reset hooks".into(),
