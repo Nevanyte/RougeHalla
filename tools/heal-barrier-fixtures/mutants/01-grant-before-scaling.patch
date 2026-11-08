@@ -1,0 +1,26 @@
+--- a/crates/rh-sim/src/systems/heal.rs
++++ b/crates/rh-sim/src/systems/heal.rs
+@@ -38,6 +38,11 @@
+     {
+         return 0.0;
+     }
++    // Legacy factions.ts heal(): the share of the heal as received (overheal and lifesteal included) stands as a
++    // barrier before the hp clamp. The regen caller is the source's noBarrier heal; mobs never hold a barrier.
++    if w.is_player(ix) && !matches!(kind, Kind::QuietRegen) && stats.heal_barrier > 0. {
++        crate::systems::buffs::grant_heal_barrier(w, i, stats.heal_barrier * amount, now);
++    }
+     let mut amount =
+         amount * crate::status_runtime::heal_factor(&w.core(ix).statuses.instances, now);
+     if !matches!(kind, Kind::Lifesteal) {
+@@ -45,11 +50,6 @@
+     }
+     if !(amount > 0.) {
+         return 0.;
+-    }
+-    // Legacy factions.ts heal(): the share of the heal as received (overheal and lifesteal included) stands as a
+-    // barrier before the hp clamp. The regen caller is the source's noBarrier heal; mobs never hold a barrier.
+-    if w.is_player(ix) && !matches!(kind, Kind::QuietRegen) && stats.heal_barrier > 0. {
+-        crate::systems::buffs::grant_heal_barrier(w, i, stats.heal_barrier * amount, now);
+     }
+     let p = w.core_mut(ix);
+     let before = p.vitals.hp;

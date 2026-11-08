@@ -1,0 +1,12 @@
+--- a/crates/rh-sim/src/systems/buffs.rs
++++ b/crates/rh-sim/src/systems/buffs.rs
+@@ -54,8 +54,7 @@
+         if !(p.barrier_until > 0.) {
+             continue;
+         }
+-        if now >= p.barrier_until
+-            || p.status != Status::Alive
++        if p.status != Status::Alive
+             || (p.barrier_decays && !(p.vitals.barrier > 0.))
+         {
+             p.barrier_until = 0.;

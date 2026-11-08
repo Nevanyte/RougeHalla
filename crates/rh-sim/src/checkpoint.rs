@@ -20,7 +20,7 @@ use serde::ser::{SerializeStruct, Serializer};
 use std::fmt;
 
 /// The tag every checkpoint carries. Bump it when the layout of `statics` or `world` changes incompatibly.
-pub const CHECKPOINT_FORMAT: &str = "rh-checkpoint/24";
+pub const CHECKPOINT_FORMAT: &str = "rh-checkpoint/25";
 
 /// How far past the map edge a fighter, waypoint or spawn may be and still restore (real states stay inside the map).
 const COORD_MARGIN: f64 = 1024.0;
@@ -592,6 +592,17 @@ fn check_world(k: &MatchStatic, w: &World) -> Result<(), String> {
                 .contains(&p.speed_boost_until)
         {
             return Err(format!("player {}: invalid speed boost deadline", p.id.0));
+        }
+        // The private G6 barrier timer is a finite, nonnegative clock, and the decay flag cannot stand without one.
+        // The barrier itself is finite and nonnegative but intentionally has NO universal cap: the source clamps only
+        // at grant time, so a later max-hp decrease can leave a larger barrier standing until decay or a new grant.
+        if !p.barrier_until.is_finite()
+            || p.barrier_until < 0.
+            || (p.barrier_decays && !(p.barrier_until > 0.))
+            || !p.vitals.barrier.is_finite()
+            || p.vitals.barrier < 0.
+        {
+            return Err(format!("player {}: invalid G6 barrier state", p.id.0));
         }
         // Samples are appended in time order and never dated after the clock: a future-dated one is never trimmed and
         // fills the ring.

@@ -937,7 +937,11 @@ static SYSTEMS: [Item<SystemFn>; 24] = [
         Gate::Always,
         crate::systems::training::reset_dummies,
     ),
-    pending("buffs.expireBoosts", Gate::Always, "P-CARDS-2"),
+    ported(
+        "buffs.expireBoosts",
+        Gate::Always,
+        crate::systems::buffs::expire,
+    ),
     ported(
         "feed.flushAnnouncements",
         Gate::Always,
@@ -2007,6 +2011,7 @@ mod tests {
                 .collect::<Vec<_>>(),
             [
                 "mobs.resetDummies",
+                "buffs.expireBoosts",
                 "feed.flushAnnouncements",
                 "chests.expireChests",
                 "mobLife.reapMobs",

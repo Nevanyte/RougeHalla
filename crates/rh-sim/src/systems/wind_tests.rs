@@ -101,6 +101,7 @@ fn walking_over_an_emblem_grants_the_boost_and_expiry_clears_it() {
         lifesteal_dot: 0.0,
         farm_lifesteal_rows: 0.0,
         heal_taken_mult: 0.0,
+        heal_barrier: 0.0,
         mark_suppression: None,
     };
     let had = {
