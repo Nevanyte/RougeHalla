@@ -31,25 +31,32 @@ then one integration gate; do not repeat unchanged expensive map campaigns after
 
 ## Active private write leases
 
-These are assignments/candidates, not admitted main behaviour. [ADR0022](adr/0022-barrier-wish-publication.md) reserves
-protocol12/Observation18 privately; main remains11/17. Existing candidate checkpoint25/replay19 will be composed once.
+These are assignments/candidates, not admitted main behaviour. [ADR0022](adr/0022-barrier-wish-publication.md) assigns
+the composed private protocol12/Observation18 prefix. The [owner Trophy extension](coordination/P-TROPHY-WIRE13.md)
+now reserves protocol13/Observation19 privately; main remains11/17. Candidate checkpoint25/replay19 remains unchanged
+by these publication changes. Final content/tapes and matched Web build follow the repaired native composition once.
 
 | Worker | Current packet / branch | Exclusive boundary |
 |---|---|---|
-| DeepSeek Rust / G6 worker | [P-G6](coordination/P-G6-HEAL-BARRIER-NATIVE.md) and [caller repair](coordination/P-G6-CALLER-REPAIR.md), delivered `2a384510` | Native caller repair reviewed; production lease closed. State/checkpoint/format/hash-coverage handed to networking; content/derived tapes lead-owned |
-| DeepSeek Rust / Frost worker | Player resistance `6cfb7a41` reviewed; NPC candidate `7d831c28` held for [profile/coverage repair](coordination/P-FROST-NPC-RECIPIENTS-REPAIR.md) | Frost recipient source/native/compatibility proof; no new NPC source/gate or shared identity files |
-| DeepSeek Rust / MarkRate worker | [Gathering Storm](coordination/P-SENTENCED-MARK-RATE-1.md) from reviewed `c5b11341` | Sentenced runtime + narrow modifier accessor/source tests; content/schema/tapes stay root-owned |
-| DeepSeek Post Rust | Corrected source Wish `ecda2212` admitted in `6dfe9116`; available for next source-only packet | No native/codec/Unity changes |
-| Native observation specialist | Private production `ec9a9028`, source consumer `bbb7b012` | Production complete/reviewed; observe/item_view/wire lease handed to networking; remaining G6/transport/client proof held |
-| Native integration specialist | Restore repairs `e6f9680a`/`c5b11341` reviewed/composed privately in `bc9cdd7b` | Production lease closed; root26-test Sentenced check passes. Next [MarkRate packet](coordination/P-SENTENCED-MARK-RATE-1.md) may own sentenced.rs/modifier accessor without shared schema/content edits |
-| Networking chat | Native/server candidate `a40e1c6e` handed to root, composed privately in `f62af90f`; diagnostic API `10cbfa25` handed to art | Native/schema lease closed. Own only opt-in actual-R harness/diagnostics now; final content/tapes/build and admission root-owned |
-| Art chat | [Wish/barrier presentation](coordination/P-UNITY-WISH-BARRIER-1.md), stable client checkpoint `abd1ccfe` | Own HUD/Arena/presenter and released MatchClient lifecycle-only hunks. No input/Protocol/Net changes; one focused Editor batch before final-union Web proof |
+| DeepSeek Rust / G6 and MarkRate | G6 `2a384510`, MarkRate `df7cd0e8` plus expert history `69e47239`, privately composed | Production leases closed; root owns content/tapes. Gathering Storm is compatibility-granted, not normally INTERACTIVE-offered; acquisition replay remains unproved |
+| DeepSeek Rust / Frost | Repaired recipients `ee07c9d0`, expert Draw-clock repair `7187ee27`, typed comparator `16c19c52` | Root composes/reviews; no Full NPC gate/source widening. Next [all-Wish clock matrix](coordination/P-WISH-LIFECYCLE-CLOCK-MATRIX.md) is isolated test-only work |
+| DeepSeek Post Rust | Native Trophy consumer `7bf5806c`; [birth-hold repair](coordination/P-TROPHY-BIRTH-HOLD-REPAIR.md) active | Shared strict availability predicate, full six-case consumer and real compiled mutants. No content/schema/tape/wire edits |
+| Native observation specialist | Owner-only Trophy filter and complete option kind/key/gain comparison, Observation19 | Exclusive reward_chests/observer.rs and observe.rs version/focused tests; preserve separate DS birth predicate. No public wire or gameplay grant changes |
+| Native integration specialist | Reviewed strict restore `7187ee27`; independent typed-comparator review | Private review/repair only. No worker-tree edits or removal of Full Frost/Sentenced NPC guards |
+| Networking chat | Native `a40e1c6e`, real-input harness `41529a39` and stock proof `1d3b394e` composed; [Trophy wire13 PhaseA](coordination/P-TROPHY-WIRE13.md) active | Own codecs/canonical net mirror/focused Trophy HUD labels/server adapters; keep omission guard until root PhaseB release. No native observer/content/schema/tapes |
+| Art chat | Presentation `7d5a496b`, relative HUD copy `46c7a2e8` reviewed/composed | Editor idle pending final matched protocol13 build/proof. Networking owns focused Trophy MatchHud text now; no concurrent UI edits or stale Web build |
 
 The lead sequences shared files, retains current guards and owns final identity/tape composition. Native source-born
 Frost/Sentenced NPC signature prerequisites remain genuine pending work; removing the current gate is not a port.
 Corrected [source Trophy lifecycle/text witnesses](coordination/P-TROPHY-WITNESS-1.md) through `f9dcaea0` are admitted
 in `3af96c1a`. Root reproduces both new source families byte-exact and their5/4 semantic mutants with controls. These
-are source-only admissions, not native/client transport completion; no next wire version is allocated by Trophy evidence.
+are source-only admissions, not native/client transport completion. The separate reviewed wire13 contract above assigns
+the next private version; it does not follow automatically from source evidence.
+
+The native prefix passes revision-scoped split checks:609 simulation and824 remaining-workspace default tests, plus
+separate real-PG server328/placement236 suites, parity109+300 and both strict workspace lint modes. Feature suites
+overlap defaults and are not added to the total. C#383 and JS18,032 checks pass. Later NPC/Trophy repairs need focused
+composition checks; these numbers are neither a new whole-port run nor a final browser/performance acceptance.
 
 ## Current priorities
 
