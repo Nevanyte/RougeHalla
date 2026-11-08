@@ -5,6 +5,10 @@ P-CARDS-2, P-TERRAIN-1, P-BOTS-1). **No packet file exists.** Branch `deepseek/p
 `origin/deepseek/p-bots-6` at `f87727dd` (the bots tip: core + Wish + tactics + hunt + tournament); the PR is stacked on
 `deepseek/p-bots-6`. No wire, schedule, serialized-state or content change.
 
+Pull request: [#58](https://github.com/Nevanyte/RougeHalla/pull/58), stacked on the P-BOTS-6 PR; commit range
+`f87727dd`..`1aa8c462` on `deepseek/p-bots-brain`. Ledger row:
+[`docs/evidence/deepseek-rust/PROGRESS.md`](../deepseek-rust/PROGRESS.md).
+
 ## Assessment before writing (code and git, not memory)
 
 The P-BOTS-3 evidence (`docs/evidence/stage2-bots-3/README.md` at the bots tip) leaves four items: (1) the feature
