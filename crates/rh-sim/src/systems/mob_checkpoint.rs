@@ -212,6 +212,7 @@ pub(crate) fn validate(
             // adding the regional mob gear/Mark checks this branch deliberately skips.
             super::frost::validate_signature(
                 k.config.faction_mode.frost(),
+                crate::systems::frost::source_budget(k).map_err(str::to_owned)?,
                 w,
                 m.core.id,
                 &m.core.signature,

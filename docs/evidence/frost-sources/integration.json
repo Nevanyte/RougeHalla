@@ -1,0 +1,95 @@
+{
+  "root_base": "1310ae002870bf3fc674c7b65f38ff5ea55a7d75",
+  "candidate": "e38d16c30cde16bddfa7eef038076527fdabf433",
+  "target": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/frost-future-integration/target",
+  "pgtest_state": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/frost-future-integration/pgtest-state",
+  "checks": [
+    {
+      "log": "frost.log",
+      "sha256": "ca52eb5f81e112a476ecbcca0a6dd977bfbe70b9698ef8df25b338ed431aec8e",
+      "bytes": 4489,
+      "results": [
+        "    Finished `test` profile [unoptimized] target(s) in 44.37s",
+        "test result: ok. 28 passed; 0 failed; 1 ignored; 0 measured; 637 filtered out; finished in 11.39s"
+      ]
+    },
+    {
+      "log": "restore-replay-red.log",
+      "sha256": "930811ae77f5e96f0369d1557758f992a21def0c8dba4c7c908520c2f5e84512",
+      "bytes": 2030,
+      "results": [
+        "    Finished `test` profile [unoptimized] target(s) in 16.22s",
+        "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s",
+        "test restored_frost_pve_steps_without_submit_with_more_actors_than_seats ... FAILED",
+        "test result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s"
+      ]
+    },
+    {
+      "log": "restore-replay.log",
+      "sha256": "fa4fceded3a183a22eadd3012c542a1d7f6c2ba4e03a3405140eed4e242d7311",
+      "bytes": 2803,
+      "results": [
+        "    Finished `test` profile [unoptimized] target(s) in 1.81s",
+        "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s",
+        "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s",
+        "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s",
+        "test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s"
+      ]
+    },
+    {
+      "log": "teleport.log",
+      "sha256": "91d2eb657acb69abd558bdad24552b2316b0dfe65735221c3bbb386ba4823793",
+      "bytes": 641,
+      "results": [
+        "    Finished `test` profile [unoptimized] target(s) in 0.03s",
+        "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 663 filtered out; finished in 0.00s"
+      ]
+    },
+    {
+      "log": "digest.log",
+      "sha256": "27d0b2cd9ed1ff912acc0d0927a18150446059b65df0a0d5c4c0aef753fa90ec",
+      "bytes": 1084,
+      "results": [
+        "    Finished `test` profile [unoptimized] target(s) in 14.49s",
+        "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s"
+      ]
+    },
+    {
+      "log": "alloc.log",
+      "sha256": "d9efd01fd241100370ddfadedd881936a764cbd7b74607729bac7c7603d71754",
+      "bytes": 467,
+      "results": [
+        "    Finished `test` profile [unoptimized] target(s) in 0.05s",
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 665 filtered out; finished in 0.58s"
+      ]
+    },
+    {
+      "log": "clippy-default.log",
+      "sha256": "e5ecd54dc893c5e09061ddd83af687888527aa7d1dd6b6cae36eb4b5a2420ced",
+      "bytes": 1486,
+      "results": [
+        "    Finished `dev` profile [unoptimized] target(s) in 28.85s"
+      ]
+    },
+    {
+      "log": "clippy-allfeatures.log",
+      "sha256": "3435d65c11982a3e2390ee9d8a429849a9ece220c6a93f047d9290c937458ad1",
+      "bytes": 687,
+      "results": [
+        "    Finished `dev` profile [unoptimized] target(s) in 20.35s"
+      ]
+    },
+    {
+      "log": "source-bytecheck.log",
+      "sha256": "119c848eb255c85df36fb8a6e2dd51dba316dd60b9e4edf640029c92c6d3ad98",
+      "bytes": 1865,
+      "results": []
+    }
+  ],
+  "preserved_from_frozen_root": {
+    "crates/rh-sim/src/scratch.rs": "7533928e511dcb2ca1e1581a6a8da8fb940b1a82",
+    "crates/rh-sim/src/abilities/source_tests/mod.rs": "c0b7c29851bd1c5e4d44ce5dc75ff7db298d62e4",
+    "crates/rh-sim/src/abilities/source_tests/setup.rs": "1aa097692cb2e3edfdc63225c60dc6bfdc59cfd1",
+    "Cargo.lock": "8b3854dcffd2766dd6b590a6c6ee374b2f5c69b4"
+  }
+}

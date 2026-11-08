@@ -89,6 +89,7 @@ pub(super) fn start_raid(
         },
         HookArgs::RaidStarted,
     );
+    super::frost::prepare(k, w).expect("validated Frost source budget");
     s.reserve_actors(w.fighter_count());
     ev.push(Event::RaidStarted);
 }

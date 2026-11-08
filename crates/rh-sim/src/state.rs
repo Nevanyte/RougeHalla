@@ -917,6 +917,8 @@ impl DeferredQueue {
 /// `Hx::pay_later` from a hook link); never push to `items` directly.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub(crate) struct PayQueue {
+    /// Derived wake settlement order, cleared on every exit; never serialized or hashed.
+    pub(crate) mob_wake_order: Vec<u32>,
     pub(crate) mob_wakes: Vec<(u32, PlayerId)>,
     pub(crate) mob_deaths: Vec<crate::systems::mob_life::Award>,
     pub(crate) mob_settled: Vec<PlayerId>,
@@ -924,6 +926,19 @@ pub(crate) struct PayQueue {
     pub(crate) mob_feeds: Vec<f64>,
     pub(crate) collecting: bool,
     pub(crate) items: Vec<crate::systems::ledger::Payout>,
+}
+
+impl PayQueue {
+    pub(crate) fn is_settled(&self) -> bool {
+        !self.collecting
+            && self.items.is_empty()
+            && self.mob_wakes.is_empty()
+            && self.mob_wake_order.is_empty()
+            && self.mob_deaths.is_empty()
+            && self.mob_settled.is_empty()
+            && self.mob_feeds.is_empty()
+            && self.median_feed == 0.
+    }
 }
 
 impl World {

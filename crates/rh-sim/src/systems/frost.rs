@@ -1,4 +1,4 @@
-//! Power-zero player Frost. Prior chill belongs to weapons/production; post-ledger chill to the next tick.
+//! Player and typed regional/practice Frost sources. Prior chill belongs to weapons; post-ledger chill to the next tick.
 use super::{signatures::LandedHit, Cx};
 use crate::{
     constants::*,
@@ -88,7 +88,7 @@ pub(crate) fn ranged_hits(w: &mut World, hits: &[LandedHit]) {
         if h.sig.is_some() || !matches!(h.weapon, Some(WeaponId::Bow | WeaponId::Wand)) {
             continue;
         }
-        // The source archer is a Frost PLAYER; the victim is any admitted actor (players and basic regional NPCs).
+        // The source archer is a Frost PLAYER; the victim is any admitted actor.
         let Some(by) =
             h.by.and_then(|id| w.player(id))
                 .filter(|p| p.standing() && p.vitals.faction == FactionId::Frost)
@@ -102,22 +102,93 @@ pub(crate) fn ranged_hits(w: &mut World, hits: &[LandedHit]) {
         }
     }
 }
-fn add(chillers: &mut [Option<PlayerId>; MAX_PLAYERS], count: &mut usize, source: PlayerId) {
-    if *count < MAX_PLAYERS && !chillers[..*count].contains(&Some(source)) {
-        chillers[*count] = Some(source);
-        *count += 1;
+/// The largest source list the installed domain can produce, including cached departed sources.
+/// Camps are bounded by their actual validated spot lists, never an invented per-camp cap.
+pub(crate) fn source_budget(k: &crate::statics::MatchStatic) -> Result<usize, &'static str> {
+    let extra = if k.config.training {
+        TRAIN_MAX_MOBS as usize
+    } else if k.config.mob_mode != crate::mob_runtime::MobMode::Off {
+        k.arena.map.layers().map_or(Ok(0usize), |l| {
+            l.data()
+                .camps
+                .iter()
+                .filter(|c| c.zone.as_str() == "frost")
+                .try_fold(0usize, |n, c| {
+                    n.checked_add(c.spots.len())
+                        .ok_or("Frost source budget overflow")
+                })
+        })?
+    } else {
+        0
+    };
+    MAX_PLAYERS
+        .checked_add(extra)
+        .ok_or("Frost source budget overflow")
+}
+/// Actor growth and restore preparation only; never a temporary allocation in the tick's faction pass.
+pub(crate) fn prepare(k: &crate::statics::MatchStatic, w: &mut World) -> Result<(), &'static str> {
+    if k.config.mob_mode != crate::mob_runtime::MobMode::Off || k.config.training {
+        let order = &mut w.pay.mob_wake_order;
+        if order.capacity() < w.players.len() {
+            order.reserve_exact(w.players.len().saturating_sub(order.len()));
+        }
+    }
+    if !k.config.faction_mode.frost() {
+        return Ok(());
+    }
+    let budget = source_budget(k)?;
+    for slot in 0..w.fighter_count() {
+        let list = &mut w
+            .core_mut(crate::fighter::FighterIx::of_slot(slot))
+            .signature
+            .chillers;
+        if list.capacity() < budget {
+            list.reserve_exact(budget.saturating_sub(list.len()));
+        }
+    }
+    Ok(())
+}
+fn add(chillers: &mut Vec<PlayerId>, source: PlayerId) {
+    if !chillers.contains(&source) {
+        chillers.push(source);
+    }
+}
+fn returning(w: &World, id: PlayerId) -> bool {
+    w.mobs
+        .get(id)
+        .is_some_and(|m| m.brain.mode == crate::mob_runtime::BrainMode::Return)
+}
+fn structural_source(w: &World, ix: crate::fighter::FighterIx) -> bool {
+    let core = w.core(ix);
+    core.vitals.faction == FactionId::Frost
+        && !returning(w, core.id)
+        && (w.is_player(ix)
+            || w.mobs.get(core.id).is_some_and(|m| {
+                m.kind != crate::mob_runtime::MobKind::Dummy
+                    && m.zombie.is_none()
+                    && m.mob_type
+                        .and_then(|t| crate::mob_catalog::mob_type_by_id(t.as_str()))
+                        .is_some_and(|t| t.zone == FactionId::Frost)
+            }))
+}
+fn source_chill(w: &World, ix: crate::fighter::FighterIx) -> f64 {
+    if w.is_player(ix) {
+        crate::modifiers::frost_chill(w.core(ix))
+    } else {
+        1. - FROST_SLOW
     }
 }
 fn near(w: &World, p: &FighterCore, id: PlayerId) -> bool {
-    w.player(id).is_some_and(|f| {
-        f.standing()
+    w.fighter_idx(id).is_some_and(|ix| {
+        let f = w.core(ix);
+        w.standing(ix)
             && crate::math::hypot(f.body.x - p.body.x, f.body.y - p.body.y) <= CHILL_MOVE_RADIUS
     })
 }
 pub(crate) fn after_damage(w: &mut World) {
     let now = w.server_time;
-    // Source updateChill walks standingCombatants (players and basic regional NPCs). Chiller sources remain roster PLAYER
-    // ids: only a player's Frost structural chill is admitted; Frost/Sentenced NPC sources stay out of scope.
+    // Source updateChill walks standing combatants in actor order and inserts unique sources at their first edge.
+    // Take/reuse this victim's already-reserved list; no temporary per-actor allocation.
     let fighters = w.fighter_count();
     for i in 0..fighters {
         let ix = crate::fighter::FighterIx::of_slot(i);
@@ -127,8 +198,8 @@ pub(crate) fn after_damage(w: &mut World) {
         let victim_id = w.core(ix).id;
         // Rebuild this victim's chiller list in source order without a per-tick allocation: source updateChill adds the
         // forward edge while walking actors in fighter order, and the reverse edge when that walk reaches the victim.
-        let mut chillers = [None; MAX_PLAYERS];
-        let mut count = 0usize;
+        let mut chillers = std::mem::take(&mut w.core_mut(ix).signature.chillers);
+        chillers.clear();
         let mut near_frost = false;
         let mut chill: f64 = 1.;
         for j in 0..fighters {
@@ -137,37 +208,32 @@ pub(crate) fn after_damage(w: &mut World) {
                 continue;
             }
             let actor = w.core(jx);
-            let actor_is_frost_player = w.is_player(jx) && actor.vitals.faction == FactionId::Frost;
-            if actor_is_frost_player
+            let actor_is_frost = structural_source(w, jx);
+            if actor_is_frost
                 && actor.signature.engaged
                 && actor.signature.target == Some(victim_id)
                 && actor.id != victim_id
             {
-                add(&mut chillers, &mut count, actor.id);
+                add(&mut chillers, actor.id);
             }
             if j == i && actor.signature.engaged {
                 if let Some(target) = actor.signature.target {
                     let tix = w.fighter_idx(target);
                     if let Some(tix) = tix {
-                        let t = w.core(tix);
-                        if w.is_player(tix)
-                            && w.standing(tix)
-                            && t.vitals.faction == FactionId::Frost
-                            && target != victim_id
-                        {
-                            add(&mut chillers, &mut count, target);
+                        if structural_source(w, tix) && w.standing(tix) && target != victim_id {
+                            add(&mut chillers, target);
                         }
                     }
                 }
             }
         }
         let core = w.core(ix);
-        for source in chillers[..count].iter().flatten() {
+        for source in &chillers {
             if near(w, core, *source) {
                 near_frost = true;
             }
-            if let Some(p) = w.player(*source) {
-                chill = chill.min(crate::modifiers::frost_chill(p));
+            if let Some(six) = w.fighter_idx(*source) {
+                chill = chill.min(source_chill(w, six));
             }
         }
         // Iron Will: the victim's folded slow_resist weakens the cut by the resisted share, exactly like the source's
@@ -178,7 +244,6 @@ pub(crate) fn after_damage(w: &mut World) {
         let f = &mut p.signature;
         f.chill = chill;
         f.chillers = chillers;
-        f.chiller_count = count as u8;
         if near_frost {
             if f.exposure_started_at.is_none()
                 || f.last_near_at
@@ -231,10 +296,7 @@ pub(crate) fn movement_modifier(
         return 1.;
     }
     if f.ranged_chill_until.is_some_and(|t| w.server_time < t)
-        || f.chillers[..usize::from(f.chiller_count)]
-            .iter()
-            .flatten()
-            .any(|&id| near(w, p, id))
+        || f.chillers.iter().any(|&id| near(w, p, id))
     {
         f.frost_move_mult
     } else {
@@ -242,17 +304,17 @@ pub(crate) fn movement_modifier(
     }
 }
 
-/// Check trusted persistent state; departed sources remain valid roster names until recomputation.
+/// Check trusted cached state; retained typed source identities can outlive their bodies until recomputation.
 pub(crate) fn validate_signature(
     enabled: bool,
+    budget: usize,
     w: &World,
     id: PlayerId,
     f: &crate::fighter::Signature,
 ) -> Result<(), String> {
-    let count = usize::from(f.chiller_count);
+    let count = f.chillers.len();
     let identity = f.chill == 1.
         && count == 0
-        && f.chillers.iter().all(Option::is_none)
         && f.exposure_started_at.is_none()
         && f.last_near_at.is_none()
         && f.ranged_chill_until.is_none()
@@ -260,7 +322,7 @@ pub(crate) fn validate_signature(
         && f.bits & SIG_CHILLED == 0;
     let valid_time = |t: f64| (0. ..=w.server_time).contains(&t);
     if (!enabled && !identity)
-        || count > MAX_PLAYERS
+        || count > budget
         // Reachable chill values are the image of resist_slow over the source range [1 - FROST_SLOW - frost_cap,
         // 1 - FROST_SLOW] and a resistance in [0, 1]: the union is the same lower bound up to 1 (a full resistance
         // leaves no cut), so partly resisted values above the unresisted ceiling are legitimate. A restore may also
@@ -283,21 +345,20 @@ pub(crate) fn validate_signature(
         || f.ranged_chill_until
             .is_some_and(|t| !(0. ..=w.server_time + FROST_RANGED_CHILL_MS).contains(&t))
     {
-        return Err(format!("invalid Frost state for player {}", id.0));
+        return Err(format!("invalid Frost state for actor {}", id.0));
     }
     for (i, source) in f.chillers.iter().enumerate() {
-        if i < count {
-            let Some(source) = source else {
-                return Err("missing Frost source".into());
-            };
-            if *source == id
-                || w.roster.name(*source).is_none()
-                || f.chillers[..i].contains(&Some(*source))
-            {
-                return Err("invalid Frost source".into());
+        use crate::mob_runtime::ActorOrigin;
+        let known_source = w.actor_origin(*source).is_some_and(|origin| match origin {
+            ActorOrigin::Player { .. } => w.roster.name(*source).is_some(),
+            ActorOrigin::Mob { mob_type, .. } | ActorOrigin::Practice { mob_type, .. } => {
+                crate::mob_catalog::mob_type_by_id(mob_type.as_str())
+                    .is_some_and(|t| t.zone == FactionId::Frost)
             }
-        } else if source.is_some() {
-            return Err("noncanonical Frost sources".into());
+            ActorOrigin::Dummy { .. } | ActorOrigin::Zombie { .. } => false,
+        });
+        if *source == id || !known_source || f.chillers[..i].contains(source) {
+            return Err("invalid Frost source".into());
         }
     }
     Ok(())
@@ -460,8 +521,7 @@ mod tests {
             let p = &mut s.w.players[1];
             let f = &mut p.signature;
             f.chill = 1. - FROST_SLOW;
-            f.chillers[0] = Some(PlayerId(1));
-            f.chiller_count = 1;
+            f.chillers = vec![PlayerId(1)];
             f.frost_move_mult = 0.7;
             if let Some(exposure) = c["exposure"].as_f64() {
                 f.exposure_started_at = Some(10000. - exposure);
@@ -508,7 +568,7 @@ mod tests {
             after_damage(&mut s.w);
             let p = &s.w.players[i];
             let f = &p.signature;
-            let mut actual = json!({"chill":f.chill,"chillers":f.chillers[..usize::from(f.chiller_count)].iter().flatten().map(|id|format!("p{}",id.0-1)).collect::<Vec<_>>(),"exposureStartedAt":f.exposure_started_at,"lastNearAt":f.last_near_at,"rangedUntil":f.ranged_chill_until,"move":f.frost_move_mult,"readyAt":p.weapon.ready_at,"bufferedUntil":p.weapon.buffered_until,"drawStartedAt":p.weapon.draw_started_at,"action":p.weapon.action.map(|a|json!({"kind":"draw","startedAt":a.started_at,"landsAt":a.lands_at})),"bits":f.bits});
+            let mut actual = json!({"chill":f.chill,"chillers":f.chillers.iter().map(|id|format!("p{}",id.0-1)).collect::<Vec<_>>(),"exposureStartedAt":f.exposure_started_at,"lastNearAt":f.last_near_at,"rangedUntil":f.ranged_chill_until,"move":f.frost_move_mult,"readyAt":p.weapon.ready_at,"bufferedUntil":p.weapon.buffered_until,"drawStartedAt":p.weapon.draw_started_at,"action":p.weapon.action.map(|a|json!({"kind":"draw","startedAt":a.started_at,"landsAt":a.lands_at})),"bits":f.bits});
             let mut expected = case["result"].clone();
             numbers(&mut expected);
             numbers(&mut actual);
@@ -520,8 +580,7 @@ mod tests {
         let mut s = scene();
         let f = &mut s.w.players[1].signature;
         f.chill = 1. - FROST_SLOW;
-        f.chillers[0] = Some(PlayerId(1));
-        f.chiller_count = 1;
+        f.chillers = vec![PlayerId(1)];
         f.exposure_started_at = Some(0.);
         f.last_near_at = Some(50.);
         f.ranged_chill_until = Some(1250.);
@@ -531,27 +590,15 @@ mod tests {
         Sim::restore(base.clone()).unwrap();
         let mutations = [
             ("chill", json!(0.479)),
-            ("chiller_count", json!(9)),
-            (
-                "chillers",
-                json!([1, 1, null, null, null, null, null, null]),
-            ),
-            (
-                "chillers",
-                json!([2, null, null, null, null, null, null, null]),
-            ),
-            (
-                "chillers",
-                json!([999, null, null, null, null, null, null, null]),
-            ),
+            ("chillers", json!([1, 1])),
+            ("chillers", json!([1, 1])),
+            ("chillers", json!([2])),
+            ("chillers", json!([999])),
             (
                 "chillers",
                 json!([null, null, null, null, null, null, null, null]),
             ),
-            (
-                "chillers",
-                json!([1, null, null, null, null, null, null, 3]),
-            ),
+            ("chillers", json!([1, 3, 4, 5, 6, 7, 8, 9, 10])),
             ("exposure_started_at", json!(null)),
             ("exposure_started_at", json!(-1)),
             ("exposure_started_at", json!(51)),
@@ -582,7 +629,7 @@ mod tests {
         let mut restored = Sim::restore(serde_json::to_value(&s).unwrap()).unwrap();
         assert_eq!(
             restored.player(PlayerId(2)).unwrap().signature.chillers[0],
-            Some(PlayerId(1))
+            PlayerId(1)
         );
         assert_eq!(
             movement_modifier(
@@ -616,10 +663,7 @@ mod tests {
         f.chill = 1. - FROST_SLOW;
         edits.push(f);
         f = s.w.players[1].signature.clone();
-        f.chillers[0] = Some(PlayerId(1));
-        edits.push(f);
-        f = s.w.players[1].signature.clone();
-        f.chiller_count = 1;
+        f.chillers = vec![PlayerId(1)];
         edits.push(f);
         f = s.w.players[1].signature.clone();
         f.exposure_started_at = Some(0.);
@@ -812,7 +856,7 @@ mod tests {
             "source witness attack 0.68->0.808: {}",
             f.chill
         );
-        assert_eq!(f.chillers[0], Some(PlayerId(1)));
+        assert_eq!(f.chillers[0], PlayerId(1));
         assert!(
             (f.frost_move_mult - 0.82).abs() < 1e-12,
             "source witness near 0.70->0.82: {}",
@@ -1851,11 +1895,7 @@ mod tests {
                 .iter()
                 .map(|v| fr_npc_ref(map, v.as_str().unwrap(), "chillers"))
                 .collect::<Result<_, _>>()?;
-            let actual: Vec<PlayerId> = s.chillers[..usize::from(s.chiller_count)]
-                .iter()
-                .flatten()
-                .copied()
-                .collect();
+            let actual: Vec<PlayerId> = s.chillers.to_vec();
             if actual != expected {
                 return Err(format!("{name}: chillers {key} {actual:?} vs {expected:?}"));
             }
@@ -2240,7 +2280,7 @@ mod tests {
                     assert!(!control, "{name}: no-Frost control cannot chill an NPC");
                     assert_eq!(
                         s.chillers[0],
-                        Some(PlayerId(1)),
+                        PlayerId(1),
                         "{name}: the Frost player is the chiller"
                     );
                 }
@@ -2251,7 +2291,7 @@ mod tests {
                     assert_eq!(s.chill, 1.);
                     assert_eq!(s.frost_move_mult, 1.);
                     assert!(s.ranged_chill_until.is_none());
-                    assert_eq!(s.chiller_count, 0);
+                    assert!(s.chillers.is_empty());
                 }
             }
             let _ = sim;
@@ -2625,7 +2665,7 @@ mod tests {
             .iter()
             .position(|m| m.core.id == practice)
             .unwrap()];
-        assert_eq!(p.core.signature.chillers[0], Some(frost));
+        assert_eq!(p.core.signature.chillers[0], frost);
         // The actual training restore path accepts the reachable chilled tuple.
         let restored = Sim::restore(serde_json::to_value(&sim).unwrap())
             .expect("chilled practice mob restores");
@@ -2654,8 +2694,7 @@ mod tests {
             "training chill below the reachable image is refused"
         );
         let mut bad = serde_json::to_value(&sim).unwrap();
-        bad["world"]["mobs"][mob]["core"]["signature"]["chillers"] =
-            json!([999, null, null, null, null, null, null, null]);
+        bad["world"]["mobs"][mob]["core"]["signature"]["chillers"] = json!([999]);
         assert!(
             Sim::restore(bad).is_err(),
             "a non-roster training chiller is refused"
@@ -2686,7 +2725,7 @@ mod tests {
         );
         let dummy_index = sim.w.mobs.iter().position(|m| m.core.id == dummy).unwrap();
         let d = &sim.w.mobs[dummy_index];
-        assert_eq!(d.core.signature.chillers[0], Some(frost));
+        assert_eq!(d.core.signature.chillers[0], frost);
         assert!(
             d.core.signature.ranged_chill_until.is_some(),
             "dummy ranged window"
@@ -2780,7 +2819,7 @@ mod tests {
             "a Frost bow hit reaches the owned zombie"
         );
         let m = &sim.w.mobs[sim.w.mobs.iter().position(|m| m.core.id == zombie).unwrap()];
-        assert_eq!(m.core.signature.chillers[0], Some(frost));
+        assert_eq!(m.core.signature.chillers[0], frost);
         assert!(
             m.core.signature.ranged_chill_until.is_some(),
             "zombie ranged window"
@@ -2815,8 +2854,7 @@ mod tests {
             "zombie chill below the reachable image is refused"
         );
         let mut bad = serde_json::to_value(&sim).unwrap();
-        bad["world"]["mobs"][zindex]["core"]["signature"]["chillers"] =
-            json!([999, null, null, null, null, null, null, null]);
+        bad["world"]["mobs"][zindex]["core"]["signature"]["chillers"] = json!([999]);
         assert!(
             Sim::restore(bad).is_err(),
             "a non-roster zombie chiller is refused"
@@ -3019,5 +3057,8 @@ mod tests {
                 ));
             }
         }
+    }
+    mod sources {
+        include!("frost/source_tests.rs");
     }
 }

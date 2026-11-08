@@ -20,7 +20,7 @@ use serde::ser::{SerializeStruct, Serializer};
 use std::fmt;
 
 /// The tag every checkpoint carries. Bump it when the layout of `statics` or `world` changes incompatibly.
-pub const CHECKPOINT_FORMAT: &str = "rh-checkpoint/25";
+pub const CHECKPOINT_FORMAT: &str = "rh-checkpoint/26";
 
 /// How far past the map edge a fighter, waypoint or spawn may be and still restore (real states stay inside the map).
 const COORD_MARGIN: f64 = 1024.0;
@@ -76,7 +76,7 @@ const FIELDS: &[&str] = &["format", "content_hash", "build", "statics", "world"]
 
 impl serde::Serialize for Sim {
     fn serialize<S: Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
-        if self.w.pay.collecting || !self.w.pay.items.is_empty() {
+        if !self.w.pay.is_settled() {
             return Err(serde::ser::Error::custom(
                 "checkpoint requires an empty same-tick payout queue",
             ));
@@ -220,7 +220,7 @@ impl<'de> Visitor<'de> for CheckpointVisitor<'_> {
                 "missing `statics` or `world`".into(),
             )));
         };
-        let (k, w) = match (k.typed(), w.typed()) {
+        let (k, mut w) = match (k.typed(), w.typed()) {
             (Ok(k), Ok(w)) => (k, w),
             (Err(e), _) | (_, Err(e)) => {
                 return Err(self.refuse(CheckpointError::Malformed(e.to_string())))
@@ -229,6 +229,8 @@ impl<'de> Visitor<'de> for CheckpointVisitor<'_> {
         if let Err(why) = check_world(&k, &w) {
             return Err(self.refuse(CheckpointError::Malformed(why)));
         }
+        crate::systems::frost::prepare(&k, &mut w)
+            .map_err(|why| self.refuse(CheckpointError::Malformed(why.into())))?;
         let mut scratch = TickScratch::default();
         scratch.reserve_actors(w.fighter_count());
         Ok(Sim {

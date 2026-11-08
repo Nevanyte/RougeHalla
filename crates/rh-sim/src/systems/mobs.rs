@@ -14,7 +14,7 @@ pub(crate) fn basic_faction(f: FactionId) -> bool {
 
 /// A player seat admitted in a PvE world. The basic three always are (their player and regional consumers are ported); a
 /// Frost seat joins only in the explicit engagement level that has Frost's player slice, because the Frozen Justice
-/// witness needs a real Frost player. Regional Frost/Sentenced mob content stays excluded: camps must remain basic.
+/// witness needs a real Frost player. The same level admits typed Frost camp sources; Sentenced stays excluded.
 pub(crate) fn admitted_player_faction(mode: crate::FactionMode, f: FactionId) -> bool {
     basic_faction(f) || (f == FactionId::Frost && mode.frost())
 }
@@ -35,10 +35,10 @@ pub(crate) fn admit_factions(k: &MatchStatic, w: &World) -> Result<(), &'static 
         .iter()
         .any(|p| !admitted_player_faction(k.config.faction_mode, p.vitals.faction))
         || k.arena.map.layers().is_none_or(|l| {
-            l.data()
-                .camps
-                .iter()
-                .any(|c| FactionId::parse(c.zone.as_str()).is_none_or(|f| !basic_faction(f)))
+            l.data().camps.iter().any(|c| {
+                FactionId::parse(c.zone.as_str())
+                    .is_none_or(|f| !admitted_player_faction(k.config.faction_mode, f))
+            })
         })
     {
         return Err("unsupported PvE faction content");
@@ -157,6 +157,7 @@ pub(super) fn spawn_camp(k: &MatchStatic, w: &mut World, ci: usize) {
         w.mobs.push(mob);
     }
 
+    super::frost::prepare(k, w).expect("validated Frost source budget");
     let r = w.mob_runtime.as_mut().unwrap();
     let c = &mut r.camps[ci];
     c.alive = camp.spots.len() as u32;
@@ -477,7 +478,11 @@ pub(crate) fn place_practice_mob(
             elite,
         },
     };
-    let mob = Mob::born(&provenance, at, facing, w.server_time);
+    let mut mob = Mob::born(&provenance, at, facing, w.server_time);
+    mob.core
+        .signature
+        .chillers
+        .reserve_exact(crate::constants::MAX_PLAYERS + crate::constants::TRAIN_MAX_MOBS as usize);
     w.actor_history.push(provenance);
     w.mobs.push(mob);
     id

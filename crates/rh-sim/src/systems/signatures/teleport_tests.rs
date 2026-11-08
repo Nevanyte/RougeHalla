@@ -94,9 +94,7 @@ fn dump(sim: &Sim) -> Value {
         .map(|p| {
             let s = &p.signature;
             let m = &s.mark;
-            let chillers: Vec<String> = (0..usize::from(s.chiller_count))
-                .map(|i| name(s.chillers[i].expect("dense Frost sources")))
-                .collect();
+            let chillers: Vec<String> = s.chillers.iter().map(|id| name(*id)).collect();
             let fired: Vec<&str> = p.card_fired.iter().map(|c| c.as_str()).collect();
             json!({
                 "id": name(p.id),
@@ -218,14 +216,9 @@ fn build(case: &Value) -> Sim {
             bits: p["wire"]["sig"].as_u64().expect("captured synced bits") as u8,
             ..Default::default()
         };
-        for (i, source) in g["chillers"]
-            .as_array()
-            .expect("chillers")
-            .iter()
-            .enumerate()
-        {
-            sig.chillers[i] = Some(pid(source.as_str().expect("Frost source")));
-            sig.chiller_count += 1;
+        for source in g["chillers"].as_array().expect("chillers").iter() {
+            sig.chillers
+                .push(pid(source.as_str().expect("Frost source")));
         }
         let ap_hits = g["apHits"].as_u64().expect("AP hit count") as usize;
         if ap_hits > 0 {
