@@ -70,19 +70,50 @@ activation, no merge.
 4. R6 skill barrier producers (`grantBarrier`/trigger `barrier`) remain intentionally out of scope; no new public fact was
    added.
 
-## Out-of-scope prerequisite (lead/root must apply during composition)
+## Authorized feature-build repair (applied under P-G6-CALLER-REPAIR)
 
-The new `StatView.heal_barrier` field breaks the feature-gated `rh-parity` status-probe bin, which constructs a
-`StatView` literal and is outside this packet's writable scope. `cargo test -p rh-parity --test schedule --all-features`
-fails with `E0063 missing field heal_barrier in initializer of StatView` at
-`crates/rh-parity/src/bin/status_probe/boundary_v3.rs:58`. Any workspace `--all-features` gate needs this one-line fix
-before the candidate can be composed:
+The lead authorized the disclosed one-line StatView addition, so it is now applied on this branch:
+`crates/rh-parity/src/bin/status_probe/boundary_v3.rs` (`Modifiers::view` after `heal_taken_mult`) carries
+`heal_barrier: f.sums.heal_barrier.max(0.),`, matching the folded `modifiers::view`; no other field/default or fold change.
+`cargo clippy -p rh-parity --all-targets --all-features` and `cargo test -p rh-parity --test schedule --all-features`
+now pass (14/14). The stale `systems/heal.rs` module header claiming the newly implemented producer is pending was also
+corrected. The superseded ready-to-apply patch file was removed because it no longer exists as a prerequisite.
 
-```rust
-// crates/rh-parity/src/bin/status_probe/boundary_v3.rs, in `Modifiers::view` after `heal_taken_mult`:
-heal_barrier: f.sums.heal_barrier.max(0.),
-```
+## Real caller evidence (P-G6-CALLER-REPAIR)
 
-It matches `modifiers::view` (the folded `StatKey::HealBarrier`, clamped at 0) and is exactly the ready-to-apply patch
-`tools/heal-barrier-fixtures/rh-parity-statview-heal-barrier.patch` (`git apply --check` verified in a disposable copy;
-the file is deliberately not committed here). The default-feature `rh-parity` schedule test passes 14/14 without it.
+New additive surfaces, separate from the preserved ten-case corpus: `tools/heal-barrier-callers/**`,
+`parity/heal-barrier-callers/runtime.json` (3 cases, 44,973 B, SHA256
+`c371db95e29f5efa08c14462f96299e08f96f74c8914a701b8c7719297bf739d`) and the native consumer
+`crates/rh-sim/src/systems/buffs/caller_tests.rs`. The profile is a genuine player-only/no-mobs full-player faction
+world, recorded and BOUND explicitly (`config.mobs:false`, `modules.signatures:true`, quests/training/dummies false;
+native asserts `mob_mode: Off`, `FactionMode::EngagementHoly`, the resolved gate flags and an empty mob store). This
+resolves the earlier discarded mismatch: the old harness recorded the module flag only in `input.signatures` while the
+native replay read the constant `config`; the caller replay binds the actual profile.
+
+- `lifesteal-before-slot`: real cards + recorded declared wound (real `applyDamage`) + a real validated sword attack.
+  Source: hit 36.137967, lifesteal heal 13.089361, new barrier 1.0640625 = 0.3*13.089361 - 2.8625 — the heal happens
+  before the buffs slot, so the grant tick is decayed once (same-tick side proven by actual output).
+- `potion-after-slot`: the actually installed potion path through the real `useConsumable` command (declared potion
+  setup). Source grant tick: heal 28.625, barrier 8.5875 with NO decay; next tick 5.725 (one decay) — the
+  next-tick side of the slot proven by actual output.
+- `antiheal-scaled-heal`: labelled trusted setup through the real generic `addStatus` API (`antiHeal` 0.5, 6000 ms; no
+  ordinary shipped producer), then the same real potion command: heal 14.3125 = 0.5*28.625 and barrier 4.29375 =
+  0.3*14.3125 on the grant tick; next tick 1.43125. Both the hp gain and the barrier scale.
+
+The consumer compares the per-frame public facts, private timer and the step's real hit/heal amounts. Caller mutants
+(`tools/heal-barrier-callers/run-mutants.sh`) are killed by ACTUAL output mismatches, not schedule assertions/compile
+errors: `01-lifesteal-grant-missing`, `02-antiheal-scaling-missing`, `03-wrong-slot-timing` — **3/3 killed, unchanged
+control passes**. The pinned caller capture `--check` is byte-identical; the ten existing source case records and the
+old `parity/heal-barrier` corpus (82,780 B, SHA256 `2ae9c250…`) are byte-unchanged.
+
+## Remaining lead decisions
+
+1. **Publication gate (unchanged)**: Second Skin is offerable while the human public transport does not publish
+   `barrier`; the lead must pair this private candidate with a reviewed public barrier transport or an explicit
+   fail-closed offer/profile decision. No observation/policy/wire field is added here.
+2. **Composition**: the final composed gate (G6 + Frost) is lead-owned; this branch now carries the authorized
+   `rh-parity` feature-build fix so an `--all-features` schedule gate compiles/passes.
+3. **R6 skill barrier producers** (`grantBarrier`/trigger `barrier`) remain intentionally out of scope; no new public
+   fact, protocol/wire/schema/observation change or activation was added.
+4. The old ten-case corpus's teleport/training cases still compare barrier/timer/hp/status/phase only (their
+   producer-specific positions belong to other parity surfaces); the caller corpus is player-only and position-stable.

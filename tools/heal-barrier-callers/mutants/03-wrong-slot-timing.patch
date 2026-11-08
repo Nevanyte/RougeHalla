@@ -1,0 +1,26 @@
+--- a/crates/rh-sim/src/schedule.rs
++++ b/crates/rh-sim/src/schedule.rs
+@@ -938,11 +938,6 @@
+         crate::systems::training::reset_dummies,
+     ),
+     ported(
+-        "buffs.expireBoosts",
+-        Gate::Always,
+-        crate::systems::buffs::expire,
+-    ),
+-    ported(
+         "feed.flushAnnouncements",
+         Gate::Always,
+         credit::flush_announcements,
+@@ -990,6 +985,11 @@
+         "consumables.updateConsumables",
+         Gate::Always,
+         crate::systems::consumables::update,
++    ),
++    ported(
++        "buffs.expireBoosts",
++        Gate::Always,
++        crate::systems::buffs::expire,
+     ),
+     ported(
+         "traders.updateTraders",

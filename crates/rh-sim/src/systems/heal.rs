@@ -1,5 +1,7 @@
 //! Shared heal funnel for supported player sources and supplied status modifiers.
-//! Card acquisition and heal-barrier production remain pending. No public healing command.
+//! The Second Skin heal-barrier producer is wired through the folded `healBarrier` stat and the source grant/decay
+//! helpers in `systems::buffs`; card acquisition and the remaining caller producers stay pending, and there is no
+//! public healing command.
 use crate::{constants::HEAL_LOCKOUT_MS, events::Event, state::World};
 #[derive(Clone, Copy)]
 pub(crate) enum Kind {

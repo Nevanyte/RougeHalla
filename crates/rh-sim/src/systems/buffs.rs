@@ -71,6 +71,9 @@ pub(crate) fn expire(cx: &mut crate::systems::Cx) {
 mod replay_tests;
 
 #[cfg(test)]
+mod caller_tests;
+
+#[cfg(test)]
 mod tests {
     use crate::status_runtime::StatView;
     use crate::{
