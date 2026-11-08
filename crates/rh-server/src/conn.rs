@@ -10,8 +10,9 @@ use crate::room::RoomCmd;
 use axum::extract::ws::{Message, WebSocket};
 use futures_util::{SinkExt, StreamExt};
 use rh_protocol::{ClientMsg, RejectCode, ServerMsg, PROTOCOL_VERSION};
+use std::collections::VecDeque;
 use std::sync::atomic::Ordering;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 pub const HELLO_TIMEOUT: Duration = Duration::from_secs(5);
@@ -32,6 +33,12 @@ pub const FRAME_BURST: f64 = 120.0;
 /// without waiting). Bounds how long a client whose frames are always readable can hide a finished writer, independently
 /// of the frame bucket.
 pub const FAIR_STREAK: u32 = 32;
+/// How often the connection pings the client for a server-measured RTT (P-NET-1 Phase 3). The client's WebSocket stack
+/// answers a control Ping with a Pong on its own; a RTT sample is cheap and this rate is far below the frame budget.
+pub const RTT_PING_PERIOD: Duration = Duration::from_millis(500);
+/// How many of the most recent ping payloads a Pong may answer. More than one period of RTT tolerates a slow link without
+/// letting an old payload be replayed forever.
+const RTT_PINGS_IN_FLIGHT: usize = 8;
 
 /// Connection ids, unique per process: a seat only listens to the connection that currently owns it.
 static NEXT_CONN: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
@@ -157,19 +164,60 @@ pub async fn serve(mut sock: WebSocket, director: Arc<Director>) {
     }
     let player = ok.player;
     let clock = ok.clock.clone();
+    let start = tokio::time::Instant::now();
+    // The payloads this connection has been sent and not yet answered: only a Pong echoing one of them is a sample, so a
+    // client cannot choose an arbitrary (e.g. future) payload to shrink its own rewind window.
+    let pings = Arc::new(Mutex::new(VecDeque::<u64>::with_capacity(
+        RTT_PINGS_IN_FLIGHT,
+    )));
     let (mut tx, mut rx) = sock.split();
     let writer_out = outbox.clone();
+    let writer_pings = pings.clone();
     let mut writer = tokio::spawn(async move {
         // One wake takes everything queued (a tick's frames for this client) and flushes it once.
         let mut batch: Vec<Vec<u8>> = Vec::with_capacity(8);
+        let mut next_ping = start;
         loop {
-            let d = writer_out.wait_drain(&mut batch).await;
+            let now = tokio::time::Instant::now();
+            if now >= next_ping {
+                // P-NET-1 Phase 3: a control Ping carrying the connection's elapsed milliseconds. The reader subtracts
+                // that payload from its own elapsed clock, so the RTT is measured by the server, never claimed by the
+                // client. Pings are outbound: they do not touch the client-inbound frame bucket.
+                let payload = now
+                    .duration_since(start)
+                    .as_millis()
+                    .min(u128::from(u64::MAX)) as u64;
+                {
+                    let mut in_flight = writer_pings
+                        .lock()
+                        .unwrap_or_else(std::sync::PoisonError::into_inner);
+                    if in_flight.len() == RTT_PINGS_IN_FLIGHT {
+                        in_flight.pop_front();
+                    }
+                    in_flight.push_back(payload);
+                }
+                if !send_bounded(
+                    &mut tx,
+                    [Message::Ping(payload.to_le_bytes().to_vec().into())],
+                )
+                .await
+                {
+                    return;
+                }
+                next_ping = tokio::time::Instant::now() + RTT_PING_PERIOD;
+                continue;
+            }
+            let d = tokio::select! {
+                d = writer_out.wait_drain(&mut batch) => d,
+                // A due Ping is never starved by an outbox that is always ready: every batch loops back through the
+                // deadline check at the top before waiting again.
+                _ = tokio::time::sleep_until(next_ping) => continue,
+            };
             if write_batch(&mut tx, &mut batch, d.close).await.is_err() || d.close.is_some() {
                 return;
             }
         }
     });
-    let start = tokio::time::Instant::now();
     let mut bucket = Bucket {
         tokens: FRAME_BURST,
         at: start,
@@ -205,12 +253,29 @@ pub async fn serve(mut sock: WebSocket, director: Arc<Director>) {
         };
         let bytes = match msg {
             Ok(Message::Binary(b)) => b,
-            // Control frames are charged like data frames: a Ping flood ends RateLimited (tungstenite answers each Ping
-            // with a Pong on its own; that answer is all a control frame gets).
-            Ok(Message::Ping(_)) | Ok(Message::Pong(_)) => {
+            // Control frames are charged like data frames: a Ping flood ends RateLimited (tungstenite answers each
+            // client Ping with a Pong on its own; that answer is all a client Ping gets).
+            Ok(Message::Ping(_)) => {
                 if !bucket.allow(last_seen) {
                     outbox.close(RejectCode::RateLimited);
                     break;
+                }
+                continue;
+            }
+            // A Pong is the answer to this connection's own RTT Ping (the only use of server control frames): a matching
+            // payload is one server-measured sample for the seat, and a Pong with any other payload is ignored.
+            Ok(Message::Pong(payload)) => {
+                if !bucket.allow(last_seen) {
+                    outbox.close(RejectCode::RateLimited);
+                    break;
+                }
+                if let Some(rtt_ms) = pong_rtt(&pings, &payload, start) {
+                    // Advisory: an overloaded room may drop a sample; the seat keeps its last estimate.
+                    let _ = room.try_send(RoomCmd::RttSample {
+                        player,
+                        conn,
+                        rtt_ms,
+                    });
                 }
                 continue;
             }
@@ -287,6 +352,26 @@ pub async fn serve(mut sock: WebSocket, director: Arc<Director>) {
         }
     })
     .await;
+}
+
+/// Turns one Pong into a server-measured RTT. Only a payload the writer actually sent (and this connection has not
+/// answered yet) counts: a Pong with an unknown, stale, duplicate or malformed payload is not a sample. The payload is the
+/// connection-start-relative millisecond clock, so the RTT is `now - sent` on that same clock.
+fn pong_rtt(
+    pings: &Mutex<VecDeque<u64>>,
+    payload: &[u8],
+    start: tokio::time::Instant,
+) -> Option<f64> {
+    let sent = u64::from_le_bytes(payload.try_into().ok()?);
+    {
+        let mut in_flight = pings
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let at = in_flight.iter().position(|p| *p == sent)?;
+        in_flight.remove(at);
+    }
+    let now_ms = start.elapsed().as_millis().min(u128::from(u64::MAX)) as u64;
+    Some(now_ms.saturating_sub(sent) as f64)
 }
 
 /// What ended one wait of the reader loop.
@@ -412,6 +497,39 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A Pong is a sample only for a payload this connection was sent and has not answered yet (once): an unknown,
+    /// duplicate or malformed payload is ignored, so a client cannot pick its own RTT.
+    #[test]
+    fn only_an_unanswered_server_ping_payload_is_an_rtt_sample() {
+        let start = tokio::time::Instant::now() - Duration::from_millis(100);
+        let pings = Mutex::new(VecDeque::from(vec![10u64, 20]));
+        let rtt = pong_rtt(&pings, &20u64.to_le_bytes(), start).expect("matched");
+        assert!(
+            (80.0..=130.0).contains(&rtt),
+            "now ~100 ms - sent 20 ms: {rtt}"
+        );
+        assert_eq!(
+            pong_rtt(&pings, &20u64.to_le_bytes(), start),
+            None,
+            "answered once"
+        );
+        assert_eq!(
+            pong_rtt(&pings, &99u64.to_le_bytes(), start),
+            None,
+            "never sent"
+        );
+        assert_eq!(
+            pong_rtt(&pings, &[0u8; 4], start),
+            None,
+            "not the 8-byte payload"
+        );
+        let rtt = pong_rtt(&pings, &10u64.to_le_bytes(), start).expect("still in flight");
+        assert!(
+            (90.0..=140.0).contains(&rtt),
+            "now ~100 ms - sent 10 ms: {rtt}"
+        );
+    }
 
     #[test]
     fn a_long_reason_is_clipped_on_a_char_boundary_and_still_encodes() {
