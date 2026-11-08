@@ -10,9 +10,9 @@ ownership are in [MIGRATION](../../MIGRATION.md) and [PROJECT_COORDINATION](../.
 Before mutation, the lead saved the common Git directory (93,803,701 bytes), a full-ref bundle (57,227,763 bytes),
 ref inventory, staged/unstaged binary patches, untracked archives and SHA manifests. These remain in the private
 `return-cleanup-2026-11-08/backup` tool archive. The renamed primary repository had left worktree metadata pointing at
-old paths: `git worktree repair` restored 100 known links. No source reset or force deletion was used.
+old paths: `git worktree repair` checked/repaired 100 registered links. No source reset or force deletion was used.
 
-Forty-five clean merged historical worktrees were removed after rechecking HEAD, status, ancestry and process cwd.
+Forty-six clean merged historical worktrees were removed after rechecking HEAD, status, ancestry and process cwd.
 Their branch refs remain. A process-owned `server-perf` tree was kept. Only the known old missing `RougeHalla-kimi`
 registry entry was pruned after dry-run inspection. The [disposition/restore map](historical-worktree-dispositions.json)
 contains the individual revisions; `$PRIMARY` is the main repository path when restoring a tree. Active worktrees and
@@ -107,9 +107,12 @@ staging run was removed; this cleanup makes no production or AWS resource change
 
 The6b CLI/JSON prefix is admitted through `2b9212c1` with real timer wiring and propagated telemetry write/flush errors
 (`cc2cbb69`). Thirteen focused tournament/CLI tests pass on the union, including a root-added flush-only sink failure.
-Its further telemetry continuation remains active and separate; no full brain or outcome parity is claimed. The7b fill
-continuation remains held for [configuration/name/parser repairs](../../coordination/BOT_FILL_REPAIR.md) and composition
-on the repaired learning API.
+Its further telemetry continuation remains active and separate; no full brain or outcome parity is claimed. The7b fill/configuration continuation with the [exact Unicode trim repair](../../coordination/BOT_TRIM_REPAIR.md) is
+integrated in `43abe070`. A clean isolated target passes384 affected server/policy tests (two existing manual ignores),
+both strict workspace Clippy modes, formatting and a fresh15-check WSS proof at protocol11/content801a76cde4cfd305.
+Root preserves exclusive learning activation and skips profile-name lookup when effective fill is disabled. The source
+trim set is checked over every Unicode scalar; canonical captures and old-helper mutant pass independently. Numeric
+parser scope and startup-snapshot limitations remain explicit in the [fill evidence](../stage2-bots-7-repair/README.md).
 
 ## GitHub and CI follow-through
 
@@ -128,3 +131,29 @@ marks unused reservations expired, but the next retry correctly returns409 sessi
 private forced-active HTTP witness proves that sequence. The fixture-only repair36a3222b uses a three-player threshold
 for that scenario and explicit Lobby/HTTP assertions, preserving production error precedence and sleep durations. All24
 control tests pass in both default/all-feature modes. Corrected CI remains separately tracked; the failed run is retained.
+
+The last stable historical placement lockfile edit was byte-identical to the current lock. It was committed to recovery
+ref `codex/recovery/historical-placement-lock-20261108` at610caa42, ancestry-accounted by an explicit ours merge, and its
+now-clean unused worktree removed without force. The restore map contains it;46 historical trees were removed overall.
+
+The P-NET fixture consumers33a79df1 are integrated in084246c3: three tests reproduce all300 paths and723 walk samples
+using actual current Rust simulation inputs, with unchanged goldens. Production codec checks remain separate.
+
+The reviewed art prefix throughc6fe0b18 is integrated in8cf840e9. It fixes visibility refresh ownership, stale pooled
+voices, card79 invalidation and empty post-Welcome membership without adding gameplay authority. Asset/notice provenance
+passes independent review. The lane reports11 EditMode tests and19 required browser outcomes (including separate preview
+and settings, not19 distinct gameplay mechanics). Final c6 build/browser/profile evidence remains revision-scoped;
+the physical60Hz display does not certify144Hz. This is functional source admission, not full-port/performance completion.
+
+## Cumulative CI timeout and preserved coverage
+
+Run42466924111 atb01fc9e2 completed the full default workspace with **1,520 tests passed, three existing ignores,
+159 verdict groups**, including the previously locally excluded map suite. PostgreSQL server/placement, parity,
+headless smoke and JS vectors also passed. The job reached its cumulative40-minute limit during a later terrain
+feature check; it was not a failing workspace test. C# and card-runtime source jobs completed successfully.
+
+The workflow now runs the full pure simulation suite in parallel with the remaining workspace/backend/source checks,
+using `trusted-status-probes` to preserve the former workspace feature union (including required-feature privacy/
+allocation targets). Both jobs keep a60-minute bound. CI debug symbols are disabled to reduce repeated feature-build
+size/time; optimization levels, assertions, overflow checks and test selections are unchanged. No tests were filtered
+away. YAML and the partition/feature selection are checked locally; the final pushed workflow needs its own result.

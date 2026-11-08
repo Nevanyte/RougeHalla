@@ -599,6 +599,19 @@
         "$PRIMARY/.claude/worktrees/zone-terrain-75bb8e",
         "727463cdafbeaf67f9675d4a5a9f07bdc0524353"
       ]
+    },
+    {
+      "worktree": "$PRIMARY/.claude/worktrees/placement-ledger",
+      "head": "610caa429ca6208c95d59141340d363710f45035",
+      "branch": "refs/heads/codex/recovery/historical-placement-lock-20261108",
+      "restore": [
+        "git",
+        "worktree",
+        "add",
+        "$PRIMARY/.claude/worktrees/placement-ledger",
+        "610caa429ca6208c95d59141340d363710f45035"
+      ],
+      "result": "removed-clean-merged-after-exact-lock-recovery"
     }
   ]
 }

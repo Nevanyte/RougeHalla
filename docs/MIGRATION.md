@@ -40,25 +40,35 @@ exact batch scopes, code repairs, receipts and preserved recovery refs. Source m
 expected gameplay payloads or claim a new capture; the derived ability hash tape admits 58 cases and retains five
 named full-source prerequisites as strict pending work.
 
-The new Unity art lane is isolated pending actual browser match and M5 Pro performance proof; its current commits are
-not part of this accepted presentation checkpoint. The latency lane's controlled measurements remain bound to its
+The reviewed Unity 2D presentation through `c6fe0b18` is integrated in `8cf840e9`: human-made licensed assets, HUD/settings/
+audio, current-visibility rendering and safe teardown. Eleven EditMode tests and the earlier 19-outcome browser proof
+are reported by that lane; the final c6 browser/profile refresh remains separately tracked. The only online display is
+1920×1080/60Hz, so no 144 Hz display acceptance is claimed. CPU/GPU headroom diagnostics are not displayed-frame proof.
+
+The latency lane's controlled measurements remain bound to its
 recorded older candidate, not the new union or display/input-to-photon latency. The bot Knowledge/fair-view prefix now includes the independently reviewed
 [RNG/rounding/null repair](coordination/KNOWLEDGE_REPAIR.md) `fdea457b` (57 policy tests, three semantic mutants and
 canonical byte comparison pass). Bot learning is admitted with the independently reviewed exclusive-session lease,
-bounded shutdown and source-order repair `3619280f`. It defaults Off and connects only managed-faction learning;246
+bounded shutdown and source-order repair `3619280f`. It defaults Off and connects only managed-faction learning; 246
 affected server/persistence/policy tests, both strict Clippy modes and formatting pass. The tournament CLI/JSON prefix
 now includes the reviewed timer/write-error repair in `cc2cbb69` (13 focused tests, including a flush-only failure
-control). New fill/config/name repairs and further tournament telemetry remain isolated.
+control). Bot fill/configuration and the exact Unicode trim follow-up are admitted in `43abe070`, with 384 affected server/policy
+tests, both strict workspace Clippy modes, formatting and a fresh 15-check WSS proof passing in an isolated target.
+Effective fill precedes optional profile-name lookup; disabled fill performs none. Further tournament telemetry stays
+isolated. New Rust consumers reproduce 300 pathfinding queries and all 723 prediction walk samples exactly; no goldens
+were rewritten.
 
 The initial pushed CI passes C#, native card-runtime source, legacy recapture, hosting and latency-report checks. Rust
 CI exposed an admission-test lifecycle race: two fixture players could start/end a match, so an expired reservation
 retry correctly met session_ended precedence. `36a3222b` keeps that TTL scenario in Lobby and asserts HTTP/phase facts;
-all24 control tests pass in default and all-feature modes, with no production behavior or longer sleeps. The corrected
-union needs its own CI result; earlier CI failure is retained, not relabeled success. The observation-leaf proposal needs lead approval and a fresh version before
-brain memory/strategy consumers proceed. Active bot-fill and fixture-integrity work stays isolated until reviewed.
+all 24 control tests pass in default and all-feature modes, with no production behavior or longer sleeps. The next run at `b01fc9e2` then passed all1,520 default workspace tests (three existing ignores), including the map suite,
+but reached the cumulative40-minute job limit during later source/feature gates. The final workflow partitions the
+complete simulation suite from remaining backend/source checks in parallel, preserving the former feature union and
+all checks; CI symbols are disabled and each job is bounded at60minutes. Its final result remains pending. The observation-leaf proposal needs lead approval and a fresh version before
+brain memory/strategy consumers proceed. Further tournament telemetry, quest continuations and the art lane’s final evidence stay isolated until reviewed.
 
 Git metadata was backed up before repair; renamed worktree links were repaired, stable dirty histories were committed
-to recovery refs, and 45 clean merged historical worktrees were removed without force while their refs were retained.
+to recovery refs, and 46 clean merged historical worktrees were removed without force while their refs were retained.
 The stale missing registry entry was pruned; a process-owned historical tree and active workers were kept. Exact owner
 prompts/design PDFs are archived under [agent-prompts](agent-prompts/README.md), with originals still available locally.
 The [restore/disposition map](evidence/git-consolidation/historical-worktree-dispositions.json) and private full-ref

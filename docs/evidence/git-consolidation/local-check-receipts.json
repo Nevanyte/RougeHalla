@@ -200,6 +200,61 @@
       "file": "ci-failed-rust.log",
       "bytes": 142939,
       "sha256": "085ed080c0e22a194ef0601adc9b372dfe2cfe606b33fc016c0d8001e81e2934"
+    },
+    {
+      "file": "bot-fill-isolated-tests.log",
+      "bytes": 45762,
+      "sha256": "fa3f9226e9811374072666ee1651de34dc4a389e08c998991b3067ca2461b58c"
+    },
+    {
+      "file": "clippy-isolated-final.log",
+      "bytes": 6648,
+      "sha256": "1fdee7975d820330b993de80a389cf9935e263ec4e6b62b8968303fd75de47f8"
+    },
+    {
+      "file": "clippy-isolated-default-final.log",
+      "bytes": 929,
+      "sha256": "21d5c1f7fda1d6f5734f5b62019b593f492e759fd57885df508ea29321d3d94f"
+    },
+    {
+      "file": "fmt-isolated-final.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "server-build-bot-fill-final.log",
+      "bytes": 1528,
+      "sha256": "47e635c04c4beb2e1420ebe8cbe5d765e32e8c3db7681436fb3c2475a03e7d7f"
+    },
+    {
+      "file": "browser-proof-bot-fill-final.json",
+      "bytes": 4406,
+      "sha256": "ab4405a01eba99b8faf720d64a418ff0ad5c1d338b4641e2b44cb4b4339857ee"
+    },
+    {
+      "file": "pnet1-goldens-final.log",
+      "bytes": 733,
+      "sha256": "f2f26de2bb17c915753fad6e4f62877615617087222e4f2f5307e0c0ab510391"
+    },
+    {
+      "file": "csharp-art-final.log",
+      "bytes": 949,
+      "sha256": "eab7b940d17ff486e39b47fcdb5c0569ae0555bd827141749e110e8855502763"
+    },
+    {
+      "file": "art-static-final.log",
+      "bytes": 1928,
+      "sha256": "45e4d92b6a94da17e364ba2ad5cb9777d431c781d7a7c3f47a11b0a5f51986f4"
+    },
+    {
+      "file": "ci-b01-timeout.log",
+      "bytes": 526342,
+      "sha256": "01fd734dd980fc46043dc96a089df2c0222789cca10a0283e20d85e09aa14861"
+    },
+    {
+      "file": "workspace-sim-features.txt",
+      "bytes": 2519,
+      "sha256": "c93949bafa6a18ba46830ab091a45b7143d3f1df86613914d9917ce1674b65d6"
     }
   ]
 }

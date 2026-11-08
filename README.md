@@ -2,7 +2,7 @@
 
 > **Migration in progress.** A Rust authoritative server and a Unity browser client are replacing this TypeScript stack;
 > the game below still runs as documented. State, commands and the handoff: [docs/MIGRATION.md](docs/MIGRATION.md),
-> [AGENTS.md](AGENTS.md).
+> [AGENTS.md](AGENTS.md). Lead ownership, active lanes and acceptance gates: [docs/PROJECT_COORDINATION.md](docs/PROJECT_COORDINATION.md).
 
 Public hosting: [Cloudflare deployment and profile migration](docs/CLOUDFLARE_PUBLIC.md). The public game uses a Cloudflare Worker, cloud game container and private R2 profiles. The laptop playtest launcher and its tunnel are an optional local development path. Balance telemetry and the live dashboard: [docs/TELEMETRY.md](docs/TELEMETRY.md).
 

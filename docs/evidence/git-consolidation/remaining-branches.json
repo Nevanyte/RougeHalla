@@ -23,16 +23,6 @@
       "disposition": "legacy TypeScript squash duplicate: entire tree equals0151776d (ancestor of optimization_port), tree0285c91e211a6143a4a9c5cede20370515f2bb97 and stable patch305130eb9213e333dca3d93f8ff05bdf531484ba; no unique work to merge"
     },
     {
-      "branch": "codex/unity-art-direction",
-      "head": "8be43038e5e820f21446b54e2049d7626b451e96",
-      "disposition": "active or newly delivered isolated work; review required"
-    },
-    {
-      "branch": "deepseek/p-bots-7b",
-      "head": "bc47f8335979ecce78ad3e37fd2ba1b6dd03df88",
-      "disposition": "active or newly delivered isolated work; review required"
-    },
-    {
       "branch": "feature/quests",
       "head": "3186691c740cd97cb81927790a614ed864041174",
       "disposition": "preserved pre-port legacy history; do not wholesale merge into the Rust port"

@@ -36,6 +36,19 @@ rules. Native managed-faction learning defaults Off; its reviewed exclusive-sess
 close pass246 affected tests with actual PG. New observation leaves stay held for privacy/version approval. No C-HOST cloud
 or production completion follows from local gates. Source metadata was reconciled without changing expected gameplay.
 
+The subsequent fill/configuration union passes384 affected server/policy tests in an isolated build target, both strict
+workspace Clippy feature modes, formatting and a freshly rebuilt15-check WSS proof with zero page errors. Exact trim
+membership is checked against pinned Node over every Unicode scalar. Root preserves explicit learning activation and
+requests a name snapshot only for enabled fill. Rust-side prediction fixture consumers reproduce300 paths/723 walk
+samples with unchanged goldens. The reviewed presentation prefix owns latest membership independently of audio, clears
+empty post-Welcome state/voices and tracks all80 cards;329 net tests and five proof-contract checks pass after merge.
+Art’s final browser/profile refresh remains scoped separately; neither full-port nor144Hz completion follows.
+
+The `b01fc9e2` CI workspace component passes all1,520 default tests with three existing ignores, including the191 map
+tests excluded locally. Its whole job later exceeds the cumulative40-minute budget during a separate terrain feature
+check. The final workflow splits full simulation from backend/source gates, preserving workspace-unified probe features
+and all selections; no whole-workflow success is claimed until that run completes.
+
 ### Stage 2 validation addendum (takes precedence over the historical Stage 1 rows below)
 
 Historical playable-core arm64 integration on `optimization_port`: 1,304 tests passed with all features and two explicitly
