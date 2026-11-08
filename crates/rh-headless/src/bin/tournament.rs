@@ -3,11 +3,10 @@
 //! only here, for the progress line, the throughput meta and the per-game wall; the tournament itself is a pure function
 //! of its plan.
 use rh_headless::tournament::{
-    aggregate, format_report, run_game, GameSummary, TournamentMeta, TournamentReport,
+    aggregate, format_report, run_game, sim_config_for, GameSummary, TournamentMeta,
+    TournamentReport,
 };
-use rh_headless::tournament_cli::{
-    default_arena, default_config, json_payload, parse_args, plan_of, USAGE,
-};
+use rh_headless::tournament_cli::{default_arena, json_payload, parse_args, plan_of, USAGE};
 use std::io::Write;
 use std::time::Instant;
 
@@ -55,7 +54,9 @@ fn main() -> std::process::ExitCode {
     }
     let plan = plan_of(&args);
     let arena = default_arena();
-    let config = default_config();
+    // The plan stands for the experiment: the run's configuration is derived from it at this call site (the source's
+    // planOf config), so --patience/--sudden reach the real sim timers instead of being carried only in the payload.
+    let config = sim_config_for(&plan);
     let started = Instant::now();
     let mut games: Vec<GameSummary> = Vec::with_capacity(plan.games as usize);
     let mut game_wall = 0.;
