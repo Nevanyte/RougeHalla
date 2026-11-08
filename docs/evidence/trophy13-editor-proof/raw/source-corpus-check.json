@@ -1,0 +1,10 @@
+{
+  "capturePath": "docs/evidence/trophy-wire13/source-format.json",
+  "expectedByTest": "b75078a3286913391d5c7f309536bc6e8e8c4ea2f101a8ad939ad1f235e4673c",
+  "actualSha256": "b75078a3286913391d5c7f309536bc6e8e8c4ea2f101a8ad939ad1f235e4673c",
+  "committedBaseSha256": "b75078a3286913391d5c7f309536bc6e8e8c4ea2f101a8ad939ad1f235e4673c",
+  "matchesExpected": true,
+  "workingMatchesBase": true,
+  "testPath": "client-unity/RoguehallaNet.Tests/TrophyTextTests.cs",
+  "scope": "static source checksum comparison, not a dotnet test run"
+}

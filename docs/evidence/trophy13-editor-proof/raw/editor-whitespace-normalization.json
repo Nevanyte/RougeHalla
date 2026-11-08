@@ -1,0 +1,5 @@
+{
+  "path": "client-unity/UnityProject/ProjectSettings/ShaderGraphSettings.asset",
+  "description": "Editor-only trailing whitespace normalized to exact committed bytes",
+  "patch": "diff --git a/client-unity/UnityProject/ProjectSettings/ShaderGraphSettings.asset b/client-unity/UnityProject/ProjectSettings/ShaderGraphSettings.asset\nindex ca35a594..37023575 100644\n--- a/client-unity/UnityProject/ProjectSettings/ShaderGraphSettings.asset\n+++ b/client-unity/UnityProject/ProjectSettings/ShaderGraphSettings.asset\n@@ -10,8 +10,8 @@ MonoBehaviour:\n   m_Enabled: 1\n   m_EditorHideFlags: 0\n   m_Script: {fileID: 11500000, guid: de02f9e1d18f588468e474319d09a723, type: 3}\n-  m_Name:\n-  m_EditorClassIdentifier:\n+  m_Name: \n+  m_EditorClassIdentifier: \n   shaderVariantLimit: 2048\n   overrideShaderVariantLimit: 0\n   customInterpolatorErrorThreshold: 32\n"
+}

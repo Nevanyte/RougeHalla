@@ -1,0 +1,7 @@
+{
+  "command": "client-unity/sync-net.sh --check",
+  "cwd": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art",
+  "exitCode": 0,
+  "stdout": "Unity copy is up to date\n",
+  "recordType": "transcription of observed exec result; command was not rerun"
+}
