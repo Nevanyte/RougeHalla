@@ -1,0 +1,8 @@
+--- a/packages/server/src/sim/training.ts
++++ b/packages/server/src/sim/training.ts
+@@ -66,4 +66,3 @@ export function trainingSettle(world: World): void {
+     p.status = "alive";
+     p.hp = p.maxHp;
+-    resetWeapons({ kind: "player", id: rt.id, s: p, rt });
+   }
+ }
