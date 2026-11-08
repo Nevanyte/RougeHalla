@@ -1,0 +1,13 @@
+diff --git a/crates/rh-policy/src/bots/build_route.rs b/crates/rh-policy/src/bots/build_route.rs
+index 4f5168e6..4a59d0dc 100644
+--- a/crates/rh-policy/src/bots/build_route.rs
++++ b/crates/rh-policy/src/bots/build_route.rs
+@@ -206,7 +206,7 @@ pub const MAX_WAIT_MS: f64 = 40_000.;
+ pub const CLEAR_MS_PER_MOB: f64 = 4_000.;
+ pub const CLEAR_MS_ELITE: f64 = 15_000.;
+ /// An elite camp's elite, in normal mobs' worth of value (its augment chest).
+-pub const ELITE_VALUE: f64 = 6.;
++pub const ELITE_VALUE: f64 = 5.;
+ pub const ELITE_AFTER_MS: f64 = 360_000.;
+ pub const ELITE_MIN_KILLS: f64 = 12.;
+ /// Card power that lets a bot take elites early.

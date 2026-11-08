@@ -1,0 +1,13 @@
+diff --git a/crates/rh-policy/src/bots/mob_hunt.rs b/crates/rh-policy/src/bots/mob_hunt.rs
+index e274d562..33070a51 100644
+--- a/crates/rh-policy/src/bots/mob_hunt.rs
++++ b/crates/rh-policy/src/bots/mob_hunt.rs
+@@ -139,7 +139,7 @@ pub fn retreat_point(
+     let mut best = None;
+     let mut best_score = f64::NEG_INFINITY;
+     for step in [7. * TILE, 4. * TILE] {
+-        for i in 0..16 {
++        for i in 0..8 {
+             let angle = (i as f64) * math::PI / 8.;
+             let at = Vec2::new(
+                 self_pos.x + math::cos(angle) * step,

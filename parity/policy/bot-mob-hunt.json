@@ -1,0 +1,9874 @@
+{
+ "format": "rh-bot-mob-hunt-source/1",
+ "profile": {
+  "node": "v22.23.4",
+  "platform": "linux",
+  "arch": "x64",
+  "constants": {
+   "TILE": 32,
+   "PLAYER_RADIUS": 12
+  },
+  "map": {
+   "w": 16,
+   "h": 12,
+   "seed": 0,
+   "tiles": [
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    0,
+    1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    1,
+    1,
+    0,
+    1,
+    0,
+    0,
+    0,
+    0,
+    1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    1,
+    0,
+    1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1
+   ]
+  },
+  "sourceFiles": {
+   "package-lock.json": "991869bdfbbefb6874220500197c61db302a4d2b2603dfc2288fd7032ce1d481",
+   "tsconfig.base.json": "017575ec3101f44df43b5a7cc850779582650d9e01a2090b7e311b213b98ef88",
+   "packages/server/src/bots/brain/buildRoute.ts": "fbe819cc2b36da50c7b01b0e4c40cf77c5c27286e6b5c69d76bc24e862af4f5e",
+   "packages/server/src/bots/brain/huntAdapter.ts": "0dac45d23811dbb72a8e8e5aa888e563a616f1fba255cde516176278e70c027d",
+   "packages/server/src/bots/brain/types.ts": "12b3cae05bcde760cd642b9c5eb9919bfc47189882c81258994c9f1122d3d361",
+   "packages/server/src/bots/mobHunt.ts": "88fc22040e62b1bc5226c37c16095032533df1e104dee0b27fdcb671c33fe6ff",
+   "packages/shared/src/constants.ts": "51ce4dd800ec868abee525fb1ae375688066f336972a7da878644df1235924e7",
+   "packages/shared/src/factions.ts": "aa0cebf1c17af17b64bc1e020c4613ab10788ec66d82a72232aef8915d5403f3",
+   "packages/shared/src/geometry.ts": "b1a91a65281f8642b1779b81764768569311966ab493941101a2f988cfdc1f5d",
+   "packages/shared/src/map.ts": "35caac04108a3bd0e1d880a9502f14bdccb3a9a17d262cba335c3d6436995eed",
+   "packages/shared/src/mobStats.ts": "94034887302346dcd070ff2fa774ae0e4f71933b549964f53be13389be087d5b",
+   "packages/shared/src/mobs.ts": "3b567c08363d8d4f1e9a897240b3d99d5b8ded7757b6809a4b534b63d72b5522",
+   "packages/shared/src/weapons.ts": "2f22f037502fe63fae6b47f20408cfd35ebc72bfea081194ae8d18cfc21df99b"
+  },
+  "sourceTree": "3f62c5d533bdeccdabe117a35984179184d0486c903c61ba95c946a5a680cada",
+  "tool": "e7185b5f85f356c6c7ace2fb024e9bdb5ef5c6b8f18659d47e65c79fd53cb594",
+  "captureSha256": "dbb346987694968009d85debf6122874b94c348fa6243fb3083caea8c5f7510e"
+ },
+ "mobHunt": {
+  "playerThreat": 250,
+  "playerRelease": 450,
+  "underFireRange": 520,
+  "underFireMs": 1500,
+  "reach": 700,
+  "firstReach": 1100,
+  "walkSlack": 1.25,
+  "maxCandidates": 6,
+  "startMinHp": 0.5,
+  "eliteMinPower": 4,
+  "eliteFullHp": 0.9,
+  "mobMinShare": 0.5,
+  "eliteMinShare": 0.3,
+  "eliteSureShare": 0.2,
+  "eliteSurePower": 6,
+  "retreatHp": 0.35,
+  "retreatClear": 320,
+  "retreatMinMs": 1500,
+  "retreatMaxMs": 5000,
+  "retreatBanMs": 15000,
+  "killGoal": 5,
+  "focusBudgetMs": 900000,
+  "targetBudgetMs": 60000,
+  "stallAttackMs": 3000,
+  "approachMs": 12000,
+  "returnBanMs": 8000,
+  "stallBanMs": 30000,
+  "awakeMoved": 40,
+  "skipRanged": true,
+  "repickMs": 400
+ },
+ "huntConfigs": [
+  {
+   "tier": "easy",
+   "persona": "farmer",
+   "config": {
+    "playerThreat": 140,
+    "playerRelease": 450,
+    "underFireRange": 520,
+    "underFireMs": 1500,
+    "reach": 500,
+    "firstReach": 800,
+    "walkSlack": 1.25,
+    "maxCandidates": 3,
+    "startMinHp": 0.45,
+    "eliteMinPower": 4,
+    "eliteFullHp": 0.9,
+    "mobMinShare": 0.3,
+    "eliteMinShare": 0.3,
+    "eliteSureShare": 0.2,
+    "eliteSurePower": 6,
+    "retreatHp": 0.4,
+    "retreatClear": 320,
+    "retreatMinMs": 1500,
+    "retreatMaxMs": 5000,
+    "retreatBanMs": 15000,
+    "killGoal": 999,
+    "focusBudgetMs": 900000,
+    "targetBudgetMs": 60000,
+    "stallAttackMs": 3000,
+    "approachMs": 12000,
+    "returnBanMs": 8000,
+    "stallBanMs": 30000,
+    "awakeMoved": 40,
+    "skipRanged": true,
+    "repickMs": 400
+   }
+  },
+  {
+   "tier": "easy",
+   "persona": "hunter",
+   "config": {
+    "playerThreat": 300,
+    "playerRelease": 450,
+    "underFireRange": 520,
+    "underFireMs": 1500,
+    "reach": 500,
+    "firstReach": 800,
+    "walkSlack": 1.25,
+    "maxCandidates": 3,
+    "startMinHp": 0.25,
+    "eliteMinPower": 4,
+    "eliteFullHp": 0.9,
+    "mobMinShare": 0.3,
+    "eliteMinShare": 0.3,
+    "eliteSureShare": 0.2,
+    "eliteSurePower": 6,
+    "retreatHp": 0.2,
+    "retreatClear": 320,
+    "retreatMinMs": 1500,
+    "retreatMaxMs": 5000,
+    "retreatBanMs": 15000,
+    "killGoal": 40,
+    "focusBudgetMs": 900000,
+    "targetBudgetMs": 60000,
+    "stallAttackMs": 3000,
+    "approachMs": 12000,
+    "returnBanMs": 8000,
+    "stallBanMs": 30000,
+    "awakeMoved": 40,
+    "skipRanged": true,
+    "repickMs": 400
+   }
+  },
+  {
+   "tier": "easy",
+   "persona": "opportunist",
+   "config": {
+    "playerThreat": 200,
+    "playerRelease": 450,
+    "underFireRange": 520,
+    "underFireMs": 1500,
+    "reach": 500,
+    "firstReach": 800,
+    "walkSlack": 1.25,
+    "maxCandidates": 3,
+    "startMinHp": 0.39999999999999997,
+    "eliteMinPower": 4,
+    "eliteFullHp": 0.9,
+    "mobMinShare": 0.3,
+    "eliteMinShare": 0.3,
+    "eliteSureShare": 0.2,
+    "eliteSurePower": 6,
+    "retreatHp": 0.35,
+    "retreatClear": 320,
+    "retreatMinMs": 1500,
+    "retreatMaxMs": 5000,
+    "retreatBanMs": 15000,
+    "killGoal": 999,
+    "focusBudgetMs": 900000,
+    "targetBudgetMs": 60000,
+    "stallAttackMs": 3000,
+    "approachMs": 12000,
+    "returnBanMs": 8000,
+    "stallBanMs": 30000,
+    "awakeMoved": 40,
+    "skipRanged": true,
+    "repickMs": 400
+   }
+  },
+  {
+   "tier": "easy",
+   "persona": "cautious",
+   "config": {
+    "playerThreat": 160,
+    "playerRelease": 450,
+    "underFireRange": 520,
+    "underFireMs": 1500,
+    "reach": 500,
+    "firstReach": 800,
+    "walkSlack": 1.25,
+    "maxCandidates": 3,
+    "startMinHp": 0.6000000000000001,
+    "eliteMinPower": 4,
+    "eliteFullHp": 0.9,
+    "mobMinShare": 0.3,
+    "eliteMinShare": 0.3,
+    "eliteSureShare": 0.2,
+    "eliteSurePower": 6,
+    "retreatHp": 0.55,
+    "retreatClear": 320,
+    "retreatMinMs": 1500,
+    "retreatMaxMs": 5000,
+    "retreatBanMs": 15000,
+    "killGoal": 999,
+    "focusBudgetMs": 900000,
+    "targetBudgetMs": 60000,
+    "stallAttackMs": 3000,
+    "approachMs": 12000,
+    "returnBanMs": 8000,
+    "stallBanMs": 30000,
+    "awakeMoved": 40,
+    "skipRanged": true,
+    "repickMs": 400
+   }
+  },
+  {
+   "tier": "normal",
+   "persona": "farmer",
+   "config": {
+    "playerThreat": 140,
+    "playerRelease": 450,
+    "underFireRange": 520,
+    "underFireMs": 1500,
+    "reach": 700,
+    "firstReach": 1120,
+    "walkSlack": 1.25,
+    "maxCandidates": 6,
+    "startMinHp": 0.45,
+    "eliteMinPower": 4,
+    "eliteFullHp": 0.9,
+    "mobMinShare": 0.6,
+    "eliteMinShare": 0.8,
+    "eliteSureShare": 0.2,
+    "eliteSurePower": 6,
+    "retreatHp": 0.4,
+    "retreatClear": 320,
+    "retreatMinMs": 1500,
+    "retreatMaxMs": 5000,
+    "retreatBanMs": 15000,
+    "killGoal": 999,
+    "focusBudgetMs": 900000,
+    "targetBudgetMs": 60000,
+    "stallAttackMs": 3000,
+    "approachMs": 12000,
+    "returnBanMs": 8000,
+    "stallBanMs": 30000,
+    "awakeMoved": 40,
+    "skipRanged": true,
+    "repickMs": 400
+   }
+  },
+  {
+   "tier": "normal",
+   "persona": "hunter",
+   "config": {
+    "playerThreat": 300,
+    "playerRelease": 450,
+    "underFireRange": 520,
+    "underFireMs": 1500,
+    "reach": 700,
+    "firstReach": 1120,
+    "walkSlack": 1.25,
+    "maxCandidates": 6,
+    "startMinHp": 0.475,
+    "eliteMinPower": 4,
+    "eliteFullHp": 0.9,
+    "mobMinShare": 0.6,
+    "eliteMinShare": 0.8,
+    "eliteSureShare": 0.2,
+    "eliteSurePower": 6,
+    "retreatHp": 0.2,
+    "retreatClear": 320,
+    "retreatMinMs": 1500,
+    "retreatMaxMs": 5000,
+    "retreatBanMs": 15000,
+    "killGoal": 40,
+    "focusBudgetMs": 900000,
+    "targetBudgetMs": 60000,
+    "stallAttackMs": 3000,
+    "approachMs": 12000,
+    "returnBanMs": 8000,
+    "stallBanMs": 30000,
+    "awakeMoved": 40,
+    "skipRanged": true,
+    "repickMs": 400
+   }
+  },
+  {
+   "tier": "normal",
+   "persona": "opportunist",
+   "config": {
+    "playerThreat": 200,
+    "playerRelease": 450,
+    "underFireRange": 520,
+    "underFireMs": 1500,
+    "reach": 700,
+    "firstReach": 1120,
+    "walkSlack": 1.25,
+    "maxCandidates": 6,
+    "startMinHp": 0.39999999999999997,
+    "eliteMinPower": 4,
+    "eliteFullHp": 0.9,
+    "mobMinShare": 0.6,
+    "eliteMinShare": 0.8,
+    "eliteSureShare": 0.2,
+    "eliteSurePower": 6,
+    "retreatHp": 0.35,
+    "retreatClear": 320,
+    "retreatMinMs": 1500,
+    "retreatMaxMs": 5000,
+    "retreatBanMs": 15000,
+    "killGoal": 999,
+    "focusBudgetMs": 900000,
+    "targetBudgetMs": 60000,
+    "stallAttackMs": 3000,
+    "approachMs": 12000,
+    "returnBanMs": 8000,
+    "stallBanMs": 30000,
+    "awakeMoved": 40,
+    "skipRanged": true,
+    "repickMs": 400
+   }
+  },
+  {
+   "tier": "normal",
+   "persona": "cautious",
+   "config": {
+    "playerThreat": 160,
+    "playerRelease": 450,
+    "underFireRange": 520,
+    "underFireMs": 1500,
+    "reach": 700,
+    "firstReach": 1120,
+    "walkSlack": 1.25,
+    "maxCandidates": 6,
+    "startMinHp": 0.6000000000000001,
+    "eliteMinPower": 4,
+    "eliteFullHp": 0.9,
+    "mobMinShare": 0.6,
+    "eliteMinShare": 0.8,
+    "eliteSureShare": 0.2,
+    "eliteSurePower": 6,
+    "retreatHp": 0.55,
+    "retreatClear": 320,
+    "retreatMinMs": 1500,
+    "retreatMaxMs": 5000,
+    "retreatBanMs": 15000,
+    "killGoal": 999,
+    "focusBudgetMs": 900000,
+    "targetBudgetMs": 60000,
+    "stallAttackMs": 3000,
+    "approachMs": 12000,
+    "returnBanMs": 8000,
+    "stallBanMs": 30000,
+    "awakeMoved": 40,
+    "skipRanged": true,
+    "repickMs": 400
+   }
+  },
+  {
+   "tier": "hard",
+   "persona": "farmer",
+   "config": {
+    "playerThreat": 140,
+    "playerRelease": 450,
+    "underFireRange": 520,
+    "underFireMs": 1500,
+    "reach": 900,
+    "firstReach": 1440,
+    "walkSlack": 1.25,
+    "maxCandidates": 10,
+    "startMinHp": 0.45,
+    "eliteMinPower": 4,
+    "eliteFullHp": 0.9,
+    "mobMinShare": 0.7,
+    "eliteMinShare": 1.1,
+    "eliteSureShare": 0.2,
+    "eliteSurePower": 6,
+    "retreatHp": 0.4,
+    "retreatClear": 320,
+    "retreatMinMs": 1500,
+    "retreatMaxMs": 5000,
+    "retreatBanMs": 15000,
+    "killGoal": 999,
+    "focusBudgetMs": 900000,
+    "targetBudgetMs": 60000,
+    "stallAttackMs": 3000,
+    "approachMs": 12000,
+    "returnBanMs": 8000,
+    "stallBanMs": 30000,
+    "awakeMoved": 40,
+    "skipRanged": true,
+    "repickMs": 400
+   }
+  },
+  {
+   "tier": "hard",
+   "persona": "hunter",
+   "config": {
+    "playerThreat": 300,
+    "playerRelease": 450,
+    "underFireRange": 520,
+    "underFireMs": 1500,
+    "reach": 900,
+    "firstReach": 1440,
+    "walkSlack": 1.25,
+    "maxCandidates": 10,
+    "startMinHp": 0.575,
+    "eliteMinPower": 4,
+    "eliteFullHp": 0.9,
+    "mobMinShare": 0.7,
+    "eliteMinShare": 1.1,
+    "eliteSureShare": 0.2,
+    "eliteSurePower": 6,
+    "retreatHp": 0.2,
+    "retreatClear": 320,
+    "retreatMinMs": 1500,
+    "retreatMaxMs": 5000,
+    "retreatBanMs": 15000,
+    "killGoal": 40,
+    "focusBudgetMs": 900000,
+    "targetBudgetMs": 60000,
+    "stallAttackMs": 3000,
+    "approachMs": 12000,
+    "returnBanMs": 8000,
+    "stallBanMs": 30000,
+    "awakeMoved": 40,
+    "skipRanged": true,
+    "repickMs": 400
+   }
+  },
+  {
+   "tier": "hard",
+   "persona": "opportunist",
+   "config": {
+    "playerThreat": 200,
+    "playerRelease": 450,
+    "underFireRange": 520,
+    "underFireMs": 1500,
+    "reach": 900,
+    "firstReach": 1440,
+    "walkSlack": 1.25,
+    "maxCandidates": 10,
+    "startMinHp": 0.48749999999999993,
+    "eliteMinPower": 4,
+    "eliteFullHp": 0.9,
+    "mobMinShare": 0.7,
+    "eliteMinShare": 1.1,
+    "eliteSureShare": 0.2,
+    "eliteSurePower": 6,
+    "retreatHp": 0.35,
+    "retreatClear": 320,
+    "retreatMinMs": 1500,
+    "retreatMaxMs": 5000,
+    "retreatBanMs": 15000,
+    "killGoal": 999,
+    "focusBudgetMs": 900000,
+    "targetBudgetMs": 60000,
+    "stallAttackMs": 3000,
+    "approachMs": 12000,
+    "returnBanMs": 8000,
+    "stallBanMs": 30000,
+    "awakeMoved": 40,
+    "skipRanged": true,
+    "repickMs": 400
+   }
+  },
+  {
+   "tier": "hard",
+   "persona": "cautious",
+   "config": {
+    "playerThreat": 160,
+    "playerRelease": 450,
+    "underFireRange": 520,
+    "underFireMs": 1500,
+    "reach": 900,
+    "firstReach": 1440,
+    "walkSlack": 1.25,
+    "maxCandidates": 10,
+    "startMinHp": 0.6000000000000001,
+    "eliteMinPower": 4,
+    "eliteFullHp": 0.9,
+    "mobMinShare": 0.7,
+    "eliteMinShare": 1.1,
+    "eliteSureShare": 0.2,
+    "eliteSurePower": 6,
+    "retreatHp": 0.55,
+    "retreatClear": 320,
+    "retreatMinMs": 1500,
+    "retreatMaxMs": 5000,
+    "retreatBanMs": 15000,
+    "killGoal": 999,
+    "focusBudgetMs": 900000,
+    "targetBudgetMs": 60000,
+    "stallAttackMs": 3000,
+    "approachMs": 12000,
+    "returnBanMs": 8000,
+    "stallBanMs": 30000,
+    "awakeMoved": 40,
+    "skipRanged": true,
+    "repickMs": 400
+   }
+  }
+ ],
+ "weaponEdge": [
+  {
+   "a": "sword",
+   "b": "sword",
+   "expected": 0
+  },
+  {
+   "a": "sword",
+   "b": "bow",
+   "expected": -1
+  },
+  {
+   "a": "sword",
+   "b": "wand",
+   "expected": 1
+  },
+  {
+   "a": "sword",
+   "b": "shield",
+   "expected": -1
+  },
+  {
+   "a": "sword",
+   "b": "axe",
+   "expected": 1
+  },
+  {
+   "a": "sword",
+   "b": "fists",
+   "expected": 0
+  },
+  {
+   "a": "bow",
+   "b": "sword",
+   "expected": 1
+  },
+  {
+   "a": "bow",
+   "b": "bow",
+   "expected": 0
+  },
+  {
+   "a": "bow",
+   "b": "wand",
+   "expected": -1
+  },
+  {
+   "a": "bow",
+   "b": "shield",
+   "expected": -1
+  },
+  {
+   "a": "bow",
+   "b": "axe",
+   "expected": 1
+  },
+  {
+   "a": "bow",
+   "b": "fists",
+   "expected": 0
+  },
+  {
+   "a": "wand",
+   "b": "sword",
+   "expected": -1
+  },
+  {
+   "a": "wand",
+   "b": "bow",
+   "expected": 1
+  },
+  {
+   "a": "wand",
+   "b": "wand",
+   "expected": 0
+  },
+  {
+   "a": "wand",
+   "b": "shield",
+   "expected": 1
+  },
+  {
+   "a": "wand",
+   "b": "axe",
+   "expected": -1
+  },
+  {
+   "a": "wand",
+   "b": "fists",
+   "expected": 0
+  },
+  {
+   "a": "shield",
+   "b": "sword",
+   "expected": 1
+  },
+  {
+   "a": "shield",
+   "b": "bow",
+   "expected": 1
+  },
+  {
+   "a": "shield",
+   "b": "wand",
+   "expected": -1
+  },
+  {
+   "a": "shield",
+   "b": "shield",
+   "expected": 0
+  },
+  {
+   "a": "shield",
+   "b": "axe",
+   "expected": -1
+  },
+  {
+   "a": "shield",
+   "b": "fists",
+   "expected": 0
+  },
+  {
+   "a": "axe",
+   "b": "sword",
+   "expected": -1
+  },
+  {
+   "a": "axe",
+   "b": "bow",
+   "expected": -1
+  },
+  {
+   "a": "axe",
+   "b": "wand",
+   "expected": 1
+  },
+  {
+   "a": "axe",
+   "b": "shield",
+   "expected": 1
+  },
+  {
+   "a": "axe",
+   "b": "axe",
+   "expected": 0
+  },
+  {
+   "a": "axe",
+   "b": "fists",
+   "expected": 0
+  },
+  {
+   "a": "fists",
+   "b": "sword",
+   "expected": 0
+  },
+  {
+   "a": "fists",
+   "b": "bow",
+   "expected": 0
+  },
+  {
+   "a": "fists",
+   "b": "wand",
+   "expected": 0
+  },
+  {
+   "a": "fists",
+   "b": "shield",
+   "expected": 0
+  },
+  {
+   "a": "fists",
+   "b": "axe",
+   "expected": 0
+  },
+  {
+   "a": "fists",
+   "b": "fists",
+   "expected": 0
+  }
+ ],
+ "useless": [
+  {
+   "mine": "sword",
+   "theirs": "sword",
+   "expected": false
+  },
+  {
+   "mine": "sword",
+   "theirs": "bow",
+   "expected": false
+  },
+  {
+   "mine": "sword",
+   "theirs": "wand",
+   "expected": false
+  },
+  {
+   "mine": "sword",
+   "theirs": "shield",
+   "expected": true
+  },
+  {
+   "mine": "sword",
+   "theirs": "axe",
+   "expected": false
+  },
+  {
+   "mine": "sword",
+   "theirs": "fists",
+   "expected": false
+  },
+  {
+   "mine": "bow",
+   "theirs": "sword",
+   "expected": false
+  },
+  {
+   "mine": "bow",
+   "theirs": "bow",
+   "expected": false
+  },
+  {
+   "mine": "bow",
+   "theirs": "wand",
+   "expected": true
+  },
+  {
+   "mine": "bow",
+   "theirs": "shield",
+   "expected": true
+  },
+  {
+   "mine": "bow",
+   "theirs": "axe",
+   "expected": false
+  },
+  {
+   "mine": "bow",
+   "theirs": "fists",
+   "expected": false
+  },
+  {
+   "mine": "wand",
+   "theirs": "sword",
+   "expected": false
+  },
+  {
+   "mine": "wand",
+   "theirs": "bow",
+   "expected": false
+  },
+  {
+   "mine": "wand",
+   "theirs": "wand",
+   "expected": false
+  },
+  {
+   "mine": "wand",
+   "theirs": "shield",
+   "expected": false
+  },
+  {
+   "mine": "wand",
+   "theirs": "axe",
+   "expected": true
+  },
+  {
+   "mine": "wand",
+   "theirs": "fists",
+   "expected": false
+  },
+  {
+   "mine": "shield",
+   "theirs": "sword",
+   "expected": true
+  },
+  {
+   "mine": "shield",
+   "theirs": "bow",
+   "expected": true
+  },
+  {
+   "mine": "shield",
+   "theirs": "wand",
+   "expected": false
+  },
+  {
+   "mine": "shield",
+   "theirs": "shield",
+   "expected": true
+  },
+  {
+   "mine": "shield",
+   "theirs": "axe",
+   "expected": false
+  },
+  {
+   "mine": "shield",
+   "theirs": "fists",
+   "expected": false
+  },
+  {
+   "mine": "axe",
+   "theirs": "sword",
+   "expected": false
+  },
+  {
+   "mine": "axe",
+   "theirs": "bow",
+   "expected": false
+  },
+  {
+   "mine": "axe",
+   "theirs": "wand",
+   "expected": false
+  },
+  {
+   "mine": "axe",
+   "theirs": "shield",
+   "expected": false
+  },
+  {
+   "mine": "axe",
+   "theirs": "axe",
+   "expected": false
+  },
+  {
+   "mine": "axe",
+   "theirs": "fists",
+   "expected": false
+  },
+  {
+   "mine": "fists",
+   "theirs": "sword",
+   "expected": false
+  },
+  {
+   "mine": "fists",
+   "theirs": "bow",
+   "expected": false
+  },
+  {
+   "mine": "fists",
+   "theirs": "wand",
+   "expected": false
+  },
+  {
+   "mine": "fists",
+   "theirs": "shield",
+   "expected": false
+  },
+  {
+   "mine": "fists",
+   "theirs": "axe",
+   "expected": false
+  },
+  {
+   "mine": "fists",
+   "theirs": "fists",
+   "expected": false
+  }
+ ],
+ "bestEdge": [
+  {
+   "weapons": [
+    null,
+    null
+   ],
+   "theirs": "sword",
+   "expected": 0
+  },
+  {
+   "weapons": [
+    null,
+    null
+   ],
+   "theirs": "bow",
+   "expected": 0
+  },
+  {
+   "weapons": [
+    null,
+    null
+   ],
+   "theirs": "wand",
+   "expected": 0
+  },
+  {
+   "weapons": [
+    null,
+    null
+   ],
+   "theirs": "shield",
+   "expected": 0
+  },
+  {
+   "weapons": [
+    null,
+    null
+   ],
+   "theirs": "axe",
+   "expected": 0
+  },
+  {
+   "weapons": [
+    null,
+    null
+   ],
+   "theirs": "fists",
+   "expected": 0
+  },
+  {
+   "weapons": [
+    "sword",
+    null
+   ],
+   "theirs": "sword",
+   "expected": 0
+  },
+  {
+   "weapons": [
+    "sword",
+    null
+   ],
+   "theirs": "bow",
+   "expected": -1
+  },
+  {
+   "weapons": [
+    "sword",
+    null
+   ],
+   "theirs": "wand",
+   "expected": 1
+  },
+  {
+   "weapons": [
+    "sword",
+    null
+   ],
+   "theirs": "shield",
+   "expected": -2
+  },
+  {
+   "weapons": [
+    "sword",
+    null
+   ],
+   "theirs": "axe",
+   "expected": 1
+  },
+  {
+   "weapons": [
+    "sword",
+    null
+   ],
+   "theirs": "fists",
+   "expected": 0
+  },
+  {
+   "weapons": [
+    "bow",
+    null
+   ],
+   "theirs": "sword",
+   "expected": 1
+  },
+  {
+   "weapons": [
+    "bow",
+    null
+   ],
+   "theirs": "bow",
+   "expected": 0
+  },
+  {
+   "weapons": [
+    "bow",
+    null
+   ],
+   "theirs": "wand",
+   "expected": -2
+  },
+  {
+   "weapons": [
+    "bow",
+    null
+   ],
+   "theirs": "shield",
+   "expected": -2
+  },
+  {
+   "weapons": [
+    "bow",
+    null
+   ],
+   "theirs": "axe",
+   "expected": 1
+  },
+  {
+   "weapons": [
+    "bow",
+    null
+   ],
+   "theirs": "fists",
+   "expected": 0
+  },
+  {
+   "weapons": [
+    "shield",
+    null
+   ],
+   "theirs": "sword",
+   "expected": -2
+  },
+  {
+   "weapons": [
+    "shield",
+    null
+   ],
+   "theirs": "bow",
+   "expected": -2
+  },
+  {
+   "weapons": [
+    "shield",
+    null
+   ],
+   "theirs": "wand",
+   "expected": -1
+  },
+  {
+   "weapons": [
+    "shield",
+    null
+   ],
+   "theirs": "shield",
+   "expected": -2
+  },
+  {
+   "weapons": [
+    "shield",
+    null
+   ],
+   "theirs": "axe",
+   "expected": -1
+  },
+  {
+   "weapons": [
+    "shield",
+    null
+   ],
+   "theirs": "fists",
+   "expected": 0
+  },
+  {
+   "weapons": [
+    "axe",
+    "wand"
+   ],
+   "theirs": "sword",
+   "expected": -1
+  },
+  {
+   "weapons": [
+    "axe",
+    "wand"
+   ],
+   "theirs": "bow",
+   "expected": 1
+  },
+  {
+   "weapons": [
+    "axe",
+    "wand"
+   ],
+   "theirs": "wand",
+   "expected": 1
+  },
+  {
+   "weapons": [
+    "axe",
+    "wand"
+   ],
+   "theirs": "shield",
+   "expected": 1
+  },
+  {
+   "weapons": [
+    "axe",
+    "wand"
+   ],
+   "theirs": "axe",
+   "expected": 0
+  },
+  {
+   "weapons": [
+    "axe",
+    "wand"
+   ],
+   "theirs": "fists",
+   "expected": 0
+  },
+  {
+   "weapons": [
+    "sword",
+    "shield"
+   ],
+   "theirs": "sword",
+   "expected": 0
+  },
+  {
+   "weapons": [
+    "sword",
+    "shield"
+   ],
+   "theirs": "bow",
+   "expected": -1
+  },
+  {
+   "weapons": [
+    "sword",
+    "shield"
+   ],
+   "theirs": "wand",
+   "expected": 1
+  },
+  {
+   "weapons": [
+    "sword",
+    "shield"
+   ],
+   "theirs": "shield",
+   "expected": -2
+  },
+  {
+   "weapons": [
+    "sword",
+    "shield"
+   ],
+   "theirs": "axe",
+   "expected": 1
+  },
+  {
+   "weapons": [
+    "sword",
+    "shield"
+   ],
+   "theirs": "fists",
+   "expected": 0
+  },
+  {
+   "weapons": [
+    "bow",
+    "wand"
+   ],
+   "theirs": "sword",
+   "expected": 1
+  },
+  {
+   "weapons": [
+    "bow",
+    "wand"
+   ],
+   "theirs": "bow",
+   "expected": 1
+  },
+  {
+   "weapons": [
+    "bow",
+    "wand"
+   ],
+   "theirs": "wand",
+   "expected": 0
+  },
+  {
+   "weapons": [
+    "bow",
+    "wand"
+   ],
+   "theirs": "shield",
+   "expected": 1
+  },
+  {
+   "weapons": [
+    "bow",
+    "wand"
+   ],
+   "theirs": "axe",
+   "expected": 1
+  },
+  {
+   "weapons": [
+    "bow",
+    "wand"
+   ],
+   "theirs": "fists",
+   "expected": 0
+  },
+  {
+   "weapons": [
+    "shield",
+    "wand"
+   ],
+   "theirs": "sword",
+   "expected": -1
+  },
+  {
+   "weapons": [
+    "shield",
+    "wand"
+   ],
+   "theirs": "bow",
+   "expected": 1
+  },
+  {
+   "weapons": [
+    "shield",
+    "wand"
+   ],
+   "theirs": "wand",
+   "expected": 0
+  },
+  {
+   "weapons": [
+    "shield",
+    "wand"
+   ],
+   "theirs": "shield",
+   "expected": 1
+  },
+  {
+   "weapons": [
+    "shield",
+    "wand"
+   ],
+   "theirs": "axe",
+   "expected": -1
+  },
+  {
+   "weapons": [
+    "shield",
+    "wand"
+   ],
+   "theirs": "fists",
+   "expected": 0
+  },
+  {
+   "weapons": [
+    "wand",
+    "axe"
+   ],
+   "theirs": "sword",
+   "expected": -1
+  },
+  {
+   "weapons": [
+    "wand",
+    "axe"
+   ],
+   "theirs": "bow",
+   "expected": 1
+  },
+  {
+   "weapons": [
+    "wand",
+    "axe"
+   ],
+   "theirs": "wand",
+   "expected": 1
+  },
+  {
+   "weapons": [
+    "wand",
+    "axe"
+   ],
+   "theirs": "shield",
+   "expected": 1
+  },
+  {
+   "weapons": [
+    "wand",
+    "axe"
+   ],
+   "theirs": "axe",
+   "expected": 0
+  },
+  {
+   "weapons": [
+    "wand",
+    "axe"
+   ],
+   "theirs": "fists",
+   "expected": 0
+  },
+  {
+   "weapons": [
+    "axe",
+    "shield"
+   ],
+   "theirs": "sword",
+   "expected": -1
+  },
+  {
+   "weapons": [
+    "axe",
+    "shield"
+   ],
+   "theirs": "bow",
+   "expected": -1
+  },
+  {
+   "weapons": [
+    "axe",
+    "shield"
+   ],
+   "theirs": "wand",
+   "expected": 1
+  },
+  {
+   "weapons": [
+    "axe",
+    "shield"
+   ],
+   "theirs": "shield",
+   "expected": 1
+  },
+  {
+   "weapons": [
+    "axe",
+    "shield"
+   ],
+   "theirs": "axe",
+   "expected": 0
+  },
+  {
+   "weapons": [
+    "axe",
+    "shield"
+   ],
+   "theirs": "fists",
+   "expected": 0
+  },
+  {
+   "weapons": [
+    "bow",
+    "bow"
+   ],
+   "theirs": "sword",
+   "expected": 1
+  },
+  {
+   "weapons": [
+    "bow",
+    "bow"
+   ],
+   "theirs": "bow",
+   "expected": 0
+  },
+  {
+   "weapons": [
+    "bow",
+    "bow"
+   ],
+   "theirs": "wand",
+   "expected": -2
+  },
+  {
+   "weapons": [
+    "bow",
+    "bow"
+   ],
+   "theirs": "shield",
+   "expected": -2
+  },
+  {
+   "weapons": [
+    "bow",
+    "bow"
+   ],
+   "theirs": "axe",
+   "expected": 1
+  },
+  {
+   "weapons": [
+    "bow",
+    "bow"
+   ],
+   "theirs": "fists",
+   "expected": 0
+  },
+  {
+   "weapons": [
+    "fists",
+    null
+   ],
+   "theirs": "sword",
+   "expected": 0
+  },
+  {
+   "weapons": [
+    "fists",
+    null
+   ],
+   "theirs": "bow",
+   "expected": 0
+  },
+  {
+   "weapons": [
+    "fists",
+    null
+   ],
+   "theirs": "wand",
+   "expected": 0
+  },
+  {
+   "weapons": [
+    "fists",
+    null
+   ],
+   "theirs": "shield",
+   "expected": 0
+  },
+  {
+   "weapons": [
+    "fists",
+    null
+   ],
+   "theirs": "axe",
+   "expected": 0
+  },
+  {
+   "weapons": [
+    "fists",
+    null
+   ],
+   "theirs": "fists",
+   "expected": 0
+  },
+  {
+   "weapons": [
+    "axe",
+    "axe"
+   ],
+   "theirs": "sword",
+   "expected": -1
+  },
+  {
+   "weapons": [
+    "axe",
+    "axe"
+   ],
+   "theirs": "bow",
+   "expected": -1
+  },
+  {
+   "weapons": [
+    "axe",
+    "axe"
+   ],
+   "theirs": "wand",
+   "expected": 1
+  },
+  {
+   "weapons": [
+    "axe",
+    "axe"
+   ],
+   "theirs": "shield",
+   "expected": 1
+  },
+  {
+   "weapons": [
+    "axe",
+    "axe"
+   ],
+   "theirs": "axe",
+   "expected": 0
+  },
+  {
+   "weapons": [
+    "axe",
+    "axe"
+   ],
+   "theirs": "fists",
+   "expected": 0
+  }
+ ],
+ "bestSlotVsMob": [
+  {
+   "slots": [
+    null,
+    null
+   ],
+   "current": 0,
+   "theirs": null,
+   "expected": 0
+  },
+  {
+   "slots": [
+    null,
+    null
+   ],
+   "current": 0,
+   "theirs": "sword",
+   "expected": 0
+  },
+  {
+   "slots": [
+    null,
+    null
+   ],
+   "current": 0,
+   "theirs": "bow",
+   "expected": 0
+  },
+  {
+   "slots": [
+    null,
+    null
+   ],
+   "current": 0,
+   "theirs": "wand",
+   "expected": 0
+  },
+  {
+   "slots": [
+    null,
+    null
+   ],
+   "current": 0,
+   "theirs": "shield",
+   "expected": 0
+  },
+  {
+   "slots": [
+    null,
+    null
+   ],
+   "current": 0,
+   "theirs": "axe",
+   "expected": 0
+  },
+  {
+   "slots": [
+    null,
+    null
+   ],
+   "current": 0,
+   "theirs": "fists",
+   "expected": 0
+  },
+  {
+   "slots": [
+    null,
+    null
+   ],
+   "current": 1,
+   "theirs": null,
+   "expected": 1
+  },
+  {
+   "slots": [
+    null,
+    null
+   ],
+   "current": 1,
+   "theirs": "sword",
+   "expected": 1
+  },
+  {
+   "slots": [
+    null,
+    null
+   ],
+   "current": 1,
+   "theirs": "bow",
+   "expected": 1
+  },
+  {
+   "slots": [
+    null,
+    null
+   ],
+   "current": 1,
+   "theirs": "wand",
+   "expected": 1
+  },
+  {
+   "slots": [
+    null,
+    null
+   ],
+   "current": 1,
+   "theirs": "shield",
+   "expected": 1
+  },
+  {
+   "slots": [
+    null,
+    null
+   ],
+   "current": 1,
+   "theirs": "axe",
+   "expected": 1
+  },
+  {
+   "slots": [
+    null,
+    null
+   ],
+   "current": 1,
+   "theirs": "fists",
+   "expected": 1
+  },
+  {
+   "slots": [
+    "sword",
+    "axe"
+   ],
+   "current": 0,
+   "theirs": null,
+   "expected": 0
+  },
+  {
+   "slots": [
+    "sword",
+    "axe"
+   ],
+   "current": 0,
+   "theirs": "sword",
+   "expected": 0
+  },
+  {
+   "slots": [
+    "sword",
+    "axe"
+   ],
+   "current": 0,
+   "theirs": "bow",
+   "expected": 0
+  },
+  {
+   "slots": [
+    "sword",
+    "axe"
+   ],
+   "current": 0,
+   "theirs": "wand",
+   "expected": 0
+  },
+  {
+   "slots": [
+    "sword",
+    "axe"
+   ],
+   "current": 0,
+   "theirs": "shield",
+   "expected": 1
+  },
+  {
+   "slots": [
+    "sword",
+    "axe"
+   ],
+   "current": 0,
+   "theirs": "axe",
+   "expected": 0
+  },
+  {
+   "slots": [
+    "sword",
+    "axe"
+   ],
+   "current": 0,
+   "theirs": "fists",
+   "expected": 0
+  },
+  {
+   "slots": [
+    "sword",
+    "axe"
+   ],
+   "current": 1,
+   "theirs": null,
+   "expected": 1
+  },
+  {
+   "slots": [
+    "sword",
+    "axe"
+   ],
+   "current": 1,
+   "theirs": "sword",
+   "expected": 0
+  },
+  {
+   "slots": [
+    "sword",
+    "axe"
+   ],
+   "current": 1,
+   "theirs": "bow",
+   "expected": 1
+  },
+  {
+   "slots": [
+    "sword",
+    "axe"
+   ],
+   "current": 1,
+   "theirs": "wand",
+   "expected": 1
+  },
+  {
+   "slots": [
+    "sword",
+    "axe"
+   ],
+   "current": 1,
+   "theirs": "shield",
+   "expected": 1
+  },
+  {
+   "slots": [
+    "sword",
+    "axe"
+   ],
+   "current": 1,
+   "theirs": "axe",
+   "expected": 0
+  },
+  {
+   "slots": [
+    "sword",
+    "axe"
+   ],
+   "current": 1,
+   "theirs": "fists",
+   "expected": 1
+  },
+  {
+   "slots": [
+    "sword",
+    "shield"
+   ],
+   "current": 0,
+   "theirs": null,
+   "expected": 0
+  },
+  {
+   "slots": [
+    "sword",
+    "shield"
+   ],
+   "current": 0,
+   "theirs": "sword",
+   "expected": 0
+  },
+  {
+   "slots": [
+    "sword",
+    "shield"
+   ],
+   "current": 0,
+   "theirs": "bow",
+   "expected": 0
+  },
+  {
+   "slots": [
+    "sword",
+    "shield"
+   ],
+   "current": 0,
+   "theirs": "wand",
+   "expected": 0
+  },
+  {
+   "slots": [
+    "sword",
+    "shield"
+   ],
+   "current": 0,
+   "theirs": "shield",
+   "expected": 0
+  },
+  {
+   "slots": [
+    "sword",
+    "shield"
+   ],
+   "current": 0,
+   "theirs": "axe",
+   "expected": 0
+  },
+  {
+   "slots": [
+    "sword",
+    "shield"
+   ],
+   "current": 0,
+   "theirs": "fists",
+   "expected": 0
+  },
+  {
+   "slots": [
+    "sword",
+    "shield"
+   ],
+   "current": 1,
+   "theirs": null,
+   "expected": 1
+  },
+  {
+   "slots": [
+    "sword",
+    "shield"
+   ],
+   "current": 1,
+   "theirs": "sword",
+   "expected": 0
+  },
+  {
+   "slots": [
+    "sword",
+    "shield"
+   ],
+   "current": 1,
+   "theirs": "bow",
+   "expected": 0
+  },
+  {
+   "slots": [
+    "sword",
+    "shield"
+   ],
+   "current": 1,
+   "theirs": "wand",
+   "expected": 0
+  },
+  {
+   "slots": [
+    "sword",
+    "shield"
+   ],
+   "current": 1,
+   "theirs": "shield",
+   "expected": 1
+  },
+  {
+   "slots": [
+    "sword",
+    "shield"
+   ],
+   "current": 1,
+   "theirs": "axe",
+   "expected": 0
+  },
+  {
+   "slots": [
+    "sword",
+    "shield"
+   ],
+   "current": 1,
+   "theirs": "fists",
+   "expected": 1
+  },
+  {
+   "slots": [
+    null,
+    "wand"
+   ],
+   "current": 0,
+   "theirs": null,
+   "expected": 1
+  },
+  {
+   "slots": [
+    null,
+    "wand"
+   ],
+   "current": 0,
+   "theirs": "sword",
+   "expected": 1
+  },
+  {
+   "slots": [
+    null,
+    "wand"
+   ],
+   "current": 0,
+   "theirs": "bow",
+   "expected": 1
+  },
+  {
+   "slots": [
+    null,
+    "wand"
+   ],
+   "current": 0,
+   "theirs": "wand",
+   "expected": 1
+  },
+  {
+   "slots": [
+    null,
+    "wand"
+   ],
+   "current": 0,
+   "theirs": "shield",
+   "expected": 1
+  },
+  {
+   "slots": [
+    null,
+    "wand"
+   ],
+   "current": 0,
+   "theirs": "axe",
+   "expected": 1
+  },
+  {
+   "slots": [
+    null,
+    "wand"
+   ],
+   "current": 0,
+   "theirs": "fists",
+   "expected": 1
+  },
+  {
+   "slots": [
+    null,
+    "wand"
+   ],
+   "current": 1,
+   "theirs": null,
+   "expected": 1
+  },
+  {
+   "slots": [
+    null,
+    "wand"
+   ],
+   "current": 1,
+   "theirs": "sword",
+   "expected": 1
+  },
+  {
+   "slots": [
+    null,
+    "wand"
+   ],
+   "current": 1,
+   "theirs": "bow",
+   "expected": 1
+  },
+  {
+   "slots": [
+    null,
+    "wand"
+   ],
+   "current": 1,
+   "theirs": "wand",
+   "expected": 1
+  },
+  {
+   "slots": [
+    null,
+    "wand"
+   ],
+   "current": 1,
+   "theirs": "shield",
+   "expected": 1
+  },
+  {
+   "slots": [
+    null,
+    "wand"
+   ],
+   "current": 1,
+   "theirs": "axe",
+   "expected": 1
+  },
+  {
+   "slots": [
+    null,
+    "wand"
+   ],
+   "current": 1,
+   "theirs": "fists",
+   "expected": 1
+  },
+  {
+   "slots": [
+    "bow",
+    "shield"
+   ],
+   "current": 0,
+   "theirs": null,
+   "expected": 0
+  },
+  {
+   "slots": [
+    "bow",
+    "shield"
+   ],
+   "current": 0,
+   "theirs": "sword",
+   "expected": 0
+  },
+  {
+   "slots": [
+    "bow",
+    "shield"
+   ],
+   "current": 0,
+   "theirs": "bow",
+   "expected": 0
+  },
+  {
+   "slots": [
+    "bow",
+    "shield"
+   ],
+   "current": 0,
+   "theirs": "wand",
+   "expected": 1
+  },
+  {
+   "slots": [
+    "bow",
+    "shield"
+   ],
+   "current": 0,
+   "theirs": "shield",
+   "expected": 0
+  },
+  {
+   "slots": [
+    "bow",
+    "shield"
+   ],
+   "current": 0,
+   "theirs": "axe",
+   "expected": 0
+  },
+  {
+   "slots": [
+    "bow",
+    "shield"
+   ],
+   "current": 0,
+   "theirs": "fists",
+   "expected": 0
+  },
+  {
+   "slots": [
+    "bow",
+    "shield"
+   ],
+   "current": 1,
+   "theirs": null,
+   "expected": 1
+  },
+  {
+   "slots": [
+    "bow",
+    "shield"
+   ],
+   "current": 1,
+   "theirs": "sword",
+   "expected": 0
+  },
+  {
+   "slots": [
+    "bow",
+    "shield"
+   ],
+   "current": 1,
+   "theirs": "bow",
+   "expected": 0
+  },
+  {
+   "slots": [
+    "bow",
+    "shield"
+   ],
+   "current": 1,
+   "theirs": "wand",
+   "expected": 1
+  },
+  {
+   "slots": [
+    "bow",
+    "shield"
+   ],
+   "current": 1,
+   "theirs": "shield",
+   "expected": 1
+  },
+  {
+   "slots": [
+    "bow",
+    "shield"
+   ],
+   "current": 1,
+   "theirs": "axe",
+   "expected": 0
+  },
+  {
+   "slots": [
+    "bow",
+    "shield"
+   ],
+   "current": 1,
+   "theirs": "fists",
+   "expected": 1
+  },
+  {
+   "slots": [
+    "axe",
+    null
+   ],
+   "current": 0,
+   "theirs": null,
+   "expected": 0
+  },
+  {
+   "slots": [
+    "axe",
+    null
+   ],
+   "current": 0,
+   "theirs": "sword",
+   "expected": 0
+  },
+  {
+   "slots": [
+    "axe",
+    null
+   ],
+   "current": 0,
+   "theirs": "bow",
+   "expected": 0
+  },
+  {
+   "slots": [
+    "axe",
+    null
+   ],
+   "current": 0,
+   "theirs": "wand",
+   "expected": 0
+  },
+  {
+   "slots": [
+    "axe",
+    null
+   ],
+   "current": 0,
+   "theirs": "shield",
+   "expected": 0
+  },
+  {
+   "slots": [
+    "axe",
+    null
+   ],
+   "current": 0,
+   "theirs": "axe",
+   "expected": 0
+  },
+  {
+   "slots": [
+    "axe",
+    null
+   ],
+   "current": 0,
+   "theirs": "fists",
+   "expected": 0
+  },
+  {
+   "slots": [
+    "axe",
+    null
+   ],
+   "current": 1,
+   "theirs": null,
+   "expected": 0
+  },
+  {
+   "slots": [
+    "axe",
+    null
+   ],
+   "current": 1,
+   "theirs": "sword",
+   "expected": 0
+  },
+  {
+   "slots": [
+    "axe",
+    null
+   ],
+   "current": 1,
+   "theirs": "bow",
+   "expected": 0
+  },
+  {
+   "slots": [
+    "axe",
+    null
+   ],
+   "current": 1,
+   "theirs": "wand",
+   "expected": 0
+  },
+  {
+   "slots": [
+    "axe",
+    null
+   ],
+   "current": 1,
+   "theirs": "shield",
+   "expected": 0
+  },
+  {
+   "slots": [
+    "axe",
+    null
+   ],
+   "current": 1,
+   "theirs": "axe",
+   "expected": 0
+  },
+  {
+   "slots": [
+    "axe",
+    null
+   ],
+   "current": 1,
+   "theirs": "fists",
+   "expected": 0
+  },
+  {
+   "slots": [
+    "fists",
+    null
+   ],
+   "current": 0,
+   "theirs": null,
+   "expected": 0
+  },
+  {
+   "slots": [
+    "fists",
+    null
+   ],
+   "current": 0,
+   "theirs": "sword",
+   "expected": 0
+  },
+  {
+   "slots": [
+    "fists",
+    null
+   ],
+   "current": 0,
+   "theirs": "bow",
+   "expected": 0
+  },
+  {
+   "slots": [
+    "fists",
+    null
+   ],
+   "current": 0,
+   "theirs": "wand",
+   "expected": 0
+  },
+  {
+   "slots": [
+    "fists",
+    null
+   ],
+   "current": 0,
+   "theirs": "shield",
+   "expected": 0
+  },
+  {
+   "slots": [
+    "fists",
+    null
+   ],
+   "current": 0,
+   "theirs": "axe",
+   "expected": 0
+  },
+  {
+   "slots": [
+    "fists",
+    null
+   ],
+   "current": 0,
+   "theirs": "fists",
+   "expected": 0
+  },
+  {
+   "slots": [
+    "fists",
+    null
+   ],
+   "current": 1,
+   "theirs": null,
+   "expected": 0
+  },
+  {
+   "slots": [
+    "fists",
+    null
+   ],
+   "current": 1,
+   "theirs": "sword",
+   "expected": 0
+  },
+  {
+   "slots": [
+    "fists",
+    null
+   ],
+   "current": 1,
+   "theirs": "bow",
+   "expected": 0
+  },
+  {
+   "slots": [
+    "fists",
+    null
+   ],
+   "current": 1,
+   "theirs": "wand",
+   "expected": 0
+  },
+  {
+   "slots": [
+    "fists",
+    null
+   ],
+   "current": 1,
+   "theirs": "shield",
+   "expected": 0
+  },
+  {
+   "slots": [
+    "fists",
+    null
+   ],
+   "current": 1,
+   "theirs": "axe",
+   "expected": 0
+  },
+  {
+   "slots": [
+    "fists",
+    null
+   ],
+   "current": 1,
+   "theirs": "fists",
+   "expected": 0
+  },
+  {
+   "slots": [
+    "shield",
+    "bow"
+   ],
+   "current": 0,
+   "theirs": null,
+   "expected": 0
+  },
+  {
+   "slots": [
+    "shield",
+    "bow"
+   ],
+   "current": 0,
+   "theirs": "sword",
+   "expected": 1
+  },
+  {
+   "slots": [
+    "shield",
+    "bow"
+   ],
+   "current": 0,
+   "theirs": "bow",
+   "expected": 1
+  },
+  {
+   "slots": [
+    "shield",
+    "bow"
+   ],
+   "current": 0,
+   "theirs": "wand",
+   "expected": 0
+  },
+  {
+   "slots": [
+    "shield",
+    "bow"
+   ],
+   "current": 0,
+   "theirs": "shield",
+   "expected": 0
+  },
+  {
+   "slots": [
+    "shield",
+    "bow"
+   ],
+   "current": 0,
+   "theirs": "axe",
+   "expected": 1
+  },
+  {
+   "slots": [
+    "shield",
+    "bow"
+   ],
+   "current": 0,
+   "theirs": "fists",
+   "expected": 0
+  },
+  {
+   "slots": [
+    "shield",
+    "bow"
+   ],
+   "current": 1,
+   "theirs": null,
+   "expected": 1
+  },
+  {
+   "slots": [
+    "shield",
+    "bow"
+   ],
+   "current": 1,
+   "theirs": "sword",
+   "expected": 1
+  },
+  {
+   "slots": [
+    "shield",
+    "bow"
+   ],
+   "current": 1,
+   "theirs": "bow",
+   "expected": 1
+  },
+  {
+   "slots": [
+    "shield",
+    "bow"
+   ],
+   "current": 1,
+   "theirs": "wand",
+   "expected": 0
+  },
+  {
+   "slots": [
+    "shield",
+    "bow"
+   ],
+   "current": 1,
+   "theirs": "shield",
+   "expected": 1
+  },
+  {
+   "slots": [
+    "shield",
+    "bow"
+   ],
+   "current": 1,
+   "theirs": "axe",
+   "expected": 1
+  },
+  {
+   "slots": [
+    "shield",
+    "bow"
+   ],
+   "current": 1,
+   "theirs": "fists",
+   "expected": 1
+  }
+ ],
+ "mobWeapon": [
+  {
+   "weapon0": "sword",
+   "faction": "fire",
+   "expected": "sword"
+  },
+  {
+   "weapon0": "sword",
+   "faction": "sentenced",
+   "expected": "sword"
+  },
+  {
+   "weapon0": "sword",
+   "faction": "plague",
+   "expected": "sword"
+  },
+  {
+   "weapon0": "sword",
+   "faction": "frost",
+   "expected": "sword"
+  },
+  {
+   "weapon0": "sword",
+   "faction": "holy",
+   "expected": "sword"
+  },
+  {
+   "weapon0": "sword",
+   "faction": "",
+   "expected": "sword"
+  },
+  {
+   "weapon0": "sword",
+   "faction": "coliseum",
+   "expected": "sword"
+  },
+  {
+   "weapon0": "sword",
+   "faction": "bogus",
+   "expected": "sword"
+  },
+  {
+   "weapon0": "bow",
+   "faction": "fire",
+   "expected": "bow"
+  },
+  {
+   "weapon0": "bow",
+   "faction": "sentenced",
+   "expected": "bow"
+  },
+  {
+   "weapon0": "bow",
+   "faction": "plague",
+   "expected": "bow"
+  },
+  {
+   "weapon0": "bow",
+   "faction": "frost",
+   "expected": "bow"
+  },
+  {
+   "weapon0": "bow",
+   "faction": "holy",
+   "expected": "bow"
+  },
+  {
+   "weapon0": "bow",
+   "faction": "",
+   "expected": "bow"
+  },
+  {
+   "weapon0": "bow",
+   "faction": "coliseum",
+   "expected": "bow"
+  },
+  {
+   "weapon0": "bow",
+   "faction": "bogus",
+   "expected": "bow"
+  },
+  {
+   "weapon0": "wand",
+   "faction": "fire",
+   "expected": "wand"
+  },
+  {
+   "weapon0": "wand",
+   "faction": "sentenced",
+   "expected": "wand"
+  },
+  {
+   "weapon0": "wand",
+   "faction": "plague",
+   "expected": "wand"
+  },
+  {
+   "weapon0": "wand",
+   "faction": "frost",
+   "expected": "wand"
+  },
+  {
+   "weapon0": "wand",
+   "faction": "holy",
+   "expected": "wand"
+  },
+  {
+   "weapon0": "wand",
+   "faction": "",
+   "expected": "wand"
+  },
+  {
+   "weapon0": "wand",
+   "faction": "coliseum",
+   "expected": "wand"
+  },
+  {
+   "weapon0": "wand",
+   "faction": "bogus",
+   "expected": "wand"
+  },
+  {
+   "weapon0": "shield",
+   "faction": "fire",
+   "expected": "shield"
+  },
+  {
+   "weapon0": "shield",
+   "faction": "sentenced",
+   "expected": "shield"
+  },
+  {
+   "weapon0": "shield",
+   "faction": "plague",
+   "expected": "shield"
+  },
+  {
+   "weapon0": "shield",
+   "faction": "frost",
+   "expected": "shield"
+  },
+  {
+   "weapon0": "shield",
+   "faction": "holy",
+   "expected": "shield"
+  },
+  {
+   "weapon0": "shield",
+   "faction": "",
+   "expected": "shield"
+  },
+  {
+   "weapon0": "shield",
+   "faction": "coliseum",
+   "expected": "shield"
+  },
+  {
+   "weapon0": "shield",
+   "faction": "bogus",
+   "expected": "shield"
+  },
+  {
+   "weapon0": "axe",
+   "faction": "fire",
+   "expected": "axe"
+  },
+  {
+   "weapon0": "axe",
+   "faction": "sentenced",
+   "expected": "axe"
+  },
+  {
+   "weapon0": "axe",
+   "faction": "plague",
+   "expected": "axe"
+  },
+  {
+   "weapon0": "axe",
+   "faction": "frost",
+   "expected": "axe"
+  },
+  {
+   "weapon0": "axe",
+   "faction": "holy",
+   "expected": "axe"
+  },
+  {
+   "weapon0": "axe",
+   "faction": "",
+   "expected": "axe"
+  },
+  {
+   "weapon0": "axe",
+   "faction": "coliseum",
+   "expected": "axe"
+  },
+  {
+   "weapon0": "axe",
+   "faction": "bogus",
+   "expected": "axe"
+  },
+  {
+   "weapon0": "fists",
+   "faction": "fire",
+   "expected": "fists"
+  },
+  {
+   "weapon0": "fists",
+   "faction": "sentenced",
+   "expected": "fists"
+  },
+  {
+   "weapon0": "fists",
+   "faction": "plague",
+   "expected": "fists"
+  },
+  {
+   "weapon0": "fists",
+   "faction": "frost",
+   "expected": "fists"
+  },
+  {
+   "weapon0": "fists",
+   "faction": "holy",
+   "expected": "fists"
+  },
+  {
+   "weapon0": "fists",
+   "faction": "",
+   "expected": "fists"
+  },
+  {
+   "weapon0": "fists",
+   "faction": "coliseum",
+   "expected": "fists"
+  },
+  {
+   "weapon0": "fists",
+   "faction": "bogus",
+   "expected": "fists"
+  },
+  {
+   "weapon0": "",
+   "faction": "fire",
+   "expected": "axe"
+  },
+  {
+   "weapon0": "",
+   "faction": "sentenced",
+   "expected": "sword"
+  },
+  {
+   "weapon0": "",
+   "faction": "plague",
+   "expected": "bow"
+  },
+  {
+   "weapon0": "",
+   "faction": "frost",
+   "expected": "shield"
+  },
+  {
+   "weapon0": "",
+   "faction": "holy",
+   "expected": "wand"
+  },
+  {
+   "weapon0": "",
+   "faction": "",
+   "expected": null
+  },
+  {
+   "weapon0": "",
+   "faction": "coliseum",
+   "expected": null
+  },
+  {
+   "weapon0": "",
+   "faction": "bogus",
+   "expected": null
+  },
+  {
+   "weapon0": "bogus",
+   "faction": "fire",
+   "expected": "axe"
+  },
+  {
+   "weapon0": "bogus",
+   "faction": "sentenced",
+   "expected": "sword"
+  },
+  {
+   "weapon0": "bogus",
+   "faction": "plague",
+   "expected": "bow"
+  },
+  {
+   "weapon0": "bogus",
+   "faction": "frost",
+   "expected": "shield"
+  },
+  {
+   "weapon0": "bogus",
+   "faction": "holy",
+   "expected": "wand"
+  },
+  {
+   "weapon0": "bogus",
+   "faction": "",
+   "expected": null
+  },
+  {
+   "weapon0": "bogus",
+   "faction": "coliseum",
+   "expected": null
+  },
+  {
+   "weapon0": "bogus",
+   "faction": "bogus",
+   "expected": null
+  }
+ ],
+ "retreatPoints": [
+  {
+   "name": "open-no-threats",
+   "self": {
+    "x": 176,
+    "y": 112
+   },
+   "threats": [],
+   "expected": {
+    "x": 57.74342,
+    "y": 160.983479
+   }
+  },
+  {
+   "name": "open-one-threat",
+   "self": {
+    "x": 176,
+    "y": 112
+   },
+   "threats": [
+    {
+     "x": 300,
+     "y": 112
+    }
+   ],
+   "expected": {
+    "x": 57.74342,
+    "y": 160.983479
+   }
+  },
+  {
+   "name": "open-three-threats",
+   "self": {
+    "x": 176,
+    "y": 112
+   },
+   "threats": [
+    {
+     "x": 150,
+     "y": 100
+    },
+    {
+     "x": 240,
+     "y": 150
+    },
+    {
+     "x": 200,
+     "y": 60
+    }
+   ],
+   "expected": {
+    "x": 57.74342,
+    "y": 160.983479
+   }
+  },
+  {
+   "name": "corner",
+   "self": {
+    "x": 48,
+    "y": 48
+   },
+   "threats": [
+    {
+     "x": 200,
+     "y": 200
+    }
+   ],
+   "expected": null
+  },
+  {
+   "name": "beside-internal-wall",
+   "self": {
+    "x": 224,
+    "y": 336
+   },
+   "threats": [
+    {
+     "x": 100,
+     "y": 336
+    }
+   ],
+   "expected": {
+    "x": 448,
+    "y": 336
+   }
+  },
+  {
+   "name": "right-region",
+   "self": {
+    "x": 400,
+    "y": 112
+   },
+   "threats": [
+    {
+     "x": 300,
+     "y": 160
+    },
+    {
+     "x": 360,
+     "y": 220
+    }
+   ],
+   "expected": {
+    "x": 400,
+    "y": 336
+   }
+  },
+  {
+   "name": "long-step-blocked-short-used",
+   "self": {
+    "x": 240,
+    "y": 256
+   },
+   "threats": [
+    {
+     "x": 300,
+     "y": 256
+    }
+   ],
+   "expected": {
+    "x": 112,
+    "y": 256
+   }
+  },
+  {
+   "name": "enclosed-cell-null",
+   "self": {
+    "x": 80,
+    "y": 80
+   },
+   "threats": [
+    {
+     "x": 300,
+     "y": 300
+    }
+   ],
+   "expected": null
+  },
+  {
+   "name": "inside-wall-null",
+   "self": {
+    "x": 272,
+    "y": 208
+   },
+   "threats": [
+    {
+     "x": 100,
+     "y": 100
+    }
+   ],
+   "expected": null
+  }
+ ],
+ "decisions": [
+  {
+   "decision": {
+    "kind": "player",
+    "why": "no mob in reach"
+   },
+   "expected": true
+  },
+  {
+   "decision": {
+    "kind": "player",
+    "why": "a player is close"
+   },
+   "expected": false
+  },
+  {
+   "decision": {
+    "kind": "player",
+    "why": "coliseum"
+   },
+   "expected": false
+  },
+  {
+   "decision": {
+    "kind": "player",
+    "why": "mob time budget spent"
+   },
+   "expected": false
+  },
+  {
+   "decision": {
+    "kind": "mob",
+    "id": "m1",
+    "why": "fire mob with axe"
+   },
+   "expected": false
+  },
+  {
+   "decision": {
+    "kind": "retreat",
+    "from": [
+     {
+      "x": 10,
+      "y": 20
+     },
+     {
+      "x": 30,
+      "y": 40
+     }
+    ],
+    "why": "low hp"
+   },
+   "expected": false
+  }
+ ],
+ "buildGoals": [
+  [
+   {
+    "id": "fire:A",
+    "name": "AD burst assassin",
+    "weights": {
+     "damage": 1,
+     "maxHp": 0.95,
+     "armor": 0.76,
+     "ad": 0.75,
+     "shield": 0.53,
+     "lifesteal": 0.46
+    }
+   },
+   {
+    "id": "fire:B",
+    "name": "AP burn tank",
+    "weights": {
+     "armor": 1,
+     "damage": 1,
+     "maxHp": 0.94,
+     "ap": 0.75,
+     "shield": 0.73,
+     "lifesteal": 0.55
+    }
+   }
+  ],
+  [
+   {
+    "id": "sentenced:A",
+    "name": "stat bully bruiser",
+    "weights": {
+     "attackSpeed": 1,
+     "armor": 0.75,
+     "shield": 0.75,
+     "ad": 0.75,
+     "damage": 0.74,
+     "maxHp": 0.72,
+     "ap": 0.51
+    }
+   },
+   {
+    "id": "sentenced:B",
+    "name": "attack-speed max-HP punisher",
+    "weights": {
+     "attackSpeed": 1,
+     "damage": 0.78,
+     "maxHp": 0.73,
+     "ad": 0.51,
+     "armor": 0.42
+    }
+   }
+  ],
+  [
+   {
+    "id": "plague:A",
+    "name": "attack-speed SO DoT stacker",
+    "weights": {
+     "ap": 1,
+     "attackSpeed": 0.75,
+     "damage": 0.49,
+     "maxHp": 0.46
+    }
+   },
+   {
+    "id": "plague:B",
+    "name": "zombie commander",
+    "weights": {
+     "ap": 1,
+     "maxHp": 0.75,
+     "damage": 0.52
+    }
+   }
+  ],
+  [
+   {
+    "id": "frost:A",
+    "name": "Defense/SD shield tank",
+    "weights": {
+     "attackSpeed": 1,
+     "shield": 0.81,
+     "armor": 0.75,
+     "maxHp": 0.58,
+     "damage": 0.56
+    }
+   },
+   {
+    "id": "frost:B",
+    "name": "bow kiter",
+    "weights": {
+     "attackSpeed": 1,
+     "ad": 0.8,
+     "damage": 0.8,
+     "maxHp": 0.6,
+     "shield": 0.4
+    }
+   }
+  ],
+  [
+   {
+    "id": "holy:A",
+    "name": "lifesteal juggernaut",
+    "weights": {
+     "attackSpeed": 1,
+     "lifesteal": 0.75,
+     "damage": 0.64,
+     "ad": 0.57,
+     "maxHp": 0.31
+    }
+   },
+   {
+    "id": "holy:B",
+    "name": "Soul-damage Holy",
+    "weights": {
+     "attackSpeed": 1,
+     "ap": 0.75,
+     "damage": 0.75,
+     "armor": 0.31
+    }
+   }
+  ]
+ ],
+ "buildConstants": {
+  "STAT_FLOOR": 0.25,
+  "ROUTE_STEPS": 4,
+  "MAX_WAIT_MS": 40000,
+  "CLEAR_MS_PER_MOB": 4000,
+  "CLEAR_MS_ELITE": 15000,
+  "ELITE_VALUE": 6,
+  "ELITE_AFTER_MS": 360000,
+  "ELITE_MIN_KILLS": 12,
+  "ELITE_EARLY_POWER": 6,
+  "CONTEST_MS": 30000,
+  "ZONE_CONTESTS": 2,
+  "ZONE_MEMORY_MS": 90000,
+  "ZONE_AVOID_MS": 60000,
+  "CONTEST_PLAYER_RANGE": 320,
+  "OWN_FIGHT_SLACK": 200,
+  "WALK_FACTOR": 1.3,
+  "REPLAN_MS": 8000
+ },
+ "buildOf": [
+  {
+   "faction": "fire",
+   "draw": 0,
+   "expected": "fire:A"
+  },
+  {
+   "faction": "fire",
+   "draw": 0.499999999999,
+   "expected": "fire:A"
+  },
+  {
+   "faction": "fire",
+   "draw": 0.5,
+   "expected": "fire:B"
+  },
+  {
+   "faction": "fire",
+   "draw": 0.999999999,
+   "expected": "fire:B"
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0,
+   "expected": "sentenced:A"
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0.499999999999,
+   "expected": "sentenced:A"
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0.5,
+   "expected": "sentenced:B"
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0.999999999,
+   "expected": "sentenced:B"
+  },
+  {
+   "faction": "plague",
+   "draw": 0,
+   "expected": "plague:A"
+  },
+  {
+   "faction": "plague",
+   "draw": 0.499999999999,
+   "expected": "plague:A"
+  },
+  {
+   "faction": "plague",
+   "draw": 0.5,
+   "expected": "plague:B"
+  },
+  {
+   "faction": "plague",
+   "draw": 0.999999999,
+   "expected": "plague:B"
+  },
+  {
+   "faction": "frost",
+   "draw": 0,
+   "expected": "frost:A"
+  },
+  {
+   "faction": "frost",
+   "draw": 0.499999999999,
+   "expected": "frost:A"
+  },
+  {
+   "faction": "frost",
+   "draw": 0.5,
+   "expected": "frost:B"
+  },
+  {
+   "faction": "frost",
+   "draw": 0.999999999,
+   "expected": "frost:B"
+  },
+  {
+   "faction": "holy",
+   "draw": 0,
+   "expected": "holy:A"
+  },
+  {
+   "faction": "holy",
+   "draw": 0.499999999999,
+   "expected": "holy:A"
+  },
+  {
+   "faction": "holy",
+   "draw": 0.5,
+   "expected": "holy:B"
+  },
+  {
+   "faction": "holy",
+   "draw": 0.999999999,
+   "expected": "holy:B"
+  }
+ ],
+ "typeWeight": [
+  {
+   "faction": "fire",
+   "draw": 0,
+   "type": "emberImp",
+   "expected": 1
+  },
+  {
+   "faction": "fire",
+   "draw": 0,
+   "type": "cinderHound",
+   "expected": 0.25
+  },
+  {
+   "faction": "fire",
+   "draw": 0,
+   "type": "magmaBrute",
+   "expected": 0.95
+  },
+  {
+   "faction": "fire",
+   "draw": 0,
+   "type": "flameCaller",
+   "expected": 0.25
+  },
+  {
+   "faction": "fire",
+   "draw": 0,
+   "type": "wyrmling",
+   "expected": 0.25
+  },
+  {
+   "faction": "fire",
+   "draw": 0,
+   "type": "ashDrake",
+   "expected": 0.25
+  },
+  {
+   "faction": "fire",
+   "draw": 0,
+   "type": "bailiff",
+   "expected": 0.76
+  },
+  {
+   "faction": "fire",
+   "draw": 0,
+   "type": "chainWarden",
+   "expected": 0.53
+  },
+  {
+   "faction": "fire",
+   "draw": 0,
+   "type": "inquisitor",
+   "expected": 1
+  },
+  {
+   "faction": "fire",
+   "draw": 0,
+   "type": "pardoner",
+   "expected": 0.75
+  },
+  {
+   "faction": "fire",
+   "draw": 0,
+   "type": "executioner",
+   "expected": 0.25
+  },
+  {
+   "faction": "fire",
+   "draw": 0,
+   "type": "gaoler",
+   "expected": 0.25
+  },
+  {
+   "faction": "fire",
+   "draw": 0,
+   "type": "plagueRat",
+   "expected": 0.25
+  },
+  {
+   "faction": "fire",
+   "draw": 0,
+   "type": "bloatfly",
+   "expected": 0.25
+  },
+  {
+   "faction": "fire",
+   "draw": 0,
+   "type": "rotMonk",
+   "expected": 0.46
+  },
+  {
+   "faction": "fire",
+   "draw": 0,
+   "type": "miasmaWitch",
+   "expected": 0.25
+  },
+  {
+   "faction": "fire",
+   "draw": 0,
+   "type": "ratOgre",
+   "expected": 0.25
+  },
+  {
+   "faction": "fire",
+   "draw": 0,
+   "type": "poxBehemoth",
+   "expected": 0.25
+  },
+  {
+   "faction": "fire",
+   "draw": 0,
+   "type": "frostWisp",
+   "expected": 0.53
+  },
+  {
+   "faction": "fire",
+   "draw": 0,
+   "type": "iceGolem",
+   "expected": 0.95
+  },
+  {
+   "faction": "fire",
+   "draw": 0,
+   "type": "rimeStalker",
+   "expected": 0.76
+  },
+  {
+   "faction": "fire",
+   "draw": 0,
+   "type": "frostbowSentry",
+   "expected": 0.25
+  },
+  {
+   "faction": "fire",
+   "draw": 0,
+   "type": "glacialWarden",
+   "expected": 0.25
+  },
+  {
+   "faction": "fire",
+   "draw": 0,
+   "type": "avalancheTroll",
+   "expected": 0.25
+  },
+  {
+   "faction": "fire",
+   "draw": 0,
+   "type": "acolyte",
+   "expected": 0.46
+  },
+  {
+   "faction": "fire",
+   "draw": 0,
+   "type": "seraphShard",
+   "expected": 0.53
+  },
+  {
+   "faction": "fire",
+   "draw": 0,
+   "type": "penitent",
+   "expected": 0.95
+  },
+  {
+   "faction": "fire",
+   "draw": 0,
+   "type": "zealot",
+   "expected": 0.76
+  },
+  {
+   "faction": "fire",
+   "draw": 0,
+   "type": "bloodSaint",
+   "expected": 0.25
+  },
+  {
+   "faction": "fire",
+   "draw": 0,
+   "type": "archon",
+   "expected": 0.25
+  },
+  {
+   "faction": "fire",
+   "draw": 0,
+   "type": "",
+   "expected": 0.25
+  },
+  {
+   "faction": "fire",
+   "draw": 0,
+   "type": "bogus",
+   "expected": 0.25
+  },
+  {
+   "faction": "fire",
+   "draw": 0.2,
+   "type": "emberImp",
+   "expected": 1
+  },
+  {
+   "faction": "fire",
+   "draw": 0.2,
+   "type": "cinderHound",
+   "expected": 0.25
+  },
+  {
+   "faction": "fire",
+   "draw": 0.2,
+   "type": "magmaBrute",
+   "expected": 0.95
+  },
+  {
+   "faction": "fire",
+   "draw": 0.2,
+   "type": "flameCaller",
+   "expected": 0.25
+  },
+  {
+   "faction": "fire",
+   "draw": 0.2,
+   "type": "wyrmling",
+   "expected": 0.25
+  },
+  {
+   "faction": "fire",
+   "draw": 0.2,
+   "type": "ashDrake",
+   "expected": 0.25
+  },
+  {
+   "faction": "fire",
+   "draw": 0.2,
+   "type": "bailiff",
+   "expected": 0.76
+  },
+  {
+   "faction": "fire",
+   "draw": 0.2,
+   "type": "chainWarden",
+   "expected": 0.53
+  },
+  {
+   "faction": "fire",
+   "draw": 0.2,
+   "type": "inquisitor",
+   "expected": 1
+  },
+  {
+   "faction": "fire",
+   "draw": 0.2,
+   "type": "pardoner",
+   "expected": 0.75
+  },
+  {
+   "faction": "fire",
+   "draw": 0.2,
+   "type": "executioner",
+   "expected": 0.25
+  },
+  {
+   "faction": "fire",
+   "draw": 0.2,
+   "type": "gaoler",
+   "expected": 0.25
+  },
+  {
+   "faction": "fire",
+   "draw": 0.2,
+   "type": "plagueRat",
+   "expected": 0.25
+  },
+  {
+   "faction": "fire",
+   "draw": 0.2,
+   "type": "bloatfly",
+   "expected": 0.25
+  },
+  {
+   "faction": "fire",
+   "draw": 0.2,
+   "type": "rotMonk",
+   "expected": 0.46
+  },
+  {
+   "faction": "fire",
+   "draw": 0.2,
+   "type": "miasmaWitch",
+   "expected": 0.25
+  },
+  {
+   "faction": "fire",
+   "draw": 0.2,
+   "type": "ratOgre",
+   "expected": 0.25
+  },
+  {
+   "faction": "fire",
+   "draw": 0.2,
+   "type": "poxBehemoth",
+   "expected": 0.25
+  },
+  {
+   "faction": "fire",
+   "draw": 0.2,
+   "type": "frostWisp",
+   "expected": 0.53
+  },
+  {
+   "faction": "fire",
+   "draw": 0.2,
+   "type": "iceGolem",
+   "expected": 0.95
+  },
+  {
+   "faction": "fire",
+   "draw": 0.2,
+   "type": "rimeStalker",
+   "expected": 0.76
+  },
+  {
+   "faction": "fire",
+   "draw": 0.2,
+   "type": "frostbowSentry",
+   "expected": 0.25
+  },
+  {
+   "faction": "fire",
+   "draw": 0.2,
+   "type": "glacialWarden",
+   "expected": 0.25
+  },
+  {
+   "faction": "fire",
+   "draw": 0.2,
+   "type": "avalancheTroll",
+   "expected": 0.25
+  },
+  {
+   "faction": "fire",
+   "draw": 0.2,
+   "type": "acolyte",
+   "expected": 0.46
+  },
+  {
+   "faction": "fire",
+   "draw": 0.2,
+   "type": "seraphShard",
+   "expected": 0.53
+  },
+  {
+   "faction": "fire",
+   "draw": 0.2,
+   "type": "penitent",
+   "expected": 0.95
+  },
+  {
+   "faction": "fire",
+   "draw": 0.2,
+   "type": "zealot",
+   "expected": 0.76
+  },
+  {
+   "faction": "fire",
+   "draw": 0.2,
+   "type": "bloodSaint",
+   "expected": 0.25
+  },
+  {
+   "faction": "fire",
+   "draw": 0.2,
+   "type": "archon",
+   "expected": 0.25
+  },
+  {
+   "faction": "fire",
+   "draw": 0.2,
+   "type": "",
+   "expected": 0.25
+  },
+  {
+   "faction": "fire",
+   "draw": 0.2,
+   "type": "bogus",
+   "expected": 0.25
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0,
+   "type": "emberImp",
+   "expected": 0.74
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0,
+   "type": "cinderHound",
+   "expected": 0.25
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0,
+   "type": "magmaBrute",
+   "expected": 0.72
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0,
+   "type": "flameCaller",
+   "expected": 0.51
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0,
+   "type": "wyrmling",
+   "expected": 0.25
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0,
+   "type": "ashDrake",
+   "expected": 0.25
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0,
+   "type": "bailiff",
+   "expected": 0.75
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0,
+   "type": "chainWarden",
+   "expected": 0.75
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0,
+   "type": "inquisitor",
+   "expected": 0.74
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0,
+   "type": "pardoner",
+   "expected": 0.75
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0,
+   "type": "executioner",
+   "expected": 0.25
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0,
+   "type": "gaoler",
+   "expected": 0.25
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0,
+   "type": "plagueRat",
+   "expected": 1
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0,
+   "type": "bloatfly",
+   "expected": 0.25
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0,
+   "type": "rotMonk",
+   "expected": 0.25
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0,
+   "type": "miasmaWitch",
+   "expected": 0.51
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0,
+   "type": "ratOgre",
+   "expected": 0.25
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0,
+   "type": "poxBehemoth",
+   "expected": 0.25
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0,
+   "type": "frostWisp",
+   "expected": 0.75
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0,
+   "type": "iceGolem",
+   "expected": 0.72
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0,
+   "type": "rimeStalker",
+   "expected": 0.75
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0,
+   "type": "frostbowSentry",
+   "expected": 1
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0,
+   "type": "glacialWarden",
+   "expected": 0.25
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0,
+   "type": "avalancheTroll",
+   "expected": 0.25
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0,
+   "type": "acolyte",
+   "expected": 0.25
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0,
+   "type": "seraphShard",
+   "expected": 0.75
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0,
+   "type": "penitent",
+   "expected": 0.72
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0,
+   "type": "zealot",
+   "expected": 0.75
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0,
+   "type": "bloodSaint",
+   "expected": 0.25
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0,
+   "type": "archon",
+   "expected": 0.25
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0,
+   "type": "",
+   "expected": 0.25
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0,
+   "type": "bogus",
+   "expected": 0.25
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0.2,
+   "type": "emberImp",
+   "expected": 0.74
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0.2,
+   "type": "cinderHound",
+   "expected": 0.25
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0.2,
+   "type": "magmaBrute",
+   "expected": 0.72
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0.2,
+   "type": "flameCaller",
+   "expected": 0.51
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0.2,
+   "type": "wyrmling",
+   "expected": 0.25
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0.2,
+   "type": "ashDrake",
+   "expected": 0.25
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0.2,
+   "type": "bailiff",
+   "expected": 0.75
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0.2,
+   "type": "chainWarden",
+   "expected": 0.75
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0.2,
+   "type": "inquisitor",
+   "expected": 0.74
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0.2,
+   "type": "pardoner",
+   "expected": 0.75
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0.2,
+   "type": "executioner",
+   "expected": 0.25
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0.2,
+   "type": "gaoler",
+   "expected": 0.25
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0.2,
+   "type": "plagueRat",
+   "expected": 1
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0.2,
+   "type": "bloatfly",
+   "expected": 0.25
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0.2,
+   "type": "rotMonk",
+   "expected": 0.25
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0.2,
+   "type": "miasmaWitch",
+   "expected": 0.51
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0.2,
+   "type": "ratOgre",
+   "expected": 0.25
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0.2,
+   "type": "poxBehemoth",
+   "expected": 0.25
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0.2,
+   "type": "frostWisp",
+   "expected": 0.75
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0.2,
+   "type": "iceGolem",
+   "expected": 0.72
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0.2,
+   "type": "rimeStalker",
+   "expected": 0.75
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0.2,
+   "type": "frostbowSentry",
+   "expected": 1
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0.2,
+   "type": "glacialWarden",
+   "expected": 0.25
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0.2,
+   "type": "avalancheTroll",
+   "expected": 0.25
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0.2,
+   "type": "acolyte",
+   "expected": 0.25
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0.2,
+   "type": "seraphShard",
+   "expected": 0.75
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0.2,
+   "type": "penitent",
+   "expected": 0.72
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0.2,
+   "type": "zealot",
+   "expected": 0.75
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0.2,
+   "type": "bloodSaint",
+   "expected": 0.25
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0.2,
+   "type": "archon",
+   "expected": 0.25
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0.2,
+   "type": "",
+   "expected": 0.25
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0.2,
+   "type": "bogus",
+   "expected": 0.25
+  },
+  {
+   "faction": "plague",
+   "draw": 0,
+   "type": "emberImp",
+   "expected": 0.49
+  },
+  {
+   "faction": "plague",
+   "draw": 0,
+   "type": "cinderHound",
+   "expected": 0.25
+  },
+  {
+   "faction": "plague",
+   "draw": 0,
+   "type": "magmaBrute",
+   "expected": 0.46
+  },
+  {
+   "faction": "plague",
+   "draw": 0,
+   "type": "flameCaller",
+   "expected": 1
+  },
+  {
+   "faction": "plague",
+   "draw": 0,
+   "type": "wyrmling",
+   "expected": 0.25
+  },
+  {
+   "faction": "plague",
+   "draw": 0,
+   "type": "ashDrake",
+   "expected": 0.25
+  },
+  {
+   "faction": "plague",
+   "draw": 0,
+   "type": "bailiff",
+   "expected": 0.25
+  },
+  {
+   "faction": "plague",
+   "draw": 0,
+   "type": "chainWarden",
+   "expected": 0.25
+  },
+  {
+   "faction": "plague",
+   "draw": 0,
+   "type": "inquisitor",
+   "expected": 0.49
+  },
+  {
+   "faction": "plague",
+   "draw": 0,
+   "type": "pardoner",
+   "expected": 0.25
+  },
+  {
+   "faction": "plague",
+   "draw": 0,
+   "type": "executioner",
+   "expected": 0.25
+  },
+  {
+   "faction": "plague",
+   "draw": 0,
+   "type": "gaoler",
+   "expected": 0.25
+  },
+  {
+   "faction": "plague",
+   "draw": 0,
+   "type": "plagueRat",
+   "expected": 0.75
+  },
+  {
+   "faction": "plague",
+   "draw": 0,
+   "type": "bloatfly",
+   "expected": 0.25
+  },
+  {
+   "faction": "plague",
+   "draw": 0,
+   "type": "rotMonk",
+   "expected": 0.25
+  },
+  {
+   "faction": "plague",
+   "draw": 0,
+   "type": "miasmaWitch",
+   "expected": 1
+  },
+  {
+   "faction": "plague",
+   "draw": 0,
+   "type": "ratOgre",
+   "expected": 0.25
+  },
+  {
+   "faction": "plague",
+   "draw": 0,
+   "type": "poxBehemoth",
+   "expected": 0.25
+  },
+  {
+   "faction": "plague",
+   "draw": 0,
+   "type": "frostWisp",
+   "expected": 0.25
+  },
+  {
+   "faction": "plague",
+   "draw": 0,
+   "type": "iceGolem",
+   "expected": 0.46
+  },
+  {
+   "faction": "plague",
+   "draw": 0,
+   "type": "rimeStalker",
+   "expected": 0.25
+  },
+  {
+   "faction": "plague",
+   "draw": 0,
+   "type": "frostbowSentry",
+   "expected": 0.75
+  },
+  {
+   "faction": "plague",
+   "draw": 0,
+   "type": "glacialWarden",
+   "expected": 0.25
+  },
+  {
+   "faction": "plague",
+   "draw": 0,
+   "type": "avalancheTroll",
+   "expected": 0.25
+  },
+  {
+   "faction": "plague",
+   "draw": 0,
+   "type": "acolyte",
+   "expected": 0.25
+  },
+  {
+   "faction": "plague",
+   "draw": 0,
+   "type": "seraphShard",
+   "expected": 0.25
+  },
+  {
+   "faction": "plague",
+   "draw": 0,
+   "type": "penitent",
+   "expected": 0.46
+  },
+  {
+   "faction": "plague",
+   "draw": 0,
+   "type": "zealot",
+   "expected": 0.25
+  },
+  {
+   "faction": "plague",
+   "draw": 0,
+   "type": "bloodSaint",
+   "expected": 0.25
+  },
+  {
+   "faction": "plague",
+   "draw": 0,
+   "type": "archon",
+   "expected": 0.25
+  },
+  {
+   "faction": "plague",
+   "draw": 0,
+   "type": "",
+   "expected": 0.25
+  },
+  {
+   "faction": "plague",
+   "draw": 0,
+   "type": "bogus",
+   "expected": 0.25
+  },
+  {
+   "faction": "plague",
+   "draw": 0.2,
+   "type": "emberImp",
+   "expected": 0.49
+  },
+  {
+   "faction": "plague",
+   "draw": 0.2,
+   "type": "cinderHound",
+   "expected": 0.25
+  },
+  {
+   "faction": "plague",
+   "draw": 0.2,
+   "type": "magmaBrute",
+   "expected": 0.46
+  },
+  {
+   "faction": "plague",
+   "draw": 0.2,
+   "type": "flameCaller",
+   "expected": 1
+  },
+  {
+   "faction": "plague",
+   "draw": 0.2,
+   "type": "wyrmling",
+   "expected": 0.25
+  },
+  {
+   "faction": "plague",
+   "draw": 0.2,
+   "type": "ashDrake",
+   "expected": 0.25
+  },
+  {
+   "faction": "plague",
+   "draw": 0.2,
+   "type": "bailiff",
+   "expected": 0.25
+  },
+  {
+   "faction": "plague",
+   "draw": 0.2,
+   "type": "chainWarden",
+   "expected": 0.25
+  },
+  {
+   "faction": "plague",
+   "draw": 0.2,
+   "type": "inquisitor",
+   "expected": 0.49
+  },
+  {
+   "faction": "plague",
+   "draw": 0.2,
+   "type": "pardoner",
+   "expected": 0.25
+  },
+  {
+   "faction": "plague",
+   "draw": 0.2,
+   "type": "executioner",
+   "expected": 0.25
+  },
+  {
+   "faction": "plague",
+   "draw": 0.2,
+   "type": "gaoler",
+   "expected": 0.25
+  },
+  {
+   "faction": "plague",
+   "draw": 0.2,
+   "type": "plagueRat",
+   "expected": 0.75
+  },
+  {
+   "faction": "plague",
+   "draw": 0.2,
+   "type": "bloatfly",
+   "expected": 0.25
+  },
+  {
+   "faction": "plague",
+   "draw": 0.2,
+   "type": "rotMonk",
+   "expected": 0.25
+  },
+  {
+   "faction": "plague",
+   "draw": 0.2,
+   "type": "miasmaWitch",
+   "expected": 1
+  },
+  {
+   "faction": "plague",
+   "draw": 0.2,
+   "type": "ratOgre",
+   "expected": 0.25
+  },
+  {
+   "faction": "plague",
+   "draw": 0.2,
+   "type": "poxBehemoth",
+   "expected": 0.25
+  },
+  {
+   "faction": "plague",
+   "draw": 0.2,
+   "type": "frostWisp",
+   "expected": 0.25
+  },
+  {
+   "faction": "plague",
+   "draw": 0.2,
+   "type": "iceGolem",
+   "expected": 0.46
+  },
+  {
+   "faction": "plague",
+   "draw": 0.2,
+   "type": "rimeStalker",
+   "expected": 0.25
+  },
+  {
+   "faction": "plague",
+   "draw": 0.2,
+   "type": "frostbowSentry",
+   "expected": 0.75
+  },
+  {
+   "faction": "plague",
+   "draw": 0.2,
+   "type": "glacialWarden",
+   "expected": 0.25
+  },
+  {
+   "faction": "plague",
+   "draw": 0.2,
+   "type": "avalancheTroll",
+   "expected": 0.25
+  },
+  {
+   "faction": "plague",
+   "draw": 0.2,
+   "type": "acolyte",
+   "expected": 0.25
+  },
+  {
+   "faction": "plague",
+   "draw": 0.2,
+   "type": "seraphShard",
+   "expected": 0.25
+  },
+  {
+   "faction": "plague",
+   "draw": 0.2,
+   "type": "penitent",
+   "expected": 0.46
+  },
+  {
+   "faction": "plague",
+   "draw": 0.2,
+   "type": "zealot",
+   "expected": 0.25
+  },
+  {
+   "faction": "plague",
+   "draw": 0.2,
+   "type": "bloodSaint",
+   "expected": 0.25
+  },
+  {
+   "faction": "plague",
+   "draw": 0.2,
+   "type": "archon",
+   "expected": 0.25
+  },
+  {
+   "faction": "plague",
+   "draw": 0.2,
+   "type": "",
+   "expected": 0.25
+  },
+  {
+   "faction": "plague",
+   "draw": 0.2,
+   "type": "bogus",
+   "expected": 0.25
+  },
+  {
+   "faction": "frost",
+   "draw": 0,
+   "type": "emberImp",
+   "expected": 0.56
+  },
+  {
+   "faction": "frost",
+   "draw": 0,
+   "type": "cinderHound",
+   "expected": 0.25
+  },
+  {
+   "faction": "frost",
+   "draw": 0,
+   "type": "magmaBrute",
+   "expected": 0.58
+  },
+  {
+   "faction": "frost",
+   "draw": 0,
+   "type": "flameCaller",
+   "expected": 0.25
+  },
+  {
+   "faction": "frost",
+   "draw": 0,
+   "type": "wyrmling",
+   "expected": 0.25
+  },
+  {
+   "faction": "frost",
+   "draw": 0,
+   "type": "ashDrake",
+   "expected": 0.25
+  },
+  {
+   "faction": "frost",
+   "draw": 0,
+   "type": "bailiff",
+   "expected": 0.75
+  },
+  {
+   "faction": "frost",
+   "draw": 0,
+   "type": "chainWarden",
+   "expected": 0.81
+  },
+  {
+   "faction": "frost",
+   "draw": 0,
+   "type": "inquisitor",
+   "expected": 0.56
+  },
+  {
+   "faction": "frost",
+   "draw": 0,
+   "type": "pardoner",
+   "expected": 0.25
+  },
+  {
+   "faction": "frost",
+   "draw": 0,
+   "type": "executioner",
+   "expected": 0.25
+  },
+  {
+   "faction": "frost",
+   "draw": 0,
+   "type": "gaoler",
+   "expected": 0.25
+  },
+  {
+   "faction": "frost",
+   "draw": 0,
+   "type": "plagueRat",
+   "expected": 1
+  },
+  {
+   "faction": "frost",
+   "draw": 0,
+   "type": "bloatfly",
+   "expected": 0.25
+  },
+  {
+   "faction": "frost",
+   "draw": 0,
+   "type": "rotMonk",
+   "expected": 0.25
+  },
+  {
+   "faction": "frost",
+   "draw": 0,
+   "type": "miasmaWitch",
+   "expected": 0.25
+  },
+  {
+   "faction": "frost",
+   "draw": 0,
+   "type": "ratOgre",
+   "expected": 0.25
+  },
+  {
+   "faction": "frost",
+   "draw": 0,
+   "type": "poxBehemoth",
+   "expected": 0.25
+  },
+  {
+   "faction": "frost",
+   "draw": 0,
+   "type": "frostWisp",
+   "expected": 0.81
+  },
+  {
+   "faction": "frost",
+   "draw": 0,
+   "type": "iceGolem",
+   "expected": 0.58
+  },
+  {
+   "faction": "frost",
+   "draw": 0,
+   "type": "rimeStalker",
+   "expected": 0.75
+  },
+  {
+   "faction": "frost",
+   "draw": 0,
+   "type": "frostbowSentry",
+   "expected": 1
+  },
+  {
+   "faction": "frost",
+   "draw": 0,
+   "type": "glacialWarden",
+   "expected": 0.25
+  },
+  {
+   "faction": "frost",
+   "draw": 0,
+   "type": "avalancheTroll",
+   "expected": 0.25
+  },
+  {
+   "faction": "frost",
+   "draw": 0,
+   "type": "acolyte",
+   "expected": 0.25
+  },
+  {
+   "faction": "frost",
+   "draw": 0,
+   "type": "seraphShard",
+   "expected": 0.81
+  },
+  {
+   "faction": "frost",
+   "draw": 0,
+   "type": "penitent",
+   "expected": 0.58
+  },
+  {
+   "faction": "frost",
+   "draw": 0,
+   "type": "zealot",
+   "expected": 0.75
+  },
+  {
+   "faction": "frost",
+   "draw": 0,
+   "type": "bloodSaint",
+   "expected": 0.25
+  },
+  {
+   "faction": "frost",
+   "draw": 0,
+   "type": "archon",
+   "expected": 0.25
+  },
+  {
+   "faction": "frost",
+   "draw": 0,
+   "type": "",
+   "expected": 0.25
+  },
+  {
+   "faction": "frost",
+   "draw": 0,
+   "type": "bogus",
+   "expected": 0.25
+  },
+  {
+   "faction": "frost",
+   "draw": 0.2,
+   "type": "emberImp",
+   "expected": 0.56
+  },
+  {
+   "faction": "frost",
+   "draw": 0.2,
+   "type": "cinderHound",
+   "expected": 0.25
+  },
+  {
+   "faction": "frost",
+   "draw": 0.2,
+   "type": "magmaBrute",
+   "expected": 0.58
+  },
+  {
+   "faction": "frost",
+   "draw": 0.2,
+   "type": "flameCaller",
+   "expected": 0.25
+  },
+  {
+   "faction": "frost",
+   "draw": 0.2,
+   "type": "wyrmling",
+   "expected": 0.25
+  },
+  {
+   "faction": "frost",
+   "draw": 0.2,
+   "type": "ashDrake",
+   "expected": 0.25
+  },
+  {
+   "faction": "frost",
+   "draw": 0.2,
+   "type": "bailiff",
+   "expected": 0.75
+  },
+  {
+   "faction": "frost",
+   "draw": 0.2,
+   "type": "chainWarden",
+   "expected": 0.81
+  },
+  {
+   "faction": "frost",
+   "draw": 0.2,
+   "type": "inquisitor",
+   "expected": 0.56
+  },
+  {
+   "faction": "frost",
+   "draw": 0.2,
+   "type": "pardoner",
+   "expected": 0.25
+  },
+  {
+   "faction": "frost",
+   "draw": 0.2,
+   "type": "executioner",
+   "expected": 0.25
+  },
+  {
+   "faction": "frost",
+   "draw": 0.2,
+   "type": "gaoler",
+   "expected": 0.25
+  },
+  {
+   "faction": "frost",
+   "draw": 0.2,
+   "type": "plagueRat",
+   "expected": 1
+  },
+  {
+   "faction": "frost",
+   "draw": 0.2,
+   "type": "bloatfly",
+   "expected": 0.25
+  },
+  {
+   "faction": "frost",
+   "draw": 0.2,
+   "type": "rotMonk",
+   "expected": 0.25
+  },
+  {
+   "faction": "frost",
+   "draw": 0.2,
+   "type": "miasmaWitch",
+   "expected": 0.25
+  },
+  {
+   "faction": "frost",
+   "draw": 0.2,
+   "type": "ratOgre",
+   "expected": 0.25
+  },
+  {
+   "faction": "frost",
+   "draw": 0.2,
+   "type": "poxBehemoth",
+   "expected": 0.25
+  },
+  {
+   "faction": "frost",
+   "draw": 0.2,
+   "type": "frostWisp",
+   "expected": 0.81
+  },
+  {
+   "faction": "frost",
+   "draw": 0.2,
+   "type": "iceGolem",
+   "expected": 0.58
+  },
+  {
+   "faction": "frost",
+   "draw": 0.2,
+   "type": "rimeStalker",
+   "expected": 0.75
+  },
+  {
+   "faction": "frost",
+   "draw": 0.2,
+   "type": "frostbowSentry",
+   "expected": 1
+  },
+  {
+   "faction": "frost",
+   "draw": 0.2,
+   "type": "glacialWarden",
+   "expected": 0.25
+  },
+  {
+   "faction": "frost",
+   "draw": 0.2,
+   "type": "avalancheTroll",
+   "expected": 0.25
+  },
+  {
+   "faction": "frost",
+   "draw": 0.2,
+   "type": "acolyte",
+   "expected": 0.25
+  },
+  {
+   "faction": "frost",
+   "draw": 0.2,
+   "type": "seraphShard",
+   "expected": 0.81
+  },
+  {
+   "faction": "frost",
+   "draw": 0.2,
+   "type": "penitent",
+   "expected": 0.58
+  },
+  {
+   "faction": "frost",
+   "draw": 0.2,
+   "type": "zealot",
+   "expected": 0.75
+  },
+  {
+   "faction": "frost",
+   "draw": 0.2,
+   "type": "bloodSaint",
+   "expected": 0.25
+  },
+  {
+   "faction": "frost",
+   "draw": 0.2,
+   "type": "archon",
+   "expected": 0.25
+  },
+  {
+   "faction": "frost",
+   "draw": 0.2,
+   "type": "",
+   "expected": 0.25
+  },
+  {
+   "faction": "frost",
+   "draw": 0.2,
+   "type": "bogus",
+   "expected": 0.25
+  },
+  {
+   "faction": "holy",
+   "draw": 0,
+   "type": "emberImp",
+   "expected": 0.64
+  },
+  {
+   "faction": "holy",
+   "draw": 0,
+   "type": "cinderHound",
+   "expected": 0.25
+  },
+  {
+   "faction": "holy",
+   "draw": 0,
+   "type": "magmaBrute",
+   "expected": 0.31
+  },
+  {
+   "faction": "holy",
+   "draw": 0,
+   "type": "flameCaller",
+   "expected": 0.25
+  },
+  {
+   "faction": "holy",
+   "draw": 0,
+   "type": "wyrmling",
+   "expected": 0.25
+  },
+  {
+   "faction": "holy",
+   "draw": 0,
+   "type": "ashDrake",
+   "expected": 0.25
+  },
+  {
+   "faction": "holy",
+   "draw": 0,
+   "type": "bailiff",
+   "expected": 0.25
+  },
+  {
+   "faction": "holy",
+   "draw": 0,
+   "type": "chainWarden",
+   "expected": 0.25
+  },
+  {
+   "faction": "holy",
+   "draw": 0,
+   "type": "inquisitor",
+   "expected": 0.64
+  },
+  {
+   "faction": "holy",
+   "draw": 0,
+   "type": "pardoner",
+   "expected": 0.57
+  },
+  {
+   "faction": "holy",
+   "draw": 0,
+   "type": "executioner",
+   "expected": 0.25
+  },
+  {
+   "faction": "holy",
+   "draw": 0,
+   "type": "gaoler",
+   "expected": 0.25
+  },
+  {
+   "faction": "holy",
+   "draw": 0,
+   "type": "plagueRat",
+   "expected": 1
+  },
+  {
+   "faction": "holy",
+   "draw": 0,
+   "type": "bloatfly",
+   "expected": 0.25
+  },
+  {
+   "faction": "holy",
+   "draw": 0,
+   "type": "rotMonk",
+   "expected": 0.75
+  },
+  {
+   "faction": "holy",
+   "draw": 0,
+   "type": "miasmaWitch",
+   "expected": 0.25
+  },
+  {
+   "faction": "holy",
+   "draw": 0,
+   "type": "ratOgre",
+   "expected": 0.25
+  },
+  {
+   "faction": "holy",
+   "draw": 0,
+   "type": "poxBehemoth",
+   "expected": 0.25
+  },
+  {
+   "faction": "holy",
+   "draw": 0,
+   "type": "frostWisp",
+   "expected": 0.25
+  },
+  {
+   "faction": "holy",
+   "draw": 0,
+   "type": "iceGolem",
+   "expected": 0.31
+  },
+  {
+   "faction": "holy",
+   "draw": 0,
+   "type": "rimeStalker",
+   "expected": 0.25
+  },
+  {
+   "faction": "holy",
+   "draw": 0,
+   "type": "frostbowSentry",
+   "expected": 1
+  },
+  {
+   "faction": "holy",
+   "draw": 0,
+   "type": "glacialWarden",
+   "expected": 0.25
+  },
+  {
+   "faction": "holy",
+   "draw": 0,
+   "type": "avalancheTroll",
+   "expected": 0.25
+  },
+  {
+   "faction": "holy",
+   "draw": 0,
+   "type": "acolyte",
+   "expected": 0.75
+  },
+  {
+   "faction": "holy",
+   "draw": 0,
+   "type": "seraphShard",
+   "expected": 0.25
+  },
+  {
+   "faction": "holy",
+   "draw": 0,
+   "type": "penitent",
+   "expected": 0.31
+  },
+  {
+   "faction": "holy",
+   "draw": 0,
+   "type": "zealot",
+   "expected": 0.25
+  },
+  {
+   "faction": "holy",
+   "draw": 0,
+   "type": "bloodSaint",
+   "expected": 0.25
+  },
+  {
+   "faction": "holy",
+   "draw": 0,
+   "type": "archon",
+   "expected": 0.25
+  },
+  {
+   "faction": "holy",
+   "draw": 0,
+   "type": "",
+   "expected": 0.25
+  },
+  {
+   "faction": "holy",
+   "draw": 0,
+   "type": "bogus",
+   "expected": 0.25
+  },
+  {
+   "faction": "holy",
+   "draw": 0.2,
+   "type": "emberImp",
+   "expected": 0.64
+  },
+  {
+   "faction": "holy",
+   "draw": 0.2,
+   "type": "cinderHound",
+   "expected": 0.25
+  },
+  {
+   "faction": "holy",
+   "draw": 0.2,
+   "type": "magmaBrute",
+   "expected": 0.31
+  },
+  {
+   "faction": "holy",
+   "draw": 0.2,
+   "type": "flameCaller",
+   "expected": 0.25
+  },
+  {
+   "faction": "holy",
+   "draw": 0.2,
+   "type": "wyrmling",
+   "expected": 0.25
+  },
+  {
+   "faction": "holy",
+   "draw": 0.2,
+   "type": "ashDrake",
+   "expected": 0.25
+  },
+  {
+   "faction": "holy",
+   "draw": 0.2,
+   "type": "bailiff",
+   "expected": 0.25
+  },
+  {
+   "faction": "holy",
+   "draw": 0.2,
+   "type": "chainWarden",
+   "expected": 0.25
+  },
+  {
+   "faction": "holy",
+   "draw": 0.2,
+   "type": "inquisitor",
+   "expected": 0.64
+  },
+  {
+   "faction": "holy",
+   "draw": 0.2,
+   "type": "pardoner",
+   "expected": 0.57
+  },
+  {
+   "faction": "holy",
+   "draw": 0.2,
+   "type": "executioner",
+   "expected": 0.25
+  },
+  {
+   "faction": "holy",
+   "draw": 0.2,
+   "type": "gaoler",
+   "expected": 0.25
+  },
+  {
+   "faction": "holy",
+   "draw": 0.2,
+   "type": "plagueRat",
+   "expected": 1
+  },
+  {
+   "faction": "holy",
+   "draw": 0.2,
+   "type": "bloatfly",
+   "expected": 0.25
+  },
+  {
+   "faction": "holy",
+   "draw": 0.2,
+   "type": "rotMonk",
+   "expected": 0.75
+  },
+  {
+   "faction": "holy",
+   "draw": 0.2,
+   "type": "miasmaWitch",
+   "expected": 0.25
+  },
+  {
+   "faction": "holy",
+   "draw": 0.2,
+   "type": "ratOgre",
+   "expected": 0.25
+  },
+  {
+   "faction": "holy",
+   "draw": 0.2,
+   "type": "poxBehemoth",
+   "expected": 0.25
+  },
+  {
+   "faction": "holy",
+   "draw": 0.2,
+   "type": "frostWisp",
+   "expected": 0.25
+  },
+  {
+   "faction": "holy",
+   "draw": 0.2,
+   "type": "iceGolem",
+   "expected": 0.31
+  },
+  {
+   "faction": "holy",
+   "draw": 0.2,
+   "type": "rimeStalker",
+   "expected": 0.25
+  },
+  {
+   "faction": "holy",
+   "draw": 0.2,
+   "type": "frostbowSentry",
+   "expected": 1
+  },
+  {
+   "faction": "holy",
+   "draw": 0.2,
+   "type": "glacialWarden",
+   "expected": 0.25
+  },
+  {
+   "faction": "holy",
+   "draw": 0.2,
+   "type": "avalancheTroll",
+   "expected": 0.25
+  },
+  {
+   "faction": "holy",
+   "draw": 0.2,
+   "type": "acolyte",
+   "expected": 0.75
+  },
+  {
+   "faction": "holy",
+   "draw": 0.2,
+   "type": "seraphShard",
+   "expected": 0.25
+  },
+  {
+   "faction": "holy",
+   "draw": 0.2,
+   "type": "penitent",
+   "expected": 0.31
+  },
+  {
+   "faction": "holy",
+   "draw": 0.2,
+   "type": "zealot",
+   "expected": 0.25
+  },
+  {
+   "faction": "holy",
+   "draw": 0.2,
+   "type": "bloodSaint",
+   "expected": 0.25
+  },
+  {
+   "faction": "holy",
+   "draw": 0.2,
+   "type": "archon",
+   "expected": 0.25
+  },
+  {
+   "faction": "holy",
+   "draw": 0.2,
+   "type": "",
+   "expected": 0.25
+  },
+  {
+   "faction": "holy",
+   "draw": 0.2,
+   "type": "bogus",
+   "expected": 0.25
+  }
+ ],
+ "readyForElites": [
+  {
+   "runMs": 0,
+   "mobKills": 0,
+   "power": 0,
+   "expected": false
+  },
+  {
+   "runMs": 0,
+   "mobKills": 0,
+   "power": 5.999999,
+   "expected": false
+  },
+  {
+   "runMs": 0,
+   "mobKills": 0,
+   "power": 6,
+   "expected": true
+  },
+  {
+   "runMs": 0,
+   "mobKills": 0,
+   "power": 6.1,
+   "expected": true
+  },
+  {
+   "runMs": 0,
+   "mobKills": 11,
+   "power": 0,
+   "expected": false
+  },
+  {
+   "runMs": 0,
+   "mobKills": 11,
+   "power": 5.999999,
+   "expected": false
+  },
+  {
+   "runMs": 0,
+   "mobKills": 11,
+   "power": 6,
+   "expected": true
+  },
+  {
+   "runMs": 0,
+   "mobKills": 11,
+   "power": 6.1,
+   "expected": true
+  },
+  {
+   "runMs": 0,
+   "mobKills": 12,
+   "power": 0,
+   "expected": false
+  },
+  {
+   "runMs": 0,
+   "mobKills": 12,
+   "power": 5.999999,
+   "expected": false
+  },
+  {
+   "runMs": 0,
+   "mobKills": 12,
+   "power": 6,
+   "expected": true
+  },
+  {
+   "runMs": 0,
+   "mobKills": 12,
+   "power": 6.1,
+   "expected": true
+  },
+  {
+   "runMs": 0,
+   "mobKills": 13,
+   "power": 0,
+   "expected": false
+  },
+  {
+   "runMs": 0,
+   "mobKills": 13,
+   "power": 5.999999,
+   "expected": false
+  },
+  {
+   "runMs": 0,
+   "mobKills": 13,
+   "power": 6,
+   "expected": true
+  },
+  {
+   "runMs": 0,
+   "mobKills": 13,
+   "power": 6.1,
+   "expected": true
+  },
+  {
+   "runMs": 359999.999,
+   "mobKills": 0,
+   "power": 0,
+   "expected": false
+  },
+  {
+   "runMs": 359999.999,
+   "mobKills": 0,
+   "power": 5.999999,
+   "expected": false
+  },
+  {
+   "runMs": 359999.999,
+   "mobKills": 0,
+   "power": 6,
+   "expected": true
+  },
+  {
+   "runMs": 359999.999,
+   "mobKills": 0,
+   "power": 6.1,
+   "expected": true
+  },
+  {
+   "runMs": 359999.999,
+   "mobKills": 11,
+   "power": 0,
+   "expected": false
+  },
+  {
+   "runMs": 359999.999,
+   "mobKills": 11,
+   "power": 5.999999,
+   "expected": false
+  },
+  {
+   "runMs": 359999.999,
+   "mobKills": 11,
+   "power": 6,
+   "expected": true
+  },
+  {
+   "runMs": 359999.999,
+   "mobKills": 11,
+   "power": 6.1,
+   "expected": true
+  },
+  {
+   "runMs": 359999.999,
+   "mobKills": 12,
+   "power": 0,
+   "expected": false
+  },
+  {
+   "runMs": 359999.999,
+   "mobKills": 12,
+   "power": 5.999999,
+   "expected": false
+  },
+  {
+   "runMs": 359999.999,
+   "mobKills": 12,
+   "power": 6,
+   "expected": true
+  },
+  {
+   "runMs": 359999.999,
+   "mobKills": 12,
+   "power": 6.1,
+   "expected": true
+  },
+  {
+   "runMs": 359999.999,
+   "mobKills": 13,
+   "power": 0,
+   "expected": false
+  },
+  {
+   "runMs": 359999.999,
+   "mobKills": 13,
+   "power": 5.999999,
+   "expected": false
+  },
+  {
+   "runMs": 359999.999,
+   "mobKills": 13,
+   "power": 6,
+   "expected": true
+  },
+  {
+   "runMs": 359999.999,
+   "mobKills": 13,
+   "power": 6.1,
+   "expected": true
+  },
+  {
+   "runMs": 360000,
+   "mobKills": 0,
+   "power": 0,
+   "expected": false
+  },
+  {
+   "runMs": 360000,
+   "mobKills": 0,
+   "power": 5.999999,
+   "expected": false
+  },
+  {
+   "runMs": 360000,
+   "mobKills": 0,
+   "power": 6,
+   "expected": true
+  },
+  {
+   "runMs": 360000,
+   "mobKills": 0,
+   "power": 6.1,
+   "expected": true
+  },
+  {
+   "runMs": 360000,
+   "mobKills": 11,
+   "power": 0,
+   "expected": false
+  },
+  {
+   "runMs": 360000,
+   "mobKills": 11,
+   "power": 5.999999,
+   "expected": false
+  },
+  {
+   "runMs": 360000,
+   "mobKills": 11,
+   "power": 6,
+   "expected": true
+  },
+  {
+   "runMs": 360000,
+   "mobKills": 11,
+   "power": 6.1,
+   "expected": true
+  },
+  {
+   "runMs": 360000,
+   "mobKills": 12,
+   "power": 0,
+   "expected": true
+  },
+  {
+   "runMs": 360000,
+   "mobKills": 12,
+   "power": 5.999999,
+   "expected": true
+  },
+  {
+   "runMs": 360000,
+   "mobKills": 12,
+   "power": 6,
+   "expected": true
+  },
+  {
+   "runMs": 360000,
+   "mobKills": 12,
+   "power": 6.1,
+   "expected": true
+  },
+  {
+   "runMs": 360000,
+   "mobKills": 13,
+   "power": 0,
+   "expected": true
+  },
+  {
+   "runMs": 360000,
+   "mobKills": 13,
+   "power": 5.999999,
+   "expected": true
+  },
+  {
+   "runMs": 360000,
+   "mobKills": 13,
+   "power": 6,
+   "expected": true
+  },
+  {
+   "runMs": 360000,
+   "mobKills": 13,
+   "power": 6.1,
+   "expected": true
+  },
+  {
+   "runMs": 360000.001,
+   "mobKills": 0,
+   "power": 0,
+   "expected": false
+  },
+  {
+   "runMs": 360000.001,
+   "mobKills": 0,
+   "power": 5.999999,
+   "expected": false
+  },
+  {
+   "runMs": 360000.001,
+   "mobKills": 0,
+   "power": 6,
+   "expected": true
+  },
+  {
+   "runMs": 360000.001,
+   "mobKills": 0,
+   "power": 6.1,
+   "expected": true
+  },
+  {
+   "runMs": 360000.001,
+   "mobKills": 11,
+   "power": 0,
+   "expected": false
+  },
+  {
+   "runMs": 360000.001,
+   "mobKills": 11,
+   "power": 5.999999,
+   "expected": false
+  },
+  {
+   "runMs": 360000.001,
+   "mobKills": 11,
+   "power": 6,
+   "expected": true
+  },
+  {
+   "runMs": 360000.001,
+   "mobKills": 11,
+   "power": 6.1,
+   "expected": true
+  },
+  {
+   "runMs": 360000.001,
+   "mobKills": 12,
+   "power": 0,
+   "expected": true
+  },
+  {
+   "runMs": 360000.001,
+   "mobKills": 12,
+   "power": 5.999999,
+   "expected": true
+  },
+  {
+   "runMs": 360000.001,
+   "mobKills": 12,
+   "power": 6,
+   "expected": true
+  },
+  {
+   "runMs": 360000.001,
+   "mobKills": 12,
+   "power": 6.1,
+   "expected": true
+  },
+  {
+   "runMs": 360000.001,
+   "mobKills": 13,
+   "power": 0,
+   "expected": true
+  },
+  {
+   "runMs": 360000.001,
+   "mobKills": 13,
+   "power": 5.999999,
+   "expected": true
+  },
+  {
+   "runMs": 360000.001,
+   "mobKills": 13,
+   "power": 6,
+   "expected": true
+  },
+  {
+   "runMs": 360000.001,
+   "mobKills": 13,
+   "power": 6.1,
+   "expected": true
+  },
+  {
+   "runMs": 720000,
+   "mobKills": 0,
+   "power": 0,
+   "expected": false
+  },
+  {
+   "runMs": 720000,
+   "mobKills": 0,
+   "power": 5.999999,
+   "expected": false
+  },
+  {
+   "runMs": 720000,
+   "mobKills": 0,
+   "power": 6,
+   "expected": true
+  },
+  {
+   "runMs": 720000,
+   "mobKills": 0,
+   "power": 6.1,
+   "expected": true
+  },
+  {
+   "runMs": 720000,
+   "mobKills": 11,
+   "power": 0,
+   "expected": false
+  },
+  {
+   "runMs": 720000,
+   "mobKills": 11,
+   "power": 5.999999,
+   "expected": false
+  },
+  {
+   "runMs": 720000,
+   "mobKills": 11,
+   "power": 6,
+   "expected": true
+  },
+  {
+   "runMs": 720000,
+   "mobKills": 11,
+   "power": 6.1,
+   "expected": true
+  },
+  {
+   "runMs": 720000,
+   "mobKills": 12,
+   "power": 0,
+   "expected": true
+  },
+  {
+   "runMs": 720000,
+   "mobKills": 12,
+   "power": 5.999999,
+   "expected": true
+  },
+  {
+   "runMs": 720000,
+   "mobKills": 12,
+   "power": 6,
+   "expected": true
+  },
+  {
+   "runMs": 720000,
+   "mobKills": 12,
+   "power": 6.1,
+   "expected": true
+  },
+  {
+   "runMs": 720000,
+   "mobKills": 13,
+   "power": 0,
+   "expected": true
+  },
+  {
+   "runMs": 720000,
+   "mobKills": 13,
+   "power": 5.999999,
+   "expected": true
+  },
+  {
+   "runMs": 720000,
+   "mobKills": 13,
+   "power": 6,
+   "expected": true
+  },
+  {
+   "runMs": 720000,
+   "mobKills": 13,
+   "power": 6.1,
+   "expected": true
+  }
+ ],
+ "campValue": [
+  {
+   "faction": "fire",
+   "draw": 0,
+   "camp": {
+    "index": 0,
+    "id": "fire-1",
+    "zone": "fire",
+    "x": 120,
+    "y": 120,
+    "r": 96,
+    "elite": false,
+    "spots": 3,
+    "type": "emberImp",
+    "alive": 3,
+    "state": 0,
+    "respawnAt": 0
+   },
+   "elites": false,
+   "expected": 3
+  },
+  {
+   "faction": "fire",
+   "draw": 0,
+   "camp": {
+    "index": 0,
+    "id": "fire-1",
+    "zone": "fire",
+    "x": 120,
+    "y": 120,
+    "r": 96,
+    "elite": false,
+    "spots": 3,
+    "type": "emberImp",
+    "alive": 3,
+    "state": 0,
+    "respawnAt": 0
+   },
+   "elites": true,
+   "expected": 3
+  },
+  {
+   "faction": "fire",
+   "draw": 0,
+   "camp": {
+    "index": 1,
+    "id": "fire-1",
+    "zone": "fire",
+    "x": 120,
+    "y": 120,
+    "r": 96,
+    "elite": false,
+    "spots": 3,
+    "type": "cinderHound",
+    "alive": 1,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": false,
+   "expected": 0.25
+  },
+  {
+   "faction": "fire",
+   "draw": 0,
+   "camp": {
+    "index": 1,
+    "id": "fire-1",
+    "zone": "fire",
+    "x": 120,
+    "y": 120,
+    "r": 96,
+    "elite": false,
+    "spots": 3,
+    "type": "cinderHound",
+    "alive": 1,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": true,
+   "expected": 0.25
+  },
+  {
+   "faction": "fire",
+   "draw": 0,
+   "camp": {
+    "index": 2,
+    "id": "plague-1",
+    "zone": "plague",
+    "x": 400,
+    "y": 200,
+    "r": 96,
+    "elite": false,
+    "spots": 4,
+    "type": "plagueRat",
+    "alive": 0,
+    "state": 2,
+    "respawnAt": 30000
+   },
+   "elites": false,
+   "expected": 1
+  },
+  {
+   "faction": "fire",
+   "draw": 0,
+   "camp": {
+    "index": 2,
+    "id": "plague-1",
+    "zone": "plague",
+    "x": 400,
+    "y": 200,
+    "r": 96,
+    "elite": false,
+    "spots": 4,
+    "type": "plagueRat",
+    "alive": 0,
+    "state": 2,
+    "respawnAt": 30000
+   },
+   "elites": true,
+   "expected": 1
+  },
+  {
+   "faction": "fire",
+   "draw": 0,
+   "camp": {
+    "index": 3,
+    "id": "holy-1",
+    "zone": "holy",
+    "x": 700,
+    "y": 300,
+    "r": 96,
+    "elite": false,
+    "spots": 2,
+    "type": "bailiff",
+    "alive": 2,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": false,
+   "expected": 1.52
+  },
+  {
+   "faction": "fire",
+   "draw": 0,
+   "camp": {
+    "index": 3,
+    "id": "holy-1",
+    "zone": "holy",
+    "x": 700,
+    "y": 300,
+    "r": 96,
+    "elite": false,
+    "spots": 2,
+    "type": "bailiff",
+    "alive": 2,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": true,
+   "expected": 1.52
+  },
+  {
+   "faction": "fire",
+   "draw": 0,
+   "camp": {
+    "index": 4,
+    "id": "frost-1",
+    "zone": "frost",
+    "x": 200,
+    "y": 600,
+    "r": 96,
+    "elite": false,
+    "spots": 3,
+    "type": "",
+    "alive": 2,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": false,
+   "expected": 0.5
+  },
+  {
+   "faction": "fire",
+   "draw": 0,
+   "camp": {
+    "index": 4,
+    "id": "frost-1",
+    "zone": "frost",
+    "x": 200,
+    "y": 600,
+    "r": 96,
+    "elite": false,
+    "spots": 3,
+    "type": "",
+    "alive": 2,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": true,
+   "expected": 0.5
+  },
+  {
+   "faction": "fire",
+   "draw": 0,
+   "camp": {
+    "index": 5,
+    "id": "frost-2",
+    "zone": "frost",
+    "x": 220,
+    "y": 620,
+    "r": 96,
+    "elite": true,
+    "spots": 1,
+    "type": "glacialWarden",
+    "alive": 1,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": false,
+   "expected": 0
+  },
+  {
+   "faction": "fire",
+   "draw": 0,
+   "camp": {
+    "index": 5,
+    "id": "frost-2",
+    "zone": "frost",
+    "x": 220,
+    "y": 620,
+    "r": 96,
+    "elite": true,
+    "spots": 1,
+    "type": "glacialWarden",
+    "alive": 1,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": true,
+   "expected": 6
+  },
+  {
+   "faction": "fire",
+   "draw": 0,
+   "camp": {
+    "index": 6,
+    "id": "sentenced-1",
+    "zone": "sentenced",
+    "x": 600,
+    "y": 500,
+    "r": 96,
+    "elite": true,
+    "spots": 1,
+    "type": "executioner",
+    "alive": 0,
+    "state": 2,
+    "respawnAt": 10000
+   },
+   "elites": false,
+   "expected": 0
+  },
+  {
+   "faction": "fire",
+   "draw": 0,
+   "camp": {
+    "index": 6,
+    "id": "sentenced-1",
+    "zone": "sentenced",
+    "x": 600,
+    "y": 500,
+    "r": 96,
+    "elite": true,
+    "spots": 1,
+    "type": "executioner",
+    "alive": 0,
+    "state": 2,
+    "respawnAt": 10000
+   },
+   "elites": true,
+   "expected": 6
+  },
+  {
+   "faction": "fire",
+   "draw": 0,
+   "camp": {
+    "index": 7,
+    "id": "sentenced-2",
+    "zone": "sentenced",
+    "x": 620,
+    "y": 520,
+    "r": 96,
+    "elite": true,
+    "spots": 1,
+    "type": "",
+    "alive": 0,
+    "state": 0,
+    "respawnAt": 0
+   },
+   "elites": false,
+   "expected": 0
+  },
+  {
+   "faction": "fire",
+   "draw": 0,
+   "camp": {
+    "index": 7,
+    "id": "sentenced-2",
+    "zone": "sentenced",
+    "x": 620,
+    "y": 520,
+    "r": 96,
+    "elite": true,
+    "spots": 1,
+    "type": "",
+    "alive": 0,
+    "state": 0,
+    "respawnAt": 0
+   },
+   "elites": true,
+   "expected": 0
+  },
+  {
+   "faction": "fire",
+   "draw": 0,
+   "camp": {
+    "index": 8,
+    "id": "holy-2",
+    "zone": "holy",
+    "x": 720,
+    "y": 320,
+    "r": 96,
+    "elite": true,
+    "spots": 1,
+    "type": "archon",
+    "alive": 1,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": false,
+   "expected": 0
+  },
+  {
+   "faction": "fire",
+   "draw": 0,
+   "camp": {
+    "index": 8,
+    "id": "holy-2",
+    "zone": "holy",
+    "x": 720,
+    "y": 320,
+    "r": 96,
+    "elite": true,
+    "spots": 1,
+    "type": "archon",
+    "alive": 1,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": true,
+   "expected": 6
+  },
+  {
+   "faction": "fire",
+   "draw": 0,
+   "camp": {
+    "index": 9,
+    "id": "fire-2",
+    "zone": "fire",
+    "x": 140,
+    "y": 140,
+    "r": 96,
+    "elite": false,
+    "spots": 3,
+    "type": "flameCaller",
+    "alive": 3,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": false,
+   "expected": 0.75
+  },
+  {
+   "faction": "fire",
+   "draw": 0,
+   "camp": {
+    "index": 9,
+    "id": "fire-2",
+    "zone": "fire",
+    "x": 140,
+    "y": 140,
+    "r": 96,
+    "elite": false,
+    "spots": 3,
+    "type": "flameCaller",
+    "alive": 3,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": true,
+   "expected": 0.75
+  },
+  {
+   "faction": "fire",
+   "draw": 0.2,
+   "camp": {
+    "index": 0,
+    "id": "fire-1",
+    "zone": "fire",
+    "x": 120,
+    "y": 120,
+    "r": 96,
+    "elite": false,
+    "spots": 3,
+    "type": "emberImp",
+    "alive": 3,
+    "state": 0,
+    "respawnAt": 0
+   },
+   "elites": false,
+   "expected": 3
+  },
+  {
+   "faction": "fire",
+   "draw": 0.2,
+   "camp": {
+    "index": 0,
+    "id": "fire-1",
+    "zone": "fire",
+    "x": 120,
+    "y": 120,
+    "r": 96,
+    "elite": false,
+    "spots": 3,
+    "type": "emberImp",
+    "alive": 3,
+    "state": 0,
+    "respawnAt": 0
+   },
+   "elites": true,
+   "expected": 3
+  },
+  {
+   "faction": "fire",
+   "draw": 0.2,
+   "camp": {
+    "index": 1,
+    "id": "fire-1",
+    "zone": "fire",
+    "x": 120,
+    "y": 120,
+    "r": 96,
+    "elite": false,
+    "spots": 3,
+    "type": "cinderHound",
+    "alive": 1,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": false,
+   "expected": 0.25
+  },
+  {
+   "faction": "fire",
+   "draw": 0.2,
+   "camp": {
+    "index": 1,
+    "id": "fire-1",
+    "zone": "fire",
+    "x": 120,
+    "y": 120,
+    "r": 96,
+    "elite": false,
+    "spots": 3,
+    "type": "cinderHound",
+    "alive": 1,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": true,
+   "expected": 0.25
+  },
+  {
+   "faction": "fire",
+   "draw": 0.2,
+   "camp": {
+    "index": 2,
+    "id": "plague-1",
+    "zone": "plague",
+    "x": 400,
+    "y": 200,
+    "r": 96,
+    "elite": false,
+    "spots": 4,
+    "type": "plagueRat",
+    "alive": 0,
+    "state": 2,
+    "respawnAt": 30000
+   },
+   "elites": false,
+   "expected": 1
+  },
+  {
+   "faction": "fire",
+   "draw": 0.2,
+   "camp": {
+    "index": 2,
+    "id": "plague-1",
+    "zone": "plague",
+    "x": 400,
+    "y": 200,
+    "r": 96,
+    "elite": false,
+    "spots": 4,
+    "type": "plagueRat",
+    "alive": 0,
+    "state": 2,
+    "respawnAt": 30000
+   },
+   "elites": true,
+   "expected": 1
+  },
+  {
+   "faction": "fire",
+   "draw": 0.2,
+   "camp": {
+    "index": 3,
+    "id": "holy-1",
+    "zone": "holy",
+    "x": 700,
+    "y": 300,
+    "r": 96,
+    "elite": false,
+    "spots": 2,
+    "type": "bailiff",
+    "alive": 2,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": false,
+   "expected": 1.52
+  },
+  {
+   "faction": "fire",
+   "draw": 0.2,
+   "camp": {
+    "index": 3,
+    "id": "holy-1",
+    "zone": "holy",
+    "x": 700,
+    "y": 300,
+    "r": 96,
+    "elite": false,
+    "spots": 2,
+    "type": "bailiff",
+    "alive": 2,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": true,
+   "expected": 1.52
+  },
+  {
+   "faction": "fire",
+   "draw": 0.2,
+   "camp": {
+    "index": 4,
+    "id": "frost-1",
+    "zone": "frost",
+    "x": 200,
+    "y": 600,
+    "r": 96,
+    "elite": false,
+    "spots": 3,
+    "type": "",
+    "alive": 2,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": false,
+   "expected": 0.5
+  },
+  {
+   "faction": "fire",
+   "draw": 0.2,
+   "camp": {
+    "index": 4,
+    "id": "frost-1",
+    "zone": "frost",
+    "x": 200,
+    "y": 600,
+    "r": 96,
+    "elite": false,
+    "spots": 3,
+    "type": "",
+    "alive": 2,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": true,
+   "expected": 0.5
+  },
+  {
+   "faction": "fire",
+   "draw": 0.2,
+   "camp": {
+    "index": 5,
+    "id": "frost-2",
+    "zone": "frost",
+    "x": 220,
+    "y": 620,
+    "r": 96,
+    "elite": true,
+    "spots": 1,
+    "type": "glacialWarden",
+    "alive": 1,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": false,
+   "expected": 0
+  },
+  {
+   "faction": "fire",
+   "draw": 0.2,
+   "camp": {
+    "index": 5,
+    "id": "frost-2",
+    "zone": "frost",
+    "x": 220,
+    "y": 620,
+    "r": 96,
+    "elite": true,
+    "spots": 1,
+    "type": "glacialWarden",
+    "alive": 1,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": true,
+   "expected": 6
+  },
+  {
+   "faction": "fire",
+   "draw": 0.2,
+   "camp": {
+    "index": 6,
+    "id": "sentenced-1",
+    "zone": "sentenced",
+    "x": 600,
+    "y": 500,
+    "r": 96,
+    "elite": true,
+    "spots": 1,
+    "type": "executioner",
+    "alive": 0,
+    "state": 2,
+    "respawnAt": 10000
+   },
+   "elites": false,
+   "expected": 0
+  },
+  {
+   "faction": "fire",
+   "draw": 0.2,
+   "camp": {
+    "index": 6,
+    "id": "sentenced-1",
+    "zone": "sentenced",
+    "x": 600,
+    "y": 500,
+    "r": 96,
+    "elite": true,
+    "spots": 1,
+    "type": "executioner",
+    "alive": 0,
+    "state": 2,
+    "respawnAt": 10000
+   },
+   "elites": true,
+   "expected": 6
+  },
+  {
+   "faction": "fire",
+   "draw": 0.2,
+   "camp": {
+    "index": 7,
+    "id": "sentenced-2",
+    "zone": "sentenced",
+    "x": 620,
+    "y": 520,
+    "r": 96,
+    "elite": true,
+    "spots": 1,
+    "type": "",
+    "alive": 0,
+    "state": 0,
+    "respawnAt": 0
+   },
+   "elites": false,
+   "expected": 0
+  },
+  {
+   "faction": "fire",
+   "draw": 0.2,
+   "camp": {
+    "index": 7,
+    "id": "sentenced-2",
+    "zone": "sentenced",
+    "x": 620,
+    "y": 520,
+    "r": 96,
+    "elite": true,
+    "spots": 1,
+    "type": "",
+    "alive": 0,
+    "state": 0,
+    "respawnAt": 0
+   },
+   "elites": true,
+   "expected": 0
+  },
+  {
+   "faction": "fire",
+   "draw": 0.2,
+   "camp": {
+    "index": 8,
+    "id": "holy-2",
+    "zone": "holy",
+    "x": 720,
+    "y": 320,
+    "r": 96,
+    "elite": true,
+    "spots": 1,
+    "type": "archon",
+    "alive": 1,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": false,
+   "expected": 0
+  },
+  {
+   "faction": "fire",
+   "draw": 0.2,
+   "camp": {
+    "index": 8,
+    "id": "holy-2",
+    "zone": "holy",
+    "x": 720,
+    "y": 320,
+    "r": 96,
+    "elite": true,
+    "spots": 1,
+    "type": "archon",
+    "alive": 1,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": true,
+   "expected": 6
+  },
+  {
+   "faction": "fire",
+   "draw": 0.2,
+   "camp": {
+    "index": 9,
+    "id": "fire-2",
+    "zone": "fire",
+    "x": 140,
+    "y": 140,
+    "r": 96,
+    "elite": false,
+    "spots": 3,
+    "type": "flameCaller",
+    "alive": 3,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": false,
+   "expected": 0.75
+  },
+  {
+   "faction": "fire",
+   "draw": 0.2,
+   "camp": {
+    "index": 9,
+    "id": "fire-2",
+    "zone": "fire",
+    "x": 140,
+    "y": 140,
+    "r": 96,
+    "elite": false,
+    "spots": 3,
+    "type": "flameCaller",
+    "alive": 3,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": true,
+   "expected": 0.75
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0,
+   "camp": {
+    "index": 0,
+    "id": "fire-1",
+    "zone": "fire",
+    "x": 120,
+    "y": 120,
+    "r": 96,
+    "elite": false,
+    "spots": 3,
+    "type": "emberImp",
+    "alive": 3,
+    "state": 0,
+    "respawnAt": 0
+   },
+   "elites": false,
+   "expected": 2.2199999999999998
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0,
+   "camp": {
+    "index": 0,
+    "id": "fire-1",
+    "zone": "fire",
+    "x": 120,
+    "y": 120,
+    "r": 96,
+    "elite": false,
+    "spots": 3,
+    "type": "emberImp",
+    "alive": 3,
+    "state": 0,
+    "respawnAt": 0
+   },
+   "elites": true,
+   "expected": 2.2199999999999998
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0,
+   "camp": {
+    "index": 1,
+    "id": "fire-1",
+    "zone": "fire",
+    "x": 120,
+    "y": 120,
+    "r": 96,
+    "elite": false,
+    "spots": 3,
+    "type": "cinderHound",
+    "alive": 1,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": false,
+   "expected": 0.25
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0,
+   "camp": {
+    "index": 1,
+    "id": "fire-1",
+    "zone": "fire",
+    "x": 120,
+    "y": 120,
+    "r": 96,
+    "elite": false,
+    "spots": 3,
+    "type": "cinderHound",
+    "alive": 1,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": true,
+   "expected": 0.25
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0,
+   "camp": {
+    "index": 2,
+    "id": "plague-1",
+    "zone": "plague",
+    "x": 400,
+    "y": 200,
+    "r": 96,
+    "elite": false,
+    "spots": 4,
+    "type": "plagueRat",
+    "alive": 0,
+    "state": 2,
+    "respawnAt": 30000
+   },
+   "elites": false,
+   "expected": 4
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0,
+   "camp": {
+    "index": 2,
+    "id": "plague-1",
+    "zone": "plague",
+    "x": 400,
+    "y": 200,
+    "r": 96,
+    "elite": false,
+    "spots": 4,
+    "type": "plagueRat",
+    "alive": 0,
+    "state": 2,
+    "respawnAt": 30000
+   },
+   "elites": true,
+   "expected": 4
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0,
+   "camp": {
+    "index": 3,
+    "id": "holy-1",
+    "zone": "holy",
+    "x": 700,
+    "y": 300,
+    "r": 96,
+    "elite": false,
+    "spots": 2,
+    "type": "bailiff",
+    "alive": 2,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": false,
+   "expected": 1.5
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0,
+   "camp": {
+    "index": 3,
+    "id": "holy-1",
+    "zone": "holy",
+    "x": 700,
+    "y": 300,
+    "r": 96,
+    "elite": false,
+    "spots": 2,
+    "type": "bailiff",
+    "alive": 2,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": true,
+   "expected": 1.5
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0,
+   "camp": {
+    "index": 4,
+    "id": "frost-1",
+    "zone": "frost",
+    "x": 200,
+    "y": 600,
+    "r": 96,
+    "elite": false,
+    "spots": 3,
+    "type": "",
+    "alive": 2,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": false,
+   "expected": 0.5
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0,
+   "camp": {
+    "index": 4,
+    "id": "frost-1",
+    "zone": "frost",
+    "x": 200,
+    "y": 600,
+    "r": 96,
+    "elite": false,
+    "spots": 3,
+    "type": "",
+    "alive": 2,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": true,
+   "expected": 0.5
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0,
+   "camp": {
+    "index": 5,
+    "id": "frost-2",
+    "zone": "frost",
+    "x": 220,
+    "y": 620,
+    "r": 96,
+    "elite": true,
+    "spots": 1,
+    "type": "glacialWarden",
+    "alive": 1,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": false,
+   "expected": 0
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0,
+   "camp": {
+    "index": 5,
+    "id": "frost-2",
+    "zone": "frost",
+    "x": 220,
+    "y": 620,
+    "r": 96,
+    "elite": true,
+    "spots": 1,
+    "type": "glacialWarden",
+    "alive": 1,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": true,
+   "expected": 6
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0,
+   "camp": {
+    "index": 6,
+    "id": "sentenced-1",
+    "zone": "sentenced",
+    "x": 600,
+    "y": 500,
+    "r": 96,
+    "elite": true,
+    "spots": 1,
+    "type": "executioner",
+    "alive": 0,
+    "state": 2,
+    "respawnAt": 10000
+   },
+   "elites": false,
+   "expected": 0
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0,
+   "camp": {
+    "index": 6,
+    "id": "sentenced-1",
+    "zone": "sentenced",
+    "x": 600,
+    "y": 500,
+    "r": 96,
+    "elite": true,
+    "spots": 1,
+    "type": "executioner",
+    "alive": 0,
+    "state": 2,
+    "respawnAt": 10000
+   },
+   "elites": true,
+   "expected": 6
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0,
+   "camp": {
+    "index": 7,
+    "id": "sentenced-2",
+    "zone": "sentenced",
+    "x": 620,
+    "y": 520,
+    "r": 96,
+    "elite": true,
+    "spots": 1,
+    "type": "",
+    "alive": 0,
+    "state": 0,
+    "respawnAt": 0
+   },
+   "elites": false,
+   "expected": 0
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0,
+   "camp": {
+    "index": 7,
+    "id": "sentenced-2",
+    "zone": "sentenced",
+    "x": 620,
+    "y": 520,
+    "r": 96,
+    "elite": true,
+    "spots": 1,
+    "type": "",
+    "alive": 0,
+    "state": 0,
+    "respawnAt": 0
+   },
+   "elites": true,
+   "expected": 0
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0,
+   "camp": {
+    "index": 8,
+    "id": "holy-2",
+    "zone": "holy",
+    "x": 720,
+    "y": 320,
+    "r": 96,
+    "elite": true,
+    "spots": 1,
+    "type": "archon",
+    "alive": 1,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": false,
+   "expected": 0
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0,
+   "camp": {
+    "index": 8,
+    "id": "holy-2",
+    "zone": "holy",
+    "x": 720,
+    "y": 320,
+    "r": 96,
+    "elite": true,
+    "spots": 1,
+    "type": "archon",
+    "alive": 1,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": true,
+   "expected": 6
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0,
+   "camp": {
+    "index": 9,
+    "id": "fire-2",
+    "zone": "fire",
+    "x": 140,
+    "y": 140,
+    "r": 96,
+    "elite": false,
+    "spots": 3,
+    "type": "flameCaller",
+    "alive": 3,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": false,
+   "expected": 1.53
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0,
+   "camp": {
+    "index": 9,
+    "id": "fire-2",
+    "zone": "fire",
+    "x": 140,
+    "y": 140,
+    "r": 96,
+    "elite": false,
+    "spots": 3,
+    "type": "flameCaller",
+    "alive": 3,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": true,
+   "expected": 1.53
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0.2,
+   "camp": {
+    "index": 0,
+    "id": "fire-1",
+    "zone": "fire",
+    "x": 120,
+    "y": 120,
+    "r": 96,
+    "elite": false,
+    "spots": 3,
+    "type": "emberImp",
+    "alive": 3,
+    "state": 0,
+    "respawnAt": 0
+   },
+   "elites": false,
+   "expected": 2.2199999999999998
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0.2,
+   "camp": {
+    "index": 0,
+    "id": "fire-1",
+    "zone": "fire",
+    "x": 120,
+    "y": 120,
+    "r": 96,
+    "elite": false,
+    "spots": 3,
+    "type": "emberImp",
+    "alive": 3,
+    "state": 0,
+    "respawnAt": 0
+   },
+   "elites": true,
+   "expected": 2.2199999999999998
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0.2,
+   "camp": {
+    "index": 1,
+    "id": "fire-1",
+    "zone": "fire",
+    "x": 120,
+    "y": 120,
+    "r": 96,
+    "elite": false,
+    "spots": 3,
+    "type": "cinderHound",
+    "alive": 1,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": false,
+   "expected": 0.25
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0.2,
+   "camp": {
+    "index": 1,
+    "id": "fire-1",
+    "zone": "fire",
+    "x": 120,
+    "y": 120,
+    "r": 96,
+    "elite": false,
+    "spots": 3,
+    "type": "cinderHound",
+    "alive": 1,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": true,
+   "expected": 0.25
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0.2,
+   "camp": {
+    "index": 2,
+    "id": "plague-1",
+    "zone": "plague",
+    "x": 400,
+    "y": 200,
+    "r": 96,
+    "elite": false,
+    "spots": 4,
+    "type": "plagueRat",
+    "alive": 0,
+    "state": 2,
+    "respawnAt": 30000
+   },
+   "elites": false,
+   "expected": 4
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0.2,
+   "camp": {
+    "index": 2,
+    "id": "plague-1",
+    "zone": "plague",
+    "x": 400,
+    "y": 200,
+    "r": 96,
+    "elite": false,
+    "spots": 4,
+    "type": "plagueRat",
+    "alive": 0,
+    "state": 2,
+    "respawnAt": 30000
+   },
+   "elites": true,
+   "expected": 4
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0.2,
+   "camp": {
+    "index": 3,
+    "id": "holy-1",
+    "zone": "holy",
+    "x": 700,
+    "y": 300,
+    "r": 96,
+    "elite": false,
+    "spots": 2,
+    "type": "bailiff",
+    "alive": 2,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": false,
+   "expected": 1.5
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0.2,
+   "camp": {
+    "index": 3,
+    "id": "holy-1",
+    "zone": "holy",
+    "x": 700,
+    "y": 300,
+    "r": 96,
+    "elite": false,
+    "spots": 2,
+    "type": "bailiff",
+    "alive": 2,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": true,
+   "expected": 1.5
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0.2,
+   "camp": {
+    "index": 4,
+    "id": "frost-1",
+    "zone": "frost",
+    "x": 200,
+    "y": 600,
+    "r": 96,
+    "elite": false,
+    "spots": 3,
+    "type": "",
+    "alive": 2,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": false,
+   "expected": 0.5
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0.2,
+   "camp": {
+    "index": 4,
+    "id": "frost-1",
+    "zone": "frost",
+    "x": 200,
+    "y": 600,
+    "r": 96,
+    "elite": false,
+    "spots": 3,
+    "type": "",
+    "alive": 2,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": true,
+   "expected": 0.5
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0.2,
+   "camp": {
+    "index": 5,
+    "id": "frost-2",
+    "zone": "frost",
+    "x": 220,
+    "y": 620,
+    "r": 96,
+    "elite": true,
+    "spots": 1,
+    "type": "glacialWarden",
+    "alive": 1,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": false,
+   "expected": 0
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0.2,
+   "camp": {
+    "index": 5,
+    "id": "frost-2",
+    "zone": "frost",
+    "x": 220,
+    "y": 620,
+    "r": 96,
+    "elite": true,
+    "spots": 1,
+    "type": "glacialWarden",
+    "alive": 1,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": true,
+   "expected": 6
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0.2,
+   "camp": {
+    "index": 6,
+    "id": "sentenced-1",
+    "zone": "sentenced",
+    "x": 600,
+    "y": 500,
+    "r": 96,
+    "elite": true,
+    "spots": 1,
+    "type": "executioner",
+    "alive": 0,
+    "state": 2,
+    "respawnAt": 10000
+   },
+   "elites": false,
+   "expected": 0
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0.2,
+   "camp": {
+    "index": 6,
+    "id": "sentenced-1",
+    "zone": "sentenced",
+    "x": 600,
+    "y": 500,
+    "r": 96,
+    "elite": true,
+    "spots": 1,
+    "type": "executioner",
+    "alive": 0,
+    "state": 2,
+    "respawnAt": 10000
+   },
+   "elites": true,
+   "expected": 6
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0.2,
+   "camp": {
+    "index": 7,
+    "id": "sentenced-2",
+    "zone": "sentenced",
+    "x": 620,
+    "y": 520,
+    "r": 96,
+    "elite": true,
+    "spots": 1,
+    "type": "",
+    "alive": 0,
+    "state": 0,
+    "respawnAt": 0
+   },
+   "elites": false,
+   "expected": 0
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0.2,
+   "camp": {
+    "index": 7,
+    "id": "sentenced-2",
+    "zone": "sentenced",
+    "x": 620,
+    "y": 520,
+    "r": 96,
+    "elite": true,
+    "spots": 1,
+    "type": "",
+    "alive": 0,
+    "state": 0,
+    "respawnAt": 0
+   },
+   "elites": true,
+   "expected": 0
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0.2,
+   "camp": {
+    "index": 8,
+    "id": "holy-2",
+    "zone": "holy",
+    "x": 720,
+    "y": 320,
+    "r": 96,
+    "elite": true,
+    "spots": 1,
+    "type": "archon",
+    "alive": 1,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": false,
+   "expected": 0
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0.2,
+   "camp": {
+    "index": 8,
+    "id": "holy-2",
+    "zone": "holy",
+    "x": 720,
+    "y": 320,
+    "r": 96,
+    "elite": true,
+    "spots": 1,
+    "type": "archon",
+    "alive": 1,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": true,
+   "expected": 6
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0.2,
+   "camp": {
+    "index": 9,
+    "id": "fire-2",
+    "zone": "fire",
+    "x": 140,
+    "y": 140,
+    "r": 96,
+    "elite": false,
+    "spots": 3,
+    "type": "flameCaller",
+    "alive": 3,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": false,
+   "expected": 1.53
+  },
+  {
+   "faction": "sentenced",
+   "draw": 0.2,
+   "camp": {
+    "index": 9,
+    "id": "fire-2",
+    "zone": "fire",
+    "x": 140,
+    "y": 140,
+    "r": 96,
+    "elite": false,
+    "spots": 3,
+    "type": "flameCaller",
+    "alive": 3,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": true,
+   "expected": 1.53
+  },
+  {
+   "faction": "plague",
+   "draw": 0,
+   "camp": {
+    "index": 0,
+    "id": "fire-1",
+    "zone": "fire",
+    "x": 120,
+    "y": 120,
+    "r": 96,
+    "elite": false,
+    "spots": 3,
+    "type": "emberImp",
+    "alive": 3,
+    "state": 0,
+    "respawnAt": 0
+   },
+   "elites": false,
+   "expected": 1.47
+  },
+  {
+   "faction": "plague",
+   "draw": 0,
+   "camp": {
+    "index": 0,
+    "id": "fire-1",
+    "zone": "fire",
+    "x": 120,
+    "y": 120,
+    "r": 96,
+    "elite": false,
+    "spots": 3,
+    "type": "emberImp",
+    "alive": 3,
+    "state": 0,
+    "respawnAt": 0
+   },
+   "elites": true,
+   "expected": 1.47
+  },
+  {
+   "faction": "plague",
+   "draw": 0,
+   "camp": {
+    "index": 1,
+    "id": "fire-1",
+    "zone": "fire",
+    "x": 120,
+    "y": 120,
+    "r": 96,
+    "elite": false,
+    "spots": 3,
+    "type": "cinderHound",
+    "alive": 1,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": false,
+   "expected": 0.25
+  },
+  {
+   "faction": "plague",
+   "draw": 0,
+   "camp": {
+    "index": 1,
+    "id": "fire-1",
+    "zone": "fire",
+    "x": 120,
+    "y": 120,
+    "r": 96,
+    "elite": false,
+    "spots": 3,
+    "type": "cinderHound",
+    "alive": 1,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": true,
+   "expected": 0.25
+  },
+  {
+   "faction": "plague",
+   "draw": 0,
+   "camp": {
+    "index": 2,
+    "id": "plague-1",
+    "zone": "plague",
+    "x": 400,
+    "y": 200,
+    "r": 96,
+    "elite": false,
+    "spots": 4,
+    "type": "plagueRat",
+    "alive": 0,
+    "state": 2,
+    "respawnAt": 30000
+   },
+   "elites": false,
+   "expected": 3
+  },
+  {
+   "faction": "plague",
+   "draw": 0,
+   "camp": {
+    "index": 2,
+    "id": "plague-1",
+    "zone": "plague",
+    "x": 400,
+    "y": 200,
+    "r": 96,
+    "elite": false,
+    "spots": 4,
+    "type": "plagueRat",
+    "alive": 0,
+    "state": 2,
+    "respawnAt": 30000
+   },
+   "elites": true,
+   "expected": 3
+  },
+  {
+   "faction": "plague",
+   "draw": 0,
+   "camp": {
+    "index": 3,
+    "id": "holy-1",
+    "zone": "holy",
+    "x": 700,
+    "y": 300,
+    "r": 96,
+    "elite": false,
+    "spots": 2,
+    "type": "bailiff",
+    "alive": 2,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": false,
+   "expected": 0.5
+  },
+  {
+   "faction": "plague",
+   "draw": 0,
+   "camp": {
+    "index": 3,
+    "id": "holy-1",
+    "zone": "holy",
+    "x": 700,
+    "y": 300,
+    "r": 96,
+    "elite": false,
+    "spots": 2,
+    "type": "bailiff",
+    "alive": 2,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": true,
+   "expected": 0.5
+  },
+  {
+   "faction": "plague",
+   "draw": 0,
+   "camp": {
+    "index": 4,
+    "id": "frost-1",
+    "zone": "frost",
+    "x": 200,
+    "y": 600,
+    "r": 96,
+    "elite": false,
+    "spots": 3,
+    "type": "",
+    "alive": 2,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": false,
+   "expected": 0.5
+  },
+  {
+   "faction": "plague",
+   "draw": 0,
+   "camp": {
+    "index": 4,
+    "id": "frost-1",
+    "zone": "frost",
+    "x": 200,
+    "y": 600,
+    "r": 96,
+    "elite": false,
+    "spots": 3,
+    "type": "",
+    "alive": 2,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": true,
+   "expected": 0.5
+  },
+  {
+   "faction": "plague",
+   "draw": 0,
+   "camp": {
+    "index": 5,
+    "id": "frost-2",
+    "zone": "frost",
+    "x": 220,
+    "y": 620,
+    "r": 96,
+    "elite": true,
+    "spots": 1,
+    "type": "glacialWarden",
+    "alive": 1,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": false,
+   "expected": 0
+  },
+  {
+   "faction": "plague",
+   "draw": 0,
+   "camp": {
+    "index": 5,
+    "id": "frost-2",
+    "zone": "frost",
+    "x": 220,
+    "y": 620,
+    "r": 96,
+    "elite": true,
+    "spots": 1,
+    "type": "glacialWarden",
+    "alive": 1,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": true,
+   "expected": 6
+  },
+  {
+   "faction": "plague",
+   "draw": 0,
+   "camp": {
+    "index": 6,
+    "id": "sentenced-1",
+    "zone": "sentenced",
+    "x": 600,
+    "y": 500,
+    "r": 96,
+    "elite": true,
+    "spots": 1,
+    "type": "executioner",
+    "alive": 0,
+    "state": 2,
+    "respawnAt": 10000
+   },
+   "elites": false,
+   "expected": 0
+  },
+  {
+   "faction": "plague",
+   "draw": 0,
+   "camp": {
+    "index": 6,
+    "id": "sentenced-1",
+    "zone": "sentenced",
+    "x": 600,
+    "y": 500,
+    "r": 96,
+    "elite": true,
+    "spots": 1,
+    "type": "executioner",
+    "alive": 0,
+    "state": 2,
+    "respawnAt": 10000
+   },
+   "elites": true,
+   "expected": 6
+  },
+  {
+   "faction": "plague",
+   "draw": 0,
+   "camp": {
+    "index": 7,
+    "id": "sentenced-2",
+    "zone": "sentenced",
+    "x": 620,
+    "y": 520,
+    "r": 96,
+    "elite": true,
+    "spots": 1,
+    "type": "",
+    "alive": 0,
+    "state": 0,
+    "respawnAt": 0
+   },
+   "elites": false,
+   "expected": 0
+  },
+  {
+   "faction": "plague",
+   "draw": 0,
+   "camp": {
+    "index": 7,
+    "id": "sentenced-2",
+    "zone": "sentenced",
+    "x": 620,
+    "y": 520,
+    "r": 96,
+    "elite": true,
+    "spots": 1,
+    "type": "",
+    "alive": 0,
+    "state": 0,
+    "respawnAt": 0
+   },
+   "elites": true,
+   "expected": 0
+  },
+  {
+   "faction": "plague",
+   "draw": 0,
+   "camp": {
+    "index": 8,
+    "id": "holy-2",
+    "zone": "holy",
+    "x": 720,
+    "y": 320,
+    "r": 96,
+    "elite": true,
+    "spots": 1,
+    "type": "archon",
+    "alive": 1,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": false,
+   "expected": 0
+  },
+  {
+   "faction": "plague",
+   "draw": 0,
+   "camp": {
+    "index": 8,
+    "id": "holy-2",
+    "zone": "holy",
+    "x": 720,
+    "y": 320,
+    "r": 96,
+    "elite": true,
+    "spots": 1,
+    "type": "archon",
+    "alive": 1,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": true,
+   "expected": 6
+  },
+  {
+   "faction": "plague",
+   "draw": 0,
+   "camp": {
+    "index": 9,
+    "id": "fire-2",
+    "zone": "fire",
+    "x": 140,
+    "y": 140,
+    "r": 96,
+    "elite": false,
+    "spots": 3,
+    "type": "flameCaller",
+    "alive": 3,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": false,
+   "expected": 3
+  },
+  {
+   "faction": "plague",
+   "draw": 0,
+   "camp": {
+    "index": 9,
+    "id": "fire-2",
+    "zone": "fire",
+    "x": 140,
+    "y": 140,
+    "r": 96,
+    "elite": false,
+    "spots": 3,
+    "type": "flameCaller",
+    "alive": 3,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": true,
+   "expected": 3
+  },
+  {
+   "faction": "plague",
+   "draw": 0.2,
+   "camp": {
+    "index": 0,
+    "id": "fire-1",
+    "zone": "fire",
+    "x": 120,
+    "y": 120,
+    "r": 96,
+    "elite": false,
+    "spots": 3,
+    "type": "emberImp",
+    "alive": 3,
+    "state": 0,
+    "respawnAt": 0
+   },
+   "elites": false,
+   "expected": 1.47
+  },
+  {
+   "faction": "plague",
+   "draw": 0.2,
+   "camp": {
+    "index": 0,
+    "id": "fire-1",
+    "zone": "fire",
+    "x": 120,
+    "y": 120,
+    "r": 96,
+    "elite": false,
+    "spots": 3,
+    "type": "emberImp",
+    "alive": 3,
+    "state": 0,
+    "respawnAt": 0
+   },
+   "elites": true,
+   "expected": 1.47
+  },
+  {
+   "faction": "plague",
+   "draw": 0.2,
+   "camp": {
+    "index": 1,
+    "id": "fire-1",
+    "zone": "fire",
+    "x": 120,
+    "y": 120,
+    "r": 96,
+    "elite": false,
+    "spots": 3,
+    "type": "cinderHound",
+    "alive": 1,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": false,
+   "expected": 0.25
+  },
+  {
+   "faction": "plague",
+   "draw": 0.2,
+   "camp": {
+    "index": 1,
+    "id": "fire-1",
+    "zone": "fire",
+    "x": 120,
+    "y": 120,
+    "r": 96,
+    "elite": false,
+    "spots": 3,
+    "type": "cinderHound",
+    "alive": 1,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": true,
+   "expected": 0.25
+  },
+  {
+   "faction": "plague",
+   "draw": 0.2,
+   "camp": {
+    "index": 2,
+    "id": "plague-1",
+    "zone": "plague",
+    "x": 400,
+    "y": 200,
+    "r": 96,
+    "elite": false,
+    "spots": 4,
+    "type": "plagueRat",
+    "alive": 0,
+    "state": 2,
+    "respawnAt": 30000
+   },
+   "elites": false,
+   "expected": 3
+  },
+  {
+   "faction": "plague",
+   "draw": 0.2,
+   "camp": {
+    "index": 2,
+    "id": "plague-1",
+    "zone": "plague",
+    "x": 400,
+    "y": 200,
+    "r": 96,
+    "elite": false,
+    "spots": 4,
+    "type": "plagueRat",
+    "alive": 0,
+    "state": 2,
+    "respawnAt": 30000
+   },
+   "elites": true,
+   "expected": 3
+  },
+  {
+   "faction": "plague",
+   "draw": 0.2,
+   "camp": {
+    "index": 3,
+    "id": "holy-1",
+    "zone": "holy",
+    "x": 700,
+    "y": 300,
+    "r": 96,
+    "elite": false,
+    "spots": 2,
+    "type": "bailiff",
+    "alive": 2,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": false,
+   "expected": 0.5
+  },
+  {
+   "faction": "plague",
+   "draw": 0.2,
+   "camp": {
+    "index": 3,
+    "id": "holy-1",
+    "zone": "holy",
+    "x": 700,
+    "y": 300,
+    "r": 96,
+    "elite": false,
+    "spots": 2,
+    "type": "bailiff",
+    "alive": 2,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": true,
+   "expected": 0.5
+  },
+  {
+   "faction": "plague",
+   "draw": 0.2,
+   "camp": {
+    "index": 4,
+    "id": "frost-1",
+    "zone": "frost",
+    "x": 200,
+    "y": 600,
+    "r": 96,
+    "elite": false,
+    "spots": 3,
+    "type": "",
+    "alive": 2,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": false,
+   "expected": 0.5
+  },
+  {
+   "faction": "plague",
+   "draw": 0.2,
+   "camp": {
+    "index": 4,
+    "id": "frost-1",
+    "zone": "frost",
+    "x": 200,
+    "y": 600,
+    "r": 96,
+    "elite": false,
+    "spots": 3,
+    "type": "",
+    "alive": 2,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": true,
+   "expected": 0.5
+  },
+  {
+   "faction": "plague",
+   "draw": 0.2,
+   "camp": {
+    "index": 5,
+    "id": "frost-2",
+    "zone": "frost",
+    "x": 220,
+    "y": 620,
+    "r": 96,
+    "elite": true,
+    "spots": 1,
+    "type": "glacialWarden",
+    "alive": 1,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": false,
+   "expected": 0
+  },
+  {
+   "faction": "plague",
+   "draw": 0.2,
+   "camp": {
+    "index": 5,
+    "id": "frost-2",
+    "zone": "frost",
+    "x": 220,
+    "y": 620,
+    "r": 96,
+    "elite": true,
+    "spots": 1,
+    "type": "glacialWarden",
+    "alive": 1,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": true,
+   "expected": 6
+  },
+  {
+   "faction": "plague",
+   "draw": 0.2,
+   "camp": {
+    "index": 6,
+    "id": "sentenced-1",
+    "zone": "sentenced",
+    "x": 600,
+    "y": 500,
+    "r": 96,
+    "elite": true,
+    "spots": 1,
+    "type": "executioner",
+    "alive": 0,
+    "state": 2,
+    "respawnAt": 10000
+   },
+   "elites": false,
+   "expected": 0
+  },
+  {
+   "faction": "plague",
+   "draw": 0.2,
+   "camp": {
+    "index": 6,
+    "id": "sentenced-1",
+    "zone": "sentenced",
+    "x": 600,
+    "y": 500,
+    "r": 96,
+    "elite": true,
+    "spots": 1,
+    "type": "executioner",
+    "alive": 0,
+    "state": 2,
+    "respawnAt": 10000
+   },
+   "elites": true,
+   "expected": 6
+  },
+  {
+   "faction": "plague",
+   "draw": 0.2,
+   "camp": {
+    "index": 7,
+    "id": "sentenced-2",
+    "zone": "sentenced",
+    "x": 620,
+    "y": 520,
+    "r": 96,
+    "elite": true,
+    "spots": 1,
+    "type": "",
+    "alive": 0,
+    "state": 0,
+    "respawnAt": 0
+   },
+   "elites": false,
+   "expected": 0
+  },
+  {
+   "faction": "plague",
+   "draw": 0.2,
+   "camp": {
+    "index": 7,
+    "id": "sentenced-2",
+    "zone": "sentenced",
+    "x": 620,
+    "y": 520,
+    "r": 96,
+    "elite": true,
+    "spots": 1,
+    "type": "",
+    "alive": 0,
+    "state": 0,
+    "respawnAt": 0
+   },
+   "elites": true,
+   "expected": 0
+  },
+  {
+   "faction": "plague",
+   "draw": 0.2,
+   "camp": {
+    "index": 8,
+    "id": "holy-2",
+    "zone": "holy",
+    "x": 720,
+    "y": 320,
+    "r": 96,
+    "elite": true,
+    "spots": 1,
+    "type": "archon",
+    "alive": 1,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": false,
+   "expected": 0
+  },
+  {
+   "faction": "plague",
+   "draw": 0.2,
+   "camp": {
+    "index": 8,
+    "id": "holy-2",
+    "zone": "holy",
+    "x": 720,
+    "y": 320,
+    "r": 96,
+    "elite": true,
+    "spots": 1,
+    "type": "archon",
+    "alive": 1,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": true,
+   "expected": 6
+  },
+  {
+   "faction": "plague",
+   "draw": 0.2,
+   "camp": {
+    "index": 9,
+    "id": "fire-2",
+    "zone": "fire",
+    "x": 140,
+    "y": 140,
+    "r": 96,
+    "elite": false,
+    "spots": 3,
+    "type": "flameCaller",
+    "alive": 3,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": false,
+   "expected": 3
+  },
+  {
+   "faction": "plague",
+   "draw": 0.2,
+   "camp": {
+    "index": 9,
+    "id": "fire-2",
+    "zone": "fire",
+    "x": 140,
+    "y": 140,
+    "r": 96,
+    "elite": false,
+    "spots": 3,
+    "type": "flameCaller",
+    "alive": 3,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": true,
+   "expected": 3
+  },
+  {
+   "faction": "frost",
+   "draw": 0,
+   "camp": {
+    "index": 0,
+    "id": "fire-1",
+    "zone": "fire",
+    "x": 120,
+    "y": 120,
+    "r": 96,
+    "elite": false,
+    "spots": 3,
+    "type": "emberImp",
+    "alive": 3,
+    "state": 0,
+    "respawnAt": 0
+   },
+   "elites": false,
+   "expected": 1.6800000000000002
+  },
+  {
+   "faction": "frost",
+   "draw": 0,
+   "camp": {
+    "index": 0,
+    "id": "fire-1",
+    "zone": "fire",
+    "x": 120,
+    "y": 120,
+    "r": 96,
+    "elite": false,
+    "spots": 3,
+    "type": "emberImp",
+    "alive": 3,
+    "state": 0,
+    "respawnAt": 0
+   },
+   "elites": true,
+   "expected": 1.6800000000000002
+  },
+  {
+   "faction": "frost",
+   "draw": 0,
+   "camp": {
+    "index": 1,
+    "id": "fire-1",
+    "zone": "fire",
+    "x": 120,
+    "y": 120,
+    "r": 96,
+    "elite": false,
+    "spots": 3,
+    "type": "cinderHound",
+    "alive": 1,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": false,
+   "expected": 0.25
+  },
+  {
+   "faction": "frost",
+   "draw": 0,
+   "camp": {
+    "index": 1,
+    "id": "fire-1",
+    "zone": "fire",
+    "x": 120,
+    "y": 120,
+    "r": 96,
+    "elite": false,
+    "spots": 3,
+    "type": "cinderHound",
+    "alive": 1,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": true,
+   "expected": 0.25
+  },
+  {
+   "faction": "frost",
+   "draw": 0,
+   "camp": {
+    "index": 2,
+    "id": "plague-1",
+    "zone": "plague",
+    "x": 400,
+    "y": 200,
+    "r": 96,
+    "elite": false,
+    "spots": 4,
+    "type": "plagueRat",
+    "alive": 0,
+    "state": 2,
+    "respawnAt": 30000
+   },
+   "elites": false,
+   "expected": 4
+  },
+  {
+   "faction": "frost",
+   "draw": 0,
+   "camp": {
+    "index": 2,
+    "id": "plague-1",
+    "zone": "plague",
+    "x": 400,
+    "y": 200,
+    "r": 96,
+    "elite": false,
+    "spots": 4,
+    "type": "plagueRat",
+    "alive": 0,
+    "state": 2,
+    "respawnAt": 30000
+   },
+   "elites": true,
+   "expected": 4
+  },
+  {
+   "faction": "frost",
+   "draw": 0,
+   "camp": {
+    "index": 3,
+    "id": "holy-1",
+    "zone": "holy",
+    "x": 700,
+    "y": 300,
+    "r": 96,
+    "elite": false,
+    "spots": 2,
+    "type": "bailiff",
+    "alive": 2,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": false,
+   "expected": 1.5
+  },
+  {
+   "faction": "frost",
+   "draw": 0,
+   "camp": {
+    "index": 3,
+    "id": "holy-1",
+    "zone": "holy",
+    "x": 700,
+    "y": 300,
+    "r": 96,
+    "elite": false,
+    "spots": 2,
+    "type": "bailiff",
+    "alive": 2,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": true,
+   "expected": 1.5
+  },
+  {
+   "faction": "frost",
+   "draw": 0,
+   "camp": {
+    "index": 4,
+    "id": "frost-1",
+    "zone": "frost",
+    "x": 200,
+    "y": 600,
+    "r": 96,
+    "elite": false,
+    "spots": 3,
+    "type": "",
+    "alive": 2,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": false,
+   "expected": 0.5
+  },
+  {
+   "faction": "frost",
+   "draw": 0,
+   "camp": {
+    "index": 4,
+    "id": "frost-1",
+    "zone": "frost",
+    "x": 200,
+    "y": 600,
+    "r": 96,
+    "elite": false,
+    "spots": 3,
+    "type": "",
+    "alive": 2,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": true,
+   "expected": 0.5
+  },
+  {
+   "faction": "frost",
+   "draw": 0,
+   "camp": {
+    "index": 5,
+    "id": "frost-2",
+    "zone": "frost",
+    "x": 220,
+    "y": 620,
+    "r": 96,
+    "elite": true,
+    "spots": 1,
+    "type": "glacialWarden",
+    "alive": 1,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": false,
+   "expected": 0
+  },
+  {
+   "faction": "frost",
+   "draw": 0,
+   "camp": {
+    "index": 5,
+    "id": "frost-2",
+    "zone": "frost",
+    "x": 220,
+    "y": 620,
+    "r": 96,
+    "elite": true,
+    "spots": 1,
+    "type": "glacialWarden",
+    "alive": 1,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": true,
+   "expected": 6
+  },
+  {
+   "faction": "frost",
+   "draw": 0,
+   "camp": {
+    "index": 6,
+    "id": "sentenced-1",
+    "zone": "sentenced",
+    "x": 600,
+    "y": 500,
+    "r": 96,
+    "elite": true,
+    "spots": 1,
+    "type": "executioner",
+    "alive": 0,
+    "state": 2,
+    "respawnAt": 10000
+   },
+   "elites": false,
+   "expected": 0
+  },
+  {
+   "faction": "frost",
+   "draw": 0,
+   "camp": {
+    "index": 6,
+    "id": "sentenced-1",
+    "zone": "sentenced",
+    "x": 600,
+    "y": 500,
+    "r": 96,
+    "elite": true,
+    "spots": 1,
+    "type": "executioner",
+    "alive": 0,
+    "state": 2,
+    "respawnAt": 10000
+   },
+   "elites": true,
+   "expected": 6
+  },
+  {
+   "faction": "frost",
+   "draw": 0,
+   "camp": {
+    "index": 7,
+    "id": "sentenced-2",
+    "zone": "sentenced",
+    "x": 620,
+    "y": 520,
+    "r": 96,
+    "elite": true,
+    "spots": 1,
+    "type": "",
+    "alive": 0,
+    "state": 0,
+    "respawnAt": 0
+   },
+   "elites": false,
+   "expected": 0
+  },
+  {
+   "faction": "frost",
+   "draw": 0,
+   "camp": {
+    "index": 7,
+    "id": "sentenced-2",
+    "zone": "sentenced",
+    "x": 620,
+    "y": 520,
+    "r": 96,
+    "elite": true,
+    "spots": 1,
+    "type": "",
+    "alive": 0,
+    "state": 0,
+    "respawnAt": 0
+   },
+   "elites": true,
+   "expected": 0
+  },
+  {
+   "faction": "frost",
+   "draw": 0,
+   "camp": {
+    "index": 8,
+    "id": "holy-2",
+    "zone": "holy",
+    "x": 720,
+    "y": 320,
+    "r": 96,
+    "elite": true,
+    "spots": 1,
+    "type": "archon",
+    "alive": 1,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": false,
+   "expected": 0
+  },
+  {
+   "faction": "frost",
+   "draw": 0,
+   "camp": {
+    "index": 8,
+    "id": "holy-2",
+    "zone": "holy",
+    "x": 720,
+    "y": 320,
+    "r": 96,
+    "elite": true,
+    "spots": 1,
+    "type": "archon",
+    "alive": 1,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": true,
+   "expected": 6
+  },
+  {
+   "faction": "frost",
+   "draw": 0,
+   "camp": {
+    "index": 9,
+    "id": "fire-2",
+    "zone": "fire",
+    "x": 140,
+    "y": 140,
+    "r": 96,
+    "elite": false,
+    "spots": 3,
+    "type": "flameCaller",
+    "alive": 3,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": false,
+   "expected": 0.75
+  },
+  {
+   "faction": "frost",
+   "draw": 0,
+   "camp": {
+    "index": 9,
+    "id": "fire-2",
+    "zone": "fire",
+    "x": 140,
+    "y": 140,
+    "r": 96,
+    "elite": false,
+    "spots": 3,
+    "type": "flameCaller",
+    "alive": 3,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": true,
+   "expected": 0.75
+  },
+  {
+   "faction": "frost",
+   "draw": 0.2,
+   "camp": {
+    "index": 0,
+    "id": "fire-1",
+    "zone": "fire",
+    "x": 120,
+    "y": 120,
+    "r": 96,
+    "elite": false,
+    "spots": 3,
+    "type": "emberImp",
+    "alive": 3,
+    "state": 0,
+    "respawnAt": 0
+   },
+   "elites": false,
+   "expected": 1.6800000000000002
+  },
+  {
+   "faction": "frost",
+   "draw": 0.2,
+   "camp": {
+    "index": 0,
+    "id": "fire-1",
+    "zone": "fire",
+    "x": 120,
+    "y": 120,
+    "r": 96,
+    "elite": false,
+    "spots": 3,
+    "type": "emberImp",
+    "alive": 3,
+    "state": 0,
+    "respawnAt": 0
+   },
+   "elites": true,
+   "expected": 1.6800000000000002
+  },
+  {
+   "faction": "frost",
+   "draw": 0.2,
+   "camp": {
+    "index": 1,
+    "id": "fire-1",
+    "zone": "fire",
+    "x": 120,
+    "y": 120,
+    "r": 96,
+    "elite": false,
+    "spots": 3,
+    "type": "cinderHound",
+    "alive": 1,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": false,
+   "expected": 0.25
+  },
+  {
+   "faction": "frost",
+   "draw": 0.2,
+   "camp": {
+    "index": 1,
+    "id": "fire-1",
+    "zone": "fire",
+    "x": 120,
+    "y": 120,
+    "r": 96,
+    "elite": false,
+    "spots": 3,
+    "type": "cinderHound",
+    "alive": 1,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": true,
+   "expected": 0.25
+  },
+  {
+   "faction": "frost",
+   "draw": 0.2,
+   "camp": {
+    "index": 2,
+    "id": "plague-1",
+    "zone": "plague",
+    "x": 400,
+    "y": 200,
+    "r": 96,
+    "elite": false,
+    "spots": 4,
+    "type": "plagueRat",
+    "alive": 0,
+    "state": 2,
+    "respawnAt": 30000
+   },
+   "elites": false,
+   "expected": 4
+  },
+  {
+   "faction": "frost",
+   "draw": 0.2,
+   "camp": {
+    "index": 2,
+    "id": "plague-1",
+    "zone": "plague",
+    "x": 400,
+    "y": 200,
+    "r": 96,
+    "elite": false,
+    "spots": 4,
+    "type": "plagueRat",
+    "alive": 0,
+    "state": 2,
+    "respawnAt": 30000
+   },
+   "elites": true,
+   "expected": 4
+  },
+  {
+   "faction": "frost",
+   "draw": 0.2,
+   "camp": {
+    "index": 3,
+    "id": "holy-1",
+    "zone": "holy",
+    "x": 700,
+    "y": 300,
+    "r": 96,
+    "elite": false,
+    "spots": 2,
+    "type": "bailiff",
+    "alive": 2,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": false,
+   "expected": 1.5
+  },
+  {
+   "faction": "frost",
+   "draw": 0.2,
+   "camp": {
+    "index": 3,
+    "id": "holy-1",
+    "zone": "holy",
+    "x": 700,
+    "y": 300,
+    "r": 96,
+    "elite": false,
+    "spots": 2,
+    "type": "bailiff",
+    "alive": 2,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": true,
+   "expected": 1.5
+  },
+  {
+   "faction": "frost",
+   "draw": 0.2,
+   "camp": {
+    "index": 4,
+    "id": "frost-1",
+    "zone": "frost",
+    "x": 200,
+    "y": 600,
+    "r": 96,
+    "elite": false,
+    "spots": 3,
+    "type": "",
+    "alive": 2,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": false,
+   "expected": 0.5
+  },
+  {
+   "faction": "frost",
+   "draw": 0.2,
+   "camp": {
+    "index": 4,
+    "id": "frost-1",
+    "zone": "frost",
+    "x": 200,
+    "y": 600,
+    "r": 96,
+    "elite": false,
+    "spots": 3,
+    "type": "",
+    "alive": 2,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": true,
+   "expected": 0.5
+  },
+  {
+   "faction": "frost",
+   "draw": 0.2,
+   "camp": {
+    "index": 5,
+    "id": "frost-2",
+    "zone": "frost",
+    "x": 220,
+    "y": 620,
+    "r": 96,
+    "elite": true,
+    "spots": 1,
+    "type": "glacialWarden",
+    "alive": 1,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": false,
+   "expected": 0
+  },
+  {
+   "faction": "frost",
+   "draw": 0.2,
+   "camp": {
+    "index": 5,
+    "id": "frost-2",
+    "zone": "frost",
+    "x": 220,
+    "y": 620,
+    "r": 96,
+    "elite": true,
+    "spots": 1,
+    "type": "glacialWarden",
+    "alive": 1,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": true,
+   "expected": 6
+  },
+  {
+   "faction": "frost",
+   "draw": 0.2,
+   "camp": {
+    "index": 6,
+    "id": "sentenced-1",
+    "zone": "sentenced",
+    "x": 600,
+    "y": 500,
+    "r": 96,
+    "elite": true,
+    "spots": 1,
+    "type": "executioner",
+    "alive": 0,
+    "state": 2,
+    "respawnAt": 10000
+   },
+   "elites": false,
+   "expected": 0
+  },
+  {
+   "faction": "frost",
+   "draw": 0.2,
+   "camp": {
+    "index": 6,
+    "id": "sentenced-1",
+    "zone": "sentenced",
+    "x": 600,
+    "y": 500,
+    "r": 96,
+    "elite": true,
+    "spots": 1,
+    "type": "executioner",
+    "alive": 0,
+    "state": 2,
+    "respawnAt": 10000
+   },
+   "elites": true,
+   "expected": 6
+  },
+  {
+   "faction": "frost",
+   "draw": 0.2,
+   "camp": {
+    "index": 7,
+    "id": "sentenced-2",
+    "zone": "sentenced",
+    "x": 620,
+    "y": 520,
+    "r": 96,
+    "elite": true,
+    "spots": 1,
+    "type": "",
+    "alive": 0,
+    "state": 0,
+    "respawnAt": 0
+   },
+   "elites": false,
+   "expected": 0
+  },
+  {
+   "faction": "frost",
+   "draw": 0.2,
+   "camp": {
+    "index": 7,
+    "id": "sentenced-2",
+    "zone": "sentenced",
+    "x": 620,
+    "y": 520,
+    "r": 96,
+    "elite": true,
+    "spots": 1,
+    "type": "",
+    "alive": 0,
+    "state": 0,
+    "respawnAt": 0
+   },
+   "elites": true,
+   "expected": 0
+  },
+  {
+   "faction": "frost",
+   "draw": 0.2,
+   "camp": {
+    "index": 8,
+    "id": "holy-2",
+    "zone": "holy",
+    "x": 720,
+    "y": 320,
+    "r": 96,
+    "elite": true,
+    "spots": 1,
+    "type": "archon",
+    "alive": 1,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": false,
+   "expected": 0
+  },
+  {
+   "faction": "frost",
+   "draw": 0.2,
+   "camp": {
+    "index": 8,
+    "id": "holy-2",
+    "zone": "holy",
+    "x": 720,
+    "y": 320,
+    "r": 96,
+    "elite": true,
+    "spots": 1,
+    "type": "archon",
+    "alive": 1,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": true,
+   "expected": 6
+  },
+  {
+   "faction": "frost",
+   "draw": 0.2,
+   "camp": {
+    "index": 9,
+    "id": "fire-2",
+    "zone": "fire",
+    "x": 140,
+    "y": 140,
+    "r": 96,
+    "elite": false,
+    "spots": 3,
+    "type": "flameCaller",
+    "alive": 3,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": false,
+   "expected": 0.75
+  },
+  {
+   "faction": "frost",
+   "draw": 0.2,
+   "camp": {
+    "index": 9,
+    "id": "fire-2",
+    "zone": "fire",
+    "x": 140,
+    "y": 140,
+    "r": 96,
+    "elite": false,
+    "spots": 3,
+    "type": "flameCaller",
+    "alive": 3,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": true,
+   "expected": 0.75
+  },
+  {
+   "faction": "holy",
+   "draw": 0,
+   "camp": {
+    "index": 0,
+    "id": "fire-1",
+    "zone": "fire",
+    "x": 120,
+    "y": 120,
+    "r": 96,
+    "elite": false,
+    "spots": 3,
+    "type": "emberImp",
+    "alive": 3,
+    "state": 0,
+    "respawnAt": 0
+   },
+   "elites": false,
+   "expected": 1.92
+  },
+  {
+   "faction": "holy",
+   "draw": 0,
+   "camp": {
+    "index": 0,
+    "id": "fire-1",
+    "zone": "fire",
+    "x": 120,
+    "y": 120,
+    "r": 96,
+    "elite": false,
+    "spots": 3,
+    "type": "emberImp",
+    "alive": 3,
+    "state": 0,
+    "respawnAt": 0
+   },
+   "elites": true,
+   "expected": 1.92
+  },
+  {
+   "faction": "holy",
+   "draw": 0,
+   "camp": {
+    "index": 1,
+    "id": "fire-1",
+    "zone": "fire",
+    "x": 120,
+    "y": 120,
+    "r": 96,
+    "elite": false,
+    "spots": 3,
+    "type": "cinderHound",
+    "alive": 1,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": false,
+   "expected": 0.25
+  },
+  {
+   "faction": "holy",
+   "draw": 0,
+   "camp": {
+    "index": 1,
+    "id": "fire-1",
+    "zone": "fire",
+    "x": 120,
+    "y": 120,
+    "r": 96,
+    "elite": false,
+    "spots": 3,
+    "type": "cinderHound",
+    "alive": 1,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": true,
+   "expected": 0.25
+  },
+  {
+   "faction": "holy",
+   "draw": 0,
+   "camp": {
+    "index": 2,
+    "id": "plague-1",
+    "zone": "plague",
+    "x": 400,
+    "y": 200,
+    "r": 96,
+    "elite": false,
+    "spots": 4,
+    "type": "plagueRat",
+    "alive": 0,
+    "state": 2,
+    "respawnAt": 30000
+   },
+   "elites": false,
+   "expected": 4
+  },
+  {
+   "faction": "holy",
+   "draw": 0,
+   "camp": {
+    "index": 2,
+    "id": "plague-1",
+    "zone": "plague",
+    "x": 400,
+    "y": 200,
+    "r": 96,
+    "elite": false,
+    "spots": 4,
+    "type": "plagueRat",
+    "alive": 0,
+    "state": 2,
+    "respawnAt": 30000
+   },
+   "elites": true,
+   "expected": 4
+  },
+  {
+   "faction": "holy",
+   "draw": 0,
+   "camp": {
+    "index": 3,
+    "id": "holy-1",
+    "zone": "holy",
+    "x": 700,
+    "y": 300,
+    "r": 96,
+    "elite": false,
+    "spots": 2,
+    "type": "bailiff",
+    "alive": 2,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": false,
+   "expected": 0.5
+  },
+  {
+   "faction": "holy",
+   "draw": 0,
+   "camp": {
+    "index": 3,
+    "id": "holy-1",
+    "zone": "holy",
+    "x": 700,
+    "y": 300,
+    "r": 96,
+    "elite": false,
+    "spots": 2,
+    "type": "bailiff",
+    "alive": 2,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": true,
+   "expected": 0.5
+  },
+  {
+   "faction": "holy",
+   "draw": 0,
+   "camp": {
+    "index": 4,
+    "id": "frost-1",
+    "zone": "frost",
+    "x": 200,
+    "y": 600,
+    "r": 96,
+    "elite": false,
+    "spots": 3,
+    "type": "",
+    "alive": 2,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": false,
+   "expected": 0.5
+  },
+  {
+   "faction": "holy",
+   "draw": 0,
+   "camp": {
+    "index": 4,
+    "id": "frost-1",
+    "zone": "frost",
+    "x": 200,
+    "y": 600,
+    "r": 96,
+    "elite": false,
+    "spots": 3,
+    "type": "",
+    "alive": 2,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": true,
+   "expected": 0.5
+  },
+  {
+   "faction": "holy",
+   "draw": 0,
+   "camp": {
+    "index": 5,
+    "id": "frost-2",
+    "zone": "frost",
+    "x": 220,
+    "y": 620,
+    "r": 96,
+    "elite": true,
+    "spots": 1,
+    "type": "glacialWarden",
+    "alive": 1,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": false,
+   "expected": 0
+  },
+  {
+   "faction": "holy",
+   "draw": 0,
+   "camp": {
+    "index": 5,
+    "id": "frost-2",
+    "zone": "frost",
+    "x": 220,
+    "y": 620,
+    "r": 96,
+    "elite": true,
+    "spots": 1,
+    "type": "glacialWarden",
+    "alive": 1,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": true,
+   "expected": 6
+  },
+  {
+   "faction": "holy",
+   "draw": 0,
+   "camp": {
+    "index": 6,
+    "id": "sentenced-1",
+    "zone": "sentenced",
+    "x": 600,
+    "y": 500,
+    "r": 96,
+    "elite": true,
+    "spots": 1,
+    "type": "executioner",
+    "alive": 0,
+    "state": 2,
+    "respawnAt": 10000
+   },
+   "elites": false,
+   "expected": 0
+  },
+  {
+   "faction": "holy",
+   "draw": 0,
+   "camp": {
+    "index": 6,
+    "id": "sentenced-1",
+    "zone": "sentenced",
+    "x": 600,
+    "y": 500,
+    "r": 96,
+    "elite": true,
+    "spots": 1,
+    "type": "executioner",
+    "alive": 0,
+    "state": 2,
+    "respawnAt": 10000
+   },
+   "elites": true,
+   "expected": 6
+  },
+  {
+   "faction": "holy",
+   "draw": 0,
+   "camp": {
+    "index": 7,
+    "id": "sentenced-2",
+    "zone": "sentenced",
+    "x": 620,
+    "y": 520,
+    "r": 96,
+    "elite": true,
+    "spots": 1,
+    "type": "",
+    "alive": 0,
+    "state": 0,
+    "respawnAt": 0
+   },
+   "elites": false,
+   "expected": 0
+  },
+  {
+   "faction": "holy",
+   "draw": 0,
+   "camp": {
+    "index": 7,
+    "id": "sentenced-2",
+    "zone": "sentenced",
+    "x": 620,
+    "y": 520,
+    "r": 96,
+    "elite": true,
+    "spots": 1,
+    "type": "",
+    "alive": 0,
+    "state": 0,
+    "respawnAt": 0
+   },
+   "elites": true,
+   "expected": 0
+  },
+  {
+   "faction": "holy",
+   "draw": 0,
+   "camp": {
+    "index": 8,
+    "id": "holy-2",
+    "zone": "holy",
+    "x": 720,
+    "y": 320,
+    "r": 96,
+    "elite": true,
+    "spots": 1,
+    "type": "archon",
+    "alive": 1,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": false,
+   "expected": 0
+  },
+  {
+   "faction": "holy",
+   "draw": 0,
+   "camp": {
+    "index": 8,
+    "id": "holy-2",
+    "zone": "holy",
+    "x": 720,
+    "y": 320,
+    "r": 96,
+    "elite": true,
+    "spots": 1,
+    "type": "archon",
+    "alive": 1,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": true,
+   "expected": 6
+  },
+  {
+   "faction": "holy",
+   "draw": 0,
+   "camp": {
+    "index": 9,
+    "id": "fire-2",
+    "zone": "fire",
+    "x": 140,
+    "y": 140,
+    "r": 96,
+    "elite": false,
+    "spots": 3,
+    "type": "flameCaller",
+    "alive": 3,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": false,
+   "expected": 0.75
+  },
+  {
+   "faction": "holy",
+   "draw": 0,
+   "camp": {
+    "index": 9,
+    "id": "fire-2",
+    "zone": "fire",
+    "x": 140,
+    "y": 140,
+    "r": 96,
+    "elite": false,
+    "spots": 3,
+    "type": "flameCaller",
+    "alive": 3,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": true,
+   "expected": 0.75
+  },
+  {
+   "faction": "holy",
+   "draw": 0.2,
+   "camp": {
+    "index": 0,
+    "id": "fire-1",
+    "zone": "fire",
+    "x": 120,
+    "y": 120,
+    "r": 96,
+    "elite": false,
+    "spots": 3,
+    "type": "emberImp",
+    "alive": 3,
+    "state": 0,
+    "respawnAt": 0
+   },
+   "elites": false,
+   "expected": 1.92
+  },
+  {
+   "faction": "holy",
+   "draw": 0.2,
+   "camp": {
+    "index": 0,
+    "id": "fire-1",
+    "zone": "fire",
+    "x": 120,
+    "y": 120,
+    "r": 96,
+    "elite": false,
+    "spots": 3,
+    "type": "emberImp",
+    "alive": 3,
+    "state": 0,
+    "respawnAt": 0
+   },
+   "elites": true,
+   "expected": 1.92
+  },
+  {
+   "faction": "holy",
+   "draw": 0.2,
+   "camp": {
+    "index": 1,
+    "id": "fire-1",
+    "zone": "fire",
+    "x": 120,
+    "y": 120,
+    "r": 96,
+    "elite": false,
+    "spots": 3,
+    "type": "cinderHound",
+    "alive": 1,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": false,
+   "expected": 0.25
+  },
+  {
+   "faction": "holy",
+   "draw": 0.2,
+   "camp": {
+    "index": 1,
+    "id": "fire-1",
+    "zone": "fire",
+    "x": 120,
+    "y": 120,
+    "r": 96,
+    "elite": false,
+    "spots": 3,
+    "type": "cinderHound",
+    "alive": 1,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": true,
+   "expected": 0.25
+  },
+  {
+   "faction": "holy",
+   "draw": 0.2,
+   "camp": {
+    "index": 2,
+    "id": "plague-1",
+    "zone": "plague",
+    "x": 400,
+    "y": 200,
+    "r": 96,
+    "elite": false,
+    "spots": 4,
+    "type": "plagueRat",
+    "alive": 0,
+    "state": 2,
+    "respawnAt": 30000
+   },
+   "elites": false,
+   "expected": 4
+  },
+  {
+   "faction": "holy",
+   "draw": 0.2,
+   "camp": {
+    "index": 2,
+    "id": "plague-1",
+    "zone": "plague",
+    "x": 400,
+    "y": 200,
+    "r": 96,
+    "elite": false,
+    "spots": 4,
+    "type": "plagueRat",
+    "alive": 0,
+    "state": 2,
+    "respawnAt": 30000
+   },
+   "elites": true,
+   "expected": 4
+  },
+  {
+   "faction": "holy",
+   "draw": 0.2,
+   "camp": {
+    "index": 3,
+    "id": "holy-1",
+    "zone": "holy",
+    "x": 700,
+    "y": 300,
+    "r": 96,
+    "elite": false,
+    "spots": 2,
+    "type": "bailiff",
+    "alive": 2,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": false,
+   "expected": 0.5
+  },
+  {
+   "faction": "holy",
+   "draw": 0.2,
+   "camp": {
+    "index": 3,
+    "id": "holy-1",
+    "zone": "holy",
+    "x": 700,
+    "y": 300,
+    "r": 96,
+    "elite": false,
+    "spots": 2,
+    "type": "bailiff",
+    "alive": 2,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": true,
+   "expected": 0.5
+  },
+  {
+   "faction": "holy",
+   "draw": 0.2,
+   "camp": {
+    "index": 4,
+    "id": "frost-1",
+    "zone": "frost",
+    "x": 200,
+    "y": 600,
+    "r": 96,
+    "elite": false,
+    "spots": 3,
+    "type": "",
+    "alive": 2,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": false,
+   "expected": 0.5
+  },
+  {
+   "faction": "holy",
+   "draw": 0.2,
+   "camp": {
+    "index": 4,
+    "id": "frost-1",
+    "zone": "frost",
+    "x": 200,
+    "y": 600,
+    "r": 96,
+    "elite": false,
+    "spots": 3,
+    "type": "",
+    "alive": 2,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": true,
+   "expected": 0.5
+  },
+  {
+   "faction": "holy",
+   "draw": 0.2,
+   "camp": {
+    "index": 5,
+    "id": "frost-2",
+    "zone": "frost",
+    "x": 220,
+    "y": 620,
+    "r": 96,
+    "elite": true,
+    "spots": 1,
+    "type": "glacialWarden",
+    "alive": 1,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": false,
+   "expected": 0
+  },
+  {
+   "faction": "holy",
+   "draw": 0.2,
+   "camp": {
+    "index": 5,
+    "id": "frost-2",
+    "zone": "frost",
+    "x": 220,
+    "y": 620,
+    "r": 96,
+    "elite": true,
+    "spots": 1,
+    "type": "glacialWarden",
+    "alive": 1,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": true,
+   "expected": 6
+  },
+  {
+   "faction": "holy",
+   "draw": 0.2,
+   "camp": {
+    "index": 6,
+    "id": "sentenced-1",
+    "zone": "sentenced",
+    "x": 600,
+    "y": 500,
+    "r": 96,
+    "elite": true,
+    "spots": 1,
+    "type": "executioner",
+    "alive": 0,
+    "state": 2,
+    "respawnAt": 10000
+   },
+   "elites": false,
+   "expected": 0
+  },
+  {
+   "faction": "holy",
+   "draw": 0.2,
+   "camp": {
+    "index": 6,
+    "id": "sentenced-1",
+    "zone": "sentenced",
+    "x": 600,
+    "y": 500,
+    "r": 96,
+    "elite": true,
+    "spots": 1,
+    "type": "executioner",
+    "alive": 0,
+    "state": 2,
+    "respawnAt": 10000
+   },
+   "elites": true,
+   "expected": 6
+  },
+  {
+   "faction": "holy",
+   "draw": 0.2,
+   "camp": {
+    "index": 7,
+    "id": "sentenced-2",
+    "zone": "sentenced",
+    "x": 620,
+    "y": 520,
+    "r": 96,
+    "elite": true,
+    "spots": 1,
+    "type": "",
+    "alive": 0,
+    "state": 0,
+    "respawnAt": 0
+   },
+   "elites": false,
+   "expected": 0
+  },
+  {
+   "faction": "holy",
+   "draw": 0.2,
+   "camp": {
+    "index": 7,
+    "id": "sentenced-2",
+    "zone": "sentenced",
+    "x": 620,
+    "y": 520,
+    "r": 96,
+    "elite": true,
+    "spots": 1,
+    "type": "",
+    "alive": 0,
+    "state": 0,
+    "respawnAt": 0
+   },
+   "elites": true,
+   "expected": 0
+  },
+  {
+   "faction": "holy",
+   "draw": 0.2,
+   "camp": {
+    "index": 8,
+    "id": "holy-2",
+    "zone": "holy",
+    "x": 720,
+    "y": 320,
+    "r": 96,
+    "elite": true,
+    "spots": 1,
+    "type": "archon",
+    "alive": 1,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": false,
+   "expected": 0
+  },
+  {
+   "faction": "holy",
+   "draw": 0.2,
+   "camp": {
+    "index": 8,
+    "id": "holy-2",
+    "zone": "holy",
+    "x": 720,
+    "y": 320,
+    "r": 96,
+    "elite": true,
+    "spots": 1,
+    "type": "archon",
+    "alive": 1,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": true,
+   "expected": 6
+  },
+  {
+   "faction": "holy",
+   "draw": 0.2,
+   "camp": {
+    "index": 9,
+    "id": "fire-2",
+    "zone": "fire",
+    "x": 140,
+    "y": 140,
+    "r": 96,
+    "elite": false,
+    "spots": 3,
+    "type": "flameCaller",
+    "alive": 3,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": false,
+   "expected": 0.75
+  },
+  {
+   "faction": "holy",
+   "draw": 0.2,
+   "camp": {
+    "index": 9,
+    "id": "fire-2",
+    "zone": "fire",
+    "x": 140,
+    "y": 140,
+    "r": 96,
+    "elite": false,
+    "spots": 3,
+    "type": "flameCaller",
+    "alive": 3,
+    "state": 1,
+    "respawnAt": 0
+   },
+   "elites": true,
+   "expected": 0.75
+  }
+ ]
+}
