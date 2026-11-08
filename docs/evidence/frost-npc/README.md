@@ -16,16 +16,30 @@ dedicated Frost-tuple restore tests for the training practice/dummy and owned-zo
 - Bound profile: native Sim consumers set consumables=false (delivered code wrongly enabled the omitted installer),
   quests=false, abilities=Off, lifecycle=Off, hazards Off, initial_loot=false, regen=false, training/dummies=false, PvE
   and the four admitted factions, with min_players/lobby/fill bound from the source config; profile/inert scope asserted.
-- No source mode, weapon, path or outcome is injected anywhere: captures observe real source state and commands only.
+- No source mode, path or outcome is injected, and no weapon is written into the world after construction. The
+  additive Plague-bow/Holy-wand boundary cases select their zone through a DECLARED PRE-WORLD MAP VARIANT: the capture
+  clones the declared pve-dot map and applies the same zone-swap construction the delivered base capture uses for its
+  Holy case (region id / camp zone / region grid / spawn pool, plus the region-view camp weapon hint), before
+  createWorld; the native Rust consumer applies the same declared variant before reset_active. The source's unchanged
+  camp generator then spawns the swapped zone's own roster types and their carried weapons - the captured Plague camp is
+  Rat Ogre (elite, bow) + Miasma Witch (wand), the Holy camp is Blood Saint (wand) + Zealot (sword). The transform is
+  pinned by the recorder hash and the declared-map input hash; there is no post-world/poststate injection, and the frames
+  observe real source state and commands only. Shipped source Plague rosters natively include bow roles (Plague Rat,
+  Bloatfly, Rot Monk, Rat Ogre), so the separate Plague/admitted-bow coverage is a declared map-variant substitute rather
+  than an unknown-role claim.
 
 ## Source/native proof
 
 - parity/frost-npc/source.json is byte-identical to the delivered base corpus
   (sha256 4d1fafe91f8bbf61518c420c88017d69be3ab0d4c4aca1fdf042e435ad0cd20a); the delivered capture.mts/capture.sh are
   unchanged, so the original three semantic payloads are immutable.
-- Additive boundary corpus parity/frost-npc/boundary.json (sha256 c4b967b9...): real source-born Plague recipients and
-  genuinely admitted NPC bow draws (160 frames), Holy Frost bow near+ranged overlap/thaw (170), non-Frost DoT death/camp
-  alive lifecycle control (104, documented damage drift), no-Frost Plague control (120).
+- Additive boundary corpus parity/frost-npc/boundary.json (sha256 a4161772b993b9781ad5e278d58a37c585d0c22ebea7eb233ea885cc71ab368f): declared pre-world map-variant Plague
+  recipients and source roster-generated NPC bow draws (160 frames), Holy Frost bow near+ranged overlap/thaw (170),
+  non-Frost DoT death/camp alive lifecycle control (104, documented damage drift), no-Frost Plague control (120). The
+  metadata polish changed only the profile label: boundary profile.config.minPlayers is the resolved 2 (with a separate
+  minPlayersFormula field and a weaponSource label); the four case payloads are byte-identical to the previous corpus
+  (canonical case sha256 7ec82bae3ffa0fecff8e9b3af8d1a7171dabe83723699a6bf1b6431d8394a2c7), and the base source.json is
+  untouched.
 - Additive Return corpus parity/frost-npc/return.json (rh-frost-npc-return-source/1): a Frost bow player pulls the Fire camp
   across the camp's real 192-unit territory leash and dies; the two far observers keep the run active, the source mobAI
   drops the target and genuinely emits brain.mode "return" frames walking home (13 frames observed; homeward path,
@@ -65,7 +79,7 @@ dedicated Frost-tuple restore tests for the training practice/dummy and owned-zo
 - frost module 17/17 (all three source corpora, the restored hook test, malformed refusals, and the two new adapter
   tests); signatures PvE 4/4; training 14/14; zombie-filtered 1/1; checkpoint 6/6; replay 6/6; content 21/21;
   no-allocation 1/1; cargo fmt clean; both strict rh-sim clippy modes clean.
-- All three capture --check runs byte-identical: base source.json (4d1fafe9...), boundary.json (c4b967b9...), return.json;
+- All three capture --check runs byte-identical: base source.json (4d1fafe9...), boundary.json (a4161772...), return.json;
   both doubles are exact.
 - Compiled semantic mutants 3/3 killed against the actual consumers (01 missing NPC recipients, 02 instant-NPC hook
   timing, 03 NPC restore rejection); the unchanged Frost control passes; the provenance-only mutation remains NON-kill.

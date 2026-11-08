@@ -1,8 +1,12 @@
-// Canonical actual-source witness for P-FROST-NPC-RECIPIENTS-1: a real Frost PLAYER chilling the source-born admitted
-// basic Fire/Holy regional NPCs. The unmodified source sim is driven through the real installers found in the declared
-// pve-dot map/config profile (factions + mobs/mobLife/mobAI + the rest), declared placements and actual enqueued
-// target/attack/release client messages. Only passive observation: snapshots read source state after each ordinary
-// 50 ms step; every expected value is written by the source, never fed back. A no-Frost case is the unchanged control.
+// Canonical actual-source witness for P-FROST-NPC-RECIPIENTS-1/REPAIR boundary: a real Frost PLAYER chilling the
+// source-born admitted basic Plague/Holy regional NPCs. The cases do NOT inject a weapon after world creation: the zone is
+// selected by a DECLARED PRE-WORLD MAP VARIANT (clone of the declared pve-dot map plus the same zone-swap construction the
+// delivered base capture uses for its Holy case), applied identically here and in the native Rust consumer before the world
+// exists. The source's unchanged camp generator then spawns the swapped zone's own roster types and their carried weapons
+// (the captured Plague camp is Rat Ogre elite + Miasma Witch normals; Holy is Blood Saint + Zealots; shipped source Plague
+// rosters do include bow roles: Plague Rat, Bloatfly, Rot Monk, Rat Ogre). The recorder hash pins this transform; no mob,
+// weapon, path or poststate is written after createWorld. Placements/commands are declared; observation is passive
+// post-step snapshots only. A no-Frost case is the unchanged control.
 import {grantCard} from '/repo/packages/server/src/sim/chests.ts';
 import assert from 'node:assert/strict';
 import {readFileSync, writeFileSync, readdirSync} from 'node:fs';
@@ -47,6 +51,10 @@ function snap(w: any) {
 
 function run(c: any) {
   const map = structuredClone(inputMap);
+  // DECLARED PRE-WORLD MAP VARIANT (not a post-world/poststate injection): clone the declared pve-dot map, then swap the
+  // active region id / camp zone / region grid / spawn pool so the source's unchanged roster generator rolls the target
+  // zone's own camp types. The region-view camp.weapon hint is rewritten as part of this declared variant; the captured NPC
+  // weapons are the source-generated weapons of the rolled types, not state written after createWorld.
   if (c.zone !== 'fire') {
     const other = map.regions.findIndex((r: any) => r.id === c.zone);
     const fire = map.regions[0]; const target = map.regions[other];
@@ -110,10 +118,11 @@ function run(c: any) {
 const outputs = cases.map(run);
 const repeat = cases.map(run);
 assert.deepEqual(outputs, repeat);
+assert(cases.every((c: any) => c.players.length === 2), 'declared minPlayers resolves to 2 for every boundary case');
 
 const inputs = ['package.json', 'package-lock.json', ...['packages/server/src/sim', 'packages/shared/src'].flatMap((dir) => readdirSync('/repo/' + dir, {recursive: true}).filter((p) => p.endsWith('.ts')).map((p) => dir + '/' + p))].sort();
 const hashes = Object.fromEntries(inputs.map((p) => [p, createHash('sha256').update(readFileSync('/repo/' + p)).digest('hex')]));
-const result = {format: 'rh-frost-npc-boundary-source/1', profile: {name: 'basic-factions-pve-frost-player-boundary-v1', installers, signatures: true, consumables: 'omitted installer; the native config must set consumables=false', abilities: 'installed installer; no ability producer is used in the bounded cases (asserted)', lifecycle: 'engine patience/sudden-death timers not reached in the bounded window; no teleport or sudden-death event asserted', config: {minPlayers: 'players.length', lobbySeconds: 30, fillSeconds: 0, patienceSeconds: 3600, patienceMinSeconds: 3600, suddenDeathSeconds: 3600, mobs: true, signatures: true, quests: false, training: false, dummies: false, planSeconds: 0}, inert: ['quests installer omitted', 'consumables installer omitted', 'terrainEffects/killAugments/regen/campHeal/traders/initialLoot not installed', 'abilities installer present but unused in these bounded cases']}, provenance: {node: process.version, platform: process.platform, arch: process.arch, sourceSha256: hashes, inputSha256: createHash('sha256').update(readFileSync('/capture/declared-map-input.json')).digest('hex'), recorderSha256: createHash('sha256').update(readFileSync('/capture/capture-boundary.mts')).digest('hex')}, cases: outputs};
+const result = {format: 'rh-frost-npc-boundary-source/1', profile: {name: 'basic-factions-pve-frost-player-boundary-v1', installers, signatures: true, consumables: 'omitted installer; the native config must set consumables=false', abilities: 'installed installer; no ability producer is used in the bounded cases (asserted)', lifecycle: 'engine patience/sudden-death timers not reached in the bounded window; no teleport or sudden-death event asserted', config: {minPlayers: 2, minPlayersFormula: 'players.length (resolved: all four declared cases place 2 players)', lobbySeconds: 30, fillSeconds: 0, patienceSeconds: 3600, patienceMinSeconds: 3600, suddenDeathSeconds: 3600, mobs: true, signatures: true, quests: false, training: false, dummies: false, planSeconds: 0}, weaponSource: 'declared pre-world map variant/zone swap applied identically in source capture and native consumer, then the source roster type weapon; no post-world/poststate injection', inert: ['quests installer omitted', 'consumables installer omitted', 'terrainEffects/killAugments/regen/campHeal/traders/initialLoot not installed', 'abilities installer present but unused in these bounded cases']}, provenance: {node: process.version, platform: process.platform, arch: process.arch, sourceSha256: hashes, inputSha256: createHash('sha256').update(readFileSync('/capture/declared-map-input.json')).digest('hex'), recorderSha256: createHash('sha256').update(readFileSync('/capture/capture-boundary.mts')).digest('hex')}, cases: outputs};
 
 const frameHas = (c: any, pred: (f: any) => boolean) => c.frames.some((f: any) => pred(f.output));
 const chilled = (c: any) => frameHas(c, (o: any) => o.signatures.some(([id, sig]: any) => id.startsWith('mob') && sig.chill < 1));

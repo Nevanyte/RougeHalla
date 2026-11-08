@@ -20,10 +20,15 @@ recorder hash; every tool double-runs and --check compares the committed bytes.
 ## Bound profile
 
 parity/frost-npc/boundary.json (rh-frost-npc-boundary-source/1) is the additive repair corpus
-(sha256 c4b967b9440fb44c59519c8d3c17cfca6ffe7369c1ee385014ea7b45f1c3fded): Plague camp with real source-born Plague
-recipients and genuinely admitted NPC bow draws (160 frames), Holy Frost bow near+ranged overlap/thaw (170), a non-Frost
-Fire/Plague DoT death/camp-alive lifecycle control (104, documented damage drift), and a no-Frost Plague control (120).
-It records a structured profile.config and explicit inert list. The native profile is bound, not assumed:
+(sha256 a4161772b993b9781ad5e278d58a37c585d0c22ebea7eb233ea885cc71ab368f): Plague camp with declared pre-world map-variant
+Plague recipients and source roster-generated NPC bow draws (160 frames), Holy Frost bow near+ranged overlap/thaw (170), a
+non-Frost Fire/Plague DoT death/camp-alive lifecycle control (104, documented damage drift), and a no-Frost Plague control
+(120). The zone is chosen by a declared pre-world map variant: the declared pve-dot map is cloned and the same zone-swap
+construction the delivered base uses for Holy is applied before createWorld, identically in capture and native consumer;
+the unchanged source roster then spawns the swapped zone's types/weapons (Plague Rat Ogre bow + Miasma Witch wand, Holy
+Blood Saint wand + Zealot sword), never a post-world weapon write. Shipped source Plague rosters natively include bow roles
+(Plague Rat, Bloatfly, Rot Monk, Rat Ogre). The recorder hash and declared-map input hash pin the transform. It records a
+structured profile.config with the resolved minPlayers=2 (plus the declared formula field) and an explicit inert list. The native profile is bound, not assumed:
 consumables=false (installer omitted), quests=false, abilities=Off (installer present but no ability producer used;
 asserted), lifecycle=Off (3600 s timers outside the bounded window), hazards=Off, initial_loot=false, regen=false,
 training/dummies=false, PvE with the four admitted factions, min_players/lobby/fill bound from the source config.
