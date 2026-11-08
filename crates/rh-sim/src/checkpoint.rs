@@ -357,6 +357,21 @@ fn check_world(k: &MatchStatic, w: &World) -> Result<(), String> {
             u32::MAX as f64 * TICK_MS
         ));
     }
+    // Between-step cancellation is queued before the next clock advance. Its required producer time must survive
+    // restore verbatim; accepting a default or a future/nonfinite value would fabricate the eventual public cue time.
+    for (i, event) in w.pending_events.iter().enumerate() {
+        let event_time = match event {
+            crate::Event::CastStarted { event_time, .. }
+            | crate::Event::CastLanded { event_time, .. }
+            | crate::Event::CastEnded { event_time, .. } => *event_time,
+            _ => continue,
+        };
+        if !event_time.is_finite() || !(0.0..=w.server_time).contains(&event_time) {
+            return Err(format!(
+                "pending Wish event {i}: event_time is not a finite past server time"
+            ));
+        }
+    }
     // The tick counter is incremented every step.
     if w.tick == u32::MAX {
         return Err("tick is at its maximum".into());
@@ -1128,6 +1143,65 @@ mod tests {
         }
         a.w.server_time = u32::MAX as f64 * TICK_MS;
         assert!(super::check_world(&a.k, &a.w).is_ok());
+    }
+
+    #[test]
+    fn pending_wish_times_require_finite_nonnegative_past_clock_for_all_variants() {
+        use crate::{
+            status_runtime::{AbilityId, CastEndReason},
+            Event, PlayerId,
+        };
+        // Declared numeric-domain controls exercise the checker directly because JSON cannot carry NaN/infinity.
+        let base = sim();
+        let now = base.server_time();
+        for kind in 0..3 {
+            for (time, accepted) in [
+                (0., true),
+                (now, true),
+                (f64::NAN, false),
+                (f64::INFINITY, false),
+                (f64::NEG_INFINITY, false),
+                (-1., false),
+                (now + 1., false),
+            ] {
+                let mut a = base.clone();
+                let event = match kind {
+                    0 => Event::CastStarted {
+                        event_time: time,
+                        id: PlayerId(1),
+                        ability: AbilityId::Freeze,
+                        ms: 250.,
+                        target: None,
+                        x: 300.,
+                        y: 300.,
+                    },
+                    1 => Event::CastLanded {
+                        event_time: time,
+                        id: PlayerId(1),
+                        ability: AbilityId::Freeze,
+                        target: None,
+                        x: 300.,
+                        y: 300.,
+                        to: None,
+                    },
+                    _ => Event::CastEnded {
+                        event_time: time,
+                        id: PlayerId(1),
+                        ability: AbilityId::Freeze,
+                        reason: CastEndReason::Cancelled,
+                    },
+                };
+                assert_eq!(a.server_time(), now);
+                a.w.pending_events.push(event);
+                let result = super::check_world(&a.k, &a.w);
+                if accepted {
+                    assert!(result.is_ok(), "{kind}/{time}: {result:?}");
+                } else {
+                    let error = result.unwrap_err();
+                    assert!(error.contains("event_time"), "{kind}/{time}: {error}");
+                }
+            }
+        }
     }
 
     #[test]

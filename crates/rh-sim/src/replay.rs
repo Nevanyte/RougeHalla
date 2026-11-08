@@ -7,7 +7,7 @@ use crate::content::FactionId;
 use crate::input::Command;
 use crate::sim::{Arena, Event, Placement, PlayerId, Secrets, Sim, SimConfig};
 
-/// Version17 adds complete native Wish inputs, stocks and cast ownership to source lifecycle replays. [`run_replay`] refuses other formats.
+/// Private version19 composes native G6 and required producer-timed Wish events. [`run_replay`] refuses other formats.
 pub const REPLAY_FORMAT: &str = "rh-replay/19";
 
 /// Identity of the code this binary was built from: the `RH_BUILD` environment variable at compile time (a release build is meant to set

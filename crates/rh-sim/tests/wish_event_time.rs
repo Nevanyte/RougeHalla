@@ -208,3 +208,66 @@ fn event_time_is_required_in_serialized_raw_cast_events() {
         assert!(serde_json::from_value::<Event>(encoded).is_err());
     }
 }
+
+#[test]
+fn real_between_step_cancel_keeps_time_hash_and_continuation_through_checkpoint() {
+    let mut original = active_sim();
+    original.submit(PlayerId(1), frost_cast()).unwrap();
+    original.step();
+    let cancelled_at = original.server_time();
+    original.remove_player(PlayerId(1));
+    let checkpoint = serde_json::to_value(&original).unwrap();
+    assert_eq!(checkpoint["format"], "rh-checkpoint/25");
+    let index = checkpoint["world"]["pending_events"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .position(|e| e.get("CastEnded").is_some())
+        .expect("the real removal leaves its cancellation queued");
+    assert_eq!(
+        checkpoint["world"]["pending_events"][index]["CastEnded"]["event_time"],
+        cancelled_at
+    );
+    let mut restored = Sim::restore(&checkpoint).unwrap();
+    assert_eq!(original.state_hash(), restored.state_hash());
+
+    // Change only an admitted past timestamp: the pending-event clock is an actual hashed state leaf.
+    let mut changed = checkpoint.clone();
+    changed["world"]["pending_events"][index]["CastEnded"]["event_time"] =
+        (cancelled_at - 1.).into();
+    let changed = Sim::restore(&changed).unwrap();
+    assert_ne!(changed.state_hash(), original.state_hash());
+
+    for i in 0..12 {
+        let expected = original.step();
+        let actual = restored.step();
+        assert_eq!(expected, actual, "restored continuation step {i}");
+        assert_eq!(original.state_hash(), restored.state_hash(), "step {i}");
+        if i == 0 {
+            assert!(actual.iter().any(|e| matches!(e,
+                Event::CastEnded { event_time, .. } if *event_time == cancelled_at)));
+            assert_eq!(
+                restored.server_time(),
+                cancelled_at + rh_sim::constants::TICK_MS
+            );
+        }
+    }
+
+    for bad in [-1., cancelled_at + 1.] {
+        let mut invalid = checkpoint.clone();
+        invalid["world"]["pending_events"][index]["CastEnded"]["event_time"] = bad.into();
+        assert!(
+            matches!(Sim::restore(&invalid), Err(rh_sim::CheckpointError::Malformed(reason))
+            if reason.contains("event_time"))
+        );
+    }
+    let mut missing = checkpoint;
+    missing["world"]["pending_events"][index]["CastEnded"]
+        .as_object_mut()
+        .unwrap()
+        .remove("event_time");
+    assert!(
+        matches!(Sim::restore(&missing), Err(rh_sim::CheckpointError::Malformed(reason))
+        if reason.contains("event_time"))
+    );
+}

@@ -606,6 +606,18 @@ fn wish_states() -> Vec<(&'static str, Sim)> {
             assert!(p["core"]["statuses"]["cast"]["producer"].is_object());
         }
         assert_eq!(Sim::restore(&cp).unwrap().state_hash(), sim.state_hash());
+        if faction == FactionId::Frost {
+            let mut cancelled = sim.clone();
+            cancelled.remove_player(PlayerId(1));
+            let cp = serde_json::to_value(&cancelled).unwrap();
+            assert!(cp["world"]["pending_events"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|event| event["CastEnded"]["event_time"].as_f64()
+                    == Some(cancelled.server_time())));
+            out.push(("Freeze between-step cancellation", cancelled));
+        }
         out.push((accepted_name, sim.clone()));
         for _ in 0..7 {
             sim.step();
@@ -818,6 +830,8 @@ fn candidates(leaf: &Value, strings: &[String]) -> Vec<Value> {
 
 /// Patterns whose perturbation the restore may refuse, and why. Any other refusal fails the test.
 const VALIDATED: &[(&str, &str)] = &[
+    ("world.pending_events.*.CastEnded.event_time", "a required producer timestamp must be finite and between zero and the checkpoint server clock"),
+    ("world.pending_events.*.CastEnded.reason", "CastEndReason is a closed enum: Fizzle, Interrupted or Cancelled"),
     (
         "world.mobs.*.kind",
         "a mob's kind is coupled to its retained birth origin (regional vs practice vs dummy) and the training-world admission; flipping it alone is refused by the matching validator",
@@ -1297,6 +1311,17 @@ fn seeds(pat: &str) -> Vec<Value> {
             vec![serde_json::json!({"x":360.0,"y":272.0})]
         }
         "world.players.*.credit.announce" => vec![serde_json::json!([1.0, 1])],
+        // A real between-step MIA cancellation also queues Resolved. These optional result leaves are None for MIA;
+        // declared serialization perturbations prove their hash coverage without inventing a gameplay outcome.
+        "world.pending_events.*.Resolved.result.killed_by" => {
+            vec![serde_json::json!("hash sensitivity source")]
+        }
+        "world.pending_events.*.Resolved.result.weapon" => {
+            vec![serde_json::json!("Sword")]
+        }
+        "world.pending_events.*.Resolved.result.win_bonus_why" => {
+            vec![serde_json::json!("Starters")]
+        }
         _ => vec![],
     }
 }

@@ -444,7 +444,7 @@ fn blaze_keeps_only_complete_visible_pairs_except_for_its_owner() {
         time,
     );
     assert!(matches!(
-        observe(&sim, PlayerId(1), &[full_pair.clone()]).events.as_slice(),
+        observe(&sim, PlayerId(1), std::slice::from_ref(&full_pair)).events.as_slice(),
         [SeenEvent::CastLanded { id: None, at: Some(a), to: Some(b), .. }]
             if *a == near && *b == placements[2].at
     ));
@@ -561,7 +561,7 @@ fn sealed_fx_permission_survives_catch_up_and_missing_caster_mapping() {
     let mut observer = ItemObserver::new(viewer);
     let mut out = Observation::default();
     observer
-        .prepare_with_seen(&sim, &[], &[cue.clone()], &mut out, None)
+        .prepare_with_seen(&sim, &[], std::slice::from_ref(&cue), &mut out, None)
         .unwrap()
         .commit();
     assert!(
