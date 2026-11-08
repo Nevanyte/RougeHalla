@@ -2,6 +2,7 @@
 //! See docs/CONTRACTS.md (C-NET, C-TICK) and docs/adr/0002-transport-and-protocol.md, 0004-hosting.md.
 
 pub mod api;
+pub mod bot_fill;
 pub mod conn;
 pub mod control;
 pub mod director;

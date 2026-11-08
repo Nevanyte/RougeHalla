@@ -2,11 +2,13 @@
 //! task, in arrival order, between steps (the legacy rule: handlers validate and enqueue, the sim consumes at the next step).
 //! Nothing here blocks on I/O: frames go to per-connection [`Outbox`]es, results to a channel drained off-tick.
 
+use crate::bot_fill::{BotFillConfig, BotFillState, BotSeatSpec, FillView};
 use crate::metrics::{self, Histogram, Metrics};
 use crate::outbox::{Outbox, OutboxCounters};
 use crate::pacer::Pacer;
 use crate::wire;
-use rh_policy::{drive_seats_with, scripted, MatchStart, Seat};
+use rh_policy::bots::HumanBot;
+use rh_policy::{drive_seats_with, scripted, MatchStart, Policy, Seat};
 use rh_protocol::map::{EncodedMap, MapBlob};
 use rh_protocol::{encode_welcome, RejectCode, ServerMsg, WelcomeHeader, WireEvent, WireResult};
 use rh_sim::replay::{BotPolicy, Recorder, Replay, ReplayInput, ReplayStart};
@@ -330,6 +332,11 @@ pub struct Room {
     humans: Vec<HumanSeat>,
     bots: Vec<Seat>,
     fill_to: usize,
+    /// The scheduled fill policy (legacy BotManager). None keeps the immediate placeholder fill.
+    fill: Option<BotFillState>,
+    /// The sim's lobby knobs the fill's closing step needs (the sim owns the countdown itself).
+    min_players: usize,
+    fill_seconds: f64,
     pacer: Pacer,
     /// The last step's events (the bots' input to their next decision, and the observation's events when published). Two
     /// buffers swap through `step_into` each step: the room allocates no event list per step.
@@ -406,6 +413,8 @@ impl Room {
             reward_salt: std::array::from_fn(|_| random_u32()),
         });
         let sim = Sim::new(cfg.sim.clone(), cfg.arena, secrets);
+        let min_players = cfg.sim.min_players;
+        let fill_seconds = cfg.sim.fill_seconds;
         // A training room has no run, result or replay to record: it never creates a recorder (no banking/telemetry of a
         // result and no private replay), whatever the hosting configuration asked for.
         let recorder = (cfg.record && !training).then(|| {
@@ -419,6 +428,9 @@ impl Room {
             humans: Vec::new(),
             bots: Vec::new(),
             fill_to: if training { 0 } else { cfg.fill_bots_to },
+            fill: None,
+            min_players,
+            fill_seconds,
             pacer: Pacer::new(now, cfg.tick),
             last_events: Vec::new(),
             step_events: Vec::new(),
@@ -702,18 +714,7 @@ impl Room {
         }
         // A human takes a bot's seat when the lobby is full (legacy: the newest bot yields).
         if self.sim.players().len() >= rh_sim::constants::MAX_PLAYERS {
-            if let Some(bot) = self
-                .sim
-                .players()
-                .iter()
-                .rev()
-                .find(|p| p.seat.bot)
-                .map(|p| p.id)
-            {
-                self.record(ReplayInput::Leave { player: bot });
-                self.sim.remove_player(bot);
-                self.bots.retain(|s| s.player() != bot);
-            }
+            self.yield_newest_bot();
         }
         let player = self
             .sim
@@ -752,7 +753,9 @@ impl Room {
             spare: None,
             result: None,
         });
-        self.fill_bots();
+        if self.fill.is_none() {
+            self.fill_bots();
+        }
         let _ = self.reports.send(RoomReport::Seated {
             match_id: self.id,
             phase: self.sim.phase(),
@@ -807,6 +810,122 @@ impl Room {
                 .bind_fx(&self.sim)
                 .expect("new bot is unbound");
         }
+    }
+
+    /// Opt into the legacy manager's lobby fill (BotManager.ts): bots arrive on a seeded schedule through the countdown,
+    /// the closing step seats whoever has not arrived, and a joining human takes the newest bot's seat. Without it the room
+    /// keeps its immediate placeholder fill above (the default for tests, benches and rooms that do not configure bots).
+    ///
+    /// The policy's seed comes from the room's fixed bot seed when set (tests, replay determinism), else OS entropy: the
+    /// fill seed is not a match secret (docs/CONTRACTS.md C-RNG does not cover bot identity).
+    pub fn with_bot_fill(mut self, cfg: BotFillConfig) -> Self {
+        let seed = self
+            .fixed_bot_seed
+            .unwrap_or_else(|| (u64::from(random_u32()) << 32) | u64::from(random_u32()));
+        self.fill = Some(BotFillState::new(cfg, seed));
+        self
+    }
+
+    /// One lobby step of the fill policy, before the step it applies to (the manager's lobbyTick and, on the closing
+    /// step, lobbyClosing): draws the arrivals that are due and seats them, then seats whoever is still missing when the
+    /// lobby is about to close into the raid.
+    fn fill_step(&mut self) {
+        if self.fill.is_none() || self.sim.phase() != Phase::Lobby {
+            return;
+        }
+        let now = self.sim.server_time();
+        let ends = self.sim.lobby_ends_at();
+        let mut factions = [0u32; 5];
+        let mut names_lower = Vec::with_capacity(self.sim.players().len());
+        let mut humans = 0usize;
+        for player in self.sim.players() {
+            names_lower.push(player.seat.name.to_lowercase());
+            if !player.seat.bot {
+                humans += 1;
+            }
+            let faction = player.core.vitals.faction;
+            if let Some(index) = FactionId::ALL.iter().position(|known| *known == faction) {
+                factions[index] += 1;
+            }
+        }
+        let players = self.sim.players().len();
+        let never = |_: &str| false;
+        let view = FillView {
+            players,
+            humans,
+            factions,
+            names_lower,
+            taken: &never,
+        };
+        // The step closes the lobby when the countdown is out, when the lobby is full, or when enough humans are in and
+        // the fill time is zero (the sim's updateLobby rule). The manager seats its remaining arrivals on that step.
+        let closing = humans >= rh_sim::constants::MAX_PLAYERS
+            || now >= ends
+            || (humans >= self.min_players && self.fill_seconds <= 0.);
+        let mut specs: Vec<BotSeatSpec> = self
+            .fill
+            .as_mut()
+            .map(|fill| fill.lobby_tick(now, ends, &view))
+            .unwrap_or_default();
+        if closing {
+            if let Some(fill) = self.fill.as_mut() {
+                specs.extend(fill.lobby_closing(&view));
+            }
+        }
+        for spec in specs {
+            self.seat_fill_bot(spec);
+        }
+    }
+
+    /// Seats one bot the fill policy drew: its callsign, faction, tier and persona go on the normal seat contract, so it
+    /// perceives only through observations and acts only through validate + submit; it never touches a profile or quest.
+    fn seat_fill_bot(&mut self, spec: BotSeatSpec) {
+        let name = spec.name.clone();
+        let Some(id) = self.sim.add_player(&name, Some(spec.faction), true) else {
+            return;
+        };
+        let policy: Box<dyn Policy> = Box::new(HumanBot::new(spec.tier, spec.persona));
+        let interval = policy.spec().decision_interval_ticks;
+        self.record(ReplayInput::Join {
+            profile: name,
+            faction: Some(spec.faction),
+            bot: true,
+            policy: Some(BotPolicy {
+                name: "human".into(),
+                interval,
+                seed: u64::from(spec.seed),
+            }),
+        });
+        let mut seat = Seat::new(
+            &MatchStart::of(&self.sim, id, u64::from(spec.seed)),
+            policy,
+            Box::new(scripted::Idle),
+        );
+        seat.bind_fx(&self.sim).expect("new bot is unbound");
+        self.bots.push(seat);
+    }
+
+    /// The newest bot gives its seat up (legacy BotManager.yieldSeat): the fill policy forgets it and the player leaves.
+    fn yield_newest_bot(&mut self) -> bool {
+        let Some((id, name)) = self
+            .sim
+            .players()
+            .iter()
+            .rev()
+            .find(|player| player.seat.bot)
+            .map(|player| (player.id, player.seat.name.clone()))
+        else {
+            return false;
+        };
+        if let Some(fill) = self.fill.as_mut() {
+            if let Some(spec) = fill.yield_seat() {
+                debug_assert_eq!(spec.name, name, "the fill policy seeded the newest bot");
+            }
+        }
+        self.record(ReplayInput::Leave { player: id });
+        self.sim.remove_player(id);
+        self.bots.retain(|seat| seat.player() != id);
+        true
     }
 
     /// Expire before processing commands and before stepping queued inputs. A committed result
@@ -928,6 +1047,7 @@ impl Room {
         );
         self.wake_events.clear();
         for _ in 0..steps {
+            self.fill_step();
             let t = std::time::Instant::now();
             let rec = &mut self.recorder;
             drive_seats_with(
@@ -2206,5 +2326,151 @@ mod tests {
             "a leaving practice player is not a banked result"
         );
         assert!(closed.is_some());
+    }
+    /// The fill policy seats bots over the countdown (arrival schedule), tops the lobby up on the closing step and is a
+    /// pure function of its seed: the same room config replays the same seats.
+    #[test]
+    fn the_fill_policy_schedules_arrivals_over_the_countdown() {
+        let now = Instant::now();
+        let tick = Duration::from_millis(50);
+        let run = || {
+            let (tx, _rx) = mpsc::unbounded_channel();
+            let mut config = cfg(tick);
+            config.fill_bots_to = 0;
+            config.fixed_bot_seed = Some(7);
+            let mut room = Room::new([12; 16], config, tx, now).with_bot_fill(BotFillConfig {
+                fill_to: 4,
+                arrival_seconds: 1.0,
+                ..BotFillConfig::default()
+            });
+            room.join(
+                "human1".into(),
+                None,
+                Arc::new(Outbox::default()),
+                1,
+                1,
+                None,
+            )
+            .unwrap();
+            let mut before = 0;
+            let mut first_arrival = None;
+            for i in 1..=609 {
+                room.wake(now + tick * i);
+                let bots = room.sim.players().iter().filter(|p| p.seat.bot).count();
+                if i == 580 {
+                    before = bots;
+                }
+                if bots > 0 && first_arrival.is_none() {
+                    first_arrival = Some(i);
+                }
+            }
+            let fill = room.fill.as_ref().expect("the fill policy is on");
+            let lines: Vec<String> = fill.specs().iter().map(|spec| spec.line()).collect();
+            let players: Vec<(String, FactionId, bool)> = room
+                .sim
+                .players()
+                .iter()
+                .map(|p| (p.seat.name.clone(), p.core.vitals.faction, p.seat.bot))
+                .collect();
+            (before, first_arrival, lines, players, room.sim.phase())
+        };
+        let (before, first, lines, players, phase) = run();
+        assert_eq!(before, 0, "no bot arrives before the arrival window");
+        let first = first.expect("bots arrive");
+        assert!(
+            first > 560,
+            "the first arrival is inside the last seconds, at tick {first}"
+        );
+        assert_eq!(lines.len(), 3, "the lobby is topped up to four players");
+        assert_eq!(phase, Phase::Active, "the countdown closes into the raid");
+        assert_eq!(players.len(), 4);
+        assert_eq!(players.iter().filter(|(_, _, bot)| *bot).count(), 3);
+        let names: Vec<&str> = lines
+            .iter()
+            .map(|line| line.split(' ').nth(1).expect("a rendered name"))
+            .collect();
+        assert_eq!(
+            names.iter().collect::<std::collections::HashSet<_>>().len(),
+            3,
+            "callsigns are unique in the room"
+        );
+        for name in &names {
+            assert!(
+                crate::bot_fill::CALLSIGN_POOL.contains(name)
+                    || crate::bot_fill::CALLSIGN_POOL
+                        .iter()
+                        .any(|pool| name.starts_with(pool) && name.len() == pool.len() + 2),
+                "the name is a callsign: {name}"
+            );
+        }
+        // Every bot's sim seat carries the drawn faction, and the seat acts as a normal bot seat.
+        for (name, faction, bot) in &players {
+            if *bot {
+                assert!(
+                    FactionId::ALL.contains(faction),
+                    "{name} has a known faction"
+                );
+            }
+        }
+        // Determinism: the same fixed bot seed and plan draw the same seats.
+        let (_, _, again, _, _) = run();
+        assert_eq!(lines, again, "the fill policy replays from its seed");
+    }
+
+    #[test]
+    fn a_human_joining_a_full_lobby_takes_the_newest_bot_seat() {
+        let now = Instant::now();
+        let tick = Duration::from_millis(50);
+        let (tx, _rx) = mpsc::unbounded_channel();
+        let mut config = cfg(tick);
+        config.fill_bots_to = 0;
+        config.fixed_bot_seed = Some(5);
+        let mut room = Room::new([13; 16], config, tx, now).with_bot_fill(BotFillConfig {
+            fill_to: 8,
+            arrival_seconds: 0.2,
+            ..BotFillConfig::default()
+        });
+        room.join(
+            "human1".into(),
+            None,
+            Arc::new(Outbox::default()),
+            1,
+            1,
+            None,
+        )
+        .unwrap();
+        for i in 1..=600 {
+            room.wake(now + tick * i);
+            if room.sim.players().len() >= 8 {
+                break;
+            }
+        }
+        assert_eq!(room.sim.players().len(), 8, "the fill seats seven bots");
+        assert_eq!(
+            room.sim.phase(),
+            Phase::Lobby,
+            "the join happens in the lobby"
+        );
+        let specs_before = room.fill.as_ref().unwrap().specs().len();
+        let bots_before = room.sim.players().iter().filter(|p| p.seat.bot).count();
+        room.join(
+            "human2".into(),
+            None,
+            Arc::new(Outbox::default()),
+            2,
+            2,
+            None,
+        )
+        .unwrap();
+        assert_eq!(room.sim.players().len(), 8, "the human takes the seat");
+        assert_eq!(
+            room.sim.players().iter().filter(|p| p.seat.bot).count(),
+            bots_before - 1
+        );
+        assert_eq!(room.sim.players().iter().filter(|p| !p.seat.bot).count(), 2);
+        let fill = room.fill.as_ref().unwrap();
+        assert_eq!(fill.stats().yielded, 1);
+        assert_eq!(fill.specs().len(), specs_before - 1);
+        assert_eq!(fill.stats().arrived, 7);
     }
 }
