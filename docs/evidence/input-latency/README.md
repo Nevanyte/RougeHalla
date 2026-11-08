@@ -79,9 +79,12 @@ evaluation; it does not run a new Unity build or network measurement.
 The first corrected stall attempt failed before completing a trial: the browser saw authoritative movement sequence 1,
 but the harness never observed a post-`Present` self trace with that exact sequence. Repeated three-trial and ten-trial runs passed.
 The failure is retained in `linux-ordered-stalls-missing-presentation.json`; the harness now saves bounded per-attempt
-sequence/frame traces when a measurement fails. Snapshot batching while held-key controls emit newer orders is a
-possible explanation, not a confirmed cause. Passing repeats do not establish reliable exact-sequence presentation
-under stalls; this remains a verification item for the integrated client.
+sequence/frame traces when a measurement fails. Code review confirms that Poll drains all queued snapshots into one
+latest self state, then Unity presents once; an intermediate echoed sequence may legitimately never be presented.
+Held-key controls can send newer moves every 100 ms while the exact-sequence gate waits. The preserved failure predates
+the detailed failure trace, so coalescing is not proven as that attempt's cause. Passing repeats do not establish reliable
+exact-sequence observation under stalls, and that missing observation alone does not establish a gameplay delay.
+See [the code review and next diagnostic](coalescing-review.md). The pass gate remains unchanged.
 
 The first three-trial Caddy run was slow (confirmed-self median 109.8 ms, opponent 353.2 ms).
 Repeated direct-Linux and Caddy diagnostic runs passed five trials each; Caddy socket RTT was about 3.2 ms and snapshot

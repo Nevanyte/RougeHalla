@@ -350,7 +350,7 @@ async function run() {
             };
             return {
               timeOrigin: performance.timeOrigin,
-              events: trace.events.filter(e => nearby(e) && ['sampleMove', 'sampleStop', 'presentSelf'].includes(e.kind)).slice(0, 100),
+              events: trace.events.filter(e => nearby(e) && ['frameStart', 'sampleMove', 'sampleStop', 'presentSelf'].includes(e.kind)).slice(0, 200),
               wire: trace.wire.filter(e => nearby(e) && ['input', 'snapshot'].includes(e.message?.t)).slice(0, 100).map(e => ({
                 kind: e.kind, at: e.at, frame: e.frame, type: e.message.t, cmds: e.message.cmds,
                 me: e.me ? { id: e.me.id, moveSeq: e.me.moveSeq, x: e.me.x, y: e.me.y } : undefined,
