@@ -1,0 +1,11 @@
+--- a/packages/server/src/bots/brain/perception.ts
++++ b/packages/server/src/bots/brain/perception.ts
+@@ -452,8 +452,8 @@
+  * always kept (its stop point caps the flight the ring flies, as the client's noteEnd does) and windowed there.
+  */
+ function observe(fx: TimedFx, s: Seen): ObservedEvent | null {
+-  const t = fx.t;
++  const t = s.state.serverTime;
+   switch (fx.kind) {
+     case "windup": {
+       const at = seenAt(s, fx.by);

@@ -1,0 +1,3 @@
+01-visible-only-alive|run-summary.json|/probes/0/frame/hud/alive|5|2
+02-hidden-identity-leak|run-summary.json|/probes/0/frame/fighters/2/id|"p-human"|"p-hidden"
+03-final-batch-time|windup-path.json|/observations/0/frame/events/0/t|100|999999

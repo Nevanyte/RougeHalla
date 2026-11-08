@@ -1,0 +1,19 @@
+--- a/packages/server/src/bots/brain/perception.ts
++++ b/packages/server/src/bots/brain/perception.ts
+@@ -600,15 +600,15 @@
+   const shown = new Map<FighterId, Vec2>();
+   let alive = 0;
+   const fighters: FighterSeen[] = [];
+   for (const [id, p] of players) {
+     const status = p.status;
+-    if (status === "alive") alive++;
+     if (id === selfId) continue;
+     const x = f32(p.x), y = f32(p.y);
+     if (!near(x, y)) continue;
+     const bits = statusBits ? (p.effects ?? 0) : 0;
+     // A hidden fighter (a Swarm) is drawn for no one else: not in the frame, in no fx, credited with nothing.
+     if ((bits & EFFECT_HIDDEN) !== 0) continue;
++    if (status === "alive") alive++;
+     fighters.push(fighterSeen(id, p, x, y, status, bits, t, marks));
+     shown.set(id, { x, y });
+     if (effects) effects[id] = bits;
