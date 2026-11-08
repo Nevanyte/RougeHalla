@@ -37,17 +37,19 @@ protocol12/Observation18 privately; main remains11/17. Existing candidate checkp
 | Worker | Current packet / branch | Exclusive boundary |
 |---|---|---|
 | DeepSeek Rust / G6 worker | [P-G6](coordination/P-G6-HEAL-BARRIER-NATIVE.md) and [caller repair](coordination/P-G6-CALLER-REPAIR.md), delivered `2a384510` | Native caller repair reviewed; production lease closed. State/checkpoint/format/hash-coverage handed to networking; content/derived tapes lead-owned |
-| DeepSeek Rust / second worker | [Frost resistance](coordination/P-FROST-RESISTANCE-1.md), delivered `6cfb7a41`; next [basic-NPC recipients](coordination/P-FROST-NPC-RECIPIENTS-1.md) | Player resistance bounded review passes; continuation owns Frost recipient code/tests only, no NPC source/gate expansion or shared identity files |
-| DeepSeek Post Rust | Barrier-view source `70a6790c` admitted in `33d72c34`; next [Wish public witness](coordination/P-WISH-PUBLIC-WITNESS-1.md) | Source evidence only; no native/codec/Unity changes |
+| DeepSeek Rust / Frost worker | Player resistance `6cfb7a41` reviewed; NPC candidate `7d831c28` held for [profile/coverage repair](coordination/P-FROST-NPC-RECIPIENTS-REPAIR.md) | Frost recipient source/native/compatibility proof; no new NPC source/gate or shared identity files |
+| DeepSeek Rust / MarkRate worker | [Gathering Storm](coordination/P-SENTENCED-MARK-RATE-1.md) from reviewed `c5b11341` | Sentenced runtime + narrow modifier accessor/source tests; content/schema/tapes stay root-owned |
+| DeepSeek Post Rust | Corrected source Wish `ecda2212` admitted in `6dfe9116`; available for next source-only packet | No native/codec/Unity changes |
 | Native observation specialist | Private production `ec9a9028`, source consumer `bbb7b012` | Production complete/reviewed; observe/item_view/wire lease handed to networking; remaining G6/transport/client proof held |
 | Native integration specialist | Restore repairs `e6f9680a`/`c5b11341` reviewed/composed privately in `bc9cdd7b` | Production lease closed; root26-test Sentenced check passes. Next [MarkRate packet](coordination/P-SENTENCED-MARK-RATE-1.md) may own sentenced.rs/modifier accessor without shared schema/content edits |
-| Networking chat | [P-NET-12-WISH-BARRIER](coordination/P-NET-12-WISH-BARRIER.md), `codex/wish-barrier-net12` from `5e9f2ac1` | PhaseB observe/wire and G6 state/checkpoint/format/hash-coverage leases released. Merge full G6 `2a384510`; retain25/19. Headless event-time hashing released; content and derived tapes remain lead-owned |
+| Networking chat | Native/server candidate `a40e1c6e` handed to root, composed privately in `f62af90f`; diagnostic API `10cbfa25` handed to art | Native/schema lease closed. Own only opt-in actual-R harness/diagnostics now; final content/tapes/build and admission root-owned |
 | Art chat | [Wish/barrier presentation](coordination/P-UNITY-WISH-BARRIER-1.md), stable client checkpoint `abd1ccfe` | Own HUD/Arena/presenter and released MatchClient lifecycle-only hunks. No input/Protocol/Net changes; one focused Editor batch before final-union Web proof |
 
 The lead sequences shared files, retains current guards and owns final identity/tape composition. Native source-born
 Frost/Sentenced NPC signature prerequisites remain genuine pending work; removing the current gate is not a port.
-The spare DeepSeek Rust worker owns [source Trophy lifecycle/text witnesses](coordination/P-TROPHY-WITNESS-1.md),
-disjoint from Frost recipients and Post Rust Wish source captures. No next wire version is allocated by that source packet.
+Corrected [source Trophy lifecycle/text witnesses](coordination/P-TROPHY-WITNESS-1.md) through `f9dcaea0` are admitted
+in `3af96c1a`. Root reproduces both new source families byte-exact and their5/4 semantic mutants with controls. These
+are source-only admissions, not native/client transport completion; no next wire version is allocated by Trophy evidence.
 
 ## Current priorities
 

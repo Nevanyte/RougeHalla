@@ -297,3 +297,24 @@ G6/Frost branch. Root independently passes26 affected tests, including the10 new
 The worker's separate70-test/lint/fmt evidence is retained in its packet evidence; do not sum overlapping runs. No
 gameplay, serialized schema, identity or source expected output changes. Missing Gathering Storm MarkRate gameplay
 remains separate and explicitly assigned; its implementation will revisit progress bounds and final content identity.
+
+## Corrected human Wish and Trophy source admission
+
+Corrected Wish source `ecda2212` is merged in `6dfe9116`; Trophy source plus semantic-control repair `f9dcaea0` is merged
+in `3af96c1a`. Root's exact merged-tree checks reproduce all6 Wish artifacts and both Trophy corpora byte-exact. The
+new Wish cancellation projections select actual terminal batches and assert Ended/cancelled with no Started; raw
+removed actor IDs are preserved as an explicit source disclosure. The native privacy correction is separately approved.
+Source methods/recorders do not establish actual keyboard, Room/scene execution or a Unity browser flow. Base/training
+stock clocks are covered; modifier-driven live clock cuts remain a separate coupled-card/integration gate.
+
+Root reproduces5 Wish semantic source mutants/restored control and4 Trophy named semantic witnesses/restored control.
+The earlier Trophy whole-file comparison was invalid because source provenance changes under every mutant; that claim
+is withdrawn. Its repaired comparator excludes provenance and rejects a source-comment-only change as a semantic kill.
+Trophy source case payloads are unchanged by the repair. All9 keys/helper wording remain separate from real six-case
+kill/choose lifecycle evidence. Self-kill, sight-filtered disclosure, decimal-midpoint UI formatting and real DOM/
+reconnect proof remain open. No production native/client behavior or active identities change in these admissions.
+
+The first merged-tree Docker checks hit an existing primary-checkout Vite cache under a read-only mount (EROFS), not
+a semantic mismatch. Both captures pass from a clean detached checkout at exact merged tip `3af96c1a`, with unchanged
+source hashes and empty node_modules mountpoint. The primary cache was preserved. [Receipts](local-check-receipts.json)
+retain failed preflight and final source/mutant logs. CI now includes both new canonical capture commands.
