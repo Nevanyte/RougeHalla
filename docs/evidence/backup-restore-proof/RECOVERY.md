@@ -66,7 +66,9 @@ The verifier first compares the full restored database with the backed-up bounda
 original HTTP-issued token. Missing, invalid and another owner's tokens must return 403. Only then does the normal
 `Director::recover_spooled` replay the two actual pending records through the existing fenced store path. All four profiles
 must have one run, exact wire GV/kills/outcome statistics, correct monthly/lifetime totals and a clean ledger reconciliation.
-Each pending stored result and original match metadata/time must match its genuine spool record. Exact committed-result
+Each pending stored version, body, profile/match/fence and every original metadata field must match its genuine spool
+record. Match `ended_at` must match the grouped maximum original `spooled_at_ms` within 0.01 ms, allowing timestamp
+representation precision without requiring individual record times to be identical. Exact committed-result
 retries and exact requeued spool bytes must leave the entire recovered snapshot unchanged. Lease API checks require an
 unreleased restored lease to reject a competing writer, and a released lease to advance its fence; stale renew/release
 and a stale-fence negative result must not alter the successor or award anything.

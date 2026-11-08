@@ -1,0 +1,51 @@
+[source.log]
+
+running 1 test
+[results] spooled match=c5ad1386-dfaf-5a6a-1f11-ceaaa789d607 profile_id=2 fence=1 (durable on this host only; not yet committed)
+[results] spooled match=c5ad1386-dfaf-5a6a-1f11-ceaaa789d607 profile_id=1 fence=1 (durable on this host only; not yet committed)
+[results] committed match=c5ad1386-dfaf-5a6a-1f11-ceaaa789d607 profile_id=1 (applied)
+[results] committed match=c5ad1386-dfaf-5a6a-1f11-ceaaa789d607 profile_id=2 (applied)
+[results] spooled match=21f77fff-12ad-ba47-278a-1655c7a82e99 profile_id=4 fence=1 (durable on this host only; not yet committed)
+[results] spooled match=21f77fff-12ad-ba47-278a-1655c7a82e99 profile_id=3 fence=1 (durable on this host only; not yet committed)
+SOURCE_BOUNDARY spooled=4 committed=2 pending=2 spool_errors=0 spool_full=0 dead=0
+
+[guard.log]
+
+running 1 test
+
+thread 'cold_backup_restore_phase' (65375491) panicked at crates/rh-server/tests/account_backup_restore_flow.rs:269:5:
+CLUSTER_IDENTITY_MISMATCH: refusing application construction
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test cold_backup_restore_phase ... FAILED
+
+failures:
+
+failures:
+    cold_backup_restore_phase
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+
+[boundary.log]
+
+running 1 test
+test cold_backup_restore_phase ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+
+[truncated-restore.log]
+pg_restore: error: could not read from input file: end of file
+
+[verify.log]
+
+running 1 test
+[results] recovering 2 spooled result(s) from /Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/postgres-cold-restore/run-09/recovered-spool
+[results] committed match=21f77fff-12ad-ba47-278a-1655c7a82e99 profile_id=3 (applied, recovered from spool)
+[results] committed match=21f77fff-12ad-ba47-278a-1655c7a82e99 profile_id=4 (applied, recovered from spool)
+[results] recovering 2 spooled result(s) from /Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/postgres-cold-restore/run-09/recovered-spool
+[results] committed match=21f77fff-12ad-ba47-278a-1655c7a82e99 profile_id=4 (already applied, recovered from spool)
+[results] committed match=21f77fff-12ad-ba47-278a-1655c7a82e99 profile_id=3 (already applied, recovered from spool)
+test cold_backup_restore_phase ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s

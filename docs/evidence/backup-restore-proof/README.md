@@ -7,6 +7,10 @@ scope before implementation; its newer native union was being composed separatel
 dependency, Cargo.lock, existing test, gameplay, protocol, Unity or shared status file changed. One worker, no subagents.
 No AWS, spending, production data, DNS, login, merge or push was used.
 
+Independent review accepted `a2091bc6` and requested tighter original-time/full-envelope assertions before integration.
+[Review follow-up](REVIEW_FOLLOWUP.md) records that focused repair and its fresh proof; the original receipts below remain
+revision-scoped evidence for `a2091bc6`.
+
 This closes the specific missing local `pg_dump` → different cold cluster → `pg_restore` → authenticated application gap
 identified in [account-durability](../account-durability/README.md). It does not close cloud durability or all R-PERSIST.
 The [runnable recovery/rollback procedure](RECOVERY.md) documents backup consistency, required artifacts, external writer
@@ -87,6 +91,10 @@ renew/release succeeds. These checks concern restored history, not exclusion of 
 after the original lease TTL: it records zero live-pending-lease exclusion probes and recovers without attempting a new
 admission. The primary fresh proof requires both exclusion probes to execute; an expired lease cannot silently weaken it.
 
+The purchases and both bot-learning tables are empty in this workload. Their boundary comparisons prove that empty
+state survives; they do not prove recovery of populated purchase or bot-learning histories. Region and placement are
+absent in these local producer records; metadata checks verify their absence, not populated cloud placement recovery.
+
 ## Negative controls
 
 | Deliberate fault | Required rejection |
@@ -131,10 +139,11 @@ the one focused phase test: the source phase is intentionally SIGKILLed, the ide
 and the boundary and target verification phases pass. Ordinary Cargo discovery ignores this phase with an explicit
 runner-required reason; an ignored Cargo result is not proof. Existing unrelated suites were not rerun.
 
-The source was tested as the new working-tree files over the exact base above; the receipt's `tested_head` therefore
+The original `a2091bc6` source was tested as new working-tree files over the exact base above; the receipt's `tested_head` therefore
 names that base. Its separate test-source/orchestrator/executable SHA-256 binds the actual new implementation; production
 sources are unchanged from that base. [SHA256SUMS](SHA256SUMS) binds the delivered source and public evidence. The final
 clean commit identity is supplied in the lead handoff rather than embedding a self-referential commit hash in this file.
+The strengthened test's current source hash and fresh receipt are recorded in [the follow-up](REVIEW_FOLLOWUP.md).
 Archive SHA-256: `5fe02da80b92af478ccc4a40f4db75581f53fa09912f8559467400da2ab0c099`.
 Manifest SHA-256: `22547771e0ef880d8b14194673672bc9053fea4193fc88a14544b58d46847835`.
 [Artifact checksums](manifest-checksums.json) expose only checksums/filenames, not dump contents, full boundary rows or tokens.

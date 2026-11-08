@@ -16,6 +16,7 @@ use rh_server::spool::{ResultSpool, SpoolConfig};
 use rh_sim::{Arena, SimConfig, TileMap, Vec2};
 use serde_json::{json, Value};
 use sqlx::{Connection, PgConnection};
+use std::collections::BTreeMap;
 use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -567,37 +568,110 @@ async fn verify(store: Arc<Store>) {
     })
     .await;
     assert_eq!(svc.spool.stats().dead, 0);
+    let mut original_ended_at = BTreeMap::<Uuid, i64>::new();
     for rec in &records {
-        let doc: Value = sqlx::query_scalar(
-            "SELECT result FROM match_results WHERE match_id=$1 AND profile_id=$2",
-        )
-        .bind(rec.match_uuid().unwrap())
-        .bind(rec.profile_id)
-        .fetch_one(store.pool())
-        .await
-        .unwrap();
+        let original_match = rec.match_uuid().unwrap();
+        let (match_id, profile_id, fence, callsign, doc): (Uuid, i64, i64, String, Value) =
+            sqlx::query_as(
+                "SELECT r.match_id,r.profile_id,r.fence,p.callsign,r.result FROM match_results r
+             JOIN profiles p USING(profile_id) WHERE r.match_id=$1 AND r.profile_id=$2",
+            )
+            .bind(original_match)
+            .bind(rec.profile_id)
+            .fetch_one(store.pool())
+            .await
+            .unwrap();
+        assert_eq!(match_id, original_match, "original result match retained");
+        assert_eq!(
+            profile_id, rec.profile_id,
+            "original result principal retained"
+        );
+        assert_eq!(fence, rec.fence, "original result fence retained");
+        assert_eq!(callsign, rec.profile, "original profile identity retained");
         let stored: StoredResult = serde_json::from_value(doc).unwrap();
+        assert_eq!(
+            stored.v,
+            rh_persist::RESULT_VERSION,
+            "stored result version retained"
+        );
         assert!(
             stored.result == rec.result,
             "full genuine pending result preserved"
         );
-        let (owner, build, hash, humans, bots, ended): (String,String,i64,i32,i32,f64) = sqlx::query_as("SELECT owner,build,content_hash,humans,bots,extract(epoch FROM ended_at)::float8*1000 FROM matches WHERE match_id=$1")
-            .bind(rec.match_uuid().unwrap()).fetch_one(store.pool()).await.unwrap();
+        type MetadataRow = (
+            Uuid,
+            String,
+            Option<String>,
+            Option<String>,
+            String,
+            i64,
+            i32,
+            i32,
+            Option<String>,
+        );
+        let (match_id, owner, region, placement_id, build, hash, humans, bots, replay_ref): MetadataRow = sqlx::query_as(
+            "SELECT match_id,owner,region,placement_id,build,content_hash,humans,bots,replay_ref
+             FROM matches WHERE match_id=$1",
+        ).bind(original_match).fetch_one(store.pool()).await.unwrap();
+        assert_eq!(match_id, original_match, "original metadata match retained");
         assert_eq!(
-            (owner, build, hash as u64, humans as u32, bots as u32),
+            (
+                owner,
+                region,
+                placement_id,
+                build,
+                hash as u64,
+                humans,
+                bots
+            ),
             (
                 rec.meta.owner.clone(),
+                rec.meta.region.clone(),
+                rec.meta.placement_id.clone(),
                 rec.meta.build.clone(),
                 rec.meta.content_hash,
-                rec.meta.humans,
-                rec.meta.bots
-            )
+                i32::try_from(rec.meta.humans).unwrap(),
+                i32::try_from(rec.meta.bots).unwrap()
+            ),
+            "every original spool metadata field retained"
         );
         assert!(
-            (ended - rec.spooled_at_ms as f64).abs() < 1000.0,
-            "original result time retained"
+            replay_ref.is_none(),
+            "no replay reference was produced by this workload"
         );
+        original_ended_at
+            .entry(original_match)
+            .and_modify(|latest| *latest = (*latest).max(rec.spooled_at_ms))
+            .or_insert(rec.spooled_at_ms);
     }
+    let mut max_ended_at_delta_ms = 0.0_f64;
+    for (match_id, original_ms) in &original_ended_at {
+        let ended: f64 = sqlx::query_scalar(
+            "SELECT extract(epoch FROM ended_at)::float8*1000 FROM matches WHERE match_id=$1",
+        )
+        .bind(match_id)
+        .fetch_one(store.pool())
+        .await
+        .unwrap();
+        let delta_ms = (ended - *original_ms as f64).abs();
+        // PostgreSQL timestamps resolve microseconds (0.001ms); float8 epoch milliseconds add under one more
+        // microsecond at this epoch. Ten microseconds permits representation rounding, not a substituted result time.
+        assert!(
+            delta_ms <= 0.01,
+            "match ended_at must equal the grouped maximum original spool time within0.01ms"
+        );
+        max_ended_at_delta_ms = max_ended_at_delta_ms.max(delta_ms);
+    }
+    save(
+        "pending-recovery-audit.json",
+        &json!({
+            "complete_result_envelopes_verified":records.len(),
+            "complete_metadata_records_verified":records.len(),
+            "original_time_groups_verified":original_ended_at.len(),
+            "original_time_tolerance_ms":0.01,"max_original_time_error_ms":max_ended_at_delta_ms,
+            "timestamp_rule":"maximum original spooled_at_ms per match; per-record times need not be identical"
+        }),
+    );
     for (name, account) in accounts.as_object().unwrap() {
         let profile = svc.profile(name, account["token"].as_str().unwrap()).await;
         if name == "alice" || name == "bob" {
@@ -758,7 +832,7 @@ async fn verify(store: Arc<Store>) {
     assert!(rh_persist::admin::reconcile(&store).await.unwrap().ok());
     save(
         "verified.json",
-        &json!({"committed_results":4,"pending_recovered":2,"duplicate_store_retries":5,"duplicate_spool_replays":2,"profiles":4,"gv":20,"ledger_rows":2,"reconciliation":"ok","lease_fence":"successor protected; stale result refused","live_pending_leases_verified":live_pending_leases_verified}),
+        &json!({"committed_results":4,"pending_recovered":2,"duplicate_store_retries":5,"duplicate_spool_replays":2,"profiles":4,"gv":20,"ledger_rows":2,"reconciliation":"ok","lease_fence":"successor protected; stale result refused","live_pending_leases_verified":live_pending_leases_verified,"pending_recovery_audit":read("pending-recovery-audit.json")}),
     );
     svc.stop();
     store.pool().close().await;
