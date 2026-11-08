@@ -1,0 +1,11 @@
+--- a/packages/server/src/sim/factions.ts
++++ b/packages/server/src/sim/factions.ts
+@@ -922,7 +922,7 @@
+         .sort((a, b) => a.id.localeCompare(b.id))[0]
+       : undefined;
+     if (survivor) {
+-      f.target = survivor.id;
++      clearTarget(f);
+       f.inReach = false;
+       f.engaged = false;
+       f.reachAt = -Infinity;
