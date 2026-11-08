@@ -1,6 +1,7 @@
 # P-CARDS-3 — Kill augments and the mob stat stacks
 
-`DONE-VERIFIED` for the P-CARDS-3 row slice, stacked on the P-CARDS-2 head (`2895e05a`).
+`DONE-VERIFIED` for the P-CARDS-3 row slice, stacked on the P-CARDS-2 head (`2895e05a`). Commits
+`94b8522c`..`92be24c5`; [PR #49](https://github.com/Nevanyte/RougeHalla/pull/49).
 
 **No `P-CARDS-3` packet file exists** in `docs/backlog/packets/`: the backlog row is the only textual record, so the
 scope below is derived from that row, the actual source modules and what the base already carried. Recorded as a
@@ -107,7 +108,8 @@ cargo test --workspace --all-features --locked   # with PostgreSQL from tools/pg
 - Ability hash tape: re-recorded at the base case set (58 cases, same tick counts; only the state layout moved).
 - `cargo test -p rh-sim --lib --all-features`: 507 passed / 1 ignored before the tape record; after it the tape case
   reproduces.
-- Workspace gate: GATE_TBD.
+- Workspace gate: **1,438 passed, 0 failed, 3 ignored, 151 test binaries, exit 0** (with PostgreSQL; the base
+  P-CARDS-2 gate plus the six kill-augment tests and the wire-projection test).
 - `cargo fmt --all -- --check` and `cargo clippy --workspace --all-targets --all-features -- -D warnings`: clean.
 - Schedule conformance (`cargo test -p rh-parity --test schedule`): 14 passed; `killAugments.onPlayerKilled` flips
   from Pending to Ported at the same index (no phase/hook reorder).
