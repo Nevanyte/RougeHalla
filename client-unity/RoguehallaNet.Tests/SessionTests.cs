@@ -325,20 +325,23 @@ namespace Roguehalla.Net.Tests
         }
 
         [Test]
-        public void SnapshotsFeedTheBufferClockAndPresentConfirmedSelfPosition()
+        public void SnapshotsFeedTheBufferClockAndPresentThePredictedSelfPosition()
         {
             ToMatch();
             _now = 2000;
             _t.Deliver(new ServerMsg.Snapshot { Tick = 2, Me = new WireSelf { X = 40, Y = 40, Hp = 10 }, Actors = new[] { new WireActor { Id = 9, X = 1, Y = 2 } } });
             Assert.AreEqual(1, _s.Snapshots.Count); Assert.IsTrue(_s.Clock.Ready); Assert.IsTrue(_s.Motion.Initialized);
-            Assert.AreEqual(40, _s.Motion.DrawnX, 1e-3);
+            Assert.AreEqual(40, _s.Motion.DrawnX, 1e-3, "before any order the drawn position is the accepted self position");
             _s.OrderMove(100, 40); _s.Update();
             var inp = _t.LastSent<ClientMsg.Input>();
             Assert.AreEqual(CommandKind.Move, inp.Commands[0].Kind); Assert.AreEqual((byte)1, inp.Commands[0].Seq); Assert.IsTrue(_s.Motion.OrderPending);
-            Assert.AreEqual(40, _s.Motion.DrawnX, 1e-3, "sending an order and advancing frames do not predict movement");
-            _now += 50;
+            Assert.AreEqual(40, _s.Motion.DrawnX, 1e-3, "an order alone does not move the presentation without a step of elapsed time");
+            _now += 50; _s.Update();
+            Assert.AreEqual(48.5, _s.Motion.DrawnX, 1e-3, "the frame step predicts the walk along the planned path");
             _t.Deliver(new ServerMsg.Snapshot { Tick = 3, Me = new WireSelf { Id = 3, X = 47, Y = 41, Hp = 10, MoveSeq = 0 } });
-            Assert.AreEqual(47, _s.Motion.DrawnX, 1e-3, "new server position is shown even before the order is acknowledged");
+            Assert.AreEqual(47, _s.Motion.SimX, 1e-3, "the new server position is visible in sim even before the order is acknowledged");
+            Assert.AreEqual(48.5, _s.Motion.DrawnX, 1e-3, "the pending order keeps drawing the predicted walk, not the sample");
+            Assert.AreEqual(1.5, _s.Motion.VisualX, 1e-3, "visual is drawn minus sim");
             Assert.IsTrue(_s.Motion.OrderPending);
         }
 
@@ -350,7 +353,8 @@ namespace Roguehalla.Net.Tests
             _t.Deliver(new ServerMsg.Snapshot { Tick = 3, Me = new WireSelf { Id = 3, X = 55, Hp = 10 } });
             _t.Deliver(new ServerMsg.Snapshot { Tick = 3, Me = new WireSelf { Id = 3, X = 20, Hp = 10 } });
             _t.Deliver(new ServerMsg.Snapshot { Tick = 1, Me = new WireSelf { Id = 3, X = 10, Hp = 10 } });
-            Assert.AreEqual(55, _s.Motion.DrawnX, 1e-3);
+            _now += 1000; _s.Update(); // the 15 u correction is absorbed and fades (tau 100 ms); stale samples never rewind it
+            Assert.AreEqual(55, _s.Motion.DrawnX, 1e-2);
             Assert.AreEqual(55, _s.Me.X, 1e-3);
         }
 
@@ -383,6 +387,7 @@ namespace Roguehalla.Net.Tests
             _s.SnapshotReceived += _ => notified++;
             _t.Deliver(FullSnap(2, 30));
             _t.Deliver(FullSnap(3, 55));
+            _now += 1000; _s.Update(); // the 25 u correction fades to the accepted position
             _t.Deliver(DeltaWithoutSelfPositionChange(4, 2)); // wrong base, request a full snapshot
             Assert.AreEqual(1, _s.ResyncsSent);
 
@@ -391,7 +396,7 @@ namespace Roguehalla.Net.Tests
             Array.Resize(ref damaged, damaged.Length - 1);
             _t.DeliverRaw(damaged);
             Assert.AreEqual(1, _s.DecodeErrors);
-            Assert.AreEqual(55, _s.Motion.DrawnX);
+            Assert.AreEqual(55, _s.Motion.DrawnX, 1e-2);
             Assert.AreEqual(2, notified);
 
             _t.Deliver(FullSnap(3, 77, Actor(9, 8))); // corrected self and previously missing actor
@@ -399,7 +404,8 @@ namespace Roguehalla.Net.Tests
             Assert.AreEqual(2 * Wire.TickMs, _s.Snapshots.OldestMs);
             Assert.AreSame(_s.Snapshots.Newest, _s.Latest);
             Assert.AreEqual(77, _s.Me.X);
-            Assert.AreEqual(77, _s.Motion.DrawnX);
+            _now += 1000; _s.Update(); // the 22 u corrected sample is absorbed and fades into the presented walk
+            Assert.AreEqual(77, _s.Motion.DrawnX, 1e-2);
             Assert.AreEqual(3, notified);
 
             _t.Deliver(FullSnap(3, 22)); // unsolicited equal tick is again a duplicate
