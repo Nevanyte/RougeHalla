@@ -1,0 +1,77 @@
+{
+  "format": "rh-quest-owner-facts-verification/1",
+  "base": "1e4dd5fdac481439d5d169976d82a4db63312d34",
+  "branch": "codex/quest-owner-facts",
+  "commitIdentity": "commit containing this receipt; no self-referential SHA",
+  "privateObservationVersion": 20,
+  "privatePolicyVersion": 14,
+  "publicActivation": false,
+  "changedRustSource": {
+    "crates/rh-sim/src/quest_view/mod.rs": {
+      "bytes": 15974,
+      "sha256": "21ed66f5a4640654a8d5d9c97c05ca2947bd5db3b20a187307e0b584aab4f1f5"
+    },
+    "crates/rh-sim/src/quest_view/tests.rs": {
+      "bytes": 46312,
+      "sha256": "0515a4c9729179412574253aa9bb325b46c7601a4d5251192cff7538f9e4b676"
+    }
+  },
+  "unchangedSourceAnchors": {
+    "crates/rh-sim/src/quests/live.rs": "e3a0111c41362120422753375fe212791e6ea9c3e63b2657a39923f9e4f41cd1",
+    "packages/server/src/sim/quests.ts": "ecba71ef1f05f2a40e8850270c0bcdf87d44c59d3fdbce7b510b35c18d2ba769",
+    "packages/client/src/ui/questModel.ts": "25aef15660457b86356540e763a0152277989650f0b07b4049d93c4ee05331ed",
+    "packages/shared/src/quests.ts": "99c4fdfeae5e2a9eb3e0894f56ae1cd3db7eea760c5c09df695685e250800bba"
+  },
+  "finalTestScope": {
+    "questSuitePassed": 42,
+    "failed": 0,
+    "ignored": 0,
+    "questViewSubsetIncluded": 21,
+    "newNativeCasesIncluded": 5,
+    "existingCapturedLifecycleIncluded": true,
+    "developmentRunNotAdded": 20
+  },
+  "commands": [
+    {
+      "command": "cargo test --locked -p rh-sim --features trusted-status-probes --lib quest",
+      "exitCode": 0,
+      "log": "logs/quest-all.txt",
+      "bytes": 4402,
+      "sha256": "6789ca4089ce069079d3899111ab6b6d62c15d383bd9b4dc128c0e5f05f986cd"
+    },
+    {
+      "command": "cargo clippy --locked -p rh-sim --all-targets --all-features -- -D warnings",
+      "exitCode": 0,
+      "log": "logs/clippy-all.txt",
+      "bytes": 1004,
+      "sha256": "85bbd095958615cd096faf61a13cbb58ac4af89b12c45c43d8c3d219de98ed02"
+    },
+    {
+      "command": "cargo clippy --locked -p rh-sim --all-targets -- -D warnings",
+      "exitCode": 0,
+      "log": "logs/clippy-default.txt",
+      "bytes": 205,
+      "sha256": "04f969d33c80bb82f23b3bee78072e21f4b634b6e99bdc53dd61acab6ce8a78b"
+    },
+    {
+      "command": "cargo fmt --all -- --check",
+      "exitCode": 0,
+      "log": "logs/fmt.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "setupBoundaries": [
+    "Declared same-label human sim-seat bootstrap; not duplicate account-service ownership",
+    "Declared position bootstrap then real validated accepts/pickups/automatic turn-in",
+    "Declared shortened deadline then ordinary expiry, not installed closed state",
+    "Direct real MobKilled hook for tour projection; not ordinary NPC acquisition witness",
+    "Malformed hidden own records and exhausted counter are explicit redaction/atomicity controls"
+  ],
+  "limits": [
+    "No production wire/Unity/public quest activation",
+    "No source expected fixture or runtime producer change",
+    "No full-workspace, allocation, browser, cloud or performance claim",
+    "Root owns final union/version/content/tape/status/lock admission"
+  ]
+}

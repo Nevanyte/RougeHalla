@@ -1,0 +1,50 @@
+   Compiling rh-sim v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/quest-owner-facts/repo/crates/rh-sim)
+    Finished `test` profile [unoptimized] target(s) in 25.72s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/quest-owner-facts/target/debug/deps/rh_sim-0ad75f2b040c28b6)
+
+running 42 tests
+test quest_view::tests::labels_use_utf8_byte_bound_without_rewriting ... ok
+test mapgen::landmarks::runtime::tests::actual_requests_reduced_budget_and_direct_boundaries ... ok
+test quest_view::tests::exhaustion_and_failed_preparation_leave_existing_bindings_intact ... ok
+test quest_view::tests::collect_completion_and_foreign_fetch_carrier_remove_ground_navigation ... ok
+test quest_view::tests::adding_a_published_participant_preserves_the_existing_roster_identity ... ok
+test quest_view::tests::navigation_never_grants_a_far_or_newborn_pickup_handle ... ok
+test quest_view::tests::combined_preview_reports_both_unknown_counts_and_cannot_accept ... ok
+test quest_view::tests::bot_view_is_empty_and_a_retired_quest_handle_is_a_miss ... ok
+test quest_view::tests::hidden_owner_records_cannot_allocate_roster_or_leak_through_preview_facts ... ok
+test quest_view::tests::combined_bot_observer_never_receives_quest_rows_or_props ... ok
+test quest_view::tests::hidden_world_does_not_change_view_or_id_allocation ... ok
+test quest_view::tests::duplicate_labels_do_not_confuse_owner_identity_or_fetch_completion ... ok
+test quest_view::tests::accepted_objectives_are_navigation_only_and_roster_is_lazy ... ok
+test quest_view::tests::combined_observer_commits_quest_and_pickup_authority_together ... ok
+test quest_view::tests::hidden_roster_and_exhaustion_do_not_change_projection_or_failure ... ok
+test quest_view::tests::owner_roster_is_lazy_even_after_retained_history_or_exhaustion ... ok
+test quest_view::tests::prepared_authority_is_committed_atomically_and_reconnect_revokes_it ... ok
+test quest_view::tests::collect_owner_count_survives_actual_turn_in_and_expiry ... ok
+test quest_view::tests::finder_preview_restores_and_stays_nonactionable_until_public_delivery ... ok
+test quests::tests::the_captured_catalog_rows_and_reward_rules_match_the_source ... ok
+test quest_view::tests::publication_between_preview_preparation_and_commit_never_grants_action ... ok
+test quests::tests::the_captured_rosters_match_the_source_selection ... ok
+test quests::tests::the_captured_wording_matches_the_source ... ok
+test systems::fire::privacy::genuine_request_snapshot_preserves_duplicates_order_and_distinct_bounds ... ok
+test systems::sentenced::tests::trusted_restored_old_volley_exceeds_request_count_without_changing_damage_or_bucket_cap ... ok
+test quest_view::tests::tour_owner_mask_and_count_come_from_the_real_progress_hook ... ok
+test quest_view::tests::published_accept_eligibility_tracks_authoritative_action_outcomes ... ok
+test quests::live_tests::collect_tokens_and_the_turn_in_pay_the_two_reward_channels ... ok
+test quests::live_tests::hidden_offers_reveal_with_the_head_start_and_publish_their_pieces ... ok
+test quests::live_tests::malformed_bot_acceptance_cannot_take_fetch_parcel ... ok
+test quests::live_tests::camp_clear_ignores_bots_when_deciding_whether_anyone_can_finish ... ok
+test quests::live_tests::kill_progress_hooks_and_the_camp_clear_recheck_close_impossible_offers ... ok
+test quests::live_tests::bot_cannot_accept_or_discover_but_human_can_after_restore ... ok
+test quests::live_tests::the_raid_start_spawns_the_source_roster_and_publishes_the_known_half ... ok
+test quests::live_tests::the_fetch_parcel_rides_a_carrier_and_drops_on_death ... ok
+test quests::live_tests::an_accepted_offer_expires_after_its_deadline_and_lingers_then_sweeps ... ok
+test quests::live_tests::the_teleport_and_run_end_hooks_close_every_open_offer ... ok
+test quests::live_tests::accepting_through_the_input_door_starts_the_offer ... ok
+test quests::live_tests::malformed_bot_acceptance_cannot_pick_up_or_block_human_turn_in ... ok
+test quests::live_tests::the_quest_runtime_checkpoints_restores_and_perturbs_the_hash ... ok
+test quests::tests::the_captured_placements_match_the_source_on_the_pinned_maps ... ok
+test quests::lifecycle_tests::the_captured_lifecycle_replays_through_the_input_door ... ok
+
+test result: ok. 42 passed; 0 failed; 0 ignored; 0 measured; 653 filtered out; finished in 8.52s
+

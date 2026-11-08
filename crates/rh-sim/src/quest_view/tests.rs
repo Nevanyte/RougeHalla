@@ -32,6 +32,10 @@ fn sim() -> Sim {
 }
 
 fn sim_with_bots(bots: [bool; 3]) -> Sim {
+    sim_with_names(bots, ["holy", "fire", "plague"])
+}
+
+fn sim_with_names(bots: [bool; 3], names: [&str; 3]) -> Sim {
     let arena = arena();
     let spawns = arena.spawns.clone();
     let placements: Vec<Placement> = spawns
@@ -39,7 +43,7 @@ fn sim_with_bots(bots: [bool; 3]) -> Sim {
         .take(3)
         .enumerate()
         .map(|(i, p)| Placement {
-            profile: ["holy", "fire", "plague"][i].into(),
+            profile: names[i].into(),
             faction: [
                 crate::FactionId::Holy,
                 crate::FactionId::Fire,
@@ -267,6 +271,7 @@ fn accepted_objectives_are_navigation_only_and_roster_is_lazy() {
     let mut other = QuestObserver::new(PlayerId(2));
     let p = owner.prepare(&s).unwrap();
     assert!(p.view.roster.is_empty());
+    assert!(p.view.owner_roster.is_none());
     let h = p.view.rows.iter().find(|r| r.def == def).unwrap().handle;
     assert!(p.view.objectives.is_empty());
     p.commit();
@@ -274,6 +279,7 @@ fn accepted_objectives_are_navigation_only_and_roster_is_lazy() {
     s.submit(PlayerId(1), owner.resolve_accept(&s, h)).unwrap();
     s.step();
     let p = owner.prepare(&s).unwrap();
+    assert!(p.view.owner_roster.is_some());
     assert_eq!(
         p.view.objectives.iter().filter(|x| x.quest == h).count(),
         coords.len()
@@ -281,6 +287,7 @@ fn accepted_objectives_are_navigation_only_and_roster_is_lazy() {
     assert!(p.view.roster.iter().any(|r| r.label == "holy"));
     p.commit();
     let q = other.prepare(&s).unwrap();
+    assert!(q.view.owner_roster.is_none());
     assert!(q.view.objectives.is_empty());
     let row = q.view.rows.iter().find(|r| r.def == def).unwrap();
     assert_eq!(row.participants.len(), 1);
@@ -363,6 +370,9 @@ fn collect_completion_and_foreign_fetch_carrier_remove_ground_navigation() {
     let p = viewer.prepare(&s).unwrap();
     let row = p.view.rows.iter().find(|r| r.handle == collect).unwrap();
     assert!(row.owner_ready);
+    assert_eq!(row.owner_progress, count);
+    assert_eq!(row.owner_visited, 0);
+    assert!(!row.owner_completed);
     assert!(!p.view.objectives.iter().any(|o| o.quest == collect));
     p.commit();
 
@@ -791,7 +801,12 @@ fn combined_preview_reports_both_unknown_counts_and_cannot_accept() {
     let q = observation.quests.as_ref().unwrap();
     assert_eq!(q.unknown_count, 10);
     assert_eq!(q.display_unknown_count, 9);
-    let handle = q.rows.iter().find(|r| r.def == def).unwrap().handle;
+    assert!(q.owner_roster.is_none());
+    let preview = q.rows.iter().find(|r| r.def == def).unwrap();
+    assert_eq!(preview.owner_progress, 0);
+    assert_eq!(preview.owner_visited, 0);
+    assert!(!preview.owner_completed);
+    let handle = preview.handle;
     pending.commit();
     assert_eq!(
         observer
@@ -1094,4 +1109,395 @@ fn published_accept_eligibility_tracks_authoritative_action_outcomes() {
         Err(AcceptRefusal::Already)
     );
     pending.commit();
+}
+
+fn accept_at(sim: &mut Sim, player: PlayerId, quest: u32, at: Vec2) {
+    // Declared position bootstrap, then the actual validated acceptance producer; no acceptance/progress is installed.
+    teleport(sim, player, at);
+    sim.submit(
+        player,
+        validate(RawCommand::QuestAccept {
+            quest_id: Some(quest),
+        })
+        .unwrap(),
+    )
+    .unwrap();
+    sim.step();
+}
+
+fn committed_view(observer: &mut QuestObserver, sim: &Sim) -> QuestView {
+    let pending = observer.prepare(sim).unwrap();
+    let view = pending.view.clone();
+    pending.commit();
+    view
+}
+
+fn assert_owner_is_delivered(view: &QuestView) {
+    if let Some(owner) = view.owner_roster {
+        assert_eq!(
+            view.roster.iter().filter(|entry| entry.id == owner).count(),
+            1
+        );
+    }
+}
+
+#[test]
+fn duplicate_labels_do_not_confuse_owner_identity_or_fetch_completion() {
+    // Duplicate labels are a declared sim-seat bootstrap, not a claim that the account service issues duplicate owners.
+    let mut s = sim_with_names([false; 3], ["same", "same", "watcher"]);
+    let (qid, at, parcel, container, def) = {
+        let o =
+            s.w.quests
+                .as_ref()
+                .unwrap()
+                .offers
+                .iter()
+                .find(|o| {
+                    o.published && catalog::DEFINITION[o.def as usize].kind == catalog::Kind::Fetch
+                })
+                .unwrap();
+        (o.id, o.at, o.parcel.unwrap(), o.containers[0], o.def)
+    };
+    let key = catalog::DEFINITION[def as usize].id;
+    let mut first = QuestObserver::new(PlayerId(1));
+    let mut second = QuestObserver::new(PlayerId(2));
+    assert!(committed_view(&mut first, &s).owner_roster.is_none());
+    accept_at(&mut s, PlayerId(1), qid, at);
+    accept_at(&mut s, PlayerId(2), qid, at);
+    let a = committed_view(&mut first, &s);
+    let b = committed_view(&mut second, &s);
+    for view in [&a, &b] {
+        assert_owner_is_delivered(view);
+        assert_eq!(view.roster.len(), 2);
+        assert!(view.roster.iter().all(|entry| entry.label == "same"));
+        assert_ne!(view.roster[0].id, view.roster[1].id);
+        let row = view.rows.iter().find(|row| row.def == key).unwrap();
+        let owner = view.owner_roster.unwrap();
+        assert!(row.participants.iter().any(|p| p.id == owner && p.accepted));
+        assert!(row.owner_accepted);
+        assert_eq!(row.owner_progress, 0);
+        assert_eq!(row.owner_visited, 0);
+        assert!(!row.owner_ready && !row.owner_completed);
+    }
+    // Each view is seat-scoped. In these fresh observers' identical allocations, the two owners resolve to distinct rows.
+    assert_ne!(a.owner_roster, b.owner_roster);
+    teleport(&mut s, PlayerId(1), parcel);
+    s.submit(
+        PlayerId(1),
+        validate(RawCommand::Pickup {
+            container_id: container,
+        })
+        .unwrap(),
+    )
+    .unwrap();
+    s.step();
+    let carrying = committed_view(&mut first, &s);
+    let row = carrying.rows.iter().find(|row| row.def == key).unwrap();
+    assert_eq!(row.carrier, carrying.owner_roster);
+    assert!(row.owner_ready);
+    assert_eq!(
+        row.owner_progress, 0,
+        "Fetch does not invent a count from its carrier"
+    );
+    assert!(!row.owner_completed);
+    teleport(&mut s, PlayerId(1), at);
+    s.step();
+    let before = s.state_hash();
+    let a = committed_view(&mut first, &s);
+    let b = committed_view(&mut second, &s);
+    assert_eq!(s.state_hash(), before, "projection does not mutate the sim");
+    for (view, completed) in [(&a, true), (&b, false)] {
+        assert_owner_is_delivered(view);
+        let row = view.rows.iter().find(|row| row.def == key).unwrap();
+        assert_eq!(row.state, RowState::Done);
+        assert_eq!(row.done_by.as_deref(), Some("same"));
+        assert_eq!(row.owner_completed, completed);
+        assert!(row.owner_accepted, "completion preserves accepted history");
+        assert_eq!(row.owner_progress, 0);
+        assert_eq!(row.owner_visited, 0);
+        assert!(row.carrier.is_none());
+        assert!(!row.owner_ready);
+    }
+}
+
+#[test]
+fn collect_owner_count_survives_actual_turn_in_and_expiry() {
+    let mut s = sim();
+    let (qid, at, tokens, containers, count, key) = {
+        let o = s
+            .w
+            .quests
+            .as_ref()
+            .unwrap()
+            .offers
+            .iter()
+            .find(|o| {
+                o.published && catalog::DEFINITION[o.def as usize].kind == catalog::Kind::Collect
+            })
+            .unwrap();
+        let def = &catalog::DEFINITION[o.def as usize];
+        (
+            o.id,
+            o.at,
+            o.tokens.clone(),
+            o.containers.clone(),
+            def.count,
+            def.id,
+        )
+    };
+    let mut observer = QuestObserver::new(PlayerId(1));
+    let before = committed_view(&mut observer, &s);
+    let row = before.rows.iter().find(|row| row.def == key).unwrap();
+    assert!(!row.owner_accepted && !row.owner_ready && !row.owner_completed);
+    assert_eq!(row.owner_progress, 0);
+    assert_eq!(row.owner_visited, 0);
+    accept_at(&mut s, PlayerId(1), qid, at);
+    let mut expired = None;
+    for n in 0..count as usize {
+        teleport(&mut s, PlayerId(1), tokens[n]);
+        s.submit(
+            PlayerId(1),
+            validate(RawCommand::Pickup {
+                container_id: containers[n],
+            })
+            .unwrap(),
+        )
+        .unwrap();
+        s.step();
+        let view = committed_view(&mut observer, &s);
+        assert_owner_is_delivered(&view);
+        let row = view.rows.iter().find(|row| row.def == key).unwrap();
+        assert_eq!(row.owner_progress, n as u32 + 1);
+        assert_eq!(row.owner_ready, n as u32 + 1 == count);
+        assert_eq!(row.owner_visited, 0);
+        assert!(!row.owner_completed);
+        if n == 0 {
+            expired = Some(s.clone());
+        }
+    }
+    teleport(&mut s, PlayerId(1), at);
+    s.step();
+    let complete = committed_view(&mut observer, &s);
+    let row = complete.rows.iter().find(|row| row.def == key).unwrap();
+    assert_eq!(row.state, RowState::Done);
+    assert!(row.owner_completed && row.owner_accepted);
+    assert_eq!(row.owner_progress, count);
+    assert!(!row.owner_ready);
+    let mut expired = expired.unwrap();
+    // Declared deadline-boundary setup, then the actual expiry producer. No closed state/outcome is installed.
+    let deadline = expired.server_time() + crate::constants::TICK_MS;
+    expired
+        .w
+        .quests
+        .as_mut()
+        .unwrap()
+        .offers
+        .iter_mut()
+        .find(|o| o.id == qid)
+        .unwrap()
+        .expires_at = deadline;
+    expired.step();
+    let expired = committed_view(&mut QuestObserver::new(PlayerId(1)), &expired);
+    assert_owner_is_delivered(&expired);
+    let row = expired.rows.iter().find(|row| row.def == key).unwrap();
+    assert_eq!(row.state, RowState::Expired);
+    assert!(row.owner_accepted);
+    assert_eq!(row.owner_progress, 1);
+    assert_eq!(row.owner_visited, 0);
+    assert!(!row.owner_ready && !row.owner_completed);
+}
+
+#[test]
+fn tour_owner_mask_and_count_come_from_the_real_progress_hook() {
+    let mut s = sim();
+    let (qid, at, key) = {
+        let o =
+            s.w.quests
+                .as_ref()
+                .unwrap()
+                .offers
+                .iter()
+                .find(|o| o.published && catalog::DEFINITION[o.def as usize].tour > 0)
+                .expect("the declared seed has a published tour");
+        (o.id, o.at, catalog::DEFINITION[o.def as usize].id)
+    };
+    accept_at(&mut s, PlayerId(1), qid, at);
+    // Direct real hook invocation isolates projection of a producer's output; this is not an ordinary NPC-kill witness.
+    for zone in [
+        crate::FactionId::Fire,
+        crate::FactionId::Fire,
+        crate::FactionId::Holy,
+    ] {
+        crate::hooks::fire(
+            &mut crate::hooks::Hx {
+                stats: Default::default(),
+                k: &s.k,
+                w: &mut s.w,
+                ev: &mut Vec::new(),
+                fx: None,
+            },
+            crate::hooks::HookArgs::MobKilled {
+                killer: PlayerId(1),
+                mob_type: crate::mob_catalog::normal_types_of(zone).next().unwrap().id,
+                zone,
+                camp: -1,
+                elite: false,
+                at: Vec2::new(0., 0.),
+                contributors: Vec::new(),
+            },
+        );
+    }
+    let view = committed_view(&mut QuestObserver::new(PlayerId(1)), &s);
+    assert_owner_is_delivered(&view);
+    let row = view.rows.iter().find(|row| row.def == key).unwrap();
+    assert_eq!(row.owner_progress, 2);
+    assert_eq!(
+        row.owner_visited,
+        (1 << crate::FactionId::Fire.code()) | (1 << crate::FactionId::Holy.code())
+    );
+    assert!(!row.owner_ready && !row.owner_completed);
+    let me = row
+        .participants
+        .iter()
+        .find(|p| Some(p.id) == view.owner_roster)
+        .unwrap();
+    assert_eq!(me.progress, row.owner_progress);
+    assert_eq!(me.visited, row.owner_visited);
+    // Declared deadline boundary as above: expiry changes live readiness, not the producer's recorded tour history.
+    let deadline = s.server_time() + crate::constants::TICK_MS;
+    s.w.quests
+        .as_mut()
+        .unwrap()
+        .offers
+        .iter_mut()
+        .find(|o| o.id == qid)
+        .unwrap()
+        .expires_at = deadline;
+    s.step();
+    let expired = committed_view(&mut QuestObserver::new(PlayerId(1)), &s);
+    let closed = expired.rows.iter().find(|row| row.def == key).unwrap();
+    assert_eq!(closed.state, RowState::Expired);
+    assert_eq!(closed.owner_progress, row.owner_progress);
+    assert_eq!(closed.owner_visited, row.owner_visited);
+    assert!(!closed.owner_ready && !closed.owner_completed);
+}
+
+#[test]
+fn owner_roster_is_lazy_even_after_retained_history_or_exhaustion() {
+    let mut s = sim();
+    let (qid, at) = {
+        let o =
+            s.w.quests
+                .as_ref()
+                .unwrap()
+                .offers
+                .iter()
+                .find(|o| o.published)
+                .unwrap();
+        (o.id, o.at)
+    };
+    let mut absent = QuestObserver::new(PlayerId(1));
+    absent.state.next_roster = u64::from(u32::MAX) + 1;
+    let p = absent.prepare(&s).unwrap();
+    assert!(p.view.owner_roster.is_none() && p.view.roster.is_empty());
+    p.commit();
+    assert!(
+        absent.state.roster.is_empty(),
+        "own presence alone does not allocate an identity"
+    );
+    accept_at(&mut s, PlayerId(1), qid, at);
+    let mut observer = QuestObserver::new(PlayerId(1));
+    let pending = observer.prepare(&s).unwrap();
+    let staged_owner = pending.view.owner_roster.unwrap();
+    let staged_handle = pending
+        .view
+        .rows
+        .iter()
+        .find(|r| r.giver == at)
+        .unwrap()
+        .handle;
+    assert_owner_is_delivered(&pending.view);
+    drop(pending);
+    assert!(observer.state.roster.is_empty());
+    assert_eq!(observer.state.next_roster, 1);
+    assert_eq!(
+        observer.resolve_accept(&s, staged_handle),
+        validate(RawCommand::QuestAccept { quest_id: None }).unwrap()
+    );
+    let committed = committed_view(&mut observer, &s);
+    assert_eq!(committed.owner_roster, Some(staged_owner));
+    observer.reconnect();
+    let resumed = committed_view(&mut observer, &s);
+    assert_owner_is_delivered(&resumed);
+    assert!(resumed.owner_roster.unwrap().get() > staged_owner.get());
+    let retained = observer.state.next_roster;
+    // The real close-all hook and ordinary linger expiry remove every entitled row, without erasing observer history.
+    crate::hooks::fire(
+        &mut crate::hooks::Hx {
+            stats: Default::default(),
+            k: &s.k,
+            w: &mut s.w,
+            ev: &mut Vec::new(),
+            fx: None,
+        },
+        crate::hooks::HookArgs::Teleported,
+    );
+    let until = s.server_time() + crate::constants::CLOSED_QUEST_LINGER_MS;
+    while s.server_time() <= until {
+        s.step();
+    }
+    assert!(observer.state.roster.contains_key(&PlayerId(1)));
+    let empty = committed_view(&mut observer, &s);
+    assert!(empty.owner_roster.is_none() && empty.roster.is_empty() && empty.rows.is_empty());
+    assert_eq!(observer.state.next_roster, retained);
+}
+
+#[test]
+fn hidden_owner_records_cannot_allocate_roster_or_leak_through_preview_facts() {
+    let mut a = sim();
+    let (id, at, key) = {
+        let o =
+            a.w.quests
+                .as_ref()
+                .unwrap()
+                .offers
+                .iter()
+                .find(|o| !o.published)
+                .unwrap();
+        (o.id, o.at, catalog::DEFINITION[o.def as usize].id)
+    };
+    teleport(&mut a, PlayerId(1), at);
+    a.step();
+    let mut b = a.clone();
+    let hidden =
+        b.w.quests
+            .as_mut()
+            .unwrap()
+            .offers
+            .iter_mut()
+            .find(|o| o.id == id)
+            .unwrap();
+    assert_eq!(hidden.finder, Some(PlayerId(1)));
+    assert!(!hidden.published);
+    // Deliberately malformed hidden records isolate the redaction boundary, not a reachable acceptance/progress path.
+    hidden.accepted.push(PlayerId(1));
+    hidden.progress.push((PlayerId(1), 7));
+    hidden.visits.push((PlayerId(1), 0b1_1111));
+    hidden.done_by = Some(PlayerId(1));
+    let mut oa = QuestObserver::new(PlayerId(1));
+    let mut ob = QuestObserver::new(PlayerId(1));
+    oa.state.next_roster = u64::from(u32::MAX) + 1;
+    ob.state.next_roster = u64::from(u32::MAX) + 1;
+    let pa = oa.prepare(&a).unwrap();
+    let pb = ob.prepare(&b).unwrap();
+    assert_eq!(pa.view, pb.view);
+    assert!(pb.view.owner_roster.is_none() && pb.view.roster.is_empty());
+    let row = pb.view.rows.iter().find(|row| row.def == key).unwrap();
+    assert_eq!(row.state, RowState::Preview);
+    assert_eq!(row.owner_progress, 0);
+    assert_eq!(row.owner_visited, 0);
+    assert!(!row.owner_accepted && !row.owner_ready && !row.owner_completed);
+    drop(pa);
+    drop(pb);
+    assert!(oa.state.roster.is_empty() && ob.state.roster.is_empty());
 }

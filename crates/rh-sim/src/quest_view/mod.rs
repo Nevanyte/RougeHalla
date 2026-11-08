@@ -61,6 +61,13 @@ pub struct QuestRow {
     /// The current authoritative action checks permit acceptance at this sample.
     pub can_accept: bool,
     pub owner_accepted: bool,
+    /// The viewer's stored count in a published row; zero for a preview or an absent progress record.
+    /// Closed rows retain their history. Fetch progress remains separate from parcel carrier/completion facts.
+    pub owner_progress: u32,
+    /// The viewer's stored tour-region mask in a published row; zero for a preview or an absent visit record.
+    pub owner_visited: u8,
+    /// This viewer is the recorded completion actor, not merely an accepted or ready participant.
+    pub owner_completed: bool,
     /// The server-owned objective is complete; the giver is the return destination.
     pub owner_ready: bool,
 }
@@ -74,6 +81,9 @@ pub struct Objective {
 pub struct QuestView {
     pub unknown_count: u32,
     pub display_unknown_count: u32,
+    /// The viewer's quest-only identity when already represented in this view's entitled roster.
+    /// None grants no identity and never causes an extra roster allocation.
+    pub owner_roster: Option<RosterId>,
     pub roster: Vec<RosterEntry>,
     pub rows: Vec<QuestRow>,
     pub objectives: Vec<Objective>,
@@ -209,6 +219,11 @@ impl QuestObserver {
             view.roster.push(RosterEntry { id: rid, label });
         }
         view.roster.sort_by_key(|r| r.id);
+        view.owner_roster = next
+            .roster
+            .get(&me.id)
+            .copied()
+            .filter(|id| view.roster.iter().any(|entry| entry.id == *id));
         next.actionable.clear();
         for o in offers {
             if o.published && o.status == Status::Open {
@@ -268,21 +283,34 @@ impl QuestObserver {
                     .is_ok();
             let live = o.status == Status::Open
                 && (o.expires_at == 0. || sim.server_time() < o.expires_at);
-            let progress = o
-                .progress
-                .iter()
-                .find(|(p, _)| *p == me.id)
-                .map_or(0, |(_, n)| *n);
+            let owner_progress = if o.published {
+                o.progress
+                    .iter()
+                    .find(|(p, _)| *p == me.id)
+                    .map_or(0, |(_, n)| *n)
+            } else {
+                0
+            };
+            let owner_visited = if o.published {
+                o.visits
+                    .iter()
+                    .find(|(p, _)| *p == me.id)
+                    .map_or(0, |(_, visited)| *visited)
+            } else {
+                0
+            };
+            let owner_completed =
+                o.published && o.status == Status::Done && o.done_by == Some(me.id);
             let owner_ready = owner_accepted
                 && live
                 && match def.kind {
                     catalog::Kind::Fetch => o.carrier == Some(me.id),
-                    _ => progress >= def.count,
+                    _ => owner_progress >= def.count,
                 };
             let ground_entitled = owner_accepted
                 && live
                 && match def.kind {
-                    catalog::Kind::Collect => progress < def.count,
+                    catalog::Kind::Collect => owner_progress < def.count,
                     catalog::Kind::Fetch => o.carrier.is_none(),
                     catalog::Kind::Kill => false,
                 };
@@ -328,6 +356,9 @@ impl QuestObserver {
                 done_by,
                 can_accept,
                 owner_accepted,
+                owner_progress,
+                owner_visited,
+                owner_completed,
                 owner_ready,
             });
         }
