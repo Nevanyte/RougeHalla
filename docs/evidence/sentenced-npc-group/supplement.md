@@ -24,9 +24,15 @@ members stayed in fight). The focus handoff and shrink are proven; Return is an 
 
 p0's Mark focuses `mob1a` (`camp:1`, size5); p2 then casts a real Trial Wish at the **unfocused** live member `mob1b`.
 The `trial-cast` frame records the actual source `fx` cast event `{ability:'trial', target:'mob1b'}` while p0's focus
-stays `mob1a`. No camp status/zone outcome was observed in the following 120 ticks, so the cast-on-unfocused-member
-attempt is witnessed but its status consequence is **not claimed** (explicit remainder). Weapon-swap behavior was not
-reachable through an admitted source producer in this bound.
+stays `mob1a`. The captured `trial-after` frames also contain the actual source events
+`{kind:'status', id:'mob1b', status:'zoned', ms:5000, by:'p2'}` and
+`{kind:'castLand', by:'p2', ability:'trial', target:'mob1b'}`. Thus the corpus proves that the real Trial cast by p2 on
+the unfocused `mob1b` landed and applied its `zoned` status to that member, with the castLand event recorded.
+
+What is **not** claimed: camp-zone admission semantics (whether/under what rule the camp group enters Trial's zone),
+propagation of the zone/status to other camp members, any effect on p0's separate `camp:1` Mark, or native/hash equality.
+Only `mob1b`'s observed `zoned` status and the Trial castLand event are asserted; the wider reason/zone matrix remains
+unproven. Weapon-swap behavior was not reachable through an admitted source producer in this bound.
 
 ## Checks / provenance
 
@@ -46,7 +52,9 @@ provenance mutation produced identical runtime cases/differing provenance and is
 ## Remainders (exact)
 
 1. Return/leash mode transition was not reached (surviving camp stayed `fight`; p0 died before a successful owner move).
-2. Trial cast on the unfocused member is witnessed, but no status/zone outcome was observed; not claimed.
+2. Trial on the unfocused member is witnessed with actual source events (`status zoned mob1b ms5000 by p2` and
+   `castLand trial` in `trial-after`); what remains unproven is camp-zone admission semantics, propagation to other
+   camp members, and any wider zone/status matrix. No native/hash equality is claimed.
 3. Actual weapon swap and tier-four multi-owner execute denial/deferred order were not captured; the existing trusted
 `parity/sentenced/runtime-matrix.json`/`denial-matrix.json` remain the only prior reference for those domains.
 4. No native/hash equality or replacement-kernel claim; the GPT kernel/group implementation is separate.

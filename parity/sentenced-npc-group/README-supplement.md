@@ -9,4 +9,7 @@ Captured from unmodified source by `tools/sentenced-npc-group-fixtures/capture-s
 Node 22.23.4 image. Declared real `createGameWorld` profile with generated map seed1, three players (Sentenced p0,
 Holy p1, Sentenced p2), catalog camps/NPCs, real AI and ordinary attack/move/cast inputs, 50 ms steps; the labelled
 read-only ledger tap is diagnostic only. Provenance records image/platform/Node, tool hashes, package-lock hashes, the
-declared config/seeds and all 127 source files; no native world/hash equality is claimed.
+declared config/seeds and all 127 source files; no native world/hash equality is claimed. The trial-after frames
+contain the actual source events `status zoned mob1b ms5000 by p2` and `castLand trial`; those prove the real Trial cast
+by p2 on the unfocused member `mob1b` and its observed status on that member. Camp-zone admission semantics, propagation
+to other camp members and any wider zone/status matrix are NOT claimed.
