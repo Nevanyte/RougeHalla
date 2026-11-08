@@ -7,7 +7,7 @@ namespace Roguehalla.Net
     public enum AccountHubState { Idle, Opening, Owned, PreparingJoin, Refreshing, Failed }
     public enum AccountRefreshReason { None, User, Join, Result }
 
-    /// <summary>Immutable, non-secret projection of the delivered owner summary. The full profile remains unsupported.</summary>
+    /// <summary>Immutable, non-secret projection of the delivered owner summary.</summary>
     public sealed class AccountHubProfile
     {
         public string Name { get; }
@@ -18,14 +18,17 @@ namespace Roguehalla.Net
         public long Draws { get; }
         public long Deaths { get; }
         public long Kills { get; }
-        public bool HasFullProfile => false;
+        public bool HasFullProfile { get; }
         internal AccountHubProfile(OwnedAccount owned)
         {
             Name = owned.CanonicalName;
             AccountProfile p = owned.Profile;
             Gv = p.gv; GvLifetime = p.gvLifetime;
             Runs = p.stats.runs; Wins = p.stats.wins; Draws = p.stats.draws; Deaths = p.stats.deaths; Kills = p.stats.kills;
+            HasFullProfile = owned.FullProfile != null;
         }
+        internal AccountHubProfile(AccountFullProfile profile)
+        { Name = profile.Name; Gv = profile.Gv; GvLifetime = profile.GvLifetime; Runs = profile.Stats.Runs; Wins = profile.Stats.Wins; Draws = profile.Stats.Draws; Deaths = profile.Stats.Deaths; Kills = profile.Stats.Kills; HasFullProfile = true; }
     }
 
     public sealed class AccountHubSnapshot
@@ -37,12 +40,15 @@ namespace Roguehalla.Net
         public AccountCredentialRecovery Recovery { get; }
         public AccountHubProfile Profile { get; }
         public AccountRefreshReason RefreshReason { get; }
+        public AccountFullProfile FullProfile { get; }
+        public AccountFailure FullProfileFailure { get; }
         public bool Busy => State == AccountHubState.Opening || State == AccountHubState.PreparingJoin || State == AccountHubState.Refreshing;
         /// <summary>A result-triggered read cannot identify a committed match: no bank-complete inference is available.</summary>
         public bool ResultBankConfirmed => false;
         internal AccountHubSnapshot(string name, AccountHubState state, AccountFailure failure,
-            AccountConnectionFailure connectionFailure, AccountCredentialRecovery recovery, AccountHubProfile profile, AccountRefreshReason reason)
-        { SelectedName = name; State = state; Failure = failure; ConnectionFailure = connectionFailure; Recovery = recovery; Profile = profile; RefreshReason = reason; }
+            AccountConnectionFailure connectionFailure, AccountCredentialRecovery recovery, AccountHubProfile profile, AccountRefreshReason reason,
+            AccountFullProfile fullProfile, AccountFailure fullProfileFailure)
+        { SelectedName = name; State = state; Failure = failure; ConnectionFailure = connectionFailure; Recovery = recovery; Profile = profile; RefreshReason = reason; FullProfile = fullProfile; FullProfileFailure = fullProfileFailure; }
     }
 
     /// <summary>Contains a bearer credential; never log/serialize this intent. Check CanJoin immediately before synchronous Join.</summary>
@@ -65,6 +71,10 @@ namespace Roguehalla.Net
         string _selected = "";
         string _normalizedSelection;
         AccountHubProfile _profile;
+        AccountFullProfile _fullProfile;
+        AccountFailure _fullProfileFailure;
+        AccountApiService _api;
+        IAccountApiTransport _apiTransport;
         sealed class Operation
         {
             public long Generation;
@@ -83,7 +93,7 @@ namespace Roguehalla.Net
         {
             name = name ?? "";
             if (string.Equals(_selected, name, StringComparison.Ordinal)) return;
-            ++_generation; _selected = name; _normalizedSelection = NormalizeOrNull(name); _profile = null; _accounts.ClearSelection();
+            ++_generation; _selected = name; _normalizedSelection = NormalizeOrNull(name); _profile = null; _fullProfile = null; _fullProfileFailure = AccountFailure.None; _accounts.ClearSelection();
             Set(AccountHubState.Idle, AccountFailure.None, AccountConnectionFailure.None, AccountRefreshReason.None);
         }
 
@@ -141,7 +151,7 @@ namespace Roguehalla.Net
             // Bind both identity and generation before the first event. A callback may select/cancel/start another open.
             var operation = new Operation { Generation = ++_generation, Name = name, ExpectedSelection = NormalizeOrNull(name) };
             _selected = name; _normalizedSelection = operation.ExpectedSelection;
-            if (changed) _profile = null;
+            if (changed) { _profile = null; _fullProfile = null; _fullProfileFailure = AccountFailure.None; }
             _accounts.ClearSelection();
             if (changed) Set(AccountHubState.Idle, AccountFailure.None, AccountConnectionFailure.None, AccountRefreshReason.None);
             return operation;
@@ -176,6 +186,8 @@ namespace Roguehalla.Net
                 return null;
             }
             _profile = new AccountHubProfile(result.Account);
+            _fullProfile = result.Account.FullProfile;
+            _fullProfileFailure = _fullProfile == null ? AccountFailure.Unreadable : AccountFailure.None;
             Set(AccountHubState.Owned, AccountFailure.None, AccountConnectionFailure.None, reason);
             return Current(operation) && Matches(result.Account, operation.ExpectedSelection) ? result.Account : null;
         }
@@ -189,7 +201,7 @@ namespace Roguehalla.Net
 
         void Set(AccountHubState state, AccountFailure failure, AccountConnectionFailure connectionFailure, AccountRefreshReason reason)
         {
-            Snapshot = new AccountHubSnapshot(_selected, state, failure, connectionFailure, ReadRecovery(), _profile, reason);
+            Snapshot = new AccountHubSnapshot(_selected, state, failure, connectionFailure, ReadRecovery(), _profile, reason, _fullProfile, _fullProfileFailure);
             var published = Snapshot;
             var subscribers = Changed;
             if (subscribers == null) return;
@@ -198,6 +210,48 @@ namespace Roguehalla.Net
                 if (!ReferenceEquals(Snapshot, published)) break;
                 subscriber(published);
             }
+        }
+
+        public AccountApiService CreateApiService(IAccountApiTransport transport)
+        {
+            if (transport == null) throw new ArgumentNullException(nameof(transport));
+            if (_api != null && !ReferenceEquals(_apiTransport, transport)) throw new InvalidOperationException("This page already has an API transport.");
+            if (_api == null) { _apiTransport = transport; _api = new AccountApiService(this, transport); }
+            return _api;
+        }
+        internal AccountEndpoint ApiEndpoint => _accounts.Endpoint;
+        internal sealed class ApiRead
+        {
+            internal OwnedAccount Account;
+            internal AccountFailure Failure;
+            internal bool Current;
+        }
+        internal async Task<ApiRead> OpenApiProfileAsync(CancellationToken cancellation)
+        {
+            Operation operation = Begin(_selected);
+            OwnedAccount account = await Open(operation, null, null, cancellation, AccountRefreshReason.User);
+            return new ApiRead { Account = account, Failure = Snapshot.Failure, Current = Current(operation) };
+        }
+        internal sealed class ApiOwner
+        {
+            internal long Generation;
+            internal string ExpectedSelection;
+            internal OwnedAccount Account;
+        }
+        internal ApiOwner CaptureApiOwner()
+        {
+            OwnedAccount owned = _accounts.Current;
+            return Snapshot.State == AccountHubState.Owned && Matches(owned, _normalizedSelection)
+                ? new ApiOwner { Generation = _generation, ExpectedSelection = _normalizedSelection, Account = owned } : null;
+        }
+        internal bool CurrentApiOwner(ApiOwner owner) => owner != null && owner.Generation == _generation &&
+            owner.ExpectedSelection == _normalizedSelection && Matches(owner.Account, owner.ExpectedSelection);
+        internal bool PublishApiProfile(ApiOwner owner, AccountFullProfile profile)
+        {
+            if (!CurrentApiOwner(owner) || profile == null || NormalizeOrNull(profile.Name) != owner.ExpectedSelection) return false;
+            _fullProfile = profile; _fullProfileFailure = AccountFailure.None; _profile = new AccountHubProfile(profile);
+            Set(AccountHubState.Owned, AccountFailure.None, AccountConnectionFailure.None, AccountRefreshReason.User);
+            return CurrentApiOwner(owner);
         }
     }
 }

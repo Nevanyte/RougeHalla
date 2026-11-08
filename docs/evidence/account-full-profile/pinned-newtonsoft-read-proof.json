@@ -1,0 +1,31 @@
+{
+  "archive": "/Applications/Unity/Hub/Editor/6000.0.85f2/Unity.app/Contents/Resources/PackageManager/Editor/com.unity.nuget.newtonsoft-json-3.2.2.tgz",
+  "archive_sha256": "5db19a6ec4478ab974922d155aa32b952bc34abadaa78afc7973cf049b62db41",
+  "package": {
+    "name": "com.unity.nuget.newtonsoft-json",
+    "displayName": "Newtonsoft Json",
+    "version": "3.2.2",
+    "unity": "2018.4",
+    "description": "Newtonsoft Json for use in Unity projects and Unity packages. Currently synced to version 13.0.2.\n\nThis package is used for advanced json serialization and deserialization. Most Unity users will be better suited using the existing json tools built into Unity.\nTo avoid assembly clashes, please use this package if you intend to use Newtonsoft Json.",
+    "type": "library",
+    "relatedPackages": {
+      "com.unity.nuget.newtonsoft-json.tests": "3.2.1"
+    },
+    "_upm": {
+      "changelog": "* Fixed Newtonsoft DLL when compiling with netstandard 2.0."
+    },
+    "upmCi": {
+      "footprint": "2539acbff1d09eea1674262b4f0cad9172e2bda9"
+    },
+    "repository": {
+      "url": "https://github.cds.internal.unity3d.com/unity/com.unity.nuget.newtonsoft-json.git",
+      "type": "git",
+      "revision": "d8e49aef8979bef617144382052ec2f479645eaf"
+    }
+  },
+  "aot_dll_sha256": "a56146202232958f46bd6a28b5a7da166aea123ee0d646735a46e5c341dfbf1f",
+  "aot_plugin_metadata": "fileFormatVersion: 2\nguid: 6c694cfdc33ae264fb33e0cd1c7e25cf\nPluginImporter:\n  externalObjects: {}\n  serializedVersion: 2\n  iconMap: {}\n  executionOrder: {}\n  defineConstraints: []\n  isPreloaded: 0\n  isOverridable: 1\n  isExplicitlyReferenced: 0\n  validateReferences: 1\n  platformData:\n  - first:\n      '': Any\n    second:\n      enabled: 0\n      settings:\n        Exclude Android: 0\n        Exclude Editor: 1\n        Exclude Linux: 0\n        Exclude Linux64: 0\n        Exclude LinuxUniversal: 0\n        Exclude OSXUniversal: 0\n        Exclude WebGL: 0\n        Exclude Win: 0\n        Exclude Win64: 0\n        Exclude WindowsStoreApps: 0\n        Exclude iOS: 0\n        Exclude tvOS: 0\n  - first:\n      Android: Android\n    second:\n      enabled: 1\n      settings:\n        CPU: ARMv7\n  - first:\n      Any: \n    second:\n      enabled: 1\n      settings: {}\n  - first:\n      Editor: Editor\n    second:\n      enabled: 0\n      settings:\n        CPU: AnyCPU\n        DefaultValueInitialized: true\n        OS: AnyOS\n  - first:\n      Facebook: Win\n    second:\n      enabled: 0\n      settings:\n        CPU: AnyCPU\n  - first:\n      Facebook: Win64\n    second:\n      enabled: 0\n      settings:\n        CPU: AnyCPU\n  - first:\n      Standalone: Linux\n    second:\n      enabled: 1\n      settings:\n        CPU: x86\n  - first:\n      Standalone: Linux64\n    second:\n      enabled: 1\n      settings:\n        CPU: AnyCPU\n  - first:\n      Standalone: LinuxUniversal\n    second:\n      enabled: 1\n      settings: {}\n  - first:\n      Standalone: OSXUniversal\n    second:\n      enabled: 1\n      settings:\n        CPU: AnyCPU\n  - first:\n      Standalone: Win\n    second:\n      enabled: 1\n      settings:\n        CPU: AnyCPU\n  - first:\n      Standalone: Win64\n    second:\n      enabled: 1\n      settings:\n        CPU: AnyCPU\n  - first:\n      WebGL: WebGL\n    second:\n      enabled: 1\n      settings: {}\n  - first:\n      Windows Store Apps: WindowsStoreApps\n    second:\n      enabled: 1\n      settings:\n        CPU: AnyCPU\n        DontProcess: false\n        PlaceholderPath: \n        SDK: AnySDK\n        ScriptingBackend: AnyScriptingBackend\n  - first:\n      iPhone: iOS\n    second:\n      enabled: 1\n      settings:\n        AddToEmbeddedBinaries: false\n        CompileFlags: \n        FrameworkDependencies: \n  - first:\n      tvOS: tvOS\n    second:\n      enabled: 1\n      settings:\n        CompileFlags: \n        FrameworkDependencies: \n  userData: \n  assetBundleName: \n  assetBundleVariant: \n",
+  "linker_descriptor": "<linker>\n\t<assembly fullname=\"System\">\n\t\t<type fullname=\"System.ComponentModel.TypeConverter\" preserve=\"all\"/>\n\t\t<type fullname=\"System.ComponentModel.ArrayConverter\" preserve=\"all\"/>\n\t\t<type fullname=\"System.ComponentModel.BaseNumberConverter\" preserve=\"all\"/>\n\t\t<type fullname=\"System.ComponentModel.BooleanConverter\" preserve=\"all\"/>\n\t\t<type fullname=\"System.ComponentModel.ByteConverter\" preserve=\"all\"/>\n\t\t<type fullname=\"System.ComponentModel.CharConverter\" preserve=\"all\"/>\n\t\t<type fullname=\"System.ComponentModel.CollectionConverter\" preserve=\"all\"/>\n\t\t<type fullname=\"System.ComponentModel.ComponentConverter\" preserve=\"all\"/>\n\t\t<type fullname=\"System.ComponentModel.CultureInfoConverter\" preserve=\"all\"/>\n\t\t<type fullname=\"System.ComponentModel.DateTimeConverter\" preserve=\"all\"/>\n\t\t<type fullname=\"System.ComponentModel.DecimalConverter\" preserve=\"all\"/>\n\t\t<type fullname=\"System.ComponentModel.DoubleConverter\" preserve=\"all\"/>\n\t\t<type fullname=\"System.ComponentModel.EnumConverter\" preserve=\"all\"/>\n\t\t<type fullname=\"System.ComponentModel.ExpandableObjectConverter\" preserve=\"all\"/>\n\t\t<type fullname=\"System.ComponentModel.Int16Converter\" preserve=\"all\"/>\n\t\t<type fullname=\"System.ComponentModel.Int32Converter\" preserve=\"all\"/>\n\t\t<type fullname=\"System.ComponentModel.Int64Converter\" preserve=\"all\"/>\n\t\t<type fullname=\"System.ComponentModel.NullableConverter\" preserve=\"all\"/>\n\t\t<type fullname=\"System.ComponentModel.SByteConverter\" preserve=\"all\"/>\n\t\t<type fullname=\"System.ComponentModel.SingleConverter\" preserve=\"all\"/>\n\t\t<type fullname=\"System.ComponentModel.StringConverter\" preserve=\"all\"/>\n\t\t<type fullname=\"System.ComponentModel.TimeSpanConverter\" preserve=\"all\"/>\n\t\t<type fullname=\"System.ComponentModel.UInt16Converter\" preserve=\"all\"/>\n\t\t<type fullname=\"System.ComponentModel.UInt32Converter\" preserve=\"all\"/>\n\t\t<type fullname=\"System.ComponentModel.UInt64Converter\" preserve=\"all\"/>\n\t</assembly>\n</linker>\n",
+  "inspection_only": true,
+  "installed_or_modified": false
+}

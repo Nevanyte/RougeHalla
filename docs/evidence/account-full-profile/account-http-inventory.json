@@ -1,0 +1,145 @@
+{
+  "base": "843a03e4fb4de9b51b2471b916b25edda8a3359f",
+  "source_files": [
+    {
+      "path": "crates/rh-server/src/api/profile.rs",
+      "bytes": 29161,
+      "sha256": "7653aab5e0b83a1c393629b2169084504deeaced2906231f07db255d45bff40d"
+    },
+    {
+      "path": "crates/rh-server/src/api.rs",
+      "bytes": 18841,
+      "sha256": "7e921068c470420395deb79b4f33c29df2c910c3f77183454feed4f3cd63a5e8"
+    },
+    {
+      "path": "crates/rh-persist/src/model.rs",
+      "bytes": 6789,
+      "sha256": "28ea0791616bde29873cb74f7c539db1deb4103fc889654c73935af061fb6ae9"
+    },
+    {
+      "path": "crates/rh-persist/src/cosmetics.rs",
+      "bytes": 4778,
+      "sha256": "ea534db0745dae3adf6155593a475be55c568c6f2b4c9da06c7f8f668d91395b"
+    },
+    {
+      "path": "crates/rh-persist/data/cosmetics.json",
+      "bytes": 8139,
+      "sha256": "bb136e1aec5e3d7744a84068c4935ad0dbd0aa17d395ab00bce0e049c7b398ce"
+    },
+    {
+      "path": "crates/rh-persist/src/achievements.rs",
+      "bytes": 6968,
+      "sha256": "613f5c83726bfee103b4048e69c66ab18e500d9a04edf59b93a20a5e3b407f55"
+    },
+    {
+      "path": "crates/rh-persist/src/account.rs",
+      "bytes": 4039,
+      "sha256": "057f70ac99c3a34dbffcca35f73a091037a6ca921f82556fb4de02993d610917"
+    },
+    {
+      "path": "crates/rh-persist/src/lib.rs",
+      "bytes": 47416,
+      "sha256": "dbc08938f6cfb03ac90e8d768df15c27d758c19f67d4fad4e5de3f42b8aba187"
+    },
+    {
+      "path": "packages/shared/src/messages.ts",
+      "bytes": 30329,
+      "sha256": "f7f3b4eb6bb32c54bb97a7d3a8e2ba613b0aff0495a0f20c09fd6d36c797fe80"
+    },
+    {
+      "path": "packages/shared/src/cosmetics.ts",
+      "bytes": 11625,
+      "sha256": "7513ea6b3cbc51072863ccb6ef568d96797f9239c8073f99d2a33ef3aab7b873"
+    },
+    {
+      "path": "packages/shared/src/achievements.ts",
+      "bytes": 7472,
+      "sha256": "c80dbded6e1ea5eb79dc0f25378d9a45fbe41865a8298bf9fc5f2eeafdd46a34"
+    },
+    {
+      "path": "packages/client/src/net/profile.ts",
+      "bytes": 15074,
+      "sha256": "8b6ad0262c61d0b3464068e8421e1449429dd00e5cc9fecbc85fd74f7ee9e2b1"
+    },
+    {
+      "path": "client-unity/UnityProject/Packages/manifest.json",
+      "bytes": 1176,
+      "sha256": "491d7bac39be6d354ace569eb7b458cd918fbec414b7a515160f948c7d819ad3"
+    },
+    {
+      "path": "client-unity/UnityProject/Packages/packages-lock.json",
+      "bytes": 8759,
+      "sha256": "27778a44ea7a9f0b6a2415929b8b0321a898ec5428a3e88ac95f671c08374166"
+    }
+  ],
+  "catalog": {
+    "items": 57,
+    "for_sale": 37,
+    "slot_counts": {
+      "skin": 13,
+      "outline": 7,
+      "trail": 7,
+      "title": 20,
+      "gold-fire": 1,
+      "gold-sentenced": 1,
+      "gold-plague": 1,
+      "gold-frost": 1,
+      "gold-holy": 1,
+      "gold-sword": 1,
+      "gold-axe": 1,
+      "gold-bow": 1,
+      "gold-wand": 1,
+      "gold-shield": 1
+    },
+    "http_route_exists": false,
+    "legacy_delivery": "bundled COSMETICS/ACHIEVEMENTS imports"
+  },
+  "routes": [
+    {
+      "method": "GET",
+      "path": "/api/profile/{name}",
+      "authorization": "x-profile-token; optional x-playtest-passcode on new claim",
+      "success": "{profile,token,created}",
+      "ownership": "issued claim token or exact echoed owner token; full profile name must correlate"
+    },
+    {
+      "method": "POST",
+      "path": "/api/profile/{name}/purchase",
+      "authorization": "x-profile-token",
+      "body": "{id:string}",
+      "optional_header": "Idempotency-Key UUID",
+      "success": "{profile}",
+      "retry": "same purchase UUID+same durable profile+same item=>200 AlreadyApplied; different item/profile=>409 bad_request; missing key uses fresh UUID each request, ownership prevents double debit but returns409 already_owned"
+    },
+    {
+      "method": "POST",
+      "path": "/api/profile/{name}/equip",
+      "authorization": "x-profile-token",
+      "body": "{slot:string,id:string|null}",
+      "success": "{profile}",
+      "retry": "idempotent set operation, no durable request key; serialize local operations and do not infer ack after timeout"
+    },
+    {
+      "method": "GET",
+      "path": "/api/leaderboard",
+      "query": "month(optional valid YYYY-MM),limit(optional legacy integer parse/clamp1..100/default20),name(optional)",
+      "authorization": "public rows; matching named profile x-profile-token only for optional you",
+      "success": "{month,entries:[{name,gv,title?}],months:string[],you?:{rank,gv}}"
+    }
+  ],
+  "numeric_domains": {
+    "http_storage_types": "all profile/board integer fields are Rust i64; nonnegative intended domain; parse exact Int64 without float conversion",
+    "producer_counter_cap": "stats/progress add_count clamp to9007199254740991; do not confuse with a blanket SQL bigint cap",
+    "gv_month_lifetime": "SQL bigint nonnegative, credit sums are not capped by MAX_SAFE; purchase subtracts balance only",
+    "achievement_timestamps": "nonnegative Unix epoch milliseconds, transaction_timestamp",
+    "catalog": "code/color u32, optional price i64, width f64, remaining metadata strings"
+  },
+  "gaps": [
+    "No public catalog HTTP route; server-owned cosmetics JSON exists and legacy bundles display catalogs.",
+    "No per-match banking receipt read API; owned profile reads cannot confirm a particular match commit.",
+    "No request UUID/receipt for equip; avoid overlapping unknown-outcome local equips.",
+    "No public placement/training route; outside this handoff."
+  ],
+  "malformed_policy_proposal": "required fields/containers exact types, integer range/nonnull checks, duplicate required JSON fields fail; tolerate unknown extra fields and preserve unknown dictionary IDs, never grant/unlock locally",
+  "immutability": "Read-only preimplementation inventory captured at base843a03e4; implementation and approved test-only dependency were added afterward in this candidate."
+}

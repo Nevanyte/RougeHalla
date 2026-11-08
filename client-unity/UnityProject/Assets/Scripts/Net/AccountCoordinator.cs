@@ -12,6 +12,7 @@ namespace Roguehalla.Client
     {
         public AccountHubFlow Flow { get; private set; }
         public AccountHubSnapshot Snapshot => Flow?.Snapshot;
+        public AccountApiService Api { get; private set; }
 
         public void Initialize(string pageUrl, string explicitApiBase = null)
         {
@@ -27,6 +28,7 @@ namespace Roguehalla.Client
         {
             if (Flow != null) throw new InvalidOperationException("The account coordinator is already initialized for this page.");
             Flow = new AccountHubFlow(new AccountSession(endpoint, transport, credentials));
+            if (transport is IAccountApiTransport api) Api = Flow.CreateApiService(api);
         }
 
         void OnDestroy() { Flow?.Cancel(); }
