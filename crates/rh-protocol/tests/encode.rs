@@ -21,6 +21,8 @@ fn actor(i: u32) -> WireActor {
         weapon: (i % 7) as u8,
         bounty: (i * 977) as u16,
         kind: (i % 3) as u8,
+        barrier_pct: 0,
+        barrier_ring_step: 0,
     }
 }
 
@@ -45,6 +47,9 @@ fn me() -> WireSelf {
         move_seq: 7,
         hunt_target: None,
         hunt_stacks: 0,
+        wish: None,
+        barrier: 0.0,
+        barrier_ring_step: 0,
     }
 }
 
@@ -52,6 +57,7 @@ fn snapshot(me: Option<WireSelf>, n: u32) -> ServerMsg {
     ServerMsg::Snapshot {
         training: false,
         tick: 101,
+        server_time: snapshot_server_ms(101),
         phase: 1,
         ack_input: 42,
         me,
@@ -64,6 +70,7 @@ fn decoded_form(m: &ServerMsg) -> ServerMsg {
     match m {
         ServerMsg::Snapshot {
             tick,
+            server_time,
             phase,
             ack_input,
             me,
@@ -77,6 +84,7 @@ fn decoded_form(m: &ServerMsg) -> ServerMsg {
             ack_input: *ack_input,
             me: *me,
             actors: actors.iter().map(WireActor::quantized).collect(),
+            server_time: *server_time,
         },
         other => other.clone(),
     }
@@ -92,11 +100,19 @@ fn full_frame(out: &mut Vec<u8>, m: &ServerMsg) -> Result<usize, EncodeError> {
         me,
         actors,
         training,
+        server_time,
     } = m
     else {
         panic!("not a snapshot")
     };
-    let mut snap = SnapshotData::build(*tick, *phase, *ack_input, *me, actors.iter().copied())?;
+    let mut snap = SnapshotData::build_with_server_time(
+        *tick,
+        *server_time,
+        *phase,
+        *ack_input,
+        *me,
+        actors.iter().copied(),
+    )?;
     snap.set_training(*training);
     Ok(snap.encode_full_into(out))
 }
@@ -439,6 +455,7 @@ fn positions_outside_the_quantizable_range_are_refused_not_clamped() {
     let snap = |a: WireActor| ServerMsg::Snapshot {
         training: false,
         tick: 1,
+        server_time: snapshot_server_ms(1),
         phase: 1,
         ack_input: 0,
         me: None,

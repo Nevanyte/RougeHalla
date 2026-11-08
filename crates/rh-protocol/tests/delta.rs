@@ -69,6 +69,8 @@ fn actor(id: u32, rng: &mut Rng) -> WireActor {
         bounty: if rng.chance(20) { 28 } else { 0 },
         // From the id, not the generator: the random walk's draws (and so its natural Full frames) stay as they were.
         kind: if id % 7 == 0 { 2 } else { 0 },
+        barrier_pct: 0,
+        barrier_ring_step: 0,
     }
 }
 
@@ -93,6 +95,9 @@ fn me(id: u32, rng: &mut Rng) -> WireSelf {
         move_seq: 0,
         hunt_target: None,
         hunt_stacks: 0,
+        wish: None,
+        barrier: 0.0,
+        barrier_ring_step: 0,
     }
 }
 
@@ -604,6 +609,8 @@ fn deltas_that_do_not_apply_are_refused_and_change_nothing() {
             status: 1,
             bounty: 0,
             kind: 0,
+            barrier_pct: 0,
+            barrier_ring_step: 0,
         })];
         d.departed.clear();
     });
@@ -617,6 +624,7 @@ fn deltas_that_do_not_apply_are_refused_and_change_nothing() {
     let d = SnapshotDelta {
         training: false,
         tick: 11,
+        server_time: 550.0,
         base_tick: 10,
         phase: None,
         ack_input: 0,
@@ -636,6 +644,7 @@ fn deltas_that_do_not_apply_are_refused_and_change_nothing() {
     let d = ServerMsg::SnapshotDelta(SnapshotDelta {
         training: false,
         tick: 11,
+        server_time: 550.0,
         base_tick: 10,
         phase: None,
         ack_input: 0,
@@ -676,6 +685,7 @@ fn a_delta_cannot_grow_the_actor_list_past_max_actors() {
     let d = SnapshotDelta {
         training: false,
         tick: 2,
+        server_time: 100.0,
         base_tick: 1,
         phase: None,
         ack_input: 0,

@@ -7,8 +7,9 @@
 //! value`. Lists: `u16 count + items`. Floats are IEEE-754; a decoder REJECTS non-finite floats in client messages. Unknown
 //! tags and trailing bytes are malformed. Size limits are enforced before decoding ([`MAX_CLIENT_FRAME`], [`MAX_SERVER_FRAME`]).
 //!
-//! Counters are canonical unsigned LEB128 varints ([`Writer::varint`]); a decoder rejects a longer-than-necessary form. Time is
-//! not sent: the server's clock is always `tick * 50 ms` ([`snapshot_server_ms`]). The SELF view keeps full precision
+//! Counters are canonical unsigned LEB128 varints ([`Writer::varint`]); a decoder rejects a longer-than-necessary form. A
+//! Snapshot's source clock defaults to `tick * 50 ms` ([`snapshot_server_ms`]); protocol 12 carries an absolute f64 override
+//! only when that frame's clock differs, and an omitted delta override always resolves from that delta's tick. The SELF view keeps full precision
 //! (prediction and reconciliation need it); remote actors and swing effects are quantized ([`quant`]: positions 1/8 u, angles
 //! 2 pi / 65536, hp_pct exact). Factions and weapons are 4-bit codes, status and phase 2-bit codes: the encoders refuse a larger
 //! one ([`EncodeError::BadValue`]) rather than truncate it.
@@ -45,6 +46,13 @@
 //! (reloading), the source's rounded-up remaining whole seconds as u16 1..=75. Both are owner-filtered where they name a
 //! player and never carry a world container id.
 //!
+//! Protocol 12 adds Cast (command 16: slot u8 0..=2, x/y f32, strict optional nonzero fixed-u32 actor, strict optional f64
+//! event time, strict optional sequence u8); WishStarted/Landed/Ended (Fx 6/7/8); owner Wish and barrier groups in self; and
+//! barrier share/ring fields on remote actors. Wish records are owner-only complete replacements. Every new optional flag
+//! accepts only 0 or 1. Wish charges use max 1..=2 and current <= max; public times must be finite and nonnegative. Landed
+//! Blaze requires anchor and destination together or neither; other abilities cannot carry a destination, and a Landed record
+//! must identify a caster or carry geometry. Fx event times and durations are source f64 values, not tick-derived.
+//!
 //! Protocol 11 combines the independent branch additions. Commands 12 HuntTarget, 13 ConsumeCorpse,
 //! 14 Plan and 15 Train are distinct. Events 8 WindEmblem, 9 CannonNotice and 10 Toast are distinct.
 //! Props 4 Corpse, 5 WindEmblem and 6 Cannon are distinct. Actor kinds: 0 player, 1 regional mob,
@@ -66,20 +74,25 @@
 //! ```text
 //! Snapshot  0x83, tick varint, ack_input varint, head varint, [self], actor_count varint (<= MAX_ACTORS), actors
 //!   head bits  0 a self follows   1 kit   2 hp   3 ready_in_ms   4 kills   5 bounty   6 move_seq   7 gv   8 max_hp is an f32
-//!              9 status   10 phase   11 effects u16   12 displacement u8   13 sig u8 (self bits require bit 0; phase does not)
+//!              9 status   10 phase   11 effects u16   12 displacement u8   13 sig u8   14 hunt target varint   15 hunt stacks varint
+//!              16 training   17 Wish owner group   18 barrier f32 + ring step u8   19 source time f64 (global)
 //!   [self: id varint, x f32, y f32, facing f32, max_hp (f32 with bit 8, else a varint in 0..=65535), then per set bit, in
 //!      bit order: 1 kit u8 (faction | weapon << 4; default 0)  2 hp f32 (default = max_hp)  3 ready_in_ms u16 (0)
 //!      4 kills varint (0)  5 bounty varint (0)  6 move_seq u8 (0)  7 gv varint (0)  9 status u8 0..=3 (default 1)
-//!      11 effects u16 (0)  12 displacement u8 (0)  13 sig u8 (0); then phase u8 0..=3 with head bit 10 (default 1)]
+//!      11 effects u16 (0)  12 displacement u8 (0)  13 sig u8 (0)  14 hunt target varint  15 hunt stacks varint
+//!      17 Wish owner record (ability, ready_at, optional full_at, max_charges, recharge_ms, charges, optional next_charge_at, optional cast)
+//!      18 barrier f32 + ring step u8; then phase u8 0..=3 with head bit 10 (default 1), then optional global source time f64]
 //!   per actor (the observation sorts them by id; ids must strictly ascend): id varint (the first actor's id, then the gap
 //!     from the previous one), mask varint, x u16, y u16, facing u16, then per mask bit: 0 kit u8 (default 0)
-//!     1 hp_pct u8 (default 100)  2 status u8 0..=3 (default 1)  3 bounty varint (0)  4 kind u8 (0 = player)  5 effects u16 (0)  6 displacement u8 (0)  7 mob_type_code u8 (0..=30)  8 sig u8 (0)
+//!     1 hp_pct u8 (default 100)  2 status u8 0..=3 (default 1)  3 bounty varint (0)  4 kind u8 (0 = player)  5 effects u16 (0)  6 displacement u8 (0)  7 mob_type_code u8 (0..=30)  8 sig u8 (0)  9 barrier_pct u8 + ring step u8
 //! SnapshotDelta 0x87, tick varint, base_age varint (tick - base tick, 1..=MAX_DELTA_AGE), ack_input varint, head varint
 //!   head bits  0 a self follows (its id is the base's)   1 x   2 y   3 facing   4 move_seq   5 hp   6 ready_in_ms
 //!              7 a departed list follows   8 phase   9 max_hp   10 kit   11 kills   12 bounty   13 gv   14 status   15 effects u16   16 displacement u8   17 sig u8
+//!              18 hunt target varint   19 hunt stacks varint   20 training   21 Wish optional owner record   22 barrier f32 + ring step u8   23 source time f64 (global)
 //!   [self fields, in bit order, only those whose bit is set: x f32, y f32, facing f32, move_seq u8, hp f32, ready_in_ms u16,
-//!      max_hp f32, kit u8, kills varint, bounty varint, gv varint, status u8 (0..=3), effects u16, displacement u8, sig u8]   bits 1..=6 and 9..=17 need bit 0
-//!   [phase u8 (0..=3) with bit 8: the new phase (a delta carries a field only when it differs from the base)]
+//!      max_hp f32, kit u8, kills varint, bounty varint, gv varint, status u8 (0..=3), effects u16, displacement u8, sig u8,
+//!      hunt target varint (zero clears), hunt stacks varint, Wish strict optional record, barrier f32 + ring step u8]   self bits need bit 0
+//!   [phase u8 (0..=3) with bit 8, then optional source time f64 with bit 23: the delta clock is absolute and never inherited from the base]
 //!   changed_count varint (<= MAX_ACTORS), then per changed actor, ascending by id: id varint (the first's id, then the gap),
 //!     mask varint, then per mask bit: 0 x u16  1 y u16  2 facing u16  3 kit u8  4 hp_pct u8  5 bounty varint  6 status u8
 //!     7 kind u8  8 effects u16  9 displacement u8  10 mob_type_code u8 (0..=30)  11 sig u8. A NEW actor (not in the base) starts from the default actor and must carry bits 0..=2 (its position).
@@ -147,7 +160,7 @@ pub use delta::{
 pub use encode::{encode_welcome, encode_welcome_into, WelcomeHeader};
 
 /// Bump on any incompatible change (a new tag or field in an existing message). Both ends refuse another major version.
-pub const PROTOCOL_VERSION: u16 = 11;
+pub const PROTOCOL_VERSION: u16 = 12;
 /// Milliseconds per server tick (20 Hz). A Snapshot carries `tick` only: its server time is `tick * TICK_MS` exactly.
 pub const TICK_MS: u32 = 50;
 
@@ -297,6 +310,15 @@ pub enum WireCommand {
         options: [u8; 3],
         option_count: u8,
     },
+    /// Ordinary human Wish request; the server treats the fields as untrusted aim/input only.
+    Cast {
+        slot: u8,
+        x: f32,
+        y: f32,
+        actor: Option<u32>,
+        t: Option<f64>,
+        seq: Option<u8>,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -331,7 +353,7 @@ pub enum ClientMsg {
     Resync,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Default)]
 pub struct WireSelf {
     pub id: u32,
     pub faction: u8,
@@ -353,11 +375,44 @@ pub struct WireSelf {
     /// The selected Sentenced rival; absent is `None` (never actor 0).
     pub hunt_target: Option<u32>,
     pub hunt_stacks: u16,
+    /// The owner-only Wish display record. Full snapshots omit it when absent; deltas can explicitly clear it.
+    pub wish: Option<WireWishOwner>,
+    /// The owner's source-f32 barrier value and its source-derived eight-step ring.
+    pub barrier: f32,
+    pub barrier_ring_step: u8,
+}
+
+/// Owner-only, already-authoritative Wish display facts (ADR0022). This carries no target, cursor, rank, or outcome.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct WireWishOwner {
+    pub ability: u8,
+    pub ready_at: f64,
+    pub full_at: Option<f64>,
+    pub max_charges: u8,
+    pub recharge_ms: f64,
+    pub charges: u8,
+    pub next_charge_at: Option<f64>,
+    pub cast: Option<WireWishCast>,
+}
+
+/// The owner's current cast cue deadlines.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct WireWishCast {
+    pub ability: u8,
+    pub started_at: f64,
+    pub lands_at: f64,
+}
+
+/// A public, quantized point carried by a Wish cue.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct WirePoint {
+    pub x: f32,
+    pub y: f32,
 }
 
 /// A remote actor as the observation chose it. On the wire its position and facing are quantized ([`quant`]): a decoded
 /// actor equals [`WireActor::quantized`] of what was encoded. `hp_pct` is 0..=100 (the observation clamps it).
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Default)]
 pub struct WireActor {
     pub id: u32,
     pub faction: u8,
@@ -376,6 +431,10 @@ pub struct WireActor {
     pub displace_seq: u8,
     pub sig: u8,
     pub mob_type_code: u8,
+    /// Source-derived twentieth share rounded to an integer percent.
+    pub barrier_pct: u8,
+    /// Source-derived barrier ring step in 0..=8.
+    pub barrier_ring_step: u8,
 }
 
 impl WireActor {
@@ -407,8 +466,65 @@ impl WireFx {
                 y: quant::dequantize_pos(quant::quantize_pos(y)),
                 a: quant::dequantize_facing(quant::quantize_facing(a)),
             },
+            WireFx::WishStarted {
+                event_time,
+                caster,
+                ability,
+                duration,
+                target,
+                anchor,
+            } => WireFx::WishStarted {
+                event_time,
+                caster,
+                ability,
+                duration,
+                target,
+                anchor: quantized_point(anchor),
+            },
+            WireFx::WishLanded {
+                event_time,
+                ability,
+                caster,
+                target,
+                anchor,
+                destination,
+            } => WireFx::WishLanded {
+                event_time,
+                ability,
+                caster,
+                target,
+                anchor: quantized_point(anchor),
+                destination: quantized_point(destination),
+            },
             hit => hit,
         }
+    }
+}
+
+fn quantized_point(point: Option<WirePoint>) -> Option<WirePoint> {
+    point.map(|p| WirePoint {
+        x: quant::dequantize_pos(quant::quantize_pos(p.x)),
+        y: quant::dequantize_pos(quant::quantize_pos(p.y)),
+    })
+}
+
+fn read_point_opt(r: &mut Reader) -> Result<Option<WirePoint>, DecodeError> {
+    r.opt(|r| {
+        Ok(WirePoint {
+            x: quant::dequantize_pos(r.u16()?),
+            y: quant::dequantize_pos(r.u16()?),
+        })
+    })
+}
+
+fn point_valid(point: Option<WirePoint>) -> bool {
+    point.is_none_or(|p| quant::pos_in_range(p.x) && quant::pos_in_range(p.y))
+}
+
+fn nonzero_varint(r: &mut Reader, what: &'static str) -> Result<u32, DecodeError> {
+    match r.varint()? {
+        0 => Err(DecodeError::BadField(what)),
+        id => Ok(id),
     }
 }
 
@@ -477,6 +593,28 @@ pub enum WireFx {
     },
     /// The coliseum teleport happened at this tick (source sends the `teleport` fx to the whole room).
     Teleport,
+    WishStarted {
+        event_time: f64,
+        caster: u32,
+        ability: u8,
+        duration: f64,
+        target: Option<u32>,
+        anchor: Option<WirePoint>,
+    },
+    WishLanded {
+        event_time: f64,
+        ability: u8,
+        caster: Option<u32>,
+        target: Option<u32>,
+        anchor: Option<WirePoint>,
+        destination: Option<WirePoint>,
+    },
+    WishEnded {
+        event_time: f64,
+        caster: u32,
+        ability: u8,
+        reason: u8,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -511,9 +649,11 @@ pub enum ServerMsg {
         reason: String,
     },
     /// The receiving player's own interest-managed view (only what it can see), once per tick.
-    /// Its server time is [`snapshot_server_ms`]`(tick)`; it is not sent.
+    /// Its source clock is absolute; the wire omits it only when it equals [`snapshot_server_ms`]`(tick)`.
     Snapshot {
         tick: u32,
+        /// Logical source clock in milliseconds; absent wire overrides decode to `snapshot_server_ms(tick)`.
+        server_time: f64,
         phase: u8,
         ack_input: u32,
         me: Option<WireSelf>,
@@ -564,6 +704,7 @@ const C_AIM: u8 = 3;
 const C_ATTACK: u8 = 4;
 const C_RELEASE: u8 = 5;
 const C_PLAN: u8 = 14;
+const C_CAST: u8 = 16;
 
 impl ClientMsg {
     /// The protocol version a Hello frame announces, read from its first three bytes (`[0x01][protocol u16]`) and nothing
@@ -653,6 +794,29 @@ impl ClientMsg {
                                 count,
                                 options,
                                 option_count: n as u8,
+                            }
+                        }
+                        C_CAST => {
+                            let slot = r.u8()?;
+                            if slot > 2 {
+                                return Err(DecodeError::BadField("cast slot"));
+                            }
+                            let x = r.f32()?;
+                            let y = r.f32()?;
+                            let actor = r.opt(|r| {
+                                let id = r.u32()?;
+                                if id == 0 {
+                                    return Err(DecodeError::BadField("cast actor"));
+                                }
+                                Ok(id)
+                            })?;
+                            WireCommand::Cast {
+                                slot,
+                                x,
+                                y,
+                                actor,
+                                t: r.opt(|r| r.f64())?,
+                                seq: r.opt(|r| r.u8())?,
                             }
                         }
                         11 => WireCommand::AttackMove {
@@ -756,9 +920,18 @@ pub(crate) const HM_DISPLACE: u32 = 1 << 12;
 pub(crate) const HM_SIG: u32 = 1 << 13;
 pub(crate) const HM_HUNT_TARGET: u32 = 1 << 14;
 pub(crate) const HM_HUNT_STACKS: u32 = 1 << 15;
-pub(crate) const HM_SELF_BITS: u32 =
-    0x03ff | HM_EFFECTS | HM_DISPLACE | HM_SIG | HM_HUNT_TARGET | HM_HUNT_STACKS;
-pub(crate) const HM_KNOWN: u32 = HM_SELF_BITS | HM_PHASE | HM_TRAINING;
+pub(crate) const HM_WISH: u32 = 1 << 17;
+pub(crate) const HM_BARRIER: u32 = 1 << 18;
+pub(crate) const HM_SERVER_TIME: u32 = 1 << 19;
+pub(crate) const HM_SELF_BITS: u32 = 0x03ff
+    | HM_EFFECTS
+    | HM_DISPLACE
+    | HM_SIG
+    | HM_HUNT_TARGET
+    | HM_HUNT_STACKS
+    | HM_WISH
+    | HM_BARRIER;
+pub(crate) const HM_KNOWN: u32 = HM_SELF_BITS | HM_PHASE | HM_TRAINING | HM_SERVER_TIME;
 pub(crate) const HM_TRAINING: u32 = 1 << 16;
 /// Full actor mask bits (append only): 0 kit, 1 hp, 2 status, 3 bounty, 4 kind.
 pub(crate) const AM_KIT: u32 = 1 << 0;
@@ -770,6 +943,7 @@ pub(crate) const AM_EFFECTS: u32 = 1 << 5;
 pub(crate) const AM_DISPLACE: u32 = 1 << 6;
 pub(crate) const AM_MOB_TYPE: u32 = 1 << 7;
 pub(crate) const AM_SIG: u32 = 1 << 8;
+pub(crate) const AM_BARRIER: u32 = 1 << 9;
 pub(crate) const AM_KNOWN: u32 = AM_KIT
     | AM_HP
     | AM_STATUS
@@ -778,9 +952,12 @@ pub(crate) const AM_KNOWN: u32 = AM_KIT
     | AM_EFFECTS
     | AM_DISPLACE
     | AM_MOB_TYPE
-    | AM_SIG;
+    | AM_SIG
+    | AM_BARRIER;
 /// The hp a clear hp bit stands for.
 pub(crate) const DEFAULT_HP_PCT: u8 = 100;
+pub(crate) const DEFAULT_BARRIER_PCT: u8 = 0;
+pub(crate) const DEFAULT_BARRIER_RING_STEP: u8 = 0;
 /// The status a clear status bit stands for: alive (0 lobby, 1 alive, 2 dead, 3 mia: docs/CONTRACTS.md C-NET).
 pub const DEFAULT_STATUS: u8 = 1;
 /// The phase a clear phase bit stands for: active (0 lobby, 1 active, 2 ended).
@@ -851,6 +1028,25 @@ fn read_self(r: &mut Reader, mask: u32) -> Result<WireSelf, DecodeError> {
     } else {
         0
     };
+    let wish = if mask & HM_WISH != 0 {
+        let wish = read_wish_owner(r)?;
+        if !encode::wish_owner_valid(&wish) {
+            return Err(DecodeError::BadField("wish"));
+        }
+        Some(wish)
+    } else {
+        None
+    };
+    let (barrier, barrier_ring_step) = if mask & HM_BARRIER != 0 {
+        let barrier = r.f32()?;
+        let ring = r.u8()?;
+        if !barrier.is_finite() || barrier < 0.0 || ring > 8 {
+            return Err(DecodeError::BadField("barrier"));
+        }
+        (barrier, ring)
+    } else {
+        (0.0, 0)
+    };
     Ok(WireSelf {
         effects,
         displace_seq,
@@ -871,7 +1067,41 @@ fn read_self(r: &mut Reader, mask: u32) -> Result<WireSelf, DecodeError> {
         move_seq,
         hunt_target,
         hunt_stacks,
+        wish,
+        barrier,
+        barrier_ring_step,
     })
+}
+
+pub(crate) fn read_wish_owner(r: &mut Reader) -> Result<WireWishOwner, DecodeError> {
+    let ability = code(r, 4, "wish ability")?;
+    let ready_at = r.f64()?;
+    let full_at = r.opt(|r| r.f64())?;
+    let max_charges = r.u8()?;
+    let recharge_ms = r.f64()?;
+    let charges = r.u8()?;
+    let next_charge_at = r.opt(|r| r.f64())?;
+    let cast = r.opt(|r| {
+        Ok(WireWishCast {
+            ability: code(r, 4, "wish cast ability")?,
+            started_at: r.f64()?,
+            lands_at: r.f64()?,
+        })
+    })?;
+    let wish = WireWishOwner {
+        ability,
+        ready_at,
+        full_at,
+        max_charges,
+        recharge_ms,
+        charges,
+        next_charge_at,
+        cast,
+    };
+    if !encode::wish_owner_valid(&wish) {
+        return Err(DecodeError::BadField("wish"));
+    }
+    Ok(wish)
 }
 
 /// A byte that must be at most `max`.
@@ -932,6 +1162,16 @@ fn read_actor(r: &mut Reader, prev: Option<u32>) -> Result<WireActor, DecodeErro
         0
     };
     let sig = if mask & AM_SIG != 0 { r.u8()? } else { 0 };
+    let (barrier_pct, barrier_ring_step) = if mask & AM_BARRIER != 0 {
+        let pct = r.u8()?;
+        let ring = r.u8()?;
+        if pct > 100 || ring > 8 {
+            return Err(DecodeError::BadField("barrier"));
+        }
+        (pct, ring)
+    } else {
+        (DEFAULT_BARRIER_PCT, DEFAULT_BARRIER_RING_STEP)
+    };
     Ok(WireActor {
         mob_type_code,
         effects,
@@ -947,6 +1187,8 @@ fn read_actor(r: &mut Reader, prev: Option<u32>) -> Result<WireActor, DecodeErro
         weapon,
         bounty,
         kind,
+        barrier_pct,
+        barrier_ring_step,
     })
 }
 
@@ -996,6 +1238,18 @@ impl ServerMsg {
                 } else {
                     DEFAULT_PHASE
                 };
+                let server_time = if head & HM_SERVER_TIME != 0 {
+                    let time = r.f64()?;
+                    if !time.is_finite()
+                        || time < 0.0
+                        || time.to_bits() == snapshot_server_ms(tick).to_bits()
+                    {
+                        return Err(DecodeError::BadField("server time"));
+                    }
+                    time
+                } else {
+                    snapshot_server_ms(tick)
+                };
                 let training = head & HM_TRAINING != 0;
                 let n = r.varint()? as usize;
                 if n > MAX_ACTORS {
@@ -1010,6 +1264,7 @@ impl ServerMsg {
                 }
                 ServerMsg::Snapshot {
                     tick,
+                    server_time,
                     phase,
                     ack_input,
                     me,
@@ -1113,6 +1368,28 @@ impl ServerMsg {
                         },
                         4 => WireFx::Stagger { id: r.varint()? },
                         5 => WireFx::Teleport,
+                        6 => WireFx::WishStarted {
+                            event_time: r.f64()?,
+                            caster: nonzero_varint(&mut r, "wish caster")?,
+                            ability: code(&mut r, 4, "wish ability")?,
+                            duration: r.f64()?,
+                            target: r.opt(|r| nonzero_varint(r, "wish target"))?,
+                            anchor: read_point_opt(&mut r)?,
+                        },
+                        7 => WireFx::WishLanded {
+                            event_time: r.f64()?,
+                            ability: code(&mut r, 4, "wish ability")?,
+                            caster: r.opt(|r| nonzero_varint(r, "wish caster"))?,
+                            target: r.opt(|r| nonzero_varint(r, "wish target"))?,
+                            anchor: read_point_opt(&mut r)?,
+                            destination: read_point_opt(&mut r)?,
+                        },
+                        8 => WireFx::WishEnded {
+                            event_time: r.f64()?,
+                            caster: nonzero_varint(&mut r, "wish caster")?,
+                            ability: code(&mut r, 4, "wish ability")?,
+                            reason: code(&mut r, 2, "wish reason")?,
+                        },
                         1 => WireFx::Swing {
                             by: r.varint()?,
                             weapon: r.u8()?,
@@ -1128,6 +1405,49 @@ impl ServerMsg {
                         },
                         t => return Err(DecodeError::BadTag(t)),
                     });
+                }
+                for f in &fx {
+                    let valid = match *f {
+                        WireFx::WishStarted {
+                            event_time,
+                            duration,
+                            target,
+                            anchor,
+                            ..
+                        } => {
+                            event_time.is_finite()
+                                && event_time >= 0.0
+                                && duration.is_finite()
+                                && duration >= 0.0
+                                && target.is_none_or(|id| id != 0)
+                                && point_valid(anchor)
+                        }
+                        WireFx::WishLanded {
+                            event_time,
+                            ability,
+                            caster,
+                            target,
+                            anchor,
+                            destination,
+                        } => {
+                            event_time.is_finite()
+                                && event_time >= 0.0
+                                && caster.is_none_or(|id| id != 0)
+                                && target.is_none_or(|id| id != 0)
+                                && point_valid(anchor)
+                                && point_valid(destination)
+                                && ((ability == 3 && anchor.is_some() == destination.is_some())
+                                    || (ability != 3 && destination.is_none()))
+                                && (caster.is_some() || anchor.is_some())
+                        }
+                        WireFx::WishEnded { event_time, .. } => {
+                            event_time.is_finite() && event_time >= 0.0
+                        }
+                        _ => true,
+                    };
+                    if !valid {
+                        return Err(DecodeError::BadField("wish fx"));
+                    }
                 }
                 ServerMsg::Fx { tick, fx }
             }

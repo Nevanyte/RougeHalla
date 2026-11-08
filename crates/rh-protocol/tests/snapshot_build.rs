@@ -19,6 +19,8 @@ fn actor(i: u32) -> WireActor {
         weapon: (i % 7) as u8,
         bounty: (i * 977) as u16,
         kind: (i % 3) as u8,
+        barrier_pct: 0,
+        barrier_ring_step: 0,
     }
 }
 
@@ -43,6 +45,9 @@ fn me() -> WireSelf {
         move_seq: 7,
         hunt_target: None,
         hunt_stacks: 0,
+        wish: None,
+        barrier: 0.0,
+        barrier_ring_step: 0,
     }
 }
 
@@ -50,6 +55,7 @@ fn message(phase: u8, me: Option<WireSelf>, actors: Vec<WireActor>) -> ServerMsg
     ServerMsg::Snapshot {
         training: false,
         tick: 101,
+        server_time: snapshot_server_ms(101),
         phase,
         ack_input: 42,
         me,
@@ -66,11 +72,19 @@ fn build(m: &ServerMsg) -> Result<SnapshotData, EncodeError> {
         actors,
 
         training: _,
+        server_time,
     } = m
     else {
         panic!("not a snapshot")
     };
-    SnapshotData::build(*tick, *phase, *ack_input, *me, actors.iter().copied())
+    SnapshotData::build_with_server_time(
+        *tick,
+        *server_time,
+        *phase,
+        *ack_input,
+        *me,
+        actors.iter().copied(),
+    )
 }
 
 /// An `ExactSizeIterator` that claims `claim` actors and yields `left`.
@@ -295,6 +309,7 @@ fn faulty_content_is_refused_with_the_message_encoders_reason() {
             actors,
 
             training: _,
+            ..
         } = &m
         else {
             unreachable!()

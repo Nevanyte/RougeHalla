@@ -238,9 +238,28 @@ pub fn client_samples() -> Vec<(&'static str, ClientMsg)> {
                 ],
             },
         ),
+        ("input_cast_matrix_a", cast_matrix(&[0, 1])),
+        ("input_cast_matrix_b", cast_matrix(&[2])),
         ("leave", ClientMsg::Leave),
         ("resync", ClientMsg::Resync),
     ]
+}
+
+fn cast_matrix(slots: &[u8]) -> ClientMsg {
+    let commands = slots
+        .iter()
+        .flat_map(|slot| {
+            (0..8u8).map(move |mask| WireCommand::Cast {
+                slot: *slot,
+                x: 321.25 + *slot as f32,
+                y: 654.5,
+                actor: (mask & 1 != 0).then_some(99),
+                t: (mask & 2 != 0).then_some(1234.5),
+                seq: (mask & 4 != 0).then_some(17),
+            })
+        })
+        .collect();
+    ClientMsg::Input { seq: 77, commands }
 }
 
 fn sample_field() -> WireField {
@@ -531,6 +550,7 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
             ServerMsg::Snapshot {
                 training: true,
                 tick: 8,
+                server_time: snapshot_server_ms(8),
                 phase: 2,
                 ack_input: 3,
                 me: None,
@@ -549,6 +569,7 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
                     weapon: 4,
                     bounty: 0,
                     kind: 3,
+                    ..WireActor::default()
                 }],
             },
         ),
@@ -558,6 +579,7 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
             ServerMsg::SnapshotDelta(SnapshotDelta {
                 training: true,
                 tick: 12,
+                server_time: snapshot_server_ms(12),
                 base_tick: 10,
                 phase: None,
                 ack_input: 4,
@@ -690,6 +712,52 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
             },
         ),
         (
+            "wish_fx_started",
+            ServerMsg::Fx {
+                tick: 778,
+                fx: vec![WireFx::WishStarted {
+                    event_time: 38850.25,
+                    caster: 17,
+                    ability: 3,
+                    duration: 625.5,
+                    target: Some(42),
+                    anchor: Some(WirePoint {
+                        x: 100.25,
+                        y: 200.5,
+                    }),
+                }],
+            },
+        ),
+        (
+            "wish_fx_landed",
+            ServerMsg::Fx {
+                tick: 779,
+                fx: vec![WireFx::WishLanded {
+                    event_time: 38900.75,
+                    ability: 3,
+                    caster: Some(17),
+                    target: Some(42),
+                    anchor: Some(WirePoint {
+                        x: 100.25,
+                        y: 200.5,
+                    }),
+                    destination: Some(WirePoint { x: 300.0, y: 400.0 }),
+                }],
+            },
+        ),
+        (
+            "wish_fx_ended",
+            ServerMsg::Fx {
+                tick: 780,
+                fx: vec![WireFx::WishEnded {
+                    event_time: 38950.0,
+                    caster: 17,
+                    ability: 3,
+                    reason: 2,
+                }],
+            },
+        ),
+        (
             "pickup_refusals",
             ServerMsg::Events {
                 tick: 10,
@@ -732,6 +800,7 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
             ServerMsg::Snapshot {
                 training: false,
                 tick: 101,
+                server_time: snapshot_server_ms(101),
                 phase: 1,
                 ack_input: 42,
                 me: Some(WireSelf {
@@ -754,6 +823,7 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
                     move_seq: 7,
                     hunt_target: Some(2),
                     hunt_stacks: 3,
+                    ..WireSelf::default()
                 }),
                 actors: vec![WireActor {
                     sig: 0,
@@ -770,6 +840,7 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
                     weapon: 5,
                     bounty: 28,
                     kind: 0,
+                    ..WireActor::default()
                 }],
             },
         ),
@@ -778,6 +849,7 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
             ServerMsg::Snapshot {
                 training: false,
                 tick: 7,
+                server_time: snapshot_server_ms(7),
                 phase: 3,
                 ack_input: 6,
                 me: None,
@@ -789,6 +861,7 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
             ServerMsg::Snapshot {
                 training: false,
                 tick: 1,
+                server_time: snapshot_server_ms(1),
                 phase: 0,
                 ack_input: 0,
                 me: None,
@@ -801,6 +874,7 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
             ServerMsg::Snapshot {
                 training: false,
                 tick: 127,
+                server_time: snapshot_server_ms(127),
                 phase: 1,
                 ack_input: 128,
                 me: Some(WireSelf {
@@ -823,6 +897,7 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
                     move_seq: 0,
                     hunt_target: None,
                     hunt_stacks: 0,
+                    ..WireSelf::default()
                 }),
                 actors: vec![WireActor {
                     sig: 0,
@@ -839,6 +914,7 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
                     weapon: 0,
                     bounty: 0,
                     kind: 0,
+                    ..WireActor::default()
                 }],
             },
         ),
@@ -849,6 +925,7 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
             ServerMsg::Snapshot {
                 training: false,
                 tick: 1_000_000,
+                server_time: snapshot_server_ms(1_000_000),
                 phase: 2,
                 ack_input: 300,
                 me: Some(WireSelf {
@@ -871,6 +948,7 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
                     move_seq: 255,
                     hunt_target: None,
                     hunt_stacks: 0,
+                    ..WireSelf::default()
                 }),
                 actors: vec![
                     WireActor {
@@ -888,6 +966,7 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
                         weapon: 5,
                         bounty: 127,
                         kind: 0,
+                        ..WireActor::default()
                     },
                     WireActor {
                         sig: 0,
@@ -904,6 +983,7 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
                         weapon: 0,
                         bounty: 128,
                         kind: 0,
+                        ..WireActor::default()
                     },
                     WireActor {
                         sig: 0,
@@ -920,6 +1000,7 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
                         weapon: 2,
                         bounty: 65535,
                         kind: 2,
+                        ..WireActor::default()
                     },
                     WireActor {
                         sig: 0,
@@ -936,6 +1017,7 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
                         weapon: 0,
                         bounty: 0,
                         kind: 255,
+                        ..WireActor::default()
                     },
                 ],
             },
@@ -946,6 +1028,7 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
             ServerMsg::Snapshot {
                 training: false,
                 tick: 16384,
+                server_time: snapshot_server_ms(16384),
                 phase: 3,
                 ack_input: 16383,
                 me: Some(WireSelf {
@@ -968,6 +1051,7 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
                     move_seq: 1,
                     hunt_target: None,
                     hunt_stacks: 0,
+                    ..WireSelf::default()
                 }),
                 actors: vec![],
             },
@@ -978,6 +1062,7 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
             ServerMsg::SnapshotDelta(SnapshotDelta {
                 training: false,
                 tick: 102,
+                server_time: snapshot_server_ms(102),
                 base_tick: 101,
                 phase: None,
                 ack_input: 42,
@@ -992,6 +1077,7 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
             ServerMsg::SnapshotDelta(SnapshotDelta {
                 training: false,
                 tick: 1_000_000,
+                server_time: snapshot_server_ms(1_000_000),
                 base_tick: 999_990,
                 phase: Some(2),
                 ack_input: 300,
@@ -1035,6 +1121,7 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
                             status: 3,
                             bounty: 65535,
                             kind: 0,
+                            ..QActor::default()
                         },
                     },
                 ],
@@ -1167,6 +1254,18 @@ pub fn malformed_client() -> Vec<(&'static str, Vec<u8>)> {
     let mut bad_utf8 = vec![0x01, 1, 0];
     bad_utf8.extend_from_slice(&[0; 8]);
     bad_utf8.extend_from_slice(&[2, 0xff, 0xfe]);
+    let cast_frame = |slot: u8, options: &[u8], x: f32| {
+        let mut w = Writer::default();
+        w.u8(2);
+        w.u32(1);
+        w.u16(1);
+        w.u8(C_CAST);
+        w.u8(slot);
+        w.f32(x);
+        w.f32(2.0);
+        w.bytes(options);
+        w.finish()
+    };
     vec![
         ("target_zero", vec![2, 0, 0, 0, 0, 1, 0, 10, 0, 0, 0, 0]),
         ("target_truncated", vec![2, 0, 0, 0, 0, 1, 0, 10, 1, 0, 0]),
@@ -1194,6 +1293,19 @@ pub fn malformed_client() -> Vec<(&'static str, Vec<u8>)> {
         ("swap_bad_slot", vec![2, 1, 0, 0, 0, 1, 0, 6, 1, 2]),
         ("swap_bad_flag", vec![2, 1, 0, 0, 0, 1, 0, 6, 2]),
         ("pickup_bad_id", vec![2, 1, 0, 0, 0, 1, 0, 7, 0, 0, 0, 0]),
+        ("cast_slot_over_2", cast_frame(3, &[], 1.0)),
+        (
+            "cast_actor_zero",
+            cast_frame(0, &[1, 0, 0, 0, 0, 0, 0, 0, 0, 0], 1.0),
+        ),
+        ("cast_actor_option_over_1", cast_frame(0, &[2], 1.0)),
+        ("cast_time_option_over_1", cast_frame(0, &[0, 2], 1.0)),
+        ("cast_seq_option_over_1", cast_frame(0, &[0, 0, 2], 1.0)),
+        ("cast_nonfinite_point", cast_frame(0, &[0, 0, 0], f32::NAN)),
+        (
+            "cast_nonfinite_time",
+            cast_frame(0, &[0, 1, 0, 0, 0, 0, 0, 0, 0xf8, 0x7f, 0], 1.0),
+        ),
         ("empty", vec![]),
         ("unknown_tag", vec![0x7f]),
         ("server_tag_from_client", vec![0x81]),
@@ -1294,6 +1406,7 @@ pub fn malformed_server() -> Vec<(&'static str, Vec<u8>)> {
     let good = ServerMsg::Snapshot {
         training: false,
         tick: 5,
+        server_time: snapshot_server_ms(5),
         phase: 1,
         ack_input: 0,
         me: None,
@@ -1312,11 +1425,50 @@ pub fn malformed_server() -> Vec<(&'static str, Vec<u8>)> {
             weapon: 0,
             bounty: 0,
             kind: 0,
+            ..WireActor::default()
         }],
     }
     .encode();
     let mut trailing = good.clone();
     trailing.push(0);
+    let bad_wish = |record: &[u8]| {
+        let mut w = Writer::default();
+        w.u8(T_SNAPSHOT);
+        w.varint(1);
+        w.varint(0);
+        w.varint(HM_PRESENT | HM_WISH);
+        w.varint(3);
+        w.f32(0.);
+        w.f32(0.);
+        w.f32(0.);
+        w.varint(1145);
+        w.bytes(record);
+        w.varint(0);
+        w.finish()
+    };
+    let valid_wish = || {
+        let mut w = Writer::default();
+        w.u8(3);
+        w.f64(100.);
+        w.u8(1);
+        w.f64(500.);
+        w.u8(2);
+        w.f64(4000.);
+        w.u8(1);
+        w.u8(1);
+        w.f64(200.);
+        w.u8(0);
+        w.finish()
+    };
+    let fx_bad = |tag: u8, payload: &[u8]| {
+        let mut w = Writer::default();
+        w.u8(T_FX);
+        w.varint(1);
+        w.varint(1);
+        w.u8(tag);
+        w.bytes(payload);
+        w.finish()
+    };
     vec![
         ("potion_notice_zero", vec![0x84, 0, 0, 0, 0, 1, 0, 7, 0]),
         ("cannon_notice_zero", vec![0x84, 0, 0, 0, 0, 1, 0, 9, 0]),
@@ -1398,7 +1550,128 @@ pub fn malformed_server() -> Vec<(&'static str, Vec<u8>)> {
             snapshot_bytes(0x0002, &[], 0, &[]),
         ),
         // Bit 13 is not a field of this version: a mask bit a decoder does not know is refused, never skipped.
-        ("head_unknown_bit", snapshot_bytes(0x20001, &[], 0, &[])),
+        ("head_unknown_bit", snapshot_bytes(1 << 20, &[], 0, &[])),
+        ("wish_ability_over_4", {
+            let mut w = valid_wish();
+            w[0] = 5;
+            bad_wish(&w)
+        }),
+        ("wish_charge_count_invalid", {
+            let mut w = valid_wish();
+            w[18] = 0;
+            bad_wish(&w)
+        }),
+        ("wish_time_nonfinite", {
+            let mut w = valid_wish();
+            w[1..9].copy_from_slice(&f64::NAN.to_le_bytes());
+            bad_wish(&w)
+        }),
+        ("wish_option_over_1", {
+            let mut w = valid_wish();
+            w[9] = 2;
+            bad_wish(&w)
+        }),
+        ("wish_cast_time_order", {
+            let mut w = Writer::default();
+            w.u8(3);
+            w.f64(100.);
+            w.u8(0);
+            w.u8(2);
+            w.f64(4000.);
+            w.u8(1);
+            w.u8(0);
+            w.u8(1);
+            w.u8(3);
+            w.f64(300.);
+            w.f64(200.);
+            bad_wish(&w.finish())
+        }),
+        (
+            "wish_fx_caster_zero",
+            fx_bad(
+                6,
+                &[0; 8]
+                    .into_iter()
+                    .chain([0, 3])
+                    .chain(0f64.to_le_bytes())
+                    .chain([0, 0])
+                    .collect::<Vec<_>>(),
+            ),
+        ),
+        ("wish_fx_ability_over_4", {
+            let mut p = Vec::new();
+            p.extend(0f64.to_le_bytes());
+            p.push(1);
+            p.push(5);
+            p.extend(0f64.to_le_bytes());
+            p.push(0);
+            p.push(0);
+            fx_bad(6, &p)
+        }),
+        ("wish_fx_time_nonfinite", {
+            let mut p = Vec::new();
+            p.extend(f64::NAN.to_le_bytes());
+            p.push(1);
+            p.push(3);
+            p.extend(0f64.to_le_bytes());
+            p.push(0);
+            p.push(0);
+            fx_bad(6, &p)
+        }),
+        ("wish_fx_option_over_1", {
+            let mut p = Vec::new();
+            p.extend(1f64.to_le_bytes());
+            p.push(3);
+            p.push(2);
+            fx_bad(7, &p)
+        }),
+        ("wish_fx_blaze_one_point", {
+            let mut p = Vec::new();
+            p.extend(1f64.to_le_bytes());
+            p.extend([3, 1, 7, 0, 1, 1, 0, 1, 0, 0]);
+            fx_bad(7, &p)
+        }),
+        ("wish_fx_nonblaze_destination", {
+            let mut p = Vec::new();
+            p.extend(1f64.to_le_bytes());
+            p.push(1);
+            p.push(1);
+            p.push(7);
+            p.push(0);
+            p.push(0);
+            p.push(1);
+            p.extend([1, 0, 1, 0]);
+            fx_bad(7, &p)
+        }),
+        ("wish_fx_anonymous_landed_target", {
+            let mut p = Vec::new();
+            p.extend(1f64.to_le_bytes());
+            p.push(3);
+            p.push(0);
+            p.push(1);
+            p.push(7);
+            p.push(0);
+            p.push(0);
+            fx_bad(7, &p)
+        }),
+        ("wish_fx_anonymous_landed_no_target", {
+            let mut p = Vec::new();
+            p.extend(1f64.to_le_bytes());
+            p.push(3);
+            p.push(0);
+            p.push(0);
+            p.push(0);
+            p.push(0);
+            fx_bad(7, &p)
+        }),
+        ("wish_fx_end_reason_over_2", {
+            let mut p = Vec::new();
+            p.extend(1f64.to_le_bytes());
+            p.push(1);
+            p.push(3);
+            p.push(3);
+            fx_bad(8, &p)
+        }),
         // The head 0x80 0x00 is a two-byte zero: the canonical form is one byte.
         ("head_overlong_varint", vec![0x83, 0, 0, 0x80, 0x00, 0]),
         ("self_truncated", snapshot_bytes(0x0001, &[], 0, &[])),
@@ -1428,7 +1701,7 @@ pub fn malformed_server() -> Vec<(&'static str, Vec<u8>)> {
         ("actor_count_without_actors", snapshot_bytes(0, &[], 1, &[])),
         (
             "actor_reserved_mask_bit",
-            snapshot_bytes(0, &[], 1, &actor_bytes(0x200, &[])),
+            snapshot_bytes(0, &[], 1, &actor_bytes(0x400, &[])),
         ),
         (
             "actor_id_gap_zero",
@@ -1464,7 +1737,7 @@ pub fn malformed_server() -> Vec<(&'static str, Vec<u8>)> {
         // Kind and status/displacement bits are known; bit 9 is not.
         (
             "actor_unknown_mask_bit_after_kind",
-            snapshot_bytes(0, &[], 1, &actor_bytes(1 << 9, &[])),
+            snapshot_bytes(0, &[], 1, &actor_bytes(1 << 10, &[])),
         ),
         (
             "actor_hp_over_100",
@@ -1559,6 +1832,8 @@ fn wa(id: u32, x: f32, y: f32, hp_pct: u8, status: u8) -> WireActor {
         weapon: 2,
         bounty: 0,
         kind: 0,
+        barrier_pct: 0,
+        barrier_ring_step: 0,
     }
 }
 
@@ -1583,6 +1858,9 @@ fn chain_self(x: f32) -> WireSelf {
         move_seq: 0,
         hunt_target: None,
         hunt_stacks: 0,
+        wish: None,
+        barrier: 0.0,
+        barrier_ring_step: 0,
     }
 }
 
@@ -1626,6 +1904,7 @@ fn empty_delta() -> SnapshotDelta {
     SnapshotDelta {
         training: false,
         tick: 11,
+        server_time: snapshot_server_ms(11),
         base_tick: 10,
         phase: None,
         ack_input: 4,
@@ -1719,6 +1998,169 @@ pub fn chain_samples() -> Vec<(&'static str, Vec<ChainStep>)> {
             });
         }
         chains.push(("pve_scalar_clears", steps));
+    }
+    {
+        let mut encoder = ConnEncoder::new();
+        let mut tracker = SnapshotTracker::new();
+        let mut steps = Vec::new();
+        let mut prior = None;
+        let mut owner = chain_self(400.0);
+        let records = [
+            (1, None, 0.0, 0, vec![wa(1, 10., 20., 100, 1)]),
+            (
+                2,
+                Some(WireWishOwner {
+                    ability: 3,
+                    ready_at: 1000.,
+                    full_at: Some(5000.),
+                    max_charges: 2,
+                    recharge_ms: 4000.,
+                    charges: 1,
+                    next_charge_at: Some(3000.),
+                    cast: Some(WireWishCast {
+                        ability: 3,
+                        started_at: 1500.,
+                        lands_at: 1800.,
+                    }),
+                }),
+                42.5,
+                3,
+                vec![WireActor {
+                    barrier_pct: 80,
+                    barrier_ring_step: 3,
+                    ..wa(1, 10., 20., 100, 1)
+                }],
+            ),
+        ];
+        for (tick, wish, barrier, ring, actors) in records {
+            owner.wish = wish;
+            owner.barrier = barrier;
+            owner.barrier_ring_step = ring;
+            let data = snap(tick, 1, tick, Some(owner), &actors);
+            let (frame, kind) = encoder.encode_frame(data.clone());
+            assert_eq!(
+                kind,
+                if tick == 1 {
+                    FrameKind::Full
+                } else {
+                    FrameKind::Delta
+                }
+            );
+            if let Some(base) = prior.as_ref() {
+                assert_eq!(
+                    frame,
+                    ServerMsg::SnapshotDelta(delta::diff(base, &data).unwrap()).encode()
+                );
+            }
+            let got = tracker
+                .decode(&frame)
+                .expect("Wish/barrier lifecycle applies");
+            assert_eq!(got, data.decoded());
+            steps.push(ChainStep {
+                frame,
+                outcome: ChainOutcome::Applied(got),
+            });
+            prior = Some(data);
+        }
+        encoder.request_full();
+        owner.wish = None;
+        owner.barrier = 0.0;
+        owner.barrier_ring_step = 0;
+        let defaults = snap(3, 1, 3, Some(owner), &[wa(1, 10., 20., 100, 1)]);
+        let (frame, kind) = encoder.encode_frame(defaults.clone());
+        assert_eq!(kind, FrameKind::Full);
+        let got = tracker.decode(&frame).expect("resync Full applies");
+        assert_eq!(got, defaults.decoded());
+        steps.push(ChainStep {
+            frame,
+            outcome: ChainOutcome::Applied(got),
+        });
+        prior = Some(defaults.clone());
+        let records = [
+            (
+                4,
+                Some(WireWishOwner {
+                    ability: 3,
+                    ready_at: 1300.,
+                    full_at: Some(5300.),
+                    max_charges: 2,
+                    recharge_ms: 4000.,
+                    charges: 1,
+                    next_charge_at: Some(3300.),
+                    cast: None,
+                }),
+                21.5,
+                2,
+                vec![WireActor {
+                    barrier_pct: 65,
+                    barrier_ring_step: 2,
+                    ..wa(1, 10., 20., 100, 1)
+                }],
+            ),
+            (5, None, 0.0, 0, vec![wa(1, 10., 20., 100, 1)]),
+            (
+                6,
+                None,
+                0.0,
+                0,
+                vec![wa(1, 10., 20., 100, 1), wa(4, 30., 40., 100, 1)],
+            ),
+        ];
+        for (tick, wish, barrier, ring, actors) in records {
+            owner.wish = wish;
+            owner.barrier = barrier;
+            owner.barrier_ring_step = ring;
+            let data = snap(tick, 1, tick, Some(owner), &actors);
+            let (frame, kind) = encoder.encode_frame(data.clone());
+            assert_eq!(kind, FrameKind::Delta);
+            let base = prior.as_ref().unwrap_or(&defaults);
+            assert_eq!(
+                frame,
+                ServerMsg::SnapshotDelta(delta::diff(base, &data).unwrap()).encode()
+            );
+            let got = tracker.decode(&frame).expect("Wish/barrier clear applies");
+            assert_eq!(got, data.decoded());
+            steps.push(ChainStep {
+                frame,
+                outcome: ChainOutcome::Applied(got),
+            });
+            prior = Some(data);
+        }
+        chains.push(("wish_barrier_lifecycle", steps));
+    }
+    {
+        let mut encoder = ConnEncoder::new();
+        let mut tracker = SnapshotTracker::new();
+        let mut steps = Vec::new();
+        for (tick, time) in [(20, 888.75), (21, snapshot_server_ms(21))] {
+            let data = SnapshotData::build_with_server_time(
+                tick,
+                time,
+                1,
+                tick,
+                Some(chain_self(400.)),
+                [wa(1, 10., 20., 100, 1)].into_iter(),
+            )
+            .unwrap();
+            let (frame, kind) = encoder.encode_frame(data.clone());
+            assert_eq!(
+                kind,
+                if tick == 20 {
+                    FrameKind::Full
+                } else {
+                    FrameKind::Delta
+                }
+            );
+            let got = tracker
+                .decode(&frame)
+                .expect("per-frame source time applies");
+            assert_eq!(got, data.decoded());
+            steps.push(ChainStep {
+                frame,
+                outcome: ChainOutcome::Applied(got),
+            });
+        }
+        chains.push(("wish_source_time_per_frame", steps));
     }
     // A connection's life: Full first, then deltas, a tick gap, an actor appearing and leaving, rare self fields, a self that
     // goes away (a delta) and comes back (a Full), a resync (a Full), and deltas again.
@@ -1840,6 +2282,7 @@ pub fn chain_samples() -> Vec<(&'static str, Vec<ChainStep>)> {
             training: false,
             base_tick: 9,
             tick: 11,
+            server_time: snapshot_server_ms(11),
             ..empty_delta()
         },
         "base_mismatch",
@@ -1987,8 +2430,8 @@ pub fn malformed_deltas() -> Vec<(&'static str, Vec<u8>)> {
             "delta_head_field_without_present_bit",
             delta_bytes(10, 1, DH_X, &[0]),
         ),
-        // Bit 18 is not a field of this version.
-        ("delta_head_unknown_bit", delta_bytes(10, 1, 1 << 21, &[0])),
+        // Bit 24 is not a field of this version.
+        ("delta_head_unknown_bit", delta_bytes(10, 1, 1 << 24, &[0])),
         (
             "delta_head_overlong_varint",
             vec![0x87, 10, 1, 0, 0x80, 0x00, 0],
@@ -1998,10 +2441,10 @@ pub fn malformed_deltas() -> Vec<(&'static str, Vec<u8>)> {
             delta_bytes(10, 1, DH_PRESENT | DH_STATUS, &[4, 0]),
         ),
         ("delta_phase_over_3", delta_bytes(10, 1, DH_PHASE, &[4, 0])),
-        // Actor delta bit 12 is not a field of this version.
+        // Actor delta bit 13 is not a field of this version.
         (
             "delta_actor_mask_unknown_bit",
-            delta_bytes(10, 1, 0, &[1, 1, 0x80, 0x20]),
+            delta_bytes(10, 1, 0, &[1, 1, 0x80, 0x40]),
         ),
         (
             "delta_actor_status_over_3",
@@ -2059,6 +2502,46 @@ fn bits(v: f32) -> u32 {
     v.to_bits()
 }
 
+fn json_opt_f64(v: Option<f64>) -> String {
+    v.map_or_else(|| "null".into(), |x| x.to_string())
+}
+fn json_point(v: Option<WirePoint>) -> String {
+    v.map_or_else(
+        || "null".into(),
+        |p| format!("{{\"xBits\":{},\"yBits\":{}}}", bits(p.x), bits(p.y)),
+    )
+}
+fn json_wish(v: Option<WireWishOwner>) -> String {
+    v.map_or_else(|| "null".into(), |w| format!(
+        "{{\"ability\":{},\"readyAt\":{},\"fullAt\":{},\"maxCharges\":{},\"rechargeMs\":{},\"charges\":{},\"nextChargeAt\":{},\"cast\":{}}}",
+        w.ability,w.ready_at,json_opt_f64(w.full_at),w.max_charges,w.recharge_ms,w.charges,json_opt_f64(w.next_charge_at),
+        w.cast.map_or_else(|| "null".into(), |c| format!("{{\"ability\":{},\"startedAt\":{},\"landsAt\":{}}}",c.ability,c.started_at,c.lands_at))
+    ))
+}
+
+fn decoded_client_json(m: &ClientMsg) -> Option<String> {
+    let ClientMsg::Input { commands, .. } = m else {
+        return None;
+    };
+    if !commands
+        .iter()
+        .any(|c| matches!(c, WireCommand::Cast { .. }))
+    {
+        return None;
+    }
+    let items: Vec<String> = commands.iter().filter_map(|c| match *c {
+        WireCommand::Cast { slot, x, y, actor, t, seq } => Some(format!(
+            "{{\"k\":\"cast\",\"slot\":{slot},\"xBits\":{},\"yBits\":{},\"actor\":{},\"t\":{},\"seq\":{}}}",
+            bits(x), bits(y), actor.map_or("null".into(), |v| v.to_string()), json_opt_f64(t), seq.map_or("null".into(), |v| v.to_string())
+        )),
+        _ => None,
+    }).collect();
+    Some(format!(
+        "{{\"k\":\"input\",\"commands\":[{}]}}",
+        items.join(",")
+    ))
+}
+
 /// What a decoder must produce for a Snapshot: every field, floats as bit patterns, server time derived from the tick.
 fn decoded_snapshot_json(m: &ServerMsg) -> String {
     let ServerMsg::Snapshot {
@@ -2068,6 +2551,7 @@ fn decoded_snapshot_json(m: &ServerMsg) -> String {
         me,
         actors,
         training,
+        server_time,
     } = m
     else {
         unreachable!("only snapshots carry a decoded form")
@@ -2075,7 +2559,7 @@ fn decoded_snapshot_json(m: &ServerMsg) -> String {
     let me = match me {
         None => "null".to_string(),
         Some(s) => format!(
-            "{{\"id\": {}, \"faction\": {}, \"xBits\": {}, \"yBits\": {}, \"facingBits\": {}, \"hpBits\": {}, \"maxHpBits\": {}, \"status\": {}, \"weapon\": {}, \"readyInMs\": {}, \"kills\": {}, \"bounty\": {}, \"gv\": {}, \"moveSeq\": {}, \"effects\": {}, \"displaceSeq\": {}, \"sig\": {}, \"huntTarget\": {}, \"huntStacks\": {}}}",
+            "{{\"id\": {}, \"faction\": {}, \"xBits\": {}, \"yBits\": {}, \"facingBits\": {}, \"hpBits\": {}, \"maxHpBits\": {}, \"status\": {}, \"weapon\": {}, \"readyInMs\": {}, \"kills\": {}, \"bounty\": {}, \"gv\": {}, \"moveSeq\": {}, \"effects\": {}, \"displaceSeq\": {}, \"sig\": {}, \"huntTarget\": {}, \"huntStacks\": {}, \"wish\": {}, \"barrierBits\": {}, \"barrierRingStep\": {}}}",
             s.id,
             s.faction,
             bits(s.x),
@@ -2090,14 +2574,14 @@ fn decoded_snapshot_json(m: &ServerMsg) -> String {
             s.bounty,
             s.gv,
             s.move_seq, s.effects, s.displace_seq, s.sig,
-            s.hunt_target.map_or("null".to_string(), |v| v.to_string()), s.hunt_stacks
+            s.hunt_target.map_or("null".to_string(), |v| v.to_string()), s.hunt_stacks, json_wish(s.wish), bits(s.barrier), s.barrier_ring_step
         ),
     };
     let actors: Vec<String> = actors
         .iter()
         .map(|a| {
             format!(
-                "{{\"id\": {}, \"faction\": {}, \"xBits\": {}, \"yBits\": {}, \"facingBits\": {}, \"hpPct\": {}, \"status\": {}, \"weapon\": {}, \"bounty\": {}, \"kind\": {}, \"effects\": {}, \"displaceSeq\": {}, \"mobTypeCode\": {}, \"sig\": {}}}",
+                "{{\"id\": {}, \"faction\": {}, \"xBits\": {}, \"yBits\": {}, \"facingBits\": {}, \"hpPct\": {}, \"status\": {}, \"weapon\": {}, \"bounty\": {}, \"kind\": {}, \"effects\": {}, \"displaceSeq\": {}, \"mobTypeCode\": {}, \"sig\": {}, \"barrierPct\": {}, \"barrierRingStep\": {}}}",
                 a.id,
                 a.faction,
                 bits(a.x),
@@ -2107,13 +2591,13 @@ fn decoded_snapshot_json(m: &ServerMsg) -> String {
                 a.status,
                 a.weapon,
                 a.bounty,
-                a.kind, a.effects, a.displace_seq, a.mob_type_code, a.sig
+                a.kind, a.effects, a.displace_seq, a.mob_type_code, a.sig, a.barrier_pct, a.barrier_ring_step
             )
         })
         .collect();
     format!(
         "{{\"tick\": {tick}, \"serverMs\": {}, \"phase\": {phase}, \"ack\": {ack_input}, \"training\": {training}, \"me\": {me}, \"actors\": [{}]}}",
-        snapshot_server_ms(*tick),
+        server_time,
         actors.join(", ")
     )
 }
@@ -2139,6 +2623,9 @@ fn decoded_fx_json(m: &ServerMsg) -> String {
                 bits(amount)
             ),
             WireFx::Teleport => "{\"k\": \"teleport\"}".to_owned(),
+            WireFx::WishStarted { event_time, caster, ability, duration, target, anchor } => format!("{{\"k\":\"castStarted\",\"eventTime\":{event_time},\"caster\":{caster},\"ability\":{ability},\"duration\":{duration},\"target\":{},\"anchor\":{}}}", target.map_or("null".into(), |v| v.to_string()), json_point(anchor)),
+            WireFx::WishLanded { event_time, ability, caster, target, anchor, destination } => format!("{{\"k\":\"castLanded\",\"eventTime\":{event_time},\"ability\":{ability},\"caster\":{},\"target\":{},\"anchor\":{},\"destination\":{}}}", caster.map_or("null".into(), |v| v.to_string()), target.map_or("null".into(), |v| v.to_string()), json_point(anchor), json_point(destination)),
+            WireFx::WishEnded { event_time, caster, ability, reason } => format!("{{\"k\":\"castEnded\",\"eventTime\":{event_time},\"caster\":{caster},\"ability\":{ability},\"reason\":{reason}}}"),
         })
         .collect();
     format!("{{\"tick\": {tick}, \"fx\": [{}]}}", items.join(", "))
@@ -2152,8 +2639,10 @@ pub fn manifest() -> String {
     out.push_str(",\n  \"client\": [\n");
     let c = client_samples();
     for (i, (name, m)) in c.iter().enumerate() {
+        let decoded =
+            decoded_client_json(m).map_or(String::new(), |json| format!(", \"decoded\": {json}"));
         out.push_str(&format!(
-            "    {{\"name\": \"{name}\", \"hex\": \"{}\", \"debug\": \"{}\"}}{}\n",
+            "    {{\"name\": \"{name}\", \"hex\": \"{}\", \"debug\": \"{}\"{decoded}}}{}\n",
             hex(&m.encode()),
             escape(&format!("{m:?}")),
             if i + 1 < c.len() { "," } else { "" }

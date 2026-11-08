@@ -22,6 +22,9 @@ fn self_view() -> WireSelf {
         move_seq: 0,
         hunt_target: Some(2),
         hunt_stacks: 3,
+        wish: None,
+        barrier: 0.0,
+        barrier_ring_step: 0,
     }
 }
 
@@ -45,6 +48,7 @@ fn full_self_hunt_fields_round_trip_and_zero_target_is_refused() {
     let msg = ServerMsg::Snapshot {
         training: false,
         tick: 1,
+        server_time: snapshot_server_ms(1),
         phase: 1,
         ack_input: 0,
         me: Some(self_view()),
@@ -67,6 +71,7 @@ fn full_self_hunt_fields_round_trip_and_zero_target_is_refused() {
     let msg = ServerMsg::Snapshot {
         training: false,
         tick: 1,
+        server_time: snapshot_server_ms(1),
         phase: 1,
         ack_input: 0,
         me: Some(bad),
@@ -80,6 +85,7 @@ fn a_delta_carries_hunt_target_and_stacks() {
     let full = ServerMsg::Snapshot {
         training: false,
         tick: 1,
+        server_time: snapshot_server_ms(1),
         phase: 1,
         ack_input: 0,
         me: Some(WireSelf {
@@ -93,6 +99,7 @@ fn a_delta_carries_hunt_target_and_stacks() {
     let delta = ServerMsg::SnapshotDelta(SnapshotDelta {
         training: false,
         tick: 2,
+        server_time: snapshot_server_ms(2),
         base_tick: 1,
         ack_input: 0,
         phase: None,

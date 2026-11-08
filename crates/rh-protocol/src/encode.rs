@@ -128,6 +128,14 @@ fn command_len(c: &WireCommand) -> usize {
         WireCommand::Train {
             id, option_count, ..
         } => 1 + 1 + varint_len(id) + 8 + 1 + usize::from(option_count),
+        WireCommand::Cast { actor, t, seq, .. } => {
+            1 + 1
+                + 4
+                + 4
+                + opt_len(actor.is_some(), 4)
+                + opt_len(t.is_some(), 8)
+                + opt_len(seq.is_some(), 1)
+        }
     }
 }
 
@@ -149,6 +157,9 @@ fn command_finite(c: &WireCommand) -> bool {
         WireCommand::Aim { a } => a.is_finite(),
         WireCommand::Attack { a, t } | WireCommand::Release { a, t } => {
             a.is_finite() && t.is_none_or(f64::is_finite)
+        }
+        WireCommand::Cast { x, y, t, .. } => {
+            x.is_finite() && y.is_finite() && t.is_none_or(f64::is_finite)
         }
     }
 }
@@ -208,6 +219,8 @@ impl Frame for ClientMsg {
                         || matches!(c, WireCommand::Plan { spawn, boon, .. } if spawn.is_some_and(|v| v > 1) || boon.is_some_and(|v| v > 1))
                         || matches!(c, WireCommand::Train { command, option_count, .. }
                             if !(1..=5).contains(command) || *option_count > 3)
+                        || matches!(c, WireCommand::Cast { slot, actor, .. }
+                            if *slot > 2 || actor.is_some_and(|id| id == 0))
                 }) {
                     return Err(EncodeError::BadValue("command"));
                 }
@@ -336,6 +349,22 @@ impl Frame for ClientMsg {
                                 w.u8(*option);
                             }
                         }
+                        WireCommand::Cast {
+                            slot,
+                            x,
+                            y,
+                            actor,
+                            t,
+                            seq,
+                        } => {
+                            w.u8(C_CAST);
+                            w.u8(slot);
+                            w.f32(x);
+                            w.f32(y);
+                            w.opt(actor.as_ref(), |w, id| w.u32(*id));
+                            w.opt(t.as_ref(), |w, ms| w.f64(*ms));
+                            w.opt(seq.as_ref(), |w, seq| w.u8(*seq));
+                        }
                     }
                 }
             }
@@ -397,7 +426,42 @@ fn fx_len(f: &WireFx) -> usize {
         WireFx::Swing { by, .. } => 1 + varint_len(*by) + 1 + 6,
         WireFx::Hit { victim, by, .. } => 1 + varint_len(*victim) + varint_len(*by) + 5,
         WireFx::Teleport => 1,
+        WireFx::WishStarted {
+            caster,
+            target,
+            anchor,
+            ..
+        } => {
+            1 + 8
+                + varint_len(*caster)
+                + 1
+                + 8
+                + opt_len(target.is_some(), target.map_or(0, varint_len))
+                + point_opt_len(anchor)
+        }
+        WireFx::WishLanded {
+            caster,
+            target,
+            anchor,
+            destination,
+            ..
+        } => {
+            1 + 8
+                + 1
+                + opt_len(caster.is_some(), caster.map_or(0, varint_len))
+                + opt_len(target.is_some(), target.map_or(0, varint_len))
+                + point_opt_len(anchor)
+                + point_opt_len(destination)
+        }
+        WireFx::WishEnded { caster, .. } => 1 + 8 + varint_len(*caster) + 1 + 1,
     }
+}
+
+fn point_opt_len(point: &Option<WirePoint>) -> usize {
+    1 + if point.is_some() { 4 } else { 0 }
+}
+fn point_valid(point: Option<WirePoint>) -> bool {
+    point.is_none_or(|p| quant::pos_in_range(p.x) && quant::pos_in_range(p.y))
 }
 
 /// `max_hp` goes out as a varint when it is an integer in 0..=65535 (the bit pattern survives the round trip, so -0.0, NaN
@@ -414,10 +478,13 @@ fn kit(faction: u8, weapon: u8) -> u8 {
 
 /// The head of a Snapshot: for a self its present bit and the bits of every field that differs from its default, and the phase
 /// bit when the phase is not the default.
-fn head_word(phase: u8, me: Option<&WireSelf>, training: bool) -> u32 {
+fn head_word(phase: u8, tick: u32, server_time: f64, me: Option<&WireSelf>, training: bool) -> u32 {
     let mut m = if phase != DEFAULT_PHASE { HM_PHASE } else { 0 };
     if training {
         m |= HM_TRAINING;
+    }
+    if server_time.to_bits() != snapshot_server_ms(tick).to_bits() {
+        m |= HM_SERVER_TIME;
     }
     let Some(s) = me else { return m };
     m |= HM_PRESENT;
@@ -464,7 +531,84 @@ fn head_word(phase: u8, me: Option<&WireSelf>, training: bool) -> u32 {
     if s.hunt_stacks != 0 {
         m |= HM_HUNT_STACKS;
     }
+    if s.wish.is_some() {
+        m |= HM_WISH;
+    }
+    if s.barrier.to_bits() != 0.0f32.to_bits() || s.barrier_ring_step != 0 {
+        m |= HM_BARRIER;
+    }
     m
+}
+
+fn wish_owner_len(wish: &WireWishOwner) -> usize {
+    1 + 8
+        + opt_len(wish.full_at.is_some(), 8)
+        + 1
+        + 8
+        + 1
+        + opt_len(wish.next_charge_at.is_some(), 8)
+        + opt_len(wish.cast.is_some(), 17)
+}
+
+fn write_wish_owner<const N: usize>(w: &mut Fixed<N>, wish: &WireWishOwner) {
+    w.u8(wish.ability);
+    w.bytes(wish.ready_at.to_le_bytes());
+    if let Some(full_at) = wish.full_at {
+        w.u8(1);
+        w.bytes(full_at.to_le_bytes());
+    } else {
+        w.u8(0);
+    }
+    w.u8(wish.max_charges);
+    w.bytes(wish.recharge_ms.to_le_bytes());
+    w.u8(wish.charges);
+    if let Some(next_charge_at) = wish.next_charge_at {
+        w.u8(1);
+        w.bytes(next_charge_at.to_le_bytes());
+    } else {
+        w.u8(0);
+    }
+    if let Some(cast) = wish.cast {
+        w.u8(1);
+        w.u8(cast.ability);
+        w.bytes(cast.started_at.to_le_bytes());
+        w.bytes(cast.lands_at.to_le_bytes());
+    } else {
+        w.u8(0);
+    }
+}
+
+pub(crate) fn write_wish_owner_writer(w: &mut Writer, wish: &WireWishOwner) {
+    w.u8(wish.ability);
+    w.f64(wish.ready_at);
+    w.opt(wish.full_at.as_ref(), |w, v| w.f64(*v));
+    w.u8(wish.max_charges);
+    w.f64(wish.recharge_ms);
+    w.u8(wish.charges);
+    w.opt(wish.next_charge_at.as_ref(), |w, v| w.f64(*v));
+    w.opt(wish.cast.as_ref(), |w, cast| {
+        w.u8(cast.ability);
+        w.f64(cast.started_at);
+        w.f64(cast.lands_at);
+    });
+}
+
+pub(crate) fn wish_owner_valid(wish: &WireWishOwner) -> bool {
+    let clock = |v: f64| v.is_finite() && v >= 0.0;
+    wish.ability <= 4
+        && clock(wish.ready_at)
+        && wish.full_at.is_none_or(clock)
+        && (1..=2).contains(&wish.max_charges)
+        && wish.recharge_ms.is_finite()
+        && wish.recharge_ms >= 0.0
+        && wish.charges <= wish.max_charges
+        && wish.next_charge_at.is_none_or(clock)
+        && wish.cast.is_none_or(|cast| {
+            cast.ability <= 4
+                && clock(cast.started_at)
+                && clock(cast.lands_at)
+                && cast.started_at <= cast.lands_at
+        })
 }
 
 /// Bytes of the self record after its head (`mask` is [`head_word`]).
@@ -513,6 +657,12 @@ fn self_len(s: &WireSelf, mask: u32) -> usize {
     }
     if mask & HM_HUNT_STACKS != 0 {
         n += varint_len(s.hunt_stacks as u32);
+    }
+    if mask & HM_WISH != 0 {
+        n += wish_owner_len(s.wish.as_ref().expect("Wish bit requires a record"));
+    }
+    if mask & HM_BARRIER != 0 {
+        n += 5;
     }
     n
 }
@@ -590,12 +740,11 @@ impl<const N: usize> Fixed<N> {
     }
 }
 
-/// Largest Snapshot head: tag, tick, ack (5 each at most), head (2), a full self (id 5, 12, max_hp 4, kit, hp 4, ready 2,
-/// kills, bounty, gv 3 each, move_seq, status, effects 2, displacement, sig), the phase and actor count.
+/// Largest Snapshot head including protocol-12 Wish, barrier, and source-clock override groups.
 const MAX_HEAD_LEN: usize =
-    1 + 5 + 5 + 2 + 5 + 12 + 4 + 1 + 4 + 2 + 9 + 1 + 1 + 2 + 1 + 1 + 1 + 5 + 5 + 3;
-/// Largest actor: id 5, mask 2, x/y/facing 6, kit/hp/status, bounty 3, kind, effects 2, displacement, mob type, sig.
-const MAX_ACTOR_LEN: usize = 5 + 2 + 6 + 1 + 1 + 1 + 3 + 1 + 2 + 1 + 1 + 1;
+    1 + 5 + 5 + 3 + 5 + 12 + 4 + 1 + 4 + 2 + 9 + 1 + 1 + 2 + 1 + 1 + 1 + 5 + 5 + 3 + 55 + 5 + 8;
+/// Largest actor: id 5, mask 2, x/y/facing 6, kit/hp/status, bounty 3, kind, effects 2, displacement, mob type, sig, barrier pair.
+const MAX_ACTOR_LEN: usize = 5 + 2 + 6 + 1 + 1 + 1 + 3 + 1 + 2 + 1 + 1 + 1 + 2;
 
 /// Writes the self record for the head word `m` ([`head_word`] of `s`), fields in bit order.
 #[inline]
@@ -649,6 +798,13 @@ fn write_self(w: &mut Fixed<MAX_HEAD_LEN>, m: u32, s: &WireSelf) {
     if m & HM_HUNT_STACKS != 0 {
         w.varint(s.hunt_stacks as u32);
     }
+    if m & HM_WISH != 0 {
+        write_wish_owner(w, s.wish.as_ref().expect("Wish bit requires a record"));
+    }
+    if m & HM_BARRIER != 0 {
+        w.f32(s.barrier);
+        w.u8(s.barrier_ring_step);
+    }
 }
 
 /// The actor mask of `a`: a bit for every field that differs from its default.
@@ -682,6 +838,9 @@ fn actor_mask(a: &WireActor) -> u32 {
     if a.sig != 0 {
         m |= AM_SIG;
     }
+    if a.barrier_pct != DEFAULT_BARRIER_PCT || a.barrier_ring_step != DEFAULT_BARRIER_RING_STEP {
+        m |= AM_BARRIER;
+    }
     m
 }
 
@@ -705,6 +864,7 @@ fn actor_len(a: &WireActor, prev: Option<u32>) -> usize {
         + (m & AM_DISPLACE != 0) as usize
         + (m & AM_MOB_TYPE != 0) as usize
         + (m & AM_SIG != 0) as usize
+        + 2 * (m & AM_BARRIER != 0) as usize
 }
 
 /// The id as written: the first actor's absolute id, then the gap to the previous one (the observation sorts by id, so a
@@ -729,6 +889,12 @@ fn snapshot_fault(phase: u8, me: Option<&WireSelf>, actors: &[WireActor]) -> Opt
         if s.hunt_target == Some(0) {
             return Some("hunt target");
         }
+        if !s.barrier.is_finite() || s.barrier < 0.0 || s.barrier_ring_step > 8 {
+            return Some("barrier");
+        }
+        if s.wish.is_some_and(|wish| !wish_owner_valid(&wish)) {
+            return Some("wish");
+        }
     }
     let mut prev: Option<u32> = None;
     for a in actors {
@@ -740,6 +906,9 @@ fn snapshot_fault(phase: u8, me: Option<&WireSelf>, actors: &[WireActor]) -> Opt
         }
         if a.hp_pct > 100 {
             return Some("hp_pct");
+        }
+        if a.barrier_pct > 100 || a.barrier_ring_step > 8 {
+            return Some("barrier");
         }
         if !quant::pos_in_range(a.x) || !quant::pos_in_range(a.y) {
             return Some("position");
@@ -759,6 +928,8 @@ fn actor_looks_bad(a: &WireActor, prev: Option<u32>) -> bool {
         || a.status > MAX_STATUS_CODE
         || a.mob_type_code > 30
         || a.hp_pct > 100
+        || a.barrier_pct > 100
+        || a.barrier_ring_step > 8
         || !(quant::pos_in_range(a.x) && quant::pos_in_range(a.y))
         || prev.is_some_and(|p| a.id <= p)
 }
@@ -811,23 +982,29 @@ fn write_actor(out: &mut Writer, a: &WireActor, prev: Option<u32>) {
     if m & AM_SIG != 0 {
         w.u8(a.sig);
     }
+    if m & AM_BARRIER != 0 {
+        w.u8(a.barrier_pct);
+        w.u8(a.barrier_ring_step);
+    }
     w.put(out);
 }
 
 /// Exact size of a Snapshot frame.
 fn snapshot_len(
     tick: u32,
+    server_time: f64,
     phase: u8,
     ack_input: u32,
     me: Option<&WireSelf>,
     training: bool,
     actors: &[WireActor],
 ) -> usize {
-    let head = head_word(phase, me, training);
+    let head = head_word(phase, tick, server_time, me, training);
     1 + varint_len(tick)
         + varint_len(ack_input)
         + head_len(head)
         + me.map_or(0, |s| self_len(s, head))
+        + (head & HM_SERVER_TIME != 0) as usize * 8
         + varint_len(actors.len() as u32)
         + actors
             .iter()
@@ -840,6 +1017,7 @@ fn snapshot_len(
 fn write_snapshot_head(
     w: &mut Writer,
     tick: u32,
+    server_time: f64,
     phase: u8,
     ack_input: u32,
     me: Option<&WireSelf>,
@@ -850,13 +1028,16 @@ fn write_snapshot_head(
     f.u8(T_SNAPSHOT);
     f.varint(tick);
     f.varint(ack_input);
-    let head = head_word(phase, me, training);
+    let head = head_word(phase, tick, server_time, me, training);
     f.varint(head);
     if let Some(s) = me {
         write_self(&mut f, head, s);
     }
     if head & HM_PHASE != 0 {
         f.u8(phase);
+    }
+    if head & HM_SERVER_TIME != 0 {
+        f.bytes(server_time.to_le_bytes());
     }
     f.varint(actors as u32);
     f.put(w);
@@ -871,12 +1052,21 @@ impl Frame for ServerMsg {
             ServerMsg::Reject { reason, .. } => 1 + 2 + str_len(reason),
             ServerMsg::Snapshot {
                 tick,
+                server_time,
                 phase,
                 ack_input,
                 me,
                 training,
                 actors,
-            } => snapshot_len(*tick, *phase, *ack_input, me.as_ref(), *training, actors),
+            } => snapshot_len(
+                *tick,
+                *server_time,
+                *phase,
+                *ack_input,
+                me.as_ref(),
+                *training,
+                actors,
+            ),
             ServerMsg::SnapshotDelta(d) => delta::message_len(d),
             ServerMsg::Events { events, .. } => {
                 1 + 4 + 2 + events.iter().map(event_len).sum::<usize>()
@@ -899,8 +1089,15 @@ impl Frame for ServerMsg {
         match self {
             ServerMsg::Welcome { map, .. } => map.check()?,
             ServerMsg::Snapshot {
-                phase, me, actors, ..
+                server_time,
+                phase,
+                me,
+                actors,
+                ..
             } => {
+                if !server_time.is_finite() || *server_time < 0.0 {
+                    return Err(EncodeError::BadValue("server time"));
+                }
                 list("actors", actors.len(), MAX_ACTORS)?;
                 if let Some(why) = snapshot_fault(*phase, me.as_ref(), actors) {
                     return Err(EncodeError::BadValue(why));
@@ -947,6 +1144,62 @@ impl Frame for ServerMsg {
                 };
                 if fx.iter().any(swing_off_grid) {
                     return Err(EncodeError::BadValue("position"));
+                }
+                for f in fx {
+                    let good = match *f {
+                        WireFx::WishStarted {
+                            event_time,
+                            caster,
+                            ability,
+                            duration,
+                            target,
+                            anchor,
+                        } => {
+                            event_time.is_finite()
+                                && event_time >= 0.0
+                                && caster != 0
+                                && ability <= 4
+                                && duration.is_finite()
+                                && duration >= 0.0
+                                && target.is_none_or(|id| id != 0)
+                                && point_valid(anchor)
+                        }
+                        WireFx::WishLanded {
+                            event_time,
+                            ability,
+                            caster,
+                            target,
+                            anchor,
+                            destination,
+                        } => {
+                            event_time.is_finite()
+                                && event_time >= 0.0
+                                && ability <= 4
+                                && caster.is_none_or(|id| id != 0)
+                                && target.is_none_or(|id| id != 0)
+                                && point_valid(anchor)
+                                && point_valid(destination)
+                                && ((ability == 3 && anchor.is_some() == destination.is_some())
+                                    || (ability != 3 && destination.is_none()))
+                                && (caster.is_some() || anchor.is_some())
+                        }
+                        WireFx::WishEnded {
+                            event_time,
+                            caster,
+                            ability,
+                            reason,
+                        } => {
+                            event_time.is_finite()
+                                && event_time >= 0.0
+                                && caster != 0
+                                && ability <= 4
+                                && reason <= 2
+                        }
+                        _ => true,
+                    };
+                    if !good {
+                        return Err(EncodeError::BadValue("wish fx"));
+                    }
                 }
             }
             ServerMsg::Reject { code, reason } => {
@@ -1031,6 +1284,7 @@ impl Frame for ServerMsg {
             }
             ServerMsg::Snapshot {
                 tick,
+                server_time,
                 phase,
                 ack_input,
                 me,
@@ -1040,6 +1294,7 @@ impl Frame for ServerMsg {
                 write_snapshot_head(
                     w,
                     *tick,
+                    *server_time,
                     *phase,
                     *ack_input,
                     me.as_ref(),
@@ -1146,6 +1401,50 @@ impl Frame for ServerMsg {
                             w.u16(quant::quantize_facing(a));
                         }
                         WireFx::Teleport => w.u8(5),
+                        WireFx::WishStarted {
+                            event_time,
+                            caster,
+                            ability,
+                            duration,
+                            target,
+                            anchor,
+                        } => {
+                            w.u8(6);
+                            w.f64(event_time);
+                            w.varint(caster);
+                            w.u8(ability);
+                            w.f64(duration);
+                            w.opt(target.as_ref(), |w, id| w.varint(*id));
+                            write_point_opt(w, anchor);
+                        }
+                        WireFx::WishLanded {
+                            event_time,
+                            ability,
+                            caster,
+                            target,
+                            anchor,
+                            destination,
+                        } => {
+                            w.u8(7);
+                            w.f64(event_time);
+                            w.u8(ability);
+                            w.opt(caster.as_ref(), |w, id| w.varint(*id));
+                            w.opt(target.as_ref(), |w, id| w.varint(*id));
+                            write_point_opt(w, anchor);
+                            write_point_opt(w, destination);
+                        }
+                        WireFx::WishEnded {
+                            event_time,
+                            caster,
+                            ability,
+                            reason,
+                        } => {
+                            w.u8(8);
+                            w.f64(event_time);
+                            w.varint(caster);
+                            w.u8(ability);
+                            w.u8(reason);
+                        }
                         WireFx::Hit {
                             victim,
                             by,
@@ -1181,6 +1480,13 @@ impl Frame for ServerMsg {
             }
         }
     }
+}
+
+fn write_point_opt(w: &mut Writer, point: Option<WirePoint>) {
+    w.opt(point.as_ref(), |w, p| {
+        w.u16(quant::quantize_pos(p.x));
+        w.u16(quant::quantize_pos(p.y));
+    });
 }
 
 impl ServerMsg {

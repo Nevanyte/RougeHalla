@@ -31,9 +31,11 @@ fn every_sample_round_trips() {
                 me,
                 actors,
                 training,
+                server_time,
             } => ServerMsg::Snapshot {
                 training: *training,
                 tick: *tick,
+                server_time: *server_time,
                 phase: *phase,
                 ack_input: *ack_input,
                 me: *me,
@@ -71,6 +73,19 @@ fn malformed_server_frames_are_rejected_for_the_documented_reason() {
             | "camp_negative_time"
             | "camp_nonfinite_time"
             | "camp_time_order" => BadField("camp"),
+            "wish_ability_over_4" => BadField("wish ability"),
+            "wish_charge_count_invalid" | "wish_time_nonfinite" | "wish_cast_time_order" => {
+                BadField("wish")
+            }
+            "wish_option_over_1" | "wish_fx_option_over_1" => BadTag(2),
+            "wish_fx_caster_zero" => BadField("wish caster"),
+            "wish_fx_ability_over_4" => BadField("wish ability"),
+            "wish_fx_time_nonfinite"
+            | "wish_fx_blaze_one_point"
+            | "wish_fx_nonblaze_destination"
+            | "wish_fx_anonymous_landed_target"
+            | "wish_fx_anonymous_landed_no_target" => BadField("wish fx"),
+            "wish_fx_end_reason_over_2" => BadField("wish reason"),
             "actor_mob_type_over_30" | "delta_actor_mob_type_over_30" => BadField("mob type"),
             "empty" | "truncated_snapshot" | "self_truncated" | "actor_count_without_actors" => {
                 Truncated

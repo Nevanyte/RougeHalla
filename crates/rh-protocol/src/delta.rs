@@ -54,9 +54,19 @@ pub const DH_DISPLACE: u32 = 1 << 16;
 pub const DH_SIG: u32 = 1 << 17;
 pub const DH_HUNT_TARGET: u32 = 1 << 18;
 pub const DH_HUNT_STACKS: u32 = 1 << 19;
-pub const DH_FIELDS: u32 =
-    0x7e7e | DH_EFFECTS | DH_DISPLACE | DH_SIG | DH_HUNT_TARGET | DH_HUNT_STACKS;
-pub const DH_KNOWN: u32 = DH_PRESENT | DH_FIELDS | DH_PHASE | DH_DEPARTED | DH_TRAINING;
+pub const DH_WISH: u32 = 1 << 21;
+pub const DH_BARRIER: u32 = 1 << 22;
+pub const DH_SERVER_TIME: u32 = 1 << 23;
+pub const DH_FIELDS: u32 = 0x7e7e
+    | DH_EFFECTS
+    | DH_DISPLACE
+    | DH_SIG
+    | DH_HUNT_TARGET
+    | DH_HUNT_STACKS
+    | DH_WISH
+    | DH_BARRIER;
+pub const DH_KNOWN: u32 =
+    DH_PRESENT | DH_FIELDS | DH_PHASE | DH_DEPARTED | DH_TRAINING | DH_SERVER_TIME;
 /// Public training fact, independent of the self; present on every training delta.
 pub const DH_TRAINING: u32 = 1 << 20;
 
@@ -74,7 +84,9 @@ pub const AD_EFFECTS: u32 = 1 << 8;
 pub const AD_DISPLACE: u32 = 1 << 9;
 pub const AD_MOB_TYPE: u32 = 1 << 10;
 pub const AD_SIG: u32 = 1 << 11;
-pub const AD_ALL: u32 = 0xfff;
+/// Source barrier share and ring pair (protocol 12).
+pub const AD_BARRIER: u32 = 1 << 12;
+pub const AD_ALL: u32 = 0x1fff;
 /// What a new actor (one the base does not hold) must carry: its position. Every other field starts at its default.
 pub const AD_NEW: u32 = AD_X | AD_Y | AD_FACING;
 
@@ -85,11 +97,44 @@ const MIN_ACTOR: usize = 1 + 1 + 6;
 
 /// Largest self delta after the head: x, y, facing, hp, max_hp (4 each), kit, ready (2), kills, bounty, gv (3 each),
 /// move_seq, status, phase, effects (2), displacement, sig.
-const MAX_SELF_DELTA: usize = 20 + 1 + 2 + 9 + 1 + 1 + 1 + 2 + 1 + 1 + 5 + 3;
+const MAX_SELF_DELTA: usize = 20 + 1 + 2 + 9 + 1 + 1 + 1 + 2 + 1 + 1 + 5 + 3 + 56 + 5;
 /// Largest delta head: tag, tick (5), age, ack (5), head (1 placeholder), the self delta, the changed count (3).
-const MAX_DELTA_HEAD: usize = 1 + 5 + 1 + 5 + 1 + MAX_SELF_DELTA + 3;
+const MAX_DELTA_HEAD: usize = 1 + 5 + 1 + 5 + 4 + MAX_SELF_DELTA + 8 + 3;
 /// Largest changed-actor record: id 5, mask 2, x/y/facing 6, kit/hp, bounty 3, status/kind, effects 2, displacement/mob type/sig.
-const MAX_ACTOR_DELTA: usize = 5 + 2 + 6 + 1 + 1 + 3 + 1 + 1 + 2 + 1 + 1 + 1;
+const MAX_ACTOR_DELTA: usize = 5 + 2 + 6 + 1 + 1 + 3 + 1 + 1 + 2 + 1 + 1 + 1 + 2;
+
+fn optional_f64_bits_equal(a: Option<f64>, b: Option<f64>) -> bool {
+    match (a, b) {
+        (None, None) => true,
+        (Some(a), Some(b)) => a.to_bits() == b.to_bits(),
+        _ => false,
+    }
+}
+
+fn wish_bits_equal(a: Option<WireWishOwner>, b: Option<WireWishOwner>) -> bool {
+    match (a, b) {
+        (None, None) => true,
+        (Some(a), Some(b)) => {
+            a.ability == b.ability
+                && a.ready_at.to_bits() == b.ready_at.to_bits()
+                && optional_f64_bits_equal(a.full_at, b.full_at)
+                && a.max_charges == b.max_charges
+                && a.recharge_ms.to_bits() == b.recharge_ms.to_bits()
+                && a.charges == b.charges
+                && optional_f64_bits_equal(a.next_charge_at, b.next_charge_at)
+                && match (a.cast, b.cast) {
+                    (None, None) => true,
+                    (Some(a), Some(b)) => {
+                        a.ability == b.ability
+                            && a.started_at.to_bits() == b.started_at.to_bits()
+                            && a.lands_at.to_bits() == b.lands_at.to_bits()
+                    }
+                    _ => false,
+                }
+        }
+        _ => false,
+    }
+}
 
 /// A remote actor as a connection remembers and sends it: exactly what the wire carries.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
@@ -111,6 +156,8 @@ pub struct QActor {
     pub displace_seq: u8,
     pub sig: u8,
     pub mob_type_code: u8,
+    pub barrier_pct: u8,
+    pub barrier_ring_step: u8,
 }
 
 impl QActor {
@@ -129,6 +176,8 @@ impl QActor {
         displace_seq: 0,
         mob_type_code: 0,
         sig: 0,
+        barrier_pct: 0,
+        barrier_ring_step: 0,
     };
 
     /// `a` checked and quantized: the first reason a decoder would reject the actor on its own (a faction, weapon or status over
@@ -160,6 +209,8 @@ impl QActor {
             displace_seq: a.displace_seq,
             mob_type_code: a.mob_type_code,
             sig: a.sig,
+            barrier_pct: a.barrier_pct,
+            barrier_ring_step: a.barrier_ring_step,
         }
     }
 
@@ -180,6 +231,8 @@ impl QActor {
             displace_seq: self.displace_seq,
             mob_type_code: self.mob_type_code,
             sig: self.sig,
+            barrier_pct: self.barrier_pct,
+            barrier_ring_step: self.barrier_ring_step,
         }
     }
 
@@ -214,6 +267,9 @@ impl QActor {
         if self.sig != 0 {
             m |= AM_SIG;
         }
+        if self.barrier_pct != 0 || self.barrier_ring_step != 0 {
+            m |= AM_BARRIER;
+        }
         m
     }
 
@@ -236,6 +292,7 @@ impl QActor {
             + (self.displace_seq != 0) as usize
             + (self.mob_type_code != 0) as usize
             + (self.sig != 0) as usize
+            + 2 * (self.barrier_pct != 0 || self.barrier_ring_step != 0) as usize
     }
 }
 
@@ -276,6 +333,10 @@ fn write_full_actor(out: &mut Writer, q: &QActor, prev: Option<u32>) {
     if m & AM_SIG != 0 {
         w.u8(q.sig);
     }
+    if m & AM_BARRIER != 0 {
+        w.u8(q.barrier_pct);
+        w.u8(q.barrier_ring_step);
+    }
     w.put(out);
 }
 
@@ -293,6 +354,7 @@ pub struct SnapshotData(Box<SnapshotInner>);
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct SnapshotInner {
     tick: u32,
+    server_time: f64,
     phase: u8,
     ack_input: u32,
     me: Option<WireSelf>,
@@ -325,7 +387,7 @@ impl SnapshotData {
     where
         I: ExactSizeIterator<Item = WireActor>,
     {
-        Self::build_with(None, tick, phase, ack_input, me, actors)
+        Self::build_with_server_time(tick, snapshot_server_ms(tick), phase, ack_input, me, actors)
     }
 
     /// [`SnapshotData::build`] in the block of an earlier snapshot ([`ConnEncoder::take_spare`]; its contents are overwritten),
@@ -341,9 +403,33 @@ impl SnapshotData {
     where
         I: ExactSizeIterator<Item = WireActor>,
     {
-        Self::build_checked(
+        Self::build_checked_with_server_time(
             spare,
             tick,
+            snapshot_server_ms(tick),
+            phase,
+            ack_input,
+            me,
+            actors.map(|a| QActor::checked(&a)),
+        )
+    }
+
+    /// Builds a snapshot with an explicit logical source clock. Ordinary frames should use [`SnapshotData::build`].
+    pub fn build_with_server_time<I>(
+        tick: u32,
+        server_time: f64,
+        phase: u8,
+        ack_input: u32,
+        me: Option<WireSelf>,
+        actors: I,
+    ) -> Result<Self, EncodeError>
+    where
+        I: ExactSizeIterator<Item = WireActor>,
+    {
+        Self::build_checked_with_server_time(
+            None,
+            tick,
+            server_time,
             phase,
             ack_input,
             me,
@@ -366,6 +452,33 @@ impl SnapshotData {
     where
         I: ExactSizeIterator<Item = Result<QActor, &'static str>>,
     {
+        Self::build_checked_with_server_time(
+            spare,
+            tick,
+            snapshot_server_ms(tick),
+            phase,
+            ack_input,
+            me,
+            actors,
+        )
+    }
+
+    /// Reuses a previous snapshot allocation and records this frame's explicit source clock.
+    pub fn build_checked_with_server_time<I>(
+        spare: Option<SnapshotData>,
+        tick: u32,
+        server_time: f64,
+        phase: u8,
+        ack_input: u32,
+        me: Option<WireSelf>,
+        actors: I,
+    ) -> Result<Self, EncodeError>
+    where
+        I: ExactSizeIterator<Item = Result<QActor, &'static str>>,
+    {
+        if !server_time.is_finite() || server_time < 0.0 {
+            return Err(EncodeError::BadValue("server time"));
+        }
         let declared = actors.len();
         list("actors", declared, MAX_ACTORS)?;
         if phase > MAX_PHASE_CODE
@@ -399,11 +512,13 @@ impl SnapshotData {
         b.min_len = (1
             + varint_len(tick)
             + varint_len(ack_input)
-            + head_len(head_word(phase, me.as_ref(), false))
+            + head_len(head_word(phase, tick, server_time, me.as_ref(), false))
+            + (server_time.to_bits() != snapshot_server_ms(tick).to_bits()) as usize * 8
             + varint_len(declared as u32)
             + me.as_ref().map_or(0, |_| MIN_SELF)
             + MIN_ACTOR * declared) as u32;
         b.tick = tick;
+        b.server_time = server_time;
         b.phase = phase;
         b.ack_input = ack_input;
         b.me = me;
@@ -413,6 +528,9 @@ impl SnapshotData {
 
     pub fn tick(&self) -> u32 {
         self.tick
+    }
+    pub fn server_time(&self) -> f64 {
+        self.server_time
     }
     pub fn phase(&self) -> u8 {
         self.phase
@@ -435,7 +553,14 @@ impl SnapshotData {
         self.0.min_len = (1
             + varint_len(self.tick)
             + varint_len(self.ack_input)
-            + head_len(head_word(self.phase, self.me.as_ref(), training))
+            + head_len(head_word(
+                self.phase,
+                self.tick,
+                self.server_time,
+                self.me.as_ref(),
+                training,
+            ))
+            + (self.server_time.to_bits() != snapshot_server_ms(self.tick).to_bits()) as usize * 8
             + varint_len(self.actors.len() as u32)
             + self.me.as_ref().map_or(0, |_| MIN_SELF)
             + MIN_ACTOR * self.actors.len()) as u32;
@@ -449,12 +574,19 @@ impl SnapshotData {
     /// Exact size of this snapshot's Full frame (a pass over the actors: the writer asks only when a delta is not clearly
     /// smaller).
     pub fn full_len(&self) -> usize {
-        let head = head_word(self.phase, self.me.as_ref(), self.training);
+        let head = head_word(
+            self.phase,
+            self.tick,
+            self.server_time,
+            self.me.as_ref(),
+            self.training,
+        );
         let mut n = 1
             + varint_len(self.tick)
             + varint_len(self.ack_input)
             + head_len(head)
             + self.me.as_ref().map_or(0, |s| self_len(s, head))
+            + (head & HM_SERVER_TIME != 0) as usize * 8
             + varint_len(self.actors.len() as u32);
         let mut prev = None;
         for q in &self.actors {
@@ -485,6 +617,7 @@ impl SnapshotData {
         write_snapshot_head(
             &mut w,
             self.tick,
+            self.server_time,
             self.phase,
             self.ack_input,
             self.me.as_ref(),
@@ -505,6 +638,7 @@ impl SnapshotData {
     pub fn decoded(&self) -> ServerMsg {
         ServerMsg::Snapshot {
             tick: self.tick,
+            server_time: self.server_time,
             phase: self.phase,
             ack_input: self.ack_input,
             me: self.me,
@@ -675,6 +809,8 @@ fn actor_delta_mask(p: &QActor, q: &QActor) -> u32 {
         | ((p.displace_seq != q.displace_seq) as u32) << 9
         | ((p.mob_type_code != q.mob_type_code) as u32) << 10
         | ((p.sig != q.sig) as u32) << 11
+        | ((p.barrier_pct != q.barrier_pct || p.barrier_ring_step != q.barrier_ring_step) as u32)
+            << 12
 }
 
 /// The mask of a NEW actor: its position, and every other field that is not the default.
@@ -713,6 +849,10 @@ fn write_delta(
     if cur.phase != base.phase {
         head |= DH_PHASE;
         f.u8(cur.phase);
+    }
+    if cur.server_time.to_bits() != snapshot_server_ms(cur.tick).to_bits() {
+        head |= DH_SERVER_TIME;
+        f.bytes(cur.server_time.to_le_bytes());
     }
     let count_at = f.n;
     f.u8(0);
@@ -774,6 +914,10 @@ fn write_delta(
         if mask & AD_SIG != 0 {
             w.u8(q.sig);
         }
+        if mask & AD_BARRIER != 0 {
+            w.u8(q.barrier_pct);
+            w.u8(q.barrier_ring_step);
+        }
         put(out, &w);
         last = q.id;
         changed += 1;
@@ -796,8 +940,8 @@ fn write_delta(
     if head < 0x80 {
         out[start + head_at] = head as u8;
     } else {
-        // A bit from 7 up (a departure, the phase, a rarely changing field): a two-byte varint, three for bit 14.
-        let mut v = [0u8; 3];
+        // Protocol 12 adds head bits 21..=23, so the canonical head can be four bytes.
+        let mut v = [0u8; 4];
         let n = varint_len(head);
         for (k, b) in v[..n].iter_mut().enumerate() {
             *b = (head >> (7 * k)) as u8 & 0x7f | if k + 1 < n { 0x80 } else { 0 };
@@ -889,6 +1033,21 @@ fn write_self_delta(f: &mut Fixed<MAX_DELTA_HEAD>, b: &WireSelf, c: &WireSelf) -
         m |= DH_HUNT_STACKS;
         f.varint(c.hunt_stacks as u32);
     }
+    if !wish_bits_equal(b.wish, c.wish) {
+        m |= DH_WISH;
+        match c.wish {
+            None => f.u8(0),
+            Some(wish) => {
+                f.u8(1);
+                super::write_wish_owner(f, &wish);
+            }
+        }
+    }
+    if c.barrier.to_bits() != b.barrier.to_bits() || c.barrier_ring_step != b.barrier_ring_step {
+        m |= DH_BARRIER;
+        f.f32(c.barrier);
+        f.u8(c.barrier_ring_step);
+    }
     m
 }
 
@@ -915,6 +1074,10 @@ pub struct SelfDelta {
     pub sig: u8,
     pub hunt_target: Option<u32>,
     pub hunt_stacks: u16,
+    /// `Some(None)` clears the owner's Wish record; `None` means this group did not change.
+    pub wish: Option<Option<WireWishOwner>>,
+    pub barrier: f32,
+    pub barrier_ring_step: u8,
 }
 
 impl SelfDelta {
@@ -974,6 +1137,13 @@ impl SelfDelta {
         if m & DH_HUNT_STACKS != 0 {
             s.hunt_stacks = self.hunt_stacks;
         }
+        if let Some(wish) = self.wish {
+            s.wish = wish;
+        }
+        if m & DH_BARRIER != 0 {
+            s.barrier = self.barrier;
+            s.barrier_ring_step = self.barrier_ring_step;
+        }
         s
     }
 
@@ -1011,6 +1181,13 @@ impl SelfDelta {
             },
             hunt_stacks: if keep(DH_HUNT_STACKS) {
                 c.hunt_stacks
+            } else {
+                0
+            },
+            wish: if keep(DH_WISH) { Some(c.wish) } else { None },
+            barrier: if keep(DH_BARRIER) { c.barrier } else { 0.0 },
+            barrier_ring_step: if keep(DH_BARRIER) {
+                c.barrier_ring_step
             } else {
                 0
             },
@@ -1067,6 +1244,10 @@ impl ActorDelta {
         if self.mask & AD_SIG != 0 {
             a.sig = self.q.sig;
         }
+        if self.mask & AD_BARRIER != 0 {
+            a.barrier_pct = self.q.barrier_pct;
+            a.barrier_ring_step = self.q.barrier_ring_step;
+        }
         a
     }
 }
@@ -1075,6 +1256,8 @@ impl ActorDelta {
 #[derive(Clone, Debug, PartialEq)]
 pub struct SnapshotDelta {
     pub tick: u32,
+    /// This frame's absolute source clock; absent wire override decodes to `tick * 50`, never the base clock.
+    pub server_time: f64,
     /// Protocol 11: the source's public training fact (delta head bit 20; static per connection).
     pub training: bool,
     /// The tick of the snapshot this one is relative to (`tick - base_age`, 1..=[`MAX_DELTA_AGE`] behind).
@@ -1131,6 +1314,7 @@ pub fn diff(base: &SnapshotData, cur: &SnapshotData) -> Option<SnapshotDelta> {
         .collect();
     Some(SnapshotDelta {
         tick: cur.tick,
+        server_time: cur.server_time,
         training: cur.training,
         base_tick: base.tick,
         phase: (cur.phase != base.phase).then_some(cur.phase),
@@ -1165,6 +1349,16 @@ fn mask_fields(q: &QActor, mask: u32) -> QActor {
             0
         },
         sig: if mask & AD_SIG != 0 { q.sig } else { 0 },
+        barrier_pct: if mask & AD_BARRIER != 0 {
+            q.barrier_pct
+        } else {
+            0
+        },
+        barrier_ring_step: if mask & AD_BARRIER != 0 {
+            q.barrier_ring_step
+        } else {
+            0
+        },
     }
 }
 
@@ -1186,6 +1380,9 @@ pub(crate) fn write_message(w: &mut Writer, d: &SnapshotDelta) {
     }
     if !d.departed.is_empty() {
         head |= DH_DEPARTED;
+    }
+    if d.server_time.to_bits() != snapshot_server_ms(d.tick).to_bits() {
+        head |= DH_SERVER_TIME;
     }
     w.varint(head);
     if let Some(s) = &d.me {
@@ -1241,9 +1438,26 @@ pub(crate) fn write_message(w: &mut Writer, d: &SnapshotDelta) {
         if m & DH_HUNT_STACKS != 0 {
             w.varint(s.hunt_stacks as u32);
         }
+        if m & DH_WISH != 0 {
+            match s.wish {
+                Some(Some(wish)) => {
+                    w.u8(1);
+                    super::write_wish_owner_writer(w, &wish);
+                }
+                Some(None) => w.u8(0),
+                None => unreachable!("Wish bit has an explicit option"),
+            }
+        }
+        if m & DH_BARRIER != 0 {
+            w.f32(s.barrier);
+            w.u8(s.barrier_ring_step);
+        }
     }
     if let Some(p) = d.phase {
         w.u8(p);
+    }
+    if head & DH_SERVER_TIME != 0 {
+        w.f64(d.server_time);
     }
     w.varint(d.changed.len() as u32);
     let mut prev: Option<u32> = None;
@@ -1287,6 +1501,10 @@ pub(crate) fn write_message(w: &mut Writer, d: &SnapshotDelta) {
         if a.mask & AD_SIG != 0 {
             w.u8(a.q.sig);
         }
+        if a.mask & AD_BARRIER != 0 {
+            w.u8(a.q.barrier_pct);
+            w.u8(a.q.barrier_ring_step);
+        }
     }
     if !d.departed.is_empty() {
         write_departed(w, &d.departed);
@@ -1304,6 +1522,9 @@ pub(crate) fn message_check(d: &SnapshotDelta) -> Result<(), EncodeError> {
     list("actors", d.changed.len(), MAX_ACTORS)?;
     list("departed", d.departed.len(), MAX_ACTORS)?;
     let bad = |why| Err(EncodeError::BadValue(why));
+    if !d.server_time.is_finite() || d.server_time < 0.0 {
+        return bad("server time");
+    }
     if d.phase.is_some_and(|p| p > MAX_PHASE_CODE) {
         return bad("phase");
     }
@@ -1321,6 +1542,20 @@ pub(crate) fn message_check(d: &SnapshotDelta) -> Result<(), EncodeError> {
         if s.mask & DH_STATUS != 0 && s.status > MAX_STATUS_CODE {
             return bad("status");
         }
+        if (s.mask & DH_WISH != 0) != s.wish.is_some() {
+            return bad("wish");
+        }
+        if s.wish
+            .flatten()
+            .is_some_and(|wish| !super::wish_owner_valid(&wish))
+        {
+            return bad("wish");
+        }
+        if s.mask & DH_BARRIER != 0
+            && (!s.barrier.is_finite() || s.barrier < 0.0 || s.barrier_ring_step > 8)
+        {
+            return bad("barrier");
+        }
     }
     let mut prev: Option<u32> = None;
     for a in &d.changed {
@@ -1335,6 +1570,9 @@ pub(crate) fn message_check(d: &SnapshotDelta) -> Result<(), EncodeError> {
         }
         if a.mask & AD_HP != 0 && a.q.hp_pct > 100 {
             return bad("hp_pct");
+        }
+        if a.mask & AD_BARRIER != 0 && (a.q.barrier_pct > 100 || a.q.barrier_ring_step > 8) {
+            return bad("barrier");
         }
         if prev.is_some_and(|p| a.q.id <= p) {
             return bad("actor order");
@@ -1404,6 +1642,16 @@ fn read_self_delta(r: &mut Reader, mask: u32) -> Result<SelfDelta, DecodeError> 
     if mask & DH_HUNT_STACKS != 0 {
         s.hunt_stacks = crate::varint_u16(r, "hunt_stacks")?;
     }
+    if mask & DH_WISH != 0 {
+        s.wish = Some(r.opt(crate::read_wish_owner)?);
+    }
+    if mask & DH_BARRIER != 0 {
+        s.barrier = r.f32()?;
+        s.barrier_ring_step = r.u8()?;
+        if !s.barrier.is_finite() || s.barrier < 0.0 || s.barrier_ring_step > 8 {
+            return Err(DecodeError::BadField("barrier"));
+        }
+    }
     Ok(s)
 }
 
@@ -1441,6 +1689,15 @@ pub(crate) fn read_snapshot_delta(r: &mut Reader) -> Result<SnapshotDelta, Decod
         Some(crate::code(r, MAX_PHASE_CODE, "phase")?)
     } else {
         None
+    };
+    let server_time = if head & DH_SERVER_TIME != 0 {
+        let time = r.f64()?;
+        if !time.is_finite() || time < 0.0 || time.to_bits() == snapshot_server_ms(tick).to_bits() {
+            return Err(DecodeError::BadField("server time"));
+        }
+        time
+    } else {
+        snapshot_server_ms(tick)
     };
     let n = r.varint()? as usize;
     if n > MAX_ACTORS {
@@ -1498,6 +1755,13 @@ pub(crate) fn read_snapshot_delta(r: &mut Reader) -> Result<SnapshotDelta, Decod
         if mask & AD_SIG != 0 {
             q.sig = r.u8()?;
         }
+        if mask & AD_BARRIER != 0 {
+            q.barrier_pct = r.u8()?;
+            q.barrier_ring_step = r.u8()?;
+            if q.barrier_pct > 100 || q.barrier_ring_step > 8 {
+                return Err(DecodeError::BadField("barrier"));
+            }
+        }
         changed.push(ActorDelta { mask, q });
     }
     let mut departed = Vec::new();
@@ -1519,6 +1783,7 @@ pub(crate) fn read_snapshot_delta(r: &mut Reader) -> Result<SnapshotDelta, Decod
     }
     Ok(SnapshotDelta {
         tick,
+        server_time,
         training,
         base_tick: tick - age,
         phase,
@@ -1589,6 +1854,7 @@ impl std::error::Error for TrackError {}
 #[derive(Clone, Debug, Default)]
 pub struct SnapshotTracker {
     tick: Option<u32>,
+    server_time: f64,
     training: bool,
     phase: u8,
     ack_input: u32,
@@ -1605,6 +1871,7 @@ impl SnapshotTracker {
     /// Forgets the held snapshot (a new connection or a Welcome).
     pub fn reset(&mut self) {
         self.tick = None;
+        self.server_time = 0.0;
         self.training = false;
         self.me = None;
         self.actors.clear();
@@ -1629,6 +1896,7 @@ impl SnapshotTracker {
         Some(ServerMsg::Snapshot {
             training: self.training,
             tick: self.tick?,
+            server_time: self.server_time,
             phase: self.phase,
             ack_input: self.ack_input,
             me: self.me,
@@ -1652,6 +1920,7 @@ impl SnapshotTracker {
             }
             ServerMsg::Snapshot {
                 tick,
+                server_time,
                 phase,
                 ack_input,
                 me,
@@ -1659,6 +1928,7 @@ impl SnapshotTracker {
                 training,
             } => {
                 self.tick = Some(tick);
+                self.server_time = server_time;
                 self.training = training;
                 self.phase = phase;
                 self.ack_input = ack_input;
@@ -1667,6 +1937,7 @@ impl SnapshotTracker {
                 self.actors.extend_from_slice(&actors);
                 Ok(ServerMsg::Snapshot {
                     tick,
+                    server_time,
                     phase,
                     ack_input,
                     me,
@@ -1708,6 +1979,7 @@ impl SnapshotTracker {
         std::mem::swap(&mut self.actors, &mut out);
         self.scratch = out;
         self.tick = Some(d.tick);
+        self.server_time = d.server_time;
         self.training = d.training;
         if let Some(p) = d.phase {
             self.phase = p;
