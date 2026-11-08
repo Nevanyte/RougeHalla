@@ -61,6 +61,9 @@ namespace Roguehalla.Client.Tests
             // Keep the project EventSystem active and move this known-registered instance to the front.
             _ownedEvents = new GameObject("UI input routing test EventSystem", typeof(UiInputRoutingEventSystem));
             var ownedSystem = _ownedEvents.GetComponent<UiInputRoutingEventSystem>();
+            // Force a real disable/enable lifecycle before promoting it; EditMode creation alone may not register it.
+            ownedSystem.enabled = false;
+            ownedSystem.enabled = true;
             EventSystem.current = ownedSystem;
             Assert.That(EventSystem.current, Is.SameAs(ownedSystem), "test EventSystem must be registered before UI setup");
             _keyboard = InputSystem.AddDevice<Keyboard>();
