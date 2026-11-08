@@ -41,7 +41,7 @@ namespace Roguehalla.Net
         Archon = 29,
     }
     public enum PotionNotice : byte { Stored=1,BagFull=2,Used=3,Blocked=4,Busy=5,Full=6,Empty=7 }
-    public enum ActorKind : byte { Player = 0, RegionalMob = 1, Zombie = 2 }
+    public enum ActorKind : byte { Player = 0, RegionalMob = 1, Zombie = 2, TrainingDummy = 3 }
 
     /// <summary>Faction code: <c>FactionId::ALL</c> order (append only). A value outside the named ones is a newer server's.</summary>
     public enum FactionId : byte { Fire = 0, Sentenced = 1, Plague = 2, Frost = 3, Holy = 4 }
@@ -64,6 +64,8 @@ namespace Roguehalla.Net
         public ushort ReadyInMs, Kills, Bounty, Gv;
         public byte MoveSeq, DisplaceSeq, SelfSig;
         public ushort Effects;
+        public uint? HuntTarget;
+        public ushort HuntStacks;
 
         /// <summary>Health as a whole percent, 100 when the maximum is unknown (0).</summary>
         public int HpPct
@@ -81,6 +83,7 @@ namespace Roguehalla.Net
         {
             Id = w.Id; Faction = (FactionId)w.Faction; X = w.X; Y = w.Y; Facing = w.Facing; Hp = w.Hp; MaxHp = w.MaxHp;
             Status = (ActorStatus)w.Status; Weapon = (WeaponId)w.Weapon; ReadyInMs = w.ReadyInMs; Kills = w.Kills; Bounty = w.Bounty;
+            HuntTarget = w.HuntTarget; HuntStacks = w.HuntStacks;
             Gv = w.Gv; MoveSeq = w.MoveSeq; Effects = w.Effects; DisplaceSeq = w.DisplaceSeq; SelfSig=w.Sig;
         }
     }

@@ -33,7 +33,7 @@ namespace Roguehalla.Net.Tests
             throw new KeyNotFoundException(name);
         }
 
-        [Test] public void FixtureIsProtocolV8() { Assert.AreEqual(8, Wire.ProtocolVersion); Assert.AreEqual(Wire.ProtocolVersion, Fixture().GetProperty("protocol").GetInt32()); }
+        [Test] public void FixtureIsProtocolV11() { Assert.AreEqual(11, Wire.ProtocolVersion); Assert.AreEqual(Wire.ProtocolVersion, Fixture().GetProperty("protocol").GetInt32()); }
 
         [TestCaseSource(nameof(ClientVectors))]
         public void ClientVectorRoundTripsByteForByte(string name, string hex)
@@ -89,7 +89,7 @@ namespace Roguehalla.Net.Tests
         }
 
         [TestCase(0)]
-        [TestCase(5)]
+        [TestCase(6)]
         [TestCase(255)]
         public void FxEncoderRefusesUndefinedKindsBeforeWriting(int kind)
         {
@@ -122,7 +122,7 @@ namespace Roguehalla.Net.Tests
             var snap = Server<ServerMsg.Snapshot>("snapshot_training");
             Assert.IsTrue(snap.Training);
             Assert.AreEqual(1, snap.Actors.Length);
-            Assert.AreEqual(2, snap.Actors[0].Kind); // protocol 8 training dummy
+            Assert.AreEqual(3, snap.Actors[0].Kind); // protocol 11 training dummy, distinct from zombie
             Assert.AreEqual(0, snap.Actors[0].MobTypeCode);
             Assert.IsTrue(Server<ServerMsg.SnapshotDelta>("snapshot_delta_training").Training);
             Assert.IsFalse(Server<ServerMsg.Snapshot>("snapshot").Training);
@@ -139,7 +139,7 @@ namespace Roguehalla.Net.Tests
         }
 
         [TestCase(0)]
-        [TestCase(9)]
+        [TestCase(11)]
         [TestCase(255)]
         public void EventsEncoderRefusesUndefinedKindsBeforeWriting(int kind)
         {
@@ -202,6 +202,18 @@ namespace Roguehalla.Net.Tests
             foreach (var bad in new[] { WireCommand.Swap(2), WireCommand.Pickup(default(PickupHandle)) }) {
                 var input = new ClientMsg.Input(); input.Commands.Add(bad); Assert.Throws<ArgumentException>(() => input.Encode());
             }
+        }
+
+        [Test]
+        public void HuntCommandAndSelfFieldsRoundTrip()
+        {
+            var h = Client<ClientMsg.Input>("input_hunt");
+            Assert.AreEqual(1, h.Commands.Count);
+            Assert.AreEqual(CommandKind.HuntTarget, h.Commands[0].Kind);
+            Assert.AreEqual(2u, h.Commands[0].ActorRef);
+            var snap = Server<ServerMsg.Snapshot>("snapshot");
+            Assert.AreEqual(2u, snap.Me.HuntTarget);
+            Assert.AreEqual((ushort)3, snap.Me.HuntStacks);
         }
 
         [Test]
@@ -358,6 +370,7 @@ namespace Roguehalla.Net.Tests
                     }
                     else if (it.GetProperty("k").GetString() == "block") { Assert.AreEqual(FxKind.Block, f.Kind); Assert.AreEqual(it.GetProperty("id").GetUInt32(), f.Id); Assert.AreEqual(it.GetProperty("by").GetUInt32(), f.By); Assert.AreEqual(it.GetProperty("weapon").GetByte(), f.Weapon); }
                     else if (it.GetProperty("k").GetString() == "stagger") { Assert.AreEqual(FxKind.Stagger, f.Kind); Assert.AreEqual(it.GetProperty("id").GetUInt32(), f.Id); }
+                    else if (it.GetProperty("k").GetString() == "teleport") { Assert.AreEqual(FxKind.Teleport, f.Kind); }
                     else
                     {
                         Assert.AreEqual(it.GetProperty("passive").GetBoolean(), f.Passive);
@@ -378,6 +391,7 @@ namespace Roguehalla.Net.Tests
             Assert.AreEqual(d.GetProperty("serverMs").GetDouble(), s.ServerMs);
             Assert.AreEqual(d.GetProperty("phase").GetByte(), s.Phase);
             Assert.AreEqual(d.GetProperty("ack").GetUInt32(), s.AckInput);
+            Assert.AreEqual(d.GetProperty("training").GetBoolean(), s.Training);
             var me = d.GetProperty("me");
             if (me.ValueKind == JsonValueKind.Null) Assert.IsNull(s.Me);
             else
@@ -391,6 +405,9 @@ namespace Roguehalla.Net.Tests
                 Assert.AreEqual(me.GetProperty("bounty").GetUInt16(), s.Me.Bounty); Assert.AreEqual(me.GetProperty("gv").GetUInt16(), s.Me.Gv);
                 Assert.AreEqual(me.GetProperty("moveSeq").GetByte(), s.Me.MoveSeq);
                 Assert.AreEqual(me.GetProperty("effects").GetUInt16(), s.Me.Effects); Assert.AreEqual(me.GetProperty("displaceSeq").GetByte(), s.Me.DisplaceSeq); Assert.AreEqual(me.GetProperty("sig").GetByte(),s.Me.Sig);
+                var hunt = me.GetProperty("huntTarget");
+                Assert.AreEqual(hunt.ValueKind == JsonValueKind.Null ? (uint?)null : hunt.GetUInt32(), s.Me.HuntTarget);
+                Assert.AreEqual(me.GetProperty("huntStacks").GetUInt16(), s.Me.HuntStacks);
             }
             var actors = d.GetProperty("actors");
             Assert.AreEqual(actors.GetArrayLength(), s.Actors.Length);
@@ -419,13 +436,14 @@ namespace Roguehalla.Net.Tests
                 case "projectile_owner_flag": case "hit_bad_passive": want = DecodeError.BadTag; break;
                 case "projectile_kind": case "projectile_owner_zero":
                 case "potion_notice_zero": case "potion_notice_unknown":
+                case "cannon_notice_zero": case "cannon_notice_unknown": case "cannon_notice_bad_seconds": case "cannon_notice_seconds_over":
                 case "camp_mob_type": case "camp_elite": case "camp_alive": case "camp_state": case "camp_negative_time": case "camp_nonfinite_time": case "camp_time_order":
                 case "actor_mob_type_over_30": case "delta_actor_mob_type_over_30":
                 case "chest_bad_reason_zero": case "chest_bad_reason_unknown":
                 case "pickup_bad_reason_zero": case "pickup_bad_reason_unknown": want = DecodeError.BadField; break;
                 case "unknown_tag": case "client_tag_from_server": case "fx_bad_tag": want = DecodeError.BadTag; break;
                 case "trailing_byte": case "state_trailing_byte": want = DecodeError.Trailing; break;
-                case "state_truncated": want = DecodeError.Truncated; break;
+                case "state_truncated": case "cannon_notice_missing_seconds": want = DecodeError.Truncated; break;
                 case "overlong_varint": case "varint_past_u32": case "varint_too_long": case "head_overlong_varint": case "actor_mask_overlong_varint":
                 case "projectile_owner_overlong": case "delta_head_overlong_varint":
                     want = DecodeError.BadVarint; break;
@@ -434,7 +452,7 @@ namespace Roguehalla.Net.Tests
                 case "head_self_bit_without_present_bit": case "head_unknown_bit": case "self_max_hp_over_u16": case "actor_reserved_mask_bit":
                 case "self_status_over_3": case "phase_over_3": case "actor_status_over_3": case "actor_unknown_mask_bit_after_kind":
                 case "state_duplicate_key": case "state_key_order": case "state_bad_potion_count": case "state_zero_prop_handle": case "state_missing_focus":
-                case "state_unknown_key": case "delta_head_unknown_bit": case "delta_phase_over_3": case "delta_actor_mask_unknown_bit":
+                case "state_plan_negative_deadline": case "state_unknown_key": case "delta_head_unknown_bit": case "delta_phase_over_3": case "delta_actor_mask_unknown_bit":
                 case "delta_actor_status_over_3":
                 case "actor_id_gap_zero": case "actor_id_overflow": case "actor_hp_over_100": case "actor_bounty_over_u16":
                 case "delta_age_zero": case "delta_age_over_max": case "delta_age_past_tick": case "delta_head_field_without_present_bit":

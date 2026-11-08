@@ -4,7 +4,7 @@ using Roguehalla.Net.Protocol;
 
 namespace Roguehalla.Net
 {
-    public enum PropAppearance : byte { Ground = 1, Chest = 2, Body = 3 }
+    public enum PropAppearance : byte { Ground = 1, Chest = 2, Body = 3, Corpse = 4, WindEmblem = 5, Cannon = 6 }
     public enum AreaKind : byte { Zone, Cloud, Trail }
     public enum AbilityId : byte { Freeze, Swarm, Trial, Blaze, LastStand }
     public enum CardId : byte { SlowBurn, PocketSand, Siphon }
@@ -12,7 +12,7 @@ namespace Roguehalla.Net
     public enum ProjectileKind : byte { Arrow=0,Ball=1 }
     public struct NetProjectileView { public ProjectileKind Kind; public float X,Y,Facing; public uint? Owner; }
     public struct CampView { public MobTypeId MobType; public MobTypeId? Elite; public uint Alive; public byte State; public double ClearedAt,RespawnAt; }
-    public struct InventoryView { public byte ActiveSlot, PotionSmall, PotionsHealing; public WeaponId? Slot0, Slot1; }
+    public struct InventoryView { public byte ActiveSlot, PotionSmall, PotionLarge, PotionsHealing; public WeaponId? Slot0, Slot1; }
     public struct PropView
     {
         public PickupHandle Handle;
@@ -20,7 +20,9 @@ namespace Roguehalla.Net
         public PropAppearance Kind;
         public WeaponId? Weapon, BodyHint;
         public bool Open, Focused;
-        public string BodyLabel;
+        public string BodyLabel, CorpseLabel;
+        /// <summary>Server-time reload deadline, in milliseconds; presentation only.</summary>
+        public uint ReadyAt;
     }
     public struct AreaView
     {
@@ -48,6 +50,50 @@ namespace Roguehalla.Net
         public IReadOnlyList<RewardOptionView> Options { get; internal set; }
     }
 
+    public readonly struct PlanOptionView
+    {
+        public uint Index { get; }
+        public float X { get; }
+        public float Y { get; }
+        public byte Zone { get; }
+        public float? WalkSeconds { get; }
+        internal PlanOptionView(WirePlanOption v)
+        {
+            Index = v.Index; X = Quant.DequantizePos(v.X); Y = Quant.DequantizePos(v.Y);
+            Zone = v.Zone; WalkSeconds = v.WalkSeconds;
+        }
+    }
+    /// <summary>An owned private deal, copied from the validated reliable State record.</summary>
+    public sealed class PlanView
+    {
+        public double EndsAt { get; }
+        public uint? Spawn0 { get; }
+        public uint? Spawn1 { get; }
+        public bool Taken0 { get; }
+        public bool Taken1 { get; }
+        public byte? Pick { get; }
+        public byte? Boon { get; }
+        public bool Ready { get; }
+        public IReadOnlyList<string> Boons { get; }
+        public PlanOptionView? Option0 { get; }
+        public PlanOptionView? Option1 { get; }
+        internal PlanView(WirePlan v)
+        {
+            EndsAt = v.EndsAt; Spawn0 = v.Spawn0; Spawn1 = v.Spawn1; Taken0 = v.Taken0; Taken1 = v.Taken1;
+            Pick = v.Pick; Boon = v.Boon; Ready = v.Ready;
+            Boons = Array.AsReadOnly((string[])v.Boons.Clone());
+            Option0 = v.Option0.HasValue ? new PlanOptionView(v.Option0.Value) : (PlanOptionView?)null;
+            Option1 = v.Option1.HasValue ? new PlanOptionView(v.Option1.Value) : (PlanOptionView?)null;
+        }
+    }
+    public struct ArenaView
+    {
+        public double LobbyEndsAt, PlanEndsAt, RaidStartedAt, SuddenDeathAt;
+        public double? PatienceEndsAt;
+        public bool InColiseum, GatesLocked;
+        public uint StartedWith;
+    }
+
     /// <summary>
     /// Owned presentation facts from the reliable State channel. Socket order, rather than snapshot age,
     /// controls replacement: a reliable update can precede a newer coalesced snapshot. No gameplay is computed here.
@@ -65,11 +111,20 @@ namespace Roguehalla.Net
         public IReadOnlyList<CampView> Camps { get; private set; } = Array.Empty<CampView>();
         public IReadOnlyList<NetProjectileView> Projectiles { get; private set; } = Array.Empty<NetProjectileView>();
         public bool HasBuild { get; private set; }
+        public PlanView Plan { get; private set; }
+        public ArenaView? Arena { get; private set; }
+        const uint KnownStateMask =
+            (1u << ((int)StateKey.Inventory - 1)) | (1u << ((int)StateKey.Props - 1)) |
+            (1u << ((int)StateKey.Fields - 1)) | (1u << ((int)StateKey.RewardChests - 1)) |
+            (1u << ((int)StateKey.Build - 1)) | (1u << ((int)StateKey.Camps - 1)) |
+            (1u << ((int)StateKey.Projectiles - 1)) | (1u << ((int)StateKey.Plan - 1)) |
+            (1u << ((int)StateKey.Arena - 1));
         uint _seen;
-        public bool HasFullState { get { return _seen == 127; } }
+        public bool HasFullState { get { return _seen == KnownStateMask; } }
 
         internal void Reset()
         {
+            Plan = null; Arena = null;
             Tick = 0; _seen = 0; Camps=Array.Empty<CampView>(); Projectiles=Array.Empty<NetProjectileView>(); Inventory = null; Focus = null; HasBuild = false;
             Props = Array.Empty<PropView>(); Fields = Array.Empty<AreaView>();
             RewardChests = Array.Empty<RewardChestView>(); Cards = Array.Empty<byte>(); Boosts = Array.Empty<byte>();
@@ -79,13 +134,18 @@ namespace Roguehalla.Net
             // Decode validated the complete frame before this method can mutate the retained view.
             foreach (var item in state.Items)
             {
+                if (item.Key < (uint)StateKey.Inventory || item.Key > (uint)StateKey.Arena)
+                    throw new ArgumentException("unknown state key");
+            }
+            foreach (var item in state.Items)
+            {
                 _seen |= 1u << ((int)item.Key - 1);
                 if (item is InventoryState inventory)
                 {
                     Inventory = inventory.Value.HasValue ? new InventoryView
                     {
                         ActiveSlot = inventory.Value.Value.ActiveSlot,
-                        PotionSmall=inventory.Value.Value.PotionSmall,PotionsHealing=inventory.Value.Value.PotionsHealing,
+                        PotionSmall=inventory.Value.Value.PotionSmall,PotionLarge=inventory.Value.Value.PotionLarge,PotionsHealing=inventory.Value.Value.PotionsHealing,
                         Slot0 = inventory.Value.Value.Slot0.HasValue ? (WeaponId?)inventory.Value.Value.Slot0.Value : null,
                         Slot1 = inventory.Value.Value.Slot1.HasValue ? (WeaponId?)inventory.Value.Value.Slot1.Value : null
                     } : (InventoryView?)null;
@@ -99,7 +159,7 @@ namespace Roguehalla.Net
                         rows[i] = new PropView
                         {
                             Handle = source.Handle, X = Quant.DequantizePos(source.X), Y = Quant.DequantizePos(source.Y),
-                            Kind = (PropAppearance)source.Kind, Open = source.Open, BodyLabel = source.BodyLabel,
+                            Kind = (PropAppearance)source.Kind, Open = source.Open, BodyLabel = source.BodyLabel, CorpseLabel = source.CorpseLabel, ReadyAt = source.ReadyAt,
                             Weapon = source.Kind == Protocol.PropKind.Ground ? (WeaponId?)source.GroundWeapon : null,
                             Focused = focused, BodyHint = focused && props.Focus.Value.BodyHint.HasValue ? (WeaponId?)props.Focus.Value.BodyHint.Value : null
                         };
@@ -150,6 +210,22 @@ namespace Roguehalla.Net
                     var rows=new CampView[camps.Rows.Length];
                     for(int i=0;i<rows.Length;i++) {var c=camps.Rows[i];rows[i]=new CampView {MobType=(MobTypeId)c.MobType,Elite=c.Elite==0?(MobTypeId?)null:(MobTypeId)(c.Elite-1),Alive=c.Alive,State=c.State,ClearedAt=c.ClearedAt,RespawnAt=c.RespawnAt};}
                     Camps=rows;
+                }
+                else if (item is PlanState plan)
+                {
+                    Plan = plan.Value == null ? null : new PlanView(plan.Value);
+                }
+                else if (item is ArenaState arena)
+                {
+                    if (!arena.Value.HasValue) Arena = null;
+                    else
+                    {
+                        var v = arena.Value.Value;
+                        Arena = new ArenaView { LobbyEndsAt = v.LobbyEndsAt, PlanEndsAt = v.PlanEndsAt,
+                            RaidStartedAt = v.RaidStartedAt, PatienceEndsAt = v.PatienceEndsAt,
+                            InColiseum = v.InColiseum, GatesLocked = v.GatesLocked,
+                            SuddenDeathAt = v.SuddenDeathAt, StartedWith = v.StartedWith };
+                    }
                 }
                 else if (item is BuildState build)
                 {

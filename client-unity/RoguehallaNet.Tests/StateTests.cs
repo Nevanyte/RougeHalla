@@ -12,12 +12,12 @@ namespace Roguehalla.Net.Tests
         static ServerMsg.State Full(uint tick)
         {
             return new ServerMsg.State { Tick=tick, Items=new StateItem[] {
-                new InventoryState { Value=new WireInventory { ActiveSlot=1,Slot0=null,Slot1=2,PotionSmall=5,PotionsHealing=3 } },
+                new InventoryState { Value=new WireInventory { ActiveSlot=1,Slot0=null,Slot1=2,PotionSmall=5,PotionLarge=4,PotionsHealing=3 } },
                 new PropsState { Rows=new [] {
                     new WireProp {Handle=new PickupHandle(1),X=800,Y=900,Kind=PropKind.Ground,GroundWeapon=0},
                     new WireProp {Handle=new PickupHandle(2),X=801,Y=902,Kind=PropKind.Chest,Open=true},
                     new WireProp {Handle=new PickupHandle(3),X=802,Y=903,Kind=PropKind.Body,BodyLabel="\ufeffBÖB"},
-                    new WireProp {Handle=new PickupHandle(4),X=803,Y=904,Kind=PropKind.Cannon,ReadyAt=175000}
+                    new WireProp {Handle=new PickupHandle(4),X=803,Y=904,Kind=PropKind.WindEmblem}
                 },Focus=new WireFocus{Handle=new PickupHandle(3),BodyHint=4} },
                 new FieldsState {Rows=new [] {new WireField {Kind=2,Ability=3,Owner=null,Subject=1,X=20,Y=30,X2=40,Y2=50,Radius=12,Vx=-2,Vy=0,StartedAt=1000.5,EndsAt=6000.5}}},
                 new RewardChestsState {Rows=new [] {new WireRewardChest {Handle=new RewardChestHandle(uint.MaxValue),X=100,Y=200,ExpiresAt=15000,Options=new [] {
@@ -25,7 +25,8 @@ namespace Roguehalla.Net.Tests
                 },Picked=false,CanChoose=true}}},
                 new BuildState {Value=new WireBuild {Cards=BuildCards(),Boosts=new byte[]{0,1,2,3,0,1,2,3}}},
                 new CampsState {Rows=new[]{new WireCamp{MobType=0,Elite=30,Alive=0,State=2,ClearedAt=1000,RespawnAt=181000}}},
-                new ProjectilesState {Rows=new[]{new WireProjectile{Kind=0,X=800,Y=900,Facing=12345,Owner=1},new WireProjectile{Kind=0,X=800,Y=900,Facing=12345,Owner=1}}}
+                new ProjectilesState {Rows=new[]{new WireProjectile{Kind=0,X=800,Y=900,Facing=12345,Owner=1},new WireProjectile{Kind=0,X=800,Y=900,Facing=12345,Owner=1}}},
+                new PlanState(), new ArenaState()
             }};
         }
         static ServerMsg.Welcome Welcome()

@@ -52,10 +52,13 @@ pub const DH_STATUS: u32 = 1 << 14;
 pub const DH_EFFECTS: u32 = 1 << 15;
 pub const DH_DISPLACE: u32 = 1 << 16;
 pub const DH_SIG: u32 = 1 << 17;
-/// Protocol 8: the source's public training fact (a practice room never runs a match); static per connection.
-pub const DH_TRAINING: u32 = 1 << 18;
-pub const DH_FIELDS: u32 = 0x7e7e | DH_EFFECTS | DH_DISPLACE | DH_SIG;
+pub const DH_HUNT_TARGET: u32 = 1 << 18;
+pub const DH_HUNT_STACKS: u32 = 1 << 19;
+pub const DH_FIELDS: u32 =
+    0x7e7e | DH_EFFECTS | DH_DISPLACE | DH_SIG | DH_HUNT_TARGET | DH_HUNT_STACKS;
 pub const DH_KNOWN: u32 = DH_PRESENT | DH_FIELDS | DH_PHASE | DH_DEPARTED | DH_TRAINING;
+/// Public training fact, independent of the self; present on every training delta.
+pub const DH_TRAINING: u32 = 1 << 20;
 
 /// Actor delta mask bits (append only): the fields that follow, in bit order.
 pub const AD_X: u32 = 1 << 0;
@@ -82,7 +85,7 @@ const MIN_ACTOR: usize = 1 + 1 + 6;
 
 /// Largest self delta after the head: x, y, facing, hp, max_hp (4 each), kit, ready (2), kills, bounty, gv (3 each),
 /// move_seq, status, phase, effects (2), displacement, sig.
-const MAX_SELF_DELTA: usize = 20 + 1 + 2 + 9 + 1 + 1 + 1 + 2 + 1 + 1;
+const MAX_SELF_DELTA: usize = 20 + 1 + 2 + 9 + 1 + 1 + 1 + 2 + 1 + 1 + 5 + 3;
 /// Largest delta head: tag, tick (5), age, ack (5), head (1 placeholder), the self delta, the changed count (3).
 const MAX_DELTA_HEAD: usize = 1 + 5 + 1 + 5 + 1 + MAX_SELF_DELTA + 3;
 /// Largest changed-actor record: id 5, mask 2, x/y/facing 6, kit/hp, bounty 3, status/kind, effects 2, displacement/mob type/sig.
@@ -294,7 +297,7 @@ pub struct SnapshotInner {
     ack_input: u32,
     me: Option<WireSelf>,
     actors: Vec<QActor>,
-    /// Protocol 8: the source's public training fact (head bit 14 on a Full frame, bit 18 on a delta).
+    /// Protocol 11: the source's public training fact (head bit 16 on a Full frame, bit 18 on a delta).
     training: bool,
     /// [`SnapshotData::min_len`], worked out once.
     min_len: u32,
@@ -421,8 +424,8 @@ impl SnapshotData {
     pub fn training(&self) -> bool {
         self.training
     }
-    /// Marks this snapshot as the view of a training world: the wire writes the training head bit (bit 14 on a Full frame,
-    /// bit 18 on a delta). Absent for every ordinary match, so those frames stay byte-identical to v7 apart from the
+    /// Marks this snapshot as the view of a training world: the wire writes the training head bit (bit 16 on a Full frame,
+    /// bit 20 on a delta). Absent for every ordinary match, so those frames stay byte-identical to v7 apart from the
     /// version number.
     pub fn set_training(&mut self, training: bool) {
         if self.training == training {
@@ -878,6 +881,14 @@ fn write_self_delta(f: &mut Fixed<MAX_DELTA_HEAD>, b: &WireSelf, c: &WireSelf) -
         m |= DH_SIG;
         f.u8(c.sig);
     }
+    if c.hunt_target != b.hunt_target {
+        m |= DH_HUNT_TARGET;
+        f.varint(c.hunt_target.unwrap_or(0));
+    }
+    if c.hunt_stacks != b.hunt_stacks {
+        m |= DH_HUNT_STACKS;
+        f.varint(c.hunt_stacks as u32);
+    }
     m
 }
 
@@ -902,6 +913,8 @@ pub struct SelfDelta {
     pub effects: u16,
     pub displace_seq: u8,
     pub sig: u8,
+    pub hunt_target: Option<u32>,
+    pub hunt_stacks: u16,
 }
 
 impl SelfDelta {
@@ -955,6 +968,12 @@ impl SelfDelta {
         if m & DH_SIG != 0 {
             s.sig = self.sig;
         }
+        if m & DH_HUNT_TARGET != 0 {
+            s.hunt_target = self.hunt_target;
+        }
+        if m & DH_HUNT_STACKS != 0 {
+            s.hunt_stacks = self.hunt_stacks;
+        }
         s
     }
 
@@ -985,6 +1004,16 @@ impl SelfDelta {
             effects: if keep(DH_EFFECTS) { c.effects } else { 0 },
             displace_seq: if keep(DH_DISPLACE) { c.displace_seq } else { 0 },
             sig: if keep(DH_SIG) { c.sig } else { 0 },
+            hunt_target: if keep(DH_HUNT_TARGET) {
+                c.hunt_target
+            } else {
+                None
+            },
+            hunt_stacks: if keep(DH_HUNT_STACKS) {
+                c.hunt_stacks
+            } else {
+                0
+            },
         }
     }
 }
@@ -1046,7 +1075,7 @@ impl ActorDelta {
 #[derive(Clone, Debug, PartialEq)]
 pub struct SnapshotDelta {
     pub tick: u32,
-    /// Protocol 8: the source's public training fact (delta head bit 18; static per connection).
+    /// Protocol 11: the source's public training fact (delta head bit 20; static per connection).
     pub training: bool,
     /// The tick of the snapshot this one is relative to (`tick - base_age`, 1..=[`MAX_DELTA_AGE`] behind).
     pub base_tick: u32,
@@ -1206,6 +1235,12 @@ pub(crate) fn write_message(w: &mut Writer, d: &SnapshotDelta) {
         if m & DH_SIG != 0 {
             w.u8(s.sig);
         }
+        if m & DH_HUNT_TARGET != 0 {
+            w.varint(s.hunt_target.unwrap_or(0));
+        }
+        if m & DH_HUNT_STACKS != 0 {
+            w.varint(s.hunt_stacks as u32);
+        }
     }
     if let Some(p) = d.phase {
         w.u8(p);
@@ -1279,6 +1314,9 @@ pub(crate) fn message_check(d: &SnapshotDelta) -> Result<(), EncodeError> {
     if let Some(s) = &d.me {
         if s.mask & !DH_FIELDS != 0 {
             return bad("head");
+        }
+        if s.mask & DH_HUNT_TARGET != 0 && s.hunt_target == Some(0) {
+            return bad("hunt target");
         }
         if s.mask & DH_STATUS != 0 && s.status > MAX_STATUS_CODE {
             return bad("status");
@@ -1358,6 +1396,13 @@ fn read_self_delta(r: &mut Reader, mask: u32) -> Result<SelfDelta, DecodeError> 
     }
     if mask & DH_SIG != 0 {
         s.sig = r.u8()?;
+    }
+    if mask & DH_HUNT_TARGET != 0 {
+        let target = r.varint()?;
+        s.hunt_target = (target != 0).then_some(target);
+    }
+    if mask & DH_HUNT_STACKS != 0 {
+        s.hunt_stacks = crate::varint_u16(r, "hunt_stacks")?;
     }
     Ok(s)
 }
@@ -1544,6 +1589,7 @@ impl std::error::Error for TrackError {}
 #[derive(Clone, Debug, Default)]
 pub struct SnapshotTracker {
     tick: Option<u32>,
+    training: bool,
     phase: u8,
     ack_input: u32,
     me: Option<WireSelf>,
@@ -1559,6 +1605,7 @@ impl SnapshotTracker {
     /// Forgets the held snapshot (a new connection or a Welcome).
     pub fn reset(&mut self) {
         self.tick = None;
+        self.training = false;
         self.me = None;
         self.actors.clear();
     }
@@ -1580,7 +1627,7 @@ impl SnapshotTracker {
     /// The held snapshot as the message a Full frame of it would decode to.
     pub fn snapshot(&self) -> Option<ServerMsg> {
         Some(ServerMsg::Snapshot {
-            training: false,
+            training: self.training,
             tick: self.tick?,
             phase: self.phase,
             ack_input: self.ack_input,
@@ -1612,6 +1659,7 @@ impl SnapshotTracker {
                 training,
             } => {
                 self.tick = Some(tick);
+                self.training = training;
                 self.phase = phase;
                 self.ack_input = ack_input;
                 self.me = me;
@@ -1660,6 +1708,7 @@ impl SnapshotTracker {
         std::mem::swap(&mut self.actors, &mut out);
         self.scratch = out;
         self.tick = Some(d.tick);
+        self.training = d.training;
         if let Some(p) = d.phase {
             self.phase = p;
         }

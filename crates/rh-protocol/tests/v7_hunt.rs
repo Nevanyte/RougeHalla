@@ -43,6 +43,7 @@ fn hunt_command_round_trips_and_zero_is_refused() {
 #[test]
 fn full_self_hunt_fields_round_trip_and_zero_target_is_refused() {
     let msg = ServerMsg::Snapshot {
+        training: false,
         tick: 1,
         phase: 1,
         ack_input: 0,
@@ -50,7 +51,12 @@ fn full_self_hunt_fields_round_trip_and_zero_target_is_refused() {
         actors: vec![],
     };
     let bytes = msg.encode();
-    let ServerMsg::Snapshot { me, .. } = ServerMsg::decode(&bytes).unwrap() else {
+    let ServerMsg::Snapshot {
+        training: false,
+        me,
+        ..
+    } = ServerMsg::decode(&bytes).unwrap()
+    else {
         panic!("snapshot")
     };
     assert_eq!(me.unwrap().hunt_target, Some(2));
@@ -59,6 +65,7 @@ fn full_self_hunt_fields_round_trip_and_zero_target_is_refused() {
     let mut bad = self_view();
     bad.hunt_target = Some(0);
     let msg = ServerMsg::Snapshot {
+        training: false,
         tick: 1,
         phase: 1,
         ack_input: 0,
@@ -71,6 +78,7 @@ fn full_self_hunt_fields_round_trip_and_zero_target_is_refused() {
 #[test]
 fn a_delta_carries_hunt_target_and_stacks() {
     let full = ServerMsg::Snapshot {
+        training: false,
         tick: 1,
         phase: 1,
         ack_input: 0,
@@ -83,6 +91,7 @@ fn a_delta_carries_hunt_target_and_stacks() {
     let mut tracker = SnapshotTracker::new();
     tracker.decode(&full.encode()).unwrap();
     let delta = ServerMsg::SnapshotDelta(SnapshotDelta {
+        training: false,
         tick: 2,
         base_tick: 1,
         ack_input: 0,
@@ -98,7 +107,12 @@ fn a_delta_carries_hunt_target_and_stacks() {
     });
     let bytes = delta.encode();
     let decoded = tracker.decode(&bytes).unwrap();
-    let ServerMsg::Snapshot { me, .. } = decoded else {
+    let ServerMsg::Snapshot {
+        training: false,
+        me,
+        ..
+    } = decoded
+    else {
         panic!("snapshot")
     };
     assert_eq!(me.unwrap().hunt_target, Some(2));

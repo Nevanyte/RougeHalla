@@ -47,18 +47,28 @@ eq(JSON.stringify(cannonNotices.events), JSON.stringify([{k:"cannonNotice",code:
 const refusals = decode(bytes(fx.server.find(v => v.name === "pickup_refusals").hex));
 eq(JSON.stringify(refusals.events), JSON.stringify([1,2,3,4,5].map(reason => ({ k: "pickupRefused", reason }))), "owner refusal reasons");
 
+const unionProps = decode(bytes(fx.server.find(v => v.name === "state_union_props").hex));
+eq(JSON.stringify(unionProps.items[0].value.rows), JSON.stringify([
+  {handle:1,x:80,y:160,kind:4,label:"fallen"}, {handle:2,x:81,y:161,kind:5},
+  {handle:3,x:82,y:162,kind:6,readyAt:0xffffffff}
+]), "corpse, wind and cannon keep distinct payloads");
+const unionEvents = decode(bytes(fx.server.find(v => v.name === "events_union").hex));
+eq(JSON.stringify(unionEvents.events), JSON.stringify([
+  {k:"windEmblem"}, {k:"cannonNotice",code:4,seconds:75}, {k:"toast",text:"Practice ready"}, {k:"potionNotice",notice:10}
+]), "wind, cannon, toast and potion events coexist");
 const stateBytes = bytes(fx.server.find(v => v.name === "state_all").hex);
 const collectionTracker = new Tracker();
 const state = collectionTracker.decode(stateBytes);
 const publicField = {kind:2,ability:3,owner:null,subject:1,x:20,y:30,x2:40,y2:50,r:12,vx:-2,vy:0,startedAt:1000.5,endsAt:6000.5};
 eq(JSON.stringify(state.items), JSON.stringify([
-  {key:1,value:{activeSlot:1,slots:[null,2],potionSmall:5,potionsHealing:3}},
-  {key:2,value:{rows:[{handle:1,x:800,y:900,kind:1,weapon:0},{handle:2,x:801,y:902,kind:2,open:true},{handle:3,x:802,y:903,kind:3,label:"\ufeffBÖB"},{handle:4,x:803,y:904,kind:4,readyAt:175000}],focus:{handle:3,bodyHint:4}}},
+  {key:1,value:{activeSlot:1,slots:[null,2],potionSmall:5,potionLarge:4,potionsHealing:3}},
+  {key:2,value:{rows:[{handle:1,x:800,y:900,kind:1,weapon:0},{handle:2,x:801,y:902,kind:2,open:true},{handle:3,x:802,y:903,kind:3,label:"\ufeffBÖB"},{handle:4,x:803,y:904,kind:5}],focus:{handle:3,bodyHint:4}}},
   {key:3,value:[publicField,publicField]},
   {key:4,value:[{handle:0xffffffff,x:100,y:200,expiresAt:15000,options:[{kind:1,id:0,taken:false,takenBy:null},{kind:2,id:7,taken:true,takenBy:1}],picked:false,canChoose:true}]},
   {key:5,value:{cards:[...Array(80)].map((_,i)=>i===0||i===2?1:0),boosts:[0,1,2,3,0,1,2,3]}},
   {key:6,value:[{mobType:0,elite:30,alive:0,state:2,clearedAt:1000,respawnAt:181000}]},
-  {key:7,value:[{kind:0,x:800,y:900,facing:12345,owner:1},{kind:0,x:800,y:900,facing:12345,owner:1}]}
+  {key:7,value:[{kind:0,x:800,y:900,facing:12345,owner:1},{kind:0,x:800,y:900,facing:12345,owner:1}]},
+  {key:8,value:null}, {key:9,value:null}
 ]), "all reliable public facts");
 const planning = decode(bytes(fx.server.find(v => v.name === "state_planning").hex));
 eq(JSON.stringify(planning.items.map(i => i.key)), JSON.stringify([8, 9]), "planning state keys");
@@ -68,7 +78,7 @@ eq(planning.items[0].value.options[1].walkSeconds, null, "typed absent walk");
 eq(planning.items[1].value.startedWith, 7, "arena starter count");
 eq(planning.items[1].value.patienceEndsAt, 601000, "arena patience deadline");
 collectionTracker.decode(bytes(fx.server.find(v => v.name === "snapshot").hex));
-eq(collectionTracker.collections.size, 7, "snapshot retains reliable collections");
+eq(collectionTracker.collections.size, 9, "snapshot retains reliable collections");
 collectionTracker.decode(new Uint8Array([0x88,1,1,1,0]).buffer);
 eq(collectionTracker.collections.get(1), null, "missing inventory clears");
 eq(collectionTracker.collections.get(2).rows.length, 4, "missing key retains props");
@@ -109,7 +119,7 @@ function checkSnapshot(m, d, n) {
     if (d.me === null) eq(m.me, null, `${n} me`);
     else {
       const e = d.me, s = m.me;
-      for (const [k, jk] of [["id", "id"], ["faction", "faction"], ["status", "status"], ["weapon", "weapon"], ["readyIn", "readyInMs"], ["kills", "kills"], ["bounty", "bounty"], ["gv", "gv"], ["moveSeq", "moveSeq"], ["effects", "effects"], ["displaceSeq", "displaceSeq"], ["sig", "sig"]]) eq(s[k], e[jk], `${n} me.${k}`);
+      for (const [k, jk] of [["id", "id"], ["faction", "faction"], ["status", "status"], ["weapon", "weapon"], ["readyIn", "readyInMs"], ["kills", "kills"], ["bounty", "bounty"], ["gv", "gv"], ["moveSeq", "moveSeq"], ["effects", "effects"], ["displaceSeq", "displaceSeq"], ["sig", "sig"], ["huntTarget", "huntTarget"], ["huntStacks", "huntStacks"]]) eq(s[k], e[jk], `${n} me.${k}`);
       for (const [k, jk] of [["x", "xBits"], ["y", "yBits"], ["facing", "facingBits"], ["hp", "hpBits"], ["maxHp", "maxHpBits"]]) eq(bits(s[k]), e[jk], `${n} me.${k}`);
     }
     eq(m.actors.length, d.actors.length, `${n} actors`);
@@ -156,7 +166,7 @@ const reason = {
   head_self_bit_without_present_bit: /head/, head_unknown_bit: /head/, head_overlong_varint: /varint/, self_status_over_3: /status/, phase_over_3: /phase/,
   self_max_hp_over_u16: /max_hp/, actor_status_over_3: /status/, actor_mask_overlong_varint: /varint/, actor_unknown_mask_bit_after_kind: /actor mask/,
   state_duplicate_key: /state key/, state_key_order: /state key/, state_too_many_keys: /too many/, state_too_many_props: /too many/, state_too_many_fields: /too many/, state_too_many_rewards: /too many/, state_bad_potion_count: /potion count/, state_zero_prop_handle: /handle/, state_missing_focus: /prop focus/,
-  state_unknown_key: /state key/, state_trailing_byte: /trailing/, state_truncated: /./,
+  state_plan_negative_deadline: /plan/, state_unknown_key: /state key/, state_trailing_byte: /trailing/, state_truncated: /./,
   delta_head_unknown_bit: /head/, delta_head_overlong_varint: /varint/, delta_phase_over_3: /phase/, delta_actor_mask_unknown_bit: /actor mask/,
   delta_actor_status_over_3: /status/,
   too_many_actors: /too many actors/, actor_reserved_mask_bit: /actor mask/, actor_id_gap_zero: /actor order/, actor_id_overflow: /actor order/,

@@ -1,4 +1,4 @@
-//! The golden vectors: deterministic sample messages, and frames that must be rejected. `protocol/fixtures/v<PROTOCOL_VERSION>.json` is
+//! The golden vectors: deterministic sample messages, and frames that must be rejected. `protocol/fixtures/v11.json` is
 //! generated from these (`cargo run -p rh-protocol --bin protocol-fixtures`) and read by the Rust, C# and JS tests. A
 //! Snapshot or Fx vector also carries what a client must DECODE (floats as their exact bit patterns), so the three decoders are
 //! held to the same quantization, not just to the same bytes.
@@ -45,6 +45,50 @@ pub fn client_samples() -> Vec<(&'static str, ClientMsg)> {
                         pick,
                     })
                     .collect(),
+            },
+        ),
+        (
+            "input_corpse",
+            ClientMsg::Input {
+                seq: 47,
+                commands: vec![WireCommand::ConsumeCorpse {
+                    handle: PickupHandle::new(42).unwrap(),
+                }],
+            },
+        ),
+        (
+            "input_hunt",
+            ClientMsg::Input {
+                seq: 46,
+                commands: vec![WireCommand::HuntTarget { actor: 2 }],
+            },
+        ),
+        (
+            "input_plan",
+            ClientMsg::Input {
+                seq: 10,
+                commands: vec![
+                    WireCommand::Plan {
+                        spawn: Some(0),
+                        boon: None,
+                        ready: None,
+                    },
+                    WireCommand::Plan {
+                        spawn: None,
+                        boon: Some(1),
+                        ready: None,
+                    },
+                    WireCommand::Plan {
+                        spawn: None,
+                        boon: None,
+                        ready: Some(true),
+                    },
+                    WireCommand::Plan {
+                        spawn: Some(1),
+                        boon: Some(0),
+                        ready: Some(false),
+                    },
+                ],
             },
         ),
         (
@@ -170,6 +214,30 @@ pub fn client_samples() -> Vec<(&'static str, ClientMsg)> {
                 client_ms: 1.5,
             },
         ),
+        (
+            "input_union_commands",
+            ClientMsg::Input {
+                seq: 51,
+                commands: vec![
+                    WireCommand::HuntTarget { actor: u32::MAX },
+                    WireCommand::ConsumeCorpse {
+                        handle: PickupHandle::new(u32::MAX).unwrap(),
+                    },
+                    WireCommand::Plan {
+                        spawn: Some(1),
+                        boon: Some(0),
+                        ready: Some(false),
+                    },
+                    WireCommand::Train {
+                        command: 4,
+                        id: u32::MAX,
+                        count: u64::MAX,
+                        options: [1, 2, 79],
+                        option_count: 3,
+                    },
+                ],
+            },
+        ),
         ("leave", ClientMsg::Leave),
         ("resync", ClientMsg::Resync),
     ]
@@ -200,6 +268,7 @@ fn state_sample() -> ServerMsg {
                 active_slot: 1,
                 slots: [None, Some(2)],
                 potion_small: 5,
+                potion_large: 4,
                 potions_healing: 3,
             })),
             StateItem::Props(WireProps {
@@ -223,6 +292,12 @@ fn state_sample() -> ServerMsg {
                         kind: WirePropKind::Body {
                             label: "\u{feff}BÖB".into(),
                         },
+                    },
+                    WireProp {
+                        handle: PickupHandle::new(4).unwrap(),
+                        x: 803,
+                        y: 904,
+                        kind: WirePropKind::WindEmblem,
                     },
                 ],
                 focus: Some(WireFocus {
@@ -278,6 +353,8 @@ fn state_sample() -> ServerMsg {
                 };
                 2
             ]),
+            StateItem::Plan(None),
+            StateItem::Arena(None),
         ],
     }
 }
@@ -298,12 +375,82 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
     vec![
         ("state_all", state_sample()),
         (
+            "state_union_props",
+            ServerMsg::State {
+                tick: 201,
+                items: vec![StateItem::Props(WireProps {
+                    rows: vec![
+                        WireProp {
+                            handle: PickupHandle::new(1).unwrap(),
+                            x: 80,
+                            y: 160,
+                            kind: WirePropKind::Corpse {
+                                label: "fallen".into(),
+                            },
+                        },
+                        WireProp {
+                            handle: PickupHandle::new(2).unwrap(),
+                            x: 81,
+                            y: 161,
+                            kind: WirePropKind::WindEmblem,
+                        },
+                        WireProp {
+                            handle: PickupHandle::new(3).unwrap(),
+                            x: 82,
+                            y: 162,
+                            kind: WirePropKind::Cannon { ready_at: u32::MAX },
+                        },
+                    ],
+                    focus: None,
+                })],
+            },
+        ),
+        (
+            "events_union",
+            ServerMsg::Events {
+                tick: 201,
+                events: vec![
+                    WireEvent::WindEmblem,
+                    WireEvent::CannonNotice {
+                        code: 4,
+                        seconds: Some(75),
+                    },
+                    WireEvent::Toast {
+                        text: "Practice ready".into(),
+                    },
+                    WireEvent::PotionNotice { notice: 10 },
+                ],
+            },
+        ),
+        (
+            "props_corpse",
+            ServerMsg::State {
+                tick: 13,
+                items: vec![StateItem::Props(WireProps {
+                    rows: vec![WireProp {
+                        handle: PickupHandle::new(7).unwrap(),
+                        x: 800,
+                        y: 900,
+                        kind: WirePropKind::Corpse { label: "P1".into() },
+                    }],
+                    focus: None,
+                })],
+            },
+        ),
+        (
             "potion_notices",
             ServerMsg::Events {
                 tick: 11,
-                events: (1..=7)
+                events: (1..=10)
                     .map(|notice| WireEvent::PotionNotice { notice })
                     .collect(),
+            },
+        ),
+        (
+            "wind_emblem",
+            ServerMsg::Events {
+                tick: 12,
+                events: vec![WireEvent::WindEmblem],
             },
         ),
         (
@@ -347,7 +494,7 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
                 ],
             },
         ),
-        // Protocol 8: a training snapshot (head bit 14) with a training dummy actor (kind 2, no catalog type, shield in hand).
+        // Protocol 11: a training snapshot (head bit 16) with a training dummy actor (kind 3, no catalog type, shield in hand).
         (
             "snapshot_training",
             ServerMsg::Snapshot {
@@ -370,11 +517,11 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
                     status: 1,
                     weapon: 4,
                     bounty: 0,
-                    kind: 2,
+                    kind: 3,
                 }],
             },
         ),
-        // Protocol 8: a delta carrying the training bit (head bit 18).
+        // Protocol 11: a delta carrying the training bit (head bit 20).
         (
             "snapshot_delta_training",
             ServerMsg::SnapshotDelta(SnapshotDelta {
@@ -389,6 +536,30 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
             }),
         ),
         (
+            "cannon_notices",
+            ServerMsg::Events {
+                tick: 12,
+                events: vec![
+                    WireEvent::CannonNotice {
+                        code: 1,
+                        seconds: None,
+                    },
+                    WireEvent::CannonNotice {
+                        code: 2,
+                        seconds: None,
+                    },
+                    WireEvent::CannonNotice {
+                        code: 3,
+                        seconds: None,
+                    },
+                    WireEvent::CannonNotice {
+                        code: 4,
+                        seconds: Some(74),
+                    },
+                ],
+            },
+        ),
+        (
             "state_clear",
             ServerMsg::State {
                 tick: 201,
@@ -400,6 +571,51 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
                     StateItem::Build(None),
                     StateItem::Camps(vec![]),
                     StateItem::Projectiles(vec![]),
+                    StateItem::Plan(None),
+                    StateItem::Arena(None),
+                ],
+            },
+        ),
+        (
+            "state_planning",
+            ServerMsg::State {
+                tick: 3,
+                items: vec![
+                    StateItem::Plan(Some(WirePlan {
+                        ends_at: 500.5,
+                        spawns: [Some(12), None],
+                        taken: [true, false],
+                        pick: Some(1),
+                        boons: vec!["ad".into(), String::new()],
+                        boon: Some(0),
+                        ready: true,
+                        options: [
+                            Some(WirePlanOption {
+                                index: 12,
+                                x: 2464,
+                                y: 3456,
+                                zone: 3,
+                                walk_seconds: Some(12.25),
+                            }),
+                            Some(WirePlanOption {
+                                index: 0,
+                                x: 0,
+                                y: 32760,
+                                zone: 5,
+                                walk_seconds: None,
+                            }),
+                        ],
+                    })),
+                    StateItem::Arena(Some(WireArena {
+                        lobby_ends_at: 150.,
+                        plan_ends_at: 501.,
+                        raid_started_at: 0.,
+                        patience_ends_at: Some(601_000.),
+                        in_coliseum: false,
+                        gates_locked: false,
+                        sudden_death_at: 0.,
+                        started_with: 7,
+                    })),
                 ],
             },
         ),
@@ -433,6 +649,13 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
                         passive: true,
                     },
                 ],
+            },
+        ),
+        (
+            "fx_teleport",
+            ServerMsg::Fx {
+                tick: 777,
+                fx: vec![WireFx::Teleport],
             },
         ),
         (
@@ -498,6 +721,8 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
                     bounty: 0,
                     gv: 20,
                     move_seq: 7,
+                    hunt_target: Some(2),
+                    hunt_stacks: 3,
                 }),
                 actors: vec![WireActor {
                     sig: 0,
@@ -515,6 +740,17 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
                     bounty: 28,
                     kind: 0,
                 }],
+            },
+        ),
+        (
+            "snapshot_planning",
+            ServerMsg::Snapshot {
+                training: false,
+                tick: 7,
+                phase: 3,
+                ack_input: 6,
+                me: None,
+                actors: vec![],
             },
         ),
         (
@@ -554,6 +790,8 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
                     bounty: 0,
                     gv: 0,
                     move_seq: 0,
+                    hunt_target: None,
+                    hunt_stacks: 0,
                 }),
                 actors: vec![WireActor {
                     sig: 0,
@@ -600,6 +838,8 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
                     bounty: 65535,
                     gv: 16384,
                     move_seq: 255,
+                    hunt_target: None,
+                    hunt_stacks: 0,
                 }),
                 actors: vec![
                     WireActor {
@@ -695,6 +935,8 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
                     bounty: 1,
                     gv: 1,
                     move_seq: 1,
+                    hunt_target: None,
+                    hunt_stacks: 0,
                 }),
                 actors: vec![],
             },
@@ -730,6 +972,8 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
                     kills: 200,
                     gv: 16384,
                     move_seq: 255,
+                    hunt_target: None,
+                    hunt_stacks: 0,
                     status: 2,
                     ..SelfDelta::default()
                 }),
@@ -998,6 +1242,13 @@ fn camp_bytes(mob_type: u8, elite: u8, alive: u32, state: u8, clear: f64, respaw
 }
 
 pub fn malformed_server() -> Vec<(&'static str, Vec<u8>)> {
+    let mut negative_plan = server_samples()
+        .into_iter()
+        .find(|(name, _)| *name == "state_planning")
+        .unwrap()
+        .1
+        .encode();
+    negative_plan[5..13].copy_from_slice(&(-1.0f64).to_le_bytes());
     let good = ServerMsg::Snapshot {
         training: false,
         tick: 5,
@@ -1026,7 +1277,21 @@ pub fn malformed_server() -> Vec<(&'static str, Vec<u8>)> {
     trailing.push(0);
     vec![
         ("potion_notice_zero", vec![0x84, 0, 0, 0, 0, 1, 0, 7, 0]),
-        ("potion_notice_unknown", vec![0x84, 0, 0, 0, 0, 1, 0, 7, 8]),
+        ("cannon_notice_zero", vec![0x84, 0, 0, 0, 0, 1, 0, 9, 0]),
+        ("cannon_notice_unknown", vec![0x84, 0, 0, 0, 0, 1, 0, 9, 5]),
+        (
+            "cannon_notice_bad_seconds",
+            vec![0x84, 0, 0, 0, 0, 1, 0, 9, 4, 0, 0],
+        ),
+        (
+            "cannon_notice_seconds_over",
+            vec![0x84, 0, 0, 0, 0, 1, 0, 9, 4, 76, 0],
+        ),
+        (
+            "cannon_notice_missing_seconds",
+            vec![0x84, 0, 0, 0, 0, 1, 0, 9, 4],
+        ),
+        ("potion_notice_unknown", vec![0x84, 0, 0, 0, 0, 1, 0, 7, 11]),
         ("state_too_many_projectiles", vec![0x88, 0, 1, 7, 0x81, 4]),
         (
             "projectile_kind",
@@ -1090,8 +1355,8 @@ pub fn malformed_server() -> Vec<(&'static str, Vec<u8>)> {
             "head_self_bit_without_present_bit",
             snapshot_bytes(0x0002, &[], 0, &[]),
         ),
-        // Bit 15 is not a field of this version: a mask bit a decoder does not know is refused, never skipped.
-        ("head_unknown_bit", snapshot_bytes(0x8001, &[], 0, &[])),
+        // Bit 13 is not a field of this version: a mask bit a decoder does not know is refused, never skipped.
+        ("head_unknown_bit", snapshot_bytes(0x20001, &[], 0, &[])),
         // The head 0x80 0x00 is a two-byte zero: the canonical form is one byte.
         ("head_overlong_varint", vec![0x83, 0, 0, 0x80, 0x00, 0]),
         ("self_truncated", snapshot_bytes(0x0001, &[], 0, &[])),
@@ -1176,16 +1441,17 @@ pub fn malformed_server() -> Vec<(&'static str, Vec<u8>)> {
             "chest_bad_reason_unknown",
             vec![0x84, 0, 0, 0, 0, 1, 0, 6, 10],
         ),
-        ("state_unknown_key", vec![0x88, 0, 1, 8]),
+        ("state_plan_negative_deadline", negative_plan),
+        ("state_unknown_key", vec![0x88, 0, 1, 10]),
         ("state_duplicate_key", vec![0x88, 0, 2, 1, 0, 1, 0]),
         ("state_key_order", vec![0x88, 0, 2, 3, 0, 1, 0]),
-        ("state_too_many_keys", vec![0x88, 0, 8]),
+        ("state_too_many_keys", vec![0x88, 0, 10]),
         ("state_too_many_props", vec![0x88, 0, 1, 2, 0x81, 4]),
         ("state_too_many_fields", vec![0x88, 0, 1, 3, 0x81, 4]),
         ("state_too_many_rewards", vec![0x88, 0, 1, 4, 0x81, 4]),
         (
             "state_bad_potion_count",
-            vec![0x88, 0, 1, 1, 1, 0, 0, 0, 6, 0],
+            vec![0x88, 0, 1, 1, 1, 0, 0, 0, 6, 0, 0],
         ),
         ("state_zero_prop_handle", vec![0x88, 0, 1, 2, 1, 0]),
         ("state_missing_focus", vec![0x88, 0, 1, 2, 0, 1, 0]),
@@ -1272,6 +1538,8 @@ fn chain_self(x: f32) -> WireSelf {
         bounty: 0,
         gv: 0,
         move_seq: 0,
+        hunt_target: None,
+        hunt_stacks: 0,
     }
 }
 
@@ -1330,6 +1598,54 @@ fn empty_delta() -> SnapshotDelta {
 #[allow(clippy::approx_constant)] // a facing of -3.1415927 is deliberate: an f32 at the -PI edge of the angle range
 pub fn chain_samples() -> Vec<(&'static str, Vec<ChainStep>)> {
     let mut chains = Vec::new();
+    // The combined protocol must preserve independent training and hunt fields, including a real target clear.
+    {
+        let mut encoder = ConnEncoder::new();
+        let mut tracker = SnapshotTracker::new();
+        let mut prior = None;
+        let mut steps = Vec::new();
+        for (tick, target, stacks, training) in [
+            (1, Some(u32::MAX), u16::MAX, true),
+            (2, None, 0, true),
+            (3, Some(9), 4, true),
+            (4, None, 0, false),
+        ] {
+            let mut me = chain_self(400.0 + tick as f32);
+            me.hunt_target = target;
+            me.hunt_stacks = stacks;
+            let mut actors: Vec<_> = (1..=8).map(|id| wa(id, 10., 20., 100, 1)).collect();
+            actors[0].kind = 2; // Zombie retains kind 2.
+            actors[1].kind = 3; // TrainingDummy uses a distinct kind.
+            let mut data = snap(tick, 3, tick, Some(me), &actors);
+            data.set_training(training);
+            let (frame, kind) = encoder.encode_frame(data.clone());
+            assert_eq!(
+                kind,
+                if tick == 1 {
+                    FrameKind::Full
+                } else {
+                    FrameKind::Delta
+                }
+            );
+            if let Some(ref base) = prior {
+                let reference = ServerMsg::SnapshotDelta(delta::diff(base, &data).unwrap());
+                assert_eq!(
+                    reference.encode(),
+                    frame,
+                    "fast and reference hunt clear agree"
+                );
+            }
+            let got = tracker.decode(&frame).unwrap();
+            assert_eq!(got, data.decoded());
+            assert_eq!(tracker.snapshot(), Some(got.clone()));
+            steps.push(ChainStep {
+                frame,
+                outcome: ChainOutcome::Applied(got),
+            });
+            prior = Some(data);
+        }
+        chains.push(("union_training_hunt_clear", steps));
+    }
 
     {
         let mut encoder = ConnEncoder::new();
@@ -1628,8 +1944,8 @@ pub fn malformed_deltas() -> Vec<(&'static str, Vec<u8>)> {
             "delta_head_field_without_present_bit",
             delta_bytes(10, 1, DH_X, &[0]),
         ),
-        // Bit 19 is not a field of this version.
-        ("delta_head_unknown_bit", delta_bytes(10, 1, 1 << 19, &[0])),
+        // Bit 18 is not a field of this version.
+        ("delta_head_unknown_bit", delta_bytes(10, 1, 1 << 21, &[0])),
         (
             "delta_head_overlong_varint",
             vec![0x87, 10, 1, 0, 0x80, 0x00, 0],
@@ -1716,7 +2032,7 @@ fn decoded_snapshot_json(m: &ServerMsg) -> String {
     let me = match me {
         None => "null".to_string(),
         Some(s) => format!(
-            "{{\"id\": {}, \"faction\": {}, \"xBits\": {}, \"yBits\": {}, \"facingBits\": {}, \"hpBits\": {}, \"maxHpBits\": {}, \"status\": {}, \"weapon\": {}, \"readyInMs\": {}, \"kills\": {}, \"bounty\": {}, \"gv\": {}, \"moveSeq\": {}, \"effects\": {}, \"displaceSeq\": {}, \"sig\": {}}}",
+            "{{\"id\": {}, \"faction\": {}, \"xBits\": {}, \"yBits\": {}, \"facingBits\": {}, \"hpBits\": {}, \"maxHpBits\": {}, \"status\": {}, \"weapon\": {}, \"readyInMs\": {}, \"kills\": {}, \"bounty\": {}, \"gv\": {}, \"moveSeq\": {}, \"effects\": {}, \"displaceSeq\": {}, \"sig\": {}, \"huntTarget\": {}, \"huntStacks\": {}}}",
             s.id,
             s.faction,
             bits(s.x),
@@ -1730,7 +2046,8 @@ fn decoded_snapshot_json(m: &ServerMsg) -> String {
             s.kills,
             s.bounty,
             s.gv,
-            s.move_seq, s.effects, s.displace_seq, s.sig
+            s.move_seq, s.effects, s.displace_seq, s.sig,
+            s.hunt_target.map_or("null".to_string(), |v| v.to_string()), s.hunt_stacks
         ),
     };
     let actors: Vec<String> = actors
@@ -1778,6 +2095,7 @@ fn decoded_fx_json(m: &ServerMsg) -> String {
                 "{{\"k\": \"hit\", \"victim\": {victim}, \"by\": {by}, \"passive\": {passive}, \"amountBits\": {}}}",
                 bits(amount)
             ),
+            WireFx::Teleport => "{\"k\": \"teleport\"}".to_owned(),
         })
         .collect();
     format!("{{\"tick\": {tick}, \"fx\": [{}]}}", items.join(", "))

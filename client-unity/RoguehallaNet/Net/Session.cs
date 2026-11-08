@@ -82,6 +82,8 @@ namespace Roguehalla.Net
         /// copy what must outlive that.
         /// </summary>
         public ServerMsg.Snapshot Latest { get; private set; }
+        /// <summary>The server's public training-room fact from the newest accepted snapshot.</summary>
+        public bool Training { get; private set; }
         public WireResult LastResult { get; private set; }
         public int ReconnectAttempt { get { return _attempt; } }
         public int SnapshotsReceived { get; private set; }
@@ -325,6 +327,7 @@ namespace Roguehalla.Net
                 if (Snapshots.Add(snap, replaceCurrentTick))
                 {
                     Latest = snap;
+                    Training = snap.Training;
                     if (!replaceCurrentTick) Clock.OnSnapshot(now, snap.ServerMs);
                     _hasMe = snap.Me != null;
                     if (_hasMe) _me.CopyFrom(snap.Me);
@@ -384,6 +387,7 @@ namespace Roguehalla.Net
             Collections.Reset();
             Input.ClearPending();
             Latest = null;
+            Training = false;
             _hasMe = false;
             _needFull = false;
             Clock.Reset();

@@ -15,14 +15,14 @@
 <body>
 <main>
   <h1>Roguehalla protocol probe</h1>
-  <p>A browser client for protocol v8 over the browser WebSocket API (the transport a Unity Web build uses). It is a test
+  <p>A browser client for protocol v11 over the browser WebSocket API (the transport a Unity Web build uses). It is a test
   harness for Stage 1, not the game client. Click to walk; hold Space to attack toward the cursor.</p>
   <canvas id="c" width="960" height="640"></canvas>
   <pre id="s">connecting…</pre>
 </main>
 <script>
 "use strict";
-// ---- protocol v8 (mirror of crates/rh-protocol; tools/protocol-js/check-vectors.mjs holds this block to protocol/fixtures/v8.json) ----
+// ---- protocol v11 (mirror of crates/rh-protocol; tools/protocol-js/check-vectors.mjs holds this block to protocol/fixtures/v11.json) ----
 class W {
   constructor() { this.b = new Uint8Array(256); this.n = 0; this.v = new DataView(this.b.buffer); }
   need(k) { if (this.n + k > this.b.length) { const nb = new Uint8Array(this.b.length * 2 + k); nb.set(this.b); this.b = nb; this.v = new DataView(nb.buffer); } }
@@ -76,7 +76,7 @@ function fnv(w, h, tiles) {
   for (const t of tiles) eat(t);
   return x >>> 0;
 }
-const PROTOCOL = 8;
+const PROTOCOL = 11;
 const MAX_TICKET = 448;
 // Quantized remote actors and swings (rh-protocol quant.rs): positions are u16 at 1/8 u, angles u16 over 2 pi read as a signed code.
 const FACING_STEP_F32 = Math.fround(2 * Math.PI / 65536);
@@ -98,8 +98,18 @@ function input(seq, cmds) {
     else if (c.k === "swap") { if (c.slot != null && c.slot !== 0 && c.slot !== 1) throw new Error("bad slot"); w.u8(6); if (c.slot == null) w.u8(0); else { w.u8(1); w.u8(c.slot); } }
     else if (c.k === "pickup") { if (!Number.isInteger(c.handle) || c.handle <= 0 || c.handle > 0xffffffff) throw new Error("bad container"); w.u8(7); w.u32(c.handle); }
     else if(c.k === "choose") { if(!Number.isInteger(c.handle) || c.handle<=0 || c.handle>0xffffffff || !Number.isInteger(c.pick) || c.pick < -1 || c.pick > 2) throw new Error("bad reward choice"); w.u8(8);w.u32(c.handle);w.u8(c.pick & 255); }
+    else if (c.k === "plan") {
+      if (c.spawn != null && c.spawn !== 0 && c.spawn !== 1) throw new Error("bad plan spawn");
+      if (c.boon != null && c.boon !== 0 && c.boon !== 1) throw new Error("bad plan boon");
+      w.u8(14); w.u8((c.spawn != null ? 1 : 0) | (c.boon != null ? 2 : 0) | (c.ready != null ? 4 : 0));
+      if (c.spawn != null) w.u8(c.spawn);
+      if (c.boon != null) w.u8(c.boon);
+      if (c.ready != null) w.u8(c.ready ? 1 : 0);
+    }
     else if(c.k === "useConsumable") { w.u8(9); }
     else if(c.k === "target") { if(!Number.isInteger(c.actorRef)||c.actorRef<=0||c.actorRef>0xffffffff) throw new Error("bad actor reference");w.u8(10);w.u32(c.actorRef); }
+    else if(c.k === "huntTarget") { if(!Number.isInteger(c.actorRef)||c.actorRef<=0||c.actorRef>0xffffffff) throw new Error("bad hunt target");w.u8(12);w.u32(c.actorRef); }
+    else if(c.k === "consumeCorpse") { if(!Number.isInteger(c.handle)||c.handle<=0||c.handle>0xffffffff) throw new Error("bad corpse handle");w.u8(13);w.u32(c.handle); }
     else if (c.k === "stop") { w.u8(2); if (c.seq == null) w.u8(0); else { w.u8(1); w.u8(c.seq); } }
     else if (c.k === "aim") { w.u8(3); w.f32(c.a); }
     else if (c.k === "attack") { w.u8(4); w.f32(c.a); if (c.t == null) w.u8(0); else { w.u8(1); w.f64(c.t); } }
@@ -108,7 +118,7 @@ function input(seq, cmds) {
       if (!Number.isInteger(c.command) || c.command < 1 || c.command > 5) throw new Error("bad train command");
       const options = c.options || [];
       if (options.length > 3) throw new Error("bad train options");
-      w.u8(13); w.u8(c.command); w.varint(c.id); w.u64(c.count); w.u8(options.length);
+      w.u8(15); w.u8(c.command); w.varint(c.id); w.u64(c.count); w.u8(options.length);
       for (const o of options) w.u8(o);
     }
     else throw new Error("bad command");
@@ -132,13 +142,22 @@ function decodeClient(buf) {
       if (k === 1 || k === 11) c = { k: k===1 ? "move" : "attackMove", x: finite(r.f32()), y: finite(r.f32()), seq: r.opt(() => r.u8()) };
       else if(k === 9) c={k:"useConsumable"};
       else if(k === 10) {const actorRef=r.u32();if(!actorRef)throw new Error("bad actor reference");c={k:"target",actorRef};}
+      else if(k === 12) {const actorRef=r.u32();if(!actorRef)throw new Error("bad hunt target");c={k:"huntTarget",actorRef};}
+      else if(k === 13) {const handle=r.u32();if(!handle)throw new Error("bad corpse handle");c={k:"consumeCorpse",handle};}
       else if (k === 2) c = { k: "stop", seq: r.opt(() => r.u8()) };
       else if (k === 3) c = { k: "aim", a: finite(r.f32()) };
       else if (k === 4 || k === 5) c = { k: k === 4 ? "attack" : "release", a: finite(r.f32()), t: r.opt(() => finite(r.f64())) };
       else if (k === 6) { const slot = r.opt(() => r.u8()); if (slot !== null && slot > 1) throw new Error("bad slot"); c = { k: "swap", slot }; }
       else if (k === 7) { const handle = r.u32(); if (handle === 0) throw new Error("bad container"); c = { k: "pickup", handle }; }
       else if(k === 8) { const handle=r.u32(), byte=r.u8(), pick=byte===255?-1:byte; if(!handle || pick>2) throw new Error("bad reward choice"); c={k:"choose",handle,pick}; }
-      else if (k === 13) {
+      else if (k === 14) {
+        const flags = r.u8(); if (flags & ~7) throw new Error("bad plan flags");
+        const spawn = (flags & 1) ? r.u8() : null; if (spawn !== null && spawn > 1) throw new Error("bad plan spawn");
+        const boon = (flags & 2) ? r.u8() : null; if (boon !== null && boon > 1) throw new Error("bad plan boon");
+        const ready = (flags & 4) ? r.u8() !== 0 : null;
+        c = { k: "plan", spawn, boon, ready };
+      }
+      else if (k === 15) {
         const command = r.u8(); if (command < 1 || command > 5) throw new Error("bad train command");
         const id = r.varint(), count = r.u64(), on = r.u8(); if (on > 3) throw new Error("bad train options");
         const options = []; for (let j = 0; j < on; j++) options.push(r.u8());
@@ -194,9 +213,9 @@ function decodeBody(r) {
   }
   if (tag === 0x83) {
     const tick = r.varint(), ack = r.varint(), head = r.varint();
-    // Append-only varint head: bit 0 a self follows, bits 1..9 its fields, bit 10 the phase, bit 14 training; any other bit is refused.
-    if ((head & ~0x7fff) !== 0 || ((head & 1) === 0 && (head & 0x3bff) !== 0)) throw new Error("bad head");
-    const s = { t: "snapshot", tick, serverMs: tick * 50, phase: 1, ack, training: (head & 0x4000) !== 0, me: null, actors: [] };
+    // Append-only varint head: bit 0 a self follows, bits 1..9 its fields, bit 10 the phase; any other bit is refused.
+    if ((head & ~0x1ffff) !== 0 || ((head & 1) === 0 && (head & 0xfbff) !== 0)) throw new Error("bad head");
+    const s = { t: "snapshot", tick, serverMs: tick * 50, phase: 1, ack, training: (head & 0x10000) !== 0, me: null, actors: [] };
     if (head & 1) {
       const id = r.varint(), x = r.f32(), y = r.f32(), facing = r.f32();
       const maxHp = (head & 0x100) ? r.f32() : r.varintU16("max_hp");
@@ -210,7 +229,9 @@ function decodeBody(r) {
       const gv = (head & 0x80) ? r.varintU16("gv") : 0;
       const status = (head & 0x200) ? r.code(3, "status") : 1;
       const effects = (head & 0x800) ? r.u16() : 0, displaceSeq = (head & 0x1000) ? r.u8() : 0, sig = (head & 0x2000) ? r.u8() : 0;
-      s.me = { id, faction, x, y, facing, hp, maxHp, status, weapon, readyIn, kills, bounty, gv, moveSeq, effects, displaceSeq, sig };
+      let huntTarget = null; if (head & 0x4000) { huntTarget = r.varint(); if (huntTarget === 0) throw new Error("bad hunt target"); }
+      const huntStacks = (head & 0x8000) ? r.varintU16("hunt_stacks") : 0;
+      s.me = { id, faction, x, y, facing, hp, maxHp, status, weapon, readyIn, kills, bounty, gv, moveSeq, effects, displaceSeq, sig, huntTarget, huntStacks };
     }
     if (head & 0x400) s.phase = r.code(3, "phase");
     const n = r.varint();
@@ -241,11 +262,11 @@ function decodeBody(r) {
     const tick = r.varint(), age = r.varint();
     if (age < 1 || age > 64 || age > tick) throw new Error("bad base age");
     const ack = r.varint(), head = r.varint();
-    // Append-only varint head: bit 0 a self follows (fields: bits 1..6 and 9..14), bit 7 a departed list follows, bit 8 the phase changed, bit 18 training.
-    if ((head & ~0x7ffff) !== 0 || ((head & 1) === 0 && (head & 0x3fe7e) !== 0)) throw new Error("bad head");
-    const d = { t: "delta", tick, baseTick: tick - age, phase: null, ack, training: (head & 0x40000) !== 0, me: null, changed: [], departed: [] };
+    // Append-only varint head: bit 0 a self follows (fields: bits 1..6 and 9..14), bit 7 a departed list follows, bit 8 the phase changed.
+    if ((head & ~0x1fffff) !== 0 || ((head & 1) === 0 && (head & 0xffe7e) !== 0)) throw new Error("bad head");
+    const d = { t: "delta", tick, baseTick: tick - age, phase: null, ack, training: (head & 0x100000) !== 0, me: null, changed: [], departed: [] };
     if (head & 1) {
-      const m = head & 0x3fe7e, s = { mask: m };
+      const m = head & 0xffe7e, s = { mask: m };
       if (m & 0x0002) s.x = r.f32();
       if (m & 0x0004) s.y = r.f32();
       if (m & 0x0008) s.facing = r.f32();
@@ -261,6 +282,8 @@ function decodeBody(r) {
       if (m & 0x8000) s.effects = r.u16();
       if (m & 0x10000) s.displaceSeq = r.u8();
       if (m & 0x20000) s.sig=r.u8();
+      if (m & 0x40000) { const target = r.varint(); s.huntTarget = target === 0 ? null : target; }
+      if (m & 0x80000) s.huntStacks = r.varintU16("hunt_stacks");
       d.me = s;
     }
     if (head & 0x100) d.phase = r.code(3, "phase");
@@ -313,9 +336,15 @@ function decodeBody(r) {
       else if (k === 3) e.events.push({ k: "ended", winner: r.opt(() => r.u32()), draw: r.u8() !== 0 });
       else if (k === 4) e.events.push({ k: "result", outcome: r.u8(), place: r.u8(), players: r.u8(), kills: r.u16(), killedBy: r.opt(() => r.str()), gvTotal: r.u32(), gvWin: r.u32(), durationSec: r.u32(), withheld: r.u8() !== 0 });
       else if (k === 5) { const reason = r.u8(); if (reason < 1 || reason > 5) throw new Error("bad field"); e.events.push({ k: "pickupRefused", reason }); }
-      else if(k === 7) {const notice=r.u8();if(notice<1||notice>7)throw new Error("bad potion notice");e.events.push({k:"potionNotice",notice});}
+      else if(k === 7) {const notice=r.u8();if(notice<1||notice>10)throw new Error("bad potion notice");e.events.push({k:"potionNotice",notice});}
       else if(k === 6) { const reason=r.u8(); if(reason<1 || reason>9) throw new Error("bad chest reason"); e.events.push({k:"chestRefused",reason}); }
-      else if(k === 8) e.events.push({k:"toast",text:r.str()});
+      else if (k === 8) e.events.push({ k: "windEmblem" });
+      else if(k === 9) {
+        const code=r.u8(); if(code<1 || code>4) throw new Error("bad cannon notice");
+        if(code===4) { const seconds=r.u16(); if(seconds<1 || seconds>75) throw new Error("bad cannon notice"); e.events.push({k:"cannonNotice",code,seconds}); }
+        else e.events.push({k:"cannonNotice",code});
+      }
+      else if(k === 10) e.events.push({k:"toast",text:r.str()});
       else throw new Error("bad event");
     }
     return e;
@@ -329,6 +358,7 @@ function decodeBody(r) {
       else if (k === 2) { const victim = r.varint(), by = r.varint(); f.fx.push({ k: "hit", victim, by, amount: r.f32(), passive: r.opt(() => true) !== null }); }
       else if (k === 3) f.fx.push({ k: "block", id: r.varint(), by: r.varint(), weapon: r.u8() });
       else if (k === 4) f.fx.push({ k: "stagger", id: r.varint() });
+      else if (k === 5) f.fx.push({ k: "teleport" });
       else throw new Error("bad fx");
     }
     return f;
@@ -342,7 +372,7 @@ function decodeBody(r) {
 
 // Complete replacements. Decode the entire frame before a collection consumer changes retained state.
 function readState(r) {
-  const n = r.varint(); if (n > 7) throw new Error("too many state keys");
+  const n = r.varint(); if (n > 9) throw new Error("too many state keys");
   const flag = () => r.opt(() => true) !== null;
   const finite = (x) => { if (!Number.isFinite(x)) throw new Error("bad field"); return x; };
   const handle = () => { const v = r.varint(); if (!v) throw new Error("bad handle"); return v; };
@@ -351,9 +381,9 @@ function readState(r) {
   const count = () => { const v = r.varint(); if (v > 512) throw new Error("too many state rows"); return v; };
   const items = []; let previous = 0;
   for (let i = 0; i < n; i++) {
-    const key = r.varint(); if (key <= previous || key > 7) throw new Error("bad state key"); previous = key;
+    const key = r.varint(); if (key <= previous || key > 9) throw new Error("bad state key"); previous = key;
     let value;
-    if (key === 1) value = r.opt(() => ({ activeSlot: r.code(1, "active slot"), slots: [weapon(), weapon()], potionSmall: r.code(5, "potion count"), potionsHealing: r.code(3, "potion count") }));
+    if (key === 1) value = r.opt(() => ({ activeSlot: r.code(1, "active slot"), slots: [weapon(), weapon()], potionSmall: r.code(5, "potion count"), potionLarge: r.code(5, "potion count"), potionsHealing: r.code(3, "potion count") }));
     else if (key === 2) {
       const rows = []; let last = 0;
       for (let j = 0, k = count(); j < k; j++) {
@@ -362,6 +392,9 @@ function readState(r) {
         if (kind === 1) prop = { kind, weapon: r.code(4, "carried weapon") };
         else if (kind === 2) prop = { kind, open: flag() };
         else if (kind === 3) prop = { kind, label: r.str() };
+        else if (kind === 4) prop = { kind, label: r.str() };
+        else if (kind === 5) prop = { kind };
+        else if (kind === 6) prop = { kind, readyAt: r.varint() };
         else throw new Error("bad prop kind");
         rows.push({ handle: h, x, y, ...prop });
       }
@@ -396,6 +429,39 @@ function readState(r) {
       value=[];for(let j=0,k=count();j<k;j++)value.push({kind:r.code(1,"projectile"),x:r.u16(),y:r.u16(),facing:r.u16(),owner:actor()});
     } else if(key===6) {
       value=[];for(let j=0,k=count();j<k;j++){const c={mobType:r.code(29,"camp"),elite:r.code(30,"camp"),alive:r.varint(),state:r.code(2,"camp"),clearedAt:finite(r.f64()),respawnAt:finite(r.f64())};if(c.alive>512||c.clearedAt<0||c.respawnAt<c.clearedAt)throw new Error("bad camp");value.push(c);}
+    } else if (key === 8) {
+      const zone = () => { const z = r.u8(); if (z < 1 || z > 5) throw new Error("bad zone"); return z; };
+      const opt = () => r.opt(() => {
+        const o = { index: r.varint(), x: r.u16(), y: r.u16(), zone: zone(), walkSeconds: r.opt(() => finite(r.f32())) };
+        if (o.walkSeconds !== null && o.walkSeconds < 0) throw new Error("bad walk");
+        return o;
+      });
+      value = r.opt(() => {
+        const pickCode = () => { const v = r.u8(); if (v > 2) throw new Error("bad plan pick"); return v === 0 ? null : v - 1; };
+        const p = {
+          endsAt: finite(r.f64()),
+          spawns: [r.opt(() => r.varint()), r.opt(() => r.varint())],
+          taken: [flag(), flag()],
+          pick: pickCode(),
+          boons: [],
+        };
+        for (let b = 0, nb = r.code(4, "plan boons"); b < nb; b++) p.boons.push(r.str());
+        p.boon = pickCode();
+        p.ready = flag();
+        p.options = [opt(), opt()];
+        if (p.endsAt < 0) throw new Error("bad plan deadline");
+        return p;
+      });
+    } else if (key === 9) {
+      value = r.opt(() => {
+        const a = {
+          lobbyEndsAt: finite(r.f64()), planEndsAt: finite(r.f64()), raidStartedAt: finite(r.f64()),
+          patienceEndsAt: r.opt(() => finite(r.f64())), inColiseum: flag(), gatesLocked: flag(),
+          suddenDeathAt: finite(r.f64()), startedWith: r.varintU16("started_with"),
+        };
+        if (a.startedWith > 512) throw new Error("bad started_with");
+        return a;
+      });
     } else value = r.opt(() => ({ cards: Array.from(r.bytes(80)), boosts: Array.from(r.bytes(8)) }));
     items.push({ key, value });
   }
@@ -478,6 +544,8 @@ class Tracker {
       if (d.mask & 0x8000) s.effects = d.effects;
       if (d.mask & 0x10000) s.displaceSeq = d.displaceSeq;
       if (d.mask & 0x20000) s.sig=d.sig;
+      if (d.mask & 0x40000) s.huntTarget = d.huntTarget;
+      if (d.mask & 0x80000) s.huntStacks = d.huntStacks;
       me = s;
     }
     const s = { t: "snapshot", tick: m.tick, serverMs: m.tick * 50, phase: m.phase === null ? b.phase : m.phase, ack: m.ack, training: m.training, me, actors: out };

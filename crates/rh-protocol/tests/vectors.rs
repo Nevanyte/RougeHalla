@@ -55,6 +55,11 @@ fn malformed_server_frames_are_rejected_for_the_documented_reason() {
     let want = |name: &str| -> DecodeError {
         match name {
             "potion_notice_zero" | "potion_notice_unknown" => BadField("potion notice"),
+            "cannon_notice_zero"
+            | "cannon_notice_unknown"
+            | "cannon_notice_bad_seconds"
+            | "cannon_notice_seconds_over" => BadField("cannon notice"),
+            "cannon_notice_missing_seconds" => Truncated,
             "state_too_many_camps" | "state_too_many_projectiles" => TooMany(0),
             "projectile_kind" | "projectile_owner_zero" => BadField("projectile"),
             "projectile_owner_flag" => BadTag(2),
@@ -89,6 +94,7 @@ fn malformed_server_frames_are_rejected_for_the_documented_reason() {
             "phase_over_3" | "delta_phase_over_3" => BadField("phase"),
             "chest_bad_reason_zero" | "chest_bad_reason_unknown" => BadField("chest reason"),
             "state_unknown_key" => BadField("state key"),
+            "state_plan_negative_deadline" => BadField("plan"),
             "state_duplicate_key" | "state_key_order" => BadField("state key order"),
             "state_too_many_keys"
             | "state_too_many_props"

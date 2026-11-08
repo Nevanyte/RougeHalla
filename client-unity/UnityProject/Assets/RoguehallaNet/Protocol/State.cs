@@ -26,8 +26,8 @@ namespace Roguehalla.Net
 
 namespace Roguehalla.Net.Protocol
 {
-    public struct WireInventory { public byte ActiveSlot, PotionSmall, PotionsHealing; public byte? Slot0, Slot1; }
-    public enum PropKind : byte { Ground = 1, Chest = 2, Body = 3, Cannon = 4 }
+    public struct WireInventory { public byte ActiveSlot, PotionSmall, PotionLarge, PotionsHealing; public byte? Slot0, Slot1; }
+    public enum PropKind : byte { Ground = 1, Chest = 2, Body = 3, Corpse = 4, WindEmblem = 5, Cannon = 6 }
     public struct WireProp
     {
         public PickupHandle Handle;
@@ -36,6 +36,7 @@ namespace Roguehalla.Net.Protocol
         public byte GroundWeapon;
         public bool Open;
         public string BodyLabel;
+        public string CorpseLabel;
         public uint ReadyAt;
     }
     public struct WireFocus { public PickupHandle Handle; public byte? BodyHint; }
@@ -81,13 +82,15 @@ namespace Roguehalla.Net.Protocol
         public uint StartedWith;
     }
 
+    public enum StateKey : byte { Inventory = 1, Props = 2, Fields = 3, RewardChests = 4, Build = 5, Camps = 6, Projectiles = 7, Plan = 8, Arena = 9 }
+
     /// <summary>Keys are ascending, unique complete replacements. Missing keys retain their previous values.</summary>
     public abstract class StateItem
     {
         public abstract uint Key { get; }
         internal abstract void Check();
         internal abstract void Write(Writer w);
-        internal const int MaxRows = 512, MaxKeys = 9;
+        internal const int MaxRows = 512, MaxKeys = (int)StateKey.Arena;
         internal static void Require(bool condition, string name) { if (!condition) throw new EncodeException(name); }
         internal static bool Finite(double v) { return !double.IsNaN(v) && !double.IsInfinity(v); }
         internal static byte Weapon(byte v) { if (v >= 5) throw new DecodeException(DecodeError.BadField, "carried weapon"); return v; }
@@ -149,7 +152,7 @@ namespace Roguehalla.Net.Protocol
                 {
                     case 1:
                         var inv = new InventoryState();
-                        if (r.Flag()) inv.Value = new WireInventory { ActiveSlot = r.U8(), Slot0 = ReadWeapon(ref r), Slot1 = ReadWeapon(ref r), PotionSmall=r.U8(),PotionsHealing=r.U8() };
+                        if (r.Flag()) inv.Value = new WireInventory { ActiveSlot = r.U8(), Slot0 = ReadWeapon(ref r), Slot1 = ReadWeapon(ref r), PotionSmall=r.U8(),PotionLarge=r.U8(),PotionsHealing=r.U8() };
                         item = inv; break;
                     case 2:
                         var props = new PropsState { Rows = new WireProp[Count(ref r, MaxRows)] };
@@ -161,6 +164,8 @@ namespace Roguehalla.Net.Protocol
                                 case PropKind.Ground: row.GroundWeapon = Weapon(r.U8()); break;
                                 case PropKind.Chest: row.Open = r.Flag(); break;
                                 case PropKind.Body: row.BodyLabel = r.Str(); break;
+                                case PropKind.Corpse: row.CorpseLabel = r.Str(); break;
+                                case PropKind.WindEmblem: break;
                                 case PropKind.Cannon: row.ReadyAt = r.Varint(); break;
                                 default: throw new DecodeException(DecodeError.BadField, "prop kind");
                             }
@@ -252,8 +257,8 @@ namespace Roguehalla.Net.Protocol
     {
         public override uint Key { get { return 1; } }
         public WireInventory? Value;
-        internal override void Check() { if (Value.HasValue) { Require(Value.Value.ActiveSlot < 2, "active slot"); Require(Value.Value.PotionSmall<=5 && Value.Value.PotionsHealing<=3,"potion count"); CheckWeapon(Value.Value.Slot0); CheckWeapon(Value.Value.Slot1); } }
-        internal override void Write(Writer w) { w.U8(Value.HasValue ? (byte)1 : (byte)0); if (Value.HasValue) { w.U8(Value.Value.ActiveSlot); WriteWeapon(w, Value.Value.Slot0); WriteWeapon(w, Value.Value.Slot1); w.U8(Value.Value.PotionSmall); w.U8(Value.Value.PotionsHealing); } }
+        internal override void Check() { if (Value.HasValue) { Require(Value.Value.ActiveSlot < 2, "active slot"); Require(Value.Value.PotionSmall<=5 && Value.Value.PotionLarge<=5 && Value.Value.PotionsHealing<=3,"potion count"); CheckWeapon(Value.Value.Slot0); CheckWeapon(Value.Value.Slot1); } }
+        internal override void Write(Writer w) { w.U8(Value.HasValue ? (byte)1 : (byte)0); if (Value.HasValue) { w.U8(Value.Value.ActiveSlot); WriteWeapon(w, Value.Value.Slot0); WriteWeapon(w, Value.Value.Slot1); w.U8(Value.Value.PotionSmall); w.U8(Value.Value.PotionLarge); w.U8(Value.Value.PotionsHealing); } }
     }
     public sealed class PropsState : StateItem
     {
@@ -271,6 +276,8 @@ namespace Roguehalla.Net.Protocol
                     case PropKind.Ground: CheckWeapon(row.GroundWeapon); break;
                     case PropKind.Chest: break;
                     case PropKind.Body: Require(Encoding.UTF8.GetByteCount(row.BodyLabel ?? "") <= 255, "body label"); break;
+                    case PropKind.Corpse: Require(Encoding.UTF8.GetByteCount(row.CorpseLabel ?? "") <= 255, "corpse label"); break;
+                    case PropKind.WindEmblem: break;
                     case PropKind.Cannon: break;
                     default: throw new EncodeException("prop kind");
                 }
@@ -288,7 +295,7 @@ namespace Roguehalla.Net.Protocol
             foreach (var row in Rows)
             {
                 w.Varint(row.Handle.Value); w.U16(row.X); w.U16(row.Y); w.U8((byte)row.Kind);
-                switch (row.Kind) { case PropKind.Ground: w.U8(row.GroundWeapon); break; case PropKind.Chest: w.U8(row.Open ? (byte)1 : (byte)0); break; case PropKind.Body: w.Str(row.BodyLabel); break; case PropKind.Cannon: w.Varint(row.ReadyAt); break; }
+                switch (row.Kind) { case PropKind.Ground: w.U8(row.GroundWeapon); break; case PropKind.Chest: w.U8(row.Open ? (byte)1 : (byte)0); break; case PropKind.Body: w.Str(row.BodyLabel); break; case PropKind.Corpse: w.Str(row.CorpseLabel); break; case PropKind.WindEmblem: break; case PropKind.Cannon: w.Varint(row.ReadyAt); break; }
             }
             w.Varint(Focus.HasValue ? Focus.Value.Handle.Value : 0); if (Focus.HasValue) WriteWeapon(w, Focus.Value.BodyHint);
         }

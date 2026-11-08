@@ -109,8 +109,14 @@ fn command_len(c: &WireCommand) -> usize {
         WireCommand::Swap { slot } => 2 + usize::from(slot.is_some()),
         WireCommand::Pickup { .. } => 5,
         WireCommand::Choose { .. } => 6,
+        WireCommand::Plan { spawn, boon, ready } => {
+            2 + usize::from(spawn.is_some())
+                + usize::from(boon.is_some())
+                + usize::from(ready.is_some())
+        }
         WireCommand::UseConsumable => 1,
-        WireCommand::Target { .. } => 5,
+        WireCommand::Target { .. } | WireCommand::HuntTarget { .. } => 5,
+        WireCommand::ConsumeCorpse { .. } => 5,
         WireCommand::Move { seq, .. } | WireCommand::AttackMove { seq, .. } => {
             1 + 8 + opt_len(seq.is_some(), 1)
         }
@@ -134,7 +140,10 @@ fn command_finite(c: &WireCommand) -> bool {
         | WireCommand::Swap { .. }
         | WireCommand::Pickup { .. }
         | WireCommand::Choose { .. }
+        | WireCommand::Plan { .. }
         | WireCommand::Target { .. }
+        | WireCommand::HuntTarget { .. }
+        | WireCommand::ConsumeCorpse { .. }
         | WireCommand::Train { .. }
         | WireCommand::UseConsumable => true,
         WireCommand::Aim { a } => a.is_finite(),
@@ -196,6 +205,7 @@ impl Frame for ClientMsg {
                     matches!(c, WireCommand::Target { actor: 0 })
                         || matches!(c, WireCommand::Swap { slot: Some(s) } if *s > 1)
                         || matches!(c, WireCommand::Choose { pick, .. } if !(-1..=2).contains(pick))
+                        || matches!(c, WireCommand::Plan { spawn, boon, .. } if spawn.is_some_and(|v| v > 1) || boon.is_some_and(|v| v > 1))
                         || matches!(c, WireCommand::Train { command, option_count, .. }
                             if !(1..=5).contains(command) || *option_count > 3)
                 }) {
@@ -252,10 +262,33 @@ impl Frame for ClientMsg {
                             w.u32(handle.get());
                             w.u8(pick as u8);
                         }
+                        WireCommand::Plan { spawn, boon, ready } => {
+                            w.u8(C_PLAN);
+                            w.u8(u8::from(spawn.is_some())
+                                | (u8::from(boon.is_some()) << 1)
+                                | (u8::from(ready.is_some()) << 2));
+                            if let Some(v) = spawn {
+                                w.u8(v);
+                            }
+                            if let Some(v) = boon {
+                                w.u8(v);
+                            }
+                            if let Some(v) = ready {
+                                w.u8(u8::from(v));
+                            }
+                        }
                         WireCommand::UseConsumable => w.u8(9),
                         WireCommand::Target { actor } => {
                             w.u8(10);
                             w.u32(actor);
+                        }
+                        WireCommand::HuntTarget { actor } => {
+                            w.u8(12);
+                            w.u32(actor);
+                        }
+                        WireCommand::ConsumeCorpse { handle } => {
+                            w.u8(13);
+                            w.u32(handle.get());
                         }
                         WireCommand::AttackMove { x, y, seq } => {
                             w.u8(11);
@@ -294,7 +327,7 @@ impl Frame for ClientMsg {
                             options,
                             option_count,
                         } => {
-                            w.u8(13);
+                            w.u8(15);
                             w.u8(command);
                             w.varint(id);
                             w.u64(count);
@@ -343,8 +376,10 @@ impl ClientMsg {
 
 fn event_len(e: &WireEvent) -> usize {
     match e {
+        WireEvent::WindEmblem => 1,
         WireEvent::PickupRefused { .. } => 2,
         WireEvent::ChestRefused { .. } | WireEvent::PotionNotice { .. } => 2,
+        WireEvent::CannonNotice { seconds, .. } => 2 + seconds.map_or(0, |_| 2),
         WireEvent::Death { by, .. } => 1 + 4 + opt_len(by.is_some(), 4),
         WireEvent::Bounty { .. } => 1 + 4 + 2,
         WireEvent::MatchEnded { winner, .. } => 1 + opt_len(winner.is_some(), 4) + 1,
@@ -361,6 +396,7 @@ fn fx_len(f: &WireFx) -> usize {
         WireFx::Stagger { id } => 1 + varint_len(*id),
         WireFx::Swing { by, .. } => 1 + varint_len(*by) + 1 + 6,
         WireFx::Hit { victim, by, .. } => 1 + varint_len(*victim) + varint_len(*by) + 5,
+        WireFx::Teleport => 1,
     }
 }
 
@@ -422,6 +458,12 @@ fn head_word(phase: u8, me: Option<&WireSelf>, training: bool) -> u32 {
     if s.sig != 0 {
         m |= HM_SIG;
     }
+    if s.hunt_target.is_some() {
+        m |= HM_HUNT_TARGET;
+    }
+    if s.hunt_stacks != 0 {
+        m |= HM_HUNT_STACKS;
+    }
     m
 }
 
@@ -465,6 +507,12 @@ fn self_len(s: &WireSelf, mask: u32) -> usize {
     }
     if mask & HM_SIG != 0 {
         n += 1;
+    }
+    if let Some(target) = s.hunt_target {
+        n += varint_len(target);
+    }
+    if mask & HM_HUNT_STACKS != 0 {
+        n += varint_len(s.hunt_stacks as u32);
     }
     n
 }
@@ -544,7 +592,8 @@ impl<const N: usize> Fixed<N> {
 
 /// Largest Snapshot head: tag, tick, ack (5 each at most), head (2), a full self (id 5, 12, max_hp 4, kit, hp 4, ready 2,
 /// kills, bounty, gv 3 each, move_seq, status, effects 2, displacement, sig), the phase and actor count.
-const MAX_HEAD_LEN: usize = 1 + 5 + 5 + 2 + 5 + 12 + 4 + 1 + 4 + 2 + 9 + 1 + 1 + 2 + 1 + 1 + 1 + 5;
+const MAX_HEAD_LEN: usize =
+    1 + 5 + 5 + 2 + 5 + 12 + 4 + 1 + 4 + 2 + 9 + 1 + 1 + 2 + 1 + 1 + 1 + 5 + 5 + 3;
 /// Largest actor: id 5, mask 2, x/y/facing 6, kit/hp/status, bounty 3, kind, effects 2, displacement, mob type, sig.
 const MAX_ACTOR_LEN: usize = 5 + 2 + 6 + 1 + 1 + 1 + 3 + 1 + 2 + 1 + 1 + 1;
 
@@ -593,6 +642,12 @@ fn write_self(w: &mut Fixed<MAX_HEAD_LEN>, m: u32, s: &WireSelf) {
     }
     if m & HM_SIG != 0 {
         w.u8(s.sig);
+    }
+    if let Some(target) = s.hunt_target {
+        w.varint(target);
+    }
+    if m & HM_HUNT_STACKS != 0 {
+        w.varint(s.hunt_stacks as u32);
     }
 }
 
@@ -670,6 +725,9 @@ fn snapshot_fault(phase: u8, me: Option<&WireSelf>, actors: &[WireActor]) -> Opt
     if let Some(s) = me {
         if let Some(f) = kit_status_fault(s.faction, s.weapon, s.status) {
             return Some(f);
+        }
+        if s.hunt_target == Some(0) {
+            return Some("hunt target");
         }
     }
     let mut prev: Option<u32> = None;
@@ -852,9 +910,16 @@ impl Frame for ServerMsg {
             ServerMsg::Events { events, .. } => {
                 list("events", events.len(), u16::MAX as usize)?;
                 for e in events {
-                    if matches!(e, WireEvent::PotionNotice { notice } if !(1..=7).contains(notice))
+                    if matches!(e, WireEvent::PotionNotice { notice } if !(1..=10).contains(notice))
                     {
                         return Err(EncodeError::BadValue("potion notice"));
+                    }
+                    if matches!(e, WireEvent::CannonNotice { code, seconds }
+                        if !(1..=4).contains(code)
+                            || (*code == 4)
+                                != matches!(seconds, Some(s) if (1..=75).contains(s)))
+                    {
+                        return Err(EncodeError::BadValue("cannon notice"));
                     }
                     if matches!(e, WireEvent::ChestRefused { reason } if !(1..=9).contains(reason))
                     {
@@ -998,12 +1063,22 @@ impl Frame for ServerMsg {
                             w.u8(7);
                             w.u8(*notice);
                         }
+                        WireEvent::CannonNotice { code, seconds } => {
+                            w.u8(9);
+                            w.u8(*code);
+                            if let Some(seconds) = seconds {
+                                w.u16(*seconds);
+                            }
+                        }
                         WireEvent::ChestRefused { reason } => {
                             w.u8(6);
                             w.u8(*reason);
                         }
-                        WireEvent::Toast { text } => {
+                        WireEvent::WindEmblem => {
                             w.u8(8);
+                        }
+                        WireEvent::Toast { text } => {
+                            w.u8(10);
                             w.str(text);
                         }
                         WireEvent::PickupRefused { reason } => {
@@ -1070,6 +1145,7 @@ impl Frame for ServerMsg {
                             w.u16(quant::quantize_pos(y));
                             w.u16(quant::quantize_facing(a));
                         }
+                        WireFx::Teleport => w.u8(5),
                         WireFx::Hit {
                             victim,
                             by,

@@ -108,6 +108,7 @@ pub struct WireInventory {
     /// Carried weapon codes0..4; an empty slot is distinct from fists.
     pub slots: [Option<u8>; 2],
     pub potion_small: u8,
+    pub potion_large: u8,
     pub potions_healing: u8,
 }
 
@@ -120,6 +121,11 @@ pub enum WirePropKind {
     Body {
         label: String,
     },
+    Corpse {
+        label: String,
+    },
+    /// A walk-over wind emblem (the label is the source's fixed one).
+    WindEmblem,
     /// A travel cannon with its server-time reload clock (the legacy `readyAt` countdown).
     Cannon {
         ready_at: u32,
@@ -230,6 +236,7 @@ impl WirePlanOption {
 impl WirePlan {
     fn valid(&self) -> bool {
         self.ends_at.is_finite()
+            && self.ends_at >= 0.
             && self.pick.is_none_or(|v| v <= 1)
             && self.boon.is_none_or(|v| v <= 1)
             && self.boons.len() <= 4
@@ -595,7 +602,10 @@ impl WireProps {
             match &row.kind {
                 WirePropKind::Ground(v) => check_weapon(Some(*v))?,
                 WirePropKind::Chest { .. } => {}
-                WirePropKind::Body { label } => str_fits("body label", label)?,
+                WirePropKind::Body { label } | WirePropKind::Corpse { label } => {
+                    str_fits("prop label", label)?
+                }
+                WirePropKind::WindEmblem => {}
                 WirePropKind::Cannon { .. } => {}
             }
         }
@@ -624,7 +634,10 @@ impl WireProps {
                         + 5
                         + match &row.kind {
                             WirePropKind::Ground(_) | WirePropKind::Chest { .. } => 1,
-                            WirePropKind::Body { label } => str_len(label),
+                            WirePropKind::WindEmblem => 0,
+                            WirePropKind::Body { label } | WirePropKind::Corpse { label } => {
+                                str_len(label)
+                            }
                             WirePropKind::Cannon { ready_at } => varint_len(*ready_at),
                         }
                 })
@@ -651,8 +664,15 @@ impl WireProps {
                     w.u8(3);
                     w.str(label);
                 }
-                WirePropKind::Cannon { ready_at } => {
+                WirePropKind::Corpse { label } => {
                     w.u8(4);
+                    w.str(label);
+                }
+                WirePropKind::WindEmblem => {
+                    w.u8(5);
+                }
+                WirePropKind::Cannon { ready_at } => {
+                    w.u8(6);
                     w.varint(*ready_at);
                 }
             }
@@ -683,7 +703,9 @@ impl WireProps {
                     open: bool_flag(r)?,
                 },
                 3 => WirePropKind::Body { label: r.str()? },
-                4 => WirePropKind::Cannon {
+                4 => WirePropKind::Corpse { label: r.str()? },
+                5 => WirePropKind::WindEmblem,
+                6 => WirePropKind::Cannon {
                     ready_at: r.varint()?,
                 },
                 _ => return Err(DecodeError::BadField("prop kind")),
@@ -774,7 +796,7 @@ impl StateItem {
     pub(crate) fn encoded_len(&self) -> usize {
         varint_len(self.key())
             + match self {
-                Self::Inventory(value) => 1 + usize::from(value.is_some()) * 5,
+                Self::Inventory(value) => 1 + usize::from(value.is_some()) * 6,
                 Self::Props(value) => value.len(),
                 Self::Fields(value) => {
                     varint_len(value.len() as u32) + value.iter().map(WireField::len).sum::<usize>()
@@ -801,7 +823,7 @@ impl StateItem {
                 if value.active_slot > 1 {
                     return Err(EncodeError::BadValue("active slot"));
                 }
-                if value.potion_small > 5 || value.potions_healing > 3 {
+                if value.potion_small > 5 || value.potion_large > 5 || value.potions_healing > 3 {
                     return Err(EncodeError::BadValue("potion count"));
                 }
                 for slot in value.slots {
@@ -887,6 +909,7 @@ impl StateItem {
                         write_weapon(w, slot);
                     }
                     w.u8(value.potion_small);
+                    w.u8(value.potion_large);
                     w.u8(value.potions_healing);
                 });
             }
@@ -932,14 +955,16 @@ impl StateItem {
                 }
                 let slots = [read_weapon(r)?, read_weapon(r)?];
                 let potion_small = r.u8()?;
+                let potion_large = r.u8()?;
                 let potions_healing = r.u8()?;
-                if potion_small > 5 || potions_healing > 3 {
+                if potion_small > 5 || potion_large > 5 || potions_healing > 3 {
                     return Err(DecodeError::BadField("potion count"));
                 }
                 Ok(WireInventory {
                     active_slot,
                     slots,
                     potion_small,
+                    potion_large,
                     potions_healing,
                 })
             })?),

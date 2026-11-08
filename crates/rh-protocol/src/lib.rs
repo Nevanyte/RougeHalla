@@ -23,9 +23,36 @@
 //!
 //! Protocol 6 adds Choose (8: handle u32 + pick i8 -1..=2), UseConsumable (9: no body),
 //! Target (10: nonzero actor reference u32), and AttackMove (11: Move payload).
-//! PotionNotice (Events 7) carries only a notice byte 1..=7. Camps carry direct mob type 0..29,
+//! Protocol 7 adds HuntTarget (12: nonzero actor reference u32) and the self hunt fields
+//! (Full head bits 14/15, delta bits 18/19; the target is a nonzero varint, stacks a varint).
+//! PotionNotice (Events 7) carries only a notice byte 1..=10. Camps carry direct mob type 0..29,
 //! optional elite as 0 absent / 1+index, alive varint <=512, state 0..=2, and finite nonnegative
-//! cleared/respawn f64 times with respawn >= cleared. At most 512 rows and seven ascending State keys.
+//! cleared/respawn f64 times with respawn >= cleared. At most 512 rows and nine ascending State keys.
+//!
+//! Source planning/lifecycle transport: Plan (command 14): a flags u8 (bit 0 spawn, bit 1 boon,
+//! bit 2 ready) and the present fields in order (spawn u8 0/1, boon u8 0/1, ready u8 0/1); it is accepted only during the
+//! planning phase and goes through the ordinary input frame so the simulation's action order still applies. A Snapshot
+//! phase code 3 is Planning (0 lobby, 1 active, 2 ended). Teleport (Fx 5) has no body. State key 8 is the viewer's own
+//! private plan (never another player's): ends_at f64, spawns (two optional non-negative pool indices), taken (two flags),
+//! pick (0 absent / 1 = option 0 / 2 = option 1), boons (<= 4 byte-len strings), boon (same 0/1/2 code) and ready, plus the
+//! two server-resolved option facts (pool index, quantized position, zone code 1..=5, optional walk seconds f32). State key
+//! 9 is the public arena lifecycle view: lobby/plan/raid timers, optional patience deadline, in-coliseum and gates-locked
+//! flags, the sudden-death deadline and the starter count. Both keys are complete replacements; key 8 is only ever built
+//! from the owner's own observation.
+//!
+//! Travel cannon: prop kind 6 (Cannon) carries the load-ready varint after its position, and
+//! CannonNotice (Events 9) carries only a notice code byte (1 sealed, 2 cannot enter, 3 blast) plus, for code 4
+//! (reloading), the source's rounded-up remaining whole seconds as u16 1..=75. Both are owner-filtered where they name a
+//! player and never carry a world container id.
+//!
+//! Protocol 11 combines the independent branch additions. Commands 12 HuntTarget, 13 ConsumeCorpse,
+//! 14 Plan and 15 Train are distinct. Events 8 WindEmblem, 9 CannonNotice and 10 Toast are distinct.
+//! Props 4 Corpse, 5 WindEmblem and 6 Cannon are distinct. Actor kinds: 0 player, 1 regional mob,
+//! 2 zombie, 3 training dummy. State keys 8 private Plan and 9 public Arena complete the nine-key epoch.
+//! Build carries all 80 card counts followed by eight boosts. Inventory carries small, large and active-healing counts.
+//! Hunt uses Full self bits 14/15 and Delta self bits 18/19. Training is independent of self, Full bit 16 and
+//! Delta bit 20; the bit is the value on every frame. A Delta hunt-target value of zero clears it; a present
+//! Full hunt target and HuntTarget command must remain nonzero. Every old major is refused at admission.
 //!
 //! # Field masks (protocol v4; docs/adr/0011-protocol-v4.md)
 //!
@@ -79,8 +106,9 @@
 //! announcements) and Fx (droppable). Anything else the client needs to KEEP (collections, match-level state) is KEYED STATE:
 //! `State 0x88, tick varint, count varint, then per item [key varint][record]`, the latest value per key, the record layout
 //! defined by the key. Keys are unique and ascending: 1 self inventory, 2 props/focus, 3 visible fields,
-//! 4 reward offers, 5 self build, 6 camp summaries, 7 visible projectiles. Each is a complete replacement; missing keys retain their last value. Module [`state`]
-//! defines strict bounds and record layouts. Welcome (join and resume) is followed by all seven keys, even empty,
+//! 4 reward offers, 5 self build, 6 camp summaries, 7 visible projectiles, 8 the viewer's own plan, 9 the public arena
+//! lifecycle. Each is a complete replacement; missing keys retain their last value. Module [`state`]
+//! defines strict bounds and record layouts. Welcome (join and resume) is followed by all nine keys, even empty,
 //! so a resumed or recovered client never depends on an
 //! event it may have missed; events stay for one-shot announcements. The player's own `Result` is the one event the server
 //! keeps and re-sends after a resume.
@@ -106,9 +134,9 @@ pub mod quant;
 pub mod samples;
 pub mod state;
 pub use state::{
-    PickupHandle, RewardChestHandle, StateItem, WireBuild, WireCamp, WireField, WireFocus,
-    WireInventory, WireProjectile, WireProp, WirePropKind, WireProps, WireRewardChest,
-    WireRewardId, WireRewardOption,
+    PickupHandle, RewardChestHandle, StateItem, WireArena, WireBuild, WireCamp, WireField,
+    WireFocus, WireInventory, WirePlan, WirePlanOption, WireProjectile, WireProp, WirePropKind,
+    WireProps, WireRewardChest, WireRewardId, WireRewardOption,
 };
 
 pub use codec::{DecodeError, EncodeError, Reader, Writer};
@@ -119,11 +147,7 @@ pub use delta::{
 pub use encode::{encode_welcome, encode_welcome_into, WelcomeHeader};
 
 /// Bump on any incompatible change (a new tag or field in an existing message). Both ends refuse another major version.
-///
-/// v8 adds the training-room set: the practice console client command (tag 13; tag 12 stays reserved for the pending
-/// P-ARENA-1 plan command and the coordinator renumbers the merged protocols), the owner-only Toast event (tag 8), and the
-/// Snapshot training head bit (bit 14 on a Full frame, bit 18 on a Delta).
-pub const PROTOCOL_VERSION: u16 = 8;
+pub const PROTOCOL_VERSION: u16 = 11;
 /// Milliseconds per server tick (20 Hz). A Snapshot carries `tick` only: its server time is `tick * TICK_MS` exactly.
 pub const TICK_MS: u32 = 50;
 
@@ -214,6 +238,12 @@ pub enum WireCommand {
     Target {
         actor: u32,
     },
+    HuntTarget {
+        actor: u32,
+    },
+    ConsumeCorpse {
+        handle: PickupHandle,
+    },
     AttackMove {
         x: f32,
         y: f32,
@@ -228,6 +258,13 @@ pub enum WireCommand {
     Choose {
         handle: RewardChestHandle,
         pick: i8,
+    },
+    /// The planning screen's private command (source arena planning only; dropped in any other phase). `spawn`/`boon` are
+    /// indexes into the caller's own private plan options (0/1); `ready` latches. At least one field should be present.
+    Plan {
+        spawn: Option<u8>,
+        boon: Option<u8>,
+        ready: Option<bool>,
     },
     Move {
         x: f32,
@@ -249,7 +286,7 @@ pub enum WireCommand {
         a: f32,
         t: Option<f64>,
     },
-    /// The training room's practice console (protocol 8, tag 13): the source's five commands. The command byte names
+    /// The training room's practice console (protocol 11, tag 15): the source's five commands. The command byte names
     /// one (1 card, 2 stat, 3 camp, 4 chest, 5 clear); the id is a catalog position, the count is clamped by the sim, and
     /// the options are the chest's chosen card positions (at most three).
     Train {
@@ -313,6 +350,9 @@ pub struct WireSelf {
     pub effects: u16,
     pub displace_seq: u8,
     pub sig: u8,
+    /// The selected Sentenced rival; absent is `None` (never actor 0).
+    pub hunt_target: Option<u32>,
+    pub hunt_stacks: u16,
 }
 
 /// A remote actor as the observation chose it. On the wire its position and facing are quantized ([`quant`]): a decoded
@@ -392,13 +432,20 @@ pub enum WireEvent {
     },
     /// The player's own resolved run.
     Result(WireResult),
+    /// A wind emblem was walked over (the client's fixed "+50% movement for 5s" toast).
+    WindEmblem,
     PickupRefused {
         reason: u8,
     },
     ChestRefused {
         reason: u8,
     },
-    /// The practice console's owner-only notice (protocol 8, tag 8): routed only to the connection that owns the event.
+    /// The owner's travel-cannon notice: 1 sealed, 2 cannot enter, 3 blast, or 4 reloading with the remaining seconds.
+    CannonNotice {
+        code: u8,
+        seconds: Option<u16>,
+    },
+    /// The practice console's owner-only notice (protocol 11, tag 10): routed only to the connection that owns the event.
     Toast {
         text: String,
     },
@@ -428,6 +475,8 @@ pub enum WireFx {
         amount: f32,
         passive: bool,
     },
+    /// The coliseum teleport happened at this tick (source sends the `teleport` fx to the whole room).
+    Teleport,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -469,7 +518,7 @@ pub enum ServerMsg {
         ack_input: u32,
         me: Option<WireSelf>,
         actors: Vec<WireActor>,
-        /// Protocol 8: the source's public training fact (head bit 14; absent means false, so a non-training frame is
+        /// Protocol 11: the source's public training fact (head bit 16; absent means false, so a non-training frame is
         /// byte-identical to v7 apart from the version number).
         training: bool,
     },
@@ -488,7 +537,7 @@ pub enum ServerMsg {
         client_ms: f64,
         server_ms: f64,
     },
-    /// Keyed state, the latest value per key (v4, reserved: no key exists yet, so `items` is always empty). See the crate docs.
+    /// Keyed state, the latest value per key (keys 1..=9; see the crate docs). Each item is a complete replacement.
     State {
         tick: u32,
         items: Vec<StateItem>,
@@ -514,6 +563,7 @@ const C_STOP: u8 = 2;
 const C_AIM: u8 = 3;
 const C_ATTACK: u8 = 4;
 const C_RELEASE: u8 = 5;
+const C_PLAN: u8 = 14;
 
 impl ClientMsg {
     /// The protocol version a Hello frame announces, read from its first three bytes (`[0x01][protocol u16]`) and nothing
@@ -582,7 +632,7 @@ impl ClientMsg {
                             }
                             WireCommand::Target { actor }
                         }
-                        13 => {
+                        15 => {
                             let command = r.u8()?;
                             if !(1..=5).contains(&command) {
                                 return Err(DecodeError::BadField("train command"));
@@ -610,6 +660,48 @@ impl ClientMsg {
                             y: r.f32()?,
                             seq: r.opt(|r| r.u8())?,
                         },
+                        12 => {
+                            let actor = r.u32()?;
+                            if actor == 0 {
+                                return Err(DecodeError::BadField("hunt target"));
+                            }
+                            WireCommand::HuntTarget { actor }
+                        }
+                        13 => {
+                            let handle = PickupHandle::new(r.u32()?)
+                                .ok_or(DecodeError::BadField("corpse handle"))?;
+                            WireCommand::ConsumeCorpse { handle }
+                        }
+                        C_PLAN => {
+                            let flags = r.u8()?;
+                            if flags & !0b111 != 0 {
+                                return Err(DecodeError::BadField("plan flags"));
+                            }
+                            let spawn = if flags & 1 != 0 {
+                                let v = r.u8()?;
+                                if v > 1 {
+                                    return Err(DecodeError::BadField("plan spawn"));
+                                }
+                                Some(v)
+                            } else {
+                                None
+                            };
+                            let boon = if flags & 2 != 0 {
+                                let v = r.u8()?;
+                                if v > 1 {
+                                    return Err(DecodeError::BadField("plan boon"));
+                                }
+                                Some(v)
+                            } else {
+                                None
+                            };
+                            let ready = if flags & 4 != 0 {
+                                Some(r.u8()? != 0)
+                            } else {
+                                None
+                            };
+                            WireCommand::Plan { spawn, boon, ready }
+                        }
                         C_MOVE => WireCommand::Move {
                             x: r.f32()?,
                             y: r.f32()?,
@@ -662,10 +754,12 @@ pub(crate) const HM_PHASE: u32 = 1 << 10;
 pub(crate) const HM_EFFECTS: u32 = 1 << 11;
 pub(crate) const HM_DISPLACE: u32 = 1 << 12;
 pub(crate) const HM_SIG: u32 = 1 << 13;
-/// Protocol 8: the source's public training fact (a practice room never runs a match). Append-only; independent of the self.
-pub(crate) const HM_TRAINING: u32 = 1 << 14;
-pub(crate) const HM_SELF_BITS: u32 = 0x03ff | HM_EFFECTS | HM_DISPLACE | HM_SIG;
+pub(crate) const HM_HUNT_TARGET: u32 = 1 << 14;
+pub(crate) const HM_HUNT_STACKS: u32 = 1 << 15;
+pub(crate) const HM_SELF_BITS: u32 =
+    0x03ff | HM_EFFECTS | HM_DISPLACE | HM_SIG | HM_HUNT_TARGET | HM_HUNT_STACKS;
 pub(crate) const HM_KNOWN: u32 = HM_SELF_BITS | HM_PHASE | HM_TRAINING;
+pub(crate) const HM_TRAINING: u32 = 1 << 16;
 /// Full actor mask bits (append only): 0 kit, 1 hp, 2 status, 3 bounty, 4 kind.
 pub(crate) const AM_KIT: u32 = 1 << 0;
 pub(crate) const AM_HP: u32 = 1 << 1;
@@ -743,6 +837,20 @@ fn read_self(r: &mut Reader, mask: u32) -> Result<WireSelf, DecodeError> {
     let effects = if mask & HM_EFFECTS != 0 { r.u16()? } else { 0 };
     let displace_seq = if mask & HM_DISPLACE != 0 { r.u8()? } else { 0 };
     let sig = if mask & HM_SIG != 0 { r.u8()? } else { 0 };
+    let hunt_target = if mask & HM_HUNT_TARGET != 0 {
+        let target = r.varint()?;
+        if target == 0 {
+            return Err(DecodeError::BadField("hunt target"));
+        }
+        Some(target)
+    } else {
+        None
+    };
+    let hunt_stacks = if mask & HM_HUNT_STACKS != 0 {
+        varint_u16(r, "hunt_stacks")?
+    } else {
+        0
+    };
     Ok(WireSelf {
         effects,
         displace_seq,
@@ -761,6 +869,8 @@ fn read_self(r: &mut Reader, mask: u32) -> Result<WireSelf, DecodeError> {
         bounty,
         gv,
         move_seq,
+        hunt_target,
+        hunt_stacks,
     })
 }
 
@@ -921,13 +1031,29 @@ impl ServerMsg {
                 let mut events = Vec::with_capacity(n.min(1024));
                 for _ in 0..n {
                     events.push(match r.u8()? {
-                        8 => WireEvent::Toast { text: r.str()? },
+                        8 => WireEvent::WindEmblem,
+                        10 => WireEvent::Toast { text: r.str()? },
                         7 => {
                             let notice = r.u8()?;
-                            if !(1..=7).contains(&notice) {
+                            if !(1..=10).contains(&notice) {
                                 return Err(DecodeError::BadField("potion notice"));
                             }
                             WireEvent::PotionNotice { notice }
+                        }
+                        9 => {
+                            let code = r.u8()?;
+                            let seconds = match code {
+                                1..=3 => None,
+                                4 => {
+                                    let s = r.u16()?;
+                                    if !(1..=75).contains(&s) {
+                                        return Err(DecodeError::BadField("cannon notice"));
+                                    }
+                                    Some(s)
+                                }
+                                _ => return Err(DecodeError::BadField("cannon notice")),
+                            };
+                            WireEvent::CannonNotice { code, seconds }
                         }
                         6 => {
                             let reason = r.u8()?;
@@ -986,6 +1112,7 @@ impl ServerMsg {
                             weapon: r.u8()?,
                         },
                         4 => WireFx::Stagger { id: r.varint()? },
+                        5 => WireFx::Teleport,
                         1 => WireFx::Swing {
                             by: r.varint()?,
                             weapon: r.u8()?,
