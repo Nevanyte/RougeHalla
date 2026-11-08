@@ -12,18 +12,21 @@ namespace Roguehalla.Client.Tests
     {
         const string QualityModeKey = "roguehalla.showcase.qualityMode";
         const string ManualQualityKey = "roguehalla.showcase.manualQuality";
+        const string ReducedMotionKey = "roguehalla.showcase.reducedMotion";
         readonly List<GameObject> _objects = new List<GameObject>();
         readonly List<Object> _assets = new List<Object>();
-        bool _hadQualityMode, _hadManualQuality;
-        int _previousQualityMode, _previousManualQuality;
+        bool _hadQualityMode, _hadManualQuality, _hadReducedMotion;
+        int _previousQualityMode, _previousManualQuality, _previousReducedMotion;
 
         [SetUp]
         public void SetUp()
         {
             _hadQualityMode = PlayerPrefs.HasKey(QualityModeKey);
             _hadManualQuality = PlayerPrefs.HasKey(ManualQualityKey);
+            _hadReducedMotion = PlayerPrefs.HasKey(ReducedMotionKey);
             _previousQualityMode = PlayerPrefs.GetInt(QualityModeKey);
             _previousManualQuality = PlayerPrefs.GetInt(ManualQualityKey);
+            _previousReducedMotion = PlayerPrefs.GetInt(ReducedMotionKey);
         }
 
         [TearDown]
@@ -37,6 +40,7 @@ namespace Roguehalla.Client.Tests
             _assets.Clear();
             RestorePreference(QualityModeKey, _hadQualityMode, _previousQualityMode);
             RestorePreference(ManualQualityKey, _hadManualQuality, _previousManualQuality);
+            RestorePreference(ReducedMotionKey, _hadReducedMotion, _previousReducedMotion);
             PlayerPrefs.Save();
         }
 
@@ -254,6 +258,93 @@ namespace Roguehalla.Client.Tests
             AssertRendererEnabled(actor, "Faction insignia");
             AssertRendererEnabled(actor, "Confirmed health");
             Assert.That(actor.GetComponentInChildren<Light2D>(true).enabled, Is.False);
+        }
+
+        [Test]
+        public void FactionMarksStayDistinctAndVisibleAcrossQualityMotionAndPooling()
+        {
+            var footprints = new Sprite[5];
+            var masks = new Color32[5][];
+            for (int faction = 0; faction < 5; faction++)
+            {
+                footprints[faction] = FactionIndicators.GetFootprint(faction);
+                masks[faction] = footprints[faction].texture.GetPixels32();
+                Assert.That(footprints[faction], Is.Not.Null);
+                Assert.That(footprints[faction].name, Does.Contain(new[] { "Fire triangle", "Sentenced square", "Plague trefoil", "Frost hexagon", "Holy circle" }[faction]));
+                Assert.That(CountOpaque(masks[faction]), Is.GreaterThan(150));
+            }
+            for (int a = 0; a < masks.Length; a++)
+            for (int b = a + 1; b < masks.Length; b++)
+                Assert.That(CountMaskDifferences(masks[a], masks[b]), Is.GreaterThan(150), "footprints " + a + " and " + b + " must have distinct geometry");
+            Sprite unknownFootprint = FactionIndicators.GetFootprint(-1);
+            Assert.That(unknownFootprint, Is.SameAs(FactionIndicators.GetFootprint(5)));
+            Assert.That(unknownFootprint.name, Does.Contain("Unknown"));
+
+            PlayerPrefs.SetInt(QualityModeKey, (int)ShowcaseQualityMode.Manual);
+            PlayerPrefs.SetInt(ManualQualityKey, (int)ShowcaseQuality.High);
+            PlayerPrefs.SetInt(ReducedMotionKey, 0);
+            var settingsObject = CreateObject("test faction indicator settings");
+            var settings = settingsObject.AddComponent<ShowcaseSettings>();
+            InvokeAwake(settings);
+            var arena = CreateArena();
+            var me = new SelfView { Id = 90, X = 200, Y = 180, Hp = 75, MaxHp = 100, Status = ActorStatus.Alive,
+                Faction = FactionId.Fire, Weapon = WeaponId.Bow };
+            Transform actor = null;
+
+            for (int quality = 0; quality < 3; quality++)
+            {
+                for (int reduced = 0; reduced < 2; reduced++)
+                {
+                    if (settings.ReducedMotion != (reduced != 0)) settings.ToggleReducedMotion();
+                    for (int faction = 0; faction < 5; faction++)
+                    {
+                        me.Faction = (FactionId)faction;
+                        arena.Present(new List<InterpActor>(), me, null, 0);
+                        actor = FindDirectChild(arena.transform, "Observed actor");
+                        var footprint = FindDirectChild(actor, "Faction footprint").GetComponent<SpriteRenderer>();
+                        var backplate = FindDirectChild(actor, "Faction insignia backplate").GetComponent<SpriteRenderer>();
+                        var rune = FindDirectChild(actor, "Faction insignia").GetComponent<SpriteRenderer>();
+                        Assert.That(footprint.sprite, Is.SameAs(footprints[faction]));
+                        Assert.That(footprint.sharedMaterial, Is.SameAs(ShowcaseSprites.Unlit));
+                        Assert.That(footprint.enabled, Is.True);
+                        Assert.That(backplate.enabled, Is.True);
+                        Assert.That(backplate.sharedMaterial, Is.SameAs(ShowcaseSprites.Unlit));
+                        Assert.That(rune.enabled, Is.True);
+                        Assert.That(rune.sprite.name, Is.EqualTo("sigil" + faction));
+                        Assert.That(rune.transform.localScale.x, Is.EqualTo(.4f).Within(.001f));
+                    }
+                }
+                if (quality < 2) settings.CycleQuality();
+            }
+
+            me.Faction = (FactionId)255;
+            arena.Present(new List<InterpActor>(), me, null, 0);
+            var unknownRoot = FindDirectChild(arena.transform, "Observed actor");
+            var unknownFootprintRenderer = FindDirectChild(unknownRoot, "Faction footprint").GetComponent<SpriteRenderer>();
+            var unknownRuneRenderer = FindDirectChild(unknownRoot, "Faction insignia").GetComponent<SpriteRenderer>();
+            Assert.That(unknownFootprintRenderer.sprite, Is.SameAs(unknownFootprint));
+            Assert.That(unknownFootprintRenderer.color, Is.EqualTo((Color)ShowcasePalette.MutedText));
+            Assert.That(unknownRuneRenderer.sprite.name, Is.EqualTo("rune"), "unknown factions must not borrow a known faction sigil");
+            Assert.That(unknownRuneRenderer.color, Is.EqualTo((Color)ShowcasePalette.MutedText));
+
+            arena.Present(new List<InterpActor>(), null, null, 0);
+            Assert.That(unknownRoot.gameObject.activeSelf, Is.False, "pooled actor hides every marker with its root");
+            Assert.That(FindDirectChild(unknownRoot, "Faction insignia backplate").gameObject.activeInHierarchy, Is.False);
+            Assert.That(FindDirectChild(unknownRoot, "Faction footprint").gameObject.activeInHierarchy, Is.False);
+        }
+
+        static int CountOpaque(Color32[] pixels)
+        {
+            int count = 0;
+            foreach (var pixel in pixels) if (pixel.a > 0) count++;
+            return count;
+        }
+
+        static int CountMaskDifferences(Color32[] a, Color32[] b)
+        {
+            int count = 0;
+            for (int i = 0; i < a.Length; i++) if ((a[i].a > 0) != (b[i].a > 0)) count++;
+            return count;
         }
 
         ArenaView CreateArena()
