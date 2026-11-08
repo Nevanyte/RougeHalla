@@ -1,0 +1,10 @@
+--- a/packages/server/src/sim/killAugments.ts
++++ b/packages/server/src/sim/killAugments.ts
+@@ -23,7 +23,6 @@
+   const options = rollKillAugments(v);
+   if (options.length === 0) return;
+   const box = addContainer(world, "reward", { x: k.x, y: k.y }, KILL_AUG_LABEL, []);
+-  holdBirth(world, box.id);
+   box.owner = killer.id;
+   box.expiresAt = world.state.serverTime + KILL_AUG_SECONDS * 1000;
+   for (const id of options) { box.options.push(id); box.takenBy.push(""); }
