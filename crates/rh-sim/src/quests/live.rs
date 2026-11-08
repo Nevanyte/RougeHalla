@@ -325,9 +325,12 @@ pub(crate) fn on_raid_started(hx: &mut crate::hooks::Hx, _: &crate::hooks::HookA
 }
 
 /// Source takesPart: fill bots take no part in quests (no policy, no GV from their deaths).
+fn standing_human(p: &Player) -> bool {
+    p.standing() && !p.seat.bot
+}
+
 fn standing(w: &World, id: PlayerId) -> bool {
-    w.player(id)
-        .is_some_and(|p: &Player| p.standing() && !p.seat.bot)
+    w.player(id).is_some_and(standing_human)
 }
 
 /// Source takesPart for a fighter whose body state (alive/down/resolved) is proven by the caller.
@@ -557,7 +560,7 @@ pub(crate) fn handle_accept(cx: &mut Cx, ix: crate::fighter::FighterIx, cmd: &Ac
         return;
     }
     let id = cx.w.core(ix).id;
-    if !cx.w.players[ix.slot()].standing() {
+    if !standing(cx.w, id) {
         return;
     }
     if crate::status_runtime::action_blocked(&cx.w.core(ix).statuses, cx.w.server_time) {
@@ -602,7 +605,7 @@ pub(crate) fn pickup(cx: &mut Cx, ix: crate::fighter::FighterIx, container_ix: u
         return;
     };
     let id = cx.w.core(ix).id;
-    if !cx.w.is_player(ix) || cx.w.phase != crate::state::Phase::Active {
+    if !cx.w.is_player(ix) || !takes_part(cx.w, id) || cx.w.phase != crate::state::Phase::Active {
         return;
     }
     let Some(offer) = quests(cx.w).and_then(|q| {
@@ -708,7 +711,7 @@ pub(crate) fn system(cx: &mut Cx) {
         let at = offer.at;
         let mut finder: Option<PlayerId> = None;
         for p in &w.players {
-            if !p.standing() {
+            if !standing_human(p) {
                 continue;
             }
             if crate::math::hypot(p.pos().x - at.x, p.pos().y - at.y) > QUEST_REVEAL_RADIUS {
@@ -743,7 +746,7 @@ pub(crate) fn system(cx: &mut Cx) {
         let at = offer.at;
         let mut best: Option<PlayerId> = None;
         for p in &w.players {
-            if !p.standing() || !is_ready(offer, p.id) {
+            if !standing_human(p) || !is_ready(offer, p.id) {
                 continue;
             }
             if crate::math::hypot(p.pos().x - at.x, p.pos().y - at.y) > QUEST_TURN_IN_RANGE {
@@ -801,7 +804,7 @@ fn close_impossible(w: &mut World, only: Option<usize>) {
         let mut anyone = false;
         let mut possible = false;
         for p in &w.players {
-            if !p.standing() {
+            if !standing_human(p) {
                 continue;
             }
             anyone = true;
