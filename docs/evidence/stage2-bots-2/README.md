@@ -1,7 +1,7 @@
 # P-BOTS-2: the Wish module (abilityPolicy) on the bot policy seats
 
 Stacked PR: [#51](https://github.com/Nevanyte/RougeHalla/pull/51), deepseek/p-bots-2 -> deepseek/p-bots-1 @
-03557512; commits COMMIT_RANGE. No wire/protocol change (protocol 7), no dependency or Cargo.lock change.
+03557512; commits 03557512..fc92a631. No wire/protocol change (protocol 7), no dependency or Cargo.lock change.
 
 Status: this slice is DONE-VERIFIED; P-BOTS-2 remains INCOMPLETE at packet level (the exact remainder is listed below).
 There is no packet file for P-BOTS-2; the scope was derived from the backlog row (docs/backlog/README.md line 158: the
@@ -58,9 +58,12 @@ the owner's own hit events).
 
 ## Verification
 
-- Git: COMMIT_RANGE.
+- Git: 03557512..fc92a631.
 - CI: no wire change; the workspace gate below is authoritative (the base stack's rust workflow keeps its known long-run risk).
-- GATE_PLACEHOLDER
+- - `cargo test --workspace --all-features --locked`: **1,459 passed, 0 failed, 3 ignored, 152 test binaries, exit 0**.
+- `cargo clippy --workspace --all-targets --all-features --locked -- -D warnings`: clean, exit 0; `cargo fmt --all -- --check`: clean.
+- `tools/wish-fixtures/capture.sh --check`: byte-identical to the committed corpus; `run-mutants.sh`: **7/7 mutants killed; unchanged control passes**.
+- `crates/rh-policy`: 29 tests green (17 bot-core + 5 wish parity + 7 policy-seat); the existing rh-headless bot determinism tests are unchanged and part of the workspace run.
 
 ## Exact remainder for P-BOTS-2
 
