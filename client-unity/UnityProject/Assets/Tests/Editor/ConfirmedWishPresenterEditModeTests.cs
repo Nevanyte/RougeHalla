@@ -112,6 +112,9 @@ namespace Roguehalla.Client.Tests
             _presenter.Tick(300);
             Assert.That(_presenter.ActiveCount, Is.Zero);
             Assert.That(root.gameObject.activeSelf, Is.False);
+            _presenter.Accept(Start(0, 10, 100, 1));
+            _presenter.Tick(500);
+            Assert.That(_presenter.ActiveCount, Is.Zero, "an already expired late delivery never restarts its lifetime");
         }
 
         [Test]

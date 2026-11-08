@@ -54,6 +54,17 @@ namespace Roguehalla.Client.Tests
             Invoke("RefreshOwnerPresentation", me, 2700d);
             StringAssert.Contains("(in 300 ms)", _wish.text);
 
+            var stock = me.Wish.Value;
+            stock.Charges = 0; me.Wish = stock;
+            Invoke("RefreshOwnerPresentation", me, 3000d);
+            StringAssert.Contains("0/2", _wish.text);
+            stock.Charges = 2; stock.NextChargeAt = null; stock.FullAt = null; stock.Cast = null;
+            me.Wish = stock;
+            Invoke("RefreshOwnerPresentation", me, 6000d);
+            StringAssert.Contains("2/2", _wish.text);
+            StringAssert.DoesNotContain("Cast Blaze", _wish.text);
+            StringAssert.DoesNotContain("next 7000", _wish.text);
+
             me.Wish = null; me.Barrier = 0;
             Invoke("RefreshOwnerPresentation", me, 4000d);
             StringAssert.Contains("None delivered", _wish.text);

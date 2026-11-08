@@ -278,7 +278,7 @@ namespace Roguehalla.Client
             _feedback = "";
             Set(_notice, "");
             if (_session == null) ClearOwnerPresentation("Awaiting server");
-            else if (_session.Me == null) ClearOwnerPresentation("Unavailable");
+            else if (_session.Me == null) ClearOwnerPresentation(_session.Latest == null ? "Awaiting server" : "Unavailable");
             else RefreshOwnerPresentation(_session.Me, _session.ServerTimeMs);
             _dirty = true;
         }
@@ -323,7 +323,7 @@ namespace Roguehalla.Client
             var me = _session.Me;
             if (me == null)
             {
-                ClearOwnerPresentation("Unavailable");
+                ClearOwnerPresentation(_session.Latest == null ? "Awaiting server" : "Unavailable");
             }
             else
             {
