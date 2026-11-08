@@ -1,5 +1,5 @@
 //! Derived native hash regression tape for the composed candidate layout named by its recorded identities.
-//! Legacy source outputs remain frozen; all58 admitted cases must execute before recording or checking.
+//! Legacy source outputs remain frozen; all63 admitted cases must execute before recording or checking.
 use super::*;
 use serde_json::{json, Map, Value as V};
 
@@ -31,7 +31,7 @@ fn digests() -> Map<String, V> {
     }
     assert_eq!(
         out.len(),
-        58,
+        63,
         "all admitted source cases must produce a hash tape"
     );
     out
@@ -70,7 +70,7 @@ fn record_ability_hash_tape() {
         "checkpoint": crate::checkpoint::CHECKPOINT_FORMAT,
         "contentHash": format!("{:016x}", crate::content::content_hash()),
         "observationVersion": crate::OBSERVATION_VERSION,
-        "note": "58 admitted source cases executed without catch-and-drop; native digests rebound for the combined layout, not legacy expected gameplay",
+        "note": "63 admitted source cases executed without catch-and-drop; native digests rebound for the combined layout, not legacy expected gameplay",
         "cases": cases,
     });
     std::fs::write(tape_path(), serde_json::to_string_pretty(&tape).unwrap()).unwrap();

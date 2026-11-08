@@ -12,11 +12,11 @@ pub(crate) fn basic_faction(f: FactionId) -> bool {
     matches!(f, FactionId::Fire | FactionId::Plague | FactionId::Holy)
 }
 
-/// A player seat admitted in a PvE world. The basic three always are (their player and regional consumers are ported); a
-/// Frost seat joins only in the explicit engagement level that has Frost's player slice, because the Frozen Justice
-/// witness needs a real Frost player. The same level admits typed Frost camp sources; Sentenced stays excluded.
+/// A PvE seat requires the same completed signature capability as its typed regional sources.
 pub(crate) fn admitted_player_faction(mode: crate::FactionMode, f: FactionId) -> bool {
-    basic_faction(f) || (f == FactionId::Frost && mode.frost())
+    basic_faction(f)
+        || (f == FactionId::Frost && mode.frost())
+        || (f == FactionId::Sentenced && mode.sentenced())
 }
 pub(crate) fn admit_factions(k: &MatchStatic, w: &World) -> Result<(), &'static str> {
     if k.config.faction_mode == crate::FactionMode::Off {
@@ -27,6 +27,8 @@ pub(crate) fn admit_factions(k: &MatchStatic, w: &World) -> Result<(), &'static 
             k.config.faction_mode,
             crate::FactionMode::EngagementHolyPlagueFire
                 | crate::FactionMode::EngagementHolyPlagueFireFrost
+                | crate::FactionMode::EngagementHolyPlagueFireFrostSentenced
+                | crate::FactionMode::EngagementHolyPlagueFireFrostSentencedFireRoam
         )
     {
         return Err("unsupported PvE faction mode");

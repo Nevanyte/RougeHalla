@@ -5,6 +5,7 @@ use crate::{Arena, Event, Placement, PlayerId, RawCommand, Secrets, Sim, SimConf
 use serde_json::{json, Value as V};
 mod arena_refund;
 mod compare;
+mod full_profile;
 mod hash_tape;
 mod motion;
 mod player_lifecycle;
@@ -41,38 +42,12 @@ fn frozen_core_source_casts() {
     assert_eq!(n, 53);
     assert!(failures.is_empty(), "source failures: {failures:?}");
 }
-const PENDING_SOURCE_CASES: [(&str, &str, &str); 5] = [
-    (
-        "full-signature-source-born-holy-wish-recipients",
-        "rosterSignatures",
-        "full five-faction source-born NPC signatures",
-    ),
-    (
-        "full-signature-source-born-fire-wish-recipients",
-        "rosterSignatures",
-        "full five-faction source-born NPC signatures",
-    ),
-    (
-        "full-signature-source-born-plague-wish-recipients",
-        "rosterSignatures",
-        "full five-faction source-born NPC signatures",
-    ),
-    (
-        "full-signature-source-born-frost-wish-recipients",
-        "rosterSignatures",
-        "full five-faction source-born NPC signatures",
-    ),
-    (
-        "full-signature-source-born-sentenced-wish-recipients",
-        "rosterSignatures",
-        "full five-faction source-born NPC signatures",
-    ),
-];
+const PENDING_SOURCE_CASES: [(&str, &str, &str); 0] = [];
 
 /// Always executes every admitted source case and pins the exact outstanding inventory.
 /// RH_ABIL_REQUIRE_FULL additionally makes the explicitly unattempted prerequisites fatal.
 /// P-ABIL-1 admitted the two cards cases and the two signatures cases (real grantCard / own-Mark producers); the
-/// training world now executes through P-ARENA-2; the remaining five are source-born NPC signatures owned elsewhere.
+/// training world now executes through P-ARENA-2; all five source-born NPC signature cases now use the complete production capability.
 #[test]
 fn frozen_full_source_all_63_cases() {
     let corpus = corpus();
@@ -114,7 +89,7 @@ fn frozen_full_source_all_63_cases() {
     player_lifecycle::all_five_player_lifecycle_source_witnesses();
     player_lifecycle::genuine_axe_shred_reset_and_continuation();
     let diagnostic = format!(
-        "P-ABIL-1 FULL INCOMPLETE: {} named prerequisite cases were not attempted:\n{}",
+        "P-ABIL-1 FULL: {} named prerequisite cases remain:\n{}",
         pending.len(),
         pending
             .iter()

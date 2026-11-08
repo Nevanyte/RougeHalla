@@ -415,18 +415,23 @@ fn run_corpus(text: &str, format: &str, count: usize) {
 }
 
 #[test]
-fn ordinary_full_constructor_and_sentenced_pve_join_stay_closed() {
-    assert!(Sim::try_new(config(false), arena(), secrets()).is_err());
-    let mut s = Sim::try_new_unadmitted_kernel_fixture(config(false), arena(), secrets()).unwrap();
-    let before = s.state_hash();
-    assert_eq!(
-        s.add_player("not-admitted", Some(FactionId::Sentenced), false),
-        None
+fn full_constructor_and_sentenced_pve_join_require_completed_capability() {
+    let mut s = Sim::try_new(config(false), arena(), secrets()).unwrap();
+    assert!(s
+        .add_player("admitted", Some(FactionId::Sentenced), false)
+        .is_some());
+    let mut lower = config(false);
+    lower.faction_mode = FactionMode::EngagementHolyPlagueFireFrost;
+    assert!(
+        Sim::try_new(lower, arena(), secrets()).is_err(),
+        "Sentenced camp requires its actual capability"
     );
-    assert_eq!(s.state_hash(), before);
-    // Both routes share precisely the bootstrap constructor, not a replacement map/config/outcome.
-    let other = Sim::try_new_unadmitted_kernel_fixture(config(false), arena(), secrets()).unwrap();
-    assert_eq!(s.state_hash(), other.state_hash());
+    let mut foundation = config(false);
+    foundation.mob_mode = crate::mob_runtime::MobMode::SpawnFoundation;
+    assert!(
+        Sim::try_new(foundation, arena(), secrets()).is_err(),
+        "spawn-only is not a combat capability"
+    );
 }
 
 #[test]

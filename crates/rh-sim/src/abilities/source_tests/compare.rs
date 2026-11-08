@@ -257,10 +257,17 @@ pub(super) fn source_step(s: &mut Sim, case: &V) {
     #[cfg(feature = "trusted-status-probes")]
     {
         s.w.trace.1.records.clear();
+        s.w.trace.1.invocations.clear();
+        s.w.trace.1.after_weapons.clear();
     }
     let events = s.step();
     compare_events(s, &events, case);
-    if case["input"]["lifecycleWitness"] == true {
+    if case["input"]["profile"] == "rosterSignatures" {
+        super::full_profile::complete_events(s, &events, case);
+        #[cfg(feature = "trusted-status-probes")]
+        super::full_profile::complete_hooks(s, case);
+    }
+    if case["input"]["lifecycleWitness"] == true || case["input"]["profile"] == "rosterSignatures" {
         super::player_lifecycle::compare_signature_events(s, &events, case);
     }
     #[cfg(feature = "trusted-status-probes")]

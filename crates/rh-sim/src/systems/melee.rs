@@ -95,6 +95,15 @@ fn resolve_swings(cx: &mut Cx) {
             if ti == ai {
                 continue;
             }
+            // Source: ordinary camp-mates still meet bodies/shields and record zero-scaled hits. Only allied
+            // pairs involving an owned zombie are transparent, before any per-target crit/armed mutation.
+            if !super::plague_zombies::hostile(w, req.attacker, w.core(ti).id)
+                && [req.attacker, w.core(ti).id]
+                    .into_iter()
+                    .any(|id| w.mobs.get(id).is_some_and(|m| m.zombie.is_some()))
+            {
+                continue;
+            }
             let at = if shared {
                 rewound[bi]
             } else {
@@ -133,9 +142,6 @@ fn resolve_swings(cx: &mut Cx) {
                 }
             }
             let target = w.core(ti);
-            if !crate::systems::plague_zombies::hostile(w, req.attacker, target.id) {
-                continue;
-            }
             let dx = origin.x - at.x;
             let dy = origin.y - at.y;
             let blocked = matches!(req.weapon, WeaponId::Sword | WeaponId::Shield)
@@ -272,3 +278,6 @@ pub fn in_arc(origin: Vec2, a: f64, reach: f64, half_arc: f64, p: Vec2, r: f64) 
     }
     angle_between(atan2(dy, dx), a) <= half_arc + asin((r / d).min(1.0)) + ARC_EPS
 }
+
+#[cfg(test)]
+mod contact_controls;

@@ -13,6 +13,7 @@ pub(crate) fn grant_mob_stat(
 ) -> u64 {
     farm::grant_mob_stat(k, w, id, mob, amount)
 }
+pub(crate) mod farm_text;
 pub(crate) mod hit_window;
 use crate::stat_fold::{
     self as fold, EffectKind, FoldContext, MultSums, RowLocation, StatSums, WhileRow, WireMirrors,

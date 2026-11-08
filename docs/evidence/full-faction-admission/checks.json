@@ -1,0 +1,138 @@
+{
+  "base": "3faccf99f997cb006188b42902a61b0ede0790b9",
+  "branch": "codex/full-faction-admission",
+  "private_identities": {
+    "checkpoint": 27,
+    "replay": 21,
+    "observation": 19,
+    "policy": 13
+  },
+  "strict_source_cases": 5,
+  "strict_source_span_frames_per_case": 40,
+  "source_sha256": "8629c08fa42ac9fb15b21c52416658997c7d8969a6962cf59b71cebedd571330",
+  "source_expected_changes": false,
+  "checks": [
+    {
+      "label": "Full source/lifecycle/probe controls",
+      "passed_test_functions": 4,
+      "ignored_test_functions": 1,
+      "log": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/full-faction-admission/full-final-controls.log",
+      "sha256": "b7cfcee1bed120f11b1fed71d35ae1103202e231795f2810382a39973154e94d"
+    },
+    {
+      "label": "RH_ABIL_REQUIRE_FULL=1: all63 original cases and companions",
+      "passed_test_functions": 1,
+      "ignored_test_functions": 0,
+      "log": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/full-faction-admission/strict-full-63-final.log",
+      "sha256": "e674a2341f3a4c51da3d532c797b6d971f53f7498dfa7978686be8644d8548fd"
+    },
+    {
+      "label": "20 measured zero-allocation steps per Full mode",
+      "passed_test_functions": 1,
+      "ignored_test_functions": 0,
+      "log": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/full-faction-admission/full-warm-final.log",
+      "sha256": "91a99b5c3607fbbd3766638109faad8148651c5194130bab40571406f5df0ed7"
+    },
+    {
+      "label": "both Full modes through real Env",
+      "passed_test_functions": 1,
+      "ignored_test_functions": 0,
+      "log": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/full-faction-admission/full-headless-final.log",
+      "sha256": "8ca61280de639b4693364f28fc3dd8060455a1931e205d8705608445af194fda"
+    },
+    {
+      "label": "camp-mate / allied-zombie contacts",
+      "passed_test_functions": 2,
+      "ignored_test_functions": 0,
+      "log": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/full-faction-admission/melee-controls-first.log",
+      "sha256": "4eafc5913193f68c9251df7643da5085e0604e57c8155a9caafaf91c51cd5e84"
+    },
+    {
+      "label": "actual grant notice / caps / nonapplicability",
+      "passed_test_functions": 2,
+      "ignored_test_functions": 0,
+      "log": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/full-faction-admission/farm-controls-final.log",
+      "sha256": "f4df347c7ebefc332b33ba8460dec039084c0a89c93f61abba7448234f13043f"
+    },
+    {
+      "label": "neutral dummy / player Festering transition",
+      "passed_test_functions": 2,
+      "ignored_test_functions": 0,
+      "log": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/full-faction-admission/cache-controls-first.log",
+      "sha256": "6294bc06f2da15525c13a5b666bf624ae57136d5ac5130dc2345a525b4eab168"
+    },
+    {
+      "label": "existing training tests (this revision/filter)",
+      "passed_test_functions": 13,
+      "ignored_test_functions": 0,
+      "log": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/full-faction-admission/training-pass.log",
+      "sha256": "d13c96e14cdd5698a336b88269ce41123c020212a5827e4b40dc5efb0d1f707a"
+    },
+    {
+      "label": "existing Sentenced tests (this revision/filter)",
+      "passed_test_functions": 50,
+      "ignored_test_functions": 3,
+      "log": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/full-faction-admission/sentenced-existing.log",
+      "sha256": "f1347d0bdfd02e239ba6d855abe4eb6e57d157b72eed71057dc9f3b075837c61"
+    },
+    {
+      "label": "existing Frost tests (this revision/filter)",
+      "passed_test_functions": 28,
+      "ignored_test_functions": 1,
+      "log": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/full-faction-admission/frost-pass.log",
+      "sha256": "2676c4dca9c4d3c2c027c099b3ae78ecb8adec5e4775bb15f200782ef4ef92ae"
+    },
+    {
+      "label": "existing player status probe consumers",
+      "passed_test_functions": 7,
+      "ignored_test_functions": 0,
+      "log": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/full-faction-admission/probe-existing.log",
+      "sha256": "b2db0336c3fa9c0d4eb647dd1da1b97ded275085656505e2305aec7c332fd7a1"
+    },
+    {
+      "label": "existing Overkill splash control",
+      "passed_test_functions": 1,
+      "ignored_test_functions": 0,
+      "log": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/full-faction-admission/overkill-existing.log",
+      "sha256": "0dcd2dc886171788b86025c5700e443a087ab82922561d73e3f1033f4ff965a0"
+    },
+    {
+      "label": "existing actual-source Fire Roam controls",
+      "passed_test_functions": 2,
+      "ignored_test_functions": 0,
+      "log": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/full-faction-admission/fire-roam-existing.log",
+      "sha256": "a48b80909b8a479af12543f27392e71d41f626908a14249a1a2b7241adf68813"
+    },
+    {
+      "label": "clippy-default-sealed.log",
+      "result": "pass",
+      "log": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/full-faction-admission/clippy-default-sealed.log",
+      "sha256": "3979c5249b60d4ba20ec3d55474b95e62394b591dbc7d203027007b59743463e"
+    },
+    {
+      "label": "clippy-all-sealed.log",
+      "result": "pass",
+      "log": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/full-faction-admission/clippy-all-sealed.log",
+      "sha256": "3bdaa0719e73beca22b0cc3a1e526904bc4114dc5148f9c99793ff63eb4b8b4a"
+    },
+    {
+      "label": "fmt-final.log",
+      "result": "pass",
+      "log": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/full-faction-admission/fmt-final.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "diff-check-final.log",
+      "result": "pass",
+      "log": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/full-faction-admission/diff-check-final.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "limits": [
+    "Root owns final content registration, identities and derived tapes.",
+    "Old58-case derived hash tape intentionally unchanged.",
+    "No WebSocket/browser/full-map claim.",
+    "Known separate Overkill arithmetic/filter gap; only callback order repaired here.",
+    "Profiler window is 20 coupled warmed ordinary steps per Full mode."
+  ]
+}

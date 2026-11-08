@@ -82,6 +82,8 @@ pub(crate) fn after_weapons(cx: &mut Cx) {
             p.weapon.action = Some(a);
         }
     }
+    #[cfg(feature = "trusted-status-probes")]
+    crate::status_runtime::probe::after_weapons(cx.w);
 }
 pub(crate) fn ranged_hits(w: &mut World, hits: &[LandedHit]) {
     for h in hits {
