@@ -1,4 +1,4 @@
-# P-BOTS-3 remainder — the planning feature module (slice DONE-VERIFIED; packet INCOMPLETE)
+# P-BOTS-3 remainder — the planning feature module and the Knowledge layer (slices DONE-VERIFIED; packet INCOMPLETE)
 
 Phase: stage 2, backlog [P-BOTS-3](../../backlog/README.md) (planning/chest/hazard modules + chestHunt; deps P-ARENA-1,
 P-CARDS-2, P-TERRAIN-1, P-BOTS-1). **No packet file exists.** Branch `deepseek/p-bots-brain`, created from
@@ -6,7 +6,7 @@ P-CARDS-2, P-TERRAIN-1, P-BOTS-1). **No packet file exists.** Branch `deepseek/p
 `deepseek/p-bots-6`. No wire, schedule, serialized-state or content change.
 
 Pull request: [#58](https://github.com/Nevanyte/RougeHalla/pull/58), stacked on the P-BOTS-6 PR; commit range
-`f87727dd`..`1aa8c462` on `deepseek/p-bots-brain`. Ledger row:
+`f87727dd`..`SLICE2_COMMIT` on `deepseek/p-bots-brain` (slice 1 `1aa8c462`, slice 2 `SLICE2_COMMIT`). Ledger row:
 [`docs/evidence/deepseek-rust/PROGRESS.md`](../deepseek-rust/PROGRESS.md).
 
 ## Assessment before writing (code and git, not memory)
@@ -62,9 +62,37 @@ actual-source corpus, and reports the rest as the exact remainder below.
   planning phase -> module -> PublicCommand::Plan), including the source's 1000 ms no-deal boundary and the ask-then-Ready path.
 The capture tool's `--check` mode is byte-identical.
 
+## Slice 2 — the Knowledge layer (task-24)
+
+The P-BOTS-3 remainder II starts with the foundation layers. After re-checking the three, the Knowledge layer was the largest
+layer that is pure, fully observable and independently capturable; memory.ts (920 lines) and frames.ts (485) both need the full
+client-percept/event model that the Rust policy does not carry yet (its percept is deliberately narrowed to what the current
+front end reads), so they are the next slice rather than approximated here. frames.ts in particular is the client network-delay
+ring: the Rust policy receives the authoritative fair Observation directly (C-OBS), so a port would currently be an unused
+parallel input path.
+
+What landed:
+- `crates/rh-policy/src/bots/knowledge.rs»: the source Knowledge layer over the ported shapes — ten faction masks and ten
+  weapon masks drawn from the decide stream, one fixed mob-share error per me/region/elite triple, `factionEdge»/
+  `weaponEdge» (the faction wheel is all zero since the rework; the weapon wheel uses the already-ported mob_hunt edge),
+  `mobShare» (the planning matchupShare plus the fixed error, clamped to 0..1) and `odds» (known-wheel score or the tint's
+  sign, plus twice the hp-share lead, clamped to -2..+2, with the source's two-decimal debug line).
+- `crates/rh-policy/src/bots/types.rs»: the source OpponentSnapshot and FightOdds data shapes.
+- Seat wiring: HumanBot owns the Knowledge layer, created in `reset» from the decide stream exactly where the legacy brain
+  construction creates it (before any decision), with a `knowledge()» accessor for the strategy/tactics consumers that are the
+  next slice. No seat behavior outside the rng stream order changes; the policy/humanizer corpora stay green.
+- Capture `tools/knowledge-fixtures/» + corpus `parity/policy/bot-knowledge.json», sha256
+  `872e154cc226fdb974b075a7650580b702c1fd14513dae0906dd959f1c97fce6», captured in the pinned Linux x64 Node 22.23.4
+  container: six declared creations (three tier tables, blind, seer, partial) over declared seeds, every wheel pair both ways,
+  the full 5x5x2 mob-share grid, 396 declared fight-odds rows covering known/partial/tint and clamp paths, and the next two
+  stream draws after each creation to pin the draw count. `--check» is byte-identical.
+- Tests `crates/rh-policy/src/bots/knowledge_parity_tests.rs» (4): every captured creation/wheel/mob-share row reproduces, every
+  odds row reproduces with its debug line, the constants are pinned, and four mutants die (drifted creation stream, nudged mob
+  share, wrong odds trace, flipped wheel edge).
+
 ## Gates
 
-- `cargo test --workspace --all-features --locked` (pinned PostgreSQL): **1,480 passed, 0 failed, 3 ignored, 154
+- `cargo test --workspace --all-features --locked` (pinned PostgreSQL): **1,484 passed, 0 failed, 3 ignored, 154
   test binaries, exit 0**.
 - `cargo clippy --workspace --all-targets --all-features --locked -- -D warnings`: **clean, exit 0**;
   `cargo fmt --all -- --check` clean.
@@ -79,16 +107,21 @@ The capture tool's `--check` mode is byte-identical.
 - The learned-bias layer is the declared stats-file interface only: the module reads a bias map the seat leaves empty (the
   learning store is P-BOTS-5 and is off by default). The corpus exercises the enabled path with declared biases.
 
-## Exact remainder for P-BOTS-3 (after this slice)
+## Exact remainder for P-BOTS-3 (after these slices)
 
 1. The BrainContext/memory/goal machinery: `brain/memory.ts` (MobTracker engagement/bans/retreat, player/container/chest
-   memory, camp memory, goal reasons), `frames.ts`, `knowledge.ts`, `services.ts` wiring and the goal/intent merge in
-   `brain.ts`.
+   memory, camp memory, goal reasons), `frames.ts`, `services.ts` wiring and the goal/intent merge in `brain.ts`. Both
+   need the full client-percept/event view model (FighterView/MobView/Percept events/projectiles/extras) that the Rust
+   policy's narrowed percept does not carry; frames.ts is additionally the client network-delay ring, which the
+   Observation-authoritative Rust architecture currently has no consumer for.
 2. `brain/strategy.ts` scoring/threat/HP-race/execute/goal selection and `tactics/fight.ts` + `tactics/world.ts`.
 3. The remaining feature modules `modules/chests.ts`, `modules/hazards.ts` and `server/src/bots/chestHunt.ts` (they consume
    items 1-2).
 4. Full fair perception (the P-BOTS-1 remainder: `brain/perception.ts` beyond the bounded view) is the input side of all of
    the above.
 5. P-BOTS-4's stateful MobHunter/BuildRoute/huntAdapter remain (they need the same memory/frames layer).
+
+Delivered across PR #58: the planning feature module + its shared planning maths (slice 1), and the Knowledge layer with its
+counter wheels, mob-share errors and fight odds (slice 2).
 
 No `docs/MIGRATION.md`, `docs/CONTRACTS.md` status table, `Cargo.lock` or `packages/` edit; no merge.

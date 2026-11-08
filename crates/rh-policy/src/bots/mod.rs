@@ -10,6 +10,7 @@ pub mod build_route;
 pub mod clicks;
 pub mod humanizer;
 pub mod kite;
+pub mod knowledge;
 pub mod mob_hunt;
 pub mod paths;
 pub mod perception;
@@ -18,6 +19,8 @@ pub mod random;
 pub mod types;
 pub mod wish;
 
+#[cfg(test)]
+mod knowledge_parity_tests;
 #[cfg(test)]
 mod mob_hunt_parity_tests;
 #[cfg(test)]
@@ -39,6 +42,7 @@ pub use build_route::{
 pub use clicks::{BotMap, MoveClickKind};
 pub use humanizer::{Context, Humanizer, HumanizerStats};
 pub use kite::{away_point, LENGTHS as KITE_LENGTHS, TURNS as KITE_TURNS};
+pub use knowledge::Knowledge;
 pub use mob_hunt::{
     best_edge, best_slot_vs_mob, hunt_config_for, is_ranged, mob_weapon, retreat_point, useless,
     wants_mobs, weapon_edge, HuntDecision, MobHuntConfig, MobLike, MOB_HUNT, NO_MOB_IN_REACH,

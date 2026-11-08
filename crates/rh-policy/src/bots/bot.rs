@@ -4,6 +4,7 @@
 //! strategy scoring and feature modules are P-BOTS-2..4 and remain unported.
 use crate::bots::clicks::BotMap;
 use crate::bots::humanizer::{Context, Humanizer};
+use crate::bots::knowledge::Knowledge;
 use crate::bots::paths::{PathBudget, RoomPathService};
 use crate::bots::perception::Perception;
 use crate::bots::planning::{PlanDeal, PlanLearned, PlanMap, PlanModule};
@@ -85,6 +86,8 @@ pub struct HumanBot {
     plan_map: PlanMap,
     /// The stats-file choice biases the planning module reads (empty: the learning store is P-BOTS-5).
     plan_learned: PlanLearned,
+    /// The Knowledge layer: the counter wheels this bot knows and its fixed mob-share errors, drawn once at reset.
+    knowledge: Option<Knowledge>,
 }
 
 impl HumanBot {
@@ -108,10 +111,15 @@ impl HumanBot {
             planning: PlanModule::new(),
             plan_map: PlanMap::default(),
             plan_learned: PlanLearned::default(),
+            knowledge: None,
         }
     }
     pub fn tier(&self) -> TierId {
         self.tier
+    }
+    /// The Knowledge layer as this seat drew it (the strategy/tactics consumers land in the next slice).
+    pub fn knowledge(&self) -> Option<&Knowledge> {
+        self.knowledge.as_ref()
     }
     pub fn persona(&self) -> PersonaId {
         self.persona
@@ -293,6 +301,11 @@ impl Policy for HumanBot {
         self.planning.reset();
         self.plan_map = PlanMap::from_arena(&m.arena);
         self.plan_learned = PlanLearned::default();
+        // Source brain construction: the Knowledge layer is drawn from the decide stream before any decision.
+        self.knowledge = Some(Knowledge::create(
+            TierParams::by_id(self.tier),
+            &mut self.decide,
+        ));
     }
     fn decide(&mut self, obs: &Observation) -> Vec<PublicCommand> {
         let mut out = Vec::new();
