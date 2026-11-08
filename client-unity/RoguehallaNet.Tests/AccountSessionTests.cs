@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -28,11 +29,12 @@ namespace Roguehalla.Net.Tests
             public readonly Dictionary<string, string> Tokens = new Dictionary<string, string>();
             public int Writes;
             public bool Throw;
+            public bool BlockWrites;
             static string Key(string scope, string name) => scope + "|" + name;
             public string Read(string scope, string name)
             { if (Throw) throw new InvalidOperationException(); return Tokens.TryGetValue(Key(scope, name), out var token) ? token : null; }
             public bool WriteConfirmed(string scope, string name, string token)
-            { if (Throw) throw new InvalidOperationException(); Tokens[Key(scope, name)] = token; ++Writes; return true; }
+            { if (Throw) throw new InvalidOperationException(); if (BlockWrites) return false; Tokens[Key(scope, name)] = token; ++Writes; return true; }
         }
         static AccountEndpoint Endpoint() => AccountEndpoint.FromPage("https://game.example/play/index.html?token=not-forwarded#key=not-forwarded");
         static AccountReply Reply(string name = "Alice", string token = null, bool created = true) => new AccountReply
@@ -228,6 +230,62 @@ namespace Roguehalla.Net.Tests
             var transport = new Transport(); var store = new Credentials { Throw = true }; var session = new AccountSession(Endpoint(), transport, store);
             var open = session.OpenAsync("Alice"); transport.Requests[0].Completion.SetResult(new AccountHttpResponse(200, Reply()));
             var result = await open; Assert.IsTrue(session.CanJoin(result.Account)); Assert.IsFalse(result.Account.CredentialSaved);
+        }
+
+        [Test]
+        public void ApplicationHeadersStayWithinTheExistingBrowserPreflightContract()
+        {
+            var empty = AccountRequestHeaders.Build(null, null).ToArray();
+            CollectionAssert.AreEqual(new[] { "Accept" }, empty.Select(h => h.Key));
+            var owned = AccountRequestHeaders.Build("local-owner", "local-passcode").ToArray();
+            CollectionAssert.AreEqual(new[] { "Accept", "x-profile-token", "x-playtest-passcode" }, owned.Select(h => h.Key));
+            // Accept is CORS-safelisted; the only non-safelisted names match the unchanged Rust allowlist.
+            Assert.IsFalse(owned.Any(h => h.Key.Equals("cache-control", StringComparison.OrdinalIgnoreCase)));
+            Assert.IsTrue(owned[1].Value == "local-owner" && owned[2].Value == "local-passcode");
+        }
+
+        [Test]
+        public async Task SwitchedSelectionAndBlockedWriteRetainLateConfirmedOwnerForAuthenticatedReopen()
+        {
+            var transport = new Transport(); var store = new Credentials { BlockWrites = true };
+            var session = new AccountSession(Endpoint(), transport, store);
+            var alice = session.OpenAsync("Alice"); var bob = session.OpenAsync("Bob");
+            transport.Requests[1].Completion.SetResult(new AccountHttpResponse(200, Reply("Bob", new string('b', 64))));
+            var selected = (await bob).Account;
+            transport.Requests[0].Completion.SetResult(new AccountHttpResponse(200, Reply()));
+            Assert.AreEqual(AccountFailure.Cancelled, (await alice).Failure);
+            Assert.AreEqual(AccountCredentialRecovery.PageLifetimeOnly, session.CredentialRecoveryFor("aLICE"));
+            Assert.IsTrue(session.CanJoin(selected)); Assert.AreEqual("Bob", session.Current.CanonicalName);
+            Assert.AreEqual(0, store.Writes);
+            var reopen = session.OpenAsync("Alice");
+            Assert.IsTrue(transport.Requests[2].Token == new string('a', 64), "reopen proves retained ownership instead of claiming again");
+            transport.Requests[2].Completion.SetResult(new AccountHttpResponse(200, Reply(created: false)));
+            var result = await reopen;
+            Assert.IsTrue(session.CanJoin(result.Account)); Assert.IsFalse(result.Account.CredentialSaved);
+        }
+
+        [Test]
+        public async Task CancelledSelectionAndThrowingStoreRetainLateConfirmedOwnerForAuthenticatedReopen()
+        {
+            var transport = new Transport(); var store = new Credentials { Throw = true };
+            var session = new AccountSession(Endpoint(), transport, store);
+            var cancel = new CancellationTokenSource(); var open = session.OpenAsync("Alice", cancellation: cancel.Token);
+            cancel.Cancel(); Assert.AreEqual(AccountFailure.Cancelled, (await open).Failure);
+            transport.Requests[0].Completion.SetResult(new AccountHttpResponse(200, Reply()));
+            await Until(() => session.CredentialRecoveryFor("alice") == AccountCredentialRecovery.PageLifetimeOnly);
+            Assert.IsNull(session.Current); Assert.IsFalse(session.CanJoin(null));
+            var reopen = session.OpenAsync("aLICE");
+            await Until(() => transport.Requests.Count == 2);
+            Assert.IsTrue(transport.Requests[1].Token == new string('a', 64), "storage read failure must not orphan the confirmed credential");
+            transport.Requests[1].Completion.SetResult(new AccountHttpResponse(200, Reply(created: false)));
+            var result = await reopen;
+            Assert.IsTrue(session.CanJoin(result.Account)); Assert.IsFalse(result.Account.CredentialSaved);
+            store.Throw = false;
+            var persist = session.OpenAsync("Alice");
+            Assert.IsTrue(transport.Requests[2].Token == new string('a', 64));
+            transport.Requests[2].Completion.SetResult(new AccountHttpResponse(200, Reply(created: false)));
+            Assert.IsTrue((await persist).Account.CredentialSaved);
+            Assert.AreEqual(AccountCredentialRecovery.Persistent, session.CredentialRecoveryFor("alice"));
         }
 
         static async Task Until(Func<bool> ready)

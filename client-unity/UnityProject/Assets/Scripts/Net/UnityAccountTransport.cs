@@ -27,10 +27,9 @@ namespace Roguehalla.Client
                 request = UnityWebRequest.Get(url);
                 request.redirectLimit = 0;
                 request.timeout = 10;
-                request.SetRequestHeader("Accept", "application/json");
-                request.SetRequestHeader("Cache-Control", "no-store");
-                if (!string.IsNullOrEmpty(ownerToken)) request.SetRequestHeader("x-profile-token", ownerToken);
-                if (!string.IsNullOrEmpty(passcode)) request.SetRequestHeader("x-playtest-passcode", passcode);
+                // Cache-Control is supplied by the server response; adding it here breaks the existing CORS preflight.
+                foreach (var header in AccountRequestHeaders.Build(ownerToken, passcode))
+                    request.SetRequestHeader(header.Key, header.Value);
                 operation = request.SendWebRequest();
             }
             catch

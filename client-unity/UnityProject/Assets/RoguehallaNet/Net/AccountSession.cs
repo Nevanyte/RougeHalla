@@ -17,6 +17,12 @@ namespace Roguehalla.Net
         readonly object _lock = new object();
         readonly Dictionary<string, SemaphoreSlim> _gates = new Dictionary<string, SemaphoreSlim>();
         readonly HashSet<string> _rejected = new HashSet<string>();
+        sealed class ConfirmedCredential
+        {
+            public string Token;
+            public bool Persistent;
+        }
+        readonly Dictionary<string, ConfirmedCredential> _confirmed = new Dictionary<string, ConfirmedCredential>();
         long _generation;
         AccountState _state;
         AccountFailure _failure;
@@ -26,6 +32,16 @@ namespace Roguehalla.Net
         public AccountFailure Failure { get { lock (_lock) return _failure; } }
         public OwnedAccount Current { get { lock (_lock) return _current; } }
         public AccountEndpoint Endpoint => _endpoint;
+
+        string CredentialKey(string normalizedName) => _endpoint.StorageScope + "\0" + normalizedName;
+
+        /// <summary>Non-secret recovery status independent of the current menu selection. Page-only ownership cannot survive a reload.</summary>
+        public AccountCredentialRecovery CredentialRecoveryFor(string name)
+        {
+            string key = CredentialKey(AccountEndpoint.NormalizeName(name));
+            lock (_lock) return !_confirmed.TryGetValue(key, out var credential) ? AccountCredentialRecovery.None :
+                credential.Persistent ? AccountCredentialRecovery.Persistent : AccountCredentialRecovery.PageLifetimeOnly;
+        }
 
         public AccountSession(AccountEndpoint endpoint, IAccountTransport transport, IAccountCredentialStore credentials)
         {
@@ -98,7 +114,9 @@ namespace Roguehalla.Net
                 cancellation.ThrowIfCancellationRequested();
                 lock (_lock) if (generation != _generation) return new AccountOpenResult(null, AccountFailure.Cancelled);
                 string stored = null;
-                try { stored = _credentials.Read(_endpoint.StorageScope, name); } catch { /* Storage may be blocked. */ }
+                lock (_lock) if (_confirmed.TryGetValue(CredentialKey(name), out var recovered)) stored = recovered.Token;
+                if (stored == null)
+                    try { stored = _credentials.Read(_endpoint.StorageScope, name); } catch { /* Storage may be blocked. */ }
                 if (!ValidToken(stored)) stored = null;
                 bool rejected;
                 lock (_lock) rejected = _rejected.Contains(name);
@@ -113,10 +131,13 @@ namespace Roguehalla.Net
                 }
                 AccountReply reply = response.Reply;
                 if (!ValidReply(reply, name, token)) return new AccountOpenResult(null, AccountFailure.Unreadable);
-                // Persist a validated late claim to its own name/scope, never publish it to a newer selection.
+                // Retain before persistent I/O: a late cancelled claim may otherwise lose its sole token when storage fails.
+                string key = CredentialKey(AccountEndpoint.NormalizeName(reply.profile.name));
+                var confirmed = new ConfirmedCredential { Token = reply.token };
+                lock (_lock) _confirmed[key] = confirmed;
                 bool saved = false;
                 try { saved = _credentials.WriteConfirmed(_endpoint.StorageScope, name, reply.token); } catch { /* Keep usable session ownership. */ }
-                lock (_lock) _rejected.Remove(name);
+                lock (_lock) { confirmed.Persistent = saved; _rejected.Remove(name); }
                 return new AccountOpenResult(new OwnedAccount(reply, saved), AccountFailure.None);
             }
             catch (OperationCanceledException) { return new AccountOpenResult(null, AccountFailure.Cancelled); }

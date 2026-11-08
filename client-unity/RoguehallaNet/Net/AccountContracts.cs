@@ -49,6 +49,7 @@ namespace Roguehalla.Net
 
     public enum AccountState { Idle, Opening, Owned, Failed }
     public enum AccountFailure { None, InvalidName, Taken, PasscodeRequired, RateLimited, Unavailable, Unreadable, Cancelled }
+    public enum AccountCredentialRecovery { None, PageLifetimeOnly, Persistent }
 
     /// <summary>Ownership data is explicit: consumers must not stringify/log this token or place it in navigation URLs.</summary>
     public sealed class OwnedAccount

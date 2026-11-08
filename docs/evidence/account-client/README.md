@@ -25,6 +25,12 @@ unchanged. It is not connected to the ordinary menu yet and is not full account 
   A cleared/cancelled queued selection never starts a new claim. A request already started finishes independently of
   selection cancellation: a validated late200 stores the sole credential under its original endpoint/name key, while
   generation checks suppress stale `Current`, return an unowned cancelled result and prevent stale `CanJoin` publication.
+  Validated tokens are retained in the page-lifetime coordinator before persistent I/O; same-name retries prefer that
+  recovered credential even if storage returnsfalse or throws. `CredentialRecoveryFor(name)` reports non-secret
+  None/PageLifetimeOnly/Persistent status independently of selection. A late claim therefore remains reopenable within
+  this page when persistent storage fails, without silently promising reload durability.
+  Persistent means the configured credential store reported a successful write; browser reload/storage durability still
+  requires the actual browser gate below.
   This preserves the legacy module's confirmed-token recovery behavior. Caller cancellation detaches selection/wait;
   it does not discard the only confirmed token. The coordinator contains no automatic Join or control API call.
 - A proven stored credential wins over an unproven sign-in key. Only after the server explicitly refuses it can a
@@ -52,11 +58,11 @@ The Unity CLI skill was read; no CLI installation or existing Editor/browser job
 
 ## Validation and remaining gate
 
-`dotnet test client-unity/RoguehallaNet.Tests --filter FullyQualifiedName~AccountSessionTests` passes33cases. They include
+`dotnet test client-unity/RoguehallaNet.Tests --filter FullyQualifiedName~AccountSessionTests` passes36cases. They include
 different API prefixes, ASCII/case handling, header-only arguments, no persistence before confirmation, mismatched-name
 and unproven-open rejection, stale switched-selection late200, cancellation after/before start, cleared queued claims,
 serialized same-name reuse, 400/401/403/429/503, network/unreadable failures and blocked storage. The complete C# suite was
-also run; its final receipt is in the lane's private `account-durability/logs/account-client-full.log`.
+also run; the repair passes435tests, recorded in the lane's private `account-durability/logs/account-client-repair-full.log`.
 
 An external private netstandard2.1 project compiles the two new Unity runtime files against the installed pinned
 CoreModule/JSONSerializeModule/UnityWebRequestModule assemblies with warnings treated as errors: zero warnings/errors.
@@ -67,6 +73,25 @@ Four new `AccountTransportEditModeTests` are authored for actual Unity JsonUtili
 isolated random PlayerPrefs namespace. They still require real pinned Editor execution. No actual Unity HTTP/browser
 account flow, WebGL request, persistence across a browser reload or UI Join is claimed by the pure .NET tests. These
 remain acceptance gates before ordinary hub wiring is admitted.
+
+## Independent review repair
+
+The continuation of `54ca4a69` removes the request `Cache-Control:no-store` header. The server already sends response
+`Cache-Control:no-store`; its existing CORS allowlist does not permit that request header. `AccountRequestHeaders.Build`
+is now the actual Unity transport's complete application-header source: Accept plus only optional x-profile-token and
+x-playtest-passcode. A C# regression asserts that exact contract. The new real-loopback Rust
+`account_client_preflight` test sends OPTIONS with those two non-safelisted names and verifies GET/explicit-origin/allowed
+headers, the deliberate absence of cache-control from the allowlist, and the actual response's no-store policy. No server
+CORS change or storage/database operation is used. This checks the real server preflight contract; actual browser/WebGL
+preflight and Fetch remain pending the coordinated browser gate.
+
+Both requested credential-loss regressions are explicit: switched selection plus a store returningfalse, and cancelled
+selection plus a throwing store. In each, a late validated200 remains absent from Current/CanJoin but survives in scoped
+page memory; a subsequent same-name reopen sends that exact retained credential and succeeds as an authenticated open.
+The throwing-store case also verifies later successful storage changes the recovery status to Persistent. These tests
+do not cover a transport disabled before a response, timeout/handoff loss, tab close or page reload with blocked storage.
+One persistent main-thread coordinator/transport must survive menu changes; network handoff loss remains a gate rather
+than a claim that unit tests prove full browser durability.
 
 ## Next sequential leases
 
