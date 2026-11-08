@@ -89,6 +89,8 @@ namespace Roguehalla.Net
         internal AccountApiService Service;
         internal AccountHubFlow.ApiOwner Owner;
         internal long BoardGeneration;
+        internal long? OwnerGeneration;
+        internal bool RequiresNoOwner;
         internal AccountApiResult(AccountApiFailure failure, bool published = false, AccountLeaderboard leaderboard = null)
         { Failure = failure; PublishedCurrent = published; Leaderboard = leaderboard; }
     }
@@ -133,11 +135,12 @@ namespace Roguehalla.Net
                 opened.FullProfile != null), owner);
         }
 
-        AccountApiResult Bound(AccountApiResult result, AccountHubFlow.ApiOwner owner = null, long board = 0)
-        { result.Service = this; result.Owner = owner; result.BoardGeneration = board; return result; }
+        AccountApiResult Bound(AccountApiResult result, AccountHubFlow.ApiOwner owner = null, long board = 0, long? ownerGeneration = null, bool requiresNoOwner = false)
+        { result.Service = this; result.Owner = owner; result.BoardGeneration = board; result.OwnerGeneration = ownerGeneration; result.RequiresNoOwner = requiresNoOwner; return result; }
         /// <summary>Check immediately before applying a returned owner/month-specific view; stale results are never current.</summary>
         public bool IsCurrent(AccountApiResult result) => result != null && ReferenceEquals(result.Service, this) &&
-            (result.Owner == null || _flow.CurrentApiOwner(result.Owner)) && (result.BoardGeneration == 0 || result.BoardGeneration == _boardGeneration);
+            (result.Owner == null || _flow.CurrentApiOwner(result.Owner)) && (result.BoardGeneration == 0 || result.BoardGeneration == _boardGeneration) &&
+            (!result.OwnerGeneration.HasValue || result.OwnerGeneration.Value == _flow.ApiGeneration) && (!result.RequiresNoOwner || _flow.CaptureApiOwner() == null);
 
         public AccountMutation CreatePurchase(string itemId) => Create(AccountMutationKind.Purchase, itemId, null);
         public AccountMutation CreateEquip(string slot, string itemId) => Create(AccountMutationKind.Equip, itemId, slot);
@@ -196,24 +199,33 @@ namespace Roguehalla.Net
         public async Task<AccountApiResult> ReadLeaderboardAsync(string month = null, int limit = 20, bool includeOwner = false, CancellationToken cancellation = default)
         {
             long board = ++_boardGeneration;
-            if (limit < 1 || limit > 100 || month != null && !ValidMonth(month)) return new AccountApiResult(AccountApiFailure.BadRequest);
+            long? ownerGeneration = includeOwner ? _flow.ApiGeneration : (long?)null;
             var owner = includeOwner ? _flow.CaptureApiOwner() : null;
-            if (includeOwner && owner == null) return new AccountApiResult(AccountApiFailure.NoOwner);
+            AccountApiResult CurrentResult(AccountApiFailure failure, AccountLeaderboard leaderboard = null) =>
+                Bound(new AccountApiResult(failure, leaderboard: leaderboard), owner, board, ownerGeneration, includeOwner && owner == null);
+            bool CurrentQuery() => board == _boardGeneration && (owner == null || _flow.CurrentApiOwner(owner)) &&
+                (!ownerGeneration.HasValue || ownerGeneration.Value == _flow.ApiGeneration);
+            if (limit < 1 || limit > 100 || month != null && !ValidMonth(month)) return CurrentResult(AccountApiFailure.BadRequest);
+            if (includeOwner && owner == null) return CurrentResult(AccountApiFailure.NoOwner);
             string query = "limit=" + limit.ToString(System.Globalization.CultureInfo.InvariantCulture);
             if (month != null) query += "&month=" + Uri.EscapeDataString(month);
             if (includeOwner) query += "&name=" + Uri.EscapeDataString(owner.Account.CanonicalName);
             var request = new AccountApiRequest(_flow.ApiEndpoint, new Uri(_flow.ApiEndpoint.ApiBase, "leaderboard?" + query).AbsoluteUri, "GET", owner?.Account.Token);
             if (!request.HasAllowedTarget() || includeOwner && !_flow.CurrentApiOwner(owner)) return new AccountApiResult(AccountApiFailure.Stale);
             AccountApiResponse response;
+            AccountApiFailure transportFailure = AccountApiFailure.None;
             try { response = await _transport.SendAsync(request, cancellation); }
-            catch (OperationCanceledException) { return new AccountApiResult(AccountApiFailure.Cancelled); }
-            catch { return new AccountApiResult(AccountApiFailure.Unavailable); }
-            if (board != _boardGeneration || includeOwner && !_flow.CurrentApiOwner(owner) || cancellation.IsCancellationRequested) return new AccountApiResult(AccountApiFailure.Stale);
-            if (response?.Status != 200) return new AccountApiResult(response?.Error?.Failure ?? AccountApiFailure.Unavailable);
+            catch (OperationCanceledException) { response = null; transportFailure = AccountApiFailure.Cancelled; }
+            catch { response = null; transportFailure = AccountApiFailure.Unavailable; }
+            // Errors are views too: retain the same owner/query binding as success, after rejecting stale completions.
+            if (!CurrentQuery()) return new AccountApiResult(AccountApiFailure.Stale);
+            if (cancellation.IsCancellationRequested) return CurrentResult(AccountApiFailure.Cancelled);
+            if (transportFailure != AccountApiFailure.None) return CurrentResult(transportFailure);
+            if (response?.Status != 200) return CurrentResult(response?.Error?.Failure ?? AccountApiFailure.Unavailable);
             if (response.Leaderboard == null || !includeOwner && response.Leaderboard.You != null ||
                 month != null && response.Leaderboard.Month != month || response.Leaderboard.Entries.Count > limit)
-                return new AccountApiResult(AccountApiFailure.Unreadable);
-            return Bound(new AccountApiResult(AccountApiFailure.None, leaderboard: response.Leaderboard), owner, board);
+                return CurrentResult(AccountApiFailure.Unreadable);
+            return CurrentResult(AccountApiFailure.None, response.Leaderboard);
         }
         static bool ValidMonth(string month)
         {

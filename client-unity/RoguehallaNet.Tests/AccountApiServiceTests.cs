@@ -192,5 +192,89 @@ namespace Roguehalla.Net.Tests
             var wrong = rig.Api.ReadLeaderboardAsync("2026-10"); rig.Transport.Requests[3].Reply.SetResult(new AccountApiResponse(200, leaderboard: Board("2026-11")));
             Assert.AreEqual(AccountApiFailure.Unreadable, (await wrong).Failure); Assert.IsFalse(rig.Api.IsCurrent(result));
         }
+
+        static void FailBoard(Sent sent, string outcome)
+        {
+            if (outcome == "exception") sent.Reply.SetException(new InvalidOperationException("disposable transport failure"));
+            else if (outcome == "malformed")
+            {
+                Assert.IsFalse(AccountFullJson.TryLeaderboard("{\"month\":\"2026-11\",\"entries\":{}}", out var invalid));
+                sent.Reply.SetResult(new AccountApiResponse(200, leaderboard: invalid));
+            }
+            else sent.Reply.SetResult(new AccountApiResponse(503, error: new AccountApiError(AccountApiFailure.Unavailable)));
+        }
+
+        [TestCase("503", false)] [TestCase("malformed", false)] [TestCase("exception", false)]
+        [TestCase("503", true)] [TestCase("malformed", true)] [TestCase("exception", true)]
+        public async Task CurrentLeaderboardErrorsAreConsumableThenExpireOnNextQueryOrOwnerChange(string outcome, bool owned)
+        {
+            var rig = new Rig(); if (owned) await rig.Open();
+            var reading = rig.Api.ReadLeaderboardAsync("2026-11", includeOwner: owned);
+            FailBoard(rig.Transport.Requests[0], outcome); var result = await reading;
+            Assert.AreEqual(outcome == "malformed" ? AccountApiFailure.Unreadable : AccountApiFailure.Unavailable, result.Failure);
+            Assert.IsTrue(rig.Api.IsCurrent(result)); Assert.IsNull(result.Leaderboard);
+            if (owned) rig.Flow.SelectName("Bob");
+            else
+            {
+                var next = rig.Api.ReadLeaderboardAsync("2026-10"); Assert.IsFalse(rig.Api.IsCurrent(result));
+                rig.Transport.Requests[1].Reply.SetResult(new AccountApiResponse(200, leaderboard: Board("2026-10")));
+                Assert.IsTrue(rig.Api.IsCurrent(await next));
+            }
+            Assert.IsFalse(rig.Api.IsCurrent(result));
+        }
+
+        [TestCase("503", false)] [TestCase("malformed", false)] [TestCase("exception", false)]
+        [TestCase("503", true)] [TestCase("malformed", true)] [TestCase("exception", true)]
+        public async Task LateLeaderboardErrorsAreRejectedAfterNewQueryOrOwnerChange(string outcome, bool owned)
+        {
+            var rig = new Rig(); if (owned) await rig.Open();
+            var reading = rig.Api.ReadLeaderboardAsync("2026-11", includeOwner: owned);
+            if (owned) rig.Flow.SelectName("Bob");
+            else
+            {
+                var next = rig.Api.ReadLeaderboardAsync("2026-10");
+                rig.Transport.Requests[1].Reply.SetResult(new AccountApiResponse(200, leaderboard: Board("2026-10"))); await next;
+            }
+            FailBoard(rig.Transport.Requests[0], outcome); var result = await reading;
+            Assert.AreEqual(AccountApiFailure.Stale, result.Failure); Assert.IsFalse(rig.Api.IsCurrent(result)); Assert.IsNull(result.Leaderboard);
+        }
+
+        [Test]
+        public async Task CurrentLeaderboardValidationAndCancellationOutcomesKeepQueryBinding()
+        {
+            var rig = new Rig(); var invalid = await rig.Api.ReadLeaderboardAsync("invalid");
+            Assert.AreEqual(AccountApiFailure.BadRequest, invalid.Failure); Assert.IsTrue(rig.Api.IsCurrent(invalid));
+            var noOwner = await rig.Api.ReadLeaderboardAsync(includeOwner: true);
+            Assert.AreEqual(AccountApiFailure.NoOwner, noOwner.Failure); Assert.IsTrue(rig.Api.IsCurrent(noOwner)); Assert.IsFalse(rig.Api.IsCurrent(invalid));
+            var cancel = new CancellationTokenSource(); var reading = rig.Api.ReadLeaderboardAsync(cancellation: cancel.Token);
+            cancel.Cancel(); rig.Transport.Requests[0].Reply.SetException(new OperationCanceledException());
+            var cancelled = await reading; Assert.AreEqual(AccountApiFailure.Cancelled, cancelled.Failure); Assert.IsTrue(rig.Api.IsCurrent(cancelled));
+            Assert.IsFalse(rig.Api.IsCurrent(noOwner)); Assert.AreEqual(1, rig.Transport.Requests.Count);
+        }
+
+        [Test]
+        public async Task OwnerRequiredValidationWithoutConfirmedOwnerExpiresWhenOwnershipArrives()
+        {
+            var rig = new Rig(); var opening = rig.Flow.OpenProfileAsync("Alice");
+            var noOwner = await rig.Api.ReadLeaderboardAsync(includeOwner: true);
+            Assert.AreEqual(AccountApiFailure.NoOwner, noOwner.Failure); Assert.IsTrue(rig.Api.IsCurrent(noOwner));
+            rig.Transport.Claims[0].Reply.SetResult(new AccountHttpResponse(200, Reply("Alice", true, true))); await opening;
+            Assert.IsFalse(rig.Api.IsCurrent(noOwner)); Assert.AreEqual(0, rig.Transport.Requests.Count);
+            var invalid = await rig.Api.ReadLeaderboardAsync("invalid", includeOwner: true); Assert.IsTrue(rig.Api.IsCurrent(invalid));
+            rig.Flow.SelectName("Bob"); Assert.IsFalse(rig.Api.IsCurrent(invalid));
+        }
+
+        [Test]
+        public async Task ActualPurchaseIdempotencyConflictIsTypedRefusalWithoutRekeyOrProfileChange()
+        {
+            const string body = "{\"error\":\"idempotency key was used for a different purchase\",\"code\":\"bad_request\"}";
+            var rig = new Rig(); await rig.Open(); var operation = rig.Api.CreatePurchase("skin-bone"); var id = operation.Id;
+            var sending = rig.Api.SendAsync(operation);
+            rig.Transport.Requests[0].Reply.SetResult(new AccountApiResponse(409, error: AccountFullJson.DecodeError(409, body)));
+            var result = await sending; Assert.AreEqual(AccountApiFailure.BadRequest, result.Failure); Assert.IsTrue(rig.Api.IsCurrent(result));
+            Assert.AreEqual(AccountMutationState.Refused, operation.State); Assert.AreEqual(AccountApiFailure.BadRequest, operation.Error.Failure);
+            Assert.AreEqual(id, operation.Id); Assert.AreEqual(id, rig.Transport.Requests[0].Request.PurchaseId);
+            Assert.AreEqual(100, rig.Flow.Snapshot.FullProfile.Gv); Assert.AreEqual(1, rig.Transport.Requests.Count);
+        }
     }
 }

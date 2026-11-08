@@ -55,5 +55,7 @@
     "cloud",
     "PG suites",
     "backup drill"
-  ]
+  ],
+  "original_candidate": "37bfbb7ffbe79d1981986a05d271e783cca1bbb5",
+  "repair_checks": "repair-checks.json"
 }

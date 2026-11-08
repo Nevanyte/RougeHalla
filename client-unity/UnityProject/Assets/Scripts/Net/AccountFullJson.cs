@@ -186,7 +186,8 @@ namespace Roguehalla.Client
                 int expectedStatus = code == "forbidden" ? 403 : code == "bad_request" ? 400 : code == "unknown_cosmetic" ? 404 :
                     code == "unknown_slot" || code == "slot_mismatch" ? 400 : code == "insufficient_gv" ? 402 :
                     code == "not_for_sale" || code == "already_owned" || code == "not_owned" ? 409 : 0;
-                if (expectedStatus != status) return new AccountApiError(Fallback(status));
+                // The server uses bad_request/409 when a purchase UUID conflicts with another intent.
+                if (expectedStatus != status && !(code == "bad_request" && status == 409)) return new AccountApiError(Fallback(status));
                 AccountApiFailure failure = code == "forbidden" ? AccountApiFailure.Forbidden : code == "bad_request" ? AccountApiFailure.BadRequest :
                     code == "unknown_cosmetic" ? AccountApiFailure.UnknownCosmetic : code == "unknown_slot" ? AccountApiFailure.UnknownSlot :
                     code == "not_for_sale" ? AccountApiFailure.NotForSale : code == "already_owned" ? AccountApiFailure.AlreadyOwned :

@@ -220,6 +220,7 @@ namespace Roguehalla.Net
             return _api;
         }
         internal AccountEndpoint ApiEndpoint => _accounts.Endpoint;
+        internal long ApiGeneration => _generation;
         internal sealed class ApiRead
         {
             internal OwnedAccount Account;

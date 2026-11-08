@@ -1,13 +1,14 @@
 {
   "base": "843a03e4fb4de9b51b2471b916b25edda8a3359f",
+  "repair_parent": "37bfbb7ffbe79d1981986a05d271e783cca1bbb5",
   "excludes": [
     "this manifest itself"
   ],
   "files": [
     {
       "path": "client-unity/RoguehallaNet.Tests/AccountApiServiceTests.cs",
-      "bytes": 15677,
-      "sha256": "88230f936d1bd24cc24107526c139cf0dde728d4a3fca9e1d2e4cee26a1a78a1"
+      "bytes": 21587,
+      "sha256": "10936d5a517568538084b674385daa1816309f33661e596745df004881680932"
     },
     {
       "path": "client-unity/RoguehallaNet.Tests/AccountFullJsonTests.cs",
@@ -26,8 +27,8 @@
     },
     {
       "path": "client-unity/RoguehallaNet/Net/AccountApiService.cs",
-      "bytes": 15616,
-      "sha256": "3199e6d933c9bb7e6163211088a1b941c2fd196a62407ac06951f179eb7c41dd"
+      "bytes": 16800,
+      "sha256": "573b2190f190b143d60940eecfc5e083ab3a77fc0dc4381341d2a95794c2e7b9"
     },
     {
       "path": "client-unity/RoguehallaNet/Net/AccountContracts.cs",
@@ -41,8 +42,8 @@
     },
     {
       "path": "client-unity/RoguehallaNet/Net/AccountHubFlow.cs",
-      "bytes": 14600,
-      "sha256": "ce566d49bc872ca0fcccc682ac301090d35ec6dafaa93329197afeebfd97c5d2"
+      "bytes": 14652,
+      "sha256": "53f3aaa5b14a4f04fd77eaba897dd5c7d43d4f19100e69a89427d519ac7bf75c"
     },
     {
       "path": "client-unity/UnityProject/Assets/Resources/Account.meta",
@@ -81,8 +82,8 @@
     },
     {
       "path": "client-unity/UnityProject/Assets/RoguehallaNet/Net/AccountApiService.cs",
-      "bytes": 15616,
-      "sha256": "3199e6d933c9bb7e6163211088a1b941c2fd196a62407ac06951f179eb7c41dd"
+      "bytes": 16800,
+      "sha256": "573b2190f190b143d60940eecfc5e083ab3a77fc0dc4381341d2a95794c2e7b9"
     },
     {
       "path": "client-unity/UnityProject/Assets/RoguehallaNet/Net/AccountApiService.cs.meta",
@@ -106,8 +107,8 @@
     },
     {
       "path": "client-unity/UnityProject/Assets/RoguehallaNet/Net/AccountHubFlow.cs",
-      "bytes": 14600,
-      "sha256": "ce566d49bc872ca0fcccc682ac301090d35ec6dafaa93329197afeebfd97c5d2"
+      "bytes": 14652,
+      "sha256": "53f3aaa5b14a4f04fd77eaba897dd5c7d43d4f19100e69a89427d519ac7bf75c"
     },
     {
       "path": "client-unity/UnityProject/Assets/Scripts/Net/AccountCoordinator.cs",
@@ -116,8 +117,8 @@
     },
     {
       "path": "client-unity/UnityProject/Assets/Scripts/Net/AccountFullJson.cs",
-      "bytes": 11783,
-      "sha256": "20f8ca4892cf99c8fbe742f5c48d21908424e62a4e9867cffdbbd9d443b770b4"
+      "bytes": 11931,
+      "sha256": "b02ef6b48d7fdb03b9067c8ebf84d7228ef6c51b5b43d4996f23a40f993de6d2"
     },
     {
       "path": "client-unity/UnityProject/Assets/Scripts/Net/AccountFullJson.cs.meta",
@@ -131,8 +132,8 @@
     },
     {
       "path": "docs/evidence/account-full-profile/README.md",
-      "bytes": 11807,
-      "sha256": "e15e684778aab966e81bf8167be7ae7ba2e465aa3df095fec01e68be37d81b3d"
+      "bytes": 13313,
+      "sha256": "f3d359078fa8c8ae0623311aa66d9a381622dcf2250e93a07f55af6c4fc9b413"
     },
     {
       "path": "docs/evidence/account-full-profile/account-http-contracts.schema.json",
@@ -146,8 +147,8 @@
     },
     {
       "path": "docs/evidence/account-full-profile/checks.json",
-      "bytes": 1883,
-      "sha256": "9a98a9294f6c074ce05f5dc0bbc65017e037bd9d863996d51bd49939ef7a8b5e"
+      "bytes": 1992,
+      "sha256": "9846fd17396951e5658cd7c0c727df7e59b7807f7ddb62e96ece50ede1889c4d"
     },
     {
       "path": "docs/evidence/account-full-profile/newtonsoft-third-party-notices.md",
@@ -158,6 +159,11 @@
       "path": "docs/evidence/account-full-profile/pinned-newtonsoft-read-proof.json",
       "bytes": 6180,
       "sha256": "d6d1c4573adcf46d883f3a1c27ee8a35b14291a14a591e80f89b4cbd1aac7a3b"
+    },
+    {
+      "path": "docs/evidence/account-full-profile/repair-checks.json",
+      "bytes": 1174,
+      "sha256": "d61ad9a5331e15ef7164d7eaeaa89dc92dd4eb969b2d1fdfc69e9356ebd184ed"
     },
     {
       "path": "docs/evidence/account-full-profile/unity-package-license.md",

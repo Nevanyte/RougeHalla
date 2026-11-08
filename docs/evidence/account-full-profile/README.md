@@ -116,3 +116,20 @@ ambiguous server operations remain unknown. Pending metadata is page-lifetime, n
 profile/result endpoints supply no per-match banking receipt: ResultBankConfirmed remains false, and profile counters
 cannot prove a specific match committed. No new banking-receipt endpoint is invented here. Backend backup/cold-restore
 proof is owned by the separate lane, not asserted by these tests.
+
+## Independent-review repair (parent37bfbb7f)
+
+A fresh child repair preserves the original candidate and fixes two independent-review holds. Leaderboard outcomes
+now bind current HTTP errors, malformed200, transport exceptions, validation errors and cancellation to the same
+service/query generation as success. Owner-scoped outcomes also bind the owner/selection generation (including a
+NoOwner outcome while an open is pending); a later query, owner change or arrival of confirmed ownership invalidates
+obsolete views. Late error completions are rejected as Stale before error publication. Call IsCurrent for errors as
+well as successes. Public error views remain independent of account selection. The actual purchase conflict envelope
+HTTP409 `{error:"idempotency key was used for a different purchase",code:"bad_request"}` maps to typed BadRequest,
+records Refused, and preserves the same purchase UUID/profile without automatic retry or rekey.
+
+Repair verification:60 focused tests pass (15 new regressions), pinned Unity API-reference compile has0 warnings/errors,
+and mirrors match. The prior515-test full-suite result belongs to37bf, not this repaired source; it was not rerun for
+the bounded repair. See repair-checks.json. All package/Editor/AOT/WebGL/browser, UI, page-lifetime and banking-receipt
+limitations above remain. No server/shared UI/package changes were made. source-manifest.json is refreshed for the
+cumulative repaired tree, with the original candidate recorded as repair parent.
