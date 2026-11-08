@@ -248,5 +248,7 @@ Clippy initially found a needless test borrow; the follow-up removes it, and fin
 This is admitted partial evidence, not approval for hidden-state aggregates or wider observations. Room lifecycle,
 committed prepared binding/carry equality and legacy/native visibility-time equivalence remain unproved. The source
 capture is now included in CI. The next Post Rust scope is source-only barrier-view arithmetic/schema/ring witnesses;
-G6 producer/expiry remains the separate private Rust lane. Source-only art drafts now have one bounded compilation/
-EditMode batch authorized; no fresh Web build or performance claim follows.
+G6 producer/expiry remains the separate private Rust lane. The art source batch is subsequently admitted through
+`f16bca0d` after compile and42 Editor passes. Root verifies all nine raw artifacts,31 source hashes and the entire
+byte-identical tested Unity tree. The separate audio commit is excluded. See its [admission record](../../art/evidence/source-cues/ADMISSION.md);
+no fresh Web build, visual result or performance claim follows.

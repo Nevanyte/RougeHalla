@@ -49,6 +49,10 @@ Readability and normal-input findings stay scoped to their actual static/staged 
 gameplay `e90a38f6`, not a new final-union build. Earlier `ebff286b` evidence remains separate. Actual144Hz display,
 managed allocation throughput and full-game content/accessibility coverage remain open; no full-port completion follows.
 
+The subsequent prop/signature and preview-selector source batch is admitted through `f16bca0d`, with Unity compile
+and42 actual EditMode passes at a byte-identical client tree. Root verifies raw hashes and source manifests; synthetic
+fixtures do not establish browser/visual/cost coverage. Native game rules, identities and served runtime remain unchanged.
+
 The later A–D composition keeps the same native identities. Reviewed barter/addBot/quest units and the corrected
 tournament diagnostic runner are integrated in `fdf65513`/`8ce725db`. The composed gate passes956 remaining-workspace
 tests with private PG plus20 disjoint simulation tests, both strict workspace Clippy modes, formatting,15-check WSS and

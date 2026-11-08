@@ -48,10 +48,10 @@ then one integration gate; do not repeat unchanged expensive map campaigns after
    diagnostic limit. Retain the owner’s at-least-144-FPS target at2560×1440 on the M5 Pro; the current60Hz physical
    display cannot certify it. Allocation throughput, full live content and crowded-motion accessibility remain open.
    Camp-stock source/Editor follow-up `289a01e2` is integrated in `ecf9564c`, with Web verification deferred. The
-   delivered-cue proposal is retained; isolated source-only prop/signature drafts passed read-only review but remain
-   uncompiled and unadmitted. A bounded no-socket action/eight-direction preview selector is authorized source-only;
-   tests/builds are reported separately. Audio research stays unadmitted. Callback/headroom rates remain separate
-   from displayed frames.
+   delivered prop/signature cues and no-socket action/eight-direction preview selector are integrated through `f16bca0d`.
+   Their exact source passes Unity compile and42 Editor tests; root verifies raw hashes and byte-identical client trees.
+   Browser/runtime/readability/cost checks remain deferred to the next client/public-flow batch. Audio research stays
+   unadmitted. Callback/headroom rates remain separate from displayed frames.
 5. Complete browser/account flows, durable progression, cloud/provider/region lifecycle and the original full-port
    release/performance gates. Rebuild artifacts from the final union before any staging run. Use the practice domain
    `rougehalla.com`, Calgary preference and **CAD20 total** cap; production remains separately controlled.
@@ -83,7 +83,8 @@ must be resolved before dependent implementations; release evidence must test th
 - `570dee45` repairs the measured-RTT packet’s compulsory Pong budget and is integrated. This is command-time admission
   clamping: held attacks retain the source press-time lag until a new Attack/Release. It does not introduce a dynamic
   per-swing rule or certify input-to-photon latency. The [Pong repair packet](coordination/PONG_REPAIR.md) records its gate.
-- The art branch is admitted through source follow-up `289a01e2`; proposal `88dbc5cf` is retained without activating it.
+- The art branch is admitted through camp-stock `289a01e2` and the scoped source-cue/preview batch through `f16bca0d`.
+  The latter is source/Editor validated only; the served artifact is unchanged. See its [admission](art/evidence/source-cues/ADMISSION.md).
   Later art work and remaining native candidate/fixture branches stay isolated until their
   reports and focused reviews pass. Preserve their active checkouts and refs.
 

@@ -58,6 +58,12 @@ telegraph and art coverage remain open. Captures use a real 2560×1440 backbuffe
 1920×1080/60Hz. Displayed 144 FPS and managed allocation throughput remain open. Callback/GPU diagnostics do not prove
 displayed frames, and the older-base artifact is not a fresh final-union build.
 
+The later delivered prop/signature distinctions and no-network catalog action/eight-direction selector are integrated
+through `f16bca0d`. Their complete Unity project tree matches tested source `04d8de08`; Unity6000.0.85f2 recompilation
+and42 EditMode tests pass (14 new,28 existing). Root verifies nine raw artifact hashes and31 source-manifest entries.
+This is [source/Editor admission](art/evidence/source-cues/ADMISSION.md), with no new runtime/performance claim. The
+separate audio research is excluded. Camp-stock and these cues await the next final-union Web/client-flow batch.
+
 The camp-potion stock follow-up `289a01e2` is integrated in `ecf9564c`: the HUD invalidates and shows the canonical large/
 camp count, including large-only changes and inventory clearing. One actual-HUD Editor regression and a1.50-text
 maximum-stock layout check pass. This is source/Editor evidence; the served Web artifact remains `4f37e9f0`. The delivered-

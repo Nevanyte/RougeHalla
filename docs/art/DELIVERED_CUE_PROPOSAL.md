@@ -1,4 +1,7 @@
-# Delivered-cue source drafts
+# Delivered-cue source batch
+
+The lead has admitted this source/Editor-validated batch through `f16bca0d`. [Admission evidence](evidence/source-cues/ADMISSION.md)
+maps its original commits and limits; the runtime campaign remains deferred.
 
 The coordinator assigned a bounded draft from proposal `88dbc5cf`. Prop draft `4e51582b3f7662cfae0f885c232661012994bf24` and signature draft `8de291337bef904ec8c86baeb54dab05a25c5ba5` are separate reviewable commits; preview selector draft `01ce403d19b6fe405b652a1404bc29c7ead57a9d` is also included in the validated source head. The prop scope excludes Body/Corpse changes, readiness clocks and extra labels. Source head `04d8de08561007239dcf7ef57ab9cafd751b8393` compiled in Unity `6000.0.85f2`; all 42 filtered EditMode tests passed, including the 14 new cue regressions. Portable run details and raw hashes are in [source-cue evidence](evidence/source-cues/summary.json).
 
