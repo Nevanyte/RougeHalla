@@ -1,8 +1,8 @@
 # P-WISH-PUBLIC-WITNESS-1 evidence (source-only)
 
 Immutable base: `fb738cd93d675d4074b7c37c15de6af2dd837ceb` on branch `deepseek/wish-public-witness-1`.
-Capture commit (tools + corpora): `531c775c9298dc5f0bc9d82b931dbd65edb4dbfa`. The final head is the commit that adds
-this report; `git rev-parse HEAD` is authoritative. No merge or push is made. Worktree:
+Capture commit (tools + corpora): `531c775c9298dc5f0bc9d82b931dbd65edb4dbfa`. The final head is this branch HEAD;
+`git rev-parse HEAD` is authoritative. No merge or push is made. Worktree:
 `/Users/nevinmckinnon/Documents/Projects/RogueHalla-wish-public` only.
 
 This is a bounded source-only witness for the human Wish flow. It changes no production, Rust, C#, Unity, codec,
