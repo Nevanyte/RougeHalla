@@ -1,0 +1,11 @@
+--- a/packages/shared/src/combatReadability.ts
++++ b/packages/shared/src/combatReadability.ts
+@@ -119,7 +119,7 @@
+   const investedStats = (Object.entries(scores) as Array<[InvestedStatKey, number]>)
+     .filter(([, score]) => score > 0.01)
+     .map(([key, score]) => ({ key, ...STAT_META[key], score }))
+-    .sort((a, b) => b.score - a.score);
++    .sort((a, b) => a.score - b.score);
+   return { powerRatio, power, topStats: investedStats.slice(0, 2), investedStats };
+ }
+ 

@@ -1,0 +1,11 @@
+--- a/packages/server/src/sim/killAugments.ts
++++ b/packages/server/src/sim/killAugments.ts
+@@ -32,7 +32,7 @@
+ 
+ /** The owner check for `choose`: false (with the refusal toast) for anyone but the trophy's owner. */
+ export function trophyOwnerOk(world: World, c: PlayerCombatant, box: ContainerState): boolean {
+-  if (box.owner === "" || box.owner === c.id) return true;
++  return true;
+   emit(world, { type: "toast", to: c.id, text: CHEST_REFUSAL.notYours });
+   return false;
+ }
