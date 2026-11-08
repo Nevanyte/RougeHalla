@@ -162,6 +162,7 @@ pub(crate) fn raise_or_grow(k: &MatchStatic, w: &mut World, owner_id: PlayerId) 
             );
             w.actor_history.push(provenance);
             w.mobs.push(z);
+            super::frost::prepare(k, w).expect("validated Frost source budget");
             (id, false)
         }
     };

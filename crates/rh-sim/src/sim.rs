@@ -34,13 +34,32 @@ pub use crate::systems::melee::in_arc;
 /// Clone + serde = checkpoint `{format, statics, world}` (see `checkpoint.rs`; a decoded `Sim` is complete: the derived
 /// map tables and the statics digest are built by deserialization, the scratch starts empty, and neither the scratch
 /// nor the path search state is ever serialized).
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct Sim {
     pub(crate) projection: crate::fx_report::Projection,
     pub(crate) k: MatchStatic,
     pub(crate) w: World,
     pub(crate) s: TickScratch,
     pub(crate) pf: Pathfinder,
+}
+
+impl Clone for Sim {
+    fn clone(&self) -> Self {
+        let k = self.k.clone();
+        let mut w = self.w.clone();
+        // Vec::clone retains values, not spare capacity. A complete cloned session, like restore, prepares the
+        // actual actor domain before its first no-input step and before a later source-membership expansion.
+        crate::systems::frost::prepare(&k, &mut w).expect("validated Frost source budget");
+        let mut s = self.s.clone();
+        s.reserve_actors(w.fighter_count());
+        Self {
+            projection: self.projection.clone(),
+            k,
+            w,
+            s,
+            pf: self.pf.clone(),
+        }
+    }
 }
 
 /// Placement for [`Sim::reset_active`]: the scenario API used by the headless runner, the parity harness and tests.
@@ -320,6 +339,8 @@ impl Sim {
         let mut player = Player::joining(id, profile, bot, faction, spot, hp);
         player.seat.picked_faction = picked_faction;
         self.w.players.push(player);
+        crate::systems::frost::prepare(&self.k, &mut self.w)
+            .expect("validated Frost source budget");
         Some(id)
     }
 
@@ -424,7 +445,7 @@ impl Sim {
             "tick-local buffers must be empty at the end of a step"
         );
         debug_assert!(
-            self.w.pay.items.is_empty() && !self.w.pay.collecting,
+            self.w.pay.is_settled(),
             "the payout queue must be spent and not collecting at the end of a step"
         );
     }

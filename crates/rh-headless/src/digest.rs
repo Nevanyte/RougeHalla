@@ -133,7 +133,7 @@ impl OutcomeDigest {
             for m in &snap.mobs {
                 self.w(m.id.0.into());
                 self.w(m.kind.into());
-                self.s(m.mob_type.expect("mob type").as_str());
+                self.s(m.mob_type.map_or("", |ty| ty.as_str()));
                 self.s(m.faction.as_str());
                 for n in [m.x, m.y, m.facing, m.hp_frac] {
                     self.f(n);
@@ -171,6 +171,34 @@ impl OutcomeDigest {
                 ] {
                     self.f(n);
                 }
+            }
+        }
+        // Private actor-domain Frost history participates in this diagnostic independently of public presentation.
+        for core in sim
+            .players()
+            .iter()
+            .map(|p| &p.core)
+            .chain(sim.mobs().iter().map(|m| &m.core))
+        {
+            let f = &core.signature;
+            if f.chill != 1.
+                || !f.chillers.is_empty()
+                || f.exposure_started_at.is_some()
+                || f.last_near_at.is_some()
+                || f.ranged_chill_until.is_some()
+                || f.frost_move_mult != 1.
+            {
+                self.s("frost_sources");
+                self.w(core.id.0.into());
+                self.f(f.chill);
+                self.w(f.chillers.len() as u64);
+                for id in &f.chillers {
+                    self.w(id.0.into());
+                }
+                self.opt(f.exposure_started_at.map(f64::to_bits));
+                self.opt(f.last_near_at.map(f64::to_bits));
+                self.opt(f.ranged_chill_until.map(f64::to_bits));
+                self.f(f.frost_move_mult);
             }
         }
         self.w(events.len() as u64);

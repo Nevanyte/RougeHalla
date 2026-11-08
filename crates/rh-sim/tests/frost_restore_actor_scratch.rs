@@ -54,7 +54,7 @@ fn active_frost_pve() -> Sim {
 fn restored_frost_pve_steps_without_submit_with_more_actors_than_seats() {
     let mut original = active_frost_pve();
     let checkpoint = serde_json::to_value(&original).unwrap();
-    assert_eq!(checkpoint["format"], "rh-checkpoint/25");
+    assert_eq!(checkpoint["format"], rh_sim::CHECKPOINT_FORMAT);
     let mut restored = Sim::restore(checkpoint).unwrap();
     assert_eq!(original.state_hash(), restored.state_hash());
     // No post-restore submit/join/growth call may warm scratch incidentally: restore must prepare every retained actor.
