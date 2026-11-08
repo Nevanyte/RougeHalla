@@ -13,6 +13,9 @@ using UnityEngine.InputSystem.LowLevel;
 
 namespace Roguehalla.Client.Tests
 {
+    [ExecuteAlways]
+    sealed class UiInputRoutingEventSystem : EventSystem { }
+
     /// <summary>Exercises the actual UI and gameplay input readers with a decoded local Session.</summary>
     public sealed class UiInputRoutingEditModeTests
     {
@@ -41,9 +44,7 @@ namespace Roguehalla.Client.Tests
         }
 
         GameObject _root, _ownedEvents;
-        bool _eventsWereActive;
         EventSystem _previousEvents;
-        GameObject _previousSelection;
         MatchClient _client;
         MatchHud _hud;
         Session _session;
@@ -56,18 +57,18 @@ namespace Roguehalla.Client.Tests
         public void SetUp()
         {
             _previousEvents = EventSystem.current;
-            _eventsWereActive = _previousEvents != null && _previousEvents.gameObject.activeSelf;
-            _previousSelection = _previousEvents != null ? _previousEvents.currentSelectedGameObject : null;
-            if (_previousEvents != null && _eventsWereActive) _previousEvents.gameObject.SetActive(false);
+            // ExecuteAlways ensures EventSystem.OnEnable registers this test instance in EditMode.
+            // Keep the project EventSystem active and move this known-registered instance to the front.
+            _ownedEvents = new GameObject("UI input routing test EventSystem", typeof(UiInputRoutingEventSystem));
+            var ownedSystem = _ownedEvents.GetComponent<UiInputRoutingEventSystem>();
+            EventSystem.current = ownedSystem;
+            Assert.That(EventSystem.current, Is.SameAs(ownedSystem), "test EventSystem must be registered before UI setup");
             _keyboard = InputSystem.AddDevice<Keyboard>();
 
             _root = new GameObject("UI input routing fixture");
             _client = _root.AddComponent<MatchClient>();
             _client.enabled = false;
             Invoke(_client, "InitializeLayoutReview", CreateSession());
-            var currentEvents = EventSystem.current;
-            if (currentEvents != null && (_previousEvents == null || currentEvents.gameObject != _previousEvents.gameObject))
-                _ownedEvents = currentEvents.gameObject;
             _hud = _client.Hud;
             _session = _client.Session;
             _oldToggleMode = _hud.TacticalMap.ToggleMode;
@@ -112,17 +113,17 @@ namespace Roguehalla.Client.Tests
         public void TearDown()
         {
             if (_typingField != null) _typingField.DeactivateInputField();
-            if (EventSystem.current != null) EventSystem.current.SetSelectedGameObject(null);
+            if (_ownedEvents != null)
+            {
+                var ownedSystem = _ownedEvents.GetComponent<EventSystem>();
+                if (ownedSystem != null && EventSystem.current == ownedSystem) ownedSystem.SetSelectedGameObject(null);
+            }
             if (_hud != null && _hud.TacticalMap != null) _hud.TacticalMap.SetToggleMode(_oldToggleMode);
             if (_keyboard != null && _keyboard.added) InputSystem.RemoveDevice(_keyboard);
             if (_root != null) UnityEngine.Object.DestroyImmediate(_root);
             if (_ownedEvents != null) UnityEngine.Object.DestroyImmediate(_ownedEvents);
-            if (_previousEvents != null)
-            {
-                _previousEvents.gameObject.SetActive(_eventsWereActive);
-                if (_eventsWereActive && _previousSelection != null && _previousSelection.activeInHierarchy)
-                    _previousEvents.SetSelectedGameObject(_previousSelection);
-            }
+            Assert.That(_previousEvents == null || EventSystem.current == _previousEvents,
+                "destroying the test EventSystem should restore the previously current system");
         }
 
         Session CreateSession()
