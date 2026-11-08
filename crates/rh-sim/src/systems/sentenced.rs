@@ -354,13 +354,16 @@ pub(crate) fn validate(k: &MatchStatic, w: &World, p: &crate::state::Player) -> 
     // the old mixture of just neutral and base-Frost increments rejects genuine resisted/deepened hits.
     let min_chill =
         (1. - FROST_SLOW - crate::modifiers::DEFINITION.frost_cap).max(MARK_CHILL_FLOOR);
-    // The historical rate is not today's rate: ordinary card ownership only grows and Gathering Storm may be added
-    // mid-Mark, while training Clear may remove it without resetting the Mark, so past increments are never recomputed.
-    // The shipped unique catalog producer bounds every reachable rate (currently 1.5); derive it from the catalog
-    // instead of inventing a permissive constant. The rate itself is never below 1: no shipped card/farm/trade/status
-    // row subtracts MarkRate (verified against the actual catalog and the farm/trade/status registries).
-    let max_increment =
-        crate::modifiers::mark_progress_increment(crate::modifiers::maximum_mark_rate(), min_chill);
+    // Ordinary ownership only grows: today's folded rate bounds every earlier rate, even when Gathering Storm was
+    // acquired mid-Mark. Only training Clear can remove it without resetting the Mark, so training needs the shipped
+    // catalog maximum for historical increments. Never recompute past progress from today's rate. No shipped
+    // card/farm/trade/status row subtracts MarkRate.
+    let history_rate = if k.config.training {
+        crate::modifiers::maximum_mark_rate()
+    } else {
+        p.modifiers.mark_rate()
+    };
+    let max_increment = crate::modifiers::mark_progress_increment(history_rate, min_chill);
     let count = m.hits as f64;
     let max_progress = count * max_increment;
     // Retain the conservative sequential-binary64 addition envelope, including long-running restored marks.

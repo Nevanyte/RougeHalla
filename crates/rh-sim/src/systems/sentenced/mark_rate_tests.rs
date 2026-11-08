@@ -209,6 +209,99 @@ fn restore_bounds_admit_the_catalog_maximum_history_and_refuse_beyond_it() {
 }
 
 #[test]
+fn ordinary_no_storm_history_rejects_progress_only_the_global_rate_could_allow() {
+    let mut s = duel(&[], &[]);
+    next_mark_hit(&mut s);
+    assert!(!s.k.config.training);
+    assert!(!s.w.players[0].build.owns(CardId::GatheringStorm));
+    assert_eq!(rate(&s), 1.);
+    assert!(validate(&s.k, &s.w, &s.w.players[0]).is_ok());
+    assert!(Sim::restore(serde_json::to_value(&s).unwrap()).is_ok());
+
+    let min_chill =
+        (1. - FROST_SLOW - crate::modifiers::DEFINITION.frost_cap).max(MARK_CHILL_FLOOR);
+    let hits = s.w.players[0].signature.mark.hits as f64;
+    let ordinary_max = hits * crate::modifiers::mark_progress_increment(rate(&s), min_chill);
+    let global_max = hits
+        * crate::modifiers::mark_progress_increment(
+            crate::modifiers::maximum_mark_rate(),
+            min_chill,
+        );
+    let mut malformed = s.w.players[0].clone();
+    let mark = &mut malformed.signature.mark;
+    mark.progress = (ordinary_max + global_max) / 2.;
+    // Keep the earned tier coherent so the history-rate ceiling is the reason for refusal.
+    mark.tier = (1.
+        + (mark.progress / MARK_TIER_HITS + MARK_TIER_EPS)
+            .floor()
+            .max(mark.swaps as f64))
+    .min(MARK_TOP_TIER as f64) as u8;
+    assert!(mark.progress > ordinary_max && mark.progress < global_max);
+    let direct_refused = validate(&s.k, &s.w, &malformed).is_err();
+    let mut checkpoint = serde_json::to_value(&s).unwrap();
+    checkpoint["world"]["players"][0]["core"]["signature"]["mark"] =
+        serde_json::to_value(malformed.signature.mark).unwrap();
+    let checkpoint_refused = Sim::restore(checkpoint).is_err();
+    assert!(
+        direct_refused && checkpoint_refused,
+        "ordinary history refusal: direct={direct_refused}, checkpoint={checkpoint_refused}"
+    );
+}
+
+#[test]
+fn training_clear_retains_real_deepened_storm_history_above_todays_rate_bound() {
+    let mut s = duel_with_training(&[CardId::GatheringStorm], &[CardId::Haste2; 4], true);
+    let min_chill =
+        (1. - FROST_SLOW - crate::modifiers::DEFINITION.frost_cap).max(MARK_CHILL_FLOOR);
+    let neutral_increment = crate::modifiers::mark_progress_increment(1., min_chill);
+    let mut exceeded = false;
+    for _ in 0..6 {
+        let (chill, _, after) = next_mark_hit(&mut s);
+        if after.progress > after.hits as f64 * neutral_increment + MARK_TIER_EPS {
+            assert!(
+                chill < 1. - FROST_SLOW,
+                "the real Frost source deepened its chill"
+            );
+            exceeded = true;
+            break;
+        }
+    }
+    assert!(
+        exceeded,
+        "real Storm hits exceed the later neutral-rate history bound"
+    );
+    let held = s.w.players[0].signature.mark;
+    s.submit(
+        PlayerId(1),
+        validate_command(RawCommand::Train(TrainRaw {
+            command: 5,
+            id: 0,
+            count: 0,
+            options: [0; 3],
+            option_count: 0,
+        }))
+        .unwrap(),
+    )
+    .unwrap();
+    s.step();
+    assert!(!s.w.players[0].build.owns(CardId::GatheringStorm));
+    assert_eq!(rate(&s), 1.);
+    assert_eq!(
+        s.w.players[0].signature.mark, held,
+        "Clear keeps actual earned history"
+    );
+    assert!(held.progress > held.hits as f64 * neutral_increment + MARK_TIER_EPS);
+    assert!(validate(&s.k, &s.w, &s.w.players[0]).is_ok());
+    restore_continue(&mut s);
+    let (chill, before, after) = next_mark_hit(&mut s);
+    assert_eq!(
+        after.progress,
+        before.progress + crate::modifiers::mark_progress_increment(1., chill)
+    );
+    restore_continue(&mut s);
+}
+
+#[test]
 fn real_checkpoint_restore_and_replay_continue_the_gathering_storm_mark() {
     use crate::replay::{run_replay, Recorder, ReplayInput, ReplayStart};
     let config = SimConfig {

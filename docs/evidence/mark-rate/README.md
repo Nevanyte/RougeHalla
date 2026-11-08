@@ -9,7 +9,8 @@ INTERACTIVE gate widening and no live activation.
 
 Source `factions.ts::markStep` adds `markRateOf(c.s) / Math.max(f.chill, 0.05)` to `markProgress` per qualifying hit;
 `mods.ts::markRateOf` is `max(0, 1 + folded MarkRate sum)`, and the ready unique Gathering Storm contributes +0.5. Native
-`systems/sentenced.rs::before_damage` added `1 / chill.max(MARK_CHILL_FLOOR)`, so the offered card did nothing.
+`systems/sentenced.rs::before_damage` added `1 / chill.max(MARK_CHILL_FLOOR)`, so a directly granted Gathering Storm
+did not affect progress. This is a source grant-supported/dormant content domain: Gathering Storm is ready in the catalog but excluded from ordinary offers and the training INTERACTIVE gate.
 The port now reads a narrow folded accessor and uses shared pure helpers:
 
 - `modifiers/mod.rs`: `Runtime::mark_rate()` = `mark_rate_of(&StatSums)` = `max(0, 1 + sums.markRate)` (existing Runtime
@@ -29,11 +30,14 @@ historical rate is therefore in [1, 1.5].
 ## Restore bounds (actual reachable history)
 
 `systems/sentenced.rs::validate` keeps all prior finite/nonnegative/zero-hit/counter/earned-tier/target/time/denial
-checks and the Frost minimum-chill reasoning; only the progress ceiling now uses the derived catalog maximum rate:
-`max_increment = mark_progress_increment(maximum_mark_rate(), min_chill)`, `max_progress = hits * max_increment`, slack
+checks and the Frost minimum-chill reasoning; the ordinary progress ceiling uses the current folded rate, since
+ownership only grows. Only training uses the derived catalog maximum because Clear can remove Gathering Storm without resetting Mark:
+`history_rate = training ? maximum_mark_rate() : owner.modifiers.mark_rate()`, then
+`max_increment = mark_progress_increment(history_rate, min_chill)`, `max_progress = hits * max_increment`, with slack
 scaled by the same increment. Ordinary ownership only grows and may add Gathering Storm mid-Mark; past increments are
 never recomputed from today's rate; Training Clear may remove the card without resetting the Mark, so history may span
-both rates. The old 1.0-rate ceiling is not a validation bound any more; an over-catalog-rate progress is still refused.
+both rates. The old universal 1.0-rate ceiling is insufficient for Storm or post-Clear training history; ordinary no-Storm
+history still has a 1.0-rate ceiling. Over-catalog-rate progress remains refused.
 `resistance_tests::malformed_mark_progress_and_other_invariants_still_refuse` was updated to that derived maximum (the
 only existing test change; expected source corpora are untouched).
 
@@ -78,3 +82,31 @@ only existing test change; expected source corpora are untouched).
    in-band acquisition producer (e.g. a chest choose), which this player-only bounded evidence does not add.
 4. Console INTERACTIVE remains unchanged; Training Clear is the admitted removal path, and the training case uses the
    real Train Clear command. Full NPC/other full-port prerequisites remain separate.
+
+
+## Admission history-bound repair
+
+Isolated continuation from `df7cd0e88a4839bd0e9f5ae3ba2fcf3595b46cd3` on
+`codex/mark-rate-admission-repair`. The previous global 1.5 ceiling admitted ordinary no-Storm histories that no
+ordinary ownership path can produce. Validation now uses the owner's current folded rate as the ordinary historical
+upper bound, retaining the catalog ceiling only for training removal history. No gameplay increment or state layout
+changed.
+
+New controls start from a real no-card attack and reject a malformed progress/tier tuple that fits the global ceiling
+but exceeds the ordinary ceiling, both through the direct validator and checkpoint restore. The positive control
+earns Storm progress under real deepened Frost, executes actual Training Clear, and restores/continues history above
+the post-Clear neutral-rate ceiling. Restore is not counted as card-specific replay; the explicit acquisition/replay
+limitation above remains unchanged. No eligibility or replay-start extension was added.
+
+Repair validation (own target, no broad workspace/map campaign):
+
+- `cargo test -p rh-sim --lib --all-features systems::sentenced`: **35 passed**, including the eight-case source consumer.
+- `cargo clippy -p rh-sim --all-targets --all-features -- -D warnings`: passed.
+- `cargo clippy -p rh-sim --all-targets -- -D warnings`: passed.
+- `cargo fmt --all -- --check` and `git diff --check`: passed.
+- Old-checker negative control: temporarily restoring the unconditional catalog maximum makes the new no-Storm
+  test fail semantically with `ordinary history refusal: direct=false, checkpoint=false` (both paths wrongly accept);
+  compilation succeeds, the command exits 101, and the corrected source is restored before the passing gate above.
+
+The source capture, old expected payloads, console eligibility, replay model, schema/content registration and derived
+tapes are unchanged by this repair. Root still owns final helper/content registration and composition.
