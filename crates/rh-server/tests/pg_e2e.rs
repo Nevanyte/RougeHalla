@@ -429,10 +429,11 @@ async fn an_mia_leave_is_banked_under_its_fence() {
     }
     let mut track = rh_protocol::SnapshotTracker::new();
     loop {
-        let Ok(Some(Ok(Message::Binary(b)))) =
-            tokio::time::timeout(Duration::from_secs(10), socks[0].next()).await
-        else {
-            panic!("no run")
+        let b = match tokio::time::timeout(Duration::from_secs(10), socks[0].next()).await {
+            Ok(Some(Ok(Message::Binary(b)))) => b,
+            // Control frames are transport heartbeat, not state: the server pings for its RTT estimate.
+            Ok(Some(Ok(_))) => continue,
+            other => panic!("no run: {other:?}"),
         };
         if matches!(
             track.decode(&b).unwrap(),

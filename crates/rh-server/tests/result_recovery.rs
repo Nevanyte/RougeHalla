@@ -629,10 +629,11 @@ async fn start_run(
     }
     for (ws, track) in out.iter_mut() {
         loop {
-            let Ok(Some(Ok(Message::Binary(b)))) =
-                tokio::time::timeout(Duration::from_secs(15), ws.next()).await
-            else {
-                panic!("no run")
+            let b = match tokio::time::timeout(Duration::from_secs(15), ws.next()).await {
+                Ok(Some(Ok(Message::Binary(b)))) => b,
+                // Control frames are transport heartbeat, not state: the server pings for its RTT estimate.
+                Ok(Some(Ok(_))) => continue,
+                other => panic!("no run: {other:?}"),
             };
             match track.decode(&b).unwrap() {
                 ServerMsg::Snapshot { phase: 1, .. } => break,

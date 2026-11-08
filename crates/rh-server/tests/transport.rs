@@ -351,6 +351,114 @@ async fn a_burst_larger_than_the_read_buffer_is_read_whole_and_in_order() {
     s.handle.shutdown();
 }
 
+/// The next WebSocket control Ping the server sends (P-NET-1 Phase 3's RTT probe), with its 8-byte payload.
+async fn next_server_ping<S>(ws: &mut tokio_tungstenite::WebSocketStream<S>) -> Vec<u8>
+where
+    S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin,
+{
+    loop {
+        let next = tokio::time::timeout(Duration::from_secs(3), ws.next())
+            .await
+            .expect("a server Ping within 3 s")
+            .expect("socket open")
+            .expect("frame");
+        match next {
+            Message::Ping(payload) => return payload.to_vec(),
+            Message::Close(frame) => panic!("the server closed before its Ping: {frame:?}"),
+            _ => {}
+        }
+    }
+}
+
+/// Waits until the room has reported a smoothed estimate for this match/player (the room applies a sample between
+/// steps, so a Pong is visible a few milliseconds after it is sent).
+async fn reported_estimate(match_id: [u8; 16], player: rh_sim::PlayerId) -> f64 {
+    let deadline = tokio::time::Instant::now() + Duration::from_secs(3);
+    loop {
+        if let Some(ms) = rh_server::room::rtt::last_estimate_ms(match_id, player) {
+            return ms;
+        }
+        assert!(
+            tokio::time::Instant::now() < deadline,
+            "the room reported an RTT estimate for the Pong"
+        );
+        tokio::time::sleep(Duration::from_millis(5)).await;
+    }
+}
+
+/// P-NET-1 Phase 3: the server measures RTT itself. It pings the connection with a control Ping; a real client's Pongs
+/// are the samples. Holding the first Pong back ~120 ms measures that delay, answering the next one at once measures a
+/// near-zero link, and the room's estimate moves between the two (an EWMA, not the last raw sample).
+#[tokio::test]
+async fn a_real_clients_pongs_produce_a_moving_server_measured_rtt() {
+    let s = start(false).await;
+    let (mut ws, _) = tokio_tungstenite::connect_async(format!("ws://{}/ws", s.addr))
+        .await
+        .expect("connect");
+    // Hello, then read only to the Welcome (which names this match and player for the diagnostics readout): the first
+    // server Ping is left unread in the socket.
+    ws.send(Message::Binary(hello().encode().into()))
+        .await
+        .unwrap();
+    let (match_id, player) = loop {
+        let next = tokio::time::timeout(Duration::from_secs(3), ws.next())
+            .await
+            .expect("Welcome within 3 s")
+            .expect("socket open")
+            .expect("frame");
+        if let Message::Binary(b) = next {
+            if let Ok(ServerMsg::Welcome {
+                match_id,
+                player_id,
+                ..
+            }) = ServerMsg::decode(&b)
+            {
+                break (match_id, rh_sim::PlayerId(player_id));
+            }
+        }
+    };
+    // A client that did not read for 120 ms answers the first Ping 120 ms late: the measured RTT includes that delay.
+    tokio::time::sleep(Duration::from_millis(120)).await;
+    let first = next_server_ping(&mut ws).await;
+    assert_eq!(
+        first.len(),
+        8,
+        "the server Ping carries its 8-byte send clock"
+    );
+    ws.send(Message::Pong(first.clone().into())).await.unwrap();
+    let first_estimate = reported_estimate(match_id, player).await;
+    assert!(
+        first_estimate >= 100.0,
+        "the held Pong measured ~120 ms, not the 20 ms floor: {first_estimate}"
+    );
+    // The next Ping is answered at once: a near-zero link RTT (floored by the estimator), so the EWMA moves down.
+    let second = next_server_ping(&mut ws).await;
+    let first_ms = u64::from_le_bytes(first.clone().try_into().unwrap());
+    let second_ms = u64::from_le_bytes(second.clone().try_into().unwrap());
+    assert!(
+        second_ms > first_ms,
+        "the ping clock is monotonic: {first_ms} -> {second_ms}"
+    );
+    ws.send(Message::Pong(second.into())).await.unwrap();
+    let deadline = tokio::time::Instant::now() + Duration::from_secs(3);
+    let second_estimate = loop {
+        let now = reported_estimate(match_id, player).await;
+        if now < first_estimate {
+            break now;
+        }
+        assert!(
+            tokio::time::Instant::now() < deadline,
+            "the second Pong moved the estimate down from {first_estimate}"
+        );
+        tokio::time::sleep(Duration::from_millis(5)).await;
+    };
+    assert!(
+        second_estimate > 30.0,
+        "the EWMA moved down without collapsing to the 20 ms floor: {second_estimate}"
+    );
+    s.handle.shutdown();
+}
+
 /// WebSocket control frames are charged to the frame bucket: a client that floods Pings (which used to skip the bucket
 /// and, with the biased reader, could keep a dead writer hidden for as long as it kept sending) is closed `RateLimited`,
 /// like a data flood.

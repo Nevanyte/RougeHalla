@@ -2,6 +2,10 @@
 //! task, in arrival order, between steps (the legacy rule: handlers validate and enqueue, the sim consumes at the next step).
 //! Nothing here blocks on I/O: frames go to per-connection [`Outbox`]es, results to a channel drained off-tick.
 
+// The file the packet names as `src/rtt.rs`; declared here because `lib.rs` is outside this phase's write scope.
+#[path = "rtt.rs"]
+pub mod rtt;
+
 use crate::bot_fill::{BotFillConfig, BotFillState, BotSeatSpec, FillView};
 use crate::metrics::{self, Histogram, Metrics};
 use crate::outbox::{Outbox, OutboxCounters};
@@ -11,10 +15,12 @@ use rh_policy::bots::HumanBot;
 use rh_policy::{drive_seats_with, scripted, MatchStart, Policy, Seat};
 use rh_protocol::map::{EncodedMap, MapBlob};
 use rh_protocol::{encode_welcome, RejectCode, ServerMsg, WelcomeHeader, WireEvent, WireResult};
+use rh_sim::constants::TICK_MS;
 use rh_sim::replay::{BotPolicy, Recorder, Replay, ReplayInput, ReplayStart};
 use rh_sim::{
     Arena, Event, FactionId, Phase, PlayerId, RunResult, Secrets, SeenEvent, Sim, SimConfig,
 };
+use rtt::{clamp_render_time, RttEstimator};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
@@ -105,6 +111,13 @@ pub enum RoomCmd {
         conn: u64,
         seq: u32,
         commands: Vec<rh_protocol::WireCommand>,
+    },
+    /// One server-measured RTT sample (a Pong matching a Ping this connection was sent), for the seat's rewind window.
+    /// Samples from a connection that no longer owns the seat are ignored.
+    RttSample {
+        player: PlayerId,
+        conn: u64,
+        rtt_ms: f64,
     },
     Disconnected {
         player: PlayerId,
@@ -253,6 +266,20 @@ pub struct RoomStats {
     pub frame_refusals_logged: u64,
     /// The room task panicked: these are the stats it had, reported by its unwinding guard.
     pub crashed: bool,
+    /// Server-measured RTT samples the room accepted over every seat it had, and the last and highest smoothed estimate
+    /// (milliseconds) the estimator produced (P-NET-1 Phase 3, for P-OPS-2).
+    ///
+    /// `skip`: the `/info` closed-room key set is pinned by a director test and is outside this phase's write scope, so
+    /// the JSON contract stays byte-for-byte the same; the counters live on the Rust `RoomStats` for P-OPS-2 to expose.
+    #[serde(skip)]
+    pub rtt_samples: u64,
+    #[serde(skip)]
+    pub rtt_last_ms: f64,
+    #[serde(skip)]
+    pub rtt_max_ms: f64,
+    /// Attack/release render times the server bounded by its measured RTT, over every seat (P-OPS-2's cheat counter).
+    #[serde(skip)]
+    pub rewind_clamps: u64,
 }
 
 /// What every room of one map shares: the immutable arena and its Welcome map blob, RLE-encoded once. The director builds
@@ -313,6 +340,8 @@ struct HumanSeat {
     outbox: Option<Arc<Outbox>>,
     dropped_at: Option<Instant>,
     ack_input: u32,
+    /// The server-measured RTT of this seat's current connection: it bounds the attack render times this seat may claim.
+    rtt: RttEstimator,
     /// What this human could know of the wake's steps before the last, judged step by step as they ran (empty between
     /// wakes and on every one-step wake).
     carry: Vec<SeenEvent>,
@@ -377,6 +406,13 @@ pub struct Room {
     /// Tests: wall time every wake burns (an overloaded host).
     #[cfg(test)]
     stall: Duration,
+    /// Server-measured RTT samples the room accepted, and the last and highest smoothed estimate any seat reported (for
+    /// P-OPS-2 and diagnostics; the per-seat estimator is what the clamp reads).
+    rtt_samples: u64,
+    rtt_last_ms: f64,
+    rtt_max_ms: f64,
+    /// Attack/release render times the RTT bound rewrote (every clamp, for P-OPS-2).
+    rewind_clamps: u64,
     /// A training room (a practice world: one human, no bots, no results or banking, an idle close and no replay).
     training: bool,
     /// When this room's seat last had a command accepted (the training idle clock); opened_at before the first one.
@@ -462,6 +498,10 @@ impl Room {
             closed: false,
             #[cfg(test)]
             stall: Duration::ZERO,
+            rtt_samples: 0,
+            rtt_last_ms: 0.0,
+            rtt_max_ms: 0.0,
+            rewind_clamps: 0,
             training,
             last_input_at: None,
             training_idle: Duration::from_secs(TRAINING_IDLE_SECONDS),
@@ -562,6 +602,8 @@ impl Room {
                         // From now on only the new connection speaks for this seat.
                         h.conn = conn;
                         h.dropped_at = None;
+                        // A new connection is a new path: its first Pong measures it, the old estimate is not inherited.
+                        h.rtt = RttEstimator::new();
                         h.fx.rebind(&self.sim, h.player);
                         h.carry.clear();
                         h.items.reconnect();
@@ -618,14 +660,26 @@ impl Room {
                     .position(|h| h.player == player && h.conn == conn)
                 {
                     self.humans[index].ack_input = seq;
+                    // The clamp is written for the sim time this batch will be applied at: the room applies commands
+                    // between steps and the next step adds one tick first, so `note_lag` in the sim will see
+                    // `now_apply` as its `now`. P-NET-1 Phase 3: bound an attack render time by the RTT the server
+                    // measured for this connection (never by the client's claim), before `Sim::submit`.
+                    // The clamp applies per Attack/Release command: a held attack keeps the legacy press-time lag until
+                    // another Attack/Release command arrives. Per-swing rewind is outside this packet and needs a
+                    // separate design decision.
+                    let now_apply = self.sim.server_time() + TICK_MS;
+                    let allowed = self.humans[index].rtt.allowed_rewind_ms();
                     let mut accepted = 0u32;
                     for c in commands {
+                        let (proposal, clamped) =
+                            clamp_render_time(wire::command(c), now_apply, allowed);
+                        if clamped {
+                            self.rewind_clamps += 1;
+                        }
                         // Resolve only within this seat's delivered offer, then use the shared
                         // validator/budget/submit path. Target is an observer-issued reference,
                         // never a private-ID fallback. Misses are recorded ordinary commands.
-                        let resolved = self.humans[index]
-                            .items
-                            .resolve(&self.sim, wire::command(c));
+                        let resolved = self.humans[index].items.resolve(&self.sim, proposal);
                         if let Ok(cmd) = resolved {
                             self.record(ReplayInput::Command { player, cmd });
                             if self.sim.submit(player, cmd).is_ok() {
@@ -637,6 +691,26 @@ impl Room {
                     if accepted > 0 {
                         self.last_input_at = Some(now);
                     }
+                }
+            }
+            RoomCmd::RttSample {
+                player,
+                conn,
+                rtt_ms,
+            } => {
+                // Only the connection that owns the seat may move its window; a replaced connection's late Pongs are
+                // ignored, so a resume starts measuring the new path from scratch.
+                if let Some(h) = self
+                    .humans
+                    .iter_mut()
+                    .find(|h| h.player == player && h.conn == conn)
+                {
+                    h.rtt.sample(rtt_ms);
+                    let estimate = h.rtt.estimate_ms();
+                    rtt::note_estimate(self.id, player, estimate);
+                    self.rtt_samples += 1;
+                    self.rtt_last_ms = estimate;
+                    self.rtt_max_ms = self.rtt_max_ms.max(estimate);
                 }
             }
             RoomCmd::Disconnected { player, conn } => {
@@ -747,6 +821,7 @@ impl Room {
             outbox: Some(outbox),
             dropped_at: None,
             ack_input: 0,
+            rtt: RttEstimator::new(),
             carry: Vec::new(),
             items: rh_sim::ItemObserver::new(player),
             collections: Default::default(),
@@ -1374,6 +1449,10 @@ impl Room {
             frame_refusals: self.frame_refusals,
             frame_refusals_logged: self.frame_refusals_logged,
             crashed: false,
+            rtt_samples: self.rtt_samples,
+            rtt_last_ms: self.rtt_last_ms,
+            rtt_max_ms: self.rtt_max_ms,
+            rewind_clamps: self.rewind_clamps,
         }
     }
 
