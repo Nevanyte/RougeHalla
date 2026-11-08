@@ -1,0 +1,604 @@
+{
+  "scope": "November8 historical cleanup snapshot; active workers excluded; all branch refs retained",
+  "primary": "Set PRIMARY to your main repository path before using a restoration command.",
+  "entries": [
+    {
+      "head": "b11ae6f451df9aaa5e3571c8779a8991d7ff8051",
+      "branch": "refs/heads/worktree-agent-a06827b9946254a74",
+      "result": "removed-clean-merged-first-pass",
+      "worktree": "$PRIMARY/.claude/worktrees/agent-a06827b9946254a74",
+      "restore": [
+        "git",
+        "worktree",
+        "add",
+        "$PRIMARY/.claude/worktrees/agent-a06827b9946254a74",
+        "worktree-agent-a06827b9946254a74"
+      ]
+    },
+    {
+      "head": "fed0ff783ebbd15334b2c531bc1a9c5bbb15ed3a",
+      "branch": "refs/heads/rebalance-builds",
+      "result": "removed-clean-merged-first-pass",
+      "worktree": "$PRIMARY/.claude/worktrees/agent-a0b11fd528fc5f777",
+      "restore": [
+        "git",
+        "worktree",
+        "add",
+        "$PRIMARY/.claude/worktrees/agent-a0b11fd528fc5f777",
+        "rebalance-builds"
+      ]
+    },
+    {
+      "head": "31256fcd03ca190ea10946c94f306255f5fae84c",
+      "branch": "refs/heads/worktree-agent-a2147dbf5059a83e4",
+      "result": "removed-clean-merged-first-pass",
+      "worktree": "$PRIMARY/.claude/worktrees/agent-a2147dbf5059a83e4",
+      "restore": [
+        "git",
+        "worktree",
+        "add",
+        "$PRIMARY/.claude/worktrees/agent-a2147dbf5059a83e4",
+        "worktree-agent-a2147dbf5059a83e4"
+      ]
+    },
+    {
+      "head": "c7dae53a36f2340fd5fdb963351b61622d66265c",
+      "branch": "refs/heads/worktree-agent-a28f204c1175d512e",
+      "result": "removed-clean-merged-first-pass",
+      "worktree": "$PRIMARY/.claude/worktrees/agent-a28f204c1175d512e",
+      "restore": [
+        "git",
+        "worktree",
+        "add",
+        "$PRIMARY/.claude/worktrees/agent-a28f204c1175d512e",
+        "worktree-agent-a28f204c1175d512e"
+      ]
+    },
+    {
+      "head": "dc6a0852aba271c35b883b2c5282284a98842a3c",
+      "branch": "refs/heads/buff-elites",
+      "result": "removed-clean-merged-first-pass",
+      "worktree": "$PRIMARY/.claude/worktrees/agent-a472553f4ca01b4b9",
+      "restore": [
+        "git",
+        "worktree",
+        "add",
+        "$PRIMARY/.claude/worktrees/agent-a472553f4ca01b4b9",
+        "buff-elites"
+      ]
+    },
+    {
+      "head": "83bb87efc058162e3f48ad87824c6f8e06e32174",
+      "branch": "refs/heads/worktree-agent-a528c0d739bd385ce",
+      "result": "removed-clean-merged-first-pass",
+      "worktree": "$PRIMARY/.claude/worktrees/agent-a528c0d739bd385ce",
+      "restore": [
+        "git",
+        "worktree",
+        "add",
+        "$PRIMARY/.claude/worktrees/agent-a528c0d739bd385ce",
+        "worktree-agent-a528c0d739bd385ce"
+      ]
+    },
+    {
+      "head": "b50da2dd1d40bf68b399f45dea426f5f96464259",
+      "branch": "refs/heads/worktree-agent-a6ff9ea41e4209ba3",
+      "result": "removed-clean-merged-first-pass",
+      "worktree": "$PRIMARY/.claude/worktrees/agent-a6ff9ea41e4209ba3",
+      "restore": [
+        "git",
+        "worktree",
+        "add",
+        "$PRIMARY/.claude/worktrees/agent-a6ff9ea41e4209ba3",
+        "worktree-agent-a6ff9ea41e4209ba3"
+      ]
+    },
+    {
+      "head": "d68ce45568487a272c87f6b06dd08821236519af",
+      "branch": "refs/heads/worktree-agent-a99b55c9e60a0f599",
+      "result": "removed-clean-merged-first-pass",
+      "worktree": "$PRIMARY/.claude/worktrees/agent-a99b55c9e60a0f599",
+      "restore": [
+        "git",
+        "worktree",
+        "add",
+        "$PRIMARY/.claude/worktrees/agent-a99b55c9e60a0f599",
+        "worktree-agent-a99b55c9e60a0f599"
+      ]
+    },
+    {
+      "head": "6408a7254eb28e03cf0baff8028c63932e2448bd",
+      "branch": "refs/heads/worktree-agent-ac88973531b0abc2d",
+      "result": "removed-clean-merged-first-pass",
+      "worktree": "$PRIMARY/.claude/worktrees/agent-ac88973531b0abc2d",
+      "restore": [
+        "git",
+        "worktree",
+        "add",
+        "$PRIMARY/.claude/worktrees/agent-ac88973531b0abc2d",
+        "worktree-agent-ac88973531b0abc2d"
+      ]
+    },
+    {
+      "head": "41e434e96bdfd055f5c3080ab793eeada2556cb9",
+      "branch": "refs/heads/worktree-agent-afd7e36073a950e87",
+      "result": "removed-clean-merged-first-pass",
+      "worktree": "$PRIMARY/.claude/worktrees/agent-afd7e36073a950e87",
+      "restore": [
+        "git",
+        "worktree",
+        "add",
+        "$PRIMARY/.claude/worktrees/agent-afd7e36073a950e87",
+        "worktree-agent-afd7e36073a950e87"
+      ]
+    },
+    {
+      "head": "c5d7842ea7aff5d56fa97e339c3e0f1bbb6740dc",
+      "branch": "refs/heads/worktree-agent-afdc085145ce9450b",
+      "result": "removed-clean-merged-first-pass",
+      "worktree": "$PRIMARY/.claude/worktrees/agent-afdc085145ce9450b",
+      "restore": [
+        "git",
+        "worktree",
+        "add",
+        "$PRIMARY/.claude/worktrees/agent-afdc085145ce9450b",
+        "worktree-agent-afdc085145ce9450b"
+      ]
+    },
+    {
+      "head": "c4533c69cd1f6e6e88e2d1809508ae565939b568",
+      "branch": "refs/heads/claude/balance-pass",
+      "result": "removed-clean-merged-first-pass",
+      "worktree": "$PRIMARY/.claude/worktrees/balance-pass",
+      "restore": [
+        "git",
+        "worktree",
+        "add",
+        "$PRIMARY/.claude/worktrees/balance-pass",
+        "claude/balance-pass"
+      ]
+    },
+    {
+      "head": "bce3a2499b2da0931b7e2933bf52eaefca555294",
+      "branch": "refs/heads/claude/controls-feel",
+      "result": "removed-clean-merged-first-pass",
+      "worktree": "$PRIMARY/.claude/worktrees/controls-feel",
+      "restore": [
+        "git",
+        "worktree",
+        "add",
+        "$PRIMARY/.claude/worktrees/controls-feel",
+        "claude/controls-feel"
+      ]
+    },
+    {
+      "head": "be294541742818bf859b008ddc32961064496217",
+      "branch": "refs/heads/claude/controls-lol",
+      "result": "removed-clean-merged-first-pass",
+      "worktree": "$PRIMARY/.claude/worktrees/controls-lol",
+      "restore": [
+        "git",
+        "worktree",
+        "add",
+        "$PRIMARY/.claude/worktrees/controls-lol",
+        "claude/controls-lol"
+      ]
+    },
+    {
+      "head": "562a42d9adbc2b2a59f994ce13dbea26bd97be36",
+      "branch": null,
+      "result": "removed-clean-merged",
+      "worktree": "$PRIMARY/.claude/worktrees/human-bots-0f19c0",
+      "restore": [
+        "git",
+        "worktree",
+        "add",
+        "$PRIMARY/.claude/worktrees/human-bots-0f19c0",
+        "562a42d9adbc2b2a59f994ce13dbea26bd97be36"
+      ]
+    },
+    {
+      "head": "e4e57178dc899918780fc9c73ee5c2bf3f537a7c",
+      "branch": "refs/heads/claude/infra-pr3-placement-fleet",
+      "result": "removed-clean-merged",
+      "worktree": "$PRIMARY/.claude/worktrees/infra-pr1",
+      "restore": [
+        "git",
+        "worktree",
+        "add",
+        "$PRIMARY/.claude/worktrees/infra-pr1",
+        "claude/infra-pr3-placement-fleet"
+      ]
+    },
+    {
+      "head": "3558f83af4e6f4796233fd906039233870509311",
+      "branch": "refs/heads/kimi/determinism-sweep",
+      "result": "removed-clean-merged",
+      "worktree": "$PRIMARY/.claude/worktrees/kimi-determinism-sweep",
+      "restore": [
+        "git",
+        "worktree",
+        "add",
+        "$PRIMARY/.claude/worktrees/kimi-determinism-sweep",
+        "kimi/determinism-sweep"
+      ]
+    },
+    {
+      "head": "856618eb948555adefc6ff0bf4628d879d556250",
+      "branch": "refs/heads/kimi/fire-roam",
+      "result": "removed-clean-merged",
+      "worktree": "$PRIMARY/.claude/worktrees/kimi-fire-roam",
+      "restore": [
+        "git",
+        "worktree",
+        "add",
+        "$PRIMARY/.claude/worktrees/kimi-fire-roam",
+        "kimi/fire-roam"
+      ]
+    },
+    {
+      "head": "4e96e9df96026b60b9240d79202e44bc49d87b3b",
+      "branch": null,
+      "result": "removed-clean-merged",
+      "worktree": "$PRIMARY/.claude/worktrees/kimi-review",
+      "restore": [
+        "git",
+        "worktree",
+        "add",
+        "$PRIMARY/.claude/worktrees/kimi-review",
+        "4e96e9df96026b60b9240d79202e44bc49d87b3b"
+      ]
+    },
+    {
+      "head": "f14a89e87b4541c31076496935585d69c66ecddf",
+      "branch": "refs/heads/kimi/stat-fold-kernel",
+      "result": "removed-clean-merged",
+      "worktree": "$PRIMARY/.claude/worktrees/kimi-stat-fold-kernel",
+      "restore": [
+        "git",
+        "worktree",
+        "add",
+        "$PRIMARY/.claude/worktrees/kimi-stat-fold-kernel",
+        "kimi/stat-fold-kernel"
+      ]
+    },
+    {
+      "head": "600aa91629f9b564df6f4548aa7bf6a85fb76d60",
+      "branch": "refs/heads/main",
+      "result": "removed-clean-merged",
+      "worktree": "$PRIMARY/.claude/worktrees/main-merge",
+      "restore": [
+        "git",
+        "worktree",
+        "add",
+        "$PRIMARY/.claude/worktrees/main-merge",
+        "main"
+      ]
+    },
+    {
+      "head": "600aa91629f9b564df6f4548aa7bf6a85fb76d60",
+      "branch": "refs/heads/claude/netcode-followups",
+      "result": "removed-clean-merged",
+      "worktree": "$PRIMARY/.claude/worktrees/netcode-followups",
+      "restore": [
+        "git",
+        "worktree",
+        "add",
+        "$PRIMARY/.claude/worktrees/netcode-followups",
+        "claude/netcode-followups"
+      ]
+    },
+    {
+      "head": "34de06c7e13970bedd6edbcc0675e247fdb28158",
+      "branch": "refs/heads/claude/draw-ahead",
+      "result": "removed-clean-merged",
+      "worktree": "$PRIMARY/.claude/worktrees/netcode-main",
+      "restore": [
+        "git",
+        "worktree",
+        "add",
+        "$PRIMARY/.claude/worktrees/netcode-main",
+        "claude/draw-ahead"
+      ]
+    },
+    {
+      "head": "95cc68a0fd0763fbcb8cbc66d1fc92f70433438c",
+      "branch": "refs/heads/claude/pensive-babbage-9a74ty",
+      "result": "removed-clean-merged",
+      "worktree": "$PRIMARY/.claude/worktrees/pensive-babbage",
+      "restore": [
+        "git",
+        "worktree",
+        "add",
+        "$PRIMARY/.claude/worktrees/pensive-babbage",
+        "claude/pensive-babbage-9a74ty"
+      ]
+    },
+    {
+      "head": "a6d4dc7ebc125a1b9297fab2c29abdb827bca939",
+      "branch": "refs/heads/claude/phase13-hardening",
+      "result": "removed-clean-merged",
+      "worktree": "$PRIMARY/.claude/worktrees/phase13-hardening",
+      "restore": [
+        "git",
+        "worktree",
+        "add",
+        "$PRIMARY/.claude/worktrees/phase13-hardening",
+        "claude/phase13-hardening"
+      ]
+    },
+    {
+      "head": "1d4c961c3851df28b63c25ec70b59134a4bf3fb4",
+      "branch": "refs/heads/claude/phase9-1-tuning",
+      "result": "removed-clean-merged",
+      "worktree": "$PRIMARY/.claude/worktrees/phase9-1-tuning",
+      "restore": [
+        "git",
+        "worktree",
+        "add",
+        "$PRIMARY/.claude/worktrees/phase9-1-tuning",
+        "claude/phase9-1-tuning"
+      ]
+    },
+    {
+      "head": "82d94e43bc0ea1f13d7994c6efd35c233642f7cf",
+      "branch": "refs/heads/claude/phase9-combat",
+      "result": "removed-clean-merged",
+      "worktree": "$PRIMARY/.claude/worktrees/phase9-combat",
+      "restore": [
+        "git",
+        "worktree",
+        "add",
+        "$PRIMARY/.claude/worktrees/phase9-combat",
+        "claude/phase9-combat"
+      ]
+    },
+    {
+      "head": "2a66470470650933bd57a04b7cc8e35a391c3c52",
+      "branch": "refs/heads/claude/playtest-launch",
+      "result": "removed-clean-merged",
+      "worktree": "$PRIMARY/.claude/worktrees/playtest-launch",
+      "restore": [
+        "git",
+        "worktree",
+        "add",
+        "$PRIMARY/.claude/worktrees/playtest-launch",
+        "claude/playtest-launch"
+      ]
+    },
+    {
+      "head": "9c9408199566274bb95929b87b79a61923928694",
+      "branch": "refs/heads/claude/quests-r2",
+      "result": "removed-clean-merged",
+      "worktree": "$PRIMARY/.claude/worktrees/quests-r2",
+      "restore": [
+        "git",
+        "worktree",
+        "add",
+        "$PRIMARY/.claude/worktrees/quests-r2",
+        "claude/quests-r2"
+      ]
+    },
+    {
+      "head": "baa36a291a4cc604cdbd66cd6f467e5b52a94863",
+      "branch": "refs/heads/claude/r2-polish2",
+      "result": "removed-clean-merged",
+      "worktree": "$PRIMARY/.claude/worktrees/r2-polish",
+      "restore": [
+        "git",
+        "worktree",
+        "add",
+        "$PRIMARY/.claude/worktrees/r2-polish",
+        "claude/r2-polish2"
+      ]
+    },
+    {
+      "head": "6884d9377e7a6a21fe1e5e5d1581e8fd7525662d",
+      "branch": "refs/heads/claude/r2-zones",
+      "result": "removed-clean-merged",
+      "worktree": "$PRIMARY/.claude/worktrees/r2-zones-gen",
+      "restore": [
+        "git",
+        "worktree",
+        "add",
+        "$PRIMARY/.claude/worktrees/r2-zones-gen",
+        "claude/r2-zones"
+      ]
+    },
+    {
+      "head": "7ef5d717afa89200735ee888fd8143244c5d701f",
+      "branch": "refs/heads/claude/r3r4a-main",
+      "result": "removed-clean-merged",
+      "worktree": "$PRIMARY/.claude/worktrees/r3r4a-main",
+      "restore": [
+        "git",
+        "worktree",
+        "add",
+        "$PRIMARY/.claude/worktrees/r3r4a-main",
+        "claude/r3r4a-main"
+      ]
+    },
+    {
+      "head": "c6a9b8d60e65e525cf82f90f3a291c110598cb94",
+      "branch": null,
+      "result": "removed-clean-merged",
+      "worktree": "$PRIMARY/.claude/worktrees/roguelike-zones-e9adf2",
+      "restore": [
+        "git",
+        "worktree",
+        "add",
+        "$PRIMARY/.claude/worktrees/roguelike-zones-e9adf2",
+        "c6a9b8d60e65e525cf82f90f3a291c110598cb94"
+      ]
+    },
+    {
+      "head": "9ae500e22a9c6d6f36d12f4aeae639a072f25695",
+      "branch": "refs/heads/codex/sentenced-balance",
+      "result": "removed-clean-merged",
+      "worktree": "$PRIMARY/.claude/worktrees/sentenced-redesign",
+      "restore": [
+        "git",
+        "worktree",
+        "add",
+        "$PRIMARY/.claude/worktrees/sentenced-redesign",
+        "codex/sentenced-balance"
+      ]
+    },
+    {
+      "head": "48ccb65b980deb81207cb9926920c173c64ea1c7",
+      "branch": "refs/heads/claude/server-perf",
+      "result": "preserved-process-cwd",
+      "worktree": "$PRIMARY/.claude/worktrees/server-perf",
+      "restore": [
+        "git",
+        "worktree",
+        "add",
+        "$PRIMARY/.claude/worktrees/server-perf",
+        "claude/server-perf"
+      ]
+    },
+    {
+      "head": "52aa9d66bee9acb61e2aa8c77e5f8aea3ac20a26",
+      "branch": null,
+      "result": "removed-clean-merged",
+      "worktree": "$PRIMARY/.claude/worktrees/site-live",
+      "restore": [
+        "git",
+        "worktree",
+        "add",
+        "$PRIMARY/.claude/worktrees/site-live",
+        "52aa9d66bee9acb61e2aa8c77e5f8aea3ac20a26"
+      ]
+    },
+    {
+      "head": "428de12a034cfc05b2a369189b8af7de2d8c76c1",
+      "branch": "refs/heads/claude/tactical-farming",
+      "result": "removed-clean-merged",
+      "worktree": "$PRIMARY/.claude/worktrees/tactical-farming",
+      "restore": [
+        "git",
+        "worktree",
+        "add",
+        "$PRIMARY/.claude/worktrees/tactical-farming",
+        "claude/tactical-farming"
+      ]
+    },
+    {
+      "head": "cb6d92d74864889e33fb5e38dc80a065c3dce468",
+      "branch": "refs/heads/worktree-wf_da8782ff-917-10",
+      "result": "removed-clean-merged",
+      "worktree": "$PRIMARY/.claude/worktrees/wf_da8782ff-917-10",
+      "restore": [
+        "git",
+        "worktree",
+        "add",
+        "$PRIMARY/.claude/worktrees/wf_da8782ff-917-10",
+        "worktree-wf_da8782ff-917-10"
+      ]
+    },
+    {
+      "head": "0d3c817078a415d33fa5dc8a0f65ee376827fabb",
+      "branch": "refs/heads/worktree-wf_da8782ff-917-11",
+      "result": "removed-clean-merged",
+      "worktree": "$PRIMARY/.claude/worktrees/wf_da8782ff-917-11",
+      "restore": [
+        "git",
+        "worktree",
+        "add",
+        "$PRIMARY/.claude/worktrees/wf_da8782ff-917-11",
+        "worktree-wf_da8782ff-917-11"
+      ]
+    },
+    {
+      "head": "f948ed77d1edfc91a62d68d4781894c5c1411f66",
+      "branch": "refs/heads/worktree-wf_da8782ff-917-12",
+      "result": "removed-clean-merged",
+      "worktree": "$PRIMARY/.claude/worktrees/wf_da8782ff-917-12",
+      "restore": [
+        "git",
+        "worktree",
+        "add",
+        "$PRIMARY/.claude/worktrees/wf_da8782ff-917-12",
+        "worktree-wf_da8782ff-917-12"
+      ]
+    },
+    {
+      "head": "ce2abe1ac8b818e0a6b8a33dcefe1a238fc48b6d",
+      "branch": "refs/heads/worktree-wf_da8782ff-917-13",
+      "result": "removed-clean-merged",
+      "worktree": "$PRIMARY/.claude/worktrees/wf_da8782ff-917-13",
+      "restore": [
+        "git",
+        "worktree",
+        "add",
+        "$PRIMARY/.claude/worktrees/wf_da8782ff-917-13",
+        "worktree-wf_da8782ff-917-13"
+      ]
+    },
+    {
+      "head": "86fbea4d4abc76c9c6ea8d2f947a9dc1bf8a9861",
+      "branch": "refs/heads/worktree-wf_da8782ff-917-14",
+      "result": "removed-clean-merged",
+      "worktree": "$PRIMARY/.claude/worktrees/wf_da8782ff-917-14",
+      "restore": [
+        "git",
+        "worktree",
+        "add",
+        "$PRIMARY/.claude/worktrees/wf_da8782ff-917-14",
+        "worktree-wf_da8782ff-917-14"
+      ]
+    },
+    {
+      "head": "2a29ecabbda74619a03bb766d6b0bfe06e1d28e8",
+      "branch": "refs/heads/worktree-wf_da8782ff-917-15",
+      "result": "removed-clean-merged",
+      "worktree": "$PRIMARY/.claude/worktrees/wf_da8782ff-917-15",
+      "restore": [
+        "git",
+        "worktree",
+        "add",
+        "$PRIMARY/.claude/worktrees/wf_da8782ff-917-15",
+        "worktree-wf_da8782ff-917-15"
+      ]
+    },
+    {
+      "head": "e89d5ddf8d7be22f5972e5665d7bd5f72f7c0158",
+      "branch": "refs/heads/worktree-wf_da8782ff-917-16",
+      "result": "removed-clean-merged",
+      "worktree": "$PRIMARY/.claude/worktrees/wf_da8782ff-917-16",
+      "restore": [
+        "git",
+        "worktree",
+        "add",
+        "$PRIMARY/.claude/worktrees/wf_da8782ff-917-16",
+        "worktree-wf_da8782ff-917-16"
+      ]
+    },
+    {
+      "head": "1c3da28c16f0f36b25cfc6cbf410534257ebd062",
+      "branch": "refs/heads/claude/zone-shapes",
+      "result": "removed-clean-merged",
+      "worktree": "$PRIMARY/.claude/worktrees/zone-shapes",
+      "restore": [
+        "git",
+        "worktree",
+        "add",
+        "$PRIMARY/.claude/worktrees/zone-shapes",
+        "claude/zone-shapes"
+      ]
+    },
+    {
+      "head": "727463cdafbeaf67f9675d4a5a9f07bdc0524353",
+      "branch": null,
+      "result": "removed-clean-merged",
+      "worktree": "$PRIMARY/.claude/worktrees/zone-terrain-75bb8e",
+      "restore": [
+        "git",
+        "worktree",
+        "add",
+        "$PRIMARY/.claude/worktrees/zone-terrain-75bb8e",
+        "727463cdafbeaf67f9675d4a5a9f07bdc0524353"
+      ]
+    }
+  ]
+}

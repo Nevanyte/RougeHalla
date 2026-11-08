@@ -12,6 +12,29 @@ revision; [sweep/README.md](sweep/README.md) says which (H-sim and H-server-2 ha
 
 ## Status table
 
+### November 8 union validation (takes precedence over older addenda)
+
+Current native identity is checkpoint24/replay18/observation17/policy13/content `801a76cde4cfd305`; wire is protocol11.
+[ADR0021](adr/0021-protocol11-union.md) binds shared tags, State/readiness and three-codec behavior. C-INPUT/C-TICK remain
+Rust-only validate + submit at fixed20Hz. Native gameplay integrations preserve the source schedule; Unity has only the
+narrow corrected movement prediction and presentation/input. C-OBS publication stages observer handles and replacement
+baselines atomically; unsupported Trophy rows are omitted whole before binding, and owner prerequisite Toasts remain
+private. Native/headless observers keep the complete reward surface. C-RNG/private runtime is not sent to the client.
+
+C-DET/C-PARITY verification passes1,401 distinct tests in split native/remaining-workspace batches with real private PG;
+191 unchanged map-generator unit tests were excluded locally and three existing manual tests ignored. Later affected
+publication/checkpoint/hash/adapter regressions pass. Both strict workspace Clippy modes, formatting and109 compared
+source scenarios plus300 path queries pass;13 cases remain capture-only. C-NET passes329 C# tests, synchronized sources,
+16,656 JS golden checks, pinned WebGL-target Editor compile and15-check Chromium WSS. These are bounded integration
+checks, not full gameplay/client/cloud/performance acceptance. The strict five pending Wish/source prerequisites and
+remaining public transports stay explicit. [The evidence](evidence/git-consolidation/README.md) records exact scopes.
+
+Measured-RTT admission bounds finite Attack/Release timestamps before resolution/validation/submit, records normalized
+commands and resets on reconnect. Solicited one-shot Pongs are exempt from the user-frame budget; malformed, duplicate,
+unknown and evicted Pongs stay charged. The adapter retains source held-attack lag and does not change simulation/history
+rules. Native learning and new observation leaves are held for independent correctness/privacy gates. No C-HOST cloud
+or production completion follows from local gates. Source metadata was reconciled without changing expected gameplay.
+
 ### Stage 2 validation addendum (takes precedence over the historical Stage 1 rows below)
 
 Historical playable-core arm64 integration on `optimization_port`: 1,304 tests passed with all features and two explicitly

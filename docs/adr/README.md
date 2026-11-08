@@ -26,3 +26,4 @@ provisional decision is the working default until the named experiment confirms 
 | [0018](0018-keyed-state-protocol-v6.md) | Reliable observer collections, staged enqueue and status/displacement scalars in protocol6 | Accepted; selected MVP producers/HUD integrated under ADR0019; broader content remains |
 | [0019](0019-first-playable-runtime.md) | Selected first-playable runtime, private constructor provenance and public NPC/projectile facts | Accepted for the staging milestone; full-port validation remains open |
 | [0020](0020-temporary-single-host-staging.md) | Temporary Calgary host for the practice-domain MVP | Accepted for a bounded test; GameLift, durability and scale remain open |
+| [0021](0021-protocol11-union.md) | Protocol 11 unifies parallel gameplay transports and staged observer publication | Accepted for the November 8 integration; remaining public transports stay gated |

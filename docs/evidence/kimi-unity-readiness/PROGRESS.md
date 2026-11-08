@@ -2,7 +2,7 @@
 
 Original branch/base: `kimi/unity-readiness` at `856618eb948555adefc6ff0bf4628d879d556250`.  
 Integrated readiness records: `2f9d4003`; presentation inventory/checker: `b30ade57`.  
-Reviewed native source: `7b19e3bdf2eb1db9590934095736444946179f41` (protocol 11, observation 17).
+Reviewed native source: `5a42cf59fe9a0b9faab5499540fae8b7cb3321b1` (protocol 11, observation 17).
 
 This is the only shared readiness ledger for this run. Shared migration/contract status records, DeepSeek-owned paths,
 protocol fixtures and existing CI workflows are not write scope for this run.
@@ -84,3 +84,11 @@ The commands above are the original readiness bootstrap, not the current reposit
 
 No Unity cue, asset, input path, prediction integration, gameplay rule, deployment or new browser/performance proof is
 implemented by this reconciliation. The full readiness milestone remains **INCOMPLETE**.
+
+### November 8 adapter repin
+
+The lead repinned the exact native union after the reward-publication compatibility repair and RTT adapter merge.
+Whole unsupported Trophy rows are omitted before offer bindings; native/headless offers remain complete. This changes
+no wire member or cue classification: the generated inventory still has125 cues,162 modules,228 symbols and57 gap
+entries (47 data/protocol +10 mechanics/flows). Both inventory generation/check and all10 checker tests pass. No new
+Unity cue or art-branch completion is claimed.

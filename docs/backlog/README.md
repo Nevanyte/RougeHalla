@@ -16,6 +16,21 @@ actual Unity 6000.0.85f2 Web build and the selected MVP match loop verified, inc
 Initial loot discovery and all seven reliable views are integrated; broader content and cloud deployment remain open. The ported tick order is the table `schedule::PHASES` in `crates/rh-sim/src/schedule.rs` (run by `systems::update_active`); unported
 rows are `Pending("P-...")` entries there, named after the legacy rows, and [../CONTRACTS.md](../CONTRACTS.md) C-TICK describes them.
 
+## November 8 integration handoff
+
+Use the superseding [migration checkpoint](../MIGRATION.md#consolidated-working-checkpoint-2026-11-08),
+[lead/worker ownership and priorities](../PROJECT_COORDINATION.md) and
+[protocol11 decision](../adr/0021-protocol11-union.md). The descriptive v6/foundation list above is historical; the union
+now uses protocol11/checkpoint24/replay18/observation17/policy13 and includes native cards, arena/training, quests/traders,
+bot planning/fill/tournament and faction/consumable continuations. Audit each packet's remainder before allocating work.
+
+Keep active workers isolated. DeepSeek handles fixed-interface Rust ports, fixtures and mechanical tests; the lead owns
+architecture/privacy/protocol decisions, merges, shared records and Cargo.lock. Current gates are Knowledge RNG/rounding/
+null repair, the proposed fair observation leaves, safe opt-in bot learning, remaining native strict parity and complete
+public Wish/Trophy/quest/trade/fact transports. The Unity art lane is independently proving a browser match and1440p
+performance; local latency evidence is candidate-specific. Durable cloud/account/regional and matched full-game release
+gates remain open. The removed Calgary MVP and old benchmarks do not satisfy those gates.
+
 ## How to pick up work
 
 **Current first-release scope (owner decision 2026-11-05): playable core first.** Complete one browser match with

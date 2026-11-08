@@ -1,0 +1,101 @@
+{
+  "note": "November8 snapshot; branches and active work continue to move. Merged refs are retained. These dispositions do not discard or authorize unreviewed work.",
+  "not_ancestors_of": "38e8e49dbc6fab20489bd734e812e5ae93fdbfe3",
+  "branches": [
+    {
+      "branch": "Fix-autos",
+      "head": "cfb41cc9ba4dd4978e4ec6b171a476898ba272fb",
+      "disposition": "preserved pre-port legacy history; do not wholesale merge into the Rust port"
+    },
+    {
+      "branch": "claude/wishes-followup",
+      "head": "c4bea9990c215f6ed68ffb6a1da50696fd5c7159",
+      "disposition": "preserved pre-port legacy history; do not wholesale merge into the Rust port"
+    },
+    {
+      "branch": "codex/input-latency",
+      "head": "3241cb1237bacd939fca576d39a0787c47a2ef0b",
+      "disposition": "latest commit3241cb12 is cherry-pick -x of root repair326744c3; preceding diagnostic chain integrated; clean report-only followup"
+    },
+    {
+      "branch": "codex/mob-progression",
+      "head": "37b097db722a056b85841e548f576a8f3d17b12f",
+      "disposition": "standalone older native candidate; overlapping later native catalog/reward implementation retained; review before any additional admission"
+    },
+    {
+      "branch": "codex/unity-art-direction",
+      "head": "8be43038e5e820f21446b54e2049d7626b451e96",
+      "disposition": "active or newly delivered isolated work; review required"
+    },
+    {
+      "branch": "deepseek/knowledge-repair",
+      "head": "fdea457bb75623f7a507efe9f2d580b75fb4af02",
+      "disposition": "active or newly delivered isolated work; review required"
+    },
+    {
+      "branch": "deepseek/p-bots-5",
+      "head": "75eaa42e003f45827c1428c63a8508a90b9104a4",
+      "disposition": "active or newly delivered isolated work; review required"
+    },
+    {
+      "branch": "deepseek/p-bots-6b",
+      "head": "51e72c7d785da0c0472a596c2e9ae6e998148beb",
+      "disposition": "active or newly delivered isolated work; review required"
+    },
+    {
+      "branch": "deepseek/p-bots-7b",
+      "head": "bc47f8335979ecce78ad3e37fd2ba1b6dd03df88",
+      "disposition": "active or newly delivered isolated work; review required"
+    },
+    {
+      "branch": "deepseek/p-bots-brain",
+      "head": "47ffd0637b7d2c6b5647a08fc7f7df5ccc42e257",
+      "disposition": "active or newly delivered isolated work; review required"
+    },
+    {
+      "branch": "feature/quests",
+      "head": "3186691c740cd97cb81927790a614ed864041174",
+      "disposition": "preserved pre-port legacy history; do not wholesale merge into the Rust port"
+    },
+    {
+      "branch": "pnet-1/integration",
+      "head": "51adf13ad286c535ae4297ef61b9c18b993b8dfe",
+      "disposition": "superseded native networking candidate; corrected PN2/PN3 and fixture metadata already integrated"
+    },
+    {
+      "branch": "pnet-1/phase-2",
+      "head": "e6a091d7d89e0faaac625d0f0bb301d81bb47d56",
+      "disposition": "superseded native networking candidate; corrected PN2/PN3 and fixture metadata already integrated"
+    },
+    {
+      "branch": "pnet-1/phase-2-on-input-latency",
+      "head": "15b1181138e4ac3d2b5496d6287b2ae046f3cc62",
+      "disposition": "superseded native networking candidate; corrected PN2/PN3 and fixture metadata already integrated"
+    },
+    {
+      "branch": "pnet-1/phase-3-oldbase",
+      "head": "e1c4560226893599038a574c50d0091271eec42a",
+      "disposition": "superseded native networking candidate; corrected PN2/PN3 and fixture metadata already integrated"
+    },
+    {
+      "branch": "scratch/p10-91-preview",
+      "head": "ce32d095065a042aacac325c6410cd5fa1ba0de7",
+      "disposition": "preserved pre-port legacy history; do not wholesale merge into the Rust port"
+    },
+    {
+      "branch": "worktree-agent-a078b01c2b5f1b772",
+      "head": "9aeedad875f3b73b60de20930b5c306558ac3ea3",
+      "disposition": "preserved pre-port legacy history; do not wholesale merge into the Rust port"
+    },
+    {
+      "branch": "worktree-agent-a59f5ef5061048057",
+      "head": "e1baef8bf2d2ec17b6553ba052879a27117fa8fe",
+      "disposition": "preserved pre-port legacy history; do not wholesale merge into the Rust port"
+    },
+    {
+      "branch": "worktree-server-perf-sweep",
+      "head": "f2ddceb1987094993899c7fd8e8829131150ac9e",
+      "disposition": "preserved pre-port legacy history; do not wholesale merge into the Rust port"
+    }
+  ]
+}

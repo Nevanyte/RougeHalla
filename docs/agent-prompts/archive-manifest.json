@@ -1,0 +1,45 @@
+{
+  "source": "owner-provided loose planning artifacts, consolidated 2026-11-08",
+  "files": [
+    {
+      "name": "1_Claude_Code_Architect_Prompt.md",
+      "sha256": "9774c308fd7c74cde23fec898ead82b6df1a1b5803d38b89c4bda7506ee0d99f",
+      "bytes": 22310
+    },
+    {
+      "name": "2_Codex_Implementation_Prompt.md",
+      "sha256": "33ca9845474ff9c344f755c11858091a1c1175678383ac56ac4c8a45f92fbca3",
+      "bytes": 22081
+    },
+    {
+      "name": "3_Kimi_Fire_Roam_Prompt.md",
+      "sha256": "33708e54c7ef9b5df3e1e1548db2ade3b9f22dc82dccb86724ad15c661d1dc8b",
+      "bytes": 26606
+    },
+    {
+      "name": "4_DeepSeek_Rust_Completion_Prompt.md",
+      "sha256": "fee2fa189144555103df4656fef7af7405f1043b603b6c17e56fb841738db087",
+      "bytes": 29908
+    },
+    {
+      "name": "5_Codex_Rust_Handoff_To_DeepSeek.md",
+      "sha256": "05fe1f35f7fb1a8546f08668027b1f156d529f0db522052fe326a85a629d6a7e",
+      "bytes": 2717
+    },
+    {
+      "name": "6_Kimi_Unity_Readiness_Prompt.md",
+      "sha256": "9e97b847fbcd2552c5124cb6034c05fc23acd50a69fb8a2fcbc4eb7500505d5b",
+      "bytes": 20559
+    },
+    {
+      "name": "System Flow Diagram Design - Kimi.pdf",
+      "sha256": "2a571bf2e3db150216fdc79a265bf438e9f73ac6eb973e9ec461d58680ce4215",
+      "bytes": 219192
+    },
+    {
+      "name": "System Flow Diagram Design FINAL.pdf",
+      "sha256": "319c4006712c61f48b26c8efde6e471c62f06b1384a87c9e7257725b672e2505",
+      "bytes": 233670
+    }
+  ]
+}

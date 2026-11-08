@@ -1,0 +1,80 @@
+{
+  "note": "Logs are retained in the private return-cleanup-2026-11-08 archive. Batch scopes and exclusions are in README.md; these hashes do not claim one monolithic current full-port run.",
+  "artifacts": [
+    {
+      "file": "native-integration.log",
+      "bytes": 41213,
+      "sha256": "c3d496bbd1691595b283f6fb820d292b8b2cc4cb477efcb3124af5568102b1c5"
+    },
+    {
+      "file": "native-integration-tests.log",
+      "bytes": 5143,
+      "sha256": "7d497ac2db8409e534e216f692e337ff573ece3fbd0ca00c1d6788e04295eee1"
+    },
+    {
+      "file": "native-integration-rest.log",
+      "bytes": 19276,
+      "sha256": "15579b89ca769406145351ab97cfc3dee3f285d341f45758f4dbb007fb8ffb04"
+    },
+    {
+      "file": "native-doctests.log",
+      "bytes": 584,
+      "sha256": "4d938f9b9f973065dcd8c13a0c930c371f429ee2c3bfc0768f6b36418b474b6a"
+    },
+    {
+      "file": "workspace-integration.log",
+      "bytes": 94979,
+      "sha256": "402e8dc6cc7a58fefcbe7859b152b1769dd0aa65b05956af3def6706b937917e"
+    },
+    {
+      "file": "csharp-final.log",
+      "bytes": 1029,
+      "sha256": "757d3834cce573cf80a6c214d45b2055c35aa691ff9b0090c137309667f61e5e"
+    },
+    {
+      "file": "unity-compile.json",
+      "bytes": 611,
+      "sha256": "1f88d18e3583055f48d333cd5d32f8ae97ab71df89682217b09dba0cb0f455b3"
+    },
+    {
+      "file": "browser-proof.json",
+      "bytes": 4365,
+      "sha256": "7463827d8c3705a379e3caa01e2a7a4aba2900d749f23ce79cc729f86924dd21"
+    },
+    {
+      "file": "clippy-all-final.log",
+      "bytes": 679,
+      "sha256": "396b827780633d74f8097b36c73696592a9064aea32a5f8989daff624b2542ca"
+    },
+    {
+      "file": "clippy-default-final.log",
+      "bytes": 929,
+      "sha256": "8e4b06837ba9ea6367cf595c89086de5bcbdc04fe534e068af3c34f319b65445"
+    },
+    {
+      "file": "fmt-final.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "parity-final.log",
+      "bytes": 14846,
+      "sha256": "8ab00cac6cacdfd0b7b56a1730e6b8a5850de3dc5f5d4b155bd4303fbd003322"
+    },
+    {
+      "file": "pnet3-integration.log",
+      "bytes": 13499,
+      "sha256": "593bd2cfe50b25438f13827b4b1b950bb36b9ace61abb26345a0e9b95e8b1e5a"
+    },
+    {
+      "file": "latency-final.log",
+      "bytes": 1601,
+      "sha256": "3f4dde918a753933e29ef133caa9c8e58b07579e1e8c73f35924e393a8cd1d47"
+    },
+    {
+      "file": "readiness-final.log",
+      "bytes": 949,
+      "sha256": "67e446dd7667e7879d1a40193e268ebf3c5442296ce0c5912d9005149bcf7f97"
+    }
+  ]
+}

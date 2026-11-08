@@ -1,0 +1,71 @@
+# Project coordination
+
+Owner direction, November 8, 2026: the **OPTimization_port Codex chat is project lead** and owns integration into
+`optimization_port`. The other two Codex chats and both DeepSeek sessions report completed SHAs, checks, active write
+scopes, blockers and their next bounded packet to the lead. Reports are evidence for review, not automatic admission.
+The owner asked to keep workers running and leave active branches until last during consolidation.
+
+## Ownership
+
+| Lane | Scope | Integration boundary |
+|---|---|---|
+| Lead: OPTimization_port | Git consolidation, architecture, protocol/privacy decisions, expert reviews, release acceptance | Sole owner of merges/pushes to `optimization_port`, shared status/contract records and `Cargo.lock` |
+| Check Git access / `codex/input-latency` | Input scheduling, opt-in measurement harness, local networking/deployment diagnostics and AWS readiness | Isolated worktree; report exact candidate/artifact versions; no cloud mutations while the approved account is unavailable |
+| Prepare Unity 2D Demo / `codex/unity-art-direction` | Owner-approved 2D art, presentation, HUD/accessibility, quality tiers and audio | No game rules; only the two approved MatchClient projection/Fx-forwarding hunks and safe listener teardown; browser/performance proof before admission |
+| DeepSeek Rust Port Worker | Mechanical Rust ports with fixed interfaces, source fixtures, negative controls, mutants and repetitive tests | No new observation/protocol/schema or architecture decisions; proposed changes go to the lead first |
+| DeepSeek Post Rust | Bounded adapter repairs and source-fixture integrity consumers | Same restriction; input scheduling/prediction belongs to the latency lane |
+| Expert reviewers | Privacy/protocol reconciliation, persistence/concurrency and difficult integration repairs | Private review worktrees/patches; lead admits the result |
+
+Private local reports are under the project tool prefix `coordination/reports/`: `codex-latency-aws.md`,
+`deepseek-rust.md` and `deepseek-post-rust.md`. The art lane also reports directly to the lead chat. This directory is
+operational state outside Git; accepted decisions and revision-specific evidence belong in the repository.
+
+Each handoff names its immutable base, writable files, allowed behavior, explicit success/failure tests and remainder.
+Stop at the largest verified slice. Keep unverified work isolated and report the blocker. A compile failure is not a
+semantic mutant kill, and changing expected fixtures is not a parity repair. DeepSeek is preferentially assigned the
+token-heavy mechanical work; the lead keeps cross-cutting design and security decisions. Use focused affected checks,
+then one integration gate; do not repeat unchanged expensive map campaigns after every small patch.
+
+## Current priorities
+
+1. Finish the consolidated Git checkpoint and its current Rust/C#/JS checks. Preserve active workers and recovery refs.
+2. Complete native gameplay/parity/headless acceptance. Review the bot Knowledge repair, then approve a concrete fair
+   observation design before memory/strategy/tactics work. Repair bot learning lease/shutdown/source ordering before
+   explicit live activation. Review the existing bounded bot-fill continuation; do not duplicate it.
+3. Close the missing public transports and source consumers: full Wish input/owner facts, Kill/Trophy options,
+   quest/trade flows and the remaining public facts/cues. Inventory exact native prerequisites before assigning each
+   packet. Reconcile incompatible identities and all three codecs centrally. Native fixtures alone do not prove the UI.
+4. Admit the Unity art branch only after an actual browser match and scoped M5 Pro performance evidence. The owner’s
+   art lane target is at least 144 FPS at 2560×1440 on the named reference machine; measure the ceiling and report real
+   display pacing separately from CPU/GPU submission. Earlier 60 Hz browser observations are historical, not a cap.
+5. Complete browser/account flows, durable progression, cloud/provider/region lifecycle and the original full-port
+   release/performance gates. Rebuild artifacts from the final union before any staging run. Use the practice domain
+   `rougehalla.com`, Calgary preference and **CAD20 total** cap; production remains separately controlled.
+
+These are dependency groups, not a requirement that every task run serially. Independent source tests, native leaves,
+presentation and local hosting preparation can run in parallel within their write scopes. Architecture/privacy gates
+must be resolved before dependent implementations; release evidence must test the admitted union.
+
+## Held work and concrete repair gates
+
+- `13d38a41` bot Knowledge/fair-view prefix is held pending the [Knowledge repair](coordination/KNOWLEDGE_REPAIR.md):
+  source-derived independent RNG, ECMAScript diagnostic rounding and null fallback. The docs-only observation proposal
+  `47ffd063` awaits review; observation 17 is already used and must not be reassigned.
+- `75eaa42e` learning prefix is held pending an opt-in, exclusive single-writer database lease held on the actual I/O
+  connection, safe loss behavior and bounded shutdown. Preserve source runtime insertion-order ties and sorted restart
+  semantics, plus per-arriving-bot bias refresh. Do not activate learning simply because a database URL exists.
+- `570dee45` repairs the measured-RTT packet’s compulsory Pong budget and is integrated. This is command-time admission
+  clamping: held attacks retain the source press-time lag until a new Attack/Release. It does not introduce a dynamic
+  per-swing rule or certify input-to-photon latency. The [Pong repair packet](coordination/PONG_REPAIR.md) records its gate.
+- The active art branch and remaining bot/fixture branches stay isolated until their reports and focused reviews pass.
+
+## Completion evidence
+
+The original five full-port gates remain open in the [requirements audit](evidence/stage2-scope-audit/README.md).
+Completion needs the actual full gameplay/input/observation paths, strict source parity and restore/replay/headless
+checks; complete browser/account/result/reconnect flows; durable cloud state and provider lifecycle; comparable legacy
+and Rust+Unity workloads with frame, tick, memory, bandwidth and latency measurements; and a reviewable release with
+rollback, bounded costs and required licenses. No ML training/models/datasets/inference are authorized.
+
+The [migration checkpoint](MIGRATION.md) is the accepted state. Archived [owner prompts](agent-prompts/README.md), packet
+completion claims, branch names and historical benchmark numbers do not supersede it or independently authorize work.

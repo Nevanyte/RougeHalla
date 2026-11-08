@@ -4,6 +4,62 @@ The single status record of the Rust + Unity + AWS migration. **Only the coordin
 [REQUIREMENTS.md](REQUIREMENTS.md). Invariants and their validation status: [CONTRACTS.md](CONTRACTS.md). Remaining work:
 [backlog/README.md](backlog/README.md). Decisions: [adr/](adr/README.md).
 
+## Consolidated working checkpoint (2026-11-08)
+
+This checkpoint supersedes the older implementation identities and status descriptions below. **The full port is still
+in progress.** The owner requested repository consolidation after parallel DeepSeek, Kimi and Cursor work, appointed
+the OPTimization_port Codex chat project lead, and asked to keep active workers running. The lead owns merges and
+acceptance; the [coordination record](PROJECT_COORDINATION.md) defines lanes, report requirements and next gates.
+The original full-port requirements remain; the earlier playable-core staging milestone and its cleanup are historical.
+
+The integration branch is **`optimization_port`**. Current identity: **protocol 11 / checkpoint 24 / replay 18 /
+observation 17 / policy 13 / content `801a76cde4cfd305`**. [ADR0021](adr/0021-protocol11-union.md) records the union
+of parallel transports and their exact tag/readiness assignments. Earlier protocol/checkpoint numbers in packet reports
+are branch-local history. Native integration includes the 80-card runtime, faction/consumable/mob continuations, Source
+arena/training, quests/traders, bot core/planning/fill and tournament prefixes; none of those labels certifies all packet
+remainders or complete public/client flows. The Cursor card runtime was reviewed against the wider admitted native
+runtime; its native training fix was retained, and competing runtime/schema changes were not layered on top.
+
+Unity net/prediction now reconciles authoritative cuts and pathfinding with current Rust vectors. Session polling,
+input read/flush and presentation preserve same-frame submission. All three codecs agree on protocol 11. Unsupported
+Kill/Trophy reward rows are omitted whole **before** offer bindings are staged, preserving ordinary publications and
+native/headless choices; prerequisite refusals use private Toast feedback. Full Wish public input/owner facts remain
+refused; Kill/Trophy, quest/trade and several public fact/cue surfaces remain open. Measured connection RTT now bounds
+Attack/Release timestamps at intake; compulsory one-shot Pongs do not consume the lawful user-frame budget. Held
+attacks retain source press-time lag until a new command; this is not dynamic per-swing revalidation.
+
+Validation is recorded as split, revision-scoped gates rather than an inflated aggregate: **1,401 distinct Rust tests**
+passed across the consolidated native and remaining-workspace batches, including real private PostgreSQL. The 191
+unchanged map-generator unit tests were deliberately excluded locally; three existing manual tests were ignored.
+Subsequent affected server/reward/checkpoint/hash tests pass. Both strict workspace Clippy modes, formatting and the
+parity report pass: **109 compared scenarios and 300 pathfinding queries MATCH**, with 13 separate capture-only cases.
+C# passes **329 tests**, synchronized Unity net sources pass, and JS passes **16,656 golden checks**. The pinned
+Unity **6000.0.85f2 WebGL-target Editor compile** and actual **15-check Chromium WSS proof** pass. This compile is not a
+fresh full Web player or performance claim. [Consolidation evidence](evidence/git-consolidation/README.md) records
+exact batch scopes, code repairs, receipts and preserved recovery refs. Source metadata reconciliation did not alter
+expected gameplay payloads or claim a new capture; the derived ability hash tape admits 58 cases and retains five
+named full-source prerequisites as strict pending work.
+
+The new Unity art lane is isolated pending actual browser match and M5 Pro performance proof; its current commits are
+not part of this accepted presentation checkpoint. The latency lane's controlled measurements remain bound to its
+recorded older candidate, not the new union or display/input-to-photon latency. The bot Knowledge prefix is held for
+the [RNG/rounding/null repair](coordination/KNOWLEDGE_REPAIR.md), and bot learning for expert single-writer lease,
+shutdown and source-order repairs. The observation-leaf proposal needs lead approval and a fresh version before
+brain memory/strategy consumers proceed. Active bot-fill and fixture-integrity work stays isolated until reviewed.
+
+Git metadata was backed up before repair; renamed worktree links were repaired, stable dirty histories were committed
+to recovery refs, and 45 clean merged historical worktrees were removed without force while their refs were retained.
+The stale missing registry entry was pruned; a process-owned historical tree and active workers were kept. Exact owner
+prompts/design PDFs are archived under [agent-prompts](agent-prompts/README.md), with originals still available locally.
+The [restore/disposition map](evidence/git-consolidation/historical-worktree-dispositions.json) and private full-ref
+bundle/common-dir archive preserve recovery. Historical nonancestor legacy branches are not wholesale merged into the
+Rust port. No production deployment or new cloud resource was made by this consolidation.
+
+Calgary/practice-domain staging remains removed. CAD20 is a **total** cap; no account-plan or spend expansion is implied.
+Current cloud access points to the earlier account rather than the approved staging account, so AWS readiness is blocked
+on that connection. Native/local development continues. Complete gameplay parity/headless, public transports, browser/
+account flows, durable progression, regional lifecycle and matched full-game performance still gate completion.
+
 ## Stage 2 working checkpoint (2026-11-06)
 
 Implementation branch: **`optimization_port`**, starting at `e7e85338` (the closing Stage 1 documentation merge).
