@@ -1,0 +1,13 @@
+{
+  "name": "Roguehalla.WishProof.Editor",
+  "rootNamespace": "Roguehalla.Editor.WishProof",
+  "references": [
+    "Roguehalla.Client",
+    "RoguehallaNet",
+    "Unity.InputSystem"
+  ],
+  "includePlatforms": ["Editor"],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "autoReferenced": true
+}

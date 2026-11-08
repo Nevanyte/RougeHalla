@@ -104,6 +104,10 @@ or spend is part of this candidate work.
 `LatencyTrace` remains disabled in ordinary players. The Web collector is explicitly installed by the browser harness;
 the Editor observer requires `LatencyTrace.BeginEditor()` and stops with `EndEditor()`. Both cap records at 20,000 and
 flag overflow; `ReadEditor()` copies only the bounded Editor records. These CPU milestones do not prove display scanout.
+Web `collector.recording = false` disables marker collection during the normal 45-second readiness warm-up while the
+harness still observes network readiness. Set it true at the explicit measured-trial boundary. Undefined keeps the
+existing movement harness behavior. Editor begins its trace at the equivalent boundary; overflow during a measured
+trial is always a failure rather than a reason to erase evidence.
 
 - `sampleWish` is recorded only after the actual R-key `ReadInput` path queues a nonzero Cast sequence. It uses the
   existing `moveSeq` trace field for that order sequence, plus the actual cursor ground point and Unity frame. The input
@@ -119,9 +123,45 @@ flag overflow; `ReadEditor()` copies only the bounded Editor records. These CPU 
   delivered fact. Each record also includes Unity frame and local observation time; no tick-derived restamping or
   same-frame/ability/time deduplication occurs.
 
-The JS guard suite passes 6/6, including malformed/absent opt-ins, broken collectors, one-shot requests, shared cap and
+The JS guard suite passes 7/7, including malformed/absent opt-ins, broken collectors, one-shot requests, shared cap and
 two identical-timestamp anonymous Wish occurrences. Actual Unity compilation, art hook application and live input
 execution remain the subsequent composition proof; this observer API alone does not satisfy them.
 A temporary pinned .NET 8.0.427 check with a Unity time stub also compiled ordinary player, Editor and WebGL branches;
 ordinary stayed disabled and Editor begin/end/reset/request/cap/occurrence behavior passed. Native Web imports were not
 invoked by that check. This is an observer compiler/contract check, not a Unity or input run.
+
+## Browser proof harness review controls
+
+The runner selects the last trusted pointer event that reached the requested endpoint, so a two-step move cannot retain
+the intermediate point as evidence. Own-caster landed FX and applied landed markers require ordered one-to-one pairing,
+including identical producer timestamps; dropping one duplicate presentation fails. The synthetic report suite passes
+15/15, including the intermediate-pointer and dropped-duplicate negative controls.
+
+Before opening either client, the runner requires the spawned direct child PID to own the exact `127.0.0.1:port` TCP
+listener both before and after `/info`. Four local Node-child process controls pass: owned readiness, a healthy foreign
+listener plus an alive non-listening child, ownership lost during HTTP readiness, and invalid/exited child identity.
+The foreign listener remains untouched. The runner's syntax, help path and diff checks pass. These are harness controls;
+no live all-five browser/Unity input proof is claimed by these checks.
+
+## Editor proof utility controls
+
+`Assets/Editor/WishProof` is an Editor-only diagnostic assembly. It queues Unity Input System pointer/R device events
+through normal dynamic updates; it does not call `ReadInput`, `Session.Cast` or `InputSystem.Update`. The ready-owner
+gate keeps tracing off through the ordinary opening lock and requires live phase, an alive owner, positive stock and no
+active cast. The recorded R sample must precede an actual byte-decoded native Cast queue record in the same Unity frame,
+from the single active session, with identical order sequence, point and selected actor reference. That queue milestone is not a completed socket
+write. Only input tag `0x02` and received FX tag `0x85` payloads enter the optional native trace; Hello/Welcome credentials
+and tickets are excluded.
+
+Each copied own landing binds its latest preceding native dispatch record, before synchronous Session/art subscribers,
+then its exact packet list position and original source time. Every observed landing after the encoded queue needs one
+distinct applied marker in order; missing/extra duplicates, reused receipts, reordered or wrong-caster markers fail.
+Later presentation frames and equal local clock readings are accepted only with ordered trace evidence. Input release,
+proof-fact or trace overflow cannot retain a complete verdict. Owner facts are copied scalar values; raw pooled DTOs are
+not retained.
+
+The reproducible `tools/latency/editor-proof-contract/WishProofContract.csproj` check links the actual trace, native
+transport, proof and C# protocol sources against Unity API stubs. It passes the ready/no-stock/active-cast, encoded Cast,
+receipt/callback ordering, duplicate occurrence, queue-boundary and overflow controls. It is not a Unity Editor run.
+Real art consumers are still supplied by the coordinator's composition, and the all-five Editor/Web player-loop proof
+remains INCOMPLETE until that composed build is exercised.
