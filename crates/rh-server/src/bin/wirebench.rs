@@ -522,7 +522,7 @@ fn run(
                 "provenance":"wirebench offline diagnostic; one actual selected viewer; trace capture excluded from benchmark claims",
                 "workload": workload,
                 "syntheticFighters": synthetic, "seed": seed, "requestedTicks": ticks,
-                "map": if synthetic.is_some() { "practice-arena".to_owned() } else { arg(&args, "--map").unwrap_or_else(|| "parity/maps/seed1.map.json".to_owned()) }, "mapWidth":map.w, "mapHeight":map.h,
+                "map": if synthetic.is_some() { "practice-arena".to_owned() } else { arg(args, "--map").unwrap_or_else(|| "parity/maps/seed1.map.json".to_owned()) }, "mapWidth":map.w, "mapHeight":map.h,
                 "viewerPlayerId":viewer_id, "tickRate":20,
                 "mapBlobHex":hex(rh_protocol::map::MapBlob::new(map.w as u16, map.h as u16, map.tiles.clone()).pre_encode().expect("valid map").as_bytes()),
                 "welcomeHex":hex(&welcome)

@@ -669,9 +669,11 @@ fn check_world(k: &MatchStatic, w: &World) -> Result<(), String> {
             &p.farm,
             &p.kill_stats,
             &p.trade_stats,
-            crate::content::faction(p.vitals.faction).hp,
-            p.vitals.faction,
-            passive_seat && guard.active,
+            crate::modifiers::ValidationOwner {
+                base_hp: crate::content::faction(p.vitals.faction).hp,
+                faction: p.vitals.faction,
+                frozen_guard: passive_seat && guard.active,
+            },
         ) {
             return Err(format!("player {}: invalid armor mirror", p.id.0));
         }

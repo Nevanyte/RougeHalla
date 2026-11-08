@@ -50,6 +50,12 @@ impl Default for Runtime {
         }
     }
 }
+/// Trusted owner facts used to validate a cached modifier fold. Kept separate from the serialized cache it checks.
+pub(crate) struct ValidationOwner {
+    pub base_hp: f64,
+    pub faction: crate::FactionId,
+    pub frozen_guard: bool,
+}
 impl Runtime {
     #[cfg(test)]
     pub(crate) fn test_set_attack_wire(&mut self, value: f64) {
@@ -97,10 +103,13 @@ impl Runtime {
         farm: &Farm,
         kill_stats: &crate::kill_augments::KillStats,
         trade_stats: &[(crate::traders::Stat, f64)],
-        base_hp: f64,
-        faction: crate::FactionId,
-        frozen_guard: bool,
+        owner: ValidationOwner,
     ) -> bool {
+        let ValidationOwner {
+            base_hp,
+            faction,
+            frozen_guard,
+        } = owner;
         if !build.valid()
             || !farm.valid()
             || !self
@@ -988,9 +997,11 @@ mod guard_tests {
                 &p.farm,
                 &p.kill_stats,
                 &p.trade_stats,
-                crate::content::faction(p.vitals.faction).hp,
-                p.vitals.faction,
-                false,
+                crate::modifiers::ValidationOwner {
+                    base_hp: crate::content::faction(p.vitals.faction).hp,
+                    faction: p.vitals.faction,
+                    frozen_guard: false,
+                },
             )
         };
         let p = &sim.w.players[i];

@@ -268,9 +268,11 @@ pub(crate) fn validate(
                 &Default::default(),
                 &Default::default(),
                 &[],
-                p.vitals.max_hp,
-                p.vitals.faction,
-                false,
+                crate::modifiers::ValidationOwner {
+                    base_hp: p.vitals.max_hp,
+                    faction: p.vitals.faction,
+                    frozen_guard: false,
+                },
             )
         {
             return Err("invalid mob gear/mirrors".into());
