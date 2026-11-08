@@ -68,6 +68,19 @@ namespace Roguehalla.Net.Tests
         }
 
         [Test]
+        public void CancellingLostRightCaptureDropsQueuedMoveAndPreservesIndependentPeek()
+        {
+            var gesture = new MinimapGesture();
+            gesture.Press(MinimapButton.Left, P(10, 20), 0);
+            gesture.Press(MinimapButton.Right, P(30, 40), 1);
+            gesture.Drag(MinimapButton.Right, P(80, 90));
+            gesture.Cancel(MinimapButton.Right);
+            Assert.IsTrue(gesture.IsPeeking); Assert.IsFalse(gesture.IsSteering);
+            Assert.IsNull(gesture.Tick(200)); Assert.IsNull(gesture.Release(MinimapButton.Right, 201));
+            gesture.Cancel(MinimapButton.Left); Assert.IsFalse(gesture.IsPeeking);
+        }
+
+        [Test]
         public void CoordinatesAtAllMapCornersArePreservedWithoutClamping()
         {
             var gesture = new MinimapGesture();

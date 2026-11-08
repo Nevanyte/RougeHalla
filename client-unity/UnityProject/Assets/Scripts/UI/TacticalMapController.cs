@@ -173,6 +173,7 @@ namespace Roguehalla.Client
         {
             UpdateSelections();
             if (dialogOwnsKeys || typing) ReleaseMinimap();
+            else ReconcileMinimapButtons();
             var context = MapContext(typing, dialogOwnsKeys);
             _mapKeys.MapToggle = ToggleMode; _mapKeys.Reconcile(context);
             UiBrowserStorage.CaptureTab(MapAllowed && !typing && !dialogOwnsKeys);
@@ -182,7 +183,7 @@ namespace Roguehalla.Client
                 var modifiers = new UiKeyModifiers(kb.ctrlKey.isPressed, kb.leftMetaKey.isPressed || kb.rightMetaKey.isPressed, kb.altKey.isPressed, kb.shiftKey.isPressed);
                 if (kb.tabKey.wasPressedThisFrame) _mapKeys.KeyDown(UiKey.Tab, modifiers, context);
                 if (kb.tabKey.wasReleasedThisFrame) _mapKeys.KeyUp(UiKey.Tab);
-                if (IsOpen && kb.escapeKey.wasPressedThisFrame && !IsPlanning) _mapKeys.CloseMap();
+                if (kb.escapeKey.wasPressedThisFrame) { ReleaseMinimap(); if (IsOpen && !IsPlanning) _mapKeys.CloseMap(); }
                 if (IsPlanning && !typing && !dialogOwnsKeys && !modifiers.Any)
                 {
                     if (kb.digit1Key.wasPressedThisFrame) PickSpawn(0);
@@ -307,6 +308,27 @@ namespace Roguehalla.Client
         void PickBoon(byte pick) { UpdateSelections(); if (_bound != null && _selections.TryPickBoon(pick, _bound.Input, Time.realtimeSinceStartupAsDouble * 1000)) _nextPaint = 0; }
         void Ready() { UpdateSelections(); if (_bound != null && _selections.TryReady(_bound.Input, Time.realtimeSinceStartupAsDouble * 1000)) _nextPaint = 0; }
         void AddRoutePoint(Vector2 point) { if (_bound?.Map == null) return; _route.ToggleUpcoming(new RoutePoint(point.x, point.y), _bound.Map, Tile); _routeStorageDirty = true; _nextPath = _nextPaint = 0; }
+        void ReconcileMinimapButtons()
+        {
+            if (!_miniGesture.IsPeeking && !_miniGesture.IsSteering) return;
+            var mouse = Mouse.current;
+            if (mouse == null) { ReleaseMinimap(); return; }
+            if (_miniGesture.IsPeeking && !mouse.leftButton.isPressed)
+            {
+                _miniGesture.Cancel(MinimapButton.Left); RestoreCamera();
+            }
+            if (_miniGesture.IsSteering && !mouse.rightButton.isPressed)
+            {
+                if (mouse.rightButton.wasReleasedThisFrame)
+                {
+                    // Reconcile a missing UI pointer-up using this overlay canvas's current release position.
+                    if (_mini.ScreenWorld(mouse.position.ReadValue(), null, out var point))
+                        _miniGesture.Drag(MinimapButton.Right, new RoutePoint(point.x, point.y));
+                    SubmitMiniMove(_miniGesture.Release(MinimapButton.Right, Time.realtimeSinceStartupAsDouble * 1000));
+                }
+                else _miniGesture.Cancel(MinimapButton.Right);
+            }
+        }
         static MinimapButton MiniButton(PointerEventData.InputButton button) => button == PointerEventData.InputButton.Left ? MinimapButton.Left : MinimapButton.Right;
         void MinimapPress(Vector2 point, PointerEventData.InputButton button)
         {

@@ -65,8 +65,12 @@ namespace Roguehalla.Client
 
         public bool PointerWorld(PointerEventData e, out Vector2 point)
         {
+            return ScreenWorld(e.position, e.pressEventCamera, out point);
+        }
+        public bool ScreenWorld(Vector2 screen, Camera eventCamera, out Vector2 point)
+        {
             point = default;
-            if (_map == null || !RectTransformUtility.ScreenPointToLocalPointInRectangle(Rect, e.position, e.pressEventCamera, out var p)) return false;
+            if (_map == null || Rect.rect.width <= 0 || Rect.rect.height <= 0 || !RectTransformUtility.ScreenPointToLocalPointInRectangle(Rect, screen, eventCamera, out var p)) return false;
             var rect = Rect.rect;
             float x = Mathf.Clamp01((p.x - rect.xMin) / rect.width), y = Mathf.Clamp01((p.y - rect.yMin) / rect.height);
             point = new Vector2(x * _map.W * 32f, (1 - y) * _map.H * 32f);
