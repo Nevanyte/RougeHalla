@@ -490,6 +490,27 @@ fn apply_action(
                     crate::systems::mob_life::hurt(&sim.k, &mut sim.w, &mut ev, ix, &[hit]);
                 assert!(removed > 0., "the real kill producer kills a region mob");
             }
+            // This declared source helper is an out-of-step batch: each non-collecting payout already ran inline.
+            // Close its derived ledger bookkeeping before the next ordinary step; no gameplay payout may remain.
+            assert!(!sim.w.pay.collecting && sim.w.pay.items.is_empty());
+            let before = sim.state_hash();
+            let mut settlement_events = Vec::new();
+            crate::systems::ledger::pay_all(
+                &sim.k,
+                &mut sim.w,
+                &mut settlement_events,
+                &mut sim.pf,
+            );
+            assert!(
+                settlement_events.is_empty(),
+                "inline payouts were already paid"
+            );
+            assert!(sim.w.pay.is_settled());
+            assert_eq!(
+                sim.state_hash(),
+                before,
+                "only transient bookkeeping closes"
+            );
         }
         "input" => {
             let actor = action["actor"].as_u64().unwrap();
