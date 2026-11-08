@@ -194,6 +194,8 @@ fn helper_execute_denial_pays_after_pass_and_sentence_survives_reset() {
     e.packet.true_ = 1.;
     s.s.ledger.push(e);
     let mut ev = vec![];
+    // This direct helper bypasses signatures::before_damage, so freeze at its declared pass-start boundary.
+    freeze_denials(&s.k, &s.w, &mut s.s.mark_denials);
     super::super::ledger::apply(&mut cx(&mut s, &mut ev));
     assert_eq!(s.w.players[0].vitals.hp, 1.);
     assert_eq!(s.w.players[0].credit.sentence, 1);

@@ -276,9 +276,19 @@ impl Signature {
     }
 }
 
-/// Private singleton Mark state. Amplifier linger survives target resets.
-#[derive(Clone, Copy, Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
+/// Private typed historical target group; source labels stay outside the simulation.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum MarkGroup {
+    Fighter(PlayerId),
+    Camp(u32),
+}
+
+/// Private Mark state. Amplifier linger survives target resets.
+#[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Mark {
+    pub group: Option<MarkGroup>,
+    pub group_size: usize,
     pub tier: u8,
     pub hits: u64,
     pub progress: f64,
@@ -286,6 +296,21 @@ pub struct Mark {
     pub denied: bool,
     pub far_since: Option<f64>,
     pub amp_until: f64,
+}
+impl Default for Mark {
+    fn default() -> Self {
+        Self {
+            group: None,
+            group_size: 1,
+            tier: 0,
+            hits: 0,
+            progress: 0.,
+            swaps: 0,
+            denied: false,
+            far_since: None,
+            amp_until: 0.,
+        }
+    }
 }
 impl Mark {
     pub(crate) fn reset(&mut self) {

@@ -52,6 +52,7 @@ impl Clone for Sim {
         crate::systems::frost::prepare(&k, &mut w).expect("validated Frost source budget");
         let mut s = self.s.clone();
         s.reserve_actors(w.fighter_count());
+        crate::systems::sentenced::prepare(&k, &mut w, &mut s).expect("validated Mark edge budget");
         Self {
             projection: self.projection.clone(),
             k,
@@ -107,6 +108,7 @@ impl Sim {
         crate::systems::arena_rules::validate_config(&sim.k)?;
         crate::systems::initial_loot::initialize(&mut sim.k, &mut sim.w)?;
         crate::systems::mobs::initialize(&mut sim.k, &mut sim.w)?;
+        crate::systems::sentenced::prepare(&sim.k, &mut sim.w, &mut sim.s)?;
         Ok(sim)
     }
     pub fn mobs(&self) -> &[crate::mob_runtime::Mob] {
@@ -341,6 +343,8 @@ impl Sim {
         self.w.players.push(player);
         crate::systems::frost::prepare(&self.k, &mut self.w)
             .expect("validated Frost source budget");
+        crate::systems::sentenced::prepare(&self.k, &mut self.w, &mut self.s)
+            .expect("validated Mark edge budget");
         Some(id)
     }
 

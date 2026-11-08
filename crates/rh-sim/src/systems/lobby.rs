@@ -91,5 +91,6 @@ pub(super) fn start_raid(
     );
     super::frost::prepare(k, w).expect("validated Frost source budget");
     s.reserve_actors(w.fighter_count());
+    super::sentenced::prepare(k, w, s).expect("validated Mark edge budget");
     ev.push(Event::RaidStarted);
 }

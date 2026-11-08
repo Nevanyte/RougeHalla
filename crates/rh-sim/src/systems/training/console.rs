@@ -31,7 +31,7 @@ pub(crate) fn handle_train(cx: &mut Cx, ix: FighterIx, cmd: &ActionCmd) {
     let ActionCmd::Train(cmd) = cmd else {
         return;
     };
-    let Cx { k, w, ev, .. } = cx;
+    let Cx { k, w, s, ev, .. } = cx;
     if !k.config.training || !w.is_player(ix) {
         return;
     }
@@ -42,7 +42,11 @@ pub(crate) fn handle_train(cx: &mut Cx, ix: FighterIx, cmd: &ActionCmd) {
     match *cmd {
         TrainCommand::Card { id, count } => card(k, w, ev, ix, id, count),
         TrainCommand::Stat { id, count } => stat(k, w, ev, ix, id, count),
-        TrainCommand::Camp { id } => camp(k, w, ev, ix, id),
+        TrainCommand::Camp { id } => {
+            camp(k, w, ev, ix, id);
+            // New actors reach the same step's generic afterWeapons pass; retain every existing scratch prefix.
+            s.reserve_actors(w.fighter_count());
+        }
         TrainCommand::Chest { options } => chest(k, w, ev, ix, &options),
         TrainCommand::Clear => clear(k, w, ev, ix),
     }

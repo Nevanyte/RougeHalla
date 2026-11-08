@@ -20,7 +20,7 @@ use serde::ser::{SerializeStruct, Serializer};
 use std::fmt;
 
 /// The tag every checkpoint carries. Bump it when the layout of `statics` or `world` changes incompatibly.
-pub const CHECKPOINT_FORMAT: &str = "rh-checkpoint/26";
+pub const CHECKPOINT_FORMAT: &str = "rh-checkpoint/27";
 
 /// How far past the map edge a fighter, waypoint or spawn may be and still restore (real states stay inside the map).
 const COORD_MARGIN: f64 = 1024.0;
@@ -229,10 +229,14 @@ impl<'de> Visitor<'de> for CheckpointVisitor<'_> {
         if let Err(why) = check_world(&k, &w) {
             return Err(self.refuse(CheckpointError::Malformed(why)));
         }
-        crate::systems::frost::prepare(&k, &mut w)
-            .map_err(|why| self.refuse(CheckpointError::Malformed(why.into())))?;
+        if let Err(why) = crate::systems::frost::prepare(&k, &mut w) {
+            return Err(self.refuse(CheckpointError::Malformed(why.into())));
+        }
         let mut scratch = TickScratch::default();
         scratch.reserve_actors(w.fighter_count());
+        if let Err(why) = crate::systems::sentenced::prepare(&k, &mut w, &mut scratch) {
+            return Err(self.refuse(CheckpointError::Malformed(why.into())));
+        }
         Ok(Sim {
             projection: crate::fx_report::Projection::empty_at(w.tick),
             k,

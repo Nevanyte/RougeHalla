@@ -1,0 +1,116 @@
+{
+  "base": "96bbe1368b5e2c5b47e6959fc6546d16bf49207f",
+  "source_admission": "pending immutable source consumer and required group seam B",
+  "private_checkpoint": 27,
+  "private_replay": 21,
+  "mutants": [
+    {
+      "name": "player-only-owner-loop",
+      "path": "crates/rh-sim/src/systems/sentenced.rs",
+      "before": "if !w.standing(ix) || !source(w, ix) {",
+      "after": "if !w.is_player(ix) || !w.standing(ix) || !source(w, ix) {",
+      "filter": "actual_training_melee_and_bow_sources_mark_players_and_restore_without_input",
+      "exit": 101,
+      "compiled_semantic_failure": true,
+      "mutant_sha256": "32b3878ce0784cc1dfaf609482a3db5671636d1170c530f0eebe200b8dc69dd3",
+      "control_sha256": "96b19d0ebd03e2b8cbe8abfeb429f1f896fdc256a0fccb8a3f018377e71ae4f0",
+      "log_sha256": "0c84ac0780c773ebe89e54aac7464c25ef188ba3f15a62173164a524ad6b5ee7"
+    },
+    {
+      "name": "mutable-foe-membership",
+      "path": "crates/rh-sim/src/systems/ledger.rs",
+      "before": "pass.denies.contains(&(v, foe))",
+      "after": "pass.denies.contains(&(v, foe)) && pass.w.fighter_idx(foe).is_some_and(|ix| pass.w.standing(ix))",
+      "filter": "diagnostic_frozen_edges_survive_earlier_foe_death_and_multiple_payout_spans",
+      "exit": 101,
+      "compiled_semantic_failure": true,
+      "mutant_sha256": "0be546a102ae97baa37de654a078900383a6ec3243b2998ddfef15dd05215e0d",
+      "control_sha256": "6d18cfcc8e037de20725f275b37c8cb1c54d67b3a76b6297783d5271805fec6c",
+      "log_sha256": "604b2131dc1c2282b220a8d7a5958466e46a7ac24456ccea6739880d491ffe41"
+    }
+  ],
+  "checks": [
+    {
+      "log": "sentenced-final.log",
+      "sha256": "3d737bb5fbd94874202b3cdea604acab59f7ca6e5e4942705dc855bf1a0bf3cc",
+      "results": [
+        "    Finished `test` profile [unoptimized] target(s) in 33.95s",
+        "test result: ok. 38 passed; 0 failed; 1 ignored; 0 measured; 637 filtered out; finished in 4.71s"
+      ]
+    },
+    {
+      "log": "alloc-final.log",
+      "sha256": "634ef66ff50d6b3affbeb0005defbe550dccfcee01db800042d0e7c39e1d8395",
+      "results": [
+        "    Finished `test` profile [unoptimized] target(s) in 0.11s",
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 675 filtered out; finished in 0.03s"
+      ]
+    },
+    {
+      "log": "restore-replay.log",
+      "sha256": "aafe7b9d7b00e607c442e03184cd84e0ad3817d744448e33b259661ff1044292",
+      "results": [
+        "    Finished `test` profile [unoptimized] target(s) in 23.15s",
+        "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s",
+        "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s",
+        "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s",
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s",
+        "test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s"
+      ]
+    },
+    {
+      "log": "frost.log",
+      "sha256": "fb55e1b300129c11e2f9d2bec57a79e34ebe28b33cbad587ee60117e2738edc6",
+      "results": [
+        "    Finished `test` profile [unoptimized] target(s) in 0.04s",
+        "test result: ok. 28 passed; 0 failed; 1 ignored; 0 measured; 646 filtered out; finished in 10.88s"
+      ]
+    },
+    {
+      "log": "teleport.log",
+      "sha256": "6a44dac80fb27035bd2b19fe13bcef8d47ae156426da07e786b48d765777f5d3",
+      "results": [
+        "    Finished `test` profile [unoptimized] target(s) in 0.04s",
+        "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 673 filtered out; finished in 0.03s"
+      ]
+    },
+    {
+      "log": "digest.log",
+      "sha256": "1521ef54068923609f2afb055f77e3a5a77b856a3886f9651d7ef32152b74cbb",
+      "results": [
+        "    Finished `test` profile [unoptimized] target(s) in 16.83s",
+        "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s"
+      ]
+    },
+    {
+      "log": "clippy-default.log",
+      "sha256": "b4a83bad92bfd7efb01d67035b3ddf7022fdcca5b9f8f3f4f9b19f4198a5ed93",
+      "results": [
+        "    Finished `dev` profile [unoptimized] target(s) in 22.34s"
+      ]
+    },
+    {
+      "log": "clippy-allfeatures.log",
+      "sha256": "dd32ec7bb5b7e9c1c54725933b197e79d6628b2447ab5c14619b2bd5aca2f355",
+      "results": [
+        "    Finished `dev` profile [unoptimized] target(s) in 24.14s"
+      ]
+    },
+    {
+      "log": "mutant-restored-control.log",
+      "sha256": "568169d3717820363c40762bd9c67e714c21b5fb16c63102a092014ec5258b87",
+      "results": [
+        "    Finished `test` profile [unoptimized] target(s) in 32.21s",
+        "test result: ok. 9 passed; 0 failed; 1 ignored; 0 measured; 666 filtered out; finished in 1.25s"
+      ]
+    },
+    {
+      "log": "training-growth-red.log",
+      "sha256": "ae98f43789925dec53114e124307c5a416262865ad1d8a35f2e4053743dd9e91",
+      "results": [
+        "    Finished `test` profile [unoptimized] target(s) in 22.30s",
+        "test result: FAILED. 37 passed; 1 failed; 1 ignored; 0 measured; 637 filtered out; finished in 4.07s"
+      ]
+    }
+  ]
+}

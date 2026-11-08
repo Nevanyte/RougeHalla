@@ -248,6 +248,7 @@ pub(crate) fn pay_all_with(
         }
     }
     w.pay.items.clear();
+    w.pay.mark_denied_amounts.clear();
     w.pay.mob_wakes.clear();
     w.pay.mob_deaths.clear();
     w.pay.mob_settled.clear();
@@ -262,7 +263,7 @@ struct Pass<'a> {
     stats: crate::status_runtime::stats::Inputs<'a>,
     #[cfg(feature = "trusted-status-probes")]
     probe: Option<&'a mut crate::status_runtime::probe::HurtRecipe>,
-    denies: [Option<PlayerId>; MAX_PLAYERS],
+    denies: &'a [(PlayerId, PlayerId)],
     k: &'a MatchStatic,
     w: &'a mut World,
     ev: &'a mut Vec<Event>,
@@ -316,6 +317,8 @@ pub(crate) fn apply(cx: &mut Cx) {
 }
 #[cfg(feature = "trusted-status-probes")]
 pub(crate) fn apply_probed(cx: &mut Cx, probe: &mut crate::status_runtime::probe::HurtRecipe) {
+    // A declared standalone diagnostic opens its own pass without the ordinary signature phase.
+    super::sentenced::freeze_denials(cx.k, cx.w, &mut cx.s.mark_denials);
     apply_inner(cx, Some(probe), true);
 }
 fn apply_inner(
@@ -359,6 +362,7 @@ fn apply_inner(
         order,
         hits,
         dot_sums,
+        mark_denials,
         ..
     } = &mut **s;
     if ledger.is_empty() {
@@ -533,18 +537,10 @@ fn apply_inner(
     w.pay.items.clear();
     super::mob_life::open(w);
     w.pay.collecting = true;
-    // Freeze the pass-start denial index before any victim application or payout.
-    let mut denies = [None; MAX_PLAYERS];
-    if k.config.faction_mode.sentenced() {
-        for (i, p) in w.players.iter().enumerate() {
-            if p.standing()
-                && p.vitals.faction == crate::FactionId::Sentenced
-                && p.signature.mark.tier >= MARK_TOP_TIER
-            {
-                denies[i] = p.signature.target;
-            }
-        }
-    }
+    // The signature pass already froze source-order owner/member edges before any victim or payout can mutate actors.
+    // The independently borrowed scratch slice cannot be rewritten while this Pass is alive.
+    let denies = mark_denials.as_slice();
+    debug_assert!(w.pay.mark_denied_amounts.is_empty());
     let mut pass = Pass {
         #[cfg(feature = "trusted-status-probes")]
         standalone,
@@ -678,15 +674,16 @@ fn apply_victim(
     }
     // A tier-4 mark denies the execute part of the foe's entries: the whole of an execute entry, or the share the attacker's
     // vs-hpBelow rows add (R7). The execute total cannot take the victim below 1 hp.
-    if let Some(foe) = pass.denies.get(vi).copied().flatten() {
+    if pass.denies.iter().any(|(owner, _)| *owner == v) {
         let total: f64 = amounts.iter().sum();
         let victim_frac = pass.w.core(ix).vitals.hp_frac_at_tick_start;
-        let foe_ix = pass.w.fighter_idx(foe);
+
         deny_parts.clear();
         let mut x = 0.;
         for (j, &index) in idxs.iter().enumerate() {
             let e = &ledger[index];
-            let share = if e.by == Some(foe) {
+            let share = if e.by.is_some_and(|foe| pass.denies.contains(&(v, foe))) {
+                let foe_ix = e.by.and_then(|foe| pass.w.fighter_idx(foe));
                 if e.execute {
                     1.
                 } else {
@@ -725,14 +722,18 @@ fn apply_victim(
         let allowed = x.min(pool - 1. - (total - x)).max(0.);
         let held = x - allowed;
         if x > 0. && held > MARK_EXECUTE_EPS {
-            let mut denied = super::sentenced::Denied::default();
+            let mut denied = super::sentenced::Denied::begin(pass.w);
             let keep = allowed / x;
             for j in 0..idxs.len() {
                 let part = deny_parts[j];
                 if part > 0. {
                     let cut = part * (1. - keep);
                     amounts[j] -= cut;
-                    denied.add(foe, cut);
+                    denied.add(
+                        pass.w,
+                        ledger[idxs[j]].by.expect("frozen denial source"),
+                        cut,
+                    );
                 }
             }
             if denied.any() {
@@ -1082,7 +1083,7 @@ pub(crate) fn apply_declared_hit(
         stats: crate::status_runtime::stats::Inputs::default(),
         #[cfg(feature = "trusted-status-probes")]
         probe: None,
-        denies: [None; MAX_PLAYERS],
+        denies: &[],
         k,
         w,
         ev,
