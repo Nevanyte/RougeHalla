@@ -1,5 +1,5 @@
 {
-  "scope": "November8 consolidation; branch refs preserved and active worker checks excluded",
+  "scope": "November8 consolidation; original and composed PR dispositions, all branch refs preserved, active worker checks excluded",
   "pushedCoreCheckpoint": "7d71bcc1",
   "explicitlyClosedPrs": [
     31,
@@ -29,7 +29,10 @@
     58,
     59,
     60,
-    61
+    61,
+    62,
+    63,
+    64
   ],
   "autoMergedPrs": [
     30,
@@ -37,7 +40,7 @@
     35,
     54
   ],
-  "reason": "Reviewed head ancestry is already in optimization_port. GitHub refuses retargeting with no new commits; stacked PRs were explicitly closed with immutable integration links. Closed is not falsely relabeled merged.",
+  "reason": "Original 32 reviewed heads: four GitHub auto-merges and 28 explicit closures after verified integration ancestry. Three later stacked PRs were explicitly closed after their scoped changes were incorporated through reviewed composition and corrective admission; their original head ancestry is not claimed. Closed is not relabeled merged.",
   "performanceRunDispositions": [
     {
       "id": 42466326220,
@@ -166,5 +169,36 @@
       "conclusion": "cancelled"
     }
   ],
-  "latestReviewedIntegration": "48f4bb28"
+  "latestReviewedIntegration": "febf1f3ffd5d421ac87855d2dd4938f4bc91b872",
+  "composedPrDispositions": [
+    {
+      "pr": 62,
+      "head": "a697f031a1d3a5ad10b368d4d2376584e06d5907",
+      "state": "closed",
+      "githubMerged": false,
+      "candidateUnit": "b9f149c99533fa1b8b5a159db2da200c5bcb2e7e",
+      "admissionRepair": "c9bdf0d848478b4441375e0a5a24bc371d908fe8",
+      "integration": "8ce725dbcb9834099ec432f89ee9148c9695536c",
+      "scope": "Tournament runner/telemetry shape, with repaired delivery bounds/timing, truthful learning and missing advanced diagnostics; recorder production and full manager/outcome parity remain open."
+    },
+    {
+      "pr": 63,
+      "head": "b15c15fbe64bd24eaff9e107496b1e7d8f9799e1",
+      "state": "closed",
+      "githubMerged": false,
+      "candidateUnit": "f9124b48b78162c701798a99e2377706e92157bf",
+      "integration": "fdf65513f789794e8f5bbf7128e4a0220034e170",
+      "scope": "Run-end/camp-clear actual-source lifecycle captures and native consumer; public quest transport remains open."
+    },
+    {
+      "pr": 64,
+      "head": "9e4931c81440641f509063e8c72af19e9917fad0",
+      "state": "closed",
+      "githubMerged": false,
+      "candidateUnit": "cb2f6a67943299c43d2833be2216446dfb9f3a4f",
+      "integration": "fdf65513f789794e8f5bbf7128e4a0220034e170",
+      "scope": "Committed lockSecondSlot barter refusal and source witness; public trade transport remains open."
+    }
+  ],
+  "latestCanonicalVerification": "2026-11-08T13:11Z: all three original heads unchanged, API states closed, merged false; source branches preserved."
 }

@@ -116,10 +116,12 @@ parser scope and startup-snapshot limitations remain explicit in the [fill evide
 
 ## GitHub and CI follow-through
 
-The first clean checkpoint was pushed as7d71bcc1, then the learning union as53bbead3. Thirty-two reviewed PR heads are
-accounted for: four GitHub auto-merges and28 explicitly closed stacked PRs with immutable integration receipts. GitHub
-refuses retargeting a head already wholly included in optimization_port; those closures are not falsely called new PR
-merges. Branch refs remain for descendants. [The disposition receipt](github-dispositions.json) records individual PRs.
+The first clean checkpoint was pushed as7d71bcc1, then the learning union as53bbead3. The original32 reviewed PR
+heads are accounted for: four GitHub auto-merges and28 explicit stacked closures after verified head ancestry. Three
+later PRs (#62–#64) are closed after reviewed composition, with the tournament admission repair included. Their original
+heads are not claimed as ancestors or new GitHub merges. The total is35 PR dispositions: four auto-merges and31 explicit
+closures. Canonical API checks confirm the three unchanged original heads are closed/merged:false after pushfebf1f3f.
+All branch refs remain. [The disposition receipt](github-dispositions.json) maps original heads to composed units and repairs.
 
 Twenty-one obsolete performance runs were checked against integrated HEAD ancestry:18 cancellations were confirmed,
 and three had already completed (one success, two failures). Active worker runs were preserved. This frees capacity for
@@ -226,3 +228,10 @@ regression and maximum-stock1.50-text Editor layout evidence. It has no new brow
 unchanged. Proposal88dbc5cf is retained inae11f90e without activating its future cues. Later art source drafts/audio
 research remain isolated. Post Rust is assigned the evidence-only fair-view witness; the G6 producer is authorized only
 as a private native candidate, with new state/content identity and live publication/gating still held.
+
+The native admission and packet checkpoint is pushed as `febf1f3f`. Full foundation CI run
+[42483382269](https://github.com/Nevanyte/RougeHalla/actions/runs/42483382269) is pending: C# and card-runtime source
+jobs pass; Rust and full simulation are still running at this receipt. G6 was delivered via the existing Rust lane
+from immutable `febf1f3f` and its Running state verified; the evidence-only Post Rust lane is also running. The art
+prop/signature source drafts passed read-only review but remain isolated and uncompiled; a source-only no-socket
+action/direction selector is authorized, with build/browser/performance validation deferred to the next client batch.

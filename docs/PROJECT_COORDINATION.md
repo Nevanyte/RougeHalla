@@ -48,8 +48,10 @@ then one integration gate; do not repeat unchanged expensive map campaigns after
    diagnostic limit. Retain the owner’s at-least-144-FPS target at2560×1440 on the M5 Pro; the current60Hz physical
    display cannot certify it. Allocation throughput, full live content and crowded-motion accessibility remain open.
    Camp-stock source/Editor follow-up `289a01e2` is integrated in `ecf9564c`, with Web verification deferred. The
-   delivered-cue proposal is retained; isolated source-only prop/signature drafts are authorized, with tests/builds
-   reported separately. Audio research stays unadmitted. Callback/headroom rates remain separate from displayed frames.
+   delivered-cue proposal is retained; isolated source-only prop/signature drafts passed read-only review but remain
+   uncompiled and unadmitted. A bounded no-socket action/eight-direction preview selector is authorized source-only;
+   tests/builds are reported separately. Audio research stays unadmitted. Callback/headroom rates remain separate
+   from displayed frames.
 5. Complete browser/account flows, durable progression, cloud/provider/region lifecycle and the original full-port
    release/performance gates. Rebuild artifacts from the final union before any staging run. Use the practice domain
    `rougehalla.com`, Calgary preference and **CAD20 total** cap; production remains separately controlled.
