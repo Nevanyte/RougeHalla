@@ -19,6 +19,7 @@ namespace Roguehalla.Client.Tests
         readonly List<GameObject> _objects = new List<GameObject>();
         bool _hadQualityMode, _hadManualQuality;
         int _previousQualityMode, _previousManualQuality;
+        bool _previousReportedUnavailable;
         ShowcaseSettings _previousSettings;
 
         [SetUp]
@@ -29,6 +30,9 @@ namespace Roguehalla.Client.Tests
             _previousQualityMode = PlayerPrefs.GetInt(QualityModeKey);
             _previousManualQuality = PlayerPrefs.GetInt(ManualQualityKey);
             _previousSettings = ShowcaseSettings.Current;
+            var diagnostic = typeof(ShowcasePointLight).GetField("_reportedUnavailable", StaticPrivate);
+            _previousReportedUnavailable = (bool)diagnostic.GetValue(null);
+            diagnostic.SetValue(null, false);
         }
 
         [TearDown]
@@ -39,6 +43,7 @@ namespace Roguehalla.Client.Tests
             _objects.Clear();
 
             typeof(ShowcaseSettings).GetField("_current", StaticPrivate).SetValue(null, _previousSettings);
+            typeof(ShowcasePointLight).GetField("_reportedUnavailable", StaticPrivate).SetValue(null, _previousReportedUnavailable);
             RestorePreference(QualityModeKey, _hadQualityMode, _previousQualityMode);
             RestorePreference(ManualQualityKey, _hadManualQuality, _previousManualQuality);
             PlayerPrefs.Save();
