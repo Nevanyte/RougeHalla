@@ -324,12 +324,13 @@ namespace Roguehalla.Client
             if (view.Inventory.HasValue && (!_inventoryShown.HasValue ||
                 view.Inventory.Value.ActiveSlot != _inventoryShown.Value.ActiveSlot || view.Inventory.Value.Slot0 != _inventoryShown.Value.Slot0 ||
                 view.Inventory.Value.Slot1 != _inventoryShown.Value.Slot1 || view.Inventory.Value.PotionSmall != _inventoryShown.Value.PotionSmall ||
+                view.Inventory.Value.PotionLarge != _inventoryShown.Value.PotionLarge ||
                 view.Inventory.Value.PotionsHealing != _inventoryShown.Value.PotionsHealing))
             {
                 var inv = view.Inventory.Value; _inventoryShown = inv;
                 Set(_slots[0].GetComponentInChildren<TMP_Text>(), "1 · " + (inv.Slot0.HasValue ? inv.Slot0.ToString() : "Empty") + (inv.ActiveSlot == 0 ? " [active]" : ""));
                 Set(_slots[1].GetComponentInChildren<TMP_Text>(), "2 · " + (inv.Slot1.HasValue ? inv.Slot1.ToString() : "Empty") + (inv.ActiveSlot == 1 ? " [active]" : ""));
-                Set(_focusLabel, "Potions " + inv.PotionSmall + " small / " + inv.PotionsHealing + " healing");
+                Set(_focusLabel, "Potions " + inv.PotionSmall + " small / " + inv.PotionLarge + " camp / " + inv.PotionsHealing + " healing");
             }
             if (view.Focus.HasValue != _focusShown.HasValue || view.Focus.HasValue &&
                 (!view.Focus.Value.Handle.Equals(_focusShown.Value.Handle) || view.Focus.Value.Weapon != _focusShown.Value.Weapon || view.Focus.Value.Kind != _focusShown.Value.Kind))

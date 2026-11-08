@@ -47,6 +47,38 @@ namespace Roguehalla.Client.Tests
         }
 
         [Test]
+        public void PotionCampCountUpdatesWithoutChangingOtherHudInventoryFactsAndClearsWhenInventoryIsMissing()
+        {
+            _root = new GameObject("match hud potion inventory test");
+            var hud = _root.AddComponent<MatchHud>();
+            var slots = (UnityEngine.UI.Button[])GetField(hud, "_slots");
+            slots[0] = CreateSlot("slot one");
+            slots[1] = CreateSlot("slot two");
+            var focusObject = new GameObject("focus label");
+            focusObject.transform.SetParent(_root.transform, false);
+            var focusLabel = focusObject.AddComponent<TextMeshPro>();
+            SetField(hud, "_focusLabel", focusLabel);
+            var buildObject = new GameObject("build label");
+            buildObject.transform.SetParent(_root.transform, false);
+            SetField(hud, "_build", buildObject.AddComponent<TextMeshPro>());
+
+            RefreshCollections(hud, InventoryView(1));
+            string firstSlot = slots[0].GetComponentInChildren<TMP_Text>().text;
+            string secondSlot = slots[1].GetComponentInChildren<TMP_Text>().text;
+            Assert.That(focusLabel.text, Is.EqualTo("Potions 2 small / 1 camp / 3 healing"));
+
+            RefreshCollections(hud, InventoryView(0));
+
+            Assert.That(focusLabel.text, Is.EqualTo("Potions 2 small / 0 camp / 3 healing"));
+            Assert.That(slots[0].GetComponentInChildren<TMP_Text>().text, Is.EqualTo(firstSlot));
+            Assert.That(slots[1].GetComponentInChildren<TMP_Text>().text, Is.EqualTo(secondSlot));
+
+            RefreshCollections(hud, InventoryView(null));
+
+            Assert.That(focusLabel.text, Is.EqualTo("Potions: awaiting server"));
+        }
+
+        [Test]
         public void DetachingStopsAndClearsEveryPooledVoice()
         {
             _root = new GameObject("soundscape test");
@@ -91,6 +123,21 @@ namespace Roguehalla.Client.Tests
                 }
             };
             typeof(CollectionsView).GetMethod("Apply", BindingFlags.Instance | BindingFlags.NonPublic).Invoke(view, new object[] { state });
+            return view;
+        }
+
+        static CollectionsView InventoryView(byte? potionLarge)
+        {
+            var view = new CollectionsView();
+            var inventory = new InventoryState
+            {
+                Value = potionLarge.HasValue
+                    ? new WireInventory { ActiveSlot = 0, Slot0 = (byte)WeaponId.Sword, Slot1 = (byte)WeaponId.Bow,
+                        PotionSmall = 2, PotionLarge = potionLarge.Value, PotionsHealing = 3 }
+                    : (WireInventory?)null
+            };
+            typeof(CollectionsView).GetMethod("Apply", BindingFlags.Instance | BindingFlags.NonPublic)
+                .Invoke(view, new object[] { new ServerMsg.State { Items = new StateItem[] { inventory } } });
             return view;
         }
 
