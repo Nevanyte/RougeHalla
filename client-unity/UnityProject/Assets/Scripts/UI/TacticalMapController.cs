@@ -41,6 +41,7 @@ namespace Roguehalla.Client
         RectTransform _contactRail, _counterRail;
         bool _routeStorageDirty;
         double _nextPaint, _nextPath;
+        bool _factsDirty = true;
         bool _mapOpen;
         public bool ToggleMode => _prefs.MapToggle;
         public bool ShowRoute => _prefs.ShowRoute;
@@ -105,7 +106,7 @@ namespace Roguehalla.Client
         {
             UnsubscribeMapFacts();
             ReleaseTransient(); _selections.Update(null, false, Time.realtimeSinceStartupAsDouble * 1000); _bound = session; _storageKey = null; _routeStorageDirty = false; _route.Clear(); _route.SetStart(null);
-            _lastContactsSnapshot = -1; _contacts.Clear(); _contactsText.text = "";
+            _factsDirty = true; _lastContactsSnapshot = -1; _contacts.Clear(); _contactsText.text = "";
             if (_bound != null)
             {
                 _bound.SnapshotReceived += MapSnapshotChanged;
@@ -170,7 +171,9 @@ namespace Roguehalla.Client
             }
             if (_bound.State != SessionState.InMatch || _bound.LastResult != null) ReleaseTransient();
             _panel.gameObject.SetActive(_bound.LastResult == null && (IsPlanning || _mapOpen));
+            if (_factsDirty) _nextPaint = 0;
             if (Time.realtimeSinceStartupAsDouble < _nextPaint) return;
+            _factsDirty = false;
             _nextPaint = Time.realtimeSinceStartupAsDouble + 1d / 30d;
             var plan = _bound.Collections.Plan;
             _planningRail.gameObject.SetActive(plan != null); _runRail.gameObject.SetActive(plan == null);
@@ -256,11 +259,11 @@ namespace Roguehalla.Client
             _bound.CollectionsChanged -= MapCollectionsChanged;
             _bound.StateChanged -= MapStateChanged;
         }
-        void MapSnapshotChanged(ServerMsg.Snapshot _) { _nextPaint = 0; }
-        void MapCollectionsChanged(CollectionsView _) { _nextPaint = 0; }
+        void MapSnapshotChanged(ServerMsg.Snapshot _) { _factsDirty = true; _nextPaint = 0; }
+        void MapCollectionsChanged(CollectionsView _) { _factsDirty = true; _nextPaint = 0; }
         void MapStateChanged(SessionState _)
         {
-            _nextPaint = 0;
+            _factsDirty = true; _nextPaint = 0;
             if (_bound?.State != SessionState.InMatch) { _contactsText.text = "No current contacts."; _lastContactsSnapshot = -1; }
         }
         void UpdateSelections() => _selections.Update(_bound?.Collections.Plan, _bound != null && _bound.State == SessionState.InMatch, Time.realtimeSinceStartupAsDouble * 1000);
