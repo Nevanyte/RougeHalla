@@ -271,6 +271,7 @@ impl OutcomeDigest {
                 self.f(*amount);
             }
             Event::CastStarted {
+                event_time,
                 id,
                 ability,
                 ms,
@@ -279,6 +280,7 @@ impl OutcomeDigest {
                 y,
             } => {
                 self.s("cast_started");
+                self.f(*event_time);
                 self.w(id.0.into());
                 self.s(ability.as_str());
                 self.f(*ms);
@@ -287,6 +289,7 @@ impl OutcomeDigest {
                 self.f(*y);
             }
             Event::CastLanded {
+                event_time,
                 id,
                 ability,
                 target,
@@ -295,6 +298,7 @@ impl OutcomeDigest {
                 to,
             } => {
                 self.s("cast_landed");
+                self.f(*event_time);
                 self.w(id.0.into());
                 self.s(ability.as_str());
                 self.opt(target.map(|p| p.0.into()));
@@ -310,11 +314,13 @@ impl OutcomeDigest {
                 }
             }
             Event::CastEnded {
+                event_time,
                 id,
                 ability,
                 reason,
             } => {
                 self.s("cast_ended");
+                self.f(*event_time);
                 self.w(id.0.into());
                 self.s(ability.as_str());
                 self.w(*reason as u64);
@@ -615,5 +621,58 @@ mod ending_metadata_tests {
         r.faction = None;
         r.weapon = Some(rh_sim::WeaponId::Wand);
         assert_ne!(original, digest(&r));
+    }
+}
+
+#[cfg(test)]
+mod wish_event_time_tests {
+    use super::*;
+
+    fn event_digest(event: &Event) -> u64 {
+        let mut digest = OutcomeDigest::new();
+        digest.event(event);
+        digest.value()
+    }
+
+    #[test]
+    fn raw_wish_event_time_is_part_of_the_behavior_digest() {
+        let events = [
+            Event::CastStarted {
+                event_time: 101.25,
+                id: rh_sim::PlayerId(1),
+                ability: rh_sim::status_runtime::AbilityId::Freeze,
+                ms: 250.,
+                target: Some(rh_sim::PlayerId(2)),
+                x: 10.,
+                y: 20.,
+            },
+            Event::CastLanded {
+                event_time: 151.25,
+                id: rh_sim::PlayerId(1),
+                ability: rh_sim::status_runtime::AbilityId::Freeze,
+                target: Some(rh_sim::PlayerId(2)),
+                x: 11.,
+                y: 21.,
+                to: None,
+            },
+            Event::CastEnded {
+                event_time: 201.25,
+                id: rh_sim::PlayerId(1),
+                ability: rh_sim::status_runtime::AbilityId::Freeze,
+                reason: rh_sim::status_runtime::CastEndReason::Cancelled,
+            },
+        ];
+
+        for event in events {
+            let original = event_digest(&event);
+            let mut changed_time = event.clone();
+            match &mut changed_time {
+                Event::CastStarted { event_time, .. }
+                | Event::CastLanded { event_time, .. }
+                | Event::CastEnded { event_time, .. } => *event_time += 0.25,
+                _ => unreachable!(),
+            }
+            assert_ne!(original, event_digest(&changed_time));
+        }
     }
 }

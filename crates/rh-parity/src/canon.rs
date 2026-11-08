@@ -78,6 +78,7 @@ pub(crate) fn canon(e: &Event, sim: &Sim) -> Option<Value> {
             target,
             x,
             y,
+            ..
         } => {
             json!({"kind":"cast","by":fid(*id),"ability":ability,"ms":ms,"target":target.map(fid),"x":x,"y":y})
         }
@@ -88,6 +89,7 @@ pub(crate) fn canon(e: &Event, sim: &Sim) -> Option<Value> {
             x,
             y,
             to,
+            ..
         } => {
             let mut v = json!({"kind":"castLand","by":fid(*id),"ability":ability,"target":target.map(fid),"x":x,"y":y});
             if let Some(to) = to {
@@ -100,6 +102,7 @@ pub(crate) fn canon(e: &Event, sim: &Sim) -> Option<Value> {
             id,
             ability,
             reason,
+            ..
         } => json!({"kind":"castEnd","by":fid(*id),"ability":ability,"reason":reason}),
         Event::AbilityHit {
             victim,
