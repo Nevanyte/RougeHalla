@@ -106,6 +106,9 @@ fn maximum_full_records_and_reference_delta_preserve_new_scalars() {
         effects: u16::MAX,
         displace_seq: 255,
         sig: 255,
+        wish: None,
+        barrier: 0.0,
+        barrier_ring_step: 0,
     };
     let actor = WireActor {
         id: u32::MAX,
@@ -122,6 +125,8 @@ fn maximum_full_records_and_reference_delta_preserve_new_scalars() {
         displace_seq: 255,
         mob_type_code: 30,
         sig: 255,
+        barrier_pct: 0,
+        barrier_ring_step: 0,
     };
     let data = SnapshotData::build(u32::MAX, 3, u32::MAX, Some(me), [actor].into_iter()).unwrap();
     let mut fast = vec![];
@@ -136,6 +141,7 @@ fn maximum_full_records_and_reference_delta_preserve_new_scalars() {
     assert!(ServerMsg::Snapshot {
         training: false,
         tick: 1,
+        server_time: snapshot_server_ms(1),
         phase: 1,
         ack_input: 0,
         me: None,
@@ -146,6 +152,7 @@ fn maximum_full_records_and_reference_delta_preserve_new_scalars() {
     let bad_delta = SnapshotDelta {
         training: false,
         tick: 2,
+        server_time: snapshot_server_ms(2),
         base_tick: 1,
         phase: None,
         ack_input: 0,

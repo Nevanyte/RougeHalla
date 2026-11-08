@@ -72,6 +72,27 @@ fn arg(args: &[String], k: &str) -> Option<String> {
         .and_then(|i| args.get(i + 1).cloned())
 }
 
+/// Deliberate server-binary opt-in for ordinary human Wish input. Library callers that set `Mode::Full` directly are
+/// already explicit; the server's shipped default stays Off.
+fn wish_full_enabled(args: &[String]) -> Result<bool, String> {
+    let count = args.iter().filter(|a| a.as_str() == "--wish-full").count();
+    if args
+        .iter()
+        .any(|a| a.starts_with("--wish-full=") || a.starts_with("--wish-full-"))
+    {
+        return Err("--wish-full is a flag without a value".into());
+    }
+    if count > 1 {
+        return Err("--wish-full must occur once".into());
+    }
+    if let Some(index) = args.iter().position(|a| a == "--wish-full") {
+        if args.get(index + 1).is_some_and(|a| !a.starts_with("--")) {
+            return Err("--wish-full takes no value".into());
+        }
+    }
+    Ok(count == 1)
+}
+
 /// Bounded opt-in service profile, not new simulation rules. Default startup is unchanged.
 const FIRST_PLAYABLE_LIFETIME: Duration = Duration::from_secs(4 * 60 * 60);
 const FIRST_PLAYABLE_GRACE: Duration = Duration::from_secs(180);
@@ -393,6 +414,10 @@ async fn main() {
         eprintln!("[server] invalid first-playable settings: {e}");
         std::process::exit(2);
     });
+    let wish_full = wish_full_enabled(&args).unwrap_or_else(|e| {
+        eprintln!("[server] invalid Wish settings: {e}");
+        std::process::exit(2);
+    });
     let profile_enabled = first_playable.is_some();
     if profile_enabled {
         // Absolute watchdog is independent of signals, control/drain, room completion and pending writes.
@@ -432,7 +457,11 @@ async fn main() {
         training: false,
         dummies: false,
         hazards: rh_sim::terrain::Mode::Off,
-        abilities: rh_sim::abilities::Mode::Off,
+        abilities: if wish_full {
+            rh_sim::abilities::Mode::Full
+        } else {
+            rh_sim::abilities::Mode::Off
+        },
         wish_lock_ms: rh_sim::abilities::WISH_LOCK_MS,
         lifecycle: rh_sim::ArenaMode::Off,
         mob_mode: if profile_enabled {
@@ -784,6 +813,20 @@ mod tests {
 
     fn args(values: &[&str]) -> Vec<String> {
         values.iter().map(|s| s.to_string()).collect()
+    }
+
+    #[test]
+    fn full_wish_mode_is_a_single_explicit_flag_and_defaults_off() {
+        assert!(!wish_full_enabled(&args(&["rh-server"])).unwrap());
+        assert!(wish_full_enabled(&args(&["rh-server", "--wish-full"])).unwrap());
+        for bad in [
+            vec!["--wish-full", "--wish-full"],
+            vec!["--wish-full", "true"],
+            vec!["--wish-full=true"],
+            vec!["--wish-full-extra"],
+        ] {
+            assert!(wish_full_enabled(&args(&bad)).is_err(), "{bad:?}");
+        }
     }
 
     #[test]

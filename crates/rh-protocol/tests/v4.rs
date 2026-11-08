@@ -24,6 +24,9 @@ fn me() -> WireSelf {
         move_seq: 0,
         hunt_target: None,
         hunt_stacks: 0,
+        wish: None,
+        barrier: 0.0,
+        barrier_ring_step: 0,
     }
 }
 
@@ -43,6 +46,8 @@ fn actor(id: u32) -> WireActor {
         weapon: 2,
         bounty: 0,
         kind: 0,
+        barrier_pct: 0,
+        barrier_ring_step: 0,
     }
 }
 
@@ -61,6 +66,7 @@ fn full(me: Option<WireSelf>, phase: u8) -> ServerMsg {
     ServerMsg::Snapshot {
         training: false,
         tick: 1,
+        server_time: snapshot_server_ms(1),
         phase,
         ack_input: 0,
         me,
@@ -118,6 +124,7 @@ fn defaults_cost_nothing_and_other_values_are_explicit() {
     let base = ServerMsg::Snapshot {
         training: false,
         tick: 1,
+        server_time: snapshot_server_ms(1),
         phase: DEFAULT_PHASE,
         ack_input: 0,
         me: None,
@@ -128,6 +135,7 @@ fn defaults_cost_nothing_and_other_values_are_explicit() {
     let odd = ServerMsg::Snapshot {
         training: false,
         tick: 1,
+        server_time: snapshot_server_ms(1),
         phase: DEFAULT_PHASE,
         ack_input: 0,
         me: None,
@@ -139,6 +147,7 @@ fn defaults_cost_nothing_and_other_values_are_explicit() {
         ServerMsg::Snapshot {
             training: false,
             tick: 1,
+            server_time: snapshot_server_ms(1),
             phase: DEFAULT_PHASE,
             ack_input: 0,
             me: None,
@@ -273,23 +282,23 @@ fn an_empty_state_retains_the_snapshot_and_unknown_keys_are_refused() {
 /// A mask bit the version does not define is refused in every mask, never skipped, and a non-canonical varint head is too.
 #[test]
 fn undefined_mask_bits_are_refused_never_skipped() {
-    // A Full head with bit 17, a Full actor mask with bit 9, a delta head with bit 21, a delta actor mask with bit 12.
-    let full_head_bit = [0x83, 1, 0, 0x81, 0x80, 0x08, 0];
+    // A Full head with bit 20, a Full actor mask with bit 10, a delta head with bit 24, a delta actor mask with bit 13.
+    let full_head_bit = [0x83, 1, 0, 0x80, 0x80, 0x40, 0];
     assert_eq!(
         ServerMsg::decode(&full_head_bit),
         Err(DecodeError::BadField("head"))
     );
-    let actor_bit = [0x83, 1, 0, 0, 1, 1, 0x80, 4, 0, 0, 0, 0, 0, 0];
+    let actor_bit = [0x83, 1, 0, 0, 1, 1, 0x80, 8, 0, 0, 0, 0, 0, 0];
     assert_eq!(
         ServerMsg::decode(&actor_bit),
         Err(DecodeError::BadField("actor mask"))
     );
-    let delta_head_bit = [0x87, 10, 1, 0, 0x80, 0x80, 0x80, 1, 0];
+    let delta_head_bit = [0x87, 10, 1, 0, 0x80, 0x80, 0x80, 0x80, 1, 0];
     assert_eq!(
         ServerMsg::decode(&delta_head_bit),
         Err(DecodeError::BadField("head"))
     );
-    let delta_actor_bit = [0x87, 10, 1, 0, 0, 1, 1, 0x80, 0x20];
+    let delta_actor_bit = [0x87, 10, 1, 0, 0, 1, 1, 0x80, 0x40];
     assert_eq!(
         ServerMsg::decode(&delta_actor_bit),
         Err(DecodeError::BadField("actor mask"))
@@ -325,11 +334,14 @@ fn delta_head_and_actor_delta_bit_numbers_are_pinned() {
         (DH_HUNT_TARGET, 18),
         (DH_HUNT_STACKS, 19),
         (DH_TRAINING, 20),
+        (DH_WISH, 21),
+        (DH_BARRIER, 22),
+        (DH_SERVER_TIME, 23),
     ];
     for (c, bit) in head {
         assert_eq!(c, 1u32 << bit, "delta head bit {bit}");
     }
-    assert_eq!(DH_KNOWN, (1 << 21) - 1);
+    assert_eq!(DH_KNOWN, (1 << 24) - 1);
     let ad = [
         (AD_X, 0),
         (AD_Y, 1),
@@ -343,9 +355,10 @@ fn delta_head_and_actor_delta_bit_numbers_are_pinned() {
         (AD_DISPLACE, 9),
         (AD_MOB_TYPE, 10),
         (AD_SIG, 11),
+        (AD_BARRIER, 12),
     ];
     for (c, bit) in ad {
         assert_eq!(c, 1u32 << bit, "actor-delta bit {bit}");
     }
-    assert_eq!(AD_ALL, 0xfff);
+    assert_eq!(AD_ALL, 0x1fff);
 }

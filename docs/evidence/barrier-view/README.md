@@ -131,7 +131,7 @@ and stubs labelled; numeric-domain diagnostics separated; commits only on the is
 
 ## Coordinator admission
 
-Source candidate `70a6790c` is integrated in `33d72c34`, followed by the reviewed NPC-row claim correction.
+Source candidate `70a6790c` is integrated in `33d72c34`, followed by the reviewed NPC-row claim correction in `fb738cd9`.
 Root independently reproduces all six corpora byte-exact, kills all four compiled semantic source mutants at the
 expected mismatch paths and restores the unchanged control. This is source-only admission; it does not validate
 PlayerView.draw/scene propagation, native G6 caller timing, protocol12 or a real client. CI now includes this capture.

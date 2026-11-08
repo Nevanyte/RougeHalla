@@ -555,7 +555,10 @@ fn run(
         steps += 1;
         let events: &[Event] = src.events();
         if let Some(d) = digest.as_mut() {
-            d.tick(src.sim(), events);
+            if let Err(error) = d.try_tick(src.sim(), events) {
+                eprintln!("unrepresentable diagnostic snapshot: {error:?}");
+                std::process::exit(2);
+            }
         }
         let t = Instant::now();
         for (k, id) in ids.iter().enumerate() {

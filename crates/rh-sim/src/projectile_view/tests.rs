@@ -111,7 +111,7 @@ fn flight_point_visibility_owner_redaction_multiplicity_and_bounds() {
 fn owner_uses_shared_reference_projection_and_reflection_omits_it() {
     let mut s = shot();
     let mut raw = Observation::default();
-    crate::observe::observe_with(&s, PlayerId(1), &[], &mut raw, None);
+    crate::observe::observe_with(&s, PlayerId(1), &[], &mut raw, None).unwrap();
     project(&s, PlayerId(1), &mut raw).unwrap();
     assert_eq!(raw.projectiles[0].owner, Some(PlayerId(1)));
     // Exercise the shared final reference mapper, independent of launch identity/physics.

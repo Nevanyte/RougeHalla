@@ -1,0 +1,33 @@
+{
+  "native_candidate": "ec9a90285db5f6b0d0daf54d42762f84f28cf478",
+  "source_witness": "70a6790cad0754c44c14838086f8cee7008a95b9",
+  "immutable_import_sha256": {
+    "parity/barrier-view/npc-forms.json": "13195a72ec240c2a20c47322db9f3a84e0dc686463fcf83e63d52fa1188e3391",
+    "parity/barrier-view/human-ring.json": "cee922b37e00e9031a0d9853bc7e2f869bfd9d1b8f6969cad366b43d0443b3fc",
+    "parity/barrier-view/visibility.json": "8876a16b13af4643ee01ffae5518e153a74cb7caf2a018cd73b9cfd9eb6fef9c",
+    "parity/barrier-view/schema-f32.json": "bed4b340726d8c4af2a9d8762c2d0ee3b605169ecc4967bd531f98e0ca69df19",
+    "parity/barrier-view/owner-fighter.json": "4117383c792edee3adf709ad1c7d2caf468d2443740ee78acafe302e6058d238",
+    "parity/barrier-view/continuous-bars.json": "b61007e3f62aa44475727eeeecbef52ba506dbad43f5f650d4049966a6da7ec5",
+    "docs/evidence/barrier-view/README.md": "a2a7ba52efad45a50e2c72d2567b0bada9bb110de928e27ad9679f697eab6f57"
+  },
+  "test": "cargo test -p rh-sim --all-features --locked --test barrier_view_source",
+  "passed": 5,
+  "failed": 0,
+  "ignored": 0,
+  "admitted_numerical_rows": 55,
+  "explicit_domain_refusals": 8,
+  "clippy": [
+    "cargo clippy -p rh-sim --test barrier_view_source --locked -- -D warnings",
+    "cargo clippy -p rh-sim --test barrier_view_source --all-features --locked -- -D warnings"
+  ],
+  "format": "cargo fmt --all --check",
+  "raw_log_sha256": {
+    "source-consumer.log": "a5298d3e680ab371b001f37672a4355edc03763884f421d864a73455e272f930",
+    "source-clippy-default.log": "d6d4af120e5fe4cdda31f0f5ba33c460661071f2250d658df2c9c49e9fc13e67",
+    "source-clippy-all.log": "eae4495501678f49c0f8fb75ced7494b2c2e54532b883461a2de62c0e6975543",
+    "source-fmt.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "import_readme_annotation": "Source README was subsequently narrowed to NPC row-array invariance and annotated with the coordinator admission report from fb738cd9; immutable_import_sha256 retains its historical imported identity.",
+  "source_admission": "coordinator reports admission via 33d72c34/fb738cd9; consumer does not authorize native union admission",
+  "G6_and_protocol12": "pending composition"
+}

@@ -45,6 +45,7 @@ fn delta_zero_explicitly_clears_hunt_and_never_looks_like_a_zero_actor_reference
     let make = |target| {
         ServerMsg::SnapshotDelta(SnapshotDelta {
             tick: 11,
+            server_time: snapshot_server_ms(11),
             base_tick: 10,
             training: true,
             phase: None,
@@ -64,7 +65,7 @@ fn delta_zero_explicitly_clears_hunt_and_never_looks_like_a_zero_actor_reference
     assert_eq!(ServerMsg::decode(&bytes).unwrap(), clear);
     assert!(make(Some(0)).try_encode().is_err());
     assert_eq!(DH_TRAINING, 1 << 20);
-    assert_eq!(DH_KNOWN, (1 << 21) - 1);
+    assert_eq!(DH_KNOWN, (1 << 24) - 1);
     assert_eq!(
         DH_FIELDS & DH_TRAINING,
         0,

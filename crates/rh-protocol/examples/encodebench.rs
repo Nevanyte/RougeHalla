@@ -46,6 +46,9 @@ fn ring(fixed_actors: Option<usize>) -> Vec<SnapshotData> {
                 move_seq: i as u8,
                 hunt_target: None,
                 hunt_stacks: 0,
+                wish: None,
+                barrier: 0.0,
+                barrier_ring_step: 0,
             };
             let actors = (0..n).map(|k| WireActor {
                 sig: 0,
@@ -68,6 +71,8 @@ fn ring(fixed_actors: Option<usize>) -> Vec<SnapshotData> {
                 weapon: 1 + (k % 5) as u8,
                 bounty: 0,
                 kind: 0,
+                barrier_pct: 0,
+                barrier_ring_step: 0,
             });
             SnapshotData::build(100 + i, 1, i * 3, Some(me), actors).expect("a legal snapshot")
         })

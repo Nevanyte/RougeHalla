@@ -18,6 +18,8 @@ namespace Roguehalla.Net
         int _n, _head;
         double _minD, _targetDelay = StartDelayMs, _lastLocal, _render;
         bool _init;
+        bool _sourceReady;
+        double _lastSourceMs;
 
         /// <summary>Server tick interval; the delay must cover one interval plus the arrival jitter to have a complete segment to draw.</summary>
         public double TickMs = 50;
@@ -28,10 +30,15 @@ namespace Roguehalla.Net
         public double DelayMs { get { return _init ? (_lastLocal - _minD) - _render : StartDelayMs; } }
         public double RenderMs { get { return _render; } }
 
-        public void Reset() { _n = 0; _head = 0; _init = false; _targetDelay = StartDelayMs; }
+        public void Reset() { _n = 0; _head = 0; _init = false; _targetDelay = StartDelayMs; _sourceReady = false; }
 
         public void OnSnapshot(double localMs, double serverMs)
         {
+            // A new source-clock epoch is explicit authoritative data, not network jitter. Normal default-clock
+            // frames retain the existing monotonic/slewing behavior; a cut must realign deadlines immediately.
+            if (_sourceReady && serverMs <= _lastSourceMs) Reset();
+            _lastSourceMs = serverMs;
+            _sourceReady = true;
             _d[_head] = localMs - serverMs;
             _head = (_head + 1) % Window;
             if (_n < Window) _n++;

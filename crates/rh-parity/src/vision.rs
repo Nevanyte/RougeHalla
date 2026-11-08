@@ -141,13 +141,13 @@ pub(super) fn compare(rep: &mut Report, sim: &Sim, fx: &Fixture, t: &crate::FixT
         }
         return false;
     }
-    let expected: Vec<_> = plan
+    let expected = plan
         .viewers
         .iter()
         .map(|name| {
             let viewer: PlayerId = pid(name);
-            let obs = rh_sim::observe(sim, viewer, &[]);
-            VisionView {
+            let obs = rh_sim::try_observe(sim, viewer, &[])?;
+            Ok(VisionView {
                 viewer: name.clone(),
                 points: plan
                     .points
@@ -155,9 +155,19 @@ pub(super) fn compare(rep: &mut Report, sim: &Sim, fx: &Fixture, t: &crate::FixT
                     .map(|p| sim.can_see_point(viewer, Vec2::new(p.x, p.y)))
                     .collect(),
                 actors: obs.visible.iter().map(|a| fid(a.id)).collect(),
-            }
+            })
         })
-        .collect();
+        .collect::<Result<Vec<_>, rh_sim::OfferError>>();
+    let expected = match expected {
+        Ok(expected) => expected,
+        Err(error) => {
+            rep.fail(format!(
+                "tick {}: unrepresentable vision observation: {error:?}",
+                t.tick
+            ));
+            return true;
+        }
+    };
     if t.vision.as_ref() != Some(&expected) {
         rep.fail(format!(
             "tick {}: vision: rust {expected:?} vs legacy {:?}",

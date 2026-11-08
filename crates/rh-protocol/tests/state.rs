@@ -206,6 +206,9 @@ fn scalar_status_changes_and_clears_survive_full_and_fast_delta_paths() {
         hunt_stacks: 0,
         effects: 4096 | 8,
         displace_seq: 255,
+        wish: None,
+        barrier: 0.0,
+        barrier_ring_step: 0,
     };
     let actors: Vec<_> = (2..18)
         .map(|id| WireActor {
@@ -223,6 +226,8 @@ fn scalar_status_changes_and_clears_survive_full_and_fast_delta_paths() {
             kind: 1,
             effects: 256,
             displace_seq: 1,
+            barrier_pct: 0,
+            barrier_ring_step: 0,
         })
         .collect();
     let first = SnapshotData::build(10, 1, 0, Some(me), actors.clone().into_iter()).unwrap();
@@ -253,6 +258,7 @@ fn scalar_status_changes_and_clears_survive_full_and_fast_delta_paths() {
         ServerMsg::Snapshot {
             training: false,
             tick: 11,
+            server_time: snapshot_server_ms(11),
             phase: 1,
             ack_input: 0,
             me: Some(next_me),

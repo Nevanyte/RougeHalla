@@ -20,7 +20,7 @@ namespace Roguehalla.Net.Tests
         }
         [Test] public void ActorPaddingFullDeltaAndPresentationKeepMobIdentityAndSignature()
         {
-            Assert.AreEqual(28,Marshal.SizeOf<WireActor>());
+            Assert.AreEqual(32,Marshal.SizeOf<WireActor>());
             var first=new ServerMsg.Snapshot{Tick=1,Me=new WireSelf{Id=1,Sig=255},Actors=new[]{new WireActor{Id=2,Kind=1,MobTypeCode=30,Sig=254,HpPct=100,Status=1}}};
             var tracker=new SnapshotTracker();var full=(ServerMsg.Snapshot)tracker.Decode(first.Encode(),first.Encode().Length,null);
             Assert.AreEqual(255,full.Me.Sig);Assert.AreEqual(30,full.Actors[0].MobTypeCode);

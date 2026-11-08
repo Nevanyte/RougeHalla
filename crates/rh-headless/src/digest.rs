@@ -67,9 +67,15 @@ impl OutcomeDigest {
         }
     }
 
-    /// Folds one step: call right after `sim.step()` with the events it returned.
+    /// Trusted declared-workload wrapper. Arbitrary-checkpoint diagnostics use [`Self::try_tick`].
     pub fn tick(&mut self, sim: &Sim, events: &[Event]) {
-        let snap = rh_sim::public_snapshot(sim);
+        self.try_tick(sim, events)
+            .expect("trusted digest snapshot is not representable");
+    }
+
+    /// Checked private fingerprint; a refusal leaves the digest unchanged.
+    pub fn try_tick(&mut self, sim: &Sim, events: &[Event]) -> Result<(), rh_sim::OfferError> {
+        let snap = rh_sim::try_public_snapshot(sim)?;
         self.ticks += 1;
         self.s("tick");
         self.w(snap.tick as u64);
@@ -108,6 +114,10 @@ impl OutcomeDigest {
             self.f(p.facing);
             self.f(p.hp);
             self.f(p.max_hp);
+            if p.barrier.to_bits() != 0 {
+                self.s("public_barrier");
+                self.f(p.barrier);
+            }
             self.s(status(p.status));
             self.w(p.kills as u64);
             self.w(p.bounty as u64);
@@ -167,6 +177,7 @@ impl OutcomeDigest {
         for e in events {
             self.event(e);
         }
+        Ok(())
     }
 
     fn flight(&mut self, p: &rh_sim::ProjectileLaunch) {
@@ -260,6 +271,7 @@ impl OutcomeDigest {
                 self.f(*amount);
             }
             Event::CastStarted {
+                event_time,
                 id,
                 ability,
                 ms,
@@ -268,6 +280,7 @@ impl OutcomeDigest {
                 y,
             } => {
                 self.s("cast_started");
+                self.f(*event_time);
                 self.w(id.0.into());
                 self.s(ability.as_str());
                 self.f(*ms);
@@ -276,6 +289,7 @@ impl OutcomeDigest {
                 self.f(*y);
             }
             Event::CastLanded {
+                event_time,
                 id,
                 ability,
                 target,
@@ -284,6 +298,7 @@ impl OutcomeDigest {
                 to,
             } => {
                 self.s("cast_landed");
+                self.f(*event_time);
                 self.w(id.0.into());
                 self.s(ability.as_str());
                 self.opt(target.map(|p| p.0.into()));
@@ -299,11 +314,13 @@ impl OutcomeDigest {
                 }
             }
             Event::CastEnded {
+                event_time,
                 id,
                 ability,
                 reason,
             } => {
                 self.s("cast_ended");
+                self.f(*event_time);
                 self.w(id.0.into());
                 self.s(ability.as_str());
                 self.w(*reason as u64);
@@ -604,5 +621,58 @@ mod ending_metadata_tests {
         r.faction = None;
         r.weapon = Some(rh_sim::WeaponId::Wand);
         assert_ne!(original, digest(&r));
+    }
+}
+
+#[cfg(test)]
+mod wish_event_time_tests {
+    use super::*;
+
+    fn event_digest(event: &Event) -> u64 {
+        let mut digest = OutcomeDigest::new();
+        digest.event(event);
+        digest.value()
+    }
+
+    #[test]
+    fn raw_wish_event_time_is_part_of_the_behavior_digest() {
+        let events = [
+            Event::CastStarted {
+                event_time: 101.25,
+                id: rh_sim::PlayerId(1),
+                ability: rh_sim::status_runtime::AbilityId::Freeze,
+                ms: 250.,
+                target: Some(rh_sim::PlayerId(2)),
+                x: 10.,
+                y: 20.,
+            },
+            Event::CastLanded {
+                event_time: 151.25,
+                id: rh_sim::PlayerId(1),
+                ability: rh_sim::status_runtime::AbilityId::Freeze,
+                target: Some(rh_sim::PlayerId(2)),
+                x: 11.,
+                y: 21.,
+                to: None,
+            },
+            Event::CastEnded {
+                event_time: 201.25,
+                id: rh_sim::PlayerId(1),
+                ability: rh_sim::status_runtime::AbilityId::Freeze,
+                reason: rh_sim::status_runtime::CastEndReason::Cancelled,
+            },
+        ];
+
+        for event in events {
+            let original = event_digest(&event);
+            let mut changed_time = event.clone();
+            match &mut changed_time {
+                Event::CastStarted { event_time, .. }
+                | Event::CastLanded { event_time, .. }
+                | Event::CastEnded { event_time, .. } => *event_time += 0.25,
+                _ => unreachable!(),
+            }
+            assert_ne!(original, event_digest(&changed_time));
+        }
     }
 }

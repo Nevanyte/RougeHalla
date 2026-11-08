@@ -85,6 +85,10 @@ namespace Roguehalla.Net
         public ServerMsg.Snapshot Latest { get; private set; }
         /// <summary>The server's public training-room fact from the newest accepted snapshot.</summary>
         public bool Training { get; private set; }
+        /// <summary>Changes on Welcome and an accepted source-clock cut; never a snapshot-ordering key.</summary>
+        public uint TimelineEpoch { get; private set; }
+        /// <summary>The newest accepted source time, including its per-frame override.</summary>
+        public double ServerTimeMs { get { return Latest == null ? 0 : Latest.ServerMs; } }
         public WireResult LastResult { get; private set; }
         public int ReconnectAttempt { get { return _attempt; } }
         public int SnapshotsReceived { get; private set; }
@@ -107,6 +111,8 @@ namespace Roguehalla.Net
         public event Action<CollectionsView> CollectionsChanged;
         public event Action<ServerMsg.Events> EventsReceived;
         public event Action<ServerMsg.Fx> FxReceived;
+        /// <summary>Clear queued/transient presentation cues from the old timeline; canonical state is retained.</summary>
+        public event Action TimelineReset;
         /// <summary>Round trip of each Pong, in ms.</summary>
         public event Action<double> RttSample;
 
@@ -117,6 +123,7 @@ namespace Roguehalla.Net
             _t.Opened += OnOpened;
             _t.Received += OnReceived;
             _t.Closed += OnClosed;
+            Input.CastQueued += command => { if (Motion != null) Motion.NoteNonMovementOrder(command, Now); };
         }
 
         double Now { get { return _o.Now(); } }
@@ -139,15 +146,37 @@ namespace Roguehalla.Net
         public byte OrderMove(float x, float y)
         {
             byte seq = Input.Move(x, y);
-            if (seq != 0 && Motion != null) Motion.Order(x, y, seq, Now);
+            if (seq != 0 && Motion != null) Motion.Order(x, y, seq, Now, Input.LastMovementOrder);
             return seq;
         }
 
         public byte OrderStop()
         {
             byte seq = Input.Stop();
-            if (Motion != null) Motion.StopOrder(seq, Now);
+            if (Motion != null) Motion.StopOrder(seq, Now, Input.LastMovementOrder);
             return seq;
+        }
+
+        /// <summary>
+        /// Queues a cast without predicting any effect or changing the current walk. Its order echo can acknowledge a
+        /// preceding movement order; the authoritative snapshot still owns every position and correction.
+        /// </summary>
+        public byte Cast(byte slot, float x, float y, uint? actorRef = null, double? renderMs = null)
+        {
+            if (State != SessionState.InMatch) return 0;
+            byte seq = Input.Cast(slot, x, y, actorRef, renderMs);
+            return seq;
+        }
+
+        /// <summary>
+        /// Collects an edge-triggered R press using only UI/lifecycle gates. It never checks stocks or ability eligibility.
+        /// The caller supplies its ground cursor point and an optional currently picked delivered actor reference.
+        /// </summary>
+        public byte CollectWishInput(bool pressed, bool uiOwnsInput, bool hasGroundPoint, float x, float y, uint? actorRef = null)
+        {
+            if (!pressed || uiOwnsInput || !hasGroundPoint || State != SessionState.InMatch ||
+                Latest == null || Latest.Phase != 1 || Me == null || Me.Status != ActorStatus.Alive) return 0;
+            return Cast(0, x, y, actorRef, Clock.RenderMs);
         }
 
         public void Leave()
@@ -195,7 +224,16 @@ namespace Roguehalla.Net
         public void FlushInput()
         {
             if (State != SessionState.InMatch) return;
-            foreach (var f in Input.Flush(Now)) Send(f);
+            foreach (var f in Input.Flush(Now))
+            {
+                Send(f);
+                if (Motion != null) foreach (var command in f.Commands)
+                {
+                    Motion.MovementOrderSent(command, f.Seq);
+                    if (command.Kind == CommandKind.Cast && command.Seq.HasValue)
+                        Motion.NonMovementOrderSent(command, f.Seq);
+                }
+            }
         }
 
         void Send(ClientMsg m) { _t.Send(m.Encode()); }
@@ -363,15 +401,26 @@ namespace Roguehalla.Net
                 SnapshotsReceived++;
                 if (Snapshots.Add(snap, replaceCurrentTick))
                 {
+                    bool sourceChanged = Latest != null && snap.ServerMs != Latest.ServerMs;
+                    bool sourceCut = Latest != null && (snap.Tick > Latest.Tick && snap.ServerMs <= Latest.ServerMs ||
+                        replaceCurrentTick && snap.ServerMs < Latest.ServerMs);
                     Latest = snap;
                     Training = snap.Training;
-                    if (!replaceCurrentTick) Clock.OnSnapshot(now, snap.ServerMs);
+                    if (!replaceCurrentTick || sourceChanged) Clock.OnSnapshot(now, snap.ServerMs);
                     _hasMe = snap.Me != null;
                     if (_hasMe) _me.CopyFrom(snap.Me);
                     if (Motion != null)
                     {
-                        if (_hasMe) Motion.OnSnapshot(snap.Me, now);
+                        if (sourceCut) Motion.RebasePresentationClock(now);
+                        if (_hasMe) Motion.OnSnapshot(snap.Me, now, snap.AckInput);
                         else Motion.Clear();
+                    }
+                    if (sourceCut)
+                    {
+                        Sync.Reset();
+                        _lastPing = double.NegativeInfinity;
+                        TimelineEpoch++;
+                        if (TimelineReset != null) TimelineReset();
                     }
                     if (SnapshotReceived != null) SnapshotReceived(snap);
                 }
@@ -428,10 +477,13 @@ namespace Roguehalla.Net
             _hasMe = false;
             _needFull = false;
             Clock.Reset();
+            Sync.Reset();
             Clock.TickMs = w.TickRate > 0 ? 1000.0 / w.TickRate : 50;
             _predictionGatesLocked = false;
             Motion = new LocalMotion(w.Map);
             _lastPing = double.NegativeInfinity;
+            TimelineEpoch++;
+            if (TimelineReset != null) TimelineReset();
             Set(SessionState.InMatch);
         }
     }

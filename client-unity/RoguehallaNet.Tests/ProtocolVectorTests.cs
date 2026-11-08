@@ -33,7 +33,7 @@ namespace Roguehalla.Net.Tests
             throw new KeyNotFoundException(name);
         }
 
-        [Test] public void FixtureIsProtocolV11() { Assert.AreEqual(11, Wire.ProtocolVersion); Assert.AreEqual(Wire.ProtocolVersion, Fixture().GetProperty("protocol").GetInt32()); }
+        [Test] public void FixtureIsProtocolV12() { Assert.AreEqual(12, Wire.ProtocolVersion); Assert.AreEqual(Wire.ProtocolVersion, Fixture().GetProperty("protocol").GetInt32()); }
 
         [TestCaseSource(nameof(ClientVectors))]
         public void ClientVectorRoundTripsByteForByte(string name, string hex)
@@ -89,7 +89,7 @@ namespace Roguehalla.Net.Tests
         }
 
         [TestCase(0)]
-        [TestCase(6)]
+        [TestCase(9)]
         [TestCase(255)]
         public void FxEncoderRefusesUndefinedKindsBeforeWriting(int kind)
         {
@@ -371,6 +371,26 @@ namespace Roguehalla.Net.Tests
                     else if (it.GetProperty("k").GetString() == "block") { Assert.AreEqual(FxKind.Block, f.Kind); Assert.AreEqual(it.GetProperty("id").GetUInt32(), f.Id); Assert.AreEqual(it.GetProperty("by").GetUInt32(), f.By); Assert.AreEqual(it.GetProperty("weapon").GetByte(), f.Weapon); }
                     else if (it.GetProperty("k").GetString() == "stagger") { Assert.AreEqual(FxKind.Stagger, f.Kind); Assert.AreEqual(it.GetProperty("id").GetUInt32(), f.Id); }
                     else if (it.GetProperty("k").GetString() == "teleport") { Assert.AreEqual(FxKind.Teleport, f.Kind); }
+                    else if (it.GetProperty("k").GetString() == "castStarted")
+                    {
+                        Assert.AreEqual(FxKind.WishStarted, f.Kind); Assert.AreEqual(it.GetProperty("eventTime").GetDouble(), f.EventTime);
+                        Assert.AreEqual(it.GetProperty("caster").GetUInt32(), f.Caster); Assert.AreEqual(it.GetProperty("ability").GetByte(), f.Ability);
+                        Assert.AreEqual(it.GetProperty("duration").GetDouble(), f.Duration); AssertOptionalRef(it.GetProperty("target"), f.Target);
+                        AssertPoint(it.GetProperty("anchor"), f.HasAnchor, f.AnchorX, f.AnchorY);
+                    }
+                    else if (it.GetProperty("k").GetString() == "castLanded")
+                    {
+                        Assert.AreEqual(FxKind.WishLanded, f.Kind); Assert.AreEqual(it.GetProperty("eventTime").GetDouble(), f.EventTime);
+                        Assert.AreEqual(it.GetProperty("ability").GetByte(), f.Ability); AssertOptionalRef(it.GetProperty("caster"), f.Caster);
+                        AssertOptionalRef(it.GetProperty("target"), f.Target); AssertPoint(it.GetProperty("anchor"), f.HasAnchor, f.AnchorX, f.AnchorY);
+                        AssertPoint(it.GetProperty("destination"), f.HasDestination, f.DestinationX, f.DestinationY);
+                    }
+                    else if (it.GetProperty("k").GetString() == "castEnded")
+                    {
+                        Assert.AreEqual(FxKind.WishEnded, f.Kind); Assert.AreEqual(it.GetProperty("eventTime").GetDouble(), f.EventTime);
+                        Assert.AreEqual(it.GetProperty("caster").GetUInt32(), f.Caster); Assert.AreEqual(it.GetProperty("ability").GetByte(), f.Ability);
+                        Assert.AreEqual(it.GetProperty("reason").GetByte(), f.Reason);
+                    }
                     else
                     {
                         Assert.AreEqual(it.GetProperty("passive").GetBoolean(), f.Passive);
@@ -408,6 +428,28 @@ namespace Roguehalla.Net.Tests
                 var hunt = me.GetProperty("huntTarget");
                 Assert.AreEqual(hunt.ValueKind == JsonValueKind.Null ? (uint?)null : hunt.GetUInt32(), s.Me.HuntTarget);
                 Assert.AreEqual(me.GetProperty("huntStacks").GetUInt16(), s.Me.HuntStacks);
+                Assert.AreEqual(me.GetProperty("barrierBits").GetUInt32(), unchecked((uint)Bits(s.Me.Barrier)));
+                Assert.AreEqual(me.GetProperty("barrierRingStep").GetByte(), s.Me.BarrierRingStep);
+                var wish = me.GetProperty("wish");
+                if (wish.ValueKind == JsonValueKind.Null) Assert.IsNull(s.Me.Wish);
+                else
+                {
+                    Assert.IsNotNull(s.Me.Wish); Assert.AreEqual(wish.GetProperty("ability").GetByte(), s.Me.Wish.Ability);
+                    Assert.AreEqual(wish.GetProperty("readyAt").GetDouble(), s.Me.Wish.ReadyAt);
+                    var full = wish.GetProperty("fullAt"); Assert.AreEqual(full.ValueKind == JsonValueKind.Null ? (double?)null : full.GetDouble(), s.Me.Wish.FullAt);
+                    Assert.AreEqual(wish.GetProperty("maxCharges").GetByte(), s.Me.Wish.MaxCharges);
+                    Assert.AreEqual(wish.GetProperty("rechargeMs").GetDouble(), s.Me.Wish.RechargeMs);
+                    Assert.AreEqual(wish.GetProperty("charges").GetByte(), s.Me.Wish.Charges);
+                    var next = wish.GetProperty("nextChargeAt"); Assert.AreEqual(next.ValueKind == JsonValueKind.Null ? (double?)null : next.GetDouble(), s.Me.Wish.NextChargeAt);
+                    var cast = wish.GetProperty("cast");
+                    if (cast.ValueKind == JsonValueKind.Null) Assert.IsNull(s.Me.Wish.Cast);
+                    else
+                    {
+                        Assert.IsNotNull(s.Me.Wish.Cast); Assert.AreEqual(cast.GetProperty("ability").GetByte(), s.Me.Wish.Cast.Ability);
+                        Assert.AreEqual(cast.GetProperty("startedAt").GetDouble(), s.Me.Wish.Cast.StartedAt);
+                        Assert.AreEqual(cast.GetProperty("landsAt").GetDouble(), s.Me.Wish.Cast.LandsAt);
+                    }
+                }
             }
             var actors = d.GetProperty("actors");
             Assert.AreEqual(actors.GetArrayLength(), s.Actors.Length);
@@ -421,7 +463,21 @@ namespace Roguehalla.Net.Tests
                 Assert.AreEqual(e.GetProperty("weapon").GetByte(), a.Weapon); Assert.AreEqual(e.GetProperty("bounty").GetUInt16(), a.Bounty);
                 Assert.AreEqual(e.GetProperty("kind").GetByte(), a.Kind);
                 Assert.AreEqual(e.GetProperty("effects").GetUInt16(), a.Effects); Assert.AreEqual(e.GetProperty("displaceSeq").GetByte(), a.DisplaceSeq); Assert.AreEqual(e.GetProperty("mobTypeCode").GetByte(),a.MobTypeCode); Assert.AreEqual(e.GetProperty("sig").GetByte(),a.Sig);
+                Assert.AreEqual(e.GetProperty("barrierPct").GetByte(), a.BarrierPct); Assert.AreEqual(e.GetProperty("barrierRingStep").GetByte(), a.BarrierRingStep);
             }
+        }
+
+        static void AssertOptionalRef(JsonElement actual, uint? value)
+        {
+            Assert.AreEqual(actual.ValueKind == JsonValueKind.Null ? (uint?)null : actual.GetUInt32(), value);
+        }
+
+        static void AssertPoint(JsonElement actual, bool has, float x, float y)
+        {
+            Assert.AreEqual(has, actual.ValueKind != JsonValueKind.Null);
+            if (!has) return;
+            Assert.AreEqual(actual.GetProperty("xBits").GetUInt32(), unchecked((uint)Bits(x)));
+            Assert.AreEqual(actual.GetProperty("yBits").GetUInt32(), unchecked((uint)Bits(y)));
         }
 
         static IEnumerable<TestCaseData> MalformedServerVectors() { return Vectors("malformedServer"); }
@@ -433,11 +489,14 @@ namespace Roguehalla.Net.Tests
             switch (name)
             {
                 case "empty": case "truncated_snapshot": case "self_truncated": case "actor_count_without_actors": want = DecodeError.Truncated; break;
-                case "projectile_owner_flag": case "hit_bad_passive": want = DecodeError.BadTag; break;
+                case "projectile_owner_flag": case "hit_bad_passive": case "wish_option_over_1": case "wish_fx_option_over_1": want = DecodeError.BadTag; break;
                 case "projectile_kind": case "projectile_owner_zero":
                 case "potion_notice_zero": case "potion_notice_unknown":
                 case "cannon_notice_zero": case "cannon_notice_unknown": case "cannon_notice_bad_seconds": case "cannon_notice_seconds_over":
                 case "camp_mob_type": case "camp_elite": case "camp_alive": case "camp_state": case "camp_negative_time": case "camp_nonfinite_time": case "camp_time_order":
+                case "wish_ability_over_4": case "wish_charge_count_invalid": case "wish_time_nonfinite": case "wish_cast_time_order":
+                case "wish_fx_caster_zero": case "wish_fx_ability_over_4": case "wish_fx_time_nonfinite": case "wish_fx_blaze_one_point":
+                case "wish_fx_nonblaze_destination": case "wish_fx_anonymous_landed_target": case "wish_fx_anonymous_landed_no_target": case "wish_fx_end_reason_over_2":
                 case "actor_mob_type_over_30": case "delta_actor_mob_type_over_30":
                 case "chest_bad_reason_zero": case "chest_bad_reason_unknown":
                 case "pickup_bad_reason_zero": case "pickup_bad_reason_unknown": want = DecodeError.BadField; break;

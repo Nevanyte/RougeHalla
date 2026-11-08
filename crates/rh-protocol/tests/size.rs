@@ -25,6 +25,8 @@ fn slice_actors(n: u32, tick: u32) -> Vec<WireActor> {
             weapon: 1 + (k % 5) as u8,
             bounty: 0,
             kind: 0,
+            barrier_pct: 0,
+            barrier_ring_step: 0,
         })
         .collect()
 }
@@ -32,6 +34,7 @@ fn slice_actors(n: u32, tick: u32) -> Vec<WireActor> {
 fn snapshot(n: u32, tick: u32) -> ServerMsg {
     ServerMsg::Snapshot {
         tick,
+        server_time: snapshot_server_ms(tick),
         phase: 1,
         ack_input: tick * 2,
         training: false,
@@ -55,6 +58,9 @@ fn snapshot(n: u32, tick: u32) -> ServerMsg {
             move_seq: 7,
             hunt_target: None,
             hunt_stacks: 0,
+            wish: None,
+            barrier: 0.0,
+            barrier_ring_step: 0,
         }),
         actors: slice_actors(n, tick),
     }

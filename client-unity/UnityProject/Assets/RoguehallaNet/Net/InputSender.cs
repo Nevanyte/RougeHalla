@@ -16,11 +16,13 @@ namespace Roguehalla.Net
         double _lastAimMs = double.NegativeInfinity;
         uint _frameSeq;
         byte _orderSeq;
+        internal event Action<WireCommand> CastQueued;
+        internal WireCommand LastMovementOrder { get; private set; }
 
         /// <summary>Commands dropped because a value cannot be encoded (the server would refuse the whole frame).</summary>
         public int Dropped { get; private set; }
 
-        /// <summary>Order sequence for Move/AttackMove/Stop: 1..255, never 0 (0 is what Snapshot.me.move_seq holds before any order).</summary>
+        /// <summary>Order sequence for Move/AttackMove/Stop/Cast: 1..255, never 0.</summary>
         byte NextOrderSeq() { _orderSeq = (byte)(_orderSeq == 255 ? 1 : _orderSeq + 1); return _orderSeq; }
 
         static bool Finite(float v) { return !(float.IsNaN(v) || float.IsInfinity(v)); }
@@ -29,18 +31,33 @@ namespace Roguehalla.Net
         {
             if (!Finite(x) || !Finite(y)) { Dropped++; return 0; }
             byte s = NextOrderSeq();
-            _queue.Add(WireCommand.Move(x, y, s));
+            LastMovementOrder = WireCommand.Move(x, y, s);
+            _queue.Add(LastMovementOrder);
             return s;
         }
 
         public void UseConsumable() { _queue.Add(WireCommand.UseConsumable()); }
         public void Target(uint actorRef) { if(actorRef==0) { Dropped++; return; } _queue.Add(WireCommand.Target(actorRef)); }
-        public byte AttackMove(float x,float y) { if(!Finite(x)||!Finite(y)) {Dropped++;return 0;} byte s=NextOrderSeq();_queue.Add(WireCommand.AttackMove(x,y,s));return s; }
+        public byte AttackMove(float x,float y) { if(!Finite(x)||!Finite(y)) {Dropped++;return 0;} byte s=NextOrderSeq();LastMovementOrder=WireCommand.AttackMove(x,y,s);_queue.Add(LastMovementOrder);return s; }
         public byte Stop()
         {
             byte s = NextOrderSeq();
-            _queue.Add(WireCommand.Stop(s));
+            LastMovementOrder = WireCommand.Stop(s);
+            _queue.Add(LastMovementOrder);
             return s;
+        }
+
+        /// <summary>Queues a cast intent. Stocks, targeting, range and eligibility are server decisions.</summary>
+        public byte Cast(byte slot, float x, float y, uint? actorRef = null, double? t = null)
+        {
+            if (slot > 2 || !Finite(x) || !Finite(y) || actorRef == 0 ||
+                t.HasValue && (double.IsNaN(t.Value) || double.IsInfinity(t.Value)))
+            { Dropped++; return 0; }
+            byte seq = NextOrderSeq();
+            var command = WireCommand.Cast(slot, x, y, actorRef, t, seq);
+            _queue.Add(command);
+            if (CastQueued != null) CastQueued(command);
+            return seq;
         }
 
         public void Aim(float a)
@@ -71,7 +88,7 @@ namespace Roguehalla.Net
         }
 
         /// <summary>Cancels commands that belong to an earlier connection/observer epoch.</summary>
-        internal void ClearPending() { _queue.Clear(); _aim=null; }
+        internal void ClearPending() { _queue.Clear(); _aim=null; LastMovementOrder=null; }
 
         public void Attack(float a, double? t) { if (!Finite(a)) { Dropped++; return; } _queue.Add(WireCommand.Attack(a, t)); }
         public void Release(float a, double? t) { if (!Finite(a)) { Dropped++; return; } _queue.Add(WireCommand.Release(a, t)); }

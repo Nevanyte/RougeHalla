@@ -72,6 +72,7 @@ pub enum Event {
         amount: f64,
     },
     CastStarted {
+        event_time: f64,
         id: PlayerId,
         ability: crate::status_runtime::AbilityId,
         ms: f64,
@@ -80,6 +81,7 @@ pub enum Event {
         y: f64,
     },
     CastLanded {
+        event_time: f64,
         id: PlayerId,
         ability: crate::status_runtime::AbilityId,
         target: Option<PlayerId>,
@@ -88,6 +90,7 @@ pub enum Event {
         to: Option<crate::Vec2>,
     },
     CastEnded {
+        event_time: f64,
         id: PlayerId,
         ability: crate::status_runtime::AbilityId,
         reason: crate::status_runtime::CastEndReason,

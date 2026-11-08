@@ -16,8 +16,9 @@
 //! and a render time is clamped into `[now_apply - allowed, now_apply]`, where `now_apply` is the server time of the step
 //! that will apply the command (the current sim time plus one tick). A future `t` is clamped like an old one.
 //!
-//! The clamp applies per `Attack`/`Release` command: a held attack keeps the legacy press-time lag until another
-//! `Attack`/`Release` command arrives. Per-swing rewind is outside this packet and needs a separate design decision.
+//! The clamp applies per `Attack`/`Release` command and to an optional Wish render-time claim at admission. Wish effects
+//! are not rewound; the latter is retained only as bounded input metadata. A held attack keeps its legacy press-time lag
+//! until another `Attack`/`Release` command arrives.
 
 use rh_sim::constants::{MAX_REWIND_MS, TICK_MS};
 use rh_sim::{PlayerId, PublicCommand};
@@ -111,9 +112,8 @@ pub fn clamp_rewind_t(t: f64, now_apply: f64, allowed_ms: f64) -> f64 {
     t.clamp(now_apply - allowed_ms, now_apply)
 }
 
-/// Applies the clamp to a client proposal: only `Attack`/`Release` with a finite `t` (the commands `note_lag` reads).
-/// Returns the proposal and whether the render time was outside the window (and therefore changed: a clamp to count).
-/// `t = None` (locked attacks) is untouched.
+/// Applies the connection's existing render-time admission bound. Wish `t` is not used for rewind; it is still bounded
+/// here like an attack claim. Returns whether a finite claim was clamped (for the shared diagnostic counter).
 pub fn clamp_render_time(
     cmd: PublicCommand,
     now_apply: f64,
@@ -134,6 +134,27 @@ pub fn clamp_render_time(
         PublicCommand::Release { a, t } => {
             let (t, clamped) = clamp(t);
             (PublicCommand::Release { a, t }, clamped)
+        }
+        PublicCommand::Cast {
+            slot,
+            x,
+            y,
+            id,
+            t,
+            seq,
+        } => {
+            let (t, clamped) = clamp(t);
+            (
+                PublicCommand::Cast {
+                    slot,
+                    x,
+                    y,
+                    id,
+                    t,
+                    seq,
+                },
+                clamped,
+            )
         }
         other => (other, false),
     }
@@ -249,7 +270,7 @@ mod tests {
     }
 
     #[test]
-    fn only_attack_and_release_render_times_are_clamped_and_counted() {
+    fn attack_and_release_render_times_are_clamped_and_counted() {
         let now_apply = 1_000.0;
         let allowed = 160.0;
         let (cmd, clamped) = clamp_render_time(
@@ -317,5 +338,36 @@ mod tests {
             allowed,
         );
         assert!(!clamped, "movement is never rewritten");
+    }
+
+    #[test]
+    fn wish_render_time_uses_the_same_admission_window_without_adding_rewind() {
+        let cmd = PublicCommand::Cast {
+            slot: rh_sim::abilities::Slot::Wish,
+            x: 4.0,
+            y: 5.0,
+            id: None,
+            t: Some(100.0),
+            seq: Some(7),
+        };
+        let (bounded, clamped) = clamp_render_time(cmd, 1_000.0, 200.0);
+        assert!(clamped);
+        assert!(matches!(
+            bounded,
+            PublicCommand::Cast { t: Some(t), .. } if t == 800.0
+        ));
+
+        let without_time = PublicCommand::Cast {
+            slot: rh_sim::abilities::Slot::Wish,
+            x: 4.0,
+            y: 5.0,
+            id: None,
+            t: None,
+            seq: Some(7),
+        };
+        assert_eq!(
+            clamp_render_time(without_time, 1_000.0, 200.0),
+            (without_time, false)
+        );
     }
 }

@@ -6,7 +6,8 @@
 
 use futures_util::{SinkExt, StreamExt};
 use rh_protocol::{
-    ClientMsg, RejectCode, ServerMsg, SnapshotTracker, WireCommand, WireEvent, PROTOCOL_VERSION,
+    ClientMsg, RejectCode, ServerMsg, SnapshotTracker, WireCommand, WireEvent, WireFx,
+    PROTOCOL_VERSION,
 };
 use rh_server::director::{Director, DirectorConfig};
 use rh_server::hosting::Lifecycle;
@@ -61,6 +62,30 @@ fn duel_arena() -> Arena {
         spawns: vec![
             Vec2::new(tile_to_world_center(5), tile_to_world_center(4)),
             Vec2::new(tile_to_world_center(6), tile_to_world_center(4)),
+        ],
+    }
+}
+
+/// Two legal spawns separated by an opaque interior wall, for delivered-reference rejection controls.
+fn divided_arena() -> Arena {
+    let rows: Vec<String> = (0..8)
+        .map(|y| {
+            (0..14)
+                .map(|x| {
+                    if x == 0 || y == 0 || x == 13 || y == 7 || (x == 7 && (2..6).contains(&y)) {
+                        '#'
+                    } else {
+                        '.'
+                    }
+                })
+                .collect()
+        })
+        .collect();
+    Arena {
+        map: TileMap::from_rows(&rows).unwrap(),
+        spawns: vec![
+            Vec2::new(tile_to_world_center(4), tile_to_world_center(4)),
+            Vec2::new(tile_to_world_center(9), tile_to_world_center(4)),
         ],
     }
 }
@@ -227,6 +252,297 @@ fn attack(seq: u32, a: f32) -> ClientMsg {
         seq,
         commands: vec![WireCommand::Attack { a, t: None }],
     }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn full_wish_casts_from_sockets_publish_owner_facts_and_all_five_landings() {
+    use rh_sim::{status_runtime::AbilityId, FactionId};
+
+    let cases = [
+        (FactionId::Frost, AbilityId::Freeze),
+        (FactionId::Plague, AbilityId::Swarm),
+        (FactionId::Sentenced, AbilityId::Trial),
+        (FactionId::Fire, AbilityId::Blaze),
+        (FactionId::Holy, AbilityId::LastStand),
+    ];
+    for (case, (faction, ability)) in cases.into_iter().enumerate() {
+        let s = start(duel_arena(), |cfg| {
+            cfg.sim.abilities = rh_sim::abilities::Mode::Full;
+        })
+        .await;
+        let (mut caster, caster_id, _) =
+            join(&s.url, &format!("wish-caster-{case}"), Some(faction.code())).await;
+        let (target, target_id, _) = join(
+            &s.url,
+            &format!("wish-target-{case}"),
+            Some(FactionId::Holy.code()),
+        )
+        .await;
+        assert_ne!(caster_id, target_id);
+
+        let owner = tokio::time::timeout(Duration::from_secs(10), async {
+            loop {
+                if let Some(ServerMsg::Snapshot {
+                    phase: 1,
+                    server_time,
+                    me: Some(me),
+                    actors,
+                    ..
+                }) = recv(&mut caster).await
+                {
+                    if actors.iter().any(|actor| actor.id == target_id)
+                        && me.wish.is_some_and(|wish| server_time >= wish.ready_at)
+                    {
+                        break me;
+                    }
+                }
+            }
+        })
+        .await
+        .expect("active snapshot with the delivered target");
+        let wire_ability = match ability {
+            AbilityId::Freeze => 0,
+            AbilityId::Swarm => 1,
+            AbilityId::Trial => 2,
+            AbilityId::Blaze => 3,
+            AbilityId::LastStand => 4,
+        };
+        assert_eq!(
+            owner.wish.expect("Full mode owner facts").ability,
+            wire_ability
+        );
+
+        let target_ref =
+            matches!(ability, AbilityId::Freeze | AbilityId::Trial).then_some(target_id);
+        send(
+            &mut caster,
+            ClientMsg::Input {
+                seq: 1,
+                commands: vec![WireCommand::Cast {
+                    slot: 0,
+                    x: owner.x + 32.0,
+                    y: owner.y,
+                    actor: target_ref,
+                    t: None,
+                    seq: Some(1),
+                }],
+            },
+        )
+        .await;
+
+        let landed = tokio::time::timeout(Duration::from_secs(4), async {
+            loop {
+                if let Some(ServerMsg::Fx { fx, .. }) = recv(&mut caster).await {
+                    if let Some(WireFx::WishLanded {
+                        ability,
+                        event_time,
+                        ..
+                    }) = fx
+                        .into_iter()
+                        .find(|fx| matches!(fx, WireFx::WishLanded { .. }))
+                    {
+                        break (ability, event_time);
+                    }
+                }
+            }
+        })
+        .await
+        .unwrap_or_else(|_| panic!("{ability:?} did not publish a landing"));
+        assert_eq!(landed.0, wire_ability);
+        assert!(landed.1.is_finite() && landed.1 >= 0.0);
+        drop((caster, target));
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn full_wish_hidden_player_reference_becomes_a_normal_targetless_miss() {
+    use rh_sim::FactionId;
+
+    let s = start(divided_arena(), |cfg| {
+        cfg.sim.abilities = rh_sim::abilities::Mode::Full;
+    })
+    .await;
+    let (mut caster, caster_id, _) =
+        join(&s.url, "hidecaster", Some(FactionId::Frost.code())).await;
+    let (other, target_id, _) = join(&s.url, "hidetarget", Some(FactionId::Holy.code())).await;
+    assert_ne!(caster_id, target_id);
+    let owner = tokio::time::timeout(Duration::from_secs(3), async {
+        loop {
+            if let Some(ServerMsg::Snapshot {
+                phase: 1,
+                server_time,
+                me: Some(me),
+                actors,
+                ..
+            }) = recv(&mut caster).await
+            {
+                assert!(actors.iter().all(|actor| actor.id != target_id));
+                if me.wish.is_some_and(|wish| server_time >= wish.ready_at) {
+                    break me;
+                }
+            }
+        }
+    })
+    .await
+    .expect("active snapshot through wall");
+    send(
+        &mut caster,
+        ClientMsg::Input {
+            seq: 1,
+            commands: vec![WireCommand::Cast {
+                slot: 0,
+                x: owner.x,
+                y: owner.y,
+                actor: Some(target_id),
+                t: None,
+                seq: Some(1),
+            }],
+        },
+    )
+    .await;
+    let overall_deadline = tokio::time::Instant::now() + Duration::from_secs(4);
+    let mut saw_move_seq_echo = false;
+    let mut inspect_through = None;
+    let mut latest_ack = None;
+    let mut last_fx = Vec::new();
+    loop {
+        let deadline = inspect_through.unwrap_or(overall_deadline);
+        let remaining = deadline.saturating_duration_since(tokio::time::Instant::now());
+        if remaining.is_zero() {
+            break;
+        }
+        let message = tokio::time::timeout(remaining, recv(&mut caster)).await;
+        let Some(message) = message.ok().flatten() else {
+            break;
+        };
+        match message {
+            ServerMsg::Snapshot {
+                me: Some(me),
+                ack_input,
+                ..
+            } => {
+                latest_ack = Some((ack_input, me.move_seq));
+                saw_move_seq_echo |= me.move_seq == 1;
+            }
+            ServerMsg::Fx { fx, .. } => {
+                for event in fx {
+                    last_fx.push(format!("{event:?}"));
+                    match event {
+                        WireFx::WishStarted { .. }
+                        | WireFx::WishLanded { .. }
+                        | WireFx::WishEnded { .. } => {
+                            panic!("a hidden target must produce no Wish cue")
+                        }
+                        _ => {}
+                    }
+                }
+            }
+            _ => {}
+        }
+        if saw_move_seq_echo && inspect_through.is_none() {
+            // Keep draining after the echo: the same-step FX frame may arrive after its snapshot. One full source-second
+            // covers the longest ordinary 350 ms cast and late frames from this tick without trusting packet order.
+            inspect_through = Some(tokio::time::Instant::now() + Duration::from_secs(1));
+        }
+    }
+    assert!(
+        saw_move_seq_echo,
+        "Cast seq echo missing; latest ack={latest_ack:?}, fx={last_fx:?}"
+    );
+    drop(other);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn wish_default_is_off_and_full_qe_slots_remain_noops_over_sockets() {
+    // The ordinary binary/library default stays Off: neither the owner fact nor Wish fx appears.
+    let off = start(duel_arena(), |_| {}).await;
+    let (mut off_client, _, _) = join(&off.url, "wishoff", Some(0)).await;
+    let (_, _, _) = join(&off.url, "wishpeer", Some(4)).await;
+    let off_owner = tokio::time::timeout(Duration::from_secs(4), async {
+        loop {
+            match recv(&mut off_client).await {
+                Some(ServerMsg::Snapshot { me: Some(me), .. }) => break me,
+                Some(ServerMsg::Fx { fx, .. }) => assert!(fx.iter().all(|event| !matches!(
+                    event,
+                    WireFx::WishStarted { .. }
+                        | WireFx::WishLanded { .. }
+                        | WireFx::WishEnded { .. }
+                ))),
+                Some(_) => {}
+                None => panic!("Off socket closed before a snapshot"),
+            }
+        }
+    })
+    .await
+    .expect("default Off snapshot");
+    assert!(off_owner.wish.is_none());
+
+    // Full is explicit in this test profile. Q and E are valid wire slots but have no ability rows yet.
+    let full = start(duel_arena(), |cfg| {
+        cfg.sim.abilities = rh_sim::abilities::Mode::Full
+    })
+    .await;
+    let (mut full_client, _, _) = join(&full.url, "wishqe", Some(0)).await;
+    let (_, _, _) = join(&full.url, "wishqpeer", Some(4)).await;
+    let baseline = tokio::time::timeout(Duration::from_secs(10), async {
+        loop {
+            match recv(&mut full_client).await {
+                Some(ServerMsg::Snapshot {
+                    phase: 1,
+                    me: Some(me),
+                    ..
+                }) if me.wish.is_some() => break me,
+                Some(_) => {}
+                None => panic!("Full socket closed before owner snapshot"),
+            }
+        }
+    })
+    .await
+    .expect("explicit Full owner facts");
+    let before = baseline.wish.expect("Full owner wish");
+    send(
+        &mut full_client,
+        ClientMsg::Input {
+            seq: 1,
+            commands: [1, 2]
+                .into_iter()
+                .map(|slot| WireCommand::Cast {
+                    slot,
+                    x: baseline.x,
+                    y: baseline.y,
+                    actor: None,
+                    t: None,
+                    seq: None,
+                })
+                .collect(),
+        },
+    )
+    .await;
+    let after = tokio::time::timeout(Duration::from_secs(3), async {
+        loop {
+            match recv(&mut full_client).await {
+                Some(ServerMsg::Snapshot {
+                    ack_input: 1,
+                    me: Some(me),
+                    ..
+                }) => break me,
+                Some(ServerMsg::Fx { fx, .. }) => assert!(fx.iter().all(|event| !matches!(
+                    event,
+                    WireFx::WishStarted { .. }
+                        | WireFx::WishLanded { .. }
+                        | WireFx::WishEnded { .. }
+                ))),
+                Some(_) => {}
+                None => panic!("Full socket closed before Q/E acknowledgement"),
+            }
+        }
+    })
+    .await
+    .expect("Q/E input acknowledgement");
+    let after_wish = after.wish.expect("Full owner fact remains present");
+    assert_eq!(after_wish.ability, before.ability);
+    assert_eq!(after_wish.charges, before.charges);
+    assert_eq!(after_wish.next_charge_at, before.next_charge_at);
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

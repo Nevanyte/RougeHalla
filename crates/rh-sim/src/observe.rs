@@ -17,7 +17,7 @@ use crate::sim::{Event, Phase, PlayerId, Sim, Status};
 use crate::state::Player;
 use crate::vision::{actor_with, scene_line_blocked};
 
-pub const OBSERVATION_VERSION: u16 = 17;
+pub const OBSERVATION_VERSION: u16 = 18;
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct SelfView {
@@ -38,6 +38,9 @@ pub struct SelfView {
     pub facing: f64,
     pub hp: f64,
     pub max_hp: f64,
+    /// Widened source-f32 barrier, never a private deadline or decay flag.
+    pub barrier: f64,
+    pub barrier_ring_step: u8,
     pub status: Status,
     pub weapon: WeaponId,
     /// Milliseconds until the next attack may start (0 when ready).
@@ -73,8 +76,11 @@ pub struct ActorView {
     pub x: f64,
     pub y: f64,
     pub facing: f64,
-    /// What an hp bar shows: the fraction, quantized to hundredths.
+    /// Combined-bar share in source twentieths, with a positive sliver.
     pub hp_frac: f64,
+    pub barrier_frac: f64,
+    /// Human ring cue (0..=8); NPCs have no source barrier cue.
+    pub barrier_ring_step: u8,
     pub status: Status,
     pub weapon: WeaponId,
     pub bounty: u32,
@@ -114,6 +120,7 @@ pub enum SeenEvent {
         amount: f64,
     },
     CastStarted {
+        event_time: f64,
         id: PlayerId,
         ability: crate::status_runtime::AbilityId,
         ms: f64,
@@ -121,13 +128,16 @@ pub enum SeenEvent {
         at: Option<crate::Vec2>,
     },
     CastLanded {
-        id: PlayerId,
+        event_time: f64,
+        /// An unseen caster does not suppress a permitted spatial impact.
+        id: Option<PlayerId>,
         ability: crate::status_runtime::AbilityId,
         target: Option<PlayerId>,
         at: Option<crate::Vec2>,
         to: Option<crate::Vec2>,
     },
     CastEnded {
+        event_time: f64,
         id: PlayerId,
         ability: crate::status_runtime::AbilityId,
         reason: crate::status_runtime::CastEndReason,
@@ -247,9 +257,9 @@ impl SeenEvent {
     }
 }
 
-/// What an observer is shown of `e`, if anything (whether THIS observer may know of it is [`Event::visibility`]'s call).
+/// What an observer is shown of `e`, after the actor/spatial permission gate in `filter_events`.
 /// Exhaustive, no wildcard: a new [`Event`] variant must say here whether it reaches observers at all.
-fn to_seen(e: &Event, can_see: &impl Fn(PlayerId) -> bool) -> Option<SeenEvent> {
+fn to_seen(e: &Event, can_see: &impl Fn(PlayerId) -> bool, points: [bool; 2]) -> Option<SeenEvent> {
     match *e {
         Event::Plan { ref plan, .. } => Some(SeenEvent::Plan(plan.clone())),
         Event::PlanningStarted => None,
@@ -293,6 +303,7 @@ fn to_seen(e: &Event, can_see: &impl Fn(PlayerId) -> bool) -> Option<SeenEvent> 
             weapon,
         }),
         Event::CastStarted {
+            event_time,
             id,
             ability,
             ms,
@@ -300,31 +311,55 @@ fn to_seen(e: &Event, can_see: &impl Fn(PlayerId) -> bool) -> Option<SeenEvent> 
             x,
             y,
         } => Some(SeenEvent::CastStarted {
+            event_time,
             id,
             ability,
             ms,
             target: target.filter(|id| can_see(*id)),
-            at: target.is_none_or(can_see).then_some(crate::Vec2::new(x, y)),
+            at: target
+                .map_or(points[0], can_see)
+                .then_some(crate::Vec2::new(x, y)),
         }),
         Event::CastLanded {
+            event_time,
             id,
             ability,
             target,
             x,
             y,
             to,
-        } => Some(SeenEvent::CastLanded {
-            id,
-            ability,
-            target: target.filter(|id| can_see(*id)),
-            at: target.is_none_or(can_see).then_some(crate::Vec2::new(x, y)),
-            to,
-        }),
+        } => {
+            let id = can_see(id).then_some(id);
+            let at_allowed = target.map_or(points[0], can_see);
+            let target = target.filter(|id| can_see(*id));
+            // Unit-target coordinates follow the actor verdict, never the visibility of its ground tile.
+            // Blaze art is a pair, including its connecting streak; a single visible endpoint is not art.
+            let (at, to) = if ability == crate::status_runtime::AbilityId::Blaze {
+                if at_allowed && points[1] && to.is_some() {
+                    (Some(crate::Vec2::new(x, y)), to)
+                } else {
+                    (None, None)
+                }
+            } else {
+                (at_allowed.then_some(crate::Vec2::new(x, y)), None)
+            };
+            // Target identity alone cannot describe an anonymous spatial effect.
+            (id.is_some() || at.is_some()).then_some(SeenEvent::CastLanded {
+                event_time,
+                id,
+                ability,
+                target,
+                at,
+                to,
+            })
+        }
         Event::CastEnded {
+            event_time,
             id,
             ability,
             reason,
         } => Some(SeenEvent::CastEnded {
+            event_time,
             id,
             ability,
             reason,
@@ -420,24 +455,59 @@ fn begin(sim: &Sim, cache: &mut Option<&mut SightCache>) {
     }
 }
 
-/// The events an observer is shown, in order: each is judged by its own declared [`Event::visibility`] against `can_see`
-/// (which already includes the observer itself).
+/// Freeze only the Wish cue's point permissions against this completed world. Unit-target visibility is checked
+/// separately by `to_seen`; ownership permits own effect points but never a hidden unit target.
+pub(crate) fn wish_point_permissions(
+    k: &crate::statics::MatchStatic,
+    w: &crate::state::World,
+    viewer: PlayerId,
+    event: &Event,
+) -> [bool; 2] {
+    let (id, at, to) = match *event {
+        Event::CastStarted { id, x, y, .. } => (id, crate::Vec2::new(x, y), None),
+        Event::CastLanded { id, x, y, to, .. } => (id, crate::Vec2::new(x, y), to),
+        _ => return [false; 2],
+    };
+    if id == viewer {
+        return [true, to.is_some()];
+    }
+    let Some(me) = w.players.iter().find(|p| p.id == viewer) else {
+        return [false; 2];
+    };
+    let wards = crate::vision::WardSight::of(k, w);
+    let visible = |point| {
+        crate::vision::point_visible(
+            k.collision_view(w.rt.gates_locked),
+            me,
+            point,
+            w.tick,
+            wards,
+        )
+    };
+    [visible(at), to.is_some_and(visible)]
+}
+
+/// The events an observer is shown, in order. Ordinary events retain their declared actor visibility.
+/// Wish landing is the named spatial exception: allowed geometry can survive an unseen caster.
+/// `points` supplies per-event permissions from this step, including when a sealed report is used later.
 pub(crate) fn filter_events(
     events: &[Event],
     me: Option<PlayerId>,
     can_see: impl Fn(PlayerId) -> bool,
+    points: impl Fn(usize) -> [bool; 2],
     out: &mut Vec<SeenEvent>,
 ) {
-    for e in events {
-        let shown = match e.visibility() {
-            Visibility::Everyone => true,
-            Visibility::Owner(id) => Some(id) == me,
-            Visibility::IfSeen(id) => can_see(id),
-            Visibility::IfSeenOrBy { seen, by } => can_see(seen) || (by.is_some() && by == me),
-            Visibility::ServerOnly => false,
-        };
+    for (i, e) in events.iter().enumerate() {
+        let shown = matches!(e, Event::CastLanded { .. })
+            || match e.visibility() {
+                Visibility::Everyone => true,
+                Visibility::Owner(id) => Some(id) == me,
+                Visibility::IfSeen(id) => can_see(id),
+                Visibility::IfSeenOrBy { seen, by } => can_see(seen) || (by.is_some() && by == me),
+                Visibility::ServerOnly => false,
+            };
         if shown {
-            if let Some(s) = to_seen(e, &can_see) {
+            if let Some(s) = to_seen(e, &can_see, points(i)) {
                 out.push(s);
             }
         }
@@ -455,24 +525,52 @@ fn projected_signature_bits(bits: u8, tier: u8) -> u8 {
         }
 }
 
-/// Disposable preview, with handles scoped to this call. Use [`crate::ItemObserver`] for actions.
-/// The observation of player `viewer` after a step whose events are `events` (pass the step's return value).
+/// Checked disposable preview. Action-producing callers keep a persistent [`crate::ItemObserver`].
+pub fn try_observe(
+    sim: &Sim,
+    viewer: PlayerId,
+    events: &[Event],
+) -> Result<Observation, crate::OfferError> {
+    let mut out = Observation::default();
+    try_observe_into(sim, viewer, events, &mut out)?;
+    Ok(out)
+}
+
+/// Checked disposable preview into reusable scratch. On error the buffer is unspecified and MUST NOT
+/// be delivered. No offer is committed on failure. Use a persistent ItemObserver for actionable views.
+pub fn try_observe_into(
+    sim: &Sim,
+    viewer: PlayerId,
+    events: &[Event],
+    out: &mut Observation,
+) -> Result<(), crate::OfferError> {
+    crate::ItemObserver::new(viewer).observe_into(sim, events, out, None)
+}
+
+/// Cached checked preview, with the same refusal and scratch-buffer contract as [`try_observe_into`].
+pub fn try_observe_into_cached(
+    sim: &Sim,
+    viewer: PlayerId,
+    events: &[Event],
+    out: &mut Observation,
+    cache: &mut SightCache,
+) -> Result<(), crate::OfferError> {
+    crate::ItemObserver::new(viewer).observe_into(sim, events, out, Some(cache))
+}
+
+/// Trusted preview wrapper. Panics when the selected scene is not publicly representable.
+/// Live/headless delivery uses checked persistent observers instead.
 pub fn observe(sim: &Sim, viewer: PlayerId, events: &[Event]) -> Observation {
-    let mut obs = Observation::default();
-    observe_into(sim, viewer, events, &mut obs);
-    obs
+    try_observe(sim, viewer, events).expect("trusted observation is not publicly representable")
 }
 
-/// Disposable preview into a caller-owned buffer. For reusable scratch, stable handles and fallible
-/// scene bounds, deliver observations through [`crate::ItemObserver::observe_into`].
+/// Trusted reusable preview wrapper; see [`observe`] and [`try_observe_into`].
 pub fn observe_into(sim: &Sim, viewer: PlayerId, events: &[Event], out: &mut Observation) {
-    crate::ItemObserver::new(viewer)
-        .observe_into(sim, events, out, None)
-        .expect("scene exceeds item observation bounds");
+    try_observe_into(sim, viewer, events, out)
+        .expect("trusted observation is not publicly representable");
 }
 
-/// Disposable [`observe_into`] reusing line-of-sight verdicts from `cache` for pairs whose endpoints are bit-identical to the last
-/// time that ordered pair was tested (see [`SightCache`]). The content is exactly what [`observe_into`] fills.
+/// Trusted cached preview wrapper; see [`try_observe_into_cached`].
 pub fn observe_into_cached(
     sim: &Sim,
     viewer: PlayerId,
@@ -480,9 +578,72 @@ pub fn observe_into_cached(
     out: &mut Observation,
     cache: &mut SightCache,
 ) {
-    crate::ItemObserver::new(viewer)
-        .observe_into(sim, events, out, Some(cache))
-        .expect("scene exceeds item observation bounds");
+    try_observe_into_cached(sim, viewer, events, out, cache)
+        .expect("trusted observation is not publicly representable");
+}
+
+/// Source values after Math.fround, widened for JavaScript-number arithmetic and JSON publication.
+struct PublicVitals {
+    hp: f64,
+    max_hp: f64,
+    barrier: f64,
+    hp_frac: f64,
+    barrier_frac: f64,
+    ring: u8,
+}
+
+fn source_f32(value: f64) -> Result<f64, crate::OfferError> {
+    let rounded = value as f32;
+    if !value.is_finite() || !rounded.is_finite() {
+        return Err(crate::OfferError::UnrepresentablePublicVitals);
+    }
+    Ok(f64::from(rounded))
+}
+
+fn bar_share(value: f64) -> f64 {
+    if !(value > 0.) {
+        0.
+    } else {
+        crate::math::js_round(value * 20.).max(1.) / 20.
+    }
+}
+
+fn public_vitals(hp: f64, max_hp: f64, barrier: f64) -> Result<PublicVitals, crate::OfferError> {
+    if barrier < 0. {
+        return Err(crate::OfferError::UnrepresentablePublicVitals);
+    }
+    let original_max = max_hp;
+    let hp = source_f32(hp)?;
+    let max_hp = source_f32(max_hp)?;
+    let barrier = source_f32(barrier)?;
+    // Source hpBarFractions: do not impose gameplay bounds or clamp barrier on publication.
+    let h = if hp > 0. { hp } else { 0. };
+    let b = if barrier > 0. { barrier } else { 0. };
+    let total = (if max_hp > 0. { max_hp } else { 0. }).max(h + b);
+    let (hp_frac, barrier_frac) = if total > 0. {
+        (bar_share(h / total), bar_share(b / total))
+    } else {
+        (0., 0.)
+    };
+    // Human PlayerState.maxHp is float64; fighterSeen separately frounds it for bar shares.
+    let strength = if barrier > 0. && original_max > 0. {
+        (barrier / (original_max * 0.3)).min(1.)
+    } else {
+        0.
+    };
+    let ring = if strength > 0. {
+        crate::math::js_round(strength * 8.).max(1.) as u8
+    } else {
+        0
+    };
+    Ok(PublicVitals {
+        hp,
+        max_hp,
+        barrier,
+        hp_frac,
+        barrier_frac,
+        ring,
+    })
 }
 
 pub(crate) fn observe_with(
@@ -491,7 +652,7 @@ pub(crate) fn observe_with(
     events: &[Event],
     out: &mut Observation,
     mut cache: Option<&mut SightCache>,
-) {
+) -> Result<(), crate::OfferError> {
     begin(sim, &mut cache);
     let me = sim.player(viewer);
     let now = sim.server_time();
@@ -505,39 +666,46 @@ pub(crate) fn observe_with(
     out.phase = sim.phase();
     out.arena = crate::systems::planning::view::arena_view(&sim.k, &sim.w);
     out.plan = crate::systems::planning::view::owner_view(&sim.k, &sim.w, viewer);
-    out.me = me.map(|p| SelfView {
-        wish: (sim.k.config.abilities == crate::abilities::Mode::Full)
-            .then(|| crate::abilities::OwnerView::of(p)),
-        effects: p.statuses.effects,
-        displace_seq: p.motion.displace_seq,
-        mark_tier: crate::systems::sentenced::public_mark_tier(&sim.w, p.id),
-        brand: crate::systems::sentenced::public_mark_tier(&sim.w, p.id) * 25,
-        mark_by: None,
-        mark_tax: 0,
-        sig: projected_signature_bits(
-            p.signature.bits,
-            crate::systems::sentenced::public_mark_tier(&sim.w, p.id),
-        ),
-        attack_target: None,
-        id: p.id,
-        faction: p.vitals.faction,
-        x: p.body.x,
-        y: p.body.y,
-        facing: p.body.facing,
-        hp: p.vitals.hp,
-        max_hp: p.vitals.max_hp,
-        status: p.status,
-        weapon: p.active_weapon(),
-        ready_in_ms: (p.weapon.ready_at - now).max(0.0),
-        kills: p.credit.kills,
-        bounty: p.credit.bounty,
-        gv: p.credit.gv,
-        move_seq: p.motion.move_seq,
-        hunt_target: p.hunt_target(),
-        hunt_stacks: u32::from(p.hunt_stacks),
-        corpse_stacks: u16::from(p.farm.corpse_stacks()),
-        plague_zombie: crate::systems::plague_zombies::zombie_of(&sim.w, p.id),
-    });
+    out.me = if let Some(p) = me {
+        let vitals = public_vitals(p.vitals.hp, p.vitals.max_hp, p.vitals.barrier)?;
+        Some(SelfView {
+            wish: (sim.k.config.abilities == crate::abilities::Mode::Full)
+                .then(|| crate::abilities::OwnerView::of(p, now, sim.k.config.training)),
+            effects: p.statuses.effects,
+            displace_seq: p.motion.displace_seq,
+            mark_tier: crate::systems::sentenced::public_mark_tier(&sim.w, p.id),
+            brand: crate::systems::sentenced::public_mark_tier(&sim.w, p.id) * 25,
+            mark_by: None,
+            mark_tax: 0,
+            sig: projected_signature_bits(
+                p.signature.bits,
+                crate::systems::sentenced::public_mark_tier(&sim.w, p.id),
+            ),
+            attack_target: None,
+            id: p.id,
+            faction: p.vitals.faction,
+            x: p.body.x,
+            y: p.body.y,
+            facing: p.body.facing,
+            hp: vitals.hp,
+            max_hp: vitals.max_hp,
+            barrier: vitals.barrier,
+            barrier_ring_step: vitals.ring,
+            status: p.status,
+            weapon: p.active_weapon(),
+            ready_in_ms: (p.weapon.ready_at - now).max(0.0),
+            kills: p.credit.kills,
+            bounty: p.credit.bounty,
+            gv: p.credit.gv,
+            move_seq: p.motion.move_seq,
+            hunt_target: p.hunt_target(),
+            hunt_stacks: u32::from(p.hunt_stacks),
+            corpse_stacks: u16::from(p.farm.corpse_stacks()),
+            plague_zombie: crate::systems::plague_zombies::zombie_of(&sim.w, p.id),
+        })
+    } else {
+        None
+    };
     out.camps.clear();
     out.camps.extend_from_slice(sim.camp_rosters());
     out.visible.clear();
@@ -560,6 +728,7 @@ pub(crate) fn observe_with(
                 Some(c) if probing => c.probe(&map, m.id, o.id, ax, ay, o.body.x, o.body.y),
                 _ => scene_line_blocked(&map, ax, ay, o.body.x, o.body.y),
             }) {
+                let vitals = public_vitals(o.vitals.hp, o.vitals.max_hp, o.vitals.barrier)?;
                 out.visible.push(ActorView {
                     kind: 0,
                     owner: None,
@@ -579,11 +748,9 @@ pub(crate) fn observe_with(
                     x: o.body.x,
                     y: o.body.y,
                     facing: o.body.facing,
-                    hp_frac: if o.vitals.max_hp > 0.0 {
-                        (o.vitals.hp / o.vitals.max_hp * 100.0).round() / 100.0
-                    } else {
-                        0.0
-                    },
+                    hp_frac: vitals.hp_frac,
+                    barrier_frac: vitals.barrier_frac,
+                    barrier_ring_step: vitals.ring,
                     status: o.status,
                     weapon: o.active_weapon(),
                     bounty: o.credit.bounty,
@@ -604,7 +771,7 @@ pub(crate) fn observe_with(
                 wards,
             ) && !crate::status_runtime::hidden(&mob.core.statuses.instances, now)
             {
-                out.visible.push(mob_view(mob));
+                out.visible.push(mob_view(mob)?);
             }
         }
     }
@@ -642,8 +809,10 @@ pub(crate) fn observe_with(
         events,
         me_id,
         |id| Some(id) == me_id || out.visible.binary_search_by_key(&id, |a| a.id).is_ok(),
+        |i| wish_point_permissions(&sim.k, &sim.w, viewer, &events[i]),
         &mut out.events,
     );
+    Ok(())
 }
 
 /// Trusted catch-up intermediate: filter events against this step's visibility while retaining
@@ -705,7 +874,13 @@ fn observe_events_with(
                     })
             })
     };
-    filter_events(events, me_id, can_see, out);
+    filter_events(
+        events,
+        me_id,
+        can_see,
+        |i| wish_point_permissions(&sim.k, &sim.w, viewer, &events[i]),
+        out,
+    );
 }
 
 /// What anyone may see with no secrets: every player's public fields (for replays, spectators and results pages). Never
@@ -727,6 +902,8 @@ pub struct PublicPlayer {
     pub facing: f64,
     pub hp: f64,
     pub max_hp: f64,
+    /// Widened source-f32 barrier; HP/maxHP retain this diagnostic's native precision.
+    pub barrier: f64,
     pub status: Status,
     pub kills: u32,
     pub bounty: u32,
@@ -745,37 +922,42 @@ pub struct PublicSnapshot {
     pub fields: Vec<crate::status_runtime::FieldView>,
 }
 
-pub fn public_snapshot(sim: &Sim) -> PublicSnapshot {
+/// Checked privileged all-row snapshot. Never deliver this view to a playing client.
+pub fn try_public_snapshot(sim: &Sim) -> Result<PublicSnapshot, crate::OfferError> {
     let mut players: Vec<PublicPlayer> = sim
         .players()
         .iter()
-        .map(|p| PublicPlayer {
-            effects: p.statuses.effects,
-            displace_seq: p.motion.displace_seq,
-            mark_tier: crate::systems::sentenced::public_mark_tier(&sim.w, p.id),
-            brand: crate::systems::sentenced::public_mark_tier(&sim.w, p.id) * 25,
-            mark_by: None,
-            mark_tax: 0,
-            id: p.id,
-            name: p.seat.name.clone(),
-            bot: p.seat.bot,
-            faction: p.vitals.faction,
-            x: p.body.x,
-            y: p.body.y,
-            facing: p.body.facing,
-            hp: p.vitals.hp,
-            max_hp: p.vitals.max_hp,
-            status: p.status,
-            kills: p.credit.kills,
-            bounty: p.credit.bounty,
+        .map(|p| {
+            let vitals = public_vitals(p.vitals.hp, p.vitals.max_hp, p.vitals.barrier)?;
+            Ok(PublicPlayer {
+                effects: p.statuses.effects,
+                displace_seq: p.motion.displace_seq,
+                mark_tier: crate::systems::sentenced::public_mark_tier(&sim.w, p.id),
+                brand: crate::systems::sentenced::public_mark_tier(&sim.w, p.id) * 25,
+                mark_by: None,
+                mark_tax: 0,
+                id: p.id,
+                name: p.seat.name.clone(),
+                bot: p.seat.bot,
+                faction: p.vitals.faction,
+                x: p.body.x,
+                y: p.body.y,
+                facing: p.body.facing,
+                hp: p.vitals.hp,
+                max_hp: p.vitals.max_hp,
+                barrier: vitals.barrier,
+                status: p.status,
+                kills: p.credit.kills,
+                bounty: p.credit.bounty,
+            })
         })
-        .collect();
+        .collect::<Result<_, crate::OfferError>>()?;
     if !players.is_sorted_by_key(|p| p.id) {
         players.sort_unstable_by_key(|p| p.id);
     }
-    PublicSnapshot {
+    Ok(PublicSnapshot {
         arena: crate::systems::planning::view::arena_view(&sim.k, &sim.w),
-        mobs: sim.mobs().iter().map(mob_view).collect(),
+        mobs: sim.mobs().iter().map(mob_view).collect::<Result<_, _>>()?,
         camps: sim.camp_rosters().to_vec(),
         tick: sim.tick(),
         server_time: sim.server_time(),
@@ -783,12 +965,18 @@ pub fn public_snapshot(sim: &Sim) -> PublicSnapshot {
         winner: sim.winner().map(str::to_owned),
         players,
         fields: crate::status_runtime::observe::public(sim),
-    }
+    })
 }
 
-fn mob_view(mob: &crate::mob_runtime::Mob) -> ActorView {
+/// Trusted privileged snapshot wrapper. Arbitrary-checkpoint diagnostics use [`try_public_snapshot`].
+pub fn public_snapshot(sim: &Sim) -> PublicSnapshot {
+    try_public_snapshot(sim).expect("trusted public snapshot is not representable")
+}
+
+fn mob_view(mob: &crate::mob_runtime::Mob) -> Result<ActorView, crate::OfferError> {
     let core = &mob.core;
-    ActorView {
+    let vitals = public_vitals(core.vitals.hp, core.vitals.max_hp, 0.)?;
+    Ok(ActorView {
         kind: if mob.zombie.is_some() {
             2
         } else {
@@ -815,11 +1003,13 @@ fn mob_view(mob: &crate::mob_runtime::Mob) -> ActorView {
         x: core.body.x,
         y: core.body.y,
         facing: core.body.facing,
-        hp_frac: (core.vitals.hp / core.vitals.max_hp * 100.).round() / 100.,
+        hp_frac: vitals.hp_frac,
+        barrier_frac: 0.,
+        barrier_ring_step: 0,
         status: mob.status,
         weapon: core.active_weapon(),
         bounty: 0,
-    }
+    })
 }
 
 #[cfg(test)]
@@ -934,18 +1124,30 @@ mod tests {
         };
         for me in [None, Some(PlayerId(1))] {
             let mut out = Vec::new();
-            filter_events(std::slice::from_ref(&hit), me, |_| false, &mut out);
+            filter_events(
+                std::slice::from_ref(&hit),
+                me,
+                |_| false,
+                |_| [false; 2],
+                &mut out,
+            );
             assert!(out.is_empty(), "viewer {me:?} must not see it");
         }
         let mut out = Vec::new();
-        filter_events(std::slice::from_ref(&hit), None, |_| true, &mut out);
+        filter_events(
+            std::slice::from_ref(&hit),
+            None,
+            |_| true,
+            |_| [false; 2],
+            &mut out,
+        );
         assert_eq!(out.len(), 1, "a seen victim's hit is shown");
     }
 
     #[test]
     fn the_declarations_agree_with_what_an_observer_is_shown() {
         for e in every_event() {
-            let seen = to_seen(&e, &|_| true);
+            let seen = to_seen(&e, &|_| true, [true; 2]);
             // Observed exactly when it is not server-only.
             assert_eq!(
                 seen.is_some(),
@@ -959,3 +1161,7 @@ mod tests {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "observe/barrier_tests.rs"]
+mod barrier_tests;

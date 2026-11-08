@@ -359,6 +359,7 @@ fn instant_report(
         id: PlayerId(2),
         amount: 2.,
     });
+    r.wish_points.resize(r.events.len(), [0; 2]);
     r
 }
 #[test]
