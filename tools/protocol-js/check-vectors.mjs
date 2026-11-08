@@ -26,6 +26,7 @@ let checks = 0;
 const castOptionalCoverage = new Set();
 const castSlotCoverage = new Set();
 const castVectors = new Set();
+const castSlotOptionalCoverage = new Set();
 const eq = (got, want, what) => {
   checks++;
   if (got !== want) throw new Error(`${what}: got ${got}, want ${want}`);
@@ -47,14 +48,19 @@ for (const v of fx.client) {
     if (v.decoded === undefined) throw new Error(`${v.name} Cast vector lacks Rust-decoded JSON`);
     castVectors.add(v.name);
     castSlotCoverage.add(c.slot);
-    castOptionalCoverage.add((c.actorRef === null ? 0 : 1) | (c.t === null ? 0 : 2) | (c.seq === null ? 0 : 4));
+    const optionalMask = (c.actorRef === null ? 0 : 1) | (c.t === null ? 0 : 2) | (c.seq === null ? 0 : 4);
+    castOptionalCoverage.add(optionalMask);
+    castSlotOptionalCoverage.add(`${c.slot}:${optionalMask}`);
   }
   for (let n = 0; n < v.hex.length / 2; n++) { let threw = false; try { decodeClient(bytes(v.hex.slice(0, n * 2))); } catch { threw = true; } eq(threw, true, v.name + " truncated client"); }
 }
 for (const v of fx.malformedClient) { let threw = false; try { decodeClient(bytes(v.hex)); } catch { threw = true; } eq(threw, true, v.name + " malformed client"); }
 for (let i = 0; i <= 2; i++) if (!castSlotCoverage.has(i)) throw new Error(`missing Rust Cast vector for slot ${i}`);
 for (let i = 0; i < 8; i++) if (!castOptionalCoverage.has(i)) throw new Error(`missing Rust Cast optional-field combination ${i}`);
-if (!castVectors.has("input_cast_matrix")) throw new Error("missing Rust-generated input_cast_matrix vector");
+for (let slot = 0; slot <= 2; slot++) for (let mask = 0; mask < 8; mask++) {
+  if (!castSlotOptionalCoverage.has(`${slot}:${mask}`)) throw new Error(`missing Rust Cast slot/optional combination ${slot}:${mask}`);
+}
+if (![...castVectors].some((name) => name.startsWith("input_cast_matrix"))) throw new Error("missing Rust-generated input_cast_matrix vectors");
 const combat = decodeClient(bytes(fx.client.find(v => v.name === "input_combat").hex));
 eq(JSON.stringify(combat.cmds), JSON.stringify([{ k: "swap", slot: null }, { k: "swap", slot: 0 }, { k: "swap", slot: 1 }, { k: "pickup", handle: 42 }]), "combat command fields");
 const choices=decodeClient(bytes(fx.client.find(v=>v.name==="input_choices").hex));
