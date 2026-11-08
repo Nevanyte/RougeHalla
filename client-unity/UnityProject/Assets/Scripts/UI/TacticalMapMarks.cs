@@ -17,7 +17,12 @@ namespace Roguehalla.Client
         Vector2? _self;
         uint _selfId;
         public int ContactCount => _actors.Count;
-        public void SetMap(MapBlob map) { _map = map; SetVerticesDirty(); }
+        public void SetMap(MapBlob map)
+        {
+            _map = map;
+            if (map == null) { _actors.Clear(); _route.Clear(); _chests.Clear(); _self = null; }
+            SetVerticesDirty();
+        }
         public void Present(Session session, IReadOnlyList<RoutePoint> route)
         {
             _actors.Clear(); _route.Clear(); _chests.Clear(); _self = null;

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using Roguehalla.Net;
+using Roguehalla.Net.Protocol;
 using Roguehalla.Net.Ui;
 using TMPro;
 using UnityEngine;
@@ -89,8 +90,8 @@ namespace Roguehalla.Client
             _counterGuide.LegendRoot.GetComponentInChildren<TMP_Text>().text = "Arrows point to countered weapons. + advantage; ! threat.";
             ShowRail(false);
             _routeText = MythicUi.Text(_panel, "RouteSummary", "Click map to add a route stop", new Vector2(.025f, .07f), new Vector2(.69f, .16f), 22);
-            MythicUi.Button(_panel, "UndoRoute", "UNDO", new Vector2(.715f, .09f), new Vector2(.84f, .17f), () => { _route.Undo(); _routeStorageDirty = true; _nextPath = 0; });
-            MythicUi.Button(_panel, "ClearRoute", "CLEAR", new Vector2(.855f, .09f), new Vector2(.98f, .17f), () => { _route.Clear(); _routeStorageDirty = true; _nextPath = 0; });
+            MythicUi.Button(_panel, "UndoRoute", "UNDO", new Vector2(.715f, .09f), new Vector2(.84f, .17f), () => { _route.Undo(); _routeStorageDirty = true; _nextPath = _nextPaint = 0; });
+            MythicUi.Button(_panel, "ClearRoute", "CLEAR", new Vector2(.855f, .09f), new Vector2(.98f, .17f), () => { _route.Clear(); _routeStorageDirty = true; _nextPath = _nextPaint = 0; });
             _status = MythicUi.Text(_panel, "MapStatus", "", new Vector2(.025f, .005f), new Vector2(.98f, .065f), 20, ShowcasePalette.MutedText);
             _miniRoot = MythicUi.Panel(root, "Minimap", new Vector2(.805f, .018f), new Vector2(.985f, .245f));
             var miniFrame = MythicUi.Rect(_miniRoot, "TerrainFrame", new Vector2(.04f, .17f), new Vector2(.96f, .96f));
@@ -102,7 +103,15 @@ namespace Roguehalla.Client
 
         public void Bind(Session session)
         {
+            UnsubscribeMapFacts();
             ReleaseTransient(); _selections.Update(null, false, Time.realtimeSinceStartupAsDouble * 1000); _bound = session; _storageKey = null; _routeStorageDirty = false; _route.Clear(); _route.SetStart(null);
+            _lastContactsSnapshot = -1; _contacts.Clear(); _contactsText.text = "";
+            if (_bound != null)
+            {
+                _bound.SnapshotReceived += MapSnapshotChanged;
+                _bound.CollectionsChanged += MapCollectionsChanged;
+                _bound.StateChanged += MapStateChanged;
+            }
             _large.SetMap(null); _mini.SetMap(null); _routePlan = null; _routePoints = Array.Empty<RoutePoint>();
             _miniRoot.gameObject.SetActive(session != null); _nextPaint = _nextPath = 0;
         }
@@ -227,23 +236,38 @@ namespace Roguehalla.Client
             _lastContactsSnapshot = _bound.SnapshotsReceived;
             _contacts.Clear(); _bound.Snapshots.Sample(_bound.Snapshots.NewestMs, _contacts);
             var text = new StringBuilder("OBSERVED CONTACTS\n");
+            int shown = 0;
             foreach (var actor in _contacts)
             {
                 if (actor.Id == _bound.PlayerId) continue;
-                text.Append(ShowcasePalette.GetFactionName((int)actor.Faction)).Append(" · ").Append(actor.Kind).Append("\n");
+                shown++; text.Append(ShowcasePalette.GetFactionName((int)actor.Faction)).Append(" · ").Append(actor.Kind).Append("\n");
             }
-            if (_contacts.Count <= 1) text.Append("No other contacts in view.");
+            if (shown == 0) text.Append("No other contacts in view.");
             _contactsText.text = text.ToString();
             _counterGuide.SetWeapon(_bound.Me != null ? _bound.Me.Weapon.ToString() : "fists");
             _status.text = "Map shows delivered terrain and contacts. " + (ToggleMode ? "Tab closes" : "Release Tab to return") + " · routes never move your character.";
         }
         void ShowRail(bool weapons) { _contactRail.gameObject.SetActive(!weapons); _counterRail.gameObject.SetActive(weapons); }
-        void OnDestroy() { _counterGuide?.Destroy(); }
+        void OnDestroy() { UnsubscribeMapFacts(); _counterGuide?.Destroy(); }
+        void UnsubscribeMapFacts()
+        {
+            if (_bound == null) return;
+            _bound.SnapshotReceived -= MapSnapshotChanged;
+            _bound.CollectionsChanged -= MapCollectionsChanged;
+            _bound.StateChanged -= MapStateChanged;
+        }
+        void MapSnapshotChanged(ServerMsg.Snapshot _) { _nextPaint = 0; }
+        void MapCollectionsChanged(CollectionsView _) { _nextPaint = 0; }
+        void MapStateChanged(SessionState _)
+        {
+            _nextPaint = 0;
+            if (_bound?.State != SessionState.InMatch) { _contactsText.text = "No current contacts."; _lastContactsSnapshot = -1; }
+        }
         void UpdateSelections() => _selections.Update(_bound?.Collections.Plan, _bound != null && _bound.State == SessionState.InMatch, Time.realtimeSinceStartupAsDouble * 1000);
         void PickSpawn(byte pick) { UpdateSelections(); if (_bound != null && _selections.TryPickSpawn(pick, _bound.Input, Time.realtimeSinceStartupAsDouble * 1000)) _nextPaint = 0; }
         void PickBoon(byte pick) { UpdateSelections(); if (_bound != null && _selections.TryPickBoon(pick, _bound.Input, Time.realtimeSinceStartupAsDouble * 1000)) _nextPaint = 0; }
         void Ready() { UpdateSelections(); if (_bound != null && _selections.TryReady(_bound.Input, Time.realtimeSinceStartupAsDouble * 1000)) _nextPaint = 0; }
-        void AddRoutePoint(Vector2 point) { if (_bound?.Map == null) return; _route.ToggleUpcoming(new RoutePoint(point.x, point.y), _bound.Map, Tile); _routeStorageDirty = true; _nextPath = 0; }
+        void AddRoutePoint(Vector2 point) { if (_bound?.Map == null) return; _route.ToggleUpcoming(new RoutePoint(point.x, point.y), _bound.Map, Tile); _routeStorageDirty = true; _nextPath = _nextPaint = 0; }
         static MinimapButton MiniButton(PointerEventData.InputButton button) => button == PointerEventData.InputButton.Left ? MinimapButton.Left : MinimapButton.Right;
         void MinimapPress(Vector2 point, PointerEventData.InputButton button)
         {
