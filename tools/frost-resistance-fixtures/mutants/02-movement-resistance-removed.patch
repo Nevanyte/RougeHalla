@@ -1,13 +1,12 @@
-diff --git a/crates/rh-sim/src/systems/frost.rs b/crates/rh-sim/src/systems/frost.rs
-index f3a275e8..85702632 100644
 --- a/crates/rh-sim/src/systems/frost.rs
 +++ b/crates/rh-sim/src/systems/frost.rs
-@@ -170,7 +170,7 @@ pub(crate) fn after_damage(w: &mut World) {
-         };
-         let raw = near_mult.min(ranged_mult);
-         // Same source order: the victim's resistance applies to the combined near/ranged result before quantization.
--        let move_mult = crate::status_runtime::resist_slow(raw, resist);
-+        let move_mult = raw;
-         f.frost_move_mult =
-             (move_mult * FROST_MOVE_QUANTIZATION + 0.5).floor() / FROST_MOVE_QUANTIZATION;
-         if f.chill < 1. {
+@@ -33,7 +33,8 @@
+ 
+ /// Source resistance precedes movement quantization. Shared with the gameplay content identity.
+ pub(crate) fn resisted_move_mult(raw: f64, resist: f64) -> f64 {
+-    let m = crate::status_runtime::resist_slow(raw, resist);
++    let _ = resist;
++    let m = raw;
+     (m * FROST_MOVE_QUANTIZATION + 0.5).floor() / FROST_MOVE_QUANTIZATION
+ }
+ 

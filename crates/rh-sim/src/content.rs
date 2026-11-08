@@ -1441,6 +1441,29 @@ fn content_hash_of_definitions(
     for exposure in [0.0, 999.0, 1000.0, 1001.0, 2500.0, 3999.0, 4000.0, 4001.0] {
         h.f64(crate::systems::frost::move_multiplier(exposure));
     }
+    // The original probes above do not exercise victim resistance or its order before movement quantization.
+    // Probe the helpers used by the runtime, including neutral, partial/full resistance and overlapping slows.
+    h.str("frost/resistance/1");
+    for resistance in [0.0, 0.4, 1.0] {
+        for chill in [
+            1.0,
+            1.0 - FROST_SLOW,
+            1.0 - FROST_SLOW - crate::modifiers::DEFINITION.frost_cap,
+        ] {
+            h.f64(crate::systems::frost::resisted_attack_chill(
+                chill, resistance,
+            ));
+        }
+        for exposure in [0.0, 1000.0, 1001.0, 2500.0, 3999.0, 4000.0] {
+            let near = crate::systems::frost::move_multiplier(exposure);
+            for ranged in [1.0, FROST_RANGED_CHILL_MULT] {
+                h.f64(crate::systems::frost::resisted_move_mult(
+                    near.min(ranged),
+                    resistance,
+                ));
+            }
+        }
+    }
     h.str("sentenced/base-pulse/1");
     for weapon in WeaponId::ALL {
         for sentence in [0, 1, 5] {

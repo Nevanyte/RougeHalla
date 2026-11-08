@@ -26,6 +26,17 @@ pub(crate) fn move_multiplier(exposure: f64) -> f64 {
     let thaw = ((exposure - CHILL_MOVE_HOLD_MS) / CHILL_MOVE_THAW_MS).min(1.);
     CHILL_MOVE_MULT + (1. - CHILL_MOVE_MULT) * thaw
 }
+/// Source attack chill after the victim's folded resistance. Also probed by the gameplay content identity.
+pub(crate) fn resisted_attack_chill(min_chill: f64, resist: f64) -> f64 {
+    crate::status_runtime::resist_slow(min_chill, resist)
+}
+
+/// Source resistance precedes movement quantization. Shared with the gameplay content identity.
+pub(crate) fn resisted_move_mult(raw: f64, resist: f64) -> f64 {
+    let m = crate::status_runtime::resist_slow(raw, resist);
+    (m * FROST_MOVE_QUANTIZATION + 0.5).floor() / FROST_MOVE_QUANTIZATION
+}
+
 pub(crate) fn attack_started(hx: &mut Hx, args: &HookArgs) {
     if !hx.k.config.faction_mode.frost() {
         return;
@@ -137,7 +148,7 @@ pub(crate) fn after_damage(w: &mut World) {
         // Iron Will: the victim's folded slow_resist weakens the cut by the resisted share, exactly like the source's
         // resistSlow(m, slowResistOf(victim)) — read before the mutable victim borrow.
         let resist = crate::modifiers::view(&w.players[i].core).slow_resist;
-        let chill = crate::status_runtime::resist_slow(chill, resist);
+        let chill = resisted_attack_chill(chill, resist);
         let p = &mut w.players[i].core;
         let f = &mut p.signature;
         f.chill = chill;
@@ -170,9 +181,7 @@ pub(crate) fn after_damage(w: &mut World) {
         };
         let raw = near_mult.min(ranged_mult);
         // Same source order: the victim's resistance applies to the combined near/ranged result before quantization.
-        let move_mult = crate::status_runtime::resist_slow(raw, resist);
-        f.frost_move_mult =
-            (move_mult * FROST_MOVE_QUANTIZATION + 0.5).floor() / FROST_MOVE_QUANTIZATION;
+        f.frost_move_mult = resisted_move_mult(raw, resist);
         if f.chill < 1. {
             f.bits |= SIG_CHILLED;
             p.weapon.ready_at = stretch_until(p.weapon.ready_at, now, TICK_MS, f.chill);

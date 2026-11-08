@@ -1,13 +1,12 @@
-diff --git a/crates/rh-sim/src/systems/frost.rs b/crates/rh-sim/src/systems/frost.rs
-index f3a275e8..d9b6039b 100644
 --- a/crates/rh-sim/src/systems/frost.rs
 +++ b/crates/rh-sim/src/systems/frost.rs
-@@ -137,7 +137,7 @@ pub(crate) fn after_damage(w: &mut World) {
-         // Iron Will: the victim's folded slow_resist weakens the cut by the resisted share, exactly like the source's
-         // resistSlow(m, slowResistOf(victim)) — read before the mutable victim borrow.
-         let resist = crate::modifiers::view(&w.players[i].core).slow_resist;
--        let chill = crate::status_runtime::resist_slow(chill, resist);
-+        let chill = chill;
-         let p = &mut w.players[i].core;
-         let f = &mut p.signature;
-         f.chill = chill;
+@@ -28,7 +28,8 @@
+ }
+ /// Source attack chill after the victim's folded resistance. Also probed by the gameplay content identity.
+ pub(crate) fn resisted_attack_chill(min_chill: f64, resist: f64) -> f64 {
+-    crate::status_runtime::resist_slow(min_chill, resist)
++    let _ = resist;
++    min_chill
+ }
+ 
+ /// Source resistance precedes movement quantization. Shared with the gameplay content identity.
