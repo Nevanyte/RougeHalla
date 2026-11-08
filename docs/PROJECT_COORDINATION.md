@@ -14,7 +14,7 @@ detached review snapshot; use `git worktree list` to resolve the authoritative p
 |---|---|---|
 | Lead: OPTimization_port | Git consolidation, architecture, protocol/privacy decisions, expert reviews, release acceptance | Sole owner of merges/pushes to `optimization_port`, shared status/contract records and `Cargo.lock` |
 | Check Git access / `codex/input-latency` | Input scheduling, opt-in measurement harness, local networking/deployment diagnostics and AWS readiness | Isolated worktree; report exact candidate/artifact versions; no cloud mutations while the approved account is unavailable |
-| Prepare Unity 2D Demo / `codex/unity-art-direction` | Owner-approved 2D art, presentation, HUD/accessibility, quality tiers and audio | No game rules; only the two approved MatchClient projection/Fx-forwarding hunks and safe listener teardown; browser/performance proof before admission |
+| Prepare Unity 2D Demo / `codex/unity-art-direction` | Owner-approved 2D art, presentation, HUD/accessibility, quality tiers and audio | No game rules; approved MatchClient projection/Fx forwarding and visibility refresh/reset, with safe listener teardown; browser/performance proof before admission |
 | DeepSeek Rust Port Worker | Mechanical Rust ports with fixed interfaces, source fixtures, negative controls, mutants and repetitive tests | No new observation/protocol/schema or architecture decisions; proposed changes go to the lead first |
 | DeepSeek Post Rust | Bounded adapter repairs and source-fixture integrity consumers | Same restriction; input scheduling/prediction belongs to the latency lane |
 | Expert reviewers | Privacy/protocol reconciliation, persistence/concurrency and difficult integration repairs | Private review worktrees/patches; lead admits the result |

@@ -116,8 +116,8 @@ parser scope and startup-snapshot limitations remain explicit in the [fill evide
 
 ## GitHub and CI follow-through
 
-The first clean checkpoint was pushed as7d71bcc1, then the learning union as53bbead3. Thirty-one reviewed PR heads are
-accounted for: four GitHub auto-merges and27 explicitly closed stacked PRs with immutable integration receipts. GitHub
+The first clean checkpoint was pushed as7d71bcc1, then the learning union as53bbead3. Thirty-two reviewed PR heads are
+accounted for: four GitHub auto-merges and28 explicitly closed stacked PRs with immutable integration receipts. GitHub
 refuses retargeting a head already wholly included in optimization_port; those closures are not falsely called new PR
 merges. Branch refs remain for descendants. [The disposition receipt](github-dispositions.json) records individual PRs.
 
