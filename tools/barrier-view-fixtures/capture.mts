@@ -12,6 +12,8 @@
 //                         barrier values including signed zero, subnormal, f32 boundaries, 1e39, NaN and infinities.
 //   human-ring.json       the actual PlayerView.prototype.setBarrier method called on declared recorder objects
 //                         ({barrierStep, barrierRing}); records the eight-step mapping, cache skips, clears and draw calls.
+//                         The human ring's actual input is barrierStrength(schema-decoded f32 barrier, ORIGINAL f64 maxHp):
+//                         maxHp is not Math.fround-ed there (fighterSeen, by contrast, frounds hp/maxHp/barrier).
 //   npc-forms.json        actual perceive() over declared mob/dummy/elite/quest/zombie rows, including a stray declared
 //                         barrier property that must not become an NPC fact.
 //   visibility.json       the same owner/fighter barrier witness for visible, EFFECT_HIDDEN, out-of-frame and
@@ -374,6 +376,8 @@ const continuous = {
   diagnostics: {
     label: "numeric-domain diagnostics",
     warning: "Declared inputs outside the finite non-negative bar domain. These are source-arithmetic observations only: they are not native publication, restore, wire-admission or rejection rules and authorize no precision decision.",
+    guards: "The finite-input denominator shorthand is NOT applied here: hpBarFractions is called on the declared values, so its actual value > 0 ? value : 0 guards execute and NaN, infinities, negatives and signed zero are preserved exactly as the helper returns them.",
+    finiteShorthandApplied: false,
     caseCount: CONTINUOUS_DIAGNOSTICS.length,
     cases: CONTINUOUS_DIAGNOSTICS.map(continuousProbe),
   },
@@ -642,16 +646,54 @@ function ringMappingProbes(): unknown[] {
 }
 function ringNormalizedProbes(): unknown[] {
   return RING_NORMALIZED.map((c) => {
-    const strength = barrierStrength(c.barrier, c.maxHp);
+    // The human ring's actual barrier input is the schema-decoded float32 (PlayerState.barrier); maxHp is the original
+    // f64 number field and is NOT fround-ed here (fighterSeen, by contrast, frounds hp/maxHp/barrier).
+    const schemaBarrier = Math.fround(c.barrier);
+    const strength = barrierStrength(schemaBarrier, c.maxHp);
     const { recorder, calls } = makeRingRecorder();
     const r = ringCall(recorder, calls, strength);
     return {
       label: c.label,
-      barrier: tag(c.barrier),
+      declaredBarrier: tag(c.barrier),
+      schemaBarrier: tag(schemaBarrier),
       maxHp: tag(c.maxHp),
-      barrierShareOfMaxHp: tag(c.barrier / c.maxHp),
+      barrierShareOfMaxHp: tag(schemaBarrier / c.maxHp),
       strength: tag(strength),
       ...r,
+    };
+  });
+}
+
+// Lead-review clarification witness: the human ring uses the schema-f32 barrier and the original f64 maxHp. One case is
+// chosen so an erroneous fround(maxHp) would change the eight-step rounding result (2 vs 3); the
+// diagnosticIfMaxHpFrounded block is explicitly NOT source behaviour and is recorded only to prove the distinction.
+const RING_F64_MAXHP: Array<{ label: string; barrier: number; maxHp: number }> = [
+  { label: "f64-maxhp-below-tie", barrier: 9.375, maxHp: 100.000001 },
+  { label: "f64-maxhp-fraction", barrier: 0.06, maxHp: 99.999999 },
+  { label: "f64-maxhp-near-full", barrier: 29.999999, maxHp: 100.00001 },
+  { label: "f64-maxhp-ordinary", barrier: 15, maxHp: 150.0000001 },
+];
+function ringF64MaxHpProbes(): unknown[] {
+  return RING_F64_MAXHP.map((c) => {
+    const schemaBarrier = Math.fround(c.barrier);
+    const strength = barrierStrength(schemaBarrier, c.maxHp);
+    const { recorder, calls } = makeRingRecorder();
+    const r = ringCall(recorder, calls, strength);
+    const strengthIfMaxHpFrounded = barrierStrength(schemaBarrier, Math.fround(c.maxHp));
+    const stepIfMaxHpFrounded = strengthIfMaxHpFrounded > 0 ? Math.max(1, Math.round(strengthIfMaxHpFrounded * 8)) : 0;
+    return {
+      label: c.label,
+      declaredBarrier: tag(c.barrier),
+      schemaBarrier: tag(schemaBarrier),
+      maxHpF64: tag(c.maxHp),
+      strength: tag(strength),
+      ...r,
+      diagnosticIfMaxHpFrounded: {
+        label: "diagnostic only, NOT source behaviour: the step if maxHp were erroneously Math.fround-ed",
+        maxHpF32: tag(Math.fround(c.maxHp)),
+        strength: tag(strengthIfMaxHpFrounded),
+        step: stepIfMaxHpFrounded,
+      },
     };
   });
 }
@@ -689,6 +731,7 @@ if (PlayerView === null) {
       recorder: "declared { barrierStep, barrierRing } object; barrierRing records clear/fillStyle/fillCircle/lineStyle/strokeCircle and the arguments the method passes",
       stubs: "tools/barrier-view-fixtures/stub-loader.mjs maps phaser and every *.css to empty ESM modules; no scene, DOM or graphics lifecycle runs. The method itself is not copied or reimplemented.",
       note: "A fresh recorder starts at barrierStep 0, so a 0 call from that state changes nothing; a positive -> 0 transition clears and draws nothing.",
+      inputs: "The caller passes barrierStrength(p.barrier, p.maxHp): p.barrier is the schema-decoded float32 barrier, p.maxHp is the original f64 maxHp (NOT Math.fround-ed). This differs from fighterSeen, whose hp/maxHp/barrier are all Math.fround-ed before hpBarFractions.",
     },
     importSetup: {
       phaser: "empty module (default {})",
@@ -707,9 +750,13 @@ if (PlayerView === null) {
       probes: ringMappingProbes(),
     },
     normalized: {
-      label: "actual barrierStrength(barrier, maxHp) feeds the same actual method; BARRIER_FULL_SHARE = 0.3",
+      label: "actual barrierStrength(schema-f32 barrier, f64 maxHp) feeds the same actual method; BARRIER_FULL_SHARE = 0.3; maxHp is NOT Math.fround-ed for the human ring",
       BARRIER_FULL_SHARE: tag(BARRIER_FULL_SHARE),
       probes: ringNormalizedProbes(),
+    },
+    schemaF32BarrierF64MaxHp: {
+      label: "lead-review clarification witness: ring input is the schema-decoded f32 barrier with the original f64 maxHp (fighterSeen instead frounds hp/maxHp/barrier); the fround(maxHp) block is a labelled diagnostic only",
+      probes: ringF64MaxHpProbes(),
     },
   };
   const mapping = humanRing.mapping.probes as any[];
@@ -717,6 +764,15 @@ if (PlayerView === null) {
   humanRing.observedFullStep = observedAtFull === undefined ? null : observedAtFull.stepAfter;
   expectSource(observedAtFull !== undefined && observedAtFull.stepAfter === 8, "a full strength draws the eight-step ring");
   expectSource(mapping.find((p: any) => p.label === "tiny-positive-sliver").stepAfter === 1, "a tiny positive strength still draws step 1");
+  const f64MaxHpProbes = humanRing.schemaF32BarrierF64MaxHp.probes as any[];
+  expectSource(
+    f64MaxHpProbes.some((p: any) => p.stepAfter !== p.diagnosticIfMaxHpFrounded.step),
+    "a schema-f32-barrier/f64-maxHp threshold case must differ from the erroneous fround(maxHp) step",
+  );
+  expectSource(
+    f64MaxHpProbes.every((p: any) => Number.isFinite(p.maxHpF64.value ?? NaN)),
+    "the f64 maxHp values are finite",
+  );
 }
 
 // ===================================================================================================== E. NPC forms
