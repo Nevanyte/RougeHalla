@@ -61,10 +61,28 @@ Nested shapes (all in packages/shared/src/telemetry.ts; the fixture pins instanc
   DuelOutcome, BotTierId, BotPersonaId, FirstStriker, THIRD_* bits, RegionId, WeaponId, FactionId, SignatureKind,
   AbilityId, WinBonusWhy, ChestBoostStat.
 
-Coverage gaps in this one captured instance (add scenarios, not fields, to widen): non-null death causes, camps,
-snapshots, bot tier/persona, client perf, planningMia, truncated, and non-empty tiles (the declared run is 250 ms, so the
-1 Hz sampler recorded no second). The capture tool's scenario is the place to extend them; no source fixture changes are
-needed for a wider corpus.
+The addendum matrix (below) addressed this instance's coverage gaps with additively captured real records.
+
+## Addendum: the variant capture matrix (task-41)
+
+The follow-up packet added a second additive corpus, parity/telemetry/run-record-matrix.json, captured by
+tools/bot-telemetry-fixtures/capture-matrix.mts in the same pinned container with the same declared technique (only the
+random runId normalized; the declared clock is 1700000000000 + the sim's server time, so epoch fields are deterministic).
+It carries 11 real records: bot-client-net (bot tier/persona, client perf, net, build.commit null), death-terrain-sudden,
+death-quit, draw-both-down, void-null-nullables, abandoned-end, long-run-snapshots-tiles-afk (four snapshots, dense tiles,
+afk/afkMs, truncated.samples), offers-truncated, duels-truncated, planning-mia and win-bonus-opponents. The base record
+file is unchanged byte-for-byte and the capture --check covers both files.
+
+The shape parity test now deserializes and re-serializes EVERY captured line byte-identically; the matrix needed no shape
+change (the existing type surface was already correct for all exercised variants), and the committed negative controls
+cover a missing required/required-nullable field, an absent optional not being re-inserted, and an added field failing the
+source-bytes check. A field-order mutant (swap two DeathCause members) makes the parity test fail with exit 101; the
+restored shape passes.
+
+Three variants remain documented blockers (corpus "blockers") rather than being approximated: mob and zombie death
+causes (need a live regional-mob / Plague-zombie roster arena), non-empty camps and truncated.camps (need a generated camp
+arena with credited mob kills), and truncated.tiles (needs a record over the sink's 512 KiB cap). Each belongs to
+follow-up A once the read-only recorder seam exists.
 
 ## Sinks and the current Rust writer
 
