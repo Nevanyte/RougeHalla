@@ -1,0 +1,11 @@
+--- a/crates/rh-sim/src/quests/rules.rs
++++ b/crates/rh-sim/src/quests/rules.rs
+@@ -91,7 +91,7 @@
+ /// below `QUEST_FEED_BRAKE`.
+ pub fn reward_card(def: &Def, feed: f64) -> CardId {
+     let tier = reward_card_tier(def);
+-    let lowered = if reward_curve(feed) < QUEST_FEED_BRAKE {
++    let lowered = if reward_curve(feed) < 0.01 {
+         tier.saturating_sub(1).max(1)
+     } else {
+         tier

@@ -1,0 +1,11 @@
+--- a/crates/rh-sim/src/quests/placement.rs
++++ b/crates/rh-sim/src/quests/placement.rs
+@@ -598,7 +598,7 @@
+     let mut used = camp_item_exclusions(map);
+     let mut givers: Vec<Vec2> = Vec::new();
+     let mut out: Vec<Placement> = Vec::new();
+-    for known in [true, false] {
++    for known in [false, true] {
+         let group: Vec<RosterEntry> = roster
+             .iter()
+             .copied()

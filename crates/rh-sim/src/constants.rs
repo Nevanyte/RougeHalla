@@ -325,4 +325,30 @@ content! {
     /// A Trophy outlives a chest: a killer may still be fighting (source KILL_AUG_SECONDS).
     KILL_AUG_SECONDS: f64 = 30.0, "s";
 
+    // ---- K1 quests (shared/quests.ts, shared/constants.ts) ----
+    QUEST_COUNT: u32 = 20, "offers";
+    QUEST_KNOWN_COUNT: u32 = 10, "offers";
+    QUEST_REVEAL_RADIUS: f64 = 12. * TILE, "u";
+    QUEST_REVEAL_HEAD_START_MS: f64 = 4000., "ms";
+    QUEST_TURN_IN_RANGE: f64 = 64., "u";
+    QUEST_ACCEPT_RANGE: f64 = 64., "u";
+    QUEST_NPC_SPAWN_MIN_TILES: u32 = 8, "tiles";
+    QUEST_NPC_GAP_TILES: u32 = 7, "tiles";
+    QUEST_FETCH_MIN_TILES: u32 = 36, "tiles";
+    QUEST_MAX_CARRIED: u32 = 1, "items";
+    QUEST_GV_CAP: u32 = 50, "GV";
+    FARM_SECONDS_PER_MOB: f64 = 12., "s";
+    CAMP_SECONDS: f64 = 4. * FARM_SECONDS_PER_MOB, "s";
+    CARD_TIER_RATE: f64 = 1.35, "tier/camp";
+    FARM_GV_RATE: f64 = 2. / FARM_SECONDS_PER_MOB, "GV/s";
+    TRAVEL_RATE_SHARE: f64 = 0.4, "share";
+    STACK_PREMIUM: f64 = 1.15, "multiplier";
+    QUEST_FEED_BRAKE: f64 = 0.65, "curve";
+    QUEST_MIN_STAT_STACKS: u32 = 10, "stacks";
+    QUEST_MAX_STAT_STACKS: u32 = 20, "stacks";
+    QUEST_STAT_STACKS_PER_FARM_EQUIVALENT: f64 = 2.5, "stacks";
+    CLOSED_QUEST_LINGER_MS: f64 = 20000., "ms";
+    QUEST_SPOT_OVERSAMPLE: u32 = 4, "spots";
+    QUEST_HIDDEN_MIN_SPOTS_PER_OFFER: u32 = 2, "spots";
+
 }

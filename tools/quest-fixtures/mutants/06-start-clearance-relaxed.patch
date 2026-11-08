@@ -1,0 +1,11 @@
+--- a/crates/rh-sim/src/quests/placement.rs
++++ b/crates/rh-sim/src/quests/placement.rs
+@@ -314,7 +314,7 @@
+         }
+         out
+     };
+-    let strict = scan(f64::from(QUEST_NPC_SPAWN_MIN_TILES));
++    let strict = scan(f64::from(QUEST_NPC_SPAWN_MIN_TILES) / 2.);
+     if strict.len() >= QUEST_COUNT as usize * 4 {
+         return strict;
+     }

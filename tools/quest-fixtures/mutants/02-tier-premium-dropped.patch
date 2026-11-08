@@ -1,0 +1,10 @@
+--- a/crates/rh-sim/src/quests/rules.rs
++++ b/crates/rh-sim/src/quests/rules.rs
+@@ -30,7 +30,6 @@
+ pub fn tier_points(def: &Def) -> f64 {
+     ((def.obj_sec + TRAVEL_RATE_SHARE * def.travel_sec) / CAMP_SECONDS)
+         * CARD_TIER_RATE
+-        * STACK_PREMIUM
+ }
+ 
+ /// Source `parityGv`: GV the same quest should pay for time parity.

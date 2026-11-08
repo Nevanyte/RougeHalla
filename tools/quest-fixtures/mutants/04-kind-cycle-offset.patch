@@ -1,0 +1,11 @@
+--- a/crates/rh-sim/src/quests/roster.rs
++++ b/crates/rh-sim/src/quests/roster.rs
+@@ -53,7 +53,7 @@
+     let cycle = shuffled_indices(&(0..kinds.len()).collect::<Vec<_>>(), random);
+     let mut i = 0usize;
+     while picked.len() < count && pools.iter().any(|p| !p.is_empty()) {
+-        take(cycle[i % cycle.len()], &mut pools, &mut picked);
++        take(cycle[(i + 1) % cycle.len()], &mut pools, &mut picked);
+         i += 1;
+     }
+     let order = shuffled_indices(&picked, random);

@@ -39,6 +39,7 @@ pub mod observe;
 pub mod pathfind;
 pub mod potions;
 pub mod private_rng;
+pub mod quests;
 pub mod replay;
 pub mod results;
 pub mod rng;

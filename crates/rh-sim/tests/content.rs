@@ -45,6 +45,8 @@ const NON_GAMEPLAY: &[(&str, &str, &str)] = &[
     ("modifiers/mod.rs", "NO_BIT", "sentinel marking a row that owns no while bit, not a game rule"),
     ("reward_chests/pools.rs", "INTERACTIVE", "the source interactive augment id list (identifiers only); tiers and rows are the registered catalog"),
     ("kill_augments.rs", "ALL", "the nine readable investment keys in source order (identifiers only); the UNIT numbers are the registered kill-augments table"),
+    ("quests/catalog.rs", "ALL", "the three quest verb kinds in source order (identifiers only); the rows are the registered quests table"),
+    ("quests/rules.rs", "REFUSAL", "the five source refusal phrases (wording, not numbers); the accept action is not ported yet"),
     ("cards/on_hit.rs", "MAX_ON_HIT_ROWS", "fixed stack buffer bound for the owned on-hit rows; never a game rule"),
     ("cards/on_hurt.rs", "MAX_ROWS", "fixed stack buffer bound for the owned hpBelow rows; never a game rule"),
     ("reward_chests/tests.rs", "FIXTURE_FNV", "cfg(test)-only frozen source fixture integrity; not runtime policy"),
@@ -193,6 +195,7 @@ const TABLES_FOLDED_BY_HASH: &[(&str, &str, &str)] = &[
     ("reward_chests/rules.rs", "DEFINITION", "actual source offer/range/expiry/skip policy folded by visit_progression_content"),
     ("reward_chests/view.rs", "ALL", "actual boost identities/index/name order folded by visit_progression_content"),
     ("kill_augments.rs", "DEFINITION", "actual source UNIT normalisers and readable-stat order folded by visit_progression_content (kill-augments table)"),
+    ("quests/catalog.rs", "DEFINITION", "the twenty typed K1 quest rows folded by visit_progression_content (quests/1 table)"),
     ("initial_world/rules.rs", "DEFINITION", "actual initial-world constructor policies are folded through their runtime visitor"),
     ("status_runtime/fields.rs", "TRIAL_FIELD_POLICY", "actual rank-one exit-stun/burn policy read by status fields and visit_extra_content"),
     ("status_runtime/fields.rs", "BLAZE_FIELD_POLICY", "actual rank-one exit-stun/burn policy read by status fields and visit_extra_content"),
@@ -507,7 +510,7 @@ fn hash_golden() {
         content_hash()
     );
 }
-const GOLDEN_CONTENT_HASH: u64 = 0x4662_962b_9cb9_69b1;
+const GOLDEN_CONTENT_HASH: u64 = 0xb6f9_d4c2_aa07_e30b;
 
 #[test]
 fn every_registry_row_perturbs_the_hash() {
