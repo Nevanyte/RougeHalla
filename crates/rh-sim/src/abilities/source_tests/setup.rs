@@ -171,12 +171,11 @@ pub(super) fn construct_with_stages(
         wish_lock_ms: input["config"]["wishLockSeconds"].as_f64().unwrap_or(0.) * 1000.,
         ..Default::default()
     };
-    let closed = input["profile"] == "rosterSignatures";
     let mut sim =
         Sim::try_new(config, arena, secrets).expect("admitted source profile constructor");
     on_stage(&sim, "constructed");
     #[cfg(feature = "trusted-status-probes")]
-    if closed {
+    if input["profile"] == "rosterSignatures" {
         sim.w.trace.1.enabled = true;
     }
     for p in &placements {
