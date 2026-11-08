@@ -9,6 +9,7 @@
 //! for the rest of the match (and the fault is reported). Batching or running a model elsewhere belongs OUTSIDE the
 //! deterministic rules, behind [`AsyncSeat`]; no model runtime is part of this crate (Stage 1 scope: architecture only).
 
+pub mod bots;
 pub mod scripted;
 
 use rh_sim::content::content_hash;
