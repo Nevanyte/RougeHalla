@@ -83,7 +83,12 @@ namespace Roguehalla.Client
             _attackHeld = _steering = false;
         }
 
-        void OnDestroy() { UnbindPresentationSession(); ResetPresentationTimeline(); if (Session != null) Session.Leave(); }
+        void OnDestroy()
+        {
+            UnbindPresentationSession(); ResetPresentationTimeline();
+            if (Session != null) Session.Leave();
+            if (Arena != null) { Arena.gameObject.SetActive(false); Destroy(Arena.gameObject); }
+        }
 
         void BindPresentationSession(Session session)
         {

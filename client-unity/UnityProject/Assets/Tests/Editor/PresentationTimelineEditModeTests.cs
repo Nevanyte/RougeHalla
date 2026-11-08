@@ -171,6 +171,7 @@ namespace Roguehalla.Client.Tests
             Bind(first);
             // These runtime MonoBehaviours are not engine-ticked in EditMode. Exercise their
             // actual teardown hooks explicitly; the staged Play fixture checks engine dispatch.
+            _client.Arena = null; // actual owned-Arena destruction is checked in the staged Play fixture
             Invoke(_client, "OnDestroy");
             Invoke(_audio, "OnDisable");
             Invoke(_hud, "OnDestroy");
