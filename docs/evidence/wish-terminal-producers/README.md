@@ -23,7 +23,7 @@ changed; existing source payloads are read-only.
 - Capture commands: bash tools/wish-terminal-fixtures/capture.sh and ... --check (own RH_WISH_TERMINAL_OUTPUT).
   Tool hashes: capture.mts fd591d18f5b6cc9714ad78537d2fc7cf2ca709722bcc4a4e6c1cc833c8bc821c, capture.sh
   e1e1b577007b4e45f0dc713b39fed03f4af8e33cd16f08d5ad8a66da85a9d181, run-mutants.sh
-  2750515e9fc77cf2bd3a86d6645976ada3c12055e2313d51b8c533067108815a, mutants/mutate.py
+  633faaff6c0615156a10a2f760f5c0ae389d8105836bebd27bf1606259ae99d2, mutants/mutate.py
   81e7f29ca0df0a265912f9c02ea3bded5d17d27f7cf83f955e41878c6d173acb.
 
 ## Actual producer matrix (source == native replay)
@@ -60,6 +60,15 @@ Case | Real producer | Start clock | Terminal clock/reason | Stock/refund | Orde
   the remaining source actions through both the original and restored Sim, comparing the canonical relevant cast/status
   events plus state hashes over the empty-input continuation steps (2 steps for the Fizzle cases, 5 for the Interrupted
   cases). This is not a comparison of full private event vectors or of non-empty-input continuations.
+- Pending-event predicate diagnostic: the actual returned terminal Event is serialized and checked by the shared
+  helper for numeric id AND ability; wrong-id and wrong-ability negatives both fail the predicate. It is only a
+  diagnostic input and is never enqueued into a Sim.
+- Runner backup safety (task-88): lib/runner-guard.sh checks mktemp and cp success, verifies the completed backup size
+  and SHA-256 against the source, and arms MUT_FILE only after all checks pass. Every backup failure is fail-closed and
+  the original untouched; restoration failure returns nonzero and retains recovery bytes. EXIT/HUP/INT/TERM restore the
+  armed source; SIGKILL is untrappable and is not claimed. The isolated tests/runner-safety.sh suite uses disposable
+  files/mocked commands to exercise mktemp failure, cp failure, partial backup, HUP/INT/TERM during the backup window,
+  and restoration failure/nonzero with retained recovery. Guard SHA 2384a477...; safety-suite SHA 72368140....
 
 ## Tests and checks
 

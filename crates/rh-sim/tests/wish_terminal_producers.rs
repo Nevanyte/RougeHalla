@@ -328,6 +328,16 @@ fn source_fizzle_interrupted_terminal_matrix_matches_native_and_continues() {
                     ),
                     "{name}: the diagnostic predicate requires the actual numeric id"
                 );
+                let wrong_ability = format!("{end_ability}-wrong");
+                assert!(
+                    !serialized_pending_matches(
+                        &diagnostic,
+                        "CastEnded",
+                        end_actor,
+                        &wrong_ability
+                    ),
+                    "{name}: the diagnostic predicate requires the actual ability"
+                );
                 let pending =
                     serde_json::to_value(&sim).unwrap()["world"]["pending_events"].clone();
                 let own_pending = |tag: &str| {
