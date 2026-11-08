@@ -110,8 +110,12 @@ the lead resolves barrier publication/gating.
 Private continuation is now allocated under [ADR0022](adr/0022-barrier-wish-publication.md): one protocol12/
 Observation18 Wish/barrier publication candidate, with actual producer-time cues, anonymous permitted spatial landings,
 strict coordinate redaction and explicit per-frame source time. Main identities/guards are unchanged. Native checked
-observation work and networking PhaseA proceed with sequential shared-file leases; pending restore/hash/tapes remain
-G6-owned until handover. A separate [Frost-resistance packet](coordination/P-FROST-RESISTANCE-1.md) fixes missing victim
+observation work and networking PhaseB proceed with sequential shared-file leases. G6 handover is complete at
+`2a384510`: actual before/after-slot callers and anti-heal pass review, root's private G6/Frost composition passes67
+focused native checks and both new source captures reproduce byte-exact. State/checkpoint/format/hash-coverage passes
+to networking; final content and derived tapes remain lead-owned. The private barrier numeric source consumer
+separately passes5 tests plus warm zero-allocation. A separate
+[Frost-resistance packet](coordination/P-FROST-RESISTANCE-1.md) fixes missing victim
 slow resistance in the admitted player domain. None of these private assignments closes full NPC signatures, brain or
 public/client gates. [CI42485021427](https://github.com/Nevanyte/RougeHalla/actions/runs/42485021427) at `01b14dca`
 passes all four foundation jobs, including full simulation and the corrected partial perception evidence.
