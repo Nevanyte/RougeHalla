@@ -93,3 +93,20 @@ test('Wish application records retain every occurrence and original fractional s
   assert.equal(collector.frame, 11);
   assert.equal(collector.overflow, true);
 });
+
+test('explicit warm-up recording gate prevents frame collection until the measured trial begins', () => {
+  const { library, page } = plugin();
+  const collector = page.__rhLatency = { events: [], recording: false, targetsRequested: true };
+  assert.equal(library.RhLatency_Enabled(), 0);
+  for (let i = 0; i < 20001; i++) library.RhLatency_Mark('frameStart', i, 1, 0, 0, 0);
+  library.RhLatency_WishPresented('presentWishLanded', 1, 1, 0, 50);
+  assert.equal(library.RhLatency_TakeTargetRequest(), 0);
+  assert.equal(collector.events.length, 0);
+  assert.equal(collector.overflow, undefined);
+  collector.recording = true;
+  assert.equal(library.RhLatency_Enabled(), 1);
+  assert.equal(library.RhLatency_TakeTargetRequest(), 1);
+  library.RhLatency_Mark('sampleWish', 30000, 1, 7, 4, 5);
+  assert.equal(collector.events.length, 1);
+  assert.equal(collector.events[0].frame, 30000);
+});

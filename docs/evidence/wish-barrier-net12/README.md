@@ -104,6 +104,10 @@ or spend is part of this candidate work.
 `LatencyTrace` remains disabled in ordinary players. The Web collector is explicitly installed by the browser harness;
 the Editor observer requires `LatencyTrace.BeginEditor()` and stops with `EndEditor()`. Both cap records at 20,000 and
 flag overflow; `ReadEditor()` copies only the bounded Editor records. These CPU milestones do not prove display scanout.
+Web `collector.recording = false` disables marker collection during the normal 45-second readiness warm-up while the
+harness still observes network readiness. Set it true at the explicit measured-trial boundary. Undefined keeps the
+existing movement harness behavior. Editor begins its trace at the equivalent boundary; overflow during a measured
+trial is always a failure rather than a reason to erase evidence.
 
 - `sampleWish` is recorded only after the actual R-key `ReadInput` path queues a nonzero Cast sequence. It uses the
   existing `moveSeq` trace field for that order sequence, plus the actual cursor ground point and Unity frame. The input
@@ -119,7 +123,7 @@ flag overflow; `ReadEditor()` copies only the bounded Editor records. These CPU 
   delivered fact. Each record also includes Unity frame and local observation time; no tick-derived restamping or
   same-frame/ability/time deduplication occurs.
 
-The JS guard suite passes 6/6, including malformed/absent opt-ins, broken collectors, one-shot requests, shared cap and
+The JS guard suite passes 7/7, including malformed/absent opt-ins, broken collectors, one-shot requests, shared cap and
 two identical-timestamp anonymous Wish occurrences. Actual Unity compilation, art hook application and live input
 execution remain the subsequent composition proof; this observer API alone does not satisfy them.
 A temporary pinned .NET 8.0.427 check with a Unity time stub also compiled ordinary player, Editor and WebGL branches;
