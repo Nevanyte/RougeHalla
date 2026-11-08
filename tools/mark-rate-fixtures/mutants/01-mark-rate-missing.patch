@@ -1,0 +1,11 @@
+--- a/crates/rh-sim/src/systems/sentenced.rs
++++ b/crates/rh-sim/src/systems/sentenced.rs
+@@ -102,7 +102,7 @@
+         // The folded MarkRate accessor is read here (runtime cache, not a new fold) and the pure progress helper keeps
+         // the source arithmetic order and the prior-tick chill denominator floor.
+         let increment =
+-            crate::modifiers::mark_progress_increment(w.players[i].modifiers.mark_rate(), chill);
++            crate::modifiers::mark_progress_increment(1., chill);
+         let m = &mut w.players[i].signature.mark;
+         for _ in 0..count {
+             m.hits += 1;

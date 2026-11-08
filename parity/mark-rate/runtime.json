@@ -1,0 +1,3868 @@
+{
+ "format": "rh-mark-rate-source/1",
+ "provenance": {
+  "image": "node:22.23.4-bookworm-slim@sha256:aaa4b5baf1ecff3b283486bb1f90405cdda225a3e6f79660d2c559fa510a7292",
+  "platform": "linux/amd64",
+  "node": "v22.23.4",
+  "profile": "player-only-no-mobs/full-player-faction/sentenced-frost",
+  "config": {
+   "minPlayers": 2,
+   "lobbySeconds": 30,
+   "fillSeconds": 0,
+   "patienceSeconds": 3600,
+   "patienceMinSeconds": 3600,
+   "suddenDeathSeconds": 3600,
+   "mobs": false,
+   "signatures": true,
+   "quests": false,
+   "training": false,
+   "dummies": false,
+   "planSeconds": 0,
+   "pvpRules": false
+  },
+  "modules": {
+   "signatures": true,
+   "walkHints": false
+  },
+  "map": {
+   "seed": 1,
+   "attempt": 0,
+   "decor": false
+  },
+  "tools": {
+   "captureMts": "46b6a1be50f785cb42793431564154e4892064f365a7de59576c36dbf91480e5",
+   "captureSh": "cfd6aee3dfb7a65bbe715f6608e9eb47097c9451b8c27ffe0df2f9da8956a996",
+   "runMutantsSh": "adfcda530b8806dae5975b951dbfc8402e78262b12cbe1d5ac67c6f60c5979d6",
+   "packageLock": "991869bdfbbefb6874220500197c61db302a4d2b2603dfc2288fd7032ce1d481"
+  },
+  "sourceSha256": {
+   "packages/shared/src/abilities.ts": "95ef39376a9d9f40cc529a0f7300700a97427050628941e801aaa1e299862518",
+   "packages/shared/src/achievements.ts": "c80dbded6e1ea5eb79dc0f25378d9a45fbe41865a8298bf9fc5f2eeafdd46a34",
+   "packages/shared/src/blink.ts": "e5582562556f530fd99ec9bf8e506fa144805f666c09f4359aefb98ee9171f15",
+   "packages/shared/src/bushes.ts": "ac64ce414134376d27b7b4819d59096e66edd01d82958e873d57348a79d85910",
+   "packages/shared/src/cards.ts": "4a51376a1ce3a79f417e32ce7ae8d7eb37142da5e49f59c3a2c89d48b11ae1e3",
+   "packages/shared/src/championPassives.ts": "d7e0ecdc8b9cbffc8463f40b9c564019431b14744f5948bf89eefb2505fbf6df",
+   "packages/shared/src/chestBoosts.ts": "60b50c685dacdfdbc2861fdc9f80a900845c5cc0af0b77741527cfb8da51fa81",
+   "packages/shared/src/coliseum.ts": "48fc2fa156e70ff6520019605017939298144960d8871a748ef18aadbbf0c0e1",
+   "packages/shared/src/combatReadability.ts": "206f707658ee37f22d9aae403449003487e474220442e1cb178c8af85bfe8833",
+   "packages/shared/src/constants.ts": "51ce4dd800ec868abee525fb1ae375688066f336972a7da878644df1235924e7",
+   "packages/shared/src/consumables.ts": "1ffd882c4b44fed9c20743e671050fc4044706c17e2c36c365952eafc3bd3606",
+   "packages/shared/src/cosmetics.ts": "7513ea6b3cbc51072863ccb6ef568d96797f9239c8073f99d2a33ef3aab7b873",
+   "packages/shared/src/detMath.ts": "a806636428155920a0c1c8675cd84d896057993d4d6ff7b9b4623daa5a312b15",
+   "packages/shared/src/effectText.ts": "da22ddb275748104b8f7e11888c1c52c569463bcf165c8efc943cd42f7f0050f",
+   "packages/shared/src/effects.ts": "859ac817f16a8334865abf103b783fae76b5525d0e90dc407bddf921810f415b",
+   "packages/shared/src/factions.ts": "aa0cebf1c17af17b64bc1e020c4613ab10788ec66d82a72232aef8915d5403f3",
+   "packages/shared/src/fireRoam.ts": "ddf7a5372e3d223b86eb7f0408960908f2c4d4f7c6172fc5e65284ab1c4b8edb",
+   "packages/shared/src/fxCodec.ts": "db2080230ad1b3702e37d3e339384e4a071ef899a8203026e20038a3a2b0f0ba",
+   "packages/shared/src/geometry.ts": "b1a91a65281f8642b1779b81764768569311966ab493941101a2f988cfdc1f5d",
+   "packages/shared/src/glossary.ts": "0c8871be2726d6a63700e2f6ba39a454992258189f276ad1ed87b8601150a5fb",
+   "packages/shared/src/gridOps.ts": "76587ddd597a2a6ecc05561427dd89b986b6f86026ffedc56848e1b03bb52493",
+   "packages/shared/src/gridTopology.ts": "deb2710d114cd669854a082c06bafe518f5ef750249722f89ede83a27d42d328",
+   "packages/shared/src/hpView.ts": "40ec081fdb8adb245dca088a21f1aef18fa8dbf9d991581f16baf99606508cc3",
+   "packages/shared/src/index.ts": "2a78a73307372ea1a5ffe753f2f16fb11386c124100455f45339fe985b01dfcb",
+   "packages/shared/src/interactions.ts": "72aa41c26f8254e00d4956ba57d804471e80b924b55529d016efa6e7d4ecef11",
+   "packages/shared/src/interp.ts": "83cf2ac2359058b1e0497e636f83e36b1d60c97e13f81e15e6edf39d8f231eb4",
+   "packages/shared/src/killAugments.ts": "82641061ad98878f7fb209e72f490447034f5ddf36d149990e206fa83a548244",
+   "packages/shared/src/map.ts": "35caac04108a3bd0e1d880a9502f14bdccb3a9a17d262cba335c3d6436995eed",
+   "packages/shared/src/mapWire.ts": "b52863f757b829ab9a36582cc11e95aea4c0902fd979df5d40bcb5889bba04eb",
+   "packages/shared/src/mapgen.ts": "975591aed836a345c4efd957ced95a478638e6e870fe8ea9bb8740526ef06d10",
+   "packages/shared/src/mark.ts": "44870381fa48b9c8f65f180ff74995725644d7264df5b069a3c43c2291540661",
+   "packages/shared/src/messages.ts": "f7f3b4eb6bb32c54bb97a7d3a8e2ba613b0aff0495a0f20c09fd6d36c797fe80",
+   "packages/shared/src/mobStats.ts": "94034887302346dcd070ff2fa774ae0e4f71933b549964f53be13389be087d5b",
+   "packages/shared/src/mobs.ts": "3b567c08363d8d4f1e9a897240b3d99d5b8ded7757b6809a4b534b63d72b5522",
+   "packages/shared/src/mods.ts": "10e9dcd3d7417c4fe85d1c36ef33afe5abf7a5703a59b42a3a825a66aa4efaff",
+   "packages/shared/src/pathfind.ts": "300caa48788f84bdc780befe8c50db41c2c0b2be520d3fb43a7f91e16de424d9",
+   "packages/shared/src/plagueCorpses.ts": "cd85318857ba38853385c3ce9560b8674266b71b0b1555017953c7a41080378d",
+   "packages/shared/src/planning.ts": "8d52b212f6fec391359787cf9d81b8fa31a067ea839a2b9ccadc58c059027cb2",
+   "packages/shared/src/policies.ts": "3a08aef58ae780bb2417781e735ff75c310de08db43b47a742714bcf94619fbd",
+   "packages/shared/src/propKinds.ts": "431d70881377a8059960f053dc9452946cc0e942d212c92765bacb8a063027ee",
+   "packages/shared/src/quests.ts": "99c4fdfeae5e2a9eb3e0894f56ae1cd3db7eea760c5c09df695685e250800bba",
+   "packages/shared/src/rewards.ts": "cc19d6d0a7be390a9574a1f88b6b5241ac0885c3720b4ca3fe17d1d450f3a601",
+   "packages/shared/src/rng.ts": "412bdcee4a5adcb6163bff3561cb4a07eff423dc7e30e9ba0694cb41b05b1bec",
+   "packages/shared/src/rosters.ts": "0f544537f1ea1517345efd44bc3d4a4ee7d5bffd52a13cb084cc9693ec6f297d",
+   "packages/shared/src/rules.ts": "c5822091cdc711e53086a6f2f8649c53c1d709009649a0a65c005096774893b7",
+   "packages/shared/src/schema.ts": "245486da649ea5bc5d8b9b0d5d75f3e860fc8f153574fa2b9ee091dcb52e99cb",
+   "packages/shared/src/sentencedHunt.ts": "a606dd94905114562d14d13c09f6c59586a60a70e9a02da49285d886305ce561",
+   "packages/shared/src/signatureShares.ts": "e6996931487dde9d4e3f71481a9da996f7500fbcd2148f7924ed730a78eba1a4",
+   "packages/shared/src/signatures.ts": "0a6befbb5a6fe9870b13a540d72235085c491668c8cae3674fa8faf89816e191",
+   "packages/shared/src/status.ts": "98a0570d7620e424d9d522356fe378a6af049109d8af0342be0ecff970310df7",
+   "packages/shared/src/styler.ts": "314805a5a6cd9074763c9e555e48e7145c7ed7c87f265876c3712e4837abc51c",
+   "packages/shared/src/telemetry.ts": "3310df401408a2a4a893a40febe40dda72afe20a13898e6f63620a127d2ba8e2",
+   "packages/shared/src/terrain.ts": "5ee4fe11e793f83f3d095720ba1156a186c5c7704e864f2cad74503ab13a07d6",
+   "packages/shared/src/traders.ts": "6b0fb339c3988c253a4162bdd70ae0d3be13f2d066cbdf10168c5b6d1345d1d3",
+   "packages/shared/src/training.ts": "8cf8332e7083fa801407bb2bfd911f2ca008029c1a7ad16cf6bd9bc6935ccc58",
+   "packages/shared/src/vision.ts": "f9d026e5c3e8932502f147d6f2ce5d11625845faf07a9dec734b595db76521db",
+   "packages/shared/src/walk.ts": "0d33c95623a6d11fa21a9e58b308eed8cb0150b24d65b592877c5f9e2b5a0020",
+   "packages/shared/src/weapons.ts": "2f22f037502fe63fae6b47f20408cfd35ebc72bfea081194ae8d18cfc21df99b",
+   "packages/shared/src/wheel.ts": "e16388b4aa07cb1ab60c4ac5859879eaad0eb686f50e625a7917cad34e275466",
+   "packages/shared/src/zones.ts": "aa91d0c2b8d7b1957d6e28e29289c9dfa58ac6d4c8475b647445370fbcaeb814",
+   "packages/shared/src/zoneStyle/context.ts": "8a87c8c930a11c2f1c83b3afe9384586a24f41690dd77a78f1c35b0f69a19dfb",
+   "packages/shared/src/zoneStyle/features.ts": "f0d987fc114394e514c0b9e194b219aa1f8f3429a0fa141c7b6181e6d87ee983",
+   "packages/shared/src/zoneStyle/gallows.ts": "0edb95a89d06fc6b0f60a6dc85da41613177362679c03e2073f2be24bbe186e4",
+   "packages/shared/src/zoneStyle/hook.ts": "56eeba0fb5019dc5dd02e8fd76059c6f82ede6cfa2aa46c763ecf63b619bc668",
+   "packages/shared/src/zoneStyle/index.ts": "6ada1628cfd571cfda3616155e0dc0a047976d9056e467b521c68a6a44f6d673",
+   "packages/shared/src/zoneStyle/kit.ts": "dc69161c080b9474a873d12ac194d876b78285a1ae2cdb7eb24cb86b30337e16",
+   "packages/shared/src/zoneStyle/landmarks.ts": "ad18e32099ceafc1b88fa33a2225ef2c02508ac6fa4a58c1a91473f0be4c6587",
+   "packages/shared/src/zoneStyle/propKinds.ts": "6a139d0727ab392512d427507ee3b027f67860734d56eea7db8085add24003b9",
+   "packages/shared/src/zoneStyle/rime.ts": "d25714c3b647392a03662b33082b48de2c7ec2933755501fe55260c2a1daa19a",
+   "packages/shared/src/zoneStyle/sanctum.ts": "dd2da40c09a1a5dc5fdbd6e45b568d2b4ada831a0e195e86fd0ab64f49b7babd",
+   "packages/shared/src/zoneStyle/scale.ts": "b8e055707f98dfa104233c1ceebd99358b9b3b5ae8e9fe001d9174806ca6a07e",
+   "packages/shared/src/zoneStyle/scorch.ts": "52b324dd4dfc9a77986a9ffdcb9704041a2d3608e6e61e9af98b0f697fd2f02a",
+   "packages/shared/src/zoneStyle/styleZones.ts": "9c328903541ae1e15ca473b288c788b5a2ebb55e8974a639c6215c7c804cbc36",
+   "packages/shared/src/zoneStyle/types.ts": "193b6f57c1e76ea6f8249a316fc8898191682937493fbbce7beb3a0ffb26c33e",
+   "packages/shared/src/zoneStyle/warren.ts": "bdb057ebaf226fbe803403cc338d38f50c154c276a30fcb652b5229741a9ddcc",
+   "packages/server/src/sim/abilities.ts": "4457746101114724098d67024db28b73667a9300a0082be33718a9b3dc7fd4fc",
+   "packages/server/src/sim/arena.ts": "f8395e83f1f7f81d91bbc51d8fdec4e025f95d299c42f7229250be908341191a",
+   "packages/server/src/sim/bruiserPassives.ts": "c980bd5bcfb5f92729bb074d060716999d25f0f6754d700f5671ef143a4b30a3",
+   "packages/server/src/sim/buffs.ts": "f2cd5d69527da11e90f5abfda79e41f644b664d6e938ccb6c64965dab02c0b7f",
+   "packages/server/src/sim/campHeal.ts": "978239a9a24f722a854187fab1ad32cf7fc1705141fbfa34fc88860eb5c35db4",
+   "packages/server/src/sim/camps.ts": "878c2ac07e0795cf3482a4173340c7c5e55e8ee0fbc32a8772f4f79d01bb1613",
+   "packages/server/src/sim/cardHooks.ts": "46905d00f5841c216dca43d31a8e97f7d27ef2b826b92406a6110334b50081c1",
+   "packages/server/src/sim/cardState.ts": "e4425024d7901951f280493069fc951a990f9261c855113bd03046deed0806b4",
+   "packages/server/src/sim/chests.ts": "d8cd2785536280d24070259f9dc4cd062f42c7ffe9308b4899e683bb299623a4",
+   "packages/server/src/sim/combatant.ts": "3c2fac6ed6fbee82802c5bea86b0131d36e8ebf86eceb2c1a99ce58664fa7e60",
+   "packages/server/src/sim/consumables.ts": "96989f6b7d6147532e506028f164dc54f5a69b0ff9fd4765f32db3e2a58b3f4e",
+   "packages/server/src/sim/displace.ts": "cb3f57417fe819bce5feeccc51b2e1e70b7278f6ada08c10ea0e68670b705e23",
+   "packages/server/src/sim/factions.ts": "9ea65429b48b9aa43578922642534d82a1369778fbcec502e62cc9e21dacbf1c",
+   "packages/server/src/sim/feed.ts": "308e344dc3dc0bdbea707edeb18e14b5af596d7d7422f25385c39adb79d2b157",
+   "packages/server/src/sim/fields.ts": "617c36051243a9cda3e16614f92de76c4b09e42d8ecbc36c7ef0b9642c5ca203",
+   "packages/server/src/sim/fireRoam.ts": "ab7fb545ca13c870aa26dc17ea2b54aa9eca73fb48f2b48f85e26760cf854775",
+   "packages/server/src/sim/gameplay.ts": "70f6f2b67571783f3042309bef01dc75aabd2656c59a184d0f97c9c0a8b8cf78",
+   "packages/server/src/sim/inputs.ts": "47bda82b978e67922c9d2361bfcd51be4555a55691453a4e0393deb917be4cde",
+   "packages/server/src/sim/killAugments.ts": "0b364df731436813506f3ff5fc8db8954e3183fbe08c6ed2ef8e2dba1d466ad3",
+   "packages/server/src/sim/ledger.ts": "cc73151c50c43f65a85fc922050b2ea6a34973794ec893c7b7d51d657a4e6437",
+   "packages/server/src/sim/loot.ts": "d3ea7b07513bbc0bababa1107c52d0f7e7f4f79ca588812c79fd05add2c0c2e0",
+   "packages/server/src/sim/lootTables.ts": "9113367a810c491652413f547689fe38e91d63d0c876744cc91d9869c61f8684",
+   "packages/server/src/sim/melee.ts": "8b0699aed6258cce4364f8436efc28df9ee349a69dd500c6a87179d252fdefe6",
+   "packages/server/src/sim/mobAI.ts": "f99a67b67d7dcebbcf206ad50554b6e6715fb0b3cbeb80bd324a4765ee878649",
+   "packages/server/src/sim/mobLife.ts": "07ffe9240424b58eeed9f49c4140ae0c16db33906c738685a20cd4677ecfa3bd",
+   "packages/server/src/sim/mobStats.ts": "acbbcd69cb0939e2375124740de7fb39e99a3b49591bac6cf025bdc7c968d173",
+   "packages/server/src/sim/mobs.ts": "9e8bf7c68d37dd33d7f0aaa0f141c7b773982c47d794c753a1a76fb09b128521",
+   "packages/server/src/sim/mods.ts": "93db949f7b217b93942efdeca66caef29096d94881c5dd28bcf0eaf8287d323b",
+   "packages/server/src/sim/movement.ts": "86ebd2205a0af4608ed484317bea3723bb378b3e138954a44140e340adab1f93",
+   "packages/server/src/sim/onHit.ts": "a5c5a4b41a5a9489e812921a28d3dc5531c75e1a43d21557befd6b9b3cf8588e",
+   "packages/server/src/sim/plagueCorpses.ts": "55449dc54c27b9c33196ed89d761afdf6566cb65e2f992bbe86aa2a8828bc80c",
+   "packages/server/src/sim/plagueZombies.ts": "137fb2a40800ce51e8e8cd99ddb1208b73921c0f99f10c71a2036d7af40be736",
+   "packages/server/src/sim/planning.ts": "d7dac9db742ad0b1b451e2bb2e47187e1876d6b541ed4d2abcd59efed2105efc",
+   "packages/server/src/sim/predictBaselines.ts": "d39bb8d57401a05d52f53a5401e13407714a0c2e7c0ae752b59bd6ebd148c755",
+   "packages/server/src/sim/projectiles.ts": "5050e56cb3355ceafa0fcd6a07fb8e691bae08ff563c39a42c61e343f7dfdef4",
+   "packages/server/src/sim/quests.ts": "ecba71ef1f05f2a40e8850270c0bcdf87d44c59d3fdbce7b510b35c18d2ba769",
+   "packages/server/src/sim/regen.ts": "7cef735927facfb3de588ce2c3f9e9c21bb784f24c783ee0f117f6128bb19050",
+   "packages/server/src/sim/sentencedHunt.ts": "a3a444134fc88f69f18f9724f89a59b19fb05b6eef8df9633c278ad8c20e4606",
+   "packages/server/src/sim/status.ts": "55bc525be1ac832f04b0f134cee6769b0b99f4d45ce182ec7db9d3670ba35642",
+   "packages/server/src/sim/step.ts": "5ff90451b4b27b12ddfe8175745cf38892eaf07a851282c904076edc46896634",
+   "packages/server/src/sim/targeting.ts": "13125287cec7cd39f550af50e1d18c15d3146357f249cfe3beeb9e00a334f0fd",
+   "packages/server/src/sim/telemetry.ts": "2c4e86f4fb02bceeca6ccdc1d17f73ec00b3632c95c53354d289b118d0d7e6d8",
+   "packages/server/src/sim/terrainEffects.ts": "5b95ad7178862b11e64ab0d91b39adbc04846ec987aac7ca74ececfdc3dab4b5",
+   "packages/server/src/sim/tickProfile.ts": "5e8e7286a5bf7058f3dd2d80bfdab11baf265e042252d252f2a342092f97397f",
+   "packages/server/src/sim/trace.ts": "faa1710281b0a1e8046541386b41d9501dcab126ce2a8035e3f2254b03f1a3cd",
+   "packages/server/src/sim/traders.ts": "f3d3c0ad907720a065b11c75b8671dc6f0922f4199ad2f7afac09b34fd68d158",
+   "packages/server/src/sim/training.ts": "1d433ef3c5cc512c78aba66a16811d9f2a5eba11e4fa00598406fc7cd81d8e74",
+   "packages/server/src/sim/vision.ts": "25838e435b6e5282d31b28758e1955d36c8118086700e1e6497a979647287e56",
+   "packages/server/src/sim/vsProbe.ts": "6e45e578f760ec31407481348551181d5a00bf1ab1b7af72e488d783978c668b",
+   "packages/server/src/sim/walkHint.ts": "9030f17e7e76a5dda94bba76347e2993a5265d8d36e145b9d1f889f3f988af16",
+   "packages/server/src/sim/weapons.ts": "581ba4cf9ae93af5d3753cbb3cdf6b823bfaf730448edab7669e6c6d84c86f26",
+   "packages/server/src/sim/world.ts": "b98376a7f022ec6f9b681e368d62c18fbe524d95408b2d4eec93909934454d54"
+  }
+ },
+ "cases": [
+  {
+   "input": {
+    "name": "neutral-rate",
+    "profile": "player-only-no-mobs/full-player-faction/sentenced-frost",
+    "training": false,
+    "map": {
+     "seed": 1,
+     "attempt": 0,
+     "decor": false
+    },
+    "config": {
+     "minPlayers": 2,
+     "lobbySeconds": 30,
+     "fillSeconds": 0,
+     "patienceSeconds": 3600,
+     "patienceMinSeconds": 3600,
+     "suddenDeathSeconds": 3600,
+     "mobs": false,
+     "signatures": true,
+     "quests": false,
+     "training": false,
+     "dummies": false,
+     "planSeconds": 0,
+     "pvpRules": false
+    },
+    "modules": {
+     "signatures": true,
+     "walkHints": false
+    },
+    "players": [
+     {
+      "faction": "sentenced"
+     },
+     {
+      "faction": "frost"
+     }
+    ],
+    "initial": [
+     {
+      "x": 1456,
+      "y": 1136,
+      "faction": "sentenced",
+      "hp": 1085,
+      "maxHp": 1085
+     },
+     {
+      "x": 3408,
+      "y": 1072,
+      "faction": "frost",
+      "hp": 985,
+      "maxHp": 985
+     }
+    ],
+    "seeds": {
+     "random": 12,
+     "rewardSalt": [
+      1,
+      2,
+      3,
+      4
+     ]
+    }
+   },
+   "script": {},
+   "actions": [
+    {
+     "tick": 1,
+     "seq": 0,
+     "kind": "weapon",
+     "actor": 0,
+     "weapon0": "sword",
+     "weapon1": ""
+    },
+    {
+     "tick": 1,
+     "seq": 1,
+     "kind": "weapon",
+     "actor": 1,
+     "weapon0": "sword",
+     "weapon1": "wand"
+    },
+    {
+     "tick": 1,
+     "seq": 2,
+     "kind": "place",
+     "actor": 0,
+     "x": 400,
+     "y": 320
+    },
+    {
+     "tick": 1,
+     "seq": 3,
+     "kind": "place",
+     "actor": 1,
+     "x": 432,
+     "y": 320
+    },
+    {
+     "tick": 1,
+     "seq": 4,
+     "kind": "input",
+     "actor": 0,
+     "type": "target",
+     "payload": {
+      "id": "p1"
+     }
+    },
+    {
+     "tick": 1,
+     "seq": 5,
+     "kind": "input",
+     "actor": 1,
+     "type": "target",
+     "payload": {
+      "id": "p0"
+     }
+    },
+    {
+     "tick": 1,
+     "seq": 6,
+     "kind": "input",
+     "actor": 0,
+     "type": "attack",
+     "payload": {
+      "a": 0
+     }
+    },
+    {
+     "tick": 1,
+     "seq": 7,
+     "kind": "input",
+     "actor": 1,
+     "type": "attack",
+     "payload": {
+      "a": 3.141592653589793
+     }
+    }
+   ],
+   "frames": [
+    {
+     "label": "start",
+     "actionCount": 0,
+     "tick": 1,
+     "time": 50,
+     "phase": "active",
+     "players": [
+      {
+       "id": 0,
+       "faction": "sentenced",
+       "x": 1456,
+       "y": 1136,
+       "hp": 1085,
+       "maxHp": 1085,
+       "status": "alive",
+       "weapon0": "",
+       "weapon1": "",
+       "slot": 0,
+       "public": {
+        "sig": 0,
+        "markTier": 0,
+        "brand": 0,
+        "markBy": null,
+        "markTax": 0
+       },
+       "mark": null
+      },
+      {
+       "id": 1,
+       "faction": "frost",
+       "x": 3408,
+       "y": 1072,
+       "hp": 985,
+       "maxHp": 985,
+       "status": "alive",
+       "weapon0": "",
+       "weapon1": "",
+       "slot": 0,
+       "public": {
+        "sig": 0,
+        "markTier": 0,
+        "brand": 0,
+        "markBy": null,
+        "markTax": 0
+       },
+       "mark": null
+      }
+     ]
+    },
+    {
+     "label": "hit1",
+     "actionCount": 8,
+     "tick": 2,
+     "time": 100,
+     "phase": "active",
+     "players": [
+      {
+       "id": 0,
+       "faction": "sentenced",
+       "x": 400,
+       "y": 320,
+       "hp": 1024.510909,
+       "maxHp": 1085,
+       "status": "alive",
+       "weapon0": "sword",
+       "weapon1": "",
+       "slot": 0,
+       "public": {
+        "sig": 1,
+        "markTier": 0,
+        "brand": 0,
+        "markBy": null,
+        "markTax": 0
+       },
+       "mark": {
+        "target": 1,
+        "tier": 1,
+        "hits": 1,
+        "progress": 1,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "chill": 0.68
+       }
+      },
+      {
+       "id": 1,
+       "faction": "frost",
+       "x": 432,
+       "y": 320,
+       "hp": 947.395026,
+       "maxHp": 985,
+       "status": "alive",
+       "weapon0": "sword",
+       "weapon1": "wand",
+       "slot": 0,
+       "public": {
+        "sig": 0,
+        "markTier": 1,
+        "brand": 25,
+        "markBy": 0,
+        "markTax": 0
+       },
+       "mark": {
+        "target": 0,
+        "tier": 0,
+        "hits": 0,
+        "progress": 0,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "chill": 1
+       }
+      }
+     ]
+    },
+    {
+     "label": "hit2",
+     "actionCount": 8,
+     "tick": 17,
+     "time": 850,
+     "phase": "active",
+     "players": [
+      {
+       "id": 0,
+       "faction": "sentenced",
+       "x": 400,
+       "y": 320,
+       "hp": 1024.510909,
+       "maxHp": 1085,
+       "status": "alive",
+       "weapon0": "sword",
+       "weapon1": "",
+       "slot": 0,
+       "public": {
+        "sig": 1,
+        "markTier": 0,
+        "brand": 0,
+        "markBy": null,
+        "markTax": 0
+       },
+       "mark": {
+        "target": 1,
+        "tier": 1,
+        "hits": 2,
+        "progress": 2.470588,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "chill": 0.68
+       }
+      },
+      {
+       "id": 1,
+       "faction": "frost",
+       "x": 432,
+       "y": 320,
+       "hp": 909.790052,
+       "maxHp": 985,
+       "status": "alive",
+       "weapon0": "sword",
+       "weapon1": "wand",
+       "slot": 0,
+       "public": {
+        "sig": 0,
+        "markTier": 1,
+        "brand": 25,
+        "markBy": 0,
+        "markTax": 0
+       },
+       "mark": {
+        "target": 0,
+        "tier": 0,
+        "hits": 0,
+        "progress": 0,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "chill": 1
+       }
+      }
+     ]
+    },
+    {
+     "label": "hit3",
+     "actionCount": 8,
+     "tick": 31,
+     "time": 1550,
+     "phase": "active",
+     "players": [
+      {
+       "id": 0,
+       "faction": "sentenced",
+       "x": 400,
+       "y": 320,
+       "hp": 964.021817,
+       "maxHp": 1085,
+       "status": "alive",
+       "weapon0": "sword",
+       "weapon1": "",
+       "slot": 0,
+       "public": {
+        "sig": 1,
+        "markTier": 0,
+        "brand": 0,
+        "markBy": null,
+        "markTax": 0
+       },
+       "mark": {
+        "target": 1,
+        "tier": 2,
+        "hits": 3,
+        "progress": 3.941176,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "chill": 0.68
+       }
+      },
+      {
+       "id": 1,
+       "faction": "frost",
+       "x": 432,
+       "y": 320,
+       "hp": 872.185078,
+       "maxHp": 985,
+       "status": "alive",
+       "weapon0": "sword",
+       "weapon1": "wand",
+       "slot": 0,
+       "public": {
+        "sig": 0,
+        "markTier": 2,
+        "brand": 50,
+        "markBy": 0,
+        "markTax": 0
+       },
+       "mark": {
+        "target": 0,
+        "tier": 0,
+        "hits": 0,
+        "progress": 0,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "chill": 1
+       }
+      }
+     ]
+    },
+    {
+     "label": "later",
+     "actionCount": 8,
+     "tick": 151,
+     "time": 7550,
+     "phase": "active",
+     "players": [
+      {
+       "id": 0,
+       "faction": "sentenced",
+       "x": 400,
+       "y": 320,
+       "hp": 601.087269,
+       "maxHp": 1085,
+       "status": "alive",
+       "weapon0": "sword",
+       "weapon1": "",
+       "slot": 0,
+       "public": {
+        "sig": 1,
+        "markTier": 0,
+        "brand": 0,
+        "markBy": null,
+        "markTax": 0
+       },
+       "mark": {
+        "target": 1,
+        "tier": 4,
+        "hits": 11,
+        "progress": 15.705882,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "chill": 0.68
+       }
+      },
+      {
+       "id": 1,
+       "faction": "frost",
+       "x": 432,
+       "y": 320,
+       "hp": 571.345284,
+       "maxHp": 985,
+       "status": "alive",
+       "weapon0": "sword",
+       "weapon1": "wand",
+       "slot": 0,
+       "public": {
+        "sig": 64,
+        "markTier": 4,
+        "brand": 100,
+        "markBy": 0,
+        "markTax": 0
+       },
+       "mark": {
+        "target": 0,
+        "tier": 0,
+        "hits": 0,
+        "progress": 0,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "chill": 1
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "input": {
+    "name": "gathering-storm",
+    "profile": "player-only-no-mobs/full-player-faction/sentenced-frost",
+    "training": false,
+    "map": {
+     "seed": 1,
+     "attempt": 0,
+     "decor": false
+    },
+    "config": {
+     "minPlayers": 2,
+     "lobbySeconds": 30,
+     "fillSeconds": 0,
+     "patienceSeconds": 3600,
+     "patienceMinSeconds": 3600,
+     "suddenDeathSeconds": 3600,
+     "mobs": false,
+     "signatures": true,
+     "quests": false,
+     "training": false,
+     "dummies": false,
+     "planSeconds": 0,
+     "pvpRules": false
+    },
+    "modules": {
+     "signatures": true,
+     "walkHints": false
+    },
+    "players": [
+     {
+      "faction": "sentenced"
+     },
+     {
+      "faction": "frost"
+     }
+    ],
+    "initial": [
+     {
+      "x": 1456,
+      "y": 1136,
+      "faction": "sentenced",
+      "hp": 1085,
+      "maxHp": 1085
+     },
+     {
+      "x": 3408,
+      "y": 1072,
+      "faction": "frost",
+      "hp": 985,
+      "maxHp": 985
+     }
+    ],
+    "seeds": {
+     "random": 12,
+     "rewardSalt": [
+      1,
+      2,
+      3,
+      4
+     ]
+    }
+   },
+   "script": {},
+   "actions": [
+    {
+     "tick": 1,
+     "seq": 0,
+     "kind": "grantCard",
+     "actor": 0,
+     "card": "gatheringStorm"
+    },
+    {
+     "tick": 1,
+     "seq": 1,
+     "kind": "weapon",
+     "actor": 0,
+     "weapon0": "sword",
+     "weapon1": ""
+    },
+    {
+     "tick": 1,
+     "seq": 2,
+     "kind": "weapon",
+     "actor": 1,
+     "weapon0": "sword",
+     "weapon1": "wand"
+    },
+    {
+     "tick": 1,
+     "seq": 3,
+     "kind": "place",
+     "actor": 0,
+     "x": 400,
+     "y": 320
+    },
+    {
+     "tick": 1,
+     "seq": 4,
+     "kind": "place",
+     "actor": 1,
+     "x": 432,
+     "y": 320
+    },
+    {
+     "tick": 1,
+     "seq": 5,
+     "kind": "input",
+     "actor": 0,
+     "type": "target",
+     "payload": {
+      "id": "p1"
+     }
+    },
+    {
+     "tick": 1,
+     "seq": 6,
+     "kind": "input",
+     "actor": 1,
+     "type": "target",
+     "payload": {
+      "id": "p0"
+     }
+    },
+    {
+     "tick": 1,
+     "seq": 7,
+     "kind": "input",
+     "actor": 0,
+     "type": "attack",
+     "payload": {
+      "a": 0
+     }
+    },
+    {
+     "tick": 1,
+     "seq": 8,
+     "kind": "input",
+     "actor": 1,
+     "type": "attack",
+     "payload": {
+      "a": 3.141592653589793
+     }
+    }
+   ],
+   "frames": [
+    {
+     "label": "start",
+     "actionCount": 0,
+     "tick": 1,
+     "time": 50,
+     "phase": "active",
+     "players": [
+      {
+       "id": 0,
+       "faction": "sentenced",
+       "x": 1456,
+       "y": 1136,
+       "hp": 1085,
+       "maxHp": 1085,
+       "status": "alive",
+       "weapon0": "",
+       "weapon1": "",
+       "slot": 0,
+       "public": {
+        "sig": 0,
+        "markTier": 0,
+        "brand": 0,
+        "markBy": null,
+        "markTax": 0
+       },
+       "mark": null
+      },
+      {
+       "id": 1,
+       "faction": "frost",
+       "x": 3408,
+       "y": 1072,
+       "hp": 985,
+       "maxHp": 985,
+       "status": "alive",
+       "weapon0": "",
+       "weapon1": "",
+       "slot": 0,
+       "public": {
+        "sig": 0,
+        "markTier": 0,
+        "brand": 0,
+        "markBy": null,
+        "markTax": 0
+       },
+       "mark": null
+      }
+     ]
+    },
+    {
+     "label": "hit1",
+     "actionCount": 9,
+     "tick": 2,
+     "time": 100,
+     "phase": "active",
+     "players": [
+      {
+       "id": 0,
+       "faction": "sentenced",
+       "x": 400,
+       "y": 320,
+       "hp": 1024.510909,
+       "maxHp": 1085,
+       "status": "alive",
+       "weapon0": "sword",
+       "weapon1": "",
+       "slot": 0,
+       "public": {
+        "sig": 1,
+        "markTier": 0,
+        "brand": 0,
+        "markBy": null,
+        "markTax": 0
+       },
+       "mark": {
+        "target": 1,
+        "tier": 1,
+        "hits": 1,
+        "progress": 1.5,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "chill": 0.68
+       }
+      },
+      {
+       "id": 1,
+       "faction": "frost",
+       "x": 432,
+       "y": 320,
+       "hp": 947.395026,
+       "maxHp": 985,
+       "status": "alive",
+       "weapon0": "sword",
+       "weapon1": "wand",
+       "slot": 0,
+       "public": {
+        "sig": 0,
+        "markTier": 1,
+        "brand": 25,
+        "markBy": 0,
+        "markTax": 0
+       },
+       "mark": {
+        "target": 0,
+        "tier": 0,
+        "hits": 0,
+        "progress": 0,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "chill": 1
+       }
+      }
+     ]
+    },
+    {
+     "label": "hit2",
+     "actionCount": 9,
+     "tick": 17,
+     "time": 850,
+     "phase": "active",
+     "players": [
+      {
+       "id": 0,
+       "faction": "sentenced",
+       "x": 400,
+       "y": 320,
+       "hp": 1024.510909,
+       "maxHp": 1085,
+       "status": "alive",
+       "weapon0": "sword",
+       "weapon1": "",
+       "slot": 0,
+       "public": {
+        "sig": 1,
+        "markTier": 0,
+        "brand": 0,
+        "markBy": null,
+        "markTax": 0
+       },
+       "mark": {
+        "target": 1,
+        "tier": 2,
+        "hits": 2,
+        "progress": 3.705882,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "chill": 0.68
+       }
+      },
+      {
+       "id": 1,
+       "faction": "frost",
+       "x": 432,
+       "y": 320,
+       "hp": 909.790052,
+       "maxHp": 985,
+       "status": "alive",
+       "weapon0": "sword",
+       "weapon1": "wand",
+       "slot": 0,
+       "public": {
+        "sig": 0,
+        "markTier": 2,
+        "brand": 50,
+        "markBy": 0,
+        "markTax": 0
+       },
+       "mark": {
+        "target": 0,
+        "tier": 0,
+        "hits": 0,
+        "progress": 0,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "chill": 1
+       }
+      }
+     ]
+    },
+    {
+     "label": "hit3",
+     "actionCount": 9,
+     "tick": 31,
+     "time": 1550,
+     "phase": "active",
+     "players": [
+      {
+       "id": 0,
+       "faction": "sentenced",
+       "x": 400,
+       "y": 320,
+       "hp": 964.021817,
+       "maxHp": 1085,
+       "status": "alive",
+       "weapon0": "sword",
+       "weapon1": "",
+       "slot": 0,
+       "public": {
+        "sig": 1,
+        "markTier": 0,
+        "brand": 0,
+        "markBy": null,
+        "markTax": 0
+       },
+       "mark": {
+        "target": 1,
+        "tier": 2,
+        "hits": 3,
+        "progress": 5.911765,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "chill": 0.68
+       }
+      },
+      {
+       "id": 1,
+       "faction": "frost",
+       "x": 432,
+       "y": 320,
+       "hp": 872.185078,
+       "maxHp": 985,
+       "status": "alive",
+       "weapon0": "sword",
+       "weapon1": "wand",
+       "slot": 0,
+       "public": {
+        "sig": 0,
+        "markTier": 2,
+        "brand": 50,
+        "markBy": 0,
+        "markTax": 0
+       },
+       "mark": {
+        "target": 0,
+        "tier": 0,
+        "hits": 0,
+        "progress": 0,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "chill": 1
+       }
+      }
+     ]
+    },
+    {
+     "label": "later",
+     "actionCount": 9,
+     "tick": 151,
+     "time": 7550,
+     "phase": "active",
+     "players": [
+      {
+       "id": 0,
+       "faction": "sentenced",
+       "x": 400,
+       "y": 320,
+       "hp": 601.087269,
+       "maxHp": 1085,
+       "status": "alive",
+       "weapon0": "sword",
+       "weapon1": "",
+       "slot": 0,
+       "public": {
+        "sig": 1,
+        "markTier": 0,
+        "brand": 0,
+        "markBy": null,
+        "markTax": 0
+       },
+       "mark": {
+        "target": 1,
+        "tier": 4,
+        "hits": 11,
+        "progress": 23.558824,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "chill": 0.68
+       }
+      },
+      {
+       "id": 1,
+       "faction": "frost",
+       "x": 432,
+       "y": 320,
+       "hp": 571.345284,
+       "maxHp": 985,
+       "status": "alive",
+       "weapon0": "sword",
+       "weapon1": "wand",
+       "slot": 0,
+       "public": {
+        "sig": 64,
+        "markTier": 4,
+        "brand": 100,
+        "markBy": 0,
+        "markTax": 0
+       },
+       "mark": {
+        "target": 0,
+        "tier": 0,
+        "hits": 0,
+        "progress": 0,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "chill": 1
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "input": {
+    "name": "mid-mark-grant",
+    "profile": "player-only-no-mobs/full-player-faction/sentenced-frost",
+    "training": false,
+    "map": {
+     "seed": 1,
+     "attempt": 0,
+     "decor": false
+    },
+    "config": {
+     "minPlayers": 2,
+     "lobbySeconds": 30,
+     "fillSeconds": 0,
+     "patienceSeconds": 3600,
+     "patienceMinSeconds": 3600,
+     "suddenDeathSeconds": 3600,
+     "mobs": false,
+     "signatures": true,
+     "quests": false,
+     "training": false,
+     "dummies": false,
+     "planSeconds": 0,
+     "pvpRules": false
+    },
+    "modules": {
+     "signatures": true,
+     "walkHints": false
+    },
+    "players": [
+     {
+      "faction": "sentenced"
+     },
+     {
+      "faction": "frost"
+     }
+    ],
+    "initial": [
+     {
+      "x": 1456,
+      "y": 1136,
+      "faction": "sentenced",
+      "hp": 1085,
+      "maxHp": 1085
+     },
+     {
+      "x": 3408,
+      "y": 1072,
+      "faction": "frost",
+      "hp": 985,
+      "maxHp": 985
+     }
+    ],
+    "seeds": {
+     "random": 12,
+     "rewardSalt": [
+      1,
+      2,
+      3,
+      4
+     ]
+    }
+   },
+   "script": {},
+   "actions": [
+    {
+     "tick": 1,
+     "seq": 0,
+     "kind": "weapon",
+     "actor": 0,
+     "weapon0": "sword",
+     "weapon1": ""
+    },
+    {
+     "tick": 1,
+     "seq": 1,
+     "kind": "weapon",
+     "actor": 1,
+     "weapon0": "sword",
+     "weapon1": "wand"
+    },
+    {
+     "tick": 1,
+     "seq": 2,
+     "kind": "place",
+     "actor": 0,
+     "x": 400,
+     "y": 320
+    },
+    {
+     "tick": 1,
+     "seq": 3,
+     "kind": "place",
+     "actor": 1,
+     "x": 432,
+     "y": 320
+    },
+    {
+     "tick": 1,
+     "seq": 4,
+     "kind": "input",
+     "actor": 0,
+     "type": "target",
+     "payload": {
+      "id": "p1"
+     }
+    },
+    {
+     "tick": 1,
+     "seq": 5,
+     "kind": "input",
+     "actor": 1,
+     "type": "target",
+     "payload": {
+      "id": "p0"
+     }
+    },
+    {
+     "tick": 1,
+     "seq": 6,
+     "kind": "input",
+     "actor": 0,
+     "type": "attack",
+     "payload": {
+      "a": 0
+     }
+    },
+    {
+     "tick": 1,
+     "seq": 7,
+     "kind": "input",
+     "actor": 1,
+     "type": "attack",
+     "payload": {
+      "a": 3.141592653589793
+     }
+    },
+    {
+     "tick": 2,
+     "seq": 8,
+     "kind": "grantCard",
+     "actor": 0,
+     "card": "gatheringStorm"
+    }
+   ],
+   "frames": [
+    {
+     "label": "start",
+     "actionCount": 0,
+     "tick": 1,
+     "time": 50,
+     "phase": "active",
+     "players": [
+      {
+       "id": 0,
+       "faction": "sentenced",
+       "x": 1456,
+       "y": 1136,
+       "hp": 1085,
+       "maxHp": 1085,
+       "status": "alive",
+       "weapon0": "",
+       "weapon1": "",
+       "slot": 0,
+       "public": {
+        "sig": 0,
+        "markTier": 0,
+        "brand": 0,
+        "markBy": null,
+        "markTax": 0
+       },
+       "mark": null
+      },
+      {
+       "id": 1,
+       "faction": "frost",
+       "x": 3408,
+       "y": 1072,
+       "hp": 985,
+       "maxHp": 985,
+       "status": "alive",
+       "weapon0": "",
+       "weapon1": "",
+       "slot": 0,
+       "public": {
+        "sig": 0,
+        "markTier": 0,
+        "brand": 0,
+        "markBy": null,
+        "markTax": 0
+       },
+       "mark": null
+      }
+     ]
+    },
+    {
+     "label": "hit1",
+     "actionCount": 8,
+     "tick": 2,
+     "time": 100,
+     "phase": "active",
+     "players": [
+      {
+       "id": 0,
+       "faction": "sentenced",
+       "x": 400,
+       "y": 320,
+       "hp": 1024.510909,
+       "maxHp": 1085,
+       "status": "alive",
+       "weapon0": "sword",
+       "weapon1": "",
+       "slot": 0,
+       "public": {
+        "sig": 1,
+        "markTier": 0,
+        "brand": 0,
+        "markBy": null,
+        "markTax": 0
+       },
+       "mark": {
+        "target": 1,
+        "tier": 1,
+        "hits": 1,
+        "progress": 1,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "chill": 0.68
+       }
+      },
+      {
+       "id": 1,
+       "faction": "frost",
+       "x": 432,
+       "y": 320,
+       "hp": 947.395026,
+       "maxHp": 985,
+       "status": "alive",
+       "weapon0": "sword",
+       "weapon1": "wand",
+       "slot": 0,
+       "public": {
+        "sig": 0,
+        "markTier": 1,
+        "brand": 25,
+        "markBy": 0,
+        "markTax": 0
+       },
+       "mark": {
+        "target": 0,
+        "tier": 0,
+        "hits": 0,
+        "progress": 0,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "chill": 1
+       }
+      }
+     ]
+    },
+    {
+     "label": "granted-mid-mark",
+     "actionCount": 9,
+     "tick": 2,
+     "time": 100,
+     "phase": "active",
+     "players": [
+      {
+       "id": 0,
+       "faction": "sentenced",
+       "x": 400,
+       "y": 320,
+       "hp": 1024.510909,
+       "maxHp": 1085,
+       "status": "alive",
+       "weapon0": "sword",
+       "weapon1": "",
+       "slot": 0,
+       "public": {
+        "sig": 1,
+        "markTier": 0,
+        "brand": 0,
+        "markBy": null,
+        "markTax": 0
+       },
+       "mark": {
+        "target": 1,
+        "tier": 1,
+        "hits": 1,
+        "progress": 1,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "chill": 0.68
+       }
+      },
+      {
+       "id": 1,
+       "faction": "frost",
+       "x": 432,
+       "y": 320,
+       "hp": 947.395026,
+       "maxHp": 985,
+       "status": "alive",
+       "weapon0": "sword",
+       "weapon1": "wand",
+       "slot": 0,
+       "public": {
+        "sig": 0,
+        "markTier": 1,
+        "brand": 25,
+        "markBy": 0,
+        "markTax": 0
+       },
+       "mark": {
+        "target": 0,
+        "tier": 0,
+        "hits": 0,
+        "progress": 0,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "chill": 1
+       }
+      }
+     ]
+    },
+    {
+     "label": "hit2",
+     "actionCount": 9,
+     "tick": 17,
+     "time": 850,
+     "phase": "active",
+     "players": [
+      {
+       "id": 0,
+       "faction": "sentenced",
+       "x": 400,
+       "y": 320,
+       "hp": 1024.510909,
+       "maxHp": 1085,
+       "status": "alive",
+       "weapon0": "sword",
+       "weapon1": "",
+       "slot": 0,
+       "public": {
+        "sig": 1,
+        "markTier": 0,
+        "brand": 0,
+        "markBy": null,
+        "markTax": 0
+       },
+       "mark": {
+        "target": 1,
+        "tier": 2,
+        "hits": 2,
+        "progress": 3.205882,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "chill": 0.68
+       }
+      },
+      {
+       "id": 1,
+       "faction": "frost",
+       "x": 432,
+       "y": 320,
+       "hp": 909.790052,
+       "maxHp": 985,
+       "status": "alive",
+       "weapon0": "sword",
+       "weapon1": "wand",
+       "slot": 0,
+       "public": {
+        "sig": 0,
+        "markTier": 2,
+        "brand": 50,
+        "markBy": 0,
+        "markTax": 0
+       },
+       "mark": {
+        "target": 0,
+        "tier": 0,
+        "hits": 0,
+        "progress": 0,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "chill": 1
+       }
+      }
+     ]
+    },
+    {
+     "label": "hit3",
+     "actionCount": 9,
+     "tick": 31,
+     "time": 1550,
+     "phase": "active",
+     "players": [
+      {
+       "id": 0,
+       "faction": "sentenced",
+       "x": 400,
+       "y": 320,
+       "hp": 964.021817,
+       "maxHp": 1085,
+       "status": "alive",
+       "weapon0": "sword",
+       "weapon1": "",
+       "slot": 0,
+       "public": {
+        "sig": 1,
+        "markTier": 0,
+        "brand": 0,
+        "markBy": null,
+        "markTax": 0
+       },
+       "mark": {
+        "target": 1,
+        "tier": 2,
+        "hits": 3,
+        "progress": 5.411765,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "chill": 0.68
+       }
+      },
+      {
+       "id": 1,
+       "faction": "frost",
+       "x": 432,
+       "y": 320,
+       "hp": 872.185078,
+       "maxHp": 985,
+       "status": "alive",
+       "weapon0": "sword",
+       "weapon1": "wand",
+       "slot": 0,
+       "public": {
+        "sig": 0,
+        "markTier": 2,
+        "brand": 50,
+        "markBy": 0,
+        "markTax": 0
+       },
+       "mark": {
+        "target": 0,
+        "tier": 0,
+        "hits": 0,
+        "progress": 0,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "chill": 1
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "input": {
+    "name": "frost-resisted",
+    "profile": "player-only-no-mobs/full-player-faction/sentenced-frost",
+    "training": false,
+    "map": {
+     "seed": 1,
+     "attempt": 0,
+     "decor": false
+    },
+    "config": {
+     "minPlayers": 2,
+     "lobbySeconds": 30,
+     "fillSeconds": 0,
+     "patienceSeconds": 3600,
+     "patienceMinSeconds": 3600,
+     "suddenDeathSeconds": 3600,
+     "mobs": false,
+     "signatures": true,
+     "quests": false,
+     "training": false,
+     "dummies": false,
+     "planSeconds": 0,
+     "pvpRules": false
+    },
+    "modules": {
+     "signatures": true,
+     "walkHints": false
+    },
+    "players": [
+     {
+      "faction": "sentenced"
+     },
+     {
+      "faction": "frost"
+     }
+    ],
+    "initial": [
+     {
+      "x": 1456,
+      "y": 1136,
+      "faction": "sentenced",
+      "hp": 1085,
+      "maxHp": 1085
+     },
+     {
+      "x": 3408,
+      "y": 1072,
+      "faction": "frost",
+      "hp": 985,
+      "maxHp": 985
+     }
+    ],
+    "seeds": {
+     "random": 12,
+     "rewardSalt": [
+      1,
+      2,
+      3,
+      4
+     ]
+    }
+   },
+   "script": {},
+   "actions": [
+    {
+     "tick": 1,
+     "seq": 0,
+     "kind": "grantCard",
+     "actor": 0,
+     "card": "ironWill"
+    },
+    {
+     "tick": 1,
+     "seq": 1,
+     "kind": "weapon",
+     "actor": 0,
+     "weapon0": "sword",
+     "weapon1": ""
+    },
+    {
+     "tick": 1,
+     "seq": 2,
+     "kind": "weapon",
+     "actor": 1,
+     "weapon0": "sword",
+     "weapon1": "wand"
+    },
+    {
+     "tick": 1,
+     "seq": 3,
+     "kind": "place",
+     "actor": 0,
+     "x": 400,
+     "y": 320
+    },
+    {
+     "tick": 1,
+     "seq": 4,
+     "kind": "place",
+     "actor": 1,
+     "x": 432,
+     "y": 320
+    },
+    {
+     "tick": 1,
+     "seq": 5,
+     "kind": "input",
+     "actor": 0,
+     "type": "target",
+     "payload": {
+      "id": "p1"
+     }
+    },
+    {
+     "tick": 1,
+     "seq": 6,
+     "kind": "input",
+     "actor": 1,
+     "type": "target",
+     "payload": {
+      "id": "p0"
+     }
+    },
+    {
+     "tick": 1,
+     "seq": 7,
+     "kind": "input",
+     "actor": 0,
+     "type": "attack",
+     "payload": {
+      "a": 0
+     }
+    },
+    {
+     "tick": 1,
+     "seq": 8,
+     "kind": "input",
+     "actor": 1,
+     "type": "attack",
+     "payload": {
+      "a": 3.141592653589793
+     }
+    }
+   ],
+   "frames": [
+    {
+     "label": "start",
+     "actionCount": 0,
+     "tick": 1,
+     "time": 50,
+     "phase": "active",
+     "players": [
+      {
+       "id": 0,
+       "faction": "sentenced",
+       "x": 1456,
+       "y": 1136,
+       "hp": 1085,
+       "maxHp": 1085,
+       "status": "alive",
+       "weapon0": "",
+       "weapon1": "",
+       "slot": 0,
+       "public": {
+        "sig": 0,
+        "markTier": 0,
+        "brand": 0,
+        "markBy": null,
+        "markTax": 0
+       },
+       "mark": null
+      },
+      {
+       "id": 1,
+       "faction": "frost",
+       "x": 3408,
+       "y": 1072,
+       "hp": 985,
+       "maxHp": 985,
+       "status": "alive",
+       "weapon0": "",
+       "weapon1": "",
+       "slot": 0,
+       "public": {
+        "sig": 0,
+        "markTier": 0,
+        "brand": 0,
+        "markBy": null,
+        "markTax": 0
+       },
+       "mark": null
+      }
+     ]
+    },
+    {
+     "label": "hit1",
+     "actionCount": 9,
+     "tick": 2,
+     "time": 100,
+     "phase": "active",
+     "players": [
+      {
+       "id": 0,
+       "faction": "sentenced",
+       "x": 400,
+       "y": 320,
+       "hp": 1024.510909,
+       "maxHp": 1085,
+       "status": "alive",
+       "weapon0": "sword",
+       "weapon1": "",
+       "slot": 0,
+       "public": {
+        "sig": 1,
+        "markTier": 0,
+        "brand": 0,
+        "markBy": null,
+        "markTax": 0
+       },
+       "mark": {
+        "target": 1,
+        "tier": 1,
+        "hits": 1,
+        "progress": 1,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "chill": 0.808
+       }
+      },
+      {
+       "id": 1,
+       "faction": "frost",
+       "x": 432,
+       "y": 320,
+       "hp": 947.395026,
+       "maxHp": 985,
+       "status": "alive",
+       "weapon0": "sword",
+       "weapon1": "wand",
+       "slot": 0,
+       "public": {
+        "sig": 0,
+        "markTier": 1,
+        "brand": 25,
+        "markBy": 0,
+        "markTax": 0
+       },
+       "mark": {
+        "target": 0,
+        "tier": 0,
+        "hits": 0,
+        "progress": 0,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "chill": 1
+       }
+      }
+     ]
+    },
+    {
+     "label": "hit2",
+     "actionCount": 9,
+     "tick": 15,
+     "time": 750,
+     "phase": "active",
+     "players": [
+      {
+       "id": 0,
+       "faction": "sentenced",
+       "x": 400,
+       "y": 320,
+       "hp": 1024.510909,
+       "maxHp": 1085,
+       "status": "alive",
+       "weapon0": "sword",
+       "weapon1": "",
+       "slot": 0,
+       "public": {
+        "sig": 1,
+        "markTier": 0,
+        "brand": 0,
+        "markBy": null,
+        "markTax": 0
+       },
+       "mark": {
+        "target": 1,
+        "tier": 1,
+        "hits": 2,
+        "progress": 2.237624,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "chill": 0.808
+       }
+      },
+      {
+       "id": 1,
+       "faction": "frost",
+       "x": 432,
+       "y": 320,
+       "hp": 909.790052,
+       "maxHp": 985,
+       "status": "alive",
+       "weapon0": "sword",
+       "weapon1": "wand",
+       "slot": 0,
+       "public": {
+        "sig": 0,
+        "markTier": 1,
+        "brand": 25,
+        "markBy": 0,
+        "markTax": 0
+       },
+       "mark": {
+        "target": 0,
+        "tier": 0,
+        "hits": 0,
+        "progress": 0,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "chill": 1
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "input": {
+    "name": "frost-deepened",
+    "profile": "player-only-no-mobs/full-player-faction/sentenced-frost",
+    "training": false,
+    "map": {
+     "seed": 1,
+     "attempt": 0,
+     "decor": false
+    },
+    "config": {
+     "minPlayers": 2,
+     "lobbySeconds": 30,
+     "fillSeconds": 0,
+     "patienceSeconds": 3600,
+     "patienceMinSeconds": 3600,
+     "suddenDeathSeconds": 3600,
+     "mobs": false,
+     "signatures": true,
+     "quests": false,
+     "training": false,
+     "dummies": false,
+     "planSeconds": 0,
+     "pvpRules": false
+    },
+    "modules": {
+     "signatures": true,
+     "walkHints": false
+    },
+    "players": [
+     {
+      "faction": "sentenced"
+     },
+     {
+      "faction": "frost"
+     }
+    ],
+    "initial": [
+     {
+      "x": 1456,
+      "y": 1136,
+      "faction": "sentenced",
+      "hp": 1085,
+      "maxHp": 1085
+     },
+     {
+      "x": 3408,
+      "y": 1072,
+      "faction": "frost",
+      "hp": 985,
+      "maxHp": 985
+     }
+    ],
+    "seeds": {
+     "random": 12,
+     "rewardSalt": [
+      1,
+      2,
+      3,
+      4
+     ]
+    }
+   },
+   "script": {},
+   "actions": [
+    {
+     "tick": 1,
+     "seq": 0,
+     "kind": "grantCard",
+     "actor": 1,
+     "card": "haste2"
+    },
+    {
+     "tick": 1,
+     "seq": 1,
+     "kind": "grantCard",
+     "actor": 1,
+     "card": "haste2"
+    },
+    {
+     "tick": 1,
+     "seq": 2,
+     "kind": "grantCard",
+     "actor": 1,
+     "card": "haste2"
+    },
+    {
+     "tick": 1,
+     "seq": 3,
+     "kind": "grantCard",
+     "actor": 1,
+     "card": "haste2"
+    },
+    {
+     "tick": 1,
+     "seq": 4,
+     "kind": "weapon",
+     "actor": 0,
+     "weapon0": "sword",
+     "weapon1": ""
+    },
+    {
+     "tick": 1,
+     "seq": 5,
+     "kind": "weapon",
+     "actor": 1,
+     "weapon0": "sword",
+     "weapon1": "wand"
+    },
+    {
+     "tick": 1,
+     "seq": 6,
+     "kind": "place",
+     "actor": 0,
+     "x": 400,
+     "y": 320
+    },
+    {
+     "tick": 1,
+     "seq": 7,
+     "kind": "place",
+     "actor": 1,
+     "x": 432,
+     "y": 320
+    },
+    {
+     "tick": 1,
+     "seq": 8,
+     "kind": "input",
+     "actor": 0,
+     "type": "target",
+     "payload": {
+      "id": "p1"
+     }
+    },
+    {
+     "tick": 1,
+     "seq": 9,
+     "kind": "input",
+     "actor": 1,
+     "type": "target",
+     "payload": {
+      "id": "p0"
+     }
+    },
+    {
+     "tick": 1,
+     "seq": 10,
+     "kind": "input",
+     "actor": 0,
+     "type": "attack",
+     "payload": {
+      "a": 0
+     }
+    },
+    {
+     "tick": 1,
+     "seq": 11,
+     "kind": "input",
+     "actor": 1,
+     "type": "attack",
+     "payload": {
+      "a": 3.141592653589793
+     }
+    }
+   ],
+   "frames": [
+    {
+     "label": "start",
+     "actionCount": 0,
+     "tick": 1,
+     "time": 50,
+     "phase": "active",
+     "players": [
+      {
+       "id": 0,
+       "faction": "sentenced",
+       "x": 1456,
+       "y": 1136,
+       "hp": 1085,
+       "maxHp": 1085,
+       "status": "alive",
+       "weapon0": "",
+       "weapon1": "",
+       "slot": 0,
+       "public": {
+        "sig": 0,
+        "markTier": 0,
+        "brand": 0,
+        "markBy": null,
+        "markTax": 0
+       },
+       "mark": null
+      },
+      {
+       "id": 1,
+       "faction": "frost",
+       "x": 3408,
+       "y": 1072,
+       "hp": 985,
+       "maxHp": 985,
+       "status": "alive",
+       "weapon0": "",
+       "weapon1": "",
+       "slot": 0,
+       "public": {
+        "sig": 0,
+        "markTier": 0,
+        "brand": 0,
+        "markBy": null,
+        "markTax": 0
+       },
+       "mark": null
+      }
+     ]
+    },
+    {
+     "label": "hit1",
+     "actionCount": 12,
+     "tick": 2,
+     "time": 100,
+     "phase": "active",
+     "players": [
+      {
+       "id": 0,
+       "faction": "sentenced",
+       "x": 400,
+       "y": 320,
+       "hp": 1024.510909,
+       "maxHp": 1085,
+       "status": "alive",
+       "weapon0": "sword",
+       "weapon1": "",
+       "slot": 0,
+       "public": {
+        "sig": 1,
+        "markTier": 0,
+        "brand": 0,
+        "markBy": null,
+        "markTax": 0
+       },
+       "mark": {
+        "target": 1,
+        "tier": 1,
+        "hits": 1,
+        "progress": 1,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "chill": 0.48
+       }
+      },
+      {
+       "id": 1,
+       "faction": "frost",
+       "x": 432,
+       "y": 320,
+       "hp": 947.395026,
+       "maxHp": 985,
+       "status": "alive",
+       "weapon0": "sword",
+       "weapon1": "wand",
+       "slot": 0,
+       "public": {
+        "sig": 0,
+        "markTier": 1,
+        "brand": 25,
+        "markBy": 0,
+        "markTax": 0
+       },
+       "mark": {
+        "target": 0,
+        "tier": 0,
+        "hits": 0,
+        "progress": 0,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "chill": 1
+       }
+      }
+     ]
+    },
+    {
+     "label": "hit2",
+     "actionCount": 12,
+     "tick": 23,
+     "time": 1150,
+     "phase": "active",
+     "players": [
+      {
+       "id": 0,
+       "faction": "sentenced",
+       "x": 400,
+       "y": 320,
+       "hp": 964.021817,
+       "maxHp": 1085,
+       "status": "alive",
+       "weapon0": "sword",
+       "weapon1": "",
+       "slot": 0,
+       "public": {
+        "sig": 1,
+        "markTier": 0,
+        "brand": 0,
+        "markBy": null,
+        "markTax": 0
+       },
+       "mark": {
+        "target": 1,
+        "tier": 2,
+        "hits": 2,
+        "progress": 3.083333,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "chill": 0.48
+       }
+      },
+      {
+       "id": 1,
+       "faction": "frost",
+       "x": 432,
+       "y": 320,
+       "hp": 909.790052,
+       "maxHp": 985,
+       "status": "alive",
+       "weapon0": "sword",
+       "weapon1": "wand",
+       "slot": 0,
+       "public": {
+        "sig": 0,
+        "markTier": 2,
+        "brand": 50,
+        "markBy": 0,
+        "markTax": 0
+       },
+       "mark": {
+        "target": 0,
+        "tier": 0,
+        "hits": 0,
+        "progress": 0,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "chill": 1
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "input": {
+    "name": "tier-flags",
+    "profile": "player-only-no-mobs/full-player-faction/sentenced-frost",
+    "training": false,
+    "map": {
+     "seed": 1,
+     "attempt": 0,
+     "decor": false
+    },
+    "config": {
+     "minPlayers": 2,
+     "lobbySeconds": 30,
+     "fillSeconds": 0,
+     "patienceSeconds": 3600,
+     "patienceMinSeconds": 3600,
+     "suddenDeathSeconds": 3600,
+     "mobs": false,
+     "signatures": true,
+     "quests": false,
+     "training": false,
+     "dummies": false,
+     "planSeconds": 0,
+     "pvpRules": false
+    },
+    "modules": {
+     "signatures": true,
+     "walkHints": false
+    },
+    "players": [
+     {
+      "faction": "sentenced"
+     },
+     {
+      "faction": "frost"
+     }
+    ],
+    "initial": [
+     {
+      "x": 1456,
+      "y": 1136,
+      "faction": "sentenced",
+      "hp": 1085,
+      "maxHp": 1085
+     },
+     {
+      "x": 3408,
+      "y": 1072,
+      "faction": "frost",
+      "hp": 985,
+      "maxHp": 985
+     }
+    ],
+    "seeds": {
+     "random": 12,
+     "rewardSalt": [
+      1,
+      2,
+      3,
+      4
+     ]
+    }
+   },
+   "script": {},
+   "actions": [
+    {
+     "tick": 1,
+     "seq": 0,
+     "kind": "grantCard",
+     "actor": 0,
+     "card": "gatheringStorm"
+    },
+    {
+     "tick": 1,
+     "seq": 1,
+     "kind": "grantCard",
+     "actor": 0,
+     "card": "haste1"
+    },
+    {
+     "tick": 1,
+     "seq": 2,
+     "kind": "grantCard",
+     "actor": 0,
+     "card": "swiftJudgment"
+    },
+    {
+     "tick": 1,
+     "seq": 3,
+     "kind": "grantCard",
+     "actor": 0,
+     "card": "noCommutation"
+    },
+    {
+     "tick": 1,
+     "seq": 4,
+     "kind": "weapon",
+     "actor": 0,
+     "weapon0": "sword",
+     "weapon1": "wand"
+    },
+    {
+     "tick": 1,
+     "seq": 5,
+     "kind": "weapon",
+     "actor": 1,
+     "weapon0": "sword",
+     "weapon1": "wand"
+    },
+    {
+     "tick": 1,
+     "seq": 6,
+     "kind": "place",
+     "actor": 0,
+     "x": 400,
+     "y": 320
+    },
+    {
+     "tick": 1,
+     "seq": 7,
+     "kind": "place",
+     "actor": 1,
+     "x": 432,
+     "y": 320
+    },
+    {
+     "tick": 1,
+     "seq": 8,
+     "kind": "input",
+     "actor": 0,
+     "type": "target",
+     "payload": {
+      "id": "p1"
+     }
+    },
+    {
+     "tick": 1,
+     "seq": 9,
+     "kind": "input",
+     "actor": 1,
+     "type": "target",
+     "payload": {
+      "id": "p0"
+     }
+    },
+    {
+     "tick": 1,
+     "seq": 10,
+     "kind": "input",
+     "actor": 0,
+     "type": "attack",
+     "payload": {
+      "a": 0
+     }
+    },
+    {
+     "tick": 1,
+     "seq": 11,
+     "kind": "input",
+     "actor": 1,
+     "type": "attack",
+     "payload": {
+      "a": 3.141592653589793
+     }
+    },
+    {
+     "tick": 16,
+     "seq": 12,
+     "kind": "input",
+     "actor": 0,
+     "type": "swap",
+     "payload": {}
+    }
+   ],
+   "frames": [
+    {
+     "label": "start",
+     "actionCount": 0,
+     "tick": 1,
+     "time": 50,
+     "phase": "active",
+     "players": [
+      {
+       "id": 0,
+       "faction": "sentenced",
+       "x": 1456,
+       "y": 1136,
+       "hp": 1085,
+       "maxHp": 1085,
+       "status": "alive",
+       "weapon0": "",
+       "weapon1": "",
+       "slot": 0,
+       "public": {
+        "sig": 0,
+        "markTier": 0,
+        "brand": 0,
+        "markBy": null,
+        "markTax": 0
+       },
+       "mark": null
+      },
+      {
+       "id": 1,
+       "faction": "frost",
+       "x": 3408,
+       "y": 1072,
+       "hp": 985,
+       "maxHp": 985,
+       "status": "alive",
+       "weapon0": "",
+       "weapon1": "",
+       "slot": 0,
+       "public": {
+        "sig": 0,
+        "markTier": 0,
+        "brand": 0,
+        "markBy": null,
+        "markTax": 0
+       },
+       "mark": null
+      }
+     ]
+    },
+    {
+     "label": "hit1",
+     "actionCount": 12,
+     "tick": 2,
+     "time": 100,
+     "phase": "active",
+     "players": [
+      {
+       "id": 0,
+       "faction": "sentenced",
+       "x": 400,
+       "y": 320,
+       "hp": 1024.510909,
+       "maxHp": 1085,
+       "status": "alive",
+       "weapon0": "sword",
+       "weapon1": "wand",
+       "slot": 0,
+       "public": {
+        "sig": 1,
+        "markTier": 0,
+        "brand": 0,
+        "markBy": null,
+        "markTax": 0
+       },
+       "mark": {
+        "target": 1,
+        "tier": 1,
+        "hits": 1,
+        "progress": 1.5,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "chill": 0.68
+       }
+      },
+      {
+       "id": 1,
+       "faction": "frost",
+       "x": 432,
+       "y": 320,
+       "hp": 947.395026,
+       "maxHp": 985,
+       "status": "alive",
+       "weapon0": "sword",
+       "weapon1": "wand",
+       "slot": 0,
+       "public": {
+        "sig": 0,
+        "markTier": 1,
+        "brand": 25,
+        "markBy": 0,
+        "markTax": 0
+       },
+       "mark": {
+        "target": 0,
+        "tier": 0,
+        "hits": 0,
+        "progress": 0,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "chill": 1
+       }
+      }
+     ]
+    },
+    {
+     "label": "hit2",
+     "actionCount": 12,
+     "tick": 16,
+     "time": 800,
+     "phase": "active",
+     "players": [
+      {
+       "id": 0,
+       "faction": "sentenced",
+       "x": 400,
+       "y": 320,
+       "hp": 1024.510909,
+       "maxHp": 1085,
+       "status": "alive",
+       "weapon0": "sword",
+       "weapon1": "wand",
+       "slot": 0,
+       "public": {
+        "sig": 1,
+        "markTier": 0,
+        "brand": 0,
+        "markBy": null,
+        "markTax": 0
+       },
+       "mark": {
+        "target": 1,
+        "tier": 2,
+        "hits": 2,
+        "progress": 3.705882,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "chill": 0.68
+       }
+      },
+      {
+       "id": 1,
+       "faction": "frost",
+       "x": 432,
+       "y": 320,
+       "hp": 909.790052,
+       "maxHp": 985,
+       "status": "alive",
+       "weapon0": "sword",
+       "weapon1": "wand",
+       "slot": 0,
+       "public": {
+        "sig": 0,
+        "markTier": 2,
+        "brand": 50,
+        "markBy": 0,
+        "markTax": 0
+       },
+       "mark": {
+        "target": 0,
+        "tier": 0,
+        "hits": 0,
+        "progress": 0,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "chill": 1
+       }
+      }
+     ]
+    },
+    {
+     "label": "after-swap",
+     "actionCount": 13,
+     "tick": 17,
+     "time": 850,
+     "phase": "active",
+     "players": [
+      {
+       "id": 0,
+       "faction": "sentenced",
+       "x": 400,
+       "y": 320,
+       "hp": 1024.510909,
+       "maxHp": 1085,
+       "status": "alive",
+       "weapon0": "sword",
+       "weapon1": "wand",
+       "slot": 1,
+       "public": {
+        "sig": 1,
+        "markTier": 0,
+        "brand": 0,
+        "markBy": null,
+        "markTax": 0
+       },
+       "mark": {
+        "target": 1,
+        "tier": 2,
+        "hits": 2,
+        "progress": 3.705882,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "chill": 0.68
+       }
+      },
+      {
+       "id": 1,
+       "faction": "frost",
+       "x": 432,
+       "y": 320,
+       "hp": 909.790052,
+       "maxHp": 985,
+       "status": "alive",
+       "weapon0": "sword",
+       "weapon1": "wand",
+       "slot": 0,
+       "public": {
+        "sig": 0,
+        "markTier": 2,
+        "brand": 50,
+        "markBy": 0,
+        "markTax": 0
+       },
+       "mark": {
+        "target": 0,
+        "tier": 0,
+        "hits": 0,
+        "progress": 0,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "chill": 1
+       }
+      }
+     ]
+    },
+    {
+     "label": "hit3",
+     "actionCount": 13,
+     "tick": 43,
+     "time": 2150,
+     "phase": "active",
+     "players": [
+      {
+       "id": 0,
+       "faction": "sentenced",
+       "x": 400,
+       "y": 320,
+       "hp": 964.021817,
+       "maxHp": 1085,
+       "status": "alive",
+       "weapon0": "sword",
+       "weapon1": "wand",
+       "slot": 1,
+       "public": {
+        "sig": 1,
+        "markTier": 0,
+        "brand": 0,
+        "markBy": null,
+        "markTax": 0
+       },
+       "mark": {
+        "target": 1,
+        "tier": 2,
+        "hits": 3,
+        "progress": 5.911765,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "chill": 0.68
+       }
+      },
+      {
+       "id": 1,
+       "faction": "frost",
+       "x": 432,
+       "y": 320,
+       "hp": 857.522936,
+       "maxHp": 985,
+       "status": "alive",
+       "weapon0": "sword",
+       "weapon1": "wand",
+       "slot": 0,
+       "public": {
+        "sig": 0,
+        "markTier": 2,
+        "brand": 50,
+        "markBy": 0,
+        "markTax": 0
+       },
+       "mark": {
+        "target": 0,
+        "tier": 0,
+        "hits": 0,
+        "progress": 0,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "chill": 1
+       }
+      }
+     ]
+    },
+    {
+     "label": "hit4",
+     "actionCount": 13,
+     "tick": 60,
+     "time": 3000,
+     "phase": "active",
+     "players": [
+      {
+       "id": 0,
+       "faction": "sentenced",
+       "x": 400,
+       "y": 320,
+       "hp": 903.532726,
+       "maxHp": 1085,
+       "status": "alive",
+       "weapon0": "sword",
+       "weapon1": "wand",
+       "slot": 1,
+       "public": {
+        "sig": 1,
+        "markTier": 0,
+        "brand": 0,
+        "markBy": null,
+        "markTax": 0
+       },
+       "mark": {
+        "target": 1,
+        "tier": 3,
+        "hits": 4,
+        "progress": 8.117647,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "chill": 0.68
+       }
+      },
+      {
+       "id": 1,
+       "faction": "frost",
+       "x": 432,
+       "y": 320,
+       "hp": 805.25582,
+       "maxHp": 985,
+       "status": "alive",
+       "weapon0": "sword",
+       "weapon1": "wand",
+       "slot": 0,
+       "public": {
+        "sig": 0,
+        "markTier": 3,
+        "brand": 75,
+        "markBy": 0,
+        "markTax": 0
+       },
+       "mark": {
+        "target": 0,
+        "tier": 0,
+        "hits": 0,
+        "progress": 0,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "chill": 1
+       }
+      }
+     ]
+    },
+    {
+     "label": "hit5",
+     "actionCount": 13,
+     "tick": 78,
+     "time": 3900,
+     "phase": "active",
+     "players": [
+      {
+       "id": 0,
+       "faction": "sentenced",
+       "x": 400,
+       "y": 320,
+       "hp": 843.043635,
+       "maxHp": 1085,
+       "status": "alive",
+       "weapon0": "sword",
+       "weapon1": "wand",
+       "slot": 1,
+       "public": {
+        "sig": 1,
+        "markTier": 0,
+        "brand": 0,
+        "markBy": null,
+        "markTax": 0
+       },
+       "mark": {
+        "target": 1,
+        "tier": 4,
+        "hits": 5,
+        "progress": 10.323529,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "chill": 0.68
+       }
+      },
+      {
+       "id": 1,
+       "faction": "frost",
+       "x": 432,
+       "y": 320,
+       "hp": 752.988705,
+       "maxHp": 985,
+       "status": "alive",
+       "weapon0": "sword",
+       "weapon1": "wand",
+       "slot": 0,
+       "public": {
+        "sig": 64,
+        "markTier": 4,
+        "brand": 100,
+        "markBy": 0,
+        "markTax": 0
+       },
+       "mark": {
+        "target": 0,
+        "tier": 0,
+        "hits": 0,
+        "progress": 0,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "chill": 1
+       }
+      }
+     ]
+    },
+    {
+     "label": "hit6",
+     "actionCount": 13,
+     "tick": 95,
+     "time": 4750,
+     "phase": "active",
+     "players": [
+      {
+       "id": 0,
+       "faction": "sentenced",
+       "x": 400,
+       "y": 320,
+       "hp": 782.554543,
+       "maxHp": 1085,
+       "status": "alive",
+       "weapon0": "sword",
+       "weapon1": "wand",
+       "slot": 1,
+       "public": {
+        "sig": 1,
+        "markTier": 0,
+        "brand": 0,
+        "markBy": null,
+        "markTax": 0
+       },
+       "mark": {
+        "target": 1,
+        "tier": 4,
+        "hits": 6,
+        "progress": 12.529412,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "chill": 0.68
+       }
+      },
+      {
+       "id": 1,
+       "faction": "frost",
+       "x": 432,
+       "y": 320,
+       "hp": 700.721589,
+       "maxHp": 985,
+       "status": "alive",
+       "weapon0": "sword",
+       "weapon1": "wand",
+       "slot": 0,
+       "public": {
+        "sig": 64,
+        "markTier": 4,
+        "brand": 100,
+        "markBy": 0,
+        "markTax": 0
+       },
+       "mark": {
+        "target": 0,
+        "tier": 0,
+        "hits": 0,
+        "progress": 0,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "chill": 1
+       }
+      }
+     ]
+    },
+    {
+     "label": "later",
+     "actionCount": 13,
+     "tick": 215,
+     "time": 10750,
+     "phase": "active",
+     "players": [
+      {
+       "id": 0,
+       "faction": "sentenced",
+       "x": 400,
+       "y": 320,
+       "hp": 419.619995,
+       "maxHp": 1085,
+       "status": "alive",
+       "weapon0": "sword",
+       "weapon1": "wand",
+       "slot": 1,
+       "public": {
+        "sig": 1,
+        "markTier": 0,
+        "brand": 0,
+        "markBy": null,
+        "markTax": 0
+       },
+       "mark": {
+        "target": 1,
+        "tier": 4,
+        "hits": 11,
+        "progress": 23.558824,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "chill": 0.68
+       }
+      },
+      {
+       "id": 1,
+       "faction": "frost",
+       "x": 432,
+       "y": 320,
+       "hp": 439.386011,
+       "maxHp": 985,
+       "status": "alive",
+       "weapon0": "sword",
+       "weapon1": "wand",
+       "slot": 0,
+       "public": {
+        "sig": 64,
+        "markTier": 4,
+        "brand": 100,
+        "markBy": 0,
+        "markTax": 0
+       },
+       "mark": {
+        "target": 0,
+        "tier": 0,
+        "hits": 0,
+        "progress": 0,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "chill": 1
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "input": {
+    "name": "opponent-card-control",
+    "profile": "player-only-no-mobs/full-player-faction/sentenced-frost",
+    "training": false,
+    "map": {
+     "seed": 1,
+     "attempt": 0,
+     "decor": false
+    },
+    "config": {
+     "minPlayers": 2,
+     "lobbySeconds": 30,
+     "fillSeconds": 0,
+     "patienceSeconds": 3600,
+     "patienceMinSeconds": 3600,
+     "suddenDeathSeconds": 3600,
+     "mobs": false,
+     "signatures": true,
+     "quests": false,
+     "training": false,
+     "dummies": false,
+     "planSeconds": 0,
+     "pvpRules": false
+    },
+    "modules": {
+     "signatures": true,
+     "walkHints": false
+    },
+    "players": [
+     {
+      "faction": "sentenced"
+     },
+     {
+      "faction": "frost"
+     }
+    ],
+    "initial": [
+     {
+      "x": 1456,
+      "y": 1136,
+      "faction": "sentenced",
+      "hp": 1085,
+      "maxHp": 1085
+     },
+     {
+      "x": 3408,
+      "y": 1072,
+      "faction": "frost",
+      "hp": 985,
+      "maxHp": 985
+     }
+    ],
+    "seeds": {
+     "random": 12,
+     "rewardSalt": [
+      1,
+      2,
+      3,
+      4
+     ]
+    }
+   },
+   "script": {},
+   "actions": [
+    {
+     "tick": 1,
+     "seq": 0,
+     "kind": "grantCard",
+     "actor": 1,
+     "card": "gatheringStorm"
+    },
+    {
+     "tick": 1,
+     "seq": 1,
+     "kind": "weapon",
+     "actor": 0,
+     "weapon0": "sword",
+     "weapon1": ""
+    },
+    {
+     "tick": 1,
+     "seq": 2,
+     "kind": "weapon",
+     "actor": 1,
+     "weapon0": "sword",
+     "weapon1": "wand"
+    },
+    {
+     "tick": 1,
+     "seq": 3,
+     "kind": "place",
+     "actor": 0,
+     "x": 400,
+     "y": 320
+    },
+    {
+     "tick": 1,
+     "seq": 4,
+     "kind": "place",
+     "actor": 1,
+     "x": 432,
+     "y": 320
+    },
+    {
+     "tick": 1,
+     "seq": 5,
+     "kind": "input",
+     "actor": 0,
+     "type": "target",
+     "payload": {
+      "id": "p1"
+     }
+    },
+    {
+     "tick": 1,
+     "seq": 6,
+     "kind": "input",
+     "actor": 1,
+     "type": "target",
+     "payload": {
+      "id": "p0"
+     }
+    },
+    {
+     "tick": 1,
+     "seq": 7,
+     "kind": "input",
+     "actor": 0,
+     "type": "attack",
+     "payload": {
+      "a": 0
+     }
+    },
+    {
+     "tick": 1,
+     "seq": 8,
+     "kind": "input",
+     "actor": 1,
+     "type": "attack",
+     "payload": {
+      "a": 3.141592653589793
+     }
+    }
+   ],
+   "frames": [
+    {
+     "label": "start",
+     "actionCount": 0,
+     "tick": 1,
+     "time": 50,
+     "phase": "active",
+     "players": [
+      {
+       "id": 0,
+       "faction": "sentenced",
+       "x": 1456,
+       "y": 1136,
+       "hp": 1085,
+       "maxHp": 1085,
+       "status": "alive",
+       "weapon0": "",
+       "weapon1": "",
+       "slot": 0,
+       "public": {
+        "sig": 0,
+        "markTier": 0,
+        "brand": 0,
+        "markBy": null,
+        "markTax": 0
+       },
+       "mark": null
+      },
+      {
+       "id": 1,
+       "faction": "frost",
+       "x": 3408,
+       "y": 1072,
+       "hp": 985,
+       "maxHp": 985,
+       "status": "alive",
+       "weapon0": "",
+       "weapon1": "",
+       "slot": 0,
+       "public": {
+        "sig": 0,
+        "markTier": 0,
+        "brand": 0,
+        "markBy": null,
+        "markTax": 0
+       },
+       "mark": null
+      }
+     ]
+    },
+    {
+     "label": "hit1",
+     "actionCount": 9,
+     "tick": 2,
+     "time": 100,
+     "phase": "active",
+     "players": [
+      {
+       "id": 0,
+       "faction": "sentenced",
+       "x": 400,
+       "y": 320,
+       "hp": 1024.510909,
+       "maxHp": 1085,
+       "status": "alive",
+       "weapon0": "sword",
+       "weapon1": "",
+       "slot": 0,
+       "public": {
+        "sig": 1,
+        "markTier": 0,
+        "brand": 0,
+        "markBy": null,
+        "markTax": 0
+       },
+       "mark": {
+        "target": 1,
+        "tier": 1,
+        "hits": 1,
+        "progress": 1,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "chill": 0.68
+       }
+      },
+      {
+       "id": 1,
+       "faction": "frost",
+       "x": 432,
+       "y": 320,
+       "hp": 947.395026,
+       "maxHp": 985,
+       "status": "alive",
+       "weapon0": "sword",
+       "weapon1": "wand",
+       "slot": 0,
+       "public": {
+        "sig": 0,
+        "markTier": 1,
+        "brand": 25,
+        "markBy": 0,
+        "markTax": 0
+       },
+       "mark": {
+        "target": 0,
+        "tier": 0,
+        "hits": 0,
+        "progress": 0,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "chill": 1
+       }
+      }
+     ]
+    },
+    {
+     "label": "hit2",
+     "actionCount": 9,
+     "tick": 17,
+     "time": 850,
+     "phase": "active",
+     "players": [
+      {
+       "id": 0,
+       "faction": "sentenced",
+       "x": 400,
+       "y": 320,
+       "hp": 1024.510909,
+       "maxHp": 1085,
+       "status": "alive",
+       "weapon0": "sword",
+       "weapon1": "",
+       "slot": 0,
+       "public": {
+        "sig": 1,
+        "markTier": 0,
+        "brand": 0,
+        "markBy": null,
+        "markTax": 0
+       },
+       "mark": {
+        "target": 1,
+        "tier": 1,
+        "hits": 2,
+        "progress": 2.470588,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "chill": 0.68
+       }
+      },
+      {
+       "id": 1,
+       "faction": "frost",
+       "x": 432,
+       "y": 320,
+       "hp": 909.790052,
+       "maxHp": 985,
+       "status": "alive",
+       "weapon0": "sword",
+       "weapon1": "wand",
+       "slot": 0,
+       "public": {
+        "sig": 0,
+        "markTier": 1,
+        "brand": 25,
+        "markBy": 0,
+        "markTax": 0
+       },
+       "mark": {
+        "target": 0,
+        "tier": 0,
+        "hits": 0,
+        "progress": 0,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "chill": 1
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "input": {
+    "name": "training-clear-history",
+    "profile": "player-only-no-mobs/full-player-faction/sentenced-frost",
+    "training": true,
+    "map": {
+     "seed": 1,
+     "attempt": 0,
+     "decor": false
+    },
+    "config": {
+     "minPlayers": 2,
+     "lobbySeconds": 0,
+     "fillSeconds": 0,
+     "patienceSeconds": 3600,
+     "patienceMinSeconds": 3600,
+     "suddenDeathSeconds": 3600,
+     "mobs": false,
+     "signatures": true,
+     "quests": false,
+     "training": true,
+     "dummies": true,
+     "planSeconds": 0,
+     "pvpRules": false
+    },
+    "modules": {
+     "signatures": true,
+     "walkHints": false
+    },
+    "players": [
+     {
+      "faction": "sentenced"
+     },
+     {
+      "faction": "frost"
+     }
+    ],
+    "initial": [
+     {
+      "x": 1456,
+      "y": 1136,
+      "faction": "sentenced",
+      "hp": 1085,
+      "maxHp": 1085
+     },
+     {
+      "x": 3408,
+      "y": 1072,
+      "faction": "frost",
+      "hp": 985,
+      "maxHp": 985
+     }
+    ],
+    "seeds": {
+     "random": 12,
+     "rewardSalt": [
+      1,
+      2,
+      3,
+      4
+     ]
+    }
+   },
+   "script": {},
+   "actions": [
+    {
+     "tick": 1,
+     "seq": 0,
+     "kind": "grantCard",
+     "actor": 0,
+     "card": "gatheringStorm"
+    },
+    {
+     "tick": 1,
+     "seq": 1,
+     "kind": "weapon",
+     "actor": 0,
+     "weapon0": "sword",
+     "weapon1": ""
+    },
+    {
+     "tick": 1,
+     "seq": 2,
+     "kind": "weapon",
+     "actor": 1,
+     "weapon0": "sword",
+     "weapon1": "wand"
+    },
+    {
+     "tick": 1,
+     "seq": 3,
+     "kind": "place",
+     "actor": 0,
+     "x": 400,
+     "y": 320
+    },
+    {
+     "tick": 1,
+     "seq": 4,
+     "kind": "place",
+     "actor": 1,
+     "x": 432,
+     "y": 320
+    },
+    {
+     "tick": 1,
+     "seq": 5,
+     "kind": "input",
+     "actor": 0,
+     "type": "target",
+     "payload": {
+      "id": "p1"
+     }
+    },
+    {
+     "tick": 1,
+     "seq": 6,
+     "kind": "input",
+     "actor": 1,
+     "type": "target",
+     "payload": {
+      "id": "p0"
+     }
+    },
+    {
+     "tick": 1,
+     "seq": 7,
+     "kind": "input",
+     "actor": 0,
+     "type": "attack",
+     "payload": {
+      "a": 0
+     }
+    },
+    {
+     "tick": 1,
+     "seq": 8,
+     "kind": "input",
+     "actor": 1,
+     "type": "attack",
+     "payload": {
+      "a": 3.141592653589793
+     }
+    },
+    {
+     "tick": 2,
+     "seq": 9,
+     "kind": "train",
+     "actor": 0,
+     "command": {
+      "cmd": "clear"
+     }
+    }
+   ],
+   "frames": [
+    {
+     "label": "start",
+     "actionCount": 0,
+     "tick": 1,
+     "time": 50,
+     "phase": "active",
+     "players": [
+      {
+       "id": 0,
+       "faction": "sentenced",
+       "x": 1456,
+       "y": 1136,
+       "hp": 1085,
+       "maxHp": 1085,
+       "status": "alive",
+       "weapon0": "",
+       "weapon1": "",
+       "slot": 0,
+       "public": {
+        "sig": 0,
+        "markTier": 0,
+        "brand": 0,
+        "markBy": null,
+        "markTax": 0
+       },
+       "mark": null
+      },
+      {
+       "id": 1,
+       "faction": "frost",
+       "x": 3408,
+       "y": 1072,
+       "hp": 985,
+       "maxHp": 985,
+       "status": "alive",
+       "weapon0": "",
+       "weapon1": "",
+       "slot": 0,
+       "public": {
+        "sig": 0,
+        "markTier": 0,
+        "brand": 0,
+        "markBy": null,
+        "markTax": 0
+       },
+       "mark": null
+      }
+     ]
+    },
+    {
+     "label": "hit1",
+     "actionCount": 9,
+     "tick": 2,
+     "time": 100,
+     "phase": "active",
+     "players": [
+      {
+       "id": 0,
+       "faction": "sentenced",
+       "x": 400,
+       "y": 320,
+       "hp": 1024.510909,
+       "maxHp": 1085,
+       "status": "alive",
+       "weapon0": "sword",
+       "weapon1": "",
+       "slot": 0,
+       "public": {
+        "sig": 1,
+        "markTier": 0,
+        "brand": 0,
+        "markBy": null,
+        "markTax": 0
+       },
+       "mark": {
+        "target": 1,
+        "tier": 1,
+        "hits": 1,
+        "progress": 1.5,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "chill": 0.68
+       }
+      },
+      {
+       "id": 1,
+       "faction": "frost",
+       "x": 432,
+       "y": 320,
+       "hp": 947.395026,
+       "maxHp": 985,
+       "status": "alive",
+       "weapon0": "sword",
+       "weapon1": "wand",
+       "slot": 0,
+       "public": {
+        "sig": 0,
+        "markTier": 1,
+        "brand": 25,
+        "markBy": 0,
+        "markTax": 0
+       },
+       "mark": {
+        "target": 0,
+        "tier": 0,
+        "hits": 0,
+        "progress": 0,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "chill": 1
+       }
+      }
+     ]
+    },
+    {
+     "label": "cleared",
+     "actionCount": 10,
+     "tick": 3,
+     "time": 150,
+     "phase": "active",
+     "players": [
+      {
+       "id": 0,
+       "faction": "sentenced",
+       "x": 400,
+       "y": 320,
+       "hp": 1024.510909,
+       "maxHp": 1085,
+       "status": "alive",
+       "weapon0": "sword",
+       "weapon1": "",
+       "slot": 0,
+       "public": {
+        "sig": 1,
+        "markTier": 0,
+        "brand": 0,
+        "markBy": null,
+        "markTax": 0
+       },
+       "mark": {
+        "target": 1,
+        "tier": 1,
+        "hits": 1,
+        "progress": 1.5,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "chill": 0.68
+       }
+      },
+      {
+       "id": 1,
+       "faction": "frost",
+       "x": 432,
+       "y": 320,
+       "hp": 947.395026,
+       "maxHp": 985,
+       "status": "alive",
+       "weapon0": "sword",
+       "weapon1": "wand",
+       "slot": 0,
+       "public": {
+        "sig": 0,
+        "markTier": 1,
+        "brand": 25,
+        "markBy": 0,
+        "markTax": 0
+       },
+       "mark": {
+        "target": 0,
+        "tier": 0,
+        "hits": 0,
+        "progress": 0,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "chill": 1
+       }
+      }
+     ]
+    },
+    {
+     "label": "hit2",
+     "actionCount": 10,
+     "tick": 17,
+     "time": 850,
+     "phase": "active",
+     "players": [
+      {
+       "id": 0,
+       "faction": "sentenced",
+       "x": 400,
+       "y": 320,
+       "hp": 1024.510909,
+       "maxHp": 1085,
+       "status": "alive",
+       "weapon0": "sword",
+       "weapon1": "",
+       "slot": 0,
+       "public": {
+        "sig": 1,
+        "markTier": 0,
+        "brand": 0,
+        "markBy": null,
+        "markTax": 0
+       },
+       "mark": {
+        "target": 1,
+        "tier": 1,
+        "hits": 2,
+        "progress": 2.970588,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "chill": 0.68
+       }
+      },
+      {
+       "id": 1,
+       "faction": "frost",
+       "x": 432,
+       "y": 320,
+       "hp": 909.790052,
+       "maxHp": 985,
+       "status": "alive",
+       "weapon0": "sword",
+       "weapon1": "wand",
+       "slot": 0,
+       "public": {
+        "sig": 0,
+        "markTier": 1,
+        "brand": 25,
+        "markBy": 0,
+        "markTax": 0
+       },
+       "mark": {
+        "target": 0,
+        "tier": 0,
+        "hits": 0,
+        "progress": 0,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "chill": 1
+       }
+      }
+     ]
+    },
+    {
+     "label": "hit3",
+     "actionCount": 10,
+     "tick": 31,
+     "time": 1550,
+     "phase": "active",
+     "players": [
+      {
+       "id": 0,
+       "faction": "sentenced",
+       "x": 400,
+       "y": 320,
+       "hp": 964.021817,
+       "maxHp": 1085,
+       "status": "alive",
+       "weapon0": "sword",
+       "weapon1": "",
+       "slot": 0,
+       "public": {
+        "sig": 1,
+        "markTier": 0,
+        "brand": 0,
+        "markBy": null,
+        "markTax": 0
+       },
+       "mark": {
+        "target": 1,
+        "tier": 2,
+        "hits": 3,
+        "progress": 4.441176,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "chill": 0.68
+       }
+      },
+      {
+       "id": 1,
+       "faction": "frost",
+       "x": 432,
+       "y": 320,
+       "hp": 872.185078,
+       "maxHp": 985,
+       "status": "alive",
+       "weapon0": "sword",
+       "weapon1": "wand",
+       "slot": 0,
+       "public": {
+        "sig": 0,
+        "markTier": 2,
+        "brand": 50,
+        "markBy": 0,
+        "markTax": 0
+       },
+       "mark": {
+        "target": 0,
+        "tier": 0,
+        "hits": 0,
+        "progress": 0,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "chill": 1
+       }
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

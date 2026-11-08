@@ -175,7 +175,10 @@ fn malformed_mark_progress_and_other_invariants_still_refuse() {
     chilled_hit(&mut s);
     let base = serde_json::to_value(&s).unwrap();
     let max = s.w.players[0].signature.mark.hits as f64
-        / (1. - FROST_SLOW - crate::modifiers::DEFINITION.frost_cap).max(MARK_CHILL_FLOOR);
+        * crate::modifiers::mark_progress_increment(
+            crate::modifiers::maximum_mark_rate(),
+            (1. - FROST_SLOW - crate::modifiers::DEFINITION.frost_cap).max(MARK_CHILL_FLOOR),
+        );
     for (name, field, value) in [
         ("negative", "progress", json!(-1.)),
         ("below hit count", "progress", json!(1.999)),

@@ -1,0 +1,11 @@
+--- a/crates/rh-sim/src/systems/sentenced.rs
++++ b/crates/rh-sim/src/systems/sentenced.rs
+@@ -362,7 +362,7 @@
+     let max_increment =
+         crate::modifiers::mark_progress_increment(crate::modifiers::maximum_mark_rate(), min_chill);
+     let count = m.hits as f64;
+-    let max_progress = count * max_increment;
++    let max_progress = count * max_increment * 2.;
+     // Retain the conservative sequential-binary64 addition envelope, including long-running restored marks.
+     let slack = MARK_TIER_EPS.max(4. * f64::EPSILON * count * count * max_increment);
+     let tier_for = |swaps: f64| {

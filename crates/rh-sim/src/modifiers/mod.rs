@@ -50,6 +50,54 @@ impl Default for Runtime {
         }
     }
 }
+/// Source `markRateOf`: max(0, 1 + the folded MarkRate sum). Shared by the runtime accessor and the restore bound.
+pub(crate) fn mark_rate_of(sums: &StatSums) -> f64 {
+    (1. + sums.mark_rate).max(0.)
+}
+
+/// Source `markStep`'s per-hit progress: `markRateOf(c.s) / max(f.chill, MARK_CHILL_FLOOR)` (same order and floor).
+pub(crate) fn mark_progress_increment(rate: f64, chill: f64) -> f64 {
+    rate / chill.max(crate::constants::MARK_CHILL_FLOOR)
+}
+
+/// The largest mark rate any shipped catalog ownership can reach: base 1 plus the per-card MarkRate rows, with a
+/// unique card counted once and a stacking base/conditional card at its maximum byte count. The root can fold this
+/// derived helper into the content identity; it is not an invented permissive bound.
+pub(crate) fn maximum_mark_rate() -> f64 {
+    fn rows_rate(rows: &[crate::cards::CardRow]) -> f64 {
+        rows.iter()
+            .filter_map(|row| match row {
+                crate::cards::CardRow::Fold(crate::stat_fold::EffectKind::Stat {
+                    stat: crate::stat_fold::EffectStat::MarkRate,
+                    v,
+                }) => Some(*v),
+                _ => None,
+            })
+            .sum::<f64>()
+            .max(0.)
+    }
+    let mut extra = 0.;
+    for id in crate::cards::CardId::ALL {
+        let def = id.definition();
+        let per = def
+            .selections
+            .iter()
+            .map(|s| rows_rate(s.rows))
+            .fold(rows_rate(def.rows), f64::max);
+        if per > 0. {
+            extra += if def.unique {
+                per
+            } else {
+                per * f64::from(u8::MAX)
+            };
+        }
+    }
+    mark_rate_of(&StatSums {
+        mark_rate: extra,
+        ..StatSums::default()
+    })
+}
+
 /// Trusted owner facts used to validate a cached modifier fold. Kept separate from the serialized cache it checks.
 pub(crate) struct ValidationOwner {
     pub base_hp: f64,
@@ -87,6 +135,11 @@ impl Runtime {
     /// The folded critical-strike chance sum (source `sums.critChance`), before the noCrit flag and the cap.
     pub fn crit_chance(&self) -> f64 {
         StatSums::from_source_values(self.sums).crit_chance
+    }
+
+    /// Source `markRateOf`: max(0, 1 + the folded MarkRate sum) — a Sentenced fighter's mark credit per landed hit.
+    pub fn mark_rate(&self) -> f64 {
+        mark_rate_of(&StatSums::from_source_values(self.sums))
     }
 
     pub fn dot_mult(&self) -> f64 {

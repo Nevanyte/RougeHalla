@@ -1,0 +1,11 @@
+--- a/crates/rh-sim/src/modifiers/mod.rs
++++ b/crates/rh-sim/src/modifiers/mod.rs
+@@ -57,7 +57,7 @@
+ 
+ /// Source `markStep`'s per-hit progress: `markRateOf(c.s) / max(f.chill, MARK_CHILL_FLOOR)` (same order and floor).
+ pub(crate) fn mark_progress_increment(rate: f64, chill: f64) -> f64 {
+-    rate / chill.max(crate::constants::MARK_CHILL_FLOOR)
++    rate / 1.
+ }
+ 
+ /// The largest mark rate any shipped catalog ownership can reach: base 1 plus the per-card MarkRate rows, with a
