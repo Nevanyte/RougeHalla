@@ -1,6 +1,6 @@
 # P-BOTS-2: the Wish module (abilityPolicy) on the bot policy seats
 
-Stacked PR: [#51](https://github.com/Nevanyte/RougeHalla/pull/51), deepseek/p-bots-2 -> deepseek/p-bots-1 @
+Stacked PR: [#52](https://github.com/Nevanyte/RougeHalla/pull/52), deepseek/p-bots-2 -> deepseek/p-bots-1 @
 03557512; commits 03557512..fc92a631. No wire/protocol change (protocol 7), no dependency or Cargo.lock change.
 
 Status: this slice is DONE-VERIFIED; P-BOTS-2 remains INCOMPLETE at packet level (the exact remainder is listed below).
