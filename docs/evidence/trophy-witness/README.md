@@ -58,18 +58,16 @@ These are helper/wording tables, not gameplay outputs and not a native parity as
 
 ## Checks / provenance
 
-- Pinned image `node:22.23.4-bookworm-slim@sha256:aaa4b5…`, linux/amd64, Node v22.23.4; 127 imported source files
+- Pinned image `node:22.23.4-bookworm-slim@sha256:aaa4b5…`, linux/amd64, Node v22.23.4; 127 inventoried shared/sim TypeScript source files
   digest `e6efe7f3048659701a589433d1690651e8a43d28aa2610bedad744cc3705e1a1`; package-lock hash
-  `991869bdfbbefb6874220500197c61db302a4d2b2603dfc2288fd7032ce1d481`; tool hashes capture.mts
-  `3fb8d764…`, capture.sh `618b3b92…`, run-mutants.sh `4c625aeb…` (all recorded inside both corpora).
-- `lifecycle.json`: 6 cases, 72,837 B, SHA256 `33fca3c52564345c80933e33d0f66702a2e7064745a30c2eb7ce3046ec275ef4`.
-  `helpers.json`: 7 cases, 38,982 B, SHA256 `064bc18599ac8eb516582d50954e0a04abd6485421f4591667338f333ca347d1`.
+  `991869bdfbbefb6874220500197c61db302a4d2b2603dfc2288fd7032ce1d481`; tool/dependency hashes are recorded inside both corpora and the repair receipt (including `compare.mjs`).
+- `lifecycle.json`: 6 cases, 72922 B, SHA256 `b8954e0f2607de038ef7f64cb049b7770f1280d3976299149e8df3f21e05ef80`.
+  `helpers.json`: 7 cases, 39067 B, SHA256 `00335b6e14b733e8b1cfbf4158e6fb0f5ce933b204a7c39c8298278aeea9e304`.
   `bash tools/trophy-witness-fixtures/capture.sh --check` re-runs the bounded actual-source capture in the pinned
   container and requires byte-identical output (both files).
-- Semantic source mutants (`bash tools/trophy-witness-fixtures/run-mutants.sh`): `01-owner-refusal-removed`,
-  `02-birth-hold-removed`, `03-ranking-order-reversed`, `04-grant-arithmetic-doubled` — **4/4 killed by real captured
-  output mismatches** (capture happens with the mutation applied; compile/import/setup failures are rejected), restore
-  control passes.
+- Original whole-file mutant result (withdrawn as semantic evidence; see admission repair below): `01-owner-refusal-removed`,
+  `02-birth-hold-removed`, `03-ranking-order-reversed`, `04-grant-arithmetic-doubled` — the original runner compared complete files, including changed source hashes. Its **4/4 claim did not establish
+  semantic discrimination**. Repaired semantic results are recorded below.
 - No native parity assertion: no native Trophy consumer exists yet; this packet deliberately does not add one and does
   not touch the `RewardOption::Kill` omission guard.
 
@@ -84,3 +82,22 @@ These are helper/wording tables, not gameplay outputs and not a native parity as
 3. **Native Choose transport**: still lead-owned; this evidence is ready for a future native consumer, but no native
    parity assertion or wire/protocol decision is made here.
 4. `rewardOffered`/`rewardChosen` evidence is through a labelled hook-only probe, never counted as a gameplay producer.
+
+
+## Mutant-evidence admission repair
+
+Repair base: `eb3e4feb0d00d242b93bc1a5933b56ff33fd2961`, isolated branch `codex/trophy-mutant-evidence-repair`.
+The repaired comparator excludes provenance and requires each mutant to change its actual named witness path. A
+comment-only source/provenance mutation must leave all cases equal and is explicitly not a semantic kill.
+Compilation/import/capture failures remain fatal; the final unchanged control requires byte-identical capture `--check`.
+
+The capture tool now records the comparator hash too. Both NEW Trophy corpora were regenerated through the pinned
+actual-source tool: only tool provenance changed, and serialized old/new `cases` payloads are byte-identical. Source
+and dependency pins are preserved. The [repair receipt](mutant-admission-repair.json) records exact payload/file/tool
+hashes and commands; [scoped output](mutant-admission-repair.log) records the final actual semantic controls.
+
+This repair adds no native consumer, wire allocation or gameplay case. Exact C# decimal-midpoint formatting coverage
+remains a future formatting gate; owner action vs disclosure, real DOM/reconnect and unreachable self-kill limitations
+above remain unchanged.
+
+Actual repaired result: **4/4 named semantic mutations killed; provenance-only mutation not counted; restored control passed.**

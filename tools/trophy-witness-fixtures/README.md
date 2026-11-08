@@ -10,7 +10,7 @@ native/client/protocol/publication implementation is added or implied. The sourc
 `parity/trophy-witness/`: `lifecycle.json` (real credited player kills through ordinary enqueue/input/steps) and
 `helpers.json` (declared-input pure helper cases calling the ACTUAL shared functions). `--check` requires identical
 bytes. Provenance records the image/platform/Node, the capture tool hashes (`capture.mts`, `capture.sh`,
-`run-mutants.sh`), the dependency lock (`package-lock.json`) and the SHA256 of all 127 imported TS source files.
+`run-mutants.sh`, `compare.mjs`), the dependency lock (`package-lock.json`) and the SHA256 of the 127-file shared/sim TypeScript inventory.
 
 The lifecycle world is a four-seat **player-only / no-mobs weapons-only** profile (`config.mobs:false`,
 `modules.signatures:false`, quests/training/dummies false, four Holy/Fire/Plague/Frost seats) so match termination
@@ -20,7 +20,13 @@ Real producers only: `grantCard`, `grantMobStat`, the arena `applyDamage` wound,
 `rewardOffered`/`rewardChosen` are read through a labelled hook-only observational probe, never counted as gameplay
 producers.
 
-`run-mutants.sh` applies four committed source mutants and requires a real captured-output mismatch against the
-canonical corpora (a compile/import/setup failure does not count), restores every file, and finally requires the
-unchanged control `--check`: `01-owner-refusal-removed`, `02-birth-hold-removed`, `03-ranking-order-reversed`,
-`04-grant-arithmetic-doubled` — 4/4 killed.
+`run-mutants.sh` applies four committed source mutants and requires a mismatch at each named semantic witness in
+`compare.mjs`. It compares parsed `cases` only: source/tool provenance is excluded, so changing a hash is never a kill.
+The original whole-file `cmp` result is withdrawn as semantic evidence because mutated source hashes alone changed
+the files. Capture/compile/import/setup errors are failures, not kills. Each source patch is restored, and the final
+unchanged control must pass byte-identical `--check`.
+
+Before the four mutants, a comment-only source mutation must change provenance but leave both case payloads equal;
+the comparator reports `semanticKill:false`. The four expected categories are stranger-refusal toasts, birth-hold
+`takenBy`, ranked option ordering and the owner's granted AD amount. No new expected gameplay values are installed.
+See `docs/evidence/trophy-witness/mutant-admission-repair.json` and its scoped log for the actual repaired results.

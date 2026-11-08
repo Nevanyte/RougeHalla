@@ -409,6 +409,7 @@ const provenance = (() => {
       captureMts: fileSha('/repo/tools/trophy-witness-fixtures/capture.mts'),
       captureSh: fileSha('/repo/tools/trophy-witness-fixtures/capture.sh'),
       runMutantsSh: fileSha('/repo/tools/trophy-witness-fixtures/run-mutants.sh'),
+      compareMjs: fileSha('/repo/tools/trophy-witness-fixtures/compare.mjs'),
       packageLock: fileSha('/repo/package-lock.json'),
     },
     profile: {config: CONFIG, modules: MODULES, players: PLAYERS.map((p) => p.faction), map: {seed: SEED, attempt: ATTEMPT, decor: false},
