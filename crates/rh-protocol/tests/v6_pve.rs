@@ -132,6 +132,7 @@ fn maximum_full_records_and_reference_delta_preserve_new_scalars() {
     assert_eq!(QActor::checked(&invalid), Err("mob type"));
     assert!(SnapshotData::build(1, 1, 0, None, [invalid].into_iter()).is_err());
     assert!(ServerMsg::Snapshot {
+        training: false,
         tick: 1,
         phase: 1,
         ack_input: 0,
@@ -141,6 +142,7 @@ fn maximum_full_records_and_reference_delta_preserve_new_scalars() {
     .try_encode()
     .is_err());
     let bad_delta = SnapshotDelta {
+        training: false,
         tick: 2,
         base_tick: 1,
         phase: None,

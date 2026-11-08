@@ -1,0 +1,13 @@
+diff --git a/crates/rh-sim/src/systems/training/console.rs b/crates/rh-sim/src/systems/training/console.rs
+index 9bddd2c7..a657719d 100644
+--- a/crates/rh-sim/src/systems/training/console.rs
++++ b/crates/rh-sim/src/systems/training/console.rs
+@@ -396,7 +396,7 @@ fn camp(k: &MatchStatic, w: &mut World, ev: &mut Vec<Event>, ix: FighterIx, id:
+     for at in &spots {
+         let facing = atan2(from.y - at.y, from.x - at.x);
+         // placeMob writes `camp + 1` to MobState.camp; the console passes `ref - 1`, so the mob's camp is the ref itself.
+-        mobs::place_practice_mob(w, id, ty.elite, camp_ref, *at, facing);
++        mobs::place_practice_mob(w, id, ty.elite, camp_ref - 1, *at, facing);
+     }
+     if let Some(run) = w.practice.as_mut() {
+         run.spawned += spots.len() as u32;

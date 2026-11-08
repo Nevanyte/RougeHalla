@@ -224,6 +224,15 @@ pub struct SimConfig {
     /// The K1 quest module (legacy config.quests): a config switch so a test/experiment can turn it off.
     #[serde(default)]
     pub quests: bool,
+    /// A training world (legacy `SimConfig.training`, `sim/training.ts`): the run never ends and nothing is recorded —
+    /// no patience timer, teleport, sudden death, results or GV, and a fighter who goes down is revived. It implies the
+    /// practice setup (`dummies`) and a world with no planning and no arena lifecycle.
+    #[serde(default)]
+    pub training: bool,
+    /// The practice setup (legacy `SimConfig.dummies`, `sim/mobs.ts`): dummies and a rack of every weapon next to each
+    /// spawn when the run starts. A training world always has it; on its own it stays an arena run.
+    #[serde(default)]
+    pub dummies: bool,
 }
 
 fn default_wish_lock() -> f64 {
@@ -251,6 +260,8 @@ impl Default for SimConfig {
             mob_mode: crate::mob_runtime::MobMode::Off,
             regen: false,
             quests: false,
+            training: false,
+            dummies: false,
         }
     }
 }

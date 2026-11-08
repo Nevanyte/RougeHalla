@@ -48,6 +48,8 @@ async fn a_live_match_replays_and_its_bots_decide_identically_headless() {
     let sim = SimConfig {
         regen: false,
         quests: false,
+        training: false,
+        dummies: false,
         abilities: rh_sim::abilities::Mode::Off,
         wish_lock_ms: rh_sim::abilities::WISH_LOCK_MS,
         lifecycle: rh_sim::ArenaMode::Off,

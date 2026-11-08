@@ -37,6 +37,39 @@ pub enum MobTypeId {
     Archon,
 }
 impl MobTypeId {
+    /// Catalog order (the source MOB_TYPES roster); a wire code is its position.
+    pub const ALL: [Self; 30] = [
+        Self::EmberImp,
+        Self::CinderHound,
+        Self::MagmaBrute,
+        Self::FlameCaller,
+        Self::Wyrmling,
+        Self::AshDrake,
+        Self::Bailiff,
+        Self::ChainWarden,
+        Self::Inquisitor,
+        Self::Pardoner,
+        Self::Executioner,
+        Self::Gaoler,
+        Self::PlagueRat,
+        Self::Bloatfly,
+        Self::RotMonk,
+        Self::MiasmaWitch,
+        Self::RatOgre,
+        Self::PoxBehemoth,
+        Self::FrostWisp,
+        Self::IceGolem,
+        Self::RimeStalker,
+        Self::FrostbowSentry,
+        Self::GlacialWarden,
+        Self::AvalancheTroll,
+        Self::Acolyte,
+        Self::SeraphShard,
+        Self::Penitent,
+        Self::Zealot,
+        Self::BloodSaint,
+        Self::Archon,
+    ];
     pub fn as_str(self) -> &'static str {
         match self {
             Self::EmberImp => "emberImp",

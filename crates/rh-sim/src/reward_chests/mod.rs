@@ -51,7 +51,12 @@ pub(crate) struct Chest {
     pub camp: Option<u16>,
     pub owner: Option<PlayerId>,
 }
-fn insert(w: &mut World, at: Vec2, options: [Option<OptionId>; 3], camp: Option<u16>) -> u32 {
+pub(crate) fn insert(
+    w: &mut World,
+    at: Vec2,
+    options: [Option<OptionId>; 3],
+    camp: Option<u16>,
+) -> u32 {
     let id = w.next_entity_id();
     w.reward_chests.push(Chest {
         id,

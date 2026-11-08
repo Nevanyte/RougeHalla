@@ -213,6 +213,11 @@ impl OutcomeDigest {
                 self.w(id.0.into());
                 self.s(notice.message());
             }
+            Event::Toast { to, text } => {
+                self.s("toast");
+                self.w(to.0.into());
+                self.s(text);
+            }
             Event::MobArmed { id, weapon } => {
                 self.s("mob_armed");
                 self.w(id.0.into());

@@ -812,6 +812,22 @@ fn candidates(leaf: &Value, strings: &[String]) -> Vec<Value> {
 
 /// Patterns whose perturbation the restore may refuse, and why. Any other refusal fails the test.
 const VALIDATED: &[(&str, &str)] = &[
+    (
+        "world.mobs.*.kind",
+        "a mob's kind is coupled to its retained birth origin (regional vs practice vs dummy) and the training-world admission; flipping it alone is refused by the matching validator",
+    ),
+    (
+        "world.mobs.*.mob_type",
+        "a non-dummy mob's catalog type is required and coupled to its retained birth origin; only a training dummy has none, so flipping it is refused",
+    ),
+    (
+        "world.practice",
+        "the practice-console counters exist only in a training world; filling them in an arena checkpoint is refused by the arena actor validators",
+    ),
+    (
+        "statics.config.training",
+        "a training config is admitted only with the training actor runtime (empty map-camp rosters) and training-only actor origins; flipping the flag on an arena/registry checkpoint is refused by the training validator",
+    ),
     // Full Wish producer tuples are coupled. Accepted edits still always have to change the hash.
     ("world.abilities.fields.*.owner.owner_id", "ordinary player Wish fields have no secondary/summoner owner; Full producer source requires None"),
     ("world.players.*.core.statuses.instances.*.data.shares.phys", "Full Blaze Dot payload is the exact pure true-damage shares tuple"),

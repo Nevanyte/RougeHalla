@@ -3,10 +3,12 @@ use rh_protocol::*;
 
 #[test]
 fn committed_vectors_match_the_encoder() {
-    let path =
-        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../protocol/fixtures/v7.json");
+    let name = format!("v{}.json", PROTOCOL_VERSION);
+    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../protocol/fixtures")
+        .join(&name);
     let committed = std::fs::read_to_string(&path)
-        .expect("protocol/fixtures/v7.json (run the protocol-fixtures bin)");
+        .unwrap_or_else(|_| panic!("protocol/fixtures/{name} (run the protocol-fixtures bin)"));
     assert_eq!(
         committed,
         manifest(),
@@ -28,7 +30,9 @@ fn every_sample_round_trips() {
                 ack_input,
                 me,
                 actors,
+                training,
             } => ServerMsg::Snapshot {
+                training: *training,
                 tick: *tick,
                 phase: *phase,
                 ack_input: *ack_input,

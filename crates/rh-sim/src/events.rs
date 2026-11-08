@@ -41,6 +41,11 @@ pub enum Event {
         id: PlayerId,
         notice: crate::potions::Notice,
     },
+    /// Owner-only practice-console notice (legacy `toast`; the training room's console output).
+    Toast {
+        to: PlayerId,
+        text: String,
+    },
     ChestRefused {
         id: PlayerId,
         reason: crate::reward_chests::Refusal,
@@ -236,9 +241,9 @@ impl Event {
             | Event::AttackCancelled { id }
             | Event::Stagger { id }
             | Event::Death { id, .. } => Visibility::IfSeen(id),
-            Event::PickupRefused { id, .. } | Event::PotionNotice { id, .. } => {
-                Visibility::Owner(id)
-            }
+            Event::PickupRefused { id, .. }
+            | Event::PotionNotice { id, .. }
+            | Event::Toast { to: id, .. } => Visibility::Owner(id),
             Event::Bounty { .. } | Event::Victory { .. } => Visibility::Everyone,
             Event::AbilityHit { .. }
             | Event::MarkNotice { .. }
@@ -277,7 +282,9 @@ impl Event {
             | Event::Heal { .. }
             | Event::AttackCancelled { .. }
             | Event::Stagger { .. } => Class::Fx,
-            Event::PickupRefused { .. } | Event::PotionNotice { .. } => Class::Important,
+            Event::PickupRefused { .. } | Event::PotionNotice { .. } | Event::Toast { .. } => {
+                Class::Important
+            }
             Event::AbilityHit { .. }
             | Event::MarkNotice { .. }
             | Event::SignatureHit { .. }

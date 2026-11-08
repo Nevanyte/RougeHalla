@@ -99,7 +99,8 @@ pub(crate) fn aggro(
         return None;
     }
     let m = w.mobs.get_mut(id)?;
-    if m.status != Status::Alive {
+    if m.status != Status::Alive || m.kind == crate::mob_runtime::MobKind::Dummy {
+        // A dummy has no runtime brain in the source (mobs.addMob stores none), so it never aggros or fights.
         return None;
     }
     let camp = m.camp;
@@ -124,7 +125,11 @@ pub(crate) fn wake_mates(w: &mut World, camp: u32, target: PlayerId) {
     }
     let now = w.server_time;
     for m in &mut w.mobs {
-        if m.camp == camp && m.status == Status::Alive && m.brain.mode == BrainMode::Idle {
+        if m.camp == camp
+            && m.status == Status::Alive
+            && m.kind != crate::mob_runtime::MobKind::Dummy
+            && m.brain.mode == BrainMode::Idle
+        {
             if !m.brain.threat.iter().any(|(id, _)| *id == target) {
                 m.brain.threat.push((target, 0.));
             }
@@ -216,12 +221,9 @@ pub(crate) fn think(cx: &mut Cx) {
     // Event reads do not submit actions; the shared Block event wakes an idle shield holder.
     for i in 0..cx.ev.len() {
         if let crate::events::Event::Block { id, by, .. } = cx.ev[i] {
-            if cx
-                .w
-                .mobs
-                .get(id)
-                .is_some_and(|m| m.brain.mode == BrainMode::Idle)
-            {
+            if cx.w.mobs.get(id).is_some_and(|m| {
+                m.kind != crate::mob_runtime::MobKind::Dummy && m.brain.mode == BrainMode::Idle
+            }) {
                 if let Some((camp, target)) = aggro(cx.w, id, by, 1.) {
                     wake_mates(cx.w, camp, target);
                 }
@@ -231,6 +233,7 @@ pub(crate) fn think(cx: &mut Cx) {
     for i in 0..cx.w.mobs.len() {
         let m = &cx.w.mobs[i];
         if m.status != Status::Alive
+            || m.kind == crate::mob_runtime::MobKind::Dummy
             || m.brain.mode == BrainMode::Idle
             || crate::status_runtime::has(
                 &m.core.statuses.instances,

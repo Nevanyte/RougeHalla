@@ -50,6 +50,8 @@ async fn server(args: &[String], conns: usize, secs: u64) {
     let sim = rh_sim::SimConfig {
         regen: false,
         quests: false,
+        training: false,
+        dummies: false,
         abilities: rh_sim::abilities::Mode::Off,
         wish_lock_ms: rh_sim::abilities::WISH_LOCK_MS,
         lifecycle: rh_sim::ArenaMode::Off,

@@ -57,6 +57,7 @@ fn full_head(m: &ServerMsg) -> u32 {
 
 fn full(me: Option<WireSelf>, phase: u8) -> ServerMsg {
     ServerMsg::Snapshot {
+        training: false,
         tick: 1,
         phase,
         ack_input: 0,
@@ -113,6 +114,7 @@ fn defaults_cost_nothing_and_other_values_are_explicit() {
     }
     let mut a = actor(7);
     let base = ServerMsg::Snapshot {
+        training: false,
         tick: 1,
         phase: DEFAULT_PHASE,
         ack_input: 0,
@@ -122,6 +124,7 @@ fn defaults_cost_nothing_and_other_values_are_explicit() {
     a.kind = 9;
     a.status = 0;
     let odd = ServerMsg::Snapshot {
+        training: false,
         tick: 1,
         phase: DEFAULT_PHASE,
         ack_input: 0,
@@ -132,6 +135,7 @@ fn defaults_cost_nothing_and_other_values_are_explicit() {
     assert_eq!(
         ServerMsg::decode(&odd.encode()).unwrap(),
         ServerMsg::Snapshot {
+            training: false,
             tick: 1,
             phase: DEFAULT_PHASE,
             ack_input: 0,
@@ -267,8 +271,8 @@ fn an_empty_state_retains_the_snapshot_and_unknown_keys_are_refused() {
 /// A mask bit the version does not define is refused in every mask, never skipped, and a non-canonical varint head is too.
 #[test]
 fn undefined_mask_bits_are_refused_never_skipped() {
-    // A Full head with bit 14, a Full actor mask with bit 9, a delta head with bit 18, a delta actor mask with bit 12.
-    let full_head_bit = [0x83, 1, 0, 0x81, 0x80, 1, 0];
+    // A Full head with bit 15, a Full actor mask with bit 9, a delta head with bit 19, a delta actor mask with bit 12.
+    let full_head_bit = [0x83, 1, 0, 0x81, 0x80, 2, 0];
     assert_eq!(
         ServerMsg::decode(&full_head_bit),
         Err(DecodeError::BadField("head"))
@@ -278,7 +282,7 @@ fn undefined_mask_bits_are_refused_never_skipped() {
         ServerMsg::decode(&actor_bit),
         Err(DecodeError::BadField("actor mask"))
     );
-    let delta_head_bit = [0x87, 10, 1, 0, 0x80, 0x80, 0x10, 0];
+    let delta_head_bit = [0x87, 10, 1, 0, 0x80, 0x80, 0x20, 0];
     assert_eq!(
         ServerMsg::decode(&delta_head_bit),
         Err(DecodeError::BadField("head"))
@@ -316,11 +320,12 @@ fn delta_head_and_actor_delta_bit_numbers_are_pinned() {
         (DH_EFFECTS, 15),
         (DH_DISPLACE, 16),
         (DH_SIG, 17),
+        (DH_TRAINING, 18),
     ];
     for (c, bit) in head {
         assert_eq!(c, 1u32 << bit, "delta head bit {bit}");
     }
-    assert_eq!(DH_KNOWN, (1 << 18) - 1);
+    assert_eq!(DH_KNOWN, (1 << 19) - 1);
     let ad = [
         (AD_X, 0),
         (AD_Y, 1),

@@ -248,6 +248,7 @@ fn scalar_status_changes_and_clears_survive_full_and_fast_delta_paths() {
     assert_eq!(
         decoded,
         ServerMsg::Snapshot {
+            training: false,
             tick: 11,
             phase: 1,
             ack_input: 0,

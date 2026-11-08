@@ -48,6 +48,7 @@ fn me() -> WireSelf {
 
 fn snapshot(me: Option<WireSelf>, n: u32) -> ServerMsg {
     ServerMsg::Snapshot {
+        training: false,
         tick: 101,
         phase: 1,
         ack_input: 42,
@@ -65,7 +66,10 @@ fn decoded_form(m: &ServerMsg) -> ServerMsg {
             ack_input,
             me,
             actors,
+
+            training: _,
         } => ServerMsg::Snapshot {
+            training: false,
             tick: *tick,
             phase: *phase,
             ack_input: *ack_input,
@@ -85,11 +89,13 @@ fn full_frame(out: &mut Vec<u8>, m: &ServerMsg) -> Result<usize, EncodeError> {
         ack_input,
         me,
         actors,
+        training,
     } = m
     else {
         panic!("not a snapshot")
     };
-    let snap = SnapshotData::build(*tick, *phase, *ack_input, *me, actors.iter().copied())?;
+    let mut snap = SnapshotData::build(*tick, *phase, *ack_input, *me, actors.iter().copied())?;
+    snap.set_training(*training);
     Ok(snap.encode_full_into(out))
 }
 
@@ -429,6 +435,7 @@ fn maps_decoders_reject_are_refused_for_the_same_reason() {
 fn positions_outside_the_quantizable_range_are_refused_not_clamped() {
     let at = |x: f32, y: f32| WireActor { x, y, ..actor(0) };
     let snap = |a: WireActor| ServerMsg::Snapshot {
+        training: false,
         tick: 1,
         phase: 1,
         ack_input: 0,

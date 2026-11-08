@@ -94,7 +94,7 @@ let wrongVersion; try { welcomeTracker.decode(wrongWelcome.buffer); } catch (e) 
 eq(wrongVersion?.protocolMismatch, true, "wrong Welcome version"); eq(welcomeTracker.base.tick, 99, "wrong Welcome retains baseline");
 
 function checkSnapshot(m, d, n) {
-    eq(m.tick, d.tick, `${n} tick`); eq(m.serverMs, d.serverMs, `${n} serverMs`); eq(m.phase, d.phase, `${n} phase`); eq(m.ack, d.ack, `${n} ack`);
+    eq(m.tick, d.tick, `${n} tick`); eq(m.serverMs, d.serverMs, `${n} serverMs`); eq(m.phase, d.phase, `${n} phase`); eq(m.ack, d.ack, `${n} ack`); eq(m.training, d.training, `${n} training`);
     if (d.me === null) eq(m.me, null, `${n} me`);
     else {
       const e = d.me, s = m.me;

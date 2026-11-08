@@ -1,0 +1,16 @@
+diff --git a/crates/rh-sim/src/systems/training/console.rs b/crates/rh-sim/src/systems/training/console.rs
+index 9bddd2c7..6599f198 100644
+--- a/crates/rh-sim/src/systems/training/console.rs
++++ b/crates/rh-sim/src/systems/training/console.rs
+@@ -181,10 +181,7 @@ fn one(n: f64) -> String {
+         None => (digits, None),
+     };
+     let mut grouped = String::with_capacity(s.len() + int_part.len() / 3);
+-    for (i, ch) in int_part.chars().enumerate() {
+-        if i > 0 && (int_part.len() - i) % 3 == 0 {
+-            grouped.push(',');
+-        }
++    for ch in int_part.chars() {
+         grouped.push(ch);
+     }
+     match frac {

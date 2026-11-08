@@ -10,21 +10,26 @@ pub struct WishSpend {
     pub at: f64,
     pub cooldown_ms: f64,
 }
+/// Forgets everything the cards left in one player's memory (start of a run, or the practice console's clear).
+pub(crate) fn reset_player(p: &mut crate::state::Player) {
+    p.card_runtime = None;
+    p.card_streak = None;
+    p.card_trims.clear();
+    p.card_hots.clear();
+    p.card_fired.clear();
+    p.card_prevented = 0.;
+    p.card_tank_hp = 0.;
+    p.card_boost = crate::cards::Boost::default();
+    p.card_crit_acc = 0.;
+    p.card_still_x = 0.;
+    p.card_still_y = 0.;
+    p.card_still_since = 0.;
+}
+
 pub(crate) fn reset_all(hx: &mut crate::hooks::Hx, args: &crate::hooks::HookArgs) {
     if *args == crate::hooks::HookArgs::RaidStarted {
         for p in &mut hx.w.players {
-            p.card_runtime = None;
-            p.card_streak = None;
-            p.card_trims.clear();
-            p.card_hots.clear();
-            p.card_fired.clear();
-            p.card_prevented = 0.;
-            p.card_tank_hp = 0.;
-            p.card_boost = crate::cards::Boost::default();
-            p.card_crit_acc = 0.;
-            p.card_still_x = 0.;
-            p.card_still_y = 0.;
-            p.card_still_since = 0.;
+            reset_player(p);
         }
     }
 }

@@ -46,6 +46,7 @@ fn me() -> WireSelf {
 
 fn message(phase: u8, me: Option<WireSelf>, actors: Vec<WireActor>) -> ServerMsg {
     ServerMsg::Snapshot {
+        training: false,
         tick: 101,
         phase,
         ack_input: 42,
@@ -61,6 +62,8 @@ fn build(m: &ServerMsg) -> Result<SnapshotData, EncodeError> {
         ack_input,
         me,
         actors,
+
+        training: _,
     } = m
     else {
         panic!("not a snapshot")
@@ -288,6 +291,8 @@ fn faulty_content_is_refused_with_the_message_encoders_reason() {
             ack_input,
             me,
             actors,
+
+            training: _,
         } = &m
         else {
             unreachable!()

@@ -1,0 +1,17 @@
+diff --git a/crates/rh-sim/src/systems/mob_life.rs b/crates/rh-sim/src/systems/mob_life.rs
+index 695299ce..37ac6eb0 100644
+--- a/crates/rh-sim/src/systems/mob_life.rs
++++ b/crates/rh-sim/src/systems/mob_life.rs
+@@ -150,11 +150,7 @@ pub(crate) fn hurt(
+         let m = w.mobs.get_mut(id).expect("mob victim");
+         m.last_hit_at = now;
+         let left = m.core.vitals.hp - total;
+-        m.core.vitals.hp = if left <= 0. {
+-            m.core.vitals.max_hp
+-        } else {
+-            left
+-        };
++        m.core.vitals.hp = left.max(0.);
+         return total;
+     }
+     let before = m.core.vitals.hp;

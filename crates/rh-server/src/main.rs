@@ -428,6 +428,8 @@ async fn main() {
     let sim = rh_sim::SimConfig {
         regen: false,
         quests: false,
+        training: false,
+        dummies: false,
         hazards: rh_sim::terrain::Mode::Off,
         abilities: rh_sim::abilities::Mode::Off,
         wish_lock_ms: rh_sim::abilities::WISH_LOCK_MS,

@@ -82,6 +82,7 @@ fn reference(
                 },
             }),
             SeenEvent::MobArmed { .. } | SeenEvent::CampCleared { .. } => {}
+            SeenEvent::Toast { ref text } => events.push(WireEvent::Toast { text: text.clone() }),
             SeenEvent::ChestRefused { reason } => events.push(WireEvent::ChestRefused {
                 reason: match reason {
                     rh_sim::reward_chests::Refusal::Busy => 1,
@@ -301,6 +302,8 @@ impl Hand {
             sim: SimConfig {
                 regen: false,
                 quests: false,
+                training: false,
+                dummies: false,
                 abilities: rh_sim::abilities::Mode::Off,
                 wish_lock_ms: rh_sim::abilities::WISH_LOCK_MS,
                 lifecycle: rh_sim::ArenaMode::Off,

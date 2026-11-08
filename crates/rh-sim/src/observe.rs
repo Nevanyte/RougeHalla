@@ -17,7 +17,7 @@ use crate::sim::{Event, Phase, PlayerId, Sim, Status};
 use crate::state::Player;
 use crate::vision::{actor_with, scene_line_blocked};
 
-pub const OBSERVATION_VERSION: u16 = 15;
+pub const OBSERVATION_VERSION: u16 = 16;
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct SelfView {
@@ -86,6 +86,10 @@ pub enum SeenEvent {
     },
     PotionNotice {
         notice: crate::potions::Notice,
+    },
+    /// The training console's owner-only notice (legacy `toast`); text is the source's exact message.
+    Toast {
+        text: String,
     },
     ChestRefused {
         reason: crate::reward_chests::Refusal,
@@ -182,6 +186,8 @@ pub struct Observation {
     pub reward_chests: Vec<crate::reward_chests::RewardChestView>,
     pub build: Option<crate::reward_chests::BuildView>,
     pub version: u16,
+    /// The source's public training fact (a training room is a practice world: no run, no results).
+    pub training: bool,
     pub tick: u32,
     pub server_time: f64,
     pub phase: Phase,
@@ -220,7 +226,8 @@ impl SeenEvent {
             | SeenEvent::ChestRefused { .. }
             | SeenEvent::MobArmed { .. }
             | SeenEvent::CampCleared { .. }
-            | SeenEvent::PotionNotice { .. } => Class::Important,
+            | SeenEvent::PotionNotice { .. }
+            | SeenEvent::Toast { .. } => Class::Important,
         }
     }
 }
@@ -235,6 +242,7 @@ fn to_seen(e: &Event, can_see: &impl Fn(PlayerId) -> bool) -> Option<SeenEvent> 
         Event::MobArmed { weapon, .. } => Some(SeenEvent::MobArmed { weapon }),
         Event::CampCleared { camp } => Some(SeenEvent::CampCleared { camp }),
         Event::PotionNotice { notice, .. } => Some(SeenEvent::PotionNotice { notice }),
+        Event::Toast { ref text, .. } => Some(SeenEvent::Toast { text: text.clone() }),
         Event::ChestRefused { reason, .. } => Some(SeenEvent::ChestRefused { reason }),
         Event::ChestTaken { .. } => None,
         Event::Swing {
@@ -352,6 +360,7 @@ impl Default for Observation {
             plan: None,
             projectiles: Vec::new(),
             version: OBSERVATION_VERSION,
+            training: false,
             tick: 0,
             server_time: 0.0,
             phase: Phase::Lobby,
@@ -471,6 +480,7 @@ pub(crate) fn observe_with(
     out.reward_chests.clear();
     out.build = me.map(|p| crate::reward_chests::BuildView::from(&p.build));
     out.version = OBSERVATION_VERSION;
+    out.training = sim.config().training;
     out.tick = sim.tick();
     out.server_time = now;
     out.phase = sim.phase();
@@ -746,8 +756,13 @@ pub fn public_snapshot(sim: &Sim) -> PublicSnapshot {
 fn mob_view(mob: &crate::mob_runtime::Mob) -> ActorView {
     let core = &mob.core;
     ActorView {
-        kind: 1,
-        mob_type: Some(mob.mob_type),
+        // Kind 0 preserves human IDs; kind 1 is a regional/practice NPC; kind 2 is a training dummy (legacy
+        // MobState.kind "dummy"), which has no catalog type.
+        kind: match mob.kind {
+            crate::mob_runtime::MobKind::Dummy => 2,
+            crate::mob_runtime::MobKind::Regional | crate::mob_runtime::MobKind::Practice => 1,
+        },
+        mob_type: mob.mob_type,
         effects: core.statuses.effects,
         displace_seq: core.motion.displace_seq,
         mark_tier: 0,

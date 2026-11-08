@@ -749,6 +749,19 @@ impl Projectile {
     }
 }
 
+/// The training practice console's counters (legacy world.practice WeakMap): None outside a training world.
+#[derive(Clone, Copy, Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct PracticeRuntime {
+    /// Practice mobs placed so far (bounded by TRAIN_MAX_MOBS_SPAWNED).
+    pub(crate) spawned: u32,
+    /// Server time of the last camp/chest (each TRAIN_SPAWN_GAP_MS apart at least).
+    pub(crate) last_camp_at: Option<f64>,
+    pub(crate) last_chest_at: Option<f64>,
+    /// The camp ref the next practice camp takes (101..=255, wrapping, skipping refs still in use).
+    pub(crate) next_camp: u32,
+}
+
 /// The evolving match state: everything a later tick can depend on. With [`crate::statics::MatchStatic`] it is the whole
 /// checkpoint, and it is what [`crate::Sim::state_hash`] hashes. Per-tick working sets live in
 /// [`crate::scratch::TickScratch`] instead.
@@ -778,6 +791,9 @@ pub(crate) struct World {
     pub(crate) mobs: Store<crate::mob_runtime::Mob>,
     pub(crate) actor_history: Store<crate::mob_runtime::ActorProvenance>,
     pub(crate) mob_runtime: Option<crate::mob_runtime::MobRuntime>,
+    /// The practice console's counters: Some only in a training world (the training validator enforces it).
+    #[serde(default)]
+    pub(crate) practice: Option<PracticeRuntime>,
     pub(crate) next_id: u32,
     pub(crate) projectiles: Vec<Projectile>,
     pub(crate) containers: Vec<Container>,
@@ -868,9 +884,17 @@ impl World {
             .label(id)
             .cloned()
             .or_else(|| match self.actor_origin(id) {
-                Some(crate::mob_runtime::ActorOrigin::Mob { mob_type, .. }) => {
+                Some(crate::mob_runtime::ActorOrigin::Mob { mob_type, .. })
+                | Some(crate::mob_runtime::ActorOrigin::Practice { mob_type, .. }) => {
                     crate::mob_catalog::mob_type_by_id(mob_type.as_str())
                         .map(|t| std::sync::Arc::from(t.name))
+                }
+                Some(crate::mob_runtime::ActorOrigin::Dummy { shield, .. }) => {
+                    Some(std::sync::Arc::from(if *shield {
+                        "Shield dummy"
+                    } else {
+                        "Dummy"
+                    }))
                 }
                 _ => None,
             })
@@ -882,7 +906,19 @@ impl World {
         let p = self.core(ix);
         let mut f = crate::content::faction(p.vitals.faction);
         if let Some(m) = self.mobs.get(p.id) {
-            let ty = crate::mob_catalog::mob_type_by_id(m.mob_type.as_str()).expect("catalog type");
+            if m.kind == crate::mob_runtime::MobKind::Dummy {
+                // Source `defenseOf`: a dummy has no faction (""), so no faction armor or shield. Its faction field only
+                // carries the presentation/wire placeholder; every other sheet number is unused (a dummy never attacks).
+                f.armor = 0.;
+                f.shield = 0.;
+                return f;
+            }
+            let ty = crate::mob_catalog::mob_type_by_id(
+                m.mob_type
+                    .expect("non-dummy mob has a catalog type")
+                    .as_str(),
+            )
+            .expect("catalog type");
             let k = if m.elite {
                 crate::constants::ELITE_K
             } else {
@@ -905,7 +941,16 @@ impl World {
         let Some(m) = self.mobs.get(self.core(ix).id) else {
             return raw;
         };
-        let ty = crate::mob_catalog::mob_type_by_id(m.mob_type.as_str()).expect("catalog type");
+        if m.kind == crate::mob_runtime::MobKind::Dummy {
+            // A dummy never attacks; a reflected shield arrow keeps the packet it was launched with.
+            return raw;
+        }
+        let ty = crate::mob_catalog::mob_type_by_id(
+            m.mob_type
+                .expect("non-dummy mob has a catalog type")
+                .as_str(),
+        )
+        .expect("catalog type");
         let k = if m.elite {
             crate::constants::ELITE_K
         } else {
@@ -1052,6 +1097,7 @@ impl World {
             mob_runtime: None,
             next_id: 1,
             containers: Vec::with_capacity(4 * MAX_PLAYERS),
+            practice: None,
             initial_birth_serial: 0,
             potion_healing: Vec::with_capacity(MAX_PLAYERS),
             projectiles: Vec::new(),

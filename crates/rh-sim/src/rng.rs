@@ -72,7 +72,11 @@ pub(crate) fn tie_rank_origin(
 ) -> u32 {
     let (prefix, mut n, radix): (&[u8], u32, u32) = match origin {
         crate::mob_runtime::ActorOrigin::Player { join_ordinal } => (b"p", *join_ordinal, 10),
-        crate::mob_runtime::ActorOrigin::Mob { birth_serial, .. } => (b"mob", *birth_serial, 36),
+        crate::mob_runtime::ActorOrigin::Mob { birth_serial, .. }
+        | crate::mob_runtime::ActorOrigin::Practice { birth_serial, .. }
+        | crate::mob_runtime::ActorOrigin::Dummy { birth_serial, .. } => {
+            (b"mob", *birth_serial, 36)
+        }
     };
     let mut h = salt ^ tick.wrapping_mul(0x9e37_79b1);
     for &b in prefix {

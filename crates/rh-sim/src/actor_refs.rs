@@ -58,7 +58,8 @@ fn event_refs(event: &mut SeenEvent, map: &impl Fn(PlayerId) -> Option<PlayerId>
         | SeenEvent::CampCleared { .. }
         | SeenEvent::PotionNotice { .. }
         | SeenEvent::ChestRefused { .. }
-        | SeenEvent::PickupRefused { .. } => (None, None),
+        | SeenEvent::PickupRefused { .. }
+        | SeenEvent::Toast { .. } => (None, None),
     };
     if let Some(id) = required {
         let Some(presented) = map(*id) else {

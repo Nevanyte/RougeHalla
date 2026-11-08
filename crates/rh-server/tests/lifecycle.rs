@@ -47,6 +47,8 @@ fn sim_config() -> SimConfig {
     SimConfig {
         regen: false,
         quests: false,
+        training: false,
+        dummies: false,
         abilities: rh_sim::abilities::Mode::Off,
         wish_lock_ms: rh_sim::abilities::WISH_LOCK_MS,
         lifecycle: rh_sim::ArenaMode::Off,
@@ -432,6 +434,8 @@ async fn room_heap_probe() {
     let sim = SimConfig {
         regen: false,
         quests: false,
+        training: false,
+        dummies: false,
         abilities: rh_sim::abilities::Mode::Off,
         wish_lock_ms: rh_sim::abilities::WISH_LOCK_MS,
         lifecycle: rh_sim::ArenaMode::Off,

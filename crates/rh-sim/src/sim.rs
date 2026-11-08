@@ -329,6 +329,9 @@ impl Sim {
 
     /// Queues a command with no order budget: the parity harness only (the legacy capture fed the sim directly).
     pub fn submit_unbudgeted(&mut self, id: PlayerId, cmd: Command) -> Result<(), Reject> {
+        if cmd.is_train() && !self.k.config.training {
+            return Err(Reject::InvalidTrain);
+        }
         inputs::submit_unbudgeted(&mut self.w, id, cmd)
     }
 

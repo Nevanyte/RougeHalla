@@ -96,7 +96,7 @@ fn actual_camp_clear_uses_headless_inputs_and_visible_mob_fx() {
                         .iter()
                         .find(|r| {
                             r.kind == 1
-                                && r.mob_type == Some(mob.mob_type)
+                                && r.mob_type == mob.mob_type
                                 && r.x == mob.core.body.x
                                 && r.y == mob.core.body.y
                         })

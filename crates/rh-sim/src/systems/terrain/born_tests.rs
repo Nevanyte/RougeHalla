@@ -257,7 +257,10 @@ fn snapshot(sim: &Sim, f: &Value, context: &str) {
             compare(&json!(killer), &rt["killedBy"], &ctx);
         } else {
             let m = &sim.w.mobs[i - 2];
-            assert_eq!(m.mob_type.as_str(), st["type"].as_str().unwrap());
+            assert_eq!(
+                m.mob_type.expect("catalog type").as_str(),
+                st["type"].as_str().unwrap()
+            );
             assert_eq!(m.camp as u64 + 1, st["camp"].as_u64().unwrap());
             assert_eq!(
                 format!("{:?}", m.status).to_lowercase(),

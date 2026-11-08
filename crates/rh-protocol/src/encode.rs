@@ -119,6 +119,9 @@ fn command_len(c: &WireCommand) -> usize {
         WireCommand::Attack { t, .. } | WireCommand::Release { t, .. } => {
             1 + 4 + opt_len(t.is_some(), 8)
         }
+        WireCommand::Train {
+            id, option_count, ..
+        } => 1 + 1 + varint_len(id) + 8 + 1 + usize::from(option_count),
     }
 }
 
@@ -132,6 +135,7 @@ fn command_finite(c: &WireCommand) -> bool {
         | WireCommand::Pickup { .. }
         | WireCommand::Choose { .. }
         | WireCommand::Target { .. }
+        | WireCommand::Train { .. }
         | WireCommand::UseConsumable => true,
         WireCommand::Aim { a } => a.is_finite(),
         WireCommand::Attack { a, t } | WireCommand::Release { a, t } => {
@@ -192,6 +196,8 @@ impl Frame for ClientMsg {
                     matches!(c, WireCommand::Target { actor: 0 })
                         || matches!(c, WireCommand::Swap { slot: Some(s) } if *s > 1)
                         || matches!(c, WireCommand::Choose { pick, .. } if !(-1..=2).contains(pick))
+                        || matches!(c, WireCommand::Train { command, option_count, .. }
+                            if !(1..=5).contains(command) || *option_count > 3)
                 }) {
                     return Err(EncodeError::BadValue("command"));
                 }
@@ -281,6 +287,22 @@ impl Frame for ClientMsg {
                             w.f32(a);
                             w.opt(t.as_ref(), |w, t| w.f64(*t));
                         }
+                        WireCommand::Train {
+                            command,
+                            id,
+                            count,
+                            options,
+                            option_count,
+                        } => {
+                            w.u8(13);
+                            w.u8(command);
+                            w.varint(id);
+                            w.u64(count);
+                            w.u8(option_count);
+                            for option in options.iter().take(usize::from(option_count)) {
+                                w.u8(*option);
+                            }
+                        }
                     }
                 }
             }
@@ -329,6 +351,7 @@ fn event_len(e: &WireEvent) -> usize {
         WireEvent::Result(r) => {
             1 + 3 + 2 + 1 + r.killed_by.as_deref().map_or(0, str_len) + 4 + 4 + 4 + 1
         }
+        WireEvent::Toast { text } => 1 + str_len(text),
     }
 }
 
@@ -355,8 +378,11 @@ fn kit(faction: u8, weapon: u8) -> u8 {
 
 /// The head of a Snapshot: for a self its present bit and the bits of every field that differs from its default, and the phase
 /// bit when the phase is not the default.
-fn head_word(phase: u8, me: Option<&WireSelf>) -> u32 {
+fn head_word(phase: u8, me: Option<&WireSelf>, training: bool) -> u32 {
     let mut m = if phase != DEFAULT_PHASE { HM_PHASE } else { 0 };
+    if training {
+        m |= HM_TRAINING;
+    }
     let Some(s) = me else { return m };
     m |= HM_PRESENT;
     if kit(s.faction, s.weapon) != 0 {
@@ -736,9 +762,10 @@ fn snapshot_len(
     phase: u8,
     ack_input: u32,
     me: Option<&WireSelf>,
+    training: bool,
     actors: &[WireActor],
 ) -> usize {
-    let head = head_word(phase, me);
+    let head = head_word(phase, me, training);
     1 + varint_len(tick)
         + varint_len(ack_input)
         + head_len(head)
@@ -758,13 +785,14 @@ fn write_snapshot_head(
     phase: u8,
     ack_input: u32,
     me: Option<&WireSelf>,
+    training: bool,
     actors: usize,
 ) {
     let mut f = Fixed::<MAX_HEAD_LEN>::new();
     f.u8(T_SNAPSHOT);
     f.varint(tick);
     f.varint(ack_input);
-    let head = head_word(phase, me);
+    let head = head_word(phase, me, training);
     f.varint(head);
     if let Some(s) = me {
         write_self(&mut f, head, s);
@@ -788,8 +816,9 @@ impl Frame for ServerMsg {
                 phase,
                 ack_input,
                 me,
+                training,
                 actors,
-            } => snapshot_len(*tick, *phase, *ack_input, me.as_ref(), actors),
+            } => snapshot_len(*tick, *phase, *ack_input, me.as_ref(), *training, actors),
             ServerMsg::SnapshotDelta(d) => delta::message_len(d),
             ServerMsg::Events { events, .. } => {
                 1 + 4 + 2 + events.iter().map(event_len).sum::<usize>()
@@ -839,6 +868,9 @@ impl Frame for ServerMsg {
                         if let Some(k) = &r.killed_by {
                             str_fits("killed_by", k)?;
                         }
+                    }
+                    if let WireEvent::Toast { text } = e {
+                        str_fits("toast", text)?;
                     }
                 }
             }
@@ -937,9 +969,18 @@ impl Frame for ServerMsg {
                 phase,
                 ack_input,
                 me,
+                training,
                 actors,
             } => {
-                write_snapshot_head(w, *tick, *phase, *ack_input, me.as_ref(), actors.len());
+                write_snapshot_head(
+                    w,
+                    *tick,
+                    *phase,
+                    *ack_input,
+                    me.as_ref(),
+                    *training,
+                    actors.len(),
+                );
                 let mut prev = None;
                 for a in actors {
                     write_actor(w, a, prev);
@@ -960,6 +1001,10 @@ impl Frame for ServerMsg {
                         WireEvent::ChestRefused { reason } => {
                             w.u8(6);
                             w.u8(*reason);
+                        }
+                        WireEvent::Toast { text } => {
+                            w.u8(8);
+                            w.str(text);
                         }
                         WireEvent::PickupRefused { reason } => {
                             w.u8(5);

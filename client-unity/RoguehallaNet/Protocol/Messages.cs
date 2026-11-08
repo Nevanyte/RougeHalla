@@ -11,7 +11,8 @@ namespace Roguehalla.Net.Protocol
         Malformed = 7, TooSlow = 8, ServerDraining = 9, NoSuchSession = 10, Kicked = 11,
     }
 
-    public enum CommandKind : byte { Move = 1, Stop = 2, Aim = 3, Attack = 4, Release = 5, Swap = 6, Pickup = 7, Choose = 8, UseConsumable = 9, Target = 10, AttackMove = 11 }
+    // Tag 12 stays reserved for the pending P-ARENA-1 plan command; the coordinator renumbers the merged protocols.
+    public enum CommandKind : byte { Move = 1, Stop = 2, Aim = 3, Attack = 4, Release = 5, Swap = 6, Pickup = 7, Choose = 8, UseConsumable = 9, Target = 10, AttackMove = 11, Train = 13 }
 
     /// <summary>A client command. Only the fields of its Kind are meaningful.</summary>
     public sealed class WireCommand
@@ -29,6 +30,19 @@ namespace Roguehalla.Net.Protocol
         public uint ActorRef;
         /// <summary>Client render time in server ms (Attack, Release); lag compensation, clamped by the server.</summary>
         public double? T;
+        /// <summary>The practice console command byte (Train): 1 card, 2 stat, 3 camp, 4 chest, 5 clear.</summary>
+        public byte TrainCommand;
+        /// <summary>A card or mob-type catalog position (Train).</summary>
+        public uint TrainId;
+        /// <summary>The requested copy/stack count (Train); the server clamps it.</summary>
+        public ulong TrainCount;
+        /// <summary>The chest's chosen card positions (Train, chest only; at most three).</summary>
+        public byte[] TrainOptions = Array.Empty<byte>();
+
+        public static WireCommand Train(byte command, uint id, ulong count, byte[] options = null)
+        {
+            return new WireCommand { Kind = CommandKind.Train, TrainCommand = command, TrainId = id, TrainCount = count, TrainOptions = options ?? Array.Empty<byte>() };
+        }
 
         public static WireCommand Swap(byte? slot = null) { return new WireCommand { Kind = CommandKind.Swap, Slot = slot }; }
         public static WireCommand Pickup(PickupHandle handle) { return new WireCommand { Kind = CommandKind.Pickup, PickupRef = handle }; }
@@ -81,6 +95,19 @@ namespace Roguehalla.Net.Protocol
                             case 9: inp.Commands.Add(WireCommand.UseConsumable()); break;
                             case 10: { uint id=r.U32(); if(id==0) throw new DecodeException(DecodeError.BadField,"actor reference"); inp.Commands.Add(WireCommand.Target(id)); break; }
                             case 11: { float x=r.F32(),y=r.F32(); inp.Commands.Add(WireCommand.AttackMove(x,y,r.Flag()?r.U8():(byte?)null)); break; }
+                            case 13:
+                            {
+                                byte cmd = r.U8();
+                                if (cmd < 1 || cmd > 5) throw new DecodeException(DecodeError.BadField, "train command");
+                                uint id = r.Varint();
+                                ulong count = r.U64();
+                                int on = r.U8();
+                                if (on > 3) throw new DecodeException(DecodeError.TooMany, on.ToString());
+                                var opts = on == 0 ? Array.Empty<byte>() : new byte[on];
+                                for (int k = 0; k < on; k++) opts[k] = r.U8();
+                                inp.Commands.Add(WireCommand.Train(cmd, id, count, opts));
+                                break;
+                            }
                             case 1: { float x = r.F32(), y = r.F32(); inp.Commands.Add(WireCommand.Move(x, y, r.Flag() ? r.U8() : (byte?)null)); break; }
                             case 2: inp.Commands.Add(WireCommand.Stop(r.Flag() ? r.U8() : (byte?)null)); break;
                             case 3: inp.Commands.Add(WireCommand.Aim(r.F32())); break;
@@ -159,6 +186,12 @@ namespace Roguehalla.Net.Protocol
                             w.F32(c.A);
                             if (c.T.HasValue) { w.U8(1); w.F64(c.T.Value); } else w.U8(0);
                             break;
+                        case CommandKind.Train:
+                            if (c.TrainCommand < 1 || c.TrainCommand > 5) throw new ArgumentException("train command");
+                            if (c.TrainOptions.Length > 3) throw new ArgumentException("train options");
+                            w.U8(c.TrainCommand); w.Varint(c.TrainId); w.U64(c.TrainCount); w.U8((byte)c.TrainOptions.Length);
+                            foreach (byte o in c.TrainOptions) w.U8(o);
+                            break;
                     }
                 }
                 return w.Finish();
@@ -181,6 +214,7 @@ namespace Roguehalla.Net.Protocol
                     case CommandKind.Aim: return 5;
                     case CommandKind.Attack:
                     case CommandKind.Release: return 5 + (c.T.HasValue ? 9 : 1);
+                    case CommandKind.Train: return 3 + Writer.VarintLength(c.TrainId) + 8 + c.TrainOptions.Length;
                     default: throw new ArgumentException("command kind");
                 }
             }
@@ -224,8 +258,9 @@ namespace Roguehalla.Net.Protocol
 
         // Head bits (rh-protocol lib.rs, append only): a varint, so bits below 7 take one byte.
         internal const uint HPresent = 1 << 0, HKit = 1 << 1, HHp = 1 << 2, HReady = 1 << 3, HKills = 1 << 4, HBounty = 1 << 5,
-            HMoveSeq = 1 << 6, HGv = 1 << 7, HMaxHpF32 = 1 << 8, HStatus = 1 << 9, HPhase = 1 << 10, HEffects = 1 << 11, HDisplace = 1 << 12, HSig = 1 << 13;
-        internal const uint SelfBits = 0x03ff | HEffects | HDisplace | HSig, Known = SelfBits | HPhase;
+            HMoveSeq = 1 << 6, HGv = 1 << 7, HMaxHpF32 = 1 << 8, HStatus = 1 << 9, HPhase = 1 << 10, HEffects = 1 << 11, HDisplace = 1 << 12, HSig = 1 << 13,
+            HTraining = 1 << 14;
+        internal const uint SelfBits = 0x03ff | HEffects | HDisplace | HSig, Known = SelfBits | HPhase | HTraining;
 
         static bool MaxHpIsVarint(float v)
         {
@@ -500,7 +535,7 @@ namespace Roguehalla.Net.Protocol
         public ushort Bounty, Effects;
     }
 
-    public enum EventKind : byte { Death = 1, Bounty = 2, MatchEnded = 3, Result = 4, PickupRefused = 5, ChestRefused = 6, PotionNotice = 7 }
+    public enum EventKind : byte { Death = 1, Bounty = 2, MatchEnded = 3, Result = 4, PickupRefused = 5, ChestRefused = 6, PotionNotice = 7, Toast = 8 }
 
     /// <summary>Reliable, ordered events. Only the fields of its Kind are meaningful.</summary>
     public sealed class WireEvent
@@ -513,6 +548,8 @@ namespace Roguehalla.Net.Protocol
         public bool Draw;
         public WireResult Result;
         public byte PickupReason, ChestReason, PotionNotice;
+        /// <summary>The practice console's owner-only text (Toast, protocol 8).</summary>
+        public string ToastText;
     }
 
     public sealed class WireResult
@@ -596,6 +633,7 @@ namespace Roguehalla.Net.Protocol
                             case 1: ev.Id = r.U32(); if (r.Flag()) ev.By = r.U32(); break;
                             case 2: ev.Id = r.U32(); ev.Bounty = r.U16(); break;
                             case 3: if (r.Flag()) ev.Winner = r.U32(); ev.Draw = r.U8() != 0; break;
+                            case 8: ev.ToastText = r.Str(); break;
                             case 4:
                             {
                                 var res = new WireResult { Outcome = r.U8(), Place = r.U8(), Players = r.U8(), Kills = r.U16() };
@@ -689,6 +727,8 @@ namespace Roguehalla.Net.Protocol
             public WireSelf Me;
             /// <summary>Sorted by id, strictly ascending (C-OBS; the wire needs it). Never null; shared empty array when nothing is visible.</summary>
             public WireActor[] Actors = Array.Empty<WireActor>();
+            /// <summary>Protocol 8: the source's public training fact (head bit 14). False for every ordinary match.</summary>
+            public bool Training;
 
             /// <summary>The server time of this snapshot in ms. Not on the wire: the server's clock is always Tick * 50 ms.</summary>
             public double ServerMs { get { return Tick * (double)Wire.TickMs; } }
@@ -699,6 +739,7 @@ namespace Roguehalla.Net.Protocol
                 get
                 {
                     uint head = Me != null ? Me.Head(Phase) : (Phase != Wire.DefaultPhase ? WireSelf.HPhase : 0);
+                    if (Training) head |= WireSelf.HTraining;
                     int n = 1 + Writer.VarintLength(Tick) + Writer.VarintLength(AckInput) + WireSelf.HeadLength(head);
                     if (Me != null) n += Me.Length(head);
                     n += Writer.VarintLength((uint)Actors.Length);
@@ -725,6 +766,7 @@ namespace Roguehalla.Net.Protocol
                 var w = new Writer(EncodedLength);
                 w.U8(TSnapshot); w.Varint(Tick); w.Varint(AckInput);
                 uint head = Me != null ? Me.Head(Phase) : (Phase != Wire.DefaultPhase ? WireSelf.HPhase : 0);
+                if (Training) head |= WireSelf.HTraining;
                 w.Varint(head);
                 if (Me != null) Me.Write(w, head);
                 if ((head & WireSelf.HPhase) != 0) w.U8(Phase);
@@ -741,6 +783,7 @@ namespace Roguehalla.Net.Protocol
                 uint head = r.Varint();
                 if ((head & ~WireSelf.Known) != 0 || ((head & WireSelf.HPresent) == 0 && (head & WireSelf.SelfBits) != 0))
                     throw new DecodeException(DecodeError.BadField, "head");
+                s.Training = (head & WireSelf.HTraining) != 0;
                 if ((head & WireSelf.HPresent) != 0)
                 {
                     var me = s.Me ?? new WireSelf();
@@ -779,9 +822,11 @@ namespace Roguehalla.Net.Protocol
             public int ChangedCount;
             public uint[] Departed = new uint[8];
             public int DepartedCount;
+            /// <summary>Protocol 8: the source's public training fact (delta head bit 18). False for every ordinary match.</summary>
+            public bool Training;
 
-            // Head bits (append only): 0 a self follows (its fields are SelfDelta.Fields), 7 a departed list follows, 8 the phase changed.
-            const uint HPresent = 1 << 0, HDeparted = 1 << 7, HPhase = 1 << 8, Known = HPresent | SelfDelta.Fields | HPhase | HDeparted;
+            // Head bits (append only): 0 a self follows (its fields are SelfDelta.Fields), 7 a departed list follows, 8 the phase changed, 18 training.
+            const uint HPresent = 1 << 0, HDeparted = 1 << 7, HPhase = 1 << 8, HTraining = 1 << 18, Known = HPresent | SelfDelta.Fields | HPhase | HDeparted | HTraining;
 
             /// <summary>Reads the body of a delta frame (after the tag): syntax and ranges only; whether it applies is the tracker's question.</summary>
             internal static SnapshotDelta Read(ref Reader r, SnapshotDelta d)
@@ -793,6 +838,7 @@ namespace Roguehalla.Net.Protocol
                 d.AckInput = r.Varint();
                 uint head = r.Varint();
                 if ((head & ~Known) != 0 || ((head & HPresent) == 0 && (head & SelfDelta.Fields) != 0)) throw new DecodeException(DecodeError.BadField, "head");
+                d.Training = (head & HTraining) != 0;
                 d.HasSelf = (head & HPresent) != 0;
                 d.Me = d.HasSelf ? SelfDelta.Read(ref r, head & SelfDelta.Fields) : default(SelfDelta);
                 d.HasPhase = (head & HPhase) != 0;
@@ -866,6 +912,7 @@ namespace Roguehalla.Net.Protocol
                 var w = new Writer();
                 w.U8(TSnapshotDelta); w.Varint(Tick); w.Varint(Tick - BaseTick); w.Varint(AckInput);
                 uint head = 0;
+                if (Training) head |= HTraining;
                 if (HasSelf) head |= HPresent | (Me.Mask & SelfDelta.Fields);
                 if (HasPhase) head |= HPhase;
                 if (DepartedCount > 0) head |= HDeparted;
@@ -919,6 +966,7 @@ namespace Roguehalla.Net.Protocol
                         case EventKind.MatchEnded: len += 3 + (e.Winner.HasValue ? 4 : 0); break;
                         case EventKind.PotionNotice: case EventKind.PickupRefused: case EventKind.ChestRefused: len += 2; break;
                         case EventKind.Result: len += 20 + (e.Result.KilledBy == null ? 0 : 1 + System.Text.Encoding.UTF8.GetByteCount(e.Result.KilledBy)); break;
+                        case EventKind.Toast: len += 1 + (e.ToastText == null ? 0 : 1 + System.Text.Encoding.UTF8.GetByteCount(e.ToastText)); break;
                         default: throw new EncodeException("event kind");
                     }
                     if (len > Wire.MaxServerFrame) throw new ArgumentException("frame too large");
@@ -936,6 +984,10 @@ namespace Roguehalla.Net.Protocol
                         case EventKind.Death: w.U32(e.Id); if (e.By.HasValue) { w.U8(1); w.U32(e.By.Value); } else w.U8(0); break;
                         case EventKind.Bounty: w.U32(e.Id); w.U16(e.Bounty); break;
                         case EventKind.MatchEnded: if (e.Winner.HasValue) { w.U8(1); w.U32(e.Winner.Value); } else w.U8(0); w.U8((byte)(e.Draw ? 1 : 0)); break;
+                        case EventKind.Toast:
+                            if (e.ToastText == null) throw new ArgumentException("toast text");
+                            w.Str(e.ToastText);
+                            break;
                         case EventKind.Result:
                         {
                             var r = e.Result;

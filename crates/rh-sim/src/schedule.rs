@@ -118,6 +118,9 @@ impl Gates {
     /// The match uses the baseline capture plan or the explicitly partial Holy foundation.
     /// Other signature producers remain Pending even in the latter plan.
     pub(crate) const fn of(k: &MatchStatic) -> Gates {
+        if k.config.training {
+            return Gates::TRAINING;
+        }
         let mut g = if matches!(
             k.config.mob_mode,
             crate::mob_runtime::MobMode::SpawnFoundation | crate::mob_runtime::MobMode::Pve
@@ -841,7 +844,10 @@ pub(crate) static PHASES: [Item<PhaseFn>; 23] = [
         Flow::Continue
     }),
     ported("hooks:systems", Gate::Always, list_systems),
-    pending("settle:training", Gate::Training, "P-ARENA-2"),
+    ported("settle:training", Gate::Training, |cx| {
+        crate::systems::training::settle(cx);
+        Flow::Continue
+    }),
     ported("settle", Gate::NotTraining, |cx| {
         settle::settle(cx);
         Flow::Continue
@@ -909,7 +915,11 @@ static SYSTEMS: [Item<SystemFn>; 24] = [
         Gate::Signatures,
         crate::systems::heal::over_time,
     ),
-    pending("mobs.resetDummies", Gate::Always, "P-MOBS-1"),
+    ported(
+        "mobs.resetDummies",
+        Gate::Always,
+        crate::systems::training::reset_dummies,
+    ),
     pending("buffs.expireBoosts", Gate::Always, "P-CARDS-2"),
     ported(
         "feed.flushAnnouncements",
@@ -1151,7 +1161,7 @@ pub(crate) static ACTIONS: [ActionRow; 13] = [
         "train",
         "training",
         Gate::Training,
-        Run::Pending("P-ARENA-2"),
+        Run::Ported(crate::systems::training::handle_train),
     ),
 ];
 
@@ -1172,11 +1182,11 @@ static DROP_BODY: [Link; 4] = [
         Gate::Always,
         items::drop_body,
     ),
-    pending_link(
+    ported_link(
         "training.<arrow>",
         Mode::Replace,
         Gate::Training,
-        "P-ARENA-2",
+        crate::systems::training::drop_body,
     ),
     ported_link(
         "quests.<arrow>",
@@ -1333,11 +1343,11 @@ static RAID_STARTED: [Link; 14] = [
         Gate::Signatures,
         crate::systems::signatures::raid_started,
     ),
-    pending_link(
+    ported_link(
         "mobs.spawnTraining",
         Mode::Append,
         Gate::Dummies,
-        "P-ARENA-2",
+        crate::systems::training::spawn_training,
     ),
     ported_link(
         "mobLife.spawnRegionalMobs",
@@ -1412,11 +1422,11 @@ static RAID_STARTED: [Link; 14] = [
         "P-MOBS-2",
         crate::systems::bruiser::reset_run,
     ),
-    pending_link(
+    ported_link(
         "training.<arrow>",
         Mode::Append,
         Gate::Training,
-        "P-ARENA-2",
+        crate::systems::training::raid_started,
     ),
 ];
 static RUN_ENDED: [Link; 12] = [
@@ -1970,6 +1980,7 @@ mod tests {
                 .map(|(n, _)| *n)
                 .collect::<Vec<_>>(),
             [
+                "mobs.resetDummies",
                 "feed.flushAnnouncements",
                 "chests.expireChests",
                 "mobLife.reapMobs",
@@ -1987,12 +1998,17 @@ mod tests {
                 "mods.updateMods"
             ]
         );
-        // Training swaps the settle for a pending one: no ported settle in that world yet.
+        // Training swaps the arena settle for `settle:training` at the settle slot (trainingSettle).
         assert!(!TRAINING_PLAN
             .phases
             .live()
             .iter()
             .any(|(n, _)| *n == "settle"));
+        assert!(TRAINING_PLAN
+            .phases
+            .live()
+            .iter()
+            .any(|(n, _)| *n == "settle:training"));
     }
 
     #[test]
