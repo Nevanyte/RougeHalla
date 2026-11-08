@@ -58,6 +58,7 @@ namespace Roguehalla.Editor
             public Sprite Chest, Barrel, Statue;
             public AudioClip Music, Ambience;
             public AudioClip[] Hits, Swings, Ui;
+            public ShowcaseAudioLibrary AudioLibrary;
             public UnityEngine.Audio.AudioMixerGroup MusicGroup, AmbienceGroup, SfxGroup;
         }
 
@@ -152,6 +153,7 @@ namespace Roguehalla.Editor
                 catalog.Chest = originalSource.Chest;
                 catalog.Barrel = originalSource.Barrel;
                 catalog.Statue = originalSource.Statue;
+                catalog.AudioLibrary = originalSource.AudioLibrary;
                 catalog.Music = originalSource.Music;
                 catalog.Ambience = originalSource.Ambience;
                 catalog.Hits = CloneArray(originalSource.Hits);
@@ -474,14 +476,14 @@ namespace Roguehalla.Editor
         {
             Actors = catalog.Actors, Chest = catalog.Chest, Barrel = catalog.Barrel, Statue = catalog.Statue,
             Music = catalog.Music, Ambience = catalog.Ambience, Hits = catalog.Hits, Swings = catalog.Swings,
-            Ui = catalog.Ui, MusicGroup = catalog.MusicGroup, AmbienceGroup = catalog.AmbienceGroup, SfxGroup = catalog.SfxGroup
+            Ui = catalog.Ui, AudioLibrary = catalog.AudioLibrary, MusicGroup = catalog.MusicGroup, AmbienceGroup = catalog.AmbienceGroup, SfxGroup = catalog.SfxGroup
         };
 
         static void Restore(ShowcaseCatalog catalog, CatalogSnapshot snapshot)
         {
             catalog.Actors = snapshot.Actors; catalog.Chest = snapshot.Chest; catalog.Barrel = snapshot.Barrel; catalog.Statue = snapshot.Statue;
             catalog.Music = snapshot.Music; catalog.Ambience = snapshot.Ambience; catalog.Hits = snapshot.Hits;
-            catalog.Swings = snapshot.Swings; catalog.Ui = snapshot.Ui;
+            catalog.Swings = snapshot.Swings; catalog.Ui = snapshot.Ui; catalog.AudioLibrary = snapshot.AudioLibrary;
             catalog.MusicGroup = snapshot.MusicGroup; catalog.AmbienceGroup = snapshot.AmbienceGroup; catalog.SfxGroup = snapshot.SfxGroup;
         }
 
