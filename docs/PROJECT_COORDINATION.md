@@ -5,6 +5,9 @@ Owner direction, November 8, 2026: the **OPTimization_port Codex chat is project
 scopes, blockers and their next bounded packet to the lead. Reports are evidence for review, not automatic admission.
 The owner asked to keep workers running and leave active branches until last during consolidation.
 
+The primary project checkout is the write location for `optimization_port`. The earlier managed checkout is a clean
+detached review snapshot; use `git worktree list` to resolve the authoritative path and keep future edits on the branch.
+
 ## Ownership
 
 | Lane | Scope | Integration boundary |

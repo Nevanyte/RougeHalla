@@ -157,3 +157,8 @@ using `trusted-status-probes` to preserve the former workspace feature union (in
 allocation targets). Both jobs keep a60-minute bound. CI debug symbols are disabled to reduce repeated feature-build
 size/time; optimization levels, assertions, overflow checks and test selections are unchanged. No tests were filtered
 away. YAML and the partition/feature selection are checked locally; the final pushed workflow needs its own result.
+
+After verifying the primary checkout was tracked-clean and every running Unity project used the isolated art tree, the
+lead released optimization_port from the managed checkout and switched the primary project back to that branch with
+ignored-file overwrite disabled. Original prompts remained present. The managed tree is a clean detached review snapshot,
+and active worker checkouts were unchanged. Future writes use the primary branch checkout.

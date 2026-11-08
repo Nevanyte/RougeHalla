@@ -68,5 +68,5 @@
       "disposition": "preserved pre-port legacy history; do not wholesale merge into the Rust port"
     }
   ],
-  "primaryCheckout": "Retained on kimi/unity-readiness while multiple live agent/tool processes use its cwd; managed checkout owns optimization_port. Do not switch beneath active workers."
+  "primaryCheckout": "Primary project checkout is now on optimization_port. The prior managed checkout is a clean detached snapshot. All active workers remain in their isolated trees."
 }

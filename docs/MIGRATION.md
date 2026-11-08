@@ -12,6 +12,10 @@ the OPTimization_port Codex chat project lead, and asked to keep active workers 
 acceptance; the [coordination record](PROJECT_COORDINATION.md) defines lanes, report requirements and next gates.
 The original full-port requirements remain; the earlier playable-core staging milestone and its cleanup are historical.
 
+The primary project checkout now owns **`optimization_port`**. The former managed checkout is retained as a clean detached
+review snapshot. Use `git worktree list` to locate the checkout on the branch before writing; do not edit the detached
+snapshot. Worker checkouts remain isolated, and the original loose owner prompts remain available locally.
+
 The integration branch is **`optimization_port`**. Current identity: **protocol 11 / checkpoint 24 / replay 18 /
 observation 17 / policy 13 / content `801a76cde4cfd305`**. [ADR0021](adr/0021-protocol11-union.md) records the union
 of parallel transports and their exact tag/readiness assignments. Earlier protocol/checkpoint numbers in packet reports
