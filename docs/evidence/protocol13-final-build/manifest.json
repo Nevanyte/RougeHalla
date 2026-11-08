@@ -1,0 +1,139 @@
+{
+  "scope": "protocol13 final Web build evidence only",
+  "frozen_source": "1310ae002870bf3fc674c7b65f38ff5ea55a7d75",
+  "generated_baked_content_commit": "aa64c64256ca718755187b4f0f4896a169ea950d",
+  "generated_content_hash": "67183626db240b6a",
+  "evidence_files": [
+    {
+      "path": "README.md",
+      "bytes": 4762,
+      "sha256": "03a303435aca1b977f7a763977e87fe7f5298b0a4f650a1cb4b423cd5d918b4a"
+    },
+    {
+      "path": "raw/archive-result.json",
+      "bytes": 328,
+      "sha256": "e8fe031a93783834ace59880953a2475bdd6a27e3e526ae7b6b0201dbf4b7995"
+    },
+    {
+      "path": "raw/as-built-source-overlay.json",
+      "bytes": 84555,
+      "sha256": "2021b94bb211e53c989d272b3273a7808289d3c0a04da606c64d1831d05b4f53"
+    },
+    {
+      "path": "raw/baked-content.json",
+      "bytes": 179,
+      "sha256": "c6008af5ae4e6d45db22c0607654ef6064e9435f5e52cf4632fba0c61d5e0d98"
+    },
+    {
+      "path": "raw/build-editor-log.json",
+      "bytes": 401323,
+      "sha256": "b612b208a9efefaec74bc2535697adb597371db23ddc04b00e93c22b6762bc69"
+    },
+    {
+      "path": "raw/build-manifest.json",
+      "bytes": 6141,
+      "sha256": "eab8c97fc3ef3593811546982c0ef0980da6b8b09204ca80b623d27c046e299f"
+    },
+    {
+      "path": "raw/build-preflight.json",
+      "bytes": 193,
+      "sha256": "97e3754e7d472d66c161e870d8aa4df01a05be9123c88bb5e3c2cdff2e3c54fc"
+    },
+    {
+      "path": "raw/build-provenance.json",
+      "bytes": 692,
+      "sha256": "042c340b0e040ca7ada16ea250a61ff50ccf9973c60c8226e897c1f34a6e6f7a"
+    },
+    {
+      "path": "raw/build-result.json",
+      "bytes": 182,
+      "sha256": "81345a8ea52e0f0dc3ba427a29c81be6e5956b3a6084f95a9e4f175ed721bfab"
+    },
+    {
+      "path": "raw/build-stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "raw/compile-status.json",
+      "bytes": 76,
+      "sha256": "557b4b332f7528cefa6e865b86ceadbd17bf1074d7d7ba0c72199248f6e2b2dd"
+    },
+    {
+      "path": "raw/console-after-build.json",
+      "bytes": 337,
+      "sha256": "88c66a481b82320f767c77d1d757889664af0b32ef930e0d5055ce47b04aaf34"
+    },
+    {
+      "path": "raw/console-build-warnings.json",
+      "bytes": 4988,
+      "sha256": "ae6124ac8dfe8b6d63cdca3079433365c62923cc1c3ce47720fcfbd3c0128862"
+    },
+    {
+      "path": "raw/editor-after-build.json",
+      "bytes": 267,
+      "sha256": "6e5c0fcceb0947515ac41ece258f6ce6d946a5bfcca819bdd9f3dab5af368bee"
+    },
+    {
+      "path": "raw/editor-log-start.json",
+      "bytes": 88,
+      "sha256": "e0ffc03e94877f74a7b7aabaec11c44a285a09bdc804cafb5fab3ba85e5d0a2c"
+    },
+    {
+      "path": "raw/prepare-content.txt",
+      "bytes": 50,
+      "sha256": "3a7403d96bb8c4aa6279748443ed42682eedaef8865d9cc84dbf34f854795570"
+    },
+    {
+      "path": "raw/previous-artifact-preservation.json",
+      "bytes": 4684,
+      "sha256": "ccd270f94ff2fa28f934dd59bc2139bc27e5da019927c499d30b15c08a4af2df"
+    },
+    {
+      "path": "raw/project-normalization.json",
+      "bytes": 1288,
+      "sha256": "b54872def7e142c299cca7ddd9be440065e152f7a1e21e07424b1d5dfd5eb78e"
+    },
+    {
+      "path": "raw/recompile-trigger.json",
+      "bytes": 104,
+      "sha256": "540d3abd313694a97e1359aeb14b3eb4ac2a312838e027fcdebb4b1a2f271df9"
+    },
+    {
+      "path": "raw/served-artifact.json",
+      "bytes": 3962,
+      "sha256": "b5e43f2634d2c875fc9703585bee512e5cc03f5c13771a69b5dfe49f5f472a25"
+    },
+    {
+      "path": "raw/server-binary-receipt.json",
+      "bytes": 301,
+      "sha256": "6d8518e175d83aae3b73dab6130bbe31a12bcad2dee0f803a6859e069d503565"
+    },
+    {
+      "path": "raw/server-info-receipt.json",
+      "bytes": 332,
+      "sha256": "1a3e71bb6ea303b5109cb0891a1524093da68cbba33cb1fb55ca4c7ed7cb044c"
+    },
+    {
+      "path": "raw/server-info.json",
+      "bytes": 180,
+      "sha256": "d5160b7a21cc8e6b7ddff0b6269665caa4b769c6fc57a70316bfcbd744c04c1a"
+    },
+    {
+      "path": "raw/source-preparation.json",
+      "bytes": 17514,
+      "sha256": "71f5cdf5ec502974e47681974478294351c338bb8ca04ef5f66ebb374d53727f"
+    }
+  ],
+  "external_artifact": {
+    "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/builds/protocol13-1310ae00",
+    "file_count": 14,
+    "bytes": 74247550,
+    "manifest_path": "raw/build-manifest.json",
+    "manifest_sha256": "eab8c97fc3ef3593811546982c0ef0980da6b8b09204ca80b623d27c046e299f"
+  },
+  "server_binary": {
+    "source": "1310ae002870bf3fc674c7b65f38ff5ea55a7d75",
+    "sha256": "20d5b70e9ed79863f03350fbeb9478fd7f45e0a7a644ea2a802a13c14d75b4b0"
+  }
+}

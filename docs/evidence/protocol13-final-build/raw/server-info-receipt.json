@@ -1,0 +1,12 @@
+{
+  "url": "http://127.0.0.1:7796/info",
+  "status": 200,
+  "headers": {
+    "content-type": "application/json",
+    "cache-control": "no-store",
+    "content-length": "180",
+    "connection": "close",
+    "date": "Sun, 08 Nov 2026 19:18:17 GMT"
+  },
+  "sha256": "d5160b7a21cc8e6b7ddff0b6269665caa4b769c6fc57a70316bfcbd744c04c1a"
+}

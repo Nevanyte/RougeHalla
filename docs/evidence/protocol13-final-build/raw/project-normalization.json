@@ -1,0 +1,31 @@
+{
+  "artifactUnchanged": true,
+  "bakedContentRetained": true,
+  "restored": [
+    {
+      "path": "client-unity/UnityProject/Assets/Settings/RoguehallaPipeline.asset",
+      "restoredSha256": "35aab2e06292637cc288ffd981862f9abc9dc7647b3e14cde418588e97363e65",
+      "kind": "whitespace only"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/TextMesh Pro/Resources/Fonts & Materials/LiberationSans SDF - Fallback.asset",
+      "restoredSha256": "1ed305335acc00607b80aaf22d1232f189b8aed773fa1d8bc66e96989aa751a9",
+      "kind": "automatic TMP/Material serialization and dynamic atlas clearing"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/UniversalRenderPipelineGlobalSettings.asset",
+      "restoredSha256": "725624bcda3488d242383ef9e31befde45cb8eacc7001135da6e1a152258df00",
+      "kind": "whitespace only"
+    },
+    {
+      "path": "client-unity/UnityProject/ProjectSettings/ProjectSettings.asset",
+      "restoredSha256": "9448f661c3eebb92d49f798f442e2b4c6d565e25c94b86509e856ab172add085",
+      "kind": "whitespace only"
+    },
+    {
+      "path": "client-unity/UnityProject/ProjectSettings/ShaderGraphSettings.asset",
+      "restoredSha256": "d9285133fee72ad8257e0b2c2d904b487757ebcef4862e3b10bef073bf218894",
+      "kind": "whitespace only"
+    }
+  ]
+}
