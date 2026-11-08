@@ -148,12 +148,28 @@ static class Program
         WishProof.MatchOwnLandedOccurrences(beforeQueueTrace, beforeQueueFacts, 42, 3, 900, 0, 2,
             out _, out var beforeQueueReceipt, out var beforeQueuePresentation);
         Must(!beforeQueueReceipt && !beforeQueuePresentation, "FX receipt before actual queued Cast must not count");
-        var before = new WishProof.OwnerFact { hasWish = true, ability = 3, charges = 2, maxCharges = 2, readyAt = 100, nextChargeAt = 200 };
-        var unchanged = new WishProof.OwnerFact { hasWish = true, ability = 3, charges = 2, maxCharges = 2, readyAt = 100, nextChargeAt = 200 };
-        var spent = new WishProof.OwnerFact { hasWish = true, ability = 3, charges = 1, maxCharges = 2, readyAt = 100, nextChargeAt = 200 };
-        Must(!WishProof.OwnerStateChanged(before, unchanged), "same owner state must not count as update");
-        Must(WishProof.OwnerStateChanged(before, spent), "changed stock must count as authoritative update");
-        var ready = new WishProof.OwnerFact { hasWish = true, charges = 1, serverMs = 100, readyAt = 100 };
+        var before = new WishProof.OwnerFact { hasSelf = true, hasWish = true, player = 42, ability = 3, charges = 2, maxCharges = 2, serverMs = 100, readyAt = 100, nextChargeAt = 200 };
+        var spent = new WishProof.OwnerFact { hasSelf = true, hasWish = true, player = 42, ability = 3, charges = 1, maxCharges = 2, serverMs = 150, readyAt = 100, nextChargeAt = 200, frame = 902 };
+        Must(WishProof.HasAuthoritativeChargeSpend(before, spent, 42, 3, 901), "same-owner charge decrease after encoded queue must pass");
+        var unchanged = new WishProof.OwnerFact { hasSelf = true, hasWish = true, player = 42, ability = 3, charges = 2, maxCharges = 2, serverMs = 150, readyAt = 100, frame = 902 };
+        Must(!WishProof.HasAuthoritativeChargeSpend(before, unchanged, 42, 3, 901), "unchanged charge count must not count as spend");
+        var oneChargeBaseline = new WishProof.OwnerFact { hasSelf = true, hasWish = true, player = 42, ability = 3, charges = 1, maxCharges = 2, serverMs = 100, readyAt = 100 };
+        var increased = new WishProof.OwnerFact { hasSelf = true, hasWish = true, player = 42, ability = 3, charges = 2, maxCharges = 2, serverMs = 150, readyAt = 100, frame = 902 };
+        Must(!WishProof.HasAuthoritativeChargeSpend(oneChargeBaseline, increased, 42, 3, 901), "increased stock must not count as spend");
+        var changedAbility = new WishProof.OwnerFact { hasSelf = true, hasWish = true, player = 42, ability = 4, charges = 1, maxCharges = 2, serverMs = 150, readyAt = 100, frame = 902 };
+        Must(!WishProof.HasAuthoritativeChargeSpend(before, changedAbility, 42, 3, 901), "changed ability must not count as spend");
+        var changedOwner = new WishProof.OwnerFact { hasSelf = true, hasWish = true, player = 43, ability = 3, charges = 1, maxCharges = 2, serverMs = 150, readyAt = 100, frame = 902 };
+        Must(!WishProof.HasAuthoritativeChargeSpend(before, changedOwner, 42, 3, 901), "different owner must not count as spend");
+        var maxOnly = new WishProof.OwnerFact { hasSelf = true, hasWish = true, player = 42, ability = 3, charges = 1, maxCharges = 1, serverMs = 150, readyAt = 100, frame = 902 };
+        Must(!WishProof.HasAuthoritativeChargeSpend(oneChargeBaseline, maxOnly, 42, 3, 901), "max-charge-only change must not count as spend");
+        var rechargeOnly = new WishProof.OwnerFact { hasSelf = true, hasWish = true, player = 42, ability = 3, charges = 2, maxCharges = 2, rechargeMs = 500, serverMs = 150, readyAt = 100, frame = 902 };
+        Must(!WishProof.HasAuthoritativeChargeSpend(before, rechargeOnly, 42, 3, 901), "recharge-only change must not count as spend");
+        Must(!WishProof.HasAuthoritativeChargeSpend(before, spent, 42, 3, 902), "same-frame post-snapshot cannot prove later-than-queue spend");
+        spent.serverMs = before.serverMs;
+        Must(!WishProof.HasAuthoritativeChargeSpend(before, spent, 42, 3, 901), "same server time cannot prove a later authoritative spend");
+        spent.serverMs = before.serverMs - 1;
+        Must(!WishProof.HasAuthoritativeChargeSpend(before, spent, 42, 3, 901), "backward server time cannot prove a later authoritative spend");
+        var ready = new WishProof.OwnerFact { hasSelf = true, hasWish = true, player = 42, charges = 1, serverMs = 100, readyAt = 100 };
         Must(WishProof.IsReadyOwner(ready), "charged owner at authoritative ready time must pass");
         ready.charges = 0;
         Must(!WishProof.IsReadyOwner(ready), "zero stock must not start a trial");
@@ -161,6 +177,12 @@ static class Program
         Must(!WishProof.IsReadyOwner(ready), "active cast must not start a trial");
         ready.hasCast = false; ready.serverMs = 99.99;
         Must(!WishProof.IsReadyOwner(ready), "owner before server ready time must not start a trial");
+        ready.serverMs = 100; ready.hasSelf = false;
+        Must(!WishProof.IsReadyOwner(ready), "missing self must not provide a ready baseline");
+        ready.hasSelf = true; ready.player = 0;
+        Must(!WishProof.IsReadyOwner(ready), "zero owner identity must not provide a ready baseline");
+        ready.player = 42; ready.hasWish = false;
+        Must(!WishProof.IsReadyOwner(ready), "missing Wish must not provide a ready baseline");
         var finish = new WishProof.ProofResult();
         WishProof.SetFinishVerdict(finish, "complete", "matched", false, false, true);
         Must(finish.status == "incomplete" && finish.reason == "input_release_overflow" && finish.overflow,

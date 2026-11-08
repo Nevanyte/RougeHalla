@@ -158,10 +158,13 @@ then its exact packet list position and original source time. Every observed lan
 distinct applied marker in order; missing/extra duplicates, reused receipts, reordered or wrong-caster markers fail.
 Later presentation frames and equal local clock readings are accepted only with ordered trace evidence. Input release,
 proof-fact or trace overflow cannot retain a complete verdict. Owner facts are copied scalar values; raw pooled DTOs are
-not retained.
+not retained. Tick verifies that MatchClient still references the same active Session object. The owner completion gate
+requires a later authoritative snapshot from that session's same nonzero player and same ability, after the matched
+encoded Cast queue frame, with a strict charge decrease from the ready baseline. Owner/ability changes, increased stock,
+maximum-charge-only changes, recharge-only changes, and another owner's update do not pass.
 
 The reproducible `tools/latency/editor-proof-contract/WishProofContract.csproj` check links the actual trace, native
 transport, proof and C# protocol sources against Unity API stubs. It passes the ready/no-stock/active-cast, encoded Cast,
-receipt/callback ordering, duplicate occurrence, queue-boundary and overflow controls. It is not a Unity Editor run.
+receipt/callback ordering, duplicate occurrence, queue-boundary, strict same-owner charge-spend and overflow controls. It is not a Unity Editor run.
 Real art consumers are still supplied by the coordinator's composition, and the all-five Editor/Web player-loop proof
 remains INCOMPLETE until that composed build is exercised.
