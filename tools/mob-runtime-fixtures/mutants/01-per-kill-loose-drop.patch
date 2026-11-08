@@ -1,0 +1,28 @@
+diff --git a/crates/rh-sim/src/systems/mob_life.rs b/crates/rh-sim/src/systems/mob_life.rs
+index a8cc8cc7..6ade35be 100644
+--- a/crates/rh-sim/src/systems/mob_life.rs
++++ b/crates/rh-sim/src/systems/mob_life.rs
+@@ -286,21 +286,14 @@ pub(crate) fn hurt(
+         request_wake(k, w, ev, camp, target);
+     }
+     w.pay.mob_deaths.push(award.clone());
+     super::ledger::pay_later(k, w, ev, PayLater::MobKill { award });
+     before
+ }
+-fn dropper(w: &World, a: &Award) -> bool {
+-    w.mob_runtime.as_ref().unwrap().camps[a.camp as usize].alive == 0
+-        && w.pay
+-            .mob_deaths
+-            .iter()
+-            .filter(|d| d.camp == a.camp)
+-            .map(|d| d.serial)
+-            .min()
+-            .is_none_or(|serial| serial == a.serial)
++fn dropper(_w: &World, _a: &Award) -> bool {
++    true
+ }
+ fn drop_weapon(w: &mut World, a: &Award) {
+     if a.weapon != WeaponId::Fists {
+         super::items::add_container(
+             w,
+             ContainerKind::Ground,

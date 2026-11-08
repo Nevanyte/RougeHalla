@@ -1,0 +1,19 @@
+diff --git a/crates/rh-sim/src/rng.rs b/crates/rh-sim/src/rng.rs
+index 2d4b12d6..87e17a62 100644
+--- a/crates/rh-sim/src/rng.rs
++++ b/crates/rh-sim/src/rng.rs
+@@ -71,13 +71,13 @@ pub(crate) fn tie_rank_origin(
+     origin: &crate::mob_runtime::ActorOrigin,
+ ) -> u32 {
+     let (prefix, mut n, radix): (&[u8], u32, u32) = match origin {
+         crate::mob_runtime::ActorOrigin::Player { join_ordinal } => (b"p", *join_ordinal, 10),
+         crate::mob_runtime::ActorOrigin::Mob { birth_serial, .. } => (b"mob", *birth_serial, 36),
+     };
+-    let mut h = salt ^ tick.wrapping_mul(0x9e37_79b1);
++    let mut h = salt ^ tick.wrapping_mul(0x9e37_79b2);
+     for &b in prefix {
+         h = (h ^ u32::from(b)).wrapping_mul(0x0100_0193);
+     }
+     let mut digits = [0u8; 10];
+     let mut at = digits.len();
+     loop {

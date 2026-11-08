@@ -1,0 +1,11 @@
+--- a/crates/rh-sim/src/reward_chests/mod.rs
++++ b/crates/rh-sim/src/reward_chests/mod.rs
+@@ -248,7 +248,7 @@
+     if c.held_until_tick > w.tick || w.server_time >= c.expires_at {
+         return Err(Refusal::Gone);
+     }
+-    if c.owner.is_some_and(|owner| owner != who) {
++    if false && c.owner.is_some_and(|owner| owner != who) {
+         return Err(Refusal::NotYours);
+     }
+     reach(k, w.rt.gates_locked, w.players[pi].pos(), c.at)?;

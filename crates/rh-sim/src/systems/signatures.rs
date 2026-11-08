@@ -25,6 +25,8 @@ pub struct LandedHit {
     pub victim: PlayerId,
     pub by: Option<PlayerId>,
     pub amount: f64,
+    /// The Race to 0 share of the entry's multiplier (G4: lifesteal must not feed on it; 1 for none).
+    pub race: f64,
 }
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct Contact {
@@ -46,6 +48,38 @@ pub(crate) fn raid_started(hx: &mut Hx, args: &HookArgs) {
             p.signature = Default::default();
         }
     }
+}
+/// Source `factions`' teleported hook: `resetAll(world, true)`, then `dropHealsOverTime`, then `rearmTriggers`.
+/// A fresh fight in the coliseum: nobody carries a target, a mark or a chill through the teleport (the heal lockout
+/// keeps running), and the damage-over-time buckets are dropped without a flush.
+pub(crate) fn teleported(hx: &mut Hx, args: &HookArgs) {
+    if *args != HookArgs::Teleported {
+        return;
+    }
+    // resetAll(world, keepCombat = true): every combatant's faction runtime starts over; only the heal lockout's clock
+    // (source `combatAt`) survives. The source also drops the ephemeral mark index and re-folds the mirrors of whoever
+    // it taxed; the shipped sheet's tax is neutral and unported (the row stays Pending), so there is no index and no
+    // mirror to re-fold here.
+    let fighters = hx.w.fighter_count();
+    for slot in 0..fighters {
+        let core = hx.w.core_mut(FighterIx::of_slot(slot));
+        let combat_at = core.signature.combat_at;
+        // The source clears only the mark-derived bits of the synced `sig` field (taxed, suppressed, exec-blocked) and
+        // lets the next after-damage pass rebuild the rest; only the exec-blocked bit exists in the ported domain.
+        let bits = core.signature.bits & !crate::constants::SIG_EXEC_BLOCKED;
+        core.signature = crate::fighter::Signature {
+            combat_at,
+            bits,
+            ..Default::default()
+        };
+    }
+    hx.w.factions.dot.clear();
+    hx.w.factions.dot_since = hx.w.server_time;
+    // dropHealsOverTime: the steps still to come are forgotten (the first paid step has already landed).
+    super::heal::drop_over_time(hx.w);
+    // rearmTriggers: forget the once-keys of a `rearm: "teleport"` trigger row. The shipped catalog has no such row
+    // (the captured catalog source carries no `rearm` field), so the source loop deletes nothing and the fired set is
+    // kept across the teleport; `teleport_tests` pins the retention.
 }
 fn contact(
     w: &World,
@@ -323,7 +357,7 @@ pub(crate) fn after_damage(cx: &mut Cx) {
         }
         let Some(by) = h.by else { continue };
         let dot = h.dot || h.sig.is_some_and(crate::factions::SignatureKind::is_dot);
-        let fed = h.amount / h.cut;
+        let fed = h.amount / h.cut / if h.race > 0. { h.race } else { 1. };
         if let Some((_, amount, dot_amount)) = s.dealt.iter_mut().find(|(id, _, _)| *id == by) {
             *amount += fed;
             if dot {
@@ -375,6 +409,69 @@ pub(crate) fn after_damage(cx: &mut Cx) {
         super::frost::ranged_hits(w, &s.landed);
     }
     super::plague::after_damage(k, w, ev, &mut s.fx);
+    // Festering Arcana: the damage-over-time signature stopped running on a target (source engagedOn).
+    for i in 0..w.players.len() {
+        let faction = w.players[i].vitals.faction;
+        let deals_dot = matches!(faction, FactionId::Fire | FactionId::Plague);
+        let engaged = w.players[i].signature.engaged;
+        let current = if deals_dot && engaged {
+            w.players[i].signature.target
+        } else {
+            None
+        };
+        let was = w.players[i].signature.engaged_on;
+        w.players[i].signature.engaged_on = current;
+        if was.is_none() || was == current || !deals_dot {
+            continue;
+        }
+        let from = was.unwrap();
+        if !w.players[i]
+            .build
+            .has_flag(crate::stat_fold::EffectFlag::Festering)
+        {
+            continue;
+        }
+        let ap = w.players[i].modifiers.mirrors().ap_bonus;
+        if !(ap > 0.) {
+            continue;
+        }
+        let Some(ti) = w.fighter_idx(from) else {
+            continue;
+        };
+        if !w.standing(ti)
+            || crate::status_runtime::untargetable(&w.core(ti).statuses.instances, w.server_time)
+        {
+            continue;
+        }
+        let owner = w.players[i].id;
+        let Some(name) = w.roster.label(owner).cloned() else {
+            continue;
+        };
+        let apply = crate::status_runtime::StatusApply {
+            kind: crate::status_runtime::StatusKind::Dot,
+            source: crate::status_runtime::StatusSource {
+                id: Some(owner),
+                name,
+                owner_id: None,
+            },
+            ms: f64::from(crate::constants::FESTERING_TICKS) * crate::constants::FESTERING_TICK_MS,
+            ability: None,
+            tag: Some(crate::status_runtime::StatusTag::Text(
+                std::sync::Arc::from("festering"),
+            )),
+            value: Some(ap * crate::constants::FESTERING_AP_SHARE),
+            add: None,
+            data: Some(crate::status_runtime::Payload {
+                shares: Some(crate::content::DamageShares {
+                    phys: 0.,
+                    magic: 1.,
+                    true_: 0.,
+                }),
+                ..Default::default()
+            }),
+        };
+        crate::systems::status::operations::apply_with(k, w, ev, from, apply, true, *stats);
+    }
 }
 
 impl crate::Sim {
@@ -430,3 +527,5 @@ pub(crate) fn validate_basic(
 
 #[cfg(test)]
 mod pve_tests;
+#[cfg(test)]
+mod teleport_tests;

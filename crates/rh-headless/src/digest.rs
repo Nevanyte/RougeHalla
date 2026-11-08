@@ -225,7 +225,7 @@ impl OutcomeDigest {
             Event::ChestRefused { id, reason } => {
                 self.s("chest_refused");
                 self.w(id.0.into());
-                self.s(reason.message());
+                self.s(&reason.message());
             }
             Event::ChestTaken { chest, by, pick } => {
                 self.s("chest_taken");

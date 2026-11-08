@@ -1,0 +1,19 @@
+diff --git a/crates/rh-sim/src/systems/mob_ai.rs b/crates/rh-sim/src/systems/mob_ai.rs
+index 6a6656b0..cf0714b3 100644
+--- a/crates/rh-sim/src/systems/mob_ai.rs
++++ b/crates/rh-sim/src/systems/mob_ai.rs
+@@ -102,13 +102,13 @@ pub(crate) fn aggro(
+     if m.status != Status::Alive {
+         return None;
+     }
+     let camp = m.camp;
+     let mut b = std::mem::take(&mut m.brain);
+     add_threat(&mut b, by, amount);
+-    if b.mode == BrainMode::Idle {
++    if matches!(b.mode, BrainMode::Idle | BrainMode::Return) {
+         if let Some(target) = pick(w, &mut b) {
+             wake(&mut b, target, w.server_time);
+         }
+     }
+     let out = (b.mode == BrainMode::Fight)
+         .then_some(b.target)

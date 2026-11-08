@@ -24,6 +24,7 @@ use crate::schedule::{self, Gates, Hook, Run};
 use crate::state::{PlayerId, World};
 use crate::statics::MatchStatic;
 use crate::systems::ledger::{self, PayLater};
+use crate::Vec2;
 
 /// What a hook link may touch (see the module docs).
 pub(crate) struct Hx<'a> {
@@ -81,6 +82,11 @@ pub(crate) enum HookArgs {
         fresh: bool,
         index: usize,
     },
+    /// An unblocked sword hit reached the fighter: its windup or cast is about to be interrupted (legacy
+    /// weapons.stagger fires this before it cancels; the abilities chain interrupts only casts that list stagger).
+    Staggered {
+        id: PlayerId,
+    },
     /// The lobby just turned into an active raid: players are placed (legacy `raidStarted(world)`).
     RaidStarted,
     PlanningStarted,
@@ -109,8 +115,35 @@ pub(crate) enum HookArgs {
         entry: crate::systems::ledger::Entry,
         amount: f64,
     },
+    /// The pass killed a victim with damage to spare (legacy `overkilled`): Overkill's splash input.
+    Overkilled {
+        victim: PlayerId,
+        hits: Vec<crate::systems::ledger::OverkillHit>,
+        overkill: f64,
+        total: f64,
+    },
     /// The run just ended: results are out and the phase is ended (legacy `runEnded(world)`).
     RunEnded,
+    /// A regional mob died and its spoils were paid (legacy `mobKilled(world, killerRt, mob)`): the killer's runtime
+    /// and the dead mob's identity/location. The chests link is ported (P-CARDS-2); the quests link stays Pending.
+    MobKilled {
+        killer: PlayerId,
+        mob_type: crate::mob_catalog::MobTypeId,
+        zone: crate::FactionId,
+        /// The camp's 0-based index in `map.camps` (source `MobState.camp - 1`).
+        camp: i32,
+        elite: bool,
+        at: Vec2,
+        /// The camp's contributors as of the kill: the source `snapshotElitePickers` set, taken before a clear forgets
+        /// them and filtered to eligible pickers when the chest link runs at payout. Empty for a normal mob.
+        contributors: Vec<PlayerId>,
+    },
+    /// The last member of a regional camp died (legacy `campCleared(world, camp)`, the camp's 0-based index): the
+    /// clear was paid after the ledger pass. Its source consumers are the clear heal (P-MOBS-2), quests (P-QUEST-1) and
+    /// the bruiser passives (P-FACTION-5); elite **chests** are dropped by the `mobKilled` link, not this one.
+    CampCleared {
+        camp: u32,
+    },
 }
 
 impl HookArgs {
@@ -121,16 +154,20 @@ impl HookArgs {
             HookArgs::Hurt { .. } => Hook::Hurt,
             HookArgs::Teleported => Hook::Teleported,
             HookArgs::StatusApplied { .. } => Hook::StatusApplied,
+            HookArgs::Staggered { .. } => Hook::Staggered,
             HookArgs::RaidStarted => Hook::RaidStarted,
             HookArgs::PlanningStarted => Hook::PlanningStarted,
             HookArgs::DropBody { .. } => Hook::DropBody,
             HookArgs::FighterOut { .. } => Hook::FighterOut,
             HookArgs::HitLanded { .. } => Hook::HitLanded,
+            HookArgs::Overkilled { .. } => Hook::Overkilled,
             HookArgs::AttackStarted(_) => Hook::AttackStarted,
             HookArgs::WeaponSwapped(_) => Hook::WeaponSwapped,
             HookArgs::PlayerKilled { .. } => Hook::PlayerKilled,
             HookArgs::ExecuteDenied { .. } => Hook::ExecuteDenied,
             HookArgs::RunEnded => Hook::RunEnded,
+            HookArgs::MobKilled { .. } => Hook::MobKilled,
+            HookArgs::CampCleared { .. } => Hook::CampCleared,
         }
     }
 }

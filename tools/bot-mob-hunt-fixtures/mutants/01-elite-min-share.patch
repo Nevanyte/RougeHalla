@@ -1,0 +1,13 @@
+diff --git a/crates/rh-policy/src/bots/mob_hunt.rs b/crates/rh-policy/src/bots/mob_hunt.rs
+index e274d562..46c71b1a 100644
+--- a/crates/rh-policy/src/bots/mob_hunt.rs
++++ b/crates/rh-policy/src/bots/mob_hunt.rs
+@@ -232,7 +232,7 @@ pub const MOB_HUNT: MobHuntConfig = MobHuntConfig {
+     elite_min_power: 4.,
+     elite_full_hp: 0.9,
+     mob_min_share: 0.5,
+-    elite_min_share: 0.3,
++    elite_min_share: 0.55,
+     elite_sure_share: 0.2,
+     elite_sure_power: 6.,
+     retreat_hp: 0.35,

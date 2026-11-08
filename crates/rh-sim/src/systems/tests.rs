@@ -745,3 +745,441 @@ fn shared_rewound_positions_give_the_ledger_of_the_per_pair_pass() {
     }
     assert!(hits > 200, "the swings connect: {hits}");
 }
+
+#[test]
+fn the_pvp_caps_match_the_diagnostic_case() {
+    // The source's diagnostic-G1-G2-G3-ledger-caps: a Boom/Glass Cannon attacker's huge weapon hit and two of its own huge
+    // dots, plus another source's dot, against a 5x vitality victim: the hit is cut to the PvP hit cap and each source's dots
+    // share the per-source budget.
+    let ps: Vec<Placement> = [
+        (300., 320., FactionId::Holy),
+        (332., 320., FactionId::Holy),
+        (1100., 600., FactionId::Fire),
+    ]
+    .iter()
+    .enumerate()
+    .map(|(i, &(x, y, faction))| Placement {
+        profile: format!("P{i}"),
+        faction,
+        bot: false,
+        at: Vec2::new(x, y),
+        hp: None,
+        weapon0: None,
+        weapon1: None,
+    })
+    .collect();
+    let mut s = Sim::reset_active(
+        SimConfig::default(),
+        practice_arena(),
+        Secrets::from_seed(12),
+        &ps,
+    );
+    for card in [
+        crate::cards::CardId::HereComesTheBoom,
+        crate::cards::CardId::GlassCannon,
+        crate::cards::CardId::FirstImpressions,
+        crate::cards::CardId::TunnelVision,
+        crate::cards::CardId::Haste1,
+        crate::cards::CardId::Rhythm,
+    ] {
+        assert!(crate::cards::grant(&s.k, &mut s.w, PlayerId(1), card));
+    }
+    for _ in 0..5 {
+        assert!(crate::cards::grant(
+            &s.k,
+            &mut s.w,
+            PlayerId(2),
+            crate::cards::CardId::Vitality3
+        ));
+    }
+    let max_hp = s.w.players[1].vitals.max_hp;
+    let mut ev = Vec::new();
+    let mut cx = Cx {
+        stats: crate::status_runtime::stats::Inputs::default(),
+        #[cfg(feature = "trusted-status-probes")]
+        probe: None,
+        k: &s.k,
+        w: &mut s.w,
+        s: &mut s.s,
+        ev: &mut ev,
+        pf: &mut s.pf,
+    };
+    settle::mark_tick_start(&mut cx);
+    inputs::action_order(&mut cx);
+    let mut weapon_hit = hit(1, 2, 1.0e6);
+    weapon_hit.weapon = Some(crate::content::WeaponId::Sword);
+    weapon_hit.packet.phys = 1.0;
+    cx.s.ledger.push(weapon_hit);
+    for by in [1u32, 1u32, 3u32] {
+        let mut dot = hit(by, 2, 1.0e6);
+        dot.dot = true;
+        dot.weapon = None;
+        dot.packet.phys = 1.0;
+        cx.s.ledger.push(dot);
+    }
+    ledger::apply(&mut cx);
+    let weapon_amount =
+        cx.s.landed
+            .iter()
+            .filter(|h| h.by == Some(PlayerId(1)))
+            .map(|h| h.amount)
+            .fold(0., f64::max);
+    let cap = crate::constants::PVP_HIT_CAP_SHARE * max_hp;
+    assert!(
+        (weapon_amount - cap).abs() < 1e-6,
+        "the weapon hit is cut to the hit cap: {weapon_amount} vs {cap}"
+    );
+    // The source's recorded diagnostic amount for this build.
+    assert!(
+        (cap - 901.6874999999999).abs() < 1e-6,
+        "the diagnostic case's hit cap: {cap} (max hp {max_hp})"
+    );
+    let one_source_dots: f64 =
+        cx.s.landed
+            .iter()
+            .filter(|h| h.by == Some(PlayerId(1)) && h.dot)
+            .map(|h| h.amount)
+            .sum();
+    let dot_budget = crate::constants::PVP_DOT_CAP_SHARE * max_hp * 0.05;
+    assert!(
+        one_source_dots <= dot_budget + 1e-6,
+        "one source's dots share the budget: {one_source_dots} vs {dot_budget}"
+    );
+}
+
+#[test]
+fn the_race_and_lifesteal_match_the_diagnostic_case() {
+    // The source's diagnostic-G4-race-pass-start-and-G5-lifesteal: two Race to 0 holders at 20% and 40% health trade 30 true
+    // damage; each hit is multiplied by both races (2.5 x 2.5 = 6.25 -> 187.5), and the lifesteal feed divides the race out
+    // (30 per hit), so p0's twelve Leech III copies and Bloodthirst heal 51 and p1 heals 12.9.
+    let ps: Vec<Placement> = [
+        (300., 320., FactionId::Holy),
+        (332., 320., FactionId::Holy),
+        (1100., 600., FactionId::Fire),
+    ]
+    .iter()
+    .enumerate()
+    .map(|(i, &(x, y, faction))| Placement {
+        profile: format!("P{i}"),
+        faction,
+        bot: false,
+        at: Vec2::new(x, y),
+        hp: None,
+        weapon0: None,
+        weapon1: None,
+    })
+    .collect();
+    let mut s = Sim::reset_active(
+        SimConfig {
+            pvp_rules: false,
+            ..Default::default()
+        },
+        practice_arena(),
+        Secrets::from_seed(12),
+        &ps,
+    );
+    // The pass-start fractions drive Holy's own share and Bloodthirst's while-row: set them before the grants recompute
+    // the modifiers (the after-damage then reads the captured signature fraction).
+    s.w.players[0].vitals.hp = s.w.players[0].vitals.max_hp * 0.2;
+    s.w.players[1].vitals.hp = s.w.players[1].vitals.max_hp * 0.4;
+    s.w.players[0].signature.hp_frac = 0.2;
+    s.w.players[1].signature.hp_frac = 0.4;
+    assert!(crate::cards::grant(
+        &s.k,
+        &mut s.w,
+        PlayerId(1),
+        crate::cards::CardId::RaceToZero
+    ));
+    for _ in 0..12 {
+        assert!(crate::cards::grant(
+            &s.k,
+            &mut s.w,
+            PlayerId(1),
+            crate::cards::CardId::Leech3
+        ));
+    }
+    assert!(crate::cards::grant(
+        &s.k,
+        &mut s.w,
+        PlayerId(1),
+        crate::cards::CardId::Bloodthirst
+    ));
+    assert!(crate::cards::grant(
+        &s.k,
+        &mut s.w,
+        PlayerId(2),
+        crate::cards::CardId::RaceToZero
+    ));
+    let mut ev = Vec::new();
+    let mut cx = Cx {
+        stats: crate::status_runtime::stats::Inputs::default(),
+        #[cfg(feature = "trusted-status-probes")]
+        probe: None,
+        k: &s.k,
+        w: &mut s.w,
+        s: &mut s.s,
+        ev: &mut ev,
+        pf: &mut s.pf,
+    };
+    settle::mark_tick_start(&mut cx);
+    inputs::action_order(&mut cx);
+    let true_hit = |by: u32, victim: u32| {
+        let mut e = hit(by, victim, 30.);
+        e.weapon = Some(crate::content::WeaponId::Sword);
+        e.packet.phys = 0.;
+        e.packet.magic = 0.;
+        e.packet.true_ = 1.;
+        e
+    };
+    cx.s.ledger.push(true_hit(1, 2));
+    cx.s.ledger.push(true_hit(2, 1));
+    cx.s.ledger.push(true_hit(1, 2));
+    // The mods system: re-fold every fighter (this is where Bloodthirst's while-hold lands).
+    crate::systems::items::fold_armor(&mut cx);
+    ledger::apply(&mut cx);
+    let amounts: Vec<f64> = cx.s.landed.iter().map(|h| h.amount).collect();
+    assert!(
+        amounts.iter().all(|a| (a - 187.5).abs() < 1e-6),
+        "every hit carries both races: {amounts:?}"
+    );
+    // Bloodthirst's while-hold is in the cached fold: at 20% health the x2 lifesteal multiplier is folded for p0.
+    let stats = crate::status_runtime::stats::Inputs::default();
+    assert!(
+        (stats.view(&cx.w.players[0].core).lifesteal_mult - 2.).abs() < 1e-12,
+        "Bloodthirst doubles the capped rows below half health"
+    );
+    signatures::after_damage(&mut cx);
+    let heal = |id: PlayerId| {
+        cx.ev
+            .iter()
+            .filter_map(|e| match e {
+                Event::Heal { id: who, amount } if *who == id => Some(*amount),
+                _ => None,
+            })
+            .sum::<f64>()
+    };
+    // The source's heals are 51 (two 30-damage hits x LIFESTEAL_MAX 0.85: Holy's own 0.55 plus the rows' capped 0.25
+    // doubled by Bloodthirst's while-hold) and 12.9 (one x its 0.43 own share).
+    assert!(
+        (heal(PlayerId(1)) - 51.).abs() < 1e-6,
+        "p0 heals 51: {}",
+        heal(PlayerId(1))
+    );
+    assert!(
+        (heal(PlayerId(2)) - 12.900000000000006).abs() < 1e-6,
+        "p1 heals 12.9: {}",
+        heal(PlayerId(2))
+    );
+}
+
+#[test]
+fn the_g8_runtime_floor_case_reproduces_the_source() {
+    // The source's diagnostic-G8-runtime-floor-extra-rows: a capture rig puts an out-of-build `maxHp` row (-2) on p0 and
+    // syncs max hp. G8's floor holds the bar at half the faction's (572.5 = 1145 x 0.5) and the carried hp follows it down;
+    // one 1-damage physical sword hit by p1 is mitigated by holy armor (78 -> 1 / 1.78 = 0.5617977528089888) against that
+    // floor; taking the rows away restores 1145 and keeps the damage as a deficit (1144.438202247191). The seam is the
+    // source's `setExtraRows` diagnostic, outside any legal card build (the source's own domain field says so).
+    use crate::stat_fold::{EffectKind, EffectRow, EffectStat};
+
+    let ps: Vec<Placement> = [
+        (300., 320., FactionId::Holy),
+        (332., 320., FactionId::Holy),
+        (1100., 600., FactionId::Fire),
+    ]
+    .iter()
+    .enumerate()
+    .map(|(i, &(x, y, faction))| Placement {
+        profile: format!("P{i}"),
+        faction,
+        bot: false,
+        at: Vec2::new(x, y),
+        hp: None,
+        weapon0: None,
+        weapon1: None,
+    })
+    .collect();
+    let mut s = Sim::reset_active(
+        SimConfig {
+            pvp_rules: false,
+            ..Default::default()
+        },
+        practice_arena(),
+        Secrets::from_seed(12),
+        &ps,
+    );
+    // The source's p1 holds five stacking Vitality III copies: 1145 x (1 + 5 x 0.25) = 2576.25 (the per-copy fold).
+    for _ in 0..5 {
+        assert!(crate::cards::grant(
+            &s.k,
+            &mut s.w,
+            PlayerId(2),
+            crate::cards::CardId::Vitality3
+        ));
+    }
+    assert!((s.w.players[1].vitals.max_hp - 2576.25).abs() < 1e-9);
+    // The diagnostic row, applied then synced exactly as the capture engine does (setExtraRows, then syncMaxHp).
+    let floor_row = [EffectRow::new(EffectKind::Stat {
+        stat: EffectStat::MaxHp,
+        v: -2.0,
+    })];
+    let p0 = crate::fighter::FighterIx::of_slot(0);
+    crate::modifiers::refold_with_extra_rows(&s.k, &mut s.w, p0, &floor_row);
+    crate::modifiers::sync_max_hp(&mut s.w.players[0]);
+    assert!(
+        (s.w.players[0].vitals.max_hp - 572.5).abs() < 1e-9,
+        "the G8 floor holds the bar at half the faction's: {}",
+        s.w.players[0].vitals.max_hp
+    );
+    assert!(
+        (s.w.players[0].vitals.hp - 572.5).abs() < 1e-9,
+        "the bar follows the floor down: {}",
+        s.w.players[0].vitals.hp
+    );
+    {
+        // The pass: mark the tick start and the order, inject the source's one sword hit, apply the ledger.
+        let mut ev = Vec::new();
+        let mut cx = Cx {
+            stats: crate::status_runtime::stats::Inputs::default(),
+            #[cfg(feature = "trusted-status-probes")]
+            probe: None,
+            k: &s.k,
+            w: &mut s.w,
+            s: &mut s.s,
+            ev: &mut ev,
+            pf: &mut s.pf,
+        };
+        settle::mark_tick_start(&mut cx);
+        ledger::open(&mut cx);
+        inputs::action_order(&mut cx);
+        let mut weapon_hit = hit(2, 1, 1.0);
+        weapon_hit.weapon = Some(crate::content::WeaponId::Sword);
+        weapon_hit.packet.phys = 1.0;
+        cx.s.ledger.push(weapon_hit);
+        ledger::apply(&mut cx);
+        assert_eq!(cx.s.landed.len(), 1);
+        let landed = cx.s.landed[0].amount;
+        assert!(
+            (landed - 0.5617977528089888).abs() < 1e-15,
+            "holy armor mitigates the 1-damage hit: {landed}"
+        );
+        assert!(
+            (cx.w.players[0].vitals.hp - 571.938202247191).abs() < 1e-9,
+            "hp carries the hit against the floor: {}",
+            cx.w.players[0].vitals.hp
+        );
+    }
+    // Take the rows away: the bar grows back to 1145 and the hit stays a deficit.
+    crate::modifiers::refold_with_extra_rows(&s.k, &mut s.w, p0, &[]);
+    crate::modifiers::sync_max_hp(&mut s.w.players[0]);
+    assert!(
+        (s.w.players[0].vitals.max_hp - 1145.).abs() < 1e-9,
+        "the max restores: {}",
+        s.w.players[0].vitals.max_hp
+    );
+    assert!(
+        (s.w.players[0].vitals.hp - 1144.438202247191).abs() < 1e-9,
+        "the hit stays a deficit: {}",
+        s.w.players[0].vitals.hp
+    );
+    {
+        // The step that follows reads the fraction and lands nothing (the source's last two actions).
+        let mut ev = Vec::new();
+        let mut cx = Cx {
+            stats: crate::status_runtime::stats::Inputs::default(),
+            #[cfg(feature = "trusted-status-probes")]
+            probe: None,
+            k: &s.k,
+            w: &mut s.w,
+            s: &mut s.s,
+            ev: &mut ev,
+            pf: &mut s.pf,
+        };
+        settle::mark_tick_start(&mut cx);
+        assert!(
+            (cx.w.players[0].vitals.hp_frac_at_tick_start - 0.9995093469407781).abs() < 1e-15,
+            "the pass-start fraction: {}",
+            cx.w.players[0].vitals.hp_frac_at_tick_start
+        );
+        ledger::open(&mut cx);
+        inputs::action_order(&mut cx);
+        ledger::apply(&mut cx);
+        assert!(cx.s.landed.is_empty(), "the last step lands nothing");
+        assert!((cx.w.players[0].vitals.hp - 1144.438202247191).abs() < 1e-9);
+    }
+}
+
+#[test]
+fn the_while_rows_fold_from_the_fighter_state() {
+    // The source folds a `while` row only while its condition holds (`holdsNow`: on every refold and once a tick in
+    // updateMods, which is the ported `mods.updateMods` -> `items::fold_armor`). The shipped rows the conditions cover are
+    // below max health (Bloodthirst, Last Rites), unarmed (Fists of Fury's attack speed) and not shooting (Fleet's move
+    // speed). `fightTime` stays pending (no Rust fight-clock state yet) and `afterCast` has no admitted row.
+    let ps: Vec<Placement> = (0..2)
+        .map(|i| Placement {
+            profile: format!("P{i}"),
+            faction: FactionId::Holy,
+            bot: false,
+            at: Vec2::new(300.0 + 32.0 * i as f64, 320.0),
+            hp: None,
+            weapon0: None,
+            weapon1: None,
+        })
+        .collect();
+    let mut s = Sim::reset_active(
+        SimConfig::default(),
+        practice_arena(),
+        Secrets::from_seed(13),
+        &ps,
+    );
+    let ix = crate::fighter::FighterIx::of_slot(0);
+    let refold = |s: &mut Sim| crate::modifiers::recompute(&s.k, &mut s.w, ix);
+    let view = |s: &Sim| crate::status_runtime::stats::Inputs::default().view(&s.w.players[0].core);
+    let as_mult = |s: &Sim| s.w.players[0].modifiers.mirrors().as_mult;
+    let speed = |s: &Sim| s.w.players[0].modifiers.mirrors().speed_mult;
+
+    // Bloodthirst: the lifesteal multiplier doubles strictly below half health.
+    assert!(crate::cards::grant(
+        &s.k,
+        &mut s.w,
+        PlayerId(1),
+        crate::cards::CardId::Bloodthirst
+    ));
+    assert!((view(&s).lifesteal_mult - 1.).abs() < 1e-12, "full health");
+    s.w.players[0].vitals.hp = s.w.players[0].vitals.max_hp * 0.5;
+    refold(&mut s);
+    assert!(
+        (view(&s).lifesteal_mult - 1.).abs() < 1e-12,
+        "exactly half is not below it"
+    );
+    s.w.players[0].vitals.hp -= 1.0;
+    refold(&mut s);
+    assert!((view(&s).lifesteal_mult - 2.).abs() < 1e-12, "below half");
+
+    // Fists of Fury: +40% attack speed only while the active hand's slot is empty.
+    assert!(crate::cards::grant(
+        &s.k,
+        &mut s.w,
+        PlayerId(1),
+        crate::cards::CardId::FistsOfFury
+    ));
+    assert!((as_mult(&s) - 1.4).abs() < 1e-9, "unarmed: {}", as_mult(&s));
+    s.w.players[0].weapon.weapon0 = Some(crate::content::WeaponId::Sword);
+    refold(&mut s);
+    assert!((as_mult(&s) - 1.0).abs() < 1e-9, "armed: {}", as_mult(&s));
+
+    // Fleet III: +15% move speed while not shooting, ending 2.5 s after a shot left (the row's own window).
+    assert!(crate::cards::grant(
+        &s.k,
+        &mut s.w,
+        PlayerId(1),
+        crate::cards::CardId::Fleet3
+    ));
+    assert!((speed(&s) - 1.15).abs() < 1e-9, "not shooting");
+    let now = s.w.server_time;
+    s.w.players[0].weapon.last_shot_at = Some(now);
+    refold(&mut s);
+    assert!((speed(&s) - 1.0).abs() < 1e-9, "a fresh shot");
+    s.w.players[0].weapon.last_shot_at = Some(now - 2500.0);
+    refold(&mut s);
+    assert!((speed(&s) - 1.15).abs() < 1e-9, "the window ended");
+}

@@ -1,0 +1,13 @@
+diff --git a/crates/rh-policy/src/bots/wish.rs b/crates/rh-policy/src/bots/wish.rs
+index da116c5a..2fd2bd06 100644
+--- a/crates/rh-policy/src/bots/wish.rs
++++ b/crates/rh-policy/src/bots/wish.rs
+@@ -40,7 +40,7 @@ pub const ESCAPE_HP_THREATENED: f64 = 0.5;
+ pub const ESCAPE_HP_HIT: f64 = 0.55;
+ pub const SUSTAIN_HP: f64 = 0.35;
+ pub const ENGAGE_RANGE_MARGIN: f64 = 16.;
+-pub const PEEL_DISTANCE: f64 = 150.;
++pub const PEEL_DISTANCE: f64 = 300.;
+ pub const ENGAGE_BLINK_MIN_DISTANCE: f64 = 120.;
+ pub const ENGAGE_BLINK_STOP_SHORT: f64 = 40.;
+ /// Headings tried for an escaping blink, as angles off straight away from the threat.

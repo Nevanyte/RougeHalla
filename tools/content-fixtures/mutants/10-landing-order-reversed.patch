@@ -1,0 +1,13 @@
+diff --git a/crates/rh-sim/src/systems/abilities/mod.rs b/crates/rh-sim/src/systems/abilities/mod.rs
+index faedb4a3..6b3d5866 100644
+--- a/crates/rh-sim/src/systems/abilities/mod.rs
++++ b/crates/rh-sim/src/systems/abilities/mod.rs
+@@ -207,7 +207,7 @@ pub(crate) fn land(cx: &mut Cx) {
+     }
+     let now = cx.w.server_time;
+     // action_order is this landing tick's combat priority, never the stored ability rank.
+-    for n in 0..cx.s.action_order.len() {
++    for n in (0..cx.s.action_order.len()).rev() {
+         let ix = FighterIx::of_slot(cx.s.action_order[n] as usize);
+         let Some(cast) =
+             cx.w.core(ix)

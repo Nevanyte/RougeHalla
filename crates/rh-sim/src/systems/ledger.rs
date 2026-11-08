@@ -52,6 +52,13 @@ impl Entry {
         self.source.as_ref().and_then(|s| s.owner_id).or(self.by)
     }
 }
+/// One entry that hit a victim the pass killed with damage to spare (source `OverkillHit`): the entry and its applied share.
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct OverkillHit {
+    pub(crate) entry: Entry,
+    pub(crate) raw: f64,
+}
+
 #[derive(Clone, Debug)]
 pub(crate) struct Hit {
     pub(crate) terrain: bool,
@@ -122,7 +129,20 @@ impl PayLater {
     ) {
         match self {
             PayLater::MobWakes => super::mob_life::settle_wakes(k, w),
-            PayLater::CampCleared { camp } => ev.push(Event::CampCleared { camp }),
+            PayLater::CampCleared { camp } => {
+                // camps.ts payLater: the `campCleared` fx first, then the chainable `campCleared` hook.
+                ev.push(Event::CampCleared { camp });
+                crate::hooks::fire(
+                    &mut crate::hooks::Hx {
+                        stats,
+                        k,
+                        w,
+                        ev,
+                        fx: None,
+                    },
+                    crate::hooks::HookArgs::CampCleared { camp },
+                );
+            }
             PayLater::MobKill { award } => super::mob_life::pay(k, w, ev, award),
             #[cfg(feature = "trusted-status-probes")]
             PayLater::ProbeNested { victim, source } => {
@@ -328,6 +348,8 @@ fn apply_inner(
         downed_this_tick,
         victims,
         ledger_mults: mults,
+        ledger_races: races,
+        deny_parts,
         slot_head,
         slot_tail,
         entry_next,
@@ -353,6 +375,7 @@ fn apply_inner(
         slot_tail.resize(w.fighter_count(), NONE);
     }
     mults.clear();
+    races.clear();
     for (n, e) in ledger.iter().enumerate() {
         let vix = w.fighter_idx(e.victim);
         let bix = e.credit_id().and_then(|b| w.fighter_idx(b));
@@ -373,12 +396,122 @@ fn apply_inner(
         }
         // The PvP factor is for a player hitting a player: a mob on either side, or no attacker, takes none.
         let farm_mult = if !e.arena && e.ability.is_none() {
-            bix.map_or(1., |i| crate::modifiers::outgoing(w.core(i)))
+            bix.map_or(1., |i| {
+                let kind = if e.is_dot() {
+                    crate::modifiers::OutgoingKind::Dot
+                } else if e.passive {
+                    crate::modifiers::OutgoingKind::Returned
+                } else if e.sig.is_none() && e.ability.is_none() && e.weapon.is_some() {
+                    crate::modifiers::OutgoingKind::Hit
+                } else {
+                    crate::modifiers::OutgoingKind::Other
+                };
+                let victim_id = vix.map(|v| w.core(v).id);
+                let frac = vix.map_or(1., |v| {
+                    let core = w.core(v);
+                    core.vitals.hp / core.vitals.max_hp.max(1e-9)
+                });
+                let streak = if w.is_player(i) {
+                    let p = &w.players[i.slot()];
+                    p.card_streak
+                        .filter(|s| {
+                            Some(s.target) == victim_id
+                                && w.server_time - s.last < crate::constants::STREAK_GAP_MS
+                        })
+                        .map_or(0, |s| s.count)
+                } else {
+                    0
+                };
+                let probe = vix.map_or(crate::modifiers::VsProbe::default(), |v| {
+                    let core = w.core(v);
+                    let player = w.is_player(v);
+                    let slowed = core.statuses.instances.iter().any(|s| {
+                        matches!(
+                            s.kind,
+                            crate::status_runtime::StatusKind::SlowMove
+                                | crate::status_runtime::StatusKind::SlowAttack
+                        ) && s.until > w.server_time
+                    });
+                    let elite = !player && w.mobs.iter().any(|m| m.core.id == core.id && m.elite);
+                    let higher_power = player
+                        && w.is_player(i)
+                        && w.players[v.slot()].build.power() > w.players[i.slot()].build.power();
+                    // Witness: the victim's weapon lock or its last signature target is someone other than the attacker.
+                    let attacker = w.core(i).id;
+                    let third_party = [core.weapon.targeting.target, core.signature.target]
+                        .into_iter()
+                        .flatten()
+                        .any(|t| t != attacker);
+                    crate::modifiers::VsProbe {
+                        slowed,
+                        elite,
+                        higher_power,
+                        player,
+                        third_party,
+                    }
+                });
+                let build = if w.is_player(i) {
+                    w.players[i.slot()].build
+                } else {
+                    Default::default()
+                };
+                crate::modifiers::outgoing_damage(
+                    w.core(i),
+                    &build,
+                    frac,
+                    kind,
+                    e.critical_mult.unwrap_or(1.),
+                    streak,
+                    probe,
+                    false,
+                )
+            })
         } else {
             1.
         };
+        let gambler = if !e.arena && e.ability.is_none() {
+            bix.filter(|i| {
+                w.is_player(*i)
+                    && w.players[i.slot()]
+                        .build
+                        .has_flag(crate::stat_fold::EffectFlag::Gambler)
+            })
+            .and_then(|_| e.credit_id())
+            .map_or(1., |by| {
+                let index = ledger[..n]
+                    .iter()
+                    .filter(|p| p.credit_id() == Some(by) && p.victim == e.victim)
+                    .count() as u32;
+                crate::cards::gambler_factor(k, w, by, e.victim, index)
+            })
+        } else {
+            1.
+        };
+        let dealt = bix.map_or(1., |i| {
+            let core = w.core(i);
+            let cap = crate::modifiers::hp_race_cap(core);
+            if cap > 1. {
+                crate::modifiers::hp_race_mult(core.vitals.hp / core.vitals.max_hp.max(1e-9), cap)
+            } else {
+                1.
+            }
+        });
+        let taken = vix.map_or(1., |v| {
+            let core = w.core(v);
+            let cap = crate::modifiers::hp_race_cap(core);
+            if cap > 1. {
+                crate::modifiers::hp_race_mult(core.vitals.hp / core.vitals.max_hp.max(1e-9), cap)
+            } else {
+                1.
+            }
+        });
+        // Already multiplied entries (returned damage, a splash) only take the victim's Race to 0 (G4).
+        let final_entry = e.passive || e.derived;
+        races.push(if final_entry { taken } else { dealt * taken });
         mults.push(
             farm_mult
+                * gambler
+                * (if final_entry { taken } else { dealt * taken })
                 * (if k.config.pvp_rules
                     && !e.arena
                     && e.ability.is_none()
@@ -442,18 +575,23 @@ fn apply_inner(
         }
         slot_head[vi] = NONE;
         slot_tail[vi] = NONE;
-        apply_victim(&mut pass, &mut bufs, vi, ledger, mults, entry_rank);
+        apply_victim(
+            &mut pass, &mut bufs, vi, ledger, mults, races, deny_parts, entry_rank,
+        );
     }
     pay_all_with(pass.k, pass.w, pass.ev, pf, pass.stats);
     ledger.clear();
 }
 
+#[allow(clippy::too_many_arguments)]
 fn apply_victim(
     pass: &mut Pass,
     b: &mut Bufs,
     vi: usize,
     ledger: &[Entry],
     mults: &[f64],
+    races: &[f64],
+    deny_parts: &mut Vec<f64>,
     entry_rank: &[u32],
 ) {
     let ix = FighterIx::of_slot(vi);
@@ -537,23 +675,61 @@ fn apply_victim(
             }
         }
     }
+    // A tier-4 mark denies the execute part of the foe's entries: the whole of an execute entry, or the share the attacker's
+    // vs-hpBelow rows add (R7). The execute total cannot take the victim below 1 hp.
     if let Some(foe) = pass.denies.get(vi).copied().flatten() {
         let total: f64 = amounts.iter().sum();
-        let execute: f64 = idxs
-            .iter()
-            .enumerate()
-            .filter(|(_, &index)| ledger[index].execute && ledger[index].by == Some(foe))
-            .map(|(j, _)| amounts[j])
-            .sum();
+        let victim_frac = pass.w.core(ix).vitals.hp_frac_at_tick_start;
+        let foe_ix = pass.w.fighter_idx(foe);
+        deny_parts.clear();
+        let mut x = 0.;
+        for (j, &index) in idxs.iter().enumerate() {
+            let e = &ledger[index];
+            let share = if e.by == Some(foe) {
+                if e.execute {
+                    1.
+                } else {
+                    foe_ix.map_or(0., |bix| {
+                        let build = if pass.w.is_player(bix) {
+                            pass.w.players[bix.slot()].build
+                        } else {
+                            Default::default()
+                        };
+                        let kind = if e.is_dot() {
+                            crate::modifiers::OutgoingKind::Dot
+                        } else if e.passive {
+                            crate::modifiers::OutgoingKind::Returned
+                        } else if e.sig.is_none() && e.ability.is_none() && e.weapon.is_some() {
+                            crate::modifiers::OutgoingKind::Hit
+                        } else {
+                            crate::modifiers::OutgoingKind::Other
+                        };
+                        crate::modifiers::execute_share(
+                            pass.w.core(bix),
+                            &build,
+                            victim_frac,
+                            kind,
+                            e.critical_mult.unwrap_or(1.),
+                        )
+                    })
+                }
+            } else {
+                0.
+            };
+            let part = amounts[j] * share;
+            deny_parts.push(part);
+            x += part;
+        }
         let pool = pass.w.core(ix).vitals.hp + pass.w.core(ix).vitals.barrier;
-        let allowed = execute.min(pool - 1. - (total - execute)).max(0.);
-        let held = execute - allowed;
-        if held > MARK_EXECUTE_EPS {
+        let allowed = x.min(pool - 1. - (total - x)).max(0.);
+        let held = x - allowed;
+        if x > 0. && held > MARK_EXECUTE_EPS {
             let mut denied = super::sentenced::Denied::default();
-            for (j, &index) in idxs.iter().enumerate() {
-                let e = &ledger[index];
-                if e.execute && e.by == Some(foe) && amounts[j] > 0. {
-                    let cut = amounts[j] * (1. - allowed / execute);
+            let keep = allowed / x;
+            for j in 0..idxs.len() {
+                let part = deny_parts[j];
+                if part > 0. {
+                    let cut = part * (1. - keep);
                     amounts[j] -= cut;
                     denied.add(foe, cut);
                 }
@@ -617,6 +793,31 @@ fn apply_victim(
             probe.fire(pass.k, pass.w, pass.ev, v, pass.stats);
         }
     }
+    if !pass.w.standing(ix) && total > hp_before {
+        let hits: Vec<OverkillHit> = idxs
+            .iter()
+            .enumerate()
+            .map(|(j, &index)| OverkillHit {
+                entry: ledger[index].clone(),
+                raw: amounts[j],
+            })
+            .collect();
+        crate::hooks::fire(
+            &mut crate::hooks::Hx {
+                stats: pass.stats,
+                k: pass.k,
+                w: pass.w,
+                ev: pass.ev,
+                fx: None,
+            },
+            crate::hooks::HookArgs::Overkilled {
+                victim: v,
+                hits,
+                overkill: total - hp_before,
+                total,
+            },
+        );
+    }
     let landed_share = if !player && total > applied {
         applied / total
     } else if total > 0.0 {
@@ -667,6 +868,7 @@ fn apply_victim(
                     victim: v,
                     by: e.by,
                     amount: amounts[j] * landed_share,
+                    race: races[k],
                 });
             }
             if let Some(sig) = e.sig.filter(|sig| !sig.is_dot()) {
@@ -710,7 +912,21 @@ fn apply_victim(
             .any(|(j, &k)| ledger[k].stagger && amounts[j] > 0.0)
     {
         let now = pass.w.server_time;
-        weapons::stagger(pass.w.core_mut(ix), now, pass.ev);
+        let id = pass.w.core(ix).id;
+        if weapons::stagger_immunity(pass.w.core_mut(ix), now) {
+            // Legacy weapons.stagger fires world.hooks.staggered after the immunity clock, before the cancel.
+            crate::hooks::fire(
+                &mut crate::hooks::Hx {
+                    stats: pass.stats,
+                    fx: None,
+                    k: pass.k,
+                    w: pass.w,
+                    ev: pass.ev,
+                },
+                crate::hooks::HookArgs::Staggered { id },
+            );
+            weapons::stagger_cancel(pass.w.core_mut(ix), now, pass.ev);
+        }
     }
 }
 

@@ -234,9 +234,13 @@ pub(crate) fn validate(
             || p.weapon.weapon1.is_some()
             || p.weapon.slot != 0
             || p.weapon.targeting != Default::default()
-            || !p
-                .modifiers
-                .valid(&Default::default(), &Default::default(), p.vitals.max_hp)
+            || !p.modifiers.valid(
+                &Default::default(),
+                &Default::default(),
+                &Default::default(),
+                p.vitals.max_hp,
+                p.vitals.faction,
+            )
         {
             return Err("invalid mob gear/mirrors".into());
         }

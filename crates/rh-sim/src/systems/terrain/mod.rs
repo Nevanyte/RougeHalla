@@ -178,5 +178,8 @@ mod source_tests;
 #[cfg(test)]
 mod native_tests;
 
+#[cfg(test)]
+mod arena_tests;
+
 #[cfg(all(test, feature = "trusted-status-probes"))]
 mod born_tests;

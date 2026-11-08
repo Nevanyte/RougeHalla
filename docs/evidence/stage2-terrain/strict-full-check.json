@@ -1,8 +1,11 @@
 {
-  "status": "INCOMPLETE",
-  "exit_code": 101,
-  "known_reward_mismatch_observed": true,
-  "case": "born-plague-ember-real-attack-credit",
-  "frame": 3,
-  "field": "containers/c4/options/1"
+  "status": "PASS",
+  "command": "cargo test -p rh-sim --all-features --lib systems::terrain::born_tests::terrain_born_kernel_all_cases_fully_compared -- --nocapture",
+  "exit_code": 0,
+  "cases": 21,
+  "fully_compared": 21,
+  "partial": 0,
+  "observed_output": "TERRAIN KERNEL: 21 cases; 21 fully compared; FULL TERRAIN COMPLETE",
+  "note": "P-CARDS-1 closed the last staged card-pool divergence (the interactive c4 options of born-plague-ember-real-attack-credit). The comparator no longer permits a known divergence: the previous RH_TERRAIN_REQUIRE_FULL relaxation and the c4 carve-out are removed, so any new mismatch fails the default gate.",
+  "frozen_fixture_sha256": "0526ef2e2c45aab025c9a45a1a82b3a75e82b4c7bf72b310554ce749e2094a0a"
 }

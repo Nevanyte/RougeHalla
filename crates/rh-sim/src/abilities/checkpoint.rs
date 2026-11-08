@@ -16,6 +16,35 @@ fn charge_clock_lattice(cooldown: f64) -> f64 {
     a
 }
 
+/// The card producer's trace: Wishful Thinking records each cut (source cards.trims) in the source window. The
+/// clocks a cut leaves cannot be replayed from the last spend alone, so the necessary equations use this bounded trace.
+fn trim_trace_coherent(p: &crate::state::Player, now: f64, raid_started_at: f64) -> bool {
+    let window = crate::constants::WISHFUL_WINDOW_MS;
+    let mut in_window = 0.;
+    for t in &p.card_trims {
+        if !t.at.is_finite()
+            || !t.ms.is_finite()
+            || t.at < raid_started_at
+            || t.at > now
+            || t.at % crate::constants::TICK_MS != 0.
+            || !(t.ms > 0. && t.ms <= crate::constants::WISHFUL_BUDGET_MS)
+        {
+            return false;
+        }
+        if now - t.at < window {
+            in_window += t.ms;
+        }
+    }
+    in_window <= crate::constants::WISHFUL_BUDGET_MS
+}
+
+/// The source caps a window's cuts at WISHFUL_BUDGET_MS, so no clock can be further than one budget per elapsed
+/// window under its untrimmed spend value (a necessary bound, not an exact replay).
+fn max_trim_cut(elapsed: f64) -> f64 {
+    crate::constants::WISHFUL_BUDGET_MS
+        * (1. + elapsed.max(0.) / crate::constants::WISHFUL_WINDOW_MS)
+}
+
 pub(crate) fn validate(
     k: &crate::statics::MatchStatic,
     w: &crate::state::World,
@@ -90,7 +119,21 @@ pub(crate) fn validate(
                 }
                 let def = definition(wish(p.vitals.faction));
                 let recharge = cooldown(def.id, false, Some(p.modifiers.wish_cooldown_mult()));
-                if stocks.wish_ready_at > full_at
+                // A card-owned Wishful Thinking trim is a second producer of the same clocks: the source stores only
+                // its window trace, so the untrimmed equations are replaced by that trace plus bounded necessary ones.
+                let trimmed = has_spend
+                    && !p.card_trims.is_empty()
+                    && p.build.owns(crate::cards::CardId::WishfulThinking);
+                if trimmed {
+                    if !trim_trace_coherent(p, w.server_time, w.raid_started_at) {
+                        return Err("incoherent card Wish trim trace".into());
+                    }
+                    if stocks.wish_ready_at > full_at
+                        || (def.charges == 1 && stocks.wish_ready_at != full_at)
+                    {
+                        return Err("incoherent Wish charge clocks".into());
+                    }
+                } else if stocks.wish_ready_at > full_at
                     || (stocks.wish_ready_at != full_at
                         && (def.charges != 2
                             || stocks.wish_ready_at != (full_at - recharge).max(0.)))
@@ -118,6 +161,21 @@ pub(crate) fn validate(
                                             <= spend.at - crate::constants::TICK_MS
                                                 + 2. * recharge)))
                     };
+                    // The card producer: a cut only lowers the untrimmed spend clock, never above it, and the
+                    // per-window budget bounds how far (a necessary equation, not an exact replay of the cuts).
+                    let trimmed_spend = trimmed
+                        && (if def.charges == 1 {
+                            full_at <= spend.at + recharge
+                                && full_at
+                                    >= spend.at + recharge - max_trim_cut(w.server_time - spend.at)
+                        } else {
+                            (spend.at + recharge - max_trim_cut(w.server_time - spend.at)
+                                ..=spend.at + 2. * recharge)
+                                .contains(&full_at)
+                                && stocks.wish_ready_at + recharge >= full_at
+                        })
+                        && full_at % charge_clock_lattice(recharge) == 0.
+                        && stocks.wish_ready_at % crate::constants::TICK_MS == 0.;
                     let refunded = def.cast_ms > 0.
                         && stocks.wish_ready_at == full_at
                         && full_at <= spend.at
@@ -128,9 +186,9 @@ pub(crate) fn validate(
                             // Later teleports replace this source-global clock. It proves a
                             // subsequent teleport exists, not which teleport refunded the cast.
                             .is_some_and(|at| at >= spend.at);
-                    if !spent && !refunded {
+                    if !spent && !refunded && !trimmed_spend {
                         return Err(
-                            "Wish stock clocks lack a completed spend or teleport refund".into(),
+                            "Wish stock clocks lack a completed spend, teleport refund or card trim".into(),
                         );
                     }
                 }

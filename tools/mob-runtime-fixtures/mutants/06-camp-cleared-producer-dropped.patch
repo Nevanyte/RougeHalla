@@ -1,0 +1,30 @@
+diff --git a/crates/rh-sim/src/systems/ledger.rs b/crates/rh-sim/src/systems/ledger.rs
+index 249412d6..bd2935a9 100644
+--- a/crates/rh-sim/src/systems/ledger.rs
++++ b/crates/rh-sim/src/systems/ledger.rs
+@@ -127,24 +127,14 @@ impl PayLater {
+         ev: &mut Vec<Event>,
+         stats: crate::status_runtime::stats::Inputs,
+     ) {
+         match self {
+             PayLater::MobWakes => super::mob_life::settle_wakes(k, w),
+             PayLater::CampCleared { camp } => {
+-                // camps.ts payLater: the `campCleared` fx first, then the chainable `campCleared` hook.
++                // mutated: the campCleared producer call is dropped.
+                 ev.push(Event::CampCleared { camp });
+-                crate::hooks::fire(
+-                    &mut crate::hooks::Hx {
+-                        stats,
+-                        k,
+-                        w,
+-                        ev,
+-                        fx: None,
+-                    },
+-                    crate::hooks::HookArgs::CampCleared { camp },
+-                );
+             }
+             PayLater::MobKill { award } => super::mob_life::pay(k, w, ev, award),
+             #[cfg(feature = "trusted-status-probes")]
+             PayLater::ProbeNested { victim, source } => {
+                 crate::status_runtime::probe::pay_nested(k, w, ev, victim, source, stats)
+             }

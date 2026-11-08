@@ -52,6 +52,11 @@ SIM_KEYS = {
     "min_players", "lobby_seconds", "fill_seconds", "pvp_rules",
     "weapon_specials", "faction_mode",
 }
+# The optional leaves the live replay serializer writes (SimConfig's serde defaults). The inventory scenario files stay
+# on the six legacy keys.
+REPLAY_SIM_KEYS = SIM_KEYS | {
+    "abilities", "wish_lock_ms", "lifecycle", "hazards", "initial_loot", "mob_mode", "regen", "consumables",
+}
 REPLAY_KEYS = {
     "format", "content_hash", "build", "match_id", "config", "arena", "secrets",
     "start", "ticks", "hashes",
@@ -228,8 +233,13 @@ def load_json(path, label, canonical=False):
     return value, raw
 
 
-def validate_sim(config, path):
-    exact_keys(config, SIM_KEYS, path)
+def validate_sim(config, path, full=False):
+    if full:
+        # Optional leaves are serializer defaults: a replay may omit any of them, never invent another key.
+        require(set(config) <= REPLAY_SIM_KEYS and SIM_KEYS <= set(config), path,
+                "replay config keys outside the recognized optional leaves")
+    else:
+        exact_keys(config, SIM_KEYS, path)
     uint(config["min_players"], path + ".min_players")
     number(config["lobby_seconds"], path + ".lobby_seconds")
     number(config["fill_seconds"], path + ".fill_seconds")
@@ -647,11 +657,17 @@ def validate_replay(replay, raw, artifact, manifest, scenarios):
             "replay build differs from manifest engine")
     require(replay["match_id"] is None or isinstance(replay["match_id"], str),
             path + ".match_id", "expected null or string")
-    validate_sim(replay["config"], path + ".config")
-    require(replay["config"] == spec["sim"], path + ".config",
-            "replay config differs from inventory scenario")
+    validate_sim(replay["config"], path + ".config", full=True)
+    for key, value in spec["sim"].items():
+        require(replay["config"].get(key) == value, path + ".config." + key,
+                "replay config differs from inventory scenario")
     validate_arena(replay["arena"], path + ".arena", spec)
-    exact_keys(replay["secrets"], {"order_salt", "spawn_seed"}, path + ".secrets")
+    exact_keys(replay["secrets"], {"order_salt", "spawn_seed", "reward_salt"}, path + ".secrets")
+    require(isinstance(replay["secrets"]["reward_salt"], list)
+            and len(replay["secrets"]["reward_salt"]) == 4,
+            path + ".secrets.reward_salt", "expected four u32 values")
+    for i, value in enumerate(replay["secrets"]["reward_salt"]):
+        uint(value, path + ".secrets.reward_salt[{}]".format(i), (1 << 32) - 1)
     uint(replay["secrets"]["order_salt"], path + ".secrets.order_salt", (1 << 32) - 1)
     uint(replay["secrets"]["spawn_seed"], path + ".secrets.spawn_seed", (1 << 32) - 1)
     validate_replay_start(replay["start"], path + ".start", spec, replay["arena"])

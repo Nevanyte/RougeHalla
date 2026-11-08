@@ -1,0 +1,26 @@
+diff --git a/crates/rh-policy/src/bots/humanizer.rs b/crates/rh-policy/src/bots/humanizer.rs
+index ee49324b..02ac7a07 100644
+--- a/crates/rh-policy/src/bots/humanizer.rs
++++ b/crates/rh-policy/src/bots/humanizer.rs
+@@ -546,19 +546,14 @@ impl Humanizer {
+         }
+     }
+ 
+     // ---------------------------------------------------------------------------------------------------------- bucket
+     /// The earliest time the next command may go: a token and minGapMs after the last one.
+     fn next_slot(&self) -> f64 {
+-        let refill_per_ms = self.tier.apm / 60_000.;
+-        let token_at = if self.tokens >= 1. {
+-            self.tokens_at
+-        } else {
+-            self.tokens_at + (1. - self.tokens) / refill_per_ms
+-        };
+-        (self.last_send_at + self.tier.min_gap_ms).max(token_at)
++        let _ = self.tokens;
++        self.last_send_at + self.tier.min_gap_ms
+     }
+ 
+     fn spend(&mut self, t: f64) {
+         let refill_per_ms = self.tier.apm / 60_000.;
+         self.tokens =
+             (self.tier.burst).min(self.tokens + (t - self.tokens_at) * refill_per_ms) - 1.;

@@ -1,0 +1,19 @@
+diff --git a/crates/rh-policy/src/bots/humanizer.rs b/crates/rh-policy/src/bots/humanizer.rs
+index ee49324b..e7ad298a 100644
+--- a/crates/rh-policy/src/bots/humanizer.rs
++++ b/crates/rh-policy/src/bots/humanizer.rs
+@@ -172,13 +172,13 @@ impl Humanizer {
+         }
+         if let Some((key_last, at)) = &self.last_react {
+             if key_last != key {
+                 taken.push(*at);
+             }
+         }
+-        if taken.is_empty() {
++        if true {
+             return due;
+         }
+         taken.sort_by(f64::total_cmp);
+         for _pass in 0..=taken.len() {
+             let mut moved = false;
+             for c in &taken {

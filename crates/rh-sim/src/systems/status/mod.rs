@@ -218,6 +218,23 @@ pub(crate) fn on_applied(hx: &mut Hx, args: &HookArgs) {
         refold_attack_with(hx.k, hx.w, i.slot(), hx.stats);
     }
 }
+/// The abilities chain on the `staggered` hook: interrupts the pending cast only when its definition lists a
+/// stagger. A Wish lists stun and silence alone, so a sword stagger never wastes a Wish (it can still drop the
+/// weapon windup: weapons.stagger does that itself).
+pub(crate) fn staggered(hx: &mut Hx, args: &HookArgs) {
+    let HookArgs::Staggered { id } = *args else {
+        return;
+    };
+    let Some(i) = hx.w.fighter_idx(id) else {
+        return;
+    };
+    if let Some(c) = hx.w.core(i).statuses.cast {
+        if c.cancelled_by.stagger {
+            cancel_cast(hx.k, hx.w, hx.ev, id, rt::CastEndReason::Interrupted, false);
+        }
+    }
+}
+
 pub(crate) fn cancel_cast(
     k: &MatchStatic,
     w: &mut World,

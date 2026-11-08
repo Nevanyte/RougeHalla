@@ -1,0 +1,11 @@
+--- a/crates/rh-sim/src/kill_augments.rs
++++ b/crates/rh-sim/src/kill_augments.rs
+@@ -141,7 +141,7 @@
+             let den = 1u128 << shift;
+             let q = num / den;
+             let r = num % den;
+-            if r.saturating_mul(2) >= den {
++            if r.saturating_mul(2) > den {
+                 q + 1
+             } else {
+                 q

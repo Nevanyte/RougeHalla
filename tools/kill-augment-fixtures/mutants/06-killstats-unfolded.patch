@@ -1,0 +1,15 @@
+--- a/crates/rh-sim/src/modifiers/mod.rs
++++ b/crates/rh-sim/src/modifiers/mod.rs
+@@ -348,10 +348,8 @@
+     let mut rows = [fold::EffectRow::new(EffectKind::Trigger); 29];
+     rows[..farm_len].copy_from_slice(&farm_rows[..farm_len]);
+     rows[farm_len..farm_len + kill_len].copy_from_slice(&kill_rows[..kill_len]);
+-    CombinedFarm {
+-        rows,
+-        len: farm_len + kill_len,
+-    }
++    let _ = kill_len;
++    CombinedFarm { rows, len: farm_len }
+ }
+ 
+ /// Source `holdsNow`: does a `while` row's condition hold for this fighter now? `unarmed` needs a seated player's hands;

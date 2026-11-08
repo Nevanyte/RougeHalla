@@ -504,6 +504,7 @@ fn terrain_player_passes_match_actual_source() {
                             sim.s.landed.push(super::super::signatures::LandedHit {
                                 critical: false,
                                 cut: 1.,
+                                race: 1.,
                                 ability: None,
                                 dot: false,
                                 sig: None,

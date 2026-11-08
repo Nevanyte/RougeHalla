@@ -1,0 +1,14 @@
+--- a/crates/rh-sim/src/kill_augments.rs
++++ b/crates/rh-sim/src/kill_augments.rs
+@@ -460,10 +460,7 @@
+     else {
+         return;
+     };
+-    if *outcome != crate::results::Outcome::Died
+-        || hx.w.phase != crate::Phase::Active
+-        || crate::schedule::Gates::of(hx.k).training
+-    {
++    if hx.w.phase != crate::Phase::Active || crate::schedule::Gates::of(hx.k).training {
+         return;
+     }
+     if by == victim {

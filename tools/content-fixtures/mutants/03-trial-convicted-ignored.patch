@@ -1,0 +1,11 @@
+--- a/crates/rh-sim/src/abilities/mod.rs
++++ b/crates/rh-sim/src/abilities/mod.rs
+@@ -295,7 +295,7 @@
+             &[Effect::Zone {
+                 ms: TRIAL_MS,
+                 radius: TRIAL_RADIUS,
+-                convicted_radius: Some(TRIAL_CONVICTED_RADIUS),
++                convicted_radius: None,
+                 dealt_mult: TRIAL_DEALT_MULT,
+                 taken_from_source_mult: TRIAL_TAKEN_MULT,
+                 move_mult: TRIAL_MOVE_MULT,

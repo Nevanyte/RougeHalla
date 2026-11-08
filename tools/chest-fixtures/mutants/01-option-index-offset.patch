@@ -1,0 +1,11 @@
+--- a/crates/rh-sim/src/reward_chests/pools.rs
++++ b/crates/rh-sim/src/reward_chests/pools.rs
+@@ -116,7 +116,7 @@
+ 
+ fn pick_in(draw: &mut impl FnMut() -> f64, pool: &[CardId]) -> CardId {
+     let i = (draw() * pool.len() as f64).floor() as usize;
+-    pool[i.min(pool.len() - 1)]
++    pool[(i + 1).min(pool.len() - 1)]
+ }
+ 
+ /// Source `pickTiered`: one tier draw, then one index draw from the nearest non-empty tier (lower first on a tie).

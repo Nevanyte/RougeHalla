@@ -219,6 +219,9 @@ pub struct Signature {
     pub reach_at: Option<f64>,
     pub contact_at: Option<f64>,
     pub combat_at: Option<f64>,
+    /// The target the damage-over-time signature was running on at the last after-damage pass (source `engagedOn`).
+    #[serde(default)]
+    pub engaged_on: Option<PlayerId>,
     /// HP/maxHP immediately before the ledger, excluding barrier.
     pub hp_frac: f64,
 }
@@ -242,6 +245,7 @@ impl Default for Signature {
             reach_at: None,
             contact_at: None,
             combat_at: None,
+            engaged_on: None,
             hp_frac: 1.0,
         }
     }

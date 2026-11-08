@@ -1,0 +1,13 @@
+diff --git a/crates/rh-policy/src/bots/wish.rs b/crates/rh-policy/src/bots/wish.rs
+index da116c5a..40380bc1 100644
+--- a/crates/rh-policy/src/bots/wish.rs
++++ b/crates/rh-policy/src/bots/wish.rs
+@@ -267,7 +267,7 @@ pub fn hides_caster(def: &WishDef, rank: u8) -> bool {
+     wish_rank(def, rank)
+         .effects
+         .iter()
+-        .any(|e| matches!(e, PolicyEffect::HidesCaster))
++        .any(|e| matches!(e, PolicyEffect::HidesCaster) && false)
+ }
+ fn blink_of(effects: &[PolicyEffect]) -> Option<(f64, f64)> {
+     effects.iter().find_map(|e| match e {

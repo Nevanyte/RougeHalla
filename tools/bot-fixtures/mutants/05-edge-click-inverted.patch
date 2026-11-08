@@ -1,0 +1,19 @@
+diff --git a/crates/rh-policy/src/bots/clicks.rs b/crates/rh-policy/src/bots/clicks.rs
+index 94048273..e8a6f391 100644
+--- a/crates/rh-policy/src/bots/clicks.rs
++++ b/crates/rh-policy/src/bots/clicks.rs
+@@ -296,13 +296,13 @@ pub fn move_click(
+     if in_window(self_at, to) {
+         return MoveClick {
+             to: ground_click(motor, tier, map, self_at, to),
+             kind: MoveClickKind::Ground,
+         };
+     }
+-    if chance(motor, tier.edge_click_p) {
++    if !chance(motor, tier.edge_click_p) {
+         return MoveClick {
+             to: ground_click(motor, tier, map, self_at, edge_toward(map, self_at, to)),
+             kind: MoveClickKind::Edge,
+         };
+     }
+     let world = |q: Vec2| Vec2::new(clamp_axis(q.x, 0., WORLD_W), clamp_axis(q.y, 0., WORLD_H));

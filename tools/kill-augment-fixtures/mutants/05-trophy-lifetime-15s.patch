@@ -1,0 +1,11 @@
+--- a/crates/rh-sim/src/reward_chests/mod.rs
++++ b/crates/rh-sim/src/reward_chests/mod.rs
+@@ -120,7 +120,7 @@
+     w.reward_chests.push(Chest {
+         id,
+         at,
+-        expires_at: w.server_time + crate::constants::KILL_AUG_SECONDS * 1000.,
++        expires_at: w.server_time + DEFINITION.lifetime_ms,
+         held_until_tick: w.tick + DEFINITION.birth_hold_ticks,
+         options: slots,
+         taken: [None; 3],

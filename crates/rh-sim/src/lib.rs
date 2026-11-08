@@ -25,6 +25,7 @@ mod hooks;
 pub mod initial_world;
 pub mod input;
 pub mod item_view;
+pub mod kill_augments;
 mod lifecycle;
 pub mod projectile_view;
 pub use projectile_view::ProjectileView;
@@ -90,3 +91,6 @@ pub mod reward_chests;
 
 pub use systems::arena_rules::{ArenaMode, ArenaRules, ColiseumSchedule};
 pub use systems::planning::{ArenaView, PlanView, PlanningView, SpawnOptionView};
+
+#[cfg(test)]
+mod card_witness_tests;

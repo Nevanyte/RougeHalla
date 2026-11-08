@@ -323,31 +323,20 @@ fn check_trace(t: &Tables, ticks: &[Vec<TraceEntry>], gates: &Gates) -> Result<(
 fn partial_rows_keep_pending_ownership_and_execute_in_source_position() {
     let t = tables();
     let packets = backlog_packets();
-    for name in ["abilities", "abilities.armWishes"] {
-        for missing_pending in [false, true] {
-            let mut bad = t.clone();
-            if name == "abilities" {
-                let row = bad.phases.iter_mut().find(|r| r.legacy == name).unwrap();
-                if missing_pending {
-                    row.pending = None;
-                } else {
-                    row.completed = Some("");
-                }
-            } else {
-                let row = bad
-                    .hooks
-                    .iter_mut()
-                    .flat_map(|(_, rows)| rows)
-                    .find(|r| r.legacy == name)
-                    .unwrap();
-                if missing_pending {
-                    row.pending = None;
-                } else {
-                    row.completed = Some("");
-                }
-            }
-            assert!(check_pending(&bad, &packets).is_err());
+    for missing_pending in [false, true] {
+        let mut bad = t.clone();
+        let row = bad
+            .hooks
+            .iter_mut()
+            .flat_map(|(_, rows)| rows)
+            .find(|r| r.legacy == "abilities.armWishes")
+            .unwrap();
+        if missing_pending {
+            row.pending = None;
+        } else {
+            row.completed = Some("");
         }
+        assert!(check_pending(&bad, &packets).is_err());
     }
     let order = expected_order(&t, &Gates::CAPTURE);
     let at = order
@@ -366,7 +355,7 @@ fn partial_rows_keep_pending_ownership_and_execute_in_source_position() {
         .unwrap()
         .1
         .iter()
-        .all(|l| l.pending == Some("P-ABIL-1") && l.completed.is_none()));
+        .all(|l| l.legacy == "abilities.<arrow>" && l.pending.is_none()));
 }
 
 #[test]
@@ -451,11 +440,8 @@ fn what_the_slice_has_ported_stays_ported() {
         assert!(ported(&t.phases).contains(&want), "phase {want} is ported");
     }
     let lifecycle = t.phases.iter().find(|e| e.legacy == "abilities").unwrap();
-    assert_eq!(lifecycle.pending, Some("P-ABIL-1"));
-    assert_eq!(
-        lifecycle.completed,
-        Some("status lifecycle, fields and reveal")
-    );
+    assert_eq!(lifecycle.pending, None);
+    assert_eq!(lifecycle.completed, None);
     let reset = t
         .hooks
         .iter()
@@ -485,7 +471,13 @@ fn what_the_slice_has_ported_stays_ported() {
         .unwrap()
         .1
         .iter()
-        .any(|l| l.legacy == "factions.<arrow>" && l.pending == Some("P-FACTION-1")));
+        .any(|l| l.legacy == "factions.<arrow>" && l.pending.is_none()));
+    // The remaining P-FACTION-1 row is the intentionally neutral mark tax, not a live consumer: the shipped sheet's
+    // keep 1 / cap 99 leaves taxedRate(r) == r, so it cuts no rate and stays Pending (see the evidence README).
+    assert!(t
+        .mod_sources
+        .iter()
+        .any(|l| l.legacy == "factions.markTaxSource" && l.pending == Some("P-FACTION-1")));
     assert!(t
         .hooks
         .iter()
@@ -499,6 +491,7 @@ fn what_the_slice_has_ported_stays_ported() {
         (Hook::PlayerKilled, "factions.onPlayerKilled"),
         (Hook::ExecuteDenied, "factions.onExecuteDenied"),
         (Hook::StatusApplied, "abilities.onStatusApplied"),
+        (Hook::Staggered, "abilities.<arrow>"),
         (Hook::FighterOut, "abilities.<arrow>"),
         (Hook::RunEnded, "abilities.<arrow>"),
         (Hook::Teleported, "abilities.<arrow>"),
@@ -593,7 +586,7 @@ fn a_match_runs_its_ported_rows_in_table_order() {
     let t = tables();
     let runs = all_runs();
     let mut ticks = 0;
-    let (mut actions, mut drops, mut hits, mut attacks) = (0, 0, 0, 0);
+    let (mut actions, mut drops, mut hits, mut attacks, mut staggers) = (0, 0, 0, 0, 0);
     for (name, r) in &runs {
         ticks += r.active_ticks.len();
         if let Err(e) = check_trace(&t, &r.active_ticks, &r.gates) {
@@ -608,11 +601,19 @@ fn a_match_runs_its_ported_rows_in_table_order() {
                     drops += 1;
                 }
                 TraceEntry::Hook("hitLanded", "cardHooks.onHitLanded") => hits += 1,
+                TraceEntry::Hook("hurt", "factions.onHurt") => {} // the card trigger rows run in the fixtures.
+                TraceEntry::Hook("teleported", "cardHooks.resetFight") => {}
+                TraceEntry::Hook("teleported" | "runEnded", "cardHooks.dropDeferred") => {}
+                TraceEntry::Hook("overkilled", "cardHooks.onOverkilled") => {}
                 TraceEntry::Hook("attackStarted", "abilities.onAttackStarted") => attacks += 1,
+                // The weapon stagger fires the abilities chain between the immunity clock and the cancel.
+                TraceEntry::Hook("staggered", "abilities.<arrow>") => staggers += 1,
                 TraceEntry::Hook("runEnded", "factions.flushDotFx") => {}
                 TraceEntry::Hook("attackStarted", "factions.<arrow>") => {}
                 TraceEntry::Hook("weaponSwapped", "factions.onWeaponSwapped") => {}
                 TraceEntry::Hook("playerKilled", "factions.onPlayerKilled") => {}
+                // P-CARDS-3: the trophy drop is the source playerKilled link; quests.onPlayerKilled stays pending.
+                TraceEntry::Hook("playerKilled", "killAugments.onPlayerKilled") => {}
                 TraceEntry::Hook("executeDenied", "factions.onExecuteDenied") => {}
                 TraceEntry::Hook("statusApplied", "abilities.onStatusApplied") => {}
                 TraceEntry::Hook("fighterOut" | "runEnded" | "teleported", "abilities.<arrow>") => {
@@ -632,6 +633,7 @@ fn a_match_runs_its_ported_rows_in_table_order() {
         attacks > 0,
         "weapon windups ran the registered bush exposure hook"
     );
+    assert!(staggers > 0, "a weapon stagger ran the abilities chain");
     assert!(ticks > 100, "the fixtures ran {ticks} active ticks");
     assert!(actions > 0, "action handlers ran through the ACTIONS table");
     assert!(

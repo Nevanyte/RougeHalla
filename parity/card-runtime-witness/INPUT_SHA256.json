@@ -536,7 +536,7 @@
   "harnessInputs": [
     {
       "path": "tools/card-runtime-witness-fixtures/FROZEN_PINS.json",
-      "sha256": "96d772dd1c8aad4b89055ce50944e7f8fca2bd4d0a466bec26074679756a9654"
+      "sha256": "f1b17f9f76e6106dde33fe96614d9e5b31bd0ca8ff720101ce6901f215a99bca"
     },
     {
       "path": "tools/card-runtime-witness-fixtures/capture.mts",
@@ -558,7 +558,7 @@
   "frozenPins": {
     "format": "rh-card-runtime-witness-pins/1",
     "baseRevision": "64052f09212ea857b2aa6327cf996b1860deb91b",
-    "frozenSourceSha256": "a40518c2217af6a2bec014206c65f52c41ffd0b29b3a184f2fe59096693872e7",
+    "frozenSourceSha256": "032d49aad1e204f9f57754e7fdbbe0121ca1f4e99a265e10437ff3cb266f1e51",
     "files": [
       {
         "path": "parity/card-runtime/ATTEMPTS.json",
@@ -568,9 +568,9 @@
       },
       {
         "path": "parity/card-runtime/INPUT_SHA256.json",
-        "bytes": 23272,
+        "bytes": 23376,
         "mode": "100644",
-        "sha256": "06a61740f2a7678fae07c3004c459664519a29e8a24d09cf12443c68de4eb51a"
+        "sha256": "37bb94fac9fa8b80688629f19cd5b4c15be5898430a6560b0a522ec2c9370da8"
       },
       {
         "path": "parity/card-runtime/README.md",
@@ -580,9 +580,9 @@
       },
       {
         "path": "parity/card-runtime/source.json",
-        "bytes": 53033364,
+        "bytes": 53033468,
         "mode": "100644",
-        "sha256": "a40518c2217af6a2bec014206c65f52c41ffd0b29b3a184f2fe59096693872e7"
+        "sha256": "032d49aad1e204f9f57754e7fdbbe0121ca1f4e99a265e10437ff3cb266f1e51"
       },
       {
         "path": "tools/card-runtime-fixtures/assertions.mts",
@@ -598,9 +598,9 @@
       },
       {
         "path": "tools/card-runtime-fixtures/capture.mts",
-        "bytes": 5987,
+        "bytes": 6091,
         "mode": "100644",
-        "sha256": "e4eb7efb4fc373e430d13cd0d790432a417cebe2fb54fe4cc268d3df67d9d33d"
+        "sha256": "e39d1906ccfcddd8734559dbf03da3bcff79ef097afe99e1c9a283a760d4192b"
       },
       {
         "path": "tools/card-runtime-fixtures/capture.sh",
@@ -668,9 +668,9 @@
     },
     {
       "path": "parity/card-runtime/INPUT_SHA256.json",
-      "bytes": 23272,
-      "sha256": "06a61740f2a7678fae07c3004c459664519a29e8a24d09cf12443c68de4eb51a",
-      "frozenOriginalSha256": "06a61740f2a7678fae07c3004c459664519a29e8a24d09cf12443c68de4eb51a",
+      "bytes": 23376,
+      "sha256": "37bb94fac9fa8b80688629f19cd5b4c15be5898430a6560b0a522ec2c9370da8",
+      "frozenOriginalSha256": "37bb94fac9fa8b80688629f19cd5b4c15be5898430a6560b0a522ec2c9370da8",
       "docOverlayApplied": false
     },
     {
@@ -682,9 +682,9 @@
     },
     {
       "path": "parity/card-runtime/source.json",
-      "bytes": 53033364,
-      "sha256": "a40518c2217af6a2bec014206c65f52c41ffd0b29b3a184f2fe59096693872e7",
-      "frozenOriginalSha256": "a40518c2217af6a2bec014206c65f52c41ffd0b29b3a184f2fe59096693872e7",
+      "bytes": 53033468,
+      "sha256": "032d49aad1e204f9f57754e7fdbbe0121ca1f4e99a265e10437ff3cb266f1e51",
+      "frozenOriginalSha256": "032d49aad1e204f9f57754e7fdbbe0121ca1f4e99a265e10437ff3cb266f1e51",
       "docOverlayApplied": false
     },
     {
@@ -703,9 +703,9 @@
     },
     {
       "path": "tools/card-runtime-fixtures/capture.mts",
-      "bytes": 5987,
-      "sha256": "e4eb7efb4fc373e430d13cd0d790432a417cebe2fb54fe4cc268d3df67d9d33d",
-      "frozenOriginalSha256": "e4eb7efb4fc373e430d13cd0d790432a417cebe2fb54fe4cc268d3df67d9d33d",
+      "bytes": 6091,
+      "sha256": "e39d1906ccfcddd8734559dbf03da3bcff79ef097afe99e1c9a283a760d4192b",
+      "frozenOriginalSha256": "e39d1906ccfcddd8734559dbf03da3bcff79ef097afe99e1c9a283a760d4192b",
       "docOverlayApplied": false
     },
     {

@@ -5,6 +5,7 @@ use crate::{Arena, Event, Placement, PlayerId, RawCommand, Secrets, Sim, SimConf
 use serde_json::{json, Value as V};
 mod arena_refund;
 mod compare;
+mod hash_tape;
 mod motion;
 mod repair_tests;
 mod runner;
@@ -40,32 +41,14 @@ fn frozen_core_source_casts() {
 }
 /// Always executes every admitted source case and pins the exact outstanding inventory.
 /// RH_ABIL_REQUIRE_FULL additionally makes the explicitly unattempted prerequisites fatal.
+/// P-ABIL-1 admitted the two cards cases and the two signatures cases (real grantCard / own-Mark producers); the
+/// remaining six are the training world and the full five-faction source-born NPC signatures, both owned elsewhere.
 #[test]
 fn frozen_full_source_all_63_cases() {
     let corpus = corpus();
     let cases = corpus["cases"].as_array().unwrap();
     assert_eq!(cases.len(), 63);
     let expected_pending = [
-        (
-            "trial-gallows-card-exit",
-            "cards",
-            "actual Arcane Overload/Wishful Thinking/Gallows card producers",
-        ),
-        (
-            "arcane-overload-wishful-stock-trim",
-            "cards",
-            "actual Arcane Overload/Wishful Thinking/Gallows card producers",
-        ),
-        (
-            "trial-own-convicted-mark-from-real-weapon-hits",
-            "signatures",
-            "actual Source lifecycle player faction teleport reset producers",
-        ),
-        (
-            "trial-other-owner-convicted-is-not-own-mark",
-            "signatures",
-            "actual Source lifecycle player faction teleport reset producers",
-        ),
         (
             "training-swarm-real-five-second-recast-replacement",
             "training",
@@ -541,4 +524,128 @@ fn genuine_voided_casts_keep_clocks_and_restore_after_due_time() {
             "overdue producer requires genuine voided lifecycle"
         );
     }
+}
+
+/// The P-ABIL-1 coupled cases now admitted (previously named pending): the card producers and the signatures
+/// own-Mark producers are real game paths, never a seeded poststate. Each reproduces every compared frame and every
+/// ordinary checkpoint restore of the frozen source corpus.
+#[test]
+fn admitted_coupled_source_cases_reproduce_their_real_producers() {
+    let corpus = corpus();
+    let find = |name: &str| -> &V {
+        corpus["cases"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|c| c["name"] == name)
+            .unwrap()
+    };
+    // grantCard: the declared cards are really granted before the first compared frame.
+    let gallows = find("trial-gallows-card-exit");
+    let s = construct(&gallows["input"]);
+    assert!(s.w.players[0]
+        .build
+        .owns(crate::cards::CardId::GallowsPatience));
+    run_case(gallows);
+    let arcane = find("arcane-overload-wishful-stock-trim");
+    let s = construct(&arcane["input"]);
+    assert!(s.w.players[0]
+        .build
+        .owns(crate::cards::CardId::ArcaneOverload));
+    assert!(s.w.players[0]
+        .build
+        .owns(crate::cards::CardId::WishfulThinking));
+    run_case(arcane);
+    // Ordinary sword hits earned the tier-3 mark (bounded by the source frame tape), then Trial read it.
+    let own = find("trial-own-convicted-mark-from-real-weapon-hits");
+    let s = run_case(own);
+    assert!(s.w.players[0].signature.mark.tier >= 3);
+    let zone =
+        s.w.abilities
+            .as_ref()
+            .unwrap()
+            .fields
+            .iter()
+            .find(|f| f.kind == crate::status_runtime::FieldKind::Zone)
+            .expect("the caster's own convicted mark tightens the Trial ring");
+    assert_eq!(zone.r, crate::abilities::TRIAL_CONVICTED_RADIUS);
+    let other = find("trial-other-owner-convicted-is-not-own-mark");
+    let s = run_case(other);
+    assert!(s.w.players[2].signature.mark.tier >= 3);
+    assert_eq!(s.w.players[0].signature.mark.tier, 0);
+    let zone =
+        s.w.abilities
+            .as_ref()
+            .unwrap()
+            .fields
+            .iter()
+            .find(|f| f.kind == crate::status_runtime::FieldKind::Zone)
+            .expect("another owner's mark does not tighten this Trial");
+    assert_eq!(zone.r, crate::abilities::TRIAL_RADIUS);
+}
+
+/// The new card producer states are restore-valid, and the trusted validators bind the producer to the card that
+/// can emit it: a Gallows Trial tuple without the card or a trim trace outside the source budget is rejected.
+#[test]
+fn card_producer_checkpoint_states_restore_and_reject_malformed_producers() {
+    let corpus = corpus();
+    let find = |name: &str| -> &V {
+        corpus["cases"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|c| c["name"] == name)
+            .unwrap()
+    };
+    let gallows = find("trial-gallows-card-exit");
+    // Stop after the landing: the shorter Trial window is gone from the final state (the subject exited it).
+    let mut s = construct(&gallows["input"]);
+    #[cfg(feature = "trusted-status-probes")]
+    {
+        s.w.trace.1.enabled = true;
+    }
+    for input in gallows["input"]["actions"][0]["inputs"].as_array().unwrap() {
+        enqueue(&mut s, input);
+    }
+    for _ in 0..8 {
+        source_step(&mut s, gallows);
+    }
+    let good = serde_json::to_value(&s).unwrap();
+    assert!(Sim::restore(good.clone()).is_ok());
+    let mut bad = good.clone();
+    let counts = bad
+        .pointer("/world/players/0/build/counts")
+        .unwrap()
+        .as_array()
+        .unwrap()
+        .len();
+    *bad.pointer_mut("/world/players/0/build/counts").unwrap() = json!(vec![0u8; counts]);
+    assert!(
+        Sim::restore(bad).is_err(),
+        "a Gallows ring without the card"
+    );
+    let mut bad = good.clone();
+    let ends = bad
+        .pointer("/world/abilities/fields/0/ends_at")
+        .unwrap()
+        .as_f64()
+        .unwrap();
+    *bad.pointer_mut("/world/abilities/fields/0/ends_at")
+        .unwrap() = json!(ends + 1.);
+    assert!(Sim::restore(bad).is_err(), "a tampered Trial ring lifetime");
+    let arcane = find("arcane-overload-wishful-stock-trim");
+    let s = run_case(arcane);
+    let good = serde_json::to_value(&s).unwrap();
+    assert!(Sim::restore(good.clone()).is_ok());
+    let trims = good
+        .pointer("/world/players/0/card_trims")
+        .unwrap()
+        .as_array()
+        .unwrap()
+        .len();
+    assert!(trims > 0, "the Wishful Thinking producer trimmed the clock");
+    let mut bad = good.clone();
+    *bad.pointer_mut("/world/players/0/card_trims/0/ms").unwrap() =
+        json!(crate::constants::WISHFUL_BUDGET_MS + 1.);
+    assert!(Sim::restore(bad).is_err(), "an out-of-budget trim");
 }

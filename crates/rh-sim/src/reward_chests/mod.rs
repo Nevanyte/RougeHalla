@@ -1,9 +1,11 @@
 //! Source chest transaction. Producers call these narrow crate-only functions; no public spawn/grant command.
+mod pools;
 mod rules;
 mod view;
+pub use pools::*;
 pub use rules::{visit_content, Definition, DEFINITION};
 pub(crate) mod observer;
-use crate::{cards::CardId, state::World, statics::MatchStatic, Event, PlayerId, Vec2};
+use crate::{state::World, statics::MatchStatic, Event, PlayerId, Vec2};
 pub use observer::*;
 pub use view::*;
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -17,19 +19,22 @@ pub enum Refusal {
     Owned,
     Maxed,
     NotYours,
+    /// A conditional card whose base the picker does not hold (source "Needs <Base>").
+    Needs(crate::cards::BaseStatId),
 }
 impl Refusal {
-    pub fn message(self) -> &'static str {
+    pub fn message(self) -> std::borrow::Cow<'static, str> {
         match self {
-            Self::Busy => "Can't do that now",
-            Self::Gone => "Chest gone",
-            Self::Far => "Too far away",
-            Self::Blocked => "Can't reach that",
-            Self::Picked => "You already picked",
-            Self::Taken => "Already taken",
-            Self::Owned => "Already yours",
-            Self::Maxed => "Stat maxed",
-            Self::NotYours => "Not yours",
+            Self::Busy => "Can't do that now".into(),
+            Self::Gone => "Chest gone".into(),
+            Self::Far => "Too far away".into(),
+            Self::Blocked => "Can't reach that".into(),
+            Self::Picked => "You already picked".into(),
+            Self::Taken => "Already taken".into(),
+            Self::Owned => "Already yours".into(),
+            Self::Maxed => "Stat maxed".into(),
+            Self::NotYours => "Not yours".into(),
+            Self::Needs(base) => format!("Needs {}", base.label()).into(),
         }
     }
 }
@@ -61,8 +66,7 @@ fn insert(w: &mut World, at: Vec2, options: [Option<OptionId>; 3], camp: Option<
     });
     id
 }
-/// Exact three distinct source boost choices, one actual reward draw per slot.
-#[allow(dead_code)] // serial integration: actual first-open stat-crate producer
+/// Exact three distinct source boost choices, one actual reward draw per slot (the first-open stat-crate producer).
 pub(crate) fn drop_stat(w: &mut World, at: Vec2) -> u32 {
     let mut pool = BoostId::ALL;
     let mut n = pool.len();
@@ -75,35 +79,7 @@ pub(crate) fn drop_stat(w: &mut World, at: Vec2) -> u32 {
     });
     insert(w, at, options, None)
 }
-fn tiered(rng: &mut crate::private_rng::Sfc32, pool: &[CardId], elite: bool) -> Option<CardId> {
-    if pool.is_empty() {
-        return None;
-    }
-    let weights = DEFINITION.tier_weights[usize::from(elite)];
-    let r = rng.next_f64() * weights.iter().sum::<f64>();
-    let want = if r < weights[0] {
-        1u8
-    } else if r < weights[0] + weights[1] {
-        2
-    } else {
-        3
-    };
-    let tier = pool
-        .iter()
-        .map(|v| v.tier())
-        .min_by_key(|v| (v.abs_diff(want), *v))?;
-    let mut matching = [CardId::SlowBurn; 3];
-    let mut n = 0;
-    for id in pool {
-        if id.tier() == tier {
-            matching[n] = *id;
-            n += 1
-        }
-    }
-    Some(matching[((rng.next_f64() * n as f64).floor() as usize).min(n - 1)])
-}
-/// Supported availability intersects source interactive eligibility; callers supply real eligible contributor IDs.
-#[allow(dead_code)] // serial integration: actual credited elite-death producer
+/// Source chest drop: the interactive augment pool of the eligible pickers, rolled with the reward RNG (exact draw order).
 pub(crate) fn drop_augment(
     w: &mut World,
     at: Vec2,
@@ -112,43 +88,119 @@ pub(crate) fn drop_augment(
     elite: bool,
     eligible: &[PlayerId],
 ) -> u32 {
-    let mut pool = [CardId::SlowBurn; 3];
-    let mut n = 0;
-    for id in CardId::ALL {
-        let held_all = !eligible.is_empty()
-            && eligible
-                .iter()
-                .all(|pid| w.player(*pid).is_some_and(|p| p.build.owns(id)));
-        if !held_all {
-            pool[n] = id;
-            n += 1
-        }
-    }
-    let theme = DEFINITION.themed_first[zone.code() as usize];
+    let pickers: Vec<crate::cards::Build> = eligible
+        .iter()
+        .filter_map(|pid| w.player(*pid).map(|p| p.build))
+        .collect();
+    let pool = augment_pool(&pickers);
     let mut options = [None; 3];
-    let themed = theme.filter(|id| pool[..n].contains(id));
-    options[0] = tiered(
-        &mut w.reward_rng,
-        themed
-            .as_ref()
-            .map(std::slice::from_ref)
-            .unwrap_or(&pool[..n]),
-        elite,
-    )
-    .map(OptionId::Card);
-    for i in 1..3 {
-        let mut available = [CardId::SlowBurn; 3];
-        let mut count = 0;
-        for id in &pool[..n] {
-            if !options[..i].contains(&Some(OptionId::Card(*id))) {
-                available[count] = *id;
-                count += 1
-            }
+    if !pool.is_empty() {
+        let mut draw = || w.reward_rng.next_f64();
+        let rolled = roll_with(&mut draw, &pool, elite, Some(zone));
+        for (i, id) in rolled.into_iter().enumerate() {
+            options[i] = Some(OptionId::Card(id));
         }
-        options[i] = tiered(&mut w.reward_rng, &available[..count], elite).map(OptionId::Card);
     }
     insert(w, at, options, camp)
 }
+/// Source `chests.dropRewardChest` with an owner (legacy `killAugments.onPlayerKilled`: a private Trophy reward
+/// container at the killer's feet). The options are kill-augment ids, the owner is the killer alone, and the container
+/// outlives a chest (`KILL_AUG_SECONDS`); it rides the one `choose` action like every other reward container.
+pub(crate) fn drop_trophy(
+    w: &mut World,
+    at: Vec2,
+    owner: PlayerId,
+    options: &[crate::kill_augments::KillAugment],
+) -> u32 {
+    let mut slots = [None; 3];
+    for (i, a) in options.iter().take(3).enumerate() {
+        slots[i] = Some(OptionId::Kill(*a));
+    }
+    let id = w.next_entity_id();
+    w.reward_chests.push(Chest {
+        id,
+        at,
+        expires_at: w.server_time + crate::constants::KILL_AUG_SECONDS * 1000.,
+        held_until_tick: w.tick + DEFINITION.birth_hold_ticks,
+        options: slots,
+        taken: [None; 3],
+        pickers: Vec::with_capacity(crate::constants::MAX_PLAYERS),
+        camp: None,
+        owner: Some(owner),
+    });
+    id
+}
+
+/// Source `chests.onMobKilled` (legacy `chainHook(world, "mobKilled", ...)`): a credited elite's death drops its
+/// camp's shared augment chest at the camp's chest spot (the centre when that tile is solid), with the source's eligible
+/// pickers and exact reward draw order; a campless elite drops one at its body for the killer alone. The snapshot set
+/// arrives on the hook arguments because a clear forgets its contributors before the pass pays.
+pub(crate) fn on_mob_killed(hx: &mut crate::hooks::Hx, args: &crate::hooks::HookArgs) {
+    let crate::hooks::HookArgs::MobKilled {
+        camp,
+        elite,
+        zone,
+        at,
+        contributors,
+        ..
+    } = args
+    else {
+        return;
+    };
+    if !*elite {
+        return;
+    }
+    let k = hx.k;
+    if *camp >= 0 {
+        let camp = *camp as u32;
+        let Some(spot) = camp_chest_spot(k, camp) else {
+            return; // source rollChest: a camp the map does not have
+        };
+        let eligible: Vec<PlayerId> = contributors
+            .iter()
+            .copied()
+            .filter(|id| {
+                hx.w.player(*id)
+                    .is_some_and(|p| p.standing() && near_camp(k, camp, p.pos()))
+            })
+            .collect();
+        drop_augment(&mut *hx.w, spot, Some(camp as u16), *zone, true, &eligible);
+    } else {
+        // Source: an elite without a camp (a training/dummy death) drops at its body with no eligible pickers, so the
+        // conditional pool is empty and no card is held by all.
+        drop_augment(&mut *hx.w, *at, None, *zone, true, &[]);
+    }
+}
+
+fn camp_def(k: &MatchStatic, camp: u32) -> Option<&crate::mapdata::CampDef> {
+    k.arena
+        .map
+        .layers()
+        .and_then(|l| l.data().camps.get(camp as usize))
+}
+
+/// Source `chests.chestSpot`: the camp's chest tile, or its centre when that tile is solid.
+fn camp_chest_spot(k: &MatchStatic, camp: u32) -> Option<Vec2> {
+    let c = camp_def(k, camp)?;
+    let chest = Vec2::new(c.chest.x, c.chest.y);
+    let solid = k.arena.map.is_solid(
+        (chest.x / crate::constants::TILE).floor() as i64,
+        (chest.y / crate::constants::TILE).floor() as i64,
+    );
+    Some(if solid { Vec2::new(c.x, c.y) } else { chest })
+}
+
+/// Source `campHeal.nearCamp`: inside the camp's territory or within `CAMP_HEAL_RANGE` of its centre.
+fn near_camp(k: &MatchStatic, camp: u32, at: Vec2) -> bool {
+    if crate::systems::mob_ai::territory(k, at) == camp + 1 {
+        return true;
+    }
+    let Some(c) = camp_def(k, camp) else {
+        return true; // source: a camp with no centre counts everyone who fought it
+    };
+    crate::math::hypot(at.x - c.x, at.y - c.y) <= crate::constants::CAMP_HEAL_RANGE
+}
+
 pub(crate) fn grant_boost(k: &MatchStatic, w: &mut World, id: PlayerId, boost: BoostId) -> bool {
     let Some(i) = w.idx(id) else { return false };
     let count = &mut w.players[i].build.boosts[boost.index()];
@@ -192,7 +244,8 @@ pub(crate) fn choose(
         .and_then(|id| w.reward_chests.iter().position(|c| c.id == id))
         .ok_or(Refusal::Gone)?;
     let c = &w.reward_chests[ci];
-    if c.held_until_tick >= w.tick || w.server_time >= c.expires_at {
+    // Only the birth tick refuses (source bornThisTick): the hold is the last refused tick plus one.
+    if c.held_until_tick > w.tick || w.server_time >= c.expires_at {
         return Err(Refusal::Gone);
     }
     if c.owner.is_some_and(|owner| owner != who) {
@@ -227,12 +280,22 @@ pub(crate) fn choose(
         if c.taken[i].is_some() {
             return Err(Refusal::Taken);
         }
-        // Source owner-bound trophy options use killAugments, outside this Card/Boost subset.
-        if c.owner.is_some() && matches!(option, OptionId::Card(_)) {
+        // Source: a boost option is checked first, then an owner-bound container's option is a kill augment (the
+        // parse failing is silent and uses up nothing); ordinary card checks come last.
+        if c.owner.is_some() && !matches!(option, OptionId::Kill(_)) {
             return Ok(());
         }
         match option {
             OptionId::Card(id) if w.players[pi].build.owns(id) => return Err(Refusal::Owned),
+            OptionId::Card(id)
+                if id.definition().requires.is_some_and(|req| {
+                    !crate::cards::CardId::ALL.iter().any(|base| {
+                        base.definition().base == Some(req) && w.players[pi].build.owns(*base)
+                    })
+                }) =>
+            {
+                return Err(Refusal::Needs(id.definition().requires.expect("checked")));
+            }
             OptionId::Boost(id)
                 if u32::from(w.players[pi].build.boosts[id.index()])
                     >= crate::stat_fold::default_definition().chest_boost_max_picks =>
@@ -249,6 +312,9 @@ pub(crate) fn choose(
             }
             OptionId::Boost(id) => {
                 grant_boost(k, w, who, id);
+            }
+            OptionId::Kill(a) => {
+                crate::kill_augments::grant(k, w, who, a);
             }
         }
     }
@@ -296,9 +362,24 @@ pub(crate) fn validate_world(w: &World, near: impl Fn(f64, f64) -> bool) -> Resu
             || !near(c.at.x, c.at.y)
             || !c.expires_at.is_finite()
             || c.expires_at < 0.
-            || c.expires_at > w.server_time + DEFINITION.lifetime_ms
+            || c.expires_at
+                > w.server_time
+                    + if c.owner.is_some() {
+                        crate::constants::KILL_AUG_SECONDS * 1000.
+                    } else {
+                        DEFINITION.lifetime_ms
+                    }
             || c.held_until_tick > w.tick.saturating_add(DEFINITION.birth_hold_ticks)
             || c.owner.is_some_and(|id| w.roster.name(id).is_none())
+            || (c.owner.is_some() && c.camp.is_some())
+            || c.options
+                .iter()
+                .flatten()
+                .any(|o| matches!(o, OptionId::Kill(_)) != c.owner.is_some())
+            || c.options
+                .iter()
+                .flatten()
+                .any(|o| matches!(o, OptionId::Kill(a) if !(a.gain.is_finite() && a.gain > 0.)))
             || c.options[..n].iter().any(Option::is_none)
             || c.options[n..].iter().any(Option::is_some)
             || c.options
@@ -324,5 +405,7 @@ pub(crate) fn validate_world(w: &World, near: impl Fn(f64, f64) -> bool) -> Resu
     Ok(())
 }
 
+#[cfg(test)]
+mod chest_runtime_tests;
 #[cfg(test)]
 mod tests;

@@ -1,0 +1,13 @@
+diff --git a/crates/rh-policy/src/bots/wish.rs b/crates/rh-policy/src/bots/wish.rs
+index d1e2d81b..0bb7883c 100644
+--- a/crates/rh-policy/src/bots/wish.rs
++++ b/crates/rh-policy/src/bots/wish.rs
+@@ -56,7 +56,7 @@ pub const ESCAPE_HEADINGS: [f64; 7] = [
+ /// The escape fallback reach of a directional cast (abilityPolicy.ts uses 300 when the rule has no range).
+ const ESCAPE_DIR_RANGE: f64 = 300.;
+ /// A landing must be at least this much further from the threat than the caster to count as an escape.
+-const ESCAPE_GAIN: f64 = 24.;
++const ESCAPE_GAIN: f64 = 1000.;
+ /// The policy's block bits, keyed by the source's names.
+ fn block_bit(name: BlockedBy) -> u16 {
+     match name {

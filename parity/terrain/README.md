@@ -93,3 +93,18 @@ This source witness alone does not declare native terrain, full NPC content, loc
 observation privacy, restore/hash coverage or headless/policy integration complete. Native
 consumers must exercise the same declared inputs and compare actual results, then verify
 those integration contracts separately. Private fixture fields are never a public projection.
+
+## Arena-lock/teleport continuation witness
+
+[ARENA.md](ARENA.md) records the separate P-TERRAIN-1 acceptance witness
+`arena-source.json` (`rh-terrain-arena-source/1`): an actual source constructor, ordinary lobby close, the real
+scheduled coliseum teleport, real scheduled-step locked ticks, a real between-tick death that reopens the gates,
+the 1500 ms teleport-immunity window and ordinary ticks after it. It covers ember burn, ice traction and
+Holy light healing and the terrain response to the actual `teleported`/`raidStarted` chains and to a real lock.
+It is not full-world parity and does not replace the frozen `source.json`/`born-source.json` corpora above; full
+P-TERRAIN-1 remains incomplete for the producer domains named in [ARENA.md](ARENA.md).
+
+```sh
+tools/terrain-fixtures/arena-capture.sh --check
+cargo test -p rh-sim --lib --all-features systems::terrain::arena_tests
+```

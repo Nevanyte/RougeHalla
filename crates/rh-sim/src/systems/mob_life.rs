@@ -297,7 +297,7 @@ fn dropper(w: &World, a: &Award) -> bool {
             .filter(|d| d.camp == a.camp)
             .map(|d| d.serial)
             .min()
-            == Some(a.serial)
+            .is_none_or(|serial| serial == a.serial)
 }
 fn drop_weapon(w: &mut World, a: &Award) {
     if a.weapon != WeaponId::Fists {
@@ -402,37 +402,30 @@ pub(crate) fn pay(k: &MatchStatic, w: &mut World, ev: &mut Vec<Event>, a: Award)
             award_weapon(w, ev, &a);
         }
     }
-    if a.elite {
-        if let Some(c) = k
-            .arena
-            .map
-            .layers()
-            .and_then(|l| l.data().camps.get(a.camp as usize))
-        {
-            let at = if k.arena.map.is_solid(
-                (c.chest.x / TILE).floor() as i64,
-                (c.chest.y / TILE).floor() as i64,
-            ) {
-                Vec2::new(c.x, c.y)
-            } else {
-                Vec2::new(c.chest.x, c.chest.y)
-            };
-            let eligible: Vec<_> = a
-                .contributors
-                .into_iter()
-                .filter(|id| {
-                    w.player(*id).is_some_and(|p| {
-                        p.standing()
-                            && (mob_ai::territory(k, p.pos()) == a.camp + 1
-                                || crate::math::hypot(p.body.x - c.x, p.body.y - c.y)
-                                    <= CAMP_HEAL_RANGE)
-                    })
-                })
-                .collect();
-            crate::reward_chests::drop_augment(w, at, Some(a.camp as u16), a.zone, true, &eligible);
-        }
-    }
+    // Source payMobKill: credit, stat, the settled weapon awards and the chainable `mobKilled` hook. The chests link
+    // (P-CARDS-2) runs inside the hook at its recorded chain position; the quests link stays Pending.
+    crate::hooks::fire(
+        &mut crate::hooks::Hx {
+            stats: Default::default(),
+            k,
+            w,
+            ev,
+            fx: None,
+        },
+        crate::hooks::HookArgs::MobKilled {
+            killer: id,
+            mob_type: a.mob_type,
+            zone: a.zone,
+            camp: a.camp as i32,
+            elite: a.elite,
+            at: a.at,
+            contributors: a.contributors,
+        },
+    );
 }
+#[cfg(all(test, feature = "trusted-status-probes"))]
+mod mob_lifecycle_tests;
+
 pub(crate) fn reap(cx: &mut Cx) {
     if !mob_ai::enabled(cx.w) {
         return;

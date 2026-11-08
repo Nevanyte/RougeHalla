@@ -699,20 +699,15 @@ pub(crate) static PHASES: [Item<PhaseFn>; 23] = [
         inputs::apply_mobs(cx);
         Flow::Continue
     }),
-    // Complete status/field lifecycle runs here. P-ABIL-1 extends this phase with cast producers.
-    partial(
-        "abilities",
-        Gate::Always,
-        "status lifecycle, fields and reveal",
-        "P-ABIL-1",
-        |cx| {
-            crate::vision::apply_exposures(cx);
-            crate::systems::status::expire(cx);
-            crate::systems::abilities::land(cx);
-            crate::systems::status::finish(cx);
-            Flow::Continue
-        },
-    ),
+    // The complete abilities phase (P-ABIL-1): expire statuses/fields, land the due casts atomically, end the zones
+    // that left their ring and refresh the bits/reveals — the four legacy steps in their recorded order.
+    ported("abilities", Gate::Always, |cx| {
+        crate::vision::apply_exposures(cx);
+        crate::systems::status::expire(cx);
+        crate::systems::abilities::land(cx);
+        crate::systems::status::finish(cx);
+        Flow::Continue
+    }),
     ported("targets", Gate::Always, |cx| {
         crate::systems::targeting::update(cx);
         Flow::Continue
@@ -813,7 +808,11 @@ static SYSTEMS: [Item<SystemFn>; 24] = [
         Gate::Signatures,
         crate::systems::signatures::after_damage,
     ),
-    pending("factions.healOverTime", Gate::Signatures, "P-FACTION-1"),
+    ported(
+        "factions.healOverTime",
+        Gate::Signatures,
+        crate::systems::heal::over_time,
+    ),
     pending("mobs.resetDummies", Gate::Always, "P-MOBS-1"),
     pending("buffs.expireBoosts", Gate::Always, "P-CARDS-2"),
     ported(
@@ -864,7 +863,11 @@ static SYSTEMS: [Item<SystemFn>; 24] = [
         crate::systems::potions::update,
     ),
     pending("traders.updateTraders", Gate::NotTraining, "P-TRADE-1"),
-    pending("cardHooks.afterDamage", Gate::Always, "P-CARDS-1"),
+    ported(
+        "cardHooks.afterDamage",
+        Gate::Always,
+        crate::cards::after_damage,
+    ),
     pending("plagueCorpses.<anonymous>", Gate::Signatures, "P-FACTION-3"),
     pending("bruiserPassives.update", Gate::Signatures, "P-FACTION-5"),
     // Current status sources are axe shred and attack slow. P-CARDS-1 extends this fold with cards.
@@ -1076,11 +1079,11 @@ static TELEPORTED: [Link; 13] = [
         Gate::Always,
         projectiles::teleported,
     ),
-    pending_link(
+    ported_link(
         "factions.<arrow>",
         Mode::Append,
         Gate::Signatures,
-        "P-FACTION-1",
+        crate::systems::signatures::teleported,
     ),
     ported_link(
         "chests.clearChests",
@@ -1113,17 +1116,17 @@ static TELEPORTED: [Link; 13] = [
         Gate::Always,
         crate::vision::raid_started,
     ),
-    pending_link(
+    ported_link(
         "cardHooks.resetFight",
         Mode::Append,
         Gate::Always,
-        "P-CARDS-1",
+        crate::cards::reset_fight,
     ),
-    pending_link(
+    ported_link(
         "cardHooks.dropDeferred",
         Mode::Append,
         Gate::Always,
-        "P-CARDS-1",
+        crate::cards::drop_deferred,
     ),
     pending_link(
         "plagueZombies.<arrow>",
@@ -1160,11 +1163,11 @@ static WEAPON_SWAPPED: [Link; 1] = [ported_link(
     crate::systems::sentenced::weapon_swapped,
 )];
 static HURT: [Link; 2] = [
-    pending_link(
+    ported_link(
         "factions.onHurt",
         Mode::Append,
         Gate::Signatures,
-        "P-FACTION-1",
+        crate::cards::on_hurt::on_hurt,
     ),
     pending_link(
         "fireRoam.<arrow>",
@@ -1180,11 +1183,11 @@ static PLAYER_KILLED: [Link; 3] = [
         Gate::Signatures,
         crate::systems::sentenced::player_killed,
     ),
-    pending_link(
+    ported_link(
         "killAugments.onPlayerKilled",
         Mode::Append,
         Gate::Always,
-        "P-CARDS-3",
+        crate::kill_augments::on_player_killed,
     ),
     pending_link(
         "quests.onPlayerKilled",
@@ -1305,11 +1308,11 @@ static RUN_ENDED: [Link; 12] = [
         crate::systems::status::run_ended,
     ),
     pending_link("quests.<arrow>", Mode::Append, Gate::Quests, "P-QUEST-1"),
-    pending_link(
+    ported_link(
         "cardHooks.dropDeferred",
         Mode::Append,
         Gate::Always,
-        "P-CARDS-1",
+        crate::cards::drop_deferred,
     ),
     pending_link(
         "cardHooks.flushBleeds",
@@ -1350,7 +1353,12 @@ static RUN_ENDED: [Link; 12] = [
     pending_link("walkHint.zeroAll", Mode::Append, Gate::WalkHints, "P-NET-2"),
 ];
 static MOB_KILLED: [Link; 2] = [
-    pending_link("chests.<arrow>", Mode::Append, Gate::Always, "P-CARDS-2"),
+    ported_link(
+        "chests.<arrow>",
+        Mode::Append,
+        Gate::Always,
+        crate::reward_chests::on_mob_killed,
+    ),
     pending_link(
         "quests.onMobKilled",
         Mode::Append,
@@ -1422,11 +1430,11 @@ static STATUS_APPLIED: [Link; 1] = [ported_link(
     Gate::Always,
     crate::systems::status::on_applied,
 )];
-static STAGGERED: [Link; 1] = [pending_link(
+static STAGGERED: [Link; 1] = [ported_link(
     "abilities.<arrow>",
     Mode::Append,
     Gate::Always,
-    "P-ABIL-1",
+    crate::systems::status::staggered,
 )];
 static PLANNING_STARTED: [Link; 1] = [pending_link(
     "quests.spawnQuests",
@@ -1496,11 +1504,11 @@ static BLOCKED: [Link; 2] = [
         "P-FACTION-5",
     ),
 ];
-static OVERKILLED: [Link; 1] = [pending_link(
+static OVERKILLED: [Link; 1] = [ported_link(
     "cardHooks.onOverkilled",
     Mode::Append,
     Gate::Always,
-    "P-CARDS-1",
+    crate::cards::on_overkilled::on_overkilled,
 )];
 static HOOKS: [HookRow; 19] = [
     HookRow {
@@ -1831,6 +1839,7 @@ mod tests {
                 "abilities.abilityDotFx",
                 "vision.refreshVision",
                 "consumables.updateConsumables",
+                "cardHooks.afterDamage",
                 "mods.updateMods"
             ]
         );

@@ -1,0 +1,13 @@
+diff --git a/crates/rh-headless/src/tournament.rs b/crates/rh-headless/src/tournament.rs
+index a8dff5c9..cacb1c32 100644
+--- a/crates/rh-headless/src/tournament.rs
++++ b/crates/rh-headless/src/tournament.rs
+@@ -135,7 +135,7 @@ pub struct GamePlan {
+ /// march together.
+ pub fn mix(seed: u32, tag: u32) -> u32 {
+     let mut h = seed.wrapping_mul(0x9e37_79b1) ^ tag.wrapping_add(1).wrapping_mul(0x85eb_ca6b);
+-    h = (h ^ (h >> 16)).wrapping_mul(0x7feb_352d);
++    h = (h ^ (h >> 16)).wrapping_mul(0x7feb_352e);
+     h = (h ^ (h >> 15)).wrapping_mul(0x846c_a68b);
+     h ^ (h >> 16)
+ }

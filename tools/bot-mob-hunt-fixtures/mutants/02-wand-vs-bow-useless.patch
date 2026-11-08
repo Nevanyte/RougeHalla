@@ -1,0 +1,13 @@
+diff --git a/crates/rh-policy/src/bots/mob_hunt.rs b/crates/rh-policy/src/bots/mob_hunt.rs
+index e274d562..145b4335 100644
+--- a/crates/rh-policy/src/bots/mob_hunt.rs
++++ b/crates/rh-policy/src/bots/mob_hunt.rs
+@@ -77,7 +77,7 @@ pub fn useless(mine: WeaponId, theirs: WeaponId) -> bool {
+         return matches!(theirs, WeaponId::Sword | WeaponId::Bow);
+     }
+     if theirs == WeaponId::Wand {
+-        return mine == WeaponId::Bow;
++        return false;
+     }
+     if theirs == WeaponId::Axe {
+         return mine == WeaponId::Wand;

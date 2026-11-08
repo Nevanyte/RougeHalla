@@ -87,10 +87,19 @@ pub struct WireRewardChest {
     pub picked: bool,
     pub can_choose: bool,
 }
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct WireBuild {
-    pub cards: [u8; 3],
+    pub cards: [u8; 80],
     pub boosts: [u8; 8],
+}
+
+impl Default for WireBuild {
+    fn default() -> Self {
+        Self {
+            cards: [0; 80],
+            boosts: [0; 8],
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -542,7 +551,7 @@ impl StateItem {
                     varint_len(value.len() as u32)
                         + value.iter().map(WireRewardChest::len).sum::<usize>()
                 }
-                Self::Build(value) => 1 + usize::from(value.is_some()) * 11,
+                Self::Build(value) => 1 + usize::from(value.is_some()) * 88,
                 Self::Projectiles(value) => {
                     varint_len(value.len() as u32)
                         + value.iter().map(WireProjectile::len).sum::<usize>()
@@ -718,7 +727,7 @@ impl StateItem {
             }
             5 => Self::Build(r.opt(|r| {
                 Ok(WireBuild {
-                    cards: r.bytes(3)?.try_into().unwrap(),
+                    cards: r.bytes(80)?.try_into().unwrap(),
                     boosts: r.bytes(8)?.try_into().unwrap(),
                 })
             })?),

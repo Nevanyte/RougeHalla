@@ -542,7 +542,7 @@
     },
     {
       "path": "tools/card-runtime-fixtures/capture.mts",
-      "sha256": "e4eb7efb4fc373e430d13cd0d790432a417cebe2fb54fe4cc268d3df67d9d33d"
+      "sha256": "e39d1906ccfcddd8734559dbf03da3bcff79ef097afe99e1c9a283a760d4192b"
     },
     {
       "path": "tools/card-runtime-fixtures/capture.sh",
@@ -580,7 +580,7 @@
   "immutableReferences": [
     {
       "path": "parity/card-catalog/source.json",
-      "sha256": "d7ca500595b0b3a988d6d80a6588e2203863ae3f19b13aeea0ce4a0c8d2017f1",
+      "sha256": "22bdfcbd977fa3d3c35b4e5701ec1476c209176269c9d6666e2ece15d2d46d05",
       "reuse": [
         "catalog/*",
         "eligibility/*",
@@ -621,7 +621,7 @@
     },
     {
       "path": "parity/cards/cards.json",
-      "sha256": "e1306015c3046c90521967ea5f7afc0d623013c42014ce4f23e0c8c18d67f5e9",
+      "sha256": "80f29b28be4db2b8af44d57f6a03abafc33659bc090e0b9baea828403b3a9c52",
       "reuse": [
         "fold-fire",
         "fold-sentenced",
@@ -629,7 +629,7 @@
         "fold-frost",
         "fold-holy"
       ],
-      "scope": "preexisting cards corpus remains byte-identical"
+      "scope": "fold cases remain byte-identical; the option rows were recaptured from the legacy source without the old three-card restriction (full interactive pool)"
     }
   ]
 }

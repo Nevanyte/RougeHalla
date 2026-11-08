@@ -1,0 +1,21 @@
+diff --git a/crates/rh-sim/src/mob_runtime.rs b/crates/rh-sim/src/mob_runtime.rs
+index 3a535524..46bc1783 100644
+--- a/crates/rh-sim/src/mob_runtime.rs
++++ b/crates/rh-sim/src/mob_runtime.rs
+@@ -125,15 +125,13 @@ impl Mob {
+             mob_type,
+             elite,
+             camp,
+             status: Status::Alive,
+             home: at,
+             home_facing: facing,
+-            repath_phase: ((u64::from(serial) * u64::from(crate::constants::MOB_REPATH_PHASE_MULT))
+-                % u64::from(crate::constants::MOB_REPATH_PHASE_PERIOD))
+-                as u32,
++            repath_phase: 0,
+         }
+     }
+ }
+ /// Source mobTypeFaction HP only. Full faction sheets remain the combat stage's responsibility.
+ pub fn spawn_hp(region: FactionId, elite: bool, ty: MobTypeId) -> f64 {
+     let scale = if elite {

@@ -4,6 +4,7 @@
 //! trainer) act for their own players through [`Env::step`]. Both go through the same input path.
 
 pub mod digest;
+pub mod tournament;
 
 use rh_policy::{drive_seats_with, scripted, submit_all, MatchStart, Policy, Seat, SeatStats};
 use rh_sim::replay::{Recorder, Replay, ReplayInput, ReplayStart};

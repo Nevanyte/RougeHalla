@@ -328,3 +328,110 @@ fn zone_boundary_and_owner_departure_use_the_scheduled_field_lifecycle() {
     assert_eq!(removed.len(), 1);
     assert!(s.w.abilities.as_ref().unwrap().fields.is_empty());
 }
+
+/// The abilities chain on the staggered hook: a Wish lists stun and silence alone, so a sword stagger never
+/// wastes it; a definition that lists stagger is interrupted at once (the legacy cancelIf rule).
+#[test]
+fn the_staggered_hook_interrupts_only_casts_that_list_it() {
+    let ps = [
+        Placement {
+            profile: "caster".into(),
+            faction: FactionId::Sentenced,
+            bot: false,
+            at: Vec2::new(400., 400.),
+            hp: Some(500.),
+            weapon0: Some(WeaponId::Sword),
+            weapon1: None,
+        },
+        Placement {
+            profile: "foe".into(),
+            faction: FactionId::Holy,
+            bot: false,
+            at: Vec2::new(430., 400.),
+            hp: Some(500.),
+            weapon0: None,
+            weapon1: None,
+        },
+    ];
+    let mut s = Sim::reset_active(
+        SimConfig {
+            abilities: crate::abilities::Mode::Full,
+            wish_lock_ms: 0.,
+            ..SimConfig::default()
+        },
+        crate::arenas::practice_arena(),
+        Secrets::from_seed(4),
+        &ps,
+    );
+    let caster = s.w.players[0].id;
+    let foe = s.w.players[1].id;
+    let command = validate(RawCommand::Cast {
+        slot: crate::abilities::Slot::Wish,
+        x: 430.,
+        y: 400.,
+        id: Some(foe),
+        t: None,
+        seq: None,
+    })
+    .unwrap();
+    assert!(s.submit(caster, command).is_ok());
+    s.step();
+    let pending = s.w.players[0]
+        .statuses
+        .cast
+        .expect("the Trial cast is pending");
+    assert!(
+        !pending.cancelled_by.stagger,
+        "a Wish does not list stagger"
+    );
+    s.take_events();
+    s.with_cx(|cx| {
+        crate::hooks::fire(
+            &mut crate::hooks::Hx {
+                stats: cx.stats,
+                fx: None,
+                k: cx.k,
+                w: &mut *cx.w,
+                ev: &mut *cx.ev,
+            },
+            crate::hooks::HookArgs::Staggered { id: caster },
+        );
+    });
+    assert_eq!(
+        s.w.players[0].statuses.cast.map(|c| c.started_at),
+        Some(pending.started_at),
+        "the Wish survives a sword stagger"
+    );
+    assert!(!s
+        .take_events()
+        .iter()
+        .any(|e| matches!(e, crate::Event::CastEnded { .. })));
+    // A cast whose definition lists stagger is interrupted at once (the generic cancelIf rule).
+    s.w.players[0]
+        .statuses
+        .cast
+        .as_mut()
+        .unwrap()
+        .cancelled_by
+        .stagger = true;
+    s.with_cx(|cx| {
+        crate::hooks::fire(
+            &mut crate::hooks::Hx {
+                stats: cx.stats,
+                fx: None,
+                k: cx.k,
+                w: &mut *cx.w,
+                ev: &mut *cx.ev,
+            },
+            crate::hooks::HookArgs::Staggered { id: caster },
+        );
+    });
+    assert!(s.w.players[0].statuses.cast.is_none());
+    assert!(s.take_events().iter().any(|e| matches!(
+        e,
+        crate::Event::CastEnded {
+            reason: crate::status_runtime::CastEndReason::Interrupted,
+            ..
+        }
+    )));
+}

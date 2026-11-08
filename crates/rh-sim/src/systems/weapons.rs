@@ -256,12 +256,18 @@ pub(crate) fn move_multiplier(p: &FighterCore, now: f64) -> f64 {
     }
 }
 
-/// Legacy `stagger`: cancels a pending swing or cast (not a draw), once per immunity window.
-pub(crate) fn stagger(p: &mut FighterCore, now: f64, ev: &mut Vec<Event>) {
+/// Legacy `stagger`, part 1: the immunity gate and its clock. The `staggered` hook fires between this and the
+/// cancel (the abilities chain reads the pending cast there); true means the hit staggered this fighter.
+pub(crate) fn stagger_immunity(p: &mut FighterCore, now: f64) -> bool {
     if now < p.weapon.stagger_immune_until {
-        return;
+        return false;
     }
     p.weapon.stagger_immune_until = now + STAGGER_IMMUNITY_SECONDS * 1000.0;
+    true
+}
+
+/// Legacy `stagger`, part 2: cancels a pending swing or cast (not a draw).
+pub(crate) fn stagger_cancel(p: &mut FighterCore, now: f64, ev: &mut Vec<Event>) {
     if let Some(a) = p.weapon.action {
         if a.kind != ActionKind::Draw {
             cancel_action(p, now);

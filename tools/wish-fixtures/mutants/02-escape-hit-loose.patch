@@ -1,0 +1,13 @@
+diff --git a/crates/rh-policy/src/bots/wish.rs b/crates/rh-policy/src/bots/wish.rs
+index da116c5a..16c13508 100644
+--- a/crates/rh-policy/src/bots/wish.rs
++++ b/crates/rh-policy/src/bots/wish.rs
+@@ -37,7 +37,7 @@ pub const TARGET_SNAP_RADIUS: f64 = 64.;
+ // The pure cast policy's numbers (abilityPolicy.ts).
+ pub const ESCAPE_THREAT_DISTANCE: f64 = 260.;
+ pub const ESCAPE_HP_THREATENED: f64 = 0.5;
+-pub const ESCAPE_HP_HIT: f64 = 0.55;
++pub const ESCAPE_HP_HIT: f64 = 0.9;
+ pub const SUSTAIN_HP: f64 = 0.35;
+ pub const ENGAGE_RANGE_MARGIN: f64 = 16.;
+ pub const PEEL_DISTANCE: f64 = 150.;

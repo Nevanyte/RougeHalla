@@ -208,9 +208,12 @@ impl RewardChestObserver {
     }
 }
 fn public_cmp(a: &RewardChestView, b: &RewardChestView) -> std::cmp::Ordering {
+    // A stable public ordering code: cards, then boosts, then kill-augment keys (codes are only a deterministic
+    // tie-break, never part of the observation).
     let code = |v: OptionId| match v {
         OptionId::Card(c) => c.index() as u8,
         OptionId::Boost(s) => 3 + s.index() as u8,
+        OptionId::Kill(a) => 12 + a.key.index() as u8,
     };
     a.at.x
         .total_cmp(&b.at.x)

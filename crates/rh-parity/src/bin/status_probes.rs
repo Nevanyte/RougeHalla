@@ -554,6 +554,9 @@ fn hook_actor(ids: &Ids, p: &rh_sim::state::Player) -> V {
 fn hooks(ids: &Ids, list: &[HookRecord]) -> R<V> {
     Ok(json!(list.iter().map(|r|match r{HookRecord::StatusApplied{actor,status,fresh}=>Ok(json!({"name":"statusApplied","actor":hook_actor(ids,actor),"status":ids.status(status),"fresh":fresh})),HookRecord::AttackStarted{actor}=>Ok(json!({"name":"attackStarted","actor":hook_actor(ids,actor)})),HookRecord::CastEnded{actor,ability,reason}=>Ok(json!({"name":"castEnded","actor":hook_actor(ids,actor),"ability":ability,"reason":reason})),HookRecord::Hurt{actor,amount,before}=>Ok(json!({"name":"hurt","actor":hook_actor(ids,actor),"amount":amount,"before":before})),
  HookRecord::CastAccepted{..}|HookRecord::CastLanded{..}=>Err("full producer hook outside isolated status harness".into()),
+ HookRecord::Staggered{..}=>Err("full producer hook outside isolated status harness".into()),
+ // The regional mob lifecycle hooks never fire in the isolated status harness (it has no mobs or camps).
+ HookRecord::MobKilled{..}|HookRecord::CampCleared{..}=>Err("full producer hook outside isolated status harness".into()),
  HookRecord::HitLanded{hit,amount}=>Ok(json!({"name":"hitLanded","hit":ids.hit_out(hit),"amount":amount})),
  HookRecord::ArenaHurt{victim,by,source,amount}=>Ok(json!({"name":"arenaHurt","victim":ids.name(Some(*victim)),"by":source.as_ref().map(|s|ids.source_out(s)).unwrap_or(json!({"id":ids.name(*by),"name":""})),"amount":amount})),
  HookRecord::Healed{actor,amount,source}=>Ok(json!({"name":"healed","actor":hook_actor(ids,actor),"amount":amount,"source":match source{HealSource::Lifesteal=>"lifesteal",HealSource::DeathFloor=>"lastStand",_=>"other"}})),

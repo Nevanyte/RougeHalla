@@ -228,7 +228,7 @@ impl Sim {
     }
 
     /// Runs `f` over a [`Cx`] outside a step (a leave): its events wait in the world for the next step, in order.
-    fn with_cx<R>(&mut self, f: impl FnOnce(&mut Cx<'_>) -> R) -> R {
+    pub(crate) fn with_cx<R>(&mut self, f: impl FnOnce(&mut Cx<'_>) -> R) -> R {
         self.s.reserve_actors(self.w.fighter_count());
         let mut ev = std::mem::take(&mut self.w.pending_events);
         let r = f(&mut Cx {

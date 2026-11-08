@@ -1127,10 +1127,22 @@ fn arena_capture_inventory_runs_genuine_wish_prerequisite_and_keeps_full_hooks_p
             .is_some_and(|inputs| inputs.iter().any(|i| i["type"] == "cast"))));
     crate::abilities::assert_genuine_arena_refund();
     let tables = crate::schedule::tables();
-    for (hook, name) in [
-        (crate::schedule::Hook::Teleported, "cardHooks.resetFight"),
-        (crate::schedule::Hook::Teleported, "cardHooks.dropDeferred"),
-        (crate::schedule::Hook::RaidStarted, "cardHooks.resetAll"),
+    for (hook, name, pending) in [
+        (
+            crate::schedule::Hook::Teleported,
+            "cardHooks.resetFight",
+            None,
+        ),
+        (
+            crate::schedule::Hook::Teleported,
+            "cardHooks.dropDeferred",
+            None,
+        ),
+        (
+            crate::schedule::Hook::RaidStarted,
+            "cardHooks.resetAll",
+            Some("P-CARDS-1"),
+        ),
     ] {
         let link = tables
             .hooks
@@ -1141,14 +1153,10 @@ fn arena_capture_inventory_runs_genuine_wish_prerequisite_and_keeps_full_hooks_p
             .iter()
             .find(|link| link.legacy == name)
             .unwrap();
-        assert_eq!(
-            link.pending,
-            Some("P-CARDS-1"),
-            "{name} remains explicitly incomplete"
-        );
+        assert_eq!(link.pending, pending, "{name} pending state changed");
     }
     if std::env::var_os("RH_ARENA_REQUIRE_FULL").is_some() {
-        panic!("Full ARENA INCOMPLETE: cardHooks.resetFight/dropDeferred/resetAll; Source wire/client and durable shutdown/MIA prerequisites. Genuine Wish/refund was executed separately; full arena-owned projection is not claimed.");
+        panic!("Full ARENA INCOMPLETE: cardHooks.resetAll; Source wire/client and durable shutdown/MIA prerequisites. Genuine Wish/refund was executed separately; full arena-owned projection is not claimed.");
     }
     eprintln!("Arena owned kernel: 33 ordinary cases +1 declared boon helper, plus genuine Wish/refund prerequisite through its dedicated consumer; full card hooks, Source transport/durability and complete case27 arena projection remain INCOMPLETE");
 }
@@ -1168,7 +1176,7 @@ fn compare_owned_hook_order(sim: &mut Sim, case: &Value, f: &Value, ctx: &str) {
     let source = f["hookTrace"].as_array().unwrap();
     let mut pending = 0;
     let expected=source.iter().filter(|h|{
-        if h["hook"]=="staggered" {assert_eq!(h["installer"],"abilities");pending+=1;false}else if h["installer"]=="cardHooks" {assert!(roster&&["raidStarted","teleported"].contains(&h["hook"].as_str().unwrap()));pending+=1;false}else{true}
+        if h["installer"]=="cardHooks" {assert!(roster&&["raidStarted","teleported"].contains(&h["hook"].as_str().unwrap()));pending+=1;false}else{if h["hook"]=="staggered" {assert_eq!(h["installer"],"abilities", "the abilities chain owns the staggered link");}true}
     }).map(|h|{let mut h=h.clone();h.as_object_mut().unwrap().remove("phase");
         if let Some(transition)=h.as_object_mut().unwrap().remove("visionTransition"){
             let mut watched=Vec::new();for a in case["input"]["actions"].as_array().unwrap().iter().take(f["action"].as_u64().unwrap()as usize){if a["kind"]=="vision"{let actor=id(&a["actor"]);if !watched.contains(&actor){watched.push(actor);}}}
