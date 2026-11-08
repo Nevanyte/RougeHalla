@@ -47,26 +47,6 @@ fn frozen_full_source_all_63_cases() {
     assert_eq!(cases.len(), 63);
     let expected_pending = [
         (
-            "trial-gallows-card-exit",
-            "cards",
-            "actual Arcane Overload/Wishful Thinking/Gallows card producers",
-        ),
-        (
-            "arcane-overload-wishful-stock-trim",
-            "cards",
-            "actual Arcane Overload/Wishful Thinking/Gallows card producers",
-        ),
-        (
-            "trial-own-convicted-mark-from-real-weapon-hits",
-            "signatures",
-            "actual Source lifecycle player faction teleport reset producers",
-        ),
-        (
-            "trial-other-owner-convicted-is-not-own-mark",
-            "signatures",
-            "actual Source lifecycle player faction teleport reset producers",
-        ),
-        (
             "training-swarm-real-five-second-recast-replacement",
             "training",
             "actual training lifecycle and dummy constructor",

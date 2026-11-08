@@ -33,10 +33,10 @@ pub(crate) fn validate(
     for p in &w.players {
         let stocks = p.stocks;
         if let Some(cards) = p.card_runtime {
-            if !full {
+            if !full && cards.wish_cast.is_some() {
                 return Err("card Wish memory in Off mode".into());
             }
-            if cards.wish_cast.is_none() {
+            if cards.wish_cast.is_none() && cards.memory.is_none() {
                 return Err("unproduced empty card runtime".into());
             }
             if let Some(spend) = cards.wish_cast {
@@ -90,10 +90,19 @@ pub(crate) fn validate(
                 }
                 let def = definition(wish(p.vitals.faction));
                 let recharge = cooldown(def.id, false, Some(p.modifiers.wish_cooldown_mult()));
-                if stocks.wish_ready_at > full_at
-                    || (stocks.wish_ready_at != full_at
-                        && (def.charges != 2
-                            || stocks.wish_ready_at != (full_at - recharge).max(0.)))
+                let wishful = p.build.owns(crate::cards::CardId::WishfulThinking);
+                if !wishful
+                    && (stocks.wish_ready_at > full_at
+                        || (stocks.wish_ready_at != full_at
+                            && (def.charges != 2
+                                || stocks.wish_ready_at != (full_at - recharge).max(0.))))
+                {
+                    return Err("incoherent Wish charge clocks".into());
+                }
+                if wishful
+                    && (!(stocks.wish_ready_at.is_finite() && full_at.is_finite())
+                        || stocks.wish_ready_at < 0.
+                        || full_at < 0.)
                 {
                     return Err("incoherent Wish charge clocks".into());
                 }
@@ -101,6 +110,15 @@ pub(crate) fn validate(
                     return Err("Wish clocks precede opening lock".into());
                 }
                 if let Some(spend) = p.card_runtime.and_then(|c| c.wish_cast) {
+                    if wishful {
+                        let floor =
+                            spend.at + crate::constants::WISHFUL_FLOOR_SHARE * spend.cooldown_ms;
+                        let cap = spend.at + f64::from(def.charges.max(1)) * recharge;
+                        if full_at + 1e-6 < floor || full_at > cap + 1e-6 {
+                            return Err("Wishful trim left the stock clock".into());
+                        }
+                        continue;
+                    }
                     let first_cast = (w.raid_started_at + crate::constants::TICK_MS).max(initial);
                     let spent = if def.charges == 1 {
                         full_at == spend.at + recharge && stocks.wish_ready_at == full_at

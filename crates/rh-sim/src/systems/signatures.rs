@@ -25,6 +25,8 @@ pub struct LandedHit {
     pub victim: PlayerId,
     pub by: Option<PlayerId>,
     pub amount: f64,
+    pub passive: bool,
+    pub derived: bool,
 }
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct Contact {

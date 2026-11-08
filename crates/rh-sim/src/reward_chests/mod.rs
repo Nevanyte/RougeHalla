@@ -114,7 +114,7 @@ pub(crate) fn drop_augment(
 ) -> u32 {
     let mut pool = [CardId::SlowBurn; 3];
     let mut n = 0;
-    for id in CardId::ALL {
+    for id in CardId::OFFER {
         let held_all = !eligible.is_empty()
             && eligible
                 .iter()

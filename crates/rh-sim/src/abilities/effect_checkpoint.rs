@@ -2,6 +2,24 @@
 use super::*;
 use crate::state::World;
 use crate::status_runtime as rt;
+fn trial_timing(w: &World, owner: Option<crate::PlayerId>) -> (f64, Option<f64>) {
+    let patient = owner.is_some_and(|id| {
+        w.player(id).is_some_and(|p| {
+            p.build.has_flag(
+                p.vitals.faction,
+                crate::stat_fold::EffectFlag::GallowsPatience,
+            )
+        })
+    });
+    if patient {
+        (
+            TRIAL_MS + crate::constants::GALLOWS_PATIENCE_EXTRA_MS,
+            Some(crate::constants::GALLOWS_PATIENCE_STUN_MS),
+        )
+    } else {
+        (TRIAL_MS, rt::TRIAL_FIELD_POLICY.exit_stun_ms)
+    }
+}
 fn source(w: &World, s: &rt::StatusSource) -> bool {
     s.owner_id.is_none()
         && s.id
@@ -26,12 +44,13 @@ pub(super) fn validate(w: &World) -> Result<(), String> {
                         && f.exit_stun_ms.is_none()
                 }
                 (rt::FieldKind::Zone, AbilityId::Trial) => {
+                    let (ms, stun) = trial_timing(w, f.owner.id);
                     f.subject.is_some()
                         && (f.r == TRIAL_RADIUS || f.r == TRIAL_CONVICTED_RADIUS)
-                        && f.ends_at == f.started_at + TRIAL_MS
+                        && f.ends_at == f.started_at + ms
                         && f.x2 == 0.
                         && f.y2 == 0.
-                        && f.exit_stun_ms == rt::TRIAL_FIELD_POLICY.exit_stun_ms
+                        && f.exit_stun_ms == stun
                 }
                 _ => false,
             };
@@ -74,15 +93,13 @@ pub(super) fn validate(w: &World) -> Result<(), String> {
                         })
                 }
                 (AbilityId::Trial, rt::StatusKind::Stun) => {
-                    rt::TRIAL_FIELD_POLICY
-                        .exit_stun_ms
-                        .is_some_and(exact_duration)
+                    trial_timing(w, st.source.id).1.is_some_and(exact_duration)
                         && st.value == 0.
                         && st.data == default
                         && st.taken.is_none()
                 }
                 (AbilityId::Trial, rt::StatusKind::Zoned) => {
-                    exact_duration(TRIAL_MS)
+                    exact_duration(trial_timing(w, st.source.id).0)
                         && st.value == TRIAL_DEALT_MULT
                         && st.taken.is_none()
                         && st.data.field_id.is_some()

@@ -29,4 +29,5 @@ pub fn visit_content(d: &Definition, mut word: impl FnMut(u64)) {
     ] {
         word(v.to_bits())
     }
+    super::catalog::visit_content(&mut word);
 }

@@ -60,7 +60,7 @@ pub(super) fn room(input: &V) -> crate::TileMap {
 pub(super) fn construct(input: &V) -> Sim {
     assert!(matches!(
         input["profile"].as_str(),
-        Some("core" | "signatures" | "roster")
+        Some("core" | "signatures" | "roster" | "cards")
     ));
     PLAYER_COUNT.set(input["players"].as_array().unwrap().len() as u32);
     assert!(matches!(
@@ -173,6 +173,19 @@ pub(super) fn construct(input: &V) -> Sim {
         }
         if declared.get("weapon1").is_some() {
             p.weapon.weapon1 = spec.weapon1;
+        }
+    }
+    if let Some(players) = input["players"].as_array() {
+        for (i, declared) in players.iter().enumerate() {
+            if let Some(cards) = declared.get("cards").and_then(|c| c.as_array()) {
+                for card in cards {
+                    let Some(name) = card.as_str() else { continue };
+                    let Some(id) = crate::cards::CardId::parse(name) else {
+                        continue;
+                    };
+                    crate::cards::grant(&sim.k, &mut sim.w, PlayerId(i as u32 + 1), id);
+                }
+            }
         }
     }
     sim

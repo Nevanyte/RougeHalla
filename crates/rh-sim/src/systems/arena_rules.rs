@@ -94,7 +94,9 @@ pub(crate) fn validate_config(k: &MatchStatic) -> Result<(), &'static str> {
     if k.config.mob_mode == crate::mob_runtime::MobMode::SpawnFoundation {
         return Err("source arena requires runtime mobs, not the constructor-only foundation");
     }
-    if k.config.faction_mode != crate::FactionMode::Off {
+    // Coliseum teleports still need the faction reset producers. A room with no
+    // schedule does not teleport, so sentenced Mark cases can run.
+    if k.config.faction_mode != crate::FactionMode::Off && r.coliseum_schedule.is_some() {
         return Err("source arena faction teleport producers are not yet admitted");
     }
     if k.arena.spawns.is_empty()

@@ -538,6 +538,76 @@ fn compare_owned(
 }
 
 #[test]
+fn mob_provenance_survives_reap_and_commands_go_through_validate() {
+    let mut sim = Sim::reset_active(
+        SimConfig {
+            mob_mode: MobMode::Pve,
+            faction_mode: crate::FactionMode::EngagementHolyPlagueFire,
+            min_players: 1,
+            ..Default::default()
+        },
+        arena("fire"),
+        Secrets::from_seed(3),
+        &[Placement {
+            profile: "a".into(),
+            faction: FactionId::Fire,
+            bot: false,
+            at: Vec2::new(200., 200.),
+            hp: None,
+            weapon0: Some(WeaponId::Sword),
+            weapon1: None,
+        }],
+    );
+    assert!(!sim.w.mobs.is_empty(), "stage 2 spawns real mob fighters");
+    let id = sim.w.mobs[0].core.id;
+    let origin = sim.w.actor_origin(id).cloned().expect("birth provenance");
+    assert!(matches!(
+        origin,
+        crate::mob_runtime::ActorOrigin::Mob { .. }
+    ));
+    assert!(sim.w.mobs[0].core.id == id);
+    sim.w.mobs.remove(id);
+    assert!(sim.w.fighter_idx(id).is_none());
+    assert_eq!(sim.w.actor_origin(id).cloned().as_ref(), Some(&origin));
+    let before = sim.w.players[0].vitals.hp;
+    sim.w.deferred.defer_hit(crate::systems::ledger::Entry {
+        terrain: false,
+        dot: false,
+        ability: None,
+        arena: false,
+        source: None,
+        critical: false,
+        critical_mult: None,
+        sig: None,
+        execute: false,
+        victim: PlayerId(1),
+        by: Some(id),
+        packet: crate::state::Packet {
+            raw: 40.,
+            phys: 1.,
+            magic: 0.,
+            true_: 0.,
+        },
+        weapon: Some(WeaponId::Sword),
+        stagger: false,
+        projectile: None,
+        scale: 1.,
+        derived: false,
+        passive: false,
+    });
+    sim.step();
+    assert!(
+        sim.w.deferred.hits.is_empty(),
+        "departed owner hit still opens the ledger"
+    );
+    assert!(sim.w.players[0].vitals.hp < before);
+    let live = sim.w.mobs[0].core.id;
+    assert!(sim
+        .submit(live, validate(RawCommand::Aim { a: 1.2 }).unwrap())
+        .is_ok());
+}
+
+#[test]
 fn basic_pve_mode_content_and_join_are_closed_before_mutation() {
     let cfg = SimConfig {
         mob_mode: MobMode::Pve,

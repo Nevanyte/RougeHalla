@@ -52,6 +52,8 @@ fn report(
             amount,
             sig: Some(SignatureKind::Disease),
             weapon: Some(weapon),
+            passive: false,
+            derived: false,
         }));
     }
     if flush {
@@ -198,6 +200,8 @@ fn table_uses_actual_ids_and_frozen_visibility() {
             amount: 7.,
             sig: Some(SignatureKind::Disease),
             weapon: Some(WeaponId::Fists),
+            passive: false,
+            derived: false,
         }),
     );
     p.feed(&r).unwrap();
@@ -400,6 +404,8 @@ fn instant_anonymous_exact_sum_fixed_marker_and_delayed_independence() {
             sig: Some(SignatureKind::Burn),
             weapon: Some(WeaponId::Axe),
             amount: 7.,
+            passive: false,
+            derived: false,
         }),
     );
     a.feed(&other).unwrap();

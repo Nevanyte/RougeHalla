@@ -511,6 +511,8 @@ fn terrain_player_passes_match_actual_source() {
                                 victim: id(&h["victim"]),
                                 by: Some(id(&h["by"])),
                                 amount: n(h, "amount"),
+                                passive: false,
+                                derived: false,
                             });
                         }
                     }

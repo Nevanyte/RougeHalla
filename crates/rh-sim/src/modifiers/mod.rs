@@ -57,7 +57,16 @@ impl Runtime {
     pub fn linger_mult(&self) -> f64 {
         MultSums::from_source_values(self.mults).get(fold::MultKey::Linger)
     }
-    pub(crate) fn valid(&self, build: &crate::cards::Build, farm: &Farm, base_hp: f64) -> bool {
+    pub(crate) fn mult(&self, key: fold::MultKey) -> f64 {
+        MultSums::from_source_values(self.mults).get(key)
+    }
+    pub(crate) fn valid(
+        &self,
+        build: &crate::cards::Build,
+        farm: &Farm,
+        base_hp: f64,
+        faction: crate::FactionId,
+    ) -> bool {
         if !build.valid()
             || !farm.valid()
             || !self
@@ -71,7 +80,7 @@ impl Runtime {
         {
             return false;
         }
-        let folded = fold_build(build, farm, base_hp);
+        let folded = fold_build(build, farm, base_hp, faction);
         if self.sums != folded.sums.source_values()
             || self.farm != folded.farm_sums.source_values()
             || self.mults != folded.mults.source_values()
@@ -133,11 +142,8 @@ pub(crate) fn recompute_with(
     } else {
         Farm::default()
     };
-    let folded = fold_build(
-        &build,
-        &farm,
-        crate::content::faction(w.core(ix).vitals.faction).hp,
-    );
+    let faction = w.core(ix).vitals.faction;
+    let folded = fold_build(&build, &farm, crate::content::faction(faction).hp, faction);
     let mut src = fold::SourceMods::default();
     for (_, source) in crate::schedule::Plan::of(k).mod_sources.live() {
         if let Some(m) = source(w, w.core(ix), inputs.view(w.core(ix))) {
@@ -168,7 +174,13 @@ pub(crate) fn recompute_with(
     };
 }
 pub(crate) fn sync_max_hp(p: &mut crate::state::Player) {
-    let max = crate::content::faction(p.vitals.faction).hp * p.modifiers.max_hp_mult;
+    let tank = p
+        .card_runtime
+        .as_ref()
+        .and_then(|rt| rt.memory.as_ref())
+        .map(|m| m.tank_hp)
+        .unwrap_or(0.);
+    let max = crate::content::faction(p.vitals.faction).hp * p.modifiers.max_hp_mult + tank;
     let delta = max - p.vitals.max_hp;
     if delta.abs() < 1e-9 {
         return;
@@ -294,13 +306,21 @@ pub(crate) fn mark_pulse(
         }
 }
 
-fn fold_build(build: &crate::cards::Build, farm: &Farm, base: f64) -> fold::Folded {
-    let (rows, n) = build.rows();
+fn fold_build(
+    build: &crate::cards::Build,
+    farm: &Farm,
+    base: f64,
+    faction: crate::FactionId,
+) -> fold::Folded {
+    let mut rows = [fold::EffectRow::new(fold::EffectKind::Flag {
+        flag: fold::EffectFlag::NoCrit,
+    }); 320];
+    let rows = crate::cards::catalog::write_fold_rows(build, faction, &mut rows);
     let boosts = fold::BoostCounts::from_source_values(build.boosts().map(f64::from));
     {
         let (farm_rows, len) = farm.rows();
         fold::fold_rows(
-            &rows[..n],
+            rows,
             &FoldContext {
                 base_max_hp: base,
                 farm_rows: &farm_rows[..len],
@@ -317,11 +337,8 @@ pub(crate) fn maximum_packet(weapon: crate::WeaponId) -> f64 {
         .map(|id| {
             let f = crate::content::paced(id);
             let base_hp = crate::content::faction(id).hp;
-            let build = crate::cards::Build {
-                cards: crate::cards::CardId::ALL.map(Some),
-                boosts: [crate::stat_fold::default_definition().chest_boost_max_picks as u8; 8],
-            };
-            let folded = fold_build(&build, &Farm::maximum(), base_hp);
+            let build = crate::cards::Build::offer_envelope();
+            let folded = fold_build(&build, &Farm::maximum(), base_hp, id);
             let m = fold::decode_mirrors(&fold::encode_mirrors(&fold::mirrors_from_fold(&folded)));
             let rate = m.as_mult.max(fold::cap_as_mult(f64::MAX));
             let interval = crate::content::attack_interval(&f, weapon, rate);

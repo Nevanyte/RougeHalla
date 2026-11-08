@@ -755,6 +755,8 @@ pub(crate) struct PayQueue {
     pub(crate) mob_feeds: Vec<f64>,
     pub(crate) collecting: bool,
     pub(crate) items: Vec<crate::systems::ledger::Payout>,
+    /// Best Offense blocks waiting for the card system in this same tick. Empty at every step boundary.
+    pub(crate) card_blocks: Vec<(PlayerId, PlayerId)>,
 }
 
 impl World {

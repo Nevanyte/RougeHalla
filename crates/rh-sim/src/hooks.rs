@@ -109,6 +109,12 @@ pub(crate) enum HookArgs {
         entry: crate::systems::ledger::Entry,
         amount: f64,
     },
+    Overkilled {
+        victim: PlayerId,
+        overkill: f64,
+        total: f64,
+        hits: Vec<crate::cards::hooks::OverkillHit>,
+    },
     /// The run just ended: results are out and the phase is ended (legacy `runEnded(world)`).
     RunEnded,
 }
@@ -126,6 +132,7 @@ impl HookArgs {
             HookArgs::DropBody { .. } => Hook::DropBody,
             HookArgs::FighterOut { .. } => Hook::FighterOut,
             HookArgs::HitLanded { .. } => Hook::HitLanded,
+            HookArgs::Overkilled { .. } => Hook::Overkilled,
             HookArgs::AttackStarted(_) => Hook::AttackStarted,
             HookArgs::WeaponSwapped(_) => Hook::WeaponSwapped,
             HookArgs::PlayerKilled { .. } => Hook::PlayerKilled,

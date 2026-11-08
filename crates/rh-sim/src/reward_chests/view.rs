@@ -94,7 +94,7 @@ pub struct BuildView {
 impl From<&crate::cards::Build> for BuildView {
     fn from(b: &crate::cards::Build) -> Self {
         Self {
-            cards: CardId::ALL.map(|id| u8::from(b.owns(id))),
+            cards: CardId::OFFER.map(|id| u8::from(b.owns(id))),
             boosts: b.boosts(),
         }
     }

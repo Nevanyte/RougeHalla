@@ -100,6 +100,23 @@ pub(crate) enum PayLater {
         victim_bot: bool,
         bounty: u32,
     },
+    CardBoost {
+        id: PlayerId,
+        attack_speed: f64,
+        movement: f64,
+        ms: f64,
+    },
+    CardSplash {
+        holder: PlayerId,
+        victim: PlayerId,
+        at: crate::math::Vec2,
+        radius: f64,
+        raw: f64,
+        phys: f64,
+        magic: f64,
+        true_: f64,
+        weapon: Option<crate::content::WeaponId>,
+    },
 }
 
 // Inline queue payloads preserve warmed allocation-free application/removal; source strings are shared handles.
@@ -169,6 +186,29 @@ impl PayLater {
                 },
                 bounty,
             ),
+            PayLater::CardBoost {
+                id,
+                attack_speed,
+                movement,
+                ms,
+            } => {
+                crate::cards::hooks::start_boost(w, id, attack_speed, movement, ms);
+            }
+            PayLater::CardSplash {
+                holder,
+                victim,
+                at,
+                radius,
+                raw,
+                phys,
+                magic,
+                true_,
+                weapon,
+            } => {
+                crate::cards::hooks::splash(
+                    w, holder, victim, at, radius, raw, phys, magic, true_, weapon,
+                );
+            }
         }
     }
 }
@@ -594,6 +634,40 @@ fn apply_victim(
     } else {
         super::mob_life::hurt(pass.k, pass.w, pass.ev, ix, hits)
     };
+    if player && !pass.w.standing(ix) && total > applied {
+        let overkill_hits: Vec<_> = idxs
+            .iter()
+            .enumerate()
+            .map(|(j, &index)| {
+                let e = &ledger[index];
+                crate::cards::hooks::OverkillHit {
+                    by: e.by,
+                    raw: amounts[j],
+                    phys: e.packet.phys,
+                    magic: e.packet.magic,
+                    true_: e.packet.true_,
+                    weapon: e.weapon,
+                    derived: e.derived,
+                    final_hit: e.passive,
+                }
+            })
+            .collect();
+        crate::hooks::fire(
+            &mut crate::hooks::Hx {
+                stats: pass.stats,
+                k: pass.k,
+                w: pass.w,
+                ev: pass.ev,
+                fx: None,
+            },
+            crate::hooks::HookArgs::Overkilled {
+                victim: v,
+                overkill: total - applied,
+                total,
+                hits: overkill_hits,
+            },
+        );
+    }
     if !(applied > 0.0) {
         return;
     }
@@ -667,6 +741,8 @@ fn apply_victim(
                     victim: v,
                     by: e.by,
                     amount: amounts[j] * landed_share,
+                    passive: e.passive,
+                    derived: e.derived,
                 });
             }
             if let Some(sig) = e.sig.filter(|sig| !sig.is_dot()) {

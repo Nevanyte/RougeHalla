@@ -864,7 +864,11 @@ static SYSTEMS: [Item<SystemFn>; 24] = [
         crate::systems::potions::update,
     ),
     pending("traders.updateTraders", Gate::NotTraining, "P-TRADE-1"),
-    pending("cardHooks.afterDamage", Gate::Always, "P-CARDS-1"),
+    ported(
+        "cardHooks.afterDamage",
+        Gate::Always,
+        crate::cards::after_damage,
+    ),
     pending("plagueCorpses.<anonymous>", Gate::Signatures, "P-FACTION-3"),
     pending("bruiserPassives.update", Gate::Signatures, "P-FACTION-5"),
     // Current status sources are axe shred and attack slow. P-CARDS-1 extends this fold with cards.
@@ -1113,17 +1117,17 @@ static TELEPORTED: [Link; 13] = [
         Gate::Always,
         crate::vision::raid_started,
     ),
-    pending_link(
+    ported_link(
         "cardHooks.resetFight",
         Mode::Append,
         Gate::Always,
-        "P-CARDS-1",
+        crate::cards::reset_fight,
     ),
-    pending_link(
+    ported_link(
         "cardHooks.dropDeferred",
         Mode::Append,
         Gate::Always,
-        "P-CARDS-1",
+        crate::cards::drop_deferred,
     ),
     pending_link(
         "plagueZombies.<arrow>",
@@ -1258,12 +1262,10 @@ static RAID_STARTED: [Link; 14] = [
         Gate::NotTraining,
         "P-TRADE-1",
     ),
-    partial_link(
+    ported_link(
         "cardHooks.resetAll",
         Mode::Append,
         Gate::Always,
-        "canonical lazy Wish spend memory",
-        "P-CARDS-1",
         crate::cards::runtime::reset_all,
     ),
     pending_link(
@@ -1305,17 +1307,17 @@ static RUN_ENDED: [Link; 12] = [
         crate::systems::status::run_ended,
     ),
     pending_link("quests.<arrow>", Mode::Append, Gate::Quests, "P-QUEST-1"),
-    pending_link(
+    ported_link(
         "cardHooks.dropDeferred",
         Mode::Append,
         Gate::Always,
-        "P-CARDS-1",
+        crate::cards::drop_deferred,
     ),
-    pending_link(
+    ported_link(
         "cardHooks.flushBleeds",
         Mode::Append,
         Gate::Always,
-        "P-CARDS-1",
+        crate::cards::flush_bleeds,
     ),
     pending_link(
         "plagueCorpses.<arrow>",
@@ -1459,7 +1461,7 @@ static HIT_LANDED: [Link; 4] = [
         "cardHooks.onHitLanded",
         Mode::Append,
         Gate::Always,
-        items::hit_landed,
+        crate::cards::on_hit_landed,
     ),
     pending_link(
         "fireRoam.onHitLanded",
@@ -1481,12 +1483,10 @@ static HIT_LANDED: [Link; 4] = [
     ),
 ];
 static BLOCKED: [Link; 2] = [
-    partial_link(
+    ported_link(
         "cardHooks.onBlocked",
         Mode::Append,
         Gate::Always,
-        "Pocket Sand block status",
-        "P-CARDS-1",
         crate::cards::on_blocked,
     ),
     pending_link(
@@ -1496,11 +1496,11 @@ static BLOCKED: [Link; 2] = [
         "P-FACTION-5",
     ),
 ];
-static OVERKILLED: [Link; 1] = [pending_link(
+static OVERKILLED: [Link; 1] = [ported_link(
     "cardHooks.onOverkilled",
     Mode::Append,
     Gate::Always,
-    "P-CARDS-1",
+    crate::cards::on_overkilled,
 )];
 static HOOKS: [HookRow; 19] = [
     HookRow {
@@ -1831,6 +1831,7 @@ mod tests {
                 "abilities.abilityDotFx",
                 "vision.refreshVision",
                 "consumables.updateConsumables",
+                "cardHooks.afterDamage",
                 "mods.updateMods"
             ]
         );

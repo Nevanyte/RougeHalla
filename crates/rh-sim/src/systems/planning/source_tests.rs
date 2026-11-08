@@ -1141,14 +1141,10 @@ fn arena_capture_inventory_runs_genuine_wish_prerequisite_and_keeps_full_hooks_p
             .iter()
             .find(|link| link.legacy == name)
             .unwrap();
-        assert_eq!(
-            link.pending,
-            Some("P-CARDS-1"),
-            "{name} remains explicitly incomplete"
-        );
+        assert!(link.pending.is_none(), "{name} is ported");
     }
     if std::env::var_os("RH_ARENA_REQUIRE_FULL").is_some() {
-        panic!("Full ARENA INCOMPLETE: cardHooks.resetFight/dropDeferred/resetAll; Source wire/client and durable shutdown/MIA prerequisites. Genuine Wish/refund was executed separately; full arena-owned projection is not claimed.");
+        panic!("Full ARENA INCOMPLETE: Source wire/client and durable shutdown/MIA prerequisites. Card reset/deferred hooks and genuine Wish/refund execute; full arena-owned projection is not claimed.");
     }
     eprintln!("Arena owned kernel: 33 ordinary cases +1 declared boon helper, plus genuine Wish/refund prerequisite through its dedicated consumer; full card hooks, Source transport/durability and complete case27 arena projection remain INCOMPLETE");
 }

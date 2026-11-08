@@ -619,6 +619,16 @@ fn a_match_runs_its_ported_rows_in_table_order() {
                 }
                 TraceEntry::Hook("runEnded" | "teleported", "chests.clearChests") => {}
                 TraceEntry::Hook("blocked", "cardHooks.onBlocked") => {}
+                TraceEntry::Hook("overkilled", "cardHooks.onOverkilled") => {}
+                TraceEntry::Hook(
+                    "teleported",
+                    "cardHooks.resetFight" | "cardHooks.dropDeferred",
+                ) => {}
+                TraceEntry::Hook(
+                    "runEnded",
+                    "cardHooks.dropDeferred" | "cardHooks.flushBleeds",
+                ) => {}
+                TraceEntry::Hook("raidStarted", "cardHooks.resetAll") => {}
                 TraceEntry::Hook("fighterOut", "consumables.<arrow>") => {} // actual Small potion cleanup; other consumables remain pending.
                 TraceEntry::Hook("fighterOut", "vision.<arrow>") => {}
                 TraceEntry::Hook("raidStarted", "abilities.armWishes") => {} // status reset only; P-ABIL remainder is explicit.

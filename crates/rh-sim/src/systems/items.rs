@@ -22,8 +22,19 @@ pub(crate) fn shred_source(
         crate::status_runtime::StatusKind::Shred,
         w.server_time,
     );
-    (shred > 0.0).then(|| crate::schedule::ModContribution {
-        armor: Some(-shred),
+    let boost = w.player(p.id).and_then(|player| {
+        player
+            .card_runtime
+            .as_ref()
+            .and_then(|rt| rt.memory.as_ref().filter(|m| m.boost_until > w.server_time))
+    });
+    if !(shred > 0.0) && boost.is_none() {
+        return None;
+    }
+    Some(crate::schedule::ModContribution {
+        armor: (shred > 0.0).then_some(-shred),
+        as_mult: boost.map(|m| m.boost_as),
+        speed_mult: boost.map(|m| m.boost_move),
         ..Default::default()
     })
 }

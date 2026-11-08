@@ -196,17 +196,33 @@ pub(super) fn target_effects(cx: &mut Cx, l: Landing) {
             } else {
                 a::TRIAL_RADIUS
             };
+            let patient = cx.w.idx(l.id).is_some_and(|i| {
+                cx.w.players[i].build.has_flag(
+                    cx.w.players[i].vitals.faction,
+                    crate::stat_fold::EffectFlag::GallowsPatience,
+                )
+            });
+            let duration = a::TRIAL_MS
+                + if patient {
+                    crate::constants::GALLOWS_PATIENCE_EXTRA_MS
+                } else {
+                    0.
+                };
             let mut f = field(
                 src.clone(),
                 ability,
                 FieldKind::Zone,
                 p,
                 cx.w.server_time,
-                a::TRIAL_MS,
+                duration,
                 radius,
             );
             f.subject = Some(target);
-            f.exit_stun_ms = rt::TRIAL_FIELD_POLICY.exit_stun_ms;
+            f.exit_stun_ms = if patient {
+                Some(crate::constants::GALLOWS_PATIENCE_STUN_MS)
+            } else {
+                rt::TRIAL_FIELD_POLICY.exit_stun_ms
+            };
             let field_id = super::super::fields::add(cx.w, f);
             if apply(
                 cx,
@@ -214,7 +230,7 @@ pub(super) fn target_effects(cx: &mut Cx, l: Landing) {
                 src,
                 ability,
                 K::Zoned,
-                a::TRIAL_MS,
+                duration,
                 Some(a::TRIAL_DEALT_MULT),
                 Some(Payload {
                     field_id: Some(field_id),
