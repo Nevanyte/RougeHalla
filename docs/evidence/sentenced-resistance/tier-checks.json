@@ -1,0 +1,100 @@
+{
+  "base": "80a4e130a661eae9e9e52420288e0af05f1649ca",
+  "resistance_commit": "e6f9680a37bb4e085796860cbc0b5772cbdc6ed2",
+  "scope": "restore validation only; source expected and gameplay unchanged",
+  "commands": [
+    "cargo test -p rh-sim --all-features --locked --lib systems::sentenced -- --nocapture",
+    "cargo test -p rh-sim --all-features --locked --lib systems::frost",
+    "cargo test -p rh-sim --all-features --locked --test checkpoint --test replay --test content",
+    "cargo fmt --all --check",
+    "cargo clippy -p rh-sim --all-targets --all-features --locked -- -D warnings",
+    "cargo clippy -p rh-sim --all-targets --locked -- -D warnings"
+  ],
+  "checks": {
+    "focused_total": 70,
+    "new_tests": 10,
+    "failures": 0,
+    "ignored": 0,
+    "fmt": "pass",
+    "strict_clippy_all_features": "pass",
+    "strict_clippy_default_features": "pass",
+    "content_hash": "356457e6ccfb22cd",
+    "checkpoint": 25,
+    "replay": 19
+  },
+  "source_git_blobs_at_base": {
+    "packages/server/src/sim/factions.ts": "33c34fa7c8acafa6675a46806a4e97c7c0cb9d0c",
+    "packages/server/src/sim/training.ts": "0537d508687cbd77221ffc37c2e25184c26d0b00",
+    "packages/shared/src/mods.ts": "b14b475a1deb367f0e0ad48658618c26ff6468aa",
+    "packages/shared/src/mark.ts": "b35a400d33b77627b23492e43d2614e18c96014f",
+    "crates/rh-sim/src/cards/catalog_data.rs": "8f9096d618e14af1d26749dddc96232d4900a270",
+    "crates/rh-sim/src/reward_chests/pools.rs": "25e863769bd265eb7360026c23a5fd6a8a6f6648"
+  },
+  "logs": {
+    "tier-red.log": {
+      "sha256": "0d1f01cfa2a05a7ea5e05b180de9d509aee8c90829a9626351a20fd61b742c90",
+      "bytes": 2939,
+      "test_results": [
+        "FAILED. 0 passed; 5 failed; 0 ignored; 0 measured; 610 filtered out; finished in 0.02s"
+      ]
+    },
+    "tier-first.log": {
+      "sha256": "d577c1442fb16274965a4b3c89583eea3f1bf3bf61548a631bc68e7cfd6c533b",
+      "bytes": 990,
+      "test_results": [
+        "ok. 5 passed; 0 failed; 0 ignored; 0 measured; 610 filtered out; finished in 0.07s"
+      ]
+    },
+    "training-removal-final.log": {
+      "sha256": "3653ae3292d0d217c6e290e3b49b553e24a26d12e6c8011503b3da2965ee3859",
+      "bytes": 510,
+      "test_results": [
+        "ok. 1 passed; 0 failed; 0 ignored; 0 measured; 614 filtered out; finished in 0.07s"
+      ]
+    },
+    "admission-sentenced.log": {
+      "sha256": "0880d18a1d33fad68043e6d68a78b7c7686302cb5f0fd181821aeea143e18a8c",
+      "bytes": 3145,
+      "test_results": [
+        "ok. 26 passed; 0 failed; 0 ignored; 0 measured; 589 filtered out; finished in 0.11s"
+      ]
+    },
+    "final-frost.log": {
+      "sha256": "d66be55c0b492a7ff6bdeb91ca611bcedb91d36a7396fe23e5b4896521f10bca",
+      "bytes": 1263,
+      "test_results": [
+        "ok. 11 passed; 0 failed; 0 ignored; 0 measured; 604 filtered out; finished in 0.15s"
+      ]
+    },
+    "final-restore-content.log": {
+      "sha256": "90dfbe975a7e12b7eea42cf9f5af453a862c698eb1368812995e7fd6d7db6465",
+      "bytes": 2759,
+      "test_results": [
+        "ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s",
+        "ok. 21 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.21s",
+        "ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s"
+      ]
+    },
+    "admission-fmt.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "test_results": []
+    },
+    "admission-clippy-all.log": {
+      "sha256": "3ab6ebabe75e6630c77e779bc0fc498b6ee1e463762dd2869c34221e0bae5283",
+      "bytes": 208,
+      "test_results": []
+    },
+    "admission-clippy-default.log": {
+      "sha256": "7840d6e90ba527092c0e1bf13198c84eb32d68e66f4b331b1bb38e532f2120a0",
+      "bytes": 208,
+      "test_results": []
+    }
+  },
+  "limits": [
+    "No per-hit/card chronology: progress/tier validation uses justified history bounds, not exact reconstruction.",
+    "Train Card0 cannot remove either tier flag under the current INTERACTIVE gate; tested refusal plus actual SlowBurn removal and Clear.",
+    "MarkRate producer gap is explicitly next work; these bounds describe current native1/chill only.",
+    "No NPC/public-profile/gate activation."
+  ]
+}

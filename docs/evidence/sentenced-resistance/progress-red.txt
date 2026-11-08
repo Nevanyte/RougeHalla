@@ -1,0 +1,19 @@
+    Finished `test` profile [unoptimized] target(s) in 0.05s
+     Running unittests src/lib.rs (target/debug/deps/rh_sim-e5380561a67b7746)
+
+running 1 test
+real producer tick=15 prior_chill=0.8079999999999999 hits=2 progress=2.237623762376238 tier=1 restore=Some(Malformed("invalid Sentenced state for player 1"))
+
+thread 'systems::sentenced::resistance_tests::real_iron_will_mark_restores' (62916171) panicked at crates/rh-sim/src/systems/sentenced/resistance_tests.rs:35:61:
+real resisted Mark must restore: Malformed("invalid Sentenced state for player 1")
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test systems::sentenced::resistance_tests::real_iron_will_mark_restores ... FAILED
+
+failures:
+
+failures:
+    systems::sentenced::resistance_tests::real_iron_will_mark_restores
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 605 filtered out; finished in 0.01s
+
+error: test failed, to rerun pass `-p rh-sim --lib`

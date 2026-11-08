@@ -6,9 +6,14 @@ use crate::{
 };
 use serde_json::json;
 
-fn duel(cards: &[CardId], frost_cards: &[CardId]) -> Sim {
+pub(super) fn duel(cards: &[CardId], frost_cards: &[CardId]) -> Sim {
+    duel_with_training(cards, frost_cards, false)
+}
+
+pub(super) fn duel_with_training(cards: &[CardId], frost_cards: &[CardId], training: bool) -> Sim {
     let mut s = Sim::reset_active(
         SimConfig {
+            training,
             quests: false,
             consumables: false,
             pvp_rules: false,
@@ -32,7 +37,7 @@ fn duel(cards: &[CardId], frost_cards: &[CardId]) -> Sim {
             .collect::<Vec<_>>(),
     );
     assert_eq!(s.k.config.mob_mode, crate::mob_runtime::MobMode::Off);
-    assert!(!s.k.config.training);
+    assert_eq!(s.k.config.training, training);
     for (id, cards) in [(PlayerId(1), cards), (PlayerId(2), frost_cards)] {
         for &card in cards {
             assert!(crate::cards::grant(&s.k, &mut s.w, id, card));
@@ -58,11 +63,11 @@ fn duel(cards: &[CardId], frost_cards: &[CardId]) -> Sim {
     s
 }
 
-fn submit(s: &mut Sim, by: u32, raw: RawCommand) {
+pub(super) fn submit(s: &mut Sim, by: u32, raw: RawCommand) {
     s.submit(PlayerId(by), command(raw).unwrap()).unwrap();
 }
 
-fn chilled_hit(s: &mut Sim) -> f64 {
+pub(super) fn chilled_hit(s: &mut Sim) -> f64 {
     for _ in 0..120 {
         let before = s.w.players[0].signature.clone();
         s.step();
@@ -76,7 +81,7 @@ fn chilled_hit(s: &mut Sim) -> f64 {
     panic!("validated attacks must produce a chilled Mark hit");
 }
 
-fn restore_continue(s: &mut Sim) {
+pub(super) fn restore_continue(s: &mut Sim) {
     let mut restored = Sim::restore(serde_json::to_value(&s).unwrap())
         .expect("a real accumulated Mark must restore");
     assert_eq!(restored.state_hash(), s.state_hash());

@@ -354,14 +354,35 @@ pub(crate) fn validate(k: &MatchStatic, w: &World, p: &crate::state::Player) -> 
     let max_progress = count * increment;
     // Retain the conservative sequential-binary64 addition envelope, including long-running restored marks.
     let slack = MARK_TIER_EPS.max(4. * f64::EPSILON * count * count * increment);
-    let tier = if m.progress > 0. || m.swaps > 0 {
-        (1. + (m.progress.max(0.) / MARK_TIER_HITS + MARK_TIER_EPS)
-            .floor()
-            .max(m.swaps as f64))
-        .min(MARK_TOP_TIER as f64) as u8
-    } else {
-        0
+    let tier_for = |swaps: f64| {
+        if m.progress > 0. || swaps > 0. {
+            (1. + (m.progress.max(0.) / MARK_TIER_HITS + MARK_TIER_EPS)
+                .floor()
+                .max(swaps))
+            .min(MARK_TOP_TIER as f64) as u8
+        } else {
+            0
+        }
     };
+    // Promotion only raises the cached tier. A real grant can add a flag after the latest mark pass, so today's
+    // flagged formula is an upper bound, not an equality. The unflagged formula is always the lower bound.
+    // Ordinary card ownership only grows; training Clear can remove either flag without resetting this mark.
+    // With no serialized grant/removal chronology, training must retain the upper bound from either former flag.
+    let no_commutation = k.config.training
+        || p.build
+            .has_flag(crate::stat_fold::EffectFlag::NoCommutation);
+    let swift_judgment = k.config.training
+        || p.build
+            .has_flag(crate::stat_fold::EffectFlag::SwiftJudgment);
+    let tier_min = tier_for(m.swaps as f64);
+    let tier_max = tier_for(
+        m.swaps as f64 * if no_commutation { 2. } else { 1. }
+            + if swift_judgment {
+                (m.hits / 2) as f64
+            } else {
+                0.
+            },
+    );
     if (!enabled && (*m != empty || p.credit.sentence != 0))
         || p.credit.sentence > MARK_KILL_STACK_CAP
         // Counters mirror JavaScript Number integers; reject unrepresentable trusted payloads.
@@ -373,7 +394,7 @@ pub(crate) fn validate(k: &MatchStatic, w: &World, p: &crate::state::Player) -> 
         || m.progress < m.hits as f64 - slack
         || m.progress > max_progress + slack
         || m.tier > MARK_TOP_TIER
-        || m.tier != tier
+        || !(tier_min..=tier_max).contains(&m.tier)
         || (p.signature.target.is_none() && *m != reset)
         || (m.tier == 0 && (m.hits != 0 || m.progress != 0. || m.swaps != 0 || m.denied))
         || m.far_since
@@ -395,3 +416,6 @@ mod tests;
 
 #[cfg(test)]
 mod resistance_tests;
+
+#[cfg(test)]
+mod tier_tests;
