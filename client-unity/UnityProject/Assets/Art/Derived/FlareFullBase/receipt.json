@@ -1,0 +1,497 @@
+{
+    "schema": "roguehalla.flare-full-base.v1",
+    "sourceRoot": "Assets/Art/ThirdParty/Flare/Raw/",
+    "templateCatalog": "Assets/Art/Derived/ShowcaseLive/OriginalSourceCatalog.asset",
+    "outputCatalog": "Assets/Art/Derived/FlareFullBase/Catalog.asset",
+    "atlasRunId": "ca4ea04cc36d8687",
+    "cell": 388,
+    "columns": 16,
+    "anchorX": 194,
+    "anchorY": 79,
+    "pixelsPerUnit": 128,
+    "clearance": 2,
+    "sourceHashes": [
+        {
+            "path": "Assets/Art/Derived/ShowcaseLive/OriginalSourceCatalog.asset",
+            "sha256": "911a2746b85efb1ac650b0bcc20a35a82fde4073545acb6971353c96116b7f7d"
+        },
+        {
+            "path": "Assets/Art/ThirdParty/Flare/Raw/animations/avatar/female/head_long.txt",
+            "sha256": "4a3f9fa6818d4ad51dd6cbcf1b33f9a8c43fced3093cf6de59451b8b19386a01"
+        },
+        {
+            "path": "Assets/Art/ThirdParty/Flare/Raw/animations/avatar/female/plate_boots.txt",
+            "sha256": "3f2b47d99732e4d716394d0210c7c1f702f82c98a7c78aea8519831cf7acc12c"
+        },
+        {
+            "path": "Assets/Art/ThirdParty/Flare/Raw/animations/avatar/female/plate_cuirass.txt",
+            "sha256": "c0ebbb79f328cf8087d5a0f13d7ed679aa1c9a6026141fda0c30c038578f5f90"
+        },
+        {
+            "path": "Assets/Art/ThirdParty/Flare/Raw/animations/avatar/female/plate_gauntlets.txt",
+            "sha256": "e992b1e481d15bb84dd1cc4695149ca86fa9b463c68c1404d186db41682fe9dd"
+        },
+        {
+            "path": "Assets/Art/ThirdParty/Flare/Raw/animations/avatar/female/plate_greaves.txt",
+            "sha256": "02e8580d4b3f945330ce298e446dd0b362bb45466f86e631918eba9638557935"
+        },
+        {
+            "path": "Assets/Art/ThirdParty/Flare/Raw/animations/avatar/female/plate_helm.txt",
+            "sha256": "15f184b5ca202ecf0390a5f5d66c70f05a736f64d7afaf99d5adca06c5d77558"
+        },
+        {
+            "path": "Assets/Art/ThirdParty/Flare/Raw/animations/avatar/male/head_short.txt",
+            "sha256": "e7e057ddae7278b25938e48290b38cc16ef63a6d0c4142f12051a5998b2e6362"
+        },
+        {
+            "path": "Assets/Art/ThirdParty/Flare/Raw/animations/avatar/male/plate_boots.txt",
+            "sha256": "894687377ba0117586f8890ba652c273e796c0a755175718dcc9aa14188b541f"
+        },
+        {
+            "path": "Assets/Art/ThirdParty/Flare/Raw/animations/avatar/male/plate_cuirass.txt",
+            "sha256": "d82405e8d005ad30c73ab9388826f4b61d02cf4753586f3feb9e62f832db8388"
+        },
+        {
+            "path": "Assets/Art/ThirdParty/Flare/Raw/animations/avatar/male/plate_gauntlets.txt",
+            "sha256": "eafa027686cfc3c6d0a9b26c8da9462294c9e68000a61f21a1dd58d863fbc62e"
+        },
+        {
+            "path": "Assets/Art/ThirdParty/Flare/Raw/animations/avatar/male/plate_greaves.txt",
+            "sha256": "d4fd9462bcc6446ff79d6b6ca60fd687d210ea9f2a1a35a91b957c9ce89e7603"
+        },
+        {
+            "path": "Assets/Art/ThirdParty/Flare/Raw/animations/avatar/male/plate_helm.txt",
+            "sha256": "38e4dd0cc73e4c140bbb9c07a29035975ad765cb383ba492e380ed31b9bfd048"
+        },
+        {
+            "path": "Assets/Art/ThirdParty/Flare/Raw/animations/enemies/goblin.txt",
+            "sha256": "5640359590a9edb5bb004686a3964c7a7f95fa29c6e7519e07fd7f7359130a7c"
+        },
+        {
+            "path": "Assets/Art/ThirdParty/Flare/Raw/animations/enemies/skeleton.txt",
+            "sha256": "c4cb1111293e5c5428edd78b67ddcf8dfdab09fc73728ec110aaead39bee5a93"
+        },
+        {
+            "path": "Assets/Art/ThirdParty/Flare/Raw/animations/npcs/knight.txt",
+            "sha256": "4854ffa4f643966ab02450515c85a85d490a969c9df3325c5abc36181af42749"
+        },
+        {
+            "path": "Assets/Art/ThirdParty/Flare/Raw/images/avatar/female/head_long.png",
+            "sha256": "a167bc2868acec2ba5f3cddb915b83e692b39307ccd232e7fc63b9fb892f3352"
+        },
+        {
+            "path": "Assets/Art/ThirdParty/Flare/Raw/images/avatar/female/plate_boots.png",
+            "sha256": "ddc1a580f739a4a2ad7e14de41d411396e637ac8fe68164268b8230e71cf3ae5"
+        },
+        {
+            "path": "Assets/Art/ThirdParty/Flare/Raw/images/avatar/female/plate_cuirass.png",
+            "sha256": "a779b051f3379688565ee66cf80e4aa7a225779f591ecab7782eb9afb20e056b"
+        },
+        {
+            "path": "Assets/Art/ThirdParty/Flare/Raw/images/avatar/female/plate_gauntlets.png",
+            "sha256": "6f6c3aafac15525637bc09f10de613ce133fabb5bb1b7b3febe4e2aa3ea78d0e"
+        },
+        {
+            "path": "Assets/Art/ThirdParty/Flare/Raw/images/avatar/female/plate_greaves.png",
+            "sha256": "28e07579cca35d333c6c9cedbb72689dfe972512778e93b479f3ef47c996bd86"
+        },
+        {
+            "path": "Assets/Art/ThirdParty/Flare/Raw/images/avatar/female/plate_helm.png",
+            "sha256": "97d5a36c730899de56f569e1b3c6431e68b01af8399810c781d70f853ab1fbb0"
+        },
+        {
+            "path": "Assets/Art/ThirdParty/Flare/Raw/images/avatar/male/head_short.png",
+            "sha256": "6505e19ae262a2feedbc93fe42466214633a5387b0d4b18a52f182dfb860a655"
+        },
+        {
+            "path": "Assets/Art/ThirdParty/Flare/Raw/images/avatar/male/plate_boots.png",
+            "sha256": "6b271d3be74734b8e7a0eba82f8431b2c63f918414107aee910677e93b20e67e"
+        },
+        {
+            "path": "Assets/Art/ThirdParty/Flare/Raw/images/avatar/male/plate_cuirass.png",
+            "sha256": "f03b991666a5172a8c0e1e198bf1afdea102b388b98094a5f7ad913c82f453cd"
+        },
+        {
+            "path": "Assets/Art/ThirdParty/Flare/Raw/images/avatar/male/plate_gauntlets.png",
+            "sha256": "3add05fa1d173476af6a23758096fd3800637243ea87769576c1975310a3565d"
+        },
+        {
+            "path": "Assets/Art/ThirdParty/Flare/Raw/images/avatar/male/plate_greaves.png",
+            "sha256": "78d881710342ee45f6b0ec19056b224ade411d83321848681d24eeb123c2b7de"
+        },
+        {
+            "path": "Assets/Art/ThirdParty/Flare/Raw/images/avatar/male/plate_helm.png",
+            "sha256": "7e03dc8a70d958757c738b6181031b58c11118a55069b92dbbf16c69b9f99d20"
+        },
+        {
+            "path": "Assets/Art/ThirdParty/Flare/Raw/images/enemies/goblin.png",
+            "sha256": "98c7849e51ce78a0e97c0ff50cd0827fb6c2c41ba83da3caf60ea7c9f776c73f"
+        },
+        {
+            "path": "Assets/Art/ThirdParty/Flare/Raw/images/enemies/skeleton.png",
+            "sha256": "cac5395ac62a611e0f9bf2b6a8d8ae58347562f13dd847bafc215b35a2cf53d4"
+        },
+        {
+            "path": "Assets/Art/ThirdParty/Flare/Raw/images/npcs/knight.png",
+            "sha256": "f4e99e527ab645ae458d237d63a79ea4792996106e8e92f0ae07a61cb5aa7526"
+        }
+    ],
+    "appearances": [
+        {
+            "key": "knight",
+            "atlasPath": "Assets/Art/Derived/FlareFullBase/Versions/ca4ea04cc36d8687/Actors/knight.png",
+            "atlasSha256": "3032a278a9c4c6c225844f6cc7fa36b354f95e71c939718c0eb783b02ee9b52b",
+            "atlasWidth": 6208,
+            "atlasHeight": 776,
+            "minRelativeX": -38,
+            "maxRelativeX": 71,
+            "minRelativeY": -16,
+            "maxRelativeY": 152,
+            "oldCellClippedOpaqueSamples": 0,
+            "oldCellClippedUniqueSites": 0,
+            "clips": [
+                {
+                    "key": "stance",
+                    "framesPerDirection": 4,
+                    "slotCount": 32,
+                    "oldCellClippedOpaqueSamples": 0,
+                    "oldCellClippedUniqueSites": 0
+                },
+                {
+                    "key": "run",
+                    "framesPerDirection": 0,
+                    "slotCount": 0,
+                    "oldCellClippedOpaqueSamples": 0,
+                    "oldCellClippedUniqueSites": 0
+                },
+                {
+                    "key": "swing",
+                    "framesPerDirection": 0,
+                    "slotCount": 0,
+                    "oldCellClippedOpaqueSamples": 0,
+                    "oldCellClippedUniqueSites": 0
+                },
+                {
+                    "key": "block",
+                    "framesPerDirection": 0,
+                    "slotCount": 0,
+                    "oldCellClippedOpaqueSamples": 0,
+                    "oldCellClippedUniqueSites": 0
+                },
+                {
+                    "key": "hit",
+                    "framesPerDirection": 0,
+                    "slotCount": 0,
+                    "oldCellClippedOpaqueSamples": 0,
+                    "oldCellClippedUniqueSites": 0
+                },
+                {
+                    "key": "die",
+                    "framesPerDirection": 0,
+                    "slotCount": 0,
+                    "oldCellClippedOpaqueSamples": 0,
+                    "oldCellClippedUniqueSites": 0
+                },
+                {
+                    "key": "cast",
+                    "framesPerDirection": 0,
+                    "slotCount": 0,
+                    "oldCellClippedOpaqueSamples": 0,
+                    "oldCellClippedUniqueSites": 0
+                },
+                {
+                    "key": "shoot",
+                    "framesPerDirection": 0,
+                    "slotCount": 0,
+                    "oldCellClippedOpaqueSamples": 0,
+                    "oldCellClippedUniqueSites": 0
+                }
+            ]
+        },
+        {
+            "key": "goblin",
+            "atlasPath": "Assets/Art/Derived/FlareFullBase/Versions/ca4ea04cc36d8687/Actors/goblin.png",
+            "atlasSha256": "c80817a302081b4e67265295f2c043c36c8dc0a9e21864adbced8bbdb6124b72",
+            "atlasWidth": 6208,
+            "atlasHeight": 6596,
+            "minRelativeX": -112,
+            "maxRelativeX": 128,
+            "minRelativeY": -37,
+            "maxRelativeY": 149,
+            "oldCellClippedOpaqueSamples": 64,
+            "oldCellClippedUniqueSites": 64,
+            "clips": [
+                {
+                    "key": "stance",
+                    "framesPerDirection": 4,
+                    "slotCount": 32,
+                    "oldCellClippedOpaqueSamples": 0,
+                    "oldCellClippedUniqueSites": 0
+                },
+                {
+                    "key": "run",
+                    "framesPerDirection": 8,
+                    "slotCount": 64,
+                    "oldCellClippedOpaqueSamples": 0,
+                    "oldCellClippedUniqueSites": 0
+                },
+                {
+                    "key": "swing",
+                    "framesPerDirection": 3,
+                    "slotCount": 24,
+                    "oldCellClippedOpaqueSamples": 12,
+                    "oldCellClippedUniqueSites": 12
+                },
+                {
+                    "key": "block",
+                    "framesPerDirection": 2,
+                    "slotCount": 16,
+                    "oldCellClippedOpaqueSamples": 0,
+                    "oldCellClippedUniqueSites": 0
+                },
+                {
+                    "key": "hit",
+                    "framesPerDirection": 2,
+                    "slotCount": 16,
+                    "oldCellClippedOpaqueSamples": 0,
+                    "oldCellClippedUniqueSites": 0
+                },
+                {
+                    "key": "die",
+                    "framesPerDirection": 6,
+                    "slotCount": 48,
+                    "oldCellClippedOpaqueSamples": 2,
+                    "oldCellClippedUniqueSites": 2
+                },
+                {
+                    "key": "cast",
+                    "framesPerDirection": 4,
+                    "slotCount": 32,
+                    "oldCellClippedOpaqueSamples": 0,
+                    "oldCellClippedUniqueSites": 0
+                },
+                {
+                    "key": "shoot",
+                    "framesPerDirection": 4,
+                    "slotCount": 32,
+                    "oldCellClippedOpaqueSamples": 50,
+                    "oldCellClippedUniqueSites": 50
+                }
+            ]
+        },
+        {
+            "key": "skeleton",
+            "atlasPath": "Assets/Art/Derived/FlareFullBase/Versions/ca4ea04cc36d8687/Actors/skeleton.png",
+            "atlasSha256": "f4138c47208a8dd658c6ee3057f606a15ac008e8f528a3b28d2f447b87a84b4a",
+            "atlasWidth": 6208,
+            "atlasHeight": 6596,
+            "minRelativeX": -192,
+            "maxRelativeX": 191,
+            "minRelativeY": -76,
+            "maxRelativeY": 225,
+            "oldCellClippedOpaqueSamples": 92024,
+            "oldCellClippedUniqueSites": 92024,
+            "clips": [
+                {
+                    "key": "stance",
+                    "framesPerDirection": 4,
+                    "slotCount": 32,
+                    "oldCellClippedOpaqueSamples": 15325,
+                    "oldCellClippedUniqueSites": 15325
+                },
+                {
+                    "key": "run",
+                    "framesPerDirection": 8,
+                    "slotCount": 64,
+                    "oldCellClippedOpaqueSamples": 6742,
+                    "oldCellClippedUniqueSites": 6742
+                },
+                {
+                    "key": "swing",
+                    "framesPerDirection": 4,
+                    "slotCount": 32,
+                    "oldCellClippedOpaqueSamples": 22433,
+                    "oldCellClippedUniqueSites": 22433
+                },
+                {
+                    "key": "block",
+                    "framesPerDirection": 2,
+                    "slotCount": 16,
+                    "oldCellClippedOpaqueSamples": 3300,
+                    "oldCellClippedUniqueSites": 3300
+                },
+                {
+                    "key": "hit",
+                    "framesPerDirection": 2,
+                    "slotCount": 16,
+                    "oldCellClippedOpaqueSamples": 1878,
+                    "oldCellClippedUniqueSites": 1878
+                },
+                {
+                    "key": "die",
+                    "framesPerDirection": 6,
+                    "slotCount": 48,
+                    "oldCellClippedOpaqueSamples": 15811,
+                    "oldCellClippedUniqueSites": 15811
+                },
+                {
+                    "key": "cast",
+                    "framesPerDirection": 4,
+                    "slotCount": 32,
+                    "oldCellClippedOpaqueSamples": 23206,
+                    "oldCellClippedUniqueSites": 23206
+                },
+                {
+                    "key": "shoot",
+                    "framesPerDirection": 4,
+                    "slotCount": 32,
+                    "oldCellClippedOpaqueSamples": 3329,
+                    "oldCellClippedUniqueSites": 3329
+                }
+            ]
+        },
+        {
+            "key": "hero",
+            "atlasPath": "Assets/Art/Derived/FlareFullBase/Versions/ca4ea04cc36d8687/Actors/hero.png",
+            "atlasSha256": "c038b41576c40f57c00ae44e1806303ade62c25ec60cf0c8b3a83870378aed59",
+            "atlasWidth": 6208,
+            "atlasHeight": 6596,
+            "minRelativeX": -95,
+            "maxRelativeX": 109,
+            "minRelativeY": -47,
+            "maxRelativeY": 172,
+            "oldCellClippedOpaqueSamples": 1544,
+            "oldCellClippedUniqueSites": 1433,
+            "clips": [
+                {
+                    "key": "stance",
+                    "framesPerDirection": 4,
+                    "slotCount": 32,
+                    "oldCellClippedOpaqueSamples": 0,
+                    "oldCellClippedUniqueSites": 0
+                },
+                {
+                    "key": "run",
+                    "framesPerDirection": 8,
+                    "slotCount": 64,
+                    "oldCellClippedOpaqueSamples": 160,
+                    "oldCellClippedUniqueSites": 160
+                },
+                {
+                    "key": "swing",
+                    "framesPerDirection": 4,
+                    "slotCount": 32,
+                    "oldCellClippedOpaqueSamples": 0,
+                    "oldCellClippedUniqueSites": 0
+                },
+                {
+                    "key": "block",
+                    "framesPerDirection": 2,
+                    "slotCount": 16,
+                    "oldCellClippedOpaqueSamples": 0,
+                    "oldCellClippedUniqueSites": 0
+                },
+                {
+                    "key": "hit",
+                    "framesPerDirection": 2,
+                    "slotCount": 16,
+                    "oldCellClippedOpaqueSamples": 0,
+                    "oldCellClippedUniqueSites": 0
+                },
+                {
+                    "key": "die",
+                    "framesPerDirection": 6,
+                    "slotCount": 48,
+                    "oldCellClippedOpaqueSamples": 1384,
+                    "oldCellClippedUniqueSites": 1273
+                },
+                {
+                    "key": "cast",
+                    "framesPerDirection": 4,
+                    "slotCount": 32,
+                    "oldCellClippedOpaqueSamples": 0,
+                    "oldCellClippedUniqueSites": 0
+                },
+                {
+                    "key": "shoot",
+                    "framesPerDirection": 4,
+                    "slotCount": 32,
+                    "oldCellClippedOpaqueSamples": 0,
+                    "oldCellClippedUniqueSites": 0
+                }
+            ]
+        },
+        {
+            "key": "hero-female",
+            "atlasPath": "Assets/Art/Derived/FlareFullBase/Versions/ca4ea04cc36d8687/Actors/hero-female.png",
+            "atlasSha256": "5573f9522f395567cb600186e0c023d75a15e3cb9c91a27d54294e64bae136d5",
+            "atlasWidth": 6208,
+            "atlasHeight": 6596,
+            "minRelativeX": -110,
+            "maxRelativeX": 114,
+            "minRelativeY": -53,
+            "maxRelativeY": 181,
+            "oldCellClippedOpaqueSamples": 2817,
+            "oldCellClippedUniqueSites": 1617,
+            "clips": [
+                {
+                    "key": "stance",
+                    "framesPerDirection": 4,
+                    "slotCount": 32,
+                    "oldCellClippedOpaqueSamples": 0,
+                    "oldCellClippedUniqueSites": 0
+                },
+                {
+                    "key": "run",
+                    "framesPerDirection": 8,
+                    "slotCount": 64,
+                    "oldCellClippedOpaqueSamples": 0,
+                    "oldCellClippedUniqueSites": 0
+                },
+                {
+                    "key": "swing",
+                    "framesPerDirection": 4,
+                    "slotCount": 32,
+                    "oldCellClippedOpaqueSamples": 0,
+                    "oldCellClippedUniqueSites": 0
+                },
+                {
+                    "key": "block",
+                    "framesPerDirection": 2,
+                    "slotCount": 16,
+                    "oldCellClippedOpaqueSamples": 0,
+                    "oldCellClippedUniqueSites": 0
+                },
+                {
+                    "key": "hit",
+                    "framesPerDirection": 2,
+                    "slotCount": 16,
+                    "oldCellClippedOpaqueSamples": 0,
+                    "oldCellClippedUniqueSites": 0
+                },
+                {
+                    "key": "die",
+                    "framesPerDirection": 6,
+                    "slotCount": 48,
+                    "oldCellClippedOpaqueSamples": 2817,
+                    "oldCellClippedUniqueSites": 1617
+                },
+                {
+                    "key": "cast",
+                    "framesPerDirection": 4,
+                    "slotCount": 32,
+                    "oldCellClippedOpaqueSamples": 0,
+                    "oldCellClippedUniqueSites": 0
+                },
+                {
+                    "key": "shoot",
+                    "framesPerDirection": 4,
+                    "slotCount": 32,
+                    "oldCellClippedOpaqueSamples": 0,
+                    "oldCellClippedUniqueSites": 0
+                }
+            ]
+        }
+    ],
+    "statement": "Recovered opaque source pixels are those discarded by the previous 224px cell compositor. Input Raw files and source importers were not modified."
+}
