@@ -22,6 +22,12 @@ namespace Roguehalla.Client
         readonly List<Light2D> _lamps = new List<Light2D>();
         readonly List<SpriteRenderer> _lampGlows = new List<SpriteRenderer>();
         readonly List<SpriteRenderer> _motes = new List<SpriteRenderer>();
+        readonly List<SpriteRenderer> _fog = new List<SpriteRenderer>();
+        readonly List<InterpActor> _latestMembership = new List<InterpActor>();
+        readonly List<InterpActor> _latestNpcs = new List<InterpActor>();
+        readonly HashSet<uint> _membership = new HashSet<uint>();
+        readonly List<PendingFx> _pendingFx = new List<PendingFx>(64);
+        bool _hasMembership;
         readonly List<Flash> _flashes = new List<Flash>();
         readonly Stack<Flash> _flashPool = new Stack<Flash>();
         Volume _volume;
@@ -29,6 +35,7 @@ namespace Roguehalla.Client
         int _used;
         public bool IsObserved(uint id) { return _actors != null && _actors.Contains(id); }
         sealed class Flash { public SpriteRenderer Sprite; public TMP_Text Text; public uint Actor; public float Start, Duration; public Vector3 Position; public Color Color; public float Size; }
+        struct PendingFx { public FxKind Kind; public uint Subject; public float Amount; }
 
         void Awake()
         {
@@ -44,6 +51,8 @@ namespace Roguehalla.Client
             if (profile != null) _volume.sharedProfile = profile;
             for (int i = 0; i < 32; i++) _motes.Add(ShowcaseSprites.Create(transform, "Ambient dust", "glow", 1500,
                 new Color(1.6f,1.2f,.6f,.35f), new Vector2(.07f,.07f), Vector3.zero, false));
+            for(int i=0;i<3;i++) _fog.Add(ShowcaseSprites.Create(transform,"Layered ambient haze","glow",29990,
+                new Color(.22f,.32f,.48f,.075f),new Vector2(20,5),Vector3.zero,false));
             if (ShowcaseSettings.Current != null) ShowcaseSettings.Current.Changed += ApplyQuality;
             ApplyQuality();
         }
@@ -94,7 +103,7 @@ namespace Roguehalla.Client
             var glow = ShowcaseSprites.Create(_mapRoot, "Ember haze", "glow", order + 2, new Color(1, .4f, .1f, .35f), new Vector2(1.8f, 1.8f), p, false);
             _lampGlows.Add(glow);
             var light = ShowcaseSprites.CreateLight(_mapRoot, "Static torch light", p); light.lightType = Light2D.LightType.Point; light.color = color;
-            light.intensity = 1.6f; light.pointLightInnerRadius = .3f; light.pointLightOuterRadius = 4.8f; light.falloffIntensity = .6f;
+            light.intensity = 2.3f; light.pointLightInnerRadius = .3f; light.pointLightOuterRadius = 4.8f; light.falloffIntensity = .6f;
             _lamps.Add(light);
         }
 
@@ -105,9 +114,14 @@ namespace Roguehalla.Client
             foreach (var a in remote)
             {
                 if (a.Id == mine) continue;
+                if (_hasMembership && !_membership.Contains(a.Id)) continue;
+                // NPC observer handles may renew on every observation. Never infer continuity
+                // from appearance or position; draw their latest typed public facts instead.
+                if (_hasMembership && a.Kind != ActorKind.Player) continue;
                 _actors.Present(a.Id, a.X, a.Y, a.Facing, a.HpPct, a.Faction, a.Status, a.Weapon, a.Kind, a.MobType, a.Effects, a.SourceSig, false);
             }
-            if (me != null)
+            if (_hasMembership) PresentLatestNpcs();
+            if (me != null && (!_hasMembership || _membership.Contains(me.Id)))
             {
                 bool initialized = motion != null && motion.Initialized;
                 _actors.Present(me.Id, initialized ? motion.DrawnX : me.X, initialized ? motion.DrawnY : me.Y, aimAngle, me.HpPct,
@@ -115,6 +129,36 @@ namespace Roguehalla.Client
             }
             _actors.End();
             UpdateEffects();
+        }
+
+        /// <summary>Latest membership wins over delayed interpolation, before the frame is rendered.</summary>
+        public void RefreshVisibility(Session session)
+        {
+            if(session==null || session.Snapshots.Count==0) return;
+            session.Snapshots.Sample(session.Snapshots.NewestMs,_latestMembership);
+            RetainObservedActors(_latestMembership,session.Me);
+        }
+        public void RetainObservedActors(List<InterpActor> current,SelfView me)
+        {
+            _membership.Clear(); _latestNpcs.Clear();
+            foreach(var actor in current)
+            {
+                _membership.Add(actor.Id);
+                if(actor.Kind != ActorKind.Player) _latestNpcs.Add(actor);
+            }
+            if(me!=null) _membership.Add(me.Id);
+            _hasMembership=true; _actors.Retain(_membership);
+            // This also runs after Poll/Present, before rendering, so new observer handles
+            // are visible immediately and removed handles leave no cosmetic residue.
+            PresentLatestNpcs();
+            foreach(var fx in _pendingFx) PresentFx(fx);
+            _pendingFx.Clear();
+            UpdateEffects();
+        }
+        void PresentLatestNpcs()
+        {
+            foreach(var a in _latestNpcs)
+                _actors.Present(a.Id,a.X,a.Y,a.Facing,a.HpPct,a.Faction,a.Status,a.Weapon,a.Kind,a.MobType,a.Effects,a.SourceSig,false);
         }
 
         public void PresentCollections(CollectionsView collections)
@@ -179,19 +223,25 @@ namespace Roguehalla.Client
         {
             foreach (var f in fx.List)
             {
-                if (f.Kind == FxKind.Swing) _actors.Swing(f.By);
                 uint subject = f.Kind == FxKind.Hit ? f.Victim : f.Kind == FxKind.Stagger || f.Kind == FxKind.Block ? f.Id : f.By;
-                if (!_actors.TryPosition(subject, out var p)) continue;
-                if (_flashes.Count >= 48) continue;
+                var cue=new PendingFx{Kind=f.Kind,Subject=subject,Amount=f.Amount};
+                if (_actors.Contains(subject)) PresentFx(cue);
+                else if(_pendingFx.Count<64) _pendingFx.Add(cue); // Copy scalars; decoded messages are recycled.
+            }
+        }
+        void PresentFx(PendingFx f)
+        {
+                if (!_actors.TryPosition(f.Subject, out var p)) return;
+                if (f.Kind == FxKind.Swing) _actors.Swing(f.Subject);
+                if (_flashes.Count >= 48) return;
                 var flash = _flashPool.Count > 0 ? _flashPool.Pop() : CreateFlash();
-                flash.Actor = subject; flash.Position = p + new Vector3(0, .65f); flash.Start = Time.unscaledTime; flash.Duration = .2f;
+                flash.Actor = f.Subject; flash.Position = p + new Vector3(0, .65f); flash.Start = Time.unscaledTime; flash.Duration = f.Kind==FxKind.Hit ? .55f : .2f;
                 flash.Size = f.Kind == FxKind.Swing ? 1.25f : .8f;
                 flash.Color = f.Kind == FxKind.Block ? new Color(.65f, .85f, 2) : new Color(2, 1.4f, .6f);
                 flash.Sprite.gameObject.SetActive(true);
                 flash.Text.gameObject.SetActive(f.Kind==FxKind.Hit);
                 if(f.Kind==FxKind.Hit) flash.Text.text=Mathf.RoundToInt(f.Amount).ToString(System.Globalization.CultureInfo.InvariantCulture);
                 _flashes.Add(flash);
-            }
         }
         void UpdateEffects()
         {
@@ -229,6 +279,12 @@ namespace Roguehalla.Client
                 float t = motion ? Time.unscaledTime * .03f : 0;
                 m.transform.position = p + new Vector3(Mathf.Repeat(i*7.31f+t,32)-16, Mathf.Repeat(i*3.71f+t*.7f,18)-9,0);
             }
+            for(int i=0;i<_fog.Count;i++)
+            {
+                _fog[i].enabled=budget>0;
+                float t=motion ? Time.unscaledTime*.04f : 0;
+                _fog[i].transform.position=p+new Vector3(Mathf.Sin(t+i*2)*6,(i-1)*5,0);
+            }
         }
         public bool ScreenToServer(Camera cam, Vector2 screen, out float sx, out float sy)
         {
@@ -240,7 +296,7 @@ namespace Roguehalla.Client
         {
             var quality = ShowcaseSettings.Current != null ? ShowcaseSettings.Current.EffectiveQuality : ShowcaseQuality.High;
             if (_volume != null) _volume.enabled = quality != ShowcaseQuality.Low;
-            if (_ambient != null) _ambient.intensity = quality == ShowcaseQuality.Low ? 1 : .86f;
+            if (_ambient != null) _ambient.intensity = quality == ShowcaseQuality.Low ? 1 : quality==ShowcaseQuality.Medium ? .6f : .36f;
             foreach (var glow in _lampGlows) glow.enabled = quality != ShowcaseQuality.Low;
             foreach (var light in _lamps) light.shadowsEnabled = quality == ShowcaseQuality.High;
         }

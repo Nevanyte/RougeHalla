@@ -15,6 +15,13 @@ namespace Roguehalla.Client
 #if UNITY_WEBGL && !UNITY_EDITOR
         [DllImport("__Internal")] static extern string RhPage_GetSearch();
         static string Search() { return RhPage_GetSearch(); }
+#elif UNITY_EDITOR
+        static string Search()
+        {
+            var query=UnityEditor.SessionState.GetString("Roguehalla.ArtPreviewQuery", "");
+            UnityEditor.SessionState.EraseString("Roguehalla.ArtPreviewQuery");
+            return query;
+        }
 #else
         static string Search() { return ""; }
 #endif

@@ -98,6 +98,42 @@ namespace Roguehalla.Client.Tests
         }
 
         [Test]
+        public void LatestMembershipRemovesAnActorStillInTheDelayedInterpolationSample()
+        {
+            var arena=CreateArena();var oldSample=new List<InterpActor>{RemoteActor(77)};
+            arena.Present(oldSample,null,null,0);
+            arena.ConfirmedFx(new ServerMsg.Fx{List=new List<WireFx>{new WireFx{Kind=FxKind.Hit,Victim=77,Amount=12}}});
+            arena.RetainObservedActors(new List<InterpActor>(),null);
+            arena.Present(oldSample,null,null,0);
+            Assert.That(arena.IsObserved(77),Is.False);
+            Assert.That(FindDirectChild(arena.transform,"Observed actor").gameObject.activeSelf,Is.False);
+            var effects=FindDirectChild(arena.transform,"Confirmed effects");
+            foreach(Transform effect in effects) Assert.That(effect.gameObject.activeSelf,Is.False);
+        }
+
+        [Test]
+        public void RenewedNpcHandleUsesLatestTypedFactsAndQueuedFxWithoutIdentityInference()
+        {
+            var arena=CreateArena();
+            var old=RemoteActor(100);old.Kind=ActorKind.RegionalMob;
+            var latest=old;latest.Id=101;latest.X=300;
+            var delayed=new List<InterpActor>{old};
+            arena.Present(delayed,null,null,0);
+            arena.ConfirmedFx(new ServerMsg.Fx{List=new List<WireFx>{new WireFx{Kind=FxKind.Hit,Victim=101,Amount=7}}});
+            arena.RetainObservedActors(new List<InterpActor>{latest},null);
+            Assert.That(arena.IsObserved(100),Is.False);
+            Assert.That(arena.IsObserved(101),Is.True);
+            arena.Present(delayed,null,null,0);
+            Assert.That(arena.IsObserved(100),Is.False);
+            Assert.That(arena.IsObserved(101),Is.True);
+            Assert.That(FindDirectChild(arena.transform,"Observed actor").position.x,Is.EqualTo(ArenaView.WorldPoint(300,240).x));
+            var effects=FindDirectChild(arena.transform,"Confirmed effects");
+            Assert.That(FindDirectChild(effects,"Confirmed impact").gameObject.activeSelf,Is.True);
+            arena.RetainObservedActors(new List<InterpActor>(),null);
+            foreach(Transform effect in effects) Assert.That(effect.gameObject.activeSelf,Is.False);
+        }
+
+        [Test]
         public void ShowcaseCatalogHasEightDirectionClipsAndAuthoredHumanSprites()
         {
             var catalog = Resources.Load<ShowcaseCatalog>("Showcase/Catalog");

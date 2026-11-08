@@ -8,6 +8,13 @@ namespace Roguehalla.Client
     public sealed class ShowcaseSoundscape : MonoBehaviour
     {
         const int SfxPoolSize = 8;
+        const int PendingFxCapacity = 64;
+
+        struct PendingFxCue
+        {
+            public FxKind Kind;
+            public uint Actor;
+        }
 
         sealed class Voice
         {
@@ -20,6 +27,8 @@ namespace Roguehalla.Client
         ShowcaseSettings _settings;
         AudioSource _music, _ambience;
         Voice[] _voices;
+        readonly PendingFxCue[] _pendingFx = new PendingFxCue[PendingFxCapacity];
+        int _pendingFxCount;
         ShowcaseCatalog _catalog;
         ShowcaseAudio _configuredAudio;
         int _swingIndex, _hitIndex;
@@ -72,7 +81,12 @@ namespace Roguehalla.Client
                 }
             }
 
-            if (_voices == null || _client == null || _client.Arena == null) return;
+            if (_client != null && _client.Arena != null && current != null) _client.Arena.RefreshVisibility(current);
+            if (_voices == null || _client == null || _client.Arena == null)
+            {
+                _pendingFxCount = 0;
+                return;
+            }
             foreach (var voice in _voices)
             {
                 if (voice.Source == null || !voice.Source.isPlaying || voice.Actor == 0) continue;
@@ -83,6 +97,7 @@ namespace Roguehalla.Client
                     voice.Actor = 0;
                 }
             }
+            ProcessPendingFx();
         }
 
         void EnsureSources()
@@ -153,9 +168,12 @@ namespace Roguehalla.Client
 
         void DetachSession()
         {
-            if (_session == null) return;
-            _session.FxReceived -= OnFx;
-            _session.EventsReceived -= OnEvents;
+            _pendingFxCount = 0;
+            if (_session != null)
+            {
+                _session.FxReceived -= OnFx;
+                _session.EventsReceived -= OnEvents;
+            }
             _session = null;
         }
 
@@ -165,30 +183,43 @@ namespace Roguehalla.Client
             foreach (var fx in message.List)
             {
                 uint actor = 0;
-                AudioClip[] clips = null;
                 switch (fx.Kind)
                 {
                     case FxKind.Swing:
                         actor = fx.By;
-                        clips = Catalog != null ? Catalog.Swings : null;
                         break;
                     case FxKind.Hit:
-                        actor = _client.Arena.IsObserved(fx.Victim) ? fx.Victim :
-                            (_client.Arena.IsObserved(fx.By) ? fx.By : 0);
-                        clips = Catalog != null ? Catalog.Hits : null;
+                        actor = fx.Victim;
                         break;
                     case FxKind.Block:
                     case FxKind.Stagger:
-                        actor = _client.Arena.IsObserved(fx.Id) ? fx.Id :
-                            (_client.Arena.IsObserved(fx.By) ? fx.By : 0);
-                        clips = Catalog != null ? Catalog.Hits : null;
                         break;
                     default:
                         continue;
                 }
-                // A cue attached to an actor is played only while that actor is in delivered observer membership.
-                if (actor == 0 || !_client.Arena.IsObserved(actor)) continue;
-                Play(clips, actor, fx.Kind == FxKind.Swing);
+                if (fx.Kind == FxKind.Block || fx.Kind == FxKind.Stagger) actor = fx.Id;
+                // Fx callbacks can run during Poll before Arena has refreshed membership.
+                // Copy only scalars; WireFx instances belong to the decoded message.
+                if (actor == 0 || _pendingFxCount == _pendingFx.Length) continue;
+                _pendingFx[_pendingFxCount++] = new PendingFxCue { Kind = fx.Kind, Actor = actor };
+            }
+        }
+
+        void ProcessPendingFx()
+        {
+            int count = _pendingFxCount;
+            _pendingFxCount = 0;
+            if (_client == null || _client.Arena == null) return;
+            for (int i = 0; i < count; i++)
+            {
+                var cue = _pendingFx[i];
+                // Require the subject to be in the current delivered observer set.
+                if (!_client.Arena.IsObserved(cue.Actor)) continue;
+                var catalog = Catalog;
+                AudioClip[] clips = cue.Kind == FxKind.Swing
+                    ? (catalog != null ? catalog.Swings : null)
+                    : (catalog != null ? catalog.Hits : null);
+                Play(clips, cue.Actor, cue.Kind == FxKind.Swing);
             }
         }
 

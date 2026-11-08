@@ -2,6 +2,7 @@
 // Static presentation checks that do not require Unity or an Editor session.
 const fs = require('node:fs');
 const path = require('node:path');
+const crypto = require('node:crypto');
 
 const root = path.resolve(__dirname, '../..');
 const unity = path.join(root, 'client-unity/UnityProject');
@@ -88,9 +89,31 @@ try {
   }
   if (refs.size) pass.push(`Flare metadata resources present: ${refs.size}`);
   if (animationCount) pass.push(`Flare animation tuple coverage valid: ${animationCount} clips`);
+  const originalFiles=metadata.sourceFiles || [];
+  for(const file of originalFiles) verifyHash(path.join(unity,'Assets',file.path),file);
+  pass.push(`original Flare source bytes verified: ${originalFiles.length}`);
 } catch (error) {
   failures.push(`invalid Flare metadata: ${error.message}`);
 }
+
+function verifyHash(filename, record) {
+  try {
+    const data=fs.readFileSync(filename);
+    if(crypto.createHash('sha256').update(data).digest('hex')!==record.sha256 || record.bytes!==undefined && data.length!==record.bytes)
+      failures.push(`source hash/size mismatch: ${path.relative(root,filename)}`);
+  } catch(error) { failures.push(`source unavailable: ${path.relative(root,filename)} (${error.message})`); }
+}
+for(const [manifest,base] of [
+  ['Art/ThirdParty/Flare/Audio/manifest.json','Art/ThirdParty/Flare/Audio'],
+  ['Art/ThirdParty/Flare/armor-manifest.json','Art/ThirdParty/Flare/Raw']
+]) {
+  try {
+    const data=JSON.parse(fs.readFileSync(path.join(unity,'Assets',manifest),'utf8'));
+    for(const file of data.assets) verifyHash(path.join(unity,'Assets',base,file.file),file);
+    pass.push(`pinned audio/armor source bytes verified: ${data.assets.length} (${manifest})`);
+  } catch(error) { failures.push(`invalid source manifest: ${manifest}: ${error.message}`); }
+}
+verifyHash(path.join(unity,'Assets/Art/ThirdParty/Fonts/CinzelDecorative-Regular.ttf'),{sha256:'5b862be329103ad287a10f0a53e27a40e8cc519999253f1a0223e2dc330b10b8'});
 
 const background = readColor('Background');
 if (!background) failures.push('could not parse Background Color32 from ShowcasePalette.cs');

@@ -3,6 +3,14 @@ namespace Roguehalla.Editor
 {
     public static class ShowcaseSetup
     {
+        [UnityEditor.MenuItem("Roguehalla/Art/Play Presentation Study")]
+        public static void PlayStudy()
+        {
+            if(UnityEditor.EditorApplication.isPlayingOrWillChangePlaymode) return;
+            UnityEditor.SceneManagement.EditorSceneManager.OpenScene("Assets/Scenes/Main.unity");
+            UnityEditor.SessionState.SetString("Roguehalla.ArtPreviewQuery","?preview=1");
+            UnityEditor.EditorApplication.isPlaying=true;
+        }
         [UnityEditor.MenuItem("Roguehalla/Art/Configure 2D Showcase")]
         public static void Configure()
         {

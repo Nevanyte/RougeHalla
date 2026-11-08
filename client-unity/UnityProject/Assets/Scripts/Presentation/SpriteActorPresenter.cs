@@ -40,9 +40,18 @@ namespace Roguehalla.Client
             _remove.Clear(); foreach (var pair in _active) if (pair.Value.Stamp != _stamp) _remove.Add(pair.Key);
             foreach (uint id in _remove)
             {
-                var art = _active[id]; art.Root.SetActive(false); art.Light.enabled = false;
-                _active.Remove(id); _pool.Push(art);
+                Evict(id);
             }
+        }
+        public void Retain(HashSet<uint> membership)
+        {
+            _remove.Clear(); foreach(var pair in _active) if(!membership.Contains(pair.Key)) _remove.Add(pair.Key);
+            foreach(uint id in _remove) Evict(id);
+        }
+        void Evict(uint id)
+        {
+            var art=_active[id];art.Root.SetActive(false);art.Light.enabled=false;
+            _active.Remove(id);_pool.Push(art);
         }
 
         public void Present(uint id, float x, float y, float facing, int hp, FactionId faction, ActorStatus status, WeaponId weapon,

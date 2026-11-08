@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UI;
+using TMPro;
 using Roguehalla.Net;
 using Roguehalla.Net.Protocol;
 
@@ -19,10 +20,12 @@ namespace Roguehalla.Client
         ArenaView _arena;
         float _time;
         int _accent = -1;
+        Camera _camera;
 
         public void Initialize(Camera cam)
         {
             if (cam == null) return;
+            _camera=cam;
 
             ShowcaseSprites.Initialize();
             if (ShowcaseSettings.Current == null)
@@ -36,7 +39,7 @@ namespace Roguehalla.Client
 
             Vector3 center = ArenaView.WorldPoint(MapWidth * 16f, MapHeight * 16f);
             cam.orthographic = true;
-            cam.orthographicSize = 12f;
+            cam.orthographicSize = 8.6f;
             cam.transform.position = new Vector3(center.x, center.y, -30f);
             cam.transform.rotation = Quaternion.identity;
             CreateOverlay();
@@ -45,6 +48,8 @@ namespace Roguehalla.Client
         void Update()
         {
             if (_arena == null) return;
+            _arena.Follow(_camera,MapWidth*16f,MapHeight*16f+1.5f/(ArenaView.Scale*ArenaView.GroundSquash));
+            _arena.Present(_actors,null,null,0);
             var keyboard = Keyboard.current;
             if (keyboard != null)
             {
@@ -62,7 +67,7 @@ namespace Roguehalla.Client
                 var mark = _accentMarks[i];
                 if (mark == null || !mark.enabled) continue;
                 float pulse = .88f + .12f * Mathf.Sin(_time * 1.4f + i * .71f);
-                mark.transform.localScale = new Vector3(mark.transform.localScale.x, pulse, 1f);
+                mark.transform.localScale = new Vector3(.85f, 2.8f*pulse, 1f);
             }
         }
 
@@ -122,6 +127,13 @@ namespace Roguehalla.Client
             {
                 Color color = ShowcasePalette.Faction(i);
                 Vector3 p = ArenaView.WorldPoint((7f + i * 3.5f) * 32f, 11.25f * 32f);
+                ShowcaseSprites.Create(root,"Staged elemental material wash","glow",-50,WithAlpha(color,.19f),new Vector2(4.8f,12),p,false);
+                var light=ShowcaseSprites.CreateLight(root,"Staged elemental light",p+new Vector3(0,1,-1));
+                light.color=color;light.intensity=1.7f;light.pointLightInnerRadius=.3f;light.pointLightOuterRadius=4.3f;
+                var title=new GameObject("Faction study heading");title.transform.SetParent(root,false);title.transform.position=p+new Vector3(0,5.4f,0);
+                var label=title.AddComponent<TextMeshPro>();label.font=Resources.Load<TMP_FontAsset>("Showcase/CinzelDecorative")??TMP_Settings.defaultFontAsset;
+                label.text=ShowcasePalette.GetFactionName(i).ToUpperInvariant();label.fontSize=2.6f;label.color=color;label.alignment=TextAlignmentOptions.Center;
+                label.rectTransform.sizeDelta=new Vector2(3.4f,1);label.GetComponent<MeshRenderer>().sortingOrder=31000;
                 ShowcaseSprites.Create(root, "Staged ability ring", "ring", 1200, WithAlpha(color, .72f),
                     new Vector2(2.1f, 1.4f), p, false);
                 var column = ShowcaseSprites.Create(root, "Staged ability column", "glow", 1201,
@@ -172,12 +184,11 @@ namespace Roguehalla.Client
             var rect = go.AddComponent<RectTransform>();
             rect.anchorMin = min; rect.anchorMax = max;
             rect.offsetMin = Vector2.zero; rect.offsetMax = Vector2.zero;
-            var text = go.AddComponent<Text>();
-            text.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
-            text.text = value; text.fontSize = size; text.fontStyle = style;
-            text.color = color; text.alignment = anchor;
-            text.horizontalOverflow = HorizontalWrapMode.Wrap;
-            text.verticalOverflow = VerticalWrapMode.Overflow;
+            var text = go.AddComponent<TextMeshProUGUI>();
+            text.font = TMP_Settings.defaultFontAsset;
+            text.text = value; text.fontSize = size; text.fontStyle = style==FontStyle.Bold ? FontStyles.Bold : FontStyles.Normal;
+            text.color = color; text.alignment = TextAlignmentOptions.MidlineLeft;
+            text.enableWordWrapping = true;
             text.raycastTarget = false;
         }
 

@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#090d14">
+    <title>{{{ PRODUCT_NAME }}} — Arena</title>
+#if SHOW_DIAGNOSTICS
+    <link rel="stylesheet" href="<<<TemplateData/diagnostics.css>>>">
+    <script src="<<<TemplateData/diagnostics.js>>>"></script>
+#endif
+    <style>
+      :root {
+        color-scheme: dark;
+        --void: #090d14;
+        --panel: rgba(17, 24, 35, 0.97);
+        --gold: #edc77b;
+        --gold-dim: #9c773e;
+        --text: #f4f2eb;
+        --muted: #b5c2d2;
+      }
+
+      *, *::before, *::after { box-sizing: border-box; }
+
+      html, body {
+        width: 100%;
+        height: 100%;
+        min-height: 100%;
+        margin: 0;
+        overflow: hidden;
+        background: var(--void);
+      }
+
+      body {
+        color: var(--text);
+        font-family: Georgia, "Times New Roman", serif;
+        -webkit-user-select: none;
+        user-select: none;
+        -webkit-touch-callout: none;
+      }
+
+      #unity-container {
+        position: fixed;
+        inset: 0;
+        width: 100vw;
+        height: 100vh;
+        height: 100dvh;
+        overflow: hidden;
+        background:
+          radial-gradient(ellipse at 50% 42%, rgba(48, 43, 33, 0.22), transparent 58%),
+          var(--void);
+      }
+
+      #unity-canvas {
+        display: block;
+        width: 100vw;
+        height: 100vh;
+        height: 100dvh;
+        margin: 0;
+        padding: 0;
+        border: 0;
+        outline: none;
+        background: transparent;
+        touch-action: none;
+        -webkit-tap-highlight-color: transparent;
+      }
+
+      #unity-canvas:focus, #unity-canvas:focus-visible { outline: none; }
+
+      #unity-loading-bar {
+        position: fixed;
+        z-index: 5;
+        top: 50%;
+        left: 50%;
+        display: grid;
+        width: min(440px, calc(100vw - 36px));
+        gap: 16px;
+        padding: 27px 30px 24px;
+        transform: translate(-50%, -50%);
+        border: 1px solid rgba(156, 119, 62, 0.72);
+        background: var(--panel);
+        box-shadow: 0 18px 70px rgba(0, 0, 0, 0.55), inset 0 0 0 1px rgba(237, 199, 123, 0.08);
+        text-align: center;
+      }
+
+      #unity-loading-bar::before,
+      #unity-loading-bar::after {
+        position: absolute;
+        width: 18px;
+        height: 18px;
+        content: "";
+        pointer-events: none;
+      }
+
+      #unity-loading-bar::before {
+        top: -1px;
+        left: -1px;
+        border-top: 2px solid var(--gold);
+        border-left: 2px solid var(--gold);
+      }
+
+      #unity-loading-bar::after {
+        right: -1px;
+        bottom: -1px;
+        border-right: 2px solid var(--gold);
+        border-bottom: 2px solid var(--gold);
+      }
+
+      .brand-mark {
+        margin: 0;
+        color: var(--gold);
+        font-size: clamp(20px, 4vw, 27px);
+        font-weight: 600;
+        letter-spacing: 0.22em;
+        line-height: 1.2;
+        text-indent: 0.22em;
+        text-shadow: 0 0 28px rgba(237, 199, 123, 0.16);
+      }
+
+      .loading-caption {
+        margin: -8px 0 0;
+        color: var(--muted);
+        font-family: Arial, sans-serif;
+        font-size: 12px;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+      }
+
+      #unity-progress-track {
+        height: 4px;
+        overflow: hidden;
+        border: 1px solid rgba(156, 119, 62, 0.35);
+        background: #101720;
+      }
+
+      #unity-progress-bar-full {
+        width: 0%;
+        height: 100%;
+        background: linear-gradient(90deg, #9c773e, #edc77b);
+        box-shadow: 0 0 14px rgba(237, 199, 123, 0.36);
+        transition: width 120ms linear;
+      }
+
+      #unity-status {
+        min-height: 18px;
+        margin: 0;
+        color: var(--muted);
+        font-family: Arial, sans-serif;
+        font-size: 13px;
+        line-height: 1.4;
+      }
+
+      #unity-loading-bar.is-failed #unity-status { color: var(--text); }
+      #unity-loading-bar.is-failed #unity-progress-track { display: none; }
+
+      @media (max-width: 520px) {
+        #unity-loading-bar { gap: 14px; padding: 23px 20px 20px; }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        #unity-progress-bar-full { transition: none; }
+      }
+    </style>
+  </head>
+  <body>
+    <main id="unity-container" aria-label="Roguehalla game">
+      <canvas id="unity-canvas" width={{{ WIDTH }}} height={{{ HEIGHT }}} tabindex="0" aria-label="Roguehalla game canvas"></canvas>
+
+      <section id="unity-loading-bar" aria-label="Game loading">
+        <p class="brand-mark">ROGUEHALLA</p>
+        <p class="loading-caption">The arena awaits</p>
+        <div id="unity-progress-track" role="progressbar" aria-label="Loading game" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+          <div id="unity-progress-bar-full"></div>
+        </div>
+        <p id="unity-status" role="status" aria-live="polite">Preparing the arena…</p>
+      </section>
+      <p id="unity-build-title" hidden>{{{ PRODUCT_NAME }}}</p>
+#if SHOW_DIAGNOSTICS
+      <img id="diagnostics-icon" src="<<<TemplateData/webmemd-icon.png>>>" alt="Open diagnostics">
+#endif
+    </main>
+
+    <script>
+      const canvas = document.querySelector("#unity-canvas");
+      const loadingBar = document.querySelector("#unity-loading-bar");
+      const progressTrack = document.querySelector("#unity-progress-track");
+      const progressFill = document.querySelector("#unity-progress-bar-full");
+      const statusText = document.querySelector("#unity-status");
+      const MAX_BACKBUFFER_PIXELS = 2560 * 1440;
+      window.unityInstance = null;
+
+      function recommendedDevicePixelRatio() {
+        const cssPixels = Math.max(1, window.innerWidth * window.innerHeight);
+        const nativeRatio = window.devicePixelRatio || 1;
+        return Math.min(2, nativeRatio, Math.sqrt(MAX_BACKBUFFER_PIXELS / cssPixels));
+      }
+
+      function reportFailure(details) {
+        console.error("Roguehalla WebGL startup failed:", details);
+        loadingBar.classList.add("is-failed");
+        progressTrack.setAttribute("aria-hidden", "true");
+        statusText.setAttribute("role", "alert");
+        statusText.setAttribute("aria-live", "assertive");
+        statusText.textContent = "The arena could not load. Refresh the page or check your connection.";
+      }
+
+      function unityShowBanner(message, type) {
+        if (type === "error") reportFailure(message);
+        else if (type === "warning") console.warn("Roguehalla WebGL warning:", message);
+      }
+
+      const buildUrl = "Build";
+      const loaderUrl = buildUrl + "/{{{ LOADER_FILENAME }}}";
+      const config = {
+        arguments: [],
+        dataUrl: buildUrl + "/{{{ DATA_FILENAME }}}",
+        frameworkUrl: buildUrl + "/{{{ FRAMEWORK_FILENAME }}}",
+#if USE_THREADS
+        workerUrl: buildUrl + "/{{{ WORKER_FILENAME }}}",
+#endif
+#if USE_WASM
+        codeUrl: buildUrl + "/{{{ CODE_FILENAME }}}",
+#endif
+#if SYMBOLS_FILENAME
+        symbolsUrl: buildUrl + "/{{{ SYMBOLS_FILENAME }}}",
+#endif
+        streamingAssetsUrl: "StreamingAssets",
+        companyName: {{{ JSON.stringify(COMPANY_NAME) }}},
+        productName: {{{ JSON.stringify(PRODUCT_NAME) }}},
+        productVersion: {{{ JSON.stringify(PRODUCT_VERSION) }}},
+        showBanner: unityShowBanner,
+        matchWebGLToCanvasSize: true,
+        devicePixelRatio: recommendedDevicePixelRatio()
+      };
+
+      document.querySelector("#unity-loading-bar").style.display = "grid";
+
+      const script = document.createElement("script");
+      script.src = loaderUrl;
+      script.onload = () => {
+        createUnityInstance(canvas, config, (progress) => {
+          const percent = Math.round(100 * progress);
+          progressFill.style.width = percent + "%";
+          progressTrack.setAttribute("aria-valuenow", String(percent));
+        }).then((unityInstance) => {
+          window.unityInstance = unityInstance;
+          loadingBar.style.display = "none";
+#if SHOW_DIAGNOSTICS
+          document.getElementById("diagnostics-icon").onclick = () => {
+            unityDiagnostics.openDiagnosticsDiv(unityInstance.GetMetricsInfo);
+          };
+#endif
+        }).catch((error) => {
+          reportFailure(error);
+        });
+      };
+      script.onerror = (error) => reportFailure(error);
+      document.body.appendChild(script);
+    </script>
+  </body>
+</html>
