@@ -76,9 +76,9 @@ dedicated Frost-tuple restore tests for the training practice/dummy and owned-zo
 
 ## Checks and mutants
 
-- frost module 17/17 (all three source corpora, the restored hook test, malformed refusals, and the two new adapter
-  tests); signatures PvE 4/4; training 14/14; zombie-filtered 1/1; checkpoint 6/6; replay 6/6; content 21/21;
-  no-allocation 1/1; cargo fmt clean; both strict rh-sim clippy modes clean.
+- frost module 20/20 (all three source corpora, the restored hook test, malformed refusals, the two adapter tests, and
+  the three typed-mapping controls below); signatures PvE 4/4; training 14/14; zombie-filtered 1/1; checkpoint 6/6;
+  replay 6/6; content 21/21; no-allocation 1/1; cargo fmt clean; both strict rh-sim clippy modes clean.
 - All three capture --check runs byte-identical: base source.json (4d1fafe9...), boundary.json (a4161772...), return.json;
   both doubles are exact.
 - Compiled semantic mutants 3/3 killed against the actual consumers (01 missing NPC recipients, 02 instant-NPC hook
@@ -124,3 +124,29 @@ Focused repair checks: `cargo test -p rh-sim --all-features --lib systems::frost
 The isolated check used its own Cargo target. No source capture, full-map campaign or unchanged broad suite was rerun.
 The typed source-actor comparator follow-up remains a separate composition; these checks do not open Full NPC Frost or
 the five strict source-born Wish recipient cases.
+## Typed cfg(test) source->native comparator (task-76)
+
+The Frost source consumer now resolves EVERY consumed actor reference through the typed source -> native map instead of
+contiguous NPC arithmetic: command actor/target labels, initial/frame NPC bindings, signature rows and chiller sources,
+landed victim/by, and NPC brain targets (native id -> unique source label inverse) all go through the map. Player labels
+may use roster indices (pN) as before; NPC labels must resolve a unique typed birth/provenance binding (camp, elite,
+catalog type, home) or the comparison fails. The binding loop records each accepted native identity immediately, so two
+fresh source rows can never reuse one native actor; a missing, duplicate, ambiguous or unexpected native binding is an
+explicit error, and unknown source labels never fall back to `mobN` base-36 arithmetic. This closes the two root-review defects in
+the cfg(test) consumer; no runtime/production/source/corpus/recorder file was touched.
+
+Controls (all pass, and the original 17 consumers are unchanged):
+- typed_noncontiguous_npc_labels_compare_the_same_captured_payload: the genuine Fire frame/event payload is relabelled
+  consistently with non-contiguous source labels (mobZed/mobQuux/mob-rc) across commands, brain targets, signatures,
+  chillers and landed by/victim; typed bindings replay it to the same state hash as the original contiguous labels.
+- typed_landed_mismatch_and_unknown_actor_reference_fail: an unknown landed victim/by or command target label fails typed
+  resolution; a valid-but-different typed landed victim fails the landed comparison (no silent fallback).
+- typed_binding_rejects_duplicate_ambiguous_and_unknown_native_bindings: two fresh rows with identical provenance cannot
+  bind the same native identity; two native candidates for one row are an explicit ambiguity; a duplicate value already
+  in the map and unknown native provenance are both refused.
+- The existing provenance-only metadata mutation remains a NON-kill: it replays the same cases without changing their
+  behaviour. No expected combat outcome or frame/actor/event check was weakened.
+
+Limits kept explicit: this is a bounded cfg(test) consumer mapping over the captured birth/death frames; it does not add
+a source respawn witness, does not open the Full Frost/Sentenced NPC admission gate, and leaves the declared pre-world
+zone-variant provenance of the boundary corpus as documented (task-75). The source corpus/recorders are unchanged.
