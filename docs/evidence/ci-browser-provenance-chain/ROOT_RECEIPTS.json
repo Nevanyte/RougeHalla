@@ -40,5 +40,14 @@
     "explicit_accepted_overlays": 5
   },
   "workflow_yaml": "parsed; all four existing jobs depend on new read-only provenance job",
-  "limits": "Pinned recaptures and mutation controls independently executed by separate lane checkers; root repeats JSON/pin/evidence audit, not the unchanged source campaign. Full integration CI pending."
+  "integration_ci": {
+    "run_id": 42531608964,
+    "head_sha": "a31f02e188b9712cdad8db6b7467bdb4f03ef966",
+    "url": "https://github.com/Nevanyte/RougeHalla/actions/runs/42531608964",
+    "status": "completed",
+    "conclusion": "success",
+    "updated_at": "2026-11-08T23:01:37Z",
+    "successful_jobs": ["provenance", "simulation", "rust", "csharp", "card-runtime-source"]
+  },
+  "limits": "Pinned recaptures and mutation controls independently executed by separate lane checkers; root repeats JSON/pin/evidence audit, not the unchanged source campaign. Full integration CI passes at the exact recorded a31f02e1 revision; later candidates require separate acceptance."
 }

@@ -13,6 +13,9 @@ auditor before all four existing native/C#/source jobs. No test selection is rem
 refreshed. The workflow YAML parses and all four dependencies are checked locally. Future legitimate protocol/source
 changes require their own explicit reviewed metadata reconciliation before those jobs run.
 
-CI42525598022 remains a failed historical run. Local preflight passes at this admitted chain; the next exact-head CI
-result is a separate gate. This repair changes no native gameplay, public protocol, browser-driver behavior, payload,
+CI42525598022 remains a failed historical run. [CI42531608964](https://github.com/Nevanyte/RougeHalla/actions/runs/42531608964)
+at exact checkpoint `a31f02e188b9712cdad8db6b7467bdb4f03ef966` passes all five jobs: provenance, simulation,
+Rust/backend, C# and card-runtime source. The Rust job includes strict default/all-feature lints, PostgreSQL, placement,
+parity/headless, source recaptures and the actual Chromium WSS proof. Later commits require their own revision-scoped
+acceptance. This repair changes no native gameplay, public protocol, browser-driver behavior, payload,
 private oracle record, frozen original pin, identity or cloud resource.

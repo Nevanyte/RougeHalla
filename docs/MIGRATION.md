@@ -67,7 +67,11 @@ That [browser provenance-chain repair](evidence/ci-browser-provenance-chain/ADMI
 Root independently verifies exact1/8/8/24/24 metadata differences, all non-provenance content,37 portable evidence hashes,
 and the passing fast auditor. The auditor checks all78 catalog source/five harness/325 protected entries plus runtime/
 witness references. A new early CI job gates the four existing jobs on that check, without removing any native/source
-tests. The next exact integration-head run remains pending; older failed runs are not relabeled.
+tests. [CI42531608964](https://github.com/Nevanyte/RougeHalla/actions/runs/42531608964) at exact checkpoint
+`a31f02e188b9712cdad8db6b7467bdb4f03ef966` now passes all five jobs: provenance, complete simulation, Rust/backend
+(including PostgreSQL, strict lints, source recaptures and Chromium WSS), C# and card-runtime source. Older failed runs
+remain historical failures. Later recovery/package/source additions and private Full/protocol14/Unity candidates are
+not covered by that exact-head result; each retains its own focused evidence and remaining integration gates.
 
 One actual final Unity Web build passes,14files/74,247,550bytes. Generated BakedContent is aa64c642; the manifest binds
 frozen1310 source, exact as-built serialization overlay and the dev server binary SHA20d5b70e…5b4b0. Independent checks
