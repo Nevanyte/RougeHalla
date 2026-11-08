@@ -117,6 +117,10 @@ PER-FRAME global field independent of self and delta baselines: absence means cu
 clock. Reject nonfinite/negative times. Clients use accepted source time for clock alignment/interpolation and Wish
 deadlines, keeping tick for snapshot ordering/baselines. Default-clock Attack/Release timestamps must remain unchanged;
 offset-clock tests must agree with the actual server clock. Existing old owner float fields keep their wire bit rules.
+Fresh snapshot tick, not source time, decides ordering. Equal/backward source time starts a new presentation clock
+epoch: rebase interpolation/prediction time anchors and clear old transient FX/Wish queues through an explicit timeline
+signal, while preserving newest membership, canonical collections and valid pending movement/ack semantics. Do not
+generate inputs or simulate authoritative outcomes. Canonical monotonic-clock behaviour stays unchanged.
 
 ## Admission
 
