@@ -1,6 +1,6 @@
 {
   "ok": false,
-  "root": "/tmp/ci-browser-inventory-neg",
+  "root": "/tmp/ci-browser-inventory-neg-child",
   "acceptedOverlays": [
     {
       "kind": "runtime catalog provenance chain",
@@ -41,26 +41,14 @@
       "effective": "508e4ed7f473dcccea774fe769756e863bd531a3abe5dca682d5df7ddda87794"
     }
   ],
-  "failureCount": 3,
+  "failureCount": 1,
   "failures": [
     {
-      "kind": "catalog-source-sha",
-      "path": "packages/shared/src/abilities.ts",
-      "expected": "95ef39376a9d9f40cc529a0f7300700a97427050628941e801aaa1e299862518",
-      "actual": "24d995d5ab611452a156fbcf2e14b7a6d8f228474b50debd825ed28aec374811",
-      "detail": "catalog sourceSha256 inventory is stale vs current file"
-    },
-    {
-      "kind": "runtime-sourceInputs-sha",
-      "path": "packages/shared/src/abilities.ts",
-      "expected": "95ef39376a9d9f40cc529a0f7300700a97427050628941e801aaa1e299862518",
-      "actual": "24d995d5ab611452a156fbcf2e14b7a6d8f228474b50debd825ed28aec374811"
-    },
-    {
-      "kind": "witness-source-input-sha",
-      "path": "packages/shared/src/abilities.ts",
-      "expected": "95ef39376a9d9f40cc529a0f7300700a97427050628941e801aaa1e299862518",
-      "actual": "24d995d5ab611452a156fbcf2e14b7a6d8f228474b50debd825ed28aec374811"
+      "kind": "catalog-harness-sha",
+      "path": "tools/card-catalog-fixtures/README.md",
+      "expected": "6e1d9afbce340bdacbb48853d32bdef047a1306085850f07ed1b1b5c7d30b624",
+      "actual": "c11024d1e1da0ad3f1a0655d14ec6f428f3d359ee8f90f204b04173c677fb405",
+      "detail": "catalog harnessSha256 inventory is stale vs current file"
     }
   ]
 }

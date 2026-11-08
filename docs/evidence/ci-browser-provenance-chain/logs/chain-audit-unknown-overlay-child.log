@@ -1,6 +1,6 @@
 {
-  "ok": true,
-  "root": "/tmp/ci-browser-negative-worktree",
+  "ok": false,
+  "root": "/tmp/ci-browser-controls-child",
   "acceptedOverlays": [
     {
       "kind": "runtime catalog provenance chain",
@@ -41,6 +41,26 @@
       "effective": "508e4ed7f473dcccea774fe769756e863bd531a3abe5dca682d5df7ddda87794"
     }
   ],
-  "failureCount": 0,
-  "failures": []
+  "failureCount": 3,
+  "failures": [
+    {
+      "kind": "witness-source-hash",
+      "path": "parity/card-runtime-witness/source.json",
+      "expected": "59fdc1ccabd5b15d2251272cd7a10e41e3b9858203a9a61bd877a10c28917ebe",
+      "actual": "c6a7c447f184fd22eebe14abcea91a52f08709585cddab27c97927bc5caa9d48"
+    },
+    {
+      "kind": "witness-overlay-count",
+      "path": "witness acceptedProvenanceOverlay",
+      "expected": 3,
+      "actual": 4
+    },
+    {
+      "kind": "witness-overlay-unknown-path",
+      "path": "witness acceptedProvenanceOverlay.path",
+      "expected": [],
+      "actual": "tools/unknown/extra.mjs",
+      "detail": "unknown overlay path"
+    }
+  ]
 }

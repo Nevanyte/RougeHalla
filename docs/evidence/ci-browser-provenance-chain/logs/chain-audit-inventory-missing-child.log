@@ -1,6 +1,6 @@
 {
   "ok": false,
-  "root": "/tmp/ci-browser-inventory-neg",
+  "root": "/tmp/ci-browser-inventory-neg-child",
   "acceptedOverlays": [
     {
       "kind": "runtime catalog provenance chain",
@@ -41,14 +41,19 @@
       "effective": "508e4ed7f473dcccea774fe769756e863bd531a3abe5dca682d5df7ddda87794"
     }
   ],
-  "failureCount": 1,
+  "failureCount": 2,
   "failures": [
     {
-      "kind": "catalog-harness-sha",
-      "path": "tools/card-catalog-fixtures/README.md",
-      "expected": "6e1d9afbce340bdacbb48853d32bdef047a1306085850f07ed1b1b5c7d30b624",
-      "actual": "314a2887149f30f923e628903b544860de0d7e9feb9efe8d71126b4d4a897ae1",
-      "detail": "catalog harnessSha256 inventory is stale vs current file"
+      "kind": "catalog-source-hash",
+      "path": "parity/card-catalog/source.json",
+      "expected": "2ddb8f85114ff6e8e70c2d70b8207ed3f32c71431845f3cce1007be494e39792",
+      "actual": "d6342198461792f728a50fcbc0449215962c5e09d29a256a0f5f911d8071370f"
+    },
+    {
+      "kind": "catalog-sourceSha256-missing",
+      "path": "parity/card-catalog/source.json sourceSha256",
+      "expected": "non-empty object of path->sha256",
+      "actual": "missing"
     }
   ]
 }

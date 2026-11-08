@@ -216,19 +216,19 @@
       "assertion": "strict expected-value mismatch"
     },
     "protectedHash": {
-      "method": "disposable git worktree at the same HEAD; appended one comment line to tools/browser-proof/proof.mjs (sha 4a1ce2f5...); no active-source mutation",
+      "method": "fresh disposable git worktree at child HEAD 39f7657e; appended one comment line to tools/browser-proof/proof.mjs (sha d634dedf...); no active-source mutation",
       "auditorExit": 1,
       "failures": [
         {
           "kind": "catalog-protected-sha",
           "path": "tools/browser-proof/proof.mjs",
           "expected": "6aea66795ed18edd941a4bc65c62070d6a6e2fce1b57cd98d0238db134fcfd66",
-          "actual": "4a1ce2f594bffd6474d651f760da9a58c67fe95e38203cc319932f4aa159db50"
+          "actual": "d634dedf4afc7015d117a31d2f97c68e0d17d438c56bb36c049921f53dcbb64f"
         }
       ]
     },
     "unknownOverlayPath": {
-      "method": "disposable copy of parity/card-runtime-witness/source.json with an added tools/unknown/extra.mjs acceptedProvenanceOverlay entry",
+      "method": "child-HEAD disposable copy of parity/card-runtime-witness/source.json with an added tools/unknown/extra.mjs acceptedProvenanceOverlay entry",
       "auditorExit": 1,
       "failures": [
         {
@@ -245,10 +245,11 @@
     },
     "disposablePositive": {
       "auditorExit": 0,
-      "failures": 0
+      "failures": 0,
+      "HEAD": "39f7657e9c029cdaa2c3b4f3f680c9da66e1aedd"
     },
     "sourceInventoryMutation": {
-      "method": "disposable worktree at HEAD; appended a comment byte to unprotected packages/shared/src/abilities.ts (sha 24d995d5...)",
+      "method": "child-HEAD (39f7657e) disposable worktree; appended a comment byte to unprotected packages/shared/src/abilities.ts (sha f64fdf81...)",
       "auditorExit": 1,
       "failures": [
         {
@@ -266,7 +267,7 @@
       ]
     },
     "harnessInventoryMutation": {
-      "method": "disposable worktree; appended an HTML comment to harness leaf tools/card-catalog-fixtures/README.md (sha 314a2887...)",
+      "method": "child-HEAD disposable worktree; appended an HTML comment to harness leaf tools/card-catalog-fixtures/README.md (sha c11024d1...)",
       "auditorExit": 1,
       "failures": [
         {
@@ -311,5 +312,6 @@
   "limits": "provenance-only metadata refresh; no production/native/browser/protocol/Unity/Cargo/status edit; expected semantics, cases, private records, clean controls and comparisons unchanged; no map/full-workspace/Web/cloud/ML campaign; root owns merge/status/lock/identities; separate checker result appended by final evidence commit",
   "checker": {
     "status": "separate checker running; result appended by the final evidence commit"
-  }
+  },
+  "controlsTraceability": "All tracked disposable-worktree control logs are from a fresh worktree at child HEAD 39f7657e; the earlier pre-commit parent-worktree run produced the same failure kinds and its logs were replaced for accuracy."
 }

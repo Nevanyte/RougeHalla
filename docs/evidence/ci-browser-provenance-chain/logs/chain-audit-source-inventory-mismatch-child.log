@@ -1,6 +1,6 @@
 {
   "ok": false,
-  "root": "/tmp/ci-browser-negative-worktree",
+  "root": "/tmp/ci-browser-inventory-neg-child",
   "acceptedOverlays": [
     {
       "kind": "runtime catalog provenance chain",
@@ -41,14 +41,26 @@
       "effective": "508e4ed7f473dcccea774fe769756e863bd531a3abe5dca682d5df7ddda87794"
     }
   ],
-  "failureCount": 1,
+  "failureCount": 3,
   "failures": [
     {
-      "kind": "catalog-protected-sha",
-      "path": "tools/browser-proof/proof.mjs",
-      "expected": "6aea66795ed18edd941a4bc65c62070d6a6e2fce1b57cd98d0238db134fcfd66",
-      "actual": "4a1ce2f594bffd6474d651f760da9a58c67fe95e38203cc319932f4aa159db50",
-      "detail": "catalog protectedSha256 map is stale vs current file"
+      "kind": "catalog-source-sha",
+      "path": "packages/shared/src/abilities.ts",
+      "expected": "95ef39376a9d9f40cc529a0f7300700a97427050628941e801aaa1e299862518",
+      "actual": "f64fdf819a3ecd9b5ddd4fe1d2af927ab61f543a5951f3174208d4e511dabd4a",
+      "detail": "catalog sourceSha256 inventory is stale vs current file"
+    },
+    {
+      "kind": "runtime-sourceInputs-sha",
+      "path": "packages/shared/src/abilities.ts",
+      "expected": "95ef39376a9d9f40cc529a0f7300700a97427050628941e801aaa1e299862518",
+      "actual": "f64fdf819a3ecd9b5ddd4fe1d2af927ab61f543a5951f3174208d4e511dabd4a"
+    },
+    {
+      "kind": "witness-source-input-sha",
+      "path": "packages/shared/src/abilities.ts",
+      "expected": "95ef39376a9d9f40cc529a0f7300700a97427050628941e801aaa1e299862518",
+      "actual": "f64fdf819a3ecd9b5ddd4fe1d2af927ab61f543a5951f3174208d4e511dabd4a"
     }
   ]
 }

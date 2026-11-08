@@ -1,6 +1,6 @@
 {
   "ok": false,
-  "root": "/tmp/ci-browser-inventory-neg",
+  "root": "/tmp/ci-browser-inventory-neg-child",
   "acceptedOverlays": [
     {
       "kind": "runtime catalog provenance chain",

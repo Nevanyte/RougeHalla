@@ -1,6 +1,6 @@
 {
-  "ok": false,
-  "root": "/tmp/ci-browser-inventory-neg",
+  "ok": true,
+  "root": "/tmp/ci-browser-inventory-neg-child",
   "acceptedOverlays": [
     {
       "kind": "runtime catalog provenance chain",
@@ -41,19 +41,6 @@
       "effective": "508e4ed7f473dcccea774fe769756e863bd531a3abe5dca682d5df7ddda87794"
     }
   ],
-  "failureCount": 2,
-  "failures": [
-    {
-      "kind": "catalog-source-hash",
-      "path": "parity/card-catalog/source.json",
-      "expected": "2ddb8f85114ff6e8e70c2d70b8207ed3f32c71431845f3cce1007be494e39792",
-      "actual": "d6342198461792f728a50fcbc0449215962c5e09d29a256a0f5f911d8071370f"
-    },
-    {
-      "kind": "catalog-sourceSha256-missing",
-      "path": "parity/card-catalog/source.json sourceSha256",
-      "expected": "non-empty object of path->sha256",
-      "actual": "missing"
-    }
-  ]
+  "failureCount": 0,
+  "failures": []
 }

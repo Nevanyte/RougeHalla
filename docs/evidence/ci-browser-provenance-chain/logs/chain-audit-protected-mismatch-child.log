@@ -1,6 +1,6 @@
 {
-  "ok": true,
-  "root": "/tmp/ci-browser-inventory-neg",
+  "ok": false,
+  "root": "/tmp/ci-browser-controls-child",
   "acceptedOverlays": [
     {
       "kind": "runtime catalog provenance chain",
@@ -41,6 +41,14 @@
       "effective": "508e4ed7f473dcccea774fe769756e863bd531a3abe5dca682d5df7ddda87794"
     }
   ],
-  "failureCount": 0,
-  "failures": []
+  "failureCount": 1,
+  "failures": [
+    {
+      "kind": "catalog-protected-sha",
+      "path": "tools/browser-proof/proof.mjs",
+      "expected": "6aea66795ed18edd941a4bc65c62070d6a6e2fce1b57cd98d0238db134fcfd66",
+      "actual": "d634dedf4afc7015d117a31d2f97c68e0d17d438c56bb36c049921f53dcbb64f",
+      "detail": "catalog protectedSha256 map is stale vs current file"
+    }
+  ]
 }

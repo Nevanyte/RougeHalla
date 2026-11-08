@@ -63,19 +63,21 @@ Positive pinned bytechecks: catalog `2ddb8f85…`, runtime `9e357ed4…`, witnes
 Negative semantic output controls (canonical bytes untouched): catalog `/cases/0/id` changed
 (sha `279ebd6c…`) -> exit 1 `canonical bytes differ`; runtime `/cases/0/final/label` changed (sha `f52fc78a…`) -> exit 1
 `one canonical source runtime recapture`; witness `/cases/0/expected/name` changed (sha `90346039…`) -> exit 1.
-Disposable-worktree controls (fresh ~git worktree add /tmp/... at the same HEAD; no in-place mutation of active source):
+Disposable-worktree controls (fresh git worktree at child HEAD `39f7657e`; no in-place mutation of active source):
 the unmodified disposable worktree audit exits 0. Changing the protected `tools/browser-proof/proof.mjs` bytes in that
-disposable copy (sha `4a1ce2f5…`) makes the auditor exit 1 with exactly `catalog-protected-sha`,
+disposable copy (sha `d634dedf…`) makes the auditor exit 1 with exactly `catalog-protected-sha`,
 path `tools/browser-proof/proof.mjs` (expected `6aea6679…`, mutated actual) — this is the pre-CI browser mismatch class.
 Adding an unknown `tools/unknown/extra.mjs` accepted-overlay entry to the disposable witness source makes it exit 1 with
 `witness-overlay-count` and `witness-overlay-unknown-path` (plus the expected witness-source hash failure from the
-modified disposable file), proving unknown/mismatched overlay paths are rejected. Catalog inventory controls in a
-disposable worktree at the same HEAD: clean audit exit 0; appending a byte to the unprotected source
-`packages/shared/src/abilities.ts` makes it exit 1 with `catalog-source-sha` at that path (and the runtime/witness
-sourceInputs failures that legitimately consume the same file); appending to the harness leaf
-`tools/card-catalog-fixtures/README.md` makes it exit 1 with exactly `catalog-harness-sha`; deleting `sourceSha256`
-fails closed with `catalog-sourceSha256-missing`; replacing `harnessSha256` with `{}` fails closed with
-`catalog-harnessSha256-count`. No active source was mutated; the disposable worktree was removed.
+modified disposable file), proving unknown/mismatched overlay paths are rejected. Catalog inventory controls in the same
+child-HEAD disposable worktree: clean audit exit 0; appending a byte to the unprotected source
+`packages/shared/src/abilities.ts` (sha `f64fdf81…`) makes it exit 1 with `catalog-source-sha` at that path (and the
+runtime/witness sourceInputs failures that legitimately consume the same file); appending to the harness leaf
+`tools/card-catalog-fixtures/README.md` (sha `c11024d1…`) makes it exit 1 with exactly `catalog-harness-sha`; deleting
+`sourceSha256` fails closed with `catalog-sourceSha256-missing`; replacing `harnessSha256` with `{}` fails closed with
+`catalog-harnessSha256-count`. No active source was mutated; the disposable worktree was removed. These tracked logs are
+from the child-HEAD re-run; the earlier pre-commit parent worktree run produced the same failure kinds but its logs were
+replaced for traceability.
 
 ## Evidence, logs and limits
 
