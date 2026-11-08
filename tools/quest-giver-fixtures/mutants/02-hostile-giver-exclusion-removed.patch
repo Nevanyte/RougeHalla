@@ -1,0 +1,11 @@
+--- a/packages/server/src/sim/combatant.ts
++++ b/packages/server/src/sim/combatant.ts
+@@ -151,7 +151,7 @@
+ }
+ 
+ export function hostile(a: Combatant, b: Combatant): boolean {
+-  if (a.id === b.id || isQuestGiver(a) || isQuestGiver(b)) return false;
++  if (a.id === b.id) return false;
+   const za = a.kind === "mob" && a.s.kind === "zombie";
+   const zb = b.kind === "mob" && b.s.kind === "zombie";
+   if (za || zb) return (za ? a.s.ownerId : a.id) !== (zb ? b.s.ownerId : b.id);
