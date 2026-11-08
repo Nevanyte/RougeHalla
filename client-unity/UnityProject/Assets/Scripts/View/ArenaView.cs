@@ -187,10 +187,46 @@ namespace Roguehalla.Client
                 {
                     var position = WorldPoint(p.X, p.Y); int order = 2000 + Mathf.RoundToInt(p.Y * .5f);
                     Prop("shadow", position + new Vector3(.1f, -.03f), new Vector2(.9f, .35f), Color.white, order - 3);
-                    string sprite = p.Kind == PropAppearance.Chest ? "chest" : p.Kind == PropAppearance.Body || p.Kind == PropAppearance.Corpse ? "stone" : "rune";
-                    Color color = p.Kind == PropAppearance.Ground ? new Color(.93f, .78f, .46f) : Color.white;
-                    var art=Prop(sprite, position + new Vector3(0, .22f), new Vector2(.78f, p.Kind == PropAppearance.Body ? .3f : .6f), color, order);
-                    if(p.Kind==PropAppearance.Chest && _catalog!=null && _catalog.Chest!=null) {art.sprite=_catalog.Chest;art.transform.position=position;art.transform.localScale=Vector3.one*1.3f;}
+                    if (p.Kind == PropAppearance.Ground)
+                    {
+                        // Ground weapons are the protocol's five carried weapon ids. Unsupported or absent
+                        // values get a neutral stone cue and never borrow a known weapon glyph.
+                        int weapon = p.Weapon.HasValue ? (int)p.Weapon.Value : -1;
+                        string glyph = weapon >= 0 && weapon <= 4 ? "weapon" + weapon : "stone";
+                        Color tint = weapon >= 0 && weapon <= 4 ? ShowcasePalette.Gold : ShowcasePalette.MutedText;
+                        Prop(glyph, position + new Vector3(0, .22f), new Vector2(.48f, .48f), tint, order);
+                    }
+                    else if (p.Kind == PropAppearance.WindEmblem)
+                    {
+                        // A ring, rune and small spark form a wind marker distinct from both weapons and cannon.
+                        Prop("ring", position, new Vector2(.72f, .58f), ShowcasePalette.Faction(3), order);
+                        Prop("rune", position + new Vector3(0, .13f), new Vector2(.42f, .42f), ShowcasePalette.Text, order + 1);
+                        Prop("spark", position + new Vector3(.25f, .2f), new Vector2(.2f, .28f), ShowcasePalette.MutedText, order + 2);
+                    }
+                    else if (p.Kind == PropAppearance.Cannon)
+                    {
+                        // Reuse the neutral bar, stone and ring shapes for a compact cannon silhouette.
+                        Prop("stone", position + new Vector3(-.02f, .04f), new Vector2(.62f, .34f), ShowcasePalette.MutedText, order);
+                        Prop("bar", position + new Vector3(.25f, .15f), new Vector2(.48f, .12f), ShowcasePalette.Text, order + 1);
+                        Prop("ring", position + new Vector3(-.2f, -.14f), new Vector2(.2f, .2f), ShowcasePalette.PanelStroke, order + 2);
+                        Prop("ring", position + new Vector3(.2f, -.14f), new Vector2(.2f, .2f), ShowcasePalette.PanelStroke, order + 2);
+                    }
+                    else
+                    {
+                        string sprite = p.Kind == PropAppearance.Chest ? "chest" : p.Kind == PropAppearance.Body || p.Kind == PropAppearance.Corpse ? "stone" : "rune";
+                        var art = Prop(sprite, position + new Vector3(0, .22f), new Vector2(.78f, p.Kind == PropAppearance.Body ? .3f : .6f), Color.white, order);
+                        if (p.Kind == PropAppearance.Chest)
+                        {
+                            if (_catalog != null && _catalog.Chest != null) { art.sprite = _catalog.Chest; art.transform.position = position; art.transform.localScale = Vector3.one * 1.3f; }
+                            // Open is a delivered boolean fact: show a dark opening and raised lid without
+                            // inferring contents, eligibility, or timing.
+                            if (p.Open)
+                            {
+                                Prop("bar", position + new Vector3(0, .12f), new Vector2(.48f, .12f), ShowcasePalette.Panel, order + 1);
+                                Prop("bar", position + new Vector3(0, .32f), new Vector2(.62f, .08f), ShowcasePalette.GoldDim, order + 2);
+                            }
+                        }
+                    }
                     if (p.Focused) Prop("ring", position, new Vector2(1.25f, .65f), new Color(.9f, .95f, 1), order - 2);
                 }
                 foreach (var chest in collections.RewardChests)
@@ -217,6 +253,7 @@ namespace Roguehalla.Client
             if (_used == _props.Count) { r = ShowcaseSprites.Create(_propsRoot, "Observed artwork", sprite, order, color, scale, p, false); _props.Add(r); }
             else r = _props[_used];
             _used++; r.gameObject.SetActive(true); r.sprite = ShowcaseSprites.Get(sprite); r.color = color; r.sortingOrder = order;
+            r.sharedMaterial = ShowcaseSprites.Unlit;
             r.transform.position = p; r.transform.localScale = new Vector3(scale.x, scale.y, 1); r.transform.rotation = Quaternion.identity;
             return r;
         }
