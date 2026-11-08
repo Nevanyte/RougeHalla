@@ -66,3 +66,19 @@ Run `node tools/art/verify-presentation.cjs` from the repository root to report 
 referenced by the Flare metadata. Contrast results cover solid palette colors only, not composited transparency, font
 weight/size, outlines, or rendered UI. Accent colors are informational; text colors are checked against the three dark
 surfaces at the WCAG AA 4.5:1 normal-text threshold.
+
+
+## Staged animation selector (source draft)
+
+Source commit `01ce403d` adds a dedicated catalog animation podium to the no-socket `?preview=1` study. This follow-up is **not in the served `4f37e9f0` Web build**; compilation, prepared tests, keyboard operation and rendered layout remain unverified. The existing staged lineup and faction accents are retained. The podium is labeled `STAGED ANIMATION PREVIEW / NO NETWORK`; it does not show authoritative gameplay or prove live cue integration.
+
+| Key | Preview selection |
+| --- | --- |
+| `[` / `]` | Previous / next catalog appearance |
+| Up / Down | Previous / next action: Idle, Walk, Attack, Block, Hit, Death, Cast, Shoot |
+| Left / Right | Previous / next source direction: SW, W, NW, N, NE, E, SE, S |
+| `1`–`5` | Existing faction accent selection |
+
+The initial selection is hero / Idle / E when the hero entry exists, otherwise the first available appearance. Appearance and action changes restart at frame zero; direction changes preserve the clip phase. Actions loop except Death, which holds its final frame. Reduced motion selects the first frame for ordinary actions and the final Death frame. Missing or malformed clips clear and hide the podium sprite and show `MISSING CLIP`, rather than substituting another action. The new card captures the current text scale when created; it has no independent settings controls.
+
+The next approved validation batch should exercise all control groups, a stance-only knight's missing action and recovery to a valid appearance, reduced motion, zero WebSockets, ground contact and text at 1.50 scale. Visual clearance from the lineup and podium remains a rendered check. These are deferred checks, not passing evidence.
