@@ -105,6 +105,15 @@ is a private native candidate under its [packet](coordination/P-G6-HEAL-BARRIER-
 reserved only for that candidate and a new content identity required. It cannot activate on the public profile before
 the lead resolves barrier publication/gating.
 
+Private continuation is now allocated under [ADR0022](adr/0022-barrier-wish-publication.md): one protocol12/
+Observation18 Wish/barrier publication candidate, with actual producer-time cues, anonymous permitted spatial landings,
+strict coordinate redaction and explicit per-frame source time. Main identities/guards are unchanged. Native checked
+observation work and networking PhaseA proceed with sequential shared-file leases; pending restore/hash/tapes remain
+G6-owned until handover. A separate [Frost-resistance packet](coordination/P-FROST-RESISTANCE-1.md) fixes missing victim
+slow resistance in the admitted player domain. None of these private assignments closes full NPC signatures, brain or
+public/client gates. [CI42485021427](https://github.com/Nevanyte/RougeHalla/actions/runs/42485021427) at `01b14dca`
+passes all four foundation jobs, including full simulation and the corrected partial perception evidence.
+
 The initial pushed CI passes C#, native card-runtime source, legacy recapture, hosting and latency-report checks. Rust
 CI exposed an admission-test lifecycle race: two fixture players could start/end a match, so an expired reservation
 retry correctly met session_ended precedence. `36a3222b` keeps that TTL scenario in Lobby and asserts HTTP/phase facts;

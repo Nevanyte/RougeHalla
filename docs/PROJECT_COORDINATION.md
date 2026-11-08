@@ -29,19 +29,38 @@ semantic mutant kill, and changing expected fixtures is not a parity repair. Dee
 token-heavy mechanical work; the lead keeps cross-cutting design and security decisions. Use focused affected checks,
 then one integration gate; do not repeat unchanged expensive map campaigns after every small patch.
 
+## Active private write leases
+
+These are assignments/candidates, not admitted main behaviour. [ADR0022](adr/0022-barrier-wish-publication.md) reserves
+protocol12/Observation18 privately; main remains11/17. Existing candidate checkpoint25/replay19 will be composed once.
+
+| Worker | Current packet / branch | Exclusive boundary |
+|---|---|---|
+| DeepSeek Rust / G6 worker | [P-G6](coordination/P-G6-HEAL-BARRIER-NATIVE.md), `deepseek/p-g6-heal-barrier` from `febf1f3f` | Heal/barrier producer/private state; checkpoint/state/hash/format/tapes remain leased until clean handover |
+| DeepSeek Rust / second worker | [Frost resistance](coordination/P-FROST-RESISTANCE-1.md), assigned from `37a5ac30` | Frost player slow-resistance, dedicated source/native tests only; no G6/content/format files or PvE expansion |
+| DeepSeek Post Rust | [Barrier-view witness](coordination/P-BARRIER-VIEW-WITNESS-1.md), `deepseek/barrier-view-witness-1` from `01b14dca` | Actual source projection/schema/ring corpus only; no native/codec/Unity changes |
+| Native observation specialist | [P-BARRIER-OBS-1](coordination/P-BARRIER-OBS-1.md), `codex/barrier-observation18` from `d4d15a25` | observe/item_view/check API and checked wire preview seam; no Wish or codec edits |
+| Networking chat | [P-NET-12-WISH-BARRIER](coordination/P-NET-12-WISH-BARRIER.md), `codex/wish-barrier-net12` from `5e9f2ac1` | PhaseA protocol/C#/JS/session/clock now; observe/wire PhaseB waits for specialist handover, and restore/hash/formats/tapes separately wait for G6 handover/root release |
+| Art chat | Source batch admitted through `f16bca0d`; Editor held idle | No repeated campaigns; HUD/confirmed-cue/barrier renderer packet follows stable delivered C# API |
+
+The lead sequences shared files, retains current guards and owns final identity/tape composition. Native source-born
+Frost/Sentenced NPC signature prerequisites remain genuine pending work; removing the current gate is not a port.
+
 ## Current priorities
 
 1. Preserve the consolidated Git checkpoint, active workers and recovery refs. The full Rust foundation workflow at
-   `48f4bb28` passes Rust, simulation, C# and card-runtime source jobs; new changes retain revision-scoped validation.
+   `01b14dca` passes Rust, simulation, C# and card-runtime source jobs; new changes retain revision-scoped validation.
 2. Complete native gameplay/parity/headless acceptance. The bot Knowledge repair is admitted; approve a concrete fair
    observation design before memory/strategy/tactics work. The repaired learning store is integrated and defaults Off.
    Bot fill/configuration through `43abe070` and the reviewed A–C continuation are integrated in `fdf65513`. The bounded
    tournament/shape candidate plus admission repair `c9bdf0d8` is integrated in `8ce725db`; full recorder/brain remains
    incomplete. The [G6 native packet](coordination/P-G6-HEAL-BARRIER-NATIVE.md) is assigned as a private candidate with
-   public activation held; do not duplicate it.
+   public activation held; do not duplicate it. The independent Frost-resistance repair corrects an actual missing
+   Iron Will interaction without widening NPC admission.
 3. Close the missing public transports and source consumers: full Wish input/owner facts, Kill/Trophy options,
    quest/trade flows and the remaining public facts/cues. Inventory exact native prerequisites before assigning each
-   packet. Reconcile incompatible identities and all three codecs centrally. Native fixtures alone do not prove the UI.
+   packet. The checked barrier/Wish contract and active codec PhaseA are defined in ADR0022 and the leases above.
+   Reconcile incompatible identities and all three codecs centrally. Native fixtures alone do not prove the UI.
 4. The functional Unity art follow-up through `55825c10` is integrated in `46ceebba`. The
    [bounded repair](coordination/ART_LIGHTING_READABILITY_REPAIR.md) passes its source, 27-test Editor, exact-build
    19-outcome browser, normal-input and static color-vision checks. Three High GPU windows pass the 6.944 ms p99
