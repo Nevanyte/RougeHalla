@@ -55,6 +55,12 @@ pub(crate) fn validate(
     {
         return Err("invalid Wish lock".into());
     }
+    let initial = if k.config.training {
+        0.
+    } else {
+        w.raid_started_at + k.config.wish_lock_ms
+    };
+    let first_cast = (w.raid_started_at + crate::constants::TICK_MS).max(initial);
     let full = k.config.abilities == Mode::Full;
     if full {
         super::effect_checkpoint::validate(w)?;
@@ -69,8 +75,6 @@ pub(crate) fn validate(
                 return Err("unproduced empty card runtime".into());
             }
             if let Some(spend) = cards.wish_cast {
-                let first_cast = (w.raid_started_at + crate::constants::TICK_MS)
-                    .max(w.raid_started_at + k.config.wish_lock_ms);
                 if !(first_cast..=w.server_time).contains(&spend.at)
                     || spend.at % crate::constants::TICK_MS != 0.
                     || !spend.cooldown_ms.is_finite()
@@ -79,7 +83,7 @@ pub(crate) fn validate(
                     || spend.cooldown_ms
                         != cooldown(
                             wish(p.vitals.faction),
-                            false,
+                            k.config.training,
                             Some(p.modifiers.wish_cooldown_mult()),
                         )
                 {
@@ -103,7 +107,6 @@ pub(crate) fn validate(
             return Err("invalid Wish stock clock".into());
         }
         if full {
-            let initial = w.raid_started_at + k.config.wish_lock_ms;
             let begun = w.raid_started_at > 0.;
             if !begun {
                 if stocks != Stocks::default() || p.card_runtime.is_some() {
@@ -118,7 +121,11 @@ pub(crate) fn validate(
                     return Err("unproduced Wish stock clocks".into());
                 }
                 let def = definition(wish(p.vitals.faction));
-                let recharge = cooldown(def.id, false, Some(p.modifiers.wish_cooldown_mult()));
+                let recharge = cooldown(
+                    def.id,
+                    k.config.training,
+                    Some(p.modifiers.wish_cooldown_mult()),
+                );
                 // A card-owned Wishful Thinking trim is a second producer of the same clocks: the source stores only
                 // its window trace, so the untrimmed equations are replaced by that trace plus bounded necessary ones.
                 let trimmed = has_spend
@@ -144,7 +151,6 @@ pub(crate) fn validate(
                     return Err("Wish clocks precede opening lock".into());
                 }
                 if let Some(spend) = p.card_runtime.and_then(|c| c.wish_cast) {
-                    let first_cast = (w.raid_started_at + crate::constants::TICK_MS).max(initial);
                     let spent = if def.charges == 1 {
                         full_at == spend.at + recharge && stocks.wish_ready_at == full_at
                     } else {
@@ -244,11 +250,14 @@ pub(crate) fn validate(
             || d.previous_full_at != Some(d.previous_ready_at)
             || !prior_clock(
                 d.previous_ready_at,
-                w.raid_started_at + k.config.wish_lock_ms,
-                (w.raid_started_at + crate::constants::TICK_MS)
-                    .max(w.raid_started_at + k.config.wish_lock_ms),
+                initial,
+                first_cast,
                 c.started_at,
-                cooldown(c.ability, false, Some(p.modifiers.wish_cooldown_mult())),
+                cooldown(
+                    c.ability,
+                    k.config.training,
+                    Some(p.modifiers.wish_cooldown_mult()),
+                ),
             )
         {
             return Err("invalid Wish rollback clock".into());
@@ -261,12 +270,20 @@ pub(crate) fn validate(
             },
             c.started_at,
             def.charges,
-            cooldown(c.ability, false, Some(p.modifiers.wish_cooldown_mult())),
+            cooldown(
+                c.ability,
+                k.config.training,
+                Some(p.modifiers.wish_cooldown_mult()),
+            ),
         );
         if w.players[ix.slot()].card_runtime.and_then(|c| c.wish_cast)
             != Some(crate::cards::runtime::WishSpend {
                 at: c.started_at,
-                cooldown_ms: cooldown(c.ability, false, Some(p.modifiers.wish_cooldown_mult())),
+                cooldown_ms: cooldown(
+                    c.ability,
+                    k.config.training,
+                    Some(p.modifiers.wish_cooldown_mult()),
+                ),
             })
         {
             return Err("cast lacks canonical card spend".into());

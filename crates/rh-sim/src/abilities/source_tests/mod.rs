@@ -10,6 +10,7 @@ mod motion;
 mod repair_tests;
 mod runner;
 mod setup;
+mod training_tests;
 use compare::*;
 use runner::*;
 use setup::*;
@@ -42,18 +43,13 @@ fn frozen_core_source_casts() {
 /// Always executes every admitted source case and pins the exact outstanding inventory.
 /// RH_ABIL_REQUIRE_FULL additionally makes the explicitly unattempted prerequisites fatal.
 /// P-ABIL-1 admitted the two cards cases and the two signatures cases (real grantCard / own-Mark producers); the
-/// remaining six are the training world and the full five-faction source-born NPC signatures, both owned elsewhere.
+/// training world now executes through P-ARENA-2; the remaining five are source-born NPC signatures owned elsewhere.
 #[test]
 fn frozen_full_source_all_63_cases() {
     let corpus = corpus();
     let cases = corpus["cases"].as_array().unwrap();
     assert_eq!(cases.len(), 63);
     let expected_pending = [
-        (
-            "training-swarm-real-five-second-recast-replacement",
-            "training",
-            "actual training lifecycle and dummy constructor",
-        ),
         (
             "full-signature-source-born-holy-wish-recipients",
             "rosterSignatures",

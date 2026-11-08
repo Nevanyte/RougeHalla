@@ -60,7 +60,7 @@ pub(super) fn room(input: &V) -> crate::TileMap {
 pub(super) fn construct(input: &V) -> Sim {
     assert!(matches!(
         input["profile"].as_str(),
-        Some("core" | "signatures" | "roster" | "cards")
+        Some("core" | "signatures" | "roster" | "cards" | "training")
     ));
     PLAYER_COUNT.set(input["players"].as_array().unwrap().len() as u32);
     assert!(matches!(
@@ -111,6 +111,7 @@ pub(super) fn construct(input: &V) -> Sim {
             }),
         })
         .collect();
+    let training = input["profile"] == "training" || input["config"]["training"] == true;
     let mut sim = Sim::new(
         SimConfig {
             quests: false,
@@ -119,19 +120,26 @@ pub(super) fn construct(input: &V) -> Sim {
             min_players: placements.iter().filter(|p| !p.bot).count(),
             fill_seconds: 0.,
             abilities: Mode::Full,
-            initial_loot: input["profile"] == "roster",
-            lifecycle: crate::ArenaMode::Source(crate::ArenaRules {
-                plan_seconds: input["config"]["planSeconds"].as_f64().unwrap_or(0.),
-                first_patience_seconds: input["config"]["firstPatienceSeconds"].as_f64(),
-                coliseum_schedule: None,
-                patience_seconds: input["config"]["patienceSeconds"].as_f64().unwrap_or(3600.),
-                patience_min_seconds: input["config"]["patienceMinSeconds"]
-                    .as_f64()
-                    .unwrap_or(3600.),
-                sudden_death_seconds: input["config"]["suddenDeathSeconds"]
-                    .as_f64()
-                    .unwrap_or(60.),
-            }),
+            // Both source profiles install loot; in an empty room this consumes only the constructor order draw.
+            initial_loot: matches!(input["profile"].as_str(), Some("roster" | "training")),
+            training,
+            dummies: input["config"]["dummies"] == true,
+            lifecycle: if training {
+                crate::ArenaMode::Off
+            } else {
+                crate::ArenaMode::Source(crate::ArenaRules {
+                    plan_seconds: input["config"]["planSeconds"].as_f64().unwrap_or(0.),
+                    first_patience_seconds: input["config"]["firstPatienceSeconds"].as_f64(),
+                    coliseum_schedule: None,
+                    patience_seconds: input["config"]["patienceSeconds"].as_f64().unwrap_or(3600.),
+                    patience_min_seconds: input["config"]["patienceMinSeconds"]
+                        .as_f64()
+                        .unwrap_or(3600.),
+                    sudden_death_seconds: input["config"]["suddenDeathSeconds"]
+                        .as_f64()
+                        .unwrap_or(60.),
+                })
+            },
             mob_mode: if input["profile"] == "roster" {
                 crate::mob_runtime::MobMode::Pve
             } else {

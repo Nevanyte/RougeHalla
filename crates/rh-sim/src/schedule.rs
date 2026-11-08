@@ -115,11 +115,21 @@ impl Gates {
         ..Self::MOB_BASIC_FACTIONS
     };
 
+    /// The training/ability source profile installs dummies and training but no faction signatures.
+    pub const TRAINING_NO_SIGNATURES: Gates = Gates {
+        signatures: false,
+        ..Self::TRAINING
+    };
+
     /// The match uses the baseline capture plan or the explicitly partial Holy foundation.
     /// Other signature producers remain Pending even in the latter plan.
     pub(crate) const fn of(k: &MatchStatic) -> Gates {
         if k.config.training {
-            return Gates::TRAINING;
+            return if k.config.faction_mode.engagement() {
+                Gates::TRAINING
+            } else {
+                Gates::TRAINING_NO_SIGNATURES
+            };
         }
         let mut g = if matches!(
             k.config.mob_mode,
@@ -669,6 +679,8 @@ impl Plan {
             &MOB_FOUNDATION_PLAN
         } else if g == Gates::TRAINING {
             &TRAINING_PLAN
+        } else if g == Gates::TRAINING_NO_SIGNATURES {
+            &TRAINING_NO_SIGNATURES_PLAN
         } else {
             // A config switch that makes another combination
             // must add its plan (and its record) here: it never silently plays the capture world.
@@ -705,6 +717,7 @@ static QUESTS_MOB_BASIC_FACTIONS_PLAN: Plan = Plan::compile(&Gates {
     quests: true,
     ..Gates::MOB_BASIC_FACTIONS
 });
+static TRAINING_NO_SIGNATURES_PLAN: Plan = Plan::compile(&Gates::TRAINING_NO_SIGNATURES);
 
 /// Runs compiled phases in order: the one place `updateActive`'s systems are called from.
 pub(crate) fn run_steps(cx: &mut Cx, steps: &[(&'static str, PhaseFn)]) -> Flow {
@@ -1946,6 +1959,7 @@ mod tests {
             (&PRODUCTION_PLAN, Gates::PRODUCTION),
             (&CAPTURE_PLAN, Gates::CAPTURE),
             (&TRAINING_PLAN, Gates::TRAINING),
+            (&TRAINING_NO_SIGNATURES_PLAN, Gates::TRAINING_NO_SIGNATURES),
             (&MOB_FOUNDATION_PLAN, Gates::MOB_FOUNDATION),
             (&MOB_BASIC_FACTIONS_PLAN, Gates::MOB_BASIC_FACTIONS),
         ] {

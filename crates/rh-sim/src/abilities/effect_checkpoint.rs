@@ -71,7 +71,19 @@ pub(super) fn validate(w: &World) -> Result<(), String> {
                         && st.taken.is_none()
                 }
                 (AbilityId::Swarm, rt::StatusKind::Hidden) => {
-                    exact_duration(SWARM_MS)
+                    // Recasting refreshes until while retaining the original Hidden start. The one live cloud
+                    // proves the latest landing; repeated five-second training recasts can extend this indefinitely.
+                    st.until >= st.started_at + SWARM_MS
+                        && st.until <= w.server_time + SWARM_MS
+                        && w.abilities.as_ref().is_some_and(|a| {
+                            a.fields.iter().any(|f| {
+                                f.kind == rt::FieldKind::Cloud
+                                    && f.ability == AbilityId::Swarm
+                                    && f.owner == st.source
+                                    && f.started_at >= st.started_at
+                                    && f.ends_at == st.until
+                            })
+                        })
                         && st.value == 0.
                         && st.data
                             == rt::Payload {

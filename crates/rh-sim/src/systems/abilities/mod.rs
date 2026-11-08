@@ -136,7 +136,11 @@ pub(crate) fn handle(cx: &mut Cx, ix: FighterIx, cmd: &ActionCmd) {
     let p = &mut cx.w.players[ix.slot()];
     let previous_ready_at = p.stocks.ready_at(slot);
     let previous_full_at = p.stocks.wish_full_at;
-    let cooldown = a::cooldown(ability, false, Some(p.modifiers.wish_cooldown_mult()));
+    let cooldown = a::cooldown(
+        ability,
+        cx.k.config.training,
+        Some(p.modifiers.wish_cooldown_mult()),
+    );
     let (full, ready) = a::spend_charge(
         if def.charges > 1 {
             previous_full_at.unwrap_or(0.)
