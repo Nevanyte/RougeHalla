@@ -1,11 +1,11 @@
 --- a/crates/rh-sim/src/traders/runtime.rs
 +++ b/crates/rh-sim/src/traders/runtime.rs
-@@ -268,7 +268,7 @@
-         .as_ref()
-         .and_then(|rt| rt.barter_at.iter().find(|(who, _)| *who == id).map(|(_, at)| *at))
-         .unwrap_or(0.);
+@@ -288,7 +288,7 @@
+                     .map(|(_, at)| *at)
+             })
+             .unwrap_or(0.);
 -    if now < ready_at {
 +    if now < ready_at && false {
          return;
      }
-     let held = slot_item(&cx.w.players[ix.slot()], cx.w.players[ix.slot()].weapon.slot);
+     let held = slot_item(

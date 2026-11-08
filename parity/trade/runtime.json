@@ -2320,6 +2320,436 @@
      ]
     }
    ]
+  },
+  {
+   "input": {
+    "name": "barter-locked-second-slot",
+    "map": {
+     "seed": 1,
+     "attempt": 0,
+     "decor": false
+    },
+    "config": {
+     "minPlayers": 2,
+     "lobbySeconds": 30,
+     "fillSeconds": 0,
+     "patienceSeconds": 3600,
+     "patienceMinSeconds": 3600,
+     "suddenDeathSeconds": 3600,
+     "mobs": true,
+     "signatures": false,
+     "quests": true,
+     "training": false,
+     "dummies": false,
+     "planSeconds": 0,
+     "pvpRules": false
+    },
+    "players": [
+     {
+      "faction": "holy",
+      "name": "name0"
+     },
+     {
+      "faction": "fire",
+      "name": "name1"
+     },
+     {
+      "faction": "plague",
+      "name": "name2"
+     }
+    ],
+    "initial": [
+     {
+      "x": 1456,
+      "y": 1136,
+      "faction": "holy"
+     },
+     {
+      "x": 3408,
+      "y": 1072,
+      "faction": "fire"
+     },
+     {
+      "x": 784,
+      "y": 2128,
+      "faction": "plague"
+     }
+    ],
+    "seeds": {
+     "random": 12,
+     "rewardSalt": [
+      1,
+      2,
+      3,
+      4
+     ]
+    }
+   },
+   "script": {
+    "lockedPlayer": 0,
+    "unlockedPlayer": 1
+   },
+   "actions": [
+    {
+     "tick": 1,
+     "seq": 0,
+     "kind": "grantCard",
+     "actor": 0,
+     "card": "committed"
+    },
+    {
+     "tick": 1,
+     "seq": 1,
+     "kind": "weapon",
+     "actor": 0,
+     "weapon": "sword"
+    },
+    {
+     "tick": 1,
+     "seq": 2,
+     "kind": "potion",
+     "actor": 0,
+     "count": 1
+    },
+    {
+     "tick": 1,
+     "seq": 3,
+     "kind": "place",
+     "actor": 0,
+     "x": 1744,
+     "y": 4048
+    },
+    {
+     "tick": 2,
+     "seq": 4,
+     "kind": "input",
+     "actor": 0,
+     "type": "trade",
+     "payload": {
+      "trader": "trader-barter",
+      "pick": 2
+     }
+    },
+    {
+     "tick": 3,
+     "seq": 5,
+     "kind": "weapon",
+     "actor": 1,
+     "weapon": "sword"
+    },
+    {
+     "tick": 3,
+     "seq": 6,
+     "kind": "potion",
+     "actor": 1,
+     "count": 1
+    },
+    {
+     "tick": 3,
+     "seq": 7,
+     "kind": "place",
+     "actor": 1,
+     "x": 1744,
+     "y": 4048
+    },
+    {
+     "tick": 4,
+     "seq": 8,
+     "kind": "input",
+     "actor": 1,
+     "type": "trade",
+     "payload": {
+      "trader": "trader-barter",
+      "pick": 2
+     }
+    }
+   ],
+   "frames": [
+    {
+     "label": "start",
+     "actionCount": 0,
+     "tick": 1,
+     "time": 50,
+     "traders": [
+      {
+       "id": "trader-barter",
+       "kind": "barter",
+       "name": "Wandering Villager",
+       "x": 1744,
+       "y": 4048,
+       "nextWalkAt": 8050
+      },
+      {
+       "id": "trader-stats",
+       "kind": "stats",
+       "name": "Soul Broker",
+       "x": 1232,
+       "y": 80,
+       "nextWalkAt": 9050
+      }
+     ],
+     "destinations": {
+      "count": 1423,
+      "fold": "f7738950f27ca440"
+     },
+     "barterAt": {},
+     "players": [
+      {
+       "id": 0,
+       "weapon0": "",
+       "weapon1": "",
+       "slot": 0,
+       "potionSmall": 0,
+       "hp": 1145,
+       "maxHp": 1145,
+       "mirrors": {
+        "asMult": 1000,
+        "windupMult": 1000,
+        "speedMult": 1000,
+        "armorBonus": 0,
+        "shieldBonus": 0,
+        "adBonus": 0,
+        "apBonus": 0
+       },
+       "tradeUsed": false,
+       "tradeOffers": [],
+       "tradeStats": {}
+      },
+      {
+       "id": 1,
+       "weapon0": "",
+       "weapon1": "",
+       "slot": 0,
+       "potionSmall": 0,
+       "hp": 950,
+       "maxHp": 950,
+       "mirrors": {
+        "asMult": 1000,
+        "windupMult": 1000,
+        "speedMult": 1000,
+        "armorBonus": 0,
+        "shieldBonus": 0,
+        "adBonus": 0,
+        "apBonus": 0
+       },
+       "tradeUsed": false,
+       "tradeOffers": [],
+       "tradeStats": {}
+      },
+      {
+       "id": 2,
+       "weapon0": "",
+       "weapon1": "",
+       "slot": 0,
+       "potionSmall": 0,
+       "hp": 1020,
+       "maxHp": 1020,
+       "mirrors": {
+        "asMult": 1000,
+        "windupMult": 1000,
+        "speedMult": 1000,
+        "armorBonus": 0,
+        "shieldBonus": 0,
+        "adBonus": 0,
+        "apBonus": 0
+       },
+       "tradeUsed": false,
+       "tradeOffers": [],
+       "tradeStats": {}
+      }
+     ]
+    },
+    {
+     "label": "locked-refused",
+     "actionCount": 5,
+     "tick": 3,
+     "time": 150,
+     "traders": [
+      {
+       "id": "trader-barter",
+       "kind": "barter",
+       "name": "Wandering Villager",
+       "x": 1744,
+       "y": 4048,
+       "nextWalkAt": 8150
+      },
+      {
+       "id": "trader-stats",
+       "kind": "stats",
+       "name": "Soul Broker",
+       "x": 1232,
+       "y": 80,
+       "nextWalkAt": 9050
+      }
+     ],
+     "destinations": {
+      "count": 1423,
+      "fold": "f7738950f27ca440"
+     },
+     "barterAt": {},
+     "players": [
+      {
+       "id": 0,
+       "weapon0": "sword",
+       "weapon1": "",
+       "slot": 0,
+       "potionSmall": 1,
+       "hp": 1145,
+       "maxHp": 1145,
+       "mirrors": {
+        "asMult": 1150,
+        "windupMult": 1000,
+        "speedMult": 1000,
+        "armorBonus": 0,
+        "shieldBonus": 0,
+        "adBonus": 0,
+        "apBonus": 0
+       },
+       "tradeUsed": false,
+       "tradeOffers": [],
+       "tradeStats": {}
+      },
+      {
+       "id": 1,
+       "weapon0": "",
+       "weapon1": "",
+       "slot": 0,
+       "potionSmall": 0,
+       "hp": 950,
+       "maxHp": 950,
+       "mirrors": {
+        "asMult": 1000,
+        "windupMult": 1000,
+        "speedMult": 1000,
+        "armorBonus": 0,
+        "shieldBonus": 0,
+        "adBonus": 0,
+        "apBonus": 0
+       },
+       "tradeUsed": false,
+       "tradeOffers": [],
+       "tradeStats": {}
+      },
+      {
+       "id": 2,
+       "weapon0": "",
+       "weapon1": "",
+       "slot": 0,
+       "potionSmall": 0,
+       "hp": 1020,
+       "maxHp": 1020,
+       "mirrors": {
+        "asMult": 1000,
+        "windupMult": 1000,
+        "speedMult": 1000,
+        "armorBonus": 0,
+        "shieldBonus": 0,
+        "adBonus": 0,
+        "apBonus": 0
+       },
+       "tradeUsed": false,
+       "tradeOffers": [],
+       "tradeStats": {}
+      }
+     ]
+    },
+    {
+     "label": "unlocked-traded",
+     "actionCount": 9,
+     "tick": 5,
+     "time": 250,
+     "traders": [
+      {
+       "id": "trader-barter",
+       "kind": "barter",
+       "name": "Wandering Villager",
+       "x": 1744,
+       "y": 4048,
+       "nextWalkAt": 8250
+      },
+      {
+       "id": "trader-stats",
+       "kind": "stats",
+       "name": "Soul Broker",
+       "x": 1232,
+       "y": 80,
+       "nextWalkAt": 9050
+      }
+     ],
+     "destinations": {
+      "count": 1423,
+      "fold": "f7738950f27ca440"
+     },
+     "barterAt": {
+      "p1": 5250
+     },
+     "players": [
+      {
+       "id": 0,
+       "weapon0": "sword",
+       "weapon1": "",
+       "slot": 0,
+       "potionSmall": 1,
+       "hp": 1145,
+       "maxHp": 1145,
+       "mirrors": {
+        "asMult": 1150,
+        "windupMult": 1000,
+        "speedMult": 1000,
+        "armorBonus": 0,
+        "shieldBonus": 0,
+        "adBonus": 0,
+        "apBonus": 0
+       },
+       "tradeUsed": false,
+       "tradeOffers": [],
+       "tradeStats": {}
+      },
+      {
+       "id": 1,
+       "weapon0": "sword",
+       "weapon1": "wand",
+       "slot": 0,
+       "potionSmall": 0,
+       "hp": 950,
+       "maxHp": 950,
+       "mirrors": {
+        "asMult": 1000,
+        "windupMult": 1000,
+        "speedMult": 1000,
+        "armorBonus": 0,
+        "shieldBonus": 0,
+        "adBonus": 0,
+        "apBonus": 0
+       },
+       "tradeUsed": false,
+       "tradeOffers": [],
+       "tradeStats": {}
+      },
+      {
+       "id": 2,
+       "weapon0": "",
+       "weapon1": "",
+       "slot": 0,
+       "potionSmall": 0,
+       "hp": 1020,
+       "maxHp": 1020,
+       "mirrors": {
+        "asMult": 1000,
+        "windupMult": 1000,
+        "speedMult": 1000,
+        "armorBonus": 0,
+        "shieldBonus": 0,
+        "adBonus": 0,
+        "apBonus": 0
+       },
+       "tradeUsed": false,
+       "tradeOffers": [],
+       "tradeStats": {}
+      }
+     ]
+    }
+   ]
   }
  ]
 }
