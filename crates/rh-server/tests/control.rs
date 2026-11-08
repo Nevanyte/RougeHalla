@@ -125,6 +125,8 @@ struct Opts {
     max_rooms: usize,
     /// A lobby that starts its match 0.3 s after the first player (instead of waiting 30 s for a second one).
     quick_start: bool,
+    /// Test-specific lobby threshold; keep admission-only scenarios out of a running match.
+    min_players: usize,
     token: Option<&'static str>,
 }
 
@@ -134,6 +136,7 @@ impl Default for Opts {
             require_admit: true,
             max_rooms: 1,
             quick_start: false,
+            min_players: 2,
             token: None,
         }
     }
@@ -152,7 +155,7 @@ async fn rig(o: Opts) -> Rig {
         hazards: rh_sim::terrain::Mode::Off,
         mob_mode: rh_sim::mob_runtime::MobMode::Off,
         initial_loot: false,
-        min_players: if o.quick_start { 1 } else { 2 },
+        min_players: if o.quick_start { 1 } else { o.min_players },
         lobby_seconds: if o.quick_start { 0.3 } else { 30.0 },
         fill_seconds: 0.0,
         pvp_rules: true,
@@ -325,7 +328,13 @@ async fn session_properties_are_validated_and_a_starting_server_is_503() {
 
 #[tokio::test]
 async fn admit_is_idempotent_never_extends_never_rearms_and_expires_for_good() {
-    let r = rig(Opts::default()).await;
+    // Alice and Dave overlap during the replay/leave checks. Two players must not start a match whose winner closes
+    // the room and makes session_ended take precedence over replaying the later expired admit.
+    let r = rig(Opts {
+        min_players: 3,
+        ..Opts::default()
+    })
+    .await;
     r.create("gs-1", json!({})).await;
     let a = r.admit("gs-1", "psess-1", "alice").await;
     assert_eq!(a.status, 200, "{}", a.body);
@@ -365,6 +374,7 @@ async fn admit_is_idempotent_never_extends_never_rearms_and_expires_for_good() {
     // Leave, acknowledge, replay: still never re-armed. (dave keeps the room open: a room whose last human leaves closes.)
     r.admit("gs-1", "psess-d", "dave").await;
     let _dave = join(&r, "dave").await;
+    assert_eq!(r.room("gs-1").await["phase"], "lobby");
     let mut alice = alice;
     alice.leave().await;
     let p = r.wait_player("gs-1", "psess-1", "left").await;
@@ -391,11 +401,11 @@ async fn admit_is_idempotent_never_extends_never_rearms_and_expires_for_good() {
         .await;
     assert_eq!(short.status, 200, "{}", short.body);
     tokio::time::sleep(Duration::from_millis(1150)).await;
+    assert_eq!(r.room("gs-1").await["phase"], "lobby");
     assert_eq!(r.player("gs-1", "psess-9").await["status"], "expired");
-    assert_eq!(
-        r.admit("gs-1", "psess-9", "bob").await.json()["state"],
-        "expired"
-    );
+    let retry = r.admit("gs-1", "psess-9", "bob").await;
+    assert_eq!(retry.status, 200, "{}", retry.body);
+    assert_eq!(retry.json()["state"], "expired");
     // An expired admit admits nobody (the Hello is refused with the admit reason).
     let late = try_join(&r.ws_url(), "bob", &token_of("bob"), None).await;
     assert_eq!(
