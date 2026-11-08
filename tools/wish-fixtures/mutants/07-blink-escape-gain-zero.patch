@@ -1,5 +1,5 @@
 diff --git a/crates/rh-policy/src/bots/wish.rs b/crates/rh-policy/src/bots/wish.rs
-index da116c5a..0bb7883c 100644
+index d1e2d81b..0bb7883c 100644
 --- a/crates/rh-policy/src/bots/wish.rs
 +++ b/crates/rh-policy/src/bots/wish.rs
 @@ -56,7 +56,7 @@ pub const ESCAPE_HEADINGS: [f64; 7] = [
@@ -11,12 +11,3 @@ index da116c5a..0bb7883c 100644
  /// The policy's block bits, keyed by the source's names.
  fn block_bit(name: BlockedBy) -> u16 {
      match name {
-@@ -220,7 +220,7 @@ const EASY_AI: [&[AiIntent]; 5] = [
-     &[AiIntent::Sustain, AiIntent::Escape],
- ];
- /// The tags this tier plays the Wish with (legacy playedDef: Easy filters to escape/sustain, null when none remains).
--fn played_ai(def: &WishDef, tier: TierId) -> Option<&'static [AiIntent]> {
-+pub(crate) fn played_ai(def: &WishDef, tier: TierId) -> Option<&'static [AiIntent]> {
-     if tier != TierId::Easy {
-         return Some(def.ai);
-     }

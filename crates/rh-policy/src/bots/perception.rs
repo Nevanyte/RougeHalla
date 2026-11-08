@@ -193,6 +193,8 @@ impl Perception {
                 wish: me.wish.as_ref().map(|w| WishView {
                     ability: w.ability,
                     ready_at: w.ready_at,
+                    full_at: w.full_at,
+                    max_charges: w.max_charges,
                     casting: w.cast.is_some(),
                     rank: 1,
                 }),

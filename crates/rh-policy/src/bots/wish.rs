@@ -370,7 +370,7 @@ fn escape(rule: TargetRule, effects: &[PolicyEffect], s: &CastSituation) -> Opti
     let dx = m.x - fx;
     let dy = m.y - fy;
     let len = rh_sim::math::hypot(dx, dy);
-    if !(len > 0.5) {
+    if len.partial_cmp(&0.5) != Some(std::cmp::Ordering::Greater) {
         return None;
     }
     let range = match rule {
@@ -434,9 +434,7 @@ fn engage(rule: TargetRule, effects: &[PolicyEffect], s: &CastSituation) -> Opti
             let k = (f.d - ENGAGE_BLINK_STOP_SHORT).max(0.) / f.d;
             let to = Vec2::new(s.me.x + (f.x - s.me.x) * k, s.me.y + (f.y - s.me.y) * k);
             if let Some((max_dist, min_dist)) = blink_of(effects) {
-                if landing(s, to, max_dist, min_dist).is_none() {
-                    return None;
-                }
+                landing(s, to, max_dist, min_dist)?;
             }
             Some(CastChoice {
                 x: to.x,
@@ -765,22 +763,4 @@ pub(crate) fn sim_definition(id: AbilityId) -> rh_sim::abilities::Definition {
 #[cfg(test)]
 pub(crate) fn sim_status_bit(kind: rh_sim::status_runtime::StatusKind) -> u16 {
     kind.rule().bit
-}
-/// Effects the sim executes, so the hidden/blink rows above cannot diverge.
-#[cfg(test)]
-pub(crate) fn sim_effect_marks(effect: rh_sim::abilities::Effect) -> Option<PolicyEffect> {
-    use rh_sim::abilities::{Effect, Side};
-    use rh_sim::status_runtime::StatusKind;
-    match effect {
-        Effect::Status {
-            kind: StatusKind::Hidden,
-            to: Side::Self_,
-            ..
-        } => Some(PolicyEffect::HidesCaster),
-        Effect::Blink => Some(PolicyEffect::Blink {
-            max_dist: 300.,
-            min_dist: 64.,
-        }),
-        _ => None,
-    }
 }

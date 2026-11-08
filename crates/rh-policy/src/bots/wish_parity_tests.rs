@@ -14,7 +14,7 @@ const FIXTURE: &str = include_str!("../../../../parity/policy/bot-wish.json");
 fn fixture() -> Value {
     serde_json::from_str(FIXTURE).expect("the captured wish corpus parses")
 }
-fn text<'a>(v: &'a Value) -> &'a str {
+fn text(v: &Value) -> &str {
     v.as_str().expect("a string")
 }
 fn num(v: &Value) -> f64 {
@@ -205,6 +205,14 @@ fn hides_caster_matches_the_source_for_every_rank() {
             def.name
         );
     }
+}
+
+#[test]
+fn the_block_bits_match_the_sim_status_bits() {
+    use rh_sim::status_runtime::StatusKind;
+    assert_eq!(EFFECT_STUNNED, sim_status_bit(StatusKind::Stun));
+    assert_eq!(EFFECT_SILENCED, sim_status_bit(StatusKind::Silence));
+    assert_eq!(EFFECT_ROOTED, sim_status_bit(StatusKind::Root));
 }
 
 #[test]

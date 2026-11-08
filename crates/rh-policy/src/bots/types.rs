@@ -1090,7 +1090,11 @@ pub struct PerceptExtras {
 #[derive(Clone, Debug, PartialEq)]
 pub struct WishView {
     pub ability: rh_sim::status_runtime::AbilityId,
+    /// When the next charge is ready (the slot's cooldown, as the owner's Observation shows it).
     pub ready_at: ServerMs,
+    /// The next full-charge time, for a charged Wish (None when not charging).
+    pub full_at: Option<ServerMs>,
+    pub max_charges: u8,
     pub casting: bool,
     pub rank: u8,
 }

@@ -57,11 +57,13 @@ fn observation(
     recent_hit: bool,
     enemy: Option<(f64, f64)>,
 ) -> Observation {
-    let mut o = Observation::default();
-    o.version = rh_sim::OBSERVATION_VERSION;
-    o.tick = 1;
-    o.server_time = now;
-    o.phase = Phase::Active;
+    let mut o = Observation {
+        version: rh_sim::OBSERVATION_VERSION,
+        tick: 1,
+        server_time: now,
+        phase: Phase::Active,
+        ..Observation::default()
+    };
     o.me = Some(SelfView {
         wish,
         effects,
@@ -318,11 +320,16 @@ fn the_easy_filter_keeps_only_the_defensive_tags() {
 
 #[test]
 fn the_wish_view_is_a_fair_copy_of_the_observation_slot() {
-    let obs = observation(1_000., wish(AbilityId::Trial, 250.), 0, 900., false, None);
+    let mut slot = wish(AbilityId::Trial, 250.).expect("a slot");
+    slot.full_at = Some(1_250.);
+    slot.max_charges = 3;
+    let obs = observation(1_000., Some(slot), 0, 900., false, None);
     let frame = Perception::default().build(&obs, 1.).expect("a frame");
     let view: &WishView = frame.percept.extras.wish.as_ref().expect("the slot");
     assert_eq!(view.ability, AbilityId::Trial);
     assert_eq!(view.ready_at, 250.);
+    assert_eq!(view.full_at, Some(1_250.));
+    assert_eq!(view.max_charges, 3);
     assert_eq!(view.rank, 1);
     assert!(!view.casting);
     assert_eq!(frame.percept.self_view.effects, 0);
