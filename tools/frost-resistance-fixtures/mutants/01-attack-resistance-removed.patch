@@ -1,12 +1,8 @@
 --- a/crates/rh-sim/src/systems/frost.rs
 +++ b/crates/rh-sim/src/systems/frost.rs
-@@ -28,7 +28,8 @@
- }
- /// Source attack chill after the victim's folded resistance. Also probed by the gameplay content identity.
+@@ -30,3 +30,4 @@
  pub(crate) fn resisted_attack_chill(min_chill: f64, resist: f64) -> f64 {
 -    crate::status_runtime::resist_slow(min_chill, resist)
 +    let _ = resist;
 +    min_chill
  }
- 
- /// Source resistance precedes movement quantization. Shared with the gameplay content identity.

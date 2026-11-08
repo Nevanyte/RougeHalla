@@ -1464,6 +1464,23 @@ fn content_hash_of_definitions(
             }
         }
     }
+    h.str("sentenced/mark-rate/1");
+    h.f64(crate::modifiers::maximum_mark_rate());
+    for extra in [-1.0, 0.0, 0.5] {
+        let mut sums = crate::stat_fold::zero_sums();
+        sums.mark_rate = extra;
+        let rate = crate::modifiers::mark_rate_of(&sums);
+        h.f64(rate);
+        for chill in [
+            0.0,
+            MARK_CHILL_FLOOR,
+            1.0 - FROST_SLOW - crate::modifiers::DEFINITION.frost_cap,
+            1.0 - FROST_SLOW,
+            1.0,
+        ] {
+            h.f64(crate::modifiers::mark_progress_increment(rate, chill));
+        }
+    }
     h.str("sentenced/base-pulse/1");
     for weapon in WeaponId::ALL {
         for sentence in [0, 1, 5] {

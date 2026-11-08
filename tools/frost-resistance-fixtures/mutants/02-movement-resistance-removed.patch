@@ -1,12 +1,8 @@
 --- a/crates/rh-sim/src/systems/frost.rs
 +++ b/crates/rh-sim/src/systems/frost.rs
-@@ -33,7 +33,8 @@
- 
- /// Source resistance precedes movement quantization. Shared with the gameplay content identity.
+@@ -35,3 +35,4 @@
  pub(crate) fn resisted_move_mult(raw: f64, resist: f64) -> f64 {
 -    let m = crate::status_runtime::resist_slow(raw, resist);
 +    let _ = resist;
 +    let m = raw;
      (m * FROST_MOVE_QUANTIZATION + 0.5).floor() / FROST_MOVE_QUANTIZATION
- }
- 

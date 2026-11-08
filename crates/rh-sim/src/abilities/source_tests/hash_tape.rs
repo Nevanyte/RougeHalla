@@ -1,4 +1,4 @@
-//! Derived native hash regression tape for the consolidated checkpoint24 layout.
+//! Derived native hash regression tape for the composed candidate layout named by its recorded identities.
 //! Legacy source outputs remain frozen; all58 admitted cases must execute before recording or checking.
 use super::*;
 use serde_json::{json, Map, Value as V};

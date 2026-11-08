@@ -235,8 +235,8 @@
     }
   },
   "checkpoint": "rh-checkpoint/25",
-  "contentHash": "356457e6ccfb22cd",
+  "contentHash": "decf07b19a8f21e0",
   "format": "rh-ability-hash-tape/2",
   "note": "58 admitted source cases executed without catch-and-drop; native digests rebound for the combined layout, not legacy expected gameplay",
-  "observationVersion": 17
+  "observationVersion": 18
 }
