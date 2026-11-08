@@ -69,6 +69,7 @@ namespace Roguehalla.Net
         public uint PlayerId { get { return Welcome == null ? 0 : Welcome.PlayerId; } }
         readonly SelfView _me = new SelfView();
         bool _hasMe;
+        bool _predictionGatesLocked;
         /// <summary>
         /// The local player as of the newest applied snapshot, or null before the first one and while spectating (no self). Gameplay
         /// code reads this, not <see cref="Latest"/>: it is one owned object overwritten in place per snapshot (so it makes no garbage
@@ -186,6 +187,7 @@ namespace Roguehalla.Net
             if (Clock.Ready) Clock.Update(now);
             // P-NET-1 Phase 2: presentation only. Advance the predicted walk with the same injected clock while the
             // session is polled, so a frame-driven client can poll -> read input -> flush input -> present once per frame.
+            // Snapshot callbacks have already advanced/reconciled Motion at this same injected time.
             if (Motion != null) Motion.Step(now);
         }
 
@@ -339,7 +341,21 @@ namespace Roguehalla.Net
             if (State != SessionState.InMatch && State != SessionState.Ended) { Ignored++; return; }
 
             var collections = msg as ServerMsg.State;
-            if (collections != null) { Collections.Apply(collections); if (CollectionsChanged != null) CollectionsChanged(Collections); return; }
+            if (collections != null)
+            {
+                Collections.Apply(collections);
+                bool locked = Collections.Arena.HasValue && Collections.Arena.Value.GatesLocked;
+                if (Motion != null && locked != _predictionGatesLocked)
+                {
+                    // Welcome contains the open map, not gate geometry. A locked arena must draw authoritative self
+                    // positions until the server says it is open again; never infer a second collision model.
+                    if (locked) Motion.SuspendPrediction();
+                    else Motion.SetCollisionMap(Map);
+                }
+                _predictionGatesLocked = locked;
+                if (CollectionsChanged != null) CollectionsChanged(Collections);
+                return;
+            }
             double now = Now;
             var snap = msg as ServerMsg.Snapshot;
             if (snap != null)
@@ -413,6 +429,7 @@ namespace Roguehalla.Net
             _needFull = false;
             Clock.Reset();
             Clock.TickMs = w.TickRate > 0 ? 1000.0 / w.TickRate : 50;
+            _predictionGatesLocked = false;
             Motion = new LocalMotion(w.Map);
             _lastPing = double.NegativeInfinity;
             Set(SessionState.InMatch);

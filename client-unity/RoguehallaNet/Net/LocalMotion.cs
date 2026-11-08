@@ -15,12 +15,13 @@ namespace Roguehalla.Net
     /// </para>
     /// <para>
     /// Reconciliation is skipped while an order is pending and clears only when the self block's <c>move_seq</c> echoes its
-    /// sequence (sequences are 1..255; 0 means "no order yet"). With no order pending, a sample error above 96 u snaps the model to
+    /// sequence (sequences are 1..255; 0 means "no order yet"). With no order pending, a model or composed visual error above 96 u snaps the model to
     /// the server, and smaller errors are absorbed into the visual offset, which decays with a 100 ms time constant. An order the
     /// server has not echoed within one second is forgotten (the pending gate clears; the predicted walk itself continues along its
     /// path and the next snapshot reconciles it, snapping if it is more than 96 u from the server).
     /// </para>
     /// <para>
+    /// Authoritative displacement, death and revival immediately discard the predicted path, even with an order pending.
     /// Only the local walk is predicted. Attacks, HP, deaths, other actors and mobs are never predicted; hidden speed modifiers
     /// (windup, roots, slows) are deliberately not guessed, so a server correction owns them (see <see cref="SpeedModifier"/>).
     /// </para>
@@ -48,7 +49,10 @@ namespace Roguehalla.Net
 
         static readonly PathPoint[] NoPath = new PathPoint[0];
 
-        readonly MapBlob _map;
+        MapBlob _map;
+        bool _predictionSuspended;
+        bool _alive;
+        byte _displaceSeq;
         readonly Pathfinder _pathfinder = new Pathfinder();
 
         // Authoritative self, as last accepted (wire floats, widened for path and smoothing arithmetic).
@@ -95,7 +99,36 @@ namespace Roguehalla.Net
         public int ConsecutiveOutOfToleranceSamples { get; private set; }
 
         /// <summary>Keeps the map the server walks; the Phase 1 pathfinder builds its navigation tables once for it.</summary>
-        public LocalMotion(MapBlob map) { _map = map; }
+        public LocalMotion(MapBlob map) { _map = map; _predictionSuspended = map == null; }
+
+        /// <summary>
+        /// Stops prediction when the server changes collision geometry that this client cannot represent (for example locked
+        /// gates without public gate geometry). Authoritative snapshots keep displaying immediately. The session adapter must
+        /// call this before another predicted frame when that condition becomes known.
+        /// </summary>
+        public void SuspendPrediction()
+        {
+            _predictionSuspended = true;
+            _pending = false;
+            _goalHeld = false;
+            ClearPath();
+            _modelX = _simX;
+            _modelY = _simY;
+            _corrX = _corrY = 0;
+            ConsecutiveOutOfToleranceSamples = 0;
+        }
+
+        /// <summary>
+        /// Supplies the actual current public collision map and resumes prediction. Call after replacing or mutating map
+        /// tiles; supplying the same object explicitly invalidates its navigation cache. It never reconstructs gate geometry.
+        /// </summary>
+        public void SetCollisionMap(MapBlob map)
+        {
+            SuspendPrediction();
+            _map = map;
+            _pathfinder.InvalidateMap();
+            _predictionSuspended = map == null;
+        }
 
         /// <summary>
         /// Records a move order and starts predicting the walk from the local model position (which is the accepted authoritative
@@ -104,7 +137,7 @@ namespace Roguehalla.Net
         /// </summary>
         public void Order(float x, float y, byte seq, double nowMs)
         {
-            if (seq == 0) return;
+            if (seq == 0 || _predictionSuspended || Initialized && !_alive) return;
             ExpireOrders(nowMs);
             _lastSeq = seq;
             _pending = true;
@@ -120,7 +153,7 @@ namespace Roguehalla.Net
         /// <summary>Records a stop order: the predicted walk ends now and waits for the stop's echo. Sequence 0 is ignored.</summary>
         public void StopOrder(byte seq, double nowMs)
         {
-            if (seq == 0) return;
+            if (seq == 0 || _predictionSuspended || Initialized && !_alive) return;
             ExpireOrders(nowMs);
             _lastSeq = seq;
             _pending = true;
@@ -142,7 +175,7 @@ namespace Roguehalla.Net
             if (!(dt > 0)) dt = 0; // also guards NaN and a clock that resynced backwards
             ExpireOrders(nowMs);
             if (dt <= 0) return;
-            if (Initialized && _pathIndex < _path.Length)
+            if (Initialized && _alive && !_predictionSuspended && _pathIndex < _path.Length)
                 Walk(Math.Min(dt, MaxStepMs) / 1000.0, nowMs); // a stall must not walk the model through a wall
             Decay(dt); // the correction fades with the real elapsed time, not the capped walk time
         }
@@ -156,28 +189,37 @@ namespace Roguehalla.Net
         public void OnSnapshot(WireSelf me, double nowMs)
         {
             if (me == null) { Clear(); return; }
-            // An echo in this very sample acknowledges the order even at the expiry boundary: it is not forgotten.
+            bool alive = me.Status == 1;
+            bool hardCut = Initialized && (me.DisplaceSeq != _displaceSeq || !alive || !_alive);
+            // Echo before advancing the clock: an acknowledgement at the expiry boundary is not a lost order.
             if (_pending && me.MoveSeq == _lastSeq) _pending = false;
-            if (_pending) ExpireOrders(nowMs);
-            if (!Initialized)
+            if (!Initialized && _pending) ExpireOrders(nowMs);
+            // Real Session.Poll delivers snapshots before its frame Step. Spend elapsed walk time against the old model
+            // first; the frame's later Step(same now) then spends zero. Direct callers that already stepped also spend zero.
+            if (Initialized && !hardCut && !_predictionSuspended) Step(nowMs);
+            bool first = !Initialized;
+            _simX = me.X;
+            _simY = me.Y;
+            _alive = alive;
+            _displaceSeq = me.DisplaceSeq;
+            if (first || hardCut || _predictionSuspended)
             {
                 Initialized = true;
-                _simX = me.X;
-                _simY = me.Y;
                 _modelX = _simX;
                 _modelY = _simY;
-                _corrX = 0;
-                _corrY = 0;
+                _corrX = _corrY = 0;
+                ConsecutiveOutOfToleranceSamples = 0;
                 MarkStepClock(nowMs);
-                // An order can only be planned once the first self position is known; start it from the server's position.
-                if (_pending && _goalHeld && _path.Length == 0) PlanFrom(_simX, _simY);
+                if (hardCut || !alive || _predictionSuspended)
+                {
+                    _pending = false;
+                    _goalHeld = false;
+                    ClearPath();
+                }
+                else if (_pending && _goalHeld) PlanFrom(_simX, _simY);
+                return;
             }
-            else
-            {
-                _simX = me.X;
-                _simY = me.Y;
-            }
-            if (_pending) return; // reconciliation waits for the echo
+            if (_pending) return;
             Reconcile();
         }
 
@@ -190,6 +232,8 @@ namespace Roguehalla.Net
             _corrX = _corrY = 0;
             _lastStepMs = 0;
             _stepClock = false;
+            _alive = false;
+            _displaceSeq = 0;
             _pending = false;
             _lastSeq = 0;
             _orderAtMs = 0;
@@ -276,7 +320,11 @@ namespace Roguehalla.Net
             double ex = _modelX - _simX;
             double ey = _modelY - _simY;
             double err = Math.Sqrt(ex * ex + ey * ey);
-            if (err > SnapDistance)
+            double drawEx = ex + _corrX;
+            double drawEy = ey + _corrY;
+            // Multiple accepted samples can arrive in one Poll with no intervening decay. Bound the composed correction,
+            // not just each sample's model error, so smoothing cannot conceal an arbitrarily large divergence.
+            if (err > SnapDistance || Math.Sqrt(drawEx * drawEx + drawEy * drawEy) > SnapDistance)
             {
                 SnapToSim();
                 return;

@@ -104,13 +104,13 @@ namespace Roguehalla.Net.Tests
             Assert.AreEqual(ActorStatus.Alive, me.Status); Assert.AreEqual(25, me.HpPct); Assert.AreEqual(7f, me.X);
             Assert.AreNotSame(_s.Latest.Me, me, "not the recycled wire object");
             // Run the 40-snapshot buffer over: the wire objects are recycled, the view stays valid and current.
-            for (uint k = 2; k < 120; k++) _t.Deliver(new ServerMsg.Snapshot { Tick = k, Me = new WireSelf { Id = 3, X = k, MaxHp = 10, Hp = 10 } });
+            for (uint k = 2; k < 120; k++) _t.Deliver(new ServerMsg.Snapshot { Tick = k, Me = new WireSelf { Status = Wire.DefaultStatus, Id = 3, X = k, MaxHp = 10, Hp = 10 } });
             Assert.AreSame(me, _s.Me); Assert.AreEqual(119f, _s.Me.X); Assert.AreEqual(100, _s.Me.HpPct);
             _t.Deliver(new ServerMsg.Snapshot { Tick = 120, Me = null });
             Assert.IsNull(_s.Me, "spectating: no self");
             // A stale (reordered) snapshot does not rewind it.
-            _t.Deliver(new ServerMsg.Snapshot { Tick = 121, Me = new WireSelf { Id = 3, X = 500 } });
-            _t.Deliver(new ServerMsg.Snapshot { Tick = 100, Me = new WireSelf { Id = 3, X = 1 } });
+            _t.Deliver(new ServerMsg.Snapshot { Tick = 121, Me = new WireSelf { Status = Wire.DefaultStatus, Id = 3, X = 500 } });
+            _t.Deliver(new ServerMsg.Snapshot { Tick = 100, Me = new WireSelf { Status = Wire.DefaultStatus, Id = 3, X = 1 } });
             Assert.AreEqual(500f, _s.Me.X);
             // A fresh Welcome (a resume after a drop) clears it until the next snapshot.
             _t.Drop(); _now += 500; _s.Update(); _t.Open(); _t.Deliver(Welcome());
@@ -198,7 +198,7 @@ namespace Roguehalla.Net.Tests
 
         static ServerMsg.Snapshot FullSnap(uint tick, float x, params WireActor[] a)
         {
-            return new ServerMsg.Snapshot { Tick = tick, Me = new WireSelf { Id = 3, X = x, Y = 40, Hp = 10, MaxHp = 10 }, Actors = a };
+            return new ServerMsg.Snapshot { Tick = tick, Me = new WireSelf { Status = Wire.DefaultStatus, Id = 3, X = x, Y = 40, Hp = 10, MaxHp = 10 }, Actors = a };
         }
 
         static WireActor Actor(uint id, float x) { return new WireActor { Id = id, X = x, Y = 8, HpPct = 100, Status = 1 }; }
@@ -329,7 +329,7 @@ namespace Roguehalla.Net.Tests
         {
             ToMatch();
             _now = 2000;
-            _t.Deliver(new ServerMsg.Snapshot { Tick = 2, Me = new WireSelf { X = 40, Y = 40, Hp = 10 }, Actors = new[] { new WireActor { Id = 9, X = 1, Y = 2 } } });
+            _t.Deliver(new ServerMsg.Snapshot { Tick = 2, Me = new WireSelf { Status = Wire.DefaultStatus, X = 40, Y = 40, Hp = 10 }, Actors = new[] { new WireActor { Id = 9, X = 1, Y = 2 } } });
             Assert.AreEqual(1, _s.Snapshots.Count); Assert.IsTrue(_s.Clock.Ready); Assert.IsTrue(_s.Motion.Initialized);
             Assert.AreEqual(40, _s.Motion.DrawnX, 1e-3, "before any order the drawn position is the accepted self position");
             _s.OrderMove(100, 40); _s.Update();
@@ -338,7 +338,7 @@ namespace Roguehalla.Net.Tests
             Assert.AreEqual(40, _s.Motion.DrawnX, 1e-3, "an order alone does not move the presentation without a step of elapsed time");
             _now += 50; _s.Update();
             Assert.AreEqual(48.5, _s.Motion.DrawnX, 1e-3, "the frame step predicts the walk along the planned path");
-            _t.Deliver(new ServerMsg.Snapshot { Tick = 3, Me = new WireSelf { Id = 3, X = 47, Y = 41, Hp = 10, MoveSeq = 0 } });
+            _t.Deliver(new ServerMsg.Snapshot { Tick = 3, Me = new WireSelf { Status = Wire.DefaultStatus, Id = 3, X = 47, Y = 41, Hp = 10, MoveSeq = 0 } });
             Assert.AreEqual(47, _s.Motion.SimX, 1e-3, "the new server position is visible in sim even before the order is acknowledged");
             Assert.AreEqual(48.5, _s.Motion.DrawnX, 1e-3, "the pending order keeps drawing the predicted walk, not the sample");
             Assert.AreEqual(1.5, _s.Motion.VisualX, 1e-3, "visual is drawn minus sim");
@@ -349,10 +349,10 @@ namespace Roguehalla.Net.Tests
         public void OlderAndDuplicateSnapshotsCannotRewindPresentedSelf()
         {
             ToMatch();
-            _t.Deliver(new ServerMsg.Snapshot { Tick = 2, Me = new WireSelf { Id = 3, X = 40, Hp = 10 } });
-            _t.Deliver(new ServerMsg.Snapshot { Tick = 3, Me = new WireSelf { Id = 3, X = 55, Hp = 10 } });
-            _t.Deliver(new ServerMsg.Snapshot { Tick = 3, Me = new WireSelf { Id = 3, X = 20, Hp = 10 } });
-            _t.Deliver(new ServerMsg.Snapshot { Tick = 1, Me = new WireSelf { Id = 3, X = 10, Hp = 10 } });
+            _t.Deliver(new ServerMsg.Snapshot { Tick = 2, Me = new WireSelf { Status = Wire.DefaultStatus, Id = 3, X = 40, Hp = 10 } });
+            _t.Deliver(new ServerMsg.Snapshot { Tick = 3, Me = new WireSelf { Status = Wire.DefaultStatus, Id = 3, X = 55, Hp = 10 } });
+            _t.Deliver(new ServerMsg.Snapshot { Tick = 3, Me = new WireSelf { Status = Wire.DefaultStatus, Id = 3, X = 20, Hp = 10 } });
+            _t.Deliver(new ServerMsg.Snapshot { Tick = 1, Me = new WireSelf { Status = Wire.DefaultStatus, Id = 3, X = 10, Hp = 10 } });
             _now += 1000; _s.Update(); // the 15 u correction is absorbed and fades (tau 100 ms); stale samples never rewind it
             Assert.AreEqual(55, _s.Motion.DrawnX, 1e-2);
             Assert.AreEqual(55, _s.Me.X, 1e-3);
@@ -428,7 +428,7 @@ namespace Roguehalla.Net.Tests
         public void AcceptedSelfAbsenceClearsPresentationAndFreshWelcomeResetsIt()
         {
             ToMatch();
-            _t.Deliver(new ServerMsg.Snapshot { Tick = 2, Me = new WireSelf { Id = 3, X = 40, Hp = 10 } });
+            _t.Deliver(new ServerMsg.Snapshot { Tick = 2, Me = new WireSelf { Status = Wire.DefaultStatus, Id = 3, X = 40, Hp = 10 } });
             _s.OrderMove(100, 40);
             Assert.IsTrue(_s.Motion.OrderPending);
             _t.Deliver(new ServerMsg.Snapshot { Tick = 3, Me = null });
@@ -438,7 +438,7 @@ namespace Roguehalla.Net.Tests
             _t.Drop(); _now += 500; _s.Update(); _t.Open(); _t.Deliver(Welcome());
             Assert.IsFalse(_s.Motion.Initialized, "a fresh Welcome starts without a presented self position");
             Assert.IsNull(_s.Latest, "a fresh Welcome clears the previously accepted snapshot");
-            _t.Deliver(new ServerMsg.Snapshot { Tick = 1, Me = new WireSelf { Id = 3, X = 12, Hp = 10 } });
+            _t.Deliver(new ServerMsg.Snapshot { Tick = 1, Me = new WireSelf { Status = Wire.DefaultStatus, Id = 3, X = 12, Hp = 10 } });
             Assert.AreEqual(12, _s.Motion.DrawnX, 1e-3);
         }
 

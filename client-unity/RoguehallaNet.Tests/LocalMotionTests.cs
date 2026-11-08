@@ -40,7 +40,7 @@ namespace Roguehalla.Net.Tests
 
         static WireSelf Self(double x, double y, byte moveSeq = 0)
         {
-            return new WireSelf { Id = 3, X = (float)x, Y = (float)y, MoveSeq = moveSeq, Hp = 10, MaxHp = 10 };
+            return new WireSelf { Status = Wire.DefaultStatus, Id = 3, X = (float)x, Y = (float)y, MoveSeq = moveSeq, Hp = 10, MaxHp = 10 };
         }
 
         static double Dist(double ax, double ay, double bx, double by)
@@ -279,7 +279,7 @@ namespace Roguehalla.Net.Tests
             // A late echo of the forgotten order does not resurrect a pending order.
             motion.OnSnapshot(Self(100, 100, 1), 1050);
             Assert.IsFalse(motion.OrderPending);
-            Assert.AreEqual(100, motion.DrawnX, 1e-3);
+            Assert.AreEqual(108.5, motion.DrawnX, 1e-3, "elapsed time is advanced before the late sample; its echo does not create a new order");
 
             // At the exact boundary the echo is checked first: the sample acknowledged the order, so nothing expired.
             var boundary = new LocalMotion(FloorMap(16, 16));
@@ -363,6 +363,87 @@ namespace Roguehalla.Net.Tests
 
         // ----------------------------------------------------------------------------------------------------------------
         // No extra uplink from the predictor
+
+        [Test]
+        public void EveryCornerVectorStillMatchesWithoutAnyLaterSnapshotCorrection()
+        {
+            using (var walk = ReadJson("server_walk_v1.json"))
+            using (var paths = ReadJson("pathfinding_v1.json"))
+            {
+                foreach (var one in walk.RootElement.GetProperty("cases").EnumerateArray())
+                {
+                    var ticks = one.GetProperty("ticks");
+                    var first = ticks[0];
+                    var motion = new LocalMotion(SeedMap(paths.RootElement));
+                    motion.OnSnapshot(Self(first.GetProperty("x").GetDouble(), first.GetProperty("y").GetDouble()), 0);
+                    motion.Order((float)one.GetProperty("goal")[0].GetDouble(), (float)one.GetProperty("goal")[1].GetDouble(), 1, 0);
+                    for (int k = 1; k < ticks.GetArrayLength(); k++)
+                    {
+                        motion.Step(k * Tick);
+                        Assert.LessOrEqual(Dist(motion.DrawnX, motion.DrawnY, ticks[k].GetProperty("x").GetDouble(), ticks[k].GetProperty("y").GetDouble()), CornerTolerance, "uncorrected " + one.GetProperty("name").GetString() + " tick " + k);
+                    }
+                }
+            }
+        }
+
+        [Test]
+        public void HardDisplacementAndDeathOverrideAnUnacknowledgedOrder()
+        {
+            var motion = new LocalMotion(FloorMap(32, 32));
+            motion.OnSnapshot(Self(100, 100), 0);
+            motion.Order(600, 100, 1, 0);
+            motion.Step(50);
+            var cut = Self(500, 500); cut.DisplaceSeq = 1;
+            motion.OnSnapshot(cut, 50);
+            Assert.IsFalse(motion.OrderPending);
+            Assert.AreEqual(500, motion.DrawnX);
+            Assert.AreEqual(500, motion.DrawnY);
+            motion.Step(100);
+            Assert.AreEqual(500, motion.DrawnX, "the obsolete goal is gone");
+            motion.Order(600, 500, 2, 100);
+            var dead = Self(500, 500); dead.DisplaceSeq = 1; dead.Status = 2;
+            motion.OnSnapshot(dead, 150);
+            motion.Step(200);
+            Assert.AreEqual(500, motion.DrawnX, "an authoritative dead actor never keeps walking");
+            motion.Order(600, 500, 3, 200);
+            Assert.IsFalse(motion.OrderPending, "drawing a refused/dead order is not prediction");
+            var revive = Self(510, 500); revive.DisplaceSeq = 1;
+            motion.OnSnapshot(revive, 250);
+            motion.Step(300);
+            Assert.AreEqual(510, motion.DrawnX, "revival does not resurrect a pre-death path");
+        }
+
+        [Test]
+        public void CoalescedSamplesCannotAccumulateAnUnboundedVisualCorrection()
+        {
+            var motion = new LocalMotion(FloorMap(32, 32));
+            motion.OnSnapshot(Self(100, 100), 0);
+            motion.OnSnapshot(Self(195, 100), 0);
+            motion.OnSnapshot(Self(290, 100), 0);
+            Assert.AreEqual(1, motion.Snaps, "the composed 190u correction exceeds the 96u cap");
+            Assert.AreEqual(290, motion.DrawnX);
+            Assert.AreEqual(0, motion.VisualX);
+        }
+
+        [Test]
+        public void ExplicitCollisionReplacementInvalidatesCachedNavigationAndTheOldWalk()
+        {
+            var map = FloorMap(12, 6);
+            var motion = new LocalMotion(map);
+            motion.OnSnapshot(Self(48, 80), 0);
+            motion.Order(304, 80, 1, 0);
+            motion.Step(50);
+            Assert.Greater(motion.DrawnX, 48);
+            for (int y = 0; y < map.H; y++) map.Tiles[y * map.W + 5] = MapBlob.Wall;
+            motion.SetCollisionMap(map); // the actual public geometry changed in place
+            motion.Order(304, 80, 2, 50);
+            motion.Step(100);
+            Assert.AreEqual(48, motion.DrawnX, "the new map disconnects the goal; no cached route crosses the wall");
+            motion.SuspendPrediction();
+            motion.Order(80, 80, 3, 100);
+            motion.Step(150);
+            Assert.AreEqual(48, motion.DrawnX, "unknown geometry falls back to authoritative self");
+        }
 
         static int InputFrames(FakeTransport t)
         {

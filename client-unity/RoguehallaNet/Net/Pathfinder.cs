@@ -604,6 +604,9 @@ namespace Roguehalla.Net
         // ----------------------------------------------------------------------------------------------------------------
         // Derived map tables
 
+        /// <summary>Call when a caller mutates collision tiles in place; the next query rebuilds navigation tables.</summary>
+        public void InvalidateMap() { _map = null; }
+
         void Prepare(MapBlob map)
         {
             if (map == null) throw new ArgumentNullException(nameof(map));
