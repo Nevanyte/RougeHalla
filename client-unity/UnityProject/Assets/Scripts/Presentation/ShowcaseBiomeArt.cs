@@ -83,7 +83,7 @@ namespace Roguehalla.Client
                 else if (biome == ShowcaseBiome.Plague)
                 {
                     float moss = SmoothNoise(x + 83, y + 127, variant + 113);
-                    float clump = Mathf.SmoothStep(.43f, .76f, moss);
+                    float clump = Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(.43f, .76f, moss));
                     color = Color.Lerp(color, new Color(.23f,.32f,.13f,1), clump * .65f);
                     height += clump * .12f;
                     if (Noise(x / 3, y / 3, 719) > .94f) color = Color.Lerp(color, tokens.Edge, .25f);
@@ -122,17 +122,18 @@ namespace Roguehalla.Client
                 switch (terrain)
                 {
                     case ShowcaseTerrainArt.Lava:
-                        float vein = Mathf.Abs(Mathf.Sin(u * Mathf.PI * 3 + Mathf.Sin(v * Mathf.PI * 2) * .8f));
-                        float hot = Mathf.Clamp01((.32f - vein) * 6f);
-                        color = Color.Lerp(new Color32(88,22,25,255), new Color32(255,178,61,255), hot);
-                        color = Color.Lerp(color, new Color32(255,226,146,255), hot * hot * .45f);
-                        height = hot * .16f;
-                        if (emission) alpha = hot * (.6f + grain * .35f);
+                        // Domain-warped Voronoi edges form irregular molten channels between dark plates.
+                        float hot = LavaHeat(x, y, grain);
+                        color = Color.Lerp(new Color32(30,25,33,255), new Color32(238,66,13,255), Mathf.Sqrt(hot));
+                        color = Color.Lerp(color, new Color32(255,217,112,255), hot * hot);
+                        color *= .9f + fine * .12f;
+                        height = (1f-hot) * .22f;
+                        if (emission) alpha = hot * (.72f + grain * .25f);
                         break;
                     case ShowcaseTerrainArt.HealingLight:
                         float radius = Mathf.Sqrt(u * u + v * v);
-                        float halo = Mathf.Clamp01((.025f - Mathf.Abs(radius - .73f)) * 100);
-                        float cross = Mathf.Abs(u) < .018f && Mathf.Abs(v) < .43f || Mathf.Abs(v - .08f) < .018f && Mathf.Abs(u) < .28f ? 1 : 0;
+                        float halo = Mathf.Clamp01((.035f - Mathf.Abs(radius - .73f)) * 100);
+                        float cross = Mathf.Abs(u) < .024f && Mathf.Abs(v) < .43f || Mathf.Abs(v - .08f) < .024f && Mathf.Abs(u) < .28f ? 1 : 0;
                         color = Color.Lerp(new Color32(190,145,57,255), new Color32(255,238,180,255), Mathf.Max(halo, cross));
                         alpha = Mathf.Clamp01(1 - radius) * .26f + Mathf.Max(halo, cross) * .7f;
                         if (emission) alpha *= .8f;
@@ -144,7 +145,7 @@ namespace Roguehalla.Client
                         color = Color.Lerp(new Color32(72,150,189,255), new Color32(225,250,255,255), gleam);
                         alpha = .34f + grain * .13f + gleam * .26f;
                         height = grain * .1f + gleam * .2f;
-                        if (emission) alpha = gleam * .25f;
+                        if (emission) alpha = gleam * .65f;
                         break;
                     default:
                         float ripple = Mathf.Abs(Mathf.Sin(Mathf.Sqrt(u*u+v*v) * 29f + grain * 2));
@@ -153,9 +154,27 @@ namespace Roguehalla.Client
                         height = grain * .06f;
                         break;
                 }
+                if (emission) color = Color.white;
                 color.a = alpha; colors[y * Resolution + x] = color; heights[y * Resolution + x] = height;
             }
             return Create(key, colors, emission ? null : heights);
+        }
+
+        static float LavaHeat(int x, int y, float grain)
+        {
+            float px = (x + (grain-.5f)*19f) / 43f;
+            float py = (y + (SmoothNoise(x+53,y+87,811)-.5f)*19f) / 43f;
+            int gx = Mathf.FloorToInt(px), gy = Mathf.FloorToInt(py);
+            float nearest = 100f, second = 100f;
+            for(int oy=-1;oy<=1;oy++) for(int ox=-1;ox<=1;ox++)
+            {
+                int cx=gx+ox, cy=gy+oy;
+                float sx=cx+.18f+Noise(cx,cy,83)*.64f;
+                float sy=cy+.18f+Noise(cx,cy,917)*.64f;
+                float d=(px-sx)*(px-sx)+(py-sy)*(py-sy);
+                if(d<nearest) {second=nearest;nearest=d;} else if(d<second) second=d;
+            }
+            return 1f-Mathf.SmoothStep(0f,1f,Mathf.InverseLerp(.015f,.19f,second-nearest));
         }
 
         static Sprite Create(string key, Color32[] colors, float[] heights)

@@ -48,7 +48,7 @@ namespace Roguehalla.Client
             Sprite roleGlyph = knownMob ? ShowcaseIdentityAssets.GetRoleGlyph(role) : ShowcaseIdentityAssets.GetNeutralGlyph();
             Sprite eliteGlyph = elite && mobType.HasValue ? ShowcaseIdentityAssets.GetEliteGlyph(mobType.Value) : ShowcaseIdentityAssets.GetNeutralGlyph();
 
-            Set(_mantle, mantle, show && kind == ActorKind.Player, groundSortingOrder + 1);
+            Set(_mantle, mantle, show && kind == ActorKind.Player, groundSortingOrder - 2);
             Set(_factionBack, ShowcaseIdentityAssets.GetBadgeBackdrop(), show && StandaloneFactionBadge, groundSortingOrder + 4);
             Set(_factionGlyph, factionGlyph, show && StandaloneFactionBadge, groundSortingOrder + 5);
             Set(_roleBack, ShowcaseIdentityAssets.GetBadgeBackdrop(), show && knownMob, groundSortingOrder + 4);
@@ -81,6 +81,7 @@ namespace Roguehalla.Client
             ShowcaseSprites.Initialize();
             _mantle = CreatePart("Faction mantle");
             _mantle.sharedMaterial = ShowcaseSprites.Lit;
+            _mantle.color = new Color(.48f,.48f,.48f,.92f);
             _factionBack = CreatePart("Faction badge backplate"); _factionGlyph = CreatePart("Faction badge glyph");
             _roleBack = CreatePart("Mob role badge backplate"); _roleGlyph = CreatePart("Mob role badge glyph");
             _eliteBack = CreatePart("Elite emblem backplate"); _eliteGlyph = CreatePart("Elite emblem glyph");

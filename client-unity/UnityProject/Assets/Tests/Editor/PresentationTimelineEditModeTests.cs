@@ -135,7 +135,7 @@ namespace Roguehalla.Client.Tests
             session.Poll(); Render(session);
             Assert.That(resetObserved, Is.True);
             Assert.That(Wishes.ActiveCount, Is.EqualTo(1), "the following new-epoch landing survives");
-            Assert.That((int)Get(_audio, "_pendingFxCount"), Is.EqualTo(1), "audio stays subscribed for the following hit");
+            Assert.That((int)Get(_audio, "_pendingFxCount"), Is.EqualTo(2), "audio stays subscribed for the following new-epoch landing and hit");
             Assert.That((bool)Get(_client, "_steering"), Is.True);
             Assert.That((Vector2)Get(_client, "_lastDir"), Is.EqualTo(Vector2.right));
             for (int i = 0; i < 5; i++) { _now += 50; session.Poll(); }

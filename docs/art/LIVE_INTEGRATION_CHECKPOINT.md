@@ -18,3 +18,17 @@ Existing Unity 6000.0.85f2 Editor PID 9075, URP 17.0.4, WebGL target. Compile co
 ## Still open
 
 Live expanded audio mappings, prop catalog, visual review and lighting tuning, an actual native Unity match screenshot, and later composition with the coordinator's account/UI source gate. The previous frozen protocol-13 Web archive is preserved and was not rebuilt. Physical 144Hz/1440p performance acceptance remains open.
+
+## Continuation after 4b58dbf3
+
+Live expanded sound mappings are now bound for delivered swing/hit/block/WishLanded/death and explicit potion notices. Sound-family reuse follows canonical validated type/faction and the authored appearance family, preserving current-observation gates and reset cleanup. Stored potions use pickup audio; used potions use potion audio. The existing timeline test now expects the new-epoch Wish landing plus Hit (two queued cues) rather than only the formerly supported Hit. All 62 tests passed on this updated source, distinct from the earlier 4b58 checkpoint.
+
+Imported 42 pinned free prop candidates, preserving source pixels and pivots with transparent padding. All 42 imported sprites have zero physics shapes. They are prepared outside Resources; live placements await authoritative map facts. Nine additional original gap props are staged externally and still await Unity import/visual review.
+
+Fixed mantle size/sorting so it sits behind the body, stopped particle systems before deterministic seed assignment, improved lava channels, Holy radiance and transparent ice over visible underlying stone, and added bounded optional light/soft radiance. The no-network study has a private Bloom tuning profile; live Atmosphere asset was not changed. High/reduced-motion study captures are actual Unity renders. Reduced motion reported zero live decorative particles while essential shapes remain visible. Fresh console had zero warnings/errors.
+
+Actual native Unity proof used the pinned server SHA28101b…ed27 on owned loopback7788, protocol13/content67183626db240b6a, 12×8 duel layer hash ab72bea5. Both ordinary native clients reached Phase1 with alive self views. First input window delivered three swings and three hits. A separate sRGB capture pass delivered three swings with zero hits. The actual combat camera render is `evidence/live-integration-2026-11-08/native-combat.png` (2560×1440); its source-file hashes, script, server binding and counters are retained. Wish input was submitted but no Wish FX arrived: this is not a new Wish proof. A first HDR-to-PNG linear readback was too dark; it remains external and was replaced by a new live sRGB render, with no image editing. A helper callsign initially exceeded the server's 16-character limit and was corrected before the successful runs.
+
+Owned server PID35897 exited and port7788 is free. Play stopped, background behavior restored, auto-tick off. No new Web build or unchanged browser campaign was run; no performance claim is made. Existing frozen Web artifacts remain intact. The coordinator is preparing a separate combined account/UI source gate.
+
+All 24 audio sources were independently decoded and measured: no clipping, no material cave-loop click seam. Cave wind/shock are quiet and quake comparatively loud; optional gain candidates remain external for context review. This is not a completed final mix.

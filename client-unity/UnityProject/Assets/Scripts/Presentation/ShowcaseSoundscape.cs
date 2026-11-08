@@ -1,3 +1,4 @@
+using System;
 using Roguehalla.Net;
 using Roguehalla.Net.Protocol;
 using UnityEngine;
@@ -9,10 +10,19 @@ namespace Roguehalla.Client
     {
         const int SfxPoolSize = 8;
         const int PendingFxCapacity = 64;
+        const int PendingEventCapacity = 64;
 
         struct PendingFxCue
         {
             public FxKind Kind;
+            public uint Actor;
+            public byte Weapon, Ability;
+            public bool AnonymousAnchor;
+        }
+
+        struct PendingEventCue
+        {
+            public EventKind Kind;
             public uint Actor;
         }
 
@@ -28,10 +38,12 @@ namespace Roguehalla.Client
         AudioSource _music, _ambience;
         Voice[] _voices;
         readonly PendingFxCue[] _pendingFx = new PendingFxCue[PendingFxCapacity];
+        readonly PendingEventCue[] _pendingEvents = new PendingEventCue[PendingEventCapacity];
         int _pendingFxCount;
+        int _pendingEventCount;
         ShowcaseCatalog _catalog;
         ShowcaseAudio _configuredAudio;
-        int _swingIndex, _hitIndex;
+        int _swingIndex, _hitIndex, _blockIndex, _wishIndex, _eventIndex, _deathIndex;
 
         /// <summary>Call from bootstrap after adding this component to the match root.</summary>
         public void Initialize(MatchClient client)
@@ -84,6 +96,7 @@ namespace Roguehalla.Client
             if (_voices == null || _client == null || _client.Arena == null)
             {
                 _pendingFxCount = 0;
+                _pendingEventCount = 0;
                 StopAllVoices();
                 return;
             }
@@ -98,6 +111,7 @@ namespace Roguehalla.Client
                 }
             }
             ProcessPendingFx();
+            ProcessPendingEvents();
         }
 
         void EnsureSources()
@@ -169,12 +183,14 @@ namespace Roguehalla.Client
         public void ResetTransientCues()
         {
             _pendingFxCount = 0;
+            _pendingEventCount = 0;
             StopAllVoices();
         }
 
         void DetachSession()
         {
             _pendingFxCount = 0;
+            _pendingEventCount = 0;
             StopAllVoices();
             if (_session != null)
             {
@@ -213,16 +229,31 @@ namespace Roguehalla.Client
                         actor = fx.Victim;
                         break;
                     case FxKind.Block:
-                    case FxKind.Stagger:
+                        actor = fx.Id;
+                        break;
+                    case FxKind.WishLanded:
+                        if (fx.Caster.HasValue)
+                        {
+                            actor = fx.Caster.Value;
+                            if (actor == 0) continue;
+                        }
+                        else
+                        {
+                            if (!fx.HasAnchor) continue;
+                            actor = 0;
+                        }
                         break;
                     default:
                         continue;
                 }
-                if (fx.Kind == FxKind.Block || fx.Kind == FxKind.Stagger) actor = fx.Id;
                 // Fx callbacks can run during Poll before Arena has refreshed membership.
                 // Copy only scalars; WireFx instances belong to the decoded message.
-                if (actor == 0 || _pendingFxCount == _pendingFx.Length) continue;
-                _pendingFx[_pendingFxCount++] = new PendingFxCue { Kind = fx.Kind, Actor = actor };
+                if ((actor == 0 && fx.Kind != FxKind.WishLanded) || _pendingFxCount == _pendingFx.Length) continue;
+                _pendingFx[_pendingFxCount++] = new PendingFxCue
+                {
+                    Kind = fx.Kind, Actor = actor, Weapon = fx.Weapon, Ability = fx.Ability,
+                    AnonymousAnchor = fx.Kind == FxKind.WishLanded && !fx.Caster.HasValue && fx.HasAnchor
+                };
             }
         }
 
@@ -234,13 +265,27 @@ namespace Roguehalla.Client
             for (int i = 0; i < count; i++)
             {
                 var cue = _pendingFx[i];
-                // Require the subject to be in the current delivered observer set.
-                if (!_client.Arena.IsObserved(cue.Actor)) continue;
-                var catalog = Catalog;
-                AudioClip[] clips = cue.Kind == FxKind.Swing
-                    ? (catalog != null ? catalog.Swings : null)
-                    : (catalog != null ? catalog.Hits : null);
-                Play(clips, cue.Actor, cue.Kind == FxKind.Swing);
+                switch (cue.Kind)
+                {
+                    case FxKind.Swing:
+                        if (!_client.Arena.IsObserved(cue.Actor)) continue;
+                        PlayCue(SwingCue(cue.Weapon), Catalog != null ? Catalog.Swings : null, cue.Actor, _swingIndex++);
+                        break;
+                    case FxKind.Hit:
+                        if (!TryObservedSoundContext(cue.Actor, out _, out FactionId faction, out ActorKind kind, out MobTypeId? mob)) continue;
+                        PlayCue(MobCue(kind, faction, mob, false), Catalog != null ? Catalog.Hits : null, cue.Actor, _hitIndex++);
+                        break;
+                    case FxKind.Block:
+                        if (!TryObservedSoundContext(cue.Actor, out _, out _, out _, out _)) continue;
+                        // The starter had no block voice. Keep that silent fallback if this library entry is absent.
+                        PlayCue("combat.block", null, cue.Actor, _blockIndex++);
+                        break;
+                    case FxKind.WishLanded:
+                        if (cue.Actor != 0 && !_client.Arena.IsObserved(cue.Actor)) continue;
+                        if (cue.Actor == 0 && !cue.AnonymousAnchor) continue;
+                        PlayCue(WishCue(cue.Ability), null, cue.Actor, _wishIndex++);
+                        break;
+                }
             }
         }
 
@@ -251,10 +296,26 @@ namespace Roguehalla.Client
             if (message == null) return;
             foreach (var ev in message.List)
             {
+                if (ev.Kind == EventKind.Death)
+                {
+                    if (ev.Id != 0 && _pendingEventCount < _pendingEvents.Length)
+                        _pendingEvents[_pendingEventCount++] = new PendingEventCue { Kind = ev.Kind, Actor = ev.Id };
+                    continue;
+                }
+
+                if (ev.Kind == EventKind.PotionNotice)
+                {
+                    if (ev.PotionNotice == (byte)PotionNotice.Used || ev.PotionNotice == (byte)PotionNotice.LargeUsed)
+                        PlayCue("ui.potion", null, 0, _eventIndex++);
+                    else if (ev.PotionNotice == (byte)PotionNotice.Stored || ev.PotionNotice == (byte)PotionNotice.LargeStored)
+                        PlayCue("reward.pickup", null, 0, _eventIndex++);
+                    else PlayIndexedUi(0, _eventIndex++);
+                    continue;
+                }
+
                 int kind;
                 switch (ev.Kind)
                 {
-                    case EventKind.PotionNotice:
                     case EventKind.CannonNotice:
                     case EventKind.Toast:
                         kind = 0;
@@ -268,17 +329,137 @@ namespace Roguehalla.Client
                     default:
                         continue;
                 }
-                var catalog = Catalog;
-                if (catalog == null || catalog.Ui == null || kind >= catalog.Ui.Length || catalog.Ui[kind] == null) continue;
-                Play(catalog.Ui[kind], 0);
+                PlayIndexedUi(kind, _eventIndex++);
             }
         }
 
-        void Play(AudioClip[] clips, uint actor, bool swing)
+        void ProcessPendingEvents()
         {
-            if (clips == null || clips.Length == 0) return;
-            int index = swing ? _swingIndex++ : _hitIndex++;
-            Play(clips[index % clips.Length], actor);
+            int count = _pendingEventCount;
+            _pendingEventCount = 0;
+            if (_client == null || _client.Arena == null) return;
+            for (int i = 0; i < count; i++)
+            {
+                var cue = _pendingEvents[i];
+                if (cue.Kind != EventKind.Death ||
+                    !TryObservedSoundContext(cue.Actor, out _, out FactionId faction, out ActorKind kind, out MobTypeId? mob)) continue;
+                // There was no death voice in the starter. Unknown and currently uncovered species stay silent.
+                PlayCue(MobCue(kind, faction, mob, true), null, cue.Actor, _deathIndex++);
+            }
+        }
+
+        bool TryObservedSoundContext(uint actor, out WeaponId weapon, out FactionId faction,
+            out ActorKind kind, out MobTypeId? mob)
+        {
+            if (_client != null && _client.Arena != null && actor != 0 && _client.Arena.IsObserved(actor))
+                return _client.Arena.TrySoundContext(actor, out weapon, out faction, out kind, out mob);
+            weapon = default; faction = default; kind = default; mob = null;
+            return false;
+        }
+
+        void PlayCue(string cueKey, AudioClip[] fallback, uint actor, int variantIndex)
+        {
+            if (string.IsNullOrEmpty(cueKey))
+            {
+                PlayFallback(fallback, actor, variantIndex);
+                return;
+            }
+            var library = Catalog != null ? Catalog.AudioLibrary : null;
+            if (library != null)
+            {
+                AudioClip[] variants = library.FindVariants(cueKey);
+                int available = CountClips(variants);
+                if (available > 0)
+                {
+                    int wanted = PositiveModulo(variantIndex, available);
+                    for (int i = 0; i < variants.Length; i++)
+                    {
+                        if (variants[i] == null) continue;
+                        if (wanted-- == 0) { Play(variants[i], actor); return; }
+                    }
+                }
+            }
+            PlayFallback(fallback, actor, variantIndex);
+        }
+
+        void PlayIndexedUi(int index, int variantIndex)
+        {
+            var catalog = Catalog;
+            if (catalog != null && catalog.Ui != null && index >= 0 && index < catalog.Ui.Length)
+                Play(catalog.Ui[index], 0);
+        }
+
+        void PlayFallback(AudioClip[] clips, uint actor, int variantIndex)
+        {
+            int available = CountClips(clips);
+            if (available == 0) return;
+            int wanted = PositiveModulo(variantIndex, available);
+            for (int i = 0; i < clips.Length; i++)
+            {
+                if (clips[i] == null) continue;
+                if (wanted-- == 0) { Play(clips[i], actor); return; }
+            }
+        }
+
+        static int CountClips(AudioClip[] clips)
+        {
+            if (clips == null) return 0;
+            int count = 0;
+            for (int i = 0; i < clips.Length; i++) if (clips[i] != null) count++;
+            return count;
+        }
+
+        static int PositiveModulo(int value, int modulus) => modulus == 0 ? 0 : (value % modulus + modulus) % modulus;
+
+        static string SwingCue(byte weapon)
+        {
+            switch ((WeaponId)weapon)
+            {
+                case WeaponId.Sword:
+                case WeaponId.Axe:
+                case WeaponId.Fists: return "combat.melee.swing";
+                case WeaponId.Bow: return "combat.ranged.launch";
+                case WeaponId.Wand: return "combat.magic.shock";
+                // A swing carrying Shield is outside the supplied semantic audio coverage.
+                default: return null;
+            }
+        }
+
+        static string WishCue(byte ability)
+        {
+            switch ((AbilityId)ability)
+            {
+                case AbilityId.Freeze: return "wish.freeze";
+                case AbilityId.Swarm: return "wish.swarm";
+                case AbilityId.Trial: return "wish.trial";
+                case AbilityId.Blaze: return "wish.blaze";
+                case AbilityId.LastStand: return "wish.last-stand";
+                default: return null;
+            }
+        }
+
+        static string MobCue(ActorKind kind, FactionId faction, MobTypeId? mob, bool death)
+        {
+            // Explicit sound-family reuse follows the authored public appearance mapping. It does
+            // not assert that a canonical mob is a goblin/skeleton or create any gameplay fact.
+            string family;
+            if (kind == ActorKind.Zombie) family = "zombie";
+            else if (kind == ActorKind.RegionalMob && mob.HasValue &&
+                ShowcaseIdentityAssets.TryGetMobInfo(mob.Value, out var info) && info.Faction == faction)
+            {
+                string look = ShowcaseActorLook.AppearanceKey(kind, faction, mob);
+                switch (look)
+                {
+                    case "skeleton": case "mob-skeleton-mage": case "mob-skeleton-archer": family = "skeleton"; break;
+                    case "goblin": case "mob-goblin-elite": family = "goblin"; break;
+                    case "mob-antlion": family = "antlion"; break;
+                    case "mob-zombie": family = "zombie"; break;
+                    default: return null;
+                }
+            }
+            else return null;
+            if (family == "zombie" && !death) return null;
+            return "mob." + family + (death ? ".death" : ".hit");
         }
 
         void Play(AudioClip clip, uint actor)

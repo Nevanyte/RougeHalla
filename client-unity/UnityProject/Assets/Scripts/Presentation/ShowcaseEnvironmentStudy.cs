@@ -73,6 +73,12 @@ namespace Roguehalla.Client
             var volume = Own("Environment study atmosphere").AddComponent<Volume>();
             volume.isGlobal = true;
             volume.sharedProfile = Resources.Load<VolumeProfile>("Showcase/Atmosphere");
+            // Preview-owned tuning: this instantiates a private profile, never edits the live asset.
+            if (volume.profile != null && volume.profile.TryGet<Bloom>(out var bloom))
+            {
+                bloom.threshold.Override(.85f); bloom.intensity.Override(.85f);
+                bloom.scatter.Override(.72f); bloom.maxIterations.Override(7);
+            }
 
             CreateBackdrop();
             CreateFactionPlinths();
@@ -168,7 +174,7 @@ namespace Roguehalla.Client
                 var go = Own("Terrain vignette / " + Terrain[i]);
                 go.transform.localPosition = new Vector3(x[i], -4.65f, 0f);
                 var vignette = go.AddComponent<ShowcaseTerrainVignette>();
-                vignette.Configure(Terrain[i], new Vector2(4.8f, 2.7f * GroundSquash), optionalLight: i == 0 || i == 3);
+                vignette.Configure(Terrain[i], new Vector2(4.8f, 2.7f * GroundSquash), optionalLight: i != 1);
                 _vignettes.Add(vignette);
                 WorldLabel("Terrain label / " + Terrain[i], TerrainLabel(Terrain[i]), x[i], -6.35f,
                     4.8f, .42f, .24f, TerrainColor(Terrain[i]), 130);

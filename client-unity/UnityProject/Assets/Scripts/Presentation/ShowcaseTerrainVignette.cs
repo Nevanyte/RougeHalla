@@ -56,6 +56,8 @@ namespace Roguehalla.Client
                 new Color(.012f, .018f, .028f, 1f), Vector3.zero, _worldSize);
 
             Vector2 surfaceSize = _worldSize * .82f;
+            CreateSprite("Visible stone beneath translucent terrain", ShowcaseBiomeArt.Floor(ShowcaseBiome.Neutral),
+                BackdropOrder, Color.white, new Vector3(0,0,-.005f), surfaceSize, lit:true);
             CreateSprite("Terrain surface / " + terrain, surface, SurfaceOrder, Color.white,
                 new Vector3(0, 0, -.01f), surfaceSize, lit: true);
 
@@ -67,6 +69,9 @@ namespace Roguehalla.Client
             CreateSprite("Static terrain glow / " + terrain, emissionMask, GlowOrder,
                 Color.white, new Vector3(0, 0, -.02f), surfaceSize, lit: false, material: _glowMaterial);
 
+            CreateSprite("Soft reflected terrain radiance / " + terrain, ShowcaseSprites.Get("glow"), BackdropOrder - 1,
+                new Color(1f,1f,1f,.19f), new Vector3(0,0,.01f), _worldSize * 1.42f,
+                lit:false, material:_glowMaterial);
             CreateTerrainMark(terrain);
             CreateBoundary();
             CreateParticles(terrain);
@@ -177,6 +182,7 @@ namespace Roguehalla.Client
             _children.Add(go);
 
             _particles = go.AddComponent<ParticleSystem>();
+            _particles.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
             var main = _particles.main;
             main.loop = true;
             main.playOnAwake = false;
@@ -220,9 +226,9 @@ namespace Roguehalla.Client
                 case ShowcaseTerrainArt.Ice: color = new Color(.26f, .72f, 1f, 1f); break;
                 default: color = new Color(.42f, .82f, .19f, 1f); break;
             }
-            float radius = Mathf.Max(_worldSize.x, _worldSize.y) * .7f;
+            float radius = Mathf.Max(_worldSize.x, _worldSize.y) * .9f;
             _children.Add(_light.gameObject);
-            _light.Configure(color, .6f, 0f, radius, .8f, false, highOnly: true);
+            _light.Configure(color, .85f, 0f, radius, .8f, false, highOnly: true);
             _light.SetVisible(false);
         }
 
@@ -230,9 +236,9 @@ namespace Roguehalla.Client
         {
             switch (terrain)
             {
-                case ShowcaseTerrainArt.Lava: return new Color(2.6f, .72f, .20f, .76f);
-                case ShowcaseTerrainArt.HealingLight: return new Color(2.1f, 1.48f, .52f, .72f);
-                case ShowcaseTerrainArt.Ice: return new Color(.55f, 1.45f, 2.45f, .62f);
+                case ShowcaseTerrainArt.Lava: return new Color(5f, 1.05f, .18f, .9f);
+                case ShowcaseTerrainArt.HealingLight: return new Color(3f, 2.2f, .65f, .8f);
+                case ShowcaseTerrainArt.Ice: return new Color(.65f, 1.8f, 4.5f, .8f);
                 default: return new Color(.62f, 1.55f, .26f, .56f);
             }
         }

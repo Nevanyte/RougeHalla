@@ -403,7 +403,7 @@ namespace Roguehalla.Client
             };
             texture.SetPixels32(pixels);
             texture.Apply(false, true);
-            var sprite = Sprite.Create(texture, new Rect(0, 0, TextureSize, TextureSize), new Vector2(.5f, .5f), 64f, 0, SpriteMeshType.FullRect);
+            var sprite = Sprite.Create(texture, new Rect(0, 0, TextureSize, TextureSize), new Vector2(.5f, .5f), TextureSize, 0, SpriteMeshType.FullRect, Vector4.zero, false);
             sprite.name = "Identity artwork / " + key;
             sprite.hideFlags = HideFlags.HideAndDontSave;
             return sprite;

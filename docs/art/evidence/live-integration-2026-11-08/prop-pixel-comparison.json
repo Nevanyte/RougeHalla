@@ -1,0 +1,8 @@
+{
+  "candidates": 42,
+  "exactSourcePixelCropsPreserved": true,
+  "transparentPivotAndFilterPadding": true,
+  "outsideOriginalCropPivots": 2,
+  "resampling": false,
+  "physicsShapesFromUnityImport": 0
+}
