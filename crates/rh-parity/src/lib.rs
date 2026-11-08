@@ -645,6 +645,7 @@ fn try_build(fx: &Fixture) -> Result<Sim, String> {
             .ok_or_else(|| format!("{key} must be boolean"))?;
         match key.as_str() {
             "weaponSpecials" => config.weapon_specials = v,
+            "regen" => config.regen = v,
             "pvpRules" if sentenced::enabled(fx) => config.pvp_rules = v,
             _ => return Err(format!("unported legacyConfig.options key {key}")),
         }

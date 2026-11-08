@@ -1,0 +1,12 @@
+--- a/crates/rh-sim/src/systems/regen.rs
++++ b/crates/rh-sim/src/systems/regen.rs
+@@ -22,9 +22,6 @@
+ }
+ 
+ fn pass_inner(k: &MatchStatic, w: &mut World, landed: &[LandedHit], ev: &mut Vec<Event>) {
+-    if !k.config.regen {
+-        return;
+-    }
+     let now = w.server_time;
+     for h in landed {
+         stamp(w, h.victim, now);

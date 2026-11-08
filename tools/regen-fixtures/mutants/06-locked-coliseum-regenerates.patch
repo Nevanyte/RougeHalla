@@ -1,0 +1,14 @@
+--- a/crates/rh-sim/src/systems/regen.rs
++++ b/crates/rh-sim/src/systems/regen.rs
+@@ -31,11 +31,6 @@
+         if let Some(by) = h.by {
+             stamp(w, by, now);
+         }
+-    }
+-    // The locked coliseum is sudden death's ground: no regeneration against its burn. The hits above still stamped the
+-    // clock first, as the source does.
+-    if w.rt.gates_locked {
+-        return;
+     }
+     let dt = TICK_MS / 1000.0;
+     for i in 0..w.players.len() {

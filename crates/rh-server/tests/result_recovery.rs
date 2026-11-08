@@ -139,6 +139,7 @@ fn director_with(
         linger: Duration::from_millis(100),
         ..DirectorConfig::new(
             SimConfig {
+                regen: false,
                 abilities: rh_sim::abilities::Mode::Off,
                 wish_lock_ms: rh_sim::abilities::WISH_LOCK_MS,
                 lifecycle: rh_sim::ArenaMode::Off,

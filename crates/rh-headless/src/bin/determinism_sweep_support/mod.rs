@@ -80,6 +80,7 @@ struct SimSpec {
 impl From<&SimSpec> for SimConfig {
     fn from(spec: &SimSpec) -> Self {
         Self {
+            regen: false,
             min_players: spec.min_players,
             lobby_seconds: spec.lobby_seconds,
             fill_seconds: spec.fill_seconds,

@@ -325,4 +325,10 @@ content! {
     /// A Trophy outlives a chest: a killer may still be fighting (source KILL_AUG_SECONDS).
     KILL_AUG_SECONDS: f64 = 30.0, "s";
 
+    // ---- passive player regeneration (regen.ts) ----
+    /// Max hp a standing player regains per second with no hit dealt or taken for PLAYER_REGEN_QUIET_MS.
+    PLAYER_REGEN_SHARE_OUT: f64 = 0.008, "fraction/s";
+    /// The same per second while the player is in a fight.
+    PLAYER_REGEN_SHARE_IN: f64 = 0.0025, "fraction/s";
+    PLAYER_REGEN_QUIET_MS: f64 = 3000.0, "ms";
 }

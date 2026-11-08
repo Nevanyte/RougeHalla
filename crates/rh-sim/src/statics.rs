@@ -202,6 +202,10 @@ pub struct SimConfig {
     pub faction_mode: FactionMode,
     #[serde(default)]
     pub mob_mode: crate::mob_runtime::MobMode,
+    /// Passive player health regeneration (legacy `regen`). Unset or false: none, so tests, benches and the parity
+    /// harness keep hp deterministic. The live server turns it on.
+    #[serde(default)]
+    pub regen: bool,
 }
 
 fn default_wish_lock() -> f64 {
@@ -227,6 +231,7 @@ impl Default for SimConfig {
             weapon_specials: true,
             faction_mode: FactionMode::Off,
             mob_mode: crate::mob_runtime::MobMode::Off,
+            regen: false,
         }
     }
 }

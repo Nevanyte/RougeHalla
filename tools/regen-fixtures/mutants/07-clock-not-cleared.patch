@@ -1,0 +1,15 @@
+--- a/crates/rh-sim/src/systems/regen.rs
++++ b/crates/rh-sim/src/systems/regen.rs
+@@ -72,11 +72,7 @@
+     }
+ }
+ 
+-fn clear(w: &mut World) {
+-    for p in w.players.iter_mut() {
+-        p.regen_at = None;
+-    }
+-}
++fn clear(_w: &mut World) {}
+ 
+ #[cfg(test)]
+ mod tests {

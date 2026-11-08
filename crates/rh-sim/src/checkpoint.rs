@@ -534,6 +534,14 @@ fn check_world(k: &MatchStatic, w: &World) -> Result<(), String> {
         if !p.bush.check(w.server_time, w.phase) {
             return Err(format!("invalid bush exposure for player {}", p.id.0));
         }
+        // The regeneration clock is a time the tick wrote: a future-dated one would make the fighter permanently
+        // in-combat, and a non-finite one makes the quiet-window comparison meaningless.
+        if p.regen_at.is_some_and(|t| !valid_time(t)) {
+            return Err(format!(
+                "player {}: regeneration clock is not a past server time",
+                p.id.0
+            ));
+        }
         // Samples are appended in time order and never dated after the clock: a future-dated one is never trimmed and
         // fills the ring.
         if !near(p.body.x, p.body.y) {
@@ -1149,6 +1157,18 @@ mod tests {
             s["t"] = (1e12 + s["t"].as_f64().unwrap()).into();
         }
         assert!(refusal(&json).contains("server_time"));
+    }
+
+    #[test]
+    fn a_future_dated_regeneration_clock_is_refused() {
+        let mut json = stepped(5);
+        let now = json["world"]["server_time"].as_f64().unwrap();
+        json["world"]["players"][0]["regen_at"] = now.into();
+        assert!(Sim::restore(&json).is_ok());
+        json["world"]["players"][0]["regen_at"] = (now + 50.0).into();
+        assert!(refusal(&json).contains("regeneration clock"));
+        json["world"]["players"][0]["regen_at"] = (-1.0).into();
+        assert!(refusal(&json).contains("regeneration clock"));
     }
 
     /// Steps a restored sim and exercises the doors a caller has: submit, leave, join.

@@ -77,6 +77,9 @@ fn load(name: &str) -> Scenario {
         weapon_specials: fx["legacyConfig"]["options"]["weaponSpecials"]
             .as_bool()
             .unwrap_or(true),
+        regen: fx["legacyConfig"]["options"]["regen"]
+            .as_bool()
+            .unwrap_or(false),
         ..Default::default()
     };
     let mut sim = Sim::reset_active(config, arena, secrets, &placements);
@@ -670,6 +673,8 @@ fn a_steady_state_step_allocates_nothing() {
         "holy_wand_splash",
         "holy_contact_forget",
         "holy_contact_tie_12",
+        // The passive regeneration share: a quiet heal every tick once a fighter is below max hp.
+        "regen_clock",
     ] {
         // These movement fixtures first exercise path search at tick100/tick66.
         let warm = match name {

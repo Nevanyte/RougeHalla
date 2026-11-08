@@ -532,6 +532,10 @@ pub struct Player {
     pub status: Status,
     pub down: Option<Outcome>,
     pub resolved: bool,
+    /// When this player last dealt or took a landed hit (legacy `regen.ts`'s per-world combat clock, kept on the only
+    /// fighters that read it). None is "no hit yet": out of combat at once.
+    #[serde(default)]
+    pub(crate) regen_at: Option<f64>,
 }
 
 impl Keyed for Player {
@@ -636,6 +640,7 @@ impl Player {
             down: None,
             resolved: false,
             plan_ready: false,
+            regen_at: None,
         }
     }
 
