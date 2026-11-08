@@ -69,3 +69,20 @@ activation, no merge.
    source training map).
 4. R6 skill barrier producers (`grantBarrier`/trigger `barrier`) remain intentionally out of scope; no new public fact was
    added.
+
+## Out-of-scope prerequisite (lead/root must apply during composition)
+
+The new `StatView.heal_barrier` field breaks the feature-gated `rh-parity` status-probe bin, which constructs a
+`StatView` literal and is outside this packet's writable scope. `cargo test -p rh-parity --test schedule --all-features`
+fails with `E0063 missing field heal_barrier in initializer of StatView` at
+`crates/rh-parity/src/bin/status_probe/boundary_v3.rs:58`. Any workspace `--all-features` gate needs this one-line fix
+before the candidate can be composed:
+
+```rust
+// crates/rh-parity/src/bin/status_probe/boundary_v3.rs, in `Modifiers::view` after `heal_taken_mult`:
+heal_barrier: f.sums.heal_barrier.max(0.),
+```
+
+It matches `modifiers::view` (the folded `StatKey::HealBarrier`, clamped at 0) and is exactly the ready-to-apply patch
+`tools/heal-barrier-fixtures/rh-parity-statview-heal-barrier.patch` (`git apply --check` verified in a disposable copy;
+the file is deliberately not committed here). The default-feature `rh-parity` schedule test passes 14/14 without it.

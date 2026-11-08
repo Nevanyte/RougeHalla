@@ -76,6 +76,7 @@ fn another_replay_format_is_refused_before_anything_runs() {
         "rh-replay/5",
         "rh-replay/6",
         "rh-replay/7",
+        "rh-replay/18",
         "",
         "something else",
     ] {
