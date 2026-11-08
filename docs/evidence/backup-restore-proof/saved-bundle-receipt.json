@@ -1,0 +1,39 @@
+{
+  "archive_sha256": "5fe02da80b92af478ccc4a40f4db75581f53fa09912f8559467400da2ab0c099",
+  "operation": "saved-bundle-recovery",
+  "recovery_seconds_including_initdb": 1.403,
+  "source": {
+    "address": "127.0.0.1",
+    "data_directory": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/postgres-cold-restore/run-08/source/data",
+    "database": "rh_backup",
+    "fsync": "on",
+    "full_page_writes": "on",
+    "port": 64303,
+    "synchronous_commit": "on",
+    "system_identifier": "7705918681422122132"
+  },
+  "status": "PASS",
+  "target": {
+    "address": "127.0.0.1",
+    "data_directory": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/postgres-cold-restore/recovery-03/target/data",
+    "database": "rh_backup",
+    "fsync": "on",
+    "full_page_writes": "on",
+    "port": 64681,
+    "synchronous_commit": "on",
+    "system_identifier": "7705919319429575539"
+  },
+  "test_executable_sha256": "98f1ad4f0d94b2841eda60a357cdb483874de04f172ffe5163e308508e931fd3",
+  "verification": {
+    "committed_results": 4,
+    "duplicate_spool_replays": 2,
+    "duplicate_store_retries": 5,
+    "gv": 20,
+    "lease_fence": "successor protected; stale result refused",
+    "ledger_rows": 2,
+    "live_pending_leases_verified": 0,
+    "pending_recovered": 2,
+    "profiles": 4,
+    "reconciliation": "ok"
+  }
+}

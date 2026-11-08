@@ -1,0 +1,87 @@
+{
+  "archive_bytes": 21529,
+  "archive_sha256": "5fe02da80b92af478ccc4a40f4db75581f53fa09912f8559467400da2ab0c099",
+  "backup_manifest_sha256": "22547771e0ef880d8b14194673672bc9053fea4193fc88a14544b58d46847835",
+  "base_sha": "86f03cbdda15eca64585093d5c88fda2c42e4810",
+  "negative_controls": {
+    "corrupt_archive_checksum": "ARTIFACT_CHECKSUM_MISMATCH: database.dump",
+    "missing_authentication_receipt": "REQUIRED_ARTIFACT_MISSING: bundle file inventory differs",
+    "missing_pending_spool": "REQUIRED_ARTIFACT_MISSING: bundle file inventory differs",
+    "reachable_original_cluster": "CLUSTER_IDENTITY_MISMATCH",
+    "truncated_archive_pg_restore": "pg_restore: error: could not read from input file: end of file"
+  },
+  "orchestrator_sha256": "9bb9083f37a2a8323eab2f77b4c00602dea0eb2cb7d28ff71c2084f5fad11e1c",
+  "producer": {
+    "committed": 2,
+    "dead": 0,
+    "pending": 2,
+    "spool_errors": 0,
+    "spool_full": 0,
+    "spooled": 4
+  },
+  "recovery_seconds_including_target_start_and_negative_controls": 0.555,
+  "show_settings": {
+    "source": {
+      "fsync": "on",
+      "full_page_writes": "on",
+      "synchronous_commit": "on"
+    },
+    "target": {
+      "fsync": "on",
+      "full_page_writes": "on",
+      "synchronous_commit": "on"
+    }
+  },
+  "source": {
+    "address": "127.0.0.1",
+    "data_directory": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/postgres-cold-restore/run-08/source/data",
+    "database": "rh_backup",
+    "fsync": "on",
+    "full_page_writes": "on",
+    "port": 64303,
+    "synchronous_commit": "on",
+    "system_identifier": "7705918681422122132"
+  },
+  "source_test_sha256": "eff44f55a34b830feee6a06675840b8f051e165d4598bfaa8fb50bc7793416c0",
+  "status": "PASS",
+  "target": {
+    "address": "127.0.0.1",
+    "data_directory": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/postgres-cold-restore/run-08/target/data",
+    "database": "rh_backup",
+    "fsync": "on",
+    "full_page_writes": "on",
+    "port": 64304,
+    "synchronous_commit": "on",
+    "system_identifier": "7705918684548414647"
+  },
+  "target_initialization_seconds_separate": 0.736,
+  "test_executable_sha256": "98f1ad4f0d94b2841eda60a357cdb483874de04f172ffe5163e308508e931fd3",
+  "tested_head": "86f03cbdda15eca64585093d5c88fda2c42e4810",
+  "verification": {
+    "committed_results": 4,
+    "duplicate_spool_replays": 2,
+    "duplicate_store_retries": 5,
+    "gv": 20,
+    "lease_fence": "successor protected; stale result refused",
+    "ledger_rows": 2,
+    "live_pending_leases_verified": 2,
+    "pending_recovered": 2,
+    "profiles": 4,
+    "reconciliation": "ok"
+  },
+  "writer_fence": {
+    "application_sigkill": true,
+    "old_backends_terminated": 2,
+    "order": [
+      "external lease locks",
+      "genuine spool fsync",
+      "application SIGKILL",
+      "terminate old database backends",
+      "only locker remains",
+      "ROLLBACK external locks",
+      "zero sessions",
+      "boundary comparison",
+      "pg_dump"
+    ]
+  }
+}

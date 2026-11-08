@@ -1,0 +1,7 @@
+PASS cargo clippy -p rh-server --features postgres --test account_backup_restore_flow --locked -- -D warnings
+PASS rustfmt --check --edition 2021 crates/rh-server/tests/account_backup_restore_flow.rs
+PASS Ruff 0.14.5 check E,F,I,B,UP,SIM target py39, line-length120
+PASS Ruff 0.14.5 format --check, line-length120
+PASS python3 -W error -m py_compile tools/backup-restore-proof/proof.py
+PASS primary proof run-08: source child SIGKILL expected; reachable-original identity rejection expected; boundary + restored target phases pass
+PASS saved-bundle recovery-03 after original lease expiry: pending live-lease probes0 (fresh primary requires2); recovery, duplicate and successor fence checks pass
