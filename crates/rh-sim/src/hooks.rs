@@ -106,6 +106,7 @@ pub(crate) enum HookArgs {
         victim: PlayerId,
         outcome: crate::results::Outcome,
     },
+    /// Copy span into the sealed same-pass amount bank; the bank outlives every payout hook.
     ExecuteDenied {
         owner: PlayerId,
         denied: crate::systems::sentenced::Denied,

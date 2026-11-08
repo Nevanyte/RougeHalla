@@ -29,7 +29,6 @@ pub(super) fn compare(
     let denials = sim
         .mark_denials()
         .iter()
-        .flatten()
         .map(|(owner, foe)| json!({"owner":fid(*owner),"foe":fid(*foe)}))
         .collect::<Vec<_>>();
     let flags=sim.damage_entries().iter().map(|e|json!({"passive":e.passive,"derived":e.derived,"projectile":e.projectile.map(|n|super::combat::id36(n).replacen('c',"p",1)),"stagger":e.stagger})).collect::<Vec<_>>();

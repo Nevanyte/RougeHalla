@@ -52,6 +52,7 @@ impl Clone for Sim {
         crate::systems::frost::prepare(&k, &mut w).expect("validated Frost source budget");
         let mut s = self.s.clone();
         s.reserve_actors(w.fighter_count());
+        crate::systems::sentenced::prepare(&k, &mut w, &mut s).expect("validated Mark edge budget");
         Self {
             projection: self.projection.clone(),
             k,
@@ -95,6 +96,33 @@ impl Sim {
         arena: impl Into<Arc<Arena>>,
         secrets: Secrets,
     ) -> Result<Self, &'static str> {
+        Self::try_new_with_mob_initializer(
+            config,
+            arena.into(),
+            secrets,
+            crate::systems::mobs::initialize,
+        )
+    }
+    /// Exact rules/seed/config constructor for a still-closed profile. Never a live/headless admission path.
+    #[cfg(test)]
+    pub(crate) fn try_new_unadmitted_kernel_fixture(
+        config: SimConfig,
+        arena: impl Into<Arc<Arena>>,
+        secrets: Secrets,
+    ) -> Result<Self, &'static str> {
+        Self::try_new_with_mob_initializer(
+            config,
+            arena.into(),
+            secrets,
+            crate::systems::mobs::initialize_unadmitted_kernel_fixture,
+        )
+    }
+    fn try_new_with_mob_initializer(
+        config: SimConfig,
+        arena: Arc<Arena>,
+        secrets: Secrets,
+        initialize: fn(&mut MatchStatic, &mut World) -> Result<(), &'static str>,
+    ) -> Result<Self, &'static str> {
         let mut sim = Self {
             projection: Default::default(),
             k: MatchStatic::new(config, arena, secrets),
@@ -106,7 +134,8 @@ impl Sim {
         crate::abilities::validate_config(&sim.k.config)?;
         crate::systems::arena_rules::validate_config(&sim.k)?;
         crate::systems::initial_loot::initialize(&mut sim.k, &mut sim.w)?;
-        crate::systems::mobs::initialize(&mut sim.k, &mut sim.w)?;
+        initialize(&mut sim.k, &mut sim.w)?;
+        crate::systems::sentenced::prepare(&sim.k, &mut sim.w, &mut sim.s)?;
         Ok(sim)
     }
     pub fn mobs(&self) -> &[crate::mob_runtime::Mob] {
@@ -288,6 +317,27 @@ impl Sim {
         bot: bool,
         cap: usize,
     ) -> Option<PlayerId> {
+        self.join_body(profile, faction, bot, cap, false)
+    }
+
+    /// Closed-profile kernel fixture only. All join operations except the faction admission predicate are shared.
+    #[cfg(test)]
+    pub(crate) fn add_player_unadmitted_kernel_fixture(
+        &mut self,
+        profile: &str,
+        faction: FactionId,
+    ) -> Option<PlayerId> {
+        self.join_body(profile, Some(faction), false, MAX_PLAYERS, true)
+    }
+
+    fn join_body(
+        &mut self,
+        profile: &str,
+        faction: Option<FactionId>,
+        bot: bool,
+        cap: usize,
+        unadmitted_fixture: bool,
+    ) -> Option<PlayerId> {
         if self.w.phase != Phase::Lobby || self.w.players.len() >= cap {
             return None;
         }
@@ -309,7 +359,8 @@ impl Sim {
                 FactionId::default_for(join_index)
             }
         });
-        if self.k.config.mob_mode == crate::mob_runtime::MobMode::Pve
+        if !unadmitted_fixture
+            && self.k.config.mob_mode == crate::mob_runtime::MobMode::Pve
             && self.k.config.faction_mode.engagement()
             && !crate::systems::mobs::admitted_player_faction(self.k.config.faction_mode, faction)
         {
@@ -341,6 +392,8 @@ impl Sim {
         self.w.players.push(player);
         crate::systems::frost::prepare(&self.k, &mut self.w)
             .expect("validated Frost source budget");
+        crate::systems::sentenced::prepare(&self.k, &mut self.w, &mut self.s)
+            .expect("validated Mark edge budget");
         Some(id)
     }
 

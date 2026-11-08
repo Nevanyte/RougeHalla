@@ -208,6 +208,7 @@ pub(crate) fn validate(
             {
                 return Err("invalid zombie body".into());
             }
+            super::sentenced::validate_actor(k, w, &m.core, None)?;
             // Owned zombies are recipients of the generic Frost loops too; validate their shared signature tuple without
             // adding the regional mob gear/Mark checks this branch deliberately skips.
             super::frost::validate_signature(
@@ -278,7 +279,8 @@ pub(crate) fn validate(
             return Err("invalid mob vitals".into());
         }
         super::signatures::validate_basic(k, w, p.id, &p.signature)?;
-        if p.signature.mark != Default::default() || p.signature.ap_hits != Default::default() {
+        super::sentenced::validate_actor(k, w, p, None)?;
+        if p.signature.ap_hits != Default::default() {
             return Err("unsupported mob mark/AP history".into());
         }
         if p.weapon.weapon0 != expected.core.weapon.weapon0

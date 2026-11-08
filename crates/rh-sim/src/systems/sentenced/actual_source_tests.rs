@@ -204,6 +204,7 @@ fn trusted_actual_installed_mark_matrix() {
         owner.signature.chill = c["chill"].as_f64().unwrap_or(1.);
         owner.signature.dot_paused_until = c["pause"].as_f64().unwrap_or(0.);
         owner.signature.mark = crate::fighter::Mark {
+            group: Some(crate::fighter::MarkGroup::Fighter(PlayerId(2))),
             tier: c["priorTier"].as_f64().unwrap_or(0.) as u8,
             hits: c["priorHits"].as_f64().unwrap_or(0.) as u64,
             progress: c["priorProgress"].as_f64().unwrap_or(0.),
@@ -396,6 +397,7 @@ fn helper_only_actual_execute_denial_matrix() {
         let tier = c["tier"].as_f64().unwrap_or(4.) as u8;
         let hits = if tier == 3 { 6 } else { 9 };
         p.signature.mark = crate::fighter::Mark {
+            group: Some(crate::fighter::MarkGroup::Fighter(PlayerId(2))),
             tier,
             hits,
             progress: hits as f64,
@@ -442,7 +444,7 @@ fn helper_only_actual_execute_denial_matrix() {
             pf: &mut s.pf,
         };
         crate::systems::signatures::before_damage(&mut cx);
-        let denies=cx.s.mark_denials.iter().flatten().map(|(owner,foe)|json!({"owner":format!("p{}",owner.0-1),"foes":[format!("p{}",foe.0-1)]})).collect::<Vec<_>>();
+        let denies=cx.s.mark_denials.iter().map(|(owner,foe)|json!({"owner":format!("p{}",owner.0-1),"foes":[format!("p{}",foe.0-1)]})).collect::<Vec<_>>();
         crate::systems::ledger::apply(&mut cx);
         crate::systems::signatures::after_damage(&mut cx);
         let p = &s.w.players[0];

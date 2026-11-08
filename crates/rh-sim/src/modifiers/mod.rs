@@ -657,6 +657,16 @@ pub(crate) fn mark_pulse(
     target_hp: f64,
     near: bool,
 ) -> f64 {
+    mark_pulse_group(p, w, target_hp, near, 1.)
+}
+/// Group share precedes Hunt, as in source recordPulse; singleton callers keep their original exact bits.
+pub(crate) fn mark_pulse_group(
+    p: &crate::state::Player,
+    w: crate::WeaponId,
+    target_hp: f64,
+    near: bool,
+    member_share: f64,
+) -> f64 {
     let m = p.modifiers.mirrors();
     let f = crate::content::paced(crate::FactionId::Sentenced);
     let weight = f.rate
@@ -700,6 +710,7 @@ pub(crate) fn mark_pulse(
         } else {
             crate::constants::MARK_FAR_SHARE
         }
+        * member_share
         * crate::systems::sentenced_hunt::mark_multiplier(u32::from(p.hunt_stacks))
 }
 

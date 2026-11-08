@@ -917,6 +917,8 @@ impl DeferredQueue {
 /// `Hx::pay_later` from a hook link); never push to `items` directly.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub(crate) struct PayQueue {
+    /// Ordered denied amounts shared by same-pass Copy spans; retained until every payout has completed.
+    pub(crate) mark_denied_amounts: Vec<(PlayerId, f64)>,
     /// Derived wake settlement order, cleared on every exit; never serialized or hashed.
     pub(crate) mob_wake_order: Vec<u32>,
     pub(crate) mob_wakes: Vec<(u32, PlayerId)>,
@@ -931,6 +933,7 @@ pub(crate) struct PayQueue {
 impl PayQueue {
     pub(crate) fn is_settled(&self) -> bool {
         !self.collecting
+            && self.mark_denied_amounts.is_empty()
             && self.items.is_empty()
             && self.mob_wakes.is_empty()
             && self.mob_wake_order.is_empty()

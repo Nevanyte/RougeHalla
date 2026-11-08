@@ -20,7 +20,13 @@ pub(crate) fn damage(
     for slot in 0..w.fighter_count() {
         let ix = crate::fighter::FighterIx::of_slot(slot);
         let p = w.core(ix);
-        if !w.standing(ix) || !p.signature.engaged {
+        // Source dummies have faction="" and therefore no FactionSpec. Their internal Fire placeholder is not a source.
+        if !w.standing(ix)
+            || !p.signature.engaged
+            || w.mobs
+                .get(p.id)
+                .is_some_and(|m| m.kind == crate::mob_runtime::MobKind::Dummy)
+        {
             continue;
         }
         let Some(ti) = p

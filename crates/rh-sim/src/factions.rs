@@ -95,7 +95,7 @@ impl From<crate::systems::ledger::Entry> for DamageView {
 }
 impl crate::Sim {
     /// Trusted pass-start owner/marked-foe denial index, stable through ledger payouts.
-    pub fn mark_denials(&self) -> &[Option<(PlayerId, PlayerId)>; crate::constants::MAX_PLAYERS] {
+    pub fn mark_denials(&self) -> &[(PlayerId, PlayerId)] {
         &self.s.mark_denials
     }
     pub fn faction_runtime(&self) -> &FactionRuntime {

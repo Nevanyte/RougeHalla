@@ -31,6 +31,7 @@ fn eligible_owner_selection_precedes_tie_and_private_state_stays_private() {
             .signature
             .set_target(PlayerId(3), s.w.server_time);
         s.w.players[i].signature.mark = crate::fighter::Mark {
+            group: Some(crate::fighter::MarkGroup::Fighter(PlayerId(3))),
             tier: 4,
             hits: 9,
             progress: 9.,
@@ -105,6 +106,7 @@ fn same_tick_departure_derives_only_public_mark_bit_on_every_observation_path() 
             .signature
             .set_target(PlayerId(3), s.w.server_time);
         s.w.players[i].signature.mark = crate::fighter::Mark {
+            group: Some(crate::fighter::MarkGroup::Fighter(PlayerId(3))),
             tier: 4,
             hits: 9,
             progress: 9.,
@@ -112,6 +114,7 @@ fn same_tick_departure_derives_only_public_mark_bit_on_every_observation_path() 
         };
     }
     s.w.players[1].signature.mark = crate::fighter::Mark {
+        group: Some(crate::fighter::MarkGroup::Fighter(PlayerId(3))),
         tier: 3,
         hits: 6,
         progress: 6.,

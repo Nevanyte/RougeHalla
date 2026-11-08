@@ -185,14 +185,16 @@ pub(crate) fn before_damage(cx: &mut Cx) {
             continue;
         }
         let p = w.core(ix);
-        let clear = returning(w, p.id)
-            || p.signature
-                .target
-                .is_some_and(|id| w.fighter_idx(id).is_none_or(|ti| !w.standing(ti)));
-        let p = w.core_mut(ix);
-        if clear {
-            p.signature.clear_target();
+        if returning(w, p.id) {
+            w.core_mut(ix).signature.clear_target();
+        } else if p
+            .signature
+            .target
+            .is_some_and(|id| w.fighter_idx(id).is_none_or(|ti| !w.standing(ti)))
+        {
+            super::sentenced::lost_target(w, ix, true);
         }
+        let p = w.core_mut(ix);
         p.signature.hp_frac = if p.vitals.max_hp > 0. {
             p.vitals.hp / p.vitals.max_hp
         } else {
@@ -226,6 +228,11 @@ pub(crate) fn before_damage(cx: &mut Cx) {
         }
         let id = p.id;
         let mut target = p.signature.target;
+        let mut group = if p.signature.mark.tier > 0 {
+            p.signature.mark.group
+        } else {
+            None
+        };
         let outgoing = || {
             s.contacts
                 .iter()
@@ -238,36 +245,64 @@ pub(crate) fn before_damage(cx: &mut Cx) {
                 .filter(|c| c.victim == id)
                 .map(|c| (c.attacker, c))
         };
-        let mut selected = None;
-        if target.is_none() || !outgoing().any(|(other, _)| Some(other) == target) {
-            selected = largest(
+        let same = |group: Option<crate::fighter::MarkGroup>, other: PlayerId| {
+            group.is_some() && group == super::sentenced::group_of(w, other)
+        };
+        let mut reset = false;
+        if target.is_none()
+            || (!outgoing().any(|(other, _)| Some(other) == target)
+                && !outgoing().any(|(other, _)| same(group, other)))
+        {
+            if let Some(selected) = largest(
                 &w.actor_history,
                 outgoing().filter(|(_, c)| !c.passive),
                 k.secrets.order_salt,
                 w.tick,
-            );
-            if selected.is_some() {
-                target = selected;
+            ) {
+                if !same(group, selected) {
+                    reset = true;
+                    group = None;
+                }
+                target = Some(selected);
             }
         }
         if target.is_none() {
-            selected = largest(
+            if let Some(selected) = largest(
                 &w.actor_history,
                 outgoing().chain(incoming()),
                 k.secrets.order_salt,
                 w.tick,
-            );
-            target = selected;
+            ) {
+                target = Some(selected);
+                reset = true;
+                group = None;
+            }
         }
-        let contacted = target.is_some()
-            && outgoing()
-                .chain(incoming())
-                .any(|(other, _)| Some(other) == target);
+        let group_contact = outgoing()
+            .chain(incoming())
+            .any(|(other, _)| same(group, other));
+        let target_contact = outgoing()
+            .chain(incoming())
+            .any(|(other, _)| Some(other) == target);
+        if target.is_some() && group_contact && !target_contact {
+            if let Some(selected) = largest(
+                &w.actor_history,
+                outgoing().filter(|(other, _)| same(group, *other)),
+                k.secrets.order_salt,
+                w.tick,
+            ) {
+                target = Some(selected);
+            }
+        }
         let f = &mut w.core_mut(ix).signature;
-        if let Some(t) = selected {
-            f.set_target(t, now);
+        if reset {
+            if let Some(target) = target {
+                f.set_target(target, now);
+            }
+        } else {
+            f.target = target;
         }
-        if contacted {
+        if target.is_some() && (target_contact || group_contact) {
             f.contact_at = Some(now);
         }
     }
@@ -321,17 +356,7 @@ pub(crate) fn before_damage(cx: &mut Cx) {
     if k.config.faction_mode.sentenced() {
         super::sentenced::before_damage(k, w, &mut s.ledger, cx.ev);
     }
-    s.mark_denials = [None; MAX_PLAYERS];
-    if k.config.faction_mode.sentenced() {
-        for (i, p) in w.players.iter().enumerate() {
-            if p.standing()
-                && p.vitals.faction == FactionId::Sentenced
-                && p.signature.mark.tier >= MARK_TOP_TIER
-            {
-                s.mark_denials[i] = p.signature.target.map(|target| (p.id, target));
-            }
-        }
-    }
+    super::sentenced::freeze_denials(k, w, &mut s.mark_denials);
     crate::modifiers::hit_window::update(w, &s.ledger);
     if k.config.faction_mode.plague() {
         super::plague::damage(k, w, &s.performed, &mut s.ledger);

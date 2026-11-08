@@ -196,6 +196,8 @@ fn build(case: &Value) -> Sim {
             combat_at: g["combatAt"].as_f64(),
             hp_frac: g["hpFrac"].as_f64().expect("hp fraction"),
             mark: Mark {
+                group: None,
+                group_size: 1,
                 tier: g["tier"].as_u64().expect("tier") as u8,
                 hits: g["markHits"].as_u64().expect("mark hits"),
                 progress: g["markProgress"].as_f64().expect("mark progress"),
