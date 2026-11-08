@@ -9,7 +9,8 @@ corpora instead of repeating their campaigns.
 - Branch: `deepseek/quest-trade-public-witness`
 - Immutable base: `138a10de41f4e113e9dc85f0150a8e493d291c2b`
 - Implementation head (tools/corpora): `0b4e0d425d24ea342b956babaf53332a6f8348f4`
-- Evidence head: this README's commit, a child of the implementation head (the branch tip is reported in the final handoff).
+- Evidence head: the commit containing this README update; the implementation head 0b4e0d42 remains the tools/corpora
+  commit. The final branch head is reported in the coordination report.
 - Contract: `docs/coordination/P-QUEST-TRADE-PUBLIC-WITNESSES.md` (not present in the worktree; read from the object
   store at `1cf3c5d5:docs/coordination/P-QUEST-TRADE-PUBLIC-WITNESSES.md`).
 
@@ -26,6 +27,8 @@ and `profile.captureSha256` absent. All hashes were produced by the pinned conta
 | `parity/trade-public/doors.json` | 84,114 | `2ace515574261ef6d092cf8e973f8df0c0218a462037ab707badc73540ac5cc5` | `fc32e407e79e0cf5be9d49b46a9b9eb80bdef6775b03542b20fc349312440304` | 8 client-door, 17 intake, 17 action cases |
 | `parity/trade-public/schema-receivers.json` | 45,101 | `ca15081396b494009d0bdf09c46942ae04dd5930133e7f4a68b4ffce6824ca8f` | `ab550e5f438b4ade739892710b90e3610e998d38f3f2dc5b53988c3d545058df` | 3 schema kinds, 3 encode rounds, 2 receiver cases |
 | `parity/trade-public/wording.json` | 44,668 | `4c5f8a16692fa7007c3d10d2bceda092c196df69fa2e5e2b1a88d7a22c578748` | `cf7c21f40ac15dea6c7a66935478fadaf0308bdff050b64f985bc7f88a19912b` | 31 strings, 19 runtime toasts |
+| `parity/quest-public/manifest.json` | 1,044 | `9f7070b087ed66ccf21d1809a5ca501c20055d10bf407c5becaa93919819fa6a` | n/a (manifest) | lists the three quest corpora/provenance |
+| `parity/trade-public/manifest.json` | 1,043 | `815772be116c7572c8a5fb6e49e4b4446f157852d073ca8412a06ddd73562b94` | n/a (manifest) | lists the three trade corpora/provenance |
 
 Each `manifest.json` carries the same table plus the source-closure/tool counts. The quest cross-checks are
 `tools/quest-public-fixtures/verify.mjs`; the trade cross-checks are `tools/trade-public-fixtures/verify.mjs`.
@@ -38,9 +41,11 @@ Each `manifest.json` carries the same table plus the source-closure/tool counts.
   `npm ci --ignore-scripts --no-audit --no-fund`; `node --import tsx`.
 - `package-lock.json` SHA256 `991869bdfbbefb6874220500197c61db302a4d2b2603dfc2288fd7032ce1d481`; tsx 4.23.15;
   `@colyseus/schema` 5.0.42.
-- Source closure: quest 149 TypeScript files / 4 CSS; trade 136 TypeScript files / 1 CSS. Every file's SHA256 is in
-  `profile.sourceClosure.sourceFiles`; tool files (including the five mutant patches and `expected.txt`; README files are
-  documentation, excluded from the runtime pins) are in `profile.tool`. Every corpus repeats the full profile.
+- Source closure: quest 149 TypeScript files / 4 CSS; trade 136 TypeScript files / 1 CSS. Every runtime-imported
+  closure file's SHA256 is in `profile.sourceClosure.sourceFiles`; tool files (including the five mutant patches and
+  `expected.txt`; README files are documentation, excluded from the runtime pins) are in `profile.tool`. Handlers or
+  modules outside the runtime import closure (e.g. the generic `RaidRoom.ts` registration path) are pinned as
+  path:line text in `sourceInventory`, not as full-file hashes. Every corpus repeats the full profile.
 - Reused/cited corpora are pinned by bytes/SHA256 in `profile.reusedOrCited`: quest `parity/quests/data.json` 79,403 /
   `c01c045f…` and `lifecycle.json` 633,814 / `c292c637…`; trade `parity/trade/runtime.json` 64,757 / `a03bfd02…`.
 - Map: real `generateMap(1, 0, {decor:false})`, `mapHashU32 = 3499839449`; world random `mulberry32(12)`, reward salt
@@ -67,7 +72,7 @@ Exact path:line + source text is recorded in every corpus's `profile.sourceInven
 | Quest Accept human door: payload, open/reconnect/click-guard/pending gating, dead/closed/range/inactive gates | **captured** | `quest-public/doors.json/clientDoor` (7 cases) |
 | Quest intake/parse/queue: valid, extra, null/empty, empty/non-string/array/over-64/at-64 id, unknown id, wrong type, training option, 6-per-tick cap | **captured** | `quest-public/doors.json/intake` (13 cases) |
 | Quest action outcomes through ordinary steps: accept, repeat/already, far, unknown, hidden/unpublished, stale/closed, busy/stun, dead-silent, LOS, order busy→offer→range→already, ended phase not drained | **captured** (far/accept/repeat also cited) | `quest-public/doors.json/actions` |
-| Hidden reveal: finder-only private message, absent public row during 4 s head start, publication + giver/pieces, global "revealed" toast | **captured** | `actions.hidden-reveal-publish`; `schema-receivers` rounds |
+| Hidden reveal: finder-only private message, absent public row during 4 s head start, publication + giver mob (the kill-verb case records the giver; no item pieces), global "revealed" toast | **captured** | `actions.hidden-reveal-publish`; `schema-receivers` rounds |
 | Quest public fields accepted/progress/carrier/visitedRegions | **captured** | `schema-receivers.json/schema.rounds`, disclosure matrix |
 | Client quest receiver: `questFromReveal`, `questCollections`, `questRows`, dialog text/status | **captured** | `schema-receivers.json/receivers`, `wording.json`, door views |
 | Quest catalog/roster/placement/reward/turn-in/collect/fetch/expiry/teleport/run-end/camp-clear | **cited existing** | `parity/quests/data.json`, `parity/quests/lifecycle.json` |
@@ -88,7 +93,7 @@ Exact path:line + source text is recorded in every corpus's `profile.sourceInven
   open out of range, dead, on a closed offer or outside active. After the server step the public row shows
   `accepted:[[p0,true]]` and `expiresAt` starts.
 - **Quest intake**: `parseQuestAccept` accepts a 1..64-char id and ignores extra fields; null/object/empty/non-string/
-  array/over-64 are refused and queue nothing; a 64-char id and a made-up id parse (the sim decides); seven valid
+  array/over-64 are refused and queue nothing; a 64-char id and a made-up id parse (the sim decides); eight valid
   messages in one tick queue six and drop two (`dropped:2`). Training rooms still parse/queue at the edge but
   `world.actions.questAccept/trade` are `undefined` (module install gates) and the step emits nothing.
 - **Quest action order**: busy/stun is checked before the offer lookup; offer published/open/giver is checked before
@@ -192,10 +197,34 @@ refuse an output path outside this worktree.
 - No real browser, renderer, CSS layout, keyboard, mouse, scene or pixel output is claimed. `fake-dom.mts` is a
   declared element/focus/event stub; `TraderView` uses a declared graphics/text/container recorder.
 - Player positions/status, weapons/potions, the real `grantCard` Committed card, one forced wall tile for LOS, the
-  declared ended phase, and the client frame wrapper are declared and recorded per case. All sim execution, offers,
-  trades, toasts, schema bytes and decoded state are actual.
+  declared ended phase, and the client frame wrapper are declared and recorded per DOOR/ACTION case. The
+  schema-receiver cases reuse the same declared world/player rows; their setup is recorded once in the corpus `world`
+  block (config, players, traders, barterAt, playersState) instead of a repeated per-case `declared` object: documented
+  setup, not produced sim state. All sim execution, offers, trades, toasts, schema bytes and decoded state are actual.
 - No bots are added; no quest/trade profile is installed; missing runtime/handlers are asserted (canonical run) rather
   than skipped. The end-to-end room/socket/Unity proof remains separate.
+
+## Independent checker (separate agent)
+
+Verdict **PASS WITH DISCREPANCIES** (documentation/transparency only). The checker independently reproduced: the
+41-added-file scope (only the three allowed new directory families; old `parity/{quests,trade}`,
+`tools/{quest,trade}-fixtures`, production, Cargo.lock and shared status untouched); every corpus and manifest
+byte-size/SHA256 and all six captureSha256 values; both `--check` suites twice (exit 0, `verify.mjs` PASS, same
+counters); both mutant suites (four semantic KILLs per family, provenance NON-KILL, restored PASS) and independently
+applied the door, head-start, offer-not-synced, cooldown and provenance patches in /tmp copies with the pinned image,
+reproducing the exact first mismatches and IDENTICAL provenance result; the real `QuestDialog`/`TraderPanel`/
+`sendInput` path and payloads, real `enqueueClientMessage`/parse/action steps, training-world behaviour, and the absence
+of bots/profiles/installed outcomes; the **SOURCE FINDING** that `tradeOffers`/`tradeStats`/`tradeUsed` are
+`noSync:false` public fields (decoded p0 has 3 offers/stats, p1 empty; `barterAt` is runtime-only and absent from
+decoded rows); the hidden-quest boundary (absent during the head start, finder-only `questReveal`, published row
+afterwards; accepted/progress/carrier/visitedRegions public); legal/item wording and toast rows; and the cited corpora
+pins. It found no sanitized leak, false private claim or Room/socket/browser/Unity proof. Its discrepancies are fixed in
+this commit: the queue-cap prose now says **eight** valid messages (six queued, two dropped); the schema-receiver
+trusted setup is documented as recorded once in the corpus `world` block rather than as per-case declared objects;
+the source-closure sentence distinguishes runtime-import-closure hashes from path:line anchors outside that closure; and
+the hidden-reveal coverage text is narrowed to the giver mob for the kill-verb case. The checker did not repeat a
+separate write-recapture (the twice `--check` is a full container recapture plus byte comparison); the Lead additionally
+ran a trade write-recapture and a quest `--check` with identical bytes.
 
 ## Remaining gaps for the lead
 
