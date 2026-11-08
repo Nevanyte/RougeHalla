@@ -1,0 +1,8 @@
+--- a/packages/server/src/bots/brain/perception.ts
++++ b/packages/server/src/bots/brain/perception.ts
+@@ -544,3 +544,3 @@
+     } else {
+       const copy = plainCopy(v);
+-      if (copy !== undefined) data[k] = copy;
++      if (copy !== undefined && k !== "x" && k !== "y" && k !== "x2" && k !== "y2") data[k] = copy;
+     }

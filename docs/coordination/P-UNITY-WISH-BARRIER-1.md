@@ -19,6 +19,11 @@ OnDestroy and a reset-forwarder beside PresentFx. Change only subscription/clear
 R/Q/E, input order, steering, target picking or focus-loss semantics.
 No shared status/Cargo.lock, native/server/codec, new asset acquisition, cloud or deployment edits.
 
+Explicit narrow audio release: the admitted `Presentation/ShowcaseSoundscape.cs` may expose ResetTransientCues,
+clearing its pending FX count and stopping its existing SFX voices. Call it from the lifecycle forwarder; keep the
+session/listeners bound so later same-wake new-epoch cues survive. No DetachSession/reinitialization workaround, music/
+ambience change, new sounds or unadmitted research branch. Test stale-clear/new-cue preservation and listener lifetime.
+
 ## Delivered facts and behavior
 
 - `Session.Me.Wish` is an owned nullable value record: Ability, ReadyAt, FullAt?, MaxCharges, RechargeMs, Charges,

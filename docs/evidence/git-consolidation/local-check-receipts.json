@@ -412,6 +412,61 @@
       "bytes": 133,
       "sha256": "b0fe58fe3f67e6d0c59c2d93371bb5c831ed29e4ff956f27756a1b08ecf8bfed",
       "scope": "Original10 source cases byte-exact only; real caller timing/anti-heal/feature build remain held."
+    },
+    {
+      "file": "native-g6-frost-root.log",
+      "bytes": 7453,
+      "sha256": "624953c0c1bc9681b4c76c60d3dcd2b71ad673ded43136d91f693daf192aad13"
+    },
+    {
+      "file": "g6-callers-source-root.log",
+      "bytes": 132,
+      "sha256": "d22c24a97de4f24e8ac8bffc5345e05f589937d1acf135a60b3633870d1203aa"
+    },
+    {
+      "file": "frost-resistance-source-root.log",
+      "bytes": 57,
+      "sha256": "8bbe4f08084b71dbed520a82ab173e2f55f140e9db1e2acbf2b856c70ad89ceb"
+    },
+    {
+      "file": "barrier-observation-source-native.log",
+      "bytes": 1331,
+      "sha256": "83446c9d137352db6025904c75523438c6a0688a6f40e357b2c3fb83d0ab9b2a"
+    },
+    {
+      "file": "sentenced-root-admission.log",
+      "bytes": 3195,
+      "sha256": "2057c6d0f293bce7b802a9ae996e2a289f047da7c542b16de3a3b5b8c83cc4d7"
+    },
+    {
+      "file": "wish-public-corrected-root.log",
+      "bytes": 453,
+      "sha256": "9e7662514356874d4e15e5beaea758562728c42f9d27ff71625138b34a1e04df"
+    },
+    {
+      "file": "trophy-corrected-root.log",
+      "bytes": 463,
+      "sha256": "6a2865bde4397c47c5c0eeda64938d8041bcbcfc01b8796cd8afe82185678c22"
+    },
+    {
+      "file": "wish-public-merged-root.log",
+      "bytes": 1529,
+      "sha256": "6149b7f8d99fef7d35fc08e8524848a3df80ab01ac263ee1ec7db7523be6f386"
+    },
+    {
+      "file": "trophy-merged-root.log",
+      "bytes": 245,
+      "sha256": "4a80be7d07b3ae9a303635ffbcdb489a05ef81da0b97aebfcc5b94921bca49e1"
+    },
+    {
+      "file": "wish-public-mutants-root.log",
+      "bytes": 1130,
+      "sha256": "0774b76bbe756e956761069b9ed416752aef68fc91aefdeb836012a5fa76d69b"
+    },
+    {
+      "file": "trophy-mutants-root.log",
+      "bytes": 1158,
+      "sha256": "1d5618e3872af9b9625305b09b489d1f0c6370a1184936394a4d7c0430086080"
     }
   ]
 }

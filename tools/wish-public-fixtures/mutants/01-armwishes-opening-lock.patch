@@ -1,0 +1,7 @@
+--- a/packages/server/src/sim/abilities.ts
++++ b/packages/server/src/sim/abilities.ts
+@@ -85,3 +85,3 @@
+   const s = world.state;
+-  const readyAt = world.config.training ? 0 : s.raidStartedAt + Math.max(0, world.config.wishLockSeconds ?? WISH_LOCK_SECONDS) * 1000;
++  const readyAt = world.config.training ? 0 : s.raidStartedAt + Math.max(0, (world.config.wishLockSeconds ?? WISH_LOCK_SECONDS) * 1000 - 1000);
+   for (const [id, p] of s.players) {

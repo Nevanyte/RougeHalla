@@ -1,0 +1,130 @@
+{
+  "base": "eb3e4feb0d00d242b93bc1a5933b56ff33fd2961",
+  "branch": "codex/trophy-mutant-evidence-repair",
+  "scope": "Runner/comparator/provenance and metadata-only regeneration of the two NEW Trophy corpora; no gameplay/source expected-case changes.",
+  "withdrawnClaim": "Original whole-file cmp did not establish semantic kills because source hashes changed.",
+  "commands": [
+    {
+      "command": "RH_TROPHY_WITNESS_OUTPUT=<isolated repo>/parity/trophy-witness bash tools/trophy-witness-fixtures/capture.sh",
+      "exit": 0
+    },
+    {
+      "command": "bash tools/trophy-witness-fixtures/run-mutants.sh",
+      "exit": 0,
+      "result": "provenance-only control is not a kill; 4/4 named semantic witnesses differ; restored byte-identical --check passes"
+    },
+    {
+      "command": "bash -n tools/trophy-witness-fixtures/run-mutants.sh; node --check tools/trophy-witness-fixtures/compare.mjs",
+      "exit": 0
+    }
+  ],
+  "corpora": [
+    {
+      "path": "parity/trophy-witness/lifecycle.json",
+      "oldBytes": 72837,
+      "oldSha256": "33fca3c52564345c80933e33d0f66702a2e7064745a30c2eb7ce3046ec275ef4",
+      "newBytes": 72922,
+      "newSha256": "b8954e0f2607de038ef7f64cb049b7770f1280d3976299149e8df3f21e05ef80",
+      "caseSuffixByteIdentical": true,
+      "caseSuffixBytes": 57777,
+      "caseSuffixSha256": "d60d55f0167a152d909be7abeb53804caad85f2fa660edefd0eaa7fc29c6d8ad",
+      "cases": 6,
+      "sourcePinsUnchanged": true,
+      "dependencyLockUnchanged": true
+    },
+    {
+      "path": "parity/trophy-witness/helpers.json",
+      "oldBytes": 38982,
+      "oldSha256": "064bc18599ac8eb516582d50954e0a04abd6485421f4591667338f333ca347d1",
+      "newBytes": 39067,
+      "newSha256": "00335b6e14b733e8b1cfbf4158e6fb0f5ce933b204a7c39c8298278aeea9e304",
+      "caseSuffixByteIdentical": true,
+      "caseSuffixBytes": 23808,
+      "caseSuffixSha256": "a9e684dda2c482c912e65ba4daf2b735fcaa9d9d57ce234ede3bb76be06f7e70",
+      "cases": 7,
+      "sourcePinsUnchanged": true,
+      "dependencyLockUnchanged": true
+    }
+  ],
+  "controls": [
+    {
+      "mode": "--provenance-only",
+      "semanticDifferences": 0,
+      "semanticKill": false
+    },
+    {
+      "mutant": "01-owner-refusal-removed",
+      "semanticKill": true,
+      "expectedWitness": {
+        "corpus": "lifecycle",
+        "path": "/cases/1/frames/3/toasts"
+      },
+      "firstDifferences": [
+        {
+          "corpus": "lifecycle",
+          "path": "/cases/1/frames/3/toasts/0/text"
+        }
+      ]
+    },
+    {
+      "mutant": "02-birth-hold-removed",
+      "semanticKill": true,
+      "expectedWitness": {
+        "corpus": "lifecycle",
+        "path": "/cases/0/frames/3/trophies/0/takenBy"
+      },
+      "firstDifferences": [
+        {
+          "corpus": "lifecycle",
+          "path": "/cases/0/frames/3/players/0/killStats/ad"
+        }
+      ]
+    },
+    {
+      "mutant": "03-ranking-order-reversed",
+      "semanticKill": true,
+      "expectedWitness": {
+        "corpus": "helpers",
+        "path": "/cases/3/result/1/options"
+      },
+      "firstDifferences": [
+        {
+          "corpus": "helpers",
+          "path": "/cases/3/result/1/readability/0/key"
+        }
+      ]
+    },
+    {
+      "mutant": "04-grant-arithmetic-doubled",
+      "semanticKill": true,
+      "expectedWitness": {
+        "corpus": "lifecycle",
+        "path": "/cases/0/frames/4/players/0/killStats/ad"
+      },
+      "firstDifferences": [
+        {
+          "corpus": "lifecycle",
+          "path": "/cases/0/frames/4/players/0/killStats/ad"
+        },
+        {
+          "corpus": "helpers",
+          "path": "/cases/4/result/0/grant/v"
+        }
+      ]
+    }
+  ],
+  "log": {
+    "path": "mutant-admission-repair.log",
+    "bytes": 1158,
+    "sha256": "1d5618e3872af9b9625305b09b489d1f0c6370a1184936394a4d7c0430086080"
+  },
+  "image": "node:22.23.4-bookworm-slim@sha256:aaa4b5baf1ecff3b283486bb1f90405cdda225a3e6f79660d2c559fa510a7292",
+  "toolAndDependencyPins": {
+    "captureMts": "0db4311541ccedf4a3fa46b3b15be4b92fe4df92824aa52475fdd97faaa04360",
+    "captureSh": "618b3b924cf1651fa4d2e6b04f1b5c622d644a0fdaff133f9f251f6bd4552c53",
+    "runMutantsSh": "b493f28a390f7c9f048cbffb792dc39dbe80e04c4d83a3c6bea3ce7d8f31f50f",
+    "compareMjs": "97e08644a97ca3a7a33f91cdc98d74ae0417a073e2608a5edc183e17e34e51d8",
+    "packageLock": "991869bdfbbefb6874220500197c61db302a4d2b2603dfc2288fd7032ce1d481"
+  },
+  "sourceInventoryFiles": 127
+}

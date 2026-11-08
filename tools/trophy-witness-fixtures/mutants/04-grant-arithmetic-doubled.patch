@@ -1,0 +1,11 @@
+--- a/packages/shared/src/killAugments.ts
++++ b/packages/shared/src/killAugments.ts
+@@ -55,7 +55,7 @@
+ 
+ /** The killStats key and amount a pick adds. */
+ export function killAugmentGrant(a: KillAugment): { stat: string; v: number } {
+-  return { stat: STORE[a.key], v: a.gain };
++  return { stat: STORE[a.key], v: a.gain * 2 };
+ }
+ 
+ export function killAugmentText(a: KillAugment): { title: string; text: string } {

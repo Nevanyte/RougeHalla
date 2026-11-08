@@ -266,3 +266,55 @@ its observe/item_view/wire lease passes to the networking candidate. Source-cons
 protocol12/G6/client composition. G6 `b50871d1` reproduces its original10 source cases but remains held for genuine
 before/after-slot caller and anti-heal witnesses plus the disclosed feature-gated StatView build repair. The apparent
 lifesteal mismatch had inconsistent installer/config binding and is not accepted as proof of a combat-rule defect.
+
+The subsequent G6 caller repair through `2a384510` resolves that hold. Independent read-only code review confirms the
+actual player-only/no-mobs module profile, real validated lifesteal/potion callers, labelled generic anti-heal setup,
+source slot timing and the authorized feature-gated StatView fix. Its old10-case corpus is unchanged; the new3-case
+caller corpus has tool/lock/source/image provenance. The capture's self-comparison labelled declared repeat adds no
+independent repeat proof. Native production remains private until the complete public transport/client union lands.
+
+Root composes full G6 `2a384510` and Frost resistance `6cfb7a41` in private branch `codex/native-g6-frost-union` at
+`80a4e130a661eae9e9e52420288e0af05f1649ca`, based on lead `02deb93a`, using two ordinary merges with no conflicts.
+Root's fresh focused check passes67 native tests: buffs8, Frost11, checkpoint6, content21, no-allocation1, replay6 and
+all-feature schedule14. New G6 callers3cases and Frost13cases reproduce byte-exact in the pinned source container.
+The read-only Docker captures need an existing empty node_modules mountpoint in a fresh private checkout; the initial
+mount preflight failed, then both checks pass after creating it. CI already runs npm ci before these capture steps.
+This private composition still has intermediate content356457e6ccfb22cd/checkpoint25/replay19 and no transport12;
+root must register the actual changed Frost formulas and regenerate the final derived tape after transport composition.
+Frost source traces plus native folded-state/consumer tests do not yet replay the entire captured source timeline.
+
+Root also independently runs the private `bbb7b012` barrier source consumer: five tests reproduce55 numeric/ring rows
+and refuse8 diagnostics, plus one warmed observation allocation test passes. These six tests are a different private
+revision from the67 above; they are not one aggregate current-union gate. [Receipts](local-check-receipts.json) pin logs.
+G6 production/state/checkpoint/format/hash-coverage leases are closed and passed to networking; content and derived
+tapes stay lead-owned. Art now implements the delivered Wish/barrier interface from immutable `abd1ccfe`, including
+the explicitly released MatchClient lifecycle-only hunks. Next DeepSeek work is bounded Frost→basic-NPC recipients,
+source human Wish witnesses and disjoint source Trophy lifecycle/text evidence. Main identities and served artifact
+remain unchanged; no cloud mutation or new Web/player performance claim follows.
+
+Private continuation `bc9cdd7b` composes reviewed Sentenced restore repairs `e6f9680a` and `c5b11341` atop the private
+G6/Frost branch. Root independently passes26 affected tests, including the10 new real-producer/history regressions.
+The worker's separate70-test/lint/fmt evidence is retained in its packet evidence; do not sum overlapping runs. No
+gameplay, serialized schema, identity or source expected output changes. Missing Gathering Storm MarkRate gameplay
+remains separate and explicitly assigned; its implementation will revisit progress bounds and final content identity.
+
+## Corrected human Wish and Trophy source admission
+
+Corrected Wish source `ecda2212` is merged in `6dfe9116`; Trophy source plus semantic-control repair `f9dcaea0` is merged
+in `3af96c1a`. Root's exact merged-tree checks reproduce all6 Wish artifacts and both Trophy corpora byte-exact. The
+new Wish cancellation projections select actual terminal batches and assert Ended/cancelled with no Started; raw
+removed actor IDs are preserved as an explicit source disclosure. The native privacy correction is separately approved.
+Source methods/recorders do not establish actual keyboard, Room/scene execution or a Unity browser flow. Base/training
+stock clocks are covered; modifier-driven live clock cuts remain a separate coupled-card/integration gate.
+
+Root reproduces5 Wish semantic source mutants/restored control and4 Trophy named semantic witnesses/restored control.
+The earlier Trophy whole-file comparison was invalid because source provenance changes under every mutant; that claim
+is withdrawn. Its repaired comparator excludes provenance and rejects a source-comment-only change as a semantic kill.
+Trophy source case payloads are unchanged by the repair. All9 keys/helper wording remain separate from real six-case
+kill/choose lifecycle evidence. Self-kill, sight-filtered disclosure, decimal-midpoint UI formatting and real DOM/
+reconnect proof remain open. No production native/client behavior or active identities change in these admissions.
+
+The first merged-tree Docker checks hit an existing primary-checkout Vite cache under a read-only mount (EROFS), not
+a semantic mismatch. Both captures pass from a clean detached checkout at exact merged tip `3af96c1a`, with unchanged
+source hashes and empty node_modules mountpoint. The primary cache was preserved. [Receipts](local-check-receipts.json)
+retain failed preflight and final source/mutant logs. CI now includes both new canonical capture commands.

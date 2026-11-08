@@ -101,7 +101,12 @@ integrated in `b0310e73`, with no production/version changes. Root source recapt
 control and four focused native tests pass; actual room lifecycle, committed prepared carry and visibility-time
 equivalence remain unproved. The later barrier-view source slice is admitted in `33d72c34`: six corpora reproduce
 byte-exact with four compiled semantic mutants and restored control. This is source-only method/schema evidence;
-real G6 caller and native/client publication proof remain separate. Post Rust next owns source human Wish witnesses.
+real G6 caller and native/client publication proof remain separate. Corrected source human Wish witnesses through
+`ecda2212` and Trophy lifecycle/text evidence through `f9dcaea0` are now admitted in `6dfe9116`/`3af96c1a`. Root reproduces
+both source families byte-exact and5/4 semantic mutants with restored controls. The Wish terminal-batch selections are
+corrected; removed source IDs remain a labelled disclosure, and native redaction is a separate correction. Trophy's
+old whole-file mutant claim is withdrawn: named case mismatches exclude provenance, with a provenance-only non-kill
+control. These are method/source witnesses, not real keyboard/scene/native transport proof. Both captures join CI.
 The next G6 heal-barrier assignment
 is a private native candidate under its [packet](coordination/P-G6-HEAL-BARRIER-NATIVE.md), with checkpoint25/replay19
 reserved only for that candidate and a new content identity required. It cannot activate on the public profile before
@@ -110,11 +115,28 @@ the lead resolves barrier publication/gating.
 Private continuation is now allocated under [ADR0022](adr/0022-barrier-wish-publication.md): one protocol12/
 Observation18 Wish/barrier publication candidate, with actual producer-time cues, anonymous permitted spatial landings,
 strict coordinate redaction and explicit per-frame source time. Main identities/guards are unchanged. Native checked
-observation work and networking PhaseA proceed with sequential shared-file leases; pending restore/hash/tapes remain
-G6-owned until handover. A separate [Frost-resistance packet](coordination/P-FROST-RESISTANCE-1.md) fixes missing victim
+observation work and networking PhaseB proceed with sequential shared-file leases. G6 handover is complete at
+`2a384510`: actual before/after-slot callers and anti-heal pass review, root's private G6/Frost composition passes67
+focused native checks and both new source captures reproduce byte-exact. State/checkpoint/format/hash-coverage passes
+to networking; final content and derived tapes remain lead-owned. The private barrier numeric source consumer
+separately passes5 tests plus warm zero-allocation. A separate
+[Frost-resistance packet](coordination/P-FROST-RESISTANCE-1.md) fixes missing victim
 slow resistance in the admitted player domain. None of these private assignments closes full NPC signatures, brain or
 public/client gates. [CI42485021427](https://github.com/Nevanyte/RougeHalla/actions/runs/42485021427) at `01b14dca`
 passes all four foundation jobs, including full simulation and the corrected partial perception evidence.
+The subsequent [CI42492522571](https://github.com/Nevanyte/RougeHalla/actions/runs/42492522571) at `fb738cd9` also passes
+all four jobs, including the newly admitted source barrier capture. This precedes the new Wish/Trophy source admissions
+and does not validate the private protocol12/gameplay union. Cross-feature private testing found and repaired a legitimate
+Iron Will/Sentenced Mark checkpoint rejected by the old two-increment progress validator. Reviewed `e6f9680a`/`c5b11341`
+add historical resisted/deepened progress and monotonic
+card-tier bounds, with real grant/swap/training Clear controls. Root composes it in `bc9cdd7b` and independently passes
+all26 affected Sentenced tests; lane70 focused tests/both strict lint modes/fmt pass. This changes restore validation,
+not gameplay, schema or identities. The separately diagnosed Gathering Storm MarkRate consumer remains the next
+bounded native/source task; it is not covered by the restore repair's gameplay-parity claim.
+The complete networking candidate `a40e1c6e` is now composed privately in `f62af90f`; actual Unity R/render proof and
+final gameplay content/derived-tape composition remain open. NPC Frost recipient candidate `7d831c28` remains held:
+missing Plague/draw/return/death proof, mismatched active installer profile, partial comparisons and other affected
+actor-form restore checks are assigned in its repair packet. No full NPC signature gate has been removed.
 
 The initial pushed CI passes C#, native card-runtime source, legacy recapture, hosting and latency-report checks. Rust
 CI exposed an admission-test lifecycle race: two fixture players could start/end a match, so an expired reservation
