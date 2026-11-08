@@ -360,7 +360,7 @@ namespace Roguehalla.Editor.WishProof
                     {
                         if (!MatchesEncodedInput(sample, sampleIndex, trace[inputIndex], inputIndex,
                             _session.PlayerId, _requestedActor, out _, out var cast)) continue;
-                        var baseline = OwnerBeforeFrame(sample.frame);
+                        var baseline = _baselineOwner;
                         if (!IsReadyOwner(baseline)) continue;
                         _matchingInputFound = true;
                         _baselineOwner = baseline;
@@ -406,12 +406,14 @@ namespace Roguehalla.Editor.WishProof
             _result.sawOwnerWish = false;
             for (int i = _trialStartOwnerCount; i < Owners.Count; i++)
                 if (Owners[i].hasWish) { _result.sawOwnerWish = true; break; }
-            if (!_ownerChangedAfterInput && _matchingInputFound && _baselineOwner != null)
+            if (!_ownerChangedAfterInput && _matchingInputFound && _baselineOwner != null && _session != null)
             {
+                int inputFrame = _matchedInputTraceIndex >= 0 && _matchedInputTraceIndex < trace.Length
+                    ? trace[_matchedInputTraceIndex].frame : int.MaxValue;
                 for (int i = _trialStartOwnerCount; i < Owners.Count; i++)
                 {
                     var fact = Owners[i];
-                    if (fact.frame > _sampleFrame && fact.serverMs > _baselineOwner.serverMs && OwnerStateChanged(_baselineOwner, fact))
+                    if (HasAuthoritativeChargeSpend(_baselineOwner, fact, _session.PlayerId, _baselineAbility, inputFrame))
                     { _ownerChangedAfterInput = true; break; }
                 }
             }
@@ -446,7 +448,8 @@ namespace Roguehalla.Editor.WishProof
 
         internal static bool IsReadyOwner(OwnerFact owner)
         {
-            return owner != null && owner.hasWish && owner.charges > 0 && !owner.hasCast && owner.serverMs >= owner.readyAt;
+            return owner != null && owner.hasSelf && owner.player != 0 && owner.hasWish &&
+                owner.charges > 0 && !owner.hasCast && owner.serverMs >= owner.readyAt;
         }
 
         internal static bool MatchesOwnLanded(ReceivedFxFact fx, uint player, byte ability, int sampleFrame, int inputTraceIndex)
@@ -539,26 +542,15 @@ namespace Roguehalla.Editor.WishProof
                 record.at >= landed.nativeReceivedAt && traceIndex > landed.nativeReceiptIndex && traceIndex > sampleTraceIndex;
         }
 
-        internal static bool OwnerStateChanged(OwnerFact before, OwnerFact after)
+        internal static bool HasAuthoritativeChargeSpend(OwnerFact before, OwnerFact after,
+            uint expectedPlayer, byte expectedAbility, int encodedInputFrame)
         {
-            if (!after.hasWish) return false;
-            return before.ability != after.ability || before.maxCharges != after.maxCharges ||
-                before.charges != after.charges || before.readyAt != after.readyAt || before.rechargeMs != after.rechargeMs ||
-                before.hasFullAt != after.hasFullAt || before.fullAt != after.fullAt ||
-                before.hasNextChargeAt != after.hasNextChargeAt || before.nextChargeAt != after.nextChargeAt ||
-                before.hasCast != after.hasCast || before.castAbility != after.castAbility ||
-                before.castStartedAt != after.castStartedAt || before.castLandsAt != after.castLandsAt;
-        }
-
-        static OwnerFact OwnerBeforeFrame(int frame)
-        {
-            OwnerFact found = null;
-            for (int i = _trialStartOwnerCount; i < Owners.Count; i++)
-            {
-                var fact = Owners[i];
-                if (fact.hasWish && fact.frame <= frame && (found == null || fact.frame >= found.frame)) found = fact;
-            }
-            return found ?? _baselineOwner;
+            // Tick verifies that MatchClient still owns the same Session object; these copied owner IDs bind the
+            // baseline and post-queue snapshot to that session's local player.
+            return IsReadyOwner(before) && after != null && after.hasSelf && after.hasWish &&
+                before.player == expectedPlayer && after.player == before.player &&
+                before.ability == expectedAbility && after.ability == before.ability &&
+                after.frame > encodedInputFrame && after.serverMs > before.serverMs && after.charges < before.charges;
         }
 
         static bool FindDeliveredTarget(uint actorId, out Vector2 point)
@@ -587,7 +579,7 @@ namespace Roguehalla.Editor.WishProof
             if (!_matchingInputFound) return "no_matching_encoded_cast_frame";
             if (!_matchingLandedFound) return "no_matching_own_server_landed_fx";
             if (!_matchingPresentationFound) return "no_matching_rendered_landed_marker";
-            if (!_ownerChangedAfterInput) return "no_authoritative_owner_stock_deadline_or_cast_update";
+            if (!_ownerChangedAfterInput) return "no_same_owner_charge_spend_after_encoded_cast";
             return "proof_timeout";
         }
 
