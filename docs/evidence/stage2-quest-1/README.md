@@ -68,8 +68,9 @@ cargo test --workspace --all-features --locked   # with PostgreSQL from tools/pg
 - `bash tools/quest-fixtures/capture.sh --check`: PASS (pinned container, byte-identical).
 - Mutants (`bash tools/quest-fixtures/run-mutants.sh`): **6/6 killed, unchanged control passes** — tier rounding, the
   route premium, the feed brake, the kind-cycle order, the known/hidden pass order, and the start-clearance relaxation.
-- Workspace gate: GATE_TBD. `cargo fmt --all -- --check` and `cargo clippy --workspace --all-targets
-  --all-features -- -D warnings`: CLEAN_TBD.
+- Workspace gate: **1,442 passed, 0 failed, 3 ignored, 151 test binaries, exit 0** (with PostgreSQL; the base
+  P-CARDS-3 gate plus the four quest data tests).
+- `cargo fmt --all -- --check` and `cargo clippy --workspace --all-targets --all-features -- -D warnings`: clean.
 
 ## Remaining for the P-QUEST-1 row (not in this slice)
 
