@@ -42,12 +42,17 @@ membership is checked against pinned Node over every Unicode scalar. Root preser
 requests a name snapshot only for enabled fill. Rust-side prediction fixture consumers reproduce300 paths/723 walk
 samples with unchanged goldens. The reviewed presentation prefix owns latest membership independently of audio, clears
 empty post-Welcome state/voices and tracks all80 cards;329 net tests and five proof-contract checks pass after merge.
-Art’s final browser/profile refresh remains scoped separately; neither full-port nor144Hz completion follows.
+The final art handoff through `a401a510` is integrated in `3bf64d42`: the14-file manifest matches the74,029,313-byte
+distribution on disk and over local HTTP; revision-scoped11 EditMode tests,19 browser outcomes and nine profile windows
+are verified. Runtime `ebff286b` is based on gameplay `e90a38f6`, not a new final-union build. Actual144Hz display,
+managed allocation throughput and full-game content coverage remain open; no full-port completion follows.
 
 The `b01fc9e2` CI workspace component passes all1,520 default tests with three existing ignores, including the191 map
 tests excluded locally. Its whole job later exceeds the cumulative40-minute budget during a separate terrain feature
 check. The final workflow splits full simulation from backend/source gates, preserving workspace-unified probe features
-and all selections; no whole-workflow success is claimed until that run completes.
+and all selections. [Run42471329922](https://github.com/Nevanyte/RougeHalla/actions/runs/42471329922) at `48f4bb28`
+completes successfully in all four jobs (Rust, simulation, C# and card-runtime source). The later art admission changes
+no native code, net library or workflow; exact-build presentation evidence remains separately scoped.
 
 ### Stage 2 validation addendum (takes precedence over the historical Stage 1 rows below)
 

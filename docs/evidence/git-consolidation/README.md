@@ -98,8 +98,8 @@ retained without approving leaves. Bot learning is integrated in `3619280f` with
 PostgreSQL session lease, default-Off mode, sticky detected-loss behavior, bounded shutdown and source order. The
 [learning evidence](../stage2-bots-5/README.md) records246 actual-union test passes and limits; both strict Clippy modes
 and formatting pass. New fair observation leaves require a concrete approved design and unused version. The active
-bot-fill/tournament continuations and source-fixture consumers stay isolated until reviewed. The art lane has separate
-browser/performance work underway. Primary/remote organization must preserve these branch refs and never reset WIP.
+unreviewed tournament/quest continuations stay isolated. The final art handoff is admitted through `a401a510`; later art
+evidence work remains separate. Primary/remote organization must preserve these branch refs and never reset WIP.
 
 Full public Wish/Trophy/quest/trade/fact transports, native strict remainders, full bot brain, browser/account flows,
 durable cloud/provider/regional operation and comparable full-game performance remain unfinished. The old Calgary
@@ -139,11 +139,15 @@ now-clean unused worktree removed without force. The restore map contains it;46 
 The P-NET fixture consumers33a79df1 are integrated in084246c3: three tests reproduce all300 paths and723 walk samples
 using actual current Rust simulation inputs, with unchanged goldens. Production codec checks remain separate.
 
-The reviewed art prefix throughc6fe0b18 is integrated in8cf840e9. It fixes visibility refresh ownership, stale pooled
-voices, card79 invalidation and empty post-Welcome membership without adding gameplay authority. Asset/notice provenance
-passes independent review. The lane reports11 EditMode tests and19 required browser outcomes (including separate preview
-and settings, not19 distinct gameplay mechanics). Final c6 build/browser/profile evidence remains revision-scoped;
-the physical60Hz display does not certify144Hz. This is functional source admission, not full-port/performance completion.
+The art prefix throughc6fe0b18 was integrated in8cf840e9. Its final handoff througha401a510 is now integrated in3bf64d42,
+including the cosmetic hollow impact ring at runtimeebff286b. Independent review verifies the11 EditMode results,
+all19 required browser outcomes (including preview/settings, not19 distinct gameplay mechanics), all nine profile
+summaries against raw reports and all14 manifest file hashes on disk. A separate coordinator HTTP download reproduces
+every file's length/hash and the74,029,313-byte total; this is served-byte verification, not a new browser/profile run.
+Five proof-contract tests and syntax checks pass after merge. Asset/notice provenance remains reviewed. The exact art
+artifact uses native basee90a38f6/protocol11/content801a76cde4cfd305; it is not a fresh final-union build. Actual144Hz
+display/fullscreen proof, managed allocation throughput and full-game coverage remain open. See
+[verification](../../art/VERIFICATION.md) and [performance](../../art/PERFORMANCE.md).
 
 ## Cumulative CI timeout and preserved coverage
 
@@ -156,7 +160,10 @@ The workflow now runs the full pure simulation suite in parallel with the remain
 using `trusted-status-probes` to preserve the former workspace feature union (including required-feature privacy/
 allocation targets). Both jobs keep a60-minute bound. CI debug symbols are disabled to reduce repeated feature-build
 size/time; optimization levels, assertions, overflow checks and test selections are unchanged. No tests were filtered
-away. YAML and the partition/feature selection are checked locally; the final pushed workflow needs its own result.
+away. YAML and the partition/feature selection are checked locally. The completed
+[run42471329922](https://github.com/Nevanyte/RougeHalla/actions/runs/42471329922) at48f4bb28 passes all four jobs: Rust,
+simulation, C# and card-runtime source. Subsequent presentation/doc commits change none of those native/net/workflow
+inputs. This full workflow result does not close strict unported mechanics or the final browser/cloud/performance gates.
 
 After verifying the primary checkout was tracked-clean and every running Unity project used the isolated art tree, the
 lead released optimization_port from the managed checkout and switched the primary project back to that branch with

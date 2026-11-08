@@ -255,6 +255,16 @@
       "file": "workspace-sim-features.txt",
       "bytes": 2519,
       "sha256": "c93949bafa6a18ba46830ab091a45b7143d3f1df86613914d9917ce1674b65d6"
+    },
+    {
+      "file": "art-final-http-hashes.json",
+      "bytes": 2505,
+      "sha256": "2b50515a3b4f9407d3250f87434b80d21fdbf81cbb702bac45090de510e42bc0"
+    },
+    {
+      "file": "art-final-contract.log",
+      "bytes": 504,
+      "sha256": "9d83d0bb6c17253837376edd70060a8f0b77f590372604a2f79decd807ddd24e"
     }
   ]
 }

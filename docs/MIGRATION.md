@@ -44,10 +44,14 @@ exact batch scopes, code repairs, receipts and preserved recovery refs. Source m
 expected gameplay payloads or claim a new capture; the derived ability hash tape admits 58 cases and retains five
 named full-source prerequisites as strict pending work.
 
-The reviewed Unity 2D presentation through `c6fe0b18` is integrated in `8cf840e9`: human-made licensed assets, HUD/settings/
-audio, current-visibility rendering and safe teardown. Eleven EditMode tests and the earlier 19-outcome browser proof
-are reported by that lane; the final c6 browser/profile refresh remains separately tracked. The only online display is
-1920×1080/60Hz, so no 144 Hz display acceptance is claimed. CPU/GPU headroom diagnostics are not displayed-frame proof.
+The reviewed Unity 2D presentation through `a401a510` is integrated in `3bf64d42`, with runtime `ebff286b` based on native
+gameplay `e90a38f6`. It includes licensed assets, HUD/settings/audio, current-visibility rendering, safe teardown and a
+brief hollow impact ring. The exact 74,029,313-byte Web distribution matches all 14 manifest hashes on disk and over
+local HTTP. Eleven EditMode tests, all 19 required browser outcomes and nine profile captures are verified against the
+revision-scoped evidence; five proof-contract tests also pass after merge. See [verification](art/VERIFICATION.md) and
+[performance](art/PERFORMANCE.md). Captures use a real 2560×1440 backbuffer, but the only online physical display is
+1920×1080/60Hz. Displayed 144 FPS, managed allocation throughput and full-game art coverage remain open. CPU/GPU
+headroom diagnostics are not displayed-frame proof, and this older-base artifact is not a fresh final-union build.
 
 The latency lane's controlled measurements remain bound to its
 recorded older candidate, not the new union or display/input-to-photon latency. The bot Knowledge/fair-view prefix now includes the independently reviewed
@@ -68,8 +72,11 @@ retry correctly met session_ended precedence. `36a3222b` keeps that TTL scenario
 all 24 control tests pass in default and all-feature modes, with no production behavior or longer sleeps. The next run at `b01fc9e2` then passed all1,520 default workspace tests (three existing ignores), including the map suite,
 but reached the cumulative40-minute job limit during later source/feature gates. The final workflow partitions the
 complete simulation suite from remaining backend/source checks in parallel, preserving the former feature union and
-all checks; CI symbols are disabled and each job is bounded at60minutes. Its final result remains pending. The observation-leaf proposal needs lead approval and a fresh version before
-brain memory/strategy consumers proceed. Further tournament telemetry, quest continuations and the art lane’s final evidence stay isolated until reviewed.
+all checks; CI symbols are disabled and each job is bounded at60minutes. [Run42471329922](https://github.com/Nevanyte/RougeHalla/actions/runs/42471329922)
+at `48f4bb28` passes all four jobs: Rust, simulation, C# and card-runtime source. The subsequent art admission changes no
+native code, net library or workflow. The observation-leaf proposal needs lead approval and a fresh version before
+brain memory/strategy consumers proceed. Further tournament telemetry and quest continuations stay isolated until
+reviewed. The art lane's next bounded content/CVD/normal-response evidence audit does not authorize shared runtime edits.
 
 Git metadata was backed up before repair; renamed worktree links were repaired, stable dirty histories were committed
 to recovery refs, and 46 clean merged historical worktrees were removed without force while their refs were retained.

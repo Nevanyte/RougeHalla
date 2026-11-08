@@ -31,7 +31,8 @@ then one integration gate; do not repeat unchanged expensive map campaigns after
 
 ## Current priorities
 
-1. Finish the consolidated Git checkpoint and its current Rust/C#/JS checks. Preserve active workers and recovery refs.
+1. Preserve the consolidated Git checkpoint, active workers and recovery refs. The full Rust foundation workflow at
+   `48f4bb28` passes Rust, simulation, C# and card-runtime source jobs; new changes retain revision-scoped validation.
 2. Complete native gameplay/parity/headless acceptance. The bot Knowledge repair is admitted; approve a concrete fair
    observation design before memory/strategy/tactics work. The repaired learning store is integrated and defaults Off.
    Bot fill/configuration through `43abe070` and tournament timer/write-error repairs are integrated. New tournament
@@ -39,9 +40,11 @@ then one integration gate; do not repeat unchanged expensive map campaigns after
 3. Close the missing public transports and source consumers: full Wish input/owner facts, Kill/Trophy options,
    quest/trade flows and the remaining public facts/cues. Inventory exact native prerequisites before assigning each
    packet. Reconcile incompatible identities and all three codecs centrally. Native fixtures alone do not prove the UI.
-4. The reviewed functional Unity art prefix is integrated. Complete its revision-specific browser/profile refresh and
-   retain the owner’s at-least-144-FPS target at2560×1440 on the M5 Pro. The current60Hz physical display cannot certify
-   that gate. Measure ceiling/headroom and report actual display pacing separately;60Hz observations do not cap the goal.
+4. The final functional Unity art handoff through `a401a510` is integrated in `3bf64d42`: exact-build19-outcome browser
+   proof and nine profile captures are verified. Retain the owner’s at-least-144-FPS target at2560×1440 on the M5 Pro;
+   the current60Hz physical display cannot certify it. Managed allocation throughput and full-game coverage remain open.
+   The art lane may audit content coverage, rendered CVD readability and normal-map response within its evidence scope;
+   coordinate any runtime gap before implementation. Callback/headroom rates remain separate from displayed frames.
 5. Complete browser/account flows, durable progression, cloud/provider/region lifecycle and the original full-port
    release/performance gates. Rebuild artifacts from the final union before any staging run. Use the practice domain
    `rougehalla.com`, Calgary preference and **CAD20 total** cap; production remains separately controlled.
@@ -67,7 +70,8 @@ must be resolved before dependent implementations; release evidence must test th
 - `570dee45` repairs the measured-RTT packet’s compulsory Pong budget and is integrated. This is command-time admission
   clamping: held attacks retain the source press-time lag until a new Attack/Release. It does not introduce a dynamic
   per-swing rule or certify input-to-photon latency. The [Pong repair packet](coordination/PONG_REPAIR.md) records its gate.
-- The active art branch and remaining bot/fixture branches stay isolated until their reports and focused reviews pass.
+- The art branch is admitted through `a401a510`; later work and remaining bot/fixture branches stay isolated until their
+  reports and focused reviews pass. Preserve their active checkouts and refs.
 
 ## Completion evidence
 
