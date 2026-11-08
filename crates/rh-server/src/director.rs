@@ -322,6 +322,16 @@ pub struct Hello {
     pub resume: Option<[u8; 16]>,
 }
 
+/// A training room is not publicly admissible yet: the practice room has no client creation route (deferred to
+/// P-HOST-1/P-NET), so the matchmaking director refuses a training profile outright. Tests construct a Room directly with a
+/// training config; nothing in the hosted path can start one.
+fn refuse_training_profile(sim: &rh_sim::SimConfig) {
+    assert!(
+        !sim.training,
+        "training rooms have no public admission route (deferred to P-HOST-1/P-NET); construct a Room directly in tests"
+    );
+}
+
 fn profile_ok(p: &str) -> bool {
     (2..=16).contains(&p.len())
         && p.bytes()
@@ -369,6 +379,7 @@ impl Director {
         lifecycle: Arc<Lifecycle>,
         #[cfg(feature = "postgres")] spool: Option<Arc<crate::spool::ResultSpool>>,
     ) -> Arc<Self> {
+        refuse_training_profile(&cfg.sim);
         crate::wire::profile_supported(&cfg.sim)
             .expect("refusing to host unsupported simulation profile");
         cfg.leases.validate().expect("invalid lease policy");
@@ -2955,5 +2966,14 @@ mod tests {
             .await
             .unwrap()
             .is_none());
+    }
+
+    #[test]
+    #[should_panic(expected = "no public admission route")]
+    fn matchmaking_refuses_a_training_profile() {
+        refuse_training_profile(&rh_sim::SimConfig {
+            training: true,
+            ..Default::default()
+        });
     }
 }

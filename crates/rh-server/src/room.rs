@@ -27,6 +27,9 @@ pub const INBOUND_CAP: usize = 2048;
 /// A room nobody has joined yet waits this long for its first player (admission may still be acquiring a durable lease)
 /// before closing itself.
 pub const UNCLAIMED_TIMEOUT: Duration = Duration::from_secs(30);
+/// A training room whose seat accepted no input for this long closes itself (legacy trainingIdle: the practice client gave
+/// up; the room has no run to settle and nothing to bank, so it just closes).
+pub const TRAINING_IDLE_SECONDS: u64 = 300;
 
 pub type MatchId = [u8; 16];
 
@@ -367,6 +370,12 @@ pub struct Room {
     /// Tests: wall time every wake burns (an overloaded host).
     #[cfg(test)]
     stall: Duration,
+    /// A training room (a practice world: one human, no bots, no results or banking, an idle close and no replay).
+    training: bool,
+    /// When this room's seat last had a command accepted (the training idle clock); opened_at before the first one.
+    last_input_at: Option<Instant>,
+    /// The training idle limit (TRAINING_IDLE_SECONDS); tests shorten it.
+    training_idle: Duration,
 }
 
 pub fn random16() -> [u8; 16] {
@@ -389,6 +398,7 @@ impl Room {
         now: Instant,
     ) -> Self {
         wire::profile_supported(&cfg.sim).expect("refusing to host unsupported simulation profile");
+        let training = cfg.sim.training;
         // Match secrets come from the OS CSPRNG and never leave this task (docs/CONTRACTS.md C-RNG).
         let secrets = cfg.fixed_secrets.unwrap_or_else(|| Secrets {
             order_salt: random_u32(),
@@ -396,7 +406,9 @@ impl Room {
             reward_salt: std::array::from_fn(|_| random_u32()),
         });
         let sim = Sim::new(cfg.sim.clone(), cfg.arena, secrets);
-        let recorder = cfg.record.then(|| {
+        // A training room has no run, result or replay to record: it never creates a recorder (no banking/telemetry of a
+        // result and no private replay), whatever the hosting configuration asked for.
+        let recorder = (cfg.record && !training).then(|| {
             let mut r = Recorder::new(&sim, cfg.sim, ReplayStart::Lobby);
             r.replay.match_id = Some(match_id_string(id));
             r
@@ -406,7 +418,7 @@ impl Room {
             sim,
             humans: Vec::new(),
             bots: Vec::new(),
-            fill_to: cfg.fill_bots_to,
+            fill_to: if training { 0 } else { cfg.fill_bots_to },
             pacer: Pacer::new(now, cfg.tick),
             last_events: Vec::new(),
             step_events: Vec::new(),
@@ -438,6 +450,9 @@ impl Room {
             closed: false,
             #[cfg(test)]
             stall: Duration::ZERO,
+            training,
+            last_input_at: None,
+            training_idle: Duration::from_secs(TRAINING_IDLE_SECONDS),
         }
     }
 
@@ -591,6 +606,7 @@ impl Room {
                     .position(|h| h.player == player && h.conn == conn)
                 {
                     self.humans[index].ack_input = seq;
+                    let mut accepted = 0u32;
                     for c in commands {
                         // Resolve only within this seat's delivered offer, then use the shared
                         // validator/budget/submit path. Target is an observer-issued reference,
@@ -600,8 +616,14 @@ impl Room {
                             .resolve(&self.sim, wire::command(c));
                         if let Ok(cmd) = resolved {
                             self.record(ReplayInput::Command { player, cmd });
-                            let _ = self.sim.submit(player, cmd);
+                            if self.sim.submit(player, cmd).is_ok() {
+                                accepted += 1;
+                            }
                         }
+                    }
+                    // The training idle clock runs on ACCEPTED inputs (a rejected/no-op command does not keep the room up).
+                    if accepted > 0 {
+                        self.last_input_at = Some(now);
                     }
                 }
             }
@@ -670,6 +692,10 @@ impl Room {
     ) -> Result<JoinOk, RejectCode> {
         if self.draining {
             return Err(RejectCode::ServerDraining);
+        }
+        // A training room seats exactly one human (the practice console is a solo room; there is no second seat to fill).
+        if self.training && !self.humans.is_empty() {
+            return Err(RejectCode::MatchFull);
         }
         if self.sim.phase() != Phase::Lobby {
             return Err(RejectCode::MatchFull);
@@ -856,6 +882,13 @@ impl Room {
         for p in expired {
             self.leave(p, GoneReason::GraceExpired);
         }
+        // A training room whose seat stopped sending accepted inputs closes: there is no run to settle and nothing to bank.
+        if self.training {
+            let since = self.last_input_at.unwrap_or(self.opened_at);
+            if now.duration_since(since) >= self.training_idle {
+                return self.close();
+            }
+        }
         if self.humans.is_empty()
             && self.sim.phase() != Phase::Ended
             && (self.had_human
@@ -950,6 +983,15 @@ impl Room {
         let t = std::time::Instant::now();
         // The buffer leaves the room for the call (publish borrows the room mutably) and comes back.
         let all_events = std::mem::take(&mut self.wake_events);
+        // A training room never resolves a run: a between-tick down event is not a result let alone banked, and no result
+        // frame is ever sent to its seat.
+        let all_events = if self.training {
+            let mut kept = all_events;
+            kept.retain(|e| !matches!(e, Event::Resolved { .. }));
+            kept
+        } else {
+            all_events
+        };
         self.keep_results(&all_events);
         self.publish(&all_events);
         self.metrics
@@ -1078,6 +1120,9 @@ impl Room {
 
     /// Keeps each human's own resolved result on its seat (see [`HumanSeat::result`]).
     fn keep_results(&mut self, events: &[Event]) {
+        if self.training {
+            return;
+        }
         for e in events {
             if let Event::Resolved {
                 id,
@@ -1094,6 +1139,10 @@ impl Room {
 
     /// Every resolved result goes to the director (durable storage), with the fence it was earned under.
     fn report_results(&self, events: &[Event]) {
+        // A training room never settles or banks a run: no result reaches the director (and so no durable match).
+        if self.training {
+            return;
+        }
         for e in events {
             if let Event::Resolved { id, result, bot } = e {
                 let (fence, admission) = if *bot {
@@ -1737,5 +1786,233 @@ mod tests {
         task.abort();
         ticker.abort();
         result.expect("overloaded room test condition");
+    }
+
+    fn training_cfg(tick: Duration) -> RoomConfig {
+        let assets = MapAssets::new(rh_sim::arenas::practice_arena()).unwrap();
+        RoomConfig {
+            sim: SimConfig {
+                training: true,
+                dummies: true,
+                abilities: rh_sim::abilities::Mode::Off,
+                wish_lock_ms: rh_sim::abilities::WISH_LOCK_MS,
+                hazards: rh_sim::terrain::Mode::Off,
+                lifecycle: rh_sim::ArenaMode::Off,
+                mob_mode: rh_sim::mob_runtime::MobMode::Off,
+                initial_loot: false,
+                min_players: 1,
+                lobby_seconds: 0.0,
+                fill_seconds: 0.0,
+                pvp_rules: true,
+                weapon_specials: true,
+                faction_mode: rh_sim::FactionMode::Off,
+            },
+            arena: assets.arena,
+            welcome_map: assets.welcome_map,
+            // Deliberately nonzero: a training room must never fill bots even if a hosting config asks for them.
+            fill_bots_to: 4,
+            tick,
+            // Deliberately true: a training room must never record a replay (no banking/telemetry of a run).
+            record: true,
+            fixed_secrets: Some(Secrets::from_seed(7)),
+            fixed_bot_seed: Some(7),
+            reconnect_grace: RECONNECT_GRACE,
+            linger: LINGER,
+        }
+    }
+
+    fn decoded(out: &Outbox) -> Vec<rh_protocol::ServerMsg> {
+        let mut raw = Vec::new();
+        let _ = out.drain_into(&mut raw);
+        raw.iter()
+            .map(|f| rh_protocol::ServerMsg::decode(f).unwrap())
+            .collect()
+    }
+
+    fn training_room(start: Instant, reports: mpsc::UnboundedSender<RoomReport>) -> Room {
+        Room::new(
+            [9; 16],
+            training_cfg(Duration::from_millis(50)),
+            reports,
+            start,
+        )
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn a_training_room_starts_active_with_one_human_and_a_training_stream() {
+        let start = Instant::now();
+        let (reports, _rx) = mpsc::unbounded_channel();
+        let mut room = training_room(start, reports);
+        assert!(
+            room.recorder.is_none(),
+            "a training room never records a replay"
+        );
+        assert_eq!(room.fill_to, 0, "no bots fill a practice room");
+        let out = Arc::new(Outbox::default());
+        let joined = room
+            .join(
+                "practice".into(),
+                Some(FactionId::Holy),
+                out.clone(),
+                1,
+                1,
+                None,
+            )
+            .expect("the one seat");
+        assert!(
+            matches!(
+                room.join(
+                    "second".into(),
+                    None,
+                    Arc::new(Outbox::default()),
+                    2,
+                    2,
+                    None
+                ),
+                Err(RejectCode::MatchFull)
+            ),
+            "a training room seats exactly one human"
+        );
+        assert!(room.wake(start + Duration::from_millis(50)));
+        assert_eq!(room.sim().phase(), Phase::Active);
+        assert_eq!(
+            room.sim().mobs().len(),
+            2,
+            "the practice setup's plain and shield dummy"
+        );
+        let frames = decoded(&out);
+        assert!(
+            frames
+                .iter()
+                .any(|m| matches!(m, rh_protocol::ServerMsg::Snapshot { training: true, .. })),
+            "the live stream carries the training bit: {frames:?}"
+        );
+        let _ = joined.player;
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn a_training_room_closes_on_idle_and_banks_nothing() {
+        let start = Instant::now();
+        let tick = Duration::from_millis(50);
+        let (reports, mut rx) = mpsc::unbounded_channel();
+        let mut room = training_room(start, reports);
+        room.training_idle = Duration::from_millis(300);
+        let out = Arc::new(Outbox::default());
+        room.join(
+            "practice".into(),
+            Some(FactionId::Holy),
+            out.clone(),
+            1,
+            1,
+            None,
+        )
+        .expect("one seat");
+        assert!(
+            room.wake(start + tick),
+            "the lobby closes into the practice run"
+        );
+        assert!(
+            room.wake(start + Duration::from_millis(250)),
+            "inside the idle limit"
+        );
+        assert!(
+            !room.wake(start + Duration::from_millis(400)),
+            "the training idle limit closes the room"
+        );
+        let (mut closed, mut saw_result) = (None, false);
+        while let Ok(r) = rx.try_recv() {
+            match r {
+                RoomReport::Closed { replay, .. } => closed = Some(replay),
+                RoomReport::Result { .. } => saw_result = true,
+                _ => {}
+            }
+        }
+        assert!(!saw_result, "a training room never reports a result");
+        let closed = closed.expect("the room reported Closed");
+        assert!(
+            closed.is_none(),
+            "no replay is recorded for a training room"
+        );
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn a_training_room_idle_clock_counts_accepted_inputs_only() {
+        let start = Instant::now();
+        let tick = Duration::from_millis(50);
+        let (reports, _rx) = mpsc::unbounded_channel();
+        let mut room = training_room(start, reports);
+        room.training_idle = Duration::from_millis(300);
+        let out = Arc::new(Outbox::default());
+        let joined = room
+            .join(
+                "practice".into(),
+                Some(FactionId::Holy),
+                out.clone(),
+                1,
+                1,
+                None,
+            )
+            .expect("one seat");
+        assert!(room.wake(start + tick));
+        room.handle(
+            RoomCmd::Input {
+                player: joined.player,
+                conn: 1,
+                seq: 1,
+                commands: vec![rh_protocol::WireCommand::Aim { a: 0.0 }],
+            },
+            start + Duration::from_millis(100),
+        );
+        assert!(
+            room.wake(start + Duration::from_millis(350)),
+            "an accepted input resets the idle clock"
+        );
+        assert!(
+            !room.wake(start + Duration::from_millis(500)),
+            "the room closes 300 ms after the last accepted input"
+        );
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn a_training_room_leave_never_banks_a_mia_result() {
+        let start = Instant::now();
+        let tick = Duration::from_millis(50);
+        let (reports, mut rx) = mpsc::unbounded_channel();
+        let mut room = training_room(start, reports);
+        let out = Arc::new(Outbox::default());
+        let joined = room
+            .join(
+                "practice".into(),
+                Some(FactionId::Holy),
+                out.clone(),
+                1,
+                1,
+                None,
+            )
+            .expect("one seat");
+        assert!(room.wake(start + tick));
+        // Leaving during the practice run resolves the sim's MIA result between ticks; the room must drop it entirely.
+        room.handle(
+            RoomCmd::Leave {
+                player: joined.player,
+                conn: 1,
+            },
+            start + tick,
+        );
+        assert!(!room.wake(start + 3 * tick), "the only human left");
+        let mut saw_result = false;
+        let mut closed = None;
+        while let Ok(r) = rx.try_recv() {
+            match r {
+                RoomReport::Result { .. } => saw_result = true,
+                RoomReport::Closed { replay, .. } => closed = Some(replay),
+                _ => {}
+            }
+        }
+        assert!(
+            !saw_result,
+            "a leaving practice player is not a banked result"
+        );
+        assert!(closed.is_some());
     }
 }

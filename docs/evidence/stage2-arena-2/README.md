@@ -182,25 +182,46 @@ P-ARENA-1 on the cons spine vs P-ARENA-2 on the prerequisite spine, so the coord
   the same window must be reconciled in the merged head table, with the pinned-bit tests updated once.
 None of this touches the code here (this branch's tree is self-consistent at 8); it is the integration step's renumber.
 
+### The training-room lifecycle (round 4)
+
+A room constructed with a training simulation config is the practice room; nothing invents a public route for it:
+
+- **Admission isolation.** The matchmaking director refuses a training profile outright (`refuse_training_profile`, asserted
+  before any hosting work), so the hosted path cannot start one; the public creation route stays deferred to
+  P-HOST-1/P-NET and native tests construct a `Room` directly with a training config.
+- **One human, no bots.** A second human join is refused (`RejectCode::MatchFull`); `fill_to` is forced to 0 even if the
+  hosting config asks for bots, so the practice room is the source's solo seat.
+- **No results, banking or telemetry.** `keep_results` and `report_results` return early in a training room; the wake filters
+  `Event::Resolved` out before keeping, publishing or reporting, so a between-tick down (or a leaving player's MIA resolution)
+  never becomes a result frame or a `RoomReport::Result`; the recorder is forced off even when `record: true`, so no replay is
+  written. The sim never ends a training run, so the ended/linger path is never reached.
+- **Idle close.** `TRAINING_IDLE_SECONDS` = 300; the clock starts at the room's open time and resets only on an **accepted**
+  input (`RoomCmd::Input` counts a command only when `Sim::submit` accepts it, so a rejected no-op cannot keep the room up).
+  When the limit elapses the room closes (`RoomReport::Closed`, no result, replay `None`); the normal reconnect grace still
+  holds a dropped practice seat.
+- **Tests (native, 5):** the room starts active with exactly one human, no bots and a live stream whose snapshot carries the
+  training bit and the two dummies; a second join is refused; the idle limit closes the room with no result and no replay; an
+  accepted input resets the idle clock; a leave during an active practice run never banks its MIA result; and the director
+  refuses a training profile before matchmaking.
+- **Wire untouched:** no protocol byte or observation version moves in this round, so the C#/JS/browser-proof set was not
+  re-run (the wire round above remains the verified artifact).
+
 ## What remains for P-ARENA-2 (exact, not approximated)
 
-1. **Training room (server), the remaining shipped-gameplay piece.** `RoomConfig` training mode, one human, no
-   results/banking/telemetry, idle limit `TRAINING_IDLE_SECONDS` 300 on accepted inputs, arena matchmaking isolation, plus
-   native `rh-server` tests; the public admission route stays deferred to P-HOST-1/P-NET (Lead decision).
-2. **Pinned-container capture corpus + parity + mutants.** No `tools/training-fixtures` / `parity/training` yet; the
-   required case list was already scoped in the approved plan (setup layout, arena control, long run, dummy hit/reset,
-   shield reflect/riposte revive, between-tick downs, console card/stat/camp/chest/clear incl. caps/gaps/refusals/toasts,
-   the door, catalog bounds) with the legacy test line references.
-3. **Integration renumber (coordinator).** This branch is self-consistent at protocol 8 / OBS 16 on its own stack; the
+1. **Pinned-container capture corpus + parity + mutants:** no `tools/training-fixtures` / `parity/training` yet. The scoped
+   case list is unchanged (setup layout, arena control, long run, dummy hit/reset, shield reflect/riposte revive,
+   between-tick downs, console card/stat/camp/chest/clear incl. caps/gaps/refusals/toasts, the door, catalog bounds) with the
+   legacy test line references; the capture is the remaining C-PARITY artifact, and the mutants run against it.
+2. **Integration renumber (coordinator).** This branch is self-consistent at protocol 8 / OBS 16 on its own stack; the
    protocol-9 spine merge renumbers as described in the collision note above (command tags 12/13, one merged OBS 17, head
    bits reconciled). No code change is pending here for that; it is the integration step's work.
 
 ## Verification (this Mac, pinned toolchain, throwaway PostgreSQL)
 
 - `cargo test --workspace --all-features --locked` (pinned toolchain, throwaway pinned PostgreSQL):
-  **1,445 passed, 0 failed, 3 ignored, 151 test binaries, exit 0** (round-3 wire slice; earlier rounds were 1,436 and
-  1,444 passed). The C# suite is **275/275**, the JS vector check **15,663 checks** and the browser proof **PASS** (see
-  the round-3 section).
+  **1,450 passed, 0 failed, 3 ignored, 151 test binaries, exit 0** (round-4 room slice; earlier rounds were 1,436,
+  1,444 and 1,445 passed). The C# suite is **275/275**, the JS vector check **15,663 checks** and the browser proof
+  **PASS** (see the round-3 section); the round-4 room tests add 5 native cases.
 - `cargo clippy --workspace --all-targets --all-features --locked -- -D warnings`: **clean, exit 0**.
 - `cargo fmt --all -- --check`: clean.
 - The new training tests and the re-recorded hash tape are included in the workspace run; no protocol/C#/JS vectors were
