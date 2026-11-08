@@ -8,8 +8,9 @@ that immutable base. Preserve refs/WIP and use an own absolute target. The lead 
 
 Source `packages/server/src/sim/factions.ts::markStep` accumulates `markRateOf(c.s)/max(priorChill,0.05)` per qualifying
 hit. Source `mods.ts::markRateOf` is max(0,1+the folded MarkRate sum). Ready unique Gathering Storm contributes+0.5.
-Native `systems/sentenced.rs::before_damage` currently adds1/chill and has no MarkRate consumer, so that offered card
-does not accelerate Mark. Port this complete bounded player mechanic without changing qualification, tick order,
+Native `systems/sentenced.rs::before_damage` currently adds1/chill and has no MarkRate consumer, so that declared card
+does not accelerate Mark when granted in the compatibility witness. Gathering Storm is excluded from the source and
+native INTERACTIVE acquisition lists; this packet does not make it normally offerable. Port this bounded player mechanic without changing qualification, tick order,
 pulse counts, hit counters, No Commutation/Swift Judgment promotion semantics or other faction effects.
 
 Add a narrow folded modifier accessor using the existing Runtime sums; avoid expanding StatView and unrelated literal
@@ -47,8 +48,14 @@ prior-chill/promotion behavior, invalid training/history restore); compile error
 Exercise real restore/continuation and replay with new progress, malformed progress/tier/counter/time refusals,
 relevant warm allocation and both affected strict lint modes/fmt. No unchanged full map/workspace campaign.
 
-Success is real Gathering Storm behavior plus source parity and strict reachable history, with no old source rewrite
+Success is real granted Gathering Storm behavior plus source parity and strict reachable history, with no old source rewrite
 or gate widening. Failure/hold is injected expected outcomes, wrong profile, merely broadening validation without the
 runtime multiplier, changing unique/card eligibility, or missing source/native continuation proof. Deliver clean
 reviewable commits, exact base/head/files/helpers, corpus/tool hashes, commands/results and identity/publication
 remainder to the existing DeepSeek Rust report. The full NPC and other full-port prerequisites remain separate.
+
+## Coordinator admission scope
+
+The candidate reproduces the eight captured compatibility cases and actual restored continuation. Direct card grants
+are trusted setup and have no ReplayInput variant; the neutral-rate replay does not prove replay acquisition of
+Gathering Storm. Keep that gap explicit rather than adding an acquisition path or widening a console/card gate.
