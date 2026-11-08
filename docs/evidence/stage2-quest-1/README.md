@@ -111,8 +111,8 @@ cargo test --workspace --all-features --locked   # with PostgreSQL from tools/pg
 ## Measurements
 
 - Content hash: `b6f9d4c2aa07e30b` (the registered `QUEST_*`/`FARM_*` rules rows plus the `quests/1` catalog table).
-- `cargo test -p rh-sim --lib --all-features -- quests::`: **15 passed** (4 data-layer tests + 8 lifecycle tests + the
-  pinned-container lifecycle replay + the checkpoint serialize/restore/perturb round trip).
+- `cargo test -p rh-sim --lib --all-features -- quests::`: **14 passed** (4 data-layer tests + 8 in-crate lifecycle
+  wiring tests + the checkpoint serialize/restore/perturb round trip + the pinned-container lifecycle replay).
 - `cargo test -p rh-sim --all-features --test content`: 21 passed with the new golden hash.
 - `bash tools/quest-fixtures/capture.sh --check`: PASS (pinned container, byte-identical).
 - Pinned lifecycle corpus: `parity/quests/lifecycle.json`, 490,650 bytes, SHA256 `5fad488b0651fd6fbccf00a200c8fc4e08dd020e391cabfa9c32d0177d161cc7`;
@@ -125,8 +125,8 @@ cargo test --workspace --all-features --locked   # with PostgreSQL from tools/pg
   tape is re-recorded for the new state layout; `hash_coverage` 6 passed with the documented optional quests leaf; the
   content hash is unchanged (`b6f9d4c2aa07e30b`, the lifecycle adds no new registered rule); schedule conformance 14
   passed with the ported quest action/system/links.
-- Workspace gate: **1,451 passed, 0 failed, 3 ignored, 151 test binaries, exit 0** (with PostgreSQL; the previous
-  1,442 plus the eight lifecycle tests and the checkpoint round trip).
+- Workspace gate: **1,452 passed, 0 failed, 3 ignored, 151 test binaries, exit 0** (with PostgreSQL; the previous
+  1,451 plus the pinned-container lifecycle replay).
 - `cargo fmt --all -- --check` and `cargo clippy --workspace --all-targets --all-features -- -D warnings`: clean.
 
 ## Remaining for the P-QUEST-1 row
