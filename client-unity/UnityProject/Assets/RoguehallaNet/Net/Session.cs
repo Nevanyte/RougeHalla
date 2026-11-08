@@ -172,6 +172,8 @@ namespace Roguehalla.Net
             if (State != SessionState.InMatch) return;
             if (now - _lastPing >= _o.PingIntervalMs) { _lastPing = now; Send(Sync.MakePing(now)); }
             if (Clock.Ready) Clock.Update(now);
+            // Presentation only: advance the predicted walk with the same injected clock, before any queued input leaves.
+            if (Motion != null) Motion.Step(now);
             foreach (var f in Input.Flush(now)) Send(f);
         }
 
