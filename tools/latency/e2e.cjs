@@ -6,7 +6,7 @@ const os = require('node:os');
 const path = require('node:path');
 const { chromium } = require(process.env.RH_PLAYWRIGHT_MODULE || path.join(os.homedir(), '.codex/tools/rougehalla-stage2/browser/node_modules/playwright'));
 const { startProxy } = require('./ws-proxy.cjs');
-const { attachSummary } = require('./report.cjs');
+const { attachSummary, quantiles } = require('./report.cjs');
 
 function argsOf(argv) {
   const out = {};
@@ -335,6 +335,26 @@ async function run() {
     report.errors.push(String(error?.stack || error));
   } finally {
     report.pageErrors = pages.flatMap(page => page.errors.map(error => `${page.label}: ${error}`));
+    report.transportObservations = [];
+    for (const state of pages) {
+      try {
+        const observed = await state.page.evaluate(() => {
+          const trace = window.__rhLatency;
+          const pings = new Map(), rtts = [], snapshots = [], frames = [];
+          for (const event of trace.wire) {
+            if (event.kind === 'send' && event.message?.t === 'ping') pings.set(event.message.nonce, event.at);
+            if (event.kind === 'receive' && event.message?.t === 'pong' && pings.has(event.message.nonce))
+              rtts.push(event.at - pings.get(event.message.nonce));
+            if (event.kind === 'receive' && event.message?.t === 'snapshot') snapshots.push(event.at);
+          }
+          for (const event of trace.events) if (event.kind === 'frameStart') frames.push(event.at);
+          const gaps = list => list.slice(1).map((at, index) => at - list[index]);
+          return { rtts, snapshotGaps: gaps(snapshots), frameGaps: gaps(frames) };
+        });
+        report.transportObservations.push({ client: state.label, socketRtt: quantiles(observed.rtts),
+          snapshotDeliveryGap: quantiles(observed.snapshotGaps), unityFrameGap: quantiles(observed.frameGaps) });
+      } catch (error) { report.errors.push(`transport observer ${state.label}: ${error}`); }
+    }
     if (browser) await browser.close();
     report.proxyRun = proxy?.report() || { direct, note: 'Direct endpoint observation; no impairment proxy.' };
     if (proxy) await proxy.close();

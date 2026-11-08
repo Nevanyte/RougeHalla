@@ -12,6 +12,10 @@ The input path is measured at these boundaries:
 
 Unity `performance.now()` values are converted with each page's `performance.timeOrigin`. The observer actor is selected by the unique remote human row from the observer's own snapshots; its reference is never compared with the driver's Welcome ID. Post-`Present` means the managed presentation update completed; it does not claim photons or display scanout.
 
+The report also summarizes each client's actual Unity Ping/Pong socket RTT, snapshot delivery gaps, and Unity frame
+gaps. These observations cover the whole session, including startup, and help distinguish a transport delay from a
+rendering pause. They are diagnostics rather than additional pass thresholds.
+
 Before every input the harness requires the received and presented opponent pose to agree and remain stationary for at
 least 350 ms. It then measures a post-send movement from that baseline. This prevents interpolation from the preceding
 trial being mistaken for a response to the current input. Self presentation is the first presentation carrying the
