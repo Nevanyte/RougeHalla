@@ -1,0 +1,182 @@
+{
+  "scope": "Four actual Unity Editor account adapter tests only; no Web/player/network/UI integration gate",
+  "result": "PASS",
+  "base": "df0d7bb82bd681747d94a985df6cf5083a8e577f",
+  "upstreamAdapter": "54ca4a69db78cd3a802996e9bc1ad030eecc3ee7",
+  "upstreamRepair": "f993dcdce5dd996d8927315da7db0369d3f1ae1d",
+  "composedSource": "9011136dca847da33f24bf32765032ed2e2b2285",
+  "unity": "6000.0.85f2",
+  "editorPid": 9075,
+  "pipelinePort": 7800,
+  "project": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject",
+  "branch": "codex/account-f993-editor-proof",
+  "adapterFiles": [
+    {
+      "path": "client-unity/RoguehallaNet.Tests/AccountSessionTests.cs",
+      "bytes": 18890,
+      "sha256": "89393b80bbca2ea8818cea574f7b3dd2c730737dd36880470644b8d89d299c4b",
+      "git_blob": "865c435677cf5afec9eb87e097966e1ce2cb0815",
+      "worktree_matches_commit": true
+    },
+    {
+      "path": "client-unity/RoguehallaNet/Net/AccountContracts.cs",
+      "bytes": 2799,
+      "sha256": "b380032286aafd333405ab63830f23979e258f07c32ac976c25ca4fb04f903c8",
+      "git_blob": "c9d856315f5b90787d9f8ee3aac4b8b68f611990",
+      "worktree_matches_commit": true
+    },
+    {
+      "path": "client-unity/RoguehallaNet/Net/AccountEndpoint.cs",
+      "bytes": 2791,
+      "sha256": "42caa0a8bb22fe674370f045324bd5faf2393b22d3b0ccc4246c91af859c7d58",
+      "git_blob": "5e3bc081fc82da791871789b1114dcaef33a4b12",
+      "worktree_matches_commit": true
+    },
+    {
+      "path": "client-unity/RoguehallaNet/Net/AccountRequestHeaders.cs",
+      "bytes": 731,
+      "sha256": "ee3870bd8c5e1727905ee1c03f52037b529951ec67a55fef0c17e1d652d3bfff",
+      "git_blob": "97582a207b2b9de11eeb62f16fc4de952783b5cb",
+      "worktree_matches_commit": true
+    },
+    {
+      "path": "client-unity/RoguehallaNet/Net/AccountSession.cs",
+      "bytes": 9946,
+      "sha256": "07967e10b4c9e0f06ddde6b81cb8a1fb874be287554e837d164e8521ba45555b",
+      "git_blob": "0f016b48251b15cec0e6d822a10dd62ace799ba4",
+      "worktree_matches_commit": true
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/RoguehallaNet/Net/AccountContracts.cs",
+      "bytes": 2799,
+      "sha256": "b380032286aafd333405ab63830f23979e258f07c32ac976c25ca4fb04f903c8",
+      "git_blob": "c9d856315f5b90787d9f8ee3aac4b8b68f611990",
+      "worktree_matches_commit": true
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/RoguehallaNet/Net/AccountContracts.cs.meta",
+      "bytes": 60,
+      "sha256": "39fa4e4e22a5792eaab5892d619eb7b95bb0115e64f330e386bf68c8bb24e6be",
+      "git_blob": "ad5d9f85d863fb41ee01a461f19cdff33afbb441",
+      "worktree_matches_commit": true
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/RoguehallaNet/Net/AccountEndpoint.cs",
+      "bytes": 2791,
+      "sha256": "42caa0a8bb22fe674370f045324bd5faf2393b22d3b0ccc4246c91af859c7d58",
+      "git_blob": "5e3bc081fc82da791871789b1114dcaef33a4b12",
+      "worktree_matches_commit": true
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/RoguehallaNet/Net/AccountEndpoint.cs.meta",
+      "bytes": 60,
+      "sha256": "900fd4ebc5d47a822f03945813dcb9b0e0e39d2a6b7c4b0d2745bb032658e8b2",
+      "git_blob": "8c087db8a9cafbb9253c161635095f237eb6c17d",
+      "worktree_matches_commit": true
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/RoguehallaNet/Net/AccountRequestHeaders.cs",
+      "bytes": 731,
+      "sha256": "ee3870bd8c5e1727905ee1c03f52037b529951ec67a55fef0c17e1d652d3bfff",
+      "git_blob": "97582a207b2b9de11eeb62f16fc4de952783b5cb",
+      "worktree_matches_commit": true
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/RoguehallaNet/Net/AccountRequestHeaders.cs.meta",
+      "bytes": 60,
+      "sha256": "673f0b865678a1f5261d4ea5ab35ad3c61986a743ddb8ae36c2f300d71c42142",
+      "git_blob": "fee21cf70246389e60173a70555a694945475bcc",
+      "worktree_matches_commit": true
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/RoguehallaNet/Net/AccountSession.cs",
+      "bytes": 9946,
+      "sha256": "07967e10b4c9e0f06ddde6b81cb8a1fb874be287554e837d164e8521ba45555b",
+      "git_blob": "0f016b48251b15cec0e6d822a10dd62ace799ba4",
+      "worktree_matches_commit": true
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/RoguehallaNet/Net/AccountSession.cs.meta",
+      "bytes": 60,
+      "sha256": "682c7e111f438e2dff49dc02823d4b3ad6aca25d27ccea86c21059e3bc9657d6",
+      "git_blob": "f584259c9eeebc58a653205d3cd74dac86384ad9",
+      "worktree_matches_commit": true
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Net/PlayerPrefsAccountCredentials.cs",
+      "bytes": 1090,
+      "sha256": "acca2d3e13495cc3e9ea9d154207c09a2c28789d0873d70571976159dc0654e4",
+      "git_blob": "f4c6edfe91fe0ce945b2790fdc278f5ecb84165e",
+      "worktree_matches_commit": true
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Net/PlayerPrefsAccountCredentials.cs.meta",
+      "bytes": 60,
+      "sha256": "1edd606ed85580d0eef0b97b04404ee971c71b3162d85d074af82c1adfff05a6",
+      "git_blob": "1a1dca67cde207f4e799ac3ab23c8b75c412296f",
+      "worktree_matches_commit": true
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Net/UnityAccountTransport.cs",
+      "bytes": 4152,
+      "sha256": "2bd9792e18ff53752e4a1cb5c87ff957d4556ce72e1392917f654a7fc19208eb",
+      "git_blob": "ad44796485b4d9eeedec18914f0f971bda0a6766",
+      "worktree_matches_commit": true
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Net/UnityAccountTransport.cs.meta",
+      "bytes": 60,
+      "sha256": "2c383ce0ef5ef201866a54d05571291a9246be8e2dffc418e81fd704ac144e8e",
+      "git_blob": "c26c6da3015d47210088c1b0af851aeca7bbd0a2",
+      "worktree_matches_commit": true
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/AccountTransportEditModeTests.cs",
+      "bytes": 2581,
+      "sha256": "bfab20aed62fec88d366ac3af75c20bb63b9b8e3d5b35add9106e313467294a2",
+      "git_blob": "2b087c27cde808251cad4204dc2bc68018969e05",
+      "worktree_matches_commit": true
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/AccountTransportEditModeTests.cs.meta",
+      "bytes": 60,
+      "sha256": "eadf416ae0504deeae6d1cea50777c320a2de612f2e5cd0602a5ec8ff2dbdbd7",
+      "git_blob": "a94e754a27bc3e214cd8e3a13a0e25c1b0490a20",
+      "worktree_matches_commit": true
+    },
+    {
+      "path": "crates/rh-server/tests/account_client_preflight.rs",
+      "bytes": 3076,
+      "sha256": "d45fdfc0786835326dd127e3f695992b8541451c07851a89928f73117e5e63b5",
+      "git_blob": "20c7600e351da44885f2c2b37e27ea4a58c011b4",
+      "worktree_matches_commit": true
+    },
+    {
+      "path": "docs/evidence/account-client/README.md",
+      "bytes": 10382,
+      "sha256": "e7cfdc4cabb23e87d3cd430568a9fd51d3b707370fbec5ea0eb70d9bdbb88396",
+      "git_blob": "63ae14b62f4b1a7299813ff10eedc10fee5a84bb",
+      "worktree_matches_commit": true
+    }
+  ],
+  "sourceCopyCheck": "PASS",
+  "testSummary": {
+    "Total": 4,
+    "Passed": 4,
+    "Failed": 0,
+    "Skipped": 0,
+    "Inconclusive": 0
+  },
+  "compileErrors": 0,
+  "compileWarningEntries": 9,
+  "compileWarningScope": "existing presentation/test obsolete and unused-event warnings; no account adapter warning",
+  "testConsoleErrors": 0,
+  "testConsoleWarnings": 0,
+  "serializationOverlay": {
+    "path": "client-unity/UnityProject/ProjectSettings/ShaderGraphSettings.asset",
+    "canonicalSha256": "d9285133fee72ad8257e0b2c2d904b487757ebcef4862e3b10bef073bf218894",
+    "asBuiltSha256": "83556175c6dccd540f2cac05e5c0f9fbb36c3c8d7a56bed2c7cf4d29e4c2ee2e",
+    "semanticDifference": "none: trailing spaces only on m_Name/m_EditorClassIdentifier",
+    "asBuiltCopy": "as-built-shader-settings.asset"
+  }
+}

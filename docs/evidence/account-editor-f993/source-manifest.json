@@ -1,0 +1,2453 @@
+{
+  "base": "df0d7bb82bd681747d94a985df6cf5083a8e577f",
+  "upstreamAdapter": "54ca4a69db78cd3a802996e9bc1ad030eecc3ee7",
+  "upstreamRepair": "f993dcdce5dd996d8927315da7db0369d3f1ae1d",
+  "composedHead": "9011136dca847da33f24bf32765032ed2e2b2285",
+  "files": [
+    {
+      "path": "client-unity/UnityProject/Assets/Art.meta",
+      "bytes": 169,
+      "sha256": "9ae7769b7be304d7e80619a80b0b48d5e90424e8b588f75d06457b226c736deb"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/Derived.meta",
+      "bytes": 169,
+      "sha256": "6dd217672149432c3d762268c46a88568f933a8996b700ae8ddfeb8506989581"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/Derived/Flare.meta",
+      "bytes": 169,
+      "sha256": "89536a26d22fd9d06e7fd1b0b31471a0e371028cf61932d9ed7c1ef191a75ed9"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/Derived/Flare/goblin.png",
+      "bytes": 3654521,
+      "sha256": "62c42ddd12fbd0f88abec9b19e28a1f903a7efa2e9af644dfa7b6307ace38a98"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/Derived/Flare/goblin.png.meta",
+      "bytes": 157269,
+      "sha256": "6b801586d3e9a501db58914698f0a533141d7fd4a931e0a4cefd88a33b5e190c"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/Derived/Flare/hero-female.png",
+      "bytes": 5378641,
+      "sha256": "23d4b72f25e955b9d42ab7973226d998c652b76a9191022fb88f28226452dddf"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/Derived/Flare/hero-female.png.meta",
+      "bytes": 161685,
+      "sha256": "58b34c09305ddebbcf213e80ffec06cec66e530240b924848084117e5dae69c7"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/Derived/Flare/hero.png",
+      "bytes": 6111085,
+      "sha256": "dac55f8ca32d622c44eff2710d760fa5d5e3b812ac15dba787a4a7e2681f03b0"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/Derived/Flare/hero.png.meta",
+      "bytes": 161685,
+      "sha256": "44c6a2f2a6bdee6ce5b6004c569441d24390b6dcc1bd6f4c442ebf13063f27b6"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/Derived/Flare/knight.png",
+      "bytes": 650420,
+      "sha256": "8f83e86fbda4f22709eb74e8b2ad9ec2d4074e8f327b5d9174696ba754ba004d"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/Derived/Flare/knight.png.meta",
+      "bytes": 20668,
+      "sha256": "ec7481f91ff9a88053736d8e8808572b122ae0e3928509802e15092ac2200fcd"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/Derived/Flare/props.png",
+      "bytes": 61712,
+      "sha256": "d311feb1952491c1b0857da54d9195f3e8ffc51e195a90e54b86861404b6b94a"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/Derived/Flare/props.png.meta",
+      "bytes": 4616,
+      "sha256": "5ff9d1a6af7548dd387b0a62b880619fd0080844be9bb6decda99acc15948219"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/Derived/Flare/skeleton.png",
+      "bytes": 8830691,
+      "sha256": "c19c7486671fe45d782e552b38991cb6ec239c9ce05299888acda920f9b75ad1"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/Derived/Flare/skeleton.png.meta",
+      "bytes": 161685,
+      "sha256": "48074f014b71bc4ff7da223d856fd907c6c9739b1d821ce74f2c94e200b6d776"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty.meta",
+      "bytes": 169,
+      "sha256": "289c134b8b659243009da451028516668c4c0ab86fc09f0964c3721aa5788f77"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare.meta",
+      "bytes": 169,
+      "sha256": "96ff9fa6c92c983686aff4ea9e598b3fc6bb396533290044ab663dc6de296a68"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Audio.meta",
+      "bytes": 169,
+      "sha256": "0cc169eed244bc95065b3a779c9b2f8a87f4903884efdbc5d966fa72646b4041"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Audio/NOTICE.txt",
+      "bytes": 1130,
+      "sha256": "64e2de64656079009cfda050f49e1de5075167a387c403f17555c6c651d9b516"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Audio/NOTICE.txt.meta",
+      "bytes": 155,
+      "sha256": "f65e38d3f09d6f2c3207177634a714af3e7fae34f4b9736a7c0bda4979c3e3eb"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Audio/ambience.meta",
+      "bytes": 169,
+      "sha256": "d2088b5f0b43ac5d62c5cac9ee277df9a25f9ecbe990c1c2a675b75a411b0a5d"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Audio/ambience/bird_twitter_loop.ogg",
+      "bytes": 222530,
+      "sha256": "8ff20108708b024b2790252815753fdc6335a2790a3a9d777bfe55fb2fc46d3f"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Audio/ambience/bird_twitter_loop.ogg.meta",
+      "bytes": 482,
+      "sha256": "33311e6ca44d6c3d8f2e1b9b600fa5086044dafcc37a59a653c1b2b31f134b36"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Audio/manifest.json",
+      "bytes": 4955,
+      "sha256": "d06811ae48253e70f296a047a96ab2776834b1ab517b9d579bf761c0cb476ca3"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Audio/manifest.json.meta",
+      "bytes": 155,
+      "sha256": "c4a15683b1b754b99ca38a2c4ada8ef537984e4efe7452c3ce3d872cf4c53313"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Audio/music.meta",
+      "bytes": 169,
+      "sha256": "b91939e419bb7dff651f9d97d8b2cbf894ce9c41f978e98e05d1da117f9cf9eb"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Audio/music/battle_theme.ogg",
+      "bytes": 3327365,
+      "sha256": "c16834bde4cd332f6751afd77bc411f781406f68ce89f3a1026d67ba63a53494"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Audio/music/battle_theme.ogg.meta",
+      "bytes": 482,
+      "sha256": "463e58536b4b8d031f17bf588cf22172238e26bee167858c14635c772d504d90"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Audio/music/dungeon_theme.ogg",
+      "bytes": 2902019,
+      "sha256": "11dbd96e8ddb7312b849c128525416c5e33f0ca1bc19c7768ece678e654edef1"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Audio/music/dungeon_theme.ogg.meta",
+      "bytes": 482,
+      "sha256": "a031f746b403e2d86064452887ed97d4b6d44902c9ff1313d157da1cb303416c"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Audio/sfx.meta",
+      "bytes": 169,
+      "sha256": "d5904c2c6424cbc7e3e99a523cec4938b6235b405fac9f7890c6580fe11a7867"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Audio/sfx/inventory_book.ogg",
+      "bytes": 6180,
+      "sha256": "9ee30dce3da512fe10a6e249e6c321636cad4cb008d0db228eff9eaacdf3e2b5"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Audio/sfx/inventory_book.ogg.meta",
+      "bytes": 482,
+      "sha256": "e86544b234f933d8ec9f39eb2d5be6e8d0ffbf62e25d18e65d21a45b89a8ca06"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Audio/sfx/inventory_coins.ogg",
+      "bytes": 7887,
+      "sha256": "2d787246ba719d70a2580f04cb5d178180235d66147207b5fcd4d2aea318f3dd"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Audio/sfx/inventory_coins.ogg.meta",
+      "bytes": 482,
+      "sha256": "135395119c411ffd04abfdd2cd6edddaf7f7f159d37b92a09d5a703337e84d4b"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Audio/sfx/inventory_object.ogg",
+      "bytes": 6699,
+      "sha256": "b0f21e97642328271f3a68cbf35b6cba6dd9f3f6b16e94aa32881e6c71972ec7"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Audio/sfx/inventory_object.ogg.meta",
+      "bytes": 482,
+      "sha256": "23fc6970a63b8e96791f4da9e5509a08f57ca2f1d875cdebf1138012ab67afdb"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Audio/sfx/melee_attack.ogg",
+      "bytes": 8914,
+      "sha256": "bcb5d618730de5568b5dad1a9c741b5907aa8098ff69de76d2393752d16d165b"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Audio/sfx/melee_attack.ogg.meta",
+      "bytes": 482,
+      "sha256": "397ea551f498c5955533be98282340879b290ff88a9ff7d24c813c86f0ec7788"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Audio/sfx/zombie_hit.ogg",
+      "bytes": 8715,
+      "sha256": "53bbac8f52093aa768235666d564c73ca2ee575b69551a1458585265f06a7e50"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Audio/sfx/zombie_hit.ogg.meta",
+      "bytes": 482,
+      "sha256": "66a31815d0c4d1a71ddc850fb8efa0171185abc66cd2a7053d5ed7feb8edc6da"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw.meta",
+      "bytes": 169,
+      "sha256": "7a33b72a78cebd83663b9b620b6294cdea5bc0163367ca1c1c6dc36147a52377"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/CREDITS.txt",
+      "bytes": 3510,
+      "sha256": "8b0985009dd04911b851553a35941e6862f1df66a6864f9b2a5c7ff330574fbc"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/CREDITS.txt.meta",
+      "bytes": 155,
+      "sha256": "e1adcc30647d58d50d08a8605d5adb0d9a52a6a7c2d28f516a8de60c4ac41fd1"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/LICENSE.txt",
+      "bytes": 22240,
+      "sha256": "3f941b3b89cf7b8370ceb83cc76d2120d471b58735d8ca60238a751a48d7f72f"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/LICENSE.txt.meta",
+      "bytes": 155,
+      "sha256": "cbd8928141e8a7367d84ee37549dbf43559cea88f69ba6d684a1dfce4784e4bc"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/animations.meta",
+      "bytes": 169,
+      "sha256": "d89f831b166ddb46d7af0c24ab1ffa25810e658092aa27c652e69eeb0dd19275"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/animations/avatar.meta",
+      "bytes": 169,
+      "sha256": "8a16c592df7912c96246ee9e3ed8e478f4c7a99b4f0a8bcf6c7e10c0ac973d7b"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/animations/avatar/default_unpacked.txt",
+      "bytes": 694,
+      "sha256": "bca0f3be5b5f271b41a4dec2084f0c3f7536ea2fbb87af3038178e51b37d2efd"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/animations/avatar/default_unpacked.txt.meta",
+      "bytes": 155,
+      "sha256": "69d63ed6719ac49e0fd412ba5dc0482047986e2ab254b6b40160f4deaaf2f4b8"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/animations/avatar/female.meta",
+      "bytes": 169,
+      "sha256": "2fca58a08bf045464d9494469cd9fc0bfc72726578548c662e9bb13dbd5ff752"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/animations/avatar/female/default_chest.txt",
+      "bytes": 13113,
+      "sha256": "cc4ffd476568fe74e787baf20ed50972eff462bfaa4f8bb77ccec98dd50e6d83"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/animations/avatar/female/default_chest.txt.meta",
+      "bytes": 155,
+      "sha256": "ae492e0a1520fd77f6acd02c1705da02836a66c52561d69a861c832753685ed2"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/animations/avatar/female/default_feet.txt",
+      "bytes": 12100,
+      "sha256": "1dc02ebcdd8b6d22a97733642c69d2c37d945d778e9b22db3f8b3a8639f05141"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/animations/avatar/female/default_feet.txt.meta",
+      "bytes": 155,
+      "sha256": "2e946b12e0d1f56664a8aa1f0ae104dc8923bbf7773db511776aac0c0c003906"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/animations/avatar/female/default_hands.txt",
+      "bytes": 12975,
+      "sha256": "a2d72b6ddc204bd66245ac7caeec386b160991fc06ef0bad0a24ac8208918102"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/animations/avatar/female/default_hands.txt.meta",
+      "bytes": 155,
+      "sha256": "a880af90aadb024c2ecaf9b1fccf041374cc190be3984986ef5d82ea9c723986"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/animations/avatar/female/default_legs.txt",
+      "bytes": 12269,
+      "sha256": "f3e5f4ad656e7644c2e769643e8a74eb4a26865521c4d23568f164a2c5cf374a"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/animations/avatar/female/default_legs.txt.meta",
+      "bytes": 155,
+      "sha256": "ad97386c2ffc2db4a73d32df86d6f94246a453fb712d5acba2084a83d8847fd4"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/animations/avatar/female/head_long.txt",
+      "bytes": 13024,
+      "sha256": "4a3f9fa6818d4ad51dd6cbcf1b33f9a8c43fced3093cf6de59451b8b19386a01"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/animations/avatar/female/head_long.txt.meta",
+      "bytes": 155,
+      "sha256": "049022183cc242745fcafec98b8c2d95e69b983176780f4c9f78b7819f8130e7"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/animations/avatar/female/plate_boots.txt",
+      "bytes": 12298,
+      "sha256": "3f2b47d99732e4d716394d0210c7c1f702f82c98a7c78aea8519831cf7acc12c"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/animations/avatar/female/plate_boots.txt.meta",
+      "bytes": 155,
+      "sha256": "aaf3295ef121c19e693c208930fc7f9db2fbfbc48c10a4aab4931f7d9c7737b6"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/animations/avatar/female/plate_cuirass.txt",
+      "bytes": 13187,
+      "sha256": "c0ebbb79f328cf8087d5a0f13d7ed679aa1c9a6026141fda0c30c038578f5f90"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/animations/avatar/female/plate_cuirass.txt.meta",
+      "bytes": 155,
+      "sha256": "3a3fee7f8c65ef0441b1779afb15a9cd1337f5a8491d773c5474a6b2b0f1bb8e"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/animations/avatar/female/plate_gauntlets.txt",
+      "bytes": 13070,
+      "sha256": "e992b1e481d15bb84dd1cc4695149ca86fa9b463c68c1404d186db41682fe9dd"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/animations/avatar/female/plate_gauntlets.txt.meta",
+      "bytes": 155,
+      "sha256": "0b68bcabfd24cc26452cbcf4e36a1e6b3094f312a914da2c4ddead9757d7fff1"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/animations/avatar/female/plate_greaves.txt",
+      "bytes": 12214,
+      "sha256": "02e8580d4b3f945330ce298e446dd0b362bb45466f86e631918eba9638557935"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/animations/avatar/female/plate_greaves.txt.meta",
+      "bytes": 155,
+      "sha256": "c630d20330d0734105b5937c2a12ebb80622e3d43d327681c40ed57dac761f9b"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/animations/avatar/female/plate_helm.txt",
+      "bytes": 13015,
+      "sha256": "15f184b5ca202ecf0390a5f5d66c70f05a736f64d7afaf99d5adca06c5d77558"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/animations/avatar/female/plate_helm.txt.meta",
+      "bytes": 155,
+      "sha256": "77d2cdce4facf104e15f255755ba2053243061e3d29c6c09cbeeb84b8989db74"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/animations/avatar/female/shortsword.txt",
+      "bytes": 12811,
+      "sha256": "dddb706b68bcf27ad7176bd702407c0ffba9a0a5b3760df9023893fb76f60b46"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/animations/avatar/female/shortsword.txt.meta",
+      "bytes": 155,
+      "sha256": "a348b0ff699dfa3a710e9006c0d14582fc4e1c8cdd08fc0c654fad2e3c9a76e9"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/animations/avatar/male.meta",
+      "bytes": 169,
+      "sha256": "dbdae65758f89dad153ece9ef290ddea2fd11425b897c0b3521858984593d52a"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/animations/avatar/male/default_chest.txt",
+      "bytes": 13168,
+      "sha256": "57380f3fb33e7d7b323d5ef4cbb7a63b0468ffff9765b9ceebfe40725d85b463"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/animations/avatar/male/default_chest.txt.meta",
+      "bytes": 155,
+      "sha256": "d0b4d789619c1ad70c7c7ad43e4e9715f2a3432d716f0f1f7089daaeec07effa"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/animations/avatar/male/default_feet.txt",
+      "bytes": 12426,
+      "sha256": "011eb1799162e63528e05b272d39f965fee60db454d6add125276e879bf336a6"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/animations/avatar/male/default_feet.txt.meta",
+      "bytes": 155,
+      "sha256": "367be0a12c7dd18ca395180f83604922982a088f3770c60f48bd0b246588359b"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/animations/avatar/male/default_hands.txt",
+      "bytes": 13134,
+      "sha256": "692abfffeda707f6984e158da8ca51190f77517bc4cac13267a8e34a3fb17327"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/animations/avatar/male/default_hands.txt.meta",
+      "bytes": 155,
+      "sha256": "607746263120c551a27b3f11f0148c174d3c9c277a3a026e70011d46d51c56ae"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/animations/avatar/male/default_legs.txt",
+      "bytes": 12236,
+      "sha256": "f7531bb0157a67700fa120bb75301d33a992dc7589c163190850cca6d0f72c91"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/animations/avatar/male/default_legs.txt.meta",
+      "bytes": 155,
+      "sha256": "2cf8f0773e8e1e3c4949b6ffd72d15678f43f7aa4f612daf5c0984da0f4c1824"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/animations/avatar/male/head_short.txt",
+      "bytes": 12942,
+      "sha256": "e7e057ddae7278b25938e48290b38cc16ef63a6d0c4142f12051a5998b2e6362"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/animations/avatar/male/head_short.txt.meta",
+      "bytes": 155,
+      "sha256": "ff242fac7695081e262467d9d678a1ac121741d9613fb65740402fb814b2e6dc"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/animations/avatar/male/plate_boots.txt",
+      "bytes": 12487,
+      "sha256": "894687377ba0117586f8890ba652c273e796c0a755175718dcc9aa14188b541f"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/animations/avatar/male/plate_boots.txt.meta",
+      "bytes": 155,
+      "sha256": "9e9dff0f0c7a5392fb6f3b5223c1eab651d0f83a0e0c8fa118cf22d760a6c50c"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/animations/avatar/male/plate_cuirass.txt",
+      "bytes": 13273,
+      "sha256": "d82405e8d005ad30c73ab9388826f4b61d02cf4753586f3feb9e62f832db8388"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/animations/avatar/male/plate_cuirass.txt.meta",
+      "bytes": 155,
+      "sha256": "09e923d8beaffc9870b696b5a5f4eca0e6fda75f36ca6f9de56bf06d41c26d3e"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/animations/avatar/male/plate_gauntlets.txt",
+      "bytes": 13246,
+      "sha256": "eafa027686cfc3c6d0a9b26c8da9462294c9e68000a61f21a1dd58d863fbc62e"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/animations/avatar/male/plate_gauntlets.txt.meta",
+      "bytes": 155,
+      "sha256": "53cf62270d5bf1d2c2aa609d6f15c2f8605ad874c7bf6f320ff3d25d42c51cbb"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/animations/avatar/male/plate_greaves.txt",
+      "bytes": 12213,
+      "sha256": "d4fd9462bcc6446ff79d6b6ca60fd687d210ea9f2a1a35a91b957c9ce89e7603"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/animations/avatar/male/plate_greaves.txt.meta",
+      "bytes": 155,
+      "sha256": "e0f865c0c45b4d557993d63929cb4a28b4192f5d7f80f5f2bd56ae015a702ba6"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/animations/avatar/male/plate_helm.txt",
+      "bytes": 13098,
+      "sha256": "38e4dd0cc73e4c140bbb9c07a29035975ad765cb383ba492e380ed31b9bfd048"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/animations/avatar/male/plate_helm.txt.meta",
+      "bytes": 155,
+      "sha256": "c3e694c0a92c8eb9cfd0d619bcea41d9638441c616d470f235df9ef7e712159d"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/animations/avatar/male/shortsword.txt",
+      "bytes": 12694,
+      "sha256": "9b047e8e5c6af2548e35ce220f3b41b57356a92a7b505f1718a932a95fe7d57f"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/animations/avatar/male/shortsword.txt.meta",
+      "bytes": 155,
+      "sha256": "2a0bdf6d6e95f0993d2368f07ccf5c6d2be7d47a3bdccbe86c2efc7d88081b9b"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/animations/enemies.meta",
+      "bytes": 169,
+      "sha256": "69d7be5ed15946d387d1fec9a6f6c37b08f29be859d3e55a6759c90bd8f13f3b"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/animations/enemies/goblin.txt",
+      "bytes": 18914,
+      "sha256": "5640359590a9edb5bb004686a3964c7a7f95fa29c6e7519e07fd7f7359130a7c"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/animations/enemies/goblin.txt.meta",
+      "bytes": 155,
+      "sha256": "786504484f4eb0c0b990c133a0ba898899972b11cc744d9ab0567269029268dd"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/animations/enemies/skeleton.txt",
+      "bytes": 16477,
+      "sha256": "c4cb1111293e5c5428edd78b67ddcf8dfdab09fc73728ec110aaead39bee5a93"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/animations/enemies/skeleton.txt.meta",
+      "bytes": 155,
+      "sha256": "ac5c7d0fc21fbd8db8dbef0777ebc85a4b9517566cbdd9c283f003342fa67b9d"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/animations/hero.txt",
+      "bytes": 469,
+      "sha256": "012f5536c85134e7a22035f507883c9f077315a142e1a9b556d75482740f1674"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/animations/hero.txt.meta",
+      "bytes": 155,
+      "sha256": "371cee071813cd1e25a31ebd89c7d6b3b79f6618b002995da1c56d1c779a8418"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/animations/npcs.meta",
+      "bytes": 169,
+      "sha256": "6dc8b93a9e9553eaf86fe557a23f30ca138d85225978c443f7e2ac0d1ae01385"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/animations/npcs/knight.txt",
+      "bytes": 1608,
+      "sha256": "4854ffa4f643966ab02450515c85a85d490a969c9df3325c5abc36181af42749"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/animations/npcs/knight.txt.meta",
+      "bytes": 155,
+      "sha256": "c381c98608676c77384c3e765a832eae4de83c0ba7218e532c02d434d991c192"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/images.meta",
+      "bytes": 169,
+      "sha256": "b24f1429fbbb2f5bdf8ea67dda899e9647c5425bf1b91bdb2ac6bfe29d2b885e"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/images/avatar.meta",
+      "bytes": 169,
+      "sha256": "a9645596a44c4ccabc55d856feffd18fbd8427119e200971e9ab2e6df0c12f85"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/images/avatar/female.meta",
+      "bytes": 169,
+      "sha256": "eb3fcc6bb3b709ec93c249872382acbc056a3239481d142be714b2edd0651255"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/images/avatar/female/default_chest.png",
+      "bytes": 1357249,
+      "sha256": "4915ba1a066aa3027a531f9ed053516a3f19b5de3fa43a1c7b5b055d924a48db"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/images/avatar/female/default_chest.png.meta",
+      "bytes": 3000,
+      "sha256": "3c0a7ec321fcf195d213e2573135f8491fec48392daa8ce6012e41b8d974baeb"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/images/avatar/female/default_feet.png",
+      "bytes": 983524,
+      "sha256": "9707d50dc68215d23128439b5f5926f0925f5222c44f5c74bb43f4d3e9ec3188"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/images/avatar/female/default_feet.png.meta",
+      "bytes": 3000,
+      "sha256": "c0fb918238fcdf1965e60054c0124893c368d2481569d37bdfb93c83936928cb"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/images/avatar/female/default_hands.png",
+      "bytes": 822523,
+      "sha256": "b8d45ca8a520aa803a4009ec5eb61ccd143b0eb7f042a33eddb2bebfe6438028"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/images/avatar/female/default_hands.png.meta",
+      "bytes": 3000,
+      "sha256": "81d2938736c82a0ce9cbf11087ed5e2ff3a7134d988ee31ff1f52ded7691a81e"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/images/avatar/female/default_legs.png",
+      "bytes": 936713,
+      "sha256": "2b480288dcfd4558e41d9b5e6abdc5e89737f76306f4b1428fe750d865d6ab08"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/images/avatar/female/default_legs.png.meta",
+      "bytes": 3000,
+      "sha256": "7ece535d392694deedb36eff58e3190fc9b3f66a52b06d2e8e2401165bad957b"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/images/avatar/female/head_long.png",
+      "bytes": 713878,
+      "sha256": "a167bc2868acec2ba5f3cddb915b83e692b39307ccd232e7fc63b9fb892f3352"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/images/avatar/female/head_long.png.meta",
+      "bytes": 3000,
+      "sha256": "fd0c2ce458be1ec6cd3cfa6f38d2084480ccd31acd0f70e2789301599c75323e"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/images/avatar/female/plate_boots.png",
+      "bytes": 1280338,
+      "sha256": "ddc1a580f739a4a2ad7e14de41d411396e637ac8fe68164268b8230e71cf3ae5"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/images/avatar/female/plate_boots.png.meta",
+      "bytes": 3000,
+      "sha256": "e183b17b3a4614db7a1aacc1cbf9c959eea92e998299b028892916b57487e0ea"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/images/avatar/female/plate_cuirass.png",
+      "bytes": 1870537,
+      "sha256": "a779b051f3379688565ee66cf80e4aa7a225779f591ecab7782eb9afb20e056b"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/images/avatar/female/plate_cuirass.png.meta",
+      "bytes": 3000,
+      "sha256": "ba6cc66efb7df30366d9cb3f3288808166a2d71dbbe7b03a3c8eea34dc418de0"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/images/avatar/female/plate_gauntlets.png",
+      "bytes": 982011,
+      "sha256": "6f6c3aafac15525637bc09f10de613ce133fabb5bb1b7b3febe4e2aa3ea78d0e"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/images/avatar/female/plate_gauntlets.png.meta",
+      "bytes": 3000,
+      "sha256": "612be91e0560c3573f4105ed90c18e2b8aa282421bfe571fac0a277b7a5e75ce"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/images/avatar/female/plate_greaves.png",
+      "bytes": 1183884,
+      "sha256": "28e07579cca35d333c6c9cedbb72689dfe972512778e93b479f3ef47c996bd86"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/images/avatar/female/plate_greaves.png.meta",
+      "bytes": 3000,
+      "sha256": "f3a1b5472aabd5b7e2ac5e8af84e4e04d0e7f3287178c86803d0c73856be4e81"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/images/avatar/female/plate_helm.png",
+      "bytes": 956640,
+      "sha256": "97d5a36c730899de56f569e1b3c6431e68b01af8399810c781d70f853ab1fbb0"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/images/avatar/female/plate_helm.png.meta",
+      "bytes": 3000,
+      "sha256": "1f9c8a233d6a4482ae517aaa1882be168ac27c4acee3b3d2b03cff95ff36ad3f"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/images/avatar/female/shortsword.png",
+      "bytes": 447721,
+      "sha256": "f6d98f2949da73f5ae66074b6f1358cae2be803c0b15d3c45bb0f0854203f93c"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/images/avatar/female/shortsword.png.meta",
+      "bytes": 3000,
+      "sha256": "0282438546211f78609304a25831f64aed9e2c01b271668e3cbdb9b1432c8c07"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/images/avatar/male.meta",
+      "bytes": 169,
+      "sha256": "be9aaf2a2f0ee1f646ed17a9367215fa54f5f0c0505e54d902cdf95fc8e4015c"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/images/avatar/male/default_chest.png",
+      "bytes": 1567473,
+      "sha256": "c33db0d2d09cc7dd33db13b5758ba0d46a7e5e5e1e20311875a94cc224d6db11"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/images/avatar/male/default_chest.png.meta",
+      "bytes": 3000,
+      "sha256": "c368156ed3cea1607b026a23217c330005d549c4c1cd540a61c7c06beb633c01"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/images/avatar/male/default_feet.png",
+      "bytes": 1184331,
+      "sha256": "1b14d5fb53df1256dafe26b69a34f5db7d98b6171ba51bc62e9b262d5e65385d"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/images/avatar/male/default_feet.png.meta",
+      "bytes": 3000,
+      "sha256": "f53bf1190e006a51f06c4a7d1ed6e02bd98557a4042e9f5613a7f95a1f156b84"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/images/avatar/male/default_hands.png",
+      "bytes": 889093,
+      "sha256": "004a40ec6aa3f63e4d7d8e1aae4286c92509861a61deb67027ee0821535254dc"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/images/avatar/male/default_hands.png.meta",
+      "bytes": 3000,
+      "sha256": "9e9a3217ab018dedc1fdae7aa08667298c6743555ba208c18609a27bbec068ae"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/images/avatar/male/default_legs.png",
+      "bytes": 1114690,
+      "sha256": "30dd6ae496902719a25ac8b6c018e9e7df887ce12f3fbe33228324ab230d6435"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/images/avatar/male/default_legs.png.meta",
+      "bytes": 3000,
+      "sha256": "d1f0807267e77971dec4ec11d9cc0400248f7c6041a5cd358760d7f9dd770276"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/images/avatar/male/head_short.png",
+      "bytes": 589427,
+      "sha256": "6505e19ae262a2feedbc93fe42466214633a5387b0d4b18a52f182dfb860a655"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/images/avatar/male/head_short.png.meta",
+      "bytes": 3000,
+      "sha256": "d2ff6eec4b18724c4b7f083ca7d6d9e764a54185ebe9d158629fe775bfaee86f"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/images/avatar/male/plate_boots.png",
+      "bytes": 1500620,
+      "sha256": "6b271d3be74734b8e7a0eba82f8431b2c63f918414107aee910677e93b20e67e"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/images/avatar/male/plate_boots.png.meta",
+      "bytes": 3000,
+      "sha256": "e42a36b615ea3b4a6e234717646a8ea583f2471ff34f0f73c5a2fcd1a735939b"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/images/avatar/male/plate_cuirass.png",
+      "bytes": 2186046,
+      "sha256": "f03b991666a5172a8c0e1e198bf1afdea102b388b98094a5f7ad913c82f453cd"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/images/avatar/male/plate_cuirass.png.meta",
+      "bytes": 3000,
+      "sha256": "4f4f34abc9ecce0c6830fba2a47db1f8497273d9c90296662cf33cec852c1a50"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/images/avatar/male/plate_gauntlets.png",
+      "bytes": 1068368,
+      "sha256": "3add05fa1d173476af6a23758096fd3800637243ea87769576c1975310a3565d"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/images/avatar/male/plate_gauntlets.png.meta",
+      "bytes": 3000,
+      "sha256": "a88dcb9bf01c41e01b6d9100e5ff4bb701903d9bc07f371751ebab2698f89892"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/images/avatar/male/plate_greaves.png",
+      "bytes": 1393681,
+      "sha256": "78d881710342ee45f6b0ec19056b224ade411d83321848681d24eeb123c2b7de"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/images/avatar/male/plate_greaves.png.meta",
+      "bytes": 3000,
+      "sha256": "d37743d47748b7f28b76d915f979d9eca27e56155af645e27dfded6e34f35b56"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/images/avatar/male/plate_helm.png",
+      "bytes": 1053659,
+      "sha256": "7e03dc8a70d958757c738b6181031b58c11118a55069b92dbbf16c69b9f99d20"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/images/avatar/male/plate_helm.png.meta",
+      "bytes": 3000,
+      "sha256": "d832e5d26bf07f987618b93d54296a93d2c6635e340232b436423748963c4a3d"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/images/avatar/male/shortsword.png",
+      "bytes": 424693,
+      "sha256": "d0959b5cdd63f344b19a23839387cc6bea1fb66cf8ded987c27685e46432ad5f"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/images/avatar/male/shortsword.png.meta",
+      "bytes": 3000,
+      "sha256": "1ab4e4880cf003bb7acacf5f43ed9d87120f8c20b9bc96117cdc7ad3fa45995d"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/images/enemies.meta",
+      "bytes": 169,
+      "sha256": "9d29385da3f0768c3dabf4b7030fdf8cd9f709f7b1fb7ee6731a97c9f86b14a7"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/images/enemies/goblin.png",
+      "bytes": 4172555,
+      "sha256": "98c7849e51ce78a0e97c0ff50cd0827fb6c2c41ba83da3caf60ea7c9f776c73f"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/images/enemies/goblin.png.meta",
+      "bytes": 3000,
+      "sha256": "ad335d3f77129f73ae0dd3de7e9de99bf4f81707f16cb2504d045960f649bfb6"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/images/enemies/skeleton.png",
+      "bytes": 8015291,
+      "sha256": "cac5395ac62a611e0f9bf2b6a8d8ae58347562f13dd847bafc215b35a2cf53d4"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/images/enemies/skeleton.png.meta",
+      "bytes": 3000,
+      "sha256": "62517c9fd6e6cce3ea21306360668f11222d69a27f8a2ba8f10eee2d8f6ac07a"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/images/npcs.meta",
+      "bytes": 169,
+      "sha256": "de0e6e54087315ca3f994332acf44cabb98c3847ed65043766ab849a01bc52be"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/images/npcs/knight.png",
+      "bytes": 552990,
+      "sha256": "f4e99e527ab645ae458d237d63a79ea4792996106e8e92f0ae07a61cb5aa7526"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/images/npcs/knight.png.meta",
+      "bytes": 3000,
+      "sha256": "05a07f7994506aa3f0658c5123e6f3aa97704c6404d54d089ec72299a604b44b"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/images/tilesets.meta",
+      "bytes": 169,
+      "sha256": "1f090485f19e704ee3785ff03312c9a0b9a11a830f189b9ee81633dab2e31167"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/images/tilesets/tileset_dungeon.png",
+      "bytes": 6913824,
+      "sha256": "5ff7051291cc579ddf09eb4f81b939bebe92f259a341283b01a334ae3db998bc"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/images/tilesets/tileset_dungeon.png.meta",
+      "bytes": 3000,
+      "sha256": "3098a8d3763a9b2fa2b03b6853854f0e5a7dcb37fc6140bcfeba0553cd145102"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/tilesetdefs.meta",
+      "bytes": 169,
+      "sha256": "312bb9dd9a5d6c7c3f59e5f6b5c76b1a4d717746aa3241aee6e15b3e6d26b823"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/tilesetdefs/tileset_dungeon.txt",
+      "bytes": 6326,
+      "sha256": "309ef683a4d0a82a928f2c941d414770ebdac9295fb24757888e4c708783b78f"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/Raw/tilesetdefs/tileset_dungeon.txt.meta",
+      "bytes": 155,
+      "sha256": "eb6d85e7a2c0d9a134f44fff8b189ca6963cde42cb4202869576014b30761a1b"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/armor-manifest.json",
+      "bytes": 18610,
+      "sha256": "09e297ebaa2356bb149a5c92f479cc20f86103dceb2e3b9253a5e06232f9b799"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/armor-manifest.json.meta",
+      "bytes": 155,
+      "sha256": "cbeb3bd98404a78b308b88f51fb59e511c35e5bc448587163f5983ebcf948321"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/sprite-frame-metadata.json",
+      "bytes": 1842522,
+      "sha256": "9532a3bb81d574fe339fece25152bf6b10fd68392b68220310fd9568b4796dd0"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Flare/sprite-frame-metadata.json.meta",
+      "bytes": 155,
+      "sha256": "7d04c5a188b378df80991eab354c0546492c82bb39e7f2ccea50b9b9584a881d"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Fonts.meta",
+      "bytes": 169,
+      "sha256": "25263e172872e2697c99189474620505ab230e9844670a1478a5e358cc324226"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Fonts/CinzelDecorative-Regular.ttf",
+      "bytes": 60408,
+      "sha256": "5b862be329103ad287a10f0a53e27a40e8cc519999253f1a0223e2dc330b10b8"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Fonts/CinzelDecorative-Regular.ttf.meta",
+      "bytes": 369,
+      "sha256": "62626f9f44386565ac2d8ebce24c044a4dd113a1fc238332340440e69a5b2fce"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Fonts/OFL-CinzelDecorative.txt",
+      "bytes": 4393,
+      "sha256": "1e5d6660366ddcfca4f2fc10e2acfba9fa4d97d40aec80d7dbfd41d730a420ae"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Art/ThirdParty/Fonts/OFL-CinzelDecorative.txt.meta",
+      "bytes": 133,
+      "sha256": "0052cc70364d6bf4aa64b9ff5ca54de33498c927647b3cbcbb375aa89f560cac"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/DefaultVolumeProfile.asset",
+      "bytes": 425,
+      "sha256": "8dc496c470ce452ad7ecd609eb22fb57a2b68d4ed8c1edad1734486b1f7af048"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/DefaultVolumeProfile.asset.meta",
+      "bytes": 186,
+      "sha256": "a9260f51161d1685c26083b83069bfcac8339099772028008c1d2157faaef515"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Editor.meta",
+      "bytes": 169,
+      "sha256": "81f37c3e2db1c956bec6f3e2465efe1c33f815496490c00f7406159de948a611"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Editor/FlareCatalogImporter.cs",
+      "bytes": 11135,
+      "sha256": "941be1c3b982c859590c9bdff219de914794b072d69d1a987d46d8317286dd4f"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Editor/FlareCatalogImporter.cs.meta",
+      "bytes": 59,
+      "sha256": "7d278fdea90511f80ef1b56ad0df8cd5a1020cec6c175f65d736e11708316183"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Editor/RhBuild.cs",
+      "bytes": 5288,
+      "sha256": "2a85f12f86e3e2f8c17f2ccad0edacf26569eba556588963c93f70d54cecea0d"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Editor/RhBuild.cs.meta",
+      "bytes": 60,
+      "sha256": "2a7f913d012b77f5461cbc03f7c1568ec3dd6f4c5e746b63410b7d93d4e12382"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Editor/Roguehalla.Editor.asmdef",
+      "bytes": 400,
+      "sha256": "288a4252a9d5e85bc4de35818c6d23e6fb98a066c6453f03da752abdc142b556"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Editor/Roguehalla.Editor.asmdef.meta",
+      "bytes": 163,
+      "sha256": "61525f4927ff1931a9aa55a269516c627f07be2b6d4f8f44151ed68b24320e7a"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Editor/ShowcaseSetup.cs",
+      "bytes": 7514,
+      "sha256": "c20f3f443c6617645d87b1ea4b92c8fa7dad645811b055a3149166036405c871"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Editor/ShowcaseSetup.cs.meta",
+      "bytes": 59,
+      "sha256": "de08b9bb3c72cbf491855f405d016757397a10e47dccfcd4bec878768c9d4a21"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Editor/WishProof.meta",
+      "bytes": 169,
+      "sha256": "dd4bfd66e23e2b86feb051048c63979ceb5ce15d5f9637c5253ad20c00e99806"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Editor/WishProof/README.md",
+      "bytes": 2984,
+      "sha256": "673bc781317d16158e70f0d32f39cb361495afa27d9b9e9e6623592d5f2c3a53"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Editor/WishProof/README.md.meta",
+      "bytes": 152,
+      "sha256": "4885907f2eada7aa0624419af02b1f580638333cd9ad27b2cb6ef12d81b352fb"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Editor/WishProof/Roguehalla.WishProof.Editor.asmdef",
+      "bytes": 301,
+      "sha256": "05c89d882c8402ebe8a9121b85229e9fc0edef52dfe7bf9a1d12c2940cdefaa1"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Editor/WishProof/Roguehalla.WishProof.Editor.asmdef.meta",
+      "bytes": 163,
+      "sha256": "b8581da01dd5c52542ff4336080be2d8c20a6089aa16456406b5742fe3a37abf"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Editor/WishProof/WishProof.cs",
+      "bytes": 38934,
+      "sha256": "4dc981ac2ad8f6e628427a040fdea0aa39d1cf45cc2faf276e971e1241a96c2e"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Editor/WishProof/WishProof.cs.meta",
+      "bytes": 240,
+      "sha256": "6a38f7a045a139bb6625f22bddbbab98a6b8d0c6af2c4b30b1f3b15fa2130ae2"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Plugins.meta",
+      "bytes": 169,
+      "sha256": "f4f5190673fb2fbb49ce53891d9014f61e7c5d924c1ee30d739af05265492ae1"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Plugins/WebGL.meta",
+      "bytes": 169,
+      "sha256": "b78f4023e6394bdbaa727b5e9390729b5571784ac5828e9b4a997305cf94c341"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Plugins/WebGL/RhLatency.jslib",
+      "bytes": 1963,
+      "sha256": "27523ac979da90bed153924f3e4edcdeac92105a0abbd3d46e9fa80b5933b14e"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Plugins/WebGL/RhLatency.jslib.meta",
+      "bytes": 60,
+      "sha256": "ad05e03e4c5d91ee9b1e0f6ef28756bf5ed680054db5661cc3e2526b0936d959"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Plugins/WebGL/RhPage.jslib",
+      "bytes": 368,
+      "sha256": "af6d1243854ea5d5539e9c4667c0cb04d8cef458ded9971a1891c19a5edd21e7"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Plugins/WebGL/RhPage.jslib.meta",
+      "bytes": 60,
+      "sha256": "35aaa2e045d352a5f8ee49926c61173bcd6d95f0a0dc33b8e5258c59d7177df2"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Plugins/WebGL/RhShowcase.jslib",
+      "bytes": 450,
+      "sha256": "3dc267de6aaa101abb1320dd00ca222f5cbb2025d69743b50dcec77940afa0b4"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Plugins/WebGL/RhShowcase.jslib.meta",
+      "bytes": 59,
+      "sha256": "bee4e7b87ad840e28f01e439c279685f249e0ebeda487b836a2f40ed030f2ee2"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Plugins/WebGL/RhWebSocket.jslib",
+      "bytes": 2578,
+      "sha256": "c9bab15987c5640ad83b8643a984ced01e2944c1bee4793aa9f30d8d1858da94"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Plugins/WebGL/RhWebSocket.jslib.meta",
+      "bytes": 60,
+      "sha256": "48355725879a69b51de1b8afdf2be13df7c5e1ad15e64ed4aebb324008e84586"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Resources.meta",
+      "bytes": 169,
+      "sha256": "d00392035136bdcfdc429dedcaf4ed40cef794b945ac85c8d61ae5c22c342764"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Resources/Shaders.meta",
+      "bytes": 169,
+      "sha256": "6ce2ec61ad9319bc33bf8be6e3189df100afc326c9698a42a95dad0d3decb4a0"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Resources/Shaders/RhVertexColor.shader",
+      "bytes": 1162,
+      "sha256": "df4a53a3e82b6c4869dd5cfd9eb14f6100e73e916713815309c20ce71ed72e8d"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Resources/Shaders/RhVertexColor.shader.meta",
+      "bytes": 201,
+      "sha256": "9c41421c0507f7b9cf81c0213c55b7eb48ca03719083371b6c031f12a11883ee"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Resources/Showcase.meta",
+      "bytes": 169,
+      "sha256": "0799377d9cd8333e546de8271887460acba725908243b5449361439efc42a1b9"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Resources/Showcase/Atmosphere.asset",
+      "bytes": 3085,
+      "sha256": "adb08e6a24207b96dfa514ef86d00055a94cd1cc2994e852f22ed674ea863f07"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Resources/Showcase/Atmosphere.asset.meta",
+      "bytes": 186,
+      "sha256": "2c5a3948751de34bb02f4f234a2c44f3401c7ef8a5924fd51f705b5a46d61e11"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Resources/Showcase/Audio.mixer",
+      "bytes": 4917,
+      "sha256": "9bb732afd8a748b7201810f4ea76c0ab04da298d7dc2a9366bde58852af972cf"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Resources/Showcase/Audio.mixer.meta",
+      "bytes": 186,
+      "sha256": "94a4420a614a335347f453f3a287bfde8eeccde48a29ef865d97c63144e203b3"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Resources/Showcase/Catalog.asset",
+      "bytes": 98107,
+      "sha256": "871db529ecedefc8c5dea78a77bb14fb8e4a8123496e31df6a264a63dbdf997f"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Resources/Showcase/Catalog.asset.meta",
+      "bytes": 186,
+      "sha256": "bfff24d6757e9019555f579495a2930f689fe95baab74e6c48e2ae7d24b03055"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Resources/Showcase/CinzelDecorative.asset",
+      "bytes": 2153068,
+      "sha256": "322bc5e73ee3273d832408ca9c45c4975e117efc541a32e7b5011355225ae8e6"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Resources/Showcase/CinzelDecorative.asset.meta",
+      "bytes": 186,
+      "sha256": "23626a09d8e5356169424e77411a56c5904b7f6c22360b017d3e96222a6f26e6"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Resources/Showcase/Sprite-Lit-Default.mat",
+      "bytes": 1321,
+      "sha256": "dd78941fb33d204da2de2b6dffd2c3fa4e9cc02df42ee6d747219def0a4475f1"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Resources/Showcase/Sprite-Lit-Default.mat.meta",
+      "bytes": 185,
+      "sha256": "d386ea43bea7fe8f3bd6839d7c00d0d9396c49ae4de95b43536d09c3209f77e6"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Resources/Showcase/Sprite-Unlit-Default.mat",
+      "bytes": 1107,
+      "sha256": "aa162e53c7ec87524ff0af25b5592b55f553467356dab34e3a88bb018ad39003"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Resources/Showcase/Sprite-Unlit-Default.mat.meta",
+      "bytes": 185,
+      "sha256": "c5e10695c5145f5b311d2e028e4d6953fd1f2378c6707da7b9cd333c9bd8dd0e"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Resources/Showcase/Torch.prefab",
+      "bytes": 2466,
+      "sha256": "486c911dfe89c864aff165fbf8d8f4277f11ede4aba4c5e4f9a72c0a668b880a"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Resources/Showcase/Torch.prefab.meta",
+      "bytes": 151,
+      "sha256": "1add90bfedda67bd20072199b95591c9c64f2f744e9dc4a6455e03d45fc58cce"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Resources/Showcase/TorchAccurate.prefab",
+      "bytes": 2474,
+      "sha256": "33cd5ecc95f4fad690e9a679d5555bc86946a6568849e02550fbcd37f0c6ac57"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Resources/Showcase/TorchAccurate.prefab.meta",
+      "bytes": 60,
+      "sha256": "58c47082d7733417a0d6761b467b7f82b49a12f850da1b24fd682e0f0bd27072"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/RoguehallaNet.meta",
+      "bytes": 169,
+      "sha256": "28b2fd23d6b5b05a6056565a7a390bf1354a445ff96def48773a35061db84bc4"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/RoguehallaNet/Net.meta",
+      "bytes": 169,
+      "sha256": "4e7b4c93dcb3335b61a75fc727479a00bb49c7a78dd6e8ff22d71f7b1fb22a61"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/RoguehallaNet/Net/AccountContracts.cs",
+      "bytes": 2799,
+      "sha256": "b380032286aafd333405ab63830f23979e258f07c32ac976c25ca4fb04f903c8"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/RoguehallaNet/Net/AccountContracts.cs.meta",
+      "bytes": 60,
+      "sha256": "39fa4e4e22a5792eaab5892d619eb7b95bb0115e64f330e386bf68c8bb24e6be"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/RoguehallaNet/Net/AccountEndpoint.cs",
+      "bytes": 2791,
+      "sha256": "42caa0a8bb22fe674370f045324bd5faf2393b22d3b0ccc4246c91af859c7d58"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/RoguehallaNet/Net/AccountEndpoint.cs.meta",
+      "bytes": 60,
+      "sha256": "900fd4ebc5d47a822f03945813dcb9b0e0e39d2a6b7c4b0d2745bb032658e8b2"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/RoguehallaNet/Net/AccountRequestHeaders.cs",
+      "bytes": 731,
+      "sha256": "ee3870bd8c5e1727905ee1c03f52037b529951ec67a55fef0c17e1d652d3bfff"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/RoguehallaNet/Net/AccountRequestHeaders.cs.meta",
+      "bytes": 60,
+      "sha256": "673f0b865678a1f5261d4ea5ab35ad3c61986a743ddb8ae36c2f300d71c42142"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/RoguehallaNet/Net/AccountSession.cs",
+      "bytes": 9946,
+      "sha256": "07967e10b4c9e0f06ddde6b81cb8a1fb874be287554e837d164e8521ba45555b"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/RoguehallaNet/Net/AccountSession.cs.meta",
+      "bytes": 60,
+      "sha256": "682c7e111f438e2dff49dc02823d4b3ad6aca25d27ccea86c21059e3bc9657d6"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/RoguehallaNet/Net/ClockSync.cs",
+      "bytes": 1944,
+      "sha256": "46e6e707b2264831b8ea60c059a6fd8049dab23c7f08557fc204eb737325befd"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/RoguehallaNet/Net/ClockSync.cs.meta",
+      "bytes": 60,
+      "sha256": "a1663214e6a81519e24956e983b196b54ef797c7e1af5c12d07abd4381ffe878"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/RoguehallaNet/Net/Collections.cs",
+      "bytes": 12755,
+      "sha256": "9018d9de767406fa97e4d8dc387fb083d4904ed9030037d4ec6f050f3fdfe28f"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/RoguehallaNet/Net/Collections.cs.meta",
+      "bytes": 60,
+      "sha256": "c1bd284636fad8c14a7ad1827e39a79a43b549b2547fd9f45b93358e26bcd587"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/RoguehallaNet/Net/InputSender.cs",
+      "bytes": 5106,
+      "sha256": "b1b902eef4b80e593f83a5cf8d1cef55754caad7815d615ad709ea6adeb9977d"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/RoguehallaNet/Net/InputSender.cs.meta",
+      "bytes": 60,
+      "sha256": "b19931dedba2f8db078ecc2d9b3ec20599abb5c947f10e93226d4756a985f85e"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/RoguehallaNet/Net/LocalMotion.cs",
+      "bytes": 23453,
+      "sha256": "85b1e2e31584b1909a2e175af53d5914009257645ce7f7f31d815327f9157516"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/RoguehallaNet/Net/LocalMotion.cs.meta",
+      "bytes": 60,
+      "sha256": "a4fd9ee956967ebd513c6abfe548f57d429f3d7f286704a79beab3d8ed15bd68"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/RoguehallaNet/Net/Pathfinder.cs",
+      "bytes": 28922,
+      "sha256": "841a12fe5fef246778470ee33b44221d38833593f53c1c68c333a99290ad63f8"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/RoguehallaNet/Net/Pathfinder.cs.meta",
+      "bytes": 59,
+      "sha256": "149d6f709df04d860636b306f4e93c837a8f3aebb5e4e1eb7c8f8da51191e9b1"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/RoguehallaNet/Net/RenderClock.cs",
+      "bytes": 3537,
+      "sha256": "b80eb3874050c27e5e1593c19f590000c61ab92b51f88808e0db6900bd22eafe"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/RoguehallaNet/Net/RenderClock.cs.meta",
+      "bytes": 60,
+      "sha256": "42ad74004a1b59c89aaa5df674a6b30814da0255c91399d2b1784b98f1d2a3cb"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/RoguehallaNet/Net/Session.cs",
+      "bytes": 23273,
+      "sha256": "bfd5815d08e508a8a7b0e5587cd80092c7d2c37757f6df525d3f1307966e8efb"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/RoguehallaNet/Net/Session.cs.meta",
+      "bytes": 60,
+      "sha256": "6ba81b29c12586e1977d0e01673b3a7248a5f6768f89b9c2ed9252f12e13a2b8"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/RoguehallaNet/Net/SnapshotBuffer.cs",
+      "bytes": 7804,
+      "sha256": "f81721f7451cd73916dec7b839940bd87a5197ce55e93da57dbcb14250f76ebd"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/RoguehallaNet/Net/SnapshotBuffer.cs.meta",
+      "bytes": 60,
+      "sha256": "683a645cf2bbf463df1b2ae56f4966195d4dc1d3dc8d47f42b98d1d62eddd2ce"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/RoguehallaNet/Net/Views.cs",
+      "bytes": 5079,
+      "sha256": "b292b091d43c34313b003365bce96a73d72c68ad4858702250e85bd2def6762c"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/RoguehallaNet/Net/Views.cs.meta",
+      "bytes": 60,
+      "sha256": "d7a39658f49b4065c89b1b648bd4bbf30360561baf3fd1677bfa9861f92f182a"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/RoguehallaNet/Protocol.meta",
+      "bytes": 169,
+      "sha256": "04bb002dd7f6d326861a033658fcca9960248e52ef9dda7d175ceef7567313ed"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/RoguehallaNet/Protocol/Codec.cs",
+      "bytes": 12013,
+      "sha256": "fc050a513a90b4dfabd685f55428ed0317d74f132696af60427827485d8ced07"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/RoguehallaNet/Protocol/Codec.cs.meta",
+      "bytes": 60,
+      "sha256": "aafa9a2eb969f81db3501ca5274fe9b6dfe63f6f50bf1f0d0bdd9ef8936f4c84"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/RoguehallaNet/Protocol/MapBlob.cs",
+      "bytes": 3394,
+      "sha256": "84d0c4396a26026c8c5b464a7d4c8931a19a0cc6e54e7f0d4434a778a306f051"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/RoguehallaNet/Protocol/MapBlob.cs.meta",
+      "bytes": 60,
+      "sha256": "fc523985802fb1457324bce84108b9f665db27c907b50bee18e4ac2ab164dd88"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/RoguehallaNet/Protocol/Messages.cs",
+      "bytes": 87554,
+      "sha256": "6f6c9b081955cc6a65d6458277e1e96f3c6553b8af908944529210a58d9cb8f1"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/RoguehallaNet/Protocol/Messages.cs.meta",
+      "bytes": 60,
+      "sha256": "3cbaeb2021777cbd6fca5473bed891d0ee489f89633ccbf6a3845f1db5a1cb1b"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/RoguehallaNet/Protocol/SnapshotTracker.cs",
+      "bytes": 9779,
+      "sha256": "401cd6a7a17c8c467ccec306078cc965d6d9431e649aa6dbaf4620a99d6e9843"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/RoguehallaNet/Protocol/SnapshotTracker.cs.meta",
+      "bytes": 60,
+      "sha256": "b9e04f39fdca759555055190e58c10ffe1a5a2c391022a72153ba30a435044e2"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/RoguehallaNet/Protocol/State.cs",
+      "bytes": 27348,
+      "sha256": "9275e0bbdc25fe5e5a7c5ea3ed6f334021cff5e606dc5a2d3ad9346f6efa81b5"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/RoguehallaNet/Protocol/State.cs.meta",
+      "bytes": 60,
+      "sha256": "695a00d0e2928290e87bb7ec72aa90173b5f8d9e91527187bb491d2f8d268d8d"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/RoguehallaNet/RoguehallaNet.asmdef",
+      "bytes": 254,
+      "sha256": "c0a5b8110ba3a3c6ec4e3898b2104ee8d4769d3b0ebbe3a38af026708516d199"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/RoguehallaNet/RoguehallaNet.asmdef.meta",
+      "bytes": 163,
+      "sha256": "0eab4eee2a7103af026890b8267c4dfd4a07449688a81895f3351b292c45c6c2"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scenes.meta",
+      "bytes": 169,
+      "sha256": "231ff2fbcd3cc0d0cc76f90e4a023d7a8573045e157512d68564391ca8f767d8"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scenes/Main.unity",
+      "bytes": 3539,
+      "sha256": "ac5f980d3515e5d2d8870c51a7d76fb61c554ec772f65cf429f2486b190a307e"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scenes/Main.unity.meta",
+      "bytes": 152,
+      "sha256": "5a381cd60aef5dcd79abdad948696c494e5ffc44d68cc8d04771c0580ce06a1c"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts.meta",
+      "bytes": 169,
+      "sha256": "02a15072f5aadc5075f20d0c09b2d496ee19725d1a0911a4481d197aa43e81e5"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/BakedContent.cs",
+      "bytes": 212,
+      "sha256": "e65ad6a55c3bec7e87e006d378c5dc3a8cc28dd592c87f3f4228540e409fc7da"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/BakedContent.cs.meta",
+      "bytes": 60,
+      "sha256": "30e9d03076b3b3e98d064aa3fe665ee0b4ed3ef8da385a6b238fc3df90f91013"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Bootstrap.cs",
+      "bytes": 3550,
+      "sha256": "f7d0a0527c3cc37f7c72b4fd7e4821d79a85aecc2db72cf17ccf29a9109e5198"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Bootstrap.cs.meta",
+      "bytes": 60,
+      "sha256": "98a8825430d8d155685a0e0ccd87dcb5ead34b86d10f8b1f6cbd4b678c618afb"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Net.meta",
+      "bytes": 169,
+      "sha256": "d0aa0bed9e0c4d9f844bd1b1f9ffeb7b794eb081843d44c0b0edf79dfb0b4de2"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Net/LatencyTrace.cs",
+      "bytes": 5361,
+      "sha256": "f230659a3bd758f5325806860b92d8b8152a54c513a9a5d7d09d930ace92834c"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Net/LatencyTrace.cs.meta",
+      "bytes": 60,
+      "sha256": "f244b14c27030be59d13748c19e53d4deebdfd34e7e0c7370552e8d7e8a8d6ef"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Net/MatchClient.cs",
+      "bytes": 12810,
+      "sha256": "e1c4e2191f3753693e1b56d18e04a2d593633944c4673f460db0e74175ff01ce"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Net/MatchClient.cs.meta",
+      "bytes": 60,
+      "sha256": "1c8bd4335ee5e82aed450f91ee3a355a7d9f4f60b33d8d7df5aba742e890c676"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Net/NativeTransport.cs",
+      "bytes": 4062,
+      "sha256": "88432ad26abe5f91bd6c1e21dcf664b6d14423ed65bcf644a3e444750f4ef107"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Net/NativeTransport.cs.meta",
+      "bytes": 60,
+      "sha256": "e72ee8d18dcc77cde266ab887cf0cf5f204c8ca63b468a03a3e21b367fe27cc6"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Net/PlayerPrefsAccountCredentials.cs",
+      "bytes": 1090,
+      "sha256": "acca2d3e13495cc3e9ea9d154207c09a2c28789d0873d70571976159dc0654e4"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Net/PlayerPrefsAccountCredentials.cs.meta",
+      "bytes": 60,
+      "sha256": "1edd606ed85580d0eef0b97b04404ee971c71b3162d85d074af82c1adfff05a6"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Net/TransportFactory.cs",
+      "bytes": 299,
+      "sha256": "da71cce01240e1c898f55ec6d93bb3dc38a25fcefd008da6951a8a0fb1ed3b21"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Net/TransportFactory.cs.meta",
+      "bytes": 60,
+      "sha256": "450dc50dbc7cb3a2467a244fc6c419396155a88a49b3fda75c9c6c37944ac545"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Net/UnityAccountTransport.cs",
+      "bytes": 4152,
+      "sha256": "2bd9792e18ff53752e4a1cb5c87ff957d4556ce72e1392917f654a7fc19208eb"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Net/UnityAccountTransport.cs.meta",
+      "bytes": 60,
+      "sha256": "2c383ce0ef5ef201866a54d05571291a9246be8e2dffc418e81fd704ac144e8e"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Net/WebGLTransport.cs",
+      "bytes": 3520,
+      "sha256": "0372caff91a144a41699cfef0eead6ec05e16a08088a77d6d819aa28c64b9238"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Net/WebGLTransport.cs.meta",
+      "bytes": 60,
+      "sha256": "ae5ee013237d6c17a58c39c41a6efe2e8a2b34c3c236889ce2f23fe7c0d6463a"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Presentation.meta",
+      "bytes": 169,
+      "sha256": "0571142afa79880e37da435fef055f2b8a172e06a96ea93fcc8752353f48d414"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Presentation/ConfirmedWishPresenter.cs",
+      "bytes": 9973,
+      "sha256": "155cd0d89409986fb6097afb98d4856f3c9f01422491f1cd234f56adb3ed2f87"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Presentation/ConfirmedWishPresenter.cs.meta",
+      "bytes": 60,
+      "sha256": "91f2edc0744d3a0bb3ca2f265115bcc9e9f6a295dd08c1cb5e569e7e715889d9"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Presentation/FactionIndicators.cs",
+      "bytes": 3902,
+      "sha256": "3b1fe78075c2023526a92fbbdd694ea08758913e472c0048604ddc11647ba69d"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Presentation/FactionIndicators.cs.meta",
+      "bytes": 60,
+      "sha256": "d1c434da5d2708a27d5b713ccb2161b787094dd74f2157b81428570438189edb"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Presentation/OwnerVitalBars.cs",
+      "bytes": 1139,
+      "sha256": "bffa7d9e226adace466a732821dd9e4d5515d261ce7c4cd8f5b908dd7f1b00d1"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Presentation/OwnerVitalBars.cs.meta",
+      "bytes": 60,
+      "sha256": "89fcde33d622e5ced250561c57d23a896ec978d8e2ead087af8ee90b0e2f18ef"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Presentation/ShowcaseAnimationPreview.cs",
+      "bytes": 4083,
+      "sha256": "16c5ae53ca66d4e5aff89adb26fa9bc6f9997f049339c371c9a6288d2baf1f2e"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Presentation/ShowcaseAnimationPreview.cs.meta",
+      "bytes": 60,
+      "sha256": "5552348890bd6e2fbc94e1b93c3d103c557f38821ad987e0b395a0520c4072b0"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Presentation/ShowcaseAudio.cs",
+      "bytes": 2259,
+      "sha256": "c8e4c5f38eb254bcdaa5cd2232fbd78fcbf0ac2198cf4fc6a541bcc82347bcc1"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Presentation/ShowcaseAudio.cs.meta",
+      "bytes": 59,
+      "sha256": "3b3b863d16cf33bac52e65048c294337c2fa66d747dc75bd45a967b37f361f8c"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Presentation/ShowcaseCatalog.cs",
+      "bytes": 1156,
+      "sha256": "fad749068e5795fcc84d01959cc0777d0bfea868f336deb0379acef5bdd08cc8"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Presentation/ShowcaseCatalog.cs.meta",
+      "bytes": 59,
+      "sha256": "b025d649e1110c9e5445b8ccb23d88030e331094e464ce64f56ec7c6b537c141"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Presentation/ShowcasePalette.cs",
+      "bytes": 2985,
+      "sha256": "448167a68b83d879b3022fac91c0d9fa4ff9d111841dd94e4be4c555a623057f"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Presentation/ShowcasePalette.cs.meta",
+      "bytes": 59,
+      "sha256": "a16f4e0d43cec816b55bc37ea0c60541a08ba13aad7cfcec68ae7e53ad83c088"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Presentation/ShowcasePointLight.cs",
+      "bytes": 4926,
+      "sha256": "36a6bb87ce8da5e159b9118d1c7c802a4945aa687a1503bcd8109809dd83a2a5"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Presentation/ShowcasePointLight.cs.meta",
+      "bytes": 60,
+      "sha256": "3238cd395ec44b0e37b008a50946d2e4efe0c6f2844e1a67029833015127431c"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Presentation/ShowcasePreview.cs",
+      "bytes": 19947,
+      "sha256": "30fcbbafb4d6a14c18272921801c9dc7b6a97ea460fc8e1db55c68662ef7ef06"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Presentation/ShowcasePreview.cs.meta",
+      "bytes": 59,
+      "sha256": "42c1834a04ce5a236f6cce8d501ece86add433499ce2425f8101443b102b8e9b"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Presentation/ShowcaseSettings.cs",
+      "bytes": 8304,
+      "sha256": "35a722201350e8f7d41ea3c83e534270aeafdbd45146d3ff047552480cbfbf32"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Presentation/ShowcaseSettings.cs.meta",
+      "bytes": 59,
+      "sha256": "48963784a479938917052e83609b9a21d37fd7e58ff2bd1e1dd8777d3754f72e"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Presentation/ShowcaseSoundscape.cs",
+      "bytes": 10097,
+      "sha256": "1f6cb9b5f3c5c30ac5004d3450409483ec71729722f7d6a17d5114b42f3a5591"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Presentation/ShowcaseSoundscape.cs.meta",
+      "bytes": 60,
+      "sha256": "c9e0cff27e29d2058977f6e7f598444a8c4ae1768ae3209be893d8df2fa76b5c"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Presentation/ShowcaseSprites.cs",
+      "bytes": 9130,
+      "sha256": "0682613ae0ae9c949bcc50e77d6dfa2e71e14340abad6f29e5e26933428951fb"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Presentation/ShowcaseSprites.cs.meta",
+      "bytes": 59,
+      "sha256": "995d03eba0cd21273e4961a84631c1f4c5362fb4cdf63a7838f77590903775ae"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Presentation/SpriteActorPresenter.cs",
+      "bytes": 20246,
+      "sha256": "fa593d2435630e8ea267acb98804ac9a81cc4c8baec8a7c339e3dc3c2ff225c8"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Presentation/SpriteActorPresenter.cs.meta",
+      "bytes": 59,
+      "sha256": "25c6984aa348351f68ebf2eeeb760ae4ee297be2a7149a356d24e89579590fc1"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Roguehalla.Client.asmdef",
+      "bytes": 434,
+      "sha256": "a9908bee0035764ac28d9c92870ff4717acc52f03abdaa2e4615bdf185d13e02"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Roguehalla.Client.asmdef.meta",
+      "bytes": 163,
+      "sha256": "9a5c4fc3ddbbffdc60912986912ac663c61c333f29f1e0efc9b17265a072e5ef"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/UI.meta",
+      "bytes": 169,
+      "sha256": "739bc378af5c4a1ffb5d43e4bc8b22b05d40a7c53f4df5419aca8b40b3da2ab4"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/UI/MatchHud.cs",
+      "bytes": 38130,
+      "sha256": "e3461babd9e8d793b1cd4d8f56b8f857c34d3bef1f2ef2c266f41c0b123d5bc9"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/UI/MatchHud.cs.meta",
+      "bytes": 60,
+      "sha256": "baa448b1aa9d0b05fcfd930558ddb7a376e91f0128baa7ad7c6c4456947b590e"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/UI/PotionNoticeFormatter.cs",
+      "bytes": 1227,
+      "sha256": "c1c690ab286a9dcfef1a73b4e7df356b3f2942bc76309fae6caac5521928a441"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/UI/PotionNoticeFormatter.cs.meta",
+      "bytes": 240,
+      "sha256": "352a91daefcb8eba36fede97addddb0ec3dd4ce012066d884bf8c712407c36f7"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/UI/TrophyText.cs",
+      "bytes": 3513,
+      "sha256": "9696c8fba4f4d19eadbed9242a219b1e510ec83d637befbad0f56f1007187fd1"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/UI/TrophyText.cs.meta",
+      "bytes": 240,
+      "sha256": "9b44c56a358535cf5e7404c8fe488379e948d055b1c518b4165e106f08cdfedf"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/View.meta",
+      "bytes": 169,
+      "sha256": "aad0b10d79012369868310a9c11ab35e519fb69719599c45f6f35e73a589e134"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/View/ActorView.cs",
+      "bytes": 4326,
+      "sha256": "7ff6b5a6242d05cce62663026a328e85b859cd76ce4c7b8f874b75a30bd4a830"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/View/ActorView.cs.meta",
+      "bytes": 60,
+      "sha256": "c11175dad4f2a765e582bf8516cc320d9caee4e418a009a56342baabd6a772c5"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/View/ArenaView.cs",
+      "bytes": 24529,
+      "sha256": "90c92fc642d9def58abdfb8a345f457369ca6300300bfa812f1a20d9156c9a0a"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/View/ArenaView.cs.meta",
+      "bytes": 60,
+      "sha256": "f96a5427eda3daa13dc58cf4698d63d8a20e7d93c0002073fa8689647916580a"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/View/MeshUtil.cs",
+      "bytes": 6484,
+      "sha256": "c6e74906c07254f88dc099132e21eee42dd4899b45bc766094051dc84e77a829"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/View/MeshUtil.cs.meta",
+      "bytes": 60,
+      "sha256": "d64c0df47e079af7ce4a92e11ac73aed0393dba610ea0023861071f3975b6da6"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Settings.meta",
+      "bytes": 169,
+      "sha256": "1af526760985acd59878c40d950fc97b4da09091c92db3a84b1a13c516307469"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Settings/Roguehalla2DRenderer.asset",
+      "bytes": 2037,
+      "sha256": "2aaae99ddb077a0de540d04469cb9c05e5084238479f545a5cc3083570a17651"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Settings/Roguehalla2DRenderer.asset.meta",
+      "bytes": 186,
+      "sha256": "de6a3d4d2fd44e8d0546f8ddc3b3a39a74ac4ebc020b200356ea3740664df6f3"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Settings/RoguehallaPipeline.asset",
+      "bytes": 4411,
+      "sha256": "35aab2e06292637cc288ffd981862f9abc9dc7647b3e14cde418588e97363e65"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Settings/RoguehallaPipeline.asset.meta",
+      "bytes": 186,
+      "sha256": "667b0f68a3ec029cc728a57fec9e96bfd3eba505da4c2fbd557c5ebdcf738f3b"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Settings/RoguehallaRenderer.asset",
+      "bytes": 1729,
+      "sha256": "043ece2383c297ac5e69ae799f94a162a30d04172676f6684a63c36aec0d65b0"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Settings/RoguehallaRenderer.asset.meta",
+      "bytes": 186,
+      "sha256": "af4b12ae34df4a01cc000b1f36bbf9f6ad0818af30b3419d3b13990b412525f6"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests.meta",
+      "bytes": 169,
+      "sha256": "4cf3d18f82c266582ad86708fee7eadd05b7d9c727a2caf70c19f278befb730b"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor.meta",
+      "bytes": 169,
+      "sha256": "03649e5ef9311a3d32d975094065260c1d59da027a8beacff4df04a5fecaa07c"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/AccountTransportEditModeTests.cs",
+      "bytes": 2581,
+      "sha256": "bfab20aed62fec88d366ac3af75c20bb63b9b8e3d5b35add9106e313467294a2"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/AccountTransportEditModeTests.cs.meta",
+      "bytes": 60,
+      "sha256": "eadf416ae0504deeae6d1cea50777c320a2de612f2e5cd0602a5ec8ff2dbdbd7"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/ArenaPresentationEditModeTests.cs",
+      "bytes": 22988,
+      "sha256": "9925c4209fb4d0901e045c057bcf73b86256ca63c3a110adcf63f94ce60478b8"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/ArenaPresentationEditModeTests.cs.meta",
+      "bytes": 59,
+      "sha256": "2ed9ad6d28db678e5cf0038de1c3dcaf3265a02e6ddee7a51515ba992988a9d5"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/ArenaPropCueEditModeTests.cs",
+      "bytes": 8549,
+      "sha256": "88dd792e27512909e8c65d100e0633c828cefe0b441ae7c5be350a31ffc44a36"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/ArenaPropCueEditModeTests.cs.meta",
+      "bytes": 60,
+      "sha256": "9cea6d4d0e9aad0c76fb26b39626224861ffac36df9eb966ce1aa2cc782e137d"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/ConfirmedWishPresenterEditModeTests.cs",
+      "bytes": 14745,
+      "sha256": "7a03a328ff3235ba49ea834746aefcbb8a423e9fbbe695163971f73e0df5c5cc"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/ConfirmedWishPresenterEditModeTests.cs.meta",
+      "bytes": 240,
+      "sha256": "2511174c52a360da1a66c2414eeac22262390fea580e75d1de266a7de7f8e5b4"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/MatchHudTrophyEditModeTests.cs",
+      "bytes": 6159,
+      "sha256": "0b57c086d5297122dca35a249c38f72adf079daf7530630fdfe8c307d72d8632"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/MatchHudTrophyEditModeTests.cs.meta",
+      "bytes": 240,
+      "sha256": "b28c24284edb7cbf5bf4912b0021cd552314b00484bca5c72abf0b7129fd2ab1"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/MatchHudWishBarrierEditModeTests.cs",
+      "bytes": 6519,
+      "sha256": "ad4aa4201f4a6a6b3c1b487e27e639151170135a5ae158bf35bc9ea8ec4105b1"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/MatchHudWishBarrierEditModeTests.cs.meta",
+      "bytes": 60,
+      "sha256": "9ee7ff34ea32460af0edf8df0acfc74a71f3bdeb0609b3b204017591b89cdb70"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/PotionNoticeFormatterEditModeTests.cs",
+      "bytes": 1291,
+      "sha256": "4fa452cc87b3d2acd09f8e5eca7ee86f30fc7ada7ad884cb83e5d6eef89fa029"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/PotionNoticeFormatterEditModeTests.cs.meta",
+      "bytes": 240,
+      "sha256": "d5043fe1151007465d9debf9cb5a147031216fda1b3c2063a043073751fc685b"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/PresentationTimelineEditModeTests.cs",
+      "bytes": 11466,
+      "sha256": "c2cc60e13c23b0166ef37e4b5f3a977c01c24d91d3fa8de8e5216c01057e4945"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/PresentationTimelineEditModeTests.cs.meta",
+      "bytes": 60,
+      "sha256": "4c18f44c0968037393d9df0cfd5632e4f44cd4aad0854c0949010a4e92039a7c"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/Roguehalla.Client.EditModeTests.asmdef",
+      "bytes": 656,
+      "sha256": "bca8f03adc9b9822429040ed0e234e7d9f401d7b32bdf49aaeabd7ae9de5524e"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/Roguehalla.Client.EditModeTests.asmdef.meta",
+      "bytes": 163,
+      "sha256": "a07e5470722aff976250fd799f8ee9282d3af6840ee7bf60baaafc9a1ee3ac16"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/ShowcaseAnimationPreviewEditModeTests.cs",
+      "bytes": 10586,
+      "sha256": "034ed5412aa223a82475b4bf154b59e6d684eb88475878a410d72a6e005d670d"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/ShowcaseAnimationPreviewEditModeTests.cs.meta",
+      "bytes": 60,
+      "sha256": "8692cb020c30582decca8e46842d0528aebd2241927decb54b2395ef0c25b13c"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/ShowcasePointLightEditModeTests.cs",
+      "bytes": 16229,
+      "sha256": "04fe88d1809d51dec564038f1650187e8367ac8466b87f2c7673c7c94faeb931"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/ShowcasePointLightEditModeTests.cs.meta",
+      "bytes": 240,
+      "sha256": "2314359b4389eb79625098413db6c69f6e30547952a66dea4f3c6dfbbc3ced02"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/ShowcasePreviewSelectionEditModeTests.cs",
+      "bytes": 6313,
+      "sha256": "82e37c91123e7ebd394f6afdee29da8f5029f12a1a85286817dc20111a287ba0"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/ShowcasePreviewSelectionEditModeTests.cs.meta",
+      "bytes": 240,
+      "sha256": "5ab71d7c58940853b0a722f8c9a520668e783e055c38cef505e1b750bf439230"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/ShowcaseStateEditModeTests.cs",
+      "bytes": 7475,
+      "sha256": "8c2e13db62e273e5fbe02735152f2cad2e1cbeb246512862e5a6916a7920b831"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/ShowcaseStateEditModeTests.cs.meta",
+      "bytes": 240,
+      "sha256": "5f741abfd59a59f4e2a7fc1104c68be0149c87d52a6b442058e5100ab8d9f3c2"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/SpriteActorBarrierEditModeTests.cs",
+      "bytes": 7932,
+      "sha256": "93ebd9f761bdaae9bb38c3b2f906ec899813ab82c8e50564999b24886de49aed"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/SpriteActorBarrierEditModeTests.cs.meta",
+      "bytes": 240,
+      "sha256": "b23c1a0ae0f2be8a3fbfa29740a36887c3621ee17397294c52020c19c7ffd811"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/SpriteActorSignatureEditModeTests.cs",
+      "bytes": 12384,
+      "sha256": "5266c4b947fe4fdc7687c9a5839b1ee5a2ad5554b40843ced82e89258cceeb47"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/SpriteActorSignatureEditModeTests.cs.meta",
+      "bytes": 240,
+      "sha256": "df12666032ecf909f1c2389f727141ec27635ff48972a6c2d29d55f45c0f56f5"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/WishPresentationTraceEditModeTests.cs",
+      "bytes": 7686,
+      "sha256": "de23cac7b5d92dc2f50c649ae83150181c4da57ed529e02766acfaaab77506d6"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/WishPresentationTraceEditModeTests.cs.meta",
+      "bytes": 240,
+      "sha256": "89a21242661b13cf8c3244e65e8861b860d9c8aa04be5b77fb24e0f1e56c1611"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/TextMesh Pro.meta",
+      "bytes": 169,
+      "sha256": "7da82960f88c15c34435de65f5ef2c3f5739ea11f53ab4ee13a50f7d515c36c4"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/TextMesh Pro/Fonts.meta",
+      "bytes": 169,
+      "sha256": "3fb748d5456cba3d3f5d475153cd705e15cea3d23136c93ca5f24f64429a526c"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/TextMesh Pro/Fonts/LiberationSans - OFL.txt",
+      "bytes": 4469,
+      "sha256": "37f8552e9a874ec10710dc0ede6a9adf168e6609fbd02a507f35629373b85a48"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/TextMesh Pro/Fonts/LiberationSans - OFL.txt.meta",
+      "bytes": 174,
+      "sha256": "3770b76fa3b9b342b4a008ce840ac650c44d4886d7519ff2bd39a797481165b2"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/TextMesh Pro/Fonts/LiberationSans.ttf",
+      "bytes": 350200,
+      "sha256": "e5b0af421ea2bfbc1ac8d251d647268087ae82786234c57f757d1f0b90fa8b49"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/TextMesh Pro/Fonts/LiberationSans.ttf.meta",
+      "bytes": 410,
+      "sha256": "827b864fe24ff2931dbc1771893527afaebd3119d43d34df095bb21e246627b6"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/TextMesh Pro/License.Unity.md",
+      "bytes": 461,
+      "sha256": "6550a14445e6c2116213b2419c4c28b75be4b99039afc8d091ced3192624390c"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/TextMesh Pro/License.Unity.md.meta",
+      "bytes": 155,
+      "sha256": "f2a31a47379c9d899d2a4fc36ee74d86794710448fc719ddab13ae101bbb7e02"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/TextMesh Pro/Resources.meta",
+      "bytes": 169,
+      "sha256": "ecf8b6f49c58e10e6a8c0f1a9a900023e42400e2408a6dc3b8c1451c8acc8a7d"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/TextMesh Pro/Resources/Fonts & Materials.meta",
+      "bytes": 188,
+      "sha256": "15fc56581fb53893f2b8cfdf38102548f5e580dd498e7760815a21aa2d92b599"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/TextMesh Pro/Resources/Fonts & Materials/LiberationSans SDF - Drop Shadow.mat",
+      "bytes": 2975,
+      "sha256": "b6b65c34e4907dd3006c2217fc8a4cef81b6da24df0a3de8e2288199eb6c5a9d"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/TextMesh Pro/Resources/Fonts & Materials/LiberationSans SDF - Drop Shadow.mat.meta",
+      "bytes": 176,
+      "sha256": "04a7570e2713fdea4e4be77612dde87f47c9a2f3db0e75397ca61d2c774edd8d"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/TextMesh Pro/Resources/Fonts & Materials/LiberationSans SDF - Fallback.asset",
+      "bytes": 9359,
+      "sha256": "1ed305335acc00607b80aaf22d1232f189b8aed773fa1d8bc66e96989aa751a9"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/TextMesh Pro/Resources/Fonts & Materials/LiberationSans SDF - Fallback.asset.meta",
+      "bytes": 176,
+      "sha256": "84edaa0856e5cbb845286a4f8ada48b4282ecd5034fae9b2b0ce471ca9b27002"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/TextMesh Pro/Resources/Fonts & Materials/LiberationSans SDF - Outline.mat",
+      "bytes": 2889,
+      "sha256": "25874340976d40e9f9e8abf731b7f32e5a478541dead9288140bd60c7a3287d9"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/TextMesh Pro/Resources/Fonts & Materials/LiberationSans SDF - Outline.mat.meta",
+      "bytes": 176,
+      "sha256": "a2797c48effa9bb33567c0896e04d7cdb12cca39e134a661211df1da00c998ad"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/TextMesh Pro/Resources/Fonts & Materials/LiberationSans SDF.asset",
+      "bytes": 2256857,
+      "sha256": "2ac078c6868dea96fd78079aeb452f1bff695c22c95bff115d7aad97ed211a38"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/TextMesh Pro/Resources/Fonts & Materials/LiberationSans SDF.asset.meta",
+      "bytes": 176,
+      "sha256": "6bb783f5723be78f0c74622d934ea44333b7f084a71cf16571ab764b74ae41c6"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/TextMesh Pro/Resources/LineBreaking Following Characters.txt",
+      "bytes": 269,
+      "sha256": "3a73e5ffe2510756dd3c2e982fdc1218b4be82c6e21abde88070d6860e1bc8e6"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/TextMesh Pro/Resources/LineBreaking Following Characters.txt.meta",
+      "bytes": 176,
+      "sha256": "bd94ce708d5987219cd1048aeffa7064a46db6883de46b322e2530784fc41698"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/TextMesh Pro/Resources/LineBreaking Leading Characters.txt",
+      "bytes": 95,
+      "sha256": "62d3f4d5f64aaf885692d2d13a8313f6918e6e4c5aeb3990a43f614652bfd89c"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/TextMesh Pro/Resources/LineBreaking Leading Characters.txt.meta",
+      "bytes": 176,
+      "sha256": "e1083048564926e2d96f7a2f5405a76529b89af168ff6adc95e53bccae3eef6b"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/TextMesh Pro/Resources/Sprite Assets.meta",
+      "bytes": 188,
+      "sha256": "04f1790c1dbeebdfc435eb910c41a3344af29a274b2019846ad0345625010749"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/TextMesh Pro/Resources/Sprite Assets/EmojiOne.asset",
+      "bytes": 13437,
+      "sha256": "075ae68781ffd2694f28f183ed91ba31ced809f7bffa57972bc83cc718dc960c"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/TextMesh Pro/Resources/Sprite Assets/EmojiOne.asset.meta",
+      "bytes": 176,
+      "sha256": "46ac1efb9fd064324eabbdbd85c2b189c52b85f0415d7eb6d907cea9fd561fd0"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/TextMesh Pro/Resources/Style Sheets.meta",
+      "bytes": 188,
+      "sha256": "0ded39431c310b5af534c6b889560df74dbf0f758fd1d2a087d3691834bf8a69"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/TextMesh Pro/Resources/Style Sheets/Default Style Sheet.asset",
+      "bytes": 5534,
+      "sha256": "1f7c76947eb3f9edd2e6988732efcc8c748740d3f0218949d804c02aed060166"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/TextMesh Pro/Resources/Style Sheets/Default Style Sheet.asset.meta",
+      "bytes": 178,
+      "sha256": "683538a734882ac88208469b3283419e767cfdb2484acdd74bd9fd82e3ae7bd9"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/TextMesh Pro/Resources/TMP Settings.asset",
+      "bytes": 1850,
+      "sha256": "79ef38556a283df08d509ddab44dc0affa30f4b93f372dec955831c276be8863"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/TextMesh Pro/Resources/TMP Settings.asset.meta",
+      "bytes": 176,
+      "sha256": "65488b7570647e678bfde44f9c2cc2ceda9bf54e61f10c28f65b70edc2fa0476"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/TextMesh Pro/Shaders.meta",
+      "bytes": 169,
+      "sha256": "9bc71444243208e87c4a2bd4f67e3a75f5bf0d23b9fbf8f76486355902f394e8"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/TextMesh Pro/Shaders/SDFFunctions.hlsl",
+      "bytes": 6021,
+      "sha256": "88cf0f62e4000b71750c059d0886b19504cd1cf10f39bb61ddc11b77a882d417"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/TextMesh Pro/Shaders/SDFFunctions.hlsl.meta",
+      "bytes": 227,
+      "sha256": "cbf35e0ecead950cd581817b4b31c7edc57bbc920e28e3c01397af027a296862"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/TextMesh Pro/Shaders/TMP_Bitmap-Custom-Atlas.shader",
+      "bytes": 3836,
+      "sha256": "42892a52f22bdde6d482cf2da5f35e4b813063fc6fe42189eee5562080079494"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/TextMesh Pro/Shaders/TMP_Bitmap-Custom-Atlas.shader.meta",
+      "bytes": 201,
+      "sha256": "d192a89a76e99dc34781425af00a39f0ccd85221c3e68c3d408011c5f0e93f5c"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/TextMesh Pro/Shaders/TMP_Bitmap-Mobile.shader",
+      "bytes": 4071,
+      "sha256": "b50afc7edc8a710f8b4159149b2391e7238b5e4076cc0ea2119090ed29e13b4a"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/TextMesh Pro/Shaders/TMP_Bitmap-Mobile.shader.meta",
+      "bytes": 201,
+      "sha256": "6cf04c8e2f961e92d66fd20a061acc85d728f292720b85d8b92a2c634029fabb"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/TextMesh Pro/Shaders/TMP_Bitmap.shader",
+      "bytes": 3839,
+      "sha256": "1d32f34c71276c1321aa0540a2410e15808743a38b2026923045a4dec4a79b58"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/TextMesh Pro/Shaders/TMP_Bitmap.shader.meta",
+      "bytes": 201,
+      "sha256": "86226934a289729991e68b7a288f4917fd588100dd74aeccb5bba9aae49df883"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/TextMesh Pro/Shaders/TMP_SDF Overlay.shader",
+      "bytes": 11348,
+      "sha256": "f50fcd298aa9c1c5c0100557c79ecfa2d6531203bd96c2c1e1933d57bea9df08"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/TextMesh Pro/Shaders/TMP_SDF Overlay.shader.meta",
+      "bytes": 201,
+      "sha256": "3ace7d7503bf617db915fbb3cc74cab9b119fb8b9c1b8fbb03932f15c6f2c789"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/TextMesh Pro/Shaders/TMP_SDF SSD.shader",
+      "bytes": 12438,
+      "sha256": "2a991951b00b0c052363a1025f655450054325437b3d13c2623a987c8ec77c30"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/TextMesh Pro/Shaders/TMP_SDF SSD.shader.meta",
+      "bytes": 201,
+      "sha256": "94dc628d51848fee7b425f376b6a921aaa82eb624805e897a61ca1c312b73fa4"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/TextMesh Pro/Shaders/TMP_SDF-HDRP LIT.shadergraph",
+      "bytes": 287426,
+      "sha256": "0a4eab8e2472d48d758fdd6ab544904442a4955eb6cde419fd93387cc74d53c8"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/TextMesh Pro/Shaders/TMP_SDF-HDRP LIT.shadergraph.meta",
+      "bytes": 282,
+      "sha256": "377c3beeefa187a27a3ec76738503cd8b7fe69be501a38ad6b97d4f7e853e1de"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/TextMesh Pro/Shaders/TMP_SDF-HDRP UNLIT.shadergraph",
+      "bytes": 279908,
+      "sha256": "fd1f9bd227af0a43acf28a57ca07834d6be46ef89d6df6709b406b89bada216b"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/TextMesh Pro/Shaders/TMP_SDF-HDRP UNLIT.shadergraph.meta",
+      "bytes": 282,
+      "sha256": "254c7a258fe3f5835cb4ccf990370baa8eafb1a9f8518488000c75f7175a1d6d"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/TextMesh Pro/Shaders/TMP_SDF-Mobile Masking.shader",
+      "bytes": 8623,
+      "sha256": "c68afc2f2fd6580f9acd296d5111da3fbe0bb82efb6d2e93fe699be761347ee8"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/TextMesh Pro/Shaders/TMP_SDF-Mobile Masking.shader.meta",
+      "bytes": 201,
+      "sha256": "8df9497fb6545b57041daa7e3455a06050e501f95d9a627e79122032927cd35b"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/TextMesh Pro/Shaders/TMP_SDF-Mobile Overlay.shader",
+      "bytes": 8333,
+      "sha256": "80026c35a272f516b721c32257bb3e3ed12730ecb6779bb4766aa83269ae7502"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/TextMesh Pro/Shaders/TMP_SDF-Mobile Overlay.shader.meta",
+      "bytes": 201,
+      "sha256": "363661e567300d07ec8f3879e19d9b9a7f87582d18a26333e564339d8ba627c4"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/TextMesh Pro/Shaders/TMP_SDF-Mobile SSD.shader",
+      "bytes": 3064,
+      "sha256": "8b30c140f6af9134392fe6ecf4c0676db73f873489ac52adfb47bbd288cb51b8"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/TextMesh Pro/Shaders/TMP_SDF-Mobile SSD.shader.meta",
+      "bytes": 201,
+      "sha256": "44b110a1ebc2fc75838e5344c6975345f113cca32ed95540c8c61bbf758b8fad"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/TextMesh Pro/Shaders/TMP_SDF-Mobile-2-Pass.shader",
+      "bytes": 11879,
+      "sha256": "743b1235016f7959f5d4b02496fae13bbe4fdb869a7f0d5c6e4e75234bf86215"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/TextMesh Pro/Shaders/TMP_SDF-Mobile-2-Pass.shader.meta",
+      "bytes": 201,
+      "sha256": "54b61b77e09d3affbbf295333d3a7c80c955e47e90e099dbe13cb70681f9bcd8"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/TextMesh Pro/Shaders/TMP_SDF-Mobile.shader",
+      "bytes": 8074,
+      "sha256": "44c39aabc7e88e7e1feffc1880df754f4adf86b62e9512aa89e9d2d65171aff4"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/TextMesh Pro/Shaders/TMP_SDF-Mobile.shader.meta",
+      "bytes": 201,
+      "sha256": "4f9dff344198b0c2a14cc940fdc00843b46b04b951e5e05548614e55c772d7b2"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/TextMesh Pro/Shaders/TMP_SDF-Surface-Mobile.shader",
+      "bytes": 3523,
+      "sha256": "f9fae5906dd37d89298338953294459975de58a5421e68dd9e82a79794b95509"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/TextMesh Pro/Shaders/TMP_SDF-Surface-Mobile.shader.meta",
+      "bytes": 201,
+      "sha256": "1566e71ba6f64f1202d12649195da8593c779d615c45dafd7042752d6d7c7874"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/TextMesh Pro/Shaders/TMP_SDF-Surface.shader",
+      "bytes": 4352,
+      "sha256": "07d4d40e58161c8e09dc85a68431544d7f73c9c25d37edc9d9933a0787c75cd1"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/TextMesh Pro/Shaders/TMP_SDF-Surface.shader.meta",
+      "bytes": 201,
+      "sha256": "98a6aa022e03afc508304e81bc7892cee6540e23256d75c35f2b30cf93c8f795"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/TextMesh Pro/Shaders/TMP_SDF-URP Lit.shadergraph",
+      "bytes": 283865,
+      "sha256": "b02363750dee5d886f904140f97320f826161064f1048a1b7d49ebe24688e72a"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/TextMesh Pro/Shaders/TMP_SDF-URP Lit.shadergraph.meta",
+      "bytes": 282,
+      "sha256": "400a82be1194d281684424989363cf1b33c9993ce0b772e32540f0e3bad0ad53"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/TextMesh Pro/Shaders/TMP_SDF-URP Unlit.shadergraph",
+      "bytes": 277011,
+      "sha256": "83acb0f74fc973c5c2e1118920084e396138532b907f75ceb7558deaacb53aef"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/TextMesh Pro/Shaders/TMP_SDF-URP Unlit.shadergraph.meta",
+      "bytes": 282,
+      "sha256": "32b4c68d81c952a96e917d7212acb525478a19feffae915b064c88762a76dadd"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/TextMesh Pro/Shaders/TMP_SDF.shader",
+      "bytes": 11333,
+      "sha256": "5d7b7b4364006b1786bf0b10047ca1dc2239df08ce0599537371b66bc11f5582"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/TextMesh Pro/Shaders/TMP_SDF.shader.meta",
+      "bytes": 201,
+      "sha256": "e6ab59df9452326823a762f8e108cdcabc41e1f6acbfbaea20aded877c3b2996"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/TextMesh Pro/Shaders/TMP_Sprite.shader",
+      "bytes": 3480,
+      "sha256": "2b7eab697f54890b7f14f816a11694dae6038437a7c7b25daecb9e362bb8cbf9"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/TextMesh Pro/Shaders/TMP_Sprite.shader.meta",
+      "bytes": 201,
+      "sha256": "3cc76334637431153c805a021f0891e226d802b8a8c0f6f488988eb64845bf67"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/TextMesh Pro/Shaders/TMPro.cginc",
+      "bytes": 2275,
+      "sha256": "3b6501d3caaacb43b10188f2b96e6ea625a5cf280f9f845689da7708c56780e9"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/TextMesh Pro/Shaders/TMPro.cginc.meta",
+      "bytes": 213,
+      "sha256": "951e25f8fb39cfd4fedcd87eda9aabd6f52b4985e90f77f1df8b02979a51bac8"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/TextMesh Pro/Shaders/TMPro_Mobile.cginc",
+      "bytes": 5453,
+      "sha256": "d9d43ddd9810476162f21b42477d9ce2cdc4e6cc7571d354c3253aafc6673ead"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/TextMesh Pro/Shaders/TMPro_Mobile.cginc.meta",
+      "bytes": 201,
+      "sha256": "7f76fa95c5ef9ead48f1ec0c2207de88b2eec1de2476f5b36534e30c55eca961"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/TextMesh Pro/Shaders/TMPro_Properties.cginc",
+      "bytes": 2707,
+      "sha256": "66db1f03e8d7a413eba79bcb6602fdb2de710b586f34a6f2584ed6f68f028e90"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/TextMesh Pro/Shaders/TMPro_Properties.cginc.meta",
+      "bytes": 201,
+      "sha256": "083cb3da91315e3775266da253dfd68a7e37125606cc43200b45c0a523801350"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/TextMesh Pro/Shaders/TMPro_Surface.cginc",
+      "bytes": 3515,
+      "sha256": "244b442520282a66363d121c8d2aeeb30bb1e72cbbadbf41ce68d9100322ade5"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/TextMesh Pro/Shaders/TMPro_Surface.cginc.meta",
+      "bytes": 201,
+      "sha256": "740374939dc16f257a0ec5c048a9b906fb05c3e8afdc2cfd14c6adcbf9641f44"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/TextMesh Pro/Sprites.meta",
+      "bytes": 169,
+      "sha256": "f776860302854988b6ea89a7a57c2581e2306ab930a33739065de7a93f7eca8d"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/TextMesh Pro/Sprites/EmojiOne Attribution.txt",
+      "bytes": 185,
+      "sha256": "4b65f8960e4f4c5c8b35fd139e369265e9bb45667fc16461b2ba01188d464d93"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/TextMesh Pro/Sprites/EmojiOne Attribution.txt.meta",
+      "bytes": 155,
+      "sha256": "37817813b2243bb96598981b2e943c96c95d6f443cd4f69cd3fb550a3dd7c8a2"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/TextMesh Pro/Sprites/EmojiOne.json",
+      "bytes": 3966,
+      "sha256": "b85c4b3001b6ba82d175f4cd5dab83da467bbc2527d3d447b66919d2d20c4faf"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/TextMesh Pro/Sprites/EmojiOne.json.meta",
+      "bytes": 174,
+      "sha256": "880cb0ac24320968ec01aa35705c6665dcb235d2be2386109f01f38f8321d7f3"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/TextMesh Pro/Sprites/EmojiOne.png",
+      "bytes": 112319,
+      "sha256": "a87b965a701de3dc31d7401e542b1fc946587f912c51d7a26e46ade9f098bd1a"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/TextMesh Pro/Sprites/EmojiOne.png.meta",
+      "bytes": 9764,
+      "sha256": "0e92c07c617c1ead512fb06aab348b7ec01e945cdfeebf4c402848f3cebb446b"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/UniversalRenderPipelineGlobalSettings.asset",
+      "bytes": 21719,
+      "sha256": "725624bcda3488d242383ef9e31befde45cb8eacc7001135da6e1a152258df00"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/UniversalRenderPipelineGlobalSettings.asset.meta",
+      "bytes": 186,
+      "sha256": "8cc9c38146d87d8a6cb854c8ad37c4f28fad77cdcd2ae461f0e6f0fa33e3457a"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/WebGLTemplates.meta",
+      "bytes": 169,
+      "sha256": "9b99f8e70c50580bc0111972f19e9521cc0711c54dc210eefc653c63b41d6406"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/WebGLTemplates/Roguehalla.meta",
+      "bytes": 169,
+      "sha256": "50119bd40dd93f0e513a7799216b21b473188861b3afcd4d05bb8eb243e9b7bb"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/WebGLTemplates/Roguehalla/index.html",
+      "bytes": 8757,
+      "sha256": "1ddd4646064789cc2dcf2648cea1fc14e471eec6c58e3511d27fc82c16c4ea63"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/WebGLTemplates/Roguehalla/index.html.meta",
+      "bytes": 152,
+      "sha256": "7eb64f6abedf4e06a4f7fa9ee69f5a1340e38ca7ce35cd00d9513fab78cb1140"
+    },
+    {
+      "path": "client-unity/UnityProject/Packages/manifest.json",
+      "bytes": 1176,
+      "sha256": "491d7bac39be6d354ace569eb7b458cd918fbec414b7a515160f948c7d819ad3"
+    },
+    {
+      "path": "client-unity/UnityProject/Packages/packages-lock.json",
+      "bytes": 8759,
+      "sha256": "27778a44ea7a9f0b6a2415929b8b0321a898ec5428a3e88ac95f671c08374166"
+    },
+    {
+      "path": "client-unity/UnityProject/ProjectSettings/AudioManager.asset",
+      "bytes": 441,
+      "sha256": "d3d6833ca0ca418a8e72caaf55316bb5bbe79b75a167d4197a88c70b92320269"
+    },
+    {
+      "path": "client-unity/UnityProject/ProjectSettings/ClusterInputManager.asset",
+      "bytes": 114,
+      "sha256": "40e65dd214bf254955d2c8829ca8ce2130fd3510485560ce012e9a1ddd93e623"
+    },
+    {
+      "path": "client-unity/UnityProject/ProjectSettings/DynamicsManager.asset",
+      "bytes": 1553,
+      "sha256": "f27512e38f80c091df2dd163ece09f86f8fe67395659af0a0ca873a88fd1c6a7"
+    },
+    {
+      "path": "client-unity/UnityProject/ProjectSettings/EditorBuildSettings.asset",
+      "bytes": 280,
+      "sha256": "6192a8ee46be222325aa1dcf519fae6fedf22bb9e7da3fda8cdbc3e74345e9ed"
+    },
+    {
+      "path": "client-unity/UnityProject/ProjectSettings/EditorSettings.asset",
+      "bytes": 1601,
+      "sha256": "552fbe61936b0a6267e95045eab3a27a228c2a7747c8f67f031e0581b5c42e6b"
+    },
+    {
+      "path": "client-unity/UnityProject/ProjectSettings/GraphicsSettings.asset",
+      "bytes": 2554,
+      "sha256": "616625270b9b7d70579afe77aaeb6f2ed8ee8bdd137651964b3b2abcf5fa6e97"
+    },
+    {
+      "path": "client-unity/UnityProject/ProjectSettings/InputManager.asset",
+      "bytes": 9623,
+      "sha256": "29dd30472a0f6de3329c3bea384527cd21f8a8b92288eb133e5a9c88d11cd44d"
+    },
+    {
+      "path": "client-unity/UnityProject/ProjectSettings/MemorySettings.asset",
+      "bytes": 1226,
+      "sha256": "2c9e2339b4fa50f4782840d37dde021508d411b99278614cba335d206edb1738"
+    },
+    {
+      "path": "client-unity/UnityProject/ProjectSettings/MultiplayerManager.asset",
+      "bytes": 157,
+      "sha256": "aba89fd1a1ddad182727ad82727e536d27372e90328a8196da2a4560398983dd"
+    },
+    {
+      "path": "client-unity/UnityProject/ProjectSettings/NavMeshAreas.asset",
+      "bytes": 1332,
+      "sha256": "d3eb7e72cf17be039780311b8a361cd5ee8408da828ece4551f8a0de446985da"
+    },
+    {
+      "path": "client-unity/UnityProject/ProjectSettings/Physics2DSettings.asset",
+      "bytes": 1820,
+      "sha256": "9b78fdd0bac0f486c052ca65ddc0e5022d322b12874931a49456d407c5bbfc00"
+    },
+    {
+      "path": "client-unity/UnityProject/ProjectSettings/PresetManager.asset",
+      "bytes": 146,
+      "sha256": "29c125923fe6e29f90190d4fce1c82d660e7051546e2c9d02908d18c9cf2436c"
+    },
+    {
+      "path": "client-unity/UnityProject/ProjectSettings/ProjectSettings.asset",
+      "bytes": 20120,
+      "sha256": "9448f661c3eebb92d49f798f442e2b4c6d565e25c94b86509e856ab172add085"
+    },
+    {
+      "path": "client-unity/UnityProject/ProjectSettings/ProjectVersion.txt",
+      "bytes": 85,
+      "sha256": "b69d970773b64cd47f5e15302a3f56bd4b4d6f27596e63242c41666cd9df9dec"
+    },
+    {
+      "path": "client-unity/UnityProject/ProjectSettings/QualitySettings.asset",
+      "bytes": 9714,
+      "sha256": "6993dd0570c93cb5b99162c49885c07b791fdd35e287fb7eb6b7e57664bfaa8e"
+    },
+    {
+      "path": "client-unity/UnityProject/ProjectSettings/SceneTemplateSettings.json",
+      "bytes": 3535,
+      "sha256": "bb9098b3bfcde78d93e264b96f7b77b5430e64e8c57a7aad7f5a5d9c3945e16a"
+    },
+    {
+      "path": "client-unity/UnityProject/ProjectSettings/ShaderGraphSettings.asset",
+      "bytes": 557,
+      "sha256": "83556175c6dccd540f2cac05e5c0f9fbb36c3c8d7a56bed2c7cf4d29e4c2ee2e"
+    },
+    {
+      "path": "client-unity/UnityProject/ProjectSettings/TagManager.asset",
+      "bytes": 384,
+      "sha256": "ba0fc9a31e0e92db24a4641274512353665c197833f42af08b54b13f98e8a010"
+    },
+    {
+      "path": "client-unity/UnityProject/ProjectSettings/TimeManager.asset",
+      "bytes": 305,
+      "sha256": "3396f52fdc16d445024e01d7a2d99db6f0a37569d1d73c0302e9ffb857d90287"
+    },
+    {
+      "path": "client-unity/UnityProject/ProjectSettings/URPProjectSettings.asset",
+      "bytes": 409,
+      "sha256": "2f33bdfed065e1a018f0af11b911c94335c3398e54a1dac294318bb7d6f14419"
+    },
+    {
+      "path": "client-unity/UnityProject/ProjectSettings/UnityConnectSettings.asset",
+      "bytes": 1060,
+      "sha256": "190c680da9dc83806ec3b11332f980515bf9746b977cd928c1f8ea115c332e76"
+    },
+    {
+      "path": "client-unity/UnityProject/ProjectSettings/VFXManager.asset",
+      "bytes": 491,
+      "sha256": "bdf54c7b99d58311abdbce90852652227c3610f2fbb44ac60baae3f1768a3b74"
+    },
+    {
+      "path": "client-unity/UnityProject/ProjectSettings/VersionControlSettings.asset",
+      "bytes": 172,
+      "sha256": "e199cdfa6a8f2bf33cfd47e549198f13e3eb2a5099e908fdb4e0f14d939ccc6b"
+    }
+  ]
+}
