@@ -48,9 +48,19 @@ campaign.
 ## Checks / provenance
 
 `bash tools/sentenced-npc-group-fixtures/capture.sh --check` is byte-identical. Corpus SHA256
-`82f1c909fa8679f5bda697a3537951f72bc89d17d7d2d28cfb87f50a4b29381f`, 555,087 bytes, 6 cases. Pinned
+`d64e822b3e79540e99a0c82d4bfe331aa16df547587456fe35f5c237e5fda780`, 555,087 bytes, 6 cases. Pinned
 node:22.23.4-bookworm-slim linux/amd64; tool hashes `capture.mts` `40904ce4…`, `capture.sh` `4bf4b233…`,
-`run-mutants.sh` `9ba3c6bb…`; package-lock `991869bd…`; 127 source files digest `e6efe7f3…`. Three committed actual
+`run-mutants.sh` `c768493a…`; package-lock `991869bd…`; 127 source files digest `e6efe7f3…`. Three committed actual
 semantic mutants are killed by actual runtime-output mismatches (3/3): `01-duplicate-or-unscaled-group-pulse`,
 `02-current-survivor-size-wrong`, `03-wrong-regional-pool`; restoration exact, unchanged control passes. A comment-only
 provenance mutation produced identical runtime cases/differing provenance, so it is not a kill.
+
+Metadata-only recapture (task-92): the runner hardening changed only run-mutants.sh, which capture.mts pins in
+provenance. Old corpus `82f1c909fa8679f5bda697a3537951f72bc89d17d7d2d28cfb87f50a4b29381f` -> new
+`d64e822b3e79540e99a0c82d4bfe331aa16df547587456fe35f5c237e5fda780`; format+cases canonical payload SHA256
+`4481b6add3e685b4202bf80e814d9dea821285d3a688fe3ecfab44d68308cf82` is identical old/new (deep equality, same
+555,087 bytes); complete metadata except `provenance.tools.runMutantsSh` (`9ba3c6bb…` -> `c768493a…`) is identical.
+No semantic payload changed. Runner hardening: complete backup copies + manifest are built first, then the completed
+backup is verified (size>0 + SHA-256) against manifest/source before EXIT/HUP/INT/TERM is armed; backup failures are
+fail-closed with the source untouched; unique mktemp logs; hash-verified exact restoration and nonzero failure
+propagation retain recovery bytes; SIGKILL is untrappable and not claimed.
