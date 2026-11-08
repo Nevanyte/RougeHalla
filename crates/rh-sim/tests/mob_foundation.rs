@@ -77,7 +77,10 @@ fn actual_source_roster_and_regional_birth_prefix() {
         ] {
             assert_eq!(got, e["state"][key].as_f64().unwrap(), "{key}");
         }
-        assert_eq!(m.mob_type.as_str(), e["state"]["type"].as_str().unwrap());
+        assert_eq!(
+            m.mob_type.expect("catalog type").as_str(),
+            e["state"]["type"].as_str().unwrap()
+        );
         assert_eq!(
             m.core.weapon.weapon0.unwrap().as_str(),
             e["state"]["weapon0"].as_str().unwrap()

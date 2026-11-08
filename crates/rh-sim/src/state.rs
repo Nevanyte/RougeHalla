@@ -823,9 +823,17 @@ impl World {
             .label(id)
             .cloned()
             .or_else(|| match self.actor_origin(id) {
-                Some(crate::mob_runtime::ActorOrigin::Mob { mob_type, .. }) => {
+                Some(crate::mob_runtime::ActorOrigin::Mob { mob_type, .. })
+                | Some(crate::mob_runtime::ActorOrigin::Practice { mob_type, .. }) => {
                     crate::mob_catalog::mob_type_by_id(mob_type.as_str())
                         .map(|t| std::sync::Arc::from(t.name))
+                }
+                Some(crate::mob_runtime::ActorOrigin::Dummy { shield, .. }) => {
+                    Some(std::sync::Arc::from(if *shield {
+                        "Shield dummy"
+                    } else {
+                        "Dummy"
+                    }))
                 }
                 _ => None,
             })
@@ -837,7 +845,19 @@ impl World {
         let p = self.core(ix);
         let mut f = crate::content::faction(p.vitals.faction);
         if let Some(m) = self.mobs.get(p.id) {
-            let ty = crate::mob_catalog::mob_type_by_id(m.mob_type.as_str()).expect("catalog type");
+            if m.kind == crate::mob_runtime::MobKind::Dummy {
+                // Source `defenseOf`: a dummy has no faction (""), so no faction armor or shield. Its faction field only
+                // carries the presentation/wire placeholder; every other sheet number is unused (a dummy never attacks).
+                f.armor = 0.;
+                f.shield = 0.;
+                return f;
+            }
+            let ty = crate::mob_catalog::mob_type_by_id(
+                m.mob_type
+                    .expect("non-dummy mob has a catalog type")
+                    .as_str(),
+            )
+            .expect("catalog type");
             let k = if m.elite {
                 crate::constants::ELITE_K
             } else {
@@ -860,7 +880,16 @@ impl World {
         let Some(m) = self.mobs.get(self.core(ix).id) else {
             return raw;
         };
-        let ty = crate::mob_catalog::mob_type_by_id(m.mob_type.as_str()).expect("catalog type");
+        if m.kind == crate::mob_runtime::MobKind::Dummy {
+            // A dummy never attacks; a reflected shield arrow keeps the packet it was launched with.
+            return raw;
+        }
+        let ty = crate::mob_catalog::mob_type_by_id(
+            m.mob_type
+                .expect("non-dummy mob has a catalog type")
+                .as_str(),
+        )
+        .expect("catalog type");
         let k = if m.elite {
             crate::constants::ELITE_K
         } else {

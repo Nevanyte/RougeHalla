@@ -92,6 +92,8 @@ impl From<&SimSpec> for SimConfig {
             abilities: rh_sim::abilities::Mode::Off,
             wish_lock_ms: 45_000.,
             lifecycle: rh_sim::ArenaMode::Off,
+            training: false,
+            dummies: false,
         }
     }
 }

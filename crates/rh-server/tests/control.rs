@@ -141,6 +141,8 @@ impl Default for Opts {
 
 async fn rig(o: Opts) -> Rig {
     let sim = SimConfig {
+        training: false,
+        dummies: false,
         abilities: rh_sim::abilities::Mode::Off,
         wish_lock_ms: rh_sim::abilities::WISH_LOCK_MS,
         lifecycle: rh_sim::ArenaMode::Off,
@@ -286,6 +288,8 @@ async fn session_properties_are_validated_and_a_starting_server_is_503() {
         let d = Director::new(
             DirectorConfig::new(
                 SimConfig {
+                    training: false,
+                    dummies: false,
                     abilities: rh_sim::abilities::Mode::Off,
                     wish_lock_ms: rh_sim::abilities::WISH_LOCK_MS,
                     lifecycle: rh_sim::ArenaMode::Off,
@@ -1262,6 +1266,8 @@ async fn a_session_created_while_draining_is_refused_or_drained_never_left_live_
             require_admit: true,
             ..DirectorConfig::new(
                 SimConfig {
+                    training: false,
+                    dummies: false,
                     abilities: rh_sim::abilities::Mode::Off,
                     wish_lock_ms: rh_sim::abilities::WISH_LOCK_MS,
                     lifecycle: rh_sim::ArenaMode::Off,

@@ -33,6 +33,17 @@ pub(crate) fn admit_factions(k: &MatchStatic, w: &World) -> Result<(), &'static 
     Ok(())
 }
 pub(crate) fn initialize(k: &mut MatchStatic, w: &mut World) -> Result<(), &'static str> {
+    if k.config.training {
+        // A training world has no map camps (legacy camps.ts install: "never for training, which has no camps: everything
+        // else keeps an empty state.camps") and therefore draws no roster RNG; the shared actor container is still
+        // installed so the console's practice mobs and dummies have a runtime (and the dummies' heal system runs).
+        w.mob_runtime = Some(MobRuntime {
+            combat: true,
+            camps: Vec::new(),
+            life: Vec::new(),
+        });
+        return Ok(());
+    }
     if k.config.mob_mode == MobMode::Off {
         return Ok(());
     }
@@ -83,7 +94,8 @@ pub(crate) fn initialize(k: &mut MatchStatic, w: &mut World) -> Result<(), &'sta
 }
 
 pub(crate) fn raid_started(hx: &mut Hx, _: &HookArgs) {
-    if hx.w.mob_runtime.is_none() {
+    if hx.w.mob_runtime.is_none() || hx.k.config.training {
+        // A training world spawns only its practice setup (the `mobs.spawnTraining` link) and no regional camps.
         return;
     }
     let count = hx.k.arena.map.layers().unwrap().data().camps.len();
@@ -144,7 +156,8 @@ pub(crate) fn role_move(
 ) -> f64 {
     w.mobs
         .get(core.id)
-        .and_then(|m| crate::mob_catalog::mob_type_by_id(m.mob_type.as_str()))
+        .and_then(|m| m.mob_type)
+        .and_then(|ty| crate::mob_catalog::mob_type_by_id(ty.as_str()))
         .map_or(1., |t| t.role_def().move_mult)
 }
 
@@ -153,6 +166,9 @@ pub(crate) fn validate(
     w: &World,
     near: impl Fn(f64, f64) -> bool,
 ) -> Result<(), String> {
+    if k.config.training {
+        return super::training::validate_actors(k, w, near).map_err(str::to_owned);
+    }
     if k.config.mob_mode == MobMode::Pve {
         return super::mob_checkpoint::validate(k, w, near);
     }
@@ -187,6 +203,9 @@ pub(crate) fn validate(
                     return Err("player actor provenance mismatch".into());
                 }
                 players += 1;
+            }
+            ActorOrigin::Practice { .. } | ActorOrigin::Dummy { .. } => {
+                return Err("non-regional actor in a regional world".into());
             }
             ActorOrigin::Mob {
                 birth_serial,
@@ -337,7 +356,7 @@ pub(crate) fn validate(
         }
         expected.core.weapon.aim = c.weapon.aim;
         expected.core.weapon.aim_at = c.weapon.aim_at;
-        if m.mob_type != *mob_type
+        if m.mob_type != Some(*mob_type)
             || m.elite != *elite
             || m.camp != *camp
             || m.home != expected.home
@@ -379,6 +398,26 @@ pub(crate) fn validate(
         }
     }
     Ok(())
+}
+
+/// Adds a training dummy (`sim/mobs.ts` `addMob` with kind dummy): no faction, no camp, no catalog type, never dies.
+/// Used by `mobs.spawnTraining` only.
+pub(crate) fn place_dummy(w: &mut World, at: Vec2, facing: f64, shield: bool) -> PlayerId {
+    let serial = w.next_entity_id();
+    let id = PlayerId(w.next_id);
+    w.next_id = w.next_id.checked_add(1).expect("actor id exhausted");
+    let provenance = ActorProvenance {
+        id,
+        origin: ActorOrigin::Dummy {
+            birth_serial: serial,
+            born_tick: w.tick,
+            shield,
+        },
+    };
+    let mob = Mob::born(&provenance, at, facing, w.server_time);
+    w.actor_history.push(provenance);
+    w.mobs.push(mob);
+    id
 }
 
 /// Executes real constructor producers into a typed admission sink. Nonempty worlds remain

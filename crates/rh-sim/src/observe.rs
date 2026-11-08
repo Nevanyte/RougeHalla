@@ -746,8 +746,13 @@ pub fn public_snapshot(sim: &Sim) -> PublicSnapshot {
 fn mob_view(mob: &crate::mob_runtime::Mob) -> ActorView {
     let core = &mob.core;
     ActorView {
-        kind: 1,
-        mob_type: Some(mob.mob_type),
+        // Kind 0 preserves human IDs; kind 1 is a regional/practice NPC; kind 2 is a training dummy (legacy
+        // MobState.kind "dummy"), which has no catalog type.
+        kind: match mob.kind {
+            crate::mob_runtime::MobKind::Dummy => 2,
+            crate::mob_runtime::MobKind::Regional | crate::mob_runtime::MobKind::Practice => 1,
+        },
+        mob_type: mob.mob_type,
         effects: core.statuses.effects,
         displace_seq: core.motion.displace_seq,
         mark_tier: 0,

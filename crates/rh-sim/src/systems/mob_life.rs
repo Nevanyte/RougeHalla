@@ -136,6 +136,27 @@ pub(crate) fn hurt(
     if m.status != Status::Alive {
         return 0.;
     }
+    // A training dummy has no brain and never dies (legacy `mobs.ts damageMob`): a hit that would empty it refills it to
+    // full, and its last-hit clock drives `mobs.resetDummies`. No camp, threat or payout is involved.
+    if m.kind == crate::mob_runtime::MobKind::Dummy {
+        let total = hits
+            .iter()
+            .filter(|h| h.amount > 0.)
+            .map(|h| h.amount)
+            .sum::<f64>();
+        if total <= 0. {
+            return 0.;
+        }
+        let m = w.mobs.get_mut(id).expect("mob victim");
+        m.last_hit_at = now;
+        let left = m.core.vitals.hp - total;
+        m.core.vitals.hp = if left <= 0. {
+            m.core.vitals.max_hp
+        } else {
+            left
+        };
+        return total;
+    }
     let before = m.core.vitals.hp;
     let camp = m.camp;
     let total = hits
@@ -152,7 +173,8 @@ pub(crate) fn hurt(
         .filter_map(|h| h.by)
         .filter(|id| w.player(*id).is_some())
         .collect();
-    {
+    // A training world has no map camps (its practice mobs use refs 101..255): no roster state, contributors or camp life.
+    if !k.config.training {
         let r = w.mob_runtime.as_mut().expect("mob runtime");
         if r.camps[camp as usize].state == 0 {
             r.camps[camp as usize].state = 1;
@@ -203,6 +225,12 @@ pub(crate) fn hurt(
             killer = Some(id);
         }
     }
+    // A practice-console mob can die, but a training kill pays nothing and drops nothing (legacy `payMobKill` and the
+    // `queueWeapon` training guard): the death fx, the fighter-out hook and the camp wake remain.
+    if k.config.training {
+        kill_training_mob(k, w, ev, id, camp, killer, now);
+        return before;
+    }
     let m = w.mobs.get(id).unwrap();
     let serial = match w.actor_origin(id) {
         Some(ActorOrigin::Mob { birth_serial, .. }) => *birth_serial,
@@ -216,7 +244,7 @@ pub(crate) fn hurt(
         weapon: m.core.active_weapon(),
         at: m.core.pos(),
         elite: m.elite,
-        mob_type: m.mob_type,
+        mob_type: m.mob_type.expect("map mob has a catalog type"),
         zone: m.core.vitals.faction,
         mult: killer.map_or(1., |p| reward(w, p)),
         contributors: if m.elite {
@@ -289,6 +317,60 @@ pub(crate) fn hurt(
     super::ledger::pay_later(k, w, ev, PayLater::MobKill { award });
     before
 }
+/// The training branch of a practice-console mob's death (legacy `killMob` with the `payMobKill`/`queueWeapon` guards):
+/// the death fx names the killer, `fighterOut` fires, the camp wakes (D24), and no GV/feed/stat/weapon/chest/drop is paid.
+fn kill_training_mob(
+    k: &MatchStatic,
+    w: &mut World,
+    ev: &mut Vec<Event>,
+    id: PlayerId,
+    camp: u32,
+    killer: Option<PlayerId>,
+    now: f64,
+) {
+    let at = w.mobs.get(id).expect("mob victim").core.pos();
+    {
+        let m = w.mobs.get_mut(id).expect("mob victim");
+        m.status = Status::Dead;
+        m.core.vitals.hp = 0.;
+        m.brain.died_at = now;
+        m.brain.mode = BrainMode::Idle;
+        m.brain.target = None;
+        m.brain.threat.clear();
+        m.brain.goal = None;
+        m.brain.moving = false;
+        m.brain.holding = false;
+        m.core.inputs.clear();
+        m.core.motion.path.clear();
+        m.core.motion.slip = None;
+        super::weapons::cancel_action(&mut m.core, now);
+        m.core.weapon.held = false;
+        m.core.weapon.buffered_until = 0.;
+    }
+    ev.push(Event::Death {
+        id,
+        x: at.x,
+        y: at.y,
+        by: killer,
+    });
+    crate::hooks::fire(
+        &mut crate::hooks::Hx {
+            k,
+            w,
+            ev,
+            fx: None,
+            stats: Default::default(),
+        },
+        crate::hooks::HookArgs::FighterOut {
+            id,
+            cause: crate::hooks::OutCause::Down,
+        },
+    );
+    if let Some(target) = killer {
+        request_wake(k, w, ev, camp, target);
+    }
+}
+
 fn dropper(w: &World, a: &Award) -> bool {
     w.mob_runtime.as_ref().unwrap().camps[a.camp as usize].alive == 0
         && w.pay
@@ -348,6 +430,10 @@ fn award_weapon(w: &mut World, ev: &mut Vec<Event>, a: &Award) {
     }
 }
 pub(crate) fn pay(k: &MatchStatic, w: &mut World, ev: &mut Vec<Event>, a: Award) {
+    // Legacy `payMobKill`: a training world's practice mobs pay nothing (no GV, feed, stat, weapon or drop).
+    if k.config.training {
+        return;
+    }
     let Some(id) = a.killer else {
         if dropper(w, &a) {
             drop_weapon(w, &a)
@@ -438,7 +524,8 @@ pub(crate) fn reap(cx: &mut Cx) {
             if now - m.brain.died_at >= MOB_CORPSE_MS {
                 gone.push(m.core.id)
             }
-        } else if m.core.vitals.hp < m.core.vitals.max_hp
+        } else if m.kind != crate::mob_runtime::MobKind::Dummy
+            && m.core.vitals.hp < m.core.vitals.max_hp
             && (m.brain.mode == BrainMode::Return
                 || (m.brain.mode == BrainMode::Idle && now - m.last_hit_at >= MOB_REGEN_LOCK_MS))
         {
@@ -466,7 +553,7 @@ pub(crate) fn reap(cx: &mut Cx) {
 }
 
 pub(crate) fn respawn(cx: &mut Cx) {
-    if !mob_ai::enabled(cx.w) || cx.w.phase != crate::Phase::Active {
+    if !mob_ai::enabled(cx.w) || cx.k.config.training || cx.w.phase != crate::Phase::Active {
         return;
     }
     let count = cx.w.mob_runtime.as_ref().unwrap().camps.len();

@@ -53,6 +53,9 @@ pub(crate) fn validate(
                 }
                 players += 1;
             }
+            ActorOrigin::Practice { .. } | ActorOrigin::Dummy { .. } => {
+                return Err("non-regional actor in a regional world".into());
+            }
             ActorOrigin::Mob {
                 birth_serial,
                 born_tick,
@@ -198,7 +201,7 @@ pub(crate) fn validate(
             f64::from(*born_tick) * TICK_MS,
         );
         if m.camp != *camp
-            || m.mob_type != *mob_type
+            || m.mob_type != Some(*mob_type)
             || m.elite != *elite
             || m.home != expected.home
             || m.home_facing != expected.home_facing

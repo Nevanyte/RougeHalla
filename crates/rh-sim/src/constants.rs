@@ -317,4 +317,27 @@ content! {
     TERRAIN_EPS: f64 = 1e-9, "terrain source rule";
     TERRAIN_V_EPS: f64 = 1e-6, "terrain source rule";
 
+    // Training rooms and the practice console (P-ARENA-2; legacy packages/shared/src/constants.ts and training.ts).
+    DUMMY_HP: f64 = 5000., "hp";
+    DUMMY_RESET_SECONDS: f64 = 3., "s";
+    TRAINING_MIN_TILES: f64 = 3., "tiles";
+    TRAINING_MAX_TILES: f64 = 6., "tiles";
+    TRAIN_DEFAULT_CARD_COUNT: u32 = 1, "cards";
+    TRAIN_MAX_CARD_COUNT: u32 = 9, "cards";
+    TRAIN_MAX_MOB_STAT_COUNT: f64 = 9_007_199_254_740_991., "stacks";
+    TRAIN_MAX_MOBS: u32 = 12, "mobs";
+    TRAIN_MAX_MOBS_SPAWNED: u32 = 150, "mobs";
+    TRAIN_MAX_CHESTS: u32 = 6, "chests";
+    TRAIN_SPAWN_GAP_MS: f64 = 300., "ms";
+    TRAIN_CAMP_SIZE: u32 = 3, "mobs";
+    TRAIN_CAMP_MIN_TILES: f64 = 5., "tiles";
+    TRAIN_CAMP_MAX_TILES: f64 = 9., "tiles";
+    TRAIN_CAMP_TARGET_TILES: f64 = 7., "tiles";
+    TRAIN_CAMP_SPREAD_TILES: f64 = 2., "tiles";
+    TRAIN_CHEST_MIN_TILES: f64 = 1.5, "tiles";
+    TRAIN_CHEST_MAX_TILES: f64 = 3., "tiles";
+    TRAIN_CHEST_TARGET_TILES: f64 = 2., "tiles";
+    PRACTICE_CAMP_FIRST: u32 = 101, "camp ref";
+    PRACTICE_CAMP_LAST: u32 = 255, "camp ref";
+
 }

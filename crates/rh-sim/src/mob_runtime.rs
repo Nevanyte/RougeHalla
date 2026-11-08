@@ -5,7 +5,7 @@ use crate::{
     mob_catalog::MobTypeId,
     state::{History, PlayerId, Sample, Status, WeaponRt},
     store::Keyed,
-    FactionId, Vec2,
+    FactionId, Vec2, WeaponId,
 };
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -16,12 +16,22 @@ pub enum MobMode {
     Pve,
 }
 
+/// What a non-seat actor is. The source's `MobState.kind` string: a regional (map camp) mob, a practice console mob
+/// (`sim/training.ts`, camp refs 101..255 with no map camp) or a training dummy (`sim/mobs.ts`).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum MobKind {
+    #[default]
+    Regional,
+    Practice,
+    Dummy,
+}
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
 pub enum ActorOrigin {
     Player {
         join_ordinal: u32,
     },
+    /// A regional mob born from the map's camp roster (the only kind P-MOBS-1 knows).
     Mob {
         birth_serial: u32,
         born_tick: u32,
@@ -30,6 +40,33 @@ pub enum ActorOrigin {
         mob_type: MobTypeId,
         elite: bool,
     },
+    /// A practice console mob (`sim/training.ts`): a real regional fighter whose camp ref is beyond the map's camps
+    /// (101..255) and whose tile need not be a map camp spot.
+    Practice {
+        birth_serial: u32,
+        born_tick: u32,
+        camp: u32,
+        mob_type: MobTypeId,
+        elite: bool,
+    },
+    /// A training dummy (`sim/mobs.ts`): no faction, no camp, no catalog type, never dies.
+    Dummy {
+        birth_serial: u32,
+        born_tick: u32,
+        /// The source's shield dummy carries a shield it blocks and reflects with (`spawnTraining`).
+        shield: bool,
+    },
+}
+impl ActorOrigin {
+    /// The retained birth serial of any non-seat actor.
+    pub(crate) fn birth_serial(&self) -> Option<u32> {
+        match *self {
+            Self::Player { .. } => None,
+            Self::Mob { birth_serial, .. }
+            | Self::Practice { birth_serial, .. }
+            | Self::Dummy { birth_serial, .. } => Some(birth_serial),
+        }
+    }
 }
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -58,7 +95,9 @@ pub struct Mob {
     pub core: FighterCore,
     pub(crate) brain: Brain,
     pub(crate) last_hit_at: f64,
-    pub mob_type: MobTypeId,
+    pub kind: MobKind,
+    /// The catalog type. Absent only for a training dummy (the source has no `MobState.type` for one).
+    pub mob_type: Option<MobTypeId>,
     pub elite: bool,
     pub camp: u32,
     pub status: Status,
@@ -72,56 +111,122 @@ impl Keyed for Mob {
     }
 }
 impl Mob {
-    pub(crate) fn born(provenance: &ActorProvenance, at: Vec2, facing: f64, now: f64) -> Self {
-        let ActorOrigin::Mob {
-            birth_serial: serial,
-            camp,
-            mob_type,
-            elite,
-            ..
-        } = provenance.origin
-        else {
-            unreachable!("only a typed mob birth constructs Mob")
-        };
-        let id = provenance.id;
-        let ty = crate::mob_catalog::mob_type_by_id(mob_type.as_str()).expect("typed catalog row");
-        let hp = spawn_hp(ty.zone, elite, mob_type);
+    /// Builds the shared fighter core for a non-seat actor.
+    #[allow(clippy::too_many_arguments)]
+    fn core(
+        id: PlayerId,
+        at: Vec2,
+        facing: f64,
+        now: f64,
+        hp: f64,
+        faction: FactionId,
+        weapon: Option<WeaponId>,
+    ) -> FighterCore {
         let mut history = History::default();
         history.reset(Sample {
             t: now,
             x: at.x,
             y: at.y,
         });
+        FighterCore {
+            id,
+            body: Body {
+                x: at.x,
+                y: at.y,
+                facing,
+                history,
+            },
+            vitals: Vitals {
+                faction,
+                hp,
+                max_hp: hp,
+                barrier: 0.,
+                immune_until: 0.,
+                hp_frac_at_tick_start: 1.,
+            },
+            weapon: WeaponRt {
+                weapon0: weapon,
+                ..WeaponRt::default()
+            },
+            signature: Default::default(),
+            statuses: Default::default(),
+            modifiers: crate::modifiers::Runtime::default(),
+            card_dot_crit: None,
+            motion: Motion::default(),
+            inputs: InputQueue::default(),
+        }
+    }
+    pub(crate) fn born(provenance: &ActorProvenance, at: Vec2, facing: f64, now: f64) -> Self {
+        let origin = &provenance.origin;
+        let serial = origin
+            .birth_serial()
+            .expect("only a non-seat provenance constructs Mob");
+        let (kind, mob_type, elite, camp, hp, faction, weapon): (
+            MobKind,
+            Option<MobTypeId>,
+            bool,
+            u32,
+            f64,
+            FactionId,
+            Option<WeaponId>,
+        ) = match *origin {
+            ActorOrigin::Mob {
+                camp,
+                mob_type,
+                elite,
+                ..
+            } => {
+                let ty = crate::mob_catalog::mob_type_by_id(mob_type.as_str())
+                    .expect("typed catalog row");
+                (
+                    MobKind::Regional,
+                    Some(mob_type),
+                    elite,
+                    camp,
+                    spawn_hp(ty.zone, elite, mob_type),
+                    ty.zone,
+                    Some(ty.weapon),
+                )
+            }
+            ActorOrigin::Practice {
+                camp,
+                mob_type,
+                elite,
+                ..
+            } => {
+                let ty = crate::mob_catalog::mob_type_by_id(mob_type.as_str())
+                    .expect("typed catalog row");
+                (
+                    MobKind::Practice,
+                    Some(mob_type),
+                    elite,
+                    camp,
+                    spawn_hp(ty.zone, elite, mob_type),
+                    ty.zone,
+                    Some(ty.weapon),
+                )
+            }
+            // A dummy has no faction (so no faction armor/shield; `base_sheet` pins both to 0) and no catalog type.
+            // The faction field only carries the presentation/wire placeholder the source leaves empty.
+            ActorOrigin::Dummy { shield, .. } => (
+                MobKind::Dummy,
+                None,
+                false,
+                0,
+                crate::constants::DUMMY_HP,
+                FactionId::Fire,
+                if shield { Some(WeaponId::Shield) } else { None },
+            ),
+            ActorOrigin::Player { .. } => {
+                unreachable!("only a typed non-seat birth constructs Mob")
+            }
+        };
+        let id = provenance.id;
         Self {
             brain: Brain::default(),
             last_hit_at: 0.,
-            core: FighterCore {
-                id,
-                body: Body {
-                    x: at.x,
-                    y: at.y,
-                    facing,
-                    history,
-                },
-                vitals: Vitals {
-                    faction: ty.zone,
-                    hp,
-                    max_hp: hp,
-                    barrier: 0.,
-                    immune_until: 0.,
-                    hp_frac_at_tick_start: 1.,
-                },
-                weapon: WeaponRt {
-                    weapon0: Some(ty.weapon),
-                    ..WeaponRt::default()
-                },
-                signature: Default::default(),
-                statuses: Default::default(),
-                modifiers: crate::modifiers::Runtime::default(),
-                card_dot_crit: None,
-                motion: Motion::default(),
-                inputs: InputQueue::default(),
-            },
+            core: Self::core(id, at, facing, now, hp, faction, weapon),
+            kind,
             mob_type,
             elite,
             camp,

@@ -952,7 +952,9 @@ fn radix36(mut n: u32) -> String {
 fn actor_name(sim: &Sim, id: PlayerId) -> String {
     match sim.w.actor_origin(id).unwrap() {
         crate::mob_runtime::ActorOrigin::Player { join_ordinal } => format!("p{join_ordinal}"),
-        crate::mob_runtime::ActorOrigin::Mob { birth_serial, .. } => {
+        crate::mob_runtime::ActorOrigin::Mob { birth_serial, .. }
+        | crate::mob_runtime::ActorOrigin::Practice { birth_serial, .. }
+        | crate::mob_runtime::ActorOrigin::Dummy { birth_serial, .. } => {
             format!("mob{}", radix36(*birth_serial))
         }
     }
@@ -1002,7 +1004,7 @@ fn roster_snapshot(sim: &Sim, f: &Value, ctx: &str) {
             .unwrap();
         let c = &m.core;
         same(
-            json!({"id":name,"state":{"x":c.body.x,"y":c.body.y,"hp":c.vitals.hp,"maxHp":c.vitals.max_hp,"status":format!("{:?}",m.status).to_lowercase(),"kind":if m.elite{"elite"}else{"mob"},"type":m.mob_type.as_str(),"faction":c.vitals.faction.as_str(),"camp":m.camp+1}}),
+            json!({"id":name,"state":{"x":c.body.x,"y":c.body.y,"hp":c.vitals.hp,"maxHp":c.vitals.max_hp,"status":format!("{:?}",m.status).to_lowercase(),"kind":if m.elite{"elite"}else{"mob"},"type":m.mob_type.map_or("", |t|t.as_str()),"faction":c.vitals.faction.as_str(),"camp":m.camp+1}}),
             e,
             &format!("{ctx}/{name}/public"),
         );
