@@ -6,6 +6,10 @@ and P-STATUS-1, both landed). There is no P-FACTION-2 packet file: the scope her
 `deepseek/p-faction-2`, based on `origin/deepseek/p-mobs-1` at `039ceb47` (line A, protocol 7); the PR is stacked
 on `deepseek/p-mobs-1`.
 
+Pull request: [#44](https://github.com/Nevanyte/RougeHalla/pull/44), stacked on the P-MOBS-1 PR #41; commit range
+`039ceb47`..`6973f1bb` on `deepseek/p-faction-2`. Ledger row:
+[`docs/evidence/deepseek-rust/PROGRESS.md`](../deepseek-rust/PROGRESS.md).
+
 ## What was missing (checked from the code, not memory)
 
 At `039ceb47` the schedule still held **eight pending rows** labelled `P-FACTION-2` — the whole Fire roam module:
