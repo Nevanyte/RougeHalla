@@ -1021,8 +1021,8 @@ addE("target-removed", "unit target removed from state.players but still in rost
 addE("historical-batch", "an old batch delivered to a later perceive frame: event t stays the batch time", "all-five-1", { batchIds: ["all-five-1"], selfId: "obs", serverTime: 10000 });
 addE("interruption-visible", "stun/castEnd/castLand batch", "interruption-3", { batchIds: ["interruption-3"], selfId: "obs", serverTime: 1000 });
 addE("interruption-hidden-caster", "interrupted cast of a hidden caster", "interruption-3", { batchIds: ["interruption-3"], selfId: "obs", serverTime: 1000, patch: { p1: { effects: EFFECT_HIDDEN } } });
-addE("teleport-cancelled-visible", "teleport refund castEnd + teleport event", "teleport-refund-1", { batchIds: ["teleport-refund-1"], selfId: "obs", serverTime: 1000 });
-addE("between-step-cancelled", "between-step room-leave castEnd", "between-step-remove-1", { batchIds: ["between-step-remove-1"], selfId: "obs", serverTime: 1000 });
+addE("teleport-cancelled-visible", "actual terminal teleport-refund batch: castEnd cancelled + teleport, with declared projection rows", "teleport-refund-2", { batchIds: ["teleport-refund-2"], selfId: "obs", serverTime: 1000 });
+addE("between-step-cancelled", "actual terminal room-leave batch: castEnd cancelled, with declared projection rows (not room lifecycle proof)", "between-step-remove-2", { batchIds: ["between-step-remove-2"], selfId: "obs", serverTime: 1000 });
 const eResults: any[] = [];
 for (const c of E_CASES) {
   const b = batchById(c.baseBatch);
@@ -1102,7 +1102,9 @@ const eFindings: any = { derivedFromActual: true, caseCount: eResults.length };
     dropped: hiddenCasterFreezeCast === null,
   };
   eFindings.removedActors = {
-    casterRemovedAnonymousPoint: removedCasterCast ? { at: removedCasterCast.at, data: removedCasterCast.data } : null,
+    label: "SOURCE retained-ID disclosure (not anonymity): a removed caster falls back to the numeric point, but data.by still retains the removed id; a removed target id is also copied. Native mapping/redaction remains a separate correction.",
+    casterRemovedPointWithRetainedId: removedCasterCast ? { at: removedCasterCast.at, data: removedCasterCast.data } : null,
+    removedCasterIdRetained: removedCasterCast ? removedCasterCast.data.by : null,
     removedTargetIdRetained: removedTargetCast ? removedTargetCast.data.target : null,
     removedTargetIdIsString: removedTargetCast ? typeof removedTargetCast.data.target === "string" : null,
   };
@@ -1112,6 +1114,35 @@ const eFindings: any = { derivedFromActual: true, caseCount: eResults.length };
     note: "With a visible subject, observeExt copies numeric x/x2 regardless of the point's sight; with a hidden subject the whole cue is dropped.",
   };
 }
+// Bind each named terminal projection to its actual terminal producer/packed batch. A start-only batch with a
+// misleading case name is not a cancellation witness. These inspect source outputs; they install no expected state.
+eFindings.terminalBatches = [
+  { caseId: "teleport-cancelled-visible", batchId: "teleport-refund-2", teleport: true, betweenSteps: false },
+  { caseId: "between-step-cancelled", batchId: "between-step-remove-2", teleport: false, betweenSteps: true },
+].map((spec) => {
+  const result = eResults.find((c: any) => c.id === spec.caseId);
+  const selected = result.declared.batchIds;
+  const batch = batchById(spec.batchId);
+  const terminal = (fx: any): boolean => fx.kind === "castEnd" && fx.ability === "freeze" && fx.reason === "cancelled";
+  const output = {
+    caseId: spec.caseId,
+    selectedBatchIds: selected,
+    producerTime: batch.producer.time,
+    batchTime: batch.batchTime,
+    betweenSteps: batch.producer.betweenSteps,
+    producerCancelledCount: batch.producer.events.filter((e: any) => terminal(e.fx)).length,
+    decodedCancelledCount: batch.unpacked.filter(terminal).length,
+    observedCancelledCount: result.actual.events.filter((e: any) => e.kind === "ext" && e.fx === "castEnd" && e.data.ability === "freeze" && e.data.reason === "cancelled").length,
+    observedTeleportCount: result.actual.events.filter((e: any) => e.kind === "teleport").length,
+    observedStartedCount: result.actual.events.filter((e: any) => e.kind === "ext" && e.fx === "cast").length,
+  };
+  expectSource(result.actual.thrown === null, spec.caseId + " actual perceive must execute");
+  expectSource(result.declared.baseBatch === spec.batchId && selected.length === 1 && selected[0] === spec.batchId, spec.caseId + " must select the exact terminal batch");
+  expectSource(output.betweenSteps === spec.betweenSteps, spec.caseId + " must preserve the producer phase");
+  expectSource(output.producerCancelledCount === 1 && output.decodedCancelledCount === 1 && output.observedCancelledCount === 1, spec.caseId + " must preserve one actual cancelled castEnd through pack/unpack/perceive");
+  expectSource(output.observedStartedCount === 0 && output.observedTeleportCount === Number(spec.teleport), spec.caseId + " must contain the terminal phase, not Started");
+  return output;
+});
 const eCorpus: any = {
   format: FORMAT,
   role: "E. actual narrower perceive() over declared projection states and the real packed batches of C",

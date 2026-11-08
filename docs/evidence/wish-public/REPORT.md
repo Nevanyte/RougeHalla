@@ -1,9 +1,11 @@
 # P-WISH-PUBLIC-WITNESS-1 evidence (source-only)
 
 Immutable base: `fb738cd93d675d4074b7c37c15de6af2dd837ceb` on branch `deepseek/wish-public-witness-1`.
-Capture commit (tools + corpora): `531c775c9298dc5f0bc9d82b931dbd65edb4dbfa`. The final head is this branch HEAD;
-`git rev-parse HEAD` is authoritative. No merge or push is made. Worktree:
-`/Users/nevinmckinnon/Documents/Projects/RogueHalla-wish-public` only.
+Original capture commit: `531c775c9298dc5f0bc9d82b931dbd65edb4dbfa`; reviewed original head:
+`1e5cea7e57e453c0a5b83854fa91e4380126f5a1`. The terminal-selection repair starts from that exact head on
+`codex/wish-witness-repair` in the isolated
+`/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/wish-witness-repair/repo`.
+The commit containing this repair report is the corrected handoff; no merge or push is made.
 
 This is a bounded source-only witness for the human Wish flow. It changes no production, Rust, C#, Unity, codec,
 protocol, version, profile, visibility or precision rule, does not edit existing source/goldens/Cargo.lock/shared
@@ -18,12 +20,12 @@ run-mutants.sh, README.md, mutants/*), `parity/wish-public/**` (five corpora + m
 
 | file | bytes | sha256 | captureSha256 | counts |
 |---|---:|---|---|---|
-| r-input.json | 80716 | 190fcef53bbd9aabf8fc5ff7c133658e55789ac3bcafaaf41e9ff48053a6a3d2 | 2a484b76cde333080b620b79bef194804a574772c510fb72ba8ecda2faaaee1e | 31 probes |
-| queued-stock-clocks.json | 214621 | 794bd790a58aff22ca726ab6cde66abd282aed344f78b9b5c58bd09122349047 | 76f4c1cda401fab7727b916003c5d3c18f055d8497863e34b1aa9be7d844dd77 | 9 cases, 121 frames, 94 hook rows |
-| fx-timing.json | 61577 | 99e11d745af9686af5d074d70fd95d82834975546d2110b1e16e630ab8c47c01 | f9f879dcd2eff420c830e398495f264c563333ab9bf2c585691b0c9cc7921013 | 32 batches |
-| wishfx-endpoints.json | 97342 | 505afa8f64f758afb74eda498eb84e1dce990c8927118073db938da195da5235 | f585902aa5aa4718138ba5ebcb3943e07c9d6da557cbe78059244a6d1893810d | 26 cases |
-| perceive-wish.json | 63884 | 36c0e8ed0463a71f01ab91a7d12066de6fbc3ce9db524c27cef3a1173518b3d8 | f8951cb16e88f70d1c5bd93d21be632df1a26b74f38fb66402606f494b519124 | 14 cases |
-| manifest.json | 1424 | eb79f391ce503b3e356f0d784a5cf9439c833f81e34678a24500386a5f7e68ea | n/a (own file) | lists all above |
+| r-input.json | 80716 | 13bf70921c836dbca456afd8aa826182884e845b4bff4ea0e3dfdad49bc484ba | 3a966c82c42e2cb6729f3ce86c2d516cd154d2535df61f764dde975bd2a68b9b | 31 probes |
+| queued-stock-clocks.json | 214621 | 6eb80e575d7d684952112828b9ba2318c9a0d9318c7aa59201e70308093373cf | 2b15ec879dbc5809458307fc6b51d3ce96a208687b1b348805235789675ff596 | 9 cases, 121 frames, 94 hook rows |
+| fx-timing.json | 61577 | 7f26b51ee987436926dc85826498d0f50de23d18ec6f318d5ad239bb8c03d21b | b7b4804dd45b9669e4113be38cb97a3e7b43f77a0a87a60a5b994f7e6f2a100a | 32 batches |
+| wishfx-endpoints.json | 97342 | 5cb0f0f422850c1e6834f146b2b7de4cd96bd70c2a6f8c316e61b9bbfc9b87c5 | ed4be51d00f5eb97a4f0cde77f2b33719dd2ec3059f19d2077aaccc56855718f | 26 cases |
+| perceive-wish.json | 64856 | 2ac1419f4869f25e2f3c053843ebdd46eafc08b1e4917a37d5b71296a7c01757 | 76b48dd73be06596c68d4c8a5c0bf5e1326a56474699e7a38cd903fa125168c1 | 14 cases |
+| manifest.json | 1424 | fd95df0f829546537c8f669ba9b97ff502f878918e5cb9f0a9fdf2769c4db2ff | n/a (own file) | lists all above |
 
 Profile in every corpus: pinned image digest
 `node:22.23.4-bookworm-slim@sha256:aaa4b5baf1ecff3b283486bb1f90405cdda225a3e6f79660d2c559fa510a7292`,
@@ -74,12 +76,13 @@ every patched file from the read-only mount before the next mutant and reruns th
   coincident one-point fallback. Own blink is drawn from delivered x/x2.
 - Perceive (narrower bot path): a hidden caster's whole ext cue is dropped. A visible caster's hidden unit target has
   `data.target` masked but `data.x/y` (and Blaze x2/y2) retained: this is a labelled SOURCE FINDING for the native
-  privacy correction, preserved, not rewritten. A removed caster yields an anonymous point from x/y; a removed target
-  id is copied as a string. Human WishFx and perceive remain distinct outputs.
+  privacy correction, preserved, not rewritten. A removed caster falls back to the x/y subject anchor but retains `data.by`; a removed target
+  id is also copied as a string. These are SOURCE retained-ID disclosures, not anonymity; native mapping/redaction
+  remains a distinct correction. Human WishFx and perceive remain distinct outputs.
 
-## Independent verification (Lead)
+## Original-head independent verification (Lead, before terminal selection repair)
 
-The Lead re-ran the slice independently after delivery:
+The Lead re-ran original head `1e5cea7e` independently after delivery. These historical receipts do not certify the corrected terminal selections or current corpus hashes:
 
 - `capture.sh --check` twice with the output mounted read-only: byte-identical both times, same six printed sha256
   values (r-input `190fcef5…`, queued-stock-clocks `794bd790…`, fx-timing `99e11d74…`, wishfx-endpoints
@@ -100,3 +103,35 @@ actual `castSlot`/WishFx/perceive/FxChannel paths executed. Remaining required w
 R-to-server all-five proof, native Wish/barrier wire implementation and per-step privacy/catch-up, the five strict
 source-born NPC-signature cases, and the final union proof. `FxView`'s render-time routing to WishFx is a read-only
 anchor; this witness calls WishFx directly and claims method-level results only.
+
+## Corrected terminal-selection handoff
+
+The original two E cancellation projections selected their Started batches despite their terminal case names. This
+repair selects actual `teleport-refund-2` and `between-step-remove-2` outputs and recaptures through unchanged source.
+The teleport projection observes exactly one `castEnd cancelled` and one teleport at300ms; the between-step projection
+observes exactly one `castEnd cancelled` and no teleport at100ms. Both contain zero Started events. Canonical checks
+now assert the exact selected terminal batch, producer phase and cancelled-event preservation through producer,
+pack/unpack and perceive. State/visibility rows remain declared: no actual Room lifecycle, keyboard, Scene or browser
+execution is claimed. Source RaidRoom.onLeave immediately flushes events at its current world time; the witness still
+executes the reusable source helper/channel methods rather than the Room itself.
+
+The removed-caster output was never anonymous: its subject anchor falls back to x/y while `data.by="p0"` remains;
+removed target `data.target="p1"` also remains. The original outputs are retained unchanged and labelled as SOURCE
+retained-ID disclosure. Native spatial admission and optional observer-reference mapping/redaction are distinct
+corrections, not a claim of old perceive parity.
+
+Validation of this repair (own isolated checkout): canonical pinned source write + read-only `--check` pass; all five
+compiled semantic source mutants produce their existing exact output-mismatch signatures; restored read-only control
+passes. Five comparator controls with ONLY `/profile` changed all return IDENTICAL, so source/tool provenance changes
+are not counted as semantic kills. The first container startup failed because the fresh checkout lacked its ignored
+empty node_modules mountpoint; creating that empty directory allowed the unchanged capture script to run.
+
+Comparison with exact repair base1e5cea7e: all four other corpus bodies are identical after removing `/profile`; all12
+other E cases are identical; hidden-target, hidden-caster and Blaze endpoint findings are identical. The two corrected
+E cases and terminal-summary/retained-ID finding labels are the only semantic changes. No production source pin
+changes and no older corpus bytes change. Current byte counts/hashes above include refreshed tool provenance.
+`repair-checks.json` records the comparison and receipts.
+
+These stock cases use no cards and their helper calls use `wishCooldownMult:1`: base/training clocks are witnessed;
+modifier-driven effective recharge and live card clock cuts remain separate existing-source/native integration gates.
+The complete human/native feature and all five source-born NPC-signature prerequisites remain open as stated above.

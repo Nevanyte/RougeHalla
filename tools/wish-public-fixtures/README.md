@@ -10,7 +10,7 @@ tmpfs), this tool directory is read-only at `/capture`, and the output is mounte
 Setup is `npm ci --ignore-scripts --no-audit --no-fund` and `node --import tsx`.
 
 ```sh
-bash tools/wish-public-fixtures/capture.sh            # write parity/wish-public/{r-input,stock-clocks,fx-timing,wishfx-endpoints,perceive-wish,manifest}.json
+bash tools/wish-public-fixtures/capture.sh            # write parity/wish-public/{r-input,queued-stock-clocks,fx-timing,wishfx-endpoints,perceive-wish,manifest}.json
 bash tools/wish-public-fixtures/capture.sh --check    # compare every byte (output mounted read-only)
 bash tools/wish-public-fixtures/run-mutants.sh        # five compiled semantic mutants + restored control
 ```
@@ -64,7 +64,7 @@ field, never a valid zero.
   source's coincident one-point fallback. Own blinks/cast landings are drawn from the delivered x/x2.
 - Perceive: a hidden caster's whole ext cue is dropped; a visible caster's hidden unit target has `data.target` masked
   but `data.x/y` (and Blaze x2/y2) retained. This is a **labelled source finding for the native privacy correction**,
-  not rewritten. A removed caster still yields an anonymous point from x/y; a removed target id is copied as a string.
+  not rewritten. For a removed caster the subject anchor falls back to x/y, but `ext.data.by` still retains the removed id; a removed target id is also copied as a string. This is a SOURCE retained-ID disclosure, not anonymity; native observer mapping/redaction is a separate correction.
   Human WishFx output is a separate corpus and is not claimed to equal perceive.
 
 ## Semantic mutants
@@ -85,3 +85,16 @@ source anchor but not constructed here (D calls `WishFx` directly, method-level 
 NPC-signature cases, full native Wish/barrier wire/native implementation, per-step privacy/catch-up and the final
 Unity/client proof remain separate required work. The source's hidden-target coordinate disclosure is preserved as a
 finding for that native correction.
+
+## Terminal selection repair
+
+The two cancellation perception cases select the actual `teleport-refund-2` and `between-step-remove-2` batches,
+not their start-only predecessors. `findings.terminalBatches` records source, decoded and observed cancelled-event
+counts, original times and producer phase. Canonical assertions require the exact terminal selection, one real
+`castEnd` with reason `cancelled`, no Started event, and the teleport marker only for teleport. They prevent a
+mislabelled start-only projection from satisfying a cancellation claim. These are actual outputs over declared
+projection rows; no real Room lifecycle, keyboard, scene or browser is run. The raw source producer/batch tapes are
+unchanged by this correction.
+
+The stock probes contain no cards and use `wishCooldownMult: 1`: they establish base and training recharge behavior,
+not modifier-driven effective recharge or live card clock cuts. Those source/native integration gates remain separate.
