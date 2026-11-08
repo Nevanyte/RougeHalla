@@ -45,7 +45,12 @@ pub(crate) fn raid_started(hx: &mut Hx, args: &HookArgs) {
         }
         for p in hx.w.players.iter_mut() {
             p.credit.sentence = 0;
-            p.signature = Default::default();
+            let mut ap_hits = std::mem::take(&mut p.signature.ap_hits);
+            ap_hits.reset();
+            p.signature = crate::fighter::Signature {
+                ap_hits,
+                ..Default::default()
+            };
         }
     }
 }
@@ -67,7 +72,10 @@ pub(crate) fn teleported(hx: &mut Hx, args: &HookArgs) {
         // The source clears only the mark-derived bits of the synced `sig` field (taxed, suppressed, exec-blocked) and
         // lets the next after-damage pass rebuild the rest; only the exec-blocked bit exists in the ported domain.
         let bits = core.signature.bits & !crate::constants::SIG_EXEC_BLOCKED;
+        let mut ap_hits = std::mem::take(&mut core.signature.ap_hits);
+        ap_hits.reset();
         core.signature = crate::fighter::Signature {
+            ap_hits,
             combat_at,
             bits,
             ..Default::default()

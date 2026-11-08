@@ -7,6 +7,7 @@ mod arena_refund;
 mod compare;
 mod hash_tape;
 mod motion;
+mod player_lifecycle;
 mod repair_tests;
 mod runner;
 mod setup;
@@ -110,6 +111,8 @@ fn frozen_full_source_all_63_cases() {
     arena_refund::arena_genuine_freeze_laststand_and_teleport_refund();
     repair_tests::overlapping_real_blaze_charges_restore_player_and_born_npc();
     repair_tests::real_refunded_wish_survives_a_later_source_teleport();
+    player_lifecycle::all_five_player_lifecycle_source_witnesses();
+    player_lifecycle::genuine_axe_shred_reset_and_continuation();
     let diagnostic = format!(
         "P-ABIL-1 FULL INCOMPLETE: {} named prerequisite cases were not attempted:\n{}",
         pending.len(),

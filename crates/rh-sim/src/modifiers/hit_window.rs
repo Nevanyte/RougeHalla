@@ -6,6 +6,16 @@ pub struct HitWindow {
     hits: Vec<f64>,
 }
 impl HitWindow {
+    /// Forget fight history while retaining its warmed storage for the next fight.
+    pub(crate) fn reset(&mut self) {
+        self.target = None;
+        self.hits.clear();
+    }
+
+    #[cfg(test)]
+    pub(crate) fn storage_capacity(&self) -> usize {
+        self.hits.capacity()
+    }
     pub(crate) fn note(&mut self, target: crate::PlayerId, now: f64, count: usize) {
         if self.target != Some(target) {
             self.target = Some(target);

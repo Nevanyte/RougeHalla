@@ -292,8 +292,9 @@ fn check_world(k: &MatchStatic, w: &World) -> Result<(), String> {
     let mut corpse_players = std::collections::BTreeSet::new();
     for c in &w.plague_corpses {
         if !corpse_players.insert(c.player)
+            || w.roster.name(c.player).is_none()
             || w.player(c.player)
-                .is_none_or(|p| p.status != crate::Status::Dead)
+                .is_some_and(|p| p.status != crate::Status::Dead)
             || !near(c.x, c.y)
         {
             return Err("invalid Plague corpse state".into());

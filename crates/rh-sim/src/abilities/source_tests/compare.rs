@@ -43,6 +43,9 @@ pub(super) fn statuses(p: &crate::fighter::FighterCore) -> V {
 }
 
 pub(super) fn compare(s: &Sim, frame: &V, name: &str, input: &V) {
+    if input["lifecycleWitness"] == true {
+        super::player_lifecycle::compare_factions(s, frame, name);
+    }
     let mut expected_main =
         crate::rng::Mulberry32::new(input["mainSeed"].as_u64().unwrap_or(12) as u32);
     for _ in 0..frame["rng"]["main"].as_u64().unwrap() {
@@ -257,6 +260,9 @@ pub(super) fn source_step(s: &mut Sim, case: &V) {
     }
     let events = s.step();
     compare_events(s, &events, case);
+    if case["input"]["lifecycleWitness"] == true {
+        super::player_lifecycle::compare_signature_events(s, &events, case);
+    }
     #[cfg(feature = "trusted-status-probes")]
     {
         use crate::status_runtime::probe::HookRecord;

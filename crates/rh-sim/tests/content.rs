@@ -28,6 +28,8 @@ const NUMBER_FREE_TYPES: &[(&str, bool, &str)] = &[
 /// Each entry must match a declaration the scan finds and not be covered by NUMBER_FREE_TYPES. Adding to this list is a
 /// review decision: a number that can change an outcome belongs in the registry instead.
 const NON_GAMEPLAY: &[(&str, &str, &str)] = &[
+    ("abilities/source_tests/mod.rs", "PENDING_SOURCE_CASES", "test-only names/profiles/reasons for five explicitly unattempted source cases; no gameplay reads this inventory"),
+    ("mob_catalog/mod.rs", "ALL", "the 30 source mob identifiers in wire/training order; full gameplay definitions are registered through DEFINITION and the training source corpus exercises the mapping"),
     ("abilities/source_tests/setup.rs", "PLAYER_COUNT", "test-only source actor identity mapping per executor thread; never read by gameplay"),
     ("systems/terrain/source_tests.rs", "FIXTURE_FNV", "test-only actual-source witness integrity pin; not read by gameplay"),
     ("systems/mob_life/mob_lifecycle_tests.rs", "SEATS", "cfg(test)-only declared seat count of the captured mobile lifecycle scenario; never read by gameplay"),
