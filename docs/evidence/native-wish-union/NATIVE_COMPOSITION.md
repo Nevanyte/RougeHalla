@@ -28,3 +28,17 @@ has one Trophy birth/id/option per case; the consumer pins that narrow identity 
 multi-birth/respawn binding. Public Kill omission remains closed until the separate typed wire13 implementation and
 transactional normal-input proof pass. Cumulative killStats, self-kill, broad replay/acquisition and complete browser
 account/content flows remain required later work.
+
+## More-than-eight-actor restore and clone backport
+
+The future Frost-source work exposed an inherited defect already present in this25/19 recipient prefix: fresh
+TickScratch defaults to eight actor slots. An admitted world with eight players and three basic Fire NPCs restores or
+clones successfully, then panics in generic Frost afterWeapons on its next step if no intervening input happens to
+grow scratch. Both failures were reproduced independently with public constructors/commands and zero post-copy submit.
+
+The portable repair reserves scratch for every retained fighter after checkpoint semantic validation and preserves
+the original actor-buffer domain when cloning fresh empty scratch. It adds no serialized field, game rule, public
+field, input workaround or map restriction;25/19/19/policy13/content67183626db240b6a remains unchanged. Two regressions
+compare the original sim's next full event vector and state hash with restored/cloned copies, without warming them by
+command submission. Root passes both plus six checkpoint and six replay tests. The separate future26/20 Vec/source
+port and NPC allocation repair remain isolated and are not admitted by this backport.

@@ -151,7 +151,9 @@ impl Default for TickScratch {
 impl Clone for TickScratch {
     fn clone(&self) -> Self {
         debug_assert!(self.is_settled(), "a sim is cloned between steps");
-        Self::default()
+        let mut scratch = Self::default();
+        scratch.reserve_actors(self.attack_started.len());
+        scratch
     }
 }
 

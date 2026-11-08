@@ -229,11 +229,13 @@ impl<'de> Visitor<'de> for CheckpointVisitor<'_> {
         if let Err(why) = check_world(&k, &w) {
             return Err(self.refuse(CheckpointError::Malformed(why)));
         }
+        let mut scratch = TickScratch::default();
+        scratch.reserve_actors(w.fighter_count());
         Ok(Sim {
             projection: crate::fx_report::Projection::empty_at(w.tick),
             k,
             w,
-            s: TickScratch::default(),
+            s: scratch,
             pf: Pathfinder::default(),
         })
     }
