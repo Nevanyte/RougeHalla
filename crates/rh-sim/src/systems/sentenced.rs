@@ -343,35 +343,58 @@ pub(crate) fn validate(k: &MatchStatic, w: &World, p: &crate::state::Player) -> 
         amp_until: m.amp_until,
         ..empty
     };
-    let max_progress = m.hits as f64 / (1. - FROST_SLOW).max(MARK_CHILL_FLOOR);
-    // A qualifying hit sees only neutral or Frost's prior chill in this base domain.
-    // Sequential binary64 additions may drift from the ideal mixture; retain their error envelope.
-    let increment = 1. / (1. - FROST_SLOW).max(MARK_CHILL_FLOOR);
+    // Mark accumulates the prior tick's cached chill, not today's folded resistance or source stats. Iron Will
+    // weakens Frost, while the source's bonus shield/haste can deepen it as far as frost_cap. Either build can change
+    // during a mark. No per-hit chill history is serialized, so only the admitted per-hit envelope is recoverable;
+    // the old mixture of just neutral and base-Frost increments rejects genuine resisted/deepened hits.
+    let min_chill =
+        (1. - FROST_SLOW - crate::modifiers::DEFINITION.frost_cap).max(MARK_CHILL_FLOOR);
+    let increment = 1. / min_chill;
     let count = m.hits as f64;
+    let max_progress = count * increment;
+    // Retain the conservative sequential-binary64 addition envelope, including long-running restored marks.
     let slack = MARK_TIER_EPS.max(4. * f64::EPSILON * count * count * increment);
-    let chilled = ((m.progress - count) / (increment - 1.)).round();
-    let legal_progress = chilled >= 0.
-        && chilled <= count
-        && (m.progress - (count + chilled * (increment - 1.))).abs() <= slack;
-    let tier = if m.progress > 0. || m.swaps > 0 {
-        (1. + (m.progress.max(0.) / MARK_TIER_HITS + MARK_TIER_EPS)
-            .floor()
-            .max(m.swaps as f64))
-        .min(MARK_TOP_TIER as f64) as u8
-    } else {
-        0
+    let tier_for = |swaps: f64| {
+        if m.progress > 0. || swaps > 0. {
+            (1. + (m.progress.max(0.) / MARK_TIER_HITS + MARK_TIER_EPS)
+                .floor()
+                .max(swaps))
+            .min(MARK_TOP_TIER as f64) as u8
+        } else {
+            0
+        }
     };
+    // Promotion only raises the cached tier. A real grant can add a flag after the latest mark pass, so today's
+    // flagged formula is an upper bound, not an equality. The unflagged formula is always the lower bound.
+    // Ordinary card ownership only grows; training Clear can remove either flag without resetting this mark.
+    // With no serialized grant/removal chronology, training must retain the upper bound from either former flag.
+    let no_commutation = k.config.training
+        || p.build
+            .has_flag(crate::stat_fold::EffectFlag::NoCommutation);
+    let swift_judgment = k.config.training
+        || p.build
+            .has_flag(crate::stat_fold::EffectFlag::SwiftJudgment);
+    let tier_min = tier_for(m.swaps as f64);
+    let tier_max = tier_for(
+        m.swaps as f64 * if no_commutation { 2. } else { 1. }
+            + if swift_judgment {
+                (m.hits / 2) as f64
+            } else {
+                0.
+            },
+    );
     if (!enabled && (*m != empty || p.credit.sentence != 0))
         || p.credit.sentence > MARK_KILL_STACK_CAP
         // Counters mirror JavaScript Number integers; reject unrepresentable trusted payloads.
         || m.hits > 9_007_199_254_740_991
         || m.swaps > 9_007_199_254_740_991
         || !m.progress.is_finite()
-        || !legal_progress
+        || m.progress < 0.
+        || (m.hits == 0 && m.progress != 0.)
         || m.progress < m.hits as f64 - slack
         || m.progress > max_progress + slack
         || m.tier > MARK_TOP_TIER
-        || m.tier != tier
+        || !(tier_min..=tier_max).contains(&m.tier)
         || (p.signature.target.is_none() && *m != reset)
         || (m.tier == 0 && (m.hits != 0 || m.progress != 0. || m.swaps != 0 || m.denied))
         || m.far_since
@@ -390,3 +413,9 @@ mod actual_source_tests;
 mod public_tests;
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod resistance_tests;
+
+#[cfg(test)]
+mod tier_tests;

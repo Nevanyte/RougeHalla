@@ -1,0 +1,43 @@
+   Compiling rh-sim v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/sentenced-resistance/repo/crates/rh-sim)
+    Finished `test` profile [unoptimized] target(s) in 26.04s
+     Running unittests src/lib.rs (target/debug/deps/rh_sim-e5380561a67b7746)
+
+running 5 tests
+SwiftJudgment tick=16 progress=2.4705882352941178 tier=2
+NoCommutation tick=18 progress=2.4705882352941178 tier=3
+
+thread 'systems::sentenced::tier_tests::real_no_commutation_victim_swap_tier_restores' (62937270) panicked at crates/rh-sim/src/systems/sentenced/resistance_tests.rs:86:10:
+a real accumulated Mark must restore: Malformed("invalid Sentenced state for player 1")
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+thread 'systems::sentenced::tier_tests::real_swift_judgment_tier_restores' (62937271) panicked at crates/rh-sim/src/systems/sentenced/resistance_tests.rs:86:10:
+a real accumulated Mark must restore: Malformed("invalid Sentenced state for player 1")
+
+thread 'systems::sentenced::tier_tests::real_training_clear_retains_monotonic_tier_after_flags_disappear' (62937272) panicked at crates/rh-sim/src/systems/sentenced/resistance_tests.rs:86:10:
+a real accumulated Mark must restore: Malformed("invalid Sentenced state for player 1")
+test systems::sentenced::tier_tests::real_no_commutation_victim_swap_tier_restores ... FAILED
+test systems::sentenced::tier_tests::real_training_clear_retains_monotonic_tier_after_flags_disappear ... FAILED
+test systems::sentenced::tier_tests::real_swift_judgment_tier_restores ... FAILED
+
+thread 'systems::sentenced::tier_tests::real_new_flags_do_not_retroactively_promote_cached_tier' (62937269) panicked at crates/rh-sim/src/systems/sentenced/resistance_tests.rs:86:10:
+a real accumulated Mark must restore: Malformed("invalid Sentenced state for player 1")
+test systems::sentenced::tier_tests::real_new_flags_do_not_retroactively_promote_cached_tier ... FAILED
+
+thread 'systems::sentenced::tier_tests::tier_history_bounds_reject_unearned_or_demoted_tiers' (62937273) panicked at crates/rh-sim/src/systems/sentenced/tier_tests.rs:77:13:
+assertion `left == right` failed: cards=[Haste1, SwiftJudgment], tier=2
+  left: false
+ right: true
+test systems::sentenced::tier_tests::tier_history_bounds_reject_unearned_or_demoted_tiers ... FAILED
+
+failures:
+
+failures:
+    systems::sentenced::tier_tests::real_new_flags_do_not_retroactively_promote_cached_tier
+    systems::sentenced::tier_tests::real_no_commutation_victim_swap_tier_restores
+    systems::sentenced::tier_tests::real_swift_judgment_tier_restores
+    systems::sentenced::tier_tests::real_training_clear_retains_monotonic_tier_after_flags_disappear
+    systems::sentenced::tier_tests::tier_history_bounds_reject_unearned_or_demoted_tiers
+
+test result: FAILED. 0 passed; 5 failed; 0 ignored; 0 measured; 610 filtered out; finished in 0.02s
+
+error: test failed, to rerun pass `-p rh-sim --lib`
