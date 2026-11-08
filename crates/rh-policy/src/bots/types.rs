@@ -1023,6 +1023,8 @@ pub struct SelfView {
     pub status: String,
     pub hp: f64,
     pub max_hp: f64,
+    /// The owner's own EFFECT_* bits (its status icons; the Wish module reads casting/stun/silence from them).
+    pub effects: u16,
     pub weapons: [Option<BotWeapon>; 2],
     pub slot: u8,
     pub attack_target: Option<FighterId>,
@@ -1078,6 +1080,19 @@ pub struct RewardChestView {
 #[derive(Clone, Debug, PartialEq, Default)]
 pub struct PerceptExtras {
     pub chests: Option<Vec<RewardChestView>>,
+    /// The Wish slot as the weapon bar shows it (legacy extras.wish): which ability, when it is ready, whether a cast is under
+    /// way. Always built from the owner's Observation; absent when abilities are off.
+    pub wish: Option<WishView>,
+}
+
+/// The Wish slot as its owner sees it (Observation SelfView.wish): the ability, its ready time and a cast under way. Wishes
+/// have one rank, so the rank is always 1.
+#[derive(Clone, Debug, PartialEq)]
+pub struct WishView {
+    pub ability: rh_sim::status_runtime::AbilityId,
+    pub ready_at: ServerMs,
+    pub casting: bool,
+    pub rank: u8,
 }
 
 /// Everything the hand may know about the present (Percept, narrowed to what it reads). Plain data: no state handle,

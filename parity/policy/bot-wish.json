@@ -1,0 +1,4788 @@
+{
+ "format": "rh-wish-source/1",
+ "profile": {
+  "node": "v22.23.4",
+  "platform": "linux",
+  "arch": "x64",
+  "map": {
+   "w": 24,
+   "h": 24,
+   "seed": 1,
+   "tiles": [
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    0,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    1,
+    1,
+    1,
+    1,
+    0,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    0,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    0,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1
+   ]
+  },
+  "tickMs": 50,
+  "constants": {
+   "escapeThreatDistance": 260,
+   "escapeHpThreatened": 0.5,
+   "escapeHpHit": 0.55,
+   "sustainHp": 0.35,
+   "engageRangeMargin": 16,
+   "peelDistance": 150
+  },
+  "sourceFiles": {
+   "packages/shared/src/abilities.ts": "95ef39376a9d9f40cc529a0f7300700a97427050628941e801aaa1e299862518",
+   "packages/shared/src/blink.ts": "e5582562556f530fd99ec9bf8e506fa144805f666c09f4359aefb98ee9171f15",
+   "packages/shared/src/status.ts": "98a0570d7620e424d9d522356fe378a6af049109d8af0342be0ecff970310df7",
+   "packages/shared/src/constants.ts": "51ce4dd800ec868abee525fb1ae375688066f336972a7da878644df1235924e7",
+   "packages/shared/src/map.ts": "35caac04108a3bd0e1d880a9502f14bdccb3a9a17d262cba335c3d6436995eed",
+   "packages/shared/src/geometry.ts": "b1a91a65281f8642b1779b81764768569311966ab493941101a2f988cfdc1f5d",
+   "packages/server/src/bots/abilityPolicy.ts": "e892cff2eba225520aac5730365f5df800a3971734a6c1d63c0d02a084b298ec",
+   "packages/server/src/bots/brain/modules/wishes.ts": "61eade3cca61d17c533bcb2a1033e4489d5b11e496e88a8f245b4427b5f399fa"
+  },
+  "sourceTree": "ea34d1c010d96ed47804929e98cea06e3b8dc27b184d4ceb8d0e7b4a7f747f18",
+  "tool": "e080025c9fb62e57885b33d214b3562b8d57b365a311b40c4eae698d349b86b1",
+  "captureSha256": "19fa0d597f68049306cee478f66eaecbd558bc092de46ed40ef68fcafc816d47"
+ },
+ "defs": [
+  {
+   "id": "freeze",
+   "name": "Freeze",
+   "ai": [
+    "control",
+    "peel",
+    "engage"
+   ],
+   "blockedBy": [
+    "stun",
+    "silence"
+   ],
+   "dropsLock": false,
+   "castMs": 250,
+   "cooldownMs": 45000,
+   "charges": 1,
+   "targeting": {
+    "kind": "unit",
+    "range": 450,
+    "los": true,
+    "snapRadius": 64,
+    "who": "enemy"
+   },
+   "effects": {
+    "hidesCaster": false,
+    "blink": null
+   }
+  },
+  {
+   "id": "swarm",
+   "name": "Swarm",
+   "ai": [
+    "escape"
+   ],
+   "blockedBy": [
+    "stun",
+    "silence"
+   ],
+   "dropsLock": true,
+   "castMs": 250,
+   "cooldownMs": 120000,
+   "charges": 1,
+   "targeting": {
+    "kind": "self"
+   },
+   "effects": {
+    "hidesCaster": true,
+    "blink": null
+   }
+  },
+  {
+   "id": "trial",
+   "name": "Trial",
+   "ai": [
+    "engage",
+    "control"
+   ],
+   "blockedBy": [
+    "stun",
+    "silence"
+   ],
+   "dropsLock": false,
+   "castMs": 350,
+   "cooldownMs": 180000,
+   "charges": 1,
+   "targeting": {
+    "kind": "unit",
+    "range": 400,
+    "los": true,
+    "snapRadius": 64,
+    "who": "enemy"
+   },
+   "effects": {
+    "hidesCaster": false,
+    "blink": null
+   }
+  },
+  {
+   "id": "blaze",
+   "name": "Blaze Step",
+   "ai": [
+    "escape",
+    "engage"
+   ],
+   "blockedBy": [
+    "stun",
+    "silence"
+   ],
+   "dropsLock": false,
+   "castMs": 0,
+   "cooldownMs": 30000,
+   "charges": 2,
+   "targeting": {
+    "kind": "point",
+    "range": 300,
+    "minRange": 64
+   },
+   "effects": {
+    "hidesCaster": false,
+    "blink": {
+     "maxDist": 300,
+     "minDist": 64
+    }
+   }
+  },
+  {
+   "id": "lastStand",
+   "name": "Last Stand",
+   "ai": [
+    "sustain",
+    "escape"
+   ],
+   "blockedBy": [
+    "stun",
+    "silence"
+   ],
+   "dropsLock": false,
+   "castMs": 0,
+   "cooldownMs": 150000,
+   "charges": 1,
+   "targeting": {
+    "kind": "self"
+   },
+   "effects": {
+    "hidesCaster": false,
+    "blink": null
+   }
+  }
+ ],
+ "hides": [
+  {
+   "id": "freeze",
+   "rank": 0,
+   "hidden": false
+  },
+  {
+   "id": "freeze",
+   "rank": 1,
+   "hidden": false
+  },
+  {
+   "id": "freeze",
+   "rank": 2,
+   "hidden": false
+  },
+  {
+   "id": "freeze",
+   "rank": 3,
+   "hidden": false
+  },
+  {
+   "id": "freeze",
+   "rank": 99,
+   "hidden": false
+  },
+  {
+   "id": "swarm",
+   "rank": 0,
+   "hidden": true
+  },
+  {
+   "id": "swarm",
+   "rank": 1,
+   "hidden": true
+  },
+  {
+   "id": "swarm",
+   "rank": 2,
+   "hidden": true
+  },
+  {
+   "id": "swarm",
+   "rank": 3,
+   "hidden": true
+  },
+  {
+   "id": "swarm",
+   "rank": 99,
+   "hidden": true
+  },
+  {
+   "id": "trial",
+   "rank": 0,
+   "hidden": false
+  },
+  {
+   "id": "trial",
+   "rank": 1,
+   "hidden": false
+  },
+  {
+   "id": "trial",
+   "rank": 2,
+   "hidden": false
+  },
+  {
+   "id": "trial",
+   "rank": 3,
+   "hidden": false
+  },
+  {
+   "id": "trial",
+   "rank": 99,
+   "hidden": false
+  },
+  {
+   "id": "blaze",
+   "rank": 0,
+   "hidden": false
+  },
+  {
+   "id": "blaze",
+   "rank": 1,
+   "hidden": false
+  },
+  {
+   "id": "blaze",
+   "rank": 2,
+   "hidden": false
+  },
+  {
+   "id": "blaze",
+   "rank": 3,
+   "hidden": false
+  },
+  {
+   "id": "blaze",
+   "rank": 99,
+   "hidden": false
+  },
+  {
+   "id": "lastStand",
+   "rank": 0,
+   "hidden": false
+  },
+  {
+   "id": "lastStand",
+   "rank": 1,
+   "hidden": false
+  },
+  {
+   "id": "lastStand",
+   "rank": 2,
+   "hidden": false
+  },
+  {
+   "id": "lastStand",
+   "rank": 3,
+   "hidden": false
+  },
+  {
+   "id": "lastStand",
+   "rank": 99,
+   "hidden": false
+  }
+ ],
+ "rules": {
+  "retryMs": 1000,
+  "recentHitMs": 1500,
+  "chaseClosing": 20,
+  "chaseCos": 0.7,
+  "onItDistance": 150,
+  "easyRemembers": 0.6,
+  "slipPendingMs": 2500,
+  "slipGraceMs": 700,
+  "slipUtility": 1.4,
+  "slipStepU": 300,
+  "slipKeepMs": 1200,
+  "slipArrivedU": 60
+ },
+ "cases": [
+  {
+   "name": "blocked-casting",
+   "def": "freeze",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 4096,
+    "recentlyHit": false
+   },
+   "foe": null,
+   "threat": null,
+   "choice": null
+  },
+  {
+   "name": "blocked-stun",
+   "def": "freeze",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 1,
+    "recentlyHit": false
+   },
+   "foe": null,
+   "threat": null,
+   "choice": null
+  },
+  {
+   "name": "blocked-silence",
+   "def": "freeze",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 4,
+    "recentlyHit": false
+   },
+   "foe": null,
+   "threat": null,
+   "choice": null
+  },
+  {
+   "name": "blocked-root",
+   "def": "freeze",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 2,
+    "recentlyHit": false
+   },
+   "foe": null,
+   "threat": null,
+   "choice": null
+  },
+  {
+   "name": "blocked-all-blocked",
+   "def": "freeze",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 7,
+    "recentlyHit": false
+   },
+   "foe": null,
+   "threat": null,
+   "choice": null
+  },
+  {
+   "name": "blocked-casting",
+   "def": "swarm",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 4096,
+    "recentlyHit": false
+   },
+   "foe": null,
+   "threat": null,
+   "choice": null
+  },
+  {
+   "name": "blocked-stun",
+   "def": "swarm",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 1,
+    "recentlyHit": false
+   },
+   "foe": null,
+   "threat": null,
+   "choice": null
+  },
+  {
+   "name": "blocked-silence",
+   "def": "swarm",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 4,
+    "recentlyHit": false
+   },
+   "foe": null,
+   "threat": null,
+   "choice": null
+  },
+  {
+   "name": "blocked-root",
+   "def": "swarm",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 2,
+    "recentlyHit": false
+   },
+   "foe": null,
+   "threat": null,
+   "choice": null
+  },
+  {
+   "name": "blocked-all-blocked",
+   "def": "swarm",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 7,
+    "recentlyHit": false
+   },
+   "foe": null,
+   "threat": null,
+   "choice": null
+  },
+  {
+   "name": "blocked-casting",
+   "def": "trial",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 4096,
+    "recentlyHit": false
+   },
+   "foe": null,
+   "threat": null,
+   "choice": null
+  },
+  {
+   "name": "blocked-stun",
+   "def": "trial",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 1,
+    "recentlyHit": false
+   },
+   "foe": null,
+   "threat": null,
+   "choice": null
+  },
+  {
+   "name": "blocked-silence",
+   "def": "trial",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 4,
+    "recentlyHit": false
+   },
+   "foe": null,
+   "threat": null,
+   "choice": null
+  },
+  {
+   "name": "blocked-root",
+   "def": "trial",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 2,
+    "recentlyHit": false
+   },
+   "foe": null,
+   "threat": null,
+   "choice": null
+  },
+  {
+   "name": "blocked-all-blocked",
+   "def": "trial",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 7,
+    "recentlyHit": false
+   },
+   "foe": null,
+   "threat": null,
+   "choice": null
+  },
+  {
+   "name": "blocked-casting",
+   "def": "blaze",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 4096,
+    "recentlyHit": false
+   },
+   "foe": null,
+   "threat": null,
+   "choice": null
+  },
+  {
+   "name": "blocked-stun",
+   "def": "blaze",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 1,
+    "recentlyHit": false
+   },
+   "foe": null,
+   "threat": null,
+   "choice": null
+  },
+  {
+   "name": "blocked-silence",
+   "def": "blaze",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 4,
+    "recentlyHit": false
+   },
+   "foe": null,
+   "threat": null,
+   "choice": null
+  },
+  {
+   "name": "blocked-root",
+   "def": "blaze",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 2,
+    "recentlyHit": false
+   },
+   "foe": null,
+   "threat": null,
+   "choice": null
+  },
+  {
+   "name": "blocked-all-blocked",
+   "def": "blaze",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 7,
+    "recentlyHit": false
+   },
+   "foe": null,
+   "threat": null,
+   "choice": null
+  },
+  {
+   "name": "blocked-casting",
+   "def": "lastStand",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 4096,
+    "recentlyHit": false
+   },
+   "foe": null,
+   "threat": null,
+   "choice": null
+  },
+  {
+   "name": "blocked-stun",
+   "def": "lastStand",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 1,
+    "recentlyHit": false
+   },
+   "foe": null,
+   "threat": null,
+   "choice": null
+  },
+  {
+   "name": "blocked-silence",
+   "def": "lastStand",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 4,
+    "recentlyHit": false
+   },
+   "foe": null,
+   "threat": null,
+   "choice": null
+  },
+  {
+   "name": "blocked-root",
+   "def": "lastStand",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 2,
+    "recentlyHit": false
+   },
+   "foe": null,
+   "threat": null,
+   "choice": null
+  },
+  {
+   "name": "blocked-all-blocked",
+   "def": "lastStand",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 7,
+    "recentlyHit": false
+   },
+   "foe": null,
+   "threat": null,
+   "choice": null
+  },
+  {
+   "name": "threatened",
+   "def": "freeze",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.49,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": null,
+   "threat": {
+    "x": 500,
+    "y": 400,
+    "d": 200,
+    "chasing": true,
+    "id": "p7",
+    "los": true,
+    "targetable": true
+   },
+   "choice": null
+  },
+  {
+   "name": "threat-far",
+   "def": "freeze",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.49,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": null,
+   "threat": {
+    "x": 500,
+    "y": 400,
+    "d": 300,
+    "chasing": true,
+    "id": "p7",
+    "los": true,
+    "targetable": true
+   },
+   "choice": null
+  },
+  {
+   "name": "hit",
+   "def": "freeze",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.54,
+    "effects": 0,
+    "recentlyHit": true
+   },
+   "foe": null,
+   "threat": null,
+   "choice": null
+  },
+  {
+   "name": "hit-high",
+   "def": "freeze",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.6,
+    "effects": 0,
+    "recentlyHit": true
+   },
+   "foe": null,
+   "threat": null,
+   "choice": null
+  },
+  {
+   "name": "hit-old",
+   "def": "freeze",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.54,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": null,
+   "threat": null,
+   "choice": null
+  },
+  {
+   "name": "sustain",
+   "def": "freeze",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.34,
+    "effects": 0,
+    "recentlyHit": true
+   },
+   "foe": null,
+   "threat": null,
+   "choice": null
+  },
+  {
+   "name": "sustain-no-hit",
+   "def": "freeze",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.34,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": null,
+   "threat": null,
+   "choice": null
+  },
+  {
+   "name": "threatened",
+   "def": "swarm",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.49,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": null,
+   "threat": {
+    "x": 500,
+    "y": 400,
+    "d": 200,
+    "chasing": true,
+    "id": "p7",
+    "los": true,
+    "targetable": true
+   },
+   "choice": {
+    "x": 400,
+    "y": 400
+   }
+  },
+  {
+   "name": "threat-far",
+   "def": "swarm",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.49,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": null,
+   "threat": {
+    "x": 500,
+    "y": 400,
+    "d": 300,
+    "chasing": true,
+    "id": "p7",
+    "los": true,
+    "targetable": true
+   },
+   "choice": null
+  },
+  {
+   "name": "hit",
+   "def": "swarm",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.54,
+    "effects": 0,
+    "recentlyHit": true
+   },
+   "foe": null,
+   "threat": null,
+   "choice": {
+    "x": 400,
+    "y": 400
+   }
+  },
+  {
+   "name": "hit-high",
+   "def": "swarm",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.6,
+    "effects": 0,
+    "recentlyHit": true
+   },
+   "foe": null,
+   "threat": null,
+   "choice": null
+  },
+  {
+   "name": "hit-old",
+   "def": "swarm",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.54,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": null,
+   "threat": null,
+   "choice": null
+  },
+  {
+   "name": "sustain",
+   "def": "swarm",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.34,
+    "effects": 0,
+    "recentlyHit": true
+   },
+   "foe": null,
+   "threat": null,
+   "choice": {
+    "x": 400,
+    "y": 400
+   }
+  },
+  {
+   "name": "sustain-no-hit",
+   "def": "swarm",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.34,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": null,
+   "threat": null,
+   "choice": null
+  },
+  {
+   "name": "threatened",
+   "def": "trial",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.49,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": null,
+   "threat": {
+    "x": 500,
+    "y": 400,
+    "d": 200,
+    "chasing": true,
+    "id": "p7",
+    "los": true,
+    "targetable": true
+   },
+   "choice": null
+  },
+  {
+   "name": "threat-far",
+   "def": "trial",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.49,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": null,
+   "threat": {
+    "x": 500,
+    "y": 400,
+    "d": 300,
+    "chasing": true,
+    "id": "p7",
+    "los": true,
+    "targetable": true
+   },
+   "choice": null
+  },
+  {
+   "name": "hit",
+   "def": "trial",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.54,
+    "effects": 0,
+    "recentlyHit": true
+   },
+   "foe": null,
+   "threat": null,
+   "choice": null
+  },
+  {
+   "name": "hit-high",
+   "def": "trial",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.6,
+    "effects": 0,
+    "recentlyHit": true
+   },
+   "foe": null,
+   "threat": null,
+   "choice": null
+  },
+  {
+   "name": "hit-old",
+   "def": "trial",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.54,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": null,
+   "threat": null,
+   "choice": null
+  },
+  {
+   "name": "sustain",
+   "def": "trial",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.34,
+    "effects": 0,
+    "recentlyHit": true
+   },
+   "foe": null,
+   "threat": null,
+   "choice": null
+  },
+  {
+   "name": "sustain-no-hit",
+   "def": "trial",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.34,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": null,
+   "threat": null,
+   "choice": null
+  },
+  {
+   "name": "threatened",
+   "def": "blaze",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.49,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": null,
+   "threat": {
+    "x": 500,
+    "y": 400,
+    "d": 200,
+    "chasing": true,
+    "id": "p7",
+    "los": true,
+    "targetable": true
+   },
+   "choice": {
+    "x": 100,
+    "y": 400
+   }
+  },
+  {
+   "name": "threat-far",
+   "def": "blaze",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.49,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": null,
+   "threat": {
+    "x": 500,
+    "y": 400,
+    "d": 300,
+    "chasing": true,
+    "id": "p7",
+    "los": true,
+    "targetable": true
+   },
+   "choice": null
+  },
+  {
+   "name": "hit",
+   "def": "blaze",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.54,
+    "effects": 0,
+    "recentlyHit": true
+   },
+   "foe": null,
+   "threat": null,
+   "choice": null
+  },
+  {
+   "name": "hit-high",
+   "def": "blaze",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.6,
+    "effects": 0,
+    "recentlyHit": true
+   },
+   "foe": null,
+   "threat": null,
+   "choice": null
+  },
+  {
+   "name": "hit-old",
+   "def": "blaze",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.54,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": null,
+   "threat": null,
+   "choice": null
+  },
+  {
+   "name": "sustain",
+   "def": "blaze",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.34,
+    "effects": 0,
+    "recentlyHit": true
+   },
+   "foe": null,
+   "threat": null,
+   "choice": null
+  },
+  {
+   "name": "sustain-no-hit",
+   "def": "blaze",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.34,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": null,
+   "threat": null,
+   "choice": null
+  },
+  {
+   "name": "threatened",
+   "def": "lastStand",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.49,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": null,
+   "threat": {
+    "x": 500,
+    "y": 400,
+    "d": 200,
+    "chasing": true,
+    "id": "p7",
+    "los": true,
+    "targetable": true
+   },
+   "choice": {
+    "x": 400,
+    "y": 400
+   }
+  },
+  {
+   "name": "threat-far",
+   "def": "lastStand",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.49,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": null,
+   "threat": {
+    "x": 500,
+    "y": 400,
+    "d": 300,
+    "chasing": true,
+    "id": "p7",
+    "los": true,
+    "targetable": true
+   },
+   "choice": null
+  },
+  {
+   "name": "hit",
+   "def": "lastStand",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.54,
+    "effects": 0,
+    "recentlyHit": true
+   },
+   "foe": null,
+   "threat": null,
+   "choice": {
+    "x": 400,
+    "y": 400
+   }
+  },
+  {
+   "name": "hit-high",
+   "def": "lastStand",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.6,
+    "effects": 0,
+    "recentlyHit": true
+   },
+   "foe": null,
+   "threat": null,
+   "choice": null
+  },
+  {
+   "name": "hit-old",
+   "def": "lastStand",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.54,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": null,
+   "threat": null,
+   "choice": null
+  },
+  {
+   "name": "sustain",
+   "def": "lastStand",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.34,
+    "effects": 0,
+    "recentlyHit": true
+   },
+   "foe": null,
+   "threat": null,
+   "choice": {
+    "x": 400,
+    "y": 400
+   }
+  },
+  {
+   "name": "sustain-no-hit",
+   "def": "lastStand",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.34,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": null,
+   "threat": null,
+   "choice": null
+  },
+  {
+   "name": "engage-inside",
+   "def": "freeze",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": {
+    "id": "p7",
+    "x": 500,
+    "y": 400,
+    "d": 100,
+    "los": true,
+    "targetable": true
+   },
+   "threat": null,
+   "choice": {
+    "x": 500,
+    "y": 400,
+    "id": "p7"
+   }
+  },
+  {
+   "name": "engage-margin-pass",
+   "def": "freeze",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": {
+    "id": "p7",
+    "x": 500,
+    "y": 400,
+    "d": 440,
+    "los": true,
+    "targetable": true
+   },
+   "threat": null,
+   "choice": null
+  },
+  {
+   "name": "engage-margin-fail",
+   "def": "freeze",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": {
+    "id": "p7",
+    "x": 500,
+    "y": 400,
+    "d": 445,
+    "los": true,
+    "targetable": true
+   },
+   "threat": null,
+   "choice": null
+  },
+  {
+   "name": "engage-no-los",
+   "def": "freeze",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": {
+    "id": "p7",
+    "x": 500,
+    "y": 400,
+    "d": 100,
+    "los": false,
+    "targetable": true
+   },
+   "threat": null,
+   "choice": null
+  },
+  {
+   "name": "engage-mob",
+   "def": "freeze",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": {
+    "id": "p7",
+    "x": 500,
+    "y": 400,
+    "d": 100,
+    "los": true,
+    "targetable": true,
+    "mob": true
+   },
+   "threat": null,
+   "choice": null
+  },
+  {
+   "name": "engage-untargetable",
+   "def": "freeze",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": {
+    "id": "p7",
+    "x": 500,
+    "y": 400,
+    "d": 100,
+    "los": true,
+    "targetable": false
+   },
+   "threat": null,
+   "choice": null
+  },
+  {
+   "name": "blink-close",
+   "def": "freeze",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": {
+    "id": "p7",
+    "x": 500,
+    "y": 400,
+    "d": 150,
+    "los": true,
+    "targetable": true
+   },
+   "threat": null,
+   "choice": {
+    "x": 500,
+    "y": 400,
+    "id": "p7"
+   }
+  },
+  {
+   "name": "blink-too-close",
+   "def": "freeze",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": {
+    "id": "p7",
+    "x": 500,
+    "y": 400,
+    "d": 100,
+    "los": true,
+    "targetable": true
+   },
+   "threat": null,
+   "choice": {
+    "x": 500,
+    "y": 400,
+    "id": "p7"
+   }
+  },
+  {
+   "name": "blink-far-pass",
+   "def": "freeze",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": {
+    "id": "p7",
+    "x": 500,
+    "y": 400,
+    "d": 250,
+    "los": true,
+    "targetable": true
+   },
+   "threat": null,
+   "choice": {
+    "x": 500,
+    "y": 400,
+    "id": "p7"
+   }
+  },
+  {
+   "name": "blink-far-fail",
+   "def": "freeze",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": {
+    "id": "p7",
+    "x": 500,
+    "y": 400,
+    "d": 290,
+    "los": true,
+    "targetable": true
+   },
+   "threat": null,
+   "choice": {
+    "x": 500,
+    "y": 400,
+    "id": "p7"
+   }
+  },
+  {
+   "name": "engage-inside",
+   "def": "swarm",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": {
+    "id": "p7",
+    "x": 500,
+    "y": 400,
+    "d": 100,
+    "los": true,
+    "targetable": true
+   },
+   "threat": null,
+   "choice": null
+  },
+  {
+   "name": "engage-margin-pass",
+   "def": "swarm",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": {
+    "id": "p7",
+    "x": 500,
+    "y": 400,
+    "d": 440,
+    "los": true,
+    "targetable": true
+   },
+   "threat": null,
+   "choice": null
+  },
+  {
+   "name": "engage-margin-fail",
+   "def": "swarm",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": {
+    "id": "p7",
+    "x": 500,
+    "y": 400,
+    "d": 445,
+    "los": true,
+    "targetable": true
+   },
+   "threat": null,
+   "choice": null
+  },
+  {
+   "name": "engage-no-los",
+   "def": "swarm",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": {
+    "id": "p7",
+    "x": 500,
+    "y": 400,
+    "d": 100,
+    "los": false,
+    "targetable": true
+   },
+   "threat": null,
+   "choice": null
+  },
+  {
+   "name": "engage-mob",
+   "def": "swarm",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": {
+    "id": "p7",
+    "x": 500,
+    "y": 400,
+    "d": 100,
+    "los": true,
+    "targetable": true,
+    "mob": true
+   },
+   "threat": null,
+   "choice": null
+  },
+  {
+   "name": "engage-untargetable",
+   "def": "swarm",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": {
+    "id": "p7",
+    "x": 500,
+    "y": 400,
+    "d": 100,
+    "los": true,
+    "targetable": false
+   },
+   "threat": null,
+   "choice": null
+  },
+  {
+   "name": "blink-close",
+   "def": "swarm",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": {
+    "id": "p7",
+    "x": 500,
+    "y": 400,
+    "d": 150,
+    "los": true,
+    "targetable": true
+   },
+   "threat": null,
+   "choice": null
+  },
+  {
+   "name": "blink-too-close",
+   "def": "swarm",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": {
+    "id": "p7",
+    "x": 500,
+    "y": 400,
+    "d": 100,
+    "los": true,
+    "targetable": true
+   },
+   "threat": null,
+   "choice": null
+  },
+  {
+   "name": "blink-far-pass",
+   "def": "swarm",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": {
+    "id": "p7",
+    "x": 500,
+    "y": 400,
+    "d": 250,
+    "los": true,
+    "targetable": true
+   },
+   "threat": null,
+   "choice": null
+  },
+  {
+   "name": "blink-far-fail",
+   "def": "swarm",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": {
+    "id": "p7",
+    "x": 500,
+    "y": 400,
+    "d": 290,
+    "los": true,
+    "targetable": true
+   },
+   "threat": null,
+   "choice": null
+  },
+  {
+   "name": "engage-inside",
+   "def": "trial",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": {
+    "id": "p7",
+    "x": 500,
+    "y": 400,
+    "d": 100,
+    "los": true,
+    "targetable": true
+   },
+   "threat": null,
+   "choice": {
+    "x": 500,
+    "y": 400,
+    "id": "p7"
+   }
+  },
+  {
+   "name": "engage-margin-pass",
+   "def": "trial",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": {
+    "id": "p7",
+    "x": 500,
+    "y": 400,
+    "d": 440,
+    "los": true,
+    "targetable": true
+   },
+   "threat": null,
+   "choice": null
+  },
+  {
+   "name": "engage-margin-fail",
+   "def": "trial",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": {
+    "id": "p7",
+    "x": 500,
+    "y": 400,
+    "d": 445,
+    "los": true,
+    "targetable": true
+   },
+   "threat": null,
+   "choice": null
+  },
+  {
+   "name": "engage-no-los",
+   "def": "trial",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": {
+    "id": "p7",
+    "x": 500,
+    "y": 400,
+    "d": 100,
+    "los": false,
+    "targetable": true
+   },
+   "threat": null,
+   "choice": null
+  },
+  {
+   "name": "engage-mob",
+   "def": "trial",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": {
+    "id": "p7",
+    "x": 500,
+    "y": 400,
+    "d": 100,
+    "los": true,
+    "targetable": true,
+    "mob": true
+   },
+   "threat": null,
+   "choice": null
+  },
+  {
+   "name": "engage-untargetable",
+   "def": "trial",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": {
+    "id": "p7",
+    "x": 500,
+    "y": 400,
+    "d": 100,
+    "los": true,
+    "targetable": false
+   },
+   "threat": null,
+   "choice": null
+  },
+  {
+   "name": "blink-close",
+   "def": "trial",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": {
+    "id": "p7",
+    "x": 500,
+    "y": 400,
+    "d": 150,
+    "los": true,
+    "targetable": true
+   },
+   "threat": null,
+   "choice": {
+    "x": 500,
+    "y": 400,
+    "id": "p7"
+   }
+  },
+  {
+   "name": "blink-too-close",
+   "def": "trial",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": {
+    "id": "p7",
+    "x": 500,
+    "y": 400,
+    "d": 100,
+    "los": true,
+    "targetable": true
+   },
+   "threat": null,
+   "choice": {
+    "x": 500,
+    "y": 400,
+    "id": "p7"
+   }
+  },
+  {
+   "name": "blink-far-pass",
+   "def": "trial",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": {
+    "id": "p7",
+    "x": 500,
+    "y": 400,
+    "d": 250,
+    "los": true,
+    "targetable": true
+   },
+   "threat": null,
+   "choice": {
+    "x": 500,
+    "y": 400,
+    "id": "p7"
+   }
+  },
+  {
+   "name": "blink-far-fail",
+   "def": "trial",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": {
+    "id": "p7",
+    "x": 500,
+    "y": 400,
+    "d": 290,
+    "los": true,
+    "targetable": true
+   },
+   "threat": null,
+   "choice": {
+    "x": 500,
+    "y": 400,
+    "id": "p7"
+   }
+  },
+  {
+   "name": "engage-inside",
+   "def": "blaze",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": {
+    "id": "p7",
+    "x": 500,
+    "y": 400,
+    "d": 100,
+    "los": true,
+    "targetable": true
+   },
+   "threat": null,
+   "choice": null
+  },
+  {
+   "name": "engage-margin-pass",
+   "def": "blaze",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": {
+    "id": "p7",
+    "x": 500,
+    "y": 400,
+    "d": 440,
+    "los": true,
+    "targetable": true
+   },
+   "threat": null,
+   "choice": null
+  },
+  {
+   "name": "engage-margin-fail",
+   "def": "blaze",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": {
+    "id": "p7",
+    "x": 500,
+    "y": 400,
+    "d": 445,
+    "los": true,
+    "targetable": true
+   },
+   "threat": null,
+   "choice": null
+  },
+  {
+   "name": "engage-no-los",
+   "def": "blaze",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": {
+    "id": "p7",
+    "x": 500,
+    "y": 400,
+    "d": 100,
+    "los": false,
+    "targetable": true
+   },
+   "threat": null,
+   "choice": null
+  },
+  {
+   "name": "engage-mob",
+   "def": "blaze",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": {
+    "id": "p7",
+    "x": 500,
+    "y": 400,
+    "d": 100,
+    "los": true,
+    "targetable": true,
+    "mob": true
+   },
+   "threat": null,
+   "choice": null
+  },
+  {
+   "name": "engage-untargetable",
+   "def": "blaze",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": {
+    "id": "p7",
+    "x": 500,
+    "y": 400,
+    "d": 100,
+    "los": true,
+    "targetable": false
+   },
+   "threat": null,
+   "choice": null
+  },
+  {
+   "name": "blink-close",
+   "def": "blaze",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": {
+    "id": "p7",
+    "x": 500,
+    "y": 400,
+    "d": 150,
+    "los": true,
+    "targetable": true
+   },
+   "threat": null,
+   "choice": {
+    "x": 473.333333,
+    "y": 400
+   }
+  },
+  {
+   "name": "blink-too-close",
+   "def": "blaze",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": {
+    "id": "p7",
+    "x": 500,
+    "y": 400,
+    "d": 100,
+    "los": true,
+    "targetable": true
+   },
+   "threat": null,
+   "choice": null
+  },
+  {
+   "name": "blink-far-pass",
+   "def": "blaze",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": {
+    "id": "p7",
+    "x": 500,
+    "y": 400,
+    "d": 250,
+    "los": true,
+    "targetable": true
+   },
+   "threat": null,
+   "choice": {
+    "x": 484,
+    "y": 400
+   }
+  },
+  {
+   "name": "blink-far-fail",
+   "def": "blaze",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": {
+    "id": "p7",
+    "x": 500,
+    "y": 400,
+    "d": 290,
+    "los": true,
+    "targetable": true
+   },
+   "threat": null,
+   "choice": null
+  },
+  {
+   "name": "engage-inside",
+   "def": "lastStand",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": {
+    "id": "p7",
+    "x": 500,
+    "y": 400,
+    "d": 100,
+    "los": true,
+    "targetable": true
+   },
+   "threat": null,
+   "choice": null
+  },
+  {
+   "name": "engage-margin-pass",
+   "def": "lastStand",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": {
+    "id": "p7",
+    "x": 500,
+    "y": 400,
+    "d": 440,
+    "los": true,
+    "targetable": true
+   },
+   "threat": null,
+   "choice": null
+  },
+  {
+   "name": "engage-margin-fail",
+   "def": "lastStand",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": {
+    "id": "p7",
+    "x": 500,
+    "y": 400,
+    "d": 445,
+    "los": true,
+    "targetable": true
+   },
+   "threat": null,
+   "choice": null
+  },
+  {
+   "name": "engage-no-los",
+   "def": "lastStand",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": {
+    "id": "p7",
+    "x": 500,
+    "y": 400,
+    "d": 100,
+    "los": false,
+    "targetable": true
+   },
+   "threat": null,
+   "choice": null
+  },
+  {
+   "name": "engage-mob",
+   "def": "lastStand",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": {
+    "id": "p7",
+    "x": 500,
+    "y": 400,
+    "d": 100,
+    "los": true,
+    "targetable": true,
+    "mob": true
+   },
+   "threat": null,
+   "choice": null
+  },
+  {
+   "name": "engage-untargetable",
+   "def": "lastStand",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": {
+    "id": "p7",
+    "x": 500,
+    "y": 400,
+    "d": 100,
+    "los": true,
+    "targetable": false
+   },
+   "threat": null,
+   "choice": null
+  },
+  {
+   "name": "blink-close",
+   "def": "lastStand",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": {
+    "id": "p7",
+    "x": 500,
+    "y": 400,
+    "d": 150,
+    "los": true,
+    "targetable": true
+   },
+   "threat": null,
+   "choice": null
+  },
+  {
+   "name": "blink-too-close",
+   "def": "lastStand",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": {
+    "id": "p7",
+    "x": 500,
+    "y": 400,
+    "d": 100,
+    "los": true,
+    "targetable": true
+   },
+   "threat": null,
+   "choice": null
+  },
+  {
+   "name": "blink-far-pass",
+   "def": "lastStand",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": {
+    "id": "p7",
+    "x": 500,
+    "y": 400,
+    "d": 250,
+    "los": true,
+    "targetable": true
+   },
+   "threat": null,
+   "choice": null
+  },
+  {
+   "name": "blink-far-fail",
+   "def": "lastStand",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": {
+    "id": "p7",
+    "x": 500,
+    "y": 400,
+    "d": 290,
+    "los": true,
+    "targetable": true
+   },
+   "threat": null,
+   "choice": null
+  },
+  {
+   "name": "peel",
+   "def": "freeze",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": null,
+   "threat": {
+    "x": 500,
+    "y": 400,
+    "d": 100,
+    "chasing": true,
+    "id": "p7",
+    "los": true,
+    "targetable": true
+   },
+   "choice": {
+    "x": 500,
+    "y": 400,
+    "id": "p7"
+   }
+  },
+  {
+   "name": "peel-edge",
+   "def": "freeze",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": null,
+   "threat": {
+    "x": 500,
+    "y": 400,
+    "d": 150,
+    "chasing": true,
+    "id": "p7",
+    "los": true,
+    "targetable": true
+   },
+   "choice": {
+    "x": 500,
+    "y": 400,
+    "id": "p7"
+   }
+  },
+  {
+   "name": "peel-far",
+   "def": "freeze",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": null,
+   "threat": {
+    "x": 500,
+    "y": 400,
+    "d": 160,
+    "chasing": true,
+    "id": "p7",
+    "los": true,
+    "targetable": true
+   },
+   "choice": null
+  },
+  {
+   "name": "peel-still",
+   "def": "freeze",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": null,
+   "threat": {
+    "x": 500,
+    "y": 400,
+    "d": 100,
+    "chasing": false,
+    "id": "p7",
+    "los": true,
+    "targetable": true
+   },
+   "choice": null
+  },
+  {
+   "name": "peel-untargetable",
+   "def": "freeze",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": null,
+   "threat": {
+    "x": 500,
+    "y": 400,
+    "d": 100,
+    "chasing": true,
+    "id": "p7",
+    "los": true,
+    "targetable": false
+   },
+   "choice": null
+  },
+  {
+   "name": "peel-no-los",
+   "def": "freeze",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": null,
+   "threat": {
+    "x": 500,
+    "y": 400,
+    "d": 100,
+    "chasing": true,
+    "id": "p7",
+    "los": false,
+    "targetable": true
+   },
+   "choice": null
+  },
+  {
+   "name": "peel-no-id",
+   "def": "freeze",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": null,
+   "threat": {
+    "x": 500,
+    "y": 400,
+    "d": 100,
+    "chasing": true,
+    "los": true,
+    "targetable": true
+   },
+   "choice": null
+  },
+  {
+   "name": "peel",
+   "def": "swarm",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": null,
+   "threat": {
+    "x": 500,
+    "y": 400,
+    "d": 100,
+    "chasing": true,
+    "id": "p7",
+    "los": true,
+    "targetable": true
+   },
+   "choice": null
+  },
+  {
+   "name": "peel-edge",
+   "def": "swarm",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": null,
+   "threat": {
+    "x": 500,
+    "y": 400,
+    "d": 150,
+    "chasing": true,
+    "id": "p7",
+    "los": true,
+    "targetable": true
+   },
+   "choice": null
+  },
+  {
+   "name": "peel-far",
+   "def": "swarm",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": null,
+   "threat": {
+    "x": 500,
+    "y": 400,
+    "d": 160,
+    "chasing": true,
+    "id": "p7",
+    "los": true,
+    "targetable": true
+   },
+   "choice": null
+  },
+  {
+   "name": "peel-still",
+   "def": "swarm",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": null,
+   "threat": {
+    "x": 500,
+    "y": 400,
+    "d": 100,
+    "chasing": false,
+    "id": "p7",
+    "los": true,
+    "targetable": true
+   },
+   "choice": null
+  },
+  {
+   "name": "peel-untargetable",
+   "def": "swarm",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": null,
+   "threat": {
+    "x": 500,
+    "y": 400,
+    "d": 100,
+    "chasing": true,
+    "id": "p7",
+    "los": true,
+    "targetable": false
+   },
+   "choice": null
+  },
+  {
+   "name": "peel-no-los",
+   "def": "swarm",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": null,
+   "threat": {
+    "x": 500,
+    "y": 400,
+    "d": 100,
+    "chasing": true,
+    "id": "p7",
+    "los": false,
+    "targetable": true
+   },
+   "choice": null
+  },
+  {
+   "name": "peel-no-id",
+   "def": "swarm",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": null,
+   "threat": {
+    "x": 500,
+    "y": 400,
+    "d": 100,
+    "chasing": true,
+    "los": true,
+    "targetable": true
+   },
+   "choice": null
+  },
+  {
+   "name": "peel",
+   "def": "trial",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": null,
+   "threat": {
+    "x": 500,
+    "y": 400,
+    "d": 100,
+    "chasing": true,
+    "id": "p7",
+    "los": true,
+    "targetable": true
+   },
+   "choice": null
+  },
+  {
+   "name": "peel-edge",
+   "def": "trial",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": null,
+   "threat": {
+    "x": 500,
+    "y": 400,
+    "d": 150,
+    "chasing": true,
+    "id": "p7",
+    "los": true,
+    "targetable": true
+   },
+   "choice": null
+  },
+  {
+   "name": "peel-far",
+   "def": "trial",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": null,
+   "threat": {
+    "x": 500,
+    "y": 400,
+    "d": 160,
+    "chasing": true,
+    "id": "p7",
+    "los": true,
+    "targetable": true
+   },
+   "choice": null
+  },
+  {
+   "name": "peel-still",
+   "def": "trial",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": null,
+   "threat": {
+    "x": 500,
+    "y": 400,
+    "d": 100,
+    "chasing": false,
+    "id": "p7",
+    "los": true,
+    "targetable": true
+   },
+   "choice": null
+  },
+  {
+   "name": "peel-untargetable",
+   "def": "trial",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": null,
+   "threat": {
+    "x": 500,
+    "y": 400,
+    "d": 100,
+    "chasing": true,
+    "id": "p7",
+    "los": true,
+    "targetable": false
+   },
+   "choice": null
+  },
+  {
+   "name": "peel-no-los",
+   "def": "trial",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": null,
+   "threat": {
+    "x": 500,
+    "y": 400,
+    "d": 100,
+    "chasing": true,
+    "id": "p7",
+    "los": false,
+    "targetable": true
+   },
+   "choice": null
+  },
+  {
+   "name": "peel-no-id",
+   "def": "trial",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": null,
+   "threat": {
+    "x": 500,
+    "y": 400,
+    "d": 100,
+    "chasing": true,
+    "los": true,
+    "targetable": true
+   },
+   "choice": null
+  },
+  {
+   "name": "peel",
+   "def": "blaze",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": null,
+   "threat": {
+    "x": 500,
+    "y": 400,
+    "d": 100,
+    "chasing": true,
+    "id": "p7",
+    "los": true,
+    "targetable": true
+   },
+   "choice": null
+  },
+  {
+   "name": "peel-edge",
+   "def": "blaze",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": null,
+   "threat": {
+    "x": 500,
+    "y": 400,
+    "d": 150,
+    "chasing": true,
+    "id": "p7",
+    "los": true,
+    "targetable": true
+   },
+   "choice": null
+  },
+  {
+   "name": "peel-far",
+   "def": "blaze",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": null,
+   "threat": {
+    "x": 500,
+    "y": 400,
+    "d": 160,
+    "chasing": true,
+    "id": "p7",
+    "los": true,
+    "targetable": true
+   },
+   "choice": null
+  },
+  {
+   "name": "peel-still",
+   "def": "blaze",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": null,
+   "threat": {
+    "x": 500,
+    "y": 400,
+    "d": 100,
+    "chasing": false,
+    "id": "p7",
+    "los": true,
+    "targetable": true
+   },
+   "choice": null
+  },
+  {
+   "name": "peel-untargetable",
+   "def": "blaze",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": null,
+   "threat": {
+    "x": 500,
+    "y": 400,
+    "d": 100,
+    "chasing": true,
+    "id": "p7",
+    "los": true,
+    "targetable": false
+   },
+   "choice": null
+  },
+  {
+   "name": "peel-no-los",
+   "def": "blaze",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": null,
+   "threat": {
+    "x": 500,
+    "y": 400,
+    "d": 100,
+    "chasing": true,
+    "id": "p7",
+    "los": false,
+    "targetable": true
+   },
+   "choice": null
+  },
+  {
+   "name": "peel-no-id",
+   "def": "blaze",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": null,
+   "threat": {
+    "x": 500,
+    "y": 400,
+    "d": 100,
+    "chasing": true,
+    "los": true,
+    "targetable": true
+   },
+   "choice": null
+  },
+  {
+   "name": "peel",
+   "def": "lastStand",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": null,
+   "threat": {
+    "x": 500,
+    "y": 400,
+    "d": 100,
+    "chasing": true,
+    "id": "p7",
+    "los": true,
+    "targetable": true
+   },
+   "choice": null
+  },
+  {
+   "name": "peel-edge",
+   "def": "lastStand",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": null,
+   "threat": {
+    "x": 500,
+    "y": 400,
+    "d": 150,
+    "chasing": true,
+    "id": "p7",
+    "los": true,
+    "targetable": true
+   },
+   "choice": null
+  },
+  {
+   "name": "peel-far",
+   "def": "lastStand",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": null,
+   "threat": {
+    "x": 500,
+    "y": 400,
+    "d": 160,
+    "chasing": true,
+    "id": "p7",
+    "los": true,
+    "targetable": true
+   },
+   "choice": null
+  },
+  {
+   "name": "peel-still",
+   "def": "lastStand",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": null,
+   "threat": {
+    "x": 500,
+    "y": 400,
+    "d": 100,
+    "chasing": false,
+    "id": "p7",
+    "los": true,
+    "targetable": true
+   },
+   "choice": null
+  },
+  {
+   "name": "peel-untargetable",
+   "def": "lastStand",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": null,
+   "threat": {
+    "x": 500,
+    "y": 400,
+    "d": 100,
+    "chasing": true,
+    "id": "p7",
+    "los": true,
+    "targetable": false
+   },
+   "choice": null
+  },
+  {
+   "name": "peel-no-los",
+   "def": "lastStand",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": null,
+   "threat": {
+    "x": 500,
+    "y": 400,
+    "d": 100,
+    "chasing": true,
+    "id": "p7",
+    "los": false,
+    "targetable": true
+   },
+   "choice": null
+  },
+  {
+   "name": "peel-no-id",
+   "def": "lastStand",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": null,
+   "threat": {
+    "x": 500,
+    "y": 400,
+    "d": 100,
+    "chasing": true,
+    "los": true,
+    "targetable": true
+   },
+   "choice": null
+  },
+  {
+   "name": "order-engage-vs-peel",
+   "def": "freeze",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": {
+    "id": "p7",
+    "x": 500,
+    "y": 400,
+    "d": 100,
+    "los": true,
+    "targetable": true
+   },
+   "threat": {
+    "x": 500,
+    "y": 400,
+    "d": 100,
+    "chasing": true,
+    "id": "p7",
+    "los": true,
+    "targetable": true
+   },
+   "choice": {
+    "x": 500,
+    "y": 400,
+    "id": "p7"
+   }
+  },
+  {
+   "name": "order-escape-vs-engage",
+   "def": "freeze",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.49,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": {
+    "id": "p7",
+    "x": 500,
+    "y": 400,
+    "d": 100,
+    "los": true,
+    "targetable": true
+   },
+   "threat": {
+    "x": 500,
+    "y": 400,
+    "d": 200,
+    "chasing": true,
+    "id": "p7",
+    "los": true,
+    "targetable": true
+   },
+   "choice": {
+    "x": 500,
+    "y": 400,
+    "id": "p7"
+   }
+  },
+  {
+   "name": "order-engage-vs-peel",
+   "def": "trial",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": {
+    "id": "p7",
+    "x": 500,
+    "y": 400,
+    "d": 100,
+    "los": true,
+    "targetable": true
+   },
+   "threat": {
+    "x": 500,
+    "y": 400,
+    "d": 100,
+    "chasing": true,
+    "id": "p7",
+    "los": true,
+    "targetable": true
+   },
+   "choice": {
+    "x": 500,
+    "y": 400,
+    "id": "p7"
+   }
+  },
+  {
+   "name": "order-escape-vs-engage",
+   "def": "trial",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.49,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": {
+    "id": "p7",
+    "x": 500,
+    "y": 400,
+    "d": 100,
+    "los": true,
+    "targetable": true
+   },
+   "threat": {
+    "x": 500,
+    "y": 400,
+    "d": 200,
+    "chasing": true,
+    "id": "p7",
+    "los": true,
+    "targetable": true
+   },
+   "choice": {
+    "x": 500,
+    "y": 400,
+    "id": "p7"
+   }
+  },
+  {
+   "name": "order-engage-vs-peel",
+   "def": "swarm",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": {
+    "id": "p7",
+    "x": 500,
+    "y": 400,
+    "d": 100,
+    "los": true,
+    "targetable": true
+   },
+   "threat": {
+    "x": 500,
+    "y": 400,
+    "d": 100,
+    "chasing": true,
+    "id": "p7",
+    "los": true,
+    "targetable": true
+   },
+   "choice": null
+  },
+  {
+   "name": "order-escape-vs-engage",
+   "def": "swarm",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.49,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": {
+    "id": "p7",
+    "x": 500,
+    "y": 400,
+    "d": 100,
+    "los": true,
+    "targetable": true
+   },
+   "threat": {
+    "x": 500,
+    "y": 400,
+    "d": 200,
+    "chasing": true,
+    "id": "p7",
+    "los": true,
+    "targetable": true
+   },
+   "choice": {
+    "x": 400,
+    "y": 400
+   }
+  },
+  {
+   "name": "order-engage-vs-peel",
+   "def": "blaze",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": {
+    "id": "p7",
+    "x": 500,
+    "y": 400,
+    "d": 100,
+    "los": true,
+    "targetable": true
+   },
+   "threat": {
+    "x": 500,
+    "y": 400,
+    "d": 100,
+    "chasing": true,
+    "id": "p7",
+    "los": true,
+    "targetable": true
+   },
+   "choice": null
+  },
+  {
+   "name": "order-escape-vs-engage",
+   "def": "blaze",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.49,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": {
+    "id": "p7",
+    "x": 500,
+    "y": 400,
+    "d": 100,
+    "los": true,
+    "targetable": true
+   },
+   "threat": {
+    "x": 500,
+    "y": 400,
+    "d": 200,
+    "chasing": true,
+    "id": "p7",
+    "los": true,
+    "targetable": true
+   },
+   "choice": {
+    "x": 100,
+    "y": 400
+   }
+  },
+  {
+   "name": "order-engage-vs-peel",
+   "def": "lastStand",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.8,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": {
+    "id": "p7",
+    "x": 500,
+    "y": 400,
+    "d": 100,
+    "los": true,
+    "targetable": true
+   },
+   "threat": {
+    "x": 500,
+    "y": 400,
+    "d": 100,
+    "chasing": true,
+    "id": "p7",
+    "los": true,
+    "targetable": true
+   },
+   "choice": null
+  },
+  {
+   "name": "order-escape-vs-engage",
+   "def": "lastStand",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.49,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": {
+    "id": "p7",
+    "x": 500,
+    "y": 400,
+    "d": 100,
+    "los": true,
+    "targetable": true
+   },
+   "threat": {
+    "x": 500,
+    "y": 400,
+    "d": 200,
+    "chasing": true,
+    "id": "p7",
+    "los": true,
+    "targetable": true
+   },
+   "choice": {
+    "x": 400,
+    "y": 400
+   }
+  },
+  {
+   "name": "rank-clamp-0",
+   "def": "freeze",
+   "rank": 0,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.34,
+    "effects": 0,
+    "recentlyHit": true
+   },
+   "foe": {
+    "id": "p7",
+    "x": 500,
+    "y": 400,
+    "d": 100,
+    "los": true,
+    "targetable": true
+   },
+   "threat": null,
+   "choice": {
+    "x": 500,
+    "y": 400,
+    "id": "p7"
+   }
+  },
+  {
+   "name": "rank-clamp-0",
+   "def": "lastStand",
+   "rank": 0,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.34,
+    "effects": 0,
+    "recentlyHit": true
+   },
+   "foe": {
+    "id": "p7",
+    "x": 500,
+    "y": 400,
+    "d": 100,
+    "los": true,
+    "targetable": true
+   },
+   "threat": null,
+   "choice": {
+    "x": 400,
+    "y": 400
+   }
+  },
+  {
+   "name": "rank-clamp-2",
+   "def": "freeze",
+   "rank": 2,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.34,
+    "effects": 0,
+    "recentlyHit": true
+   },
+   "foe": {
+    "id": "p7",
+    "x": 500,
+    "y": 400,
+    "d": 100,
+    "los": true,
+    "targetable": true
+   },
+   "threat": null,
+   "choice": {
+    "x": 500,
+    "y": 400,
+    "id": "p7"
+   }
+  },
+  {
+   "name": "rank-clamp-2",
+   "def": "lastStand",
+   "rank": 2,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.34,
+    "effects": 0,
+    "recentlyHit": true
+   },
+   "foe": {
+    "id": "p7",
+    "x": 500,
+    "y": 400,
+    "d": 100,
+    "los": true,
+    "targetable": true
+   },
+   "threat": null,
+   "choice": {
+    "x": 400,
+    "y": 400
+   }
+  },
+  {
+   "name": "rank-clamp-99",
+   "def": "freeze",
+   "rank": 99,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.34,
+    "effects": 0,
+    "recentlyHit": true
+   },
+   "foe": {
+    "id": "p7",
+    "x": 500,
+    "y": 400,
+    "d": 100,
+    "los": true,
+    "targetable": true
+   },
+   "threat": null,
+   "choice": {
+    "x": 500,
+    "y": 400,
+    "id": "p7"
+   }
+  },
+  {
+   "name": "rank-clamp-99",
+   "def": "lastStand",
+   "rank": 99,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.34,
+    "effects": 0,
+    "recentlyHit": true
+   },
+   "foe": {
+    "id": "p7",
+    "x": 500,
+    "y": 400,
+    "d": 100,
+    "los": true,
+    "targetable": true
+   },
+   "threat": null,
+   "choice": {
+    "x": 400,
+    "y": 400
+   }
+  },
+  {
+   "name": "rank-clamp--1",
+   "def": "freeze",
+   "rank": -1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.34,
+    "effects": 0,
+    "recentlyHit": true
+   },
+   "foe": {
+    "id": "p7",
+    "x": 500,
+    "y": 400,
+    "d": 100,
+    "los": true,
+    "targetable": true
+   },
+   "threat": null,
+   "choice": {
+    "x": 500,
+    "y": 400,
+    "id": "p7"
+   }
+  },
+  {
+   "name": "rank-clamp--1",
+   "def": "lastStand",
+   "rank": -1,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.34,
+    "effects": 0,
+    "recentlyHit": true
+   },
+   "foe": {
+    "id": "p7",
+    "x": 500,
+    "y": 400,
+    "d": 100,
+    "los": true,
+    "targetable": true
+   },
+   "threat": null,
+   "choice": {
+    "x": 400,
+    "y": 400
+   }
+  },
+  {
+   "name": "rank-clamp-NaN",
+   "def": "freeze",
+   "rank": null,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.34,
+    "effects": 0,
+    "recentlyHit": true
+   },
+   "foe": {
+    "id": "p7",
+    "x": 500,
+    "y": 400,
+    "d": 100,
+    "los": true,
+    "targetable": true
+   },
+   "threat": null,
+   "choice": {
+    "x": 500,
+    "y": 400,
+    "id": "p7"
+   }
+  },
+  {
+   "name": "rank-clamp-NaN",
+   "def": "lastStand",
+   "rank": null,
+   "gatesLocked": false,
+   "me": {
+    "x": 400,
+    "y": 400,
+    "hpFrac": 0.34,
+    "effects": 0,
+    "recentlyHit": true
+   },
+   "foe": {
+    "id": "p7",
+    "x": 500,
+    "y": 400,
+    "d": 100,
+    "los": true,
+    "targetable": true
+   },
+   "threat": null,
+   "choice": {
+    "x": 400,
+    "y": 400
+   }
+  },
+  {
+   "name": "blaze-escape-wall-0",
+   "def": "blaze",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 272,
+    "y": 80,
+    "hpFrac": 0.45,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": null,
+   "threat": {
+    "x": 332,
+    "y": 80,
+    "d": 60,
+    "chasing": true,
+    "id": "p7",
+    "los": true,
+    "targetable": true
+   },
+   "choice": {
+    "x": -28,
+    "y": 80
+   }
+  },
+  {
+   "name": "blaze-engage-wall-0",
+   "def": "blaze",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 272,
+    "y": 80,
+    "hpFrac": 0.8,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": {
+    "id": "p7",
+    "x": 472,
+    "y": 80,
+    "d": 200,
+    "los": true,
+    "targetable": true
+   },
+   "threat": null,
+   "choice": null
+  },
+  {
+   "name": "blaze-escape-wall-1",
+   "def": "blaze",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 272,
+    "y": 112,
+    "hpFrac": 0.45,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": null,
+   "threat": {
+    "x": 332,
+    "y": 112,
+    "d": 60,
+    "chasing": true,
+    "id": "p7",
+    "los": true,
+    "targetable": true
+   },
+   "choice": {
+    "x": -28,
+    "y": 112
+   }
+  },
+  {
+   "name": "blaze-engage-wall-1",
+   "def": "blaze",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 272,
+    "y": 112,
+    "hpFrac": 0.8,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": {
+    "id": "p7",
+    "x": 472,
+    "y": 112,
+    "d": 200,
+    "los": true,
+    "targetable": true
+   },
+   "threat": null,
+   "choice": null
+  },
+  {
+   "name": "blaze-escape-wall-2",
+   "def": "blaze",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 624,
+    "y": 112,
+    "hpFrac": 0.45,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": null,
+   "threat": {
+    "x": 684,
+    "y": 112,
+    "d": 60,
+    "chasing": true,
+    "id": "p7",
+    "los": true,
+    "targetable": true
+   },
+   "choice": null
+  },
+  {
+   "name": "blaze-engage-wall-2",
+   "def": "blaze",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 624,
+    "y": 112,
+    "hpFrac": 0.8,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": {
+    "id": "p7",
+    "x": 824,
+    "y": 112,
+    "d": 200,
+    "los": true,
+    "targetable": true
+   },
+   "threat": null,
+   "choice": null
+  },
+  {
+   "name": "blaze-escape-wall-3",
+   "def": "blaze",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 272,
+    "y": 144,
+    "hpFrac": 0.45,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": null,
+   "threat": {
+    "x": 332,
+    "y": 144,
+    "d": 60,
+    "chasing": true,
+    "id": "p7",
+    "los": true,
+    "targetable": true
+   },
+   "choice": {
+    "x": -28,
+    "y": 144
+   }
+  },
+  {
+   "name": "blaze-engage-wall-3",
+   "def": "blaze",
+   "rank": 1,
+   "gatesLocked": false,
+   "me": {
+    "x": 272,
+    "y": 144,
+    "hpFrac": 0.8,
+    "effects": 0,
+    "recentlyHit": false
+   },
+   "foe": {
+    "id": "p7",
+    "x": 472,
+    "y": 144,
+    "d": 200,
+    "los": true,
+    "targetable": true
+   },
+   "threat": null,
+   "choice": null
+  }
+ ]
+}

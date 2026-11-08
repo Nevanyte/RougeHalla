@@ -7,9 +7,10 @@ use crate::bots::humanizer::{Context, Humanizer};
 use crate::bots::perception::Perception;
 use crate::bots::random::Rng;
 use crate::bots::types::{
-    Intent, IntentBody, IntentTiming, PersonaId, PersonaParams, Stimulus, StimulusKind, TierId,
-    TierParams,
+    Intent, IntentBody, IntentTiming, Percept, PersonaId, PersonaParams, Stimulus, StimulusKind,
+    TierId, TierParams,
 };
+use crate::bots::wish::{WishFoe, WishModule};
 use crate::{MatchStart, Policy, PolicySpec, POLICY_CONTRACT_VERSION};
 use rh_sim::{Observation, PlayerId, PublicCommand, OBSERVATION_VERSION};
 
@@ -73,6 +74,8 @@ pub struct HumanBot {
     prev_hp_frac: f64,
     roam: Option<rh_sim::Vec2>,
     plan_sent: bool,
+    /// The Wish module (P-BOTS-2): its availability/remember/retry state, and the public static map its blink landing reads.
+    wish: WishModule,
 }
 
 impl HumanBot {
@@ -92,6 +95,7 @@ impl HumanBot {
             prev_hp_frac: 0.,
             roam: None,
             plan_sent: false,
+            wish: WishModule::new(),
         }
     }
     pub fn tier(&self) -> TierId {
@@ -111,6 +115,43 @@ impl HumanBot {
             .iter()
             .find(|(rendered, _)| rendered == id)
             .map(|(_, real)| *real)
+    }
+
+    /// The front end's chosen target as the Wish module sees it: the nearest targetable player it would fight/approach, else
+    /// the nearest living mob it would farm. (The bounded front end has no explicit goal enum; this mirrors its branch order.
+    /// The fair view carries no line-of-sight flag yet, so a delivered actor counts as in sight -- documented narrowing.)
+    fn front_foe(&self, p: &Percept) -> Option<WishFoe> {
+        let self_at = rh_sim::Vec2::new(p.self_view.x, p.self_view.y);
+        let nearest_player = p
+            .fighters
+            .iter()
+            .filter(|f| f.status == "alive" && f.targetable)
+            .map(|f| (f, rh_sim::math::hypot(f.x - self_at.x, f.y - self_at.y)))
+            .min_by(|a, b| a.1.total_cmp(&b.1));
+        if let Some((f, _)) = nearest_player {
+            return Some(WishFoe {
+                id: f.id.clone(),
+                x: f.x,
+                y: f.y,
+                mob: false,
+                targetable: f.targetable,
+                los: true,
+            });
+        }
+        let nearest_mob = p
+            .mobs
+            .iter()
+            .filter(|m| m.status == "alive")
+            .map(|m| (m, rh_sim::math::hypot(m.x - self_at.x, m.y - self_at.y)))
+            .min_by(|a, b| a.1.total_cmp(&b.1));
+        nearest_mob.map(|(m, _)| WishFoe {
+            id: m.id.clone(),
+            x: m.x,
+            y: m.y,
+            mob: true,
+            targetable: true,
+            los: true,
+        })
     }
 
     /// The decision front end: one goal (fight the nearest enemy, else walk toward it, else roam), turned into intents.
@@ -236,6 +277,7 @@ impl Policy for HumanBot {
         self.prev_hp_frac = 0.;
         self.roam = None;
         self.plan_sent = false;
+        self.wish.reset(&m.arena.map);
     }
     fn decide(&mut self, obs: &Observation) -> Vec<PublicCommand> {
         let mut out = Vec::new();
@@ -259,7 +301,10 @@ impl Policy for HumanBot {
             return;
         };
         self.ids = frame.ids;
+        let frame_hit_at = frame.hit_at;
+        let frame_fighter_hits = frame.fighter_hits;
         let p = frame.percept;
+        self.wish.absorb_hits(frame_hit_at, &frame_fighter_hits);
         if p.self_view.max_hp > 0. {
             let frac = p.self_view.hp / p.self_view.max_hp;
             if self.prev_hp_frac > 0. && frac + 1e-12 < self.prev_hp_frac {
@@ -284,7 +329,14 @@ impl Policy for HumanBot {
         }
         let mut stimuli = std::mem::take(&mut self.stimuli);
         stimuli.extend(frame.stimuli);
-        let intents = self.intents(&p, &stimuli);
+        // The Wish module sees the same observation and the front end's chosen foe, and its cast is offered first: arming it is
+        // part of deciding it, and the humanizer arbitrates by priority and channel as it does for every intent.
+        self.wish.observe(&p, self.tier, &mut self.decide);
+        let foe = self.front_foe(&p);
+        let mut intents =
+            self.wish
+                .intents(&p, &stimuli, foe.as_ref(), self.tier, &mut self.decide);
+        intents.extend(self.intents(&p, &stimuli));
         let Some(humanizer) = self.humanizer.as_mut() else {
             return;
         };

@@ -7,10 +7,10 @@
 //! the full fair-view constructor remains part of P-BOTS-1.
 use crate::bots::clicks::BotMap;
 use crate::bots::types::{
-    BotWeapon, ContainerView, FighterView, HudView, MobView, Percept, RewardChestView, SelfView,
-    Stimulus, StimulusKind,
+    BotWeapon, ContainerView, FighterView, HudView, MobView, Percept, PerceptExtras,
+    RewardChestView, SelfView, Stimulus, StimulusKind, WishView,
 };
-use rh_sim::observe::ActorView;
+use rh_sim::observe::{ActorView, SeenEvent};
 use rh_sim::{Observation, Phase, Status};
 
 fn status_str(s: Status) -> &'static str {
@@ -44,6 +44,11 @@ pub struct Frame {
     /// Rendered key -> the public actor id it stands for (players and NPCs of THIS observation only).
     pub ids: Vec<(String, rh_sim::PlayerId)>,
     pub stimuli: Vec<Stimulus>,
+    /// The time of the last hit on the owner in this observation, if one landed (the wish module's "being hit").
+    pub hit_at: Option<f64>,
+    /// Player-originated hits on the owner in this observation: the rendered attacker key and the time (the wish module keeps
+    /// the per-fighter memory the legacy brain had, so a melee fighter on the bot can count as chasing).
+    pub fighter_hits: Vec<(String, f64)>,
 }
 
 /// The attention box (TierParams.attention.central), used to mark a stimulus central or peripheral.
@@ -162,6 +167,7 @@ impl Perception {
                 status: status_str(me.status).into(),
                 hp: me.hp,
                 max_hp: me.max_hp,
+                effects: me.effects,
                 weapons: weapons.unwrap_or([None, None]),
                 slot: obs.inventory.as_ref().map_or(0, |i| i.active_slot),
                 attack_target,
@@ -180,11 +186,36 @@ impl Perception {
             fighters,
             mobs,
             containers,
-            extras: crate::bots::types::PerceptExtras {
+            extras: PerceptExtras {
                 chests: Some(chests),
+                // The Wish slot is the owner's own Observation field: the ability, its ready time and a cast under way. Wishes
+                // have one rank.
+                wish: me.wish.as_ref().map(|w| WishView {
+                    ability: w.ability,
+                    ready_at: w.ready_at,
+                    casting: w.cast.is_some(),
+                    rank: 1,
+                }),
             },
         };
         // A stimulus is what a human would notice in this frame: an enemy appearing in view, self hp loss, a low-hp line.
+        // The owner's own hit events: a hit's time makes "being hit" and a visible player's key feeds the per-fighter
+        // memory the legacy brain kept (only what this observation shows).
+        let mut hit_at = None;
+        let mut fighter_hits = Vec::new();
+        for event in &obs.events {
+            if let SeenEvent::Hit { victim, by, .. } = event {
+                if *victim != me.id {
+                    continue;
+                }
+                hit_at = Some(now);
+                if let Some(by) = by {
+                    if obs.visible.iter().any(|a| a.kind == 0 && a.id == *by) {
+                        fighter_hits.push((player_key(*by), now));
+                    }
+                }
+            }
+        }
         let mut stimuli = Vec::new();
         for f in &percept.fighters {
             if !self.known.contains(&f.id) {
@@ -204,6 +235,8 @@ impl Perception {
             percept,
             ids,
             stimuli,
+            hit_at,
+            fighter_hits,
         })
     }
 

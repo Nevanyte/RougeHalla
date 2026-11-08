@@ -11,9 +11,14 @@ pub mod humanizer;
 pub mod perception;
 pub mod random;
 pub mod types;
+pub mod wish;
 
 #[cfg(test)]
 mod parity_tests;
+#[cfg(test)]
+mod wish_module_tests;
+#[cfg(test)]
+mod wish_parity_tests;
 
 pub use bot::{assign_seats, HumanBot};
 pub use clicks::{BotMap, MoveClickKind};
@@ -22,6 +27,10 @@ pub use perception::Perception;
 pub use random::Rng;
 pub use types::{
     BotWeapon, Command, CommandType, ExGaussian, Intent, IntentBody, IntentChannel, IntentKind,
-    IntentTiming, PersonaId, PersonaParams, Stimulus, StimulusKind, TierId, TierParams,
-    TimedCommand, PERSONAS, TIERS,
+    IntentTiming, PerceptExtras, PersonaId, PersonaParams, Stimulus, StimulusKind, TierId,
+    TierParams, TimedCommand, WishView, PERSONAS, TIERS,
+};
+pub use wish::{
+    CastChoice, CastSituation, FoeView, MeView, ThreatView, WishDef, WishFoe, WishModule, WISHES,
+    WISH_RULES,
 };

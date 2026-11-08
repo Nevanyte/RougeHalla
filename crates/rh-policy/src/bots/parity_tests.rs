@@ -182,6 +182,7 @@ fn parse_percept(v: &Value) -> Percept {
             status: text(obj(me, "status")).to_string(),
             hp: num(obj(me, "hp")),
             max_hp: num(obj(me, "maxHp")),
+            effects: 0,
             weapons: [weapon(&weapons[0]), weapon(&weapons[1])],
             slot: int(obj(me, "slot")) as u8,
             attack_target: opt_text(obj(me, "attackTarget")),
@@ -226,6 +227,7 @@ fn parse_percept(v: &Value) -> Percept {
             })
             .collect(),
         extras: PerceptExtras {
+            wish: None,
             chests: obj(v, "extras")
                 .get("chests")
                 .filter(|c| !c.is_null())
