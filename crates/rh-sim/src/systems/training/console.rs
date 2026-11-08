@@ -162,7 +162,8 @@ fn stat_text(id: MobTypeId, stacks: u64) -> String {
     }
 }
 
-/// Legacy \`one\`: at most two decimals, trailing zeros trimmed (the source's toLocaleString(2) shape).
+/// Legacy `toLocaleString("en-US", {maximumFractionDigits: 2})`: grouped thousands, at most two decimals (trailing
+/// zeros trimmed).
 fn one(n: f64) -> String {
     let mut s = format!("{n:.2}");
     while s.ends_with('0') {
@@ -171,7 +172,25 @@ fn one(n: f64) -> String {
     if s.ends_with('.') {
         s.pop();
     }
-    s
+    let (sign, digits) = match s.strip_prefix('-') {
+        Some(rest) => ("-", rest),
+        None => ("", s.as_str()),
+    };
+    let (int_part, frac) = match digits.split_once('.') {
+        Some((i, f)) => (i, Some(f)),
+        None => (digits, None),
+    };
+    let mut grouped = String::with_capacity(s.len() + int_part.len() / 3);
+    for (i, ch) in int_part.chars().enumerate() {
+        if i > 0 && (int_part.len() - i) % 3 == 0 {
+            grouped.push(',');
+        }
+        grouped.push(ch);
+    }
+    match frac {
+        Some(frac) => format!("{sign}{grouped}.{frac}"),
+        None => format!("{sign}{grouped}"),
+    }
 }
 
 fn mob_name(id: MobTypeId) -> &'static str {
@@ -222,6 +241,10 @@ fn occupied_tiles(w: &World) -> Vec<i64> {
         out.push(tile_key(m.core.pos()));
     }
     for c in &w.containers {
+        out.push(tile_key(c.at));
+    }
+    // Reward chests are state containers in the source, so they occupy their tile for the next drop too.
+    for c in &w.reward_chests {
         out.push(tile_key(c.at));
     }
     out
@@ -372,7 +395,8 @@ fn camp(k: &MatchStatic, w: &mut World, ev: &mut Vec<Event>, ix: FighterIx, id: 
     let (camp_ref, next) = next_camp_ref(w, run);
     for at in &spots {
         let facing = atan2(from.y - at.y, from.x - at.x);
-        mobs::place_practice_mob(w, id, ty.elite, camp_ref - 1, *at, facing);
+        // placeMob writes `camp + 1` to MobState.camp; the console passes `ref - 1`, so the mob's camp is the ref itself.
+        mobs::place_practice_mob(w, id, ty.elite, camp_ref, *at, facing);
     }
     if let Some(run) = w.practice.as_mut() {
         run.spawned += spots.len() as u32;

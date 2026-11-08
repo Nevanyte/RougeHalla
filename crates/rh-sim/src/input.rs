@@ -467,6 +467,8 @@ fn validate_train(raw: TrainRaw) -> Result<TrainCommand, Reject> {
                 .count
                 .min(u64::from(crate::constants::TRAIN_MAX_CARD_COUNT)) as u8,
         }),
+        // The source door refuses a stat count of 0 (a stat is only ever set to a positive stack count by the console).
+        2 if raw.count == 0 => Err(Reject::InvalidTrain),
         2 => Ok(TrainCommand::Stat {
             id: mob_at(raw.id).ok_or(Reject::InvalidTrain)?,
             count: raw
@@ -480,13 +482,16 @@ fn validate_train(raw: TrainRaw) -> Result<TrainCommand, Reject> {
             if raw.option_count > 3 {
                 return Err(Reject::InvalidTrain);
             }
-            let mut options = [None; 3];
-            for (i, option) in options.iter_mut().enumerate() {
-                if i < usize::from(raw.option_count) {
-                    *option = Some(card_at(u32::from(raw.options[i])).ok_or(Reject::InvalidTrain)?);
+            let mut parsed: [Option<crate::cards::CardId>; 3] = [None; 3];
+            for i in 0..usize::from(raw.option_count) {
+                let card = card_at(u32::from(raw.options[i])).ok_or(Reject::InvalidTrain)?;
+                // The source door refuses duplicate chest choices whole.
+                if parsed.iter().flatten().any(|held| *held == card) {
+                    return Err(Reject::InvalidTrain);
                 }
+                parsed[i] = Some(card);
             }
-            Ok(TrainCommand::Chest { options })
+            Ok(TrainCommand::Chest { options: parsed })
         }
         5 => Ok(TrainCommand::Clear),
         _ => Err(Reject::InvalidTrain),

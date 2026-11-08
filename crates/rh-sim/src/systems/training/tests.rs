@@ -331,10 +331,20 @@ fn the_console_sets_a_mob_stat() {
         toast[0]
     );
     assert_eq!(sim.w.players.first().unwrap().farm.count(ty), 3);
-    submit_train(&mut sim, train_raw(2, ty as u32, 0));
+    // The source door refuses a stat count of 0 (a stack count is only ever set to a positive number from the wire), and
+    // the refused command changes nothing.
+    assert_eq!(
+        crate::input::validate(crate::RawCommand::Train(train_raw(2, ty as u32, 0))),
+        Err(crate::input::Reject::InvalidTrain)
+    );
     let events = sim.step();
-    assert!(toasts(&events)[0].contains("+0% damage total"));
-    assert_eq!(sim.w.players.first().unwrap().farm.count(ty), 0);
+    assert!(toasts(&events).is_empty());
+    assert_eq!(sim.w.players.first().unwrap().farm.count(ty), 3);
+    // A positive count sets the stacks again (the console only raises them; the sim clamp is the source's).
+    submit_train(&mut sim, train_raw(2, ty as u32, 1));
+    let events = sim.step();
+    assert!(toasts(&events)[0].contains("+1% damage total"));
+    assert_eq!(sim.w.players.first().unwrap().farm.count(ty), 1);
 }
 
 /// camp: three practice mobs on a new camp ref, the 300 ms gap, and the alive cap of 12.
@@ -354,7 +364,7 @@ fn the_console_drops_a_practice_camp_with_gaps_and_caps() {
     let mut mobs = practice_mobs(&sim);
     assert_eq!(mobs.len(), 3);
     let camp = mobs[0].camp;
-    assert!(((PRACTICE_CAMP_FIRST - 1)..=(PRACTICE_CAMP_LAST - 1)).contains(&camp));
+    assert!((PRACTICE_CAMP_FIRST..=PRACTICE_CAMP_LAST).contains(&camp));
     assert!(mobs.iter().all(|m| m.camp == camp));
     assert_eq!(sim.w.practice.unwrap().spawned, 3);
     submit_train(&mut sim, train_raw(3, ty as u32, 0));

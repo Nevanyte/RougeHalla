@@ -1004,7 +1004,9 @@ fn apply_hits(pass: &mut Pass, vi: usize, hits: &[Hit]) -> f64 {
         .filter(|&k| !w.players[k].resolved);
     let killer_bot = killer_idx.map(|k| w.players[k].seat.bot).unwrap_or(false);
     let killer_label = kid.and_then(|id| w.actor_label(id));
-    let killer_present = kid.is_some_and(|id| w.actor(id).is_some());
+    // A death fx names its killer only when a PLAYER landed the fatal damage (legacy: by is the combatant object id;
+    // a mob's source is a tag string, so a mob-caused death carries no by).
+    let killer_present = kid.is_some_and(|id| w.player(id).is_some());
     let (vx, vy) = (w.players[vi].body.x, w.players[vi].body.y);
     {
         let v = &mut w.players[vi];

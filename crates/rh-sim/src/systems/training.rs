@@ -285,6 +285,8 @@ pub(crate) fn spawn_training(hx: &mut Hx, _: &HookArgs) {
 }
 
 #[cfg(test)]
+mod corpus_tests;
+#[cfg(test)]
 mod tests;
 
 /// Checkpoint/world admission for a training world (the `systems/mobs.validate` arm).
@@ -333,7 +335,7 @@ pub(crate) fn validate_actors(
                 let Some(ty) = m.mob_type else {
                     return Err("practice mob without a catalog type");
                 };
-                if !((PRACTICE_CAMP_FIRST - 1)..=(PRACTICE_CAMP_LAST - 1)).contains(&m.camp) {
+                if !(PRACTICE_CAMP_FIRST..=PRACTICE_CAMP_LAST).contains(&m.camp) {
                     return Err("practice mob camp ref out of range");
                 }
                 let row = crate::mob_catalog::mob_type_by_id(ty.as_str())
