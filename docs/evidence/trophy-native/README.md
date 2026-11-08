@@ -60,11 +60,15 @@ ownership relation; an expired source id has no live native relation and becomes
 
 ## Lifecycle consumer results (crates/rh-sim/src/kill_augments/lifecycle_consumer.rs)
 
-Every frame field the source recorded is compared in order: tick/time/phase; each declared seat's faction/x/y/hp/maxHp/
-status/weapons/slot/build/killStats/mobStats/campClears (removed seat = null); owner-bound trophy count, owner, location,
-expiry, option ids/order, takenBy/pickers/items and the birth-at-killer relation; hit amounts; refusal reasons word-for-
-word against source toasts; and the source hook-only rewardOffered/rewardChosen facts against the actual native
-container/ChestTaken event (the probe is not a native producer).
+The recorded frame facts are compared in order: tick/time/phase; each declared seat's faction/x/y/hp/maxHp/status/
+weapons/slot/build/killStats/mobStats/campClears (removed seat = null); owner-bound trophy count, owner, location, expiry,
+option ids/order, takenBy/pickers/items and the birth-at-killer relation; hit amounts; refusal reasons word-for-word
+against source toasts; and the source hook-only rewardOffered/rewardChosen facts against the actual native
+container/ChestTaken event (the probe is not a native producer). Precision limits (independent checker): the seat
+index and native/source trophy ids are structural, not separately asserted; taken is compared up to the source's
+declared option count. The admitted corpus has one trophy id and one option per chest, so this cannot hide a mismatch
+here, but a future multi-id/multi-option corpus would need explicit id assertions. The source id c1b/owner p0 is
+constant in the admitted corpus, so the birth/ownership id mapping is structurally exercised rather than stress-tested.
 
 | Case | Frames compared | Result |
 |---|---|---|
@@ -85,8 +89,11 @@ Source loot.bornThisTick refuses the birth tick AND the next tick: a Trophy born
 holdBirth sets tick + 1 = 3, so born >= tick is true at ticks 2 and 3 and first takeable at tick 4. Native
 reward_chests::choose tests held_until_tick > tick, and the trophy sets held_until_tick = tick + 1 = 3, so the owner
 pick is accepted at tick 3. Native RewardChestObserver::can_choose already uses held_until_tick < tick and therefore
-agrees with the source (false at ticks 2 and 3, true at tick 4), so the minimal production fix would be to make choose
-use the observer predicate (>=), or set the in-tick hold to tick + 2. That production change is outside this packet;
+agrees with the source (false at ticks 2 and 3, true at tick 4). The exact minimal consistent fix is therefore to make
+`choose` refuse while `held_until_tick >= tick` (accept only when `held_until_tick < tick`, the observer's condition);
+alternatively raising BOTH in-tick holds (the trophy drop and the generic chest insert, where the hold is written as
+tick + 1) to tick + 2 is exact for those in-tick births, but a hold-only change without the observer/choose alignment
+would desynchronise them. That production change is outside this packet;
 case 0's owner-chosen/repeat-pick/skip frames are therefore not asserted, and the divergence is asserted explicitly by
 birth_hold_diverges_from_the_source_hold plus observer_can_choose_follows_the_source_hold.
 
@@ -102,10 +109,11 @@ in case 1 through the range/owner continuation. Restored and uninterrupted runs 
 ### Policy/observer offer binding
 
 The default native ItemObserver stages the Trophy as one complete reward row (option kill:ad:16.5), with can_choose false
-during the birth hold. The existing human presentation guard (a closure that rejects any row containing a kill augment)
-is exercised unchanged: it omits the entire Trophy row before handle bindings, and the observer resolves an unbound
-handle to the ordinary unresolved choose. The guard was not bypassed, widened or removed; no protocol allocation or human
-wire change was made.
+during the birth hold. A test-side observer closure equivalent to the existing human presentation guard (reject any row
+containing a kill augment) omits the entire Trophy row before handle bindings, and the observer resolves an unbound
+handle to the ordinary unresolved choose. The production human wire functions themselves are unchanged and are not
+executed by this test; no guard was bypassed, widened or removed and no protocol allocation or human wire change was
+made.
 
 ## Helper consumer results (crates/rh-sim/src/kill_augments/helper_consumer.rs)
 
@@ -166,6 +174,25 @@ No control uses compilation, import, source-provenance-only or comment-only diff
 - bash tools/trophy-format-fixtures/capture.sh --check (twice) -> exit 0 both times, identical bytes/hashes.
 - bash tools/trophy-format-fixtures/capture.sh (recapture write) -> byte-identical SHA256 b75078a3..., no git diff.
 - No broad workspace/map/hash campaign was run; only the focused rh-sim test filters, fmt and clippy above.
+
+## Independent verification (Lead and separate checker)
+
+The Lead re-ran the slice independently, then a separate checker agent audited it without modifying anything:
+
+- Lead: cargo test -p rh-sim --lib kill_augments -> 21 passed / 0 failed (573 filtered); capture.sh --check read-only
+  -> byte-identical 47,713 B, SHA256 b75078a3...673c, captureSha256 0f1e3d04...f48, 28 ties / 9 keys / 9 tiny /
+  19 refusals / 3 rolls. Scope diff: only three cfg(test) mod lines in production; admitted corpora/tools byte-untouched.
+- Checker: two independent --check runs identical; write-mode recapture produced the same SHA with git status
+  unchanged; re-derived the canonical captureSha256, recomputed 84 tie rows and 45 tiny rows; module filters lifecycle
+  11 / helper 2 / format 2 all pass; cargo fmt -p rh-sim -- --check and cargo clippy -p rh-sim --all-targets -- -D warnings
+  exit 0; confirmed the birth-hold divergence with exact file:line evidence (source loot.ts birth/hold/bornThisTick vs
+  native reward_chests/mod.rs held/choose and the observer predicate), and confirmed the divergent tail is correctly
+  stopped rather than faked.
+- Checker verdict: PASS WITH DISCREPANCIES. The discrepancies were documentation precision only and are corrected
+  above/in this commit: (1) id/taken comparisons are structural, not "every field"; (2) the single source Trophy id
+  means identity mapping is structurally exercised, not stress-tested; (3) the human-wire-guard test uses an equivalent
+  observer closure, not the production wire functions (which remain unchanged). The minimal fix wording now names the
+  exact held_until_tick >= tick choose alignment and distinguishes the tick + 2 hold alternative.
 
 ## Honest gaps / prerequisites
 
