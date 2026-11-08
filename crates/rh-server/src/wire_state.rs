@@ -100,14 +100,6 @@ fn rewards(observation: &Observation) -> Result<Vec<WireRewardChest>, EncodeErro
         .reward_chests
         .iter()
         .map(|c| {
-            // Phase A understands v13 Trophy facts, but production publication stays gated until the native
-            // owner/source prerequisites are released. Never compact an index-based row or stage a partial offer.
-            if c.options
-                .iter()
-                .any(|o| matches!(o.id, rh_sim::reward_chests::OptionId::Kill(_)))
-            {
-                return Err(EncodeError::BadValue("kill-augment reward transport"));
-            }
             let x = c.at.x as f32;
             let y = c.at.y as f32;
             if !rh_protocol::quant::pos_in_range(x) || !rh_protocol::quant::pos_in_range(y) {
@@ -130,9 +122,38 @@ fn rewards(observation: &Observation) -> Result<Vec<WireRewardChest>, EncodeErro
                             rh_sim::reward_chests::OptionId::Boost(id) => {
                                 WireRewardId::Boost(id.index() as u8)
                             }
-                            rh_sim::reward_chests::OptionId::Kill(_) => {
-                                unreachable!("unsupported options are refused before projection")
-                            }
+                            rh_sim::reward_chests::OptionId::Kill(augment) => WireRewardId::Kill {
+                                key: match augment.key {
+                                    rh_sim::kill_augments::KillStatKey::Ad => {
+                                        rh_protocol::TrophyStatKey::Ad
+                                    }
+                                    rh_sim::kill_augments::KillStatKey::Ap => {
+                                        rh_protocol::TrophyStatKey::Ap
+                                    }
+                                    rh_sim::kill_augments::KillStatKey::Damage => {
+                                        rh_protocol::TrophyStatKey::Damage
+                                    }
+                                    rh_sim::kill_augments::KillStatKey::Health => {
+                                        rh_protocol::TrophyStatKey::Health
+                                    }
+                                    rh_sim::kill_augments::KillStatKey::AttackSpeed => {
+                                        rh_protocol::TrophyStatKey::AttackSpeed
+                                    }
+                                    rh_sim::kill_augments::KillStatKey::Armor => {
+                                        rh_protocol::TrophyStatKey::Armor
+                                    }
+                                    rh_sim::kill_augments::KillStatKey::Mr => {
+                                        rh_protocol::TrophyStatKey::Mr
+                                    }
+                                    rh_sim::kill_augments::KillStatKey::Speed => {
+                                        rh_protocol::TrophyStatKey::Speed
+                                    }
+                                    rh_sim::kill_augments::KillStatKey::Leech => {
+                                        rh_protocol::TrophyStatKey::Leech
+                                    }
+                                },
+                                gain: augment.gain,
+                            },
                         },
                         taken: o.taken,
                         taken_by: o.taken_by.map(|id| id.0),
@@ -342,7 +363,7 @@ mod tests {
     use rh_sim::{PlanView, PlanningView, SpawnOptionView, Vec2};
 
     #[test]
-    fn unsupported_trophy_options_refuse_the_whole_offer_without_remapping_choices() {
+    fn typed_trophy_rows_preserve_order_and_invalid_gain_refuses_without_commit() {
         let mut obs = Observation::default();
         obs.reward_chests
             .push(rh_sim::reward_chests::RewardChestView {
@@ -351,17 +372,24 @@ mod tests {
                 expires_at: 1000.,
                 options: vec![
                     rh_sim::reward_chests::RewardOptionView {
+                        id: rh_sim::reward_chests::OptionId::Card(rh_sim::cards::CardId::ALL[79]),
+                        taken: false,
+                        taken_by: None,
+                    },
+                    rh_sim::reward_chests::RewardOptionView {
                         id: rh_sim::reward_chests::OptionId::Kill(
                             rh_sim::kill_augments::KillAugment {
-                                key: rh_sim::kill_augments::KillStatKey::Ad,
-                                gain: 6.,
+                                key: rh_sim::kill_augments::KillStatKey::AttackSpeed,
+                                gain: 0.0,
                             },
                         ),
                         taken: false,
                         taken_by: None,
                     },
                     rh_sim::reward_chests::RewardOptionView {
-                        id: rh_sim::reward_chests::OptionId::Card(rh_sim::cards::CardId::ALL[79]),
+                        id: rh_sim::reward_chests::OptionId::Boost(
+                            rh_sim::reward_chests::BoostId::ALL[7],
+                        ),
                         taken: false,
                         taken_by: None,
                     },
@@ -369,30 +397,27 @@ mod tests {
                 picked: false,
                 can_choose: true,
             });
-        assert_eq!(
-            rewards(&obs),
-            Err(EncodeError::BadValue("kill-augment reward transport"))
-        );
-        let publisher = CollectionPublisher::default();
-        assert!(publisher.prepare(&obs, true, true, false).is_err());
-        assert!(
-            !publisher.sent,
-            "failed replacement cannot commit any baseline"
-        );
-        assert!(matches!(
-            obs.reward_chests[0].options[0].id,
-            rh_sim::reward_chests::OptionId::Kill(_)
-        ));
-        assert!(
-            matches!(
-                obs.reward_chests[0].options[1].id,
-                rh_sim::reward_chests::OptionId::Card(_)
-            ),
-            "the native choice order was not compressed"
-        );
-        // When a future native update actually removes the unsupported choice, the full nine-key epoch is still due.
-        obs.reward_chests[0].options.remove(0);
+        let mut publisher = CollectionPublisher::default();
+        for gain in [0.0, -0.0, -1.0, f64::NAN, f64::INFINITY] {
+            obs.reward_chests[0].options[1].id =
+                rh_sim::reward_chests::OptionId::Kill(rh_sim::kill_augments::KillAugment {
+                    key: rh_sim::kill_augments::KillStatKey::AttackSpeed,
+                    gain,
+                });
+            assert!(publisher.prepare(&obs, true, true, false).is_err());
+            assert!(
+                !publisher.sent,
+                "invalid gain {gain:?} refuses the complete offer before any baseline can commit"
+            );
+        }
+
+        obs.reward_chests[0].options[1].id =
+            rh_sim::reward_chests::OptionId::Kill(rh_sim::kill_augments::KillAugment {
+                key: rh_sim::kill_augments::KillStatKey::AttackSpeed,
+                gain: f64::from_bits(0x4019_0000_0000_0001),
+            });
         let pending = publisher.prepare(&obs, true, true, false).unwrap();
+        assert!(!publisher.sent, "prepare does not commit the baseline");
         let ServerMsg::State { items, .. } =
             ServerMsg::decode(pending.frame.as_ref().unwrap()).unwrap()
         else {
@@ -405,8 +430,31 @@ mod tests {
         let StateItem::RewardChests(rows) = &items[3] else {
             panic!()
         };
-        assert_eq!(rows[0].options.len(), 1);
+        assert_eq!(rows[0].options.len(), 3);
         assert_eq!(rows[0].options[0].id, WireRewardId::Card(79));
+        assert_eq!(
+            rows[0].options[1].id,
+            WireRewardId::Kill {
+                key: rh_protocol::TrophyStatKey::AttackSpeed,
+                gain: f64::from_bits(0x4019_0000_0000_0001),
+            }
+        );
+        assert_eq!(rows[0].options[2].id, WireRewardId::Boost(7));
+        assert_eq!(
+            rows[0]
+                .options
+                .iter()
+                .map(|option| match option.id {
+                    WireRewardId::Card(_) => "card",
+                    WireRewardId::Kill { .. } => "trophy",
+                    WireRewardId::Boost(_) => "boost",
+                })
+                .collect::<Vec<_>>(),
+            ["card", "trophy", "boost"],
+            "wire indices must preserve the native row order"
+        );
+        pending.commit(&mut publisher);
+        assert!(publisher.sent);
     }
     #[test]
     fn collection_baselines_commit_after_enqueue_and_defer_flooded_resyncs() {

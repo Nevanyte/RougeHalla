@@ -660,21 +660,12 @@ impl Publisher {
     ) -> Result<(ViewFrames, rh_sim::item_view::PreparedOffer<'a>), PrepareFramesError> {
         profile_supported(sim.config()).map_err(PrepareFramesError::Unsupported)?;
         let viewer = observer.viewer();
-        let offer = observer.prepare_with_seen_rewards_where(
+        let offer = observer.prepare_with_seen(
             sim,
             last_step,
             earlier,
             &mut self.obs,
             Some(&mut self.sight),
-            |options| {
-                options.iter().all(|o| {
-                    matches!(
-                        o.id,
-                        rh_sim::reward_chests::OptionId::Card(_)
-                            | rh_sim::reward_chests::OptionId::Boost(_)
-                    )
-                })
-            },
         )?;
         observation_supported(&self.obs).map_err(PrepareFramesError::Unsupported)?;
         earlier.clear();
