@@ -19,18 +19,18 @@ raise SystemExit(0 if a.get("format") == b.get("format") and a.get("cases") == b
 PY
 }
 cleanup(){
-  local rc=$1
-  if [ "$CLEANED" -eq 1 ]; then exit "$rc"; fi
+  local cleanup_status=$1
+  if [ "$CLEANED" -eq 1 ]; then exit "$cleanup_status"; fi
   CLEANED=1
   trap - EXIT HUP INT TERM
   if [ "$ARMED" -eq 1 ]; then
-    if qg_restore_manifest "$MANIFEST" "$BACKUP"; then rm -rf "$BACKUP" "$OUT"; else echo "RESTORATION FAILED; recovery bytes retained at $BACKUP" >&2; rc=1; fi
+    if qg_restore_manifest "$MANIFEST" "$BACKUP"; then rm -rf "$BACKUP" "$OUT"; else echo "RESTORATION FAILED; recovery bytes retained at $BACKUP" >&2; cleanup_status=1; fi
   else
     rm -rf "$BACKUP" "$OUT"
   fi
-  exit "$rc"
+  exit "$cleanup_status"
 }
-on_exit(){ local rc=$?; cleanup "$rc"; }
+on_exit(){ local exit_status=$?; cleanup "$exit_status"; }
 on_signal(){ cleanup "$1"; }
 # 1. Complete backups + manifest first; verify every backup nonempty and SHA-256-identical to source/manifest.
 : >"$MANIFEST"

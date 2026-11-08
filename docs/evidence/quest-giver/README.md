@@ -50,8 +50,8 @@ hpFrac:1, chill:1`) when signatures are installed. ID allocation/counters are re
 ## Checks / provenance
 
 `bash tools/quest-giver-fixtures/capture.sh --check` reproduces the canonical corpus byte-identically (8 cases).
-Corpus SHA256 `51c074b4c41b28147de7a2d215a581e617363ed5552a45aac4e46025b612d4fa`; image Node 22.23.4 linux/amd64;
-capture tool hashes `capture.mts` `b0946ff2…`, `capture.sh` `23bdd66a…`, `run-mutants.sh` `fb3cfd8f…`; package-lock
+Corpus SHA256 `039d4e058fa914f42080f1c55d8640cc508c5b4745504930ca3db49579adc8b4`; image Node 22.23.4 linux/amd64;
+capture tool hashes `capture.mts` `b0946ff2…`, `capture.sh` `23bdd66a…`, `run-mutants.sh` `345b4cb2…`; package-lock
 `991869bd…`; 127 imported source files digest `e6efe7f3…`. Three committed actual-source semantic mutants
 (`01-projectile-giver-exclusion-removed`, `02-hostile-giver-exclusion-removed`,
 `03-giver-quest-damage-immunity-removed`) are killed by **actual runtime-output mismatches** (3/3; runner compares
@@ -72,12 +72,26 @@ reports 1,229,692 bytes / on-disk 1,229,693 bytes); complete metadata except pro
 (`9b4da71b…` -> `fb3cfd8f…`) is identical; capture.mts/captureSh/packageLock hashes are unchanged. No semantic/runtime
 payload changed.
 
+Metadata-only recapture (task-103 local-scope/signal-status repair): the runner change is genuine and capture.mts pins it
+in provenance. Old corpus `51c074b4c41b28147de7a2d215a581e617363ed5552a45aac4e46025b612d4fa` -> new
+`039d4e058fa914f42080f1c55d8640cc508c5b4745504930ca3db49579adc8b4`; canonical format+cases payload SHA256
+`ad6e10ddd7f2de02530b8ae037101315941aef4da815cdfd279773f32b215b8d` is identical old/new (deep-equal 8 cases; capture
+reports 1,229,692 bytes / on-disk 1,229,693 bytes); complete metadata except provenance.tools.runMutantsSh
+(`fb3cfd8f…` -> `345b4cb2…`) is identical; capture.mts/captureSh/packageLock hashes are unchanged. No semantic/runtime
+payload changed.
+
 Runner safety: complete backups + manifest are built first and every backup is verified nonempty and SHA-256-identical
 to source/manifest before EXIT/HUP/INT/TERM is armed; backup failures fail closed with originals untouched. Restore is
 SHA-verified, single-shot cleanup uses signal exits 129/130/143 while EXIT preserves the normal result, recovery bytes
 are retained on failure, logs are unique mktemp paths, and SIGKILL is untrappable and not claimed. The disposable
 controls in tools/quest-giver-fixtures/tests/runner-safety.sh exercise mocked cp failure/partial copies, HUP/INT/TERM
-during the checked-copy window, and restoration failure with retained recovery; they use temporary files only.
+during the checked-copy window, and restoration failure with retained recovery; they use temporary files only. The
+helper restore accumulator is now local with a distinct name, so it cannot overwrite cleanup's local exit status;
+cleanup uses its own local and preserves EXIT normal results and exact signal statuses 129/130/143. The disposable
+actual-runner fixture (tests/actual-runner-fixture.sh) copies the real runner + real lib into a tiny temp repo with three
+mock source files and stubs git/capture (no Docker); it verifies ordinary failure exit 1, exact HUP 129 / INT 130 / TERM
+143 after armed restoration, exact source bytes restored, and exactly one restoration attempt (3 file copies for 3 files,
+no double restore). The existing runner-safety controls remain.
 
 A separate checker should audit the declared actor/profile/producer binding and the case matrix; this packet claims no
 implementation/admission.
