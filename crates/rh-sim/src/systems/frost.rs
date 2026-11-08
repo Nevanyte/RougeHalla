@@ -2621,6 +2621,72 @@ mod tests {
         }
     }
     #[test]
+    fn source_npc_future_draw_stays_within_one_step_and_refuses_forged_future() {
+        let corpus: Value = serde_json::from_str(FR_NPC_BOUNDARY).unwrap();
+        let case = &corpus["cases"][0];
+        let (mut sim, seats) = fr_npc_sim(case);
+        let mut map = fr_npc_bind_initial(&sim, case, seats).unwrap();
+        let mut future_draws = 0;
+        let mut changed_chill_future = false;
+        for frame in case["frames"].as_array().unwrap() {
+            fr_npc_apply(&mut sim, frame["commands"].as_array().unwrap(), &map, seats).unwrap();
+            let prior_chill: Vec<_> = sim
+                .w
+                .mobs
+                .iter()
+                .map(|m| (m.core.id, m.core.signature.chill))
+                .collect();
+            let events = sim.step();
+            fr_npc_bind_missing_mobs(&sim, &frame["output"], seats, &mut map).unwrap();
+            fr_npc_compare_frame(&sim, frame, &events, &map, seats, "future Draw", false).unwrap();
+            let now = sim.w.server_time;
+            for (index, mob) in sim.w.mobs.iter().enumerate() {
+                let Some(action) = mob
+                    .core
+                    .weapon
+                    .action
+                    .filter(|a| a.kind == ActionKind::Draw && a.started_at > now)
+                else {
+                    continue;
+                };
+                future_draws += 1;
+                changed_chill_future |= prior_chill
+                    .iter()
+                    .any(|(id, chill)| *id == mob.core.id && *chill != mob.core.signature.chill);
+                let limit = now + (1. - mob.core.signature.chill) * TICK_MS;
+                assert!(action.started_at <= limit + TIE_EPS_MS);
+                // Shift the whole pair and public draw clock together: refusal must be the reachability bound,
+                // not an inverted pair, NaN, stale display clock or malformed source actor.
+                for forged in [limit + 1., now + 10_000., 1e300] {
+                    let mut bad = serde_json::to_value(&sim).unwrap();
+                    let weapon = &mut bad["world"]["mobs"][index]["core"]["weapon"];
+                    weapon["action"]["started_at"] = json!(forged);
+                    weapon["action"]["lands_at"] =
+                        json!(forged + action.lands_at - action.started_at);
+                    weapon["draw_started_at"] = json!(forged);
+                    let Err(error) = Sim::restore(bad) else {
+                        panic!("forged future Draw must be refused");
+                    };
+                    assert!(
+                        error.to_string().contains("invalid mob pending attack"),
+                        "{error}"
+                    );
+                }
+            }
+            // Continue from the actual restored producer state, not a manufactured expected tuple.
+            sim = Sim::restore(serde_json::to_value(&sim).unwrap()).unwrap();
+        }
+        assert!(
+            changed_chill_future,
+            "real source history changes chill within the producing step"
+        );
+        assert_eq!(
+            future_draws, 15,
+            "the source actually produces future Draw starts"
+        );
+    }
+
+    #[test]
     fn actual_source_boundary_covers_plague_bow_draw_death_and_thaw() {
         let corpus: Value = serde_json::from_str(FR_NPC_BOUNDARY).unwrap();
         fr_npc_profile_checks(&corpus, true).unwrap();

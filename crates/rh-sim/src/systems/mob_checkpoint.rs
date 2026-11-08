@@ -343,7 +343,15 @@ pub(crate) fn validate(
                 || (a.started_at > w.server_time
                     && !(a.kind == ActionKind::Draw
                         && p.signature.chill < 1.
-                        && a.started_at <= a.lands_at))
+                        // weapons starts no later than now + TIE_EPS_MS. afterWeapons interpolates that
+                        // start toward now; afterDamage can then add at most (1 - current chill) * dt.
+                        // Historical chill/resistance can change, so use this step's cached chill only.
+                        // Eight machine epsilons cover the small chain of clock subtraction/addition at
+                        // every admitted server-time magnitude; TIE_EPS_MS also covers weapon readiness.
+                        && a.started_at
+                            <= w.server_time
+                                + (1. - p.signature.chill) * TICK_MS
+                                + TIE_EPS_MS.max(8. * f64::EPSILON * w.server_time.max(1.))))
                 || a.lands_at < a.started_at
                 || pk.raw < 0.
                 || [pk.phys, pk.magic, pk.true_]

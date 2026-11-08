@@ -71,8 +71,8 @@ dedicated Frost-tuple restore tests for the training practice/dummy and owned-zo
   camp-0 roster member, so a legitimate owned-zombie PvE checkpoint could not restore. The smallest fix excludes
   zombie.is_some() actors from the camp alive count; zombies are still validated by their typed branch. No other private
   rule or faction admission gate was changed.
-- The same file's chilled-NPC Draw allowance is unchanged: started_at may pass now only for a chilled Draw with
-  started_at <= lands_at (the source-stretched form); every other clock/share rule stands.
+- The same file's chilled-NPC Draw allowance is bounded to the actual one-step Frost stretch described below; every
+  other action clock/share rule stands.
 
 ## Checks and mutants
 
@@ -93,3 +93,34 @@ fold/content registration stays with the lead.
 The full NPC Frost/Sentenced source admission stays held; the five strict Wish-case prerequisites remain the five
 full-signature-source-born-{holy,fire,plague,frost,sentenced}-wish-recipients cases. The repair packet's Return-mode and
 training/owned-zombie Frost-tuple items are covered by the additive corpora/tests above.
+
+## Bounded future Draw clock repair
+
+The original `ee07c9d0` allowance (`Draw`, `chill < 1`, `started_at <= lands_at`) also admitted arbitrarily distant finite
+future start/landing pairs. The follow-up changes only PvE restore validation, one dedicated source-consumer test and
+this evidence note; it changes no runtime producer, serialized field, identity, source fixture or admission mode.
+
+`weapons::step_weapon` starts a newly ready action no later than `now + TIE_EPS_MS`; a retained action has already
+advanced through the next 50 ms step. `frost::after_weapons` replaces the new start by an interpolation toward `now`,
+so it cannot increase that upper bound. `frost::after_damage` then shifts a Draw's start by
+`stretch_until(lands_at, now, 50, current_chill) - lands_at`. In both branches of `stretch_until`, this increment is at
+most `(1 - current_chill) * 50`. It follows that a future start is bounded by
+`now + (1 - current_chill) * 50`, plus weapon readiness and floating-point tolerance. Prior chill/resistance can change
+within the step; recomputing the bound from prior/current stats or imposing the prior chill would reject valid history.
+The validator uses the cached post-damage chill and `max(TIE_EPS_MS, 8 * f64::EPSILON * max(now, 1))` tolerance for the
+short clock-arithmetic chain at every admitted clock magnitude. The existing `lands_at >= started_at` rule remains.
+
+`source_npc_future_draw_stays_within_one_step_and_refuses_forged_future` replays all 160 frames of the unchanged actual
+source Plague-bow case through validate/submit/step and the source comparator, restoring after every frame and continuing
+from that restored state. All 15 real future Draw starts remain accepted. The source's first one changes chill from
+0.68 to 0.505 within its producing step and is 24.75 ms in the future, so this witness also guards against a prior-chill
+bound. For each real future Draw, ordered finite start/landing pairs shifted just outside the envelope, by 10 seconds,
+and to 1e300 are refused specifically as `invalid mob pending attack`. The old production allowance accepts the first
+forgery, making this regression fail semantically. This is a reachability bound, not a complete omitted-history proof.
+
+Focused repair checks: `cargo test -p rh-sim --all-features --lib systems::frost::tests::` 18/18;
+`systems::signatures::pve_tests::` 4/4; `checkpoint::tests::` 28/28; `cargo fmt --all -- --check` PASS;
+`cargo clippy -p rh-sim --all-targets --all-features -- -D warnings` and the default-feature equivalent PASS.
+The isolated check used its own Cargo target. No source capture, full-map campaign or unchanged broad suite was rerun.
+The typed source-actor comparator follow-up remains a separate composition; these checks do not open Full NPC Frost or
+the five strict source-born Wish recipient cases.
