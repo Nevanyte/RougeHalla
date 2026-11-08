@@ -6,7 +6,7 @@ P-CARDS-2, P-TERRAIN-1, P-BOTS-1). **No packet file exists.** Branch `deepseek/p
 `deepseek/p-bots-6`. No wire, schedule, serialized-state or content change.
 
 Pull request: [#58](https://github.com/Nevanyte/RougeHalla/pull/58), stacked on the P-BOTS-6 PR; commit range
-`f87727dd`..`SLICE2_COMMIT` on `deepseek/p-bots-brain` (slice 1 `1aa8c462`, slice 2 `SLICE2_COMMIT`). Ledger row:
+`f87727dd`..`6a432c2b` on `deepseek/p-bots-brain` (slice 1 `1aa8c462`, slice 2 `6a432c2b`). Ledger row:
 [`docs/evidence/deepseek-rust/PROGRESS.md`](../deepseek-rust/PROGRESS.md).
 
 ## Assessment before writing (code and git, not memory)
