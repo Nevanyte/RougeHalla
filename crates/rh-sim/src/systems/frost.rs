@@ -1310,6 +1310,7 @@ mod tests {
     use std::collections::BTreeMap;
     const FR_NPC_FIXTURE: &str = include_str!("../../../../parity/frost-npc/source.json");
     const FR_NPC_BOUNDARY: &str = include_str!("../../../../parity/frost-npc/boundary.json");
+    const FR_NPC_RETURN: &str = include_str!("../../../../parity/frost-npc/return.json");
     fn fr_npc_arena(zone: &str) -> Arena {
         let mut map: Value =
             serde_json::from_str(include_str!("../../tests/fixtures/mob-pve-map.json")).unwrap();
@@ -2003,12 +2004,12 @@ mod tests {
         }
         Ok(())
     }
-    fn fr_npc_replay(case: &Value) -> Result<(Sim, [bool; 4]), String> {
+    fn fr_npc_replay(case: &Value) -> Result<(Sim, [bool; 5]), String> {
         let name = case["input"]["name"].as_str().unwrap().to_owned();
         let damage_drift = name.contains("death");
         let (mut sim, seats) = fr_npc_sim(case);
         let mut map = fr_npc_bind_initial(&sim, case, seats)?;
-        let mut witness = [false; 4];
+        let mut witness = [false; 5];
         for frame in case["frames"].as_array().unwrap() {
             if let Some(commands) = frame["commands"].as_array() {
                 fr_npc_apply(&mut sim, commands, &map, seats)?;
@@ -2024,6 +2025,10 @@ mod tests {
                 .iter()
                 .any(|m| m.core.signature.frost_move_mult < 1.);
             witness[3] |= sim.mobs().iter().any(|m| m.status == crate::Status::Dead);
+            witness[4] |= sim
+                .mobs()
+                .iter()
+                .any(|m| m.brain.mode == crate::mob_runtime::BrainMode::Return);
             // The non-Frost DoT lifecycle control is a compatibility witness, not the Frost recipient timeline: its Fire
             // DoT/heal stream differs slightly from the admitted native profile, so the strict frame comparison stops at
             // the phase divergence and the lifecycle witnesses (death/camp) remain asserted after the loop.
@@ -2250,6 +2255,370 @@ mod tests {
         }
         let _ = &mut map;
         let _ = &mut map;
+    }
+
+    fn fr_adapter_training() -> Sim {
+        let config = SimConfig {
+            min_players: 1,
+            lobby_seconds: 0.,
+            fill_seconds: 0.,
+            training: true,
+            dummies: true,
+            faction_mode: crate::FactionMode::EngagementHolyPlagueFireFrost,
+            ..Default::default()
+        };
+        let mut sim = Sim::new(
+            config,
+            crate::arenas::practice_arena(),
+            Secrets::from_seed(7),
+        );
+        sim.add_player("p0", Some(FactionId::Frost), false).unwrap();
+        sim.step();
+        sim
+    }
+    fn fr_adapter_attack_bow(
+        sim: &mut Sim,
+        player: PlayerId,
+        target: PlayerId,
+        ticks: usize,
+    ) -> bool {
+        let ix = sim.w.fighter_idx(player).unwrap();
+        {
+            let p = &mut sim.w.players[ix.slot()];
+            p.core.weapon.weapon0 = Some(WeaponId::Bow);
+            p.core.weapon.weapon1 = None;
+            p.core.weapon.slot = 0;
+            p.core.weapon.ready_at = 0.;
+            p.core.weapon.draw_started_at = 0.;
+        }
+        let from = sim.w.players[ix.slot()].core.pos();
+        let Some(m) = sim.w.mobs.iter().find(|m| m.core.id == target) else {
+            return false;
+        };
+        let to = m.core.pos();
+        let a = crate::math::atan2(to.y - from.y, to.x - from.x);
+        let cmd = crate::input::validate(crate::RawCommand::Attack { a, t: None }).unwrap();
+        sim.submit(player, cmd).unwrap();
+        for _ in 0..ticks {
+            sim.step();
+            let Some(m) = sim.w.mobs.iter().find(|m| m.core.id == target) else {
+                break;
+            };
+            if m.core.signature.chill < 1. {
+                return true;
+            }
+        }
+        false
+    }
+    #[test]
+    fn training_practice_and_dummy_frost_tuples_restore_and_refuse_malformed() {
+        let mut sim = fr_adapter_training();
+        let frost = sim.w.players[0].core.id;
+        let pid = frost;
+        let train = crate::input::validate(crate::RawCommand::Train(crate::input::TrainRaw {
+            command: 3,
+            id: crate::mob_catalog::MobTypeId::EmberImp as u32,
+            count: 0,
+            options: [0; 3],
+            option_count: 0,
+        }))
+        .unwrap();
+        sim.submit(pid, train).unwrap();
+        sim.step();
+        let practice = sim
+            .w
+            .mobs
+            .iter()
+            .find(|m| m.kind == crate::mob_runtime::MobKind::Practice)
+            .map(|m| m.core.id)
+            .expect("a practice mob");
+        assert!(
+            fr_adapter_attack_bow(&mut sim, frost, practice, 40),
+            "a Frost bow hit reaches the practice mob"
+        );
+        let p = &sim.w.mobs[sim
+            .w
+            .mobs
+            .iter()
+            .position(|m| m.core.id == practice)
+            .unwrap()];
+        assert_eq!(p.core.signature.chillers[0], Some(frost));
+        // The actual training restore path accepts the reachable chilled tuple.
+        let restored = Sim::restore(serde_json::to_value(&sim).unwrap())
+            .expect("chilled practice mob restores");
+        let mut a = restored;
+        let mut b = Sim::restore(serde_json::to_value(&a).unwrap()).unwrap();
+        a.step();
+        b.step();
+        assert_eq!(
+            a.state_hash(),
+            b.state_hash(),
+            "restored training tuple continues identically"
+        );
+        // Every malformed practice tuple is still refused by the training validation adapter.
+        let mob = sim
+            .w
+            .mobs
+            .iter()
+            .position(|m| m.core.id == practice)
+            .unwrap();
+        let slot_index = sim.w.fighter_idx(practice).unwrap().slot();
+        assert_eq!(slot_index, sim.w.players.len() + mob);
+        let mut bad = serde_json::to_value(&sim).unwrap();
+        bad["world"]["mobs"][mob]["core"]["signature"]["chill"] = json!(0.4);
+        assert!(
+            Sim::restore(bad).is_err(),
+            "training chill below the reachable image is refused"
+        );
+        let mut bad = serde_json::to_value(&sim).unwrap();
+        bad["world"]["mobs"][mob]["core"]["signature"]["chillers"] =
+            json!([999, null, null, null, null, null, null, null]);
+        assert!(
+            Sim::restore(bad).is_err(),
+            "a non-roster training chiller is refused"
+        );
+        let mut bad = serde_json::to_value(&sim).unwrap();
+        bad["world"]["mobs"][mob]["core"]["signature"]["ap_hits"]["target"] = json!(999);
+        assert!(
+            Sim::restore(bad).is_err(),
+            "forged training AP provenance is refused"
+        );
+        let mut bad = serde_json::to_value(&sim).unwrap();
+        bad["world"]["mobs"][mob]["camp"] = json!(0);
+        assert!(
+            Sim::restore(bad).is_err(),
+            "the existing practice camp refusal still holds"
+        );
+        // The dummy form is reached and restores too, and its malformed tuple/body is refused.
+        let dummy = sim
+            .w
+            .mobs
+            .iter()
+            .find(|m| m.kind == crate::mob_runtime::MobKind::Dummy)
+            .map(|m| m.core.id)
+            .expect("a training dummy");
+        assert!(
+            fr_adapter_attack_bow(&mut sim, frost, dummy, 40),
+            "a Frost bow hit reaches the dummy"
+        );
+        let dummy_index = sim.w.mobs.iter().position(|m| m.core.id == dummy).unwrap();
+        let d = &sim.w.mobs[dummy_index];
+        assert_eq!(d.core.signature.chillers[0], Some(frost));
+        assert!(
+            d.core.signature.ranged_chill_until.is_some(),
+            "dummy ranged window"
+        );
+        assert!(
+            d.core.signature.exposure_started_at.is_some()
+                && d.core.signature.last_near_at.is_some(),
+            "dummy exposure/last-near tuple"
+        );
+        assert!(
+            d.core.signature.frost_move_mult < 1.,
+            "dummy movement tuple"
+        );
+        assert!(
+            d.core.signature.bits & crate::constants::SIG_CHILLED != 0,
+            "dummy chilled signature bit"
+        );
+        let _ = Sim::restore(serde_json::to_value(&sim).unwrap()).expect("chilled dummy restores");
+        let mut bad = serde_json::to_value(&sim).unwrap();
+        bad["world"]["mobs"][dummy_index]["core"]["signature"]["chill"] = json!(0.4);
+        assert!(
+            Sim::restore(bad).is_err(),
+            "malformed dummy Frost tuple is refused"
+        );
+        let mut bad = serde_json::to_value(&sim).unwrap();
+        bad["world"]["mobs"][dummy_index]["core"]["vitals"]["max_hp"] = json!(1.);
+        assert!(
+            Sim::restore(bad).is_err(),
+            "the existing dummy HP refusal still holds"
+        );
+    }
+
+    fn fr_adapter_pve() -> Sim {
+        let players = [
+            Placement {
+                profile: "frost".into(),
+                faction: FactionId::Frost,
+                bot: false,
+                at: Vec2::new(80., 112.),
+                hp: None,
+                weapon0: Some(WeaponId::Bow),
+                weapon1: None,
+            },
+            Placement {
+                profile: "plague".into(),
+                faction: FactionId::Plague,
+                bot: false,
+                at: Vec2::new(144., 160.),
+                hp: None,
+                weapon0: None,
+                weapon1: None,
+            },
+        ];
+        let mut secrets = Secrets::from_seed(1);
+        secrets.spawn_seed = 12;
+        secrets.reward_salt = [1, 2, 3, 4];
+        Sim::reset_active(
+            SimConfig {
+                abilities: crate::abilities::Mode::Off,
+                lifecycle: crate::ArenaMode::Off,
+                hazards: crate::terrain::Mode::Off,
+                initial_loot: false,
+                quests: false,
+                consumables: false,
+                regen: false,
+                training: false,
+                dummies: false,
+                min_players: players.len(),
+                lobby_seconds: 30.,
+                fill_seconds: 0.,
+                mob_mode: MobMode::Pve,
+                faction_mode: crate::FactionMode::EngagementHolyPlagueFireFrost,
+                ..Default::default()
+            },
+            fr_npc_arena("fire"),
+            secrets,
+            &players,
+        )
+    }
+    #[test]
+    fn owned_zombie_frost_tuple_restores_and_refuses_malformed() {
+        let mut sim = fr_adapter_pve();
+        sim.step();
+        let frost = sim.w.players[0].core.id;
+        let plague = sim.w.players[1].core.id;
+        crate::systems::plague_zombies::raise_or_grow(&sim.k, &mut sim.w, plague);
+        let zombie =
+            crate::systems::plague_zombies::zombie_of(&sim.w, plague).expect("owned zombie");
+        assert!(
+            fr_adapter_attack_bow(&mut sim, frost, zombie, 60),
+            "a Frost bow hit reaches the owned zombie"
+        );
+        let m = &sim.w.mobs[sim.w.mobs.iter().position(|m| m.core.id == zombie).unwrap()];
+        assert_eq!(m.core.signature.chillers[0], Some(frost));
+        assert!(
+            m.core.signature.ranged_chill_until.is_some(),
+            "zombie ranged window"
+        );
+        assert!(
+            m.core.signature.exposure_started_at.is_some()
+                && m.core.signature.last_near_at.is_some(),
+            "zombie exposure/last-near tuple"
+        );
+        assert!(
+            m.core.signature.frost_move_mult < 1.,
+            "zombie movement tuple"
+        );
+        // The actual PvE restore path accepts the owned zombie's reachable chilled tuple and continues.
+        let restored = Sim::restore(serde_json::to_value(&sim).unwrap())
+            .expect("chilled owned zombie restores through the PvE checkpoint");
+        let mut a = restored;
+        let mut b = Sim::restore(serde_json::to_value(&a).unwrap()).unwrap();
+        a.step();
+        b.step();
+        assert_eq!(
+            a.state_hash(),
+            b.state_hash(),
+            "restored zombie tuple continues identically"
+        );
+        // Malformed tuple/source/AP states are refused; the existing zombie-body rule is not weakened.
+        let zindex = sim.w.mobs.iter().position(|m| m.core.id == zombie).unwrap();
+        let mut bad = serde_json::to_value(&sim).unwrap();
+        bad["world"]["mobs"][zindex]["core"]["signature"]["chill"] = json!(0.4);
+        assert!(
+            Sim::restore(bad).is_err(),
+            "zombie chill below the reachable image is refused"
+        );
+        let mut bad = serde_json::to_value(&sim).unwrap();
+        bad["world"]["mobs"][zindex]["core"]["signature"]["chillers"] =
+            json!([999, null, null, null, null, null, null, null]);
+        assert!(
+            Sim::restore(bad).is_err(),
+            "a non-roster zombie chiller is refused"
+        );
+        let mut bad = serde_json::to_value(&sim).unwrap();
+        bad["world"]["mobs"][zindex]["core"]["signature"]["ap_hits"]["target"] = json!(999);
+        assert!(
+            Sim::restore(bad).is_err(),
+            "forged zombie AP provenance is refused"
+        );
+        let mut bad = serde_json::to_value(&sim).unwrap();
+        bad["world"]["mobs"][zindex]["owner"] = json!(999);
+        assert!(
+            Sim::restore(bad).is_err(),
+            "the existing zombie owner rule still holds"
+        );
+    }
+    #[test]
+    fn actual_source_return_mode_and_lifecycle_parity() {
+        let corpus: Value = serde_json::from_str(FR_NPC_RETURN).unwrap();
+        assert_eq!(corpus["format"], "rh-frost-npc-return-source/1");
+        fr_npc_profile_checks(&corpus, true).unwrap();
+        let cases = corpus["cases"].as_array().unwrap();
+        assert_eq!(cases.len(), 2);
+        fr_npc_config_is_bound(&fr_npc_sim(&cases[0]).0);
+        for (i, case) in cases.iter().enumerate() {
+            let name = case["input"]["name"].as_str().unwrap();
+            let frames = case["frames"].as_array().unwrap();
+            let source_return = frames
+                .iter()
+                .filter(|f| {
+                    f["output"]["mobs"]
+                        .as_array()
+                        .unwrap()
+                        .iter()
+                        .any(|m| m["brain"]["mode"] == "return")
+                })
+                .count();
+            assert!(
+                source_return >= 5,
+                "{name}: source Return frames ({source_return})"
+            );
+            let (replay, witness) = fr_npc_replay(case).unwrap_or_else(|e| panic!("{name}: {e}"));
+            assert!(
+                witness[4],
+                "{name}: the native replay matches a return-mode frame"
+            );
+            let last = &frames.last().unwrap()["output"];
+            assert_eq!(
+                last["phase"], "active",
+                "{name}: observers keep the run active"
+            );
+            assert_eq!(
+                last["players"][0]["status"], "dead",
+                "{name}: the puller died"
+            );
+            assert!(
+                last["players"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .skip(1)
+                    .any(|p| p["status"] == "alive"),
+                "{name}: a standing observer remains"
+            );
+            let chilled = frames.iter().any(|f| {
+                f["output"]["signatures"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .any(|row| {
+                        row[0].as_str().is_some_and(|id| id.starts_with("mob"))
+                            && row[1]["chill"].as_f64() < Some(1.)
+                    })
+            });
+            if i == 0 {
+                assert!(
+                    chilled,
+                    "{name}: the Frost pull genuinely chills the NPC it pulls"
+                );
+            } else {
+                assert!(!chilled, "{name}: the no-Frost control never chills an NPC");
+            }
+            let _ = replay;
+        }
     }
     #[test]
     fn actual_source_boundary_covers_plague_bow_draw_death_and_thaw() {

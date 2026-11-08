@@ -355,6 +355,17 @@ pub(crate) fn validate_actors(
             &m.core.signature,
         )
         .map_err(|_| "invalid training actor Frost state")?;
+        // The other private rules the basic actor admission checks are not weakened: forged AP provenance is still refused
+        // for a training actor even though the regional gear/Mark checks do not apply here.
+        if !m.core.signature.ap_hits.valid(w.server_time)
+            || m.core
+                .signature
+                .ap_hits
+                .target
+                .is_some_and(|t| !w.known_actor(t))
+        {
+            return Err("invalid training actor AP provenance");
+        }
     }
     Ok(())
 }

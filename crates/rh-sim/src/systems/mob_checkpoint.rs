@@ -159,7 +159,11 @@ pub(crate) fn validate(
             && (c.alive as usize
                 != w.mobs
                     .iter()
-                    .filter(|m| m.camp as usize == ci && m.status == Status::Alive)
+                    // Owned zombies carry camp 0 but are not a camp member: they must not count against the roster's
+                    // alive total (they are validated by the typed Zombie branch above).
+                    .filter(|m| {
+                        m.camp as usize == ci && m.status == Status::Alive && m.zombie.is_none()
+                    })
                     .count()
                 || latest[ci].is_none_or(|(_, spot, _)| spot as usize + 1 != d.spots.len()))
         {
@@ -212,6 +216,15 @@ pub(crate) fn validate(
                 m.core.id,
                 &m.core.signature,
             )?;
+            if !m.core.signature.ap_hits.valid(w.server_time)
+                || m.core
+                    .signature
+                    .ap_hits
+                    .target
+                    .is_some_and(|t| !w.known_actor(t))
+            {
+                return Err("invalid zombie AP provenance".into());
+            }
             continue;
         }
         let Some(ActorOrigin::Mob {
