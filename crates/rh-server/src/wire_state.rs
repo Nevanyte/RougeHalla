@@ -104,6 +104,10 @@ fn rewards(observation: &Observation) -> Result<Vec<WireRewardChest>, EncodeErro
                 options: c
                     .options
                     .iter()
+                    // Kill-augment Trophy options are sim-complete but not yet on the wire: the protocol has no
+                    // WireRewardId variant for them, and its bump/decoder work is coordinator-owned (the protocol-9
+                    // spine). This is the single projection site a transport packet flips.
+                    .filter(|o| !matches!(o.id, rh_sim::reward_chests::OptionId::Kill(_)))
                     .map(|o| WireRewardOption {
                         id: match o.id {
                             rh_sim::reward_chests::OptionId::Card(id) => {
@@ -111,6 +115,9 @@ fn rewards(observation: &Observation) -> Result<Vec<WireRewardChest>, EncodeErro
                             }
                             rh_sim::reward_chests::OptionId::Boost(id) => {
                                 WireRewardId::Boost(id.index() as u8)
+                            }
+                            rh_sim::reward_chests::OptionId::Kill(_) => {
+                                unreachable!("kill-augment options are filtered above")
                             }
                         },
                         taken: o.taken,
@@ -250,6 +257,47 @@ impl PendingState {
 mod tests {
     use super::*;
 
+    /// Lead decision (2026-11-07): kill-augment Trophy options are sim-complete (the headless/policy Choose path picks
+    /// them by index; see kill_augments::tests::trophy_owner_refusal_and_pick_reproduce_the_source_witness) but are not
+    /// yet on the wire. The projection omits them HERE, and only here, until the transport packet adds a WireRewardId
+    /// variant and its protocol bump on the protocol-9 spine.
+    #[test]
+    fn kill_augment_trophy_options_stay_off_the_wire_until_the_transport_packet() {
+        let mut obs = Observation::default();
+        obs.reward_chests
+            .push(rh_sim::reward_chests::RewardChestView {
+                handle: rh_sim::reward_chests::RewardChestHandle::from_wire(7).unwrap(),
+                at: rh_sim::Vec2::new(100., 100.),
+                expires_at: 1000.,
+                options: vec![
+                    rh_sim::reward_chests::RewardOptionView {
+                        id: rh_sim::reward_chests::OptionId::Kill(
+                            rh_sim::kill_augments::KillAugment {
+                                key: rh_sim::kill_augments::KillStatKey::Ad,
+                                gain: 6.,
+                            },
+                        ),
+                        taken: false,
+                        taken_by: None,
+                    },
+                    rh_sim::reward_chests::RewardOptionView {
+                        id: rh_sim::reward_chests::OptionId::Card(rh_sim::cards::CardId::ALL[0]),
+                        taken: false,
+                        taken_by: None,
+                    },
+                ],
+                picked: false,
+                can_choose: true,
+            });
+        let rows = rewards(&obs).unwrap();
+        assert_eq!(rows.len(), 1);
+        assert_eq!(
+            rows[0].options.len(),
+            1,
+            "the kill-augment id is filtered off the wire"
+        );
+        assert!(matches!(rows[0].options[0].id, WireRewardId::Card(0)));
+    }
     #[test]
     fn collection_baselines_commit_after_enqueue_and_defer_flooded_resyncs() {
         let mut publisher = CollectionPublisher::default();

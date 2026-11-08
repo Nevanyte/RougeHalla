@@ -58,20 +58,25 @@ impl BoostId {
         }
     }
 }
-#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum OptionId {
     Card(CardId),
     Boost(BoostId),
+    /// A kill-augment Trophy option (source `kill:<key>:<gain>`): sim-complete; the public wire projection filters it
+    /// until the transport packet adds a `WireRewardId` variant and its protocol bump (see `wire_state.rs`).
+    Kill(crate::kill_augments::KillAugment),
 }
 impl OptionId {
-    pub const fn as_str(self) -> &'static str {
+    pub fn as_str(self) -> std::borrow::Cow<'static, str> {
+        use std::borrow::Cow;
         match self {
-            Self::Card(v) => v.as_str(),
-            Self::Boost(v) => v.as_str(),
+            Self::Card(v) => Cow::Borrowed(v.as_str()),
+            Self::Boost(v) => Cow::Borrowed(v.as_str()),
+            Self::Kill(v) => Cow::Owned(crate::kill_augments::encode(v)),
         }
     }
 }
-#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct RewardOptionView {
     pub id: OptionId,
     pub taken: bool,

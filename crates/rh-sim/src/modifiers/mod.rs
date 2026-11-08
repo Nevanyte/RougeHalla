@@ -85,6 +85,7 @@ impl Runtime {
         &self,
         build: &crate::cards::Build,
         farm: &Farm,
+        kill_stats: &crate::kill_augments::KillStats,
         base_hp: f64,
         faction: crate::FactionId,
     ) -> bool {
@@ -111,13 +112,13 @@ impl Runtime {
                 .get(loc.index)
                 .is_some_and(|bit| *bit != NO_BIT && (self.holds >> *bit) & 1 == 1)
         };
-        let (farm_rows, farm_len) = farm.rows();
+        let combined_farm = combined_farm_rows(farm, kill_stats);
         let boosts = fold::BoostCounts::from_source_values(build.boosts().map(f64::from));
         let folded = fold::fold_rows(
             &rows[..n],
             &FoldContext {
                 base_max_hp: base_hp,
-                farm_rows: &farm_rows[..farm_len],
+                farm_rows: combined_farm.as_slice(),
                 boosts: Some(&boosts),
                 holds: Some(&holds),
                 ..Default::default()
@@ -196,6 +197,11 @@ fn recompute_core<'a>(
     } else {
         Farm::default()
     };
+    let kill_stats = if w.is_player(ix) {
+        w.players[ix.slot()].kill_stats
+    } else {
+        crate::kill_augments::KillStats::default()
+    };
     let faction = w.core(ix).vitals.faction;
     let base_hp = crate::content::faction(faction).hp;
     let boosts = fold::BoostCounts::from_source_values(build.boosts().map(f64::from));
@@ -235,12 +241,12 @@ fn recompute_core<'a>(
             .get(loc.index)
             .is_some_and(|bit| *bit != NO_BIT && (holds >> *bit) & 1 == 1)
     };
-    let (farm_rows, farm_len) = farm.rows();
+    let combined_farm = combined_farm_rows(&farm, &kill_stats);
     let folded = fold::fold_rows(
         fold_rows,
         &FoldContext {
             base_max_hp: base_hp,
-            farm_rows: &farm_rows[..farm_len],
+            farm_rows: combined_farm.as_slice(),
             boosts: Some(&boosts),
             holds: Some(&answers),
             ..Default::default()
@@ -323,6 +329,29 @@ fn while_bit_of(rows: &[fold::EffectRow<'_>]) -> ([u8; MAX_FOLD_INPUT], u8) {
         }
     }
     (bit_of, while_rows)
+}
+
+/// The fold's farm rows: the credited-kill stacks plus the kill-augment `killStats` (source `farmRowsOf`: both are farm
+/// rows, outside the card caps). A fixed scratch keeps the recompute allocation-free.
+struct CombinedFarm {
+    rows: [fold::EffectRow<'static>; 29],
+    len: usize,
+}
+impl CombinedFarm {
+    fn as_slice(&self) -> &[fold::EffectRow<'static>] {
+        &self.rows[..self.len]
+    }
+}
+fn combined_farm_rows(farm: &Farm, kill_stats: &crate::kill_augments::KillStats) -> CombinedFarm {
+    let (farm_rows, farm_len) = farm.rows();
+    let (kill_rows, kill_len) = kill_stats.rows();
+    let mut rows = [fold::EffectRow::new(EffectKind::Trigger); 29];
+    rows[..farm_len].copy_from_slice(&farm_rows[..farm_len]);
+    rows[farm_len..farm_len + kill_len].copy_from_slice(&kill_rows[..kill_len]);
+    CombinedFarm {
+        rows,
+        len: farm_len + kill_len,
+    }
 }
 
 /// Source `holdsNow`: does a `while` row's condition hold for this fighter now? `unarmed` needs a seated player's hands;
@@ -918,6 +947,7 @@ mod guard_tests {
             p.modifiers.valid(
                 &p.build,
                 &p.farm,
+                &p.kill_stats,
                 crate::content::faction(p.vitals.faction).hp,
                 p.vitals.faction,
             )

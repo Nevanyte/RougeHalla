@@ -1080,7 +1080,7 @@ struct RuntimeWords<'a> {
 /// Component names/lengths and actual public key mappings prevent membership/order ambiguity.
 pub fn visit_progression_content(mut word: impl FnMut(u64)) {
     type Visit = fn(&mut dyn FnMut(u64));
-    let visitors: [(&str, Visit); 6] = [
+    let visitors: [(&str, Visit); 7] = [
         ("cards/1", |f| {
             crate::cards::visit_content(&crate::cards::DEFINITION, f)
         }),
@@ -1095,6 +1095,9 @@ pub fn visit_progression_content(mut word: impl FnMut(u64)) {
         }),
         ("private-sfc32/1", |f| crate::private_rng::visit_content(f)),
         ("small-potions/1", |f| crate::potions::visit_content(f)),
+        ("kill-augments/1", |f| {
+            crate::kill_augments::visit_content(&crate::kill_augments::DEFINITION, f)
+        }),
     ];
     for (tag, visit) in visitors {
         word(tag.len() as u64);

@@ -317,4 +317,12 @@ content! {
     TERRAIN_EPS: f64 = 1e-9, "terrain source rule";
     TERRAIN_V_EPS: f64 = 1e-6, "terrain source rule";
 
+    // ---- kill augments (shared/killAugments.ts) ----
+    /// Share of the victim bonus a Trophy pick grants.
+    KILL_AUG_SHARE: f64 = 0.5, "share";
+    /// Options on a Trophy (the source KILL_AUG_OPTIONS).
+    KILL_AUG_OPTIONS: u32 = 3, "options";
+    /// A Trophy outlives a chest: a killer may still be fighting (source KILL_AUG_SECONDS).
+    KILL_AUG_SECONDS: f64 = 30.0, "s";
+
 }

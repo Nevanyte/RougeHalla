@@ -25,6 +25,7 @@ mod hooks;
 pub mod initial_world;
 pub mod input;
 pub mod item_view;
+pub mod kill_augments;
 mod lifecycle;
 pub mod projectile_view;
 pub use projectile_view::ProjectileView;

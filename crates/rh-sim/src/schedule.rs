@@ -1183,11 +1183,11 @@ static PLAYER_KILLED: [Link; 3] = [
         Gate::Signatures,
         crate::systems::sentenced::player_killed,
     ),
-    pending_link(
+    ported_link(
         "killAugments.onPlayerKilled",
         Mode::Append,
         Gate::Always,
-        "P-CARDS-3",
+        crate::kill_augments::on_player_killed,
     ),
     pending_link(
         "quests.onPlayerKilled",

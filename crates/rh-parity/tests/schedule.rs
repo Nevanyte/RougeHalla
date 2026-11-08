@@ -612,6 +612,8 @@ fn a_match_runs_its_ported_rows_in_table_order() {
                 TraceEntry::Hook("attackStarted", "factions.<arrow>") => {}
                 TraceEntry::Hook("weaponSwapped", "factions.onWeaponSwapped") => {}
                 TraceEntry::Hook("playerKilled", "factions.onPlayerKilled") => {}
+                // P-CARDS-3: the trophy drop is the source playerKilled link; quests.onPlayerKilled stays pending.
+                TraceEntry::Hook("playerKilled", "killAugments.onPlayerKilled") => {}
                 TraceEntry::Hook("executeDenied", "factions.onExecuteDenied") => {}
                 TraceEntry::Hook("statusApplied", "abilities.onStatusApplied") => {}
                 TraceEntry::Hook("fighterOut" | "runEnded" | "teleported", "abilities.<arrow>") => {

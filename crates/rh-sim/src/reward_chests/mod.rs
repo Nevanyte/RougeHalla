@@ -103,6 +103,34 @@ pub(crate) fn drop_augment(
     }
     insert(w, at, options, camp)
 }
+/// Source `chests.dropRewardChest` with an owner (legacy `killAugments.onPlayerKilled`: a private Trophy reward
+/// container at the killer's feet). The options are kill-augment ids, the owner is the killer alone, and the container
+/// outlives a chest (`KILL_AUG_SECONDS`); it rides the one `choose` action like every other reward container.
+pub(crate) fn drop_trophy(
+    w: &mut World,
+    at: Vec2,
+    owner: PlayerId,
+    options: &[crate::kill_augments::KillAugment],
+) -> u32 {
+    let mut slots = [None; 3];
+    for (i, a) in options.iter().take(3).enumerate() {
+        slots[i] = Some(OptionId::Kill(*a));
+    }
+    let id = w.next_entity_id();
+    w.reward_chests.push(Chest {
+        id,
+        at,
+        expires_at: w.server_time + crate::constants::KILL_AUG_SECONDS * 1000.,
+        held_until_tick: w.tick + DEFINITION.birth_hold_ticks,
+        options: slots,
+        taken: [None; 3],
+        pickers: Vec::with_capacity(crate::constants::MAX_PLAYERS),
+        camp: None,
+        owner: Some(owner),
+    });
+    id
+}
+
 /// Source `chests.onMobKilled` (legacy `chainHook(world, "mobKilled", ...)`): a credited elite's death drops its
 /// camp's shared augment chest at the camp's chest spot (the centre when that tile is solid), with the source's eligible
 /// pickers and exact reward draw order; a campless elite drops one at its body for the killer alone. The snapshot set
@@ -252,8 +280,9 @@ pub(crate) fn choose(
         if c.taken[i].is_some() {
             return Err(Refusal::Taken);
         }
-        // Source owner-bound trophy options use killAugments, outside this Card/Boost subset.
-        if c.owner.is_some() && matches!(option, OptionId::Card(_)) {
+        // Source: a boost option is checked first, then an owner-bound container's option is a kill augment (the
+        // parse failing is silent and uses up nothing); ordinary card checks come last.
+        if c.owner.is_some() && !matches!(option, OptionId::Kill(_)) {
             return Ok(());
         }
         match option {
@@ -283,6 +312,9 @@ pub(crate) fn choose(
             }
             OptionId::Boost(id) => {
                 grant_boost(k, w, who, id);
+            }
+            OptionId::Kill(a) => {
+                crate::kill_augments::grant(k, w, who, a);
             }
         }
     }
@@ -330,9 +362,24 @@ pub(crate) fn validate_world(w: &World, near: impl Fn(f64, f64) -> bool) -> Resu
             || !near(c.at.x, c.at.y)
             || !c.expires_at.is_finite()
             || c.expires_at < 0.
-            || c.expires_at > w.server_time + DEFINITION.lifetime_ms
+            || c.expires_at
+                > w.server_time
+                    + if c.owner.is_some() {
+                        crate::constants::KILL_AUG_SECONDS * 1000.
+                    } else {
+                        DEFINITION.lifetime_ms
+                    }
             || c.held_until_tick > w.tick.saturating_add(DEFINITION.birth_hold_ticks)
             || c.owner.is_some_and(|id| w.roster.name(id).is_none())
+            || (c.owner.is_some() && c.camp.is_some())
+            || c.options
+                .iter()
+                .flatten()
+                .any(|o| matches!(o, OptionId::Kill(_)) != c.owner.is_some())
+            || c.options
+                .iter()
+                .flatten()
+                .any(|o| matches!(o, OptionId::Kill(a) if !(a.gain.is_finite() && a.gain > 0.)))
             || c.options[..n].iter().any(Option::is_none)
             || c.options[n..].iter().any(Option::is_some)
             || c.options

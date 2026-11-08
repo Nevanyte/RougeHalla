@@ -332,12 +332,17 @@ fn check_chests(sim: &Sim, want: &Value, label: &str) {
             &e["expiresAt"],
             &format!("{label} {name} expiry"),
         );
-        let options: Vec<&str> = c.options.iter().flatten().map(|o| o.as_str()).collect();
-        let want_options: Vec<&str> = e["options"]
+        let options: Vec<String> = c
+            .options
+            .iter()
+            .flatten()
+            .map(|o| o.as_str().into_owned())
+            .collect();
+        let want_options: Vec<String> = e["options"]
             .as_array()
             .unwrap()
             .iter()
-            .map(|o| o.as_str().unwrap())
+            .map(|o| o.as_str().unwrap().to_string())
             .collect();
         assert_eq!(options, want_options, "{label} {name} options");
         let is_stat = c

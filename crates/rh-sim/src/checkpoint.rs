@@ -20,7 +20,7 @@ use serde::ser::{SerializeStruct, Serializer};
 use std::fmt;
 
 /// The tag every checkpoint carries. Bump it when the layout of `statics` or `world` changes incompatibly.
-pub const CHECKPOINT_FORMAT: &str = "rh-checkpoint/20";
+pub const CHECKPOINT_FORMAT: &str = "rh-checkpoint/21";
 
 /// How far past the map edge a fighter, waypoint or spawn may be and still restore (real states stay inside the map).
 const COORD_MARGIN: f64 = 1024.0;
@@ -588,10 +588,14 @@ fn check_world(k: &MatchStatic, w: &World) -> Result<(), String> {
         if !p.modifiers.valid(
             &p.build,
             &p.farm,
+            &p.kill_stats,
             crate::content::faction(p.vitals.faction).hp,
             p.vitals.faction,
         ) {
             return Err(format!("player {}: invalid armor mirror", p.id.0));
+        }
+        if !p.kill_stats.valid() {
+            return Err(format!("player {}: invalid kill-augment stats", p.id.0));
         }
         crate::status_runtime::validate(&p.statuses, w.server_time)
             .map_err(|reason| format!("player {}: invalid status runtime: {reason}", p.id.0))?;

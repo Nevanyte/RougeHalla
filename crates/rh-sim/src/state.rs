@@ -519,6 +519,10 @@ pub struct Player {
     pub(crate) healing_until: f64,
     pub potions_healing: u8,
     pub farm: crate::modifiers::Farm,
+    /// Stats earned through kill-augment Trophies (source PlayerState.extra.killStats): farm rows outside the card
+    /// caps, keyed by the source killStats store names.
+    #[serde(default)]
+    pub kill_stats: crate::kill_augments::KillStats,
     pub core: FighterCore,
     pub seat: Seat,
     pub(crate) vision: crate::vision::VisionTrail,
@@ -578,6 +582,7 @@ impl Player {
             healing_until: 0.,
             potions_healing: 0,
             farm: Default::default(),
+            kill_stats: Default::default(),
             vision: Default::default(),
             bush: Default::default(),
             core: FighterCore {

@@ -237,6 +237,7 @@ pub(crate) fn validate(
             || !p.modifiers.valid(
                 &Default::default(),
                 &Default::default(),
+                &Default::default(),
                 p.vitals.max_hp,
                 p.vitals.faction,
             )
