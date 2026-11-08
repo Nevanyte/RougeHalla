@@ -5,6 +5,17 @@ use rh_sim::{
 };
 
 fn active_sim() -> Sim {
+    active_sim_with_lifecycle(rh_sim::ArenaMode::Source(rh_sim::ArenaRules {
+        plan_seconds: 0.,
+        first_patience_seconds: None,
+        coliseum_schedule: None,
+        patience_seconds: 3600.,
+        patience_min_seconds: 3600.,
+        sudden_death_seconds: 60.,
+    }))
+}
+
+fn active_sim_with_lifecycle(lifecycle: rh_sim::ArenaMode) -> Sim {
     let mut tiles = vec![0; 40 * 24];
     for y in 0..24 {
         for x in 0..40 {
@@ -23,14 +34,7 @@ fn active_sim() -> Sim {
             quests: false,
             consumables: false,
             abilities: Mode::Full,
-            lifecycle: rh_sim::ArenaMode::Source(rh_sim::ArenaRules {
-                plan_seconds: 0.,
-                first_patience_seconds: None,
-                coliseum_schedule: None,
-                patience_seconds: 3600.,
-                patience_min_seconds: 3600.,
-                sudden_death_seconds: 60.,
-            }),
+            lifecycle,
             wish_lock_ms: 0.,
             ..Default::default()
         },
@@ -93,6 +97,43 @@ fn real_cast_start_and_landing_use_their_producer_step_time() {
         }
     }
     panic!("real Frost cast lands within the bounded wait");
+}
+
+#[test]
+fn real_cast_events_preserve_a_valid_restored_offset_source_clock() {
+    let sim = active_sim_with_lifecycle(rh_sim::ArenaMode::Off);
+    let tick = sim.tick();
+    let canonical_time = f64::from(tick) * rh_sim::constants::TICK_MS;
+    let restored_time = sim.server_time() + 123.25;
+    let mut checkpoint = serde_json::to_value(&sim).unwrap();
+    checkpoint["world"]["server_time"] = serde_json::json!(restored_time);
+    let mut sim = Sim::restore(checkpoint).expect("valid diagnostic checkpoint with offset clock");
+    assert_eq!(sim.tick(), tick);
+    assert_eq!(sim.server_time(), restored_time);
+    assert_ne!(sim.server_time(), canonical_time);
+
+    sim.submit(PlayerId(1), frost_cast()).unwrap();
+    let started_events = sim.step();
+    let started = started_events
+        .iter()
+        .find_map(|event| match event {
+            Event::CastStarted { event_time, .. } => Some(*event_time),
+            _ => None,
+        })
+        .expect("real Frost cast starts after restore");
+    assert_eq!(started, sim.server_time());
+
+    for _ in 0..40 {
+        let events = sim.step();
+        if let Some(landed) = events.iter().find_map(|event| match event {
+            Event::CastLanded { event_time, .. } => Some(*event_time),
+            _ => None,
+        }) {
+            assert_eq!(landed, sim.server_time());
+            return;
+        }
+    }
+    panic!("real Frost cast lands after restored-clock start");
 }
 
 #[test]
