@@ -307,7 +307,7 @@ async fn claim(
     match authed(store, &name, presented).await {
         // Opening: the caller's own token proves ownership; it is echoed back because the legacy client stores the
         // `token` of every profile response. Nothing the server holds is returned (it holds only a hash).
-        Ok(Some(_)) => return open(store, &name, presented).await,
+        Ok(Some(pid)) => return open(store, pid, presented).await,
         Ok(None) => {}
         Err(e) => return store_err("GET /api/profile", e),
     }
@@ -441,8 +441,8 @@ fn forbidden_profile() -> Response {
     err(StatusCode::FORBIDDEN, "profile belongs to someone else")
 }
 
-async fn open(store: &Store, name: &str, token: &str) -> Response {
-    match store.get_profile(name).await {
+async fn open(store: &Store, profile_id: i64, token: &str) -> Response {
+    match store.get_profile_by_id(profile_id).await {
         Ok(Some(p)) => json(
             StatusCode::OK,
             serde_json::json!({ "profile": dto(p), "token": token, "created": false }),
@@ -473,7 +473,7 @@ async fn shop_prelude<T: serde::de::DeserializeOwned>(
     st: &St,
     name: Result<Path<String>, axum::extract::rejection::PathRejection>,
     req: Request,
-) -> Result<(String, String, Option<i64>, HeaderMap, T), Response> {
+) -> Result<(String, Option<i64>, HeaderMap, T), Response> {
     if req.method() != Method::POST {
         return Err(method_not_allowed("POST, OPTIONS"));
     }
@@ -501,7 +501,7 @@ async fn shop_prelude<T: serde::de::DeserializeOwned>(
         }
     }
     let parsed = read_body::<T>(&parts.headers, body).await?;
-    Ok((name, token, pid, parts.headers, parsed))
+    Ok((token, pid, parts.headers, parsed))
 }
 
 async fn purchase(
@@ -509,8 +509,7 @@ async fn purchase(
     name: Result<Path<String>, axum::extract::rejection::PathRejection>,
     req: Request,
 ) -> Response {
-    let (name, token, pid, headers, body) = match shop_prelude::<PurchaseBody>(&st, name, req).await
-    {
+    let (token, pid, headers, body) = match shop_prelude::<PurchaseBody>(&st, name, req).await {
         Ok(v) => v,
         Err(r) => return r,
     };
@@ -525,9 +524,9 @@ async fn purchase(
             None => return shop_err("bad_request", None),
         },
     };
-    if pid.is_none() {
+    let Some(pid) = pid else {
         return forbidden();
-    }
+    };
     let Some(item) = body.id.as_str().and_then(cosmetics::by_id) else {
         return shop_err("unknown_cosmetic", None);
     };
@@ -541,11 +540,11 @@ async fn purchase(
         Err(r) => return r,
     };
     match store
-        .purchase(&name, &token, purchase_id, &item.id, price)
+        .purchase_by_id(pid, &token, purchase_id, &item.id, price)
         .await
     {
         Ok(PurchaseOutcome::Ok { .. } | PurchaseOutcome::AlreadyApplied) => {
-            current_profile(store, &name).await
+            current_profile(store, pid).await
         }
         Ok(PurchaseOutcome::AlreadyOwned) => shop_err("already_owned", None),
         Ok(PurchaseOutcome::Insufficient { need, have }) => {
@@ -568,13 +567,13 @@ async fn equip(
     name: Result<Path<String>, axum::extract::rejection::PathRejection>,
     req: Request,
 ) -> Response {
-    let (name, token, pid, _headers, body) = match shop_prelude::<EquipBody>(&st, name, req).await {
+    let (token, pid, _headers, body) = match shop_prelude::<EquipBody>(&st, name, req).await {
         Ok(v) => v,
         Err(r) => return r,
     };
-    if pid.is_none() {
+    let Some(pid) = pid else {
         return forbidden();
-    }
+    };
     let Some(slot) = body.slot.as_str().filter(|s| SLOTS.contains(s)) else {
         return shop_err("unknown_slot", None);
     };
@@ -596,16 +595,16 @@ async fn equip(
         Ok(s) => s,
         Err(r) => return r,
     };
-    match store.equip(&name, &token, slot, item_id).await {
-        Ok(EquipOutcome::Ok) => current_profile(store, &name).await,
+    match store.equip_by_id(pid, &token, slot, item_id).await {
+        Ok(EquipOutcome::Ok) => current_profile(store, pid).await,
         Ok(EquipOutcome::NotOwned) => shop_err("not_owned", None),
         Ok(EquipOutcome::BadToken) => forbidden(),
         Err(e) => store_err("POST /api/profile/equip", e),
     }
 }
 
-async fn current_profile(store: &Store, name: &str) -> Response {
-    match store.get_profile(name).await {
+async fn current_profile(store: &Store, profile_id: i64) -> Response {
+    match store.get_profile_by_id(profile_id).await {
         Ok(Some(p)) => json(StatusCode::OK, serde_json::json!({ "profile": dto(p) })),
         Ok(None) => forbidden(),
         Err(e) => store_err("profile read", e),

@@ -265,7 +265,7 @@ type sessionState struct {
 	admitted map[string]bool // playerSessionIds already offered to the server
 	accepted map[string]bool // AcceptPlayerSession succeeded
 	removed  map[string]bool // reported to GameLift and acknowledged
-	kicked   map[string]bool
+	kicked   map[string]bool // irrevocable kick decisions; control delivery retries until the seat is final
 	fails    int
 	// acceptSince: when AcceptPlayerSession first failed transiently for a seated player (bounds the retries).
 	acceptSince map[string]time.Time
@@ -409,6 +409,12 @@ func (b *Bridge) reconcile(ctx context.Context, st *sessionState) (done, bad boo
 	}
 	st.lastPlayers = append(st.lastPlayers, room.Players...)
 	for _, p := range room.Players {
+		// A rejection is irrevocable, but delivery of the kick can fail (including an ambiguous response loss).
+		// Retry the idempotent control command until the seat is final; never retry acceptance after deciding to kick.
+		if st.kicked[p.PlayerSessionID] && (p.Status == "seated" || p.Status == "away") {
+			b.kick(ctx, st, p.PlayerSessionID)
+			continue
+		}
 		switch p.Status {
 		case "seated":
 			// First sight only. away -> seated (a resume inside the grace) never reaches here again.

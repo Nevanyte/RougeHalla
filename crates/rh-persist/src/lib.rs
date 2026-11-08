@@ -336,6 +336,12 @@ impl Store {
         load_profile(&mut c, callsign, false).await
     }
 
+    /// Loads the durable principal authenticated by `verify_token_id`, even if its callsign was renamed or reassigned.
+    pub async fn get_profile_by_id(&self, profile_id: i64) -> Result<Option<Profile>> {
+        let mut c = self.pool.acquire().await?;
+        load_profile_lookup(&mut c, ProfileLookup::Id(profile_id), false).await
+    }
+
     /// Profiles by GV banked in `month`, highest first, ties by name (legacy `leaderboard`).
     pub async fn leaderboard(&self, month: &str, limit: i64) -> Result<Vec<(String, i64)>> {
         if !valid_month(month) {
@@ -894,11 +900,48 @@ impl Store {
         item_id: &str,
         price: i64,
     ) -> Result<PurchaseOutcome> {
+        self.purchase_lookup(
+            ProfileLookup::Name(callsign),
+            token,
+            purchase_id,
+            item_id,
+            price,
+        )
+        .await
+    }
+
+    /// Buys for the already authenticated durable principal. The transaction rechecks its token under the same row lock.
+    pub async fn purchase_by_id(
+        &self,
+        profile_id: i64,
+        token: &str,
+        purchase_id: Uuid,
+        item_id: &str,
+        price: i64,
+    ) -> Result<PurchaseOutcome> {
+        self.purchase_lookup(
+            ProfileLookup::Id(profile_id),
+            token,
+            purchase_id,
+            item_id,
+            price,
+        )
+        .await
+    }
+
+    async fn purchase_lookup(
+        &self,
+        profile: ProfileLookup<'_>,
+        token: &str,
+        purchase_id: Uuid,
+        item_id: &str,
+        price: i64,
+    ) -> Result<PurchaseOutcome> {
         if price < 0 {
             return Err(Error::Invalid("negative price".into()));
         }
         let mut tx = self.pool.begin().await?;
-        let Some(pid) = locked_authorized(&mut tx, callsign, token).await? else {
+        let Some(pid) = locked_authorized(&mut tx, profile, token).await? else {
             return Ok(PurchaseOutcome::BadToken);
         };
         let prior: Option<(i64, String)> =
@@ -984,8 +1027,31 @@ impl Store {
         slot: &str,
         item_id: Option<&str>,
     ) -> Result<EquipOutcome> {
+        self.equip_lookup(ProfileLookup::Name(callsign), token, slot, item_id)
+            .await
+    }
+
+    /// Equips for the already authenticated durable principal, rechecking its token under that profile's row lock.
+    pub async fn equip_by_id(
+        &self,
+        profile_id: i64,
+        token: &str,
+        slot: &str,
+        item_id: Option<&str>,
+    ) -> Result<EquipOutcome> {
+        self.equip_lookup(ProfileLookup::Id(profile_id), token, slot, item_id)
+            .await
+    }
+
+    async fn equip_lookup(
+        &self,
+        profile: ProfileLookup<'_>,
+        token: &str,
+        slot: &str,
+        item_id: Option<&str>,
+    ) -> Result<EquipOutcome> {
         let mut tx = self.pool.begin().await?;
-        let Some(pid) = locked_authorized(&mut tx, callsign, token).await? else {
+        let Some(pid) = locked_authorized(&mut tx, profile, token).await? else {
             return Ok(EquipOutcome::BadToken);
         };
         let mut cosmetics: Json<Cosmetics> =
@@ -1017,18 +1083,36 @@ impl Store {
     }
 }
 
-/// Locks the profile row and checks the token; the `profile_id`, or `None` for an unknown name or bad token.
+/// Names remain available to legacy/admin callers; authenticated HTTP requests keep the durable identity.
+enum ProfileLookup<'a> {
+    Name(&'a str),
+    Id(i64),
+}
+
+impl ProfileLookup<'_> {
+    fn predicate(&self) -> &'static str {
+        match self {
+            Self::Name(_) => "lower(callsign) = lower($1)",
+            Self::Id(_) => "profile_id = $1",
+        }
+    }
+}
+
+/// Locks the selected profile row and checks its token; a rename never changes an ID-based principal.
 async fn locked_authorized(
     conn: &mut PgConnection,
-    callsign: &str,
+    profile: ProfileLookup<'_>,
     token: &str,
 ) -> Result<Option<i64>> {
-    let row: Option<(i64, Vec<u8>)> = sqlx::query_as(
-        "SELECT profile_id, token_sha256 FROM profiles WHERE lower(callsign) = lower($1) FOR UPDATE",
-    )
-    .bind(callsign)
-    .fetch_optional(conn)
-    .await?;
+    let sql = format!(
+        "SELECT profile_id, token_sha256 FROM profiles WHERE {} FOR UPDATE",
+        profile.predicate()
+    );
+    let query = sqlx::query_as::<_, (i64, Vec<u8>)>(&sql);
+    let row = match profile {
+        ProfileLookup::Name(name) => query.bind(name).fetch_optional(conn).await?,
+        ProfileLookup::Id(id) => query.bind(id).fetch_optional(conn).await?,
+    };
     Ok(row
         .filter(|(_, h)| ct_eq(h, &hash_token(token)))
         .map(|(c, _)| c))
@@ -1083,16 +1167,26 @@ pub(crate) async fn load_profile(
     callsign: &str,
     lock: bool,
 ) -> Result<Option<Profile>> {
+    load_profile_lookup(conn, ProfileLookup::Name(callsign), lock).await
+}
+
+async fn load_profile_lookup(
+    conn: &mut PgConnection,
+    profile: ProfileLookup<'_>,
+    lock: bool,
+) -> Result<Option<Profile>> {
     let sql = format!(
         "SELECT profile_id, callsign, token_sha256, gv, gv_lifetime, stats, cosmetics, achievements, progress
-         FROM profiles WHERE lower(callsign) = lower($1){}",
+         FROM profiles WHERE {}{}",
+        profile.predicate(),
         if lock { " FOR UPDATE" } else { "" }
     );
-    let Some(row) = sqlx::query_as::<_, ProfileRow>(&sql)
-        .bind(callsign)
-        .fetch_optional(&mut *conn)
-        .await?
-    else {
+    let query = sqlx::query_as::<_, ProfileRow>(&sql);
+    let row = match profile {
+        ProfileLookup::Name(name) => query.bind(name).fetch_optional(&mut *conn).await?,
+        ProfileLookup::Id(id) => query.bind(id).fetch_optional(&mut *conn).await?,
+    };
+    let Some(row) = row else {
         return Ok(None);
     };
     let months: Vec<(String, i64)> =

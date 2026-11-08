@@ -46,6 +46,18 @@ fn open_cfg() -> ApiConfig {
 }
 
 async fn rig(cfg: ApiConfig) -> Rig {
+    rig_with_pause(cfg, None).await
+}
+
+/// Deterministically pause one pool checkout between authentication, mutation and response reading.
+struct AcquirePause {
+    calls: std::sync::atomic::AtomicUsize,
+    pause_at: usize,
+    entered: tokio::sync::Notify,
+    resume: tokio::sync::Notify,
+}
+
+async fn rig_with_pause(cfg: ApiConfig, pause: Option<Arc<AcquirePause>>) -> Rig {
     let url = std::env::var("DATABASE_URL")
         .unwrap_or_else(|_| panic!("DATABASE_URL is not set (eval \"$(tools/pgtest/start.sh)\")"));
     let admin = PgConnectOptions::from_str(&url).expect("DATABASE_URL parses");
@@ -56,7 +68,30 @@ async fn rig(cfg: ApiConfig) -> Rig {
         .await
         .unwrap();
     let db_url = admin.clone().database(&db).to_url_lossy().to_string();
-    let store = Arc::new(Store::connect_with(&db_url, 24).await.unwrap());
+    let store = Arc::new(if let Some(pause) = pause {
+        let pool = sqlx::postgres::PgPoolOptions::new()
+            .max_connections(1)
+            .before_acquire(move |_, _| {
+                let pause = pause.clone();
+                Box::pin(async move {
+                    if pause
+                        .calls
+                        .fetch_add(1, std::sync::atomic::Ordering::SeqCst)
+                        == pause.pause_at
+                    {
+                        pause.entered.notify_one();
+                        pause.resume.notified().await;
+                    }
+                    Ok(true)
+                })
+            })
+            .connect(&db_url)
+            .await
+            .unwrap();
+        Store::from_pool(pool)
+    } else {
+        Store::connect_with(&db_url, 24).await.unwrap()
+    });
     store.migrate().await.unwrap();
     let dcfg = DirectorConfig::new(
         rh_sim::SimConfig {
@@ -1273,4 +1308,140 @@ async fn one_idempotency_key_from_two_profiles_at_once_is_a_clean_409_never_a_50
             .unwrap();
     }
     rig.done().await;
+}
+
+/// Every private read and shop mutation follows the authenticated profile ID through moderation renames/name reuse.
+/// Checkout 0 authenticates; checkout 1 loads the open response or starts a shop transaction; checkout 2 reads a shop response.
+#[tokio::test(flavor = "multi_thread")]
+async fn authenticated_account_requests_keep_their_principal_through_name_reassignment() {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    for (operation, pause_at) in [
+        ("open", 1),
+        ("purchase", 1),
+        ("purchase", 2),
+        ("equip", 1),
+        ("equip", 2),
+    ] {
+        let pause = Arc::new(AcquirePause {
+            calls: AtomicUsize::new(100),
+            pause_at,
+            entered: tokio::sync::Notify::new(),
+            resume: tokio::sync::Notify::new(),
+        });
+        let rig = rig_with_pause(open_cfg(), Some(pause.clone())).await;
+        let token = rig.claim("Alice").await;
+        let victim_token = rig.claim("Victim").await;
+        rig.bank("Alice", 100_000).await;
+        rig.bank("Victim", 987_654).await;
+        let before = rig.profile("Alice", &token).await;
+        let item = buyable(&before["cosmetics"]["owned"])[0];
+        if operation == "equip" {
+            assert_eq!(rig.buy("Alice", &token, &item.id).await.status, 200);
+        }
+        let victim_before = rig.profile("Victim", &victim_token).await;
+        let mut conn = rig.db_conn().await;
+        let (addr, request_token, item_id, item_slot) =
+            (rig.addr, token.clone(), item.id.clone(), item.slot.clone());
+        pause.calls.store(0, Ordering::SeqCst);
+        let pending = tokio::spawn(async move {
+            match operation {
+                "open" => {
+                    get(
+                        addr,
+                        "/api/profile/Alice",
+                        &[("x-profile-token", &request_token)],
+                    )
+                    .await
+                }
+                "purchase" => {
+                    post_json(
+                        addr,
+                        "/api/profile/Alice/purchase",
+                        &[("x-profile-token", &request_token)],
+                        &serde_json::json!({"id":item_id}).to_string(),
+                    )
+                    .await
+                }
+                "equip" => {
+                    post_json(
+                        addr,
+                        "/api/profile/Alice/equip",
+                        &[("x-profile-token", &request_token)],
+                        &serde_json::json!({"slot":item_slot,"id":item_id}).to_string(),
+                    )
+                    .await
+                }
+                _ => unreachable!(),
+            }
+        });
+        tokio::time::timeout(Duration::from_secs(5), pause.entered.notified())
+            .await
+            .unwrap();
+        sqlx::query("UPDATE profiles SET callsign='FormerAlice' WHERE callsign='Alice'")
+            .execute(&mut conn)
+            .await
+            .unwrap();
+        sqlx::query("UPDATE profiles SET callsign='Alice' WHERE callsign='Victim'")
+            .execute(&mut conn)
+            .await
+            .unwrap();
+        pause.resume.notify_one();
+        let response = pending.await.unwrap();
+        assert_eq!(
+            response.status, 200,
+            "{operation}/{pause_at}: {}",
+            response.body
+        );
+        assert_eq!(
+            response.json()["profile"]["name"],
+            "FormerAlice",
+            "{operation}/{pause_at}"
+        );
+        assert_ne!(
+            response.json()["profile"]["gv"],
+            victim_before["gv"],
+            "{operation}/{pause_at}"
+        );
+        let after = rig.profile("FormerAlice", &token).await;
+        assert_eq!(response.json()["profile"], after, "{operation}/{pause_at}");
+        if operation == "purchase" {
+            assert!(after["cosmetics"]["owned"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|id| id == &item.id));
+        }
+        if operation == "equip" {
+            assert_eq!(after["cosmetics"]["equipped"][&item.slot], item.id);
+        }
+        let mut victim_after = rig.profile("Alice", &victim_token).await;
+        victim_after["name"] = "Victim".into();
+        assert_eq!(
+            victim_after, victim_before,
+            "replacement principal must remain unchanged"
+        );
+        // ID-based shop entry points retain their own token check (an ID alone conveys no authority).
+        let id = rig
+            .store
+            .verify_token_id("FormerAlice", &token)
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            rig.store
+                .purchase_by_id(id, &victim_token, Uuid::new_v4(), &item.id, 0)
+                .await
+                .unwrap(),
+            rh_persist::PurchaseOutcome::BadToken
+        );
+        assert_eq!(
+            rig.store
+                .equip_by_id(id, &victim_token, &item.slot, None)
+                .await
+                .unwrap(),
+            rh_persist::EquipOutcome::BadToken
+        );
+        drop(conn);
+        rig.done().await;
+    }
 }
