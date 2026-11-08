@@ -40,6 +40,34 @@ fn frozen_core_source_casts() {
     assert_eq!(n, 53);
     assert!(failures.is_empty(), "source failures: {failures:?}");
 }
+const PENDING_SOURCE_CASES: [(&str, &str, &str); 5] = [
+    (
+        "full-signature-source-born-holy-wish-recipients",
+        "rosterSignatures",
+        "full five-faction source-born NPC signatures",
+    ),
+    (
+        "full-signature-source-born-fire-wish-recipients",
+        "rosterSignatures",
+        "full five-faction source-born NPC signatures",
+    ),
+    (
+        "full-signature-source-born-plague-wish-recipients",
+        "rosterSignatures",
+        "full five-faction source-born NPC signatures",
+    ),
+    (
+        "full-signature-source-born-frost-wish-recipients",
+        "rosterSignatures",
+        "full five-faction source-born NPC signatures",
+    ),
+    (
+        "full-signature-source-born-sentenced-wish-recipients",
+        "rosterSignatures",
+        "full five-faction source-born NPC signatures",
+    ),
+];
+
 /// Always executes every admitted source case and pins the exact outstanding inventory.
 /// RH_ABIL_REQUIRE_FULL additionally makes the explicitly unattempted prerequisites fatal.
 /// P-ABIL-1 admitted the two cards cases and the two signatures cases (real grantCard / own-Mark producers); the
@@ -49,33 +77,7 @@ fn frozen_full_source_all_63_cases() {
     let corpus = corpus();
     let cases = corpus["cases"].as_array().unwrap();
     assert_eq!(cases.len(), 63);
-    let expected_pending = [
-        (
-            "full-signature-source-born-holy-wish-recipients",
-            "rosterSignatures",
-            "full five-faction source-born NPC signatures",
-        ),
-        (
-            "full-signature-source-born-fire-wish-recipients",
-            "rosterSignatures",
-            "full five-faction source-born NPC signatures",
-        ),
-        (
-            "full-signature-source-born-plague-wish-recipients",
-            "rosterSignatures",
-            "full five-faction source-born NPC signatures",
-        ),
-        (
-            "full-signature-source-born-frost-wish-recipients",
-            "rosterSignatures",
-            "full five-faction source-born NPC signatures",
-        ),
-        (
-            "full-signature-source-born-sentenced-wish-recipients",
-            "rosterSignatures",
-            "full five-faction source-born NPC signatures",
-        ),
-    ];
+    let expected_pending = PENDING_SOURCE_CASES;
     let mut pending = vec![];
     let mut failures = vec![];
     for case in cases {
