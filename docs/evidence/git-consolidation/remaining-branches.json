@@ -20,7 +20,7 @@
     {
       "branch": "codex/mob-progression",
       "head": "37b097db722a056b85841e548f576a8f3d17b12f",
-      "disposition": "standalone older native candidate; overlapping later native catalog/reward implementation retained; review before any additional admission"
+      "disposition": "legacy TypeScript squash duplicate: entire tree equals0151776d (ancestor of optimization_port), tree0285c91e211a6143a4a9c5cede20370515f2bb97 and stable patch305130eb9213e333dca3d93f8ff05bdf531484ba; no unique work to merge"
     },
     {
       "branch": "codex/unity-art-direction",

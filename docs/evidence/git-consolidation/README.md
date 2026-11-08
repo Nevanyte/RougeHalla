@@ -17,7 +17,9 @@ Their branch refs remain. A process-owned `server-perf` tree was kept. Only the 
 registry entry was pruned after dry-run inspection. The [disposition/restore map](historical-worktree-dispositions.json)
 contains the individual revisions; `$PRIMARY` is the main repository path when restoring a tree. Active worktrees and
 their WIP are preserved. Historic pre-port TypeScript/hosting/quests/render branches are not wholesale merged into the
-Rust migration; production legacy `packages/**` is unchanged by this consolidation.
+Rust migration; production legacy `packages/**` is unchanged by this consolidation. The unclear `codex/mob-progression`
+branch37b097db is an exact legacy-tree/patch duplicate of squash0151776d already in the branch ancestry; it has no unique
+Rust code or tests to select.
 
 Stable dirty histories were preserved as reviewable recovery commits:
 
@@ -75,11 +77,12 @@ strict mode remains incomplete. The remaining strict packet/source acceptance is
 | Remaining workspace, all features with isolated PG | 836 passed, two existing ignores across117 verdict binaries |
 | Distinct Rust tests in those disjoint batches | **1,401 passed**; this is not a count inflated by later reruns |
 | Subsequent affected native checks | Real four-seat reward publication2/2; server library124/124; native reward11/11 plus mixed-row control; checkpoint6/6; admitted58-case hash-tape consumer passed |
+| Subsequent policy/headless integration | 125 passed across34 completed verdict groups after the Knowledge repair; no ignores |
 | Subsequent RTT/server integration | Library125/125, reward2/2, rewind4/4, real transport7/7; 138 passed at the repaired union |
 | Strict lint/format/parity | Both workspace Clippy feature modes with `-D warnings` and fmt passed; affected RTT all-feature lint/fmt passed;109 scenarios +300 paths MATCH,13 separate capture-only |
 | C# / JS | 329 C# tests and synchronized net sources passed; JS16,656 golden checks (36 server vectors,96 malformed,11 chains), plus64 focused assertions |
 | Actual Unity Editor | Pinned6000.0.85f2 WebGL-target import/compile passed; this is not a fresh full Web player or art/performance proof |
-| Actual Chromium WSS | 15/15 passed on protocol11; reward compatibility/RTT changes separately covered by focused integration tests |
+| Actual Chromium WSS | Fresh rebuilt union binary passes15/15 on protocol11 after reward/RTT/Knowledge integration, with zero page errors |
 | Latency / inventory / staging renderer | 12 harness +4 trace tests,10 inventory tests,5 local renderer tests, saved-evidence checker and Caddy adaptation passed |
 
 [Local check receipts](local-check-receipts.json) hash the retained private artifacts. Earlier full CI records remain
@@ -98,3 +101,8 @@ browser/performance work underway. Primary/remote organization must preserve the
 Full public Wish/Trophy/quest/trade/fact transports, native strict remainders, full bot brain, browser/account flows,
 durable cloud/provider/regional operation and comparable full-game performance remain unfinished. The old Calgary
 staging run was removed; this cleanup makes no production or AWS resource changes and does not enlarge CAD20 total.
+
+The6b tournament continuation is held for the [real CLI timer repair](../../coordination/TOURNAMENT_TIMER_REPAIR.md):
+its parsed/exported overrides were not reaching the configuration actually passed to the runner. The active7b continuation
+requires composition after the learning repair. Both remain isolated; holding them is an explicit failed/review gate, not
+an omitted branch.

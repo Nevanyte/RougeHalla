@@ -75,6 +75,56 @@
       "file": "readiness-final.log",
       "bytes": 949,
       "sha256": "67e446dd7667e7879d1a40193e268ebf3c5442296ce0c5912d9005149bcf7f97"
+    },
+    {
+      "file": "knowledge-integration.log",
+      "bytes": 18421,
+      "sha256": "670dacb5f4c51508ae30d36fd72303ce549f63c42ee21afac782ec4822c0f89f"
+    },
+    {
+      "file": "clippy-knowledge-final.log",
+      "bytes": 556,
+      "sha256": "850caaa942c47c569897a333fe4582e26989f30be61e1d02498ba3849277ac5f"
+    },
+    {
+      "file": "fmt-knowledge-final.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "clippy-default-pnet3-final.log",
+      "bytes": 356,
+      "sha256": "f16f7c8397b2e88cf4a6b6bf2269b0bd0aa7d36a9e2981390cf01cf02ff37683"
+    },
+    {
+      "file": "clippy-pnet3-final.log",
+      "bytes": 304,
+      "sha256": "5ed1f913dd88c299e42153e64d1ea353faae2553a627a4ab433c1266383647eb"
+    },
+    {
+      "file": "fmt-pnet3-final.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "server-build-final.log",
+      "bytes": 555,
+      "sha256": "ca07f7ff5cbe08eb30e3fd82e16a987c637c9bdb09361e4fce3541d29432a1a1"
+    },
+    {
+      "file": "browser-proof-final.json",
+      "bytes": 4383,
+      "sha256": "d2405c2992c810ae8940ebfd9581e69ad4363c11c1c897b990dcb7e415ec2a66"
+    },
+    {
+      "file": "latency-merged.log",
+      "bytes": 1599,
+      "sha256": "241f7d67e877c68eff4ce2b842e9400315e90bdcbdecd43b90b20e572ceae0a0"
+    },
+    {
+      "file": "caddy-loopback-adapt.json",
+      "bytes": 856,
+      "sha256": "c15f1d0a520a2220a8c5ef19f258d2d01f9f203d343f9fa4549b7a3f89484010"
     }
   ]
 }
