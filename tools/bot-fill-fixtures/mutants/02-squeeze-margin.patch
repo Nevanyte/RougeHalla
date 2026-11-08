@@ -1,0 +1,13 @@
+diff --git a/crates/rh-server/src/bot_fill.rs b/crates/rh-server/src/bot_fill.rs
+index b2fac55c..2fb28592 100644
+--- a/crates/rh-server/src/bot_fill.rs
++++ b/crates/rh-server/src/bot_fill.rs
+@@ -332,7 +332,7 @@ impl BotFillState {
+     /// left (source BotManager.squeeze).
+     fn squeeze(&mut self, now: f64, ends_at: f64) {
+         let old_span = (self.schedule_end - ARRIVAL_END_MARGIN_MS - now).max(0.);
+-        let new_span = (ends_at - ARRIVAL_END_MARGIN_MS - now).max(0.);
++        let new_span = (ends_at - now).max(0.);
+         self.schedule_end = ends_at;
+         if old_span <= 0. {
+             return;

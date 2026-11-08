@@ -60,6 +60,9 @@ pub struct DirectorConfig {
     pub arena: Arc<Arena>,
     pub max_rooms: usize,
     pub fill_bots_to: usize,
+    /// The legacy lobby fill (BotManager): arrivals over the countdown, closing top-up and the yield seat. None keeps
+    /// the rooms' immediate placeholder fill (default for tests and benches; the server binary enables it).
+    pub bot_fill: Option<crate::bot_fill::BotFillConfig>,
     pub tick: Duration,
     /// Record a private replay of every match (kept in memory for the last few rooms; tests and diagnostics).
     pub record: bool,
@@ -83,6 +86,7 @@ impl DirectorConfig {
             arena: arena.into(),
             max_rooms: 16,
             fill_bots_to: 0,
+            bot_fill: None,
             tick: Duration::from_millis(rh_sim::constants::TICK_MS as u64),
             record: false,
             reconnect_grace: crate::room::RECONNECT_GRACE,
@@ -695,6 +699,18 @@ impl Director {
         }
     }
 
+    /// The fill policy a new room gets, with the room's fill count (the config's own fill_to is the default for
+    /// direct room construction): None leaves the room on its immediate placeholder fill.
+    fn fill_policy(&self, fill_bots_to: usize) -> Option<crate::bot_fill::BotFillConfig> {
+        self.cfg
+            .bot_fill
+            .as_ref()
+            .map(|fill| crate::bot_fill::BotFillConfig {
+                fill_to: fill_bots_to,
+                ..fill.clone()
+            })
+    }
+
     /// Spawns a room task and registers it (the lock is held). Used by admission (a lobby opened on demand) and by the
     /// control API (a room per game session); never blocks.
     fn spawn_room(
@@ -716,7 +732,10 @@ impl Director {
             reconnect_grace: self.cfg.reconnect_grace,
             linger: self.cfg.linger,
         };
-        let room = Room::new(id, rc, self.reports.clone(), tokio::time::Instant::now());
+        let mut room = Room::new(id, rc, self.reports.clone(), tokio::time::Instant::now());
+        if let Some(fill) = self.fill_policy(fill_bots_to) {
+            room = room.with_bot_fill(fill);
+        }
         // A panic in the room still reports `Closed` (room.rs `run_room`), so its seats are freed.
         tokio::spawn(run_room(room, rx));
         inner.rooms.insert(
@@ -1974,6 +1993,34 @@ mod tests {
 
     fn director() -> Arc<Director> {
         director_with(MemoryStore::default())
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn the_configured_fill_policy_reaches_a_spawned_room_with_the_room_s_fill_count() {
+        let mut cfg = DirectorConfig::new(SimConfig::default(), rh_sim::arenas::practice_arena());
+        cfg.bot_fill = Some(crate::bot_fill::BotFillConfig {
+            fill_to: 99,
+            arrival_seconds: 3.,
+            ..crate::bot_fill::BotFillConfig::default()
+        });
+        let d = Director::new(
+            cfg,
+            Arc::new(Persistence::Memory(Box::<MemoryStore>::default())),
+            Arc::new(Auth::Dev),
+            Arc::new(Lifecycle::default()),
+        );
+        let fill = d
+            .fill_policy(4)
+            .expect("the configured fill reaches the room");
+        assert_eq!(
+            fill.fill_to, 4,
+            "the room's fill count overrides the default"
+        );
+        assert_eq!(fill.arrival_seconds, 3.);
+        assert!(
+            director().fill_policy(4).is_none(),
+            "without a configured fill the room keeps its placeholder fill"
+        );
     }
 
     fn store(d: &Director) -> &MemoryStore {

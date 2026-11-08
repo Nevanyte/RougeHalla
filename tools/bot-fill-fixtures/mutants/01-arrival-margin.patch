@@ -1,0 +1,13 @@
+diff --git a/crates/rh-server/src/bot_fill.rs b/crates/rh-server/src/bot_fill.rs
+index b2fac55c..374fbeb2 100644
+--- a/crates/rh-server/src/bot_fill.rs
++++ b/crates/rh-server/src/bot_fill.rs
+@@ -24,7 +24,7 @@ pub const MAX_PER_FACTION: u32 = 2;
+ /// The faction softmax temperature (source FACTION_TEMPERATURE).
+ pub const FACTION_TEMPERATURE: f64 = 0.3;
+ /// The last arrival is this long before the countdown ends (source ARRIVAL_END_MARGIN_MS).
+-pub const ARRIVAL_END_MARGIN_MS: f64 = 1000.;
++pub const ARRIVAL_END_MARGIN_MS: f64 = 990.;
+ /// The learning store's exploration floor (source LEARN.explore); the store itself is P-BOTS-5 remainder, but the draw
+ /// is part of the manager's stream and is reproduced.
+ pub const LEARN_EXPLORE: f64 = 0.05;

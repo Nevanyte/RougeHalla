@@ -1,0 +1,13 @@
+diff --git a/crates/rh-server/src/bot_fill.rs b/crates/rh-server/src/bot_fill.rs
+index b2fac55c..e8a5383f 100644
+--- a/crates/rh-server/src/bot_fill.rs
++++ b/crates/rh-server/src/bot_fill.rs
+@@ -27,7 +27,7 @@ pub const FACTION_TEMPERATURE: f64 = 0.3;
+ pub const ARRIVAL_END_MARGIN_MS: f64 = 1000.;
+ /// The learning store's exploration floor (source LEARN.explore); the store itself is P-BOTS-5 remainder, but the draw
+ /// is part of the manager's stream and is reproduced.
+-pub const LEARN_EXPLORE: f64 = 0.05;
++pub const LEARN_EXPLORE: f64 = 0.06;
+ 
+ /// The callsigns (source callsigns.ts CALLSIGN_POOL, in order).
+ pub const CALLSIGN_POOL: [&str; 64] = [

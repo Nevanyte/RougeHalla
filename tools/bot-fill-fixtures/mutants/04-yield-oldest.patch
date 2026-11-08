@@ -1,0 +1,16 @@
+diff --git a/crates/rh-server/src/bot_fill.rs b/crates/rh-server/src/bot_fill.rs
+index b2fac55c..15fcfb5f 100644
+--- a/crates/rh-server/src/bot_fill.rs
++++ b/crates/rh-server/src/bot_fill.rs
+@@ -323,7 +323,10 @@ impl BotFillState {
+     /// A human is joining a full lobby: the newest bot gives its seat up (source BotManager.yieldSeat). The caller must
+     /// be in the lobby; the manager checked the phase.
+     pub fn yield_seat(&mut self) -> Option<BotSeatSpec> {
+-        let spec = self.seated.pop()?;
++        if self.seated.is_empty() {
++            return None;
++        }
++        let spec = self.seated.remove(0);
+         self.stats.yielded += 1;
+         Some(spec)
+     }

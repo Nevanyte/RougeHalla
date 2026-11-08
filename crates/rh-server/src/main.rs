@@ -472,6 +472,11 @@ async fn main() {
             .map_or_else(|| num("--fill-bots", 0.) as usize, |p| p.fill_bots),
         ..DirectorConfig::new(sim, arena)
     };
+    // The live server fills its lobbies with the legacy manager policy (BOTS_FILL_TO from --fill-bots); tests and
+    // benches construct rooms directly and keep the immediate placeholder fill unless they opt in.
+    cfg.bot_fill = Some(rh_server::bot_fill::BotFillConfig::with_fill_to(
+        cfg.fill_bots_to,
+    ));
     cfg.require_admit = hosted.require_admit;
     if let Some(ttl) = hosted.admit_ttl {
         cfg.admit_ttl = ttl;
