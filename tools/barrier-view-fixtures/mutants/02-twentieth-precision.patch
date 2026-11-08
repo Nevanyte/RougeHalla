@@ -1,0 +1,10 @@
+--- a/packages/server/src/bots/brain/types.ts
++++ b/packages/server/src/bots/brain/types.ts
+@@ -284,6 +284,6 @@
+ /** Perception keeps this much (u) beyond the window in a Frame; composing the Percept applies the exact window. */
+ export const FRAME_MARGIN = 64;
+ /** Other fighters' hp and barrier as read off a bar: steps of this share. */
+-export const HP_QUANT = 0.05;
++export const HP_QUANT = 0.01;
+ /** Minimap dots: positions rounded to this (u), refreshed this often (the minimap repaints at 10 Hz, ui/minimap.ts). */
+ export const MINIMAP_QUANT = 16;

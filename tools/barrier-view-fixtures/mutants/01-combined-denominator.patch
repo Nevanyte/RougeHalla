@@ -1,0 +1,11 @@
+--- a/packages/shared/src/hpView.ts
++++ b/packages/shared/src/hpView.ts
+@@ -20,7 +20,7 @@
+ export function hpBarFractions(hp: number, maxHp: number, barrier: number): { hp: number; barrier: number } {
+   const h = hp > 0 ? hp : 0;
+   const b = barrier > 0 ? barrier : 0;
+-  const total = Math.max(maxHp > 0 ? maxHp : 0, h + b);
++  const total = Math.max(maxHp > 0 ? maxHp : 0, h);
+   if (!(total > 0)) return { hp: 0, barrier: 0 };
+   return { hp: h / total, barrier: b / total };
+ }

@@ -1,0 +1,10 @@
+--- a/packages/client/src/render/PlayerView.ts
++++ b/packages/client/src/render/PlayerView.ts
+@@ -26,7 +26,7 @@
+ const FIGURE_RADIUS = PLAYER_RADIUS * 1.1;
+ const SHIELD_COLOR = 0x4fc3f7;
+ /** The barrier's bubble, redrawn when it moves by one of this many steps of a full shield (BARRIER_FULL_SHARE of max hp). */
+-const BARRIER_STEPS = 8;
++const BARRIER_STEPS = 4;
+ /** The local player's marks: a white ring on the ground and a white rim on the body. */
+ const LOCAL_MARK = 0xffffff;
