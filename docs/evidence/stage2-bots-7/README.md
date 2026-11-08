@@ -140,7 +140,10 @@ On `deepseek/p-bots-7b` (PR against `deepseek/p-bots-5`), the first three items 
   every seated fill bot draws another name.
 - PostgreSQL, pinned throwaway cluster (feature `postgres`): `cargo test -p rh-server --features postgres --test bot_names`
   — 1 passed: the durable callsigns read read-only and lower-cased, nothing changed by the read.
-- Workspace gate: GATE_TBD; clippy `-D warnings` and fmt: CLIPPY_TBD.
+- Workspace gate: **1,517 passed, 0 failed, 3 ignored, 157 test binaries, exit 0** (with the pinned PostgreSQL cluster;
+  the previous 1,509 plus the eight remainder-round tests: 3 policy delay, 2 room, 2 bot_fill env and the PostgreSQL
+  `bot_names` test, which is the 157th binary).
+- `cargo clippy --workspace --all-targets --all-features -- -D warnings` and `cargo fmt --all -- --check`: clean.
 
 ### Remainder after this round
 
