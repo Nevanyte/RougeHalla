@@ -14,6 +14,13 @@ namespace Roguehalla.Client
         public AccountHubSnapshot Snapshot => Flow?.Snapshot;
         public AccountApiService Api { get; private set; }
 
+        /// <summary>Read only after deliberate user action; presentation owns masking and clearing the revealed key.</summary>
+        public bool TryGetRecoveryKey(out string canonicalName, out string key)
+        {
+            canonicalName = key = string.Empty;
+            return Flow != null && Flow.TryGetRecoveryKey(out canonicalName, out key);
+        }
+
         public void Initialize(string pageUrl, string explicitApiBase = null)
         {
             if (Flow != null) throw new InvalidOperationException("The account coordinator is already initialized for this page.");

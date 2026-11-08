@@ -75,6 +75,7 @@ namespace Roguehalla.Net
         AccountFailure _fullProfileFailure;
         AccountApiService _api;
         IAccountApiTransport _apiTransport;
+        ApiOwner _recoveryOwner;
         sealed class Operation
         {
             public long Generation;
@@ -93,13 +94,13 @@ namespace Roguehalla.Net
         {
             name = name ?? "";
             if (string.Equals(_selected, name, StringComparison.Ordinal)) return;
-            ++_generation; _selected = name; _normalizedSelection = NormalizeOrNull(name); _profile = null; _fullProfile = null; _fullProfileFailure = AccountFailure.None; _accounts.ClearSelection();
+            ++_generation; _selected = name; _normalizedSelection = NormalizeOrNull(name); _profile = null; _fullProfile = null; _fullProfileFailure = AccountFailure.None; _recoveryOwner = null; _accounts.ClearSelection();
             Set(AccountHubState.Idle, AccountFailure.None, AccountConnectionFailure.None, AccountRefreshReason.None);
         }
 
         public void Cancel()
         {
-            ++_generation; _accounts.ClearSelection();
+            ++_generation; _recoveryOwner = null; _accounts.ClearSelection();
             Set(AccountHubState.Idle, AccountFailure.Cancelled, AccountConnectionFailure.None, AccountRefreshReason.None);
         }
 
@@ -135,6 +136,17 @@ namespace Roguehalla.Net
             intent.ExpectedSelection == _normalizedSelection && Matches(intent.Account, intent.ExpectedSelection) &&
             AccountConnectionPolicy.CheckOwnedTarget(_accounts.Endpoint, intent.MatchUrl) == AccountConnectionFailure.None;
 
+        /// <summary>Explicit user-action recovery only. The returned key is secret: never log it or put it in a URL.</summary>
+        public bool TryGetRecoveryKey(out string canonicalName, out string key)
+        {
+            canonicalName = key = string.Empty;
+            ApiOwner owner = _recoveryOwner;
+            if (Snapshot.State != AccountHubState.Owned || !CurrentApiOwner(owner)) return false;
+            canonicalName = owner.Account.CanonicalName;
+            key = owner.Account.Token;
+            return true;
+        }
+
         /// <summary>Reads the saved profile only. Its counters remain authoritative and may still precede result banking.</summary>
         public async Task<bool> RefreshAfterResultAsync(CancellationToken cancellation = default)
         { return await Open(Begin(_selected), null, null, cancellation, AccountRefreshReason.Result) != null; }
@@ -151,6 +163,7 @@ namespace Roguehalla.Net
             // Bind both identity and generation before the first event. A callback may select/cancel/start another open.
             var operation = new Operation { Generation = ++_generation, Name = name, ExpectedSelection = NormalizeOrNull(name) };
             _selected = name; _normalizedSelection = operation.ExpectedSelection;
+            _recoveryOwner = null;
             if (changed) { _profile = null; _fullProfile = null; _fullProfileFailure = AccountFailure.None; }
             _accounts.ClearSelection();
             if (changed) Set(AccountHubState.Idle, AccountFailure.None, AccountConnectionFailure.None, AccountRefreshReason.None);
@@ -188,6 +201,7 @@ namespace Roguehalla.Net
             _profile = new AccountHubProfile(result.Account);
             _fullProfile = result.Account.FullProfile;
             _fullProfileFailure = _fullProfile == null ? AccountFailure.Unreadable : AccountFailure.None;
+            _recoveryOwner = new ApiOwner { Generation = operation.Generation, ExpectedSelection = operation.ExpectedSelection, Account = result.Account };
             Set(AccountHubState.Owned, AccountFailure.None, AccountConnectionFailure.None, reason);
             return Current(operation) && Matches(result.Account, operation.ExpectedSelection) ? result.Account : null;
         }

@@ -1,0 +1,40 @@
+{
+  "base": "90574c57716bb7f8fafa4f87a46e1fe7aa2f26aa",
+  "focused": {
+    "command": "dotnet test client-unity/RoguehallaNet.Tests --filter 'FullyQualifiedName~AccountHubFlowTests|FullyQualifiedName~AccountApiServiceTests'",
+    "passed": 72,
+    "failed": 0,
+    "new_recovery_cases": 9
+  },
+  "unity_api_compile": {
+    "editor": "6000.0.85f2",
+    "warnings": 0,
+    "errors": 0,
+    "actual_editor_run": false,
+    "aot_json_dll_sha256": "a56146202232958f46bd6a28b5a7da166aea123ee0d646735a46e5c341dfbf1f"
+  },
+  "unity_mirror_exact": true,
+  "private_log_receipts": {
+    "focused.log": {
+      "bytes": 1654,
+      "sha256": "e60597cd929423e17ceea3987f0e6b47eb8f90f29117c6d4e33450c9fce0e608"
+    },
+    "unity-api.log": {
+      "bytes": 698,
+      "sha256": "2616c52d7630c91d774bfd2e8940562ef6ab50d042fb9d51d55f8407d1ec764b"
+    }
+  },
+  "not_run": [
+    "broad C# suite",
+    "Editor",
+    "Web build",
+    "browser",
+    "server/PG",
+    "cloud"
+  ],
+  "remaining": [
+    "root independent exact-head release",
+    "UI lane explicit masked reveal and clear wiring",
+    "actual combined Editor/browser verification"
+  ]
+}
