@@ -215,7 +215,7 @@ namespace Roguehalla.Client
                     var at = new Vector2(option.Value.X / (_bound.Map.W * Tile), 1 - option.Value.Y / (_bound.Map.H * Tile));
                     var marker = (RectTransform)_spawnMarks[i].transform;
                     marker.anchorMin = marker.anchorMax = at; marker.anchoredPosition = Vector2.zero;
-                    _spawnMarks[i].GetComponentInChildren<TMP_Text>().text = (i + 1) + (plan.Pick == i ? " ✓" : taken ? " ×" : "");
+                    _spawnMarks[i].GetComponentInChildren<TMP_Text>().text = (i + 1) + (plan.Pick == i ? " [S]" : taken ? " [X]" : "");
                 }
                 _spawns[i].interactable = _selections.CanPickSpawn(i);
                 _spawnMarks[i].interactable = _spawns[i].interactable;
