@@ -24,6 +24,7 @@ namespace Roguehalla.Client
             public Fact Fact;
             public GameObject Root;
             public SpriteRenderer[] Parts;
+            public bool Presented;
         }
         readonly Transform _parent;
         readonly SpriteActorPresenter _actors;
@@ -58,7 +59,11 @@ namespace Roguehalla.Client
                         Recycle(i);
                 }
             }
-            if (fact.Kind == FxKind.WishEnded) return;
+            if (fact.Kind == FxKind.WishEnded)
+            {
+                if (fact.Caster.HasValue) LatencyTrace.WishPresented("presentWishEnded", fact.Caster.Value, fact.Ability, fact.EventTime);
+                return;
+            }
             if (fact.Kind == FxKind.WishStarted)
             {
                 if (!fact.Caster.HasValue || !Finite(fact.Duration) || fact.Duration <= 0) return;
@@ -67,13 +72,20 @@ namespace Roguehalla.Client
             {
                 // Nonspatial visible-caster metadata legitimately terminates a telegraph.
                 // There is never an actor-position or one-ended fallback for a landing.
-                if (!fact.HasAnchor || (fact.Ability == (byte)AbilityId.Blaze && !fact.HasDestination)) return;
+                if (!fact.HasAnchor)
+                {
+                    if (fact.Caster.HasValue && !fact.HasDestination)
+                        LatencyTrace.WishPresented("presentWishLanded", fact.Caster.Value, fact.Ability, fact.EventTime);
+                    return;
+                }
+                if (fact.Ability == (byte)AbilityId.Blaze && !fact.HasDestination) return;
                 if (fact.Ability != (byte)AbilityId.Blaze && fact.HasDestination) return;
                 fact.Duration = LandingLifetimeMs;
             }
             if (_active.Count == Capacity) Recycle(0); // bounded cosmetic budget; terminals were already applied
             var cue = _pool.Count > 0 ? _pool.Pop() : Create();
             cue.Fact = fact;
+            cue.Presented = false;
             cue.Root.SetActive(false);
             _active.Add(cue);
         }
@@ -88,17 +100,24 @@ namespace Roguehalla.Client
         {
             if (!Finite(serverTimeMs) || serverTimeMs < 0) return;
             bool reduced = ShowcaseSettings.Current != null && ShowcaseSettings.Current.ReducedMotion;
-            for (int i = _active.Count - 1; i >= 0; i--)
+            for (int i = 0; i < _active.Count;)
             {
                 var cue = _active[i]; var fact = cue.Fact;
                 double age = serverTimeMs - fact.EventTime;
                 if (age >= fact.Duration || (fact.Kind == FxKind.WishStarted && (!_actors.IsLiving(fact.Caster.Value)))) { Recycle(i); continue; }
                 cue.Root.SetActive(age >= 0);
-                if (age < 0) continue;
+                if (age < 0) { i++; continue; }
                 Vector3 point;
                 if (fact.HasAnchor) point = ArenaView.WorldPoint(fact.X, fact.Y);
                 else if (!_actors.TryPosition(fact.Caster.Value, out point)) { Recycle(i); continue; }
                 Draw(cue, point, Mathf.Clamp01((float)(age / fact.Duration)), reduced);
+                if (!cue.Presented)
+                {
+                    LatencyTrace.WishPresented(fact.Kind == FxKind.WishStarted ? "presentWishStarted" : "presentWishLanded",
+                        fact.Caster ?? 0, fact.Ability, fact.EventTime);
+                    cue.Presented = true;
+                }
+                i++;
             }
         }
 
