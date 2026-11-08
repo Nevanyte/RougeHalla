@@ -1,0 +1,99 @@
+{
+  "base": "198902f42970bd3d71d431931020819b0e36f008",
+  "branch": "codex/bot-delivered-memory",
+  "priorHazardUnchanged": "628791b5f3ddd83cd678af683fe00b6a7605ed7a",
+  "scope": "Private codec-shaped protocol13 adapter + bounded source memory field-fold subset. No attested live binding, seat activation, shared observe/wire/state/version/content/status/lock edits.",
+  "corpus": {
+    "path": "parity/policy/bot-memory-subset.json",
+    "bytes": 39873,
+    "sha256": "40d29e352be25e91039bf4007b7395f985593facf7359422ab110a90cec0aa94",
+    "captureSha256": "5abf2c9b4ac00797e6772aef9152e87d92bb1c0f3e47d743f55337be8ce50500",
+    "sourceConfigCodecPins": 118,
+    "toolPins": 4,
+    "sourceMemoryCases": 6,
+    "sourceMemoryFrames": 48,
+    "actualJsCodecCases": 5,
+    "admissibleCodecCases": 3,
+    "explicitUnsupportedCodecCases": 2,
+    "sourceClockFrames": 2
+  },
+  "checks": [
+    {
+      "command": "cargo test --locked -p rh-policy bots::delivered",
+      "result": "3 passed;0 failed;78 filtered out"
+    },
+    {
+      "command": "cargo test --locked -p rh-policy bots::memory_prefix",
+      "result": "4 passed;0 failed;77 filtered out"
+    },
+    {
+      "command": "cargo clippy --locked -p rh-policy --all-targets -- -D warnings",
+      "result": "PASS"
+    },
+    {
+      "command": "cargo clippy --locked -p rh-policy --all-targets --all-features -- -D warnings",
+      "result": "PASS"
+    },
+    {
+      "command": "cargo fmt -p rh-policy -- --check",
+      "result": "PASS"
+    },
+    {
+      "command": "bash tools/bot-memory-fixtures/capture.sh --check",
+      "result": "PASS exact bytes"
+    },
+    {
+      "command": "RH_BOT_MEMORY_MUTANT_OUTPUT=<own external>/mutants bash tools/bot-memory-fixtures/run-mutants.sh",
+      "result": "3 actual compiled semantic mutants killed at result paths; initial/restored control and provenance-only nonkill PASS"
+    },
+    {
+      "command": "git diff --check",
+      "result": "PASS"
+    }
+  ],
+  "rawEvidence": {
+    "capture.log": {
+      "bytes": 314,
+      "sha256": "1b1f6b686a156e53684e77ea308b5fdbafda6f2539223842b8565c7e2633356a"
+    },
+    "source-check.log": {
+      "bytes": 157,
+      "sha256": "f30edffa55fd3b7cb955b82323dbdcb48fd3b7bcc4f0fc55732b57fb09b5fb4a"
+    },
+    "mutants.log": {
+      "bytes": 1604,
+      "sha256": "27b112ccc1d62eca040d3647b1d243e5cb043a096c2dabf1bf3bb37b50e3060a"
+    },
+    "delivered-tests.log": {
+      "bytes": 818,
+      "sha256": "71238f88fc9f303386938b2fd09f762a29c83de1b9241c95424aca39a3f8da21"
+    },
+    "memory-tests.log": {
+      "bytes": 808,
+      "sha256": "09ce8e62df8b6368186cdb81645ef443cabae4ffb56f251b3fd1db3cbd4daddc"
+    },
+    "clippy-default.log": {
+      "bytes": 213,
+      "sha256": "05b0c09020d72de63ff249a194f30c6a860157a80911e153ae1f42fb35625248"
+    },
+    "clippy-all-features.log": {
+      "bytes": 60,
+      "sha256": "af1d2cf35aacaf94dd1c8a40bb1eb81981171b00ae7b6668106f5acb3a38e60c"
+    },
+    "fmt.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "sourceCheckout": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/bot-delivered-memory/repo",
+  "cargoTarget": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/bot-delivered-memory/target",
+  "externalEvidence": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/bot-delivered-memory",
+  "limits": [
+    "No raw Observation conversion or claim that this data-only carrier proves publication/commit/reference provenance.",
+    "C# code pinned/inspected only; JS original decoder actually executed against existing Rust-generated vectors. No new C#/Unity/Web run.",
+    "Declared no-event source memory subset; not full source perceive/FrameRing/delayed-render/game outcomes.",
+    "Direct input-level noninterference, not paired-world/persistent-publisher proof.",
+    "No warmed allocation/time, seat live binding, new public facts or versions. Full brain/strategy/tactics/chest/stateful hunters still open.",
+    "Root decisions/write leases listed per field in NEXT_SHARED_BOT_FACTS.md."
+  ]
+}
