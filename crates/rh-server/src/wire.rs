@@ -490,7 +490,7 @@ impl Publisher {
         rh_sim::observe_events_into_cached(sim, viewer, events, out, &mut self.sight);
     }
 
-    /// The observation of the last [`Publisher::frames`] call.
+    /// Scratch observation: consume only after successful frame/prepared delivery. On refusal it is unspecified.
     pub fn observation(&self) -> &Observation {
         &self.obs
     }
@@ -529,7 +529,15 @@ impl Publisher {
         if let Err(error) = profile_supported(sim.config()) {
             return ViewFrames::unsupported(error);
         }
-        rh_sim::observe_into_cached(sim, viewer, last_step, &mut self.obs, &mut self.sight);
+        if let Err(error) =
+            rh_sim::try_observe_into_cached(sim, viewer, last_step, &mut self.obs, &mut self.sight)
+        {
+            let reason = match error {
+                rh_sim::OfferError::UnrepresentablePublicVitals => "public vitals",
+                _ => "observation bounds",
+            };
+            return ViewFrames::unsupported(rh_protocol::EncodeError::BadValue(reason));
+        }
         self.build_observation_frames(spare, viewer, ack_input, earlier, all)
     }
 
@@ -1177,6 +1185,8 @@ mod tests {
             y: 50.7,
             facing: 0.5,
             hp_frac: 0.75,
+            barrier_frac: 0.,
+            barrier_ring_step: 0,
             status: Status::Alive,
             weapon: rh_sim::content::WeaponId::ALL[2],
             bounty: 3,

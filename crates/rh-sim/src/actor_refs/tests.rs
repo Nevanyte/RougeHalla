@@ -254,7 +254,7 @@ fn fixed_blocks_commit_grace_and_reconnect_preserve_exact_clicks() {
 fn all_actor_fields_use_one_projection_and_reference_bounds_fail_closed() {
     let mut s = world();
     let mut raw = Observation::default();
-    crate::observe::observe_with(&s, PlayerId(1), &[], &mut raw, None);
+    crate::observe::observe_with(&s, PlayerId(1), &[], &mut raw, None).unwrap();
     let mob = s.mobs()[0].core.id;
     raw.me.as_mut().unwrap().attack_target = Some(mob);
     raw.visible[0].mark_by = Some(mob);
@@ -305,7 +305,7 @@ fn all_actor_fields_use_one_projection_and_reference_bounds_fail_closed() {
         Err(crate::OfferError::ActorReferencesExhausted)
     ));
     let mut raw = Observation::default();
-    crate::observe::observe_with(&s, PlayerId(1), &[], &mut raw, None);
+    crate::observe::observe_with(&s, PlayerId(1), &[], &mut raw, None).unwrap();
     let mob = raw.visible.iter().find(|a| a.kind == 1).unwrap().clone();
     raw.visible = vec![mob; NPC_REFERENCE_BLOCK as usize + 1];
     assert!(matches!(
