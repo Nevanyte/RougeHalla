@@ -136,6 +136,15 @@ fn canonical_events(events: &[Event], now: f64) -> Vec<Value> {
     out
 }
 
+/// The actual Event serde shape: externally tagged, with numeric id and ability. The diagnostic serializes a real
+/// returned terminal Event into this helper input to prove the pending-event predicate detects it; it is never inserted
+/// into a Sim queue and never treated as a produced/retained event.
+fn serialized_pending_matches(value: &Value, tag: &str, actor: u32, ability: &str) -> bool {
+    value.get(tag).is_some_and(|event| {
+        event["id"].as_u64() == Some(u64::from(actor)) && event["ability"].as_str() == Some(ability)
+    })
+}
+
 fn player_view(sim: &Sim) -> Vec<Value> {
     sim.players()
         .iter()
@@ -213,7 +222,8 @@ fn source_fizzle_interrupted_terminal_matrix_matches_native_and_continues() {
         assert_eq!(actions.len(), timeline.len());
         let mut all_events: Vec<(usize, Value)> = Vec::new();
         let mut restored: Option<Sim> = None;
-        let mut continuation_actions = 0usize;
+        let mut returned_terminal: Option<Event> = None;
+        let mut continuation_steps = 0usize;
         for (i, (action, frame)) in actions.iter().zip(timeline).enumerate() {
             let native_events = match action["kind"].as_str().unwrap() {
                 "step" => {
@@ -221,8 +231,18 @@ fn source_fizzle_interrupted_terminal_matrix_matches_native_and_continues() {
                         submit_input(&mut sim, input);
                     }
                     let events = sim.step();
+                    if returned_terminal.is_none() {
+                        returned_terminal = events
+                            .iter()
+                            .find(|event| matches!(event, Event::CastEnded { .. }))
+                            .cloned();
+                    }
                     let native = canonical_events(&events, sim.server_time());
                     if let Some(other) = restored.as_mut() {
+                        assert!(
+                            action["inputs"].as_array().unwrap().is_empty(),
+                            "{name}: restored continuation steps have no inputs"
+                        );
                         let expected = other.step();
                         assert_eq!(
                             canonical_events(&expected, other.server_time()),
@@ -234,7 +254,7 @@ fn source_fizzle_interrupted_terminal_matrix_matches_native_and_continues() {
                             sim.state_hash(),
                             "{name}: restored action {i} hash"
                         );
-                        continuation_actions += 1;
+                        continuation_steps += 1;
                     }
                     native
                 }
@@ -248,7 +268,6 @@ fn source_fizzle_interrupted_terminal_matrix_matches_native_and_continues() {
                             sim.state_hash(),
                             "{name}: restored removal {i} hash"
                         );
-                        continuation_actions += 1;
                     }
                     Vec::new()
                 }
@@ -291,13 +310,30 @@ fn source_fizzle_interrupted_terminal_matrix_matches_native_and_continues() {
                     .unwrap();
                 let end_by = end_event["by"].as_str().unwrap();
                 let end_ability = end_event["ability"].as_str().unwrap();
+                let end_actor = source_id(end_by).0;
+                let actual_terminal = returned_terminal
+                    .as_ref()
+                    .expect("the actual returned terminal Event was captured this step");
+                let diagnostic = serde_json::to_value(actual_terminal).unwrap();
+                assert!(
+                    serialized_pending_matches(&diagnostic, "CastEnded", end_actor, end_ability),
+                    "{name}: the diagnostic helper detects the actual returned terminal Event by numeric id + ability"
+                );
+                assert!(
+                    !serialized_pending_matches(
+                        &diagnostic,
+                        "CastEnded",
+                        end_actor + 1,
+                        end_ability
+                    ),
+                    "{name}: the diagnostic predicate requires the actual numeric id"
+                );
                 let pending =
                     serde_json::to_value(&sim).unwrap()["world"]["pending_events"].clone();
-                let own_pending = |kind: &str| {
+                let own_pending = |tag: &str| {
                     pending.as_array().is_some_and(|events| {
-                        events.iter().any(|e| {
-                            e[kind]["by"].as_str() == Some(end_by)
-                                && e[kind]["ability"].as_str() == Some(end_ability)
+                        events.iter().any(|event| {
+                            serialized_pending_matches(event, tag, end_actor, end_ability)
                         })
                     })
                 };
@@ -308,8 +344,8 @@ fn source_fizzle_interrupted_terminal_matrix_matches_native_and_continues() {
             }
         }
         assert!(
-            continuation_actions > 0,
-            "{name}: restored continuation compared at the terminal boundary"
+            continuation_steps > 0,
+            "{name}: canonical relevant events + state hashes compared over empty-input restored continuation steps"
         );
         // Exactly one own terminal, with a real earlier start and no later same-actor/ability cast event.
         let ends: Vec<(usize, usize, &Value)> = all_events
