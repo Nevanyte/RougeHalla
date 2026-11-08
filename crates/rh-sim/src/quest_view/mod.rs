@@ -1,252 +1,364 @@
-//! Quest disclosure policy, independent of wire and viewer-handle allocation.
-//!
-//! This leaf is deliberately not wired into production until the observer/transport design is admitted. Inputs must be
-//! drawn from authoritative state for the seat being projected, never from client claims. The decision contains no
-//! identity, coordinates or handles, so an ineligible row cannot accidentally carry private facts through this seam.
+//! Private native quest observation candidate. This opt-in seam is not part of Observation or any transport.
+//! Preparation never grants authority; callers commit only after all related output has been accepted for delivery.
+use std::collections::{BTreeMap, BTreeSet};
+use std::num::NonZeroU32;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum QuestRowAccess {
-    None,
-    /// The finder alone has the source's private, non-actionable four-second preview.
-    Preview,
-    /// The offer has entered the globally published quest log (including planning and closed linger).
-    Published,
-}
+use crate::quests::{catalog, live::Status};
+use crate::{validate, Command, PlayerId, RawCommand, Sim, Vec2};
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct DisclosureInput {
-    pub human: bool,
-    pub published: bool,
-    /// The offer is still open; closed published rows can remain in the log during linger.
-    pub open: bool,
-    /// Authoritative runtime says this viewer found the unpublished offer and its head start began.
-    pub finder_preview: bool,
-    /// Authoritative accepted set contains this viewer, never an untrusted client flag.
-    pub accepted: bool,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct Disclosure {
-    pub row: QuestRowAccess,
-    /// Permission to project live objective positions outside ordinary vision. This does not issue an action handle.
-    pub owner_objectives: bool,
-}
-
-pub(crate) fn disclosure(input: DisclosureInput) -> Disclosure {
-    if !input.human {
-        return Disclosure {
-            row: QuestRowAccess::None,
-            owner_objectives: false,
-        };
-    }
-    let row = if input.published {
-        QuestRowAccess::Published
-    } else if input.open && input.finder_preview {
-        QuestRowAccess::Preview
-    } else {
-        QuestRowAccess::None
-    };
-    Disclosure {
-        row,
-        owner_objectives: input.published && input.open && input.accepted,
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn input() -> DisclosureInput {
-        DisclosureInput {
-            human: true,
-            published: false,
-            open: true,
-            finder_preview: false,
-            accepted: false,
-        }
-    }
-
-    #[test]
-    fn hidden_is_absent_except_for_the_finders_preview() {
-        let mut i = input();
-        assert_eq!(
-            disclosure(i),
-            Disclosure {
-                row: QuestRowAccess::None,
-                owner_objectives: false
-            }
-        );
-        i.finder_preview = true;
-        assert_eq!(
-            disclosure(i),
-            Disclosure {
-                row: QuestRowAccess::Preview,
-                owner_objectives: false
-            }
-        );
-        // Even forged/stale acceptance cannot turn a hidden preview into objective knowledge.
-        i.accepted = true;
-        assert!(!disclosure(i).owner_objectives);
-        i.open = false;
-        assert_eq!(disclosure(i).row, QuestRowAccess::None);
-    }
-
-    #[test]
-    fn published_log_and_owner_objectives_have_distinct_entitlements() {
-        let mut i = input();
-        i.published = true;
-        assert_eq!(
-            disclosure(i),
-            Disclosure {
-                row: QuestRowAccess::Published,
-                owner_objectives: false
-            }
-        );
-        i.accepted = true;
-        assert!(disclosure(i).owner_objectives);
-        i.open = false;
-        assert_eq!(
-            disclosure(i),
-            Disclosure {
-                row: QuestRowAccess::Published,
-                owner_objectives: false
-            }
-        );
-    }
-
-    #[test]
-    fn bots_get_no_quest_fact_even_from_inconsistent_state() {
-        for published in [false, true] {
-            for open in [false, true] {
-                for finder_preview in [false, true] {
-                    for accepted in [false, true] {
-                        let i = DisclosureInput {
-                            human: false,
-                            published,
-                            open,
-                            finder_preview,
-                            accepted,
-                        };
-                        assert_eq!(
-                            disclosure(i),
-                            Disclosure {
-                                row: QuestRowAccess::None,
-                                owner_objectives: false
-                            }
-                        );
-                    }
-                }
-            }
-        }
-    }
-}
-
-/// A public, nonspatial roster identity. This namespace has no conversion to an actor or action reference.
-/// Allocation and proof of roster entitlement belong to the future publication adapter.
+/// A quest-only presentation identity, never an actor reference or a target handle.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub(crate) struct PublicRosterId(std::num::NonZeroU32);
-
-impl PublicRosterId {
-    pub(crate) fn from_roster_grant(value: std::num::NonZeroU32) -> Self {
-        Self(value)
+pub struct RosterId(NonZeroU32);
+impl RosterId {
+    pub fn get(self) -> u32 {
+        self.0.get()
     }
 }
-
-/// Already-authorized presentation text. Invalid input is refused, never truncated or silently rewritten.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) struct PublicLabel(String);
-
-impl PublicLabel {
-    pub(crate) fn checked(label: &str) -> Option<Self> {
-        if label.is_empty() || label.len() > u8::MAX as usize || label.chars().any(char::is_control)
-        {
-            return None;
-        }
-        Some(Self(label.to_owned()))
+/// A seat-scoped quest-row identity. A preview carries this but cannot authorize acceptance.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct QuestHandle(NonZeroU32);
+impl QuestHandle {
+    pub fn get(self) -> u32 {
+        self.0.get()
     }
 }
-
-/// One source-public quest participant, keyed by an already-granted roster identity, not a body reference.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum RowState {
+    Preview,
+    Open,
+    Done,
+    Expired,
+}
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) struct PublicParticipant {
-    pub roster: PublicRosterId,
+pub struct RosterEntry {
+    pub id: RosterId,
+    pub label: String,
+}
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Participant {
+    pub id: RosterId,
     pub accepted: bool,
     pub progress: u32,
-    pub visited_mask: u8,
+    pub visited: u8,
+}
+#[derive(Clone, Debug, PartialEq)]
+pub struct QuestRow {
+    pub handle: QuestHandle,
+    pub def: &'static str,
+    pub giver: Vec2,
+    pub state: RowState,
+    pub expires_at: f64,
+    pub participants: Vec<Participant>,
+    pub carrier: Option<RosterId>,
+    pub done_by: Option<String>,
+    /// Current server-side acceptance eligibility is intentionally not inferred by this candidate.
+    pub owner_accepted: bool,
+    /// The server-owned objective is complete; the giver is the return destination.
+    pub owner_ready: bool,
+}
+/// A navigation fact only: it is not a pickup handle or a promise of current reach or visibility.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Objective {
+    pub quest: QuestHandle,
+    pub at: Vec2,
+}
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct QuestView {
+    pub unknown_count: u32,
+    pub roster: Vec<RosterEntry>,
+    pub rows: Vec<QuestRow>,
+    pub objectives: Vec<Objective>,
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Error {
+    EarlierTick,
+    IdExhausted,
+    InvalidLabel,
+    InvalidState,
 }
 
-/// Nonspatial source-public facts about a published offer. There are deliberately no raw IDs, actor references or positions.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) struct PublicQuestPeople {
-    pub participants: Vec<PublicParticipant>,
-    pub carrier: Option<PublicRosterId>,
-    pub done_by: Option<PublicLabel>,
+#[derive(Clone, Default)]
+struct Committed {
+    tick: Option<u32>,
+    next_roster: u64,
+    next_quest: u64,
+    roster: BTreeMap<PlayerId, RosterId>,
+    quests: BTreeMap<u32, QuestHandle>,
+    actionable: BTreeSet<u32>,
 }
-
-impl PublicQuestPeople {
-    /// The caller supplies only roster-granted identities and an authorized checked label. Reject a hidden/preview row
-    /// wholesale so a future adapter cannot expose these source-public fields before the offer becomes public.
-    pub(crate) fn for_row(
-        access: QuestRowAccess,
-        participants: Vec<PublicParticipant>,
-        carrier: Option<PublicRosterId>,
-        done_by: Option<PublicLabel>,
-    ) -> Option<Self> {
-        (access == QuestRowAccess::Published).then_some(Self {
-            participants,
-            carrier,
-            done_by,
+/// One per viewer and match. Only a successfully committed view can authorize an accept request.
+pub struct QuestObserver {
+    viewer: PlayerId,
+    state: Committed,
+}
+impl QuestObserver {
+    pub fn new(viewer: PlayerId) -> Self {
+        Self {
+            viewer,
+            state: Committed {
+                next_roster: 1,
+                next_quest: 1,
+                ..Committed::default()
+            },
+        }
+    }
+    /// Revoke all bindings and require a full collection replacement; counters are retained and IDs never reused.
+    /// No identity continuity across reconnect is promised.
+    pub fn reconnect(&mut self) {
+        let (next_roster, next_quest) = (self.state.next_roster, self.state.next_quest);
+        self.state = Committed {
+            next_roster,
+            next_quest,
+            ..Committed::default()
+        };
+    }
+    pub fn prepare<'a>(&'a mut self, sim: &Sim) -> Result<Prepared<'a>, Error> {
+        if self.state.tick.is_some_and(|tick| tick > sim.tick()) {
+            return Err(Error::EarlierTick);
+        }
+        let mut next = self.state.clone();
+        next.tick = Some(sim.tick());
+        let mut view = QuestView::default();
+        let Some(me) = sim.player(self.viewer).filter(|p| !p.seat.bot) else {
+            next.quests.clear();
+            next.actionable.clear();
+            return Ok(Prepared {
+                observer: self,
+                next,
+                view,
+            });
+        };
+        let Some(quests) = &sim.w.quests else {
+            next.quests.clear();
+            next.actionable.clear();
+            return Ok(Prepared {
+                observer: self,
+                next,
+                view,
+            });
+        };
+        view.unknown_count = quests
+            .offers
+            .iter()
+            .filter(|o| !o.published)
+            .count()
+            .try_into()
+            .map_err(|_| Error::InvalidState)?;
+        // Sort only entitled facts. Unpublished rows and raw entity allocation order cannot advance public IDs.
+        let mut offers: Vec<_> = quests
+            .offers
+            .iter()
+            .filter(|o| {
+                o.published
+                    || (o.status == Status::Open && o.finder == Some(me.id) && o.publish_at > 0.)
+            })
+            .collect();
+        offers.sort_by(|a, b| {
+            catalog::DEFINITION[a.def as usize]
+                .id
+                .cmp(catalog::DEFINITION[b.def as usize].id)
+                .then_with(|| a.at.x.total_cmp(&b.at.x))
+                .then_with(|| a.at.y.total_cmp(&b.at.y))
+        });
+        let mut people: Vec<PlayerId> = Vec::new();
+        for o in &offers {
+            if o.published {
+                people.extend(o.accepted.iter().copied());
+                people.extend(o.progress.iter().map(|(id, _)| *id));
+                people.extend(o.visits.iter().map(|(id, _)| *id));
+                people.extend(o.carrier);
+            }
+        }
+        people.sort_by(|a, b| {
+            sim.player_name(*a)
+                .cmp(&sim.player_name(*b))
+                .then_with(|| a.cmp(b))
+        });
+        people.dedup();
+        for id in people {
+            let label = checked_label(sim.player_name(id).ok_or(Error::InvalidState)?)?;
+            let rid = match next.roster.get(&id) {
+                Some(r) => *r,
+                None => {
+                    let r = RosterId(take_id(&mut next.next_roster)?);
+                    next.roster.insert(id, r);
+                    r
+                }
+            };
+            view.roster.push(RosterEntry { id: rid, label });
+        }
+        view.roster.sort_by_key(|r| r.id);
+        next.actionable.clear();
+        for o in offers {
+            if o.published && o.status == Status::Open {
+                next.actionable.insert(o.id);
+            }
+            let h = match next.quests.get(&o.id) {
+                Some(h) => *h,
+                None => {
+                    let h = QuestHandle(take_id(&mut next.next_quest)?);
+                    next.quests.insert(o.id, h);
+                    h
+                }
+            };
+            let state = if !o.published {
+                RowState::Preview
+            } else {
+                match o.status {
+                    Status::Open => RowState::Open,
+                    Status::Done => RowState::Done,
+                    Status::Expired => RowState::Expired,
+                }
+            };
+            let mut participants = Vec::new();
+            if o.published {
+                let mut participant_ids: Vec<PlayerId> = o
+                    .accepted
+                    .iter()
+                    .copied()
+                    .chain(o.progress.iter().map(|(id, _)| *id))
+                    .chain(o.visits.iter().map(|(id, _)| *id))
+                    .collect();
+                participant_ids.sort_unstable();
+                participant_ids.dedup();
+                for id in &participant_ids {
+                    let rid = *next.roster.get(id).ok_or(Error::InvalidState)?;
+                    participants.push(Participant {
+                        id: rid,
+                        accepted: o.accepted.contains(id),
+                        progress: o
+                            .progress
+                            .iter()
+                            .find(|(p, _)| p == id)
+                            .map_or(0, |(_, n)| *n),
+                        visited: o
+                            .visits
+                            .iter()
+                            .find(|(p, _)| p == id)
+                            .map_or(0, |(_, v)| *v),
+                    });
+                }
+                participants.sort_by_key(|p| p.id);
+            }
+            let def = &catalog::DEFINITION[o.def as usize];
+            let owner_accepted = o.published && o.accepted.contains(&me.id);
+            let live = o.status == Status::Open
+                && (o.expires_at == 0. || sim.server_time() < o.expires_at);
+            let progress = o
+                .progress
+                .iter()
+                .find(|(p, _)| *p == me.id)
+                .map_or(0, |(_, n)| *n);
+            let owner_ready = owner_accepted
+                && live
+                && match def.kind {
+                    catalog::Kind::Fetch => o.carrier == Some(me.id),
+                    _ => progress >= def.count,
+                };
+            let ground_entitled = owner_accepted
+                && live
+                && match def.kind {
+                    catalog::Kind::Collect => progress < def.count,
+                    catalog::Kind::Fetch => o.carrier.is_none(),
+                    catalog::Kind::Kill => false,
+                };
+            if ground_entitled {
+                for cid in &o.containers {
+                    let c = sim
+                        .w
+                        .containers
+                        .iter()
+                        .find(|c| c.id == *cid)
+                        .ok_or(Error::InvalidState)?;
+                    if c.kind != crate::ContainerKind::Quest
+                        || c.items.first().map(|i| i.def)
+                            != Some(crate::initial_world::ItemDef::Quest(o.id))
+                    {
+                        return Err(Error::InvalidState);
+                    }
+                    view.objectives.push(Objective { quest: h, at: c.at });
+                }
+            }
+            let carrier = if o.published {
+                o.carrier
+                    .map(|id| next.roster.get(&id).copied().ok_or(Error::InvalidState))
+                    .transpose()?
+            } else {
+                None
+            };
+            let done_by = if o.published {
+                o.done_by
+                    .map(|id| checked_label(sim.player_name(id).ok_or(Error::InvalidState)?))
+                    .transpose()?
+            } else {
+                None
+            };
+            view.rows.push(QuestRow {
+                handle: h,
+                def: catalog::DEFINITION[o.def as usize].id,
+                giver: o.at,
+                state,
+                expires_at: o.expires_at,
+                participants,
+                carrier,
+                done_by,
+                owner_accepted,
+                owner_ready,
+            });
+        }
+        // A retired or no-longer-entitled quest must no longer resolve through a previously issued handle.
+        next.quests
+            .retain(|_, h| view.rows.iter().any(|row| row.handle == *h));
+        Ok(Prepared {
+            observer: self,
+            next,
+            view,
         })
+    }
+    /// Resolve a previously committed published row. Missing, stale, preview and foreign handles become normal misses.
+    pub fn resolve_accept(&self, sim: &Sim, handle: QuestHandle) -> Command {
+        let id = self
+            .state
+            .quests
+            .iter()
+            .find_map(|(id, h)| (*h == handle).then_some(*id));
+        let id = id.filter(|id| {
+            self.state.actionable.contains(id)
+                && sim.player(self.viewer).is_some_and(|p| !p.seat.bot)
+                && sim.w.quests.as_ref().is_some_and(|q| {
+                    q.offers
+                        .iter()
+                        .any(|o| o.id == *id && o.published && o.status == Status::Open)
+                })
+        });
+        validate(RawCommand::QuestAccept { quest_id: id }).expect("nonzero quest id or normal miss")
+    }
+}
+fn take_id(next: &mut u64) -> Result<NonZeroU32, Error> {
+    let n = u32::try_from(*next).map_err(|_| Error::IdExhausted)?;
+    let id = NonZeroU32::new(n).ok_or(Error::IdExhausted)?;
+    *next += 1;
+    Ok(id)
+}
+fn checked_label(label: &str) -> Result<String, Error> {
+    // Existing item publication bounds labels by UTF-8 byte length (u8); this does not impose profile callsign rules
+    // on other valid sim seats or claim to sanitize source labels.
+    if label.len() > u8::MAX as usize {
+        return Err(Error::InvalidLabel);
+    }
+    Ok(label.to_owned())
+}
+#[must_use = "commit only after all corresponding publication succeeds; dropping discards staged authority"]
+pub struct Prepared<'a> {
+    observer: &'a mut QuestObserver,
+    next: Committed,
+    pub view: QuestView,
+}
+impl Prepared<'_> {
+    pub fn commit(self) {
+        self.observer.state = self.next;
     }
 }
 
 #[cfg(test)]
-mod public_people_tests {
-    use super::*;
-    use std::num::NonZeroU32;
-
-    #[test]
-    fn public_facts_survive_without_any_body_visibility_input() {
-        let roster = PublicRosterId::from_roster_grant(NonZeroU32::new(7).unwrap());
-        let participant = PublicParticipant {
-            roster,
-            accepted: true,
-            progress: 2,
-            visited_mask: 5,
-        };
-        let label = PublicLabel::checked("A scout").unwrap();
-        let facts = PublicQuestPeople::for_row(
-            QuestRowAccess::Published,
-            vec![participant.clone()],
-            Some(roster),
-            Some(label.clone()),
-        )
-        .unwrap();
-        assert_eq!(facts.participants, vec![participant]);
-        assert_eq!(facts.carrier, Some(roster));
-        assert_eq!(facts.done_by, Some(label));
-    }
-
-    #[test]
-    fn hidden_and_preview_never_publish_participant_or_carrier_facts() {
-        let roster = PublicRosterId::from_roster_grant(NonZeroU32::new(1).unwrap());
-        for access in [QuestRowAccess::None, QuestRowAccess::Preview] {
-            assert!(PublicQuestPeople::for_row(
-                access,
-                vec![],
-                Some(roster),
-                PublicLabel::checked("Winner")
-            )
-            .is_none());
-        }
-    }
-
-    #[test]
-    fn labels_are_bounded_and_invalid_text_is_refused() {
-        assert!(PublicLabel::checked("").is_none());
-        assert!(PublicLabel::checked("line\nbreak").is_none());
-        assert!(PublicLabel::checked(&"x".repeat(256)).is_none());
-        assert!(PublicLabel::checked(&"x".repeat(255)).is_some());
-        assert!(PublicLabel::checked("Éowyn").is_some());
-    }
-}
+mod tests;

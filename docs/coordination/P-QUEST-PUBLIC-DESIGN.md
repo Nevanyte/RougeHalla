@@ -1,8 +1,6 @@
 # Quest public-flow design candidate
 
-This is a design and an **unlinked, non-production** policy leaf in `crates/rh-sim/src/quest_view/mod.rs`. It reserves no
-wire numbers or version and does not establish source parity. The actual public-room and giver source witnesses are in
-progress in their separate lanes. Lead review and a shared-file lease precede integration.
+This is a **private native candidate** in `crates/rh-sim/src/quest_view/mod.rs`, compiled as an opt-in module but not attached to Observation, any server publisher or transport. It reserves no wire numbers or version and does not establish source parity. The public-room source witness is in progress; the delivered giver source witness awaits lead admission. Lead review and a shared-file lease precede integration.
 
 ## Entitlements and facts
 
@@ -15,8 +13,9 @@ progress in their separate lanes. Lead review and a shared-file lease precede in
   carrier and completion information. Public roster identity is a nonspatial permission independent of body sight.
   A published carrier fact does not authorize its position, an actor target, or a pickup. Public completion display text
   is bounded and checked; invalid text is refused rather than silently altered.
-- An accepting human receives the live public quest's remaining objective coordinates for navigation, even outside current
-  sight, matching the source client's `questObjectiveMarkers`. Hidden previews, unaccepted offers, closed offers and bots
+- An accepting human receives remaining matching ground objective coordinates for a live public collect or fetch quest, even
+  outside current sight. A completed collect or self-carried fetch points back to its giver; a foreign-carried fetch exposes no
+  ground marker. Kill offers never expose ground objective coordinates. Hidden previews, unaccepted offers, closed offers and bots
   grant no such objective knowledge. An objective coordinate is not itself an actionable pickup handle. Other visible
   quest item cues can follow ordinary sight and source refusal behavior; the exact source/observer mapping awaits witnesses.
 - The sim decides eligibility and current action consequences. Unity presents delivered facts, selects actions and renders
@@ -25,22 +24,26 @@ progress in their separate lanes. Lead review and a shared-file lease precede in
 ## Identity and atomicity
 
 `World::Roster` is server-private; current `WelcomeHeader` contains only the joining seat's player ID and `Observation`
-contains self plus sight-filtered actor rows. A full public roster identity grant is therefore a new dependency, not an
-existing contract. Propose a stable match-scoped `PublicRosterId` and checked display label in a reliable roster collection,
-including departed players when referenced. It must have a separate type and namespace from observer actor and command
-handles, no implicit conversion, no positions or targeting authority. Root must approve this grant and its lifecycle.
+contains self plus sight-filtered actor rows. A full public roster grant is not an existing contract and is not proposed.
+Instead, the native candidate grants viewer-scoped monotonic `RosterId` values lazily only for identities already referenced
+by published quest accepted/progress/visited or carrier facts. Filtering precedes allocation; hidden quest or roster entries
+must not affect public IDs. The distinct type has no conversion to an actor/target reference and carries no position. The
+source's completion name is separately bounded by the existing item label UTF-8 byte limit; no profile-name sanitization is
+invented. Normal committed updates retain bindings; reconnect resets collections and revokes all row/action and roster
+bindings, retains counters, and requires a complete new projection. No cross-reconnect ID continuity is promised.
 
-The candidate leaf's `PublicQuestPeople` accepts only already-granted roster IDs and a checked label; its constructor
-refuses non-public rows. This models the boundary but does **not** prove the supplied identities were actually granted.
-A production adapter must establish that guarantee and atomically publish roster entries before or with every referencing
-quest row. The leaf is not connected to world state, `Observation`, server, protocol or UI.
+`QuestObserver::prepare` extracts actual immutable Sim state and stages IDs and rows in a private guard. Dropping or failing
+preparation discards staged grants; `commit` is the only way to make a row actionable. `resolve_accept` uses only committed
+published bindings and rechecks current publication; previews, stale and unknown handles yield the usual budgeted miss.
+This separate guard is a native seam only: no claim is made that it commits atomically with `ItemObserver`, roster/quest
+collection baselines or a server queue. A later shared lease must integrate those under one successful enqueue transaction.
 
 Each viewer also needs nonreused offer and pickup handles, resolved only against committed seat-owned bindings. A preview
-may retain a nonactionable row identity for promotion to the published offer; its action binding must not exist until
-publication. On reconnect, old action bindings are revoked and a full current projection is delivered; distinguish row
+retains a nonactionable row identity for promotion to the published offer; its action binding must not exist until a public
+row has itself been committed. On reconnect, old action bindings are revoked and a full current projection is delivered; distinguish row
 identity continuity from action authority. Current sim phase, human standing, status, range, line of sight, giver and quest
-state are checked again at action time through validate + `Sim::submit`; foreign/stale references become ordinary budgeted
-misses. Whether any existing grace window is retained must be checked against visibility and source witnesses.
+state are checked again at action time through validate + `Sim::submit`; references absent from this seat's committed bindings become ordinary budgeted misses. Independent seats can issue
+the same numeric value; a coincident foreign value cannot be distinguished from a value already granted to this seat. Whether any existing grace window is retained must be checked against visibility and source witnesses.
 
 Stage quest rows, roster references, item/offer bindings, actor projections and collection baselines in the same reliable
 publication transaction. Commit only after successful queue enqueue; discard on failed preparation, unsupported encoding,
@@ -61,5 +64,5 @@ before delivery. Bounds, handle exhaustion and earlier-tick errors fail closed w
    verify real human WSS input, updates and reconnection in an actual client. Test capped quest GV through the existing
    fenced, idempotent result/spool/profile path. No additional profile fields are assumed.
 
-The existing lifecycle corpus and this candidate's standalone unit tests cover only their stated surfaces. They do not
+The existing lifecycle corpus and this candidate's focused native unit tests cover only their stated surfaces. They do not
 prove wire publication, browser interaction, full replay identity, giver equivalence, actor privacy or durable production.
