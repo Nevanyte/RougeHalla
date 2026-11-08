@@ -67,7 +67,8 @@ fn reference(
             // Protocol 8: the teleport is the room-wide Teleport fx; the owner's deal rides State key 8, not events.
             SeenEvent::Teleported => fx.push(WireFx::Teleport),
             SeenEvent::Plan(_) => {}
-            SeenEvent::WindEmblem | SeenEvent::CastStarted { .. } | SeenEvent::CastLanded { .. } => {
+            SeenEvent::WindEmblem => events.push(WireEvent::WindEmblem),
+            SeenEvent::CastStarted { .. } | SeenEvent::CastLanded { .. } => {
                 panic!("protocol 8 reference encoder does not support Full Wish events")
             }
             SeenEvent::PotionNotice { notice } => events.push(WireEvent::PotionNotice {
@@ -328,7 +329,6 @@ impl Hand {
                 hazards: rh_sim::terrain::Mode::Off,
                 mob_mode: rh_sim::mob_runtime::MobMode::Off,
                 initial_loot: false,
-                consumables: true,
                 min_players: 1,
                 lobby_seconds: 1.0,
                 fill_seconds: 0.0,

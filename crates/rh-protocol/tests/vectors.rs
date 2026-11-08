@@ -94,6 +94,7 @@ fn malformed_server_frames_are_rejected_for_the_documented_reason() {
             "phase_over_3" | "delta_phase_over_3" => BadField("phase"),
             "chest_bad_reason_zero" | "chest_bad_reason_unknown" => BadField("chest reason"),
             "state_unknown_key" => BadField("state key"),
+            "state_reward_card_id_80" => BadField("reward id"),
             "state_plan_negative_deadline" => BadField("plan"),
             "state_duplicate_key" | "state_key_order" => BadField("state key order"),
             "state_too_many_keys"

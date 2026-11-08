@@ -30,7 +30,7 @@ use std::time::{Duration, Instant};
 /// Version 5 feeds temporally eligible signature effects every tick, independently of decision cadence.
 /// Version 6 adds Fire Burn and canonically merged, report-local Backlash effects.
 /// Version 7 adds player Frost chilled bits and the resulting attack/movement clocks.
-pub const POLICY_CONTRACT_VERSION: u16 = 12;
+pub const POLICY_CONTRACT_VERSION: u16 = 13;
 
 /// Everything a policy may know about a match before its first observation, all of it public static data (the map
 /// and spawn points), never match state. Never a [`rh_sim::Secrets`] value and never the sim itself (C-OBS, C-RNG, C-POLICY).
@@ -1272,8 +1272,10 @@ mod frost_tests {
         assert!(seen
             .iter()
             .any(|o| o.me.as_ref().is_some_and(|p| p.sig & 1 != 0)));
-        assert!(seen.iter().all(|o| o.version == rh_sim::OBSERVATION_VERSION));
-        assert_eq!(POLICY_CONTRACT_VERSION, 12);
+        assert!(seen
+            .iter()
+            .all(|o| o.version == rh_sim::OBSERVATION_VERSION));
+        assert_eq!(POLICY_CONTRACT_VERSION, 13);
     }
 }
 

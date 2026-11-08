@@ -332,7 +332,7 @@ namespace Roguehalla.Net.Protocol
             {
                 Require(row != null && row.Handle.Value > previous && Finite(row.ExpiresAt) && row.Options != null && row.Options.Length <= 3, "reward chest");
                 previous = row.Handle.Value;
-                foreach (var o in row.Options) Require((o.Kind == 1 && o.Id < 3 || o.Kind == 2 && o.Id < 8) && o.TakenBy != 0, "reward option");
+                foreach (var o in row.Options) Require((o.Kind == 1 && o.Id < 80 || o.Kind == 2 && o.Id < 8) && o.TakenBy != 0, "reward option");
             }
         }
         internal override void Write(Writer w)

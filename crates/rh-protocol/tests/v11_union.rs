@@ -105,3 +105,25 @@ fn actual_writer_and_reference_chains_retain_training_and_clear_targets() {
     tracker.reset();
     assert!(tracker.snapshot().is_none());
 }
+
+#[test]
+fn reward_card_positions_cover_the_catalog_and_refuse_the_next_position_atomically() {
+    let (_, mut message) = samples::server_samples()
+        .into_iter()
+        .find(|(name, _)| *name == "state_full_catalog_rewards")
+        .unwrap();
+    assert_eq!(
+        ServerMsg::decode(&message.try_encode().unwrap()).unwrap(),
+        message
+    );
+    let ServerMsg::State { items, .. } = &mut message else {
+        panic!()
+    };
+    let StateItem::RewardChests(rows) = &mut items[0] else {
+        panic!()
+    };
+    rows[0].options[1].id = WireRewardId::Card(80);
+    let mut bytes = vec![1, 2, 3];
+    assert!(message.encode_into(&mut bytes).is_err());
+    assert_eq!(bytes, [1, 2, 3]);
+}

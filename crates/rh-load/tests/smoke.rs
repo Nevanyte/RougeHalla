@@ -33,7 +33,6 @@ async fn start(creds: &Creds, max_rooms: usize) -> InProc {
         hazards: rh_sim::terrain::Mode::Off,
         mob_mode: rh_sim::mob_runtime::MobMode::Off,
         initial_loot: false,
-        consumables: true,
         min_players: 2,
         lobby_seconds: 3.0,
         fill_seconds: 0.0,

@@ -127,7 +127,6 @@ fn main() {
         quests: false,
         consumables: true,
         initial_loot: true,
-        consumables: true,
         mob_mode: rh_sim::mob_runtime::MobMode::Pve,
         faction_mode: FactionMode::EngagementHolyPlagueFire,
         ..Default::default()

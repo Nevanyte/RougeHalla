@@ -421,7 +421,7 @@ function readState(r) {
         const x = r.u16(), y = r.u16(), expiresAt = finite(r.f64()), options = [], k = r.code(3, "reward options");
         for (let o = 0; o < k; o++) {
           const kind = r.u8(); if (kind !== 1 && kind !== 2) throw new Error("bad reward kind");
-          options.push({ kind, id: r.code(kind === 1 ? 2 : 7, "reward id"), taken: flag(), takenBy: actor() });
+          options.push({ kind, id: r.code(kind === 1 ? 79 : 7, "reward id"), taken: flag(), takenBy: actor() });
         }
         value.push({ handle: h, x, y, expiresAt, options, picked: flag(), canChoose: flag() });
       }

@@ -19,6 +19,17 @@ namespace Roguehalla.Net.Tests
         }
 
         [Test]
+        public void FullCatalogRewardPositionsRetainTheirBoundary()
+        {
+            var state = (ServerMsg.State)Sample("state_full_catalog_rewards");
+            var chest = ((RewardChestsState)state.Items[0]).Rows[0];
+            CollectionAssert.AreEqual(new byte[] { 3, 79, 7 }, chest.Options.Select(o => o.Id));
+            Assert.AreEqual(1, chest.Options[1].Kind);
+            var option = chest.Options[1]; option.Id = 80; chest.Options[1] = option;
+            Assert.Throws<EncodeException>(() => state.Encode());
+        }
+
+        [Test]
         public void UnionPropsAndNoticesKeepTheirDistinctPayloads()
         {
             var state = (ServerMsg.State)Sample("state_union_props");

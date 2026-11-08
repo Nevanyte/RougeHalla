@@ -123,6 +123,9 @@ impl Perception {
                 rh_sim::item_view::PropKind::Ground(w) => ("ground", Some(*w)),
                 rh_sim::item_view::PropKind::Chest { .. } => ("chest", None),
                 rh_sim::item_view::PropKind::Body { .. } => ("body", None),
+                rh_sim::item_view::PropKind::Cannon { .. } => ("cannon", None),
+                rh_sim::item_view::PropKind::Corpse { .. } => ("corpse", None),
+                rh_sim::item_view::PropKind::WindEmblem => ("consumable", None),
             };
             containers.push(ContainerView {
                 id: format!("c{}", i),

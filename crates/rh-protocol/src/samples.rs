@@ -375,6 +375,37 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
     vec![
         ("state_all", state_sample()),
         (
+            "state_full_catalog_rewards",
+            ServerMsg::State {
+                tick: 202,
+                items: vec![StateItem::RewardChests(vec![WireRewardChest {
+                    handle: RewardChestHandle::new(1).unwrap(),
+                    x: 100,
+                    y: 200,
+                    expires_at: 15000.,
+                    options: vec![
+                        WireRewardOption {
+                            id: WireRewardId::Card(3),
+                            taken: false,
+                            taken_by: None,
+                        },
+                        WireRewardOption {
+                            id: WireRewardId::Card(79),
+                            taken: false,
+                            taken_by: None,
+                        },
+                        WireRewardOption {
+                            id: WireRewardId::Boost(7),
+                            taken: false,
+                            taken_by: None,
+                        },
+                    ],
+                    picked: false,
+                    can_choose: true,
+                }])],
+            },
+        ),
+        (
             "state_union_props",
             ServerMsg::State {
                 tick: 201,
@@ -1242,6 +1273,17 @@ fn camp_bytes(mob_type: u8, elite: u8, alive: u32, state: u8, clear: f64, respaw
 }
 
 pub fn malformed_server() -> Vec<(&'static str, Vec<u8>)> {
+    let mut bad_card_id = server_samples()
+        .into_iter()
+        .find(|(name, _)| *name == "state_full_catalog_rewards")
+        .unwrap()
+        .1
+        .encode();
+    let at = bad_card_id
+        .windows(4)
+        .rposition(|bytes| bytes == [1, 79, 0, 0])
+        .unwrap();
+    bad_card_id[at + 1] = 80;
     let mut negative_plan = server_samples()
         .into_iter()
         .find(|(name, _)| *name == "state_planning")
@@ -1441,6 +1483,7 @@ pub fn malformed_server() -> Vec<(&'static str, Vec<u8>)> {
             "chest_bad_reason_unknown",
             vec![0x84, 0, 0, 0, 0, 1, 0, 6, 10],
         ),
+        ("state_reward_card_id_80", bad_card_id),
         ("state_plan_negative_deadline", negative_plan),
         ("state_unknown_key", vec![0x88, 0, 1, 10]),
         ("state_duplicate_key", vec![0x88, 0, 2, 1, 0, 1, 0]),

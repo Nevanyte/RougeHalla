@@ -1677,7 +1677,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Full Wish casting requires protocol 8")]
+    #[should_panic(expected = "Full Wish casting requires")]
     fn wish_profile_direct_room_construction_refuses_before_sim_or_entropy() {
         let mut config = cfg(Duration::from_millis(50));
         config.sim.abilities = rh_sim::abilities::Mode::Full;
@@ -1701,7 +1701,6 @@ mod tests {
                 lifecycle: rh_sim::ArenaMode::Off,
                 mob_mode: rh_sim::mob_runtime::MobMode::Off,
                 initial_loot: false,
-                consumables: true,
                 min_players: 2,
                 lobby_seconds: 30.0,
                 fill_seconds: 0.0,
@@ -2104,6 +2103,9 @@ mod tests {
         let assets = MapAssets::new(rh_sim::arenas::practice_arena()).unwrap();
         RoomConfig {
             sim: SimConfig {
+                regen: false,
+                quests: false,
+                consumables: true,
                 training: true,
                 dummies: true,
                 abilities: rh_sim::abilities::Mode::Off,

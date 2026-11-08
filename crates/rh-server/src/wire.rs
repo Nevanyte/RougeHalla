@@ -79,12 +79,11 @@ pub fn status(s: Status) -> u8 {
     }
 }
 
-const WISH_UNSUPPORTED: &str = "Full Wish casting requires protocol 7 input and owner facts";
+const WISH_UNSUPPORTED: &str = "Full Wish casting requires wire input and owner facts";
+const REWARD_PREREQUISITE_UNSUPPORTED: &str = "Reward prerequisite notices require wire transport";
 
-/// Admission guard, independent of the current phase (including Source Lobby and Planning). Protocol 8 carries the
-/// source lifecycle transport: phase code 3 (Planning), Fx 5 (Teleported) and State keys 8 (the viewer's own plan) and 9
-/// (the public arena view); protocol 9 carries the travel cannon as prop kind 4 and the owner-only cannon notice
-/// (Events 8). Full Wish casting still has no owner facts on any protocol version.
+/// Admission guard, independent of the current phase. Protocol 11 carries Source lifecycle, planning, cannons and
+/// training; Full Wish casting still needs input and owner facts, so it remains refused before simulation/offers.
 pub fn profile_supported(config: &rh_sim::SimConfig) -> Result<(), rh_protocol::EncodeError> {
     if config.abilities == rh_sim::abilities::Mode::Full {
         return Err(rh_protocol::EncodeError::BadValue(WISH_UNSUPPORTED));
@@ -334,6 +333,9 @@ fn to_wire(e: &SeenEvent) -> Wire {
         // Protocol 8 owner-only practice-console notice (the publisher routes it to its owner's connection only).
         SeenEvent::Toast { ref text } => Wire::Event(WireEvent::Toast { text: text.clone() }),
         SeenEvent::WindEmblem => Wire::Event(WireEvent::WindEmblem),
+        SeenEvent::ChestRefused {
+            reason: rh_sim::reward_chests::Refusal::Needs(_),
+        } => Wire::Refused(REWARD_PREREQUISITE_UNSUPPORTED),
         SeenEvent::ChestRefused { reason } => Wire::Event(WireEvent::ChestRefused {
             reason: match reason {
                 rh_sim::reward_chests::Refusal::Busy => 1,
@@ -345,7 +347,9 @@ fn to_wire(e: &SeenEvent) -> Wire {
                 rh_sim::reward_chests::Refusal::Owned => 7,
                 rh_sim::reward_chests::Refusal::Maxed => 8,
                 rh_sim::reward_chests::Refusal::NotYours => 9,
-                rh_sim::reward_chests::Refusal::Needs(_) => 10,
+                rh_sim::reward_chests::Refusal::Needs(_) => {
+                    unreachable!("prerequisite notice refused above")
+                }
             },
         }),
         SeenEvent::Death { id, by } => Wire::Event(WireEvent::Death {
@@ -911,6 +915,25 @@ mod tests {
     }
 
     #[test]
+    fn an_unrepresented_prerequisite_notice_refuses_without_partial_frames() {
+        let env = seed1_match(1);
+        let viewer = env.sim.players()[0].id;
+        let event = SeenEvent::ChestRefused {
+            reason: rh_sim::reward_chests::Refusal::Needs(rh_sim::cards::BaseStatId::Ad),
+        };
+        assert!(matches!(
+            to_wire(&event),
+            Wire::Refused(REWARD_PREREQUISITE_UNSUPPORTED)
+        ));
+        let frames = Publisher::default().frames(&env.sim, viewer, 0, &[], &mut vec![event], &[]);
+        assert!(frames.important.is_none() && frames.fx.is_none());
+        assert_eq!(
+            frames.snapshot.unwrap_err(),
+            rh_protocol::EncodeError::BadValue(REWARD_PREREQUISITE_UNSUPPORTED)
+        );
+    }
+
+    #[test]
     fn caught_up_wish_start_and_landing_refuse_without_partial_frames() {
         let env = seed1_match(1);
         let viewer = env.sim.players()[0].id;
@@ -1334,7 +1357,7 @@ mod tests {
     #[test]
     fn omitted_effect_announcements_leave_frames_and_redaction_unchanged() {
         use rh_sim::status_runtime::{AbilityId, CastEndReason, StatusKind};
-        assert_eq!(rh_protocol::PROTOCOL_VERSION, 9);
+        assert_eq!(rh_protocol::PROTOCOL_VERSION, 11);
         let env = seed1_match(1);
         let id = env.sim.players()[0].id;
         let mut publisher = Publisher::default();

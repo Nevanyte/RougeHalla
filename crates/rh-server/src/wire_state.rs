@@ -100,6 +100,14 @@ fn rewards(observation: &Observation) -> Result<Vec<WireRewardChest>, EncodeErro
         .reward_chests
         .iter()
         .map(|c| {
+            // Choosing is index-based: dropping an unsupported option would redirect a public pick to another native
+            // option. Refuse the replacement before either the offer handles or collection baselines can commit.
+            if c.options
+                .iter()
+                .any(|o| matches!(o.id, rh_sim::reward_chests::OptionId::Kill(_)))
+            {
+                return Err(EncodeError::BadValue("kill-augment reward transport"));
+            }
             let x = c.at.x as f32;
             let y = c.at.y as f32;
             if !rh_protocol::quant::pos_in_range(x) || !rh_protocol::quant::pos_in_range(y) {
@@ -114,10 +122,6 @@ fn rewards(observation: &Observation) -> Result<Vec<WireRewardChest>, EncodeErro
                 options: c
                     .options
                     .iter()
-                    // Kill-augment Trophy options are sim-complete but not yet on the wire: the protocol has no
-                    // WireRewardId variant for them, and its bump/decoder work is coordinator-owned (the protocol-9
-                    // spine). This is the single projection site a transport packet flips.
-                    .filter(|o| !matches!(o.id, rh_sim::reward_chests::OptionId::Kill(_)))
                     .map(|o| WireRewardOption {
                         id: match o.id {
                             rh_sim::reward_chests::OptionId::Card(id) => {
@@ -127,7 +131,7 @@ fn rewards(observation: &Observation) -> Result<Vec<WireRewardChest>, EncodeErro
                                 WireRewardId::Boost(id.index() as u8)
                             }
                             rh_sim::reward_chests::OptionId::Kill(_) => {
-                                unreachable!("kill-augment options are filtered above")
+                                unreachable!("unsupported options are refused before projection")
                             }
                         },
                         taken: o.taken,
@@ -188,10 +192,16 @@ fn plan(observation: &Observation) -> Result<Option<WirePlan>, EncodeError> {
         if !rh_protocol::quant::pos_in_range(x) || !rh_protocol::quant::pos_in_range(y) {
             return Err(EncodeError::BadValue("plan position"));
         }
-        let walk_seconds = option
-            .walk_seconds
-            .map(|v| v as f32)
-            .filter(|v| v.is_finite() && *v >= 0.);
+        let walk_seconds = match option.walk_seconds {
+            Some(value) => {
+                let value = value as f32;
+                if !value.is_finite() || value < 0. {
+                    return Err(EncodeError::BadValue("plan walk seconds"));
+                }
+                Some(value)
+            }
+            None => None,
+        };
         options[slot] = Some(WirePlanOption {
             index: option.index,
             x: rh_protocol::quant::quantize_pos(x),
@@ -331,12 +341,8 @@ mod tests {
     use super::*;
     use rh_sim::{PlanView, PlanningView, SpawnOptionView, Vec2};
 
-    /// Lead decision (2026-11-07): kill-augment Trophy options are sim-complete (the headless/policy Choose path picks
-    /// them by index; see kill_augments::tests::trophy_owner_refusal_and_pick_reproduce_the_source_witness) but are not
-    /// yet on the wire. The projection omits them HERE, and only here, until the transport packet adds a WireRewardId
-    /// variant and its protocol bump on the protocol-9 spine.
     #[test]
-    fn kill_augment_trophy_options_stay_off_the_wire_until_the_transport_packet() {
+    fn unsupported_trophy_options_refuse_the_whole_offer_without_remapping_choices() {
         let mut obs = Observation::default();
         obs.reward_chests
             .push(rh_sim::reward_chests::RewardChestView {
@@ -355,7 +361,7 @@ mod tests {
                         taken_by: None,
                     },
                     rh_sim::reward_chests::RewardOptionView {
-                        id: rh_sim::reward_chests::OptionId::Card(rh_sim::cards::CardId::ALL[0]),
+                        id: rh_sim::reward_chests::OptionId::Card(rh_sim::cards::CardId::ALL[79]),
                         taken: false,
                         taken_by: None,
                     },
@@ -363,14 +369,44 @@ mod tests {
                 picked: false,
                 can_choose: true,
             });
-        let rows = rewards(&obs).unwrap();
-        assert_eq!(rows.len(), 1);
         assert_eq!(
-            rows[0].options.len(),
-            1,
-            "the kill-augment id is filtered off the wire"
+            rewards(&obs),
+            Err(EncodeError::BadValue("kill-augment reward transport"))
         );
-        assert!(matches!(rows[0].options[0].id, WireRewardId::Card(0)));
+        let publisher = CollectionPublisher::default();
+        assert!(publisher.prepare(&obs, true, true, false).is_err());
+        assert!(
+            !publisher.sent,
+            "failed replacement cannot commit any baseline"
+        );
+        assert!(matches!(
+            obs.reward_chests[0].options[0].id,
+            rh_sim::reward_chests::OptionId::Kill(_)
+        ));
+        assert!(
+            matches!(
+                obs.reward_chests[0].options[1].id,
+                rh_sim::reward_chests::OptionId::Card(_)
+            ),
+            "the native choice order was not compressed"
+        );
+        // When a future native update actually removes the unsupported choice, the full nine-key epoch is still due.
+        obs.reward_chests[0].options.remove(0);
+        let pending = publisher.prepare(&obs, true, true, false).unwrap();
+        let ServerMsg::State { items, .. } =
+            ServerMsg::decode(pending.frame.as_ref().unwrap()).unwrap()
+        else {
+            panic!()
+        };
+        assert_eq!(
+            items.iter().map(StateItem::key).collect::<Vec<_>>(),
+            [1, 2, 3, 4, 5, 6, 7, 8, 9]
+        );
+        let StateItem::RewardChests(rows) = &items[3] else {
+            panic!()
+        };
+        assert_eq!(rows[0].options.len(), 1);
+        assert_eq!(rows[0].options[0].id, WireRewardId::Card(79));
     }
     #[test]
     fn collection_baselines_commit_after_enqueue_and_defer_flooded_resyncs() {
@@ -535,6 +571,47 @@ mod tests {
             publisher.prepare(&good, false, false, false).unwrap().frame,
             expected
         );
+    }
+
+    #[test]
+    fn invalid_plan_walk_time_is_refused_rather_than_changed_to_absent() {
+        let publisher = CollectionPublisher::default();
+        let good = Observation::default();
+        let expected = publisher.prepare(&good, false, false, false).unwrap().frame;
+        for value in [-1., f64::INFINITY, f64::NAN, f64::MAX] {
+            let obs = Observation {
+                plan: Some(PlanningView {
+                    plan: PlanView {
+                        ends_at: 1000.,
+                        spawns: [0, -1],
+                        taken: [false; 2],
+                        pick: -1,
+                        boons: vec![],
+                        boon: -1,
+                    },
+                    options: [
+                        Some(SpawnOptionView {
+                            index: 0,
+                            at: Vec2::new(10., 20.),
+                            zone: rh_sim::mapdata::Zone::Fire,
+                            walk_distance: None,
+                            walk_seconds: Some(value),
+                        }),
+                        None,
+                    ],
+                    ready: false,
+                }),
+                ..Observation::default()
+            };
+            assert!(matches!(
+                publisher.prepare(&obs, false, false, false),
+                Err(EncodeError::BadValue("plan walk seconds"))
+            ));
+            assert_eq!(
+                publisher.prepare(&good, false, false, false).unwrap().frame,
+                expected
+            );
+        }
     }
 
     /// The pinned-container capture's actual owner plan messages project field for field into wire State key 8. The deal

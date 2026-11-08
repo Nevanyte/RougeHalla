@@ -34,7 +34,7 @@ impl RewardChestHandle {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum WireRewardId {
-    /// Selected source order: Slow Burn, Pocket Sand, Siphon.
+    /// Full 80-card catalog order (the same positions as WireBuild.cards).
     Card(u8),
     /// Source order: ad,ap,armor,shield,maxHp,attackSpeed,moveSpeed,lifesteal.
     Boost(u8),
@@ -42,7 +42,7 @@ pub enum WireRewardId {
 impl WireRewardId {
     fn valid(self) -> bool {
         match self {
-            Self::Card(id) => id < 3,
+            Self::Card(id) => id < 80,
             Self::Boost(id) => id < 8,
         }
     }

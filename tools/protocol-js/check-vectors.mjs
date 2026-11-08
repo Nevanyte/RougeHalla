@@ -47,6 +47,8 @@ eq(JSON.stringify(cannonNotices.events), JSON.stringify([{k:"cannonNotice",code:
 const refusals = decode(bytes(fx.server.find(v => v.name === "pickup_refusals").hex));
 eq(JSON.stringify(refusals.events), JSON.stringify([1,2,3,4,5].map(reason => ({ k: "pickupRefused", reason }))), "owner refusal reasons");
 
+const catalogRewards = decode(bytes(fx.server.find(v => v.name === "state_full_catalog_rewards").hex));
+eq(JSON.stringify(catalogRewards.items[0].value[0].options.map(o => [o.kind,o.id])), JSON.stringify([[1,3],[1,79],[2,7]]), "full card catalog reward positions");
 const unionProps = decode(bytes(fx.server.find(v => v.name === "state_union_props").hex));
 eq(JSON.stringify(unionProps.items[0].value.rows), JSON.stringify([
   {handle:1,x:80,y:160,kind:4,label:"fallen"}, {handle:2,x:81,y:161,kind:5},
@@ -166,7 +168,7 @@ const reason = {
   head_self_bit_without_present_bit: /head/, head_unknown_bit: /head/, head_overlong_varint: /varint/, self_status_over_3: /status/, phase_over_3: /phase/,
   self_max_hp_over_u16: /max_hp/, actor_status_over_3: /status/, actor_mask_overlong_varint: /varint/, actor_unknown_mask_bit_after_kind: /actor mask/,
   state_duplicate_key: /state key/, state_key_order: /state key/, state_too_many_keys: /too many/, state_too_many_props: /too many/, state_too_many_fields: /too many/, state_too_many_rewards: /too many/, state_bad_potion_count: /potion count/, state_zero_prop_handle: /handle/, state_missing_focus: /prop focus/,
-  state_plan_negative_deadline: /plan/, state_unknown_key: /state key/, state_trailing_byte: /trailing/, state_truncated: /./,
+  state_reward_card_id_80: /reward id/, state_plan_negative_deadline: /plan/, state_unknown_key: /state key/, state_trailing_byte: /trailing/, state_truncated: /./,
   delta_head_unknown_bit: /head/, delta_head_overlong_varint: /varint/, delta_phase_over_3: /phase/, delta_actor_mask_unknown_bit: /actor mask/,
   delta_actor_status_over_3: /status/,
   too_many_actors: /too many actors/, actor_reserved_mask_bit: /actor mask/, actor_id_gap_zero: /actor order/, actor_id_overflow: /actor order/,

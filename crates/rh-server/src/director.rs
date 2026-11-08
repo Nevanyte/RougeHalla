@@ -1964,7 +1964,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Full Wish casting requires protocol 8")]
+    #[should_panic(expected = "Full Wish casting requires")]
     fn wish_profile_director_construction_refuses_before_runtime_spawn() {
         let sim = SimConfig {
             consumables: true,
@@ -1992,7 +1992,6 @@ mod tests {
             lifecycle: rh_sim::ArenaMode::Off,
             mob_mode: rh_sim::mob_runtime::MobMode::Off,
             initial_loot: false,
-            consumables: true,
             min_players: 2,
             lobby_seconds: 30.0,
             fill_seconds: 0.0,

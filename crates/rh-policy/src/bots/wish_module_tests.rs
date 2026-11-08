@@ -75,6 +75,10 @@ fn observation(
         mark_tax: 0,
         sig: 0,
         attack_target: None,
+        hunt_target: None,
+        hunt_stacks: 0,
+        corpse_stacks: 0,
+        plague_zombie: None,
         id: ME,
         faction: FactionId::Plague,
         x: 400.,
@@ -93,6 +97,7 @@ fn observation(
     if let Some((x, y)) = enemy {
         o.visible.push(ActorView {
             kind: 0,
+            owner: None,
             mob_type: None,
             effects: 0,
             displace_seq: 0,
