@@ -10,7 +10,6 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.LowLevel;
-using UnityEngine.InputSystem.UI;
 
 namespace Roguehalla.Client.Tests
 {
@@ -44,6 +43,7 @@ namespace Roguehalla.Client.Tests
         GameObject _root, _ownedEvents;
         bool _eventsWereActive;
         EventSystem _previousEvents;
+        GameObject _previousSelection;
         MatchClient _client;
         MatchHud _hud;
         Session _session;
@@ -57,15 +57,17 @@ namespace Roguehalla.Client.Tests
         {
             _previousEvents = EventSystem.current;
             _eventsWereActive = _previousEvents != null && _previousEvents.gameObject.activeSelf;
-            if (_previousEvents != null) _previousEvents.gameObject.SetActive(false);
-            _ownedEvents = new GameObject("UI input routing test EventSystem", typeof(EventSystem), typeof(InputSystemUIInputModule));
-            EventSystem.current = _ownedEvents.GetComponent<EventSystem>();
+            _previousSelection = _previousEvents != null ? _previousEvents.currentSelectedGameObject : null;
+            if (_previousEvents != null && _eventsWereActive) _previousEvents.gameObject.SetActive(false);
             _keyboard = InputSystem.AddDevice<Keyboard>();
 
             _root = new GameObject("UI input routing fixture");
             _client = _root.AddComponent<MatchClient>();
             _client.enabled = false;
             Invoke(_client, "InitializeLayoutReview", CreateSession());
+            var currentEvents = EventSystem.current;
+            if (currentEvents != null && (_previousEvents == null || currentEvents.gameObject != _previousEvents.gameObject))
+                _ownedEvents = currentEvents.gameObject;
             _hud = _client.Hud;
             _session = _client.Session;
             _oldToggleMode = _hud.TacticalMap.ToggleMode;
@@ -118,8 +120,9 @@ namespace Roguehalla.Client.Tests
             if (_previousEvents != null)
             {
                 _previousEvents.gameObject.SetActive(_eventsWereActive);
+                if (_eventsWereActive && _previousSelection != null && _previousSelection.activeInHierarchy)
+                    _previousEvents.SetSelectedGameObject(_previousSelection);
             }
-            EventSystem.current = _previousEvents;
         }
 
         Session CreateSession()
