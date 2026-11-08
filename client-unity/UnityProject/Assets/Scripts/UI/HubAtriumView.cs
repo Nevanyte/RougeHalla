@@ -242,7 +242,7 @@ namespace Roguehalla.Client
             }
 
             _avatar = MythicUi.Rect(_floor, "CosmeticAvatar", new Vector2(_motion.X, _motion.Y), new Vector2(_motion.X, _motion.Y));
-            _avatar.sizeDelta = new Vector2(42, 42);
+            _avatar.sizeDelta = new Vector2(72, 72);
             _avatarImage = _avatar.gameObject.AddComponent<Image>();
             _avatarImage.color = ShowcasePalette.Faction(_faction);
             _avatarImage.raycastTarget = false;
