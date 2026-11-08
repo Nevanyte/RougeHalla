@@ -232,7 +232,7 @@ namespace Roguehalla.Client
         void PresentFx(PendingFx f)
         {
                 if (!_actors.TryPosition(f.Subject, out var p)) return;
-                if (f.Kind == FxKind.Swing) _actors.Swing(f.Subject);
+                _actors.ConfirmedCue(f.Subject,f.Kind);
                 if (_flashes.Count >= 48) return;
                 var flash = _flashPool.Count > 0 ? _flashPool.Pop() : CreateFlash();
                 flash.Actor = f.Subject; flash.Position = p + new Vector3(0, .65f); flash.Start = Time.unscaledTime; flash.Duration = f.Kind==FxKind.Hit ? .55f : .2f;

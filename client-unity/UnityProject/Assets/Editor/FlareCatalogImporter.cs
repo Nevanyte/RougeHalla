@@ -16,7 +16,7 @@ namespace Roguehalla.Editor
         const string Output = "Assets/Art/Derived/Flare/";
         const int Cell = 224, Cols = 16, PixelsPerUnit = 128;
         sealed class Frame { public int Index, Direction, X,Y,W,H,Px,Py; }
-        sealed class Layer { public Texture2D Texture; public Color32[] Pixels; public Dictionary<string,List<Frame>> Clips = new Dictionary<string,List<Frame>>(); }
+        sealed class Layer { public Texture2D Texture; public Color32[] Pixels; public Dictionary<string,List<Frame>> Clips = new Dictionary<string,List<Frame>>(); public Dictionary<string,float> Fps = new Dictionary<string,float>(); public Dictionary<string,int> FrameCounts = new Dictionary<string,int>(); }
         [MenuItem("Roguehalla/Art/Import Flare Catalog")]
         public static void Import()
         {
@@ -75,6 +75,13 @@ namespace Roguehalla.Editor
                 string line = raw.Trim(); if(line.Length==0 || line.StartsWith("#")) continue;
                 if(line.StartsWith("image=")) image = line.Substring(6);
                 if(line.StartsWith("[")) { clip = line.Trim('[',']'); if(!layer.Clips.ContainsKey(clip)) layer.Clips.Add(clip,new List<Frame>()); }
+                if(line.StartsWith("frames=") && clip != null && int.TryParse(line.Substring(7),out var frameCount)) layer.FrameCounts[clip]=frameCount;
+                if(line.StartsWith("duration=") && clip != null)
+                {
+                    var value=line.Substring(9).Trim();
+                    if(value.EndsWith("ms",StringComparison.OrdinalIgnoreCase) && float.TryParse(value.Substring(0,value.Length-2),System.Globalization.NumberStyles.Float,System.Globalization.CultureInfo.InvariantCulture,out var ms) && ms>0)
+                        layer.Fps[clip]=(layer.FrameCounts.TryGetValue(clip,out var durationCount) ? durationCount : 1) * 1000f/ms;
+                }
                 if(line.StartsWith("frame=") && clip != null)
                 {
                     int[] f = line.Substring(6).Split(',').Select(int.Parse).ToArray();
@@ -92,15 +99,16 @@ namespace Roguehalla.Editor
         }
         static ShowcaseCatalog.Appearance Compose(string key, Layer[] layers)
         {
-            var clips = new[]{"stance","run","swing"};
+            var clips = new[]{"stance","run","swing","block","hit","die","cast","shoot"};
             var slots = new List<Tuple<string,int,int>>();
             foreach(string clip in clips)
             {
-                int count = layers[0].Clips.TryGetValue(clip,out var f) ? f.Max(v=>v.Index)+1 : 0;
+                int count = layers[0].Clips.TryGetValue(clip,out var f) && f.Count != 0 ? f.Max(v=>v.Index)+1 : 0;
                 for(int d=0;d<8;d++) for(int i=0;i<count;i++) slots.Add(Tuple.Create(clip,d,i));
             }
             int rows = (slots.Count+Cols-1)/Cols;
             var atlas = new Texture2D(Cell*Cols,Cell*rows,TextureFormat.RGBA32,false);
+            Debug.Log($"Flare {key} atlas source dimensions: {atlas.width}x{atlas.height} ({slots.Count} authored frames)");
             var pixels = new Color32[atlas.width*atlas.height];
             for(int slot=0;slot<slots.Count;slot++)
             {
@@ -124,13 +132,18 @@ namespace Roguehalla.Editor
             var importer=(TextureImporter)AssetImporter.GetAtPath(path); importer.textureType=TextureImporterType.Sprite;
             importer.spriteImportMode=SpriteImportMode.Multiple; importer.spritePixelsPerUnit=PixelsPerUnit;
             importer.alphaIsTransparency=true; importer.mipmapEnabled=false; importer.filterMode=FilterMode.Bilinear;
-            importer.maxTextureSize=4096; importer.textureCompression=TextureImporterCompression.CompressedHQ;
+            importer.maxTextureSize=8192; importer.textureCompression=TextureImporterCompression.CompressedHQ;
             importer.spritesheet=slots.Select((item,index)=>new SpriteMetaData{name=item.Item1+"_"+item.Item2+"_"+item.Item3,
                 rect=new Rect(index%Cols*Cell,index/Cols*Cell,Cell,Cell), alignment=(int)SpriteAlignment.Custom,pivot=new Vector2(.5f,32f/Cell)}).ToArray();
             importer.SaveAndReimport();
             var sprites=AssetDatabase.LoadAllAssetsAtPath(path).OfType<Sprite>().ToDictionary(v=>v.name);
             Func<string,Sprite[]> get = clip=>slots.Where(v=>v.Item1==clip).Select(v=>sprites[v.Item1+"_"+v.Item2+"_"+v.Item3]).ToArray();
-            return new ShowcaseCatalog.Appearance{Key=key,Idle=get("stance"),Walk=get("run"),Attack=get("swing"),FramesPerSecond=10,WorldHeight=1.15f,GroundPivot=new Vector2(.5f,32f/Cell)};
+            Func<string,float> fps = clip=>layers[0].Fps.TryGetValue(clip,out var value) ? value : 10f;
+            return new ShowcaseCatalog.Appearance{Key=key,Idle=get("stance"),Walk=get("run"),Attack=get("swing"),
+                Block=get("block"),Hit=get("hit"),Death=get("die"),Cast=get("cast"),Shoot=get("shoot"),
+                IdleFPS=fps("stance"),WalkFPS=fps("run"),AttackFPS=fps("swing"),BlockFPS=fps("block"),HitFPS=fps("hit"),
+                DeathFPS=fps("die"),CastFPS=fps("cast"),ShootFPS=fps("shoot"),
+                FramesPerSecond=10,WorldHeight=1.15f,GroundPivot=new Vector2(.5f,32f/Cell)};
         }
     }
 }

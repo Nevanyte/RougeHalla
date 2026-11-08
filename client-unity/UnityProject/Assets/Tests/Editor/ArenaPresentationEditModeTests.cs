@@ -147,7 +147,31 @@ namespace Roguehalla.Client.Tests
                 AssertEightDirections(appearance.Idle, key + " idle");
                 AssertEightDirections(appearance.Walk, key + " walk");
                 AssertEightDirections(appearance.Attack, key + " attack");
+                AssertEightDirections(appearance.Block, key + " block");
+                AssertEightDirections(appearance.Hit, key + " hit");
+                AssertEightDirections(appearance.Death, key + " death");
+                AssertEightDirections(appearance.Cast, key + " cast");
+                AssertEightDirections(appearance.Shoot, key + " shoot");
+                Assert.That(appearance.IdleFPS,Is.EqualTo(5).Within(.01f),key+" authored idle cadence");
             }
+        }
+
+        [Test]
+        public void ConfirmedBowCueAndDeliveredDeathSelectAuthoredFrames()
+        {
+            var arena=CreateArena();
+            var me=new SelfView{Id=91,X=200,Y=200,Hp=100,MaxHp=100,Status=ActorStatus.Alive,Faction=FactionId.Fire,Weapon=WeaponId.Bow};
+            arena.Present(new List<InterpActor>(),me,null,0);
+            var body=FindDirectChild(FindDirectChild(arena.transform,"Observed actor"),"Authored character").GetComponent<SpriteRenderer>();
+            var art=Resources.Load<ShowcaseCatalog>("Showcase/Catalog").Find("hero");
+            arena.ConfirmedFx(new ServerMsg.Fx{List=new List<WireFx>{new WireFx{Kind=FxKind.Swing,By=91}}});
+            arena.Present(new List<InterpActor>(),me,null,0);
+            CollectionAssert.Contains(art.Shoot,body.sprite);
+            me.Status=ActorStatus.Dead;
+            arena.Present(new List<InterpActor>(),me,null,0);
+            CollectionAssert.Contains(art.Death,body.sprite);
+            Assert.That(body.transform.localRotation,Is.EqualTo(Quaternion.identity));
+            Assert.That(me.Hp,Is.EqualTo(100),"art playback never applies game outcomes");
         }
 
         [Test]

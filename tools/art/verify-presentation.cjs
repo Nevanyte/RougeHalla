@@ -134,6 +134,15 @@ else {
       else pass.push(line);
     }
   }
+  // Actual slider thumb and health/semantic indicators. Decorative panel borders
+  // are not relied on as the sole means of identifying a labelled control.
+  for (const [fgName, bgName] of [['Gold','PanelStroke'],['Gold','GoldDim'],['Gold','PanelRaised'],['Success','Panel'],['Warning','Panel']]) {
+    const fg=readColor(fgName), bg=readColor(bgName);
+    if(!fg || !bg) { failures.push(`missing essential indicator token ${fgName}/${bgName}`); continue; }
+    const ratio=contrast(fg,bg);
+    const line=`${fgName} on ${bgName}: ${ratio.toFixed(2)}:1 (essential indicator 3:1)`;
+    if(ratio<3) failures.push(line); else pass.push(line);
+  }
   // Accent colors are reported for design review; semantic accents aren't all text.
   for (const name of ['Gold', 'GoldDim', 'Success', 'Warning']) {
     const color = readColor(name);

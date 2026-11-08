@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering.Universal;
 using Roguehalla.Net;
+using Roguehalla.Net.Protocol;
 
 namespace Roguehalla.Client
 {
@@ -17,6 +18,9 @@ namespace Roguehalla.Client
             public ShowcaseCatalog.Appearance Appearance;
             public Vector3 LastPosition;
             public float MovingUntil, AttackUntil;
+            public float AttackAt, HitAt, BlockAt, DeadAt, HitUntil, BlockUntil;
+            public bool Dead;
+            public WeaponId WeaponId;
             public int Stamp;
         }
         readonly Transform _parent;
@@ -33,7 +37,35 @@ namespace Roguehalla.Client
             if (_active.TryGetValue(id, out var art)) { position = art.Root.transform.position; return true; }
             position = default; return false;
         }
-        public void Swing(uint id) { if (_active.TryGetValue(id, out var art)) art.AttackUntil = Time.unscaledTime + .32f; }
+        public void ConfirmedCue(uint id, FxKind kind)
+        {
+            if (!_active.TryGetValue(id,out var art)) return;
+            float now=Time.unscaledTime;
+            if(kind==FxKind.Swing)
+            {
+                art.AttackAt=now;
+                var clip=AttackFrames(art.Appearance,art.WeaponId,out float fps);
+                art.AttackUntil=now+ClipDuration(clip,fps,.32f);
+            }
+            else if(kind==FxKind.Hit || kind==FxKind.Stagger)
+            {
+                art.HitAt=now;art.HitUntil=now+ClipDuration(art.Appearance?.Hit,art.Appearance!=null ? art.Appearance.HitFPS : 10,.2f);
+            }
+            else if(kind==FxKind.Block)
+            {
+                art.BlockAt=now;art.BlockUntil=now+ClipDuration(art.Appearance?.Block,art.Appearance!=null ? art.Appearance.BlockFPS : 10,.2f);
+            }
+        }
+        static float ClipDuration(Sprite[] clip,float fps,float fallback)
+        { return clip!=null && clip.Length>0 ? clip.Length/8f/Mathf.Max(1,fps) : fallback; }
+        static Sprite[] AttackFrames(ShowcaseCatalog.Appearance a,WeaponId weapon,out float fps)
+        {
+            fps=a!=null ? a.AttackFPS : 10;
+            if(a==null) return null;
+            if(weapon==WeaponId.Bow && a.Shoot!=null && a.Shoot.Length>0) {fps=a.ShootFPS;return a.Shoot;}
+            if(weapon==WeaponId.Wand && a.Cast!=null && a.Cast.Length>0) {fps=a.CastFPS;return a.Cast;}
+            return a.Attack;
+        }
         public void Begin() { _stamp++; }
         public void End()
         {
@@ -61,6 +93,7 @@ namespace Roguehalla.Client
             {
                 a = _pool.Count > 0 ? _pool.Pop() : Create(); _active.Add(id, a);
                 a.Root.SetActive(true); a.LastPosition = ArenaView.WorldPoint(x, y); a.MovingUntil = a.AttackUntil = 0;
+                a.HitUntil=a.BlockUntil=0;a.Dead=false;
             }
             a.Stamp = _stamp;
             var position = ArenaView.WorldPoint(x, y);
@@ -69,21 +102,38 @@ namespace Roguehalla.Client
             int order = 2000 + Mathf.RoundToInt(y * .5f);
             Color color = ShowcasePalette.Faction((int)faction);
             bool dead = status == ActorStatus.Dead || status == ActorStatus.Mia;
+            if(dead && !a.Dead) a.DeadAt=Time.unscaledTime;
+            a.Dead=dead;a.WeaponId=weapon;
             bool isMob = kind != ActorKind.Player;
             string key = kind == ActorKind.TrainingDummy ? "knight" : isMob ? ((mob.HasValue && (int)mob.Value % 2 == 0) ? "goblin" : "skeleton") : ((int)faction == 1 || (int)faction == 2 ? "hero-female" : "hero");
             a.Appearance = _catalog != null ? _catalog.Find(key) : null;
             if (a.Appearance == null && _catalog != null) a.Appearance = _catalog.Find("knight");
             bool reduced = ShowcaseSettings.Current != null && ShowcaseSettings.Current.ReducedMotion;
             var appearance = a.Appearance;
-            Sprite[] frames = appearance != null ? (a.AttackUntil > Time.unscaledTime && appearance.Attack.Length > 0 ? appearance.Attack
-                : a.MovingUntil > Time.unscaledTime && appearance.Walk.Length > 0 ? appearance.Walk : appearance.Idle) : null;
+            Sprite[] frames=appearance?.Idle;
+            float fps=appearance!=null ? appearance.IdleFPS : 10;
+            float elapsed=Time.unscaledTime;bool loop=true;
+            if(appearance!=null)
+            {
+                if(dead && appearance.Death!=null && appearance.Death.Length>0)
+                { frames=appearance.Death;fps=appearance.DeathFPS;elapsed-=a.DeadAt;loop=false; }
+                else if(a.BlockUntil>Time.unscaledTime && appearance.Block!=null && appearance.Block.Length>0)
+                { frames=appearance.Block;fps=appearance.BlockFPS;elapsed-=a.BlockAt;loop=false; }
+                else if(a.HitUntil>Time.unscaledTime && appearance.Hit!=null && appearance.Hit.Length>0)
+                { frames=appearance.Hit;fps=appearance.HitFPS;elapsed-=a.HitAt;loop=false; }
+                else if(a.AttackUntil>Time.unscaledTime)
+                { frames=AttackFrames(appearance,weapon,out fps);elapsed-=a.AttackAt;loop=false; }
+                else if(a.MovingUntil>Time.unscaledTime && appearance.Walk.Length>0)
+                { frames=appearance.Walk;fps=appearance.WalkFPS; }
+            }
             if (frames != null && frames.Length > 0)
             {
                 // Catalog arrays are direction-major, with exactly eight source directions. Facing is artwork only.
                 int count = frames.Length / 8;
                 // Flare: SW,W,NW,N,NE,E,SE,S; server facing zero is screen east.
                 int direction = ((Mathf.RoundToInt(facing / (Mathf.PI / 4)) + 5) % 8 + 8) % 8;
-                int frame = reduced ? 0 : Mathf.FloorToInt(Time.unscaledTime * appearance.FramesPerSecond) % Mathf.Max(1, count);
+                int rawFrame=Mathf.Max(0,Mathf.FloorToInt(elapsed*Mathf.Max(1,fps)));
+                int frame = reduced ? (dead ? count-1 : 0) : loop ? rawFrame%Mathf.Max(1,count) : Mathf.Min(count-1,rawFrame);
                 a.Body.sprite = frames[Mathf.Min(frames.Length - 1, direction * count + frame)];
                 float height = appearance.WorldHeight;
                 a.Body.transform.localScale = Vector3.one * height;
@@ -97,7 +147,7 @@ namespace Roguehalla.Client
             }
             a.Body.color = dead ? new Color(.4f, .43f, .48f, .65f) : Color.Lerp(Color.white, color, isMob ? .14f : .22f);
             a.Body.sortingOrder = order;
-            a.Body.transform.localRotation = Quaternion.Euler(0, 0, dead ? 75 : 0);
+            a.Body.transform.localRotation = Quaternion.Euler(0, 0, dead && (appearance==null || appearance.Death==null || appearance.Death.Length==0) ? 75 : 0);
             a.Shadow.sortingOrder = order - 8;
             a.Halo.color = local ? new Color(color.r, color.g, color.b, .8f) : new Color(color.r, color.g, color.b, .38f);
             a.Halo.sortingOrder = order - 7;
