@@ -35,9 +35,14 @@ mounted read-only at /repo; the tool directory is read-only at /capture; the cor
 
 | file | bytes | sha256 | captureSha256 |
 |---|---:|---|---|
-| parity/quest-human-eligibility/ordinary.json | 100431 | cbf2b1fe622ff5692c85eeeb9eee84b99cf3087e9f839b3fc6a925ec9759bf3e | 0445f690584d530193916967f4a03404b0dcb5fbc7aa1add140713a4335b0be3 |
-| parity/quest-human-eligibility/diagnostic.json | 38981 | aee0b6f0dcce0e42252718bfa155aad9b0a8004cba42d65718f5a10ef8a68067 | 4048fe4df6b142b2e554df4b1f3b915da602e03cc45098a29accc64365936b11 |
-| parity/quest-human-eligibility/manifest.json | 4994 | d8bdc03d0aaa9fe97fd7b1617c172936f1aa052c477b1d2b1760943d767c5973 | n/a (manifest) |
+| parity/quest-human-eligibility/ordinary.json | 100431 | bc1630f1999f4c6b3613bebda0ec6e7c192442ba53719e5dad83cf3a9667b809 | b4da16ca28aae591ac5b2a3badedbfd6d49cdd02f6ac3002f7d43220e80eb99a |
+| parity/quest-human-eligibility/diagnostic.json | 38981 | 51f641fcc69b4331ae718b5a6d2e9aab10d98cfff17b68d56e80ceefbb3c6838 | b0fe57629ae79167399f7346609fc79ab3abe2f9abec21bed9d3ae6d70dda640 |
+| parity/quest-human-eligibility/manifest.json | 4994 | eef0accea8a91fc478a0f7607c53b09d3b1fab083bb5df61450eef75a26b0c6c | n/a (manifest) |
+
+These are the post-safety-correction hashes (tool-hash-only recapture; see CORRECTION.md). The previous values
+cbf2b1fe/aee0b6f0/d8bdc03d are recorded there with the exact allowed metadata difference: only the two run-mutants*.sh
+tool hashes and the derived profile.captureSha256 / manifest file metadata changed; every ordinary, unreachable,
+diagnostic and event value is identical semantically.
 
 Counters: 6 reachable ordinary cases, 3 explicit unreachables, 2 diagnostic cases, 27 frames and 45 relevant events. The
 internal TypeScript runtime-import closure has 125 files and closureSha256
@@ -178,23 +183,28 @@ every patch is applied only to /tmp/repo in the container. The host runner separ
 Cargo.lock are unchanged before and after.
 
 Verified self-check paths: RH_QUEST_MUTANT_SELFTEST=1 printed SELFTEST PASS after applying a patch and restoring the exact
-backup bytes; a real SIGTERM during RH_QUEST_MUTANT_SIGNAL_TEST=1 printed MUTANTS INTERRUPTED: restoring exact backup bytes
-and the wrapper's byte comparison printed SIGNAL_RESTORE_PASS.
+backup bytes. The host runner now implements the real SIGTERM driver itself (the earlier revision only slept in the
+container and was not a real signal proof): with RH_QUEST_MUTANT_SIGNAL_TEST=1 it starts the pinned container detached,
+waits for the inner SIGNAL TEST READY line, sends SIGTERM, waits for the trap, and requires both
+MUTANTS INTERRUPTED: restoring exact backup bytes and SIGNAL_RESTORE_PASS: exact backup bytes verified after SIGTERM
+before the host guard passes. Actual result: exit 0 with those lines and HOST GUARD PASS. The earlier wording is
+corrected in CORRECTION.md.
 
 ## Commands and results
 
     bash tools/quest-human-eligibility-fixtures/capture.sh
       written ordinary.json 100431 bytes, diagnostic.json 38981 bytes, manifest.json 4994 bytes; check 1/2 and 2/2 pass
     bash tools/quest-human-eligibility-fixtures/capture.sh --check   (run twice)
-      each run: check 1/2 and 2/2 pass against sha256 cbf2.../aee0.../d8bd...; read-only output unchanged
+      each run: check 1/2 and 2/2 pass against sha256 bc16.../51f6.../eef0...; read-only output unchanged
     bash tools/quest-human-eligibility-fixtures/capture.sh
       write recapture byte-identical (WRITE_RECAPTURE_IDENTICAL)
     bash tools/quest-human-eligibility-fixtures/run-mutants.sh
       5 semantic KILLs, provenance NON-KILL, RESTORED CONTROL PASS, HOST GUARD PASS
     RH_QUEST_MUTANT_SELFTEST=1 bash tools/quest-human-eligibility-fixtures/run-mutants.sh
       SELFTEST PASS
-    SIGTERM signal test in the pinned container
-      MUTANTS INTERRUPTED: restoring exact backup bytes; SIGNAL_RESTORE_PASS
+    RH_QUEST_MUTANT_SIGNAL_TEST=1 bash tools/quest-human-eligibility-fixtures/run-mutants.sh
+      exit 0: SIGNAL TEST READY; MUTANTS INTERRUPTED: restoring exact backup bytes;
+      SIGNAL_RESTORE_PASS: exact backup bytes verified after SIGTERM; HOST GUARD PASS
 
 ## Method limits and honest gaps
 

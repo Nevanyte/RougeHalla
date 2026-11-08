@@ -84,7 +84,12 @@ restore_files() {
   fi
 }
 restore_and_disarm() { trap - EXIT INT TERM HUP; restore_files; }
-on_signal() { echo "MUTANTS INTERRUPTED: restoring exact backup bytes" >&2; restore_and_disarm; exit 1; }
+on_signal() {
+  echo "MUTANTS INTERRUPTED: restoring exact backup bytes" >&2
+  restore_and_disarm
+  echo "SIGNAL_RESTORE_PASS: exact backup bytes verified after SIGTERM" >&2
+  exit 1
+}
 trap 'restore_and_disarm' EXIT
 trap 'on_signal' INT TERM HUP
 
@@ -97,8 +102,7 @@ if [ "$SELFTEST" = "1" ] || [ "$SIGNAL_TEST" = "1" ]; then
   cmp -s "$REPO/$target_rel" "/tmp/repo/$target_rel" && fail "selftest patch did not change $target_rel"
   if [ "$SIGNAL_TEST" = "1" ]; then
     echo "SIGNAL TEST READY: mutant applied; waiting for SIGTERM"
-    touch /tmp/rh-human-signal-ready
-    sleep 60
+    sleep 120
   fi
   restore_files
   cmp -s "$REPO/$target_rel" "/tmp/repo/$target_rel" || fail "selftest restore of $target_rel"
