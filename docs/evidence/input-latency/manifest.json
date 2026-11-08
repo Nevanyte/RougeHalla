@@ -1,0 +1,218 @@
+{
+  "createdUtc": "2026-11-08T07:56:19.962998+00:00",
+  "sourceHead": "23b2e4cfe9eb7530d350b176fd08d108eb739dda",
+  "base": "6340947b",
+  "serverProtocol": 11,
+  "serverContentHash": "801a76cde4cfd305",
+  "editor": "6000.0.85f2",
+  "note": "Native/Unity build sourceHead is 23b2e4cf. Harness is the recorded source head plus coordinator repair; exact tested file hashes below include that repair. Reports are measurements of this baseline, not later integrated prediction/gameplay. BakedContent.cs was generated from /info for build, then restored. No credentials included.",
+  "files": [
+    {
+      "path": "target/debug/rh-server",
+      "bytes": 33630440,
+      "sha256": "b785af8b486cb3d47e3402c968e58fa1da9c7c67cd801c8e6c3237e264c7b83b"
+    },
+    {
+      "path": "client-unity/UnityProject/Build/Web/Build/Web.data",
+      "bytes": 10823052,
+      "sha256": "ae06b6a8dc1969e6a84c7cba4bb36dda36317f62cd7b730c1227cc7ccc5ffdf1"
+    },
+    {
+      "path": "client-unity/UnityProject/Build/Web/Build/Web.framework.js",
+      "bytes": 436052,
+      "sha256": "a7cbb67bfdc6c7b90ea545db7a77039000a96b532244ee150448aa74ee01db75"
+    },
+    {
+      "path": "client-unity/UnityProject/Build/Web/Build/Web.loader.js",
+      "bytes": 26455,
+      "sha256": "072cad7d456faefe0e7f6469276fecdad00073cc8e027773b07fe62d6846b7cc"
+    },
+    {
+      "path": "client-unity/UnityProject/Build/Web/Build/Web.wasm",
+      "bytes": 44608974,
+      "sha256": "5a06a62d707298afcc27a6671c804a1e137694e8a510e1b184cfb954143eae71"
+    },
+    {
+      "path": "client-unity/RoguehallaNet.Tests/FrameInputTests.cs",
+      "bytes": 3502,
+      "sha256": "0999e7cb2c122e12de7717a37c928eb57512e76b4e1ecbda28ba97347d97168e"
+    },
+    {
+      "path": "client-unity/RoguehallaNet/Net/Session.cs",
+      "bytes": 19033,
+      "sha256": "4ef1b841510184adf6e86eddc26d53bcdd1c892002b9621e8682d98f8fdd3fef"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Plugins/WebGL/RhLatency.jslib",
+      "bytes": 585,
+      "sha256": "423a4abb8f4bc948cee5bc0b27a1457cfdc5b567ccd993e7ba315d133fe9fa66"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Plugins/WebGL/RhLatency.jslib.meta",
+      "bytes": 60,
+      "sha256": "ad05e03e4c5d91ee9b1e0f6ef28756bf5ed680054db5661cc3e2526b0936d959"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/RoguehallaNet/Net/Session.cs",
+      "bytes": 19033,
+      "sha256": "4ef1b841510184adf6e86eddc26d53bcdd1c892002b9621e8682d98f8fdd3fef"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Net/LatencyTrace.cs",
+      "bytes": 924,
+      "sha256": "f75cf3f72922a2a5db49057399f069466c091d9536f1fd328f6bb5d303eaaaaf"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Net/LatencyTrace.cs.meta",
+      "bytes": 60,
+      "sha256": "f244b14c27030be59d13748c19e53d4deebdfd34e7e0c7370552e8d7e8a8d6ef"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Net/MatchClient.cs",
+      "bytes": 9744,
+      "sha256": "356c7c18a4c2e35567b8ca3be9acc6a253ec64f24c47ac61aee52a77d57b5bd3"
+    },
+    {
+      "path": "crates/rh-policy/src/bots/perception.rs",
+      "bytes": 10624,
+      "sha256": "edd0de86f6f4075541e2957f24f409d79e59a3c473fc604917019fac5a5f110d"
+    },
+    {
+      "path": "crates/rh-server/src/main.rs",
+      "bytes": 35877,
+      "sha256": "1bc60aa6fb131b064ad79a84d727f5eea87cae8913f4923483bf662350799c72"
+    },
+    {
+      "path": "tools/latency/latency.test.cjs",
+      "bytes": 10055,
+      "sha256": "31e9976fff3df5421a7448aded41a23fe214d00c19f319ffb00079438883693b"
+    },
+    {
+      "path": "tools/latency/ws-proxy.cjs",
+      "bytes": 6956,
+      "sha256": "fc2104fc9fa8f71400530b26fdd2950c0dc81dcdde4f85f7a50c76f75e13a1e6"
+    },
+    {
+      "path": "tools/latency/report.cjs",
+      "bytes": 5250,
+      "sha256": "eca799eb381206c31528c79f6b03313d0d6f216b00bf6eeb9da8a691be222b43"
+    },
+    {
+      "path": "tools/latency/e2e.cjs",
+      "bytes": 25843,
+      "sha256": "6df38bf3eb38f1393a0c6cac002ce4023d1d4ca09abd003df334d5dd8c45faba"
+    },
+    {
+      "path": "tools/latency/impairment.cjs",
+      "bytes": 3590,
+      "sha256": "dedac638105d1fc1c69bd318d576a5bd3fb7908fbb948c2f9cd79f7dd3a0c374"
+    },
+    {
+      "path": "tools/latency/runtime.cjs",
+      "bytes": 1214,
+      "sha256": "678dd07183dc7a8c39f9a9f882d06d759f747d345cb868c7fec2ade4f920d0ac"
+    },
+    {
+      "path": "tools/latency/README.md",
+      "bytes": 5455,
+      "sha256": "e891bb405110f44faf649327fe56e7452c2f5c7042cfe21926d996981af1c538"
+    },
+    {
+      "path": "tools/latency/check-evidence.cjs",
+      "bytes": 1139,
+      "sha256": "ab956ef2a86b0f7090f7d4c731edf2e7beee9b9c2facd19c602770b11d500417"
+    },
+    {
+      "path": "tools/latency/Caddyfile.local",
+      "bytes": 359,
+      "sha256": "b93f694e1712e586cb9716bd00ed7e6e0d8867178e9554ea1745f31e9144bb0e"
+    },
+    {
+      "path": ".github/workflows/input-latency.yml",
+      "bytes": 1359,
+      "sha256": "a153e959edfb5ff207d3f29c2cb2006e0aca677b6018133ef9cbd4ad0ce26ee8"
+    },
+    {
+      "path": "hosting/staging-mvp/staging.py",
+      "bytes": 19168,
+      "sha256": "5583e685bd508d2e08a63235ac3d38114e8d54a50c375e8e2c14ef4b3c6c4868"
+    },
+    {
+      "path": "hosting/staging-mvp/test_latency_render.py",
+      "bytes": 6631,
+      "sha256": "b125b3ce25dc05eb10b163fd181a2cb85e8ccac746392a81527a727344ac645a"
+    },
+    {
+      "path": "parity/maps/duel.map.json",
+      "bytes": 266,
+      "sha256": "f824d887443832f13208d7eb5ef7eb3317e44924f7972a63236b0c41ff344511"
+    }
+  ],
+  "updatedUtc": "2026-11-08T08:25:08.427276+00:00",
+  "harnessSourceHead": "d981a16d32c6cb20e2004dee1ecc77014fbd8178",
+  "harnessRepair": {
+    "owner": "OPTimization_port coordinator",
+    "baseCommit": "f8361eda36cfd82b2a5bec5b642ae1fc423be13a",
+    "patchSha256": "9ffababccfa09e42559411fe3dc3816d2f2b21e05b08e545d732d7e35a3f69f9",
+    "application": "Applied privately for final measurements, with cc190045 timing and d981a16d incomplete-attempt diagnostics preserved. Integration fix commit belongs to coordinator."
+  },
+  "finalReports": [
+    {
+      "path": "docs/evidence/input-latency/linux-rtt-sweep-final.json",
+      "bytes": 23903,
+      "sha256": "a3e9243b22d32794cb03792dbfe60b03f1bdc092e89f20702b4e75de0f76f9cb"
+    },
+    {
+      "path": "docs/evidence/input-latency/linux-caddy-wss-final.json",
+      "bytes": 10821,
+      "sha256": "d197d163701076c5894065a497d3cbcd80db5cc05e2ab225a055c6c67e8c4d95"
+    },
+    {
+      "path": "docs/evidence/input-latency/linux-ordered-stalls-final.json",
+      "bytes": 10477,
+      "sha256": "3b4607bb8944571a116c5f50173890444bd1e157c5a4d03a6c865fc6bfabee94"
+    },
+    {
+      "path": "docs/evidence/input-latency/linux-ordered-stalls-repeat.json",
+      "bytes": 20661,
+      "sha256": "7e2a7d2a2f562fd5abb21e5cd367437f5d922435fbc187eab2391d57a4412733"
+    },
+    {
+      "path": "docs/evidence/input-latency/linux-ordered-stalls-missing-presentation.json",
+      "bytes": 6449,
+      "sha256": "7c4435e419ee176c278e1726ae53327acc657e46ac9d57a9f25ff51ffb91748d"
+    }
+  ],
+  "linuxCandidateArtifacts": [
+    {
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/input-latency-staging-prep/bundle/bin/rh-server",
+      "bytes": 6959432,
+      "sha256": "5f12724513b9ab50478f2fbf2bb266a84fd9167e7baea57102602e68b9c4cb4c"
+    },
+    {
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/input-latency-staging-prep/bundle/bin/caddy",
+      "bytes": 47317152,
+      "sha256": "762d7763ed8e303d50bf11fb0274627266907ea8c170720d7d9a6fd0b9bf5c65"
+    },
+    {
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/input-latency-staging-prep/bundle/maps/latency-duel.map.json",
+      "bytes": 266,
+      "sha256": "f824d887443832f13208d7eb5ef7eb3317e44924f7972a63236b0c41ff344511"
+    },
+    {
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/input-latency-staging-prep/release.tar.gz",
+      "bytes": 37172179,
+      "sha256": "8c77189316c797d66cb6c5a492ac585fed38c7ee7bd20cc3a7b59e4bff8136eb"
+    },
+    {
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/input-latency-staging-prep/release-source-manifest.json",
+      "bytes": 4870,
+      "sha256": "a8951151580c6d068651ae3b051fd17851dac29fa8bcaaf73c5ac2f808b8d3bf"
+    },
+    {
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/input-latency-staging-prep/latency-duel-template.json",
+      "bytes": 12055,
+      "sha256": "b9c03cf20463c38b27b549ad084976c361f23491817b06500ec75d478a68aa0e"
+    }
+  ]
+}

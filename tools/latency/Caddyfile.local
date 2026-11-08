@@ -1,0 +1,15 @@
+# Loopback container fixture for the packaged staging data path. No public ACME or DNS.
+https://localhost:8443 {
+    tls internal
+    encode gzip
+    @game path /ws /info /ping /healthz
+    handle @game {
+        reverse_proxy 127.0.0.1:7777
+    }
+    handle {
+        root * /bundle/web
+        file_server {
+            precompressed gzip
+        }
+    }
+}

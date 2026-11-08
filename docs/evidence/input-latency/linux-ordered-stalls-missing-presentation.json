@@ -1,0 +1,229 @@
+{
+  "startedAt": "2026-11-08T08:19:49.267Z",
+  "playerUrl": "http://127.0.0.1:8097/",
+  "direct": false,
+  "tls": "normal certificate validation",
+  "serverIdentity": {
+    "protocol": 11,
+    "contentHash": "801a76cde4cfd305"
+  },
+  "serverUrl": "ws://127.0.0.1:7796/ws",
+  "profiles": [
+    {
+      "rttMs": 100,
+      "jitterMs": 10,
+      "injected": true,
+      "meaning": "added delay, not total measured RTT",
+      "seed": 72617
+    }
+  ],
+  "trials": [],
+  "errors": [
+    "Error: timed out waiting for post-Present local move_seq 1\n    at waitFor (/Users/nevinmckinnon/Documents/Projects/RogueHalla-input-latency/tools/latency/e2e.cjs:123:35)\n    at async run (/Users/nevinmckinnon/Documents/Projects/RogueHalla-input-latency/tools/latency/e2e.cjs:278:9)"
+  ],
+  "notes": [
+    "sampleMove is emitted by Unity ReadInput after sampling the browser keyboard input and includes the actual order sequence.",
+    "WebSocket send/receive times are captured inside the browser with performance.now and use the page timeOrigin for correlation.",
+    "Self echo is an accepted decoded snapshot whose me.moveSeq matches the sent order; ack_input is deliberately not used.",
+    "Self/opponent presentation endpoints are post-Present Unity traces, not photon emission or confirmed display scanout.",
+    "The proxy delays ordered TCP byte-stream chunks. It preserves reliability/order; configured stalls are head-of-line delays, not packet loss."
+  ],
+  "expectedTrials": 3,
+  "players": {
+    "driver": 1,
+    "observerSelf": 2,
+    "observerRemoteHumanCount": 1
+  },
+  "currentProfile": {
+    "rttMs": 100,
+    "jitterMs": 10
+  },
+  "pageErrors": [],
+  "transportObservations": [
+    {
+      "client": "driver",
+      "socketRtt": {
+        "count": 21,
+        "p50Ms": 105.30000019073486,
+        "p95Ms": 156.80000019073486,
+        "maxMs": 160.19999980926514
+      },
+      "snapshotDeliveryGap": {
+        "count": 418,
+        "p50Ms": 49.799999713897705,
+        "p95Ms": 99.5,
+        "maxMs": 118.80000019073486
+      },
+      "unityFrameGap": {
+        "count": 1252,
+        "p50Ms": 16.699999809265137,
+        "p95Ms": 17.5,
+        "maxMs": 188.69999980926514
+      }
+    },
+    {
+      "client": "observer",
+      "socketRtt": {
+        "count": 21,
+        "p50Ms": 104.80000019073486,
+        "p95Ms": 139.7999997138977,
+        "maxMs": 172.09999990463257
+      },
+      "snapshotDeliveryGap": {
+        "count": 415,
+        "p50Ms": 49.59999990463257,
+        "p95Ms": 74.2999997138977,
+        "maxMs": 118.69999980926514
+      },
+      "unityFrameGap": {
+        "count": 1250,
+        "p50Ms": 16.699999809265137,
+        "p95Ms": 17.5,
+        "maxMs": 335.2999997138977
+      }
+    }
+  ],
+  "proxyRun": {
+    "config": {
+      "oneWayMs": 50,
+      "jitterMs": 5,
+      "seed": 72617,
+      "stallEvery": 20,
+      "stallMs": 60,
+      "targetTls": false,
+      "semantics": "TCP reliable ordered stream with FIFO chunk delay/jitter; optional periodic ordered stalls model head-of-line blocking, not packet loss.",
+      "configuredRttMs": 100,
+      "configuredJitterMs": 10
+    },
+    "connections": [
+      {
+        "openedAt": 1794125992405,
+        "closedAt": null,
+        "clientAddress": "127.0.0.1",
+        "directions": {
+          "clientToServer": {
+            "chunks": 728,
+            "bytes": 15478,
+            "actualQueueDelayMs": {
+              "count": 728,
+              "p50": 50.51879199999894,
+              "p95": 98.54195900000013,
+              "max": 114.7846669999999
+            },
+            "orderedStalls": 36,
+            "stallDelayMs": {
+              "count": 36,
+              "p50": 109.19961500447243,
+              "p95": 114.54024901147932,
+              "max": 114.95879529509693
+            }
+          },
+          "serverToClient": {
+            "chunks": 443,
+            "bytes": 5202,
+            "actualQueueDelayMs": {
+              "count": 443,
+              "p50": 50.70591599999989,
+              "p95": 104.93991700000151,
+              "max": 115.42825000000084
+            },
+            "orderedStalls": 22,
+            "stallDelayMs": {
+              "count": 22,
+              "p50": 107.3212784412317,
+              "p95": 113.65263247629628,
+              "max": 114.96385908452794
+            }
+          }
+        }
+      },
+      {
+        "openedAt": 1794125992410,
+        "closedAt": null,
+        "clientAddress": "127.0.0.1",
+        "directions": {
+          "clientToServer": {
+            "chunks": 633,
+            "bytes": 12107,
+            "actualQueueDelayMs": {
+              "count": 633,
+              "p50": 49.98029099999985,
+              "p95": 84.53320800000074,
+              "max": 116.5780829999967
+            },
+            "orderedStalls": 31,
+            "stallDelayMs": {
+              "count": 31,
+              "p50": 109.04852682724595,
+              "p95": 114.9114665389061,
+              "max": 114.96508914977312
+            }
+          },
+          "serverToClient": {
+            "chunks": 438,
+            "bytes": 4964,
+            "actualQueueDelayMs": {
+              "count": 438,
+              "p50": 50.114749999997,
+              "p95": 88.2232499999991,
+              "max": 115.6451249999991
+            },
+            "orderedStalls": 21,
+            "stallDelayMs": {
+              "count": 21,
+              "p50": 110.15264208661392,
+              "p95": 114.6399799385108,
+              "max": 114.82743302593008
+            }
+          }
+        }
+      }
+    ]
+  },
+  "summary": {
+    "status": "FAIL",
+    "verdict": {
+      "status": "FAIL",
+      "exitCode": 1,
+      "failures": [
+        "runtime_or_page_errors"
+      ],
+      "incomplete": [
+        "trial_coverage_0_of_3"
+      ],
+      "complete": false
+    },
+    "latency": {
+      "sampleToSend": {
+        "count": 0,
+        "p50Ms": null,
+        "p95Ms": null,
+        "maxMs": null
+      },
+      "sendToSelfEcho": {
+        "count": 0,
+        "p50Ms": null,
+        "p95Ms": null,
+        "maxMs": null
+      },
+      "selfEchoToPresentation": {
+        "count": 0,
+        "p50Ms": null,
+        "p95Ms": null,
+        "maxMs": null
+      },
+      "inputToSelfPresentation": {
+        "count": 0,
+        "p50Ms": null,
+        "p95Ms": null,
+        "maxMs": null
+      },
+      "inputToOpponentPresentation": {
+        "count": 0,
+        "p50Ms": null,
+        "p95Ms": null,
+        "maxMs": null
+      }
+    }
+  }
+}

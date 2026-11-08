@@ -1,0 +1,237 @@
+{
+  "startedAt": "2026-11-08T07:46:41.512Z",
+  "playerUrl": "http://127.0.0.1:8097/",
+  "direct": false,
+  "serverUrl": "ws://127.0.0.1:7797/ws",
+  "profiles": [
+    {
+      "rttMs": 0,
+      "jitterMs": 0,
+      "seed": 72617
+    }
+  ],
+  "trials": [
+    {
+      "profile": {
+        "rttMs": 0,
+        "jitterMs": 0
+      },
+      "index": 1,
+      "key": "d",
+      "keyboardEvent": {
+        "at": 1794124004875.7
+      },
+      "inputSample": {
+        "at": 1794124004884.8,
+        "frame": 14,
+        "player": 1,
+        "seq": 1,
+        "x": 240,
+        "y": 144
+      },
+      "moveSent": {
+        "at": 1794124004884.9,
+        "frame": 14,
+        "seq": 1,
+        "x": 240,
+        "y": 144,
+        "sameUnityFrame": true
+      },
+      "selfEcho": {
+        "at": 1794124004904,
+        "seq": 1,
+        "x": 184.5,
+        "y": 144,
+        "tick": 6
+      },
+      "selfPresented": {
+        "at": 1794124004918.1,
+        "seq": 1,
+        "x": 184.5,
+        "y": 144,
+        "frame": 16
+      },
+      "opponentBaseline": {
+        "at": 1794124004927,
+        "actor": 1,
+        "kind": 0,
+        "x": 176,
+        "y": 144,
+        "tick": 6
+      },
+      "keyboardToSendMs": 9.199951171875,
+      "sampleToSendMs": 0.099853515625,
+      "sendToEchoMs": 19.10009765625,
+      "echoToPresentMs": 14.10009765625,
+      "sampleToPresentMs": 33.300048828125,
+      "opponentPresented": {
+        "at": 1794124004959.9001,
+        "actor": 1,
+        "x": 176.08160400390625,
+        "y": 144,
+        "frame": 16
+      },
+      "sampleToOpponentMs": 75.10009765625,
+      "traceOverflow": false,
+      "traceErrors": []
+    }
+  ],
+  "errors": [],
+  "notes": [
+    "sampleMove is emitted by Unity ReadInput after sampling the physical-key input and includes the actual order sequence.",
+    "WebSocket send/receive times are captured inside the browser with performance.now and use the page timeOrigin for correlation.",
+    "Self echo is an accepted decoded snapshot whose me.moveSeq matches the sent order; ack_input is deliberately not used.",
+    "Self/opponent presentation endpoints are post-Present Unity traces, not photon emission or confirmed display scanout.",
+    "The proxy delays ordered TCP byte-stream chunks. It preserves reliability/order; configured stalls are head-of-line delays, not packet loss."
+  ],
+  "expectedTrials": 1,
+  "players": {
+    "driver": 1,
+    "observerSelf": 2,
+    "observerRemoteHumanCount": 1
+  },
+  "currentProfile": {
+    "rttMs": 0,
+    "jitterMs": 0
+  },
+  "proxyRun": {
+    "config": {
+      "oneWayMs": 0,
+      "jitterMs": 0,
+      "seed": 72617,
+      "stallEvery": 0,
+      "stallMs": 0,
+      "targetTls": false,
+      "semantics": "TCP reliable ordered stream with FIFO chunk delay/jitter; optional periodic ordered stalls model head-of-line blocking, not packet loss.",
+      "configuredRttMs": 0,
+      "configuredJitterMs": 0
+    },
+    "connections": [
+      {
+        "openedAt": 1794124004347,
+        "closedAt": 1794124005077,
+        "clientAddress": "127.0.0.1",
+        "directions": {
+          "clientToServer": {
+            "chunks": 12,
+            "bytes": 729,
+            "actualQueueDelayMs": {
+              "count": 12,
+              "p50": 1.2216669999997976,
+              "p95": 1.6840000000001965,
+              "max": 1.6840000000001965
+            },
+            "orderedStalls": 0,
+            "stallDelayMs": {
+              "count": 0,
+              "p50": null,
+              "p95": null,
+              "max": null
+            }
+          },
+          "serverToClient": {
+            "chunks": 11,
+            "bytes": 544,
+            "actualQueueDelayMs": {
+              "count": 11,
+              "p50": 1.2382089999996424,
+              "p95": 2.2681250000000546,
+              "max": 2.2681250000000546
+            },
+            "orderedStalls": 0,
+            "stallDelayMs": {
+              "count": 0,
+              "p50": null,
+              "p95": null,
+              "max": null
+            }
+          }
+        }
+      },
+      {
+        "openedAt": 1794124004339,
+        "closedAt": 1794124005078,
+        "clientAddress": "127.0.0.1",
+        "directions": {
+          "clientToServer": {
+            "chunks": 15,
+            "bytes": 815,
+            "actualQueueDelayMs": {
+              "count": 15,
+              "p50": 1.2674999999999272,
+              "p95": 2.135167000000365,
+              "max": 2.135167000000365
+            },
+            "orderedStalls": 0,
+            "stallDelayMs": {
+              "count": 0,
+              "p50": null,
+              "p95": null,
+              "max": null
+            }
+          },
+          "serverToClient": {
+            "chunks": 12,
+            "bytes": 571,
+            "actualQueueDelayMs": {
+              "count": 12,
+              "p50": 1.2127919999998085,
+              "p95": 1.3164999999999054,
+              "max": 1.3164999999999054
+            },
+            "orderedStalls": 0,
+            "stallDelayMs": {
+              "count": 0,
+              "p50": null,
+              "p95": null,
+              "max": null
+            }
+          }
+        }
+      }
+    ]
+  },
+  "pageErrors": [],
+  "summary": {
+    "status": "PASS",
+    "verdict": {
+      "status": "PASS",
+      "exitCode": 0,
+      "failures": [],
+      "incomplete": [],
+      "complete": true
+    },
+    "latency": {
+      "sampleToSend": {
+        "count": 1,
+        "p50Ms": 0.099853515625,
+        "p95Ms": 0.099853515625,
+        "maxMs": 0.099853515625
+      },
+      "sendToSelfEcho": {
+        "count": 1,
+        "p50Ms": 19.10009765625,
+        "p95Ms": 19.10009765625,
+        "maxMs": 19.10009765625
+      },
+      "selfEchoToPresentation": {
+        "count": 1,
+        "p50Ms": 14.10009765625,
+        "p95Ms": 14.10009765625,
+        "maxMs": 14.10009765625
+      },
+      "inputToSelfPresentation": {
+        "count": 1,
+        "p50Ms": 33.300048828125,
+        "p95Ms": 33.300048828125,
+        "maxMs": 33.300048828125
+      },
+      "inputToOpponentPresentation": {
+        "count": 1,
+        "p50Ms": 75.10009765625,
+        "p95Ms": 75.10009765625,
+        "maxMs": 75.10009765625
+      }
+    }
+  }
+}
