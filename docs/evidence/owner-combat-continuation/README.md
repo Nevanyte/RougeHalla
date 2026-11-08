@@ -131,13 +131,15 @@ The practice elite `executioner` is spawned by an ordinary `train {cmd:"camp"}` 
 - **First revival (same completed step 494)**: `trainingSettle` sets status **alive**, hp **950/950**, readyAt **0**, draw
   **0**, attackTarget **""**, and keeps position 400,320, build `overkill=1`, mobStats empty and identity mirrors. There are
   94 real hits on the player in the trace.
-- **Second down with a live bow draw**: after revival the player re-engages, swaps to the real bow at step 848 and starts a
-  draw at step 849. At step 993/t=49750 the pre-down frame has hp 9.975290697675916, `drawStartedAt=49659.324009323995`,
-  readyAt 50514.02486402485, slot 1; step 994/t=49800 is the down. The down tap reads draw **0** (cancelled by
+- **Second down with a live bow draw**: after revival the player re-engages, swaps to the real bow at step 848; the first
+  live draw frame is **step 877** (`drawStartedAt=43676.418…`), not the queued-attack step 849 in `facts.secondPhase`. The
+  draw live at the second down begins at **step 992** (`drawStartedAt=49659.324009323995`). At step 993/t=49750 the
+  pre-down frame has hp 9.975290697675916, `drawStartedAt=49659.324009323995`, readyAt 50514.02486402485, slot 1; step
+  994/t=49800 is the down. The down tap reads draw **0** (cancelled by
   `downPlayer -> releaseTrigger`) and readyAt **50514.02486402485**; the revival frame 994 reads hp **950**, status
   **alive**, readyAt **0**, draw **0**, attackTarget **""**, build `overkill=1` and identity mirrors. `DrawTrack` shows the
-  draw at step 994 (renderT 49700 reached start 49659) even though the decoded `drawStartedAt` is already 0; it clears on the
-  next frame.
+  draw at step 994 and still at step 995 (render lag) even though the decoded `drawStartedAt` is already 0; it clears at
+  step 996, not on the immediately next frame.
 - **What persists vs resets**: the build/card, weapon slots and identity mirrors persist; position persists. `trainingSettle`
   resets down/resolved/killedBy/lastHit, path/history, status to alive, hp to maxHp, and `resetWeapons` (readyAt 0,
   drawStartedAt 0, attackTarget "", fresh weapon runtime). It does not clear build, mobStats or the mirrors. The lock and a
@@ -151,8 +153,16 @@ The practice elite `executioner` is spawned by an ordinary `train {cmd:"camp"}` 
 `frostbowSentry` a `stat attackSpeed v 0.01` row, and `MOB_KILL_STACKS=3`, so one credited ordinary kill would write +3%
 attack speed. Ordinary training-camp kills return before that row is reached, so a training kill cannot change `mobStats` or
 `asMult` (identity 1000). `train stat` is a direct console set and was forbidden and not used. No live training-kill case
-is claimed as a producer; this is the exact bounded reason the fourth mirror write is unreachable through allowed ordinary
-training input. No other genuine allowed ordinary producer for nonidentity `asMult` was found.
+is claimed as a producer.
+
+**The checker's exact reachability condition:** the declared continuation profiles are **not** sufficient for the arena
+route — `arena-weapon-only`/`arena-full-module` omit `mobs:true` (`world.ts:33`) and the declared `mapFromTiles` map has
+`camps: []` (`shared/map.ts:455`), so only training practice mobs exist and `payMobKill` returns for training. A **new
+additive profile** with `mobs:true` plus a generated or camp-bearing map would be required to reach a real non-elite
+`plagueRat`/`frostbowSentry` kill and its +3% attackSpeed → `asMult` 1030; this slice did not add such a profile. Whether
+that additive profile is allowed is a **root decision**; if it is not, the original windup-specific producer requirement
+remains waived for this inadmissible-card/declaration scope. The four-producer/mirror requirement therefore remains **open**
+and is not claimed.
 
 ## Semantic controls
 
@@ -187,6 +197,20 @@ bash tools/owner-combat-continuation-fixtures/run-mutants.sh        # 3 KILL + 1
 The external recapture was written to
 `parity/policy/owner-combat-continuation/.recapture` (inside the worktree), compared with `cmp`, found byte-identical, and
 removed. Logs are in `logs/` (capture, check-1, check-2, recapture).
+
+## Checker corrections (documentation; no corpus/outcome change)
+
+The independent continuation checker returned PASS WITH DISCREPANCIES at `8e886ef1`; it reproduced all five rows,
+scope/frozen base, corpora, `--check` twice, external recapture, mutants and labels. Corrections:
+1. M05 second-phase narrative: the first live draw is step **877** (`drawStartedAt=43676.418…`), not step 849 (that is the
+   queued-attack step); the draw live at the step-994 down begins at step **992** (`49659.324…`), not 849/993.
+2. `DrawTrack` at the step-994 down is shown at 994 **and 995**, clearing at **996**, not on the immediately next frame.
+3. The corpus `transitions` arrays repeat the frozen slice's object-identity defect (fresh objects compared, so every
+   recorded frame is emitted); the new README failed to disclose it. Raw `frames`, `facts` and all mutant paths are
+   unaffected; no outcome depends on transition indexes. This is a known evidence defect.
+4. The fourth-mirror section above now states the checker's exact condition: declared profiles omit `mobs:true` and use a
+   hand-built map with no camps; a new additive generated/camp-bearing map profile (or a root waiver) is required. No
+   producer pass is claimed.
 
 ## Honest limits and remaining items
 
