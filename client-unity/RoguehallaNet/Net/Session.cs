@@ -159,8 +159,18 @@ namespace Roguehalla.Net
             _t.Close();
         }
 
-        /// <summary>Pumps the transport, timers, pings and queued input. Call once per frame.</summary>
+        /// <summary>Pumps incoming state and flushes queued input. Call once per frame when input was collected beforehand.</summary>
         public void Update()
+        {
+            Poll();
+            FlushInput();
+        }
+
+        /// <summary>
+        /// Pumps incoming state, timers and clocks. A frame-driven client calls this before collecting controls,
+        /// then calls FlushInput after collecting them so a new press leaves in the same frame.
+        /// </summary>
+        public void Poll()
         {
             _t.Poll();
             double now = Now;
@@ -172,7 +182,13 @@ namespace Roguehalla.Net
             if (State != SessionState.InMatch) return;
             if (now - _lastPing >= _o.PingIntervalMs) { _lastPing = now; Send(Sync.MakePing(now)); }
             if (Clock.Ready) Clock.Update(now);
-            foreach (var f in Input.Flush(now)) Send(f);
+        }
+
+        /// <summary>Sends collected controls once per frame. It does not poll or advance the session again.</summary>
+        public void FlushInput()
+        {
+            if (State != SessionState.InMatch) return;
+            foreach (var f in Input.Flush(Now)) Send(f);
         }
 
         void Send(ClientMsg m) { _t.Send(m.Encode()); }
