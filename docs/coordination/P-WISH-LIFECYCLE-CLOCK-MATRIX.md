@@ -16,8 +16,8 @@ raw-event insertion, expected outcome installation, hidden mutable state, invent
 target/ability gates. Existing all-five player-only source corpora remain read-only; no NPC/full-signature gate change.
 
 First assess the existing event_time tests and actual ability definitions. Build real successful normal and valid
-restored-offset player-only cases for Freeze, Blaze, Trial, Hunt and the remaining shipped faction Wish (use the
-actual enum/catalog name). Every asserted start, landing and terminal must match caster/ability and preserve producer
+restored-offset player-only cases for Freeze, Swarm, Trial, Blaze and LastStand (use the actual enum/catalog names).
+Every asserted start, landing and terminal must match caster/ability and preserve producer
 server_time rather than tick-derived time. Observe terminal reasons genuinely produced by the scenario; do not call a
 terminal Cancelled if the instantaneous ability already landed. For abilities with a cancellable pending stage, test
 real remove_player between steps, pending timestamp admission/hash, next-step delivery and exact restored
