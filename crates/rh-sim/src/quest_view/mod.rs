@@ -140,3 +140,113 @@ mod tests {
         }
     }
 }
+
+/// A public, nonspatial roster identity. This namespace has no conversion to an actor or action reference.
+/// Allocation and proof of roster entitlement belong to the future publication adapter.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub(crate) struct PublicRosterId(std::num::NonZeroU32);
+
+impl PublicRosterId {
+    pub(crate) fn from_roster_grant(value: std::num::NonZeroU32) -> Self {
+        Self(value)
+    }
+}
+
+/// Already-authorized presentation text. Invalid input is refused, never truncated or silently rewritten.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct PublicLabel(String);
+
+impl PublicLabel {
+    pub(crate) fn checked(label: &str) -> Option<Self> {
+        if label.is_empty() || label.len() > u8::MAX as usize || label.chars().any(char::is_control)
+        {
+            return None;
+        }
+        Some(Self(label.to_owned()))
+    }
+}
+
+/// One source-public quest participant, keyed by an already-granted roster identity, not a body reference.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct PublicParticipant {
+    pub roster: PublicRosterId,
+    pub accepted: bool,
+    pub progress: u32,
+    pub visited_mask: u8,
+}
+
+/// Nonspatial source-public facts about a published offer. There are deliberately no raw IDs, actor references or positions.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct PublicQuestPeople {
+    pub participants: Vec<PublicParticipant>,
+    pub carrier: Option<PublicRosterId>,
+    pub done_by: Option<PublicLabel>,
+}
+
+impl PublicQuestPeople {
+    /// The caller supplies only roster-granted identities and an authorized checked label. Reject a hidden/preview row
+    /// wholesale so a future adapter cannot expose these source-public fields before the offer becomes public.
+    pub(crate) fn for_row(
+        access: QuestRowAccess,
+        participants: Vec<PublicParticipant>,
+        carrier: Option<PublicRosterId>,
+        done_by: Option<PublicLabel>,
+    ) -> Option<Self> {
+        (access == QuestRowAccess::Published).then_some(Self {
+            participants,
+            carrier,
+            done_by,
+        })
+    }
+}
+
+#[cfg(test)]
+mod public_people_tests {
+    use super::*;
+    use std::num::NonZeroU32;
+
+    #[test]
+    fn public_facts_survive_without_any_body_visibility_input() {
+        let roster = PublicRosterId::from_roster_grant(NonZeroU32::new(7).unwrap());
+        let participant = PublicParticipant {
+            roster,
+            accepted: true,
+            progress: 2,
+            visited_mask: 5,
+        };
+        let label = PublicLabel::checked("A scout").unwrap();
+        let facts = PublicQuestPeople::for_row(
+            QuestRowAccess::Published,
+            vec![participant.clone()],
+            Some(roster),
+            Some(label.clone()),
+        )
+        .unwrap();
+        assert_eq!(facts.participants, vec![participant]);
+        assert_eq!(facts.carrier, Some(roster));
+        assert_eq!(facts.done_by, Some(label));
+    }
+
+    #[test]
+    fn hidden_and_preview_never_publish_participant_or_carrier_facts() {
+        let roster = PublicRosterId::from_roster_grant(NonZeroU32::new(1).unwrap());
+        for access in [QuestRowAccess::None, QuestRowAccess::Preview] {
+            assert!(PublicQuestPeople::for_row(
+                access,
+                vec![],
+                Some(roster),
+                PublicLabel::checked("Winner")
+            )
+            .is_none());
+        }
+    }
+
+    #[test]
+    fn labels_are_bounded_and_invalid_text_is_refused() {
+        assert!(PublicLabel::checked("").is_none());
+        assert!(PublicLabel::checked("line\nbreak").is_none());
+        assert!(PublicLabel::checked(&"x".repeat(256)).is_none());
+        assert!(PublicLabel::checked(&"x".repeat(255)).is_some());
+        assert!(PublicLabel::checked("Éowyn").is_some());
+    }
+}
