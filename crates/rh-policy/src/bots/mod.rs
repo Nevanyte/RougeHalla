@@ -13,6 +13,7 @@ pub mod kite;
 pub mod mob_hunt;
 pub mod paths;
 pub mod perception;
+pub mod planning;
 pub mod random;
 pub mod types;
 pub mod wish;
@@ -23,6 +24,8 @@ mod mob_hunt_parity_tests;
 mod parity_tests;
 #[cfg(test)]
 mod paths_parity_tests;
+#[cfg(test)]
+mod planning_parity_tests;
 #[cfg(test)]
 mod wish_module_tests;
 #[cfg(test)]
@@ -42,6 +45,7 @@ pub use mob_hunt::{
 };
 pub use paths::{PathBudget, PathStats, RoomPathService, WalkAnswer, BOT_PATH_BUDGET_PER_TICK};
 pub use perception::Perception;
+pub use planning::{PlanDeal, PlanIntent, PlanLearned, PlanMap, PlanModule, PlanState};
 pub use random::Rng;
 pub use types::{
     BotWeapon, Command, CommandType, ExGaussian, Intent, IntentBody, IntentChannel, IntentKind,

@@ -176,6 +176,7 @@ fn parse_percept(v: &Value) -> Percept {
         now: num(obj(v, "now")),
         self_view: SelfView {
             id: text(obj(me, "id")).to_string(),
+            faction: None,
             x: num(obj(me, "x")),
             y: num(obj(me, "y")),
             facing: num(obj(me, "facing")),

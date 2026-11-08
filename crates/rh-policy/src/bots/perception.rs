@@ -161,6 +161,7 @@ impl Perception {
             now,
             self_view: SelfView {
                 id: "me".into(),
+                faction: Some(me.faction),
                 x: me.x,
                 y: me.y,
                 facing: me.facing,

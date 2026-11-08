@@ -6,6 +6,7 @@ use crate::bots::clicks::BotMap;
 use crate::bots::humanizer::{Context, Humanizer};
 use crate::bots::paths::{PathBudget, RoomPathService};
 use crate::bots::perception::Perception;
+use crate::bots::planning::{PlanDeal, PlanLearned, PlanMap, PlanModule};
 use crate::bots::random::Rng;
 use crate::bots::types::{
     Intent, IntentBody, IntentTiming, Percept, PersonaId, PersonaParams, Stimulus, StimulusKind,
@@ -74,11 +75,16 @@ pub struct HumanBot {
     stimuli: Vec<Stimulus>,
     prev_hp_frac: f64,
     roam: Option<rh_sim::Vec2>,
-    plan_sent: bool,
     /// The Wish module: its availability/remember/retry and slip state, and the public static map its blink landing reads.
     wish: WishModule,
     /// The room path service the tactics read (P-BOTS-3): the shared budget, the cache and the clear/sight queries.
     paths: Option<RoomPathService>,
+    /// The planning feature module (P-BOTS-3 remainder): the source planning.ts state machine.
+    planning: PlanModule,
+    /// The planning screen's map view (camps and spawn pool), read once from the public arena layers at reset.
+    plan_map: PlanMap,
+    /// The stats-file choice biases the planning module reads (empty: the learning store is P-BOTS-5).
+    plan_learned: PlanLearned,
 }
 
 impl HumanBot {
@@ -97,9 +103,11 @@ impl HumanBot {
             stimuli: Vec::new(),
             prev_hp_frac: 0.,
             roam: None,
-            plan_sent: false,
             wish: WishModule::new(),
             paths: None,
+            planning: PlanModule::new(),
+            plan_map: PlanMap::default(),
+            plan_learned: PlanLearned::default(),
         }
     }
     pub fn tier(&self) -> TierId {
@@ -280,9 +288,11 @@ impl Policy for HumanBot {
         self.stimuli.clear();
         self.prev_hp_frac = 0.;
         self.roam = None;
-        self.plan_sent = false;
         self.wish.reset(&m.arena.map);
         self.paths = Some(RoomPathService::new(&m.arena.map, PathBudget::default()));
+        self.planning.reset();
+        self.plan_map = PlanMap::from_arena(&m.arena);
+        self.plan_learned = PlanLearned::default();
     }
     fn decide(&mut self, obs: &Observation) -> Vec<PublicCommand> {
         let mut out = Vec::new();
@@ -291,12 +301,37 @@ impl Policy for HumanBot {
     }
     fn decide_into(&mut self, obs: &Observation, out: &mut Vec<PublicCommand>) {
         if obs.phase == rh_sim::Phase::Planning {
-            if !self.plan_sent {
-                self.plan_sent = true;
+            // The planning screen has no goal and no tactics: the module reads the private deal and answers it, exactly as
+            // the source brain's planning branch does. Its intents are menu commands, converted 1:1 here.
+            let now = obs.server_time;
+            let deal = obs.plan.as_ref().map(PlanDeal::from_view);
+            let faction = obs.me.as_ref().map(|me| me.faction);
+            let tier = self.tier;
+            let Self {
+                planning,
+                plan_map,
+                plan_learned,
+                decide,
+                lapse,
+                ..
+            } = self;
+            planning.observe(now, deal.as_ref(), tier, decide);
+            let intent = planning.intents(
+                now,
+                true,
+                tier,
+                plan_map,
+                faction,
+                None,
+                plan_learned,
+                decide,
+                lapse,
+            );
+            if let Some(intent) = intent {
                 out.push(PublicCommand::Plan {
-                    spawn: None,
-                    boon: None,
-                    ready: Some(true),
+                    spawn: intent.spawn,
+                    boon: intent.boon,
+                    ready: intent.ready,
                 });
             }
             return;

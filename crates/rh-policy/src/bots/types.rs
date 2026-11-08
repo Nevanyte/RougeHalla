@@ -1017,6 +1017,8 @@ pub struct ClickMiss {
 #[derive(Clone, Debug, PartialEq, Default)]
 pub struct SelfView {
     pub id: FighterId,
+    /// The owner's faction (null before it is picked; the planning module reads it for the spawn maths).
+    pub faction: Option<rh_sim::FactionId>,
     pub x: f64,
     pub y: f64,
     pub facing: f64,

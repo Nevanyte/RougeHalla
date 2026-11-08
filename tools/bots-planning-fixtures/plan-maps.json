@@ -1,0 +1,100 @@
+{
+ "format": "rh-bot-planning-maps/1",
+ "note": "Declared planning-screen inputs: the fields the shared planning maths reads (spawnPool positions/zones and camp centres/zones/elite spots). pve is the camp/pool pair of the admitted mob map; spread is a declared 5-camp layout that separates the two dealt spawns.",
+ "maps": {
+  "pve": {
+   "spawnPool": [
+    {
+     "x": 624,
+     "y": 112,
+     "zone": "sentenced"
+    },
+    {
+     "x": 112,
+     "y": 624,
+     "zone": "plague"
+    },
+    {
+     "x": 624,
+     "y": 624,
+     "zone": "frost"
+    },
+    {
+     "x": 656,
+     "y": 400,
+     "zone": "holy"
+    }
+   ],
+   "camps": [
+    {
+     "id": "fire-1",
+     "zone": "fire",
+     "x": 112,
+     "y": 112,
+     "eliteSpot": 0
+    }
+   ]
+  },
+  "spread": {
+   "spawnPool": [
+    {
+     "x": 80,
+     "y": 80,
+     "zone": "fire"
+    },
+    {
+     "x": 720,
+     "y": 80,
+     "zone": "plague"
+    },
+    {
+     "x": 80,
+     "y": 720,
+     "zone": "frost"
+    },
+    {
+     "x": 720,
+     "y": 720,
+     "zone": "holy"
+    }
+   ],
+   "camps": [
+    {
+     "id": "a-fire",
+     "zone": "fire",
+     "x": 112,
+     "y": 112,
+     "eliteSpot": -1
+    },
+    {
+     "id": "b-plague",
+     "zone": "plague",
+     "x": 700,
+     "y": 120,
+     "eliteSpot": 0
+    },
+    {
+     "id": "c-frost",
+     "zone": "frost",
+     "x": 120,
+     "y": 700,
+     "eliteSpot": 1
+    },
+    {
+     "id": "d-holy",
+     "zone": "holy",
+     "x": 700,
+     "y": 700,
+     "eliteSpot": -1
+    },
+    {
+     "id": "e-sentenced",
+     "zone": "sentenced",
+     "x": 400,
+     "y": 400,
+     "eliteSpot": 0
+    }
+   ]
+  }
+ }
+}
