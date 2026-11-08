@@ -64,8 +64,10 @@ no import of the profile store). Its model, kept exactly:
   `cargo test -p rh-persist --test bot_stats_db --test schema` — 4 + 3 passed (schema version 2 additive; empty load; one
   batch upsert/delete/update; a broken-table batch rolls back every row; the schema guards refuse damaged cells, keys and
   tiers, NaN and Infinity).
-- Workspace gate: GATE_TBD.
-- `cargo clippy --workspace --all-targets --all-features -- -D warnings` and `cargo fmt --all -- --check`: CLIPPY_TBD.
+- Workspace gate: **1,503 passed, 0 failed, 3 ignored, 155 test binaries, exit 0** (with the pinned PostgreSQL cluster;
+  the previous 1,481 plus the 22 P-BOTS-5 tests: 7 model, 11 store discipline, 4 row boundary) — the new
+  `tests/bot_stats_db.rs` target is the 155th binary.
+- `cargo clippy --workspace --all-targets --all-features -- -D warnings` and `cargo fmt --all -- --check`: clean.
 
 ## Remaining (exact)
 
