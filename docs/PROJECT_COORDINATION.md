@@ -36,12 +36,12 @@ protocol12/Observation18 privately; main remains11/17. Existing candidate checkp
 
 | Worker | Current packet / branch | Exclusive boundary |
 |---|---|---|
-| DeepSeek Rust / G6 worker | [P-G6](coordination/P-G6-HEAL-BARRIER-NATIVE.md), `deepseek/p-g6-heal-barrier` from `febf1f3f` | Heal/barrier candidate b50871d1 is held for [caller repair](coordination/P-G6-CALLER-REPAIR.md); checkpoint/state/hash/format/tapes stay leased |
-| DeepSeek Rust / second worker | [Frost resistance](coordination/P-FROST-RESISTANCE-1.md), assigned from `37a5ac30` | Frost player slow-resistance, dedicated source/native tests only; no G6/content/format files or PvE expansion |
+| DeepSeek Rust / G6 worker | [P-G6](coordination/P-G6-HEAL-BARRIER-NATIVE.md) and [caller repair](coordination/P-G6-CALLER-REPAIR.md), delivered `2a384510` | Native caller repair reviewed; production lease closed. State/checkpoint/format/hash-coverage handed to networking; content/derived tapes lead-owned |
+| DeepSeek Rust / second worker | [Frost resistance](coordination/P-FROST-RESISTANCE-1.md), delivered `6cfb7a41`; next [basic-NPC recipients](coordination/P-FROST-NPC-RECIPIENTS-1.md) | Player resistance bounded review passes; continuation owns Frost recipient code/tests only, no NPC source/gate expansion or shared identity files |
 | DeepSeek Post Rust | Barrier-view source `70a6790c` admitted in `33d72c34`; next [Wish public witness](coordination/P-WISH-PUBLIC-WITNESS-1.md) | Source evidence only; no native/codec/Unity changes |
 | Native observation specialist | Private production `ec9a9028`, source consumer `bbb7b012` | Production complete/reviewed; observe/item_view/wire lease handed to networking; remaining G6/transport/client proof held |
-| Networking chat | [P-NET-12-WISH-BARRIER](coordination/P-NET-12-WISH-BARRIER.md), `codex/wish-barrier-net12` from `5e9f2ac1` | PhaseA protocol/C#/JS/session/clock now; observe/wire PhaseB waits for specialist handover, and restore/hash/formats/tapes separately wait for G6 handover/root release |
-| Art chat | Source batch admitted through `f16bca0d`; Editor held idle | No repeated campaigns; HUD/confirmed-cue/barrier renderer packet follows stable delivered C# API |
+| Networking chat | [P-NET-12-WISH-BARRIER](coordination/P-NET-12-WISH-BARRIER.md), `codex/wish-barrier-net12` from `5e9f2ac1` | PhaseB observe/wire and G6 state/checkpoint/format/hash-coverage leases released. Merge full G6 `2a384510`; retain25/19. Headless event-time hashing released; content and derived tapes remain lead-owned |
+| Art chat | [Wish/barrier presentation](coordination/P-UNITY-WISH-BARRIER-1.md), stable client checkpoint `abd1ccfe` | Own HUD/Arena/presenter and released MatchClient lifecycle-only hunks. No input/Protocol/Net changes; one focused Editor batch before final-union Web proof |
 
 The lead sequences shared files, retains current guards and owns final identity/tape composition. Native source-born
 Frost/Sentenced NPC signature prerequisites remain genuine pending work; removing the current gate is not a port.
