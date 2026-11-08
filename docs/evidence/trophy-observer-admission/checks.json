@@ -1,0 +1,30 @@
+{
+  "base": "8e3d7268e7026e2a95d201bd8e639a4f65e24e21",
+  "logs": [
+    {
+      "file": "reward-final.log",
+      "sha256": "5737484df4b7f4cab6a3e821b6d41da667e8b888deba6ec1da128dd271430e02",
+      "scope": "final focused checks"
+    },
+    {
+      "file": "clippy-all-features.log",
+      "sha256": "22c43884e2f7d1bbcb4b288a80ebd519952f11cb451b131fc6b9c279d0a4ee3f",
+      "scope": "final focused checks"
+    },
+    {
+      "file": "clippy-default.log",
+      "sha256": "647985268f97f3cd4015901d0c5ddc15d985f801ad426a1dd9b820361bbb02f6",
+      "scope": "final focused checks"
+    },
+    {
+      "file": "fmt.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "scope": "final focused checks"
+    },
+    {
+      "file": "focused.log",
+      "sha256": "19c57671e3fa3065d0661b1849e623865b617dc86bb069505b9610f8776711b1",
+      "scope": "withdrawn ordinary-walk visibility assumption"
+    }
+  ]
+}
