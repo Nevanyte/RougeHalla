@@ -23,9 +23,10 @@ namespace Roguehalla.Net.Tests
         {
             readonly Dictionary<string, string> _tokens = new Dictionary<string, string>();
             public bool Blocked;
-            public string Read(string scope, string name) => Blocked ? null : _tokens.TryGetValue(scope + name, out var t) ? t : null;
+            public int Reads, Writes;
+            public string Read(string scope, string name) { ++Reads; return Blocked ? null : _tokens.TryGetValue(scope + name, out var t) ? t : null; }
             public bool WriteConfirmed(string scope, string name, string token)
-            { if (Blocked) return false; _tokens[scope + name] = token; return true; }
+            { ++Writes; if (Blocked) return false; _tokens[scope + name] = token; return true; }
         }
         static AccountEndpoint Endpoint() => AccountEndpoint.FromPage("https://game.example/play?token=ignored");
         static AccountReply Owned(string name = "Alice", bool created = true) => new AccountReply
@@ -303,6 +304,93 @@ namespace Roguehalla.Net.Tests
             transport.Requests[0].Reply.SetResult(new AccountHttpResponse(status));
             Assert.IsNull(await join); Assert.AreEqual(AccountHubState.Failed, flow.Snapshot.State);
             Assert.AreEqual(failure, flow.Snapshot.Failure); Assert.IsFalse(flow.Snapshot.Busy);
+        }
+
+        static void NoRecoveryKey(AccountHubFlow flow)
+        {
+            Assert.IsFalse(flow.TryGetRecoveryKey(out var name, out var key));
+            Assert.IsTrue(name == string.Empty); Assert.IsTrue(key == string.Empty);
+        }
+
+        [Test]
+        public async Task RecoveryKeyRequiresConfirmedOwnershipAndReadsWithoutStateEventsStorageOrHttp()
+        {
+            var transport = new Transport(); var store = new Store { Blocked = true }; var flow = Flow(transport, store);
+            NoRecoveryKey(flow); flow.SelectName("Alice"); NoRecoveryKey(flow);
+            var opening = flow.OpenProfileAsync("Alice"); NoRecoveryKey(flow);
+            var reply = Owned();
+            Roguehalla.Client.AccountFullJson.AttachProfile(reply, "{\"profile\":{\"name\":\"Alice\",\"gvByMonth\":[]}}");
+            transport.Requests[0].Reply.SetResult(new AccountHttpResponse(200, reply)); Assert.IsTrue(await opening);
+            Assert.AreEqual(AccountCredentialRecovery.PageLifetimeOnly, flow.Snapshot.Recovery);
+            Assert.AreEqual(AccountFailure.Unreadable, flow.Snapshot.FullProfileFailure);
+            var snapshot = flow.Snapshot; int reads = store.Reads, writes = store.Writes, requests = transport.Requests.Count, events = 0;
+            flow.Changed += _ => ++events;
+            reply.profile.name = "Mallory"; reply.token = "unconfirmed caller mutation";
+            Assert.IsTrue(flow.TryGetRecoveryKey(out var name, out var key));
+            Assert.IsTrue(name == "Alice"); Assert.IsTrue(key == new string('a', 64));
+            Assert.AreSame(snapshot, flow.Snapshot); Assert.AreEqual(0, events);
+            Assert.AreEqual(reads, store.Reads); Assert.AreEqual(writes, store.Writes); Assert.AreEqual(requests, transport.Requests.Count);
+            flow.Cancel(); NoRecoveryKey(flow);
+        }
+
+        [TestCase("open")] [TestCase("join")] [TestCase("refresh")]
+        public async Task RecoveryKeyIsUnavailableDuringBusyOperationsEvenForThePreviouslyOwnedName(string action)
+        {
+            var transport = new Transport(); var flow = Flow(transport);
+            var opening = flow.OpenProfileAsync("Alice"); transport.Requests[0].Reply.SetResult(new AccountHttpResponse(200, Owned())); await opening;
+            Assert.IsTrue(flow.TryGetRecoveryKey(out _, out _));
+            Task busy = action == "join" ? (Task)flow.PrepareJoinAsync("Alice", "wss://game.example/ws") :
+                action == "refresh" ? flow.RefreshAfterResultAsync() : flow.OpenProfileAsync("Alice");
+            Assert.IsTrue(flow.Snapshot.Busy); NoRecoveryKey(flow); Assert.AreEqual(2, transport.Requests.Count);
+            transport.Requests[1].Reply.SetResult(new AccountHttpResponse(200, Owned(created: false))); await busy;
+            Assert.IsTrue(flow.TryGetRecoveryKey(out var name, out var key)); Assert.IsTrue(name == "Alice" && key == new string('a', 64));
+        }
+
+        [Test]
+        public async Task LateConfirmedClaimAfterSelectionSwitchNeedsExplicitReopenBeforeKeyRecovery()
+        {
+            var transport = new Transport(); var flow = Flow(transport, new Store { Blocked = true });
+            var opening = flow.OpenProfileAsync("Alice"); flow.SelectName("Bob"); NoRecoveryKey(flow);
+            transport.Requests[0].Reply.SetResult(new AccountHttpResponse(200, Owned())); Assert.IsFalse(await opening); NoRecoveryKey(flow);
+            flow.SelectName("Alice"); NoRecoveryKey(flow);
+            var reopen = flow.OpenProfileAsync("Alice"); Assert.IsTrue(transport.Requests[1].Token == new string('a', 64)); NoRecoveryKey(flow);
+            transport.Requests[1].Reply.SetResult(new AccountHttpResponse(200, Owned(created: false))); Assert.IsTrue(await reopen);
+            Assert.IsTrue(flow.TryGetRecoveryKey(out var name, out var key)); Assert.IsTrue(name == "Alice" && key == new string('a', 64));
+            flow.SelectName("Bob"); NoRecoveryKey(flow);
+        }
+
+        [TestCase("https://game.example/other/api")] [TestCase("https://other.example/api")]
+        public async Task RecoveryKeyCannotCrossFullApiBaseOrOriginWithTheSameNameAndCredentialStore(string otherApi)
+        {
+            var store = new Store(); var first = new Transport(); var second = new Transport();
+            var a = Flow(first, store); var b = new AccountHubFlow(new AccountSession(AccountEndpoint.FromPage("https://game.example/", otherApi), second, store));
+            var opening = a.OpenProfileAsync("Alice"); first.Requests[0].Reply.SetResult(new AccountHttpResponse(200, Owned())); await opening;
+            b.SelectName("Alice"); NoRecoveryKey(b); Assert.AreEqual(0, second.Requests.Count);
+            var other = b.OpenProfileAsync("Alice"); Assert.IsNull(second.Requests[0].Token); NoRecoveryKey(b);
+            var reply = Owned(); reply.token = new string('c', 64); second.Requests[0].Reply.SetResult(new AccountHttpResponse(200, reply)); await other;
+            Assert.IsTrue(a.TryGetRecoveryKey(out var nameA, out var keyA)); Assert.IsTrue(nameA == "Alice" && keyA == new string('a', 64));
+            Assert.IsTrue(b.TryGetRecoveryKey(out var nameB, out var keyB)); Assert.IsTrue(nameB == "Alice" && keyB == new string('c', 64));
+        }
+
+        [Test]
+        public async Task RecoveryKeyRejectsMismatchedReplyAndReentrantOwnerSelectionChange()
+        {
+            var transport = new Transport(); var flow = Flow(transport);
+            var mismatched = flow.OpenProfileAsync("Alice"); transport.Requests[0].Reply.SetResult(new AccountHttpResponse(200, Owned("Bob")));
+            Assert.IsFalse(await mismatched); NoRecoveryKey(flow);
+            flow.Changed += snapshot => { if (snapshot.State == AccountHubState.Owned) flow.SelectName("Bob"); };
+            var opening = flow.OpenProfileAsync("Alice"); transport.Requests[1].Reply.SetResult(new AccountHttpResponse(200, Owned()));
+            Assert.IsFalse(await opening); NoRecoveryKey(flow); Assert.AreEqual("Bob", flow.Snapshot.SelectedName);
+        }
+
+        [Test]
+        public async Task RecoveryKeyRejectsReplacedSessionOwnershipEvenIfTheOldSnapshotStillSaysOwned()
+        {
+            var transport = new Transport(); var session = new AccountSession(Endpoint(), transport, new Store()); var flow = new AccountHubFlow(session);
+            var opening = flow.OpenProfileAsync("Alice"); transport.Requests[0].Reply.SetResult(new AccountHttpResponse(200, Owned())); await opening;
+            var outsideFlow = session.OpenAsync("Alice"); Assert.AreEqual(AccountHubState.Owned, flow.Snapshot.State); NoRecoveryKey(flow);
+            transport.Requests[1].Reply.SetResult(new AccountHttpResponse(200, Owned(created: false))); await outsideFlow;
+            Assert.AreEqual(AccountHubState.Owned, flow.Snapshot.State); NoRecoveryKey(flow);
         }
 
         static async Task Until(Func<bool> ready)
