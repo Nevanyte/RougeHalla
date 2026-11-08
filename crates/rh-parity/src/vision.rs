@@ -98,6 +98,7 @@ pub(super) fn verify_bootstrap(
     let mut s = Sim::new(
         SimConfig {
             quests: false,
+            consumables: true,
             min_players: ps.len(),
             fill_seconds: 0.,
             ..config.clone()

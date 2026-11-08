@@ -1,0 +1,11 @@
+--- a/crates/rh-sim/src/constants.rs
++++ b/crates/rh-sim/src/constants.rs
+@@ -227,7 +227,7 @@
+     PLAGUE_CORPSE_INTERACT_RANGE: f64 = 24.0, "u";
+     PLAGUE_CORPSE_HP_SHARE: f64 = 0.03, "fraction";
+     PLAGUE_CORPSE_HEAL_SHARE: f64 = 0.03, "fraction";
+-    PLAGUE_ZOMBIE_HP_SHARE: f64 = 0.08, "fraction";
++    PLAGUE_ZOMBIE_HP_SHARE: f64 = 0.04, "fraction";
+     PLAGUE_ZOMBIE_HP_PER_BONUS: f64 = 0.8, "fraction/bonus hp";
+     PLAGUE_ZOMBIE_HIT_SHARE: f64 = 0.003, "fraction";
+     PLAGUE_ZOMBIE_HIT_PER_BONUS: f64 = 0.025, "fraction/bonus hp";

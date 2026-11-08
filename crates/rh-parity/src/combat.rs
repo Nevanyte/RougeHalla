@@ -55,6 +55,8 @@ fn containers(sim: &Sim) -> Vec<Value> {
             // Quest containers never reach a public observation in this slice; the label is only for the closed kind.
             ContainerKind::Quest => ("quest", String::new()),
             ContainerKind::Cannon => ("cannon","Travel cannon · F to blast".to_string()),
+            // Legacy container kind "consumable" carrying one windEmblem item.
+            ContainerKind::WindEmblem => ("consumable","Wind emblem · walk over it".to_string()),
         };
         let items=c.items.iter().map(|i|json!({"def":i.def.as_str(),"uid":i.uid.to_string()})).collect::<Vec<_>>();
         // The shared legacy schema also supplies neutral fields for other container kinds

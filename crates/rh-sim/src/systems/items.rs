@@ -181,6 +181,25 @@ fn blocked_through(tick: u32, wait_for_publication: bool) -> u32 {
     }
 }
 
+/// A walk-over wind emblem (legacy `addContainer(world, "consumable", at, "Wind emblem · walk over it", [windEmblem])`).
+/// The emblem holds no inventory item; the wind system consumes it. No allocation: the container list is reserved for
+/// the emblem cap, and an empty item list never allocates.
+pub(crate) fn add_wind_emblem(w: &mut World, at: Vec2, tick: u32) -> u32 {
+    let id = w.next_entity_id();
+    w.containers.push(Container {
+        id,
+        kind: ContainerKind::WindEmblem,
+        ready_at: 0.,
+        target: None,
+        at,
+        opened: false,
+        items: Vec::new(),
+        stat_offer: false,
+        born_tick: tick,
+    });
+    id
+}
+
 pub(crate) fn add_container(
     w: &mut World,
     kind: ContainerKind,
@@ -401,9 +420,15 @@ fn take(cx: &mut Cx, ix: FighterIx, i: usize) -> Result<(), PickupRefusal> {
         .items
         .first()
         .ok_or(PickupRefusal::NothingToTake)?;
-    if item.def == crate::initial_world::ItemDef::PotionSmall {
+    let potion = match item.def {
+        crate::initial_world::ItemDef::PotionSmall => Some(crate::potions::Size::Small),
+        crate::initial_world::ItemDef::PotionLarge => Some(crate::potions::Size::Large),
+        crate::initial_world::ItemDef::Weapon(_) | crate::initial_world::ItemDef::Quest(_) => None,
+    };
+    if let Some(size) = potion {
         let id = cx.w.core(ix).id;
-        if !super::potions::grant(cx.w, cx.ev, id) {
+        // A full bag refuses the pickup without consuming the item (legacy `pickConsumable`).
+        if !super::potions::grant(cx.w, cx.ev, id, size) {
             cx.ev.push(Event::PotionNotice {
                 id,
                 notice: crate::potions::Notice::BagFull,

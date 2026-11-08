@@ -38,6 +38,7 @@ fn warmed_terrain_passes_allocate_nothing() {
         let mut sim = Sim::reset_active(
             SimConfig {
                 quests: false,
+                consumables: true,
                 lifecycle: rh_sim::ArenaMode::Off,
                 hazards: Mode::All,
                 ..Default::default()

@@ -1557,7 +1557,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Full Wish casting requires protocol 7")]
+    #[should_panic(expected = "Full Wish casting requires protocol 8")]
     fn wish_profile_direct_room_construction_refuses_before_sim_or_entropy() {
         let mut config = cfg(Duration::from_millis(50));
         config.sim.abilities = rh_sim::abilities::Mode::Full;
@@ -1574,6 +1574,7 @@ mod tests {
                 regen: false,
                 training: false,
                 dummies: false,
+                consumables: true,
                 abilities: rh_sim::abilities::Mode::Off,
                 wish_lock_ms: rh_sim::abilities::WISH_LOCK_MS,
                 hazards: rh_sim::terrain::Mode::Off,
@@ -1823,6 +1824,7 @@ mod tests {
             .collect::<Vec<_>>();
         room.sim = Sim::reset_active(
             SimConfig {
+                consumables: true,
                 faction_mode: rh_sim::FactionMode::EngagementHolyPlagueFire,
                 // Off until the coordinator-owned quest transport packet lands; the lifecycle has its own config switch.
                 quests: false,

@@ -1,0 +1,11 @@
+--- a/crates/rh-sim/src/systems/potions.rs
++++ b/crates/rh-sim/src/systems/potions.rs
+@@ -92,7 +92,7 @@
+     });
+     cx.w.potion_healing[at].hots.push(Hot {
+         next: now + DEFINITION.step_ms,
+-        left: (DEFINITION.heal_ms / DEFINITION.step_ms) as u8,
++        left: (DEFINITION.heal_ms / DEFINITION.step_ms) as u8 + 1,
+         amount,
+     });
+     cx.w.players[i].potions_healing = cx.w.potion_healing[at].hots.len() as u8;

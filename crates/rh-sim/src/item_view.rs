@@ -31,6 +31,7 @@ impl PickupHandle {
 pub struct Inventory {
     pub active_slot: u8,
     pub potion_small: u8,
+    pub potion_large: u8,
     pub potions_healing: u8,
     pub slots: [Option<WeaponId>; 2],
 }
@@ -48,6 +49,11 @@ pub enum PropKind {
     Cannon {
         ready_at: u32,
     },
+    Corpse {
+        label: Arc<str>,
+    },
+    /// A walk-over wind emblem (no inventory item; the fixed label is the source's).
+    WindEmblem,
 }
 
 /// Position is already encoded on the public 1/8-unit grid. Field order is the canonical sort key.
@@ -219,6 +225,7 @@ impl ItemObserver {
                 crate::initial_world::ItemDef::Weapon(w) => Some(w),
                 crate::initial_world::ItemDef::PotionSmall
                 | crate::initial_world::ItemDef::Quest(_) => None,
+                crate::initial_world::ItemDef::PotionLarge => None,
             });
             let kind = match c.kind {
                 ContainerKind::Ground => PropKind::Ground(first.ok_or(OfferError::InvalidGround)?),
@@ -241,6 +248,7 @@ impl ItemObserver {
                 ContainerKind::Cannon => PropKind::Cannon {
                     ready_at: ready_ms(c.ready_at),
                 },
+                ContainerKind::WindEmblem => PropKind::WindEmblem,
             };
             let cue = PropCue {
                 x: position(c.at.x)?,
@@ -273,6 +281,32 @@ impl ItemObserver {
                 }
             }
             self.scratch.push(Candidate { cue, id: c.id });
+        }
+        if me.standing() && me.vitals.faction == crate::content::FactionId::Plague {
+            for corpse in &sim.w.plague_corpses {
+                if self.scratch.len() == MAX_VISIBLE_PROPS {
+                    return Err(OfferError::TooManyProps);
+                }
+                let label = sim
+                    .w
+                    .roster
+                    .label(corpse.player)
+                    .filter(|s| s.len() <= u8::MAX as usize)
+                    .ok_or(OfferError::InvalidBodyLabel)?;
+                let cue = PropCue {
+                    x: position(corpse.x)?,
+                    y: position(corpse.y)?,
+                    kind: PropKind::Corpse {
+                        label: label.clone(),
+                    },
+                    focused: false,
+                    body_hint: None,
+                };
+                self.scratch.push(Candidate {
+                    cue,
+                    id: corpse.player.0,
+                });
+            }
         }
         if let Some((i, _, hint)) = best {
             self.scratch[i].cue.focused = true;
@@ -337,6 +371,7 @@ impl ItemObserver {
         out.inventory = sim.player(self.viewer).map(|me| Inventory {
             active_slot: me.weapon.slot,
             potion_small: me.potion_small,
+            potion_large: me.potion_large,
             potions_healing: me.potions_healing,
             slots: [me.weapon.weapon0, me.weapon.weapon1],
         });
@@ -602,8 +637,13 @@ mod tests {
         };
         let mut arena = practice_arena();
         arena.spawns = vec![Vec2::new(x, y)];
+        // These scripted racks must keep their handle order: no wind emblems in this world.
+        let config = SimConfig {
+            consumables: false,
+            ..SimConfig::default()
+        };
         Sim::reset_active(
-            SimConfig::default(),
+            config,
             arena,
             Secrets::from_seed(4),
             &[
@@ -736,6 +776,7 @@ mod tests {
             view.inventory,
             Some(Inventory {
                 potion_small: 0,
+                potion_large: 0,
                 potions_healing: 0,
                 active_slot: 0,
                 slots: [None, Some(Wand)]

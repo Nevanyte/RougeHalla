@@ -26,6 +26,7 @@ fn scene(hp: f64) -> Sim {
     Sim::reset_active(
         SimConfig {
             quests: false,
+            consumables: true,
             faction_mode: FactionMode::EngagementHolyPlague,
             ..Default::default()
         },

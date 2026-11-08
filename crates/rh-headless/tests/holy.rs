@@ -16,6 +16,7 @@ fn env() -> Env {
             arena,
             sim: SimConfig {
                 quests: false,
+                consumables: true,
                 faction_mode: rh_sim::FactionMode::EngagementHoly,
                 ..Default::default()
             },

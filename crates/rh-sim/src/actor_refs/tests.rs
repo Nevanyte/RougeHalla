@@ -50,6 +50,7 @@ fn world() -> Sim {
     Sim::reset_active(
         SimConfig {
             quests: false,
+            consumables: true,
             mob_mode: crate::mob_runtime::MobMode::Pve,
             ..Default::default()
         },

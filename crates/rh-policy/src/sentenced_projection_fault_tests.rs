@@ -23,6 +23,7 @@ fn scene() -> Sim {
     Sim::reset_active(
         rh_sim::SimConfig {
             quests: false,
+            consumables: true,
             faction_mode: rh_sim::FactionMode::EngagementHolyPlagueFireFrostSentenced,
             ..Default::default()
         },

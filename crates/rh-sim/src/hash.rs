@@ -520,6 +520,7 @@ mod tests {
         cfg.k = crate::statics::MatchStatic::new(
             SimConfig {
                 quests: false,
+                consumables: true,
                 pvp_rules: false,
                 ..a.k.config.clone()
             },

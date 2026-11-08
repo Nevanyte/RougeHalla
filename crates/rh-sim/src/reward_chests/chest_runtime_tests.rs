@@ -79,6 +79,11 @@ fn make_sim(case: &Value) -> Sim {
     if side_of(scenario) {
         Sim::reset_active(
             SimConfig {
+                consumables: input["installers"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .any(|v| v == "consumables"),
                 quests: false,
                 mob_mode: MobMode::Pve,
                 ..Default::default()
@@ -90,6 +95,11 @@ fn make_sim(case: &Value) -> Sim {
     } else {
         let mut sim = Sim::new(
             SimConfig {
+                consumables: input["installers"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .any(|v| v == "consumables"),
                 quests: false,
                 initial_loot: true,
                 min_players: 2,

@@ -34,6 +34,10 @@ pub enum Event {
         id: PlayerId,
         weapon: WeaponId,
     },
+    /// A player walked over a wind emblem: private "+50% movement for 5s" feedback.
+    WindEmblem {
+        id: PlayerId,
+    },
     CampCleared {
         camp: u32,
     },
@@ -97,6 +101,11 @@ pub enum Event {
     MarkNotice {
         recipient: PlayerId,
         notice: MarkNotice,
+    },
+    /// Private Plague corpse feedback. Server-only until the corpse transport lands.
+    PlagueNotice {
+        recipient: PlayerId,
+        notice: PlagueNotice,
     },
     /// Source-exact private delayed chunk. Public projection consumes per-tick contributions instead.
     SignatureHit {
@@ -249,10 +258,12 @@ impl Event {
             Event::PickupRefused { id, .. }
             | Event::PotionNotice { id, .. }
             | Event::Toast { to: id, .. }
-            | Event::CannonNotice { id, .. } => Visibility::Owner(id),
+            | Event::CannonNotice { id, .. }
+            | Event::WindEmblem { id } => Visibility::Owner(id),
             Event::Bounty { .. } | Event::Victory { .. } => Visibility::Everyone,
             Event::AbilityHit { .. }
             | Event::MarkNotice { .. }
+            | Event::PlagueNotice { .. }
             | Event::SignatureHit { .. }
             | Event::ProjectileLaunched(_)
             | Event::ProjectileEnded { .. }
@@ -288,11 +299,14 @@ impl Event {
             | Event::Heal { .. }
             | Event::AttackCancelled { .. }
             | Event::Stagger { .. } => Class::Fx,
-            Event::PickupRefused { .. } | Event::PotionNotice { .. } | Event::Toast { .. } | Event::CannonNotice { .. } => {
-                Class::Important
-            }
+            Event::PickupRefused { .. }
+            | Event::PotionNotice { .. }
+            | Event::Toast { .. }
+            | Event::CannonNotice { .. }
+            | Event::WindEmblem { .. } => Class::Important,
             Event::AbilityHit { .. }
             | Event::MarkNotice { .. }
+            | Event::PlagueNotice { .. }
             | Event::SignatureHit { .. }
             | Event::ProjectileLaunched(_)
             | Event::ProjectileEnded { .. }
@@ -328,12 +342,39 @@ impl CannonNotice {
     }
 }
 
+/// Private Plague corpse notices.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum PlagueNotice {
+    OnlyLiving,
+    OnlyPlague,
+    Blocked,
+    Gone,
+    Far,
+    Unreachable,
+    Consumed { player: PlayerId },
+}
+impl PlagueNotice {
+    pub const fn message(self) -> &'static str {
+        match self {
+            Self::OnlyLiving => "Only the living can consume a corpse",
+            Self::OnlyPlague => "Only Plague can consume corpses",
+            Self::Blocked => "Can't do that now",
+            Self::Gone => "That corpse is gone",
+            Self::Far => "Too far away",
+            Self::Unreachable => "Can't reach that",
+            Self::Consumed { .. } => "",
+        }
+    }
+}
+
 /// Private source notices, fixed text without per-step string allocation.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum MarkNotice {
     Marked,
     CarriedOut,
     ExecuteBlocked,
+    Hunting { target: PlayerId },
+    HuntComplete { stacks: u32 },
 }
 impl MarkNotice {
     pub const fn message(self) -> &'static str {
@@ -341,6 +382,8 @@ impl MarkNotice {
             Self::Marked => "Sentenced marked you.",
             Self::CarriedOut => "Your sentence has been carried out.",
             Self::ExecuteBlocked => "Execute blocked - already sentenced.",
+            Self::Hunting { .. } => "",
+            Self::HuntComplete { .. } => "",
         }
     }
 }

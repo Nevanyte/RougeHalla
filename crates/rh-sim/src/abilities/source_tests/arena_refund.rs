@@ -12,6 +12,7 @@ pub(super) fn arena_genuine_freeze_laststand_and_teleport_refund() {
     let mut sim = Sim::new(
         SimConfig {
             quests: false,
+            consumables: true,
             abilities: Mode::Full,
             wish_lock_ms: 0.,
             min_players: 3,

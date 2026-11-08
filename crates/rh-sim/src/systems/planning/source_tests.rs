@@ -130,6 +130,7 @@ pub(super) fn make(source: &Value, input: &Value) -> Sim {
     Sim::new(
         SimConfig {
             quests: false,
+            consumables: false,
             min_players: input["players"].as_array().unwrap().len(),
             lobby_seconds: 30.,
             fill_seconds: 0.,
@@ -137,7 +138,6 @@ pub(super) fn make(source: &Value, input: &Value) -> Sim {
             lifecycle: crate::ArenaMode::Source(rules),
             initial_loot: roster,
             // The recorded arena capture profiles list no `consumables` installer: no travel cannons there.
-            consumables: false,
             mob_mode: if roster {
                 crate::mob_runtime::MobMode::Pve
             } else {
@@ -962,6 +962,7 @@ fn actor_name(sim: &Sim, id: PlayerId) -> String {
         | crate::mob_runtime::ActorOrigin::Dummy { birth_serial, .. } => {
             format!("mob{}", radix36(*birth_serial))
         }
+        crate::mob_runtime::ActorOrigin::Zombie { owner } => format!("zombie{}", owner.0),
     }
 }
 fn roster_snapshot(sim: &Sim, f: &Value, ctx: &str) {

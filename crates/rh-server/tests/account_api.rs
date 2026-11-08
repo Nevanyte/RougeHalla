@@ -99,6 +99,7 @@ async fn rig_with_pause(cfg: ApiConfig, pause: Option<Arc<AcquirePause>>) -> Rig
             quests: false,
             training: false,
             dummies: false,
+            consumables: true,
             abilities: rh_sim::abilities::Mode::Off,
             wish_lock_ms: rh_sim::abilities::WISH_LOCK_MS,
             lifecycle: rh_sim::ArenaMode::Off,

@@ -4,6 +4,7 @@ fn scene() -> Sim {
     Sim::reset_active(
         SimConfig {
             quests: false,
+            consumables: true,
             faction_mode: crate::FactionMode::EngagementHolyPlagueFireFrostSentenced,
             pvp_rules: false,
             ..Default::default()

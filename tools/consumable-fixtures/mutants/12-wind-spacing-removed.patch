@@ -1,0 +1,11 @@
+--- a/crates/rh-sim/src/systems/wind.rs
++++ b/crates/rh-sim/src/systems/wind.rs
+@@ -108,7 +108,7 @@
+         }
+         if cx.w.containers.iter().any(|c| {
+             c.kind == ContainerKind::WindEmblem
+-                && hypot(c.at.x - at.x, c.at.y - at.y) < TILE * WIND_EMBLEM_SPACING
++                && false
+         }) {
+             continue;
+         }

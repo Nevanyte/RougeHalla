@@ -159,7 +159,7 @@ fn a_training_world_is_active_from_the_first_tick_with_the_practice_setup() {
     assert_eq!(rack, want);
     // The dummies are observable with the dummy actor kind (2) and no catalog type.
     let obs = crate::observe(&sim, p.id, &[]);
-    let visible: Vec<_> = obs.visible.iter().filter(|a| a.kind == 2).collect();
+    let visible: Vec<_> = obs.visible.iter().filter(|a| a.kind == 3).collect();
     assert_eq!(visible.len(), 2);
     assert!(visible.iter().all(|a| a.mob_type.is_none()));
 }

@@ -93,6 +93,9 @@ impl Sim {
     pub fn mobs(&self) -> &[crate::mob_runtime::Mob] {
         self.w.mobs.as_slice()
     }
+    pub fn plague_corpses(&self) -> &[crate::state::PlagueCorpse] {
+        &self.w.plague_corpses
+    }
     pub fn camp_rosters(&self) -> &[crate::mob_runtime::CampRoster] {
         self.w.mob_runtime.as_ref().map_or(&[], |rt| &rt.camps)
     }
@@ -400,7 +403,10 @@ impl Sim {
         let event_start = out.len();
         self.s.fx.ops.clear();
         self.w.server_time += TICK_MS;
-        self.w.tick += 1;
+        // A restored checkpoint may legitimately sit one step below the maximum; the tick is the
+        // simulation's one bounded counter, so a damaged or terminal state saturates instead of
+        // panicking. A checkpoint at the maximum is refused by `check_world`.
+        self.w.tick = self.w.tick.saturating_add(1);
         out.append(&mut self.w.pending_events);
         systems::step(&mut Cx {
             stats,

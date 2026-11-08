@@ -21,8 +21,8 @@ const tracker=new Tracker();tracker.decode(state(camp()));tracker.decode(Uint8Ar
 ok(()=>assert.deepEqual(tracker.collections.get(6),[camp()]));
 tracker.reset();ok(()=>assert.equal(tracker.collections.size,0));
 function notice(n){const w=new W();w.u8(0x84);w.u32(1);w.u16(1);w.u8(7);w.u8(n);return buf(w);}
-for(let n=1;n<=7;n++)ok(()=>assert.deepEqual(decode(notice(n)).events,[{k:'potionNotice',notice:n}]));
-for(const n of [0,8])ok(()=>assert.throws(()=>decode(notice(n))));
+for(let n=1;n<=10;n++)ok(()=>assert.deepEqual(decode(notice(n)).events,[{k:'potionNotice',notice:n}]));
+for(const n of [0,11])ok(()=>assert.throws(()=>decode(notice(n))));
 // New fields default, replace, and explicitly clear in a binary delta without mutating held inputs.
 const base={t:'snapshot',tick:1,phase:1,me:null,actors:[{id:2,x:1,y:2,facing:0,hpPct:100,status:1,mobTypeCode:30,sig:255}]};tracker.apply(base);
 const delta=new W();delta.u8(0x87);v(delta,2);v(delta,1);v(delta,0);v(delta,0);v(delta,1);v(delta,2);v(delta,0xc00);delta.u8(0);delta.u8(0);

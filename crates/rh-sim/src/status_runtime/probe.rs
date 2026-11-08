@@ -867,6 +867,7 @@ mod tests {
         Sim::reset_active(
             crate::SimConfig {
                 quests: false,
+                consumables: true,
                 pvp_rules: false,
                 ..Default::default()
             },
@@ -1052,6 +1053,7 @@ mod scheduled_view_tests {
         Sim::reset_active(
             crate::SimConfig {
                 quests: false,
+                consumables: true,
                 pvp_rules: false,
                 faction_mode: crate::FactionMode::EngagementHoly,
                 ..Default::default()

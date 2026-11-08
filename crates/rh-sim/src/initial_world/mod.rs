@@ -15,6 +15,7 @@ mod tests;
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum ItemDef {
     PotionSmall,
+    PotionLarge,
     Weapon(WeaponId),
     /// A quest token/parcel item (source `quest:<id>`), named by the offer's run-local id.
     Quest(u32),
@@ -23,6 +24,7 @@ impl ItemDef {
     pub fn as_str(self) -> &'static str {
         match self {
             Self::PotionSmall => "potionSmall",
+            Self::PotionLarge => "potionLarge",
             Self::Weapon(w) => w.as_str(),
             Self::Quest(_) => "questItem",
         }

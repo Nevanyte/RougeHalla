@@ -119,6 +119,14 @@ pub enum PublicCommand {
     Target {
         actor: crate::PlayerId,
     },
+    /// Sentenced hunt selection (legacy `huntTarget`).
+    HuntTarget {
+        actor: crate::PlayerId,
+    },
+    /// Plague corpse harvest (legacy `consumeCorpse`); the handle is the corpse prop's observer handle.
+    ConsumeCorpse {
+        handle: crate::PickupHandle,
+    },
     /// Walk to a point (right click / WASD goal). `seq` is echoed in the player's `move_seq` once applied.
     Move {
         x: f64,
@@ -188,6 +196,12 @@ pub enum RawCommand {
     },
     Target {
         id: crate::PlayerId,
+    },
+    HuntTarget {
+        id: crate::PlayerId,
+    },
+    ConsumeCorpse {
+        corpse: crate::PlayerId,
     },
     MissingTarget,
     /// Walk to a point (right click / WASD goal). `seq` is echoed in the player's `move_seq` once applied.
@@ -282,6 +296,12 @@ enum Kind {
     Target {
         id: crate::PlayerId,
     },
+    HuntTarget {
+        id: crate::PlayerId,
+    },
+    ConsumeCorpse {
+        corpse: crate::PlayerId,
+    },
     MissingTarget,
     AttackMove {
         x: f64,
@@ -359,6 +379,14 @@ impl PublicCommand {
                     RawCommand::MissingTarget
                 }
             }
+            Self::HuntTarget { actor } if actor.0 == 0 => return Err(Reject::InvalidTarget),
+            Self::HuntTarget { actor } => RawCommand::HuntTarget { id: actor },
+            Self::ConsumeCorpse { handle } => match lookup(handle) {
+                Some(id) if id != 0 => RawCommand::ConsumeCorpse {
+                    corpse: crate::PlayerId(id),
+                },
+                _ => return Err(Reject::InvalidContainer),
+            },
             Self::AttackMove { x, y, seq } => RawCommand::AttackMove { x, y, seq },
             Self::Pickup { handle } => match lookup(handle) {
                 Some(container_id) => RawCommand::Pickup { container_id },
@@ -402,6 +430,8 @@ impl Kind {
                 pick,
             },
             Kind::Target { id } => RawCommand::Target { id },
+            Kind::HuntTarget { id } => RawCommand::HuntTarget { id },
+            Kind::ConsumeCorpse { corpse } => RawCommand::ConsumeCorpse { corpse },
             Kind::MissingTarget => RawCommand::MissingTarget,
             Kind::AttackMove { x, y, seq } => RawCommand::AttackMove { x, y, seq },
             Kind::MissingPickup => RawCommand::MissingPickup,
@@ -585,6 +615,10 @@ pub fn validate(raw: RawCommand) -> Result<Command, Reject> {
         }
         RawCommand::Target { id } if id.0 == 0 => return Err(Reject::InvalidTarget),
         RawCommand::Target { id } => Kind::Target { id },
+        RawCommand::HuntTarget { id } if id.0 == 0 => return Err(Reject::InvalidTarget),
+        RawCommand::HuntTarget { id } => Kind::HuntTarget { id },
+        RawCommand::ConsumeCorpse { corpse } if corpse.0 == 0 => return Err(Reject::InvalidTarget),
+        RawCommand::ConsumeCorpse { corpse } => Kind::ConsumeCorpse { corpse },
         RawCommand::MissingTarget => Kind::MissingTarget,
         RawCommand::AttackMove { x, y, seq } => {
             let (x, y) = clamp_pt(x, y)?;
@@ -648,6 +682,12 @@ pub(crate) enum ActionCmd {
     },
     Target {
         id: crate::PlayerId,
+    },
+    HuntTarget {
+        id: crate::PlayerId,
+    },
+    ConsumeCorpse {
+        corpse: crate::PlayerId,
     },
     MissingTarget,
     Attack {
@@ -793,6 +833,13 @@ impl InputQueue {
                     Kind::Trade { trader, pick },
                 )?,
                 ActionCmd::Target { id } => same(RawCommand::Target { id }, Kind::Target { id })?,
+                ActionCmd::HuntTarget { id } => {
+                    same(RawCommand::HuntTarget { id }, Kind::HuntTarget { id })?
+                }
+                ActionCmd::ConsumeCorpse { corpse } => same(
+                    RawCommand::ConsumeCorpse { corpse },
+                    Kind::ConsumeCorpse { corpse },
+                )?,
                 ActionCmd::MissingTarget => same(RawCommand::MissingTarget, Kind::MissingTarget)?,
                 ActionCmd::MissingPickup => same(RawCommand::MissingPickup, Kind::MissingPickup)?,
                 ActionCmd::Swap { slot } => same(RawCommand::Swap { slot }, Kind::Swap { slot })?,
@@ -898,6 +945,10 @@ impl InputQueue {
                 self.move_before = self.actions.len();
             }
             Kind::Target { id } => return self.push_action(ActionCmd::Target { id }),
+            Kind::HuntTarget { id } => return self.push_action(ActionCmd::HuntTarget { id }),
+            Kind::ConsumeCorpse { corpse } => {
+                return self.push_action(ActionCmd::ConsumeCorpse { corpse })
+            }
             Kind::MissingTarget => return self.push_action(ActionCmd::MissingTarget),
             Kind::Stop { seq } => {
                 self.mv = Some(MoveCmd::Stop { seq });

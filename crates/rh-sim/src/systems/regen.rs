@@ -123,6 +123,7 @@ mod tests {
 
     fn landed(by: u32, victim: u32) -> LandedHit {
         LandedHit {
+            race: 1.,
             critical: false,
             cut: 0.0,
             ability: None,

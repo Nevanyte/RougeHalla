@@ -43,6 +43,8 @@ fn me() -> WireSelf {
         bounty: 0,
         gv: 20,
         move_seq: 7,
+        hunt_target: None,
+        hunt_stacks: 0,
     }
 }
 

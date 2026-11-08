@@ -125,6 +125,7 @@ fn main() {
     };
     let sim = SimConfig {
         quests: false,
+        consumables: true,
         initial_loot: true,
         consumables: true,
         mob_mode: rh_sim::mob_runtime::MobMode::Pve,

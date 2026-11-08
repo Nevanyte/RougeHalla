@@ -1,0 +1,24 @@
+{
+  "format": "rh-source-manifest/1",
+  "packet": "P-CONS-1b",
+  "probe": "potions, camp-clear reward and wind emblems",
+  "revision": "38697071",
+  "base": "deepseek/p-cons-1a (protocol 9) at 38697071",
+  "container": "node:22.23.4-bookworm-slim@sha256:aaa4b5baf1ecff3b283486bb1f90405cdda225a3e6f79660d2c559fa510a7292 (linux/amd64)",
+  "node": "v22.23.4",
+  "command": "tools/consumable-fixtures/capture.sh capture (npm ci --ignore-scripts --no-audit --no-fund; node --import tsx tools/consumable-fixtures/potions.ts /out/source.json)",
+  "check": "tools/consumable-fixtures/capture.sh --check (byte-for-byte cmp against parity/consumables/source.json)",
+  "sources": {
+    "packages/server/src/sim/consumables.ts": "96989f6b7d6147532e506028f164dc54f5a69b0ff9fd4765f32db3e2a58b3f4e",
+    "packages/server/src/sim/campHeal.ts": "978239a9a24f722a854187fab1ad32cf7fc1705141fbfa34fc88860eb5c35db4",
+    "packages/server/src/sim/camps.ts": "878c2ac07e0795cf3482a4173340c7c5e55e8ee0fbc32a8772f4f79d01bb1613",
+    "packages/shared/src/consumables.ts": "1ffd882c4b44fed9c20743e671050fc4044706c17e2c36c365952eafc3bd3606",
+    "packages/shared/src/constants.ts": "51ce4dd800ec868abee525fb1ae375688066f336972a7da878644df1235924e7",
+    "packages/server/src/sim/gameplay.ts": "70f6f2b67571783f3042309bef01dc75aabd2656c59a184d0f97c9c0a8b8cf78",
+    "parity/legacy-capture/intake.ts": "389e1fb1a3d3ed27f9e102804e50e5bc2fb5776025fdfc905cf90bad1025f238",
+    "tools/consumable-fixtures/potions.ts": "e54addc3d9b3fbc266c6b90bfcf20d26a294bd0dc502bcb2d505e9cc12a860a3"
+  },
+  "fixture": {
+    "parity/consumables/source.json": "0eb324902d44571caa3c8c6663b06460e0796aaffc0ec2efd63f895c9ff4407a"
+  }
+}

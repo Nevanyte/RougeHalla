@@ -91,6 +91,8 @@ fn me(id: u32, rng: &mut Rng) -> WireSelf {
         bounty: 0,
         gv: 0,
         move_seq: 0,
+        hunt_target: None,
+        hunt_stacks: 0,
     }
 }
 

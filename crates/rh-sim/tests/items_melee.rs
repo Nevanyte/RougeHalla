@@ -24,6 +24,7 @@ fn world(ps: &[Placement], specials: bool) -> Sim {
     Sim::reset_active(
         SimConfig {
             quests: false,
+            consumables: true,
             weapon_specials: specials,
             ..Default::default()
         },

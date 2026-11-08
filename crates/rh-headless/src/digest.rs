@@ -223,6 +223,10 @@ impl OutcomeDigest {
                 self.w(id.0.into());
                 self.s(&notice.message());
             }
+            Event::WindEmblem { id } => {
+                self.s("wind_emblem");
+                self.w(id.0.into());
+            }
             Event::MobArmed { id, weapon } => {
                 self.s("mob_armed");
                 self.w(id.0.into());
@@ -311,10 +315,34 @@ impl OutcomeDigest {
                 self.f(*ms);
                 self.opt(by.map(|p| p.0.into()));
             }
+            Event::PlagueNotice { recipient, notice } => {
+                self.s("plague_notice");
+                self.w(recipient.0 as u64);
+                match notice {
+                    rh_sim::events::PlagueNotice::Consumed { player } => {
+                        self.w(1);
+                        self.w(player.0 as u64);
+                    }
+                    other => {
+                        self.w(0);
+                        self.s(other.message());
+                    }
+                }
+            }
             Event::MarkNotice { recipient, notice } => {
                 self.s("mark_notice");
                 self.w(recipient.0 as u64);
-                self.s(notice.message());
+                match notice {
+                    rh_sim::events::MarkNotice::Hunting { target } => {
+                        self.s("hunting");
+                        self.w(target.0 as u64);
+                    }
+                    rh_sim::events::MarkNotice::HuntComplete { stacks } => {
+                        self.s("hunt_complete");
+                        self.w(u64::from(*stacks));
+                    }
+                    other => self.s(other.message()),
+                }
             }
             Event::SignatureHit {
                 victim,

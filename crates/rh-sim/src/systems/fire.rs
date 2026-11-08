@@ -134,6 +134,7 @@ mod tests {
             let mut sim = Sim::reset_active(
                 SimConfig {
                     quests: false,
+                    consumables: true,
                     faction_mode: crate::FactionMode::EngagementHolyPlagueFire,
                     pvp_rules: c["pvp"].as_bool().unwrap_or(true),
                     ..Default::default()
@@ -242,6 +243,7 @@ mod privacy {
         let mut s = Sim::reset_active(
             SimConfig {
                 quests: false,
+                consumables: true,
                 faction_mode: FactionMode::EngagementHolyPlagueFire,
                 ..Default::default()
             },

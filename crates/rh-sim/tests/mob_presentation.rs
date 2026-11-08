@@ -28,6 +28,7 @@ fn scene() -> Sim {
     Sim::reset_active(
         SimConfig {
             quests: false,
+            consumables: true,
             mob_mode: rh_sim::mob_runtime::MobMode::Pve,
             ..Default::default()
         },

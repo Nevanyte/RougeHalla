@@ -7,6 +7,7 @@ fn marked() -> Sim {
     let mut sim = Sim::reset_active(
         SimConfig {
             quests: false,
+            consumables: true,
             faction_mode: FactionMode::EngagementHolyPlagueFireFrostSentenced,
             ..Default::default()
         },

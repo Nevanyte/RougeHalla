@@ -24,6 +24,12 @@ impl Mulberry32 {
     pub fn next_f64(&mut self) -> f64 {
         self.next_u32() as f64 / 4_294_967_296.0
     }
+
+    /// The raw stream state (hashed and checkpointed; a test pins the wind stream's seed derivation).
+    #[cfg(test)]
+    pub(crate) fn state(&self) -> u32 {
+        self.state
+    }
 }
 
 /// The secret per-tick order in which players' inputs apply (legacy `actionOrder`): a Fisher-Yates shuffle of the join
@@ -77,6 +83,7 @@ pub(crate) fn tie_rank_origin(
         | crate::mob_runtime::ActorOrigin::Dummy { birth_serial, .. } => {
             (b"mob", *birth_serial, 36)
         }
+        crate::mob_runtime::ActorOrigin::Zombie { owner } => (b"zombie", owner.0, 10),
     };
     let mut h = salt ^ tick.wrapping_mul(0x9e37_79b1);
     for &b in prefix {

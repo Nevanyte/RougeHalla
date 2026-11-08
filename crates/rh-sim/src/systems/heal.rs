@@ -82,6 +82,7 @@ mod tests {
         let mut sim = Sim::reset_active(
             SimConfig {
                 quests: false,
+                consumables: true,
                 faction_mode: crate::FactionMode::EngagementHoly,
                 ..Default::default()
             },

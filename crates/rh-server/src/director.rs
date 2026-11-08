@@ -1930,6 +1930,7 @@ mod tests {
     async fn arena_profile_director_construction_is_admitted_transport() {
         let sim = SimConfig {
             quests: false,
+            consumables: true,
             lifecycle: rh_sim::ArenaMode::Source(Default::default()),
             ..Default::default()
         };
@@ -1944,9 +1945,10 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Full Wish casting requires protocol 7")]
+    #[should_panic(expected = "Full Wish casting requires protocol 8")]
     fn wish_profile_director_construction_refuses_before_runtime_spawn() {
         let sim = SimConfig {
+            consumables: true,
             abilities: rh_sim::abilities::Mode::Full,
             lifecycle: rh_sim::ArenaMode::Off,
             ..Default::default()
@@ -1964,6 +1966,7 @@ mod tests {
             regen: false,
             training: false,
             dummies: false,
+            consumables: true,
             abilities: rh_sim::abilities::Mode::Off,
             wish_lock_ms: rh_sim::abilities::WISH_LOCK_MS,
             hazards: rh_sim::terrain::Mode::Off,

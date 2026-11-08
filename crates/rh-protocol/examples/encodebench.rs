@@ -44,6 +44,8 @@ fn ring(fixed_actors: Option<usize>) -> Vec<SnapshotData> {
                 bounty: 0,
                 gv: 0,
                 move_seq: i as u8,
+                hunt_target: None,
+                hunt_stacks: 0,
             };
             let actors = (0..n).map(|k| WireActor {
                 sig: 0,

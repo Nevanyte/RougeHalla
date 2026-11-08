@@ -31,6 +31,7 @@ fn inventory(value: Inventory) -> WireInventory {
         active_slot: value.active_slot,
         slots: value.slots.map(|v| v.map(|w| w.code())),
         potion_small: value.potion_small,
+        potion_large: value.potion_large,
         potions_healing: value.potions_healing,
     }
 }
@@ -61,6 +62,10 @@ fn props(observation: &Observation) -> WireProps {
                     PropKind::Cannon { ready_at } => WirePropKind::Cannon {
                         ready_at: *ready_at,
                     },
+                    PropKind::Corpse { label } => WirePropKind::Corpse {
+                        label: label.to_string(),
+                    },
+                    PropKind::WindEmblem => WirePropKind::WindEmblem,
                 },
             }
         })
@@ -422,6 +427,7 @@ mod tests {
                 active_slot: 0,
                 slots: [None, None],
                 potion_small: 5,
+                potion_large: 4,
                 potions_healing: 3,
             }),
             ..Observation::default()

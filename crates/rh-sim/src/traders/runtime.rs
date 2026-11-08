@@ -332,7 +332,9 @@ pub(crate) fn handle_trade(cx: &mut Cx, ix: crate::fighter::FighterIx, cmd: &Act
         if held == crate::content::WeaponId::Fists {
             return;
         }
-        if pick == 1 && !crate::systems::potions::grant(cx.w, cx.ev, id) {
+        if pick == 1
+            && !crate::systems::potions::grant(cx.w, cx.ev, id, crate::potions::Size::Small)
+        {
             return;
         }
         let p = &mut cx.w.players[ix.slot()];

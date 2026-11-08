@@ -50,6 +50,7 @@ async fn a_live_match_replays_and_its_bots_decide_identically_headless() {
         quests: false,
         training: false,
         dummies: false,
+        consumables: true,
         abilities: rh_sim::abilities::Mode::Off,
         wish_lock_ms: rh_sim::abilities::WISH_LOCK_MS,
         lifecycle: rh_sim::ArenaMode::Off,

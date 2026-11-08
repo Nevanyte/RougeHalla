@@ -133,6 +133,9 @@ fn resolve_swings(cx: &mut Cx) {
                 }
             }
             let target = w.core(ti);
+            if !crate::systems::plague_zombies::hostile(w, req.attacker, target.id) {
+                continue;
+            }
             let dx = origin.x - at.x;
             let dy = origin.y - at.y;
             let blocked = matches!(req.weapon, WeaponId::Sword | WeaponId::Shield)

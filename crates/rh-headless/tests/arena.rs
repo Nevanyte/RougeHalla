@@ -12,6 +12,7 @@ fn map() -> Arena {
 fn config() -> SimConfig {
     SimConfig {
         quests: false,
+        consumables: true,
         lifecycle: ArenaMode::Source(ArenaRules {
             plan_seconds: 1.,
             first_patience_seconds: Some(0.1),

@@ -151,7 +151,7 @@ fn frame(sim: &Sim, ev: &[Event]) -> Value {
         })).collect::<Vec<_>>(),
         "containers": sim.w.containers.iter().map(|c| json!({
             "id": key(c.id),
-            "kind": match c.kind { ContainerKind::Ground => "ground", ContainerKind::Chest => "chest", ContainerKind::Body(_) => "body" },
+            "kind": match c.kind { ContainerKind::Ground => "ground", ContainerKind::Chest => "chest", ContainerKind::Body(_) => "body", ContainerKind::Quest => "quest", ContainerKind::Cannon => "cannon", ContainerKind::WindEmblem => "consumable" },
             "x": c.at.x,
             "y": c.at.y,
             "opened": c.opened,

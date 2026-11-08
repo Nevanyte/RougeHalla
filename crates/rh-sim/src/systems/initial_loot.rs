@@ -62,6 +62,14 @@ fn input(k: &MatchStatic) -> Input<'_> {
     )
 }
 pub(crate) fn initialize(k: &mut MatchStatic, w: &mut World) -> Result<(), &'static str> {
+    initialize_inner(k, w)?;
+    // The consumables module's install runs after the order salt is final: seed its private stream from that value so a
+    // replay (which re-derives the same salt) draws an identical emblem sequence.
+    crate::systems::wind::seed_install(w, k.secrets.order_salt);
+    Ok(())
+}
+
+fn initialize_inner(k: &mut MatchStatic, w: &mut World) -> Result<(), &'static str> {
     if !k.config.initial_loot && k.config.mob_mode == crate::mob_runtime::MobMode::Off {
         if k.config.lifecycle.rules().is_some() {
             k.secrets.order_salt = w.spawn_rng.next_u32();

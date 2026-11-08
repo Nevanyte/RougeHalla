@@ -135,6 +135,7 @@ impl Recorder {
                             crate::initial_world::ItemDef::Weapon(w) => Some(w),
                             crate::initial_world::ItemDef::PotionSmall
                             | crate::initial_world::ItemDef::Quest(_) => None,
+                            crate::initial_world::ItemDef::PotionLarge => None,
                         })
                         .collect(),
                 })

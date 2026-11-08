@@ -1,22 +1,39 @@
 //! Source Small potion pickup/use/Hot subresponsibility at existing source schedule positions.
 use super::Cx;
 use crate::{
-    potions::{Healing, Hot, Notice, DEFINITION},
+    potions::{Healing, Hot, Notice, Size, DEFINITION},
     Event, PlayerId,
 };
 fn notice(ev: &mut Vec<Event>, id: PlayerId, kind: Notice) {
     ev.push(Event::PotionNotice { id, notice: kind });
 }
-pub(crate) fn grant(w: &mut crate::state::World, ev: &mut Vec<Event>, id: PlayerId) -> bool {
+/// Stores one potion of `size` (legacy `grantConsumable`): false when the fighter is not standing or that stock is full.
+pub(crate) fn grant(
+    w: &mut crate::state::World,
+    ev: &mut Vec<Event>,
+    id: PlayerId,
+    size: Size,
+) -> bool {
     let Some(i) = w.idx(id) else { return false };
     if !w.players[i].standing() {
         return false;
     }
-    if w.players[i].potion_small >= DEFINITION.cap {
+    let stock = match size {
+        Size::Small => &mut w.players[i].potion_small,
+        Size::Large => &mut w.players[i].potion_large,
+    };
+    if *stock >= DEFINITION.cap {
         return false;
     }
-    w.players[i].potion_small += 1;
-    notice(ev, id, Notice::Stored);
+    *stock += 1;
+    notice(
+        ev,
+        id,
+        match size {
+            Size::Small => Notice::Stored,
+            Size::Large => Notice::LargeStored,
+        },
+    );
     true
 }
 pub(crate) fn use_potion(
@@ -36,13 +53,14 @@ pub(crate) fn use_potion(
     let now = cx.w.server_time;
     let active = cx.w.potion_healing.iter().position(|e| e.id == id);
     let count = active.map_or(0, |j| cx.w.potion_healing[j].hots.len());
+    let large = p.potion_large > 0;
     let refusal = if crate::status_runtime::action_blocked(&p.statuses, now) {
         Some(Notice::Blocked)
     } else if count >= usize::from(DEFINITION.concurrent) {
         Some(Notice::Busy)
     } else if p.vitals.hp >= p.vitals.max_hp {
         Some(Notice::Full)
-    } else if p.potion_small == 0 {
+    } else if p.potion_large == 0 && p.potion_small == 0 {
         Some(Notice::Empty)
     } else {
         None
@@ -51,9 +69,18 @@ pub(crate) fn use_potion(
         notice(cx.ev, id, reason);
         return;
     }
-    let amount =
-        p.vitals.max_hp * DEFINITION.small_share / (DEFINITION.heal_ms / DEFINITION.step_ms);
-    cx.w.players[i].potion_small -= 1;
+    // The camp potion is preferred when both are stored (legacy `const large = s.potionLarge > 0`).
+    let share = if large {
+        DEFINITION.large_share
+    } else {
+        DEFINITION.small_share
+    };
+    let amount = p.vitals.max_hp * share / (DEFINITION.heal_ms / DEFINITION.step_ms);
+    if large {
+        cx.w.players[i].potion_large -= 1;
+    } else {
+        cx.w.players[i].potion_small -= 1;
+    }
     cx.w.players[i].healing_until = now + DEFINITION.heal_ms;
     let at = active.unwrap_or_else(|| {
         let j = cx.w.potion_healing.len();
@@ -69,9 +96,18 @@ pub(crate) fn use_potion(
         amount,
     });
     cx.w.players[i].potions_healing = cx.w.potion_healing[at].hots.len() as u8;
-    notice(cx.ev, id, Notice::Used);
+    notice(
+        cx.ev,
+        id,
+        if large {
+            Notice::LargeUsed
+        } else {
+            Notice::Used
+        },
+    );
 }
-pub(crate) fn update(cx: &mut Cx) {
+/// The potion Hot loop (legacy `updateConsumables`'s second half).
+pub(crate) fn update_hots(cx: &mut Cx) {
     let now = cx.w.server_time;
     let mut i = 0;
     while i < cx.w.potion_healing.len() {
@@ -139,7 +175,8 @@ pub(crate) fn validate(w: &crate::state::World) -> Result<(), String> {
                 || !h.amount.is_finite()
                 || h.amount <= 0.
                 || h.amount
-                    > w.players[i].vitals.max_hp * DEFINITION.small_share
+                    > w.players[i].vitals.max_hp
+                        * DEFINITION.large_share.max(DEFINITION.small_share)
                         / (DEFINITION.heal_ms / DEFINITION.step_ms)
             {
                 return Err("invalid potion Hot".into());
@@ -156,6 +193,7 @@ pub(crate) fn validate(w: &crate::state::World) -> Result<(), String> {
     }
     for p in &w.players {
         if p.potion_small > DEFINITION.cap
+            || p.potion_large > DEFINITION.cap
             || (!w.potion_healing.iter().any(|e| e.id == p.id)
                 && (p.potions_healing != 0 || p.healing_until != 0.))
         {

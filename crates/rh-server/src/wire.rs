@@ -21,6 +21,12 @@ pub fn command(c: WireCommand) -> rh_sim::PublicCommand {
     match c {
         WireCommand::UseConsumable => Public::UseConsumable,
         // This remains a public reference: Room intake resolves it through the seat ItemObserver.
+        WireCommand::HuntTarget { actor } => Public::HuntTarget {
+            actor: rh_sim::PlayerId(actor),
+        },
+        WireCommand::ConsumeCorpse { handle } => Public::ConsumeCorpse {
+            handle: rh_sim::PickupHandle::new(handle.get()).expect("nonzero wire handle"),
+        },
         WireCommand::Target { actor } => Public::Target {
             actor: rh_sim::PlayerId(actor),
         },
@@ -169,6 +175,8 @@ fn wire_self(m: &rh_sim::observe::SelfView) -> WireSelf {
         bounty: sat16(m.bounty),
         gv: sat16(m.gv),
         move_seq: m.move_seq,
+        hunt_target: m.hunt_target.map(|id| id.0),
+        hunt_stacks: sat16(m.hunt_stacks),
     }
 }
 
@@ -305,6 +313,9 @@ fn to_wire(e: &SeenEvent) -> Wire {
                 rh_sim::potions::Notice::Busy => 5,
                 rh_sim::potions::Notice::Full => 6,
                 rh_sim::potions::Notice::Empty => 7,
+                rh_sim::potions::Notice::LargeStored => 8,
+                rh_sim::potions::Notice::LargeUsed => 9,
+                rh_sim::potions::Notice::CampBagFull => 10,
             },
         }),
         SeenEvent::CannonNotice { notice } => Wire::Event(WireEvent::CannonNotice {
@@ -322,6 +333,7 @@ fn to_wire(e: &SeenEvent) -> Wire {
         SeenEvent::MobArmed { .. } | SeenEvent::CampCleared { .. } => Wire::Omitted,
         // Protocol 8 owner-only practice-console notice (the publisher routes it to its owner's connection only).
         SeenEvent::Toast { ref text } => Wire::Event(WireEvent::Toast { text: text.clone() }),
+        SeenEvent::WindEmblem => Wire::Event(WireEvent::WindEmblem),
         SeenEvent::ChestRefused { reason } => Wire::Event(WireEvent::ChestRefused {
             reason: match reason {
                 rh_sim::reward_chests::Refusal::Busy => 1,
@@ -1104,6 +1116,7 @@ mod tests {
     fn view(id: u32) -> ActorView {
         ActorView {
             kind: 0,
+            owner: None,
             mob_type: None,
             effects: 0,
             displace_seq: 0,
@@ -1543,6 +1556,12 @@ mod tests {
             command(WireCommand::Target { actor: 0x8000_0201 }),
             rh_sim::PublicCommand::Target {
                 actor: rh_sim::PlayerId(0x8000_0201)
+            }
+        );
+        assert_eq!(
+            command(WireCommand::HuntTarget { actor: 2 }),
+            rh_sim::PublicCommand::HuntTarget {
+                actor: rh_sim::PlayerId(2)
             }
         );
         assert_eq!(

@@ -8,6 +8,7 @@ fn setup(c: &cases::Input) -> Sim {
     let mut s = Sim::new(
         SimConfig {
             quests: false,
+            consumables: true,
             min_players: 3,
             fill_seconds: 0.,
             ..Default::default()
@@ -247,6 +248,7 @@ fn replay_keeps_explicit_choice_and_between_tick_result() {
     use crate::replay::{apply_input, run_replay, Recorder, ReplayInput, ReplayStart};
     let config = SimConfig {
         quests: false,
+        consumables: true,
         min_players: 3,
         fill_seconds: 0.,
         ..Default::default()

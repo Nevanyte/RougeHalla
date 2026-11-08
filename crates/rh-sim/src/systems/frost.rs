@@ -268,6 +268,7 @@ mod tests {
         Sim::reset_active(
             SimConfig {
                 quests: false,
+                consumables: true,
                 faction_mode: crate::FactionMode::EngagementHolyPlagueFireFrost,
                 ..Default::default()
             },

@@ -125,6 +125,7 @@ fn actual_source_basic_faction_pve_frames_and_restore() {
         let mut sim = Sim::reset_active(
             SimConfig {
                 quests: false,
+                consumables: true,
                 mob_mode: MobMode::Pve,
                 faction_mode: crate::FactionMode::EngagementHolyPlagueFire,
                 ..Default::default()
@@ -542,6 +543,7 @@ fn compare_owned(
 fn basic_pve_mode_content_and_join_are_closed_before_mutation() {
     let cfg = SimConfig {
         quests: false,
+        consumables: true,
         mob_mode: MobMode::Pve,
         faction_mode: crate::FactionMode::EngagementHolyPlagueFire,
         ..Default::default()
@@ -565,6 +567,7 @@ fn basic_pve_mode_content_and_join_are_closed_before_mutation() {
 fn unsupported_scenario_placements_are_refused_before_loadouts_can_shift() {
     let cfg = SimConfig {
         quests: false,
+        consumables: true,
         mob_mode: MobMode::Pve,
         faction_mode: crate::FactionMode::EngagementHolyPlagueFire,
         ..Default::default()

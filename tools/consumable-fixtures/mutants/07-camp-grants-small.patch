@@ -1,0 +1,11 @@
+--- a/crates/rh-sim/src/systems/camp_heal.rs
++++ b/crates/rh-sim/src/systems/camp_heal.rs
+@@ -39,7 +39,7 @@
+             p.camps_cleared = p.camps_cleared.saturating_add(1);
+         }
+         // A contributor that finished the camp from outside still earns the potion (legacy's own rule).
+-        if !potions::grant(hx.w, hx.ev, id, Size::Large) {
++        if !potions::grant(hx.w, hx.ev, id, Size::Small) {
+             hx.ev.push(Event::PotionNotice {
+                 id,
+                 notice: Notice::CampBagFull,

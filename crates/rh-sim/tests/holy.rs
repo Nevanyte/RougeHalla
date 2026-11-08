@@ -18,6 +18,7 @@ fn scene() -> Sim {
     Sim::reset_active(
         SimConfig {
             quests: false,
+            consumables: true,
             faction_mode: rh_sim::FactionMode::EngagementHoly,
             ..Default::default()
         },
@@ -190,6 +191,7 @@ fn heal_visibility_reveals_only_recipient_and_does_not_change_older_views() {
     let mut sim = Sim::reset_active(
         SimConfig {
             quests: false,
+            consumables: true,
             faction_mode: rh_sim::FactionMode::EngagementHoly,
             ..Default::default()
         },
@@ -239,6 +241,7 @@ fn trusted_initial_hp_above_maximum_keeps_its_unclamped_source_fraction() {
     let mut sim = Sim::reset_active(
         SimConfig {
             quests: false,
+            consumables: true,
             faction_mode: rh_sim::FactionMode::EngagementHoly,
             ..Default::default()
         },

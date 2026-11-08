@@ -637,6 +637,7 @@ pub(crate) fn mark_pulse(
         } else {
             crate::constants::MARK_FAR_SHARE
         }
+        * crate::systems::sentenced_hunt::mark_multiplier(u32::from(p.hunt_stacks))
 }
 
 fn fold_build(

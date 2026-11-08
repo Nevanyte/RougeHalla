@@ -10,9 +10,14 @@
 
 pub(crate) mod abilities;
 pub(crate) mod bruiser;
+pub(crate) mod camp_heal;
 pub(crate) mod cannons;
 #[cfg(test)]
 mod cannons_source_tests;
+pub(crate) mod consumables;
+#[cfg(test)]
+#[path = "consumables_source_tests.rs"]
+mod consumables_source_tests;
 pub(crate) mod credit;
 pub(crate) mod displace;
 pub(crate) mod fields;
@@ -30,10 +35,13 @@ pub(crate) mod melee;
 pub(crate) mod mobs;
 pub(crate) mod movement;
 pub(crate) mod plague;
+pub(crate) mod plague_corpses;
+pub(crate) mod plague_zombies;
 pub(crate) mod potions;
 pub(crate) mod projectiles;
 pub(crate) mod regen;
 pub(crate) mod sentenced;
+pub(crate) mod sentenced_hunt;
 pub(crate) mod settle;
 pub(crate) mod signatures;
 pub(crate) mod status;
@@ -41,6 +49,7 @@ pub(crate) mod targeting;
 pub(crate) mod terrain;
 pub(crate) mod training;
 pub(crate) mod weapons;
+pub(crate) mod wind;
 
 use crate::events::Event;
 use crate::input::{validate, Command, RawCommand, Reject};

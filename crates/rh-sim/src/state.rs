@@ -381,6 +381,16 @@ pub struct PendingAction {
     pub roam_armed: bool,
 }
 
+/// One real player death's harvestable remains. Ordinary loot/body containers are separate.
+#[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct PlagueCorpse {
+    /// The fallen player's stable id; each player falls once per raid.
+    pub player: PlayerId,
+    pub x: f64,
+    pub y: f64,
+}
+
 /// A run-only item. Its identity is allocated by the world without consuming any RNG.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct WeaponItem {
@@ -398,6 +408,9 @@ pub enum ContainerKind {
     Quest,
     /// A travel cannon: no items; the public reload clock and landing live on the container.
     Cannon,
+    /// A walk-over wind emblem (legacy container kind "consumable" carrying `windEmblem`): it holds no inventory
+    /// item and is consumed by the wind system, never by the pickup action.
+    WindEmblem,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -564,6 +577,22 @@ pub struct Player {
     /// fighters that read it). None is "no hit yet": out of combat at once.
     #[serde(default)]
     pub(crate) regen_at: Option<f64>,
+    /// The selected rival's id, or 0 for none (legacy `huntTarget`; compact on purpose).
+    #[serde(default)]
+    pub hunt_target: u32,
+    /// Completed hunts; multiplies this player's Mark strength (legacy `huntStacks`).
+    #[serde(default)]
+    pub hunt_stacks: u8,
+    /// Camp potions (legacy `potionLarge`): a bigger share than the small one, stored separately. Appended after the
+    /// hot core so every pre-existing field keeps its offset.
+    #[serde(default)]
+    pub potion_large: u8,
+    /// Camps this player's clear counted for (legacy `campsCleared`; the only consumer is a later card).
+    #[serde(default)]
+    pub camps_cleared: u16,
+    /// Legacy `speedBoostUntil`: the wind emblem's +50% movement speed ends at this server time.
+    #[serde(default)]
+    pub speed_boost_until: f64,
 }
 
 impl Keyed for Player {
@@ -613,6 +642,9 @@ impl Player {
             frost_guard: Default::default(),
             build: Default::default(),
             potion_small: 0,
+            potion_large: 0,
+            camps_cleared: 0,
+            speed_boost_until: 0.,
             healing_until: 0.,
             potions_healing: 0,
             farm: Default::default(),
@@ -674,11 +706,21 @@ impl Player {
             resolved: false,
             plan_ready: false,
             regen_at: None,
+            hunt_target: 0,
+            hunt_stacks: 0,
         }
     }
 
     pub fn standing(&self) -> bool {
         self.status == Status::Alive && self.down.is_none() && !self.resolved
+    }
+
+    /// The selected rival, if any (0 is the no-target sentinel on the wire-sized field).
+    pub fn hunt_target(&self) -> Option<PlayerId> {
+        (self.hunt_target != 0).then_some(PlayerId(self.hunt_target))
+    }
+    pub fn set_hunt_target(&mut self, target: Option<PlayerId>) {
+        self.hunt_target = target.map_or(0, |id| id.0);
     }
 
     /// A read-only view of the fighter in this seat.
@@ -805,6 +847,7 @@ pub(crate) struct World {
     pub(crate) next_id: u32,
     pub(crate) projectiles: Vec<Projectile>,
     pub(crate) containers: Vec<Container>,
+    pub(crate) plague_corpses: Vec<PlagueCorpse>,
     pub(crate) initial_birth_serial: u32,
     pub(crate) potion_healing: Vec<crate::potions::Healing>,
     /// Legacy nextId: container and projectile prefixes share one ascending run-local serial.
@@ -815,6 +858,10 @@ pub(crate) struct World {
     pub(crate) joined: usize,
     pub(crate) spawn_rng: Mulberry32,
     pub(crate) reward_rng: crate::private_rng::Sfc32,
+    /// Legacy `windRandom`: the private emblem stream, mulberry32(orderSalt ^ WIND_SEED_XOR). Hashed state.
+    pub(crate) wind_rng: Mulberry32,
+    /// Legacy `windTimers`: when the next emblem may spawn.
+    pub(crate) wind_next_at: f64,
     pub(crate) rt: ArenaRt,
     /// Events emitted between steps (a leave's result) wait here for the next step: part of a checkpoint and the hash.
     pub(crate) pending_events: Vec<Event>,
@@ -878,6 +925,13 @@ impl World {
     pub(crate) fn actor_origin(&self, id: PlayerId) -> Option<&crate::mob_runtime::ActorOrigin> {
         self.actor_history.get(id).map(|row| &row.origin)
     }
+    /// Rewards and kill credit belong to a companion's owner.
+    pub(crate) fn credited_player(&self, id: PlayerId) -> Option<PlayerId> {
+        self.mobs
+            .get(id)
+            .and_then(|m| m.owner)
+            .or_else(|| self.player(id).map(|_| id))
+    }
 
     pub(crate) fn next_entity_id(&mut self) -> u32 {
         self.entity_counter = self
@@ -904,6 +958,11 @@ impl World {
                         "Dummy"
                     }))
                 }
+                Some(crate::mob_runtime::ActorOrigin::Zombie { .. }) => self
+                    .mobs
+                    .get(id)
+                    .and_then(|m| m.display_name.clone())
+                    .map(std::sync::Arc::from),
                 _ => None,
             })
     }
@@ -919,6 +978,9 @@ impl World {
                 // carries the presentation/wire placeholder; every other sheet number is unused (a dummy never attacks).
                 f.armor = 0.;
                 f.shield = 0.;
+                return f;
+            }
+            if m.zombie.is_some() {
                 return f;
             }
             let ty = crate::mob_catalog::mob_type_by_id(
@@ -951,6 +1013,9 @@ impl World {
         };
         if m.kind == crate::mob_runtime::MobKind::Dummy {
             // A dummy never attacks; a reflected shield arrow keeps the packet it was launched with.
+            return raw;
+        }
+        if m.zombie.is_some() {
             return raw;
         }
         let ty = crate::mob_catalog::mob_type_by_id(
@@ -1084,6 +1149,12 @@ impl World {
     }
 
     pub(crate) fn new(secrets: &Secrets) -> Self {
+        // Legacy consumables.install: one draw seeds the first wind timer; `raidStarted` draws again. The lobby never runs
+        // the system, so only the RNG state after both draws is observable in a run.
+        let mut wind_rng = Mulberry32::new(secrets.order_salt ^ crate::constants::WIND_SEED_XOR);
+        let wind_next_at = crate::constants::WIND_SPAWN_MIN_MS
+            + wind_rng.next_f64()
+                * (crate::constants::WIND_SPAWN_MAX_MS - crate::constants::WIND_SPAWN_MIN_MS);
         Self {
             planning: None,
             plan_ends_at: 0.,
@@ -1104,7 +1175,9 @@ impl World {
             actor_history: Store::new(),
             mob_runtime: None,
             next_id: 1,
-            containers: Vec::with_capacity(4 * MAX_PLAYERS),
+            // Room for the loot of a full match plus every wind emblem at once, so a spawn never grows the list.
+            containers: Vec::with_capacity(4 * MAX_PLAYERS + crate::constants::WIND_EMBLEM_LIMIT),
+            plague_corpses: Vec::new(),
             practice: None,
             initial_birth_serial: 0,
             potion_healing: Vec::with_capacity(MAX_PLAYERS),
@@ -1115,6 +1188,8 @@ impl World {
             joined: 0,
             spawn_rng: Mulberry32::new(secrets.spawn_seed),
             reward_rng: crate::private_rng::Sfc32::from_words(secrets.reward_salt),
+            wind_rng,
+            wind_next_at,
             rt: ArenaRt::default(),
             pending_events: Vec::new(),
             deferred: DeferredQueue::default(),

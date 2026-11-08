@@ -358,6 +358,7 @@ fn terrain_born_kernel_all_cases_fully_compared() {
         let mut sim = Sim::new(
             SimConfig {
                 quests: false,
+                consumables: true,
                 min_players: 2,
                 fill_seconds: 0.,
                 mob_mode: crate::mob_runtime::MobMode::Pve,

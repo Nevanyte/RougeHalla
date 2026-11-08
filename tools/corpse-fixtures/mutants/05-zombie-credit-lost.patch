@@ -1,0 +1,14 @@
+--- a/crates/rh-sim/src/state.rs
++++ b/crates/rh-sim/src/state.rs
+@@ -793,10 +793,7 @@
+     }
+     /// Rewards and kill credit belong to a companion's owner.
+     pub(crate) fn credited_player(&self, id: PlayerId) -> Option<PlayerId> {
+-        self.mobs
+-            .get(id)
+-            .and_then(|m| m.owner)
+-            .or_else(|| self.player(id).map(|_| id))
++        self.player(id).map(|_| id)
+     }
+ 
+     pub(crate) fn next_entity_id(&mut self) -> u32 {

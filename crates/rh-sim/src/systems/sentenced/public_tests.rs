@@ -4,6 +4,7 @@ fn eligible_owner_selection_precedes_tie_and_private_state_stays_private() {
     let mut s = crate::Sim::reset_active(
         crate::SimConfig {
             quests: false,
+            consumables: true,
             faction_mode: crate::FactionMode::EngagementHolyPlagueFireFrostSentenced,
             ..Default::default()
         },
@@ -77,6 +78,7 @@ fn same_tick_departure_derives_only_public_mark_bit_on_every_observation_path() 
     let mut s = crate::Sim::reset_active(
         crate::SimConfig {
             quests: false,
+            consumables: true,
             faction_mode: crate::FactionMode::EngagementHolyPlagueFireFrostSentenced,
             ..Default::default()
         },

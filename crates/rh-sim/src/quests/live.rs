@@ -131,6 +131,8 @@ fn add_quest_container(w: &mut World, at: Vec2, quest_id: u32) -> u32 {
     w.containers.push(Container {
         id,
         kind: ContainerKind::Quest,
+        ready_at: 0.,
+        target: None,
         at,
         opened: false,
         items: vec![crate::initial_world::Item {
@@ -775,7 +777,10 @@ fn close_impossible(w: &mut World, only: Option<usize>) {
         if m.elite {
             elites += 1;
         }
-        if let Some(def) = crate::mob_catalog::mob_type_by_id(m.mob_type.as_str()) {
+        if let Some(def) = m
+            .mob_type
+            .and_then(|ty| crate::mob_catalog::mob_type_by_id(ty.as_str()))
+        {
             zones[usize::from(def.zone.code())] += 1;
         }
     }

@@ -258,6 +258,7 @@ fn holy_engaged() -> Sim {
     let mut sim = Sim::reset_active(
         SimConfig {
             quests: false,
+            consumables: true,
             faction_mode: rh_sim::FactionMode::EngagementHoly,
             ..Default::default()
         },
@@ -356,6 +357,7 @@ fn mob_audit_states() -> (Sim, Sim) {
     secrets.reward_salt = [1, 2, 3, 4];
     let config = SimConfig {
         quests: false,
+        consumables: true,
         mob_mode: rh_sim::mob_runtime::MobMode::Pve,
         ..Default::default()
     };
@@ -363,6 +365,7 @@ fn mob_audit_states() -> (Sim, Sim) {
     let mut engaged = Sim::reset_active(
         SimConfig {
             quests: false,
+            consumables: true,
             faction_mode: rh_sim::FactionMode::EngagementHolyPlagueFire,
             ..config
         },
@@ -453,6 +456,7 @@ fn native_ice_slide() -> Sim {
     let mut sim = Sim::reset_active(
         SimConfig {
             quests: false,
+            consumables: true,
             lifecycle: rh_sim::ArenaMode::Off,
             hazards: rh_sim::terrain::Mode::Map,
             ..Default::default()
@@ -479,6 +483,7 @@ fn source_lifecycle_states() -> (Sim, Sim, Sim) {
     let mut sim = Sim::new(
         SimConfig {
             quests: false,
+            consumables: true,
             lifecycle: rh_sim::ArenaMode::Source(rh_sim::ArenaRules {
                 plan_seconds: 0.2,
                 first_patience_seconds: Some(0.1),
@@ -559,6 +564,7 @@ fn wish_states() -> Vec<(&'static str, Sim)> {
         let mut sim = Sim::reset_active(
             SimConfig {
                 quests: false,
+                consumables: true,
                 abilities: rh_sim::abilities::Mode::Full,
                 lifecycle: rh_sim::ArenaMode::Source(rh_sim::ArenaRules {
                     plan_seconds: 0.,
@@ -828,6 +834,14 @@ const VALIDATED: &[(&str, &str)] = &[
         "statics.config.training",
         "a training config is admitted only with the training actor runtime (empty map-camp rosters) and training-only actor origins; flipping the flag on an arena/registry checkpoint is refused by the training validator",
     ),
+    // A Sentenced target is a living other player or the 0 sentinel; a raw id that names self or a
+    // non-player is refused by the checkpoint validator rather than hashed.
+    ("world.players.*.hunt_target", "hunt target is 0 or a living other player's id"),
+    ("world.players.*.hunt_stacks", "completed hunts cannot exceed the number of players who ever joined"),
+    ("world.players.*.farm.corpse_stacks", "corpse stacks fold a flat max-hp row and must agree with the serialized mirror"),
+    ("world.mobs.*.display_name", "only a raised Plague zombie carries a display name; regional mobs leave it None"),
+    ("world.mobs.*.zombie", "only a raised Plague companion carries zombie runtime; regional mobs leave it None"),
+
     // Full Wish producer tuples are coupled. Accepted edits still always have to change the hash.
     ("world.abilities.fields.*.owner.owner_id", "ordinary player Wish fields have no secondary/summoner owner; Full producer source requires None"),
     ("world.players.*.core.statuses.instances.*.data.shares.phys", "Full Blaze Dot payload is the exact pure true-damage shares tuple"),
@@ -1879,6 +1893,7 @@ fn derived_blink_ring_clone_and_restore_preserve_actual_locked_casts() {
     let mut original = Sim::new(
         SimConfig {
             quests: false,
+            consumables: true,
             abilities: rh_sim::abilities::Mode::Full,
             wish_lock_ms: 0.,
             min_players: 2,

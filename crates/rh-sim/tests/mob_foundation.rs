@@ -36,6 +36,7 @@ fn lobby() -> Sim {
     Sim::try_new(
         SimConfig {
             quests: false,
+            consumables: true,
             min_players: 2,
             lobby_seconds: 15.,
             fill_seconds: 0.,

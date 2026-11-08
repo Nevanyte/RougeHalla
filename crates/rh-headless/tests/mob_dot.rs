@@ -55,6 +55,7 @@ fn selected_cards_basic_pve_use_same_headless_and_restore_path() {
     let mut direct = Sim::reset_active(
         SimConfig {
             quests: false,
+            consumables: true,
             mob_mode: rh_sim::mob_runtime::MobMode::Pve,
             faction_mode: rh_sim::FactionMode::EngagementHolyPlagueFire,
             ..Default::default()

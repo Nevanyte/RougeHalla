@@ -47,6 +47,11 @@ pub struct SelfView {
     pub gv: u32,
     /// The last movement order number the server applied (prediction ack).
     pub move_seq: u8,
+    /// The Sentenced hunt selection and completed-hunt count (self only; legacy `huntTarget`/`huntStacks`).
+    pub hunt_target: Option<PlayerId>,
+    pub hunt_stacks: u32,
+    pub corpse_stacks: u16,
+    pub plague_zombie: Option<PlayerId>,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -61,6 +66,8 @@ pub struct ActorView {
     pub mark_by: Option<PlayerId>,
     pub mark_tax: u8,
     pub sig: u8,
+    /// The Plague owner of a kind-2 companion; None for players and regional mobs.
+    pub owner: Option<PlayerId>,
     pub id: PlayerId,
     pub faction: FactionId,
     pub x: f64,
@@ -95,6 +102,8 @@ pub enum SeenEvent {
     CannonNotice {
         notice: crate::events::CannonNotice,
     },
+    /// A wind emblem was walked over (the fixed "+50% movement for 5s" feedback).
+    WindEmblem,
     ChestRefused {
         reason: crate::reward_chests::Refusal,
     },
@@ -232,7 +241,8 @@ impl SeenEvent {
             | SeenEvent::CampCleared { .. }
             | SeenEvent::PotionNotice { .. }
             | SeenEvent::Toast { .. }
-            | SeenEvent::CannonNotice { .. } => Class::Important,
+            | SeenEvent::CannonNotice { .. }
+            | SeenEvent::WindEmblem => Class::Important,
         }
     }
 }
@@ -249,6 +259,7 @@ fn to_seen(e: &Event, can_see: &impl Fn(PlayerId) -> bool) -> Option<SeenEvent> 
         Event::PotionNotice { notice, .. } => Some(SeenEvent::PotionNotice { notice }),
         Event::Toast { ref text, .. } => Some(SeenEvent::Toast { text: text.clone() }),
         Event::CannonNotice { notice, .. } => Some(SeenEvent::CannonNotice { notice }),
+        Event::WindEmblem { .. } => Some(SeenEvent::WindEmblem),
         Event::ChestRefused { reason, .. } => Some(SeenEvent::ChestRefused { reason }),
         Event::ChestTaken { .. } => None,
         Event::Swing {
@@ -347,6 +358,7 @@ fn to_seen(e: &Event, can_see: &impl Fn(PlayerId) -> bool) -> Option<SeenEvent> 
         Event::Victory { id, draw } => Some(SeenEvent::Ended { winner: id, draw }),
         Event::AbilityHit { .. }
         | Event::MarkNotice { .. }
+        | Event::PlagueNotice { .. }
         | Event::SignatureHit { .. }
         | Event::ProjectileLaunched(_)
         | Event::ProjectileEnded { .. }
@@ -521,6 +533,10 @@ pub(crate) fn observe_with(
         bounty: p.credit.bounty,
         gv: p.credit.gv,
         move_seq: p.motion.move_seq,
+        hunt_target: p.hunt_target(),
+        hunt_stacks: u32::from(p.hunt_stacks),
+        corpse_stacks: u16::from(p.farm.corpse_stacks()),
+        plague_zombie: crate::systems::plague_zombies::zombie_of(&sim.w, p.id),
     });
     out.camps.clear();
     out.camps.extend_from_slice(sim.camp_rosters());
@@ -546,6 +562,7 @@ pub(crate) fn observe_with(
             }) {
                 out.visible.push(ActorView {
                     kind: 0,
+                    owner: None,
                     mob_type: None,
                     effects: o.statuses.effects,
                     displace_seq: o.motion.displace_seq,
@@ -772,13 +789,20 @@ pub fn public_snapshot(sim: &Sim) -> PublicSnapshot {
 fn mob_view(mob: &crate::mob_runtime::Mob) -> ActorView {
     let core = &mob.core;
     ActorView {
-        // Kind 0 preserves human IDs; kind 1 is a regional/practice NPC; kind 2 is a training dummy (legacy
-        // MobState.kind "dummy"), which has no catalog type.
-        kind: match mob.kind {
-            crate::mob_runtime::MobKind::Dummy => 2,
-            crate::mob_runtime::MobKind::Regional | crate::mob_runtime::MobKind::Practice => 1,
+        kind: if mob.zombie.is_some() {
+            2
+        } else {
+            match mob.kind {
+                crate::mob_runtime::MobKind::Dummy => 3,
+                crate::mob_runtime::MobKind::Regional | crate::mob_runtime::MobKind::Practice => 1,
+            }
         },
-        mob_type: mob.mob_type,
+        owner: mob.owner,
+        mob_type: if mob.zombie.is_some() {
+            None
+        } else {
+            mob.mob_type
+        },
         effects: core.statuses.effects,
         displace_seq: core.motion.displace_seq,
         mark_tier: 0,

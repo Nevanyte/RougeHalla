@@ -12,6 +12,7 @@ fn warmed_planning_and_locked_movement_allocate_no_blocks() {
     let arena: Arena = export.validate().unwrap().into_arena().unwrap();
     let config = |plan| SimConfig {
         quests: false,
+        consumables: true,
         lifecycle: ArenaMode::Source(ArenaRules {
             plan_seconds: plan,
             first_patience_seconds: Some(0.1),

@@ -1,0 +1,14 @@
+--- a/crates/rh-sim/src/systems/potions.rs
++++ b/crates/rh-sim/src/systems/potions.rs
+@@ -71,9 +71,9 @@
+     }
+     // The camp potion is preferred when both are stored (legacy `const large = s.potionLarge > 0`).
+     let share = if large {
++        DEFINITION.small_share
++    } else {
+         DEFINITION.large_share
+-    } else {
+-        DEFINITION.small_share
+     };
+     let amount = p.vitals.max_hp * share / (DEFINITION.heal_ms / DEFINITION.step_ms);
+     if large {

@@ -25,6 +25,7 @@ pub(crate) fn recent_rival(w: &World, vi: usize, at: f64) -> Option<PlayerId> {
     if at - when > KILL_CREDIT_SECONDS * 1000.0 {
         return None;
     }
+    let by = w.credited_player(by)?;
     let si = w.idx(by)?;
     (!w.players[si].resolved).then_some(by)
 }
@@ -44,6 +45,7 @@ pub(crate) fn credit_kill(
     victim: KillVictim,
     bounty: u32,
 ) {
+    let by = w.credited_player(by).unwrap_or(by);
     let Some(bi) = w.idx(by) else { return };
     if w.players[bi].resolved {
         return;

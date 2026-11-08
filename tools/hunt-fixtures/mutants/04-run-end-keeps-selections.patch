@@ -1,0 +1,12 @@
+--- a/crates/rh-sim/src/systems/sentenced_hunt.rs
++++ b/crates/rh-sim/src/systems/sentenced_hunt.rs
+@@ -146,9 +146,6 @@
+     if !hx.k.config.faction_mode.sentenced() {
+         return;
+     }
+-    for p in &mut hx.w.players {
+-        p.set_hunt_target(None);
+-    }
+ }
+ 
+ /// Source `sentencedHuntMarkMultiplier`: completed hunts scale Mark strength without a cap.

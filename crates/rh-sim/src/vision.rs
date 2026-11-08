@@ -345,6 +345,11 @@ pub(crate) fn actor_with<'a>(
     line_blocked: impl FnOnce() -> bool,
 ) -> bool {
     let map = map.into();
+    // Actor-specific hunt exception: the selected living rival is seen through fog and bush,
+    // but only that actor (terrain and nearby actors stay hidden).
+    if crate::systems::sentenced_hunt::sees_target(viewer, target) {
+        return true;
+    }
     if (viewer.id != target.id
         && target.statuses.effects & crate::status_runtime::StatusKind::Hidden.rule().bit != 0)
         || target.status == Status::Lobby
@@ -402,6 +407,9 @@ pub(crate) fn gameplay_actor_visible<'a>(
     wards: WardSight<'_>,
 ) -> bool {
     let map = map.into();
+    if crate::systems::sentenced_hunt::sees_target(viewer, target) {
+        return true;
+    }
     // Presentation uses the last source-timed hidden mirror; gameplay targetability uses
     // current status readers at its own phase, so terrain sight must not reuse that mirror.
     if target.status != Status::Lobby

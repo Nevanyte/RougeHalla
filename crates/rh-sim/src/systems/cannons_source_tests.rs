@@ -127,6 +127,8 @@ fn container_frame(s: &Sim, c: &crate::state::Container) -> Value {
         }
         ContainerKind::Chest => ("chest", "Chest".to_string()),
         ContainerKind::Body(id) => ("body", s.player_name(id).unwrap().to_string()),
+        ContainerKind::Quest => ("quest", String::new()),
+        ContainerKind::WindEmblem => ("consumable", "Wind emblem · walk over it".to_string()),
         ContainerKind::Cannon => ("cannon", "Travel cannon · F to blast".to_string()),
     };
     let items: Vec<Value> = c

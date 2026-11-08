@@ -34,8 +34,8 @@ fn sim(input: &Value) -> Sim {
     let mut s = Sim::new(
         SimConfig {
             quests: false,
-            initial_loot: true,
             consumables: true,
+            initial_loot: true,
             min_players: 2,
             fill_seconds: 0.,
             ..Default::default()
@@ -83,7 +83,7 @@ fn player(s: &Sim, id: PlayerId) -> &str {
 fn frame(s: &Sim, events: &[Event]) -> Value {
     let mut main = s.w.spawn_rng.clone();
     let mut reward = s.w.reward_rng.clone();
-    json!({"tick":s.tick(),"time":s.server_time(),"serial":s.w.entity_counter,"uid":s.w.item_counter,"players":s.players().iter().map(|p|json!({"id":player(s,p.id),"hp":p.vitals.hp,"maxHp":p.vitals.max_hp,"potionSmall":p.potion_small,"potionsHealing":p.potions_healing,"healingUntil":p.healing_until,"weapon0":p.weapon.weapon0.map_or("",|w|w.as_str()),"weapon1":p.weapon.weapon1.map_or("",|w|w.as_str()),"status":if p.status==crate::Status::Alive{"alive"}else{"other"}})).collect::<Vec<_>>(),"containers":s.containers().iter().map(|c|json!({"id":key(c.id),"kind":match c.kind{crate::ContainerKind::Chest=>"chest",crate::ContainerKind::Ground=>"ground",crate::ContainerKind::Body(_)=>"body",crate::ContainerKind::Quest=>"quest",crate::ContainerKind::Cannon=>"cannon"},"x":c.at.x,"y":c.at.y,"opened":c.opened,"items":c.items.iter().map(|it|json!({"uid":format!("U{}",it.uid),"def":it.def.as_str()})).collect::<Vec<_>>(),"statOffer":c.stat_offer})).collect::<Vec<_>>(),"rewards":s.w.reward_chests.iter().map(|c|json!({"id":key(c.id),"x":c.at.x,"y":c.at.y,"expiresAt":c.expires_at,"options":c.options.iter().flatten().map(|v|v.as_str()).collect::<Vec<_>>(),"pickers":c.pickers.iter().map(|id|player(s,*id)).collect::<Vec<_>>(),"takenBy":c.taken.iter().map(|v|v.map_or("",|id|player(s,id))).collect::<Vec<_>>()})).collect::<Vec<_>>(),"healing":s.w.potion_healing.iter().map(|e|json!([player(s,e.id),e.hots])).collect::<Vec<_>>(),"notices":events.iter().filter_map(|e|if let Event::PotionNotice{id,notice}=e{Some(json!({"to":player(s,*id),"text":notice.message()}))}else{None}).collect::<Vec<_>>(),"heals":events.iter().filter_map(|e|if let Event::Heal{id,amount}=e{Some(json!({"id":player(s,*id),"amount":amount}))}else{None}).collect::<Vec<_>>(),"rng":{"random":{"next":std::array::from_fn::<_,4,_>(|_|main.next_f64())},"rewardRandom":{"next":std::array::from_fn::<_,4,_>(|_|reward.next_f64())}}})
+    json!({"tick":s.tick(),"time":s.server_time(),"serial":s.w.entity_counter,"uid":s.w.item_counter,"players":s.players().iter().map(|p|json!({"id":player(s,p.id),"hp":p.vitals.hp,"maxHp":p.vitals.max_hp,"potionSmall":p.potion_small,"potionsHealing":p.potions_healing,"healingUntil":p.healing_until,"weapon0":p.weapon.weapon0.map_or("",|w|w.as_str()),"weapon1":p.weapon.weapon1.map_or("",|w|w.as_str()),"status":if p.status==crate::Status::Alive{"alive"}else{"other"}})).collect::<Vec<_>>(),"containers":s.containers().iter().map(|c|json!({"id":key(c.id),"kind":match c.kind{crate::ContainerKind::Chest=>"chest",crate::ContainerKind::Ground=>"ground",crate::ContainerKind::Body(_)=>"body",crate::ContainerKind::Quest=>"quest",crate::ContainerKind::Cannon=>"cannon",crate::ContainerKind::WindEmblem=>"consumable"},"x":c.at.x,"y":c.at.y,"opened":c.opened,"items":c.items.iter().map(|it|json!({"uid":format!("U{}",it.uid),"def":it.def.as_str()})).collect::<Vec<_>>(),"statOffer":c.stat_offer})).collect::<Vec<_>>(),"rewards":s.w.reward_chests.iter().map(|c|json!({"id":key(c.id),"x":c.at.x,"y":c.at.y,"expiresAt":c.expires_at,"options":c.options.iter().flatten().map(|v|v.as_str()).collect::<Vec<_>>(),"pickers":c.pickers.iter().map(|id|player(s,*id)).collect::<Vec<_>>(),"takenBy":c.taken.iter().map(|v|v.map_or("",|id|player(s,id))).collect::<Vec<_>>()})).collect::<Vec<_>>(),"healing":s.w.potion_healing.iter().map(|e|json!([player(s,e.id),e.hots])).collect::<Vec<_>>(),"notices":events.iter().filter_map(|e|if let Event::PotionNotice{id,notice}=e{Some(json!({"to":player(s,*id),"text":notice.message()}))}else{None}).collect::<Vec<_>>(),"heals":events.iter().filter_map(|e|if let Event::Heal{id,amount}=e{Some(json!({"id":player(s,*id),"amount":amount}))}else{None}).collect::<Vec<_>>(),"rng":{"random":{"next":std::array::from_fn::<_,4,_>(|_|main.next_f64())},"rewardRandom":{"next":std::array::from_fn::<_,4,_>(|_|reward.next_f64())}}})
 }
 fn exact(a: &Value, b: &Value, path: &str) {
     match (a, b) {
@@ -235,4 +235,110 @@ fn assertion_frame(expected: &Value) -> Value {
         rng.as_object_mut().unwrap().remove("draws");
     }
     frame
+}
+
+#[test]
+fn a_stored_camp_potion_is_preferred_and_heals_its_larger_share() {
+    use crate::{arenas::practice_arena, Placement};
+    let ps: Vec<_> = (0..2)
+        .map(|i| Placement {
+            profile: format!("q{i}"),
+            faction: FactionId::Holy,
+            bot: false,
+            at: crate::Vec2::new(320.0 + 64.0 * i as f64, 320.0),
+            hp: None,
+            weapon0: None,
+            weapon1: None,
+        })
+        .collect();
+    let mut s = Sim::reset_active(
+        SimConfig::default(),
+        practice_arena(),
+        Secrets::from_seed(5),
+        &ps,
+    );
+    s.w.players[0].vitals.hp = 300.0;
+    s.w.players[0].potion_large = 1;
+    s.w.players[0].potion_small = 2;
+    let max = s.w.players[0].vitals.max_hp;
+    s.submit(
+        PlayerId(1),
+        crate::validate(crate::RawCommand::UseConsumable).unwrap(),
+    )
+    .unwrap();
+    let ev = s.step();
+    assert_eq!(s.w.players[0].potion_large, 0, "the camp potion was drunk");
+    assert_eq!(
+        s.w.players[0].potion_small, 2,
+        "the small stock is untouched"
+    );
+    let e =
+        s.w.potion_healing
+            .iter()
+            .find(|e| e.id == PlayerId(1))
+            .unwrap();
+    assert_eq!(e.hots.len(), 1);
+    assert!(
+        (e.hots[0].amount - max * 0.4 / 10.0).abs() < 1e-9,
+        "a camp potion heals 40% over 5 s: {}",
+        e.hots[0].amount
+    );
+    assert!(ev.iter().any(|x| matches!(
+        x,
+        Event::PotionNotice { id, notice: crate::potions::Notice::LargeUsed } if *id == PlayerId(1)
+    )));
+}
+
+#[test]
+fn without_a_camp_potion_the_small_one_is_used_and_a_full_bag_refuses_the_grant() {
+    use crate::{arenas::practice_arena, Placement};
+    let ps: Vec<_> = (0..2)
+        .map(|i| Placement {
+            profile: format!("r{i}"),
+            faction: FactionId::Holy,
+            bot: false,
+            at: crate::Vec2::new(320.0 + 64.0 * i as f64, 320.0),
+            hp: None,
+            weapon0: None,
+            weapon1: None,
+        })
+        .collect();
+    let mut s = Sim::reset_active(
+        SimConfig::default(),
+        practice_arena(),
+        Secrets::from_seed(6),
+        &ps,
+    );
+    s.w.players[0].vitals.hp = 300.0;
+    s.w.players[0].potion_small = 1;
+    let max = s.w.players[0].vitals.max_hp;
+    s.submit(
+        PlayerId(1),
+        crate::validate(crate::RawCommand::UseConsumable).unwrap(),
+    )
+    .unwrap();
+    let ev = s.step();
+    assert_eq!(s.w.players[0].potion_small, 0);
+    assert_eq!(s.w.players[0].potion_large, 0);
+    let e =
+        s.w.potion_healing
+            .iter()
+            .find(|e| e.id == PlayerId(1))
+            .unwrap();
+    assert!((e.hots[0].amount - max * 0.25 / 10.0).abs() < 1e-9);
+    assert!(ev.iter().any(|x| matches!(
+        x,
+        Event::PotionNotice { id, notice: crate::potions::Notice::Used } if *id == PlayerId(1)
+    )));
+    // A full camp stock refuses the grant, keeps its count and says nothing.
+    s.w.players[0].potion_large = crate::potions::DEFINITION.cap;
+    let mut v = Vec::new();
+    assert!(!crate::systems::potions::grant(
+        &mut s.w,
+        &mut v,
+        PlayerId(1),
+        crate::potions::Size::Large
+    ));
+    assert_eq!(s.w.players[0].potion_large, crate::potions::DEFINITION.cap);
+    assert!(v.is_empty());
 }

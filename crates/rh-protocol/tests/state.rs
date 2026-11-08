@@ -28,6 +28,7 @@ fn state() -> ServerMsg {
                 active_slot: 1,
                 slots: [None, Some(2)],
                 potion_small: 5,
+                potion_large: 4,
                 potions_healing: 3,
             })),
             StateItem::Props(WireProps {
@@ -201,6 +202,8 @@ fn scalar_status_changes_and_clears_survive_full_and_fast_delta_paths() {
         bounty: 0,
         gv: 0,
         move_seq: 0,
+        hunt_target: None,
+        hunt_stacks: 0,
         effects: 4096 | 8,
         displace_seq: 255,
     };

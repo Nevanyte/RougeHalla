@@ -75,6 +75,7 @@ fn make_sim(f: &Value) -> Sim {
     secrets.reward_salt = [1, 2, 3, 4];
     let mut sim = Sim::reset_active(
         SimConfig {
+            consumables: false, // The captured lifecycle installer list omits consumables.
             quests: false,
             mob_mode: MobMode::Pve,
             ..Default::default()

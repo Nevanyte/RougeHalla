@@ -130,7 +130,7 @@ impl PayLater {
         match self {
             PayLater::MobWakes => super::mob_life::settle_wakes(k, w),
             PayLater::CampCleared { camp } => {
-                // camps.ts payLater: the `campCleared` fx first, then the chainable `campCleared` hook.
+                // Source order: the fx first, then the hook chain (campHeal's reward among its links).
                 ev.push(Event::CampCleared { camp });
                 crate::hooks::fire(
                     &mut crate::hooks::Hx {
@@ -508,6 +508,7 @@ fn apply_inner(
         // Already multiplied entries (returned damage, a splash) only take the victim's Race to 0 (G4).
         let final_entry = e.passive || e.derived;
         races.push(if final_entry { taken } else { dealt * taken });
+        let credited = e.by.and_then(|id| w.credited_player(id));
         mults.push(
             farm_mult
                 * gambler
@@ -516,11 +517,11 @@ fn apply_inner(
                     && !e.arena
                     && e.ability.is_none()
                     && vix
-                        .zip(bix)
-                        .is_some_and(|(v, b)| w.is_player(v) && w.is_player(b))
+                        .zip(credited)
+                        .is_some_and(|(v, b)| w.is_player(v) && w.player(b).is_some())
                 {
                     pvp_factor(
-                        w.players[bix.expect("checked player attacker").slot()]
+                        w.players[w.idx(credited.expect("checked player attacker")).unwrap()]
                             .build
                             .power(),
                     )

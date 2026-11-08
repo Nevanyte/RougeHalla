@@ -49,6 +49,9 @@ fn arena(spawn: Vec2) -> Arena {
 
 fn config(kind: &str) -> SimConfig {
     SimConfig {
+        regen: false,
+        quests: false,
+        consumables: false,
         training: kind == "training",
         dummies: kind != "arena",
         abilities: abilities::Mode::Off,

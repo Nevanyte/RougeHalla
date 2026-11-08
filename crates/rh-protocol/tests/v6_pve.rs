@@ -72,7 +72,7 @@ fn new_command_and_notice_refusals_are_atomic() {
         .is_err());
         assert_eq!(out, [77]);
     }
-    for notice in [0, 8, 255] {
+    for notice in [0, 11, 255] {
         let mut out = vec![77];
         assert!(ServerMsg::Events {
             tick: 0,
@@ -101,6 +101,8 @@ fn maximum_full_records_and_reference_delta_preserve_new_scalars() {
         bounty: u16::MAX,
         gv: u16::MAX,
         move_seq: 255,
+        hunt_target: None,
+        hunt_stacks: 0,
         effects: u16::MAX,
         displace_seq: 255,
         sig: 255,

@@ -59,6 +59,16 @@ pub(crate) fn validate(
             ActorOrigin::Practice { .. } | ActorOrigin::Dummy { .. } => {
                 return Err("non-regional actor in a regional world".into());
             }
+            ActorOrigin::Zombie { owner } => {
+                if w.roster.name(owner).is_none()
+                    || w.roster.name(row.id).is_some()
+                    || w.mobs
+                        .get(row.id)
+                        .is_some_and(|m| m.owner != Some(owner) || m.zombie.is_none())
+                {
+                    return Err("invalid zombie provenance".into());
+                }
+            }
             ActorOrigin::Mob {
                 birth_serial,
                 born_tick,
@@ -183,6 +193,19 @@ pub(crate) fn validate(
         }
     }
     for m in &w.mobs {
+        if m.zombie.is_some() {
+            if m.mob_type.is_some()
+                || m.kind != crate::mob_runtime::MobKind::Regional
+                || m.owner.and_then(|id| w.roster.name(id)).is_none()
+                || m.display_name.is_none()
+                || !near(m.core.body.x, m.core.body.y)
+                || !m.core.vitals.hp.is_finite()
+                || !(0. ..=m.core.vitals.max_hp).contains(&m.core.vitals.hp)
+            {
+                return Err("invalid zombie body".into());
+            }
+            continue;
+        }
         let Some(ActorOrigin::Mob {
             born_tick,
             camp,

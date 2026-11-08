@@ -430,6 +430,7 @@ async fn main() {
         quests: false,
         training: false,
         dummies: false,
+        consumables: true,
         hazards: rh_sim::terrain::Mode::Off,
         abilities: rh_sim::abilities::Mode::Off,
         wish_lock_ms: rh_sim::abilities::WISH_LOCK_MS,

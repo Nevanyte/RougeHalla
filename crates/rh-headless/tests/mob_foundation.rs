@@ -30,6 +30,7 @@ fn nonseat_mobs_survive_headless_record_and_restore() {
         arena,
         sim: SimConfig {
             quests: false,
+            consumables: true,
             mob_mode: rh_sim::mob_runtime::MobMode::SpawnFoundation,
             ..SimConfig::default()
         },

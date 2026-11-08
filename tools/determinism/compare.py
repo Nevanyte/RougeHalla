@@ -48,14 +48,15 @@ SCENARIO_KEYS = {
     "id", "seed", "arena", "players", "sim", "max_ticks", "checkpoint_steps",
     "expected_stop",
 }
-SIM_KEYS = {
+INVENTORY_SIM_KEYS = {
     "min_players", "lobby_seconds", "fill_seconds", "pvp_rules",
     "weapon_specials", "faction_mode",
 }
 # The optional leaves the live replay serializer writes (SimConfig's serde defaults). The inventory scenario files stay
 # on the six legacy keys.
+SIM_KEYS = INVENTORY_SIM_KEYS
 REPLAY_SIM_KEYS = SIM_KEYS | {
-    "abilities", "wish_lock_ms", "lifecycle", "hazards", "initial_loot", "mob_mode", "regen", "consumables",
+    "abilities", "wish_lock_ms", "lifecycle", "hazards", "initial_loot", "mob_mode", "regen", "consumables", "quests", "training", "dummies",
 }
 REPLAY_KEYS = {
     "format", "content_hash", "build", "match_id", "config", "arena", "secrets",
@@ -250,6 +251,12 @@ def validate_sim(config, path, full=False):
     string(config["faction_mode"], path + ".faction_mode")
     require(config["faction_mode"] in faction_modes(), path + ".faction_mode",
             "unknown faction mode")
+    if full:
+        for key in ("abilities", "lifecycle", "hazards", "mob_mode"):
+            string(config[key], path + "." + key)
+        boolean(config["initial_loot"], path + ".initial_loot")
+        number(config["wish_lock_ms"], path + ".wish_lock_ms")
+        require(config["wish_lock_ms"] >= 0, path + ".wish_lock_ms", "must be nonnegative")
 
 
 def validate_inventory_scenario(spec, path):
@@ -275,7 +282,7 @@ def validate_inventory_scenario(spec, path):
                 "only the brawler policy is admitted")
         uint(player["cadence"], player_path + ".cadence", (1 << 32) - 1)
         require(player["cadence"] > 0, player_path + ".cadence", "cadence must be positive")
-    validate_sim(spec["sim"], path + ".sim")
+    validate_sim(spec["sim"], path + ".sim", full=False)
     uint(spec["max_ticks"], path + ".max_ticks", (1 << 32) - 1)
     require(spec["max_ticks"] > 0, path + ".max_ticks", "zero-work scenario")
     steps = spec["checkpoint_steps"]
@@ -670,6 +677,11 @@ def validate_replay(replay, raw, artifact, manifest, scenarios):
         uint(value, path + ".secrets.reward_salt[{}]".format(i), (1 << 32) - 1)
     uint(replay["secrets"]["order_salt"], path + ".secrets.order_salt", (1 << 32) - 1)
     uint(replay["secrets"]["spawn_seed"], path + ".secrets.spawn_seed", (1 << 32) - 1)
+    require(isinstance(replay["secrets"]["reward_salt"], list)
+            and len(replay["secrets"]["reward_salt"]) == 4,
+            path + ".secrets.reward_salt", "expected four u32 values")
+    for i, value in enumerate(replay["secrets"]["reward_salt"]):
+        uint(value, path + ".secrets.reward_salt[{}]".format(i), (1 << 32) - 1)
     validate_replay_start(replay["start"], path + ".start", spec, replay["arena"])
     initial_tick = 0 if replay["start"] == "Lobby" else 1
     hashes = replay["hashes"]

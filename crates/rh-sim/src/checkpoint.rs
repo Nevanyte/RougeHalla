@@ -289,6 +289,16 @@ fn check_world(k: &MatchStatic, w: &World) -> Result<(), String> {
     // The counters the tick increments cannot be past what the match could have produced: the roster holds everyone who
     // ever joined, a join adds one, a kill needs a victim and a down needs a fighter.
     let joined_ever = w.roster.len();
+    let mut corpse_players = std::collections::BTreeSet::new();
+    for c in &w.plague_corpses {
+        if !corpse_players.insert(c.player)
+            || w.player(c.player)
+                .is_none_or(|p| p.status != crate::Status::Dead)
+            || !near(c.x, c.y)
+        {
+            return Err("invalid Plague corpse state".into());
+        }
+    }
     if w.joined > joined_ever {
         return Err(format!(
             "joined {} exceeds the roster of {joined_ever}",
@@ -390,6 +400,7 @@ fn check_world(k: &MatchStatic, w: &World) -> Result<(), String> {
                 && (c.items.len() != 1
                     || !matches!(c.items[0].def, crate::initial_world::ItemDef::Weapon(_))))
             || (c.kind != crate::ContainerKind::Chest && c.opened)
+            || (c.kind == crate::ContainerKind::WindEmblem && !c.items.is_empty())
             || matches!(c.kind, crate::ContainerKind::Body(id) if w.roster.name(id).is_none())
             || (c.kind == crate::ContainerKind::Cannon
                 && (c.opened
@@ -516,6 +527,15 @@ fn check_world(k: &MatchStatic, w: &World) -> Result<(), String> {
             k.config.lifecycle.rules().is_some() && w.raid_started_at > 0.,
             near,
         )?;
+        if p.hunt_target().is_some_and(|id| {
+            id == p.id
+                || w.phase != crate::Phase::Active
+                || !p.standing()
+                || w.player(id).is_none_or(|target| !target.standing())
+        }) || p.hunt_stacks as usize > joined_ever
+        {
+            return Err(format!("player {}: invalid Sentenced hunt state", p.id.0));
+        }
         let sig = &p.signature;
         crate::systems::sentenced::validate(k, w, p)?;
         super::systems::signatures::validate_basic(k, w, p.id, sig)?;
@@ -564,6 +584,13 @@ fn check_world(k: &MatchStatic, w: &World) -> Result<(), String> {
                 "player {}: regeneration clock is not a past server time",
                 p.id.0
             ));
+        }
+        // A wind boost is a deadline at most one boost length ahead; anything else would never expire sanely.
+        if !p.speed_boost_until.is_finite()
+            || !(0.0..=w.server_time + crate::constants::SPEED_BOOST_MS)
+                .contains(&p.speed_boost_until)
+        {
+            return Err(format!("player {}: invalid speed boost deadline", p.id.0));
         }
         // Samples are appended in time order and never dated after the clock: a future-dated one is never trimmed and
         // fills the ring.
@@ -1038,6 +1065,22 @@ mod tests {
         // Numeric headroom alone is insufficient: the typed append-only actor history
         // must account for every allocation, including in player-only worlds.
         assert!(refusal(&json).contains("actor provenance/counter mismatch"));
+    }
+
+    #[test]
+    fn a_hunt_selection_must_name_a_living_other_player() {
+        let mut json = stepped(5);
+        json["world"]["players"][0]["hunt_target"] = 1.into();
+        assert!(refusal(&json).contains("hunt"));
+        let mut json = stepped(5);
+        json["world"]["players"][0]["hunt_target"] = 99.into();
+        assert!(refusal(&json).contains("hunt"));
+        let mut json = stepped(5);
+        json["world"]["players"][0]["hunt_stacks"] = 99.into();
+        assert!(refusal(&json).contains("hunt"));
+        let mut json = stepped(5);
+        json["world"]["players"][0]["hunt_target"] = 2.into();
+        assert!(Sim::restore(&json).is_ok());
     }
 
     #[test]

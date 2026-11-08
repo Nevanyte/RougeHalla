@@ -468,6 +468,14 @@ fn what_the_slice_has_ported_stays_ported() {
         .1
         .iter()
         .any(|e| e.legacy == "regen.<arrow>" && e.pending.is_none()));
+    assert!(t
+        .hooks
+        .iter()
+        .find(|(h, _)| *h == Hook::CampCleared)
+        .unwrap()
+        .1
+        .iter()
+        .any(|e| e.legacy == "campHeal.payCampHeal" && e.pending.is_none()));
     assert!(ported(&t.move_modifiers).contains(&"terrainEffects.applyBog"));
     assert!(ported(&t.move_modifiers).contains(&"abilities.statusMoveMultiplier"));
     assert!(ported(&t.mod_sources).contains(&"abilities.attackSlowSource"));
@@ -639,6 +647,14 @@ fn a_match_runs_its_ported_rows_in_table_order() {
                 TraceEntry::Hook("blocked", "cardHooks.onBlocked") => {}
                 TraceEntry::Hook("fighterOut", "consumables.<arrow>") => {} // actual Small potion cleanup; other consumables remain pending.
                 TraceEntry::Hook("fighterOut", "vision.<arrow>") => {}
+                TraceEntry::Hook("fighterOut", "sentencedHunt.fighterOut") => {}
+                TraceEntry::Hook("runEnded", "sentencedHunt.<arrow>") => {}
+                TraceEntry::Hook("fighterOut", "plagueCorpses.leaveCorpse") => {}
+                TraceEntry::Hook("fighterOut", "plagueZombies.<arrow>") => {}
+                TraceEntry::Hook("runEnded", "plagueCorpses.<arrow>") => {}
+                TraceEntry::Hook("runEnded", "plagueZombies.<arrow>") => {}
+                TraceEntry::Hook("teleported", "plagueZombies.<arrow>") => {}
+                TraceEntry::Hook("hitLanded", "plagueZombies.<arrow>") => {}
                 TraceEntry::Hook("raidStarted", "abilities.armWishes") => {} // status reset only; P-ABIL remainder is explicit.
                 TraceEntry::Hook(h, l) => panic!("{name}: hook {h} link {l} is not ported"),
                 _ => {}

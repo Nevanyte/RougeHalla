@@ -1,0 +1,11 @@
+--- a/crates/rh-sim/src/systems/wind.rs
++++ b/crates/rh-sim/src/systems/wind.rs
+@@ -126,7 +126,7 @@
+             let p = &cx.w.players[i];
+             p.speed_boost_until > 0. && (p.speed_boost_until <= now || !p.standing())
+         };
+-        if over {
++        if false && over {
+             cx.w.players[i].speed_boost_until = 0.;
+             crate::modifiers::recompute_with(cx.k, cx.w, FighterIx::of_slot(i), cx.stats);
+         }

@@ -97,6 +97,7 @@ impl From<&SimSpec> for SimConfig {
             quests: false,
             training: false,
             dummies: false,
+            consumables: true,
         }
     }
 }
