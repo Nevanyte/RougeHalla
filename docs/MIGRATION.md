@@ -78,6 +78,14 @@ hosted admission, observed away→resume, real combat/results/spool and authenti
 pool reconstruction. Root independently passes the new real-PG test1/1. It does not certify process-kill/database
 restart, cross-volume recovery, backup restoration or missing Unity account/training/placement flows.
 
+The repaired account clientf993 is admitted as reusable HTTP/credential infrastructure, including36 account cases in
+the recorded435-test C# suite and both actual-listener preflight configurations. Independent review closes the request
+header/CORS and cancelled late-claim storage holds. Its [actual pinned Editor gate](evidence/account-editor-f993/README.md)
+passes four JsonUtility/PlayerPrefs tests; root verifies489 tested project hashes (including the recorded whitespace-only
+serialization overlay) and21 exact adapter files. It does not yet wire normal menu/Join, implement full-profile maps,
+prove browser reload durability or establish bank completion. The account owner supplies reusable lifetime/origin APIs;
+the separately owner-approved Unity UI modernization lane owns their functional Bootstrap/MatchClient/MatchHud integration.
+
 [Frozen gate scopes and receipts](evidence/native-wish-union/FROZEN13_GATE.md) supersede the private pre-admission status
 below. The older results and artifact descriptions that follow retain their historical revision limits.
 
