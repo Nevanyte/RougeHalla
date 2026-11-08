@@ -1,7 +1,7 @@
 # P-BOTS-3: the brain path service, away-point tactics and the Wish slip goal
 
 Stacked PR: [#53](https://github.com/Nevanyte/RougeHalla/pull/53), deepseek/p-bots-3 -> deepseek/p-bots-2 @ 8dbc1e67;
-commits 8dbc1e67..LATER. No wire/protocol change (protocol 7), no dependency or Cargo.lock change.
+commits 8dbc1e67..1a88e864. No wire/protocol change (protocol 7), no dependency or Cargo.lock change.
 
 Status: DONE-VERIFIED slice; P-BOTS-3 remains INCOMPLETE at packet level (exact remainder below). No packet file exists:
 scope derived from the backlog row (line 159: planning/chest/hazard modules, chestHunt; deps P-ARENA-1, P-CARDS-2, P-TERRAIN-1,
@@ -30,7 +30,7 @@ docs/BOTS.md 4/8.
 
 ## Verification
 
-- Git: 8dbc1e67..LATER. 
+- Git: 8dbc1e67..1a88e864. 
 - - cargo test --workspace --all-features --locked: **1,461 passed, 0 failed, 3 ignored, 152 test binaries, exit 0**.
 - cargo clippy --workspace --all-targets --all-features --locked -- -D warnings: clean, exit 0; cargo fmt --all -- --check: clean.
 - tools/brain-tactics-fixtures/capture.sh --check: byte-identical; run-mutants.sh: **3/3 mutants killed; unchanged control passes**.
