@@ -12,6 +12,7 @@ import {createGameWorld} from '/repo/packages/server/src/sim/gameplay.ts';
 import {addPlayer, step} from '/repo/packages/server/src/sim/step.ts';
 import {enqueueClientMessage} from '/repo/packages/server/src/sim/inputs.ts';
 import {teleportToColiseum} from '/repo/packages/server/src/sim/arena.ts';
+import {killMob} from '/repo/packages/server/src/sim/mobLife.ts';
 
 const args = process.argv.slice(2);
 assert(args.length === 2 && (args[0] === '--write' || args[0] === '--check') && typeof args[1] === 'string', 'closed capture arguments');
@@ -331,6 +332,82 @@ const cases: any[] = [];
   cases.push(r.output({accepted: published.map((o: any) => o.def), hiddenOffers: hidden}));
 }
 
+
+// 9. The run-end close: the real arena end producer (settle -> endRun) after the last two rival kills closes every open
+// offer (source quests.runEnded -> closeAll(false)). Declared setup is the victim's hp and the killer's weapon/place.
+{
+  const r = runner('run-end-close');
+  const published = r.frames[0].privateOffers.filter((o: any) => o.published).slice(0, 2);
+  for (const o of published) {
+    const q = r.w.quests.quests.get(o.id)!;
+    r.place('p0', q.s.x, q.s.y);
+    r.enqueue('p0', 'questAccept', {quest: o.id});
+    r.runSteps(1);
+  }
+  const duel = (victim: string): void => {
+    r.setWeapon('p0', 'sword');
+    r.setHp(victim, 1);
+    const v = r.w.state.players.get(victim)!;
+    r.place('p0', v.x - 32, v.y);
+    r.enqueue('p0', 'attack', {a: 0});
+    for (let i = 0; i < 16 && !r.w.players.get(victim)!.down; i++) r.runSteps(1);
+    r.enqueue('p0', 'release', {a: 0});
+    assert.ok(r.w.players.get(victim)!.down, victim + ' died to the real attack');
+  };
+  duel('p1');
+  r.snap('first-down');
+  assert.equal(r.w.state.phase, 'active', 'two still stand: the run goes on');
+  r.setHp('p0', 1000);
+  duel('p2');
+  r.snap('run-ended');
+  assert.equal(r.w.state.phase, 'ended', 'the arena end producer ended the run');
+  r.runSteps(2);
+  r.snap('lingered');
+  cases.push(r.output({accepted: published.map((o: any) => o.def), phase: r.w.state.phase, winner: r.w.state.winner}));
+}
+
+// 10. The camp-clear impossible-kill closure: reveal a hidden region cull offer, then wipe EVERY live mob of its region
+// through the source's real kill producer (killMob with no credited killer, the ledger's way down for a regional mob),
+// so the camps clear, the campCleared hook asks the system to recheck and the published offer (no standing player can
+// still finish it) is closed. The producer call is declared: no player damage/stats are involved.
+{
+  const r = runner('camp-clear-close');
+  const liveIn = (region: string): string[] => [...r.w.mobs.keys()].filter((id: string) => {
+    const rt = r.w.mobs.get(id);
+    const s = r.w.state.mobs.get(id);
+    return rt?.brain?.region === region && s?.status === 'alive' && (s.kind === 'mob' || s.kind === 'elite');
+  });
+  const hidden = r.frames[0].privateOffers.find((o: any) => {
+    const d = r.w.quests.quests.get(o.id)!.def;
+    return !o.published && d.kind === 'kill' && d.region && !d.tour && !d.elite && !d.players;
+  });
+  assert.ok(hidden, 'a hidden region cull offer');
+  const def = r.w.quests.quests.get(hidden.id)!.def;
+  const region = def.region;
+  const q = r.w.quests.quests.get(hidden.id)!;
+  r.place('p0', q.s.x, q.s.y);
+  r.runSteps(1);
+  r.snap('revealed');
+  r.runSteps(79);
+  r.runSteps(1);
+  r.snap('published');
+  assert.ok(r.w.quests.quests.get(hidden.id)!.published, 'the cull offer is public before the wipe');
+  const mobs = liveIn(region);
+  assert.ok(mobs.length > 0, 'the region has live mobs to wipe');
+  // The whole-region wipe: the real kill producer for every live mob of the region, in source map order.
+  for (const id of mobs) {
+    const c = {kind: 'mob', id, s: r.w.state.mobs.get(id), rt: r.w.mobs.get(id)};
+    killMob(r.w, c, [], [], c.s.hp);
+  }
+  r.push('regionWipe', {region, mobs: mobs.length});
+  assert.equal(liveIn(region).length, 0, 'no live mob of the region remains');
+  r.runSteps(1);
+  r.snap('region-wiped');
+  r.runSteps(1);
+  r.snap('closed');
+  cases.push(r.output({quest: hidden.def, region, mobs: mobs.length,
+    liveMobs: liveIn(region).length}));
+}
 // Determinism: every case repeats exactly.
 const repeat = cases.map((c) => ({name: c.input.name, script: c.script, frames: c.frames, actions: c.actions}));
 assert.deepEqual(repeat, cases.map((c) => ({name: c.input.name, script: c.script, frames: c.frames, actions: c.actions})), 'declared repeat');

@@ -1,0 +1,13 @@
+--- a/crates/rh-sim/src/quests/live.rs
++++ b/crates/rh-sim/src/quests/live.rs
+@@ -502,9 +502,7 @@
+ 
+ /// Source `onCampCleared`: re-check the kill offers after the pass paid every kill.
+ pub(crate) fn on_camp_cleared(hx: &mut crate::hooks::Hx, _: &crate::hooks::HookArgs) {
+-    if let Some(q) = quests_mut(hx.w) {
+-        q.recheck = true;
+-    }
++    let _ = quests_mut(hx.w);
+ }
+ 
+ /// Source `dropBody` wrap: a dying carrier drops the parcel where they fall.

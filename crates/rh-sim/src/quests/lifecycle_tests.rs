@@ -1,6 +1,8 @@
 //! The pinned-container lifecycle witness: replays `parity/quests/lifecycle.json` through the real C-INPUT door and the
 //! ported hooks/systems, comparing the captured source surfaces at every captured tick (public quest rows, the private
-//! offer table, givers, quest containers, players' GV/farm facts).
+//! offer table, givers, quest containers, players' GV/farm facts). The corpus holds the ten captured cases: the original
+//! eight plus the run-end close (the arena end producer) and the camp-clear impossible-kill closure (a whole-region wipe
+//! driven by the source/port's real kill producer).
 use super::catalog;
 use super::live::Status;
 use crate::input::{validate, RawCommand};
@@ -456,6 +458,38 @@ fn apply_action(
                 crate::hooks::HookArgs::Teleported,
             );
             sim.w.rt.gates_locked = true;
+        }
+        // Declared producer (like the teleport): the source case calls the real killMob for every live mob of a region;
+        // the replay calls the port's real mob kill path (the ledger's `hurt` with an uncredited lethal hit), which
+        // schedules the camp-clear payout exactly as a credited hit does. The captured live count must agree first.
+        "regionWipe" => {
+            let region =
+                FactionId::parse(action["region"].as_str().unwrap()).expect("captured region");
+            let want = action["mobs"].as_u64().unwrap() as usize;
+            let ids: Vec<PlayerId> = sim
+                .w
+                .mobs
+                .iter()
+                .filter(|m| {
+                    m.status == crate::state::Status::Alive && m.core.vitals.faction == region
+                })
+                .map(|m| m.core.id)
+                .collect();
+            assert_eq!(ids.len(), want, "the captured region mob count must agree");
+            for id in ids {
+                let ix = sim.w.fighter_idx(id).expect("a region mob is a fighter");
+                let hp = sim.w.core(ix).vitals.hp;
+                let hit = crate::systems::ledger::Hit {
+                    terrain: false,
+                    amount: hp,
+                    by: None,
+                    name: None,
+                };
+                let mut ev = Vec::new();
+                let removed =
+                    crate::systems::mob_life::hurt(&sim.k, &mut sim.w, &mut ev, ix, &[hit]);
+                assert!(removed > 0., "the real kill producer kills a region mob");
+            }
         }
         "input" => {
             let actor = action["actor"].as_u64().unwrap();
