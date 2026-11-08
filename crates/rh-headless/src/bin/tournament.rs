@@ -2,11 +2,12 @@
 //! full source option surface, the deterministic plan, the printed report and the --json export. The wall clock is read
 //! only here, for the progress line, the throughput meta and the per-game wall; the tournament itself is a pure function
 //! of its plan.
-use rh_headless::tournament::{aggregate, format_report_with, run_game, GameSummary, ReportMeta};
-use rh_headless::tournament_cli::{
-    default_arena, default_config, json_payload, lineup_text, parse_args, plan_of, USAGE,
+use rh_headless::tournament::{
+    aggregate, format_report_with, play, play_parallel, sim_config_for, GameSummary, ReportMeta,
 };
-use std::io::Write;
+use rh_headless::tournament_cli::{
+    default_arena, json_payload, lineup_text, parse_args, plan_of, write_telemetry, USAGE,
+};
 use std::time::Instant;
 
 /// The source telemetry file name: runs-<UTC day>.ndjson.
@@ -53,36 +54,45 @@ fn main() -> std::process::ExitCode {
     }
     let plan = plan_of(&args);
     let arena = default_arena();
-    let config = default_config();
+    // The plan stands for the experiment: the run's configuration is derived from it at this call site (the source's
+    // planOf config), so --patience/--sudden reach the real sim timers instead of being carried only in the payload.
+    let config = sim_config_for(&plan);
     let started = Instant::now();
-    let mut games: Vec<GameSummary> = Vec::with_capacity(plan.games as usize);
-    let mut game_wall = 0.;
-    let mut telemetry: Vec<String> = Vec::new();
-    for index in 0..plan.games {
-        let at = Instant::now();
-        let summary = run_game(index, &plan, &arena, &config);
-        game_wall += at.elapsed().as_secs_f64() * 1000.;
-        if args.telemetry_dir.is_some() {
-            // The ported telemetry surface: the reduced summary per game (the source docs/TELEMETRY.md record is the
-            // P-BOTS-6 remainder item 3).
-            telemetry.push(
-                json_payload(
-                    &plan,
-                    &aggregate(std::slice::from_ref(&summary)),
-                    std::slice::from_ref(&summary),
-                    None,
-                    None,
-                )["games"][0]
-                    .to_string(),
-            );
-        }
-        games.push(summary);
-    }
+    // The source plays independent games in worker threads (worker.ts): each game is a pure function of its plan index,
+    // so the parallel runner returns the serial result in index order (only the wall-clock meta can differ).
+    let results = if plan.workers <= 1 {
+        play(&plan, &arena, &config)
+    } else {
+        play_parallel(&plan, &arena, &config, plan.workers)
+    };
+    let games: Vec<GameSummary> = results
+        .iter()
+        .map(|result| result.summary.clone())
+        .collect();
     let wall_ms = started.elapsed().as_secs_f64() * 1000.;
     let game_ms = if games.is_empty() {
         f64::NAN
     } else {
-        game_wall / games.len() as f64
+        wall_ms / games.len() as f64
+    };
+    // The ported telemetry surface: the per-game summary record, in plan order (the full docs/TELEMETRY.md record body
+    // is the P-BOTS-6 remainder item 3).
+    let telemetry: Vec<String> = if args.telemetry_dir.is_some() {
+        games
+            .iter()
+            .map(|summary| {
+                json_payload(
+                    &plan,
+                    &aggregate(std::slice::from_ref(summary)),
+                    std::slice::from_ref(summary),
+                    None,
+                    None,
+                )["games"][0]
+                    .to_string()
+            })
+            .collect()
+    } else {
+        Vec::new()
     };
     let report = aggregate(&games);
     if !args.quiet {
@@ -126,8 +136,11 @@ fn main() -> std::process::ExitCode {
         });
         match created {
             Ok(mut file) => {
-                for line in &telemetry {
-                    let _ = writeln!(file, "{line}");
+                // The shared write path propagates every record/flush error: a partial telemetry file is a run failure,
+                // never a printed success.
+                if let Err(error) = write_telemetry(&mut file, &telemetry) {
+                    eprintln!("cannot write telemetry in {dir}: {error}");
+                    return std::process::ExitCode::from(2);
                 }
                 if !args.quiet {
                     eprintln!(

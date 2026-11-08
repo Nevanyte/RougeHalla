@@ -16,12 +16,14 @@
 //! plan, so the same plan replays byte-identically (the CLI wrapper may time itself outside).
 
 use crate::{Agent, AgentSpec, Env, EnvConfig};
-use rh_policy::bots::{HumanBot, PersonaId, TierId};
+use rh_policy::bots::{HumanBot, PersonaId, Rng, TierId};
+use rh_policy::{MatchStart, Policy, PolicySpec, PolicyStats};
 use rh_sim::constants::{MAX_PLAYERS, TICK_MS};
 use rh_sim::content::FactionId;
 use rh_sim::rng::Mulberry32;
 use rh_sim::{
-    Arena, ArenaMode, ArenaRules, Event, Outcome, PlayerId, RunResult, SimConfig, Status,
+    Arena, ArenaMode, ArenaRules, Event, Observation, Outcome, PlayerId, PublicCommand, RunResult,
+    SimConfig, Status,
 };
 
 /// A game is cut off after this much simulated time since it started (12 minutes; source game.ts MAX_GAME_MS).
@@ -510,9 +512,82 @@ struct Tally {
     last_trade: Option<(f64, usize)>,
 }
 
+/// The plan's simulated command delay line, when the plan asks for one: latencyMs/jitterMs (None or 0 = no line, so the
+/// zero-delay behaviour is exactly the unwrapped runner and stays byte-identical).
+fn plan_delay(plan: &TournamentPlan) -> Option<(f64, f64)> {
+    let latency = plan.latency_ms.unwrap_or(0.).max(0.);
+    let jitter = plan.jitter_ms.unwrap_or(0.).max(0.);
+    (latency > 0. || jitter > 0.).then_some((latency, jitter))
+}
+
+/// The source tournament's simulated command delay line (tournament/game.ts latencyMs/jitterMs and BotManager.deliver):
+/// a bot clicks at the frame's time and the command reaches the server at
+/// max(previous arrival, clicked + latency + jitter), where the jitter is uniform in -jitterMs..=+jitterMs from the
+/// seat's own line stream. The wrapper is an ordinary rh-policy seat, so the commands are still only proposed through the
+/// policy seam and validated + submitted by the Env; it changes arrival time, never a rule.
+///
+/// The stream is the manager's line-stream family (mulberry32(mix(seed, 1))), derived here from the seat's own match seed:
+/// one independent stream per seat, so the jitter is deterministic and independent of game/thread ordering.
+struct DelayLinePolicy {
+    inner: Box<dyn Policy>,
+    latency_ms: f64,
+    jitter_ms: f64,
+    line: Rng,
+    last_arrival: f64,
+    /// Commands clicked but not arrived yet, in click order (arrivals are never out of order).
+    pending: std::collections::VecDeque<(f64, PublicCommand)>,
+}
+
+impl DelayLinePolicy {
+    fn new(inner: Box<dyn Policy>, latency_ms: f64, jitter_ms: f64) -> Self {
+        Self {
+            inner,
+            latency_ms,
+            jitter_ms,
+            line: Rng::new(1),
+            last_arrival: f64::NEG_INFINITY,
+            pending: std::collections::VecDeque::new(),
+        }
+    }
+}
+
+impl Policy for DelayLinePolicy {
+    fn spec(&self) -> PolicySpec {
+        self.inner.spec()
+    }
+    fn stats(&self) -> Option<PolicyStats> {
+        self.inner.stats()
+    }
+    fn reset(&mut self, m: &MatchStart) {
+        self.inner.reset(m);
+        self.line = Rng::new(mix(m.seed as u32, 1));
+        self.last_arrival = f64::NEG_INFINITY;
+        self.pending.clear();
+    }
+    fn decide(&mut self, obs: &Observation) -> Vec<PublicCommand> {
+        let now = obs.server_time;
+        for cmd in self.inner.decide(obs) {
+            let jitter = (self.line.next_f64() * 2. - 1.) * self.jitter_ms;
+            let arrival = self.last_arrival.max(now + self.latency_ms + jitter);
+            self.last_arrival = arrival;
+            self.pending.push_back((arrival, cmd));
+        }
+        let mut out = Vec::new();
+        while let Some((arrival, _)) = self.pending.front() {
+            if *arrival > now {
+                break;
+            }
+            let (_, cmd) = self.pending.pop_front().expect("the front command");
+            out.push(cmd);
+        }
+        out
+    }
+}
+
 /// Play one game of the plan through rh-headless policy seats (source game.ts runGame).
 pub fn run_game(index: u32, plan: &TournamentPlan, arena: &Arena, sim: &SimConfig) -> GameSummary {
     let game = plan_game(plan, index);
+    let delay = plan_delay(plan);
     let agents: Vec<AgentSpec> = game
         .lineup
         .iter()
@@ -522,7 +597,15 @@ pub fn run_game(index: u32, plan: &TournamentPlan, arena: &Arena, sim: &SimConfi
             faction: seat.faction,
             bot: true,
             agent: Agent::Policy {
-                policy: Box::new(HumanBot::new(seat.tier, seat.persona)),
+                policy: {
+                    let policy: Box<dyn Policy> = Box::new(HumanBot::new(seat.tier, seat.persona));
+                    match delay {
+                        Some((latency, jitter)) => {
+                            Box::new(DelayLinePolicy::new(policy, latency, jitter))
+                        }
+                        None => policy,
+                    }
+                },
             },
         })
         .collect();
@@ -1871,6 +1954,45 @@ pub fn play(plan: &TournamentPlan, arena: &Arena, sim: &SimConfig) -> Vec<GameRe
         .collect()
 }
 
+/// Play every game across up to the plan's worker count (source worker.ts batches/worker_threads), still with the
+/// plan's per-game seeds: every game is independent, so the results are the serial runner's results (each game is a pure
+/// function of its plan index) and are returned in index order whatever order the workers finish in. A worker count of 1
+/// runs the serial in-order play.
+pub fn play_parallel(
+    plan: &TournamentPlan,
+    arena: &Arena,
+    sim: &SimConfig,
+    workers: u32,
+) -> Vec<GameResult> {
+    let batches = split(plan.games, workers);
+    if batches.len() <= 1 {
+        return play(plan, arena, sim);
+    }
+    let mut results: Vec<GameResult> = std::thread::scope(|scope| {
+        let handles: Vec<_> = batches
+            .into_iter()
+            .map(|batch| {
+                scope.spawn(move || -> Vec<GameResult> {
+                    batch
+                        .into_iter()
+                        .map(|index| GameResult {
+                            index,
+                            summary: run_game(index, plan, arena, sim),
+                        })
+                        .collect()
+                })
+            })
+            .collect();
+        handles
+            .into_iter()
+            .flat_map(|handle| handle.join().expect("a tournament worker panicked"))
+            .collect()
+    });
+    // The shared aggregate is the serial aggregate: index order is the plan's order, not the workers' completion order.
+    results.sort_by_key(|result| result.index);
+    results
+}
+
 /// The whole run: meta, the per-game summaries and their report (source runTournament.ts main's json payload).
 #[derive(Clone, Debug, PartialEq)]
 pub struct TournamentReport {
@@ -1919,4 +2041,92 @@ pub fn format_report(tournament: &TournamentReport) -> String {
             game_ms: None,
         },
     )
+}
+
+/// P-BOTS-6 remainder: the simulated delay line's arrival arithmetic, in isolation from the sim (the CLI/runner regression
+/// exercises the real effects; this pins the offsets and the determinism of the per-seat jitter stream).
+#[cfg(test)]
+mod delay_line_tests {
+    use super::*;
+
+    /// A seat that clicks one Stop per decision (the commands themselves are irrelevant to arrival timing).
+    struct Clicker;
+    impl Policy for Clicker {
+        fn spec(&self) -> PolicySpec {
+            PolicySpec {
+                name: "clicker".into(),
+                version: "1".into(),
+                contract: rh_policy::POLICY_CONTRACT_VERSION,
+                observation_version: rh_sim::OBSERVATION_VERSION,
+                decision_interval_ticks: 1,
+            }
+        }
+        fn reset(&mut self, _: &MatchStart) {}
+        fn decide(&mut self, _: &Observation) -> Vec<PublicCommand> {
+            vec![PublicCommand::Stop { seq: None }]
+        }
+    }
+
+    fn start(seed: u64) -> MatchStart {
+        MatchStart {
+            me: PlayerId(1),
+            seed,
+            arena: std::sync::Arc::new(rh_sim::arenas::practice_arena()),
+            content_hash: 0,
+            observation_version: rh_sim::OBSERVATION_VERSION,
+            tick_ms: TICK_MS,
+        }
+    }
+
+    fn at(now: f64) -> Observation {
+        Observation {
+            server_time: now,
+            ..Default::default()
+        }
+    }
+
+    /// Tick times a command came out at, calling decide every tick from 0.
+    fn releases(latency: f64, jitter: f64, seed: u64, ticks: usize) -> Vec<usize> {
+        let mut wrapper = DelayLinePolicy::new(Box::new(Clicker), latency, jitter);
+        wrapper.reset(&start(seed));
+        let mut released = Vec::new();
+        for tick in 0..ticks {
+            let now = tick as f64 * TICK_MS;
+            if !wrapper.decide(&at(now)).is_empty() {
+                released.push(tick);
+            }
+        }
+        released
+    }
+
+    #[test]
+    fn delay_line_offsets_are_the_source_arithmetic() {
+        // With no jitter a click arrives exactly latency later: released at the first decision at or after it.
+        let released = releases(120., 0., 7, 20);
+        assert_eq!(
+            released,
+            vec![3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
+        );
+        // Every click is delayed by the same latency: one release per tick after the first arrival.
+        assert_eq!(released.len(), 20 - 3);
+        // A larger latency shifts the whole sequence by the same 100 ms (two ticks).
+        let later = releases(220., 0., 7, 20);
+        assert_eq!(
+            later,
+            vec![5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
+        );
+    }
+
+    #[test]
+    fn delay_line_jitter_is_deterministic_per_seat_seed() {
+        let a = releases(100., 80., 7, 40);
+        let b = releases(100., 80., 7, 40);
+        assert_eq!(a, b, "the same seat seed replays the same jitter");
+        let other = releases(100., 80., 8, 40);
+        assert_ne!(a, other, "a different seat seed draws its own jitter");
+        assert_ne!(a, releases(100., 0., 7, 40), "jitter moves the arrivals");
+        for tick in &a {
+            assert!(*tick >= 2, "a 100 ms latency never arrives before tick 2");
+        }
+    }
 }

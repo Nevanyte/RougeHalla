@@ -460,6 +460,18 @@ pub fn json_payload(
     })
 }
 
+/// Write the telemetry NDJSON records to an open sink, propagating every write and flush error.
+///
+/// This is the real shared write path: the binary opens the telemetry file and calls this with it, so a failing sink
+/// fails the run instead of the binary reporting success for records it did not write. The sink is generic so a failing
+/// Writer exercises the propagation portably in tests (no environment trick and no disk filling).
+pub fn write_telemetry<W: std::io::Write>(out: &mut W, lines: &[String]) -> std::io::Result<()> {
+    for line in lines {
+        writeln!(out, "{line}")?;
+    }
+    out.flush()
+}
+
 /// A place to run a tournament from the CLI: the practice arena with the headless source defaults.
 pub fn default_arena() -> rh_sim::Arena {
     rh_sim::arenas::practice_arena()
