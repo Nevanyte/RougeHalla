@@ -1,0 +1,30 @@
+{
+  "baseRevision": "df0d7bb82bd681747d94a985df6cf5083a8e577f",
+  "failedWorkflow": 42521426323,
+  "failedRustJob": 128855560779,
+  "failure": "proof.mjs compared info.protocol13 against stale literal11; native/source steps passed before this browser check",
+  "localServer": {
+    "nativeRevision": "df0d7bb82bd681747d94a985df6cf5083a8e577f",
+    "binarySha256": "28101b04c2a94b8d3010f3a2db7a8ea64634e7bb174b0482a4454e318692ed27",
+    "buildCommand": "cargo build --locked -p rh-server (pinned final-env.sh)",
+    "buildLogSha256": "8ee4294561e7eedc3e18dd2c1830c6853ddc02224c26c270ae6e652fccfa8cb9",
+    "mode": "dev/unoptimized; current native source with driver/doc patch, no other runtime edits",
+    "preservedBinary": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/preserved-server-binaries/28101b04c2a94b8d3010f3a2db7a8ea64634e7bb174b0482a4454e318692ed27/rh-server"
+  },
+  "localProof": {
+    "command": "NODE_PATH=<existing project browser dependencies>/node_modules RH_SERVER_BIN=<built native df0>/rh-server node tools/browser-proof/proof.mjs --port7448",
+    "checks": 15,
+    "verdict": "PASS",
+    "reportSha256": "6ef565d684a30deb0c0f2dbe228d8e2b3e55c81f38348998c8722bfd892ff12e"
+  },
+  "sourceSha256": {
+    "tools/browser-proof/proof.mjs": "6aea66795ed18edd941a4bc65c62070d6a6e2fce1b57cd98d0238db134fcfd66",
+    "crates/rh-server/web/probe.html": "ccf0a20363d7b04d815368c7f707b324e21d20bc3480ade49a93aaae0be1015f",
+    "protocol/fixtures/v13.json": "be324b5e6d5bf62fd027aae2565baa53c6470455503f3ed2213f42c5e97796c7"
+  },
+  "limits": [
+    "Local Chromium native-WSS probe, not actual Unity WebGL",
+    "New exact integration-head CI remains pending",
+    "No WAN/cloud/performance or full gameplay completion claim"
+  ]
+}

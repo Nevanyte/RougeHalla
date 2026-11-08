@@ -1,4 +1,4 @@
-// Browser-to-Rust proof (Stage 1): real Chromium pages speak protocol v11 (Full and delta snapshots) over WSS to rh-server through the browser's own
+// Browser-to-Rust proof (Stage 1): real Chromium pages speak the checked probe protocol (Full and delta snapshots) over WSS to rh-server through the browser's own
 // WebSocket API (the transport a Unity Web build's jslib bridge uses). Two players join, the match starts, a movement order
 // is acknowledged, one player drops and resumes its seat, they fight, and both receive authoritative results.
 //
@@ -15,6 +15,12 @@ import { fileURLToPath } from "node:url";
 const require = createRequire(import.meta.url);
 const { chromium } = require("playwright");
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
+const probeSource = readFileSync(resolve(repo, "crates/rh-server/web/probe.html"), "utf8");
+const protocolMatch = /const PROTOCOL = (\d+);/.exec(probeSource);
+if (!protocolMatch) throw new Error("probe protocol constant not found");
+const expectedProtocol = Number(protocolMatch[1]);
+const vectors = JSON.parse(readFileSync(resolve(repo, `protocol/fixtures/v${expectedProtocol}.json`), "utf8"));
+if (vectors.protocol !== expectedProtocol) throw new Error("probe and golden-vector protocol differ");
 const port = Number(process.argv[process.argv.indexOf("--port") + 1]) || 7443;
 const bin = resolve(repo, process.env.RH_SERVER_BIN || "target/debug/rh-server");
 const report = { server: bin, url: `https://localhost:${port}/probe`, tls: "self-signed (ignoreHTTPSErrors)", checks: {}, measured: {} };
@@ -60,12 +66,12 @@ try {
   const state0 = await a.evaluate(() => ({frames:window.__probe.stateFrames,first:window.__probe.firstStateAfterWelcome,keys:Object.keys(window.__probe.collections)}));
   state0.first[0].join() === "1,2,3,4,5,6,7,8,9" && state0.keys.join() === "1,2,3,4,5,6,7,8,9" ? pass("join_receives_complete_reliable_state",state0) : fail("join_receives_complete_reliable_state",JSON.stringify(state0));
 
-  // Protocol 11: the first snapshot of a connection is Full, and the stream that follows is deltas the page's own decoder applies.
+  // The first snapshot is Full, followed by deltas the page's own checked decoder applies.
   await wait(a, () => window.__probe.deltaSnapshots > 20);
   const kinds = await a.evaluate(() => ({ first: window.__probe.firstSnapshotAfterWelcome, full: window.__probe.fullSnapshots, delta: window.__probe.deltaSnapshots, refused: window.__probe.refused, resyncs: window.__probe.resyncs }));
   const info0 = await a.evaluate(() => fetch("/info", { cache: "no-store" }).then((r) => r.json()));
-  info0.protocol === 11 && kinds.first[0] === "full" && kinds.delta > kinds.full && kinds.refused.length === 0 && kinds.resyncs === 0
-    ? pass("protocol_11_full_first_then_deltas", { protocol: info0.protocol, ...kinds }) : fail("protocol_11_full_first_then_deltas", JSON.stringify([info0.protocol, kinds]));
+  info0.protocol === expectedProtocol && kinds.first[0] === "full" && kinds.delta > kinds.full && kinds.refused.length === 0 && kinds.resyncs === 0
+    ? pass("checked_protocol_full_first_then_deltas", { protocol: info0.protocol, ...kinds }) : fail("checked_protocol_full_first_then_deltas", JSON.stringify([expectedProtocol, info0.protocol, kinds]));
 
   // A resync request is answered with a Full snapshot, and deltas continue from it.
   const f0 = await a.evaluate(() => window.__probe.fullSnapshots);
@@ -142,13 +148,15 @@ try {
   report.measured = { joinMs: pa.joinMs, resumeHelloToWelcomeMs: resumeMs, snapshots: pa.snapshots, fullSnapshots: pa.fullSnapshots, deltaSnapshots: pa.deltaSnapshots, resyncs: pa.resyncs, refusedDeltas: pa.refusedDeltas, fxFrames: pa.fx, rttMsP50: sorted[sorted.length >> 1], rttMsMax: sorted[sorted.length - 1], pageErrors: pa.errors, rejects: pa.rejects };
   report.serverInfo = await a.evaluate(() => fetch("/info", { cache: "no-store" }).then((r) => r.json()));
   consoleErrors.length === 0 && pa.errors.length === 0 ? pass("no_page_errors") : fail("no_page_errors", JSON.stringify([consoleErrors, pa.errors]));
-  const vectors = JSON.parse(readFileSync(resolve(repo, "protocol/fixtures/v11.json"), "utf8"));
   const mismatch = await a.evaluate((hex) => {
-    const bytes = Uint8Array.from(hex.match(/../g), h => parseInt(h, 16)); bytes[1] = 4;
+    const bytes = Uint8Array.from(hex.match(/../g), h => parseInt(h, 16));
+    const wrong = bytes.slice();
+    const view = new DataView(wrong.buffer);
+    view.setUint16(1, (view.getUint16(1, true) + 1) & 0xffff, true);
     const before = JSON.stringify({ welcome: window.__probe.welcome, snapshots: window.__probe.snapshots, base: tracker.base });
-    ws.onmessage({ data: bytes.buffer });
+    ws.onmessage({ data: wrong.buffer });
     // Even a subsequently queued valid Welcome cannot revive this rejected connection.
-    bytes[1] = 11; ws.onmessage({ data: bytes.buffer });
+    ws.onmessage({ data: bytes.buffer });
     return { preserved: before === JSON.stringify({ welcome: window.__probe.welcome, snapshots: window.__probe.snapshots, base: tracker.base }), reject: window.__probe.rejects.at(-1), closing: ws.readyState >= 2 };
   }, vectors.server.find(v => v.name === "welcome").hex);
   mismatch.preserved && mismatch.reject?.code === 1 && mismatch.closing ? pass("wrong_protocol_welcome_refused_before_state", mismatch) : fail("wrong_protocol_welcome_refused_before_state", JSON.stringify(mismatch));

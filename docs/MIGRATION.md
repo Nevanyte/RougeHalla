@@ -47,6 +47,12 @@ metadata pin in the card-catalog capture. The focused fixes retain all409 source
 [the follow-up](evidence/ci-card-catalog-protocol13/COORDINATOR.md) records the failed run and exact repair scope.
 Subsequent CI remains revision-scoped; older green runs are historical evidence.
 
+CI42521426323 atdf0d7bb8 now passes the complete simulation job and C#. Native Rust/default/PG/placement, strict lints,
+parity/headless and the complete source campaign pass before the final browser step. That step exposed another stale
+protocol11 assertion; the [driver repair](evidence/ci-browser-protocol13/README.md) passes a focused15-check local
+Chromium WSS proof against a freshly built native df0d7bb8 dev binary. The card-runtime job separately remains held on its
+catalog-reference provenance chain. The full workflow is therefore **failed**, with both repairs awaiting exact-head CI.
+
 One actual final Unity Web build passes,14files/74,247,550bytes. Generated BakedContent is aa64c642; the manifest binds
 frozen1310 source, exact as-built serialization overlay and the dev server binary SHA20d5b70e…5b4b0. Independent checks
 verify82source hashes,24packaged build-evidence files and all14served resources. There is no embedded runtime revision
