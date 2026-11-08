@@ -44,8 +44,10 @@ The new Unity art lane is isolated pending actual browser match and M5 Pro perfo
 not part of this accepted presentation checkpoint. The latency lane's controlled measurements remain bound to its
 recorded older candidate, not the new union or display/input-to-photon latency. The bot Knowledge/fair-view prefix now includes the independently reviewed
 [RNG/rounding/null repair](coordination/KNOWLEDGE_REPAIR.md) `fdea457b` (57 policy tests, three semantic mutants and
-canonical byte comparison pass). Bot learning remains held for expert single-writer lease, shutdown and source-order
-repairs. The observation-leaf proposal needs lead approval and a fresh version before
+canonical byte comparison pass). Bot learning is admitted with the independently reviewed exclusive-session lease,
+bounded shutdown and source-order repair `3619280f`. It defaults Off and connects only managed-faction learning;246
+affected server/persistence/policy tests, both strict Clippy modes and formatting pass. New fill/config/name and
+tournament timer/write-error continuations remain held for the [bounded repairs](PROJECT_COORDINATION.md#held-work-and-concrete-repair-gates). The observation-leaf proposal needs lead approval and a fresh version before
 brain memory/strategy consumers proceed. Active bot-fill and fixture-integrity work stays isolated until reviewed.
 
 Git metadata was backed up before repair; renamed worktree links were repaired, stable dirty histories were committed

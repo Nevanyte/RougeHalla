@@ -28,11 +28,6 @@
       "disposition": "active or newly delivered isolated work; review required"
     },
     {
-      "branch": "deepseek/p-bots-5",
-      "head": "75eaa42e003f45827c1428c63a8508a90b9104a4",
-      "disposition": "active or newly delivered isolated work; review required"
-    },
-    {
       "branch": "deepseek/p-bots-6b",
       "head": "51e72c7d785da0c0472a596c2e9ae6e998148beb",
       "disposition": "active or newly delivered isolated work; review required"

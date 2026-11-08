@@ -125,6 +125,46 @@
       "file": "caddy-loopback-adapt.json",
       "bytes": 856,
       "sha256": "c15f1d0a520a2220a8c5ef19f258d2d01f9f203d343f9fa4549b7a3f89484010"
+    },
+    {
+      "file": "learning-union-server.log",
+      "bytes": 15620,
+      "sha256": "73d4107c8ed88d739e55e2f00df3db32e726a9c1011b4b5fa3bc05c7841c3273"
+    },
+    {
+      "file": "learning-union-persist.log",
+      "bytes": 1463,
+      "sha256": "66665a6284cb754c77e00fcf42cdc309c1a46eaf24edff47a50711ab124bbbc4"
+    },
+    {
+      "file": "learning-union-policy.log",
+      "bytes": 6607,
+      "sha256": "4584fdf6de38256d736c94dd10dbab4609498f65b15a83709f6ffd9c924ee31b"
+    },
+    {
+      "file": "clippy-learning-final.log",
+      "bytes": 682,
+      "sha256": "de47f50a0c236646de040fd9ebbf702d9bb3dbffa0da4630a661f8fe7ef8822b"
+    },
+    {
+      "file": "clippy-learning-default-final.log",
+      "bytes": 556,
+      "sha256": "ea03ed32617d9f7773a97466b22e6a09afb9d5e84e49e1b7d9eed72a1931fe3a"
+    },
+    {
+      "file": "fmt-learning-final.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "server-build-learning-final.log",
+      "bytes": 436,
+      "sha256": "c5cfe544f4bc9eb7d3d0af77768730937b35ced246bf311e3d00c583df5a63c5"
+    },
+    {
+      "file": "browser-proof-learning-final.json",
+      "bytes": 4381,
+      "sha256": "15f5572810fb9c3453cc463b2be8d6d79c38afbed2e22f2ba22d00e5c97584a8"
     }
   ]
 }

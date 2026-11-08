@@ -32,7 +32,8 @@ remaining public transports stay explicit. [The evidence](evidence/git-consolida
 Measured-RTT admission bounds finite Attack/Release timestamps before resolution/validation/submit, records normalized
 commands and resets on reconnect. Solicited one-shot Pongs are exempt from the user-frame budget; malformed, duplicate,
 unknown and evicted Pongs stay charged. The adapter retains source held-attack lag and does not change simulation/history
-rules. Native learning and new observation leaves are held for independent correctness/privacy gates. No C-HOST cloud
+rules. Native managed-faction learning defaults Off; its reviewed exclusive-session lease, loss handling and bounded
+close pass246 affected tests with actual PG. New observation leaves stay held for privacy/version approval. No C-HOST cloud
 or production completion follows from local gates. Source metadata was reconciled without changing expected gameplay.
 
 ### Stage 2 validation addendum (takes precedence over the historical Stage 1 rows below)

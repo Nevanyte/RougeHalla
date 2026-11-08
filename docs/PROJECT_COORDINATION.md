@@ -30,8 +30,8 @@ then one integration gate; do not repeat unchanged expensive map campaigns after
 
 1. Finish the consolidated Git checkpoint and its current Rust/C#/JS checks. Preserve active workers and recovery refs.
 2. Complete native gameplay/parity/headless acceptance. The bot Knowledge repair is admitted; approve a concrete fair
-   observation design before memory/strategy/tactics work. Repair bot learning lease/shutdown/source ordering before
-   explicit live activation. Review the existing bounded bot-fill continuation; do not duplicate it.
+   observation design before memory/strategy/tactics work. The repaired learning store is integrated and defaults Off.
+   Complete the reviewed bot-fill configuration/name and tournament timer/write-error repairs; do not duplicate them.
 3. Close the missing public transports and source consumers: full Wish input/owner facts, Kill/Trophy options,
    quest/trade flows and the remaining public facts/cues. Inventory exact native prerequisites before assigning each
    packet. Reconcile incompatible identities and all three codecs centrally. Native fixtures alone do not prove the UI.
@@ -52,9 +52,12 @@ must be resolved before dependent implementations; release evidence must test th
   [Knowledge repair](coordination/KNOWLEDGE_REPAIR.md) `fdea457b`: source-derived independent RNG, ECMAScript diagnostic
   rounding and null fallback. The docs-only observation proposal `47ffd063` is retained **without leaf approval**.
   Clarify its public-counter exception and allocation proof first; observation17 is already used and cannot be reassigned.
-- `75eaa42e` learning prefix is held pending an opt-in, exclusive single-writer database lease held on the actual I/O
-  connection, safe loss behavior and bounded shutdown. Preserve source runtime insertion-order ties and sorted restart
-  semantics, plus per-arriving-bot bias refresh. Do not activate learning simply because a database URL exists.
+- `75eaa42e` learning prefix is integrated with the independently reviewed repair in `3619280f`: explicit opt-in,
+  exclusive lease on the actual PostgreSQL I/O session, sticky detected-loss behavior and bounded shutdown. Runtime
+  insertion-order/source-sorted restart and per-arrival bias are checked. Default remains Off; do not enable alongside
+  old noncooperating writers. Only managed-faction learning is connected. See [scope/evidence](evidence/stage2-bots-5/README.md).
+- The newer fill continuation is held for [configuration/name/parser repair](coordination/BOT_FILL_REPAIR.md), and the
+  tournament continuation for [real timer wiring and write-error handling](coordination/TOURNAMENT_TIMER_REPAIR.md).
 - `570dee45` repairs the measured-RTT packet’s compulsory Pong budget and is integrated. This is command-time admission
   clamping: held attacks retain the source press-time lag until a new Attack/Release. It does not introduce a dynamic
   per-swing rule or certify input-to-photon latency. The [Pong repair packet](coordination/PONG_REPAIR.md) records its gate.
