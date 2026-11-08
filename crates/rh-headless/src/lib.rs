@@ -4,6 +4,7 @@
 //! trainer) act for their own players through [`Env::step`]. Both go through the same input path.
 
 pub mod digest;
+pub mod telemetry_record;
 pub mod tournament;
 pub mod tournament_cli;
 

@@ -32,6 +32,16 @@ The fixture (parity/telemetry/run-record.json) keeps:
 RH_TELEMETRY_OUTPUT selects another output directory. The repository is mounted read-only and npm ci uses the lockfile
 in a temporary node_modules mount; nothing is written outside the declared output and the container's /tmp.
 
+## Shape-only Rust slice (fixture consumer, no producer wiring yet)
+
+The same branch also carries the record SHAPE as a Rust type surface in crates/rh-headless/src/telemetry_record.rs: every
+RunRecord/PlayerRecord/duel/offer/camp field in the captured serializer order, the null-vs-absent optional distinction,
+JSON-number representation preserved (JsNumber) and by-name map insertion order preserved (OrderedMap). Its parity test
+deserializes this fixture's exact source NDJSON line and re-serializes it byte-identically; negative controls require
+required/required-nullable fields and detect an added field. This is deliberately a FIXTURE-CONSUMER TYPE SURFACE pending
+the lead's producer-wiring decision (follow-ups A/B in the SCOPED_PLAN): no runner path fills or emits a RunRecord, no
+value is fabricated, and the reduced printed report, --json payloads and the existing telemetry writer are untouched.
+
 ## Not in this packet
 
 The Rust runner still writes the reduced per-game summary through its existing error-propagating telemetry writer, and

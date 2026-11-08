@@ -141,6 +141,28 @@ C. Declared scripted-state VALUE parity (after A): replay the source capture sce
    May remain partially blocked by sim-mechanics/bot-brain parity; only declared scripted states would be claimed.
 Each follow-up is bounded and testable; none fabricates a field.
 
+## Slice 2 (delivered): the shape-only Rust type surface
+
+The lead approved a second bounded slice on the same branch: the record's SHAPE as a fixture-consumer type surface in
+crates/rh-headless/src/telemetry_record.rs, with no producer wiring and no runtime path.
+- Every field of RunRecord, PlayerRecord, DuelRecord/DuelSide, OfferRecord/OfferPick, CampClearRecord, BuildInfo,
+  BuildSnapshot/PowerSnapshot/TelemetryStats, DeathCause, WishStats, ClientPerfSample, NetStats, Spawn, Potions,
+  Quests, Coliseum, FirstBlood, RunConfig, Truncated exists in the captured serializer's order; optional fields sit at
+  their spread positions and are skipped when absent; required NULLABLE fields (build.commit, player.death/pid,
+  firstBlood, duel.comeback) reject a missing key but serialize and accept an explicit null.
+- Representation: numbers are JsNumber (serde_json::Number) so JSON.stringify's representations are preserved exactly
+  (530 stays 530, not 530.0); by-name maps are OrderedMap so insertion order is preserved; value-domain names are
+  Strings pending the producer-wiring slice (mapping them to Rust enums would change bytes without source evidence).
+- Parity test (crates/rh-headless/tests/tournament_telemetry_record.rs): deserialize the captured source NDJSON line and
+  re-serialize BYTE-IDENTICALLY, plus negative controls (required and required-nullable fields cannot be absent; an
+  absent source optional stays absent; an added field cannot pass the byte check). The field-order mutant experiment for
+  the report: swapping two RunRecord struct fields makes the byte-parity test fail.
+- NOT a runner feature: no RunRecord is emitted/filled by the CLI or the runner; the reduced printed report, the --json
+  payloads, the existing error-propagating telemetry writer and every existing fixture/corpus are untouched. Producing
+  the values remains follow-ups A (read-only recorder seam in rh-sim, needs the lead-approved write-scope extension) and
+  B (Room-owned fill/writer in rh-headless). This type surface is the pinned skeleton for that decision; no value is
+  fabricated.
+
 ## Preserved by this packet
 
 - No Rust code change: the reduced printed report, the --json payloads, the existing telemetry writer and its
