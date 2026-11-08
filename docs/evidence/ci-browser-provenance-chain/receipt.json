@@ -323,7 +323,8 @@
       "verdict": "PASS WITH DISCREPANCIES",
       "auditedHead": "9952a996ad40336c7ba19d4854546c70033d6ab3",
       "scope": "independently reproduced external pinned catalog/runtime/witness recaptures; byte-identical rechecks; catalog one-leaf diff; runtime 8/0 and witness 24/0 allowed/forbidden; semantic digests a086c168/0ef72417 equal; overlay narrowness; FROZEN 7ed10869 intact; auditor positive/disposable controls; tracked logs/SHA256SUMS/negative SHAs",
-      "discrepancy": "reported catalog semantic digest bbfef8a0 was not reproducible; corrected to established projection a6dea59a (semantic equality still holds)"
+      "discrepancy": "reported catalog semantic digest bbfef8a0 was not reproducible; corrected to established projection a6dea59a (semantic equality still holds)",
+      "headAfterCorrection": "ca49785a72464a48da18ddf2c4aad732740ccb03"
     },
     "narrowAuditorAddition": {
       "verdict": "PASS WITH DISCREPANCIES",
@@ -332,7 +333,13 @@
       "discrepancy": "tracked inventory-control log showed parent feb9e956 because controls ran pre-commit with auditor copied in; fixed in 9952a996 by re-running controls at child HEAD and replacing logs"
     },
     "traceabilityFix": {
-      "status": "tiny independent checker running; result appended if it finds anything material"
+      "status": "PASS",
+      "auditedHeads": [
+        "9952a996ad40336c7ba19d4854546c70033d6ab3",
+        "ca49785a72464a48da18ddf2c4aad732740ccb03"
+      ],
+      "scope": "39f7657e..9952a996 evidence-only logs/README/receipt/SHA256SUMS; 25 tracked logs; two child-HEAD worktree logs; no feb9e956 references; SHA256SUMS 37/37 OK; descriptions match d634dedf/f64fdf81/c11024d1; disposable source mutation still yields catalog-source-sha; active tree clean",
+      "caveat": "HEAD advanced to ca49785a (evidence-only digest/checker correction); checks still pass there, no source/corpus change"
     }
   },
   "controlsTraceability": "All tracked disposable-worktree control logs are from a fresh worktree at child HEAD 39f7657e; the earlier pre-commit parent-worktree run produced the same failure kinds and its logs were replaced for accuracy."
