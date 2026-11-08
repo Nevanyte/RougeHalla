@@ -5,25 +5,23 @@
 //! Scope and honest gaps. The schedule and the report primitives reproduce the actual source functions
 //! (parity/policy/bot-tournament.json, captured from tournament/report.ts, tournament/worker.ts and
 //! tournament/runTournament.ts in the pinned Linux amd64 Node 22.23.4 container); the ported surfaces are pinned exactly.
-//! Game OUTCOMES cannot match the legacy tournament yet: a legacy game is played by the full bot brain
-//! (strategy/tactics/memory: the P-BOTS-1/P-BOTS-3/P-BOTS-4 remainder) and the remaining gameplay producers. The summary
-//! therefore carries only what the ported Env exposes publicly: no humanizer behaviour telemetry (commands/reactions/
-//! APM), no mob-kill or mob-damage split, and no sudden-death start time (the public Env has no event for it). Those
-//! columns are absent by design, not zeroed; the report prints those shares as NaN (the source prints "-").
+//! Game outcomes are reduced native diagnostics, not full source-brain parity. Humanizer counters are
+//! available; unported hunt/tactics counters remain absent. Damage/first-hit telemetry is available
+//! only in the reduced melee profile; advanced profiles explicitly return unavailable fields.
+//! Learning is off and actual play rejects an enabled plan. Command delay is optional, bounded and
+//! per-seat: its RNG ownership and undelayed observations deliberately differ from the source manager.
 //!
-//! Perception only from Observation, actions only through validate + submit: the runner builds ordinary rh-headless
-//! seats (Agent::Policy), so the Env enforces both. No wall clock is read here: a tournament is a pure function of its
-//! plan, so the same plan replays byte-identically (the CLI wrapper may time itself outside).
+//! Policies see only Observation and act through validate + submit. Pure play returns deterministic
+//! values; play_measured adds worker durations outside simulation and never feeds clocks to policies.
 
 use crate::{Agent, AgentSpec, Env, EnvConfig};
-use rh_policy::bots::{HumanBot, PersonaId, Rng, TierId};
-use rh_policy::{MatchStart, Policy, PolicySpec, PolicyStats};
+use rh_policy::bots::{HumanBot, PersonaId, TierId};
+
 use rh_sim::constants::{MAX_PLAYERS, TICK_MS};
 use rh_sim::content::FactionId;
 use rh_sim::rng::Mulberry32;
 use rh_sim::{
-    Arena, ArenaMode, ArenaRules, Event, Observation, Outcome, PlayerId, PublicCommand, RunResult,
-    SimConfig, Status,
+    Arena, ArenaMode, ArenaRules, Event, Outcome, PlayerId, RunResult, SimConfig, Status,
 };
 
 /// A game is cut off after this much simulated time since it started (12 minutes; source game.ts MAX_GAME_MS).
@@ -95,18 +93,17 @@ pub struct TournamentPlan {
     pub faction: FactionChoice,
     /// Simulated-time cap of one game, since its raid started (0 or less means MAX_GAME_MS).
     pub max_sim_ms: f64,
-    /// Worker count the plan is split across the plan is split across (the runner plays them in order in one thread; the report
-    /// meta keeps the source number).
+    /// Independent games are split across this many workers and returned in plan order.
     pub workers: u32,
-    /// The bots' learning store: absent in this port (P-BOTS-5); the source meta still prints it.
+    /// Unsupported here: actual tournament play requires false; no learning store is activated.
     pub learn: bool,
     /// Patience seconds at a full lobby, scaling to 40% (source planOf config.patienceSeconds; None = the headless
     /// defaults).
     pub patience_seconds: Option<f64>,
     /// Sudden death seconds (source planOf config.suddenDeathSeconds; None = the headless default).
     pub sudden_death_seconds: Option<f64>,
-    /// One-way latency and jitter of the bots' commands: parsed and carried for the source plan payload; the ported
-    /// runner has no simulated latency (P-BOTS-6 remainder item 4).
+    /// Command-only diagnostic delay with independent per-seat jitter (source: shared manager RNG).
+    /// Observations are not delayed. None/zero preserves the ordinary Env path.
     pub latency_ms: Option<f64>,
     pub jitter_ms: Option<f64>,
     /// The source tune.ts table patch: parsed and carried; the ported runner refuses to run a diagnostic it cannot apply.
@@ -126,7 +123,7 @@ impl Default for TournamentPlan {
             faction: FactionChoice::Mix,
             max_sim_ms: MAX_GAME_MS,
             workers: 1,
-            learn: true,
+            learn: false,
             patience_seconds: None,
             sudden_death_seconds: None,
             latency_ms: None,
@@ -148,7 +145,7 @@ impl TournamentPlan {
             faction: FactionChoice::Mix,
             max_sim_ms,
             workers: 1,
-            learn: true,
+            learn: false,
             patience_seconds: None,
             sudden_death_seconds: None,
             latency_ms: None,
@@ -413,8 +410,9 @@ pub struct BotSummary {
     pub kills: f64,
     pub mob_kills: f64,
     /// Damage to players and to mobs, from the public hit events (the same hit fx the source tallies).
-    pub damage: f64,
-    pub mob_damage: f64,
+    /// Unavailable outside the reduced melee profile.
+    pub damage: Option<f64>,
+    pub mob_damage: Option<f64>,
     pub deaths: f64,
     pub gv: f64,
     /// Milliseconds since the raid started, null while standing at the end (or at the cap).
@@ -464,7 +462,7 @@ pub struct GameSummary {
     pub first_kill_ms: Option<f64>,
     /// Every bot's death in order: (ms since the raid started, victim index, killer index or None for a mob/arena).
     pub death_log: Vec<(f64, usize, Option<usize>)>,
-    pub first_hits: Vec<FirstHit>,
+    pub first_hits: Option<Vec<FirstHit>>,
     /// The coliseum teleport, since the raid started; null when it never happened.
     pub teleport_ms: Option<f64>,
     /// The moment sudden death's burn began; null when it never happened.
@@ -520,73 +518,26 @@ fn plan_delay(plan: &TournamentPlan) -> Option<(f64, f64)> {
     (latency > 0. || jitter > 0.).then_some((latency, jitter))
 }
 
-/// The source tournament's simulated command delay line (tournament/game.ts latencyMs/jitterMs and BotManager.deliver):
-/// a bot clicks at the frame's time and the command reaches the server at
-/// max(previous arrival, clicked + latency + jitter), where the jitter is uniform in -jitterMs..=+jitterMs from the
-/// seat's own line stream. The wrapper is an ordinary rh-policy seat, so the commands are still only proposed through the
-/// policy seam and validated + submitted by the Env; it changes arrival time, never a rule.
-///
-/// The stream is the manager's line-stream family (mulberry32(mix(seed, 1))), derived here from the seat's own match seed:
-/// one independent stream per seat, so the jitter is deterministic and independent of game/thread ordering.
-struct DelayLinePolicy {
-    inner: Box<dyn Policy>,
-    latency_ms: f64,
-    jitter_ms: f64,
-    line: Rng,
-    last_arrival: f64,
-    /// Commands clicked but not arrived yet, in click order (arrivals are never out of order).
-    pending: std::collections::VecDeque<(f64, PublicCommand)>,
-}
-
-impl DelayLinePolicy {
-    fn new(inner: Box<dyn Policy>, latency_ms: f64, jitter_ms: f64) -> Self {
-        Self {
-            inner,
-            latency_ms,
-            jitter_ms,
-            line: Rng::new(1),
-            last_arrival: f64::NEG_INFINITY,
-            pending: std::collections::VecDeque::new(),
-        }
-    }
-}
-
-impl Policy for DelayLinePolicy {
-    fn spec(&self) -> PolicySpec {
-        self.inner.spec()
-    }
-    fn stats(&self) -> Option<PolicyStats> {
-        self.inner.stats()
-    }
-    fn reset(&mut self, m: &MatchStart) {
-        self.inner.reset(m);
-        self.line = Rng::new(mix(m.seed as u32, 1));
-        self.last_arrival = f64::NEG_INFINITY;
-        self.pending.clear();
-    }
-    fn decide(&mut self, obs: &Observation) -> Vec<PublicCommand> {
-        let now = obs.server_time;
-        for cmd in self.inner.decide(obs) {
-            let jitter = (self.line.next_f64() * 2. - 1.) * self.jitter_ms;
-            let arrival = self.last_arrival.max(now + self.latency_ms + jitter);
-            self.last_arrival = arrival;
-            self.pending.push_back((arrival, cmd));
-        }
-        let mut out = Vec::new();
-        while let Some((arrival, _)) = self.pending.front() {
-            if *arrival > now {
-                break;
-            }
-            let (_, cmd) = self.pending.pop_front().expect("the front command");
-            out.push(cmd);
-        }
-        out
-    }
+/// Hit-only telemetry is complete only for this reduced profile. Advanced profiles still play,
+/// but damage and first-hit fields return None instead of omitting landed chunks silently.
+fn damage_telemetry_supported(sim: &SimConfig) -> bool {
+    sim.faction_mode == rh_sim::FactionMode::Off
+        && sim.abilities == rh_sim::abilities::Mode::Off
+        && sim.mob_mode == rh_sim::mob_runtime::MobMode::Off
+        && !sim.initial_loot
+        && !sim.quests
+        && !sim.training
+        && sim.hazards == rh_sim::terrain::Mode::Off
 }
 
 /// Play one game of the plan through rh-headless policy seats (source game.ts runGame).
 pub fn run_game(index: u32, plan: &TournamentPlan, arena: &Arena, sim: &SimConfig) -> GameSummary {
+    assert!(
+        !plan.learn,
+        "tournament learning is unsupported; use learning off"
+    );
     let game = plan_game(plan, index);
+    let damage_available = damage_telemetry_supported(sim);
     let delay = plan_delay(plan);
     let agents: Vec<AgentSpec> = game
         .lineup
@@ -597,15 +548,7 @@ pub fn run_game(index: u32, plan: &TournamentPlan, arena: &Arena, sim: &SimConfi
             faction: seat.faction,
             bot: true,
             agent: Agent::Policy {
-                policy: {
-                    let policy: Box<dyn Policy> = Box::new(HumanBot::new(seat.tier, seat.persona));
-                    match delay {
-                        Some((latency, jitter)) => {
-                            Box::new(DelayLinePolicy::new(policy, latency, jitter))
-                        }
-                        None => policy,
-                    }
-                },
+                policy: Box::new(HumanBot::new(seat.tier, seat.persona)),
             },
         })
         .collect();
@@ -615,7 +558,7 @@ pub fn run_game(index: u32, plan: &TournamentPlan, arena: &Arena, sim: &SimConfi
         MAX_GAME_MS
     }) / TICK_MS)
         .ceil() as u32;
-    let mut env = Env::new(
+    let mut env = Env::new_delayed(
         EnvConfig {
             arena: arena.clone(),
             sim: sim.clone(),
@@ -626,6 +569,7 @@ pub fn run_game(index: u32, plan: &TournamentPlan, arena: &Arena, sim: &SimConfi
         // The source seeds the world from the game seed and the bots from a separate bot seed; the public Env derives
         // both from one seed, so the game seed is used here (documented deviation; the schedule parity is exact).
         u64::from(game.seed),
+        delay,
     );
     let ids: Vec<PlayerId> = env.sim.players().iter().map(|p| p.id).collect();
     let mut resolved: Vec<Option<RunResult>> = vec![None; ids.len()];
@@ -811,8 +755,8 @@ pub fn run_game(index: u32, plan: &TournamentPlan, arena: &Arena, sim: &SimConfi
             outcome,
             kills: tally.kills as f64,
             mob_kills: tally.mob_kills as f64,
-            damage: tally.damage.round(),
-            mob_damage: tally.mob_damage.round(),
+            damage: damage_available.then(|| tally.damage.round()),
+            mob_damage: damage_available.then(|| tally.mob_damage.round()),
             deaths: result.as_ref().map_or(0., |r| {
                 if matches!(r.outcome, Outcome::Died | Outcome::Mia) {
                     1.
@@ -843,7 +787,7 @@ pub fn run_game(index: u32, plan: &TournamentPlan, arena: &Arena, sim: &SimConfi
         first_death_ms,
         first_kill_ms,
         death_log,
-        first_hits,
+        first_hits: damage_available.then_some(first_hits),
         teleport_ms: teleport_tick.map(|tick| since_ms(raid_start_tick, tick)),
         sudden_death_ms: None,
         bots,
@@ -1289,8 +1233,8 @@ fn tier_agg(tier: TierId, games: &[GameSummary], total_wins: f64) -> TierAgg {
         place: mean_interval(&per_game_place, 1.645),
         kills_per_bot: per(&|b| b.kills),
         deaths_per_bot: per(&|b| b.deaths),
-        damage_per_bot: per(&|b| b.damage),
-        mob_damage_per_bot: per(&|b| b.mob_damage),
+        damage_per_bot: per(&|b| b.damage.unwrap_or(f64::NAN)),
+        mob_damage_per_bot: per(&|b| b.mob_damage.unwrap_or(f64::NAN)),
         mob_kills_per_bot: per(&|b| b.mob_kills),
         gv_per_bot: per(&|b| b.gv),
         alive_seconds: if n == 0. {
@@ -1306,10 +1250,16 @@ fn tier_agg(tier: TierId, games: &[GameSummary], total_wins: f64) -> TierAgg {
             }
             total / n / 1000.
         },
-        never_fought: rows
+        never_fought: if rows
             .iter()
-            .filter(|b| b.damage == 0. && b.mob_damage == 0.)
-            .count() as f64,
+            .any(|b| b.damage.is_none() || b.mob_damage.is_none())
+        {
+            f64::NAN
+        } else {
+            rows.iter()
+                .filter(|b| b.damage == Some(0.) && b.mob_damage == Some(0.))
+                .count() as f64
+        },
         died_to: DiedToCounts {
             bot: rows
                 .iter()
@@ -1944,53 +1894,74 @@ pub struct TournamentMeta {
     pub max_sim_ms: f64,
 }
 
-/// Play every game of the plan in index order (source worker.ts/runTournament.ts play, one thread).
-pub fn play(plan: &TournamentPlan, arena: &Arena, sim: &SimConfig) -> Vec<GameResult> {
-    (0..plan.games)
-        .map(|index| GameResult {
-            index,
-            summary: run_game(index, plan, arena, sim),
-        })
-        .collect()
+/// A game measured outside the simulation. Durations never enter policy input.
+pub struct MeasuredGame {
+    pub result: GameResult,
+    pub wall_ms: f64,
 }
 
-/// Play every game across up to the plan's worker count (source worker.ts batches/worker_threads), still with the
-/// plan's per-game seeds: every game is independent, so the results are the serial runner's results (each game is a pure
-/// function of its plan index) and are returned in index order whatever order the workers finish in. A worker count of 1
-/// runs the serial in-order play.
+/// Mean worker game duration, separate from parallel throughput's elapsed / games.
+pub fn mean_game_ms(results: &[MeasuredGame]) -> Option<f64> {
+    (!results.is_empty())
+        .then(|| results.iter().map(|r| r.wall_ms).sum::<f64>() / results.len() as f64)
+}
+
+fn play_each<T: Send>(
+    plan: &TournamentPlan,
+    workers: u32,
+    execute: impl Fn(u32) -> T + Sync,
+) -> Vec<T> {
+    let batches = split(plan.games, workers);
+    let mut results: Vec<(u32, T)> = std::thread::scope(|scope| {
+        let execute = &execute;
+        let handles: Vec<_> = batches
+            .into_iter()
+            .map(|batch| {
+                scope.spawn(move || {
+                    batch
+                        .into_iter()
+                        .map(|index| (index, execute(index)))
+                        .collect::<Vec<_>>()
+                })
+            })
+            .collect();
+        handles
+            .into_iter()
+            .flat_map(|h| h.join().expect("a tournament worker panicked"))
+            .collect()
+    });
+    results.sort_by_key(|(index, _)| *index);
+    results.into_iter().map(|(_, value)| value).collect()
+}
+
+/// Pure game values in plan order; no clock enters simulation or policy input.
+pub fn play(plan: &TournamentPlan, arena: &Arena, sim: &SimConfig) -> Vec<GameResult> {
+    play_parallel(plan, arena, sim, 1)
+}
+
+/// Independent games split across workers, returned in plan order.
 pub fn play_parallel(
     plan: &TournamentPlan,
     arena: &Arena,
     sim: &SimConfig,
     workers: u32,
 ) -> Vec<GameResult> {
-    let batches = split(plan.games, workers);
-    if batches.len() <= 1 {
-        return play(plan, arena, sim);
-    }
-    let mut results: Vec<GameResult> = std::thread::scope(|scope| {
-        let handles: Vec<_> = batches
-            .into_iter()
-            .map(|batch| {
-                scope.spawn(move || -> Vec<GameResult> {
-                    batch
-                        .into_iter()
-                        .map(|index| GameResult {
-                            index,
-                            summary: run_game(index, plan, arena, sim),
-                        })
-                        .collect()
-                })
-            })
-            .collect();
-        handles
-            .into_iter()
-            .flat_map(|handle| handle.join().expect("a tournament worker panicked"))
-            .collect()
-    });
-    // The shared aggregate is the serial aggregate: index order is the plan's order, not the workers' completion order.
-    results.sort_by_key(|result| result.index);
-    results
+    play_each(plan, workers, |index| GameResult {
+        index,
+        summary: run_game(index, plan, arena, sim),
+    })
+}
+
+/// Actual per-game worker wall durations, kept separate from deterministic game values.
+pub fn play_measured(plan: &TournamentPlan, arena: &Arena, sim: &SimConfig) -> Vec<MeasuredGame> {
+    play_each(plan, plan.workers, |index| {
+        let started = std::time::Instant::now();
+        let summary = run_game(index, plan, arena, sim);
+        MeasuredGame {
+            result: GameResult { index, summary },
+            wall_ms: started.elapsed().as_secs_f64() * 1000.,
+        }
+    })
 }
 
 /// The whole run: meta, the per-game summaries and their report (source runTournament.ts main's json payload).
@@ -2033,7 +2004,7 @@ pub fn format_report(tournament: &TournamentReport) -> String {
         &ReportMeta {
             lineup,
             seed: meta.seed,
-            learn: true,
+            learn: false,
             persona: meta.persona.clone(),
             faction: meta.faction.clone(),
             workers: 1,
@@ -2041,92 +2012,4 @@ pub fn format_report(tournament: &TournamentReport) -> String {
             game_ms: None,
         },
     )
-}
-
-/// P-BOTS-6 remainder: the simulated delay line's arrival arithmetic, in isolation from the sim (the CLI/runner regression
-/// exercises the real effects; this pins the offsets and the determinism of the per-seat jitter stream).
-#[cfg(test)]
-mod delay_line_tests {
-    use super::*;
-
-    /// A seat that clicks one Stop per decision (the commands themselves are irrelevant to arrival timing).
-    struct Clicker;
-    impl Policy for Clicker {
-        fn spec(&self) -> PolicySpec {
-            PolicySpec {
-                name: "clicker".into(),
-                version: "1".into(),
-                contract: rh_policy::POLICY_CONTRACT_VERSION,
-                observation_version: rh_sim::OBSERVATION_VERSION,
-                decision_interval_ticks: 1,
-            }
-        }
-        fn reset(&mut self, _: &MatchStart) {}
-        fn decide(&mut self, _: &Observation) -> Vec<PublicCommand> {
-            vec![PublicCommand::Stop { seq: None }]
-        }
-    }
-
-    fn start(seed: u64) -> MatchStart {
-        MatchStart {
-            me: PlayerId(1),
-            seed,
-            arena: std::sync::Arc::new(rh_sim::arenas::practice_arena()),
-            content_hash: 0,
-            observation_version: rh_sim::OBSERVATION_VERSION,
-            tick_ms: TICK_MS,
-        }
-    }
-
-    fn at(now: f64) -> Observation {
-        Observation {
-            server_time: now,
-            ..Default::default()
-        }
-    }
-
-    /// Tick times a command came out at, calling decide every tick from 0.
-    fn releases(latency: f64, jitter: f64, seed: u64, ticks: usize) -> Vec<usize> {
-        let mut wrapper = DelayLinePolicy::new(Box::new(Clicker), latency, jitter);
-        wrapper.reset(&start(seed));
-        let mut released = Vec::new();
-        for tick in 0..ticks {
-            let now = tick as f64 * TICK_MS;
-            if !wrapper.decide(&at(now)).is_empty() {
-                released.push(tick);
-            }
-        }
-        released
-    }
-
-    #[test]
-    fn delay_line_offsets_are_the_source_arithmetic() {
-        // With no jitter a click arrives exactly latency later: released at the first decision at or after it.
-        let released = releases(120., 0., 7, 20);
-        assert_eq!(
-            released,
-            vec![3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
-        );
-        // Every click is delayed by the same latency: one release per tick after the first arrival.
-        assert_eq!(released.len(), 20 - 3);
-        // A larger latency shifts the whole sequence by the same 100 ms (two ticks).
-        let later = releases(220., 0., 7, 20);
-        assert_eq!(
-            later,
-            vec![5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
-        );
-    }
-
-    #[test]
-    fn delay_line_jitter_is_deterministic_per_seat_seed() {
-        let a = releases(100., 80., 7, 40);
-        let b = releases(100., 80., 7, 40);
-        assert_eq!(a, b, "the same seat seed replays the same jitter");
-        let other = releases(100., 80., 8, 40);
-        assert_ne!(a, other, "a different seat seed draws its own jitter");
-        assert_ne!(a, releases(100., 0., 7, 40), "jitter moves the arrivals");
-        for tick in &a {
-            assert!(*tick >= 2, "a 100 ms latency never arrives before tick 2");
-        }
-    }
 }

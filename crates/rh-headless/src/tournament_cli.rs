@@ -1,6 +1,6 @@
 //! The tournament CLI surface (source packages/server/src/bots/tournament/runTournament.ts): the parsed arguments, the
 //! usage text, the deterministic plan they describe, and the JSON payload the source writes with --json. Pure: no clock
-//! and no I/O (the binary does the writing and the one wall-clock measurement).
+//! and no I/O (the diagnostic wrapper measures worker time; the binary writes the report).
 use crate::tournament::{
     default_workers, parse_lineup, DiedTo, FactionChoice, GameSummary, PersonaChoice, Report,
     TournamentPlan, FACTION_IDS, MAX_GAME_MS, PERSONA_IDS,
@@ -34,17 +34,17 @@ pub struct TournamentArgs {
 /// The source USAGE text (the invocation line adapted to this binary).
 pub const USAGE: &str = "usage: cargo run -p rh-headless --bin tournament -- [options]
   --games N        games to play (default 400)
-  --workers N      worker threads (default min(cores - 1, 6); the ported runner plays in index order in this thread)
+  --workers N      worker threads (default min(cores - 1, 6); results retain plan order)
   --lineup L       one letter per seat, E(asy) N(ormal) H(ard), comma separated (default E,E,N,N,H,H; 2 to 8 seats)
   --seed N         the tournament seed (default 1): game seeds, factions and personas all derive from it
-  --learn on|off   the bots' learning store (default on; the store is not ported yet, the flag is carried in the meta)
+  --learn on|off   learning off by default; explicit on is refused (this runner has no learning store)
   --persona P      mix (default: rotated evenly), farmer, hunter, opportunist or cautious for every bot
   --faction F      mix (default: rotated evenly) or one faction id (fire, sentenced, plague, frost, holy) for every bot
   --json FILE      also write the plan, the report and the games there
   --max-minutes M  cut a game off after M simulated minutes (default 12)
   --patience S     patience seconds at a full lobby, scaling to 40% of it (default 120)
   --sudden S       sudden death seconds (default 30)
-  --latency MS     --jitter MS   one-way latency of the bots' commands (default 30 and 8; not simulated by the ported runner)
+  --latency MS     --jitter MS   command-only diagnostic delay (default off; independent per-seat jitter, no observation delay)
   --telemetry DIR  also write every game's reduced summary NDJSON to DIR/runs-<day>.ndjson
   --tune JSON      a tuning diagnostic: patch the TIERS / PERSONAS tables (the ported runner refuses it: the tables are
                    compile-time constants, P-BOTS-6 remainder)
@@ -80,7 +80,7 @@ pub fn parse_args(argv: &[String], cores: usize) -> Result<TournamentArgs, Strin
         workers: default_workers(cores) as u32,
         tiers: parse_lineup("E,E,N,N,H,H")?,
         seed: 1,
-        learn: true,
+        learn: false,
         persona: None,
         faction: None,
         json: None,
@@ -395,8 +395,8 @@ fn bot_json(b: &crate::tournament::BotSummary) -> Value {
         "outcome": b.outcome.as_str(),
         "kills": js_num(b.kills),
         "mobKills": js_num(b.mob_kills),
-        "damage": js_num(b.damage),
-        "mobDamage": js_num(b.mob_damage),
+        "damage": b.damage.map_or(Value::Null, js_num),
+        "mobDamage": b.mob_damage.map_or(Value::Null, js_num),
         "deaths": js_num(b.deaths),
         "gv": js_num(b.gv),
         "diedAtMs": b.died_at_ms.map_or(Value::Null, js_num),
@@ -418,7 +418,7 @@ fn game_json(g: &GameSummary) -> Value {
         "firstDeathMs": g.first_death_ms.map_or(Value::Null, js_num),
         "firstKillMs": g.first_kill_ms.map_or(Value::Null, js_num),
         "deathLog": g.death_log.iter().map(|(at, victim, killer)| json!([js_num(*at), victim, killer.map_or(Value::Null, |k| json!(k))])).collect::<Vec<_>>(),
-        "firstHits": g.first_hits.iter().map(|(at, a, v, ahp, vhp, vbusy, abusy)| json!([js_num(*at), a, v, js_num(*ahp), js_num(*vhp), vbusy, abusy])).collect::<Vec<_>>(),
+        "firstHits": g.first_hits.as_ref().map(|hits| hits.iter().map(|(at, a, v, ahp, vhp, vbusy, abusy)| json!([js_num(*at), a, v, js_num(*ahp), js_num(*vhp), vbusy, abusy])).collect::<Vec<_>>()),
         "teleportMs": g.teleport_ms.map_or(Value::Null, js_num),
         "suddenDeathMs": g.sudden_death_ms.map_or(Value::Null, js_num),
         "bots": g.bots.iter().map(bot_json).collect::<Vec<_>>(),

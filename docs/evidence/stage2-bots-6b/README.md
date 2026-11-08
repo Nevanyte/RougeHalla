@@ -1,5 +1,8 @@
 # P-BOTS-6 remainder — the tournament CLI surface, the full report/evaluate layout and the complete --json payload
 
+Historical slice evidence below. The current composed runner boundary, learning gate, command-delay scope,
+measurement fixes and remaining telemetry gaps are recorded in [the admission repair](../tournament-admission-repair/README.md).
+
 Status: **slices 1-2 DONE-VERIFIED; the P-BOTS-6 packet remains INCOMPLETE** (the brain-layer hunt/tactics counters and the items named below are the exact gap). PR #62 in the P-BOTS-6 stack. Branch `deepseek/p-bots-6b`, base
 `deepseek/p-bots-6` @ `f87727dd` (the tournament tip), PR target `deepseek/p-bots-6`, stack stated in the PR.
 

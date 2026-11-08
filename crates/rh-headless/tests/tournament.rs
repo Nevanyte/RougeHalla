@@ -76,8 +76,8 @@ fn bot_summary(row: &Value, index: u32) -> BotSummary {
         outcome: outcome(row["outcome"].as_str().unwrap()),
         kills: num(&row["kills"]),
         mob_kills: row.get("mobKills").map_or(0., num),
-        damage: row.get("damage").map_or(0., num),
-        mob_damage: row.get("mobDamage").map_or(0., num),
+        damage: Some(row.get("damage").map_or(0., num)),
+        mob_damage: Some(row.get("mobDamage").map_or(0., num)),
         first_mob_kill_ms: row.get("firstMobKillMs").and_then(Value::as_f64),
         tp_hp: row.get("tpHp").and_then(Value::as_f64),
         deaths: num(&row["deaths"]),
@@ -237,7 +237,7 @@ fn game_summary(case: &Value) -> GameSummary {
         first_death_ms: case["firstDeathMs"].as_f64(),
         first_kill_ms: case.get("firstKillMs").and_then(Value::as_f64),
         death_log: Vec::new(),
-        first_hits: Vec::new(),
+        first_hits: Some(Vec::new()),
         teleport_ms: case["teleportMs"].as_f64(),
         sudden_death_ms: case["suddenDeathMs"].as_f64(),
         bots,
@@ -813,7 +813,25 @@ fn argv_of(v: &Value) -> Vec<String> {
         .collect()
 }
 
-/// The CLI surface is the actual source parseArgs/planOf: every pinned argv parses to the source arguments (or the source
+/// Source defaults to learning on; the admitted runner deliberately defaults off until a store exists.
+/// Retain the captured source value and constrain the deviation to the absent --learn option only.
+fn with_runner_learning_default(argv: &[String], source: &Value) -> Value {
+    let mut expected = source.clone();
+    if !argv
+        .iter()
+        .any(|arg| arg == "--learn" || arg.starts_with("--learn="))
+    {
+        assert_eq!(
+            source["learn"], true,
+            "the actual legacy default remains pinned"
+        );
+        expected["learn"] = Value::Bool(false);
+    }
+    expected
+}
+
+/// The CLI surface follows source parseArgs/planOf except its explicitly tested learning default: every pinned argv
+/// parses to the source arguments (or the source
 /// plain error message), and the plan payload keeps the source field names and values.
 #[test]
 fn the_cli_surface_matches_the_actual_source() {
@@ -832,7 +850,7 @@ fn the_cli_surface_matches_the_actual_source() {
             (Value::Null, Err(error)) => panic!("argv {argv:?}: unexpected error {error}"),
             (Value::Null, Ok(args)) => same_json(
                 &args_json(&args),
-                &case["expected"],
+                &with_runner_learning_default(&argv, &case["expected"]),
                 &format!("argv {argv:?}"),
             ),
             other => panic!("bad case {other:?}"),
@@ -846,7 +864,7 @@ fn the_cli_surface_matches_the_actual_source() {
         let plan = plan_of(&args);
         same_json(
             &plan_json(&plan),
-            &case["expected"],
+            &with_runner_learning_default(&argv, &case["expected"]),
             &format!("plan {argv:?}"),
         );
     }

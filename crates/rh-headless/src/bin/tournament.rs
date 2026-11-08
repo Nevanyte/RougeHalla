@@ -1,9 +1,10 @@
 //! The tournament CLI over the headless environment (source packages/server/src/bots/tournament/runTournament.ts): the
 //! full source option surface, the deterministic plan, the printed report and the --json export. The wall clock is read
-//! only here, for the progress line, the throughput meta and the per-game wall; the tournament itself is a pure function
-//! of its plan.
+//! only in the diagnostic measurement wrapper and here for total throughput. Clocks never enter
+//! policy inputs or authoritative simulation.
 use rh_headless::tournament::{
-    aggregate, format_report_with, play, play_parallel, sim_config_for, GameSummary, ReportMeta,
+    aggregate, format_report_with, mean_game_ms, play_measured, sim_config_for, GameSummary,
+    ReportMeta,
 };
 use rh_headless::tournament_cli::{
     default_arena, json_payload, lineup_text, parse_args, plan_of, write_telemetry, USAGE,
@@ -45,6 +46,10 @@ fn main() -> std::process::ExitCode {
         println!("{USAGE}");
         return std::process::ExitCode::SUCCESS;
     }
+    if args.learn {
+        eprintln!("--learn on is unsupported by this tournament runner; use --learn off (no learning store is activated)");
+        return std::process::ExitCode::from(2);
+    }
     if args.tune.is_some() {
         eprintln!(
             "--tune: the ported runner does not apply TIERS/PERSONAS table patches yet (they are compile-time constants; \
@@ -58,23 +63,13 @@ fn main() -> std::process::ExitCode {
     // planOf config), so --patience/--sudden reach the real sim timers instead of being carried only in the payload.
     let config = sim_config_for(&plan);
     let started = Instant::now();
-    // The source plays independent games in worker threads (worker.ts): each game is a pure function of its plan index,
-    // so the parallel runner returns the serial result in index order (only the wall-clock meta can differ).
-    let results = if plan.workers <= 1 {
-        play(&plan, &arena, &config)
-    } else {
-        play_parallel(&plan, &arena, &config, plan.workers)
-    };
+    let results = play_measured(&plan, &arena, &config);
+    let wall_ms = started.elapsed().as_secs_f64() * 1000.;
     let games: Vec<GameSummary> = results
         .iter()
-        .map(|result| result.summary.clone())
+        .map(|result| result.result.summary.clone())
         .collect();
-    let wall_ms = started.elapsed().as_secs_f64() * 1000.;
-    let game_ms = if games.is_empty() {
-        f64::NAN
-    } else {
-        wall_ms / games.len() as f64
-    };
+    let game_ms = mean_game_ms(&results);
     // The ported telemetry surface: the per-game summary record, in plan order (the full docs/TELEMETRY.md record body
     // is the P-BOTS-6 remainder item 3).
     let telemetry: Vec<String> = if args.telemetry_dir.is_some() {
@@ -111,11 +106,11 @@ fn main() -> std::process::ExitCode {
         faction: plan.faction.as_str().to_owned(),
         workers: plan.workers,
         wall_ms: Some(wall_ms),
-        game_ms: Some(game_ms),
+        game_ms,
     };
     print!("{}", format_report_with(&report, &meta));
     if args.json.is_some() {
-        let payload = json_payload(&plan, &report, &games, Some(wall_ms), Some(game_ms));
+        let payload = json_payload(&plan, &report, &games, Some(wall_ms), game_ms);
         if let Some(path) = &args.json {
             if let Err(error) =
                 std::fs::write(path, serde_json::to_string(&payload).unwrap_or_default())

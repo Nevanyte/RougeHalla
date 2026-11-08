@@ -1,0 +1,36 @@
+{
+  "base": "b9f149c99533fa1b8b5a159db2da200c5bcb2e7e",
+  "cargo": "cargo 1.97.0 (c980f4866 2026-06-30)",
+  "rustc": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+  "tests": {
+    "command": "cargo test -p rh-headless --all-features --locked --lib --test tournament --test tournament_cli_timers --test tournament_runner_remainder --test tournament_telemetry_record --test env --test bots --test item_offers",
+    "passed": 47,
+    "failed": 0,
+    "ignored": 0,
+    "groups": [
+      5,
+      3,
+      8,
+      3,
+      11,
+      3,
+      10,
+      4
+    ]
+  },
+  "clippy": "cargo clippy -p rh-headless --all-targets --all-features --locked -- -D warnings",
+  "format": "cargo fmt --all --check",
+  "negative_controls": {
+    "delivery-current-clock": {
+      "exit": 101,
+      "observed_application_ms": 200,
+      "expected_ms": 150
+    },
+    "overflow-jitter-draw": {
+      "exit": 101,
+      "observed_next_arrival_ms": 1107.4226079508662,
+      "expected_ms": 1086.2963942438364
+    }
+  },
+  "fixture_changes": []
+}

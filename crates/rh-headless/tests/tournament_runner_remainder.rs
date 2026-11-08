@@ -318,3 +318,87 @@ fn the_cli_fails_when_the_telemetry_destination_cannot_be_opened() {
         String::from_utf8_lossy(&output.stderr)
     );
 }
+
+#[test]
+fn learning_defaults_off_and_explicit_on_is_refused_before_play() {
+    let args = parse_args(&[], 4).unwrap();
+    assert!(!args.learn);
+    assert!(!plan_of(&args).learn);
+    let payload = run_cli(&["--games", "1"]);
+    assert_eq!(payload["meta"]["learn"], false);
+    assert_eq!(payload["plan"]["learn"], false);
+    let enabled = Command::new(env!("CARGO_BIN_EXE_tournament"))
+        .args(["--learn", "on"])
+        .output()
+        .unwrap();
+    assert_eq!(enabled.status.code(), Some(2));
+    assert!(String::from_utf8_lossy(&enabled.stderr).contains("no learning store is activated"));
+    assert!(!String::from_utf8_lossy(&enabled.stdout).contains("learning on"));
+}
+
+#[test]
+fn measured_worker_games_keep_values_and_mean_individual_durations() {
+    use rh_headless::tournament::{mean_game_ms, play_measured, MeasuredGame};
+    let mut plan = plan_of_args(&["--games", "2", "--workers", "2"]);
+    plan.max_sim_ms = 1000.;
+    let config = sim_config_for(&plan);
+    let arena = rh_sim::arenas::practice_arena();
+    let measured = play_measured(&plan, &arena, &config);
+    let pure = play_parallel(&plan, &arena, &config, 2);
+    assert_eq!(
+        measured.iter().map(|m| &m.result).collect::<Vec<_>>(),
+        pure.iter().collect::<Vec<_>>()
+    );
+    assert!(measured
+        .iter()
+        .all(|m| m.wall_ms.is_finite() && m.wall_ms >= 0.));
+    assert_eq!(mean_game_ms(&[]), None);
+    // Two overlapping worker games took 10 and 30 ms. With 30 ms total wall the throughput
+    // quotient is 15; the source's mean worker game duration is 20, regardless of that overlap.
+    let declared = vec![
+        MeasuredGame {
+            result: pure[0].clone(),
+            wall_ms: 10.,
+        },
+        MeasuredGame {
+            result: pure[1].clone(),
+            wall_ms: 30.,
+        },
+    ];
+    assert_eq!(mean_game_ms(&declared), Some(20.));
+}
+
+#[test]
+fn advanced_profiles_return_unavailable_damage_and_first_hit_telemetry() {
+    use rh_headless::tournament::aggregate;
+    use rh_headless::tournament_cli::json_payload;
+    let mut plan = plan_of_args(&["--games", "1"]);
+    plan.max_sim_ms = 1000.;
+    for config in [
+        rh_sim::SimConfig {
+            faction_mode: rh_sim::FactionMode::EngagementHolyPlagueFire,
+            lobby_seconds: 0.,
+            ..sim_config_for(&plan)
+        },
+        rh_sim::SimConfig {
+            abilities: rh_sim::abilities::Mode::Full,
+            lobby_seconds: 0.,
+            ..sim_config_for(&plan)
+        },
+    ] {
+        let game = run_game(0, &plan, &rh_sim::arenas::practice_arena(), &config);
+        assert!(game.first_hits.is_none());
+        assert!(game
+            .bots
+            .iter()
+            .all(|b| b.damage.is_none() && b.mob_damage.is_none()));
+        let report = aggregate(std::slice::from_ref(&game));
+        assert!(report.tiers.iter().all(|t| t.damage_per_bot.is_nan()
+            && t.mob_damage_per_bot.is_nan()
+            && t.never_fought.is_nan()));
+        let json = json_payload(&plan, &report, &[game], None, None);
+        assert!(json["games"][0]["firstHits"].is_null());
+        assert!(json["games"][0]["bots"][0]["damage"].is_null());
+        assert!(json["report"]["tiers"][0]["neverFought"].is_null());
+    }
+}
