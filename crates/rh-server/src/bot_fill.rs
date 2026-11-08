@@ -269,8 +269,19 @@ pub struct BotFillStats {
     pub yielded: u64,
 }
 
-/// The lobby fill policy: the manager's arrival schedule, closing top-up and yield seat over deterministic streams
-/// (source BotManager.lobbyTick/lobbyClosing/yieldSeat/addBot).
+/// What an explicit seat may fix instead of drawing (source BotManager.ts BotSeatOverrides): the tier, persona, faction and
+/// callsign. Every other field is still drawn, and every draw is still made whether or not it is overridden, so fixing one
+/// thing never reshuffles the rest (source addBot comments, BotManager.ts:264-288).
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct BotSeatOverrides {
+    pub tier: Option<TierId>,
+    pub persona: Option<PersonaId>,
+    pub faction: Option<FactionId>,
+    pub name: Option<String>,
+}
+
+/// The lobby fill policy: the manager's arrival schedule, closing top-up, yield seat and explicit addBot seam over
+/// deterministic streams (source BotManager.lobbyTick/lobbyClosing/yieldSeat/addBot).
 pub struct BotFillState {
     cfg: BotFillConfig,
     /// The manager seed, as the source's 32-bit number.
@@ -377,7 +388,7 @@ impl BotFillState {
         let mut i = 0;
         while i < self.pending.len() && self.pending[i] <= now {
             if shadow.players < self.target {
-                if let Some(spec) = self.add_bot(&mut shadow) {
+                if let Some(spec) = self.draw_bot(&mut shadow, &BotSeatOverrides::default()) {
                     out.push(spec);
                 }
             }
@@ -396,12 +407,23 @@ impl BotFillState {
         }
         let mut shadow = Shadow::from(view);
         while shadow.players < self.target && shadow.players < MAX_PLAYERS {
-            match self.add_bot(&mut shadow) {
+            match self.draw_bot(&mut shadow, &BotSeatOverrides::default()) {
                 Some(spec) => out.push(spec),
                 None => break,
             }
         }
         out
+    }
+
+    /// Seats one bot now, drawing everything and letting over fix what it names (source BotManager.addBot): tier,
+    /// persona, faction and callsign. Every draw is still made in the source order, so fixing one thing never reshuffles
+    /// the rest, and an overridden tier/persona/faction/name only replaces the value that draw produced. A full lobby
+    /// returns None before any draw and without consuming an id. The caller owns the source's lobby-phase check (as for
+    /// lobby_tick/lobby_closing; Room checks the phase). Unlike the automatic fill an explicit seat needs no human in the
+    /// room: the source headless tournament seats its fixed lineup into an empty lobby this way (headlessRoom.ts:137).
+    pub fn add_bot(&mut self, view: &FillView, over: &BotSeatOverrides) -> Option<BotSeatSpec> {
+        let mut shadow = Shadow::from(view);
+        self.draw_bot(&mut shadow, over)
     }
 
     /// A human is joining a full lobby: the newest bot gives its seat up (source BotManager.yieldSeat). The caller must
@@ -426,9 +448,9 @@ impl BotFillState {
         }
     }
 
-    /// Seats one bot now, drawing everything (source BotManager.addBot, without the test overrides). Every draw is made
-    /// in the source order and only on a real seating, so fixing nothing here ever reshuffles the rest.
-    fn add_bot(&mut self, shadow: &mut Shadow) -> Option<BotSeatSpec> {
+    /// Seats one bot now, drawing everything (source BotManager.addBot): every draw is made in the source order, then
+    /// the overrides replace what they name. Only a real seating touches the streams or the id sequence.
+    fn draw_bot(&mut self, shadow: &mut Shadow, over: &BotSeatOverrides) -> Option<BotSeatSpec> {
         if shadow.players >= MAX_PLAYERS {
             return None;
         }
@@ -437,10 +459,17 @@ impl BotFillState {
         }
         let n = self.next_n + 1;
         self.next_n = n;
-        let tier = TierId::ALL[pick_weighted(&mut self.fill_rng, &self.cfg.tier_mix)];
-        let persona = PersonaId::ALL[pick_weighted(&mut self.fill_rng, &self.cfg.persona_mix)];
-        let faction = self.pick_faction(&shadow.factions, persona);
-        let name = {
+        // All four draws happen whether or not the override fixes them (source addBot: every draw is made, so fixing
+        // one thing never reshuffles the rest).
+        let drawn_tier = TierId::ALL[pick_weighted(&mut self.fill_rng, &self.cfg.tier_mix)];
+        let drawn_persona =
+            PersonaId::ALL[pick_weighted(&mut self.fill_rng, &self.cfg.persona_mix)];
+        let tier = over.tier.unwrap_or(drawn_tier);
+        let persona = over.persona.unwrap_or(drawn_persona);
+        // The faction draw uses the effective persona for the learned key, exactly as the source passes it to pickFaction.
+        let drawn_faction = self.pick_faction(&shadow.factions, persona);
+        let faction = over.faction.unwrap_or(drawn_faction);
+        let drawn_name = {
             let taken = |candidate: &str| {
                 (*shadow.taken)(candidate)
                     || shadow
@@ -450,6 +479,7 @@ impl BotFillState {
             };
             pick_callsign(&mut self.fill_rng, taken)
         };
+        let name = over.name.clone().unwrap_or(drawn_name);
         let spec = BotSeatSpec {
             number: n,
             name: name.clone(),
