@@ -19,7 +19,7 @@ namespace Roguehalla.Client
         ShowcaseCatalog _catalog;
         Transform _mapRoot, _propsRoot, _fxRoot;
         readonly List<SpriteRenderer> _props = new List<SpriteRenderer>();
-        readonly List<Light2D> _lamps = new List<Light2D>();
+        readonly List<ShowcasePointLight> _lamps = new List<ShowcasePointLight>();
         readonly List<SpriteRenderer> _lampGlows = new List<SpriteRenderer>();
         readonly List<SpriteRenderer> _motes = new List<SpriteRenderer>();
         readonly List<SpriteRenderer> _fog = new List<SpriteRenderer>();
@@ -33,6 +33,8 @@ namespace Roguehalla.Client
         Volume _volume;
         Light2D _ambient;
         int _used;
+        Vector3 _lastFollow;
+        bool _hasFollow;
         public bool IsObserved(uint id) { return _actors != null && _actors.Contains(id); }
         sealed class Flash { public SpriteRenderer Sprite; public TMP_Text Text; public uint Actor; public float Start, Duration; public Vector3 Position; public Color Color; public float Size; }
         struct PendingFx { public FxKind Kind; public uint Subject; public float Amount; }
@@ -102,8 +104,8 @@ namespace Roguehalla.Client
             ShowcaseSprites.Create(_mapRoot, "Flame", "spark", order + 1, new Color(2, 1.1f, .4f), new Vector2(.22f, .4f), p + new Vector3(0, .17f), false);
             var glow = ShowcaseSprites.Create(_mapRoot, "Ember haze", "glow", order + 2, new Color(1, .4f, .1f, .35f), new Vector2(1.8f, 1.8f), p, false);
             _lampGlows.Add(glow);
-            var light = ShowcaseSprites.CreateLight(_mapRoot, "Static torch light", p); light.lightType = Light2D.LightType.Point; light.color = color;
-            light.intensity = 2.3f; light.pointLightInnerRadius = .3f; light.pointLightOuterRadius = 4.8f; light.falloffIntensity = .6f;
+            var light = ShowcaseSprites.CreateLight(_mapRoot, "Static torch light", p);
+            light.Configure(color, 2.3f, .3f, 4.8f, .6f, true);
             _lamps.Add(light);
         }
 
@@ -275,9 +277,9 @@ namespace Roguehalla.Client
         {
             var p = WorldPoint(serverX, serverY); cam.transform.position = new Vector3(p.x, p.y + 1.5f, -30);
             cam.transform.rotation = Quaternion.identity;
+            _lastFollow = p; _hasFollow = true;
+            UpdateLampVisibility(p);
             int budget = ShowcaseSettings.Current == null || ShowcaseSettings.Current.EffectiveQuality == ShowcaseQuality.High ? 6 : ShowcaseSettings.Current.EffectiveQuality == ShowcaseQuality.Medium ? 3 : 0;
-            int count = 0;
-            foreach (var lamp in _lamps) { bool near = Mathf.Abs(lamp.transform.position.x - p.x) < 18 && Mathf.Abs(lamp.transform.position.y - p.y) < 12; lamp.enabled = near && count++ < budget; }
             bool motion = ShowcaseSettings.Current == null || !ShowcaseSettings.Current.ReducedMotion;
             for(int i=0;i<_motes.Count;i++)
             {
@@ -292,6 +294,16 @@ namespace Roguehalla.Client
                 _fog[i].transform.position=p+new Vector3(Mathf.Sin(t+i*2)*6,(i-1)*5,0);
             }
         }
+        void UpdateLampVisibility(Vector3 p)
+        {
+            int budget = ShowcaseSettings.Current == null || ShowcaseSettings.Current.EffectiveQuality == ShowcaseQuality.High ? 6 : ShowcaseSettings.Current.EffectiveQuality == ShowcaseQuality.Medium ? 3 : 0;
+            int count = 0;
+            foreach (var lamp in _lamps)
+            {
+                bool near = Mathf.Abs(lamp.transform.position.x - p.x) < 18 && Mathf.Abs(lamp.transform.position.y - p.y) < 12;
+                lamp.SetVisible(near && count++ < budget);
+            }
+        }
         public bool ScreenToServer(Camera cam, Vector2 screen, out float sx, out float sy)
         {
             var p = cam.ScreenToWorldPoint(new Vector3(screen.x, screen.y, -cam.transform.position.z));
@@ -304,7 +316,8 @@ namespace Roguehalla.Client
             if (_volume != null) _volume.enabled = quality != ShowcaseQuality.Low;
             if (_ambient != null) _ambient.intensity = quality == ShowcaseQuality.Low ? 1 : quality==ShowcaseQuality.Medium ? .6f : .36f;
             foreach (var glow in _lampGlows) glow.enabled = quality != ShowcaseQuality.Low;
-            foreach (var light in _lamps) light.shadowsEnabled = quality == ShowcaseQuality.High;
+            foreach (var light in _lamps) { light.SetShadows(quality == ShowcaseQuality.High); light.ApplyQuality(); }
+            if (_hasFollow) UpdateLampVisibility(_lastFollow);
         }
         void OnDestroy() { if (ShowcaseSettings.Current != null) ShowcaseSettings.Current.Changed -= ApplyQuality; }
     }

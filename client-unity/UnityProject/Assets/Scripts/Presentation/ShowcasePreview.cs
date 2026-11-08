@@ -129,7 +129,7 @@ namespace Roguehalla.Client
                 Vector3 p = ArenaView.WorldPoint((7f + i * 3.5f) * 32f, 11.25f * 32f);
                 ShowcaseSprites.Create(root,"Staged elemental material wash","glow",-50,WithAlpha(color,.19f),new Vector2(4.8f,12),p,false);
                 var light=ShowcaseSprites.CreateLight(root,"Staged elemental light",p+new Vector3(0,1,-1));
-                light.color=color;light.intensity=1.7f;light.pointLightInnerRadius=.3f;light.pointLightOuterRadius=4.3f;
+                light.Configure(color,1.7f,.3f,4.3f,.5f,true);light.SetVisible(true);
                 var title=new GameObject("Faction study heading");title.transform.SetParent(root,false);title.transform.position=p+new Vector3(0,5.4f,0);
                 var label=title.AddComponent<TextMeshPro>();label.font=Resources.Load<TMP_FontAsset>("Showcase/CinzelDecorative")??TMP_Settings.defaultFontAsset;
                 label.text=ShowcasePalette.GetFactionName(i).ToUpperInvariant();label.fontSize=2.6f;label.color=color;label.alignment=TextAlignmentOptions.Center;

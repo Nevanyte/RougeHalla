@@ -14,7 +14,7 @@ namespace Roguehalla.Client
             public GameObject Root;
             public SpriteRenderer Body, Shadow, Halo, RuneBack, Rune, Hp, HpBack, Weapon, Status;
             public SpriteRenderer[] StatusIcons;
-            public Light2D Light;
+            public ShowcasePointLight Light;
             public ShowcaseCatalog.Appearance Appearance;
             public Vector3 LastPosition;
             public float MovingUntil, AttackUntil;
@@ -82,7 +82,7 @@ namespace Roguehalla.Client
         }
         void Evict(uint id)
         {
-            var art=_active[id];art.Root.SetActive(false);art.Light.enabled=false;
+            var art=_active[id];art.Light.SetVisible(false);art.Root.SetActive(false);
             _active.Remove(id);_pool.Push(art);
         }
 
@@ -187,8 +187,8 @@ namespace Roguehalla.Client
                 icon.transform.localPosition = new Vector3(-.45f + shown++ * .16f, 2, 0);
                 icon.sortingOrder = order + 7;
             }
-            a.Light.color = color; a.Light.intensity = local ? .65f : .2f;
-            a.Light.enabled = !dead && local && (ShowcaseSettings.Current == null || ShowcaseSettings.Current.EffectiveQuality == ShowcaseQuality.High);
+            a.Light.Configure(color, local ? .65f : .2f, .3f, 2.4f, .5f, false, true);
+            a.Light.SetVisible(!dead && local);
         }
 
         Art Create()
@@ -209,9 +209,8 @@ namespace Roguehalla.Client
             for(int bit=0;bit<a.StatusIcons.Length;bit++)
                 a.StatusIcons[bit] = ShowcaseSprites.Create(t, "Public status bit " + bit, "sigil" + bit%5, 7,
                     bit<3 ? new Color(1,.8f,.4f) : bit<5 ? new Color(.5f,.85f,1) : bit<7 ? new Color(1,.45f,.35f) : new Color(.8f,.7f,1), new Vector2(.14f,.14f), Vector3.zero,false);
-            a.Light = ShowcaseSprites.CreateLight(t, "Observed local accent", new Vector3(0, .6f, -1)); a.Light.lightType = Light2D.LightType.Point;
-            a.Light.shadowsEnabled = false;
-            a.Light.pointLightOuterRadius = 2.4f; a.Light.pointLightInnerRadius = .3f;
+            a.Light = ShowcaseSprites.CreateLight(t, "Observed local accent", new Vector3(0, .6f, -1));
+            a.Light.Configure(Color.white, .2f, .3f, 2.4f, .5f, false, true);
             return a;
         }
     }

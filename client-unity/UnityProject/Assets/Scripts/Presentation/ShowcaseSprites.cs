@@ -128,12 +128,14 @@ namespace Roguehalla.Client
             return renderer;
         }
 
-        public static Light2D CreateLight(Transform parent, string name, Vector3 position)
+        public static ShowcasePointLight CreateLight(Transform parent, string name, Vector3 position)
         {
-            var template = Resources.Load<GameObject>("Showcase/Torch");
-            var go = template != null ? Object.Instantiate(template, parent) : new GameObject(name);
-            go.name = name; go.transform.SetParent(parent, false); go.transform.localPosition = position;
-            return go.GetComponent<Light2D>() ?? go.AddComponent<Light2D>();
+            var go = new GameObject(name); go.SetActive(false);
+            go.transform.SetParent(parent, false); go.transform.localPosition = position;
+            var owner = go.AddComponent<ShowcasePointLight>();
+            owner.Initialize(Resources.Load<GameObject>("Showcase/Torch"), Resources.Load<GameObject>("Showcase/TorchAccurate"));
+            go.SetActive(true);
+            return owner;
         }
     }
 }

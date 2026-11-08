@@ -77,7 +77,7 @@ namespace Roguehalla.Client.Tests
             arena.Present(new List<InterpActor>(), me, null, 0);
             Transform actorRoot = FindDirectChild(arena.transform, "Observed actor");
             Assert.That(actorRoot, Is.Not.Null);
-            Light2D accent = actorRoot.GetComponentInChildren<Light2D>(true);
+            Light2D accent = actorRoot.GetComponentInChildren<ShowcasePointLight>(true).AccurateVariant;
             Assert.That(accent, Is.Not.Null);
             Assert.That(accent.enabled, Is.True);
 
@@ -257,7 +257,7 @@ namespace Roguehalla.Client.Tests
             AssertRendererEnabled(actor, "Faction footprint");
             AssertRendererEnabled(actor, "Faction insignia");
             AssertRendererEnabled(actor, "Confirmed health");
-            Assert.That(actor.GetComponentInChildren<Light2D>(true).enabled, Is.False);
+            Assert.That(actor.GetComponentInChildren<ShowcasePointLight>(true).AccurateVariant.enabled, Is.False);
         }
 
         [Test]
