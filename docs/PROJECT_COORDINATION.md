@@ -43,8 +43,10 @@ then one integration gate; do not repeat unchanged expensive map campaigns after
 4. The final functional Unity art handoff through `a401a510` is integrated in `3bf64d42`: exact-build19-outcome browser
    proof and nine profile captures are verified. Retain the owner’s at-least-144-FPS target at2560×1440 on the M5 Pro;
    the current60Hz physical display cannot certify it. Managed allocation throughput and full-game coverage remain open.
-   The art lane may audit content coverage, rendered CVD readability and normal-map response within its evidence scope;
-   coordinate any runtime gap before implementation. Callback/headroom rates remain separate from displayed frames.
+   The audit found disabled normal-light presets and weak non-hue faction cues. The lead-approved
+   [bounded repair](coordination/ART_LIGHTING_READABILITY_REPAIR.md) covers existing-light High normals, essential faction
+   shapes/badges and readable native potion notices, with separate commits and one final Web build. GPU cost must pass
+   the stated diagnostic gate before admission. Callback/headroom rates remain separate from displayed frames.
 5. Complete browser/account flows, durable progression, cloud/provider/region lifecycle and the original full-port
    release/performance gates. Rebuild artifacts from the final union before any staging run. Use the practice domain
    `rougehalla.com`, Calgary preference and **CAD20 total** cap; production remains separately controlled.
