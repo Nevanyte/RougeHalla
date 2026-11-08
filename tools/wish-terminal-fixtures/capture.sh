@@ -5,8 +5,7 @@ MODE=capture
 if [ "$#" -eq 1 ]; then MODE="$1"; fi
 case "$MODE" in capture|--check) ;; *) exit 2 ;; esac
 REPO=$(cd "$(dirname "$0")/../.." && pwd)
-OUTPUT="$RH_WISH_TERMINAL_OUTPUT"
-[ -n "$OUTPUT" ] || OUTPUT="$REPO/parity/wish-terminal"
+OUTPUT="${RH_WISH_TERMINAL_OUTPUT:-$REPO/parity/wish-terminal}"
 mkdir -p "$OUTPUT"
 OUTPUT=$(cd "$OUTPUT" && pwd)
 if [ "$MODE" = "--check" ]; then MOUNT="type=bind,src=$OUTPUT,dst=/out,readonly"; else MOUNT="type=bind,src=$OUTPUT,dst=/out"; fi
