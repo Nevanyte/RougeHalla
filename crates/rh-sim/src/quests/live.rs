@@ -328,6 +328,11 @@ fn standing(w: &World, id: PlayerId) -> bool {
         .is_some_and(|p: &Player| p.standing() && !p.seat.bot)
 }
 
+/// Source takesPart for a fighter whose body state (alive/down/resolved) is proven by the caller.
+fn takes_part(w: &World, id: PlayerId) -> bool {
+    w.player(id).is_some_and(|p: &Player| !p.seat.bot)
+}
+
 fn gv_quest(k: &MatchStatic, w: &mut World, ev: &mut Vec<Event>, i: usize, gv: u16) {
     if crate::schedule::Gates::of(k).training {
         return;
@@ -474,7 +479,7 @@ pub(crate) fn on_player_killed(hx: &mut crate::hooks::Hx, args: &crate::hooks::H
         || hx.w.phase != crate::state::Phase::Active
         || by == victim
         || !standing(hx.w, *by)
-        || !standing(hx.w, *victim)
+        || !takes_part(hx.w, *victim)
     {
         return;
     }

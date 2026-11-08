@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Canonical actual-source K1 quest data witness (catalog rows and reward rules, roster selection, map placement of
-# givers/tokens/parcels on declared full maps, and the accept/refusal wording). Capture and compare each execute once in
-# the pinned Linux/x64 Node 22.23.4 container.
+# Canonical actual-source quest witnesses (pinned linux/amd64 Node 22.23.4 container): the data layer (catalog, roster,
+# placement and reward rules) and the lifecycle (spawn, accept, reveal, pickups/carriers, turn-in rewards, expiry, the real
+# player kill and the coliseum teleport close). Capture writes both corpora; --check requires the checked-in bytes.
 set -eo pipefail
 [ "$#" -le 1 ] || exit 2
 MODE="$1"
@@ -12,6 +12,7 @@ if [ "$MODE" = "--check" ]; then
     OUTPUT="$RH_QUEST_OUTPUT"
     [ -n "$OUTPUT" ] || OUTPUT="$REPO/parity/quests"
     [ -f "$OUTPUT/data.json" ] || { echo "Missing quest corpus: $OUTPUT/data.json" >&2; exit 1; }
+    [ -f "$OUTPUT/lifecycle.json" ] || { echo "Missing quest corpus: $OUTPUT/lifecycle.json" >&2; exit 1; }
     OUTPUT=$(cd "$OUTPUT" && pwd)
     OUTPUT_MOUNT="type=bind,src=$OUTPUT,dst=/out,readonly"
 else
@@ -34,5 +35,7 @@ docker run --rm --platform linux/amd64 -e MODE="$MODE" \
  npm ci --ignore-scripts --no-audit --no-fund > /tmp/rh-npm-ci.log 2>&1 || { cat /tmp/rh-npm-ci.log; exit 1; }
  if [ "$MODE" != "--check" ]; then node --import tsx /capture/capture.mts --write /out/data.json; fi
  node --import tsx /capture/capture.mts --check /out/data.json
+ if [ "$MODE" != "--check" ]; then node --import tsx /capture/lifecycle.mts --write /out/lifecycle.json; fi
+ node --import tsx /capture/lifecycle.mts --check /out/lifecycle.json
  '
-if [ "$MODE" != "--check" ]; then printf 'Captured quest corpus: %s/data.json\n' "$OUTPUT"; fi
+if [ "$MODE" != "--check" ]; then printf 'Captured quest corpora: %s/{data,lifecycle}.json\n' "$OUTPUT"; fi

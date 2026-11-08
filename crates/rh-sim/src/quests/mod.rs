@@ -5,6 +5,8 @@
 //! source corpus. The accept action, lifecycle systems (reveal, turn-in, expiry, carriers), quest items/NPC bodies and the
 //! public transport are not part of it and are listed in `docs/evidence/stage2-quest-1/README.md`.
 pub mod catalog;
+#[cfg(test)]
+mod lifecycle_tests;
 pub mod live;
 #[cfg(test)]
 mod live_tests;

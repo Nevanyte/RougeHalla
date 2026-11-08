@@ -67,12 +67,19 @@ flipped at its recorded position:
 - **Rewards**: `awardQuestGv` semantics (per-player cumulative `QUEST_GV_CAP`` — the quest GV bucket) and the zone-matched
   mob-stat stack grant through the existing `grant_mob_stat`; fill bots take no part in any quest path.
 
-Verified by eight in-crate lifecycle tests driving the real hooks/action/system: raid-start spawn (20 offers/10 known,
-pieces placed), accept through `Sim::submit` (far refusal, accept, timer, repeat no-op), collect tokens → progress →
-automatic turn-in paying both GV and the mob-stack row, fetch parcel → carrier → dropBody drop, hidden reveal + head start +
-placement, deadline expiry + linger sweep, kill progress + camp-clear impossible closure, teleport close-all, and a
-checkpoint serialize/restore/perturb round trip for the new state. There are no captured lifecycle frames yet: the pinned
-container corpus covers the data layer only (see the remaining list for the exact uncaptured surfaces).
+The pinned-container **lifecycle witness** is `parity/quests/lifecycle.json` (490,650 bytes, SHA256 `5fad488b…`,
+captured by `tools/quest-fixtures/lifecycle.mts` in the same pinned image from the unmodified source harness
+`createGameWorld` on generated map seed 1 attempt 0 with quests on): it drives the real input queue and records, per
+captured tick, the public quest rows, the private offer table (published/giver/finder/publishAt/tokens/parcel/lastCarrier),
+the giver mobs and quest containers, and each player's GV/farm facts. Cases: spawn, accept (far refusal + accept + repeat
+refusal), hidden reveal + 4 s head start + publication, collect tokens + automatic turn-in (GV and mob-stat channels),
+fetch carrier + real player kill + parcel drop + steal + turn-in, a real player kill for the player-kill offer, expiry +
+linger sweep, and the coliseum teleport close.
+
+The native replay (`crates/rh-sim/src/quests/lifecycle_tests.rs`) rebuilds the same generated map, replays every recorded
+action through the real C-INPUT door (the declared setup/teleport helpers are marked as such) and compares every captured
+frame surface; it is green over all eight cases. Eight in-crate unit/wiring tests cover the same slots directly, and a
+checkpoint serialize/restore/perturb round trip pins the new state.
 
 ## Captured witness
 
@@ -104,13 +111,16 @@ cargo test --workspace --all-features --locked   # with PostgreSQL from tools/pg
 ## Measurements
 
 - Content hash: `b6f9d4c2aa07e30b` (the registered `QUEST_*`/`FARM_*` rules rows plus the `quests/1` catalog table).
-- `cargo test -p rh-sim --lib --all-features -- quests::`: **14 passed** (4 data-layer tests + 8 lifecycle tests + the
-  checkpoint serialize/restore/perturb round trip).
+- `cargo test -p rh-sim --lib --all-features -- quests::`: **15 passed** (4 data-layer tests + 8 lifecycle tests + the
+  pinned-container lifecycle replay + the checkpoint serialize/restore/perturb round trip).
 - `cargo test -p rh-sim --all-features --test content`: 21 passed with the new golden hash.
 - `bash tools/quest-fixtures/capture.sh --check`: PASS (pinned container, byte-identical).
-- Mutants (`bash tools/quest-fixtures/run-mutants.sh`): **9/9 killed, unchanged control passes** — tier
+- Pinned lifecycle corpus: `parity/quests/lifecycle.json`, 490,650 bytes, SHA256 `5fad488b0651fd6fbccf00a200c8fc4e08dd020e391cabfa9c32d0177d161cc7`;
+  `bash tools/quest-fixtures/capture.sh --check` re-runs both corpora byte-identically in the pinned container; the native
+  replay compares every captured frame across all eight cases.
+- Mutants (`bash tools/quest-fixtures/run-mutants.sh`): **11/11 killed, unchanged control passes** — tier
   rounding, the route premium, the feed brake, the kind-cycle order, the known/hidden pass order, the start-clearance
-  relaxation, the accept range, the reveal head start and the turn-in stack grant.
+  relaxation, the accept range, the reveal head start, the turn-in stack grant, the teleport close and the turn-in GV.
 - Checkpoint format `rh-checkpoint/22` (the new `world.quests` and the quest container/item variants); the ability hash
   tape is re-recorded for the new state layout; `hash_coverage` 6 passed with the documented optional quests leaf; the
   content hash is unchanged (`b6f9d4c2aa07e30b`, the lifecycle adds no new registered rule); schedule conformance 14
@@ -121,12 +131,12 @@ cargo test --workspace --all-features --locked   # with PostgreSQL from tools/pg
 
 ## Remaining for the P-QUEST-1 row
 
-1. **Pinned lifecycle witness**: no captured lifecycle frames exist yet. The uncaptured surfaces are exactly: spawn
-   (offer ids/positions/pieces/known flags at raid start), accept/refusal ordering and the deadline start, hidden reveal
-   timing and head start, collect/fetch pickup outcomes and carrier/drop/steal rules, automatic turn-in rewards
-   (GV bucket + mob-stack counts), expiry/linger/camp-clear closure and teleport/run-end close. They are verified natively
-   in-crate; a pinned-container capture driver is the follow-up (the data-layer corpus already pins the roster/placement
-   inputs those frames would start from).
+1. **Pinned lifecycle witness — remaining surfaces only**: the corpus now captures spawn, accept/refusal + deadline,
+   hidden reveal + head start, collect/pickup + turn-in rewards, fetch carrier + real player kill + drop/steal +
+   turn-in, a real player kill on the player-kill offer, expiry/linger and the teleport close. Still uncaptured: the
+   run-end close (the run-end producer is the arena end path; only the teleport producer's close is captured, while the
+   same close-all link is native-tested) and the camp-clear impossible-kill closure (needs a whole-region mob wipe;
+   native-tested). Presentation toasts/reveal events are not in the corpus because their transport is coordinator-owned.
 2. **Public transport (coordinator-owned)**: quest offers, accepted/progress/visited sets, carrier, giver actors and
    `unknownQuests`, plus the accept client message, need observation fields and the full C-NET set (wire state items,
    protocol bump, Rust/C#/JS decoders) before any protocol version change. The two documented single sites are

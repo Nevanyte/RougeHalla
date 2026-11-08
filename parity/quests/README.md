@@ -17,3 +17,21 @@ wording), captured from the unmodified legacy source in the pinned linux/amd64 N
 - The native consumer is `crates/rh-sim/src/quests/tests.rs`; the committed mutant controls live in
   `tools/quest-fixtures/mutants/` with `run-mutants.sh`.
 - Evidence and scope: [docs/evidence/stage2-quest-1](../../docs/evidence/stage2-quest-1/README.md).
+## Lifecycle witness
+
+- `lifecycle.json` — `rh-quest-lifecycle-source/1`, 8 cases, 490,650 bytes, SHA256
+  `5fad488b0651fd6fbccf00a200c8fc4e08dd020e391cabfa9c32d0177d161cc7`, captured by `tools/quest-fixtures/lifecycle.mts` in
+  the same pinned image from the unmodified source harness (`createGameWorld`: production module order, quests on, map
+  `generateMap(1, attempt 0, {decor:false})`, reward salt `[1,2,3,4]`, world random `mulberry32(12)`). Each case records,
+  per captured tick: the public quest rows (status/doneBy/expiresAt/carrier/progress/accepted/visitedRegions), the private
+  offer table (published, giver presence, finder, publishAt, tokens/parcel, lastCarrier), the giver mobs, the quest
+  containers, each player's GV breakdown and mob-stat counts, plus the ordered action script (declared setup helpers and
+  ordinary input-queue messages) and the per-frame action count the native replay consumes.
+- Cases: `spawn`, `accept` (far refusal → accept with deadline → repeat refusal), `reveal` (radius discovery, 4 s head
+  start, publication + pieces), `collect` (token pickups, one captured refusal, automatic turn-in paying GV and the
+  mob-stat row), `fetch` (parcel pickup, real sword kill of the carrier, dropBody drop, steal by another player, turn-in),
+  `player-kill` (real sword kill advancing the player-kill offer), `expiry` (declared deadline nudge, expiry + linger
+  sweep) and `teleport-close` (the real coliseum teleport producer closing every open offer).
+- Native replay: `crates/rh-sim/src/quests/lifecycle_tests.rs` regenerates the same map, replays the recorded actions
+  through the real C-INPUT door (declared setup/teleport helpers marked as such) and compares every captured surface.
+- `bash tools/quest-fixtures/capture.sh --check` re-runs both corpora in the pinned container and requires identical bytes.

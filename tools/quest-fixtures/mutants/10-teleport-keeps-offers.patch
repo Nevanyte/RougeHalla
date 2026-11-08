@@ -1,0 +1,11 @@
+--- a/crates/rh-sim/src/quests/live.rs
++++ b/crates/rh-sim/src/quests/live.rs
+@@ -400,7 +400,7 @@
+ }
+ 
+ pub(crate) fn on_teleported(hx: &mut crate::hooks::Hx, _: &crate::hooks::HookArgs) {
+-    close_all(hx.k, hx.w, hx.ev);
++    let _ = (hx.k, &hx.w, &hx.ev);
+ }
+ 
+ pub(crate) fn on_run_ended(hx: &mut crate::hooks::Hx, _: &crate::hooks::HookArgs) {
