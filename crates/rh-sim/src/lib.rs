@@ -25,6 +25,7 @@ pub mod map;
 pub mod mapdata;
 pub mod mapgen;
 pub mod math;
+pub mod mob_catalog;
 pub mod observe;
 pub mod pathfind;
 pub mod replay;
