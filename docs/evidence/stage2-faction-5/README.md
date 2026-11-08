@@ -6,6 +6,10 @@ P-CARDS-1, both landed). **No packet file exists** — the scope below is derive
 legacy tests. Branch `deepseek/p-faction-5`, based on `origin/deepseek/p-mobs-1` at `039ceb47` (line A, protocol 7); the
 PR is stacked on `deepseek/p-mobs-1`.
 
+Pull request: [#47](https://github.com/Nevanyte/RougeHalla/pull/47), stacked on the P-MOBS-1 PR #41; commit range
+`039ceb47`..`fb2488e0` on `deepseek/p-faction-5`. Ledger row:
+[`docs/evidence/deepseek-rust/PROGRESS.md`](../deepseek-rust/PROGRESS.md).
+
 ## Verified state at the base (code, not memory)
 
 The schedule still held **nine pending rows** for the module: `bruiserPassives.update` in `AFTER_WEAPONS` and in
