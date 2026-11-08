@@ -15,27 +15,24 @@ CARGO_BIN="$CARGO"
 [ -n "$CARGO_BIN" ] || CARGO_BIN="$HOME/.codex/tools/rougehalla-stage2/cargo/bin/cargo"
 export CARGO_INCREMENTAL=0
 status=0
-on_signal() {
-  code=$1
-  if ! mut_restore_source; then
-    echo "signal restore failed; recovery bytes retained at $MUT_BACKUP"
-    exit 1
-  fi
-  mut_finalize_restore
-  exit $code
-}
-on_exit() {
-  code=$?
+CLEANED=0
+cleanup() {
+  local cleanup_status=$1
+  if [ "$CLEANED" -eq 1 ]; then exit "$cleanup_status"; fi
+  CLEANED=1
+  trap - EXIT HUP INT TERM
   if [ -n "$MUT_FILE" ]; then
     if ! mut_restore_source; then
-      echo "EXIT restore failed; recovery bytes retained at $MUT_BACKUP"
-      code=1
+      echo "restore failed; recovery bytes retained at $MUT_BACKUP"
+      cleanup_status=1
     else
       mut_finalize_restore
     fi
   fi
-  exit $code
+  exit "$cleanup_status"
 }
+on_signal() { cleanup "$1"; }
+on_exit() { local exit_status=$?; cleanup "$exit_status"; }
 trap on_exit EXIT
 trap 'on_signal 129' HUP
 trap 'on_signal 130' INT

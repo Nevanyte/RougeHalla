@@ -17,12 +17,41 @@ pass() { echo "PASS: $1"; }
 fail() { echo "FAIL: $1"; FAILS=$((FAILS+1)); }
 assert_original() { if cmp -s "$TARGET" "$ROOT/original"; then pass "$1"; else fail "$1 (original changed)"; fi; }
 reset_guard_env() {
-  unset MKTEMP_CMD CP_CMD MUT_BACKUP_TEMPLATE
+  unset MKTEMP_CMD CP_CMD MUT_BACKUP_TEMPLATE MUT_FORCE_HASHER MUT_SHA256SUM_CMD MUT_SHASUM_CMD
   MUT_FILE=""
   MUT_BACKUP=""
   MUT_ORIGINAL_SHA=""
   MUT_ORIGINAL_SIZE=""
 }
+
+# 0. Hasher/digest fail-closed controls for BOTH sha256sum and shasum paths.
+cat > "$ROOT/fail-hash" <<'MOCK_EOF'
+#!/usr/bin/env bash
+exit 1
+MOCK_EOF
+cat > "$ROOT/empty-hash" <<'MOCK_EOF'
+#!/usr/bin/env bash
+exit 0
+MOCK_EOF
+cat > "$ROOT/malformed-hash" <<'MOCK_EOF'
+#!/usr/bin/env bash
+printf 'not-a-64-hex-digest  %s\n' "$2"
+MOCK_EOF
+chmod +x "$ROOT/fail-hash" "$ROOT/empty-hash" "$ROOT/malformed-hash"
+for hasher in sha256sum shasum; do
+  for mock in fail-hash empty-hash malformed-hash; do
+    reset_guard_env
+    if [ "$hasher" = sha256sum ]; then
+      MUT_FORCE_HASHER=sha256sum MUT_SHA256SUM_CMD="$ROOT/$mock"
+    else
+      MUT_FORCE_HASHER=shasum MUT_SHASUM_CMD="$ROOT/$mock"
+    fi
+    MUT_BACKUP_TEMPLATE="$ROOT/hash.XXXXXX"
+    if mut_backup_source "$TARGET"; then fail "$hasher $mock was accepted"; else pass "$hasher $mock fails closed"; fi
+    if [ -z "$MUT_FILE" ]; then pass "$hasher $mock leaves restore unarmed"; else fail "$hasher $mock armed restore"; fi
+    assert_original "$hasher $mock"
+  done
+done
 
 # 1. mktemp failure: fail closed, not armed, original untouched.
 reset_guard_env
