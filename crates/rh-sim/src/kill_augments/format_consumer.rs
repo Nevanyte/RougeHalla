@@ -179,6 +179,9 @@ fn compare_refusals(doc: &serde_json::Value) -> Result<(), String> {
     Ok(())
 }
 
+/// Captured source roll rows: the corpus stores the ACTUAL `rollKillAugments` outputs; this consumer only parses,
+/// re-encodes and re-words those captured ids natively. It is NOT a native roll() reproduction (native ranking/ties are
+/// covered by helper_consumer's ranking-ties-truncation case) and makes no source-arithmetic claim.
 fn compare_rolls(doc: &serde_json::Value) -> Result<(), String> {
     for case in doc["cases"]["rolls"].as_array().expect("rolls") {
         let options = case["options"].as_array().unwrap();

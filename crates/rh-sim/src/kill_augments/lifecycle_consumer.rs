@@ -5,12 +5,11 @@
 //! then compares the native frames against the declared source frames. The declared initial placements/grants/weapons/
 //! wounds are labelled trusted setup, never ReplayInput; expected Trophy options/gains/takenBy/killStats are never installed.
 //!
-//! Known source divergence (reported, not fixed here): the native reward_chests::choose birth-hold guard is
-//! 'held_until_tick > tick', while the source loot.bornThisTick refuses the birth tick AND the next tick ('born >= tick',
-//! with holdBirth recording 'tick + 1'). Case 'birth-hold-owner-choose' therefore lets the owner pick one tick early. The
-//! dependent later frames of that case are not asserted; the exact divergence is asserted instead (see
-//! birth_hold_diverges_from_the_source_hold). The native observer's own can_choose ('held_until_tick < tick') already
-//! agrees with the source, so the minimal production change would be to make choose use the same predicate.
+//! P-TROPHY-BIRTH-HOLD-REPAIR fixed the one defect these frames exposed: Choose now reads the same crate-private pure
+//! reward_chests::birth_available(held, tick) = held < tick as the RewardChestObserver, so the source's held tick refuses
+//! and the next tick is the first legal pick. All six admitted cases are compared frame-for-frame with no early stop,
+//! including the birth-hold owner pick, repeated pick and skip tail (captured_lifecycle_frames_reproduce_natively and
+//! birth_hold_owner_pick_reproduces).
 use crate::events::Event;
 use crate::kill_augments::KillStatKey;
 use crate::reward_chests::OptionId;
@@ -182,29 +181,68 @@ fn open(input: &serde_json::Value) -> Sim {
     sim
 }
 
-/// The source Trophy id -> owner index relation declared by the corpus frames (never used as a native id alias).
+/// The source Trophy id -> owner index relation declared by the corpus frames (never used as a native id alias), plus
+/// the admitted-corpus single-birth invariant: at most one Trophy id/owner across the case, exactly one Trophy per
+/// frame, and exactly one option/takenBy slot. The invariant is what makes the native birth/ownership relation
+/// unambiguous, so later frames cannot silently remap the source id to a different container.
 fn source_trophy_owners(case: &serde_json::Value) -> BTreeMap<String, usize> {
     let mut out = BTreeMap::new();
+    let mut ids = std::collections::BTreeSet::new();
+    let mut owners = std::collections::BTreeSet::new();
     for frame in case["frames"].as_array().expect("frames") {
-        for t in frame["trophies"].as_array().expect("trophies") {
+        let trophies = frame["trophies"].as_array().expect("trophies");
+        assert!(
+            trophies.len() <= 1,
+            "single-birth corpus invariant: at most one Trophy per frame"
+        );
+        for t in trophies {
+            let options = t["options"].as_array().expect("trophy options");
+            let taken = t["takenBy"].as_array().expect("trophy takenBy");
+            assert_eq!(
+                options.len(),
+                1,
+                "single-option corpus invariant: the admitted Trophy has one option"
+            );
+            assert_eq!(
+                taken.len(),
+                1,
+                "single-option corpus invariant: one takenBy slot"
+            );
             if let (Some(id), Some(owner)) = (t["id"].as_str(), t["owner"].as_u64()) {
+                ids.insert(id.to_string());
+                owners.insert(owner);
                 out.entry(id.to_string()).or_insert(owner as usize);
             }
         }
     }
+    assert!(
+        ids.len() <= 1,
+        "single-birth corpus invariant: one Trophy id, got {ids:?}"
+    );
+    assert!(
+        owners.len() <= 1,
+        "single-owner corpus invariant: one Trophy owner, got {owners:?}"
+    );
     out
 }
 
-/// Map a source Trophy id through the ACTUAL native birth/ownership relation: the newest reward container owned by the
-/// killer the source frame declares. Never a raw source-id alias.
+/// Map a source Trophy id through the ACTUAL native birth/ownership relation: the owner-bound reward container the
+/// source frame declares. Never a raw source-id alias. The admitted corpus has a single birth (asserted by
+/// source_trophy_owners), so more than one live owner-bound chest is an ambiguity and a hard failure, not a silent
+/// newest-container remap.
 fn native_trophy_for(sim: &Sim, source_id: &str, owners: &BTreeMap<String, usize>) -> Option<u32> {
     let owner = *owners.get(source_id)?;
-    sim.w
+    let mut live = sim
+        .w
         .reward_chests
         .iter()
-        .filter(|c| c.owner == Some(player_id(owner)))
-        .max_by_key(|c| c.id)
-        .map(|c| c.id)
+        .filter(|c| c.owner == Some(player_id(owner)));
+    let first = live.next()?;
+    assert!(
+        live.next().is_none(),
+        "ambiguous Trophy identity: more than one live owner-bound container"
+    );
+    Some(first.id)
 }
 
 fn apply_action(
@@ -816,7 +854,8 @@ fn drive(case: &serde_json::Value, stop_before: Option<usize>) -> Result<Sim, St
     Ok(sim)
 }
 
-/// Every case except the birth-hold-dependent tail of case 0 reproduces its declared frames.
+/// All six admitted lifecycle cases reproduce every declared frame, including the birth-hold owner pick, the repeated
+/// pick and the skip, with no early stop or skipped frame.
 #[test]
 fn captured_lifecycle_frames_reproduce_natively() {
     let doc = corpus();
@@ -825,85 +864,43 @@ fn captured_lifecycle_frames_reproduce_natively() {
     assert_eq!(cases.len(), 6, "six admitted lifecycle cases");
     for (i, case) in cases.iter().enumerate() {
         let name = case["input"]["name"].as_str().unwrap();
-        // Case 0's owner pick at tick 3 is one tick early natively (reported divergence); its prefix through the kill
-        // tick is still compared, and the divergence itself is asserted by the next test.
-        let stop = (name == "birth-hold-owner-choose").then_some(3);
-        let sim = drive(case, stop).unwrap_or_else(|e| panic!("case {i} {name}: {e}"));
+        let sim = drive(case, None).unwrap_or_else(|e| panic!("case {i} {name}: {e}"));
         let frames = case["frames"].as_array().unwrap();
-        let last = stop.unwrap_or(frames.len()) - 1;
-        assert_eq!(sim.w.tick, frames[last]["tick"].as_u64().unwrap() as u32);
+        assert_eq!(
+            sim.w.tick,
+            frames.last().unwrap()["tick"].as_u64().unwrap() as u32,
+            "case {i} {name} consumes every frame"
+        );
     }
 }
 
-/// The reported source divergence, with the exact native/source facts: the native choose accepts the owner pick on the
-/// tick after birth while the source bornThisTick still refuses it ("Chest gone"). No later case frame is asserted
-/// because every one of them depends on the grant/takenBy state this early pick changes.
+/// Focused real-Trophy birth hold (the repaired boundary): the held tick refuses the owner pick with "Chest gone" and
+/// the observer's can_choose agrees; the next tick is the source's legal first pick and grants 16.5 AD with takenBy and
+/// pickers recorded; the repeated pick and skip stay refused and never regrant. The full frames are compared by
+/// captured_lifecycle_frames_reproduce_natively; this states the boundary facts on the actual lifecycle world.
 #[test]
-fn birth_hold_diverges_from_the_source_hold() {
+fn birth_hold_owner_pick_reproduces() {
     let doc = corpus();
     let case = case(&doc, "birth-hold-owner-choose");
-    let mut sim = open(&case["input"]);
     let owners = source_trophy_owners(case);
-    let actions = case["actions"].as_array().unwrap();
-    let frames = case["frames"].as_array().unwrap();
-    let mut refusals = Vec::new();
-    let mut events = Vec::new();
-    let mut ai = 0usize;
-    // Drive to the birth-hold choose exactly as the capture did: kill tick, then the owner choose at tick 2.
-    for frame in frames.iter().take(4) {
-        let want_actions = frame["actionCount"].as_u64().unwrap() as usize;
-        while ai < want_actions {
-            let action = &actions[ai];
-            apply_action(&mut sim, action, &owners, &mut refusals);
-            ai += 1;
-        }
-        while sim.w.tick < frame["tick"].as_u64().unwrap() as u32 {
-            events.extend(sim.step());
-        }
-        events.clear();
-    }
-    let source_frame = frames
+    let sim = drive_to(case, "birth-hold-refused");
+    let chest_id = native_trophy_for(&sim, "c1b", &owners).expect("born native trophy");
+    let c = sim
+        .w
+        .reward_chests
         .iter()
-        .find(|f| f["label"] == "birth-hold-refused")
+        .find(|c| c.id == chest_id)
         .unwrap();
-    let want_toasts: Vec<&str> = source_frame["toasts"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .map(|t| t["text"].as_str().unwrap())
-        .collect();
     assert_eq!(
-        want_toasts,
-        vec!["Chest gone"],
-        "the source refused the birth hold"
+        c.held_until_tick, sim.w.tick,
+        "the held tick is the refused tick"
     );
-    let err = compare_frame(&sim, source_frame, &events)
-        .expect_err("native must diverge from the source birth hold");
-    assert!(
-        err.contains("players[0] killStats"),
-        "the divergence begins with the grant the source frame does not have: {err}"
-    );
-    assert!(
-        !events
-            .iter()
-            .any(|e| matches!(e, Event::ChestRefused { .. })),
-        "the native choose produced no refusal"
-    );
-    // The same early pick is why the later frames differ: the native container already records the pick and grant.
-    let chest = native_trophy_for(&sim, "c1b", &owners).expect("born native trophy");
-    let c = sim.w.reward_chests.iter().find(|c| c.id == chest).unwrap();
-    assert_eq!(
-        c.taken[0],
-        Some(PlayerId(1)),
-        "native accepted the early owner pick"
-    );
-    assert_eq!(sim.w.players[0].kill_stats.get(KillStatKey::Ad), 16.5);
-    eprintln!(
-        "P-TROPHY-NATIVE-CONSUMER-1 divergence: native choose held_until_tick={} > tick={} allows the pick at tick {}; \
-         source loot.bornThisTick refuses tick {} too. Dependent frames owner-chosen/repeat-pick/skip not asserted.",
-        c.held_until_tick, sim.w.tick, sim.w.tick, sim.w.tick
-    );
-    // The native observer already models the source hold: its can_choose only becomes true at tick 4.
+    assert!(!crate::reward_chests::birth_available(
+        c.held_until_tick,
+        sim.w.tick
+    ));
+    assert_eq!(c.taken[0], None, "the held-tick pick granted nothing");
+    assert!(sim.w.players[0].kill_stats.is_empty(), "no early grant");
     let mut observer = crate::reward_chests::RewardChestObserver::new(PlayerId(1));
     let mut rows = Vec::new();
     let mut build = None;
@@ -912,11 +909,65 @@ fn birth_hold_diverges_from_the_source_hold() {
         .expect("observable trophy");
     let row = rows
         .iter()
-        .find(|r| r.options.iter().any(|o| matches!(o.id, OptionId::Kill(_))));
+        .find(|r| r.options.iter().any(|o| matches!(o.id, OptionId::Kill(_))))
+        .expect("trophy row");
     assert!(
-        row.is_none_or(|r| !r.can_choose),
-        "observer already enforces the source hold"
+        !row.can_choose,
+        "observer refuses the same held tick as Choose"
     );
+
+    let sim = drive_to(case, "owner-chosen");
+    let c = sim
+        .w
+        .reward_chests
+        .iter()
+        .find(|c| c.id == chest_id)
+        .unwrap();
+    assert!(
+        crate::reward_chests::birth_available(c.held_until_tick, sim.w.tick),
+        "the next tick is past the hold"
+    );
+    assert_eq!(
+        c.taken[0],
+        Some(PlayerId(1)),
+        "the legal first pick is recorded"
+    );
+    assert_eq!(sim.w.players[0].kill_stats.get(KillStatKey::Ad), 16.5);
+    assert_eq!(c.pickers, vec![PlayerId(1)]);
+
+    let sim = drive_to(case, "skip-after-pick-refused");
+    let c = sim
+        .w
+        .reward_chests
+        .iter()
+        .find(|c| c.id == chest_id)
+        .unwrap();
+    assert_eq!(
+        sim.w.players[0].kill_stats.get(KillStatKey::Ad),
+        16.5,
+        "the repeated pick and skip never regrant"
+    );
+    assert_eq!(c.taken[0], Some(PlayerId(1)));
+    assert_eq!(c.pickers, vec![PlayerId(1)]);
+}
+
+/// The admitted lifecycles satisfy the single-birth identity invariant that source_trophy_owners asserts on every
+/// consumer call: one Trophy id/owner, one Trophy per frame, one option/takenBy slot, and an owner-bound container.
+#[test]
+fn trophy_identity_corpus_invariants_hold() {
+    let doc = corpus();
+    for (i, case) in doc["cases"].as_array().unwrap().iter().enumerate() {
+        let _owners = source_trophy_owners(case); // asserts the single-birth/single-id/single-owner/one-option invariant.
+        for frame in case["frames"].as_array().unwrap() {
+            for t in frame["trophies"].as_array().unwrap() {
+                assert_eq!(t["label"], "Trophy", "case {i}: Trophy label");
+                assert!(
+                    t["owner"].as_u64().is_some(),
+                    "case {i}: the Trophy is owner-bound"
+                );
+            }
+        }
+    }
 }
 
 /// Case 1's owner/stranger/range lifecycle, compared frame by frame, with the actual native profile.
@@ -1024,61 +1075,79 @@ fn restore(text: &str) -> Sim {
     Sim::restore(&mut de).expect("checkpoint restore")
 }
 
-/// Restore/continue before the owner pick and after it, through the expiry boundary: a restored sim reproduces the same
-/// frames, kill stats, taken state and final state hash as the uninterrupted run.
+/// Restore/continue around the owner pick and the expiry boundary. The ORIGINAL driven sim is the live branch: the
+/// immediate restore hash and the continuation hashes are compared against one restored branch (never two restored
+/// branches against each other), so this is a real uninterrupted-vs-restored comparison.
 #[test]
 fn checkpoint_restore_before_and_after_pick_and_at_expiry() {
     let doc = corpus();
     let case = case(&doc, "expiry-boundary");
     let frames = case["frames"].as_array().unwrap();
-    let before = drive_to(case, "before-expiry");
-    let cp_before = checkpoint(&before);
-    let mut a = restore(&cp_before);
-    let mut b = restore(&cp_before);
-    assert_eq!(a.state_hash(), b.state_hash());
-    // Frame 3 is boundary-pick: run A (restored) through it and checkpoint immediately after the pick.
-    a = run_frames(a, case, 3, 4);
-    assert_eq!(a.w.tick, 601);
-    assert_eq!(a.w.players[0].kill_stats.get(KillStatKey::Ad), 16.5);
-    let cp_after = checkpoint(&a);
-    let mut c = restore(&cp_after);
-    // B continues from the earlier checkpoint through the same pick; it must equal the restored A.
-    b = run_frames(b, case, 3, 4);
+    let mut live = drive_to(case, "before-expiry");
+    let cp_before = checkpoint(&live);
+    let mut restored = restore(&cp_before);
     assert_eq!(
-        a.state_hash(),
-        b.state_hash(),
-        "before-pick restore/continue"
+        live.state_hash(),
+        restored.state_hash(),
+        "immediate before-pick restore hash"
     );
-    // A and C both continue through the at-expiry and expired-gone frames (restored after the pick).
-    a = run_frames(a, case, 4, frames.len());
-    c = run_frames(c, case, 4, frames.len());
+    // Both branches run the same boundary-pick frames: the live original and the one restored branch must agree.
+    live = run_frames(live, case, 3, 4);
+    restored = run_frames(restored, case, 3, 4);
+    assert_eq!(live.w.tick, 601);
+    assert_eq!(live.w.players[0].kill_stats.get(KillStatKey::Ad), 16.5);
     assert_eq!(
-        a.state_hash(),
-        c.state_hash(),
-        "after-pick restore/continue"
+        live.state_hash(),
+        restored.state_hash(),
+        "live vs restored before-pick continuation"
     );
-    assert!(a.w.reward_chests.is_empty(), "expired after restore");
-    assert_eq!(a.w.players[0].kill_stats.get(KillStatKey::Ad), 16.5);
+    // Checkpoint AFTER the pick from the live branch; the restored copy must hash-match immediately and continue equal
+    // through the at-expiry and expired-gone frames.
+    let cp_after = checkpoint(&live);
+    let mut after = restore(&cp_after);
+    assert_eq!(
+        live.state_hash(),
+        after.state_hash(),
+        "immediate after-pick restore hash"
+    );
+    live = run_frames(live, case, 4, frames.len());
+    after = run_frames(after, case, 4, frames.len());
+    assert_eq!(
+        live.state_hash(),
+        after.state_hash(),
+        "live vs restored expiry continuation"
+    );
+    assert!(live.w.reward_chests.is_empty(), "expired after continue");
+    assert_eq!(live.w.players[0].kill_stats.get(KillStatKey::Ad), 16.5);
     assert_eq!(
         frames.last().unwrap()["label"].as_str().unwrap(),
         "expired-gone"
     );
 }
 
-/// Case 1's range/owner continuation also survives a checkpoint round-trip after the stranger refusal.
+/// Case 1's range/owner continuation: the ORIGINAL driven sim (live) and one restored branch must keep the same hash
+/// through the range refusal and the legal owner pick.
 #[test]
 fn checkpoint_restore_continuation_matches_owner_range_case() {
     let doc = corpus();
     let case = case(&doc, "owner-stranger-range");
-    let before = drive_to(case, "stranger-refused");
-    let text = checkpoint(&before);
-    let mut a = restore(&text);
-    let mut b = restore(&text);
-    a = run_frames(a, case, 4, 6);
-    b = run_frames(b, case, 4, 6);
-    assert_eq!(a.w.tick, 6);
-    assert_eq!(a.state_hash(), b.state_hash());
-    assert_eq!(a.w.players[0].kill_stats.get(KillStatKey::Ap), 16.5);
+    let mut live = drive_to(case, "stranger-refused");
+    let text = checkpoint(&live);
+    let mut restored = restore(&text);
+    assert_eq!(
+        live.state_hash(),
+        restored.state_hash(),
+        "immediate owner-range restore hash"
+    );
+    live = run_frames(live, case, 4, 6);
+    restored = run_frames(restored, case, 4, 6);
+    assert_eq!(live.w.tick, 6);
+    assert_eq!(
+        live.state_hash(),
+        restored.state_hash(),
+        "live vs restored owner-range continuation"
+    );
+    assert_eq!(live.w.players[0].kill_stats.get(KillStatKey::Ap), 16.5);
 }
 
 /// Replay accounting: the actual Recorder records the owner's Choose as a ReplayInput::Command and its state hash; a
@@ -1147,11 +1216,13 @@ fn recorder_replay_input_reproduces_the_choose_command() {
     let _ = &live_events;
 }
 
-/// The existing policy/observer offer binding: the default native observer stages the Trophy row as one complete row; the
-/// current human presentation admission (the closure that rejects any kill-augment row) omits the whole row before any
-/// handle binding, exactly as the shipped adapter does. The guard is exercised, never bypassed or removed.
+/// The existing policy/observer offer binding: the default native observer stages the Trophy row as one complete row; a
+/// SIMULATED equivalent of the human presentation admission filter (an accept closure that rejects any kill-augment row)
+/// omits the whole row before handle binding. This exercises the observer-level filter only: the production human wire
+/// functions in wire.rs/wire_state.rs are unchanged and are NOT executed here, and no transport or actual-wire claim is
+/// made.
 #[test]
-fn observer_offer_binding_respects_the_human_wire_guard() {
+fn observer_offer_binding_simulates_the_human_omit_filter() {
     use crate::{ItemObserver, Observation, PublicCommand};
     let doc = corpus();
     let case = case(&doc, "birth-hold-owner-choose");
@@ -1170,7 +1241,7 @@ fn observer_offer_binding_respects_the_human_wire_guard() {
         .expect("the native observer retains the Trophy row");
     assert_eq!(row.options[0].id.as_str(), "kill:ad:16.5");
     assert!(!row.can_choose, "birth hold is visible to the observer");
-    // Current human wire admission: a whole kill-augment row is omitted before bindings.
+    // Simulated equivalent of the current human admission filter: a whole kill-augment row is omitted before bindings.
     let mut human = ItemObserver::new(PlayerId(1));
     let mut guarded = Observation::default();
     let _ = human
@@ -1180,7 +1251,7 @@ fn observer_offer_binding_respects_the_human_wire_guard() {
         .expect("guarded observation");
     assert!(
         guarded.reward_chests.is_empty(),
-        "the human guard omits the entire Trophy row"
+        "the simulated human filter omits the entire Trophy row"
     );
     let no_binding = human
         .resolve(
@@ -1202,10 +1273,14 @@ fn observer_offer_binding_respects_the_human_wire_guard() {
     );
 }
 
-/// Compiled semantic controls: the frame comparator reports ACTUAL consumer mismatches for a wrong owner, a wrong birth-hold
-/// taken state and wrong grant arithmetic; a provenance-only corpus mutation is not a kill; the restored corpus passes.
+/// Comparator-sensitivity controls (NOT compiled runtime mutants): the frame comparator reports mismatches when the
+/// EXPECTED frame JSON is mutated for a wrong owner, a wrong birth-hold taken state or wrong grant arithmetic, while a
+/// provenance-only corpus mutation is not a kill and the restored corpus passes. The packet's three compiled source
+/// mutants (restored early Choose predicate, changed birth hold, bypassed owner/grant guard) are executed separately and
+/// recorded in docs/evidence/trophy-native/README.md; this test proves only comparator sensitivity to a semantic
+/// difference.
 #[test]
-fn lifecycle_semantic_controls_require_a_frame_difference() {
+fn lifecycle_frame_comparator_detects_semantic_mutations() {
     let doc = corpus();
     let range_case = case(&doc, "owner-stranger-range");
     let frames = range_case["frames"].as_array().unwrap();

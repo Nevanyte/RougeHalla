@@ -577,7 +577,14 @@ fn the_refusal_sequence_matches_the_source_toast_tape() {
         Err(Refusal::Gone)
     );
     s.step();
-    // Near, but the option is a card the picker already holds: "Already yours".
+    // Source loot.bornThisTick refuses the birth tick and the next one: the first step is still "Chest gone".
+    assert_eq!(
+        choose(&s.k, &mut s.w, &mut ev, p0, Some(id), 0),
+        Err(Refusal::Gone),
+        "the hold lasts through the tick after birth"
+    );
+    s.step();
+    // Two ticks on: available; the option is a card the picker already holds: "Already yours".
     assert_eq!(
         choose(&s.k, &mut s.w, &mut ev, p0, Some(id), 0),
         Err(Refusal::Owned)
@@ -639,7 +646,8 @@ fn the_skip_pays_gv_when_the_heal_is_wasted_and_the_trophy_is_private() {
         id,
         at,
         expires_at: s.w.server_time + DEFINITION.lifetime_ms,
-        held_until_tick: s.w.tick,
+        // Test-only fabricated container, already past its birth hold so the transaction paths can be exercised.
+        held_until_tick: s.w.tick.saturating_sub(1),
         options: [
             Some(OptionId::Card(crate::cards::CardId::Gambler)),
             None,
@@ -674,7 +682,8 @@ fn the_skip_pays_gv_when_the_heal_is_wasted_and_the_trophy_is_private() {
         id,
         at,
         expires_at: s.w.server_time + DEFINITION.lifetime_ms,
-        held_until_tick: s.w.tick,
+        // Test-only fabricated container, already past its birth hold so the transaction paths can be exercised.
+        held_until_tick: s.w.tick.saturating_sub(1),
         options: [None; 3],
         taken: [None; 3],
         pickers: Vec::new(),
@@ -703,7 +712,8 @@ fn the_skip_pays_gv_when_the_heal_is_wasted_and_the_trophy_is_private() {
         id,
         at,
         expires_at: s.w.server_time + DEFINITION.lifetime_ms,
-        held_until_tick: s.w.tick,
+        // Test-only fabricated container, already past its birth hold so the transaction paths can be exercised.
+        held_until_tick: s.w.tick.saturating_sub(1),
         options: [
             Some(OptionId::Card(crate::cards::CardId::Overkill)),
             None,
@@ -719,4 +729,137 @@ fn the_skip_pays_gv_when_the_heal_is_wasted_and_the_trophy_is_private() {
         choose(&s.k, &mut s.w, &mut ev, p0, Some(id), 0),
         Err(Refusal::NotYours)
     );
+}
+
+/// Focused birth-hold boundary: the shared pure predicate, Choose and the observer must agree before/at/after the hold,
+/// for an ordinary ownerless chest and an owner-bound Trophy chest, and at the expiry boundary. Containers here are
+/// test-only fabricated setup (not lifecycle evidence). The real six-case lifecycle is consumed separately in
+/// kill_augments::lifecycle_consumer.
+#[test]
+fn birth_hold_choose_and_observer_agree_at_the_boundaries() {
+    // The pure predicate: the held tick itself still refuses; the next tick is the first available one.
+    assert!(!birth_available(0, 0));
+    assert!(!birth_available(1, 1));
+    assert!(birth_available(1, 2));
+    assert!(birth_available(u32::MAX - 1, u32::MAX));
+    assert!(!birth_available(u32::MAX, u32::MAX));
+    for (held, tick, want) in [(2u32, 1u32, false), (2, 2, false), (2, 3, true)] {
+        assert_eq!(birth_available(held, tick), want, "held {held} tick {tick}");
+    }
+
+    for &trophy in &[false, true] {
+        // Birth hold: before / at / after the stored held_until_tick.
+        for delta in [-1i64, 0, 1] {
+            let mut s = sim(FactionId::Holy);
+            let p0 = s.players()[0].id;
+            let at = s.players()[0].pos();
+            let tick = s.w.tick;
+            let held = u32::try_from(i64::from(tick) + delta).expect("hold tick");
+            let id = s.w.next_entity_id();
+            let options = if trophy {
+                [
+                    Some(OptionId::Kill(crate::kill_augments::KillAugment {
+                        key: crate::kill_augments::KillStatKey::Ad,
+                        gain: 6.0,
+                    })),
+                    None,
+                    None,
+                ]
+            } else {
+                [
+                    Some(OptionId::Card(crate::cards::CardId::Gambler)),
+                    None,
+                    None,
+                ]
+            };
+            s.w.reward_chests.push(Chest {
+                id,
+                at,
+                expires_at: s.w.server_time + DEFINITION.lifetime_ms,
+                held_until_tick: held,
+                options,
+                taken: [None; 3],
+                pickers: Vec::new(),
+                camp: None,
+                owner: trophy.then_some(p0),
+            });
+            let mut observer = RewardChestObserver::new(p0);
+            let mut rows = Vec::new();
+            let mut build = None;
+            let _ = observer.prepare_into(&s, &mut rows, &mut build).unwrap();
+            assert_eq!(rows.len(), 1, "trophy={trophy} delta={delta}");
+            let can_choose = rows[0].can_choose;
+            let mut ev = Vec::new();
+            let result = choose(&s.k, &mut s.w, &mut ev, p0, Some(id), 0);
+            let want_available = delta < 0;
+            assert_eq!(
+                can_choose, want_available,
+                "observer can_choose trophy={trophy} delta={delta} ({result:?})"
+            );
+            assert_eq!(
+                result.is_ok(),
+                want_available,
+                "Choose trophy={trophy} delta={delta} ({result:?})"
+            );
+            if !want_available {
+                assert_eq!(result, Err(Refusal::Gone));
+            }
+        }
+
+        // Expiry boundary, hold already passed: available strictly before expires_at, Gone at/after it.
+        for ahead_ms in [-1.0f64, 0.0, 1.0] {
+            let mut s = sim(FactionId::Holy);
+            let p0 = s.players()[0].id;
+            let at = s.players()[0].pos();
+            let tick = s.w.tick;
+            let id = s.w.next_entity_id();
+            let options = if trophy {
+                [
+                    Some(OptionId::Kill(crate::kill_augments::KillAugment {
+                        key: crate::kill_augments::KillStatKey::Ad,
+                        gain: 6.0,
+                    })),
+                    None,
+                    None,
+                ]
+            } else {
+                [
+                    Some(OptionId::Card(crate::cards::CardId::Gambler)),
+                    None,
+                    None,
+                ]
+            };
+            s.w.reward_chests.push(Chest {
+                id,
+                at,
+                expires_at: s.w.server_time + ahead_ms,
+                held_until_tick: tick.saturating_sub(1),
+                options,
+                taken: [None; 3],
+                pickers: Vec::new(),
+                camp: None,
+                owner: trophy.then_some(p0),
+            });
+            let mut observer = RewardChestObserver::new(p0);
+            let mut rows = Vec::new();
+            let mut build = None;
+            let _ = observer.prepare_into(&s, &mut rows, &mut build).unwrap();
+            let can_choose = rows[0].can_choose;
+            let mut ev = Vec::new();
+            let result = choose(&s.k, &mut s.w, &mut ev, p0, Some(id), 0);
+            let want_available = ahead_ms > 0.0;
+            assert_eq!(
+                can_choose, want_available,
+                "observer expiry trophy={trophy} ahead={ahead_ms} ({result:?})"
+            );
+            assert_eq!(
+                result.is_ok(),
+                want_available,
+                "Choose expiry trophy={trophy} ahead={ahead_ms} ({result:?})"
+            );
+            if !want_available {
+                assert_eq!(result, Err(Refusal::Gone));
+            }
+        }
+    }
 }
