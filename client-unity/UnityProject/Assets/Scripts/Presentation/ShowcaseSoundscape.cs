@@ -81,10 +81,10 @@ namespace Roguehalla.Client
                 }
             }
 
-            if (_client != null && _client.Arena != null && current != null) _client.Arena.RefreshVisibility(current);
             if (_voices == null || _client == null || _client.Arena == null)
             {
                 _pendingFxCount = 0;
+                StopAllVoices();
                 return;
             }
             foreach (var voice in _voices)
@@ -169,12 +169,27 @@ namespace Roguehalla.Client
         void DetachSession()
         {
             _pendingFxCount = 0;
+            StopAllVoices();
             if (_session != null)
             {
                 _session.FxReceived -= OnFx;
                 _session.EventsReceived -= OnEvents;
             }
             _session = null;
+        }
+
+        void StopAllVoices()
+        {
+            if (_voices == null) return;
+            foreach (var voice in _voices)
+            {
+                if (voice.Source != null)
+                {
+                    voice.Source.Stop();
+                    voice.Source.clip = null;
+                }
+                voice.Actor = 0;
+            }
         }
 
         void OnFx(ServerMsg.Fx message)

@@ -207,6 +207,8 @@ namespace Roguehalla.Client
         void Present()
         {
             if (Arena == null) return;
+            // Renderer membership is refreshed independently of optional audio components.
+            Arena.RefreshVisibility(Session);
             Arena.PresentCollections(Session.Collections);
             Arena.Present(_actors, Session.Me, Session.Motion, _aimAngle);
             if (_traceLatency)

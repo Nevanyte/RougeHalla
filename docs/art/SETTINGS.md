@@ -19,6 +19,20 @@ WebGL does not provide it here, and CPU time does not measure browser compositor
 or perceived smoothness. If frame timing samples are unavailable or zero, adaptive quality does not change. Manual mode
 uses the selected tier without adaptation. The quality control cycles Adaptive → High → Medium → Low → Adaptive.
 
+| Presentation feature | High | Medium | Low |
+| --- | --- | --- | --- |
+| Nearby map torch lights | At most 6 | At most 3 | Off |
+| Selective 2D torch shadows | On | Off | Off |
+| Volume / bloom / grading | On | On | Off |
+| Map ember glows, 32 ambient motes, 3 haze layers | On | On | Off |
+| Actor artwork, faction insignia, health/status/weapon cues | Retained | Retained | Retained |
+| Delivered fields, projectiles, props and reward indicators | Retained | Retained | Retained |
+| Confirmed cosmetic flashes / damage amounts | Shared cap of 48 | Shared cap of 48 | Shared cap of 48 |
+
+The 2D light render texture uses half scale; the main scene render scale remains 1.0. The separate staged study
+has five fixed elemental demonstration lights and is an art review, not a live-game quality/performance acceptance run.
+See [VERIFICATION.md](VERIFICATION.md) for the exact fixed-High backbuffer and performance conditions.
+
 ## Reduced motion and text
 
 Reduced motion is a saved boolean preference, defaulting off. Presentation components can observe `Changed` and apply it
@@ -26,6 +40,9 @@ to decorative movement or transitions; it does not alter actor movement or other
 
 Text scale defaults to 1.0 and is clamped to 0.85–1.5. A changed value raises `Changed`. UI components should use the
 current scale when laying out text; the setting does not itself resize every TextMesh Pro object.
+
+The live renderer freezes decorative fog/dust drift and effect growth/rise, and selects stable animation frames
+when reduced motion is enabled. Delivered positions, aiming, telegraphs and interaction facts continue updating.
 
 ## Audio
 

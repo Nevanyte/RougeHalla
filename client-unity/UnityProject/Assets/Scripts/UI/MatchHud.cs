@@ -38,7 +38,8 @@ namespace Roguehalla.Client
         string _feedback = "";
         InventoryView? _inventoryShown;
         PropView? _focusShown;
-        readonly byte[] _cardsShown = new byte[3], _boostsShown = new byte[8];
+        byte[] _cardsShown = Array.Empty<byte>();
+        readonly byte[] _boostsShown = new byte[8];
         bool _buildShown, _hasBuildShown;
         ulong _rewardSignature = ulong.MaxValue;
         static readonly string[] Factions = { "Fire", "Sentenced", "Plague", "Frost", "Holy" };
@@ -338,6 +339,11 @@ namespace Roguehalla.Client
                 Set(_pickup.GetComponentInChildren<TMP_Text>(), view.Focus.HasValue ? "F · " + (view.Focus.Value.Weapon.HasValue ? view.Focus.Value.Weapon.ToString() : view.Focus.Value.Kind.ToString()) : "F · No pickup");
             }
             bool buildChanged = !_buildShown || _hasBuildShown != view.HasBuild;
+            if (_cardsShown.Length != view.Cards.Count)
+            {
+                _cardsShown = new byte[view.Cards.Count];
+                buildChanged = true;
+            }
             for (int i = 0; i < _cardsShown.Length; i++)
             { byte value = i < view.Cards.Count ? view.Cards[i] : (byte)0; if (_cardsShown[i] != value) buildChanged = true; _cardsShown[i] = value; }
             for (int i = 0; i < _boostsShown.Length; i++)

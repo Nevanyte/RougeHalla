@@ -134,6 +134,45 @@ namespace Roguehalla.Client.Tests
         }
 
         [Test]
+        public void NormalPresentationRemovesLatestAbsentActorsAndQueuedCuesWithAudioDisabled()
+        {
+            var arena=CreateArena();
+            var clientObject=CreateObject("test client without audio");
+            var client=clientObject.AddComponent<MatchClient>();client.Arena=arena;
+            clientObject.AddComponent<ShowcaseSoundscape>().enabled=false;
+            var session=new Session(new SilentTransport(),new SessionOptions{Now=()=>0});
+            typeof(MatchClient).GetProperty("Session").SetValue(client,session);
+            var delayed=(List<InterpActor>)typeof(MatchClient).GetField("_actors",System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic).GetValue(client);
+            var player=RemoteActor(77);var npc=RemoteActor(78);npc.Kind=ActorKind.RegionalMob;
+            delayed.Add(player);delayed.Add(npc);
+            session.Snapshots.Add(new ServerMsg.Snapshot{Tick=1,Actors=new[]{
+                new WireActor{Id=77,Kind=0,X=120,Y=240,Status=1,HpPct=100},
+                new WireActor{Id=78,Kind=1,X=140,Y=240,Status=1,HpPct=100}}});
+            var present=typeof(MatchClient).GetMethod("Present",System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic);
+            present.Invoke(client,null);
+            Assert.That(arena.IsObserved(77)&&arena.IsObserved(78),Is.True);
+            arena.ConfirmedFx(new ServerMsg.Fx{List=new List<WireFx>{
+                new WireFx{Kind=FxKind.Hit,Victim=77,Amount=5},new WireFx{Kind=FxKind.Hit,Victim=79,Amount=9}}});
+            session.Snapshots.Add(new ServerMsg.Snapshot{Tick=2});
+            present.Invoke(client,null); // Still has the old delayed interpolation list.
+            Assert.That(arena.IsObserved(77)||arena.IsObserved(78)||arena.IsObserved(79),Is.False);
+            var effects=FindDirectChild(arena.transform,"Confirmed effects");
+            foreach(Transform effect in effects) Assert.That(effect.gameObject.activeSelf,Is.False);
+            session.Snapshots.Add(new ServerMsg.Snapshot{Tick=3,Actors=new[]{new WireActor{Id=79,Kind=1,X=120,Y=240,Status=1,HpPct=100}}});
+            present.Invoke(client,null);
+            Assert.That(arena.IsObserved(79),Is.True);
+            foreach(Transform effect in effects) Assert.That(effect.gameObject.activeSelf,Is.False,"an absent subject's queued cue must not replay later");
+        }
+
+        sealed class SilentTransport : ITransport
+        {
+            public event System.Action Opened { add{} remove{} }
+            public event System.Action<byte[]> Received { add{} remove{} }
+            public event System.Action<string> Closed { add{} remove{} }
+            public void Connect(string url){} public void Send(byte[] frame){} public void Close(){} public void Poll(){}
+        }
+
+        [Test]
         public void ShowcaseCatalogHasEightDirectionClipsAndAuthoredHumanSprites()
         {
             var catalog = Resources.Load<ShowcaseCatalog>("Showcase/Catalog");
