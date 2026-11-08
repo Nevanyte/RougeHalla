@@ -1,0 +1,13 @@
+diff --git a/crates/rh-sim/src/systems/training/console.rs b/crates/rh-sim/src/systems/training/console.rs
+index 9bddd2c7..4c33016f 100644
+--- a/crates/rh-sim/src/systems/training/console.rs
++++ b/crates/rh-sim/src/systems/training/console.rs
+@@ -54,7 +54,7 @@ fn toast(ev: &mut Vec<Event>, to: PlayerId, text: String) {
+ 
+ /// A camp/chest may be dropped now: not within \`TRAIN_SPAWN_GAP_MS\` of the last one (legacy \`dropAllowed\`).
+ fn drop_allowed(w: &World, ev: &mut Vec<Event>, to: PlayerId, last: Option<f64>) -> bool {
+-    if last.is_none_or(|t| w.server_time - t >= TRAIN_SPAWN_GAP_MS) {
++    if last.is_none_or(|t| w.server_time - t >= TRAIN_SPAWN_GAP_MS * 10.) {
+         return true;
+     }
+     toast(ev, to, "Slow down".into());

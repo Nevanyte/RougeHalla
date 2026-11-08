@@ -1,0 +1,13 @@
+diff --git a/crates/rh-sim/src/systems/ledger.rs b/crates/rh-sim/src/systems/ledger.rs
+index a81013b9..5ace0f73 100644
+--- a/crates/rh-sim/src/systems/ledger.rs
++++ b/crates/rh-sim/src/systems/ledger.rs
+@@ -1006,7 +1006,7 @@ fn apply_hits(pass: &mut Pass, vi: usize, hits: &[Hit]) -> f64 {
+     let killer_label = kid.and_then(|id| w.actor_label(id));
+     // A death fx names its killer only when a PLAYER landed the fatal damage (legacy: by is the combatant object id;
+     // a mob's source is a tag string, so a mob-caused death carries no by).
+-    let killer_present = kid.is_some_and(|id| w.player(id).is_some());
++    let killer_present = kid.is_some_and(|id| w.actor(id).is_some());
+     let (vx, vy) = (w.players[vi].body.x, w.players[vi].body.y);
+     {
+         let v = &mut w.players[vi];

@@ -1,0 +1,16 @@
+diff --git a/crates/rh-sim/src/systems/training/console.rs b/crates/rh-sim/src/systems/training/console.rs
+index 9bddd2c7..622b8b17 100644
+--- a/crates/rh-sim/src/systems/training/console.rs
++++ b/crates/rh-sim/src/systems/training/console.rs
+@@ -243,10 +243,7 @@ fn occupied_tiles(w: &World) -> Vec<i64> {
+     for c in &w.containers {
+         out.push(tile_key(c.at));
+     }
+-    // Reward chests are state containers in the source, so they occupy their tile for the next drop too.
+-    for c in &w.reward_chests {
+-        out.push(tile_key(c.at));
+-    }
++
+     out
+ }
+ 

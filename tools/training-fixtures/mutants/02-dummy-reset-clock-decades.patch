@@ -1,0 +1,13 @@
+diff --git a/crates/rh-sim/src/systems/training.rs b/crates/rh-sim/src/systems/training.rs
+index c87599a4..884f23d3 100644
+--- a/crates/rh-sim/src/systems/training.rs
++++ b/crates/rh-sim/src/systems/training.rs
+@@ -71,7 +71,7 @@ pub(crate) fn reset_dummies(cx: &mut Cx) {
+             continue;
+         }
+         if m.core.vitals.hp < m.core.vitals.max_hp
+-            && now - m.last_hit_at >= DUMMY_RESET_SECONDS * 1000.
++            && now - m.last_hit_at >= DUMMY_RESET_SECONDS * 1000. * 100.
+         {
+             m.core.vitals.hp = m.core.vitals.max_hp;
+         }

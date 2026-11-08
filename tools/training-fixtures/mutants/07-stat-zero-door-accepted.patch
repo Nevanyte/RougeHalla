@@ -1,0 +1,13 @@
+diff --git a/crates/rh-sim/src/input.rs b/crates/rh-sim/src/input.rs
+index 9d758228..746b60d2 100644
+--- a/crates/rh-sim/src/input.rs
++++ b/crates/rh-sim/src/input.rs
+@@ -467,8 +467,6 @@ fn validate_train(raw: TrainRaw) -> Result<TrainCommand, Reject> {
+                 .count
+                 .min(u64::from(crate::constants::TRAIN_MAX_CARD_COUNT)) as u8,
+         }),
+-        // The source door refuses a stat count of 0 (a stat is only ever set to a positive stack count by the console).
+-        2 if raw.count == 0 => Err(Reject::InvalidTrain),
+         2 => Ok(TrainCommand::Stat {
+             id: mob_at(raw.id).ok_or(Reject::InvalidTrain)?,
+             count: raw

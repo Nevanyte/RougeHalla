@@ -63,3 +63,22 @@ matrix (the dummies gate only comes with the training world); the console's inte
 unreachable from the wire in the source and only the door refusal is witnessed.
 
 Recapture only with the pinned container: the corpus is immutable source output, never regenerated from Rust.
+
+## Mutants
+
+%tools/training-fixtures/run-mutants.sh% applies every committed patch in %tools/training-fixtures/mutants/%, requires a
+semantic failure of the native training suite (the corpus test and the training room's own tests), restores the tree, and
+then requires the unchanged control to pass. The committed set:
+
+| mutant | what it breaks |
+| --- | --- |
+| %01-dummy-refill-to-zero% | a lethal dummy hit clamps at 0 instead of refilling |
+| %02-dummy-reset-clock-decades% | the dummy reset clock runs decennia long |
+| %03-practice-camp-ref-minus-one% | a practice mob stores %ref - 1% as its camp |
+| %04-chest-occupancy-dropped% | reward chests stop occupying their tile for the next drop |
+| %05-stat-toast-ungrouped% | the console's number rendering loses thousands grouping |
+| %06-camp-gap-tenfold% | the 300 ms console gap is scaled to 3 s |
+| %07-stat-zero-door-accepted% | the door accepts a 0 stat count |
+| %08-death-by-mob% | a mob-caused death names the mob as the killer |
+
+%bash tools/training-fixtures/run-mutants.sh% reports %8/8 mutants killed; unchanged control passes%.
