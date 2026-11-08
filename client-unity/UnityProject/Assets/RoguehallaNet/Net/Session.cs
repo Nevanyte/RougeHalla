@@ -135,16 +135,18 @@ namespace Roguehalla.Net
         }
 
         /// <summary>Order a move: sent with the next Update; the local view follows accepted server snapshots.</summary>
-        public void OrderMove(float x, float y)
+        public byte OrderMove(float x, float y)
         {
             byte seq = Input.Move(x, y);
             if (seq != 0 && Motion != null) Motion.Order(x, y, seq, Now);
+            return seq;
         }
 
-        public void OrderStop()
+        public byte OrderStop()
         {
             byte seq = Input.Stop();
             if (Motion != null) Motion.StopOrder(seq, Now);
+            return seq;
         }
 
         public void Leave()
@@ -159,8 +161,18 @@ namespace Roguehalla.Net
             _t.Close();
         }
 
-        /// <summary>Pumps the transport, timers, pings and queued input. Call once per frame.</summary>
+        /// <summary>Pumps incoming state and flushes queued input. Call once per frame when input was collected beforehand.</summary>
         public void Update()
+        {
+            Poll();
+            FlushInput();
+        }
+
+        /// <summary>
+        /// Pumps incoming state, timers and clocks. A frame-driven client calls this before collecting controls,
+        /// then calls FlushInput after collecting them so a new press leaves in the same frame.
+        /// </summary>
+        public void Poll()
         {
             _t.Poll();
             double now = Now;
@@ -172,9 +184,16 @@ namespace Roguehalla.Net
             if (State != SessionState.InMatch) return;
             if (now - _lastPing >= _o.PingIntervalMs) { _lastPing = now; Send(Sync.MakePing(now)); }
             if (Clock.Ready) Clock.Update(now);
-            // Presentation only: advance the predicted walk with the same injected clock, before any queued input leaves.
+            // P-NET-1 Phase 2: presentation only. Advance the predicted walk with the same injected clock while the
+            // session is polled, so a frame-driven client can poll -> read input -> flush input -> present once per frame.
             if (Motion != null) Motion.Step(now);
-            foreach (var f in Input.Flush(now)) Send(f);
+        }
+
+        /// <summary>Sends collected controls once per frame. It does not poll or advance the session again.</summary>
+        public void FlushInput()
+        {
+            if (State != SessionState.InMatch) return;
+            foreach (var f in Input.Flush(Now)) Send(f);
         }
 
         void Send(ClientMsg m) { _t.Send(m.Encode()); }

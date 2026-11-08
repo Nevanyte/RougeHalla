@@ -31,6 +31,7 @@ namespace Roguehalla.Client
         bool _steering;
         float _aimAngle;
         bool _attackHeld;
+        bool _traceLatency;
 
         static double NowMs() { return Time.realtimeSinceStartupAsDouble * 1000.0; }
 
@@ -84,11 +85,17 @@ namespace Roguehalla.Client
         void Update()
         {
             if (Session == null) return;
-            Session.Update();
+            _traceLatency = LatencyTrace.Enabled;
+            if (_traceLatency) LatencyTrace.Mark("frameStart", Session.PlayerId, 0, 0, 0);
+            Session.Poll();
             if (Session.State != SessionState.InMatch && Session.State != SessionState.Ended) return;
             if (Arena != null && !Arena.HasMap && Session.Map != null) Arena.Build(Session.Map);
             Session.Snapshots.Sample(Session.Clock.RenderMs, _actors);
-            if (Session.State == SessionState.InMatch) ReadInput();
+            if (Session.State == SessionState.InMatch)
+            {
+                ReadInput();
+                Session.FlushInput();
+            }
             Present();
         }
 
@@ -108,7 +115,7 @@ namespace Roguehalla.Client
             bool blocked = Hud != null && Hud.BlocksWorldInput;
             if (blocked)
             {
-                if (_steering) { Session.OrderStop(); _steering = false; }
+                if (_steering) { OrderStop(); _steering = false; }
                 return;
             }
             float sx = myX, sy = myY;
@@ -135,7 +142,7 @@ namespace Roguehalla.Client
                 if (mouse.rightButton.wasPressedThisFrame)
                 {
                     if (Keyboard.current != null && Keyboard.current.leftShiftKey.isPressed) Session.Input.AttackMove(sx, sy);
-                    else Session.OrderMove(sx, sy);
+                    else OrderMove(sx, sy);
                 }
             }
             var kb = Keyboard.current;
@@ -153,11 +160,23 @@ namespace Roguehalla.Client
                 dir.Normalize();
                 if (!_steering || dir != _lastDir || now - _lastSteer >= SteerRepeatMs)
                 {
-                    Session.OrderMove(myX + dir.x * SteerAheadU, myY + dir.y * SteerAheadU);
+                    OrderMove(myX + dir.x * SteerAheadU, myY + dir.y * SteerAheadU);
                     _lastDir = dir; _lastSteer = now; _steering = true;
                 }
             }
-            else if (_steering) { Session.OrderStop(); _steering = false; }
+            else if (_steering) { OrderStop(); _steering = false; }
+        }
+
+        void OrderMove(float x, float y)
+        {
+            byte seq = Session.OrderMove(x, y);
+            if (_traceLatency && seq != 0) LatencyTrace.Mark("sampleMove", Session.PlayerId, seq, x, y);
+        }
+
+        void OrderStop()
+        {
+            byte seq = Session.OrderStop();
+            if (_traceLatency) LatencyTrace.Mark("sampleStop", Session.PlayerId, seq, 0, 0);
         }
 
         public void PickupFocus()
@@ -187,6 +206,13 @@ namespace Roguehalla.Client
             if (Arena == null) return;
             Arena.PresentCollections(Session.Collections);
             Arena.Present(_actors, Session.Me, Session.Motion, _aimAngle);
+            if (_traceLatency)
+            {
+                if (Session.Me != null && Session.Motion != null)
+                    LatencyTrace.Mark("presentSelf", Session.PlayerId, Session.Me.MoveSeq, Session.Motion.DrawnX, Session.Motion.DrawnY);
+                foreach (var actor in _actors)
+                    LatencyTrace.Mark("presentActor", actor.Id, 0, actor.X, actor.Y);
+            }
             if (Cam != null && Session.Motion != null && Session.Motion.Initialized) Arena.Follow(Cam, Session.Motion.DrawnX, Session.Motion.DrawnY);
         }
     }
