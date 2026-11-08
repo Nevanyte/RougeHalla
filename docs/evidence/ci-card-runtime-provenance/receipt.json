@@ -81,17 +81,19 @@
       "equal": true
     },
     "runtimeInput": {
-      "allowed": 4,
-      "forbidden": 0,
-      "paths": [
-        "/acceptedProvenanceOverlay",
-        "/harnessInputs/2/sha256",
-        "/immutableReferences/0/sha256",
-        "/immutableReferences/0/scope"
+      "semanticFields": [
+        "format",
+        "baseRevision",
+        "sourceInputs",
+        "harnessInputs (minus the runtime capture tool)",
+        "immutableReferences[1..] (catalog overlay entry excluded)"
       ],
-      "semanticDigestOld": "f915322254bf26c2e46a8f5783de73d70bbf08830b535b61ee9b3932c818860e",
-      "semanticDigestNew": "f915322254bf26c2e46a8f5783de73d70bbf08830b535b61ee9b3932c818860e",
-      "equal": true
+      "semanticDigestOld": "152a077b02f33af5a535546f49b3751da3ab897df60b84dbe43877b06095e8ec",
+      "semanticDigestNew": "152a077b02f33af5a535546f49b3751da3ab897df60b84dbe43877b06095e8ec",
+      "formatOnlyDigestOld": "f915322254bf26c2e46a8f5783de73d70bbf08830b535b61ee9b3932c818860e",
+      "formatOnlyDigestNew": "f915322254bf26c2e46a8f5783de73d70bbf08830b535b61ee9b3932c818860e",
+      "equal": true,
+      "note": "Corrected semantic digest; the previous f9153222 value was format-only (sha256 of the format tag object)."
     },
     "witnessSource": {
       "allowed": 14,
@@ -108,11 +110,18 @@
       "equal": true
     },
     "witnessInput": {
-      "allowed": 14,
-      "forbidden": 0,
-      "semanticDigestOld": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
-      "semanticDigestNew": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
-      "equal": true
+      "semanticFields": [
+        "sourceInputs",
+        "harnessInputs (minus the witness capture tool)",
+        "frozenPins",
+        "actualPinnedInputs frozenOriginalSha256/docOverlayApplied"
+      ],
+      "semanticDigestOld": "a7d1b19f9c55bae7e7a67739cdb4a34d4049b7d803485edb01a1110cf8232a1f",
+      "semanticDigestNew": "a7d1b19f9c55bae7e7a67739cdb4a34d4049b7d803485edb01a1110cf8232a1f",
+      "formatOnlyDigestOld": "25cd62c343f1e92ffe69dddb133619350494240b4d6e4eff3564a152cd682825",
+      "formatOnlyDigestNew": "25cd62c343f1e92ffe69dddb133619350494240b4d6e4eff3564a152cd682825",
+      "equal": true,
+      "note": "Corrected semantic digest; the previous 44136fa3 value was format-only (sha256 of {})."
     }
   },
   "counts": {
@@ -172,5 +181,34 @@
     "no map/full-workspace/unchanged-Web campaign",
     "root owns merge/status/lock/identities"
   ],
-  "checker": "separate checker result appended by final evidence commit"
+  "checker": {
+    "verdict": "PASS WITH DISCREPANCIES (evidence quality only; no fixture/semantic discrepancy)",
+    "independentlyReproduced": "scope/FROZEN hashes; both positive pinned bytechecks; recursive equality with its own script (runtime 4/4, witness 14/14, zero forbidden); own sorted-key semantic digests old==new; source/harness inventory equality; counts 65/6236/3179 and 2/33; overlay narrowness; both negative controls; pristine base CI failure",
+    "discrepanciesFixedInFinalEvidenceCommit": [
+      "input semantic digests now cover the stable source/harness/frozen-pin inventory; the old format-only values are retained as formatOnlyDigest fields",
+      "diff classifier narrowed to allow a harness sha leaf only for the actual capture tool (4/4 and 14/14 allowed, zero forbidden unchanged)",
+      "the ten bounded secret-free logs are force-added portable paths with accurate SHA256SUMS",
+      "witness overlay 'all 65 witness cases' wording clarified as the frozen 65-case seal vs the 2-case witness corpus (doc-only, no recapture)"
+    ]
+  },
+  "diffClassifier": "A harnessInputs/<n>/sha256 leaf is allowed only when its sibling path is the actual capture tool (runtime or witness); all other input leaves are forbidden.",
+  "portableLogs": {
+    "forceAddedExactPaths": true,
+    "reason": "repository global *.log ignore; the ten bounded evidence logs are explicitly force-added so README/SHA256SUMS links are portable",
+    "files": [
+      "logs/precanonical-runtime-check-mismatch.log",
+      "logs/pristine-ci-failure.log",
+      "logs/fresh-runtime-capture.log",
+      "logs/fresh-witness-capture.log",
+      "logs/runtime-check-pass.log",
+      "logs/witness-check-pass.log",
+      "logs/negative-runtime-mutation.log",
+      "logs/negative-witness-mutation.log",
+      "logs/negative-runtime-check.log",
+      "logs/negative-witness-check.log"
+    ],
+    "secretScan": "no token/secret/password/api-key/authorization/bearer/account/cloud/private-key matches",
+    "sizes": "97 B - 43 KB each; no corpora or capture outputs added"
+  },
+  "witnessScopeClarification": "The witness overlay scope string says 'all 65 witness cases' (the frozen 65-case seal); the emitted witness corpus itself is 2 positive-witness cases. Documentation clarification only; no recapture."
 }

@@ -1,6 +1,8 @@
 faebe12b34bfce27963f5818f580ddd3770bc3a06416c0b11adacc1f8f1f3f57  ./APPROACH.md
 73374844df434db6d902fcd93627f691449315d308021361e6f2305627bcdce1  ./diffs/diff-paths.mjs
 41be47ad37f824f5c03ac7e8a2e6622b2742c9dbbeced75e3779541a5c6daa26  ./diffs/diff-tool.mjs
+5af766aad19f8cf466e794f6c67ddf141c0451c649710b90535638b9528ec4de  ./diffs/input-semantic-runtime.json
+2529bb1cb665fa31e2e0648840cb0864925aee0f47512e01b9a0758f837fe458  ./diffs/input-semantic-witness.json
 1476e898b13ffd6de9f61ca05ffefd2b172bd1c8aae303c072127f481287d298  ./diffs/negative-control.mjs
 16a6c0dc80247a67098e2d2529f26c52be834891b43fa9f3398ebae68703b2a0  ./diffs/runtime-diff.out
 c499cc50e136378ed3cd36ced6331b88347acfe4f3705526b08e66ffc8310526  ./diffs/runtime-input-diff.out
@@ -21,5 +23,5 @@ beb0aae93cfd34dec2d490e1b1ce0ea44e2b31f62d7931c5d45852f0bf720e45  ./logs/negativ
 0d41bbdc0c1dd02e600412a3e2a9723437b1e01c79a07eb016c942e4a241f23e  ./logs/runtime-check-pass.log
 2d08cc2b7e94b2046f4d8337d4ed0b3738e7a7877423e5d1c31d1cff97928912  ./logs/witness-check-pass.log
 2b320efd3a036a82eabd7ffd8b353f69f22817c82f9e7feb8f86e5f65911949b  ./old-SHA256SUMS.txt
-0c27c1ead5aebce72175d4d9379ec6ab5a10ff708588fbf87208bf71c9f7c32c  ./README.md
-8c42bb7efe45c3c0a1e79eb98e15b12cba1bbe583cd4647256f16b6d3ec5dbc9  ./receipt.json
+438dafa49ca1881119eee4f4a6e8e05aa1d954fb3e68d91c0a226165f32dabd3  ./README.md
+779c83cf6b6b8dd74a4ff3d5a267100c695fa448ce4aad37cfebde8d9277dcd9  ./receipt.json

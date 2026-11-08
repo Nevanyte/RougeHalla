@@ -45,7 +45,9 @@ witness cases/source and 11 tool pins remain sealed and inspectable; nothing was
   `source.json` (`c2e5d1a0…` -> `80516466…`), runtime `INPUT_SHA256.json` (`2ea71ac1…` -> `84ffcc7f…`) and the pinned
   runtime capture tool (`24df2205…` -> `5ca446a1…`). Only original/effective pairs are accepted for those paths; every
   other FROZEN pin remains strictly immutable; `actualPinnedInputs` records frozen original, actual and overlay status.
-  The original pins remain in the untouched FROZEN_PINS.json and are emitted as `frozen65:pins` unchanged.
+  The original pins remain in the untouched FROZEN_PINS.json and are emitted as `frozen65:pins` unchanged. The overlay
+  scope text says "all 65 witness cases"; that refers to the frozen 65-case seal, while the emitted witness corpus itself
+  is 2 positive-witness cases (documentation clarification only; no recapture).
 
 ## Genuine pinned recapture and exact recursive equality
 
@@ -60,9 +62,14 @@ Recursive old/fresh comparison (`diffs/*.json`, `diffs/*.out`) found **only** ac
 | comparison | differences | forbidden | semantic digest |
 |---|---:|---:|---|
 | runtime `source.json` | 4 | 0 | old = new `a086c168baa3e0844a5524662e9fc68675b7335e95248db5ced95bc863878fe7` |
-| runtime `INPUT_SHA256.json` | 4 | 0 | old = new `f915322254bf26c2e46a8f5783de73d70bbf08830b535b61ee9b3932c818860e` |
+| runtime `INPUT_SHA256.json` | 4 | 0 | old = new `152a077b02f33af5a535546f49b3751da3ab897df60b84dbe43877b06095e8ec` (semantic: format/baseRevision/sourceInputs/stable harness/immutableReferences[1..]) |
 | witness `source.json` | 14 | 0 | old = new `0ef72417008fab778bd68dc05aed90134415eb3411db6406d12b697bc921c9c4` |
-| witness `INPUT_SHA256.json` | 14 | 0 | old = new `44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a` |
+| witness `INPUT_SHA256.json` | 14 | 0 | old = new `a7d1b19f9c55bae7e7a67739cdb4a34d4049b7d803485edb01a1110cf8232a1f` (semantic: sourceInputs/stable harness/frozenPins/frozen originals) |
+
+Input digests above cover the stable inventories (the earlier `f9153222…`/`44136fa3…` values were format-only
+placeholders and are preserved as `formatOnlyDigest*` fields in `diffs/input-semantic-*.json`). The diff classifier
+permits a `harnessInputs/<n>/sha256` leaf only when its sibling path is the actual capture tool (runtime/witness), so
+the allowed sets remain exactly the recorded ones; any other input difference is forbidden.
 
 Runtime allowed leaves: `acceptedProvenanceOverlay` added; catalog reference `sha256`/`scope`; this runtime capture
 tool's `harnessInputs` hash (and the same four in the runtime input inventory). Witness allowed leaves:
@@ -95,14 +102,31 @@ private oracle records. The runtime capture log reports the same 65/6236/3179 wi
 
 External workspace `/tmp/ci-card-runtime-provenance/` preserves the complete old bytes (`old/`, `old/SHA256SUMS`), both
 fresh output directories, all raw logs, and the recursive diff JSON/digests. This evidence directory carries the same
-logs/diffs, the old checksum manifest, and the small analysis/negative-control scripts. Nothing old was overwritten in
-place; the canonical update copied only verified fresh bytes.
+logs/diffs, the old checksum manifest, and the small analysis/negative-control scripts. The ten bounded raw logs
+(`logs/*.log`, 97 B–43 KB, secret-free) are force-added as explicit paths despite the repository's global `*.log`
+ignore, so the links in this README and `SHA256SUMS` are portable; no other ignored file, corpora or capture output is
+added. Nothing old was overwritten in place; the canonical update copied only verified fresh bytes.
+
+## Independent checker (separate agent)
+
+Verdict **PASS WITH DISCREPANCIES** (evidence quality only; no fixture/semantic discrepancy). The checker independently
+reproduced: the six-file scope and untouched FROZEN_PINS; all old/new hashes and sizes; both positive pinned
+bytechecks; recursive old/new equality with its own script (runtime 4/4, witness 14/14 allowed leaves, zero forbidden;
+its sorted-key semantic digests old==new; source/harness inventory equal; counts 65/6,236/3,179 and 2/33 on both
+sides); overlay narrowness (runtime asserts only the effective catalog hash; witness accepts exactly the three
+original/effective pairs and keeps `frozen65:pins` unchanged); both negative controls (same mutation SHAs, exit 1,
+canonical untouched); and the pristine base CI failure. Its discrepancies are fixed in this final evidence commit:
+(1) input semantic digests now cover the stable source/harness/frozen-pin inventory (format-only placeholders kept as
+`formatOnlyDigest*`); (2) the diff classifier permits a harness `sha256` leaf only when its sibling path is the actual
+capture tool (allowed/forbidden counts unchanged); (3) the ten bounded, secret-free logs are force-added portable files
+with an accurate `SHA256SUMS`; (4) the witness overlay's "all 65 witness cases" wording is clarified as the frozen
+65-case seal, while the witness corpus is 2 positive-witness cases (doc-only, no recapture). No source control or
+expected data changed.
 
 ## Limits
 
 No native, TypeScript production, protocol, browser, map, full-workspace or unchanged-Web campaign ran; no cloud/ML,
 account/access-mode, shared status or Cargo.lock edit. No expected gameplay/poststate/private tuple was installed and no
 comparison was relaxed. Compile/setup errors were treated as failures. Root owns main merge, status, lock and final
-identity; a separate checker independently reproduces the two pinned bytechecks, recursive equality, overlay narrowness
-and the negative controls (result appended by the final evidence commit).
+identity; the separate checker result is recorded above.
 
