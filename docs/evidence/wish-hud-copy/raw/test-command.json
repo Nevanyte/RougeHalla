@@ -1,0 +1,584 @@
+{
+  "success": true,
+  "command": "command",
+  "data": {
+    "target": {
+      "host": "127.0.0.1",
+      "port": 7800,
+      "projectPath": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject"
+    },
+    "server": {
+      "version": "0.10.0-exp.1",
+      "port": 50133
+    },
+    "commands": [
+      {
+        "command": "job batch",
+        "name": "batch",
+        "group": "job",
+        "description": "Run multiple registered commands in one transactional request. Later ops can reference earlier results with \"$<id-or-index>.<jsonPath>\" (e.g. \"$0.instanceId\"; \"$$\" escapes a literal '$'). transactional=true (default) groups every op into one Undo step and reverts all applied ops if any op fails; commands that mutate outside the Undo system (asset/file/settings writes) are rejected unless transactional=false. on-error=abort|continue (continue forces transactional=false); dry-run validates without mutating; timeout (seconds, default 60) bounds execution — when it is about to run out the remaining ops are skipped and a transactional batch rolls back (submit long batches with \"job\": true). Excludes build run, build.target switch, the package commands, editor.playmode start/stop/pause, script recompile, script eval, script eval_file, script run, editor invoke_menu, scene open/scene create, async commands (test run/test list), runtime-only commands, and nested job batch.",
+        "tags": [
+          "batch"
+        ],
+        "package": "Unity.Pipeline.Editor",
+        "mainThreadRequired": true,
+        "parameters": [
+          {
+            "name": "operations",
+            "description": "Ordered operations to run; each is { id?, command, params }, with command written as \"<group> <name>\" (e.g. \"gameobject create\"). Max 200.",
+            "type": "List`1",
+            "required": true,
+            "defaultValue": null
+          },
+          {
+            "name": "transactional",
+            "description": "Group all ops into one Undo step and revert every applied op if any op fails. Default true. Forced false when on-error=continue. Rejects commands whose mutations Undo cannot revert (asset/file/settings writes).",
+            "type": "Boolean",
+            "required": false,
+            "defaultValue": true
+          },
+          {
+            "name": "on-error",
+            "description": "abort (default): stop at the first failing op. continue: run every op, collecting per-op errors (forces transactional=false).",
+            "type": "String",
+            "required": false,
+            "defaultValue": "abort"
+          },
+          {
+            "name": "dry-run",
+            "description": "Validate command names, parameters, reference topology and excluded commands without mutating anything.",
+            "type": "Boolean",
+            "required": false,
+            "defaultValue": false
+          },
+          {
+            "name": "result-fields",
+            "description": "Optional per-op result projection: map of op id-or-index -> array of result field paths to keep (context economy).",
+            "type": "JObject",
+            "required": false,
+            "defaultValue": null
+          },
+          {
+            "name": "timeout",
+            "description": "Timeout for the whole batch in seconds (default 60). Checked before each op after the first; when it is about to run out the remaining ops are skipped and a transactional batch rolls back. Use \"job\": true for long batches.",
+            "type": "Double",
+            "required": false,
+            "defaultValue": 60
+          }
+        ],
+        "schema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "title": "job batch",
+          "description": "Run multiple registered commands in one transactional request. Later ops can reference earlier results with \"$<id-or-index>.<jsonPath>\" (e.g. \"$0.instanceId\"; \"$$\" escapes a literal '$'). transactional=true (default) groups every op into one Undo step and reverts all applied ops if any op fails; commands that mutate outside the Undo system (asset/file/settings writes) are rejected unless transactional=false. on-error=abort|continue (continue forces transactional=false); dry-run validates without mutating; timeout (seconds, default 60) bounds execution — when it is about to run out the remaining ops are skipped and a transactional batch rolls back (submit long batches with \"job\": true). Excludes build run, build.target switch, the package commands, editor.playmode start/stop/pause, script recompile, script eval, script eval_file, script run, editor invoke_menu, scene open/scene create, async commands (test run/test list), runtime-only commands, and nested job batch.",
+          "properties": {
+            "operations": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "description": "Optional id for referencing this op's result from a later op (\"$<id>.<field>\"). Unique within the batch; must match ^[A-Za-z_][A-Za-z0-9_-]*$ (not purely numeric, no dots)."
+                  },
+                  "command": {
+                    "type": "string",
+                    "description": "The command to run, written as \"<group> <name>\" (e.g. \"gameobject create\")."
+                  },
+                  "params": {
+                    "type": "string",
+                    "description": "Parameters for the command. String values may reference a prior op's result: \"$<id-or-index>.<jsonPath>\"."
+                  }
+                },
+                "required": [
+                  "command"
+                ],
+                "additionalProperties": false
+              },
+              "description": "Ordered operations to run; each is { id?, command, params }, with command written as \"<group> <name>\" (e.g. \"gameobject create\"). Max 200."
+            },
+            "transactional": {
+              "type": "boolean",
+              "description": "Group all ops into one Undo step and revert every applied op if any op fails. Default true. Forced false when on-error=continue. Rejects commands whose mutations Undo cannot revert (asset/file/settings writes).",
+              "default": true
+            },
+            "on-error": {
+              "type": "string",
+              "description": "abort (default): stop at the first failing op. continue: run every op, collecting per-op errors (forces transactional=false).",
+              "default": "abort"
+            },
+            "dry-run": {
+              "type": "boolean",
+              "description": "Validate command names, parameters, reference topology and excluded commands without mutating anything.",
+              "default": false
+            },
+            "result-fields": {
+              "type": "string",
+              "description": "Optional per-op result projection: map of op id-or-index -> array of result field paths to keep (context economy)."
+            },
+            "timeout": {
+              "type": "number",
+              "description": "Timeout for the whole batch in seconds (default 60). Checked before each op after the first; when it is about to run out the remaining ops are skipped and a transactional batch rolls back. Use \"job\": true for long batches.",
+              "default": 60
+            }
+          },
+          "required": [
+            "operations"
+          ],
+          "additionalProperties": false,
+          "x-command-metadata": {
+            "mainThreadRequired": true,
+            "methodName": "Unity.Pipeline.Editor.Commands.Batch.BatchCommand.Batch"
+          }
+        }
+      },
+      {
+        "command": "test run",
+        "name": "run",
+        "group": "test",
+        "description": "Execute Unity tests with filtering options",
+        "tags": [
+          "tests"
+        ],
+        "package": "Unity.Pipeline.Editor",
+        "mainThreadRequired": true,
+        "parameters": [
+          {
+            "name": "mode",
+            "description": "Test mode: all, editor, playmode (default: all)",
+            "type": "String",
+            "required": false,
+            "defaultValue": "all"
+          },
+          {
+            "name": "filter",
+            "description": "Test name filter pattern (case-insensitive partial match)",
+            "type": "String",
+            "required": false,
+            "defaultValue": ""
+          },
+          {
+            "name": "filter-type",
+            "description": "Filter type: testName, assembly, category (default: testName)",
+            "type": "String",
+            "required": false,
+            "defaultValue": "testName"
+          },
+          {
+            "name": "include-explicit",
+            "description": "Include tests marked with [Explicit] attribute",
+            "type": "Boolean",
+            "required": false,
+            "defaultValue": false
+          },
+          {
+            "name": "async-tests",
+            "description": "Run asynchronously - return immediately, poll /test-status for results",
+            "type": "Boolean",
+            "required": false,
+            "defaultValue": false
+          },
+          {
+            "name": "timeout",
+            "description": "Test execution timeout in seconds (default: 600)",
+            "type": "Double",
+            "required": false,
+            "defaultValue": 600
+          }
+        ],
+        "schema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "title": "test run",
+          "description": "Execute Unity tests with filtering options",
+          "properties": {
+            "mode": {
+              "type": "string",
+              "description": "Test mode: all, editor, playmode (default: all)",
+              "default": "all"
+            },
+            "filter": {
+              "type": "string",
+              "description": "Test name filter pattern (case-insensitive partial match)",
+              "default": ""
+            },
+            "filter-type": {
+              "type": "string",
+              "description": "Filter type: testName, assembly, category (default: testName)",
+              "default": "testName"
+            },
+            "include-explicit": {
+              "type": "boolean",
+              "description": "Include tests marked with [Explicit] attribute",
+              "default": false
+            },
+            "async-tests": {
+              "type": "boolean",
+              "description": "Run asynchronously - return immediately, poll /test-status for results",
+              "default": false
+            },
+            "timeout": {
+              "type": "number",
+              "description": "Test execution timeout in seconds (default: 600)",
+              "default": 600
+            }
+          },
+          "required": [],
+          "additionalProperties": false,
+          "x-command-metadata": {
+            "mainThreadRequired": true,
+            "methodName": "Unity.Pipeline.Editor.Commands.TestCommands.Run"
+          }
+        }
+      }
+    ],
+    "count": 2,
+    "total": 2,
+    "offset": 0,
+    "limit": null,
+    "search": {
+      "pattern": "test run",
+      "count": 15,
+      "matches": [
+        {
+          "kind": "pipeline",
+          "name": "test run",
+          "path": "test run",
+          "description": "Execute Unity tests with filtering options",
+          "matchedOn": "name",
+          "state": null,
+          "installed": null,
+          "installCommand": null,
+          "invoke": "unity command test run --project-path /Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject"
+        },
+        {
+          "kind": "command",
+          "name": "test",
+          "path": "test",
+          "description": "Run a project's EditMode/PlayMode tests in the editor and write a results report",
+          "matchedOn": "name",
+          "state": null,
+          "installed": null,
+          "installCommand": null,
+          "invoke": "unity test"
+        },
+        {
+          "kind": "command",
+          "name": "watch test",
+          "path": "watch test",
+          "description": "Re-run unity test --affected each time a project file changes",
+          "matchedOn": "name",
+          "state": null,
+          "installed": null,
+          "installCommand": null,
+          "invoke": "unity watch test"
+        },
+        {
+          "kind": "pipeline",
+          "name": "test cancel",
+          "path": "test cancel",
+          "description": "Cancel running test execution",
+          "matchedOn": "name",
+          "state": null,
+          "installed": null,
+          "installCommand": null,
+          "invoke": "unity command test cancel --project-path /Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject"
+        },
+        {
+          "kind": "pipeline",
+          "name": "test list",
+          "path": "test list",
+          "description": "List all available tests (EditMode and/or PlayMode) without running them",
+          "matchedOn": "name",
+          "state": null,
+          "installed": null,
+          "installCommand": null,
+          "invoke": "unity command test list --project-path /Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject"
+        },
+        {
+          "kind": "pipeline",
+          "name": "test status",
+          "path": "test status",
+          "description": "Get status of running async test execution",
+          "matchedOn": "name",
+          "state": null,
+          "installed": null,
+          "installCommand": null,
+          "invoke": "unity command test status --project-path /Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject"
+        },
+        {
+          "kind": "pipeline",
+          "name": "job batch",
+          "path": "job batch",
+          "description": "Run multiple registered commands in one transactional request. Later ops can reference earlier results with \"$<id-or-index>.<jsonPath>\" (e.g. \"$0.instanceId\"; \"$$\" escapes a literal '$'). transactional=true (default) groups every op into one Undo step and reverts all applied ops if any op fails; commands that mutate outside the Undo system (asset/file/settings writes) are rejected unless transactional=false. on-error=abort|continue (continue forces transactional=false); dry-run validates without mutating; timeout (seconds, default 60) bounds execution — when it is about to run out the remaining ops are skipped and a transactional batch rolls back (submit long batches with \"job\": true). Excludes build run, build.target switch, the package commands, editor.playmode start/stop/pause, script recompile, script eval, script eval_file, script run, editor invoke_menu, scene open/scene create, async commands (test run/test list), runtime-only commands, and nested job batch.",
+          "matchedOn": "description",
+          "state": null,
+          "installed": null,
+          "installCommand": null,
+          "invoke": "unity command job batch --project-path /Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject"
+        },
+        {
+          "kind": "command",
+          "name": "ci init",
+          "path": "ci init",
+          "description": "Write a CI workflow that installs the CLI, restores the caches, installs the editor, activates a license, tests, and builds",
+          "matchedOn": "description",
+          "state": null,
+          "installed": null,
+          "installCommand": null,
+          "invoke": "unity ci init"
+        },
+        {
+          "kind": "command",
+          "name": "self-update",
+          "path": "self-update",
+          "description": "Update the unity CLI to the latest version",
+          "matchedOn": "description",
+          "state": null,
+          "installed": null,
+          "installCommand": null,
+          "invoke": "unity self-update"
+        },
+        {
+          "kind": "command",
+          "name": "doctor",
+          "path": "doctor",
+          "description": "Print diagnostic info about your Unity CLI environment",
+          "matchedOn": "option",
+          "state": null,
+          "installed": null,
+          "installCommand": null,
+          "invoke": "unity doctor"
+        },
+        {
+          "kind": "command",
+          "name": "editors upgrade",
+          "path": "editors upgrade",
+          "description": "Upgrade an installed editor to the newest patch in its release line",
+          "matchedOn": "option",
+          "state": null,
+          "installed": null,
+          "installCommand": null,
+          "invoke": "unity editors upgrade"
+        },
+        {
+          "kind": "command",
+          "name": "hub install",
+          "path": "hub install",
+          "description": "Install the Unity Hub",
+          "matchedOn": "option",
+          "state": null,
+          "installed": null,
+          "installCommand": null,
+          "invoke": "unity hub install"
+        },
+        {
+          "kind": "command",
+          "name": "pipeline cloud-build targets create",
+          "path": "pipeline cloud-build targets create",
+          "description": "Create a Build Automation build target",
+          "matchedOn": "option",
+          "state": null,
+          "installed": null,
+          "installCommand": null,
+          "invoke": "unity pipeline cloud-build targets create"
+        },
+        {
+          "kind": "command",
+          "name": "pipeline cloud-build targets update",
+          "path": "pipeline cloud-build targets update",
+          "description": "Change a Build Automation build target",
+          "matchedOn": "option",
+          "state": null,
+          "installed": null,
+          "installCommand": null,
+          "invoke": "unity pipeline cloud-build targets update"
+        },
+        {
+          "kind": "command",
+          "name": "vcs merge-setup",
+          "path": "vcs merge-setup",
+          "description": "Make Unity scene and prefab merges work in this repository, using the editor's UnityYAMLMerge tool",
+          "matchedOn": "option",
+          "state": null,
+          "installed": null,
+          "installCommand": null,
+          "invoke": "unity vcs merge-setup"
+        }
+      ],
+      "hint": "",
+      "items": [
+        {
+          "kind": "pipeline",
+          "name": "test run",
+          "path": "test run",
+          "description": "Execute Unity tests with filtering options",
+          "matchedOn": "name",
+          "state": null,
+          "installed": null,
+          "installCommand": null,
+          "invoke": "unity command test run --project-path /Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject"
+        },
+        {
+          "kind": "command",
+          "name": "test",
+          "path": "test",
+          "description": "Run a project's EditMode/PlayMode tests in the editor and write a results report",
+          "matchedOn": "name",
+          "state": null,
+          "installed": null,
+          "installCommand": null,
+          "invoke": "unity test"
+        },
+        {
+          "kind": "command",
+          "name": "watch test",
+          "path": "watch test",
+          "description": "Re-run unity test --affected each time a project file changes",
+          "matchedOn": "name",
+          "state": null,
+          "installed": null,
+          "installCommand": null,
+          "invoke": "unity watch test"
+        },
+        {
+          "kind": "pipeline",
+          "name": "test cancel",
+          "path": "test cancel",
+          "description": "Cancel running test execution",
+          "matchedOn": "name",
+          "state": null,
+          "installed": null,
+          "installCommand": null,
+          "invoke": "unity command test cancel --project-path /Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject"
+        },
+        {
+          "kind": "pipeline",
+          "name": "test list",
+          "path": "test list",
+          "description": "List all available tests (EditMode and/or PlayMode) without running them",
+          "matchedOn": "name",
+          "state": null,
+          "installed": null,
+          "installCommand": null,
+          "invoke": "unity command test list --project-path /Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject"
+        },
+        {
+          "kind": "pipeline",
+          "name": "test status",
+          "path": "test status",
+          "description": "Get status of running async test execution",
+          "matchedOn": "name",
+          "state": null,
+          "installed": null,
+          "installCommand": null,
+          "invoke": "unity command test status --project-path /Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject"
+        },
+        {
+          "kind": "pipeline",
+          "name": "job batch",
+          "path": "job batch",
+          "description": "Run multiple registered commands in one transactional request. Later ops can reference earlier results with \"$<id-or-index>.<jsonPath>\" (e.g. \"$0.instanceId\"; \"$$\" escapes a literal '$'). transactional=true (default) groups every op into one Undo step and reverts all applied ops if any op fails; commands that mutate outside the Undo system (asset/file/settings writes) are rejected unless transactional=false. on-error=abort|continue (continue forces transactional=false); dry-run validates without mutating; timeout (seconds, default 60) bounds execution — when it is about to run out the remaining ops are skipped and a transactional batch rolls back (submit long batches with \"job\": true). Excludes build run, build.target switch, the package commands, editor.playmode start/stop/pause, script recompile, script eval, script eval_file, script run, editor invoke_menu, scene open/scene create, async commands (test run/test list), runtime-only commands, and nested job batch.",
+          "matchedOn": "description",
+          "state": null,
+          "installed": null,
+          "installCommand": null,
+          "invoke": "unity command job batch --project-path /Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject"
+        },
+        {
+          "kind": "command",
+          "name": "ci init",
+          "path": "ci init",
+          "description": "Write a CI workflow that installs the CLI, restores the caches, installs the editor, activates a license, tests, and builds",
+          "matchedOn": "description",
+          "state": null,
+          "installed": null,
+          "installCommand": null,
+          "invoke": "unity ci init"
+        },
+        {
+          "kind": "command",
+          "name": "self-update",
+          "path": "self-update",
+          "description": "Update the unity CLI to the latest version",
+          "matchedOn": "description",
+          "state": null,
+          "installed": null,
+          "installCommand": null,
+          "invoke": "unity self-update"
+        },
+        {
+          "kind": "command",
+          "name": "doctor",
+          "path": "doctor",
+          "description": "Print diagnostic info about your Unity CLI environment",
+          "matchedOn": "option",
+          "state": null,
+          "installed": null,
+          "installCommand": null,
+          "invoke": "unity doctor"
+        },
+        {
+          "kind": "command",
+          "name": "editors upgrade",
+          "path": "editors upgrade",
+          "description": "Upgrade an installed editor to the newest patch in its release line",
+          "matchedOn": "option",
+          "state": null,
+          "installed": null,
+          "installCommand": null,
+          "invoke": "unity editors upgrade"
+        },
+        {
+          "kind": "command",
+          "name": "hub install",
+          "path": "hub install",
+          "description": "Install the Unity Hub",
+          "matchedOn": "option",
+          "state": null,
+          "installed": null,
+          "installCommand": null,
+          "invoke": "unity hub install"
+        },
+        {
+          "kind": "command",
+          "name": "pipeline cloud-build targets create",
+          "path": "pipeline cloud-build targets create",
+          "description": "Create a Build Automation build target",
+          "matchedOn": "option",
+          "state": null,
+          "installed": null,
+          "installCommand": null,
+          "invoke": "unity pipeline cloud-build targets create"
+        },
+        {
+          "kind": "command",
+          "name": "pipeline cloud-build targets update",
+          "path": "pipeline cloud-build targets update",
+          "description": "Change a Build Automation build target",
+          "matchedOn": "option",
+          "state": null,
+          "installed": null,
+          "installCommand": null,
+          "invoke": "unity pipeline cloud-build targets update"
+        },
+        {
+          "kind": "command",
+          "name": "vcs merge-setup",
+          "path": "vcs merge-setup",
+          "description": "Make Unity scene and prefab merges work in this repository, using the editor's UnityYAMLMerge tool",
+          "matchedOn": "option",
+          "state": null,
+          "installed": null,
+          "installCommand": null,
+          "invoke": "unity vcs merge-setup"
+        }
+      ],
+      "total": 15,
+      "nextPage": null,
+      "partial": false
+    }
+  },
+  "errors": [],
+  "warnings": []
+}

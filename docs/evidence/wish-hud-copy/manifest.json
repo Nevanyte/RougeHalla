@@ -1,0 +1,166 @@
+{
+  "scope": "P-UNITY-WISH-HUD-COPY evidence package",
+  "base": "7d5a496b10083e969f3498502fc25726bbb2b23e",
+  "source_head": "9a56a82454dc026e3d5e948e86d2d695d895dc89",
+  "evidence_files": [
+    {
+      "path": "README.md",
+      "bytes": 4123,
+      "sha256": "f3d1299f4ea9098e780d42869768283a9d9beeec1c069fb9c53e9d3b2f38c801"
+    },
+    {
+      "path": "raw/advance-fixture.cs",
+      "bytes": 1766,
+      "sha256": "eb4f510ead644a871e524f84edc36716c87f9309c46f8dbc4e6ed41731ebec9c"
+    },
+    {
+      "path": "raw/autotick.json",
+      "bytes": 101,
+      "sha256": "db4b8c66312249ee644383d5a8d75efa983694353a05fb553684ab15874dcbef"
+    },
+    {
+      "path": "raw/compile-status.json",
+      "bytes": 76,
+      "sha256": "557b4b332f7528cefa6e865b86ceadbd17bf1074d7d7ba0c72199248f6e2b2dd"
+    },
+    {
+      "path": "raw/console-after-captures.json",
+      "bytes": 2970,
+      "sha256": "aa4eaf366bf68c56a2dd1671c9f98247b5138db37dc0f10bf6cea77ebf19932f"
+    },
+    {
+      "path": "raw/console-clear-recorded.json",
+      "bytes": 17,
+      "sha256": "af30b9b4fa3610cee4c64b1d187646d4a2f8cff4dbbe22b950d6d6aeaf06a8fc"
+    },
+    {
+      "path": "raw/console-idle.json",
+      "bytes": 336,
+      "sha256": "4bd50e96ba0da068a6688a209cc8f61bed20d3de10987cde6bee9d0e0f94f17b"
+    },
+    {
+      "path": "raw/editor-before.json",
+      "bytes": 163,
+      "sha256": "7e7a077d433f63eb8f7946f6a979c1cd6d3a143e8a166615e377070f275fb8a1"
+    },
+    {
+      "path": "raw/editor-console-entries.json",
+      "bytes": 2230,
+      "sha256": "eccefd0aeb1a3f86d6d7788666d923e26d70e52edac3e73686e1e762ca30ee59"
+    },
+    {
+      "path": "raw/editor-fixture.cs",
+      "bytes": 5320,
+      "sha256": "997c19d7dd5b1663dd2b3e19bf3ffc52877701c05455905f8e049ac54aa6af9f"
+    },
+    {
+      "path": "raw/editor-idle.json",
+      "bytes": 1105,
+      "sha256": "d76f027e77bc1c8b8b6b3f97398d67b0efa0d2470f77b3ed4e64b56cd83b6607"
+    },
+    {
+      "path": "raw/final-recompile-trigger.json",
+      "bytes": 104,
+      "sha256": "540d3abd313694a97e1359aeb14b3eb4ac2a312838e027fcdebb4b1a2f271df9"
+    },
+    {
+      "path": "raw/fixture-aged.json",
+      "bytes": 134,
+      "sha256": "3e62b90b1118bc556e9f60f0958f7a8dc462d257a35c503b2c566fb541da682a"
+    },
+    {
+      "path": "raw/fixture-setup.json",
+      "bytes": 248,
+      "sha256": "988e9a9efcad92f4efe1376b985436509a75cc23122b31503befd899c0b4148b"
+    },
+    {
+      "path": "raw/gameview-target.json",
+      "bytes": 171,
+      "sha256": "24fab90c7cecd6c0b990775bbde48fe8d68c3d878db7f9c3d96355834b8f0f86"
+    },
+    {
+      "path": "raw/high-capture.json",
+      "bytes": 202,
+      "sha256": "8d20656907c33f1d68da81320d8e1828bc731c2ea789d865bf6f0d21ae9464b5"
+    },
+    {
+      "path": "raw/high-layout.json",
+      "bytes": 1103,
+      "sha256": "81eb5797f64c623afdeaae821c84fd0c9de53d6293b7fb936f9ee35271d04b05"
+    },
+    {
+      "path": "raw/hud-tests.json",
+      "bytes": 644,
+      "sha256": "b378765165f1c1a69b05de380bc9622b56439f3b23a1959eaf0a84a10b2851c5"
+    },
+    {
+      "path": "raw/low-reduced-capture.json",
+      "bytes": 209,
+      "sha256": "d53f392595f8a8564fb6cff5742437d92005f089b5d662581ebb573e794f9a72"
+    },
+    {
+      "path": "raw/low-reduced-layout.json",
+      "bytes": 879,
+      "sha256": "39cfb09910e021ee6d1ee18484887ae19c863e093a551157bc42b807d3170294"
+    },
+    {
+      "path": "raw/play-frames.json",
+      "bytes": 242,
+      "sha256": "b0c2798ac3fb63032abb4516b0493ecd925ecaadfb4f89bbe4a2cfdd07c4c7f0"
+    },
+    {
+      "path": "raw/play-ready.json",
+      "bytes": 1105,
+      "sha256": "d76f027e77bc1c8b8b6b3f97398d67b0efa0d2470f77b3ed4e64b56cd83b6607"
+    },
+    {
+      "path": "raw/play-start.json",
+      "bytes": 20,
+      "sha256": "c42131b3c09a58be76523c63da85d5cc1fe3e60794a3b2511a0210bab4cb142a"
+    },
+    {
+      "path": "raw/play-stop.json",
+      "bytes": 19,
+      "sha256": "07ca3fedcb7f611bfecfc8584183d5d78170933ace3e4996cfe3227132e22671"
+    },
+    {
+      "path": "raw/preferences-restored.json",
+      "bytes": 402,
+      "sha256": "d676ab25129e12fc051632a0fd008b54f39b07d41740fa9dbfd92650f97d35c6"
+    },
+    {
+      "path": "raw/preferences-saved.json",
+      "bytes": 122,
+      "sha256": "8c2b673846a3f128ff0b6896b12872428a16630f317759121c66e8f160636c22"
+    },
+    {
+      "path": "raw/test-command.json",
+      "bytes": 25598,
+      "sha256": "ea02fe3e83817b410992c4740552bf6881935b92a375e72d2c20b6c0d7c3387c"
+    },
+    {
+      "path": "screenshots/high-text150.png",
+      "bytes": 2895759,
+      "sha256": "f98eb144432484ba8515f606c26ebe9400b226b10ce973cf9ea8ddcc08de8484"
+    },
+    {
+      "path": "screenshots/low-reduced-text150.png",
+      "bytes": 3282290,
+      "sha256": "641e51b3902020cad27a7473e6795ac6ed8ab45b88995796b11d4619309ab27d"
+    }
+  ],
+  "source_files": [
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/UI/MatchHud.cs",
+      "bytes": 37612,
+      "sha256": "1a98d135e5852a331653fddbb952854b8ddf76882586b9d11f730972fbc92fb6",
+      "revision": "9a56a82454dc026e3d5e948e86d2d695d895dc89"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/MatchHudWishBarrierEditModeTests.cs",
+      "bytes": 6519,
+      "sha256": "ad4aa4201f4a6a6b3c1b487e27e639151170135a5ae158bf35bc9ea8ec4105b1",
+      "revision": "9a56a82454dc026e3d5e948e86d2d695d895dc89"
+    }
+  ]
+}
