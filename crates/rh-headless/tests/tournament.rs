@@ -106,6 +106,7 @@ fn plan_from(v: &Value) -> TournamentPlan {
             name => FactionChoice::One(faction(name)),
         },
         max_sim_ms: MAX_GAME_MS,
+        ..TournamentPlan::default()
     }
 }
 
@@ -683,4 +684,109 @@ fn an_empty_report_is_nan_not_a_panic() {
     assert!(percentile(&[], 0.5).is_nan());
     assert!(mean_interval(&[], 1.645).mean.is_nan());
     assert_eq!(table_reaction_mean(TierId::Easy, "teleport"), 1000.);
+}
+
+/// The same JSON with object keys order-insensitive and numbers compared by value (source integers and floats are one
+/// number type; the capture serializes them the way JSON.stringify does).
+fn same_json(a: &Value, b: &Value, ctx: &str) {
+    match (a, b) {
+        (Value::Null, Value::Null) => {}
+        (Value::Bool(x), Value::Bool(y)) => assert_eq!(x, y, "{ctx}"),
+        (Value::String(x), Value::String(y)) => assert_eq!(x, y, "{ctx}"),
+        (Value::Number(x), Value::Number(y)) => {
+            let (x, y) = (x.as_f64().unwrap(), y.as_f64().unwrap());
+            if x.is_nan() {
+                assert!(y.is_nan(), "{ctx}: {x} != {y}");
+            } else {
+                assert_eq!(x.to_bits(), y.to_bits(), "{ctx}: {x} != {y}");
+            }
+        }
+        (Value::Array(x), Value::Array(y)) => {
+            assert_eq!(x.len(), y.len(), "{ctx}: lengths");
+            for (i, (xi, yi)) in x.iter().zip(y).enumerate() {
+                same_json(xi, yi, &format!("{ctx}[{i}]"));
+            }
+        }
+        (Value::Object(x), Value::Object(y)) => {
+            for (k, xv) in x {
+                let yv = y.get(k).unwrap_or_else(|| panic!("{ctx}: missing key {k}"));
+                same_json(xv, yv, &format!("{ctx}.{k}"));
+            }
+            for k in y.keys() {
+                assert!(x.contains_key(k), "{ctx}: extra key {k}");
+            }
+        }
+        _ => panic!("{ctx}: shape differs: {a} vs {b}"),
+    }
+}
+
+fn argv_of(v: &Value) -> Vec<String> {
+    v.as_array()
+        .unwrap()
+        .iter()
+        .map(|x| x.as_str().unwrap().to_owned())
+        .collect()
+}
+
+/// The CLI surface is the actual source parseArgs/planOf: every pinned argv parses to the source arguments (or the source
+/// plain error message), and the plan payload keeps the source field names and values.
+#[test]
+fn the_cli_surface_matches_the_actual_source() {
+    use rh_headless::tournament_cli::{args_json, parse_args, plan_json, plan_of};
+    let f = fixture();
+    let cases = f["parseArgs"].as_array().expect("parseArgs cases");
+    assert!(!cases.is_empty());
+    for case in cases {
+        let argv = argv_of(&case["argv"]);
+        let got = parse_args(&argv, 8);
+        match (&case["error"], got) {
+            (Value::String(message), Err(error)) => assert_eq!(&error, message, "argv {argv:?}"),
+            (Value::String(message), Ok(args)) => {
+                panic!("argv {argv:?}: expected error {message}, got {args:?}")
+            }
+            (Value::Null, Err(error)) => panic!("argv {argv:?}: unexpected error {error}"),
+            (Value::Null, Ok(args)) => same_json(
+                &args_json(&args),
+                &case["expected"],
+                &format!("argv {argv:?}"),
+            ),
+            other => panic!("bad case {other:?}"),
+        }
+    }
+    let plans = f["planOf"].as_array().expect("planOf cases");
+    assert!(!plans.is_empty());
+    for case in plans {
+        let argv = argv_of(&case["argv"]);
+        let args = parse_args(&argv, 8).expect("a plan case parses");
+        let plan = plan_of(&args);
+        same_json(
+            &plan_json(&plan),
+            &case["expected"],
+            &format!("plan {argv:?}"),
+        );
+    }
+}
+
+/// The --json export keeps the source names and encodes a figure with no data as JSON null (source JSON.stringify of NaN).
+#[test]
+fn the_json_export_keeps_the_source_names_and_null_for_absent_figures() {
+    use rh_headless::tournament_cli::{json_payload, parse_args, plan_of};
+    let argv = ["--games", "1", "--json", "out.json"]
+        .iter()
+        .map(|s| (*s).to_owned())
+        .collect::<Vec<String>>();
+    let args = parse_args(&argv, 8).expect("the export case parses");
+    let plan = plan_of(&args);
+    let report = aggregate(&[]);
+    let games: Vec<GameSummary> = Vec::new();
+    let payload = json_payload(&plan, &report, &games, Some(10.), None);
+    assert_eq!(payload["meta"]["lineup"], "E,E,N,N,H,H");
+    assert_eq!(payload["meta"]["seed"], 1);
+    assert_eq!(payload["meta"]["wallMs"], 10);
+    assert_eq!(payload["meta"]["gameMs"], Value::Null);
+    assert_eq!(payload["plan"]["maxSimMs"], 720000);
+    assert_eq!(payload["report"]["games"], 0);
+    assert_eq!(payload["report"]["duration"]["meanS"], Value::Null);
+    assert_eq!(payload["report"]["firstDeathMedianS"], Value::Null);
+    assert!(payload["games"].as_array().unwrap().is_empty());
 }
