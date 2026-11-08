@@ -435,7 +435,7 @@ function decodeBody(r) {
         const eventTime = nonnegative(r.f64(), "Wish event time"), ability = readAbility(r);
         const caster = readWishActor(r), target = readWishActor(r), anchor = readWishPoint(r), destination = readWishPoint(r);
         if ((ability === 3 && ((anchor === null) !== (destination === null))) || (ability !== 3 && destination !== null)) throw new Error("bad Wish landing geometry");
-        if (target !== null && caster === null && anchor === null && destination === null) throw new Error("bad anonymous Wish landing");
+        if (caster === null && anchor === null && destination === null) throw new Error("bad anonymous Wish landing");
         f.fx.push({ k: "castLanded", eventTime, ability, caster, target, anchor, destination });
       }
       else if (k === 8) {
