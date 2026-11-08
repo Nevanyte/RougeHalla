@@ -36,15 +36,19 @@ pub(crate) fn project(out: &mut Observation, map: impl Fn(PlayerId) -> Option<Pl
 
 fn event_refs(event: &mut SeenEvent, map: &impl Fn(PlayerId) -> Option<PlayerId>) -> bool {
     let (required, optional) = match event {
+        SeenEvent::CastLanded { id, target, at, .. } => {
+            *id = id.and_then(map);
+            *target = target.and_then(map);
+            // Losing a reference does not retract spatial permission sealed at the cue's completed step.
+            return id.is_some() || at.is_some();
+        }
         SeenEvent::AbilityHit { victim, by, .. }
         | SeenEvent::SignatureHit { victim, by, .. }
         | SeenEvent::Hit { victim, by, .. } => (Some(victim), Some(by)),
         SeenEvent::StatusApplied { id, by, .. }
         | SeenEvent::Block { id, by, .. }
         | SeenEvent::Death { id, by } => (Some(id), Some(by)),
-        SeenEvent::CastStarted { id, target, .. } | SeenEvent::CastLanded { id, target, .. } => {
-            (Some(id), Some(target))
-        }
+        SeenEvent::CastStarted { id, target, .. } => (Some(id), Some(target)),
         SeenEvent::CastEnded { id, .. }
         | SeenEvent::Heal { id, .. }
         | SeenEvent::AttackCancelled { id }

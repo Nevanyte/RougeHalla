@@ -126,7 +126,7 @@ impl FxProjector {
         if !r.complete {
             return self.fail(FxError::Incomplete);
         }
-        if !r.bounded {
+        if !r.bounded || r.wish_points.len() != r.events.len() {
             return self.fail(FxError::UnsupportedBounds);
         }
         let gap = self.last.checked_add(1) != Some(r.tick);
@@ -245,6 +245,7 @@ impl FxProjector {
                         &r.events[cursor..at],
                         Some(self.viewer),
                         |id| r.sees(viewer, id),
+                        |i| r.wish_points[cursor + i].map(|mask| mask & (1 << viewer) != 0),
                         &mut self.events,
                     );
                     cursor = at;
@@ -299,6 +300,7 @@ impl FxProjector {
             &r.events[cursor..],
             Some(self.viewer),
             |id| r.sees(viewer, id),
+            |i| r.wish_points[cursor + i].map(|mask| mask & (1 << viewer) != 0),
             &mut self.events,
         );
         self.instant.clear();

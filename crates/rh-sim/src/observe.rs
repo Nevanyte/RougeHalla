@@ -120,6 +120,7 @@ pub enum SeenEvent {
         amount: f64,
     },
     CastStarted {
+        event_time: f64,
         id: PlayerId,
         ability: crate::status_runtime::AbilityId,
         ms: f64,
@@ -127,13 +128,16 @@ pub enum SeenEvent {
         at: Option<crate::Vec2>,
     },
     CastLanded {
-        id: PlayerId,
+        event_time: f64,
+        /// An unseen caster does not suppress a permitted spatial impact.
+        id: Option<PlayerId>,
         ability: crate::status_runtime::AbilityId,
         target: Option<PlayerId>,
         at: Option<crate::Vec2>,
         to: Option<crate::Vec2>,
     },
     CastEnded {
+        event_time: f64,
         id: PlayerId,
         ability: crate::status_runtime::AbilityId,
         reason: crate::status_runtime::CastEndReason,
@@ -253,9 +257,9 @@ impl SeenEvent {
     }
 }
 
-/// What an observer is shown of `e`, if anything (whether THIS observer may know of it is [`Event::visibility`]'s call).
+/// What an observer is shown of `e`, after the actor/spatial permission gate in `filter_events`.
 /// Exhaustive, no wildcard: a new [`Event`] variant must say here whether it reaches observers at all.
-fn to_seen(e: &Event, can_see: &impl Fn(PlayerId) -> bool) -> Option<SeenEvent> {
+fn to_seen(e: &Event, can_see: &impl Fn(PlayerId) -> bool, points: [bool; 2]) -> Option<SeenEvent> {
     match *e {
         Event::Plan { ref plan, .. } => Some(SeenEvent::Plan(plan.clone())),
         Event::PlanningStarted => None,
@@ -299,6 +303,7 @@ fn to_seen(e: &Event, can_see: &impl Fn(PlayerId) -> bool) -> Option<SeenEvent> 
             weapon,
         }),
         Event::CastStarted {
+            event_time,
             id,
             ability,
             ms,
@@ -306,31 +311,55 @@ fn to_seen(e: &Event, can_see: &impl Fn(PlayerId) -> bool) -> Option<SeenEvent> 
             x,
             y,
         } => Some(SeenEvent::CastStarted {
+            event_time,
             id,
             ability,
             ms,
             target: target.filter(|id| can_see(*id)),
-            at: target.is_none_or(can_see).then_some(crate::Vec2::new(x, y)),
+            at: target
+                .map_or(points[0], can_see)
+                .then_some(crate::Vec2::new(x, y)),
         }),
         Event::CastLanded {
+            event_time,
             id,
             ability,
             target,
             x,
             y,
             to,
-        } => Some(SeenEvent::CastLanded {
-            id,
-            ability,
-            target: target.filter(|id| can_see(*id)),
-            at: target.is_none_or(can_see).then_some(crate::Vec2::new(x, y)),
-            to,
-        }),
+        } => {
+            let id = can_see(id).then_some(id);
+            let at_allowed = target.map_or(points[0], can_see);
+            let target = target.filter(|id| can_see(*id));
+            // Unit-target coordinates follow the actor verdict, never the visibility of its ground tile.
+            // Blaze art is a pair, including its connecting streak; a single visible endpoint is not art.
+            let (at, to) = if ability == crate::status_runtime::AbilityId::Blaze {
+                if at_allowed && points[1] && to.is_some() {
+                    (Some(crate::Vec2::new(x, y)), to)
+                } else {
+                    (None, None)
+                }
+            } else {
+                (at_allowed.then_some(crate::Vec2::new(x, y)), None)
+            };
+            // Target identity alone cannot describe an anonymous spatial effect.
+            (id.is_some() || at.is_some()).then_some(SeenEvent::CastLanded {
+                event_time,
+                id,
+                ability,
+                target,
+                at,
+                to,
+            })
+        }
         Event::CastEnded {
+            event_time,
             id,
             ability,
             reason,
         } => Some(SeenEvent::CastEnded {
+            event_time,
             id,
             ability,
             reason,
@@ -426,24 +455,59 @@ fn begin(sim: &Sim, cache: &mut Option<&mut SightCache>) {
     }
 }
 
-/// The events an observer is shown, in order: each is judged by its own declared [`Event::visibility`] against `can_see`
-/// (which already includes the observer itself).
+/// Freeze only the Wish cue's point permissions against this completed world. Unit-target visibility is checked
+/// separately by `to_seen`; ownership permits own effect points but never a hidden unit target.
+pub(crate) fn wish_point_permissions(
+    k: &crate::statics::MatchStatic,
+    w: &crate::state::World,
+    viewer: PlayerId,
+    event: &Event,
+) -> [bool; 2] {
+    let (id, at, to) = match *event {
+        Event::CastStarted { id, x, y, .. } => (id, crate::Vec2::new(x, y), None),
+        Event::CastLanded { id, x, y, to, .. } => (id, crate::Vec2::new(x, y), to),
+        _ => return [false; 2],
+    };
+    if id == viewer {
+        return [true, to.is_some()];
+    }
+    let Some(me) = w.players.iter().find(|p| p.id == viewer) else {
+        return [false; 2];
+    };
+    let wards = crate::vision::WardSight::of(k, w);
+    let visible = |point| {
+        crate::vision::point_visible(
+            k.collision_view(w.rt.gates_locked),
+            me,
+            point,
+            w.tick,
+            wards,
+        )
+    };
+    [visible(at), to.is_some_and(visible)]
+}
+
+/// The events an observer is shown, in order. Ordinary events retain their declared actor visibility.
+/// Wish landing is the named spatial exception: allowed geometry can survive an unseen caster.
+/// `points` supplies per-event permissions from this step, including when a sealed report is used later.
 pub(crate) fn filter_events(
     events: &[Event],
     me: Option<PlayerId>,
     can_see: impl Fn(PlayerId) -> bool,
+    points: impl Fn(usize) -> [bool; 2],
     out: &mut Vec<SeenEvent>,
 ) {
-    for e in events {
-        let shown = match e.visibility() {
-            Visibility::Everyone => true,
-            Visibility::Owner(id) => Some(id) == me,
-            Visibility::IfSeen(id) => can_see(id),
-            Visibility::IfSeenOrBy { seen, by } => can_see(seen) || (by.is_some() && by == me),
-            Visibility::ServerOnly => false,
-        };
+    for (i, e) in events.iter().enumerate() {
+        let shown = matches!(e, Event::CastLanded { .. })
+            || match e.visibility() {
+                Visibility::Everyone => true,
+                Visibility::Owner(id) => Some(id) == me,
+                Visibility::IfSeen(id) => can_see(id),
+                Visibility::IfSeenOrBy { seen, by } => can_see(seen) || (by.is_some() && by == me),
+                Visibility::ServerOnly => false,
+            };
         if shown {
-            if let Some(s) = to_seen(e, &can_see) {
+            if let Some(s) = to_seen(e, &can_see, points(i)) {
                 out.push(s);
             }
         }
@@ -745,6 +809,7 @@ pub(crate) fn observe_with(
         events,
         me_id,
         |id| Some(id) == me_id || out.visible.binary_search_by_key(&id, |a| a.id).is_ok(),
+        |i| wish_point_permissions(&sim.k, &sim.w, viewer, &events[i]),
         &mut out.events,
     );
     Ok(())
@@ -809,7 +874,13 @@ fn observe_events_with(
                     })
             })
     };
-    filter_events(events, me_id, can_see, out);
+    filter_events(
+        events,
+        me_id,
+        can_see,
+        |i| wish_point_permissions(&sim.k, &sim.w, viewer, &events[i]),
+        out,
+    );
 }
 
 /// What anyone may see with no secrets: every player's public fields (for replays, spectators and results pages). Never
@@ -1053,18 +1124,30 @@ mod tests {
         };
         for me in [None, Some(PlayerId(1))] {
             let mut out = Vec::new();
-            filter_events(std::slice::from_ref(&hit), me, |_| false, &mut out);
+            filter_events(
+                std::slice::from_ref(&hit),
+                me,
+                |_| false,
+                |_| [false; 2],
+                &mut out,
+            );
             assert!(out.is_empty(), "viewer {me:?} must not see it");
         }
         let mut out = Vec::new();
-        filter_events(std::slice::from_ref(&hit), None, |_| true, &mut out);
+        filter_events(
+            std::slice::from_ref(&hit),
+            None,
+            |_| true,
+            |_| [false; 2],
+            &mut out,
+        );
         assert_eq!(out.len(), 1, "a seen victim's hit is shown");
     }
 
     #[test]
     fn the_declarations_agree_with_what_an_observer_is_shown() {
         for e in every_event() {
-            let seen = to_seen(&e, &|_| true);
+            let seen = to_seen(&e, &|_| true, [true; 2]);
             // Observed exactly when it is not server-only.
             assert_eq!(
                 seen.is_some(),

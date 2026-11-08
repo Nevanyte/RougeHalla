@@ -61,6 +61,8 @@ pub struct FxTickReport {
     pub(crate) mob_seen: Vec<(PlayerId, u8)>,
     pub(crate) ops: Vec<Op>,
     pub(crate) events: Vec<Event>,
+    /// Two viewer masks per event, frozen before catch-up: anchor and optional blink destination.
+    pub(crate) wish_points: Vec<[u8; 2]>,
     pub(crate) bounded: bool,
 }
 impl FxTickReport {
@@ -74,6 +76,7 @@ impl FxTickReport {
             mob_seen: Vec::new(),
             ops: Vec::with_capacity(FX_REPORT_OPS_MAX),
             events: Vec::with_capacity(FX_REPORT_EVENTS_MAX),
+            wish_points: Vec::with_capacity(FX_REPORT_EVENTS_MAX),
             bounded: true,
         }
     }
@@ -106,6 +109,7 @@ impl Sim {
         r.mob_seen.clear();
         r.ops.clear();
         r.events.clear();
+        r.wish_points.clear();
         r.bounded = self.s.performed_bounded
             && self.w.players.len() <= 8
             && events.len() <= FX_REPORT_EVENTS_MAX
@@ -196,6 +200,19 @@ impl Sim {
             r.mob_seen.push((mob.core.id, mask));
         }
         r.mob_seen.sort_unstable_by_key(|(id, _)| *id);
+        for event in events {
+            let mut masks = [0; 2];
+            for (i, &viewer) in r.viewers.iter().enumerate() {
+                let permissions =
+                    crate::observe::wish_point_permissions(&self.k, &self.w, viewer, event);
+                for (mask, allowed) in masks.iter_mut().zip(permissions) {
+                    if allowed {
+                        *mask |= 1 << i;
+                    }
+                }
+            }
+            r.wish_points.push(masks);
+        }
         r.ops
             .extend(self.s.fx.ops.iter().cloned().map(|op| match op {
                 Op::Flush(i) => Op::Flush(i - offset),
