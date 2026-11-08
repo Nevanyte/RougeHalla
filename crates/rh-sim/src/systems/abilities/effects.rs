@@ -189,10 +189,7 @@ fn run(cx: &mut Cx, l: Landing, target: Option<PlayerId>, e: a::Effect) {
                 return;
             };
             let p = cx.w.core(j).pos();
-            let own_mark =
-                cx.w.player(l.id)
-                    .filter(|p| p.signature.target == Some(target))
-                    .map_or(0, |p| p.signature.mark.tier);
+            let own_mark = super::super::sentenced::mark_tier_on(cx.w, l.id, target);
             let radius = if own_mark >= 3 {
                 convicted_radius.unwrap_or(radius)
             } else {

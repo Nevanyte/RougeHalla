@@ -771,7 +771,7 @@ pub(crate) fn observe_with(
                 wards,
             ) && !crate::status_runtime::hidden(&mob.core.statuses.instances, now)
             {
-                out.visible.push(mob_view(mob)?);
+                out.visible.push(mob_view(&sim.w, mob)?);
             }
         }
     }
@@ -957,7 +957,11 @@ pub fn try_public_snapshot(sim: &Sim) -> Result<PublicSnapshot, crate::OfferErro
     }
     Ok(PublicSnapshot {
         arena: crate::systems::planning::view::arena_view(&sim.k, &sim.w),
-        mobs: sim.mobs().iter().map(mob_view).collect::<Result<_, _>>()?,
+        mobs: sim
+            .mobs()
+            .iter()
+            .map(|mob| mob_view(&sim.w, mob))
+            .collect::<Result<_, _>>()?,
         camps: sim.camp_rosters().to_vec(),
         tick: sim.tick(),
         server_time: sim.server_time(),
@@ -973,7 +977,10 @@ pub fn public_snapshot(sim: &Sim) -> PublicSnapshot {
     try_public_snapshot(sim).expect("trusted public snapshot is not representable")
 }
 
-fn mob_view(mob: &crate::mob_runtime::Mob) -> Result<ActorView, crate::OfferError> {
+fn mob_view(
+    w: &crate::state::World,
+    mob: &crate::mob_runtime::Mob,
+) -> Result<ActorView, crate::OfferError> {
     let core = &mob.core;
     let vitals = public_vitals(core.vitals.hp, core.vitals.max_hp, 0.)?;
     Ok(ActorView {
@@ -993,8 +1000,8 @@ fn mob_view(mob: &crate::mob_runtime::Mob) -> Result<ActorView, crate::OfferErro
         },
         effects: core.statuses.effects,
         displace_seq: core.motion.displace_seq,
-        mark_tier: 0,
-        brand: 0,
+        mark_tier: crate::systems::sentenced::public_mark_tier(w, core.id),
+        brand: crate::systems::sentenced::public_mark_tier(w, core.id) * 25,
         mark_by: None,
         mark_tax: 0,
         sig: core.signature.bits,

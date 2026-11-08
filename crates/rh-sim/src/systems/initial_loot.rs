@@ -81,7 +81,7 @@ fn initialize_inner(k: &mut MatchStatic, w: &mut World) -> Result<(), &'static s
         let mut probe = Replay::default();
         crate::initial_world::build_initial(
             &input(k),
-            false,
+            k.config.training,
             &mut w.spawn_rng,
             k.secrets.reward_salt,
             &mut probe,
@@ -101,7 +101,7 @@ fn initialize_inner(k: &mut MatchStatic, w: &mut World) -> Result<(), &'static s
         };
         build(
             &input(k),
-            false,
+            k.config.training,
             &mut main,
             k.secrets.reward_salt,
             &mut Sink(w),
@@ -124,7 +124,7 @@ pub(crate) fn replay(k: &MatchStatic) -> Result<Replay, String> {
         };
         build(
             &input(k),
-            false,
+            k.config.training,
             &mut main,
             k.secrets.reward_salt,
             &mut result,
@@ -135,7 +135,7 @@ pub(crate) fn replay(k: &MatchStatic) -> Result<Replay, String> {
         main.next_u32();
         crate::initial_world::build_initial(
             &input(k),
-            false,
+            k.config.training,
             &mut main,
             k.secrets.reward_salt,
             &mut result,

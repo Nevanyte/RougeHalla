@@ -1,4 +1,4 @@
-//! Shared Sentenced singleton-source seam. Complete player-to-camp groups remain the next held integration seam.
+//! Shared Sentenced source/group kernel; admission requires the complete source-born consumer gates.
 use super::ledger::Entry;
 use crate::constants::*;
 use crate::content::FactionId;
@@ -117,12 +117,24 @@ pub(crate) fn freeze_denials(k: &MatchStatic, w: &World, out: &mut Vec<(PlayerId
         let ix = crate::fighter::FighterIx::of_slot(slot);
         let p = w.core(ix);
         if w.standing(ix) && source(w, ix) && p.signature.mark.tier >= MARK_TOP_TIER {
-            if let Some(target) = p.signature.target {
-                assert!(
-                    out.len() < out.capacity(),
-                    "Mark snapshot preparation missing"
-                );
-                out.push((p.id, target));
+            if let Some(target) = p
+                .signature
+                .target
+                .filter(|id| w.fighter_idx(*id).is_some_and(|ix| w.standing(ix)))
+            {
+                if p.signature.mark.group.is_none() {
+                    continue;
+                }
+                for slot in 0..w.fighter_count() {
+                    let id = w.core(crate::fighter::FighterIx::of_slot(slot)).id;
+                    if member(w, p.id, target, id) {
+                        assert!(
+                            out.len() < out.capacity(),
+                            "Mark snapshot preparation missing"
+                        );
+                        out.push((p.id, id));
+                    }
+                }
             }
         }
     }
@@ -149,6 +161,148 @@ fn typed_npc_source(w: &World, id: PlayerId) -> bool {
                 })
     })
 }
+/// Runtime group identity; unlike original size, this is an immutable birth property of an actor.
+pub(crate) fn group_of(w: &World, id: PlayerId) -> Option<crate::fighter::MarkGroup> {
+    use crate::fighter::MarkGroup;
+    w.fighter_idx(id)?;
+    Some(
+        if let Some(m) = w.mobs.get(id).filter(|m| {
+            m.zombie.is_none()
+                && m.mob_type.is_some()
+                && matches!(
+                    m.kind,
+                    crate::mob_runtime::MobKind::Regional | crate::mob_runtime::MobKind::Practice
+                )
+        }) {
+            MarkGroup::Camp(m.camp)
+        } else {
+            MarkGroup::Fighter(id)
+        },
+    )
+}
+fn historical_group(w: &World, id: PlayerId) -> Option<crate::fighter::MarkGroup> {
+    use crate::{fighter::MarkGroup, mob_runtime::ActorOrigin};
+    w.actor_origin(id).map(|origin| match origin {
+        ActorOrigin::Mob { camp, .. } | ActorOrigin::Practice { camp, .. } => {
+            MarkGroup::Camp(*camp)
+        }
+        _ => MarkGroup::Fighter(id),
+    })
+}
+fn in_marked_group(w: &World, owner: PlayerId, member: PlayerId) -> bool {
+    w.mobs
+        .get(member)
+        .is_some_and(|m| m.zombie.is_none() && m.mob_type.is_some() && !returning(w, member))
+        && w.actor(owner).zip(w.actor(member)).is_some_and(|(a, b)| {
+            crate::math::hypot(a.body.x - b.body.x, a.body.y - b.body.y) <= TARGET_RANGE
+        })
+}
+fn member(w: &World, owner: PlayerId, target: PlayerId, id: PlayerId) -> bool {
+    w.fighter_idx(id).is_some_and(|ix| w.standing(ix))
+        && match group_of(w, target) {
+            Some(crate::fighter::MarkGroup::Camp(camp)) => {
+                group_of(w, id) == Some(crate::fighter::MarkGroup::Camp(camp))
+                    && in_marked_group(w, owner, id)
+            }
+            _ => id == target,
+        }
+}
+/// Matches source markTierOn: camp members have an immediate leash/Return exclusion; singleton grace is preserved.
+pub(crate) fn mark_tier_on(w: &World, owner: PlayerId, target: PlayerId) -> u8 {
+    let Some(ox) = w.fighter_idx(owner).filter(|&ix| w.standing(ix)) else {
+        return 0;
+    };
+    let Some(_) = w.fighter_idx(target).filter(|&ix| w.standing(ix)) else {
+        return 0;
+    };
+    let m = &w.core(ox).signature.mark;
+    if m.tier == 0 || m.group.is_none() || m.group != group_of(w, target) {
+        return 0;
+    }
+    if matches!(m.group, Some(crate::fighter::MarkGroup::Camp(_)))
+        && !in_marked_group(w, owner, target)
+    {
+        return 0;
+    }
+    m.tier
+}
+fn near(w: &World, owner: PlayerId, target: PlayerId) -> bool {
+    w.actor(owner).zip(w.actor(target)).is_some_and(|(a, b)| {
+        crate::math::hypot(a.body.x - b.body.x, a.body.y - b.body.y) <= MARK_NEAR_RANGE
+    }) || w.actor(target).is_some_and(|c| {
+        c.statuses.instances.iter().any(|s| {
+            s.kind == crate::status_runtime::StatusKind::Zoned
+                && s.source.id == Some(owner)
+                && s.until > w.server_time
+        })
+    })
+}
+fn pool(w: &World, id: PlayerId) -> f64 {
+    let c = w.actor(id).expect("standing Mark member");
+    if w.mobs.get(id).is_some_and(|m| {
+        m.mob_type.is_some() && m.zombie.is_none() && m.kind != crate::mob_runtime::MobKind::Dummy
+    }) {
+        crate::content::faction(c.vitals.faction).hp
+    } else {
+        c.vitals.max_hp
+    }
+}
+fn serial_bytes(mut serial: u32, buf: &mut [u8; 7]) -> &[u8] {
+    let mut start = buf.len();
+    loop {
+        start -= 1;
+        let d = (serial % 36) as u8;
+        buf[start] = if d < 10 { b'0' + d } else { b'a' + d - 10 };
+        serial /= 36;
+        if serial == 0 {
+            break;
+        }
+    }
+    &buf[start..]
+}
+fn lexical_birth(w: &World, a: PlayerId, b: PlayerId) -> std::cmp::Ordering {
+    let mut aa = [0; 7];
+    let mut bb = [0; 7];
+    serial_bytes(
+        w.actor_origin(a)
+            .and_then(crate::mob_runtime::ActorOrigin::birth_serial)
+            .expect("typed group member"),
+        &mut aa,
+    )
+    .cmp(serial_bytes(
+        w.actor_origin(b)
+            .and_then(crate::mob_runtime::ActorOrigin::birth_serial)
+            .expect("typed group member"),
+        &mut bb,
+    ))
+}
+/// Pre-pass source excludes Return, post-pass source excludes evasion (currently no evasion state), allowing Return.
+pub(crate) fn lost_target(w: &mut World, ix: crate::fighter::FighterIx, before: bool) {
+    let f = &w.core(ix).signature;
+    let group = f.mark.group;
+    let survivor = if f.mark.tier > 0 && matches!(group, Some(crate::fighter::MarkGroup::Camp(_))) {
+        w.mobs
+            .iter()
+            .filter(|m| {
+                m.status == crate::Status::Alive
+                    && group_of(w, m.core.id) == group
+                    && (!before || !returning(w, m.core.id))
+            })
+            .map(|m| m.core.id)
+            .min_by(|a, b| lexical_birth(w, *a, *b))
+    } else {
+        None
+    };
+    let f = &mut w.core_mut(ix).signature;
+    if let Some(target) = survivor {
+        f.target = Some(target);
+        f.in_reach = false;
+        f.engaged = false;
+        f.reach_at = None;
+    } else {
+        f.clear_target();
+    }
+}
 fn source(w: &World, ix: crate::fighter::FighterIx) -> bool {
     let c = w.core(ix);
     c.vitals.faction == FactionId::Sentenced
@@ -173,7 +327,11 @@ fn qualifies(w: &World, owner: crate::fighter::FighterIx, e: &Entry) -> bool {
         && !e.execute
         && e.scale > 0.
         && e.packet.raw > 0.
-        && Some(e.victim) == c.signature.target
+        && c.signature.target.is_some_and(|target| {
+            let group = c.signature.mark.group.or_else(|| group_of(w, target));
+            (e.victim == target || (group.is_some() && group == group_of(w, e.victim)))
+                && member(w, c.id, target, e.victim)
+        })
         && w.fighter_idx(e.victim).is_some_and(|ix| {
             w.standing(ix)
                 && (w.is_player(owner) || w.is_player(ix))
@@ -196,12 +354,8 @@ pub(crate) fn before_damage(
         let Some(ti) = w.core(ix).signature.target.and_then(|id| w.fighter_idx(id)) else {
             continue;
         };
-        // Seam A: genuine NPC -> player and the admitted player singleton kernel. Camp recipients are seam B,
-        // and remain excluded by the unchanged Full/PvE gate rather than being flattened into singleton parity.
-        if !w.is_player(ti) {
-            continue;
-        }
         let target = w.core(ti).id;
+        let target_player = w.is_player(ti);
         let distance = crate::math::hypot(
             w.core(ti).body.x - w.core(ix).body.x,
             w.core(ti).body.y - w.core(ix).body.y,
@@ -219,9 +373,32 @@ pub(crate) fn before_damage(
         } else {
             m.far_since = None;
         }
-        if m.tier == 0 {
-            m.group = Some(crate::fighter::MarkGroup::Fighter(target));
-            m.group_size = 1;
+        let group = w
+            .core(ix)
+            .signature
+            .mark
+            .group
+            .or_else(|| group_of(w, target));
+        if w.core(ix).signature.mark.tier > 0 && w.core(ix).signature.mark.group != group {
+            w.core_mut(ix).signature.clear_target();
+            continue;
+        }
+        if w.core(ix).signature.mark.tier == 0 {
+            let size = if matches!(group, Some(crate::fighter::MarkGroup::Camp(_))) {
+                cores(w)
+                    .filter(|c| {
+                        w.fighter_idx(c.id).is_some_and(|i| w.standing(i))
+                            && !returning(w, c.id)
+                            && group_of(w, c.id) == group
+                    })
+                    .count()
+                    .max(1)
+            } else {
+                1
+            };
+            let m = &mut w.core_mut(ix).signature.mark;
+            m.group = group;
+            m.group_size = size;
         }
         let count = ledger[..original]
             .iter()
@@ -258,7 +435,7 @@ pub(crate) fn before_damage(
                 0
             };
             if tier > m.tier {
-                if m.tier == 0 {
+                if m.tier == 0 && target_player {
                     ev.push(crate::Event::MarkNotice {
                         recipient: target,
                         notice: crate::events::MarkNotice::Marked,
@@ -267,55 +444,84 @@ pub(crate) fn before_damage(
                 w.core_mut(ix).signature.mark.tier = tier;
             }
         }
+        let grouped = matches!(
+            w.core(ix).signature.mark.group,
+            Some(crate::fighter::MarkGroup::Camp(_))
+        );
+        let share =
+            (1. / crate::math::sqrt(w.core(ix).signature.mark.group_size.max(1) as f64)).min(1.);
+        // The first qualifying hit visits every group member before the source Set excludes all later hits.
+        // Membership/immunity cannot change while appending pulse entries, so this streams the identical rows.
         for n in 0..original {
             if !qualifies(w, ix, &ledger[n]) {
                 continue;
             }
-            let e = &ledger[n];
-            let raw = if player {
-                crate::modifiers::mark_pulse(
-                    &w.players[ix.slot()],
-                    e.weapon.unwrap(),
-                    w.core(ti).vitals.max_hp,
-                    distance <= MARK_NEAR_RANGE,
-                )
-            } else {
-                npc_pulse(
-                    w,
-                    ix,
-                    e.weapon.unwrap(),
-                    w.core(ti).vitals.max_hp,
-                    distance <= MARK_NEAR_RANGE,
-                )
-            };
-            if !(raw > 0.) {
-                continue;
+            let weapon = ledger[n].weapon.unwrap();
+            for slot in 0..w.fighter_count() {
+                let mx = crate::fighter::FighterIx::of_slot(slot);
+                let victim = w.core(mx).id;
+                if !member(w, w.core(ix).id, target, victim) || now < w.core(mx).vitals.immune_until
+                {
+                    continue;
+                }
+                let raw = if player {
+                    if share == 1. {
+                        crate::modifiers::mark_pulse(
+                            &w.players[ix.slot()],
+                            weapon,
+                            pool(w, victim),
+                            near(w, w.core(ix).id, victim),
+                        )
+                    } else {
+                        crate::modifiers::mark_pulse_group(
+                            &w.players[ix.slot()],
+                            weapon,
+                            pool(w, victim),
+                            near(w, w.core(ix).id, victim),
+                            share,
+                        )
+                    }
+                } else {
+                    npc_pulse(
+                        w,
+                        ix,
+                        weapon,
+                        pool(w, victim),
+                        near(w, w.core(ix).id, victim),
+                    ) * share
+                };
+                if !(raw > 0.) {
+                    continue;
+                }
+                ledger.push(Entry {
+                    terrain: false,
+                    dot: false,
+                    ability: None,
+                    arena: false,
+                    source: None,
+                    critical: false,
+                    critical_mult: None,
+                    sig: Some(SignatureKind::Mark),
+                    execute: false,
+                    victim,
+                    by: Some(w.core(ix).id),
+                    packet: Packet {
+                        raw,
+                        phys: MARK_PHYS_SHARE,
+                        magic: MARK_MAGIC_SHARE,
+                        true_: MARK_TRUE_SHARE,
+                    },
+                    weapon: Some(weapon),
+                    stagger: false,
+                    projectile: None,
+                    scale: 1.,
+                    derived: false,
+                    passive: false,
+                });
             }
-            ledger.push(Entry {
-                terrain: false,
-                dot: false,
-                ability: None,
-                arena: false,
-                source: None,
-                critical: false,
-                critical_mult: None,
-                sig: Some(SignatureKind::Mark),
-                execute: false,
-                victim: e.victim,
-                by: e.by,
-                packet: Packet {
-                    raw,
-                    phys: MARK_PHYS_SHARE,
-                    magic: MARK_MAGIC_SHARE,
-                    true_: MARK_TRUE_SHARE,
-                },
-                weapon: e.weapon,
-                stagger: false,
-                projectile: None,
-                scale: 1.,
-                derived: false,
-                passive: false,
-            });
+            if grouped {
+                break;
+            }
         }
     }
 }
@@ -352,9 +558,10 @@ pub(crate) fn weapon_swapped(hx: &mut Hx, args: &HookArgs) {
     let HookArgs::WeaponSwapped(id) = *args else {
         return;
     };
+    let group = group_of(hx.w, id);
     for slot in 0..hx.w.fighter_count() {
         let p = hx.w.core_mut(crate::fighter::FighterIx::of_slot(slot));
-        if p.signature.mark.tier > 0 && p.signature.target == Some(id) {
+        if p.signature.mark.tier > 0 && p.signature.mark.group == group && group.is_some() {
             p.signature.mark.swaps += 1;
         }
     }
@@ -463,15 +670,19 @@ pub(crate) fn execute_denied(hx: &mut Hx, args: &HookArgs) {
 pub(crate) fn after_damage(w: &mut World) {
     for slot in 0..w.fighter_count() {
         let ix = crate::fighter::FighterIx::of_slot(slot);
-        if w.core(ix).vitals.faction == FactionId::Sentenced
-            && (!w.standing(ix)
-                || returning(w, w.core(ix).id)
-                || w.core(ix)
-                    .signature
-                    .target
-                    .is_some_and(|id| w.fighter_idx(id).is_none_or(|t| !w.standing(t))))
-        {
+        if w.core(ix).vitals.faction != FactionId::Sentenced {
+            continue;
+        }
+        if !w.standing(ix) || returning(w, w.core(ix).id) {
             w.core_mut(ix).signature.clear_target();
+            continue;
+        }
+        if w.core(ix)
+            .signature
+            .target
+            .is_some_and(|id| w.fighter_idx(id).is_none_or(|t| !w.standing(t)))
+        {
+            lost_target(w, ix, false);
         }
     }
     for slot in 0..w.fighter_count() {
@@ -479,9 +690,8 @@ pub(crate) fn after_damage(w: &mut World) {
         let id = w.core(ix).id;
         let blocked = w.standing(ix)
             && cores(w).any(|p| {
-                p.signature.mark.tier >= MARK_TOP_TIER
-                    && p.signature.target == Some(id)
-                    && w.fighter_idx(p.id).is_some_and(|owner| w.standing(owner))
+                p.vitals.faction == FactionId::Sentenced
+                    && mark_tier_on(w, p.id, id) >= MARK_TOP_TIER
             });
         if blocked {
             w.core_mut(ix).signature.bits |= SIG_EXEC_BLOCKED;
@@ -496,14 +706,9 @@ fn cores(w: &World) -> impl Iterator<Item = &crate::fighter::FighterCore> {
 }
 /// Survivor-only incoming effect tier. No private owner identity is returned.
 pub(crate) fn public_mark_tier(w: &World, id: PlayerId) -> u8 {
-    if w.fighter_idx(id).is_none_or(|ix| !w.standing(ix)) {
-        return 0;
-    }
     cores(w)
-        .filter(|p| {
-            p.signature.target == Some(id) && w.fighter_idx(p.id).is_some_and(|ix| w.standing(ix))
-        })
-        .map(|p| p.signature.mark.tier)
+        .filter(|p| p.vitals.faction == FactionId::Sentenced)
+        .map(|p| mark_tier_on(w, p.id, id))
         .max()
         .unwrap_or(0)
 }
@@ -519,10 +724,9 @@ pub(crate) fn public_mark_by(
     }
     cores(w)
         .filter(|p| {
-            p.signature.target == Some(id)
-                && p.signature.mark.tier == tier
+            p.vitals.faction == FactionId::Sentenced
                 && eligible(p.id)
-                && w.fighter_idx(p.id).is_some_and(|ix| w.standing(ix))
+                && mark_tier_on(w, p.id, id) == tier
         })
         .map(|p| p.id)
         .min()
@@ -597,15 +801,42 @@ pub(crate) fn validate_actor(
                 0.
             },
     );
+    let group_valid = match m.group {
+        None => m.group_size == 1 && m.tier == 0,
+        Some(group) => {
+            p.signature.target.is_some_and(|target| {
+                historical_group(w, target) == Some(group)
+                    && group_of(w, target).is_none_or(|current| current == group)
+            }) && match group {
+                crate::fighter::MarkGroup::Fighter(id) => {
+                    m.group_size == 1
+                        && (player.is_some()
+                            || w.actor_origin(id).is_some_and(|o| {
+                                matches!(o, crate::mob_runtime::ActorOrigin::Player { .. })
+                            }))
+                }
+                crate::fighter::MarkGroup::Camp(camp) => {
+                    player.is_some()
+                        && m.group_size > 0
+                        && if k.config.training {
+                            (PRACTICE_CAMP_FIRST..=PRACTICE_CAMP_LAST).contains(&camp)
+                                && m.group_size <= TRAIN_MAX_MOBS as usize
+                        } else {
+                            k.arena
+                                .map
+                                .layers()
+                                .and_then(|l| l.data().camps.get(camp as usize))
+                                .is_some_and(|c| m.group_size <= c.spots.len())
+                        }
+                }
+            }
+        }
+    };
     if (enabled && player.is_none() && !typed_npc_source(w,p.id))
         || (!enabled && (*m != empty || player.is_some_and(|p|p.credit.sentence!=0)))
         || player.is_some_and(|p|p.credit.sentence>MARK_KILL_STACK_CAP)
-        || m.group_size != 1
-        || m.group.is_some_and(|g| match g {
-            crate::fighter::MarkGroup::Fighter(id) => p.signature.target!=Some(id) || !w.known_actor(id),
-            crate::fighter::MarkGroup::Camp(_) => true, // Grouped camp production/admission belongs to seam B.
-        })
-        || (m.tier>0 && m.group.is_none())
+        || !group_valid
+        || (enabled && player.is_none() && p.signature.target.is_some_and(|id|!w.actor_origin(id).is_some_and(|o|matches!(o,crate::mob_runtime::ActorOrigin::Player{..}))))
         // Counters mirror JavaScript Number integers; reject unrepresentable trusted payloads.
         || m.hits > 9_007_199_254_740_991
         || m.swaps > 9_007_199_254_740_991
@@ -647,3 +878,9 @@ mod tier_tests;
 
 #[cfg(test)]
 mod npc_tests;
+
+#[cfg(test)]
+mod group_tests;
+
+#[cfg(test)]
+mod group_source_tests;

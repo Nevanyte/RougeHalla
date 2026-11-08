@@ -46,6 +46,21 @@ pub(crate) fn admit_factions(k: &MatchStatic, w: &World) -> Result<(), &'static 
     Ok(())
 }
 pub(crate) fn initialize(k: &mut MatchStatic, w: &mut World) -> Result<(), &'static str> {
+    initialize_body(k, w, false)
+}
+/// Closed-profile kernel comparisons only: skip exactly admit_factions, preserving every initializer/RNG operation.
+#[cfg(test)]
+pub(crate) fn initialize_unadmitted_kernel_fixture(
+    k: &mut MatchStatic,
+    w: &mut World,
+) -> Result<(), &'static str> {
+    initialize_body(k, w, true)
+}
+fn initialize_body(
+    k: &mut MatchStatic,
+    w: &mut World,
+    unadmitted_fixture: bool,
+) -> Result<(), &'static str> {
     if k.config.training {
         // A training world has no map camps (legacy camps.ts install: "never for training, which has no camps: everything
         // else keeps an empty state.camps") and therefore draws no roster RNG; the shared actor container is still
@@ -66,7 +81,9 @@ pub(crate) fn initialize(k: &mut MatchStatic, w: &mut World) -> Result<(), &'sta
     if k.config.mob_mode == MobMode::Off {
         return Ok(());
     }
-    admit_factions(k, w)?;
+    if !unadmitted_fixture {
+        admit_factions(k, w)?;
+    }
     let data = k
         .arena
         .map

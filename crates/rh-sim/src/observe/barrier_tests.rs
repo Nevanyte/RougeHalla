@@ -248,7 +248,7 @@ fn npc_hp_uses_twentieths_and_never_exposes_a_player_barrier() {
     mob.core.vitals.hp = 7.5;
     mob.core.vitals.max_hp = 100.;
     mob.core.vitals.barrier = f64::NAN; // no source MobState barrier field: ignored in presentation.
-    let view = mob_view(mob).unwrap();
+    let view = mob_view(&sim.w, &sim.w.mobs[0]).unwrap();
     assert_eq!(
         (view.hp_frac, view.barrier_frac, view.barrier_ring_step),
         (0.1, 0., 0)

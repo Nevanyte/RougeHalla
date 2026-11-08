@@ -208,6 +208,7 @@ pub(crate) fn validate(
             {
                 return Err("invalid zombie body".into());
             }
+            super::sentenced::validate_actor(k, w, &m.core, None)?;
             // Owned zombies are recipients of the generic Frost loops too; validate their shared signature tuple without
             // adding the regional mob gear/Mark checks this branch deliberately skips.
             super::frost::validate_signature(

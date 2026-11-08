@@ -1,0 +1,190 @@
+{
+  "parent": "cd24e69e04f691bad339b1c5c20e389064acce81",
+  "integration_base": "96bbe1368b5e2c5b47e6959fc6546d16bf49207f",
+  "private_checkpoint": 27,
+  "private_replay": 21,
+  "source_claim": "closed-profile kernel parity only; production Full/strict five/Full restore/headless admission held",
+  "corpora": [
+    {
+      "path": "parity/sentenced-npc-group/source.json",
+      "commit": "8b59a6bf45da66d218103678b88240458616d66f",
+      "bytes": 555087,
+      "sha256": "d64e822b3e79540e99a0c82d4bfe331aa16df547587456fe35f5c237e5fda780",
+      "cases": 6,
+      "snapshots": 16,
+      "steps": 860
+    },
+    {
+      "path": "parity/sentenced-npc-group/source-supplement.json",
+      "commit": "c5185b9d5446f1ac255521f02f950c568828af18",
+      "bytes": 530381,
+      "sha256": "292496f06ddc3edb8ccb142df76e2661fd257b0679a2132809ad9e4560e75183",
+      "cases": 2,
+      "snapshots": 15,
+      "steps": 858
+    }
+  ],
+  "checks": [
+    {
+      "log": "b-sealed-sentenced.log",
+      "sha256": "ecaccb6c320568a03407b5a5aeed1b97a28cf7e5d3154e8f1f8e1b70b15fc37b",
+      "results": [
+        "    Finished `test` profile [unoptimized] target(s) in 29.02s",
+        "test result: ok. 56 passed; 0 failed; 3 ignored; 0 measured; 631 filtered out; finished in 10.19s"
+      ]
+    },
+    {
+      "log": "b-sealed-allocation.log",
+      "sha256": "87f7b6c9f9bb77501897db96bdbde01707c08bcdca068ba5102a951963f7da91",
+      "results": [
+        "    Finished `test` profile [unoptimized] target(s) in 0.10s",
+        "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 687 filtered out; finished in 0.14s"
+      ]
+    },
+    {
+      "log": "b-sealed-restore-replay.log",
+      "sha256": "e8c2c30be15e0a05e2cf23bd7f7c6d6863d45d92c45169d29ce43c36d4c3dae7",
+      "results": [
+        "    Finished `test` profile [unoptimized] target(s) in 14.65s",
+        "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s",
+        "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s",
+        "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s",
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s"
+      ]
+    },
+    {
+      "log": "b-frost.log",
+      "sha256": "687814348d6463f373c619c23fbe109f4059ffccb6dac1ea9566da5ceaaabcbc",
+      "results": [
+        "    Finished `test` profile [unoptimized] target(s) in 28.02s",
+        "test result: ok. 28 passed; 0 failed; 1 ignored; 0 measured; 661 filtered out; finished in 11.31s"
+      ]
+    },
+    {
+      "log": "b-digest.log",
+      "sha256": "b16738bb3a15889ee1f523042952b75851b48ed1aedc22f1b899bab8cf1655aa",
+      "results": [
+        "    Finished `test` profile [unoptimized] target(s) in 13.37s",
+        "test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.34s"
+      ]
+    },
+    {
+      "log": "b-sealed-clippy-default.log",
+      "sha256": "728172557031c24350e8b8b00e385c1df9b53f6f59651582ea79b1411b17b1f5",
+      "results": [
+        "    Finished `dev` profile [unoptimized] target(s) in 18.35s"
+      ]
+    },
+    {
+      "log": "b-sealed-clippy-allfeatures.log",
+      "sha256": "cbfa047bfe67682970ee1edcf0d6cfb461efc6c1ad2add3111b95b999e1eb279",
+      "results": [
+        "    Finished `dev` profile [unoptimized] target(s) in 19.68s"
+      ]
+    },
+    {
+      "log": "b-sealed-fmt.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "results": []
+    },
+    {
+      "log": "b-sealed-diffcheck.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "results": []
+    }
+  ],
+  "mutant_attempts": [
+    {
+      "name": "duplicate-group-pulses",
+      "path": "crates/rh-sim/src/systems/sentenced.rs",
+      "before": "            if grouped {\n                break;\n            }",
+      "after": "            if grouped && n == usize::MAX {\n                break;\n            }",
+      "filter": "closed_profile_kernel_source_six_cases_sparse_snapshots_and_complete_mark_pulse_tapes",
+      "exit": 101,
+      "compiled_semantic_failure": true,
+      "mutant_sha256": "8c749518c7ba5a1f53dd281188dac1a3b02f347747af971ab083e679866ca701",
+      "control_sha256": "df8a2e59f184c80d03eef420e0253b39c6b6939d5db2d32572781a54e1010c41",
+      "log_sha256": "f77ab08a6f16d0b7290572d1d9d7b6b65158ab9502ced6ea740d9f2f33974afc",
+      "log": "b-mutant-duplicate-group-pulses.log"
+    },
+    {
+      "name": "current-survivor-size",
+      "path": "crates/rh-sim/src/systems/sentenced.rs",
+      "before": "        let share =\n            (1. / crate::math::sqrt(w.core(ix).signature.mark.group_size.max(1) as f64)).min(1.);",
+      "after": "        let current_size = if grouped { cores(w).filter(|c| w.fighter_idx(c.id).is_some_and(|i| w.standing(i)) && !returning(w,c.id) && group_of(w,c.id)==w.core(ix).signature.mark.group).count() } else {1};\n        let share = (1. / crate::math::sqrt(current_size.max(1) as f64)).min(1.);",
+      "filter": "closed_profile_kernel_source_supplement_death_shrink_handoff_and_trial",
+      "exit": 101,
+      "compiled_semantic_failure": true,
+      "mutant_sha256": "000dc9285bbe0530e6ef7e2e00ca2e4c08b74cf5d19571852bdcf78c233ab3db",
+      "control_sha256": "df8a2e59f184c80d03eef420e0253b39c6b6939d5db2d32572781a54e1010c41",
+      "log_sha256": "831334fcfd99cfc1711d30204d63a8eb9c2c9b246c05846a4ae4be46506ac6c6",
+      "log": "b-mutant-current-survivor-size.log"
+    },
+    {
+      "name": "wrong-regional-pool",
+      "path": "crates/rh-sim/src/systems/sentenced.rs",
+      "before": "        crate::content::faction(c.vitals.faction).hp",
+      "after": "        c.vitals.max_hp",
+      "filter": "closed_profile_kernel_source_six_cases_sparse_snapshots_and_complete_mark_pulse_tapes",
+      "exit": 101,
+      "compiled_semantic_failure": true,
+      "mutant_sha256": "efd9ec003c2880dc43e9ecc066738b3f540586783c0a82444e44c22b78dc6346",
+      "control_sha256": "df8a2e59f184c80d03eef420e0253b39c6b6939d5db2d32572781a54e1010c41",
+      "log_sha256": "1aeeb70e31a4110c56ba81f3278e23830a154f2d061d50bb04de2081f84cccdd",
+      "log": "b-mutant-wrong-regional-pool.log"
+    },
+    {
+      "name": "lost-focus-continuity",
+      "path": "crates/rh-sim/src/systems/sentenced.rs",
+      "before": "let survivor = if f.mark.tier > 0 && matches!(group, Some(crate::fighter::MarkGroup::Camp(_))) {",
+      "after": "let survivor = if false && f.mark.tier > 0 && matches!(group, Some(crate::fighter::MarkGroup::Camp(_))) {",
+      "filter": "closed_profile_kernel_source_six_cases_sparse_snapshots_and_complete_mark_pulse_tapes",
+      "exit": 101,
+      "compiled_semantic_failure": true,
+      "mutant_sha256": "4c55670d3aa13b328f62c1b1ded80af855d08f5a578d476eeee06da88370485f",
+      "control_sha256": "df8a2e59f184c80d03eef420e0253b39c6b6939d5db2d32572781a54e1010c41",
+      "log_sha256": "eec9628cadee7598893f795211f4f60be894abf6bb1355179069e4ca94561520",
+      "log": "b-mutant-lost-focus-continuity.log"
+    },
+    {
+      "name": "pre-tier-same-group-hit-undercount",
+      "path": "crates/rh-sim/src/systems/sentenced.rs",
+      "before": "(e.victim == target || (group.is_some() && group == group_of(w, e.victim)))",
+      "after": "(e.victim == target || (c.signature.mark.tier > 0 && group.is_some() && group == group_of(w, e.victim)))",
+      "filter": "diagnostic_group_pulses_once_per_member_but_counts_every_qualifying_hit",
+      "exit": 101,
+      "compiled_semantic_failure": true,
+      "mutant_sha256": "ae5f0b4061a7c70833eb32fed07ca7857a13a7eb93bbd31dde22248ecfd8b9da",
+      "control_sha256": "df8a2e59f184c80d03eef420e0253b39c6b6939d5db2d32572781a54e1010c41",
+      "log_sha256": "f26cd9b9ce5f5307691a1b9b423241adb3f52cdb3dd7b4e2d5c36f75fb58090b",
+      "log": "b-mutant-pre-tier-same-group-hit-undercount.log"
+    },
+    {
+      "name": "npc-player-bonus",
+      "path": "crates/rh-sim/src/systems/sentenced.rs",
+      "before": "    pct * hp * weight * if near { 1. } else { MARK_FAR_SHARE }",
+      "after": "    pct * hp * weight * (1. + c.modifiers.mirrors().ad_bonus) * if near { 1. } else { MARK_FAR_SHARE }",
+      "filter": "diagnostic_npc_bonus_mirrors_do_not_enter_base_mark_and_return_clears_mark",
+      "exit": 0,
+      "compiled_semantic_failure": false,
+      "control_sha256": "df8a2e59f184c80d03eef420e0253b39c6b6939d5db2d32572781a54e1010c41",
+      "mutant_sha256": "98c0f79fcc4f5ec0f1a4c957b4b2f7fea8b182828e91167d0eae615f82b71b28",
+      "log_sha256": "09fb46012f382abc9b97c1ef5ac67029536684b77556831e4e480c8af0d08ce1",
+      "log": "b-mutant-npc-player-bonus-survived-initial-test.log"
+    },
+    {
+      "name": "npc-player-bonus",
+      "path": "crates/rh-sim/src/systems/sentenced.rs",
+      "before": "    pct * hp * weight * if near { 1. } else { MARK_FAR_SHARE }",
+      "after": "    pct * hp * weight * (1. + c.modifiers.mirrors().ad_bonus) * if near { 1. } else { MARK_FAR_SHARE }",
+      "filter": "diagnostic_npc_bonus_mirrors_do_not_enter_base_mark_and_return_clears_mark",
+      "exit": 101,
+      "compiled_semantic_failure": true,
+      "control_sha256": "df8a2e59f184c80d03eef420e0253b39c6b6939d5db2d32572781a54e1010c41",
+      "mutant_sha256": "98c0f79fcc4f5ec0f1a4c957b4b2f7fea8b182828e91167d0eae615f82b71b28",
+      "log_sha256": "3e3aaa1cf180920d01f77495b752ea320c77aac0b6057cbe87e0c63c533e0567",
+      "log": "b-mutant-npc-player-bonus-final.log"
+    }
+  ],
+  "restored_core_sha256": "df8a2e59f184c80d03eef420e0253b39c6b6939d5db2d32572781a54e1010c41"
+}

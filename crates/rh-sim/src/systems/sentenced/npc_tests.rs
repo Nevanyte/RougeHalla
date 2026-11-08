@@ -116,6 +116,39 @@ fn actual_training_melee_and_bow_sources_mark_players_and_restore_without_input(
     }
 }
 
+#[test]
+fn actual_human_victim_slot_swap_advances_every_existing_npc_owned_mark() {
+    let mut s = training_source(crate::mob_catalog::MobTypeId::Bailiff);
+    for _ in 0..60 {
+        s.step();
+    }
+    let before: Vec<_> = s
+        .mobs()
+        .iter()
+        .filter(|m| m.core.signature.mark.tier > 0 && m.core.signature.target == Some(PlayerId(1)))
+        .map(|m| (m.core.id, m.core.signature.mark.swaps))
+        .collect();
+    assert_eq!(
+        before.len(),
+        3,
+        "all real camp NPCs must own a Mark before the victim swaps"
+    );
+    assert_eq!(s.players()[0].weapon.slot, 0);
+    s.submit(
+        PlayerId(1),
+        validate(RawCommand::Swap { slot: Some(1) }).unwrap(),
+    )
+    .unwrap();
+    s.step();
+    assert_eq!(s.players()[0].weapon.slot, 1);
+    for (id, swaps) in before {
+        assert_eq!(
+            s.w.mobs.get(id).unwrap().core.signature.mark.swaps,
+            swaps + 1
+        );
+    }
+}
+
 fn diagnostic_scene() -> Sim {
     Sim::reset_active(
         SimConfig {
@@ -517,10 +550,12 @@ fn diagnostic_npc_bonus_mirrors_do_not_enter_base_mark_and_return_clears_mark() 
     let base = npc_pulse(&s.w, ix, WeaponId::Sword, 1000., true);
     // Encoded mirror-only diagnostic, not a restored NPC producer: player bonus fields must be ignored for NPC Mark.
     let mut mods = serde_json::to_value(&s.w.core(ix).modifiers).unwrap();
-    for n in 1..5 {
+    for n in [3, 4, 5, 6] {
         mods["wire"][n] = serde_json::json!(10000.);
     }
     s.w.core_mut(ix).modifiers = serde_json::from_value(mods).unwrap();
+    let m = s.w.core(ix).modifiers.mirrors();
+    assert!(m.armor_bonus > 0. && m.shield_bonus > 0. && m.ad_bonus > 0. && m.ap_bonus > 0.);
     assert_eq!(
         base.to_bits(),
         npc_pulse(&s.w, ix, WeaponId::Sword, 1000., true).to_bits()

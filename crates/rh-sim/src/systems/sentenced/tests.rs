@@ -180,6 +180,7 @@ fn ordinary_same_type_slot_swaps_count_but_same_slot_noop_does_not() {
 fn helper_execute_denial_pays_after_pass_and_sentence_survives_reset() {
     let mut s = scene();
     s.w.players[0].signature.set_target(PlayerId(2), 0.);
+    s.w.players[0].signature.mark.group = Some(crate::fighter::MarkGroup::Fighter(PlayerId(2)));
     s.w.players[0].signature.mark.tier = 4;
     s.w.players[0].signature.mark.hits = 9;
     s.w.players[0].signature.mark.progress = 9.;
