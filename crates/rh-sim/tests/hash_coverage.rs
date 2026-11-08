@@ -1198,6 +1198,14 @@ const VALIDATED: &[(&str, &str)] = &[
         "world.roster.names.*.#len",
         "a roster entry is a (id, name) pair",
     ),
+    (
+        "world.players.*.core.weapon.action.roam_armed",
+        "only a Fire seat's armed attack carries the mark; an unarmed action or another faction's flag is refused (checkpoint.rs)",
+    ),
+    (
+        "world.projectiles.*.roam_armed",
+        "the armed mark only launches from a Fire seat's armed attack; a reflected or other-owner flight is refused (checkpoint.rs)",
+    ),
 ];
 
 /// `Some` values for optional leaves that no scripted match produces between steps (an item slot has no flow in the slice,

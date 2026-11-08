@@ -21,6 +21,8 @@ pub(crate) struct Spawn {
     pub weapon: WeaponId,
     pub aim: f64,
     pub packet: Packet,
+    /// The launch came from an armed Fire attack (the source's armed-packet mark).
+    pub roam_armed: bool,
 }
 #[derive(Clone, Copy, Debug)]
 struct Swept {
@@ -48,6 +50,7 @@ fn launch(
     ev: &mut Vec<Event>,
     mut start: ProjectileLaunch,
     packet: Packet,
+    roam_armed: bool,
     reflections: u8,
 ) {
     start.id = w.next_entity_id();
@@ -60,6 +63,7 @@ fn launch(
         packet,
         halved: false,
         reflections,
+        roam_armed,
     });
     swept.push(Swept {
         from: start.origin,
@@ -91,7 +95,15 @@ pub(crate) fn spawn(cx: &mut Cx) {
             range,
             target: req.target,
         };
-        launch(cx.w, &mut cx.s.flight.swept, cx.ev, start, req.packet, 0);
+        launch(
+            cx.w,
+            &mut cx.s.flight.swept,
+            cx.ev,
+            start,
+            req.packet,
+            req.roam_armed,
+            0,
+        );
     }
 }
 
@@ -433,6 +445,7 @@ fn reflect(cx: &mut Cx, s: Stretch, t: f64, victim: usize, at: Vec2) {
         cx.ev,
         start,
         packet,
+        false,
         pr.reflections + 1,
     );
 }
@@ -671,6 +684,7 @@ mod tests {
                 magic: 0.,
                 true_: 0.,
             },
+            false,
             0,
         );
     }
@@ -844,6 +858,7 @@ mod tests {
                     magic: 0.,
                     true_: 0.,
                 },
+                roam_armed: false,
             });
             let ev = s.step();
             assert_eq!(

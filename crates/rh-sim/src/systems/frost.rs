@@ -440,6 +440,7 @@ mod tests {
                         magic: 0.,
                         true_: 0.,
                     },
+                    roam_armed: false,
                 });
                 p.weapon.draw_started_at = 9000.;
             }

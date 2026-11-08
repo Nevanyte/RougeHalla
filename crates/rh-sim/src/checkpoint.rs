@@ -20,7 +20,7 @@ use serde::ser::{SerializeStruct, Serializer};
 use std::fmt;
 
 /// The tag every checkpoint carries. Bump it when the layout of `statics` or `world` changes incompatibly.
-pub const CHECKPOINT_FORMAT: &str = "rh-checkpoint/20";
+pub const CHECKPOINT_FORMAT: &str = "rh-checkpoint/21";
 
 /// How far past the map edge a fighter, waypoint or spawn may be and still restore (real states stay inside the map).
 const COORD_MARGIN: f64 = 1024.0;
@@ -441,6 +441,12 @@ fn check_world(k: &MatchStatic, w: &World) -> Result<(), String> {
             || !velocity_ok(st.velocity)
             || !velocity_ok(pr.velocity)
             || !valid_ranged_packet(pr.packet, weapon)
+            // A Fire seat's armed attack can launch the flight; a departed owner's flag is unreachable for the burst
+            // because the source consults only present players.
+            || (pr.roam_armed
+                && w
+                    .player(st.owner)
+                    .is_some_and(|p| p.vitals.faction != crate::FactionId::Fire))
         {
             return Err(format!("invalid projectile {}", st.id));
         }
@@ -504,6 +510,14 @@ fn check_world(k: &MatchStatic, w: &World) -> Result<(), String> {
         let sig = &p.signature;
         crate::systems::sentenced::validate(k, w, p)?;
         super::systems::signatures::validate_basic(k, w, p.id, sig)?;
+        // The Fire roam clock is set at raid start or by positive damage dealt/taken; it is never future-dated. The
+        // armed flag arms only a Fire seat's burst but is independent of the clock, so it is not coupled here.
+        if p.roam
+            .last_combat_at
+            .is_some_and(|t| !(0.0..=w.server_time).contains(&t))
+        {
+            return Err(format!("player {}: invalid Fire roam state", p.id.0));
+        }
         let lock = &p.weapon.targeting;
         let valid_foe = |id: crate::PlayerId| id != p.id && w.known_actor(id);
         let valid_time = |t: f64| (0.0..=w.server_time).contains(&t);
@@ -630,6 +644,7 @@ fn check_world(k: &MatchStatic, w: &World) -> Result<(), String> {
                 || !finite
                 || (a.kind != ActionKind::Swing && !valid_ranged_packet(pk, a.weapon))
                 || a.lands_at < a.started_at
+                || (a.roam_armed && p.vitals.faction != crate::FactionId::Fire)
             {
                 return Err(format!(
                     "player {}: pending {:?} action with {:?} (or a non-finite value)",

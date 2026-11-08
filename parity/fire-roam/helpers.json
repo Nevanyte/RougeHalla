@@ -1,0 +1,169 @@
+{
+  "format": "rh-fire-roam-actual-export-probes/1",
+  "kind": "direct actual exported shared/fireRoam.ts helpers; no ordinary gameplay intake",
+  "provenance": {
+    "node": "v22.23.4",
+    "platform": "linux",
+    "arch": "x64",
+    "nodeSha256": "94efd062ed066c1a0b332e18249859c905e920eeada5df55d24c99b919629a90",
+    "exports": [
+      "packages/shared/src/fireRoam.ts::fireRoamCharge",
+      "packages/shared/src/fireRoam.ts::fireRoamSpeedMult",
+      "packages/shared/src/fireRoam.ts::fireRoamBurstDamage",
+      "packages/shared/src/fireRoam.ts::FIRE_ROAM_RAMP_MS",
+      "packages/shared/src/fireRoam.ts::FIRE_ROAM_CHARGE_MAX",
+      "packages/shared/src/fireRoam.ts::FIRE_ROAM_MAX_SPEED_MULT",
+      "packages/shared/src/fireRoam.ts::FIRE_ROAM_BURST_BASE",
+      "packages/shared/src/fireRoam.ts::FIRE_ROAM_BURST_AD_SHARE"
+    ]
+  },
+  "constants": {
+    "rampMs": 20000,
+    "chargeMax": 1000,
+    "maxSpeedMult": 1.5,
+    "burstBase": 50,
+    "burstAdShare": 0.4
+  },
+  "charge": [
+    {
+      "elapsedMs": 0,
+      "value": 0
+    },
+    {
+      "elapsedMs": 1,
+      "value": 0
+    },
+    {
+      "elapsedMs": 19,
+      "value": 0
+    },
+    {
+      "elapsedMs": 20,
+      "value": 1
+    },
+    {
+      "elapsedMs": 21,
+      "value": 1
+    },
+    {
+      "elapsedMs": 999,
+      "value": 49
+    },
+    {
+      "elapsedMs": 1000,
+      "value": 50
+    },
+    {
+      "elapsedMs": 10000,
+      "value": 500
+    },
+    {
+      "elapsedMs": 19999,
+      "value": 999
+    },
+    {
+      "elapsedMs": 20000,
+      "value": 1000
+    },
+    {
+      "elapsedMs": 20001,
+      "value": 1000
+    },
+    {
+      "elapsedMs": 100000,
+      "value": 1000
+    },
+    {
+      "elapsedMs": 0.5,
+      "value": 0
+    },
+    {
+      "elapsedMs": 19999.9,
+      "value": 999
+    },
+    {
+      "elapsedMs": -1,
+      "value": 0
+    },
+    {
+      "elapsedMs": -20000,
+      "value": 0
+    }
+  ],
+  "speed": [
+    {
+      "charge": 0,
+      "value": 1
+    },
+    {
+      "charge": 1,
+      "value": 1.0005
+    },
+    {
+      "charge": 2,
+      "value": 1.001
+    },
+    {
+      "charge": 500,
+      "value": 1.25
+    },
+    {
+      "charge": 750,
+      "value": 1.375
+    },
+    {
+      "charge": 999,
+      "value": 1.4995
+    },
+    {
+      "charge": 1000,
+      "value": 1.5
+    },
+    {
+      "charge": 1001,
+      "value": 1.5
+    },
+    {
+      "charge": -5,
+      "value": 1
+    },
+    {
+      "charge": 0.5,
+      "value": 1.00025
+    }
+  ],
+  "burst": [
+    {
+      "offense": 0,
+      "value": 50
+    },
+    {
+      "offense": 1,
+      "value": 50.4
+    },
+    {
+      "offense": 10,
+      "value": 54
+    },
+    {
+      "offense": 12.5,
+      "value": 55
+    },
+    {
+      "offense": 100,
+      "value": 90
+    },
+    {
+      "offense": 1000,
+      "value": 450
+    },
+    {
+      "offense": -5,
+      "value": 50
+    },
+    {
+      "offense": 0.5,
+      "value": 50.2
+    }
+  ]
+}

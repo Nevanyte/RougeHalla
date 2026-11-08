@@ -39,6 +39,9 @@ pub enum Gate {
     Always,
     /// `config.signatures`: factions, fire roam, bruiser passives, plague corpses and zombies, the Sentenced hunt.
     Signatures,
+    /// The partial world installs the Fire roam auxiliary module (legacy `signatures: true` installs it with `factions`;
+    /// the explicit partial foundations opt in through `FactionMode::...FireRoam`).
+    FireRoam,
     /// `config.walkHints`.
     WalkHints,
     /// `config.mobs`.
@@ -57,6 +60,7 @@ pub enum Gate {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Gates {
     pub signatures: bool,
+    pub fire_roam: bool,
     pub walk_hints: bool,
     pub mobs: bool,
     pub quests: bool,
@@ -68,6 +72,7 @@ impl Gates {
     /// `createGameWorld` with the live server's defaults.
     pub const PRODUCTION: Gates = Gates {
         signatures: true,
+        fire_roam: true,
         walk_hints: true,
         mobs: true,
         quests: true,
@@ -77,6 +82,7 @@ impl Gates {
     /// The parity fixtures' module set and config: signatures and walk hints off, no mobs, quests or dummies.
     pub const CAPTURE: Gates = Gates {
         signatures: false,
+        fire_roam: false,
         walk_hints: false,
         mobs: false,
         quests: false,
@@ -86,6 +92,7 @@ impl Gates {
     /// The practice room: the training config, then `installTraining`.
     pub const TRAINING: Gates = Gates {
         signatures: true,
+        fire_roam: true,
         walk_hints: true,
         mobs: true,
         quests: false,
@@ -105,12 +112,20 @@ impl Gates {
             } else {
                 Gates::MOB_FOUNDATION
             }
+        } else if k.config.faction_mode.fire_roam() {
+            Gates::FIRE_ROAM_FOUNDATION
         } else if k.config.faction_mode.engagement() {
             Gates::HOLY_FOUNDATION
         } else {
             Gates::CAPTURE
         }
     }
+    /// The full five-faction foundation plus the explicit Fire roam auxiliary installer.
+    pub const FIRE_ROAM_FOUNDATION: Gates = Gates {
+        signatures: true,
+        fire_roam: true,
+        ..Gates::CAPTURE
+    };
     /// Partial explicit-module plan: only engagement and Holy sustain are implemented.
     pub const MOB_BASIC_FACTIONS: Gates = Gates {
         signatures: true,
@@ -131,6 +146,7 @@ impl Gate {
         match self {
             Gate::Always => true,
             Gate::Signatures => g.signatures,
+            Gate::FireRoam => g.fire_roam,
             Gate::WalkHints => g.walk_hints,
             Gate::Mobs => g.mobs,
             Gate::Quests => g.quests && !g.training,
@@ -590,6 +606,8 @@ impl Plan {
         let g = Gates::of(k);
         if g == Gates::PRODUCTION {
             &PRODUCTION_PLAN
+        } else if g == Gates::FIRE_ROAM_FOUNDATION {
+            &FIRE_ROAM_FOUNDATION_PLAN
         } else if g == Gates::HOLY_FOUNDATION {
             &HOLY_FOUNDATION_PLAN
         } else if g == Gates::MOB_BASIC_FACTIONS {
@@ -615,6 +633,7 @@ static MOB_FOUNDATION_PLAN: Plan = Plan::compile(&Gates::MOB_FOUNDATION);
 static PRODUCTION_PLAN: Plan = Plan::compile(&Gates::PRODUCTION);
 static CAPTURE_PLAN: Plan = Plan::compile(&Gates::CAPTURE);
 static HOLY_FOUNDATION_PLAN: Plan = Plan::compile(&Gates::HOLY_FOUNDATION);
+static FIRE_ROAM_FOUNDATION_PLAN: Plan = Plan::compile(&Gates::FIRE_ROAM_FOUNDATION);
 static TRAINING_PLAN: Plan = Plan::compile(&Gates::TRAINING);
 
 /// Runs compiled phases in order: the one place `updateActive`'s systems are called from.
@@ -801,7 +820,11 @@ static BEFORE_DAMAGE: [Item<SystemFn>; 3] = [
     ),
 ];
 static SYSTEMS: [Item<SystemFn>; 24] = [
-    pending("fireRoam.update", Gate::Signatures, "P-FACTION-2"),
+    ported(
+        "fireRoam.update",
+        Gate::FireRoam,
+        crate::systems::fire_roam::update,
+    ),
     // Combat clocks and Holy sustain only. Chill/marks/DoT remain pending.
     ported(
         "factions.afterDamage",
@@ -934,7 +957,11 @@ static MOD_SOURCES: [Item<SourceFn>; 6] = [
     ),
     pending("consumables.<anonymous>", Gate::Always, "P-CONS-1"),
     ported("cardHooks.cardSource", Gate::Always, items::shred_source),
-    pending("fireRoam.roamingSpeed", Gate::Signatures, "P-FACTION-2"),
+    ported(
+        "fireRoam.roamingSpeed",
+        Gate::FireRoam,
+        crate::systems::fire_roam::roaming_speed,
+    ),
     pending(
         "bruiserPassives.frozenJustice",
         Gate::Signatures,
@@ -1149,11 +1176,11 @@ static ATTACK_STARTED: [Link; 3] = [
         Gate::Always,
         crate::systems::status::attack_started,
     ),
-    pending_link(
+    ported_link(
         "fireRoam.onAttackStarted",
         Mode::Append,
-        Gate::Signatures,
-        "P-FACTION-2",
+        Gate::FireRoam,
+        crate::systems::fire_roam::attack_started,
     ),
 ];
 static WEAPON_SWAPPED: [Link; 1] = [ported_link(
@@ -1169,11 +1196,11 @@ static HURT: [Link; 2] = [
         Gate::Signatures,
         crate::cards::on_hurt::on_hurt,
     ),
-    pending_link(
+    ported_link(
         "fireRoam.<arrow>",
         Mode::Append,
-        Gate::Signatures,
-        "P-FACTION-2",
+        Gate::FireRoam,
+        crate::systems::fire_roam::hurt,
     ),
 ];
 static PLAYER_KILLED: [Link; 3] = [
@@ -1269,11 +1296,11 @@ static RAID_STARTED: [Link; 14] = [
         "P-CARDS-1",
         crate::cards::runtime::reset_all,
     ),
-    pending_link(
+    ported_link(
         "fireRoam.<arrow>",
         Mode::Append,
-        Gate::Signatures,
-        "P-FACTION-2",
+        Gate::FireRoam,
+        crate::systems::fire_roam::raid_started,
     ),
     pending_link(
         "bruiserPassives.resetRun",
@@ -1326,11 +1353,11 @@ static RUN_ENDED: [Link; 12] = [
         Gate::Signatures,
         "P-FACTION-3",
     ),
-    pending_link(
+    ported_link(
         "fireRoam.<arrow>",
         Mode::Append,
-        Gate::Signatures,
-        "P-FACTION-2",
+        Gate::FireRoam,
+        crate::systems::fire_roam::run_ended,
     ),
     pending_link(
         "bruiserPassives.resetRun",
@@ -1394,11 +1421,11 @@ static FIGHTER_OUT: [Link; 8] = [
         Gate::Signatures,
         "P-FACTION-3",
     ),
-    pending_link(
+    ported_link(
         "fireRoam.<arrow>",
         Mode::Append,
-        Gate::Signatures,
-        "P-FACTION-2",
+        Gate::FireRoam,
+        crate::systems::fire_roam::fighter_out,
     ),
     pending_link(
         "bruiserPassives.<arrow>",
@@ -1464,11 +1491,11 @@ static HIT_LANDED: [Link; 4] = [
         Gate::Always,
         items::hit_landed,
     ),
-    pending_link(
+    ported_link(
         "fireRoam.onHitLanded",
         Mode::Append,
-        Gate::Signatures,
-        "P-FACTION-2",
+        Gate::FireRoam,
+        crate::systems::fire_roam::hit_landed,
     ),
     pending_link(
         "bruiserPassives.noteLedgerContact",

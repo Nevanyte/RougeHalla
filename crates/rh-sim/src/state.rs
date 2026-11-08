@@ -376,6 +376,9 @@ pub struct PendingAction {
     pub lands_at: f64,
     pub a: f64,
     pub packet: Packet,
+    /// The attacking Fire player was armed when this action started: the source's armed-packet mark.
+    #[serde(default)]
+    pub roam_armed: bool,
 }
 
 /// A run-only item. Its identity is allocated by the world without consuming any RNG.
@@ -513,6 +516,9 @@ pub struct Player {
     /// Tank Engine's earned flat max-health bonus (source `cards.tankHp`).
     #[serde(default)]
     pub card_tank_hp: f64,
+    /// Fire's out-of-combat roaming clock and armed-burst flag (source `sim/fireRoam.ts` runtime).
+    #[serde(default)]
+    pub(crate) roam: crate::systems::fire_roam::Roam,
     pub plan_ready: bool,
     pub build: crate::cards::Build,
     pub potion_small: u8,
@@ -573,6 +579,7 @@ impl Player {
             card_boost: crate::cards::Boost::default(),
             card_prevented: 0.,
             card_tank_hp: 0.,
+            roam: Default::default(),
             build: Default::default(),
             potion_small: 0,
             healing_until: 0.,
@@ -700,6 +707,9 @@ pub(crate) struct Projectile {
     pub(crate) packet: Packet,
     pub(crate) halved: bool,
     pub(crate) reflections: u8,
+    /// The flight launched from an armed Fire attack: the source's armed-packet mark carried across ticks.
+    #[serde(default)]
+    pub(crate) roam_armed: bool,
 }
 impl Projectile {
     pub(crate) fn weapon(&self) -> WeaponId {

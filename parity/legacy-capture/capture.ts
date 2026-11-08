@@ -68,12 +68,16 @@ import { canPlayerSee, canPlayerSeeActor, getVisionMemory } from "../../packages
 import { sentencedScenarios } from "./scenarios/sentenced";
 import { frostScenarios } from "./scenarios/frost";
 import { fireScenarios } from "./scenarios/fire";
+import { fireRoamScenarios } from "./scenarios/fireRoam";
 import { plagueScenarios } from "./scenarios/plague";
 import { holyScenarios } from "./scenarios/holy";
 import { signatureState } from "../../packages/server/src/sim/factions";
 import { targetingScenarios } from "./scenarios/targeting";
 import { visionScenarios } from "./scenarios/vision";
 import { createScenarioWorld, DEFAULT_MODULES } from "./world";
+
+/** The Fire roam slice's provenance id (the five-faction foundation plus the auxiliary `fireRoam` installer). */
+const FIRE_ROAM_SLICE = "player-engagement-holy-plague-fire-frost-sentenced-fireroam/1";
 import type { Scenario, Input, Ctx } from "./scenarios/types";
 import { projectileScenarios } from "./scenarios/projectiles";
 import { meleeScenarios } from "./scenarios/melee";
@@ -142,7 +146,7 @@ function run(sc: Scenario): unknown {
   let performed: unknown[] = [];
   let markDenials: unknown[] = [];
   let markFlags: unknown[] = [];
-  if((sc.factionSlice === "player-engagement-holy-plague-fire/1" || (sc.factionSlice === "player-engagement-holy-plague-fire-frost/1" || sc.factionSlice === "player-engagement-holy-plague-fire-frost-sentenced/1"))) world.afterWeapons.push(w => {performed=[...w.combat.melee.map(m=>({by:m.attacker,weapon:m.weapon})),...w.combat.spawns.map(p=>({by:p.owner,weapon:p.weapon}))];});
+  if((sc.factionSlice === "player-engagement-holy-plague-fire/1" || (sc.factionSlice === "player-engagement-holy-plague-fire-frost/1" || (sc.factionSlice === "player-engagement-holy-plague-fire-frost-sentenced/1" || sc.factionSlice === FIRE_ROAM_SLICE)))) world.afterWeapons.push(w => {performed=[...w.combat.melee.map(m=>({by:m.attacker,weapon:m.weapon})),...w.combat.spawns.map(p=>({by:p.owner,weapon:p.weapon}))];});
   if(sc.factionSlice) world.beforeDamage.push(w=>{rawLedger=canonicalJson(w.combat.ledger.map(e=>({victim:e.victim,by:e.by.id,raw:e.packet.raw,scale:e.scale,weapon:e.weapon,sig:e.sig??null,execute:e.execute??false,phys:e.packet.phys,magic:e.packet.magic,true_:e.packet.true}))) as unknown[];});
   if(sc.factionSlice === "player-engagement-holy-plague-fire-frost-sentenced/1") world.beforeDamage.push(w => {
     markFlags=w.combat.ledger.map(e=>({passive:e.passive??false,derived:e.derived??false,projectile:e.projectile??null,stagger:e.stagger??false}));
@@ -183,7 +187,7 @@ function run(sc: Scenario): unknown {
     }));
     const extras: Record<string, unknown> = {};
     if(sc.factionSlice) extras.plague=canonicalJson({
-      ...((sc.factionSlice === "player-engagement-holy-plague-fire/1" || (sc.factionSlice === "player-engagement-holy-plague-fire-frost/1" || sc.factionSlice === "player-engagement-holy-plague-fire-frost-sentenced/1")) ? {performed} : {}),
+      ...((sc.factionSlice === "player-engagement-holy-plague-fire/1" || (sc.factionSlice === "player-engagement-holy-plague-fire-frost/1" || (sc.factionSlice === "player-engagement-holy-plague-fire-frost-sentenced/1" || sc.factionSlice === FIRE_ROAM_SLICE))) ? {performed} : {}),
       raw:rawLedger,
       landed:world.combat.landed.map(h=>({victim:h.victim,by:h.by,amount:h.amount,sig:h.sig??null,weapon:h.weapon})),
       dotSince:world.factions!.dotSince,
@@ -227,6 +231,7 @@ function run(sc: Scenario): unknown {
         return {id,target:f.target,inReach:f.inReach,engaged:f.engaged,reachAt:finite(f.reachAt),contactAt:finite(f.contactAt),combatAt:finite(f.combatAt),hpFrac:f.hpFrac};
       }));
       if (kind === "landed") extras.landed = canonicalJson(world.combat.landed.map(h=>({victim:h.victim,by:h.by,amount:h.amount})));
+      if (kind === "roam") extras.roam = canonicalJson([...world.state.players.entries()].map(([id, p]) => ({ id, charge: p.roamCharge, ready: p.roamReady })));
 
       if (kind === "locks") extras.locks = canonicalJson([...world.state.players.entries()].map(([id, p]) => {
         const rt = world.players.get(id)!;
@@ -268,7 +273,7 @@ function run(sc: Scenario): unknown {
       world: !sc.modules && !sc.config && sc.generatedMapSeed === undefined ? "createGameWorld(signatures:false, walkHints:false), hand-built map, mobs/quests/hazards/regen off, pvpRules on (default), no cards" : "createScenarioWorld: explicit recorded modules/options/map seed",
       modules: sc.modules ?? DEFAULT_MODULES,
       itemUidScheme: "sequential/1",
-      ...(sc.packet === "P-FACTION-1" && sc.parity === "slice" ? {rustSlice:sc.factionSlice??"player-engagement-holy/1"} : {}),
+      ...((sc.packet === "P-FACTION-1" || sc.packet === "P-FACTION-2") && sc.parity === "slice" ? {rustSlice:sc.factionSlice??"player-engagement-holy/1"} : {}),
       options: sc.config ?? {},
       ...(sc.generatedMapSeed === undefined ? {} : { mapSeed: sc.generatedMapSeed }),
       secrets: { orderSalt: world.orderSalt, rewardSalt: sc.secrets?.rewardSalt ?? [1, 2, 3, 4], questSalt: sc.secrets?.questSalt ?? [5, 6, 7, 8] },
@@ -583,7 +588,7 @@ const lockTwin: Scenario = {
   modules: DEFAULT_MODULES.filter(m => m !== "consumables"), record: ["combat", "containers", "statuses", "locks"],
   requires: ["input:target", "launch", "projEnd", "death"],
 };
-for (const sc of [...SCENARIOS, ...catalogue, ...meleeScenarios, ...projectileScenarios, ...visionScenarios, ...targetingScenarios, ...holyScenarios, ...plagueScenarios, ...fireScenarios, ...frostScenarios, ...sentencedScenarios, lockTwin]) {
+for (const sc of [...SCENARIOS, ...catalogue, ...meleeScenarios, ...projectileScenarios, ...visionScenarios, ...targetingScenarios, ...holyScenarios, ...plagueScenarios, ...fireScenarios, ...fireRoamScenarios, ...frostScenarios, ...sentencedScenarios, lockTwin]) {
   if (only && sc.name !== only) continue;
   const t0 = performance.now();
   const fx = run(sc) as { ticks: unknown[]; results: unknown[]; legacyConfig: { unexpectedEventTypes: string[]; mobsPresent: number } };

@@ -541,7 +541,9 @@ fn run(fx: &Fixture) -> Run {
     let mut sim = build(fx);
     let _ = sim.schedule_trace();
     let mut out = Run {
-        gates: if sim.config().faction_mode.engagement() {
+        gates: if sim.config().faction_mode.fire_roam() {
+            Gates::FIRE_ROAM_FOUNDATION
+        } else if sim.config().faction_mode.engagement() {
             Gates::HOLY_FOUNDATION
         } else {
             Gates::CAPTURE
@@ -610,6 +612,12 @@ fn a_match_runs_its_ported_rows_in_table_order() {
                 TraceEntry::Hook("staggered", "abilities.<arrow>") => staggers += 1,
                 TraceEntry::Hook("runEnded", "factions.flushDotFx") => {}
                 TraceEntry::Hook("attackStarted", "factions.<arrow>") => {}
+                TraceEntry::Hook("attackStarted", "fireRoam.onAttackStarted") => {}
+                TraceEntry::Hook("hurt", "fireRoam.<arrow>") => {}
+                TraceEntry::Hook("raidStarted", "fireRoam.<arrow>") => {}
+                TraceEntry::Hook("runEnded", "fireRoam.<arrow>") => {}
+                TraceEntry::Hook("fighterOut", "fireRoam.<arrow>") => {}
+                TraceEntry::Hook("hitLanded", "fireRoam.onHitLanded") => {}
                 TraceEntry::Hook("weaponSwapped", "factions.onWeaponSwapped") => {}
                 TraceEntry::Hook("playerKilled", "factions.onPlayerKilled") => {}
                 TraceEntry::Hook("executeDenied", "factions.onExecuteDenied") => {}

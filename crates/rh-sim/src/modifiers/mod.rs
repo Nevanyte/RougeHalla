@@ -32,6 +32,9 @@ pub struct Runtime {
     /// Which of the build's `while` rows held at the last fold (source `Build.holds`), bit i for the i-th `while` row in
     /// build row order. The cached fold is only meaningful with them, so a restored runtime re-folds with exactly this.
     holds: u64,
+    /// The folded source speed multiplier (legacy modSources' `speedMult`, e.g. Fire roam): the speed mirror is the
+    /// build/farm fold times this, so the trusted-state check must know the exact contribution it validated against.
+    source_speed: f64,
 }
 impl Default for Runtime {
     fn default() -> Self {
@@ -43,6 +46,7 @@ impl Default for Runtime {
             max_hp_mult: 1.,
             plague_dot: 1.,
             holds: 0,
+            source_speed: 1.,
         }
     }
 }
@@ -96,7 +100,7 @@ impl Runtime {
                 .chain(&self.farm)
                 .chain(&self.mults)
                 .chain(&self.wire)
-                .chain([&self.max_hp_mult])
+                .chain([&self.max_hp_mult, &self.source_speed])
                 .all(|x| x.is_finite())
         {
             return false;
@@ -134,8 +138,12 @@ impl Runtime {
             return false;
         }
         // Quiet status updates deliberately leave the cached source mirrors stale until refold.
-        // Validate the supported range, not equality with today's status table.
-        let base = fold::encode_mirrors(&fold::mirrors_from_fold(&folded)).source_values();
+        // Validate the supported range, not equality with today's status table. The speed mirror also carries the folded
+        // source speed (the source applies it before the wire encoding), so reproduce that exact product here.
+        // `mirrors_from_fold` already adds the farm move speed; only the folded source product is still missing.
+        let mut mirrors = fold::mirrors_from_fold(&folded);
+        mirrors.speed_mult *= self.source_speed;
+        let base = fold::encode_mirrors(&mirrors).source_values();
         self.wire.iter().all(|v| v.fract() == 0.)
             && self.wire[0] >= fold::encode_mult(0.)
             && self.wire[0] <= base[0]
@@ -297,6 +305,7 @@ fn recompute_core<'a>(
             .max_hp_floor_share
             .max(1. + folded.sums.max_hp + folded.farm_sums.max_hp),
         plague_dot,
+        source_speed: src.speed_mult,
         holds,
     };
 }

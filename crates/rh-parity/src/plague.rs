@@ -2,17 +2,18 @@
 use crate::{fid, FixTick, Fixture, Report};
 use serde_json::{json, Value};
 pub(super) fn enabled(fx: &Fixture) -> bool {
-    fx.packet.as_deref() == Some("P-FACTION-1")
-        && fx.parity == "slice"
-        && matches!(
-            fx.legacy_config.rust_slice.as_deref(),
-            Some(
-                "player-engagement-holy-plague/1"
-                    | "player-engagement-holy-plague-fire/1"
-                    | "player-engagement-holy-plague-fire-frost/1"
-                    | "player-engagement-holy-plague-fire-frost-sentenced/1"
-            )
-        )
+    super::fire_roam::enabled(fx)
+        || (fx.packet.as_deref() == Some("P-FACTION-1")
+            && fx.parity == "slice"
+            && matches!(
+                fx.legacy_config.rust_slice.as_deref(),
+                Some(
+                    "player-engagement-holy-plague/1"
+                        | "player-engagement-holy-plague-fire/1"
+                        | "player-engagement-holy-plague-fire-frost/1"
+                        | "player-engagement-holy-plague-fire-frost-sentenced/1"
+                )
+            ))
 }
 pub(super) fn modules_match(fx: &Fixture) -> bool {
     let expected = [
@@ -89,6 +90,7 @@ pub(super) fn fire(fx: &Fixture) -> bool {
                 "player-engagement-holy-plague-fire/1"
                     | "player-engagement-holy-plague-fire-frost/1"
                     | "player-engagement-holy-plague-fire-frost-sentenced/1"
+                    | super::fire_roam::SLICE
             )
         )
 }
