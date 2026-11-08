@@ -69,7 +69,8 @@ pub use map::TileMap;
 pub use math::Vec2;
 pub use observe::{
     observe, observe_events_into, observe_events_into_cached, observe_into, observe_into_cached,
-    public_snapshot, Observation, SeenEvent, OBSERVATION_VERSION,
+    public_snapshot, try_observe, try_observe_into, try_observe_into_cached, try_public_snapshot,
+    Observation, SeenEvent, OBSERVATION_VERSION,
 };
 pub use sight::{SightCache, SightStats};
 pub use sim::{

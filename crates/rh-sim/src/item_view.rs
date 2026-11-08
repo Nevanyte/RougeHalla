@@ -74,6 +74,8 @@ pub struct VisibleProp {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum OfferError {
+    /// A selected public vital is not in the declared source-f32 publication domain.
+    UnrepresentablePublicVitals,
     TooManyProjectiles,
     ProjectileGeometryOutOfRange,
     ActorReferenceCollision,
@@ -376,7 +378,7 @@ impl ItemObserver {
         if changed && self.next + self.scratch.len() as u64 > u32::MAX as u64 + 1 {
             return Err(OfferError::HandlesExhausted);
         }
-        crate::observe::observe_with(sim, self.viewer, events, out, cache);
+        crate::observe::observe_with(sim, self.viewer, events, out, cache)?;
         self.staged_actors.clear();
         self.staged_actors.extend(
             out.visible

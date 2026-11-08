@@ -67,9 +67,15 @@ impl OutcomeDigest {
         }
     }
 
-    /// Folds one step: call right after `sim.step()` with the events it returned.
+    /// Trusted declared-workload wrapper. Arbitrary-checkpoint diagnostics use [`Self::try_tick`].
     pub fn tick(&mut self, sim: &Sim, events: &[Event]) {
-        let snap = rh_sim::public_snapshot(sim);
+        self.try_tick(sim, events)
+            .expect("trusted digest snapshot is not representable");
+    }
+
+    /// Checked private fingerprint; a refusal leaves the digest unchanged.
+    pub fn try_tick(&mut self, sim: &Sim, events: &[Event]) -> Result<(), rh_sim::OfferError> {
+        let snap = rh_sim::try_public_snapshot(sim)?;
         self.ticks += 1;
         self.s("tick");
         self.w(snap.tick as u64);
@@ -108,6 +114,10 @@ impl OutcomeDigest {
             self.f(p.facing);
             self.f(p.hp);
             self.f(p.max_hp);
+            if p.barrier.to_bits() != 0 {
+                self.s("public_barrier");
+                self.f(p.barrier);
+            }
             self.s(status(p.status));
             self.w(p.kills as u64);
             self.w(p.bounty as u64);
@@ -167,6 +177,7 @@ impl OutcomeDigest {
         for e in events {
             self.event(e);
         }
+        Ok(())
     }
 
     fn flight(&mut self, p: &rh_sim::ProjectileLaunch) {

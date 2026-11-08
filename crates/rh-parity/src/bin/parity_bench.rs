@@ -156,7 +156,10 @@ fn main() {
             sim.step_into(&mut ev);
             let us = t0.elapsed().as_secs_f64() * 1e6;
             if r == 0 && want_digest {
-                d.tick(&sim, &ev);
+                if let Err(error) = d.try_tick(&sim, &ev) {
+                    eprintln!("unrepresentable diagnostic snapshot: {error:?}");
+                    std::process::exit(2);
+                }
             }
             std::hint::black_box(&ev);
             if r >= 3 {

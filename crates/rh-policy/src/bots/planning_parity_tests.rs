@@ -420,6 +420,8 @@ fn planning_me(faction: FactionId) -> rh_sim::observe::SelfView {
         facing: 0.,
         hp: 900.,
         max_hp: 900.,
+        barrier: 0.,
+        barrier_ring_step: 0,
         status: rh_sim::Status::Alive,
         weapon: WeaponId::Fists,
         ready_in_ms: 0.,

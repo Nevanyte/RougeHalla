@@ -1,0 +1,148 @@
+{
+  "base": "d4d15a25cc628b2903d83e954d45c4a34e5e518d",
+  "cargo": "cargo 1.97.0 (c980f4866 2026-06-30)",
+  "rustc": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+  "focused_passed": 168,
+  "focused_failed": 0,
+  "focused_ignored": 0,
+  "results": [
+    {
+      "command": "cargo test -p rh-sim --all-features --locked --test observe",
+      "log": "sim-observe.log",
+      "passed": 8,
+      "groups": [
+        8
+      ],
+      "sha256": "8bfd9eee12fc4e7fada733b6f8dfb657e6c6ab27eb886073f54f1b9168bf1390"
+    },
+    {
+      "command": "cargo test -p rh-sim --all-features --locked --lib observe::",
+      "log": "sim-observe-lib.log",
+      "passed": 16,
+      "groups": [
+        16
+      ],
+      "sha256": "9a00b15dfa2dbec97b4c980feb717f5b12564336e5267904952e1686c3daedf4"
+    },
+    {
+      "command": "cargo test -p rh-sim --all-features --locked --lib item_view::",
+      "log": "sim-items.log",
+      "passed": 7,
+      "groups": [
+        7
+      ],
+      "sha256": "1e95e1961a829ece5eefe778e3a19e61622665b96723012734cf8fb195122488"
+    },
+    {
+      "command": "cargo test -p rh-sim --all-features --locked --lib actor_refs::",
+      "log": "sim-actor-refs.log",
+      "passed": 3,
+      "groups": [
+        3
+      ],
+      "sha256": "469d11a4b58f5311ceb6882381aefdf8010b66db9832d2975f25b4268d1653c0"
+    },
+    {
+      "command": "cargo test -p rh-sim --all-features --locked --lib projectile_view::",
+      "log": "sim-projectiles.log",
+      "passed": 2,
+      "groups": [
+        2
+      ],
+      "sha256": "11168bcf39eb1beae4ccbca2d9e0a006dca87beb98728bccd087778378bcc4f8"
+    },
+    {
+      "command": "cargo test -p rh-policy --all-features --locked --lib",
+      "log": "policy.log",
+      "passed": 74,
+      "groups": [
+        74
+      ],
+      "sha256": "5f0de34e1c437a30c0f390d48e6b5b9a4bbcc17f514d6e49d0d5a0f4b7447b2b"
+    },
+    {
+      "command": "cargo test -p rh-headless --all-features --locked --lib --test env --test item_offers --test barrier_observation --test projectile_view --test status_runtime",
+      "log": "headless.log",
+      "passed": 23,
+      "groups": [
+        5,
+        4,
+        8,
+        3,
+        1,
+        2
+      ],
+      "sha256": "8dee6174bf81627e4f12053dcf13e7cade669249f0dd5a66f9088d43ef12f5d6"
+    },
+    {
+      "command": "cargo test -p rh-server --all-features --locked --lib wire::",
+      "log": "server-wire.log",
+      "passed": 18,
+      "groups": [
+        18
+      ],
+      "sha256": "799ed565282265715d304519aefeb8c6e366965190c35fb6b82017d2c05bdf58"
+    },
+    {
+      "command": "cargo test -p rh-server --all-features --locked --test publish --test snapshot_delta --test barrier_observation",
+      "log": "server-publish.log",
+      "passed": 12,
+      "groups": [
+        3,
+        5,
+        4
+      ],
+      "sha256": "17b24e9cc33319c4ce54d28bdc5ade2e8c304244a6d6e8d629e2e3992cdac6df"
+    },
+    {
+      "command": "cargo test -p rh-sim --all-features --locked --test barrier_observe_no_alloc --test abilities_no_alloc --test no_alloc --test status_no_alloc",
+      "log": "allocations.log",
+      "passed": 4,
+      "groups": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "sha256": "bf3803b2fb24910b1656a8bd470415bae579e195c7c2ac802fe7888ab55ab1f2"
+    },
+    {
+      "command": "cargo test -p rh-sim --all-features --locked --test content every_const_in_the_source_tree_is_registered_or_explained",
+      "log": "content-registry.log",
+      "passed": 1,
+      "groups": [
+        1
+      ],
+      "sha256": "b2ae74beb4360e6b03145639a098325de18a80db72c17d1eb0d10f8b228ae7ae"
+    }
+  ],
+  "clippy": [
+    "cargo clippy -p rh-sim -p rh-policy -p rh-headless -p rh-server -p rh-parity --all-targets --locked -- -D warnings",
+    "cargo clippy -p rh-sim -p rh-policy -p rh-headless -p rh-server -p rh-parity --all-targets --all-features --locked -- -D warnings"
+  ],
+  "format": "cargo fmt --all --check",
+  "native_mutants": {
+    "ring-frounded-maximum": {
+      "exit": 101,
+      "sha256": "812132bcf147ec900cfea0276d0e7dc67efdc4f878dcfb0617af43f5ff1c8af2"
+    },
+    "bar-denominator": {
+      "exit": 101,
+      "sha256": "70a1c552e357621dafb957c545989eeae66577dae438074a4b2881fe19816a42"
+    },
+    "hidden-preflight": {
+      "exit": 101,
+      "sha256": "446d7665eafefc00212f417a2e0625ecfb2612fc969c060b5f949cbad0c5a54f"
+    }
+  },
+  "source_anchor_sha256": {
+    "packages/shared/src/schema.ts": "245486da649ea5bc5d8b9b0d5d75f3e860fc8f153574fa2b9ee091dcb52e99cb",
+    "packages/shared/src/hpView.ts": "40ec081fdb8adb245dca088a21f1aef18fa8dbf9d991581f16baf99606508cc3",
+    "packages/server/src/bots/brain/perception.ts": "059dba28d67a588be8b9f491cd69a242e841545a3b1863ce798da2e3f085390a",
+    "packages/server/src/bots/brain/types.ts": "12b3cae05bcde760cd642b9c5eb9919bfc47189882c81258994c9f1122d3d361",
+    "packages/client/src/render/PlayerView.ts": "13b877cae96d050d9a2977e2ce918e58e67f52c5a5b182e961cd884e25ff4853"
+  },
+  "source_corpus_consumer": "pending immutable handoff",
+  "G6_producer_and_private_timer_proof": "pending composition",
+  "protocol12_and_client_proof": "pending composition"
+}

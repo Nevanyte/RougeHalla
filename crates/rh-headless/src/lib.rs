@@ -305,12 +305,14 @@ impl Env {
         Ok(observations)
     }
 
+    /// Trusted scene wrapper. Arbitrary-checkpoint/external delivery uses [`Self::try_observations`].
     pub fn observations(&mut self) -> Vec<Observation> {
         self.try_observations()
             .expect("scene exceeds external observation bounds")
     }
 
-    /// One fixed step: external agents' commands (one list per external player, in order), then the seats, then the sim.
+    /// Trusted scene wrapper for one fixed step. Use [`Self::try_step`] for fallible external delivery.
+    /// External commands (one list per external player), then policy seats, then the sim.
     pub fn step(&mut self, external_cmds: &[Vec<PublicCommand>]) -> StepOut {
         self.try_step(external_cmds)
             .expect("scene exceeds external observation bounds")
