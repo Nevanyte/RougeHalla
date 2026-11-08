@@ -53,7 +53,9 @@ fn strict_mark_mode_counter_clock_relationship_and_delayed_classification_admiss
         ("hits", json!(0)),
         ("hits", json!(9_007_199_254_740_992u64)),
         ("swaps", json!(9_007_199_254_740_992u64)),
-        ("progress", json!(1.2)),
+        // A historical resisted/deepened chill is no longer restricted to the old two-point lattice. With an earned
+        // hit, progress below one is still malformed; the separate large value checks the upper history envelope.
+        ("progress", json!(0.5)),
         ("progress", json!(-1.)),
         ("progress", json!(1e300)),
         ("far_since", json!(now + 1.)),
