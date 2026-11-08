@@ -1,0 +1,44 @@
+{
+  "base": "a894574f8f46938cafef7f4103877be58c602905",
+  "reviewed_candidate": "0679049922891b075faaaf6aae940b28e9b645c8",
+  "integrated_through": "90574c57716bb7f8fafa4f87a46e1fe7aa2f26aa",
+  "corpora": [
+    {
+      "path": "parity/card-catalog/source.json",
+      "old_sha256": "9e76292b7ae74d305da2729a2ceba63965e64aa9fd670ab85568ae7909270507",
+      "new_sha256": "2ddb8f85114ff6e8e70c2d70b8207ed3f32c71431845f3cce1007be494e39792",
+      "case_count": 409,
+      "all_non_provenance_payloads_equal": true
+    },
+    {
+      "path": "parity/card-runtime/source.json",
+      "old_sha256": "80516466ca231b88d16cd0d187f90260f141042ba59b37322b99016ebcae33e1",
+      "new_sha256": "9e357ed421c876de39c004236a83563116b390fc9d75043af24047dc952fe049",
+      "case_count": 65,
+      "all_non_provenance_payloads_equal": true
+    },
+    {
+      "path": "parity/card-runtime-witness/source.json",
+      "old_sha256": "5df81afe05fa6bd22711ff9dfa80bff68a06a5d1824577c823380f332597c197",
+      "new_sha256": "59fdc1ccabd5b15d2251272cd7a10e41e3b9858203a9a61bd877a10c28917ebe",
+      "case_count": 2,
+      "all_non_provenance_payloads_equal": true
+    }
+  ],
+  "recursive_changed_paths": {
+    "catalog": 1,
+    "runtime": 8,
+    "runtime_input": 8,
+    "witness": 24,
+    "witness_input": 24
+  },
+  "frozen_pins_sha256": "7ed1086915fafd5fa129669270d6d53090f4b81052660a18318df60cab8b3023",
+  "portable_evidence_hashes_verified": 37,
+  "fast_auditor": {
+    "ok": true,
+    "failureCount": 0,
+    "explicit_accepted_overlays": 5
+  },
+  "workflow_yaml": "parsed; all four existing jobs depend on new read-only provenance job",
+  "limits": "Pinned recaptures and mutation controls independently executed by separate lane checkers; root repeats JSON/pin/evidence audit, not the unchanged source campaign. Full integration CI pending."
+}

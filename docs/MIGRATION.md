@@ -62,6 +62,13 @@ fails its catalog capture: the browser-driver repair changed the exact protected
 This is a second provenance dependency, not a changed409-case source payload. A bounded metadata-chain repair and fast
 read-only provenance auditor are assigned; this run is **failed**, and no final green-CI claim follows.
 
+That [browser provenance-chain repair](evidence/ci-browser-provenance-chain/ADMISSION.md) is now admitted through
+`90574c57`: actual pinned recaptures retain all payload/private records, original FROZEN pins and explicit prior lineage.
+Root independently verifies exact1/8/8/24/24 metadata differences, all non-provenance content,37 portable evidence hashes,
+and the passing fast auditor. The auditor checks all78 catalog source/five harness/325 protected entries plus runtime/
+witness references. A new early CI job gates the four existing jobs on that check, without removing any native/source
+tests. The next exact integration-head run remains pending; older failed runs are not relabeled.
+
 One actual final Unity Web build passes,14files/74,247,550bytes. Generated BakedContent is aa64c642; the manifest binds
 frozen1310 source, exact as-built serialization overlay and the dev server binary SHA20d5b70e…5b4b0. Independent checks
 verify82source hashes,24packaged build-evidence files and all14served resources. There is no embedded runtime revision
