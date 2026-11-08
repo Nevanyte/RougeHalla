@@ -34,7 +34,7 @@ and full Overkill argument rows are in every frame. The multi-contribution case 
   `git archive HEAD` temp repo; the live host ledger remains clean; final canonical control passes.
 - Provenance-only comment mutation: runtime cases identical, non-kill; host source verified untouched.
 - `capture.sh --check` and an independent external `--write` recapture are byte-identical (SHA256 above, 96,844 B).
-- Pinned Node 22.23.4 linux/amd64; provenance tool hashes `capture.mts` `bf62ea17…`, `capture.sh` `e6292c2a…`,
+- Pinned Node 22.23.4 linux/amd64; provenance tool hashes `capture.mts` `1162ff2a…`, `capture.sh` `e6292c2a…`,
   `run-mutants.sh` `6f66c1a0…`, package-lock `991869bd…`; source inventory recorded.
 
 ## Limits
