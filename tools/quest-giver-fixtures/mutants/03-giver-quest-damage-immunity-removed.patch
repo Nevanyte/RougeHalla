@@ -1,0 +1,11 @@
+--- a/packages/server/src/sim/mobLife.ts
++++ b/packages/server/src/sim/mobLife.ts
+@@ -131,7 +131,7 @@
+  */
+ export function hurtMob(world: World, c: MobCombatant, amounts: readonly number[], entries: readonly LedgerEntry[]): number {
+   const brain = c.rt.brain;
+-  if (isQuestGiver(c) || !brain || c.s.status !== "alive") return 0;
++  if (c.s.status !== "alive") return 0;
+   let total = 0;
+   for (const a of amounts) if (a > 0) total += a;
+   if (!(total > 0)) return 0;

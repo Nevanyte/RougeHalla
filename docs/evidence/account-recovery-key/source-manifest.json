@@ -1,0 +1,38 @@
+{
+  "base": "90574c57716bb7f8fafa4f87a46e1fe7aa2f26aa",
+  "excludes": [
+    "this manifest itself"
+  ],
+  "files": [
+    {
+      "path": "client-unity/RoguehallaNet.Tests/AccountHubFlowTests.cs",
+      "bytes": 26430,
+      "sha256": "92a601e13712d55befb7f890f376ca8214504294f709e257651666d018d50e2f"
+    },
+    {
+      "path": "client-unity/RoguehallaNet/Net/AccountHubFlow.cs",
+      "bytes": 15463,
+      "sha256": "1e8b7376d97f1117c90b6924e9ed632ab984fee6cfe60d9a14996a981614294f"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/RoguehallaNet/Net/AccountHubFlow.cs",
+      "bytes": 15463,
+      "sha256": "1e8b7376d97f1117c90b6924e9ed632ab984fee6cfe60d9a14996a981614294f"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Net/AccountCoordinator.cs",
+      "bytes": 2177,
+      "sha256": "ea11af18e91ce6f9ea025355fbc03e3930438aa6cdad91711060dda06c81dbbc"
+    },
+    {
+      "path": "docs/evidence/account-recovery-key/README.md",
+      "bytes": 3517,
+      "sha256": "537aea2f0a0a6978fe765d63219381f8c147a0c492fcd8072fe648b8ba59a347"
+    },
+    {
+      "path": "docs/evidence/account-recovery-key/checks.json",
+      "bytes": 1130,
+      "sha256": "65c4732188e88adc90157065e63a61c1da6e00dfdb712564c8c6340b1d5997e7"
+    }
+  ]
+}

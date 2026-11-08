@@ -1,0 +1,35 @@
+{
+  "candidate": "a2091bc69b1b85100b685e5ac7b0946b4d3bcd35",
+  "fresh_receipt_sha256": "5b1f52e447e941bc3c1175a36e44e09e763acdede4437c5b846d917cd0617303",
+  "full_pending_metadata_checks": [
+    {
+      "pending_records": 2,
+      "full_metadata_equal": true,
+      "result_body_fence_profile_match_equal": true,
+      "group_ended_at_max_original_ms_equal_within_0_01ms": true,
+      "ended_at_delta_ms": 0.0
+    }
+  ],
+  "all_recovered_duplicate_rows_equal": true,
+  "recovered_snapshot_sha256": "2cd1eb42b1e71b71d235c9eb5d18f30331107fcb4a83a28d9aa18d29733ad530",
+  "duplicate_snapshot_sha256": "2cd1eb42b1e71b71d235c9eb5d18f30331107fcb4a83a28d9aa18d29733ad530",
+  "table_counts": {
+    "_sqlx_migrations": 2,
+    "bot_learning_baseline": 0,
+    "bot_learning_entries": 0,
+    "gv_by_month": 2,
+    "gv_ledger": 2,
+    "match_results": 4,
+    "matches": 2,
+    "profiles": 4,
+    "purchases": 0,
+    "schema_compat": 1,
+    "sequences": 2,
+    "session_leases": 4
+  },
+  "limits": [
+    "Same-host local logical backup with explicit writer fencing; no PITR/cloud/power-loss certification.",
+    "Purchases and both bot-learning tables are empty in this workload.",
+    "Harness original-time assertion allows1000ms; independent review checks grouped maximum original time within0.01ms and every metadata field."
+  ]
+}

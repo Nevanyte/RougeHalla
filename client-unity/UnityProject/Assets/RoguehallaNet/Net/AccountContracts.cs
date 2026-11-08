@@ -25,6 +25,7 @@ namespace Roguehalla.Net
         public AccountProfile profile;
         public string token;
         public bool created;
+        [NonSerialized] public AccountFullProfile FullProfile;
     }
 
     public sealed class AccountHttpResponse
@@ -56,12 +57,13 @@ namespace Roguehalla.Net
     {
         public AccountProfile Profile { get; }
         public string CanonicalName { get; }
-        public bool HasFullProfile => false;
+        public bool HasFullProfile => FullProfile != null;
+        public AccountFullProfile FullProfile { get; }
         public string Token { get; }
         public bool Created { get; }
         public bool CredentialSaved { get; }
         internal OwnedAccount(AccountReply reply, bool saved)
-        { Profile = reply.profile; CanonicalName = reply.profile.name; Token = reply.token; Created = reply.created; CredentialSaved = saved; }
+        { Profile = reply.profile; CanonicalName = reply.profile.name; Token = reply.token; Created = reply.created; CredentialSaved = saved; FullProfile = reply.FullProfile; }
     }
 
     public sealed class AccountOpenResult

@@ -1,0 +1,39 @@
+{
+  "parent": "37bfbb7ffbe79d1981986a05d271e783cca1bbb5",
+  "focused": {
+    "passed": 60,
+    "failed": 0,
+    "new_regressions": 15,
+    "command": "dotnet test client-unity/RoguehallaNet.Tests --filter 'FullyQualifiedName~AccountApiServiceTests|FullyQualifiedName~AccountFullJsonTests|FullyQualifiedName~AccountPresentationTests'"
+  },
+  "unity_api_compile": {
+    "editor": "6000.0.85f2",
+    "aot_dll_sha256": "a56146202232958f46bd6a28b5a7da166aea123ee0d646735a46e5c341dfbf1f",
+    "warnings": 0,
+    "errors": 0,
+    "actual_editor_job": false
+  },
+  "mirrors_exact": true,
+  "private_log_receipts": {
+    "focused.log": {
+      "bytes": 1175,
+      "sha256": "1d122c55758e456b4ad5f86b2d253268270ede242f883f5fe72213452d8bcb00"
+    },
+    "unity-api.log": {
+      "bytes": 719,
+      "sha256": "d233fa35f9ed0f419ecf1916963b9a515f249bdfbbac5be546a843cc60e4769a"
+    }
+  },
+  "not_run": [
+    "unchanged full C# suite",
+    "catalog export (unchanged)",
+    "Editor",
+    "Web build",
+    "cloud",
+    "PG"
+  ],
+  "remaining_gates": [
+    "independent exact-head repair recheck",
+    "root UPM pin and actual combined Editor/IL2CPP/WebGL/HTTP/CORS/UI verification"
+  ]
+}

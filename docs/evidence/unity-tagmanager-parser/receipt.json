@@ -1,0 +1,160 @@
+{
+  "liveTagManagerSha256": "ba0fc9a31e0e92db24a4641274512353665c197833f42af08b54b13f98e8a010",
+  "artSourceRevision": "4b58dbf3",
+  "originalSha256": "ba0fc9a31e0e92db24a4641274512353665c197833f42af08b54b13f98e8a010",
+  "variantSha256": "0a61082afba2a5e8bbb48ea85716597ab62af959e5cb4929d7a7ee7a899f36b0",
+  "changedBareEmptyLayerEntries": 27,
+  "cases": {
+    "original": {
+      "exitCode": 0,
+      "tagManagerBeforeSha256": "ba0fc9a31e0e92db24a4641274512353665c197833f42af08b54b13f98e8a010",
+      "tagManagerAfterSha256": "ba0fc9a31e0e92db24a4641274512353665c197833f42af08b54b13f98e8a010",
+      "sourceUnchanged": true,
+      "nativeValues": {
+        "unityVersion": "6000.0.85f2",
+        "layerNames": [
+          "Default",
+          "TransparentFX",
+          "Ignore Raycast",
+          "",
+          "Water",
+          "UI",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ],
+        "sortingLayers": [
+          {
+            "name": "Default",
+            "id": 0,
+            "value": 0
+          }
+        ]
+      },
+      "parserErrorCount": 2,
+      "parserErrors": [
+        "Unable to parse file ProjectSettings/TagManager.asset: [Parser Failure at line 41: Expect ':' between key and value within mapping]",
+        "Start importing ProjectSettings/TagManager.asset using Guid(00000000000000003000000000000000) (LibraryAssetImporter)Unable to parse file ProjectSettings/TagManager.asset: [Parser Failure at line 41: Expect ':' between key and value within mapping]"
+      ],
+      "probeCompleted": true,
+      "projectSettingsOverlay": {
+        "ProjectSettings/ProjectSettings.asset": "1e51047f756b9c227824e7c0fec9a36d158408e9cb7edf4ad424ae22e67f7b86",
+        "ProjectSettings/InputManager.asset": "d0f454ddb880912abcae92e3e12957a7446786ba89e24937e019ff3bbc0d4300",
+        "ProjectSettings/TimeManager.asset": "3396f52fdc16d445024e01d7a2d99db6f0a37569d1d73c0302e9ffb857d90287",
+        "ProjectSettings/MultiplayerManager.asset": "aba89fd1a1ddad182727ad82727e536d27372e90328a8196da2a4560398983dd",
+        "ProjectSettings/VersionControlSettings.asset": "e199cdfa6a8f2bf33cfd47e549198f13e3eb2a5099e908fdb4e0f14d939ccc6b",
+        "ProjectSettings/GraphicsSettings.asset": "fbf0856b7693639a5388ae693a455baaad354c1d8dc548601de3dc61c4ab12c3",
+        "ProjectSettings/PresetManager.asset": "29c125923fe6e29f90190d4fce1c82d660e7051546e2c9d02908d18c9cf2436c",
+        "ProjectSettings/UnityConnectSettings.asset": "11251dae0356b6f43dd2c67bb511f6b7ecda4e5de425186bba3297e6f3dc1c6f",
+        "ProjectSettings/EditorSettings.asset": "06753c21648950aee0013b70f79a9035ac52aec6204d44cc2ac55a84034ad9ca",
+        "ProjectSettings/EditorBuildSettings.asset": "41bc588f6ecc03944687d496f024917cabb061e21c148a6471b74581df14f908",
+        "ProjectSettings/ClusterInputManager.asset": "40e65dd214bf254955d2c8829ca8ce2130fd3510485560ce012e9a1ddd93e623",
+        "ProjectSettings/NavMeshAreas.asset": "7ebbf8f53b8033104e1878b95ca07a28d0954092d81c220f14196a42f651e658",
+        "ProjectSettings/Physics2DSettings.asset": "9b78fdd0bac0f486c052ca65ddc0e5022d322b12874931a49456d407c5bbfc00",
+        "ProjectSettings/AudioManager.asset": "9a554916fe138ebcad8443ee9b079363ecc72795c39d0e80f5f7ca99e2c6f5e7",
+        "ProjectSettings/VFXManager.asset": "9378043da38a17f2198d52a10c17789161d30e3285a387ca3687a71551c32448",
+        "ProjectSettings/DynamicsManager.asset": "f27512e38f80c091df2dd163ece09f86f8fe67395659af0a0ca873a88fd1c6a7",
+        "ProjectSettings/QualitySettings.asset": "bbc1846ac2fa9fdaa62fb1d1425c30ae0a30a98972eb158e8f0bcd9f862f70c4",
+        "ProjectSettings/MemorySettings.asset": "2c9e2339b4fa50f4782840d37dde021508d411b99278614cba335d206edb1738"
+      }
+    },
+    "explicit-empty": {
+      "exitCode": 0,
+      "tagManagerBeforeSha256": "0a61082afba2a5e8bbb48ea85716597ab62af959e5cb4929d7a7ee7a899f36b0",
+      "tagManagerAfterSha256": "0a61082afba2a5e8bbb48ea85716597ab62af959e5cb4929d7a7ee7a899f36b0",
+      "sourceUnchanged": true,
+      "nativeValues": {
+        "unityVersion": "6000.0.85f2",
+        "layerNames": [
+          "Default",
+          "TransparentFX",
+          "Ignore Raycast",
+          "",
+          "Water",
+          "UI",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ],
+        "sortingLayers": [
+          {
+            "name": "Default",
+            "id": 0,
+            "value": 0
+          }
+        ]
+      },
+      "parserErrorCount": 0,
+      "parserErrors": [],
+      "probeCompleted": true,
+      "projectSettingsOverlay": {
+        "ProjectSettings/ProjectSettings.asset": "e74df44e5c6e794608984d3a2140e894d0361139e8104479680ab89fa47b04f9",
+        "ProjectSettings/InputManager.asset": "d0f454ddb880912abcae92e3e12957a7446786ba89e24937e019ff3bbc0d4300",
+        "ProjectSettings/TimeManager.asset": "3396f52fdc16d445024e01d7a2d99db6f0a37569d1d73c0302e9ffb857d90287",
+        "ProjectSettings/MultiplayerManager.asset": "aba89fd1a1ddad182727ad82727e536d27372e90328a8196da2a4560398983dd",
+        "ProjectSettings/VersionControlSettings.asset": "e199cdfa6a8f2bf33cfd47e549198f13e3eb2a5099e908fdb4e0f14d939ccc6b",
+        "ProjectSettings/GraphicsSettings.asset": "fbf0856b7693639a5388ae693a455baaad354c1d8dc548601de3dc61c4ab12c3",
+        "ProjectSettings/PresetManager.asset": "29c125923fe6e29f90190d4fce1c82d660e7051546e2c9d02908d18c9cf2436c",
+        "ProjectSettings/UnityConnectSettings.asset": "11251dae0356b6f43dd2c67bb511f6b7ecda4e5de425186bba3297e6f3dc1c6f",
+        "ProjectSettings/EditorSettings.asset": "06753c21648950aee0013b70f79a9035ac52aec6204d44cc2ac55a84034ad9ca",
+        "ProjectSettings/EditorBuildSettings.asset": "41bc588f6ecc03944687d496f024917cabb061e21c148a6471b74581df14f908",
+        "ProjectSettings/ClusterInputManager.asset": "40e65dd214bf254955d2c8829ca8ce2130fd3510485560ce012e9a1ddd93e623",
+        "ProjectSettings/NavMeshAreas.asset": "7ebbf8f53b8033104e1878b95ca07a28d0954092d81c220f14196a42f651e658",
+        "ProjectSettings/Physics2DSettings.asset": "9b78fdd0bac0f486c052ca65ddc0e5022d322b12874931a49456d407c5bbfc00",
+        "ProjectSettings/AudioManager.asset": "9a554916fe138ebcad8443ee9b079363ecc72795c39d0e80f5f7ca99e2c6f5e7",
+        "ProjectSettings/VFXManager.asset": "9378043da38a17f2198d52a10c17789161d30e3285a387ca3687a71551c32448",
+        "ProjectSettings/DynamicsManager.asset": "f27512e38f80c091df2dd163ece09f86f8fe67395659af0a0ca873a88fd1c6a7",
+        "ProjectSettings/QualitySettings.asset": "bbc1846ac2fa9fdaa62fb1d1425c30ae0a30a98972eb158e8f0bcd9f862f70c4",
+        "ProjectSettings/MemorySettings.asset": "2c9e2339b4fa50f4782840d37dde021508d411b99278614cba335d206edb1738"
+      }
+    }
+  },
+  "liveTagManagerUnchanged": true,
+  "verdict": "PASS"
+}

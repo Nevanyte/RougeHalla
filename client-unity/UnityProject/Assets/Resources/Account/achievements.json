@@ -1,0 +1,214 @@
+[
+  {
+    "id": "first_blood",
+    "name": "First Blood",
+    "desc": "Kill another player.",
+    "reward": [
+      "title-bloodied"
+    ]
+  },
+  {
+    "id": "slayer",
+    "name": "Slayer",
+    "desc": "Kill 10 players.",
+    "reward": [
+      "title-slayer"
+    ]
+  },
+  {
+    "id": "reaper",
+    "name": "Reaper",
+    "desc": "Kill 50 players.",
+    "reward": [
+      "title-reaper"
+    ]
+  },
+  {
+    "id": "rampage",
+    "name": "Rampage",
+    "desc": "Kill 5 players in a single run.",
+    "reward": [
+      "title-rampage",
+      "trail-comet"
+    ]
+  },
+  {
+    "id": "bounty_hunter",
+    "name": "Bounty Hunter",
+    "desc": "End a rampage and claim the bounty.",
+    "reward": [
+      "title-bounty-hunter",
+      "outline-bounty"
+    ]
+  },
+  {
+    "id": "first_win",
+    "name": "First Win",
+    "desc": "Be the last one standing. Counts only in runs of 3+ players where you damaged 2+ of them.",
+    "reward": [
+      "title-victor",
+      "skin-laurel"
+    ]
+  },
+  {
+    "id": "champion",
+    "name": "Champion",
+    "desc": "Win 5 runs. Counts only in runs of 3+ players where you damaged 2+ of them.",
+    "reward": [
+      "title-champion"
+    ]
+  },
+  {
+    "id": "warlord",
+    "name": "Warlord",
+    "desc": "Win 20 runs. Counts only in runs of 3+ players where you damaged 2+ of them.",
+    "reward": [
+      "title-warlord"
+    ]
+  },
+  {
+    "id": "veteran",
+    "name": "Veteran",
+    "desc": "Play 25 runs.",
+    "reward": [
+      "title-veteran",
+      "skin-ghost"
+    ]
+  },
+  {
+    "id": "glorious",
+    "name": "Glorious",
+    "desc": "Earn 1,000 GV in total.",
+    "reward": [
+      "title-glorious"
+    ]
+  },
+  {
+    "id": "win_fire",
+    "name": "Pyre",
+    "desc": "Win a run as Fire. Counts only in runs of 3+ players where you damaged 2+ of them.",
+    "reward": [
+      "title-pyre-lord"
+    ]
+  },
+  {
+    "id": "win_sentenced",
+    "name": "Verdict",
+    "desc": "Win a run as Sentenced. Counts only in runs of 3+ players where you damaged 2+ of them.",
+    "reward": [
+      "title-the-judge"
+    ]
+  },
+  {
+    "id": "win_plague",
+    "name": "Infestation",
+    "desc": "Win a run as Plague. Counts only in runs of 3+ players where you damaged 2+ of them.",
+    "reward": [
+      "title-rat-king"
+    ]
+  },
+  {
+    "id": "win_frost",
+    "name": "Deep Freeze",
+    "desc": "Win a run as Frost. Counts only in runs of 3+ players where you damaged 2+ of them.",
+    "reward": [
+      "title-ice-wall"
+    ]
+  },
+  {
+    "id": "win_holy",
+    "name": "Blood Rite",
+    "desc": "Win a run as Holy. Counts only in runs of 3+ players where you damaged 2+ of them.",
+    "reward": [
+      "title-demon-blood"
+    ]
+  },
+  {
+    "id": "cycle_breaker",
+    "name": "Cycle Breaker",
+    "desc": "Win a run as every faction. Counts only in runs of 3+ players where you damaged 2+ of them.",
+    "reward": [
+      "title-cycle-breaker"
+    ]
+  },
+  {
+    "id": "gild_fire",
+    "name": "Gilded Fire",
+    "desc": "Win 3 runs as Fire. Counts only in runs of 3+ players where you damaged 2+ of them.",
+    "reward": [
+      "gilded-fire"
+    ]
+  },
+  {
+    "id": "gild_sentenced",
+    "name": "Gilded Sentenced",
+    "desc": "Win 3 runs as Sentenced. Counts only in runs of 3+ players where you damaged 2+ of them.",
+    "reward": [
+      "gilded-sentenced"
+    ]
+  },
+  {
+    "id": "gild_plague",
+    "name": "Gilded Plague",
+    "desc": "Win 3 runs as Plague. Counts only in runs of 3+ players where you damaged 2+ of them.",
+    "reward": [
+      "gilded-plague"
+    ]
+  },
+  {
+    "id": "gild_frost",
+    "name": "Gilded Frost",
+    "desc": "Win 3 runs as Frost. Counts only in runs of 3+ players where you damaged 2+ of them.",
+    "reward": [
+      "gilded-frost"
+    ]
+  },
+  {
+    "id": "gild_holy",
+    "name": "Gilded Holy",
+    "desc": "Win 3 runs as Holy. Counts only in runs of 3+ players where you damaged 2+ of them.",
+    "reward": [
+      "gilded-holy"
+    ]
+  },
+  {
+    "id": "gild_sword",
+    "name": "Golden Sword",
+    "desc": "Win 5 runs holding the sword. Counts only in runs of 3+ players where you damaged 2+ of them.",
+    "reward": [
+      "gilded-sword"
+    ]
+  },
+  {
+    "id": "gild_axe",
+    "name": "Golden Axe",
+    "desc": "Win 5 runs holding the axe. Counts only in runs of 3+ players where you damaged 2+ of them.",
+    "reward": [
+      "gilded-axe"
+    ]
+  },
+  {
+    "id": "gild_bow",
+    "name": "Golden Bow",
+    "desc": "Win 5 runs holding the bow. Counts only in runs of 3+ players where you damaged 2+ of them.",
+    "reward": [
+      "gilded-bow"
+    ]
+  },
+  {
+    "id": "gild_wand",
+    "name": "Golden Wand",
+    "desc": "Win 5 runs holding the wand. Counts only in runs of 3+ players where you damaged 2+ of them.",
+    "reward": [
+      "gilded-wand"
+    ]
+  },
+  {
+    "id": "gild_shield",
+    "name": "Golden Shield",
+    "desc": "Win 5 runs holding the shield. Counts only in runs of 3+ players where you damaged 2+ of them.",
+    "reward": [
+      "gilded-shield"
+    ]
+  }
+]

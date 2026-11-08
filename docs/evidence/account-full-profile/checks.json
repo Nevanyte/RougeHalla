@@ -1,0 +1,61 @@
+{
+  "base": "843a03e4fb4de9b51b2471b916b25edda8a3359f",
+  "focused": {
+    "passed": 45,
+    "failed": 0,
+    "command": "dotnet test client-unity/RoguehallaNet.Tests --filter 'FullyQualifiedName~AccountApiServiceTests|FullyQualifiedName~AccountFullJsonTests|FullyQualifiedName~AccountPresentationTests'"
+  },
+  "full_suite": {
+    "passed": 515,
+    "failed": 0,
+    "skipped": 0,
+    "command": "dotnet test client-unity/RoguehallaNet.Tests"
+  },
+  "unity_api_compile": {
+    "editor": "6000.0.85f2",
+    "aot_dll_sha256": "a56146202232958f46bd6a28b5a7da166aea123ee0d646735a46e5c341dfbf1f",
+    "errors": 0,
+    "warnings": 0,
+    "actual_Editor_or_IL2CPP_run": false
+  },
+  "catalog_check": {
+    "command": "tools/account-catalog/export.sh --check",
+    "cosmetics": 57,
+    "achievements": 26,
+    "pass": true
+  },
+  "mirror_check": {
+    "command": "bash client-unity/sync-net.sh --check",
+    "pass": true
+  },
+  "raw_private_logs": {
+    "focused-final.log": {
+      "sha256": "1148136904d5babf865f37fcb9f644587b135fee8fdbbc10a94a1c60ead05053",
+      "bytes": 1147
+    },
+    "full-final.log": {
+      "sha256": "1715db963d4745385f754258ea30bf67345da093574f683b16a71665e179cbf9",
+      "bytes": 1145
+    },
+    "unity-api-final.log": {
+      "sha256": "f54a5c6081484a8b46cb7427df4ecd9bef7d9680b53b5a8294767c011716ab4c",
+      "bytes": 532
+    }
+  },
+  "limitations": [
+    "UPM explicit package pin reserved to root through Client.Add",
+    "combined Editor/WebGL/IL2CPP/browser CORS and actual HTTP shop/profile gate pending",
+    "pure service tests use disposable in-memory transport; no new live/PG/server integration proof",
+    "no per-match banking receipt endpoint",
+    "pending metadata and blocked-store credential recovery are page-lifetime only"
+  ],
+  "commands_not_run": [
+    "Editor",
+    "Web build",
+    "cloud",
+    "PG suites",
+    "backup drill"
+  ],
+  "original_candidate": "37bfbb7ffbe79d1981986a05d271e783cca1bbb5",
+  "repair_checks": "repair-checks.json"
+}

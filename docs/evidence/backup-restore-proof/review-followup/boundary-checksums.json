@@ -1,0 +1,53 @@
+{
+  "boundary.json": {
+    "rows": {
+      "_sqlx_migrations": 2,
+      "bot_learning_baseline": 0,
+      "bot_learning_entries": 0,
+      "gv_by_month": 1,
+      "gv_ledger": 1,
+      "match_results": 2,
+      "matches": 1,
+      "profiles": 4,
+      "purchases": 0,
+      "schema_compat": 1,
+      "sequences": 2,
+      "session_leases": 4
+    },
+    "sha256": "25eefaeeabbb7617137db35fa65e2176e7ba597ee031176b0dd2c7fb98247f02"
+  },
+  "duplicate-boundary.json": {
+    "rows": {
+      "_sqlx_migrations": 2,
+      "bot_learning_baseline": 0,
+      "bot_learning_entries": 0,
+      "gv_by_month": 2,
+      "gv_ledger": 2,
+      "match_results": 4,
+      "matches": 2,
+      "profiles": 4,
+      "purchases": 0,
+      "schema_compat": 1,
+      "sequences": 2,
+      "session_leases": 4
+    },
+    "sha256": "c7c35eb3c1653399d19f5502ffa2117ddece76e31ee4c6009666a1fc754972f8"
+  },
+  "recovered-boundary.json": {
+    "rows": {
+      "_sqlx_migrations": 2,
+      "bot_learning_baseline": 0,
+      "bot_learning_entries": 0,
+      "gv_by_month": 2,
+      "gv_ledger": 2,
+      "match_results": 4,
+      "matches": 2,
+      "profiles": 4,
+      "purchases": 0,
+      "schema_compat": 1,
+      "sequences": 2,
+      "session_leases": 4
+    },
+    "sha256": "c7c35eb3c1653399d19f5502ffa2117ddece76e31ee4c6009666a1fc754972f8"
+  }
+}

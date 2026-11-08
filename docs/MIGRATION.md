@@ -50,8 +50,24 @@ Subsequent CI remains revision-scoped; older green runs are historical evidence.
 CI42521426323 atdf0d7bb8 now passes the complete simulation job and C#. Native Rust/default/PG/placement, strict lints,
 parity/headless and the complete source campaign pass before the final browser step. That step exposed another stale
 protocol11 assertion; the [driver repair](evidence/ci-browser-protocol13/README.md) passes a focused15-check local
-Chromium WSS proof against a freshly built native df0d7bb8 dev binary. The card-runtime job separately remains held on its
-catalog-reference provenance chain. The full workflow is therefore **failed**, with both repairs awaiting exact-head CI.
+Chromium WSS proof against a freshly built native df0d7bb8 dev binary. The separate
+[card-runtime provenance repair](evidence/ci-card-runtime-provenance/README.md) is now admitted throughc14fd959:
+genuine pinned recaptures change only4/4 runtime and14/14 witness metadata leaves; root independently compares all
+non-provenance payloads/private records, checks every source/harness pin and original FROZEN pins, and verifies27 portable
+evidence hashes. The separate checker reproduces both positive/negative controls. The original workflow remains
+**failed**; both repairs now await the next exact integration-head CI run.
+
+The follow-up CI42525598022 at `a894574f` passes simulation, C# and the card-runtime source job, but the Rust job
+fails its catalog capture: the browser-driver repair changed the exact protected `tools/browser-proof/proof.mjs` hash.
+This is a second provenance dependency, not a changed409-case source payload. A bounded metadata-chain repair and fast
+read-only provenance auditor are assigned; this run is **failed**, and no final green-CI claim follows.
+
+That [browser provenance-chain repair](evidence/ci-browser-provenance-chain/ADMISSION.md) is now admitted through
+`90574c57`: actual pinned recaptures retain all payload/private records, original FROZEN pins and explicit prior lineage.
+Root independently verifies exact1/8/8/24/24 metadata differences, all non-provenance content,37 portable evidence hashes,
+and the passing fast auditor. The auditor checks all78 catalog source/five harness/325 protected entries plus runtime/
+witness references. A new early CI job gates the four existing jobs on that check, without removing any native/source
+tests. The next exact integration-head run remains pending; older failed runs are not relabeled.
 
 One actual final Unity Web build passes,14files/74,247,550bytes. Generated BakedContent is aa64c642; the manifest binds
 frozen1310 source, exact as-built serialization overlay and the dev server binary SHA20d5b70e…5b4b0. Independent checks
@@ -85,6 +101,32 @@ passes four JsonUtility/PlayerPrefs tests; root verifies489 tested project hashe
 serialization overlay) and21 exact adapter files. It does not yet wire normal menu/Join, implement full-profile maps,
 prove browser reload durability or establish bank completion. The account owner supplies reusable lifetime/origin APIs;
 the separately owner-approved Unity UI modernization lane owns their functional Bootstrap/MatchClient/MatchHud integration.
+
+The [local cold-backup/restore proof](evidence/backup-restore-proof/ADMISSION.md) is admitted through `b9785ecf` after
+independent fresh execution and focused assertion strengthening. Distinct durable PostgreSQL clusters, actual HTTP and
+combat-produced pending spool records, explicit old-writer fencing, logical dump/restore, exact metadata/original-time
+retention, duplicate replay, live-lease and successor-fence controls pass. Root verifies all19 portable evidence hashes;
+production server/persistence code is unchanged from the tested base. This extends the earlier service-reconstruction
+proof to a quiescent local cold restore; cloud/PITR/power-loss and populated purchase/bot-learning recovery remain open.
+
+A [fresh-import Unity settings repair](evidence/unity-tagmanager-parser/README.md) is admitted at `f4f418be`. Two isolated
+pinned Editor probes show27 bare empty layer entries caused parser errors; explicit empty strings remove those errors
+while retaining all32 layer names and sorting-layer values. The existing live Editor was untouched. This is settings
+parser evidence, not acceptance of the pending combined UI/Web build.
+
+The [eight source quest-giver witnesses](evidence/quest-giver/ADMISSION.md) and
+[five native/source pending-Wish terminal cases](evidence/wish-terminal-producers/ADMISSION.md) are admitted through
+`146264b8`. Independent review exposed and repaired runner exit-status, failed-hasher and double-restoration defects;
+root executes the real-runner disposable controls and exact payload verifier, plus the integrated terminal consumer and
+its strict lint. Giver evidence does not implement a native neutral actor. The terminal test changes no gameplay and
+does not close the five strict source-born NPC signature prerequisites.
+
+The [reusable account coordinator/full-profile APIs](evidence/account-full-profile/ADMISSION.md) are admitted through
+`538de384`. Independent review and repair close current-leaderboard-error binding and exact purchase409 classification;
+root verifies all36 authored manifest files. Ownership-safe rich reads, stable purchase intents, explicit uncertain
+outcomes, immutable presentation catalogs and generation-fenced leaderboard data are available to the UI lane.
+The separate frozen first-UI/account composition passes554 C# tests at `cc7790b7`; actual combined Editor/Web screens,
+UPM direct pin, deployed preflight and reload/banking guarantees remain open. No native gameplay/wire identity changes.
 
 [Frozen gate scopes and receipts](evidence/native-wish-union/FROZEN13_GATE.md) supersede the private pre-admission status
 below. The older results and artifact descriptions that follow retain their historical revision limits.

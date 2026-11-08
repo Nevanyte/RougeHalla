@@ -1,0 +1,15 @@
+{
+  "kind": "witness-input",
+  "semanticFields": [
+    "sourceInputs",
+    "harnessInputs (minus the witness capture tool)",
+    "frozenPins",
+    "actualPinnedInputs frozenOriginalSha256/docOverlayApplied"
+  ],
+  "semanticDigestOld": "a7d1b19f9c55bae7e7a67739cdb4a34d4049b7d803485edb01a1110cf8232a1f",
+  "semanticDigestNew": "a7d1b19f9c55bae7e7a67739cdb4a34d4049b7d803485edb01a1110cf8232a1f",
+  "semanticEqual": true,
+  "note": "The earlier f9153222/44136fa3 values were format-only placeholders; these digests cover the stable input inventory and frozen pins.",
+  "formatOnlyDigestOld": "25cd62c343f1e92ffe69dddb133619350494240b4d6e4eff3564a152cd682825",
+  "formatOnlyDigestNew": "25cd62c343f1e92ffe69dddb133619350494240b4d6e4eff3564a152cd682825"
+}
