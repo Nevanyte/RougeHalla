@@ -227,6 +227,9 @@ content! {
     FROST_RANGED_CHILL_MULT: f64 = 0.85, "multiplier";
     FROST_MOVE_QUANTIZATION: f64 = 1000., "steps/multiplier";
     SIG_CHILLED: u8 = 1, "bits";
+    // Frost Frozen Justice (shared/constants + sim/bruiserPassives.ts).
+    FROST_ELITE_GUARD_BONUS: f64 = 25.0, "armor and magic resist";
+    FROST_ELITE_GUARD_LINGER_MS: f64 = 2_000.0, "ms";
 
     // Base power-zero player Sentenced.
     MARK_BASE_PCT: f64 = 0.045, "fraction";

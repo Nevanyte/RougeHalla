@@ -85,6 +85,8 @@ impl Runtime {
     pub fn linger_mult(&self) -> f64 {
         MultSums::from_source_values(self.mults).get(fold::MultKey::Linger)
     }
+    /// Validate the cached fold. `frozen_guard` is the owner's Frost Frozen Justice flag: it is the one positive source,
+    /// so its capped bonus is only admitted when the trusted state says the guard actually holds.
     pub(crate) fn valid(
         &self,
         build: &crate::cards::Build,
@@ -92,6 +94,7 @@ impl Runtime {
         kill_stats: &crate::kill_augments::KillStats,
         base_hp: f64,
         faction: crate::FactionId,
+        frozen_guard: bool,
     ) -> bool {
         if !build.valid()
             || !farm.valid()
@@ -145,14 +148,23 @@ impl Runtime {
         let mut mirrors = fold::mirrors_from_fold(&folded);
         mirrors.speed_mult *= self.source_speed;
         let base = fold::encode_mirrors(&mirrors).source_values();
+        // Frost's Frozen Justice is the one positive source contribution: its capped 25 armor/shield may raise the
+        // standard defense mirror after the last fold only while the guard holds. Everything else keeps the exact
+        // bounds, so a corrupted armor/shield wire is still refused for every other fighter.
+        let passive = if frozen_guard {
+            fold::encode_flat(crate::constants::FROST_ELITE_GUARD_BONUS)
+        } else {
+            0.
+        };
         self.wire.iter().all(|v| v.fract() == 0.)
             && self.wire[0] >= fold::encode_mult(0.)
             && self.wire[0] <= base[0]
             && self.wire[1] == base[1]
             && self.wire[2] == base[2]
             && self.wire[3] >= fold::encode_flat(-crate::constants::AXE_SHRED_CAP)
-            && self.wire[3] <= base[3]
-            && self.wire[4..] == base[4..]
+            && self.wire[3] <= base[3] + passive
+            && (base[4]..=base[4] + passive).contains(&self.wire[4])
+            && self.wire[5..] == base[5..]
     }
 }
 pub(crate) fn view(p: &crate::fighter::FighterCore) -> crate::status_runtime::StatView {
@@ -959,6 +971,7 @@ mod guard_tests {
                 &p.kill_stats,
                 crate::content::faction(p.vitals.faction).hp,
                 p.vitals.faction,
+                false,
             )
         };
         let p = &sim.w.players[i];

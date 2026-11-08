@@ -240,6 +240,7 @@ pub(crate) fn validate(
                 &Default::default(),
                 p.vitals.max_hp,
                 p.vitals.faction,
+                false,
             )
         {
             return Err("invalid mob gear/mirrors".into());

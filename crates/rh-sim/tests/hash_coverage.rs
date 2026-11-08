@@ -1209,6 +1209,10 @@ const VALIDATED: &[(&str, &str)] = &[
         "world.projectiles.*.roam_armed",
         "the armed mark only launches from a Fire seat's armed attack; a reflected or other-owner flight is refused (checkpoint.rs)",
     ),
+    (
+        "world.players.*.frost_guard.active",
+        "only a live Frost seat in an active run may hold the guard; every other seat's flag is refused (checkpoint.rs)",
+    ),
 ];
 
 /// `Some` values for optional leaves that no scripted match produces between steps (an item slot has no flow in the slice,

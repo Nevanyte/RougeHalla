@@ -519,6 +519,9 @@ pub struct Player {
     /// Fire's out-of-combat roaming clock and armed-burst flag (source `sim/fireRoam.ts` runtime).
     #[serde(default)]
     pub(crate) roam: crate::systems::fire_roam::Roam,
+    /// Frost's Frozen Justice elite-contact clock and its synced guard flag (source `sim/bruiserPassives.ts`).
+    #[serde(default)]
+    pub(crate) frost_guard: crate::systems::bruiser::FrostGuard,
     pub plan_ready: bool,
     pub build: crate::cards::Build,
     pub potion_small: u8,
@@ -588,6 +591,7 @@ impl Player {
             card_prevented: 0.,
             card_tank_hp: 0.,
             roam: Default::default(),
+            frost_guard: Default::default(),
             build: Default::default(),
             potion_small: 0,
             healing_until: 0.,

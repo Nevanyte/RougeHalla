@@ -37,11 +37,14 @@ use crate::systems::{
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Gate {
     Always,
-    /// `config.signatures`: factions, fire roam, bruiser passives, plague corpses and zombies, the Sentenced hunt.
+    /// `config.signatures`: factions, fire roam, plague corpses and zombies, the Sentenced hunt (the Bruiser installer
+    /// is its own explicit gate below).
     Signatures,
     /// The partial world installs the Fire roam auxiliary module (legacy `signatures: true` installs it with `factions`;
     /// the explicit partial foundations opt in through `FactionMode::...FireRoam`).
     FireRoam,
+    /// The Bruiser/champion auxiliary installer (`sim/bruiserPassives.ts`).
+    Bruiser,
     /// `config.walkHints`.
     WalkHints,
     /// `config.mobs`.
@@ -61,6 +64,9 @@ pub enum Gate {
 pub struct Gates {
     pub signatures: bool,
     pub fire_roam: bool,
+    /// The Bruiser/champion auxiliary installer. Legacy production and training worlds install it with the signature
+    /// layer; the captured faction fixtures name a module set without it, so the recorded worlds keep it off.
+    pub bruiser: bool,
     pub walk_hints: bool,
     pub mobs: bool,
     pub quests: bool,
@@ -73,6 +79,7 @@ impl Gates {
     pub const PRODUCTION: Gates = Gates {
         signatures: true,
         fire_roam: true,
+        bruiser: true,
         walk_hints: true,
         mobs: true,
         quests: true,
@@ -83,6 +90,7 @@ impl Gates {
     pub const CAPTURE: Gates = Gates {
         signatures: false,
         fire_roam: false,
+        bruiser: false,
         walk_hints: false,
         mobs: false,
         quests: false,
@@ -93,11 +101,18 @@ impl Gates {
     pub const TRAINING: Gates = Gates {
         signatures: true,
         fire_roam: true,
+        bruiser: true,
         walk_hints: true,
         mobs: true,
         quests: false,
         dummies: true,
         training: true,
+    };
+    /// The PvE Frost foundation: the declared Frozen Justice corpus profile installs `bruiserPassives` explicitly, so the
+    /// only plan that runs its rows with mobs is this one.
+    pub const MOB_FROST_FOUNDATION: Gates = Gates {
+        bruiser: true,
+        ..Self::MOB_BASIC_FACTIONS
     };
 
     /// The match uses the baseline capture plan or the explicitly partial Holy foundation.
@@ -107,7 +122,9 @@ impl Gates {
             k.config.mob_mode,
             crate::mob_runtime::MobMode::SpawnFoundation | crate::mob_runtime::MobMode::Pve
         ) {
-            if k.config.faction_mode.engagement() {
+            if k.config.faction_mode.frost() {
+                Gates::MOB_FROST_FOUNDATION
+            } else if k.config.faction_mode.engagement() {
                 Gates::MOB_BASIC_FACTIONS
             } else {
                 Gates::MOB_FOUNDATION
@@ -147,6 +164,7 @@ impl Gate {
             Gate::Always => true,
             Gate::Signatures => g.signatures,
             Gate::FireRoam => g.fire_roam,
+            Gate::Bruiser => g.bruiser,
             Gate::WalkHints => g.walk_hints,
             Gate::Mobs => g.mobs,
             Gate::Quests => g.quests && !g.training,
@@ -608,6 +626,8 @@ impl Plan {
             &PRODUCTION_PLAN
         } else if g == Gates::FIRE_ROAM_FOUNDATION {
             &FIRE_ROAM_FOUNDATION_PLAN
+        } else if g == Gates::MOB_FROST_FOUNDATION {
+            &MOB_FROST_FOUNDATION_PLAN
         } else if g == Gates::HOLY_FOUNDATION {
             &HOLY_FOUNDATION_PLAN
         } else if g == Gates::MOB_BASIC_FACTIONS {
@@ -634,6 +654,7 @@ static PRODUCTION_PLAN: Plan = Plan::compile(&Gates::PRODUCTION);
 static CAPTURE_PLAN: Plan = Plan::compile(&Gates::CAPTURE);
 static HOLY_FOUNDATION_PLAN: Plan = Plan::compile(&Gates::HOLY_FOUNDATION);
 static FIRE_ROAM_FOUNDATION_PLAN: Plan = Plan::compile(&Gates::FIRE_ROAM_FOUNDATION);
+static MOB_FROST_FOUNDATION_PLAN: Plan = Plan::compile(&Gates::MOB_FROST_FOUNDATION);
 static TRAINING_PLAN: Plan = Plan::compile(&Gates::TRAINING);
 
 /// Runs compiled phases in order: the one place `updateActive`'s systems are called from.
@@ -796,7 +817,13 @@ static AFTER_WEAPONS: [Item<SystemFn>; 3] = [
         Gate::Signatures,
         crate::systems::signatures::after_weapons,
     ),
-    pending("bruiserPassives.update", Gate::Signatures, "P-FACTION-5"),
+    partial(
+        "bruiserPassives.update",
+        Gate::Bruiser,
+        "Frost elite guard",
+        "P-MOBS-2",
+        crate::systems::bruiser::update,
+    ),
     pending("plagueZombies.<anonymous>", Gate::Signatures, "P-FACTION-3"),
 ];
 static BEFORE_DAMAGE: [Item<SystemFn>; 3] = [
@@ -892,7 +919,13 @@ static SYSTEMS: [Item<SystemFn>; 24] = [
         crate::cards::after_damage,
     ),
     pending("plagueCorpses.<anonymous>", Gate::Signatures, "P-FACTION-3"),
-    pending("bruiserPassives.update", Gate::Signatures, "P-FACTION-5"),
+    partial(
+        "bruiserPassives.update",
+        Gate::Bruiser,
+        "Frost elite guard",
+        "P-MOBS-2",
+        crate::systems::bruiser::update,
+    ),
     // Current status sources are axe shred and attack slow. P-CARDS-1 extends this fold with cards.
     ported("mods.updateMods", Gate::Always, items::fold_armor),
     pending(
@@ -962,10 +995,10 @@ static MOD_SOURCES: [Item<SourceFn>; 6] = [
         Gate::FireRoam,
         crate::systems::fire_roam::roaming_speed,
     ),
-    pending(
+    ported(
         "bruiserPassives.frozenJustice",
-        Gate::Signatures,
-        "P-FACTION-5",
+        Gate::Bruiser,
+        crate::systems::bruiser::frozen_justice,
     ),
 ];
 
@@ -1307,11 +1340,13 @@ static RAID_STARTED: [Link; 14] = [
         Gate::FireRoam,
         crate::systems::fire_roam::raid_started,
     ),
-    pending_link(
+    partial_link(
         "bruiserPassives.resetRun",
         Mode::Append,
-        Gate::Signatures,
-        "P-FACTION-5",
+        Gate::Bruiser,
+        "Frost guard reset",
+        "P-MOBS-2",
+        crate::systems::bruiser::reset_run,
     ),
     pending_link(
         "training.<arrow>",
@@ -1364,11 +1399,13 @@ static RUN_ENDED: [Link; 12] = [
         Gate::FireRoam,
         crate::systems::fire_roam::run_ended,
     ),
-    pending_link(
+    partial_link(
         "bruiserPassives.resetRun",
         Mode::Append,
-        Gate::Signatures,
-        "P-FACTION-5",
+        Gate::Bruiser,
+        "Frost guard reset",
+        "P-MOBS-2",
+        crate::systems::bruiser::reset_run,
     ),
     pending_link(
         "sentencedHunt.<arrow>",
@@ -1437,11 +1474,11 @@ static FIGHTER_OUT: [Link; 8] = [
         Gate::FireRoam,
         crate::systems::fire_roam::fighter_out,
     ),
-    pending_link(
+    ported_link(
         "bruiserPassives.<arrow>",
         Mode::Append,
-        Gate::Signatures,
-        "P-FACTION-5",
+        Gate::Bruiser,
+        crate::systems::bruiser::clear_player,
     ),
     pending_link(
         "sentencedHunt.fighterOut",
@@ -1487,11 +1524,13 @@ static CAMP_CLEARED: [Link; 3] = [
         Gate::Always,
         "P-MOBS-2",
     ),
-    pending_link(
+    partial_link(
         "bruiserPassives.<arrow>",
         Mode::Append,
-        Gate::Signatures,
-        "P-FACTION-5",
+        Gate::Bruiser,
+        "Frost guard refresh",
+        "P-MOBS-2",
+        crate::systems::bruiser::camp_cleared,
     ),
 ];
 static HIT_LANDED: [Link; 4] = [
@@ -1507,11 +1546,11 @@ static HIT_LANDED: [Link; 4] = [
         Gate::FireRoam,
         crate::systems::fire_roam::hit_landed,
     ),
-    pending_link(
+    ported_link(
         "bruiserPassives.noteLedgerContact",
         Mode::Append,
-        Gate::Signatures,
-        "P-FACTION-5",
+        Gate::Bruiser,
+        crate::systems::bruiser::note_ledger_contact,
     ),
     pending_link(
         "plagueZombies.<arrow>",
@@ -1529,11 +1568,11 @@ static BLOCKED: [Link; 2] = [
         "P-CARDS-1",
         crate::cards::on_blocked,
     ),
-    pending_link(
+    ported_link(
         "bruiserPassives.noteBlockedContact",
         Mode::Append,
-        Gate::Signatures,
-        "P-FACTION-5",
+        Gate::Bruiser,
+        crate::systems::bruiser::note_blocked_contact,
     ),
 ];
 static OVERKILLED: [Link; 1] = [ported_link(
