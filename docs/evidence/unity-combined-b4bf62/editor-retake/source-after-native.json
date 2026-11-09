@@ -1,0 +1,28 @@
+{
+  "baselineSource": "b4bf621d7ed285bb6af4eb737073e197450415df",
+  "baselineManifest": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/combined-b4bf62-2026-11-08/evidence/as-tested-source.json",
+  "baselineManifestSha256": "165d6c68aec65af1196698721c7b594302a3853a235b645e41e57363357185c9",
+  "scope": "client-unity/UnityProject tracked files listed by as-tested-source.json",
+  "baselineFileCount": 1122,
+  "currentProjectTrackedFileCount": 1122,
+  "currentHead": "b4bf621d7ed285bb6af4eb737073e197450415df",
+  "currentBranch": "codex/unity-b4bf62-native-proof",
+  "changedFiles": [
+    {
+      "path": "client-unity/UnityProject/ProjectSettings/ShaderGraphSettings.asset",
+      "baselineBytes": 555,
+      "currentBytes": 557,
+      "baselineSha256": "d9285133fee72ad8257e0b2c2d904b487757ebcef4862e3b10bef073bf218894",
+      "currentSha256": "83556175c6dccd540f2cac05e5c0f9fbb36c3c8d7a56bed2c7cf4d29e4c2ee2e"
+    }
+  ],
+  "missingBaselineFiles": [],
+  "untrackedProjectFiles": [],
+  "projectStatus": [
+    " M client-unity/UnityProject/ProjectSettings/ShaderGraphSettings.asset"
+  ],
+  "helper": {
+    "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/combined-b4bf62-2026-11-08/drawer-proof-functions.cs.txt",
+    "status": "UNEXECUTED; external preparation only; no Unity/Editor invocation or acceptance claim."
+  }
+}

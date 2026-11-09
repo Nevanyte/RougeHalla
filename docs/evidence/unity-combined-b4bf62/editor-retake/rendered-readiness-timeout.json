@@ -1,0 +1,8 @@
+{
+  "source": "b4bf621d7ed285bb6af4eb737073e197450415df",
+  "waitSeconds": 10,
+  "receiptProduced": false,
+  "status": "FAIL_STOPPED",
+  "nativeCaptures": 0,
+  "phase": "First pre-capture coroutine awaited frame/time and end-of-frame; no rerun"
+}

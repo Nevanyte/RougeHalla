@@ -1,0 +1,47 @@
+{
+  "targetRootCommit": "b4bf621d7ed285bb6af4eb737073e197450415df",
+  "sourceMethod": "git show <exact commit>:<path> (read-only); hashes are SHA-256 of frozen source and .meta bytes",
+  "scope": "Only the four global MatchClientAccountBindingEditModeTests selectors. No tests were run by the manifest author. Prior receipts remain revision-scoped and are not reruns.",
+  "groups": [
+    {
+      "class": "MatchClientAccountBindingEditModeTests",
+      "namespace": "(global namespace)",
+      "file": "Assets/Tests/Editor/MatchClientAccountBindingEditModeTests.cs",
+      "metaFile": "Assets/Tests/Editor/MatchClientAccountBindingEditModeTests.cs.meta",
+      "testMethodCount": 4,
+      "selectorCount": 4,
+      "sourceSha256": "ecde6696a981499a3a206cd333d3dfeb7a4061c5e1e345f2b4911ef4022b45f2",
+      "metaSha256": "995ff5d51834ee1c063d477bad98a65b67bbcb4a43a4a4f65f1ded641bc03723",
+      "metaGuid": "fac78127a58b4044bec5d3a102c8fec7",
+      "sourceBytes": 10675,
+      "metaBytes": 60,
+      "workspaceMatchesGitShow": null,
+      "methods": [
+        {
+          "name": "SelectingFactionDuringDeferredJoinInvalidatesIntentAndCreatesNoSocket",
+          "selectors": 1
+        },
+        {
+          "name": "StaleJoinFailureCannotOverwriteProfileSelectedBySynchronousFlowCallback",
+          "selectors": 1
+        },
+        {
+          "name": "MutatingMatchUrlWhileOwnershipRequestIsPendingCannotUseCapturedIntentOrConnect",
+          "selectors": 1
+        },
+        {
+          "name": "SuccessfulOrdinaryJoinUsesOwnedCanonicalIdentityTokenAndValidatedUrl",
+          "selectors": 1
+        }
+      ]
+    }
+  ],
+  "expectedTestMethodCount": 4,
+  "expectedSelectorCount": 4,
+  "revisionBoundaries": {
+    "e2baad": "Recovery2 only; not rerun.",
+    "95bd9c": "Cosmetics7/progress3 results remain scoped to that cut; not rerun.",
+    "719cc2": "Drawer5/input10/owner3 = 18 passes; not rerun."
+  },
+  "generatedUtc": "2026-11-09T05:17:32.348793+00:00"
+}

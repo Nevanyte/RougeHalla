@@ -1,0 +1,1 @@
+All files in this helper directory are unexecuted drafts for the conditional capture phase. The first readiness observer failed before any capture/helper invocation. No new source asset or UI implementation is present. Review and a separate Root release are required before reuse.

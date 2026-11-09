@@ -1,0 +1,29 @@
+{
+  "source": "b4bf621d7ed285bb6af4eb737073e197450415df",
+  "projectFilesChecked": 1122,
+  "allFrozenProjectBytesMatch": true,
+  "inputAndPrefsMatchBaseline": true,
+  "previewQueryMatchesBaseline": true,
+  "inputAndPrefsFields": [
+    "inputLive",
+    "inputId",
+    "flags",
+    "mode",
+    "behavior",
+    "playing",
+    "paused",
+    "background",
+    "runtimeBackground",
+    "textKey",
+    "text",
+    "miniKey",
+    "miniIndex"
+  ],
+  "shaderWhitespaceOverlayPreservedAndRestored": true,
+  "backgroundOverlayRestoredByPublicApi": true,
+  "sceneEmptyAndClean": true,
+  "autoRefreshGuardReleased": true,
+  "autoTickDisabled": true,
+  "stopped": true,
+  "nativePngCount": 0
+}

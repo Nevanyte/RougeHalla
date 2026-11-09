@@ -1,0 +1,20 @@
+using System;
+using System.Collections;
+using System.IO;
+using System.Linq;
+using UnityEngine;
+using UnityEngine.UI;
+using Roguehalla.Client;
+using Newtonsoft.Json;
+var review=UnityEngine.Object.FindFirstObjectByType<UiLayoutReview>();
+var client=UnityEngine.Object.FindFirstObjectByType<MatchClient>();
+if(!Application.isPlaying || review==null || !review.IsReady || client?.Session==null)throw new InvalidOperationException("Offline review not ready");
+IEnumerator Observe(){
+ int startFrame=Time.frameCount;double startMs=client.Session.Snapshots.NewestMs;double startTime=Time.realtimeSinceStartupAsDouble;
+ yield return null;yield return new WaitForSecondsRealtime(.2f);yield return new WaitForEndOfFrame();
+ var b=review.Hud.transform.Find("MatchUI/PlayerHUD/BuildStrip/BuildDetails");
+ var g=b!=null?b.GetComponent<Graphic>():null;
+ var receipt=new{source="b4bf621d7ed285bb6af4eb737073e197450415df",startFrame,frame=Time.frameCount,startMs,newestMs=client.Session.Snapshots.NewestMs,startTime,observedTime=Time.realtimeSinceStartupAsDouble,width=Screen.width,height=Screen.height,playing=Application.isPlaying,background=Application.runInBackground,detailsPresent=b!=null,detailsActive=b!=null&&b.gameObject.activeInHierarchy,detailsDepth=g!=null?g.depth:-1,detailsCull=g!=null&&g.canvasRenderer.cull,canvases=UnityEngine.Object.FindObjectsByType<Canvas>(FindObjectsSortMode.None).Where(c=>c.isRootCanvas&&c.isActiveAndEnabled).Select(c=>new{c.name,mode=c.renderMode.ToString(),display=c.targetDisplay,pixelRect=new[]{c.pixelRect.x,c.pixelRect.y,c.pixelRect.width,c.pixelRect.height},c.scaleFactor}).ToArray()};
+ File.WriteAllText("/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/combined-b4bf62-2026-11-08/evidence/rendered-readiness.json",JsonConvert.SerializeObject(receipt,Formatting.Indented));
+}
+review.StartCoroutine(Observe());return new{requested=true,frame=Time.frameCount};

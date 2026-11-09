@@ -1,0 +1,394 @@
+// Insert these top-level local functions and state before CapturePair in the frozen f5 template.
+// Required existing imports: System.Collections, System.Collections.Generic, System.Linq,
+// UnityEngine, UnityEngine.EventSystems, UnityEngine.UI, TMPro, Newtonsoft.Json,
+// Roguehalla.Client, System.IO. No UnityEditor using is needed (ShaderUtil is fully qualified).
+var drawerProof = new Dictionary<string, object>();
+var drawerChecks = new List<object>();
+string drawerFailure = null;
+int drawerCaptureFrame = -1;
+
+bool DrawerCheck(string name, bool passed, object facts)
+{
+    drawerChecks.Add(new { name, passed, facts });
+    if (!passed && drawerFailure == null) drawerFailure = name;
+    return passed;
+}
+void WriteDrawerProof(string status)
+{
+    drawerProof["status"] = status;
+    drawerProof["failure"] = drawerFailure;
+    drawerProof["checks"] = drawerChecks;
+    drawerProof["sourceSha"] = sourceSha;
+    drawerProof["screen"] = new { width = Screen.width, height = Screen.height, display = Display.main != null ? Display.main.renderingWidth : 0,
+        frame = Time.frameCount, time = Time.realtimeSinceStartupAsDouble };
+    Directory.CreateDirectory(outputFolder);
+    File.WriteAllText(Path.Combine(outputFolder, "drawer-proof.json"), JsonConvert.SerializeObject(drawerProof, Formatting.Indented));
+}
+RaycastResult[] DrawerHits(Vector2 position)
+{
+    var es = EventSystem.current;
+    if (es == null) return new RaycastResult[0];
+    var data = new PointerEventData(es) { position = position };
+    var hits = new List<RaycastResult>();
+    es.RaycastAll(data, hits);
+    return hits.ToArray();
+}
+object DrawerHitFacts(RaycastResult[] hits)
+{
+    return hits.Select(h => new { path = h.gameObject != null ? PathOf(h.gameObject.transform) : null,
+        module = h.module != null ? h.module.GetType().FullName : null, depth = h.depth, sortingLayer = h.sortingLayer, sortingOrder = h.sortingOrder }).ToArray();
+}
+Button DrawerButton(GameObject hit)
+{
+    return hit != null ? hit.GetComponentInParent<Button>() : null;
+}
+object DrawerMaterialInfo(Material material)
+{
+    if (material == null) return new { present = false };
+    var shader = material.shader;
+    var passes = new List<object>();
+    int count = material.passCount;
+    for (int i = 0; i < count; i++)
+    {
+        bool compiled = false;
+        string error = null;
+        try { compiled = UnityEditor.ShaderUtil.IsPassCompiled(material, i); }
+        catch (Exception ex) { error = ex.GetType().Name + ": " + ex.Message; }
+        passes.Add(new { index = i, name = material.GetPassName(i), compiled, error });
+    }
+    return new { present = true, name = material.name, shader = shader != null ? shader.name : null,
+        shaderSupported = shader != null && shader.isSupported, passCount = count, passes };
+}
+object DrawerGraphicInfo(Graphic graphic)
+{
+    if (graphic == null) return new { present = false };
+    var renderer = graphic.canvasRenderer;
+    var main = new List<object>();
+    var pop = new List<object>();
+    if (renderer != null)
+    {
+        for (int i = 0; i < renderer.materialCount; i++) main.Add(DrawerMaterialInfo(renderer.GetMaterial(i)));
+        if (renderer.hasPopInstruction)
+            for (int i = 0; i < renderer.materialCount; i++) pop.Add(DrawerMaterialInfo(renderer.GetPopMaterial(i)));
+    }
+    return new { present = true, path = PathOf(graphic.transform), type = graphic.GetType().Name,
+        active = graphic.isActiveAndEnabled, activeInHierarchy = graphic.gameObject.activeInHierarchy,
+        bounds = graphic.transform is RectTransform ? BoundsOf((RectTransform)graphic.transform) : null,
+        depth = graphic.depth, cull = renderer != null && renderer.cull, hasRenderer = renderer != null,
+        materialForRendering = DrawerMaterialInfo(graphic.materialForRendering), rendererMaterials = main,
+        hasPopInstruction = renderer != null && renderer.hasPopInstruction, popMaterials = pop,
+        raycastTarget = graphic.raycastTarget };
+}
+bool DrawerMaterialReady(Material material)
+{
+    if (material == null || material.shader == null || !material.shader.isSupported || material.passCount <= 0) return false;
+    for (int i = 0; i < material.passCount; i++)
+        if (!UnityEditor.ShaderUtil.IsPassCompiled(material, i)) return false;
+    return true;
+}
+bool DrawerGraphicReady(Graphic graphic)
+{
+    if (graphic == null || !graphic.isActiveAndEnabled || graphic.depth < 0 || graphic.canvasRenderer == null || graphic.canvasRenderer.cull) return false;
+    var renderer = graphic.canvasRenderer;
+    if (!DrawerMaterialReady(graphic.materialForRendering)) return false;
+    for (int i = 0; i < renderer.materialCount; i++) if (!DrawerMaterialReady(renderer.GetMaterial(i))) return false;
+    if (renderer.hasPopInstruction)
+        for (int i = 0; i < renderer.materialCount; i++) if (!DrawerMaterialReady(renderer.GetPopMaterial(i))) return false;
+    return true;
+}
+object DrawerRenderContext(BuildDrawer drawer, GameObject card)
+{
+    var canvas = drawer.GetComponentInChildren<Canvas>(true);
+    var root = canvas != null ? canvas.rootCanvas : null;
+    var raycaster = root != null ? root.GetComponent<GraphicRaycaster>() : null;
+    var view = drawer.Scroll != null ? drawer.Scroll.viewport : null;
+    var viewportImage = view != null ? view.GetComponent<Image>() : null;
+    var bg = card != null ? card.GetComponent<Image>() : null;
+    var glyph = card != null && card.transform.Find("CardGlyph") != null ? card.transform.Find("CardGlyph").GetComponent<Image>() : null;
+    var drawerRoot = drawer.transform.Find("MatchUI/BuildDrawer");
+    var title = drawerRoot != null ? drawerRoot.Find("DrawerTitle") : null;
+    var count = drawerRoot != null ? drawerRoot.Find("CardCount") : null;
+    var close = drawerRoot != null ? drawerRoot.Find("Close") : null;
+    return new { screen = new { width = Screen.width, height = Screen.height },
+        canvas = root != null ? new { name = root.name, mode = root.renderMode.ToString(), targetDisplay = root.targetDisplay,
+            pixelRect = new[] { root.pixelRect.x, root.pixelRect.y, root.pixelRect.width, root.pixelRect.height },
+            scaleFactor = root.scaleFactor, eventCamera = root.worldCamera != null ? root.worldCamera.name : null } : null,
+        raycasterEventCamera = raycaster != null && raycaster.eventCamera != null ? raycaster.eventCamera.name : null,
+        viewport = view != null ? BoundsOf(view) : null,
+        viewportHasMask = view != null && view.GetComponent<Mask>() != null,
+        viewportShowMaskGraphic = view != null && view.GetComponent<Mask>() != null && view.GetComponent<Mask>().showMaskGraphic,
+        viewportMask = DrawerGraphicInfo(viewportImage), cardBackground = DrawerGraphicInfo(bg), cardGlyph = DrawerGraphicInfo(glyph),
+        drawerTitle = DrawerGraphicInfo(title != null ? title.GetComponent<Graphic>() : null),
+        cardCount = DrawerGraphicInfo(count != null ? count.GetComponent<Graphic>() : null),
+        closeControl = DrawerGraphicInfo(close != null ? close.GetComponent<Graphic>() : null),
+        cardGraphics = card != null ? card.GetComponentsInChildren<Graphic>(true).Select(DrawerGraphicInfo).ToArray() : new object[0] };
+}
+bool DrawerPointInside(float[] bounds, Vector2 p)
+{
+    return bounds != null && p.x >= bounds[0] && p.x <= bounds[2] && p.y >= bounds[1] && p.y <= bounds[3];
+}
+bool FindVisibleHit(BuildDrawer drawer, out Button button, out GameObject hitObject, out Vector2 point, out RaycastResult[] hits)
+{
+    button = null; hitObject = null; point = Vector2.zero; hits = new RaycastResult[0];
+    if (drawer == null || drawer.Scroll == null || drawer.Scroll.viewport == null) return false;
+    float[] v = BoundsOf(drawer.Scroll.viewport);
+    foreach (Transform child in drawer.Content)
+    {
+        var card = child as RectTransform;
+        if (card == null || !card.gameObject.activeInHierarchy) continue;
+        float[] b = BoundsOf(card);
+        point = new Vector2((b[0] + b[2]) * .5f, (b[1] + b[3]) * .5f);
+        if (!DrawerPointInside(v, point)) continue;
+        hits = DrawerHits(point);
+        if (hits.Length == 0 || hits[0].gameObject == null) continue;
+        var resolved = DrawerButton(hits[0].gameObject);
+        if (resolved == null || resolved.gameObject != card.gameObject || !resolved.IsInteractable()) continue;
+        button = resolved; hitObject = hits[0].gameObject; return true;
+    }
+    return false;
+}
+bool FindDifferentVisibleHit(BuildDrawer drawer, Button differentFrom, out Button button, out GameObject hitObject, out Vector2 point, out RaycastResult[] hits)
+{
+    button = null; hitObject = null; point = Vector2.zero; hits = new RaycastResult[0];
+    if (drawer == null || drawer.Scroll == null || drawer.Scroll.viewport == null) return false;
+    float[] v = BoundsOf(drawer.Scroll.viewport);
+    foreach (Transform child in drawer.Content)
+    {
+        var card = child as RectTransform;
+        if (card == null || !card.gameObject.activeInHierarchy) continue;
+        var candidate = card.GetComponent<Button>();
+        if (candidate == null || candidate == differentFrom || !candidate.IsInteractable()) continue;
+        float[] b = BoundsOf(card);
+        point = new Vector2((b[0] + b[2]) * .5f, (b[1] + b[3]) * .5f);
+        if (!DrawerPointInside(v, point)) continue;
+        hits = DrawerHits(point);
+        if (hits.Length == 0 || hits[0].gameObject == null || DrawerButton(hits[0].gameObject) != candidate) continue;
+        button = candidate; hitObject = hits[0].gameObject; return true;
+    }
+    return false;
+}
+bool FindClippedOutsidePoint(BuildDrawer drawer, out Button button, out Vector2 point, out float[] cardBounds, out RaycastResult[] hits)
+{
+    button = null; point = Vector2.zero; cardBounds = null; hits = new RaycastResult[0];
+    if (drawer == null || drawer.Scroll == null || drawer.Scroll.viewport == null) return false;
+    float[] v = BoundsOf(drawer.Scroll.viewport);
+    foreach (Transform child in drawer.Content)
+    {
+        var rect = child as RectTransform;
+        if (rect == null || !rect.gameObject.activeInHierarchy) continue;
+        var b = BoundsOf(rect);
+        float ix0 = Mathf.Max(b[0], v[0]), ix1 = Mathf.Min(b[2], v[2]);
+        float iy0 = Mathf.Max(b[1], v[1]), iy1 = Mathf.Min(b[3], v[3]);
+        if (ix1 - ix0 <= 1f || iy1 - iy0 <= 1f) continue;
+        var candidateButton = rect.GetComponent<Button>();
+        if (candidateButton == null) continue;
+        if (b[1] < v[1] - .5f) point = new Vector2((ix0 + ix1) * .5f, (b[1] + Mathf.Min(b[3], v[1])) * .5f);
+        else if (b[3] > v[3] + .5f) point = new Vector2((ix0 + ix1) * .5f, (Mathf.Max(b[1], v[3]) + b[3]) * .5f);
+        else if (b[0] < v[0] - .5f) point = new Vector2((b[0] + Mathf.Min(b[2], v[0])) * .5f, (iy0 + iy1) * .5f);
+        else if (b[2] > v[2] + .5f) point = new Vector2((Mathf.Max(b[0], v[2]) + b[2]) * .5f, (iy0 + iy1) * .5f);
+        else continue;
+        if (!DrawerPointInside(b, point) || DrawerPointInside(v, point)) continue;
+        button = candidateButton; cardBounds = b; hits = DrawerHits(point); return true;
+    }
+    return false;
+}
+Dictionary<string, object> DrawerClipProbe(BuildDrawer drawer)
+{
+    Button card; Vector2 point; float[] bounds; RaycastResult[] hits;
+    if (!FindClippedOutsidePoint(drawer, out card, out point, out bounds, out hits))
+        return new Dictionary<string, object> { ["found"] = false, ["reason"] = "No partially clipped card with an in-card point outside the viewport was found." };
+    bool rejected = !hits.Any(h => h.gameObject != null && DrawerButton(h.gameObject) == card);
+    return new Dictionary<string, object> { ["found"] = true, ["card"] = PathOf(card.transform), ["point"] = new[] { point.x, point.y },
+        ["cardBounds"] = bounds, ["viewportBounds"] = BoundsOf(drawer.Scroll.viewport), ["rejected"] = rejected, ["hits"] = DrawerHitFacts(hits) };
+}
+void OpenDrawerByRenderedHit()
+{
+    try
+    {
+        var drawer = review.Hud.GetComponent<BuildDrawer>();
+        var es = EventSystem.current;
+        var detailsTransform = review.Hud.transform.Find("MatchUI/PlayerHUD/BuildStrip/BuildDetails");
+        var button = detailsTransform != null ? detailsTransform.GetComponent<Button>() : null;
+        if (drawer == null || es == null || button == null) throw new InvalidOperationException("BuildDrawer, EventSystem, or BuildDetails button missing.");
+        if (drawer.IsVisible) throw new InvalidOperationException("Expected drawer closed before initial open.");
+        var rect = button.transform as RectTransform;
+        var bounds = BoundsOf(rect);
+        var point = new Vector2((bounds[0] + bounds[2]) * .5f, (bounds[1] + bounds[3]) * .5f);
+        var hits = DrawerHits(point);
+        var top = hits.Length > 0 ? hits[0].gameObject : null;
+        var resolved = DrawerButton(top);
+        bool topIsButton = resolved == button;
+        bool depthReady = button.GetComponent<Graphic>() != null && button.GetComponent<Graphic>().depth >= 0;
+        bool rayHit = hits.Length > 0 && top != null && topIsButton && depthReady;
+        if (!DrawerCheck("BuildDetails.center-resolves-rendered-button", rayHit,
+            new { point = new[] { point.x, point.y }, bounds, topIsButton, resolved = resolved != null ? PathOf(resolved.transform) : null,
+                depth = button.GetComponent<Graphic>() != null ? button.GetComponent<Graphic>().depth : -1, hits = DrawerHitFacts(hits) }))
+            throw new InvalidOperationException("BuildDetails center did not resolve to its processed button hit.");
+        var data = new PointerEventData(es) { position = point, pressPosition = point, button = PointerEventData.InputButton.Left, clickCount = 1 };
+        data.pointerPressRaycast = hits[0]; data.pointerCurrentRaycast = hits[0];
+        var executed = ExecuteEvents.ExecuteHierarchy<IPointerClickHandler>(top, data, ExecuteEvents.pointerClickHandler);
+        bool opened = drawer.IsVisible;
+        var help = review.Hud.transform.Find("MatchUI/Help");
+        var settings = review.Hud.transform.Find("MatchUI/Settings");
+        var leave = review.Hud.transform.Find("MatchUI/Leave");
+        bool headersHidden = help != null && settings != null && leave != null && !help.gameObject.activeInHierarchy &&
+            !settings.gameObject.activeInHierarchy && !leave.gameObject.activeInHierarchy;
+        DrawerCheck("BuildDetails.routed-click-opens-and-hides-global-header", executed == button.gameObject && opened && headersHidden,
+            new { executed = executed != null ? PathOf(executed.transform) : null, opened, headersHidden });
+        if (!opened || !headersHidden) throw new InvalidOperationException("Rendered hit-resolved BuildDetails click did not open drawer/hide header.");
+        drawerProof["open"] = new { point = new[] { point.x, point.y }, bounds, resolvedTop = PathOf(top.transform),
+            executed = PathOf(executed.transform), render = DrawerRenderContext(drawer, drawer.Content.Find("Card00").gameObject) };
+    }
+    catch (Exception ex)
+    {
+        if (drawerFailure == null) drawerFailure = "open-exception: " + ex.GetType().Name + ": " + ex.Message;
+        WriteDrawerProof("failed-before-capture");
+        Debug.LogError("[drawer-proof] " + drawerFailure);
+        throw;
+    }
+}
+IEnumerator VerifyDrawerAfterCapture()
+{
+    bool complete = false;
+    try
+    {
+        drawerCaptureFrame = Time.frameCount;
+        drawerProof["capture"] = new { sourceSha, width = Screen.width, height = Screen.height,
+            frame = drawerCaptureFrame, time = Time.realtimeSinceStartupAsDouble, method = "Existing native baseline PNG captured before this coroutine; no further screenshots." };
+        var drawer = review.Hud.GetComponent<BuildDrawer>();
+        if (!DrawerCheck("review-and-drawer-ready", review != null && review.IsReady && client != null && client.Session != null && drawer != null && drawer.IsVisible,
+            new { reviewReady = review != null && review.IsReady, drawerVisible = drawer != null && drawer.IsVisible })) yield break;
+        yield return null; yield return new WaitForEndOfFrame();
+        Canvas.ForceUpdateCanvases();
+        var card00 = drawer.Content.Find("Card00");
+        var viewportGraphic = drawer.Scroll.viewport.GetComponent<Graphic>();
+        var cardGraphics = card00 != null ? card00.GetComponentsInChildren<Graphic>(true) : new Graphic[0];
+        var drawerRoot = drawer.transform.Find("MatchUI/BuildDrawer");
+        var titleGraphic = drawerRoot != null && drawerRoot.Find("DrawerTitle") != null ? drawerRoot.Find("DrawerTitle").GetComponent<Graphic>() : null;
+        var countGraphic = drawerRoot != null && drawerRoot.Find("CardCount") != null ? drawerRoot.Find("CardCount").GetComponent<Graphic>() : null;
+        var closeGraphic = drawerRoot != null && drawerRoot.Find("Close") != null ? drawerRoot.Find("Close").GetComponent<Graphic>() : null;
+        bool allProcessed = viewportGraphic != null && DrawerGraphicReady(viewportGraphic) && cardGraphics.Length > 0 && cardGraphics.All(DrawerGraphicReady) &&
+            DrawerGraphicReady(titleGraphic) && DrawerGraphicReady(countGraphic) && DrawerGraphicReady(closeGraphic);
+        var mask = drawer.Scroll.viewport.GetComponent<Mask>();
+        bool maskSetup = mask != null && !mask.showMaskGraphic && drawer.Scroll.viewport.GetComponent<CanvasRenderer>() != null;
+        object initialRenderFacts = card00 != null ? DrawerRenderContext(drawer, card00.gameObject) : new { reason = "Card00 missing" };
+        if (!DrawerCheck("native-render-readiness", card00 != null && allProcessed && maskSetup,
+            new { maskSetup, allProcessed, facts = initialRenderFacts })) yield break;
+        drawerProof["renderInitial"] = initialRenderFacts;
+        var title = review.Hud.transform.Find("MatchUI/BuildDrawer/DrawerTitle");
+        var count = review.Hud.transform.Find("MatchUI/BuildDrawer/CardCount");
+        var closeT = review.Hud.transform.Find("MatchUI/BuildDrawer/Close");
+        var detailT = review.Hud.transform.Find("MatchUI/BuildDrawer/SelectionDetail");
+        var help = review.Hud.transform.Find("MatchUI/Help"); var settings = review.Hud.transform.Find("MatchUI/Settings"); var leave = review.Hud.transform.Find("MatchUI/Leave");
+        bool headerState = title != null && count != null && closeT != null && detailT != null && title.gameObject.activeInHierarchy &&
+            count.gameObject.activeInHierarchy && closeT.gameObject.activeInHierarchy && help != null && settings != null && leave != null &&
+            !help.gameObject.activeInHierarchy && !settings.gameObject.activeInHierarchy && !leave.gameObject.activeInHierarchy;
+        if (!DrawerCheck("drawer-header-state", headerState, new { title = title != null && title.gameObject.activeInHierarchy,
+            count = count != null && count.gameObject.activeInHierarchy, close = closeT != null && closeT.gameObject.activeInHierarchy,
+            helpHidden = help != null && !help.gameObject.activeInHierarchy, settingsHidden = settings != null && !settings.gameObject.activeInHierarchy,
+            leaveHidden = leave != null && !leave.gameObject.activeInHierarchy })) yield break;
+
+        Button wheelCard; GameObject wheelHit; Vector2 wheelPoint; RaycastResult[] wheelHits;
+        bool hasVisibleCard = FindVisibleHit(drawer, out wheelCard, out wheelHit, out wheelPoint, out wheelHits);
+        if (!DrawerCheck("visible-card-center-sorted-hit", hasVisibleCard,
+            new { point = new[] { wheelPoint.x, wheelPoint.y }, resolved = wheelCard != null ? PathOf(wheelCard.transform) : null,
+                hits = DrawerHitFacts(wheelHits), render = wheelCard != null ? DrawerRenderContext(drawer, wheelCard.gameObject) : null })) yield break;
+        var beforeClip = DrawerClipProbe(drawer);
+        bool clipBeforeFound = (bool)beforeClip["found"];
+        bool clipBeforeRejected = clipBeforeFound && (bool)beforeClip["rejected"];
+        if (!DrawerCheck("clipped-outside-point-rejected-before-scroll", clipBeforeFound && clipBeforeRejected, beforeClip)) yield break;
+
+        float scrollBefore = drawer.Scroll.verticalNormalizedPosition;
+        float[] wheelCardBefore = BoundsOf((RectTransform)wheelCard.transform);
+        float[] titleBefore = BoundsOf((RectTransform)title);
+        float[] countBefore = BoundsOf((RectTransform)count);
+        float[] closeBefore = BoundsOf((RectTransform)closeT);
+        var wheelData = new PointerEventData(EventSystem.current) { position = wheelPoint, scrollDelta = new Vector2(0f, -1f) };
+        wheelData.pointerCurrentRaycast = wheelHits[0];
+        var scrollHandler = ExecuteEvents.ExecuteHierarchy<IScrollHandler>(wheelHit, wheelData, ExecuteEvents.scrollHandler);
+        yield return null; yield return new WaitForEndOfFrame(); Canvas.ForceUpdateCanvases();
+        float scrollAfter = drawer.Scroll.verticalNormalizedPosition;
+        float[] wheelCardAfter = BoundsOf((RectTransform)wheelCard.transform);
+        bool fixedHeaders = MaxBoundsDelta(titleBefore, BoundsOf((RectTransform)title)) <= 1f &&
+            MaxBoundsDelta(countBefore, BoundsOf((RectTransform)count)) <= 1f && MaxBoundsDelta(closeBefore, BoundsOf((RectTransform)closeT)) <= 1f;
+        bool moved = Mathf.Abs(scrollAfter - scrollBefore) > .0001f && MaxBoundsDelta(wheelCardBefore, wheelCardAfter) > 1f;
+        DrawerCheck("routed-wheel-scrolls-content-keeps-header-fixed", scrollHandler == drawer.Scroll.gameObject && moved && fixedHeaders,
+            new { point = new[] { wheelPoint.x, wheelPoint.y }, resolvedHit = PathOf(wheelHit.transform), handler = scrollHandler != null ? PathOf(scrollHandler.transform) : null,
+                expectedHandler = PathOf(drawer.Scroll.transform), scrollBefore, scrollAfter, cardBefore = wheelCardBefore, cardAfter = wheelCardAfter,
+                titleDelta = MaxBoundsDelta(titleBefore, BoundsOf((RectTransform)title)), countDelta = MaxBoundsDelta(countBefore, BoundsOf((RectTransform)count)),
+                closeDelta = MaxBoundsDelta(closeBefore, BoundsOf((RectTransform)closeT)), fixedHeaders });
+        if (!moved || scrollHandler != drawer.Scroll.gameObject || !fixedHeaders) yield break;
+        var afterClip = DrawerClipProbe(drawer);
+        bool clipAfterFound = (bool)afterClip["found"];
+        bool clipAfterRejected = clipAfterFound && (bool)afterClip["rejected"];
+        if (!DrawerCheck("clipped-outside-point-rejected-after-scroll", clipAfterFound && clipAfterRejected, afterClip)) yield break;
+
+        Button clicked; GameObject clickHit; Vector2 clickPoint; RaycastResult[] clickHits;
+        bool foundClick = FindDifferentVisibleHit(drawer, wheelCard, out clicked, out clickHit, out clickPoint, out clickHits);
+        if (!DrawerCheck("different-visible-card-hit-resolved", foundClick,
+            new { point = new[] { clickPoint.x, clickPoint.y }, resolved = clicked != null ? PathOf(clicked.transform) : null, hits = DrawerHitFacts(clickHits) })) yield break;
+        var cardTitle = clicked.transform.Find("CardTitle") != null ? clicked.transform.Find("CardTitle").GetComponent<TMP_Text>() : null;
+        var owned = clicked.transform.Find("OwnedCount") != null ? clicked.transform.Find("OwnedCount").GetComponent<TMP_Text>() : null;
+        var detail = detailT.GetComponentInChildren<TMP_Text>();
+        string stackBefore = owned != null ? owned.text : null;
+        int selectedBefore = drawer.SelectedIndex;
+        var clickData = new PointerEventData(EventSystem.current) { position = clickPoint, pressPosition = clickPoint,
+            button = PointerEventData.InputButton.Left, clickCount = 1, pointerCurrentRaycast = clickHits[0], pointerPressRaycast = clickHits[0] };
+        var clickHandler = ExecuteEvents.ExecuteHierarchy<IPointerClickHandler>(clickHit, clickData, ExecuteEvents.pointerClickHandler);
+        yield return null; yield return new WaitForEndOfFrame(); Canvas.ForceUpdateCanvases();
+        string stackAfter = owned != null ? owned.text : null;
+        string expectedTitle = cardTitle != null ? cardTitle.text : null;
+        bool selectionChanged = drawer.SelectedIndex == int.Parse(clicked.name.Substring(4));
+        bool detailUpdated = detail != null && expectedTitle != null && detail.text.StartsWith(expectedTitle, StringComparison.Ordinal);
+        bool stackRetained = stackBefore != null && stackBefore == stackAfter;
+        if (!DrawerCheck("hit-routed-card-click-updates-selection-detail-keeps-stack", clickHandler == clicked.gameObject &&
+            selectionChanged && detailUpdated && stackRetained,
+            new { point = new[] { clickPoint.x, clickPoint.y }, hits = DrawerHitFacts(clickHits), clickHandler = clickHandler != null ? PathOf(clickHandler.transform) : null,
+                selectedBefore, selectedIndex = drawer.SelectedIndex, expectedIndex = int.Parse(clicked.name.Substring(4)), expectedTitle,
+                detail = detail != null ? detail.text : null, stackBefore, stackAfter, stackRetained })) yield break;
+
+        int selectedBeforeClose = drawer.SelectedIndex;
+        float scrollBeforeClose = drawer.Scroll.verticalNormalizedPosition;
+        var closeButton = closeT.GetComponent<Button>(); var closeBounds = BoundsOf((RectTransform)closeT);
+        var closePoint = new Vector2((closeBounds[0] + closeBounds[2]) * .5f, (closeBounds[1] + closeBounds[3]) * .5f);
+        var closeHits = DrawerHits(closePoint); var closeTop = closeHits.Length > 0 ? closeHits[0].gameObject : null;
+        bool closeResolved = closeTop != null && DrawerButton(closeTop) == closeButton && closeButton.GetComponent<Graphic>().depth >= 0;
+        if (!DrawerCheck("close-center-hit-resolves", closeResolved, new { closePoint = new[] { closePoint.x, closePoint.y }, hits = DrawerHitFacts(closeHits) })) yield break;
+        var closeData = new PointerEventData(EventSystem.current) { position = closePoint, pressPosition = closePoint, button = PointerEventData.InputButton.Left,
+            clickCount = 1, pointerCurrentRaycast = closeHits[0], pointerPressRaycast = closeHits[0] };
+        var closeHandler = ExecuteEvents.ExecuteHierarchy<IPointerClickHandler>(closeTop, closeData, ExecuteEvents.pointerClickHandler);
+        bool closed = !drawer.IsVisible && help.gameObject.activeInHierarchy && settings.gameObject.activeInHierarchy && leave.gameObject.activeInHierarchy;
+        if (!DrawerCheck("routed-close-restores-global-header", closeHandler == closeButton.gameObject && closed,
+            new { handler = closeHandler != null ? PathOf(closeHandler.transform) : null, closed, help = help.gameObject.activeInHierarchy,
+                settings = settings.gameObject.activeInHierarchy, leave = leave.gameObject.activeInHierarchy })) yield break;
+        yield return null; yield return new WaitForEndOfFrame(); Canvas.ForceUpdateCanvases();
+        var buildRect = review.Hud.transform.Find("MatchUI/PlayerHUD/BuildStrip/BuildDetails"); var buildButton = buildRect.GetComponent<Button>();
+        var buildBounds = BoundsOf((RectTransform)buildRect); var buildPoint = new Vector2((buildBounds[0] + buildBounds[2]) * .5f, (buildBounds[1] + buildBounds[3]) * .5f);
+        var buildHits = DrawerHits(buildPoint); var buildTop = buildHits.Length > 0 ? buildHits[0].gameObject : null;
+        bool buildResolved = buildTop != null && DrawerButton(buildTop) == buildButton && buildButton.GetComponent<Graphic>().depth >= 0;
+        if (!DrawerCheck("reopen-center-hit-resolves", buildResolved, new { point = new[] { buildPoint.x, buildPoint.y }, hits = DrawerHitFacts(buildHits) })) yield break;
+        var buildData = new PointerEventData(EventSystem.current) { position = buildPoint, pressPosition = buildPoint,
+            button = PointerEventData.InputButton.Left, clickCount = 1, pointerCurrentRaycast = buildHits[0], pointerPressRaycast = buildHits[0] };
+        var buildHandler = ExecuteEvents.ExecuteHierarchy<IPointerClickHandler>(buildTop, buildData, ExecuteEvents.pointerClickHandler);
+        yield return null; yield return new WaitForEndOfFrame(); Canvas.ForceUpdateCanvases();
+        bool persisted = drawer.IsVisible && drawer.SelectedIndex == selectedBeforeClose && Mathf.Abs(drawer.Scroll.verticalNormalizedPosition - scrollBeforeClose) <= .0001f;
+        if (!DrawerCheck("routed-reopen-preserves-scroll-selection", buildHandler == buildButton.gameObject && persisted,
+            new { handler = buildHandler != null ? PathOf(buildHandler.transform) : null, drawerVisible = drawer.IsVisible,
+                selectedBeforeClose, selectedAfterReopen = drawer.SelectedIndex, scrollBeforeClose, scrollAfterReopen = drawer.Scroll.verticalNormalizedPosition })) yield break;
+        drawerProof["renderFinal"] = DrawerRenderContext(drawer, clicked.gameObject);
+        DrawerCheck("final-frame-advancing", Time.frameCount > drawerCaptureFrame,
+            new { frame = Time.frameCount, captureFrame = drawerCaptureFrame });
+        complete = drawerFailure == null;
+    }
+    finally
+    {
+        if (!complete && drawerFailure == null) drawerFailure = "Verification stopped before all checks completed.";
+        WriteDrawerProof(complete ? "passed" : "failed-or-incomplete");
+        if (!complete) Debug.LogError("[drawer-proof] " + drawerFailure);
+    }
+}
+float MaxBoundsDelta(float[] a, float[] b)
+{
+    if (a == null || b == null || a.Length != 4 || b.Length != 4) return float.PositiveInfinity;
+    float delta = 0f; for (int i = 0; i < 4; i++) delta = Mathf.Max(delta, Mathf.Abs(a[i] - b[i])); return delta;
+}

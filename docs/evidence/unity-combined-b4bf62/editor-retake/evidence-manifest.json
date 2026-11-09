@@ -1,0 +1,253 @@
+{
+  "source": "b4bf621d7ed285bb6af4eb737073e197450415df",
+  "branch": "codex/unity-b4bf62-native-proof",
+  "testGate": "PASS",
+  "executed": 4,
+  "passed": 4,
+  "failed": 0,
+  "nativeGate": "FAIL_STOPPED",
+  "playSessions": 1,
+  "nativeCaptures": 0,
+  "files": [
+    {
+      "path": "EXPECTED_TESTS.json",
+      "bytes": 1965,
+      "sha256": "74278ecaf31e82ab3666ee2cf7180dba27a6cfcb74d7f2be8b611127d03c696e"
+    },
+    {
+      "path": "EXPECTED_TESTS.md",
+      "bytes": 1221,
+      "sha256": "9a6d4cb3773b2601a5e93e2340b581f813388317d45df89829d53de887f357d9"
+    },
+    {
+      "path": "FAILURE_TRIAGE.md",
+      "bytes": 1834,
+      "sha256": "8b5b63cf5a62675ec6ea31f260c18cbc91a1d0beb711a74fc664e112f43efec1"
+    },
+    {
+      "path": "ProjectSettings-as-configured.asset.txt",
+      "bytes": 20120,
+      "sha256": "9448f661c3eebb92d49f798f442e2b4c6d565e25c94b86509e856ab172add085"
+    },
+    {
+      "path": "ProjectSettings-as-played.asset.txt",
+      "bytes": 20120,
+      "sha256": "9448f661c3eebb92d49f798f442e2b4c6d565e25c94b86509e856ab172add085"
+    },
+    {
+      "path": "README.md",
+      "bytes": 5356,
+      "sha256": "106555b5556edf6cb87f452b963ae3a4d3b285af602bcf14c8548e9d16b223e4"
+    },
+    {
+      "path": "SOURCE_AUDIT.md",
+      "bytes": 1290,
+      "sha256": "c03aa7d14303f94116b4864bc3709639edb6633fb3f7ff3c3c0e8423d553976a"
+    },
+    {
+      "path": "ShaderGraphSettings-as-observed.asset.txt",
+      "bytes": 557,
+      "sha256": "83556175c6dccd540f2cac05e5c0f9fbb36c3c8d7a56bed2c7cf4d29e4c2ee2e"
+    },
+    {
+      "path": "ShaderGraphSettings-overlay.patch",
+      "bytes": 666,
+      "sha256": "09cb74c55dae2e6a26bf99861554f91293633dade61b3fede4889229c3a9062d"
+    },
+    {
+      "path": "as-tested-source.json",
+      "bytes": 318440,
+      "sha256": "165d6c68aec65af1196698721c7b594302a3853a235b645e41e57363357185c9"
+    },
+    {
+      "path": "autotick-after-play.json",
+      "bytes": 101,
+      "sha256": "db4b8c66312249ee644383d5a8d75efa983694353a05fb553684ab15874dcbef"
+    },
+    {
+      "path": "autotick-for-tests.json",
+      "bytes": 101,
+      "sha256": "db4b8c66312249ee644383d5a8d75efa983694353a05fb553684ab15874dcbef"
+    },
+    {
+      "path": "autotick-restored.json",
+      "bytes": 67,
+      "sha256": "8f7a98f96988f9d475b037fe7f70f89543c1de743d4da1af5266949716ee2db1"
+    },
+    {
+      "path": "compile-after-switch.json",
+      "bytes": 76,
+      "sha256": "557b4b332f7528cefa6e865b86ceadbd17bf1074d7d7ba0c72199248f6e2b2dd"
+    },
+    {
+      "path": "compile-final.json",
+      "bytes": 76,
+      "sha256": "557b4b332f7528cefa6e865b86ceadbd17bf1074d7d7ba0c72199248f6e2b2dd"
+    },
+    {
+      "path": "console-on-readiness-failure.json",
+      "bytes": 7212,
+      "sha256": "563bbaaedcc804bbff3017a9acb02e83617f68f2fc5be29f33f7dce212ad6503"
+    },
+    {
+      "path": "editor-ready-after-switch.json",
+      "bytes": 1105,
+      "sha256": "d76f027e77bc1c8b8b6b3f97398d67b0efa0d2470f77b3ed4e64b56cd83b6607"
+    },
+    {
+      "path": "final-idle-state.json",
+      "bytes": 444,
+      "sha256": "4eb7936d123d3f03698b11aa5eed988f91ea1cc1cd7ab43023cb7b57ea72554e"
+    },
+    {
+      "path": "four-case-gate.json",
+      "bytes": 203,
+      "sha256": "02de9b4456ff21dfa3815a7190317499372cde4a29b8645af44bace0026157e1"
+    },
+    {
+      "path": "helpers/HELPER_USAGE.md",
+      "bytes": 1735,
+      "sha256": "7d69a02db4ace30dc5ec02c05b6d4cca68ddbdb160e958699d9d86133ff93c06"
+    },
+    {
+      "path": "helpers/STATUS.md",
+      "bytes": 281,
+      "sha256": "5b2fdf001f1546c1e04f0e23bccefa77ffd9291f86e6bb1c3d6f78703838c365"
+    },
+    {
+      "path": "helpers/capture-1440-hud.cs.txt",
+      "bytes": 12178,
+      "sha256": "6e9cd45ec3dc7d4812695a20e3f2b8d949e25e431b32695db6d678fc836804bb"
+    },
+    {
+      "path": "helpers/capture-720-hud-mini125.cs.txt",
+      "bytes": 12187,
+      "sha256": "7cf633018169a47b2c1e80e5b1b4f1f067d0815765c54fa66d5f559e8265aba9"
+    },
+    {
+      "path": "helpers/capture-template.cs.txt",
+      "bytes": 12146,
+      "sha256": "6848c88bab103ecb896c03125f4a5a7307dd337d24b0198b95294ec78d271464"
+    },
+    {
+      "path": "helpers/drawer-proof-functions.cs.txt",
+      "bytes": 29536,
+      "sha256": "80f3b8c1bd90b4a436abcaf553e87a78d3937e415753b1a17b161fefd21754ef"
+    },
+    {
+      "path": "hold-and-baseline.cs.txt",
+      "bytes": 928,
+      "sha256": "e200c3f50608544059e638833e5bcacb7a18c3f7a069da683ce8545b7979b9b9"
+    },
+    {
+      "path": "identity-observer.cs.txt",
+      "bytes": 1187,
+      "sha256": "5f0d65eddd7a754d460404393d7bb2b66324359f9f58c967bded6ea98fc5d4d8"
+    },
+    {
+      "path": "identity-verification.pretest.json",
+      "bytes": 810,
+      "sha256": "a145b318c4d05b6b90843a016475e775a07aee819109b57bf945edaff1c04b19"
+    },
+    {
+      "path": "imported-loaded-identity.json",
+      "bytes": 879,
+      "sha256": "4789d7309a817a5f939bf1b06fec0b121fdb97e24bda24bcadfeb7d57daf99f3"
+    },
+    {
+      "path": "initial-play-state.json",
+      "bytes": 270,
+      "sha256": "59be5a83372c61719907cb30627588cdddee84b5fe746b2cef6a2435071d105e"
+    },
+    {
+      "path": "input-prefs-baseline.json",
+      "bytes": 364,
+      "sha256": "756eed50ea1e2a5bb0568e1edd00682ca589a88c322cfb40e7b3a3124293c29e"
+    },
+    {
+      "path": "observe-rendered-readiness.cs.txt",
+      "bytes": 1899,
+      "sha256": "532855f531d1a8ddf11c5c6e927b86c3749db9823c55903413796a2888cb1d89"
+    },
+    {
+      "path": "play-start-1440-hud.json",
+      "bytes": 20,
+      "sha256": "c42131b3c09a58be76523c63da85d5cc1fe3e60794a3b2511a0210bab4cb142a"
+    },
+    {
+      "path": "play-state-on-readiness-failure.json",
+      "bytes": 270,
+      "sha256": "ba59535350961ea307c819309dffa15dbd6140e425775d5afbbc618d4a7867da"
+    },
+    {
+      "path": "play-stop-on-failure.json",
+      "bytes": 19,
+      "sha256": "07ca3fedcb7f611bfecfc8584183d5d78170933ace3e4996cfe3227132e22671"
+    },
+    {
+      "path": "ready-1440-hud.json",
+      "bytes": 1227,
+      "sha256": "4b4fb5203001e0b28d32e6c08665a2f539f396c4a42671f6985e6b2cae079ea7"
+    },
+    {
+      "path": "ready-after-stop.json",
+      "bytes": 1105,
+      "sha256": "d76f027e77bc1c8b8b6b3f97398d67b0efa0d2470f77b3ed4e64b56cd83b6607"
+    },
+    {
+      "path": "refresh-after-switch.json",
+      "bytes": 120,
+      "sha256": "f62e201d9f425f596076b6c199bd46edc609b5771db71b8a92bc3ffd521c397d"
+    },
+    {
+      "path": "rendered-readiness-request.json",
+      "bytes": 86,
+      "sha256": "71a0db514a911897e5579c6e38a4cfae86939d720900ef8ed6327e8bacf9d244"
+    },
+    {
+      "path": "rendered-readiness-timeout.json",
+      "bytes": 247,
+      "sha256": "9cb9456295adc9f54259eddd02106ed06a1fc0f3093a23cd85ee3496bba00201"
+    },
+    {
+      "path": "restoration-verification.json",
+      "bytes": 679,
+      "sha256": "406f599d4c8e8d1debb6c6ff3088032d20c87b4dcefccfefd66670f6ce3a6410"
+    },
+    {
+      "path": "restore-globals.cs.txt",
+      "bytes": 1977,
+      "sha256": "7cfa19795660e5f8559d05f54b17b376b111aeb17c649423ed04b3612e6c9041"
+    },
+    {
+      "path": "setup-1440-hud.json",
+      "bytes": 139,
+      "sha256": "2fc5c13b7d092bbcb805ff2381d98b72c8addb49a0158a5300264c11e65f3e1e"
+    },
+    {
+      "path": "source-after-native.json",
+      "bytes": 1345,
+      "sha256": "50753a342fb17984d242dc4be1f87d710a50aee102a62415f0a21323b7823736"
+    },
+    {
+      "path": "test-verification.json",
+      "bytes": 3939,
+      "sha256": "5720c5a3814ce67c1731e8c46f8486872b075095fc1ea1cd68dd8876abb93bfe"
+    },
+    {
+      "path": "tests-MatchClientAccountBindingEditModeTests.json",
+      "bytes": 1029,
+      "sha256": "9554ee642e0e81b4a4eff64ed9ea1bd1606bcd8df2946862fe93a8a488a35e0f"
+    },
+    {
+      "path": "viewport-before-play.json",
+      "bytes": 147,
+      "sha256": "3f59f58bc6fd3ef32e01015f2b09d8c25407863bb75ff2f6376cebaf5c1af2e0"
+    },
+    {
+      "path": "viewport-observations.json",
+      "bytes": 655,
+      "sha256": "178942c2b740fb4aa18dc5d7a04369deac84cc91542edf0bf615b0f33412a76a"
+    }
+  ]
+}
