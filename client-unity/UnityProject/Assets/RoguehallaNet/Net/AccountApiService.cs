@@ -157,6 +157,11 @@ namespace Roguehalla.Net
             operation.Scope == _flow.ApiEndpoint.StorageScope && AccountEndpoint.NormalizeName(operation.Name) == owner.ExpectedSelection &&
             string.Equals(operation.Token, owner.Account.Token, StringComparison.Ordinal);
 
+        /// <summary>Read-only ownership of this service's registered operation. Does not send, retry or resolve an unknown outcome.</summary>
+        public bool IsCurrentOwner(AccountMutation operation) => operation != null &&
+            _operations.TryGetValue(operation.Id, out var registered) && ReferenceEquals(operation, registered) &&
+            Owns(operation, _flow.CaptureApiOwner());
+
         public async Task<AccountApiResult> SendAsync(AccountMutation operation, CancellationToken cancellation = default)
         {
             if (operation == null || !_operations.TryGetValue(operation.Id, out var registered) || !ReferenceEquals(operation, registered))

@@ -54,6 +54,60 @@ namespace Roguehalla.Net.Tests
             new[] { new AccountLeaderboardEntry("Alice", 100, null) }, new[] { month }, you ? new AccountLeaderboardRank(1, 100) : null);
 
         [Test]
+        public async Task OperationOwnershipIsReadOnlyAndBoundToTheRegisteringService()
+        {
+            var rig = new Rig(); var peer = new Rig(); await rig.Open(); await peer.Open();
+            var operation = rig.Api.CreatePurchase("skin-bone"); var id = operation.Id;
+            var snapshot = rig.Flow.Snapshot; int changed = 0; rig.Flow.Changed += _ => ++changed;
+            for (int i = 0; i < 3; ++i)
+            {
+                Assert.IsTrue(rig.Api.IsCurrentOwner(operation));
+                Assert.IsFalse(peer.Api.IsCurrentOwner(operation), "matching name, scope and credential do not register another service's object");
+                Assert.IsFalse(rig.Api.IsCurrentOwner(null));
+            }
+            Assert.AreSame(snapshot, rig.Flow.Snapshot); Assert.AreEqual(0, changed);
+            Assert.AreEqual(id, operation.Id); Assert.AreEqual(AccountMutationState.Ready, operation.State); Assert.IsNull(operation.Error);
+            Assert.AreEqual(0, rig.Transport.Requests.Count); Assert.AreEqual(0, peer.Transport.Requests.Count);
+            Assert.AreEqual(1, rig.Transport.Claims.Count); Assert.AreEqual(1, peer.Transport.Claims.Count);
+        }
+
+        [Test]
+        public async Task OperationOwnershipTracksAdmittedOwnershipWithoutRetryingUnknown()
+        {
+            var rig = new Rig(); await rig.Open(); var operation = rig.Api.CreatePurchase("skin-bone"); var id = operation.Id;
+            var send = rig.Api.SendAsync(operation); rig.Transport.Requests[0].Reply.SetResult(new AccountApiResponse(0)); await send;
+            Assert.IsTrue(rig.Api.IsCurrentOwner(operation)); Assert.AreEqual(AccountMutationState.Unknown, operation.State);
+            var reopening = rig.Flow.OpenProfileAsync("Alice"); var pending = rig.Transport.Claims.Last();
+            Assert.IsFalse(rig.Api.IsCurrentOwner(operation), "opening is not admitted ownership");
+            rig.Flow.Cancel(); Assert.IsFalse(rig.Api.IsCurrentOwner(operation));
+            pending.Reply.SetResult(new AccountHttpResponse(200, Reply("Alice", false, true)));
+            Assert.IsFalse(await reopening); Assert.IsFalse(rig.Api.IsCurrentOwner(operation));
+            await rig.Open(); Assert.IsTrue(rig.Api.IsCurrentOwner(operation), "same confirmed credential can explicitly retry its original operation");
+            Assert.AreEqual(AccountMutationState.Unknown, operation.State); Assert.AreEqual(id, operation.Id);
+            Assert.AreEqual(1, rig.Api.PendingOperations.Count); Assert.AreEqual(1, rig.Transport.Requests.Count);
+        }
+
+        [Test]
+        public async Task SameNameReplacementCredentialDoesNotOwnOrDiscardOldUnknown()
+        {
+            var rig = new Rig(); await rig.Open(); var operation = rig.Api.CreatePurchase("skin-bone"); var id = operation.Id;
+            var send = rig.Api.SendAsync(operation); rig.Transport.Requests[0].Reply.SetResult(new AccountApiResponse(0)); await send;
+            var rejected = rig.Flow.OpenProfileAsync("Alice");
+            rig.Transport.Claims.Last().Reply.SetResult(new AccountHttpResponse(403)); Assert.IsFalse(await rejected);
+            var replacement = new string('c', 64);
+            var recovering = rig.Flow.OpenProfileAsync("Alice", pendingKey: replacement);
+            Assert.AreEqual(replacement, rig.Transport.Claims.Last().Token);
+            var reply = Reply("Alice", false, true); reply.token = replacement;
+            rig.Transport.Claims.Last().Reply.SetResult(new AccountHttpResponse(200, reply)); Assert.IsTrue(await recovering);
+            Assert.AreEqual(operation.Name, rig.Flow.Snapshot.Profile.Name);
+            Assert.IsFalse(rig.Api.IsCurrentOwner(operation));
+            Assert.AreEqual(AccountApiFailure.NoOwner, (await rig.Api.SendAsync(operation)).Failure);
+            Assert.AreEqual(AccountMutationState.Unknown, operation.State); Assert.AreEqual(id, operation.Id);
+            Assert.AreEqual(id, rig.Api.PendingOperations.Single().Id); Assert.AreEqual(1, rig.Transport.Requests.Count);
+            Assert.IsTrue(rig.Api.IsCurrentOwner(rig.Api.CreatePurchase("skin-bone")));
+        }
+
+        [Test]
         public async Task FullReadUsesOwnershipPathAndMalformedRichMapsDoNotLoseCreatedPageOnlyCredential()
         {
             var rig = new Rig(); rig.Credentials.Blocked = true; rig.Flow.SelectName("Alice");
