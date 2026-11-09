@@ -699,7 +699,10 @@ namespace Roguehalla.Client
             {
                 var operation = _mutations[i].Operation;
                 if (!SameOwner(operation.Name, profile.Name) || !api.IsCurrentOwner(operation)) continue;
-                if (_mutations[i].Result != null && !api.IsCurrent(_mutations[i].Result)) continue;
+                // An uncertain operation survives same-credential reopen; its old delivery generation does not.
+                // Current operation ownership above still excludes a replacement credential's history.
+                if (operation.State != AccountMutationState.Unknown &&
+                    _mutations[i].Result != null && !api.IsCurrent(_mutations[i].Result)) continue;
                 if (_mutations[i].Submitting) return "Account request queued or in flight · do not submit a duplicate.";
                 if (operation.State == AccountMutationState.Unknown)
                     return "Confirmation was interrupted. Retry resubmits this change.";
