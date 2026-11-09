@@ -1,0 +1,1695 @@
+{
+  "format": "rh-walk-hint-source/1",
+  "profile": {
+    "format": "rh-walk-hint-source/1",
+    "base": "db5ed80b2b89a156eae09cd0bd3f4c9e77e9e6de",
+    "node": "v22.23.4",
+    "platform": "linux",
+    "arch": "x64",
+    "image": "node:22.23.4-bookworm-slim@sha256:aaa4b5baf1ecff3b283486bb1f90405cdda225a3e6f79660d2c559fa510a7292",
+    "source": {
+      "files": {
+        "packages/server/src/sim/walkHint.ts": {
+          "bytes": 10241,
+          "sha256": "9030f17e7e76a5dda94bba76347e2993a5265d8d36e145b9d1f889f3f988af16"
+        },
+        "packages/server/src/sim/gameplay.ts": {
+          "bytes": 5104,
+          "sha256": "70f6f2b67571783f3042309bef01dc75aabd2656c59a184d0f97c9c0a8b8cf78"
+        },
+        "packages/server/src/sim/step.ts": {
+          "bytes": 14822,
+          "sha256": "5ff90451b4b27b12ddfe8175745cf38892eaf07a851282c904076edc46896634"
+        },
+        "packages/server/src/sim/inputs.ts": {
+          "bytes": 15914,
+          "sha256": "47bda82b978e67922c9d2361bfcd51be4555a55691453a4e0393deb917be4cde"
+        },
+        "packages/server/src/sim/movement.ts": {
+          "bytes": 5986,
+          "sha256": "86ebd2205a0af4608ed484317bea3723bb378b3e138954a44140e340adab1f93"
+        },
+        "packages/server/src/sim/world.ts": {
+          "bytes": 58199,
+          "sha256": "b98376a7f022ec6f9b681e368d62c18fbe524d95408b2d4eec93909934454d54"
+        },
+        "packages/shared/src/constants.ts": {
+          "bytes": 46007,
+          "sha256": "51ce4dd800ec868abee525fb1ae375688066f336972a7da878644df1235924e7"
+        },
+        "packages/shared/src/walk.ts": {
+          "bytes": 15362,
+          "sha256": "0d33c95623a6d11fa21a9e58b308eed8cb0150b24d65b592877c5f9e2b5a0020"
+        },
+        "packages/shared/src/schema.ts": {
+          "bytes": 21469,
+          "sha256": "245486da649ea5bc5d8b9b0d5d75f3e860fc8f153574fa2b9ee091dcb52e99cb"
+        }
+      },
+      "walkHint": {
+        "install": {
+          "startLine": 36,
+          "endLine": 41,
+          "bytes": 310,
+          "sha256": "c3b3fb9d8c97903a255ab65b03b241b44331bbdedb0d52634742bdd012522c97"
+        },
+        "updateWalkHints": {
+          "startLine": 48,
+          "endLine": 64,
+          "bytes": 570,
+          "sha256": "82849bc5b57d88b7f09bbeb7a29114eb525d18db37be630c070dead1f5844f32"
+        },
+        "walkHintOf": {
+          "startLine": 69,
+          "endLine": 120,
+          "bytes": 2257,
+          "sha256": "9bd23904a0760e0894cd5a51a8d91c6aeb660876ca8a5a91c9742407e00825ed"
+        },
+        "zeroAll": {
+          "startLine": 43,
+          "endLine": 45,
+          "bytes": 140,
+          "sha256": "31272756ad885e3709be3b30501309ca3b36a954f149435d13adff8c3d108f10"
+        }
+      },
+      "gameplay": {
+        "createGameWorld": {
+          "startLine": 86,
+          "endLine": 86,
+          "bytes": 104,
+          "sha256": "9f4d5384f74830e409804e720908479efe39c344c3651e93648c2a012ac8cb58"
+        }
+      },
+      "lock": "991869bdfbbefb6874220500197c61db302a4d2b2603dfc2288fd7032ce1d481"
+    },
+    "install": {
+      "systems": [
+        "update",
+        "afterDamage",
+        "healOverTime",
+        "resetDummies",
+        "expireBoosts",
+        "flushAnnouncements",
+        "expireChests",
+        "reapMobs",
+        "respawnCamps",
+        "thinkMobs",
+        "lightPass",
+        "regenPass",
+        "abilityDotFx",
+        "refreshVision",
+        "updateConsumables",
+        "updateTraders",
+        "afterDamage",
+        "",
+        "update",
+        "updateMods",
+        "updateZombies",
+        "regenZombies",
+        "updateWalkHints"
+      ],
+      "lastSystem": "updateWalkHints",
+      "walkHintSystemLast": true,
+      "actionKeys": [
+        "attack",
+        "cast",
+        "choose",
+        "consumeCorpse",
+        "huntTarget",
+        "pickup",
+        "release",
+        "swap",
+        "target",
+        "trade",
+        "useConsumable"
+      ],
+      "hookKeys": [
+        "arenaHurt",
+        "attackStarted",
+        "blocked",
+        "campCleared",
+        "dropBody",
+        "executeDenied",
+        "fighterOut",
+        "hitLanded",
+        "hurt",
+        "mobKilled",
+        "overkilled",
+        "playerKilled",
+        "raidStarted",
+        "runEnded",
+        "staggered",
+        "statusApplied",
+        "teleported",
+        "weaponSwapped"
+      ]
+    },
+    "constructor": {
+      "createGameWorld": true,
+      "modules": {
+        "walkHints": true
+      },
+      "map": {
+        "w": 64,
+        "h": 40,
+        "seed": 0,
+        "spawns": [
+          {
+            "x": 176,
+            "y": 176
+          },
+          {
+            "x": 176,
+            "y": 208
+          }
+        ],
+        "tiles": {
+          "bytes": 2560,
+          "sha256": "e2059e80ddabe69fd43ed039b22e3ab1f9832b4edf162ff6aff1087fdd4712ee"
+        }
+      },
+      "config": {
+        "minPlayers": 1,
+        "lobbySeconds": 15,
+        "fillSeconds": 0,
+        "patienceSeconds": 1000000,
+        "patienceMinSeconds": 1000000,
+        "suddenDeathSeconds": 1000000,
+        "planSeconds": 0,
+        "firstPatienceSeconds": 0,
+        "pvpRules": false,
+        "wishLockSeconds": 0
+      },
+      "random": {
+        "stream": "mulberry32",
+        "seed": 7
+      },
+      "roster": [
+        {
+          "id": "p0",
+          "profile": "walk-hint-probe",
+          "faction": "holy"
+        }
+      ]
+    },
+    "sourceOrder": "actual createGameWorld module order; walkHint install pushes updateWalkHints last and chains teleported/runEnded to zeroAll"
+  },
+  "setup": {
+    "events": [
+      {
+        "type": "raidStarted"
+      }
+    ],
+    "draws": [
+      0.011704753153026104,
+      0.06195825757458806
+    ],
+    "snapshot": {
+      "tick": 1,
+      "serverTime": 50,
+      "phase": "active",
+      "seed": 0,
+      "mapHash": 4121323083,
+      "players": [
+        {
+          "id": "p0",
+          "name": "walk-hint-probe",
+          "faction": "holy",
+          "x": 176,
+          "y": 208,
+          "hp": 1145,
+          "maxHp": 1145,
+          "status": "alive",
+          "facing": 0,
+          "weapon0": "",
+          "weapon1": "",
+          "speedMult": 1000,
+          "asMult": 1000,
+          "windupMult": 1000,
+          "extra": {
+            "wishFullAt": 50,
+            "chestBoosts": {},
+            "killStats": {},
+            "bushRevealUntil": 0,
+            "walkDir": 0,
+            "walkTicks": 0
+          },
+          "path": [],
+          "weapon": {
+            "action": null,
+            "rootUntil": 0,
+            "staggerImmuneUntil": 0,
+            "held": false,
+            "pressedAt": 0,
+            "bufferedUntil": 0,
+            "aim": 0,
+            "aimAt": 0,
+            "lagMs": 0,
+            "lock": null,
+            "lockSeen": false,
+            "lockLosLostAt": 0,
+            "lockPlanAt": null,
+            "lockGoal": null,
+            "lockSearchAt": null,
+            "attackMoveGoal": null,
+            "lastShotAt": null
+          },
+          "statuses": null,
+          "history": [
+            {
+              "t": 50,
+              "x": 176,
+              "y": 208
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "frames": [
+    {
+      "label": "setup-active",
+      "order": null,
+      "events": [
+        {
+          "type": "raidStarted"
+        }
+      ],
+      "draws": [],
+      "snapshot": {
+        "tick": 1,
+        "serverTime": 50,
+        "phase": "active",
+        "seed": 0,
+        "mapHash": 4121323083,
+        "players": [
+          {
+            "id": "p0",
+            "name": "walk-hint-probe",
+            "faction": "holy",
+            "x": 176,
+            "y": 208,
+            "hp": 1145,
+            "maxHp": 1145,
+            "status": "alive",
+            "facing": 0,
+            "weapon0": "",
+            "weapon1": "",
+            "speedMult": 1000,
+            "asMult": 1000,
+            "windupMult": 1000,
+            "extra": {
+              "wishFullAt": 50,
+              "chestBoosts": {},
+              "killStats": {},
+              "bushRevealUntil": 0,
+              "walkDir": 0,
+              "walkTicks": 0
+            },
+            "path": [],
+            "weapon": {
+              "action": null,
+              "rootUntil": 0,
+              "staggerImmuneUntil": 0,
+              "held": false,
+              "pressedAt": 0,
+              "bufferedUntil": 0,
+              "aim": 0,
+              "aimAt": 0,
+              "lagMs": 0,
+              "lock": null,
+              "lockSeen": false,
+              "lockLosLostAt": 0,
+              "lockPlanAt": null,
+              "lockGoal": null,
+              "lockSearchAt": null,
+              "attackMoveGoal": null,
+              "lastShotAt": null
+            },
+            "statuses": null,
+            "history": [
+              {
+                "t": 50,
+                "x": 176,
+                "y": 208
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "label": "move-initial",
+      "order": {
+        "type": "move",
+        "msg": {
+          "x": 235.6689501187862,
+          "y": 231.14338764575757,
+          "seq": 1
+        },
+        "accepted": true
+      },
+      "events": [],
+      "draws": [],
+      "snapshot": {
+        "tick": 2,
+        "serverTime": 100,
+        "phase": "active",
+        "seed": 0,
+        "mapHash": 4121323083,
+        "players": [
+          {
+            "id": "p0",
+            "name": "walk-hint-probe",
+            "faction": "holy",
+            "x": 183.9247824376513,
+            "y": 211.07373117170218,
+            "hp": 1145,
+            "maxHp": 1145,
+            "status": "alive",
+            "facing": 0.3700000000000001,
+            "weapon0": "",
+            "weapon1": "",
+            "speedMult": 1000,
+            "asMult": 1000,
+            "windupMult": 1000,
+            "extra": {
+              "wishFullAt": 50,
+              "chestBoosts": {},
+              "killStats": {},
+              "bushRevealUntil": 0,
+              "walkDir": 15,
+              "walkTicks": 3
+            },
+            "path": [
+              {
+                "x": 235.6689501187862,
+                "y": 231.14338764575757
+              }
+            ],
+            "weapon": {
+              "action": null,
+              "rootUntil": 0,
+              "staggerImmuneUntil": 0,
+              "held": false,
+              "pressedAt": 0,
+              "bufferedUntil": 0,
+              "aim": 0,
+              "aimAt": 0,
+              "lagMs": 0,
+              "lock": null,
+              "lockSeen": false,
+              "lockLosLostAt": 0,
+              "lockPlanAt": null,
+              "lockGoal": null,
+              "lockSearchAt": null,
+              "attackMoveGoal": null,
+              "lastShotAt": null
+            },
+            "statuses": null,
+            "history": [
+              {
+                "t": 50,
+                "x": 176,
+                "y": 208
+              },
+              {
+                "t": 100,
+                "x": 183.9247824376513,
+                "y": 211.07373117170218
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "label": "move-idle",
+      "order": null,
+      "events": [],
+      "draws": [],
+      "snapshot": {
+        "tick": 3,
+        "serverTime": 150,
+        "phase": "active",
+        "seed": 0,
+        "mapHash": 4121323083,
+        "players": [
+          {
+            "id": "p0",
+            "name": "walk-hint-probe",
+            "faction": "holy",
+            "x": 191.84956487530258,
+            "y": 214.14746234340436,
+            "hp": 1145,
+            "maxHp": 1145,
+            "status": "alive",
+            "facing": 0.37000000000000005,
+            "weapon0": "",
+            "weapon1": "",
+            "speedMult": 1000,
+            "asMult": 1000,
+            "windupMult": 1000,
+            "extra": {
+              "wishFullAt": 50,
+              "chestBoosts": {},
+              "killStats": {},
+              "bushRevealUntil": 0,
+              "walkDir": 15,
+              "walkTicks": 3
+            },
+            "path": [
+              {
+                "x": 235.6689501187862,
+                "y": 231.14338764575757
+              }
+            ],
+            "weapon": {
+              "action": null,
+              "rootUntil": 0,
+              "staggerImmuneUntil": 0,
+              "held": false,
+              "pressedAt": 0,
+              "bufferedUntil": 0,
+              "aim": 0,
+              "aimAt": 0,
+              "lagMs": 0,
+              "lock": null,
+              "lockSeen": false,
+              "lockLosLostAt": 0,
+              "lockPlanAt": null,
+              "lockGoal": null,
+              "lockSearchAt": null,
+              "attackMoveGoal": null,
+              "lastShotAt": null
+            },
+            "statuses": null,
+            "history": [
+              {
+                "t": 50,
+                "x": 176,
+                "y": 208
+              },
+              {
+                "t": 100,
+                "x": 183.9247824376513,
+                "y": 211.07373117170218
+              },
+              {
+                "t": 150,
+                "x": 191.84956487530258,
+                "y": 214.14746234340436
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "label": "move-small-turn",
+      "order": {
+        "type": "move",
+        "msg": {
+          "x": 251.11647439877058,
+          "y": 238.30182914398634,
+          "seq": 2
+        },
+        "accepted": true
+      },
+      "events": [],
+      "draws": [],
+      "snapshot": {
+        "tick": 4,
+        "serverTime": 200,
+        "phase": "active",
+        "seed": 0,
+        "mapHash": 4121323083,
+        "players": [
+          {
+            "id": "p0",
+            "name": "walk-hint-probe",
+            "faction": "holy",
+            "x": 199.72095129638817,
+            "y": 217.35546418410667,
+            "hp": 1145,
+            "maxHp": 1145,
+            "status": "alive",
+            "facing": 0.38700000000000007,
+            "weapon0": "",
+            "weapon1": "",
+            "speedMult": 1000,
+            "asMult": 1000,
+            "windupMult": 1000,
+            "extra": {
+              "wishFullAt": 50,
+              "chestBoosts": {},
+              "killStats": {},
+              "bushRevealUntil": 0,
+              "walkDir": 15,
+              "walkTicks": 3
+            },
+            "path": [
+              {
+                "x": 251.11647439877058,
+                "y": 238.30182914398634
+              }
+            ],
+            "weapon": {
+              "action": null,
+              "rootUntil": 0,
+              "staggerImmuneUntil": 0,
+              "held": false,
+              "pressedAt": 0,
+              "bufferedUntil": 0,
+              "aim": 0,
+              "aimAt": 0,
+              "lagMs": 0,
+              "lock": null,
+              "lockSeen": false,
+              "lockLosLostAt": 0,
+              "lockPlanAt": null,
+              "lockGoal": null,
+              "lockSearchAt": null,
+              "attackMoveGoal": null,
+              "lastShotAt": null
+            },
+            "statuses": null,
+            "history": [
+              {
+                "t": 50,
+                "x": 176,
+                "y": 208
+              },
+              {
+                "t": 100,
+                "x": 183.9247824376513,
+                "y": 211.07373117170218
+              },
+              {
+                "t": 150,
+                "x": 191.84956487530258,
+                "y": 214.14746234340436
+              },
+              {
+                "t": 200,
+                "x": 199.72095129638817,
+                "y": 217.35546418410667
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "label": "move-large-turn",
+      "order": {
+        "type": "move",
+        "msg": {
+          "x": 254.46458889774237,
+          "y": 250.50865622004187,
+          "seq": 3
+        },
+        "accepted": true
+      },
+      "events": [],
+      "draws": [],
+      "snapshot": {
+        "tick": 5,
+        "serverTime": 250,
+        "phase": "active",
+        "seed": 0,
+        "mapHash": 4121323083,
+        "players": [
+          {
+            "id": "p0",
+            "name": "walk-hint-probe",
+            "faction": "holy",
+            "x": 206.99159066531803,
+            "y": 221.7586225013793,
+            "hp": 1145,
+            "maxHp": 1145,
+            "status": "alive",
+            "facing": 0.5445329251994331,
+            "weapon0": "",
+            "weapon1": "",
+            "speedMult": 1000,
+            "asMult": 1000,
+            "windupMult": 1000,
+            "extra": {
+              "wishFullAt": 50,
+              "chestBoosts": {},
+              "killStats": {},
+              "bushRevealUntil": 0,
+              "walkDir": 22,
+              "walkTicks": 3
+            },
+            "path": [
+              {
+                "x": 254.46458889774237,
+                "y": 250.50865622004187
+              }
+            ],
+            "weapon": {
+              "action": null,
+              "rootUntil": 0,
+              "staggerImmuneUntil": 0,
+              "held": false,
+              "pressedAt": 0,
+              "bufferedUntil": 0,
+              "aim": 0,
+              "aimAt": 0,
+              "lagMs": 0,
+              "lock": null,
+              "lockSeen": false,
+              "lockLosLostAt": 0,
+              "lockPlanAt": null,
+              "lockGoal": null,
+              "lockSearchAt": null,
+              "attackMoveGoal": null,
+              "lastShotAt": null
+            },
+            "statuses": null,
+            "history": [
+              {
+                "t": 50,
+                "x": 176,
+                "y": 208
+              },
+              {
+                "t": 100,
+                "x": 183.9247824376513,
+                "y": 211.07373117170218
+              },
+              {
+                "t": 150,
+                "x": 191.84956487530258,
+                "y": 214.14746234340436
+              },
+              {
+                "t": 200,
+                "x": 199.72095129638817,
+                "y": 217.35546418410667
+              },
+              {
+                "t": 250,
+                "x": 206.99159066531803,
+                "y": 221.7586225013793
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "label": "stop",
+      "order": {
+        "type": "stop",
+        "msg": {
+          "seq": 4
+        },
+        "accepted": true
+      },
+      "events": [],
+      "draws": [],
+      "snapshot": {
+        "tick": 6,
+        "serverTime": 300,
+        "phase": "active",
+        "seed": 0,
+        "mapHash": 4121323083,
+        "players": [
+          {
+            "id": "p0",
+            "name": "walk-hint-probe",
+            "faction": "holy",
+            "x": 206.99159066531803,
+            "y": 221.7586225013793,
+            "hp": 1145,
+            "maxHp": 1145,
+            "status": "alive",
+            "facing": 0.5445329251994331,
+            "weapon0": "",
+            "weapon1": "",
+            "speedMult": 1000,
+            "asMult": 1000,
+            "windupMult": 1000,
+            "extra": {
+              "wishFullAt": 50,
+              "chestBoosts": {},
+              "killStats": {},
+              "bushRevealUntil": 0,
+              "walkDir": 22,
+              "walkTicks": 0
+            },
+            "path": [],
+            "weapon": {
+              "action": null,
+              "rootUntil": 0,
+              "staggerImmuneUntil": 0,
+              "held": false,
+              "pressedAt": 0,
+              "bufferedUntil": 0,
+              "aim": 0,
+              "aimAt": 0,
+              "lagMs": 0,
+              "lock": null,
+              "lockSeen": false,
+              "lockLosLostAt": 0,
+              "lockPlanAt": null,
+              "lockGoal": null,
+              "lockSearchAt": null,
+              "attackMoveGoal": null,
+              "lastShotAt": null
+            },
+            "statuses": null,
+            "history": [
+              {
+                "t": 50,
+                "x": 176,
+                "y": 208
+              },
+              {
+                "t": 100,
+                "x": 183.9247824376513,
+                "y": 211.07373117170218
+              },
+              {
+                "t": 150,
+                "x": 191.84956487530258,
+                "y": 214.14746234340436
+              },
+              {
+                "t": 200,
+                "x": 199.72095129638817,
+                "y": 217.35546418410667
+              },
+              {
+                "t": 250,
+                "x": 206.99159066531803,
+                "y": 221.7586225013793
+              },
+              {
+                "t": 300,
+                "x": 206.99159066531803,
+                "y": 221.7586225013793
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "label": "waypoint-0",
+      "order": null,
+      "events": [],
+      "draws": [],
+      "snapshot": {
+        "tick": 7,
+        "serverTime": 350,
+        "phase": "active",
+        "seed": 0,
+        "mapHash": 4121323083,
+        "players": [
+          {
+            "id": "p0",
+            "name": "walk-hint-probe",
+            "faction": "holy",
+            "x": 214.91637310296932,
+            "y": 224.83235367308149,
+            "hp": 1145,
+            "maxHp": 1145,
+            "status": "alive",
+            "facing": 0.3700000000000001,
+            "weapon0": "",
+            "weapon1": "",
+            "speedMult": 1000,
+            "asMult": 1000,
+            "windupMult": 1000,
+            "extra": {
+              "wishFullAt": 50,
+              "chestBoosts": {},
+              "killStats": {},
+              "bushRevealUntil": 0,
+              "walkDir": 15,
+              "walkTicks": 3
+            },
+            "path": [
+              {
+                "x": 266.6605407841042,
+                "y": 244.90201014713688
+              }
+            ],
+            "weapon": {
+              "action": null,
+              "rootUntil": 0,
+              "staggerImmuneUntil": 0,
+              "held": false,
+              "pressedAt": 0,
+              "bufferedUntil": 0,
+              "aim": 0,
+              "aimAt": 0,
+              "lagMs": 0,
+              "lock": null,
+              "lockSeen": false,
+              "lockLosLostAt": 0,
+              "lockPlanAt": null,
+              "lockGoal": null,
+              "lockSearchAt": null,
+              "attackMoveGoal": null,
+              "lastShotAt": null
+            },
+            "statuses": null,
+            "history": [
+              {
+                "t": 50,
+                "x": 176,
+                "y": 208
+              },
+              {
+                "t": 100,
+                "x": 183.9247824376513,
+                "y": 211.07373117170218
+              },
+              {
+                "t": 150,
+                "x": 191.84956487530258,
+                "y": 214.14746234340436
+              },
+              {
+                "t": 200,
+                "x": 199.72095129638817,
+                "y": 217.35546418410667
+              },
+              {
+                "t": 250,
+                "x": 206.99159066531803,
+                "y": 221.7586225013793
+              },
+              {
+                "t": 300,
+                "x": 206.99159066531803,
+                "y": 221.7586225013793
+              },
+              {
+                "t": 350,
+                "x": 214.91637310296932,
+                "y": 224.83235367308149
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "label": "waypoint-1",
+      "order": null,
+      "events": [],
+      "draws": [],
+      "snapshot": {
+        "tick": 8,
+        "serverTime": 400,
+        "phase": "active",
+        "seed": 0,
+        "mapHash": 4121323083,
+        "players": [
+          {
+            "id": "p0",
+            "name": "walk-hint-probe",
+            "faction": "holy",
+            "x": 222.8411555406206,
+            "y": 227.90608484478366,
+            "hp": 1145,
+            "maxHp": 1145,
+            "status": "alive",
+            "facing": 0.37000000000000005,
+            "weapon0": "",
+            "weapon1": "",
+            "speedMult": 1000,
+            "asMult": 1000,
+            "windupMult": 1000,
+            "extra": {
+              "wishFullAt": 50,
+              "chestBoosts": {},
+              "killStats": {},
+              "bushRevealUntil": 0,
+              "walkDir": 15,
+              "walkTicks": 3
+            },
+            "path": [
+              {
+                "x": 266.6605407841042,
+                "y": 244.90201014713688
+              }
+            ],
+            "weapon": {
+              "action": null,
+              "rootUntil": 0,
+              "staggerImmuneUntil": 0,
+              "held": false,
+              "pressedAt": 0,
+              "bufferedUntil": 0,
+              "aim": 0,
+              "aimAt": 0,
+              "lagMs": 0,
+              "lock": null,
+              "lockSeen": false,
+              "lockLosLostAt": 0,
+              "lockPlanAt": null,
+              "lockGoal": null,
+              "lockSearchAt": null,
+              "attackMoveGoal": null,
+              "lastShotAt": null
+            },
+            "statuses": null,
+            "history": [
+              {
+                "t": 50,
+                "x": 176,
+                "y": 208
+              },
+              {
+                "t": 100,
+                "x": 183.9247824376513,
+                "y": 211.07373117170218
+              },
+              {
+                "t": 150,
+                "x": 191.84956487530258,
+                "y": 214.14746234340436
+              },
+              {
+                "t": 200,
+                "x": 199.72095129638817,
+                "y": 217.35546418410667
+              },
+              {
+                "t": 250,
+                "x": 206.99159066531803,
+                "y": 221.7586225013793
+              },
+              {
+                "t": 300,
+                "x": 206.99159066531803,
+                "y": 221.7586225013793
+              },
+              {
+                "t": 350,
+                "x": 214.91637310296932,
+                "y": 224.83235367308149
+              },
+              {
+                "t": 400,
+                "x": 222.8411555406206,
+                "y": 227.90608484478366
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "label": "waypoint-2",
+      "order": null,
+      "events": [],
+      "draws": [],
+      "snapshot": {
+        "tick": 9,
+        "serverTime": 450,
+        "phase": "active",
+        "seed": 0,
+        "mapHash": 4121323083,
+        "players": [
+          {
+            "id": "p0",
+            "name": "walk-hint-probe",
+            "faction": "holy",
+            "x": 230.7659379782719,
+            "y": 230.97981601648584,
+            "hp": 1145,
+            "maxHp": 1145,
+            "status": "alive",
+            "facing": 0.37,
+            "weapon0": "",
+            "weapon1": "",
+            "speedMult": 1000,
+            "asMult": 1000,
+            "windupMult": 1000,
+            "extra": {
+              "wishFullAt": 50,
+              "chestBoosts": {},
+              "killStats": {},
+              "bushRevealUntil": 0,
+              "walkDir": 15,
+              "walkTicks": 3
+            },
+            "path": [
+              {
+                "x": 266.6605407841042,
+                "y": 244.90201014713688
+              }
+            ],
+            "weapon": {
+              "action": null,
+              "rootUntil": 0,
+              "staggerImmuneUntil": 0,
+              "held": false,
+              "pressedAt": 0,
+              "bufferedUntil": 0,
+              "aim": 0,
+              "aimAt": 0,
+              "lagMs": 0,
+              "lock": null,
+              "lockSeen": false,
+              "lockLosLostAt": 0,
+              "lockPlanAt": null,
+              "lockGoal": null,
+              "lockSearchAt": null,
+              "attackMoveGoal": null,
+              "lastShotAt": null
+            },
+            "statuses": null,
+            "history": [
+              {
+                "t": 100,
+                "x": 183.9247824376513,
+                "y": 211.07373117170218
+              },
+              {
+                "t": 150,
+                "x": 191.84956487530258,
+                "y": 214.14746234340436
+              },
+              {
+                "t": 200,
+                "x": 199.72095129638817,
+                "y": 217.35546418410667
+              },
+              {
+                "t": 250,
+                "x": 206.99159066531803,
+                "y": 221.7586225013793
+              },
+              {
+                "t": 300,
+                "x": 206.99159066531803,
+                "y": 221.7586225013793
+              },
+              {
+                "t": 350,
+                "x": 214.91637310296932,
+                "y": 224.83235367308149
+              },
+              {
+                "t": 400,
+                "x": 222.8411555406206,
+                "y": 227.90608484478366
+              },
+              {
+                "t": 450,
+                "x": 230.7659379782719,
+                "y": 230.97981601648584
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "label": "waypoint-3",
+      "order": null,
+      "events": [],
+      "draws": [],
+      "snapshot": {
+        "tick": 10,
+        "serverTime": 500,
+        "phase": "active",
+        "seed": 0,
+        "mapHash": 4121323083,
+        "players": [
+          {
+            "id": "p0",
+            "name": "walk-hint-probe",
+            "faction": "holy",
+            "x": 238.69072041592318,
+            "y": 234.05354718818802,
+            "hp": 1145,
+            "maxHp": 1145,
+            "status": "alive",
+            "facing": 0.3699999999999999,
+            "weapon0": "",
+            "weapon1": "",
+            "speedMult": 1000,
+            "asMult": 1000,
+            "windupMult": 1000,
+            "extra": {
+              "wishFullAt": 50,
+              "chestBoosts": {},
+              "killStats": {},
+              "bushRevealUntil": 0,
+              "walkDir": 15,
+              "walkTicks": 3
+            },
+            "path": [
+              {
+                "x": 266.6605407841042,
+                "y": 244.90201014713688
+              }
+            ],
+            "weapon": {
+              "action": null,
+              "rootUntil": 0,
+              "staggerImmuneUntil": 0,
+              "held": false,
+              "pressedAt": 0,
+              "bufferedUntil": 0,
+              "aim": 0,
+              "aimAt": 0,
+              "lagMs": 0,
+              "lock": null,
+              "lockSeen": false,
+              "lockLosLostAt": 0,
+              "lockPlanAt": null,
+              "lockGoal": null,
+              "lockSearchAt": null,
+              "attackMoveGoal": null,
+              "lastShotAt": null
+            },
+            "statuses": null,
+            "history": [
+              {
+                "t": 150,
+                "x": 191.84956487530258,
+                "y": 214.14746234340436
+              },
+              {
+                "t": 200,
+                "x": 199.72095129638817,
+                "y": 217.35546418410667
+              },
+              {
+                "t": 250,
+                "x": 206.99159066531803,
+                "y": 221.7586225013793
+              },
+              {
+                "t": 300,
+                "x": 206.99159066531803,
+                "y": 221.7586225013793
+              },
+              {
+                "t": 350,
+                "x": 214.91637310296932,
+                "y": 224.83235367308149
+              },
+              {
+                "t": 400,
+                "x": 222.8411555406206,
+                "y": 227.90608484478366
+              },
+              {
+                "t": 450,
+                "x": 230.7659379782719,
+                "y": 230.97981601648584
+              },
+              {
+                "t": 500,
+                "x": 238.69072041592318,
+                "y": 234.05354718818802
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "label": "waypoint-4",
+      "order": null,
+      "events": [],
+      "draws": [],
+      "snapshot": {
+        "tick": 11,
+        "serverTime": 550,
+        "phase": "active",
+        "seed": 0,
+        "mapHash": 4121323083,
+        "players": [
+          {
+            "id": "p0",
+            "name": "walk-hint-probe",
+            "faction": "holy",
+            "x": 246.61550285357447,
+            "y": 237.1272783598902,
+            "hp": 1145,
+            "maxHp": 1145,
+            "status": "alive",
+            "facing": 0.3699999999999998,
+            "weapon0": "",
+            "weapon1": "",
+            "speedMult": 1000,
+            "asMult": 1000,
+            "windupMult": 1000,
+            "extra": {
+              "wishFullAt": 50,
+              "chestBoosts": {},
+              "killStats": {},
+              "bushRevealUntil": 0,
+              "walkDir": 15,
+              "walkTicks": 2
+            },
+            "path": [
+              {
+                "x": 266.6605407841042,
+                "y": 244.90201014713688
+              }
+            ],
+            "weapon": {
+              "action": null,
+              "rootUntil": 0,
+              "staggerImmuneUntil": 0,
+              "held": false,
+              "pressedAt": 0,
+              "bufferedUntil": 0,
+              "aim": 0,
+              "aimAt": 0,
+              "lagMs": 0,
+              "lock": null,
+              "lockSeen": false,
+              "lockLosLostAt": 0,
+              "lockPlanAt": null,
+              "lockGoal": null,
+              "lockSearchAt": null,
+              "attackMoveGoal": null,
+              "lastShotAt": null
+            },
+            "statuses": null,
+            "history": [
+              {
+                "t": 200,
+                "x": 199.72095129638817,
+                "y": 217.35546418410667
+              },
+              {
+                "t": 250,
+                "x": 206.99159066531803,
+                "y": 221.7586225013793
+              },
+              {
+                "t": 300,
+                "x": 206.99159066531803,
+                "y": 221.7586225013793
+              },
+              {
+                "t": 350,
+                "x": 214.91637310296932,
+                "y": 224.83235367308149
+              },
+              {
+                "t": 400,
+                "x": 222.8411555406206,
+                "y": 227.90608484478366
+              },
+              {
+                "t": 450,
+                "x": 230.7659379782719,
+                "y": 230.97981601648584
+              },
+              {
+                "t": 500,
+                "x": 238.69072041592318,
+                "y": 234.05354718818802
+              },
+              {
+                "t": 550,
+                "x": 246.61550285357447,
+                "y": 237.1272783598902
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "label": "waypoint-5",
+      "order": null,
+      "events": [],
+      "draws": [],
+      "snapshot": {
+        "tick": 12,
+        "serverTime": 600,
+        "phase": "active",
+        "seed": 0,
+        "mapHash": 4121323083,
+        "players": [
+          {
+            "id": "p0",
+            "name": "walk-hint-probe",
+            "faction": "holy",
+            "x": 254.54028529122576,
+            "y": 240.20100953159238,
+            "hp": 1145,
+            "maxHp": 1145,
+            "status": "alive",
+            "facing": 0.36999999999999955,
+            "weapon0": "",
+            "weapon1": "",
+            "speedMult": 1000,
+            "asMult": 1000,
+            "windupMult": 1000,
+            "extra": {
+              "wishFullAt": 50,
+              "chestBoosts": {},
+              "killStats": {},
+              "bushRevealUntil": 0,
+              "walkDir": 15,
+              "walkTicks": 1
+            },
+            "path": [
+              {
+                "x": 266.6605407841042,
+                "y": 244.90201014713688
+              }
+            ],
+            "weapon": {
+              "action": null,
+              "rootUntil": 0,
+              "staggerImmuneUntil": 0,
+              "held": false,
+              "pressedAt": 0,
+              "bufferedUntil": 0,
+              "aim": 0,
+              "aimAt": 0,
+              "lagMs": 0,
+              "lock": null,
+              "lockSeen": false,
+              "lockLosLostAt": 0,
+              "lockPlanAt": null,
+              "lockGoal": null,
+              "lockSearchAt": null,
+              "attackMoveGoal": null,
+              "lastShotAt": null
+            },
+            "statuses": null,
+            "history": [
+              {
+                "t": 250,
+                "x": 206.99159066531803,
+                "y": 221.7586225013793
+              },
+              {
+                "t": 300,
+                "x": 206.99159066531803,
+                "y": 221.7586225013793
+              },
+              {
+                "t": 350,
+                "x": 214.91637310296932,
+                "y": 224.83235367308149
+              },
+              {
+                "t": 400,
+                "x": 222.8411555406206,
+                "y": 227.90608484478366
+              },
+              {
+                "t": 450,
+                "x": 230.7659379782719,
+                "y": 230.97981601648584
+              },
+              {
+                "t": 500,
+                "x": 238.69072041592318,
+                "y": 234.05354718818802
+              },
+              {
+                "t": 550,
+                "x": 246.61550285357447,
+                "y": 237.1272783598902
+              },
+              {
+                "t": 600,
+                "x": 254.54028529122576,
+                "y": 240.20100953159238
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "label": "waypoint-6",
+      "order": null,
+      "events": [],
+      "draws": [],
+      "snapshot": {
+        "tick": 13,
+        "serverTime": 650,
+        "phase": "active",
+        "seed": 0,
+        "mapHash": 4121323083,
+        "players": [
+          {
+            "id": "p0",
+            "name": "walk-hint-probe",
+            "faction": "holy",
+            "x": 262.46506772887705,
+            "y": 243.27474070329455,
+            "hp": 1145,
+            "maxHp": 1145,
+            "status": "alive",
+            "facing": 0.36999999999999905,
+            "weapon0": "",
+            "weapon1": "",
+            "speedMult": 1000,
+            "asMult": 1000,
+            "windupMult": 1000,
+            "extra": {
+              "wishFullAt": 50,
+              "chestBoosts": {},
+              "killStats": {},
+              "bushRevealUntil": 0,
+              "walkDir": 15,
+              "walkTicks": 0
+            },
+            "path": [
+              {
+                "x": 266.6605407841042,
+                "y": 244.90201014713688
+              }
+            ],
+            "weapon": {
+              "action": null,
+              "rootUntil": 0,
+              "staggerImmuneUntil": 0,
+              "held": false,
+              "pressedAt": 0,
+              "bufferedUntil": 0,
+              "aim": 0,
+              "aimAt": 0,
+              "lagMs": 0,
+              "lock": null,
+              "lockSeen": false,
+              "lockLosLostAt": 0,
+              "lockPlanAt": null,
+              "lockGoal": null,
+              "lockSearchAt": null,
+              "attackMoveGoal": null,
+              "lastShotAt": null
+            },
+            "statuses": null,
+            "history": [
+              {
+                "t": 300,
+                "x": 206.99159066531803,
+                "y": 221.7586225013793
+              },
+              {
+                "t": 350,
+                "x": 214.91637310296932,
+                "y": 224.83235367308149
+              },
+              {
+                "t": 400,
+                "x": 222.8411555406206,
+                "y": 227.90608484478366
+              },
+              {
+                "t": 450,
+                "x": 230.7659379782719,
+                "y": 230.97981601648584
+              },
+              {
+                "t": 500,
+                "x": 238.69072041592318,
+                "y": 234.05354718818802
+              },
+              {
+                "t": 550,
+                "x": 246.61550285357447,
+                "y": 237.1272783598902
+              },
+              {
+                "t": 600,
+                "x": 254.54028529122576,
+                "y": 240.20100953159238
+              },
+              {
+                "t": 650,
+                "x": 262.46506772887705,
+                "y": 243.27474070329455
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "label": "waypoint-7",
+      "order": null,
+      "events": [],
+      "draws": [],
+      "snapshot": {
+        "tick": 14,
+        "serverTime": 700,
+        "phase": "active",
+        "seed": 0,
+        "mapHash": 4121323083,
+        "players": [
+          {
+            "id": "p0",
+            "name": "walk-hint-probe",
+            "faction": "holy",
+            "x": 266.6605407841042,
+            "y": 244.90201014713688,
+            "hp": 1145,
+            "maxHp": 1145,
+            "status": "alive",
+            "facing": 0.36999999999999655,
+            "weapon0": "",
+            "weapon1": "",
+            "speedMult": 1000,
+            "asMult": 1000,
+            "windupMult": 1000,
+            "extra": {
+              "wishFullAt": 50,
+              "chestBoosts": {},
+              "killStats": {},
+              "bushRevealUntil": 0,
+              "walkDir": 15,
+              "walkTicks": 0
+            },
+            "path": [],
+            "weapon": {
+              "action": null,
+              "rootUntil": 0,
+              "staggerImmuneUntil": 0,
+              "held": false,
+              "pressedAt": 0,
+              "bufferedUntil": 0,
+              "aim": 0,
+              "aimAt": 0,
+              "lagMs": 0,
+              "lock": null,
+              "lockSeen": false,
+              "lockLosLostAt": 0,
+              "lockPlanAt": null,
+              "lockGoal": null,
+              "lockSearchAt": null,
+              "attackMoveGoal": null,
+              "lastShotAt": null
+            },
+            "statuses": null,
+            "history": [
+              {
+                "t": 350,
+                "x": 214.91637310296932,
+                "y": 224.83235367308149
+              },
+              {
+                "t": 400,
+                "x": 222.8411555406206,
+                "y": 227.90608484478366
+              },
+              {
+                "t": 450,
+                "x": 230.7659379782719,
+                "y": 230.97981601648584
+              },
+              {
+                "t": 500,
+                "x": 238.69072041592318,
+                "y": 234.05354718818802
+              },
+              {
+                "t": 550,
+                "x": 246.61550285357447,
+                "y": 237.1272783598902
+              },
+              {
+                "t": 600,
+                "x": 254.54028529122576,
+                "y": 240.20100953159238
+              },
+              {
+                "t": 650,
+                "x": 262.46506772887705,
+                "y": 243.27474070329455
+              },
+              {
+                "t": 700,
+                "x": 266.6605407841042,
+                "y": 244.90201014713688
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "replay": {
+    "equal": true,
+    "framesCompared": 14,
+    "instrumentation": "random wrapper forwarded each source draw exactly once; disabled replay used raw mulberry32"
+  },
+  "summary": {
+    "initialHint": 3,
+    "initialDir": 15,
+    "initialPathLength": 1,
+    "capReached": true,
+    "smallTurnDirStable": true,
+    "largeTurnDirChanged": true,
+    "stopZero": true,
+    "waypointEndZero": true,
+    "hintSequence": [
+      0,
+      3,
+      3,
+      3,
+      3,
+      0,
+      3,
+      3,
+      3,
+      3,
+      2,
+      1,
+      0,
+      0
+    ],
+    "dirSequence": [
+      0,
+      15,
+      15,
+      15,
+      22,
+      22,
+      15,
+      15,
+      15,
+      15,
+      15,
+      15,
+      15,
+      15
+    ]
+  }
+}
