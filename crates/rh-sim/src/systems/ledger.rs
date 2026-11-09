@@ -54,8 +54,13 @@ impl Entry {
 }
 /// The source Overkill predicate arithmetic: total damage, then what a player barrier absorbed, then what actually
 /// applied. The hook fires only when the result is strictly greater than 1e-9.
-fn overkill_excess(total: f64, absorbed: f64, applied: f64) -> f64 {
+pub(crate) fn overkill_excess(total: f64, absorbed: f64, applied: f64) -> f64 {
     total - absorbed - applied
+}
+
+/// The runtime predicate also participates in the content identity probes.
+pub(crate) fn overkill_fires(excess: f64) -> bool {
+    excess > OVERKILL_EPS
 }
 
 /// One entry that hit a victim the pass killed with damage to spare (source `OverkillHit`): the entry and its applied share.
@@ -936,7 +941,7 @@ fn apply_victim(
             0.0
         };
         let overkill = overkill_excess(total, absorbed, applied);
-        if overkill > 1e-9 {
+        if overkill_fires(overkill) {
             let hits: Vec<OverkillHit> = idxs
                 .iter()
                 .enumerate()

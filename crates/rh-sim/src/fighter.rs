@@ -1,10 +1,10 @@
 //! What a fighter is, as components: [`FighterCore`] is everything the combat systems read and write for anything that
-//! fights (a player today; a mob or a summon later), and [`Player`](crate::state::Player) adds what only a seated player
+//! fights (players, regional mobs, summons and practice targets), and [`Player`](crate::state::Player) adds what only a seated player
 //! has (the seat, the score, the run's fate). A system that moves, swings or takes damage is written against the core (or
 //! one of its components), so a new kind of fighter is a new wrapper around the same core, not a copy of the systems.
 //!
 //! The components own their data only; the rules live in `systems/`. All of it is plain data that serializes, hashes and
-//! checkpoints (the layout is `rh-checkpoint/14`).
+//! checkpoints (the composed layout is `rh-checkpoint/28`).
 
 use crate::content::{FactionId, WeaponId};
 use crate::input::{InputQueue, OrderBudget};

@@ -1483,6 +1483,23 @@ fn content_hash_of_definitions(
             h.f64(crate::modifiers::mark_progress_increment(rate, chill));
         }
     }
+    // Actual Overkill arithmetic and strict threshold, shared with the live ledger producer.
+    h.str("overkill/producer/1");
+    for (total, absorbed, applied) in [(10.0, 2.0, 7.0), (10.0, 2.0, 8.0), (1e16, 1e16, 1.0)] {
+        h.f64(crate::systems::ledger::overkill_excess(
+            total, absorbed, applied,
+        ));
+    }
+    for excess in [
+        -OVERKILL_EPS,
+        0.0,
+        f64::from_bits(OVERKILL_EPS.to_bits() - 1),
+        OVERKILL_EPS,
+        f64::from_bits(OVERKILL_EPS.to_bits() + 1),
+        2.0 * OVERKILL_EPS,
+    ] {
+        h.u64(u64::from(crate::systems::ledger::overkill_fires(excess)));
+    }
     // Source birth and held ticks both refuse; Choose and observation use this exact runtime predicate.
     h.str("reward-chests/birth-availability/2");
     for (held, tick) in [(0, 0), (0, 1), (2, 1), (2, 2), (2, 3), (u32::MAX, u32::MAX)] {

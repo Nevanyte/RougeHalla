@@ -454,4 +454,7 @@ content! {
     BARRIER_MAX_SHARE: f64 = 0.25, "fraction of max hp";
     /// G6: a heal-made barrier loses this share of max hp every second.
     BARRIER_DECAY_SHARE_PER_SECOND: f64 = 0.05, "fraction of max hp/s";
+
+    /// Source Overkill fires only for excess damage strictly above this threshold.
+    OVERKILL_EPS: f64 = 1e-9, "damage";
 }

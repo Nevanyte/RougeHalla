@@ -462,9 +462,26 @@ fn typed_probe_is_disabled_by_default_and_noninterfering() {
 fn overkill_predicate_boundary_unit_only() {
     // Pure native predicate behavior at the source 1e-9 threshold. Source producers did not reach this boundary; this is
     // a labelled unit check, not a captured-source equality claim.
-    let at = super::overkill_excess(1.0, 0.0, 1.0 - 1e-9);
-    assert!((at - 1e-9).abs() <= 1e-12, "threshold value {at}");
-    assert!(super::overkill_excess(1.0, 0.0, 1.0 - 2e-9) > 1e-9);
-    assert!(super::overkill_excess(1.0, 1e-9, 1.0 - 1e-9) <= 1e-9);
-    assert!(at > 0.0);
+    let eps = crate::constants::OVERKILL_EPS;
+    for (excess, expected) in [
+        (-eps, false),
+        (0.0, false),
+        (f64::from_bits(eps.to_bits() - 1), false),
+        (eps, false),
+        (f64::from_bits(eps.to_bits() + 1), true),
+        (2.0 * eps, true),
+    ] {
+        assert_eq!(super::overkill_fires(excess), expected, "excess {excess:?}");
+    }
+    assert_eq!(super::overkill_excess(1e16, 1e16, 1.0), -1.0);
+    assert!(super::overkill_fires(super::overkill_excess(
+        1.0,
+        0.0,
+        1.0 - 2.0 * eps
+    )));
+    assert!(!super::overkill_fires(super::overkill_excess(
+        1.0,
+        eps,
+        1.0 - eps
+    )));
 }

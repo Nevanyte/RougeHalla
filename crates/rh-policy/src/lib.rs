@@ -32,7 +32,9 @@ use std::time::{Duration, Instant};
 /// Version 5 feeds temporally eligible signature effects every tick, independently of decision cadence.
 /// Version 6 adds Fire Burn and canonically merged, report-local Backlash effects.
 /// Version 7 adds player Frost chilled bits and the resulting attack/movement clocks.
-pub const POLICY_CONTRACT_VERSION: u16 = 14;
+/// Version 15 requires accepted decoded public frames for HumanBot, scoped references and transactional handoff.
+/// Explicit native compatibility policies retain their separately declared input kind.
+pub const POLICY_CONTRACT_VERSION: u16 = 15;
 
 /// Everything a policy may know about a match before its first observation, all of it public static data (the map
 /// and spawn points), never match state. Never a [`rh_sim::Secrets`] value and never the sim itself (C-OBS, C-RNG, C-POLICY).
@@ -1247,22 +1249,16 @@ mod tests {
     fn a_seat_refuses_a_policy_of_another_contract_or_observation_version() {
         let sim = sim();
         let m = MatchStart::of(&sim, sim.players()[0].id, 1);
-        let (p, _) = probe(POLICY_CONTRACT_VERSION + 1, OBSERVATION_VERSION);
-        let seat = Seat::new(&m, Box::new(p), Box::new(Idle));
-        assert_eq!(
-            seat.fault,
-            Some(Fault::IncompatibleContract {
-                contract: POLICY_CONTRACT_VERSION + 1
-            })
-        );
-        let (p, _) = probe(POLICY_CONTRACT_VERSION, OBSERVATION_VERSION + 1);
-        let seat = Seat::new(&m, Box::new(p), Box::new(Idle));
-        assert_eq!(
-            seat.fault,
-            Some(Fault::IncompatibleObservation {
-                version: OBSERVATION_VERSION + 1
-            })
-        );
+        for contract in [POLICY_CONTRACT_VERSION - 1, POLICY_CONTRACT_VERSION + 1] {
+            let (p, _) = probe(contract, OBSERVATION_VERSION);
+            let seat = Seat::new(&m, Box::new(p), Box::new(Idle));
+            assert_eq!(seat.fault, Some(Fault::IncompatibleContract { contract }));
+        }
+        for version in [OBSERVATION_VERSION - 1, OBSERVATION_VERSION + 1] {
+            let (p, _) = probe(POLICY_CONTRACT_VERSION, version);
+            let seat = Seat::new(&m, Box::new(p), Box::new(Idle));
+            assert_eq!(seat.fault, Some(Fault::IncompatibleObservation { version }));
+        }
         assert!(Seat::new(&m, Box::new(Brawler::new(2)), Box::new(Idle))
             .fault
             .is_none());
@@ -1847,7 +1843,7 @@ mod frost_tests {
         assert!(seen
             .iter()
             .all(|o| o.version == rh_sim::OBSERVATION_VERSION));
-        assert_eq!(POLICY_CONTRACT_VERSION, 14);
+        assert_eq!(POLICY_CONTRACT_VERSION, 15);
     }
 }
 
