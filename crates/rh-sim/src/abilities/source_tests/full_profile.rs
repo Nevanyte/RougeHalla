@@ -131,13 +131,13 @@ fn factions(s: &Sim, frame: &V, name: &str) {
             .iter()
             .find(|r| r["id"] == key)
             .unwrap();
-        let b = &m.brain;
+        let b = m.regional_brain();
         let mode = match b.mode {
             crate::mob_runtime::BrainMode::Idle => "idle",
             crate::mob_runtime::BrainMode::Fight => "fight",
             crate::mob_runtime::BrainMode::Return => "return",
         };
-        let actual = json!({"region":m.core.vitals.faction.as_str(),"elite":m.elite,"home":m.home,"homeFacing":m.home_facing,"mode":mode,"target":b.target.map(label),"threat":b.threat.iter().map(|(id,n)|json!([label(*id),n])).collect::<Vec<_>>(),"lastCombatAt":b.last_combat_at,"lastMoveAt":b.last_move_at,"goal":b.goal,"moving":b.moving,"holding":b.holding,"phase":m.repath_phase,"diedAt":b.died_at,"lastAim":b.last_aim.map_or_else(||json!({"$float":"NaN"}),|v|json!(v))});
+        let actual = json!({"region":m.core.faction_id().expect("actual source regional mob").as_str(),"elite":m.elite,"home":m.home,"homeFacing":m.home_facing,"mode":mode,"target":b.target.map(label),"threat":b.threat.iter().map(|(id,n)|json!([label(*id),n])).collect::<Vec<_>>(),"lastCombatAt":b.last_combat_at,"lastMoveAt":b.last_move_at,"goal":b.goal,"moving":b.moving,"holding":b.holding,"phase":m.repath_phase,"diedAt":b.died_at,"lastAim":b.last_aim.map_or_else(||json!({"$float":"NaN"}),|v|json!(v))});
         compare_value(
             &actual,
             &row["brain"],
@@ -517,7 +517,7 @@ fn exact_five_roster_signatures_production_comparator() {
                         }
                         if let Some(mode) = a["mode"].as_str() {
                             assert_eq!(mode, "return");
-                            s.w.mobs.get_mut(id).unwrap().brain.mode =
+                            s.w.mobs.get_mut(id).unwrap().regional_brain_mut().mode =
                                 crate::mob_runtime::BrainMode::Return;
                         }
                         check(&s, t, name, input);

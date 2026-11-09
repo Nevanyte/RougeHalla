@@ -13,7 +13,7 @@ use crate::statics::MatchStatic;
 use crate::systems::{weapons, Cx};
 
 pub(crate) fn hostile(w: &World, a: PlayerId, b: PlayerId) -> bool {
-    if a == b {
+    if a == b || crate::quests::giver::is_giver(w, a) || crate::quests::giver::is_giver(w, b) {
         return false;
     }
     let za = w

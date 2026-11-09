@@ -98,8 +98,8 @@ fn step_weapon(cx: &mut Cx, ix: FighterIx) {
     }
     let npc = !cx.w.is_player(ix);
     let zombie_profile = super::plague_zombies::attack_profile(cx.k, cx.w, cx.w.core(ix).id);
-    let sheet = cx.w.paced_sheet(ix);
-    let base_hp = cx.w.base_sheet(ix).hp;
+    let sheet = cx.w.paced_faction_spec(ix);
+    let base_hp = cx.w.faction_spec(ix).map(|f| f.hp);
     let p = cx.w.core_mut(ix);
     let wants = p.weapon.held || now <= p.weapon.buffered_until;
     if p.weapon.action.is_none()
@@ -110,6 +110,10 @@ fn step_weapon(cx: &mut Cx, ix: FighterIx) {
         let (tm, packet) = if let Some((tm, packet)) = zombie_profile {
             (tm, packet)
         } else {
+            let Some(sheet) = sheet else {
+                return;
+            };
+            let base_hp = base_hp.expect("faction sheet has base HP");
             let f = sheet;
             let timing = if npc {
                 crate::content::npc_timings

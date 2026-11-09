@@ -64,7 +64,7 @@ fn source_helper_command(sim: &mut Sim, command: &Value, map: &mut BTreeMap<Stri
         "helper-return-mode" => {
             assert_eq!(command["mode"], "return");
             let id = source_helper_ref(map, &command["id"]);
-            sim.w.mobs.get_mut(id).unwrap().brain.mode = crate::mob_runtime::BrainMode::Return;
+            sim.w.mobs.get_mut(id).unwrap().regional_brain_mut().mode = crate::mob_runtime::BrainMode::Return;
         }
         "helper-npc-bonus-mirrors" => {
             let id = source_helper_ref(map, &command["id"]);

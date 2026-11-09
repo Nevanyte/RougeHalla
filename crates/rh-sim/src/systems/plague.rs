@@ -163,11 +163,19 @@ pub(crate) fn after_damage(k: &MatchStatic, w: &mut World, ev: &mut Vec<Event>, 
         if weapon != WeaponId::Bow
             && p.weapon.stagger_immune_until == now + STAGGER_IMMUNITY_SECONDS * 1000.
         {
-            let interval = content::attack_interval(&w.paced_sheet(ix), weapon, 1.);
-            let tm = if w.is_player(ix) {
-                content::player_timings(weapon, interval)
+            // Source timingsOf has a real zombie profile even though factionOf returns no spec.
+            let tm = if let Some((timings, _)) = super::plague_zombies::attack_profile(k, w, p.id) {
+                timings
             } else {
-                content::npc_timings(weapon, interval)
+                let Some(sheet) = w.paced_faction_spec(ix) else {
+                    continue;
+                };
+                let interval = content::attack_interval(&sheet, weapon, 1.);
+                if w.is_player(ix) {
+                    content::player_timings(weapon, interval)
+                } else {
+                    content::npc_timings(weapon, interval)
+                }
             };
             if tm.windup > 0. {
                 let p = w.core_mut(ix);

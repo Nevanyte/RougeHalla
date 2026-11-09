@@ -1,0 +1,10 @@
+   Compiling rh-sim v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/quest-giver-native/repo/crates/rh-sim)
+   Compiling rh-parity v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/quest-giver-native/repo/crates/rh-parity)
+    Finished `test` profile [unoptimized] target(s) in 11.19s
+     Running tests/fire_roam.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/quest-giver-native/target/debug/deps/fire_roam-4b90237c5eb3d4b5)
+
+running 2 tests
+test a_mutated_charge_ready_or_installation_cannot_false_match ... ok
+test every_fire_roam_tick_restores_and_complete_diagnostics_are_required ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.07s

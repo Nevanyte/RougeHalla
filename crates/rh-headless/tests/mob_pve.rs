@@ -96,7 +96,7 @@ fn actual_camp_clear_uses_headless_inputs_and_visible_mob_fx() {
                         .visible
                         .iter()
                         .find(|r| {
-                            r.kind == 1
+                            r.kind == rh_sim::observe::ActorKind::Regional
                                 && r.mob_type == mob.mob_type
                                 && r.x == mob.core.body.x
                                 && r.y == mob.core.body.y

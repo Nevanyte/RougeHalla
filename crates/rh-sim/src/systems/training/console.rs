@@ -100,7 +100,7 @@ fn card(k: &MatchStatic, w: &mut World, ev: &mut Vec<Event>, ix: FighterIx, id: 
     }
     crate::modifiers::recompute(k, w, ix);
     let p = &mut w.players[ix.slot()];
-    if want == 0 && !has_fortify(&p.build, p.core.vitals.faction) {
+    if want == 0 && !has_fortify(&p.build, p.faction()) {
         p.card_tank_hp = 0.;
         p.card_prevented = 0.;
     }

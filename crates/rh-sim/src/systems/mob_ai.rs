@@ -99,12 +99,12 @@ pub(crate) fn aggro(
         return None;
     }
     let m = w.mobs.get_mut(id)?;
-    if m.status != Status::Alive || m.kind == crate::mob_runtime::MobKind::Dummy {
+    if m.status != Status::Alive || m.brain.is_none() {
         // A dummy has no runtime brain in the source (mobs.addMob stores none), so it never aggros or fights.
         return None;
     }
     let camp = m.camp;
-    let mut b = std::mem::take(&mut m.brain);
+    let mut b = m.brain.take()?;
     add_threat(&mut b, by, amount);
     if b.mode == BrainMode::Idle {
         if let Some(target) = pick(w, &mut b) {
@@ -116,7 +116,7 @@ pub(crate) fn aggro(
         .flatten()
         .filter(|t| targetable(w, *t))
         .map(|t| (camp, t));
-    w.mobs.get_mut(id).expect("no structural mutation").brain = b;
+    w.mobs.get_mut(id).expect("no structural mutation").brain = Some(b);
     out
 }
 pub(crate) fn wake_mates(w: &mut World, camp: u32, target: PlayerId) {
@@ -127,13 +127,18 @@ pub(crate) fn wake_mates(w: &mut World, camp: u32, target: PlayerId) {
     for m in &mut w.mobs {
         if m.camp == camp
             && m.status == Status::Alive
-            && m.kind != crate::mob_runtime::MobKind::Dummy
-            && m.brain.mode == BrainMode::Idle
+            && m.brain.is_some()
+            && m.regional_brain().mode == BrainMode::Idle
         {
-            if !m.brain.threat.iter().any(|(id, _)| *id == target) {
-                m.brain.threat.push((target, 0.));
+            if !m
+                .regional_brain_mut()
+                .threat
+                .iter()
+                .any(|(id, _)| *id == target)
+            {
+                m.regional_brain_mut().threat.push((target, 0.));
             }
-            wake(&mut m.brain, target, now);
+            wake(m.regional_brain_mut(), target, now);
         }
     }
 }
@@ -221,9 +226,12 @@ pub(crate) fn think(cx: &mut Cx) {
     // Event reads do not submit actions; the shared Block event wakes an idle shield holder.
     for i in 0..cx.ev.len() {
         if let crate::events::Event::Block { id, by, .. } = cx.ev[i] {
-            if cx.w.mobs.get(id).is_some_and(|m| {
-                m.kind != crate::mob_runtime::MobKind::Dummy && m.brain.mode == BrainMode::Idle
-            }) {
+            if cx
+                .w
+                .mobs
+                .get(id)
+                .is_some_and(|m| m.brain.as_ref().is_some_and(|b| b.mode == BrainMode::Idle))
+            {
                 if let Some((camp, target)) = aggro(cx.w, id, by, 1.) {
                     wake_mates(cx.w, camp, target);
                 }
@@ -233,9 +241,9 @@ pub(crate) fn think(cx: &mut Cx) {
     for i in 0..cx.w.mobs.len() {
         let m = &cx.w.mobs[i];
         if m.status != Status::Alive
-            || m.kind == crate::mob_runtime::MobKind::Dummy
+            || m.brain.is_none()
             || m.zombie.is_some()
-            || m.brain.mode == BrainMode::Idle
+            || m.regional_brain().mode == BrainMode::Idle
             || crate::status_runtime::has(
                 &m.core.statuses.instances,
                 crate::status_runtime::StatusKind::Stun,
@@ -245,7 +253,7 @@ pub(crate) fn think(cx: &mut Cx) {
             continue;
         }
         let id = m.core.id;
-        let mut b = std::mem::take(&mut cx.w.mobs[i].brain);
+        let mut b = cx.w.mobs[i].brain.take().expect("regional AI only");
         if cx.w.mobs[i].core.motion.path.is_empty() {
             b.moving = false;
         }
@@ -254,7 +262,7 @@ pub(crate) fn think(cx: &mut Cx) {
         } else {
             fight(cx, id, &mut b)
         }
-        cx.w.mobs.get_mut(id).unwrap().brain = b;
+        cx.w.mobs.get_mut(id).unwrap().brain = Some(b);
     }
 }
 fn fight(cx: &mut Cx, id: PlayerId, b: &mut Brain) {
@@ -281,7 +289,7 @@ fn fight(cx: &mut Cx, id: PlayerId, b: &mut Brain) {
     let at = target.pos();
     let vel = super::targeting::velocity(target, now);
     let ix = cx.w.fighter_idx(id).unwrap();
-    let sheet = cx.w.paced_sheet(ix);
+    let sheet = cx.w.paced_faction_spec(ix).expect("regional faction");
     let tm = crate::content::npc_timings(
         weapon,
         crate::content::attack_interval(&sheet, weapon, cx.w.core(ix).modifiers.mirrors().as_mult),

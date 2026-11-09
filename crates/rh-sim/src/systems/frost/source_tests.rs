@@ -690,7 +690,7 @@ fn frost_sources_wake_compaction_matches_old_order_and_contributor_snapshot() {
     crate::rng::action_order_in_place(sim.k.secrets.order_salt, sim.w.tick, &mut order);
     let expected = reference(&sim, &sim.w.pay.mob_wakes, &order)[0].1;
     crate::systems::mob_life::settle_wakes(&sim.k, &mut sim.w);
-    assert!(sim.w.mobs.iter().all(|m| m.brain.target == Some(expected)));
+    assert!(sim.w.mobs.iter().all(|m| m.regional_brain().target == Some(expected)));
     assert!(sim.w.pay.is_settled());
     assert!(sim.w.pay.mob_wakes.capacity() >= capacity);
     // Positive present-player IDs are snapshotted in first-hit order; duplicates, None, zero, negative and unknown

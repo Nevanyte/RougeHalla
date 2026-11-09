@@ -271,9 +271,10 @@ fn diagnostic_group_query_excludes_return_leash_and_hidden_owner_before_tie() {
             .mark_tier,
         3
     );
-    sim.w.mobs.get_mut(id).unwrap().brain.mode = crate::mob_runtime::BrainMode::Return;
+    sim.w.mobs.get_mut(id).unwrap().regional_brain_mut().mode =
+        crate::mob_runtime::BrainMode::Return;
     assert_eq!(mark_tier_on(&sim.w, PlayerId(1), id), 0);
-    sim.w.mobs.get_mut(id).unwrap().brain.mode = crate::mob_runtime::BrainMode::Idle;
+    sim.w.mobs.get_mut(id).unwrap().regional_brain_mut().mode = crate::mob_runtime::BrainMode::Idle;
     sim.w.players[0].body.x += TARGET_RANGE + 1.;
     assert_eq!(mark_tier_on(&sim.w, PlayerId(1), id), 0);
     assert_eq!(public_mark_by(&sim.w, id, 3, |_| false), None);

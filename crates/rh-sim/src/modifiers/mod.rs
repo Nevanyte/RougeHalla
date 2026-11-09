@@ -302,7 +302,9 @@ fn recompute_core<'a>(
     } else {
         Vec::new()
     };
-    let faction = w.core(ix).vitals.faction;
+    let Some(faction) = w.core(ix).faction_id() else {
+        return;
+    };
     let base_hp = crate::content::faction(faction).hp;
     let boosts = fold::BoostCounts::from_source_values(build.boosts().map(f64::from));
     let (rows, n) = build.rows(faction);
@@ -508,8 +510,7 @@ pub(crate) fn refold_with_extra_rows(
     recompute_core(k, w, ix, Default::default(), extra);
 }
 pub(crate) fn sync_max_hp(p: &mut crate::state::Player) {
-    let max =
-        crate::content::faction(p.vitals.faction).hp * p.modifiers.max_hp_mult + p.card_tank_hp;
+    let max = crate::content::faction(p.faction()).hp * p.modifiers.max_hp_mult + p.card_tank_hp;
     let delta = max - p.vitals.max_hp;
     if delta.abs() < 1e-9 {
         return;
@@ -543,8 +544,8 @@ pub(crate) fn packet(
     packet_with_sheet(
         p,
         weapon,
-        &crate::content::paced(p.vitals.faction),
-        crate::content::faction(p.vitals.faction).hp,
+        &crate::content::paced(p.faction_id().expect("attack-capable faction")),
+        crate::content::faction(p.faction_id().expect("attack-capable faction")).hp,
     )
 }
 pub(crate) fn packet_with_sheet(
@@ -694,7 +695,7 @@ pub(crate) fn mark_pulse_group(
         .build
         .has_flag(crate::stat_fold::EffectFlag::HeavierSentence)
     {
-        let base = crate::content::faction(p.vitals.faction).hp;
+        let base = crate::content::faction(p.faction()).hp;
         if base > 0. {
             1. + crate::constants::HEAVIER_SENTENCE_PER_BONUS
                 * ((p.vitals.max_hp - base).max(0.) / base)
@@ -1070,8 +1071,8 @@ mod guard_tests {
                 &p.kill_stats,
                 &p.trade_stats,
                 crate::modifiers::ValidationOwner {
-                    base_hp: crate::content::faction(p.vitals.faction).hp,
-                    faction: p.vitals.faction,
+                    base_hp: crate::content::faction(p.faction()).hp,
+                    faction: p.faction(),
                     frozen_guard: false,
                 },
             )

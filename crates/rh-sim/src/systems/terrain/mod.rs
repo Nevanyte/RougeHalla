@@ -16,7 +16,9 @@ fn effect(k: &MatchStatic, w: &World, ix: FighterIx) -> terrain::Effect {
         &k.arena.map,
         p.body.x,
         p.body.y,
-        (k.config.hazards != Mode::All).then_some(p.vitals.faction),
+        (k.config.hazards != Mode::All)
+            .then(|| p.faction_id())
+            .flatten(),
     )
 }
 pub(crate) fn bog(
@@ -46,14 +48,14 @@ fn burn_dt(cx: &mut Cx, dt_ms: f64) {
     for i in 0..w.fighter_count() {
         let ix = FighterIx::of_slot(i);
         let e = effect(k, w, ix);
-        // Ordinary native actors are players or regional mobs; training dummy admission is pending.
+        // Neutral quest givers participate in exposure/ledger bookkeeping; source dummies do not burn.
         let share = terrain::burn_share(
             e,
             w.standing(ix),
-            false,
             w.mobs
                 .get(w.core(ix).id)
-                .is_some_and(|m| m.brain.mode == crate::mob_runtime::BrainMode::Return),
+                .is_some_and(|m| m.kind == crate::mob_runtime::MobKind::Dummy),
+            w.mobs.get(w.core(ix).id).is_some_and(|m| m.returning()),
             w.rt.gates_locked,
         );
         if !(share > 0.) {

@@ -265,6 +265,33 @@ pub(crate) fn valid_ranged_packet(packet: crate::state::Packet, weapon: WeaponId
 /// The invariants the tick relies on and the serde shape cannot express. A state that breaks one would panic (or silently
 /// misbehave) a few steps later, so a checkpoint carrying it is refused here instead.
 fn check_world(k: &MatchStatic, w: &World) -> Result<(), String> {
+    // Validate actor classes before any player-only facade or faction/brain consumer can run.
+    if w.players.iter().any(|p| p.core.faction_id().is_none()) {
+        return Err("neutral player affiliation".into());
+    }
+    for m in &w.mobs {
+        if m.kind == crate::mob_runtime::MobKind::QuestGiver {
+            continue;
+        }
+        if m.core.faction_id().is_none() {
+            return Err("unsupported neutral actor class".into());
+        }
+        if (m.kind == crate::mob_runtime::MobKind::Dummy
+            && m.core.faction_id() != Some(crate::FactionId::Fire))
+            || (m.zombie.is_some() && m.core.faction_id() != Some(crate::FactionId::Plague))
+        {
+            return Err("actor affiliation class mismatch".into());
+        }
+        let regional = m.zombie.is_none()
+            && matches!(
+                m.kind,
+                crate::mob_runtime::MobKind::Regional | crate::mob_runtime::MobKind::Practice
+            );
+        if regional != m.brain.is_some() {
+            return Err("actor brain capability mismatch".into());
+        }
+    }
+    crate::quests::giver::validate(k, w)?;
     crate::systems::arena_validation::validate(k, w)?;
     crate::systems::planning::validate(k, w)?;
     crate::quests::live::validate(k, w)?;
@@ -340,18 +367,24 @@ fn check_world(k: &MatchStatic, w: &World) -> Result<(), String> {
     // A raid transition or a respawn can create an entire camp batch before the next
     // validation. Reserve every admitted camp spot conservatively, plus the next join.
     // Current corpses/camp state are not a bound on future births.
-    let potential_births = if k.config.mob_mode == crate::mob_runtime::MobMode::Off {
-        0
+    let quest_births = if k.config.quests {
+        u64::from(crate::constants::QUEST_COUNT)
     } else {
-        k.arena.map.layers().map_or(0, |layers| {
-            layers
-                .data()
-                .camps
-                .iter()
-                .map(|c| c.spots.len() as u64)
-                .sum::<u64>()
-        })
+        0
     };
+    let potential_births = quest_births
+        + if k.config.mob_mode == crate::mob_runtime::MobMode::Off {
+            0
+        } else {
+            k.arena.map.layers().map_or(0, |layers| {
+                layers
+                    .data()
+                    .camps
+                    .iter()
+                    .map(|c| c.spots.len() as u64)
+                    .sum::<u64>()
+            })
+        };
     if u64::from(w.next_id) + potential_births + 1 > u64::from(u32::MAX) {
         return Err("next_id lacks headroom for camp births and the next join".into());
     }
@@ -392,16 +425,28 @@ fn check_world(k: &MatchStatic, w: &World) -> Result<(), String> {
     // Seeded rack props can be numerous. Each consumed ground prop needed one action; each
     // launched shot and its entire reflection chain needed an attack. These account for all
     // entity ids no longer represented by current containers in this build.
-    let max_allocated = ((w.containers.len() + w.reward_chests.len()) as u64
-        + w.actor_history
-            .iter()
-            .filter(|a| matches!(a.origin, crate::mob_runtime::ActorOrigin::Mob { .. }))
-            .count() as u64)
-        .saturating_add(
-            u64::from(w.tick)
-                .saturating_mul(w.actor_history.len() as u64)
-                .saturating_mul(per_seat),
-        );
+    let quest_allocations = if k.config.quests {
+        u64::from(crate::constants::QUEST_COUNT) * 2
+            + crate::quests::catalog::DEFINITION
+                .iter()
+                .map(|d| {
+                    u64::from(d.token_spawns) + u64::from(d.kind == crate::quests::Kind::Fetch)
+                })
+                .sum::<u64>()
+    } else {
+        0
+    };
+    let max_allocated = quest_allocations
+        + ((w.containers.len() + w.reward_chests.len()) as u64
+            + w.actor_history
+                .iter()
+                .filter(|a| matches!(a.origin, crate::mob_runtime::ActorOrigin::Mob { .. }))
+                .count() as u64)
+            .saturating_add(
+                u64::from(w.tick)
+                    .saturating_mul(w.actor_history.len() as u64)
+                    .saturating_mul(per_seat),
+            );
     if u64::from(w.entity_counter) > max_allocated
         || w.item_counter
             > u64::from(w.entity_counter) * (2 + u64::from(crate::potions::DEFINITION.cap))
@@ -490,7 +535,7 @@ fn check_world(k: &MatchStatic, w: &World) -> Result<(), String> {
             || (pr.roam_armed
                 && w
                     .player(st.owner)
-                    .is_some_and(|p| p.vitals.faction != crate::FactionId::Fire))
+                    .is_some_and(|p| p.faction() != crate::FactionId::Fire))
         {
             return Err(format!("invalid projectile {}", st.id));
         }
@@ -685,7 +730,7 @@ fn check_world(k: &MatchStatic, w: &World) -> Result<(), String> {
         // Frost's Frozen Justice guard: only a live Frost seat in an active run may hold the clock, the clock never
         // outlives its own linger, and the synced flag is exactly the clock's answer on every other seat.
         let guard = &p.frost_guard;
-        let passive_seat = p.vitals.faction == crate::FactionId::Frost
+        let passive_seat = p.faction() == crate::FactionId::Frost
             && p.status == crate::state::Status::Alive
             && w.phase == crate::Phase::Active;
         if guard.until.is_some_and(|t| {
@@ -704,8 +749,8 @@ fn check_world(k: &MatchStatic, w: &World) -> Result<(), String> {
             &p.kill_stats,
             &p.trade_stats,
             crate::modifiers::ValidationOwner {
-                base_hp: crate::content::faction(p.vitals.faction).hp,
-                faction: p.vitals.faction,
+                base_hp: crate::content::faction(p.faction()).hp,
+                faction: p.faction(),
                 frozen_guard: passive_seat && guard.active,
             },
         ) {
@@ -751,7 +796,7 @@ fn check_world(k: &MatchStatic, w: &World) -> Result<(), String> {
                 || !finite
                 || (a.kind != ActionKind::Swing && !valid_ranged_packet(pk, a.weapon))
                 || a.lands_at < a.started_at
-                || (a.roam_armed && p.vitals.faction != crate::FactionId::Fire)
+                || (a.roam_armed && p.faction() != crate::FactionId::Fire)
             {
                 return Err(format!(
                     "player {}: pending {:?} action with {:?} (or a non-finite value)",
@@ -1080,6 +1125,46 @@ mod tests {
             a.step();
         }
         serde_json::to_value(&a).unwrap()
+    }
+
+    #[test]
+    fn neutral_affiliation_is_distinct_in_canonical_hash_and_roundtrips_as_null() {
+        use crate::fighter::FighterAffiliation;
+        // Hash/serde perturbation fixture only: a neutral player remains inadmissible to restore/step.
+        let mut candidate = sim();
+        let mut hashes = std::collections::BTreeSet::new();
+        for affiliation in FactionId::ALL
+            .into_iter()
+            .map(FighterAffiliation::Faction)
+            .chain([FighterAffiliation::Neutral])
+        {
+            candidate.w.players[0].vitals.faction = affiliation;
+            assert!(hashes.insert(candidate.state_hash()));
+            assert_eq!(candidate.check_layout(), Ok(()));
+            let value = serde_json::to_value(affiliation).unwrap();
+            assert_eq!(
+                serde_json::from_value::<FighterAffiliation>(value.clone()).unwrap(),
+                affiliation
+            );
+            assert_eq!(value.is_null(), affiliation == FighterAffiliation::Neutral);
+        }
+        assert_eq!(hashes.len(), 6);
+        assert_eq!(FactionId::ALL.len(), 5);
+    }
+
+    #[test]
+    fn neutral_player_is_refused_before_any_validated_faction_facade() {
+        let mut json = stepped(5);
+        // Existing real-faction strings remain source-compatible; null is typed neutral.
+        assert_eq!(
+            json["world"]["players"][0]["core"]["vitals"]["faction"],
+            "Holy"
+        );
+        json["world"]["players"][0]["core"]["vitals"]["faction"] = serde_json::Value::Null;
+        assert!(refusal(&json).contains("neutral player affiliation"));
+        let good = stepped(5);
+        let mut restored = Sim::restore(&good).unwrap();
+        restored.step();
     }
 
     #[test]

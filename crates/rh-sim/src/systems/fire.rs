@@ -42,7 +42,7 @@ pub(crate) fn damage(
         0.
     };
     let tank = 1. + crate::modifiers::DEFINITION.fire_defense_ratio * defense;
-    let foe = w.paced_sheet(ti);
+    let foe = w.paced_faction_spec(ti);
     let mut push = |sig, raw, phys, magic| {
         if raw > 0. {
             record_hit(
@@ -80,6 +80,9 @@ pub(crate) fn damage(
     if burn > 0. {
         push(SignatureKind::Burn, rider * dot_mult, 0., 1.);
     }
+    let Some(foe) = foe else {
+        return;
+    };
     for a in performed.iter().filter(|a| a.by == victim) {
         let raw = backlash * content::attack_interval(&foe, a.weapon, 1.) * mult * tank * chill;
         push(SignatureKind::Backlash, raw, 1., 0.);

@@ -1,0 +1,11 @@
+   Compiling rh-sim v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/quest-giver-native/repo/crates/rh-sim)
+   Compiling rh-policy v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/quest-giver-native/repo/crates/rh-policy)
+   Compiling rh-headless v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/quest-giver-native/repo/crates/rh-headless)
+   Compiling rh-server v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/quest-giver-native/repo/crates/rh-server)
+    Finished `test` profile [unoptimized] target(s) in 12.73s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/quest-giver-native/target/debug/deps/rh_server-90cf7100e6d23b6f)
+
+running 1 test
+test wire::tests::neutral_giver_and_unarmed_views_refuse_before_publisher_work ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 167 filtered out; finished in 0.00s

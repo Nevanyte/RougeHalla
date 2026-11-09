@@ -31,6 +31,7 @@ pub(crate) fn validate(
     super::initial_loot::validate(k, w)?;
     let mut players = 0;
     let mut serial = w.initial_birth_serial;
+    let initial_serial_base = crate::quests::giver::initial_camp_serial_base(k, w);
     let mut births = 0;
     let initial_count: usize = map.camps.iter().map(|c| c.spots.len()).sum();
     let initial_order: Vec<_> = map
@@ -56,6 +57,7 @@ pub(crate) fn validate(
                 }
                 players += 1;
             }
+            ActorOrigin::QuestGiver { .. } => {}
             ActorOrigin::Practice { .. } | ActorOrigin::Dummy { .. } => {
                 return Err("non-regional actor in a regional world".into());
             }
@@ -103,7 +105,7 @@ pub(crate) fn validate(
                 }
                 if births < initial_count
                     && (initial_order[births] != (camp, spot)
-                        || birth_serial != w.initial_birth_serial + births as u32 + 1
+                        || u64::from(birth_serial) != initial_serial_base + births as u64 + 1
                         || f64::from(born_tick) * TICK_MS != w.raid_started_at)
                 {
                     return Err("invalid initial birth order".into());
@@ -162,7 +164,10 @@ pub(crate) fn validate(
                     // Owned zombies carry camp 0 but are not a camp member: they must not count against the roster's
                     // alive total (they are validated by the typed Zombie branch above).
                     .filter(|m| {
-                        m.camp as usize == ci && m.status == Status::Alive && m.zombie.is_none()
+                        m.camp as usize == ci
+                            && m.status == Status::Alive
+                            && m.zombie.is_none()
+                            && m.kind == crate::mob_runtime::MobKind::Regional
                     })
                     .count()
                 || latest[ci].is_none_or(|(_, spot, _)| spot as usize + 1 != d.spots.len()))
@@ -197,6 +202,9 @@ pub(crate) fn validate(
         }
     }
     for m in &w.mobs {
+        if m.kind == crate::mob_runtime::MobKind::QuestGiver {
+            continue;
+        }
         if m.zombie.is_some() {
             if m.mob_type.is_some()
                 || m.kind != crate::mob_runtime::MobKind::Regional
@@ -294,7 +302,7 @@ pub(crate) fn validate(
                 &[],
                 crate::modifiers::ValidationOwner {
                     base_hp: p.vitals.max_hp,
-                    faction: p.vitals.faction,
+                    faction: p.faction_id().ok_or("neutral regional actor")?,
                     frozen_guard: false,
                 },
             )
@@ -365,7 +373,7 @@ pub(crate) fn validate(
                 return Err("invalid mob pending attack".into());
             }
         }
-        let b = &m.brain;
+        let b = m.brain.as_ref().ok_or("missing regional brain")?;
         if ![m.last_hit_at, b.last_combat_at, b.last_move_at, b.died_at]
             .iter()
             .all(|v| (0. ..=w.server_time).contains(v))

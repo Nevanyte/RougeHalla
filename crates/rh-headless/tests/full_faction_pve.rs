@@ -71,7 +71,11 @@ fn full_and_fire_roam_pve_use_real_env_input_restore_clone_and_continuation() {
             let mut commands = vec![vec![]; 8];
             if n % 10 == 0 {
                 for (i, obs) in observations.iter().enumerate() {
-                    if let Some(target) = obs.visible.iter().find(|a| a.kind == 1) {
+                    if let Some(target) = obs
+                        .visible
+                        .iter()
+                        .find(|a| a.kind == rh_sim::observe::ActorKind::Regional)
+                    {
                         commands[i].push(PublicCommand::Target { actor: target.id });
                         let me = obs.me.as_ref().unwrap();
                         commands[i].push(PublicCommand::Attack {

@@ -1,0 +1,7 @@
+    Finished `test` profile [unoptimized] target(s) in 0.03s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/quest-giver-native/target/debug/deps/rh_sim-0ad75f2b040c28b6)
+
+running 1 test
+test quests::giver_tests::source::neutral_giver_warm_alloc_uses_real_full_quest_constructor_and_restore ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 748 filtered out; finished in 1.83s

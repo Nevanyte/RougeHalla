@@ -187,7 +187,7 @@ fn hunt_target_is_refused_outside_an_active_sentenced_run_and_for_self() {
     s.w.phase = Phase::Active;
     hunt(&mut s, crate::PlayerId(1));
     assert_eq!(s.players()[0].hunt_target(), None);
-    s.w.players[0].vitals.faction = FactionId::Fire;
+    s.w.players[0].vitals.faction = FactionId::Fire.into();
     hunt(&mut s, crate::PlayerId(2));
     assert_eq!(s.players()[0].hunt_target(), None);
 }

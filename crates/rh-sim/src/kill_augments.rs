@@ -214,7 +214,7 @@ pub fn text(a: KillAugment) -> (String, String) {
 pub fn invested_stats(p: &crate::state::Player) -> Vec<(KillStatKey, f64)> {
     use crate::stat_fold::{ChestBoostStat, StatKey};
     let build = &p.build;
-    let faction = p.vitals.faction;
+    let faction = p.faction();
     let m = p.modifiers.mirrors();
     let base_hp = crate::content::faction(faction).hp;
     let (farm_rows, farm_len) = p.farm.rows();

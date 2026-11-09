@@ -120,7 +120,7 @@ fn snapshot(sim: &Sim, f: &Value, elite: PlayerId, normal: PlayerId) -> Value {
         .players()
         .iter()
         .map(|p| {
-            let base = crate::content::faction(p.vitals.faction);
+            let base = crate::content::faction(p.faction());
             let m = p.modifiers.mirrors();
             serde_json::json!({
                 "id": format!("p{}", p.id.0 - 1),

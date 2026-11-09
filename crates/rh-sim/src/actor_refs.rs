@@ -84,15 +84,15 @@ pub(crate) const NPC_REFERENCE_BLOCK: u64 = 512;
 pub(crate) const NPC_REFERENCE_BASE: u64 = 1 << 31;
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 struct Cue {
-    kind: u8,
+    kind: crate::observe::ActorKind,
     mob_type: &'static str,
-    faction: u8,
+    faction: Option<crate::FactionId>,
     x: u16,
     y: u16,
     facing: u16,
     hp: u8,
     status: u8,
-    weapon: u8,
+    weapon: Option<crate::WeaponId>,
     bounty: u32,
     effects: u16,
     displacement: u8,
@@ -110,13 +110,13 @@ impl Cue {
         Ok(Self {
             kind: a.kind,
             mob_type: a.mob_type.map_or("", |v| v.as_str()),
-            faction: a.faction as u8,
+            faction: a.faction.faction_id(),
             x: crate::item_view::position(a.x)?,
             y: crate::item_view::position(a.y)?,
             facing,
             hp: (a.hp_frac * 100.).round() as u8,
             status: a.status as u8,
-            weapon: a.weapon.code(),
+            weapon: a.weapon,
             bounty: a.bounty,
             effects: a.effects,
             displacement: a.displace_seq,
@@ -185,7 +185,7 @@ impl ActorRefs {
         let mut rows = out
             .visible
             .iter()
-            .filter(|a| a.kind != 0)
+            .filter(|a| a.kind != crate::observe::ActorKind::Player)
             .map(|a| Ok((Cue::of(a)?, a.id)))
             .collect::<Result<Vec<_>, crate::OfferError>>()?;
         if rows.len() > NPC_REFERENCE_BLOCK as usize {

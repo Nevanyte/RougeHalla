@@ -102,7 +102,7 @@ fn scene(input: &Value) -> Sim {
     assert_eq!(s.phase(), crate::Phase::Active);
     for (p, want) in s.players().iter().zip(input["initial"].as_array().unwrap()) {
         check_numbers(
-            &json!({"x":r6(p.body.x),"y":r6(p.body.y),"faction":p.vitals.faction.as_str()}),
+            &json!({"x":r6(p.body.x),"y":r6(p.body.y),"faction":p.vitals.faction.faction_id().expect("declared faction actor").as_str()}),
             want,
             "ordinary bootstrap/spawn identity",
         );
@@ -302,7 +302,7 @@ fn compare(s: &Sim, f: &Value, pulses: &[Value], name: &str) {
         let name = p["id"].as_str().unwrap();
         let c = s.w.players.get(actor(s, name)).unwrap();
         check_numbers(
-            &json!({"id":name,"faction":c.vitals.faction.as_str(),"x":r6(c.body.x),"y":r6(c.body.y),"hp":r6(c.vitals.hp),"maxHp":r6(c.vitals.max_hp),"status":status(c.status),"weapon0":c.weapon.weapon0.map_or("",|w|w.as_str()),"statuses":c.statuses.instances.iter().map(|st|serde_json::to_value(st.kind).unwrap()).collect::<Vec<_>>()}),
+            &json!({"id":name,"faction":c.vitals.faction.faction_id().expect("declared faction actor").as_str(),"x":r6(c.body.x),"y":r6(c.body.y),"hp":r6(c.vitals.hp),"maxHp":r6(c.vitals.max_hp),"status":status(c.status),"weapon0":c.weapon.weapon0.map_or("",|w|w.as_str()),"statuses":c.statuses.instances.iter().map(|st|serde_json::to_value(st.kind).unwrap()).collect::<Vec<_>>()}),
             p,
             &format!("{name} player"),
         );
@@ -328,7 +328,7 @@ fn compare(s: &Sim, f: &Value, pulses: &[Value], name: &str) {
         } else {
             "mob"
         };
-        let mode = match c.brain.mode {
+        let mode = match c.regional_brain().mode {
             crate::mob_runtime::BrainMode::Idle => "idle",
             crate::mob_runtime::BrainMode::Fight => "fight",
             crate::mob_runtime::BrainMode::Return => "return",
@@ -336,9 +336,9 @@ fn compare(s: &Sim, f: &Value, pulses: &[Value], name: &str) {
         let brain = if dummy {
             Value::Null
         } else {
-            json!({"mode":mode,"region":c.core.vitals.faction.as_str(),"elite":c.elite})
+            json!({"mode":mode,"region":c.core.vitals.faction.faction_id().expect("declared faction actor").as_str(),"elite":c.elite})
         };
-        let mut got = json!({"id":name,"kind":kind,"faction":if dummy {""}else{c.core.vitals.faction.as_str()},"camp":if s.k.config.training {c.camp}else{c.camp+1},"x":r6(c.core.body.x),"y":r6(c.core.body.y),"hp":r6(c.core.vitals.hp),"maxHp":r6(c.core.vitals.max_hp),"status":status(c.status),"weapon0":c.core.weapon.weapon0.map_or("",|w|w.as_str()),"type":c.mob_type.map_or("",|ty|ty.as_str()),"brain":brain});
+        let mut got = json!({"id":name,"kind":kind,"faction":if dummy {""}else{c.core.vitals.faction.faction_id().expect("declared faction actor").as_str()},"camp":if s.k.config.training {c.camp}else{c.camp+1},"x":r6(c.core.body.x),"y":r6(c.core.body.y),"hp":r6(c.core.vitals.hp),"maxHp":r6(c.core.vitals.max_hp),"status":status(c.status),"weapon0":c.core.weapon.weapon0.map_or("",|w|w.as_str()),"type":c.mob_type.map_or("",|ty|ty.as_str()),"brain":brain});
         if m.get("statuses").is_some() {
             got["statuses"] = json!(c
                 .core

@@ -45,10 +45,48 @@ pub struct Body {
     pub history: History,
 }
 
+/// An actor's actual faction affiliation. Neutral actors have no faction content row.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, serde::Deserialize)]
+#[serde(untagged)]
+pub enum FighterAffiliation {
+    Faction(FactionId),
+    Neutral,
+}
+impl serde::Serialize for FighterAffiliation {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        // JSON preserves the actual faction string / neutral null. The canonical serializer must
+        // also hash the explicit Some/None discriminant; an untagged unit would contribute no word.
+        serde::Serialize::serialize(&self.faction_id(), serializer)
+    }
+}
+impl FighterAffiliation {
+    pub const fn faction_id(self) -> Option<FactionId> {
+        match self {
+            Self::Faction(id) => Some(id),
+            Self::Neutral => None,
+        }
+    }
+}
+impl From<FactionId> for FighterAffiliation {
+    fn from(value: FactionId) -> Self {
+        Self::Faction(value)
+    }
+}
+impl PartialEq<FactionId> for FighterAffiliation {
+    fn eq(&self, other: &FactionId) -> bool {
+        self.faction_id() == Some(*other)
+    }
+}
+impl PartialEq<FighterAffiliation> for FactionId {
+    fn eq(&self, other: &FighterAffiliation) -> bool {
+        other == self
+    }
+}
+
 /// How much a fighter can take, and what it is (the faction decides its armor and shield).
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Vitals {
-    pub faction: FactionId,
+    pub faction: FighterAffiliation,
     pub hp: f64,
     pub max_hp: f64,
     pub barrier: f64,
@@ -104,6 +142,10 @@ pub struct FighterCore {
 }
 
 impl FighterCore {
+    pub const fn faction_id(&self) -> Option<FactionId> {
+        self.vitals.faction.faction_id()
+    }
+
     pub fn pos(&self) -> Vec2 {
         Vec2::new(self.body.x, self.body.y)
     }

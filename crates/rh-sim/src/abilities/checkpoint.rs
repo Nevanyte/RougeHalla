@@ -82,7 +82,7 @@ pub(crate) fn validate(
                     || spend.cooldown_ms.fract() != 0.
                     || spend.cooldown_ms
                         != cooldown(
-                            wish(p.vitals.faction),
+                            wish(p.faction()),
                             k.config.training,
                             Some(p.modifiers.wish_cooldown_mult()),
                         )
@@ -120,7 +120,7 @@ pub(crate) fn validate(
                 if !has_spend && (stocks.wish_ready_at != initial || full_at != initial) {
                     return Err("unproduced Wish stock clocks".into());
                 }
-                let def = definition(wish(p.vitals.faction));
+                let def = definition(wish(p.faction()));
                 let recharge = cooldown(
                     def.id,
                     k.config.training,
@@ -221,7 +221,7 @@ pub(crate) fn validate(
         }
         let def = definition(c.ability);
         let stocks = w.players[ix.slot()].stocks;
-        if c.ability != wish(p.vitals.faction)
+        if c.ability != wish(w.players[ix.slot()].faction())
             || d.slot != Slot::Wish
             || d.rank != 1
             || c.cancelled_by != CANCELLED_BY
@@ -326,7 +326,7 @@ pub(crate) fn blaze_dot(
         // Overlapping charges may keep refreshing beyond one trail's lifetime.
         && st.started_at <= w.server_time
         && st.until <= w.server_time + tail
-        && w.player(owner).is_none_or(|p| p.vitals.faction == crate::FactionId::Fire)
+        && w.player(owner).is_none_or(|p| p.faction() == crate::FactionId::Fire)
         && st.reveal_from.is_none()
         && st.taken.is_none()
         && st.data
@@ -346,7 +346,7 @@ pub(crate) fn blaze_dot(
 pub(crate) fn blaze_history(k: &crate::statics::MatchStatic, p: &crate::state::Player) -> bool {
     let h = p.body.history.as_slice();
     k.config.abilities == Mode::Full
-        && p.vitals.faction == crate::FactionId::Fire
+        && p.faction() == crate::FactionId::Fire
         && h.len() >= 2
         && h[0].t == h[1].t
         && p.card_runtime

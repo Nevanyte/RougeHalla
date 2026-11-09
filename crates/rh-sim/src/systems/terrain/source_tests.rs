@@ -606,7 +606,11 @@ fn terrain_player_passes_match_actual_source() {
                     "{context}"
                 );
                 assert_eq!(
-                    p.vitals.faction.as_str(),
+                    p.vitals
+                        .faction
+                        .faction_id()
+                        .expect("declared faction actor")
+                        .as_str(),
                     st["faction"].as_str().unwrap(),
                     "{context}"
                 );

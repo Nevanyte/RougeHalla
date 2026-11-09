@@ -242,7 +242,7 @@ fn pool(w: &World, id: PlayerId) -> f64 {
     if w.mobs.get(id).is_some_and(|m| {
         m.mob_type.is_some() && m.zombie.is_none() && m.kind != crate::mob_runtime::MobKind::Dummy
     }) {
-        crate::content::faction(c.vitals.faction).hp
+        crate::content::faction(c.faction_id().expect("typed regional Mark member")).hp
     } else {
         c.vitals.max_hp
     }
@@ -310,9 +310,7 @@ fn source(w: &World, ix: crate::fighter::FighterIx) -> bool {
         && (w.is_player(ix) || typed_npc_source(w, c.id))
 }
 fn returning(w: &World, id: PlayerId) -> bool {
-    w.mobs
-        .get(id)
-        .is_some_and(|m| m.brain.mode == crate::mob_runtime::BrainMode::Return)
+    w.mobs.get(id).is_some_and(|m| m.returning())
 }
 fn qualifies(w: &World, owner: crate::fighter::FighterIx, e: &Entry) -> bool {
     let c = w.core(owner);

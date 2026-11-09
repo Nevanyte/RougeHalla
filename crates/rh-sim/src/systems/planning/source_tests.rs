@@ -333,7 +333,15 @@ fn snapshot(sim: &Sim, case: &Value, f: &Value, ctx: &str) {
             ("maxHp", json!(p.vitals.max_hp)),
             ("barrier", json!(p.vitals.barrier)),
             ("status", json!(format!("{:?}", p.status).to_lowercase())),
-            ("faction", json!(p.vitals.faction.as_str())),
+            (
+                "faction",
+                json!(p
+                    .vitals
+                    .faction
+                    .faction_id()
+                    .expect("declared faction actor")
+                    .as_str()),
+            ),
             ("planReady", json!(p.plan_ready)),
             ("kills", json!(p.credit.kills)),
             ("bounty", json!(p.credit.bounty)),
@@ -959,7 +967,8 @@ fn actor_name(sim: &Sim, id: PlayerId) -> String {
         crate::mob_runtime::ActorOrigin::Player { join_ordinal } => format!("p{join_ordinal}"),
         crate::mob_runtime::ActorOrigin::Mob { birth_serial, .. }
         | crate::mob_runtime::ActorOrigin::Practice { birth_serial, .. }
-        | crate::mob_runtime::ActorOrigin::Dummy { birth_serial, .. } => {
+        | crate::mob_runtime::ActorOrigin::Dummy { birth_serial, .. }
+        | crate::mob_runtime::ActorOrigin::QuestGiver { birth_serial, .. } => {
             format!("mob{}", radix36(*birth_serial))
         }
         crate::mob_runtime::ActorOrigin::Zombie { owner } => format!("zombie{}", owner.0),
@@ -1010,7 +1019,7 @@ fn roster_snapshot(sim: &Sim, f: &Value, ctx: &str) {
             .unwrap();
         let c = &m.core;
         same(
-            json!({"id":name,"state":{"x":c.body.x,"y":c.body.y,"hp":c.vitals.hp,"maxHp":c.vitals.max_hp,"status":format!("{:?}",m.status).to_lowercase(),"kind":if m.elite{"elite"}else{"mob"},"type":m.mob_type.map_or("", |t|t.as_str()),"faction":c.vitals.faction.as_str(),"camp":m.camp+1}}),
+            json!({"id":name,"state":{"x":c.body.x,"y":c.body.y,"hp":c.vitals.hp,"maxHp":c.vitals.max_hp,"status":format!("{:?}",m.status).to_lowercase(),"kind":if m.elite{"elite"}else{"mob"},"type":m.mob_type.map_or("", |t|t.as_str()),"faction":c.vitals.faction.faction_id().expect("declared faction actor").as_str(),"camp":m.camp+1}}),
             e,
             &format!("{ctx}/{name}/public"),
         );
@@ -1020,9 +1029,9 @@ fn roster_snapshot(sim: &Sim, f: &Value, ctx: &str) {
             .iter()
             .find(|e| e["id"] == name)
             .unwrap();
-        let b = &m.brain;
+        let b = m.regional_brain();
         same(
-            json!({"region":c.vitals.faction.as_str(),"elite":m.elite,"home":m.home,"homeFacing":m.home_facing,"mode":format!("{:?}",b.mode).to_lowercase(),"target":b.target.map(|id|actor_name(sim,id)),"threat":b.threat.iter().map(|(id,v)|json!([actor_name(sim,*id),v])).collect::<Vec<_>>(),"lastCombatAt":b.last_combat_at,"lastMoveAt":b.last_move_at,"goal":b.goal,"moving":b.moving,"holding":b.holding,"phase":m.repath_phase,"diedAt":b.died_at,"lastAim":b.last_aim.map_or(json!({"$float":"NaN"}),|x|json!(x))}),
+            json!({"region":c.vitals.faction.faction_id().expect("declared faction actor").as_str(),"elite":m.elite,"home":m.home,"homeFacing":m.home_facing,"mode":format!("{:?}",b.mode).to_lowercase(),"target":b.target.map(|id|actor_name(sim,id)),"threat":b.threat.iter().map(|(id,v)|json!([actor_name(sim,*id),v])).collect::<Vec<_>>(),"lastCombatAt":b.last_combat_at,"lastMoveAt":b.last_move_at,"goal":b.goal,"moving":b.moving,"holding":b.holding,"phase":m.repath_phase,"diedAt":b.died_at,"lastAim":b.last_aim.map_or(json!({"$float":"NaN"}),|x|json!(x))}),
             &e["brain"],
             &format!("{ctx}/{name}/brain"),
         );

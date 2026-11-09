@@ -1,0 +1,10 @@
+   Compiling rh-sim v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/quest-giver-native/repo/crates/rh-sim)
+    Finished `test` profile [unoptimized] target(s) in 33.93s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/quest-giver-native/target/debug/deps/rh_sim-bebc1724c13fdcb0)
+
+running 2 tests
+test systems::plague::tests::proof_schema::proof_schema_rejects_missing_extra_and_changed_installation ... ok
+test systems::plague::tests::actual_source_direct_ledger_matrix ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 717 filtered out; finished in 0.01s
+

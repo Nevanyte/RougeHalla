@@ -1,0 +1,6 @@
+    Checking rh-sim v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/quest-giver-native/repo/crates/rh-sim)
+    Checking rh-policy v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/quest-giver-native/repo/crates/rh-policy)
+    Checking rh-headless v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/quest-giver-native/repo/crates/rh-headless)
+    Checking rh-server v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/quest-giver-native/repo/crates/rh-server)
+    Checking rh-parity v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/quest-giver-native/repo/crates/rh-parity)
+    Finished `dev` profile [unoptimized] target(s) in 30.13s

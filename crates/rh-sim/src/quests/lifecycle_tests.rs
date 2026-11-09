@@ -143,7 +143,7 @@ fn snapshot(sim: &Sim) -> serde_json::Value {
     let givers = sorted_by_def(
         offers
             .iter()
-            .filter(|o| o.npc_alive)
+            .filter(|o| o.giver.is_some())
             .map(|o| {
                 let def = &catalog::DEFINITION[o.def as usize];
                 serde_json::json!({"def": def.id, "name": def.giver, "x": o.at.x, "y": o.at.y})
@@ -180,7 +180,7 @@ fn snapshot(sim: &Sim) -> serde_json::Value {
                 serde_json::json!({
                     "def": def.id,
                     "published": o.published,
-                    "npcId": if o.npc_alive { "m" } else { "" },
+                    "npcId": if o.giver.is_some() { "m" } else { "" },
                     "finder": o.finder.and_then(|id| ordinal(sim, id)).map(|n| format!("p{n}")).unwrap_or_default(),
                     "publishAt": ms(o.publish_at),
                     "at": {"x": o.at.x, "y": o.at.y},
@@ -204,7 +204,7 @@ fn snapshot(sim: &Sim) -> serde_json::Value {
             serde_json::json!({
                 "id": i,
                 "name": format!("name{i}"),
-                "faction": p.vitals.faction.as_str(),
+                "faction": p.vitals.faction.faction_id().expect("declared faction actor").as_str(),
                 "status": status_name(p.status),
                 "resolved": p.resolved,
                 "gv": {

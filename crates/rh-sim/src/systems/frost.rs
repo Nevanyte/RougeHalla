@@ -156,9 +156,7 @@ fn add(chillers: &mut Vec<PlayerId>, source: PlayerId) {
     }
 }
 fn returning(w: &World, id: PlayerId) -> bool {
-    w.mobs
-        .get(id)
-        .is_some_and(|m| m.brain.mode == crate::mob_runtime::BrainMode::Return)
+    w.mobs.get(id).is_some_and(|m| m.returning())
 }
 fn structural_source(w: &World, ix: crate::fighter::FighterIx) -> bool {
     let core = w.core(ix);
@@ -357,7 +355,9 @@ pub(crate) fn validate_signature(
                 crate::mob_catalog::mob_type_by_id(mob_type.as_str())
                     .is_some_and(|t| t.zone == FactionId::Frost)
             }
-            ActorOrigin::Dummy { .. } | ActorOrigin::Zombie { .. } => false,
+            ActorOrigin::Dummy { .. }
+            | ActorOrigin::Zombie { .. }
+            | ActorOrigin::QuestGiver { .. } => false,
         });
         if *source == id || !known_source || f.chillers[..i].contains(source) {
             return Err("invalid Frost source".into());
@@ -709,7 +709,7 @@ mod tests {
             keys(case, &["setup", "landed", "until"]);
             let c = &case["setup"];
             let mut s = scene();
-            s.w.players[2].vitals.faction = FactionId::Holy;
+            s.w.players[2].vitals.faction = FactionId::Holy.into();
             s.w.players[2].vitals.max_hp = crate::content::faction(FactionId::Holy).hp;
             s.w.server_time = 100.;
             s.w.tick = 2;
@@ -1790,13 +1790,13 @@ mod tests {
             if status != st["status"].as_str().unwrap() {
                 return Err(format!("{name}: {key} status {status} vs {}", st["status"]));
             }
-            if fr_npc_brain_mode(native.brain.mode) != brain["mode"].as_str().unwrap() {
+            if fr_npc_brain_mode(native.regional_brain().mode) != brain["mode"].as_str().unwrap() {
                 return Err(format!("{name}: {key} brain mode"));
             }
-            if native.brain.holding != brain["holding"].as_bool().unwrap() {
+            if native.regional_brain().holding != brain["holding"].as_bool().unwrap() {
                 return Err(format!("{name}: {key} holding"));
             }
-            let native_target = match native.brain.target {
+            let native_target = match native.regional_brain().target {
                 None => None,
                 Some(t) => Some(
                     map.iter()
@@ -2114,10 +2114,7 @@ mod tests {
                 .iter()
                 .any(|m| m.core.signature.frost_move_mult < 1.);
             witness[3] |= sim.mobs().iter().any(|m| m.status == crate::Status::Dead);
-            witness[4] |= sim
-                .mobs()
-                .iter()
-                .any(|m| m.brain.mode == crate::mob_runtime::BrainMode::Return);
+            witness[4] |= sim.mobs().iter().any(|m| m.returning());
             // The non-Frost DoT lifecycle control is a compatibility witness, not the Frost recipient timeline: its Fire
             // DoT/heal stream differs slightly from the admitted native profile, so the strict frame comparison stops at
             // the phase divergence and the lifecycle witnesses (death/camp) remain asserted after the loop.

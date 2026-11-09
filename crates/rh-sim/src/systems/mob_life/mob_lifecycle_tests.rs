@@ -294,7 +294,7 @@ fn check_snapshot(sim: &Sim, frame: &Value, label: &str) {
             &format!("{who} drawStartedAt"),
         );
         let b = &e["brain"];
-        let brain = &m.brain;
+        let brain = m.regional_brain();
         assert_eq!(
             mode_str(brain.mode),
             b["mode"].as_str().unwrap(),
@@ -323,7 +323,12 @@ fn check_snapshot(sim: &Sim, frame: &Value, label: &str) {
         close(brain.died_at, &b["diedAt"], &format!("{who} diedAt"));
         assert_eq!(m.elite, b["elite"].as_bool().unwrap(), "{who} elite");
         assert_eq!(
-            m.core.vitals.faction.as_str(),
+            m.core
+                .vitals
+                .faction
+                .faction_id()
+                .expect("declared faction actor")
+                .as_str(),
             b["region"].as_str().unwrap(),
             "{who} region"
         );
@@ -631,7 +636,12 @@ fn mob_lifecycle_returning_mob_damage_adds_threat_without_reaggro() {
 
     // A returning mob: the hit lands, the threat (kill credit) grows, the mode does not change.
     let returning = ids[0];
-    sim.w.mobs.get_mut(returning).unwrap().brain.mode = BrainMode::Return;
+    sim.w
+        .mobs
+        .get_mut(returning)
+        .unwrap()
+        .regional_brain_mut()
+        .mode = BrainMode::Return;
     let ix = sim.w.fighter_idx(returning).unwrap();
     let mut ev = Vec::new();
     let hit = |amount: f64| Hit {
@@ -642,7 +652,7 @@ fn mob_lifecycle_returning_mob_damage_adds_threat_without_reaggro() {
     };
     let removed = crate::systems::mob_life::hurt(&sim.k, &mut sim.w, &mut ev, ix, &[hit(10.)]);
     assert_eq!(removed, 10.);
-    let brain = &sim.w.mobs.get(returning).unwrap().brain;
+    let brain = sim.w.mobs.get(returning).unwrap().regional_brain();
     assert_eq!(
         brain.mode,
         BrainMode::Return,
@@ -656,15 +666,18 @@ fn mob_lifecycle_returning_mob_damage_adds_threat_without_reaggro() {
 
     // The control: the same hit on an idle mate wakes the camp onto the attacker.
     let idle = ids[1];
-    assert_eq!(sim.w.mobs.get(idle).unwrap().brain.mode, BrainMode::Idle);
+    assert_eq!(
+        sim.w.mobs.get(idle).unwrap().regional_brain().mode,
+        BrainMode::Idle
+    );
     let ix = sim.w.fighter_idx(idle).unwrap();
     let removed = crate::systems::mob_life::hurt(&sim.k, &mut sim.w, &mut ev, ix, &[hit(10.)]);
     assert_eq!(removed, 10.);
-    let brain = &sim.w.mobs.get(idle).unwrap().brain;
+    let brain = sim.w.mobs.get(idle).unwrap().regional_brain();
     assert_eq!(brain.mode, BrainMode::Fight, "an idle mob wakes");
     assert_eq!(brain.target, Some(player));
     assert_eq!(
-        sim.w.mobs.get(returning).unwrap().brain.mode,
+        sim.w.mobs.get(returning).unwrap().regional_brain().mode,
         BrainMode::Return
     );
 }

@@ -22,7 +22,7 @@ fn unit_valid(cx: &Cx, ix: FighterIx, target: PlayerId, range: f64) -> bool {
     let c = cx.w.core(ix);
     let t = cx.w.core(j);
     let now = cx.w.server_time;
-    if c.id == target
+    if !super::plague_zombies::hostile(cx.w, c.id, target)
         || !cx.w.standing(j)
         || rt::untargetable(&t.statuses.instances, now)
         || (cx.w.is_player(j) && now < t.vitals.immune_until)
@@ -89,7 +89,7 @@ pub(crate) fn handle(cx: &mut Cx, ix: FighterIx, cmd: &ActionCmd) {
     let now = cx.w.server_time;
     let p = &cx.w.players[ix.slot()];
     // One generic slot path: the table says what each slot casts (Q/E have no rows yet). No branch on an ability id.
-    let Some(ability) = a::ability_in_slot(slot, p.vitals.faction) else {
+    let Some(ability) = a::ability_in_slot(slot, p.faction()) else {
         return;
     };
     let def = a::definition(ability);

@@ -621,6 +621,13 @@ impl std::ops::DerefMut for Player {
 }
 
 impl Player {
+    /// A seated player always has a validated real faction; neutral is an actor-only state.
+    pub fn faction(&self) -> FactionId {
+        self.core
+            .faction_id()
+            .expect("validated player has a faction")
+    }
+
     /// A fresh lobby seat (legacy `addPlayer`): fists in hand, full hp, nothing earned.
     pub(crate) fn joining(
         id: PlayerId,
@@ -671,7 +678,7 @@ impl Player {
                     history: History::default(),
                 },
                 vitals: Vitals {
-                    faction,
+                    faction: faction.into(),
                     hp,
                     max_hp: hp,
                     barrier: 0.0,
@@ -984,6 +991,11 @@ impl World {
                         "Dummy"
                     }))
                 }
+                Some(crate::mob_runtime::ActorOrigin::QuestGiver { def, .. }) => {
+                    crate::quests::catalog::DEFINITION
+                        .get(*def as usize)
+                        .map(|d| std::sync::Arc::from(d.giver))
+                }
                 Some(crate::mob_runtime::ActorOrigin::Zombie { .. }) => self
                     .mobs
                     .get(id)
@@ -995,19 +1007,17 @@ impl World {
     pub(crate) fn actor(&self, id: PlayerId) -> Option<&FighterCore> {
         self.fighter_idx(id).map(|ix| self.core(ix))
     }
-    pub(crate) fn base_sheet(&self, ix: FighterIx) -> crate::content::FactionSpec {
+    pub(crate) fn faction_spec(&self, ix: FighterIx) -> Option<crate::content::FactionSpec> {
         let p = self.core(ix);
-        let mut f = crate::content::faction(p.vitals.faction);
+        let mut f = crate::content::faction(p.faction_id()?);
         if let Some(m) = self.mobs.get(p.id) {
             if m.kind == crate::mob_runtime::MobKind::Dummy {
                 // Source `defenseOf`: a dummy has no faction (""), so no faction armor or shield. Its faction field only
                 // carries the presentation/wire placeholder; every other sheet number is unused (a dummy never attacks).
-                f.armor = 0.;
-                f.shield = 0.;
-                return f;
+                return None;
             }
             if m.zombie.is_some() {
-                return f;
+                return None;
             }
             let ty = crate::mob_catalog::mob_type_by_id(
                 m.mob_type
@@ -1030,7 +1040,10 @@ impl World {
                 * ty.role_def().hp_mult;
             f.hit = self.point_damage(ix, f.hit, false);
         }
-        f
+        Some(f)
+    }
+    pub(crate) fn defense(&self, ix: FighterIx) -> Option<(f64, f64)> {
+        self.faction_spec(ix).map(|f| (f.armor, f.shield))
     }
     /// Source scaledFaction -> mobFaction -> mobTypeFaction -> pacedFaction order for point-damage params.
     fn point_damage(&self, ix: FighterIx, raw: f64, execute: bool) -> f64 {
@@ -1081,10 +1094,10 @@ impl World {
     pub(crate) fn signature_damage(&self, ix: FighterIx, raw: f64, execute: bool) -> f64 {
         self.point_damage(ix, raw, execute) * crate::constants::DUEL_PACE
     }
-    pub(crate) fn paced_sheet(&self, ix: FighterIx) -> crate::content::FactionSpec {
-        let mut f = self.base_sheet(ix);
+    pub(crate) fn paced_faction_spec(&self, ix: FighterIx) -> Option<crate::content::FactionSpec> {
+        let mut f = self.faction_spec(ix)?;
         f.hit *= crate::constants::DUEL_PACE;
-        f
+        Some(f)
     }
     /// The slot of a present player (join order = id order): a binary search.
     pub(crate) fn idx(&self, id: PlayerId) -> Option<usize> {

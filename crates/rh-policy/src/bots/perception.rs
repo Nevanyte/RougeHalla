@@ -77,8 +77,13 @@ impl Perception {
         let mut mobs = Vec::new();
         let mut seen_now: Vec<String> = Vec::new();
         for a in &obs.visible {
+            // Neutral scene actors are visible facts, never bot combat or hunt candidates.
+            if a.kind == rh_sim::observe::ActorKind::QuestGiver || a.faction.faction_id().is_none()
+            {
+                continue;
+            }
             let rendered = match a.kind {
-                0 => player_key(a.id),
+                rh_sim::observe::ActorKind::Player => player_key(a.id),
                 _ => npc_key(a.id),
             };
             if a.id == me.id {
@@ -88,7 +93,7 @@ impl Perception {
                 continue;
             }
             let (vx, vy) = self.velocity(a.id, a.x, a.y, dt);
-            if a.kind == 0 {
+            if a.kind == rh_sim::observe::ActorKind::Player {
                 fighters.push(FighterView {
                     id: rendered.clone(),
                     x: a.x,
@@ -217,7 +222,11 @@ impl Perception {
                 }
                 hit_at = Some(now);
                 if let Some(by) = by {
-                    if obs.visible.iter().any(|a| a.kind == 0 && a.id == *by) {
+                    if obs
+                        .visible
+                        .iter()
+                        .any(|a| a.kind == rh_sim::observe::ActorKind::Player && a.id == *by)
+                    {
                         fighter_hits.push((player_key(*by), now));
                     }
                 }

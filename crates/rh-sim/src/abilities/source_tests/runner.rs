@@ -124,7 +124,7 @@ pub(super) fn run_case_watch(c: &V, on_tick: &mut dyn FnMut(&Sim)) -> Sim {
                     p.vitals.hp = hp;
                 }
                 if let Some(mode) = a["mode"].as_str() {
-                    s.w.mobs.get_mut(actor).unwrap().brain.mode = match mode {
+                    s.w.mobs.get_mut(actor).unwrap().regional_brain_mut().mode = match mode {
                         "return" => crate::mob_runtime::BrainMode::Return,
                         "idle" => crate::mob_runtime::BrainMode::Idle,
                         "fight" => crate::mob_runtime::BrainMode::Fight,

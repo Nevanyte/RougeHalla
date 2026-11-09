@@ -61,7 +61,9 @@ pub(crate) fn walk_one(
     let now = w.server_time;
     let dt = dt_ms / 1000.;
     let core = w.core(ix);
-    let faction = (k.config.hazards != crate::terrain::Mode::All).then_some(core.vitals.faction);
+    let faction = (k.config.hazards != crate::terrain::Mode::All)
+        .then(|| core.faction_id())
+        .flatten();
     let slippery = k.hazards.slip && super::terrain::slip_allowed(w, ix);
     let map = k.collision_map(w.rt.gates_locked);
     let accel = if slippery {
