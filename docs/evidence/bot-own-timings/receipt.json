@@ -1,0 +1,71 @@
+{
+  "format": "rh-bot-own-timings/1",
+  "status": "PASS",
+  "base": "11d04034c18a6cf2764dafa82553ab4b49b3c8de",
+  "branch": "deepseek/bot-own-timings",
+  "worktree": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings",
+  "codeHead": "8d452fde2eca203990f75be35007bc2f4e2d2b15",
+  "evidenceCommit": "final branch head containing this receipt; reported to Root",
+  "sourceWitness": {
+    "path": "parity/policy/bot-fight/source.json",
+    "bytes": 467672,
+    "sha256": "197fe5d24b6b34822a3ef76e2999d422e6127bbda1e8dfda0ba0af3ee5e2785e"
+  },
+  "api": {
+    "file": "crates/rh-policy/src/bots/kite/own_timings.rs",
+    "bytes": 7281,
+    "lines": 207,
+    "sha256": "18d0981c621644db6d88939103c6d5a08dc4c5d8ba06bde7dc7e70089035db21",
+    "declarationFile": "crates/rh-policy/src/bots/kite.rs",
+    "declarationSha256": "9b6efadcb66e3d20039127426399e456819e39770862b8f2cda9571016ddc4a5"
+  },
+  "implementation": {
+    "nativeReuse": [
+      "rh_sim::content::paced",
+      "rh_sim::content::attack_interval",
+      "rh_sim::content::player_timings"
+    ],
+    "localSourceArithmetic": "scaleWindup exact source order",
+    "addedTuning": false,
+    "addedEpsilon": false,
+    "defaults": "None faction -> None; None windup -> source default 1; explicit Fists is available empty hand, not missing-inventory fallback",
+    "activation": "none"
+  },
+  "tests": {
+    "command": "cargo test -p rh-policy --lib bots::kite::own_timings -- --nocapture",
+    "exit": 0,
+    "passed": 3,
+    "failed": 0,
+    "sourceTimingRowsCompared": 90,
+    "sourceNoFactionNulls": 6,
+    "exactFloatBits": true,
+    "explicitFistsRows": 15,
+    "defaultWindupControls": "all source rows with windupMult==1 compared via None",
+    "tolerance": "none",
+    "fmtCheck": "cargo fmt --check exit 0",
+    "clippy": "cargo clippy -p rh-policy --all-targets --all-features -- -D warnings exit 0"
+  },
+  "logs": {
+    "logs/cargo-test.log": "481e7b7a934e73db73628ab82cf1a6bf86a33f1c0b403abbc3bfd5a99e3fed6d",
+    "logs/clippy.log": "6e15326d9a32e2c00bcc338d6ef59d1f1278f2c309bd80a7e992bbcc3bf36318",
+    "logs/fmt-check.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "portable": "force-added despite *.log ignore"
+  },
+  "build": {
+    "rustc": "1.97.0",
+    "target": "/tmp/bot-own-timings-target",
+    "jobs": 1,
+    "testDebug": 0
+  },
+  "scope": {
+    "changed": [
+      "crates/rh-policy/src/bots/kite/own_timings.rs",
+      "crates/rh-policy/src/bots/kite.rs declaration/re-export only"
+    ],
+    "awayPointUnchanged": true,
+    "sourceCorpusUnchanged": true,
+    "productionOther": false,
+    "dependenciesWidened": false
+  },
+  "limits": "pure timing component; no live fight/OrbWalk/brain/tournament/socket/Room/public activation; caller owns missing-fact refusal"
+}
