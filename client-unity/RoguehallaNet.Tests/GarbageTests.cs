@@ -402,8 +402,8 @@ namespace Roguehalla.Net.Tests
             Assert.IsTrue(typeof(WireActor).IsValueType);
             Assert.IsFalse(typeof(WireSelf).IsValueType, "WireSelf stays a class: Snapshot.Me is null for a spectator");
             Assert.AreEqual(32, System.Runtime.CompilerServices.Unsafe.SizeOf<WireActor>());
-            Assert.AreEqual(32, System.Runtime.CompilerServices.Unsafe.SizeOf<InterpActor>(),
-                "the delivered barrier bytes use the remote view's existing alignment padding");
+            Assert.AreEqual(36, System.Runtime.CompilerServices.Unsafe.SizeOf<InterpActor>(),
+                "nullable remote faction/weapon add two data bytes and alignment; the raw wire actor stays 32 bytes");
         }
 
         [Test]
