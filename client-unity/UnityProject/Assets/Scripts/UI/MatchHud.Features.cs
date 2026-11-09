@@ -166,7 +166,7 @@ namespace Roguehalla.Client
         void InitializeFeatures()
         {
             InitializeHubGuides();
-            _drawer = gameObject.AddComponent<BuildDrawer>(); _drawer.Initialize(_root);
+            _drawer = gameObject.AddComponent<BuildDrawer>(); _drawer.Initialize(_root, RefreshHeaderActionsVisibility);
             _uiPrefs = new UiDisplayPreferences();
             _map = gameObject.AddComponent<TacticalMapController>(); _map.Initialize(_client, _root, _uiPrefs);
             _modernSettings = gameObject.AddComponent<ModernSettingsView>();
@@ -208,8 +208,16 @@ namespace Roguehalla.Client
         {
             if (_drawer == null || _session == null) return;
             _drawer.SetVisible(!_drawer.IsVisible); if (_drawer.IsVisible) { _map?.SetOpen(false); if (_help != null) _help.gameObject.SetActive(false); } ReleaseChestFocus();
+            RefreshHeaderActionsVisibility();
         }
-        void ToggleHelp() { if (_help != null) { _help.gameObject.SetActive(!_help.gameObject.activeSelf); if (_help.gameObject.activeSelf) { CloseHubPanels(); _drawer?.SetVisible(false); _map?.SetOpen(false); } ReleaseChestFocus(); } }
+        void ToggleHelp() { if (_help != null) { _help.gameObject.SetActive(!_help.gameObject.activeSelf); if (_help.gameObject.activeSelf) { CloseHubPanels(); _drawer?.SetVisible(false); _map?.SetOpen(false); } ReleaseChestFocus(); RefreshHeaderActionsVisibility(); } }
+        void RefreshHeaderActionsVisibility()
+        {
+            bool visible = _drawer == null || !_drawer.IsVisible;
+            for (int i = 0; i < _headerActions.Length; i++)
+                if (_headerActions[i] != null && _headerActions[i].gameObject.activeSelf != visible)
+                    _headerActions[i].gameObject.SetActive(visible);
+        }
         public void ReadUiInput()
         {
             RememberWorldHudFocus();
@@ -243,7 +251,7 @@ namespace Roguehalla.Client
                         else
                         if (_settings.gameObject.activeSelf) ToggleSettings();
                         else if (_help.gameObject.activeSelf) ToggleHelp();
-                        else if (_drawer.IsVisible) _drawer.SetVisible(false);
+                        else if (_drawer.IsVisible) { _drawer.SetVisible(false); RefreshHeaderActionsVisibility(); }
                         else if (_chestFocus) ReleaseChestFocus();
                     }
                     if (!dialog && _rewards.gameObject.activeSelf && kb.cKey.wasPressedThisFrame)
@@ -303,6 +311,7 @@ namespace Roguehalla.Client
             }
             _map?.SetMinimapSuppressed(!visible);
             if (_wishDetails != null) _wishDetails.gameObject.SetActive(visible && !_rewards.gameObject.activeSelf);
+            RefreshHeaderActionsVisibility();
             RememberWorldHudFocus();
         }
         void RememberWorldHudFocus()

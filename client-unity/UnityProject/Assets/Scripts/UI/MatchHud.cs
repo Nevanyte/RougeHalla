@@ -20,6 +20,7 @@ namespace Roguehalla.Client
         TMP_Text _factionLabel, _banner, _vitals, _build, _focusLabel, _wishCard, _rewardTitle, _resultTitle, _resultText, _notice;
         RectTransform _healthBarFill, _barrierBarFill;
         readonly UnityEngine.UI.Button[] _options = new UnityEngine.UI.Button[3];
+        readonly UnityEngine.UI.Button[] _headerActions = new UnityEngine.UI.Button[3];
         UnityEngine.UI.Button _skip, _pickup;
         ShowcaseSettings _showcaseSettings;
         ShowcaseAudio _showcaseAudio;
@@ -73,9 +74,9 @@ namespace Roguehalla.Client
             scaler.uiScaleMode = UnityEngine.UI.CanvasScaler.ScaleMode.ScaleWithScreenSize;
             scaler.referenceResolution = new Vector2(1920, 1080); scaler.matchWidthOrHeight = .5f;
             _banner = Text(_root, "Connection", "Choose a faction and join", .02f, .925f, .30f, .99f, 15);
-            Button(_root, "Help", "H · HELP", .615f, .93f, .725f, .99f, ToggleHelp);
-            Button(_root, "Settings", "SETTINGS", .735f, .93f, .85f, .99f, ToggleSettings);
-            var leave = Button(_root, "Leave", "Leave / menu", .86f, .93f, .985f, .99f, () => _client.Leave());
+            _headerActions[0] = Button(_root, "Help", "H · HELP", .615f, .93f, .725f, .99f, ToggleHelp);
+            _headerActions[1] = Button(_root, "Settings", "SETTINGS", .735f, .93f, .85f, .99f, ToggleSettings);
+            _headerActions[2] = Button(_root, "Leave", "Leave / menu", .86f, .93f, .985f, .99f, () => _client.Leave());
             CreateJoinMenu();
             SetFaction(_faction);
             CreateCombatHud();
@@ -117,6 +118,7 @@ namespace Roguehalla.Client
             bool show = !_modernSettings.IsVisible;
             if (show) { SetSignInVisible(false); CloseHubPanels(); _drawer?.SetVisible(false); _help?.gameObject.SetActive(false); _map?.SetOpen(false); }
             _modernSettings.SetVisible(show);
+            RefreshHeaderActionsVisibility();
         }
 
         void JoinAgain()
@@ -181,7 +183,7 @@ namespace Roguehalla.Client
             _rewards.gameObject.SetActive(false); _results.gameObject.SetActive(false); _settings.gameObject.SetActive(false);
             ClearOwnerPresentation("Awaiting server");
             _banner.text = "Choose a faction and join"; _notice.text = "";
-            _map?.Bind(null); _drawer?.SetVisible(false); ReleaseChestFocus();
+            _map?.Bind(null); _drawer?.SetVisible(false); RefreshHeaderActionsVisibility(); ReleaseChestFocus();
         }
 
         /// <summary>Clears ephemeral notices and redraws owner facts after an accepted presentation clock cut.</summary>

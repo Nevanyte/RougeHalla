@@ -159,6 +159,7 @@ namespace Roguehalla.Client
             var maskImage = viewport.gameObject.AddComponent<Image>(); maskImage.color = Color.white; maskImage.raycastTarget = true;
             viewport.gameObject.AddComponent<Mask>().showMaskGraphic = false;
             content = Rect(viewport, "Content", new Vector2(0, 1), new Vector2(1, 1), Vector2.zero, Vector2.zero);
+            content.pivot = new Vector2(.5f, 1);
             var grid = content.gameObject.AddComponent<GridLayoutGroup>();
             grid.startCorner = GridLayoutGroup.Corner.UpperLeft;
             grid.startAxis = GridLayoutGroup.Axis.Horizontal;
