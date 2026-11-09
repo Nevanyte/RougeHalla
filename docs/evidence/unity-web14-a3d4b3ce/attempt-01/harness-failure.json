@@ -1,0 +1,9 @@
+{
+  "type": "NameError",
+  "message": "name 'repo' is not defined",
+  "cause": "runtime record used a prepare-local variable after services reached readiness",
+  "scope": "new proof runtime supervisor only",
+  "browser_started": false,
+  "all_owned_services_stopped": true,
+  "game_source_changes": false
+}

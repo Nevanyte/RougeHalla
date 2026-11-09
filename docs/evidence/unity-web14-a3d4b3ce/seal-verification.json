@@ -1,0 +1,58 @@
+{
+  "schema": "rh-unity-web14-seal-verification-v1",
+  "generatedUtc": "2026-11-09T08:28:06.511554+00:00",
+  "frontendSource": "a3d4b3ce575442c9a06916888035ca849a6cd05a",
+  "proofSourceCommit": "4a185be20ef8d2bed0f9d927c6e576f46b58b54c",
+  "artifactFilesVerified": 14,
+  "artifactBytes": 106765469,
+  "artifactUnchanged": true,
+  "serverBinaryShaVerified": true,
+  "rawReports": [
+    {
+      "attempt": 1,
+      "rawStatus": "FAIL",
+      "sha256": "7033ae7df4d34148280434f7ce132c9567bb60a75571fa4cdc9e2f92c87bed1b",
+      "copiedBytesUnchanged": true
+    },
+    {
+      "attempt": 2,
+      "rawStatus": "FAIL",
+      "sha256": "9dd78fd057602f85fc51e3d90d54eaca96a713bd98687ba06401962c865cd807",
+      "copiedBytesUnchanged": true
+    },
+    {
+      "attempt": 3,
+      "rawStatus": "PARTIAL",
+      "sha256": "13aab70e1bb732a7f1519e526619b2d97ff915f2ce5ae1c74f76f4dfdde84b99",
+      "copiedBytesUnchanged": true
+    }
+  ],
+  "pngFilesVerified": 28,
+  "pngSize": [
+    2560,
+    1440
+  ],
+  "gameServerArtProtocolAndOldProofFilesUnchanged": true,
+  "sourceDiffFiles": [
+    "tools/browser-proof/protocol14-ui/README.md",
+    "tools/browser-proof/protocol14-ui/contract.cjs",
+    "tools/browser-proof/protocol14-ui/contract.test.cjs",
+    "tools/browser-proof/protocol14-ui/proof.cjs",
+    "tools/browser-proof/protocol14-ui/runtime.py"
+  ],
+  "privateStateCopied": false,
+  "privateRootModesVerified": "0700",
+  "privateRuntimeAndSecretRecordModesVerified": "0600",
+  "publicKnownSecretScan": {
+    "evidenceFilesScanned": 45,
+    "harnessFilesScanned": 5,
+    "matches": 0,
+    "evidenceDatabaseUrlLiteralMatches": 0,
+    "sourceDatabaseUrlTemplates": "Expected supervisor code templates; scanned for exact known private values, not classified as captured runtime data"
+  },
+  "cleanupIndependentCheck": "cleanup-independent-verification.json",
+  "browserAttempts": 3,
+  "fourthAttemptPerformed": false,
+  "rawFinalStatus": "PARTIAL",
+  "rootRenderedAdmissionPending": true
+}

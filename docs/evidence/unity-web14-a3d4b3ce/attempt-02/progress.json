@@ -1,0 +1,311 @@
+{
+  "step": "renderHeartbeat",
+  "at": "2026-11-09T08:06:55.866Z",
+  "checks": {
+    "menu": {
+      "status": "PASS",
+      "nativeCanvas": true,
+      "noSocketBeforeJoin": true,
+      "screenshot": "01-menu.png"
+    },
+    "profile": {
+      "status": "PASS",
+      "profile": "ui14mw8z9a7t",
+      "calls": [
+        {
+          "path": "/api/profile/ui14mw8z9a7t",
+          "method": "GET",
+          "status": 200,
+          "at": 1794211595831,
+          "profileName": "ui14mw8z9a7t",
+          "created": true,
+          "ownerCredentialReceived": true
+        }
+      ],
+      "screenshot": "02-owned-profile.png",
+      "noFakeResponses": true
+    },
+    "ordinaryJoin": {
+      "status": "PASS",
+      "hello": {
+        "protocol": 14,
+        "contentHash": "643d294869db55a4",
+        "profile": "ui14mw8z9a7t",
+        "build": "unity-web-0.1.0",
+        "faction": 4,
+        "resumed": false,
+        "credentialMatchesOwnedHttpResponse": true,
+        "at": 1794211596940
+      },
+      "welcome": {
+        "protocol": 14,
+        "contentHash": "643d294869db55a4",
+        "player": 1,
+        "tick": 0,
+        "map": {
+          "width": 48,
+          "height": 40,
+          "collisionHash": 477571931,
+          "groundVersion": null
+        },
+        "matchIdentitySha256": "2f91de6e79cd2108a9fa89b2203a8afcdc8150288e94ac661fd996755f9903ea",
+        "at": 1794211596949
+      },
+      "diagnostic": false,
+      "all11Collections": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11
+      ]
+    },
+    "authoritativeSnapshots": {
+      "status": "PASS",
+      "before": {
+        "tick": 3,
+        "serverMs": 150
+      },
+      "after": {
+        "tick": 8,
+        "serverMs": 400
+      },
+      "snapshots": 8
+    },
+    "authoritativeInput": {
+      "status": "FAIL",
+      "method": "Real canvas keyboard; actual Unity WebSocket Input and Rust self echo",
+      "before": {
+        "id": 1,
+        "faction": 4,
+        "x": 432,
+        "y": 176,
+        "facing": 0,
+        "hp": 1145,
+        "maxHp": 1145,
+        "status": 1,
+        "weapon": 5,
+        "readyIn": 0,
+        "kills": 0,
+        "bounty": 0,
+        "gv": 0,
+        "moveSeq": 0,
+        "effects": 0,
+        "displaceSeq": 0,
+        "sig": 0,
+        "huntTarget": null,
+        "huntStacks": 0,
+        "wish": null,
+        "barrierBits": 0,
+        "barrierRingStep": 0
+      },
+      "after": {
+        "id": 1,
+        "faction": 4,
+        "x": 542.5,
+        "y": 176,
+        "facing": -2.603379249572754,
+        "hp": 1145,
+        "maxHp": 1145,
+        "status": 1,
+        "weapon": 5,
+        "readyIn": 0,
+        "kills": 0,
+        "bounty": 0,
+        "gv": 0,
+        "moveSeq": 8,
+        "effects": 0,
+        "displaceSeq": 0,
+        "sig": 0,
+        "huntTarget": null,
+        "huntStacks": 0,
+        "wish": null,
+        "barrierBits": 0,
+        "barrierRingStep": 0
+      },
+      "sentMoves": [
+        {
+          "k": "move",
+          "x": 496,
+          "y": 176,
+          "seq": 1,
+          "inputFrame": 288,
+          "at": 1794211604977
+        },
+        {
+          "k": "move",
+          "x": 516.1026000976562,
+          "y": 176,
+          "seq": 2,
+          "inputFrame": 292,
+          "at": 1794211605080
+        },
+        {
+          "k": "move",
+          "x": 535.1304321289062,
+          "y": 176,
+          "seq": 3,
+          "inputFrame": 296,
+          "at": 1794211605185
+        },
+        {
+          "k": "move",
+          "x": 553.4984130859375,
+          "y": 176,
+          "seq": 4,
+          "inputFrame": 301,
+          "at": 1794211605289
+        },
+        {
+          "k": "move",
+          "x": 571.4520874023438,
+          "y": 176,
+          "seq": 5,
+          "inputFrame": 306,
+          "at": 1794211605393
+        },
+        {
+          "k": "move",
+          "x": 589.271240234375,
+          "y": 176,
+          "seq": 6,
+          "inputFrame": 310,
+          "at": 1794211605497
+        },
+        {
+          "k": "move",
+          "x": 606.6214599609375,
+          "y": 176,
+          "seq": 7,
+          "inputFrame": 314,
+          "at": 1794211605601
+        }
+      ]
+    },
+    "reconnect": {
+      "status": "PASS",
+      "beforeWelcomeCount": 1,
+      "afterWelcomeCount": 2,
+      "resumedHello": {
+        "protocol": 14,
+        "contentHash": "643d294869db55a4",
+        "profile": "ui14mw8z9a7t",
+        "build": "unity-web-0.1.0",
+        "faction": 4,
+        "resumed": true,
+        "credentialMatchesOwnedHttpResponse": true,
+        "at": 1794211606718
+      },
+      "welcome": {
+        "protocol": 14,
+        "contentHash": "643d294869db55a4",
+        "player": 1,
+        "tick": 195,
+        "map": {
+          "width": 48,
+          "height": 40,
+          "collisionHash": 477571931,
+          "groundVersion": null
+        },
+        "matchIdentitySha256": "2f91de6e79cd2108a9fa89b2203a8afcdc8150288e94ac661fd996755f9903ea",
+        "at": 1794211606721
+      }
+    },
+    "hud": {
+      "status": "OPEN",
+      "reason": "Actual screenshot produced; visual inspection required",
+      "screenshot": "03-active-hud.png",
+      "actualOwner": {
+        "hp": 1145,
+        "maxHp": 1145,
+        "moveSeq": 8
+      }
+    },
+    "help": {
+      "status": "OPEN",
+      "reason": "Rendered open/close captures require visual inspection",
+      "screenshot": "06-help.png",
+      "unintendedWorldCommands": [],
+      "noWorldCommands": true
+    },
+    "journalActive": {
+      "status": "OPEN",
+      "reason": "Actual current-build active journal capture requires visual inspection",
+      "screenshot": "07-active-journal.png",
+      "noWorldCommands": true,
+      "unintendedWorldCommands": [],
+      "planningJIncluded": false
+    },
+    "drawer": {
+      "status": "OPEN",
+      "reason": "Real routed wheel/click/clipped-area/header captures exist; inspect actual pixels/selection before accepting",
+      "screenshots": [
+        "08-drawer-top.png",
+        "09-drawer-first-selection.png",
+        "10-drawer-scrolled.png",
+        "11-drawer-scrolled-selection.png",
+        "12-drawer-outside-viewport-click.png",
+        "13-drawer-hidden-global-help-click.png",
+        "14-restored-header-help.png"
+      ],
+      "noDirectCanvasMethodCalls": true
+    },
+    "planning": {
+      "status": "OPEN",
+      "reason": "Pinned public server profile has lifecycle Off and quests false; no public planning activation was added or injected.",
+      "observedPhases": [
+        0,
+        1
+      ]
+    },
+    "renderHeartbeat": {
+      "status": "PASS",
+      "before": {
+        "drawCalls": 10774,
+        "drawnRafs": 698,
+        "rafCallbacks": 699,
+        "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5 Pro, Unspecified Version)",
+        "vendor": "Google Inc. (Apple)",
+        "trace": {
+          "frameStartCount": 0,
+          "firstFrame": null,
+          "lastFrame": null,
+          "presentedCount": 0
+        },
+        "canvas": {
+          "width": 2560,
+          "height": 1440
+        }
+      },
+      "after": {
+        "drawCalls": 720246,
+        "drawnRafs": 3826,
+        "rafCallbacks": 3827,
+        "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5 Pro, Unspecified Version)",
+        "vendor": "Google Inc. (Apple)",
+        "trace": {
+          "frameStartCount": 2708,
+          "firstFrame": 829,
+          "lastFrame": 3536,
+          "presentedCount": 2617
+        },
+        "canvas": {
+          "width": 2560,
+          "height": 1440
+        }
+      },
+      "note": "Functional advancing-frame observation only; no performance acceptance"
+    }
+  },
+  "frames": {
+    "sent": 410,
+    "received": 403,
+    "snapshots": 367
+  }
+}

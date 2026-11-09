@@ -1,0 +1,108 @@
+{
+  "attempts": [
+    {
+      "attempt": "attempt-01",
+      "ownedPids": {
+        "supervisorPid": {
+          "pid": 36851,
+          "exists": false
+        },
+        "serverPid": {
+          "pid": 36876,
+          "exists": false
+        },
+        "postgresPid": {
+          "pid": 36867,
+          "exists": false
+        }
+      },
+      "listeners": {
+        "serverPort": {
+          "port": 55005,
+          "listenerPids": []
+        },
+        "staticPort": {
+          "port": 55003,
+          "listenerPids": []
+        },
+        "postgresPort": {
+          "port": 55004,
+          "listenerPids": []
+        }
+      },
+      "privateMode": "0o700",
+      "allStopped": true,
+      "serverForcedKill": false
+    },
+    {
+      "attempt": "attempt-02",
+      "ownedPids": {
+        "supervisorPid": {
+          "pid": 37666,
+          "exists": false
+        },
+        "serverPid": {
+          "pid": 37763,
+          "exists": false
+        },
+        "postgresPid": {
+          "pid": 37736,
+          "exists": false
+        }
+      },
+      "listeners": {
+        "serverPort": {
+          "port": 55259,
+          "listenerPids": []
+        },
+        "staticPort": {
+          "port": 55257,
+          "listenerPids": []
+        },
+        "postgresPort": {
+          "port": 55258,
+          "listenerPids": []
+        }
+      },
+      "privateMode": "0o700",
+      "allStopped": true,
+      "serverForcedKill": true
+    },
+    {
+      "attempt": "attempt-03",
+      "ownedPids": {
+        "supervisorPid": {
+          "pid": 47130,
+          "exists": false
+        },
+        "serverPid": {
+          "pid": 47154,
+          "exists": false
+        },
+        "postgresPid": {
+          "pid": 47145,
+          "exists": false
+        }
+      },
+      "listeners": {
+        "serverPort": {
+          "port": 57694,
+          "listenerPids": []
+        },
+        "staticPort": {
+          "port": 57692,
+          "listenerPids": []
+        },
+        "postgresPort": {
+          "port": 57693,
+          "listenerPids": []
+        }
+      },
+      "privateMode": "0o700",
+      "allStopped": true,
+      "serverForcedKill": true
+    }
+  ],
+  "allOwnedServicesStopped": true,
+  "unrelatedProcessesUntouched": true
+}

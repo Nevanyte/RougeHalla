@@ -1,0 +1,564 @@
+{
+  "step": "renderHeartbeat",
+  "at": "2026-11-09T08:16:35.475Z",
+  "checks": {
+    "menu": {
+      "status": "PASS",
+      "nativeCanvas": true,
+      "noSocketBeforeJoin": true,
+      "screenshot": "01-menu.png"
+    },
+    "profile": {
+      "status": "PASS",
+      "profile": "ui14mw8zlpf2",
+      "calls": [
+        {
+          "path": "/api/profile/ui14mw8zlpf2",
+          "method": "GET",
+          "status": 200,
+          "at": 1794212175367,
+          "profileName": "ui14mw8zlpf2",
+          "created": true,
+          "ownerCredentialReceived": true
+        }
+      ],
+      "screenshot": "02-owned-profile.png",
+      "noFakeResponses": true
+    },
+    "ordinaryJoin": {
+      "status": "PASS",
+      "hello": {
+        "protocol": 14,
+        "contentHash": "643d294869db55a4",
+        "profile": "ui14mw8zlpf2",
+        "build": "unity-web-0.1.0",
+        "faction": 4,
+        "resumed": false,
+        "credentialMatchesOwnedHttpResponse": true,
+        "at": 1794212176481
+      },
+      "welcome": {
+        "protocol": 14,
+        "contentHash": "643d294869db55a4",
+        "player": 1,
+        "tick": 0,
+        "map": {
+          "width": 48,
+          "height": 40,
+          "collisionHash": 477571931,
+          "groundVersion": null
+        },
+        "matchIdentitySha256": "0596258233d0948e26c13f001438736c5732190f37af362fad9dbbaabba46084",
+        "at": 1794212176491
+      },
+      "diagnostic": false,
+      "all11Collections": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11
+      ]
+    },
+    "authoritativeSnapshots": {
+      "status": "PASS",
+      "before": {
+        "tick": 3,
+        "serverMs": 150
+      },
+      "after": {
+        "tick": 8,
+        "serverMs": 400
+      },
+      "snapshots": 8
+    },
+    "authoritativeInput": {
+      "status": "PASS",
+      "method": "Real canvas keyboard; changed-pose intermediate Rust self sample must echo a transmitted move sequence",
+      "before": {
+        "id": 1,
+        "faction": 4,
+        "x": 1040,
+        "y": 1104,
+        "facing": 0,
+        "hp": 1145,
+        "maxHp": 1145,
+        "status": 1,
+        "weapon": 5,
+        "readyIn": 0,
+        "kills": 0,
+        "bounty": 0,
+        "gv": 0,
+        "moveSeq": 0,
+        "effects": 0,
+        "displaceSeq": 0,
+        "sig": 0,
+        "huntTarget": null,
+        "huntStacks": 0,
+        "wish": null,
+        "barrierBits": 0,
+        "barrierRingStep": 0
+      },
+      "after": {
+        "id": 1,
+        "faction": 4,
+        "x": 1150.5,
+        "y": 1104,
+        "facing": -2.6038050651550293,
+        "hp": 1145,
+        "maxHp": 1145,
+        "status": 1,
+        "weapon": 5,
+        "readyIn": 0,
+        "kills": 0,
+        "bounty": 0,
+        "gv": 0,
+        "moveSeq": 8,
+        "effects": 0,
+        "displaceSeq": 0,
+        "sig": 0,
+        "huntTarget": null,
+        "huntStacks": 0,
+        "wish": null,
+        "barrierBits": 0,
+        "barrierRingStep": 0
+      },
+      "sentMoves": [
+        {
+          "k": "move",
+          "x": 1104,
+          "y": 1104,
+          "seq": 1,
+          "inputFrame": 289,
+          "at": 1794212184552
+        },
+        {
+          "k": "move",
+          "x": 1122.352783203125,
+          "y": 1104,
+          "seq": 2,
+          "inputFrame": 294,
+          "at": 1794212184655
+        },
+        {
+          "k": "move",
+          "x": 1140.88232421875,
+          "y": 1104,
+          "seq": 3,
+          "inputFrame": 298,
+          "at": 1794212184760
+        },
+        {
+          "k": "move",
+          "x": 1158.955810546875,
+          "y": 1104,
+          "seq": 4,
+          "inputFrame": 302,
+          "at": 1794212184864
+        },
+        {
+          "k": "move",
+          "x": 1176.51708984375,
+          "y": 1104,
+          "seq": 5,
+          "inputFrame": 307,
+          "at": 1794212184967
+        },
+        {
+          "k": "move",
+          "x": 1194.31201171875,
+          "y": 1104,
+          "seq": 6,
+          "inputFrame": 312,
+          "at": 1794212185071
+        },
+        {
+          "k": "move",
+          "x": 1211.976806640625,
+          "y": 1104,
+          "seq": 7,
+          "inputFrame": 316,
+          "at": 1794212185176
+        }
+      ],
+      "sentStops": [
+        {
+          "k": "stop",
+          "seq": 8,
+          "inputFrame": 317,
+          "at": 1794212185204
+        }
+      ],
+      "sourceEchoes": [
+        {
+          "tick": 161,
+          "serverMs": 8050,
+          "x": 1040,
+          "y": 1104,
+          "moveSeq": 0,
+          "status": 1
+        },
+        {
+          "tick": 162,
+          "serverMs": 8100,
+          "x": 1048.5,
+          "y": 1104,
+          "moveSeq": 1,
+          "status": 1
+        },
+        {
+          "tick": 163,
+          "serverMs": 8150,
+          "x": 1057,
+          "y": 1104,
+          "moveSeq": 1,
+          "status": 1
+        },
+        {
+          "tick": 164,
+          "serverMs": 8200,
+          "x": 1065.5,
+          "y": 1104,
+          "moveSeq": 2,
+          "status": 1
+        },
+        {
+          "tick": 165,
+          "serverMs": 8250,
+          "x": 1074,
+          "y": 1104,
+          "moveSeq": 2,
+          "status": 1
+        },
+        {
+          "tick": 166,
+          "serverMs": 8300,
+          "x": 1082.5,
+          "y": 1104,
+          "moveSeq": 3,
+          "status": 1
+        },
+        {
+          "tick": 167,
+          "serverMs": 8350,
+          "x": 1091,
+          "y": 1104,
+          "moveSeq": 3,
+          "status": 1
+        },
+        {
+          "tick": 168,
+          "serverMs": 8400,
+          "x": 1099.5,
+          "y": 1104,
+          "moveSeq": 4,
+          "status": 1
+        },
+        {
+          "tick": 169,
+          "serverMs": 8450,
+          "x": 1108,
+          "y": 1104,
+          "moveSeq": 4,
+          "status": 1
+        },
+        {
+          "tick": 170,
+          "serverMs": 8500,
+          "x": 1116.5,
+          "y": 1104,
+          "moveSeq": 5,
+          "status": 1
+        },
+        {
+          "tick": 171,
+          "serverMs": 8550,
+          "x": 1125,
+          "y": 1104,
+          "moveSeq": 5,
+          "status": 1
+        },
+        {
+          "tick": 172,
+          "serverMs": 8600,
+          "x": 1133.5,
+          "y": 1104,
+          "moveSeq": 6,
+          "status": 1
+        },
+        {
+          "tick": 173,
+          "serverMs": 8650,
+          "x": 1142,
+          "y": 1104,
+          "moveSeq": 6,
+          "status": 1
+        },
+        {
+          "tick": 174,
+          "serverMs": 8700,
+          "x": 1150.5,
+          "y": 1104,
+          "moveSeq": 7,
+          "status": 1
+        },
+        {
+          "tick": 175,
+          "serverMs": 8750,
+          "x": 1150.5,
+          "y": 1104,
+          "moveSeq": 8,
+          "status": 1
+        },
+        {
+          "tick": 176,
+          "serverMs": 8800,
+          "x": 1150.5,
+          "y": 1104,
+          "moveSeq": 8,
+          "status": 1
+        },
+        {
+          "tick": 177,
+          "serverMs": 8850,
+          "x": 1150.5,
+          "y": 1104,
+          "moveSeq": 8,
+          "status": 1
+        }
+      ],
+      "matchedMoveSamples": [
+        {
+          "tick": 162,
+          "serverMs": 8100,
+          "x": 1048.5,
+          "y": 1104,
+          "moveSeq": 1,
+          "status": 1
+        },
+        {
+          "tick": 163,
+          "serverMs": 8150,
+          "x": 1057,
+          "y": 1104,
+          "moveSeq": 1,
+          "status": 1
+        },
+        {
+          "tick": 164,
+          "serverMs": 8200,
+          "x": 1065.5,
+          "y": 1104,
+          "moveSeq": 2,
+          "status": 1
+        },
+        {
+          "tick": 165,
+          "serverMs": 8250,
+          "x": 1074,
+          "y": 1104,
+          "moveSeq": 2,
+          "status": 1
+        },
+        {
+          "tick": 166,
+          "serverMs": 8300,
+          "x": 1082.5,
+          "y": 1104,
+          "moveSeq": 3,
+          "status": 1
+        },
+        {
+          "tick": 167,
+          "serverMs": 8350,
+          "x": 1091,
+          "y": 1104,
+          "moveSeq": 3,
+          "status": 1
+        },
+        {
+          "tick": 168,
+          "serverMs": 8400,
+          "x": 1099.5,
+          "y": 1104,
+          "moveSeq": 4,
+          "status": 1
+        },
+        {
+          "tick": 169,
+          "serverMs": 8450,
+          "x": 1108,
+          "y": 1104,
+          "moveSeq": 4,
+          "status": 1
+        },
+        {
+          "tick": 170,
+          "serverMs": 8500,
+          "x": 1116.5,
+          "y": 1104,
+          "moveSeq": 5,
+          "status": 1
+        },
+        {
+          "tick": 171,
+          "serverMs": 8550,
+          "x": 1125,
+          "y": 1104,
+          "moveSeq": 5,
+          "status": 1
+        },
+        {
+          "tick": 172,
+          "serverMs": 8600,
+          "x": 1133.5,
+          "y": 1104,
+          "moveSeq": 6,
+          "status": 1
+        },
+        {
+          "tick": 173,
+          "serverMs": 8650,
+          "x": 1142,
+          "y": 1104,
+          "moveSeq": 6,
+          "status": 1
+        },
+        {
+          "tick": 174,
+          "serverMs": 8700,
+          "x": 1150.5,
+          "y": 1104,
+          "moveSeq": 7,
+          "status": 1
+        }
+      ],
+      "finalStopEcho": true
+    },
+    "reconnect": {
+      "status": "PASS",
+      "beforeWelcomeCount": 1,
+      "afterWelcomeCount": 2,
+      "resumedHello": {
+        "protocol": 14,
+        "contentHash": "643d294869db55a4",
+        "profile": "ui14mw8zlpf2",
+        "build": "unity-web-0.1.0",
+        "faction": 4,
+        "resumed": true,
+        "credentialMatchesOwnedHttpResponse": true,
+        "at": 1794212186326
+      },
+      "welcome": {
+        "protocol": 14,
+        "contentHash": "643d294869db55a4",
+        "player": 1,
+        "tick": 196,
+        "map": {
+          "width": 48,
+          "height": 40,
+          "collisionHash": 477571931,
+          "groundVersion": null
+        },
+        "matchIdentitySha256": "0596258233d0948e26c13f001438736c5732190f37af362fad9dbbaabba46084",
+        "at": 1794212186330
+      }
+    },
+    "hud": {
+      "status": "OPEN",
+      "reason": "Actual screenshot produced; visual inspection required",
+      "screenshot": "03-active-hud.png",
+      "actualOwner": {
+        "hp": 1145,
+        "maxHp": 1145,
+        "moveSeq": 8
+      }
+    },
+    "help": {
+      "status": "OPEN",
+      "reason": "Rendered open/close captures require visual inspection",
+      "screenshot": "06-help.png",
+      "unintendedWorldCommands": [],
+      "noWorldCommands": true
+    },
+    "journalActive": {
+      "status": "OPEN",
+      "reason": "Actual current-build active journal capture requires visual inspection",
+      "screenshot": "07-active-journal.png",
+      "noWorldCommands": true,
+      "unintendedWorldCommands": [],
+      "planningJIncluded": false
+    },
+    "drawer": {
+      "status": "OPEN",
+      "reason": "Real routed wheel/click/clipped-area/header captures exist; inspect actual pixels/selection before accepting",
+      "screenshots": [
+        "08-drawer-top.png",
+        "09-drawer-first-selection.png",
+        "10-drawer-scrolled.png",
+        "11-drawer-scrolled-selection.png",
+        "12-drawer-outside-viewport-click.png",
+        "13-drawer-hidden-global-help-click.png",
+        "14-restored-header-help.png"
+      ],
+      "noDirectCanvasMethodCalls": true
+    },
+    "planning": {
+      "status": "OPEN",
+      "reason": "Pinned public server profile has lifecycle Off and quests false; no public planning activation was added or injected.",
+      "observedPhases": [
+        0,
+        1
+      ]
+    },
+    "renderHeartbeat": {
+      "status": "PASS",
+      "before": {
+        "drawCalls": 10772,
+        "drawnRafs": 698,
+        "rafCallbacks": 699,
+        "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5 Pro, Unspecified Version)",
+        "vendor": "Google Inc. (Apple)",
+        "trace": {
+          "frameStartCount": 0,
+          "firstFrame": null,
+          "lastFrame": null,
+          "presentedCount": 0
+        },
+        "canvas": {
+          "width": 2560,
+          "height": 1440
+        }
+      },
+      "after": {
+        "drawCalls": 748387,
+        "drawnRafs": 3851,
+        "rafCallbacks": 3852,
+        "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5 Pro, Unspecified Version)",
+        "vendor": "Google Inc. (Apple)",
+        "trace": {
+          "frameStartCount": 2722,
+          "firstFrame": 839,
+          "lastFrame": 3560,
+          "presentedCount": 2630
+        },
+        "canvas": {
+          "width": 2560,
+          "height": 1440
+        }
+      },
+      "note": "Functional advancing-frame observation only; no performance acceptance"
+    }
+  },
+  "frames": {
+    "sent": 412,
+    "received": 405,
+    "snapshots": 368
+  }
+}
