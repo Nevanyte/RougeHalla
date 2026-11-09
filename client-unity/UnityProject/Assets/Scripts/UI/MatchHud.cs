@@ -81,7 +81,8 @@ namespace Roguehalla.Client
             CreateCombatHud();
             _notice = Text(_root, "Notice", "", .32f, .15f, .70f, .22f, 19);
             _rewards = Panel(_root, "Rewards", .70f, .425f, .985f, .915f);
-            _rewardTitle = Text(_rewards, "RewardTitle", "", .06f, .79f, .94f, .98f, 23);
+            _rewardTitle = Text(_rewards, "RewardTitle", "", .06f, .76f, .94f, .99f, 23);
+            SetBaseSize(_rewardTitle, 28);
             _rewardTitle.color = ShowcasePalette.Gold;
             for (int i = 0; i < 3; i++)
             {

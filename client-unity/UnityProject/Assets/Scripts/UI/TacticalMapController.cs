@@ -56,10 +56,11 @@ namespace Roguehalla.Client
         {
             _client = client;
             _prefs = preferences ?? new UiDisplayPreferences();
-            _panel = MythicUi.Panel(root, "TacticalMap", new Vector2(.025f, .155f), new Vector2(.975f, .915f));
-            _title = MythicUi.Text(_panel, "MapHeading", "TACTICAL MAP", new Vector2(.025f, .90f), new Vector2(.72f, .99f), 32, ShowcasePalette.Gold);
+            Color mapFill = ShowcasePalette.Panel; mapFill.a = 1;
+            _panel = MythicUi.Panel(root, "TacticalMap", new Vector2(.025f, .155f), new Vector2(.975f, .915f), mapFill);
+            _title = MythicUi.Text(_panel, "MapHeading", "TACTICAL MAP", new Vector2(.025f, .89f), new Vector2(.72f, .995f), 22, ShowcasePalette.Gold, heading: true);
             MythicUi.Button(_panel, "CloseMap", "CLOSE", new Vector2(.87f, .91f), new Vector2(.985f, .985f), () => SetOpen(false));
-            var mapFrame = MythicUi.Panel(_panel, "MapFrame", new Vector2(.02f, .17f), new Vector2(.69f, .89f), ShowcasePalette.Background);
+            var mapFrame = MythicUi.Panel(_panel, "MapFrame", new Vector2(.02f, .22f), new Vector2(.69f, .89f), ShowcasePalette.Background);
             var mapRect = MythicUi.Rect(mapFrame, "PublicMap", Vector2.zero, Vector2.one);
             _large = mapRect.gameObject.AddComponent<TacticalMapSurface>(); _large.Initialize();
             _large.Pressed = (point, button) => { if (button == PointerEventData.InputButton.Left) AddRoutePoint(point); };
@@ -67,7 +68,7 @@ namespace Roguehalla.Client
             {
                 byte pick = i;
                 _spawnMarks[i] = MythicUi.Button(_large.transform, "SpawnMarker" + i, (i + 1).ToString(), Vector2.zero, Vector2.zero, () => PickSpawn(pick));
-                ((RectTransform)_spawnMarks[i].transform).sizeDelta = new Vector2(64, 64);
+                ((RectTransform)_spawnMarks[i].transform).sizeDelta = new Vector2(80, 64);
                 _spawnMarks[i].gameObject.SetActive(false);
             }
             _planningRail = MythicUi.Rect(_panel, "PlanningDecisions", new Vector2(.715f, .18f), new Vector2(.98f, .89f));
@@ -90,15 +91,15 @@ namespace Roguehalla.Client
             _counterGuide.SetLayout(Vector2.zero, Vector2.one, Vector2.zero, new Vector2(1, .22f));
             _counterGuide.LegendRoot.GetComponentInChildren<TMP_Text>().text = "Arrows point to countered weapons. + advantage; ! threat.";
             ShowRail(false);
-            _routeText = MythicUi.Text(_panel, "RouteSummary", "Click map to add a route stop", new Vector2(.025f, .07f), new Vector2(.69f, .16f), 22);
+            _routeText = MythicUi.Text(_panel, "RouteSummary", "Click map to add a route stop", new Vector2(.025f, .085f), new Vector2(.69f, .21f), 15);
             MythicUi.Button(_panel, "UndoRoute", "UNDO", new Vector2(.715f, .09f), new Vector2(.84f, .17f), () => { _route.Undo(); _routeStorageDirty = true; _nextPath = _nextPaint = 0; });
             MythicUi.Button(_panel, "ClearRoute", "CLEAR", new Vector2(.855f, .09f), new Vector2(.98f, .17f), () => { _route.Clear(); _routeStorageDirty = true; _nextPath = _nextPaint = 0; });
-            _status = MythicUi.Text(_panel, "MapStatus", "", new Vector2(.025f, .005f), new Vector2(.98f, .065f), 20, ShowcasePalette.MutedText);
+            _status = MythicUi.Text(_panel, "MapStatus", "", new Vector2(.025f, .005f), new Vector2(.98f, .075f), 17, ShowcasePalette.MutedText);
             _miniRoot = MythicUi.Panel(root, "Minimap", new Vector2(.845f, .018f), new Vector2(.985f, .198f));
             var miniFrame = MythicUi.Rect(_miniRoot, "TerrainFrame", new Vector2(.04f, .27f), new Vector2(.96f, .96f));
             _mini = miniFrame.gameObject.AddComponent<TacticalMapSurface>(); _mini.Initialize();
             _mini.Pressed = MinimapPress; _mini.Dragged = MinimapDrag; _mini.PointerReleased = MinimapRelease; _mini.Aborted = ReleaseMinimap;
-            MythicUi.Button(_miniRoot, "OpenMap", "TAB · MAP", new Vector2(.04f, .02f), new Vector2(.96f, .24f), () => SetOpen(!IsOpen));
+            MythicUi.Button(_miniRoot, "OpenMap", "TAB · MAP", new Vector2(.04f, .02f), new Vector2(.96f, .24f), () => SetOpen(!IsOpen), fontSize: 14);
             _panel.gameObject.SetActive(false); _miniRoot.gameObject.SetActive(false);
         }
 
@@ -190,8 +191,8 @@ namespace Roguehalla.Client
                 _nextPath = Time.realtimeSinceStartupAsDouble + .25;
                 _routePlan = _route.PlanAhead(_bound.Map, new RouteGeometry(Tile, Pathfinder.PlayerRadius, PreviewSpeed), plan == null && me != null ? new RoutePoint(me.X, me.Y) : _route.Start);
                 _routePoints = _routePlan.Points;
-                _routeText.text = (_route.Waypoints.Count - _route.NextIndex) + " / 12 stops · " + (_routePlan.Start.HasValue ? _routePlan.EtaSeconds.ToString("0") + "s base-speed walk" : "choose a spawn for ETA") +
-                    (_routePlan.Unreachable.Count > 0 ? " · " + _routePlan.Unreachable.Count + " unreachable" : "") + "\nClick to add; click near an upcoming stop to remove.";
+                _routeText.text = (_route.Waypoints.Count - _route.NextIndex) + "/12 stops · " + (_routePlan.Start.HasValue ? _routePlan.EtaSeconds.ToString("0") + "s base-speed walk" : "choose a spawn for ETA") +
+                    (_routePlan.Unreachable.Count > 0 ? " · " + _routePlan.Unreachable.Count + " unreachable" : "") + "\nClick map to add; click an upcoming stop to remove.";
             }
             SaveRoute();
             _large.Present(_bound, ShowRoute ? _routePoints : null); _mini.Present(_bound, ShowRoute ? _routePoints : null);
@@ -230,7 +231,7 @@ namespace Roguehalla.Client
             _ready.interactable = _selections.CanReady;
             var picked = plan.Pick == 0 ? plan.Option0 : plan.Pick == 1 ? plan.Option1 : null;
             if (picked.HasValue) _route.SetStart(new RoutePoint(picked.Value.X, picked.Value.Y));
-            _status.text = !string.IsNullOrEmpty(_selections.Feedback) ? _selections.Feedback : connected ? "Choose a spawn, choose any offered boon, then Ready. Your route stays private." : "Reconnecting · selections are unavailable until the server restores your plan.";
+            _status.text = !string.IsNullOrEmpty(_selections.Feedback) ? _selections.Feedback : connected ? "Choose spawn + boon, then Ready · your route stays private." : "Reconnecting · wait for the server plan.";
         }
         void PresentTactics()
         {
@@ -248,7 +249,7 @@ namespace Roguehalla.Client
             if (shown == 0) text.Append("No other contacts in view.");
             _contactsText.text = text.ToString();
             _counterGuide.SetWeapon(_bound.Me != null ? _bound.Me.Weapon.ToString() : "fists");
-            _status.text = "Map shows delivered terrain and contacts. " + (ToggleMode ? "Tab closes" : "Release Tab to return") + " · routes never move your character.";
+            _status.text = "Delivered terrain/contacts · " + (ToggleMode ? "Tab closes" : "Release Tab to return") + " · routes never move you.";
         }
         void ShowRail(bool weapons) { _contactRail.gameObject.SetActive(!weapons); _counterRail.gameObject.SetActive(weapons); }
         void OnDestroy() { UnsubscribeMapFacts(); _counterGuide?.Destroy(); }

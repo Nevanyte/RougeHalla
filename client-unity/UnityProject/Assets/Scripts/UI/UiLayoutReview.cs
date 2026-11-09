@@ -44,7 +44,7 @@ namespace Roguehalla.Client
             _client.Arena = _arena; _client.Cam = camera;
             if (mode == "map") Hud.TacticalMap.SetOpen(true);
             var connection = Hud.transform.Find("MatchUI/Connection"); if (connection != null) connection.gameObject.SetActive(false);
-            var label = MythicUi.Text(Hud.transform.Find("MatchUI"), "OfflineReviewLabel", "STAGED UI REVIEW\nNO NETWORK", new Vector2(.02f, .925f), new Vector2(.30f, .99f), 18, ShowcasePalette.Gold);
+            var label = MythicUi.Text(Hud.transform.Find("MatchUI"), "OfflineReviewLabel", "STAGED UI REVIEW\nNO NETWORK", new Vector2(.02f, .92f), new Vector2(.30f, .995f), 14, ShowcasePalette.Gold);
             label.alignment = TMPro.TextAlignmentOptions.Center;
             _nextTick = Time.realtimeSinceStartupAsDouble;
             _initialized = true; enabled = true;
