@@ -115,7 +115,7 @@ namespace Roguehalla.Client
         {
             _showcaseAudio?.UnlockFromUserGesture();
             bool show = !_modernSettings.IsVisible;
-            if (show) { SetSignInVisible(false); _hubGuide?.SetVisible(false); _drawer?.SetVisible(false); _help?.gameObject.SetActive(false); _map?.SetOpen(false); }
+            if (show) { SetSignInVisible(false); CloseHubPanels(); _drawer?.SetVisible(false); _help?.gameObject.SetActive(false); _map?.SetOpen(false); }
             _modernSettings.SetVisible(show);
         }
 
@@ -137,6 +137,7 @@ namespace Roguehalla.Client
             }
             MythicUi.ApplyTextScale(_root, scale);
             _hubGuide?.RefreshScale(scale);
+            _hubCosmetics?.RefreshScale(scale);
         }
         void Swap(byte slot) { if (Active) _session.Input.Swap(slot); EventSystem.current?.SetSelectedGameObject(null); }
         void UsePotion() { if (Active) _session.Input.UseConsumable(); EventSystem.current?.SetSelectedGameObject(null); }
@@ -153,7 +154,7 @@ namespace Roguehalla.Client
             session.StateChanged += Changed; session.SnapshotReceived += Snapshot;
             session.CollectionsChanged += Collections; session.EventsReceived += Events;
             _menu.gameObject.SetActive(false); _hud.gameObject.SetActive(true); _settings.gameObject.SetActive(false);
-            SetSignInVisible(false); _hubGuide?.SetVisible(false);
+            SetSignInVisible(false); CloseHubPanels();
             _results.gameObject.SetActive(false); _rewards.gameObject.SetActive(false);
             _feedback = ""; _lastResult = null; _lastHp = float.NaN; _chestIndex = 0; _shownChest = default;
             _lastWish = null; _lastBarrier = float.NaN; _lastBarrierRing = 0; _lastServerTime = double.NaN;
@@ -176,7 +177,7 @@ namespace Roguehalla.Client
         }
         public void ShowMenu()
         {
-            Unbind(); _menu.gameObject.SetActive(true); _hud.gameObject.SetActive(false);
+            Unbind(); CloseHubPanels(); _menu.gameObject.SetActive(true); _hud.gameObject.SetActive(false);
             _rewards.gameObject.SetActive(false); _results.gameObject.SetActive(false); _settings.gameObject.SetActive(false);
             ClearOwnerPresentation("Awaiting server");
             _banner.text = "Choose a faction and join"; _notice.text = "";
@@ -194,7 +195,7 @@ namespace Roguehalla.Client
             _dirty = true;
         }
 
-        void OnDestroy() { Unbind(); if (_uiPrefs != null) _uiPrefs.Changed -= ApplyDisplayPreferences; UiBrowserStorage.CaptureTab(false); }
+        void OnDestroy() { Unbind(); if (_showcaseSettings != null) _showcaseSettings.Changed -= ApplyTextScale; if (_uiPrefs != null) _uiPrefs.Changed -= ApplyDisplayPreferences; UiBrowserStorage.CaptureTab(false); }
         void Changed(SessionState state) { if (_session != null) RefreshCollections(_session.Collections); _dirty = _rewardsDirty = true; }
         void Snapshot(ServerMsg.Snapshot snapshot) { _dirty = true; }
         void Collections(CollectionsView view) { RefreshCollections(view); _dirty = _rewardsDirty = true; }

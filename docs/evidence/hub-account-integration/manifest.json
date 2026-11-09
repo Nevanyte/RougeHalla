@@ -1,0 +1,292 @@
+{
+  "format": "rh-hub-account-integration/1",
+  "base": "f5f5e016555755fb3e11b77026234148c107ca6b",
+  "source_commit": "2b6eeb4b4c87e79df8b139210659aff225659cd8",
+  "payloads": [
+    {
+      "path": "client-unity/RoguehallaNet.Tests/HubCosmeticsAccountFlowTests.cs",
+      "bytes": 7023,
+      "sha256": "d8537c92236369c9513bf25bdcdfd6a10ce41ec1dbb106ab7ed99b7f4e498b74",
+      "origin": "177f19fac251dbd2649da516e46cca5f36737550",
+      "purpose": "Two pure account ownership/idempotent retry regressions"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/UI/AccountRecoveryView.cs",
+      "bytes": 5898,
+      "sha256": "107eb054a29e60ab81eaefd8aba0222fb5bde23b65457eb0129e843a87530725",
+      "origin": "177f19fac251dbd2649da516e46cca5f36737550",
+      "purpose": "Explicit current-owner key reveal/select and lifecycle scrub"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/UI/AccountRecoveryView.cs.meta",
+      "bytes": 60,
+      "sha256": "240bd18390a43e4aea4433236a7391ae13732b7e7b4ff1e6a4f4bcdbab53d1fe",
+      "origin": "177f19fac251dbd2649da516e46cca5f36737550",
+      "purpose": "Exact imported Unity source/test asset identity; GUID uniqueness checked"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/UI/HubCosmeticsView.cs",
+      "bytes": 41176,
+      "sha256": "04549ed7d2d3c51c0c336919bfe14b333eb67c2bee4a8c2e5f5bfcade1ad6f95",
+      "origin": "244a914af6f3fd80af8fb1967d00ed702e900a01",
+      "purpose": "Current-owner purchases/equipment, Unknown UUID/history and repaired private display scrub"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/UI/HubCosmeticsView.cs.meta",
+      "bytes": 60,
+      "sha256": "8e0007eeb6e784bcdade3ae857677cefc63803b7b4eec1a8e4869b9588f136a8",
+      "origin": "177f19fac251dbd2649da516e46cca5f36737550",
+      "purpose": "Exact imported Unity source/test asset identity; GUID uniqueness checked"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/UI/HubProgressView.cs",
+      "bytes": 25837,
+      "sha256": "39bd656df9a24b307aaa94dd90cf61185a6c2674835bb028b2a8603cc5376ebb",
+      "origin": "177f19fac251dbd2649da516e46cca5f36737550",
+      "purpose": "Read-only progression/achievements and fenced public/private leaderboard"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/UI/HubProgressView.cs.meta",
+      "bytes": 60,
+      "sha256": "4040cb312dd94190fd5ccd3b6aae011105a67754c5e641b11f4bd4af250a77c4",
+      "origin": "177f19fac251dbd2649da516e46cca5f36737550",
+      "purpose": "Exact imported Unity source/test asset identity; GUID uniqueness checked"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/UI/KeyboardScrollPane.cs",
+      "bytes": 4160,
+      "sha256": "50f426848cc2a8d3778a3fe9c7b6a3c295f6271ab7b28b81f4f822ec3dec951b",
+      "origin": "177f19fac251dbd2649da516e46cca5f36737550",
+      "purpose": "Existing focusable presentation-only reading pane"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/UI/KeyboardScrollPane.cs.meta",
+      "bytes": 60,
+      "sha256": "db4067d77d527135a16245a78c088ed0202d5e15c541b505d9e72a42e9781a17",
+      "origin": "177f19fac251dbd2649da516e46cca5f36737550",
+      "purpose": "Exact imported Unity source/test asset identity; GUID uniqueness checked"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/UI/MatchHud.Accounts.cs",
+      "bytes": 11641,
+      "sha256": "b2e8c4b699d8a217c679e11a694a758e19f0578b5294f60a7d04c1f364061a79",
+      "origin": "composition on f5f5e016555755fb3e11b77026234148c107ca6b",
+      "purpose": "Account panel initialization/service routing, recovery and current profile guidance"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/UI/MatchHud.Features.cs",
+      "bytes": 23270,
+      "sha256": "978b9aac3872bb8a2580ab9573fb65cc9fa2a629aeeb169b8e9abb2983a0332d",
+      "origin": "composition on f5f5e016555755fb3e11b77026234148c107ca6b",
+      "purpose": "Account modal/focus/scroll keyboard gates and recovery Escape/blur cleanup"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/UI/MatchHud.cs",
+      "bytes": 31893,
+      "sha256": "ba7dcb024b85323b0c6c47757bb46e165825c006c1ea8d5fc8c17b73986a7492",
+      "origin": "composition on f5f5e016555755fb3e11b77026234148c107ca6b",
+      "purpose": "Close account panels at existing lifecycle boundaries; text scale/lifetime cleanup"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/UI/MythicUi.cs",
+      "bytes": 17285,
+      "sha256": "d021c0d1a7229fab81436227ef78ccd4bbb25aa593a1c004be1080ea0fea70d9",
+      "origin": "composition on f5f5e016555755fb3e11b77026234148c107ca6b",
+      "purpose": "Two account tab colors and literal text; preserve current style APIs"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/AccountRecoveryViewEditModeTests.cs",
+      "bytes": 9630,
+      "sha256": "bc5e93d43bc916e25620fd8f1055d9fc1cd4f0bc856427b2b927f72c81e41562",
+      "origin": "177f19fac251dbd2649da516e46cca5f36737550",
+      "purpose": "Imported focused Editor source regression for corresponding account panel"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/AccountRecoveryViewEditModeTests.cs.meta",
+      "bytes": 60,
+      "sha256": "cea2fd37d637112f3ef67fd629eaf72da74762174baa5de901e7b6d5b25a4ba4",
+      "origin": "177f19fac251dbd2649da516e46cca5f36737550",
+      "purpose": "Exact imported Unity source/test asset identity; GUID uniqueness checked"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/HubCosmeticsViewEditModeTests.cs",
+      "bytes": 24341,
+      "sha256": "51c642cfa8b928969353aac731852664328f178de7e038fec2da72c9adb4465f",
+      "origin": "244a914af6f3fd80af8fb1967d00ed702e900a01",
+      "purpose": "Imported focused Editor source regression for corresponding account panel"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/HubCosmeticsViewEditModeTests.cs.meta",
+      "bytes": 60,
+      "sha256": "6a4231ed2835dbfc121980c03c7657b2d1af2ea4f586c455fb05f832baccf20a",
+      "origin": "177f19fac251dbd2649da516e46cca5f36737550",
+      "purpose": "Exact imported Unity source/test asset identity; GUID uniqueness checked"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/HubProgressViewEditModeTests.cs",
+      "bytes": 9915,
+      "sha256": "76a26ae4efd15d65da91eec5c15954fbec850f828d378dbd10a48c9d3b9e7d7f",
+      "origin": "177f19fac251dbd2649da516e46cca5f36737550",
+      "purpose": "Imported focused Editor source regression for corresponding account panel"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/HubProgressViewEditModeTests.cs.meta",
+      "bytes": 60,
+      "sha256": "84370b5e647a7b18b16e787065882443fde47e471d8b5c65416c539f967ba694",
+      "origin": "177f19fac251dbd2649da516e46cca5f36737550",
+      "purpose": "Exact imported Unity source/test asset identity; GUID uniqueness checked"
+    },
+    {
+      "path": "docs/evidence/hub-wallet-privacy-repair/README.md",
+      "bytes": 2393,
+      "sha256": "476126e25884d004e4151b65d40c78acd65763d64366840d3713ae3227f96ba7",
+      "origin": "5bcf9e73dbea244b8b820f65fcd0b9a1ecfbb082",
+      "purpose": "Retained historical repair receipt, not current runtime acceptance"
+    },
+    {
+      "path": "docs/evidence/hub-wallet-privacy-repair/api-compile.txt",
+      "bytes": 1822,
+      "sha256": "0fadc9c8a2543dbd948c8ba1cff9cf325d331b8ccab2f634d35f5566f44f9e4e",
+      "origin": "5bcf9e73dbea244b8b820f65fcd0b9a1ecfbb082",
+      "purpose": "Retained historical repair receipt, not current runtime acceptance"
+    },
+    {
+      "path": "docs/evidence/hub-wallet-privacy-repair/manifest.json",
+      "bytes": 2452,
+      "sha256": "8fef8e385d61ccb426cf2fe95d7157626bc52985b2ee539249c941f1b7d968b8",
+      "origin": "5bcf9e73dbea244b8b820f65fcd0b9a1ecfbb082",
+      "purpose": "Retained historical repair receipt, not current runtime acceptance"
+    },
+    {
+      "path": "docs/evidence/hub-account-integration/README.md",
+      "bytes": 4185,
+      "sha256": "ec7a5ce77adb4d985a01604df2debcc72d78612ab86b51ac47318530a1b95808",
+      "origin": "this composition evidence",
+      "purpose": "Scope and current compile/focused-test receipt"
+    },
+    {
+      "path": "docs/evidence/hub-account-integration/managed-compile.txt",
+      "bytes": 1803,
+      "sha256": "fa14aacd630ee22786c380a511459096ff66c886ca923713d455d44cb1d59065",
+      "origin": "this composition evidence",
+      "purpose": "Scope and current compile/focused-test receipt"
+    },
+    {
+      "path": "docs/evidence/hub-account-integration/focused-account-flow.txt",
+      "bytes": 1692,
+      "sha256": "e1681ad0ec00a3dc6adab39e9cdb4f78052eac6f493bd0b01900054c8744e534",
+      "origin": "this composition evidence",
+      "purpose": "Scope and current compile/focused-test receipt"
+    },
+    {
+      "path": "docs/evidence/hub-account-integration/focused-account-flow.trx",
+      "bytes": 4597,
+      "sha256": "204064e1d4b4d5239ece550e5b6e8d507798df5602d1fa088ff23a56c32d704c",
+      "origin": "this composition evidence",
+      "purpose": "Scope and current compile/focused-test receipt"
+    }
+  ],
+  "protected_unchanged": [
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/UI/BuildDrawer.cs",
+      "bytes": 13484,
+      "sha256": "4e019eda8cd898ce31a6e267901283feb857fcb9981657a007062fde2baa72c5",
+      "origin": "f5f5e016555755fb3e11b77026234148c107ca6b",
+      "purpose": "Protected current root surface, byte-identical"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/UI/TacticalMapController.cs",
+      "bytes": 23730,
+      "sha256": "422c27e8cbb24e37fb9c12e6c43e4d4de811fe4533e623ebf50b764bc57931e7",
+      "origin": "f5f5e016555755fb3e11b77026234148c107ca6b",
+      "purpose": "Protected current root surface, byte-identical"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/UI/TacticalMapSurface.cs",
+      "bytes": 4218,
+      "sha256": "85090057a10e99811a260a6dd6da5347b64dae093950dc3ae38d3dfc8f067dd3",
+      "origin": "f5f5e016555755fb3e11b77026234148c107ca6b",
+      "purpose": "Protected current root surface, byte-identical"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Presentation/SpriteActorPresenter.cs",
+      "bytes": 22463,
+      "sha256": "153792ddf55a6f7cf7373ddd58b49756d748b9ccaa8aae6c663def99a4079795",
+      "origin": "f5f5e016555755fb3e11b77026234148c107ca6b",
+      "purpose": "Protected current root surface, byte-identical"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Presentation/ShowcaseActorLook.cs",
+      "bytes": 2006,
+      "sha256": "9cd8f8957f504b75a25259b155f9573cd5c8b81e0850242d902f27a63d52f3cc",
+      "origin": "f5f5e016555755fb3e11b77026234148c107ca6b",
+      "purpose": "Protected current root surface, byte-identical"
+    },
+    {
+      "path": "client-unity/RoguehallaNet/Net/AccountApiService.cs",
+      "bytes": 17199,
+      "sha256": "5f043418e17c5b47017753baddeefeb9e38759094405e607a330b5e02c271be5",
+      "origin": "f5f5e016555755fb3e11b77026234148c107ca6b",
+      "purpose": "Protected current root surface, byte-identical"
+    },
+    {
+      "path": "client-unity/RoguehallaNet/Net/AccountHubFlow.cs",
+      "bytes": 15463,
+      "sha256": "1e8b7376d97f1117c90b6924e9ed632ab984fee6cfe60d9a14996a981614294f",
+      "origin": "f5f5e016555755fb3e11b77026234148c107ca6b",
+      "purpose": "Protected current root surface, byte-identical"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Net/AccountCoordinator.cs",
+      "bytes": 2177,
+      "sha256": "ea11af18e91ce6f9ea025355fbc03e3930438aa6cdad91711060dda06c81dbbc",
+      "origin": "f5f5e016555755fb3e11b77026234148c107ca6b",
+      "purpose": "Protected current root surface, byte-identical"
+    },
+    {
+      "path": "client-unity/RoguehallaNet/Protocol/Messages.cs",
+      "bytes": 95710,
+      "sha256": "ac67a2e2d25189ebe855c47c4e9b12c49822ea90066b9e9a14dcc570e3150328",
+      "origin": "f5f5e016555755fb3e11b77026234148c107ca6b",
+      "purpose": "Protected current root surface, byte-identical"
+    },
+    {
+      "path": "client-unity/RoguehallaNet/Protocol/SnapshotTracker.cs",
+      "bytes": 12455,
+      "sha256": "c1079909aba35def0451f2afd5020652f257620f1ab1d2bc39c874d606be2c00",
+      "origin": "f5f5e016555755fb3e11b77026234148c107ca6b",
+      "purpose": "Protected current root surface, byte-identical"
+    },
+    {
+      "path": "Cargo.lock",
+      "bytes": 66555,
+      "sha256": "b14507716b80f1c0b85f7298b380b3c9146917134d9361c1bb408062782c0b22",
+      "origin": "f5f5e016555755fb3e11b77026234148c107ca6b",
+      "purpose": "Protected current root surface, byte-identical"
+    }
+  ],
+  "external_compile_inputs": [
+    {
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/hub-account-integration/compile/Client.csproj",
+      "bytes": 37992,
+      "sha256": "6c661445a865fe608ac5a85468c20360fd11260deb7de19618c0506da511090c"
+    },
+    {
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/hub-account-integration/compile/Tests.csproj",
+      "bytes": 38457,
+      "sha256": "9655daa3dbc650fe7bc38518d15588a1f0fe2cfb705b1481f86b55204d191dab"
+    }
+  ],
+  "actual_editor_execution": false,
+  "focused_net_tests": {
+    "passed": 2,
+    "failed": 0,
+    "skipped": 0,
+    "selector": "FullyQualifiedName~HubCosmeticsAccountFlowTests"
+  },
+  "held": [
+    "Actual combined Editor/import/input panel gates",
+    "Real HTTP/browser/account reload and recovery flows",
+    "Bank receipt and live cosmetic publication"
+  ]
+}

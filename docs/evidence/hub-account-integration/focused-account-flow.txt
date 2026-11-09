@@ -1,0 +1,15 @@
+  Determining projects to restore...
+  Restored /Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/hub-account-integration/repo/client-unity/RoguehallaNet.Probe/RoguehallaNet.Probe.csproj (in 47 ms).
+  Restored /Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/hub-account-integration/repo/client-unity/RoguehallaNet.Tests/RoguehallaNet.Tests.csproj (in 446 ms).
+  1 of 3 projects are up-to-date for restore.
+  RoguehallaNet -> /Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/hub-account-integration/repo/client-unity/RoguehallaNet/bin/Debug/netstandard2.1/RoguehallaNet.dll
+  RoguehallaNet.Probe -> /Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/hub-account-integration/repo/client-unity/RoguehallaNet.Probe/bin/Debug/net8.0/RoguehallaNet.Probe.dll
+  RoguehallaNet.Tests -> /Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/hub-account-integration/repo/client-unity/RoguehallaNet.Tests/bin/Debug/net8.0/RoguehallaNet.Tests.dll
+Test run for /Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/hub-account-integration/repo/client-unity/RoguehallaNet.Tests/bin/Debug/net8.0/RoguehallaNet.Tests.dll (.NETCoreApp,Version=v8.0)
+VSTest version 17.11.1 (arm64)
+
+Starting test execution, please wait...
+A total of 1 test files matched the specified pattern.
+Results File: /Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/hub-account-integration/compile/results/account-flow.trx
+
+Passed!  - Failed:     0, Passed:     2, Skipped:     0, Total:     2, Duration: 18 ms - RoguehallaNet.Tests.dll (net8.0)
