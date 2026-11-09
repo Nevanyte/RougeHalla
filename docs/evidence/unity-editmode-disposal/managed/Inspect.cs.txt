@@ -1,0 +1,15 @@
+using System;
+using System.Linq;
+
+using Mono.Cecil;
+
+if (args.Length != 1) throw new ArgumentException("assembly path required");
+var assembly = AssemblyDefinition.ReadAssembly(args[0]);
+var type = assembly.MainModule.GetType("Roguehalla.Client.MatchClient");
+var method = type.Methods.Single(m => m.Name == "DestroyOwnedArena");
+Console.WriteLine($"method={method.FullName} instructions={method.Body.Instructions.Count}");
+foreach (var instruction in method.Body.Instructions)
+{
+    if (instruction.Operand is MethodReference target)
+        Console.WriteLine($"{instruction.OpCode} {target.FullName}");
+}

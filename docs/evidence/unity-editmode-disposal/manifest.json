@@ -1,0 +1,108 @@
+{
+  "schema": "rh-evidence-manifest-v1",
+  "excludes": "manifest.json itself",
+  "fileCount": 20,
+  "bytes": 479713,
+  "files": [
+    {
+      "path": "README.md",
+      "bytes": 3755,
+      "sha256": "95a7cd89a8106a462281c3b1fe6e597f2cc3a80512c8996670d25e6f472763b9"
+    },
+    {
+      "path": "managed/Editor.Client.csproj.txt",
+      "bytes": 37879,
+      "sha256": "b06a53b0aa86e5ca8e90b9393be9bd1406ab08ed9632a5b1ed56ca9b81403a84"
+    },
+    {
+      "path": "managed/Editor.Tests.csproj.txt",
+      "bytes": 38401,
+      "sha256": "f921d3afdca4e0fc9aa172a9d3ba1a3b42e64609430048a37bdd9d0115c7101b"
+    },
+    {
+      "path": "managed/Inspect.cs.txt",
+      "bytes": 607,
+      "sha256": "6bb9169af0843e899bd98f5533f9d29074d5510cbc435982c460ddf7877ba729"
+    },
+    {
+      "path": "managed/Inspect.csproj.txt",
+      "bytes": 401,
+      "sha256": "61361d5d9a1c625bc2431506bf93754ab0547db0bb66806c59ede6685b006014"
+    },
+    {
+      "path": "managed/Player.Client.csproj.txt",
+      "bytes": 37866,
+      "sha256": "3e23f62e07d2c804c45fe12cbccc565cab31544572537b0a5567e4b95fbe206c"
+    },
+    {
+      "path": "managed/editor-client.txt",
+      "bytes": 308,
+      "sha256": "a634dd57f4625b63b8f784468a14bfbb18753eed65ccff8a5eef3f369c13d298"
+    },
+    {
+      "path": "managed/editor-helper-il.txt",
+      "bytes": 656,
+      "sha256": "aa1c4875caddb0f0aee84f3b13f943e82ad3763548b76c2e696ac1d0a56833fb"
+    },
+    {
+      "path": "managed/editor-tests-source.txt",
+      "bytes": 1128,
+      "sha256": "79ae75f675849bb3edbc5b01900b6fcfebfe90e0d8c8766c842f739c371923a1"
+    },
+    {
+      "path": "managed/player-client.txt",
+      "bytes": 308,
+      "sha256": "bdc9e84fb7de58890cc7866c73350c5796f7a125bb9b42a4c17f4ee0c9d2a584"
+    },
+    {
+      "path": "managed/player-helper-il.txt",
+      "bytes": 428,
+      "sha256": "f5fcd59f0bd92f7fa399b77ef35b701d543db155cd0699fc8110bb4f3a5ef669"
+    },
+    {
+      "path": "managed/source-guards.json",
+      "bytes": 619,
+      "sha256": "6ebdda4e1c0d5bb1362bc0ac43e267344aa50979c34502343b0fd2b9e65578f1"
+    },
+    {
+      "path": "raw-failed-8c/as-tested-source.json",
+      "bytes": 316566,
+      "sha256": "1097cf68a734d8ed4df2a496108d6aac4425afd4c65c0490dd29388ad7d13f38"
+    },
+    {
+      "path": "raw-failed-8c/imported-loaded-identity.json",
+      "bytes": 4632,
+      "sha256": "8d9837cc9192846a3a938099e6f579d5c73e63a80c04b1ea6f327df4229d8b36"
+    },
+    {
+      "path": "raw-failed-8c/tests-MatchLaunchEditModeTests.json",
+      "bytes": 24240,
+      "sha256": "2b34f80744bcf0d92b9e0df2fe3efe566edbbcb64e32e69ceec85ec895443732"
+    },
+    {
+      "path": "raw-failed-8c/tests-PlayerFlowsEditModeTests.json",
+      "bytes": 2510,
+      "sha256": "3722d4d2f3056a7d5bcbc18465ecaab6b192ce2dee836e8469d36ce9993d1ff9"
+    },
+    {
+      "path": "raw-failed-8c/tests-QuestJournalViewEditModeTests.json",
+      "bytes": 1976,
+      "sha256": "52b997b0e76a667c64edd0b23fbe424b0e021d4e2a923de313323e4fcdf58453"
+    },
+    {
+      "path": "raw-failed-8c/tests-TraderDialogViewEditModeTests.json",
+      "bytes": 1531,
+      "sha256": "1e413d36c0dfd39aa5c824a965a49047c67a8f93630cb2ff1f35fff55da55b16"
+    },
+    {
+      "path": "receipt.json",
+      "bytes": 5184,
+      "sha256": "49a56dbc2817b9d30ec1b58d0a7739ed6d80b5ddf86b6f4642e0564f4cbbe276"
+    },
+    {
+      "path": "seal-verification.json",
+      "bytes": 718,
+      "sha256": "4e7298eb747b16cf6a373e8c988ccc9b293f729a6b8224b15954b72fb5798baa"
+    }
+  ]
+}
