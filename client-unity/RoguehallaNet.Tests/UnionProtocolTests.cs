@@ -43,7 +43,7 @@ namespace Roguehalla.Net.Tests
         }
 
         [Test]
-        public void NineKeyReadinessAndOwnedPlanningFactsSurviveReplacementAndResume()
+        public void ElevenKeyReadinessAndOwnedPlanningFactsSurviveReplacementAndResume()
         {
             var transport = new FakeTransport(); double now = 0;
             var session = new Session(transport, new SessionOptions { Url = "ws://x/ws", Profile = "p", Ticket = Array.Empty<byte>(), Now = () => now });
@@ -53,7 +53,7 @@ namespace Roguehalla.Net.Tests
             transport.Deliver(full); Assert.IsFalse(session.Collections.HasFullState, "reduced keys omit the plan, arena and quest baseline");
             var plan = new WirePlan { EndsAt = 1000, Spawn0 = 5, Taken1 = true, Pick = 0, Boons = new[] { "first" }, Boon = 0, Ready = true,
                 Option0 = new WirePlanOption { Index = 5, X = 80, Y = 160, Zone = 3, WalkSeconds = 2 } };
-            transport.Deliver(new ServerMsg.State { Tick = 201, Items = new StateItem[] { new PlanState { Value = plan }, new ArenaState { Value = new WireArena { PlanEndsAt = 1000, PatienceEndsAt = 2000, StartedWith = 8 } }, new QuestsState { Available = false } } });
+            transport.Deliver(new ServerMsg.State { Tick = 201, Items = new StateItem[] { new PlanState { Value = plan }, new ArenaState { Value = new WireArena { PlanEndsAt = 1000, PatienceEndsAt = 2000, StartedWith = 8 } }, new QuestsState { Available = false }, new TradeState { Available = false } } });
             Assert.IsTrue(session.Collections.HasFullState);
             var held = session.Collections.Plan;
             Assert.AreEqual(5, held.Spawn0); Assert.IsTrue(held.Taken1); Assert.AreEqual(10, held.Option0.Value.X);

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text.Json;
 using NUnit.Framework;
 using Roguehalla.Net.Protocol;
@@ -524,6 +525,11 @@ namespace Roguehalla.Net.Tests
                             Assert.AreEqual(expectedRow.GetProperty("ownerReady").GetBoolean(), row.OwnerReady);
                             Assert.AreEqual(expectedRow.GetProperty("ownerProgress").GetUInt32(), row.OwnerProgress);
                             Assert.AreEqual(expectedRow.GetProperty("ownerVisited").GetByte(), row.OwnerVisited);
+                            Assert.AreEqual(expectedRow.GetProperty("name").GetString(), row.Name);
+                            Assert.AreEqual(expectedRow.GetProperty("giverLabel").GetString(), row.GiverLabel);
+                            Assert.AreEqual(expectedRow.GetProperty("brief").GetString(), row.Brief);
+                            Assert.AreEqual(expectedRow.GetProperty("objective").GetString(), row.Objective);
+                            Assert.AreEqual(expectedRow.GetProperty("reward").GetString(), row.Reward);
                         }
 
                         var objectives = expectedValue.GetProperty("objectives");
@@ -535,6 +541,48 @@ namespace Roguehalla.Net.Tests
                             Assert.AreEqual(BitConverter.DoubleToInt64Bits(expectedObjective.GetProperty("at").GetProperty("x").GetDouble()), BitConverter.DoubleToInt64Bits(objective.X));
                             Assert.AreEqual(BitConverter.DoubleToInt64Bits(expectedObjective.GetProperty("at").GetProperty("y").GetDouble()), BitConverter.DoubleToInt64Bits(objective.Y));
                         }
+                    }
+                    else if (state.Items[i] is TradeState trade)
+                    {
+                        var expectedValue = expectedItem.GetProperty("value");
+                        if (expectedValue.ValueKind == JsonValueKind.Null)
+                        {
+                            Assert.IsFalse(trade.Available); Assert.IsNull(trade.Value); continue;
+                        }
+                        Assert.IsTrue(trade.Available); Assert.IsNotNull(trade.Value);
+                        var view = trade.Value;
+                        Assert.AreEqual(expectedValue.GetProperty("tradeUsed").GetBoolean(), view.TradeUsed);
+                        var offers = expectedValue.GetProperty("offers"); Assert.AreEqual(offers.GetArrayLength(), view.Offers.Length);
+                        for (int j = 0; j < view.Offers.Length; j++)
+                        {
+                            var actual = view.Offers[j]; var expected = offers[j];
+                            Assert.AreEqual(expected.GetProperty("cost").GetByte(), (byte)actual.Cost);
+                            Assert.AreEqual(BitConverter.DoubleToInt64Bits(expected.GetProperty("costValue").GetDouble()), BitConverter.DoubleToInt64Bits(actual.CostValue));
+                            Assert.AreEqual(expected.GetProperty("gain").GetByte(), (byte)actual.Gain);
+                            Assert.AreEqual(BitConverter.DoubleToInt64Bits(expected.GetProperty("gainValue").GetDouble()), BitConverter.DoubleToInt64Bits(actual.GainValue));
+                            Assert.AreEqual(expected.GetProperty("label").GetString(), actual.Label);
+                        }
+                        var stats = expectedValue.GetProperty("stats"); Assert.AreEqual(stats.GetArrayLength(), view.Stats.Length);
+                        for (int j = 0; j < view.Stats.Length; j++)
+                        {
+                            Assert.AreEqual(stats[j].GetProperty("stat").GetByte(), (byte)view.Stats[j].Stat);
+                            Assert.AreEqual(BitConverter.DoubleToInt64Bits(stats[j].GetProperty("value").GetDouble()), BitConverter.DoubleToInt64Bits(view.Stats[j].Value));
+                        }
+                        var readyAt = expectedValue.GetProperty("barterReadyAt");
+                        Assert.AreEqual(readyAt.ValueKind == JsonValueKind.Null, !view.BarterReadyAt.HasValue);
+                        if (view.BarterReadyAt.HasValue)
+                            Assert.AreEqual(BitConverter.DoubleToInt64Bits(readyAt.GetDouble()), BitConverter.DoubleToInt64Bits(view.BarterReadyAt.Value));
+                        var merchants = expectedValue.GetProperty("merchants"); Assert.AreEqual(merchants.GetArrayLength(), view.Merchants.Length);
+                        for (int j = 0; j < view.Merchants.Length; j++)
+                        {
+                            var actual = view.Merchants[j]; var expected = merchants[j];
+                            Assert.AreEqual(expected.GetProperty("kind").GetByte(), (byte)actual.Kind);
+                            Assert.AreEqual(BitConverter.DoubleToInt64Bits(expected.GetProperty("x").GetDouble()), BitConverter.DoubleToInt64Bits(actual.X));
+                            Assert.AreEqual(BitConverter.DoubleToInt64Bits(expected.GetProperty("y").GetDouble()), BitConverter.DoubleToInt64Bits(actual.Y));
+                            Assert.AreEqual(expected.GetProperty("name").GetString(), actual.Name);
+                        }
+                        var labels = expectedValue.GetProperty("barterLabels"); Assert.AreEqual(3, labels.GetArrayLength());
+                        for (int j = 0; j < 3; j++) Assert.AreEqual(labels[j].GetString(), view.BarterLabels[j]);
                     }
                 }
                 return;
@@ -703,6 +751,7 @@ namespace Roguehalla.Net.Tests
                 case "state_too_many_keys": case "state_too_many_props": case "state_too_many_fields": case "state_too_many_projectiles": case "state_too_many_camps": case "state_too_many_rewards": case "state_reward_options_too_many":
                 case "state_quest_roster_over_limit": case "state_quest_rows_over_limit": case "state_quest_participants_over_limit":
                 case "state_quest_objectives_over_limit": case "state_quest_objectives_per_row_over_limit":
+                case "state_trade_offers_over_limit": case "state_trade_stats_over_limit": case "state_trade_merchants_over_limit":
                 case "too_many_actors": case "fx_too_many": want = DecodeError.TooMany; break;
                 case "head_self_bit_without_present_bit": case "head_unknown_bit": case "self_max_hp_over_u16": case "actor_reserved_mask_bit":
                 case "self_status_over_3": case "phase_over_3": case "actor_status_over_3": case "actor_unknown_mask_bit_after_kind":
@@ -718,6 +767,11 @@ namespace Roguehalla.Net.Tests
                 case "state_quest_unknown_count": case "state_quest_display_count_over_unknown": case "state_quest_def_empty": case "state_quest_def_over_16":
                 case "state_quest_giver_nonfinite": case "state_quest_giver_out_of_range": case "state_quest_objective_nonfinite": case "state_quest_objective_out_of_range":
                 case "state_quest_expiry_negative": case "state_quest_expiry_nonfinite": case "state_quest_owner_visited_unknown":
+                case "state_trade_availability_flag": case "state_trade_used_flag": case "state_trade_deadline_option_unknown":
+                case "state_trade_kind_unknown": case "state_trade_stat_unknown": case "state_trade_offer_same_stat":
+                case "state_trade_offer_nonpositive": case "state_trade_offer_nonfinite": case "state_trade_delta_nonfinite":
+                case "state_trade_deadline_negative": case "state_trade_deadline_nonfinite": case "state_trade_merchant_nonfinite":
+                case "state_trade_merchant_out_of_range":
                 case "delta_actor_status_over_3":
                 case "actor_id_gap_zero": case "actor_id_overflow": case "actor_hp_over_100": case "actor_bounty_over_u16":
                 case "delta_age_zero": case "delta_age_over_max": case "delta_age_past_tick": case "delta_head_field_without_present_bit":
@@ -728,7 +782,8 @@ namespace Roguehalla.Net.Tests
                 case "delta_truncated": want = DecodeError.Truncated; break;
                 case "delta_trailing_byte": want = DecodeError.Trailing; break;
                 case "reject_code_zero": want = DecodeError.BadTag; break;
-                case "server_bad_utf8": want = DecodeError.BadUtf8; break;
+                case "server_bad_utf8": case "state_trade_label_bad_utf8": want = DecodeError.BadUtf8; break;
+                case "state_quests_over_24576": want = DecodeError.TooLarge; break;
                 case "map_zero_size": case "map_too_large": case "map_bad_tile": case "map_zero_run": case "map_run_past_size":
                 case "map_short": case "map_hash_mismatch":
                 case "map_ext_short": case "map_ext_version": case "map_ext_presence": case "map_ext_run_zero":
@@ -904,12 +959,40 @@ namespace Roguehalla.Net.Tests
             foreach (var v in Fixture().GetProperty("server").EnumerateArray())
             {
                 byte[] full = Util.FromHex(v.GetProperty("hex").GetString());
-                for (int n = 0; n < full.Length; n++)
+                IEnumerable<int> cuts = v.GetProperty("name").GetString() == "state_all_max_budget"
+                    ? MaximumStateTruncationCuts(full)
+                    : Enumerable.Range(0, full.Length);
+                foreach (int n in cuts)
                 {
                     var cut = new byte[n]; Array.Copy(full, cut, n);
                     Assert.Throws<DecodeException>(() => ServerMsg.Decode(cut), v.GetProperty("name").GetString() + " cut " + n);
                 }
             }
+        }
+
+        static IEnumerable<int> MaximumStateTruncationCuts(byte[] bytes)
+        {
+            // The new 11-key maximum is 247,696 bytes; checking every prefix would repeatedly copy/decode about 30 GB.
+            // Keep dense edge coverage, a 1 KiB stride and every top-level State item boundary for only this new vector.
+            var state = (ServerMsg.State)ServerMsg.Decode(bytes);
+            var cuts = new SortedSet<int>();
+            int edge = Math.Min(512, bytes.Length);
+            for (int i = 0; i <= edge; i++) cuts.Add(i);
+            for (int i = Math.Max(0, bytes.Length - 512); i < bytes.Length; i++) cuts.Add(i);
+            for (int i = 0; i < bytes.Length; i += 1024) cuts.Add(i);
+            int emptyLength = new ServerMsg.State { Tick = state.Tick, Items = Array.Empty<StateItem>() }.Encode().Length;
+            int offset = emptyLength;
+            cuts.Add(offset);
+            foreach (StateItem item in state.Items)
+            {
+                int length = new ServerMsg.State { Tick = state.Tick, Items = new[] { item } }.Encode().Length
+                    - emptyLength;
+                offset += length;
+                cuts.Add(offset);
+            }
+            Assert.AreEqual(bytes.Length, offset, "computed boundaries should cover the entire canonical State frame");
+            cuts.Remove(bytes.Length);
+            return cuts;
         }
 
         [Test]

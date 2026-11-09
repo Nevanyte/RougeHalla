@@ -9,17 +9,26 @@ pub use rh_policy::delivery::projection::{checked_phase, checked_snapshot, phase
 #[cfg(test)]
 use rh_policy::delivery::projection::{hp_pct, sat16, wire_actor, wire_point, WIRE_NO_SOURCE};
 use rh_protocol::quant::POS_MAX;
+#[cfg(test)]
+use rh_protocol::WirePoint;
 use rh_protocol::{QActor, ServerMsg, SnapshotData, WireCommand, WireEvent, WireFx};
 use rh_sim::observe::{ActorView, Observation, SeenEvent};
 #[cfg(test)]
 use rh_sim::sim::{Phase, Status};
 use rh_sim::Class;
 
-/// The public command projection. Trade still has no protocol message; Cast is projected as untrusted
-/// player aim/selection input and then resolved through the seat's delivered references before submission.
+/// Public intents only. Trade names its fixed catalog kind; Cast references are resolved through
+/// the seat's delivered actor references before ordinary validation and submission.
 pub fn command(c: WireCommand) -> rh_sim::PublicCommand {
     use rh_sim::PublicCommand as Public;
     match c {
+        WireCommand::Trade { kind, pick } => Public::Trade {
+            merchant: match kind {
+                rh_protocol::WireTradeKind::Barter => rh_sim::traders::Kind::Barter,
+                rh_protocol::WireTradeKind::Stats => rh_sim::traders::Kind::Stats,
+            },
+            pick: pick as i8,
+        },
         WireCommand::QuestAccept { handle } => Public::QuestAccept {
             handle: rh_sim::quest_view::QuestHandle::new(handle.get())
                 .expect("nonzero wire quest handle"),
@@ -1492,7 +1501,7 @@ mod tests {
             (12.5, 4)
         );
         let wish = owner_wire.wish.unwrap();
-        assert_eq!(wish.ability, ability_code(own.wish.unwrap().ability));
+        assert_eq!(wish.ability, 0, "Freeze keeps its protocol ability code");
         assert_eq!(
             (
                 wish.ready_at,

@@ -8,6 +8,9 @@ use crate::delta::{
     DH_KILLS, DH_MOVE_SEQ, DH_OWNER_COMBAT, DH_PHASE, DH_PRESENT, DH_STATUS, DH_X, DH_Y,
 };
 use crate::map::MapBlob;
+use crate::state::{
+    MAX_QUEST_ROWS, MAX_QUEST_VIEW_BYTES, MAX_REWARD_CHESTS, MAX_VISIBLE_FIELDS, MAX_VISIBLE_PROPS,
+};
 use crate::*;
 use crate::{AM_BOUNTY, AM_HP, AM_KIND, AM_KIT, AM_MOB_TYPE, AM_STATUS};
 
@@ -249,6 +252,20 @@ pub fn client_samples() -> Vec<(&'static str, ClientMsg)> {
                 }],
             },
         ),
+        (
+            "input_trade",
+            ClientMsg::Input {
+                seq: 79,
+                commands: (0..=1)
+                    .flat_map(|kind| {
+                        (0..=2).map(move |pick| WireCommand::Trade {
+                            kind: WireTradeKind::from_code(kind).unwrap(),
+                            pick,
+                        })
+                    })
+                    .collect(),
+            },
+        ),
         ("leave", ClientMsg::Leave),
         ("resync", ClientMsg::Resync),
     ]
@@ -384,6 +401,7 @@ fn state_sample() -> ServerMsg {
             StateItem::Plan(None),
             StateItem::Arena(None),
             StateItem::Quests(None),
+            StateItem::Trade(None),
         ],
     }
 }
@@ -417,6 +435,11 @@ fn quest_view_sample() -> WireQuestView {
             owner_accepted: false,
             owner_progress: 0,
             owner_visited: 0,
+            name: "The Ember Sweep".into(),
+            giver_label: "Keeper Asha".into(),
+            brief: "Thin the nearby fire mobs.".into(),
+            objective: "Defeat 3 fire mobs".into(),
+            reward: "A small reward".into(),
             owner_completed: false,
             owner_ready: false,
         }],
@@ -425,6 +448,323 @@ fn quest_view_sample() -> WireQuestView {
             at: WireQuestPoint { x: 125.0, y: 250.0 },
         }],
     }
+}
+
+fn quest_view_at_max_bytes() -> WireQuestView {
+    let mut view = WireQuestView {
+        unknown_count: 0,
+        display_unknown_count: 0,
+        owner_roster: None,
+        roster: vec![],
+        rows: (1..=MAX_QUEST_ROWS as u32)
+            .map(|id| WireQuestRow {
+                handle: QuestHandle::new(id).unwrap(),
+                def: "q".into(),
+                giver: WireQuestPoint { x: 0.0, y: 0.0 },
+                state: 0,
+                expires_at: 0.0,
+                participants: vec![],
+                carrier: None,
+                done_by: None,
+                can_accept: false,
+                owner_accepted: false,
+                owner_progress: 0,
+                owner_visited: 0,
+                name: String::new(),
+                giver_label: String::new(),
+                brief: String::new(),
+                objective: String::new(),
+                reward: String::new(),
+                owner_completed: false,
+                owner_ready: false,
+            })
+            .collect(),
+        objectives: vec![],
+    };
+    view.rows.last_mut().unwrap().reward = "QUEST_MAX_SENTINEL".into();
+    let encoded_size = |view: &WireQuestView| {
+        ServerMsg::State {
+            tick: 0,
+            items: vec![StateItem::Quests(Some(view.clone()))],
+        }
+        .try_encode()
+        .unwrap()
+        .len()
+            - 4 // tag, tick, item count, and collection key
+    };
+    let mut remaining = MAX_QUEST_VIEW_BYTES - encoded_size(&view);
+    for (row_index, row) in view.rows.iter_mut().enumerate() {
+        for (field_index, field) in [
+            &mut row.name,
+            &mut row.giver_label,
+            &mut row.brief,
+            &mut row.objective,
+            &mut row.reward,
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            if row_index + 1 == MAX_QUEST_ROWS && field_index == 4 {
+                continue;
+            }
+            let add = remaining.min(255 - field.len());
+            field.push_str(&"x".repeat(add));
+            remaining -= add;
+        }
+    }
+    assert_eq!(
+        remaining, 0,
+        "Quest row strings can fill the exact view cap"
+    );
+    assert_eq!(encoded_size(&view), MAX_QUEST_VIEW_BYTES);
+    view
+}
+
+fn trade_view_sample() -> WireTradeView {
+    WireTradeView {
+        trade_used: true,
+        offers: vec![WireTradeOffer {
+            cost: WireTradeStat::Ad,
+            cost_value: f64::from_bits(0x3ff0_0000_0000_0001),
+            gain: WireTradeStat::Shield,
+            gain_value: f64::MAX,
+            label: "Cost É → Gain".into(),
+        }],
+        stats: vec![
+            WireTradeDelta {
+                stat: WireTradeStat::Ad,
+                value: -0.0,
+            },
+            WireTradeDelta {
+                stat: WireTradeStat::Ad,
+                value: -f64::MAX,
+            },
+        ],
+        barter_ready_at: Some(-0.0),
+        merchants: vec![
+            WireMerchant {
+                kind: WireTradeKind::Barter,
+                x: 0.0,
+                y: 8191.875,
+                name: "Wandering Villager".into(),
+            },
+            WireMerchant {
+                kind: WireTradeKind::Stats,
+                x: f64::from_bits(0x3ff0_0000_0000_0001),
+                y: 200.0,
+                name: "Soul Broker".into(),
+            },
+        ],
+        barter_labels: [
+            "Give held weapon → Sword".into(),
+            "Give held weapon → small healing potion".into(),
+            "Give a small healing potion → Bow".into(),
+        ],
+    }
+}
+
+fn trade_view_max() -> WireTradeView {
+    WireTradeView {
+        trade_used: true,
+        offers: (0..MAX_TRADE_OFFERS)
+            .map(|i| WireTradeOffer {
+                cost: WireTradeStat::MaxHp,
+                cost_value: f64::MIN_POSITIVE,
+                gain: WireTradeStat::Shield,
+                gain_value: f64::MAX,
+                label: format!("{}", (b'o' + i as u8) as char).repeat(255),
+            })
+            .collect(),
+        stats: (0..MAX_TRADE_STATS)
+            .map(|i| WireTradeDelta {
+                stat: WireTradeStat::from_code(i as u8).unwrap(),
+                value: if i == 0 { -0.0 } else { f64::MAX },
+            })
+            .collect(),
+        barter_ready_at: Some(f64::MAX),
+        merchants: (0..MAX_TRADE_MERCHANTS)
+            .map(|i| WireMerchant {
+                kind: if i == 0 {
+                    WireTradeKind::Barter
+                } else {
+                    WireTradeKind::Stats
+                },
+                x: if i == 0 { 0.0 } else { 8191.875 },
+                y: 8191.875,
+                name: format!("{}", (b'm' + i as u8) as char).repeat(255),
+            })
+            .collect(),
+        barter_labels: ["a".repeat(255), "b".repeat(255), "c".repeat(255)],
+    }
+}
+
+fn state_all_max_budget() -> ServerMsg {
+    let prop_start = u32::MAX - MAX_VISIBLE_PROPS as u32 + 1;
+    let props = (0..MAX_VISIBLE_PROPS)
+        .map(|i| WireProp {
+            handle: PickupHandle::new(prop_start + i as u32).unwrap(),
+            x: u16::MAX,
+            y: u16::MAX,
+            kind: WirePropKind::Body {
+                label: String::new(),
+            },
+        })
+        .collect::<Vec<_>>();
+    let focus = WireFocus {
+        handle: props.last().unwrap().handle,
+        body_hint: Some(4),
+    };
+    let fields = (0..MAX_VISIBLE_FIELDS)
+        .map(|_| WireField {
+            kind: 2,
+            ability: 4,
+            owner: Some(u32::MAX),
+            subject: Some(u32::MAX),
+            x: f32::MAX,
+            y: f32::MAX,
+            x2: f32::MAX,
+            y2: f32::MAX,
+            r: f32::MAX,
+            vx: f32::MAX,
+            vy: f32::MAX,
+            started_at: f64::MAX / 2.0,
+            ends_at: f64::MAX,
+        })
+        .collect();
+    let reward_start = u32::MAX - MAX_REWARD_CHESTS as u32 + 1;
+    let rewards = (0..MAX_REWARD_CHESTS)
+        .map(|i| WireRewardChest {
+            handle: RewardChestHandle::new(reward_start + i as u32).unwrap(),
+            x: u16::MAX,
+            y: u16::MAX,
+            expires_at: f64::MAX,
+            options: (0..3)
+                .map(|key| WireRewardOption {
+                    id: WireRewardId::Kill {
+                        key: TrophyStatKey::from_code(key).unwrap(),
+                        gain: f64::MAX,
+                    },
+                    taken: true,
+                    taken_by: Some(u32::MAX),
+                })
+                .collect(),
+            picked: true,
+            can_choose: true,
+        })
+        .collect();
+    let build = WireBuild {
+        cards: [u8::MAX; 80],
+        boosts: [u8::MAX; 8],
+    };
+    let camps = (0..512)
+        .map(|_| WireCamp {
+            mob_type: 29,
+            elite: Some(29),
+            alive: 512,
+            state: 2,
+            cleared_at: f64::MAX / 2.0,
+            respawn_at: f64::MAX,
+        })
+        .collect();
+    let projectiles = (0..512)
+        .map(|i| WireProjectile {
+            kind: 1,
+            x: u16::MAX,
+            y: u16::MAX,
+            facing: u16::MAX,
+            owner: Some(u32::MAX - i),
+        })
+        .collect();
+    let plan = WirePlan {
+        ends_at: f64::MAX,
+        spawns: [Some(u32::MAX), Some(u32::MAX - 1)],
+        taken: [true, true],
+        pick: Some(1),
+        boons: vec!["b".repeat(255); 4],
+        boon: Some(1),
+        ready: true,
+        options: [
+            Some(WirePlanOption {
+                index: u32::MAX,
+                x: u16::MAX,
+                y: u16::MAX,
+                zone: 5,
+                walk_seconds: Some(f32::MAX),
+            }),
+            Some(WirePlanOption {
+                index: u32::MAX - 1,
+                x: u16::MAX,
+                y: u16::MAX,
+                zone: 5,
+                walk_seconds: Some(f32::MAX),
+            }),
+        ],
+    };
+    let arena = WireArena {
+        lobby_ends_at: f64::MAX,
+        plan_ends_at: f64::MAX,
+        raid_started_at: f64::MAX,
+        patience_ends_at: Some(f64::MAX),
+        in_coliseum: true,
+        gates_locked: true,
+        sudden_death_at: f64::MAX,
+        started_with: 512,
+    };
+    let mut msg = ServerMsg::State {
+        tick: u32::MAX,
+        items: vec![
+            StateItem::Inventory(Some(WireInventory {
+                active_slot: 1,
+                slots: [Some(4), Some(4)],
+                potion_small: 5,
+                potion_large: 5,
+                potions_healing: 3,
+            })),
+            StateItem::Props(WireProps {
+                rows: props,
+                focus: Some(focus),
+            }),
+            StateItem::Fields(fields),
+            StateItem::RewardChests(rewards),
+            StateItem::Build(Some(build)),
+            StateItem::Camps(camps),
+            StateItem::Projectiles(projectiles),
+            StateItem::Plan(Some(plan)),
+            StateItem::Arena(Some(arena)),
+            StateItem::Quests(Some(quest_view_at_max_bytes())),
+            StateItem::Trade(Some(trade_view_max())),
+        ],
+    };
+
+    let length = |msg: &ServerMsg| msg.try_encode().unwrap().len();
+    let current = length(&msg);
+    assert!(
+        current <= 247_696,
+        "unlabelled max State is {current} bytes"
+    );
+    let mut remaining = 247_696 - current;
+    let ServerMsg::State { items, .. } = &mut msg else {
+        unreachable!()
+    };
+    let StateItem::Props(props) = &mut items[1] else {
+        unreachable!()
+    };
+    for row in &mut props.rows {
+        let WirePropKind::Body { label } = &mut row.kind else {
+            unreachable!()
+        };
+        let add = remaining.min(255 - label.len());
+        label.push_str(&"p".repeat(add));
+        remaining -= add;
+    }
+    assert_eq!(
+        remaining,
+        0,
+        "Prop labels can reach the all-key budget exactly (unlabelled={current}, rows={})",
+        props.rows.len()
+    );
+    assert_eq!(length(&msg), 247_696);
+    msg
 }
 
 fn welcome_map_msg(map: MapBlob) -> ServerMsg {
@@ -456,6 +796,7 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
         .collect();
     vec![
         ("state_all", state_sample()),
+        ("state_all_max_budget", state_all_max_budget()),
         (
             "state_quests_available",
             ServerMsg::State {
@@ -492,6 +833,13 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
             },
         ),
         (
+            "state_quests_max_24576",
+            ServerMsg::State {
+                tick: 0,
+                items: vec![StateItem::Quests(Some(quest_view_at_max_bytes()))],
+            },
+        ),
+        (
             "state_ten_keys",
             ServerMsg::State {
                 tick: 207,
@@ -507,6 +855,67 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
                     StateItem::Arena(None),
                     StateItem::Quests(Some(WireQuestView::default())),
                 ],
+            },
+        ),
+        (
+            "state_eleven_keys",
+            ServerMsg::State {
+                tick: 208,
+                items: vec![
+                    StateItem::Inventory(None),
+                    StateItem::Props(WireProps::default()),
+                    StateItem::Fields(vec![]),
+                    StateItem::RewardChests(vec![]),
+                    StateItem::Build(None),
+                    StateItem::Camps(vec![]),
+                    StateItem::Projectiles(vec![]),
+                    StateItem::Plan(None),
+                    StateItem::Arena(None),
+                    StateItem::Quests(Some(WireQuestView::default())),
+                    StateItem::Trade(None),
+                ],
+            },
+        ),
+        (
+            "state_trade_available",
+            ServerMsg::State {
+                tick: 209,
+                items: vec![StateItem::Trade(Some(trade_view_sample()))],
+            },
+        ),
+        (
+            "state_trade_duplicate_delta_stats",
+            ServerMsg::State {
+                tick: 213,
+                items: vec![StateItem::Trade(Some(trade_view_sample()))],
+            },
+        ),
+        (
+            "state_trade_empty",
+            ServerMsg::State {
+                tick: 210,
+                items: vec![StateItem::Trade(Some(WireTradeView {
+                    trade_used: false,
+                    offers: vec![],
+                    stats: vec![],
+                    barter_ready_at: None,
+                    merchants: vec![],
+                    barter_labels: [String::new(), String::new(), String::new()],
+                }))],
+            },
+        ),
+        (
+            "state_trade_unavailable",
+            ServerMsg::State {
+                tick: 211,
+                items: vec![StateItem::Trade(None)],
+            },
+        ),
+        (
+            "state_trade_max_2213",
+            ServerMsg::State {
+                tick: 212,
+                items: vec![StateItem::Trade(Some(trade_view_max()))],
             },
         ),
         (
@@ -1706,6 +2115,14 @@ pub fn malformed_client() -> Vec<(&'static str, Vec<u8>)> {
             "quest_accept_overlong",
             vec![2, 0, 0, 0, 0, 1, 0, 17, 0x81, 0],
         ),
+        (
+            "input_trade_kind_unknown",
+            vec![2, 1, 0, 0, 0, 1, 0, C_TRADE, 2, 0],
+        ),
+        (
+            "input_trade_pick_over_limit",
+            vec![2, 1, 0, 0, 0, 1, 0, C_TRADE, 0, 3],
+        ),
         ("cast_slot_over_2", cast_frame(3, &[], 1.0)),
         (
             "cast_actor_zero",
@@ -1869,6 +2286,9 @@ fn quest_row_raw(
     w.u8(flags);
     w.varint(owner_progress);
     w.u8(owner_visited);
+    for _ in 0..5 {
+        w.str("");
+    }
     w.finish()
 }
 
@@ -1909,6 +2329,16 @@ fn quest_state_raw(payload: &[u8]) -> Vec<u8> {
     w.varint(0);
     w.varint(1);
     w.varint(10);
+    w.bytes(payload);
+    w.finish()
+}
+
+fn trade_state_raw(payload: &[u8]) -> Vec<u8> {
+    let mut w = Writer::default();
+    w.u8(0x88);
+    w.varint(0);
+    w.varint(1);
+    w.varint(11);
     w.bytes(payload);
     w.finish()
 }
@@ -1964,6 +2394,21 @@ pub fn malformed_server() -> Vec<(&'static str, Vec<u8>)> {
         .1
         .encode();
     negative_plan[5..13].copy_from_slice(&(-1.0f64).to_le_bytes());
+    let mut quest_over_24576 = server_samples()
+        .into_iter()
+        .find(|(name, _)| *name == "state_quests_max_24576")
+        .unwrap()
+        .1
+        .encode();
+    let quest_sentinel = b"QUEST_MAX_SENTINEL";
+    let sentinel_at = quest_over_24576
+        .windows(quest_sentinel.len())
+        .rposition(|window| window == quest_sentinel)
+        .unwrap();
+    let string_len_at = sentinel_at - 1;
+    assert!(quest_over_24576[string_len_at] < u8::MAX);
+    quest_over_24576[string_len_at] += 1;
+    quest_over_24576.insert(sentinel_at + quest_sentinel.len(), b'x');
     let reward_frame = |option_count: u8, option_payload: &[u8]| {
         let mut w = Writer::default();
         w.u8(0x88);
@@ -1978,6 +2423,62 @@ pub fn malformed_server() -> Vec<(&'static str, Vec<u8>)> {
         w.u8(option_count);
         w.bytes(option_payload);
         w.finish()
+    };
+    let trade_offer_control = |cost: u8, cost_value: f64, gain: u8, gain_value: f64| {
+        let mut w = Writer::default();
+        w.bytes(&[1, 0, 1]); // available, unused, one offer
+        w.u8(cost);
+        w.f64(cost_value);
+        w.u8(gain);
+        w.f64(gain_value);
+        w.str("");
+        w.bytes(&[0, 0, 0]); // no stats, deadline, or merchants
+        for _ in 0..3 {
+            w.str("");
+        }
+        trade_state_raw(&w.finish())
+    };
+    let trade_delta_control = |stat: u8, value: f64| {
+        let mut w = Writer::default();
+        w.bytes(&[1, 0, 0, 1]); // available, unused, no offers, one stat
+        w.u8(stat);
+        w.f64(value);
+        w.bytes(&[0, 0]); // no deadline or merchants
+        for _ in 0..3 {
+            w.str("");
+        }
+        trade_state_raw(&w.finish())
+    };
+    let trade_deadline_control = |deadline: f64| {
+        let mut w = Writer::default();
+        w.bytes(&[1, 0, 0, 0, 1]); // available, unused, empty offers/stats, deadline present
+        w.f64(deadline);
+        w.u8(0); // merchants
+        for _ in 0..3 {
+            w.str("");
+        }
+        trade_state_raw(&w.finish())
+    };
+    let trade_merchant_control = |kind: u8, x: f64, y: f64| {
+        let mut w = Writer::default();
+        w.bytes(&[1, 0, 0, 0, 0, 1, kind]); // available through one merchant
+        w.f64(x);
+        w.f64(y);
+        w.str("");
+        for _ in 0..3 {
+            w.str("");
+        }
+        trade_state_raw(&w.finish())
+    };
+    let trade_invalid_utf8 = {
+        let mut w = Writer::default();
+        w.bytes(&[1, 0, 1, 0]); // available, unused, one offer, cost stat
+        w.f64(1.0);
+        w.u8(1); // gain stat
+        w.f64(1.0);
+        w.u8(1); // one-byte invalid UTF-8 label
+        w.u8(0xff);
+        trade_state_raw(&w.finish())
     };
     let good = ServerMsg::Snapshot {
         training: false,
@@ -2890,7 +3391,7 @@ pub fn malformed_server() -> Vec<(&'static str, Vec<u8>)> {
         ("state_reward_kill_truncated_gain", reward_frame(1, &[3, 0])),
         ("state_reward_options_too_many", reward_frame(4, &[])),
         ("state_plan_negative_deadline", negative_plan),
-        ("state_unknown_key", vec![0x88, 0, 1, 11]),
+        ("state_unknown_key", vec![0x88, 0, 1, 12]),
         ("state_quest_status_unknown", quest_bad_status),
         ("state_quest_flags_unknown", quest_bad_flags),
         ("state_quest_visited_unknown", quest_bad_visited),
@@ -2938,15 +3439,69 @@ pub fn malformed_server() -> Vec<(&'static str, Vec<u8>)> {
         ("state_quest_expiry_nonfinite", quest_expiry_nonfinite),
         ("state_quest_roster_over_limit", quest_roster_over),
         ("state_quest_rows_over_limit", quest_rows_over),
+        ("state_quests_over_24576", quest_over_24576),
         ("state_quest_participants_over_limit", quest_parts_over),
         ("state_quest_objectives_over_limit", quest_objectives_over),
         (
             "state_quest_objectives_per_row_over_limit",
             quest_objectives_per_row_over,
         ),
+        ("state_trade_availability_flag", trade_state_raw(&[2])),
+        ("state_trade_used_flag", trade_state_raw(&[1, 2])),
+        (
+            "state_trade_deadline_option_unknown",
+            trade_state_raw(&[1, 0, 0, 0, 2]),
+        ),
+        (
+            "state_trade_kind_unknown",
+            trade_merchant_control(2, 0.0, 0.0),
+        ),
+        ("state_trade_stat_unknown", trade_delta_control(7, 1.0)),
+        (
+            "state_trade_offer_same_stat",
+            trade_offer_control(0, 1.0, 0, 1.0),
+        ),
+        (
+            "state_trade_offer_nonpositive",
+            trade_offer_control(0, 0.0, 1, 1.0),
+        ),
+        (
+            "state_trade_offer_nonfinite",
+            trade_offer_control(0, 1.0, 1, f64::NAN),
+        ),
+        ("state_trade_label_bad_utf8", trade_invalid_utf8),
+        (
+            "state_trade_delta_nonfinite",
+            trade_delta_control(1, f64::INFINITY),
+        ),
+        (
+            "state_trade_deadline_negative",
+            trade_deadline_control(-1.0),
+        ),
+        (
+            "state_trade_deadline_nonfinite",
+            trade_deadline_control(f64::NAN),
+        ),
+        (
+            "state_trade_merchant_nonfinite",
+            trade_merchant_control(0, f64::INFINITY, 0.0),
+        ),
+        (
+            "state_trade_merchant_out_of_range",
+            trade_merchant_control(0, 8192.0, 0.0),
+        ),
+        ("state_trade_offers_over_limit", trade_state_raw(&[1, 0, 4])),
+        (
+            "state_trade_stats_over_limit",
+            trade_state_raw(&[1, 0, 0, 8]),
+        ),
+        (
+            "state_trade_merchants_over_limit",
+            trade_state_raw(&[1, 0, 0, 0, 0, 3]),
+        ),
         ("state_duplicate_key", vec![0x88, 0, 2, 1, 0, 1, 0]),
         ("state_key_order", vec![0x88, 0, 2, 3, 0, 1, 0]),
-        ("state_too_many_keys", vec![0x88, 0, 11]),
+        ("state_too_many_keys", vec![0x88, 0, 12]),
         ("state_too_many_props", vec![0x88, 0, 1, 2, 0x81, 4]),
         ("state_too_many_fields", vec![0x88, 0, 1, 3, 0x81, 4]),
         ("state_too_many_rewards", vec![0x88, 0, 1, 4, 0x81, 4]),
@@ -4307,7 +4862,7 @@ fn decoded_client_json(m: &ClientMsg) -> Option<String> {
     };
     if !commands
         .iter()
-        .any(|c| matches!(c, WireCommand::Cast { .. }))
+        .any(|c| matches!(c, WireCommand::Cast { .. } | WireCommand::Trade { .. }))
     {
         return None;
     }
@@ -4316,6 +4871,9 @@ fn decoded_client_json(m: &ClientMsg) -> Option<String> {
             "{{\"k\":\"cast\",\"slot\":{slot},\"xBits\":{},\"yBits\":{},\"actor\":{},\"t\":{},\"seq\":{}}}",
             bits(x), bits(y), actor.map_or("null".into(), |v| v.to_string()), json_opt_f64(t), seq.map_or("null".into(), |v| v.to_string())
         )),
+        WireCommand::Trade { kind, pick } => {
+            Some(format!("{{\"k\":\"trade\",\"kind\":{},\"pick\":{pick}}}", kind.code()))
+        }
         _ => None,
     }).collect();
     Some(format!(
@@ -4486,6 +5044,41 @@ fn decoded_trophy_state_json(m: &ServerMsg) -> String {
     format!("{{\"kind\":\"state\",\"tick\":{tick},\"items\":[{{\"key\":4,\"value\":[{rows}]}}]}}")
 }
 
+fn decoded_trade_state_json(m: &ServerMsg) -> String {
+    let ServerMsg::State { tick, items } = m else {
+        unreachable!("not a state vector")
+    };
+    let decoded_items = items
+        .iter()
+        .filter_map(|item| {
+            let StateItem::Trade(view) = item else {
+                return None;
+            };
+            let value = view.as_ref().map_or_else(|| "null".to_owned(), |view| {
+                let offers = view.offers.iter().map(|offer| format!(
+                    "{{\"cost\":{},\"costValue\":{},\"gain\":{},\"gainValue\":{},\"label\":\"{}\"}}",
+                    offer.cost.code(), offer.cost_value, offer.gain.code(), offer.gain_value, escape(&offer.label)
+                )).collect::<Vec<_>>().join(",");
+                let stats = view.stats.iter().map(|stat| format!(
+                    "{{\"stat\":{},\"value\":{}}}", stat.stat.code(), stat.value
+                )).collect::<Vec<_>>().join(",");
+                let merchants = view.merchants.iter().map(|merchant| format!(
+                    "{{\"kind\":{},\"x\":{},\"y\":{},\"name\":\"{}\"}}",
+                    merchant.kind.code(), merchant.x, merchant.y, escape(&merchant.name)
+                )).collect::<Vec<_>>().join(",");
+                let barter_labels = view.barter_labels.iter().map(|label| format!("\"{}\"", escape(label))).collect::<Vec<_>>().join(",");
+                format!(
+                    "{{\"tradeUsed\":{},\"offers\":[{}],\"stats\":[{}],\"barterReadyAt\":{},\"merchants\":[{}],\"barterLabels\":[{}]}}",
+                    view.trade_used, offers, stats, json_opt_f64(view.barter_ready_at), merchants, barter_labels
+                )
+            });
+            Some(format!("{{\"key\":11,\"value\":{value}}}"))
+        })
+        .collect::<Vec<_>>()
+        .join(",");
+    format!("{{\"kind\":\"state\",\"tick\":{tick},\"items\":[{decoded_items}]}}")
+}
+
 fn decoded_quest_state_json(m: &ServerMsg) -> String {
     let ServerMsg::State { tick, items } = m else {
         unreachable!("not state")
@@ -4521,11 +5114,13 @@ fn decoded_quest_state_json(m: &ServerMsg) -> String {
                 let roster = view.roster.iter().map(|entry| format!("{{\"id\":{},\"label\":\"{}\"}}", entry.id.get(), escape(&entry.label))).collect::<Vec<_>>().join(",");
                 let rows = view.rows.iter().map(|row| {
                     let participants = row.participants.iter().map(|part| format!("{{\"id\":{},\"accepted\":{},\"progress\":{},\"visited\":{}}}", part.id.get(), part.accepted, part.progress, part.visited)).collect::<Vec<_>>().join(",");
-                    format!("{{\"handle\":{},\"def\":\"{}\",\"giver\":{{\"x\":{},\"y\":{}}},\"state\":{},\"expiresAt\":{},\"participants\":[{}],\"carrier\":{},\"doneBy\":{},\"canAccept\":{},\"ownerAccepted\":{},\"ownerProgress\":{},\"ownerVisited\":{},\"ownerCompleted\":{},\"ownerReady\":{}}}",
+                    format!("{{\"handle\":{},\"def\":\"{}\",\"giver\":{{\"x\":{},\"y\":{}}},\"state\":{},\"expiresAt\":{},\"participants\":[{}],\"carrier\":{},\"doneBy\":{},\"canAccept\":{},\"ownerAccepted\":{},\"ownerProgress\":{},\"ownerVisited\":{},\"name\":\"{}\",\"giverLabel\":\"{}\",\"brief\":\"{}\",\"objective\":\"{}\",\"reward\":\"{}\",\"ownerCompleted\":{},\"ownerReady\":{}}}",
                         row.handle.get(), escape(&row.def), row.giver.x, row.giver.y, row.state, row.expires_at,
                         participants, row.carrier.map_or("null".to_owned(), |id| id.get().to_string()),
                         row.done_by.as_ref().map_or("null".to_owned(), |label| format!("\"{}\"", escape(label))),
-                        row.can_accept, row.owner_accepted, row.owner_progress, row.owner_visited, row.owner_completed, row.owner_ready)
+                        row.can_accept, row.owner_accepted, row.owner_progress, row.owner_visited,
+                        escape(&row.name), escape(&row.giver_label), escape(&row.brief), escape(&row.objective), escape(&row.reward),
+                        row.owner_completed, row.owner_ready)
                 }).collect::<Vec<_>>().join(",");
                 let objectives = view.objectives.iter().map(|objective| format!("{{\"quest\":{},\"at\":{{\"x\":{},\"y\":{}}}}}", objective.quest.get(), objective.at.x, objective.at.y)).collect::<Vec<_>>().join(",");
                 format!("{{\"unknownCount\":{},\"displayUnknownCount\":{},\"ownerRoster\":{},\"roster\":[{}],\"rows\":[{}],\"objectives\":[{}]}}",
@@ -4568,6 +5163,9 @@ pub fn manifest() -> String {
             ServerMsg::Welcome { .. } => format!(", \"decoded\": {}", decoded_map_json(&decoded)),
             ServerMsg::State { .. } if *name == "state_trophy_reward_keys" => {
                 format!(", \"decoded\": {}", decoded_trophy_state_json(&decoded))
+            }
+            ServerMsg::State { .. } if name.starts_with("state_trade_") => {
+                format!(", \"decoded\": {}", decoded_trade_state_json(&decoded))
             }
             ServerMsg::State { .. } if name.starts_with("state_quests_") => {
                 format!(", \"decoded\": {}", decoded_quest_state_json(&decoded))

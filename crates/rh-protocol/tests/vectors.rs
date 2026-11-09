@@ -162,6 +162,25 @@ fn malformed_server_frames_are_rejected_for_the_documented_reason() {
             | "state_quest_participants_over_limit"
             | "state_quest_objectives_over_limit"
             | "state_quest_objectives_per_row_over_limit" => TooMany(0),
+            "state_quests_over_24576" => TooLarge(24577),
+            "state_trade_availability_flag" | "state_trade_used_flag" => BadField("trade flag"),
+            "state_trade_deadline_option_unknown" => BadTag(2),
+            "state_trade_kind_unknown" => BadField("trade kind"),
+            "state_trade_stat_unknown" => BadField("trade stat"),
+            "state_trade_offer_same_stat"
+            | "state_trade_offer_nonpositive"
+            | "state_trade_offer_nonfinite" => BadField("trade offer"),
+            "state_trade_label_bad_utf8" => BadUtf8,
+            "state_trade_delta_nonfinite" => BadField("trade delta"),
+            "state_trade_deadline_negative" | "state_trade_deadline_nonfinite" => {
+                BadField("trade deadline")
+            }
+            "state_trade_merchant_nonfinite" | "state_trade_merchant_out_of_range" => {
+                BadField("trade merchant")
+            }
+            "state_trade_offers_over_limit"
+            | "state_trade_stats_over_limit"
+            | "state_trade_merchants_over_limit" => TooMany(0),
             "state_reward_card_id_80" => BadField("reward id"),
             "state_reward_kind_unknown" => BadField("reward kind"),
             "state_reward_kill_key_unknown" => BadField("reward key"),

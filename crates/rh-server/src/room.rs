@@ -1758,6 +1758,10 @@ mod public_ground_tests;
 mod quest_bridge_tests;
 
 #[cfg(test)]
+#[path = "trade_bridge_tests.rs"]
+mod trade_bridge_tests;
+
+#[cfg(test)]
 mod tests {
     use super::*;
 

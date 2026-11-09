@@ -6,6 +6,10 @@ use rh_protocol::{
 };
 use rh_sim::{Inventory, Observation, PropKind};
 
+#[cfg(test)]
+#[path = "trade_tests.rs"]
+mod trade_tests;
+
 #[derive(Default)]
 pub struct CollectionPublisher {
     sent: bool,
@@ -18,6 +22,7 @@ pub struct CollectionPublisher {
     plan: Option<WirePlan>,
     arena: Option<WireArena>,
     quests: Option<rh_protocol::WireQuestView>,
+    trade: Option<rh_protocol::WireTradeView>,
     last_forced: Option<u32>,
 }
 
@@ -81,19 +86,43 @@ fn props(observation: &Observation) -> Result<WireProps, EncodeError> {
 }
 
 /// Copies only the admitted observer view. No world quest/container/player IDs are read here.
-fn quests(observation: &Observation) -> Option<rh_protocol::WireQuestView> {
+fn quests(observation: &Observation) -> Result<Option<rh_protocol::WireQuestView>, EncodeError> {
     use rh_protocol::{
         QuestHandle, RosterId, WireQuestObjective, WireQuestParticipant, WireQuestPoint,
         WireQuestRow, WireQuestView, WireRosterEntry,
     };
-    let source = observation.quests.as_ref()?;
+    let Some(source) = observation.quests.as_ref() else {
+        return Ok(None);
+    };
+    if source.rows.len() > rh_protocol::state::MAX_QUEST_ROWS
+        || source.roster.len() > rh_protocol::state::MAX_QUEST_ROSTER
+        || source.objectives.len() > rh_protocol::state::MAX_QUEST_OBJECTIVES
+        || source.roster.iter().any(|row| row.label.len() > 255)
+        || source.rows.iter().any(|row| {
+            row.participants.len() > rh_protocol::state::MAX_QUEST_PARTICIPANTS
+                || [
+                    &row.name,
+                    &row.giver_label,
+                    &row.brief,
+                    &row.objective,
+                    &row.reward,
+                ]
+                .into_iter()
+                .any(|text| text.len() > 255)
+                || row.done_by.as_ref().is_some_and(|text| text.len() > 255)
+                || row.def.is_empty()
+                || row.def.len() > 16
+        })
+    {
+        return Err(EncodeError::BadValue("quest view"));
+    }
     let roster_id =
         |id: rh_sim::quest_view::RosterId| RosterId::new(id.get()).expect("native roster id");
     let quest_id = |id: rh_sim::quest_view::QuestHandle| {
         QuestHandle::new(id.get()).expect("native quest handle")
     };
     let point = |at: rh_sim::Vec2| WireQuestPoint { x: at.x, y: at.y };
-    Some(WireQuestView {
+    let view = WireQuestView {
         unknown_count: source.unknown_count,
         display_unknown_count: source.display_unknown_count,
         owner_roster: source.owner_roster.map(roster_id),
@@ -137,6 +166,11 @@ fn quests(observation: &Observation) -> Option<rh_protocol::WireQuestView> {
                 owner_visited: row.owner_visited,
                 owner_completed: row.owner_completed,
                 owner_ready: row.owner_ready,
+                name: row.name.clone(),
+                giver_label: row.giver_label.clone(),
+                brief: row.brief.clone(),
+                objective: row.objective.clone(),
+                reward: row.reward.clone(),
             })
             .collect(),
         objectives: source
@@ -147,7 +181,142 @@ fn quests(observation: &Observation) -> Option<rh_protocol::WireQuestView> {
                 at: point(row.at),
             })
             .collect(),
-    })
+    };
+    view.check()?;
+    Ok(Some(view))
+}
+
+/// Saved owner facts and point-visible merchant rows. The only dynamic display labels use the
+/// existing native helper and this same prepared observation's exact selected inventory slot.
+fn trade(observation: &Observation) -> Result<Option<rh_protocol::WireTradeView>, EncodeError> {
+    use rh_protocol::{
+        WireMerchant, WireTradeDelta, WireTradeKind, WireTradeOffer, WireTradeStat, WireTradeView,
+    };
+    use rh_sim::traders::{Kind, Stat};
+    let Some(source) = observation.trade.as_ref() else {
+        return Ok(None);
+    };
+    let inventory = observation
+        .inventory
+        .as_ref()
+        .filter(|inventory| inventory.active_slot <= 1)
+        .ok_or(EncodeError::BadValue("trade inventory"))?;
+    // Check source bounds before cloning any untrusted restored label/vector. These are public
+    // projection limits, not changes to native restore or the authoritative trade action.
+    if source.offers.len() > rh_protocol::state::MAX_TRADE_OFFERS
+        || source.stats.len() > rh_protocol::state::MAX_TRADE_STATS
+        || source.merchants.len() > rh_protocol::state::MAX_TRADE_MERCHANTS
+        || source
+            .offers
+            .iter()
+            .any(|row| !row.valid() || row.label.len() > 255)
+        || source.stats.iter().any(|(_, value)| !value.is_finite())
+        || source
+            .barter_ready_at
+            .is_some_and(|value| !value.is_finite() || value < 0.)
+        || source.merchants.iter().any(|row| {
+            !row.at.x.is_finite()
+                || !row.at.y.is_finite()
+                || !(0.0..=f64::from(rh_protocol::quant::POS_MAX)).contains(&row.at.x)
+                || !(0.0..=f64::from(rh_protocol::quant::POS_MAX)).contains(&row.at.y)
+        })
+    {
+        return Err(EncodeError::BadValue("trade view"));
+    }
+    let stat = |value| match value {
+        Stat::MaxHp => WireTradeStat::MaxHp,
+        Stat::Ad => WireTradeStat::Ad,
+        Stat::Ap => WireTradeStat::Ap,
+        Stat::AttackSpeed => WireTradeStat::AttackSpeed,
+        Stat::MoveSpeed => WireTradeStat::MoveSpeed,
+        Stat::Armor => WireTradeStat::Armor,
+        Stat::Shield => WireTradeStat::Shield,
+    };
+    let view = WireTradeView {
+        trade_used: source.trade_used,
+        offers: source
+            .offers
+            .iter()
+            .map(|row| WireTradeOffer {
+                cost: stat(row.cost),
+                cost_value: row.cost_value,
+                gain: stat(row.gain),
+                gain_value: row.gain_value,
+                label: row.label.clone(),
+            })
+            .collect(),
+        stats: source
+            .stats
+            .iter()
+            .map(|(key, value)| WireTradeDelta {
+                stat: stat(*key),
+                value: *value,
+            })
+            .collect(),
+        barter_ready_at: source.barter_ready_at,
+        merchants: source
+            .merchants
+            .iter()
+            .map(|row| WireMerchant {
+                kind: match row.kind {
+                    Kind::Barter => WireTradeKind::Barter,
+                    Kind::Stats => WireTradeKind::Stats,
+                },
+                x: row.at.x,
+                y: row.at.y,
+                name: row.kind.name().to_owned(),
+            })
+            .collect(),
+        barter_labels: rh_sim::traders::barter_labels(
+            inventory.slots[usize::from(inventory.active_slot)],
+        ),
+    };
+    view.check()?;
+    Ok(Some(view))
+}
+
+fn optional_f64_bits_equal(a: Option<f64>, b: Option<f64>) -> bool {
+    match (a, b) {
+        (None, None) => true,
+        (Some(a), Some(b)) => a.to_bits() == b.to_bits(),
+        _ => false,
+    }
+}
+
+/// Native PartialEq intentionally treats signed zero as equal; this delivery baseline must not.
+fn trade_bits_equal(
+    a: Option<&rh_protocol::WireTradeView>,
+    b: Option<&rh_protocol::WireTradeView>,
+) -> bool {
+    match (a, b) {
+        (None, None) => true,
+        (Some(a), Some(b)) => {
+            a.trade_used == b.trade_used
+                && a.barter_labels == b.barter_labels
+                && optional_f64_bits_equal(a.barter_ready_at, b.barter_ready_at)
+                && a.offers.len() == b.offers.len()
+                && a.offers.iter().zip(&b.offers).all(|(a, b)| {
+                    a.cost == b.cost
+                        && a.gain == b.gain
+                        && a.cost_value.to_bits() == b.cost_value.to_bits()
+                        && a.gain_value.to_bits() == b.gain_value.to_bits()
+                        && a.label == b.label
+                })
+                && a.stats.len() == b.stats.len()
+                && a.stats
+                    .iter()
+                    .zip(&b.stats)
+                    .all(|(a, b)| a.stat == b.stat && a.value.to_bits() == b.value.to_bits())
+                && a.merchants.len() == b.merchants.len()
+                && a.merchants.iter().zip(&b.merchants).all(|(a, b)| {
+                    a.kind == b.kind
+                        && a.name == b.name
+                        && a.x.to_bits() == b.x.to_bits()
+                        && a.y.to_bits() == b.y.to_bits()
+                })
+        }
+        _ => false,
+    }
 }
 
 fn fields(observation: &Observation) -> Vec<WireField> {
@@ -367,7 +536,8 @@ impl CollectionPublisher {
         });
         let next_plan = plan(observation)?;
         let next_arena = arena(observation);
-        let next_quests = quests(observation);
+        let next_quests = quests(observation)?;
+        let next_trade = trade(observation)?;
         let next_props = if full || props_changed {
             Some(props(observation)?)
         } else {
@@ -413,6 +583,9 @@ impl CollectionPublisher {
         if full || next_quests != self.quests {
             items.push(StateItem::Quests(next_quests));
         }
+        if full || !trade_bits_equal(next_trade.as_ref(), self.trade.as_ref()) {
+            items.push(StateItem::Trade(next_trade));
+        }
         let (frame, items) = if items.is_empty() {
             (None, items)
         } else {
@@ -448,6 +621,7 @@ impl PendingState {
                 StateItem::Plan(v) => publisher.plan = v,
                 StateItem::Arena(v) => publisher.arena = v,
                 StateItem::Quests(v) => publisher.quests = v,
+                StateItem::Trade(v) => publisher.trade = v,
                 StateItem::RewardChests(_) => {}
             }
         }
@@ -527,7 +701,7 @@ mod tests {
         };
         assert_eq!(
             items.iter().map(StateItem::key).collect::<Vec<_>>(),
-            [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+            [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
         );
         let StateItem::RewardChests(rows) = &items[3] else {
             panic!()
@@ -573,7 +747,7 @@ mod tests {
         };
         assert_eq!(
             items.iter().map(StateItem::key).collect::<Vec<_>>(),
-            [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+            [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
         );
         first.commit(&mut publisher);
         assert!(publisher
@@ -641,7 +815,7 @@ mod tests {
         };
         assert_eq!(
             items.iter().map(StateItem::key).collect::<Vec<_>>(),
-            [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+            [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
         );
         assert!(matches!(
             items[0],
@@ -699,7 +873,7 @@ mod tests {
         };
         assert_eq!(
             items.iter().map(StateItem::key).collect::<Vec<_>>(),
-            [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+            [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
         );
     }
 
@@ -971,6 +1145,8 @@ mod tests {
             "unknown_count": 3, "display_unknown_count": 2, "owner_roster": 2,
             "roster": [{"id":1,"label":"same"},{"id":2,"label":"same"}],
             "rows": [{"handle":1,"def":"cache","giver":{"x":100.125,"y":200.25},
+                "name":"same","giver_label":"decorative same","brief":"opaque brief",
+                "objective":"server objective","reward":"saved reward wording",
                 "state":"Done","expires_at":999.5,
                 "participants":[{"id":1,"accepted":true,"progress":4,"visited":0},
                     {"id":2,"accepted":true,"progress":3,"visited":0}],
@@ -1013,7 +1189,65 @@ mod tests {
         );
         assert_eq!(projected.rows[0].owner_progress, 3);
         assert_eq!(projected.rows[0].giver.x, 100.125);
+        assert_eq!(projected.rows[0].name, "same");
+        assert_eq!(projected.rows[0].giver_label, "decorative same");
+        assert_eq!(projected.rows[0].brief, "opaque brief");
+        assert_eq!(projected.rows[0].objective, "server objective");
+        assert_eq!(projected.rows[0].reward, "saved reward wording");
         retry.commit(&mut publisher);
+        assert!(publisher
+            .prepare(&obs, false, false, false)
+            .unwrap()
+            .frame
+            .is_none());
+        for field in 0..5 {
+            let mut changed = obs.clone();
+            let row = &mut changed.quests.as_mut().unwrap().rows[0];
+            match field {
+                0 => row.name.push('!'),
+                1 => row.giver_label.push('!'),
+                2 => row.brief.push('!'),
+                3 => row.objective.push('!'),
+                _ => row.reward.push('!'),
+            }
+            let pending = publisher.prepare(&changed, false, false, false).unwrap();
+            let ServerMsg::State { items, .. } =
+                ServerMsg::decode(pending.frame.as_ref().unwrap()).unwrap()
+            else {
+                panic!()
+            };
+            assert!(
+                matches!(&items[..], [StateItem::Quests(Some(_))]),
+                "metadata-only change{field}"
+            );
+            drop(pending);
+            assert!(publisher
+                .prepare(&obs, false, false, false)
+                .unwrap()
+                .frame
+                .is_none());
+        }
+        let mut oversized = obs.clone();
+        let template = oversized.quests.as_ref().unwrap().rows[0].clone();
+        oversized.quests.as_mut().unwrap().rows = (1..=20)
+            .map(|id| {
+                let mut row = template.clone();
+                row.handle = rh_sim::quest_view::QuestHandle::new(id).unwrap();
+                row.name = "n".repeat(255);
+                row.giver_label = "g".repeat(255);
+                row.brief = "b".repeat(255);
+                row.objective = "o".repeat(255);
+                row.reward = "r".repeat(255);
+                row
+            })
+            .collect();
+        assert!(
+            matches!(
+                publisher.prepare(&oversized, false, false, false),
+                Err(EncodeError::TooLarge { max: 24576, .. })
+            ),
+            "individually valid metadata cannot bypass the aggregate value bound"
+        );
         assert!(publisher
             .prepare(&obs, false, false, false)
             .unwrap()
