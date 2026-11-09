@@ -9,8 +9,9 @@ namespace Roguehalla.Client
     {
         RectTransform _signIn, _signInBackdrop;
         TMP_InputField _ownershipKey, _passcode;
-        TMP_Text _accountStatus, _profileSummary;
-        UnityEngine.UI.Button _loadProfile, _joinMatch;
+        TMP_Text _accountStatus, _profileSummary, _launchInfo;
+        UnityEngine.UI.Button _loadProfile, _joinMatch, _joinTraining;
+        CanvasGroup _launchMenuInput;
         AccountHubSnapshot _accountShown;
         HubGuideView _hubGuide;
         HubAtriumView _atrium;
@@ -24,6 +25,7 @@ namespace Roguehalla.Client
         void CreateJoinMenu()
         {
             _menu = Panel(_root, "JoinMenu", .015f, .17f, .35f, .91f);
+            _launchMenuInput = _menu.gameObject.AddComponent<CanvasGroup>();
             Text(_menu, "Title", "ROGUEHALLA", .06f, .90f, .94f, .99f, 28).color = ShowcasePalette.Gold;
             Button(_menu, "OpenProfileRecords", "PROFILE & RECORDS", .06f, .82f, .94f, .90f, () => OpenProgress(HubProgressTab.Profile));
             _nickname = Input(_menu, _client.Profile, .06f, .72f, .68f, .81f);
@@ -39,10 +41,15 @@ namespace Roguehalla.Client
                 button.GetComponentInChildren<TMP_Text>().color = ShowcasePalette.Faction(i);
             }
             Button(_menu, "SignInOptions", "SIGN-IN OPTIONS", .52f, .19f, .94f, .27f, () => SetSignInVisible(true));
-            _joinMatch = Button(_menu, "Join", "START RUN", .06f, .065f, .94f, .16f, () =>
+            _joinMatch = Button(_menu, "Join", "START RUN", .06f, .065f, .48f, .16f, () =>
             {
-                _showcaseAudio?.UnlockFromUserGesture(); _client.Join(_nickname.text, _faction);
+                _showcaseAudio?.UnlockFromUserGesture(); _client.Join(_nickname.text, _faction, MatchLaunchMode.Arena);
             });
+            _joinTraining = Button(_menu, "JoinTraining", "TRAINING", .52f, .065f, .94f, .16f, () =>
+            {
+                _showcaseAudio?.UnlockFromUserGesture(); _client.Join(_nickname.text, _faction, MatchLaunchMode.Training);
+            });
+            _launchInfo = Text(_menu, "LaunchAvailability", "", .06f, .005f, .94f, .06f, 13);
             _accountStatus = Text(_root, "AccountStatus", "", .025f, .09f, .95f, .16f, 17);
             _signInBackdrop = Panel(_root, "SignInModal", 0, 0, 1, 1);
             _signInBackdrop.GetComponent<UnityEngine.UI.Image>().color = new Color32(3, 7, 12, 220);
@@ -59,6 +66,20 @@ namespace Roguehalla.Client
             Button(_signIn, "OpenRecovery", "RECOVERY KEY", .52f, .035f, .94f, .16f, OpenRecovery);
             SetSignInVisible(false);
             _nickname.onValueChanged.AddListener(name => { _client.SelectProfile(name); _ownershipKey.text = ""; });
+        }
+        // The pending menu keeps Leave available in the global header while preventing
+        // controls from reaching a destination that has not delivered its mode fact.
+        public void RefreshLaunchConfirmation(Session session)
+        {
+            if (!ReferenceEquals(_session, session)) return;
+            bool pending = _client != null && _client.LaunchPending;
+            bool confirmed = _client == null || _client.LaunchVerified;
+            _menu.gameObject.SetActive(!confirmed);
+            _launchMenuInput.interactable = !pending;
+            _map?.Bind(confirmed ? session : null);
+            BindPlayerFlows(confirmed ? session : null);
+            RefreshWorldHudVisibility();
+            _dirty = _rewardsDirty = true;
         }
         void SetSignInVisible(bool visible)
         {
@@ -145,7 +166,14 @@ namespace Roguehalla.Client
             }
             bool busy = state != null && state.Busy;
             _loadProfile.interactable = !busy && !_client.IsDiagnostic;
-            _joinMatch.interactable = !busy && (_client.IsDiagnostic || _client.AccountFlow != null);
+            var arena = _client.LaunchTarget(MatchLaunchMode.Arena);
+            var training = _client.LaunchTarget(MatchLaunchMode.Training);
+            bool account = _client.IsDiagnostic || _client.AccountFlow != null;
+            _joinMatch.interactable = !busy && !_client.LaunchPending && account && arena.Available;
+            _joinTraining.interactable = !busy && !_client.LaunchPending && !_client.IsDiagnostic && account && training.Available;
+            string launchInfo = !arena.Available ? arena.UnavailableReason : !training.Available ? training.UnavailableReason :
+                "Arena run or solo Training · last destination: " + _client.SelectedLaunchMode;
+            if (_launchInfo.text != launchInfo) _launchInfo.text = launchInfo;
             string status = _client.AccountUiError;
             if (string.IsNullOrEmpty(status) && state != null)
             {

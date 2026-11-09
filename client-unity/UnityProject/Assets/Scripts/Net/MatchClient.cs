@@ -34,6 +34,24 @@ namespace Roguehalla.Client
         float _aimAngle;
         bool _attackHeld;
         bool _traceLatency;
+        MatchLaunchTarget _sessionTarget;
+        int _sessionFaction;
+        long _sessionGeneration;
+        uint _confirmedModeEpoch;
+        bool _modeConfirmed;
+        Action<SessionState> _boundLaunchState;
+        Action<ServerMsg.Snapshot> _boundLaunchSnapshot;
+        Action _boundLaunchTimeline;
+
+        // Welcome has no mode. Its default Training=false is never confirmation, including on resume.
+        public bool LaunchVerified => Session != null && (_sessionTarget == null || _modeConfirmed &&
+            _sessionGeneration == _joinGeneration && Session.Latest != null &&
+            Session.TimelineEpoch == _confirmedModeEpoch && _sessionTarget.MatchesServer(Session.Training));
+        public bool LaunchPending => _sessionTarget != null && Session != null && !LaunchVerified &&
+            (Session.State == SessionState.Idle || Session.State == SessionState.Connecting || Session.State == SessionState.HelloSent ||
+             Session.State == SessionState.InMatch || Session.State == SessionState.Reconnecting);
+        public bool ConfirmedPractice => _sessionTarget != null && LaunchVerified && Session != null && Session.Training;
+        public string PendingLaunchText => "Verifying " + (_sessionTarget?.Mode == MatchLaunchMode.Training ? "Training" : "Arena") + " with the server…";
 
         static double NowMs() { return Time.realtimeSinceStartupAsDouble * 1000.0; }
 
@@ -53,39 +71,102 @@ namespace Roguehalla.Client
             if (AutoJoin) Join(Profile, Faction);
         }
 
-        void JoinCore(string nickname, int faction, string validatedMatchUrl, string ownerToken)
+        void JoinCore(string nickname, int faction, MatchLaunchTarget target, string ownerToken, long generation)
         {
-            if (Session != null) { UnbindPresentationSession(); ResetPresentationTimeline(); Session.Leave(); }
+            if (_destroying || generation != _joinGeneration) return;
+            CloseCurrentSession();
+            if (_destroying || generation != _joinGeneration) return;
             Profile = string.IsNullOrWhiteSpace(nickname) ? Profile : nickname.Trim();
             Faction = faction;
             _actors.Clear(); _steering = false; _attackHeld = false;
-            if (Arena != null) Destroy(Arena.gameObject);
-            Arena = new GameObject("Arena").AddComponent<ArenaView>();
-            Session = new Session(_transportFactory(), new SessionOptions
+            var arena = new GameObject("Arena").AddComponent<ArenaView>();
+            Arena = arena;
+            var transport = _transportFactory();
+            if (_destroying || generation != _joinGeneration)
             {
-                Url = validatedMatchUrl, Profile = Profile, Ticket = System.Text.Encoding.UTF8.GetBytes(ownerToken ?? ""), ContentHash = ContentHash, Build = "unity-web-0.1.0",
+                if (ReferenceEquals(Arena, arena)) { Arena = null; arena.gameObject.SetActive(false); Destroy(arena.gameObject); }
+                transport.Close(); return;
+            }
+            var session = new Session(transport, new SessionOptions
+            {
+                Url = target.Url, Profile = Profile, Ticket = System.Text.Encoding.UTF8.GetBytes(ownerToken ?? ""), ContentHash = ContentHash, Build = "unity-web-0.1.0",
                 Faction = Faction >= 0 ? (byte)Faction : (byte?)null, Now = NowMs,
             });
-            Session.StateChanged += state =>
+            Session = session; _sessionTarget = target; _sessionFaction = faction;
+            _sessionGeneration = generation; _modeConfirmed = false;
+            _boundLaunchState = state =>
             {
+                if (!CurrentLaunchSession(session, generation)) return;
                 if (state != SessionState.InMatch) { _steering = false; _attackHeld = false; }
-                Debug.Log("[net] " + state + (Session.RejectCode.HasValue ? " " + Session.RejectCode + ": " + Session.RejectReason : "") + (Session.Error != null ? " " + Session.Error : ""));
+                if (state == SessionState.Failed || state == SessionState.Rejected || state == SessionState.Ended) Hud?.RefreshLaunchConfirmation(session);
+                Debug.Log("[net] " + state + (session.RejectCode.HasValue ? " " + session.RejectCode + ": " + session.RejectReason : "") + (session.Error != null ? " " + session.Error : ""));
             };
-            Hud.Bind(Session);
-            BindPresentationSession(Session);
-            Session.Connect();
+            _boundLaunchSnapshot = snapshot =>
+            {
+                if (!CurrentLaunchSession(session, generation) || !ReferenceEquals(session.Latest, snapshot)) return;
+                if (!CurrentLaunchTarget(target, faction)) { RefuseLaunch("The connection changed. Start your run again."); return; }
+                if (!target.MatchesServer(session.Training))
+                {
+                    RefuseLaunch("The server returned " + (session.Training ? "Training" : "Arena") +
+                        " for the selected " + target.Mode + " destination. Return to the menu and check the connection.");
+                    return;
+                }
+                bool wasVerified = LaunchVerified;
+                _confirmedModeEpoch = session.TimelineEpoch; _modeConfirmed = true;
+                if (!wasVerified) Hud?.RefreshLaunchConfirmation(session);
+            };
+            _boundLaunchTimeline = () =>
+            {
+                if (!CurrentLaunchSession(session, generation)) return;
+                _modeConfirmed = false;
+                Hud?.RefreshLaunchConfirmation(session);
+            };
+            session.StateChanged += _boundLaunchState;
+            // Validate before HUD subscribers see any accepted owner snapshot.
+            session.SnapshotReceived += _boundLaunchSnapshot;
+            session.TimelineReset += _boundLaunchTimeline;
+            Hud?.Bind(session);
+            if (!CurrentLaunchSession(session, generation)) return;
+            BindPresentationSession(session);
+            session.Connect();
+        }
+
+        bool CurrentLaunchSession(Session session, long generation) => !_destroying &&
+            generation == _joinGeneration && ReferenceEquals(Session, session);
+
+        void RefuseLaunch(string reason)
+        {
+            AccountUiError = reason;
+            CancelOwnedJoin();
+        }
+
+        void CloseCurrentSession()
+        {
+            var old = Session;
+            var oldArena = Arena;
+            Session = null; _sessionTarget = null; _modeConfirmed = false;
+            if (old != null)
+            {
+                old.StateChanged -= _boundLaunchState;
+                old.SnapshotReceived -= _boundLaunchSnapshot;
+                old.TimelineReset -= _boundLaunchTimeline;
+            }
+            _boundLaunchState = null; _boundLaunchSnapshot = null; _boundLaunchTimeline = null;
+            UnbindPresentationSession(); ResetPresentationTimeline();
+            Arena = null;
+            _actors.Clear(); _steering = false; _attackHeld = false;
+            if (oldArena != null) { oldArena.gameObject.SetActive(false); Destroy(oldArena.gameObject); }
+            if (!_destroying) Hud?.ShowMenu();
+            // Retired-session callbacks may synchronously start another launch. All old
+            // binding/arena mutations must finish before invoking the old session's Leave.
+            old?.Leave();
         }
 
         public void Leave()
         {
             bool hadResult = Session != null && Session.LastResult != null;
-            CancelOwnedJoin();
-            UnbindPresentationSession(); ResetPresentationTimeline();
-            if (Session != null) Session.Leave();
-            if (Arena != null) Destroy(Arena.gameObject);
-            Session = null;
-            Hud.ShowMenu();
-            if (hadResult) RefreshAccountAfterResult();
+            long generation = CancelOwnedJoin();
+            if (!_destroying && generation == _joinGeneration && hadResult) RefreshAccountAfterResult();
         }
 
         void OnApplicationFocus(bool focused)
@@ -100,10 +181,8 @@ namespace Roguehalla.Client
 
         void OnDestroy()
         {
+            _destroying = true;
             CancelOwnedJoin();
-            UnbindPresentationSession(); ResetPresentationTimeline();
-            if (Session != null) Session.Leave();
-            if (Arena != null) { Arena.gameObject.SetActive(false); Destroy(Arena.gameObject); }
         }
 
         void BindPresentationSession(Session session)
@@ -130,15 +209,20 @@ namespace Roguehalla.Client
             if (soundscape != null) soundscape.ResetTransientCues();
         }
 
-        void PresentFx(ServerMsg.Fx fx) { if (Arena != null) Arena.ConfirmedFx(fx); }
+        void PresentFx(ServerMsg.Fx fx) { if (LaunchVerified && Arena != null) Arena.ConfirmedFx(fx); }
 
         void Update()
         {
             if (Session == null) { Hud?.ReadUiInput(); return; }
+            var session = Session;
+            if (_sessionTarget != null && !CurrentLaunchTarget(_sessionTarget, _sessionFaction))
+            { RefuseLaunch("The connection changed. Start your run again."); return; }
             _traceLatency = LatencyTrace.Enabled;
             if (_traceLatency) LatencyTrace.Mark("frameStart", Session.PlayerId, 0, 0, 0);
-            Session.Poll();
+            session.Poll();
+            if (!ReferenceEquals(Session, session)) return;
             Hud?.ReadUiInput();
+            if (!ReferenceEquals(Session, session) || !LaunchVerified) return;
             if (Session.State != SessionState.InMatch && Session.State != SessionState.Ended) return;
             if (Arena != null && !Arena.HasMap && Session.Map != null) Arena.Build(Session.Map);
             Session.Snapshots.Sample(Session.Clock.RenderMs, _actors);

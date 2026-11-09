@@ -144,7 +144,7 @@ namespace Roguehalla.Client
         }
         void Swap(byte slot) { if (Active) _session.Input.Swap(slot); EventSystem.current?.SetSelectedGameObject(null); }
         void UsePotion() { if (Active) _session.Input.UseConsumable(); EventSystem.current?.SetSelectedGameObject(null); }
-        bool Active { get { return _session != null && _session.State == SessionState.InMatch; } }
+        bool Active { get { return _session != null && _session.State == SessionState.InMatch && (_client == null || _client.LaunchVerified); } }
         void Choose(sbyte pick)
         {
             if (!Active || !_shownChest.IsValid || (pick >= 0 && !_options[pick].interactable) || (pick < 0 && !_skip.interactable)) return;
@@ -171,8 +171,7 @@ namespace Roguehalla.Client
             _slots[0].GetComponentInChildren<TMP_Text>(true).text = "1 · —";
             _slots[1].GetComponentInChildren<TMP_Text>(true).text = "2 · —";
             RefreshCollections(session.Collections);
-            _map?.Bind(session);
-            BindPlayerFlows(session);
+            RefreshLaunchConfirmation(session);
             RotateNoticeEvents();
         }
 
@@ -208,6 +207,7 @@ namespace Roguehalla.Client
         public void ShowMenu()
         {
             Unbind(); CloseHubPanels(); _menu.gameObject.SetActive(true); _hud.gameObject.SetActive(false);
+            if (_launchMenuInput != null) _launchMenuInput.interactable = true;
             _rewards.gameObject.SetActive(false); _results.gameObject.SetActive(false); _settings.gameObject.SetActive(false);
             ClearOwnerPresentation("Awaiting server");
             _banner.text = "Choose a faction and join"; _notice.text = "";
@@ -252,7 +252,9 @@ namespace Roguehalla.Client
             if (_session.State == SessionState.InMatch)
             {
                 var latest = _session.Snapshots.Newest;
-                banner = latest == null ? "Joined — waiting for arena state" : Phases[latest.Phase];
+                banner = _client != null && _client.LaunchPending ? _client.PendingLaunchText :
+                    _client != null && _client.ConfirmedPractice ? "PRACTICE · No run rewards or banking" :
+                    latest == null ? "Joined — waiting for arena state" : Phases[latest.Phase];
                 if (_session.Me == null && latest != null) banner += " · Spectating";
             }
             else if (_session.State == SessionState.Reconnecting || _session.State == SessionState.HelloSent && _session.ReconnectAttempt > 0)
@@ -262,6 +264,7 @@ namespace Roguehalla.Client
             else banner = _session.State.ToString();
             Set(_banner, banner); _bannerState = _session.State; _bannerPhase = phase; _bannerAttempt = _session.ReconnectAttempt;
             }
+            if (_client != null && _client.LaunchPending) return;
             Set(_notice, _feedback);
             var me = _session.Me;
             if (me == null)
