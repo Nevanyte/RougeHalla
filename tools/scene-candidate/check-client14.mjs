@@ -208,13 +208,14 @@ for (const negative of fixture.negatives) {
   check(oldBody === negative.previousBodyHex, `${negative.name}: Rust previous body identity`);
   let actualRejectAt = -1, actualError = null;
   for (let index = 0; index < negative.recordsHex.length; index++) {
+    let result;
     try {
-      const result = isolated.push(fixtureGeneration, bytes(negative.recordsHex[index]));
-      check(result === null, `${negative.name}: malformed chain never publishes candidate`);
+      result = isolated.push(fixtureGeneration, bytes(negative.recordsHex[index]));
     } catch (error) { actualRejectAt = index; actualError = error; break; }
+    check(result === null, `${negative.name}: malformed chain never publishes candidate`);
   }
   check(actualRejectAt === negative.rejectAt, `${negative.name}: JS and Rust reject at same record index`);
-  check(actualError !== null && typeof negative.reason === 'string' && negative.reason.length > 0, `${negative.name}: preserves Rust refusal reason`);
+  check(actualError !== null && typeof negative.reason === 'string' && negative.reason.length > 0, `${negative.name}: actual refusal and recorded Rust diagnostic exist`);
   check(isolated.closed && isolated.current === baseCandidate, `${negative.name}: rejection closes only context and retains applied view`);
   check(hex(isolated.current.bodyCopy()) === oldBody, `${negative.name}: prior applied bytes remain unchanged`);
   rejected++;
