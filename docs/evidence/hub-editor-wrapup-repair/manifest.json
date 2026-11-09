@@ -1,0 +1,197 @@
+{
+  "format": "rh-hub-editor-wrapup-repair/1",
+  "base": "6cdf893c67f55b70eb832c49ca01e72a7f7839f6",
+  "source_commit": "9371b8d00af14b39eb3be15d8297e71a52454ed8",
+  "runtime_commit": "55f5be573c768c4567d833f62328cb8d54440d61",
+  "as_tested_source_manifest": {
+    "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/combined-6cdf89-2026-11-08/evidence/as-tested-source.json",
+    "bytes": 243264,
+    "sha256": "caca5879b78cd2185b35cf11e0881c7acaabd39f8991833e023ca7ed0d8d022d",
+    "purpose": "Original failed native source identity"
+  },
+  "before_source_matches_actual_capture": [
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/UI/AccountRecoveryView.cs",
+      "sha256": "107eb054a29e60ab81eaefd8aba0222fb5bde23b65457eb0129e843a87530725",
+      "bytes": 5898
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/UI/HubCosmeticsView.cs",
+      "sha256": "04549ed7d2d3c51c0c336919bfe14b333eb67c2bee4a8c2e5f5bfcade1ad6f95",
+      "bytes": 41176
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/UI/MatchHud.cs",
+      "sha256": "39ac9a32730465dc30cd16060f4c688464ca691829e26f53087021dad9698f7f",
+      "bytes": 32109
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/AccountRecoveryViewEditModeTests.cs",
+      "sha256": "bc5e93d43bc916e25620fd8f1055d9fc1cd4f0bc856427b2b927f72c81e41562",
+      "bytes": 9630
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/HubCosmeticsViewEditModeTests.cs",
+      "sha256": "51c642cfa8b928969353aac731852664328f178de7e038fec2da72c9adb4465f",
+      "bytes": 24341
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/MatchClientAccountBindingEditModeTests.cs",
+      "sha256": "796533af3264030cc23cde24d1057cb07fad5bff6b6984c6fb2e7e4f36dec114",
+      "bytes": 8047
+    }
+  ],
+  "payloads": [
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/UI/AccountRecoveryView.cs",
+      "bytes": 6013,
+      "sha256": "153aa78c21328cf18f45f871eb06400e68f525c00f12f5fb26724354380abd95",
+      "purpose": "Bounded runtime or corresponding regression repair"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/UI/HubCosmeticsView.cs",
+      "bytes": 41306,
+      "sha256": "49a08f1b46d71639645e29cb097183e166a40d0209c6ec1d441d6e89bfb0e38f",
+      "purpose": "Bounded runtime or corresponding regression repair"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/UI/MatchHud.cs",
+      "bytes": 32216,
+      "sha256": "6301e88cd25f07d2c12c97e88f083d37460770054121bf210cd7482902337cbe",
+      "purpose": "Bounded runtime or corresponding regression repair"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/AccountRecoveryViewEditModeTests.cs",
+      "bytes": 10378,
+      "sha256": "dc171e87ebd395a4b59bf5b59c4d41d3c9f1355e3759d05e1e385b8970e25b53",
+      "purpose": "Bounded runtime or corresponding regression repair"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/HubCosmeticsViewEditModeTests.cs",
+      "bytes": 25100,
+      "sha256": "b9497df9dd5824934ece7c7ce85ea54ee91e314c10e746dff63393e320083b95",
+      "purpose": "Bounded runtime or corresponding regression repair"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/MatchClientAccountBindingEditModeTests.cs",
+      "bytes": 10100,
+      "sha256": "9d6b5778c92c3a47467a90adc4e471eac283920fb4ff8a362ad303fae77afcea",
+      "purpose": "Bounded runtime or corresponding regression repair"
+    },
+    {
+      "path": "docs/evidence/hub-editor-wrapup-repair/README.md",
+      "bytes": 4031,
+      "sha256": "d9a1053dbbe56b3bdeb878c184ee11ec2545fc15b3375a186b68ca475e94f4c9",
+      "purpose": "Compile-only evidence or source-specific scope"
+    },
+    {
+      "path": "docs/evidence/hub-editor-wrapup-repair/managed-compile-before-fixture-init.txt",
+      "bytes": 1813,
+      "sha256": "54c4d1fa3b170f2d8d2f365ab86965b4989cbe8bc165c20c420f3a2f73e38c5f",
+      "purpose": "Compile-only evidence or source-specific scope"
+    },
+    {
+      "path": "docs/evidence/hub-editor-wrapup-repair/managed-compile.txt",
+      "bytes": 1529,
+      "sha256": "44d899a39996320de7c8900e71f0a398de0abfd4ce401842cf41c35a1ef91651",
+      "purpose": "Compile-only evidence or source-specific scope"
+    },
+    {
+      "path": "docs/evidence/hub-editor-wrapup-repair/original-failures/tests-AccountRecoveryViewEditModeTests.json",
+      "bytes": 1383,
+      "sha256": "735f2c4479ffc248e9a28df944d8ed429e169d2ee7725964316410086f6c984c",
+      "purpose": "Preserved actual failed JSON"
+    },
+    {
+      "path": "docs/evidence/hub-editor-wrapup-repair/original-failures/tests-HubCosmeticsViewEditModeTests.json",
+      "bytes": 12974,
+      "sha256": "ba6ff6380e999d1062e1c45cd80d3c99a40e754d3486acc3722b2b9a15ef38ff",
+      "purpose": "Preserved actual failed JSON"
+    },
+    {
+      "path": "docs/evidence/hub-editor-wrapup-repair/original-failures/tests-MatchClientAccountBindingEditModeTests.json",
+      "bytes": 1788,
+      "sha256": "82c83e2e2b2cf851e906fe0f045b8f9c37dc09f4492e981995c55500bcddc531",
+      "purpose": "Preserved actual failed JSON"
+    }
+  ],
+  "protected_unchanged": [
+    {
+      "path": "client-unity/RoguehallaNet/Net/AccountApiService.cs",
+      "bytes": 17199,
+      "sha256": "5f043418e17c5b47017753baddeefeb9e38759094405e607a330b5e02c271be5",
+      "purpose": "Protected exact6cdf surface"
+    },
+    {
+      "path": "client-unity/RoguehallaNet/Net/AccountHubFlow.cs",
+      "bytes": 15463,
+      "sha256": "1e8b7376d97f1117c90b6924e9ed632ab984fee6cfe60d9a14996a981614294f",
+      "purpose": "Protected exact6cdf surface"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Net/MatchClient.Accounts.cs",
+      "bytes": 4269,
+      "sha256": "5d3b6ae955da59744ff6665e5b1c691b734a35dad3617e57a0eb4603ac374c11",
+      "purpose": "Protected exact6cdf surface"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Net/MatchClient.cs",
+      "bytes": 14464,
+      "sha256": "5aea0461cd4e55afd0652fef52f43482ce198349de18c3e2856f239bf910db6d",
+      "purpose": "Protected exact6cdf surface"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/UI/MatchHud.Features.cs",
+      "bytes": 23828,
+      "sha256": "b82e39d9f8f0f66af5593e04686b14eaf8d7c199cd24e0e771a7295a3dedb3a4",
+      "purpose": "Protected exact6cdf surface"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/UI/MythicUi.cs",
+      "bytes": 17334,
+      "sha256": "77d18490a0be77317c0db6451067621f77cbac02288d96edb99554d5f6a9153f",
+      "purpose": "Protected exact6cdf surface"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/UI/BuildDrawer.cs",
+      "bytes": 13484,
+      "sha256": "4e019eda8cd898ce31a6e267901283feb857fcb9981657a007062fde2baa72c5",
+      "purpose": "Protected exact6cdf surface"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Presentation/SpriteActorPresenter.cs",
+      "bytes": 22463,
+      "sha256": "153792ddf55a6f7cf7373ddd58b49756d748b9ccaa8aae6c663def99a4079795",
+      "purpose": "Protected exact6cdf surface"
+    },
+    {
+      "path": "Cargo.lock",
+      "bytes": 66555,
+      "sha256": "b14507716b80f1c0b85f7298b380b3c9146917134d9361c1bb408062782c0b22",
+      "purpose": "Protected exact6cdf surface"
+    }
+  ],
+  "external_tmp_implementation": {
+    "path": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Library/PackageCache/com.unity.ugui@cd4936b8279f/Runtime/TMP/TMP_InputField.cs",
+    "bytes": 185626,
+    "sha256": "05c26a964a47658a122198d37885e48929982cc67573bf11fc8338e0725c7a5a",
+    "purpose": "Pinned API source read for caret clamp/deferred activation, not modified"
+  },
+  "external_compile_inputs": [
+    {
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/hub-editor-wrapup-repair/compile/Client.csproj",
+      "bytes": 37994,
+      "sha256": "493d1cf214a269687710678f5e4be3e89acf40e30c03808c6bf8e48bd6a049cc",
+      "purpose": "Private matching local source references"
+    },
+    {
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/hub-editor-wrapup-repair/compile/Tests.csproj",
+      "bytes": 38460,
+      "sha256": "f4829ae3bb0ce5ebf54434395be8fb6a1ea264f190a4e5ed0a3c533b14a6fb8a",
+      "purpose": "Private matching local source references"
+    }
+  ],
+  "actual_editor_retake": false,
+  "new_test_execution": false,
+  "held": "Actual three-class Art/root retake; no native pass claim"
+}
