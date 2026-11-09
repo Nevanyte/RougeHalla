@@ -1,0 +1,165 @@
+{
+  "source": "43e6d08d90e8ee63e3a16ef002bba3e971c9e30f",
+  "branch": "codex/unity-43e6d08d-functional-proof",
+  "status": "PASS",
+  "expected": 20,
+  "executed": 20,
+  "passed": 20,
+  "failed": 0,
+  "skipped": 0,
+  "unrun": 0,
+  "playSessions": 0,
+  "nativeCaptures": 0,
+  "files": [
+    {
+      "path": "EXPECTED_TESTS.json",
+      "bytes": 18992,
+      "sha256": "a660e09e80037744e58d1f90bc17cfb0671ec5c6fabf6447b0d07a839d8520ad"
+    },
+    {
+      "path": "EXPECTED_TESTS.md",
+      "bytes": 4688,
+      "sha256": "dcda311fc4403d175e11d798958cd6e85ac000a6416c4b17c22f38873a3e62b5"
+    },
+    {
+      "path": "README.md",
+      "bytes": 4705,
+      "sha256": "176be724e70996d05f52c571f5c506ba55f323f431f1f715d8130b32c0402403"
+    },
+    {
+      "path": "SOURCE_AUDIT.md",
+      "bytes": 1031,
+      "sha256": "299083eccbbd2a7158d1d1d9151a20405228899d8004adb62dbb01c7efb72673"
+    },
+    {
+      "path": "ShaderGraphSettings-as-tested.asset.txt",
+      "bytes": 557,
+      "sha256": "83556175c6dccd540f2cac05e5c0f9fbb36c3c8d7a56bed2c7cf4d29e4c2ee2e"
+    },
+    {
+      "path": "ShaderGraphSettings-overlay.patch",
+      "bytes": 666,
+      "sha256": "09cb74c55dae2e6a26bf99861554f91293633dade61b3fede4889229c3a9062d"
+    },
+    {
+      "path": "TEST_REVIEW.md",
+      "bytes": 1517,
+      "sha256": "0304d529d67d85436f6ef18d3b6703b5736d75531c4b74945fb1920477d407e2"
+    },
+    {
+      "path": "as-tested-source.json",
+      "bytes": 322267,
+      "sha256": "5f6bb1998f0ae353e2a4d05a2cb46c35850a08a90082af1b0649a5a23a0ec3d8"
+    },
+    {
+      "path": "autotick-for-tests.json",
+      "bytes": 101,
+      "sha256": "db4b8c66312249ee644383d5a8d75efa983694353a05fb553684ab15874dcbef"
+    },
+    {
+      "path": "autotick-restored.json",
+      "bytes": 67,
+      "sha256": "8f7a98f96988f9d475b037fe7f70f89543c1de743d4da1af5266949716ee2db1"
+    },
+    {
+      "path": "cleanup-initial-difference.json",
+      "bytes": 329,
+      "sha256": "7f4cab9d34b81f8aaf44087b3034dcf9adb9bef249097a35c70fea77a98ebdc2"
+    },
+    {
+      "path": "compile-after-switch.json",
+      "bytes": 76,
+      "sha256": "557b4b332f7528cefa6e865b86ceadbd17bf1074d7d7ba0c72199248f6e2b2dd"
+    },
+    {
+      "path": "compile-final.json",
+      "bytes": 76,
+      "sha256": "557b4b332f7528cefa6e865b86ceadbd17bf1074d7d7ba0c72199248f6e2b2dd"
+    },
+    {
+      "path": "editor-ready-after-switch.json",
+      "bytes": 1105,
+      "sha256": "d76f027e77bc1c8b8b6b3f97398d67b0efa0d2470f77b3ed4e64b56cd83b6607"
+    },
+    {
+      "path": "final-idle-state.json",
+      "bytes": 444,
+      "sha256": "4eb7936d123d3f03698b11aa5eed988f91ea1cc1cd7ab43023cb7b57ea72554e"
+    },
+    {
+      "path": "hold-and-baseline.cs.txt",
+      "bytes": 928,
+      "sha256": "e200c3f50608544059e638833e5bcacb7a18c3f7a069da683ce8545b7979b9b9"
+    },
+    {
+      "path": "identity-observer.cs.txt",
+      "bytes": 1237,
+      "sha256": "61dd49bebbba9541c4cd0306e86d88fd359484adcafaaea612a49503a0a9e0e0"
+    },
+    {
+      "path": "identity-verification.pretest.json",
+      "bytes": 5703,
+      "sha256": "a4335b8f6d7218d8ab4de34d0df5ab45c160e803187c3fa2278978783c631aa3"
+    },
+    {
+      "path": "imported-loaded-identity.json",
+      "bytes": 2924,
+      "sha256": "c768111efb7d529430a7dd71b69d20ef7be8def9d52bb4cf8fd9c802ae4ffca0"
+    },
+    {
+      "path": "input-prefs-baseline.json",
+      "bytes": 364,
+      "sha256": "756eed50ea1e2a5bb0568e1edd00682ca589a88c322cfb40e7b3a3124293c29e"
+    },
+    {
+      "path": "prefs-restoration-result.json",
+      "bytes": 102,
+      "sha256": "f0fbea99b38eaf46a683b2845f8f648502a76b9e103ce7f0c28ae33cae7aa491"
+    },
+    {
+      "path": "refresh-after-switch.json",
+      "bytes": 120,
+      "sha256": "f62e201d9f425f596076b6c199bd46edc609b5771db71b8a92bc3ffd521c397d"
+    },
+    {
+      "path": "restoration-verification.json",
+      "bytes": 703,
+      "sha256": "36d4b5676a2f6341ba99bbd7623ed1256f2371ec21f78430dec225ac2c4968b3"
+    },
+    {
+      "path": "source-after-tests.json",
+      "bytes": 1104,
+      "sha256": "fddc6b0c1f74510e6386e9231f14fae2e1ea50c34d65a7ec4b3085be2e3c62e2"
+    },
+    {
+      "path": "state-after-tests-before-pref-restore.json",
+      "bytes": 444,
+      "sha256": "7d44324ff62308e6ad722837d6424f75c9423f2665360b77f0bc51742d8828e0"
+    },
+    {
+      "path": "test-execution-ledger.json",
+      "bytes": 857,
+      "sha256": "82868d841aa2a4449e8443a882953cc3574321fb17fd5a6251b3ed277f9c0e8e"
+    },
+    {
+      "path": "test-verification.json",
+      "bytes": 12683,
+      "sha256": "94f07dd998e4b436539af2f58315bb2f7346b235b6945c0b18ac5364bed5120b"
+    },
+    {
+      "path": "tests-PlayerFlowsEditModeTests.json",
+      "bytes": 1701,
+      "sha256": "0312dfc55712e8b507d216dfb89e849564849ca2b644d3baeda4843d81b37b3a"
+    },
+    {
+      "path": "tests-QuestJournalViewEditModeTests.json",
+      "bytes": 1748,
+      "sha256": "3baba28cbf69c4206330a2a4f03ca708bc59ed415d1cf8b6c08a96c27d2120b9"
+    },
+    {
+      "path": "tests-TraderDialogViewEditModeTests.json",
+      "bytes": 1530,
+      "sha256": "901f55e847f4b324d36ed1178eacd72ceba8f951ce22feafe3283b5d3924af76"
+    }
+  ]
+}

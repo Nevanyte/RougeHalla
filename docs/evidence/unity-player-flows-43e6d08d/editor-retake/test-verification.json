@@ -1,0 +1,292 @@
+{
+  "targetRootCommit": "43e6d08d90e8ee63e3a16ef002bba3e971c9e30f",
+  "manifestPath": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/combined-43e6d08d-2026-11-08/evidence/EXPECTED_TESTS.json",
+  "manifestSha256": "a660e09e80037744e58d1f90bc17cfb0671ec5c6fabf6447b0d07a839d8520ad",
+  "selectorSource": {
+    "path": "docs/evidence/unity-ui-player-flows/epoch-fence/native-selectors.txt",
+    "gitBlob": "a4386e5227411863fe711a757696c9c863e92b27",
+    "sha256": "45a51bfdc427b9775dc8e2cb7c21ad2ee50b4ed6d0f7adcedb353bb72c968c8a",
+    "sourceCount": 20,
+    "exactSelectorSourceMatch": true
+  },
+  "execution": {
+    "ran": 20,
+    "passed": 20,
+    "failed": 0,
+    "skipped": 0,
+    "inconclusive": 0,
+    "unrun": 0,
+    "expected": 20,
+    "extraNames": [],
+    "missingNames": [],
+    "allNamesMatch": true,
+    "groups": [
+      {
+        "class": "QuestJournalViewEditModeTests",
+        "expected": 7,
+        "Total": 7,
+        "Passed": 7,
+        "Failed": 0,
+        "Skipped": 0,
+        "Inconclusive": 0,
+        "rawResultFile": "tests-QuestJournalViewEditModeTests.json",
+        "expectedFullNamesMatch": true,
+        "missingNames": []
+      },
+      {
+        "class": "TraderDialogViewEditModeTests",
+        "expected": 6,
+        "Total": 6,
+        "Passed": 6,
+        "Failed": 0,
+        "Skipped": 0,
+        "Inconclusive": 0,
+        "rawResultFile": "tests-TraderDialogViewEditModeTests.json",
+        "expectedFullNamesMatch": true,
+        "missingNames": []
+      },
+      {
+        "class": "PlayerFlowsEditModeTests",
+        "expected": 7,
+        "Total": 7,
+        "Passed": 7,
+        "Failed": 0,
+        "Skipped": 0,
+        "Inconclusive": 0,
+        "rawResultFile": "tests-PlayerFlowsEditModeTests.json",
+        "expectedFullNamesMatch": true,
+        "missingNames": []
+      }
+    ],
+    "ledgerPath": "test-execution-ledger.json",
+    "ledgerMatches": true,
+    "rawResults": [
+      {
+        "fullName": "Roguehalla.Client.Tests.QuestJournalViewEditModeTests.AcceptUsesCurrentHandleAndFreshCanAcceptThenSessionBatchesOnlyThatIntent",
+        "class": "QuestJournalViewEditModeTests",
+        "method": "AcceptUsesCurrentHandleAndFreshCanAcceptThenSessionBatchesOnlyThatIntent",
+        "status": "Passed",
+        "message": null,
+        "stackTrace": null,
+        "rawResultFile": "tests-QuestJournalViewEditModeTests.json"
+      },
+      {
+        "fullName": "Roguehalla.Client.Tests.QuestJournalViewEditModeTests.MaximumLengthServerStringsRemainVerbatimInScrollableFixedSizeTextFields",
+        "class": "QuestJournalViewEditModeTests",
+        "method": "MaximumLengthServerStringsRemainVerbatimInScrollableFixedSizeTextFields",
+        "status": "Passed",
+        "message": null,
+        "stackTrace": null,
+        "rawResultFile": "tests-QuestJournalViewEditModeTests.json"
+      },
+      {
+        "fullName": "Roguehalla.Client.Tests.QuestJournalViewEditModeTests.MetadataReplacementPreservesScrollPositionWhenRowsOverflowViewport",
+        "class": "QuestJournalViewEditModeTests",
+        "method": "MetadataReplacementPreservesScrollPositionWhenRowsOverflowViewport",
+        "status": "Passed",
+        "message": null,
+        "stackTrace": null,
+        "rawResultFile": "tests-QuestJournalViewEditModeTests.json"
+      },
+      {
+        "fullName": "Roguehalla.Client.Tests.QuestJournalViewEditModeTests.OldAcceptTrackAndRowCallbacksCannotActAfterReplacementBeforeRefresh",
+        "class": "QuestJournalViewEditModeTests",
+        "method": "OldAcceptTrackAndRowCallbacksCannotActAfterReplacementBeforeRefresh",
+        "status": "Passed",
+        "message": null,
+        "stackTrace": null,
+        "rawResultFile": "tests-QuestJournalViewEditModeTests.json"
+      },
+      {
+        "fullName": "Roguehalla.Client.Tests.QuestJournalViewEditModeTests.OldSessionCallbacksAndRemovedRowsCannotAcceptAfterRebindWelcomeOrDisconnect",
+        "class": "QuestJournalViewEditModeTests",
+        "method": "OldSessionCallbacksAndRemovedRowsCannotAcceptAfterRebindWelcomeOrDisconnect",
+        "status": "Passed",
+        "message": null,
+        "stackTrace": null,
+        "rawResultFile": "tests-QuestJournalViewEditModeTests.json"
+      },
+      {
+        "fullName": "Roguehalla.Client.Tests.QuestJournalViewEditModeTests.ReplacementPreservesSelectedHandleAndScrollButClearsRemovedSelectionAndTracking",
+        "class": "QuestJournalViewEditModeTests",
+        "method": "ReplacementPreservesSelectedHandleAndScrollButClearsRemovedSelectionAndTracking",
+        "status": "Passed",
+        "message": null,
+        "stackTrace": null,
+        "rawResultFile": "tests-QuestJournalViewEditModeTests.json"
+      },
+      {
+        "fullName": "Roguehalla.Client.Tests.QuestJournalViewEditModeTests.UnseenUnavailableAndAvailableEmptyAreDistinctAndRowsPreserveExactServerText",
+        "class": "QuestJournalViewEditModeTests",
+        "method": "UnseenUnavailableAndAvailableEmptyAreDistinctAndRowsPreserveExactServerText",
+        "status": "Passed",
+        "message": null,
+        "stackTrace": null,
+        "rawResultFile": "tests-QuestJournalViewEditModeTests.json"
+      },
+      {
+        "fullName": "Roguehalla.Client.Tests.TraderDialogViewEditModeTests.CurrentOptionsQueueEveryOrdinaryStatPickAndMetadataReplacementInvalidatesOldCallbacks",
+        "class": "TraderDialogViewEditModeTests",
+        "method": "CurrentOptionsQueueEveryOrdinaryStatPickAndMetadataReplacementInvalidatesOldCallbacks",
+        "status": "Passed",
+        "message": null,
+        "stackTrace": null,
+        "rawResultFile": "tests-TraderDialogViewEditModeTests.json"
+      },
+      {
+        "fullName": "Roguehalla.Client.Tests.TraderDialogViewEditModeTests.DisconnectAndResumedWelcomeInvalidateOldRowsAndDropQueuedTradeInput",
+        "class": "TraderDialogViewEditModeTests",
+        "method": "DisconnectAndResumedWelcomeInvalidateOldRowsAndDropQueuedTradeInput",
+        "status": "Passed",
+        "message": null,
+        "stackTrace": null,
+        "rawResultFile": "tests-TraderDialogViewEditModeTests.json"
+      },
+      {
+        "fullName": "Roguehalla.Client.Tests.TraderDialogViewEditModeTests.DuplicateMerchantRowsLabelsAndSignedStatDeltasRenderInSourceOrder",
+        "class": "TraderDialogViewEditModeTests",
+        "method": "DuplicateMerchantRowsLabelsAndSignedStatDeltasRenderInSourceOrder",
+        "status": "Passed",
+        "message": null,
+        "stackTrace": null,
+        "rawResultFile": "tests-TraderDialogViewEditModeTests.json"
+      },
+      {
+        "fullName": "Roguehalla.Client.Tests.TraderDialogViewEditModeTests.MissingUnavailableAndAvailableEmptyTradeViewsStayDistinctAndOpeningIsReadOnly",
+        "class": "TraderDialogViewEditModeTests",
+        "method": "MissingUnavailableAndAvailableEmptyTradeViewsStayDistinctAndOpeningIsReadOnly",
+        "status": "Passed",
+        "message": null,
+        "stackTrace": null,
+        "rawResultFile": "tests-TraderDialogViewEditModeTests.json"
+      },
+      {
+        "fullName": "Roguehalla.Client.Tests.TraderDialogViewEditModeTests.RebindingAnUnseenSessionClearsMerchantChoicesAndPendingCopyImmediately",
+        "class": "TraderDialogViewEditModeTests",
+        "method": "RebindingAnUnseenSessionClearsMerchantChoicesAndPendingCopyImmediately",
+        "status": "Passed",
+        "message": null,
+        "stackTrace": null,
+        "rawResultFile": "tests-TraderDialogViewEditModeTests.json"
+      },
+      {
+        "fullName": "Roguehalla.Client.Tests.TraderDialogViewEditModeTests.StatUsedBlocksOnlyStatTradeWhileBarterPicksAreSentAsOrdinaryInput",
+        "class": "TraderDialogViewEditModeTests",
+        "method": "StatUsedBlocksOnlyStatTradeWhileBarterPicksAreSentAsOrdinaryInput",
+        "status": "Passed",
+        "message": null,
+        "stackTrace": null,
+        "rawResultFile": "tests-TraderDialogViewEditModeTests.json"
+      },
+      {
+        "fullName": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.DeliveredMapPointsReplaceWithoutActorFabricationOrNameDeduplication",
+        "class": "PlayerFlowsEditModeTests",
+        "method": "DeliveredMapPointsReplaceWithoutActorFabricationOrNameDeduplication",
+        "status": "Passed",
+        "message": null,
+        "stackTrace": null,
+        "rawResultFile": "tests-PlayerFlowsEditModeTests.json"
+      },
+      {
+        "fullName": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.InFlightOldSessionNoticeCallbackCannotAppendAfterRebind",
+        "class": "PlayerFlowsEditModeTests",
+        "method": "InFlightOldSessionNoticeCallbackCannotAppendAfterRebind",
+        "status": "Passed",
+        "message": null,
+        "stackTrace": null,
+        "rawResultFile": "tests-PlayerFlowsEditModeTests.json"
+      },
+      {
+        "fullName": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.InFlightSameSessionNoticeCallbackCannotCrossSourceClockCutAndNewEpochKeepsDuplicates",
+        "class": "PlayerFlowsEditModeTests",
+        "method": "InFlightSameSessionNoticeCallbackCannotCrossSourceClockCutAndNewEpochKeepsDuplicates",
+        "status": "Passed",
+        "message": null,
+        "stackTrace": null,
+        "rawResultFile": "tests-PlayerFlowsEditModeTests.json"
+      },
+      {
+        "fullName": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.JournalKeyboardOwnsSimultaneousMapAndWorldKeysAndRespectsExistingModals",
+        "class": "PlayerFlowsEditModeTests",
+        "method": "JournalKeyboardOwnsSimultaneousMapAndWorldKeysAndRespectsExistingModals",
+        "status": "Passed",
+        "message": null,
+        "stackTrace": null,
+        "rawResultFile": "tests-PlayerFlowsEditModeTests.json"
+      },
+      {
+        "fullName": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.MalformedFrameRetainsCanonicalViewButInvalidQuestItemReferenceFailsAndDisablesActions",
+        "class": "PlayerFlowsEditModeTests",
+        "method": "MalformedFrameRetainsCanonicalViewButInvalidQuestItemReferenceFailsAndDisablesActions",
+        "status": "Passed",
+        "message": null,
+        "stackTrace": null,
+        "rawResultFile": "tests-PlayerFlowsEditModeTests.json"
+      },
+      {
+        "fullName": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.OrdinaryMixedQuestTradeQueueSplitsAtSixteenWithoutUiGeneratedCommands",
+        "class": "PlayerFlowsEditModeTests",
+        "method": "OrdinaryMixedQuestTradeQueueSplitsAtSixteenWithoutUiGeneratedCommands",
+        "status": "Passed",
+        "message": null,
+        "stackTrace": null,
+        "rawResultFile": "tests-PlayerFlowsEditModeTests.json"
+      },
+      {
+        "fullName": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests.ReceivedNoticeOrderIncludesDuplicatesAndResumeClearsBeforeNewBatch",
+        "class": "PlayerFlowsEditModeTests",
+        "method": "ReceivedNoticeOrderIncludesDuplicatesAndResumeClearsBeforeNewBatch",
+        "status": "Passed",
+        "message": null,
+        "stackTrace": null,
+        "rawResultFile": "tests-PlayerFlowsEditModeTests.json"
+      }
+    ]
+  },
+  "identity": {
+    "pretestSelectorCount": 20,
+    "pretestAllMatch": true,
+    "actualTypeCounts": {
+      "PlayerFlowsEditModeTests": 7,
+      "QuestJournalViewEditModeTests": 7,
+      "TraderDialogViewEditModeTests": 6
+    },
+    "loadedTypes": [
+      {
+        "type": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests",
+        "assembly": "Roguehalla.Client.EditModeTests, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null",
+        "mvid": "035d4961-7501-4238-8af4-c6cc75e76b89",
+        "guid": "2695dbaec0cf4aa3b68c217e1e45dd55",
+        "methodCount": 7
+      },
+      {
+        "type": "Roguehalla.Client.Tests.QuestJournalViewEditModeTests",
+        "assembly": "Roguehalla.Client.EditModeTests, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null",
+        "mvid": "035d4961-7501-4238-8af4-c6cc75e76b89",
+        "guid": "629434afa706419fbb9172e17b76ce43",
+        "methodCount": 7
+      },
+      {
+        "type": "Roguehalla.Client.Tests.TraderDialogViewEditModeTests",
+        "assembly": "Roguehalla.Client.EditModeTests, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null",
+        "mvid": "035d4961-7501-4238-8af4-c6cc75e76b89",
+        "guid": "fbeed4975d944443b6c6f34fe85c6d32",
+        "methodCount": 6
+      }
+    ],
+    "compileStatus": {
+      "status": "completed",
+      "failed": false,
+      "errors": [],
+      "compilationFailed": false
+    }
+  },
+  "acceptanceBoundary": {
+    "playSession": false,
+    "nativePngs": 0,
+    "nativeVisualGate": "Still held/not run by this EditMode test receipt.",
+    "webBuildOrNetworkAcceptance": false,
+    "sourceEditsByVerifier": false
+  },
+  "priorReceiptsNotIncluded": true
+}
