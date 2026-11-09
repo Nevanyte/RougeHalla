@@ -1,0 +1,6 @@
+cwd=/Users/nevinmckinnon/.codex/worktrees/deepseek-rust-completion/p-quest-notice-gv-consumer
+env CARGO_TARGET_DIR=/tmp/quest-notice-consumer-target CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 jobs=1
+command: cargo fmt --all -- --check (after formatting fix)
+
+
+exit: 0

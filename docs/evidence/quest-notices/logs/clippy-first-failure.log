@@ -1,0 +1,32 @@
+cwd=/Users/nevinmckinnon/.codex/worktrees/deepseek-rust-completion/p-quest-notice-gv-consumer
+env CARGO_TARGET_DIR=/tmp/quest-notice-consumer-target CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 jobs=1
+command: cargo clippy -p rh-sim --all-targets --all-features -- -D warnings
+
+    Checking rh-sim v0.1.0 (/Users/nevinmckinnon/.codex/worktrees/deepseek-rust-completion/p-quest-notice-gv-consumer/crates/rh-sim)
+error: this `if` statement can be collapsed
+   --> crates/rh-sim/src/quests/notices_source_tests.rs:353:13
+    |
+353 | /             if frame["actionCount"].as_u64().unwrap() as usize == applied
+354 | |                 && frame["tick"].as_u64().unwrap() as u32 == sim.tick()
+355 | |             {
+356 | |                 if frame["label"] == "accepted" {
+...   |
+363 | |             }
+    | |_____________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.97.0/index.html#collapsible_if
+    = note: `-D clippy::collapsible-if` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::collapsible_if)]`
+help: collapse nested if block
+    |
+354 ~                 && frame["tick"].as_u64().unwrap() as u32 == sim.tick()
+355 ~                 && frame["label"] == "accepted" {
+356 |                     accepted_open = Some((
+...
+360 |                     ));
+361 ~                 }
+    |
+
+error: could not compile `rh-sim` (lib test) due to 1 previous error
+
+exit: 101

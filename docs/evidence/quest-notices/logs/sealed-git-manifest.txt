@@ -1,0 +1,13 @@
+sealed-git manifest for task-125 final quest-notice consumer repair
+code commit: 48a5cfedf1ccc30dd791557b923aec001393899a
+sealed consumer base: 95efd6945d9ccd673d2e2cae3cd2fc88c1d0ab77
+source corpus: parity/quest-notices/source.json size 1154229 sha256 a20d751e88cb16765cf2aa3ef856765a0d3321d8e25eb6e41c6722cdf9a99244 (read from sealed base)
+code test: crates/rh-sim/src/quests/notices_source_tests.rs size 17406 sha256 2a4d9813f7a20f27b5b159a9eba190f41691dc245d0aeade5454b7510e20a105 (read from code commit)
+cfg(test) declaration: crates/rh-sim/src/quests/mod.rs size 1152 sha256 d42f0e23d777fe74315c3c580a09ec067aa8dc5c3fc5763386ecfccb1a0bde98 (read from sealed base; unchanged)
+evidence README: docs/evidence/quest-notices/native-consumer.md size 7651 sha256 ce461c5972203725a1ecb40ff83162cdbc301c650989b36d13bf0d49c55f43fd
+log: docs/evidence/quest-notices/logs/clippy-final.log size 509 sha256 ac6865a5196c69b9535557348ce9c82288bdde8176ff33f58397810c563a864a
+log: docs/evidence/quest-notices/logs/clippy-first-failure.log size 1452 sha256 e21a5c7d0764bcdd81e7578e0818f5f52e58ada2d493f1e077fa4f774fbd3f55
+log: docs/evidence/quest-notices/logs/fmt-final.log size 271 sha256 a4c7aa8aab51b791a266565227b37f204863ad46d4fd19e722bb24339e5a0e27
+log: docs/evidence/quest-notices/logs/fmt-first-failure.log size 3630 sha256 c2f0cee2ad061f8e0eef3b2f1fe5ba622d8de7ab1978ba540d9f2a4ce0d55394
+log: docs/evidence/quest-notices/logs/focused-final.log size 1118 sha256 3d6e1e917d271dcfbfa3f2bf5136e8e83c4056125ca7c873f75933133c9d784e
+note: this manifest file itself is outside its own hash list.

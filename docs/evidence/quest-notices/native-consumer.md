@@ -76,3 +76,45 @@ equal and the parcel preview companion is entitled/privacy-checked. fmt --check 
 
 This is a deliberately partial, coherent notice/view slice for Root review; Root owns merge/admission and any wider
 method-level continuation.
+
+## Final held-review repair (task-125)
+
+Base sealed consumer 95efd6945d9ccd673d2e2cae3cd2fc88c1d0ab77; fresh isolated branch
+deepseek/p-quest-notice-final-repair. CODE commit 48a5cfedf1ccc30dd791557b923aec001393899a changes only the existing
+cfg(test) consumer (crates/rh-sim/src/quests/notices_source_tests.rs). No production/source corpus/capture/tools/APIs/
+identities/tapes/content/version/status/shared/Cargo.lock edits; the sealed source pair is retained. Source corpus
+sha256 remains a20d751e88cb16765cf2aa3ef856765a0d3321d8e25eb6e41c6722cdf9a99244, 1,154,229 bytes; coverage is still
+honestly cases0/4 only.
+
+### Nonvacuous run-end closure
+
+The consumer now retains the real Sim and captures actual native state at the source accepted and run-ended frames while
+driving case4. It asserts source frame facts and reached native runtime:
+- source accepted frame tick3/time150: 20 open offers; native earlier-open = 20 at tick3/time150;
+- source run-ended frame tick14/time700: phase ended and 0 open offers; native reached run-ended phase ended, tick14/
+  time700, 0 open offers;
+- final native phase is ended and open offers remain 0.
+No ended phase or closure is installed, copied or obtained through a production hook. The complete Toast/Gv sequence
+assertion is unchanged (source case4 4 notices / 14 excluded / 18 events; native 4 / 14 / 18).
+
+### Foreign privacy tightening
+
+At the tick2 private reveal companion, every foreign human prepared QuestView is now required to contain NO row of the
+hidden cull-frost definition regardless of RowState (not merely no Preview row); the source public snapshots at this frame
+publish 0 cull-frost rows. The owner preview definition/giver point/expiry checks, typed fixture bindings and no-fabricated
+raw-event rule are retained. Case0 remains source 15 notices / 7 excluded / 22 events vs native 15 / 6 / 21 with one
+entitled preview.
+
+### Portable raw native receipts
+
+The following files are force-tracked in the evidence commit because repository gitignore ignores *.log. Each contains
+the exact command, working directory, environment (CARGO_TARGET_DIR=/tmp/quest-notice-consumer-target,
+CARGO_INCREMENTAL=0, CARGO_PROFILE_DEV_DEBUG=0, jobs1) and exit code plus raw output:
+- logs/focused-final.log: focused two-case test, exit 0.
+- logs/fmt-first-failure.log and logs/fmt-final.log: first check failure preserved, final fmt --check exit 0.
+- logs/clippy-first-failure.log and logs/clippy-final.log: first scoped strict clippy failure preserved (collapsible_if),
+  final rh-sim --all-targets --all-features clippy -D warnings exit 0.
+- logs/sealed-git-manifest.log: sealed-Git per-file sizes/SHA256 for code, source corpus, this evidence and logs.
+
+No inherited source-control log is substituted. The focused output reports the same matched/excluded counts above and
+the run-end/privacy assertions are inside that test.
