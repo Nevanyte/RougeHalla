@@ -1,0 +1,146 @@
+{
+  "format": "rh-mark-tax-uncapped-evidence/1",
+  "base": "a0c4818ce9df8ad0f4124db31e65ba1244bddc3b",
+  "code": "ef06b6f44c43e8bb6e4e6655e9f3f53bdcb903d7",
+  "fixture": {
+    "bytes": 6276683,
+    "sha256": "dbfafa19ecbfadd98bf74078685ea436e70f25b8e1d6331043ac55067838afbc",
+    "worldCases": 2,
+    "retainedFrames": 124,
+    "instrumentationOffReplayFrames": 62
+  },
+  "sourcePins": 129,
+  "configPins": 8,
+  "toolPins": 7,
+  "semanticKills": 6,
+  "provenanceNonkills": 1,
+  "variantLogs": 9,
+  "scope": "SOURCE ONLY; no native/public/admission/Room-network/tax-domain completeness claim",
+  "commands": [
+    "bash tools/mark-tax-uncapped-fixtures/capture.sh",
+    "bash tools/mark-tax-uncapped-fixtures/controls.sh",
+    "git archive ef06b6f4 packages package.json package-lock.json tsconfig.base.json tools/mark-tax-uncapped-fixtures parity/mark-tax-uncapped | tar -x -C <owned new export>; bash <export>/tools/mark-tax-uncapped-fixtures/capture.sh --check"
+  ],
+  "files": {
+    "tools/mark-tax-uncapped-fixtures/README.md": {
+      "bytes": 3969,
+      "sha256": "c82929ac26a051fe59e4e4180211d80c40c583ef4c2216304ec180b7d486dd57"
+    },
+    "tools/mark-tax-uncapped-fixtures/capture.mts": {
+      "bytes": 9324,
+      "sha256": "4ef33b00fc7eada4ec3e9db7bf3adb9fed9cd7f785525b4eb37287d46a4e06e6"
+    },
+    "tools/mark-tax-uncapped-fixtures/capture.sh": {
+      "bytes": 1035,
+      "sha256": "e541fa57700353b958d0954efbbdbebade57e75cd868440e16bb6d9cbead9636"
+    },
+    "tools/mark-tax-uncapped-fixtures/controls.mjs": {
+      "bytes": 4196,
+      "sha256": "3921add72e7dbc48f7f6e177febbe38bd6aff45b60b85b5ebdf5f9d55456f2f6"
+    },
+    "tools/mark-tax-uncapped-fixtures/controls.sh": {
+      "bytes": 1096,
+      "sha256": "0a8199ecc79a2e7d1626c6c1210bd1e85c25db288e467f6b4aba2cdbfeac3d0b"
+    },
+    "tools/mark-tax-uncapped-fixtures/exploration-probe.mts": {
+      "bytes": 2910,
+      "sha256": "f606824c7c6515435f2b62031eac1913b291ca1ffe859354e06d1b8cce4bb062"
+    },
+    "tools/mark-tax-uncapped-fixtures/verify.mjs": {
+      "bytes": 2893,
+      "sha256": "6c02e0340d381b7b841b7193c73c48216145934579b1d64e84c8f47e03c04520"
+    },
+    "parity/mark-tax-uncapped/source.json": {
+      "bytes": 6276683,
+      "sha256": "dbfafa19ecbfadd98bf74078685ea436e70f25b8e1d6331043ac55067838afbc"
+    },
+    "docs/evidence/mark-tax-uncapped/README.md": {
+      "bytes": 7189,
+      "sha256": "7e6e4f9789341161fac4b4108d0ba13a54e5bb0bf549ea3aedb44eb6cda9ad2d"
+    },
+    "docs/evidence/mark-tax-uncapped/attack-diagnostic-probe.log": {
+      "bytes": 4751,
+      "sha256": "d81d87dc7c9750cf024d53b5ad411cbd794bdfdf683fac5f1fa7383626d7e8e2"
+    },
+    "docs/evidence/mark-tax-uncapped/canonical-capture.log": {
+      "bytes": 268,
+      "sha256": "3d07d9a260a1dbfdc81899e2026a5f0ea0107103cdf97878da3a7f339804d4b9"
+    },
+    "docs/evidence/mark-tax-uncapped/capture-initial.log": {
+      "bytes": 268,
+      "sha256": "c2bb08cf2886eaa944c7fe26f815b2591cde2833c170b2c9a1b0e744be53ddf7"
+    },
+    "docs/evidence/mark-tax-uncapped/controls/cap99-ignored.log": {
+      "bytes": 444,
+      "sha256": "99cbd7a9194588520fbbad08ac4227c4e4d600add6139c96238f1ffde523e16b"
+    },
+    "docs/evidence/mark-tax-uncapped/controls/controls.json": {
+      "bytes": 5423,
+      "sha256": "11ce0a16f18ac1206b03c4cd7971244823ea9f4d70785f0951f767c28cc4de68"
+    },
+    "docs/evidence/mark-tax-uncapped/controls/pristine.log": {
+      "bytes": 134,
+      "sha256": "09883a133c180280e6cec0decf96b96b85b82e5d17a56797695a04c321a16eaa"
+    },
+    "docs/evidence/mark-tax-uncapped/controls/provenance-nonkill.log": {
+      "bytes": 134,
+      "sha256": "16e0041964fb0a04747e0dd808f0cb695073b6effb54552fb26580be438d5a38"
+    },
+    "docs/evidence/mark-tax-uncapped/controls/public-tax-omitted.log": {
+      "bytes": 444,
+      "sha256": "99cbd7a9194588520fbbad08ac4227c4e4d600add6139c96238f1ffde523e16b"
+    },
+    "docs/evidence/mark-tax-uncapped/controls/raw-farm-excluded.log": {
+      "bytes": 444,
+      "sha256": "99cbd7a9194588520fbbad08ac4227c4e4d600add6139c96238f1ffde523e16b"
+    },
+    "docs/evidence/mark-tax-uncapped/controls/restored.log": {
+      "bytes": 134,
+      "sha256": "09883a133c180280e6cec0decf96b96b85b82e5d17a56797695a04c321a16eaa"
+    },
+    "docs/evidence/mark-tax-uncapped/controls/tax-source-disabled.log": {
+      "bytes": 474,
+      "sha256": "dd14c82feac700fa79c35ddae3aae04f9627d808f35a59e967e5130f1a1a1bfe"
+    },
+    "docs/evidence/mark-tax-uncapped/controls/tie-owner-reversed.log": {
+      "bytes": 480,
+      "sha256": "1e43f0b4a1d4920f1efd8cb276e4886fc886bbe7eea8298b9b343f37555bd488"
+    },
+    "docs/evidence/mark-tax-uncapped/controls/tier2-refused.log": {
+      "bytes": 444,
+      "sha256": "99cbd7a9194588520fbbad08ac4227c4e4d600add6139c96238f1ffde523e16b"
+    },
+    "docs/evidence/mark-tax-uncapped/controls-run.log": {
+      "bytes": 667,
+      "sha256": "5f55f26553b7356ec503b7bf4e04449c1531291c9aae25f44ac84e510d8eebf2"
+    },
+    "docs/evidence/mark-tax-uncapped/final-capture.log": {
+      "bytes": 268,
+      "sha256": "212a3bcc12af0bbaacbbbae0b5956159172a28959b8548ee63756e8e375336e7"
+    },
+    "docs/evidence/mark-tax-uncapped/frozen-export-bytecheck.log": {
+      "bytes": 134,
+      "sha256": "44d175fb4e38412ae6f656cbda3a4fd8edc1bcac306a987576344f9acc255171"
+    },
+    "docs/evidence/mark-tax-uncapped/holy-low-wake-high-stat-positive.log": {
+      "bytes": 2639,
+      "sha256": "db342b4cacccad37ff3a92e3365fba44d728972c17cb38c8a1a5b1ae6d336216"
+    },
+    "docs/evidence/mark-tax-uncapped/holy-low-wake-high-stat-probe.log": {
+      "bytes": 766,
+      "sha256": "2d56c457e39c83838a4437bb1eb1ede8c36db2dbf93473ebd6e7c86043f55655"
+    },
+    "docs/evidence/mark-tax-uncapped/initial-probe.log": {
+      "bytes": 3054,
+      "sha256": "809e5592562a77d09735634055c631eb48aed5d38f3565d3df54142e535fde4b"
+    },
+    "docs/evidence/mark-tax-uncapped/movement-probe.log": {
+      "bytes": 3054,
+      "sha256": "809e5592562a77d09735634055c631eb48aed5d38f3565d3df54142e535fde4b"
+    },
+    "docs/evidence/mark-tax-uncapped/ordinary-wake-probe.log": {
+      "bytes": 3095,
+      "sha256": "9ef1d9c5b575beb4cd17ef517dd3ea64bc02b89f66b124e49be14d42273150b0"
+    }
+  }
+}
