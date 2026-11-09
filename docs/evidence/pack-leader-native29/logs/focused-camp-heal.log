@@ -1,0 +1,11 @@
+=== camp_heal
+    Finished `test` profile [unoptimized] target(s) in 0.03s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/bot-fight-native/target/debug/deps/rh_sim-bebc1724c13fdcb0)
+
+running 3 tests
+test systems::camp_heal::tests::a_down_contributor_gets_neither_a_potion_nor_the_clear ... ok
+test systems::camp_heal::tests::a_clear_with_no_contributors_pays_nothing ... ok
+test systems::camp_heal::tests::a_clear_pays_a_camp_potion_and_counts_only_the_contributors_at_the_camp ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 821 filtered out; finished in 0.00s
+
