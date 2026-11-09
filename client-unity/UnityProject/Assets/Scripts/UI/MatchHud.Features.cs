@@ -41,7 +41,7 @@ namespace Roguehalla.Client
             EventSystem.current.currentSelectedGameObject.activeInHierarchy &&
             EventSystem.current.currentSelectedGameObject.GetComponent<KeyboardScrollPane>() != null;
         public bool BlocksKeyboardInput => _menu != null && (_menu.gameObject.activeSelf || _results.gameObject.activeSelf ||
-            _settings.gameObject.activeSelf || (_signIn != null && _signIn.gameObject.activeSelf) || AnyHubPanelVisible || Typing || (_drawer != null && _drawer.IsVisible) || (_help != null && _help.gameObject.activeSelf) || (_map != null && _map.IsPlanning));
+            _settings.gameObject.activeSelf || (_signIn != null && _signIn.gameObject.activeSelf) || AnyHubPanelVisible || PlayerFlowVisible || Typing || (_drawer != null && _drawer.IsVisible) || (_help != null && _help.gameObject.activeSelf) || (_map != null && _map.IsPlanning));
         public bool BlocksPointerInput => BlocksKeyboardInput || (_map != null && _map.PointerBlocked) ||
             PointerHitsUi();
         bool PointerHitsUi()
@@ -62,6 +62,7 @@ namespace Roguehalla.Client
                 if (_hubGuide != null && _hubGuide.IsVisible) return _hubGuide.FocusRoot;
                 if (_hubProgress != null && _hubProgress.IsVisible) return _hubProgress.Root;
                 if (_hubCosmetics != null && _hubCosmetics.IsVisible) return _hubCosmetics.Root;
+                if (PlayerFlowFocus != null) return PlayerFlowFocus;
                 if (_help != null && _help.gameObject.activeSelf) return _help;
                 if (_drawer != null && _drawer.IsVisible) return _root.Find("BuildDrawer");
                 if (_results.gameObject.activeSelf) return _results;
@@ -178,9 +179,10 @@ namespace Roguehalla.Client
             ApplyDisplayPreferences();
             _help = Panel(_root, "ControlsHelp", .18f, .28f, .82f, .90f);
             Text(_help, "HelpTitle", "CONTROLS & FIELD GUIDE", .04f, .87f, .96f, .99f, 26).color = ShowcasePalette.Gold;
-            Text(_help, "HelpText", "WASD / arrows   Move\nLeft click / hold   Attack; wand selects a target\nRight click   Move to a point\nQ / 1 / 2   Swap / select weapon\nE   Drink potion       R   Cast Wish at cursor\nF   Interact / pick up\nHold Tab   Tactical map and personal route\nB   Full build details\nC   Give the chest keyboard focus; 1–3 choose, 0 skip\nMinimap RMB   Move       Minimap hold LMB   Camera peek\nEscape   Close the focused panel\n\nPlanning: 1 / 2 select spawn. Select an offered boon, then Ready.\nA planned route is a personal guide. It never moves your character.\nThe run continues while panels are open.", .04f, .12f, .96f, .86f, 17);
+            Text(_help, "HelpText", "WASD / arrows   Move\nLeft click / hold   Attack; wand selects a target\nRight click   Move to a point\nQ / 1 / 2   Swap / select weapon\nE   Drink potion       R   Cast Wish at cursor\nF   Interact / pick up\nJ   Quest journal, traders and notices\nHold Tab   Tactical map and personal route\nB   Full build details\nC   Give the chest keyboard focus; 1–3 choose, 0 skip\nMinimap RMB   Move       Minimap hold LMB   Camera peek\nEscape   Close the focused panel\n\nPlanning: 1 / 2 select spawn. Select an offered boon, then Ready.\nA planned route is a personal guide. It never moves your character.\nThe run continues while panels are open.", .04f, .12f, .96f, .86f, 17);
             Button(_help, "HelpClose", "CLOSE · H / ESC", .30f, .02f, .70f, .11f, ToggleHelp);
             _help.gameObject.SetActive(false);
+            InitializePlayerFlows();
         }
         void ApplyDisplayPreferences()
         {
@@ -213,10 +215,11 @@ namespace Roguehalla.Client
         void ToggleHelp() { if (_help != null) { _help.gameObject.SetActive(!_help.gameObject.activeSelf); if (_help.gameObject.activeSelf) { CloseHubPanels(); _drawer?.SetVisible(false); _map?.SetOpen(false); } ReleaseChestFocus(); RefreshHeaderActionsVisibility(); } }
         void RefreshHeaderActionsVisibility()
         {
-            bool visible = _drawer == null || !_drawer.IsVisible;
+            bool visible = (_drawer == null || !_drawer.IsVisible) && !PlayerFlowVisible;
             for (int i = 0; i < _headerActions.Length; i++)
                 if (_headerActions[i] != null && _headerActions[i].gameObject.activeSelf != visible)
                     _headerActions[i].gameObject.SetActive(visible);
+            RefreshJournalLauncher();
         }
         public void ReadUiInput()
         {
@@ -233,18 +236,24 @@ namespace Roguehalla.Client
                 CloseHubPanels();
             }
             bool dialog = _settings.gameObject.activeSelf || _results.gameObject.activeSelf || _menu.gameObject.activeSelf || (_signIn != null && _signIn.gameObject.activeSelf) || AnyHubPanelVisible ||
-                _drawer != null && _drawer.IsVisible || _help != null && _help.gameObject.activeSelf;
+                _drawer != null && _drawer.IsVisible || _help != null && _help.gameObject.activeSelf || PlayerFlowVisible;
             bool unrelatedModal = _settings.gameObject.activeSelf || _results.gameObject.activeSelf || _menu.gameObject.activeSelf ||
-                (_signIn != null && _signIn.gameObject.activeSelf) || AnyHubPanelVisible;
+                (_signIn != null && _signIn.gameObject.activeSelf) || AnyHubPanelVisible || PlayerFlowVisible;
             if (kb != null && !Typing)
             {
                 bool modified = kb.ctrlKey.isPressed || kb.altKey.isPressed || kb.leftMetaKey.isPressed || kb.rightMetaKey.isPressed || kb.shiftKey.isPressed;
                 if (!modified)
                 {
+                    if (kb.jKey.wasPressedThisFrame && (PlayerFlowVisible || PlayerFlowLauncherAllowed))
+                    {
+                        if (PlayerFlowVisible) ClosePlayerFlows();
+                        else ShowPlayerFlow(_session?.State == SessionState.InMatch ? 0 : 2);
+                    }
+                    if (kb.escapeKey.wasPressedThisFrame && PlayerFlowVisible) ClosePlayerFlows();
                     // Build and Help can switch between each other, but neither may steal keys from
                     // account, menu, result, guide, or settings panels.
-                    if (!unrelatedModal && kb.bKey.wasPressedThisFrame && !(_map?.IsPlanning ?? false)) ToggleBuild();
-                    if (!unrelatedModal && kb.hKey.wasPressedThisFrame) ToggleHelp();
+                    if (!unrelatedModal && !PlayerFlowVisible && kb.bKey.wasPressedThisFrame && !(_map?.IsPlanning ?? false)) ToggleBuild();
+                    if (!unrelatedModal && !PlayerFlowVisible && kb.hKey.wasPressedThisFrame) ToggleHelp();
                     if (kb.escapeKey.wasPressedThisFrame)
                     {
                         if (_signIn.gameObject.activeSelf) SetSignInVisible(false);
@@ -272,7 +281,7 @@ namespace Roguehalla.Client
             var focusRoot = FocusRoot;
             if (kb != null && focusRoot != null && kb.tabKey.wasPressedThisFrame && !kb.ctrlKey.isPressed && !kb.altKey.isPressed && !kb.leftMetaKey.isPressed && !kb.rightMetaKey.isPressed)
                 UiFocusNavigation.Cycle(focusRoot, kb.shiftKey.isPressed);
-            _map?.ReadUiInput(Typing, dialog || _chestFocus);
+            _map?.ReadUiInput(Typing, dialog || PlayerFlowVisible || _chestFocus);
             if (focusRoot != null) UiBrowserStorage.CaptureTab(true, true);
         }
         public void ReleaseUiFocusForWindowLoss()
@@ -290,6 +299,7 @@ namespace Roguehalla.Client
             RefreshAccountMenu();
             TickHubAtrium();
             TickMetrics();
+            TickPlayerFlows();
             _map?.Tick();
             RefreshWorldHudVisibility();
             if (_session != null) _drawer?.Refresh(_session.Collections, _session.Me, _showcaseSettings.TextScale);

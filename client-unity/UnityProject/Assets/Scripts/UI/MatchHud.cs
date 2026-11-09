@@ -15,6 +15,7 @@ namespace Roguehalla.Client
     {
         MatchClient _client;
         Session _session;
+        Action<ServerMsg.Events> _boundNoticeEvents;
         RectTransform _root, _menu, _hud, _rewards, _results, _settings;
         TMP_InputField _nickname;
         TMP_Text _factionLabel, _banner, _vitals, _build, _focusLabel, _wishCard, _rewardTitle, _resultTitle, _resultText, _notice;
@@ -154,7 +155,9 @@ namespace Roguehalla.Client
         {
             Unbind(); _session = session;
             session.StateChanged += Changed; session.SnapshotReceived += Snapshot;
-            session.CollectionsChanged += Collections; session.EventsReceived += Events;
+            _boundNoticeEvents = batch => { if (ReferenceEquals(_session, session)) Events(batch); };
+            session.CollectionsChanged += Collections; session.EventsReceived += _boundNoticeEvents;
+            session.TimelineReset += ResetPlayerFlowTimeline;
             _menu.gameObject.SetActive(false); _hud.gameObject.SetActive(true); _settings.gameObject.SetActive(false);
             SetSignInVisible(false); CloseHubPanels();
             _results.gameObject.SetActive(false); _rewards.gameObject.SetActive(false);
@@ -170,12 +173,16 @@ namespace Roguehalla.Client
             _slots[1].GetComponentInChildren<TMP_Text>(true).text = "2 · —";
             RefreshCollections(session.Collections);
             _map?.Bind(session);
+            BindPlayerFlows(session);
         }
         void Unbind()
         {
             if (_session == null) return;
             _session.StateChanged -= Changed; _session.SnapshotReceived -= Snapshot;
-            _session.CollectionsChanged -= Collections; _session.EventsReceived -= Events;
+            _session.CollectionsChanged -= Collections; _session.EventsReceived -= _boundNoticeEvents;
+            _boundNoticeEvents = null;
+            _session.TimelineReset -= ResetPlayerFlowTimeline;
+            BindPlayerFlows(null);
             _session = null;
         }
         public void ShowMenu()
@@ -192,6 +199,7 @@ namespace Roguehalla.Client
         {
             _feedback = "";
             Set(_notice, "");
+            ResetPlayerFlowTimeline();
             if (_session == null) ClearOwnerPresentation("Awaiting server");
             else if (_session.Me == null) ClearOwnerPresentation(_session.Latest == null ? "Awaiting server" : "Unavailable");
             else RefreshOwnerPresentation(_session.Me, _session.ServerTimeMs);
@@ -199,16 +207,15 @@ namespace Roguehalla.Client
         }
 
         void OnDestroy() { Unbind(); if (_showcaseSettings != null) _showcaseSettings.Changed -= ApplyTextScale; if (_uiPrefs != null) _uiPrefs.Changed -= ApplyDisplayPreferences; UiBrowserStorage.CaptureTab(false); }
-        void Changed(SessionState state) { if (_session != null) RefreshCollections(_session.Collections); _dirty = _rewardsDirty = true; }
+        void Changed(SessionState state) { if (_session != null) RefreshCollections(_session.Collections); RefreshPlayerFlows(); _dirty = _rewardsDirty = true; }
         void Snapshot(ServerMsg.Snapshot snapshot) { _dirty = true; }
-        void Collections(CollectionsView view) { RefreshCollections(view); _dirty = _rewardsDirty = true; }
+        void Collections(CollectionsView view) { RefreshCollections(view); RefreshPlayerFlows(); _dirty = _rewardsDirty = true; }
         void Events(ServerMsg.Events events)
         {
-            foreach (var ev in events.List)
+            if (_session != null)
             {
-                if (ev.Kind == EventKind.PotionNotice) _feedback = PotionNoticeFormatter.Format((PotionNotice)ev.PotionNotice);
-                else if (ev.Kind == EventKind.PickupRefused) _feedback = "Pickup refused by server (" + ev.PickupReason + ")";
-                else if (ev.Kind == EventKind.ChestRefused) _feedback = "Choice refused by server (" + ev.ChestReason + ")";
+                if (_playerFlowEpoch != _session.TimelineEpoch) ResetPlayerFlowTimeline();
+                _orderedNotices?.Append(events);
             }
             _dirty = true;
         }
@@ -252,9 +259,10 @@ namespace Roguehalla.Client
                 _client?.RefreshAccountAfterResult();
                 _resultTitle.color = r.Outcome == 0 ? ShowcasePalette.Gold : r.Outcome == 2 ? ShowcasePalette.Warning : ShowcasePalette.Text;
                 _resultText.text = (r.Outcome < Outcomes.Length ? Outcomes[r.Outcome] : "Outcome " + r.Outcome) + "\nPlace " + r.Place + " / " + r.Players + " · " + r.Kills + " kills\nGV " + r.GvTotal + " (win " + r.GvWin + ")\nDuration " + r.DurationSec + "s" + (string.IsNullOrEmpty(r.KilledBy) ? "" : "\nKilled by " + r.KilledBy) + (r.WinBonusWithheld ? "\nWin bonus withheld by server" : "");
+                ClosePlayerFlows();
                 _results.gameObject.SetActive(true); _rewards.gameObject.SetActive(false);
             }
-            if ((_session.State == SessionState.Failed || _session.State == SessionState.Rejected || _session.State == SessionState.Ended) && _session.LastResult == null)
+            if ((_session.State == SessionState.Failed || _session.State == SessionState.Rejected || _session.State == SessionState.Ended) && _session.LastResult == null && !PlayerFlowVisible)
             {
                 _resultText.text = banner + "\nNo authoritative result received.";
                 _resultTitle.color = ShowcasePalette.Warning;
