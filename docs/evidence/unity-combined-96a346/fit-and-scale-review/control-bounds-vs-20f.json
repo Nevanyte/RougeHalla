@@ -1,0 +1,218 @@
+[
+  {
+    "case": "1440-hud-text100",
+    "commonControls": 14,
+    "changedControlBounds": [],
+    "newControls": [],
+    "removedControls": []
+  },
+  {
+    "case": "1440-hud-text150",
+    "commonControls": 14,
+    "changedControlBounds": [],
+    "newControls": [],
+    "removedControls": []
+  },
+  {
+    "case": "1440-map-text100",
+    "commonControls": 19,
+    "changedControlBounds": [],
+    "newControls": [],
+    "removedControls": []
+  },
+  {
+    "case": "1440-map-text150",
+    "commonControls": 19,
+    "changedControlBounds": [],
+    "newControls": [],
+    "removedControls": []
+  },
+  {
+    "case": "1440-planning-text100",
+    "commonControls": 24,
+    "changedControlBounds": [
+      {
+        "path": "Offline UI layout review/MatchUI/TacticalMap/MapFrame/PublicMap/SpawnMarker0",
+        "oldBounds": [
+          479.7653,
+          1034.16541,
+          565.098633,
+          1119.49866
+        ],
+        "newBounds": [
+          497.218536,
+          1042.52551,
+          603.8852,
+          1127.85876
+        ],
+        "maxDeltaPx": 38.786567000000105
+      },
+      {
+        "path": "Offline UI layout review/MatchUI/TacticalMap/MapFrame/PublicMap/SpawnMarker1",
+        "oldBounds": [
+          1147.34937,
+          607.3493,
+          1232.68262,
+          692.6827
+        ],
+        "newBounds": [
+          1118.44263,
+          645.3493,
+          1225.10938,
+          730.6827
+        ],
+        "maxDeltaPx": 38.0
+      }
+    ],
+    "newControls": [],
+    "removedControls": []
+  },
+  {
+    "case": "1440-planning-text150",
+    "commonControls": 24,
+    "changedControlBounds": [
+      {
+        "path": "Offline UI layout review/MatchUI/TacticalMap/MapFrame/PublicMap/SpawnMarker0",
+        "oldBounds": [
+          479.7653,
+          1034.16541,
+          565.098633,
+          1119.49866
+        ],
+        "newBounds": [
+          497.218536,
+          1042.52551,
+          603.8852,
+          1127.85876
+        ],
+        "maxDeltaPx": 38.786567000000105
+      },
+      {
+        "path": "Offline UI layout review/MatchUI/TacticalMap/MapFrame/PublicMap/SpawnMarker1",
+        "oldBounds": [
+          1147.34937,
+          607.3493,
+          1232.68262,
+          692.6827
+        ],
+        "newBounds": [
+          1118.44263,
+          645.3493,
+          1225.10938,
+          730.6827
+        ],
+        "maxDeltaPx": 38.0
+      }
+    ],
+    "newControls": [],
+    "removedControls": []
+  },
+  {
+    "case": "720-hud-text100",
+    "commonControls": 14,
+    "changedControlBounds": [],
+    "newControls": [],
+    "removedControls": []
+  },
+  {
+    "case": "720-hud-text150",
+    "commonControls": 14,
+    "changedControlBounds": [],
+    "newControls": [],
+    "removedControls": []
+  },
+  {
+    "case": "720-map-text100",
+    "commonControls": 19,
+    "changedControlBounds": [],
+    "newControls": [],
+    "removedControls": []
+  },
+  {
+    "case": "720-map-text150",
+    "commonControls": 19,
+    "changedControlBounds": [],
+    "newControls": [],
+    "removedControls": []
+  },
+  {
+    "case": "720-planning-text100",
+    "commonControls": 24,
+    "changedControlBounds": [
+      {
+        "path": "Offline UI layout review/MatchUI/TacticalMap/MapFrame/PublicMap/SpawnMarker0",
+        "oldBounds": [
+          239.882645,
+          517.0827,
+          282.549316,
+          559.7493
+        ],
+        "newBounds": [
+          248.609268,
+          521.262756,
+          301.9426,
+          563.9294
+        ],
+        "maxDeltaPx": 19.39328400000005
+      },
+      {
+        "path": "Offline UI layout review/MatchUI/TacticalMap/MapFrame/PublicMap/SpawnMarker1",
+        "oldBounds": [
+          573.6747,
+          303.674652,
+          616.3413,
+          346.341339
+        ],
+        "newBounds": [
+          559.2213,
+          322.674652,
+          612.5547,
+          365.341339
+        ],
+        "maxDeltaPx": 19.0
+      }
+    ],
+    "newControls": [],
+    "removedControls": []
+  },
+  {
+    "case": "720-planning-text150",
+    "commonControls": 24,
+    "changedControlBounds": [
+      {
+        "path": "Offline UI layout review/MatchUI/TacticalMap/MapFrame/PublicMap/SpawnMarker0",
+        "oldBounds": [
+          239.882645,
+          517.0827,
+          282.549316,
+          559.7493
+        ],
+        "newBounds": [
+          248.609268,
+          521.262756,
+          301.9426,
+          563.9294
+        ],
+        "maxDeltaPx": 19.39328400000005
+      },
+      {
+        "path": "Offline UI layout review/MatchUI/TacticalMap/MapFrame/PublicMap/SpawnMarker1",
+        "oldBounds": [
+          573.6747,
+          303.674652,
+          616.3413,
+          346.341339
+        ],
+        "newBounds": [
+          559.2213,
+          322.674652,
+          612.5547,
+          365.341339
+        ],
+        "maxDeltaPx": 19.0
+      }
+    ],
+    "newControls": [],
+    "removedControls": []
+  }
+]

@@ -1,0 +1,278 @@
+[
+  {
+    "case": "1440-hud-text100",
+    "sha256": "bb0c9020ad96f1c28fef084473ec334f631ae86f6c3fb9a0911d4b8e4eb85f97",
+    "bytes": 3880764,
+    "native": [
+      2560,
+      1440
+    ],
+    "nativeDimensionsMatch": true,
+    "isReady": true,
+    "watermark": true,
+    "frameAdvance": [
+      23628,
+      23665
+    ],
+    "clockAdvance": [
+      47200.0,
+      47350.0
+    ],
+    "quality": "High",
+    "actorCount": 8,
+    "tmpFlags": 0
+  },
+  {
+    "case": "1440-hud-text150",
+    "sha256": "86574027ae63b5c427d2d144822d8a1170640cfed050698ed61185fc84e50b34",
+    "bytes": 3959029,
+    "native": [
+      2560,
+      1440
+    ],
+    "nativeDimensionsMatch": true,
+    "isReady": true,
+    "watermark": true,
+    "frameAdvance": [
+      23665,
+      23748
+    ],
+    "clockAdvance": [
+      47350.0,
+      47500.0
+    ],
+    "quality": "High",
+    "actorCount": 8,
+    "tmpFlags": 0
+  },
+  {
+    "case": "1440-map-text100",
+    "sha256": "1f15e42567f2d275546c806b15040023f4502461486a60d194c21a3ca2d26481",
+    "bytes": 1290610,
+    "native": [
+      2560,
+      1440
+    ],
+    "nativeDimensionsMatch": true,
+    "isReady": true,
+    "watermark": true,
+    "frameAdvance": [
+      104,
+      184
+    ],
+    "clockAdvance": [
+      5300.0,
+      5450.0
+    ],
+    "quality": "High",
+    "actorCount": 8,
+    "tmpFlags": 0
+  },
+  {
+    "case": "1440-map-text150",
+    "sha256": "18464a780c73435a4006a3bd994230e9a6b145dfe6a94c00f5e548414b13871d",
+    "bytes": 1387016,
+    "native": [
+      2560,
+      1440
+    ],
+    "nativeDimensionsMatch": true,
+    "isReady": true,
+    "watermark": true,
+    "frameAdvance": [
+      184,
+      265
+    ],
+    "clockAdvance": [
+      5450.0,
+      5650.0
+    ],
+    "quality": "High",
+    "actorCount": 8,
+    "tmpFlags": 0
+  },
+  {
+    "case": "1440-planning-text100",
+    "sha256": "76188ff6ca6640917253a99a0ff4eeb11f6734147665609415ba1fd08da7c1bc",
+    "bytes": 1272781,
+    "native": [
+      2560,
+      1440
+    ],
+    "nativeDimensionsMatch": true,
+    "isReady": true,
+    "watermark": true,
+    "frameAdvance": [
+      96,
+      169
+    ],
+    "clockAdvance": [
+      5250.0,
+      5400.0
+    ],
+    "quality": "High",
+    "actorCount": 8,
+    "tmpFlags": 0
+  },
+  {
+    "case": "1440-planning-text150",
+    "sha256": "caed29494d0361be68591d68f342572b2f58052c1b21a088f7ac6c0e1f58743e",
+    "bytes": 1354680,
+    "native": [
+      2560,
+      1440
+    ],
+    "nativeDimensionsMatch": true,
+    "isReady": true,
+    "watermark": true,
+    "frameAdvance": [
+      169,
+      243
+    ],
+    "clockAdvance": [
+      5400.0,
+      5550.0
+    ],
+    "quality": "High",
+    "actorCount": 8,
+    "tmpFlags": 0
+  },
+  {
+    "case": "720-hud-text100",
+    "sha256": "8dfda035d30cde4d2bbb5f439702a70c5b04b3cb066baad4fb937fff16f962a3",
+    "bytes": 1042483,
+    "native": [
+      1280,
+      720
+    ],
+    "nativeDimensionsMatch": true,
+    "isReady": true,
+    "watermark": true,
+    "frameAdvance": [
+      114,
+      167
+    ],
+    "clockAdvance": [
+      5300.0,
+      5450.0
+    ],
+    "quality": "High",
+    "actorCount": 8,
+    "tmpFlags": 0
+  },
+  {
+    "case": "720-hud-text150",
+    "sha256": "23c934d5c597c70f2e5a3be5856c9f7a12364eaa5e66d9ae51ccab87f5683106",
+    "bytes": 1087515,
+    "native": [
+      1280,
+      720
+    ],
+    "nativeDimensionsMatch": true,
+    "isReady": true,
+    "watermark": true,
+    "frameAdvance": [
+      167,
+      263
+    ],
+    "clockAdvance": [
+      5450.0,
+      5600.0
+    ],
+    "quality": "High",
+    "actorCount": 8,
+    "tmpFlags": 0
+  },
+  {
+    "case": "720-map-text100",
+    "sha256": "67378674cd11b1a4b2ab6d1e415209ce0d2069b518601c275c7f57812d78d256",
+    "bytes": 374687,
+    "native": [
+      1280,
+      720
+    ],
+    "nativeDimensionsMatch": true,
+    "isReady": true,
+    "watermark": true,
+    "frameAdvance": [
+      114,
+      181
+    ],
+    "clockAdvance": [
+      5300.0,
+      5450.0
+    ],
+    "quality": "High",
+    "actorCount": 8,
+    "tmpFlags": 0
+  },
+  {
+    "case": "720-map-text150",
+    "sha256": "0bd00ff34768a821149ce7412180f1e4eba9a3a2db7b72527c0a183967a9ef25",
+    "bytes": 424290,
+    "native": [
+      1280,
+      720
+    ],
+    "nativeDimensionsMatch": true,
+    "isReady": true,
+    "watermark": true,
+    "frameAdvance": [
+      181,
+      272
+    ],
+    "clockAdvance": [
+      5450.0,
+      5600.0
+    ],
+    "quality": "High",
+    "actorCount": 8,
+    "tmpFlags": 0
+  },
+  {
+    "case": "720-planning-text100",
+    "sha256": "1bf11a2d5a926c3af7beda3d55655a01e236a265cd7690d61b44a20866cd2208",
+    "bytes": 367258,
+    "native": [
+      1280,
+      720
+    ],
+    "nativeDimensionsMatch": true,
+    "isReady": true,
+    "watermark": true,
+    "frameAdvance": [
+      118,
+      158
+    ],
+    "clockAdvance": [
+      5300.0,
+      5450.0
+    ],
+    "quality": "High",
+    "actorCount": 8,
+    "tmpFlags": 0
+  },
+  {
+    "case": "720-planning-text150",
+    "sha256": "682808ae95194f2b0a5af1fd55199d37e32c089c37c92044439feca4ed7d516e",
+    "bytes": 411203,
+    "native": [
+      1280,
+      720
+    ],
+    "nativeDimensionsMatch": true,
+    "isReady": true,
+    "watermark": true,
+    "frameAdvance": [
+      158,
+      239
+    ],
+    "clockAdvance": [
+      5450.0,
+      5600.0
+    ],
+    "quality": "High",
+    "actorCount": 8,
+    "tmpFlags": 0
+  }
+]

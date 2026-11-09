@@ -1,0 +1,603 @@
+{
+  "evidence_directory": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/combined-96a346-2026-11-08/evidence/layouts",
+  "capture_count": 12,
+  "png_count": 12,
+  "source_sha": "96a3462eb6f774891e80c6b2e6dde2700eb8fed6",
+  "checks": {
+    "eight_roots_per_case": true,
+    "96_roots_one_exact_delivered_anchor_match_each": true,
+    "all_roots_local_and_lossy_scale_1_2_1_2_1": true,
+    "orthographic_camera_size_9_all_cases": true,
+    "192_light2d_local_outer_radius_2_4": true,
+    "192_transform_derived_light_outer_radius_2_88": true,
+    "native_dimensions_and_capture_readiness_all_cases": true,
+    "zero_TMP_overflow_or_truncation_flags": true
+  },
+  "light_geometry_note": "Transform-derived radius is 20% larger than the unscaled local radius (2.88 vs 2.4). Geometric extent only; no brightness or perceptual reach claim.",
+  "renderer_bounds_aggregate": {
+    "body": {
+      "entries": 96,
+      "local_position_ranges": [
+        [
+          0,
+          0
+        ],
+        [
+          0.08,
+          0.08
+        ],
+        [
+          0,
+          0
+        ]
+      ],
+      "local_scale_ranges": [
+        [
+          0.894444466,
+          1.15
+        ],
+        [
+          0.894444466,
+          1.15
+        ],
+        [
+          0.894444466,
+          1.15
+        ]
+      ],
+      "world_min": [
+        13.4479685,
+        -18.8129063,
+        -0.115
+      ],
+      "world_max": [
+        28.8042183,
+        -11.0265,
+        0.115
+      ]
+    },
+    "overhead": {
+      "entries": 396,
+      "local_position_ranges": [
+        [
+          -0.72,
+          0.147500008
+        ],
+        [
+          1.55,
+          1.8
+        ],
+        [
+          0,
+          0
+        ]
+      ],
+      "local_scale_ranges": [
+        [
+          0.4,
+          0.98
+        ],
+        [
+          0.055,
+          0.46
+        ],
+        [
+          1,
+          1
+        ]
+      ],
+      "world_min": [
+        12.9225,
+        -17.18475,
+        -0.1
+      ],
+      "world_max": [
+        28.713,
+        -10.4489994,
+        0.1
+      ]
+    }
+  },
+  "fixed_control_geometry_comparisons": [
+    {
+      "resolution": "1440",
+      "mode": "hud",
+      "control_counts": [
+        14,
+        14
+      ],
+      "common_paths": 14,
+      "bounds_difference_count": 0,
+      "raycast_state_difference_count": 0
+    },
+    {
+      "resolution": "1440",
+      "mode": "map",
+      "control_counts": [
+        19,
+        19
+      ],
+      "common_paths": 19,
+      "bounds_difference_count": 0,
+      "raycast_state_difference_count": 0
+    },
+    {
+      "resolution": "1440",
+      "mode": "planning",
+      "control_counts": [
+        24,
+        24
+      ],
+      "common_paths": 24,
+      "bounds_difference_count": 0,
+      "raycast_state_difference_count": 0
+    },
+    {
+      "resolution": "720",
+      "mode": "hud",
+      "control_counts": [
+        14,
+        14
+      ],
+      "common_paths": 14,
+      "bounds_difference_count": 0,
+      "raycast_state_difference_count": 0
+    },
+    {
+      "resolution": "720",
+      "mode": "map",
+      "control_counts": [
+        19,
+        19
+      ],
+      "common_paths": 19,
+      "bounds_difference_count": 0,
+      "raycast_state_difference_count": 0
+    },
+    {
+      "resolution": "720",
+      "mode": "planning",
+      "control_counts": [
+        24,
+        24
+      ],
+      "common_paths": 24,
+      "bounds_difference_count": 0,
+      "raycast_state_difference_count": 0
+    }
+  ],
+  "cases": [
+    {
+      "file": "1440-hud-text100.json",
+      "png": "1440-hud-text100.png",
+      "sha256_json": "97771e3aaf8f1af47c6d5207ef054f31474fcda44fc516f1914a5ef1dcf20ace",
+      "sha256_png": "bb0c9020ad96f1c28fef084473ec334f631ae86f6c3fb9a0911d4b8e4eb85f97",
+      "source_sha": "96a3462eb6f774891e80c6b2e6dde2700eb8fed6",
+      "resolution": [
+        2560,
+        1440
+      ],
+      "mode": "hud",
+      "text_scale": 1.0,
+      "frame_delta": 37,
+      "snapshot_delta_ms": 150.0,
+      "actors": 8,
+      "unique_observed_ids": 8,
+      "one_anchor_match_per_actor": true,
+      "root_local_scale": [
+        1.2,
+        1.2,
+        1.0
+      ],
+      "root_lossy_scale": [
+        1.2,
+        1.2,
+        1.0
+      ],
+      "camera_orthographic_size": 9.0,
+      "body_renderers": 8,
+      "overhead_renderers": 33,
+      "lights": 16,
+      "enabled_lights": 1,
+      "light_local_outer_radius": 2.4,
+      "light_transform_derived_world_outer_radius": 2.88,
+      "text_overflow_or_truncated": 0
+    },
+    {
+      "file": "1440-hud-text150.json",
+      "png": "1440-hud-text150.png",
+      "sha256_json": "7463b986851275d42494ab28b32cffc081a338123a8d8bbd4ab7584217ae339c",
+      "sha256_png": "86574027ae63b5c427d2d144822d8a1170640cfed050698ed61185fc84e50b34",
+      "source_sha": "96a3462eb6f774891e80c6b2e6dde2700eb8fed6",
+      "resolution": [
+        2560,
+        1440
+      ],
+      "mode": "hud",
+      "text_scale": 1.5,
+      "frame_delta": 83,
+      "snapshot_delta_ms": 150.0,
+      "actors": 8,
+      "unique_observed_ids": 8,
+      "one_anchor_match_per_actor": true,
+      "root_local_scale": [
+        1.2,
+        1.2,
+        1.0
+      ],
+      "root_lossy_scale": [
+        1.2,
+        1.2,
+        1.0
+      ],
+      "camera_orthographic_size": 9.0,
+      "body_renderers": 8,
+      "overhead_renderers": 33,
+      "lights": 16,
+      "enabled_lights": 1,
+      "light_local_outer_radius": 2.4,
+      "light_transform_derived_world_outer_radius": 2.88,
+      "text_overflow_or_truncated": 0
+    },
+    {
+      "file": "1440-map-text100.json",
+      "png": "1440-map-text100.png",
+      "sha256_json": "9ed7f8800fe0414a61700438a4eaae6b1022cff32da1a2d53c0ef5a9767fedcb",
+      "sha256_png": "1f15e42567f2d275546c806b15040023f4502461486a60d194c21a3ca2d26481",
+      "source_sha": "96a3462eb6f774891e80c6b2e6dde2700eb8fed6",
+      "resolution": [
+        2560,
+        1440
+      ],
+      "mode": "map",
+      "text_scale": 1.0,
+      "frame_delta": 80,
+      "snapshot_delta_ms": 150.0,
+      "actors": 8,
+      "unique_observed_ids": 8,
+      "one_anchor_match_per_actor": true,
+      "root_local_scale": [
+        1.2,
+        1.2,
+        1.0
+      ],
+      "root_lossy_scale": [
+        1.2,
+        1.2,
+        1.0
+      ],
+      "camera_orthographic_size": 9.0,
+      "body_renderers": 8,
+      "overhead_renderers": 33,
+      "lights": 16,
+      "enabled_lights": 1,
+      "light_local_outer_radius": 2.4,
+      "light_transform_derived_world_outer_radius": 2.88,
+      "text_overflow_or_truncated": 0
+    },
+    {
+      "file": "1440-map-text150.json",
+      "png": "1440-map-text150.png",
+      "sha256_json": "71dd22213b0589b4d7822333b0eed85c8367c0af85367c0e35364a32a4e351f6",
+      "sha256_png": "18464a780c73435a4006a3bd994230e9a6b145dfe6a94c00f5e548414b13871d",
+      "source_sha": "96a3462eb6f774891e80c6b2e6dde2700eb8fed6",
+      "resolution": [
+        2560,
+        1440
+      ],
+      "mode": "map",
+      "text_scale": 1.5,
+      "frame_delta": 81,
+      "snapshot_delta_ms": 200.0,
+      "actors": 8,
+      "unique_observed_ids": 8,
+      "one_anchor_match_per_actor": true,
+      "root_local_scale": [
+        1.2,
+        1.2,
+        1.0
+      ],
+      "root_lossy_scale": [
+        1.2,
+        1.2,
+        1.0
+      ],
+      "camera_orthographic_size": 9.0,
+      "body_renderers": 8,
+      "overhead_renderers": 33,
+      "lights": 16,
+      "enabled_lights": 1,
+      "light_local_outer_radius": 2.4,
+      "light_transform_derived_world_outer_radius": 2.88,
+      "text_overflow_or_truncated": 0
+    },
+    {
+      "file": "1440-planning-text100.json",
+      "png": "1440-planning-text100.png",
+      "sha256_json": "459c9dc249310fa7d2248185a9213e7271e6178e0e9cb01ce53c0e02c4f0cbec",
+      "sha256_png": "76188ff6ca6640917253a99a0ff4eeb11f6734147665609415ba1fd08da7c1bc",
+      "source_sha": "96a3462eb6f774891e80c6b2e6dde2700eb8fed6",
+      "resolution": [
+        2560,
+        1440
+      ],
+      "mode": "planning",
+      "text_scale": 1.0,
+      "frame_delta": 73,
+      "snapshot_delta_ms": 150.0,
+      "actors": 8,
+      "unique_observed_ids": 8,
+      "one_anchor_match_per_actor": true,
+      "root_local_scale": [
+        1.2,
+        1.2,
+        1.0
+      ],
+      "root_lossy_scale": [
+        1.2,
+        1.2,
+        1.0
+      ],
+      "camera_orthographic_size": 9.0,
+      "body_renderers": 8,
+      "overhead_renderers": 33,
+      "lights": 16,
+      "enabled_lights": 1,
+      "light_local_outer_radius": 2.4,
+      "light_transform_derived_world_outer_radius": 2.88,
+      "text_overflow_or_truncated": 0
+    },
+    {
+      "file": "1440-planning-text150.json",
+      "png": "1440-planning-text150.png",
+      "sha256_json": "d9bc596bacd7f0d9ac01790dddbb5efc7c5c5d375b514da3f6e436a8c7072e3a",
+      "sha256_png": "caed29494d0361be68591d68f342572b2f58052c1b21a088f7ac6c0e1f58743e",
+      "source_sha": "96a3462eb6f774891e80c6b2e6dde2700eb8fed6",
+      "resolution": [
+        2560,
+        1440
+      ],
+      "mode": "planning",
+      "text_scale": 1.5,
+      "frame_delta": 74,
+      "snapshot_delta_ms": 150.0,
+      "actors": 8,
+      "unique_observed_ids": 8,
+      "one_anchor_match_per_actor": true,
+      "root_local_scale": [
+        1.2,
+        1.2,
+        1.0
+      ],
+      "root_lossy_scale": [
+        1.2,
+        1.2,
+        1.0
+      ],
+      "camera_orthographic_size": 9.0,
+      "body_renderers": 8,
+      "overhead_renderers": 33,
+      "lights": 16,
+      "enabled_lights": 1,
+      "light_local_outer_radius": 2.4,
+      "light_transform_derived_world_outer_radius": 2.88,
+      "text_overflow_or_truncated": 0
+    },
+    {
+      "file": "720-hud-text100.json",
+      "png": "720-hud-text100.png",
+      "sha256_json": "06825dbe4b27c3d7def3ce43d2de0884f1c024d611917633c0c010845b81a4c5",
+      "sha256_png": "8dfda035d30cde4d2bbb5f439702a70c5b04b3cb066baad4fb937fff16f962a3",
+      "source_sha": "96a3462eb6f774891e80c6b2e6dde2700eb8fed6",
+      "resolution": [
+        1280,
+        720
+      ],
+      "mode": "hud",
+      "text_scale": 1.0,
+      "frame_delta": 53,
+      "snapshot_delta_ms": 150.0,
+      "actors": 8,
+      "unique_observed_ids": 8,
+      "one_anchor_match_per_actor": true,
+      "root_local_scale": [
+        1.2,
+        1.2,
+        1.0
+      ],
+      "root_lossy_scale": [
+        1.2,
+        1.2,
+        1.0
+      ],
+      "camera_orthographic_size": 9.0,
+      "body_renderers": 8,
+      "overhead_renderers": 33,
+      "lights": 16,
+      "enabled_lights": 1,
+      "light_local_outer_radius": 2.4,
+      "light_transform_derived_world_outer_radius": 2.88,
+      "text_overflow_or_truncated": 0
+    },
+    {
+      "file": "720-hud-text150.json",
+      "png": "720-hud-text150.png",
+      "sha256_json": "9d222db044fc8c42755745b1dc56712904003957a4af5ee8f36ae698d367eae0",
+      "sha256_png": "23c934d5c597c70f2e5a3be5856c9f7a12364eaa5e66d9ae51ccab87f5683106",
+      "source_sha": "96a3462eb6f774891e80c6b2e6dde2700eb8fed6",
+      "resolution": [
+        1280,
+        720
+      ],
+      "mode": "hud",
+      "text_scale": 1.5,
+      "frame_delta": 96,
+      "snapshot_delta_ms": 150.0,
+      "actors": 8,
+      "unique_observed_ids": 8,
+      "one_anchor_match_per_actor": true,
+      "root_local_scale": [
+        1.2,
+        1.2,
+        1.0
+      ],
+      "root_lossy_scale": [
+        1.2,
+        1.2,
+        1.0
+      ],
+      "camera_orthographic_size": 9.0,
+      "body_renderers": 8,
+      "overhead_renderers": 33,
+      "lights": 16,
+      "enabled_lights": 1,
+      "light_local_outer_radius": 2.4,
+      "light_transform_derived_world_outer_radius": 2.88,
+      "text_overflow_or_truncated": 0
+    },
+    {
+      "file": "720-map-text100.json",
+      "png": "720-map-text100.png",
+      "sha256_json": "f3fb8053aac14ba9e8eb4f8afc9f502cf65117b24e5d47bc26d4515b1d9108cf",
+      "sha256_png": "67378674cd11b1a4b2ab6d1e415209ce0d2069b518601c275c7f57812d78d256",
+      "source_sha": "96a3462eb6f774891e80c6b2e6dde2700eb8fed6",
+      "resolution": [
+        1280,
+        720
+      ],
+      "mode": "map",
+      "text_scale": 1.0,
+      "frame_delta": 67,
+      "snapshot_delta_ms": 150.0,
+      "actors": 8,
+      "unique_observed_ids": 8,
+      "one_anchor_match_per_actor": true,
+      "root_local_scale": [
+        1.2,
+        1.2,
+        1.0
+      ],
+      "root_lossy_scale": [
+        1.2,
+        1.2,
+        1.0
+      ],
+      "camera_orthographic_size": 9.0,
+      "body_renderers": 8,
+      "overhead_renderers": 33,
+      "lights": 16,
+      "enabled_lights": 1,
+      "light_local_outer_radius": 2.4,
+      "light_transform_derived_world_outer_radius": 2.88,
+      "text_overflow_or_truncated": 0
+    },
+    {
+      "file": "720-map-text150.json",
+      "png": "720-map-text150.png",
+      "sha256_json": "2aeb03f06111dd5a35503f9d1062794f4b01a56842f415f31fc27dc9f9ba29c6",
+      "sha256_png": "0bd00ff34768a821149ce7412180f1e4eba9a3a2db7b72527c0a183967a9ef25",
+      "source_sha": "96a3462eb6f774891e80c6b2e6dde2700eb8fed6",
+      "resolution": [
+        1280,
+        720
+      ],
+      "mode": "map",
+      "text_scale": 1.5,
+      "frame_delta": 91,
+      "snapshot_delta_ms": 150.0,
+      "actors": 8,
+      "unique_observed_ids": 8,
+      "one_anchor_match_per_actor": true,
+      "root_local_scale": [
+        1.2,
+        1.2,
+        1.0
+      ],
+      "root_lossy_scale": [
+        1.2,
+        1.2,
+        1.0
+      ],
+      "camera_orthographic_size": 9.0,
+      "body_renderers": 8,
+      "overhead_renderers": 33,
+      "lights": 16,
+      "enabled_lights": 1,
+      "light_local_outer_radius": 2.4,
+      "light_transform_derived_world_outer_radius": 2.88,
+      "text_overflow_or_truncated": 0
+    },
+    {
+      "file": "720-planning-text100.json",
+      "png": "720-planning-text100.png",
+      "sha256_json": "24431cfc418bf005e714949d96a86ce1db7ceca7292a8f5ca462c21b7c985ecb",
+      "sha256_png": "1bf11a2d5a926c3af7beda3d55655a01e236a265cd7690d61b44a20866cd2208",
+      "source_sha": "96a3462eb6f774891e80c6b2e6dde2700eb8fed6",
+      "resolution": [
+        1280,
+        720
+      ],
+      "mode": "planning",
+      "text_scale": 1.0,
+      "frame_delta": 40,
+      "snapshot_delta_ms": 150.0,
+      "actors": 8,
+      "unique_observed_ids": 8,
+      "one_anchor_match_per_actor": true,
+      "root_local_scale": [
+        1.2,
+        1.2,
+        1.0
+      ],
+      "root_lossy_scale": [
+        1.2,
+        1.2,
+        1.0
+      ],
+      "camera_orthographic_size": 9.0,
+      "body_renderers": 8,
+      "overhead_renderers": 33,
+      "lights": 16,
+      "enabled_lights": 1,
+      "light_local_outer_radius": 2.4,
+      "light_transform_derived_world_outer_radius": 2.88,
+      "text_overflow_or_truncated": 0
+    },
+    {
+      "file": "720-planning-text150.json",
+      "png": "720-planning-text150.png",
+      "sha256_json": "37ee91ac7472a93b59ca9cd8ed5b0eeede932a452d5826adea47ebd1762dae67",
+      "sha256_png": "682808ae95194f2b0a5af1fd55199d37e32c089c37c92044439feca4ed7d516e",
+      "source_sha": "96a3462eb6f774891e80c6b2e6dde2700eb8fed6",
+      "resolution": [
+        1280,
+        720
+      ],
+      "mode": "planning",
+      "text_scale": 1.5,
+      "frame_delta": 81,
+      "snapshot_delta_ms": 150.0,
+      "actors": 8,
+      "unique_observed_ids": 8,
+      "one_anchor_match_per_actor": true,
+      "root_local_scale": [
+        1.2,
+        1.2,
+        1.0
+      ],
+      "root_lossy_scale": [
+        1.2,
+        1.2,
+        1.0
+      ],
+      "camera_orthographic_size": 9.0,
+      "body_renderers": 8,
+      "overhead_renderers": 33,
+      "lights": 16,
+      "enabled_lights": 1,
+      "light_local_outer_radius": 2.4,
+      "light_transform_derived_world_outer_radius": 2.88,
+      "text_overflow_or_truncated": 0
+    }
+  ]
+}

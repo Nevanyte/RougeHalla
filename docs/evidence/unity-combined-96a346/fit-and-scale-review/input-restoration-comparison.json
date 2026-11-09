@@ -1,0 +1,23 @@
+{
+  "before": {
+    "live": true,
+    "id": -1029656,
+    "flags": "HideAndDontSave",
+    "mode": "ProcessEventsInDynamicUpdate",
+    "behavior": "ResetAndDisableNonBackgroundDevices",
+    "playing": false,
+    "background": false,
+    "runtimeBackground": false
+  },
+  "after": {
+    "live": true,
+    "id": -1029656,
+    "flags": "HideAndDontSave",
+    "mode": "ProcessEventsInDynamicUpdate",
+    "behavior": "ResetAndDisableNonBackgroundDevices",
+    "playing": false,
+    "background": false,
+    "runtimeBackground": false
+  },
+  "exactSameRecordedState": true
+}
