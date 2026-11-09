@@ -193,6 +193,11 @@ public sealed class MatchClientAccountBindingEditModeTests
             typeof(MatchHud).GetMethod("RefreshWorldHudVisibility", BindingFlags.Instance | BindingFlags.NonPublic).Invoke(f.Hud, null);
             var pickup = (UnityEngine.UI.Button)typeof(MatchHud).GetField("_pickup", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(f.Hud);
             Assert.That(pickup.gameObject.activeInHierarchy, Is.False);
+            // A hidden ancestor alone does not guarantee the engine's default descendant search
+            // misses Label. Declare the actual inactive child needed to exercise Bind's lookup.
+            var pickupLabel = pickup.GetComponentInChildren<TMPro.TMP_Text>(true);
+            Assert.That(pickupLabel, Is.Not.Null);
+            pickupLabel.gameObject.SetActive(false);
             Assert.That(pickup.GetComponentInChildren<TMPro.TMP_Text>() == null, Is.True);
             Assert.That(pickup.GetComponentInChildren<TMPro.TMP_Text>(true), Is.Not.Null);
             f.Client.Url = "wss://game.example/arena/ws";
@@ -203,6 +208,8 @@ public sealed class MatchClientAccountBindingEditModeTests
             Assert.That(f.Client.AccountUiError, Is.Empty, "ordinary Join must finish HUD binding and reach transport.Connect");
             Assert.That(f.Matches.Count, Is.EqualTo(1));
             Assert.That(f.Client.Session, Is.Not.Null);
+            Assert.That(pickupLabel.gameObject.activeSelf, Is.False);
+            Assert.That(pickupLabel.text, Is.EqualTo("F · No pickup"), "ordinary Bind updates the actual inactive label");
             Assert.That(f.Matches[0].Url, Is.EqualTo("wss://game.example/arena/ws"));
             f.Matches[0].Open();
             var hello = (ClientMsg.Hello)ClientMsg.Decode(f.Matches[0].Sent[0]);
