@@ -25,8 +25,8 @@ Actual Unity90/90 passes once at cdb0 (the earlier64 plus Training26), with both
 | Prove PostgreSQL cold recovery | Reviewed checkpoint store complete (919 managed,11 JS adapter VM); available for the next bounded integration review |
 | Check Git access | Private socket and C#/JS full-scene receiver/apply/ACK reviewed and composed; current933 managed and34 native scene regressions pass, no default activation |
 | DeepSeek Rust Port Worker | Corrected finite24 WalkHint method consumers reviewed and composed; Root16 regression passes/two existing ignores, no production/schema change |
-| DeepSeek Post Rust | New fixed11 protection/cue source-fixture code-only preparation; actual FX-before-patch order and full temporal Frame retention, execution held for Root envelope review |
-| Internal Rust specialist | Accepted current14 FIFO/PlayerMemory component reviewed and composed; no full interpolation/new facts/NPC/full Brain claim |
+| DeepSeek Post Rust | Code-only9cf handed off; Codex experts repair producer/verifier and safe offline envelope on isolated child, no source execution or publication yet |
+| Internal Rust specialist | Private temporal core composed: Root11PASS/actual1549→1541+8null exact numeric match; remaining source player/cue/flight and public/full Brain admission held |
 
 The full WalkHint and PackLeader producers, SlowStarter and complete MarkTax are now in native29. The readonly WalkHint is not Unity authority. The generic hash audit123446 leaves/85214 accepted perturbations/0unhashed and source14/helper69/other component receipts keep their actual prior revisions. Private scene/retained-frame components prepare the full facts contract; they do not certify full Brain/public delivery/outcome parity.
 

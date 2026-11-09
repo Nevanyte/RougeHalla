@@ -1,0 +1,47 @@
+{
+  "format": "rh-ci-startup-error/1",
+  "run": 42672708835,
+  "head": "7a13b88aaa104cf2fd18dc2de7eada6c02060485",
+  "payloads": [
+    {
+      "path": "README.md",
+      "bytes": 942,
+      "sha256": "6279aafe34e1eee2a94df2987d9bf791ae87adb0ebcdad9fbda5a949e7579cde"
+    },
+    {
+      "path": "ci-42672708835-check-suite.raw.json",
+      "bytes": 7464,
+      "sha256": "6aef454df66e7c6b0ce03cefea1da0c5fc61b94f8a62094902755ab3ba0f4a09"
+    },
+    {
+      "path": "ci-42672708835-gh-view.raw.txt",
+      "bytes": 2319,
+      "sha256": "c3b4ad5cd724207c15bbd27692ca3de3098992027183e8243bf62c49be537ced"
+    },
+    {
+      "path": "ci-42672708835-jobs-all.raw.json",
+      "bytes": 8385,
+      "sha256": "71f8950996566c4c5308b742b28c86ecfe68a289af90664637a22574eab7c725"
+    },
+    {
+      "path": "ci-42672708835-missing-rust-diagnostic.md",
+      "bytes": 3883,
+      "sha256": "3c38144a248121f0016a7fce91606469f5617e0220a8420ac1634b74c820744a"
+    },
+    {
+      "path": "ci-42672708835-run-page.raw.html",
+      "bytes": 183057,
+      "sha256": "bf0d21d13b7a3254a45d22d99ad410fe257bc1a2d7f35379d5a7d29fd0874ff5"
+    },
+    {
+      "path": "ci-42672708835-run.raw.json",
+      "bytes": 12190,
+      "sha256": "c1312a3f53ae5f8f7b585e75c56a965ed01c7db9e1a8a2a133ebfe3a16b06560"
+    },
+    {
+      "path": "ci-42672708835-startup-error.raw.html",
+      "bytes": 1727,
+      "sha256": "c5ab2ac98fc721592f688b58b96376c5c7970eb02c1fe1bf69f094636895a8a0"
+    }
+  ]
+}

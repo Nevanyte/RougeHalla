@@ -1,0 +1,20 @@
+{
+  "head": "047c1fd1e9005eb104067428e6898a8a2c2a89c6",
+  "started_utc": "2026-11-09T19:03:22.019341+00:00",
+  "ended_utc": "2026-11-09T19:03:48.684734+00:00",
+  "command": [
+    "cargo",
+    "test",
+    "--locked",
+    "--offline",
+    "-p",
+    "rh-policy",
+    "--lib",
+    "temporal_percept",
+    "--",
+    "--nocapture"
+  ],
+  "target": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target",
+  "exit_code": 0,
+  "log_sha256": "2417fb03bce642182ef42bcb278403f755567af5f77e1ae1912c62a5af3e701d"
+}
