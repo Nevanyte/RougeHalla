@@ -1,0 +1,15 @@
+{
+  "doesNotRepresentTestExecution": true,
+  "attempts": [
+    {
+      "tool": "source manifest preparation",
+      "result": "failed self-check",
+      "cause": "Shallow copied files list was updated before diff, so it incorrectly compared zero changed files. Corrected to compare first and deep copy; no input/source change."
+    },
+    {
+      "tool": "Mono.Cecil metadata inspection",
+      "result": "AssemblyResolutionException",
+      "cause": "Unused test-case enum argument formatting requested type resolution outside the metadata inspection resolver. Removed argument decoding; fixture/method/attribute counts inspect metadata only. No Unity/test invocation."
+    }
+  ]
+}

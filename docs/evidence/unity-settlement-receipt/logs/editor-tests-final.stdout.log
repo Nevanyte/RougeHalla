@@ -1,0 +1,13 @@
+/Users/nevinmckinnon/.dotnet/dotnet build /Users/nevinmckinnon/.codex/tools/rougehalla-ui-settlement-receipt-2026-11-09/profiles/editor/Tests.csproj -t:Rebuild -v minimal
+  Determining projects to restore...
+  Restored /Users/nevinmckinnon/.codex/tools/rougehalla-ui-settlement-receipt-2026-11-09/profiles/editor/Tests.csproj (in 21 ms).
+/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-settlement-receipt/client-unity/UnityProject/Assets/Tests/Editor/MatchHudTrophyEditModeTests.cs(116,41): warning CS0067: The event 'MatchHudTrophyEditModeTests.TestTransport.Closed' is never used [/Users/nevinmckinnon/.codex/tools/rougehalla-ui-settlement-receipt-2026-11-09/profiles/editor/Tests.csproj]
+  Tests -> /Users/nevinmckinnon/.codex/tools/rougehalla-ui-settlement-receipt-2026-11-09/profiles/editor/bin/Debug/netstandard2.1/Roguehalla.Client.EditModeTests.dll
+
+Build succeeded.
+
+/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-settlement-receipt/client-unity/UnityProject/Assets/Tests/Editor/MatchHudTrophyEditModeTests.cs(116,41): warning CS0067: The event 'MatchHudTrophyEditModeTests.TestTransport.Closed' is never used [/Users/nevinmckinnon/.codex/tools/rougehalla-ui-settlement-receipt-2026-11-09/profiles/editor/Tests.csproj]
+    1 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:00.61

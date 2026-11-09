@@ -1,0 +1,62 @@
+{
+  "sourceCommit": "17b0f6401d730012f5e3580d2a59ed805e369fdc",
+  "sourceParentMerge": "68749a80cde1704326e65e4cb8982d7475b42302",
+  "startsFrom": "854a08f1d622e931eff40eba40ba3820cbe040da",
+  "publicMainMerged": "1a1ac8d70b323ac7159d60dea336e89e7b56389e",
+  "branch": "codex/unity-settlement-receipt",
+  "worktree": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-settlement-receipt",
+  "authority": "Coordinator assignment in OPTimization_port 01a1a8b7-2fb4-75c0-be4f-3dfcd54bcd02; human authorization to coordinate persists. Source review/frozen engine gate owned by coordinator and Art.",
+  "sourceFilesChanged": 19,
+  "managedFinal": {
+    "total": 822,
+    "passed": 822,
+    "failed": 0,
+    "skipped": 0,
+    "settlementCases": 49,
+    "allocationControls": 5
+  },
+  "editorScriptsCompile": {
+    "errors": 0,
+    "warnings": 0
+  },
+  "editorTestSourceCompile": {
+    "errors": 0,
+    "warnings": 1,
+    "existingWarning": "CS0067 MatchHudTrophyEditModeTests.cs:116 unused Closed event"
+  },
+  "playerScriptsCompile": {
+    "errors": 0,
+    "warnings": 0
+  },
+  "allNetMirrorsExact": 24,
+  "oldEditorSourceFilesUnchanged": 30,
+  "engineCasesAtThisSource": "UNRUN 64 cases (old42+new22), metadata/compilation only",
+  "executedHere": {
+    "dotnetManagedTests": true,
+    "managedCompileAgainstUnityDlls": true,
+    "UnityEditor": false,
+    "PlayMode": false,
+    "browser": false,
+    "WebBuild": false,
+    "server": false,
+    "cloud": false
+  },
+  "finalFullCommand": [
+    "/Users/nevinmckinnon/.dotnet/dotnet",
+    "test",
+    "client-unity/RoguehallaNet.Tests/RoguehallaNet.Tests.csproj",
+    "--logger",
+    "trx;LogFileName=settlement-full-sealed.trx",
+    "--results-directory",
+    "/Users/nevinmckinnon/.codex/tools/rougehalla-ui-settlement-receipt-2026-11-09/logs",
+    "-v",
+    "minimal"
+  ],
+  "profileSourcePinNote": "192-file initial final compile input inventory is preserved. The sealed inventory differs only in eight added strict JSON test attributes; the 822-case run compiled and executed them. Net/Scripts/Editor test inputs remain identical to final compile input pins.",
+  "testHistory": "Initial full809 PASS, then cancellation guard/API tests focused41 PASS, full814 PASS, then eight strict malformed JSON cases added and final full822 PASS. No failed product test run in this packet. Metadata/preparation helper errors are separately disclosed; no engine invocation or suppression.",
+  "compileReproductionCommands": [
+    "/Users/nevinmckinnon/.dotnet/dotnet build /Users/nevinmckinnon/.codex/tools/rougehalla-ui-settlement-receipt-2026-11-09/profiles/editor/Client.csproj -t:Rebuild -v minimal",
+    "/Users/nevinmckinnon/.dotnet/dotnet build /Users/nevinmckinnon/.codex/tools/rougehalla-ui-settlement-receipt-2026-11-09/profiles/editor/Tests.csproj -t:Rebuild -v minimal",
+    "/Users/nevinmckinnon/.dotnet/dotnet build /Users/nevinmckinnon/.codex/tools/rougehalla-ui-settlement-receipt-2026-11-09/profiles/player/Client.csproj -t:Rebuild -v minimal"
+  ]
+}

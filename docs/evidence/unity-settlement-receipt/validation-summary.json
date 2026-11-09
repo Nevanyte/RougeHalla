@@ -1,0 +1,307 @@
+{
+  "finalManagedCounters": {
+    "total": "822",
+    "executed": "822",
+    "passed": "822",
+    "failed": "0",
+    "error": "0",
+    "timeout": "0",
+    "aborted": "0",
+    "inconclusive": "0",
+    "passedButRunAborted": "0",
+    "notRunnable": "0",
+    "notExecuted": "0",
+    "disconnected": "0",
+    "warning": "0",
+    "completed": "0",
+    "inProgress": "0",
+    "pending": "0"
+  },
+  "settlementCases": [
+    {
+      "class": "Roguehalla.Net.Tests.AccountSettlementJsonTests",
+      "name": "InvalidOrNoncanonicalReceiptsFailClosed(\"{\\\"v\\\":1,\\\"matchId\\\":\\\"01234567-89ab-cdef-0123-456789abcdef\\\",\\\"status\\\":\\\"committed\\\",\\\"settlement\\\":{\\\"outcome\\\":\\\"won\\\",\\\"gvCredited\\\":-1}}\")",
+      "outcome": "Passed"
+    },
+    {
+      "class": "Roguehalla.Net.Tests.AccountSettlementJsonTests",
+      "name": "ReceiptShapeIsNotAcceptedAsLeaderboardAndExistingLeaderboardShapeIsNotReceipt",
+      "outcome": "Passed"
+    },
+    {
+      "class": "Roguehalla.Net.Tests.AccountSettlementJsonTests",
+      "name": "ResponseMustEchoTheRequestedMatchIdExactly",
+      "outcome": "Passed"
+    },
+    {
+      "class": "Roguehalla.Net.Tests.AccountSettlementJsonTests",
+      "name": "InvalidOrNoncanonicalReceiptsFailClosed(\"{\\\"v\\\":1,\\\"matchId\\\":\\\"01234567-89ab-cdef-0123-456789abcdef\\\",\\\"status\\\":\\\"committed\\\",\\\"settlement\\\":{\\\"outcome\\\":\\\"won\\\",\\\"outcome\\\":\\\"draw\\\",\\\"gvCredited\\\":0}}\")",
+      "outcome": "Passed"
+    },
+    {
+      "class": "Roguehalla.Net.Tests.AccountSettlementTests",
+      "name": "NetworkWelcomeBytesFormatAsCanonicalUuidWithoutGuidMixedEndian",
+      "outcome": "Passed"
+    },
+    {
+      "class": "Roguehalla.Net.Tests.AccountSettlementJsonTests",
+      "name": "InvalidOrNoncanonicalReceiptsFailClosed(\"{\\\"v\\\":1,\\\"matchId\\\":\\\"01234567-89ab-cdef-0123-456789abcdef\\\",\\\"status\\\":\\\"unknown\\\",\\\"status\\\":\\\"unknown\\\"}\")",
+      "outcome": "Passed"
+    },
+    {
+      "class": "Roguehalla.Net.Tests.AccountSettlementJsonTests",
+      "name": "InvalidOrNoncanonicalReceiptsFailClosed(\"{\\\"v\\\":1,\\\"matchId\\\":\\\"01234567-89ab-cdef-0123-456789abcdef\\\",\\\"status\\\":\\\"committed\\\",\\\"settlement\\\":{\\\"outcome\\\":\\\"won\\\",\\\"gvCredited\\\":9007199254740992}}\")",
+      "outcome": "Passed"
+    },
+    {
+      "class": "Roguehalla.Net.Tests.AccountSettlementApiTests",
+      "name": "TransportFailureDoesNotTurnIntoUnknownReceipt",
+      "outcome": "Passed"
+    },
+    {
+      "class": "Roguehalla.Net.Tests.AccountSettlementJsonTests",
+      "name": "InvalidOrNoncanonicalReceiptsFailClosed(\"{\\\"v\\\":1,\\\"matchId\\\":\\\"01234567-89ab-cdef-0123-456789abcdef\\\",\\\"status\\\":\\\"committed\\\",\\\"settlement\\\":{\\\"outcome\\\":null,\\\"gvCredited\\\":0.0}}\")",
+      "outcome": "Passed"
+    },
+    {
+      "class": "Roguehalla.Net.Tests.AccountSettlementJsonTests",
+      "name": "InvalidOrNoncanonicalReceiptsFailClosed(\"{\\\"v\\\":1,\\\"matchId\\\":\\\"01234567-89ab-cdef-0123-456789abcdef\\\",\\\"status\\\":\\\"future\\\"}\")",
+      "outcome": "Passed"
+    },
+    {
+      "class": "Roguehalla.Net.Tests.AccountSettlementJsonTests",
+      "name": "InvalidOrNoncanonicalReceiptsFailClosed(\"{\\\"v\\\":1,\\\"matchId\\\":\\\"01234567-89ab-cdef-0123-456789abcdef\\\",\\\"status\\\":\\\"committed\\\",\\\"settlement\\\":{\\\"outcome\\\":\\\"won\\\"}}\")",
+      "outcome": "Passed"
+    },
+    {
+      "class": "Roguehalla.Net.Tests.AccountSettlementApiTests",
+      "name": "ReadUsesExactOwnedGetAndReturnsTheMatchingTypedReceiptWithoutClaiming",
+      "outcome": "Passed"
+    },
+    {
+      "class": "Roguehalla.Net.Tests.AccountSettlementApiTests",
+      "name": "WrongReceiptIdIsUnreadableNotUnknown",
+      "outcome": "Passed"
+    },
+    {
+      "class": "Roguehalla.Net.Tests.AccountSettlementTests",
+      "name": "FormatterRejectsAnythingOtherThanSixteenRawBytes",
+      "outcome": "Passed"
+    },
+    {
+      "class": "Roguehalla.Net.Tests.AccountSettlementJsonTests",
+      "name": "InvalidOrNoncanonicalReceiptsFailClosed(\"{\\\"v\\\":1,\\\"matchId\\\":\\\"01234567-89ab-cdef-0123-456789abcdef\\\",\\\"status\\\":\\\"committed\\\",\\\"settlement\\\":{\\\"outcome\\\":0,\\\"gvCredited\\\":0}}\")",
+      "outcome": "Passed"
+    },
+    {
+      "class": "Roguehalla.Net.Tests.AccountSettlementJsonTests",
+      "name": "InvalidOrNoncanonicalReceiptsFailClosed(\"{\\\"v\\\":1,\\\"matchId\\\":\\\"01234567-89ab-cdef-0123-456789abcdef\\\",\\\"status\\\":\\\"unknown\\\",\\\"future\\\":0}\")",
+      "outcome": "Passed"
+    },
+    {
+      "class": "Roguehalla.Net.Tests.AccountSettlementJsonTests",
+      "name": "InvalidOrNoncanonicalReceiptsFailClosed(\"{\\\"v\\\":1,\\\"v\\\":1,\\\"matchId\\\":\\\"01234567-89ab-cdef-0123-456789abcdef\\\",\\\"status\\\":\\\"unknown\\\"}\")",
+      "outcome": "Passed"
+    },
+    {
+      "class": "Roguehalla.Net.Tests.AccountSettlementJsonTests",
+      "name": "InvalidOrNoncanonicalReceiptsFailClosed(\"{\\\"v\\\":1,\\\"matchId\\\":\\\"01234567-89ab-cdef-0123-456789abcdef\\\",\\\"status\\\":\\\"committed\\\"}\")",
+      "outcome": "Passed"
+    },
+    {
+      "class": "Roguehalla.Net.Tests.AccountSettlementApiTests",
+      "name": "SameNameReopenInvalidatesOldAccessAndResponse",
+      "outcome": "Passed"
+    },
+    {
+      "class": "Roguehalla.Net.Tests.AccountSettlementTests",
+      "name": "CanonicalValidatorRequiresLowercaseHyphenatedUuid(\"000102030405060708090a0b0c0d0e0f\")",
+      "outcome": "Passed"
+    },
+    {
+      "class": "Roguehalla.Net.Tests.AccountSettlementTests",
+      "name": "CanonicalValidatorRequiresLowercaseHyphenatedUuid(\"00010203-04050607-0809-0a0b0c0d0e0f\")",
+      "outcome": "Passed"
+    },
+    {
+      "class": "Roguehalla.Net.Tests.AccountSettlementJsonTests",
+      "name": "UnknownReceiptIsDistinctAndHasNoSettlementPayload",
+      "outcome": "Passed"
+    },
+    {
+      "class": "Roguehalla.Net.Tests.AccountSettlementTests",
+      "name": "FormatterPreservesAllZeroAndAllOneBitsWithoutUuidVariantRules",
+      "outcome": "Passed"
+    },
+    {
+      "class": "Roguehalla.Net.Tests.AccountSettlementTests",
+      "name": "UnknownAndCommittedVoidAreDistinctAndCreditIsTyped",
+      "outcome": "Passed"
+    },
+    {
+      "class": "Roguehalla.Net.Tests.AccountSettlementTests",
+      "name": "CanonicalValidatorRequiresLowercaseHyphenatedUuid(\"00010203-0405-0607-0809-0a0b0c0d0efg\")",
+      "outcome": "Passed"
+    },
+    {
+      "class": "Roguehalla.Net.Tests.AccountSettlementJsonTests",
+      "name": "InvalidOrNoncanonicalReceiptsFailClosed(\"{\\\"v\\\":1,\\\"matchId\\\":\\\"01234567-89ab-cdef-0123-456789ABCDEF\\\",\\\"status\\\":\\\"unknown\\\"}\")",
+      "outcome": "Passed"
+    },
+    {
+      "class": "Roguehalla.Net.Tests.AccountSettlementJsonTests",
+      "name": "CommittedReceiptPreservesOutcomeAndSafeCredit(\"died\",9007199254740991L)",
+      "outcome": "Passed"
+    },
+    {
+      "class": "Roguehalla.Net.Tests.AccountSettlementJsonTests",
+      "name": "InvalidOrNoncanonicalReceiptsFailClosed(\"{\\\"v\\\":1,\\\"matchId\\\":\\\"01234567-89ab-cdef-0123-456789abcdef\\\",\\\"status\\\":\\\"committed\\\",\\\"settlement\\\":{\\\"gvCredited\\\":0}}\")",
+      "outcome": "Passed"
+    },
+    {
+      "class": "Roguehalla.Net.Tests.AccountSettlementJsonTests",
+      "name": "InvalidOrNoncanonicalReceiptsFailClosed(\"{\\\"v\\\":1,\\\"matchId\\\":\\\"01234567-89ab-cdef-0123-456789abcdef\\\",\\\"status\\\":\\\"committed\\\",\\\"settlement\\\":{\\\"outcome\\\":\\\"Won\\\",\\\"gvCredited\\\":0}}\")",
+      "outcome": "Passed"
+    },
+    {
+      "class": "Roguehalla.Net.Tests.AccountSettlementTests",
+      "name": "InvalidReceiptCombinationsFailClosed",
+      "outcome": "Passed"
+    },
+    {
+      "class": "Roguehalla.Net.Tests.AccountSettlementApiTests",
+      "name": "UnknownReceiptRemainsUnknownAndInvalidInputsNeverSend",
+      "outcome": "Passed"
+    },
+    {
+      "class": "Roguehalla.Net.Tests.AccountSettlementJsonTests",
+      "name": "InvalidOrNoncanonicalReceiptsFailClosed(\"{\\\"v\\\":\\\"1\\\",\\\"matchId\\\":\\\"01234567-89ab-cdef-0123-456789abcdef\\\",\\\"status\\\":\\\"unknown\\\"}\")",
+      "outcome": "Passed"
+    },
+    {
+      "class": "Roguehalla.Net.Tests.AccountSettlementApiTests",
+      "name": "CancellationAfterDispatchCannotPublishAReceipt",
+      "outcome": "Passed"
+    },
+    {
+      "class": "Roguehalla.Net.Tests.AccountSettlementApiTests",
+      "name": "StaleNetworkErrorsAreOwnerFencedToo",
+      "outcome": "Passed"
+    },
+    {
+      "class": "Roguehalla.Net.Tests.AccountSettlementJsonTests",
+      "name": "InvalidOrNoncanonicalReceiptsFailClosed(\"{\\\"v\\\":1,\\\"matchId\\\":\\\"01234567-89ab-cdef-0123-456789abcdef\\\",\\\"status\\\":\\\"unknown\\\",\\\"settlement\\\":{}}\")",
+      "outcome": "Passed"
+    },
+    {
+      "class": "Roguehalla.Net.Tests.AccountSettlementJsonTests",
+      "name": "CommittedReceiptPreservesOutcomeAndSafeCredit(\"won\",0)",
+      "outcome": "Passed"
+    },
+    {
+      "class": "Roguehalla.Net.Tests.AccountSettlementApiTests",
+      "name": "ReceiptAccessIsOpaqueServiceBoundAndRequiresTheCurrentAcceptedIntent",
+      "outcome": "Passed"
+    },
+    {
+      "class": "Roguehalla.Net.Tests.AccountSettlementJsonTests",
+      "name": "InvalidOrNoncanonicalReceiptsFailClosed(\"{\\\"v\\\":1,\\\"matchId\\\":\\\"01234567-89ab-cdef-0123-456789abcdef\\\",\\\"status\\\":\\\"committed\\\",\\\"settlement\\\":{\\\"outcome\\\":null,\\\"gvCredited\\\":\\\"0\\\"}}\")",
+      "outcome": "Passed"
+    },
+    {
+      "class": "Roguehalla.Net.Tests.AccountSettlementJsonTests",
+      "name": "InvalidOrNoncanonicalReceiptsFailClosed(\"{\\\"v\\\":1,\\\"matchId\\\":\\\"01234567-89ab-cdef-0123-456789abcdef\\\",\\\"status\\\":\\\"committed\\\",\\\"settlement\\\":{\\\"outcome\\\":null,\\\"gvCredited\\\":0,\\\"future\\\":1}}\")",
+      "outcome": "Passed"
+    },
+    {
+      "class": "Roguehalla.Net.Tests.AccountSettlementJsonTests",
+      "name": "CommittedReceiptPreservesOutcomeAndSafeCredit(\"draw\",47)",
+      "outcome": "Passed"
+    },
+    {
+      "class": "Roguehalla.Net.Tests.AccountSettlementJsonTests",
+      "name": "CommittedReceiptPreservesOutcomeAndSafeCredit(\"mia\",3)",
+      "outcome": "Passed"
+    },
+    {
+      "class": "Roguehalla.Net.Tests.AccountSettlementJsonTests",
+      "name": "InvalidOrNoncanonicalReceiptsFailClosed(\"{\\\"v\\\":1.0,\\\"matchId\\\":\\\"01234567-89ab-cdef-0123-456789abcdef\\\",\\\"status\\\":\\\"unknown\\\"}\")",
+      "outcome": "Passed"
+    },
+    {
+      "class": "Roguehalla.Net.Tests.AccountSettlementApiTests",
+      "name": "AlreadyCancelledReadAndForeignServiceAccessNeverSend",
+      "outcome": "Passed"
+    },
+    {
+      "class": "Roguehalla.Net.Tests.AccountSettlementJsonTests",
+      "name": "InvalidOrNoncanonicalReceiptsFailClosed(\"{\\\"matchId\\\":\\\"01234567-89ab-cdef-0123-456789abcdef\\\",\\\"status\\\":\\\"unknown\\\"}\")",
+      "outcome": "Passed"
+    },
+    {
+      "class": "Roguehalla.Net.Tests.AccountSettlementJsonTests",
+      "name": "ExplicitNullOutcomeIsAValidCommittedVoid",
+      "outcome": "Passed"
+    },
+    {
+      "class": "Roguehalla.Net.Tests.AccountSettlementJsonTests",
+      "name": "InvalidOrNoncanonicalReceiptsFailClosed(\"{\\\"v\\\":1,\\\"matchId\\\":\\\"01234567-89ab-cdef-0123-456789abcdef\\\",\\\"status\\\":\\\"committed\\\",\\\"settlement\\\":null}\")",
+      "outcome": "Passed"
+    },
+    {
+      "class": "Roguehalla.Net.Tests.AccountSettlementTests",
+      "name": "CanonicalValidatorRequiresLowercaseHyphenatedUuid(\"00010203-0405-0607-0809-0A0B0C0D0E0F\")",
+      "outcome": "Passed"
+    },
+    {
+      "class": "Roguehalla.Net.Tests.AccountSettlementApiTests",
+      "name": "OwnerGenerationChangeFencesLateSuccessAsWellAsLateError",
+      "outcome": "Passed"
+    },
+    {
+      "class": "Roguehalla.Net.Tests.AccountSettlementJsonTests",
+      "name": "InvalidOrNoncanonicalReceiptsFailClosed(\"{\\\"v\\\":2,\\\"matchId\\\":\\\"01234567-89ab-cdef-0123-456789abcdef\\\",\\\"status\\\":\\\"unknown\\\"}\")",
+      "outcome": "Passed"
+    }
+  ],
+  "allocationControls": [
+    {
+      "class": "Roguehalla.Net.Tests.AllocationMeasurementTests",
+      "name": "EmptyMeasuredBodyAllocatesExactlyZero",
+      "outcome": "Passed"
+    },
+    {
+      "class": "Roguehalla.Net.Tests.AllocationMeasurementTests",
+      "name": "OneObjectAtTheFirstMeasuredIndexIsNotDiscarded",
+      "outcome": "Passed"
+    },
+    {
+      "class": "Roguehalla.Net.Tests.AllocationMeasurementTests",
+      "name": "OneObjectEveryCallExceedsTheUnchangedZeroBudget",
+      "outcome": "Passed"
+    },
+    {
+      "class": "Roguehalla.Net.Tests.AllocationMeasurementTests",
+      "name": "WarmupAndMeasurementUseOneDedicatedWorkerWithoutCallerContext",
+      "outcome": "Passed"
+    },
+    {
+      "class": "Roguehalla.Net.Tests.AllocationMeasurementTests",
+      "name": "MeasuredBodyExceptionReachesTheCallerUnchanged",
+      "outcome": "Passed"
+    }
+  ],
+  "nativeCases": {
+    "previousGate": {
+      "source": "0aeddc5b4ce0feb5fc0060f2cf2d56c05dff8944",
+      "evidenceCommit": "854a08f1d622e931eff40eba40ba3820cbe040da",
+      "passed": 42
+    },
+    "thisSource": {
+      "preservedCases": 42,
+      "newCases": 22,
+      "totalMetadataCases": 64,
+      "status": "UNRUN"
+    }
+  }
+}

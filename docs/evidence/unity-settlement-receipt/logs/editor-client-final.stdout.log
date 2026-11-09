@@ -1,0 +1,10 @@
+/Users/nevinmckinnon/.dotnet/dotnet build /Users/nevinmckinnon/.codex/tools/rougehalla-ui-settlement-receipt-2026-11-09/profiles/editor/Client.csproj -t:Rebuild -v minimal
+  Determining projects to restore...
+  Restored /Users/nevinmckinnon/.codex/tools/rougehalla-ui-settlement-receipt-2026-11-09/profiles/editor/Client.csproj (in 22 ms).
+  Client -> /Users/nevinmckinnon/.codex/tools/rougehalla-ui-settlement-receipt-2026-11-09/profiles/editor/bin/Debug/netstandard2.1/Roguehalla.Client.dll
+
+Build succeeded.
+    0 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:00.87
