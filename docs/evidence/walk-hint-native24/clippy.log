@@ -1,0 +1,4 @@
+=== scoped clippy
+    Checking rh-sim v0.1.0 (/Users/nevinmckinnon/.codex/worktrees/deepseek-rust-completion/p-pack-leader/crates/rh-sim)
+    Finished `dev` profile [unoptimized] target(s) in 18.51s
+EXIT=0
