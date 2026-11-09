@@ -88,14 +88,16 @@ function projectMessages(messages, inner14Hex) {
     }
     if (message.t === 'events') {
       cueOccurrences += message.events.length;
-      cueBatches.push({kind:'events',tick:message.tick,count:message.events.length,hex:inner14Hex[index]});
-      return {kind:'events',tick:message.tick,count:message.events.length};
+      const projected = {kind:'events',tick:message.tick,count:message.events.length,hex:inner14Hex[index]};
+      cueBatches.push(projected);
+      return projected;
     }
     if (message.t === 'fx') {
       cueOccurrences += message.fx.length;
-      cueBatches.push({kind:'fx',tick:message.tick,count:message.fx.length,hex:inner14Hex[index]});
       const names = {castStarted:'wishStarted',castLanded:'wishLanded',castEnded:'wishEnded'};
-      return {kind:'fx',tick:message.tick,count:message.fx.length,kinds:message.fx.map(fx => names[fx.k] ?? fx.k)};
+      const projected = {kind:'fx',tick:message.tick,count:message.fx.length,kinds:message.fx.map(fx => names[fx.k] ?? fx.k),hex:inner14Hex[index]};
+      cueBatches.push(projected);
+      return projected;
     }
     throw new Error(`unexpected full-scene message role ${message.t}`);
   });
