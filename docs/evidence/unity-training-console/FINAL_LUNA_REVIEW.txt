@@ -1,0 +1,4 @@
+Read-only final source/API review by legacy_world_inventory (Luna).
+Final TrainingConsoleView SHA matched54fc30f34bfd04040bb310ce2ad90ae869821ecdbd7374d4be16825b6e23e4906.
+No actionable source defect found. git apply --check passed; integration proposal remains unapplied.
+Focus opening/closing, same-Session launch confirmation, stale callback fences and input ownership reviewed at source level. No Unity execution or native interaction claim.

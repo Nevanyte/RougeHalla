@@ -1,0 +1,288 @@
+{
+  "schema": 1,
+  "sourceCommit": "8a92e14a61e39948582f3d2c77b88cf9831bc5e6",
+  "base": "3126e5c3209334c637d1f067f3f0b8209dbf06f4",
+  "payloadFiles": 56,
+  "files": [
+    {
+      "path": "FINAL_LUNA_REVIEW.txt",
+      "bytes": 446,
+      "sha256": "3fbeb226e95fab47edbeb940538f672e2aa0a043b9e3992a3948a48bfea60347"
+    },
+    {
+      "path": "FINAL_SOURCE_CHECKS.json",
+      "bytes": 1230,
+      "sha256": "f7ac2f390d92f7a6cdca2da177fd034c37d5440f670694dd78029f38e02b896e"
+    },
+    {
+      "path": "HANDOFF.json",
+      "bytes": 3521,
+      "sha256": "068c4a9f0baa1a54919a79285bc7030ab5a2887cf33a4a214407d2ec797e95a7"
+    },
+    {
+      "path": "README.md",
+      "bytes": 3355,
+      "sha256": "a95efb794634fc8901f493d3d0d7e1bdbfcb3b67114768e6f7faa6fd326b102f"
+    },
+    {
+      "path": "SEAL_DIFF_CHECK.json",
+      "bytes": 6664,
+      "sha256": "ac013c31b51eb41f6507787413b11f69c8d795c6f24b8213305fdf1e6bf34064"
+    },
+    {
+      "path": "SOURCE_MANIFEST.json",
+      "bytes": 3037,
+      "sha256": "3dcf7bbf5186e3b0a723e59fec455c72e4f7d56abc9d25cddfb50dc875630341"
+    },
+    {
+      "path": "compile/COMPILE_RECEIPT.json",
+      "bytes": 121700,
+      "sha256": "b5abc66ac5327c00a1e3edd18a9ca107c7e7abb2f7ff62f9d9a0c02c97b89f18"
+    },
+    {
+      "path": "compile/Editor/Roguehalla.Client.rsp",
+      "bytes": 48499,
+      "sha256": "50e34449a03aa67b9b108d0ac7849b31e2e53ae5f012c00e75f14f332c4d2cbd"
+    },
+    {
+      "path": "compile/Editor/Roguehalla.Client.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "compile/Editor/Roguehalla.Client.stdout.txt",
+      "bytes": 25713,
+      "sha256": "b29924e173990986701026c026a96391a5b2a79405888b3879155fe886a67b23"
+    },
+    {
+      "path": "compile/Editor/RoguehallaNet.rsp",
+      "bytes": 26839,
+      "sha256": "06a66438d9d5141632a1d1b95e03962f95816d62e49413b24fa1d86ecf55fab8"
+    },
+    {
+      "path": "compile/Editor/RoguehallaNet.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "compile/Editor/RoguehallaNet.stdout.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "compile-asmdef-scoped/COMPILE_RECEIPT.json",
+      "bytes": 255138,
+      "sha256": "8d1dceb471f9c90ea1f87ee1c894a0438e7bb0d0818fd67340902001a110a38a"
+    },
+    {
+      "path": "compile-asmdef-scoped/Editor/Roguehalla.Client.EditModeTests.rsp",
+      "bytes": 44029,
+      "sha256": "048921b4453330511b7063479d65388314868e6153a5fb050cf7bff1b72943af"
+    },
+    {
+      "path": "compile-asmdef-scoped/Editor/Roguehalla.Client.EditModeTests.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "compile-asmdef-scoped/Editor/Roguehalla.Client.EditModeTests.stdout.txt",
+      "bytes": 177,
+      "sha256": "9ea5709e489cb81fd41e5ecd3ca7a65c245b3cabe1a061e7088f4471c3d678a1"
+    },
+    {
+      "path": "compile-asmdef-scoped/Editor/Roguehalla.Editor.rsp",
+      "bytes": 42352,
+      "sha256": "b216e09bb97bc4416e75e8bb68ccc2c780319da409fa32945fc062a3abd096cd"
+    },
+    {
+      "path": "compile-asmdef-scoped/Editor/Roguehalla.Editor.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "compile-asmdef-scoped/Editor/Roguehalla.Editor.stdout.txt",
+      "bytes": 5383,
+      "sha256": "336abafb37c3d18e46728a39fcfa2aeaf42b5be38e5ebce3e1e10190552f6583"
+    },
+    {
+      "path": "compile-asmdef-scoped/Player/Roguehalla.Client.rsp",
+      "bytes": 40824,
+      "sha256": "1b99e13c9288b915a4376e00843c9a741fe72ace4fe4eb063c6e7c433b36a279"
+    },
+    {
+      "path": "compile-asmdef-scoped/Player/Roguehalla.Client.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "compile-asmdef-scoped/Player/Roguehalla.Client.stdout.txt",
+      "bytes": 7947,
+      "sha256": "e5e89933d203997e808d8f9c98182939b5c390057fab803985fb4e45351d5c8d"
+    },
+    {
+      "path": "compile-asmdef-scoped/Player/RoguehallaNet.rsp",
+      "bytes": 25175,
+      "sha256": "c89fe6db0dc84e34888efba7eef8609a5935198ebd8f46f552ef3aa8ad9ef777"
+    },
+    {
+      "path": "compile-asmdef-scoped/Player/RoguehallaNet.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "compile-asmdef-scoped/Player/RoguehallaNet.stdout.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "compile-unity-csc/COMPILE_RECEIPT.json",
+      "bytes": 196248,
+      "sha256": "2d4b83f214401a524c37c401155e04d7a2b53e5d053ee8246a7823336a58f15d"
+    },
+    {
+      "path": "compile-unity-csc/Editor/Roguehalla.Client.rsp",
+      "bytes": 48519,
+      "sha256": "587a1957ddd6dc3985ff775bb99d867cf1170d589b01236296d4bd4a11db260d"
+    },
+    {
+      "path": "compile-unity-csc/Editor/Roguehalla.Client.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "compile-unity-csc/Editor/Roguehalla.Client.stdout.txt",
+      "bytes": 7947,
+      "sha256": "9faa8ab442e47374205cbf0a2e3f8ba28bd8e47a05a53bd7a31a80bec8723692"
+    },
+    {
+      "path": "compile-unity-csc/Editor/Roguehalla.Editor.rsp",
+      "bytes": 42493,
+      "sha256": "d2700e27c06af4a664ca5394e3d56cddca6e2e781f1ab617721b190875f68b0f"
+    },
+    {
+      "path": "compile-unity-csc/Editor/Roguehalla.Editor.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "compile-unity-csc/Editor/Roguehalla.Editor.stdout.txt",
+      "bytes": 618,
+      "sha256": "758cf5ce9e7c6ccb0b3d2e1690d68d250894a342f1655486ccfe47678d1251a3"
+    },
+    {
+      "path": "compile-unity-csc/Editor/RoguehallaNet.rsp",
+      "bytes": 26849,
+      "sha256": "71f382fe8bc2dac7ee5706e6fa8b243623e55a1e077bb06fa25e1ff24595681b"
+    },
+    {
+      "path": "compile-unity-csc/Editor/RoguehallaNet.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "compile-unity-csc/Editor/RoguehallaNet.stdout.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "final-focus-compile/COMPILE_RECEIPT.json",
+      "bytes": 218749,
+      "sha256": "6568746afea14ce133ff39061ef4a7424766fdcf72caeb51a4a5a4d04765b3ec"
+    },
+    {
+      "path": "final-focus-compile/Editor/Roguehalla.Client.EditModeTests.rsp",
+      "bytes": 44025,
+      "sha256": "013dbc9c1fad2b664f51e049a61488a6d47e6732d78f86d08e4feab556aa666d"
+    },
+    {
+      "path": "final-focus-compile/Editor/Roguehalla.Client.EditModeTests.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "final-focus-compile/Editor/Roguehalla.Client.EditModeTests.stdout.txt",
+      "bytes": 177,
+      "sha256": "9ea5709e489cb81fd41e5ecd3ca7a65c245b3cabe1a061e7088f4471c3d678a1"
+    },
+    {
+      "path": "final-focus-compile/Editor/Roguehalla.Client.rsp",
+      "bytes": 48521,
+      "sha256": "d5ba73e264066056faddad508fbad1111beb26ee242b86b0b4fd2e73686d2e2e"
+    },
+    {
+      "path": "final-focus-compile/Editor/Roguehalla.Client.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "final-focus-compile/Editor/Roguehalla.Client.stdout.txt",
+      "bytes": 7947,
+      "sha256": "f56fbc17bb6e2e42cec2cd9969cb66b7d69bd6effded55f6844961746cf71900"
+    },
+    {
+      "path": "final-focus-compile/Player/Roguehalla.Client.rsp",
+      "bytes": 40822,
+      "sha256": "2032049cf4d42b562d61d02e4435023d5aff50dd57a764680c4bed43e28f31d6"
+    },
+    {
+      "path": "final-focus-compile/Player/Roguehalla.Client.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "final-focus-compile/Player/Roguehalla.Client.stdout.txt",
+      "bytes": 7947,
+      "sha256": "948a840b41056155a8e2c6df59def3cc7f381bd1ded4720c5288823e94b69ca9"
+    },
+    {
+      "path": "net-tests/net-tests-first.trx",
+      "bytes": 1088888,
+      "sha256": "4c0f7cfa6332d279472f68edc283026d67b019afeb553e3fd7895873890bc636"
+    },
+    {
+      "path": "net-tests-first.stderr.txt",
+      "bytes": 33,
+      "sha256": "8f39aa19cb72ef57a4ecc4086305bdbbe513b96dada6111a662cdec9140508cf"
+    },
+    {
+      "path": "net-tests-first.stdout.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "net-tests-invocation2.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "net-tests-invocation2.stdout.txt",
+      "bytes": 1676,
+      "sha256": "3c849c8cc354a5f55fb29e91ed0f3b2de0515c556cb43dcbbb6737143fc29717"
+    },
+    {
+      "path": "protected-source.json",
+      "bytes": 3698,
+      "sha256": "d94379aee08e3dcbb92eaef4355df9966eae733f004702ad94c930550412e431"
+    },
+    {
+      "path": "recorded-harnesses/compile_remaining_asmdef_scoped.py",
+      "bytes": 4288,
+      "sha256": "eca014dcd8a8719a4ec9fb21325a55819846c56147f16277cec62d5259c4f2cc"
+    },
+    {
+      "path": "recorded-harnesses/compile_sources.py",
+      "bytes": 3791,
+      "sha256": "882dc3af46be929c75435a7ff9589fc122e907f6a0b3603e6a6749e7e31a9bfd"
+    },
+    {
+      "path": "recorded-harnesses/compile_sources_unity_csc.py",
+      "bytes": 3783,
+      "sha256": "f9947392946fb5c390d426c75cd3bc733cc554c32ff3e8d61e5e129010af723e"
+    },
+    {
+      "path": "recorded-harnesses/propose_integration.py",
+      "bytes": 3630,
+      "sha256": "b5671a0f1198985d1fc4837600d21f334798afa0e14a93b95e97665aaed1f90b"
+    }
+  ]
+}
