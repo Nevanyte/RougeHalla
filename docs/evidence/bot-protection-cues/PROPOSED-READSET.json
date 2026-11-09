@@ -1,73 +1,205 @@
 {
-  "format": "rh-p15-protection-cues-readset/1",
-  "branch": "deepseek/protection-cues-source",
-  "base": "bb564d3b53728cbd205af375b5342eca466f3656",
-  "scope": [
-    "tools/bot-protection-cues-fixtures/**",
-    "parity/policy/bot-protection-cues/**",
-    "docs/evidence/bot-protection-cues/**"
-  ],
+  "format": "rh-p15-protection-cues-readset/2",
+  "branch": "codex/protection-cues-reviewed",
+  "sourceBase": "bb564d3b53728cbd205af375b5342eca466f3656",
+  "historicalCodeParent": "9cf22111d71945da6a4deddc691b6bc6894e6614",
+  "status": "CODE_ONLY_UNRUN",
   "fixtureSources": {
-    "tools/bot-protection-cues-fixtures/scenario.mts": "b7729a09d99f2a52b0c93e96e0f2f5c7ee931754088c2d9aae4c33d7df75c1b1",
-    "tools/bot-protection-cues-fixtures/build.mjs": "471fd3c233eeccf73d2605832b27d020a90cb8d9364d30a3f0ae630ebbe6a193",
-    "tools/bot-protection-cues-fixtures/runtime.mjs": "ffd1a669276e3221e36b3cc9ec9d7d9fc0eeab6d30fbac9c93b59f00d6d07bcc",
-    "tools/bot-protection-cues-fixtures/verify.mjs": "07dc7fa8b016e338fbb52c9984aa5ab3455efd763c2b1164f30dae97941f9f95",
-    "tools/bot-protection-cues-fixtures/controls.mjs": "72e6671f531e455e405e669d92e6f292a0e39b3623c2f0da030ceb92e32c841e"
-  },
-  "mapInput": {
-    "path": "tools/ability-fixtures/born-input.json",
-    "bytes": 7510,
-    "sha256": "5ee388ca61234bae0e7dc04adca00702fbc6199f048487490fcbca25b2cffb16"
-  },
-  "criticalSource": {
-    "packages/server/src/sim/arena.ts": "f8395e83f1f7f81d91bbc51d8fdec4e025f95d299c42f7229250be908341191a",
-    "packages/server/src/sim/weapons.ts": "581ba4cf9ae93af5d3753cbb3cdf6b823bfaf730448edab7669e6c6d84c86f26",
-    "packages/server/src/sim/targeting.ts": "13125287cec7cd39f550af50e1d18c15d3146357f249cfe3beeb9e00a334f0fd",
-    "packages/server/src/sim/step.ts": "5ff90451b4b27b12ddfe8175745cf38892eaf07a851282c904076edc46896634",
-    "packages/server/src/sim/inputs.ts": "47bda82b978e67922c9d2361bfcd51be4555a55691453a4e0393deb917be4cde",
-    "packages/server/src/sim/gameplay.ts": "70f6f2b67571783f3042309bef01dc75aabd2656c59a184d0f97c9c0a8b8cf78",
-    "packages/server/src/sim/world.ts": "b98376a7f022ec6f9b681e368d62c18fbe524d95408b2d4eec93909934454d54",
-    "packages/server/src/sim/combatant.ts": "3c2fac6ed6fbee82802c5bea86b0131d36e8ebf86eceb2c1a99ce58664fa7e60",
-    "packages/server/src/bots/brain/perception.ts": "059dba28d67a588be8b9f491cd69a242e841545a3b1863ce798da2e3f085390a",
-    "packages/server/src/bots/brain/memory.ts": "29c2086be936ec867ddec97c2e4442b86acdbf1255e55de001e73892f7b128a8",
-    "packages/server/src/bots/brain/vision.ts": "e4418c5bbd8e9d8e3c21e3b1b9b8f677c947d178f812c9d634934c6c8c92f34c",
-    "packages/server/src/bots/brain/frames.ts": "aa8fcb62e8039d37d3c9f6cb000687fbfea61e12ab50805dfe45dae06119d6c6",
-    "packages/server/src/rooms/FxChannel.ts": "14dcbc44ae20f8e882846bb9231a842e2369d4c7a6c0d2c15e659a76c85e8776",
-    "packages/shared/src/schema.ts": "245486da649ea5bc5d8b9b0d5d75f3e860fc8f153574fa2b9ee091dcb52e99cb",
-    "packages/shared/src/constants.ts": "51ce4dd800ec868abee525fb1ae375688066f336972a7da878644df1235924e7",
-    "packages/shared/src/interp.ts": "83cf2ac2359058b1e0497e636f83e36b1d60c97e13f81e15e6edf39d8f231eb4",
-    "packages/shared/src/mods.ts": "10e9dcd3d7417c4fe85d1c36ef33afe5abf7a5703a59b42a3a825a66aa4efaff"
-  },
-  "toolPins": {
-    "hostNode": {
-      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/map-styled-bench/npm-cache/_npx/361c55be1121897e/node_modules/node/bin/node",
-      "sha256": "2cc28a1880d0774616959f2210ee739bffa6ac695c887e8988a496a21271f6c0",
-      "version": "22.23.4"
+    "tools/bot-protection-cues-fixtures/scenario.mts": {
+      "bytes": 24085,
+      "sha256": "d054bcfec6ccf513c5e238b2c9c7eb4f4313bf06707236ef3da2da6d07243c39"
     },
-    "esbuildMain": {
-      "path": "/Users/nevinmckinnon/Documents/Projects/RogueHalla/node_modules/esbuild/lib/main.js",
-      "sha256": "61ec0ba144ff93f4bf0e96ad6fab6f430ede0aa13e27ace8063ed63ba416b3cd",
-      "version": "0.28.2"
+    "tools/bot-protection-cues-fixtures/build.mjs": {
+      "bytes": 24607,
+      "sha256": "3d10dbcaa2315a09f24cc583315f9b6572dfe0950edb78563cc41ef2fe8ffe17"
     },
-    "esbuildBinary": {
-      "path": "/Users/nevinmckinnon/Documents/Projects/RogueHalla/node_modules/@esbuild/darwin-arm64/bin/esbuild",
-      "sha256": "10b6243df618d374bb2d5c9cfbe7052e1405f6aa4e53a6164f11a91b9f2e1384"
+    "tools/bot-protection-cues-fixtures/runtime.mjs": {
+      "bytes": 16994,
+      "sha256": "730bc3f6276ff9ca497876f7810bf31d7d6985c0046560eb518583765be5d303"
     },
-    "schema": {
-      "path": "/Users/nevinmckinnon/Documents/Projects/RogueHalla/node_modules/@colyseus/schema/build/index.mjs",
-      "sha256": "c5d2c222121377565fda9799c7e1b852c70a21877136498add79795f2055face",
-      "version": "5.0.42"
+    "tools/bot-protection-cues-fixtures/verify.mjs": {
+      "bytes": 33741,
+      "sha256": "10188528d712c8000000db548caa2388c74c56c03d5bb7f9af4a6b996853e935"
     },
-    "image": {
-      "reference": "node@sha256:aaa4b5baf1ecff3b283486bb1f90405cdda225a3e6f79660d2c559fa510a7292",
-      "platform": "linux/amd64",
-      "runtime": "Node v22.23.4 linux/x64"
+    "tools/bot-protection-cues-fixtures/controls.mjs": {
+      "bytes": 3441,
+      "sha256": "a27967aef45638c64d2873063d66669f5724abf869d51e328c511a15b4ef837c"
     }
   },
+  "selectedSource": {
+    "packages/server/src/sim/arena.ts": {
+      "bytes": 29450,
+      "sha256": "f8395e83f1f7f81d91bbc51d8fdec4e025f95d299c42f7229250be908341191a"
+    },
+    "packages/server/src/sim/weapons.ts": {
+      "bytes": 17776,
+      "sha256": "581ba4cf9ae93af5d3753cbb3cdf6b823bfaf730448edab7669e6c6d84c86f26"
+    },
+    "packages/server/src/sim/step.ts": {
+      "bytes": 14822,
+      "sha256": "5ff90451b4b27b12ddfe8175745cf38892eaf07a851282c904076edc46896634"
+    },
+    "packages/server/src/sim/targeting.ts": {
+      "bytes": 10392,
+      "sha256": "13125287cec7cd39f550af50e1d18c15d3146357f249cfe3beeb9e00a334f0fd"
+    },
+    "packages/server/src/sim/inputs.ts": {
+      "bytes": 15914,
+      "sha256": "47bda82b978e67922c9d2361bfcd51be4555a55691453a4e0393deb917be4cde"
+    },
+    "packages/server/src/sim/gameplay.ts": {
+      "bytes": 5104,
+      "sha256": "70f6f2b67571783f3042309bef01dc75aabd2656c59a184d0f97c9c0a8b8cf78"
+    },
+    "packages/server/src/sim/world.ts": {
+      "bytes": 58199,
+      "sha256": "b98376a7f022ec6f9b681e368d62c18fbe524d95408b2d4eec93909934454d54"
+    },
+    "packages/server/src/sim/combatant.ts": {
+      "bytes": 9454,
+      "sha256": "3c2fac6ed6fbee82802c5bea86b0131d36e8ebf86eceb2c1a99ce58664fa7e60"
+    },
+    "packages/server/src/sim/ledger.ts": {
+      "bytes": 24320,
+      "sha256": "cc73151c50c43f65a85fc922050b2ea6a34973794ec893c7b7d51d657a4e6437"
+    },
+    "packages/server/src/sim/status.ts": {
+      "bytes": 17222,
+      "sha256": "55bc525be1ac832f04b0f134cee6769b0b99f4d45ce182ec7db9d3670ba35642"
+    },
+    "packages/server/src/bots/brain/perception.ts": {
+      "bytes": 36755,
+      "sha256": "059dba28d67a588be8b9f491cd69a242e841545a3b1863ce798da2e3f085390a"
+    },
+    "packages/server/src/bots/brain/memory.ts": {
+      "bytes": 35038,
+      "sha256": "29c2086be936ec867ddec97c2e4442b86acdbf1255e55de001e73892f7b128a8"
+    },
+    "packages/server/src/bots/brain/vision.ts": {
+      "bytes": 4865,
+      "sha256": "e4418c5bbd8e9d8e3c21e3b1b9b8f677c947d178f812c9d634934c6c8c92f34c"
+    },
+    "packages/server/src/bots/brain/frames.ts": {
+      "bytes": 20904,
+      "sha256": "aa8fcb62e8039d37d3c9f6cb000687fbfea61e12ab50805dfe45dae06119d6c6"
+    },
+    "packages/server/src/bots/brain/types.ts": {
+      "bytes": 57792,
+      "sha256": "12b3cae05bcde760cd642b9c5eb9919bfc47189882c81258994c9f1122d3d361"
+    },
+    "packages/server/src/rooms/FxChannel.ts": {
+      "bytes": 5438,
+      "sha256": "14dcbc44ae20f8e882846bb9231a842e2369d4c7a6c0d2c15e659a76c85e8776"
+    },
+    "packages/shared/src/schema.ts": {
+      "bytes": 21469,
+      "sha256": "245486da649ea5bc5d8b9b0d5d75f3e860fc8f153574fa2b9ee091dcb52e99cb"
+    },
+    "packages/shared/src/constants.ts": {
+      "bytes": 46007,
+      "sha256": "51ce4dd800ec868abee525fb1ae375688066f336972a7da878644df1235924e7"
+    },
+    "packages/shared/src/fxCodec.ts": {
+      "bytes": 24844,
+      "sha256": "db2080230ad1b3702e37d3e339384e4a071ef899a8203026e20038a3a2b0f0ba"
+    },
+    "packages/shared/src/weapons.ts": {
+      "bytes": 15391,
+      "sha256": "2f22f037502fe63fae6b47f20408cfd35ebc72bfea081194ae8d18cfc21df99b"
+    },
+    "packages/shared/src/signatures.ts": {
+      "bytes": 9370,
+      "sha256": "0a6befbb5a6fe9870b13a540d72235085c491668c8cae3674fa8faf89816e191"
+    },
+    "packages/shared/src/mods.ts": {
+      "bytes": 23134,
+      "sha256": "10e9dcd3d7417c4fe85d1c36ef33afe5abf7a5703a59b42a3a825a66aa4efaff"
+    }
+  },
+  "configurationMetadata": {
+    "package.json": {
+      "bytes": 2247,
+      "sha256": "9da8ab00050db3ec14c083365ab0c3a5b8986e38fd13c086b2913249d531422c"
+    },
+    "package-lock.json": {
+      "bytes": 153409,
+      "sha256": "991869bdfbbefb6874220500197c61db302a4d2b2603dfc2288fd7032ce1d481"
+    },
+    "tsconfig.base.json": {
+      "bytes": 410,
+      "sha256": "017575ec3101f44df43b5a7cc850779582650d9e01a2090b7e311b213b98ef88"
+    },
+    "packages/server/package.json": {
+      "bytes": 981,
+      "sha256": "d4965c850237876a64a02cd1c7c554f1a64d97392344cae3b63d4bd688e2f7b8"
+    },
+    "packages/server/tsconfig.json": {
+      "bytes": 153,
+      "sha256": "38a209200ba0dde3bbaeee8df1e29755aa35b63c588367da486b31a83b90cd15"
+    },
+    "packages/shared/package.json": {
+      "bytes": 427,
+      "sha256": "6e9c040348c50e0ad5043ec4cb9b4206f68f29cf4eeb4dec5f635f37a6f87f35"
+    },
+    "packages/shared/tsconfig.json": {
+      "bytes": 124,
+      "sha256": "e81b194f96f35e0d1e9e8069998a30740b08703e085bb7d0f92922d7b6d06193"
+    }
+  },
+  "related": {
+    "bornMap": {
+      "path": "tools/ability-fixtures/born-input.json",
+      "bytes": 7510,
+      "sha256": "5ee388ca61234bae0e7dc04adca00702fbc6199f048487490fcbca25b2cffb16"
+    }
+  },
+  "toolHashes": {
+    "esbuild/lib/main.js": "61ec0ba144ff93f4bf0e96ad6fab6f430ede0aa13e27ace8063ed63ba416b3cd",
+    "esbuild/package.json": "9d0bc453f4e791553c4cc2298ba023b409241fd9801e494741666eb0f6051490",
+    "esbuild/bin/esbuild": "10b6243df618d374bb2d5c9cfbe7052e1405f6aa4e53a6164f11a91b9f2e1384",
+    "@esbuild/darwin-arm64/bin/esbuild": "10b6243df618d374bb2d5c9cfbe7052e1405f6aa4e53a6164f11a91b9f2e1384",
+    "@colyseus/schema/build/index.mjs": "c5d2c222121377565fda9799c7e1b852c70a21877136498add79795f2055face",
+    "@colyseus/schema/package.json": "e132bda166931370e39bddc3e03f778734e957f964134b6f2baa09f66ddd225d"
+  },
+  "hostNode": {
+    "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/map-styled-bench/npm-cache/_npx/361c55be1121897e/node_modules/node/bin/node",
+    "sha256": "2cc28a1880d0774616959f2210ee739bffa6ac695c887e8988a496a21271f6c0",
+    "version": "22.23.4/darwin/arm64"
+  },
+  "readOnlyGit": {
+    "path": "/Library/Developer/CommandLineTools/usr/bin/git",
+    "sha256": "be4afb2b003904725826250de9fb76567bbacf82323457b5a1ec26706b66bcae",
+    "operations": [
+      "rev-parse",
+      "merge-base",
+      "show"
+    ]
+  },
+  "image": "node@sha256:aaa4b5baf1ecff3b283486bb1f90405cdda225a3e6f79660d2c559fa510a7292",
+  "cases": [
+    "P0",
+    "P1",
+    "B0",
+    "B1",
+    "B2",
+    "W0",
+    "W1",
+    "W2",
+    "W3",
+    "W4",
+    "W5"
+  ],
+  "limits": {
+    "maxCases": 11,
+    "maxStepsPerCase": 96,
+    "totalMaxSteps": 1056,
+    "bundleBytes": 16777216,
+    "rawAndCanonicalBytesEach": 134217728,
+    "verificationBytes": 1048576
+  },
   "temporalRetention": {
-    "addendum": "coordination/packets/P-P15-TEMPORAL-CAPTURE-ADDENDUM.md",
     "everyStepPerViewerFrameBeforePush": true,
-    "twelveFrameFields": [
+    "frameFields": [
       "t",
       "self",
       "hud",
@@ -82,33 +214,22 @@
     ],
     "completeComposeReturnIncludingNullBeforeFilter": true,
     "postfilterSeparate": true,
-    "compositionInputs": [
-      "selfDelayMs",
-      "worldDelayMs",
-      "attentionCentral",
-      "features",
-      "map/gates typed arrays and source/hash"
+    "selfDelayMs": 0,
+    "worldDelayMs": 125,
+    "remoteImmunityDelayMs": 100,
+    "codec": "rh-tagged-value/1",
+    "publicBirthForms": [
+      "batch.p",
+      "projEnd.embedded9"
     ],
-    "nonfinitePolicy": "explicit {$number:...} tags; never silent null",
-    "negativeZeroPolicy": "{$number:\"-0\"}"
+    "shortEnd6IsBirth": false
   },
-  "cases": [
-    "P0",
-    "P1",
-    "B0",
-    "B1",
-    "B2",
-    "W0",
-    "W1",
-    "W2",
-    "W3",
-    "W4",
-    "W5"
+  "preparedInventory": [
+    "build-manifest.json",
+    "metafile.json",
+    "runtime.mjs",
+    "scenario.mjs",
+    "verify.mjs"
   ],
-  "limits": [
-    "UNRUN",
-    "no compiler/native/scenario/World/Docker/Node execution",
-    "no corpus",
-    "controls/frozen/native/P15/live held"
-  ]
+  "execution": "Separate Root literal PhaseA approval, then generated closure/pins/mount review before PhaseB; no automatic chaining. Controls/frozen-reproduction remain held."
 }

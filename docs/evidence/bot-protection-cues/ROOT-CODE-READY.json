@@ -1,0 +1,39 @@
+{
+  "format": "rh-root-protection-cues-code-ready/1",
+  "historicalParent": "9cf22111d71945da6a4deddc691b6bc6894e6614",
+  "sourceBase": "bb564d3b53728cbd205af375b5342eca466f3656",
+  "fixtureSources": {
+    "tools/bot-protection-cues-fixtures/scenario.mts": {
+      "bytes": 24085,
+      "sha256": "d054bcfec6ccf513c5e238b2c9c7eb4f4313bf06707236ef3da2da6d07243c39"
+    },
+    "tools/bot-protection-cues-fixtures/build.mjs": {
+      "bytes": 24607,
+      "sha256": "3d10dbcaa2315a09f24cc583315f9b6572dfe0950edb78563cc41ef2fe8ffe17"
+    },
+    "tools/bot-protection-cues-fixtures/runtime.mjs": {
+      "bytes": 16994,
+      "sha256": "730bc3f6276ff9ca497876f7810bf31d7d6985c0046560eb518583765be5d303"
+    },
+    "tools/bot-protection-cues-fixtures/verify.mjs": {
+      "bytes": 33741,
+      "sha256": "10188528d712c8000000db548caa2388c74c56c03d5bb7f9af4a6b996853e935"
+    },
+    "tools/bot-protection-cues-fixtures/controls.mjs": {
+      "bytes": 3441,
+      "sha256": "a27967aef45638c64d2873063d66669f5724abf869d51e328c511a15b4ef837c"
+    }
+  },
+  "independentReviews": {
+    "p15-protection-cues-quest-envelope-cross-review.md": "7792a5f312481a5d1fc0d01fa8549a68d408ee915cd72f7b8c2789c2e1f6cf9c",
+    "p15-protection-cues-39e-cross-review.md": "5cdef152b235277cf0ce1e19848ae8d17258cc25c753f56bcf6e4a8d114a3976",
+    "p15-protection-cues-h1-d054-rereview.md": "cdce342631c5cabf1bce09ecd0723507962750e923634f764e2c12b3f59b74d6"
+  },
+  "scope": "CODE-ONLY source review; no TS compile, World, capture, semantic controls, frozen reproduction or P15/native/public activation",
+  "phaseA": "Root must freeze this child and issue a separate literal command including its actual commit and fresh output; this file is not execution authority",
+  "phaseB": "Held until generated PhaseA closure, artifacts and exact mounts independently reviewed",
+  "preservedUntracked": [
+    "docs/evidence/walk-hint-helper-boundaries/offline-790-corrected-review-01/",
+    "docs/evidence/walk-hint-helper-boundaries/offline-790-corrected-review-02/"
+  ]
+}

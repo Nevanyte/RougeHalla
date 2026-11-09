@@ -1,365 +1,328 @@
-// P15 protection/cue source scenario. CODE-ONLY: exports capture() and has no host entry point.
-// Declared seats/loadouts plus actual source inputs only; no desired result, state, RNG, visibility or HP
-// installation. All schedules enqueue through enqueueClientMessage before the step that applies at C.
+// CODE-ONLY fixed source producer. Only the approved runtime imports/calls capture.
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { Encoder, Decoder } from "@colyseus/schema";
 import * as S from "@raid/shared";
-import { RaidState } from "../../packages/shared/src/schema.ts";
+import { RaidState, PlayerState } from "../../packages/shared/src/schema.ts";
 import { createGameWorld } from "../../packages/server/src/sim/gameplay.ts";
 import { addPlayer, step } from "../../packages/server/src/sim/step.ts";
 import { enqueueClientMessage } from "../../packages/server/src/sim/inputs.ts";
+import { TIE_EPS_MS } from "../../packages/server/src/sim/weapons.ts";
 import { FxChannel } from "../../packages/server/src/rooms/FxChannel.ts";
 import { BotVision } from "../../packages/server/src/bots/brain/vision.ts";
 import { createFrameRing } from "../../packages/server/src/bots/brain/frames.ts";
 import { detectFeatures, perceive } from "../../packages/server/src/bots/brain/perception.ts";
 import { createMemory } from "../../packages/server/src/bots/brain/memory.ts";
-import { TIERS, WORLD_RENDER_DELAY_MS } from "../../packages/server/src/bots/brain/types.ts";
+import { TIERS } from "../../packages/server/src/bots/brain/types.ts";
+import { checkCompletedPrefix, publicProjectileObservations, indexPublicProjectileObservation } from "./verify.mjs";
 
+const SOURCE_BASE = "bb564d3b53728cbd205af375b5342eca466f3656";
 const BORN = "/repo/tools/ability-fixtures/born-input.json";
-const MAX_STEPS = 96;
-const SEATS = ["cue-caster", "cue-observer", "cue-other"] as const;
-const SEAT_FACTION: any = { "cue-caster": "holy", "cue-observer": "fire", "cue-other": "fire" };
-const MAP_KEYS = ["tiles", "terrain", "regionGrid", "territoryGrid", "featureGrid"];
-function sha(v: any) { return createHash("sha256").update(v).digest("hex"); }
-function copy(v: any) { return structuredClone(v); }
-function plain(v: any): any {
-  if (v === undefined) return { $undefined: true };
-  if (v === null || typeof v === "string" || typeof v === "boolean") return v;
-  if (typeof v === "number") return Number.isNaN(v) ? { $number: "NaN" } : v === Infinity ? { $number: "Infinity" } : v === -Infinity ? { $number: "-Infinity" } : Object.is(v, -0) ? { $number: "-0" } : v;
-  if (Array.isArray(v)) return v.map(plain);
-  if (v instanceof Map) return { $map: [...v].map(([k, x]) => [plain(k), plain(x)]) };
-  if (v instanceof Set) return { $set: [...v].map(plain) };
-  if (ArrayBuffer.isView(v)) return Array.from(v as any);
-  if (typeof v?.toJSON === "function") return plain(v.toJSON());
-  if (typeof v === "object") return Object.fromEntries(Object.entries(v).filter(([, x]) => typeof x !== "function").map(([k, x]) => [k, plain(x)]));
-  return String(v);
-}
-const FRAME_FIELDS = ["t","self","hud","fighters","mobs","containers","projectiles","minimap","events","immediate","extras"];
-function deep(v: any): any { return v === null || typeof v !== "object" ? v : structuredClone(v); }
-function temporalFrame(frame: any) {
-  const out: any = {};
-  for (const key of FRAME_FIELDS) if (Object.prototype.hasOwnProperty.call(frame, key)) out[key] = deep(frame[key]);
-  return out;
-}
-function readBornMap() {
-  const raw = readFileSync(BORN);
-  const json = JSON.parse(raw.toString("utf8"));
-  const map = copy(json);
-  for (const key of MAP_KEYS) map[key] = Uint8Array.from(map[key]);
-  return { map, raw, json };
-}
-function positionOf(state: any, id: string) {
-  const p = state.players.get(id);
-  if (!p) throw new Error("missing decoded player " + id);
+const MAP_SHA = "5ee388ca61234bae0e7dc04adca00702fbc6199f048487490fcbca25b2cffb16";
+const MAX_STEPS = 96, DT = 50, COMPOSE_DELAY_MS = 125;
+const CASTER = "cue-caster", OBSERVER = "cue-observer", OTHER = "cue-other";
+const FACTIONS: Record<string, string> = { [CASTER]: "holy", [OBSERVER]: "fire", [OTHER]: "fire" };
+const FRAME_KEYS = ["t", "self", "hud", "fighters", "mobs", "containers", "projectiles", "minimap", "events", "immediate", "extras"];
+const sha = (bytes: string | Uint8Array) => createHash("sha256").update(bytes).digest("hex");
+const clone = <T>(v: T): T => structuredClone(v);
+const bits = (v: number) => { const b = Buffer.alloc(8); b.writeDoubleBE(v); return b.toString("hex"); };
+const angle = (a: any, b: any) => Math.atan2(b.y - a.y, b.x - a.x);
+function pos(decoded: any, id: string) {
+  const p = decoded.players.get(id); assert(p, "missing decoded player " + id);
   return { x: p.x, y: p.y };
 }
-function angle(a: any, b: any) { return Math.atan2(b.y - a.y, b.x - a.x); }
-function snapshotOwner(decoded: any, id: string) {
-  const p = decoded.players.get(id);
-  if (!p) return null;
-  return { id, hp: p.hp, status: p.status, weapon0: p.weapon0, weapon1: p.weapon1, slot: p.slot, drawStartedAt: p.drawStartedAt, readyAt: p.readyAt, immuneUntil: p.immuneUntil, moveSeq: p.moveSeq };
+function owner(decoded: any, id: string) {
+  const p = decoded.players.get(id); assert(p, "missing decoded owner " + id);
+  return { id, hp: p.hp, maxHp: p.maxHp, status: p.status, faction: p.faction, bot: p.bot, x: p.x, y: p.y, facing: p.facing,
+    weapon0: p.weapon0, weapon1: p.weapon1, slot: p.slot, drawStartedAt: p.drawStartedAt,
+    readyAt: p.readyAt, immuneUntil: p.immuneUntil, moveSeq: p.moveSeq, attackTarget: p.attackTarget, barrier: p.barrier };
 }
-function sourcePlayer(world: any, id: string) {
-  const p = world.state.players.get(id), rt = world.players.get(id);
-  return { id, hp: p.hp, maxHp: p.maxHp, status: p.status, x: p.x, y: p.y, weapon0: p.weapon0, weapon1: p.weapon1, slot: p.slot, drawStartedAt: p.drawStartedAt, readyAt: p.readyAt, immuneUntil: p.immuneUntil, action: rt.weapon.action ? plain(rt.weapon.action) : null, lock: rt.weapon.lock, path: plain(rt.path) };
+function diagnostic(world: any, id: string) {
+  const p = world.state.players.get(id), rt = world.players.get(id); assert(p && rt, "missing source player " + id);
+  return { ...owner(world.state, id), action: clone(rt.weapon.action), lock: rt.weapon.lock,
+    path: clone(rt.path), held: rt.weapon.held, rootUntil: rt.weapon.rootUntil,
+    staggerImmuneUntil: rt.weapon.staggerImmuneUntil };
 }
-function makeCaseContext(spec: any) {
-  const { map, raw: mapRaw } = readBornMap();
-  const randomTape: any[] = [];
-  const uidTape: any[] = [];
-  let draws = 0;
-  const rng = S.mulberry32(7);
-  const random = () => { const v = rng(); draws++; randomTape.push({ stream: "main", value: v, tick: 0, time: 0, phase: "constructor" }); return v; };
-  let uid = 0;
-  const world: any = createGameWorld({
-    map, config: {
-      minPlayers: spec.seats.length, lobbySeconds: 0, fillSeconds: 0, planSeconds: 0, firstPatienceSeconds: 1,
-      patienceSeconds: 3600, patienceMinSeconds: 3600, suddenDeathSeconds: 60, training: false, dummies: false,
-      mobs: false, quests: false, hazards: false, regen: false,
-    }, random, rewardSalt: [7, 6, 5, 4], questSalt: [3, 2, 1, 0],
-    newItemUid: () => { const id = "U" + (++uid); uidTape.push({ id, tick: world?.state.tick ?? 0, time: world?.state.serverTime ?? 0, phase: world?.state.phase ?? "constructor" }); return id; },
+function frameCopy(frame: any) {
+  assert.deepEqual(Object.keys(frame).sort(), [...FRAME_KEYS].sort(), "actual Frame field set changed");
+  return clone(frame);
+}
+function memoryCopy(memory: any) {
+  // Public MemoryView data only; deliberately do not traverse its function or private windup maps.
+  const v = memory.view;
+  return clone({ stimuli: v.stimuli, self: v.self, fighters: v.fighters, mobs: v.mobs,
+    camps: v.camps, containers: v.containers, bounties: v.bounties, choices: v.choices });
+}
+function plans() {
+  const s = (id: string, caster: any = {}, observer: any = {}, extra: any = {}) => ({ id,
+    seats: id === "W0" ? [CASTER, OBSERVER, OTHER] : [CASTER, OBSERVER], viewers: [CASTER, OBSERVER],
+    loadouts: { [CASTER]: caster, [OBSERVER]: observer, ...(id === "W0" ? { [OTHER]: {} } : {}) }, ...extra });
+  return [s("P0"), s("P1", {}, { weapon0: "sword" }), s("B0", { weapon0: "bow" }),
+    s("B1", { weapon0: "bow", weapon1: "wand" }), s("B2", { weapon0: "bow" }, { weapon0: "sword" }),
+    s("W0", { weapon0: "wand", weapon1: "bow" }), s("W1", { weapon0: "wand" }), s("W2", { weapon0: "wand" }),
+    s("W3", { weapon0: "wand" }, { weapon0: "sword" }),
+    s("W4", { weapon0: "wand" }, { weapon0: "sword" }, { hp1Caster: true }),
+    s("W5", { weapon0: "wand", weapon1: "bow" })];
+}
+function context(spec: any, raw: any) {
+  const bytes = readFileSync(BORN); assert.equal(bytes.length, 7510); assert.equal(sha(bytes), MAP_SHA);
+  const json = JSON.parse(bytes.toString("utf8")), map = clone(json);
+  for (const key of ["tiles", "terrain", "regionGrid", "territoryGrid", "featureGrid"]) map[key] = Uint8Array.from(map[key]);
+  // Safe before createGameWorld finishes: no const-world TDZ, no extra draw/peek.
+  let live: any = null, uid = 0;
+  const counts: Record<string, number> = { main: 0, reward: 0, quest: 0 };
+  const stamp = () => live ? { tick: live.state.tick, time: live.state.serverTime, phase: live.state.phase }
+    : { tick: 0, time: 0, phase: "constructor" };
+  const record = (stream: string, next: () => number) => () => {
+    const value = next(); counts[stream]++;
+    raw.randomTape.push({ stream, ordinal: counts[stream], value, bits: bits(value), ...stamp() }); return value;
+  };
+  const world: any = createGameWorld({ map, config: {
+    minPlayers: spec.seats.length, lobbySeconds: 0, fillSeconds: 0, planSeconds: 0, firstPatienceSeconds: 1,
+    patienceSeconds: 3600, patienceMinSeconds: 3600, suddenDeathSeconds: 60, training: false,
+    dummies: false, mobs: false, quests: false, hazards: false, regen: false,
+  }, random: record("main", S.mulberry32(7)), rewardSalt: [7, 6, 5, 4], questSalt: [3, 2, 1, 0],
+  newItemUid: () => { const id = "U" + (++uid); raw.uidTape.push({ id, ...stamp() }); return id; },
   }, { signatures: false, walkHints: false });
-  for (const [stream, key] of [["reward", "rewardRandom"], ["quest", "questRandom"]] as const) {
-    const next = world[key];
-    world[key] = () => { const v = next(); draws++; randomTape.push({ stream, value: v, tick: world.state.tick, time: world.state.serverTime, phase: world.state.phase }); return v; };
-  }
-  const declared: any[] = [];
+  live = world;
+  raw.assembler = { config: clone(world.config), modules: { signatures: false, walkHints: false },
+    actualMapIdentity: { seed: world.state.seed, attempt: world.state.attempt, mapHash: world.state.mapHash } };
+  world.rewardRandom = record("reward", world.rewardRandom);
+  world.questRandom = record("quest", world.questRandom);
+  raw.rngScope = { main: "constructor and subsequent draws", reward: "post-constructor only; constructor prefix UNOBSERVED",
+    quest: "post-constructor only; constructor prefix UNOBSERVED" };
   for (const id of spec.seats) {
-    const p = addPlayer(world, id, id, { faction: SEAT_FACTION[id], bot: false });
-    declared.push({ id, phase: "joined", hp: p.hp, maxHp: p.maxHp, weapon0: "", weapon1: "", slot: 0 });
+    addPlayer(world, id, id, { faction: FACTIONS[id], bot: false });
+    raw.declared.push({ stage: "joined", ...diagnostic(world, id) });
   }
   for (const id of spec.seats) {
-    const p = world.state.players.get(id);
-    const load = spec.loadouts[id] ?? {};
-    p.weapon0 = load.weapon0 ?? ""; p.weapon1 = load.weapon1 ?? ""; p.slot = load.slot ?? 0;
-    if (spec.hp1Caster && id === "cue-caster") p.hp = 1;
-    declared.push({ id, phase: "declared-before-first-step", hp: p.hp, maxHp: p.maxHp, weapon0: p.weapon0, weapon1: p.weapon1, slot: p.slot });
+    const p = world.state.players.get(id), load = spec.loadouts[id];
+    p.weapon0 = load.weapon0 ?? ""; p.weapon1 = load.weapon1 ?? ""; p.slot = 0;
+    if (spec.hp1Caster && id === CASTER) p.hp = 1;
+    raw.declared.push({ stage: "declared-before-first-step", tick: world.state.tick, time: world.state.serverTime, ...diagnostic(world, id) });
   }
-  const channel = new FxChannel();
-  let encoder: any = null;
-  const viewers = new Map<string, any>();
-  let features: any = null;
-  const state: any = {
-    spec, world, map, mapRaw, randomTape, uidTape, draws, channel, encoder, viewers, features, steps: 0,
-    rows: [] as any[], digests: [] as any[], errors: [] as string[], events: [] as any[], batches: [] as any[], temporal: [] as any[], composition: null as any,
-    T: null as number | null, U: null as number | null, C: null as number | null, boundaryTimes: new Set<number>(),
-    schedules: new Map<number, any[]>(), launchRecords: [] as any[], firstLaunchAt: null as number | null,
-    secondAttackScheduled: false, secondSwapScheduled: false, terminated: false,
+  const state: any = { spec, raw, world, map, counts, viewers: new Map(), channel: new FxChannel(), encoder: new Encoder(world.state),
+    schedules: new Map(), currentOrders: [], arrival: 0, lastDecoded: null, launchIds: new Set(), birthIndex: new Map(), firstBirth: null, secondScheduled: false };
+  // The source invokes this once AFTER the actual drain and BEFORE normal dispatch. It is an application-boundary
+  // observation, not proof a gameplay handler accepted an otherwise-invalid order. Preserve the prior callback once.
+  const previous = world.hooks.inputsApplied;
+  world.hooks.inputsApplied = (w: any, c: any, drained: any) => {
+    previous?.call(w.hooks, w, c, drained);
+    const trace = { actor: c.id, tick: w.state.tick, time: w.state.serverTime, phase: w.state.phase, drained: clone(drained) };
+    raw.inputDrains.push(trace);
+    for (const o of state.currentOrders.filter((v: any) => v.actor === c.id)) {
+      const matching = o.type === "move" || o.type === "stop" ? drained.move?.kind === o.type
+        : drained.actions.some((a: any) => a.kind === o.type);
+      assert(matching, "scheduled input absent at actual drain: " + o.type);
+      assert.equal(o.applyTime, null, "duplicate input application boundary");
+      o.applyTime = trace.time; o.applyTick = trace.tick; o.applicationBoundary = "inputsApplied: after drain, before dispatch";
+    }
   };
   return state;
 }
-function schedule(state: any, time: number, actor: string, type: string, msg: any) {
-  if (!(time > state.world.state.serverTime)) throw new Error("schedule must be before its apply step: " + time);
-  if (!state.schedules.has(time)) state.schedules.set(time, []);
-  state.schedules.get(time).push({ actor, type, msg });
-  state.boundaryTimes.add(time);
+function initViewers(s: any, decoded: any) {
+  const features = detectFeatures({ state: decoded, player: new PlayerState(), map: s.map, messageTypes: S.CLIENT_MESSAGE_TYPES });
+  const config = { selfDelayMs: 0, worldDelayMs: COMPOSE_DELAY_MS, attentionCentral: TIERS.normal.attention.central,
+    features: clone(features), mapSha256: MAP_SHA };
+  s.raw.composition = { ...config, sha256: sha(JSON.stringify(config)), map: clone(s.map),
+    mapInput: { path: BORN, bytes: 7510, sha256: MAP_SHA } };
+  for (const id of s.spec.viewers) s.viewers.set(id, { id, vision: new BotVision(s.map), ring: createFrameRing(), lastMinimap: null,
+    memory: createMemory({ tier: TIERS.normal, map: s.map, selfId: id, features }), features });
 }
-function setupViewers(state: any, decoded: any) {
-  if (state.features !== null) return;
-  state.features = detectFeatures({ state: decoded, map: state.map });
-  state.composition = { selfDelayMs: 0, worldDelayMs: WORLD_RENDER_DELAY_MS, attentionCentral: TIERS.normal.attention.central, features: deep(state.features), featuresSha256: sha(plain(state.features)), map: { path: BORN, sha256: sha(state.mapRaw), bytes: state.mapRaw.length, tiles: Array.from(state.map.tiles), terrain: Array.from(state.map.terrain), regionGrid: Array.from(state.map.regionGrid), territoryGrid: Array.from(state.map.territoryGrid), featureGrid: Array.from(state.map.featureGrid) } };
-  for (const id of state.spec.viewers) {
-    state.viewers.set(id, { id, vision: new BotVision(state.map), ring: createFrameRing(), lastMinimap: null, memory: createMemory({ tier: TIERS.normal, map: state.map, selfId: id, features: state.features }), frames: 0 });
+function publish(s: any, events: any[], orders: any[]) {
+  const w = s.world, time = w.state.serverTime, tick = w.state.tick;
+  const sourceFx = events.filter((e: any) => e.type === "fx").map((e: any) => e.fx);
+  const batch = s.channel.batch(sourceFx, time, w.projectiles);
+  s.channel.extendRoster(w.state);
+  const offset = { offset: 0 }; s.encoder.encodeAll(offset);
+  const bytes = Buffer.from(s.encoder.sharedBuffer.slice(0, offset.offset));
+  const decoded = new RaidState(); new Decoder(decoded).decode(bytes); s.channel.rosterSent(); s.lastDecoded = decoded;
+  s.raw.pendingStep.publication = { time, tick, sourceFx: clone(sourceFx), batch: clone(batch),
+    schema: { byteLength: bytes.length, bytesBase64: bytes.toString("base64"), sha256: sha(bytes) } };
+  const unpackedFx = batch ? S.unpackFx(batch, decoded.roster) : [], launches = batch ? S.unpackLaunches(batch) : [];
+  for (const l of launches) {
+    assert(!s.launchIds.has(l.id), "duplicate actual launch announcement " + l.id); s.launchIds.add(l.id);
+    const record = { ...clone(l), deliveryTime: time, deliveryTick: tick };
+    s.raw.launchRecords.push(record);
   }
-}
-function fullViewer(state: any) {
-  const out: any[] = [];
-  for (const v of state.viewers.values()) out.push({ id: v.id, frames: v.frames });
-  return out;
-}
-function publish(state: any, events: any[], orders: any[]) {
-  const w = state.world;
-  const fxEvents = events.filter((e: any) => e.type === "fx").map((e: any) => e.fx);
-  // Reviewed order: batch against the previously SENT roster, then extend roster, full patch/decode, rosterSent.
-  const batch = state.channel.batch(fxEvents, w.state.serverTime, w.projectiles);
-  if (batch) state.batches.push(batch);
-  state.channel.extendRoster(w.state);
-  if (state.encoder === null) state.encoder = new Encoder(w.state);
-  const offset = { offset: 0 }; state.encoder.encodeAll(offset);
-  const bytes = Buffer.from(state.encoder.sharedBuffer.slice(0, offset.offset));
-  const decoded = new RaidState(); new Decoder(decoded).decode(bytes);
-  state.channel.rosterSent();
-  const unpackedFx = batch ? S.unpackFx(batch, [...decoded.roster]) : [];
-  const launches = batch ? S.unpackLaunches(batch) : [];
-  for (const launch of launches) state.launchRecords.push({ ...launch, step: w.state.tick, time: w.state.serverTime });
-  setupViewers(state, decoded);
-  const viewerRows: any[] = [];
-  for (const v of state.viewers.values()) {
+  // Keep decoded data available in partial raw before validating/indexing any birth forms.
+  s.raw.pendingStep.publication.unpackedFx = clone(unpackedFx); s.raw.pendingStep.publication.launches = clone(launches);
+  const projectileObservations = publicProjectileObservations(batch, unpackedFx, launches, time, tick);
+  for (const observation of projectileObservations) {
+    indexPublicProjectileObservation(s.birthIndex, observation);
+    s.raw.birthRecords = [...s.birthIndex.values()];
+    const birth = s.birthIndex.get(observation.value.id);
+    if (birth && birth.ownerId === CASTER && birth.kind === "ball" && s.firstBirth === null) s.firstBirth = clone(birth);
+  }
+  s.raw.birthRecords = [...s.birthIndex.values()];
+  if (s.viewers.size === 0) initViewers(s, decoded);
+  const viewers: any[] = [];
+  for (const [viewerOrder, v] of [...s.viewers.values()].entries()) {
     const input = { state: decoded, ...(batch ? { fxs: [batch] } : {}) };
     v.vision.update(input, v.id);
-    const frame = perceive({ state: decoded, ...(batch ? { fxs: [batch] } : {}) }, { selfId: v.id, map: state.map, features: state.features, lastMinimap: v.lastMinimap, canSee: v.vision.canSee });
-    const prePush = temporalFrame(frame);
-    v.lastMinimap = frame.minimap;
-    v.ring.push(frame);
-    v.frames++;
-    const percept = v.ring.compose({ selfDelayMs: 0, worldDelayMs: WORLD_RENDER_DELAY_MS, map: state.map, features: state.features, attentionCentral: TIERS.normal.attention.central });
-    state.temporal.push({ step: state.steps, time: w.state.serverTime, tick: w.state.tick, viewerId: v.id, viewerOrder: [...state.viewers.keys()].indexOf(v.id), frame: prePush, composed: percept === null ? null : deep(percept), composeConfigSha256: state.composition.featuresSha256 });
-    let filtered = null, stimuli: any[] = [];
-    if (percept) { filtered = v.vision.filter(percept); stimuli = v.memory.observe(filtered); }
-    viewerRows.push({ id: v.id, frame: prePush, composed: percept === null ? null : deep(percept), filtered: filtered === null ? null : deep(filtered), memory: plain(v.memory.view), stimuli: plain(stimuli) });
+    const frame = perceive(input, { selfId: v.id, map: s.map, features: v.features, lastMinimap: v.lastMinimap, canSee: v.vision.canSee });
+    const beforePush = frameCopy(frame); v.lastMinimap = frame.minimap; v.ring.push(frame);
+    const composed = v.ring.compose({ selfDelayMs: 0, worldDelayMs: COMPOSE_DELAY_MS, map: s.map,
+      features: v.features, attentionCentral: TIERS.normal.attention.central });
+    const beforeFilter = clone(composed);
+    const filtered = composed === null ? null : v.vision.filter(composed);
+    const stimuli = filtered === null ? [] : v.memory.observe(filtered);
+    // Copy NOW, before the next source update; no live Schema/Memory/Frame references are historical evidence.
+    const temporal = { step: s.raw.steps, tick, time, viewerId: v.id, viewerOrder, frame: beforePush,
+      composed: beforeFilter, filtered: clone(filtered), memory: memoryCopy(v.memory), stimuli: clone(stimuli),
+      composeConfigSha256: s.raw.composition.sha256 };
+    s.raw.temporal.push(temporal); viewers.push(temporal);
   }
-  return { time: w.state.serverTime, tick: w.state.tick, phase: w.state.phase, events, batch, unpackedFx, launches, decoded, viewerRows, temporal: state.temporal.slice(-state.spec.viewers.length), composition: state.composition, schemaBytes: bytes.byteLength, schemaSha256: sha(bytes), roster: plain(decoded.roster), ownerFields: state.spec.viewers.map((id: string) => snapshotOwner(decoded, id)) };
+  const row = { caseId: s.spec.id, step: s.raw.steps, tick, time, phase: w.state.phase, orders: clone(orders),
+    sourceEvents: clone(events), sourceFx: clone(sourceFx), schema: { byteLength: bytes.length, bytesBase64: bytes.toString("base64"),
+      sha256: sha(bytes), roster: [...decoded.roster] }, fx: { batch: clone(batch), unpackedFx: clone(unpackedFx), launches: clone(launches), projectileObservations: clone(projectileObservations) },
+    ownerFields: s.spec.viewers.map((id: string) => owner(decoded, id)),
+    rng: { counts: { ...s.counts }, draws: s.raw.randomTape.length },
+    sourceDiagnostic: { label: "server-only diagnostics; never fair input", players: s.spec.seats.map((id: string) => diagnostic(w, id)),
+      gatesLocked: w.state.gatesLocked, inColiseum: w.state.inColiseum, phase: w.state.phase },
+    viewerOrders: viewers.map((v) => ({ viewerId: v.viewerId, viewerOrder: v.viewerOrder })) };
+  s.raw.rows.push(row); return { row, decoded, viewers };
 }
-function rowFor(state: any, pub: any, orders: any[], full: boolean) {
-  const row: any = {
-    caseId: state.spec.id, step: state.steps, tick: pub.tick, time: pub.time, phase: pub.phase, full,
-    orders: plain(orders), accepted: orders.map((o: any) => o.accepted), apply: orders.map((o: any) => o.applyTime ?? null),
-    sourceFx: pub.events.filter((e: any) => e.type === "fx").map((e: any) => plain(e.fx)),
-    schema: { bytes: pub.schemaBytes, sha256: pub.schemaSha256, roster: pub.roster },
-    fx: full ? { batch: plain(pub.batch), unpackedFx: plain(pub.unpackedFx), launches: plain(pub.launches) } : null,
-    ownerFields: pub.ownerFields,
-    rng: { draws: state.draws, lastStream: state.randomTape.at(-1)?.stream ?? null, lastValue: state.randomTape.at(-1)?.value ?? null },
-    sourceDiagnostic: full ? { players: state.spec.seats.map((id: string) => sourcePlayer(state.world, id)), launches: plain(state.launchRecords), phase: state.world.state.phase, gatesLocked: state.world.state.gatesLocked } : null,
-    viewers: full ? plain(pub.viewerRows) : pub.viewerRows.map((v: any) => ({ id: v.id, frames: state.viewers.get(v.id).frames, composed: !!v.composed, memoryStimuli: Array.isArray(v.stimuli) ? v.stimuli.length : null })),
-  };
-  if (!full) row.summary = { events: pub.events.length, launches: pub.launches.length, batch: pub.batch ? 1 : 0 };
-  return row;
+function schedule(s: any, time: number, actor: string, type: string, msg: any) {
+  assert(time > s.world.state.serverTime && time % DT === 0, "schedule must precede an ordinary apply step");
+  const list = s.schedules.get(time) ?? []; list.push({ actor, type, msg: clone(msg) }); s.schedules.set(time, list);
 }
-function planCases() {
-  return [
-    { id: "P0", seats: ["cue-caster", "cue-observer"], viewers: ["cue-caster", "cue-observer"], loadouts: { "cue-caster": {}, "cue-observer": {} } },
-    { id: "P1", seats: ["cue-caster", "cue-observer"], viewers: ["cue-caster", "cue-observer"], loadouts: { "cue-caster": {}, "cue-observer": { weapon0: "sword" } } },
-    { id: "B0", seats: ["cue-caster", "cue-observer"], viewers: ["cue-caster", "cue-observer"], loadouts: { "cue-caster": { weapon0: "bow" }, "cue-observer": {} } },
-    { id: "B1", seats: ["cue-caster", "cue-observer"], viewers: ["cue-caster", "cue-observer"], loadouts: { "cue-caster": { weapon0: "bow", weapon1: "wand" }, "cue-observer": {} } },
-    { id: "B2", seats: ["cue-caster", "cue-observer"], viewers: ["cue-caster", "cue-observer"], loadouts: { "cue-caster": { weapon0: "bow" }, "cue-observer": { weapon0: "sword" } } },
-    { id: "W0", seats: ["cue-caster", "cue-observer", "cue-other"], viewers: ["cue-caster", "cue-observer"], loadouts: { "cue-caster": { weapon0: "wand", weapon1: "bow" }, "cue-observer": {}, "cue-other": {} } },
-    { id: "W1", seats: ["cue-caster", "cue-observer"], viewers: ["cue-caster", "cue-observer"], loadouts: { "cue-caster": { weapon0: "wand" }, "cue-observer": {} } },
-    { id: "W2", seats: ["cue-caster", "cue-observer"], viewers: ["cue-caster", "cue-observer"], loadouts: { "cue-caster": { weapon0: "wand" }, "cue-observer": {} } },
-    { id: "W3", seats: ["cue-caster", "cue-observer"], viewers: ["cue-caster", "cue-observer"], loadouts: { "cue-caster": { weapon0: "wand" }, "cue-observer": { weapon0: "sword" } } },
-    { id: "W4", seats: ["cue-caster", "cue-observer"], viewers: ["cue-caster", "cue-observer"], loadouts: { "cue-caster": { weapon0: "wand" }, "cue-observer": { weapon0: "sword" } }, hp1Caster: true },
-    { id: "W5", seats: ["cue-caster", "cue-observer"], viewers: ["cue-caster", "cue-observer"], loadouts: { "cue-caster": { weapon0: "wand", weapon1: "bow" }, "cue-observer": {} } },
-  ];
-}
-function planAfterTeleport(state: any) {
-  const w = state.world, T = state.T!, U = state.U!, C = state.C!;
-  const positions = { caster: positionOf(state.teleportDecoded, "cue-caster"), observer: positionOf(state.teleportDecoded, "cue-observer") };
-  const aimCO = angle(positions.caster, positions.observer), aimOC = angle(positions.observer, positions.caster);
-  const a = (id: string, type: string, msg: any, time: number) => schedule(state, time, id, type, msg);
-  if (state.spec.id === "P1") {
-    a("cue-observer", "attack", { a: aimOC }, T + 50); a("cue-observer", "release", { a: aimOC }, T + 100);
-    a("cue-observer", "attack", { a: aimOC }, U); a("cue-observer", "release", { a: aimOC }, U + 50);
-  } else if (state.spec.id === "B0") {
-    a("cue-caster", "attack", { a: aimCO }, C); a("cue-caster", "release", { a: aimCO }, C + 50);
-  } else if (state.spec.id === "B1") {
-    a("cue-caster", "attack", { a: aimCO }, C); a("cue-caster", "swap", {}, C + 150); a("cue-caster", "release", { a: aimCO }, C + 200);
-  } else if (state.spec.id === "B2") {
-    a("cue-caster", "attack", { a: aimCO }, C); a("cue-caster", "release", { a: aimCO }, C + 50);
-    a("cue-observer", "attack", { a: aimOC }, C + 50); a("cue-observer", "release", { a: aimOC }, C + 100);
-  } else if (state.spec.id === "W0") {
-    a("cue-caster", "target", { id: "cue-observer" }, C); a("cue-caster", "target", { id: "cue-other" }, C + 50);
-    a("cue-caster", "swap", {}, C + 100); a("cue-caster", "release", { a: aimCO }, C + 150);
-  } else if (state.spec.id === "W1") {
-    a("cue-caster", "target", { id: "cue-observer" }, C); a("cue-caster", "stop", { seq: 1 }, C + 50);
-  } else if (state.spec.id === "W2") {
-    a("cue-caster", "target", { id: "cue-observer" }, C); a("cue-caster", "move", { ...positions.caster, seq: 1 }, C + 50);
-  } else if (state.spec.id === "W3" || state.spec.id === "W4") {
-    a("cue-caster", "attack", { a: aimCO }, C); a("cue-caster", "release", { a: aimCO }, C + 50);
-    a("cue-observer", "attack", { a: aimOC }, C + 50); a("cue-observer", "release", { a: aimOC }, C + 100);
-  } else if (state.spec.id === "W5") {
-    a("cue-caster", "attack", { a: aimCO }, C); a("cue-caster", "release", { a: aimCO }, C + 50);
+function plan(s: any, pub: any) {
+  const { T, U, C } = s.raw, p = pos(pub.decoded, CASTER), q = pos(pub.decoded, OBSERVER);
+  const co = angle(p, q), oc = angle(q, p);
+  const a = (actor: string, type: string, msg: any, t: number) => schedule(s, t, actor, type, msg);
+  switch (s.spec.id) {
+    case "P0": break;
+    case "P1": a(OBSERVER, "attack", { a: oc }, T + 50); a(OBSERVER, "release", { a: oc }, T + 100);
+      a(OBSERVER, "attack", { a: oc }, U); a(OBSERVER, "release", { a: oc }, U + 50); break;
+    case "B0": a(CASTER, "attack", { a: co }, C); a(CASTER, "release", { a: co }, C + 50); break;
+    case "B1": a(CASTER, "attack", { a: co }, C); a(CASTER, "swap", { slot: 1 }, C + 150); a(CASTER, "release", { a: co }, C + 200); break;
+    case "B2": case "W3": case "W4": a(CASTER, "attack", { a: co }, C); a(CASTER, "release", { a: co }, C + 50);
+      a(OBSERVER, "attack", { a: oc }, C + 50); a(OBSERVER, "release", { a: oc }, C + 100); break;
+    case "W0": a(CASTER, "target", { id: OBSERVER }, C); a(CASTER, "target", { id: OTHER }, C + 50);
+      a(CASTER, "swap", { slot: 1 }, C + 100); a(CASTER, "release", { a: co }, C + 150); break;
+    case "W1": case "W2": a(CASTER, "target", { id: OBSERVER }, C);
+      a(CASTER, s.spec.id === "W1" ? "stop" : "move", s.spec.id === "W1" ? { seq: 1 } : { ...p, seq: 1 }, C + 50); break;
+    case "W5": a(CASTER, "attack", { a: co }, C); a(CASTER, "release", { a: co }, C + 50); break;
+    default: throw new Error("unknown case");
   }
 }
-function afterStep(state: any, pub: any) {
-  if (state.spec.id !== "W5" || state.secondSwapScheduled) return;
-  const caster = sourcePlayer(state.world, "cue-caster");
-  const firstLaunch = state.launchRecords.find((l: any) => l.ownerId === "cue-caster" || l.from === "cue-caster");
-  if (!firstLaunch || state.firstLaunchAt === null) return;
-  if (!state.secondAttackScheduled && pub.time >= state.firstLaunchAt + 300 && pub.time >= caster.readyAt) {
-    schedule(state, pub.time + 50, "cue-caster", "attack", { a: angle(sourcePlayer(state.world, "cue-caster"), sourcePlayer(state.world, "cue-observer")) });
-    state.secondAttackScheduled = true;
-    schedule(state, pub.time + 100, "cue-caster", "swap", {});
-    state.secondSwapScheduled = true;
-  }
-}
-function applyOrders(state: any, nextTime: number) {
-  const list = state.schedules.get(nextTime) ?? [];
-  state.schedules.delete(nextTime);
-  const resolved: any[] = [];
+function queued(s: any) {
+  const next = s.world.state.serverTime + DT, list = s.schedules.get(next) ?? []; s.schedules.delete(next);
+  const orders: any[] = []; s.currentOrders = orders;
   for (const o of list) {
-    const rt = state.world.players.get(o.actor);
-    if (!rt) throw new Error("missing input player " + o.actor);
-    const accepted = enqueueClientMessage(rt.inputs, o.type, o.msg, { training: false });
-    if (!accepted) throw new Error("required input refused: " + o.actor + " " + o.type);
-    resolved.push({ actor: o.actor, type: o.type, msg: o.msg, accepted, scheduleFor: nextTime, applyTime: nextTime });
+    const rt = s.world.players.get(o.actor); assert(rt, "missing queued actor");
+    const publicView = [...s.raw.temporal].reverse().find((v: any) => v.viewerId === o.actor);
+    assert(publicView && publicView.time === s.world.state.serverTime, "missing current public input view");
+    const targetId = o.type === "target" ? o.msg.id : (o.type === "attack" || o.type === "release") ? (o.actor === CASTER ? OBSERVER : CASTER) : null;
+    let msg = clone(o.msg), publicBasis: any = { time: publicView.time, actor: pos(s.lastDecoded, o.actor) };
+    if (targetId !== null) {
+      const seen = publicView.frame.fighters.find((f: any) => f.id === targetId);
+      assert(seen, "queued target/aim lacks actual public visibility: " + targetId);
+      const target = pos(s.lastDecoded, targetId); publicBasis = { ...publicBasis, targetId, target, targetVisible: true };
+      if (o.type === "attack" || o.type === "release") msg = { ...msg, a: angle(publicBasis.actor, target) };
+    }
+    if (o.type === "move") { msg = { ...publicBasis.actor, seq: 1 }; }
+    const accepted = enqueueClientMessage(rt.inputs, o.type, msg, { training: false });
+    const terminalCleanup = s.spec.id === "W4" && o.actor === OBSERVER && o.type === "release" && next === s.raw.C + 100
+      && s.world.state.phase === "ended";
+    orders.push({ ...clone(o), msg, publicBasis, arrivalOrder: ++s.arrival, arrivalTime: s.world.state.serverTime, arrivalTick: s.world.state.tick,
+      arrivalPhase: s.world.state.phase, scheduleFor: next, accepted, terminalCleanup, applyTime: null, applyTick: null });
+    // Publish acceptance in the partial raw even if the required enqueue is refused.
+    s.raw.pendingOrders = clone(orders); assert.equal(accepted, true, "required enqueue refused");
   }
-  return resolved;
+  return orders;
+}
+function teleportPrerequisites(s: any, pub: any) {
+  const row = pub.row, decoded = pub.decoded;
+  assert.equal(row.phase, "active"); assert.equal(decoded.gatesLocked, true); assert.equal(decoded.inColiseum, true);
+  for (const id of s.spec.seats) assert.equal(decoded.players.get(id)?.status, "alive", "standing teleport seat " + id);
+  for (const v of pub.viewers) for (const id of s.spec.seats) if (id !== v.viewerId)
+    assert(v.frame.fighters.some((f: any) => f.id === id && f.status === "alive"), "required actual public visibility " + id);
+  const p = pos(decoded, CASTER), q = pos(decoded, OBSERVER), distance = Math.hypot(q.x - p.x, q.y - p.y);
+  const sight = S.withGates(s.map), sword: any = S.WEAPONS.sword.shape;
+  assert.equal(sword.kind, "arc");
+  const los = S.hasLineOfSight(sight, p, q), movementLos = S.hasLineOfSight(sight, p, q, S.MASK_MOVE);
+  assert(los && movementLos && distance <= sword.reach, "fixed public pair LoS/reach prerequisite failed");
+  s.raw.prerequisites = { time: row.time, tick: row.tick, standing: [...s.spec.seats], distance, swordReach: sword.reach,
+    los, movementLos, gatesLocked: decoded.gatesLocked, inColiseum: decoded.inColiseum };
 }
 function runCase(spec: any) {
-  const raw: any = { caseId: spec.id, spec: plain(spec), status: "running", maxSteps: MAX_STEPS, steps: 0, T: null, U: null, C: null, rows: [], digests: [], temporal: [], errors: [], randomTape: [], uidTape: [] };
+  const raw: any = { caseId: spec.id, spec: clone(spec), status: "running", steps: 0, maxSteps: MAX_STEPS,
+    T: null, U: null, C: null, declared: [], rows: [], temporal: [], randomTape: [], uidTape: [], inputDrains: [],
+    pendingOrders: [], launchRecords: [], birthRecords: [], error: null };
+  let s: any = null;
   try {
-    const state = makeCaseContext(spec);
-    raw.seats = spec.seats;
-    raw.declared = [];
-    // First ordinary step starts the run; capture pre-first-step declarations.
-    const firstStep = step(state.world, 50); state.steps++;
-    const firstPub = (() => {
-      const events = firstStep; const fx = events.filter((e: any) => e.type === "fx").map((e: any) => e.fx);
-      const batch = state.channel.batch(fx, state.world.state.serverTime, state.world.projectiles);
-      state.channel.extendRoster(state.world.state);
-      state.encoder = new Encoder(state.world.state);
-      const offset = { offset: 0 }; state.encoder.encodeAll(offset);
-      const bytes = Buffer.from(state.encoder.sharedBuffer.slice(0, offset.offset));
-      const decoded = new RaidState(); new Decoder(decoded).decode(bytes);
-      state.channel.rosterSent();
-      setupViewers(state, decoded);
-      const unpackedFx = batch ? S.unpackFx(batch, [...decoded.roster]) : [];
-      const launches = batch ? S.unpackLaunches(batch) : [];
-      for (const launch of launches) state.launchRecords.push({ ...launch, step: state.world.state.tick, time: state.world.state.serverTime });
-      const viewerRows: any[] = [];
-      for (const v of state.viewers.values()) {
-        const input = { state: decoded, ...(batch ? { fxs: [batch] } : {}) };
-        v.vision.update(input, v.id);
-        const frame = perceive({ state: decoded, ...(batch ? { fxs: [batch] } : {}) }, { selfId: v.id, map: state.map, features: state.features, lastMinimap: v.lastMinimap, canSee: v.vision.canSee });
-        const prePush = temporalFrame(frame);
-        v.lastMinimap = frame.minimap; v.ring.push(frame); v.frames++;
-        const percept = v.ring.compose({ selfDelayMs: 0, worldDelayMs: WORLD_RENDER_DELAY_MS, map: state.map, features: state.features, attentionCentral: TIERS.normal.attention.central });
-        state.temporal.push({ step: 1, time: state.world.state.serverTime, tick: state.world.state.tick, viewerId: v.id, viewerOrder: [...state.viewers.keys()].indexOf(v.id), frame: prePush, composed: percept === null ? null : deep(percept), composeConfigSha256: state.composition.featuresSha256 });
-        let filtered = null, stimuli: any[] = [];
-        if (percept) { filtered = v.vision.filter(percept); stimuli = v.memory.observe(filtered); }
-        viewerRows.push({ id: v.id, frame: prePush, composed: percept === null ? null : deep(percept), filtered: filtered === null ? null : deep(filtered), memory: plain(v.memory.view), stimuli: plain(stimuli) });
+    s = context(spec, raw);
+    while (raw.steps < MAX_STEPS) {
+      const orders = queued(s); const events = step(s.world, DT); raw.steps++;
+      raw.pendingStep = { step: raw.steps, time: s.world.state.serverTime, tick: s.world.state.tick,
+        phase: s.world.state.phase, sourceEvents: clone(events) };
+      for (const o of orders) {
+        if (o.applyTime === null) {
+          assert(o.terminalCleanup && s.world.state.phase === "ended", "accepted active input never reached source drain");
+          o.unappliedReason = "Ended: source step advances clock but does not drain inputs";
+        } else { assert.equal(o.applyTime, o.scheduleFor); assert.equal(o.applyTick, s.world.state.tick); }
       }
-      return { events, batch, unpackedFx, launches, decoded, viewerRows, temporal: state.temporal.slice(0), composition: state.composition, schemaBytes: bytes.byteLength, schemaSha256: sha(bytes), roster: plain(decoded.roster), ownerFields: spec.viewers.map((id: string) => snapshotOwner(decoded, id)) };
-    })();
-    assert.equal(state.world.state.phase, "active", "first step active");
-    raw.rows.push(rowFor(state, firstPub, [], true));
-    raw.digests.push({ step: 1, time: firstPub.time, tick: firstPub.tick, phase: firstPub.phase, orders: 0, events: firstPub.events.length, launches: firstPub.launches.length, batch: firstPub.batch ? 1 : 0 });
-    raw.temporal.push(...firstPub.temporal.map(plain)); raw.composition = plain(firstPub.composition);
-    raw.declared = plain([...state.world.state.players].map(([id, p]: any) => ({ id, hp: p.hp, maxHp: p.maxHp, weapon0: p.weapon0, weapon1: p.weapon1, slot: p.slot, phase: state.world.state.phase })));
-    // Common prefix: no inputs before teleport.
-    let lastPrefix = firstPub;
-    while (!state.teleportDecoded && state.steps < MAX_STEPS) {
-      const nextTime = state.world.state.serverTime + 50;
-      const orders = applyOrders(state, nextTime);
-      const events = step(state.world, 50); state.steps++;
-      const pub = publish(state, events, orders);
-      const full = state.steps < 3 || pub.events.some((e: any) => e.type === "fx" && (e.fx.kind === "teleport" || e.fx.kind === "victory")) || pub.events.some((e: any) => e.type === "raidEnded") || state.steps === MAX_STEPS || pub.events.length > 0;
-      raw.rows.push(rowFor(state, { ...pub, schemaBytes: pub.schemaBytes ?? 0, schemaSha256: pub.schemaSha256 ?? "", roster: pub.roster ?? [] }, orders, full));
-      raw.digests.push({ step: state.steps, time: pub.time, tick: pub.tick, phase: pub.phase, orders: orders.length, events: pub.events.length, launches: pub.launches.length, batch: pub.batch ? 1 : 0 });
-      raw.temporal.push(...pub.temporal.map(plain)); raw.composition = plain(pub.composition);
-      if (pub.events.some((e: any) => e.type === "fx" && e.fx.kind === "teleport") && state.world.state.gatesLocked) {
-        state.teleportDecoded = pub.decoded;
-        state.T = pub.time;
-        const owner = pub.decoded.players.get("cue-caster");
-        state.U = owner?.immuneUntil ?? null;
-        if (state.U === null || !(state.U > 0)) throw new Error("no positive owner deadline after teleport");
-        state.C = state.U + 50;
-        state.boundaryTimes.add(state.T); state.boundaryTimes.add(state.U); state.boundaryTimes.add(state.C);
-        for (const dt of [-150, -100, -50, 0, 50, 100, 150]) state.boundaryTimes.add(state.U + dt);
-        planAfterTeleport(state);
-        raw.T = state.T; raw.U = state.U; raw.C = state.C;
-        // Mark the teleport row full.
-        const last = raw.rows[raw.rows.length - 1]; last.full = true; last.teleport = true;
+      const pub = publish(s, events, orders); raw.pendingOrders = []; raw.pendingStep = null;
+      const teleports = pub.row.sourceFx.filter((f: any) => f.kind === "teleport");
+      if (teleports.length) {
+        assert.equal(teleports.length, 1); assert.equal(raw.T, null, "unexpected second teleport");
+        raw.T = pub.row.time; raw.U = owner(pub.decoded, CASTER).immuneUntil; raw.C = raw.U + DT;
+        assert(raw.U > raw.T && Number.isInteger(raw.U), "missing positive produced owner u32 deadline");
+        pub.row.teleport = true; teleportPrerequisites(s, pub); plan(s, pub);
       }
-      lastPrefix = pub;
+      if (raw.T === null) assert.equal(orders.length, 0, "input before genuine teleport");
+      if (spec.id !== "W4") for (const id of spec.seats)
+        assert.equal(pub.decoded.players.get(id)?.status, "alive", "unintended death of " + id);
+      if (spec.id === "W5" && s.firstBirth && !s.secondScheduled && pub.row.time >= s.firstBirth.firstDeliveryTime + 300
+        && pub.row.time >= owner(pub.decoded, CASTER).readyAt) {
+        // Scheduling uses ONLY actual decoded public owner/visible positions, not source runtime diagnostic clocks.
+        const publicCaster = owner(pub.decoded, CASTER);
+        const publicObserver = pub.viewers.find((v: any) => v.viewerId === CASTER).frame.fighters.find((f: any) => f.id === OBSERVER);
+        assert(publicObserver, "W5 ready-time target not publicly visible");
+        raw.secondSchedule = { observedAt: pub.row.time, observedTick: pub.row.tick, ownerReadyAt: publicCaster.readyAt,
+          firstBirthDeliveryTime: s.firstBirth.firstDeliveryTime };
+        schedule(s, pub.row.time + DT, CASTER, "attack", { a: angle(publicCaster, publicObserver) });
+        schedule(s, pub.row.time + 2 * DT, CASTER, "swap", { slot: 1 }); s.secondScheduled = true;
+      }
     }
-    if (!state.teleportDecoded) throw new Error("teleport not produced within bound");
-    // Post-teleport clocks: one ordinary step per schedule, all inputs enqueued before the step that applies them.
-    while (state.steps < MAX_STEPS) {
-      const nextTime = state.world.state.serverTime + 50;
-      const orders = applyOrders(state, nextTime);
-      const events = step(state.world, 50); state.steps++;
-      const pub = publish(state, events, orders);
-      const near = [...state.boundaryTimes].some((t) => Math.abs(pub.time - t) <= 50);
-      const full = orders.length > 0 || pub.events.length > 0 || near || state.steps <= 3 || state.steps === MAX_STEPS;
-      raw.rows.push(rowFor(state, { ...pub, schemaBytes: pub.schemaBytes ?? 0, schemaSha256: pub.schemaSha256 ?? "", roster: pub.roster ?? [] }, orders, full));
-      raw.digests.push({ step: state.steps, time: pub.time, tick: pub.tick, phase: pub.phase, orders: orders.length, events: pub.events.length, launches: pub.launches.length, batch: pub.batch ? 1 : 0 });
-      raw.temporal.push(...pub.temporal); raw.composition = pub.composition;
-      if (state.spec.id === "W5" && state.firstLaunchAt === null && state.launchRecords.some((l: any) => l.ownerId === "cue-caster" || l.from === "cue-caster")) state.firstLaunchAt = pub.time;
-      afterStep(state, pub);
-      if (state.world.state.phase === "ended" && state.steps > 3) state.terminated = true;
-    }
-    raw.status = "ok";
-    raw.steps = state.steps;
-    raw.digests = raw.digests;
-    raw.randomTape = state.randomTape; raw.uidTape = state.uidTape; raw.temporalCount = state.temporal.length;
-    raw.launchRecords = plain(state.launchRecords);
-    raw.final = plain({ phase: state.world.state.phase, gatesLocked: state.world.state.gatesLocked, players: spec.seats.map((id: string) => sourcePlayer(state.world, id)) });
+    assert(raw.T !== null, "teleport not produced within96 steps"); assert.equal(s.schedules.size, 0, "scheduled input outside96-step bound");
+    raw.final = clone(raw.rows.at(-1).sourceDiagnostic); raw.temporalCount = raw.temporal.length; raw.status = "ok";
   } catch (error) {
-    raw.status = "error";
-    raw.error = String(error);
-    raw.rows = raw.rows ?? [];
+    raw.status = "error"; raw.error = String(error);
+    try {
+      raw.failure = s ? { time: s.world.state.serverTime, tick: s.world.state.tick, phase: s.world.state.phase,
+        pendingOrders: clone(s.currentOrders), sourceDiagnostic: spec.seats.map((id: string) => diagnostic(s.world, id)) } : { stage: "constructor/setup" };
+    } catch (diagnosticError) { raw.failure = { stage: "failure-diagnostic unavailable", error: String(diagnosticError) }; }
+    raw.temporalCount = raw.temporal.length;
   }
   return raw;
 }
-export function capture() {
-  const cases = planCases().map((spec: any) => runCase(spec));
-  return {
-    format: "rh-p15-protection-cues-raw/1",
-    profile: {
-      packet: "P-P15-PROTECTION-CUES-SOURCE",
-      code: "bb564d3b53728cbd205af375b5342eca466f3656",
-      map: { path: BORN, bytes: readFileSync(BORN).byteLength, sha256: sha(readFileSync(BORN)) },
-      seed: 7, maxStepsPerCase: MAX_STEPS, totalMaxSteps: 11 * MAX_STEPS,
-      mainSeed: 7, rewardSalt: [7, 6, 5, 4], questSalt: [3, 2, 1, 0],
-      assembler: { config: "packet fixed", modules: { signatures: false, walkHints: false }, profile: "actual supported weapon-only assembler; not live full-signature" },
-      views: { viewers: ["cue-caster", "cue-observer"], selfDelayMs: 0, worldDelayMs: WORLD_RENDER_DELAY_MS, tier: "normal", attentionCentral: TIERS.normal.attention.central },
-      clocks: "ordinary step(world,50); inputs enqueued before the step whose post-step time equals the declared apply time",
-      publication: "actual events -> FxChannel.batch against previously sent roster -> extendRoster -> encodeAll/decode fresh RaidState -> rosterSent -> viewers",
-      limitations: "Finite declared method contexts; no socket delivery, renderer/Phaser, full Brain, P15 disclosure or live fairness proof.",
-    },
-    cases,
-    serialization: { policy: "finite JSON numbers remain numbers; NaN/Infinity/-Infinity/-0 and undefined use explicit {$number}/{$undefined} tags before serialization; tags are part of the raw bytes and must be decoded by the pinned verifier, never silently converted to null", negativeZero: "tagged as {$number:\"-0\"}", nonfinite: "tagged explicitly" },
-  };
+export function capture(provenance: { codeSha: string; sourceBase: string }) {
+  const raw: any = { format: "rh-p15-protection-cues-raw/2", status: "running", profile: null, cases: [], error: null,
+    serialization: { codec: "rh-tagged-value/1", negativeZero: "tagged, preserved", nonfinite: "tagged, preserved",
+      undefined: "explicit own-property tag, omission remains omission" } };
+  try {
+    assert.equal(provenance?.sourceBase, SOURCE_BASE); assert.match(provenance?.codeSha, /^[0-9a-f]{40}$/);
+    raw.profile = { sourceBase: SOURCE_BASE, driverCode: provenance.codeSha, packet: "P-P15-PROTECTION-CUES-SOURCE",
+      map: { path: BORN, bytes: 7510, sha256: MAP_SHA }, mainSeed: 7, rewardSalt: [7, 6, 5, 4], questSalt: [3, 2, 1, 0],
+      maxStepsPerCase: MAX_STEPS, totalMaxSteps: 11 * MAX_STEPS, dtMs: DT, sourceWeaponTieEpsMs: TIE_EPS_MS,
+      views: { viewers: [CASTER, OBSERVER], selfDelayMs: 0, worldDelayMs: COMPOSE_DELAY_MS, tier: "normal" },
+      assembler: { modules: { signatures: false, walkHints: false }, profile: "supported weapon-only; not full-signature" },
+      publication: "actual step -> FX batch against sent roster -> extend -> encodeAll/fresh decode -> rosterSent -> viewers",
+      application: "source inputsApplied drain boundary; post-Ended W4 observer release explicitly accepted but UNAPPLIED",
+      limitations: "finite method inputs; no earned gear/HP, socket, renderer, Brain, new P15 disclosure or native activation" };
+    for (const spec of plans()) {
+      const c = runCase(spec); raw.cases.push(c);
+      if (c.status !== "ok") { raw.status = "error"; raw.error = "first case failed: " + spec.id; return raw; }
+      try { checkCompletedPrefix(raw); } catch (error) {
+        c.status = "error"; c.error = String(error); c.failure = { stage: "completed-case producer precondition" };
+        raw.status = "error"; raw.error = "first case failed: " + spec.id; return raw;
+      }
+    }
+    raw.status = "ok";
+  } catch (error) { raw.status = "error"; raw.error = String(error); }
+  return raw;
 }

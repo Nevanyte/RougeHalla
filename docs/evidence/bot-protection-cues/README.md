@@ -1,11 +1,13 @@
 # Protection/cues finite source witness — CODE-ONLY PREPARATION (UNRUN)
 
-Status: CODE-ONLY / UNRUN. No compiler, native helper, scenario/World import or execution, Node
-module import, Docker/source capture/control/frozen run, package install/download, new cache, source or
-corpus edit, public/native activation, or subagent was performed. Root reviews this sealed source and the
-literal Phase A/B envelopes before any execution.
+Status: repaired CODE-ONLY / source capture UNRUN. The earlier9cf code-only proposal is preserved in Git.
+Root transferred the technical repairs to two Codex specialists, with independent cross-reviews and no
+source execution. Only already-pinned Node syntax checks of inert JavaScript files have run; no compiler,
+scenario/World import, Docker/source capture, control, package install/download, new cache or public/native
+activation occurred. Root freezes the reviewed child before a separate literal Phase A release. Generated
+artifacts then require another review before Phase B; neither phase is authorized by this README.
 
-- Branch: deepseek/protection-cues-source.
+- Branch: codex/protection-cues-reviewed; prior deepseek/protection-cues-source remains preserved.
 - Exact base: bb564d3b53728cbd205af375b5342eca466f3656.
 - Write scope only: NEW tools/bot-protection-cues-fixtures/**, parity/policy/bot-protection-cues/**,
   docs/evidence/bot-protection-cues/**.
@@ -36,9 +38,10 @@ Actual composition inputs are retained: selfDelayMs=0, worldDelayMs=WORLD_RENDER
 attentionCentral=TIERS.normal.attention.central, full features, unchanged typed-array map/gate data, map
 source path/hash. No private Memory values are used as expected/input facts.
 
-Serialization policy: finite JSON numbers stay numbers; NaN/Infinity/-Infinity/-0 and undefined are tagged
-explicitly as {$number:"NaN"|"Infinity"|"-Infinity"|"-0"} / {$undefined:true}; never silently NaN/Infinity
-to null. The verifier consumes these raw bytes; no numeric canonicalization is allowed.
+Serialization uses the collision-safe `rh-tagged-value/1` whole-result encoder/decoder. Finite numbers stay
+numbers; nonfinite values, negative zero, undefined, sparse arrays, Maps, Sets and typed arrays retain explicit
+forms. Real objects using the tag key are escaped. No silent nonfinite-to-null conversion or decision-changing
+numeric normalization is allowed. The verifier consumes the actual serialized raw before canonical output.
 
 ## Files
 
@@ -50,7 +53,7 @@ to null. The verifier consumes these raw bytes; no numeric canonicalization is a
 - tools/bot-protection-cues-fixtures/verify.mjs — raw-first semantic producer verifier.
 - tools/bot-protection-cues-fixtures/controls.mjs — six actual compiled control mutations plus comment
   provenance nonkill, DEFINED_NOT_RUN.
-- This README, PROPOSED-READSET.json, OFFLINE-COMMANDS.md, CONTROL-MATRIX.md, PARITY-README.md.
+- This README, PROPOSED-READSET.json, OFFLINE-COMMANDS.md, CONTROL-MATRIX.md and both ROOT repair notes.
 - parity/policy/bot-protection-cues/README.md — no corpus produced yet; UNRUN.
 
 ## Expected positives / negatives
@@ -68,8 +71,9 @@ postfilter and public stimuli/alive/feint.
 
 ## Explicit UNRUN / limits
 
-Phase A build, Phase B capture, readonly bytecheck/check, six semantic controls, comment/restored controls,
+Phase A build, Phase B capture, readonly check-consistency, six semantic controls, comment/restored controls,
 frozen Git export, external byte reproduction, native24 consumption and full P15/public/fair/live
-activation are UNRUN. No renderer/Phaser claim, no private windup-map expiry proof, no foreign-deadline
+activation are UNRUN. check-consistency will only compare saved raw/canonical/verdict bytes; it is not an
+independent source rerun or frozen reproduction. No renderer/Phaser claim, no private windup-map expiry proof, no foreign-deadline
 fair API, no direct canPlayerSee substitution, no desired visibility/state/RNG installation, no full
 signature assembler/live Brain. Root owns admission, timings, and the next lease.
