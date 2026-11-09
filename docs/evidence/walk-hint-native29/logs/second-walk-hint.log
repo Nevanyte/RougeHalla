@@ -1,0 +1,27 @@
+   Compiling rh-sim v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/walk-hint-native/repo/crates/rh-sim)
+error[E0425]: cannot find value `TRAINING_PLAN` in this scope
+    --> crates/rh-sim/src/schedule.rs:2410:18
+     |
+2410 |         assert!(!TRAINING_PLAN
+     |                  ^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find value `TRAINING_PLAN` in this scope
+    --> crates/rh-sim/src/schedule.rs:2415:17
+     |
+2415 |         assert!(TRAINING_PLAN
+     |                 ^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find value `TRAINING_NO_SIGNATURES_PLAN` in this scope
+    --> crates/rh-sim/src/schedule.rs:2464:22
+     |
+2464 |             assert!(!TRAINING_NO_SIGNATURES_PLAN
+     |                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find value `TRAINING_PLAN` in this scope
+    --> crates/rh-sim/src/schedule.rs:2469:21
+     |
+2469 |             assert!(TRAINING_PLAN.systems.live().iter().any(|(n, _)| *n == name));
+     |                     ^^^^^^^^^^^^^ not found in this scope
+
+For more information about this error, try `rustc --explain E0425`.
+error: could not compile `rh-sim` (lib test) due to 4 previous errors

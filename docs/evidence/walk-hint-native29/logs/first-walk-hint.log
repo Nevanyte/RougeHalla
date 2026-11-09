@@ -1,0 +1,184 @@
+   Compiling rh-sim v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/walk-hint-native/repo/crates/rh-sim)
+error[E0425]: cannot find value `PRODUCTION_PLAN` in this scope
+    --> crates/rh-sim/src/schedule.rs:2174:15
+     |
+2174 |             (&PRODUCTION_PLAN, Gates::PRODUCTION),
+     |               ^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find value `CAPTURE_PLAN` in this scope
+    --> crates/rh-sim/src/schedule.rs:2175:15
+     |
+2175 |             (&CAPTURE_PLAN, Gates::CAPTURE),
+     |               ^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find value `TRAINING_PLAN` in this scope
+    --> crates/rh-sim/src/schedule.rs:2176:15
+     |
+2176 |             (&TRAINING_PLAN, Gates::TRAINING),
+     |               ^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find value `TRAINING_NO_SIGNATURES_PLAN` in this scope
+    --> crates/rh-sim/src/schedule.rs:2177:15
+     |
+2177 |             (&TRAINING_NO_SIGNATURES_PLAN, Gates::TRAINING_NO_SIGNATURES),
+     |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find value `MOB_FOUNDATION_PLAN` in this scope
+    --> crates/rh-sim/src/schedule.rs:2178:15
+     |
+2178 |             (&MOB_FOUNDATION_PLAN, Gates::MOB_FOUNDATION),
+     |               ^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find value `MOB_BASIC_FACTIONS_PLAN` in this scope
+    --> crates/rh-sim/src/schedule.rs:2179:15
+     |
+2179 |             (&MOB_BASIC_FACTIONS_PLAN, Gates::MOB_BASIC_FACTIONS),
+     |               ^^^^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find value `CAPTURE_PLAN` in this scope
+    --> crates/rh-sim/src/schedule.rs:2215:20
+     |
+2215 |         assert_eq!(CAPTURE_PLAN.phases.live().len(), 22);
+     |                    ^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find value `CAPTURE_PLAN` in this scope
+    --> crates/rh-sim/src/schedule.rs:2217:13
+     |
+2217 |             CAPTURE_PLAN
+     |             ^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find value `TRAINING_PLAN` in this scope
+    --> crates/rh-sim/src/schedule.rs:2244:18
+     |
+2244 |         assert!(!TRAINING_PLAN
+     |                  ^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find value `TRAINING_PLAN` in this scope
+    --> crates/rh-sim/src/schedule.rs:2249:17
+     |
+2249 |         assert!(TRAINING_PLAN
+     |                 ^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find value `TRAINING_NO_SIGNATURES_PLAN` in this scope
+    --> crates/rh-sim/src/schedule.rs:2298:22
+     |
+2298 |             assert!(!TRAINING_NO_SIGNATURES_PLAN
+     |                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find value `TRAINING_PLAN` in this scope
+    --> crates/rh-sim/src/schedule.rs:2303:21
+     |
+2303 |             assert!(TRAINING_PLAN.systems.live().iter().any(|(n, _)| *n == name));
+     |                     ^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function, tuple struct or tuple variant `QUESTS_select_walk_plan` in this scope
+   --> crates/rh-sim/src/schedule.rs:667:24
+    |
+667 |                 return QUESTS_select_walk_plan(
+    |                        ^^^^^^^^^^^^^^^^^^^^^^^
+...
+810 | fn select_walk_plan(hints: bool, without: &'static Plan, with: &'static Plan) -> &'static Plan {
+    | ---------------------------------------------------------------------------------------------- similarly named function `select_walk_plan` defined here
+    |
+help: a function with a similar name exists
+    |
+667 -                 return QUESTS_select_walk_plan(
+667 +                 return select_walk_plan(
+    |
+
+error[E0425]: cannot find function, tuple struct or tuple variant `QUESTS_select_walk_plan` in this scope
+   --> crates/rh-sim/src/schedule.rs:677:24
+    |
+677 |                 return QUESTS_select_walk_plan(
+    |                        ^^^^^^^^^^^^^^^^^^^^^^^
+...
+810 | fn select_walk_plan(hints: bool, without: &'static Plan, with: &'static Plan) -> &'static Plan {
+    | ---------------------------------------------------------------------------------------------- similarly named function `select_walk_plan` defined here
+    |
+help: a function with a similar name exists
+    |
+677 -                 return QUESTS_select_walk_plan(
+677 +                 return select_walk_plan(
+    |
+
+error[E0425]: cannot find function, tuple struct or tuple variant `QUESTS_select_walk_plan` in this scope
+   --> crates/rh-sim/src/schedule.rs:687:24
+    |
+687 |                 return QUESTS_select_walk_plan(
+    |                        ^^^^^^^^^^^^^^^^^^^^^^^
+...
+810 | fn select_walk_plan(hints: bool, without: &'static Plan, with: &'static Plan) -> &'static Plan {
+    | ---------------------------------------------------------------------------------------------- similarly named function `select_walk_plan` defined here
+    |
+help: a function with a similar name exists
+    |
+687 -                 return QUESTS_select_walk_plan(
+687 +                 return select_walk_plan(
+    |
+
+error[E0425]: cannot find function, tuple struct or tuple variant `QUESTS_select_walk_plan` in this scope
+   --> crates/rh-sim/src/schedule.rs:697:24
+    |
+697 |                 return QUESTS_select_walk_plan(
+    |                        ^^^^^^^^^^^^^^^^^^^^^^^
+...
+810 | fn select_walk_plan(hints: bool, without: &'static Plan, with: &'static Plan) -> &'static Plan {
+    | ---------------------------------------------------------------------------------------------- similarly named function `select_walk_plan` defined here
+    |
+help: a function with a similar name exists
+    |
+697 -                 return QUESTS_select_walk_plan(
+697 +                 return select_walk_plan(
+    |
+
+error[E0425]: cannot find function, tuple struct or tuple variant `QUESTS_select_walk_plan` in this scope
+   --> crates/rh-sim/src/schedule.rs:707:24
+    |
+707 |                 return QUESTS_select_walk_plan(
+    |                        ^^^^^^^^^^^^^^^^^^^^^^^
+...
+810 | fn select_walk_plan(hints: bool, without: &'static Plan, with: &'static Plan) -> &'static Plan {
+    | ---------------------------------------------------------------------------------------------- similarly named function `select_walk_plan` defined here
+    |
+help: a function with a similar name exists
+    |
+707 -                 return QUESTS_select_walk_plan(
+707 +                 return select_walk_plan(
+    |
+
+error[E0425]: cannot find function, tuple struct or tuple variant `QUESTS_MOB_FROST_select_walk_plan` in this scope
+   --> crates/rh-sim/src/schedule.rs:717:24
+    |
+717 |                 return QUESTS_MOB_FROST_select_walk_plan(
+    |                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function, tuple struct or tuple variant `QUESTS_select_walk_plan` in this scope
+   --> crates/rh-sim/src/schedule.rs:727:24
+    |
+727 |                 return QUESTS_select_walk_plan(
+    |                        ^^^^^^^^^^^^^^^^^^^^^^^
+...
+810 | fn select_walk_plan(hints: bool, without: &'static Plan, with: &'static Plan) -> &'static Plan {
+    | ---------------------------------------------------------------------------------------------- similarly named function `select_walk_plan` defined here
+    |
+help: a function with a similar name exists
+    |
+727 -                 return QUESTS_select_walk_plan(
+727 +                 return select_walk_plan(
+    |
+
+error[E0425]: cannot find function, tuple struct or tuple variant `MOB_FROST_select_walk_plan` in this scope
+   --> crates/rh-sim/src/schedule.rs:748:13
+    |
+748 |             MOB_FROST_select_walk_plan(
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0063]: missing field `walk_hints` in initializer of `statics::SimConfig`
+  --> crates/rh-sim/src/systems/training/corpus_tests.rs:51:5
+   |
+51 |     SimConfig {
+   |     ^^^^^^^^^ missing `walk_hints`
+
+Some errors have detailed explanations: E0063, E0425.
+For more information about an error, try `rustc --explain E0063`.
+error: could not compile `rh-sim` (lib test) due to 21 previous errors

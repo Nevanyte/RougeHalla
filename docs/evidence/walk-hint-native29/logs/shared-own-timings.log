@@ -1,0 +1,22 @@
+   Compiling rh-sim v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/walk-hint-native/repo/crates/rh-sim)
+warning: function `pending` is never used
+   --> crates/rh-sim/src/schedule.rs:268:10
+    |
+268 | const fn pending<F>(legacy: &'static str, gate: Gate, packet: &'static str) -> Item<F> {
+    |          ^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `rh-sim` (lib) generated 1 warning
+   Compiling rh-protocol v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/walk-hint-native/repo/crates/rh-protocol)
+   Compiling rh-policy v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/walk-hint-native/repo/crates/rh-policy)
+    Finished `test` profile [unoptimized] target(s) in 17.31s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/rh_policy-c3fa0ee46865b1ea)
+
+running 3 tests
+test bots::kite::own_timings::tests::six_no_faction_results_are_none ... ok
+test bots::kite::own_timings::tests::explicit_fists_are_supported_and_never_missing_inventory ... ok
+test bots::kite::own_timings::tests::actual_source_90_timing_rows_match_exactly ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 156 filtered out; finished in 0.01s
+

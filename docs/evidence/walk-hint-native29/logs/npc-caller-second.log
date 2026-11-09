@@ -1,0 +1,21 @@
+   Compiling rh-sim v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/walk-hint-native/repo/crates/rh-sim)
+    Finished `test` profile [unoptimized] target(s) in 31.86s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/rh_sim-bebc1724c13fdcb0)
+
+running 3 tests
+test systems::walk_hint::helper_tests::immutable_source_eighteen_npc_mirror_timings_match_exact_bits ... ok
+
+thread 'systems::walk_hint::helper_tests::captured_npc_timings_drive_real_ai_aim_proposals' (67782297) panicked at crates/rh-sim/src/systems/walk_hint/helper_tests.rs:598:73:
+called `Option::unwrap()` on a `None` value
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test systems::walk_hint::helper_tests::captured_npc_timings_drive_real_ai_aim_proposals ... FAILED
+test systems::walk_hint::helper_tests::immutable_source_fifty_one_declared_helper_contexts ... ok
+
+failures:
+
+failures:
+    systems::walk_hint::helper_tests::captured_npc_timings_drive_real_ai_aim_proposals
+
+test result: FAILED. 2 passed; 1 failed; 0 ignored; 0 measured; 825 filtered out; finished in 0.04s
+
+error: test failed, to rerun pass `-p rh-sim --lib`

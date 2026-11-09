@@ -1,0 +1,13 @@
+    Finished `test` profile [unoptimized] target(s) in 0.04s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/rh_sim-bebc1724c13fdcb0)
+
+running 6 tests
+test schedule::tests::tables_are_indexed_by_their_ids ... ok
+test schedule::tests::a_replace_link_drops_what_precedes_it ... ok
+test schedule::tests::weapon_only_training_omits_faction_auxiliaries_but_ordinary_training_keeps_them ... ok
+test schedule::tests::training_swaps_the_settle_and_drops_sudden_death ... ok
+test schedule::tests::a_plan_is_the_tables_resolved_for_its_gates ... ok
+test schedule::tests::a_phase_can_end_the_tick_like_a_legacy_return ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 816 filtered out; finished in 0.00s
+

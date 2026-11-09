@@ -1,0 +1,15 @@
+   Compiling rh-sim v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/walk-hint-native/repo/crates/rh-sim)
+error[E0063]: missing field `probe` in initializer of `systems::Cx<'_>`
+   --> crates/rh-sim/src/systems/walk_hint/helper_tests.rs:529:30
+    |
+529 |                 let mut cx = crate::systems::Cx {
+    |                              ^^^^^^^^^^^^^^^^^^ missing `probe`
+
+error[E0063]: missing field `probe` in initializer of `systems::Cx<'_>`
+   --> crates/rh-sim/src/systems/walk_hint/helper_tests.rs:693:38
+    |
+693 |     super::super::mob_ai::think(&mut crate::systems::Cx {
+    |                                      ^^^^^^^^^^^^^^^^^^ missing `probe`
+
+For more information about this error, try `rustc --explain E0063`.
+error: could not compile `rh-sim` (lib test) due to 2 previous errors

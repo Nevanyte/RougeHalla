@@ -1,0 +1,24 @@
+   Compiling rh-sim v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/walk-hint-native/repo/crates/rh-sim)
+    Finished `test` profile [unoptimized] target(s) in 37.20s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/rh_sim-bebc1724c13fdcb0)
+
+running 4 tests
+
+thread 'systems::walk_hint::tests::actual_source_fourteen_world_frames' (67672487) panicked at crates/rh-sim/src/systems/walk_hint/tests.rs:98:9:
+assertion `left == right` failed
+  left: Number(1000000)
+ right: Number(1000000.0)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test systems::walk_hint::tests::actual_source_fourteen_world_frames ... FAILED
+test systems::walk_hint::tests::every_existing_gate_preset_has_exact_hint_variants ... ok
+test systems::walk_hint::tests::installed_hint_switch_is_gameplay_rng_event_and_vision_readonly ... ok
+test systems::walk_hint::tests::actual_produced_hint_clone_restore_keeps_bytes_and_input_continuation ... ok
+
+failures:
+
+failures:
+    systems::walk_hint::tests::actual_source_fourteen_world_frames
+
+test result: FAILED. 3 passed; 1 failed; 0 ignored; 0 measured; 816 filtered out; finished in 0.01s
+
+error: test failed, to rerun pass `-p rh-sim --lib`

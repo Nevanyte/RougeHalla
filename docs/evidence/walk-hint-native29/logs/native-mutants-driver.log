@@ -1,0 +1,5 @@
+cap-two KILLED_BY_ASSERTION
+cleanup-keeps-one KILLED_BY_ASSERTION
+lock-ignores-windup-mirror KILLED_BY_ASSERTION
+weapon-ignores-windup-mirror KILLED_BY_ASSERTION
+stagger-uses-as-one KILLED_BY_ASSERTION
