@@ -29,6 +29,10 @@ pub(super) fn routes() -> Router<St> {
         .route("/api/profile/{name}", any(claim))
         .route("/api/profile/{name}/purchase", any(purchase))
         .route("/api/profile/{name}/equip", any(equip))
+        .route(
+            "/api/profile/{name}/matches/{match_id}/settlement",
+            any(settlement),
+        )
         .route("/api/leaderboard", any(leaderboard))
 }
 
@@ -281,6 +285,56 @@ fn is_length_limit(e: &axum::Error) -> bool {
 
 fn name_of(p: Result<Path<String>, axum::extract::rejection::PathRejection>) -> Option<String> {
     p.ok().map(|Path(n)| n).filter(|n| valid_callsign(n))
+}
+
+/// A public MatchId's UUID text uses its raw Welcome bytes in network order (`room::match_id_string`).
+/// This route never claims a free name: it authenticates once, then reads only that immutable principal's pair.
+async fn settlement(
+    State(st): State<St>,
+    path: Result<Path<(String, String)>, axum::extract::rejection::PathRejection>,
+    req: Request,
+) -> Response {
+    if req.method() != Method::GET {
+        return method_not_allowed("GET, OPTIONS");
+    }
+    let Ok(Path((name, raw_match))) = path else {
+        return err(StatusCode::BAD_REQUEST, "invalid settlement path");
+    };
+    if !valid_callsign(&name) {
+        return bad_name();
+    }
+    let Ok(match_id) = Uuid::parse_str(&raw_match) else {
+        return err(StatusCode::BAD_REQUEST, "invalid match id");
+    };
+    if !match_id.to_string().eq_ignore_ascii_case(&raw_match) {
+        return err(StatusCode::BAD_REQUEST, "invalid match id");
+    }
+    let _slot = match slot(&st).await {
+        Ok(slot) => slot,
+        Err(response) => return response,
+    };
+    let store = store_of(&st);
+    let pid = match authed(store, &name, token_of(req.headers())).await {
+        Ok(Some(pid)) => pid,
+        Ok(None) => return forbidden_profile(),
+        Err(error) => return store_err("GET /api/profile/settlement", error),
+    };
+    match store.settlement_by_id(pid, match_id).await {
+        Ok(None) => json(
+            StatusCode::OK,
+            serde_json::json!({
+                "v":1, "matchId":match_id.to_string(), "status":"unknown"
+            }),
+        ),
+        Ok(Some(receipt)) => json(
+            StatusCode::OK,
+            serde_json::json!({
+                "v":1, "matchId":match_id.to_string(), "status":"committed",
+                "settlement": {"outcome":receipt.outcome, "gvCredited":receipt.gv_credited}
+            }),
+        ),
+        Err(error) => store_err("GET /api/profile/settlement", error),
+    }
 }
 
 // ---- claim / open ---------------------------------------------------------------------------------------------
