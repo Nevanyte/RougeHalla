@@ -1111,6 +1111,7 @@ fn fold_status_content(h: &mut Fnv, supplied: Option<(&[u64], &[u64])>) {
 struct RuntimeWords<'a> {
     status: Option<(&'a [u64], &'a [u64])>,
     progression: Option<&'a [u64]>,
+    timings: Option<&'a [u64]>,
 }
 
 /// Ordered words from the actual selected-card, modifier, farm, reward and private-stream definitions.
@@ -1169,6 +1170,109 @@ pub fn visit_progression_content(mut word: impl FnMut(u64)) {
             word(u64::from(b));
         }
     }
+}
+
+/// Ordered probes of the real mirrored timing calculation, including both fighter profiles.
+/// The schema/key tables identify every input/output word; all rows use actual paced faction
+/// content and mirror_timings. Probe inputs describe identity coverage, not gameplay tuning.
+/// The visitor uses only fixed stack arrays and streams directly to its caller.
+pub fn visit_mirror_timing_content(mut word: impl FnMut(u64)) {
+    fn text(word: &mut impl FnMut(u64), value: &str) {
+        word(value.len() as u64);
+        for byte in value.bytes() {
+            word(u64::from(byte));
+        }
+    }
+    let profiles = [("player", false), ("npc", true)];
+    let inputs: [(f64, f64); 4] = [(1., 1.), (1.5, 0.5), (0.5, 1.5), (1., 1.5)];
+    text(&mut word, "mirror-timing-probes/1");
+    text(&mut word, "factions");
+    word(FactionId::ALL.len() as u64);
+    for faction in FactionId::ALL {
+        word(u64::from(faction.code()));
+        text(&mut word, faction.as_str());
+    }
+    text(&mut word, "weapons");
+    word(WeaponId::ALL.len() as u64);
+    for weapon in WeaponId::ALL {
+        word(u64::from(weapon.code()));
+        text(&mut word, weapon.as_str());
+    }
+    text(&mut word, "profiles");
+    word(profiles.len() as u64);
+    for (name, npc) in profiles {
+        word(u64::from(npc));
+        text(&mut word, name);
+    }
+    text(&mut word, "inputs");
+    word(inputs.len() as u64);
+    for (as_mult, windup_mult) in inputs {
+        word(as_mult.to_bits());
+        word(windup_mult.to_bits());
+    }
+    let fields = [
+        "profile",
+        "faction",
+        "weapon",
+        "asMult",
+        "windupMult",
+        "interval",
+        "windup",
+        "root",
+        "ranged",
+    ];
+    text(&mut word, "row-keys");
+    word(fields.len() as u64);
+    for field in fields {
+        text(&mut word, field);
+    }
+    text(&mut word, "rows");
+    word((FactionId::ALL.len() * WeaponId::ALL.len() * profiles.len() * inputs.len()) as u64);
+    for faction in FactionId::ALL {
+        let spec = paced(faction);
+        for weapon in WeaponId::ALL {
+            for (_, npc) in profiles {
+                for (as_mult, windup_mult) in inputs {
+                    let timing = mirror_timings(&spec, weapon, as_mult, windup_mult, npc);
+                    for value in [
+                        u64::from(npc),
+                        u64::from(faction.code()),
+                        u64::from(weapon.code()),
+                        as_mult.to_bits(),
+                        windup_mult.to_bits(),
+                        timing.interval.to_bits(),
+                        timing.windup.to_bits(),
+                        timing.root.to_bits(),
+                        u64::from(timing.ranged),
+                    ] {
+                        word(value);
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// Sensitivity seam for the actual aggregate identity; supplied timing words replace only
+/// this visitor's output stream, never the gameplay function, registry or other components.
+pub fn content_hash_of_mirror_timing_words(
+    registry: &[Entry],
+    stagger_weapons: &[WeaponId],
+    words: &[u64],
+) -> u64 {
+    let signatures = crate::factions::SignatureKind::ALL.map(|kind| (kind, kind.is_dot()));
+    content_hash_of_definitions(
+        registry,
+        stagger_weapons,
+        MapDefinitions::default(),
+        &signatures,
+        &crate::stat_fold::default_definition(),
+        &crate::mob_catalog::DEFINITION,
+        RuntimeWords {
+            timings: Some(words),
+            ..Default::default()
+        },
+    )
 }
 
 /// Sensitivity seam for the real aggregate fold; only output words are supplied, no gameplay state changes.
@@ -1256,6 +1360,10 @@ fn content_hash_of_definitions(
         runtime_words.progression,
         |word| visit_progression_content(word),
     );
+
+    fold_status_stream(&mut h, "mirror-timings/1", runtime_words.timings, |word| {
+        visit_mirror_timing_content(word)
+    });
 
     h.str("stat-fold/1");
     crate::stat_fold::visit_content(stat_fold, |word| h.u64(word));
