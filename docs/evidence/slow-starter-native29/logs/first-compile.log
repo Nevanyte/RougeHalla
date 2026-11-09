@@ -1,0 +1,28 @@
+   Compiling rh-sim v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/wrapup-final-native/repo/crates/rh-sim)
+warning: unused import: `Event`
+ --> crates/rh-sim/src/cards/fight_clock_tests.rs:3:33
+  |
+3 |     validate as command, Arena, Event, PlayerId, RawCommand, Secrets, Sim, SimConfig, Vec2,
+  |                                 ^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+error[E0609]: no field `origin` on type `&mob_runtime::Mob`
+  --> crates/rh-sim/src/cards/fight_clock_tests.rs:32:42
+   |
+32 |         match &s.w.mobs.get(id).unwrap().origin {
+   |                                          ^^^^^^ unknown field
+   |
+   = note: available fields are: `core`, `brain`, `last_hit_at`, `kind`, `mob_type` ... and 9 others
+
+error[E0609]: no field `status` on type `Vitals`
+   --> crates/rh-sim/src/cards/fight_clock_tests.rs:241:22
+    |
+241 |             p.vitals.status.as_str(),
+    |                      ^^^^^^ unknown field
+    |
+    = note: available fields are: `faction`, `hp`, `max_hp`, `barrier`, `immune_until`, `hp_frac_at_tick_start`
+
+For more information about this error, try `rustc --explain E0609`.
+warning: `rh-sim` (lib test) generated 1 warning
+error: could not compile `rh-sim` (lib test) due to 2 previous errors; 1 warning emitted

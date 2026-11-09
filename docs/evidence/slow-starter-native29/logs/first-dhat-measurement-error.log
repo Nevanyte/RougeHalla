@@ -1,0 +1,18 @@
+    Finished `test` profile [unoptimized] target(s) in 0.12s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/rh_sim-bebc1724c13fdcb0)
+
+running 1 test
+test cards::fight_clock::tests::slow_starter_warm_alloc ...
+thread 'cards::fight_clock::tests::slow_starter_warm_alloc' (67342193) panicked at /Users/nevinmckinnon/.codex/tools/rougehalla-stage2/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/dhat-0.3.3/src/lib.rs:1651:9:
+assertion failed: !ignore_allocs.was_already_ignoring_allocs
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+FAILED
+
+failures:
+
+failures:
+    cards::fight_clock::tests::slow_starter_warm_alloc
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 792 filtered out; finished in 0.11s
+
+error: test failed, to rerun pass `-p rh-sim --lib`

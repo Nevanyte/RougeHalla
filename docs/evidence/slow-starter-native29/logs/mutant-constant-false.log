@@ -1,0 +1,31 @@
+   Compiling rh-sim v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/wrapup-final-native/repo/crates/rh-sim)
+warning: unused variable: `fight`
+   --> crates/rh-sim/src/modifiers/mod.rs:485:5
+    |
+485 |     fight: Option<crate::cards::runtime::FightClock>,
+    |     ^^^^^ help: if this is intentional, prefix it with an underscore: `_fight`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: `rh-sim` (lib test) generated 1 warning (run `cargo fix --lib -p rh-sim --tests` to apply 1 suggestion)
+    Finished `test` profile [unoptimized] target(s) in 33.13s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/rh_sim-bebc1724c13fdcb0)
+
+running 1 test
+test cards::fight_clock::tests::seven_actual_source_clock_witnesses ... source "ordinary-restart-gap-2950"
+
+thread 'cards::fight_clock::tests::seven_actual_source_clock_witnesses' (67359934) panicked at crates/rh-sim/src/cards/fight_clock_tests.rs:280:13:
+assertion `left == right` failed: holds at 3100
+  left: Number(0)
+ right: Number(1)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+FAILED
+
+failures:
+
+failures:
+    cards::fight_clock::tests::seven_actual_source_clock_witnesses
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 793 filtered out; finished in 0.14s
+
+error: test failed, to rerun pass `-p rh-sim --lib`

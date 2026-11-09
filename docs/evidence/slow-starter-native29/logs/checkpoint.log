@@ -1,0 +1,8 @@
+   Compiling rh-sim v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/wrapup-final-native/repo/crates/rh-sim)
+    Finished `test` profile [unoptimized] target(s) in 13.99s
+     Running tests/checkpoint.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/checkpoint-a8d34f2060bdde67)
+
+running 1 test
+test a_mid_fight_checkpoint_continues_identically ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.07s

@@ -29,6 +29,7 @@ pub(crate) fn shred_source(
 }
 
 pub(crate) fn fold_armor(cx: &mut Cx) {
+    crate::cards::fight_clock::note_fights(cx.w, &cx.s.landed);
     for i in 0..cx.w.fighter_count() {
         refold_modifiers_with(cx.k, cx.w, i, cx.stats);
     }

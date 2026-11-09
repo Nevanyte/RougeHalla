@@ -1,0 +1,9 @@
+PASS seven source witnesses, input hashes and intermediate RNG offsets
+REJECT damaged observation: wrong-gap-restart: gap restart clock
+REJECT damaged observation: retroactive-low-paid-hit: already-paid gap hit
+REJECT damaged observation: expired-clock-deleted: expired clock retained
+REJECT damaged observation: victim-touch-excluded: duplicate by/victim touches
+REJECT damaged observation: old-landed-rescanned-on-grant: helper gain cannot rescan prior landed
+REJECT damaged observation: clear-retains-watch: real clear removes rows/watch/clock
+REJECT damaged observation: death-clock-lost: dead watched victim touched
+REJECT damaged observation: teleport-clock-lost: ordinary patience teleport preserves clock
