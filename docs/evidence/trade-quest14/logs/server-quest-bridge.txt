@@ -1,0 +1,14 @@
+$ cargo +1.97.0 test --locked -p rh-server --lib quest_bridge --no-default-features
+Jobs1, incremental0, dev/test debug0.
+    Finished `test` profile [unoptimized] target(s) in 0.08s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/targets/rougehalla-trade-quest14/debug/deps/rh_server-f493f0bd64c2245b)
+
+running 4 tests
+test room::quest_bridge_tests::quest_bridge_wire_bounds_cover_the_native_domain ... ok
+test room::quest_bridge_tests::quest_bridge_room_failed_enqueue_accept_resync_and_resume ... ok
+test room::quest_bridge_tests::quest_bridge_preview_hidden_and_closed_refs_never_accept ... ok
+test room::quest_bridge_tests::quest_bridge_native_token_and_parcel_keep_the_existing_pickup_door ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 176 filtered out; finished in 2.21s
+
+exit0

@@ -1,0 +1,3 @@
+    Finished `dev` profile [unoptimized] target(s) in 0.03s
+     Running `/Users/nevinmckinnon/.codex/targets/rougehalla-trade-quest14/debug/protocol-fixtures`
+wrote /Users/nevinmckinnon/Documents/Projects/RogueHalla-trade-quest14/crates/rh-protocol/../../protocol/fixtures/v14.json

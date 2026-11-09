@@ -1,0 +1,15 @@
+$ cargo +1.97.0 test --locked -p rh-server --lib trade_bridge --no-default-features
+Jobs1, incremental0, dev/test debug0.
+   Compiling rh-policy v0.1.0 (/Users/nevinmckinnon/Documents/Projects/RogueHalla-trade-quest14/crates/rh-policy)
+   Compiling rh-headless v0.1.0 (/Users/nevinmckinnon/Documents/Projects/RogueHalla-trade-quest14/crates/rh-headless)
+   Compiling rh-server v0.1.0 (/Users/nevinmckinnon/Documents/Projects/RogueHalla-trade-quest14/crates/rh-server)
+    Finished `test` profile [unoptimized] target(s) in 9.52s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/targets/rougehalla-trade-quest14/debug/deps/rh_server-f493f0bd64c2245b)
+
+running 2 tests
+test room::trade_bridge_tests::native_trade_input_and_owner_state_keep_first_contact_privacy_and_source_order ... ok
+test room::trade_bridge_tests::trade_failed_encode_capacity_closed_resync_and_resume_preserve_delivery_baselines ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 178 filtered out; finished in 3.60s
+
+exit0

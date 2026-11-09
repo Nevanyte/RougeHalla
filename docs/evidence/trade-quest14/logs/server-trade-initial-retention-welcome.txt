@@ -1,0 +1,33 @@
+$ cargo +1.97.0 test --locked -p rh-server --lib trade_bridge --no-default-features
+Jobs1, incremental0, dev/test debug0.
+   Compiling rh-server v0.1.0 (/Users/nevinmckinnon/Documents/Projects/RogueHalla-trade-quest14/crates/rh-server)
+    Finished `test` profile [unoptimized] target(s) in 6.89s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/targets/rougehalla-trade-quest14/debug/deps/rh_server-f493f0bd64c2245b)
+
+running 2 tests
+test room::trade_bridge_tests::native_trade_input_and_owner_state_keep_first_contact_privacy_and_source_order ... FAILED
+test room::trade_bridge_tests::trade_failed_encode_capacity_closed_resync_and_resume_preserve_delivery_baselines ... FAILED
+
+failures:
+
+---- room::trade_bridge_tests::native_trade_input_and_owner_state_keep_first_contact_privacy_and_source_order stdout ----
+
+thread 'room::trade_bridge_tests::native_trade_input_and_owner_state_keep_first_contact_privacy_and_source_order' (66330184) panicked at crates/rh-server/src/trade_bridge_tests.rs:103:10:
+an available native Trade replacement
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- room::trade_bridge_tests::trade_failed_encode_capacity_closed_resync_and_resume_preserve_delivery_baselines stdout ----
+[room] frame not sent: StringTooLong { what: "toast", len: 256 }
+
+thread 'room::trade_bridge_tests::trade_failed_encode_capacity_closed_resync_and_resume_preserve_delivery_baselines' (66330185) panicked at crates/rh-server/src/trade_bridge_tests.rs:286:9:
+assertion failed: full.iter().any(|message| matches!(message, ServerMsg::Welcome { .. }))
+
+
+failures:
+    room::trade_bridge_tests::native_trade_input_and_owner_state_keep_first_contact_privacy_and_source_order
+    room::trade_bridge_tests::trade_failed_encode_capacity_closed_resync_and_resume_preserve_delivery_baselines
+
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 178 filtered out; finished in 1.48s
+
+error: test failed, to rerun pass `-p rh-server --lib`
+exit101

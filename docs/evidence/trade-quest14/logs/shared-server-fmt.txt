@@ -1,0 +1,3 @@
+$ cargo +1.97.0 fmt -p rh-protocol -p rh-policy -p rh-server -- --check
+Jobs1, incremental0, dev/test debug0.
+exit0

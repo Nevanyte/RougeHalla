@@ -1,0 +1,52 @@
+$ cargo +1.97.0 test --locked -p rh-sim --lib quest_view:: --no-default-features
+Jobs1, incremental0, dev/test debug0.
+   Compiling adler2 v2.0.1
+   Compiling gimli v0.34.0
+   Compiling smallvec v1.16.4
+   Compiling parking_lot_core v0.9.12
+   Compiling addr2line v0.27.1
+   Compiling miniz_oxide v0.9.1
+   Compiling object v0.40.0
+   Compiling rustc-demangle v0.1.28
+   Compiling backtrace v0.3.77
+   Compiling parking_lot v0.12.5
+   Compiling rustc-hash v1.1.0
+   Compiling lazy_static v1.5.1
+   Compiling mintex v0.1.4
+   Compiling thousands v0.2.0
+   Compiling dhat v0.3.3
+   Compiling rh-sim v0.1.0 (/Users/nevinmckinnon/Documents/Projects/RogueHalla-trade-quest14/crates/rh-sim)
+    Finished `test` profile [unoptimized] target(s) in 37.47s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/targets/rougehalla-trade-quest14/debug/deps/rh_sim-bebc1724c13fdcb0)
+
+running 26 tests
+test quest_view::renewal_tests::renewed_quest_epoch_preserves_counters_and_original_bindings ... ok
+test quest_view::tests::labels_use_utf8_byte_bound_without_rewriting ... ok
+test quest_view::presentation::source_tests::metadata_bound_is_per_field_utf8_bytes_and_never_truncates ... ok
+test quest_view::presentation::source_tests::all_twenty_definitions_match_actual_source_in_all_180_formatter_contexts ... ok
+test quest_view::tests::navigation_never_grants_a_far_or_newborn_pickup_handle ... ok
+test quest_view::tests::duplicate_labels_do_not_confuse_owner_identity_or_fetch_completion ... ok
+test quest_view::tests::hidden_world_does_not_change_view_or_id_allocation ... ok
+test quest_view::tests::accepted_objectives_are_navigation_only_and_roster_is_lazy ... ok
+test quest_view::tests::adding_a_published_participant_preserves_the_existing_roster_identity ... ok
+test quest_view::tests::combined_observer_commits_quest_and_pickup_authority_together ... ok
+test quest_view::tests::prepared_authority_is_committed_atomically_and_reconnect_revokes_it ... ok
+test quest_view::tests::collect_completion_and_foreign_fetch_carrier_remove_ground_navigation ... ok
+test quest_view::tests::bot_view_is_empty_and_a_retired_quest_handle_is_a_miss ... ok
+test quest_view::tests::exhaustion_and_failed_preparation_leave_existing_bindings_intact ... ok
+test quest_view::tests::collect_owner_count_survives_actual_turn_in_and_expiry ... ok
+test quest_view::tests::hidden_owner_records_cannot_allocate_roster_or_leak_through_preview_facts ... ok
+test quest_view::tests::combined_preview_reports_both_unknown_counts_and_cannot_accept ... ok
+test quest_view::tests::combined_bot_observer_never_receives_quest_rows_or_props ... ok
+test quest_view::tests::hidden_roster_and_exhaustion_do_not_change_projection_or_failure ... ok
+test quest_view::tests::owner_roster_is_lazy_even_after_retained_history_or_exhaustion ... ok
+test quest_view::tests::finder_preview_restores_and_stays_nonactionable_until_public_delivery ... ok
+test quest_view::tests::presentation_checks::owner_farm_context_is_private_read_only_and_independent_of_duplicate_labels_and_hidden_rows ... ok
+test quest_view::tests::publication_between_preview_preparation_and_commit_never_grants_action ... ok
+test quest_view::tests::presentation_checks::disabled_bot_and_unknown_viewers_get_no_quest_metadata ... ok
+test quest_view::tests::tour_owner_mask_and_count_come_from_the_real_progress_hook ... ok
+test quest_view::tests::published_accept_eligibility_tracks_authoritative_action_outcomes ... ok
+
+test result: ok. 26 passed; 0 failed; 0 ignored; 0 measured; 754 filtered out; finished in 4.20s
+
+exit0

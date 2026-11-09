@@ -1,0 +1,67 @@
+$ cargo +1.97.0 test --locked -p rh-policy --lib delivery::collections --no-default-features
+Jobs1, incremental0, dev/test debug0.
+   Compiling proc-macro2 v1.0.107
+   Compiling unicode-ident v1.0.27
+   Compiling quote v1.0.47
+   Compiling serde_core v1.0.229
+   Compiling syn v3.0.9
+   Compiling serde v1.0.229
+   Compiling zmij v1.0.23
+   Compiling libm v0.2.16
+   Compiling serde_derive v1.0.229
+   Compiling serde_json v1.0.154
+   Compiling itoa v1.0.18
+   Compiling ryu-js v1.0.3
+   Compiling memchr v2.8.3
+   Compiling rh-sim v0.1.0 (/Users/nevinmckinnon/Documents/Projects/RogueHalla-trade-quest14/crates/rh-sim)
+   Compiling rh-policy v0.1.0 (/Users/nevinmckinnon/Documents/Projects/RogueHalla-trade-quest14/crates/rh-policy)
+    Finished `test` profile [unoptimized] target(s) in 21.84s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/targets/rougehalla-trade-quest14/debug/deps/rh_policy-c3fa0ee46865b1ea)
+
+running 11 tests
+test delivery::collections::tests::malformed_authoritative_collections_refuse_before_baseline_changes ... ok
+test delivery::collections::tests::invalid_plan_walk_time_is_refused_rather_than_changed_to_absent ... ok
+test delivery::collections::tests::quest_item_cross_refs_refuse_without_committing_and_empty_is_available ... ok
+test delivery::collections::trade_tests::trade_projection_preserves_opaque_owner_facts_and_exact_inventory_labels ... ok
+test delivery::collections::trade_tests::trade_baseline_is_bitwise_transactional_and_unavailable_is_not_empty ... ok
+test delivery::collections::tests::typed_trophy_rows_preserve_order_and_invalid_gain_refuses_without_commit ... FAILED
+test delivery::collections::tests::collection_baselines_commit_after_enqueue_and_defer_flooded_resyncs ... FAILED
+test delivery::collections::tests::actual_potions_camps_and_projectiles_commit_retain_clear_and_reconnect ... FAILED
+test delivery::collections::trade_tests::unsupported_trade_views_and_inventory_refuse_without_advancing_forced_state ... ok
+test delivery::collections::tests::quest_projection_preserves_duplicate_labels_owner_facts_and_transactional_baselines ... ok
+test delivery::collections::tests::captured_plan_messages_project_field_for_field_into_state_key_8 ... ok
+
+failures:
+
+---- delivery::collections::tests::typed_trophy_rows_preserve_order_and_invalid_gain_refuses_without_commit stdout ----
+
+thread 'delivery::collections::tests::typed_trophy_rows_preserve_order_and_invalid_gain_refuses_without_commit' (66314248) panicked at crates/rh-policy/src/delivery/collections.rs:702:9:
+assertion `left == right` failed
+  left: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+ right: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+
+---- delivery::collections::tests::collection_baselines_commit_after_enqueue_and_defer_flooded_resyncs stdout ----
+
+thread 'delivery::collections::tests::collection_baselines_commit_after_enqueue_and_defer_flooded_resyncs' (66314243) panicked at crates/rh-policy/src/delivery/collections.rs:748:9:
+assertion `left == right` failed
+  left: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+ right: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- delivery::collections::tests::actual_potions_camps_and_projectiles_commit_retain_clear_and_reconnect stdout ----
+
+thread 'delivery::collections::tests::actual_potions_camps_and_projectiles_commit_retain_clear_and_reconnect' (66314241) panicked at crates/rh-policy/src/delivery/collections.rs:816:9:
+assertion `left == right` failed
+  left: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+ right: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+
+
+failures:
+    delivery::collections::tests::actual_potions_camps_and_projectiles_commit_retain_clear_and_reconnect
+    delivery::collections::tests::collection_baselines_commit_after_enqueue_and_defer_flooded_resyncs
+    delivery::collections::tests::typed_trophy_rows_preserve_order_and_invalid_gain_refuses_without_commit
+
+test result: FAILED. 8 passed; 3 failed; 0 ignored; 0 measured; 99 filtered out; finished in 0.36s
+
+error: test failed, to rerun pass `-p rh-policy --lib`
+exit101
