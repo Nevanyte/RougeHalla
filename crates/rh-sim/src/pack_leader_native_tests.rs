@@ -155,9 +155,11 @@ fn build() -> (Sim, Vec<PlayerId>) {
         fill_seconds: 0.,
         ..Default::default()
     };
+    let seed = input["mainSeed"].as_u64().unwrap() as u32;
+    let mut main = crate::rng::Mulberry32::new(seed);
     let secrets = Secrets {
-        order_salt: 12,
-        spawn_seed: 0,
+        order_salt: main.next_u32(),
+        spawn_seed: seed,
         reward_salt: [1, 2, 3, 4],
     };
     let mut sim = Sim::reset_active(config, arena(), secrets, &placements);
@@ -184,6 +186,7 @@ fn submit(sim: &mut Sim, raw: RawCommand) {
 
 struct Facts {
     step: u64,
+    landed: Vec<(u64, f64, String, f64, String)>,
     pre_counts: Vec<(u64, u16)>,
     deaths: Vec<(u64, PlayerId)>,
     clear: Option<(u64, f64)>,
@@ -211,6 +214,17 @@ fn advance(sim: &mut Sim, f: &mut Facts) {
         }
     }
     for h in sim.s.landed.iter() {
+        if h.by == Some(PlayerId(1)) && h.amount > 0. {
+            f.landed.push((
+                f.step,
+                sim.server_time(),
+                h.victim.0.to_string(),
+                h.amount,
+                h.weapon
+                    .map(|w| format!("{w:?}").to_lowercase())
+                    .unwrap_or_default(),
+            ));
+        }
         if h.by == Some(PlayerId(1))
             && h.victim == PlayerId(2)
             && h.amount > 0.
@@ -271,6 +285,7 @@ fn the_genuine_source_tape_produces_the_native_camp_count_and_later_player_damag
     );
     let mut f = Facts {
         step: 1,
+        landed: Vec::new(),
         pre_counts: Vec::new(),
         deaths: Vec::new(),
         clear: None,
@@ -353,6 +368,45 @@ fn the_genuine_source_tape_produces_the_native_camp_count_and_later_player_damag
         [1, 2, 3, 4],
         "declared source reward RNG setup"
     );
+
+    // Ordered relevant source `hitLanded` argument records: p0 -> the three camp members or p1, with tick/time/victim/
+    // amount/weapon; 338 records in the immutable capture (chunks included), compared in order, no set/totals reduction.
+    let source_hits: Vec<(u64, f64, String, f64, String)> = doc["result"]["completeOrdinaryHookTape"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .flat_map(|h| h["hooks"].as_array().unwrap().iter().filter_map(|k| {
+            if k["hook"] != "hitLanded" || k["kind"] != "arguments" { return None; }
+            let a = &k["args"][0];
+            let by = a["by"]["id"].as_str().unwrap_or("");
+            let victim = a["victim"].as_str().unwrap_or("");
+            if by != "p0" || !["mob1", "mob2", "mob3", "p1"].contains(&victim) { return None; }
+            Some((h["tick"].as_u64().unwrap(), h["time"].as_f64().unwrap(), victim.to_string(), k["args"][1].as_f64().unwrap(), a["weapon"].as_str().unwrap_or("").to_string()))
+        }))
+        .collect();
+    let mob_names: Vec<String> = witness["campMobs"].as_array().unwrap().iter().map(|m| m.as_str().unwrap().into()).collect();
+    let native_hits: Vec<(u64, f64, String, f64, String)> = f.landed.iter().map(|(tick, time, victim, amount, weapon)| {
+        let id: u32 = victim.parse().unwrap();
+        let name = if id == 2 { "p1".to_string() } else {
+            let ix = mobs.iter().position(|m| m.0 == id).expect("native camp member");
+            mob_names[ix].clone()
+        };
+        (*tick, *time, name, *amount, weapon.clone())
+    }).collect();
+    assert_eq!(source_hits.len(), 338, "captured relevant hitLanded argument records");
+    assert_eq!(native_hits.len(), source_hits.len(), "ordered relevant landed chunks");
+    for (i, (want, got)) in source_hits.iter().zip(native_hits.iter()).enumerate() {
+        assert_eq!(got, want, "first relevant landed argument mismatch at index {i}");
+    }
+    // Exact lifecycle facts from the same ordered tape.
+    let source_deaths: Vec<(u64, String, String)> = doc["result"]["completeOrdinaryHookTape"].as_array().unwrap().iter().flat_map(|h| h["hooks"].as_array().unwrap().iter().filter_map(|k| {
+        (k["hook"] == "fighterOut" && k["kind"] == "arguments").then(|| (h["tick"].as_u64().unwrap(), k["args"][0].as_str().unwrap().to_string(), k["args"][1].as_str().unwrap().to_string()))
+    })).collect();
+    let native_deaths: Vec<(u64, String, String)> = f.deaths.iter().map(|(tick, id)| {
+        let ix = mobs.iter().position(|m| *m == *id).expect("native camp death");
+        (*tick, mob_names[ix].clone(), "down".to_string())
+    }).collect();
+    assert_eq!(native_deaths, source_deaths, "ordered fighterOut lifecycle facts");
 
     // Clone/restore continue the same real produced state with ordinary input-free steps (no expected state installed).
     let mut cloned = sim.clone();
