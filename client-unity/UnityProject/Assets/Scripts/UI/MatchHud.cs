@@ -155,8 +155,7 @@ namespace Roguehalla.Client
         {
             Unbind(); _session = session;
             session.StateChanged += Changed; session.SnapshotReceived += Snapshot;
-            _boundNoticeEvents = batch => { if (ReferenceEquals(_session, session)) Events(batch); };
-            session.CollectionsChanged += Collections; session.EventsReceived += _boundNoticeEvents;
+            session.CollectionsChanged += Collections;
             session.TimelineReset += ResetPlayerFlowTimeline;
             _menu.gameObject.SetActive(false); _hud.gameObject.SetActive(true); _settings.gameObject.SetActive(false);
             SetSignInVisible(false); CloseHubPanels();
@@ -174,13 +173,34 @@ namespace Roguehalla.Client
             RefreshCollections(session.Collections);
             _map?.Bind(session);
             BindPlayerFlows(session);
+            RotateNoticeEvents();
+        }
+
+        void RotateNoticeEvents()
+        {
+            var session = _session;
+            if (session == null) return;
+            if (_boundNoticeEvents != null) session.EventsReceived -= _boundNoticeEvents;
+            uint epoch = session.TimelineEpoch;
+            Action<ServerMsg.Events> handler = null;
+            handler = batch =>
+            {
+                // An earlier subscriber may reset this same Session or rebind the HUD while
+                // the old invocation list is still running. Only this binding may append.
+                if (ReferenceEquals(_session, session) && session.TimelineEpoch == epoch &&
+                    ReferenceEquals(_boundNoticeEvents, handler)) Events(batch);
+            };
+            _boundNoticeEvents = handler;
+            session.EventsReceived += handler;
         }
         void Unbind()
         {
             if (_session == null) return;
             _session.StateChanged -= Changed; _session.SnapshotReceived -= Snapshot;
-            _session.CollectionsChanged -= Collections; _session.EventsReceived -= _boundNoticeEvents;
+            _session.CollectionsChanged -= Collections;
+            var noticeEvents = _boundNoticeEvents;
             _boundNoticeEvents = null;
+            _session.EventsReceived -= noticeEvents;
             _session.TimelineReset -= ResetPlayerFlowTimeline;
             BindPlayerFlows(null);
             _session = null;

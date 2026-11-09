@@ -121,6 +121,49 @@ namespace Roguehalla.Client.Tests
         }
 
         [Test]
+        public void InFlightSameSessionNoticeCallbackCannotCrossSourceClockCutAndNewEpochKeepsDuplicates()
+        {
+            _hud.ShowMenu();
+            bool cutArmed = false;
+            Action<ServerMsg.Events> cut = batch =>
+            {
+                if (!cutArmed) return;
+                cutArmed = false;
+                // A later authoritative tick with equal source time starts a new timeline.
+                // This decoded snapshot arrives before the old HUD callback in the invocation list.
+                _transport.Deliver(new ServerMsg.Snapshot { Tick = 2, ServerTimeOverrideMs = 50, Phase = 1,
+                    Me = new WireSelf { Id = 1, X = 64, Y = 64, Hp = 100, MaxHp = 100, Status = 1, Weapon = 0 } });
+            };
+            try
+            {
+                _session.EventsReceived += cut;
+                _hud.Bind(_session);
+                uint epoch = _session.TimelineEpoch;
+                _transport.Deliver(new ServerMsg.Events { Tick = 1, List = new List<WireEvent> {
+                    new WireEvent { Kind = EventKind.Toast, ToastText = "before cut" } } });
+                Assert.AreEqual("before cut", _hud.ServerNotices.Entries.Single().Text);
+                cutArmed = true;
+                _transport.Deliver(new ServerMsg.Events { Tick = 1, List = new List<WireEvent> {
+                    new WireEvent { Kind = EventKind.Toast, ToastText = "old in flight" },
+                    new WireEvent { Kind = EventKind.Toast, ToastText = "old in flight" } } });
+                Assert.AreEqual(epoch + 1, _session.TimelineEpoch, "the encoded snapshot must cause a real Session source-clock cut");
+                Assert.AreEqual(SessionState.InMatch, _session.State);
+                Assert.AreEqual(0, _hud.ServerNotices.Entries.Count, "the old invocation cannot repopulate the cleared new epoch");
+                _transport.Deliver(new ServerMsg.Events { Tick = 2, List = new List<WireEvent> {
+                    new WireEvent { Kind = EventKind.Toast, ToastText = "fresh" },
+                    new WireEvent { Kind = EventKind.PickupRefused, PickupReason = 1 },
+                    new WireEvent { Kind = EventKind.Toast, ToastText = "fresh" } } });
+                _transport.Deliver(new ServerMsg.Events { Tick = 2, List = new List<WireEvent> {
+                    new WireEvent { Kind = EventKind.Toast, ToastText = "fresh" } } });
+                Invoke(_hud, "TickPlayerFlows");
+                CollectionAssert.AreEqual(new[] { "fresh", "Pickup refused by server (1)", "fresh", "fresh" },
+                    _hud.ServerNotices.Entries.Select(x => x.Text).ToArray(),
+                    "the rotated listener must accept every subsequent notice in order, including duplicates");
+            }
+            finally { _session.EventsReceived -= cut; }
+        }
+
+        [Test]
         public void OrdinaryMixedQuestTradeQueueSplitsAtSixteenWithoutUiGeneratedCommands()
         {
             _hud.ShowPlayerFlow(1); _session.FlushInput();

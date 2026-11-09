@@ -253,8 +253,11 @@ namespace Roguehalla.Client.Tests
             _otherTransport.Drop(); _view.Refresh();
             Assert.AreEqual(SessionState.Reconnecting, _other.State);
             Assert.IsFalse(_view.TryAccept(_first));
-            Assert.AreEqual("Quest journal unavailable while disconnected.", Text("JournalState"));
+            Assert.AreEqual("Reconnecting · quest actions paused", Text("JournalState"));
+            Assert.IsFalse(accept.interactable);
             Assert.IsFalse(_canvas.transform.Find("QuestJournal/QuestRows/Viewport/Content/QuestRow0").gameObject.activeSelf);
+            _other.FlushInput();
+            Assert.AreEqual(0, InputFrames(_otherTransport).Count, "paused quest actions must not queue input");
 
             _otherTransport.Open();
             var resumedMatch = new byte[16]; resumedMatch[0] = 2;

@@ -83,6 +83,7 @@ namespace Roguehalla.Client
         {
             uint epoch = _session?.TimelineEpoch ?? 0;
             if (_playerFlowEpoch == epoch) return;
+            RotateNoticeEvents();
             _orderedNotices?.Clear(); ClosePlayerFlows();
             // A source-clock cut retains canonical collections; Welcome clears them in Session first.
             _questJournal?.Bind(_session); _traderDialog?.Bind(_session);
