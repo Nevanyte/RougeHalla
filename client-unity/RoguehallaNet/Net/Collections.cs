@@ -4,7 +4,7 @@ using Roguehalla.Net.Protocol;
 
 namespace Roguehalla.Net
 {
-    public enum PropAppearance : byte { Ground = 1, Chest = 2, Body = 3, Corpse = 4, WindEmblem = 5, Cannon = 6 }
+    public enum PropAppearance : byte { Ground = 1, Chest = 2, Body = 3, Corpse = 4, WindEmblem = 5, Cannon = 6, QuestItem = 7 }
     public enum AreaKind : byte { Zone, Cloud, Trail }
     public enum AbilityId : byte { Freeze, Swarm, Trial, Blaze, LastStand }
     public enum CardId : byte { SlowBurn, PocketSand, Siphon }
@@ -19,6 +19,8 @@ namespace Roguehalla.Net
         public float X, Y;
         public PropAppearance Kind;
         public WeaponId? Weapon, BodyHint;
+        public QuestHandle QuestRef;
+        public bool QuestFetch;
         public bool Open, Focused;
         public string BodyLabel, CorpseLabel;
         /// <summary>Server-time reload deadline, in milliseconds; presentation only.</summary>
@@ -95,6 +97,88 @@ namespace Roguehalla.Net
         public bool InColiseum, GatesLocked;
         public uint StartedWith;
     }
+    public sealed class QuestRosterEntryView
+    {
+        public RosterId Id { get; }
+        public string Label { get; }
+        internal QuestRosterEntryView(WireQuestRosterEntry source) { Id = source.Id; Label = source.Label; }
+    }
+    public readonly struct QuestParticipantView
+    {
+        public RosterId Id { get; }
+        public bool Accepted { get; }
+        public uint Progress { get; }
+        public byte Visited { get; }
+        internal QuestParticipantView(WireQuestParticipant source) { Id = source.Id; Accepted = source.Accepted; Progress = source.Progress; Visited = source.Visited; }
+    }
+    public sealed class QuestRowView
+    {
+        public QuestHandle Handle { get; }
+        public string Def { get; }
+        public double GiverX { get; }
+        public double GiverY { get; }
+        public QuestRowState State { get; }
+        public double ExpiresAt { get; }
+        public IReadOnlyList<QuestParticipantView> Participants { get; }
+        public RosterId? Carrier { get; }
+        public string DoneBy { get; }
+        public bool CanAccept { get; }
+        public bool OwnerAccepted { get; }
+        public bool OwnerCompleted { get; }
+        public bool OwnerReady { get; }
+        public uint OwnerProgress { get; }
+        public byte OwnerVisited { get; }
+        internal QuestRowView(WireQuestRow source)
+        {
+            Handle = source.Handle; Def = source.Def; GiverX = source.GiverX; GiverY = source.GiverY; State = source.State; ExpiresAt = source.ExpiresAt;
+            var participants = new QuestParticipantView[source.Participants.Length];
+            for (int i = 0; i < participants.Length; i++) participants[i] = new QuestParticipantView(source.Participants[i]);
+            Participants = Array.AsReadOnly(participants); Carrier = source.Carrier; DoneBy = source.DoneBy;
+            CanAccept = source.CanAccept; OwnerAccepted = source.OwnerAccepted; OwnerCompleted = source.OwnerCompleted; OwnerReady = source.OwnerReady;
+            OwnerProgress = source.OwnerProgress; OwnerVisited = source.OwnerVisited;
+        }
+    }
+    public readonly struct QuestObjectiveView
+    {
+        public QuestHandle Quest { get; }
+        public double X { get; }
+        public double Y { get; }
+        internal QuestObjectiveView(WireQuestObjective source) { Quest = source.Quest; X = source.X; Y = source.Y; }
+    }
+    /// <summary>Owned, presentation-only copy of one reliable quest replacement. Unavailable differs from no replacement yet.</summary>
+    public sealed class QuestView
+    {
+        public bool Available { get; }
+        public uint UnknownCount { get; }
+        public uint DisplayUnknownCount { get; }
+        public RosterId? OwnerRoster { get; }
+        public IReadOnlyList<QuestRosterEntryView> Roster { get; }
+        public IReadOnlyList<QuestRowView> Rows { get; }
+        public IReadOnlyList<QuestObjectiveView> Objectives { get; }
+        internal QuestView(QuestsState source)
+        {
+            Available = source.Available;
+            if (!Available)
+            {
+                UnknownCount = 0; DisplayUnknownCount = 0; OwnerRoster = null;
+                Roster = Array.Empty<QuestRosterEntryView>(); Rows = Array.Empty<QuestRowView>(); Objectives = Array.Empty<QuestObjectiveView>();
+                return;
+            }
+            var view = source.View;
+            UnknownCount = view.UnknownCount; DisplayUnknownCount = view.DisplayUnknownCount; OwnerRoster = view.OwnerRoster;
+            var roster = new QuestRosterEntryView[view.Roster.Length];
+            for (int i = 0; i < roster.Length; i++) roster[i] = new QuestRosterEntryView(view.Roster[i]);
+            var rows = new QuestRowView[view.Rows.Length];
+            for (int i = 0; i < rows.Length; i++) rows[i] = new QuestRowView(view.Rows[i]);
+            var objectives = new QuestObjectiveView[view.Objectives.Length];
+            for (int i = 0; i < objectives.Length; i++) objectives[i] = new QuestObjectiveView(view.Objectives[i]);
+            Roster = Array.AsReadOnly(roster); Rows = Array.AsReadOnly(rows); Objectives = Array.AsReadOnly(objectives);
+        }
+    }
+    internal sealed class InvalidCollectionStateException : Exception
+    {
+        public InvalidCollectionStateException(string message) : base(message) { }
+    }
 
     /// <summary>
     /// Owned presentation facts from the reliable State channel. Socket order, rather than snapshot age,
@@ -115,18 +199,20 @@ namespace Roguehalla.Net
         public bool HasBuild { get; private set; }
         public PlanView Plan { get; private set; }
         public ArenaView? Arena { get; private set; }
+        /// <summary>Null means key 10 has not yet been received; a non-null unavailable view is a received disabled state.</summary>
+        public QuestView Quests { get; private set; }
         const uint KnownStateMask =
             (1u << ((int)StateKey.Inventory - 1)) | (1u << ((int)StateKey.Props - 1)) |
             (1u << ((int)StateKey.Fields - 1)) | (1u << ((int)StateKey.RewardChests - 1)) |
             (1u << ((int)StateKey.Build - 1)) | (1u << ((int)StateKey.Camps - 1)) |
             (1u << ((int)StateKey.Projectiles - 1)) | (1u << ((int)StateKey.Plan - 1)) |
-            (1u << ((int)StateKey.Arena - 1));
+            (1u << ((int)StateKey.Arena - 1)) | (1u << ((int)StateKey.Quests - 1));
         uint _seen;
         public bool HasFullState { get { return _seen == KnownStateMask; } }
 
         internal void Reset()
         {
-            Plan = null; Arena = null;
+            Plan = null; Arena = null; Quests = null;
             Tick = 0; _seen = 0; Camps=Array.Empty<CampView>(); Projectiles=Array.Empty<NetProjectileView>(); Inventory = null; Focus = null; HasBuild = false;
             Props = Array.Empty<PropView>(); Fields = Array.Empty<AreaView>();
             RewardChests = Array.Empty<RewardChestView>(); Cards = Array.Empty<byte>(); Boosts = Array.Empty<byte>();
@@ -136,9 +222,10 @@ namespace Roguehalla.Net
             // Decode validated the complete frame before this method can mutate the retained view.
             foreach (var item in state.Items)
             {
-                if (item.Key < (uint)StateKey.Inventory || item.Key > (uint)StateKey.Arena)
+                if (item.Key < (uint)StateKey.Inventory || item.Key > (uint)StateKey.Quests)
                     throw new ArgumentException("unknown state key");
             }
+            ValidateQuestPropReferences(state);
             foreach (var item in state.Items)
             {
                 _seen |= 1u << ((int)item.Key - 1);
@@ -163,6 +250,8 @@ namespace Roguehalla.Net
                             Handle = source.Handle, X = Quant.DequantizePos(source.X), Y = Quant.DequantizePos(source.Y),
                             Kind = (PropAppearance)source.Kind, Open = source.Open, BodyLabel = source.BodyLabel, CorpseLabel = source.CorpseLabel, ReadyAt = source.ReadyAt,
                             Weapon = source.Kind == Protocol.PropKind.Ground ? (WeaponId?)source.GroundWeapon : null,
+                            QuestRef = source.Kind == Protocol.PropKind.QuestItem ? source.QuestRef : default,
+                            QuestFetch = source.Kind == Protocol.PropKind.QuestItem && source.QuestFetch,
                             Focused = focused, BodyHint = focused && props.Focus.Value.BodyHint.HasValue ? (WeaponId?)props.Focus.Value.BodyHint.Value : null
                         };
                         if (focused) Focus = rows[i];
@@ -230,6 +319,10 @@ namespace Roguehalla.Net
                             SuddenDeathAt = v.SuddenDeathAt, StartedWith = v.StartedWith };
                     }
                 }
+                else if (item is QuestsState quests)
+                {
+                    Quests = new QuestView(quests);
+                }
                 else if (item is BuildState build)
                 {
                     HasBuild = build.Value.HasValue;
@@ -238,6 +331,41 @@ namespace Roguehalla.Net
                 }
             }
             Tick = state.Tick;
+        }
+
+        void ValidateQuestPropReferences(ServerMsg.State state)
+        {
+            PropsState replacementProps = null;
+            QuestsState replacementQuests = null;
+            foreach (var item in state.Items)
+            {
+                if (item is PropsState props) replacementProps = props;
+                else if (item is QuestsState quests) replacementQuests = quests;
+            }
+
+            var handles = new HashSet<QuestHandle>();
+            if (replacementQuests != null)
+            {
+                if (replacementQuests.Available)
+                    foreach (var row in replacementQuests.View.Rows) handles.Add(row.Handle);
+            }
+            else if (Quests != null && Quests.Available)
+            {
+                foreach (var row in Quests.Rows) handles.Add(row.Handle);
+            }
+
+            if (replacementProps != null)
+            {
+                foreach (var prop in replacementProps.Rows)
+                    if (prop.Kind == Protocol.PropKind.QuestItem && (!prop.QuestRef.IsValid || !handles.Contains(prop.QuestRef)))
+                        throw new InvalidCollectionStateException("quest prop has no matching row");
+            }
+            else
+            {
+                foreach (var prop in Props)
+                    if (prop.Kind == PropAppearance.QuestItem && (!prop.QuestRef.IsValid || !handles.Contains(prop.QuestRef)))
+                        throw new InvalidCollectionStateException("retained quest prop has no matching row");
+            }
         }
     }
 }

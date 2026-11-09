@@ -267,7 +267,7 @@ fn an_empty_state_retains_the_snapshot_and_unknown_keys_are_refused() {
     assert_eq!(b, [0x88, 0xac, 0x02, 0]);
     assert_eq!(ServerMsg::decode(&b), Ok(m.clone()));
     assert_eq!(
-        ServerMsg::decode(&[0x88, 0, 1, 10]),
+        ServerMsg::decode(&[0x88, 0, 1, 11]),
         Err(DecodeError::BadField("state key"))
     );
     let mut t = SnapshotTracker::new();

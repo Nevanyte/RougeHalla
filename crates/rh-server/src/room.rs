@@ -1382,8 +1382,19 @@ impl Room {
                 h.carry.clear();
                 continue;
             };
+            // A forced replacement renews all capability namespaces off to the side. Failed
+            // encoding or enqueue preserves the live epoch; successful delivery installs both.
+            let resync_requested = out.state_resync_requested();
+            let mut renewal = h
+                .collections
+                .resync_due(self.sim.tick(), resync_requested)
+                .then(|| h.items.renewed());
+            let observer = match renewal.as_mut() {
+                Some(observer) => observer,
+                None => &mut h.items,
+            };
             let (frames, offer) = match self.publisher.frames_prepared(
-                &mut h.items,
+                observer,
                 h.spare.take(),
                 &self.sim,
                 h.ack_input,
@@ -1408,6 +1419,9 @@ impl Room {
                     eprintln!("[room] frame not sent: {error}");
                 }
                 self.frame_refusals += 1;
+                // A refused part of this tick cannot publish a new capability epoch or baseline.
+                out.close(RejectCode::Malformed);
+                continue;
             }
             let snap = match frames.snapshot {
                 Ok(snap) => snap,
@@ -1425,7 +1439,7 @@ impl Room {
                 self.publisher.observation(),
                 offer.props_changed(),
                 offer.rewards_changed(),
-                out.state_resync_requested(),
+                resync_requested,
             ) {
                 Ok(pending) => pending,
                 Err(error) => {
@@ -1454,6 +1468,9 @@ impl Room {
             if accepted {
                 let forced = state.commit(&mut h.collections);
                 offer.commit();
+                if let Some(observer) = renewal {
+                    h.items = observer;
+                }
                 if forced {
                     out.state_resync_answered();
                 }
@@ -1735,6 +1752,11 @@ pub async fn run_room(mut room: Room, mut rx: mpsc::Receiver<RoomCmd>) {
 #[path = "room/ground_tests.rs"]
 mod public_ground_tests;
 
+// Private native bridge component tests; these do not admit a hosted quest profile.
+#[cfg(test)]
+#[path = "quest_bridge_tests.rs"]
+mod quest_bridge_tests;
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1760,7 +1782,7 @@ mod tests {
 
     /// The admitted rh-map/2 export the arena capture uses: spawn pool, coliseum and planning walks. The map is copied
     /// without modification (never generated here), exactly as the parity harness attaches it to its Arena.
-    fn source_arena() -> rh_sim::Arena {
+    pub(super) fn source_arena() -> rh_sim::Arena {
         let text = std::fs::read_to_string(concat!(
             env!("CARGO_MANIFEST_DIR"),
             "/../../parity/arena/source.json"
@@ -1802,7 +1824,7 @@ mod tests {
         (Room::new([7; 16], config, tx, Instant::now()), rx)
     }
 
-    fn drain(out: &Outbox) -> Vec<ServerMsg> {
+    pub(super) fn drain(out: &Outbox) -> Vec<ServerMsg> {
         let mut frames = Vec::new();
         assert_eq!(out.drain_into(&mut frames).close, None);
         frames
@@ -1951,7 +1973,7 @@ mod tests {
         assert_eq!(room.sim.config().abilities, rh_sim::abilities::Mode::Full);
     }
 
-    fn cfg(tick: Duration) -> RoomConfig {
+    pub(super) fn cfg(tick: Duration) -> RoomConfig {
         let assets = MapAssets::new(rh_sim::arenas::practice_arena()).unwrap();
         RoomConfig {
             sim: SimConfig {

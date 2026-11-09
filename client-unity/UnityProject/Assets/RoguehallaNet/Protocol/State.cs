@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Text;
 
 namespace Roguehalla.Net
@@ -22,12 +23,32 @@ namespace Roguehalla.Net
         public override bool Equals(object other) { return other is RewardChestHandle h && Equals(h); }
         public override int GetHashCode() { return Value.GetHashCode(); }
     }
+    /// <summary>A seat-scoped quest-row reference. It is not a pickup or actor handle.</summary>
+    public readonly struct QuestHandle : IEquatable<QuestHandle>
+    {
+        public uint Value { get; }
+        public bool IsValid { get { return Value != 0; } }
+        public QuestHandle(uint value) { if (value == 0) throw new ArgumentOutOfRangeException(nameof(value)); Value = value; }
+        public bool Equals(QuestHandle other) { return Value == other.Value; }
+        public override bool Equals(object other) { return other is QuestHandle h && Equals(h); }
+        public override int GetHashCode() { return Value.GetHashCode(); }
+    }
+    /// <summary>A view-local quest roster reference. It is not a player ID or display label.</summary>
+    public readonly struct RosterId : IEquatable<RosterId>
+    {
+        public uint Value { get; }
+        public bool IsValid { get { return Value != 0; } }
+        public RosterId(uint value) { if (value == 0) throw new ArgumentOutOfRangeException(nameof(value)); Value = value; }
+        public bool Equals(RosterId other) { return Value == other.Value; }
+        public override bool Equals(object other) { return other is RosterId id && Equals(id); }
+        public override int GetHashCode() { return Value.GetHashCode(); }
+    }
 }
 
 namespace Roguehalla.Net.Protocol
 {
     public struct WireInventory { public byte ActiveSlot, PotionSmall, PotionLarge, PotionsHealing; public byte? Slot0, Slot1; }
-    public enum PropKind : byte { Ground = 1, Chest = 2, Body = 3, Corpse = 4, WindEmblem = 5, Cannon = 6 }
+    public enum PropKind : byte { Ground = 1, Chest = 2, Body = 3, Corpse = 4, WindEmblem = 5, Cannon = 6, QuestItem = 7 }
     public struct WireProp
     {
         public PickupHandle Handle;
@@ -38,6 +59,8 @@ namespace Roguehalla.Net.Protocol
         public string BodyLabel;
         public string CorpseLabel;
         public uint ReadyAt;
+        public QuestHandle QuestRef;
+        public bool QuestFetch;
     }
     public struct WireFocus { public PickupHandle Handle; public byte? BodyHint; }
     public struct WireField
@@ -91,7 +114,33 @@ namespace Roguehalla.Net.Protocol
         public uint StartedWith;
     }
 
-    public enum StateKey : byte { Inventory = 1, Props = 2, Fields = 3, RewardChests = 4, Build = 5, Camps = 6, Projectiles = 7, Plan = 8, Arena = 9 }
+    public enum QuestRowState : byte { Preview = 0, Open = 1, Done = 2, Expired = 3 }
+    public sealed class WireQuestRosterEntry { public RosterId Id; public string Label; }
+    public struct WireQuestParticipant { public RosterId Id; public bool Accepted; public uint Progress; public byte Visited; }
+    public sealed class WireQuestRow
+    {
+        public QuestHandle Handle;
+        public string Def;
+        public double GiverX, GiverY;
+        public QuestRowState State;
+        public double ExpiresAt;
+        public WireQuestParticipant[] Participants = Array.Empty<WireQuestParticipant>();
+        public RosterId? Carrier;
+        public string DoneBy;
+        public bool CanAccept, OwnerAccepted, OwnerCompleted, OwnerReady;
+        public uint OwnerProgress;
+        public byte OwnerVisited;
+    }
+    public struct WireQuestObjective { public QuestHandle Quest; public double X, Y; }
+    public sealed class WireQuestView
+    {
+        public uint UnknownCount, DisplayUnknownCount;
+        public RosterId? OwnerRoster;
+        public WireQuestRosterEntry[] Roster = Array.Empty<WireQuestRosterEntry>();
+        public WireQuestRow[] Rows = Array.Empty<WireQuestRow>();
+        public WireQuestObjective[] Objectives = Array.Empty<WireQuestObjective>();
+    }
+    public enum StateKey : byte { Inventory = 1, Props = 2, Fields = 3, RewardChests = 4, Build = 5, Camps = 6, Projectiles = 7, Plan = 8, Arena = 9, Quests = 10 }
 
     /// <summary>Keys are ascending, unique complete replacements. Missing keys retain their previous values.</summary>
     public abstract class StateItem
@@ -99,9 +148,15 @@ namespace Roguehalla.Net.Protocol
         public abstract uint Key { get; }
         internal abstract void Check();
         internal abstract void Write(Writer w);
-        internal const int MaxRows = 512, MaxKeys = (int)StateKey.Arena;
+        internal const int MaxRows = 512, MaxKeys = (int)StateKey.Quests;
         internal static void Require(bool condition, string name) { if (!condition) throw new EncodeException(name); }
         internal static bool Finite(double v) { return !double.IsNaN(v) && !double.IsInfinity(v); }
+        internal static bool QuestFlag(ref Reader r, string field)
+        {
+            byte value = r.U8();
+            if (value > 1) throw new DecodeException(DecodeError.BadField, field);
+            return value != 0;
+        }
         internal static byte Weapon(byte v) { if (v >= 5) throw new DecodeException(DecodeError.BadField, "carried weapon"); return v; }
         internal static byte? ReadWeapon(ref Reader r) { byte v = r.U8(); return v == 0 ? (byte?)null : Weapon((byte)(v - 1)); }
         internal static void WriteWeapon(Writer w, byte? v) { w.U8(v.HasValue ? (byte)(v.Value + 1) : (byte)0); }
@@ -113,6 +168,112 @@ namespace Roguehalla.Net.Protocol
             uint id = r.Varint();
             if (id == 0) throw new DecodeException(DecodeError.BadField, "handle");
             return id;
+        }
+        internal static RosterId ReadRosterId(ref Reader r)
+        {
+            uint id = r.Varint();
+            if (id == 0) throw new DecodeException(DecodeError.BadField, "roster reference");
+            return new RosterId(id);
+        }
+        internal static QuestHandle ReadQuestHandle(ref Reader r)
+        {
+            uint id = r.Varint();
+            if (id == 0) throw new DecodeException(DecodeError.BadField, "quest handle");
+            return new QuestHandle(id);
+        }
+        internal static double QuestPosition(ref Reader r)
+        {
+            double value = r.F64();
+            if (!Finite(value) || value < 0 || value > 8191.875) throw new DecodeException(DecodeError.BadField, "quest position");
+            return value;
+        }
+        internal static string QuestLabel(ref Reader r)
+        {
+            string value = r.Str();
+            if (Encoding.UTF8.GetByteCount(value) > 255) throw new DecodeException(DecodeError.BadField, "quest label");
+            return value;
+        }
+        internal static WireQuestView ReadQuestView(ref Reader r)
+        {
+            int start = r.Position;
+            var view = new WireQuestView();
+            view.UnknownCount = r.Varint();
+            view.DisplayUnknownCount = r.Varint();
+            if (view.UnknownCount > 20 || view.DisplayUnknownCount > view.UnknownCount)
+                throw new DecodeException(DecodeError.BadField, "quest unknown count");
+            uint owner = r.Varint();
+            if (owner != 0) view.OwnerRoster = new RosterId(owner);
+            view.Roster = new WireQuestRosterEntry[Count(ref r, 8)];
+            var rosterIds = new HashSet<RosterId>();
+            for (int i = 0; i < view.Roster.Length; i++)
+            {
+                var entry = new WireQuestRosterEntry { Id = ReadRosterId(ref r), Label = QuestLabel(ref r) };
+                if (!rosterIds.Add(entry.Id)) throw new DecodeException(DecodeError.BadField, "duplicate roster id");
+                view.Roster[i] = entry;
+            }
+            if (view.OwnerRoster.HasValue && !rosterIds.Contains(view.OwnerRoster.Value))
+                throw new DecodeException(DecodeError.BadField, "owner roster reference");
+
+            view.Rows = new WireQuestRow[Count(ref r, 20)];
+            var questHandles = new HashSet<QuestHandle>();
+            for (int i = 0; i < view.Rows.Length; i++)
+            {
+                var row = new WireQuestRow { Handle = ReadQuestHandle(ref r) };
+                if (!questHandles.Add(row.Handle)) throw new DecodeException(DecodeError.BadField, "duplicate quest handle");
+                row.Def = r.Str();
+                if (row.Def.Length == 0 || Encoding.UTF8.GetByteCount(row.Def) > 16)
+                    throw new DecodeException(DecodeError.BadField, "quest definition");
+                row.GiverX = QuestPosition(ref r); row.GiverY = QuestPosition(ref r);
+                byte status = r.U8();
+                if (status > (byte)QuestRowState.Expired) throw new DecodeException(DecodeError.BadField, "quest status");
+                row.State = (QuestRowState)status;
+                row.ExpiresAt = r.F64();
+                if (!Finite(row.ExpiresAt) || row.ExpiresAt < 0) throw new DecodeException(DecodeError.BadField, "quest deadline");
+                row.Participants = new WireQuestParticipant[Count(ref r, 8)];
+                var participantIds = new HashSet<RosterId>();
+                for (int j = 0; j < row.Participants.Length; j++)
+                {
+                    var participant = new WireQuestParticipant
+                    {
+                        Id = ReadRosterId(ref r), Accepted = StateItem.QuestFlag(ref r, "quest flag"), Progress = r.Varint(), Visited = r.U8(),
+                    };
+                    if ((participant.Visited & 0xe0) != 0) throw new DecodeException(DecodeError.BadField, "quest visited mask");
+                    if (!rosterIds.Contains(participant.Id) || !participantIds.Add(participant.Id))
+                        throw new DecodeException(DecodeError.BadField, "participant roster reference");
+                    row.Participants[j] = participant;
+                }
+                uint carrier = r.Varint();
+                if (carrier != 0)
+                {
+                    var id = new RosterId(carrier);
+                    if (!rosterIds.Contains(id)) throw new DecodeException(DecodeError.BadField, "carrier roster reference");
+                    row.Carrier = id;
+                }
+                if (StateItem.QuestFlag(ref r, "quest flag")) row.DoneBy = QuestLabel(ref r);
+                byte flags = r.U8();
+                if ((flags & 0xf0) != 0) throw new DecodeException(DecodeError.BadField, "quest flags");
+                row.CanAccept = (flags & 1) != 0; row.OwnerAccepted = (flags & 2) != 0;
+                row.OwnerCompleted = (flags & 4) != 0; row.OwnerReady = (flags & 8) != 0;
+                row.OwnerProgress = r.Varint(); row.OwnerVisited = r.U8();
+                if ((row.OwnerVisited & 0xe0) != 0) throw new DecodeException(DecodeError.BadField, "owner quest visited mask");
+                view.Rows[i] = row;
+            }
+            view.Objectives = new WireQuestObjective[Count(ref r, 160)];
+            var objectiveCounts = new Dictionary<QuestHandle, int>();
+            for (int i = 0; i < view.Objectives.Length; i++)
+            {
+                var objective = new WireQuestObjective
+                {
+                    Quest = ReadQuestHandle(ref r), X = QuestPosition(ref r), Y = QuestPosition(ref r),
+                };
+                if (!questHandles.Contains(objective.Quest)) throw new DecodeException(DecodeError.BadField, "objective quest reference");
+                objectiveCounts.TryGetValue(objective.Quest, out int count);
+                if (count == 8) throw new DecodeException(DecodeError.TooMany, "objectives per quest");
+                objectiveCounts[objective.Quest] = count + 1;
+                view.Objectives[i] = objective;
+            }
+            if (r.Position - start > 16 * 1024) throw new DecodeException(DecodeError.TooLarge, "quest view bytes");
+            return view;
         }
         internal static byte? ReadPlanCode(ref Reader r) { byte v = r.U8(); if (v > 2) throw new DecodeException(DecodeError.BadField, "plan pick"); return v == 0 ? (byte?)null : (byte)(v - 1); }
         internal static void WritePlanCode(Writer w, byte? v) { if (v.HasValue && v.Value > 1) throw new EncodeException("plan pick"); w.U8(v.HasValue ? (byte)(v.Value + 1) : (byte)0); }
@@ -176,6 +337,7 @@ namespace Roguehalla.Net.Protocol
                                 case PropKind.Corpse: row.CorpseLabel = r.Str(); break;
                                 case PropKind.WindEmblem: break;
                                 case PropKind.Cannon: row.ReadyAt = r.Varint(); break;
+                                case PropKind.QuestItem: row.QuestRef = ReadQuestHandle(ref r); row.QuestFetch = QuestFlag(ref r, "flag"); break;
                                 default: throw new DecodeException(DecodeError.BadField, "prop kind");
                             }
                             props.Rows[j] = row;
@@ -270,12 +432,41 @@ namespace Roguehalla.Net.Protocol
                             InColiseum = r.Flag(), GatesLocked = r.Flag(),
                             SuddenDeathAt = r.F64(), StartedWith = r.Varint() };
                         item = arena; break;
+                    case 10:
+                        int questPayloadStart = r.Position;
+                        var quests = new QuestsState { Available = QuestFlag(ref r, "quest flag") };
+                        if (quests.Available) quests.View = ReadQuestView(ref r);
+                        if (r.Position - questPayloadStart > 16 * 1024) throw new DecodeException(DecodeError.TooLarge, "quest view bytes");
+                        item = quests; break;
                     default: throw new DecodeException(DecodeError.BadField, "state key");
                 }
                 try { item.Check(); } catch (EncodeException e) { throw new DecodeException(DecodeError.BadField, e.Message); }
                 items[i] = item;
             }
+            ValidateQuestPropReferences(items);
             return items;
+        }
+
+        // A frame that replaces both collections must be internally coherent before its
+        // state can be applied. Frames that replace only one side are checked against the
+        // retained collection by Collections before any mutation.
+        static void ValidateQuestPropReferences(StateItem[] items)
+        {
+            PropsState props = null;
+            QuestsState quests = null;
+            foreach (var item in items)
+            {
+                if (item is PropsState p) props = p;
+                else if (item is QuestsState q) quests = q;
+            }
+            if (props == null || quests == null) return;
+
+            var handles = new HashSet<QuestHandle>();
+            if (quests.Available && quests.View != null)
+                foreach (var row in quests.View.Rows) handles.Add(row.Handle);
+            foreach (var prop in props.Rows)
+                if (prop.Kind == PropKind.QuestItem && (!quests.Available || !prop.QuestRef.IsValid || !handles.Contains(prop.QuestRef)))
+                    throw new DecodeException(DecodeError.BadField, "quest prop reference");
         }
         internal static void WriteAll(Writer w, StateItem[] items)
         {
@@ -311,6 +502,7 @@ namespace Roguehalla.Net.Protocol
                     case PropKind.Corpse: Require(Encoding.UTF8.GetByteCount(row.CorpseLabel ?? "") <= 255, "corpse label"); break;
                     case PropKind.WindEmblem: break;
                     case PropKind.Cannon: break;
+                    case PropKind.QuestItem: Require(row.QuestRef.IsValid, "quest prop handle"); break;
                     default: throw new EncodeException("prop kind");
                 }
                 if (Focus.HasValue && row.Handle.Equals(Focus.Value.Handle))
@@ -327,7 +519,7 @@ namespace Roguehalla.Net.Protocol
             foreach (var row in Rows)
             {
                 w.Varint(row.Handle.Value); w.U16(row.X); w.U16(row.Y); w.U8((byte)row.Kind);
-                switch (row.Kind) { case PropKind.Ground: w.U8(row.GroundWeapon); break; case PropKind.Chest: w.U8(row.Open ? (byte)1 : (byte)0); break; case PropKind.Body: w.Str(row.BodyLabel); break; case PropKind.Corpse: w.Str(row.CorpseLabel); break; case PropKind.WindEmblem: break; case PropKind.Cannon: w.Varint(row.ReadyAt); break; }
+                switch (row.Kind) { case PropKind.Ground: w.U8(row.GroundWeapon); break; case PropKind.Chest: w.U8(row.Open ? (byte)1 : (byte)0); break; case PropKind.Body: w.Str(row.BodyLabel); break; case PropKind.Corpse: w.Str(row.CorpseLabel); break; case PropKind.WindEmblem: break; case PropKind.Cannon: w.Varint(row.ReadyAt); break; case PropKind.QuestItem: w.Varint(row.QuestRef.Value); w.U8(row.QuestFetch ? (byte)1 : (byte)0); break; }
             }
             w.Varint(Focus.HasValue ? Focus.Value.Handle.Value : 0); if (Focus.HasValue) WriteWeapon(w, Focus.Value.BodyHint);
         }
@@ -485,6 +677,98 @@ namespace Roguehalla.Net.Protocol
             w.U8((byte)(v.InColiseum ? 1 : 0)); w.U8((byte)(v.GatesLocked ? 1 : 0));
             w.F64(v.SuddenDeathAt); w.Varint(v.StartedWith);
         }
+    }
+
+    /// <summary>Key 10: unavailable is distinct from an available but empty owner-scoped quest view.</summary>
+    public sealed class QuestsState : StateItem
+    {
+        public override uint Key { get { return 10; } }
+        public bool Available;
+        public WireQuestView View;
+        internal override void Check()
+        {
+            Require(Available == (View != null), "quest availability");
+            if (!Available) return;
+            QuestStateCodec.CheckQuestView(View);
+            var bounded = new Writer();
+            QuestStateCodec.WriteQuestView(bounded, View);
+            Require(bounded.Finish().Length + 1 <= 16 * 1024, "quest view too large");
+        }
+        internal override void Write(Writer w)
+        {
+            w.U8(Available ? (byte)1 : (byte)0);
+            if (Available) QuestStateCodec.WriteQuestView(w, View);
+        }
+    }
+
+    internal static class QuestStateCodec
+    {
+    internal static void CheckQuestView(WireQuestView view)
+    {
+        StateItem.Require(view.UnknownCount <= 20 && view.DisplayUnknownCount <= view.UnknownCount, "quest unknown count");
+        StateItem.Require(view.Roster != null && view.Roster.Length <= 8, "quest roster");
+        StateItem.Require(view.Rows != null && view.Rows.Length <= 20, "quest rows");
+        StateItem.Require(view.Objectives != null && view.Objectives.Length <= 160, "quest objectives");
+        var rosterIds = new HashSet<RosterId>();
+        foreach (var entry in view.Roster)
+        {
+            StateItem.Require(entry != null && entry.Id.IsValid && rosterIds.Add(entry.Id), "quest roster id");
+            StateItem.Require(entry.Label != null && Encoding.UTF8.GetByteCount(entry.Label) <= 255, "quest roster label");
+        }
+        StateItem.Require(!view.OwnerRoster.HasValue || (view.OwnerRoster.Value.IsValid && rosterIds.Contains(view.OwnerRoster.Value)), "quest owner roster");
+        var handles = new HashSet<QuestHandle>();
+        foreach (var row in view.Rows)
+        {
+            StateItem.Require(row != null && row.Handle.IsValid && handles.Add(row.Handle), "quest handle");
+            StateItem.Require(row.Def != null && row.Def.Length != 0 && Encoding.UTF8.GetByteCount(row.Def) <= 16, "quest definition");
+            StateItem.Require(QuestPositionValid(row.GiverX) && QuestPositionValid(row.GiverY), "quest giver position");
+            StateItem.Require((byte)row.State <= (byte)QuestRowState.Expired && StateItem.Finite(row.ExpiresAt) && row.ExpiresAt >= 0, "quest row state/time");
+            StateItem.Require(row.Participants != null && row.Participants.Length <= 8, "quest participants");
+            var participantIds = new HashSet<RosterId>();
+            foreach (var participant in row.Participants)
+            {
+                StateItem.Require(participant.Id.IsValid && rosterIds.Contains(participant.Id) && participantIds.Add(participant.Id)
+                    && (participant.Visited & 0xe0) == 0, "quest participant");
+            }
+            StateItem.Require(!row.Carrier.HasValue || (row.Carrier.Value.IsValid && rosterIds.Contains(row.Carrier.Value)), "quest carrier");
+            StateItem.Require(row.DoneBy == null || Encoding.UTF8.GetByteCount(row.DoneBy) <= 255, "quest done by");
+            StateItem.Require((row.OwnerVisited & 0xe0) == 0, "quest owner visited");
+        }
+        var objectiveCounts = new Dictionary<QuestHandle, int>();
+        foreach (var objective in view.Objectives)
+        {
+            StateItem.Require(objective.Quest.IsValid && handles.Contains(objective.Quest)
+                && QuestPositionValid(objective.X) && QuestPositionValid(objective.Y), "quest objective");
+            objectiveCounts.TryGetValue(objective.Quest, out int count);
+            StateItem.Require(count < 8, "quest objectives per row");
+            objectiveCounts[objective.Quest] = count + 1;
+        }
+    }
+
+    static bool QuestPositionValid(double value) => StateItem.Finite(value) && value >= 0 && value <= 8191.875;
+
+    internal static void WriteQuestView(Writer w, WireQuestView view)
+    {
+        w.Varint(view.UnknownCount); w.Varint(view.DisplayUnknownCount); w.Varint(view.OwnerRoster.HasValue ? view.OwnerRoster.Value.Value : 0);
+        w.Varint((uint)view.Roster.Length);
+        foreach (var entry in view.Roster) { w.Varint(entry.Id.Value); w.Str(entry.Label); }
+        w.Varint((uint)view.Rows.Length);
+        foreach (var row in view.Rows)
+        {
+            w.Varint(row.Handle.Value); w.Str(row.Def); w.F64(row.GiverX); w.F64(row.GiverY); w.U8((byte)row.State); w.F64(row.ExpiresAt);
+            w.Varint((uint)row.Participants.Length);
+            foreach (var participant in row.Participants)
+            {
+                w.Varint(participant.Id.Value); w.U8(participant.Accepted ? (byte)1 : (byte)0); w.Varint(participant.Progress); w.U8(participant.Visited);
+            }
+            w.Varint(row.Carrier.HasValue ? row.Carrier.Value.Value : 0);
+            w.U8(row.DoneBy == null ? (byte)0 : (byte)1); if (row.DoneBy != null) w.Str(row.DoneBy);
+            byte flags = (byte)((row.CanAccept ? 1 : 0) | (row.OwnerAccepted ? 2 : 0) | (row.OwnerCompleted ? 4 : 0) | (row.OwnerReady ? 8 : 0));
+            w.U8(flags); w.Varint(row.OwnerProgress); w.U8(row.OwnerVisited);
+        }
+        w.Varint((uint)view.Objectives.Length);
+        foreach (var objective in view.Objectives) { w.Varint(objective.Quest.Value); w.F64(objective.X); w.F64(objective.Y); }
+    }
     }
 
 }

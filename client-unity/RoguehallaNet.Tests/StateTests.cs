@@ -26,7 +26,7 @@ namespace Roguehalla.Net.Tests
                 new BuildState {Value=new WireBuild {Cards=BuildCards(),Boosts=new byte[]{0,1,2,3,0,1,2,3}}},
                 new CampsState {Rows=new[]{new WireCamp{MobType=0,Elite=30,Alive=0,State=2,ClearedAt=1000,RespawnAt=181000}}},
                 new ProjectilesState {Rows=new[]{new WireProjectile{Kind=0,X=800,Y=900,Facing=12345,Owner=1},new WireProjectile{Kind=0,X=800,Y=900,Facing=12345,Owner=1}}},
-                new PlanState(), new ArenaState()
+                new PlanState(), new ArenaState(), new QuestsState { Available = false }
             }};
         }
         static ServerMsg.Welcome Welcome()

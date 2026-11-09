@@ -11,7 +11,7 @@ namespace Roguehalla.Net.Protocol
         Malformed = 7, TooSlow = 8, ServerDraining = 9, NoSuchSession = 10, Kicked = 11,
     }
 
-    public enum CommandKind : byte { Move = 1, Stop = 2, Aim = 3, Attack = 4, Release = 5, Swap = 6, Pickup = 7, Choose = 8, UseConsumable = 9, Target = 10, AttackMove = 11, HuntTarget = 12, ConsumeCorpse = 13, Plan = 14, Train = 15, Cast = 16 }
+    public enum CommandKind : byte { Move = 1, Stop = 2, Aim = 3, Attack = 4, Release = 5, Swap = 6, Pickup = 7, Choose = 8, UseConsumable = 9, Target = 10, AttackMove = 11, HuntTarget = 12, ConsumeCorpse = 13, Plan = 14, Train = 15, Cast = 16, QuestAccept = 17 }
 
     /// <summary>A client command. Only the fields of its Kind are meaningful.</summary>
     public sealed class WireCommand
@@ -25,6 +25,7 @@ namespace Roguehalla.Net.Protocol
         public byte? Slot;
         public PickupHandle PickupRef;
         public RewardChestHandle RewardRef;
+        public QuestHandle QuestRef;
         public sbyte Pick;
         public uint ActorRef;
         /// <summary>Client render time in server ms (Attack, Release); lag compensation, clamped by the server.</summary>
@@ -58,6 +59,7 @@ namespace Roguehalla.Net.Protocol
         public static WireCommand Swap(byte? slot = null) { return new WireCommand { Kind = CommandKind.Swap, Slot = slot }; }
         public static WireCommand Pickup(PickupHandle handle) { return new WireCommand { Kind = CommandKind.Pickup, PickupRef = handle }; }
         public static WireCommand Choose(RewardChestHandle handle, sbyte pick) { return new WireCommand { Kind = CommandKind.Choose, RewardRef = handle, Pick = pick }; }
+        public static WireCommand QuestAccept(QuestHandle handle) { return new WireCommand { Kind = CommandKind.QuestAccept, QuestRef = handle }; }
         public static WireCommand Move(float x, float y, byte? seq) { return new WireCommand { Kind = CommandKind.Move, X = x, Y = y, Seq = seq }; }
         public static WireCommand UseConsumable() { return new WireCommand { Kind = CommandKind.UseConsumable }; }
         public static WireCommand Target(uint actorRef) { if (actorRef == 0) throw new ArgumentException("actor reference"); return new WireCommand { Kind = CommandKind.Target, ActorRef = actorRef }; }
@@ -145,6 +147,7 @@ namespace Roguehalla.Net.Protocol
                                 inp.Commands.Add(WireCommand.Cast(slot, x, y, actor, t, seq));
                                 break;
                             }
+                            case 17: inp.Commands.Add(WireCommand.QuestAccept(StateItem.ReadQuestHandle(ref r))); break;
                             case 1: { float x = r.F32(), y = r.F32(); inp.Commands.Add(WireCommand.Move(x, y, r.Flag() ? r.U8() : (byte?)null)); break; }
                             case 2: inp.Commands.Add(WireCommand.Stop(r.Flag() ? r.U8() : (byte?)null)); break;
                             case 3: inp.Commands.Add(WireCommand.Aim(r.F32())); break;
@@ -246,6 +249,10 @@ namespace Roguehalla.Net.Protocol
                             if (c.T.HasValue) { w.U8(1); w.F64(c.T.Value); } else w.U8(0);
                             Opt(w, c.Seq);
                             break;
+                        case CommandKind.QuestAccept:
+                            if (!c.QuestRef.IsValid) throw new ArgumentException("quest handle");
+                            w.Varint(c.QuestRef.Value);
+                            break;
                     }
                 }
                 return w.Finish();
@@ -273,6 +280,7 @@ namespace Roguehalla.Net.Protocol
                     case CommandKind.Release: return 5 + (c.T.HasValue ? 9 : 1);
                     case CommandKind.Train: return 3 + Writer.VarintLength(c.TrainId) + 8 + c.TrainOptions.Length;
                     case CommandKind.Cast: return 13 + (c.ActorRef != 0 ? 4 : 0) + (c.T.HasValue ? 8 : 0) + (c.Seq.HasValue ? 1 : 0);
+                    case CommandKind.QuestAccept: return 1 + Writer.VarintLength(c.QuestRef.Value);
                     default: throw new ArgumentException("command kind");
                 }
             }

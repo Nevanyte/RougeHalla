@@ -28,7 +28,7 @@
 //! (Full head bits 14/15, delta bits 18/19; the target is a nonzero varint, stacks a varint).
 //! PotionNotice (Events 7) carries only a notice byte 1..=10. Camps carry direct mob type 0..29,
 //! optional elite as 0 absent / 1+index, alive varint <=512, state 0..=2, and finite nonnegative
-//! cleared/respawn f64 times with respawn >= cleared. At most 512 rows and nine ascending State keys.
+//! cleared/respawn f64 times with respawn >= cleared. At most 512 rows and ten ascending State keys.
 //!
 //! Source planning/lifecycle transport: Plan (command 14): a flags u8 (bit 0 spawn, bit 1 boon,
 //! bit 2 ready) and the present fields in order (spawn u8 0/1, boon u8 0/1, ready u8 0/1); it is accepted only during the
@@ -56,7 +56,7 @@
 //! Protocol 11 combines the independent branch additions. Commands 12 HuntTarget, 13 ConsumeCorpse,
 //! 14 Plan and 15 Train are distinct. Events 8 WindEmblem, 9 CannonNotice and 10 Toast are distinct.
 //! Props 4 Corpse, 5 WindEmblem and 6 Cannon are distinct. Actor kinds: 0 player, 1 regional mob,
-//! 2 zombie, 3 training dummy. State keys 8 private Plan and 9 public Arena complete the nine-key epoch.
+//! 2 zombie, 3 training dummy. State keys 8 private Plan and 9 public Arena remain complete replacements; key 10 carries only the private quest observer view.
 //! Build carries all 80 card counts followed by eight boosts. Inventory carries small, large and active-healing counts.
 //! Hunt uses Full self bits 14/15 and Delta self bits 18/19. Training is independent of self, Full bit 16 and
 //! Delta bit 20; the bit is the value on every frame. A Delta hunt-target value of zero clears it; a present
@@ -121,7 +121,7 @@
 //! defined by the key. Keys are unique and ascending: 1 self inventory, 2 props/focus, 3 visible fields,
 //! 4 reward offers, 5 self build, 6 camp summaries, 7 visible projectiles, 8 the viewer's own plan, 9 the public arena
 //! lifecycle. Each is a complete replacement; missing keys retain their last value. Module [`state`]
-//! defines strict bounds and record layouts. Welcome (join and resume) is followed by all nine keys, even empty,
+//! defines strict bounds and record layouts. Welcome (join and resume) is followed by all ten keys, even empty,
 //! so a resumed or recovered client never depends on an
 //! event it may have missed; events stay for one-shot announcements. The player's own `Result` is the one event the server
 //! keeps and re-sends after a resume.
@@ -148,9 +148,11 @@ pub mod quant;
 pub mod samples;
 pub mod state;
 pub use state::{
-    PickupHandle, RewardChestHandle, StateItem, TrophyStatKey, WireArena, WireBuild, WireCamp,
-    WireField, WireFocus, WireInventory, WirePlan, WirePlanOption, WireProjectile, WireProp,
-    WirePropKind, WireProps, WireRewardChest, WireRewardId, WireRewardOption,
+    validate_quest_props, PickupHandle, QuestHandle, RewardChestHandle, RosterId, StateItem,
+    TrophyStatKey, WireArena, WireBuild, WireCamp, WireField, WireFocus, WireInventory, WirePlan,
+    WirePlanOption, WireProjectile, WireProp, WirePropKind, WireProps, WireQuestObjective,
+    WireQuestParticipant, WireQuestPoint, WireQuestRow, WireQuestView, WireRewardChest,
+    WireRewardId, WireRewardOption, WireRosterEntry,
 };
 
 pub use codec::{DecodeError, EncodeError, Reader, Writer};
@@ -320,6 +322,10 @@ pub enum WireCommand {
         actor: Option<u32>,
         t: Option<f64>,
         seq: Option<u8>,
+    },
+    /// Accept a quest row through its observer-issued, quest-only handle.
+    QuestAccept {
+        handle: QuestHandle,
     },
 }
 
@@ -679,7 +685,7 @@ pub enum ServerMsg {
         client_ms: f64,
         server_ms: f64,
     },
-    /// Keyed state, the latest value per key (keys 1..=9; see the crate docs). Each item is a complete replacement.
+    /// Keyed state, the latest value per key (keys 1..=10; see the crate docs). Each item is a complete replacement.
     State {
         tick: u32,
         items: Vec<StateItem>,
@@ -707,6 +713,7 @@ const C_ATTACK: u8 = 4;
 const C_RELEASE: u8 = 5;
 const C_PLAN: u8 = 14;
 const C_CAST: u8 = 16;
+const C_QUEST_ACCEPT: u8 = 17;
 
 impl ClientMsg {
     /// The protocol version a Hello frame announces, read from its first three bytes (`[0x01][protocol u16]`) and nothing
@@ -821,6 +828,10 @@ impl ClientMsg {
                                 seq: r.opt(|r| r.u8())?,
                             }
                         }
+                        C_QUEST_ACCEPT => WireCommand::QuestAccept {
+                            handle: QuestHandle::new(r.varint()?)
+                                .ok_or(DecodeError::BadField("quest handle"))?,
+                        },
                         11 => WireCommand::AttackMove {
                             x: r.f32()?,
                             y: r.f32()?,

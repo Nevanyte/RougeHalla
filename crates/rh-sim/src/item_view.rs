@@ -236,6 +236,20 @@ impl ItemObserver {
         self.viewer
     }
 
+    /// An uncommitted replacement epoch. Only monotonic counters survive; the original observer
+    /// stays authoritative until the caller successfully delivers and installs this replacement.
+    /// Dropping it preserves every previously published binding and exhausted counter.
+    #[must_use]
+    pub fn renewed(&self) -> Self {
+        Self {
+            next: self.next,
+            actor_refs: self.actor_refs.renewed(),
+            rewards: self.rewards.renewed(),
+            quests: self.quests.renewed(),
+            ..Self::new(self.viewer)
+        }
+    }
+
     /// Reconnect in this match: invalidate every prior binding but never reuse a handle.
     pub fn reconnect(&mut self) {
         let mut rewards = std::mem::replace(
@@ -1048,6 +1062,68 @@ mod tests {
         );
         assert_eq!(seat.next, u32::MAX as u64 + 1);
         assert!(serde_json::from_str::<PublicCommand>(r#"{"Pickup":{"handle":0}}"#).is_err());
+    }
+
+    #[test]
+    fn renewed_epoch_is_transactional_and_cannot_reset_exhaustion() {
+        let mut sim = world(100., 272.);
+        rack(&mut sim, ContainerKind::Chest, 100., 272., &[Sword]);
+        rack(&mut sim, ContainerKind::Chest, 1400., 272., &[Bow]);
+        let mut original = ItemObserver::new(PlayerId(1));
+        let mut peer = ItemObserver::new(PlayerId(2));
+        let peer_handle = focus(&sample(&sim, &mut peer)).handle;
+        let peer_command = peer
+            .resolve(
+                &sim,
+                PublicCommand::Pickup {
+                    handle: peer_handle,
+                },
+            )
+            .unwrap();
+        let old = focus(&sample(&sim, &mut original)).handle;
+        let proposal = PublicCommand::Pickup { handle: old };
+        let command = original.resolve(&sim, proposal).unwrap();
+        let mut replacement = original.renewed();
+        let mut out = Observation::default();
+        let offer = replacement.prepare_into(&sim, &[], &mut out, None).unwrap();
+        let next = focus(&out).handle;
+        assert_ne!(old, next);
+        drop(offer);
+        assert_eq!(original.resolve(&sim, proposal).unwrap(), command);
+        drop(replacement);
+        let mut replacement = original.renewed();
+        replacement
+            .prepare_into(&sim, &[], &mut out, None)
+            .unwrap()
+            .commit();
+        assert_eq!(
+            focus(&out).handle,
+            next,
+            "discarded replacement consumes no IDs"
+        );
+        original = replacement;
+        assert_eq!(
+            peer.resolve(
+                &sim,
+                PublicCommand::Pickup {
+                    handle: peer_handle
+                }
+            )
+            .unwrap(),
+            peer_command,
+            "installing one seat's epoch never mutates another seat"
+        );
+        assert_eq!(
+            original.resolve(&sim, proposal).unwrap(),
+            crate::validate(crate::RawCommand::MissingPickup).unwrap()
+        );
+        original.next = u32::MAX as u64 + 1;
+        let mut exhausted = original.renewed();
+        assert_eq!(exhausted.next, original.next);
+        assert!(matches!(
+            exhausted.prepare_into(&sim, &[], &mut out, None),
+            Err(OfferError::HandlesExhausted)
+        ));
     }
 
     #[test]

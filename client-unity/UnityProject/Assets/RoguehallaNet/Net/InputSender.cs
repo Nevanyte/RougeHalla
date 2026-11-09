@@ -87,6 +87,13 @@ namespace Roguehalla.Net
             _queue.Add(WireCommand.Choose(handle,pick));
         }
 
+        /// <summary>Queues an owner-scoped quest acceptance reference; all eligibility stays server-authoritative.</summary>
+        public void QuestAccept(QuestHandle handle)
+        {
+            if (!handle.IsValid) { Dropped++; return; }
+            _queue.Add(WireCommand.QuestAccept(handle));
+        }
+
         /// <summary>Cancels commands that belong to an earlier connection/observer epoch.</summary>
         internal void ClearPending() { _queue.Clear(); _aim=null; LastMovementOrder=null; }
 

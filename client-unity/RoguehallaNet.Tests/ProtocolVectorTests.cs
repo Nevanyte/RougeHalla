@@ -411,7 +411,29 @@ namespace Roguehalla.Net.Tests
                 {
                     var expectedItem = expectedItems[i];
                     Assert.AreEqual(expectedItem.GetProperty("key").GetUInt32(), state.Items[i].Key);
-                    if (state.Items[i] is RewardChestsState rewardChests)
+                    if (state.Items[i] is PropsState props)
+                    {
+                        var expectedValue = expectedItem.GetProperty("value");
+                        var expectedRows = expectedValue.GetProperty("rows");
+                        Assert.AreEqual(expectedRows.GetArrayLength(), props.Rows.Length);
+                        for (int rowIndex = 0; rowIndex < props.Rows.Length; rowIndex++)
+                        {
+                            var row = props.Rows[rowIndex]; var expectedRow = expectedRows[rowIndex];
+                            Assert.AreEqual(expectedRow.GetProperty("handle").GetUInt32(), row.Handle.Value);
+                            Assert.AreEqual(expectedRow.GetProperty("x").GetUInt16(), row.X);
+                            Assert.AreEqual(expectedRow.GetProperty("y").GetUInt16(), row.Y);
+                            Assert.AreEqual(expectedRow.GetProperty("kind").GetByte(), (byte)row.Kind);
+                            if (row.Kind == PropKind.QuestItem)
+                            {
+                                Assert.AreEqual(expectedRow.GetProperty("quest").GetUInt32(), row.QuestRef.Value);
+                                Assert.AreEqual(expectedRow.GetProperty("fetch").GetBoolean(), row.QuestFetch);
+                            }
+                        }
+                        var focus = expectedValue.GetProperty("focus");
+                        Assert.AreEqual(focus.ValueKind == JsonValueKind.Null, !props.Focus.HasValue);
+                        if (props.Focus.HasValue) Assert.AreEqual(focus.GetProperty("handle").GetUInt32(), props.Focus.Value.Handle.Value);
+                    }
+                    else if (state.Items[i] is RewardChestsState rewardChests)
                     {
                         var expectedRows = expectedItem.GetProperty("value");
                         Assert.AreEqual(expectedRows.GetArrayLength(), rewardChests.Rows.Length);
@@ -441,6 +463,77 @@ namespace Roguehalla.Net.Tests
                                 }
                                 else Assert.AreEqual(expectedOption.GetProperty("id").GetByte(), option.Id);
                             }
+                        }
+                    }
+                    else if (state.Items[i] is QuestsState quests)
+                    {
+                        var expectedValue = expectedItem.GetProperty("value");
+                        if (expectedValue.ValueKind == JsonValueKind.Null)
+                        {
+                            Assert.IsFalse(quests.Available);
+                            Assert.IsNull(quests.View);
+                            continue;
+                        }
+
+                        Assert.IsTrue(quests.Available);
+                        Assert.IsNotNull(quests.View);
+                        var view = quests.View;
+                        Assert.AreEqual(expectedValue.GetProperty("unknownCount").GetUInt32(), view.UnknownCount);
+                        Assert.AreEqual(expectedValue.GetProperty("displayUnknownCount").GetUInt32(), view.DisplayUnknownCount);
+                        var ownerRoster = expectedValue.GetProperty("ownerRoster");
+                        Assert.AreEqual(ownerRoster.ValueKind == JsonValueKind.Null ? (uint?)null : ownerRoster.GetUInt32(),
+                            view.OwnerRoster.HasValue ? (uint?)view.OwnerRoster.Value.Value : null);
+
+                        var roster = expectedValue.GetProperty("roster");
+                        Assert.AreEqual(roster.GetArrayLength(), view.Roster.Length);
+                        for (int j = 0; j < view.Roster.Length; j++)
+                        {
+                            Assert.AreEqual(roster[j].GetProperty("id").GetUInt32(), view.Roster[j].Id.Value);
+                            Assert.AreEqual(roster[j].GetProperty("label").GetString(), view.Roster[j].Label);
+                        }
+
+                        var rows = expectedValue.GetProperty("rows");
+                        Assert.AreEqual(rows.GetArrayLength(), view.Rows.Length);
+                        for (int j = 0; j < view.Rows.Length; j++)
+                        {
+                            var expectedRow = rows[j]; var row = view.Rows[j];
+                            Assert.AreEqual(expectedRow.GetProperty("handle").GetUInt32(), row.Handle.Value);
+                            Assert.AreEqual(expectedRow.GetProperty("def").GetString(), row.Def);
+                            Assert.AreEqual(BitConverter.DoubleToInt64Bits(expectedRow.GetProperty("giver").GetProperty("x").GetDouble()), BitConverter.DoubleToInt64Bits(row.GiverX));
+                            Assert.AreEqual(BitConverter.DoubleToInt64Bits(expectedRow.GetProperty("giver").GetProperty("y").GetDouble()), BitConverter.DoubleToInt64Bits(row.GiverY));
+                            Assert.AreEqual(expectedRow.GetProperty("state").GetByte(), (byte)row.State);
+                            Assert.AreEqual(BitConverter.DoubleToInt64Bits(expectedRow.GetProperty("expiresAt").GetDouble()), BitConverter.DoubleToInt64Bits(row.ExpiresAt));
+                            var participants = expectedRow.GetProperty("participants");
+                            Assert.AreEqual(participants.GetArrayLength(), row.Participants.Length);
+                            for (int k = 0; k < row.Participants.Length; k++)
+                            {
+                                var expectedParticipant = participants[k]; var participant = row.Participants[k];
+                                Assert.AreEqual(expectedParticipant.GetProperty("id").GetUInt32(), participant.Id.Value);
+                                Assert.AreEqual(expectedParticipant.GetProperty("accepted").GetBoolean(), participant.Accepted);
+                                Assert.AreEqual(expectedParticipant.GetProperty("progress").GetUInt32(), participant.Progress);
+                                Assert.AreEqual(expectedParticipant.GetProperty("visited").GetByte(), participant.Visited);
+                            }
+                            var carrier = expectedRow.GetProperty("carrier");
+                            Assert.AreEqual(carrier.ValueKind == JsonValueKind.Null ? (uint?)null : carrier.GetUInt32(),
+                                row.Carrier.HasValue ? (uint?)row.Carrier.Value.Value : null);
+                            var doneBy = expectedRow.GetProperty("doneBy");
+                            Assert.AreEqual(doneBy.ValueKind == JsonValueKind.Null ? null : doneBy.GetString(), row.DoneBy);
+                            Assert.AreEqual(expectedRow.GetProperty("canAccept").GetBoolean(), row.CanAccept);
+                            Assert.AreEqual(expectedRow.GetProperty("ownerAccepted").GetBoolean(), row.OwnerAccepted);
+                            Assert.AreEqual(expectedRow.GetProperty("ownerCompleted").GetBoolean(), row.OwnerCompleted);
+                            Assert.AreEqual(expectedRow.GetProperty("ownerReady").GetBoolean(), row.OwnerReady);
+                            Assert.AreEqual(expectedRow.GetProperty("ownerProgress").GetUInt32(), row.OwnerProgress);
+                            Assert.AreEqual(expectedRow.GetProperty("ownerVisited").GetByte(), row.OwnerVisited);
+                        }
+
+                        var objectives = expectedValue.GetProperty("objectives");
+                        Assert.AreEqual(objectives.GetArrayLength(), view.Objectives.Length);
+                        for (int j = 0; j < view.Objectives.Length; j++)
+                        {
+                            var expectedObjective = objectives[j]; var objective = view.Objectives[j];
+                            Assert.AreEqual(expectedObjective.GetProperty("quest").GetUInt32(), objective.Quest.Value);
+                            Assert.AreEqual(BitConverter.DoubleToInt64Bits(expectedObjective.GetProperty("at").GetProperty("x").GetDouble()), BitConverter.DoubleToInt64Bits(objective.X));
+                            Assert.AreEqual(BitConverter.DoubleToInt64Bits(expectedObjective.GetProperty("at").GetProperty("y").GetDouble()), BitConverter.DoubleToInt64Bits(objective.Y));
                         }
                     }
                 }
@@ -569,7 +662,9 @@ namespace Roguehalla.Net.Tests
                 case "wish_fx_nonblaze_destination": case "wish_fx_anonymous_landed_target": case "wish_fx_anonymous_landed_no_target": case "wish_fx_end_reason_over_2":
                 case "actor_mob_type_over_30": case "delta_actor_mob_type_over_30":
                 case "chest_bad_reason_zero": case "chest_bad_reason_unknown":
-                case "pickup_bad_reason_zero": case "pickup_bad_reason_unknown": want = DecodeError.BadField; break;
+                case "pickup_bad_reason_zero": case "pickup_bad_reason_unknown":
+                case "state_quest_status_unknown": case "state_quest_flags_unknown": case "state_quest_visited_unknown":
+                case "state_quest_ref_missing": case "state_quest_prop_missing_view": want = DecodeError.BadField; break;
                 case "unknown_tag": case "client_tag_from_server": case "fx_bad_tag": want = DecodeError.BadTag; break;
                 case "trailing_byte": case "state_trailing_byte": want = DecodeError.Trailing; break;
                 case "state_truncated": case "state_reward_kill_truncated_key": case "state_reward_kill_truncated_gain":
@@ -578,6 +673,8 @@ namespace Roguehalla.Net.Tests
                 case "projectile_owner_overlong": case "delta_head_overlong_varint":
                     want = DecodeError.BadVarint; break;
                 case "state_too_many_keys": case "state_too_many_props": case "state_too_many_fields": case "state_too_many_projectiles": case "state_too_many_camps": case "state_too_many_rewards": case "state_reward_options_too_many":
+                case "state_quest_roster_over_limit": case "state_quest_rows_over_limit": case "state_quest_participants_over_limit":
+                case "state_quest_objectives_over_limit": case "state_quest_objectives_per_row_over_limit":
                 case "too_many_actors": case "fx_too_many": want = DecodeError.TooMany; break;
                 case "head_self_bit_without_present_bit": case "head_unknown_bit": case "self_max_hp_over_u16": case "actor_reserved_mask_bit":
                 case "self_status_over_3": case "phase_over_3": case "actor_status_over_3": case "actor_unknown_mask_bit_after_kind":
@@ -586,6 +683,13 @@ namespace Roguehalla.Net.Tests
                 case "state_reward_kill_key_unknown": case "state_reward_kill_gain_zero": case "state_reward_kill_gain_negative":
                 case "state_reward_kill_gain_nan": case "state_reward_kill_gain_infinity":
                 case "state_reward_card_id_80": case "state_plan_negative_deadline": case "state_unknown_key": case "delta_head_unknown_bit": case "delta_phase_over_3": case "delta_actor_mask_unknown_bit":
+                case "state_quest_row_handle_zero": case "state_quest_roster_id_zero": case "state_quest_objective_handle_zero": case "state_quest_prop_handle_zero":
+                case "state_quest_availability_flag": case "state_quest_participant_accepted_flag": case "state_quest_done_by_flag": case "state_quest_prop_fetch_flag":
+                case "state_quest_duplicate_row_handle": case "state_quest_duplicate_roster_id": case "state_quest_duplicate_participant_id":
+                case "state_quest_owner_roster_missing": case "state_quest_carrier_missing": case "state_quest_participant_missing":
+                case "state_quest_unknown_count": case "state_quest_display_count_over_unknown": case "state_quest_def_empty": case "state_quest_def_over_16":
+                case "state_quest_giver_nonfinite": case "state_quest_giver_out_of_range": case "state_quest_objective_nonfinite": case "state_quest_objective_out_of_range":
+                case "state_quest_expiry_negative": case "state_quest_expiry_nonfinite": case "state_quest_owner_visited_unknown":
                 case "delta_actor_status_over_3":
                 case "actor_id_gap_zero": case "actor_id_overflow": case "actor_hp_over_100": case "actor_bounty_over_u16":
                 case "delta_age_zero": case "delta_age_over_max": case "delta_age_past_tick": case "delta_head_field_without_present_bit":

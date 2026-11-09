@@ -1,4 +1,4 @@
-//! The golden vectors: deterministic sample messages, and frames that must be rejected. `protocol/fixtures/v11.json` is
+//! The golden vectors: deterministic sample messages, and frames that must be rejected. The current versioned fixture is
 //! generated from these (`cargo run -p rh-protocol --bin protocol-fixtures`) and read by the Rust, C# and JS tests. A
 //! Snapshot or Fx vector also carries what a client must DECODE (floats as their exact bit patterns), so the three decoders are
 //! held to the same quantization, not just to the same bytes.
@@ -240,6 +240,15 @@ pub fn client_samples() -> Vec<(&'static str, ClientMsg)> {
         ),
         ("input_cast_matrix_a", cast_matrix(&[0, 1])),
         ("input_cast_matrix_b", cast_matrix(&[2])),
+        (
+            "input_quest_accept",
+            ClientMsg::Input {
+                seq: 78,
+                commands: vec![WireCommand::QuestAccept {
+                    handle: QuestHandle::new(u32::MAX).unwrap(),
+                }],
+            },
+        ),
         ("leave", ClientMsg::Leave),
         ("resync", ClientMsg::Resync),
     ]
@@ -374,7 +383,47 @@ fn state_sample() -> ServerMsg {
             ]),
             StateItem::Plan(None),
             StateItem::Arena(None),
+            StateItem::Quests(None),
         ],
+    }
+}
+
+fn quest_view_sample() -> WireQuestView {
+    let roster = RosterId::new(7).unwrap();
+    let quest = QuestHandle::new(17).unwrap();
+    WireQuestView {
+        unknown_count: 10,
+        display_unknown_count: 9,
+        owner_roster: Some(roster),
+        roster: vec![WireRosterEntry {
+            id: roster,
+            label: "Ada".into(),
+        }],
+        rows: vec![WireQuestRow {
+            handle: quest,
+            def: "cull-fire".into(),
+            giver: WireQuestPoint { x: 100.0, y: 200.0 },
+            state: 1,
+            expires_at: 6000.0,
+            participants: vec![WireQuestParticipant {
+                id: roster,
+                accepted: true,
+                progress: 1,
+                visited: 1,
+            }],
+            carrier: None,
+            done_by: None,
+            can_accept: true,
+            owner_accepted: false,
+            owner_progress: 0,
+            owner_visited: 0,
+            owner_completed: false,
+            owner_ready: false,
+        }],
+        objectives: vec![WireQuestObjective {
+            quest,
+            at: WireQuestPoint { x: 125.0, y: 250.0 },
+        }],
     }
 }
 
@@ -407,6 +456,59 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
         .collect();
     vec![
         ("state_all", state_sample()),
+        (
+            "state_quests_available",
+            ServerMsg::State {
+                tick: 204,
+                items: vec![
+                    StateItem::Props(WireProps {
+                        rows: vec![WireProp {
+                            handle: PickupHandle::new(1).unwrap(),
+                            x: 1000,
+                            y: 2000,
+                            kind: WirePropKind::QuestItem {
+                                quest: QuestHandle::new(17).unwrap(),
+                                fetch: false,
+                            },
+                        }],
+                        focus: None,
+                    }),
+                    StateItem::Quests(Some(quest_view_sample())),
+                ],
+            },
+        ),
+        (
+            "state_quests_empty",
+            ServerMsg::State {
+                tick: 205,
+                items: vec![StateItem::Quests(Some(WireQuestView::default()))],
+            },
+        ),
+        (
+            "state_quests_unavailable",
+            ServerMsg::State {
+                tick: 206,
+                items: vec![StateItem::Quests(None)],
+            },
+        ),
+        (
+            "state_ten_keys",
+            ServerMsg::State {
+                tick: 207,
+                items: vec![
+                    StateItem::Inventory(None),
+                    StateItem::Props(WireProps::default()),
+                    StateItem::Fields(vec![]),
+                    StateItem::RewardChests(vec![]),
+                    StateItem::Build(None),
+                    StateItem::Camps(vec![]),
+                    StateItem::Projectiles(vec![]),
+                    StateItem::Plan(None),
+                    StateItem::Arena(None),
+                    StateItem::Quests(Some(WireQuestView::default())),
+                ],
+            },
+        ),
         (
             "state_full_catalog_rewards",
             ServerMsg::State {
@@ -1400,6 +1502,12 @@ pub fn malformed_client() -> Vec<(&'static str, Vec<u8>)> {
         ("swap_bad_slot", vec![2, 1, 0, 0, 0, 1, 0, 6, 1, 2]),
         ("swap_bad_flag", vec![2, 1, 0, 0, 0, 1, 0, 6, 2]),
         ("pickup_bad_id", vec![2, 1, 0, 0, 0, 1, 0, 7, 0, 0, 0, 0]),
+        ("quest_accept_zero", vec![2, 0, 0, 0, 0, 1, 0, 17, 0]),
+        ("quest_accept_truncated", vec![2, 0, 0, 0, 0, 1, 0, 17]),
+        (
+            "quest_accept_overlong",
+            vec![2, 0, 0, 0, 0, 1, 0, 17, 0x81, 0],
+        ),
         ("cast_slot_over_2", cast_frame(3, &[], 1.0)),
         (
             "cast_actor_zero",
@@ -1512,6 +1620,108 @@ fn actor_bytes(mask: u32, extra: &[u8]) -> Vec<u8> {
     a.bytes(&[0; 6]);
     a.bytes(extra);
     a.finish()
+}
+
+// Explicit malformed-wire builder: each independent field is deliberately mutable by the controls.
+#[allow(clippy::too_many_arguments)]
+fn quest_row_raw(
+    handle: u32,
+    def: &str,
+    x: f64,
+    y: f64,
+    status: u8,
+    expires: f64,
+    participants: &[(u32, u8, u32, u8)],
+    carrier: u32,
+    done_by_flag: u8,
+    done_by: Option<&str>,
+    flags: u8,
+    owner_progress: u32,
+    owner_visited: u8,
+) -> Vec<u8> {
+    let mut w = Writer::default();
+    w.varint(handle);
+    w.str(def);
+    w.f64(x);
+    w.f64(y);
+    w.u8(status);
+    w.f64(expires);
+    w.varint(participants.len() as u32);
+    for &(id, accepted, progress, visited) in participants {
+        w.varint(id);
+        w.u8(accepted);
+        w.varint(progress);
+        w.u8(visited);
+    }
+    w.varint(carrier);
+    w.u8(done_by_flag);
+    if let Some(label) = done_by {
+        w.str(label);
+    }
+    w.u8(flags);
+    w.varint(owner_progress);
+    w.u8(owner_visited);
+    w.finish()
+}
+
+fn quest_view_raw(
+    unknown: u32,
+    display_unknown: u32,
+    owner_roster: u32,
+    roster: &[(u32, &str)],
+    rows: &[Vec<u8>],
+    objectives: &[(u32, f64, f64)],
+) -> Vec<u8> {
+    let mut w = Writer::default();
+    w.u8(1);
+    w.varint(unknown);
+    w.varint(display_unknown);
+    w.varint(owner_roster);
+    w.varint(roster.len() as u32);
+    for &(id, label) in roster {
+        w.varint(id);
+        w.str(label);
+    }
+    w.varint(rows.len() as u32);
+    for row in rows {
+        w.bytes(row);
+    }
+    w.varint(objectives.len() as u32);
+    for &(quest, x, y) in objectives {
+        w.varint(quest);
+        w.f64(x);
+        w.f64(y);
+    }
+    w.finish()
+}
+
+fn quest_state_raw(payload: &[u8]) -> Vec<u8> {
+    let mut w = Writer::default();
+    w.u8(0x88);
+    w.varint(0);
+    w.varint(1);
+    w.varint(10);
+    w.bytes(payload);
+    w.finish()
+}
+
+fn quest_props_state_raw(prop_quest: u32, fetch: u8, quest_view: &[u8]) -> Vec<u8> {
+    let mut w = Writer::default();
+    w.u8(0x88);
+    w.varint(0);
+    w.varint(2);
+    w.varint(2); // Props key
+    w.varint(1); // one prop
+    w.varint(1);
+    w.u16(0);
+    w.u16(0);
+    w.u8(7);
+    w.varint(prop_quest);
+    w.u8(fetch);
+    w.varint(0); // no focus
+    w.varint(10);
+    w.bytes(quest_view);
+    w.finish()
 }
 
 /// Server frames a client must reject (the C# and JS tests check the same names against the reason they expect).
@@ -1627,6 +1837,452 @@ pub fn malformed_server() -> Vec<(&'static str, Vec<u8>)> {
         w.bytes(payload);
         w.finish()
     };
+    #[allow(clippy::too_many_arguments)]
+    let quest_row = |handle,
+                     def: &str,
+                     x: f64,
+                     y: f64,
+                     status,
+                     expires: f64,
+                     participants: &[(u32, u8, u32, u8)],
+                     carrier,
+                     done_flag,
+                     done_by: Option<&str>,
+                     flags,
+                     owner_visited| {
+        quest_row_raw(
+            handle,
+            def,
+            x,
+            y,
+            status,
+            expires,
+            participants,
+            carrier,
+            done_flag,
+            done_by,
+            flags,
+            0,
+            owner_visited,
+        )
+    };
+    let one_roster = &[(1, "owner")];
+    let basic = quest_row(1, "collect", 0.0, 0.0, 1, 0.0, &[], 0, 0, None, 0, 0);
+    let quest_bad_status = quest_state_raw(&quest_view_raw(
+        0,
+        0,
+        0,
+        &[],
+        &[quest_row(
+            1,
+            "collect",
+            0.0,
+            0.0,
+            4,
+            0.0,
+            &[],
+            0,
+            0,
+            None,
+            0,
+            0,
+        )],
+        &[],
+    ));
+    let quest_bad_flags = quest_state_raw(&quest_view_raw(
+        0,
+        0,
+        0,
+        &[],
+        &[quest_row(
+            1,
+            "collect",
+            0.0,
+            0.0,
+            1,
+            0.0,
+            &[],
+            0,
+            0,
+            None,
+            0x10,
+            0,
+        )],
+        &[],
+    ));
+    let quest_bad_visited = quest_state_raw(&quest_view_raw(
+        0,
+        0,
+        1,
+        one_roster,
+        &[quest_row(
+            1,
+            "collect",
+            0.0,
+            0.0,
+            1,
+            0.0,
+            &[(1, 1, 0, 0x20)],
+            0,
+            0,
+            None,
+            0,
+            0,
+        )],
+        &[],
+    ));
+    let quest_owner_visited = quest_state_raw(&quest_view_raw(
+        0,
+        0,
+        1,
+        one_roster,
+        &[quest_row(
+            1,
+            "collect",
+            0.0,
+            0.0,
+            1,
+            0.0,
+            &[],
+            0,
+            0,
+            None,
+            0,
+            0x20,
+        )],
+        &[],
+    ));
+    let quest_missing_objective =
+        quest_state_raw(&quest_view_raw(0, 0, 0, &[], &[], &[(1, 0.0, 0.0)]));
+    let quest_row_handle_zero = quest_state_raw(&quest_view_raw(
+        0,
+        0,
+        0,
+        &[],
+        &[quest_row(
+            0,
+            "collect",
+            0.0,
+            0.0,
+            1,
+            0.0,
+            &[],
+            0,
+            0,
+            None,
+            0,
+            0,
+        )],
+        &[],
+    ));
+    let quest_roster_id_zero = quest_state_raw(&quest_view_raw(0, 0, 0, &[(0, "bad")], &[], &[]));
+    let quest_objective_handle_zero = quest_state_raw(&quest_view_raw(
+        0,
+        0,
+        0,
+        &[],
+        std::slice::from_ref(&basic),
+        &[(0, 0.0, 0.0)],
+    ));
+    let quest_prop_handle_zero = quest_props_state_raw(0, 0, &[0]);
+    let quest_availability_flag = quest_state_raw(&[2]);
+    let quest_accepted_flag = quest_state_raw(&quest_view_raw(
+        0,
+        0,
+        1,
+        one_roster,
+        &[quest_row(
+            1,
+            "collect",
+            0.0,
+            0.0,
+            1,
+            0.0,
+            &[(1, 2, 0, 0)],
+            0,
+            0,
+            None,
+            0,
+            0,
+        )],
+        &[],
+    ));
+    let quest_done_flag = quest_state_raw(&quest_view_raw(
+        0,
+        0,
+        0,
+        &[],
+        &[quest_row(
+            1,
+            "collect",
+            0.0,
+            0.0,
+            1,
+            0.0,
+            &[],
+            0,
+            2,
+            None,
+            0,
+            0,
+        )],
+        &[],
+    ));
+    let quest_prop_fetch_flag = quest_props_state_raw(1, 2, &[0]);
+    let quest_duplicate_row = quest_state_raw(&quest_view_raw(
+        0,
+        0,
+        0,
+        &[],
+        &[basic.clone(), basic.clone()],
+        &[],
+    ));
+    let quest_duplicate_roster =
+        quest_state_raw(&quest_view_raw(0, 0, 0, &[(1, "a"), (1, "b")], &[], &[]));
+    let quest_duplicate_participant = quest_state_raw(&quest_view_raw(
+        0,
+        0,
+        1,
+        one_roster,
+        &[quest_row(
+            1,
+            "collect",
+            0.0,
+            0.0,
+            1,
+            0.0,
+            &[(1, 1, 0, 0), (1, 0, 1, 0)],
+            0,
+            0,
+            None,
+            0,
+            0,
+        )],
+        &[],
+    ));
+    let quest_owner_missing = quest_state_raw(&quest_view_raw(0, 0, 2, one_roster, &[], &[]));
+    let quest_carrier_missing = quest_state_raw(&quest_view_raw(
+        0,
+        0,
+        0,
+        one_roster,
+        &[quest_row(
+            1,
+            "collect",
+            0.0,
+            0.0,
+            1,
+            0.0,
+            &[],
+            2,
+            0,
+            None,
+            0,
+            0,
+        )],
+        &[],
+    ));
+    let quest_participant_missing = quest_state_raw(&quest_view_raw(
+        0,
+        0,
+        0,
+        one_roster,
+        &[quest_row(
+            1,
+            "collect",
+            0.0,
+            0.0,
+            1,
+            0.0,
+            &[(2, 1, 0, 0)],
+            0,
+            0,
+            None,
+            0,
+            0,
+        )],
+        &[],
+    ));
+    let quest_unknown_count = quest_state_raw(&quest_view_raw(21, 0, 0, &[], &[], &[]));
+    let quest_display_count = quest_state_raw(&quest_view_raw(0, 1, 0, &[], &[], &[]));
+    let quest_def_empty = quest_state_raw(&quest_view_raw(
+        0,
+        0,
+        0,
+        &[],
+        &[quest_row(1, "", 0.0, 0.0, 1, 0.0, &[], 0, 0, None, 0, 0)],
+        &[],
+    ));
+    let quest_def_long = quest_state_raw(&quest_view_raw(
+        0,
+        0,
+        0,
+        &[],
+        &[quest_row(
+            1,
+            "12345678901234567",
+            0.0,
+            0.0,
+            1,
+            0.0,
+            &[],
+            0,
+            0,
+            None,
+            0,
+            0,
+        )],
+        &[],
+    ));
+    let quest_giver_nonfinite = quest_state_raw(&quest_view_raw(
+        0,
+        0,
+        0,
+        &[],
+        &[quest_row(
+            1,
+            "collect",
+            f64::NAN,
+            0.0,
+            1,
+            0.0,
+            &[],
+            0,
+            0,
+            None,
+            0,
+            0,
+        )],
+        &[],
+    ));
+    let quest_giver_out_of_range = quest_state_raw(&quest_view_raw(
+        0,
+        0,
+        0,
+        &[],
+        &[quest_row(
+            1,
+            "collect",
+            8192.0,
+            0.0,
+            1,
+            0.0,
+            &[],
+            0,
+            0,
+            None,
+            0,
+            0,
+        )],
+        &[],
+    ));
+    let quest_objective_nonfinite = quest_state_raw(&quest_view_raw(
+        0,
+        0,
+        0,
+        &[],
+        std::slice::from_ref(&basic),
+        &[(1, f64::INFINITY, 0.0)],
+    ));
+    let quest_objective_out_of_range = quest_state_raw(&quest_view_raw(
+        0,
+        0,
+        0,
+        &[],
+        std::slice::from_ref(&basic),
+        &[(1, 0.0, -0.001)],
+    ));
+    let quest_expiry_negative = quest_state_raw(&quest_view_raw(
+        0,
+        0,
+        0,
+        &[],
+        &[quest_row(
+            1,
+            "collect",
+            0.0,
+            0.0,
+            1,
+            -1.0,
+            &[],
+            0,
+            0,
+            None,
+            0,
+            0,
+        )],
+        &[],
+    ));
+    let quest_expiry_nonfinite = quest_state_raw(&quest_view_raw(
+        0,
+        0,
+        0,
+        &[],
+        &[quest_row(
+            1,
+            "collect",
+            0.0,
+            0.0,
+            1,
+            f64::INFINITY,
+            &[],
+            0,
+            0,
+            None,
+            0,
+            0,
+        )],
+        &[],
+    ));
+    let mut roster_over = Writer::default();
+    roster_over.u8(1);
+    roster_over.varint(0);
+    roster_over.varint(0);
+    roster_over.varint(0);
+    roster_over.varint(9);
+    let quest_roster_over = quest_state_raw(&roster_over.finish());
+    let mut rows_over = Writer::default();
+    rows_over.u8(1);
+    rows_over.varint(0);
+    rows_over.varint(0);
+    rows_over.varint(0);
+    rows_over.varint(0);
+    rows_over.varint(21);
+    let quest_rows_over = quest_state_raw(&rows_over.finish());
+    let mut parts_over_row = Writer::default();
+    parts_over_row.varint(1);
+    parts_over_row.str("collect");
+    parts_over_row.f64(0.0);
+    parts_over_row.f64(0.0);
+    parts_over_row.u8(1);
+    parts_over_row.f64(0.0);
+    parts_over_row.varint(9);
+    let quest_parts_over = quest_state_raw(&quest_view_raw(
+        0,
+        0,
+        0,
+        &[],
+        &[parts_over_row.finish()],
+        &[],
+    ));
+    let mut objectives_over = Writer::default();
+    objectives_over.u8(1);
+    objectives_over.varint(0);
+    objectives_over.varint(0);
+    objectives_over.varint(0);
+    objectives_over.varint(0);
+    objectives_over.varint(0);
+    objectives_over.varint(161);
+    let quest_objectives_over = quest_state_raw(&objectives_over.finish());
+    let many_objectives = (0..9).map(|_| (1, 0.0, 0.0)).collect::<Vec<_>>();
+    let quest_objectives_per_row_over = quest_state_raw(&quest_view_raw(
+        0,
+        0,
+        0,
+        &[],
+        std::slice::from_ref(&basic),
+        &many_objectives,
+    ));
     vec![
         ("potion_notice_zero", vec![0x84, 0, 0, 0, 0, 1, 0, 7, 0]),
         ("cannon_notice_zero", vec![0x84, 0, 0, 0, 0, 1, 0, 9, 0]),
@@ -1940,10 +2596,63 @@ pub fn malformed_server() -> Vec<(&'static str, Vec<u8>)> {
         ("state_reward_kill_truncated_gain", reward_frame(1, &[3, 0])),
         ("state_reward_options_too_many", reward_frame(4, &[])),
         ("state_plan_negative_deadline", negative_plan),
-        ("state_unknown_key", vec![0x88, 0, 1, 10]),
+        ("state_unknown_key", vec![0x88, 0, 1, 11]),
+        ("state_quest_status_unknown", quest_bad_status),
+        ("state_quest_flags_unknown", quest_bad_flags),
+        ("state_quest_visited_unknown", quest_bad_visited),
+        ("state_quest_owner_visited_unknown", quest_owner_visited),
+        ("state_quest_ref_missing", quest_missing_objective),
+        (
+            "state_quest_prop_missing_view",
+            quest_props_state_raw(1, 0, &[0]),
+        ),
+        ("state_quest_row_handle_zero", quest_row_handle_zero),
+        ("state_quest_roster_id_zero", quest_roster_id_zero),
+        (
+            "state_quest_objective_handle_zero",
+            quest_objective_handle_zero,
+        ),
+        ("state_quest_prop_handle_zero", quest_prop_handle_zero),
+        ("state_quest_availability_flag", quest_availability_flag),
+        ("state_quest_participant_accepted_flag", quest_accepted_flag),
+        ("state_quest_done_by_flag", quest_done_flag),
+        ("state_quest_prop_fetch_flag", quest_prop_fetch_flag),
+        ("state_quest_duplicate_row_handle", quest_duplicate_row),
+        ("state_quest_duplicate_roster_id", quest_duplicate_roster),
+        (
+            "state_quest_duplicate_participant_id",
+            quest_duplicate_participant,
+        ),
+        ("state_quest_owner_roster_missing", quest_owner_missing),
+        ("state_quest_carrier_missing", quest_carrier_missing),
+        ("state_quest_participant_missing", quest_participant_missing),
+        ("state_quest_unknown_count", quest_unknown_count),
+        (
+            "state_quest_display_count_over_unknown",
+            quest_display_count,
+        ),
+        ("state_quest_def_empty", quest_def_empty),
+        ("state_quest_def_over_16", quest_def_long),
+        ("state_quest_giver_nonfinite", quest_giver_nonfinite),
+        ("state_quest_giver_out_of_range", quest_giver_out_of_range),
+        ("state_quest_objective_nonfinite", quest_objective_nonfinite),
+        (
+            "state_quest_objective_out_of_range",
+            quest_objective_out_of_range,
+        ),
+        ("state_quest_expiry_negative", quest_expiry_negative),
+        ("state_quest_expiry_nonfinite", quest_expiry_nonfinite),
+        ("state_quest_roster_over_limit", quest_roster_over),
+        ("state_quest_rows_over_limit", quest_rows_over),
+        ("state_quest_participants_over_limit", quest_parts_over),
+        ("state_quest_objectives_over_limit", quest_objectives_over),
+        (
+            "state_quest_objectives_per_row_over_limit",
+            quest_objectives_per_row_over,
+        ),
         ("state_duplicate_key", vec![0x88, 0, 2, 1, 0, 1, 0]),
         ("state_key_order", vec![0x88, 0, 2, 3, 0, 1, 0]),
-        ("state_too_many_keys", vec![0x88, 0, 10]),
+        ("state_too_many_keys", vec![0x88, 0, 11]),
         ("state_too_many_props", vec![0x88, 0, 1, 2, 0x81, 4]),
         ("state_too_many_fields", vec![0x88, 0, 1, 3, 0x81, 4]),
         ("state_too_many_rewards", vec![0x88, 0, 1, 4, 0x81, 4]),
@@ -2982,6 +3691,58 @@ fn decoded_trophy_state_json(m: &ServerMsg) -> String {
     format!("{{\"kind\":\"state\",\"tick\":{tick},\"items\":[{{\"key\":4,\"value\":[{rows}]}}]}}")
 }
 
+fn decoded_quest_state_json(m: &ServerMsg) -> String {
+    let ServerMsg::State { tick, items } = m else {
+        unreachable!("not state")
+    };
+    let decoded_items = items.iter().filter_map(|item| match item {
+        StateItem::Props(props) => {
+            let rows = props.rows.iter().map(|row| {
+                let kind = match &row.kind {
+                    WirePropKind::Ground(_) => 1,
+                    WirePropKind::Chest { .. } => 2,
+                    WirePropKind::Body { .. } => 3,
+                    WirePropKind::Corpse { .. } => 4,
+                    WirePropKind::WindEmblem => 5,
+                    WirePropKind::Cannon { .. } => 6,
+                    WirePropKind::QuestItem { .. } => 7,
+                };
+                let specifics = match &row.kind {
+                    WirePropKind::Ground(weapon) => format!("\"weapon\":{weapon}"),
+                    WirePropKind::Chest { open } => format!("\"open\":{open}"),
+                    WirePropKind::Body { label } | WirePropKind::Corpse { label } => format!("\"label\":\"{}\"", escape(label)),
+                    WirePropKind::WindEmblem => String::new(),
+                    WirePropKind::Cannon { ready_at } => format!("\"readyAt\":{ready_at}"),
+                    WirePropKind::QuestItem { quest, fetch } => format!("\"quest\":{},\"fetch\":{fetch}", quest.get()),
+                };
+                let base = format!("\"handle\":{},\"x\":{},\"y\":{},\"kind\":{kind}", row.handle.get(), row.x, row.y);
+                if specifics.is_empty() { format!("{{{base}}}") } else { format!("{{{base},{specifics}}}") }
+            }).collect::<Vec<_>>().join(",");
+            let focus = props.focus.map_or("null".to_owned(), |focus| format!("{{\"handle\":{},\"bodyHint\":{}}}", focus.handle.get(), focus.body_hint.map_or("null".to_owned(), |hint| hint.to_string())));
+            Some(format!("{{\"key\":2,\"value\":{{\"rows\":[{}],\"focus\":{}}}}}", rows, focus))
+        }
+        StateItem::Quests(view) => {
+            let value = view.as_ref().map_or_else(|| "null".to_owned(), |view| {
+                let roster = view.roster.iter().map(|entry| format!("{{\"id\":{},\"label\":\"{}\"}}", entry.id.get(), escape(&entry.label))).collect::<Vec<_>>().join(",");
+                let rows = view.rows.iter().map(|row| {
+                    let participants = row.participants.iter().map(|part| format!("{{\"id\":{},\"accepted\":{},\"progress\":{},\"visited\":{}}}", part.id.get(), part.accepted, part.progress, part.visited)).collect::<Vec<_>>().join(",");
+                    format!("{{\"handle\":{},\"def\":\"{}\",\"giver\":{{\"x\":{},\"y\":{}}},\"state\":{},\"expiresAt\":{},\"participants\":[{}],\"carrier\":{},\"doneBy\":{},\"canAccept\":{},\"ownerAccepted\":{},\"ownerProgress\":{},\"ownerVisited\":{},\"ownerCompleted\":{},\"ownerReady\":{}}}",
+                        row.handle.get(), escape(&row.def), row.giver.x, row.giver.y, row.state, row.expires_at,
+                        participants, row.carrier.map_or("null".to_owned(), |id| id.get().to_string()),
+                        row.done_by.as_ref().map_or("null".to_owned(), |label| format!("\"{}\"", escape(label))),
+                        row.can_accept, row.owner_accepted, row.owner_progress, row.owner_visited, row.owner_completed, row.owner_ready)
+                }).collect::<Vec<_>>().join(",");
+                let objectives = view.objectives.iter().map(|objective| format!("{{\"quest\":{},\"at\":{{\"x\":{},\"y\":{}}}}}", objective.quest.get(), objective.at.x, objective.at.y)).collect::<Vec<_>>().join(",");
+                format!("{{\"unknownCount\":{},\"displayUnknownCount\":{},\"ownerRoster\":{},\"roster\":[{}],\"rows\":[{}],\"objectives\":[{}]}}",
+                    view.unknown_count, view.display_unknown_count, view.owner_roster.map_or("null".to_owned(), |id| id.get().to_string()), roster, rows, objectives)
+            });
+            Some(format!("{{\"key\":10,\"value\":{value}}}"))
+        }
+        _ => None,
+    }).collect::<Vec<_>>().join(",");
+    format!("{{\"kind\":\"state\",\"tick\":{tick},\"items\":[{decoded_items}]}}")
+}
+
 /// The manifest JSON (hand-written to keep this crate dependency-free; field names are the C# and JS tests' contract).
 /// A server vector's `debug` is the message a client DECODES (quantized), not the sample as written.
 pub fn manifest() -> String {
@@ -3012,6 +3773,9 @@ pub fn manifest() -> String {
             ServerMsg::Welcome { .. } => format!(", \"decoded\": {}", decoded_map_json(&decoded)),
             ServerMsg::State { .. } if *name == "state_trophy_reward_keys" => {
                 format!(", \"decoded\": {}", decoded_trophy_state_json(&decoded))
+            }
+            ServerMsg::State { .. } if name.starts_with("state_quests_") => {
+                format!(", \"decoded\": {}", decoded_quest_state_json(&decoded))
             }
             _ => String::new(),
         };

@@ -166,6 +166,12 @@ impl Default for ActorRefs {
     }
 }
 impl ActorRefs {
+    pub(crate) fn renewed(&self) -> Self {
+        Self {
+            next: self.next,
+            ..Self::default()
+        }
+    }
     pub(crate) fn reconnect(&mut self) {
         let next = self.next;
         *self = Self::default();
@@ -265,3 +271,35 @@ impl ActorRefs {
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod renewal_tests {
+    use super::*;
+    #[test]
+    fn renewed_actor_epoch_preserves_counters_and_original_bindings() {
+        for next in [
+            NPC_REFERENCE_BASE + NPC_REFERENCE_BLOCK,
+            u32::MAX as u64 + 1,
+        ] {
+            let mut old = ActorRefs::default();
+            old.next = next;
+            old.sampled = Some(7);
+            old.current
+                .bindings
+                .push((PlayerId(91), PlayerId(NPC_REFERENCE_BASE as u32)));
+            old.retired.push((6, old.current.clone()));
+            let replacement = old.renewed();
+            assert_eq!(replacement.next, next);
+            assert!(
+                replacement.sampled.is_none()
+                    && replacement.current.bindings.is_empty()
+                    && replacement.retired.is_empty()
+            );
+            assert_eq!(
+                old.current.actor(PlayerId(NPC_REFERENCE_BASE as u32)),
+                Some(PlayerId(91))
+            );
+            assert_eq!(old.next, next);
+        }
+    }
+}

@@ -381,7 +381,15 @@ namespace Roguehalla.Net
             var collections = msg as ServerMsg.State;
             if (collections != null)
             {
-                Collections.Apply(collections);
+                try { Collections.Apply(collections); }
+                catch (InvalidCollectionStateException e)
+                {
+                    DecodeErrors++;
+                    Error = "bad server collection state: " + e.Message;
+                    Set(SessionState.Failed);
+                    _t.Close();
+                    return;
+                }
                 bool locked = Collections.Arena.HasValue && Collections.Arena.Value.GatesLocked;
                 if (Motion != null && locked != _predictionGatesLocked)
                 {

@@ -10,12 +10,14 @@ use rh_sim::{Inventory, Observation, PropKind};
 pub struct CollectionPublisher {
     sent: bool,
     inventory: Option<WireInventory>,
+    props: Option<WireProps>,
     fields: Vec<WireField>,
     build: Option<WireBuild>,
     camps: Vec<WireCamp>,
     projectiles: Vec<WireProjectile>,
     plan: Option<WirePlan>,
     arena: Option<WireArena>,
+    quests: Option<rh_protocol::WireQuestView>,
     last_forced: Option<u32>,
 }
 
@@ -66,14 +68,86 @@ fn props(observation: &Observation) -> Result<WireProps, EncodeError> {
                         label: label.to_string(),
                     },
                     PropKind::WindEmblem => WirePropKind::WindEmblem,
-                    PropKind::QuestItem { .. } => {
-                        return Err(EncodeError::BadValue("quest item transport unsupported"))
-                    }
+                    PropKind::QuestItem { quest, fetch } => WirePropKind::QuestItem {
+                        quest: rh_protocol::QuestHandle::new(quest.get())
+                            .expect("native quest handle"),
+                        fetch: *fetch,
+                    },
                 },
             })
         })
         .collect::<Result<Vec<_>, _>>()?;
     Ok(WireProps { rows, focus })
+}
+
+/// Copies only the admitted observer view. No world quest/container/player IDs are read here.
+fn quests(observation: &Observation) -> Option<rh_protocol::WireQuestView> {
+    use rh_protocol::{
+        QuestHandle, RosterId, WireQuestObjective, WireQuestParticipant, WireQuestPoint,
+        WireQuestRow, WireQuestView, WireRosterEntry,
+    };
+    let source = observation.quests.as_ref()?;
+    let roster_id =
+        |id: rh_sim::quest_view::RosterId| RosterId::new(id.get()).expect("native roster id");
+    let quest_id = |id: rh_sim::quest_view::QuestHandle| {
+        QuestHandle::new(id.get()).expect("native quest handle")
+    };
+    let point = |at: rh_sim::Vec2| WireQuestPoint { x: at.x, y: at.y };
+    Some(WireQuestView {
+        unknown_count: source.unknown_count,
+        display_unknown_count: source.display_unknown_count,
+        owner_roster: source.owner_roster.map(roster_id),
+        roster: source
+            .roster
+            .iter()
+            .map(|row| WireRosterEntry {
+                id: roster_id(row.id),
+                label: row.label.clone(),
+            })
+            .collect(),
+        rows: source
+            .rows
+            .iter()
+            .map(|row| WireQuestRow {
+                handle: quest_id(row.handle),
+                def: row.def.clone(),
+                giver: point(row.giver),
+                state: match row.state {
+                    rh_sim::quest_view::RowState::Preview => 0,
+                    rh_sim::quest_view::RowState::Open => 1,
+                    rh_sim::quest_view::RowState::Done => 2,
+                    rh_sim::quest_view::RowState::Expired => 3,
+                },
+                expires_at: row.expires_at,
+                participants: row
+                    .participants
+                    .iter()
+                    .map(|p| WireQuestParticipant {
+                        id: roster_id(p.id),
+                        accepted: p.accepted,
+                        progress: p.progress,
+                        visited: p.visited,
+                    })
+                    .collect(),
+                carrier: row.carrier.map(roster_id),
+                done_by: row.done_by.clone(),
+                can_accept: row.can_accept,
+                owner_accepted: row.owner_accepted,
+                owner_progress: row.owner_progress,
+                owner_visited: row.owner_visited,
+                owner_completed: row.owner_completed,
+                owner_ready: row.owner_ready,
+            })
+            .collect(),
+        objectives: source
+            .objectives
+            .iter()
+            .map(|row| WireQuestObjective {
+                quest: quest_id(row.quest),
+                at: point(row.at),
+            })
+            .collect(),
+    })
 }
 
 fn fields(observation: &Observation) -> Vec<WireField> {
@@ -265,6 +339,14 @@ impl CollectionPublisher {
         *self = Self::default();
     }
 
+    /// The same throttle controls capability renewal and the matching forced replacement.
+    pub fn resync_due(&self, tick: u32, requested: bool) -> bool {
+        requested
+            && self.last_forced.is_none_or(|last| {
+                tick.saturating_sub(last) >= rh_protocol::delta::MIN_FORCED_FULL_TICKS
+            })
+    }
+
     /// No public counters or committed collection baselines change until enqueue succeeds.
     pub fn prepare(
         &self,
@@ -273,20 +355,7 @@ impl CollectionPublisher {
         rewards_changed: bool,
         resync_requested: bool,
     ) -> Result<PendingState, EncodeError> {
-        if observation.quests.is_some() {
-            return Err(EncodeError::BadValue("quest transport unsupported"));
-        }
-        if observation
-            .props
-            .iter()
-            .any(|p| matches!(p.cue.kind, PropKind::QuestItem { .. }))
-        {
-            return Err(EncodeError::BadValue("quest item transport unsupported"));
-        }
-        let forced = resync_requested
-            && self.last_forced.is_none_or(|tick| {
-                observation.tick.saturating_sub(tick) >= rh_protocol::delta::MIN_FORCED_FULL_TICKS
-            });
+        let forced = self.resync_due(observation.tick, resync_requested);
         let full = !self.sent || forced;
         let next_inventory = observation.inventory.map(inventory);
         let next_fields = fields(observation);
@@ -298,12 +367,27 @@ impl CollectionPublisher {
         });
         let next_plan = plan(observation)?;
         let next_arena = arena(observation);
+        let next_quests = quests(observation);
+        let next_props = if full || props_changed {
+            Some(props(observation)?)
+        } else {
+            None
+        };
+        // Validate the reconstructed client candidate. Unchanged props reuse the committed
+        // baseline without cloning every visible prop and label each tick.
+        rh_protocol::validate_quest_props(
+            next_props
+                .as_ref()
+                .or(self.props.as_ref())
+                .expect("full state supplies a prop baseline"),
+            next_quests.as_ref(),
+        )?;
         let mut items = Vec::new();
         if full || next_inventory != self.inventory {
             items.push(StateItem::Inventory(next_inventory));
         }
-        if full || props_changed {
-            items.push(StateItem::Props(props(observation)?));
+        if let Some(next_props) = next_props {
+            items.push(StateItem::Props(next_props));
         }
         if full || next_fields != self.fields {
             items.push(StateItem::Fields(next_fields));
@@ -325,6 +409,9 @@ impl CollectionPublisher {
         }
         if full || next_arena != self.arena {
             items.push(StateItem::Arena(next_arena));
+        }
+        if full || next_quests != self.quests {
+            items.push(StateItem::Quests(next_quests));
         }
         let (frame, items) = if items.is_empty() {
             (None, items)
@@ -353,13 +440,15 @@ impl PendingState {
         for item in self.items {
             match item {
                 StateItem::Inventory(v) => publisher.inventory = v,
+                StateItem::Props(v) => publisher.props = Some(v),
                 StateItem::Fields(v) => publisher.fields = v,
                 StateItem::Build(v) => publisher.build = v,
                 StateItem::Camps(v) => publisher.camps = v,
                 StateItem::Projectiles(v) => publisher.projectiles = v,
                 StateItem::Plan(v) => publisher.plan = v,
                 StateItem::Arena(v) => publisher.arena = v,
-                StateItem::Props(_) | StateItem::RewardChests(_) => {}
+                StateItem::Quests(v) => publisher.quests = v,
+                StateItem::RewardChests(_) => {}
             }
         }
         publisher.sent = true;
@@ -438,7 +527,7 @@ mod tests {
         };
         assert_eq!(
             items.iter().map(StateItem::key).collect::<Vec<_>>(),
-            [1, 2, 3, 4, 5, 6, 7, 8, 9]
+            [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
         );
         let StateItem::RewardChests(rows) = &items[3] else {
             panic!()
@@ -484,7 +573,7 @@ mod tests {
         };
         assert_eq!(
             items.iter().map(StateItem::key).collect::<Vec<_>>(),
-            [1, 2, 3, 4, 5, 6, 7, 8, 9]
+            [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
         );
         first.commit(&mut publisher);
         assert!(publisher
@@ -552,7 +641,7 @@ mod tests {
         };
         assert_eq!(
             items.iter().map(StateItem::key).collect::<Vec<_>>(),
-            [1, 2, 3, 4, 5, 6, 7, 8, 9]
+            [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
         );
         assert!(matches!(
             items[0],
@@ -610,7 +699,7 @@ mod tests {
         };
         assert_eq!(
             items.iter().map(StateItem::key).collect::<Vec<_>>(),
-            [1, 2, 3, 4, 5, 6, 7, 8, 9]
+            [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
         );
     }
 
@@ -836,7 +925,7 @@ mod tests {
         assert_ne!(shifted, first);
     }
     #[test]
-    fn unsupported_quest_item_cannot_be_partially_encoded() {
+    fn quest_item_cross_refs_refuse_without_committing_and_empty_is_available() {
         let mut obs = Observation::default();
         obs.props.push(rh_sim::VisibleProp {
             handle: rh_sim::PickupHandle::new(1).unwrap(),
@@ -851,7 +940,10 @@ mod tests {
                 },
             },
         });
-        assert!(props(&obs).is_err());
+        assert!(
+            props(&obs).is_ok(),
+            "prop payload is supported, its quest ref needs the reconstructed view"
+        );
         assert!(CollectionPublisher::default()
             .prepare(&obs, true, false, false)
             .is_err());
@@ -860,8 +952,119 @@ mod tests {
             .is_err());
         obs.props.clear();
         obs.quests = Some(rh_sim::quest_view::QuestView::default());
-        assert!(CollectionPublisher::default()
+        let pending = CollectionPublisher::default()
             .prepare(&obs, false, false, false)
-            .is_err());
+            .unwrap();
+        let ServerMsg::State { items, .. } =
+            ServerMsg::decode(pending.frame.as_ref().unwrap()).unwrap()
+        else {
+            panic!()
+        };
+        assert!(items
+            .iter()
+            .any(|item| matches!(item, StateItem::Quests(Some(view)) if view.rows.is_empty())));
+    }
+
+    #[test]
+    fn quest_projection_preserves_duplicate_labels_owner_facts_and_transactional_baselines() {
+        let view: rh_sim::quest_view::QuestView = serde_json::from_value(serde_json::json!({
+            "unknown_count": 3, "display_unknown_count": 2, "owner_roster": 2,
+            "roster": [{"id":1,"label":"same"},{"id":2,"label":"same"}],
+            "rows": [{"handle":1,"def":"cache","giver":{"x":100.125,"y":200.25},
+                "state":"Done","expires_at":999.5,
+                "participants":[{"id":1,"accepted":true,"progress":4,"visited":0},
+                    {"id":2,"accepted":true,"progress":3,"visited":0}],
+                "carrier":null,"done_by":"same","can_accept":false,"owner_accepted":true,
+                "owner_progress":3,"owner_visited":0,"owner_completed":false,"owner_ready":false}],
+            "objectives": []
+        }))
+        .unwrap();
+        let admitted = view.clone();
+        let mut obs = Observation {
+            quests: Some(view),
+            ..Default::default()
+        };
+        let mut publisher = CollectionPublisher::default();
+        let pending = publisher.prepare(&obs, false, false, false).unwrap();
+        let first_bytes = pending.frame.clone();
+        drop(pending);
+        let retry = publisher.prepare(&obs, false, false, false).unwrap();
+        assert_eq!(
+            retry.frame, first_bytes,
+            "discarded guard advances no baselines"
+        );
+        let ServerMsg::State { items, .. } =
+            ServerMsg::decode(retry.frame.as_ref().unwrap()).unwrap()
+        else {
+            panic!()
+        };
+        let projected = items
+            .iter()
+            .find_map(|item| match item {
+                StateItem::Quests(Some(view)) => Some(view),
+                _ => None,
+            })
+            .unwrap();
+        assert_eq!(projected.roster[0].label, projected.roster[1].label);
+        assert_ne!(projected.roster[0].id, projected.roster[1].id);
+        assert!(
+            !projected.rows[0].owner_completed,
+            "display label never infers completion identity"
+        );
+        assert_eq!(projected.rows[0].owner_progress, 3);
+        assert_eq!(projected.rows[0].giver.x, 100.125);
+        retry.commit(&mut publisher);
+        assert!(publisher
+            .prepare(&obs, false, false, false)
+            .unwrap()
+            .frame
+            .is_none());
+        obs.quests.as_mut().unwrap().rows[0].giver.x = f64::NAN;
+        assert!(publisher.prepare(&obs, false, false, false).is_err());
+        obs.quests.as_mut().unwrap().rows[0].giver.x = 100.125;
+        assert!(
+            publisher
+                .prepare(&obs, false, false, false)
+                .unwrap()
+                .frame
+                .is_none(),
+            "failed encode advances no baseline"
+        );
+        obs.quests = None;
+        let cleared = publisher.prepare(&obs, false, false, false).unwrap();
+        let ServerMsg::State { items, .. } =
+            ServerMsg::decode(cleared.frame.as_ref().unwrap()).unwrap()
+        else {
+            panic!()
+        };
+        assert_eq!(items, vec![StateItem::Quests(None)]);
+        obs.quests = Some(admitted);
+        obs.quests.as_mut().unwrap().rows[0].state = rh_sim::quest_view::RowState::Open;
+        obs.quests.as_mut().unwrap().rows[0].done_by = None;
+        obs.props.push(rh_sim::VisibleProp {
+            handle: rh_sim::PickupHandle::new(3).unwrap(),
+            cue: rh_sim::PropCue {
+                x: 8,
+                y: 8,
+                focused: false,
+                body_hint: None,
+                kind: PropKind::QuestItem {
+                    quest: rh_sim::quest_view::QuestHandle::new(1).unwrap(),
+                    fetch: false,
+                },
+            },
+        });
+        publisher
+            .prepare(&obs, true, false, false)
+            .unwrap()
+            .commit(&mut publisher);
+        obs.props.clear();
+        obs.quests = None;
+        assert!(publisher.prepare(&obs, false, false, false).is_err(),
+            "quest removal cannot orphan a retained prop even when current observation has cleared it");
+        assert!(
+            publisher.prepare(&obs, true, false, false).is_ok(),
+            "matching prop and quest clears are one valid atomic replacement"
+        );
     }
 }

@@ -47,6 +47,12 @@ impl RewardChestObserver {
     pub fn viewer(&self) -> PlayerId {
         self.viewer
     }
+    pub(crate) fn renewed(&self) -> Self {
+        Self {
+            next: self.next,
+            ..Self::new(self.viewer)
+        }
+    }
     pub fn reconnect(&mut self) {
         let next = self.next;
         *self = Self::new(self.viewer);
@@ -438,3 +444,27 @@ mod presentation_filter_tests {
 #[cfg(test)]
 #[path = "trophy_observer_tests.rs"]
 mod trophy_observer_tests;
+
+#[cfg(test)]
+mod renewal_tests {
+    use super::*;
+    #[test]
+    fn renewed_reward_epoch_preserves_counters_and_original_bindings() {
+        for next in [19, u32::MAX as u64 + 1] {
+            let mut old = RewardChestObserver::new(PlayerId(3));
+            old.next = next;
+            old.sampled = Some(7);
+            old.ids.push(11);
+            let replacement = old.renewed();
+            assert_eq!((replacement.viewer, replacement.next), (old.viewer, next));
+            assert!(
+                replacement.sampled.is_none()
+                    && replacement.ids.is_empty()
+                    && replacement.rows.is_empty()
+                    && replacement.retired.is_empty()
+            );
+            assert_eq!(old.ids, [11]);
+            assert_eq!(old.next, next);
+        }
+    }
+}

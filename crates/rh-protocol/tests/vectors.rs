@@ -109,6 +109,44 @@ fn malformed_server_frames_are_rejected_for_the_documented_reason() {
             "phase_over_3" | "delta_phase_over_3" => BadField("phase"),
             "chest_bad_reason_zero" | "chest_bad_reason_unknown" => BadField("chest reason"),
             "state_unknown_key" => BadField("state key"),
+            "state_quest_status_unknown" => BadField("quest status"),
+            "state_quest_flags_unknown" => BadField("quest flags"),
+            "state_quest_visited_unknown" | "state_quest_ref_missing" => {
+                BadField("quest references")
+            }
+            "state_quest_owner_visited_unknown" => BadField("quest row"),
+            "state_quest_prop_missing_view" => BadField("quest prop reference"),
+            "state_quest_row_handle_zero"
+            | "state_quest_objective_handle_zero"
+            | "state_quest_prop_handle_zero" => BadField("quest handle"),
+            "state_quest_roster_id_zero" => BadField("quest roster id"),
+            "state_quest_availability_flag"
+            | "state_quest_participant_accepted_flag"
+            | "state_quest_done_by_flag" => BadField("quest flag"),
+            "state_quest_prop_fetch_flag" => BadField("flag"),
+            "state_quest_duplicate_row_handle" => BadField("quest handles"),
+            "state_quest_duplicate_roster_id" => BadField("quest roster"),
+            "state_quest_duplicate_participant_id"
+            | "state_quest_owner_roster_missing"
+            | "state_quest_carrier_missing"
+            | "state_quest_participant_missing" => BadField("quest references"),
+            "state_quest_unknown_count" | "state_quest_display_count_over_unknown" => {
+                BadField("quest counts")
+            }
+            "state_quest_def_empty"
+            | "state_quest_def_over_16"
+            | "state_quest_giver_nonfinite"
+            | "state_quest_giver_out_of_range"
+            | "state_quest_expiry_negative"
+            | "state_quest_expiry_nonfinite" => BadField("quest row"),
+            "state_quest_objective_nonfinite" | "state_quest_objective_out_of_range" => {
+                BadField("quest objective")
+            }
+            "state_quest_roster_over_limit"
+            | "state_quest_rows_over_limit"
+            | "state_quest_participants_over_limit"
+            | "state_quest_objectives_over_limit"
+            | "state_quest_objectives_per_row_over_limit" => TooMany(0),
             "state_reward_card_id_80" => BadField("reward id"),
             "state_reward_kind_unknown" => BadField("reward kind"),
             "state_reward_kill_key_unknown" => BadField("reward key"),

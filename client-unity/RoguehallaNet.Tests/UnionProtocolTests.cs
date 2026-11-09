@@ -50,10 +50,10 @@ namespace Roguehalla.Net.Tests
             session.Connect(); transport.Open(); transport.Deliver(Welcome());
             var full = (ServerMsg.State)Sample("state_all");
             full.Items = full.Items.Where(x => x.Key < (uint)StateKey.Plan).ToArray();
-            transport.Deliver(full); Assert.IsFalse(session.Collections.HasFullState, "seven keys omit the plan and arena epoch");
+            transport.Deliver(full); Assert.IsFalse(session.Collections.HasFullState, "reduced keys omit the plan, arena and quest baseline");
             var plan = new WirePlan { EndsAt = 1000, Spawn0 = 5, Taken1 = true, Pick = 0, Boons = new[] { "first" }, Boon = 0, Ready = true,
                 Option0 = new WirePlanOption { Index = 5, X = 80, Y = 160, Zone = 3, WalkSeconds = 2 } };
-            transport.Deliver(new ServerMsg.State { Tick = 201, Items = new StateItem[] { new PlanState { Value = plan }, new ArenaState { Value = new WireArena { PlanEndsAt = 1000, PatienceEndsAt = 2000, StartedWith = 8 } } } });
+            transport.Deliver(new ServerMsg.State { Tick = 201, Items = new StateItem[] { new PlanState { Value = plan }, new ArenaState { Value = new WireArena { PlanEndsAt = 1000, PatienceEndsAt = 2000, StartedWith = 8 } }, new QuestsState { Available = false } } });
             Assert.IsTrue(session.Collections.HasFullState);
             var held = session.Collections.Plan;
             Assert.AreEqual(5, held.Spawn0); Assert.IsTrue(held.Taken1); Assert.AreEqual(10, held.Option0.Value.X);

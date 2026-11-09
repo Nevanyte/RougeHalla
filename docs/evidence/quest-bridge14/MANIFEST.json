@@ -1,0 +1,143 @@
+{
+  "format": "rh-quest-bridge-evidence/1",
+  "date": "2026-11-08",
+  "base_commit": "6db02195abab67d9867f6340cc61a8dc7d4f6114",
+  "protocol": 14,
+  "scope": {
+    "state_key": 10,
+    "input_command": 17,
+    "prop_kind": 7,
+    "full_quest_hosting": false
+  },
+  "fixture_sha256": "ff0f474c496e8928ff62a3a4043f7ea0c2bad6f3bde0070c0767fcce66c9b2f6",
+  "source_files": [
+    {
+      "path": "client-unity/RoguehallaNet.Tests/ProtocolVectorTests.cs",
+      "sha256": "d80dc7efa751d9a28e8aefcb09cc1975a5106c877db5388a31ec2dbd2bb146b8"
+    },
+    {
+      "path": "client-unity/RoguehallaNet.Tests/QuestBridgeProtocolTests.cs",
+      "sha256": "d6cf5b4e30ab6119962345e96be4850b8c78bfd9b1195f9bd1c25ea12519ee00"
+    },
+    {
+      "path": "client-unity/RoguehallaNet.Tests/StateTests.cs",
+      "sha256": "9b9077d2c8f5af23cb707e124034357d8a275db911e56b81971487b86f00d4a8"
+    },
+    {
+      "path": "client-unity/RoguehallaNet.Tests/UnionProtocolTests.cs",
+      "sha256": "c2d74d4e8910f3c60720175d3353f7b3ae3b434070ab7695ca7d1275f92807a8"
+    },
+    {
+      "path": "client-unity/RoguehallaNet/Net/Collections.cs",
+      "sha256": "641de5f718907b01ad1d7b9d69cdc783111912adde4b1ffdd7448f34b0cda914"
+    },
+    {
+      "path": "client-unity/RoguehallaNet/Net/InputSender.cs",
+      "sha256": "664e981b5f015eca5df4952b0b4a7b971d54924bfd51cec285d9d4f6732abf6f"
+    },
+    {
+      "path": "client-unity/RoguehallaNet/Net/Session.cs",
+      "sha256": "1652c92462e9133fd1b824579a63dd7b9bb2c103729c290f29454c9968361571"
+    },
+    {
+      "path": "client-unity/RoguehallaNet/Protocol/Messages.cs",
+      "sha256": "0b8e3cbfb53e4d6e335b1dc21903853627640c3cb77cf73bb6c23e8e0a0a4abb"
+    },
+    {
+      "path": "client-unity/RoguehallaNet/Protocol/State.cs",
+      "sha256": "4fcdd9827164912c419c30b7d46e56ed582391bb9d55474fd1b29dec0f8806d7"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/RoguehallaNet/Net/Collections.cs",
+      "sha256": "641de5f718907b01ad1d7b9d69cdc783111912adde4b1ffdd7448f34b0cda914"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/RoguehallaNet/Net/InputSender.cs",
+      "sha256": "664e981b5f015eca5df4952b0b4a7b971d54924bfd51cec285d9d4f6732abf6f"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/RoguehallaNet/Net/Session.cs",
+      "sha256": "1652c92462e9133fd1b824579a63dd7b9bb2c103729c290f29454c9968361571"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/RoguehallaNet/Protocol/Messages.cs",
+      "sha256": "0b8e3cbfb53e4d6e335b1dc21903853627640c3cb77cf73bb6c23e8e0a0a4abb"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/RoguehallaNet/Protocol/State.cs",
+      "sha256": "4fcdd9827164912c419c30b7d46e56ed582391bb9d55474fd1b29dec0f8806d7"
+    },
+    {
+      "path": "crates/rh-protocol/src/encode.rs",
+      "sha256": "24b79aeffd9daec7d63d396b77ea70fbcfffae79e37b1a7ece703699b07b354a"
+    },
+    {
+      "path": "crates/rh-protocol/src/lib.rs",
+      "sha256": "fad4a806d12b358652ee5ce8d406af2e0e0583ac491d4e84c283b6395797e547"
+    },
+    {
+      "path": "crates/rh-protocol/src/samples.rs",
+      "sha256": "7f4dcc84d675c58e645d5a309532f4ff76827d9fe27587299746ae93f5401812"
+    },
+    {
+      "path": "crates/rh-protocol/src/state.rs",
+      "sha256": "4d32a7693d1f62c7c25163849b38503ed710f20bcf7c07cf5a38d8582606d1f3"
+    },
+    {
+      "path": "crates/rh-protocol/tests/quest_bridge.rs",
+      "sha256": "df6ed7c74403ecd1360b9839fe0cc63566be12020591eacbbec57f3d1eea9372"
+    },
+    {
+      "path": "crates/rh-protocol/tests/v4.rs",
+      "sha256": "54df03aa70085d334c5db03e8df707339828218231d6792cbde0f829329ed062"
+    },
+    {
+      "path": "crates/rh-protocol/tests/vectors.rs",
+      "sha256": "cd868ed6f94d56632ec873d1001ded6aa2d203210b3961772011965154e79532"
+    },
+    {
+      "path": "crates/rh-server/src/quest_bridge_tests.rs",
+      "sha256": "f27f40be95d3ef238cbfbf953ac7ea72b89f3b1c1c1c88370eb6a73e3ace4970"
+    },
+    {
+      "path": "crates/rh-server/src/room.rs",
+      "sha256": "a0fbbfe7829c5805fbbb35b93465234b8e74baf5ab70e6ac653768cc2d2b81df"
+    },
+    {
+      "path": "crates/rh-server/src/wire.rs",
+      "sha256": "08347770108fa8fbff75109b70049bc47cfc828ebe90c8a6e0a5baacba726122"
+    },
+    {
+      "path": "crates/rh-server/src/wire_state.rs",
+      "sha256": "7b6980588a0f4f9f586c5803aa33c6fd70c96b60fc84d1b34ff96d926a43c5d5"
+    },
+    {
+      "path": "crates/rh-server/web/probe.html",
+      "sha256": "141629b19509b140ea37860eeb9612de5c4a1d5f6394c3c1cfa979c215351ec3"
+    },
+    {
+      "path": "crates/rh-sim/src/actor_refs.rs",
+      "sha256": "ebbd30c0c2786c3a2a7a7a4298a87f8c3d6873e6deea91ca91a1040b9a34705b"
+    },
+    {
+      "path": "crates/rh-sim/src/item_view.rs",
+      "sha256": "ec5a7805a9297046099a1b71de7f58c7c7d9eb0b31e858f49b18488475899f2b"
+    },
+    {
+      "path": "crates/rh-sim/src/quest_view/mod.rs",
+      "sha256": "ab12480919fb95e2d2a4ee6bbefbe87a9b5537b35694ce5ac606a1b808e4de02"
+    },
+    {
+      "path": "crates/rh-sim/src/reward_chests/observer.rs",
+      "sha256": "240dec094694ac1002b6637267996e9d364270d10f15137c37b0e510d57e92a8"
+    },
+    {
+      "path": "protocol/fixtures/v14.json",
+      "sha256": "ff0f474c496e8928ff62a3a4043f7ea0c2bad6f3bde0070c0767fcce66c9b2f6"
+    },
+    {
+      "path": "tools/protocol-js/check-vectors.mjs",
+      "sha256": "558a8e74eb753c89b8ad6348e1f25e38cd8433433666b6961a5c1836a6fa8d3d"
+    }
+  ]
+}

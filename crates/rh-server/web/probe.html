@@ -153,6 +153,7 @@ function input(seq, cmds) {
     else if(c.k === "target") { if(!Number.isInteger(c.actorRef)||c.actorRef<=0||c.actorRef>0xffffffff) throw new Error("bad actor reference");w.u8(10);w.u32(c.actorRef); }
     else if(c.k === "huntTarget") { if(!Number.isInteger(c.actorRef)||c.actorRef<=0||c.actorRef>0xffffffff) throw new Error("bad hunt target");w.u8(12);w.u32(c.actorRef); }
     else if(c.k === "consumeCorpse") { if(!Number.isInteger(c.handle)||c.handle<=0||c.handle>0xffffffff) throw new Error("bad corpse handle");w.u8(13);w.u32(c.handle); }
+    else if(c.k === "questAccept") { if(!Number.isInteger(c.handle)||c.handle<=0||c.handle>0xffffffff) throw new Error("bad quest handle");w.u8(17);w.varint(c.handle); }
     else if(c.k === "cast") {
       if (!Number.isInteger(c.slot) || c.slot < 0 || c.slot > 2) throw new Error("bad cast slot");
       if (!Number.isFinite(c.x) || !Number.isFinite(c.y) || !Number.isFinite(Math.fround(c.x)) || !Number.isFinite(Math.fround(c.y))) throw new Error("non-finite");
@@ -198,6 +199,7 @@ function decodeClient(buf) {
       else if(k === 10) {const actorRef=r.u32();if(!actorRef)throw new Error("bad actor reference");c={k:"target",actorRef};}
       else if(k === 12) {const actorRef=r.u32();if(!actorRef)throw new Error("bad hunt target");c={k:"huntTarget",actorRef};}
       else if(k === 13) {const handle=r.u32();if(!handle)throw new Error("bad corpse handle");c={k:"consumeCorpse",handle};}
+      else if(k === 17) {const handle=r.varint();if(!handle)throw new Error("bad quest handle");c={k:"questAccept",handle};}
       else if (k === 16) {
         const slot = r.code(2, "cast slot"), x = finite(r.f32()), y = finite(r.f32());
         const actorRef = strictOpt(r, () => { const v = r.u32(); if (!v) throw new Error("bad actor reference"); return v; });
@@ -539,8 +541,9 @@ function decodeBody(r) {
 
 // Complete replacements. Decode the entire frame before a collection consumer changes retained state.
 function readState(r) {
-  const n = r.varint(); if (n > 9) throw new Error("too many state keys");
+  const n = r.varint(); if (n > 10) throw new Error("too many state keys");
   const flag = () => r.opt(() => true) !== null;
+  const strictBool = (what) => { const v = r.u8(); if (v > 1) throw new Error("bad " + what); return v === 1; };
   const finite = (x) => { if (!Number.isFinite(x)) throw new Error("bad field"); return x; };
   const handle = () => { const v = r.varint(); if (!v) throw new Error("bad handle"); return v; };
   const actor = () => r.opt(() => handle());
@@ -548,7 +551,7 @@ function readState(r) {
   const count = () => { const v = r.varint(); if (v > 512) throw new Error("too many state rows"); return v; };
   const items = []; let previous = 0;
   for (let i = 0; i < n; i++) {
-    const key = r.varint(); if (key <= previous || key > 9) throw new Error("bad state key"); previous = key;
+    const key = r.varint(); if (key <= previous || key > 10) throw new Error("bad state key"); previous = key;
     let value;
     if (key === 1) value = r.opt(() => ({ activeSlot: r.code(1, "active slot"), slots: [weapon(), weapon()], potionSmall: r.code(5, "potion count"), potionLarge: r.code(5, "potion count"), potionsHealing: r.code(3, "potion count") }));
     else if (key === 2) {
@@ -562,6 +565,7 @@ function readState(r) {
         else if (kind === 4) prop = { kind, label: r.str() };
         else if (kind === 5) prop = { kind };
         else if (kind === 6) prop = { kind, readyAt: r.varint() };
+        else if (kind === 7) prop = { kind, quest: handle(), fetch: strictBool("quest fetch flag") };
         else throw new Error("bad prop kind");
         rows.push({ handle: h, x, y, ...prop });
       }
@@ -636,10 +640,94 @@ function readState(r) {
         if (a.startedWith > 512) throw new Error("bad started_with");
         return a;
       });
-    } else value = r.opt(() => ({ cards: Array.from(r.bytes(80)), boosts: Array.from(r.bytes(8)) }));
+    } else if (key === 10) value = readQuests(r, strictBool, finite, handle);
+    else value = r.opt(() => ({ cards: Array.from(r.bytes(80)), boosts: Array.from(r.bytes(8)) }));
     items.push({ key, value });
   }
+  // A frame that replaces both collections is independently required to be self-consistent, even before a Tracker
+  // combines it with retained collections from an earlier State frame.
+  const propsItem = items.find(item => item.key === 2), questsItem = items.find(item => item.key === 10);
+  if (propsItem && questsItem) {
+    validateQuestPropReferences(new Map([[2, propsItem.value], [10, questsItem.value]]));
+  }
   return items;
+}
+
+function readQuests(r, strictBool, finite, handle) {
+  const start = r.p, available = r.u8();
+  if (available === 0) return null;
+  if (available !== 1) throw new Error("bad quest availability");
+  const rowsCount = (what, max) => { const n = r.varint(); if (n > max) throw new Error("too many " + what); return n; };
+  const position = (what) => {
+    const v = finite(r.f64()); if (v < 0 || v > 8191.875) throw new Error("bad " + what + " position"); return v;
+  };
+  const boundedString = (max, allowEmpty, what) => {
+    const v = r.str(), bytes = new TextEncoder().encode(v).length;
+    if ((!allowEmpty && bytes === 0) || bytes > max) throw new Error("bad " + what);
+    return v;
+  };
+  const unknownCount = r.varint(), displayUnknownCount = r.varint();
+  if (unknownCount > 20 || displayUnknownCount > unknownCount) throw new Error("bad quest unknown counts");
+  const ownerRosterRaw = r.varint(), ownerRoster = ownerRosterRaw || null;
+  const roster = [], rosterIds = new Set();
+  for (let i = 0, n = rowsCount("quest roster", 8); i < n; i++) {
+    const id = handle(); if (rosterIds.has(id)) throw new Error("duplicate quest roster id"); rosterIds.add(id);
+    roster.push({ id, label: boundedString(255, true, "quest label") });
+  }
+  if (ownerRoster !== null && !rosterIds.has(ownerRoster)) throw new Error("unknown owner quest roster id");
+  const rows = [], questHandles = new Set();
+  for (let i = 0, n = rowsCount("quest rows", 20); i < n; i++) {
+    const rowHandle = handle(); if (questHandles.has(rowHandle)) throw new Error("duplicate quest handle"); questHandles.add(rowHandle);
+    const def = boundedString(16, false, "quest definition");
+    const giver = { x: position("quest giver"), y: position("quest giver") };
+    const state = r.code(3, "quest status"), expiresAt = finite(r.f64());
+    if (expiresAt < 0) throw new Error("bad quest deadline");
+    const participants = [], participantIds = new Set();
+    for (let j = 0, pn = rowsCount("quest participants", 8); j < pn; j++) {
+      const id = handle(), accepted = strictBool("quest accepted flag"), progress = r.varint(), visited = r.u8();
+      if (participantIds.has(id)) throw new Error("duplicate quest participant id"); participantIds.add(id);
+      if (visited & ~0x1f) throw new Error("bad quest visited mask");
+      participants.push({ id, accepted, progress, visited });
+    }
+    const carrierRaw = r.varint(), carrier = carrierRaw || null;
+    const hasDoneBy = strictBool("quest done-by presence"), doneBy = hasDoneBy ? boundedString(255, true, "quest done-by") : null;
+    const flags = r.u8(); if (flags & ~15) throw new Error("bad quest flags");
+    const ownerProgress = r.varint(), ownerVisited = r.u8();
+    if (ownerVisited & ~0x1f) throw new Error("bad quest visited mask");
+    rows.push({
+      handle: rowHandle, def, giver, state, expiresAt, participants, carrier, doneBy,
+      canAccept: (flags & 1) !== 0, ownerAccepted: (flags & 2) !== 0,
+      ownerCompleted: (flags & 4) !== 0, ownerReady: (flags & 8) !== 0,
+      ownerProgress, ownerVisited,
+    });
+  }
+  const objectives = [], objectivesPerQuest = new Map();
+  for (let i = 0, n = rowsCount("quest objectives", 160); i < n; i++) {
+    const quest = handle(), at = { x: position("quest objective"), y: position("quest objective") };
+    const count = (objectivesPerQuest.get(quest) || 0) + 1;
+    if (count > 8) throw new Error("too many objectives per quest");
+    objectivesPerQuest.set(quest, count); objectives.push({ quest, at });
+  }
+  if (r.p - start > 16 * 1024) throw new Error("quest payload too large");
+  const view = { unknownCount, displayUnknownCount, ownerRoster, roster, rows, objectives };
+  for (const row of rows) {
+    for (const p of row.participants) if (!rosterIds.has(p.id)) throw new Error("unknown quest participant roster id");
+    if (row.carrier !== null && !rosterIds.has(row.carrier)) throw new Error("unknown quest carrier roster id");
+  }
+  for (const objective of objectives) if (!questHandles.has(objective.quest)) throw new Error("unknown objective quest handle");
+  return view;
+}
+
+function validateQuestPropReferences(collections) {
+  const props = collections.get(2);
+  if (!props) return;
+  const questView = collections.get(10);
+  const questHandles = new Set(questView?.rows?.map(row => row.handle) ?? []);
+  for (const prop of props.rows) {
+    if (prop.kind === 7 && (questView === null || !questHandles.has(prop.quest))) {
+      throw new Error("quest prop references unavailable quest");
+    }
+  }
 }
 
 // A client's snapshot decoder (mirror of rh-protocol SnapshotTracker): holds the last snapshot applied, the base of the next delta.
@@ -651,7 +739,13 @@ class Tracker {
   decode(buf) { return this.apply(decode(buf)); }
   apply(m) {
     if (m.t === "welcome") { this.reset(); return m; }
-    if (m.t === "state") { for (const item of m.items) this.collections.set(item.key, item.value); return m; }
+    if (m.t === "state") {
+      const candidate = new Map(this.collections);
+      for (const item of m.items) candidate.set(item.key, item.value);
+      validateQuestPropReferences(candidate);
+      this.collections = candidate;
+      return m;
+    }
     if (m.t === "snapshot") { this.base = { tick: m.tick, serverMs: m.serverMs, phase: m.phase, training: m.training, me: m.me, actors: m.actors }; return m; }
     if (m.t !== "delta") return m;
     const b = this.base;

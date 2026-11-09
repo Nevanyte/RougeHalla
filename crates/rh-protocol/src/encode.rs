@@ -136,6 +136,7 @@ fn command_len(c: &WireCommand) -> usize {
                 + opt_len(t.is_some(), 8)
                 + opt_len(seq.is_some(), 1)
         }
+        WireCommand::QuestAccept { handle } => 1 + varint_len(handle.get()),
     }
 }
 
@@ -154,6 +155,7 @@ fn command_finite(c: &WireCommand) -> bool {
         | WireCommand::ConsumeCorpse { .. }
         | WireCommand::Train { .. }
         | WireCommand::UseConsumable => true,
+        WireCommand::QuestAccept { .. } => true,
         WireCommand::Aim { a } => a.is_finite(),
         WireCommand::Attack { a, t } | WireCommand::Release { a, t } => {
             a.is_finite() && t.is_none_or(f64::is_finite)
@@ -364,6 +366,10 @@ impl Frame for ClientMsg {
                             w.opt(actor.as_ref(), |w, id| w.u32(*id));
                             w.opt(t.as_ref(), |w, ms| w.f64(*ms));
                             w.opt(seq.as_ref(), |w, seq| w.u8(*seq));
+                        }
+                        WireCommand::QuestAccept { handle } => {
+                            w.u8(C_QUEST_ACCEPT);
+                            w.varint(handle.get());
                         }
                     }
                 }

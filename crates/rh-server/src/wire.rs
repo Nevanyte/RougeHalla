@@ -12,11 +12,15 @@ use rh_sim::sim::{Outcome, Phase, Status};
 use rh_sim::Class;
 use rh_sim::RunResult;
 
-/// The public command projection. Quest accept and trade still have no protocol messages; Cast is projected as untrusted
+/// The public command projection. Trade still has no protocol message; Cast is projected as untrusted
 /// player aim/selection input and then resolved through the seat's delivered references before submission.
 pub fn command(c: WireCommand) -> rh_sim::PublicCommand {
     use rh_sim::PublicCommand as Public;
     match c {
+        WireCommand::QuestAccept { handle } => Public::QuestAccept {
+            handle: rh_sim::quest_view::QuestHandle::new(handle.get())
+                .expect("nonzero wire quest handle"),
+        },
         WireCommand::UseConsumable => Public::UseConsumable,
         // This remains a public reference: Room intake resolves it through the seat ItemObserver.
         WireCommand::HuntTarget { actor } => Public::HuntTarget {
@@ -98,11 +102,12 @@ pub fn status(s: Status) -> u8 {
 }
 
 /// Full Wish mode has protocol 12 input, owner, and event transport. The binary keeps it disabled unless explicitly
-/// selected; library callers that set `Mode::Full` are already making that opt-in.
+/// selected; library callers that set `Mode::Full` are already making that opt-in. Quest bridge
+/// codecs are private component support; hosting remains gated on the neutral giver actor slice.
 pub fn profile_supported(config: &rh_sim::SimConfig) -> Result<(), rh_protocol::EncodeError> {
     if config.quests {
         return Err(rh_protocol::EncodeError::BadValue(
-            "quest transport unsupported",
+            "quest giver actor hosting unsupported",
         ));
     }
     Ok(())
@@ -127,16 +132,6 @@ fn observation_supported(obs: &Observation) -> Result<(), rh_protocol::EncodeErr
     checked_phase(obs.phase)?;
     for actor in &obs.visible {
         actor_supported(actor).map_err(rh_protocol::EncodeError::BadValue)?;
-    }
-    if obs.quests.is_some()
-        || obs
-            .props
-            .iter()
-            .any(|p| matches!(p.cue.kind, rh_sim::PropKind::QuestItem { .. }))
-    {
-        return Err(rh_protocol::EncodeError::BadValue(
-            "quest transport unsupported",
-        ));
     }
     Ok(())
 }
@@ -670,9 +665,8 @@ impl Publisher {
         earlier: &mut Vec<SeenEvent>,
         all: &[rh_sim::Event],
     ) -> ViewFrames {
-        if let Err(error) = profile_supported(sim.config()) {
-            return ViewFrames::unsupported(error);
-        }
+        // Hosting admission is enforced by Room/director/main. Component publishers can project
+        // an admitted native view without claiming full quest/giver hosting support.
         if let Err(error) =
             rh_sim::try_observe_into_cached(sim, viewer, last_step, &mut self.obs, &mut self.sight)
         {
@@ -698,7 +692,6 @@ impl Publisher {
         earlier: &mut Vec<SeenEvent>,
         all: &[rh_sim::Event],
     ) -> Result<(ViewFrames, rh_sim::item_view::PreparedOffer<'a>), PrepareFramesError> {
-        profile_supported(sim.config()).map_err(PrepareFramesError::Unsupported)?;
         let viewer = observer.viewer();
         let offer = observer.prepare_with_seen(
             sim,
@@ -1570,7 +1563,7 @@ mod tests {
     #[test]
     fn omitted_effect_announcements_leave_frames_and_redaction_unchanged() {
         use rh_sim::status_runtime::{AbilityId, StatusKind};
-        assert_eq!(rh_protocol::PROTOCOL_VERSION, 13);
+        assert_eq!(rh_protocol::PROTOCOL_VERSION, 14);
         let env = seed1_match(1);
         let id = env.sim.players()[0].id;
         let mut publisher = Publisher::default();
@@ -2075,7 +2068,7 @@ mod tests {
     }
 
     #[test]
-    fn quest_profile_and_quest_facts_refuse_unsupported_transport() {
+    fn quest_hosting_stays_gated_while_native_bridge_facts_are_supported() {
         let config = rh_sim::SimConfig {
             quests: true,
             ..Default::default()
@@ -2085,7 +2078,7 @@ mod tests {
             quests: Some(rh_sim::quest_view::QuestView::default()),
             ..Default::default()
         };
-        assert!(observation_supported(&obs).is_err());
+        assert!(observation_supported(&obs).is_ok());
         assert!(profile_supported(&rh_sim::SimConfig::default()).is_ok());
     }
 }

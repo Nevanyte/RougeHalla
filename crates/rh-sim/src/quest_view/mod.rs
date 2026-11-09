@@ -121,6 +121,17 @@ impl QuestObserver {
             },
         }
     }
+    /// Empty replacement preserving counters without touching the current committed epoch.
+    pub(crate) fn renewed(&self) -> Self {
+        Self {
+            viewer: self.viewer,
+            state: Committed {
+                next_roster: self.state.next_roster,
+                next_quest: self.state.next_quest,
+                ..Committed::default()
+            },
+        }
+    }
     /// Revoke all bindings and require a full collection replacement; counters are retained and IDs never reused.
     /// No identity continuity across reconnect is promised.
     pub fn reconnect(&mut self) {
@@ -427,3 +438,34 @@ impl Prepared<'_> {
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod renewal_tests {
+    use super::*;
+    #[test]
+    fn renewed_quest_epoch_preserves_counters_and_original_bindings() {
+        for next in [19, u32::MAX as u64 + 1] {
+            let mut old = QuestObserver::new(PlayerId(3));
+            old.state.next_roster = next;
+            old.state.next_quest = next;
+            old.state.tick = Some(7);
+            old.state.quests.insert(11, QuestHandle::new(1).unwrap());
+            old.state.actionable.insert(11);
+            let replacement = old.renewed();
+            assert_eq!(replacement.viewer, old.viewer);
+            assert_eq!(
+                (replacement.state.next_roster, replacement.state.next_quest),
+                (next, next)
+            );
+            assert!(
+                replacement.state.tick.is_none()
+                    && replacement.state.quests.is_empty()
+                    && replacement.state.roster.is_empty()
+                    && replacement.state.actionable.is_empty()
+            );
+            assert_eq!(old.state.quests[&11].get(), 1);
+            assert!(old.state.actionable.contains(&11));
+            assert_eq!((old.state.next_roster, old.state.next_quest), (next, next));
+        }
+    }
+}

@@ -108,7 +108,7 @@ eq(JSON.stringify(state.items), JSON.stringify([
   {key:5,value:{cards:[...Array(80)].map((_,i)=>i===0||i===2?1:0),boosts:[0,1,2,3,0,1,2,3]}},
   {key:6,value:[{mobType:0,elite:30,alive:0,state:2,clearedAt:1000,respawnAt:181000}]},
   {key:7,value:[{kind:0,x:800,y:900,facing:12345,owner:1},{kind:0,x:800,y:900,facing:12345,owner:1}]},
-  {key:8,value:null}, {key:9,value:null}
+  {key:8,value:null}, {key:9,value:null}, {key:10,value:null}
 ]), "all reliable public facts");
 const planning = decode(bytes(fx.server.find(v => v.name === "state_planning").hex));
 eq(JSON.stringify(planning.items.map(i => i.key)), JSON.stringify([8, 9]), "planning state keys");
@@ -118,7 +118,7 @@ eq(planning.items[0].value.options[1].walkSeconds, null, "typed absent walk");
 eq(planning.items[1].value.startedWith, 7, "arena starter count");
 eq(planning.items[1].value.patienceEndsAt, 601000, "arena patience deadline");
 collectionTracker.decode(bytes(fx.server.find(v => v.name === "snapshot").hex));
-eq(collectionTracker.collections.size, 9, "snapshot retains reliable collections");
+eq(collectionTracker.collections.size, 10, "snapshot retains reliable collections");
 collectionTracker.decode(new Uint8Array([0x88,1,1,1,0]).buffer);
 eq(collectionTracker.collections.get(1), null, "missing inventory clears");
 eq(collectionTracker.collections.get(2).rows.length, 4, "missing key retains props");
@@ -136,6 +136,65 @@ eq(collectionTracker.collections.get(4).length, 0, "empty replacement clears rew
 eq(collectionTracker.collections.get(5), null, "build clear");
 eq(collectionTracker.collections.get(6).length,0,"camp clear");
 eq(collectionTracker.collections.get(7).length,0,"projectiles clear");
+
+// Stateful JS contract controls: QuestHandle, roster IDs and pickup handles are distinct namespaces.
+// The same numeric value is intentionally used for quest row 1, roster 1, and pickup 1.
+const qcat = (...parts) => Uint8Array.from(parts.flatMap(part => Array.from(part)));
+const qByte = (v) => Uint8Array.of(v);
+const qVarint = (v) => { const out=[]; do { const low=v%128; v=Math.floor(v/128); out.push(low | (v ? 128 : 0)); } while(v); return Uint8Array.from(out); };
+const qU16 = (v) => Uint8Array.of(v&255,(v>>>8)&255);
+const qF64 = (v) => { const out=new Uint8Array(8); new DataView(out.buffer).setFloat64(0,v,true); return out; };
+const qStr = (s) => { const b=new TextEncoder().encode(s); return qcat(qByte(b.length),b); };
+const questViewBytes = (questHandle = 1) => qcat(
+  qByte(1), qVarint(0), qVarint(0), qVarint(1), // available, unknown counts, owner roster
+  qVarint(2), qVarint(1), qStr("same"), qVarint(2), qStr("same"), // duplicate labels are legal
+  qVarint(1), qVarint(questHandle), qStr("collect_apple"), qF64(0), qF64(8191.875),
+  qByte(1), qF64(0), qVarint(1), qVarint(1), qByte(1), qVarint(0), qByte(0),
+  qVarint(2), qByte(1), qStr("same"), qByte(2), qVarint(0), qByte(0), // carrier, doneBy, flags, owner facts
+  qVarint(1), qVarint(questHandle), qF64(8191.875), qF64(0), // objective
+);
+const questUnavailableBytes = () => qByte(0);
+const questPropBytes = (propHandle, questHandle, fetch = 0) => qcat(
+  qVarint(1), qVarint(propHandle), qU16(64), qU16(72), qByte(7), qVarint(questHandle), qByte(fetch), qVarint(0),
+);
+const stateFrameBytes = (tick, items) => qcat(
+  qByte(0x88), qVarint(tick), qVarint(items.length), ...items.flatMap(([key,payload]) => [qVarint(key),payload]),
+).buffer;
+const questCommand = decodeClient(input(31, [{k:"questAccept",handle:300}]).buffer);
+eqJson(questCommand.cmds, [{k:"questAccept",handle:300}], "QuestAccept command handle round trip");
+if (version >= 14 && !fx.client.some(v => v.name === "input_quest_accept")) throw new Error("missing Rust-generated input_quest_accept vector");
+for (const name of ["quest_accept_zero", "quest_accept_truncated", "quest_accept_overlong"]) {
+  if (!fx.malformedClient.some(v => v.name === name)) throw new Error(`missing Rust-generated ${name} control`);
+}
+let badQuestCommand;
+try { input(31, [{k:"questAccept",handle:0}]); } catch (e) { badQuestCommand=e; }
+eq(!!badQuestCommand, true, "QuestAccept refuses null capability");
+const questTracker = new Tracker();
+const sameNumberNamespaces = questTracker.decode(stateFrameBytes(1, [[2, questPropBytes(1,1,1)], [10, questViewBytes()]]));
+eq(sameNumberNamespaces.items[1].value.rows[0].handle, 1, "QuestItem and row share numeric quest handle");
+eq(sameNumberNamespaces.items[1].value.rows[0].ownerCompleted, false, "doneBy does not imply owner completion");
+eq(sameNumberNamespaces.items[1].value.roster[0].label, sameNumberNamespaces.items[1].value.roster[1].label, "duplicate quest labels accepted");
+eq(questTracker.collections.get(2).rows[0].handle, 1, "pickup handle remains its own namespace");
+let sameFrameBadReference;
+try { decode(stateFrameBytes(1, [[2, questPropBytes(1,9)], [10, questViewBytes(1)]])); } catch (e) { sameFrameBadReference=e; }
+eq(!!sameFrameBadReference, true, "same-frame raw State decode validates QuestItem reference");
+const oldQuestCollections = questTracker.collections;
+let staleQuestView;
+try { questTracker.decode(stateFrameBytes(2, [[10, questViewBytes(2)]])); } catch (e) { staleQuestView=e; }
+eq(!!staleQuestView, true, "Quest replacement cannot orphan retained quest prop");
+eq(questTracker.collections, oldQuestCollections, "bad retained/replacement Quest state is atomic");
+let staleQuestProp;
+try { questTracker.decode(stateFrameBytes(2, [[2, questPropBytes(1,2)]])); } catch (e) { staleQuestProp=e; }
+eq(!!staleQuestProp, true, "prop replacement must resolve against retained Quest rows");
+eq(questTracker.collections, oldQuestCollections, "bad prop replacement is atomic");
+questTracker.decode(stateFrameBytes(2, [[2, questPropBytes(1,2)], [10, questViewBytes(2)]]));
+eq(questTracker.collections.get(10).rows[0].handle, 2, "same-frame Quest and prop replacement validates candidate view");
+let unavailableQuestWithProp;
+try { questTracker.decode(stateFrameBytes(3, [[10, questUnavailableBytes()]])); } catch (e) { unavailableQuestWithProp=e; }
+eq(!!unavailableQuestWithProp, true, "unavailable is distinct from empty while Quest props are retained");
+eq(questTracker.collections.get(10).rows[0].handle, 2, "unavailable replacement refusal retains Quest view");
+questTracker.decode(stateFrameBytes(3, [[2, qcat(qVarint(0), qVarint(0))], [10, questUnavailableBytes()]]));
+eq(questTracker.collections.get(10), null, "explicit unavailable Quest view accepted after props clear");
 
 const bomReject = decode(bytes(fx.server.find(v => v.name === "reject_unknown_bom").hex));
 eq(bomReject.code, 300, "unknown Reject code"); eq(bomReject.reason, "\uFEFFa", "unknown Reject BOM reason");
@@ -242,8 +301,23 @@ for (const v of fx.server) {
     groundMapCoverage.presence.add(`${s.terrain === null ? 0 : 1}${s.regions === null ? 0 : 1}`);
     groundMapCoverage.names.add(n);
     if (s.terrain !== null && s.terrain.every(x => x === 0)) groundMapCoverage.presentZero = true;
+  } else if (m.t === "state") {
+    const {t, ...fields} = m;
+    const expectedItems = d.items.map(item => {
+      const decodedItem = fields.items.find(candidate => candidate.key === item.key);
+      if (!decodedItem) throw new Error(`${n} decoded State references absent key ${item.key}`);
+      return decodedItem;
+    });
+    eqJson({...fields, items:expectedItems, kind:t}, d, `${n} exact decoded State items`);
   }
 }
+
+for (const name of ["state_quests_available", "state_quests_empty", "state_quests_unavailable", "state_ten_keys"]) {
+  if (!fx.server.some(v => v.name === name)) throw new Error(`missing Rust-generated ${name} vector`);
+}
+const tenStateKeys = decode(bytes(fx.server.find(v => v.name === "state_ten_keys").hex));
+eqJson(tenStateKeys.items.map(item => item.key), [1,2,3,4,5,6,7,8,9,10], "all ten State keys accepted");
+eq(tenStateKeys.items[9].value.rows.length, 0, "available empty Quest view remains distinct from unavailable");
 
 for (const name of ["wish_fx_started", "wish_fx_landed", "wish_fx_ended"]) {
   if (!fx.server.some((v) => v.name === name)) throw new Error(`missing Rust-generated ${name} vector`);
@@ -276,6 +350,27 @@ const reason = {
   state_reward_kill_gain_nan: /Trophy gain/, state_reward_kill_gain_infinity: /Trophy gain/,
   state_reward_kill_truncated_key: /./, state_reward_kill_truncated_gain: /./,
   state_reward_options_too_many: /reward options/,
+  state_quest_status_unknown: /bad quest status/, state_quest_flags_unknown: /bad quest flags/,
+  state_quest_visited_unknown: /bad quest visited mask/, state_quest_ref_missing: /unknown objective quest handle/,
+  state_quest_prop_missing_view: /quest prop references unavailable quest/,
+  state_quest_row_handle_zero: /bad handle/, state_quest_roster_id_zero: /bad handle/,
+  state_quest_objective_handle_zero: /bad handle/, state_quest_prop_handle_zero: /bad handle/,
+  state_quest_availability_flag: /bad quest availability/, state_quest_participant_accepted_flag: /bad quest accepted flag/,
+  state_quest_done_by_flag: /bad quest done-by presence/, state_quest_prop_fetch_flag: /bad quest fetch flag/,
+  state_quest_duplicate_row_handle: /duplicate quest handle/, state_quest_duplicate_roster_id: /duplicate quest roster id/,
+  state_quest_duplicate_participant_id: /duplicate quest participant id/,
+  state_quest_owner_roster_missing: /unknown owner quest roster id/, state_quest_carrier_missing: /unknown quest carrier roster id/,
+  state_quest_participant_missing: /unknown quest participant roster id/,
+  state_quest_unknown_count: /bad quest unknown counts/, state_quest_display_count_over_unknown: /bad quest unknown counts/,
+  state_quest_def_empty: /bad quest definition/, state_quest_def_over_16: /bad quest definition/,
+  state_quest_giver_nonfinite: /bad field/, state_quest_giver_out_of_range: /bad quest giver position/,
+  state_quest_objective_nonfinite: /bad field/, state_quest_objective_out_of_range: /bad quest objective position/,
+  state_quest_expiry_negative: /bad quest deadline/, state_quest_expiry_nonfinite: /bad field/,
+  state_quest_owner_visited_unknown: /bad quest visited mask/,
+  state_quest_roster_over_limit: /too many quest roster/, state_quest_rows_over_limit: /too many quest rows/,
+  state_quest_participants_over_limit: /too many quest participants/,
+  state_quest_objectives_over_limit: /too many quest objectives/,
+  state_quest_objectives_per_row_over_limit: /too many objectives per quest/,
   state_plan_negative_deadline: /plan/, state_unknown_key: /state key/, state_trailing_byte: /trailing/, state_truncated: /./,
   delta_head_unknown_bit: /head/, delta_head_overlong_varint: /varint/, delta_phase_over_3: /phase/, delta_actor_mask_unknown_bit: /actor mask/,
   delta_actor_status_over_3: /status/,
@@ -293,6 +388,7 @@ const reason = {
   map_ext_plane_length: /terrain|region.*length/, map_ext_terrain_collision: /terrain collision/,
   map_ext_semantic_hash: /semantic hash/, map_ext_mode: /terrain mode/, map_ext_context_hash: /context hash/,
   map_ext_trailing: /extension|trailing/, welcome_trailing: /trailing/,
+  quest_accept_zero: /bad quest handle/, quest_accept_truncated: /./, quest_accept_overlong: /varint/,
   wish_ability_over_4: /bad ability/, wish_charge_count_invalid: /bad Wish charges/, wish_time_nonfinite: /bad Wish clock/,
   wish_option_over_1: /bad option/, wish_cast_time_order: /bad Wish cast order/,
   wish_fx_caster_zero: /bad actor reference/, wish_fx_ability_over_4: /bad ability/, wish_fx_time_nonfinite: /bad Wish event time/,
@@ -308,6 +404,22 @@ for (const v of fx.malformedServer) {
   checks++;
   if (!err) throw new Error(`${v.name} was accepted`);
   if (!want.test(String(err.message))) throw new Error(`${v.name}: rejected for "${err.message}", expected ${want}`);
+}
+for (const name of ["state_quest_status_unknown", "state_quest_flags_unknown", "state_quest_visited_unknown", "state_quest_ref_missing", "state_quest_prop_missing_view"]) {
+  if (!fx.malformedServer.some(v => v.name === name)) throw new Error(`missing Rust-generated ${name} control`);
+}
+for (const name of [
+  "state_quest_row_handle_zero", "state_quest_roster_id_zero", "state_quest_objective_handle_zero", "state_quest_prop_handle_zero",
+  "state_quest_availability_flag", "state_quest_participant_accepted_flag", "state_quest_done_by_flag", "state_quest_prop_fetch_flag",
+  "state_quest_duplicate_row_handle", "state_quest_duplicate_roster_id", "state_quest_duplicate_participant_id",
+  "state_quest_owner_roster_missing", "state_quest_carrier_missing", "state_quest_participant_missing",
+  "state_quest_unknown_count", "state_quest_display_count_over_unknown", "state_quest_def_empty", "state_quest_def_over_16",
+  "state_quest_giver_nonfinite", "state_quest_giver_out_of_range", "state_quest_objective_nonfinite", "state_quest_objective_out_of_range",
+  "state_quest_expiry_negative", "state_quest_expiry_nonfinite", "state_quest_owner_visited_unknown",
+  "state_quest_roster_over_limit", "state_quest_rows_over_limit", "state_quest_participants_over_limit",
+  "state_quest_objectives_over_limit", "state_quest_objectives_per_row_over_limit",
+]) {
+  if (!fx.malformedServer.some(v => v.name === name)) throw new Error(`missing Rust-generated ${name} control`);
 }
 for (const name of ["state_reward_kind_unknown", "state_reward_kill_key_unknown", "state_reward_kill_gain_zero",
   "state_reward_kill_gain_negative", "state_reward_kill_gain_nan", "state_reward_kill_gain_infinity",
