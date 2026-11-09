@@ -1,0 +1,35 @@
+{
+  "scope": "SYNTHETIC OFFLINE FIXTURE; past2000 deadline; no live volume/bucket/version/toolchain/pricing attestation",
+  "plan": {
+    "format": "rh-staging-installer-candidate/1",
+    "account": "048226733033",
+    "region": "ca-west-1",
+    "domain": "rougehalla.com",
+    "run_id": "20000101t000000z-abcdef",
+    "prepared_at": "2000-01-01T00:00:00Z",
+    "host_expires_at": "2000-01-01T04:00:00Z",
+    "mode": "fresh",
+    "previous_run_id": null,
+    "volume": {
+      "id": "vol-00000000000000001",
+      "uuid": "00000000-0000-0000-0000-000000000001",
+      "filesystem": "ext4",
+      "mountpoint": "/srv/rougehalla-data"
+    },
+    "artifact": {
+      "bucket": "rh-synthetic-artifacts",
+      "key": "runs/20000101t000000z-abcdef/public-bundle.tar",
+      "version_id": "synthetic-version",
+      "bytes": 1,
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    "backup": {
+      "bucket": "rh-synthetic-backup",
+      "key": "runs/20000101t000000z-abcdef/cold-backup.age",
+      "max_bytes": 1048576
+    },
+    "toolchain_receipt_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+    "boundary_receipt_sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+    "backup_seconds": 300
+  }
+}

@@ -1,0 +1,57 @@
+{
+  "deployable": false,
+  "actual_host_run": false,
+  "run_id": "20000101t000000z-abcdef",
+  "mount": {
+    "volume": {
+      "id": "vol-00000000000000001",
+      "uuid": "00000000-0000-0000-0000-000000000001",
+      "filesystem": "ext4",
+      "mountpoint": "/srv/rougehalla-data"
+    },
+    "format_unknown_media": false,
+    "root_device_forbidden": true
+  },
+  "ownership": {
+    "private_config": "root:rougehalla 0750",
+    "runtime_secrets": "root:rougehalla 0640 create-new nofollow",
+    "writers_lock": "/srv/rougehalla-data/writers.lock root:rougehalla 0640; exclusive installer/backup; shared live writers; never replace a locked inode",
+    "pgdata": "postgres:postgres 0700",
+    "spool_source": "rougehalla:rougehalla 0700",
+    "spool_training": "no result files, links or special entries; existing empty-tree refusal guard"
+  },
+  "postgres": {
+    "binary": "/opt/rougehalla/postgres/bin/postgres",
+    "address": "127.0.0.1",
+    "port": 5432,
+    "durability": {
+      "fsync": "on",
+      "synchronous_commit": "on",
+      "full_page_writes": "on"
+    },
+    "password_encryption": "scram-sha-256",
+    "app_owner": "rougehalla; NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS",
+    "shared_account_lease_database": "rougehalla; shared Source+Training, never copied/seeded credentials",
+    "provision": "fresh empty role/database only; private password stdin to peer-admin psql; actual host path not implemented",
+    "restore": "empty target + role then existing restore.sh; no init/migration/token seeding over restored rows"
+  },
+  "activation": {
+    "implemented": false,
+    "installation_marker_created": false,
+    "must_verify": [
+      "old writers stopped/fenced, exclusive local lock, correct volume UUID+ID",
+      "real private PG settings and non-superuser role, native redaction/account/lease probes",
+      "actual egress-byte/rate enforcement armed before Caddy; no broad fallback",
+      "expiry before each start, fixed remainder lifetime, no renew on reboot",
+      "exact Source/Training binary/map/Web, Caddy/TLS/accounts/no Training banking",
+      "real encrypted producer completion and independent offhost restore/idempotence proof"
+    ]
+  },
+  "restore_continuation": {
+    "mode": "fresh",
+    "old_run": null,
+    "cross_host_fencing": "Root-owned real proof required; local locks/receipts cannot fence remote writers",
+    "start_services": false,
+    "preserve_pending_source": true
+  }
+}

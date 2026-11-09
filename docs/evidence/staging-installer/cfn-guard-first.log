@@ -1,0 +1,11 @@
+{
+  "name": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/owned-seat-checkpoint/repo/docs/evidence/staging-installer/synthetic-review/role.review-only.json",
+  "metadata": {},
+  "status": "PASS",
+  "not_compliant": [],
+  "not_applicable": [],
+  "compliant": [
+    "offline_fragment_cannot_activate_host",
+    "only_two_exact_object_permissions"
+  ]
+}

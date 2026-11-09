@@ -1,0 +1,5 @@
+[Unit]
+Description=Terminate only this host at its immutable deadline
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/systemctl poweroff

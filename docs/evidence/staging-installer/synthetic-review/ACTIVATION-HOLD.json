@@ -1,0 +1,14 @@
+{
+  "deployable": false,
+  "host_installed": false,
+  "stage": "offline-design-only",
+  "run_id": "20000101t000000z-abcdef",
+  "blocked": [
+    "Root cloud/IAM/cost/identity review",
+    "trusted expiry-first bootstrap/host executor",
+    "exact volume + OS/tool pins",
+    "private PostgreSQL/secret provisioning execution",
+    "egress enforcement and gated real-service probes",
+    "offhost ciphertext verification and independent restore/cleanup"
+  ]
+}

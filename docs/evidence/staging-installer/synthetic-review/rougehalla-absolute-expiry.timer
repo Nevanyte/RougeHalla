@@ -1,0 +1,10 @@
+[Unit]
+Description=Fixed run expiry 20000101t000000z-abcdef
+[Timer]
+OnCalendar=2000-01-01 04:00:00 UTC
+Persistent=true
+AccuracySec=1s
+RandomizedDelaySec=0
+Unit=rougehalla-absolute-expiry.service
+[Install]
+WantedBy=timers.target
