@@ -1,0 +1,31 @@
+[
+  {
+    "check": "shell-syntax",
+    "argv": [
+      "bash",
+      "-n",
+      "tools/staging-full-runtime/backup.sh",
+      "tools/staging-full-runtime/restore.sh"
+    ],
+    "exit": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "check": "diff-check",
+    "argv": [
+      "git",
+      "diff",
+      "--check",
+      "0042dc68cdee0a2034ed302005209d17241c7ced",
+      "HEAD"
+    ],
+    "exit": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "check": "all30-unchanged-original-payloads",
+    "pass": true
+  }
+]

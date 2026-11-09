@@ -1,0 +1,38 @@
+{
+  "format": "rh-staging-training-backup-guard/1",
+  "base": "0042dc68cdee0a2034ed302005209d17241c7ced",
+  "code": "1306c7b912d8f24ac332e11a3ff697b6dbef5230",
+  "originalHoldSha256": "f626318a3a26bfd019a9a441c19dda70543812630f097cbc05e4b67ff2680021",
+  "tests": 14,
+  "scope": "OFFLINE PREPARATION CORRECTION ONLY; Root review pending; activation HOLD",
+  "files": {
+    "docs/evidence/staging-training-backup-guard/README.md": {
+      "bytes": 1812,
+      "sha256": "f5b3faa220ebf7d0adc317e1cf48803e906f6eca4d8d05716b8523ac6e4c7f3d"
+    },
+    "docs/evidence/staging-training-backup-guard/checks.json": {
+      "bytes": 520,
+      "sha256": "84d8c7736b7221c3058ef8d00dbcfb84b6c3f998c9503776bad29caf0f38e9b5"
+    },
+    "docs/evidence/staging-training-backup-guard/original-HOLD.md": {
+      "bytes": 7628,
+      "sha256": "f626318a3a26bfd019a9a441c19dda70543812630f097cbc05e4b67ff2680021"
+    },
+    "docs/evidence/staging-training-backup-guard/unit-tests.log": {
+      "bytes": 1424,
+      "sha256": "77d8ede97c31a1692fd71b704e1600cef416f781eac7ea7716668443f639b422"
+    },
+    "tools/staging-full-runtime/backup.sh": {
+      "bytes": 3801,
+      "sha256": "5ef8f58b26ee6d2e6d15fd88308c25257e1f8b37672e4cf31e590bfa43baf55e"
+    },
+    "tools/staging-full-runtime/backup_archive.py": {
+      "bytes": 3428,
+      "sha256": "afca4a3fde3b3c2db177991b4dfe9a683af7d1e145de42f1610db4124345b500"
+    },
+    "tools/staging-full-runtime/test_preparation.py": {
+      "bytes": 15969,
+      "sha256": "b50f1e1e46dde138bfceb6b391105805cc4b0a3c432b1805c888b288961d33f2"
+    }
+  }
+}

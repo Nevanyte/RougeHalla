@@ -1,0 +1,41 @@
+# Local review boundaries, not a general production compliance claim.
+rule no_host_credentials_or_unlimited_cpu {
+    Resources.Host.Properties {
+        CreditSpecification.CPUCredits == "standard"
+        InstanceInitiatedShutdownBehavior == "terminate"
+        MetadataOptions.HttpTokens == "required"
+        MetadataOptions.HttpPutResponseHopLimit == 1
+        IamInstanceProfile !exists
+        KeyName !exists
+        BlockDeviceMappings[0].Ebs.Encrypted == true
+        BlockDeviceMappings[0].Ebs.DeleteOnTermination == true
+    }
+}
+rule durable_data_not_host_root {
+    Resources.DataVolume {
+        Type == "AWS::EC2::Volume"
+        DeletionPolicy == "Retain"
+        UpdateReplacePolicy == "Retain"
+        Properties.Encrypted == true
+        Properties.VolumeType == "gp3"
+    }
+}
+rule web_and_acme_only {
+    Resources.WebSecurityGroup.Properties.SecurityGroupIngress[0].FromPort == 80
+    Resources.WebSecurityGroup.Properties.SecurityGroupIngress[0].ToPort == 80
+    Resources.WebSecurityGroup.Properties.SecurityGroupIngress[1].FromPort == 443
+    Resources.WebSecurityGroup.Properties.SecurityGroupIngress[1].ToPort == 443
+    Resources.WebSecurityGroup.Properties.SecurityGroupIngress[2] !exists
+}
+rule private_encrypted_versioned_backup {
+    Resources.BackupBucket.DeletionPolicy == "Retain"
+    Resources.BackupBucket.UpdateReplacePolicy == "Retain"
+    Resources.BackupBucket.Properties {
+        PublicAccessBlockConfiguration.BlockPublicAcls == true
+        PublicAccessBlockConfiguration.IgnorePublicAcls == true
+        PublicAccessBlockConfiguration.BlockPublicPolicy == true
+        PublicAccessBlockConfiguration.RestrictPublicBuckets == true
+        BucketEncryption.ServerSideEncryptionConfiguration[0].ServerSideEncryptionByDefault.SSEAlgorithm == "AES256"
+        VersioningConfiguration.Status == "Enabled"
+    }
+}

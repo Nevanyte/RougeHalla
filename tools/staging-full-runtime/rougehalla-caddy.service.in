@@ -1,0 +1,23 @@
+[Unit]
+Description=Single practice origin, two loopback runtimes (PREPARATION ONLY)
+Requires=rougehalla-source.service rougehalla-training.service rougehalla-egress-limit.service
+After=network-online.target rougehalla-source.service rougehalla-training.service rougehalla-egress-limit.service
+ConditionPathExists=/srv/rougehalla-data/installation-verified.json
+[Service]
+Type=simple
+User=rougehalla
+Group=rougehalla
+Environment=HOME=/srv/rougehalla-data/caddy
+ExecStart=/opt/rougehalla/bin/caddy run --config /etc/rougehalla/Caddyfile --adapter caddyfile
+Restart=no
+RuntimeMaxSec=@RUNTIME_SECONDS@
+TimeoutStopSec=30
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE
+ReadWritePaths=/srv/rougehalla-data/caddy
+[Install]
+WantedBy=multi-user.target
