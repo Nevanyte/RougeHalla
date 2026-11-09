@@ -337,13 +337,54 @@ mod row_harness {
         assert_eq!(restored.state_hash(), first.state_hash());
     }
 
+    /// A labelled trusted row-helper setup, not ordinary Mark acquisition or cast reachability.
+    /// The actual-source suite separately earns the caster's convicted Mark through weapon hits.
+    fn trial_with_trusted_mark(tier: u8, hits: u64) -> Sim {
+        let placements = [crate::FactionId::Sentenced, crate::FactionId::Fire]
+            .into_iter()
+            .enumerate()
+            .map(|(i, faction)| Placement {
+                profile: format!("trial{i}"),
+                faction,
+                bot: false,
+                at: Vec2::new(320. + i as f64 * 60., 320.),
+                hp: None,
+                weapon0: None,
+                weapon1: None,
+            })
+            .collect::<Vec<_>>();
+        let mut s = Sim::reset_active(
+            SimConfig {
+                faction_mode: crate::FactionMode::EngagementHolyPlagueFireFrostSentenced,
+                ..Default::default()
+            },
+            practice_arena(),
+            Secrets::from_seed(5),
+            &placements,
+        );
+        let (target, now) = (s.players()[1].id, s.server_time());
+        s.w.players[0].signature.set_target(target, now);
+        s.w.players[0].signature.mark = crate::fighter::Mark {
+            group: Some(crate::fighter::MarkGroup::Fighter(target)),
+            group_size: 1,
+            tier,
+            hits,
+            progress: hits as f64,
+            ..Default::default()
+        };
+        let s = Sim::restore(serde_json::to_value(&s).unwrap())
+            .expect("trusted Mark must satisfy canonical restore");
+        assert_eq!(
+            crate::systems::sentenced::mark_tier_on(&s.w, s.players()[0].id, target),
+            tier
+        );
+        s
+    }
+
     #[test]
     fn trial_convicted_radius_is_a_row_number_and_uses_the_casters_mark() {
         let def = a::definition(rt::AbilityId::Trial);
-        let mut s = sim();
-        let target = s.players()[1].id;
-        s.w.players[0].signature.target = Some(target);
-        s.w.players[0].signature.mark.tier = 3;
+        let mut s = trial_with_trusted_mark(3, 6);
         let l = landing_for(&s, rt::AbilityId::Trial, None);
         s.with_cx(|cx| run_row(cx, l, def));
         let radius =
@@ -356,10 +397,7 @@ mod row_harness {
                 .unwrap()
                 .r;
         assert_eq!(radius, a::TRIAL_CONVICTED_RADIUS);
-        let mut s = sim();
-        let target = s.players()[1].id;
-        s.w.players[0].signature.target = Some(target);
-        s.w.players[0].signature.mark.tier = 2;
+        let mut s = trial_with_trusted_mark(2, 3);
         let l = landing_for(&s, rt::AbilityId::Trial, None);
         s.with_cx(|cx| run_row(cx, l, def));
         let radius =

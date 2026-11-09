@@ -1,0 +1,140 @@
+{
+  "base": "3c76515e8059a630677276c044796b99e018c981",
+  "testRepairCommit": "9934225ea18370e3169693e69cadb372ec5865c3",
+  "branch": "codex/native-integration-test-repairs",
+  "testOnly": true,
+  "runtimeEffectsPrefixUnchangedSha256": "8ee9def2ae2d96fd47da8ce3ba8191fc11f11f5cbcf25416ef98df87a95f3cd2",
+  "files": [
+    {
+      "path": "crates/rh-sim/src/systems/abilities/effects.rs",
+      "bytes": 16031,
+      "sha256": "c58dde746599e1d134574d03c7da9f606672e0620fc0bd3eaabcfce2b9f1f843"
+    },
+    {
+      "path": "crates/rh-sim/src/systems/signatures/pve_tests.rs",
+      "bytes": 24796,
+      "sha256": "fc6cccddfeef74d7eaa79be28d95b54e34f1465836eb15282a4335f7a76bb9c7"
+    },
+    {
+      "path": "crates/rh-sim/tests/no_alloc.rs",
+      "bytes": 30944,
+      "sha256": "d32e17ec159db197007e186584104765f5faa4f85a29d243844a2471170800ea"
+    },
+    {
+      "path": "docs/evidence/native-integration-test-repairs/README.md",
+      "bytes": 2686,
+      "sha256": "60d934f1f9e8353e2ef9a70c3d96de193e590bb68ed6fbd8b8f9b9e4303f66b8"
+    },
+    {
+      "path": "docs/evidence/native-integration-test-repairs/logs/clippy.txt",
+      "bytes": 1018,
+      "sha256": "39fee26d9b038d5f8cae826d2b86c05603e2a9cd58b48fc07c733dfd6bddb61a"
+    },
+    {
+      "path": "docs/evidence/native-integration-test-repairs/logs/fmt.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/evidence/native-integration-test-repairs/logs/no-alloc.txt",
+      "bytes": 1725,
+      "sha256": "c4e6682265c8b416955d567bcee7cb283bb0d2e49b45903a3fcb149c2de92c9b"
+    },
+    {
+      "path": "docs/evidence/native-integration-test-repairs/logs/pve.txt",
+      "bytes": 1579,
+      "sha256": "f3607645f2153f626cafbba7f9c1c1e1b29fb32373ddd4ca630992c3d75908f5"
+    },
+    {
+      "path": "docs/evidence/native-integration-test-repairs/logs/trial.txt",
+      "bytes": 482,
+      "sha256": "0673ac6a1b7ebb546a33afb578b6b36866655926d69731f78ebcd5a8b940bed4"
+    }
+  ],
+  "heldDerivedTape": {
+    "path": "parity/abilities/hash-tape.json",
+    "bytes": 6414,
+    "sha256": "d0f7f7e5f52519f0158d0e39730732bdd4fe5a6a3cf9658b8a30d753cfae33ff",
+    "unchangedFromBase": true,
+    "admitted": false
+  },
+  "checks": [
+    {
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "rh-sim",
+        "--lib",
+        "systems::signatures::pve_tests::basic_pve_mode_content_and_join_are_closed_before_mutation",
+        "--",
+        "--exact"
+      ],
+      "log": "logs/pve.txt",
+      "passed": 1
+    },
+    {
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "rh-sim",
+        "--lib",
+        "systems::abilities::effects::row_harness::trial_convicted_radius_is_a_row_number_and_uses_the_casters_mark",
+        "--",
+        "--exact"
+      ],
+      "log": "logs/trial.txt",
+      "passed": 1
+    },
+    {
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "rh-sim",
+        "--test",
+        "no_alloc",
+        "a_steady_state_step_allocates_nothing",
+        "--",
+        "--exact",
+        "--test-threads=1",
+        "--nocapture"
+      ],
+      "log": "logs/no-alloc.txt",
+      "passed": 1
+    },
+    {
+      "command": [
+        "cargo",
+        "clippy",
+        "-p",
+        "rh-sim",
+        "--lib",
+        "--tests",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "log": "logs/clippy.txt",
+      "exit": 0
+    },
+    {
+      "command": [
+        "cargo fmt --all --check",
+        "git diff --check"
+      ],
+      "log": "logs/fmt.txt",
+      "exit": 0
+    }
+  ],
+  "allocationScope": {
+    "existingExecutablePassed": 1,
+    "sentencedCrowdedMeasuredSteps": 660,
+    "markPulses": 175,
+    "topTierFrames": 1892,
+    "trustedDenialRefills": 32,
+    "measuredAllocations": 0
+  },
+  "limits": "Test setup/admission expectation repairs only. No full port, ordinary Mark acquisition, public transport, tape/format/content admission or new performance claim."
+}
