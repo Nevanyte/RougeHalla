@@ -1,0 +1,21 @@
+{
+  "format": "rh-root-wrapup-preparation-admission/1",
+  "integrationHead": "875d94bafeec4fab45d85235ea6358bae51f4227",
+  "nativeSourceCandidate": "76d170a16158a9709178a741f12bd4abb357201f",
+  "stagingRefreezeMerge": "f98f57f08d923e3c6755e263d00b1afdfac0dafc",
+  "stagingInstallerSeal": "7b2599aad0a7ad8bb00e9300ed1312e26dab6078",
+  "browserReadinessSeal": "25d3447d127985a86d666a9fd460a0520ab59681",
+  "rootOfflinePreparationPassed": 14,
+  "installerOriginalOfflinePassed": 12,
+  "installerHardeningAffectedPassed": 2,
+  "browserOriginalOfflinePassed": 15,
+  "browserEqualityRepairAffectedPassed": 2,
+  "notClaims": [
+    "complete16case browser suite rerun",
+    "actual browser acceptance",
+    "real host installer execution",
+    "cloud IAM attachment or activation",
+    "artifact validation or cost approval"
+  ],
+  "clientProtocolTreesEqualNative98Source": true
+}

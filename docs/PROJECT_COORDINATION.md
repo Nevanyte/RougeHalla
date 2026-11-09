@@ -22,8 +22,8 @@ Actual [Unity98/98](evidence/unity-resume98-admission/README.md) passes once at 
 | Lead: OPTimization_port | Canonical reviewed merges, coherent native/client identity, combined checks and normal CI; original full-port acceptance |
 | Prepare Unity 2D Demo | Functional98 proof independently accepted and composed; four finite720p/1440p default/150% text raster views next, then Root-reviewed coherent Web build; no asset/audio expansion |
 | Modernize Unity game UI | Explicit owned-seat page-reload Resume and fences composed after actual98 proof; frozen source stays unchanged while browser acceptance is prepared |
-| Prove PostgreSQL cold recovery | Installer foundation/hardened upload response candidate sealed privately; bounded normal76d stale preparation-pin repair active, no host/cloud action |
-| Check Git access | Private socket/full-scene components composed; browser reload readiness sealed privately after15 offline checks, actual browser NOT RUN and no default activation |
+| Prove PostgreSQL cold recovery | Installer foundation/hardened upload response and consistent76d preparation refreeze composed; Root14 offline checks pass, actual host executor/physical collection still open |
+| Check Git access | Private socket/full-scene components and browser reload readiness composed after original15 +two affected source-equality checks; eventual artifact references and actual browser run still required |
 | DeepSeek Rust Port Worker | Corrected finite24 WalkHint method consumers reviewed and composed; Root16 regression passes/two existing ignores, no production/schema change |
 | DeepSeek Post Rust | Code-only9cf handed off; Codex experts repair producer/verifier and safe offline envelope on isolated child, no source execution or publication yet |
 | Internal Rust specialist | Private temporal core composed: Root11PASS/actual1549→1541+8null exact numeric match; remaining source player/cue/flight and public/full Brain admission held |
