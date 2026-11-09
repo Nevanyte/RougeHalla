@@ -45,9 +45,7 @@ runuser -u postgres -- pg_dump -h "$socket" -d rougehalla --format=custom --no-o
 mkdir "$work/spool-source"
 cp -a "$data/spool-source/." "$work/spool-source/"
 # Training produces no results; any accidental pending training output is a refusal, not discarded data.
-if test -d "$data/spool-training"; then
-    test -z "$(find "$data/spool-training" -type f -print -quit)"
-fi
+python3 /opt/rougehalla/preparation/backup_archive.py --check-training-spool "$data/spool-training"
 python3 - "$work" <<'PY'
 import hashlib, json, os, sys
 from pathlib import Path

@@ -2,10 +2,29 @@
 """Pure local restore precheck/extractor; called before PostgreSQL mutation. No secret values printed."""
 import hashlib
 import json
+import os
 import shutil
+import stat
 from pathlib import Path, PurePosixPath
 import sys
 import tarfile
+
+
+def check_training_spool(root):
+    """Absent or real directory-only trees are safe; Training must have no pending bytes."""
+    try:
+        mode = root.lstat().st_mode
+    except FileNotFoundError:
+        return
+    if not stat.S_ISDIR(mode):
+        raise ValueError('training spool root must be a real directory')
+    pending = [root]
+    while pending:
+        with os.scandir(pending.pop()) as entries:
+            for entry in entries:
+                if not entry.is_dir(follow_symlinks=False):
+                    raise ValueError('unexpected training spool entry')
+                pending.append(Path(entry.path))
 
 
 def extract(root):
@@ -50,8 +69,11 @@ def extract(root):
 
 if __name__ == '__main__':
     try:
-        if len(sys.argv) != 2:
+        if len(sys.argv) == 3 and sys.argv[1] == '--check-training-spool':
+            check_training_spool(Path(sys.argv[2]))
+        elif len(sys.argv) == 2:
+            extract(Path(sys.argv[1]))
+        else:
             raise ValueError()
-        extract(Path(sys.argv[1]))
     except Exception:
         raise SystemExit('backup refused before database mutation; private diagnosis required') from None

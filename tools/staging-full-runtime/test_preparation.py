@@ -5,7 +5,10 @@ import hashlib
 import importlib.util
 import io
 import json
+import os
 from pathlib import Path
+import subprocess
+import sys
 import tarfile
 import tempfile
 import unittest
@@ -166,6 +169,52 @@ class Preparation(unittest.TestCase):
 
 
 class Backup(unittest.TestCase):
+    def test_training_spool_cli_refuses_without_running_restore(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp) / 'training'; root.mkdir()
+            args = [sys.executable, str(HERE / 'backup_archive.py'), '--check-training-spool', str(root)]
+            good = subprocess.run(args, capture_output=True, text=True)
+            self.assertEqual((good.returncode, good.stdout, good.stderr), (0, '', ''))
+            (root / 'pending').write_bytes(b'pending')
+            bad = subprocess.run(args, capture_output=True, text=True)
+            self.assertNotEqual(bad.returncode, 0)
+            self.assertEqual(bad.stdout, '')
+            self.assertNotIn(str(root), bad.stderr)
+            self.assertEqual((root / 'pending').read_bytes(), b'pending')
+
+    def test_training_spool_absent_and_real_empty_directories_are_allowed(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp) / 'training'
+            archive.check_training_spool(root)
+            root.mkdir()
+            archive.check_training_spool(root)
+            (root / 'empty' / 'nested').mkdir(parents=True)
+            archive.check_training_spool(root)
+
+    def test_training_spool_root_symlink_file_and_fifo_refuse(self):
+        for kind in ('symlink', 'dangling-symlink', 'file', 'fifo'):
+            with self.subTest(kind=kind), tempfile.TemporaryDirectory() as temp:
+                parent = Path(temp); root = parent / 'training'
+                target = parent / 'target'; target.mkdir()
+                if kind == 'symlink': root.symlink_to(target, target_is_directory=True)
+                elif kind == 'dangling-symlink': root.symlink_to(parent / 'missing')
+                elif kind == 'file': root.write_bytes(b'pending')
+                else: os.mkfifo(root)
+                with self.assertRaises(ValueError): archive.check_training_spool(root)
+
+    def test_training_spool_descendant_symlink_file_and_fifo_refuse(self):
+        for kind in ('symlink', 'dangling-symlink', 'file', 'fifo'):
+            with self.subTest(kind=kind), tempfile.TemporaryDirectory() as temp:
+                parent = Path(temp); root = parent / 'training'; root.mkdir()
+                nested = root / 'empty'; nested.mkdir()
+                entry = nested / 'unexpected'
+                target = parent / 'target'; target.mkdir()
+                if kind == 'symlink': entry.symlink_to(target, target_is_directory=True)
+                elif kind == 'dangling-symlink': entry.symlink_to(parent / 'missing')
+                elif kind == 'file': entry.write_bytes(b'pending')
+                else: os.mkfifo(entry)
+                with self.assertRaises(ValueError): archive.check_training_spool(root)
+
     def make_archive(self, root, mutate=None):
         files = {'database.dump': b'DECLARED TEST DUMP', 'spool-source/pending.json': b'DECLARED TEST PENDING'}
         manifest = {'format': 'rh-staging-cold-backup/1', 'quiesced': True,
