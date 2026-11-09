@@ -1,15 +1,11 @@
-# WalkHint boundary helpers — code-ready offline split (NOT EXECUTED)
+# WalkHint boundary correction — private code/design only
 
-Status: CODE-READY, not executed. Root authorized the exact boundaries-build.mjs/boundaries-runtime.mjs/draft/evidence lease. No compile, capture, controls, Docker, network, install or scenario/world execution occurred. The denied wrapper is not retried.
+Against frozen790b739d5df9917e45b5f54630ef5398d26950ca. No build, source execution, capture, container start/exec, install/network/Editor/Cargo/cache use. Root must review/seal this correction and authorize a separate host build; generated bundle/readset pins require another Root review before any runtime import. This is not execution permission or source/native admission.
 
-Parent source release: 70433a9834ccf082b5ca449dca0fd4319cd072ca.
-Branch: deepseek/walk-hint-helper-boundaries.
-Old 69-row helper corpus and both 14-frame corpora remain byte-identical (a7b8feda…/8cb8b2c2…/2c95328c…).
+All existing70433/790 refs and old69/14-frame/player90 corpora are untouched. Original denied wrapper and boundaries-capture.mts remain preserved and forbidden. Exact write scope: existing boundaries build/runtime/scenario/verify and this dedicated evidence directory only; no production application source.
 
-New code-ready files: boundaries-build.mjs (host-only compiler; no scenario/World import), boundaries-runtime.mjs (runtime-only; frozen relative bundle; no compiler/npm/tsx/child), and three preserved denied-draft boundary files. No boundary corpus exists yet.
+24 declared fresh helper contexts: goal3, repath3, LOS2, future status4, amove3, waypoint3, direction3, tie3. Source clock comes from40 ordinary setup steps (LOS adds2 actual sight-priming steps); positions/history/weapon/status/cache inputs remain explicitly DECLARED, not earned combat. The actual source decide/updateTargets/walkHintOf/isUntargetableAt/weaponHoldsAt/encodeWalkDir functions supply every answer. No copied output formulas or installed expected choice. Append-only compiled export of existing SPEED_SLACK is input geometry instrumentation, with original/executed hash distinction.
 
-Exact future commands/readset are in OFFLINE-COMMANDS.md and PROPOSED_READSET.json; both require Root review before execution. Future fresh paths are only docs/evidence/walk-hint-helper-boundaries/offline-<approved-nonce>/{prepared,captured}. No repo-wide mount, /tmp compiled source, npm/npx/install/network/image pull.
+Rounding uses true adjacent binary64 values. Direction kernel and Cartesian path outputs are both retained: path isolation explicitly remains OPEN until capture review, never a forced transition. Waypoint origin/endpoint construction avoids losing tiny segment perturbations at a large common world origin and asserts actual floating predicate isolation before calling source. If any source precondition/answer differs, retain raw observations and stop; do not force agreement.
 
-Corrections for the next additive receipt: actual source-file count is 17 (prior receipt/README said 14); the player90 corpus is 467672 B (prior README typo said 46672). Existing sealed files remain historical and are not modified.
-
-No boundary capture, bytecheck, control run or frozen export has been executed. Root reviews the sealed code and exact commands first.
+See PRIVATE-CORRECTION.md for precise changes/limits; OFFLINE-COMMANDS.md for separate proposed phases; PROPOSED_READSET.json for selected16 source pins+metadata+tool pins. The complete compiled closure/count remains UNOBSERVED until a reviewed host build. The prior helper69 has17 selected pins; this new runtime readset has16, and neither number is the complete esbuild closure. No prior raw receipt or expected file was rewritten.

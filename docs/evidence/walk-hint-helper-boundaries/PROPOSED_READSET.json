@@ -1,20 +1,71 @@
 {
-  "format": "rh-walk-hint-boundary-readset/1",
+  "format": "rh-walk-hint-boundary-readset/2",
   "base": "70433a9834ccf082b5ca449dca0fd4319cd072ca",
   "selectedSource": {
-    "packages/server/src/sim/walkHint.ts": "9030f17e7e76a5dda94bba76347e2993a5265d8d36e145b9d1f889f3f988af16",
-    "packages/server/src/sim/gameplay.ts": "70f6f2b67571783f3042309bef01dc75aabd2656c59a184d0f97c9c0a8b8cf78",
-    "packages/server/src/sim/step.ts": "5ff90451b4b27b12ddfe8175745cf38892eaf07a851282c904076edc46896634",
-    "packages/server/src/sim/status.ts": "55bc525be1ac832f04b0f134cee6769b0b99f4d45ce182ec7db9d3670ba35642",
-    "packages/server/src/sim/targeting.ts": "13125287cec7cd39f550af50e1d18c15d3146357f249cfe3beeb9e00a334f0fd",
-    "packages/server/src/sim/combatant.ts": "3c2fac6ed6fbee82802c5bea86b0131d36e8ebf86eceb2c1a99ce58664fa7e60",
-    "packages/server/src/sim/movement.ts": "86ebd2205a0af4608ed484317bea3723bb378b3e138954a44140e340adab1f93",
-    "packages/server/src/sim/world.ts": "b98376a7f022ec6f9b681e368d62c18fbe524d95408b2d4eec93909934454d54",
-    "packages/shared/src/constants.ts": "51ce4dd800ec868abee525fb1ae375688066f336972a7da878644df1235924e7",
-    "packages/shared/src/mods.ts": "10e9dcd3d7417c4fe85d1c36ef33afe5abf7a5703a59b42a3a825a66aa4efaff",
-    "packages/shared/src/weapons.ts": "2f22f037502fe63fae6b47f20408cfd35ebc72bfea081194ae8d18cfc21df99b",
-    "packages/shared/src/policies.ts": "3a08aef58ae780bb2417781e735ff75c310de08db43b47a742714bcf94619fbd",
-    "packages/shared/src/terrain.ts": "5ee4fe11e793f83f3d095720ba1156a186c5c7704e864f2cad74503ab13a07d6"
+    "packages/server/src/sim/walkHint.ts": {
+      "bytes": 10241,
+      "sha256": "9030f17e7e76a5dda94bba76347e2993a5265d8d36e145b9d1f889f3f988af16"
+    },
+    "packages/server/src/sim/gameplay.ts": {
+      "bytes": 5104,
+      "sha256": "70f6f2b67571783f3042309bef01dc75aabd2656c59a184d0f97c9c0a8b8cf78"
+    },
+    "packages/server/src/sim/step.ts": {
+      "bytes": 14822,
+      "sha256": "5ff90451b4b27b12ddfe8175745cf38892eaf07a851282c904076edc46896634"
+    },
+    "packages/server/src/sim/status.ts": {
+      "bytes": 17222,
+      "sha256": "55bc525be1ac832f04b0f134cee6769b0b99f4d45ce182ec7db9d3670ba35642"
+    },
+    "packages/server/src/sim/targeting.ts": {
+      "bytes": 10392,
+      "sha256": "13125287cec7cd39f550af50e1d18c15d3146357f249cfe3beeb9e00a334f0fd"
+    },
+    "packages/server/src/sim/combatant.ts": {
+      "bytes": 9454,
+      "sha256": "3c2fac6ed6fbee82802c5bea86b0131d36e8ebf86eceb2c1a99ce58664fa7e60"
+    },
+    "packages/server/src/sim/movement.ts": {
+      "bytes": 5986,
+      "sha256": "86ebd2205a0af4608ed484317bea3723bb378b3e138954a44140e340adab1f93"
+    },
+    "packages/server/src/sim/world.ts": {
+      "bytes": 58199,
+      "sha256": "b98376a7f022ec6f9b681e368d62c18fbe524d95408b2d4eec93909934454d54"
+    },
+    "packages/server/src/sim/vision.ts": {
+      "bytes": 4504,
+      "sha256": "25838e435b6e5282d31b28758e1955d36c8118086700e1e6497a979647287e56"
+    },
+    "packages/server/src/sim/weapons.ts": {
+      "bytes": 17776,
+      "sha256": "581ba4cf9ae93af5d3753cbb3cdf6b823bfaf730448edab7669e6c6d84c86f26"
+    },
+    "packages/shared/src/constants.ts": {
+      "bytes": 46007,
+      "sha256": "51ce4dd800ec868abee525fb1ae375688066f336972a7da878644df1235924e7"
+    },
+    "packages/shared/src/mods.ts": {
+      "bytes": 23134,
+      "sha256": "10e9dcd3d7417c4fe85d1c36ef33afe5abf7a5703a59b42a3a825a66aa4efaff"
+    },
+    "packages/shared/src/weapons.ts": {
+      "bytes": 15391,
+      "sha256": "2f22f037502fe63fae6b47f20408cfd35ebc72bfea081194ae8d18cfc21df99b"
+    },
+    "packages/shared/src/policies.ts": {
+      "bytes": 13185,
+      "sha256": "3a08aef58ae780bb2417781e735ff75c310de08db43b47a742714bcf94619fbd"
+    },
+    "packages/shared/src/terrain.ts": {
+      "bytes": 21947,
+      "sha256": "5ee4fe11e793f83f3d095720ba1156a186c5c7704e864f2cad74503ab13a07d6"
+    },
+    "packages/shared/src/interp.ts": {
+      "bytes": 20983,
+      "sha256": "83cf2ac2359058b1e0497e636f83e36b1d60c97e13f81e15e6edf39d8f231eb4"
+    }
   },
   "related": {
     "helper69": {
@@ -59,10 +110,45 @@
     }
   },
   "corrections": {
-    "priorSourceFileCount": 14,
-    "correctedSourceFileCount": 17,
-    "priorPlayerCorpusBytesTypo": 46672,
-    "correctedPlayerCorpusBytes": 467672
+    "priorHelper69SelectedSourceFiles": 17,
+    "newSelectedSourceFiles": 16,
+    "newCompiledClosure": "UNOBSERVED until reviewed host build",
+    "player90Bytes": 467672
   },
-  "note": "selectedSource is the frozen runtime-read subset; the build driver's generated manifest/metafile supplies the actual compiled closure. No boundary corpus exists at this code-ready head."
+  "note": "CODE-ONLY private correction against790. No build/runtime/capture output. Exact generated bundle+manifest must receive separate Root approval; old wrappers forbidden.",
+  "code": "PENDING_ROOT_SEAL_NOT_EXECUTED",
+  "configuration": {
+    "package.json": {
+      "bytes": 2247,
+      "sha256": "9da8ab00050db3ec14c083365ab0c3a5b8986e38fd13c086b2913249d531422c"
+    },
+    "package-lock.json": {
+      "bytes": 153409,
+      "sha256": "991869bdfbbefb6874220500197c61db302a4d2b2603dfc2288fd7032ce1d481"
+    },
+    "tsconfig.base.json": {
+      "bytes": 410,
+      "sha256": "017575ec3101f44df43b5a7cc850779582650d9e01a2090b7e311b213b98ef88"
+    },
+    "packages/server/package.json": {
+      "bytes": 981,
+      "sha256": "d4965c850237876a64a02cd1c7c554f1a64d97392344cae3b63d4bd688e2f7b8"
+    },
+    "packages/server/tsconfig.json": {
+      "bytes": 153,
+      "sha256": "38a209200ba0dde3bbaeee8df1e29755aa35b63c588367da486b31a83b90cd15"
+    },
+    "packages/shared/package.json": {
+      "bytes": 427,
+      "sha256": "6e9c040348c50e0ad5043ec4cb9b4206f68f29cf4eeb4dec5f635f37a6f87f35"
+    },
+    "packages/shared/tsconfig.json": {
+      "bytes": 124,
+      "sha256": "e81b194f96f35e0d1e9e8069998a30740b08703e085bb7d0f92922d7b6d06193"
+    }
+  },
+  "sourceInstrumentation": {
+    "path": "packages/server/src/sim/walkHint.ts",
+    "kind": "append-only export of existing SPEED_SLACK; actual bodies unchanged; original and executed byte/hash pins required"
+  }
 }

@@ -1,0 +1,27 @@
+# Private790 correction/design — NOT EXECUTED
+
+Root authorized this code-only correction after the independent790 HOLD. The original790 seal, failed/rejected operation description, three original drafts and old69/source corpora remain historical. This patch modifies only the four boundary build/runtime/scenario/verify files and dedicated evidence. It does not retry the original action, alter access review or authorize execution.
+
+Safety changes:
+
+- Exact Root-approved immutable40-character code HEAD is mandatory before/after build. Every exact compiled input buffer is compared with that blob; application source also equals70433. Full loaded closure and explicit package/config metadata are rechecked. Explicit tracked tsconfig.base.json stops ancestor configuration discovery; the custom relative resolver and fixed aliases do not search arbitrary node_modules. Only the pinned schema module and four reviewed Node builtin externals are allowed. .mts uses TS loader; each onLoad supplies resolveDir.
+- File/tool/data paths reject symlink components before content reads. The verified evidence root may gain exactly one nonexistent offline-<nonce> directory, created exclusively by the driver; prepared/captured are its own new children. No existing/off-workspace ancestor or leaf reuse, deletion or fallback. All prepared/output files use exclusive no-follow creation. Host imports only pinned compiler/builtins and reads Git objects; it never imports/runs the scenario.
+- Actual source walkHint.ts gets ONLY an in-memory appended export of its existing SPEED_SLACK constant for input geometry. Original and executed byte/hash pins are distinct; no function body/source outcome is changed. Actual updateTargets exposes the chooser result without exporting a private function.
+- Root must inspect generated manifest/metafile/bundle and supply independent expected manifest+bundle hashes before a separate offline runtime command. Runtime validates all prepared-file bytes/hashes, Node/platform,16 selected source+2 related data files, and fresh empty output before importing scenario. No compiler/tsx/spawn/npm/download/network/runtime source writes. Only fresh observations-before-verification.json is written before semantic refusal; canonical source.json requires verifier success. Read-only check writes nothing. Outputs are bounded to2MiB per corpus and24 unique named contexts; operational limits are not performance/sufficiency claims.
+
+Recipe changes (all DECLARED helper inputs, not earned World combat):
+
+| Family | Contexts | Actual source witness / isolated input |
+|---|---:|---|
+| Goal movement |3|Actual decide must return a finite Vec; target is outside its far/attack spacing but inside TARGET_RANGE. Adjacent stored lockGoal coordinates around goal+GOAL_MOVED record actual distances, not erased tiny deltas. Fixed elapsed250/path preserves only the moved decision.|
+| Repath |3|Fixed stale goal>8 and finite path, actual planAt immediately before/equal elapsed250; fresh−Infinity explicit tagged binary64, correctly demands replan.|
+| LOS grace |2|Clock is produced by40 ordinary source steps. Actual VisionMemory is primed on the far side with2 additional ordinary steps, then the declared lock/cache inputs are read on the near side. Actual current visibility+lockable=true and LOS=false, positive lostAt and suppressed unrelated replan are required. This is declared method/cache history, not a claim that a real lock earned that chronology. No vision tile/answer is installed.|
+| Future statuses |4|Actual addStatus/reveal/isUntargetableAt; hidden active/future reveal and untargetable immediately-before/equal expiry.|
+| Amove |3|Actual ordered allCombatants, nearest selection rather than first candidate, nearer-hidden fallback, then actual removeStatuses transition with before/after hints and actual updateTargets lock. No chosen target installed.|
+| Waypoint slack |3|Actual source SPEED_SLACK builds INPUT geometry at3step−1e−6. Adjacent requested lengths use fixed endpoint48 and origin48−length in an explicitly open declared map; actual subtraction/hypot+slack predicate must straddle before any answer is accepted.|
+| Direction |3|True adjacent input angles through actual shared encodeWalkDir plus actual walkHintOf Cartesian path. Actual path angle bits and kernel result retained. Cartesian isolation remains OPEN if mapping collapses samples; no forced transition or favourable-input search.|
+| Weapon tie |3|Actual weaponHoldsAt over declared swing; rootUntil0 and immediately-before/equal/after landsAt around at+actual TIE_EPS_MS.|
+
+Total24 fresh helper worlds. Amove transition deliberately performs a sequence of real source method calls within one declared world and retains both observations; it is not an additional independently tuned fixture hidden from the inventory. Forty ordinary setup steps produce a meaningful clock; all position/path/weapon/status/cache setups remain labelled synthetic helper inputs. None is public World/restore/producer/native admission.
+
+UNRUN: parsing/typechecking/compiler, all source contexts, source capture/bytecheck, controls, memory/runtime budgets and frozen-export recheck. No new corpus exists. The direction path gate remains explicitly OPEN pending actual capture review. Unexpected geometry/vision/setup/API behavior must retain the first raw refusal and STOP. Root must not interpret this code-only preparation as closed boundary parity. Semantic controls/frozen-export still need a finite approved build-only adaptation; no original wrapper reuse.

@@ -1,205 +1,253 @@
-// Declared actual-source helper contexts for the seven OPEN boundary decisions. Inputs are explicit
-// helper state; observed values come from actual imported walkHintOf / isUntargetableAt / shared decide.
+// DECLARED method contexts, not earned World history. Outputs come from the actual source APIs.
+// The only compiled source adapter appends an export of walkHint.ts's existing SPEED_SLACK.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { createHash } from "node:crypto";
 import {
-  mapFromTiles, mulberry32, decide, lockSpacing, PLAYER_SPEED, TICK_MS, TARGET_LOS_GRACE_MS,
-  TARGET_REPATH_MS, TERRAIN_ICE,
+  mapFromTiles, mulberry32, decide, lockSpacing, PLAYER_SPEED, TICK_MS,
+  TARGET_LOS_GRACE_MS, TARGET_REPATH_MS, TARGET_RANGE, encodeWalkDir, hasLineOfSight,
 } from "@raid/shared";
 import { createGameWorld } from "/repo/packages/server/src/sim/gameplay.ts";
-import { addPlayer, step } from "/repo/packages/server/src/sim/step.ts";
-import { addStatus, isUntargetableAt } from "/repo/packages/server/src/sim/status.ts";
-import { combatant, timingsOf } from "/repo/packages/server/src/sim/combatant.ts";
-import { walkHintOf } from "/repo/packages/server/src/sim/walkHint.ts";
-import { GOAL_MOVED } from "/repo/packages/server/src/sim/targeting.ts";
+import { addPlayer, step as sourceStep } from "/repo/packages/server/src/sim/step.ts";
+import { addStatus, removeStatuses, reveal, isUntargetableAt } from "/repo/packages/server/src/sim/status.ts";
+import { allCombatants, combatant, timingsOf } from "/repo/packages/server/src/sim/combatant.ts";
+import { walkHintOf, weaponHoldsAt, SPEED_SLACK } from "/repo/packages/server/src/sim/walkHint.ts";
+import { GOAL_MOVED, lockable, updateTargets } from "/repo/packages/server/src/sim/targeting.ts";
+import { getVisionMemory, canPlayerSeeActor } from "/repo/packages/server/src/sim/vision.ts";
+import { collisionMap } from "/repo/packages/server/src/sim/world.ts";
+import { TIE_EPS_MS } from "/repo/packages/server/src/sim/weapons.ts";
+export { assertBoundaryCorpus as assertBoundaryFacts } from "./boundaries-verify.mjs";
 
-const W = 64, H = 40, SEED = 7;
-const BASE = {
-  minPlayers: 1, lobbySeconds: 15, fillSeconds: 0, patienceSeconds: 1e6, patienceMinSeconds: 1e6,
-  suddenDeathSeconds: 1e6, planSeconds: 0, firstPatienceSeconds: 0, pvpRules: false, wishLockSeconds: 0,
-};
-const SOURCE_FILES = [
-  "packages/server/src/sim/walkHint.ts",
-  "packages/server/src/sim/gameplay.ts",
-  "packages/server/src/sim/step.ts",
-  "packages/server/src/sim/status.ts",
-  "packages/server/src/sim/targeting.ts",
-  "packages/server/src/sim/combatant.ts",
-  "packages/server/src/sim/movement.ts",
-  "packages/server/src/sim/world.ts",
-  "packages/shared/src/constants.ts",
-  "packages/shared/src/mods.ts",
-  "packages/shared/src/weapons.ts",
-  "packages/shared/src/policies.ts",
-  "packages/shared/src/terrain.ts",
+export const SOURCE_FILES = [
+  "packages/server/src/sim/walkHint.ts", "packages/server/src/sim/gameplay.ts",
+  "packages/server/src/sim/step.ts", "packages/server/src/sim/status.ts",
+  "packages/server/src/sim/targeting.ts", "packages/server/src/sim/combatant.ts",
+  "packages/server/src/sim/movement.ts", "packages/server/src/sim/world.ts",
+  "packages/server/src/sim/vision.ts", "packages/server/src/sim/weapons.ts",
+  "packages/shared/src/constants.ts", "packages/shared/src/mods.ts",
+  "packages/shared/src/weapons.ts", "packages/shared/src/policies.ts",
+  "packages/shared/src/terrain.ts", "packages/shared/src/interp.ts",
 ];
-function sha(s) { return createHash("sha256").update(s).digest("hex"); }
-const at = (tx, ty) => ({ x: tx * 32 + 16, y: ty * 32 + 16 });
-function makeWorld(opts = {}) {
-  const tiles = new Uint8Array(W * H).fill(0);
-  const terrain = new Uint8Array(W * H);
-  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (x === 0 || y === 0 || x === W - 1 || y === H - 1) tiles[y * W + x] = 1;
-  for (const [x, y] of opts.wall ?? []) tiles[y * W + x] = 1;
-  for (const [x, y] of opts.ice ?? []) terrain[y * W + x] = TERRAIN_ICE;
-  const map = mapFromTiles(W, H, tiles, 0, terrain); map.spawns = [at(5, 5), at(10, 5), at(5, 8)];
-  let draws = 0; const rnd = mulberry32(SEED);
-  const world = createGameWorld({ map, seed: 0, random: () => { draws++; return rnd(); }, config: { ...BASE, minPlayers: opts.players ?? 1 }, newItemUid: (() => { let n = 0; return () => "u" + (n++); })() }, { walkHints: true });
-  for (let i = 0; i < (opts.players ?? 1); i++) addPlayer(world, "p" + i, "boundary-p" + i, { faction: i === 0 ? "holy" : "frost" });
-  step(world, TICK_MS); world.events = [];
-  return { world, draws: () => draws };
+const W = 64, H = 40, SEED = 7, SETUP_STEPS = 40;
+const BASE = {
+  minPlayers: 1, lobbySeconds: 15, fillSeconds: 0, patienceSeconds: 1e6,
+  patienceMinSeconds: 1e6, suddenDeathSeconds: 1e6, planSeconds: 0,
+  firstPatienceSeconds: 0, pvpRules: false, wishLockSeconds: 0,
+};
+const numberBytes = new DataView(new ArrayBuffer(8));
+export function floatBits(x) { numberBytes.setFloat64(0, x, false); return numberBytes.getBigUint64(0, false).toString(16).padStart(16, "0"); }
+export function nextUp(x) {
+  if (Number.isNaN(x) || x === Infinity) return x;
+  if (x === 0) return Number.MIN_VALUE;
+  numberBytes.setFloat64(0, x, false);
+  numberBytes.setBigUint64(0, numberBytes.getBigUint64(0, false) + (x > 0 ? 1n : -1n), false);
+  return numberBytes.getFloat64(0, false);
 }
+export function nextDown(x) { return -nextUp(-x); }
+function facts(value) {
+  if (typeof value === "number" && (!Number.isFinite(value) || Object.is(value, -0)))
+    return { float: Number.isNaN(value) ? "NaN" : Object.is(value, -0) ? "-0" : value < 0 ? "-Infinity" : "+Infinity", bits: floatBits(value) };
+  if (Array.isArray(value)) return value.map(facts);
+  if (value && typeof value === "object") return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, facts(v)]));
+  return value;
+}
+function need(ok, message, detail = null) {
+  if (ok) return;
+  const error = new Error(message); error.detail = facts(detail); throw error;
+}
+function makeWorld({ players = 1, walls = [], borderWalls = true } = {}) {
+  const tiles = new Uint8Array(W * H);
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++)
+    if (borderWalls && (x === 0 || y === 0 || x === W - 1 || y === H - 1)) tiles[y * W + x] = 1;
+  for (const [x, y] of walls) tiles[y * W + x] = 1;
+  const terrain = new Uint8Array(W * H);
+  const map = mapFromTiles(W, H, tiles, 0, terrain);
+  map.spawns = [{ x: 176, y: 176 }, { x: 336, y: 176 }, { x: 176, y: 272 }];
+  let draws = 0; const random = mulberry32(SEED);
+  const world = createGameWorld({ map, seed: 0, random: () => { draws++; return random(); },
+    config: { ...BASE, minPlayers: players }, newItemUid: (() => { let n = 0; return () => "u" + n++; })() }, { walkHints: true });
+  for (let i = 0; i < players; i++) addPlayer(world, "p" + i, "boundary-p" + i, { faction: i === 0 ? "holy" : "frost" });
+  // The clock is produced by ordinary source steps, not assigned to a desired answer.
+  for (let i = 0; i < SETUP_STEPS; i++) sourceStep(world, TICK_MS);
+  need(world.state.phase === "active", "source setup did not reach active");
+  return { world, draws: () => draws, setup: { map: { width: W, height: H, borderWalls, walls, terrain: "zero", spawns: map.spawns },
+    mainSeed: SEED, drawCounterScope: "supplied world.random only; derived reward/quest counters are not observed", sourceSteps: SETUP_STEPS, configuration: { ...BASE, minPlayers: players }, players,
+    contextPolicy: "declared positions/path/weapon/status/history; ordinary steps produce only the setup clock, not earned combat" }, recipe: {} };
+}
+const C = (world, id) => combatant(world, id);
 function put(world, id, x, y) {
   const p = world.state.players.get(id), rt = world.players.get(id);
   p.x = x; p.y = y; p.status = "alive"; rt.path = []; rt.slip = null;
   rt.history = [{ t: world.state.serverTime, x, y }]; p.extra.walkTicks = 0; p.extra.walkDir = 0;
 }
-function equip(world, id, weapon) {
-  const p = world.state.players.get(id); p.weapon0 = weapon; p.weapon1 = ""; p.slot = 0;
-  const rt = world.players.get(id); rt.weapon.action = null; rt.weapon.rootUntil = 0; rt.weapon.held = false; rt.weapon.bufferedUntil = 0;
-  rt.weapon.lock = null; rt.weapon.lockSeen = false; rt.weapon.lockLosLostAt = 0; rt.weapon.lockPlanAt = -Infinity;
-  rt.weapon.lockGoal = null; rt.weapon.attackMoveGoal = null;
+function equip(world, id, weapon = "wand") {
+  const p = world.state.players.get(id), rt = world.players.get(id);
+  p.weapon0 = weapon; p.weapon1 = ""; p.slot = 0; p.readyAt = world.state.serverTime + 10000;
+  Object.assign(rt.weapon, { action: null, rootUntil: 0, held: false, bufferedUntil: 0,
+    lock: null, lockSeen: false, lockLosLostAt: 0, lockPlanAt: -Infinity, lockGoal: null, attackMoveGoal: null });
 }
-const C = (world, id) => combatant(world, id);
+function describe(ctx) {
+  return facts({ setup: ctx.setup, recipe: ctx.recipe, now: ctx.world.state.serverTime, tick: ctx.world.state.tick,
+    fighters: allCombatants(ctx.world).map(c => ({ id: c.id, kind: c.kind, faction: c.s.faction,
+      x: c.s.x, y: c.s.y, status: c.s.status, readyAt: c.s.readyAt, speedMult: c.s.speedMult,
+      weapon0: c.s.weapon0, weapon1: c.s.weapon1, slot: c.s.slot, path: c.rt.path,
+      history: c.rt.history, slip: c.rt.slip,
+      weapon: { action: c.rt.weapon.action, rootUntil: c.rt.weapon.rootUntil, held: c.rt.weapon.held,
+        bufferedUntil: c.rt.weapon.bufferedUntil, lock: c.rt.weapon.lock, lockSeen: c.rt.weapon.lockSeen,
+        lockLosLostAt: c.rt.weapon.lockLosLostAt, lockPlanAt: c.rt.weapon.lockPlanAt,
+        lockGoal: c.rt.weapon.lockGoal, attackMoveGoal: c.rt.weapon.attackMoveGoal }, statuses: c.rt.statuses ?? [] })) });
+}
 function run(id, decision, setup, observe) {
-  try { const ctx = setup(); ctx.world.events = []; const d = ctx.draws(); const observed = observe(ctx); return { id, decision, helper: true, input: ctx.facts, observed, events: ctx.world.events.slice(), draws: ctx.draws() - d }; }
-  catch (error) { return { id, decision, helper: true, error: String(error) }; }
+  let ctx, input;
+  try {
+    ctx = setup(); input = describe(ctx); ctx.world.events = []; const before = ctx.draws();
+    const observed = observe(ctx);
+    return { id, decision, helper: true, input, observed: facts(observed), events: facts(ctx.world.events.slice()), draws: ctx.draws() - before };
+  } catch (error) {
+    return { id, decision, helper: true, input: input ?? (ctx ? describe(ctx) : null),
+      error: { name: error.name, message: String(error.message), detail: error.detail ?? null } };
+  }
 }
-function hintObserve(ctx) { const h = walkHintOf(ctx.world, C(ctx.world, "p0")); return { method: "walkHintOf", hint: { dir: h.dir, ticks: h.ticks } }; }
-function lockBase(ctx, opts = {}) {
-  const w = ctx.world; put(w, "p0", 200, 200); put(w, "p1", 400, 200); equip(w, "p0", "wand");
-  w.players.get("p0").path = [{ x: 250, y: 200 }]; w.state.players.get("p0").readyAt = 0;
+function hint(ctx) { return walkHintOf(ctx.world, C(ctx.world, "p0")); }
+function hintObserve(ctx) { return { method: "walkHintOf", hint: hint(ctx) }; }
+function lockBase(ctx) {
+  const w = ctx.world, spacing = lockSpacing("wand");
+  // Outside the source attack/far distance, but inside TARGET_RANGE, so no stop/hold can mask replanning.
+  const distance = (spacing.attackRange + TARGET_RANGE) / 2;
+  need(distance > spacing.far && distance > spacing.attackRange && distance < TARGET_RANGE, "no declared lock interval", spacing);
+  put(w, "p0", 200, 200); put(w, "p1", 200 + distance, 200); equip(w, "p0");
+  w.players.get("p0").path = [{ x: 250, y: 200 }];
   const p = w.state.players.get("p0"), t = w.state.players.get("p1");
-  t.history = [{ t: w.state.serverTime, x: 400, y: 200 }];
-  const tm = timingsOf(p, "wand");
-  const out = decide({ self: { x: p.x, y: p.y }, target: { x: t.x, y: t.y }, targetVel: { x: 0, y: 0 }, los: true, weapon: "wand", ready: true, windup: tm.windup, spacing: lockSpacing("wand") });
-  if (!out.move) throw new Error("declared lock target did not produce a policy move goal");
-  const rt = w.players.get("p0"); rt.weapon.lock = "p1"; rt.weapon.lockSeen = true; rt.weapon.lockLosLostAt = 0;
-  rt.weapon.lockPlanAt = opts.planAt ?? w.state.serverTime - 200;
-  rt.weapon.lockGoal = opts.lockGoal ?? { x: out.move.x, y: out.move.y };
-  return { ...ctx, facts: { ...(opts.facts ?? {}), policyGoal: out.move, lockGoal: rt.weapon.lockGoal, planAt: rt.weapon.lockPlanAt === -Infinity ? "-Infinity" : rt.weapon.lockPlanAt } };
+  const out = decide({ self: { x: p.x, y: p.y }, target: { x: t.x, y: t.y }, targetVel: { x: 0, y: 0 },
+    los: true, weapon: "wand", ready: false, windup: timingsOf(p, "wand").windup, spacing });
+  need(out.move && typeof out.move === "object" && Number.isFinite(out.move.x) && Number.isFinite(out.move.y), "actual decide did not return a finite Vec goal", out);
+  const rt = w.players.get("p0");
+  Object.assign(rt.weapon, { lock: "p1", lockSeen: true, lockGoal: { ...out.move }, lockPlanAt: w.state.serverTime });
+  ctx.recipe = { actualPolicy: out, spacing, targetRange: TARGET_RANGE, distance, sourceGoalThreshold: GOAL_MOVED, at: w.state.serverTime + TICK_MS };
+  return ctx;
+}
+function candidateFacts(w) {
+  const self = C(w, "p0"), at = w.state.serverTime + TICK_MS, map = collisionMap(w);
+  return allCombatants(w).map(c => ({ id: c.id, x: c.s.x, y: c.s.y,
+    distance: Math.hypot(c.s.x - self.s.x, c.s.y - self.s.y), lockable: lockable(w, self, c),
+    untargetableAt: isUntargetableAt(c, at), los: hasLineOfSight(map, self.s, c.s) }));
 }
 export function runBoundaries() {
   const cases = [];
-  // 1. goal movement threshold 8: adjacent below/equal/above around the policy goal, plan boundary fixed at 250.
-  const deltas = [
-    { id: "goal-below8", delta: 8 - Math.pow(2, -50) },
-    { id: "goal-equal8", delta: 8 },
-    { id: "goal-above8", delta: 8 + Math.pow(2, -49) },
-  ];
-  for (const d of deltas) cases.push(run(d.id, "goal8", () => {
-    const ctx = makeWorld({ players: 2 }); const base = lockBase(ctx);
-    const g = base.facts.policyGoal; base.world.players.get("p0").weapon.lockGoal = { x: g.x + d.delta, y: g.y };
-    return { ...base, facts: { ...base.facts, goalDelta: d.delta, lockGoal: { x: g.x + d.delta, y: g.y } } };
+  for (const side of ["below", "equal", "above"]) cases.push(run("goal-" + side, "goal8", () => {
+    const ctx = lockBase(makeWorld({ players: 2 })), g = ctx.recipe.actualPolicy.move;
+    const equalX = g.x + GOAL_MOVED;
+    const x = side === "below" ? nextDown(equalX) : side === "above" ? nextUp(equalX) : equalX;
+    const distance = Math.hypot(x - g.x, 0);
+    need(side === "below" ? distance < GOAL_MOVED : side === "above" ? distance > GOAL_MOVED : distance === GOAL_MOVED,
+      "stored goal coordinates did not straddle the source threshold", { side, x, goal: g, distance });
+    const rt = ctx.world.players.get("p0"); rt.weapon.lockGoal = { x, y: g.y };
+    rt.weapon.lockPlanAt = ctx.recipe.at - TARGET_REPATH_MS;
+    ctx.recipe = { ...ctx.recipe, side, storedGoal: rt.weapon.lockGoal, storedXBits: floatBits(x), actualDistance: distance,
+      distanceBits: floatBits(distance), elapsed: ctx.recipe.at - rt.weapon.lockPlanAt };
+    return ctx;
   }, hintObserve));
-  // 2. repath 250 equality plus fresh -Infinity.
-  const plans = [
-    { id: "repath-just-before", value: 250 - 1e-9 },
-    { id: "repath-equal", value: 250 },
-    { id: "repath-just-after", value: 250 + 1e-9 },
-  ];
-  for (const p of plans) cases.push(run(p.id, "repath250", () => {
-    const ctx = makeWorld({ players: 2 }); const base = lockBase(ctx);
-    const atNow = ctx.world.state.serverTime + TICK_MS; // lock_next's at
-    const now = ctx.world.state.serverTime;
-    ctx.world.players.get("p0").weapon.lockPlanAt = atNow - p.value;
-    return { ...base, facts: { ...base.facts, at: "now+50", planAt: "at-" + p.value, planDistance: p.value } };
+  for (const side of ["before", "equal", "fresh"]) cases.push(run("repath-" + side, "repath250", () => {
+    const ctx = lockBase(makeWorld({ players: 2 })), rt = ctx.world.players.get("p0"), g = ctx.recipe.actualPolicy.move;
+    rt.weapon.lockGoal = { x: g.x + GOAL_MOVED * 2, y: g.y };
+    const equalPlan = ctx.recipe.at - TARGET_REPATH_MS;
+    rt.weapon.lockPlanAt = side === "fresh" ? -Infinity : side === "before" ? nextUp(equalPlan) : equalPlan;
+    const elapsed = ctx.recipe.at - rt.weapon.lockPlanAt;
+    need(side === "before" ? elapsed < TARGET_REPATH_MS : side === "equal" ? elapsed === TARGET_REPATH_MS : elapsed === Infinity,
+      "stored plan times did not isolate source elapsed", { side, elapsed, plan: rt.weapon.lockPlanAt });
+    ctx.recipe = { ...ctx.recipe, side, actualMoved: Math.hypot(g.x - rt.weapon.lockGoal.x, g.y - rt.weapon.lockGoal.y),
+      planAt: rt.weapon.lockPlanAt, planAtBits: floatBits(rt.weapon.lockPlanAt), elapsed };
+    return ctx;
   }, hintObserve));
-  cases.push(run("repath-fresh-infinity", "repath250", () => {
-    const ctx = makeWorld({ players: 2 }); const base = lockBase(ctx);
-    ctx.world.players.get("p0").weapon.lockPlanAt = -Infinity;
-    return { ...base, facts: { ...base.facts, planAtNonfinite: "-Infinity", planAt: null } };
+  for (const side of ["before", "equal"]) cases.push(run("los-" + side, "losGrace", () => {
+    const walls = [[9, 4], [9, 5], [9, 6], [9, 7], [9, 8], [9, 9]];
+    const ctx = lockBase(makeWorld({ players: 2, walls })), w = ctx.world;
+    const targetX = w.state.players.get("p1").x;
+    // Actual private VisionMemory is primed through its source API and ordinary clock steps.
+    // No visibility answer, trail tile, ward owner, Mark or expected lock is installed.
+    put(w, "p0", targetX - 24, 200);
+    for (let i = 0; i < 2; i++) sourceStep(w, TICK_MS);
+    const memory = getVisionMemory(w, "p0");
+    need(memory !== null, "actual VisionMemory unavailable");
+    const primedAt = w.state.serverTime;
+    put(w, "p0", 200, 200); put(w, "p1", targetX, 200); equip(w, "p0");
+    const rt = w.players.get("p0"); rt.path = [{ x: 250, y: 200 }];
+    Object.assign(rt.weapon, { lock: "p1", lockSeen: true, lockGoal: { x: targetX, y: 200 }, lockPlanAt: w.state.serverTime + TICK_MS });
+    const at = w.state.serverTime + TICK_MS, equalLost = at - TARGET_LOS_GRACE_MS;
+    rt.weapon.lockLosLostAt = side === "before" ? nextUp(equalLost) : equalLost;
+    const self = C(w, "p0"), target = C(w, "p1");
+    const visible = canPlayerSeeActor(w, "p0", "p1", target.s), eligible = lockable(w, self, target);
+    const los = hasLineOfSight(collisionMap(w), self.s, target.s), elapsed = at - rt.weapon.lockLosLostAt;
+    need(visible && eligible && !los && rt.weapon.lockLosLostAt > 0, "LOS grace preconditions not reached; coverage remains OPEN",
+      { visible, eligible, los, lostAt: rt.weapon.lockLosLostAt, elapsed });
+    need(side === "before" ? elapsed < TARGET_LOS_GRACE_MS : elapsed === TARGET_LOS_GRACE_MS, "LOS clocks do not straddle expiry", elapsed);
+    ctx.recipe = { ...ctx.recipe, side, at, primedAt, extraOrdinarySourceSteps: 2, actualVisible: visible,
+      actualLockable: eligible, actualLOS: los, lostAt: rt.weapon.lockLosLostAt, lostAtBits: floatBits(rt.weapon.lockLosLostAt), elapsed };
+    return ctx;
   }, hintObserve));
-  // 3. LOS grace expiry: wall blocks sight; last-visible bookkeeping fixed; at boundary ±.
-  for (const d of [
-    { id: "los-just-before", offset: -1e-9 },
-    { id: "los-equal", offset: 0 },
-    { id: "los-just-after", offset: 1e-9 },
-  ]) cases.push(run(d.id, "losGrace", () => {
-    const ctx = makeWorld({ players: 2, wall: [[9, 4], [9, 5], [9, 6], [9, 7], [9, 8], [9, 9]] }); const base = lockBase(ctx);
-    const atNow = ctx.world.state.serverTime + TICK_MS;
-    const lostAt = atNow - TARGET_LOS_GRACE_MS - d.offset;
-    ctx.world.players.get("p0").weapon.lockLosLostAt = lostAt;
-    return { ...base, facts: { ...base.facts, wallBetween: true, lockSeen: true, lostAt: "at-" + TARGET_LOS_GRACE_MS + (d.offset >= 0 ? "+" : "") + d.offset } };
+  for (const variant of ["hidden-active", "hidden-revealed", "untargetable-before", "untargetable-equal"]) cases.push(run("future-" + variant, "futureVisibility", () => {
+    const ctx = makeWorld({ players: 2 }), w = ctx.world; put(w, "p0", 200, 200); put(w, "p1", 400, 200);
+    const c = C(w, "p1"), hidden = variant.startsWith("hidden");
+    const inst = addStatus(w, c, { kind: hidden ? "hidden" : "untargetable", source: { id: "h", name: "h" }, ms: hidden ? 5000 : TICK_MS });
+    need(inst !== null, "actual addStatus refused declared status");
+    if (variant === "hidden-revealed") reveal(w, c, w.state.serverTime + 100);
+    ctx.at = hidden ? w.state.serverTime + TICK_MS : variant.endsWith("before") ? nextDown(inst.until) : inst.until;
+    ctx.recipe = { variant, actualInstance: { ...inst }, at: ctx.at, atBits: floatBits(ctx.at) }; return ctx;
+  }, ctx => ({ method: "isUntargetableAt", at: ctx.at, observed: isUntargetableAt(C(ctx.world, "p1"), ctx.at) })));
+  for (const variant of ["nearest-ordered", "hidden-nearest", "hide-to-acquire"]) cases.push(run("amove-" + variant, "amoveOrder", () => {
+    const ctx = makeWorld({ players: 3 }), w = ctx.world;
+    put(w, "p0", 200, 200); put(w, "p1", variant === "nearest-ordered" ? 400 : 300, 200);
+    put(w, "p2", variant === "nearest-ordered" ? 300 : variant === "hide-to-acquire" ? 1100 : 400, 200); equip(w, "p0");
+    const rt = w.players.get("p0"); rt.path = [{ x: 250, y: 200 }]; rt.weapon.attackMoveGoal = { x: 250, y: 200 };
+    if (variant !== "nearest-ordered") need(addStatus(w, C(w, "p1"), { kind: "hidden", source: { id: "h", name: "h" }, ms: 5000 }) !== null, "hidden setup refused");
+    ctx.recipe = { variant, orderedCandidates: candidateFacts(w), attackMoveGoal: rt.weapon.attackMoveGoal }; return ctx;
+  }, ctx => {
+    const w = ctx.world, rt = w.players.get("p0"), before = hint(ctx);
+    updateTargets(w); const selectedBefore = rt.weapon.lock;
+    if (ctx.recipe.variant !== "hide-to-acquire") return { method: "walkHintOf+updateTargets", hint: before, selected: selectedBefore, orderedCandidates: candidateFacts(w) };
+    const removed = removeStatuses(w, C(w, "p1"), st => st.kind === "hidden");
+    const after = hint(ctx); updateTargets(w);
+    return { method: "walkHintOf+updateTargets+removeStatuses+walkHintOf+updateTargets", before, selectedBefore,
+      removed: removed.map(st => ({ ...st })), after, selectedAfter: rt.weapon.lock, orderedCandidates: candidateFacts(w) };
+  }));
+  for (const side of ["below", "equal", "above"]) cases.push(run("waypoint-" + side, "waypoint1e-6", () => {
+    const ctx = makeWorld({ borderWalls: false }), w = ctx.world;
+    // Input geometry only, not an output oracle. The source baseline has speed1/no hunt/haste.
+    // Fixed endpoint48 and origin48-length keep the subtraction at the segment's binade;
+    // this avoids rounding tiny endpoint differences away at a world coordinate near200.
+    const step = (PLAYER_SPEED * SPEED_SLACK * TICK_MS) / 1000, threshold = 3 * step - 1e-6;
+    const requested = side === "below" ? nextDown(threshold) : side === "above" ? nextUp(threshold) : threshold;
+    const qx = 48, px = qx - requested;
+    put(w, "p0", px, 200); equip(w, "p0", "fists");
+    const length = Math.hypot(qx - px, 0), comparison = length + 1e-6, edge = 3 * step;
+    const isolation = side === "below" ? comparison < edge : side === "above" ? comparison > edge : comparison === edge;
+    need(isolation, "actual segment arithmetic did not isolate the waypoint slack boundary", { side, px, qx, requested, length, comparison, edge });
+    w.players.get("p0").path = [{ x: qx, y: 200 }];
+    ctx.recipe = { side, sourceSpeed: PLAYER_SPEED, exportedSourceSlack: SPEED_SLACK, declaredStep: step, threshold,
+      origin: px, endpoint: qx, requestedLength: requested, requestedBits: floatBits(requested), actualLength: length,
+      comparison, edge, isolation, coverage: "adjacent declared segment inputs; actual walkHintOf supplies the answer" };
+    return ctx;
   }, hintObserve));
-  // 4. future visibility direct actual status endpoints.
-  function futureAt(id, statusKind, setupStatus, offset) {
-    cases.push(run(id, "futureVisibility", () => {
-      const ctx = makeWorld({ players: 2 }); put(ctx.world, "p0", 200, 200); put(ctx.world, "p1", 400, 200);
-      const now = ctx.world.state.serverTime; const c = C(ctx.world, "p1");
-      const inst = addStatus(ctx.world, c, setupStatus);
-      const extra = statusKind === "hidden" && id.includes("revealed") ? { revealFrom: now + 20, revealUntil: now + 100 } : null;
-      if (extra) { inst.revealFrom = extra.revealFrom; inst.revealUntil = extra.revealUntil; }
-      return { ...ctx, facts: { status: statusKind, at: "now+" + offset, revealFrom: extra ? "now+20" : null, revealUntil: extra ? "now+100" : null }, c, atNow: now + offset };
-    }, (ctx) => ({ method: "isUntargetableAt", at: ctx.facts.at, observed: isUntargetableAt(ctx.c, ctx.atNow) })));
-  }
-  futureAt("future-hidden-active", "hidden", { kind: "hidden", source: { id: "h", name: "h" }, ms: 5000 }, 50);
-  futureAt("future-hidden-revealed", "hidden", { kind: "hidden", source: { id: "h", name: "h" }, ms: 5000 }, 50);
-  futureAt("future-untargetable-before", "untargetable", { kind: "untargetable", source: { id: "h", name: "h" }, ms: 50 }, 49);
-  futureAt("future-untargetable-equal", "untargetable", { kind: "untargetable", source: { id: "h", name: "h" }, ms: 50 }, 50);
-  // 5. attack-move ordering: actual player roster order p1 then p2, fixed states.
-  function amoveCase(id, p1Status, p1At, p2At) {
-    cases.push(run(id, "amoveOrder", () => {
-      const ctx = makeWorld({ players: 3 }); put(ctx.world, "p0", 200, 200); put(ctx.world, "p1", p1At, 200); put(ctx.world, "p2", p2At, 200); equip(ctx.world, "p0", "wand");
-      ctx.world.players.get("p0").path = [{ x: 250, y: 200 }]; ctx.world.players.get("p0").weapon.attackMoveGoal = { x: 250, y: 200 };
-      if (p1Status === "hidden") addStatus(ctx.world, C(ctx.world, "p1"), { kind: "hidden", source: { id: "h", name: "h" }, ms: 5000 });
-      if (p2Status === "hidden") addStatus(ctx.world, C(ctx.world, "p2"), { kind: "hidden", source: { id: "h", name: "h" }, ms: 5000 });
-      return { ...ctx, facts: { candidateOrder: ["p1", "p2"], p1: { x: p1At, status: p1Status }, p2: { x: p2At, status: p2Status }, chosenTargetExposed: false } };
-    }, hintObserve));
-  }
-  amoveCase("amove-hidden-first", "hidden", 400, 300);
-  amoveCase("amove-visible-first-hidden-second", undefined, 400, 300);
-  amoveCase("amove-first-out-of-range-second-near", undefined, 900, 300);
-  amoveCase("amove-both-visible", undefined, 300, 400);
-  // 6. waypoint 1e-6 slack around the actual source step with mUpper=1.01 (declared input construction).
-  const step = (PLAYER_SPEED * 1.01 * TICK_MS) / 1000;
-  const L = 3 * step;
-  for (const d of [
-    { id: "waypoint-below-1e-6", len: L - 1e-6 },
-    { id: "waypoint-equal", len: L },
-    { id: "waypoint-above-1e-6", len: L + 1e-6 },
-  ]) cases.push(run(d.id, "waypoint1e-6", () => {
-    const ctx = makeWorld(); put(ctx.world, "p0", 200, 200); ctx.world.players.get("p0").path = [{ x: 200 + d.len, y: 200 }];
-    return { ...ctx, facts: { segmentLength: d.len, boundary: "3*PLAYER_SPEED*1.01*TICK_MS/1000", plusMinus: 1e-6 } };
-  }, hintObserve));
-  // 7. adjacent representable directions at the existing negative half-byte case.
   const theta = -Math.PI / 256;
-  for (const d of [
-    { id: "direction-below-half-byte", a: theta - 1e-16 },
-    { id: "direction-at-half-byte", a: theta },
-    { id: "direction-above-half-byte", a: theta + 1e-16 },
-  ]) cases.push(run(d.id, "directionRounding", () => {
-    const ctx = makeWorld(); put(ctx.world, "p0", 200, 200); ctx.world.players.get("p0").path = [{ x: 200 + Math.cos(d.a) * 100, y: 200 + Math.sin(d.a) * 100 }];
-    return { ...ctx, facts: { angle: d.a, halfByteCase: "negative -PI/256" } };
-  }, hintObserve));
+  for (const [side, angle] of [["below", nextDown(theta)], ["equal", theta], ["above", nextUp(theta)]]) cases.push(run("direction-" + side, "directionRounding", () => {
+    const ctx = makeWorld(), w = ctx.world; put(w, "p0", 200, 200); equip(w, "p0", "fists");
+    const q = { x: 200 + Math.cos(angle) * 100, y: 200 + Math.sin(angle) * 100 };
+    w.players.get("p0").path = [q]; ctx.recipe = { side, angle, angleBits: floatBits(angle), endpoint: q,
+      actualPathAngle: Math.atan2(q.y - 200, q.x - 200), actualPathAngleBits: floatBits(Math.atan2(q.y - 200, q.x - 200)), directKernel: "actual shared encodeWalkDir, not a copied formula",
+      coverage: "OPEN until captured: adjacent input angles may collapse in Cartesian placement; no forced transition" };
+    return ctx;
+  }, ctx => ({ method: "encodeWalkDir+walkHintOf", direct: encodeWalkDir(ctx.recipe.angle), pathKernel: encodeWalkDir(ctx.recipe.actualPathAngle), hint: hint(ctx) })));
+  for (const side of ["before", "equal", "after"]) cases.push(run("tie-" + side, "weaponTie", () => {
+    const ctx = makeWorld(), w = ctx.world; put(w, "p0", 200, 200); equip(w, "p0", "sword");
+    const at = w.state.serverTime + TICK_MS, edge = at + TIE_EPS_MS;
+    const landsAt = side === "before" ? nextDown(edge) : side === "after" ? nextUp(edge) : edge;
+    w.players.get("p0").weapon.action = { kind: "swing", weapon: "sword", startedAt: w.state.serverTime, landsAt, a: 0, packet: {} };
+    ctx.recipe = { side, at, sourceTieEpsilon: TIE_EPS_MS, edge, landsAt, landsAtBits: floatBits(landsAt), rootUntil: 0 }; return ctx;
+  }, ctx => ({ method: "weaponHoldsAt", observed: weaponHoldsAt(C(ctx.world, "p0"), ctx.recipe.at) })));
   return cases;
 }
-export function assertBoundaryFacts(corpus) {
-  const fail = (m) => { throw new Error(m); };
-  if (!corpus || corpus.format !== "rh-walk-hint-helper-boundaries/1") fail("wrong boundary format");
-  const by = Object.fromEntries(corpus.cases.map((c) => [c.id, c]));
-  const get = (id) => { const c = by[id]; if (!c) fail("missing " + id); if (c.error) fail(id + " errored: " + c.error); return c; };
-  const h = (id) => { const o = get(id).observed; if (!o.hint) fail("no hint " + id); return o.hint; };
-  // actual source output relations: the three adjacent goal deltas straddle the replan branch.
-  const gb = h("goal-below8"), ge = h("goal-equal8"), ga = h("goal-above8");
-  if (!(gb.ticks === 1 && ge.ticks === 1 && ga.ticks === 0)) fail("goal8 boundary not observed: " + [gb.ticks, ge.ticks, ga.ticks]);
-  const rb = h("repath-just-before"), re = h("repath-equal"), ra = h("repath-just-after"), rf = h("repath-fresh-infinity");
-  if (!(rb.ticks === 1 && re.ticks === 0 && ra.ticks === 0 && rf.ticks === 1)) fail("repath250 boundary not observed: " + [rb.ticks, re.ticks, ra.ticks, rf.ticks]);
-  const lb = h("los-just-before"), le = h("los-equal"), la = h("los-just-after");
-  if (!(lb.ticks === 1 && le.ticks === 0 && la.ticks === 0)) fail("LOS grace boundary not observed: " + [lb.ticks, le.ticks, la.ticks]);
-  const fh = get("future-hidden-active").observed.observed;
-  const fr = get("future-hidden-revealed").observed.observed;
-  if (!(fh === true && fr === false)) fail("future hidden endpoint not observed: " + [fh, fr]);
-  const ub = get("future-untargetable-before").observed.observed, ue = get("future-untargetable-equal").observed.observed;
-  if (!(ub === true && ue === false)) fail("future untargetable endpoint not observed: " + [ub, ue]);
-  if (h("amove-hidden-first").ticks !== 0 || h("amove-first-out-of-range-second-near").ticks !== 0) fail("amove ordering fallback not observed");
-  const wb = h("waypoint-below-1e-6"), we = h("waypoint-equal"), wa = h("waypoint-above-1e-6");
-  if (!(wb.ticks === 2 && we.ticks === 3 && wa.ticks === 3)) fail("waypoint 1e-6 boundary not observed: " + [wb.ticks, we.ticks, wa.ticks]);
-  const db = h("direction-below-half-byte").dir, de = h("direction-at-half-byte").dir, da = h("direction-above-half-byte").dir;
-  if (!(db !== de || de !== da)) fail("direction adjacent rounding did not produce any observed transition");
-}
 export function sourceInfo() {
-  const files = {};
-  for (const rel of SOURCE_FILES) { const s = readFileSync(join("/repo", rel), "utf8"); files[rel] = { bytes: Buffer.byteLength(s), sha256: sha(s) }; }
-  return files;
+  return Object.fromEntries(SOURCE_FILES.map(rel => {
+    const b = readFileSync(join("/repo", rel)); return [rel, { bytes: b.length, sha256: createHash("sha256").update(b).digest("hex") }];
+  }));
 }
