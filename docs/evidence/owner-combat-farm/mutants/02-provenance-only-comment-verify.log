@@ -1,0 +1,1 @@
+OK corpus=/tmp/out/02-provenance-only-comment/source.json sha256=a09e464f834b9842c4ec13ecb06a052a6422f1277128564ae66b66195d6e470b frames=135 killStep=105 asMult=1000->1030 mobStats={"plagueRat":3} target=plagueRat@plague-1 slot=0

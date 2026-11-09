@@ -1,0 +1,12 @@
+applied 1 hunk(s) to packages/server/src/sim/mods.ts
+KILL 01-writemirrors-asmirror-omit: FIRST_MISMATCH frames[104].owner.asMult expected=1030 actual=1000 (kill step 105)
+  mutated source hash f9a3528187e3d5b052097a6ef63baff50edd3c12914faaa675c6ac2ccc3a1508 (baseline 93db949f7b217b93942efdeca66caef29096d94881c5dd28bcf0eaf8287d323b); raw logs and output SHA256SUMS in /logs
+applied 1 hunk(s) to packages/server/src/sim/mods.ts
+SURVIVOR 02-provenance-only-comment: producer consumer passed; compare identical excluding /profile (provenance only)
+== restored control (unmutated /repo, read-only baseline)
+checked source.json byte for byte sha256=9cbb71b162a6bf36b5b4445cd4ca4bb5ab5e3c6559279467153e9ee9d7a62228
+kill step=105 frame=104 t=5300 target=mob36 (plagueRat camp=21 slot=0)
+mirrors before={"asMult":1000,"windupMult":1000,"speedMult":1000,"armorBonus":0,"shieldBonus":0,"adBonus":0,"apBonus":0} after={"asMult":1030,"windupMult":1000,"speedMult":1000,"armorBonus":0,"shieldBonus":0,"adBonus":0,"apBonus":0}
+mobStats before={} after={"plagueRat":3}
+expected wire={"asMult":1030,"windupMult":1000,"speedMult":1000,"armorBonus":0,"shieldBonus":0,"adBonus":0,"apBonus":0} frames=135 sourceChecks=PASS
+RESTORED CONTROL PASS: the unmutated capture matches the checked-in corpus byte for byte
