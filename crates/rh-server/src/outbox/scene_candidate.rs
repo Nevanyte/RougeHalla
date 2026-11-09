@@ -5,6 +5,8 @@ use std::collections::{BTreeMap, VecDeque};
 use std::sync::{Arc, Mutex, MutexGuard};
 
 pub mod socket;
+#[cfg(test)]
+mod client14_fixture;
 
 #[derive(Clone, Copy, Debug)]
 pub struct QueueLimits {
