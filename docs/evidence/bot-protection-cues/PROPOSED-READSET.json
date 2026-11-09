@@ -8,7 +8,7 @@
     "docs/evidence/bot-protection-cues/**"
   ],
   "fixtureSources": {
-    "tools/bot-protection-cues-fixtures/scenario.mts": "39c94ac506c424e37c302cfbbcd1ff2f357d6cf81bc445215815ea7690d7443d",
+    "tools/bot-protection-cues-fixtures/scenario.mts": "b7729a09d99f2a52b0c93e96e0f2f5c7ee931754088c2d9aae4c33d7df75c1b1",
     "tools/bot-protection-cues-fixtures/build.mjs": "471fd3c233eeccf73d2605832b27d020a90cb8d9364d30a3f0ae630ebbe6a193",
     "tools/bot-protection-cues-fixtures/runtime.mjs": "ffd1a669276e3221e36b3cc9ec9d7d9fc0eeab6d30fbac9c93b59f00d6d07bcc",
     "tools/bot-protection-cues-fixtures/verify.mjs": "07dc7fa8b016e338fbb52c9984aa5ab3455efd763c2b1164f30dae97941f9f95",
