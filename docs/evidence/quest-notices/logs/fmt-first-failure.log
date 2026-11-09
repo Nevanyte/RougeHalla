@@ -1,0 +1,79 @@
+cwd=/Users/nevinmckinnon/.codex/worktrees/deepseek-rust-completion/p-quest-notice-gv-consumer
+env CARGO_TARGET_DIR=/tmp/quest-notice-consumer-target CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 jobs=1
+command: cargo fmt --all -- --check
+
+Diff in /Users/nevinmckinnon/.codex/worktrees/deepseek-rust-completion/p-quest-notice-gv-consumer/crates/rh-sim/src/quests/notices_source_tests.rs:216:
+ }
+ 
+ fn native_open_offers(sim: &Sim) -> usize {
+-    sim.w
+-        .quests
+-        .as_ref()
+-        .map_or(0, |q| {
+-            q.offers
+-                .iter()
+-                .filter(|o| o.status == crate::quests::live::Status::Open)
+-                .count()
+-        })
++    sim.w.quests.as_ref().map_or(0, |q| {
++        q.offers
++            .iter()
++            .filter(|o| o.status == crate::quests::live::Status::Open)
++            .count()
++    })
+ }
+ 
+ fn source_open_offers(frame: &V) -> usize {
+Diff in /Users/nevinmckinnon/.codex/worktrees/deepseek-rust-completion/p-quest-notice-gv-consumer/crates/rh-sim/src/quests/notices_source_tests.rs:231:
+-    frame["offers"]
+-        .as_array()
+-        .map_or(0, |offers| {
+-            offers
+-                .iter()
+-                .filter(|o| o["status"] == "open")
+-                .count()
+-        })
++    frame["offers"].as_array().map_or(0, |offers| {
++        offers.iter().filter(|o| o["status"] == "open").count()
++    })
+ }
+ 
+ fn capture_previews(case: &V, sim: &Sim, previews: &mut Vec<PreviewObservation>) {
+Diff in /Users/nevinmckinnon/.codex/worktrees/deepseek-rust-completion/p-quest-notice-gv-consumer/crates/rh-sim/src/quests/notices_source_tests.rs:272:
+         // Privacy is absence of the row regardless of RowState (an erroneous Open row must fail too).
+         let foreign_visible = sim.w.players.iter().any(|p| {
+             p.id != viewer
+-                && crate::observe(sim, p.id, &[]).quests.is_some_and(|v| {
+-                    v.rows.iter().any(|r| r.def == def)
+-                })
++                && crate::observe(sim, p.id, &[])
++                    .quests
++                    .is_some_and(|v| v.rows.iter().any(|r| r.def == def))
+         });
+         previews.push(PreviewObservation {
+             def: def.to_owned(),
+Diff in /Users/nevinmckinnon/.codex/worktrees/deepseek-rust-completion/p-quest-notice-gv-consumer/crates/rh-sim/src/quests/notices_source_tests.rs:354:
+                 && frame["tick"].as_u64().unwrap() as u32 == sim.tick()
+             {
+                 if frame["label"] == "accepted" {
+-                    accepted_open = Some((
+-                        sim.tick(),
+-                        sim.w.server_time,
+-                        native_open_offers(&sim),
+-                    ));
++                    accepted_open = Some((sim.tick(), sim.w.server_time, native_open_offers(&sim)));
+                 }
+             }
+         }
+Diff in /Users/nevinmckinnon/.codex/worktrees/deepseek-rust-completion/p-quest-notice-gv-consumer/crates/rh-sim/src/quests/notices_source_tests.rs:497:
+             );
+             let source_end_open = source_open_offers(run_ended);
+             assert_eq!(source_end_open, 0, "source run-ended frame open offers");
+-            let (tick, time, phase, open) = run_end.expect("native state at source run-ended frame");
++            let (tick, time, phase, open) =
++                run_end.expect("native state at source run-ended frame");
+             assert_eq!(tick, run_ended["tick"].as_u64().unwrap() as u32);
+             assert_eq!(time, run_ended["time"].as_f64().unwrap());
+             assert_eq!(phase, run_ended["phase"].as_str().unwrap());
+
+exit: 1

@@ -1,0 +1,17 @@
+cwd=/Users/nevinmckinnon/.codex/worktrees/deepseek-rust-completion/p-quest-notice-gv-consumer
+env CARGO_TARGET_DIR=/tmp/quest-notice-consumer-target CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 jobs=1
+command: cargo test -p rh-sim --all-features --lib selected_parcel_and_run_end_cases_match_ordered_toast_gv_notices -- --nocapture --test-threads=1
+
+   Compiling rh-sim v0.1.0 (/Users/nevinmckinnon/.codex/worktrees/deepseek-rust-completion/p-quest-notice-gv-consumer/crates/rh-sim)
+    Finished `test` profile [unoptimized] target(s) in 33.65s
+     Running unittests src/lib.rs (/tmp/quest-notice-consumer-target/debug/deps/rh_sim-e5380561a67b7746)
+
+running 1 test
+test quests::notices_source_tests::selected_parcel_and_run_end_cases_match_ordered_toast_gv_notices ... parcel-feedback: source notices 15 / excluded 7 / events 22; native notices 15 / excluded 6 / events 21; previews 1
+run-end-silent-close: source notices 4 / excluded 14 / events 18; native notices 4 / excluded 14 / events 18; previews 0
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 797 filtered out; finished in 1.19s
+
+
+exit: 0

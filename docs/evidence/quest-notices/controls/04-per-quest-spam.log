@@ -1,0 +1,8 @@
+CONTROL 04-per-quest-spam
+applied 1 hunk(s) to packages/server/src/sim/quests.ts
+{"written":"/tmp/out/04-per-quest-spam/source.json","bytes":1160591,"sha256":"6957db978b4846647f7b4af0023c3d3637ec8c77c6e2275e4fd0eec659e5a0ee","captureSha256":"44f6eb9b2d8c6854daa1c6a98f648445c1ba6a6af39e916b957df49fbb62409f","cases":6,"events":192,"frames":41,"sourceFiles":127,"toolFiles":12}
+FIRST_MISMATCH /cases/2/events/11/text expected="2 quests expired" mutant="Quest expired: The Grand Tour"
+MISMATCH_CASE expiry-cohort-order
+TOTAL_MISMATCHES 94
+OUTPUT_SHA256 6957db978b4846647f7b4af0023c3d3637ec8c77c6e2275e4fd0eec659e5a0ee
+KILL 04-per-quest-spam: actual recorded-output mismatch in expiry-cohort-order

@@ -1,0 +1,8 @@
+CONTROL 01-wrong-recipient
+applied 1 hunk(s) to packages/server/src/sim/quests.ts
+{"written":"/tmp/out/01-wrong-recipient/source.json","bytes":1154313,"sha256":"abce957d07f68a4fc86ba70f9d9eac6d2af61e743701721814947c98a5950299","captureSha256":"c96ebeddc740082cf1c0c98dfbcd9a45fa4ca3007c964f945750b8d4782d63cb","cases":6,"events":181,"frames":41,"sourceFiles":127,"toolFiles":12}
+FIRST_MISMATCH /cases/1/events/1/to expected="p0" mutant=null
+MISMATCH_CASE pickup-closed-guard
+TOTAL_MISMATCHES 3
+OUTPUT_SHA256 abce957d07f68a4fc86ba70f9d9eac6d2af61e743701721814947c98a5950299
+KILL 01-wrong-recipient: actual recorded-output mismatch in pickup-closed-guard
