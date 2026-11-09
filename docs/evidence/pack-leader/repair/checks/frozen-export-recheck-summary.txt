@@ -1,0 +1,18 @@
+FROZEN-GIT-EXPORT READONLY CHECK - SUCCESS (overall exit 0)
+status: CLOSES the remaining clean-export environment gate for the released repaired seal
+reviewed-seal: 89093ecec49d8951eaa1ce02eb94aee89a7ca4d8 (exact frozen Git export via git archive | tar -x)
+code-head: 31ac6f1f0de2da1d96564f09716a1e6c5b458fe6 (unchanged; no tool/source edit in this receipt)
+base: db5ed80b2b89a156eae09cd0bd3f4c9e77e9e6de (declared; RH_PACK_LEADER_BASE passed and recorded in the fresh capture)
+image: node@sha256:5ec23b7c622b00547753bc6ffd78085dd868a68aeb41c8e0a1418f033e13d96d --platform linux/amd64 (recovered exact pinned node), container asserted Node v22.23.4 / x86_64
+mounts: /repo = exported tree, read-only; /canonical = exported parity/pack-leader/repair, read-only; fresh output only in task-private /tmp
+check: npm ci (tmpfs node_modules) -> node --import tsx tools/pack-leader-fixtures/capture.mts -> cmp -s fresh /canonical/source.json
+export-manifest-integrity: files=39 result=PASS
+canonical-sha256: 62047e82cde33f9d056e5cc3452a8d1dc19545372f971f9040c99a3ee56e26ea
+fresh-capture-sha256: 62047e82cde33f9d056e5cc3452a8d1dc19545372f971f9040c99a3ee56e26ea
+CHECK-OK: fresh capture reproduces the canonical corpus bytes exactly
+overall-exit: 0 (Docker CLI and container)
+source/tool binding from the fresh capture: tool.capture=1890dc8adb36e2d32e4315a811a226a354b9f15c44b676e523058a57034b4ea0 (matches exported capture.mts sha256 1890dc8a...), tool.engine=7cf3b22c05af7395b5d83b33ae77e437e903b2111690872f28a9e1b311b5bddb, source.packages/server/src/sim/mods.ts=93db949f7b217b93942efdeca66caef29096d94881c5dd28bcf0eaf8287d323b (sealed pristine), witness.cachePhases present as repaired
+historical: the prior logs/sealed-export.log ENV-BLOCKED exit125 receipt is preserved byte-unchanged as requested; this new receipt supersedes only its overall-exit status
+raw: checks/frozen-export-recheck.log (stdout+stderr of the successful run), checks/frozen-export-recheck-attempt1.log (fresh first attempt: inner content CHECK-OK but outer-invocation quoting failed exit2; retained, not a semantic failure), checks/frozen-export-recheck-inner.sh (exact inner script)
+command: docker run --rm --platform linux/amd64 -e RH_PACK_LEADER_BASE=db5ed80b... -e RH_PACK_LEADER_OUTPUT=/tmp/pack-leader-check/source.json --tmpfs /repo/node_modules:rw,exec,size=1500m --mount type=bind,src=<export>,dst=/repo,readonly --mount type=bind,src=<export>/parity/pack-leader/repair,dst=/canonical,readonly --mount type=bind,src=<inner script>,dst=/check.sh,readonly -w /repo node@sha256:5ec... sh /check.sh
+no recapture/new corpus/mutants/campaign/native/Cargo/cache; no Docker prune/reset/restart; ghost container 6ef6ea234a5a not restarted

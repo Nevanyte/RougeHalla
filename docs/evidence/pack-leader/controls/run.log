@@ -1,0 +1,15 @@
+CONTROL 01-constant-zero
+CONTROL-OK 01-constant-zero DIFF
+CONTROL 02-wrong-per
+CONTROL-OK 02-wrong-per DIFF
+CONTROL 03-wrong-step
+CONTROL-OK 03-wrong-step DIFF
+CONTROL 04-cache-refresh-timing
+CONTROL-OK 04-cache-refresh-timing DIFF
+CONTROL 05-comment-only
+CONTROL-OK 05-comment-only IDENTICAL
+CONTROL 06-excluded-count
+CONTROL-OK 06-excluded-count DIFF
+RESTORED IDENTICAL
+PROTECTED-SOURCE-SHA256
+CONTROLS-GREEN

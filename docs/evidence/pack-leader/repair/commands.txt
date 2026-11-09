@@ -1,0 +1,31 @@
+# Pack Leader source repair — exact commands and exits (2026-11-09)
+
+BASE-SOURCE=db5ed80b2b89a156eae09cd0bd3f4c9e77e9e6de
+REPAIR-BRANCH=deepseek/p-pack-leader-source-repair  (additive from sealed c946cfbf27a59d06f4de7f1270a69d477efbb7de)
+
+1. repaired canonical corpus (exit 0)
+   mkdir -p node_modules
+   RH_PACK_LEADER_BASE=$BASE-SOURCE RH_PACK_LEADER_DIRECTORY=$PWD/parity/pack-leader/repair \
+     bash tools/pack-leader-fixtures/capture.sh
+   -> parity/pack-leader/repair/source.json sha256 62047e82cde33f9d056e5cc3452a8d1dc19545372f971f9040c99a3ee56e26ea
+   -> docs/evidence/pack-leader/repair/logs/capture.log
+
+2. REAL readonly checks (exit 0; CHECKS-GREEN)
+   RH_PACK_LEADER_CHECKS_LOG=$PWD/docs/evidence/pack-leader/repair/checks \
+     bash tools/pack-leader-fixtures/run-checks.sh
+   -> checks/positive.log: CHECK-OK exit 0; checks/negative.log: CHECK-MISMATCH exit 1
+   -> checks/summary.log canonical sha unchanged before/after
+
+3. root-aligned controls (exit 0; CONTROLS-GREEN)
+   RH_PACK_CONTROLS_LOG=$PWD/docs/evidence/pack-leader/repair/controls \
+     RH_PACK_LEADER_BASELINE=$PWD/parity/pack-leader/repair \
+     bash tools/pack-leader-fixtures/run-controls.sh
+   -> five numeric SEMANTIC-DIFF; 05 comment-only SEMANTIC-IDENTICAL PROVENANCE-DIFF; restored byte-identical
+   -> MUTANT-SOURCE-HASH-BOUND lines bind each changed recorded hash to the imported file bytes
+
+4. old-vs-new receipt: docs/evidence/pack-leader/repair/logs/old-vs-new.log
+   old c9ae77... preserved byte-unchanged; repaired 62047e82...; only allowed diff paths added /witness/cachePhases,
+   changed /tool/capture; result/gameplay projection identical.
+
+5. sealed-Git manifest receipt (logs/sealed-git.log) and frozen-Git export bytecheck (logs/sealed-export.log) are added
+   after the code/evidence commits; each states its exact commit and result.

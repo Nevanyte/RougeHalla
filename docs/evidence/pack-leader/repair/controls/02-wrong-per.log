@@ -1,0 +1,7 @@
+CONTROL 02-wrong-per
+applied 1 hunk(s) to packages/shared/src/cards.ts
+pack-leader capture wrote /tmp/out/02-wrong-per/source.json
+MUTANT-SOURCE-HASH-BOUND packages/shared/src/cards.ts e9869c22215d8a8ea5a741bf1cff18bd2e0c6da63762133826aefca0a9c6726b
+SEMANTIC-DIFF .result.completeNonemptyEventTape[111].events[1].fx.amount baseline=625.7285233040177 mutant=640.3940355689557
+OUTPUT_SHA256 6b08ebdaec40763819c467365bfe3106bb5db83f46fef696831e1bd56ec67963
+CONTROL-OK 02-wrong-per SEMANTIC-DIFF

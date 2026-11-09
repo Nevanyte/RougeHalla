@@ -1,0 +1,6 @@
+CONTROL 05-comment-only
+applied 1 hunk(s) to packages/server/src/sim/mods.ts
+pack-leader capture wrote /tmp/out/05-comment-only/source.json
+IDENTICAL
+OUTPUT_SHA256 c9ae77c74ebd14c1b1b6cce557be592165e2105b8263604f8deaf21b0893169e
+CONTROL-OK 05-comment-only IDENTICAL

@@ -1,0 +1,6 @@
+CONTROL 01-constant-zero
+applied 1 hunk(s) to packages/server/src/sim/mods.ts
+pack-leader capture wrote /tmp/out/01-constant-zero/source.json
+DIFF .result.completeNonemptyEventTape[111].events[1].fx.amount baseline=625.7285233040177 mutant=611.0630110390798
+OUTPUT_SHA256 75009c472159d5fe4a349bdfc1ff4b0a46f6f4344179a31092f9c1bbb4da15f2
+CONTROL-OK 01-constant-zero DIFF

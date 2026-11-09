@@ -1,0 +1,10 @@
+CONTAINER-NODE v22.23.4 x86_64
+NPM-CI-OK
+pack-leader capture wrote /tmp/pack-leader-check/source.json
+CHECK-OK: fresh capture reproduces the canonical corpus bytes exactly
+62047e82cde33f9d056e5cc3452a8d1dc19545372f971f9040c99a3ee56e26ea  /tmp/pack-leader-check/source.json
+62047e82cde33f9d056e5cc3452a8d1dc19545372f971f9040c99a3ee56e26ea  /canonical/source.json
+1890dc8adb36e2d32e4315a811a226a354b9f15c44b676e523058a57034b4ea0  /repo/tools/pack-leader-fixtures/capture.mts
+FRESH-TOOL {"capture":"1890dc8adb36e2d32e4315a811a226a354b9f15c44b676e523058a57034b4ea0","engine":"7cf3b22c05af7395b5d83b33ae77e437e903b2111690872f28a9e1b311b5bddb"}
+FRESH-SOURCE-MODS 93db949f7b217b93942efdeca66caef29096d94881c5dd28bcf0eaf8287d323b
+FRESH-WITNESS-CACHEPHASES {"note":"retained post-step samples only; not an intra-pass cache read (hook $oracle refs are not serialized)","preClear":{"tick":168,"time":8400,"campsCleared":null,"cachedBuildCamps":0},"clearStepPost":{"tick":169,"time":8450,"campsCleared":1,"cachedBuildCamps":1},"ordering":"source ledger.ts precomputes outgoing mults before any victim/payout; campHeal increments canonical count in the deferred payout chain; mods.updateMods refreshes watched caches after payout and before the next ordinary pass (step.ts is the only applyLedger caller)."}

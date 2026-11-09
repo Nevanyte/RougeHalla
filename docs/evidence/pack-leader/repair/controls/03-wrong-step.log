@@ -1,0 +1,7 @@
+CONTROL 03-wrong-step
+applied 1 hunk(s) to packages/shared/src/cards.ts
+pack-leader capture wrote /tmp/out/03-wrong-step/source.json
+MUTANT-SOURCE-HASH-BOUND packages/shared/src/cards.ts f1875b8445402a6c8cb6cde088a697a383329e13721e265652d0f391e00dda49
+SEMANTIC-DIFF .result.completeNonemptyEventTape[111].events[1].fx.amount baseline=625.7285233040177 mutant=611.0630110390798
+OUTPUT_SHA256 de08b49972114069b596728fcca098343852b4af7bea9d587f73aa70e9afb38a
+CONTROL-OK 03-wrong-step SEMANTIC-DIFF
