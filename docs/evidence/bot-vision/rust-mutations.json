@@ -1,0 +1,131 @@
+{
+ "format": "rh-bot-vision-rust-mutations/1",
+ "scope": "HAND-DERIVED native test sensitivity on the Rust sources committed at 2c988ff0; NOT source parity and NOT a source semantic control",
+ "command": "cargo test -p rh-policy vision -- --skip actual_source (one mutation applied at a time, file restored after each)",
+ "results": [
+  {
+   "mutation": "M1 no fround",
+   "file": "crates/rh-policy/src/bots/temporal_percept/vision.rs",
+   "verdict": "KILL",
+   "killedBy": [
+    "bots::temporal_percept::vision::tests::fround_origin_and_the_throttle_ignores_movement"
+   ],
+   "result": "test result: FAILED. 13 passed; 1 failed; 0 ignored; 0 measured; 186 filtered out; finished in 0.19s"
+  },
+  {
+   "mutation": "M2 trail end ignored",
+   "file": "crates/rh-policy/src/bots/temporal_percept/vision.rs",
+   "verdict": "KILL",
+   "killedBy": [
+    "bots::temporal_percept::vision::tests::filter_trails_need_both_ends_deaths_redact_and_effects_trim"
+   ],
+   "result": "test result: FAILED. 13 passed; 1 failed; 0 ignored; 0 measured; 186 filtered out; finished in 0.17s"
+  },
+  {
+   "mutation": "M3 unseen death dropped",
+   "file": "crates/rh-policy/src/bots/temporal_percept/vision.rs",
+   "verdict": "KILL",
+   "killedBy": [
+    "bots::temporal_percept::vision::tests::filter_trails_need_both_ends_deaths_redact_and_effects_trim"
+   ],
+   "result": "test result: FAILED. 13 passed; 1 failed; 0 ignored; 0 measured; 186 filtered out; finished in 0.17s"
+  },
+  {
+   "mutation": "M4 inclusive expiry",
+   "file": "crates/rh-policy/src/bots/temporal_percept/vision/grid.rs",
+   "verdict": "KILL",
+   "killedBy": [
+    "bots::temporal_percept::vision::tests::reuse_refreshes_only_the_previous_scan_and_expiry_is_exclusive"
+   ],
+   "result": "test result: FAILED. 13 passed; 1 failed; 0 ignored; 0 measured; 186 filtered out; finished in 0.23s"
+  },
+  {
+   "mutation": "M5 no throttle",
+   "file": "crates/rh-policy/src/bots/temporal_percept/vision/grid.rs",
+   "verdict": "KILL",
+   "killedBy": [
+    "bots::temporal_percept::vision::tests::fround_origin_and_the_throttle_ignores_movement"
+   ],
+   "result": "test result: FAILED. 13 passed; 1 failed; 0 ignored; 0 measured; 186 filtered out; finished in 0.18s"
+  },
+  {
+   "mutation": "M6 bush boundary >=",
+   "file": "crates/rh-policy/src/bots/temporal_percept/vision.rs",
+   "verdict": "KILL",
+   "killedBy": [
+    "bots::temporal_percept::vision::tests::bush_concealment_boundary_and_reveal"
+   ],
+   "result": "test result: FAILED. 13 passed; 1 failed; 0 ignored; 0 measured; 186 filtered out; finished in 0.19s"
+  },
+  {
+   "mutation": "M7 effects keep input order",
+   "file": "crates/rh-policy/src/bots/temporal_percept/vision.rs",
+   "verdict": "KILL",
+   "killedBy": [
+    "bots::temporal_percept::vision::tests::effects_order_is_canonical_even_from_a_native_visible_order"
+   ],
+   "result": "test result: FAILED. 13 passed; 1 failed; 0 ignored; 0 measured; 186 filtered out; finished in 0.19s"
+  },
+  {
+   "mutation": "M8 ward ignores map identity",
+   "file": "crates/rh-policy/src/bots/temporal_percept/vision.rs",
+   "verdict": "KILL",
+   "killedBy": [
+    "bots::temporal_percept::vision::tests::wards_follow_owner_expiry_index_and_map_identity"
+   ],
+   "result": "test result: FAILED. 13 passed; 1 failed; 0 ignored; 0 measured; 186 filtered out; finished in 0.23s"
+  },
+  {
+   "mutation": "M9 first snapshot wins",
+   "file": "crates/rh-policy/src/bots/temporal_percept/vision.rs",
+   "verdict": "KILL",
+   "killedBy": [
+    "bots::temporal_percept::vision::tests::restore_accepts_only_valid_cells_and_the_last_snapshot_wins"
+   ],
+   "result": "test result: FAILED. 13 passed; 1 failed; 0 ignored; 0 measured; 186 filtered out; finished in 0.25s"
+  },
+  {
+   "mutation": "M10 reveal inclusive",
+   "file": "crates/rh-policy/src/bots/temporal_percept/vision.rs",
+   "verdict": "KILL",
+   "killedBy": [
+    "bots::temporal_percept::vision::tests::bush_concealment_boundary_and_reveal"
+   ],
+   "result": "test result: FAILED. 13 passed; 1 failed; 0 ignored; 0 measured; 186 filtered out; finished in 0.18s"
+  },
+  {
+   "mutation": "M11 reuse disabled (equivalent by design)",
+   "file": "crates/rh-policy/src/bots/temporal_percept/vision/grid.rs",
+   "verdict": "NONKILL",
+   "killedBy": [],
+   "result": "test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 186 filtered out; finished in 0.19s"
+  },
+  {
+   "mutation": "M12 disabled keeps trail",
+   "file": "crates/rh-policy/src/bots/temporal_percept/vision.rs",
+   "verdict": "KILL",
+   "killedBy": [
+    "bots::temporal_percept::vision::tests::restore_accepts_only_valid_cells_and_the_last_snapshot_wins"
+   ],
+   "result": "test result: FAILED. 13 passed; 1 failed; 0 ignored; 0 measured; 186 filtered out; finished in 0.24s"
+  },
+  {
+   "mutation": "M13 foreign ward owner accepted",
+   "file": "crates/rh-policy/src/bots/temporal_percept/vision/declared.rs",
+   "verdict": "KILL",
+   "killedBy": [
+    "bots::temporal_percept::vision::tests::foreign_seed_wards_and_reveals_grant_no_sight"
+   ],
+   "result": "test result: FAILED. 13 passed; 1 failed; 0 ignored; 0 measured; 186 filtered out; finished in 0.18s"
+  },
+  {
+   "mutation": "M14 seed not checked",
+   "file": "crates/rh-policy/src/bots/temporal_percept/vision/declared.rs",
+   "verdict": "KILL",
+   "killedBy": [
+    "bots::temporal_percept::vision::tests::foreign_seed_wards_and_reveals_grant_no_sight"
+   ],
+   "result": "test result: FAILED. 13 passed; 1 failed; 0 ignored; 0 measured; 186 filtered out; finished in 0.18s"
+  }
+ ]
+}

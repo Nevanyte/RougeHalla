@@ -1,0 +1,1710 @@
+{
+ "format": "rh-bot-vision-manifest/1",
+ "status": "PREPARED, UNRUN: Root must review the literal command before the first capture",
+ "codeSha": "2c988ff0d9e710f85dd5a015b5eb83ecb43fa276",
+ "scenarioFormat": "rh-bot-vision-scenario/1",
+ "codec": "rh-vision-value/1",
+ "rawFormat": "rh-bot-vision-source/1",
+ "declaredInputsSha256": "22694f4c9b8bc10a03ac071004164ecaf2a9e923979b1c411a39ecfbaf4407b1",
+ "declaredInputsBytes": 192784,
+ "closure": {
+  "entry": "packages/server/src/bots/brain/vision.ts",
+  "packageEntries": {
+   "@raid/shared": "packages/shared/src/index.ts"
+  },
+  "externalPackages": [],
+  "note": "static scan from the entry; type-only imports are erased by Node type stripping and are not edges",
+  "files": [
+   {
+    "path": "packages/server/src/bots/brain/vision.ts",
+    "bytes": 4865,
+    "sha256": "e4418c5bbd8e9d8e3c21e3b1b9b8f677c947d178f812c9d634934c6c8c92f34c"
+   },
+   {
+    "path": "packages/shared/src/index.ts",
+    "bytes": 1564,
+    "sha256": "2a78a73307372ea1a5ffe753f2f16fb11386c124100455f45339fe985b01dfcb"
+   },
+   {
+    "path": "packages/shared/src/constants.ts",
+    "bytes": 46007,
+    "sha256": "51ce4dd800ec868abee525fb1ae375688066f336972a7da878644df1235924e7"
+   },
+   {
+    "path": "packages/shared/src/messages.ts",
+    "bytes": 30329,
+    "sha256": "f7f3b4eb6bb32c54bb97a7d3a8e2ba613b0aff0495a0f20c09fd6d36c797fe80"
+   },
+   {
+    "path": "packages/shared/src/fxCodec.ts",
+    "bytes": 24844,
+    "sha256": "db2080230ad1b3702e37d3e339384e4a071ef899a8203026e20038a3a2b0f0ba"
+   },
+   {
+    "path": "packages/shared/src/weapons.ts",
+    "bytes": 15391,
+    "sha256": "2f22f037502fe63fae6b47f20408cfd35ebc72bfea081194ae8d18cfc21df99b"
+   },
+   {
+    "path": "packages/shared/src/interactions.ts",
+    "bytes": 8524,
+    "sha256": "72aa41c26f8254e00d4956ba57d804471e80b924b55529d016efa6e7d4ecef11"
+   },
+   {
+    "path": "packages/shared/src/policies.ts",
+    "bytes": 13185,
+    "sha256": "3a08aef58ae780bb2417781e735ff75c310de08db43b47a742714bcf94619fbd"
+   },
+   {
+    "path": "packages/shared/src/map.ts",
+    "bytes": 21022,
+    "sha256": "35caac04108a3bd0e1d880a9502f14bdccb3a9a17d262cba335c3d6436995eed"
+   },
+   {
+    "path": "packages/shared/src/terrain.ts",
+    "bytes": 21947,
+    "sha256": "5ee4fe11e793f83f3d095720ba1156a186c5c7704e864f2cad74503ab13a07d6"
+   },
+   {
+    "path": "packages/shared/src/interp.ts",
+    "bytes": 20983,
+    "sha256": "83cf2ac2359058b1e0497e636f83e36b1d60c97e13f81e15e6edf39d8f231eb4"
+   },
+   {
+    "path": "packages/shared/src/rng.ts",
+    "bytes": 2115,
+    "sha256": "412bdcee4a5adcb6163bff3561cb4a07eff423dc7e30e9ba0694cb41b05b1bec"
+   },
+   {
+    "path": "packages/shared/src/mapgen.ts",
+    "bytes": 57619,
+    "sha256": "975591aed836a345c4efd957ced95a478638e6e870fe8ea9bb8740526ef06d10"
+   },
+   {
+    "path": "packages/shared/src/mapWire.ts",
+    "bytes": 402,
+    "sha256": "b52863f757b829ab9a36582cc11e95aea4c0902fd979df5d40bcb5889bba04eb"
+   },
+   {
+    "path": "packages/shared/src/geometry.ts",
+    "bytes": 7899,
+    "sha256": "b1a91a65281f8642b1779b81764768569311966ab493941101a2f988cfdc1f5d"
+   },
+   {
+    "path": "packages/shared/src/pathfind.ts",
+    "bytes": 11003,
+    "sha256": "300caa48788f84bdc780befe8c50db41c2c0b2be520d3fb43a7f91e16de424d9"
+   },
+   {
+    "path": "packages/shared/src/rules.ts",
+    "bytes": 6532,
+    "sha256": "c5822091cdc711e53086a6f2f8649c53c1d709009649a0a65c005096774893b7"
+   },
+   {
+    "path": "packages/shared/src/factions.ts",
+    "bytes": 14039,
+    "sha256": "aa0cebf1c17af17b64bc1e020c4613ab10788ec66d82a72232aef8915d5403f3"
+   },
+   {
+    "path": "packages/shared/src/cards.ts",
+    "bytes": 34091,
+    "sha256": "4a51376a1ce3a79f417e32ce7ae8d7eb37142da5e49f59c3a2c89d48b11ae1e3"
+   },
+   {
+    "path": "packages/shared/src/glossary.ts",
+    "bytes": 7261,
+    "sha256": "0c8871be2726d6a63700e2f6ba39a454992258189f276ad1ed87b8601150a5fb"
+   },
+   {
+    "path": "packages/shared/src/effectText.ts",
+    "bytes": 9977,
+    "sha256": "da22ddb275748104b8f7e11888c1c52c569463bcf165c8efc943cd42f7f0050f"
+   },
+   {
+    "path": "packages/shared/src/hpView.ts",
+    "bytes": 2020,
+    "sha256": "40ec081fdb8adb245dca088a21f1aef18fa8dbf9d991581f16baf99606508cc3"
+   },
+   {
+    "path": "packages/shared/src/mobs.ts",
+    "bytes": 15613,
+    "sha256": "3b567c08363d8d4f1e9a897240b3d99d5b8ded7757b6809a4b534b63d72b5522"
+   },
+   {
+    "path": "packages/shared/src/rosters.ts",
+    "bytes": 4469,
+    "sha256": "0f544537f1ea1517345efd44bc3d4a4ee7d5bffd52a13cb084cc9693ec6f297d"
+   },
+   {
+    "path": "packages/shared/src/signatures.ts",
+    "bytes": 9370,
+    "sha256": "0a6befbb5a6fe9870b13a540d72235085c491668c8cae3674fa8faf89816e191"
+   },
+   {
+    "path": "packages/shared/src/wheel.ts",
+    "bytes": 3618,
+    "sha256": "e16388b4aa07cb1ab60c4ac5859879eaad0eb686f50e625a7917cad34e275466"
+   },
+   {
+    "path": "packages/shared/src/cosmetics.ts",
+    "bytes": 11625,
+    "sha256": "7513ea6b3cbc51072863ccb6ef568d96797f9239c8073f99d2a33ef3aab7b873"
+   },
+   {
+    "path": "packages/shared/src/achievements.ts",
+    "bytes": 7472,
+    "sha256": "c80dbded6e1ea5eb79dc0f25378d9a45fbe41865a8298bf9fc5f2eeafdd46a34"
+   },
+   {
+    "path": "packages/shared/src/status.ts",
+    "bytes": 4682,
+    "sha256": "98a0570d7620e424d9d522356fe378a6af049109d8af0342be0ecff970310df7"
+   },
+   {
+    "path": "packages/shared/src/abilities.ts",
+    "bytes": 16589,
+    "sha256": "95ef39376a9d9f40cc529a0f7300700a97427050628941e801aaa1e299862518"
+   },
+   {
+    "path": "packages/shared/src/blink.ts",
+    "bytes": 7936,
+    "sha256": "e5582562556f530fd99ec9bf8e506fa144805f666c09f4359aefb98ee9171f15"
+   },
+   {
+    "path": "packages/shared/src/effects.ts",
+    "bytes": 18193,
+    "sha256": "859ac817f16a8334865abf103b783fae76b5525d0e90dc407bddf921810f415b"
+   },
+   {
+    "path": "packages/shared/src/mods.ts",
+    "bytes": 23134,
+    "sha256": "10e9dcd3d7417c4fe85d1c36ef33afe5abf7a5703a59b42a3a825a66aa4efaff"
+   },
+   {
+    "path": "packages/shared/src/walk.ts",
+    "bytes": 15362,
+    "sha256": "0d33c95623a6d11fa21a9e58b308eed8cb0150b24d65b592877c5f9e2b5a0020"
+   },
+   {
+    "path": "packages/shared/src/gridTopology.ts",
+    "bytes": 12464,
+    "sha256": "deb2710d114cd669854a082c06bafe518f5ef750249722f89ede83a27d42d328"
+   },
+   {
+    "path": "packages/shared/src/zoneStyle/index.ts",
+    "bytes": 1629,
+    "sha256": "6ada1628cfd571cfda3616155e0dc0a047976d9056e467b521c68a6a44f6d673"
+   },
+   {
+    "path": "packages/shared/src/planning.ts",
+    "bytes": 5249,
+    "sha256": "8d52b212f6fec391359787cf9d81b8fa31a067ea839a2b9ccadc58c059027cb2"
+   },
+   {
+    "path": "packages/shared/src/rewards.ts",
+    "bytes": 8894,
+    "sha256": "cc19d6d0a7be390a9574a1f88b6b5241ac0885c3720b4ca3fe17d1d450f3a601"
+   },
+   {
+    "path": "packages/shared/src/killAugments.ts",
+    "bytes": 4382,
+    "sha256": "82641061ad98878f7fb209e72f490447034f5ddf36d149990e206fa83a548244"
+   },
+   {
+    "path": "packages/shared/src/training.ts",
+    "bytes": 1879,
+    "sha256": "8cf8332e7083fa801407bb2bfd911f2ca008029c1a7ad16cf6bd9bc6935ccc58"
+   },
+   {
+    "path": "packages/shared/src/quests.ts",
+    "bytes": 37136,
+    "sha256": "99c4fdfeae5e2a9eb3e0894f56ae1cd3db7eea760c5c09df695685e250800bba"
+   },
+   {
+    "path": "packages/shared/src/combatReadability.ts",
+    "bytes": 8406,
+    "sha256": "206f707658ee37f22d9aae403449003487e474220442e1cb178c8af85bfe8833"
+   },
+   {
+    "path": "packages/shared/src/vision.ts",
+    "bytes": 12457,
+    "sha256": "f9d026e5c3e8932502f147d6f2ce5d11625845faf07a9dec734b595db76521db"
+   },
+   {
+    "path": "packages/shared/src/fireRoam.ts",
+    "bytes": 1058,
+    "sha256": "ddf7a5372e3d223b86eb7f0408960908f2c4d4f7c6172fc5e65284ab1c4b8edb"
+   },
+   {
+    "path": "packages/shared/src/championPassives.ts",
+    "bytes": 1337,
+    "sha256": "d7e0ecdc8b9cbffc8463f40b9c564019431b14744f5948bf89eefb2505fbf6df"
+   },
+   {
+    "path": "packages/shared/src/mobStats.ts",
+    "bytes": 7296,
+    "sha256": "94034887302346dcd070ff2fa774ae0e4f71933b549964f53be13389be087d5b"
+   },
+   {
+    "path": "packages/shared/src/chestBoosts.ts",
+    "bytes": 4652,
+    "sha256": "60b50c685dacdfdbc2861fdc9f80a900845c5cc0af0b77741527cfb8da51fa81"
+   },
+   {
+    "path": "packages/shared/src/plagueCorpses.ts",
+    "bytes": 3584,
+    "sha256": "cd85318857ba38853385c3ce9560b8674266b71b0b1555017953c7a41080378d"
+   },
+   {
+    "path": "packages/shared/src/sentencedHunt.ts",
+    "bytes": 1184,
+    "sha256": "a606dd94905114562d14d13c09f6c59586a60a70e9a02da49285d886305ce561"
+   },
+   {
+    "path": "packages/shared/src/traders.ts",
+    "bytes": 2434,
+    "sha256": "6b0fb339c3988c253a4162bdd70ae0d3be13f2d066cbdf10168c5b6d1345d1d3"
+   },
+   {
+    "path": "packages/shared/src/consumables.ts",
+    "bytes": 1974,
+    "sha256": "1ffd882c4b44fed9c20743e671050fc4044706c17e2c36c365952eafc3bd3606"
+   },
+   {
+    "path": "packages/shared/src/telemetry.ts",
+    "bytes": 28458,
+    "sha256": "3310df401408a2a4a893a40febe40dda72afe20a13898e6f63620a127d2ba8e2"
+   },
+   {
+    "path": "packages/shared/src/propKinds.ts",
+    "bytes": 2990,
+    "sha256": "431d70881377a8059960f053dc9452946cc0e942d212c92765bacb8a063027ee"
+   },
+   {
+    "path": "packages/shared/src/coliseum.ts",
+    "bytes": 8403,
+    "sha256": "48fc2fa156e70ff6520019605017939298144960d8871a748ef18aadbbf0c0e1"
+   },
+   {
+    "path": "packages/shared/src/gridOps.ts",
+    "bytes": 2375,
+    "sha256": "76587ddd597a2a6ecc05561427dd89b986b6f86026ffedc56848e1b03bb52493"
+   },
+   {
+    "path": "packages/shared/src/bushes.ts",
+    "bytes": 6087,
+    "sha256": "ac64ce414134376d27b7b4819d59096e66edd01d82958e873d57348a79d85910"
+   },
+   {
+    "path": "packages/shared/src/styler.ts",
+    "bytes": 7309,
+    "sha256": "314805a5a6cd9074763c9e555e48e7145c7ed7c87f265876c3712e4837abc51c"
+   },
+   {
+    "path": "packages/shared/src/zones.ts",
+    "bytes": 49948,
+    "sha256": "aa91d0c2b8d7b1957d6e28e29289c9dfa58ac6d4c8475b647445370fbcaeb814"
+   },
+   {
+    "path": "packages/shared/src/mark.ts",
+    "bytes": 4403,
+    "sha256": "44870381fa48b9c8f65f180ff74995725644d7264df5b069a3c43c2291540661"
+   },
+   {
+    "path": "packages/shared/src/signatureShares.ts",
+    "bytes": 1078,
+    "sha256": "e6996931487dde9d4e3f71481a9da996f7500fbcd2148f7924ed730a78eba1a4"
+   },
+   {
+    "path": "packages/shared/src/zoneStyle/types.ts",
+    "bytes": 15681,
+    "sha256": "193b6f57c1e76ea6f8249a316fc8898191682937493fbbce7beb3a0ffb26c33e"
+   },
+   {
+    "path": "packages/shared/src/zoneStyle/hook.ts",
+    "bytes": 3970,
+    "sha256": "56eeba0fb5019dc5dd02e8fd76059c6f82ede6cfa2aa46c763ecf63b619bc668"
+   },
+   {
+    "path": "packages/shared/src/zoneStyle/styleZones.ts",
+    "bytes": 10113,
+    "sha256": "9c328903541ae1e15ca473b288c788b5a2ebb55e8974a639c6215c7c804cbc36"
+   },
+   {
+    "path": "packages/shared/src/zoneStyle/propKinds.ts",
+    "bytes": 809,
+    "sha256": "6a139d0727ab392512d427507ee3b027f67860734d56eea7db8085add24003b9"
+   },
+   {
+    "path": "packages/shared/src/zoneStyle/scale.ts",
+    "bytes": 1361,
+    "sha256": "b8e055707f98dfa104233c1ceebd99358b9b3b5ae8e9fe001d9174806ca6a07e"
+   },
+   {
+    "path": "packages/shared/src/zoneStyle/scorch.ts",
+    "bytes": 51569,
+    "sha256": "52b324dd4dfc9a77986a9ffdcb9704041a2d3608e6e61e9af98b0f697fd2f02a"
+   },
+   {
+    "path": "packages/shared/src/zoneStyle/gallows.ts",
+    "bytes": 37047,
+    "sha256": "0edb95a89d06fc6b0f60a6dc85da41613177362679c03e2073f2be24bbe186e4"
+   },
+   {
+    "path": "packages/shared/src/zoneStyle/warren.ts",
+    "bytes": 30968,
+    "sha256": "bdb057ebaf226fbe803403cc338d38f50c154c276a30fcb652b5229741a9ddcc"
+   },
+   {
+    "path": "packages/shared/src/zoneStyle/rime.ts",
+    "bytes": 40601,
+    "sha256": "d25714c3b647392a03662b33082b48de2c7ec2933755501fe55260c2a1daa19a"
+   },
+   {
+    "path": "packages/shared/src/zoneStyle/sanctum.ts",
+    "bytes": 24977,
+    "sha256": "dd2da40c09a1a5dc5fdbd6e45b568d2b4ada831a0e195e86fd0ab64f49b7babd"
+   },
+   {
+    "path": "packages/shared/src/detMath.ts",
+    "bytes": 874,
+    "sha256": "a806636428155920a0c1c8675cd84d896057993d4d6ff7b9b4623daa5a312b15"
+   },
+   {
+    "path": "packages/shared/src/zoneStyle/features.ts",
+    "bytes": 40831,
+    "sha256": "f0d987fc114394e514c0b9e194b219aa1f8f3429a0fa141c7b6181e6d87ee983"
+   },
+   {
+    "path": "packages/shared/src/zoneStyle/kit.ts",
+    "bytes": 17138,
+    "sha256": "dc69161c080b9474a873d12ac194d876b78285a1ae2cdb7eb24cb86b30337e16"
+   },
+   {
+    "path": "packages/shared/src/zoneStyle/context.ts",
+    "bytes": 30206,
+    "sha256": "8a87c8c930a11c2f1c83b3afe9384586a24f41690dd77a78f1c35b0f69a19dfb"
+   },
+   {
+    "path": "packages/shared/src/zoneStyle/landmarks.ts",
+    "bytes": 30532,
+    "sha256": "ad18e32099ceafc1b88fa33a2225ef2c02508ac6fa4a58c1a91473f0be4c6587"
+   }
+  ],
+  "edges": [
+   {
+    "from": "packages/server/src/bots/brain/vision.ts",
+    "spec": "@raid/shared",
+    "to": "packages/shared/src/index.ts"
+   },
+   {
+    "from": "packages/shared/src/index.ts",
+    "spec": "./constants",
+    "to": "packages/shared/src/constants.ts"
+   },
+   {
+    "from": "packages/shared/src/index.ts",
+    "spec": "./messages",
+    "to": "packages/shared/src/messages.ts"
+   },
+   {
+    "from": "packages/shared/src/index.ts",
+    "spec": "./fxCodec",
+    "to": "packages/shared/src/fxCodec.ts"
+   },
+   {
+    "from": "packages/shared/src/index.ts",
+    "spec": "./weapons",
+    "to": "packages/shared/src/weapons.ts"
+   },
+   {
+    "from": "packages/shared/src/index.ts",
+    "spec": "./interactions",
+    "to": "packages/shared/src/interactions.ts"
+   },
+   {
+    "from": "packages/shared/src/index.ts",
+    "spec": "./policies",
+    "to": "packages/shared/src/policies.ts"
+   },
+   {
+    "from": "packages/shared/src/index.ts",
+    "spec": "./map",
+    "to": "packages/shared/src/map.ts"
+   },
+   {
+    "from": "packages/shared/src/index.ts",
+    "spec": "./terrain",
+    "to": "packages/shared/src/terrain.ts"
+   },
+   {
+    "from": "packages/shared/src/index.ts",
+    "spec": "./interp",
+    "to": "packages/shared/src/interp.ts"
+   },
+   {
+    "from": "packages/shared/src/index.ts",
+    "spec": "./rng",
+    "to": "packages/shared/src/rng.ts"
+   },
+   {
+    "from": "packages/shared/src/index.ts",
+    "spec": "./mapgen",
+    "to": "packages/shared/src/mapgen.ts"
+   },
+   {
+    "from": "packages/shared/src/index.ts",
+    "spec": "./mapWire",
+    "to": "packages/shared/src/mapWire.ts"
+   },
+   {
+    "from": "packages/shared/src/index.ts",
+    "spec": "./geometry",
+    "to": "packages/shared/src/geometry.ts"
+   },
+   {
+    "from": "packages/shared/src/index.ts",
+    "spec": "./pathfind",
+    "to": "packages/shared/src/pathfind.ts"
+   },
+   {
+    "from": "packages/shared/src/index.ts",
+    "spec": "./rules",
+    "to": "packages/shared/src/rules.ts"
+   },
+   {
+    "from": "packages/shared/src/index.ts",
+    "spec": "./factions",
+    "to": "packages/shared/src/factions.ts"
+   },
+   {
+    "from": "packages/shared/src/index.ts",
+    "spec": "./cards",
+    "to": "packages/shared/src/cards.ts"
+   },
+   {
+    "from": "packages/shared/src/index.ts",
+    "spec": "./glossary",
+    "to": "packages/shared/src/glossary.ts"
+   },
+   {
+    "from": "packages/shared/src/index.ts",
+    "spec": "./effectText",
+    "to": "packages/shared/src/effectText.ts"
+   },
+   {
+    "from": "packages/shared/src/index.ts",
+    "spec": "./hpView",
+    "to": "packages/shared/src/hpView.ts"
+   },
+   {
+    "from": "packages/shared/src/index.ts",
+    "spec": "./mobs",
+    "to": "packages/shared/src/mobs.ts"
+   },
+   {
+    "from": "packages/shared/src/index.ts",
+    "spec": "./rosters",
+    "to": "packages/shared/src/rosters.ts"
+   },
+   {
+    "from": "packages/shared/src/index.ts",
+    "spec": "./signatures",
+    "to": "packages/shared/src/signatures.ts"
+   },
+   {
+    "from": "packages/shared/src/index.ts",
+    "spec": "./wheel",
+    "to": "packages/shared/src/wheel.ts"
+   },
+   {
+    "from": "packages/shared/src/index.ts",
+    "spec": "./cosmetics",
+    "to": "packages/shared/src/cosmetics.ts"
+   },
+   {
+    "from": "packages/shared/src/index.ts",
+    "spec": "./achievements",
+    "to": "packages/shared/src/achievements.ts"
+   },
+   {
+    "from": "packages/shared/src/index.ts",
+    "spec": "./status",
+    "to": "packages/shared/src/status.ts"
+   },
+   {
+    "from": "packages/shared/src/index.ts",
+    "spec": "./abilities",
+    "to": "packages/shared/src/abilities.ts"
+   },
+   {
+    "from": "packages/shared/src/index.ts",
+    "spec": "./blink",
+    "to": "packages/shared/src/blink.ts"
+   },
+   {
+    "from": "packages/shared/src/index.ts",
+    "spec": "./effects",
+    "to": "packages/shared/src/effects.ts"
+   },
+   {
+    "from": "packages/shared/src/index.ts",
+    "spec": "./mods",
+    "to": "packages/shared/src/mods.ts"
+   },
+   {
+    "from": "packages/shared/src/index.ts",
+    "spec": "./walk",
+    "to": "packages/shared/src/walk.ts"
+   },
+   {
+    "from": "packages/shared/src/index.ts",
+    "spec": "./gridTopology",
+    "to": "packages/shared/src/gridTopology.ts"
+   },
+   {
+    "from": "packages/shared/src/index.ts",
+    "spec": "./zoneStyle",
+    "to": "packages/shared/src/zoneStyle/index.ts"
+   },
+   {
+    "from": "packages/shared/src/index.ts",
+    "spec": "./planning",
+    "to": "packages/shared/src/planning.ts"
+   },
+   {
+    "from": "packages/shared/src/index.ts",
+    "spec": "./rewards",
+    "to": "packages/shared/src/rewards.ts"
+   },
+   {
+    "from": "packages/shared/src/index.ts",
+    "spec": "./killAugments",
+    "to": "packages/shared/src/killAugments.ts"
+   },
+   {
+    "from": "packages/shared/src/index.ts",
+    "spec": "./training",
+    "to": "packages/shared/src/training.ts"
+   },
+   {
+    "from": "packages/shared/src/index.ts",
+    "spec": "./quests",
+    "to": "packages/shared/src/quests.ts"
+   },
+   {
+    "from": "packages/shared/src/index.ts",
+    "spec": "./combatReadability",
+    "to": "packages/shared/src/combatReadability.ts"
+   },
+   {
+    "from": "packages/shared/src/index.ts",
+    "spec": "./vision",
+    "to": "packages/shared/src/vision.ts"
+   },
+   {
+    "from": "packages/shared/src/index.ts",
+    "spec": "./fireRoam",
+    "to": "packages/shared/src/fireRoam.ts"
+   },
+   {
+    "from": "packages/shared/src/index.ts",
+    "spec": "./championPassives",
+    "to": "packages/shared/src/championPassives.ts"
+   },
+   {
+    "from": "packages/shared/src/index.ts",
+    "spec": "./mobStats",
+    "to": "packages/shared/src/mobStats.ts"
+   },
+   {
+    "from": "packages/shared/src/index.ts",
+    "spec": "./chestBoosts",
+    "to": "packages/shared/src/chestBoosts.ts"
+   },
+   {
+    "from": "packages/shared/src/index.ts",
+    "spec": "./plagueCorpses",
+    "to": "packages/shared/src/plagueCorpses.ts"
+   },
+   {
+    "from": "packages/shared/src/index.ts",
+    "spec": "./sentencedHunt",
+    "to": "packages/shared/src/sentencedHunt.ts"
+   },
+   {
+    "from": "packages/shared/src/index.ts",
+    "spec": "./traders",
+    "to": "packages/shared/src/traders.ts"
+   },
+   {
+    "from": "packages/shared/src/index.ts",
+    "spec": "./consumables",
+    "to": "packages/shared/src/consumables.ts"
+   },
+   {
+    "from": "packages/shared/src/index.ts",
+    "spec": "./telemetry",
+    "to": "packages/shared/src/telemetry.ts"
+   },
+   {
+    "from": "packages/shared/src/fxCodec.ts",
+    "spec": "./abilities",
+    "to": "packages/shared/src/abilities.ts"
+   },
+   {
+    "from": "packages/shared/src/fxCodec.ts",
+    "spec": "./status",
+    "to": "packages/shared/src/status.ts"
+   },
+   {
+    "from": "packages/shared/src/fxCodec.ts",
+    "spec": "./weapons",
+    "to": "packages/shared/src/weapons.ts"
+   },
+   {
+    "from": "packages/shared/src/weapons.ts",
+    "spec": "./constants",
+    "to": "packages/shared/src/constants.ts"
+   },
+   {
+    "from": "packages/shared/src/interactions.ts",
+    "spec": "./constants",
+    "to": "packages/shared/src/constants.ts"
+   },
+   {
+    "from": "packages/shared/src/interactions.ts",
+    "spec": "./map",
+    "to": "packages/shared/src/map.ts"
+   },
+   {
+    "from": "packages/shared/src/interactions.ts",
+    "spec": "./weapons",
+    "to": "packages/shared/src/weapons.ts"
+   },
+   {
+    "from": "packages/shared/src/policies.ts",
+    "spec": "./constants",
+    "to": "packages/shared/src/constants.ts"
+   },
+   {
+    "from": "packages/shared/src/policies.ts",
+    "spec": "./weapons",
+    "to": "packages/shared/src/weapons.ts"
+   },
+   {
+    "from": "packages/shared/src/map.ts",
+    "spec": "./constants",
+    "to": "packages/shared/src/constants.ts"
+   },
+   {
+    "from": "packages/shared/src/terrain.ts",
+    "spec": "./constants",
+    "to": "packages/shared/src/constants.ts"
+   },
+   {
+    "from": "packages/shared/src/terrain.ts",
+    "spec": "./factions",
+    "to": "packages/shared/src/factions.ts"
+   },
+   {
+    "from": "packages/shared/src/terrain.ts",
+    "spec": "./map",
+    "to": "packages/shared/src/map.ts"
+   },
+   {
+    "from": "packages/shared/src/terrain.ts",
+    "spec": "./pathfind",
+    "to": "packages/shared/src/pathfind.ts"
+   },
+   {
+    "from": "packages/shared/src/terrain.ts",
+    "spec": "./propKinds",
+    "to": "packages/shared/src/propKinds.ts"
+   },
+   {
+    "from": "packages/shared/src/terrain.ts",
+    "spec": "./propKinds",
+    "to": "packages/shared/src/propKinds.ts"
+   },
+   {
+    "from": "packages/shared/src/interp.ts",
+    "spec": "./constants",
+    "to": "packages/shared/src/constants.ts"
+   },
+   {
+    "from": "packages/shared/src/mapgen.ts",
+    "spec": "./constants",
+    "to": "packages/shared/src/constants.ts"
+   },
+   {
+    "from": "packages/shared/src/mapgen.ts",
+    "spec": "./coliseum",
+    "to": "packages/shared/src/coliseum.ts"
+   },
+   {
+    "from": "packages/shared/src/mapgen.ts",
+    "spec": "./gridOps",
+    "to": "packages/shared/src/gridOps.ts"
+   },
+   {
+    "from": "packages/shared/src/mapgen.ts",
+    "spec": "./gridTopology",
+    "to": "packages/shared/src/gridTopology.ts"
+   },
+   {
+    "from": "packages/shared/src/mapgen.ts",
+    "spec": "./map",
+    "to": "packages/shared/src/map.ts"
+   },
+   {
+    "from": "packages/shared/src/mapgen.ts",
+    "spec": "./pathfind",
+    "to": "packages/shared/src/pathfind.ts"
+   },
+   {
+    "from": "packages/shared/src/mapgen.ts",
+    "spec": "./planning",
+    "to": "packages/shared/src/planning.ts"
+   },
+   {
+    "from": "packages/shared/src/mapgen.ts",
+    "spec": "./bushes",
+    "to": "packages/shared/src/bushes.ts"
+   },
+   {
+    "from": "packages/shared/src/mapgen.ts",
+    "spec": "./rng",
+    "to": "packages/shared/src/rng.ts"
+   },
+   {
+    "from": "packages/shared/src/mapgen.ts",
+    "spec": "./styler",
+    "to": "packages/shared/src/styler.ts"
+   },
+   {
+    "from": "packages/shared/src/mapgen.ts",
+    "spec": "./terrain",
+    "to": "packages/shared/src/terrain.ts"
+   },
+   {
+    "from": "packages/shared/src/mapgen.ts",
+    "spec": "./zones",
+    "to": "packages/shared/src/zones.ts"
+   },
+   {
+    "from": "packages/shared/src/mapgen.ts",
+    "spec": "./zones",
+    "to": "packages/shared/src/zones.ts"
+   },
+   {
+    "from": "packages/shared/src/mapgen.ts",
+    "spec": "./styler",
+    "to": "packages/shared/src/styler.ts"
+   },
+   {
+    "from": "packages/shared/src/mapWire.ts",
+    "spec": "./mapgen",
+    "to": "packages/shared/src/mapgen.ts"
+   },
+   {
+    "from": "packages/shared/src/geometry.ts",
+    "spec": "./constants",
+    "to": "packages/shared/src/constants.ts"
+   },
+   {
+    "from": "packages/shared/src/geometry.ts",
+    "spec": "./map",
+    "to": "packages/shared/src/map.ts"
+   },
+   {
+    "from": "packages/shared/src/pathfind.ts",
+    "spec": "./constants",
+    "to": "packages/shared/src/constants.ts"
+   },
+   {
+    "from": "packages/shared/src/pathfind.ts",
+    "spec": "./geometry",
+    "to": "packages/shared/src/geometry.ts"
+   },
+   {
+    "from": "packages/shared/src/pathfind.ts",
+    "spec": "./map",
+    "to": "packages/shared/src/map.ts"
+   },
+   {
+    "from": "packages/shared/src/rules.ts",
+    "spec": "./constants",
+    "to": "packages/shared/src/constants.ts"
+   },
+   {
+    "from": "packages/shared/src/factions.ts",
+    "spec": "./constants",
+    "to": "packages/shared/src/constants.ts"
+   },
+   {
+    "from": "packages/shared/src/factions.ts",
+    "spec": "./mark",
+    "to": "packages/shared/src/mark.ts"
+   },
+   {
+    "from": "packages/shared/src/factions.ts",
+    "spec": "./signatureShares",
+    "to": "packages/shared/src/signatureShares.ts"
+   },
+   {
+    "from": "packages/shared/src/cards.ts",
+    "spec": "./constants",
+    "to": "packages/shared/src/constants.ts"
+   },
+   {
+    "from": "packages/shared/src/glossary.ts",
+    "spec": "./constants",
+    "to": "packages/shared/src/constants.ts"
+   },
+   {
+    "from": "packages/shared/src/glossary.ts",
+    "spec": "./weapons",
+    "to": "packages/shared/src/weapons.ts"
+   },
+   {
+    "from": "packages/shared/src/effectText.ts",
+    "spec": "./effects",
+    "to": "packages/shared/src/effects.ts"
+   },
+   {
+    "from": "packages/shared/src/effectText.ts",
+    "spec": "./rules",
+    "to": "packages/shared/src/rules.ts"
+   },
+   {
+    "from": "packages/shared/src/mobs.ts",
+    "spec": "./constants",
+    "to": "packages/shared/src/constants.ts"
+   },
+   {
+    "from": "packages/shared/src/mobs.ts",
+    "spec": "./factions",
+    "to": "packages/shared/src/factions.ts"
+   },
+   {
+    "from": "packages/shared/src/mobs.ts",
+    "spec": "./map",
+    "to": "packages/shared/src/map.ts"
+   },
+   {
+    "from": "packages/shared/src/mobs.ts",
+    "spec": "./weapons",
+    "to": "packages/shared/src/weapons.ts"
+   },
+   {
+    "from": "packages/shared/src/rosters.ts",
+    "spec": "./mobs",
+    "to": "packages/shared/src/mobs.ts"
+   },
+   {
+    "from": "packages/shared/src/rosters.ts",
+    "spec": "./rng",
+    "to": "packages/shared/src/rng.ts"
+   },
+   {
+    "from": "packages/shared/src/signatures.ts",
+    "spec": "./constants",
+    "to": "packages/shared/src/constants.ts"
+   },
+   {
+    "from": "packages/shared/src/signatures.ts",
+    "spec": "./weapons",
+    "to": "packages/shared/src/weapons.ts"
+   },
+   {
+    "from": "packages/shared/src/signatures.ts",
+    "spec": "./signatureShares",
+    "to": "packages/shared/src/signatureShares.ts"
+   },
+   {
+    "from": "packages/shared/src/signatures.ts",
+    "spec": "./mark",
+    "to": "packages/shared/src/mark.ts"
+   },
+   {
+    "from": "packages/shared/src/wheel.ts",
+    "spec": "./factions",
+    "to": "packages/shared/src/factions.ts"
+   },
+   {
+    "from": "packages/shared/src/wheel.ts",
+    "spec": "./weapons",
+    "to": "packages/shared/src/weapons.ts"
+   },
+   {
+    "from": "packages/shared/src/achievements.ts",
+    "spec": "./constants",
+    "to": "packages/shared/src/constants.ts"
+   },
+   {
+    "from": "packages/shared/src/achievements.ts",
+    "spec": "./cosmetics",
+    "to": "packages/shared/src/cosmetics.ts"
+   },
+   {
+    "from": "packages/shared/src/status.ts",
+    "spec": "./constants",
+    "to": "packages/shared/src/constants.ts"
+   },
+   {
+    "from": "packages/shared/src/abilities.ts",
+    "spec": "./constants",
+    "to": "packages/shared/src/constants.ts"
+   },
+   {
+    "from": "packages/shared/src/abilities.ts",
+    "spec": "./factions",
+    "to": "packages/shared/src/factions.ts"
+   },
+   {
+    "from": "packages/shared/src/blink.ts",
+    "spec": "./abilities",
+    "to": "packages/shared/src/abilities.ts"
+   },
+   {
+    "from": "packages/shared/src/blink.ts",
+    "spec": "./constants",
+    "to": "packages/shared/src/constants.ts"
+   },
+   {
+    "from": "packages/shared/src/blink.ts",
+    "spec": "./geometry",
+    "to": "packages/shared/src/geometry.ts"
+   },
+   {
+    "from": "packages/shared/src/blink.ts",
+    "spec": "./map",
+    "to": "packages/shared/src/map.ts"
+   },
+   {
+    "from": "packages/shared/src/mods.ts",
+    "spec": "./constants",
+    "to": "packages/shared/src/constants.ts"
+   },
+   {
+    "from": "packages/shared/src/mods.ts",
+    "spec": "./chestBoosts",
+    "to": "packages/shared/src/chestBoosts.ts"
+   },
+   {
+    "from": "packages/shared/src/mods.ts",
+    "spec": "./effects",
+    "to": "packages/shared/src/effects.ts"
+   },
+   {
+    "from": "packages/shared/src/mods.ts",
+    "spec": "./weapons",
+    "to": "packages/shared/src/weapons.ts"
+   },
+   {
+    "from": "packages/shared/src/walk.ts",
+    "spec": "./constants",
+    "to": "packages/shared/src/constants.ts"
+   },
+   {
+    "from": "packages/shared/src/walk.ts",
+    "spec": "./geometry",
+    "to": "packages/shared/src/geometry.ts"
+   },
+   {
+    "from": "packages/shared/src/walk.ts",
+    "spec": "./map",
+    "to": "packages/shared/src/map.ts"
+   },
+   {
+    "from": "packages/shared/src/walk.ts",
+    "spec": "./pathfind",
+    "to": "packages/shared/src/pathfind.ts"
+   },
+   {
+    "from": "packages/shared/src/gridTopology.ts",
+    "spec": "./map",
+    "to": "packages/shared/src/map.ts"
+   },
+   {
+    "from": "packages/shared/src/zoneStyle/index.ts",
+    "spec": "./types",
+    "to": "packages/shared/src/zoneStyle/types.ts"
+   },
+   {
+    "from": "packages/shared/src/zoneStyle/index.ts",
+    "spec": "./hook",
+    "to": "packages/shared/src/zoneStyle/hook.ts"
+   },
+   {
+    "from": "packages/shared/src/zoneStyle/index.ts",
+    "spec": "./styleZones",
+    "to": "packages/shared/src/zoneStyle/styleZones.ts"
+   },
+   {
+    "from": "packages/shared/src/zoneStyle/index.ts",
+    "spec": "./propKinds",
+    "to": "packages/shared/src/zoneStyle/propKinds.ts"
+   },
+   {
+    "from": "packages/shared/src/zoneStyle/index.ts",
+    "spec": "./scale",
+    "to": "packages/shared/src/zoneStyle/scale.ts"
+   },
+   {
+    "from": "packages/shared/src/zoneStyle/index.ts",
+    "spec": "./scorch",
+    "to": "packages/shared/src/zoneStyle/scorch.ts"
+   },
+   {
+    "from": "packages/shared/src/zoneStyle/index.ts",
+    "spec": "./gallows",
+    "to": "packages/shared/src/zoneStyle/gallows.ts"
+   },
+   {
+    "from": "packages/shared/src/zoneStyle/index.ts",
+    "spec": "./warren",
+    "to": "packages/shared/src/zoneStyle/warren.ts"
+   },
+   {
+    "from": "packages/shared/src/zoneStyle/index.ts",
+    "spec": "./rime",
+    "to": "packages/shared/src/zoneStyle/rime.ts"
+   },
+   {
+    "from": "packages/shared/src/zoneStyle/index.ts",
+    "spec": "./sanctum",
+    "to": "packages/shared/src/zoneStyle/sanctum.ts"
+   },
+   {
+    "from": "packages/shared/src/planning.ts",
+    "spec": "./constants",
+    "to": "packages/shared/src/constants.ts"
+   },
+   {
+    "from": "packages/shared/src/planning.ts",
+    "spec": "./factions",
+    "to": "packages/shared/src/factions.ts"
+   },
+   {
+    "from": "packages/shared/src/planning.ts",
+    "spec": "./mobs",
+    "to": "packages/shared/src/mobs.ts"
+   },
+   {
+    "from": "packages/shared/src/planning.ts",
+    "spec": "./pathfind",
+    "to": "packages/shared/src/pathfind.ts"
+   },
+   {
+    "from": "packages/shared/src/rewards.ts",
+    "spec": "./constants",
+    "to": "packages/shared/src/constants.ts"
+   },
+   {
+    "from": "packages/shared/src/rewards.ts",
+    "spec": "./chestBoosts",
+    "to": "packages/shared/src/chestBoosts.ts"
+   },
+   {
+    "from": "packages/shared/src/rewards.ts",
+    "spec": "./cards",
+    "to": "packages/shared/src/cards.ts"
+   },
+   {
+    "from": "packages/shared/src/rewards.ts",
+    "spec": "./killAugments",
+    "to": "packages/shared/src/killAugments.ts"
+   },
+   {
+    "from": "packages/shared/src/killAugments.ts",
+    "spec": "./combatReadability",
+    "to": "packages/shared/src/combatReadability.ts"
+   },
+   {
+    "from": "packages/shared/src/training.ts",
+    "spec": "./constants",
+    "to": "packages/shared/src/constants.ts"
+   },
+   {
+    "from": "packages/shared/src/quests.ts",
+    "spec": "./constants",
+    "to": "packages/shared/src/constants.ts"
+   },
+   {
+    "from": "packages/shared/src/quests.ts",
+    "spec": "./cards",
+    "to": "packages/shared/src/cards.ts"
+   },
+   {
+    "from": "packages/shared/src/quests.ts",
+    "spec": "./mobStats",
+    "to": "packages/shared/src/mobStats.ts"
+   },
+   {
+    "from": "packages/shared/src/quests.ts",
+    "spec": "./geometry",
+    "to": "packages/shared/src/geometry.ts"
+   },
+   {
+    "from": "packages/shared/src/quests.ts",
+    "spec": "./map",
+    "to": "packages/shared/src/map.ts"
+   },
+   {
+    "from": "packages/shared/src/quests.ts",
+    "spec": "./rules",
+    "to": "packages/shared/src/rules.ts"
+   },
+   {
+    "from": "packages/shared/src/quests.ts",
+    "spec": "./terrain",
+    "to": "packages/shared/src/terrain.ts"
+   },
+   {
+    "from": "packages/shared/src/combatReadability.ts",
+    "spec": "./cards",
+    "to": "packages/shared/src/cards.ts"
+   },
+   {
+    "from": "packages/shared/src/combatReadability.ts",
+    "spec": "./mobStats",
+    "to": "packages/shared/src/mobStats.ts"
+   },
+   {
+    "from": "packages/shared/src/combatReadability.ts",
+    "spec": "./factions",
+    "to": "packages/shared/src/factions.ts"
+   },
+   {
+    "from": "packages/shared/src/combatReadability.ts",
+    "spec": "./mods",
+    "to": "packages/shared/src/mods.ts"
+   },
+   {
+    "from": "packages/shared/src/combatReadability.ts",
+    "spec": "./rules",
+    "to": "packages/shared/src/rules.ts"
+   },
+   {
+    "from": "packages/shared/src/combatReadability.ts",
+    "spec": "./constants",
+    "to": "packages/shared/src/constants.ts"
+   },
+   {
+    "from": "packages/shared/src/combatReadability.ts",
+    "spec": "./chestBoosts",
+    "to": "packages/shared/src/chestBoosts.ts"
+   },
+   {
+    "from": "packages/shared/src/combatReadability.ts",
+    "spec": "./championPassives",
+    "to": "packages/shared/src/championPassives.ts"
+   },
+   {
+    "from": "packages/shared/src/combatReadability.ts",
+    "spec": "./weapons",
+    "to": "packages/shared/src/weapons.ts"
+   },
+   {
+    "from": "packages/shared/src/vision.ts",
+    "spec": "./constants",
+    "to": "packages/shared/src/constants.ts"
+   },
+   {
+    "from": "packages/shared/src/vision.ts",
+    "spec": "./map",
+    "to": "packages/shared/src/map.ts"
+   },
+   {
+    "from": "packages/shared/src/championPassives.ts",
+    "spec": "./constants",
+    "to": "packages/shared/src/constants.ts"
+   },
+   {
+    "from": "packages/shared/src/mobStats.ts",
+    "spec": "./mobs",
+    "to": "packages/shared/src/mobs.ts"
+   },
+   {
+    "from": "packages/shared/src/chestBoosts.ts",
+    "spec": "./constants",
+    "to": "packages/shared/src/constants.ts"
+   },
+   {
+    "from": "packages/shared/src/traders.ts",
+    "spec": "./weapons",
+    "to": "packages/shared/src/weapons.ts"
+   },
+   {
+    "from": "packages/shared/src/consumables.ts",
+    "spec": "./constants",
+    "to": "packages/shared/src/constants.ts"
+   },
+   {
+    "from": "packages/shared/src/propKinds.ts",
+    "spec": "./map",
+    "to": "packages/shared/src/map.ts"
+   },
+   {
+    "from": "packages/shared/src/coliseum.ts",
+    "spec": "./constants",
+    "to": "packages/shared/src/constants.ts"
+   },
+   {
+    "from": "packages/shared/src/coliseum.ts",
+    "spec": "./detMath",
+    "to": "packages/shared/src/detMath.ts"
+   },
+   {
+    "from": "packages/shared/src/coliseum.ts",
+    "spec": "./map",
+    "to": "packages/shared/src/map.ts"
+   },
+   {
+    "from": "packages/shared/src/gridOps.ts",
+    "spec": "./constants",
+    "to": "packages/shared/src/constants.ts"
+   },
+   {
+    "from": "packages/shared/src/gridOps.ts",
+    "spec": "./gridTopology",
+    "to": "packages/shared/src/gridTopology.ts"
+   },
+   {
+    "from": "packages/shared/src/gridOps.ts",
+    "spec": "./map",
+    "to": "packages/shared/src/map.ts"
+   },
+   {
+    "from": "packages/shared/src/bushes.ts",
+    "spec": "./rng",
+    "to": "packages/shared/src/rng.ts"
+   },
+   {
+    "from": "packages/shared/src/bushes.ts",
+    "spec": "./map",
+    "to": "packages/shared/src/map.ts"
+   },
+   {
+    "from": "packages/shared/src/styler.ts",
+    "spec": "./constants",
+    "to": "packages/shared/src/constants.ts"
+   },
+   {
+    "from": "packages/shared/src/styler.ts",
+    "spec": "./rng",
+    "to": "packages/shared/src/rng.ts"
+   },
+   {
+    "from": "packages/shared/src/styler.ts",
+    "spec": "./zoneStyle/hook",
+    "to": "packages/shared/src/zoneStyle/hook.ts"
+   },
+   {
+    "from": "packages/shared/src/zones.ts",
+    "spec": "./constants",
+    "to": "packages/shared/src/constants.ts"
+   },
+   {
+    "from": "packages/shared/src/zones.ts",
+    "spec": "./coliseum",
+    "to": "packages/shared/src/coliseum.ts"
+   },
+   {
+    "from": "packages/shared/src/zones.ts",
+    "spec": "./gridOps",
+    "to": "packages/shared/src/gridOps.ts"
+   },
+   {
+    "from": "packages/shared/src/zones.ts",
+    "spec": "./map",
+    "to": "packages/shared/src/map.ts"
+   },
+   {
+    "from": "packages/shared/src/zones.ts",
+    "spec": "./rng",
+    "to": "packages/shared/src/rng.ts"
+   },
+   {
+    "from": "packages/shared/src/mark.ts",
+    "spec": "./constants",
+    "to": "packages/shared/src/constants.ts"
+   },
+   {
+    "from": "packages/shared/src/mark.ts",
+    "spec": "./weapons",
+    "to": "packages/shared/src/weapons.ts"
+   },
+   {
+    "from": "packages/shared/src/zoneStyle/hook.ts",
+    "spec": "./styleZones",
+    "to": "packages/shared/src/zoneStyle/styleZones.ts"
+   },
+   {
+    "from": "packages/shared/src/zoneStyle/styleZones.ts",
+    "spec": "../constants",
+    "to": "packages/shared/src/constants.ts"
+   },
+   {
+    "from": "packages/shared/src/zoneStyle/styleZones.ts",
+    "spec": "./features",
+    "to": "packages/shared/src/zoneStyle/features.ts"
+   },
+   {
+    "from": "packages/shared/src/zoneStyle/styleZones.ts",
+    "spec": "./kit",
+    "to": "packages/shared/src/zoneStyle/kit.ts"
+   },
+   {
+    "from": "packages/shared/src/zoneStyle/styleZones.ts",
+    "spec": "./context",
+    "to": "packages/shared/src/zoneStyle/context.ts"
+   },
+   {
+    "from": "packages/shared/src/zoneStyle/styleZones.ts",
+    "spec": "./gallows",
+    "to": "packages/shared/src/zoneStyle/gallows.ts"
+   },
+   {
+    "from": "packages/shared/src/zoneStyle/styleZones.ts",
+    "spec": "./rime",
+    "to": "packages/shared/src/zoneStyle/rime.ts"
+   },
+   {
+    "from": "packages/shared/src/zoneStyle/styleZones.ts",
+    "spec": "./sanctum",
+    "to": "packages/shared/src/zoneStyle/sanctum.ts"
+   },
+   {
+    "from": "packages/shared/src/zoneStyle/styleZones.ts",
+    "spec": "./scorch",
+    "to": "packages/shared/src/zoneStyle/scorch.ts"
+   },
+   {
+    "from": "packages/shared/src/zoneStyle/styleZones.ts",
+    "spec": "./warren",
+    "to": "packages/shared/src/zoneStyle/warren.ts"
+   },
+   {
+    "from": "packages/shared/src/zoneStyle/styleZones.ts",
+    "spec": "./propKinds",
+    "to": "packages/shared/src/zoneStyle/propKinds.ts"
+   },
+   {
+    "from": "packages/shared/src/zoneStyle/styleZones.ts",
+    "spec": "./types",
+    "to": "packages/shared/src/zoneStyle/types.ts"
+   },
+   {
+    "from": "packages/shared/src/zoneStyle/propKinds.ts",
+    "spec": "../propKinds",
+    "to": "packages/shared/src/propKinds.ts"
+   },
+   {
+    "from": "packages/shared/src/zoneStyle/scorch.ts",
+    "spec": "../map",
+    "to": "packages/shared/src/map.ts"
+   },
+   {
+    "from": "packages/shared/src/zoneStyle/scorch.ts",
+    "spec": "../terrain",
+    "to": "packages/shared/src/terrain.ts"
+   },
+   {
+    "from": "packages/shared/src/zoneStyle/scorch.ts",
+    "spec": "./kit",
+    "to": "packages/shared/src/zoneStyle/kit.ts"
+   },
+   {
+    "from": "packages/shared/src/zoneStyle/scorch.ts",
+    "spec": "./features",
+    "to": "packages/shared/src/zoneStyle/features.ts"
+   },
+   {
+    "from": "packages/shared/src/zoneStyle/scorch.ts",
+    "spec": "./landmarks",
+    "to": "packages/shared/src/zoneStyle/landmarks.ts"
+   },
+   {
+    "from": "packages/shared/src/zoneStyle/scorch.ts",
+    "spec": "./propKinds",
+    "to": "packages/shared/src/zoneStyle/propKinds.ts"
+   },
+   {
+    "from": "packages/shared/src/zoneStyle/scorch.ts",
+    "spec": "./types",
+    "to": "packages/shared/src/zoneStyle/types.ts"
+   },
+   {
+    "from": "packages/shared/src/zoneStyle/scorch.ts",
+    "spec": "../gridTopology",
+    "to": "packages/shared/src/gridTopology.ts"
+   },
+   {
+    "from": "packages/shared/src/zoneStyle/scorch.ts",
+    "spec": "./scale",
+    "to": "packages/shared/src/zoneStyle/scale.ts"
+   },
+   {
+    "from": "packages/shared/src/zoneStyle/gallows.ts",
+    "spec": "../map",
+    "to": "packages/shared/src/map.ts"
+   },
+   {
+    "from": "packages/shared/src/zoneStyle/gallows.ts",
+    "spec": "./features",
+    "to": "packages/shared/src/zoneStyle/features.ts"
+   },
+   {
+    "from": "packages/shared/src/zoneStyle/gallows.ts",
+    "spec": "./landmarks",
+    "to": "packages/shared/src/zoneStyle/landmarks.ts"
+   },
+   {
+    "from": "packages/shared/src/zoneStyle/gallows.ts",
+    "spec": "./propKinds",
+    "to": "packages/shared/src/zoneStyle/propKinds.ts"
+   },
+   {
+    "from": "packages/shared/src/zoneStyle/gallows.ts",
+    "spec": "./scale",
+    "to": "packages/shared/src/zoneStyle/scale.ts"
+   },
+   {
+    "from": "packages/shared/src/zoneStyle/warren.ts",
+    "spec": "../map",
+    "to": "packages/shared/src/map.ts"
+   },
+   {
+    "from": "packages/shared/src/zoneStyle/warren.ts",
+    "spec": "./scale",
+    "to": "packages/shared/src/zoneStyle/scale.ts"
+   },
+   {
+    "from": "packages/shared/src/zoneStyle/warren.ts",
+    "spec": "./features",
+    "to": "packages/shared/src/zoneStyle/features.ts"
+   },
+   {
+    "from": "packages/shared/src/zoneStyle/warren.ts",
+    "spec": "./landmarks",
+    "to": "packages/shared/src/zoneStyle/landmarks.ts"
+   },
+   {
+    "from": "packages/shared/src/zoneStyle/warren.ts",
+    "spec": "./propKinds",
+    "to": "packages/shared/src/zoneStyle/propKinds.ts"
+   },
+   {
+    "from": "packages/shared/src/zoneStyle/rime.ts",
+    "spec": "../constants",
+    "to": "packages/shared/src/constants.ts"
+   },
+   {
+    "from": "packages/shared/src/zoneStyle/rime.ts",
+    "spec": "../coliseum",
+    "to": "packages/shared/src/coliseum.ts"
+   },
+   {
+    "from": "packages/shared/src/zoneStyle/rime.ts",
+    "spec": "../map",
+    "to": "packages/shared/src/map.ts"
+   },
+   {
+    "from": "packages/shared/src/zoneStyle/rime.ts",
+    "spec": "../pathfind",
+    "to": "packages/shared/src/pathfind.ts"
+   },
+   {
+    "from": "packages/shared/src/zoneStyle/rime.ts",
+    "spec": "../terrain",
+    "to": "packages/shared/src/terrain.ts"
+   },
+   {
+    "from": "packages/shared/src/zoneStyle/rime.ts",
+    "spec": "./features",
+    "to": "packages/shared/src/zoneStyle/features.ts"
+   },
+   {
+    "from": "packages/shared/src/zoneStyle/rime.ts",
+    "spec": "./landmarks",
+    "to": "packages/shared/src/zoneStyle/landmarks.ts"
+   },
+   {
+    "from": "packages/shared/src/zoneStyle/rime.ts",
+    "spec": "./propKinds",
+    "to": "packages/shared/src/zoneStyle/propKinds.ts"
+   },
+   {
+    "from": "packages/shared/src/zoneStyle/rime.ts",
+    "spec": "./scale",
+    "to": "packages/shared/src/zoneStyle/scale.ts"
+   },
+   {
+    "from": "packages/shared/src/zoneStyle/sanctum.ts",
+    "spec": "../map",
+    "to": "packages/shared/src/map.ts"
+   },
+   {
+    "from": "packages/shared/src/zoneStyle/sanctum.ts",
+    "spec": "./features",
+    "to": "packages/shared/src/zoneStyle/features.ts"
+   },
+   {
+    "from": "packages/shared/src/zoneStyle/sanctum.ts",
+    "spec": "./landmarks",
+    "to": "packages/shared/src/zoneStyle/landmarks.ts"
+   },
+   {
+    "from": "packages/shared/src/zoneStyle/sanctum.ts",
+    "spec": "./propKinds",
+    "to": "packages/shared/src/zoneStyle/propKinds.ts"
+   },
+   {
+    "from": "packages/shared/src/zoneStyle/sanctum.ts",
+    "spec": "./scale",
+    "to": "packages/shared/src/zoneStyle/scale.ts"
+   },
+   {
+    "from": "packages/shared/src/zoneStyle/features.ts",
+    "spec": "../coliseum",
+    "to": "packages/shared/src/coliseum.ts"
+   },
+   {
+    "from": "packages/shared/src/zoneStyle/features.ts",
+    "spec": "../gridTopology",
+    "to": "packages/shared/src/gridTopology.ts"
+   },
+   {
+    "from": "packages/shared/src/zoneStyle/features.ts",
+    "spec": "../map",
+    "to": "packages/shared/src/map.ts"
+   },
+   {
+    "from": "packages/shared/src/zoneStyle/kit.ts",
+    "spec": "../map",
+    "to": "packages/shared/src/map.ts"
+   },
+   {
+    "from": "packages/shared/src/zoneStyle/kit.ts",
+    "spec": "../rng",
+    "to": "packages/shared/src/rng.ts"
+   },
+   {
+    "from": "packages/shared/src/zoneStyle/context.ts",
+    "spec": "../constants",
+    "to": "packages/shared/src/constants.ts"
+   },
+   {
+    "from": "packages/shared/src/zoneStyle/context.ts",
+    "spec": "../gridTopology",
+    "to": "packages/shared/src/gridTopology.ts"
+   },
+   {
+    "from": "packages/shared/src/zoneStyle/context.ts",
+    "spec": "../map",
+    "to": "packages/shared/src/map.ts"
+   },
+   {
+    "from": "packages/shared/src/zoneStyle/context.ts",
+    "spec": "../rng",
+    "to": "packages/shared/src/rng.ts"
+   },
+   {
+    "from": "packages/shared/src/zoneStyle/context.ts",
+    "spec": "../terrain",
+    "to": "packages/shared/src/terrain.ts"
+   },
+   {
+    "from": "packages/shared/src/zoneStyle/context.ts",
+    "spec": "./kit",
+    "to": "packages/shared/src/zoneStyle/kit.ts"
+   },
+   {
+    "from": "packages/shared/src/zoneStyle/context.ts",
+    "spec": "./types",
+    "to": "packages/shared/src/zoneStyle/types.ts"
+   },
+   {
+    "from": "packages/shared/src/zoneStyle/landmarks.ts",
+    "spec": "../map",
+    "to": "packages/shared/src/map.ts"
+   },
+   {
+    "from": "packages/shared/src/zoneStyle/landmarks.ts",
+    "spec": "./types",
+    "to": "packages/shared/src/zoneStyle/types.ts"
+   }
+  ],
+  "totalBytes": 1063425
+ },
+ "scopes": [
+  {
+   "path": "packages/server/package.json",
+   "bytes": 981,
+   "sha256": "d4965c850237876a64a02cd1c7c554f1a64d97392344cae3b63d4bd688e2f7b8"
+  },
+  {
+   "path": "packages/shared/package.json",
+   "bytes": 427,
+   "sha256": "6e9c040348c50e0ad5043ec4cb9b4206f68f29cf4eeb4dec5f635f37a6f87f35"
+  }
+ ],
+ "tools": [
+  {
+   "path": "tools/bot-vision-fixtures/closure.mjs",
+   "bytes": 6544,
+   "sha256": "6c104d97f584169a473ffd7e4400f80890c2fa9e1a9c3b8d9e975606393b8e8b"
+  },
+  {
+   "path": "tools/bot-vision-fixtures/codec.mjs",
+   "bytes": 4734,
+   "sha256": "5a9cbd83322412e868b0d0fdb1a7e4652499ad38b73d6c66763d7eb58091e586"
+  },
+  {
+   "path": "tools/bot-vision-fixtures/prepare.mjs",
+   "bytes": 4399,
+   "sha256": "2e7a3b429dcc00b6ad896da7e20c93d7fe5ba2739e4cb319eaf86cf3ee055589"
+  },
+  {
+   "path": "tools/bot-vision-fixtures/runtime.mjs",
+   "bytes": 12489,
+   "sha256": "9175013671238f24fc79c51bb903e4c003ddbeafe7b3649716b3c520e984b19f"
+  },
+  {
+   "path": "tools/bot-vision-fixtures/scenario.mjs",
+   "bytes": 20836,
+   "sha256": "fb38c70014ce9e2d81b19715026abb351746207a1147177129474da865dd1579"
+  },
+  {
+   "path": "tools/bot-vision-fixtures/verify.mjs",
+   "bytes": 9694,
+   "sha256": "54f86df585ad4d929933ca8f07babde126fcb0fa62281b15da5ab229cac96ec4"
+  }
+ ],
+ "map": {
+  "path": "crates/rh-sim/src/mapdata/fixtures/seed1.map.json",
+  "bytes": 319166,
+  "sha256": "7c95efad61f47942d10921d7f1bc16acb43306f370cf368e0693a69d456441e7",
+  "legacyMapHashU32": 3499839449,
+  "seed": 1,
+  "w": 160,
+  "h": 160
+ },
+ "runtime": {
+  "nodeVersion": "v22.23.4",
+  "platform": "linux",
+  "arch": "x64",
+  "amaro": "1.1.8",
+  "nodeSha256": "2286ce921a47349726b0e8b037ccbb6627043d24d1fc3c8f22c2dc53c4a1f7ff",
+  "execPath": "/opt/node22/bin/node",
+  "requiredFlags": [
+   "--experimental-transform-types",
+   "--disable-warning=ExperimentalWarning",
+   "--max-old-space-size=1024",
+   "--permission"
+  ]
+ }
+}
