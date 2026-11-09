@@ -1,5 +1,6 @@
 """New offline safety controls only. Synthetic facts/bytes; never real host/AWS/PG/producer success."""
 import copy
+import base64
 import datetime as dt
 import hashlib
 import io
@@ -179,6 +180,23 @@ class InstallerTests(unittest.TestCase):
             result = subprocess.run(['bash', '-n', str(output/'expiry-first.review.sh')], capture_output=True)
             self.assertEqual(result.returncode, 0)
             self.assertNotIn('get-object', (output/'expiry-first.review.sh').read_text())
+
+    def test_put_response_requires_nonempty_string_version_and_matching_checksum(self):
+        checksum = hashlib.sha256(b'SYNTHETIC RESPONSE CONTROL, NOT AN UPLOAD').hexdigest()
+        encoded = base64.b64encode(bytes.fromhex(checksum)).decode('ascii')
+        for version in [None, '', 'null', False, True, 0, 1, 1.5, [], ['version'], {}, {'id': 'version'}]:
+            with self.subTest(version_type=type(version).__name__), self.assertRaises(Refused):
+                verify_put_response(plan(), {'VersionId': version, 'ChecksumSHA256': encoded}, checksum)
+        for response in [None, False, 0, [], ['version'], 'version', {}]:
+            with self.subTest(response_type=type(response).__name__), self.assertRaises(Refused):
+                verify_put_response(plan(), response, checksum)
+        for value in [None, False, 0, [], {}, 'wrong-checksum']:
+            with self.subTest(checksum_type=type(value).__name__), self.assertRaises(Refused):
+                verify_put_response(plan(), {'VersionId': 'synthetic-version', 'ChecksumSHA256': value}, checksum)
+        response = {'VersionId': 'synthetic-version', 'ChecksumSHA256': encoded}
+        receipt = verify_put_response(plan(), response, checksum)
+        self.assertEqual(receipt['version_id'], 'synthetic-version')
+        self.assertFalse(receipt['offhost_restore_proved'])
 
     def test_pg_role_material_is_private_stdin_not_a_superuser_or_restored_account_seed(self):
         sql = pg_role_input('a'*64)

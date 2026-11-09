@@ -56,7 +56,9 @@ def put_ciphertext_command(plan, path, ciphertext_sha256):
 def verify_put_response(plan, response, ciphertext_sha256):
     digest(ciphertext_sha256)
     expected = base64.b64encode(bytes.fromhex(ciphertext_sha256)).decode('ascii')
-    require(response.get('VersionId') not in (None, '', 'null') and response.get('ChecksumSHA256') == expected,
+    require(type(response) is dict, 'PUT is unconfirmed; malformed response')
+    version = response.get('VersionId')
+    require(type(version) is str and version not in ('', 'null') and response.get('ChecksumSHA256') == expected,
             'PUT is unconfirmed; no independent offhost restore proof')
     return {'run_id': plan['run_id'], 'bucket': plan['backup']['bucket'], 'key': plan['backup']['key'],
             'version_id': response['VersionId'], 'ciphertext_sha256': ciphertext_sha256, 'offhost_restore_proved': False}
