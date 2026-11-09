@@ -1,0 +1,146 @@
+{
+  "format": "rh-walk-hint-controls/2",
+  "required": 3,
+  "kills": 3,
+  "baseline": {
+    "diskWalkHint": {
+      "path": "/repo/packages/server/src/sim/walkHint.ts",
+      "bytes": 10241,
+      "sha256": "9030f17e7e76a5dda94bba76347e2993a5265d8d36e145b9d1f889f3f988af16"
+    },
+    "canonicalProfileSource": {
+      "bytes": 10241,
+      "sha256": "9030f17e7e76a5dda94bba76347e2993a5265d8d36e145b9d1f889f3f988af16"
+    },
+    "note": "profile/source pins are baseline disk provenance; each row carries the executed onLoad/bundle provenance"
+  },
+  "canonicalAssertions": "PASS",
+  "pristine": {
+    "provenance": {
+      "mutation": null,
+      "onLoadCount": 1,
+      "onLoadPath": "/repo/packages/server/src/sim/walkHint.ts",
+      "originalBytes": 10241,
+      "executedBytes": 10241,
+      "originalSha256": "9030f17e7e76a5dda94bba76347e2993a5265d8d36e145b9d1f889f3f988af16",
+      "executedSha256": "9030f17e7e76a5dda94bba76347e2993a5265d8d36e145b9d1f889f3f988af16",
+      "bundleBytes": 1060205,
+      "bundleSha256": "e444e5b1676b0bb2da59cf6dd31d7549d6460c1db93aae897c81ea5296babc9c",
+      "bundlePath": "/tmp/walk-hint-control-restored-20-1-e444e5b1.mjs",
+      "baselineDiskSha256": "9030f17e7e76a5dda94bba76347e2993a5265d8d36e145b9d1f889f3f988af16"
+    },
+    "semanticEqualCanonical": true
+  },
+  "restored": {
+    "provenance": {
+      "mutation": null,
+      "onLoadCount": 1,
+      "onLoadPath": "/repo/packages/server/src/sim/walkHint.ts",
+      "originalBytes": 10241,
+      "executedBytes": 10241,
+      "originalSha256": "9030f17e7e76a5dda94bba76347e2993a5265d8d36e145b9d1f889f3f988af16",
+      "executedSha256": "9030f17e7e76a5dda94bba76347e2993a5265d8d36e145b9d1f889f3f988af16",
+      "bundleBytes": 1060205,
+      "bundleSha256": "e444e5b1676b0bb2da59cf6dd31d7549d6460c1db93aae897c81ea5296babc9c",
+      "bundlePath": "/tmp/walk-hint-control-restored-20-6-e444e5b1.mjs",
+      "baselineDiskSha256": "9030f17e7e76a5dda94bba76347e2993a5265d8d36e145b9d1f889f3f988af16"
+    },
+    "semanticEqualCanonical": true,
+    "provenanceEqualPristine": true,
+    "verifier": "PASS"
+  },
+  "rows": [
+    {
+      "id": "forced-zero",
+      "status": "KILL",
+      "provenance": {
+        "mutation": "forced-zero",
+        "onLoadCount": 1,
+        "onLoadPath": "/repo/packages/server/src/sim/walkHint.ts",
+        "originalBytes": 10241,
+        "executedBytes": 10251,
+        "originalSha256": "9030f17e7e76a5dda94bba76347e2993a5265d8d36e145b9d1f889f3f988af16",
+        "executedSha256": "1aa04a665d81903126a0c1a14c206a1002ae2e15c754ac66c2ea1fa891b437c7",
+        "bundleBytes": 1060215,
+        "bundleSha256": "dfce2eb4f33904e84fc06d5d587b1f0b4584a3af43d55a6225e7bd7ea43a48e0",
+        "bundlePath": "/tmp/walk-hint-control-forced-zero-20-2-dfce2eb4.mjs",
+        "baselineDiskSha256": "9030f17e7e76a5dda94bba76347e2993a5265d8d36e145b9d1f889f3f988af16"
+      },
+      "runProbeSucceeded": true,
+      "semanticEqual": false,
+      "changed": true,
+      "firstDiff": "/frames/1/snapshot/players/0/extra/walkDir",
+      "verifier": "FAIL",
+      "verifierError": "Error: initial move did not produce hint/path"
+    },
+    {
+      "id": "wrong-cap",
+      "status": "KILL",
+      "provenance": {
+        "mutation": "wrong-cap",
+        "onLoadCount": 1,
+        "onLoadPath": "/repo/packages/server/src/sim/walkHint.ts",
+        "originalBytes": 10241,
+        "executedBytes": 10245,
+        "originalSha256": "9030f17e7e76a5dda94bba76347e2993a5265d8d36e145b9d1f889f3f988af16",
+        "executedSha256": "082297db4072655da3412068b19794ffa9a81fd10bf78a38c28780d452edd763",
+        "bundleBytes": 1060209,
+        "bundleSha256": "7eba7c4d15636c00c9d36228b844b1221553f28ab2fde324c2a28249bda5f13a",
+        "bundlePath": "/tmp/walk-hint-control-wrong-cap-20-3-7eba7c4d.mjs",
+        "baselineDiskSha256": "9030f17e7e76a5dda94bba76347e2993a5265d8d36e145b9d1f889f3f988af16"
+      },
+      "runProbeSucceeded": true,
+      "semanticEqual": false,
+      "changed": true,
+      "firstDiff": "/frames/1/snapshot/players/0/extra/walkTicks",
+      "verifier": "FAIL",
+      "verifierError": "Error: cap3 not reached"
+    },
+    {
+      "id": "hysteresis-always",
+      "status": "KILL",
+      "provenance": {
+        "mutation": "hysteresis-always",
+        "onLoadCount": 1,
+        "onLoadPath": "/repo/packages/server/src/sim/walkHint.ts",
+        "originalBytes": 10241,
+        "executedBytes": 10223,
+        "originalSha256": "9030f17e7e76a5dda94bba76347e2993a5265d8d36e145b9d1f889f3f988af16",
+        "executedSha256": "3f378a14d3a715431015191b6c73f2c3d54709959878c7dea81c6d8968516463",
+        "bundleBytes": 1060158,
+        "bundleSha256": "9d7bc7fa86d31ccf056f7e228aac5460c758e9a40f86e9ca25a65b09ab4f4ef7",
+        "bundlePath": "/tmp/walk-hint-control-hysteresis-always-20-4-9d7bc7fa.mjs",
+        "baselineDiskSha256": "9030f17e7e76a5dda94bba76347e2993a5265d8d36e145b9d1f889f3f988af16"
+      },
+      "runProbeSucceeded": true,
+      "semanticEqual": false,
+      "changed": true,
+      "firstDiff": "/frames/3/snapshot/players/0/extra/walkDir",
+      "verifier": "FAIL",
+      "verifierError": "Error: small-turn hysteresis not observed"
+    },
+    {
+      "id": "provenance-only-comment",
+      "status": "NON-KILL",
+      "provenance": {
+        "mutation": "provenance-only-comment",
+        "onLoadCount": 1,
+        "onLoadPath": "/repo/packages/server/src/sim/walkHint.ts",
+        "originalBytes": 10241,
+        "executedBytes": 10268,
+        "originalSha256": "9030f17e7e76a5dda94bba76347e2993a5265d8d36e145b9d1f889f3f988af16",
+        "executedSha256": "a4f3362583f5616c1ccae5c3eede596e222ade6217b1fb054632a3855b364b2f",
+        "bundleBytes": 1060205,
+        "bundleSha256": "e444e5b1676b0bb2da59cf6dd31d7549d6460c1db93aae897c81ea5296babc9c",
+        "bundlePath": "/tmp/walk-hint-control-provenance-only-comment-20-5-e444e5b1.mjs",
+        "baselineDiskSha256": "9030f17e7e76a5dda94bba76347e2993a5265d8d36e145b9d1f889f3f988af16"
+      },
+      "runProbeSucceeded": true,
+      "semanticEqual": true,
+      "changed": false,
+      "firstDiff": null,
+      "verifier": "PASS",
+      "executedProvenanceChanged": true
+    }
+  ]
+}

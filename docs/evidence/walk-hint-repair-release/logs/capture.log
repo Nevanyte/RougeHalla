@@ -1,0 +1,3 @@
+{"mode":"capture","bytes":44520,"sha256":"2c95328cc86136f55eda8f3fec641a9db081e77721d936ed614294f9aa4e0c4a","frames":14,"hintSequence":[0,3,3,3,3,0,3,3,3,3,2,1,0,0],"replayEqual":true}
+{"mode":"verify","frames":14,"hintSequence":[0,3,3,3,3,0,3,3,3,3,2,1,0,0],"replayEqual":true}
+Wrote walk-hint repair corpus: /Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings/parity/walk-hint/repair/source.json

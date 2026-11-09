@@ -1,0 +1,103 @@
+{
+  "format": "rh-walk-hint-source-repair/2",
+  "status": "PASS_REPAIRED_FINITE_SOURCE_RELEASE",
+  "publicBase": "db5ed80b2b89a156eae09cd0bd3f4c9e77e9e6de",
+  "branch": "deepseek/walk-hint-source-repair",
+  "worktree": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-bot-own-timings",
+  "originalSeal": {
+    "head": "627ba6c461167b54dd3f51ac0e6d221a6aafba0a",
+    "code": "563eb298a0f8537c8f0af9e783a21a6750641b26",
+    "fixture": "parity/walk-hint/source.json",
+    "fixtureBytes": 44372,
+    "fixtureSha256": "8cb8b2c24fe0be184e660a4670b0981b946c35782d9e7a47ae1ba3eff567ab77",
+    "touched": false
+  },
+  "preservedWip": {
+    "codeHead": "450079d1337555e605a5f22a5a9b885ee7b12310",
+    "evidenceHead": "c4f0c798628bd58e275d0efa04a85aa095b74fe7",
+    "firstBlocker": "docker run exit125 containerd blob input/output error before container creation; no retry/restart/prune/deletion",
+    "evidencePath": "docs/evidence/walk-hint-repair/"
+  },
+  "codeHead": "440fb5676d7a2127a90304862174af5666a32d64",
+  "evidenceCommit": "final branch head containing this receipt; reported to Root",
+  "image": "node@sha256:5ec23b7c622b00547753bc6ffd78085dd868a68aeb41c8e0a1418f033e13d96d",
+  "runtime": {
+    "node": "v22.23.4",
+    "platform": "linux",
+    "arch": "x64"
+  },
+  "fixture": {
+    "path": "parity/walk-hint/repair/source.json",
+    "bytes": 44520,
+    "sha256": "2c95328cc86136f55eda8f3fec641a9db081e77721d936ed614294f9aa4e0c4a",
+    "frames": 14,
+    "hintSequence": [
+      0,
+      3,
+      3,
+      3,
+      3,
+      0,
+      3,
+      3,
+      3,
+      3,
+      2,
+      1,
+      0,
+      0
+    ],
+    "capReached": true,
+    "stopZero": true,
+    "waypointEndZero": true
+  },
+  "declaredOldNewChanges": {
+    "imagePin": true,
+    "waypoint0Order": {
+      "type": "move",
+      "msg": {
+        "x": 266.6605407841042,
+        "y": 244.90201014713688,
+        "seq": 5
+      },
+      "accepted": true
+    },
+    "allOtherPayloadEqual": true,
+    "frameCount": 14
+  },
+  "sourcePins": {
+    "walkHint": "9030f17e7e76a5dda94bba76347e2993a5265d8d36e145b9d1f889f3f988af16",
+    "walkHintBytes": 10241,
+    "gameplay": "70f6f2b67571783f3042309bef01dc75aabd2656c59a184d0f97c9c0a8b8cf78",
+    "packageLock": "991869bdfbbefb6874220500197c61db302a4d2b2603dfc2288fd7032ce1d481"
+  },
+  "repairs": {
+    "outputSafety": "fresh outside-Git controls output; existing caller paths refused; old/new canonical refused; no recursive removal; fake-repo sentinel guard PASS",
+    "executedProvenance": {
+      "onLoadPath": "/repo/packages/server/src/sim/walkHint.ts",
+      "onLoadCount": 1,
+      "baselineDiskSha256": "9030f17e...",
+      "pristineBundleSha256": "e444e5b1676b0bb2da59cf6dd31d7549d6460c1db93aae897c81ea5296babc9c",
+      "restoredProvenanceEqual": true,
+      "commentExecutedSourceChanged": true,
+      "commentBundleUnchangedBecauseStripped": true,
+      "semanticMutantKills": 3,
+      "errorsNotKills": true
+    },
+    "seq5Input": "accepted actual Move retained on waypoint-0; assertFacts/verify require it",
+    "runtimeAssertion": "captured run assert Node22.23.4/linux/x64"
+  },
+  "genuineRuns": {
+    "recapture": "exit0",
+    "readonlyCheck": "exit0",
+    "controls": "exit0 3/3 kills + comment NON-KILL + restored provenance equal",
+    "frozenGitExportCheck": "exit0 same bytes"
+  },
+  "oldNewComparison": "payload equal except declared image pin and waypoint-0 seq5 order; events/paths/hints equal",
+  "unproved": [
+    "teleported/runEnded zeroAll",
+    "weapon roots/ice/lock/attack-move/future visibility",
+    "all branches beyond this finite slice"
+  ],
+  "limits": "source-only finite repaired release; no native/Rust/Cargo/target/Unity/wire/public/lifecycle; Root owns admission"
+}
