@@ -1,0 +1,33 @@
+{
+  "argv": [
+    "unity",
+    "command",
+    "test",
+    "run",
+    "--project-path",
+    "/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject",
+    "--caller",
+    "plugin",
+    "--skill",
+    "unity-cli",
+    "--format",
+    "json",
+    "--timeout",
+    "60",
+    "--",
+    "--mode",
+    "editor",
+    "--filter",
+    "MatchSettlementEditModeTests",
+    "--timeout",
+    "60"
+  ],
+  "startedUtc": "2026-11-09T16:26:12.119673+00:00",
+  "finishedUtc": "2026-11-09T16:26:24.200812+00:00",
+  "exitCode": 0,
+  "launchError": null,
+  "stdoutSha256": "e92c5a6ee54ed8f427d2ac519c042734f6ec2918468ed35497ec8ca7c15c8425",
+  "stdoutBytes": 4262,
+  "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stderrBytes": 0
+}

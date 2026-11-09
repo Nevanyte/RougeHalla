@@ -1,0 +1,28 @@
+{
+  "argv": [
+    "unity",
+    "command",
+    "console",
+    "get",
+    "--project-path",
+    "/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject",
+    "--caller",
+    "plugin",
+    "--skill",
+    "unity-cli",
+    "--format",
+    "json",
+    "--",
+    "--tail",
+    "30",
+    "--level",
+    "error",
+    "--since",
+    "42046",
+    "--since-session",
+    "a666ff8381b2434ab627fe359761020a"
+  ],
+  "exitCode": 0,
+  "stderr": "",
+  "utc": "2026-11-09T16:39:30.600656+00:00"
+}

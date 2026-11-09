@@ -1,0 +1,117 @@
+{
+  "source": "cdb0bc4b8bd623939a464f6ce7780bde69198e85",
+  "status": "PASS_NATIVE90_ONCE",
+  "executedOnce": 90,
+  "passed": 90,
+  "failed": 0,
+  "skipped": 0,
+  "inconclusive": 0,
+  "unrun": 0,
+  "missingOrExtra": 0,
+  "retries": 0,
+  "completedFixtureTypes": 8,
+  "passedFixtureTypes": 8,
+  "unresolvedCurrentFixtureFullNames": 0,
+  "fixtures": [
+    {
+      "fixtureType": "Roguehalla.Client.Tests.QuestJournalViewEditModeTests",
+      "summary": {
+        "Total": 8,
+        "Passed": 8,
+        "Failed": 0,
+        "Skipped": 0,
+        "Inconclusive": 0
+      },
+      "exactNames": true,
+      "invocations": 1
+    },
+    {
+      "fixtureType": "Roguehalla.Client.Tests.TraderDialogViewEditModeTests",
+      "summary": {
+        "Total": 6,
+        "Passed": 6,
+        "Failed": 0,
+        "Skipped": 0,
+        "Inconclusive": 0
+      },
+      "exactNames": true,
+      "invocations": 1
+    },
+    {
+      "fixtureType": "Roguehalla.Client.Tests.PlayerFlowsEditModeTests",
+      "summary": {
+        "Total": 11,
+        "Passed": 11,
+        "Failed": 0,
+        "Skipped": 0,
+        "Inconclusive": 0
+      },
+      "exactNames": true,
+      "invocations": 1
+    },
+    {
+      "fixtureType": "MatchLaunchEditModeTests",
+      "summary": {
+        "Total": 17,
+        "Passed": 17,
+        "Failed": 0,
+        "Skipped": 0,
+        "Inconclusive": 0
+      },
+      "exactNames": true,
+      "invocations": 1
+    },
+    {
+      "fixtureType": "MatchSettlementEditModeTests",
+      "summary": {
+        "Total": 22,
+        "Passed": 22,
+        "Failed": 0,
+        "Skipped": 0,
+        "Inconclusive": 0
+      },
+      "exactNames": true,
+      "invocations": 1
+    },
+    {
+      "fixtureType": "Roguehalla.Client.Tests.TrainingConsoleSelectorsEditModeTests",
+      "summary": {
+        "Total": 5,
+        "Passed": 5,
+        "Failed": 0,
+        "Skipped": 0,
+        "Inconclusive": 0
+      },
+      "exactNames": true,
+      "invocations": 1
+    },
+    {
+      "fixtureType": "Roguehalla.Client.Tests.TrainingConsoleViewEditModeTests",
+      "summary": {
+        "Total": 8,
+        "Passed": 8,
+        "Failed": 0,
+        "Skipped": 0,
+        "Inconclusive": 0
+      },
+      "exactNames": true,
+      "invocations": 1
+    },
+    {
+      "fixtureType": "Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests",
+      "summary": {
+        "Total": 13,
+        "Passed": 13,
+        "Failed": 0,
+        "Skipped": 0,
+        "Inconclusive": 0
+      },
+      "exactNames": true,
+      "invocations": 1
+    }
+  ],
+  "priorRedCutsPreservedSeparate": [
+    "ea39a0aa1007456360e319026b0e68cf56bf4a37",
+    "5a61c3c856aafddde0deaf62d7c102865bebcf2f"
+  ]
+}

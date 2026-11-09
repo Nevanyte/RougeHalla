@@ -1,0 +1,1 @@
+info USG0001: Only allowed to have one file passed in with extension '.AdditionalFile.txt'

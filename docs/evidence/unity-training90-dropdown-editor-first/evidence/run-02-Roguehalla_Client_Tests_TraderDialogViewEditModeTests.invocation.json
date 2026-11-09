@@ -1,0 +1,33 @@
+{
+  "argv": [
+    "unity",
+    "command",
+    "test",
+    "run",
+    "--project-path",
+    "/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject",
+    "--caller",
+    "plugin",
+    "--skill",
+    "unity-cli",
+    "--format",
+    "json",
+    "--timeout",
+    "60",
+    "--",
+    "--mode",
+    "editor",
+    "--filter",
+    "Roguehalla.Client.Tests.TraderDialogViewEditModeTests",
+    "--timeout",
+    "60"
+  ],
+  "startedUtc": "2026-11-09T16:25:49.230283+00:00",
+  "finishedUtc": "2026-11-09T16:25:54.499157+00:00",
+  "exitCode": 0,
+  "launchError": null,
+  "stdoutSha256": "70a0285abf6a3ea1647a381ee3ca7dd9fc0647a98f14bf4f24053530ba21a486",
+  "stdoutBytes": 1531,
+  "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stderrBytes": 0
+}

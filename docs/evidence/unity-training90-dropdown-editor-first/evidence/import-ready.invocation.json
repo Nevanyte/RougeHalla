@@ -1,0 +1,15 @@
+{
+  "argv": [
+    "unity",
+    "status",
+    "--until-ready",
+    "--timeout",
+    "45",
+    "--project-path",
+    "/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject",
+    "--format",
+    "json"
+  ],
+  "exitCode": 0,
+  "stderr": ""
+}

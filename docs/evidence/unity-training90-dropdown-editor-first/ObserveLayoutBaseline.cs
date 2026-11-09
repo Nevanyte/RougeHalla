@@ -1,0 +1,10 @@
+using System;
+using System.Text;
+using System.Linq;
+using System.Security.Cryptography;
+using UnityEngine;
+using UnityEditor;
+using UnityEngine.SceneManagement;
+using Roguehalla.Client;
+var p=PlayerPrefs.GetString("rh.ui.profile","");string hash;using(var s=SHA256.Create())hash=BitConverter.ToString(s.ComputeHash(Encoding.UTF8.GetBytes(p))).Replace("-","").ToLowerInvariant();
+return new {scope="Pre-layout native state; no preference values or credentials logged",profileKey=PlayerPrefs.HasKey("rh.ui.profile"),profileLength=p.Length,profileSha256=hash,textKey=PlayerPrefs.HasKey("roguehalla.showcase.textScale"),textScale=PlayerPrefs.GetFloat("roguehalla.showcase.textScale",1f),settingsCurrent=ShowcaseSettings.Current!=null?ShowcaseSettings.Current.GetInstanceID():0,scene=SceneManager.GetActiveScene().path,sceneDirty=SceneManager.GetActiveScene().isDirty,sceneRoots=SceneManager.GetActiveScene().GetRootGameObjects().Select(x=>new{id=x.GetInstanceID(),name=x.name}).ToArray(),windowIds=Resources.FindObjectsOfTypeAll<EditorWindow>().Select(x=>new{id=x.GetInstanceID(),type=x.GetType().FullName,title=x.titleContent.text}).ToArray(),screen=new{width=Screen.width,height=Screen.height},focusedWindow=EditorWindow.focusedWindow!=null?EditorWindow.focusedWindow.GetType().FullName:null};

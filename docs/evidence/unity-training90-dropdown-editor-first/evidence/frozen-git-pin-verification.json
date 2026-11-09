@@ -1,0 +1,10 @@
+{
+  "source": "cdb0bc4b8bd623939a464f6ce7780bde69198e85",
+  "pins": 1179,
+  "allExact": true,
+  "nativeTestInvocations": 0,
+  "priorFailedProofsPreservedSeparate": [
+    "ea39a0aa1007456360e319026b0e68cf56bf4a37",
+    "5a61c3c856aafddde0deaf62d7c102865bebcf2f"
+  ]
+}

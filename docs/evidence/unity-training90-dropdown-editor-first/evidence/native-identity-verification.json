@@ -1,0 +1,39 @@
+{
+  "source": "cdb0bc4b8bd623939a464f6ce7780bde69198e85",
+  "status": "PASS_IDENTITY_BEFORE_EXECUTION",
+  "nativeTestsExecuted": 0,
+  "netMvid": "74ec5a6b-b52d-477f-889e-861cc800394b",
+  "netDllSha256": "4e77d3f4d25594ccae4fe537c4ca3b9ecd609ecd4109ae12b4c700394f715d15",
+  "ownNetIlMethods": 9,
+  "trainingRepairIlMethods": 8,
+  "noLiveSeatResumeValuesRead": true,
+  "priorFailedProofPreservedSeparate": "ea39a0aa1007456360e319026b0e68cf56bf4a37",
+  "realTmpStartBound": true,
+  "dropdownInitializerIlSha256": "f80ccc919a09525a7798cdb20d58506ee5875a5fb6dbe0ebc3a81c3198866ec1",
+  "realTmpStartIlSha256": "4b5819dbed29c0efc166dfffb2d7835c6b2baff9959354969faccd08f0a8efa7",
+  "priorFailedProofsPreservedSeparate": [
+    "ea39a0aa1007456360e319026b0e68cf56bf4a37",
+    "5a61c3c856aafddde0deaf62d7c102865bebcf2f"
+  ],
+  "pins": 1179,
+  "allPinsExact": true,
+  "clientMvid": "77eb0424-5886-4c8e-b5f4-4d37c5faab2a",
+  "clientDllSha256": "8fe005bd629877691d83dcff1b5606bf666d5d5878593fd4d9dcd6077b183636",
+  "testMvid": "650466e6-e8eb-4727-bdce-bbdbc781832c",
+  "testDllSha256": "a8d6b497b6a687d0dca6ad50896766030f5bb8b3af2a1c0d523afde508f7be45",
+  "fixtureTypes": [
+    "Roguehalla.Client.Tests.QuestJournalViewEditModeTests",
+    "Roguehalla.Client.Tests.TraderDialogViewEditModeTests",
+    "Roguehalla.Client.Tests.PlayerFlowsEditModeTests",
+    "MatchLaunchEditModeTests",
+    "MatchSettlementEditModeTests",
+    "Roguehalla.Client.Tests.TrainingConsoleSelectorsEditModeTests",
+    "Roguehalla.Client.Tests.TrainingConsoleViewEditModeTests",
+    "Roguehalla.Client.Tests.TrainingConsoleIntegrationEditModeTests"
+  ],
+  "ownProductionIlMethods": 16,
+  "ownTestBodies": 455,
+  "unityVersion": "6000.0.85f2",
+  "selectedAndLoadedTestFramework": "1.6.0",
+  "knownSerializationException": "FROZEN_README.md: preapproved exact two-space exception; observed bytes retained"
+}
