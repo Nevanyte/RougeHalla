@@ -1,0 +1,23 @@
+COMMAND cargo test -p rh-sim --lib ordinary_training_npc_death_revives_without_a_plague_corpse_and_restores --features trusted-status-probes --locked -- --test-threads=1
+   Compiling rh-sim v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/mark-tax-uncapped-source/repo/crates/rh-sim)
+    Finished `test` profile [unoptimized] target(s) in 36.69s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/rh_sim-0ad75f2b040c28b6)
+
+running 1 test
+test systems::sentenced::mark_tax::source_tests::ordinary_training_npc_death_revives_without_a_plague_corpse_and_restores ... FAILED
+
+failures:
+
+---- systems::sentenced::mark_tax::source_tests::ordinary_training_npc_death_revives_without_a_plague_corpse_and_restores stdout ----
+
+thread 'systems::sentenced::mark_tax::source_tests::ordinary_training_npc_death_revives_without_a_plague_corpse_and_restores' (67518285) panicked at crates/rh-sim/src/systems/sentenced/mark_tax/source_tests.rs:795:9:
+Training death never leaves source-excluded remains
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    systems::sentenced::mark_tax::source_tests::ordinary_training_npc_death_revives_without_a_plague_corpse_and_restores
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 826 filtered out; finished in 0.71s
+
+error: test failed, to rerun pass `-p rh-sim --lib`

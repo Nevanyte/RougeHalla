@@ -1,0 +1,17 @@
+{
+  "code_commit": "8de7e9a13fc3ad6b3f19de9a28600029866d93fe",
+  "code_parent": "8499a7de6c6904e2508912bcc95acca69502c811",
+  "integration_base": "e096c4fbfe6560f5b52c366ae26d9b0bf4baf547",
+  "preserved_source_branch": "50a76a1fbc43e1b9d7fc3434fda367d791c820a3",
+  "production_delta_command": [
+    "git",
+    "diff",
+    "e096c4fbfe6560f5b52c366ae26d9b0bf4baf547",
+    "8de7e9a13fc3ad6b3f19de9a28600029866d93fe",
+    "--",
+    "crates"
+  ],
+  "compiled_source_matches_manifest": true,
+  "cargo_finished_target_released": true,
+  "evidence_commit_is_followup_not_runtime_change": true
+}

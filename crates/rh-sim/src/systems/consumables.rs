@@ -23,7 +23,7 @@ pub(crate) fn fighter_out(hx: &mut Hx, args: &HookArgs) {
 pub(crate) fn speed_source(
     w: &World,
     core: &crate::fighter::FighterCore,
-    view: crate::status_runtime::StatView,
+    view: crate::schedule::ModSourceInputs,
 ) -> Option<ModContribution> {
-    wind::speed_source(w, core, view)
+    wind::speed_source(w, core, view.stats)
 }

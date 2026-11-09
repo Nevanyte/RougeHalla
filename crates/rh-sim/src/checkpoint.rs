@@ -563,6 +563,7 @@ fn check_world(k: &MatchStatic, w: &World) -> Result<(), String> {
             );
         }
     }
+    crate::systems::sentenced::mark_tax::validate(k, w)?;
     if !(0.0..=w.server_time).contains(&w.factions.dot_since)
         || (!k.config.faction_mode.engagement()
             && w.factions != crate::factions::FactionRuntime::default())

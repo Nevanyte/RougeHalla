@@ -1,0 +1,27 @@
+    Finished `test` profile [unoptimized] target(s) in 0.09s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/rh_sim-0ad75f2b040c28b6)
+
+running 1 test
+test systems::sentenced::mark_tax::source_tests::mark_tax_warm_alloc ... FAILED
+
+failures:
+
+---- systems::sentenced::mark_tax::source_tests::mark_tax_warm_alloc stdout ----
+dhat: Total:     4 bytes in 1 blocks
+dhat: At t-gmax: 4 bytes in 1 blocks
+dhat: At t-end:  0 bytes in 0 blocks
+dhat: The data has been saved to /var/folders/f1/zlvpzngj3kbb95dxk8svy1y00000gn/T/rh-mark-tax-clone.json, and is viewable with dhat/dh_view.html
+
+thread 'systems::sentenced::mark_tax::source_tests::mark_tax_warm_alloc' (67480598) panicked at crates/rh-sim/src/systems/sentenced/mark_tax/source_tests.rs:737:13:
+dhat: assertion failed: `(left == right)`
+  left: `1`,
+ right: `0`
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    systems::sentenced::mark_tax::source_tests::mark_tax_warm_alloc
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 822 filtered out; finished in 0.80s
+
+error: test failed, to rerun pass `-p rh-sim --lib`

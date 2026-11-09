@@ -1,0 +1,83 @@
+    Finished `test` profile [unoptimized] target(s) in 0.03s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/rh_sim-0ad75f2b040c28b6)
+
+running 76 tests
+test systems::sentenced::group_tests::sentenced_group_warm_alloc_after_real_birth_restore_and_teleport_reset ... ignored, allocation profiler runs alone: cargo test -p rh-sim --lib sentenced_group_warm_alloc -- --ignored --test-threads=1
+test systems::sentenced::group_tests::sentenced_twelve_sources_warm_alloc_uses_real_training_ai_and_more_than_eight_edges ... ignored, allocation profiler runs alone: cargo test -p rh-sim --lib sentenced_twelve_sources_warm_alloc -- --ignored --test-threads=1
+test systems::sentenced::group_tests::source_lexical_birth_order_is_not_numeric_serial_order ... ok
+test systems::sentenced::group_source_tests::source_comparator_rejects_fractional_discrete_counts_inside_float_tolerance - should panic ... ok
+test systems::sentenced::group_source_tests::source_comparator_rejects_adjacent_large_discrete_counts_without_f64_aliasing - should panic ... ok
+test systems::sentenced::group_tests::diagnostic_group_pulses_once_per_member_but_counts_every_qualifying_hit ... ok
+test systems::sentenced::group_tests::diagnostic_group_query_excludes_return_leash_and_hidden_owner_before_tie ... ok
+test systems::sentenced::group_tests::diagnostic_real_trial_uses_own_group_tier_on_unfocused_member_and_ring_near_exception ... ok
+test systems::sentenced::mark_rate_tests::gathering_storm_multiplies_real_progress_without_touching_counters_or_promotion ... ok
+test systems::sentenced::mark_rate_tests::the_helpers_derive_the_rate_from_the_shipped_catalog_and_keep_the_source_arithmetic ... ok
+test systems::sentenced::group_tests::real_typed_fire_source_remains_live_while_dummies_are_not_signature_sources ... ok
+test systems::sentenced::mark_rate_tests::ordinary_no_storm_history_rejects_progress_only_the_global_rate_could_allow ... ok
+test systems::sentenced::actual_source_tests::helper_only_actual_execute_denial_matrix ... ok
+test systems::sentenced::group_tests::real_group_checkpoint_refuses_wrong_identity_and_size_without_reconstructing_survivors ... ok
+test systems::sentenced::mark_rate_tests::a_mid_mark_grant_keeps_the_past_and_uses_the_new_rate ... ok
+test systems::sentenced::mark_rate_tests::restore_bounds_admit_the_catalog_maximum_history_and_refuse_beyond_it ... ok
+test systems::sentenced::mark_tax::source_tests::mark_tax_warm_alloc ... ignored, dhat must run alone: cargo test -p rh-sim --lib mark_tax_warm_alloc -- --ignored --test-threads=1
+test systems::sentenced::mark_tax::tests::efficiency_applies_only_to_positive_rows_and_never_includes_as_post ... ok
+test systems::sentenced::mark_tax::tests::membership_replacement_does_not_refold_but_removal_does ... ok
+test systems::sentenced::mark_rate_tests::real_checkpoint_restore_and_replay_continue_the_gathering_storm_mark ... ok
+test systems::sentenced::mark_tax::tests::near_boundary_own_trial_expiry_and_reset_keep_prepared_banks ... ok
+test systems::sentenced::mark_tax::tests::selected_owner_is_eligible_before_tier_and_lexical_tie ... ok
+test systems::sentenced::mark_tax::tests::neutral_cut_membership_is_real_and_historical_validation_does_not_reconstruct_nearness ... ok
+test systems::sentenced::mark_tax::tests::tax_factor_and_public_cut_keep_farm_outside_regular_cap ... ok
+test systems::sentenced::mark_tax::tests::sparse_public_cache_and_sig_bit_are_strict ... ok
+test systems::sentenced::npc_tests::actual_npc_base_pulse_filters_nonweapon_ability_dot_arena_and_immune_diagnostics ... ok
+test systems::sentenced::npc_tests::actual_human_victim_slot_swap_advances_every_existing_npc_owned_mark ... ok
+test systems::sentenced::npc_tests::actual_npc_mark_owner_denial_uses_actor_state_without_player_credit_or_verdict ... ok
+test systems::sentenced::npc_tests::checked_edge_budget_covers_training_and_refuses_overflow ... ok
+test systems::sentenced::npc_tests::diagnostic_denial_bank_tail_spans_are_immutable_and_payment_is_sealed ... ok
+test systems::sentenced::npc_tests::diagnostic_frozen_edges_survive_earlier_foe_death_and_multiple_payout_spans ... ok
+test systems::sentenced::npc_tests::diagnostic_npc_bonus_mirrors_do_not_enter_base_mark_and_return_clears_mark ... ok
+test systems::sentenced::npc_tests::diagnostic_twelve_real_practice_actors_keep_every_frozen_edge_and_payout_span ... ok
+test systems::sentenced::actual_source_tests::trusted_actual_installed_mark_matrix ... ok
+test systems::sentenced::npc_tests::sentenced_npc_warm_alloc_after_birth_restore_and_actual_teleport_reset ... ignored, allocation profiler must run alone: cargo test -p rh-sim --lib sentenced_npc_warm_alloc -- --ignored --test-threads=1
+test systems::sentenced::public_tests::eligible_owner_selection_precedes_tie_and_private_state_stays_private ... ok
+test systems::sentenced::public_tests::same_tick_departure_derives_only_public_mark_bit_on_every_observation_path ... ok
+test systems::sentenced::mark_rate_tests::real_training_clear_removes_gathering_storm_without_resetting_the_mark ... ok
+test systems::sentenced::resistance_tests::malformed_mark_progress_and_other_invariants_still_refuse ... ok
+test systems::sentenced::resistance_tests::accumulated_history_does_not_follow_current_source_stats ... ok
+test systems::sentenced::npc_tests::real_npc_mark_has_required_typed_group_and_checked_restore_controls ... ok
+test systems::sentenced::resistance_tests::real_deepened_frost_uses_admitted_cap_not_base_only_maximum ... ok
+test systems::sentenced::tests::helper_batch_hits_promote_once_before_all_pulses_and_filter ... ok
+test systems::sentenced::tests::helper_execute_denial_pays_after_pass_and_sentence_survives_reset ... ok
+test systems::sentenced::tests::helper_progress_uses_prior_chill_no_stagger_pause_and_leash_boundaries ... ok
+test systems::sentenced::tests::ordinary_same_type_slot_swaps_count_but_same_slot_noop_does_not ... ok
+test systems::sentenced::tests::source_kill_hook_counts_died_unresolved_dead_killer_and_caps_without_paying_mia ... ok
+test systems::sentenced::resistance_tests::real_iron_will_mark_restores ... ok
+test systems::sentenced::resistance_tests::real_resistance_grant_keeps_prior_chill_and_mixed_history ... ok
+test systems::sentenced::mark_rate_tests::training_clear_retains_real_deepened_storm_history_above_todays_rate_bound ... ok
+test systems::sentenced::tests::trusted_restored_old_volley_exceeds_request_count_without_changing_damage_or_bucket_cap ... ok
+test systems::sentenced::tier_tests::real_no_commutation_victim_swap_tier_restores ... ok
+test systems::sentenced::tier_tests::real_swift_judgment_tier_restores ... ok
+test systems::sentenced_hunt::tests::completed_hunts_scale_mark_strength_and_run_end_clears_selections ... ok
+test systems::sentenced_hunt::tests::hunt_target_is_refused_outside_an_active_sentenced_run_and_for_self ... ok
+test systems::sentenced_hunt::tests::mia_and_the_hunters_own_death_clear_without_a_stack ... ok
+test systems::sentenced_hunt::tests::movement_bonus_uses_the_next_path_leg_toward_the_living_rival ... ok
+test systems::sentenced_hunt::tests::selected_actor_is_visible_through_fog_but_neighbours_are_not ... ok
+test systems::sentenced_hunt::tests::selecting_a_living_target_is_sticky_and_dead_targets_can_be_replaced ... ok
+test systems::sentenced::tier_tests::real_new_flags_do_not_retroactively_promote_cached_tier ... ok
+test systems::sentenced::tier_tests::tier_history_bounds_reject_unearned_or_demoted_tiers ... ok
+test systems::sentenced::tier_tests::real_training_clear_retains_monotonic_tier_after_flags_disappear ... ok
+test systems::sentenced::group_tests::real_training_group_retains_original_size_across_death_restore_and_clone ... ok
+test systems::sentenced::group_source_tests::admitted_training_initial_constructor_matches_source_births_and_replays_all_stat_crates ... ok
+test systems::sentenced::mark_tax::source_tests::actual_phase_read_probe_does_not_change_events_state_or_rng ... ok
+test systems::sentenced::mark_tax::source_tests::genuine_walk_away_retains_late_return_cache_for_restore ... ok
+test systems::sentenced::npc_tests::actual_training_melee_and_bow_sources_mark_players_and_restore_without_input ... ok
+test systems::sentenced::group_source_tests::full_constructor_and_sentenced_pve_join_require_completed_capability ... ok
+test systems::sentenced::group_source_tests::corrected_source_sentenced_npc_to_holy_human_melee_and_ranged ... ok
+test systems::sentenced::mark_tax::source_tests::genuine_card_grant_and_hp_conditional_query_distinguish_fold_stages ... ok
+test systems::sentenced::group_source_tests::optional_source_holy_npc_recipient_components_melee_and_ranged ... ok
+test systems::sentenced::mark_tax::source_tests::earned_training_two_cases_every_frame_phase_event_and_rng ... ok
+test systems::sentenced::mark_tax::source_tests::genuine_live_tax_restore_clone_projection_and_hash_leaves ... ok
+test systems::sentenced::mark_rate_source_tests::the_real_gathering_storm_timelines_replay_against_actual_source ... ok
+test systems::sentenced::group_source_tests::closed_profile_kernel_source_supplement_death_shrink_handoff_and_trial ... ok
+test systems::sentenced::group_source_tests::closed_profile_kernel_source_six_cases_sparse_snapshots_and_complete_mark_pulse_tapes ... ok
+
+test result: ok. 72 passed; 0 failed; 4 ignored; 0 measured; 747 filtered out; finished in 11.66s
+

@@ -25,7 +25,7 @@ pub(crate) fn leave_corpse(hx: &mut Hx, args: &HookArgs) {
     let HookArgs::FighterOut { id, cause } = *args else {
         return;
     };
-    if cause != OutCause::Down || hx.w.phase != Phase::Active {
+    if cause != OutCause::Down || hx.k.config.training || hx.w.phase != Phase::Active {
         return;
     }
     let Some(p) = hx.w.player(id) else {
@@ -141,21 +141,25 @@ pub(crate) fn consume_action(cx: &mut Cx, ix: FighterIx, cmd: &ActionCmd) {
 
 /// Auto-harvest after movement and damage, in the tick's secret action order.
 pub(crate) fn system(cx: &mut Cx) {
-    if cx.w.phase != Phase::Active || cx.w.plague_corpses.is_empty() {
+    if cx.w.phase != Phase::Active || cx.k.config.training || cx.w.plague_corpses.is_empty() {
         return;
     }
-    let order = cx.s.action_order.clone();
-    for slot in order {
+    // consume takes no TickScratch and cannot mutate this shuffled order. Borrow one stable slot at a time.
+    for i in 0..cx.s.action_order.len() {
+        let slot = cx.s.action_order[i];
         let owner = cx.w.players[slot as usize].id;
         if cx.w.players[slot as usize].vitals.faction != FactionId::Plague {
             continue;
         }
-        let corpses: Vec<_> = cx.w.plague_corpses.iter().map(|c| c.player).collect();
-        for corpse in corpses {
-            if !cx.w.plague_corpses.iter().any(|c| c.player == corpse) {
-                continue;
+        // consume removes exactly its selected corpse. Its remaining calls (modifier/max-HP fold, heal, zombie
+        // raise/grow and notice) cannot append/reorder corpses or fire a death hook. Thus advancing only on refusal
+        // visits exactly the same ordered per-owner snapshot without cloning it, including a refused earlier corpse.
+        let mut ci = 0;
+        while ci < cx.w.plague_corpses.len() {
+            let corpse = cx.w.plague_corpses[ci].player;
+            if !consume(cx.k, cx.w, cx.ev, owner, corpse, true) {
+                ci += 1;
             }
-            consume(cx.k, cx.w, cx.ev, owner, corpse, true);
         }
     }
 }
@@ -300,5 +304,191 @@ mod tests {
             .as_slice()
             .iter()
             .any(|m| m.owner == Some(PlayerId(1))));
+    }
+    /// Deliberately retained pre-repair snapshot traversal, solely an equivalence oracle for this allocation repair.
+    fn snapshot_reference(cx: &mut Cx) {
+        let order = cx.s.action_order.clone();
+        for slot in order {
+            let owner = cx.w.players[slot as usize].id;
+            if cx.w.players[slot as usize].vitals.faction != FactionId::Plague {
+                continue;
+            }
+            let corpses: Vec<_> = cx.w.plague_corpses.iter().map(|c| c.player).collect();
+            for corpse in corpses {
+                if cx.w.plague_corpses.iter().any(|c| c.player == corpse) {
+                    consume(cx.k, cx.w, cx.ev, owner, corpse, true);
+                }
+            }
+        }
+    }
+    #[test]
+    fn stable_auto_order_matches_snapshot_for_multiple_owners_corpses_and_refusals() {
+        for separated in [false, true] {
+            for reversed in [false, true] {
+                let placements = [
+                    (FactionId::Plague, 400.),
+                    (FactionId::Plague, if separated { 1000. } else { 410. }),
+                    (FactionId::Holy, if separated { 1000. } else { 412. }),
+                    (FactionId::Holy, 420.),
+                ]
+                .map(|(faction, x)| Placement {
+                    profile: "corpse-order-diagnostic".into(),
+                    faction,
+                    bot: false,
+                    at: Vec2::new(x, 320.),
+                    hp: None,
+                    weapon0: None,
+                    weapon1: None,
+                });
+                let mut actual = Sim::reset_active(
+                    SimConfig {
+                        consumables: true,
+                        faction_mode: FactionMode::EngagementHolyPlagueFireFrostSentenced,
+                        ..Default::default()
+                    },
+                    crate::arenas::practice_arena(),
+                    Secrets::from_seed(12),
+                    &placements,
+                );
+                let mut setup = Vec::new();
+                for ix in [2, 3] {
+                    crate::systems::settle::down_player(
+                        &actual.k,
+                        &mut actual.w,
+                        &mut setup,
+                        None,
+                        ix,
+                        crate::Outcome::Died,
+                    );
+                }
+                assert_eq!(actual.w.plague_corpses.len(), 2);
+                actual.s.action_order = if reversed {
+                    vec![1, 0, 2, 3]
+                } else {
+                    vec![0, 1, 2, 3]
+                };
+                let mut reference = actual.clone();
+                // Clone deliberately clears transient action_order; install the same declared old-oracle context.
+                reference.s.action_order = actual.s.action_order.clone();
+                let mut got = Vec::new();
+                let mut want = Vec::new();
+                for (sim, events, reference_mode) in [
+                    (&mut actual, &mut got, false),
+                    (&mut reference, &mut want, true),
+                ] {
+                    let mut cx = Cx {
+                        stats: Default::default(),
+                        #[cfg(feature = "trusted-status-probes")]
+                        probe: None,
+                        k: &sim.k,
+                        w: &mut sim.w,
+                        s: &mut sim.s,
+                        ev: events,
+                        pf: &mut sim.pf,
+                    };
+                    if reference_mode {
+                        snapshot_reference(&mut cx);
+                    } else {
+                        system(&mut cx);
+                    }
+                }
+                assert_eq!(got, want, "ordered notices/heals");
+                assert_eq!(actual.state_hash(), reference.state_hash());
+                assert!(actual.w.plague_corpses.is_empty());
+                assert_eq!(
+                    actual.w.mobs.iter().filter(|m| m.zombie.is_some()).count(),
+                    if separated { 2 } else { 1 }
+                );
+                if !separated {
+                    let winner = PlayerId(if reversed { 2 } else { 1 });
+                    assert!(got
+                        .iter()
+                        .filter_map(|e| {
+                            if let Event::PlagueNotice {
+                                recipient,
+                                notice: PlagueNotice::Consumed { player },
+                            } = e
+                            {
+                                Some((*recipient, *player))
+                            } else {
+                                None
+                            }
+                        })
+                        .eq([(winner, PlayerId(3)), (winner, PlayerId(4))]));
+                }
+            }
+        }
+    }
+    #[test]
+    #[ignore = "dhat must run alone: cargo test -p rh-sim --lib corpse_auto_warm_alloc -- --ignored --test-threads=1"]
+    fn corpse_auto_warm_alloc() {
+        // Native lifecycle diagnostic, not another captured source case: a real down producer leaves distant remains.
+        let placements = [
+            (FactionId::Plague, 400.),
+            (FactionId::Holy, 800.),
+            (FactionId::Holy, 1000.),
+        ]
+        .map(|(faction, x)| Placement {
+            profile: "corpse-warm-diagnostic".into(),
+            faction,
+            bot: false,
+            at: Vec2::new(x, 320.),
+            hp: None,
+            weapon0: None,
+            weapon1: None,
+        });
+        let mut s = Sim::reset_active(
+            SimConfig {
+                consumables: true,
+                faction_mode: FactionMode::EngagementHolyPlagueFireFrostSentenced,
+                ..Default::default()
+            },
+            crate::arenas::practice_arena(),
+            Secrets::from_seed(12),
+            &placements,
+        );
+        let mut events = Vec::new();
+        crate::systems::settle::down_player(
+            &s.k,
+            &mut s.w,
+            &mut events,
+            None,
+            1,
+            crate::Outcome::Died,
+        );
+        assert_eq!(s.w.plague_corpses.len(), 1);
+        for stage in ["original", "clone", "restore"] {
+            s = match stage {
+                "clone" => s.clone(),
+                "restore" => Sim::restore(serde_json::to_value(&s).unwrap()).unwrap(),
+                _ => s,
+            };
+            // Component-only allocation gate. Ordinary whole-step Wind produces periodic new containers, a separate
+            // allocation lifetime. Clone/restore intentionally clear transient order: declare this diagnostic context.
+            s.s.action_order = vec![0, 1, 2];
+            let _profiler = dhat::Profiler::builder()
+                .testing()
+                .file_name(std::env::temp_dir().join(format!("rh-corpse-auto-{stage}.json")))
+                .build();
+            for _ in 0..120 {
+                events.clear();
+                let mut cx = Cx {
+                    stats: Default::default(),
+                    #[cfg(feature = "trusted-status-probes")]
+                    probe: None,
+                    k: &s.k,
+                    w: &mut s.w,
+                    s: &mut s.s,
+                    ev: &mut events,
+                    pf: &mut s.pf,
+                };
+                let before = dhat::HeapStats::get().total_blocks;
+                system(&mut cx);
+                let after = dhat::HeapStats::get().total_blocks;
+                dhat::assert_eq!(after, before);
+                assert_eq!(s.phase(), Phase::Active);
+                assert_eq!(s.w.plague_corpses.len(), 1);
+            }
+        }
     }
 }

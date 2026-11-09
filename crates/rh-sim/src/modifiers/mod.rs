@@ -117,6 +117,12 @@ impl Runtime {
     pub fn mirrors(&self) -> fold::StatMirrors {
         fold::decode_mirrors(&WireMirrors::from_source_values(self.wire))
     }
+    pub(crate) fn own_as_rows(&self) -> crate::systems::sentenced::mark_tax::OwnAsRows {
+        crate::systems::sentenced::mark_tax::OwnAsRows {
+            regular: StatSums::from_source_values(self.sums).attack_speed,
+            farm: StatSums::from_source_values(self.farm).attack_speed,
+        }
+    }
     pub fn attack_rate_wire(&self) -> f64 {
         self.wire[0]
     }
@@ -273,7 +279,17 @@ pub(crate) fn recompute_with(
     ix: crate::fighter::FighterIx,
     inputs: crate::status_runtime::stats::Inputs,
 ) {
-    recompute_core(k, w, ix, inputs, &[]);
+    recompute_core(k, w, ix, inputs, &[], false);
+}
+
+/// End updateMods differs from explicit recompute: a conditional flip refolds rows before asking tax sources.
+pub(crate) fn recompute_end_with(
+    k: &crate::statics::MatchStatic,
+    w: &mut crate::state::World,
+    ix: crate::fighter::FighterIx,
+    inputs: crate::status_runtime::stats::Inputs,
+) {
+    recompute_core(k, w, ix, inputs, &[], true);
 }
 
 /// Re-folds one fighter's stats from its rows, the diagnostic overlay and every registered source, and stores the mirrors.
@@ -284,6 +300,7 @@ fn recompute_core<'a>(
     ix: crate::fighter::FighterIx,
     inputs: crate::status_runtime::stats::Inputs,
     extra_rows: &[fold::EffectRow<'a>],
+    end_mods: bool,
 ) {
     let build = if w.is_player(ix) {
         w.players[ix.slot()].build
@@ -365,9 +382,21 @@ fn recompute_core<'a>(
             ..Default::default()
         },
     );
+    let own_as_rows = if end_mods && holds != w.core(ix).modifiers.holds {
+        crate::systems::sentenced::mark_tax::OwnAsRows {
+            regular: folded.sums.attack_speed,
+            farm: folded.farm_sums.attack_speed,
+        }
+    } else {
+        w.core(ix).modifiers.own_as_rows()
+    };
+    let source_inputs = crate::schedule::ModSourceInputs {
+        stats: inputs.view(w.core(ix)),
+        own_as_rows,
+    };
     let mut src = fold::SourceMods::default();
     for (_, source) in crate::schedule::Plan::of(k).mod_sources.live() {
-        if let Some(m) = source(w, w.core(ix), inputs.view(w.core(ix))) {
+        if let Some(m) = source(w, w.core(ix), source_inputs) {
             src.armor += m.armor.unwrap_or(0.);
             src.as_mult *= m.as_mult.unwrap_or(1.);
             src.speed_mult *= m.speed_mult.unwrap_or(1.);
@@ -519,7 +548,7 @@ pub(crate) fn refold_with_extra_rows(
     ix: crate::fighter::FighterIx,
     extra: &[fold::EffectRow<'_>],
 ) {
-    recompute_core(k, w, ix, Default::default(), extra);
+    recompute_core(k, w, ix, Default::default(), extra, false);
 }
 pub(crate) fn sync_max_hp(p: &mut crate::state::Player) {
     let max = crate::content::faction(p.faction()).hp * p.modifiers.max_hp_mult + p.card_tank_hp;

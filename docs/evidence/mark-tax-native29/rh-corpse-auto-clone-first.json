@@ -1,0 +1,46 @@
+{
+"dhatFileVersion": 2,
+"mode": "rust-heap",
+"verb": "Allocated",
+"bklt": true,
+"bkacc": false,
+"tu": "µs",
+"Mtu": "s",
+"tuth": 10,
+"cmd": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/rh_sim-0ad75f2b040c28b6 corpse_auto_warm_alloc --ignored --test-threads=1",
+"pid": 29838,
+"tg": 3453,
+"te": 3540,
+"pps": [
+{
+"tb": 384,
+"tbk": 1,
+"tl": 87,
+"mb": 384,
+"mbk": 1,
+"gb": 384,
+"gbk": 1,
+"eb": 384,
+"ebk": 1,
+"fs": [
+1,
+2,
+3,
+4,
+5,
+6,
+7
+]
+}
+],
+"ftbl": [
+"[root]",
+"0x101ccb084: <alloc::alloc::Global as core::alloc::Allocator>::grow (???:0:0)",
+"0x101d9f140: <alloc::raw_vec::RawVecInner>::finish_grow (???:0:0)",
+"0x101cc75ec: <alloc::raw_vec::RawVecInner>::grow_amortized (???:0:0)",
+"0x1014aa2dc: <alloc::raw_vec::RawVec<rh_sim::state::Container>>::grow_one (???:0:0)",
+"0x101123490: <alloc::vec::Vec<rh_sim::state::Container>>::push_mut (???:0:0)",
+"0x101123438: <alloc::vec::Vec<rh_sim::state::Container>>::push (???:0:0)",
+"0x10086c7a8: rh_sim::systems::items::add_wind_emblem (???:0:0)"
+]
+}

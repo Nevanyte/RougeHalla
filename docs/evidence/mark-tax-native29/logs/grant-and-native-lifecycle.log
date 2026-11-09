@@ -1,0 +1,21 @@
+   Compiling rh-sim v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/mark-tax-uncapped-source/repo/crates/rh-sim)
+    Finished `test` profile [unoptimized] target(s) in 31.89s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/rh_sim-0ad75f2b040c28b6)
+
+running 13 tests
+test systems::sentenced::mark_tax::source_tests::mark_tax_warm_alloc ... ignored, dhat must run alone: cargo test -p rh-sim --lib mark_tax_warm_alloc -- --ignored --test-threads=1
+test systems::sentenced::mark_tax::tests::tax_factor_and_public_cut_keep_farm_outside_regular_cap ... ok
+test systems::sentenced::mark_tax::tests::efficiency_applies_only_to_positive_rows_and_never_includes_as_post ... ok
+test systems::sentenced::mark_tax::tests::selected_owner_is_eligible_before_tier_and_lexical_tie ... ok
+test systems::sentenced::mark_tax::tests::membership_replacement_does_not_refold_but_removal_does ... ok
+test systems::sentenced::mark_tax::tests::near_boundary_own_trial_expiry_and_reset_keep_prepared_banks ... ok
+test systems::sentenced::mark_tax::tests::neutral_cut_membership_is_real_and_historical_validation_does_not_reconstruct_nearness ... ok
+test systems::sentenced::mark_tax::tests::sparse_public_cache_and_sig_bit_are_strict ... ok
+test systems::sentenced::mark_tax::source_tests::actual_phase_read_probe_does_not_change_events_state_or_rng ... ok
+test systems::sentenced::mark_tax::source_tests::genuine_walk_away_retains_late_return_cache_for_restore ... ok
+test systems::sentenced::mark_tax::source_tests::genuine_card_grant_and_hp_conditional_query_distinguish_fold_stages ... ok
+test systems::sentenced::mark_tax::source_tests::earned_training_two_cases_every_frame_phase_event_and_rng ... ok
+test systems::sentenced::mark_tax::source_tests::genuine_live_tax_restore_clone_projection_and_hash_leaves ... ok
+
+test result: ok. 12 passed; 0 failed; 1 ignored; 0 measured; 810 filtered out; finished in 2.83s
+

@@ -1,0 +1,27 @@
+    Finished `test` profile [unoptimized] target(s) in 0.09s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/final-target/debug/deps/rh_sim-0ad75f2b040c28b6)
+
+running 1 test
+test systems::plague_corpses::tests::corpse_auto_warm_alloc ... FAILED
+
+failures:
+
+---- systems::plague_corpses::tests::corpse_auto_warm_alloc stdout ----
+dhat: Total:     384 bytes in 1 blocks
+dhat: At t-gmax: 384 bytes in 1 blocks
+dhat: At t-end:  384 bytes in 1 blocks
+dhat: The data has been saved to /var/folders/f1/zlvpzngj3kbb95dxk8svy1y00000gn/T/rh-corpse-auto-clone.json, and is viewable with dhat/dh_view.html
+
+thread 'systems::plague_corpses::tests::corpse_auto_warm_alloc' (67508182) panicked at crates/rh-sim/src/systems/plague_corpses.rs:481:17:
+dhat: assertion failed: `(left == right)`
+  left: `1`,
+ right: `0`
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    systems::plague_corpses::tests::corpse_auto_warm_alloc
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 826 filtered out; finished in 0.14s
+
+error: test failed, to rerun pass `-p rh-sim --lib`

@@ -42,6 +42,23 @@ pub struct DotBucket {
 pub struct FactionRuntime {
     pub dot_since: f64,
     pub dot: Vec<DotBucket>,
+    /// Source pass index, including members whose own haste is too low for a tax cut. Later systems may change the
+    /// live actor graph before the next input's refold reads this index, so it is canonical phase state.
+    pub(crate) taxed: Vec<TaxBinding>,
+    /// Positive public percentages written at syncVisuals, before the end-of-step conditional stat fold.
+    pub(crate) public_tax: Vec<TaxPercent>,
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct TaxBinding {
+    pub(crate) victim: PlayerId,
+    pub(crate) by: PlayerId,
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct TaxPercent {
+    pub(crate) victim: PlayerId,
+    pub(crate) percent: u8,
 }
 /// Trusted pre-application ledger diagnostic. It is not an observation or command surface.
 #[derive(Clone, Debug, serde::Serialize)]
