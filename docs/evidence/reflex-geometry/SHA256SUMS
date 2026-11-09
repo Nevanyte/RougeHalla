@@ -1,0 +1,12 @@
+7d20c5f3c0491595fa0c184ea82978a2d07822c7078da417bacd1dbade0538dd  ./README.md
+8dc2d895427bed95c4b1e957fe60d142ce8a28798ba3e70b1e6911ece703da2a  ./hashes.txt
+80b0157e3a6674d6feec3c83a52168ebda445a7c4b90dca3502c7135fca9325a  ./logs/cargo-test.log
+81ea2a0fe7f8e07ba703ec7164760ffcd9f4283f92c3e078d0745d96d268d7ca  ./logs/check-1.log
+81ea2a0fe7f8e07ba703ec7164760ffcd9f4283f92c3e078d0745d96d268d7ca  ./logs/check-2.log
+a11a1de8037a032bda7e33f88e31dc898d0129cfe94956add639cd289d2ce985  ./logs/clippy.log
+95e2d11d6d642a8d1564740f4d88b4715ec47f6ce6c44ab5cdc91e7bb1a79757  ./logs/controls-run.log
+e8fe9a979835aee351b8579a64e9143dbfb15f26bb8575c44dbd207a58ada7d6  ./logs/controls.json
+6c5b6bbdbebf42c43cd93753c05904a33cee2820cf4df582715caa77f4269b96  ./logs/external-write.log
+e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  ./logs/fmt-check.log
+81ea2a0fe7f8e07ba703ec7164760ffcd9f4283f92c3e078d0745d96d268d7ca  ./logs/frozen-export-check.log
+cf219247d0ef45c2f836805656e926a0cdc5a243731e3bef80c3afcb6fb82b31  ./receipt.json
