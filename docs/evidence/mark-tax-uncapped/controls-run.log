@@ -1,0 +1,8 @@
+{"name":"tax-source-disabled","exit":1,"semanticEqual":false,"semanticAssertion":true}
+{"name":"raw-farm-excluded","exit":1,"semanticEqual":false,"semanticAssertion":true}
+{"name":"cap99-ignored","exit":1,"semanticEqual":false,"semanticAssertion":true}
+{"name":"tier2-refused","exit":1,"semanticEqual":false,"semanticAssertion":true}
+{"name":"tie-owner-reversed","exit":1,"semanticEqual":false,"semanticAssertion":true}
+{"name":"public-tax-omitted","exit":1,"semanticEqual":false,"semanticAssertion":true}
+{"name":"provenance-nonkill","exit":0,"semanticEqual":true,"semanticAssertion":false}
+{"semanticKills":6,"provenanceNonkills":1,"pristine":true,"restored":true}
