@@ -2284,8 +2284,8 @@
   "evidenceFiles": [
     {
       "path": "docs/evidence/npc-runner-callsite/CALLSITE.md",
-      "bytes": 11639,
-      "sha256": "cd880c6cd520a39302ce0201f4043c784ffb66a76cbba7ca8ed9ad6894996970"
+      "bytes": 11942,
+      "sha256": "ab040aee69690c3089f9ae618602fa9b53a9e38ad291f7f73d81f5903c697f37"
     },
     {
       "path": "docs/evidence/npc-runner-callsite/DECISION.md",
