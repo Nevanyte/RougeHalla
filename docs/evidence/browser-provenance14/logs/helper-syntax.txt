@@ -1,0 +1,4 @@
+$ node --check docs/evidence/browser-provenance14/admit-metadata.mjs
+exit 0
+$ node --check docs/evidence/browser-provenance14/auditor-controls.mjs
+exit 0

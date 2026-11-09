@@ -540,7 +540,7 @@
     },
     {
       "path": "tools/card-runtime-witness-fixtures/capture.mts",
-      "sha256": "3faf321de92dc17af21d351078a31734293969883be63ddb68cfef45a44699e4"
+      "sha256": "6385d891b525524cf5f96a967a8c3afc6bd155e25ed84b0960d48aaee93f188b"
     },
     {
       "path": "tools/card-runtime-witness-fixtures/capture.sh",
@@ -662,26 +662,26 @@
     {
       "path": "parity/card-runtime/source.json",
       "originalSha256": "c2e5d1a071f3f7a05a6c3e8bf46fbdba8f0c7ae47d4de1aea8e62a1726ecd019",
-      "priorAcceptedEffectiveSha256": "80516466ca231b88d16cd0d187f90260f141042ba59b37322b99016ebcae33e1",
-      "effectiveSha256": "9e357ed421c876de39c004236a83563116b390fc9d75043af24047dc952fe049",
+      "priorAcceptedEffectiveSha256": "9e357ed421c876de39c004236a83563116b390fc9d75043af24047dc952fe049",
+      "effectiveSha256": "f67417ff219039296852886e61aa9661ac535d2f5ce0126fa3f76f6a3a740337",
       "scope": "metadata-only runtime provenance overlay: custom catalog immutable reference hash and runtime capture harness pin changed, plus the accepted overlay record; all 65 witness cases/cleanControls/comparison/privateOracleRecords/controlCorrection unchanged",
-      "evidence": "docs/evidence/ci-browser-provenance-chain/{README.md,receipt.json,logs}"
+      "evidence": "docs/evidence/browser-provenance14/{README.md,receipt.json,logs}"
     },
     {
       "path": "parity/card-runtime/INPUT_SHA256.json",
       "originalSha256": "2ea71ac15addc60e406aebbb7defedf8492c135d0a787a15808b69e4bc34d39a",
-      "priorAcceptedEffectiveSha256": "84ffcc7ff49536cc0d1d542a25f42994b68c049f28877d9375da08aa73186e79",
-      "effectiveSha256": "4dd8dff0f8474e7cc312b1a9588560fe06984e42bb878ee0dd40182bd32a968e",
+      "priorAcceptedEffectiveSha256": "4dd8dff0f8474e7cc312b1a9588560fe06984e42bb878ee0dd40182bd32a968e",
+      "effectiveSha256": "b13c5605bdfc08b5264440ed03376cbb50c620ac6432afa1280cd777f2ddd931",
       "scope": "metadata-only runtime input inventory overlay: the same accepted catalog reference/harness/overlay metadata; sourceInputs and inventory semantics unchanged",
-      "evidence": "docs/evidence/ci-browser-provenance-chain/{README.md,receipt.json,logs}"
+      "evidence": "docs/evidence/browser-provenance14/{README.md,receipt.json,logs}"
     },
     {
       "path": "tools/card-runtime-fixtures/capture.mts",
       "originalSha256": "24df22055a3c77b75e01b478d04a477a57690d7f71220916d0816551102fff9e",
-      "priorAcceptedEffectiveSha256": "5ca446a1934846ffa14e561a10b06230b55a73f924d7853c5c9ecec79b13857d",
-      "effectiveSha256": "508e4ed7f473dcccea774fe769756e863bd531a3abe5dca682d5df7ddda87794",
+      "priorAcceptedEffectiveSha256": "508e4ed7f473dcccea774fe769756e863bd531a3abe5dca682d5df7ddda87794",
+      "effectiveSha256": "3c6c419263018b9710f419e31708148b83f32af748b68fb856d2b794aef8359c",
       "scope": "narrow accepted-provenance overlay implementation in the pinned runtime capture tool only (catalog reference chain + overlay metadata record); executable engine/cases/inspection/controls unchanged",
-      "evidence": "docs/evidence/ci-browser-provenance-chain/{README.md,receipt.json,logs}"
+      "evidence": "docs/evidence/browser-provenance14/{README.md,receipt.json,logs}"
     }
   ],
   "actualPinnedInputs": [
@@ -694,15 +694,15 @@
     },
     {
       "path": "parity/card-runtime/INPUT_SHA256.json",
-      "bytes": 24865,
-      "sha256": "4dd8dff0f8474e7cc312b1a9588560fe06984e42bb878ee0dd40182bd32a968e",
+      "bytes": 25141,
+      "sha256": "b13c5605bdfc08b5264440ed03376cbb50c620ac6432afa1280cd777f2ddd931",
       "frozenOriginalSha256": "2ea71ac15addc60e406aebbb7defedf8492c135d0a787a15808b69e4bc34d39a",
       "docOverlayApplied": false,
       "acceptedProvenanceOverlayApplied": true,
       "acceptedProvenanceOverlay": {
         "originalSha256": "2ea71ac15addc60e406aebbb7defedf8492c135d0a787a15808b69e4bc34d39a",
-        "effectiveSha256": "4dd8dff0f8474e7cc312b1a9588560fe06984e42bb878ee0dd40182bd32a968e",
-        "evidence": "docs/evidence/ci-browser-provenance-chain/{README.md,receipt.json,logs}"
+        "effectiveSha256": "b13c5605bdfc08b5264440ed03376cbb50c620ac6432afa1280cd777f2ddd931",
+        "evidence": "docs/evidence/browser-provenance14/{README.md,receipt.json,logs}"
       }
     },
     {
@@ -714,15 +714,15 @@
     },
     {
       "path": "parity/card-runtime/source.json",
-      "bytes": 53034795,
-      "sha256": "9e357ed421c876de39c004236a83563116b390fc9d75043af24047dc952fe049",
+      "bytes": 53035071,
+      "sha256": "f67417ff219039296852886e61aa9661ac535d2f5ce0126fa3f76f6a3a740337",
       "frozenOriginalSha256": "c2e5d1a071f3f7a05a6c3e8bf46fbdba8f0c7ae47d4de1aea8e62a1726ecd019",
       "docOverlayApplied": false,
       "acceptedProvenanceOverlayApplied": true,
       "acceptedProvenanceOverlay": {
         "originalSha256": "c2e5d1a071f3f7a05a6c3e8bf46fbdba8f0c7ae47d4de1aea8e62a1726ecd019",
-        "effectiveSha256": "9e357ed421c876de39c004236a83563116b390fc9d75043af24047dc952fe049",
-        "evidence": "docs/evidence/ci-browser-provenance-chain/{README.md,receipt.json,logs}"
+        "effectiveSha256": "f67417ff219039296852886e61aa9661ac535d2f5ce0126fa3f76f6a3a740337",
+        "evidence": "docs/evidence/browser-provenance14/{README.md,receipt.json,logs}"
       }
     },
     {
@@ -741,15 +741,15 @@
     },
     {
       "path": "tools/card-runtime-fixtures/capture.mts",
-      "bytes": 7416,
-      "sha256": "508e4ed7f473dcccea774fe769756e863bd531a3abe5dca682d5df7ddda87794",
+      "bytes": 7722,
+      "sha256": "3c6c419263018b9710f419e31708148b83f32af748b68fb856d2b794aef8359c",
       "frozenOriginalSha256": "24df22055a3c77b75e01b478d04a477a57690d7f71220916d0816551102fff9e",
       "docOverlayApplied": false,
       "acceptedProvenanceOverlayApplied": true,
       "acceptedProvenanceOverlay": {
         "originalSha256": "24df22055a3c77b75e01b478d04a477a57690d7f71220916d0816551102fff9e",
-        "effectiveSha256": "508e4ed7f473dcccea774fe769756e863bd531a3abe5dca682d5df7ddda87794",
-        "evidence": "docs/evidence/ci-browser-provenance-chain/{README.md,receipt.json,logs}"
+        "effectiveSha256": "3c6c419263018b9710f419e31708148b83f32af748b68fb856d2b794aef8359c",
+        "evidence": "docs/evidence/browser-provenance14/{README.md,receipt.json,logs}"
       }
     },
     {

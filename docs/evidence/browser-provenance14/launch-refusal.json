@@ -1,0 +1,13 @@
+[
+  {
+    "gate": "catalog",
+    "command": [
+      "bash",
+      "tools/card-catalog-fixtures/capture.sh",
+      "--check"
+    ],
+    "exit": 125,
+    "elapsed_seconds": 0.206,
+    "log": "docs/evidence/browser-provenance14/logs/catalog-launch-refusal.txt"
+  }
+]

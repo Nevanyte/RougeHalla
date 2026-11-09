@@ -1,0 +1,2 @@
+$ node --check tools/provenance/check-card-chain.mjs
+exit 0

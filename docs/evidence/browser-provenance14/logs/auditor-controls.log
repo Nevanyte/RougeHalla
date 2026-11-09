@@ -1,0 +1,22 @@
+format=rh-browser-provenance14-auditor-controls/1
+baseRevision=58f476763128a84b2acb28d2d7e41cb60a1c20e5
+auditorSha256=99cf8f1ff2c692f2f03f6b78acc79fb41d27331b56b843491e0daf6f54b79eba
+helperSha256=ee24dbd273340c598951b99467c8e716a51aeff3ba68f803ca406e10dff42fbd
+status=PASS
+pristine: exit=0 failures=0
+protected-checker: exit=1 failures=1
+protected-browser-proof: exit=1 failures=1
+protected-map-extra-leaf: exit=1 failures=3
+required-checker-omitted: exit=1 failures=3
+runtime-overlay-unknown-leaf: exit=1 failures=4
+runtime-overlay-missing-leaf: exit=1 failures=4
+runtime-overlay-extra-leaf: exit=1 failures=3
+witness-overlay-unknown-path: exit=1 failures=3
+runtime-overlay-stale-effective: exit=1 failures=3
+catalog-source-inventory-missing: exit=1 failures=2
+catalog-harness-inventory-empty: exit=1 failures=2
+catalog-source-actual-pin: exit=1 failures=3
+catalog-harness-actual-pin: exit=1 failures=1
+frozen-pins-byte-mutation: exit=1 failures=2
+frozen-pins-count-mutation: exit=1 failures=5
+final-pristine: exit=0 failures=0

@@ -1,0 +1,5 @@
+$ bash tools/card-runtime-witness-fixtures/capture.sh --check
+{"cases":2,"ordinarySteps":6,"extraDamage":2.891037366083104,"sourceRatio":1.08,"bytes":174647,"sha256":"744dbf747d13a32a13c1b7e2bfc992cfbe0c530c5a25fa3e6e7350cfdde2a569"}
+
+exit 0
+elapsed_seconds 32.865

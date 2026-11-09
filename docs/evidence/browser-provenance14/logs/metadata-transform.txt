@@ -1,0 +1,79 @@
+{
+  "base": "58f476763128a84b2acb28d2d7e41cb60a1c20e5",
+  "mode": "exact-metadata-write",
+  "artifacts": [
+    {
+      "path": "parity/card-catalog/source.json",
+      "beforeSha256": "2ddb8f85114ff6e8e70c2d70b8207ed3f32c71431845f3cce1007be494e39792",
+      "afterSha256": "e2de5226d31fc7fe4f23d8cd0552ad73be44855bb3109ebed8042b2fd899b9c3",
+      "fieldDiffs": 2,
+      "semanticDigestBefore": "a6dea59a42669c8b2aa88a642c17dda7b630de3b51cbd447badc4da5712a80f7",
+      "semanticDigestAfter": "a6dea59a42669c8b2aa88a642c17dda7b630de3b51cbd447badc4da5712a80f7"
+    },
+    {
+      "path": "tools/card-runtime-fixtures/capture.mts",
+      "beforeSha256": "508e4ed7f473dcccea774fe769756e863bd531a3abe5dca682d5df7ddda87794",
+      "afterSha256": "3c6c419263018b9710f419e31708148b83f32af748b68fb856d2b794aef8359c"
+    },
+    {
+      "path": "parity/card-runtime/source.json",
+      "beforeSha256": "9e357ed421c876de39c004236a83563116b390fc9d75043af24047dc952fe049",
+      "afterSha256": "f67417ff219039296852886e61aa9661ac535d2f5ce0126fa3f76f6a3a740337",
+      "fieldDiffs": 11,
+      "semanticDigestBefore": "a086c168baa3e0844a5524662e9fc68675b7335e95248db5ced95bc863878fe7",
+      "semanticDigestAfter": "a086c168baa3e0844a5524662e9fc68675b7335e95248db5ced95bc863878fe7"
+    },
+    {
+      "path": "parity/card-runtime/INPUT_SHA256.json",
+      "beforeSha256": "4dd8dff0f8474e7cc312b1a9588560fe06984e42bb878ee0dd40182bd32a968e",
+      "afterSha256": "b13c5605bdfc08b5264440ed03376cbb50c620ac6432afa1280cd777f2ddd931",
+      "fieldDiffs": 11
+    },
+    {
+      "path": "tools/card-runtime-witness-fixtures/capture.mts",
+      "beforeSha256": "3faf321de92dc17af21d351078a31734293969883be63ddb68cfef45a44699e4",
+      "afterSha256": "6385d891b525524cf5f96a967a8c3afc6bd155e25ed84b0960d48aaee93f188b"
+    },
+    {
+      "path": "parity/card-runtime-witness/source.json",
+      "beforeSha256": "59fdc1ccabd5b15d2251272cd7a10e41e3b9858203a9a61bd877a10c28917ebe",
+      "afterSha256": "744dbf747d13a32a13c1b7e2bfc992cfbe0c530c5a25fa3e6e7350cfdde2a569",
+      "fieldDiffs": 22,
+      "semanticDigestBefore": "0ef72417008fab778bd68dc05aed90134415eb3411db6406d12b697bc921c9c4",
+      "semanticDigestAfter": "0ef72417008fab778bd68dc05aed90134415eb3411db6406d12b697bc921c9c4"
+    },
+    {
+      "path": "parity/card-runtime-witness/INPUT_SHA256.json",
+      "beforeSha256": "2e89b83e5aee298d423b320f12d419b9077edae73a3688275be3211ccc8e9249",
+      "afterSha256": "1ae4dab1ce1b2dbdce6fe675178b1956624b035c9aa00b6bbe8291196461b700",
+      "fieldDiffs": 22
+    }
+  ],
+  "offlineSemanticNegativeControls": [
+    {
+      "path": "parity/card-catalog/source.json",
+      "control": "changed case id",
+      "refused": true
+    },
+    {
+      "path": "parity/card-runtime/source.json",
+      "control": "changed case id",
+      "refused": true
+    },
+    {
+      "path": "parity/card-runtime-witness/source.json",
+      "control": "changed case id",
+      "refused": true
+    },
+    {
+      "path": "parity/card-runtime/source.json",
+      "control": "changed private record",
+      "refused": true
+    },
+    {
+      "path": "parity/card-runtime-witness/source.json",
+      "control": "changed private record",
+      "refused": true
+    }
+  ]
+}

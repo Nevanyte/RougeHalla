@@ -1,0 +1,47 @@
+$ node tools/provenance/check-card-chain.mjs
+{
+  "ok": true,
+  "root": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-browser-provenance14",
+  "acceptedOverlays": [
+    {
+      "kind": "runtime catalog provenance chain",
+      "path": "parity/card-catalog/source.json",
+      "original": "d50c03e471f9d11ff790cac0f31d4ab82b5bb45f1b963b41725d58814cc6f74e",
+      "prior": "2ddb8f85114ff6e8e70c2d70b8207ed3f32c71431845f3cce1007be494e39792",
+      "effective": "2a8685e0772c0c31160790a9c8e702d9855d990692755006c096b6c5cb8e4db4",
+      "leaves": [
+        "/protectedSha256/tools/protocol-js/check-vectors.mjs",
+        "/protectedSha256/tools/browser-proof/proof.mjs"
+      ]
+    },
+    {
+      "kind": "witness provenance chain",
+      "path": "parity/card-runtime/INPUT_SHA256.json",
+      "original": "2ea71ac15addc60e406aebbb7defedf8492c135d0a787a15808b69e4bc34d39a",
+      "prior": "4dd8dff0f8474e7cc312b1a9588560fe06984e42bb878ee0dd40182bd32a968e",
+      "effective": "e81a67a47853165b66f6677d911290614bf0dfb2b930020ffb85822136b25ec6"
+    },
+    {
+      "kind": "documentation overlay",
+      "path": "parity/card-runtime/README.md",
+      "original": "d5d3c30632494c98fb96ce4ddad76da2e716322609ccca767e52b868ec16742d",
+      "effective": "d0fa1b753a7016e07c9bb3b3db4ae55ef483df176c343296c80e2c8756ba5ed8"
+    },
+    {
+      "kind": "witness provenance chain",
+      "path": "parity/card-runtime/source.json",
+      "original": "c2e5d1a071f3f7a05a6c3e8bf46fbdba8f0c7ae47d4de1aea8e62a1726ecd019",
+      "prior": "9e357ed421c876de39c004236a83563116b390fc9d75043af24047dc952fe049",
+      "effective": "347cb90a36f1d9ca4e4f5ef01089bd3667e63959ea179bcf5777d6af86985733"
+    },
+    {
+      "kind": "witness provenance chain",
+      "path": "tools/card-runtime-fixtures/capture.mts",
+      "original": "24df22055a3c77b75e01b478d04a477a57690d7f71220916d0816551102fff9e",
+      "prior": "508e4ed7f473dcccea774fe769756e863bd531a3abe5dca682d5df7ddda87794",
+      "effective": "598fc36822b52e5caa52783d7fead033eee28a40691d64fb98c0f78ab626ee20"
+    }
+  ],
+  "failureCount": 0,
+  "failures": []
+}

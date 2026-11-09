@@ -18,26 +18,27 @@ const eq = (kind, path, expected, actual, detail) => { if (expected !== actual) 
 const need = (p) => { if (!existsSync(join(root, p))) { fail('missing-file', p, 'exists', 'missing'); return false; } return true; };
 
 const EXPECTED = {
-  catalogSource: '2ddb8f85114ff6e8e70c2d70b8207ed3f32c71431845f3cce1007be494e39792',
-  browserProof: '6aea66795ed18edd941a4bc65c62070d6a6e2fce1b57cd98d0238db134fcfd66',
-  runtimeSource: '9e357ed421c876de39c004236a83563116b390fc9d75043af24047dc952fe049',
-  runtimeInput: '4dd8dff0f8474e7cc312b1a9588560fe06984e42bb878ee0dd40182bd32a968e',
-  runtimeCaptureTool: '508e4ed7f473dcccea774fe769756e863bd531a3abe5dca682d5df7ddda87794',
-  witnessSource: '59fdc1ccabd5b15d2251272cd7a10e41e3b9858203a9a61bd877a10c28917ebe',
-  witnessInput: '2e89b83e5aee298d423b320f12d419b9077edae73a3688275be3211ccc8e9249',
-  witnessCaptureTool: '3faf321de92dc17af21d351078a31734293969883be63ddb68cfef45a44699e4',
+  catalogSource: 'e2de5226d31fc7fe4f23d8cd0552ad73be44855bb3109ebed8042b2fd899b9c3',
+  protocolVectors: '1173a06fa8b2d0017367795f4a07c82bfe87285cbcc300df197aa5ee80aa47b3',
+  browserProof: '9d9a5f64a59ecc048653975f5b60fa9a74e71edffc983037c64aea96ac74d8a7',
+  runtimeSource: 'f67417ff219039296852886e61aa9661ac535d2f5ce0126fa3f76f6a3a740337',
+  runtimeInput: 'b13c5605bdfc08b5264440ed03376cbb50c620ac6432afa1280cd777f2ddd931',
+  runtimeCaptureTool: '3c6c419263018b9710f419e31708148b83f32af748b68fb856d2b794aef8359c',
+  witnessSource: '744dbf747d13a32a13c1b7e2bfc992cfbe0c530c5a25fa3e6e7350cfdde2a569',
+  witnessInput: '1ae4dab1ce1b2dbdce6fe675178b1956624b035c9aa00b6bbe8291196461b700',
+  witnessCaptureTool: '6385d891b525524cf5f96a967a8c3afc6bd155e25ed84b0960d48aaee93f188b',
   frozenPins: '7ed1086915fafd5fa129669270d6d53090f4b81052660a18318df60cab8b3023',
   frozenSource: 'c2e5d1a071f3f7a05a6c3e8bf46fbdba8f0c7ae47d4de1aea8e62a1726ecd019',
   runtimeSourceOriginal: 'c2e5d1a071f3f7a05a6c3e8bf46fbdba8f0c7ae47d4de1aea8e62a1726ecd019',
-  runtimeSourcePrior: '80516466ca231b88d16cd0d187f90260f141042ba59b37322b99016ebcae33e1',
+  runtimeSourcePrior: '9e357ed421c876de39c004236a83563116b390fc9d75043af24047dc952fe049',
   runtimeInputOriginal: '2ea71ac15addc60e406aebbb7defedf8492c135d0a787a15808b69e4bc34d39a',
-  runtimeInputPrior: '84ffcc7ff49536cc0d1d542a25f42994b68c049f28877d9375da08aa73186e79',
+  runtimeInputPrior: '4dd8dff0f8474e7cc312b1a9588560fe06984e42bb878ee0dd40182bd32a968e',
   toolOriginal: '24df22055a3c77b75e01b478d04a477a57690d7f71220916d0816551102fff9e',
-  toolPrior: '5ca446a1934846ffa14e561a10b06230b55a73f924d7853c5c9ecec79b13857d',
+  toolPrior: '508e4ed7f473dcccea774fe769756e863bd531a3abe5dca682d5df7ddda87794',
   docOriginal: 'd5d3c30632494c98fb96ce4ddad76da2e716322609ccca767e52b868ec16742d',
   docAccepted: 'd0fa1b753a7016e07c9bb3b3db4ae55ef483df176c343296c80e2c8756ba5ed8',
   catalogOriginal: 'd50c03e471f9d11ff790cac0f31d4ab82b5bb45f1b963b41725d58814cc6f74e',
-  catalogPrior: '9e76292b7ae74d305da2729a2ceba63965e64aa9fd670ab85568ae7909270507',
+  catalogPrior: '2ddb8f85114ff6e8e70c2d70b8207ed3f32c71431845f3cce1007be494e39792',
 };
 const overlays = [
   { path: 'parity/card-runtime/source.json', original: EXPECTED.runtimeSourceOriginal, prior: EXPECTED.runtimeSourcePrior, effective: EXPECTED.runtimeSource },
@@ -50,6 +51,8 @@ if (need('parity/card-catalog/source.json')) {
   const catalog = read('parity/card-catalog/source.json');
   eq('catalog-source-hash', 'parity/card-catalog/source.json', EXPECTED.catalogSource, sha('parity/card-catalog/source.json'));
   const protectedMap = catalog.protectedSha256 ?? {};
+  eq('catalog-protected-count', 'parity/card-catalog/source.json protectedSha256', 325, Object.keys(protectedMap).length, 'protected pin inventory must not shrink or silently grow');
+  eq('catalog-protected-field', 'parity/card-catalog/source.json protectedSha256/tools/protocol-js/check-vectors.mjs', EXPECTED.protocolVectors, protectedMap['tools/protocol-js/check-vectors.mjs']);
   eq('catalog-protected-field', 'parity/card-catalog/source.json protectedSha256/tools/browser-proof/proof.mjs', EXPECTED.browserProof, protectedMap['tools/browser-proof/proof.mjs']);
   for (const [p, expected] of Object.entries(protectedMap)) {
     if (!need(p)) continue;
@@ -91,15 +94,20 @@ if (need('parity/card-runtime/source.json')) {
     eq('runtime-overlay-original', 'provenance.acceptedProvenanceOverlay.originalSha256', EXPECTED.catalogOriginal, ov.originalSha256);
     eq('runtime-overlay-prior', 'provenance.acceptedProvenanceOverlay.priorAcceptedEffectiveSha256', EXPECTED.catalogPrior, ov.priorAcceptedEffectiveSha256);
     eq('runtime-overlay-effective', 'provenance.acceptedProvenanceOverlay.effectiveSha256', EXPECTED.catalogSource, ov.effectiveSha256);
+    eq('runtime-overlay-preserved-prior-lineage', 'provenance.acceptedProvenanceOverlay.preservedPriorLineage', 'catalog original d50c03e471f9d11ff790cac0f31d4ab82b5bb45f1b963b41725d58814cc6f74e -> accepted 9e76292b7ae74d305da2729a2ceba63965e64aa9fd670ab85568ae7909270507 -> accepted 2ddb8f85114ff6e8e70c2d70b8207ed3f32c71431845f3cce1007be494e39792 -> this effectiveSha256; earlier exact leaf transitions/receipts remain in docs/evidence/ci-card-catalog-protocol13 and docs/evidence/ci-browser-provenance-chain; this hop admits only the two listed current-to-final protected leaves', ov.preservedPriorLineage);
     eq('runtime-overlay-leaf-count', 'provenance.acceptedProvenanceOverlay.acceptedChanges', 2, (ov.acceptedChanges ?? []).length);
     const expectedLeaves = {
-      '/protectedSha256/tools/protocol-js/check-vectors.mjs': ['775ab7cf7738c421a9b858850153a2ca1008e3f7f726520d940be20698314f27', '3c96f5b013d7ee647b4d4b67c762e5db5b38dc8fd7e669c7a4b139c9a0778a90'],
-      '/protectedSha256/tools/browser-proof/proof.mjs': ['a49aa61cdb1adeef60031b3e87407233c85f3203b7a6c464c4b5119c8bd1850f', EXPECTED.browserProof],
+      '/protectedSha256/tools/protocol-js/check-vectors.mjs': ['3c96f5b013d7ee647b4d4b67c762e5db5b38dc8fd7e669c7a4b139c9a0778a90', EXPECTED.protocolVectors],
+      '/protectedSha256/tools/browser-proof/proof.mjs': ['6aea66795ed18edd941a4bc65c62070d6a6e2fce1b57cd98d0238db134fcfd66', EXPECTED.browserProof],
     };
     for (const change of ov.acceptedChanges ?? []) {
       const want = expectedLeaves[change.leaf];
       if (!want) fail('runtime-overlay-unknown-leaf', 'provenance.acceptedProvenanceOverlay.acceptedChanges', Object.keys(expectedLeaves), change.leaf, 'unexpected accepted metadata leaf');
-      else { eq('runtime-overlay-leaf-from', change.leaf + '.from', want[0], change.from); eq('runtime-overlay-leaf-to', change.leaf + '.to', want[1], change.to); }
+      else {
+        eq('runtime-overlay-leaf-from', change.leaf + '.from', want[0], change.from);
+        eq('runtime-overlay-leaf-to', change.leaf + '.to', want[1], change.to);
+        eq('runtime-overlay-leaf-evidence', change.leaf + '.evidence', 'docs/evidence/browser-provenance14/{README.md,receipt.json,logs}', change.evidence);
+      }
     }
     for (const p of (ov.acceptedChanges ?? []).map((c) => c.leaf)) delete expectedLeaves[p];
     if (Object.keys(expectedLeaves).length) fail('runtime-overlay-leaf-missing', 'provenance.acceptedProvenanceOverlay.acceptedChanges', Object.keys(expectedLeaves), 'missing', 'recorded accepted leaves incomplete');

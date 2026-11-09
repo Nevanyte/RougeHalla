@@ -1,0 +1,471 @@
+{
+  "base": "58f476763128a84b2acb28d2d7e41cb60a1c20e5",
+  "mode": "exact-metadata-write",
+  "reports": [
+    {
+      "path": "parity/card-catalog/source.json",
+      "beforeSha256": "2ddb8f85114ff6e8e70c2d70b8207ed3f32c71431845f3cce1007be494e39792",
+      "afterSha256": "2a8685e0772c0c31160790a9c8e702d9855d990692755006c096b6c5cb8e4db4",
+      "diffs": [
+        {
+          "path": "/protectedSha256/tools/browser-proof/proof.mjs",
+          "before": "6aea66795ed18edd941a4bc65c62070d6a6e2fce1b57cd98d0238db134fcfd66",
+          "after": "9d9a5f64a59ecc048653975f5b60fa9a74e71edffc983037c64aea96ac74d8a7"
+        },
+        {
+          "path": "/protectedSha256/tools/protocol-js/check-vectors.mjs",
+          "before": "3c96f5b013d7ee647b4d4b67c762e5db5b38dc8fd7e669c7a4b139c9a0778a90",
+          "after": "1173a06fa8b2d0017367795f4a07c82bfe87285cbcc300df197aa5ee80aa47b3"
+        }
+      ],
+      "semanticFields": [
+        "format",
+        "baseRevision",
+        "environment",
+        "inventory",
+        "cases"
+      ],
+      "semanticDigestBefore": "a6dea59a42669c8b2aa88a642c17dda7b630de3b51cbd447badc4da5712a80f7",
+      "semanticDigestAfter": "a6dea59a42669c8b2aa88a642c17dda7b630de3b51cbd447badc4da5712a80f7",
+      "allOtherFieldsEqual": true,
+      "beforeBytes": 1045681,
+      "afterBytes": 489319
+    },
+    {
+      "path": "tools/card-runtime-fixtures/capture.mts",
+      "beforeSha256": "508e4ed7f473dcccea774fe769756e863bd531a3abe5dca682d5df7ddda87794",
+      "afterSha256": "598fc36822b52e5caa52783d7fead033eee28a40691d64fb98c0f78ab626ee20",
+      "beforeBytes": 7416,
+      "afterBytes": 7722,
+      "allowedToolSeam": "existing acceptedProvenanceOverlay literal only; every outside byte preserved"
+    },
+    {
+      "path": "parity/card-runtime/source.json",
+      "beforeSha256": "9e357ed421c876de39c004236a83563116b390fc9d75043af24047dc952fe049",
+      "afterSha256": "347cb90a36f1d9ca4e4f5ef01089bd3667e63959ea179bcf5777d6af86985733",
+      "diffs": [
+        {
+          "path": "/provenance/harnessInputs/2/sha256",
+          "before": "508e4ed7f473dcccea774fe769756e863bd531a3abe5dca682d5df7ddda87794",
+          "after": "598fc36822b52e5caa52783d7fead033eee28a40691d64fb98c0f78ab626ee20"
+        },
+        {
+          "path": "/provenance/immutableReferences/0/sha256",
+          "before": "2ddb8f85114ff6e8e70c2d70b8207ed3f32c71431845f3cce1007be494e39792",
+          "after": "2a8685e0772c0c31160790a9c8e702d9855d990692755006c096b6c5cb8e4db4"
+        },
+        {
+          "path": "/provenance/acceptedProvenanceOverlay/priorAcceptedEffectiveSha256",
+          "before": "9e76292b7ae74d305da2729a2ceba63965e64aa9fd670ab85568ae7909270507",
+          "after": "2ddb8f85114ff6e8e70c2d70b8207ed3f32c71431845f3cce1007be494e39792"
+        },
+        {
+          "path": "/provenance/acceptedProvenanceOverlay/effectiveSha256",
+          "before": "2ddb8f85114ff6e8e70c2d70b8207ed3f32c71431845f3cce1007be494e39792",
+          "after": "2a8685e0772c0c31160790a9c8e702d9855d990692755006c096b6c5cb8e4db4"
+        },
+        {
+          "path": "/provenance/acceptedProvenanceOverlay/acceptedChanges/0/from",
+          "before": "775ab7cf7738c421a9b858850153a2ca1008e3f7f726520d940be20698314f27",
+          "after": "3c96f5b013d7ee647b4d4b67c762e5db5b38dc8fd7e669c7a4b139c9a0778a90"
+        },
+        {
+          "path": "/provenance/acceptedProvenanceOverlay/acceptedChanges/0/to",
+          "before": "3c96f5b013d7ee647b4d4b67c762e5db5b38dc8fd7e669c7a4b139c9a0778a90",
+          "after": "1173a06fa8b2d0017367795f4a07c82bfe87285cbcc300df197aa5ee80aa47b3"
+        },
+        {
+          "path": "/provenance/acceptedProvenanceOverlay/acceptedChanges/0/evidence",
+          "before": "docs/evidence/ci-card-catalog-protocol13/{README.md,receipt.json}",
+          "after": "docs/evidence/browser-provenance14/{README.md,receipt.json,logs}"
+        },
+        {
+          "path": "/provenance/acceptedProvenanceOverlay/acceptedChanges/1/from",
+          "before": "a49aa61cdb1adeef60031b3e87407233c85f3203b7a6c464c4b5119c8bd1850f",
+          "after": "6aea66795ed18edd941a4bc65c62070d6a6e2fce1b57cd98d0238db134fcfd66"
+        },
+        {
+          "path": "/provenance/acceptedProvenanceOverlay/acceptedChanges/1/to",
+          "before": "6aea66795ed18edd941a4bc65c62070d6a6e2fce1b57cd98d0238db134fcfd66",
+          "after": "9d9a5f64a59ecc048653975f5b60fa9a74e71edffc983037c64aea96ac74d8a7"
+        },
+        {
+          "path": "/provenance/acceptedProvenanceOverlay/acceptedChanges/1/evidence",
+          "before": "docs/evidence/ci-browser-provenance-chain/{README.md,receipt.json,logs}",
+          "after": "docs/evidence/browser-provenance14/{README.md,receipt.json,logs}"
+        },
+        {
+          "path": "/provenance/acceptedProvenanceOverlay/preservedPriorLineage",
+          "before": "original d50c03e4 was accepted as 9e76292b for the protocol-js check-vector leaf; this chain preserves that prior accepted effective hash and adds only the browser-proof proof.mjs leaf",
+          "after": "catalog original d50c03e471f9d11ff790cac0f31d4ab82b5bb45f1b963b41725d58814cc6f74e -> accepted 9e76292b7ae74d305da2729a2ceba63965e64aa9fd670ab85568ae7909270507 -> accepted 2ddb8f85114ff6e8e70c2d70b8207ed3f32c71431845f3cce1007be494e39792 -> this effectiveSha256; earlier exact leaf transitions/receipts remain in docs/evidence/ci-card-catalog-protocol13 and docs/evidence/ci-browser-provenance-chain; this hop admits only the two listed current-to-final protected leaves"
+        }
+      ],
+      "semanticFields": [
+        "format",
+        "roles",
+        "profiles",
+        "noninterference",
+        "cases",
+        "privateOracleRecords"
+      ],
+      "semanticDigestBefore": "a086c168baa3e0844a5524662e9fc68675b7335e95248db5ced95bc863878fe7",
+      "semanticDigestAfter": "a086c168baa3e0844a5524662e9fc68675b7335e95248db5ced95bc863878fe7",
+      "allOtherFieldsEqual": true,
+      "beforeBytes": 53034795,
+      "afterBytes": 53035071
+    },
+    {
+      "path": "parity/card-runtime/INPUT_SHA256.json",
+      "beforeSha256": "4dd8dff0f8474e7cc312b1a9588560fe06984e42bb878ee0dd40182bd32a968e",
+      "afterSha256": "e81a67a47853165b66f6677d911290614bf0dfb2b930020ffb85822136b25ec6",
+      "diffs": [
+        {
+          "path": "/harnessInputs/2/sha256",
+          "before": "508e4ed7f473dcccea774fe769756e863bd531a3abe5dca682d5df7ddda87794",
+          "after": "598fc36822b52e5caa52783d7fead033eee28a40691d64fb98c0f78ab626ee20"
+        },
+        {
+          "path": "/immutableReferences/0/sha256",
+          "before": "2ddb8f85114ff6e8e70c2d70b8207ed3f32c71431845f3cce1007be494e39792",
+          "after": "2a8685e0772c0c31160790a9c8e702d9855d990692755006c096b6c5cb8e4db4"
+        },
+        {
+          "path": "/acceptedProvenanceOverlay/priorAcceptedEffectiveSha256",
+          "before": "9e76292b7ae74d305da2729a2ceba63965e64aa9fd670ab85568ae7909270507",
+          "after": "2ddb8f85114ff6e8e70c2d70b8207ed3f32c71431845f3cce1007be494e39792"
+        },
+        {
+          "path": "/acceptedProvenanceOverlay/effectiveSha256",
+          "before": "2ddb8f85114ff6e8e70c2d70b8207ed3f32c71431845f3cce1007be494e39792",
+          "after": "2a8685e0772c0c31160790a9c8e702d9855d990692755006c096b6c5cb8e4db4"
+        },
+        {
+          "path": "/acceptedProvenanceOverlay/acceptedChanges/0/from",
+          "before": "775ab7cf7738c421a9b858850153a2ca1008e3f7f726520d940be20698314f27",
+          "after": "3c96f5b013d7ee647b4d4b67c762e5db5b38dc8fd7e669c7a4b139c9a0778a90"
+        },
+        {
+          "path": "/acceptedProvenanceOverlay/acceptedChanges/0/to",
+          "before": "3c96f5b013d7ee647b4d4b67c762e5db5b38dc8fd7e669c7a4b139c9a0778a90",
+          "after": "1173a06fa8b2d0017367795f4a07c82bfe87285cbcc300df197aa5ee80aa47b3"
+        },
+        {
+          "path": "/acceptedProvenanceOverlay/acceptedChanges/0/evidence",
+          "before": "docs/evidence/ci-card-catalog-protocol13/{README.md,receipt.json}",
+          "after": "docs/evidence/browser-provenance14/{README.md,receipt.json,logs}"
+        },
+        {
+          "path": "/acceptedProvenanceOverlay/acceptedChanges/1/from",
+          "before": "a49aa61cdb1adeef60031b3e87407233c85f3203b7a6c464c4b5119c8bd1850f",
+          "after": "6aea66795ed18edd941a4bc65c62070d6a6e2fce1b57cd98d0238db134fcfd66"
+        },
+        {
+          "path": "/acceptedProvenanceOverlay/acceptedChanges/1/to",
+          "before": "6aea66795ed18edd941a4bc65c62070d6a6e2fce1b57cd98d0238db134fcfd66",
+          "after": "9d9a5f64a59ecc048653975f5b60fa9a74e71edffc983037c64aea96ac74d8a7"
+        },
+        {
+          "path": "/acceptedProvenanceOverlay/acceptedChanges/1/evidence",
+          "before": "docs/evidence/ci-browser-provenance-chain/{README.md,receipt.json,logs}",
+          "after": "docs/evidence/browser-provenance14/{README.md,receipt.json,logs}"
+        },
+        {
+          "path": "/acceptedProvenanceOverlay/preservedPriorLineage",
+          "before": "original d50c03e4 was accepted as 9e76292b for the protocol-js check-vector leaf; this chain preserves that prior accepted effective hash and adds only the browser-proof proof.mjs leaf",
+          "after": "catalog original d50c03e471f9d11ff790cac0f31d4ab82b5bb45f1b963b41725d58814cc6f74e -> accepted 9e76292b7ae74d305da2729a2ceba63965e64aa9fd670ab85568ae7909270507 -> accepted 2ddb8f85114ff6e8e70c2d70b8207ed3f32c71431845f3cce1007be494e39792 -> this effectiveSha256; earlier exact leaf transitions/receipts remain in docs/evidence/ci-card-catalog-protocol13 and docs/evidence/ci-browser-provenance-chain; this hop admits only the two listed current-to-final protected leaves"
+        }
+      ],
+      "allOtherFieldsEqual": true,
+      "beforeBytes": 24865,
+      "afterBytes": 25141
+    },
+    {
+      "path": "tools/card-runtime-witness-fixtures/capture.mts",
+      "beforeSha256": "3faf321de92dc17af21d351078a31734293969883be63ddb68cfef45a44699e4",
+      "afterSha256": "038aabc188b5b64c91b7e80e25663ca2c7d81c1a506f9c3079b2f3feaec6e349",
+      "beforeBytes": 10994,
+      "afterBytes": 11009,
+      "allowedToolSeam": "existing acceptedProvenanceOverlay literal only; every outside byte preserved"
+    },
+    {
+      "path": "parity/card-runtime-witness/source.json",
+      "beforeSha256": "59fdc1ccabd5b15d2251272cd7a10e41e3b9858203a9a61bd877a10c28917ebe",
+      "afterSha256": "e864c15029e4c3cde5d8f44dea1a24b82c9d01ebafac346416aa78db5f1b361e",
+      "diffs": [
+        {
+          "path": "/provenance/harnessInputs/1/sha256",
+          "before": "3faf321de92dc17af21d351078a31734293969883be63ddb68cfef45a44699e4",
+          "after": "038aabc188b5b64c91b7e80e25663ca2c7d81c1a506f9c3079b2f3feaec6e349"
+        },
+        {
+          "path": "/provenance/acceptedProvenanceOverlay/0/priorAcceptedEffectiveSha256",
+          "before": "80516466ca231b88d16cd0d187f90260f141042ba59b37322b99016ebcae33e1",
+          "after": "9e357ed421c876de39c004236a83563116b390fc9d75043af24047dc952fe049"
+        },
+        {
+          "path": "/provenance/acceptedProvenanceOverlay/0/effectiveSha256",
+          "before": "9e357ed421c876de39c004236a83563116b390fc9d75043af24047dc952fe049",
+          "after": "347cb90a36f1d9ca4e4f5ef01089bd3667e63959ea179bcf5777d6af86985733"
+        },
+        {
+          "path": "/provenance/acceptedProvenanceOverlay/0/evidence",
+          "before": "docs/evidence/ci-browser-provenance-chain/{README.md,receipt.json,logs}",
+          "after": "docs/evidence/browser-provenance14/{README.md,receipt.json,logs}"
+        },
+        {
+          "path": "/provenance/acceptedProvenanceOverlay/1/priorAcceptedEffectiveSha256",
+          "before": "84ffcc7ff49536cc0d1d542a25f42994b68c049f28877d9375da08aa73186e79",
+          "after": "4dd8dff0f8474e7cc312b1a9588560fe06984e42bb878ee0dd40182bd32a968e"
+        },
+        {
+          "path": "/provenance/acceptedProvenanceOverlay/1/effectiveSha256",
+          "before": "4dd8dff0f8474e7cc312b1a9588560fe06984e42bb878ee0dd40182bd32a968e",
+          "after": "e81a67a47853165b66f6677d911290614bf0dfb2b930020ffb85822136b25ec6"
+        },
+        {
+          "path": "/provenance/acceptedProvenanceOverlay/1/evidence",
+          "before": "docs/evidence/ci-browser-provenance-chain/{README.md,receipt.json,logs}",
+          "after": "docs/evidence/browser-provenance14/{README.md,receipt.json,logs}"
+        },
+        {
+          "path": "/provenance/acceptedProvenanceOverlay/2/priorAcceptedEffectiveSha256",
+          "before": "5ca446a1934846ffa14e561a10b06230b55a73f924d7853c5c9ecec79b13857d",
+          "after": "508e4ed7f473dcccea774fe769756e863bd531a3abe5dca682d5df7ddda87794"
+        },
+        {
+          "path": "/provenance/acceptedProvenanceOverlay/2/effectiveSha256",
+          "before": "508e4ed7f473dcccea774fe769756e863bd531a3abe5dca682d5df7ddda87794",
+          "after": "598fc36822b52e5caa52783d7fead033eee28a40691d64fb98c0f78ab626ee20"
+        },
+        {
+          "path": "/provenance/acceptedProvenanceOverlay/2/evidence",
+          "before": "docs/evidence/ci-browser-provenance-chain/{README.md,receipt.json,logs}",
+          "after": "docs/evidence/browser-provenance14/{README.md,receipt.json,logs}"
+        },
+        {
+          "path": "/provenance/actualPinnedInputs/1/bytes",
+          "before": 24865,
+          "after": 25141
+        },
+        {
+          "path": "/provenance/actualPinnedInputs/1/sha256",
+          "before": "4dd8dff0f8474e7cc312b1a9588560fe06984e42bb878ee0dd40182bd32a968e",
+          "after": "e81a67a47853165b66f6677d911290614bf0dfb2b930020ffb85822136b25ec6"
+        },
+        {
+          "path": "/provenance/actualPinnedInputs/1/acceptedProvenanceOverlay/effectiveSha256",
+          "before": "4dd8dff0f8474e7cc312b1a9588560fe06984e42bb878ee0dd40182bd32a968e",
+          "after": "e81a67a47853165b66f6677d911290614bf0dfb2b930020ffb85822136b25ec6"
+        },
+        {
+          "path": "/provenance/actualPinnedInputs/1/acceptedProvenanceOverlay/evidence",
+          "before": "docs/evidence/ci-browser-provenance-chain/{README.md,receipt.json,logs}",
+          "after": "docs/evidence/browser-provenance14/{README.md,receipt.json,logs}"
+        },
+        {
+          "path": "/provenance/actualPinnedInputs/3/bytes",
+          "before": 53034795,
+          "after": 53035071
+        },
+        {
+          "path": "/provenance/actualPinnedInputs/3/sha256",
+          "before": "9e357ed421c876de39c004236a83563116b390fc9d75043af24047dc952fe049",
+          "after": "347cb90a36f1d9ca4e4f5ef01089bd3667e63959ea179bcf5777d6af86985733"
+        },
+        {
+          "path": "/provenance/actualPinnedInputs/3/acceptedProvenanceOverlay/effectiveSha256",
+          "before": "9e357ed421c876de39c004236a83563116b390fc9d75043af24047dc952fe049",
+          "after": "347cb90a36f1d9ca4e4f5ef01089bd3667e63959ea179bcf5777d6af86985733"
+        },
+        {
+          "path": "/provenance/actualPinnedInputs/3/acceptedProvenanceOverlay/evidence",
+          "before": "docs/evidence/ci-browser-provenance-chain/{README.md,receipt.json,logs}",
+          "after": "docs/evidence/browser-provenance14/{README.md,receipt.json,logs}"
+        },
+        {
+          "path": "/provenance/actualPinnedInputs/6/bytes",
+          "before": 7416,
+          "after": 7722
+        },
+        {
+          "path": "/provenance/actualPinnedInputs/6/sha256",
+          "before": "508e4ed7f473dcccea774fe769756e863bd531a3abe5dca682d5df7ddda87794",
+          "after": "598fc36822b52e5caa52783d7fead033eee28a40691d64fb98c0f78ab626ee20"
+        },
+        {
+          "path": "/provenance/actualPinnedInputs/6/acceptedProvenanceOverlay/effectiveSha256",
+          "before": "508e4ed7f473dcccea774fe769756e863bd531a3abe5dca682d5df7ddda87794",
+          "after": "598fc36822b52e5caa52783d7fead033eee28a40691d64fb98c0f78ab626ee20"
+        },
+        {
+          "path": "/provenance/actualPinnedInputs/6/acceptedProvenanceOverlay/evidence",
+          "before": "docs/evidence/ci-browser-provenance-chain/{README.md,receipt.json,logs}",
+          "after": "docs/evidence/browser-provenance14/{README.md,receipt.json,logs}"
+        }
+      ],
+      "semanticFields": [
+        "format",
+        "roles",
+        "controlCorrection",
+        "cleanControls",
+        "witnessDefinition",
+        "cases",
+        "comparison",
+        "privateOracleRecords"
+      ],
+      "semanticDigestBefore": "0ef72417008fab778bd68dc05aed90134415eb3411db6406d12b697bc921c9c4",
+      "semanticDigestAfter": "0ef72417008fab778bd68dc05aed90134415eb3411db6406d12b697bc921c9c4",
+      "allOtherFieldsEqual": true,
+      "beforeBytes": 174689,
+      "afterBytes": 174647
+    },
+    {
+      "path": "parity/card-runtime-witness/INPUT_SHA256.json",
+      "beforeSha256": "2e89b83e5aee298d423b320f12d419b9077edae73a3688275be3211ccc8e9249",
+      "afterSha256": "a527e10562a3c1cb183bb6071b9011dfa5c11558f31f908ec440544a2efab6ad",
+      "diffs": [
+        {
+          "path": "/harnessInputs/1/sha256",
+          "before": "3faf321de92dc17af21d351078a31734293969883be63ddb68cfef45a44699e4",
+          "after": "038aabc188b5b64c91b7e80e25663ca2c7d81c1a506f9c3079b2f3feaec6e349"
+        },
+        {
+          "path": "/acceptedProvenanceOverlay/0/priorAcceptedEffectiveSha256",
+          "before": "80516466ca231b88d16cd0d187f90260f141042ba59b37322b99016ebcae33e1",
+          "after": "9e357ed421c876de39c004236a83563116b390fc9d75043af24047dc952fe049"
+        },
+        {
+          "path": "/acceptedProvenanceOverlay/0/effectiveSha256",
+          "before": "9e357ed421c876de39c004236a83563116b390fc9d75043af24047dc952fe049",
+          "after": "347cb90a36f1d9ca4e4f5ef01089bd3667e63959ea179bcf5777d6af86985733"
+        },
+        {
+          "path": "/acceptedProvenanceOverlay/0/evidence",
+          "before": "docs/evidence/ci-browser-provenance-chain/{README.md,receipt.json,logs}",
+          "after": "docs/evidence/browser-provenance14/{README.md,receipt.json,logs}"
+        },
+        {
+          "path": "/acceptedProvenanceOverlay/1/priorAcceptedEffectiveSha256",
+          "before": "84ffcc7ff49536cc0d1d542a25f42994b68c049f28877d9375da08aa73186e79",
+          "after": "4dd8dff0f8474e7cc312b1a9588560fe06984e42bb878ee0dd40182bd32a968e"
+        },
+        {
+          "path": "/acceptedProvenanceOverlay/1/effectiveSha256",
+          "before": "4dd8dff0f8474e7cc312b1a9588560fe06984e42bb878ee0dd40182bd32a968e",
+          "after": "e81a67a47853165b66f6677d911290614bf0dfb2b930020ffb85822136b25ec6"
+        },
+        {
+          "path": "/acceptedProvenanceOverlay/1/evidence",
+          "before": "docs/evidence/ci-browser-provenance-chain/{README.md,receipt.json,logs}",
+          "after": "docs/evidence/browser-provenance14/{README.md,receipt.json,logs}"
+        },
+        {
+          "path": "/acceptedProvenanceOverlay/2/priorAcceptedEffectiveSha256",
+          "before": "5ca446a1934846ffa14e561a10b06230b55a73f924d7853c5c9ecec79b13857d",
+          "after": "508e4ed7f473dcccea774fe769756e863bd531a3abe5dca682d5df7ddda87794"
+        },
+        {
+          "path": "/acceptedProvenanceOverlay/2/effectiveSha256",
+          "before": "508e4ed7f473dcccea774fe769756e863bd531a3abe5dca682d5df7ddda87794",
+          "after": "598fc36822b52e5caa52783d7fead033eee28a40691d64fb98c0f78ab626ee20"
+        },
+        {
+          "path": "/acceptedProvenanceOverlay/2/evidence",
+          "before": "docs/evidence/ci-browser-provenance-chain/{README.md,receipt.json,logs}",
+          "after": "docs/evidence/browser-provenance14/{README.md,receipt.json,logs}"
+        },
+        {
+          "path": "/actualPinnedInputs/1/bytes",
+          "before": 24865,
+          "after": 25141
+        },
+        {
+          "path": "/actualPinnedInputs/1/sha256",
+          "before": "4dd8dff0f8474e7cc312b1a9588560fe06984e42bb878ee0dd40182bd32a968e",
+          "after": "e81a67a47853165b66f6677d911290614bf0dfb2b930020ffb85822136b25ec6"
+        },
+        {
+          "path": "/actualPinnedInputs/1/acceptedProvenanceOverlay/effectiveSha256",
+          "before": "4dd8dff0f8474e7cc312b1a9588560fe06984e42bb878ee0dd40182bd32a968e",
+          "after": "e81a67a47853165b66f6677d911290614bf0dfb2b930020ffb85822136b25ec6"
+        },
+        {
+          "path": "/actualPinnedInputs/1/acceptedProvenanceOverlay/evidence",
+          "before": "docs/evidence/ci-browser-provenance-chain/{README.md,receipt.json,logs}",
+          "after": "docs/evidence/browser-provenance14/{README.md,receipt.json,logs}"
+        },
+        {
+          "path": "/actualPinnedInputs/3/bytes",
+          "before": 53034795,
+          "after": 53035071
+        },
+        {
+          "path": "/actualPinnedInputs/3/sha256",
+          "before": "9e357ed421c876de39c004236a83563116b390fc9d75043af24047dc952fe049",
+          "after": "347cb90a36f1d9ca4e4f5ef01089bd3667e63959ea179bcf5777d6af86985733"
+        },
+        {
+          "path": "/actualPinnedInputs/3/acceptedProvenanceOverlay/effectiveSha256",
+          "before": "9e357ed421c876de39c004236a83563116b390fc9d75043af24047dc952fe049",
+          "after": "347cb90a36f1d9ca4e4f5ef01089bd3667e63959ea179bcf5777d6af86985733"
+        },
+        {
+          "path": "/actualPinnedInputs/3/acceptedProvenanceOverlay/evidence",
+          "before": "docs/evidence/ci-browser-provenance-chain/{README.md,receipt.json,logs}",
+          "after": "docs/evidence/browser-provenance14/{README.md,receipt.json,logs}"
+        },
+        {
+          "path": "/actualPinnedInputs/6/bytes",
+          "before": 7416,
+          "after": 7722
+        },
+        {
+          "path": "/actualPinnedInputs/6/sha256",
+          "before": "508e4ed7f473dcccea774fe769756e863bd531a3abe5dca682d5df7ddda87794",
+          "after": "598fc36822b52e5caa52783d7fead033eee28a40691d64fb98c0f78ab626ee20"
+        },
+        {
+          "path": "/actualPinnedInputs/6/acceptedProvenanceOverlay/effectiveSha256",
+          "before": "508e4ed7f473dcccea774fe769756e863bd531a3abe5dca682d5df7ddda87794",
+          "after": "598fc36822b52e5caa52783d7fead033eee28a40691d64fb98c0f78ab626ee20"
+        },
+        {
+          "path": "/actualPinnedInputs/6/acceptedProvenanceOverlay/evidence",
+          "before": "docs/evidence/ci-browser-provenance-chain/{README.md,receipt.json,logs}",
+          "after": "docs/evidence/browser-provenance14/{README.md,receipt.json,logs}"
+        }
+      ],
+      "allOtherFieldsEqual": true,
+      "beforeBytes": 32222,
+      "afterBytes": 32180
+    }
+  ],
+  "offlineSemanticNegativeControls": [
+    {
+      "path": "parity/card-catalog/source.json",
+      "control": "changed case id",
+      "refused": true
+    },
+    {
+      "path": "parity/card-runtime/source.json",
+      "control": "changed case id",
+      "refused": true
+    },
+    {
+      "path": "parity/card-runtime-witness/source.json",
+      "control": "changed case id",
+      "refused": true
+    },
+    {
+      "path": "parity/card-runtime/source.json",
+      "control": "changed private record",
+      "refused": true
+    },
+    {
+      "path": "parity/card-runtime-witness/source.json",
+      "control": "changed private record",
+      "refused": true
+    }
+  ],
+  "sourceOutcomeGeneration": false
+}
