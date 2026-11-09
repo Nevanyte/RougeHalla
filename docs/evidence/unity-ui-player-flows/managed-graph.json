@@ -1,0 +1,18 @@
+{
+  "source": "49903926f770fa81ebaec3e3be838920bc01d6e7",
+  "target_framework": "netstandard2.1",
+  "editor": "6000.0.85f2",
+  "runtime_assembly": "Roguehalla.Client",
+  "test_assembly": "Roguehalla.Client.EditModeTests",
+  "engine_test_execution": false,
+  "projects": [
+    {
+      "path": "/tmp/roguehalla-ui-player-flows-compile/runtime/Client.csproj",
+      "sha256": "34eb841b966736f9946e41cc544e7ebfd653ce0c0942b9cb4240ae5a64f5e324"
+    },
+    {
+      "path": "/tmp/roguehalla-ui-player-flows-compile/tests/Tests.csproj",
+      "sha256": "641da156a81420895dc64067d22f37e4204a894817097c592376d4c4ef67bbee"
+    }
+  ]
+}

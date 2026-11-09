@@ -22,6 +22,8 @@ namespace Roguehalla.Client
         Session _bound;
         RectTransform _panel, _miniRoot, _planningRail, _runRail;
         TacticalMapSurface _large, _mini;
+        TacticalMapMarks _largeMarks, _miniMarks;
+        QuestHandle? _trackedQuest;
         TMP_Text _title, _status, _routeText, _contactsText;
         readonly UnityEngine.UI.Button[] _spawns = new UnityEngine.UI.Button[2];
         readonly UnityEngine.UI.Button[] _boons = new UnityEngine.UI.Button[2];
@@ -65,6 +67,7 @@ namespace Roguehalla.Client
             mapFrame.GetComponent<Image>().color = Color.clear;
             var mapRect = MythicUi.Rect(mapFrame, "PublicMap", Vector2.zero, Vector2.one);
             _large = mapRect.gameObject.AddComponent<TacticalMapSurface>(); _large.Initialize();
+            _largeMarks = _large.GetComponentInChildren<TacticalMapMarks>(); _largeMarks.ShowDeliveredLabels = true;
             _large.Pressed = (point, button) => { if (button == PointerEventData.InputButton.Left) AddRoutePoint(point); };
             for (byte i = 0; i < 2; i++)
             {
@@ -100,6 +103,7 @@ namespace Roguehalla.Client
             _miniRoot = MythicUi.Panel(root, "Minimap", new Vector2(.705f, .018f), new Vector2(.985f, .378f), Color.clear);
             var miniFrame = MythicUi.Rect(_miniRoot, "TerrainFrame", new Vector2(.04f, .18f), new Vector2(.96f, .96f));
             _mini = miniFrame.gameObject.AddComponent<TacticalMapSurface>(); _mini.Initialize();
+            _miniMarks = _mini.GetComponentInChildren<TacticalMapMarks>();
             _mini.Pressed = MinimapPress; _mini.Dragged = MinimapDrag; _mini.PointerReleased = MinimapRelease; _mini.Aborted = ReleaseMinimap;
             MythicUi.Button(_miniRoot, "OpenMap", "TAB · MAP", new Vector2(.04f, .02f), new Vector2(.96f, .15f), () => SetOpen(!IsOpen), fontSize: 14);
             _panel.gameObject.SetActive(false); _miniRoot.gameObject.SetActive(false);
@@ -117,7 +121,20 @@ namespace Roguehalla.Client
                 _bound.StateChanged += MapStateChanged;
             }
             _large.SetMap(null); _mini.SetMap(null); _routePlan = null; _routePoints = Array.Empty<RoutePoint>();
+            SetTrackedQuest(null);
             RefreshMinimapVisibility(); _nextPaint = _nextPath = 0;
+        }
+        public void SetTrackedQuest(QuestHandle? handle)
+        {
+            if (Nullable.Equals(_trackedQuest, handle)) return;
+            _trackedQuest = handle;
+            _largeMarks.TrackedQuest = _miniMarks.TrackedQuest = handle;
+            RefreshDeliveredMarks(); _factsDirty = true; _nextPaint = 0;
+        }
+        void RefreshDeliveredMarks()
+        {
+            _large.Present(_bound, ShowRoute ? _routePoints : null);
+            _mini.Present(_bound, ShowRoute ? _routePoints : null);
         }
         public void SetToggleMode(bool value) { _prefs.SetMapToggle(value); ReleaseTransient(); }
         public void SetShowRoute(bool value) { _prefs.SetShowRoute(value); _nextPaint = 0; }
@@ -278,10 +295,11 @@ namespace Roguehalla.Client
             _bound.StateChanged -= MapStateChanged;
         }
         void MapSnapshotChanged(ServerMsg.Snapshot _) { _factsDirty = true; _nextPaint = 0; }
-        void MapCollectionsChanged(CollectionsView _) { _factsDirty = true; _nextPaint = 0; }
+        void MapCollectionsChanged(CollectionsView _) { _factsDirty = true; _lastContactsSnapshot = -1; _nextPaint = 0; RefreshDeliveredMarks(); }
         void MapStateChanged(SessionState _)
         {
             _factsDirty = true; _nextPaint = 0;
+            RefreshDeliveredMarks();
             if (_bound?.State != SessionState.InMatch) { _contactsText.text = "No current contacts."; _lastContactsSnapshot = -1; }
         }
         void UpdateSelections() => _selections.Update(_bound?.Collections.Plan, _bound != null && _bound.State == SessionState.InMatch, Time.realtimeSinceStartupAsDouble * 1000);

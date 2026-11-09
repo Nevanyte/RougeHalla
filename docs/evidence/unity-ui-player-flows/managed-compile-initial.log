@@ -1,0 +1,11 @@
+/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-ui-player-flows/client-unity/UnityProject/Assets/Tests/Editor/TraderDialogViewEditModeTests.cs(52,26): error CS1503: Argument 1: cannot convert from 'Roguehalla.Net.Protocol.TradeState' to 'Roguehalla.Net.Protocol.WireTradeView' [/tmp/roguehalla-ui-player-flows-compile/tests/Tests.csproj]
+/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-ui-player-flows/client-unity/UnityProject/Assets/Tests/Editor/MatchHudTrophyEditModeTests.cs(116,41): warning CS0067: The event 'MatchHudTrophyEditModeTests.TestTransport.Closed' is never used [/tmp/roguehalla-ui-player-flows-compile/tests/Tests.csproj]
+
+Build FAILED.
+
+/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-ui-player-flows/client-unity/UnityProject/Assets/Tests/Editor/MatchHudTrophyEditModeTests.cs(116,41): warning CS0067: The event 'MatchHudTrophyEditModeTests.TestTransport.Closed' is never used [/tmp/roguehalla-ui-player-flows-compile/tests/Tests.csproj]
+/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-ui-player-flows/client-unity/UnityProject/Assets/Tests/Editor/TraderDialogViewEditModeTests.cs(52,26): error CS1503: Argument 1: cannot convert from 'Roguehalla.Net.Protocol.TradeState' to 'Roguehalla.Net.Protocol.WireTradeView' [/tmp/roguehalla-ui-player-flows-compile/tests/Tests.csproj]
+    1 Warning(s)
+    1 Error(s)
+
+Time Elapsed 00:00:01.69

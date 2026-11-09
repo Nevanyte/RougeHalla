@@ -1,0 +1,32 @@
+Test run for /Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-ui-player-flows/client-unity/RoguehallaNet.Tests/bin/Debug/net8.0/RoguehallaNet.Tests.dll (.NETCoreApp,Version=v8.0)
+A total of 1 test files matched the specified pattern.
+NUnit Adapter 4.6.0.0: Test execution started
+Running selected tests in /Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-ui-player-flows/client-unity/RoguehallaNet.Tests/bin/Debug/net8.0/RoguehallaNet.Tests.dll
+   NUnit3TestExecutor discovered 14 of 14 NUnit test cases using Current Discovery mode, Non-Explicit run
+  Passed InputQuestAcceptUsesTagSeventeenAndNonzeroCanonicalVarint [7 ms]
+  Passed InvalidCrossCollectionReplacementFailsBeforeAnyApplyOrSeenTickMutation [11 ms]
+  Passed QuestDecoderRejectsStrictFlagsRangesAndBrokenInternalReferences [< 1 ms]
+  Passed QuestPresentationStringsAreCopiedAsDisplayTextAndDoNotReplaceTypedIdentity [< 1 ms]
+  Passed QuestStateRoundTripsExactDoubleBitsTypedReferencesAndPropKindSeven [< 1 ms]
+  Passed UnavailableAndAvailableEmptyAreDistinctAndRetainOnOmission [1 ms]
+  Passed DirectCollectionApplyRevalidatesTradeAndCopiesMutableWireArraysBeforeCommit [1 ms]
+  Passed MalformedTradeReplacementCannotPartiallyApplyEarlierStateKeys [< 1 ms]
+  Passed QuestMetadataStringsAreOpaqueUtf8AndAggregateBudgetIsEnforced [< 1 ms]
+NUnit Adapter 4.6.0.0: Test execution complete
+  Passed TradeDecoderRejectsMalformedFlagsKindsCountsValuesAndCoordinates [< 1 ms]
+  Passed TradeInput18UsesOrdinaryBatchQueueAndRejectsBadKindOrPick [< 1 ms]
+  Passed TradeMaximumCompleteReplacementFitsItsDeclaredBudget [< 1 ms]
+  Passed TradeMissingUnavailableAndAvailableEmptyAreDifferentAndCopiedOnReplace [< 1 ms]
+  Passed TradeReplacementRoundTripsOrderedDuplicatesSignedZeroAndExactLabels [< 1 ms]
+
+Test Run Successful.
+Total tests: 14
+     Passed: 14
+ Total time: 0.3077 Seconds
+     1>Done Building Project "/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-ui-player-flows/client-unity/RoguehallaNet.Tests/RoguehallaNet.Tests.csproj" (VSTest target(s)).
+
+Build succeeded.
+    0 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:02.41

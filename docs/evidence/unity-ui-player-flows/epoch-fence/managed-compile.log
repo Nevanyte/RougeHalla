@@ -1,0 +1,9 @@
+/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-ui-player-flows/client-unity/UnityProject/Assets/Tests/Editor/MatchHudTrophyEditModeTests.cs(116,41): warning CS0067: The event 'MatchHudTrophyEditModeTests.TestTransport.Closed' is never used [/tmp/roguehalla-ui-player-flows-compile/tests/Tests.csproj]
+
+Build succeeded.
+
+/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-ui-player-flows/client-unity/UnityProject/Assets/Tests/Editor/MatchHudTrophyEditModeTests.cs(116,41): warning CS0067: The event 'MatchHudTrophyEditModeTests.TestTransport.Closed' is never used [/tmp/roguehalla-ui-player-flows-compile/tests/Tests.csproj]
+    1 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:01.54
