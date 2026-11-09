@@ -1,0 +1,69 @@
+diff --git a/crates/rh-server/src/director.rs b/crates/rh-server/src/director.rs
+index 45fbccf8..2aa88f94 100644
+--- a/crates/rh-server/src/director.rs
++++ b/crates/rh-server/src/director.rs
+@@ -2079,6 +2079,7 @@ mod tests {
+ 
+     fn director_with(store: MemoryStore) -> Arc<Director> {
+         let sim = SimConfig {
++            walk_hints: None,
+             regen: false,
+             training: false,
+             dummies: false,
+diff --git a/crates/rh-server/src/main.rs b/crates/rh-server/src/main.rs
+index 71a86f69..99954913 100644
+--- a/crates/rh-server/src/main.rs
++++ b/crates/rh-server/src/main.rs
+@@ -466,6 +466,7 @@ async fn main() {
+     };
+     let sim = runtime.as_ref().map_or_else(
+         || rh_sim::SimConfig {
++            walk_hints: None,
+             regen: false,
+             quests: false,
+             training: false,
+diff --git a/crates/rh-server/src/room.rs b/crates/rh-server/src/room.rs
+index 5d3e713e..b5e8517c 100644
+--- a/crates/rh-server/src/room.rs
++++ b/crates/rh-server/src/room.rs
+@@ -1981,6 +1981,7 @@ mod tests {
+         let assets = MapAssets::new(rh_sim::arenas::practice_arena()).unwrap();
+         RoomConfig {
+             sim: SimConfig {
++                walk_hints: None,
+                 regen: false,
+                 training: false,
+                 dummies: false,
+@@ -3100,6 +3101,7 @@ mod tests {
+         let assets = MapAssets::new(rh_sim::arenas::practice_arena()).unwrap();
+         RoomConfig {
+             sim: SimConfig {
++                walk_hints: None,
+                 regen: false,
+                 quests: false,
+                 consumables: true,
+diff --git a/crates/rh-server/src/runtime.rs b/crates/rh-server/src/runtime.rs
+index b642cf88..d892d364 100644
+--- a/crates/rh-server/src/runtime.rs
++++ b/crates/rh-server/src/runtime.rs
+@@ -122,6 +122,7 @@ impl Settings {
+     pub fn sim(&self) -> SimConfig {
+         let training = self.profile == Profile::Training;
+         SimConfig {
++            walk_hints: Some(true),
+             regen: true,
+             quests: !training,
+             training,
+@@ -204,10 +205,12 @@ mod tests {
+         }
+         let source = parse("--runtime source-arena --map x").unwrap().unwrap();
+         let sim = source.sim();
++        assert_eq!(sim.walk_hints, Some(true));
+         assert!(sim.quests && sim.regen && sim.initial_loot && sim.faction_mode.fire_roam());
+         assert_eq!(sim.abilities, abilities::Mode::Full);
+         assert!(matches!(sim.lifecycle, ArenaMode::Source(_)));
+         let training = parse("--runtime training").unwrap().unwrap().sim();
++        assert_eq!(training.walk_hints, Some(true));
+         assert!(training.training && training.dummies && !training.quests);
+         assert_eq!(training.lifecycle, ArenaMode::Off);
+     }

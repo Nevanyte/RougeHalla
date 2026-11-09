@@ -1,0 +1,95 @@
+{
+  "format": "rh-staging-preparation-refreeze-audit/1",
+  "historical_native_source": "a0c4818ce9df8ad0f4124db31e65ba1244bddc3b",
+  "candidate_native_source": "76d170a16158a9709178a741f12bd4abb357201f",
+  "branch_base": "76d170a16158a9709178a741f12bd4abb357201f",
+  "code_commit": "098b448a8bf40809798e21eed2bd41400b4061c1",
+  "preserved_installer_branch": "codex/staging-installer-offline",
+  "preserved_installer_head": "7b2599aad0a7ad8bb00e9300ed1312e26dab6078",
+  "original_ci": {
+    "run_id": "42680383918",
+    "commit": "76d170a16158a9709178a741f12bd4abb357201f",
+    "status": "red per lead; not fetched or rerun",
+    "local_red_reproduced_before_edits": true
+  },
+  "reviewed_native_commit": "b0319d03a49f0dc8630cf62179a12b0a3bdacb3f",
+  "source_diff_numstat": [
+    "1\t0\tcrates/rh-server/src/director.rs",
+    "1\t0\tcrates/rh-server/src/main.rs",
+    "2\t0\tcrates/rh-server/src/room.rs",
+    "3\t0\tcrates/rh-server/src/runtime.rs"
+  ],
+  "files": [
+    {
+      "path": "crates/rh-server/src/runtime.rs",
+      "historical_sha256": "a3d52a5595b4e2c489784aa8e4e8bcc8a7b1f3c7cfca6685bb20a7bedaa6d7bf",
+      "candidate_sha256": "e90c5037ce04ba35d83da65e8b4030a070015ad3de3745d2ca27f3aa77df7e8f",
+      "checkout_sha256": "e90c5037ce04ba35d83da65e8b4030a070015ad3de3745d2ca27f3aa77df7e8f",
+      "historical_pin_matches_blob": true,
+      "candidate_pin_matches_blob_and_checkout": true,
+      "changed": true
+    },
+    {
+      "path": "crates/rh-server/src/main.rs",
+      "historical_sha256": "a5236d652b34baa2ee7f5e229fda8ddf1af25ed5cd62dbd21a444e6ddb78ce55",
+      "candidate_sha256": "4e46669ed9ec8c2be21e7da4d88cd912c359114acadf9943fc0a6b4760ad7d4f",
+      "checkout_sha256": "4e46669ed9ec8c2be21e7da4d88cd912c359114acadf9943fc0a6b4760ad7d4f",
+      "historical_pin_matches_blob": true,
+      "candidate_pin_matches_blob_and_checkout": true,
+      "changed": true
+    },
+    {
+      "path": "crates/rh-server/src/lib.rs",
+      "historical_sha256": "99c418d44a860ee2640fe2d9c972c2c555f0692bd5cd8a7b372f62f9c0276975",
+      "candidate_sha256": "99c418d44a860ee2640fe2d9c972c2c555f0692bd5cd8a7b372f62f9c0276975",
+      "checkout_sha256": "99c418d44a860ee2640fe2d9c972c2c555f0692bd5cd8a7b372f62f9c0276975",
+      "historical_pin_matches_blob": true,
+      "candidate_pin_matches_blob_and_checkout": true,
+      "changed": false
+    },
+    {
+      "path": "crates/rh-server/src/director.rs",
+      "historical_sha256": "4e8bec19da4a101f5ab0e0f62c2204a42204fb3c903e34112b37c655c7133392",
+      "candidate_sha256": "a70452ca1273e1784b166a29b5ad372429fa07eeb3df3304111c060fd5514e26",
+      "checkout_sha256": "a70452ca1273e1784b166a29b5ad372429fa07eeb3df3304111c060fd5514e26",
+      "historical_pin_matches_blob": true,
+      "candidate_pin_matches_blob_and_checkout": true,
+      "changed": true
+    },
+    {
+      "path": "crates/rh-server/src/room.rs",
+      "historical_sha256": "5745183f9560f0388233e97f25fc897b6df3e37c11e0ce186ab80e8392c34fea",
+      "candidate_sha256": "dec9fdcb5f491cce503e5865667ba577f733b216f44f2772f039b157af21f886",
+      "checkout_sha256": "dec9fdcb5f491cce503e5865667ba577f733b216f44f2772f039b157af21f886",
+      "historical_pin_matches_blob": true,
+      "candidate_pin_matches_blob_and_checkout": true,
+      "changed": true
+    }
+  ],
+  "code_changed_paths": [
+    "tools/staging-full-runtime/README.md",
+    "tools/staging-full-runtime/native-pins.json",
+    "tools/staging-full-runtime/plan.unverified.json",
+    "tools/staging-full-runtime/prepare.py",
+    "tools/staging-full-runtime/run-runtime.py",
+    "tools/staging-full-runtime/test_preparation.py"
+  ],
+  "environment": {
+    "cargo_target_not_created": true,
+    "postgres_state_not_created": true,
+    "no_network_or_native_build_or_host_commands": true
+  },
+  "validation": {
+    "pre_edit_reproduction": {
+      "tests": 1,
+      "failures": 1,
+      "exit_code": 1
+    },
+    "post_edit_offline_tests": {
+      "tests": 14,
+      "failures": 0,
+      "exit_code": 0
+    },
+    "syntax": "3 Python AST, 2 JSON and verify.sh bash -n; whitespace PASS"
+  }
+}
