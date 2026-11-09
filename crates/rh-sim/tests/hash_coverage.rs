@@ -1684,7 +1684,11 @@ fn perturb_all(sim: &Sim, pool: &BTreeMap<String, Vec<Value>>, tally: &mut Tally
             let mut b = base.clone();
             let mut at = path.clone();
             at.pop();
-            *at_mut(&mut b, &[&at[..], &["kills".to_string()]].concat()) = 3.into();
+            let kills = at_mut(&mut b, &[&at[..], &["kills".to_string()]].concat());
+            // A solo Training world has only one retained player. Keep the probe
+            // inside that roster bound and never lower already-recorded credit.
+            let room_for_probe = sim.players().len().min(3) as u64;
+            *kills = kills.as_u64().unwrap().max(room_for_probe).into();
             let h = Sim::restore(&b)
                 .expect("kills within the roster restore")
                 .state_hash();
