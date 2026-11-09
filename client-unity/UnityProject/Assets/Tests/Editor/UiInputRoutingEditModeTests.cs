@@ -587,6 +587,7 @@ namespace Roguehalla.Client.Tests
                 case Key.Digit1: return _keyboard.digit1Key;
                 case Key.B: return _keyboard.bKey;
                 case Key.H: return _keyboard.hKey;
+                case Key.Escape: return _keyboard.escapeKey;
                 case Key.Tab: return _keyboard.tabKey;
                 case Key.W: return _keyboard.wKey;
                 default: Assert.Fail("No injected-key precondition configured for " + key); return null;
