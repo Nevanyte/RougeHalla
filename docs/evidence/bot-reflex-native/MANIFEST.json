@@ -1,0 +1,84 @@
+{
+ "format": "rh-bot-reflex-native-evidence/1",
+ "codeCommit": "01ee1de7ef235525fc9ec1ec96d8605b5139df68",
+ "nativeParent": "15b36d84a92b4d26a022e9ce30eca086be936fcd",
+ "sourceCommit": "d204825ed9d2289b45008d9f689a44546a5a5e54",
+ "sourceFixture": {
+  "path": "parity/policy/bot-reflex/source.json",
+  "bytes": 401512,
+  "sha256": "af347b767a11a12613a7bfe66dbcc4964e30d419e6fed7b007103a56015f7411"
+ },
+ "geometryCommit": "3e9fd3d60c1596161300d891630163efd9f0fd9f",
+ "rootAccessorCommit": "b4ec62f7356e73bbdc09844107a88778c85b12e0",
+ "accessorCherryPick": "15b36d84a92b4d26a022e9ce30eca086be936fcd",
+ "composition": "Released source d204 + reviewed geometry3e9 + Root existing-helper accessor b4/15b + native01ee; Root final merge only. Source reference preserved.",
+ "checks": {
+  "format": "rh-bot-reflex-native-checks/1",
+  "code": "01ee1de7ef235525fc9ec1ec96d8605b5139df68",
+  "test": {
+   "command": "cargo test --offline --locked -p rh-policy --lib bots::reflex -- --nocapture",
+   "exit": 0,
+   "passed": 5,
+   "failed": 0,
+   "sourceSequences": 49,
+   "sourceFrames": 68,
+   "realChecks": 67,
+   "continuousMaxAbsDifference": 0.0,
+   "discrete": "exact",
+   "rng": "exact draw prefix/state/next"
+  },
+  "lint": {
+   "command": "cargo clippy --offline --locked -p rh-policy --all-targets --all-features -- -D warnings",
+   "exit": 0
+  },
+  "fmt": {
+   "command": "cargo fmt -p rh-policy -- --check",
+   "exit": 0
+  },
+  "build": {
+   "env": "final-env.sh then explicit target override",
+   "target": "bot-fight-native/target",
+   "jobs": 1,
+   "devDebug": 0,
+   "testDebug": 0,
+   "incremental": 0,
+   "finalTargetTouched": false
+  }
+ },
+ "retainedFailures": [
+  "test-attempt01.log: JS whole-SelfView path argument versus native Vec2 adapter shape, corrected via explicit used-geometry projection and raw-SelfView identity assertion.",
+  "test-attempt02.log/test-aim-diagnostic.log: real hypot1ulp branch mismatch; actual unchanged source primitive diagnostic and Root existing helper fix, no expected fixture change."
+ ],
+ "scope": {
+  "nativeRustPaths": [
+   "crates/rh-policy/src/bots/mod.rs",
+   "crates/rh-policy/src/bots/reflex.rs",
+   "crates/rh-policy/src/bots/reflex/tests.rs",
+   "crates/rh-policy/src/bots/reflex/tests/controls.rs"
+  ],
+  "rootOwnedSimAccessorSeparate": true,
+  "noOtherSourceOrFixtureEdits": true,
+  "liveActivation": false,
+  "zeroAllocationClaim": false,
+  "memoryProducer": "Actual source captured Memory outputs supplied explicitly to standalone component; no live/native full-Memory adapter claim."
+ },
+ "artifactsSha256": {
+  "crates/rh-policy/src/bots/mod.rs": "fc759ecf1ac0369ba57ac5c18e343b0a4b2e6090e06a932c0199b72f37073fe4",
+  "crates/rh-policy/src/bots/reflex/tests/controls.rs": "71d050592deb51a0d9cd4446b87f666766475c2e379ea15137800a1f4f4f8900",
+  "crates/rh-policy/src/bots/reflex/tests.rs": "2db4eeb686cf0517ac001cca107ea126ead246ade3335288f2e06999f04a465d",
+  "crates/rh-policy/src/bots/reflex.rs": "fb095ff3500ed59d3cc7909750350f7684b2bee94bdbad4c868324cb61b120d8",
+  "docs/evidence/bot-reflex-native/README.md": "aa6fb3ee70e2d59030a91c30b6a1715a2643f37f681ce59550fe2cd627aac6ff",
+  "docs/evidence/bot-reflex-native/raw/checks.json": "1ef272b537ddb37df1753ac6fb23983b964d5faaaad00ba9f0c996d108e115fe",
+  "docs/evidence/bot-reflex-native/raw/clippy-attempt01.log": "ddc12bfca933482789c78fb19121deaffc83747bb09717068467ab9cecf46f81",
+  "docs/evidence/bot-reflex-native/raw/fmt-final.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "docs/evidence/bot-reflex-native/raw/prebuild-fmt.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "docs/evidence/bot-reflex-native/raw/sealed-input-check.log": "5a576bfd1f9eab7c86b224f401b5e4bdb1636f7314525d48723a5284406a74b1",
+  "docs/evidence/bot-reflex-native/raw/source-aim-diagnostic.json": "3dbc20093caba38e016b5f3ec480311610dc3729748192e2053fec0c2f52767d",
+  "docs/evidence/bot-reflex-native/raw/source-aim-diagnostic.mjs": "b6cc7795406c2776159e68d1c29a3820fdda1763844a617880bd6fbba796a138",
+  "docs/evidence/bot-reflex-native/raw/source-aim-diagnostic.stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "docs/evidence/bot-reflex-native/raw/test-aim-diagnostic.log": "fd0040f38b09e113a0977eb14b2bd676a106a848529aacf23569c38460b7becf",
+  "docs/evidence/bot-reflex-native/raw/test-attempt01.log": "ac6e58635f7ae243f4e093b6cf85ed9bc76923ace5f7e089d2670af04f8e6157",
+  "docs/evidence/bot-reflex-native/raw/test-attempt02.log": "b9dd14cef3ca7cb5fd87426e0346819430b7fbb6727958eabd951abd83a2ac81",
+  "docs/evidence/bot-reflex-native/raw/test-final.log": "b19d320dda21a5552bfb1b3dcb16d4d8dbba87d24abd4f00bbbc0af654dc326c"
+ }
+}

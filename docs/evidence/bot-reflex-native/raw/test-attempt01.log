@@ -1,0 +1,27 @@
+   Compiling rh-sim v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/bot-reflex-component/repo/crates/rh-sim)
+   Compiling rh-protocol v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/bot-reflex-component/repo/crates/rh-protocol)
+   Compiling rh-policy v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/bot-reflex-component/repo/crates/rh-policy)
+    Finished `test` profile [unoptimized] target(s) in 16.44s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/bot-fight-native/target/debug/deps/rh_policy-c3fa0ee46865b1ea)
+
+running 5 tests
+
+thread 'bots::reflex::tests::all_actual_source_49_sequences_68_frames_complete_outputs_paths_and_streams' (67167888) panicked at crates/rh-policy/src/bots/reflex/tests.rs:218:13:
+assertion `left == right` failed: ball-positive-and-decision-duplicate[0].paths[0].args[0]
+  left: ["x", "y"]
+ right: ["asMult", "attackTarget", "barrier", "bounty", "brand", "drawStartedAt", "facing", "faction", "gv", "hp", "id", "immuneUntil", "kills", "maxHp", "mobKills", "moveSeq", "name", "power", "readyAt", "sig", "slot", "speedMult", "status", "weapons", "windupMult", "x", "y"]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test bots::reflex::tests::controls::source_string_keys_preserve_timestamp_spelling_and_shared_cross_kind_equality ... ok
+test bots::reflex::tests::controls::session_epoch_owner_refusal_and_reset_clear_real_choices_hold_and_counters ... ok
+test bots::reflex::tests::controls::nonfinite_and_late_unknown_facts_are_atomic_from_reached_state ... ok
+test bots::reflex::tests::controls::missing_complete_facts_refuse_before_reached_state_rng_paths_then_retry ... ok
+test bots::reflex::tests::all_actual_source_49_sequences_68_frames_complete_outputs_paths_and_streams ... FAILED
+
+failures:
+
+failures:
+    bots::reflex::tests::all_actual_source_49_sequences_68_frames_complete_outputs_paths_and_streams
+
+test result: FAILED. 4 passed; 1 failed; 0 ignored; 0 measured; 154 filtered out; finished in 0.02s
+
+error: test failed, to rerun pass `-p rh-policy --lib`
