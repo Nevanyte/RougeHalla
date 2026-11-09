@@ -1,0 +1,18 @@
+test_corruption_truncated_padding_trailing_bytes_duplicate_json_and_pretty_json_refuse (test_component.Component) ... ok
+test_deterministic_archive_contains_only_canonical_component_and_binary (test_component.Component) ... ok
+test_links_traversal_duplicate_extra_and_noncanonical_archive_metadata_refuse (test_component.Component) ... ok
+test_manifest_unknown_secret_like_fields_forged_source_and_build_refuse (test_component.Component) ... ok
+test_observed_non_postgres_nonready_accounts_rooms_results_or_failed_stop_refuse (test_component.Component) ... ok
+test_regular_input_symlink_ancestor_hardlink_nonexecutable_and_size_refuse (test_component.Component) ... ok
+test_wrong_machine_script_headers_entry_segment_and_truncation_refuse (test_component.Component) ... ok
+test_mac_or_unapproved_event_refuses_before_any_native_build_or_database (test_produce.Boundaries) ... ok
+test_no_redirect_proxy_or_post_side_channel_and_bounded_response (test_produce.Boundaries) ... ok
+test_toolchain_requires_exact_source_pin (test_produce.Boundaries) ... ok
+test_dirty_or_wrong_source_checkout_refuses (test_produce.Selection) ... ok
+test_exact_ancestor_and_tip_bind_actual_git_identity (test_produce.Selection) ... ok
+test_unmerged_commit_and_short_or_injected_refs_refuse (test_produce.Selection) ... ok
+
+----------------------------------------------------------------------
+Ran 13 tests in 0.649s
+
+OK

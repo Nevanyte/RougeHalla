@@ -1,0 +1,50 @@
+{
+  "format": "rh-native-artifact-code-only-audit/1",
+  "base": "6a251045a05e3abd2ed63eb2df4d080930a22a64",
+  "code_commit": "e733dbe1c9ed297131a57d8b67718f5c856c445d",
+  "new_code_paths": [
+    ".github/workflows/staging-native-artifact.yml",
+    "tools/staging-native-artifact/README.md",
+    "tools/staging-native-artifact/component.py",
+    "tools/staging-native-artifact/produce.py",
+    "tools/staging-native-artifact/test_component.py",
+    "tools/staging-native-artifact/test_produce.py"
+  ],
+  "preserved_refs": {
+    "codex/staging-expiry-executor": "f640dbf17bb8f4a7252d021bdb2707f742f8175e",
+    "codex/staging-host-device-collector": "51285bb60cae84bc0bfec4fab14a5efc37d5daf5",
+    "codex/staging-preparation-ci76d": "fe571ce4dd63a43f28db6361ecec9048334d9106",
+    "codex/staging-installer-offline": "7b2599aad0a7ad8bb00e9300ed1312e26dab6078"
+  },
+  "checks": {
+    "first_synthetic_tests": 13,
+    "first_failures": 0,
+    "final_synthetic_tests": 15,
+    "final_failures": 0,
+    "python_AST_files": 4,
+    "YAML_parse": "PASS using existing cached PyYAML",
+    "workflow_policy": "manual/read-only/no persisted credentials/no secrets references PASS",
+    "shell_payloads_bash_n": 3,
+    "evidence_script_bash_n": "PASS",
+    "staged_whitespace": "PASS",
+    "local_rust_builds": 0,
+    "local_PG_or_native_processes": 0,
+    "workflow_dispatches": 0,
+    "AWS_operations": 0,
+    "new_worktrees_or_caches": 0
+  },
+  "action_pins": {
+    "checkout": "11bd71901bbe5b1630ceea73d27597364c9af683",
+    "upload-artifact": "ea165f8d65b6e75b540449e92b4886f43607fa02"
+  },
+  "pending_actual_gates": [
+    "Root review/integration and default-branch manual workflow registration",
+    "Hosted ubuntu24.04 x86_64 runner availability/disk/time and rustup/psql/Python/git",
+    "Exact selected stable Rust + locked dependency availability and RELEASE compile/link",
+    "Fresh postgres16 loopback service and actual /info/readiness/zero data/clean stop",
+    "Real archive/inner checksum and GitHub artifact retention",
+    "Immutable OS/container/toolchain provenance and future host compatibility remain separate"
+  ],
+  "native_binary_or_runtime_receipt_produced": false,
+  "deployable": false
+}
