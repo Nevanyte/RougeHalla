@@ -1,0 +1,22 @@
+   Compiling rh-server v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/scene-candidate14/repo/crates/rh-server)
+    Finished `test` profile [unoptimized] target(s) in 7.74s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/bot-fight-native/target/debug/deps/rh_server-825e280ee950b412)
+
+running 1 test
+test outbox::scene_candidate::tests::native_fixture_roundtrip_and_explicit_export ... FAILED
+
+failures:
+
+---- outbox::scene_candidate::tests::native_fixture_roundtrip_and_explicit_export stdout ----
+
+thread 'outbox::scene_candidate::tests::native_fixture_roundtrip_and_explicit_export' (67391123) panicked at crates/rh-server/src/outbox/scene_candidate/tests.rs:40:145:
+called `Result::unwrap()` on an `Err` value: Os { code: 2, kind: NotFound, message: "No such file or directory" }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    outbox::scene_candidate::tests::native_fixture_roundtrip_and_explicit_export
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 187 filtered out; finished in 0.02s
+
+error: test failed, to rerun pass `-p rh-server --lib`

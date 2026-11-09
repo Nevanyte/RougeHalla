@@ -1,0 +1,123 @@
+{
+  "format": "rh-scene-candidate14-receipt/1",
+  "date": "2026-11-09",
+  "base": "986f44dfd9a61eb769700adc476fc8b9e9aa8011",
+  "sourceCommit": "1b7bd441abdb883db104d10dbed97a377f955d9a",
+  "identity": {
+    "protocol": 14,
+    "checkpoint": 28,
+    "replay": 22,
+    "observation": 21,
+    "policy": 15,
+    "content": "643d294869db55a4"
+  },
+  "scope": "private isolated Full current14 experiment; no live/default/P15 ABI activation",
+  "results": {
+    "rustProtocol": {
+      "passed": 6,
+      "failed": 0,
+      "log": "logs/protocol-final.log"
+    },
+    "rustServer": {
+      "passed": 9,
+      "failed": 0,
+      "log": "logs/server-final.log"
+    },
+    "csharpFocused": {
+      "passed": 3,
+      "failed": 0,
+      "log": "logs/csharp-final.log"
+    },
+    "javascript": {
+      "result": "PASS",
+      "cases": 8,
+      "controlGroups": 193,
+      "prefixes": 4027,
+      "protocol": 14,
+      "profile": "SYNTHETIC-small47-not-product-capacity",
+      "boundary": "isolated Full current14 data; no live WS/producer-capacity/AcceptedFrame or history parity proof"
+    },
+    "strictClippy": "protocol+server --lib --tests default features -D warnings PASS",
+    "format": "cargo fmt both changed packages --check PASS",
+    "fixtureBytecheck": "post-source-seal generator result exactly matches committed bytes"
+  },
+  "fixture": {
+    "path": "protocol/fixtures/scene-candidate/full14.json",
+    "bytes": 22728,
+    "sha256": "1cc549e75815b5942d5cdfc86b51176d6d14bf43023da2cbf028b5347e6bc2b5",
+    "cases": [
+      "native-prepared-small",
+      "native-training-currentref-rack",
+      "synthetic-available-empty",
+      "synthetic-redacted-owner-lock",
+      "synthetic-quest-prop-join",
+      "synthetic-arena-clock",
+      "synthetic-spectator-clock",
+      "synthetic-clear-mirror-range"
+    ],
+    "nativePreparations": 2,
+    "declaredSyntheticShapeVariants": 6,
+    "profile": "SYNTHETIC-small47-not-product-capacity"
+  },
+  "tools": {
+    "rustc": "1.97.0 (2d8144b78 2026-07-07)",
+    "dotnet": "8.0.427",
+    "node": "v25.8.1",
+    "host": "Darwin/arm64"
+  },
+  "cargo": {
+    "target": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/bot-fight-native/target",
+    "jobs": 1,
+    "incremental": 0,
+    "devDebug": 0,
+    "testDebug": 0,
+    "noOtherTargetUsed": true
+  },
+  "existingProductionChanges": [
+    "crates/rh-protocol/src/lib.rs",
+    "crates/rh-server/src/outbox.rs"
+  ],
+  "newCSharpCopiesIdentical": true,
+  "frozenDesignManifestsUnchanged": {
+    "p15-db5": "c45746639664202eaaa446c43fdc04a00252a6b89b591bbd093ec8e8b6aa9ae3",
+    "p15-db5-ack-fence-v1": "0c57e7e3c49c832fd21dd15bb46892520adf1e85b64e0409b601848e89daf5a1"
+  },
+  "originalOutcomes": [
+    {
+      "log": "logs/server-attempt01.log",
+      "status": "FAILED setup: sparse fixtures missing"
+    },
+    {
+      "log": "logs/fixture-attempt01.log",
+      "status": "FAILED build: ENOSPC, attempted dev-profile duplicate"
+    },
+    {
+      "log": "logs/fixture-attempt02.log",
+      "status": "FAILED export path after in-memory cases, relative Cargo cwd"
+    },
+    {
+      "log": "logs/csharp-attempt01.log",
+      "status": "NO TESTS: zero-output no-restore no-op, not a pass"
+    },
+    {
+      "log": "logs/csharp-attempt02.log",
+      "status": "2pass/1fail: malformed-size test expected premature BEGIN rejection"
+    },
+    {
+      "log": "logs/clippy-tests-attempt01.log",
+      "status": "FAILED setup: sparse persistence support missing"
+    },
+    {
+      "log": null,
+      "status": "Initial package formatting attempt also stopped on sparse persistence support; original tool output remains in chat, not represented as a passing raw run"
+    }
+  ],
+  "reviews": "Two independent read-only agents reviewed framing/ACK/resource ownership and codec validation. Defects fixed before final seal; Root independent review still required.",
+  "limitations": [
+    "Writer start/flush completion are trusted model facts; no actual socket adapter/write tested",
+    "Publication slot is opaque isolated metadata; no live Room/ItemObserver transaction rewired; real staged native refusal/commit pattern tested separately",
+    "Receiver retained-body guard is conservative cumulative epoch allocation; not full policy/ring lifecycle or total RSS/decoded scratch proof",
+    "Queue metadata bounded by entry/scene counts; not a byte-exact process heap budget",
+    "No Delta/replay/resync/resume/new facts/full Brain/WAN/browser/PG/Editor/cloud/whole-workspace acceptance"
+  ]
+}

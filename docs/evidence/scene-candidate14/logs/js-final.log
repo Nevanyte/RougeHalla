@@ -1,0 +1,1 @@
+{"result":"PASS","cases":8,"controlGroups":193,"prefixes":4027,"protocol":14,"profile":"SYNTHETIC-small47-not-product-capacity","boundary":"isolated Full current14 data; no live WS/producer-capacity/AcceptedFrame or history parity proof"}
