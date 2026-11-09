@@ -1,0 +1,12 @@
+Bounded read-only cross-review of the new source witness.
+No extra runtime/capture/mutant campaign was run for these reviews.
+
+World/producer consistency: actual createGameWorld/raidStarted produces normal camp actors, all movement is through accepted source input queues, every step is fixed50ms and reaches the callback. No actor/HP/loadout/phase or remembered result is installed. Actual source camp state and all three IDs/living statuses persist across the history. The test arena/configuration and post-shuffle observer selection are explicit; no ordinary procedural-map or Room claim is made.
+
+Human/parent path: actual batch-before-roster/Schema/rosterSent order matches source headless publication. Extracted exact source bodies execute with real pure interpolation/remoteDraw/vision; full RaidScene/MobView/Minimap.setMobs/canvas do not execute. Private diagnostics remain outside consumer calls. Full-source snapshot is not socket/delta proof.
+
+Known pre-seal issues and closures: ambiguous decoded.tick0 label corrected to private sourceDiagnostic.tick plus explicit noSync decoder default0; actual AST project packages/client/tsconfig.json added to pins; two-movements header corrected to queued movements; human coverage now requires both exact regional admission and minimap callback rows, not only minimap contact. New capture/check and exact old-candidate source/method comparison verify these closures.
+
+Observed methods: Memory flips mob1 alivefalse at31750ms while actual World remains alive. It stays false after source human callback and composed bot actor resight at38650ms. Tracker receives dead MobLike. A real mob3 stall ban exists too; no sole-cause hunt-decision claim. Bot witness is actual named methods only: no BotRunner post-compose vision.filter, full Brain cadence/reset/humanizer or action submission.
+
+Remaining limits: hidden death/replacement and ID-only paired histories are not attempted/proved; global camp lifecycle and target/FX cues cannot be discarded; no universal actor/lifetime cap, sourcebug/intended-rule classification, full display, native design or P15 admission follows. Metadata corrections do not change the source scenario.
