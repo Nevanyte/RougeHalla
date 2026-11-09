@@ -1,0 +1,273 @@
+{
+  "source": "c6a55d3d68d0023e60ace98b55fd23f581217b38",
+  "complete": true,
+  "rootInstanceId": -2009872,
+  "decodedFrames": 6,
+  "checks": [
+    {
+      "name": "decoded frame accepted 100",
+      "pass": true,
+      "frame": 2177
+    },
+    {
+      "name": "decoded frame sampled 100",
+      "pass": true,
+      "frame": 2177
+    },
+    {
+      "name": "ground anchor equals delivered position",
+      "pass": true,
+      "frame": 2177
+    },
+    {
+      "name": "root has 1.2 XY and 1 Z",
+      "pass": true,
+      "frame": 2177
+    },
+    {
+      "name": "fighter has delivered sword and Fire sound context",
+      "pass": true,
+      "frame": 2177
+    },
+    {
+      "name": "confirmed Swing visibly selects fighter attack catalog",
+      "pass": true,
+      "frame": 2177
+    },
+    {
+      "name": "decoded frame accepted 101",
+      "pass": true,
+      "frame": 2177
+    },
+    {
+      "name": "decoded frame sampled 101",
+      "pass": true,
+      "frame": 2177
+    },
+    {
+      "name": "removed handle absent",
+      "pass": true,
+      "frame": 2177
+    },
+    {
+      "name": "pooled actor root inactive",
+      "pass": true,
+      "frame": 2177
+    },
+    {
+      "name": "removed handle has no sound context",
+      "pass": true,
+      "frame": 2177
+    },
+    {
+      "name": "removed actor has no retained confirmed flash",
+      "pass": true,
+      "frame": 2177
+    },
+    {
+      "name": "decoded frame accepted 102",
+      "pass": true,
+      "frame": 2177
+    },
+    {
+      "name": "decoded frame sampled 102",
+      "pass": true,
+      "frame": 2177
+    },
+    {
+      "name": "fighter to giver reuses same pooled root",
+      "pass": true,
+      "frame": 2177
+    },
+    {
+      "name": "ground anchor equals delivered position",
+      "pass": true,
+      "frame": 2177
+    },
+    {
+      "name": "root has 1.2 XY and 1 Z",
+      "pass": true,
+      "frame": 2177
+    },
+    {
+      "name": "kind4 ff mob0 decodes to absent fighter identity",
+      "pass": true,
+      "frame": 2177
+    },
+    {
+      "name": "giver uses exact neutral silhouette",
+      "pass": true,
+      "frame": 2177
+    },
+    {
+      "name": "giver weapon cue cleared",
+      "pass": true,
+      "frame": 2177
+    },
+    {
+      "name": "giver has no fabricated combat sound context",
+      "pass": true,
+      "frame": 2177
+    },
+    {
+      "name": "giver has neutral diamond footprint",
+      "pass": true,
+      "frame": 2177
+    },
+    {
+      "name": "giver has neutral insignia",
+      "pass": true,
+      "frame": 2177
+    },
+    {
+      "name": "zero delivered barrier and ring clear fighter state",
+      "pass": true,
+      "frame": 2177
+    },
+    {
+      "name": "zero signature clears fighter signature",
+      "pass": true,
+      "frame": 2177
+    },
+    {
+      "name": "decoded frame accepted 103",
+      "pass": true,
+      "frame": 2177
+    },
+    {
+      "name": "decoded frame sampled 103",
+      "pass": true,
+      "frame": 2177
+    },
+    {
+      "name": "ground anchor equals delivered position",
+      "pass": true,
+      "frame": 2177
+    },
+    {
+      "name": "root has 1.2 XY and 1 Z",
+      "pass": true,
+      "frame": 2177
+    },
+    {
+      "name": "explicit giver barrier35 has exact width",
+      "pass": true,
+      "frame": 2177
+    },
+    {
+      "name": "explicit giver ring4 retained",
+      "pass": true,
+      "frame": 2177
+    },
+    {
+      "name": "explicit giver signature bits retained",
+      "pass": true,
+      "frame": 2177
+    },
+    {
+      "name": "giver cannot inherit or start fighter attack after Swing",
+      "pass": true,
+      "frame": 2177
+    },
+    {
+      "name": "capture frame advances decoded-giver-native",
+      "pass": true,
+      "frame": 2178
+    },
+    {
+      "name": "native QHD dimensions decoded-giver-native",
+      "pass": true,
+      "frame": 2178
+    },
+    {
+      "name": "decoded frame accepted 104",
+      "pass": true,
+      "frame": 2178
+    },
+    {
+      "name": "decoded frame sampled 104",
+      "pass": true,
+      "frame": 2178
+    },
+    {
+      "name": "removed handle absent",
+      "pass": true,
+      "frame": 2178
+    },
+    {
+      "name": "pooled actor root inactive",
+      "pass": true,
+      "frame": 2178
+    },
+    {
+      "name": "removed handle has no sound context",
+      "pass": true,
+      "frame": 2178
+    },
+    {
+      "name": "removed actor has no retained confirmed flash",
+      "pass": true,
+      "frame": 2178
+    },
+    {
+      "name": "decoded frame accepted 105",
+      "pass": true,
+      "frame": 2178
+    },
+    {
+      "name": "decoded frame sampled 105",
+      "pass": true,
+      "frame": 2178
+    },
+    {
+      "name": "giver to fighter reuses same pooled root",
+      "pass": true,
+      "frame": 2178
+    },
+    {
+      "name": "ground anchor equals delivered position",
+      "pass": true,
+      "frame": 2178
+    },
+    {
+      "name": "root has 1.2 XY and 1 Z",
+      "pass": true,
+      "frame": 2178
+    },
+    {
+      "name": "new fighter has delivered bow cue",
+      "pass": true,
+      "frame": 2178
+    },
+    {
+      "name": "new fighter has idle appearance with no stale attack phase",
+      "pass": true,
+      "frame": 2178
+    },
+    {
+      "name": "reused fighter has current Frost bow sound context",
+      "pass": true,
+      "frame": 2178
+    },
+    {
+      "name": "giver signature marks do not leak into fighter",
+      "pass": true,
+      "frame": 2178
+    },
+    {
+      "name": "new fighter uses current delivered ring3",
+      "pass": true,
+      "frame": 2178
+    },
+    {
+      "name": "capture frame advances reused-fighter-native",
+      "pass": true,
+      "frame": 2179
+    },
+    {
+      "name": "native QHD dimensions reused-fighter-native",
+      "pass": true,
+      "frame": 2179
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "source": "c6a55d3d68d0023e60ace98b55fd23f581217b38",
+  "nativeCaptures": [
+    {
+      "path": "decoded-giver-native.png",
+      "sha256": "40bfd84cd492b1e5fee822595b744d026ab5db508b3ebd6a01d5e93ec1dd99e5",
+      "bytes": 3003648,
+      "width": 2560,
+      "height": 1440
+    },
+    {
+      "path": "reused-fighter-native.png",
+      "sha256": "803d5aea2f2172dd6873a959cef9d525f0bde8b338e03c6795be0dc6e331bd15",
+      "bytes": 2747503,
+      "width": 2560,
+      "height": 1440
+    }
+  ],
+  "totalPngBytes": 5751151
+}

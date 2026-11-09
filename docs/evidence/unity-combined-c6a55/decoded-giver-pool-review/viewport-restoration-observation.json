@@ -1,0 +1,8 @@
+{
+  "method": "Native Unity app state and screenshot observed through CUA after Play stop",
+  "playing": false,
+  "gameViewPreset": "QHD (2560x1440)",
+  "gameViewScale": 0.28,
+  "customPresetAdded": false,
+  "note": "Observation receipt; image artifacts are the two native end-of-frame captures, not an upscaled Pipeline image."
+}
