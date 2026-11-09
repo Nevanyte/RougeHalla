@@ -1,0 +1,14 @@
+{
+  "check": "Post-test state did not yet match baseline",
+  "differences": {
+    "textKey": {
+      "before": false,
+      "after": true
+    },
+    "text": {
+      "before": 1.0,
+      "after": 0.85
+    }
+  },
+  "action": "Restore the absent baseline text-scale key through public PlayerPrefs; no test/source retry or change"
+}

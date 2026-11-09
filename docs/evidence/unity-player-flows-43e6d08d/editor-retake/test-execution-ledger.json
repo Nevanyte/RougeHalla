@@ -1,0 +1,44 @@
+{
+  "source": "43e6d08d90e8ee63e3a16ef002bba3e971c9e30f",
+  "expected": 20,
+  "executed": 20,
+  "passed": 20,
+  "failed": 0,
+  "unrun": 0,
+  "status": "PASS",
+  "groups": [
+    {
+      "class": "QuestJournalViewEditModeTests",
+      "summary": {
+        "Total": 7,
+        "Passed": 7,
+        "Failed": 0,
+        "Skipped": 0,
+        "Inconclusive": 0
+      },
+      "selectorsMatch": true
+    },
+    {
+      "class": "TraderDialogViewEditModeTests",
+      "summary": {
+        "Total": 6,
+        "Passed": 6,
+        "Failed": 0,
+        "Skipped": 0,
+        "Inconclusive": 0
+      },
+      "selectorsMatch": true
+    },
+    {
+      "class": "PlayerFlowsEditModeTests",
+      "summary": {
+        "Total": 7,
+        "Passed": 7,
+        "Failed": 0,
+        "Skipped": 0,
+        "Inconclusive": 0
+      },
+      "selectorsMatch": true
+    }
+  ]
+}
