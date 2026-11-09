@@ -490,7 +490,8 @@ fn the_genuine_source_tape_produces_the_native_camp_count_and_later_player_damag
         .iter()
         .flat_map(|h| {
             h["hooks"].as_array().unwrap().iter().filter_map(|k| {
-                (k["hook"] == "fighterOut" && k["kind"] == "arguments").then(|| {
+                if !(k["hook"] == "fighterOut" && k["kind"] == "arguments") { return None; }
+        Some({
                     (
                         h["tick"].as_u64().unwrap(),
                         k["args"][0].as_str().unwrap().to_string(),

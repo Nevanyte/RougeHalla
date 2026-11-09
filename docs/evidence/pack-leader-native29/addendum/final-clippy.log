@@ -1,44 +1,4 @@
-=== final clippy
+=== final clippy retry
     Checking rh-sim v0.1.0 (/Users/nevinmckinnon/.codex/worktrees/deepseek-rust-completion/p-pack-leader/crates/rh-sim)
-error: float has excessive precision
-   --> crates/rh-sim/src/systems/ledger/camps_tests.rs:386:17
-    |
-386 |         (loss - 1.0230769230769231 * b).abs() > 1e-6,
-    |                 ^^^^^^^^^^^^^^^^^^
-    |
-    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.97.0/index.html#excessive_precision
-    = note: `-D clippy::excessive-precision` implied by `-D warnings`
-    = help: to override `-D warnings` add `#[allow(clippy::excessive_precision)]`
-help: consider changing the type or truncating it to
-    |
-386 -         (loss - 1.0230769230769231 * b).abs() > 1e-6,
-386 +         (loss - 1.023_076_923_076_923 * b).abs() > 1e-6,
-    |
-
-error: usage of `bool::then` in `filter_map`
-   --> crates/rh-sim/src/pack_leader_native_tests.rs:492:51
-    |
-492 |               h["hooks"].as_array().unwrap().iter().filter_map(|k| {
-    |  ___________________________________________________^
-493 | |                 (k["hook"] == "fighterOut" && k["kind"] == "arguments").then(|| {
-494 | |                     (
-495 | |                         h["tick"].as_u64().unwrap(),
-...   |
-499 | |                 })
-500 | |             })
-    | |______________^
-    |
-    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.97.0/index.html#filter_map_bool_then
-    = note: `-D clippy::filter-map-bool-then` implied by `-D warnings`
-    = help: to override `-D warnings` add `#[allow(clippy::filter_map_bool_then)]`
-help: use `filter` then `map` instead
-    |
-492 ~             h["hooks"].as_array().unwrap().iter().filter(|&k| (k["hook"] == "fighterOut" && k["kind"] == "arguments")).map(|k| (
-493 +                         h["tick"].as_u64().unwrap(),
-494 +                         k["args"][0].as_str().unwrap().to_string(),
-495 +                         k["args"][1].as_str().unwrap().to_string(),
-496 +                     ))
-    |
-
-error: could not compile `rh-sim` (lib test) due to 2 previous errors
-EXIT=101
+    Finished `dev` profile [unoptimized] target(s) in 19.36s
+EXIT=0

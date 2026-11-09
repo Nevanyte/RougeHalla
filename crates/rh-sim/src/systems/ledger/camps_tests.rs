@@ -383,7 +383,7 @@ fn h1_outcome_sensitive_execute_callsite_with_genuine_mark_denial() {
     assert!((loss - 1.03 * b).abs() < 1e-9,
         "correct pass-start count1 leaves 1.03B (wrong count0 would leave 1.023076923B): loss {loss}");
     assert!(
-        (loss - 1.0230769230769231 * b).abs() > 1e-6,
+        (loss - (1.33 / 1.30) * b).abs() > 1e-6,
         "the count0 share is excluded"
     );
 
