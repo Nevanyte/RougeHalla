@@ -2,8 +2,9 @@
 import {readFileSync, writeFileSync} from 'node:fs';
 import {pathToFileURL} from 'node:url';
 
-export const CLIENT_SOURCE = '6d5d9340a6b9f425a17d7ea4488b49291fff3dc1';
-export const NATIVE_REFERENCE = '7a13b88aaa104cf2fd18dc2de7eada6c02060485';
+export const CLIENT_SOURCE = '57e166f46b35fb703e5f3c76914fcc4e8bf3191c';
+export const NATIVE_REFERENCE = 'c52e41a633c91f8402e3f68724e9202351d1cdb3';
+export const BROWSER_ORIGIN = 'http://localhost:8888';
 export const CONTENT = '7c6a633f68c2cc72';
 export const CASES = ['arena-reload', 'training-reload', 'stale-owner', 'stale-mode-config', 'expired-seat'];
 const HEX64 = /^[a-f0-9]{64}$/, HEX40 = /^[a-f0-9]{40}$/, ID = /^[A-Za-z0-9_-]{1,100}$/;
@@ -123,6 +124,8 @@ export function evaluate(bundle) {
       if (before.executionContextWitness === after.executionContextWitness || bo.documentId === ao.documentId ||
           bo.page.timeOriginMs === ao.page.timeOriginMs) bad.push('fresh document/context not established');
       if (bo.page.origin !== ao.page.origin) bad.push('origin changed');
+      if (bo.page.origin !== BROWSER_ORIGIN || ao.page.origin !== BROWSER_ORIGIN)
+        bad.push('browser origin differs from the expected local Unity origin');
       if (ao.page.navigationType !== 'reload') bad.push('reload navigation not observed');
       if ([bo, ao].some(o => o.overflow || o.events.some(e => e.kind === 'pageshow' && e.persisted))) bad.push('overflow or restored document');
       if (c.documents.some(d => d.wire.overflow || d.wire.records.some(e => e.event === 'metadata-unavailable')))
