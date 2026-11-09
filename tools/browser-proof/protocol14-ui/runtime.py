@@ -257,7 +257,7 @@ def run(args: argparse.Namespace) -> int:
             "serverPort": server_port,
             "staticPort": static_port,
             "artifact": str(artifact),
-            "repo": str(repo),
+            "repo": str(Path(args.repo).expanduser().resolve()),
             "serverSha256": PINNED_SERVER_SHA256,
         }
         write_private(private / "runtime.json", runtime)
