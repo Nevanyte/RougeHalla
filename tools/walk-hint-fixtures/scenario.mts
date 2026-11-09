@@ -69,6 +69,11 @@ function snapshot(world) {
     }),
   };
 }
+function assertPinnedRuntime() {
+  if (process.version !== "v22.23.4" || process.platform !== "linux" || process.arch !== "x64") {
+    throw new Error("runtime is not the pinned Node 22.23.4 linux/amd64 image: " + process.version + " " + process.platform + "/" + process.arch);
+  }
+}
 function order(world, type, msg) {
   const rt = world.players.get("p0");
   if (!rt) throw new Error("missing p0 runtime");
@@ -103,10 +108,10 @@ function runScenario(recordRng) {
   const small = capture("move-small-turn", order(world, "move", { x: p0().x + Math.cos(0.37 + 0.017) * 64, y: p0().y + Math.sin(0.37 + 0.017) * 64, seq: 2 }));
   const large = capture("move-large-turn", order(world, "move", { x: p0().x + Math.cos(0.37 + 10 * Math.PI / 180) * 64, y: p0().y + Math.sin(0.37 + 10 * Math.PI / 180) * 64, seq: 3 }));
   const stop = capture("stop", order(world, "stop", { seq: 4 }));
-  order(world, "move", { x: p0().x + Math.cos(0.37) * 64, y: p0().y + Math.sin(0.37) * 64, seq: 5 });
+  const waypointMove = order(world, "move", { x: p0().x + Math.cos(0.37) * 64, y: p0().y + Math.sin(0.37) * 64, seq: 5 });
   const waypointFrames = [];
   for (let i = 0; i < 30; i++) {
-    const f = capture("waypoint-" + i, null);
+    const f = capture("waypoint-" + i, i === 0 ? waypointMove : null);
     waypointFrames.push(f);
     const rt = world.players.get("p0");
     if (rt.path.length === 0 && p0().extra.walkTicks === 0) break;
@@ -163,6 +168,7 @@ function sourceInfo() {
   };
 }
 export function runProbe() {
+  assertPinnedRuntime();
   const instrumented = runScenario(true);
   const replay = runScenario(false);
 const stripRng = (frames) => frames.map((f) => ({ ...f, draws: undefined }));
@@ -233,6 +239,8 @@ export function assertFacts(corpus) {
   if (!(p0(small).extra.walkTicks > 0 && p0(small).extra.walkDir === p0(first).extra.walkDir)) fail("small-turn hysteresis not observed");
   if (!(p0(large).extra.walkTicks > 0 && p0(large).extra.walkDir !== p0(first).extra.walkDir)) fail("large-turn heading transition not observed");
   if (p0(stop).extra.walkTicks !== 0 || p0(stop).path.length !== 0) fail("stop did not zero");
+  const waypoint0 = corpus.frames.find((f) => f.label === "waypoint-0");
+  if (!waypoint0 || !waypoint0.order || waypoint0.order.type !== "move" || waypoint0.order.msg?.seq !== 5 || waypoint0.order.accepted !== true) fail("waypoint-0 missing accepted seq5 Move record");
   const last = corpus.frames[corpus.frames.length - 1];
   if (p0(last).extra.walkTicks !== 0 || p0(last).path.length !== 0) fail("waypoint end did not zero");
   if (!corpus.frames.some((f) => p0(f).extra.walkTicks > 0 && f.label.startsWith("waypoint-"))) fail("waypoint approach never hinted");

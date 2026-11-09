@@ -22,6 +22,8 @@ if (!(p0(large).extra.walkTicks > 0 && p0(large).extra.walkDir !== p0(first).ext
 if (p0(stop).extra.walkTicks !== 0 || p0(stop).path.length !== 0) fail("stop did not zero");
 const last = c.frames[c.frames.length - 1];
 if (p0(last).extra.walkTicks !== 0 || p0(last).path.length !== 0) fail("waypoint end did not zero");
+const waypoint0 = c.frames.find((f) => f.label === "waypoint-0");
+if (!waypoint0 || !waypoint0.order || waypoint0.order.type !== "move" || waypoint0.order.msg?.seq !== 5 || waypoint0.order.accepted !== true) fail("waypoint-0 missing accepted seq5 Move record");
 if (!c.frames.some((f) => p0(f).extra.walkTicks > 0 && f.label.startsWith("waypoint-"))) fail("waypoint approach never hinted");
 if (!c.replay.equal) fail("instrumentation-disabled replay changed facts");
 for (const f of c.frames) {
