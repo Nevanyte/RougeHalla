@@ -1,0 +1,43 @@
+{
+  "format": "rh-root-protection-cues-first-capture/1",
+  "createdUtc": "2026-11-09T20:20:59.014948+00:00",
+  "driverCode": "4fe7aa8285ad65f2c9a1123297426cd48b03bdef",
+  "sourceBase": "bb564d3b53728cbd205af375b5342eca466f3656",
+  "sourceFixture": {
+    "path": "parity/policy/bot-protection-cues/source.json",
+    "bytes": 45079140,
+    "sha256": "0a8af4c8dee518e5e6bc6b31c3445dc2e5ab61e889810a830642381d9cf92e6e"
+  },
+  "rawBeforeVerification": {
+    "decodedBytes": 45077539,
+    "decodedSha256": "6449038bfbe6dc75d9afe1ce66f9172dd44cb23fb3048871a03e8ca16f6aac53",
+    "gzipMtime": 0
+  },
+  "firstCompilerBuild": "PASS one,133inputs",
+  "firstActualSourceCapture": "PASS one,11cases\u00d796ordinary50mssteps",
+  "cases": 11,
+  "steps": 1056,
+  "fullFrameInputs": 2112,
+  "prefilterCompositions": 2046,
+  "startupNulls": 66,
+  "queuedAccepted": 33,
+  "actuallyApplied": 32,
+  "terminalAcceptedUnapplied": "W4 observer Release after genuineEnded; no forceddrain",
+  "inputCoverage": {
+    "remoteFighterRows": 1824,
+    "currentFlightRows": 12,
+    "delayedRetainedFlightRows": 42,
+    "containerRows": 88,
+    "deliveredEventRows": 98,
+    "immediate": 0,
+    "mobs": 0,
+    "embedded9Births": 0,
+    "batchPBirths": 6,
+    "shortEnds": 6
+  },
+  "readonlyConsistency": "PASS once; allthreecapturedfilesbyteunchanged; noSourceexecuted",
+  "controls": "UNRUN separatevariantcodepreparationonly",
+  "frozenSourceReproduction": "UNRUN",
+  "nativeTemporalComparison": "UNRUN; privateUndefinedrepresentationprerequisiteinreview",
+  "P15NativePublicFullBrain": "NOT_ADMITTED"
+}

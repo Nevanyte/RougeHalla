@@ -1,0 +1,29 @@
+{
+  "format": "rh-p15-protection-cues-verification/2",
+  "status": "PASS",
+  "checks": [
+    "11 completed exact96-step cases; complete codec/frame/config/wire/input/RNG preflight",
+    "P0 genuine before/positive/past owner deadline and exact remote guard boundaries",
+    "P1 protected attempt then distinct actual unprotected paid Sword hit",
+    "B0 actual Bow draw/release or paid-hit/swap positive and launch discrimination",
+    "B1 actual Bow draw/release or paid-hit/swap positive and launch discrimination",
+    "B2 actual Bow draw/release or paid-hit/swap positive and launch discrimination",
+    "W0 exact real retarget cancel and observer feint, not nonexistent cancel stimulus",
+    "W1 actual lock/seq drop preserves committed cast and Ball",
+    "W2 actual lock/seq drop preserves committed cast and Ball",
+    "W3 paid Sword/windup/stagger, standing/cooldown retained and no Ball",
+    "W4 real paid death/end/action cleanup, delayed observer death and zero Ball; terminal release honestly unapplied",
+    "W5 one chronological first deadline/launch/ready wait/second swapped-hand delayed windup; no second Ball"
+  ],
+  "cases": 11,
+  "temporalFrames": 2112,
+  "sourceBase": "bb564d3b53728cbd205af375b5342eca466f3656",
+  "driverCode": "4fe7aa8285ad65f2c9a1123297426cd48b03bdef",
+  "limits": [
+    "finite declared source-method inputs",
+    "no socket/renderer/Brain/P15/native claim",
+    "constructor reward/quest prefixes UNOBSERVED",
+    "W4 post-Ended release accepted but unapplied",
+    "controls/bytecheck/frozen export UNRUN"
+  ]
+}

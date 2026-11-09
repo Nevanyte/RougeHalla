@@ -1,0 +1,22 @@
+{
+  "exitCode": 0,
+  "timeout": false,
+  "finishedUtc": "2026-11-09T20:00:16.514120+00:00",
+  "capturedFiles": [
+    {
+      "path": "observations-before-verification.json",
+      "bytes": 45077539,
+      "sha256": "6449038bfbe6dc75d9afe1ce66f9172dd44cb23fb3048871a03e8ca16f6aac53"
+    },
+    {
+      "path": "source.json",
+      "bytes": 45079140,
+      "sha256": "0a8af4c8dee518e5e6bc6b31c3445dc2e5ab61e889810a830642381d9cf92e6e"
+    },
+    {
+      "path": "verification.json",
+      "bytes": 1558,
+      "sha256": "e5ded300c248096a6319bec9252efef53e28212d47862a1387a9e67056c35987"
+    }
+  ]
+}
