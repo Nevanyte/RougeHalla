@@ -1,5 +1,6 @@
 // Builds the scene from code so the project needs no authored scene content: it runs
-// in any (even empty) scene. Query string in WebGL: ?server=wss://host/ws&profile=name&token=secret&hash=<u64>&faction=<0-4>
+// in any (even empty) scene. Optional operator targets: ?server=wss://host/arena/ws&trainingServer=wss://host/training/ws
+// Both owned targets must share the configured account API origin. Mode is never encoded in Hello.
 using System;
 using UnityEngine;
 using Roguehalla.Net;
@@ -82,6 +83,7 @@ namespace Roguehalla.Client
             string defaultWs = DefaultUrl;
             try { defaultWs = AccountConnectionPolicy.DefaultMatchUrl(mc.PageUrl); } catch (ArgumentException) { }
             mc.Url = Query(s, "server", defaultWs);
+            mc.TrainingUrl = Query(s, "trainingServer", "");
             mc.AccountApi = Query(s, "accountApi", Application.isEditor ? "http://127.0.0.1:7777/api" : "");
             mc.Profile = Query(s, "profile", PlayerPrefs.GetString("rh.ui.profile", ""));
             mc.DiagnosticRequested = Query(s, "diagnostic", "0") == "1";

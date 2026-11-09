@@ -40,7 +40,7 @@ namespace Roguehalla.Client
         bool ReadingPaneSelected => EventSystem.current != null && EventSystem.current.currentSelectedGameObject != null &&
             EventSystem.current.currentSelectedGameObject.activeInHierarchy &&
             EventSystem.current.currentSelectedGameObject.GetComponent<KeyboardScrollPane>() != null;
-        public bool BlocksKeyboardInput => _menu != null && (_menu.gameObject.activeSelf || _results.gameObject.activeSelf ||
+        public bool BlocksKeyboardInput => (_client != null && _client.LaunchPending) || _menu != null && (_menu.gameObject.activeSelf || _results.gameObject.activeSelf ||
             _settings.gameObject.activeSelf || (_signIn != null && _signIn.gameObject.activeSelf) || AnyHubPanelVisible || PlayerFlowVisible || Typing || (_drawer != null && _drawer.IsVisible) || (_help != null && _help.gameObject.activeSelf) || (_map != null && _map.IsPlanning));
         public bool BlocksPointerInput => BlocksKeyboardInput || (_map != null && _map.PointerBlocked) ||
             PointerHitsUi();
@@ -202,6 +202,8 @@ namespace Roguehalla.Client
             if (_uiPrefs.ShowPing && _session != null) metrics += (metrics.Length == 0 ? "" : " · ") + "PING " + (_session.Sync.HasSample ? _session.Sync.LastRttMs.ToString("0") + " ms" : "—");
             _metrics.text = metrics;
             if (_session == null || _session.State != SessionState.InMatch) { _phaseStrip.text = ""; return; }
+            if (_client != null && _client.LaunchPending) { _phaseStrip.text = "VERIFYING DESTINATION"; return; }
+            if (_client != null && _client.ConfirmedPractice) { _phaseStrip.text = "PRACTICE · NO RUN REWARDS"; return; }
             var arena = _session.Collections.Arena;
             double elapsed = arena.HasValue ? System.Math.Max(0, (_session.ServerTimeMs - arena.Value.RaidStartedAt) / 1000) : 0;
             _phaseStrip.text = _session.Collections.Plan != null ? "PLANNING" : _session.Phase == MatchPhase.Active ? "RAID · " + ((int)elapsed / 60).ToString("00") + ":" + ((int)elapsed % 60).ToString("00") : "FORMING MATCH";

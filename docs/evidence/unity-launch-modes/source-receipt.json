@@ -1,0 +1,150 @@
+{
+  "schema": "rh-launch-source-receipt-v1",
+  "base": "a0c4818ce9df8ad0f4124db31e65ba1244bddc3b",
+  "sourceCommit": "4ec547312dc9b7214bbf6a8e20a6ff7ed3f3ba3b",
+  "branch": "codex/unity-launch-modes",
+  "files": [
+    {
+      "path": "client-unity/RoguehallaNet.Tests/MatchLaunchConfigTests.cs",
+      "bytes": 5551,
+      "sha256": "4f9d7ea0048ec8b8161ec62ecf4c6c0e31d8cef7b49a80db85fe84665f882d35"
+    },
+    {
+      "path": "client-unity/RoguehallaNet.Tests/RoguehallaNet.Tests.csproj",
+      "bytes": 1922,
+      "sha256": "6943419389c255162431107a96e31bb6ee21d3da89c62ee45e9a4c049aa0dc9c"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Bootstrap.cs",
+      "bytes": 4643,
+      "sha256": "bf207b06c2abf3ba0cb6b0cd0f814911db469427f360575ef01f7c4d400c143f"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Net/MatchClient.Accounts.cs",
+      "bytes": 8775,
+      "sha256": "56e03a2057cb333245071d0d76288e391856c284630e5dceeba8e349cbfbd8f3"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Net/MatchClient.cs",
+      "bytes": 19338,
+      "sha256": "c31b74999497a830402c3eec84f3e246cd3a3ffad0e4144a92f5db90f54c52f3"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Net/MatchLaunchConfig.cs",
+      "bytes": 2813,
+      "sha256": "642eecb69d69583a1f8c0a24f3f404bbbac9cde35de9f64f2c7dd170edcbff39"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Net/MatchLaunchConfig.cs.meta",
+      "bytes": 60,
+      "sha256": "bc182455a188bdb7def3b497f63ed57ed709435bbdb71f6057deb71d41f931fa"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/UI/MatchHud.Accounts.cs",
+      "bytes": 13572,
+      "sha256": "78fed8f37e318d5d7eb22d1b215137a8947fb53401161e7da5fa7dbf235f9f08"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/UI/MatchHud.Features.cs",
+      "bytes": 25095,
+      "sha256": "45463480f94ca4882931871bb1405d391364281a67d4546d8c7667f2405203f8"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/UI/MatchHud.cs",
+      "bytes": 33665,
+      "sha256": "8fce1dbccd6c8b1499134a8b1643e3068906f1170b1dca5c2c737c01fd5836c4"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/MatchLaunchEditModeTests.cs",
+      "bytes": 17280,
+      "sha256": "85d3fa8ae38a23bc6647a24e10836cc83802aba21f5157740992af22483508ea"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/MatchLaunchEditModeTests.cs.meta",
+      "bytes": 60,
+      "sha256": "8acab4f6bfac7f69d1d75a36eb4013e2202fe3567749fa49fca9ede4abeed365"
+    }
+  ],
+  "protectedPathsUnchanged": [
+    "crates",
+    "packages",
+    "client-unity/RoguehallaNet",
+    "client-unity/UnityProject/Assets/RoguehallaNet",
+    "client-unity/UnityProject/Assets/Resources",
+    "client-unity/UnityProject/Assets/Plugins",
+    "client-unity/UnityProject/Assets/Scenes",
+    "client-unity/UnityProject/ProjectSettings",
+    "Cargo.lock",
+    "docs/MIGRATION.md",
+    "docs/CONTRACTS.md",
+    "tools/browser-proof"
+  ],
+  "originalNativeTestFilesUnchanged": [
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/QuestJournalViewEditModeTests.cs",
+      "sha256": "a227e72035a95c76998a8e715eea197e54bf28de37ade69998404830186a9508",
+      "unchangedFromBase": true
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/TraderDialogViewEditModeTests.cs",
+      "sha256": "74f08af89ac872699567c2fe7ecc5451bdc3ffa94f6df48ec60abda813bb66cb",
+      "unchangedFromBase": true
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/PlayerFlowsEditModeTests.cs",
+      "sha256": "d3b75829d5fb35708b328eeaa95d3975c0369cc287195db330dfbe2a7bb11c26",
+      "unchangedFromBase": true
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/MatchClientAccountBindingEditModeTests.cs",
+      "sha256": "ecde6696a981499a3a206cd333d3dfeb7a4061c5e1e345f2b4911ef4022b45f2",
+      "unchangedFromBase": true
+    }
+  ],
+  "compileProfile": {
+    "execution": "Managed compilation only; no Unity Editor process invoked or native tests run",
+    "target": "netstandard2.1",
+    "clientDefines": [
+      "UNITY_EDITOR",
+      "ENABLE_INPUT_SYSTEM"
+    ],
+    "testDefines": [
+      "UNITY_EDITOR",
+      "ENABLE_INPUT_SYSTEM",
+      "UNITY_INCLUDE_TESTS"
+    ],
+    "unityReferences": "Existing read-only Art worktree Library/ScriptAssemblies and installed Unity Editor DLLs as pinned in copied csproj profiles",
+    "netReference": "Current worktree built RoguehallaNet.dll",
+    "clientErrors": 0,
+    "clientWarnings": 0,
+    "testErrors": 0,
+    "testWarnings": 1,
+    "existingWarning": "CS0067 MatchHudTrophyEditModeTests.TestTransport.Closed unused event, line116",
+    "assemblies": [
+      {
+        "path": "/Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-launch-modes/client-unity/RoguehallaNet/bin/Debug/netstandard2.1/RoguehallaNet.dll",
+        "bytes": 226304,
+        "sha256": "8302237a77b17bf76ec18abb6586cf1d92828f6a668918f948d42dfec4ffa450"
+      },
+      {
+        "path": "/tmp/roguehalla-launch-modes-compile/bin/Debug/netstandard2.1/Roguehalla.Client.dll",
+        "bytes": 467456,
+        "sha256": "60a0adabe33ea082b637d6f0ca7ff1ecae93a45c1d7ebce8fcf6fe00c2c36e03"
+      },
+      {
+        "path": "/tmp/roguehalla-launch-modes-compile/bin/Debug/netstandard2.1/Roguehalla.Client.EditModeTests.dll",
+        "bytes": 259584,
+        "sha256": "2e400873c2c5af352870a46dc0f2586aa31e8c2520daed2f9cabdc6c289fbe68"
+      }
+    ]
+  },
+  "gates": {
+    "pureNet": "PASS 768/768 including16 new config cases",
+    "native17": "UNRUN",
+    "nativeRegression": "UNRUN",
+    "webBuild": "UNRUN",
+    "actualSourceArenaTrainingBrowser": "UNRUN",
+    "banking": "NOT CLAIMED",
+    "newScreenshots": "NONE"
+  }
+}
