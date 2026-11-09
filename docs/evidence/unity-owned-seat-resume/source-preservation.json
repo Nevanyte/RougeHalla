@@ -1,0 +1,27 @@
+{
+  "base": "dcee822dffa893bf14bb3817eb10f1180410b72d",
+  "allowedSourcePaths": [
+    "client-unity/UnityProject/Assets/Scripts/Net/MatchClient.cs",
+    "client-unity/UnityProject/Assets/Scripts/Net/MatchClient.Accounts.cs",
+    "client-unity/UnityProject/Assets/Scripts/Net/MatchClient.Resume.cs",
+    "client-unity/UnityProject/Assets/Scripts/Net/MatchClient.Resume.cs.meta",
+    "client-unity/UnityProject/Assets/Scripts/UI/MatchHud.cs",
+    "client-unity/UnityProject/Assets/Scripts/UI/MatchHud.Accounts.cs",
+    "client-unity/UnityProject/Assets/Scripts/UI/MatchHud.Features.cs",
+    "client-unity/UnityProject/Assets/Scripts/UI/MatchHud.Resume.cs",
+    "client-unity/UnityProject/Assets/Scripts/UI/MatchHud.Resume.cs.meta",
+    "client-unity/UnityProject/Assets/Tests/Editor/MatchResumeEditModeTests.cs",
+    "client-unity/UnityProject/Assets/Tests/Editor/MatchResumeEditModeTests.cs.meta"
+  ],
+  "changedOnlyAuthorizedPaths": true,
+  "allExistingEditorTestFilesByteIdentical": 34,
+  "allExistingMetaFilesByteIdentical": 621,
+  "newUniqueMetaFiles": 3,
+  "totalUniqueGuids": 624,
+  "netLibraryTestsMirrorsPluginsProtocolBakedArtPackagesStatusUnchanged": true,
+  "source": "1bf48a8109249ec36497eab5b1ffc5548a384dd5",
+  "candidate1": "fe698d21f65d4e835018044f4f5a221555ceab7e",
+  "old90BodyBytesPreserved": true,
+  "candidate2": "56523c6f4aa372eb5aa2b0850911c2ae0a8295f0",
+  "rootWordChangeOnly": "logs/root-wording-correction.json"
+}

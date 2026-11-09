@@ -40,7 +40,7 @@ namespace Roguehalla.Client
         bool ReadingPaneSelected => EventSystem.current != null && EventSystem.current.currentSelectedGameObject != null &&
             EventSystem.current.currentSelectedGameObject.activeInHierarchy &&
             EventSystem.current.currentSelectedGameObject.GetComponent<KeyboardScrollPane>() != null;
-        public bool BlocksKeyboardInput => TrainingInputConsumed || TrainingOwnsKeyboard || (_client != null && _client.LaunchPending) || _menu != null && (_menu.gameObject.activeSelf || _results.gameObject.activeSelf ||
+        public bool BlocksKeyboardInput => ResumeChooserVisible || TrainingInputConsumed || TrainingOwnsKeyboard || (_client != null && _client.LaunchPending) || _menu != null && (_menu.gameObject.activeSelf || _results.gameObject.activeSelf ||
             _settings.gameObject.activeSelf || (_signIn != null && _signIn.gameObject.activeSelf) || AnyHubPanelVisible || PlayerFlowVisible || Typing || (_drawer != null && _drawer.IsVisible) || (_help != null && _help.gameObject.activeSelf) || (_map != null && _map.IsPlanning));
         public bool BlocksPointerInput => BlocksKeyboardInput || (_map != null && _map.PointerBlocked) ||
             PointerHitsUi();
@@ -56,6 +56,7 @@ namespace Roguehalla.Client
         {
             get
             {
+                if (ResumeChooserVisible) return _resumeOverlay;
                 if (_recovery != null && _recovery.IsVisible) return _recovery.Root;
                 if (_signIn != null && _signIn.gameObject.activeSelf) return _signIn;
                 if (_settings.gameObject.activeSelf) return _settings;
@@ -228,6 +229,7 @@ namespace Roguehalla.Client
         public void ReadUiInput()
         {
             if (TrainingInputConsumed) return;
+            if (ReadResumeChooserInput()) return;
             // Text entry owns this whole read; generic navigation must not remove its
             // focus and reclassify the same keys as planning or world input.
             bool typing = Typing;

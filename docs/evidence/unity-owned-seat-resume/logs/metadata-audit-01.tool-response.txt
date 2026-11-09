@@ -1,0 +1,5 @@
+Captured functions.exec tool response (combined output; stdout/stderr separation was not retained):
+Unhandled exception. System.Exception: Compiled old selector names differ from frozen prior90.
+   at Program.<Main>$(String[] args) in /Users/nevinmckinnon/.codex/tools/rougehalla-ui-owned-seat-resume-2026-11-09/metadata/Program.cs:line 75
+
+This was a metadata extraction attempt only. No Unity API or test body ran; native tests executed: 0.

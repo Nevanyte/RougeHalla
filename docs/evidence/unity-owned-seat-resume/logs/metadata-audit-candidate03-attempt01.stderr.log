@@ -1,0 +1,2 @@
+Unhandled exception. System.Exception: Frozen source SHA does not match repository HEAD.
+   at Program.<Main>$(String[] args) in /Users/nevinmckinnon/.codex/tools/rougehalla-ui-owned-seat-resume-2026-11-09/metadata/Program.cs:line 46

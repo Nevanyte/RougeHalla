@@ -1,0 +1,44 @@
+{
+  "schema": "roguehalla-owned-seat-resume-candidate-audit-receipt/1",
+  "sourceSha": "4dd410d3c33812653c8ebfbdd754f699f75cc72f",
+  "compiledArtifactsOnly": true,
+  "testBodiesInvoked": false,
+  "unityApisInvoked": false,
+  "nativeDiscoveryPending": true,
+  "changesSinceCandidate02": "The approved fixture wording correction changed two literals only; runtime/IL inputs are unchanged.",
+  "counts": { "preservedPriorCases": 90, "compiledNewResumeCases": 8, "union": 98 },
+  "attempts": [
+    {
+      "name": "attempt01",
+      "issue": "The handoff SHA ended in d, while git rev-parse HEAD ended in f.",
+      "classification": "tool invocation/source-pin mismatch; audit stopped before reading compiled candidate metadata",
+      "nativeTestsExecuted": 0,
+      "command": "../../../logs/metadata-audit-candidate03-attempt01.command.txt",
+      "stdout": "../../../logs/metadata-audit-candidate03-attempt01.stdout.log",
+      "stderr": "../../../logs/metadata-audit-candidate03-attempt01.stderr.log"
+    },
+    {
+      "name": "attempt02",
+      "issue": null,
+      "result": "PASS",
+      "command": "../../../logs/metadata-audit-candidate03-attempt02.command.txt",
+      "stdout": "../../../logs/metadata-audit-candidate03-attempt02.stdout.log",
+      "stderr": "../../../logs/metadata-audit-candidate03-attempt02.stderr.log"
+    }
+  ],
+  "checks": {
+    "prior90TypedTupleAndDeclaredSignatureMatch": true,
+    "prior90ExpectedCaseObjectsPreservedVerbatim": true,
+    "newCaseSource": "Cecil NUnit attribute metadata; not native discovery",
+    "resumeIlChecksUnchangedAndPassed": true,
+    "noErrorStringParsing": true
+  },
+  "files": {
+    "metadataAudit": { "path": "metadata-audit.json", "sha256": "93714a037b5c3fa28365259e4015aa767320fb05b19571ff8138d6deef036d82" },
+    "typedContract": { "path": "typed-fixture-contract.json", "sha256": "35fd85e0e483fb4a445fc00d735464b54fe6401e546e26463c06409afbf5d2bc" },
+    "ilAudit": { "path": "resume-il-audit.json", "sha256": "15f462671cacb15208c04ef50aac64ac70635960b0168342ac6664e3846468b2" },
+    "sourcePins": { "path": "source-input-pins.json", "sha256": "c1193dc2a60dcc342f51a07ce7739b48f28ebb49ae5c649035c6b1c85db5207c" },
+    "toolSource": { "path": "../../Program.cs", "sha256": "d1d75635bee01b3ac41b265e777a866518707db38c79bd01719f766840a7a6fa" },
+    "toolProject": { "path": "../../MetadataAudit.csproj", "sha256": "89ae0d7b13572f13628e084c1481f3a06ada5531415a4c74ac600f2e2907cc62" }
+  }
+}

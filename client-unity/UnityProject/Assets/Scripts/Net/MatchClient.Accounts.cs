@@ -50,6 +50,8 @@ namespace Roguehalla.Client
             if (Session != null) { AccountUiError = "Use Leave / menu before changing destination."; return false; }
             SelectedLaunchMode = mode;
             long generation = ++_joinGeneration;
+            CancelSeatPreparation(true);
+            if (generation != _joinGeneration || _destroying) return false;
             if (AccountFlow?.Snapshot.Busy == true) AccountFlow.Cancel();
             if (generation != _joinGeneration || SelectedLaunchMode != mode) return false;
             AccountUiError = "";
@@ -72,6 +74,8 @@ namespace Roguehalla.Client
         {
             if (_destroying) return;
             long generation = ++_joinGeneration; PendingSignInKey = ""; AccountUiError = "";
+            CancelSeatPreparation(true);
+            if (generation != _joinGeneration || _destroying) return;
             CloseCurrentSession();
             if (generation != _joinGeneration || _destroying) return;
             AccountFlow?.SelectName(name);
@@ -83,6 +87,8 @@ namespace Roguehalla.Client
             if (Faction == faction) return true;
             if (_destroying || Session != null) { AccountUiError = "Use Leave / menu before changing faction."; return false; }
             Faction = faction; long generation = ++_joinGeneration;
+            CancelSeatPreparation(true);
+            if (generation != _joinGeneration || _destroying) return false;
             if (AccountFlow?.Snapshot.Busy == true)
             {
                 AccountFlow.Cancel();
@@ -94,8 +100,13 @@ namespace Roguehalla.Client
         public async void OpenProfile(string name, string key, string passcode)
         {
             if (_destroying || AccountFlow == null) return;
+            // Re-verifying the same inactive owner must not discard a kept resume record.
+            bool keepCheckpoint = Session == null && _seatRecord != null && _seatRecord.Callsign == SeatName(name);
             long generation = ++_joinGeneration; AccountUiError = "";
-            CloseCurrentSession();
+            CancelSeatPreparation(true);
+            if (generation != _joinGeneration || _destroying) return;
+            _resumeStatus = "";
+            CloseCurrentSession(keepCheckpoint: keepCheckpoint);
             if (generation != _joinGeneration || _destroying) return;
             try { await AccountFlow.OpenProfileAsync(name, string.IsNullOrEmpty(key) ? null : key, string.IsNullOrEmpty(passcode) ? null : passcode); }
             catch { if (this != null && generation == _joinGeneration) AccountUiError = "The account service is unavailable. Please try again."; }
@@ -120,6 +131,8 @@ namespace Roguehalla.Client
         {
             if (AccountFlow == null) { AccountUiError = "The account service is unavailable."; return; }
             long generation = ++_joinGeneration;
+            CancelSeatPreparation(true);
+            if (generation != _joinGeneration || _destroying) return;
             string key = Hud != null ? Hud.OwnershipKey : PendingSignInKey;
             string passcode = Hud != null ? Hud.PlaytestPasscode : null;
             AccountUiError = "";
@@ -130,7 +143,7 @@ namespace Roguehalla.Client
                 if (!CurrentLaunchTarget(target, faction) || !string.Equals(target.Url, intent.MatchUrl, StringComparison.Ordinal)) { AccountUiError = "The connection changed. Start your run again."; return; }
                 if (!AccountFlow.CanJoin(intent)) return;
                 var settlementAccess = target.Mode == MatchLaunchMode.Arena ? AccountOwner.Api?.CaptureSettlementAccess(intent) : null;
-                JoinCore(intent.Account.CanonicalName, faction, target, intent.Account.Token, generation, settlementAccess);
+                JoinCore(intent.Account.CanonicalName, faction, target, intent.Account.Token, generation, settlementAccess, intent);
                 if (this == null || generation != _joinGeneration) return;
                 try { PlayerPrefs.SetString("rh.ui.profile", intent.Account.CanonicalName); PlayerPrefs.Save(); } catch { }
             }
@@ -149,6 +162,8 @@ namespace Roguehalla.Client
         long CancelOwnedJoin()
         {
             long generation = ++_joinGeneration;
+            CancelSeatPreparation(true);
+            if (generation != _joinGeneration) return generation;
             CloseCurrentSession();
             if (generation == _joinGeneration) AccountFlow?.Cancel();
             return generation;
