@@ -36,8 +36,6 @@ pub mod math;
 pub mod mob_catalog;
 pub mod mob_runtime;
 pub mod observe;
-// Approved private projection leaf; intentionally unbound until prepared/public delivery is admitted.
-#[cfg_attr(not(test), allow(dead_code))]
 mod owner_combat;
 pub mod pathfind;
 pub mod potions;
@@ -76,6 +74,7 @@ pub use observe::{
     public_snapshot, try_observe, try_observe_into, try_observe_into_cached, try_public_snapshot,
     Observation, SeenEvent, OBSERVATION_VERSION,
 };
+pub use owner_combat::{OwnerCombatView, OwnerLockView};
 pub use sight::{SightCache, SightStats};
 pub use sim::{
     Arena, Event, Outcome, Phase, Placement, PlayerId, RunResult, Secrets, Sim, SimConfig, Status,

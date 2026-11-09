@@ -2,7 +2,8 @@
 use crate::item_view::GRACE;
 use crate::{Observation, PlayerId, SeenEvent};
 
-/// Apply one observer's mapping to every actor-bearing public field, exactly once.
+/// Apply one observer's mapping to raw actor-bearing public fields, exactly once.
+/// owner_combat is already mapped by its stricter current-scene bridge; leave it untouched.
 pub(crate) fn project(out: &mut Observation, map: impl Fn(PlayerId) -> Option<PlayerId>) {
     if let Some(me) = &mut out.me {
         me.attack_target = me.attack_target.and_then(&map);
@@ -165,6 +166,25 @@ impl Default for ActorRefs {
         }
     }
 }
+/// Resolve only a raw row from this exact prepared scene. Never consult retained or retired refs.
+/// Player references additionally belong to the public roster; NPCs must bind in the staged batch.
+pub(crate) fn current_presented(
+    sim: &crate::Sim,
+    stage: &ActorStage,
+    out: &Observation,
+    id: PlayerId,
+) -> Option<PlayerId> {
+    if stage.tick != sim.tick() {
+        return None;
+    }
+    let row = out.visible.iter().find(|a| a.id == id)?;
+    if row.kind == crate::observe::ActorKind::Player {
+        sim.w.roster.name(id).map(|_| id)
+    } else {
+        stage.batch.presented(id)
+    }
+}
+
 impl ActorRefs {
     pub(crate) fn renewed(&self) -> Self {
         Self {

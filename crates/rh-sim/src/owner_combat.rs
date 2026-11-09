@@ -1,6 +1,9 @@
-//! Private owner display projection. No SelfView/public binding, state, retained identity or action capability.
+//! Checked owner display projection; no retained identity or action capability.
 //! The caller supplies CURRENT entitled membership from the same completed-step scene.
 use crate::{stat_fold, PlayerId};
+
+pub(crate) mod public_bridge;
+pub use public_bridge::{OwnerCombatView, OwnerLockView};
 
 /// ECMAScript ToUint32 representation modulus, not a gameplay deadline or rule.
 const SOURCE_U32_MODULUS: f64 = 4_294_967_296.;
@@ -52,9 +55,17 @@ fn checked_mirrors(values: [f64; 3]) -> Result<[f64; 3], Error> {
 
 /// Reads authoritative fields only; no now+remaining, action inference, refolding or allocation.
 /// Hidden canonical target identities never enter the returned group. This is not ActorRef mapping.
+#[cfg(test)]
 pub(crate) fn project(
     owner: &crate::state::Player,
     current_entitled: &[PlayerId],
+) -> Result<OwnerCombat, Error> {
+    project_where(owner, |id| current_entitled.contains(&id))
+}
+
+fn project_where(
+    owner: &crate::state::Player,
+    current_entitled: impl Fn(PlayerId) -> bool,
 ) -> Result<OwnerCombat, Error> {
     let draw = owner.weapon.draw_started_at;
     let ready = owner.weapon.ready_at;
@@ -69,7 +80,7 @@ pub(crate) fn project(
     let lock = match owner.weapon.targeting.target {
         None => Lock::Clear,
         Some(id) => Lock::Held {
-            target: current_entitled.contains(&id).then_some(id),
+            target: current_entitled(id).then_some(id),
         },
     };
     Ok(OwnerCombat {
@@ -86,3 +97,6 @@ pub(crate) fn project(
 mod continuation_tests;
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod bridge_tests;
