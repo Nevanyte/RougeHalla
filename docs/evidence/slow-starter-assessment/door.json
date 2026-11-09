@@ -1,0 +1,211 @@
+{
+  "format": "rh-slow-starter-source-door/1",
+  "runtime": "v22.23.4",
+  "scope": "Actual enqueue acceptance and handler/build observations; helper grant explicitly declared; no inspector.",
+  "input": {
+    "name": "actual-slow-starter-training-door",
+    "map": "room",
+    "profile": "training",
+    "config": {
+      "training": true,
+      "dummies": false
+    },
+    "players": [
+      {
+        "faction": "holy"
+      }
+    ],
+    "actions": [
+      {
+        "kind": "step",
+        "inputs": [
+          {
+            "actor": "p0",
+            "type": "train",
+            "payload": {
+              "cmd": "card",
+              "id": "slowStarter",
+              "count": 1
+            }
+          }
+        ]
+      },
+      {
+        "kind": "grant",
+        "actor": "p0",
+        "cards": [
+          "slowStarter"
+        ]
+      },
+      {
+        "kind": "step",
+        "inputs": [
+          {
+            "actor": "p0",
+            "type": "train",
+            "payload": {
+              "cmd": "card",
+              "id": "slowStarter",
+              "count": 0
+            }
+          }
+        ]
+      },
+      {
+        "kind": "step",
+        "inputs": [
+          {
+            "actor": "p0",
+            "type": "train",
+            "payload": {
+              "cmd": "clear"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "steps": 4,
+  "randomTape": [
+    {
+      "stream": "main",
+      "value": 0.2881509135477245,
+      "tick": 0,
+      "time": 0,
+      "phase": "constructor"
+    },
+    {
+      "stream": "main",
+      "value": 0.07566750887781382,
+      "tick": 1,
+      "time": 50,
+      "phase": "active"
+    },
+    {
+      "stream": "main",
+      "value": 0.5801610664930195,
+      "tick": 1,
+      "time": 50,
+      "phase": "active"
+    },
+    {
+      "stream": "main",
+      "value": 0.9413604403380305,
+      "tick": 1,
+      "time": 50,
+      "phase": "active"
+    },
+    {
+      "stream": "main",
+      "value": 0.15277158934623003,
+      "tick": 1,
+      "time": 50,
+      "phase": "active"
+    }
+  ],
+  "frames": [
+    {
+      "time": 100,
+      "tick": 2,
+      "label": "action-0",
+      "inputs": [
+        {
+          "actor": "p0",
+          "type": "train",
+          "payload": {
+            "cmd": "card",
+            "id": "slowStarter",
+            "count": 1
+          },
+          "accepted": true
+        }
+      ],
+      "build": {},
+      "events": [],
+      "rng": {
+        "main": 5,
+        "reward": 0,
+        "quest": 0,
+        "total": 5
+      }
+    },
+    {
+      "time": 100,
+      "tick": 2,
+      "label": "action-1",
+      "build": {
+        "slowStarter": 1
+      },
+      "grantResults": [
+        {
+          "card": "slowStarter",
+          "result": 1
+        }
+      ],
+      "events": [],
+      "rng": {
+        "main": 5,
+        "reward": 0,
+        "quest": 0,
+        "total": 5
+      }
+    },
+    {
+      "time": 150,
+      "tick": 3,
+      "label": "action-2",
+      "inputs": [
+        {
+          "actor": "p0",
+          "type": "train",
+          "payload": {
+            "cmd": "card",
+            "id": "slowStarter",
+            "count": 0
+          },
+          "accepted": true
+        }
+      ],
+      "build": {
+        "slowStarter": 1
+      },
+      "events": [],
+      "rng": {
+        "main": 5,
+        "reward": 0,
+        "quest": 0,
+        "total": 5
+      }
+    },
+    {
+      "time": 200,
+      "tick": 4,
+      "label": "action-3",
+      "inputs": [
+        {
+          "actor": "p0",
+          "type": "train",
+          "payload": {
+            "cmd": "clear"
+          },
+          "accepted": true
+        }
+      ],
+      "build": {},
+      "events": [
+        {
+          "type": "toast",
+          "to": "p0",
+          "text": "Cleared: cards, practice mobs and chests"
+        }
+      ],
+      "rng": {
+        "main": 5,
+        "reward": 0,
+        "quest": 0,
+        "total": 5
+      }
+    }
+  ],
+  "probeSha256": "791eec74eedbbabb52d825dbc1929d3d594744a255d9e43855d12397182c0272"
+}
