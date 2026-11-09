@@ -215,6 +215,21 @@ fn apply_action(s: &mut Sim, a: &V) {
     }
 }
 
+fn native_open_offers(sim: &Sim) -> usize {
+    sim.w.quests.as_ref().map_or(0, |q| {
+        q.offers
+            .iter()
+            .filter(|o| o.status == crate::quests::live::Status::Open)
+            .count()
+    })
+}
+
+fn source_open_offers(frame: &V) -> usize {
+    frame["offers"].as_array().map_or(0, |offers| {
+        offers.iter().filter(|o| o["status"] == "open").count()
+    })
+}
+
 fn capture_previews(case: &V, sim: &Sim, previews: &mut Vec<PreviewObservation>) {
     for e in case["events"].as_array().unwrap() {
         if e["type"] != "questReveal" || e["tick"].as_u64().unwrap() as u32 != sim.tick() {
@@ -231,13 +246,27 @@ fn capture_previews(case: &V, sim: &Sim, previews: &mut Vec<PreviewObservation>)
             .iter()
             .find(|r| r.state == crate::quest_view::RowState::Preview && r.def == def)
             .unwrap_or_else(|| panic!("no native preview for {def} at tick {}", sim.tick()));
+        // The source's public snapshot at this frame must not contain the hidden definition at all.
+        let source_frame = case["frames"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|frame| frame["tick"].as_u64().unwrap() as u32 == sim.tick())
+            .unwrap();
+        assert!(
+            !source_frame["quests"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|q| q["def"] == def),
+            "source public frame unexpectedly publishes {def}"
+        );
+        // Privacy is absence of the row regardless of RowState (an erroneous Open row must fail too).
         let foreign_visible = sim.w.players.iter().any(|p| {
             p.id != viewer
-                && crate::observe(sim, p.id, &[]).quests.is_some_and(|v| {
-                    v.rows
-                        .iter()
-                        .any(|r| r.state == crate::quest_view::RowState::Preview && r.def == def)
-                })
+                && crate::observe(sim, p.id, &[])
+                    .quests
+                    .is_some_and(|v| v.rows.iter().any(|r| r.def == def))
         });
         previews.push(PreviewObservation {
             def: def.to_owned(),
@@ -260,11 +289,22 @@ fn capture_previews(case: &V, sim: &Sim, previews: &mut Vec<PreviewObservation>)
     }
 }
 
-fn run(case: &V) -> (Sim, Vec<Notice>, usize, Vec<PreviewObservation>) {
+struct RunOutcome {
+    sim: Sim,
+    notices: Vec<Notice>,
+    total_events: usize,
+    previews: Vec<PreviewObservation>,
+    accepted_open: Option<(u32, f64, usize)>,
+    run_end: Option<(u32, f64, String, usize)>,
+}
+
+fn run(case: &V) -> RunOutcome {
     let mut sim = construct(case);
     let mut notices = Vec::new();
     let mut previews = Vec::new();
     let mut total_events = 0usize;
+    let mut accepted_open = None;
+    let mut run_end = None;
     // First active step is the source's start frame (tick 1, time 50).
     let start_frame = &case["frames"][0];
     let initial_events = sim.step();
@@ -287,6 +327,8 @@ fn run(case: &V) -> (Sim, Vec<Notice>, usize, Vec<PreviewObservation>) {
             p["y"].as_f64().unwrap(),
         );
     }
+    let frames = case["frames"].as_array().unwrap();
+    let mut applied = 0usize;
     for a in case["actions"].as_array().unwrap() {
         let tick = a["tick"].as_u64().unwrap() as u32;
         while sim.tick() < tick {
@@ -299,11 +341,31 @@ fn run(case: &V) -> (Sim, Vec<Notice>, usize, Vec<PreviewObservation>) {
             }
             capture_previews(case, &sim, &mut previews);
         }
+        for frame in frames {
+            if frame["actionCount"].as_u64().unwrap() as usize == applied
+                && frame["tick"].as_u64().unwrap() as u32 == sim.tick()
+                && frame["label"] == "accepted"
+            {
+                accepted_open = Some((sim.tick(), sim.w.server_time, native_open_offers(&sim)));
+            }
+        }
         apply_action(&mut sim, a);
+        applied += 1;
     }
-    let last_tick = case["frames"].as_array().unwrap().last().unwrap()["tick"]
-        .as_u64()
-        .unwrap() as u32;
+    for frame in frames {
+        if frame["actionCount"].as_u64().unwrap() as usize == applied
+            && frame["tick"].as_u64().unwrap() as u32 == sim.tick()
+            && frame["label"] == "run-ended"
+        {
+            run_end = Some((
+                sim.tick(),
+                sim.w.server_time,
+                format!("{:?}", sim.phase()).to_lowercase(),
+                native_open_offers(&sim),
+            ));
+        }
+    }
+    let last_tick = frames.last().unwrap()["tick"].as_u64().unwrap() as u32;
     while sim.tick() < last_tick {
         let ev = sim.step();
         for e in &ev {
@@ -314,7 +376,14 @@ fn run(case: &V) -> (Sim, Vec<Notice>, usize, Vec<PreviewObservation>) {
         }
         capture_previews(case, &sim, &mut previews);
     }
-    (sim, notices, total_events, previews)
+    RunOutcome {
+        sim,
+        notices,
+        total_events,
+        previews,
+        accepted_open,
+        run_end,
+    }
 }
 
 #[test]
@@ -323,7 +392,14 @@ fn selected_parcel_and_run_end_cases_match_ordered_toast_gv_notices() {
     for idx in [0usize, 4usize] {
         let case = &c["cases"][idx];
         let name = case["input"]["name"].as_str().unwrap();
-        let (sim, native, native_total, previews) = run(case);
+        let RunOutcome {
+            sim,
+            notices: native,
+            total_events: native_total,
+            previews,
+            accepted_open,
+            run_end,
+        } = run(case);
         let source_notices: Vec<Notice> = case["events"]
             .as_array()
             .unwrap()
@@ -381,6 +457,44 @@ fn selected_parcel_and_run_end_cases_match_ordered_toast_gv_notices() {
             );
             assert!(!preview.foreign_visible, "{name}: preview privacy");
         }
-        let _ = sim;
+        if name == "run-end-silent-close" {
+            let accepted = case["frames"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|frame| frame["label"] == "accepted")
+                .unwrap();
+            let run_ended = case["frames"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|frame| frame["label"] == "run-ended")
+                .unwrap();
+            let source_accepted_open = source_open_offers(accepted);
+            assert_eq!(
+                source_accepted_open, 20,
+                "source accepted frame earlier-open control"
+            );
+            let (tick, time, open) = accepted_open.expect("native state at source accepted frame");
+            assert_eq!(tick, accepted["tick"].as_u64().unwrap() as u32);
+            assert_eq!(time, accepted["time"].as_f64().unwrap());
+            assert_eq!(
+                open, source_accepted_open,
+                "native earlier-open offers at source accepted frame"
+            );
+            let source_end_open = source_open_offers(run_ended);
+            assert_eq!(source_end_open, 0, "source run-ended frame open offers");
+            let (tick, time, phase, open) =
+                run_end.expect("native state at source run-ended frame");
+            assert_eq!(tick, run_ended["tick"].as_u64().unwrap() as u32);
+            assert_eq!(time, run_ended["time"].as_f64().unwrap());
+            assert_eq!(phase, run_ended["phase"].as_str().unwrap());
+            assert_eq!(open, source_end_open, "native run-ended open offers");
+            assert_eq!(native_open_offers(&sim), source_end_open);
+            assert_eq!(
+                format!("{:?}", sim.phase()).to_lowercase(),
+                run_ended["phase"].as_str().unwrap()
+            );
+        }
     }
 }
