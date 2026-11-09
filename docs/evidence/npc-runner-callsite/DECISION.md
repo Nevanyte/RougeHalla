@@ -1,0 +1,15 @@
+# Narrow Memory semantics recommendation for Root
+
+The omitted caller is no longer a viable explanation for avoiding the stale belief in these five tested models. The actual source runner/Brain still marks a living mob dead after sight/minimap loss and keeps that record dead when an actual post-filter alive observation returns. Manager filtering changes relevant inputs and can move the first transition; it is not transparent. The network-style case needs no filter change to reach the same result. This is an observed open-loop source behavior, not a finding about every live match or original intent.
+
+A minimal fair candidate for review is:
+
+1. Losing a visible/minimap contact changes current observability, not authoritative life state. Retain only last legitimately observed position/HP/life facts with their age, or an explicit unknown belief; do not update hidden actors from private World state.
+2. A currently legitimate alive observation must be accepted as current evidence. It must not be discarded solely because an earlier omission inferred death. This can apply to a current record without granting correlation to an unobserved historical lifetime.
+3. Actual public death/clear/lifecycle cues keep their stated meaning. Do not turn a partial camp count into knowledge of which hidden sibling died. Any camp-level inferred clear must be distinguished from actual public camp state; the source case keeps camp alive3/idle while Memory's inferred camp bookkeeping can disagree.
+
+The smallest targeted correction could allow public alive resight to supersede an inferred-dead belief. The cleaner interpretation also prevents omission from becoming terminal death in the first place. Either changes exact legacy policy behavior and requires Root's intended-behavior/parity decision; no change is implemented here.
+
+Concrete unresolved owner decision, for Root to ask only if review cannot settle intent: **Should the Rust port preserve the demonstrated irreversible legacy death belief after fog loss, including ignoring a later visible living mob, or should bots treat lost contact as unknown/last-seen and accept current public alive evidence?** Recommended candidate: accept current legitimate observations and avoid terminal-death inference from sight loss. Preserve actual death/lifecycle evidence and document the deliberate deviation with this source witness if approved.
+
+This recommendation does not choose a public ID, handle lifetime, private replacement correlation, epoch, native observation field, wire/version/tag, cap or budget. The current actor's public evidence and across-gap same-versus-replacement knowledge are distinct questions. Full camp lifecycle cues, prior locks/marks, HP, effects, loot, home, source order and RNG remain part of any later continuity experiment. No hidden replacement pair is constructed. R-ML-4/C-OBS remain binding; R-GAME-6 requires preserving intended behavior until the concrete decision is recorded. Root owns that decision and any owner question. No automatic source-bug label or native redesign follows from this seal.

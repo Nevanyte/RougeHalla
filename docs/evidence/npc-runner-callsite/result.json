@@ -1,0 +1,175 @@
+{
+  "format": "rh-npc-runner-callsite-result/1",
+  "classification": "derived actual source-call facts only; no intent or source-bug decision",
+  "sourceHistorySha256": "15c3dbc1f5d718859413e8dbb9891602dd49870f10dae4f12dc3152e2c57de96",
+  "sourceSnapshots": 773,
+  "profiles": [
+    {
+      "profile": {
+        "id": "network-every-patch",
+        "every": 1,
+        "phase": 0,
+        "selfDelayMs": 0,
+        "worldDelayMs": 100
+      },
+      "selected": 773,
+      "actualBrainTicks": 771,
+      "firstAliveMs": 150,
+      "firstFalseMs": 31750,
+      "livingResightMs": 38050,
+      "falseOnResight": true,
+      "filterChanged": 0,
+      "firstFalseInputs": {
+        "sourceTime": 31750,
+        "previousPostMapTime": 31650,
+        "previousPostDot": true,
+        "currentPreMapTime": 31750,
+        "currentPreDot": false,
+        "currentPostMapTime": 31750,
+        "currentPostDot": false,
+        "removedByFilter": []
+      },
+      "refusedCommands": 21,
+      "observerControlHash": "0670b299eb1506c0622254ec838e74fbe08344ffcee3cc81ea0fced4f7c64df2",
+      "offOnPublicTraceEqual": true,
+      "onAndOffCleanupMeasured": true
+    },
+    {
+      "profile": {
+        "id": "manager-default-phase-0",
+        "every": 4,
+        "phase": 0,
+        "selfDelayMs": 30,
+        "worldDelayMs": 130
+      },
+      "selected": 194,
+      "actualBrainTicks": 193,
+      "firstAliveMs": 250,
+      "firstFalseMs": 31650,
+      "livingResightMs": 38250,
+      "falseOnResight": true,
+      "filterChanged": 3,
+      "firstFalseInputs": {
+        "sourceTime": 31650,
+        "previousPostMapTime": 31250,
+        "previousPostDot": true,
+        "currentPreMapTime": 31450,
+        "currentPreDot": true,
+        "currentPostMapTime": 31450,
+        "currentPostDot": false,
+        "removedByFilter": [
+          "mob1"
+        ]
+      },
+      "refusedCommands": 21,
+      "observerControlHash": "da729de336464778bb1d6baf5d77962231e4e850a3f4b7a5578e2a0bed75a8a2",
+      "offOnPublicTraceEqual": true,
+      "onAndOffCleanupMeasured": true
+    },
+    {
+      "profile": {
+        "id": "manager-default-phase-1",
+        "every": 4,
+        "phase": 1,
+        "selfDelayMs": 30,
+        "worldDelayMs": 130
+      },
+      "selected": 194,
+      "actualBrainTicks": 193,
+      "firstAliveMs": 200,
+      "firstFalseMs": 31800,
+      "livingResightMs": 38400,
+      "falseOnResight": true,
+      "filterChanged": 2,
+      "firstFalseInputs": {
+        "sourceTime": 31800,
+        "previousPostMapTime": 31400,
+        "previousPostDot": true,
+        "currentPreMapTime": 31600,
+        "currentPreDot": true,
+        "currentPostMapTime": 31600,
+        "currentPostDot": false,
+        "removedByFilter": [
+          "mob1",
+          "mob3"
+        ]
+      },
+      "refusedCommands": 21,
+      "observerControlHash": "b8c321c426e7927391eb2729aa7c881ad886e7a3cbbaf543adf4944aa639f057",
+      "offOnPublicTraceEqual": true,
+      "onAndOffCleanupMeasured": true
+    },
+    {
+      "profile": {
+        "id": "manager-default-phase-2",
+        "every": 4,
+        "phase": 2,
+        "selfDelayMs": 30,
+        "worldDelayMs": 130
+      },
+      "selected": 194,
+      "actualBrainTicks": 192,
+      "firstAliveMs": 350,
+      "firstFalseMs": 31750,
+      "livingResightMs": 38350,
+      "falseOnResight": true,
+      "filterChanged": 3,
+      "firstFalseInputs": {
+        "sourceTime": 31750,
+        "previousPostMapTime": 31350,
+        "previousPostDot": true,
+        "currentPreMapTime": 31550,
+        "currentPreDot": true,
+        "currentPostMapTime": 31550,
+        "currentPostDot": false,
+        "removedByFilter": [
+          "mob1"
+        ]
+      },
+      "refusedCommands": 21,
+      "observerControlHash": "6e5426609b168a64d635d4ef1d7a2ecb935e37bad3185e35963b862956f43e85",
+      "offOnPublicTraceEqual": true,
+      "onAndOffCleanupMeasured": true
+    },
+    {
+      "profile": {
+        "id": "manager-default-phase-3",
+        "every": 4,
+        "phase": 3,
+        "selfDelayMs": 30,
+        "worldDelayMs": 130
+      },
+      "selected": 194,
+      "actualBrainTicks": 192,
+      "firstAliveMs": 300,
+      "firstFalseMs": 31700,
+      "livingResightMs": 38300,
+      "falseOnResight": true,
+      "filterChanged": 3,
+      "firstFalseInputs": {
+        "sourceTime": 31700,
+        "previousPostMapTime": 31300,
+        "previousPostDot": true,
+        "currentPreMapTime": 31500,
+        "currentPreDot": true,
+        "currentPostMapTime": 31500,
+        "currentPostDot": false,
+        "removedByFilter": [
+          "mob1"
+        ]
+      },
+      "refusedCommands": 21,
+      "observerControlHash": "28b2c4d709dc4162cc3d49a8aa5d6a7f6e982147452bb0dc1994535e546e9414",
+      "offOnPublicTraceEqual": true,
+      "onAndOffCleanupMeasured": true
+    }
+  ],
+  "limits": {
+    "purpose": "actual vision:true public runner and actual source Brain on the same earned immutable full Schema history; private Memory reads are audit data only",
+    "openLoop": "actual commands recorded/refused and never applied to World; no closed-loop policy/humanizer acceptance/survival/game outcome claim",
+    "drivers": "network and default four-phase manager source-schedule models, not socket or actual BotManager lifecycle/startup-contention execution",
+    "clock": "fixed source timestamps/declared zero-jitter replay, not physical performance or wall-clock network timing",
+    "privacy": "no hidden pair, intended-rule/sourcebug decision, public lifetime/ID contract, native/P15/ABI/budget/tag/main admission"
+  },
+  "sourceCommit": "6642449803d0b36c328642cb64be25756c41c94e"
+}
