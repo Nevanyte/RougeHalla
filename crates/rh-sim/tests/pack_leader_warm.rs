@@ -102,19 +102,19 @@ fn camps_snapshot_warm_original_clone_restore_allocates_nothing() {
     let mut restore_allocs = 0;
     // Fixed recording storage: no recorder allocation, formatting or callback
     // inside the measured step; no recursive global-allocator instrumentation.
-    let mut trace = [[(0u64, 0u64); WINDOW]; 3];
-    for step in 0..WINDOW {
-        trace[0][step] = allocations_over_step(&mut sim, &mut original_events, 0);
-        trace[1][step] = allocations_over_step(&mut cloned, &mut clone_events, 1);
-        trace[2][step] = allocations_over_step(&mut restored, &mut restore_events, 2);
-        original_allocs += trace[0][step].0;
-        clone_allocs += trace[1][step].0;
-        restore_allocs += trace[2][step].0;
+    let mut trace = [[(0u64, 0u64); 3]; WINDOW];
+    for samples in &mut trace {
+        samples[0] = allocations_over_step(&mut sim, &mut original_events, 0);
+        samples[1] = allocations_over_step(&mut cloned, &mut clone_events, 1);
+        samples[2] = allocations_over_step(&mut restored, &mut restore_events, 2);
+        original_allocs += samples[0].0;
+        clone_allocs += samples[1].0;
+        restore_allocs += samples[2].0;
         assert_eq!(original_events, clone_events);
         assert_eq!(original_events, restore_events);
     }
-    for (world, samples) in trace.iter().enumerate() {
-        for (step, (blocks, bytes)) in samples.iter().enumerate() {
+    for (step, samples) in trace.iter().enumerate() {
+        for (world, (blocks, bytes)) in samples.iter().enumerate() {
             if *blocks != 0 {
                 println!(
                     "allocation trace world={world} tick={} blocks={blocks} bytes={bytes}",
