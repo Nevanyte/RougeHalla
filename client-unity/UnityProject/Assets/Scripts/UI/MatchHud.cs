@@ -73,14 +73,15 @@ namespace Roguehalla.Client
             scaler.uiScaleMode = UnityEngine.UI.CanvasScaler.ScaleMode.ScaleWithScreenSize;
             scaler.referenceResolution = new Vector2(1920, 1080); scaler.matchWidthOrHeight = .5f;
             _banner = Text(_root, "Connection", "Choose a faction and join", .02f, .925f, .30f, .99f, 15);
-            Button(_root, "Settings", "SETTINGS", .68f, .93f, .82f, .99f, ToggleSettings);
-            var leave = Button(_root, "Leave", "Leave / menu", .83f, .93f, .98f, .99f, () => _client.Leave());
+            Button(_root, "Help", "H · HELP", .615f, .93f, .725f, .99f, ToggleHelp);
+            Button(_root, "Settings", "SETTINGS", .735f, .93f, .85f, .99f, ToggleSettings);
+            var leave = Button(_root, "Leave", "Leave / menu", .86f, .93f, .985f, .99f, () => _client.Leave());
             CreateJoinMenu();
             SetFaction(_faction);
             CreateCombatHud();
-            _notice = Text(_root, "Notice", "", .32f, .25f, .78f, .32f, 19);
-            _rewards = Panel(_root, "Rewards", .59f, .34f, .98f, .86f);
-            _rewardTitle = Text(_rewards, "RewardTitle", "", .06f, .81f, .94f, .97f, 23);
+            _notice = Text(_root, "Notice", "", .32f, .15f, .70f, .22f, 19);
+            _rewards = Panel(_root, "Rewards", .70f, .425f, .985f, .915f);
+            _rewardTitle = Text(_rewards, "RewardTitle", "", .06f, .79f, .94f, .98f, 23);
             _rewardTitle.color = ShowcasePalette.Gold;
             for (int i = 0; i < 3; i++)
             {
@@ -274,6 +275,7 @@ namespace Roguehalla.Client
             if (wishChanged || serverTimeMs != _lastServerTime)
             {
                 Set(_wishCard, FormatWishCard(me.Wish, serverTimeMs));
+                Set(_wishSummary, me.Wish.HasValue ? "R · WISH · " + me.Wish.Value.Charges + "/" + me.Wish.Value.MaxCharges : "R · WISH · —");
                 _lastWish = me.Wish; _lastServerTime = serverTimeMs;
             }
         }
@@ -283,6 +285,7 @@ namespace Roguehalla.Client
             _lastHp = float.NaN; _lastBarrier = 0f; _lastBarrierRing = 0; _lastWish = null; _lastServerTime = double.NaN;
             Set(_vitals, reason == "Unavailable" ? "Waiting / spectating" : "Waiting for player state");
             Set(_wishCard, "R · WISH\n" + reason);
+            Set(_wishSummary, "R · WISH · —");
             if (_healthBarFill != null) _healthBarFill.anchorMax = Vector2.zero;
             if (_barrierBarFill != null) { _barrierBarFill.anchorMin = Vector2.zero; _barrierBarFill.anchorMax = Vector2.zero; }
         }

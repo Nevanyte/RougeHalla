@@ -26,6 +26,8 @@ namespace Roguehalla.Client
         bool _visibleBuild;
         readonly UnityEngine.UI.Image[] _weaponIcons = new UnityEngine.UI.Image[2];
         UnityEngine.UI.Image _potionIcon;
+        TMP_Text _wishSummary;
+        RectTransform _wishDetails;
         public TacticalMapController TacticalMap => _map;
         public bool ChestOwnsDigits => _chestFocus || _chestConsumedDigits;
         public bool ConsumesArrowNavigation => _chestFocus || _map != null && _map.ContainsFocus;
@@ -70,50 +72,57 @@ namespace Roguehalla.Client
         void CreateCombatHud()
         {
             _hud = Rect(_root, "PlayerHUD", 0, 0, 1, 1);
-            var vitals = Panel(_hud, "VitalsPanel", .015f, .018f, .285f, .245f);
-            _vitals = Text(vitals, "Vitals", "Waiting for player state", .04f, .61f, .96f, .98f, 18);
-            var bar = Rect(vitals, "OwnerVitalBar", .04f, .51f, .96f, .58f);
+            // Secondary facts live at the upper edge; the lower playfield stays open for combat.
+            var vitals = Panel(_hud, "VitalsPanel", .015f, .775f, .285f, .915f);
+            _vitals = Text(vitals, "Vitals", "Waiting for player state", .04f, .44f, .96f, .98f, 15);
+            SetBaseSize(_vitals, 22);
+            var bar = Rect(vitals, "OwnerVitalBar", .04f, .36f, .96f, .41f);
             var bg = bar.gameObject.AddComponent<UnityEngine.UI.Image>(); bg.color = ShowcasePalette.PanelStroke; bg.raycastTarget = false;
             _healthBarFill = Rect(bar, "HealthFill", 0, 0, 0, 1);
             var health = _healthBarFill.gameObject.AddComponent<UnityEngine.UI.Image>(); health.color = ShowcasePalette.Success; health.raycastTarget = false;
             _barrierBarFill = Rect(bar, "BarrierFill", 0, 0, 0, 1);
             var barrier = _barrierBarFill.gameObject.AddComponent<UnityEngine.UI.Image>(); barrier.color = ShowcasePalette.Gold; barrier.raycastTarget = false;
-            _build = Text(vitals, "Build", "B · BUILD DETAILS", .04f, .36f, .96f, .49f, 14);
-            Button(vitals, "BuildDetails", "B · BUILD", .04f, .04f, .48f, .30f, ToggleBuild);
-            Button(vitals, "Help", "H · HELP", .52f, .04f, .96f, .30f, ToggleHelp);
-            var actions = Panel(_hud, "CombatActions", .305f, .018f, .785f, .245f);
-            _wishCard = Text(actions, "WishCard", "R · WISH\nAwaiting server", .53f, .08f, .97f, .95f, 14);
+            _focusLabel = Text(vitals, "Focus", "", .04f, .025f, .96f, .31f, 12);
+            var actions = Panel(_hud, "CombatActions", .35f, .015f, .65f, .135f);
+            _wishSummary = Text(actions, "WishSummary", "R · WISH · —", .565f, .58f, .98f, .98f, 14);
+            _wishSummary.color = ShowcasePalette.Gold;
+            _wishDetails = Panel(_hud, "WishPanel", .775f, .70f, .985f, .915f);
+            _wishCard = Text(_wishDetails, "WishCard", "R · WISH\nAwaiting server", .04f, .04f, .96f, .96f, 14);
             _wishCard.color = ShowcasePalette.Gold;
-            MakeWishScrollable(actions);
+            MakeWishScrollable(_wishDetails);
             for (int i = 0; i < 2; i++)
             {
                 byte slot = (byte)i;
-                _slots[i] = Button(actions, "Slot" + (i + 1), (i + 1) + " · EMPTY", .025f + i * .17f, .30f, .18f + i * .17f, .995f, () => Swap(slot));
+                _slots[i] = Button(actions, "Slot" + (i + 1), (i + 1) + " · EMPTY", .02f + i * .18f, .035f, .185f + i * .18f, .965f, () => Swap(slot));
                 var label = _slots[i].GetComponentInChildren<TMP_Text>();
-                label.rectTransform.anchorMin = new Vector2(.02f, .02f); label.rectTransform.anchorMax = new Vector2(.98f, .52f); SetBaseSize(label, 24);
-                _weaponIcons[i] = MythicUi.Icon(_slots[i].transform, "WeaponIcon", MythicGlyph.Sword, 72);
-                _weaponIcons[i].rectTransform.anchorMin = _weaponIcons[i].rectTransform.anchorMax = new Vector2(.5f, .78f);
+                label.rectTransform.anchorMin = new Vector2(.02f, .02f); label.rectTransform.anchorMax = new Vector2(.98f, .49f); SetBaseSize(label, 20);
+                _weaponIcons[i] = MythicUi.Icon(_slots[i].transform, "WeaponIcon", MythicGlyph.Sword, 48);
+                _weaponIcons[i].rectTransform.anchorMin = _weaponIcons[i].rectTransform.anchorMax = new Vector2(.5f, .75f);
                 _weaponIcons[i].rectTransform.anchoredPosition = Vector2.zero;
             }
-            var potion = Button(actions, "Potion", "E · POTION", .365f, .30f, .52f, .995f, UsePotion);
+            var potion = Button(actions, "Potion", "E · POTION", .38f, .035f, .545f, .965f, UsePotion);
             var potionText = potion.GetComponentInChildren<TMP_Text>();
-            potionText.rectTransform.anchorMin = new Vector2(.02f, .02f); potionText.rectTransform.anchorMax = new Vector2(.98f, .52f); SetBaseSize(potionText, 24);
-            _potionIcon = MythicUi.Icon(potion.transform, "PotionIcon", MythicGlyph.Potion, 72);
-            _potionIcon.rectTransform.anchorMin = _potionIcon.rectTransform.anchorMax = new Vector2(.5f, .78f);
+            potionText.rectTransform.anchorMin = new Vector2(.02f, .02f); potionText.rectTransform.anchorMax = new Vector2(.98f, .49f); SetBaseSize(potionText, 20);
+            _potionIcon = MythicUi.Icon(potion.transform, "PotionIcon", MythicGlyph.Potion, 48);
+            _potionIcon.rectTransform.anchorMin = _potionIcon.rectTransform.anchorMax = new Vector2(.5f, .75f);
             _potionIcon.rectTransform.anchoredPosition = Vector2.zero;
-            _pickup = Button(actions, "Pickup", "F · PICK UP", .025f, .07f, .26f, .31f, () => _client.PickupFocus());
-            _focusLabel = Text(actions, "Focus", "", .28f, .06f, .52f, .32f, 12);
-            var buildStrip = Panel(_hud, "BuildStrip", .015f, .257f, .285f, .415f);
+            _pickup = Button(actions, "Pickup", "F · PICK UP", .565f, .035f, .98f, .55f, () => _client.PickupFocus());
+            SetBaseSize(_pickup.GetComponentInChildren<TMP_Text>(), 20);
+            var buildStrip = Panel(_hud, "BuildStrip", .015f, .56f, .285f, .765f);
+            var buildButton = Button(buildStrip, "BuildDetails", "B · BUILD DETAILS", .025f, .015f, .975f, .32f, ToggleBuild);
+            _build = buildButton.GetComponentInChildren<TMP_Text>();
+            SetBaseSize(_build, 20);
             var glyphs = new[] { MythicGlyph.Sword, MythicGlyph.Wish, MythicGlyph.Armor, MythicGlyph.Shield, MythicGlyph.Health, MythicGlyph.Bow, MythicGlyph.Speed, MythicGlyph.Potion };
             var labels = new[] { "OFF", "SOUL", "DEF", "S.DEF", "HP", "ATK", "MOVE", "LEECH" };
             for (int i = 0; i < 8; i++)
             {
-                float x = .02f + (i % 4) * .245f, y = i < 4 ? .51f : .02f;
-                var cell = Rect(buildStrip, "Build" + labels[i], x, y, x + .235f, y + .47f);
-                var icon = MythicUi.Icon(cell, "StatIcon", glyphs[i], 48);
-                icon.rectTransform.anchorMin = icon.rectTransform.anchorMax = new Vector2(.22f, .55f);
-                _buildCounts[i] = Text(cell, "Count", "—", .43f, .33f, .98f, .99f, 16);
-                Text(cell, "StatLabel", labels[i], .03f, 0, .98f, .30f, 10).color = ShowcasePalette.MutedText;
+                float x = .02f + (i % 4) * .245f, y = i < 4 ? .67f : .335f;
+                var cell = Rect(buildStrip, "Build" + labels[i], x, y, x + .235f, y + .32f);
+                var icon = MythicUi.Icon(cell, "StatIcon", glyphs[i], 32);
+                icon.rectTransform.anchorMin = icon.rectTransform.anchorMax = new Vector2(.20f, .70f);
+                _buildCounts[i] = Text(cell, "Count", "—", .40f, .42f, .98f, .99f, 14);
+                SetBaseSize(_buildCounts[i], 20);
+                Text(cell, "StatLabel", labels[i], .03f, 0, .98f, .42f, 12).color = ShowcasePalette.MutedText;
             }
         }
         void SetBaseSize(TMP_Text label, float size)
@@ -121,9 +130,9 @@ namespace Roguehalla.Client
             int i = _scaledText.IndexOf(label); if (i >= 0) _textBaseSize[i] = size;
             label.fontSize = size * _showcaseSettings.TextScale; label.fontSizeMin = label.fontSize * .75f; label.fontSizeMax = label.fontSize;
         }
-        void MakeWishScrollable(Transform actions)
+        void MakeWishScrollable(Transform parent)
         {
-            var frame = Rect(actions, "WishDetails", .53f, .04f, .98f, .98f);
+            var frame = Rect(parent, "WishDetails", .04f, .04f, .96f, .96f);
             var scroll = frame.gameObject.AddComponent<UnityEngine.UI.ScrollRect>(); scroll.horizontal = false;
             scroll.movementType = UnityEngine.UI.ScrollRect.MovementType.Clamped; scroll.scrollSensitivity = 30;
             var viewport = Rect(frame, "Viewport", 0, 0, 1, 1);
@@ -146,7 +155,7 @@ namespace Roguehalla.Client
             _modernSettings.Initialize(_root, _showcaseSettings, _map, _uiPrefs, () => _modernSettings.SetVisible(false));
             _settings = _modernSettings.Root;
             _uiPrefs.Changed += ApplyDisplayPreferences;
-            _phaseStrip = Text(_root, "PhaseTimer", "", .31f, .925f, .66f, .99f, 20);
+            _phaseStrip = Text(_root, "PhaseTimer", "", .31f, .925f, .60f, .99f, 20);
             _metrics = Text(_root, "PerformanceReadout", "", .40f, .855f, .66f, .92f, 15);
             ApplyDisplayPreferences();
             _help = Panel(_root, "ControlsHelp", .18f, .28f, .82f, .90f);
@@ -159,8 +168,6 @@ namespace Roguehalla.Client
         {
             if (_map == null || _uiPrefs == null) return;
             _map.SetMinimapScale(_uiPrefs.MinimapScale);
-            var actions = _hud.Find("CombatActions") as RectTransform;
-            if (actions != null) actions.anchorMax = new Vector2(.965f - .18f * _uiPrefs.MinimapScale, .245f);
         }
         void TickMetrics()
         {
@@ -242,6 +249,7 @@ namespace Roguehalla.Client
             TickHubAtrium();
             TickMetrics();
             _map?.Tick();
+            if (_wishDetails != null) _wishDetails.gameObject.SetActive(!_rewards.gameObject.activeSelf && !(_map?.IsOpen ?? false));
             if (_session != null) _drawer?.Refresh(_session.Collections, _session.Me, _showcaseSettings.TextScale);
         }
         static int CountCards(CollectionsView view) { int count = 0; foreach (byte card in view.Cards) if (card > 0) count++; return count; }

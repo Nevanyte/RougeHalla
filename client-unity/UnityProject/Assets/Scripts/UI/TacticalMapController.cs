@@ -56,7 +56,7 @@ namespace Roguehalla.Client
         {
             _client = client;
             _prefs = preferences ?? new UiDisplayPreferences();
-            _panel = MythicUi.Panel(root, "TacticalMap", new Vector2(.025f, .265f), new Vector2(.975f, .915f));
+            _panel = MythicUi.Panel(root, "TacticalMap", new Vector2(.025f, .155f), new Vector2(.975f, .915f));
             _title = MythicUi.Text(_panel, "MapHeading", "TACTICAL MAP", new Vector2(.025f, .90f), new Vector2(.72f, .99f), 32, ShowcasePalette.Gold);
             MythicUi.Button(_panel, "CloseMap", "CLOSE", new Vector2(.87f, .91f), new Vector2(.985f, .985f), () => SetOpen(false));
             var mapFrame = MythicUi.Panel(_panel, "MapFrame", new Vector2(.02f, .17f), new Vector2(.69f, .89f), ShowcasePalette.Background);
@@ -94,11 +94,11 @@ namespace Roguehalla.Client
             MythicUi.Button(_panel, "UndoRoute", "UNDO", new Vector2(.715f, .09f), new Vector2(.84f, .17f), () => { _route.Undo(); _routeStorageDirty = true; _nextPath = _nextPaint = 0; });
             MythicUi.Button(_panel, "ClearRoute", "CLEAR", new Vector2(.855f, .09f), new Vector2(.98f, .17f), () => { _route.Clear(); _routeStorageDirty = true; _nextPath = _nextPaint = 0; });
             _status = MythicUi.Text(_panel, "MapStatus", "", new Vector2(.025f, .005f), new Vector2(.98f, .065f), 20, ShowcasePalette.MutedText);
-            _miniRoot = MythicUi.Panel(root, "Minimap", new Vector2(.805f, .018f), new Vector2(.985f, .245f));
-            var miniFrame = MythicUi.Rect(_miniRoot, "TerrainFrame", new Vector2(.04f, .17f), new Vector2(.96f, .96f));
+            _miniRoot = MythicUi.Panel(root, "Minimap", new Vector2(.845f, .018f), new Vector2(.985f, .198f));
+            var miniFrame = MythicUi.Rect(_miniRoot, "TerrainFrame", new Vector2(.04f, .27f), new Vector2(.96f, .96f));
             _mini = miniFrame.gameObject.AddComponent<TacticalMapSurface>(); _mini.Initialize();
             _mini.Pressed = MinimapPress; _mini.Dragged = MinimapDrag; _mini.PointerReleased = MinimapRelease; _mini.Aborted = ReleaseMinimap;
-            MythicUi.Button(_miniRoot, "OpenMap", "TAB · MAP", new Vector2(.04f, .015f), new Vector2(.96f, .16f), () => SetOpen(!IsOpen));
+            MythicUi.Button(_miniRoot, "OpenMap", "TAB · MAP", new Vector2(.04f, .02f), new Vector2(.96f, .24f), () => SetOpen(!IsOpen));
             _panel.gameObject.SetActive(false); _miniRoot.gameObject.SetActive(false);
         }
 
@@ -122,8 +122,8 @@ namespace Roguehalla.Client
         {
             if (_miniRoot == null) return;
             value = Mathf.Clamp(value, .85f, 1.25f);
-            _miniRoot.anchorMin = new Vector2(.985f - .18f * value, .018f);
-            _miniRoot.anchorMax = new Vector2(.985f, .018f + .227f * value);
+            _miniRoot.anchorMin = new Vector2(.985f - .14f * value, .018f);
+            _miniRoot.anchorMax = new Vector2(.985f, .018f + .18f * value);
         }
         public void SetOpen(bool open)
         {
