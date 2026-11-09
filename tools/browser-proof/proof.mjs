@@ -21,6 +21,7 @@ if (!protocolMatch) throw new Error("probe protocol constant not found");
 const expectedProtocol = Number(protocolMatch[1]);
 const vectors = JSON.parse(readFileSync(resolve(repo, `protocol/fixtures/v${expectedProtocol}.json`), "utf8"));
 if (vectors.protocol !== expectedProtocol) throw new Error("probe and golden-vector protocol differ");
+const expectedStateKeys = "1,2,3,4,5,6,7,8,9,10,11";
 const port = Number(process.argv[process.argv.indexOf("--port") + 1]) || 7443;
 const bin = resolve(repo, process.env.RH_SERVER_BIN || "target/debug/rh-server");
 const report = { server: bin, url: `https://localhost:${port}/probe`, tls: "self-signed (ignoreHTTPSErrors)", checks: {}, measured: {} };
@@ -64,7 +65,7 @@ try {
   pass("run_started");
   await wait(a, () => window.__probe.firstStateAfterWelcome.length === 1);
   const state0 = await a.evaluate(() => ({frames:window.__probe.stateFrames,first:window.__probe.firstStateAfterWelcome,keys:Object.keys(window.__probe.collections)}));
-  state0.first[0].join() === "1,2,3,4,5,6,7,8,9" && state0.keys.join() === "1,2,3,4,5,6,7,8,9" ? pass("join_receives_complete_reliable_state",state0) : fail("join_receives_complete_reliable_state",JSON.stringify(state0));
+  state0.first[0].join() === expectedStateKeys && state0.keys.join() === expectedStateKeys ? pass("join_receives_complete_reliable_state",state0) : fail("join_receives_complete_reliable_state",JSON.stringify(state0));
 
   // The first snapshot is Full, followed by deltas the page's own checked decoder applies.
   await wait(a, () => window.__probe.deltaSnapshots > 20);
@@ -115,7 +116,7 @@ try {
 
   await wait(b, () => window.__probe.firstStateAfterWelcome.length === 2);
   const resumedState = await b.evaluate(() => window.__probe.firstStateAfterWelcome);
-  resumedState.every(keys => keys.join() === "1,2,3,4,5,6,7,8,9") ? pass("resume_refreshes_all_state_keys",resumedState) : fail("resume_refreshes_all_state_keys",JSON.stringify(resumedState));
+  resumedState.every(keys => keys.join() === expectedStateKeys) ? pass("resume_refreshes_all_state_keys",resumedState) : fail("resume_refreshes_all_state_keys",JSON.stringify(resumedState));
 
   // Fight to the end: both hold attack toward each other; the server decides the outcome.
   for (const [page, other] of [[a, wb.player], [b, wa.player]]) {
