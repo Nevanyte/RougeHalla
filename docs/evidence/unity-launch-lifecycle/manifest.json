@@ -1,0 +1,48 @@
+{
+  "schema": "rh-evidence-manifest-v1",
+  "excludes": "manifest.json itself",
+  "fileCount": 8,
+  "bytes": 88589,
+  "files": [
+    {
+      "path": "Client.csproj.txt",
+      "bytes": 37873,
+      "sha256": "6c3561bcd0915a5b75294279ab50e7485f10d6877aa29aa9172b07a04f65a2ec"
+    },
+    {
+      "path": "README.md",
+      "bytes": 5194,
+      "sha256": "afcf9a97c3a0ebcdbcfcc494e49a0381b9604f64b7a91283083d37e8b5b42edd"
+    },
+    {
+      "path": "Tests.csproj.txt",
+      "bytes": 38343,
+      "sha256": "3a825948a10d54912b5aac05525f86e7a31732fbf0583a536c96c981d867eb11"
+    },
+    {
+      "path": "client-compile.txt",
+      "bytes": 291,
+      "sha256": "6f2f20f0a95c3a68067cdccb27b828a102eca75530020ee33aa084336d3fe155"
+    },
+    {
+      "path": "package-source-anchors.json",
+      "bytes": 1555,
+      "sha256": "7d35c9f0aa8028f207699d837d999bfa197d30c438ce9647288eb1565152ebc3"
+    },
+    {
+      "path": "receipt.json",
+      "bytes": 3704,
+      "sha256": "2de3be053f2e863222a0c287ca08603dbfc04cd0f1bdb26093cc335d874adf17"
+    },
+    {
+      "path": "seal-verification.json",
+      "bytes": 711,
+      "sha256": "4ac80f126138cc2b9be0f2e28c9eede525c558198d3c7623ab8f4c85f73c6730"
+    },
+    {
+      "path": "tests-compile.txt",
+      "bytes": 918,
+      "sha256": "a33654af6db16fd576b94686c78bc4282361a7e86eaab888fc4546dd24f575bc"
+    }
+  ]
+}

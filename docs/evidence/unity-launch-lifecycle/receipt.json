@@ -1,0 +1,94 @@
+{
+  "schema": "rh-launch-editmode-lifecycle-repair-v1",
+  "code": "68931e0634959035d14039ea445186398d888bd3",
+  "base": "338d9237dc867b9f17b351b82e480940e5adbfff",
+  "failedEngineSource": "035b22c8b0773d6637da4e0d4906c31d5b3af01e",
+  "failedMvid": "cad30248-17a5-410a-8d1b-d6b883f2b74d",
+  "immutableFailure": {
+    "receiptCommit": "338d9237dc867b9f17b351b82e480940e5adbfff",
+    "path": "../unity-functional-035b22c8/editor-first",
+    "manifestSha256": "20a466dbb580fe6e9344ff3ef09b26a159caf0470df98dfe4f04ca5278f0a8bf",
+    "payloadFilesVerified": 39,
+    "originalStatus": "FAIL",
+    "total": 42,
+    "passed": 27,
+    "failed": 15,
+    "old25Passed": 25,
+    "launch17Passed": 2,
+    "launch17Failed": 15,
+    "duplicateGlobalLightLogs": 13,
+    "unregisteredEventSystemLogs": 2,
+    "postSuiteInventory": {
+      "output": null,
+      "diagnostics": [],
+      "success": true,
+      "result": {
+        "scope": "Read-only post-test cleanup inventory; no private manager access or scene construction.",
+        "lights": [],
+        "eventSystems": [],
+        "currentEventSystem": 0
+      }
+    }
+  },
+  "onlyChangedCodeFile": {
+    "path": "client-unity/UnityProject/Assets/Tests/Editor/MatchLaunchEditModeTests.cs",
+    "beforeSha256": "0b39a8b75960a9fbb3a288982ce8822ce1283982eefd7c0a473f673d5410c98a",
+    "afterSha256": "1df70730e10dd3a3ea82365cd88db15a2fa631f313d4b168cbdbfe47e5c3323a"
+  },
+  "all17TestBodiesAndAttributesIdentical": true,
+  "testBodyTailSha256": "14b3d9195f5deda1c5851821db0cf6f8b406320d531121ba79729e7ddfec5f6f",
+  "unchangedNativeSourceFiles": [
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/QuestJournalViewEditModeTests.cs",
+      "sha256": "a227e72035a95c76998a8e715eea197e54bf28de37ade69998404830186a9508",
+      "byteIdenticalToBase": true
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/TraderDialogViewEditModeTests.cs",
+      "sha256": "74f08af89ac872699567c2fe7ecc5451bdc3ffa94f6df48ec60abda813bb66cb",
+      "byteIdenticalToBase": true
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/PlayerFlowsEditModeTests.cs",
+      "sha256": "d3b75829d5fb35708b328eeaa95d3975c0369cc287195db330dfbe2a7bb11c26",
+      "byteIdenticalToBase": true
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/UiInputRoutingEditModeTests.cs",
+      "sha256": "231bf1918895c181a871e325c663010429808dd3c1ab93556bcc33d94f6aac45",
+      "byteIdenticalToBase": true
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Tests/Editor/MatchClientAccountBindingEditModeTests.cs",
+      "sha256": "ecde6696a981499a3a206cd333d3dfeb7a4061c5e1e345f2b4911ef4022b45f2",
+      "byteIdenticalToBase": true
+    }
+  ],
+  "productionAndProtectedPathsUnchanged": [
+    "client-unity/UnityProject/Assets/Scripts",
+    "client-unity/RoguehallaNet",
+    "client-unity/UnityProject/Assets/RoguehallaNet",
+    "crates",
+    "packages",
+    "Cargo.lock",
+    "docs/MIGRATION.md",
+    "docs/CONTRACTS.md"
+  ],
+  "scope": "Fixture-owned parenting/tracking/immediate teardown and real ExecuteAlways EventSystem registration; package registry observed read-only",
+  "managedCompile": {
+    "scriptsErrors": 0,
+    "scriptsWarnings": 0,
+    "testSourceErrors": 0,
+    "testSourceWarnings": 1,
+    "existingWarning": "CS0067 MatchHudTrophyEditModeTests.TestTransport.Closed",
+    "clientProfile": "Client.csproj.txt",
+    "testProfile": "Tests.csproj.txt"
+  },
+  "correctedNative42": "UNRUN",
+  "authorEditorAccess": false,
+  "authorNativeRerun": false,
+  "authorPlay": false,
+  "authorBrowser": false,
+  "authorWebBuild": false,
+  "bankingDesign": "PAUSED; no production edits/tests/builds for that assessment"
+}

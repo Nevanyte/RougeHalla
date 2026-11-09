@@ -1,0 +1,9 @@
+  Determining projects to restore...
+  Restored /tmp/roguehalla-launch-lifecycle-compile/Client.csproj (in 26 ms).
+  Client -> /tmp/roguehalla-launch-lifecycle-compile/bin/Debug/netstandard2.1/Roguehalla.Client.dll
+
+Build succeeded.
+    0 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:01.16

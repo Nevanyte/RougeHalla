@@ -1,0 +1,18 @@
+{
+  "schema": "rh-launch-lifecycle-seal-v1",
+  "generatedUtc": "2026-11-09T10:45:33.235597+00:00",
+  "code": "68931e0634959035d14039ea445186398d888bd3",
+  "base": "338d9237dc867b9f17b351b82e480940e5adbfff",
+  "onlyFixtureChanged": true,
+  "all17TestBodiesAndAttributesIdentical": true,
+  "old25Unchanged": true,
+  "knownSecretMatches": 0,
+  "borrowedPackageSourceChanged": false,
+  "globalRegistryMutationInFixture": false,
+  "logSuppressionAdded": false,
+  "existingActual035bStatus": "FAIL 27/42;15failed",
+  "actualCorrectiveEngine42": "UNRUN",
+  "authorNativeExecutions": 0,
+  "authorEditorAccess": false,
+  "requires": "Root source review and independently assigned fresh engine gate; no pass predicted"
+}
