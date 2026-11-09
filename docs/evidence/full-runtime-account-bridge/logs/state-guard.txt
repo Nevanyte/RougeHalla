@@ -1,0 +1,13 @@
+test_ambient_git_variables_cannot_hide_membership (__main__.PrivateStateGuard) ... ok
+test_bare_repository_is_rejected (__main__.PrivateStateGuard) ... ok
+test_git_metadata_is_rejected (__main__.PrivateStateGuard) ... ok
+test_other_worktree_is_rejected (__main__.PrivateStateGuard) ... ok
+test_outside_git_with_missing_parent_is_accepted (__main__.PrivateStateGuard) ... ok
+test_private_writes_obey_umask_0077 (__main__.PrivateStateGuard) ... ok
+test_resolved_symlink_into_other_repository_is_rejected (__main__.PrivateStateGuard) ... ok
+test_this_repository_is_rejected (__main__.PrivateStateGuard) ... ok
+
+----------------------------------------------------------------------
+Ran 8 tests in 0.336s
+
+OK

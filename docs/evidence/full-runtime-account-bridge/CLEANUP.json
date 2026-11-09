@@ -1,0 +1,118 @@
+{
+  "attempts": [
+    {
+      "attempt": "attempt-001",
+      "code_sha": "54c671d59f19205c6e05c871e3aba5fd40becf62",
+      "outcome": "FAIL",
+      "root_mode": "0o700",
+      "top_level_file_modes": {
+        "bob-public-progress.json": "0o644",
+        "ownership.json": "0o644",
+        "test.log": "0o644",
+        "cleanup.json": "0o644",
+        "control.log": "0o644",
+        "postgres.log": "0o600",
+        "command.json": "0o644",
+        "FAILED.json": "0o644",
+        "cluster-identity.json": "0o644",
+        "alice-public-progress.json": "0o644",
+        "initdb.log": "0o644"
+      },
+      "cleanup": {
+        "elapsed_seconds": 59.846884959,
+        "pg_ctl_status": 3,
+        "port_closed": true,
+        "postmaster_pid_absent": true
+      }
+    },
+    {
+      "attempt": "attempt-002",
+      "code_sha": "587969d3ac167afa1f422b08eb0771e0db63eb2b",
+      "outcome": "PASS",
+      "root_mode": "0o700",
+      "top_level_file_modes": {
+        "bob-public-progress.json": "0o644",
+        "ownership.json": "0o644",
+        "test.log": "0o644",
+        "private-replay.json": "0o644",
+        "replay-audit.json": "0o644",
+        "cleanup.json": "0o644",
+        "control.log": "0o644",
+        "postgres.log": "0o600",
+        "command.json": "0o644",
+        "cluster-identity.json": "0o644",
+        "alice-public-progress.json": "0o644",
+        "checksums.json": "0o644",
+        "initdb.log": "0o644",
+        "receipt.json": "0o644"
+      },
+      "cleanup": {
+        "elapsed_seconds": 23.902862708,
+        "pg_ctl_status": 3,
+        "port_closed": true,
+        "postmaster_pid_absent": true
+      }
+    },
+    {
+      "attempt": "attempt-003",
+      "code_sha": "c8996a02c6eb171d8ba994dbf446b4254f06a41e",
+      "outcome": "PASS",
+      "root_mode": "0o700",
+      "top_level_file_modes": {
+        "bob-public-progress.json": "0o644",
+        "ownership.json": "0o644",
+        "test.log": "0o644",
+        "private-replay.json": "0o644",
+        "replay-audit.json": "0o644",
+        "cleanup.json": "0o644",
+        "control.log": "0o644",
+        "postgres.log": "0o600",
+        "command.json": "0o644",
+        "cluster-identity.json": "0o644",
+        "alice-public-progress.json": "0o644",
+        "checksums.json": "0o644",
+        "initdb.log": "0o644",
+        "receipt.json": "0o644"
+      },
+      "cleanup": {
+        "elapsed_seconds": 23.870252167,
+        "pg_ctl_status": 3,
+        "port_closed": true,
+        "postmaster_pid_absent": true
+      }
+    },
+    {
+      "attempt": "attempt-004",
+      "code_sha": "7c8dd4eea94a1574a46cc77c79f609426c20942a",
+      "outcome": "PASS",
+      "root_mode": "0o700",
+      "top_level_file_modes": {
+        "bob-public-progress.json": "0o600",
+        "ownership.json": "0o600",
+        "test.log": "0o600",
+        "private-replay.json": "0o600",
+        "cleanup.json": "0o600",
+        "control.log": "0o600",
+        "postgres.log": "0o600",
+        "command.json": "0o600",
+        "cluster-identity.json": "0o600",
+        "alice-public-progress.json": "0o600",
+        "checksums.json": "0o600",
+        "initdb.log": "0o600",
+        "receipt.json": "0o600"
+      },
+      "cleanup": {
+        "elapsed_seconds": 23.924646041000003,
+        "pg_ctl_status": 3,
+        "port_closed": true,
+        "postmaster_pid_absent": true
+      }
+    }
+  ],
+  "corrected_git_guard_recheck": "all four retained attempts are outside Git; no new state created",
+  "previous_binary_unchanged": true,
+  "retained_a3d_sha256": "0b08727ba9cc7a5850e10f09e0737042937b865ee47dd29f1afc67abbbc242eb",
+  "no_active_task_compiler_or_server": true,
+  "credentials_and_raw_private_replays": "retained outside Git, excluded from evidence",
+  "target_loan": "ready to release"
+}

@@ -1,0 +1,21 @@
+{
+  "RH_BUILD": "a0c4818ce9df8ad0f4124db31e65ba1244bddc3b",
+  "RH_BUILD_REV": "a0c4818ce9df8ad0f4124db31e65ba1244bddc3b",
+  "command": [
+    "cargo",
+    "test",
+    "--locked",
+    "-p",
+    "rh-server",
+    "--features",
+    "postgres",
+    "--test",
+    "full_runtime_account_flow",
+    "--",
+    "--ignored",
+    "--exact",
+    "http_owned_source_match_spool_profile_and_leaderboard_agree",
+    "--nocapture"
+  ],
+  "git_head": "587969d3ac167afa1f422b08eb0771e0db63eb2b"
+}

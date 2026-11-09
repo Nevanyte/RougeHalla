@@ -1,0 +1,9 @@
+{
+  "address": "127.0.0.1",
+  "data_directory": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/full-runtime-account-a0c4818c-2026-11-09/attempt-003/data",
+  "fsync": "on",
+  "full_page_writes": "on",
+  "port": 60305,
+  "synchronous_commit": "on",
+  "system_identifier": "7706088392171601255"
+}

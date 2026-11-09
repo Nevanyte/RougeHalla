@@ -1,0 +1,96 @@
+{
+  "build": "a0c4818ce9df8ad0f4124db31e65ba1244bddc3b",
+  "clock": "native 50ms steps; accelerated 3ms wall-clock wake, real loopback HTTP/WebSocket and PostgreSQL",
+  "duplicate_result": "AlreadyApplied; owner unchanged",
+  "full_source_default_rules": true,
+  "map": "unchanged maps/first-playable.json",
+  "pending": 0,
+  "physical_time_or_browser_acceptance": false,
+  "profiles": [
+    {
+      "achievements": {
+        "first_blood": 1794213329748
+      },
+      "cosmetics": {
+        "equipped": {},
+        "owned": [
+          "title-bloodied"
+        ]
+      },
+      "gv": 10,
+      "gvByMonth": {
+        "2026-11": 10
+      },
+      "gvLifetime": 10,
+      "name": "alice",
+      "progress": {
+        "bestRunKills": 1,
+        "bountyRuns": 0,
+        "qualifiedWins": 0,
+        "winsByFaction": {},
+        "winsByWeapon": {}
+      },
+      "stats": {
+        "deaths": 0,
+        "draws": 0,
+        "kills": 1,
+        "runs": 1,
+        "wins": 1
+      }
+    },
+    {
+      "achievements": {},
+      "cosmetics": {
+        "equipped": {},
+        "owned": []
+      },
+      "gv": 0,
+      "gvByMonth": {},
+      "gvLifetime": 0,
+      "name": "bob",
+      "progress": {
+        "bestRunKills": 0,
+        "bountyRuns": 0,
+        "qualifiedWins": 0,
+        "winsByFaction": {},
+        "winsByWeapon": {}
+      },
+      "stats": {
+        "deaths": 1,
+        "draws": 0,
+        "kills": 0,
+        "runs": 1,
+        "wins": 0
+      }
+    }
+  ],
+  "protocol": 14,
+  "public_attack_commands": [
+    21,
+    21
+  ],
+  "public_snapshots": [
+    352,
+    350
+  ],
+  "reconciliation": "ok",
+  "reopened_owner_profiles_and_board": "equal",
+  "replay_hashes": "all verified",
+  "replay_steps": 2023,
+  "replay_terminal_phase": "Ended",
+  "source_base": "a0c4818ce9df8ad0f4124db31e65ba1244bddc3b",
+  "spooled": 2,
+  "wire_results": [
+    {
+      "gv": 10,
+      "kills": 1,
+      "name": "alice"
+    },
+    {
+      "gv": 0,
+      "kills": 0,
+      "name": "bob"
+    }
+  ],
+  "wrong_principal": "NoLease; outsider unchanged"
+}

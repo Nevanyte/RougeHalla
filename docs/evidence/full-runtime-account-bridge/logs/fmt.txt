@@ -1,0 +1,3 @@
+$ rustfmt --edition 2021 --check crates/rh-server/tests/full_runtime_account_flow.rs
+
+exit_code=0

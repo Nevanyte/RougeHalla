@@ -1,0 +1,13 @@
+{
+  "source_sha": "a0c4818ce9df8ad0f4124db31e65ba1244bddc3b",
+  "RH_BUILD": "a0c4818ce9df8ad0f4124db31e65ba1244bddc3b",
+  "RH_BUILD_REV": "a0c4818ce9df8ad0f4124db31e65ba1244bddc3b",
+  "embedded_identity_source": "rh_sim::replay::BUILD_ID reads RH_BUILD at compile time; RH_BUILD_REV is also set for requested build provenance",
+  "features": [
+    "postgres"
+  ],
+  "artifact": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/full-runtime-account-a0c4818c-2026-11-09/bin/rh-server-a0c4818c",
+  "bytes": 42081296,
+  "sha256": "cd802bd8bf4391ee3d8a24281dc0832dedb6c6c94db6d8dcbc9bf6c0729a20d5",
+  "retained_a3d_untouched": true
+}

@@ -1,0 +1,12 @@
+{
+  "source_sha": "a0c4818ce9df8ad0f4124db31e65ba1244bddc3b",
+  "observed_control_health_build": "a0c4818ce9df8ad0f4124db31e65ba1244bddc3b",
+  "health_status": 200,
+  "sha256": "cd802bd8bf4391ee3d8a24281dc0832dedb6c6c94db6d8dcbc9bf6c0729a20d5",
+  "bytes": 42081296,
+  "public_port": 60380,
+  "control_port": 60381,
+  "profile": "default core; health-only artifact attestation, no gameplay proof",
+  "process_exit_code": 0,
+  "both_ports_closed": true
+}
