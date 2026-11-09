@@ -1,0 +1,8 @@
+    Finished `test` profile [unoptimized] target(s) in 0.05s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/quest-native-notices/target/debug/deps/rh_sim-0ad75f2b040c28b6)
+
+running 2 tests
+test systems::mob_life::pay_tests::credited_normal_payout_reports_only_the_actual_cumulative_grant_after_gv ... ok
+test systems::mob_life::pay_tests::capped_or_nonapplicable_payout_never_claims_a_stat_grant ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 769 filtered out; finished in 0.01s

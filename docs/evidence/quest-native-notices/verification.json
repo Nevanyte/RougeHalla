@@ -1,0 +1,148 @@
+{
+  "branch": "codex/quest-native-notices",
+  "base": "9c08908936971ef4def8294e8f62ba7e5acf52af",
+  "status": "HELD native candidate; additive source6 + root transport/UI admission outstanding",
+  "environment": "source final-env.sh then export CARGO_TARGET_DIR=/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/quest-native-notices/target",
+  "ownedSourceFiles": {
+    "crates/rh-headless/src/digest.rs": "d2711741c886bc57135a2144ae0c0af8c9bf4f9870d747824d2638b40a6b566d",
+    "crates/rh-parity/src/canon.rs": "e9d718e42f9523eedcbcbf570850b32f5832781d3621e8ede35ea52709238fac",
+    "crates/rh-sim/src/abilities/source_tests/full_profile.rs": "48e2d749b790dba44e99ae0ce93caeeb851eedbeb9513b6001648b9caee1d1e1",
+    "crates/rh-sim/src/actor_refs.rs": "819e5aaf261e1b88eb0c3c3f8cb0b561b1e1f097779cd4392978dae56d85935c",
+    "crates/rh-sim/src/events.rs": "6a55448eba7fab51be336d265537c039daee338f9906a82138af9325c2eca960",
+    "crates/rh-sim/src/map.rs": "849c68dbee0fc8cb43606952cc84639517cb5231bd261e9ead05ce7835099bb6",
+    "crates/rh-sim/src/modifiers/farm_text.rs": "38890d7edb5173cffc6634eecb7e007e70f9c71c30b4e7e5a194c4a9bd181cd8",
+    "crates/rh-sim/src/quests/giver_tests/source.rs": "1dde220d75ded07088968eaf1af9f71528b6cb726e9e5a6e1b30e3acd9f42b1d",
+    "crates/rh-sim/src/quests/live.rs": "a595ae0881f4c96a1e2c817fe70af84e1e52d627a4173ee9a6adad48d91cc355",
+    "crates/rh-sim/src/quests/mod.rs": "fe114dcf304c490a2c556f918bca59ed477de6abaf2ce0b3aa19a0c5a5db9fed",
+    "crates/rh-sim/src/quests/notice_tests.rs": "c44eed1b2cbb4287e406a72d638ae428ad6f8d8453716c03173320bdbed293be",
+    "crates/rh-sim/src/quests/notice_tests/source_public.rs": "2810384b1166149f426f3304e37e1948a34a82c914bc56b2081d1a28815b1c5c",
+    "crates/rh-sim/src/quests/notices.rs": "2035911e8179a3180679abba78f63434a23004df903df44d9aa03e0c43722a06",
+    "crates/rh-sim/src/systems/mob_life.rs": "30a6fc5945f061b78097045364276daf8dd2aee21ebf72cfe888ef4a39498792",
+    "crates/rh-sim/src/systems/training/console.rs": "d3263a411745e20f2d023637fc0d06a59793cfee07c03e1b788731e20add8ba5",
+    "crates/rh-sim/src/systems/training/corpus_tests.rs": "530c6f06f93190ce63a63fb72c1671ad86391ef37c15ca475a7cc5e26a5edc9c"
+  },
+  "sourceCorpora": {
+    "parity/quest-public/doors.json": "ea880564c0cc4487888503fcbc38a53f8f791d04a25464b32314981e957a95e9",
+    "parity/quest-public/schema-receivers.json": "c3902048d13aee55e33b29dae97295b6ecedb850e19ba4d0450aab97dc6b11e7",
+    "parity/quest-public/wording.json": "a23c7ff2866084c2a4cf7d4fedda710441dab6805741e184f8e356221edcf8cb",
+    "parity/quest-public/manifest.json": "9f7070b087ed66ccf21d1809a5ca501c20055d10bf407c5becaa93919819fa6a",
+    "parity/quest-giver/source.json": "039d4e058fa914f42080f1c55d8640cc508c5b4745504930ca3db49579adc8b4"
+  },
+  "sourceCounts": {
+    "publicActionCases": 14,
+    "publicActualToasts": 16,
+    "giverCases": 8,
+    "giverFrames": 74,
+    "giverRealSteps": 6337,
+    "giverActualToasts": 13,
+    "giverQuestGvEvents": 1,
+    "strictSourceCases": 63
+  },
+  "checks": [
+    {
+      "command": "cargo test -p rh-sim --lib notice_tests --features trusted-status-probes",
+      "result": "passed",
+      "scope": "14 exact source action emission cases +3 native controls; explicit Full/Map/no-signatures/no-FireRoam profile",
+      "log": "docs/evidence/quest-native-notices/logs/tests.txt",
+      "sha256": "2b989384fd20ffe54324bb63977d6c773640daf2fb2fc4f519dec3efd60fc4be",
+      "trailingBlankLinesTrimmed": true
+    },
+    {
+      "command": "cargo test -p rh-sim --lib all_eight_captured_source_giver_cases --features trusted-status-probes -- --nocapture",
+      "result": "passed",
+      "scope": "8 source cases /74 frames /6337 real steps; all13 Toast records + quest GV order",
+      "log": "docs/evidence/quest-native-notices/logs/giver8.txt",
+      "sha256": "05adb602e14f06fc9ecc4a40fe35c4d2b7b02b5bc2ee78c27390706b36122146",
+      "trailingBlankLinesTrimmed": true
+    },
+    {
+      "command": "cargo test -p rh-sim --lib frozen_full_source_all_63_cases --features trusted-status-probes",
+      "result": "passed",
+      "scope": "one63-case run for the event adapter; zero pending",
+      "log": "docs/evidence/quest-native-notices/logs/full63.txt",
+      "sha256": "b9a2f9adeff53eeefb7d0a214b9d06e59ca37ec5fec6371a22a595f8194a5025",
+      "trailingBlankLinesTrimmed": true
+    },
+    {
+      "command": "cargo test -p rh-sim --lib systems::training --features trusted-status-probes",
+      "result": "passed",
+      "scope": "affected private Some-recipient adapter",
+      "log": "docs/evidence/quest-native-notices/logs/training.txt",
+      "sha256": "d6b30306a7cb677eab13132c30be72a2c61b0de955945cb17707b1d82843f081",
+      "trailingBlankLinesTrimmed": true
+    },
+    {
+      "command": "cargo test -p rh-sim --lib systems::mob_life::pay_tests --features trusted-status-probes",
+      "result": "passed",
+      "scope": "shared farm wording and zero-grant silence",
+      "log": "docs/evidence/quest-native-notices/logs/pay.txt",
+      "sha256": "1f14d4b1ce83a0fdb39ceba351b220afa2117b14baa86583dec4324f0d926097",
+      "trailingBlankLinesTrimmed": true
+    },
+    {
+      "command": "cargo test -p rh-headless --lib digest::",
+      "result": "passed",
+      "scope": "includes owner/room recipient separation",
+      "log": "docs/evidence/quest-native-notices/logs/digest.txt",
+      "sha256": "92c772d2432d2e39d330d251fb03d586e487e267862f9849efb4faab3834c9fa",
+      "trailingBlankLinesTrimmed": true
+    },
+    {
+      "command": "cargo test -p rh-sim --lib neutral_giver_warm_alloc --features trusted-status-probes -- --ignored --test-threads=1",
+      "result": "passed",
+      "scope": "20 quiet warmed restored Full+quests+FireRoam steps /zero allocated blocks",
+      "log": "docs/evidence/quest-native-notices/logs/alloc.txt",
+      "sha256": "efcce37b91748a7899014dcefd2d7af34b4ce5b147c1effeee45be0f4bdba9dc",
+      "trailingBlankLinesTrimmed": true
+    },
+    {
+      "command": "cargo clippy -p rh-sim -p rh-headless -p rh-parity -p rh-server --all-targets -- -D warnings",
+      "result": "passed",
+      "scope": "default features /final source",
+      "log": "docs/evidence/quest-native-notices/logs/clippy-default.txt",
+      "sha256": "89e2b81da0ca3781225d84826f5c112b2f89f6d791a25f6738fd79274f51c82a",
+      "trailingBlankLinesTrimmed": true
+    },
+    {
+      "command": "cargo clippy -p rh-sim -p rh-headless -p rh-parity -p rh-server --all-targets --all-features -- -D warnings",
+      "result": "passed",
+      "scope": "all features /final source",
+      "log": "docs/evidence/quest-native-notices/logs/clippy-all.txt",
+      "sha256": "f9b9d2c29304b8ed8fd3829fd7562e21bea9b9e5edbbfbb001739c9f4d967971",
+      "trailingBlankLinesTrimmed": true
+    },
+    {
+      "command": "cargo fmt --all --check && git diff --check",
+      "result": "passed",
+      "scope": "final source",
+      "log": "docs/evidence/quest-native-notices/logs/fmt.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "trailingBlankLinesTrimmed": true
+    }
+  ],
+  "readmeSha256": "0da7ff45150f7a99e4c1a4c2d88fc329a43a509d49b73e34688bd27eb00d5dcd",
+  "scope": {
+    "existingToastRecipient": "Option<PlayerId>;Some owner/None Everyone",
+    "class": "Important",
+    "newSeenEvent": false,
+    "newWireTag": false,
+    "newStateCacheOrProbeOrCap": false,
+    "headerContentTapeEdits": false,
+    "sourceCaptureEdits": false,
+    "sourceMapHelper": "cfg(test)-only declared noncanonical collision fixture; real caches rebuilt, layers retained; canonical validation unchanged",
+    "actorReferenceRepair": "cfg(test) renewal initializer only; production/binding assertions unchanged"
+  },
+  "heldClaims": [
+    "additive six actual producer source scenarios",
+    "root transport/UI union and activation",
+    "derived client GV toast: legacy Room adapter formats +N GV (quest), native Event::Gv remains ServerOnly in this lease",
+    "terminal-nudge method setup intake parity: source keeps1 action, native inherited Ended drain leaves0; notice silence is exact and no core phase edit was made"
+  ],
+  "limits": [
+    "source14 is a method/producer witness, not Room/socket/browser equality",
+    "source questReveal is compared to same-step private Preview fields, not a new event or raw public quest ID",
+    "inline native teleport/stale-drop controls are declared controls, not missing source capture replacements",
+    "allocation evidence covers the stated quiet warmed window; actual event/string emission allocations are not zero-allocation claims",
+    "no unchanged source campaign rerun after inherited test-only initializer repair"
+  ]
+}

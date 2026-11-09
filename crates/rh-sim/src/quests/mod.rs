@@ -13,6 +13,9 @@ mod lifecycle_tests;
 pub mod live;
 #[cfg(test)]
 mod live_tests;
+#[cfg(test)]
+mod notice_tests;
+mod notices;
 pub mod placement;
 pub mod roster;
 pub mod rules;

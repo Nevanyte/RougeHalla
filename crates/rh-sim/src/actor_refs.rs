@@ -281,9 +281,11 @@ mod renewal_tests {
             NPC_REFERENCE_BASE + NPC_REFERENCE_BLOCK,
             u32::MAX as u64 + 1,
         ] {
-            let mut old = ActorRefs::default();
-            old.next = next;
-            old.sampled = Some(7);
+            let mut old = ActorRefs {
+                next,
+                sampled: Some(7),
+                ..Default::default()
+            };
             old.current
                 .bindings
                 .push((PlayerId(91), PlayerId(NPC_REFERENCE_BASE as u32)));

@@ -45,9 +45,9 @@ pub enum Event {
         id: PlayerId,
         notice: crate::potions::Notice,
     },
-    /// Owner-only practice-console notice (legacy `toast`; the training room's console output).
+    /// Source toast: addressed to one owner, or to the whole room when `to` is None.
     Toast {
-        to: PlayerId,
+        to: Option<PlayerId>,
         text: String,
     },
     /// A private cannon notice (the source's own toast words).
@@ -260,9 +260,9 @@ impl Event {
             | Event::Death { id, .. } => Visibility::IfSeen(id),
             Event::PickupRefused { id, .. }
             | Event::PotionNotice { id, .. }
-            | Event::Toast { to: id, .. }
             | Event::CannonNotice { id, .. }
             | Event::WindEmblem { id } => Visibility::Owner(id),
+            Event::Toast { to, .. } => to.map_or(Visibility::Everyone, Visibility::Owner),
             Event::Bounty { .. } | Event::Victory { .. } => Visibility::Everyone,
             Event::AbilityHit { .. }
             | Event::MarkNotice { .. }

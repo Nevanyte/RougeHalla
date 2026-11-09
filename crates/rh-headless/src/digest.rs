@@ -260,7 +260,10 @@ impl OutcomeDigest {
             }
             Event::Toast { to, text } => {
                 self.s("toast");
-                self.w(to.0.into());
+                self.w(to.is_some() as u64);
+                if let Some(to) = to {
+                    self.w(to.0.into());
+                }
                 self.s(text);
             }
             Event::CannonNotice { id, notice } => {
@@ -666,6 +669,23 @@ mod wish_event_time_tests {
         let mut digest = OutcomeDigest::new();
         digest.event(event);
         digest.value()
+    }
+
+    #[test]
+    fn toast_recipient_is_part_of_the_behavior_digest() {
+        let values = [None, Some(rh_sim::PlayerId(1)), Some(rh_sim::PlayerId(2))].map(|to| {
+            event_digest(&Event::Toast {
+                to,
+                text: "same notice".into(),
+            })
+        });
+        assert_eq!(
+            values
+                .into_iter()
+                .collect::<std::collections::BTreeSet<_>>()
+                .len(),
+            3
+        );
     }
 
     #[test]

@@ -1,0 +1,11 @@
+   Compiling rh-sim v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/quest-native-notices/repo/crates/rh-sim)
+    Finished `test` profile [unoptimized] target(s) in 31.71s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/quest-native-notices/target/debug/deps/rh_sim-0ad75f2b040c28b6)
+
+running 4 tests
+test quests::notice_tests::missing_runtime_is_silent_even_for_a_stunned_human ... ok
+test quests::notice_tests::stale_closed_drop_has_no_new_parcel_or_announcement ... ok
+test quests::notice_tests::private_and_room_toasts_obey_visibility_without_label_identity ... ok
+test quests::notice_tests::source_public::notices_match_all_fourteen_actual_public_source_action_cases ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 767 filtered out; finished in 8.04s

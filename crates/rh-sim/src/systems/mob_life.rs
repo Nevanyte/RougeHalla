@@ -506,15 +506,11 @@ pub(crate) fn pay(k: &MatchStatic, w: &mut World, ev: &mut Vec<Event>, a: Award)
         );
         if gained > 0 {
             ev.push(Event::Toast {
-                to: id,
-                text: format!(
-                    "{}: +{gained} kill {} · {} total",
-                    crate::modifiers::farm_text::mob_name(a.mob_type),
-                    if gained == 1 { "stack" } else { "stacks" },
-                    crate::modifiers::farm_text::stat_text(
-                        a.mob_type,
-                        w.players[i].farm.count(a.mob_type)
-                    )
+                to: Some(id),
+                text: crate::modifiers::farm_text::grant_notice(
+                    a.mob_type,
+                    gained,
+                    w.players[i].farm.count(a.mob_type),
                 ),
             });
         }

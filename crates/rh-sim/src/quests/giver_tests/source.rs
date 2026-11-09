@@ -420,6 +420,33 @@ impl Run {
             &f["terrain"]["hazards"]["seconds"],
             &format!("{at}/actual-exposure"),
         );
+        let actual_toasts = self
+            .events
+            .iter()
+            .filter_map(|e| match e {
+                crate::Event::Toast { to, text } => {
+                    Some(json!({"type":"toast","to":to.map(|id| actor(s,id)),"text":text}))
+                }
+                crate::Event::Gv {
+                    id,
+                    amount,
+                    reason: crate::results::GvReason::Quest,
+                } => Some(json!({"type":"gv","id":actor(s,*id),"amount":amount,"reason":"quest"})),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        let expected_toasts = f["events"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|e| e["type"] == "toast" || (e["type"] == "gv" && e["reason"] == "quest"))
+            .cloned()
+            .collect::<Vec<_>>();
+        compare(
+            &json!(actual_toasts),
+            &json!(expected_toasts),
+            &format!("{at}/all-actual-toasts-and-quest-gv"),
+        );
         self.events.clear();
         if self.noncanonical {
             assert!(
