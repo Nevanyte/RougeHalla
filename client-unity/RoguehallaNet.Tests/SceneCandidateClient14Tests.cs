@@ -409,8 +409,11 @@ namespace Roguehalla.Net.Tests
                     if (name == "native-training-currentref-rack")
                     {
                         Assert.IsTrue(snapshot.Training);
-                        Assert.IsTrue(snapshot.OwnerCombat.Lock.Target.HasValue);
-                        Assert.IsTrue(snapshot.Actors.Any(actor => actor.Id == snapshot.OwnerCombat.Lock.Target.Value));
+                        // The immutable Rust-native rack fixture has a Clear lock after its
+                        // ordinary input step; current dummy references remain in Actors.
+                        Assert.AreEqual(WireOwnerLockKind.Clear, snapshot.OwnerCombat.Lock.Kind);
+                        Assert.IsNull(snapshot.OwnerCombat.Lock.Target);
+                        Assert.IsTrue(snapshot.Actors.Any(actor => actor.Kind == 3));
                     }
                     client.CommitApplied(1, candidate);
                     Assert.AreSame(candidate, client.Current);
