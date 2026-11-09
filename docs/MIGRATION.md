@@ -40,7 +40,7 @@ strategy/reflex/perception/hunter/loot/learning/tournament-outcome acceptance re
 The quest journal, trader dialog, ordered duplicate notice feed and delivered-only map markers passed all20 actual
 engine selectors at43e6d08d ([receipt](evidence/unity-player-flows-43e6d08d/editor-retake/README.md)). Planning quest review,
 current typed participant lookup and consistent focused-text hotkey guards now pass all25 exact engine selectors atfa0c0891
-([receipt](evidence/unity-functional-fa0c0891/editor-retake/README.md)). Earlier recovery2
+([receipt](evidence/unity-functional-fa0c0891/editor-retake/README.md)). The typed Arena/Training launch and corrected captured-Arena disposal now pass all42 exact actual Editor cases at0aeddc5b (Quest8/Trader6/PlayerFlows11/Launch17). The [Root launch admission](evidence/unity-launch-native-gate/root-admission/README.md) binds all source/result/cleanup receipts and the773/773 composed managed run; it preserves all three prior failed42-case runs. In-tab mode selection/return is accepted only in this Editor scope; browser adoption remains open. Earlier recovery2
 and binding4 passes keep their own exact scopes. Opening views does not spend or invent server rules. Same-session
 clock cuts and rebinds fence stale callbacks. BakedContent is generated from a real loopback server /info and now
 matches643d294869db55a4. An actual matchinga3d4b3ce baseline Web build succeeds (14files/106,765,469bytes); its later
@@ -63,7 +63,7 @@ profile/leaderboard, genuine duplicate/foreign-owner refusals and private replay
 [Root's fresh durable retake](evidence/full-runtime-account-bridge/root-retake/README.md) pass separately with durable
 settingsON and both ownedclusters stopped. Native50ms steps use accelerated3ms wall wakes on the unchanged smallmap;
 this is no physical20Hz/browser/full-map population/cloud proof. Client match-correlated bank confirmation remains open.
-The [allocation measurement isolation](evidence/csharp-allocation-isolation/root-linux-admission/README.md) is reviewed after an actual23case Linux diagnostic, preserving all existing byte budgets. Original986CI has a retained751/752 C#allocation failure with1128unattributed window bytes; narrow diagnostic success does not relabel it or replace normal integrationCI. The [owned settlement API](evidence/owned-bank-receipt/root-admission/README.md) now supplies a minimal authenticated
+The [allocation measurement isolation](evidence/csharp-allocation-isolation/root-linux-admission/README.md) is reviewed after an actual23case Linux diagnostic, preserving all existing byte budgets. Original986CI has a retained751/752 C#allocation failure with1128unattributed window bytes; narrow diagnostic success does not relabel it or replace normal integrationCI. The subsequent exact1a1ac8d7 normal CI42610654982 also fails C#756/757 (protocol1 allocation120.108 versus120;2160extra aggregate bytes), while provenance/simulation/Rust/card-runtime-source all pass. The fullsuite allocation cause remains under investigation; budgets and normal CI are unchanged. The [owned settlement API](evidence/owned-bank-receipt/root-admission/README.md) now supplies a minimal authenticated
 unknown/committed read of the actual same-snapshot result/ledger credit. Its30fixture/API checks and security review
 pass; client receipt adoption and genuine game-to-receipt browser acceptance are still open.
 

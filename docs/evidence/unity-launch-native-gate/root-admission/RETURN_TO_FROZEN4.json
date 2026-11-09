@@ -1,0 +1,47 @@
+{
+  "status": "RETURNED_CLEAN_FROZEN4",
+  "branch": "codex/unity-frozen4-editor-idle",
+  "head": "5b7877f99805d6ef980577eda86a779ee4614d9f",
+  "trackedUnityInputsVerified": 1193,
+  "allHashesMatch": true,
+  "state": {
+    "playing": false,
+    "willChangePlay": false,
+    "paused": false,
+    "compiling": false,
+    "compileFailed": false,
+    "background": false,
+    "runtimeBackground": false,
+    "activeScene": {
+      "handle": -4551492,
+      "name": "Main",
+      "path": "Assets/Scenes/Main.unity",
+      "loaded": true,
+      "dirty": false,
+      "roots": []
+    },
+    "sceneCount": 1,
+    "previewSceneCount": 1,
+    "inputId": -1029656,
+    "inputFlags": "HideAndDontSave",
+    "inputMode": "ProcessEventsInDynamicUpdate",
+    "inputBehavior": "ResetAndDisableNonBackgroundDevices",
+    "textKey": false,
+    "textScale": 1.0,
+    "minimapKey": false,
+    "minimapIndex": 1,
+    "previewQuery": ""
+  },
+  "guardReleased": true,
+  "autoTickOffReceipt": "return-evidence/autotick-final-return-off.json",
+  "proofCommit": "854a08f1d622e931eff40eba40ba3820cbe040da",
+  "manifestSha256": "6b9a7fcffafcc1f6551002200534a57dc70fac529143d51f2902246e051705a6",
+  "actualOutcome": {
+    "executed": 42,
+    "passed": 42,
+    "failed": 0,
+    "skipped": 0,
+    "unrun": 0,
+    "reruns": 0
+  }
+}

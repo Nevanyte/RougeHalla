@@ -1,0 +1,34 @@
+{
+  "format": "rh-root-unity-launch-admission/1",
+  "composition": "2a4b186d2e6bc6ab7856fcdb8bbf93f5ffb12920",
+  "actual_editor_source": "0aeddc5b4ce0feb5fc0060f2cf2d56c05dff8944",
+  "proof_seal": "854a08f1d622e931eff40eba40ba3820cbe040da",
+  "raw_failed_ci_sha256": "bc599312aab306416bcd9a6222c3543e5bd386d9a0fa21566297550f15911c97",
+  "files": [
+    {
+      "path": "README.md",
+      "bytes": 2882,
+      "sha256": "d34a6a8eb5a6e935fe4155f09e51e1beb1ce231f93a274406692f4f8bd378121"
+    },
+    {
+      "path": "RETURN_TO_FROZEN4.json",
+      "bytes": 1299,
+      "sha256": "e8c1563df9494a24279170c2c6f59ce164793fc7a9650773314e4d66c736def9"
+    },
+    {
+      "path": "ci-42610654982-csharp-failed.raw.log.gz",
+      "bytes": 981,
+      "sha256": "a1234ffd5b949209c2a09881b68159b529f4e68f42de6d98fedb3a35c2449088"
+    },
+    {
+      "path": "composed-dotnet-773.log",
+      "bytes": 53683,
+      "sha256": "aa6d2135731e9ddf2f3d2df445a82a4b7c79a63768f473d7fb18646388548951"
+    },
+    {
+      "path": "independent-review.md",
+      "bytes": 6846,
+      "sha256": "501367bb60b3f189974907fc1dbfe20f9160de5881eb1e8b59315518f46c2fb8"
+    }
+  ]
+}
