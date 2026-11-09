@@ -1,0 +1,21 @@
+# Focused NEW private fragment only, not IAM service semantic acceptance.
+rule offline_fragment_cannot_activate_host {
+    Metadata.Deployable == false
+    Metadata.ActualHostRun == false
+    Resources.Host !exists
+    Resources.RunTransferRole.Properties.ManagedPolicyArns !exists
+}
+rule only_two_exact_object_permissions {
+    Resources.RunTransferRole.Properties.Policies[0].PolicyDocument.Statement[0] {
+        Action == "s3:GetObjectVersion"
+        Resource != "*"
+        Condition.DateLessThan exists
+    }
+    Resources.RunTransferRole.Properties.Policies[0].PolicyDocument.Statement[1] {
+        Action == "s3:PutObject"
+        Resource != "*"
+        Condition.DateLessThan exists
+    }
+    Resources.RunTransferRole.Properties.Policies[0].PolicyDocument.Statement[2] !exists
+    Resources.RunTransferRole.Properties.Policies[1] !exists
+}

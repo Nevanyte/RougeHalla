@@ -1,0 +1,17 @@
+{
+  "format": "rh-staging-installer-candidate/1",
+  "account": "048226733033",
+  "region": "ca-west-1",
+  "domain": "rougehalla.com",
+  "run_id": null,
+  "prepared_at": null,
+  "host_expires_at": null,
+  "mode": "fresh",
+  "previous_run_id": null,
+  "volume": {"id": null, "uuid": null, "filesystem": "ext4", "mountpoint": "/srv/rougehalla-data"},
+  "artifact": {"bucket": null, "key": null, "version_id": null, "bytes": null, "sha256": null},
+  "backup": {"bucket": null, "key": null, "max_bytes": null},
+  "toolchain_receipt_sha256": null,
+  "boundary_receipt_sha256": null,
+  "backup_seconds": null
+}
