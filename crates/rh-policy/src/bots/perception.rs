@@ -13,6 +13,57 @@ use crate::bots::types::{
 use rh_sim::observe::{ActorView, SeenEvent};
 use rh_sim::{Observation, Phase, Status};
 
+/// Single adaptation point for typed actor kinds. Companion/dummy/neutral
+/// actors never enter this slice's player-threat or regional-farm candidates.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum ActorClass {
+    Player,
+    Regional,
+    NonCombat,
+}
+fn actor_class(actor: &ActorView) -> ActorClass {
+    if actor.faction.faction_id().is_none() {
+        return ActorClass::NonCombat;
+    }
+    match actor.kind {
+        rh_sim::observe::ActorKind::Player => ActorClass::Player,
+        rh_sim::observe::ActorKind::Regional => ActorClass::Regional,
+        _ => ActorClass::NonCombat,
+    }
+}
+/// Copies only observed player facts. No raw-world access and no decoded-delivery attestation.
+pub(super) fn memory_players(
+    obs: &Observation,
+) -> Result<Vec<super::memory_prefix::PlayerSight>, super::memory_prefix::Error> {
+    obs.visible
+        .iter()
+        .filter(|a| actor_class(a) == ActorClass::Player)
+        .filter(|a| {
+            obs.me.as_ref().is_some_and(|me| {
+                a.id != me.id
+                    && a.effects & super::wish::EFFECT_HIDDEN == 0
+                    && super::view::in_view(me.x, me.y, a.x, a.y, 0.)
+            })
+        })
+        .map(|a| {
+            Ok(super::memory_prefix::PlayerSight {
+                id: super::delivered::PlayerRef::new(a.id.0)
+                    .map_err(|_| super::memory_prefix::Error::InvalidScene)?,
+                at: rh_sim::Vec2::new(a.x, a.y),
+                faction: a
+                    .faction
+                    .faction_id()
+                    .ok_or(super::memory_prefix::Error::InvalidScene)?,
+                in_hand: a.weapon.filter(|w| *w != rh_sim::WeaponId::Fists),
+                hp_share: a.hp_frac,
+                bounty: a.bounty,
+                status: a.status,
+                hidden: a.effects & super::wish::EFFECT_HIDDEN != 0,
+            })
+        })
+        .collect()
+}
+
 fn status_str(s: Status) -> &'static str {
     match s {
         Status::Lobby => "lobby",
@@ -43,6 +94,8 @@ pub struct Frame {
     pub percept: Percept,
     /// Rendered key -> the public actor id it stands for (players and NPCs of THIS observation only).
     pub ids: Vec<(String, rh_sim::PlayerId)>,
+    /// Compatibility diagnostic retained for existing callers; live HumanBot consumes Memory's
+    /// reentry-aware source stimuli instead of this preceding-frame-only list.
     pub stimuli: Vec<Stimulus>,
     /// The time of the last hit on the owner in this observation, if one landed (the wish module's "being hit").
     pub hit_at: Option<f64>,
@@ -77,14 +130,17 @@ impl Perception {
         let mut mobs = Vec::new();
         let mut seen_now: Vec<String> = Vec::new();
         for a in &obs.visible {
-            // Neutral scene actors are visible facts, never bot combat or hunt candidates.
-            if a.kind == rh_sim::observe::ActorKind::QuestGiver || a.faction.faction_id().is_none()
+            let class = actor_class(a);
+            if class == ActorClass::NonCombat
+                || a.effects & super::wish::EFFECT_HIDDEN != 0
+                || !super::view::in_view(me.x, me.y, a.x, a.y, 0.)
             {
                 continue;
             }
-            let rendered = match a.kind {
-                rh_sim::observe::ActorKind::Player => player_key(a.id),
-                _ => npc_key(a.id),
+            let rendered = if class == ActorClass::Player {
+                player_key(a.id)
+            } else {
+                npc_key(a.id)
             };
             if a.id == me.id {
                 continue;
@@ -93,7 +149,7 @@ impl Perception {
                 continue;
             }
             let (vx, vy) = self.velocity(a.id, a.x, a.y, dt);
-            if a.kind == rh_sim::observe::ActorKind::Player {
+            if class == ActorClass::Player {
                 fighters.push(FighterView {
                     id: rendered.clone(),
                     x: a.x,
@@ -222,11 +278,7 @@ impl Perception {
                 }
                 hit_at = Some(now);
                 if let Some(by) = by {
-                    if obs
-                        .visible
-                        .iter()
-                        .any(|a| a.kind == rh_sim::observe::ActorKind::Player && a.id == *by)
-                    {
+                    if percept.fighters.iter().any(|f| f.id == player_key(*by)) {
                         fighter_hits.push((player_key(*by), now));
                     }
                 }
@@ -245,7 +297,12 @@ impl Perception {
             }
         }
         self.known = seen_now;
-        self.prev = obs.visible.iter().map(|a| (a.id, a.x, a.y)).collect();
+        self.prev = obs
+            .visible
+            .iter()
+            .filter(|a| ids.iter().any(|(_, id)| *id == a.id))
+            .map(|a| (a.id, a.x, a.y))
+            .collect();
         self.prev_time = now;
         Some(Frame {
             percept,

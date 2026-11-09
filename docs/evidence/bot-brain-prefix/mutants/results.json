@@ -1,0 +1,45 @@
+{
+  "format": "rh-bot-brain-prefix-mutants/1",
+  "corpusSha256": "a7674d96747e9a9c70c9a6c0b3bdc6b33717b32bd8c7be25f734d28d769de839",
+  "results": [
+    {
+      "name": "01-reentry",
+      "semanticKill": true,
+      "exit": 101,
+      "test": "bots::memory_prefix::tests::actual_source_memory_stimuli_and_world_motion_sequences"
+    },
+    {
+      "name": "02-roam-boundary",
+      "semanticKill": true,
+      "exit": 101,
+      "test": "bots::world_tactics::tests::actual_source_world_tactics_matches_every_declared_sequence_step"
+    },
+    {
+      "name": "03-salient",
+      "semanticKill": true,
+      "exit": 101,
+      "test": "bots::brain::tests::actual_source_brain_coordinator_call_sequence_and_rng_trace"
+    },
+    {
+      "name": "04-channel-first",
+      "semanticKill": true,
+      "exit": 101,
+      "test": "bots::brain::tests::actual_source_arbitration_is_observed_before_humanizer_submission"
+    },
+    {
+      "name": "05-rng-extra-draw",
+      "semanticKill": true,
+      "exit": 101,
+      "test": "bots::brain::tests::actual_source_brain_coordinator_call_sequence_and_rng_trace"
+    },
+    {
+      "name": "06-comment-control",
+      "semanticKill": false,
+      "exit": 0
+    },
+    {
+      "name": "07-restored-control",
+      "exit": 0
+    }
+  ]
+}

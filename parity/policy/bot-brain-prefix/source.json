@@ -1,0 +1,10179 @@
+{
+ "format": "rh-bot-brain-prefix/1",
+ "profile": {
+  "boundary": "Declared component percepts/services; memory projection, non-loot world tactics and actual createBrain coordinator only. NOT full strategy/fight/FrameRing or gameplay parity.",
+  "node": "v22.23.4",
+  "platform": "linux",
+  "arch": "x64",
+  "image": "node:22.23.4-bookworm-slim@sha256:aaa4b5baf1ecff3b283486bb1f90405cdda225a3e6f79660d2c559fa510a7292",
+  "sourceSha256": {
+   "packages/shared/src/abilities.ts": "95ef39376a9d9f40cc529a0f7300700a97427050628941e801aaa1e299862518",
+   "packages/shared/src/achievements.ts": "c80dbded6e1ea5eb79dc0f25378d9a45fbe41865a8298bf9fc5f2eeafdd46a34",
+   "packages/shared/src/blink.ts": "e5582562556f530fd99ec9bf8e506fa144805f666c09f4359aefb98ee9171f15",
+   "packages/shared/src/bushes.ts": "ac64ce414134376d27b7b4819d59096e66edd01d82958e873d57348a79d85910",
+   "packages/shared/src/cards.ts": "4a51376a1ce3a79f417e32ce7ae8d7eb37142da5e49f59c3a2c89d48b11ae1e3",
+   "packages/shared/src/championPassives.ts": "d7e0ecdc8b9cbffc8463f40b9c564019431b14744f5948bf89eefb2505fbf6df",
+   "packages/shared/src/chestBoosts.ts": "60b50c685dacdfdbc2861fdc9f80a900845c5cc0af0b77741527cfb8da51fa81",
+   "packages/shared/src/coliseum.ts": "48fc2fa156e70ff6520019605017939298144960d8871a748ef18aadbbf0c0e1",
+   "packages/shared/src/combatReadability.ts": "206f707658ee37f22d9aae403449003487e474220442e1cb178c8af85bfe8833",
+   "packages/shared/src/constants.ts": "51ce4dd800ec868abee525fb1ae375688066f336972a7da878644df1235924e7",
+   "packages/shared/src/consumables.ts": "1ffd882c4b44fed9c20743e671050fc4044706c17e2c36c365952eafc3bd3606",
+   "packages/shared/src/cosmetics.ts": "7513ea6b3cbc51072863ccb6ef568d96797f9239c8073f99d2a33ef3aab7b873",
+   "packages/shared/src/detMath.ts": "a806636428155920a0c1c8675cd84d896057993d4d6ff7b9b4623daa5a312b15",
+   "packages/shared/src/effects.ts": "859ac817f16a8334865abf103b783fae76b5525d0e90dc407bddf921810f415b",
+   "packages/shared/src/effectText.ts": "da22ddb275748104b8f7e11888c1c52c569463bcf165c8efc943cd42f7f0050f",
+   "packages/shared/src/factions.ts": "aa0cebf1c17af17b64bc1e020c4613ab10788ec66d82a72232aef8915d5403f3",
+   "packages/shared/src/fireRoam.ts": "ddf7a5372e3d223b86eb7f0408960908f2c4d4f7c6172fc5e65284ab1c4b8edb",
+   "packages/shared/src/fxCodec.ts": "db2080230ad1b3702e37d3e339384e4a071ef899a8203026e20038a3a2b0f0ba",
+   "packages/shared/src/geometry.ts": "b1a91a65281f8642b1779b81764768569311966ab493941101a2f988cfdc1f5d",
+   "packages/shared/src/glossary.ts": "0c8871be2726d6a63700e2f6ba39a454992258189f276ad1ed87b8601150a5fb",
+   "packages/shared/src/gridOps.ts": "76587ddd597a2a6ecc05561427dd89b986b6f86026ffedc56848e1b03bb52493",
+   "packages/shared/src/gridTopology.ts": "deb2710d114cd669854a082c06bafe518f5ef750249722f89ede83a27d42d328",
+   "packages/shared/src/hpView.ts": "40ec081fdb8adb245dca088a21f1aef18fa8dbf9d991581f16baf99606508cc3",
+   "packages/shared/src/index.ts": "2a78a73307372ea1a5ffe753f2f16fb11386c124100455f45339fe985b01dfcb",
+   "packages/shared/src/interactions.ts": "72aa41c26f8254e00d4956ba57d804471e80b924b55529d016efa6e7d4ecef11",
+   "packages/shared/src/interp.ts": "83cf2ac2359058b1e0497e636f83e36b1d60c97e13f81e15e6edf39d8f231eb4",
+   "packages/shared/src/killAugments.ts": "82641061ad98878f7fb209e72f490447034f5ddf36d149990e206fa83a548244",
+   "packages/shared/src/map.ts": "35caac04108a3bd0e1d880a9502f14bdccb3a9a17d262cba335c3d6436995eed",
+   "packages/shared/src/mapgen.ts": "975591aed836a345c4efd957ced95a478638e6e870fe8ea9bb8740526ef06d10",
+   "packages/shared/src/mapWire.ts": "b52863f757b829ab9a36582cc11e95aea4c0902fd979df5d40bcb5889bba04eb",
+   "packages/shared/src/mark.ts": "44870381fa48b9c8f65f180ff74995725644d7264df5b069a3c43c2291540661",
+   "packages/shared/src/messages.ts": "f7f3b4eb6bb32c54bb97a7d3a8e2ba613b0aff0495a0f20c09fd6d36c797fe80",
+   "packages/shared/src/mobs.ts": "3b567c08363d8d4f1e9a897240b3d99d5b8ded7757b6809a4b534b63d72b5522",
+   "packages/shared/src/mobStats.ts": "94034887302346dcd070ff2fa774ae0e4f71933b549964f53be13389be087d5b",
+   "packages/shared/src/mods.ts": "10e9dcd3d7417c4fe85d1c36ef33afe5abf7a5703a59b42a3a825a66aa4efaff",
+   "packages/shared/src/pathfind.ts": "300caa48788f84bdc780befe8c50db41c2c0b2be520d3fb43a7f91e16de424d9",
+   "packages/shared/src/plagueCorpses.ts": "cd85318857ba38853385c3ce9560b8674266b71b0b1555017953c7a41080378d",
+   "packages/shared/src/planning.ts": "8d52b212f6fec391359787cf9d81b8fa31a067ea839a2b9ccadc58c059027cb2",
+   "packages/shared/src/policies.ts": "3a08aef58ae780bb2417781e735ff75c310de08db43b47a742714bcf94619fbd",
+   "packages/shared/src/propKinds.ts": "431d70881377a8059960f053dc9452946cc0e942d212c92765bacb8a063027ee",
+   "packages/shared/src/quests.ts": "99c4fdfeae5e2a9eb3e0894f56ae1cd3db7eea760c5c09df695685e250800bba",
+   "packages/shared/src/rewards.ts": "cc19d6d0a7be390a9574a1f88b6b5241ac0885c3720b4ca3fe17d1d450f3a601",
+   "packages/shared/src/rng.ts": "412bdcee4a5adcb6163bff3561cb4a07eff423dc7e30e9ba0694cb41b05b1bec",
+   "packages/shared/src/rosters.ts": "0f544537f1ea1517345efd44bc3d4a4ee7d5bffd52a13cb084cc9693ec6f297d",
+   "packages/shared/src/rules.ts": "c5822091cdc711e53086a6f2f8649c53c1d709009649a0a65c005096774893b7",
+   "packages/shared/src/schema.ts": "245486da649ea5bc5d8b9b0d5d75f3e860fc8f153574fa2b9ee091dcb52e99cb",
+   "packages/shared/src/sentencedHunt.ts": "a606dd94905114562d14d13c09f6c59586a60a70e9a02da49285d886305ce561",
+   "packages/shared/src/signatures.ts": "0a6befbb5a6fe9870b13a540d72235085c491668c8cae3674fa8faf89816e191",
+   "packages/shared/src/signatureShares.ts": "e6996931487dde9d4e3f71481a9da996f7500fbcd2148f7924ed730a78eba1a4",
+   "packages/shared/src/status.ts": "98a0570d7620e424d9d522356fe378a6af049109d8af0342be0ecff970310df7",
+   "packages/shared/src/styler.ts": "314805a5a6cd9074763c9e555e48e7145c7ed7c87f265876c3712e4837abc51c",
+   "packages/shared/src/telemetry.ts": "3310df401408a2a4a893a40febe40dda72afe20a13898e6f63620a127d2ba8e2",
+   "packages/shared/src/terrain.ts": "5ee4fe11e793f83f3d095720ba1156a186c5c7704e864f2cad74503ab13a07d6",
+   "packages/shared/src/traders.ts": "6b0fb339c3988c253a4162bdd70ae0d3be13f2d066cbdf10168c5b6d1345d1d3",
+   "packages/shared/src/training.ts": "8cf8332e7083fa801407bb2bfd911f2ca008029c1a7ad16cf6bd9bc6935ccc58",
+   "packages/shared/src/vision.ts": "f9d026e5c3e8932502f147d6f2ce5d11625845faf07a9dec734b595db76521db",
+   "packages/shared/src/walk.ts": "0d33c95623a6d11fa21a9e58b308eed8cb0150b24d65b592877c5f9e2b5a0020",
+   "packages/shared/src/weapons.ts": "2f22f037502fe63fae6b47f20408cfd35ebc72bfea081194ae8d18cfc21df99b",
+   "packages/shared/src/wheel.ts": "e16388b4aa07cb1ab60c4ac5859879eaad0eb686f50e625a7917cad34e275466",
+   "packages/shared/src/zones.ts": "aa91d0c2b8d7b1957d6e28e29289c9dfa58ac6d4c8475b647445370fbcaeb814",
+   "packages/shared/src/zoneStyle/context.ts": "8a87c8c930a11c2f1c83b3afe9384586a24f41690dd77a78f1c35b0f69a19dfb",
+   "packages/shared/src/zoneStyle/features.ts": "f0d987fc114394e514c0b9e194b219aa1f8f3429a0fa141c7b6181e6d87ee983",
+   "packages/shared/src/zoneStyle/gallows.ts": "0edb95a89d06fc6b0f60a6dc85da41613177362679c03e2073f2be24bbe186e4",
+   "packages/shared/src/zoneStyle/hook.ts": "56eeba0fb5019dc5dd02e8fd76059c6f82ede6cfa2aa46c763ecf63b619bc668",
+   "packages/shared/src/zoneStyle/index.ts": "6ada1628cfd571cfda3616155e0dc0a047976d9056e467b521c68a6a44f6d673",
+   "packages/shared/src/zoneStyle/kit.ts": "dc69161c080b9474a873d12ac194d876b78285a1ae2cdb7eb24cb86b30337e16",
+   "packages/shared/src/zoneStyle/landmarks.ts": "ad18e32099ceafc1b88fa33a2225ef2c02508ac6fa4a58c1a91473f0be4c6587",
+   "packages/shared/src/zoneStyle/propKinds.ts": "6a139d0727ab392512d427507ee3b027f67860734d56eea7db8085add24003b9",
+   "packages/shared/src/zoneStyle/rime.ts": "d25714c3b647392a03662b33082b48de2c7ec2933755501fe55260c2a1daa19a",
+   "packages/shared/src/zoneStyle/sanctum.ts": "dd2da40c09a1a5dc5fdbd6e45b568d2b4ada831a0e195e86fd0ab64f49b7babd",
+   "packages/shared/src/zoneStyle/scale.ts": "b8e055707f98dfa104233c1ceebd99358b9b3b5ae8e9fe001d9174806ca6a07e",
+   "packages/shared/src/zoneStyle/scorch.ts": "52b324dd4dfc9a77986a9ffdcb9704041a2d3608e6e61e9af98b0f697fd2f02a",
+   "packages/shared/src/zoneStyle/styleZones.ts": "9c328903541ae1e15ca473b288c788b5a2ebb55e8974a639c6215c7c804cbc36",
+   "packages/shared/src/zoneStyle/types.ts": "193b6f57c1e76ea6f8249a316fc8898191682937493fbbce7beb3a0ffb26c33e",
+   "packages/shared/src/zoneStyle/warren.ts": "bdb057ebaf226fbe803403cc338d38f50c154c276a30fcb652b5229741a9ddcc",
+   "packages/server/src/bots/abilityPolicy.ts": "e892cff2eba225520aac5730365f5df800a3971734a6c1d63c0d02a084b298ec",
+   "packages/server/src/bots/BotClient.ts": "5f1f7b533c74b53c29adb2e586811a31de68f3dd858255c3c3e1a4c471aadd0c",
+   "packages/server/src/bots/BotManager.ts": "06f2e2957c1528a838777c54d505ce4a7fc402ee6bb11b38e171761a205e3fae",
+   "packages/server/src/bots/brain/brain.ts": "e5068026aba10f5bfe85d806b33cb76c4fc7e4408a958d87703dc1f3a391f800",
+   "packages/server/src/bots/brain/buildRoute.ts": "fbe819cc2b36da50c7b01b0e4c40cf77c5c27286e6b5c69d76bc24e862af4f5e",
+   "packages/server/src/bots/brain/clicks.ts": "0fa8b26cd9a31359fa184b0ca99f4c18d768606a09e2b27312c21d6e46a8a823",
+   "packages/server/src/bots/brain/frames.ts": "aa8fcb62e8039d37d3c9f6cb000687fbfea61e12ab50805dfe45dae06119d6c6",
+   "packages/server/src/bots/brain/humanizer.ts": "650519070f2580783e0e4c595950c1e41a35bf66f0f846f763eb5e4fb464f09b",
+   "packages/server/src/bots/brain/huntAdapter.ts": "0dac45d23811dbb72a8e8e5aa888e563a616f1fba255cde516176278e70c027d",
+   "packages/server/src/bots/brain/knowledge.ts": "5709954e5f8d65411ff5606b4b337b5cfc19af163833cd1f147279affd9ce263",
+   "packages/server/src/bots/brain/memory.ts": "29c2086be936ec867ddec97c2e4442b86acdbf1255e55de001e73892f7b128a8",
+   "packages/server/src/bots/brain/modules/chests.ts": "aa620dcb3dcd5be08442af1517f761cd4dbaa769efc986f465c31a50a8bfddef",
+   "packages/server/src/bots/brain/modules/hazards.ts": "6211aeb02f795965e62036135fbbba0460f38688b7f54f97135db17da6101779",
+   "packages/server/src/bots/brain/modules/index.ts": "7d22ea88b1c59d9248af35a6c25a0860e422cedeb7c0e883e84ad630d7cebf78",
+   "packages/server/src/bots/brain/modules/planning.ts": "66a75aa8f29216d428151e680792388ac4f587f762d2cb822b59b546f63fb51b",
+   "packages/server/src/bots/brain/modules/wishes.ts": "61eade3cca61d17c533bcb2a1033e4489d5b11e496e88a8f245b4427b5f399fa",
+   "packages/server/src/bots/brain/perception.ts": "059dba28d67a588be8b9f491cd69a242e841545a3b1863ce798da2e3f085390a",
+   "packages/server/src/bots/brain/random.ts": "a23fb8d369ffced9e30719706b12eb5ec65afb14da16429a7cdc9dbc7e3f92f7",
+   "packages/server/src/bots/brain/runner.ts": "345b94151ba4185736269acd782385a66d24cfaa50dafd75900cfad944c66164",
+   "packages/server/src/bots/brain/services.ts": "be3f915c4788b8e8406b6739d364fb3957935903555c26168c5892f93f7567fb",
+   "packages/server/src/bots/brain/strategy.ts": "edf3ec7f0e2b68de24e52def86e046209cd53c98c598057d38baf810f1ec2116",
+   "packages/server/src/bots/brain/tactics/fight.ts": "10a9aeb45b69c9635072213fefbcfe7aa40fd113773f7cf2b254594ae8204a50",
+   "packages/server/src/bots/brain/tactics/kite.ts": "b7ceff483d51fe1d58d79ef34562e28a079027623527f11264c21439c2b6e2be",
+   "packages/server/src/bots/brain/tactics/world.ts": "076e5d6bdfc8d565fb6704cc1635e690064aff1e0fc55ab52454901c259742e6",
+   "packages/server/src/bots/brain/tactics.ts": "64804de4b29e87fdc12bdf7e2df65d69573293c7db5fdae08c6c11dcc4ae08ef",
+   "packages/server/src/bots/brain/types.ts": "12b3cae05bcde760cd642b9c5eb9919bfc47189882c81258994c9f1122d3d361",
+   "packages/server/src/bots/brain/vision.ts": "e4418c5bbd8e9d8e3c21e3b1b9b8f677c947d178f812c9d634934c6c8c92f34c",
+   "packages/server/src/bots/callsigns.ts": "5ce870d6764b49cdbbfa1b35946b4ce1bf18eaf25904529133dcf97b1f911a84",
+   "packages/server/src/bots/chestHunt.ts": "49a5a01326e65646d29bff87c3adb35373fe0a086325f8080877414f796e8760",
+   "packages/server/src/bots/learning/BotStatsStore.ts": "3241143a09e1a3cd66f469afcba0e8b7a24b2198ad87142b1daf300f16e6b1fa",
+   "packages/server/src/bots/mobHunt.ts": "88fc22040e62b1bc5226c37c16095032533df1e104dee0b27fdcb671c33fe6ff",
+   "packages/server/src/bots/runBots.ts": "b6f32f3fa28a1900697d792279d4de40e6be93f9f06061844685f50747874f08",
+   "packages/server/src/bots/tournament/game.ts": "6cf76bd30fea8f983c5d38c69a5f7bad04364b1576bf4080ed0d474cfebe828e",
+   "packages/server/src/bots/tournament/headlessRoom.ts": "f9f7dd89539463daf3d27d3fe167e07e27ad2c41333a898f4292c742a99888ec",
+   "packages/server/src/bots/tournament/report.ts": "a9b800f6d09d11cce235f76dd45de4aaf7215250e25ba3f1f341f6667682066c",
+   "packages/server/src/bots/tournament/runTournament.ts": "a9bc0035fe6f2ccde1fe7377907f70c92a7f0108e3580e108971a55d8fb6230f",
+   "packages/server/src/bots/tournament/tune.ts": "007860163619a75ece5ebaf682b0d2d684d81a293dc10ecd61f9054c11367974",
+   "packages/server/src/bots/tournament/worker.ts": "234924c85030238fd933e0e6ba439226128364309fa2d47256caf78dc85f809f",
+   "package.json": "9da8ab00050db3ec14c083365ab0c3a5b8986e38fd13c086b2913249d531422c",
+   "packages/shared/package.json": "6e9c040348c50e0ad5043ec4cb9b4206f68f29cf4eeb4dec5f635f37a6f87f35",
+   "packages/server/package.json": "d4965c850237876a64a02cd1c7c554f1a64d97392344cae3b63d4bd688e2f7b8",
+   "packages/client/package.json": "05f2c477239869cf8879ea6b94ca490aa9717ba28e58712bb6bbe8cb0313b3e3",
+   "tsconfig.base.json": "017575ec3101f44df43b5a7cc850779582650d9e01a2090b7e311b213b98ef88",
+   "packages/shared/tsconfig.json": "e81b194f96f35e0d1e9e8069998a30740b08703e085bb7d0f92922d7b6d06193",
+   "packages/server/tsconfig.json": "38a209200ba0dde3bbaeee8df1e29755aa35b63c588367da486b31a83b90cd15",
+   "tools/bot-brain-prefix-fixtures/capture.sh": "45e3c1f490db490ee66d031e695ff2198c4565e984318b9caa52c0666fae1a74"
+  },
+  "toolSha256": "d150117a98f921ea10915b3827dae31909fb3c0afe25cd8b5da11e91de30cc4a",
+  "lockSha256": "991869bdfbbefb6874220500197c61db302a4d2b2603dfc2288fd7032ce1d481",
+  "map": {
+   "w": 24,
+   "h": 24,
+   "seed": 1,
+   "tiles": [
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1
+   ]
+  }
+ },
+ "memoryCases": [
+  {
+   "name": "reentry-and-swap",
+   "tier": "easy",
+   "frames": [
+    {
+     "input": {
+      "now": 100,
+      "owner": {
+       "x": 300,
+       "y": 300,
+       "status": "alive"
+      },
+      "players": [
+       {
+        "id": "p2",
+        "x": 380,
+        "y": 300,
+        "status": "alive",
+        "hpFrac": 1,
+        "faction": "frost",
+        "inHand": "sword",
+        "bounty": 0
+       }
+      ]
+     },
+     "result": {
+      "stillSince": 100,
+      "stimuli": [
+       {
+        "kind": "newThreat",
+        "at": 100,
+        "subject": "p2",
+        "central": true,
+        "value": 80
+       }
+      ],
+      "records": [
+       {
+        "id": "p2",
+        "seenAt": 100,
+        "faction": "frost",
+        "inHand": "sword",
+        "otherSlot": null,
+        "weaponsSeen": [
+         "sword"
+        ],
+        "hpFrac": 1,
+        "bounty": 0,
+        "alive": true,
+        "diedAt": null,
+        "whereabouts": {
+         "at": {
+          "x": 380,
+          "y": 300
+         },
+         "radius": 0
+        }
+       }
+      ]
+     }
+    },
+    {
+     "input": {
+      "now": 150,
+      "owner": {
+       "x": 300,
+       "y": 300,
+       "status": "alive"
+      },
+      "players": [
+       {
+        "id": "p2",
+        "x": 380,
+        "y": 300,
+        "status": "alive",
+        "hpFrac": 1,
+        "faction": "frost",
+        "inHand": "bow",
+        "bounty": 0
+       }
+      ]
+     },
+     "result": {
+      "stillSince": 100,
+      "stimuli": [
+       {
+        "kind": "foeSwapped",
+        "at": 150,
+        "subject": "p2",
+        "central": true
+       }
+      ],
+      "records": [
+       {
+        "id": "p2",
+        "seenAt": 150,
+        "faction": "frost",
+        "inHand": "bow",
+        "otherSlot": "sword",
+        "weaponsSeen": [
+         "sword",
+         "bow"
+        ],
+        "hpFrac": 1,
+        "bounty": 0,
+        "alive": true,
+        "diedAt": null,
+        "whereabouts": {
+         "at": {
+          "x": 380,
+          "y": 300
+         },
+         "radius": 0
+        }
+       }
+      ]
+     }
+    },
+    {
+     "input": {
+      "now": 200,
+      "owner": {
+       "x": 300,
+       "y": 300,
+       "status": "alive"
+      },
+      "players": [
+       {
+        "id": "p2",
+        "x": 380,
+        "y": 300,
+        "status": "alive",
+        "hpFrac": 1,
+        "faction": "frost",
+        "inHand": null,
+        "bounty": 0
+       }
+      ]
+     },
+     "result": {
+      "stillSince": 100,
+      "stimuli": [],
+      "records": [
+       {
+        "id": "p2",
+        "seenAt": 200,
+        "faction": "frost",
+        "inHand": null,
+        "otherSlot": "sword",
+        "weaponsSeen": [
+         "sword",
+         "bow"
+        ],
+        "hpFrac": 1,
+        "bounty": 0,
+        "alive": true,
+        "diedAt": null,
+        "whereabouts": {
+         "at": {
+          "x": 380,
+          "y": 300
+         },
+         "radius": 0
+        }
+       }
+      ]
+     }
+    },
+    {
+     "input": {
+      "now": 250,
+      "owner": {
+       "x": 300,
+       "y": 300,
+       "status": "alive"
+      },
+      "players": [
+       {
+        "id": "p2",
+        "x": 380,
+        "y": 300,
+        "status": "alive",
+        "hpFrac": 1,
+        "faction": "frost",
+        "inHand": "axe",
+        "bounty": 0
+       }
+      ]
+     },
+     "result": {
+      "stillSince": 100,
+      "stimuli": [],
+      "records": [
+       {
+        "id": "p2",
+        "seenAt": 250,
+        "faction": "frost",
+        "inHand": "axe",
+        "otherSlot": "bow",
+        "weaponsSeen": [
+         "sword",
+         "bow",
+         "axe"
+        ],
+        "hpFrac": 1,
+        "bounty": 0,
+        "alive": true,
+        "diedAt": null,
+        "whereabouts": {
+         "at": {
+          "x": 380,
+          "y": 300
+         },
+         "radius": 0
+        }
+       }
+      ]
+     }
+    },
+    {
+     "input": {
+      "now": 300,
+      "owner": {
+       "x": 300,
+       "y": 300,
+       "status": "alive"
+      },
+      "players": []
+     },
+     "result": {
+      "stillSince": 100,
+      "stimuli": [],
+      "records": [
+       {
+        "id": "p2",
+        "seenAt": 250,
+        "faction": "frost",
+        "inHand": "axe",
+        "otherSlot": "bow",
+        "weaponsSeen": [
+         "sword",
+         "bow",
+         "axe"
+        ],
+        "hpFrac": 1,
+        "bounty": 0,
+        "alive": true,
+        "diedAt": null,
+        "whereabouts": {
+         "at": {
+          "x": 380,
+          "y": 300
+         },
+         "radius": 5.1000000000000005
+        }
+       }
+      ]
+     }
+    },
+    {
+     "input": {
+      "now": 350,
+      "owner": {
+       "x": 300,
+       "y": 300,
+       "status": "alive"
+      },
+      "players": [
+       {
+        "id": "p2",
+        "x": 380,
+        "y": 300,
+        "status": "alive",
+        "hpFrac": 1,
+        "faction": "frost",
+        "inHand": "axe",
+        "bounty": 0
+       }
+      ]
+     },
+     "result": {
+      "stillSince": 100,
+      "stimuli": [
+       {
+        "kind": "newThreat",
+        "at": 350,
+        "subject": "p2",
+        "central": true,
+        "value": 80
+       }
+      ],
+      "records": [
+       {
+        "id": "p2",
+        "seenAt": 350,
+        "faction": "frost",
+        "inHand": "axe",
+        "otherSlot": "bow",
+        "weaponsSeen": [
+         "sword",
+         "bow",
+         "axe"
+        ],
+        "hpFrac": 1,
+        "bounty": 0,
+        "alive": true,
+        "diedAt": null,
+        "whereabouts": {
+         "at": {
+          "x": 380,
+          "y": 300
+         },
+         "radius": 0
+        }
+       }
+      ]
+     }
+    },
+    {
+     "input": {
+      "now": 400,
+      "owner": {
+       "x": 300,
+       "y": 300,
+       "status": "alive"
+      },
+      "players": [
+       {
+        "id": "p2",
+        "x": 1090,
+        "y": 300,
+        "status": "alive",
+        "hpFrac": 1,
+        "faction": "frost",
+        "inHand": "sword",
+        "bounty": 0
+       }
+      ]
+     },
+     "result": {
+      "stillSince": 100,
+      "stimuli": [
+       {
+        "kind": "foeSwapped",
+        "at": 400,
+        "subject": "p2",
+        "central": false
+       }
+      ],
+      "records": [
+       {
+        "id": "p2",
+        "seenAt": 400,
+        "faction": "frost",
+        "inHand": "sword",
+        "otherSlot": "axe",
+        "weaponsSeen": [
+         "sword",
+         "bow",
+         "axe"
+        ],
+        "hpFrac": 1,
+        "bounty": 0,
+        "alive": true,
+        "diedAt": null,
+        "whereabouts": {
+         "at": {
+          "x": 1090,
+          "y": 300
+         },
+         "radius": 0
+        }
+       }
+      ]
+     }
+    },
+    {
+     "input": {
+      "now": 450,
+      "owner": {
+       "x": 300,
+       "y": 300,
+       "status": "alive"
+      },
+      "players": []
+     },
+     "result": {
+      "stillSince": 100,
+      "stimuli": [],
+      "records": [
+       {
+        "id": "p2",
+        "seenAt": 400,
+        "faction": "frost",
+        "inHand": "sword",
+        "otherSlot": "axe",
+        "weaponsSeen": [
+         "sword",
+         "bow",
+         "axe"
+        ],
+        "hpFrac": 1,
+        "bounty": 0,
+        "alive": true,
+        "diedAt": null,
+        "whereabouts": {
+         "at": {
+          "x": 1090,
+          "y": 300
+         },
+         "radius": 5.1000000000000005
+        }
+       }
+      ]
+     }
+    },
+    {
+     "input": {
+      "now": 3400,
+      "owner": {
+       "x": 300,
+       "y": 300,
+       "status": "alive"
+      },
+      "players": [
+       {
+        "id": "p2",
+        "x": 1090,
+        "y": 300,
+        "status": "alive",
+        "hpFrac": 1,
+        "faction": "frost",
+        "inHand": "sword",
+        "bounty": 0
+       }
+      ]
+     },
+     "result": {
+      "stillSince": 100,
+      "stimuli": [],
+      "records": [
+       {
+        "id": "p2",
+        "seenAt": 3400,
+        "faction": "frost",
+        "inHand": "sword",
+        "otherSlot": "axe",
+        "weaponsSeen": [
+         "sword",
+         "bow",
+         "axe"
+        ],
+        "hpFrac": 1,
+        "bounty": 0,
+        "alive": true,
+        "diedAt": null,
+        "whereabouts": {
+         "at": {
+          "x": 1090,
+          "y": 300
+         },
+         "radius": 0
+        }
+       }
+      ]
+     }
+    },
+    {
+     "input": {
+      "now": 3450,
+      "owner": {
+       "x": 300,
+       "y": 300,
+       "status": "alive"
+      },
+      "players": []
+     },
+     "result": {
+      "stillSince": 100,
+      "stimuli": [],
+      "records": [
+       {
+        "id": "p2",
+        "seenAt": 3400,
+        "faction": "frost",
+        "inHand": "sword",
+        "otherSlot": "axe",
+        "weaponsSeen": [
+         "sword",
+         "bow",
+         "axe"
+        ],
+        "hpFrac": 1,
+        "bounty": 0,
+        "alive": true,
+        "diedAt": null,
+        "whereabouts": {
+         "at": {
+          "x": 1090,
+          "y": 300
+         },
+         "radius": 5.1000000000000005
+        }
+       }
+      ]
+     }
+    },
+    {
+     "input": {
+      "now": 6451,
+      "owner": {
+       "x": 300,
+       "y": 300,
+       "status": "alive"
+      },
+      "players": [
+       {
+        "id": "p2",
+        "x": 1090,
+        "y": 300,
+        "status": "alive",
+        "hpFrac": 1,
+        "faction": "frost",
+        "inHand": "sword",
+        "bounty": 0
+       }
+      ]
+     },
+     "result": {
+      "stillSince": 100,
+      "stimuli": [
+       {
+        "kind": "newThreat",
+        "at": 6451,
+        "subject": "p2",
+        "central": false,
+        "value": 790
+       }
+      ],
+      "records": [
+       {
+        "id": "p2",
+        "seenAt": 6451,
+        "faction": "frost",
+        "inHand": "sword",
+        "otherSlot": "axe",
+        "weaponsSeen": [
+         "sword",
+         "bow",
+         "axe"
+        ],
+        "hpFrac": 1,
+        "bounty": 0,
+        "alive": true,
+        "diedAt": null,
+        "whereabouts": {
+         "at": {
+          "x": 1090,
+          "y": 300
+         },
+         "radius": 0
+        }
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "permanent-death-hp-expiry",
+   "tier": "easy",
+   "frames": [
+    {
+     "input": {
+      "now": 100,
+      "owner": {
+       "x": 300,
+       "y": 300,
+       "status": "alive"
+      },
+      "players": [
+       {
+        "id": "p2",
+        "x": 380,
+        "y": 300,
+        "status": "alive",
+        "hpFrac": 0.4,
+        "faction": "frost",
+        "inHand": "sword",
+        "bounty": 10
+       }
+      ]
+     },
+     "result": {
+      "stillSince": 100,
+      "stimuli": [
+       {
+        "kind": "newThreat",
+        "at": 100,
+        "subject": "p2",
+        "central": true,
+        "value": 80
+       }
+      ],
+      "records": [
+       {
+        "id": "p2",
+        "seenAt": 100,
+        "faction": "frost",
+        "inHand": "sword",
+        "otherSlot": null,
+        "weaponsSeen": [
+         "sword"
+        ],
+        "hpFrac": 0.4,
+        "bounty": 10,
+        "alive": true,
+        "diedAt": null,
+        "whereabouts": {
+         "at": {
+          "x": 380,
+          "y": 300
+         },
+         "radius": 0
+        }
+       }
+      ]
+     }
+    },
+    {
+     "input": {
+      "now": 200,
+      "owner": {
+       "x": 300,
+       "y": 300,
+       "status": "alive"
+      },
+      "players": [
+       {
+        "id": "p2",
+        "x": 380,
+        "y": 300,
+        "status": "dead",
+        "hpFrac": 0,
+        "faction": "frost",
+        "inHand": "sword",
+        "bounty": 0
+       }
+      ]
+     },
+     "result": {
+      "stillSince": 100,
+      "stimuli": [],
+      "records": [
+       {
+        "id": "p2",
+        "seenAt": 200,
+        "faction": "frost",
+        "inHand": "sword",
+        "otherSlot": null,
+        "weaponsSeen": [
+         "sword"
+        ],
+        "hpFrac": 0,
+        "bounty": 0,
+        "alive": false,
+        "diedAt": 200,
+        "whereabouts": null
+       }
+      ]
+     }
+    },
+    {
+     "input": {
+      "now": 250,
+      "owner": {
+       "x": 300,
+       "y": 300,
+       "status": "alive"
+      },
+      "players": [
+       {
+        "id": "p2",
+        "x": 380,
+        "y": 300,
+        "status": "alive",
+        "hpFrac": 1,
+        "faction": "frost",
+        "inHand": "sword",
+        "bounty": 0
+       }
+      ]
+     },
+     "result": {
+      "stillSince": 100,
+      "stimuli": [],
+      "records": [
+       {
+        "id": "p2",
+        "seenAt": 250,
+        "faction": "frost",
+        "inHand": "sword",
+        "otherSlot": null,
+        "weaponsSeen": [
+         "sword"
+        ],
+        "hpFrac": 1,
+        "bounty": 0,
+        "alive": false,
+        "diedAt": 200,
+        "whereabouts": null
+       }
+      ]
+     }
+    },
+    {
+     "input": {
+      "now": 20251,
+      "owner": {
+       "x": 300,
+       "y": 300,
+       "status": "alive"
+      },
+      "players": []
+     },
+     "result": {
+      "stillSince": 100,
+      "stimuli": [],
+      "records": [
+       {
+        "id": "p2",
+        "seenAt": 250,
+        "faction": "frost",
+        "inHand": "sword",
+        "otherSlot": null,
+        "weaponsSeen": [
+         "sword"
+        ],
+        "hpFrac": 1,
+        "bounty": 0,
+        "alive": false,
+        "diedAt": 200,
+        "whereabouts": null
+       }
+      ]
+     }
+    },
+    {
+     "input": {
+      "now": 45300,
+      "owner": {
+       "x": 300,
+       "y": 300,
+       "status": "alive"
+      },
+      "players": []
+     },
+     "result": {
+      "stillSince": 100,
+      "stimuli": [],
+      "records": [
+       {
+        "id": "p2",
+        "seenAt": 250,
+        "faction": "frost",
+        "inHand": "sword",
+        "otherSlot": null,
+        "weaponsSeen": [
+         "sword"
+        ],
+        "hpFrac": 1,
+        "bounty": 0,
+        "alive": false,
+        "diedAt": 200,
+        "whereabouts": null
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "owner-anchor",
+   "tier": "easy",
+   "frames": [
+    {
+     "input": {
+      "now": 100,
+      "owner": {
+       "x": 300,
+       "y": 300,
+       "status": "alive"
+      },
+      "players": []
+     },
+     "result": {
+      "stillSince": 100,
+      "stimuli": [],
+      "records": []
+     }
+    },
+    {
+     "input": {
+      "now": 150,
+      "owner": {
+       "x": 300.75,
+       "y": 300,
+       "status": "alive"
+      },
+      "players": []
+     },
+     "result": {
+      "stillSince": 100,
+      "stimuli": [],
+      "records": []
+     }
+    },
+    {
+     "input": {
+      "now": 200,
+      "owner": {
+       "x": 301,
+       "y": 300,
+       "status": "alive"
+      },
+      "players": []
+     },
+     "result": {
+      "stillSince": 100,
+      "stimuli": [],
+      "records": []
+     }
+    },
+    {
+     "input": {
+      "now": 250,
+      "owner": {
+       "x": 301.125,
+       "y": 300,
+       "status": "alive"
+      },
+      "players": []
+     },
+     "result": {
+      "stillSince": 250,
+      "stimuli": [],
+      "records": []
+     }
+    },
+    {
+     "input": {
+      "now": 300,
+      "owner": {
+       "x": 301.75,
+       "y": 300,
+       "status": "alive"
+      },
+      "players": []
+     },
+     "result": {
+      "stillSince": 250,
+      "stimuli": [],
+      "records": []
+     }
+    }
+   ]
+  },
+  {
+   "name": "reentry-and-swap",
+   "tier": "normal",
+   "frames": [
+    {
+     "input": {
+      "now": 100,
+      "owner": {
+       "x": 300,
+       "y": 300,
+       "status": "alive"
+      },
+      "players": [
+       {
+        "id": "p2",
+        "x": 380,
+        "y": 300,
+        "status": "alive",
+        "hpFrac": 1,
+        "faction": "frost",
+        "inHand": "sword",
+        "bounty": 0
+       }
+      ]
+     },
+     "result": {
+      "stillSince": 100,
+      "stimuli": [
+       {
+        "kind": "newThreat",
+        "at": 100,
+        "subject": "p2",
+        "central": true,
+        "value": 80
+       }
+      ],
+      "records": [
+       {
+        "id": "p2",
+        "seenAt": 100,
+        "faction": "frost",
+        "inHand": "sword",
+        "otherSlot": null,
+        "weaponsSeen": [
+         "sword"
+        ],
+        "hpFrac": 1,
+        "bounty": 0,
+        "alive": true,
+        "diedAt": null,
+        "whereabouts": {
+         "at": {
+          "x": 380,
+          "y": 300
+         },
+         "radius": 0
+        }
+       }
+      ]
+     }
+    },
+    {
+     "input": {
+      "now": 150,
+      "owner": {
+       "x": 300,
+       "y": 300,
+       "status": "alive"
+      },
+      "players": [
+       {
+        "id": "p2",
+        "x": 380,
+        "y": 300,
+        "status": "alive",
+        "hpFrac": 1,
+        "faction": "frost",
+        "inHand": "bow",
+        "bounty": 0
+       }
+      ]
+     },
+     "result": {
+      "stillSince": 100,
+      "stimuli": [
+       {
+        "kind": "foeSwapped",
+        "at": 150,
+        "subject": "p2",
+        "central": true
+       }
+      ],
+      "records": [
+       {
+        "id": "p2",
+        "seenAt": 150,
+        "faction": "frost",
+        "inHand": "bow",
+        "otherSlot": "sword",
+        "weaponsSeen": [
+         "sword",
+         "bow"
+        ],
+        "hpFrac": 1,
+        "bounty": 0,
+        "alive": true,
+        "diedAt": null,
+        "whereabouts": {
+         "at": {
+          "x": 380,
+          "y": 300
+         },
+         "radius": 0
+        }
+       }
+      ]
+     }
+    },
+    {
+     "input": {
+      "now": 200,
+      "owner": {
+       "x": 300,
+       "y": 300,
+       "status": "alive"
+      },
+      "players": [
+       {
+        "id": "p2",
+        "x": 380,
+        "y": 300,
+        "status": "alive",
+        "hpFrac": 1,
+        "faction": "frost",
+        "inHand": null,
+        "bounty": 0
+       }
+      ]
+     },
+     "result": {
+      "stillSince": 100,
+      "stimuli": [],
+      "records": [
+       {
+        "id": "p2",
+        "seenAt": 200,
+        "faction": "frost",
+        "inHand": null,
+        "otherSlot": "sword",
+        "weaponsSeen": [
+         "sword",
+         "bow"
+        ],
+        "hpFrac": 1,
+        "bounty": 0,
+        "alive": true,
+        "diedAt": null,
+        "whereabouts": {
+         "at": {
+          "x": 380,
+          "y": 300
+         },
+         "radius": 0
+        }
+       }
+      ]
+     }
+    },
+    {
+     "input": {
+      "now": 250,
+      "owner": {
+       "x": 300,
+       "y": 300,
+       "status": "alive"
+      },
+      "players": [
+       {
+        "id": "p2",
+        "x": 380,
+        "y": 300,
+        "status": "alive",
+        "hpFrac": 1,
+        "faction": "frost",
+        "inHand": "axe",
+        "bounty": 0
+       }
+      ]
+     },
+     "result": {
+      "stillSince": 100,
+      "stimuli": [],
+      "records": [
+       {
+        "id": "p2",
+        "seenAt": 250,
+        "faction": "frost",
+        "inHand": "axe",
+        "otherSlot": "bow",
+        "weaponsSeen": [
+         "sword",
+         "bow",
+         "axe"
+        ],
+        "hpFrac": 1,
+        "bounty": 0,
+        "alive": true,
+        "diedAt": null,
+        "whereabouts": {
+         "at": {
+          "x": 380,
+          "y": 300
+         },
+         "radius": 0
+        }
+       }
+      ]
+     }
+    },
+    {
+     "input": {
+      "now": 300,
+      "owner": {
+       "x": 300,
+       "y": 300,
+       "status": "alive"
+      },
+      "players": []
+     },
+     "result": {
+      "stillSince": 100,
+      "stimuli": [],
+      "records": [
+       {
+        "id": "p2",
+        "seenAt": 250,
+        "faction": "frost",
+        "inHand": "axe",
+        "otherSlot": "bow",
+        "weaponsSeen": [
+         "sword",
+         "bow",
+         "axe"
+        ],
+        "hpFrac": 1,
+        "bounty": 0,
+        "alive": true,
+        "diedAt": null,
+        "whereabouts": {
+         "at": {
+          "x": 380,
+          "y": 300
+         },
+         "radius": 5.1000000000000005
+        }
+       }
+      ]
+     }
+    },
+    {
+     "input": {
+      "now": 350,
+      "owner": {
+       "x": 300,
+       "y": 300,
+       "status": "alive"
+      },
+      "players": [
+       {
+        "id": "p2",
+        "x": 380,
+        "y": 300,
+        "status": "alive",
+        "hpFrac": 1,
+        "faction": "frost",
+        "inHand": "axe",
+        "bounty": 0
+       }
+      ]
+     },
+     "result": {
+      "stillSince": 100,
+      "stimuli": [
+       {
+        "kind": "newThreat",
+        "at": 350,
+        "subject": "p2",
+        "central": true,
+        "value": 80
+       }
+      ],
+      "records": [
+       {
+        "id": "p2",
+        "seenAt": 350,
+        "faction": "frost",
+        "inHand": "axe",
+        "otherSlot": "bow",
+        "weaponsSeen": [
+         "sword",
+         "bow",
+         "axe"
+        ],
+        "hpFrac": 1,
+        "bounty": 0,
+        "alive": true,
+        "diedAt": null,
+        "whereabouts": {
+         "at": {
+          "x": 380,
+          "y": 300
+         },
+         "radius": 0
+        }
+       }
+      ]
+     }
+    },
+    {
+     "input": {
+      "now": 400,
+      "owner": {
+       "x": 300,
+       "y": 300,
+       "status": "alive"
+      },
+      "players": [
+       {
+        "id": "p2",
+        "x": 1090,
+        "y": 300,
+        "status": "alive",
+        "hpFrac": 1,
+        "faction": "frost",
+        "inHand": "sword",
+        "bounty": 0
+       }
+      ]
+     },
+     "result": {
+      "stillSince": 100,
+      "stimuli": [
+       {
+        "kind": "foeSwapped",
+        "at": 400,
+        "subject": "p2",
+        "central": false
+       }
+      ],
+      "records": [
+       {
+        "id": "p2",
+        "seenAt": 400,
+        "faction": "frost",
+        "inHand": "sword",
+        "otherSlot": "axe",
+        "weaponsSeen": [
+         "sword",
+         "bow",
+         "axe"
+        ],
+        "hpFrac": 1,
+        "bounty": 0,
+        "alive": true,
+        "diedAt": null,
+        "whereabouts": {
+         "at": {
+          "x": 1090,
+          "y": 300
+         },
+         "radius": 0
+        }
+       }
+      ]
+     }
+    },
+    {
+     "input": {
+      "now": 450,
+      "owner": {
+       "x": 300,
+       "y": 300,
+       "status": "alive"
+      },
+      "players": []
+     },
+     "result": {
+      "stillSince": 100,
+      "stimuli": [],
+      "records": [
+       {
+        "id": "p2",
+        "seenAt": 400,
+        "faction": "frost",
+        "inHand": "sword",
+        "otherSlot": "axe",
+        "weaponsSeen": [
+         "sword",
+         "bow",
+         "axe"
+        ],
+        "hpFrac": 1,
+        "bounty": 0,
+        "alive": true,
+        "diedAt": null,
+        "whereabouts": {
+         "at": {
+          "x": 1090,
+          "y": 300
+         },
+         "radius": 5.1000000000000005
+        }
+       }
+      ]
+     }
+    },
+    {
+     "input": {
+      "now": 3400,
+      "owner": {
+       "x": 300,
+       "y": 300,
+       "status": "alive"
+      },
+      "players": [
+       {
+        "id": "p2",
+        "x": 1090,
+        "y": 300,
+        "status": "alive",
+        "hpFrac": 1,
+        "faction": "frost",
+        "inHand": "sword",
+        "bounty": 0
+       }
+      ]
+     },
+     "result": {
+      "stillSince": 100,
+      "stimuli": [],
+      "records": [
+       {
+        "id": "p2",
+        "seenAt": 3400,
+        "faction": "frost",
+        "inHand": "sword",
+        "otherSlot": "axe",
+        "weaponsSeen": [
+         "sword",
+         "bow",
+         "axe"
+        ],
+        "hpFrac": 1,
+        "bounty": 0,
+        "alive": true,
+        "diedAt": null,
+        "whereabouts": {
+         "at": {
+          "x": 1090,
+          "y": 300
+         },
+         "radius": 0
+        }
+       }
+      ]
+     }
+    },
+    {
+     "input": {
+      "now": 3450,
+      "owner": {
+       "x": 300,
+       "y": 300,
+       "status": "alive"
+      },
+      "players": []
+     },
+     "result": {
+      "stillSince": 100,
+      "stimuli": [],
+      "records": [
+       {
+        "id": "p2",
+        "seenAt": 3400,
+        "faction": "frost",
+        "inHand": "sword",
+        "otherSlot": "axe",
+        "weaponsSeen": [
+         "sword",
+         "bow",
+         "axe"
+        ],
+        "hpFrac": 1,
+        "bounty": 0,
+        "alive": true,
+        "diedAt": null,
+        "whereabouts": {
+         "at": {
+          "x": 1090,
+          "y": 300
+         },
+         "radius": 5.1000000000000005
+        }
+       }
+      ]
+     }
+    },
+    {
+     "input": {
+      "now": 6451,
+      "owner": {
+       "x": 300,
+       "y": 300,
+       "status": "alive"
+      },
+      "players": [
+       {
+        "id": "p2",
+        "x": 1090,
+        "y": 300,
+        "status": "alive",
+        "hpFrac": 1,
+        "faction": "frost",
+        "inHand": "sword",
+        "bounty": 0
+       }
+      ]
+     },
+     "result": {
+      "stillSince": 100,
+      "stimuli": [
+       {
+        "kind": "newThreat",
+        "at": 6451,
+        "subject": "p2",
+        "central": false,
+        "value": 790
+       }
+      ],
+      "records": [
+       {
+        "id": "p2",
+        "seenAt": 6451,
+        "faction": "frost",
+        "inHand": "sword",
+        "otherSlot": "axe",
+        "weaponsSeen": [
+         "sword",
+         "bow",
+         "axe"
+        ],
+        "hpFrac": 1,
+        "bounty": 0,
+        "alive": true,
+        "diedAt": null,
+        "whereabouts": {
+         "at": {
+          "x": 1090,
+          "y": 300
+         },
+         "radius": 0
+        }
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "permanent-death-hp-expiry",
+   "tier": "normal",
+   "frames": [
+    {
+     "input": {
+      "now": 100,
+      "owner": {
+       "x": 300,
+       "y": 300,
+       "status": "alive"
+      },
+      "players": [
+       {
+        "id": "p2",
+        "x": 380,
+        "y": 300,
+        "status": "alive",
+        "hpFrac": 0.4,
+        "faction": "frost",
+        "inHand": "sword",
+        "bounty": 10
+       }
+      ]
+     },
+     "result": {
+      "stillSince": 100,
+      "stimuli": [
+       {
+        "kind": "newThreat",
+        "at": 100,
+        "subject": "p2",
+        "central": true,
+        "value": 80
+       }
+      ],
+      "records": [
+       {
+        "id": "p2",
+        "seenAt": 100,
+        "faction": "frost",
+        "inHand": "sword",
+        "otherSlot": null,
+        "weaponsSeen": [
+         "sword"
+        ],
+        "hpFrac": 0.4,
+        "bounty": 10,
+        "alive": true,
+        "diedAt": null,
+        "whereabouts": {
+         "at": {
+          "x": 380,
+          "y": 300
+         },
+         "radius": 0
+        }
+       }
+      ]
+     }
+    },
+    {
+     "input": {
+      "now": 200,
+      "owner": {
+       "x": 300,
+       "y": 300,
+       "status": "alive"
+      },
+      "players": [
+       {
+        "id": "p2",
+        "x": 380,
+        "y": 300,
+        "status": "dead",
+        "hpFrac": 0,
+        "faction": "frost",
+        "inHand": "sword",
+        "bounty": 0
+       }
+      ]
+     },
+     "result": {
+      "stillSince": 100,
+      "stimuli": [],
+      "records": [
+       {
+        "id": "p2",
+        "seenAt": 200,
+        "faction": "frost",
+        "inHand": "sword",
+        "otherSlot": null,
+        "weaponsSeen": [
+         "sword"
+        ],
+        "hpFrac": 0,
+        "bounty": 0,
+        "alive": false,
+        "diedAt": 200,
+        "whereabouts": null
+       }
+      ]
+     }
+    },
+    {
+     "input": {
+      "now": 250,
+      "owner": {
+       "x": 300,
+       "y": 300,
+       "status": "alive"
+      },
+      "players": [
+       {
+        "id": "p2",
+        "x": 380,
+        "y": 300,
+        "status": "alive",
+        "hpFrac": 1,
+        "faction": "frost",
+        "inHand": "sword",
+        "bounty": 0
+       }
+      ]
+     },
+     "result": {
+      "stillSince": 100,
+      "stimuli": [],
+      "records": [
+       {
+        "id": "p2",
+        "seenAt": 250,
+        "faction": "frost",
+        "inHand": "sword",
+        "otherSlot": null,
+        "weaponsSeen": [
+         "sword"
+        ],
+        "hpFrac": 1,
+        "bounty": 0,
+        "alive": false,
+        "diedAt": 200,
+        "whereabouts": null
+       }
+      ]
+     }
+    },
+    {
+     "input": {
+      "now": 20251,
+      "owner": {
+       "x": 300,
+       "y": 300,
+       "status": "alive"
+      },
+      "players": []
+     },
+     "result": {
+      "stillSince": 100,
+      "stimuli": [],
+      "records": [
+       {
+        "id": "p2",
+        "seenAt": 250,
+        "faction": "frost",
+        "inHand": "sword",
+        "otherSlot": null,
+        "weaponsSeen": [
+         "sword"
+        ],
+        "hpFrac": 1,
+        "bounty": 0,
+        "alive": false,
+        "diedAt": 200,
+        "whereabouts": null
+       }
+      ]
+     }
+    },
+    {
+     "input": {
+      "now": 45300,
+      "owner": {
+       "x": 300,
+       "y": 300,
+       "status": "alive"
+      },
+      "players": []
+     },
+     "result": {
+      "stillSince": 100,
+      "stimuli": [],
+      "records": [
+       {
+        "id": "p2",
+        "seenAt": 250,
+        "faction": "frost",
+        "inHand": "sword",
+        "otherSlot": null,
+        "weaponsSeen": [
+         "sword"
+        ],
+        "hpFrac": 1,
+        "bounty": 0,
+        "alive": false,
+        "diedAt": 200,
+        "whereabouts": null
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "owner-anchor",
+   "tier": "normal",
+   "frames": [
+    {
+     "input": {
+      "now": 100,
+      "owner": {
+       "x": 300,
+       "y": 300,
+       "status": "alive"
+      },
+      "players": []
+     },
+     "result": {
+      "stillSince": 100,
+      "stimuli": [],
+      "records": []
+     }
+    },
+    {
+     "input": {
+      "now": 150,
+      "owner": {
+       "x": 300.75,
+       "y": 300,
+       "status": "alive"
+      },
+      "players": []
+     },
+     "result": {
+      "stillSince": 100,
+      "stimuli": [],
+      "records": []
+     }
+    },
+    {
+     "input": {
+      "now": 200,
+      "owner": {
+       "x": 301,
+       "y": 300,
+       "status": "alive"
+      },
+      "players": []
+     },
+     "result": {
+      "stillSince": 100,
+      "stimuli": [],
+      "records": []
+     }
+    },
+    {
+     "input": {
+      "now": 250,
+      "owner": {
+       "x": 301.125,
+       "y": 300,
+       "status": "alive"
+      },
+      "players": []
+     },
+     "result": {
+      "stillSince": 250,
+      "stimuli": [],
+      "records": []
+     }
+    },
+    {
+     "input": {
+      "now": 300,
+      "owner": {
+       "x": 301.75,
+       "y": 300,
+       "status": "alive"
+      },
+      "players": []
+     },
+     "result": {
+      "stillSince": 250,
+      "stimuli": [],
+      "records": []
+     }
+    }
+   ]
+  },
+  {
+   "name": "reentry-and-swap",
+   "tier": "hard",
+   "frames": [
+    {
+     "input": {
+      "now": 100,
+      "owner": {
+       "x": 300,
+       "y": 300,
+       "status": "alive"
+      },
+      "players": [
+       {
+        "id": "p2",
+        "x": 380,
+        "y": 300,
+        "status": "alive",
+        "hpFrac": 1,
+        "faction": "frost",
+        "inHand": "sword",
+        "bounty": 0
+       }
+      ]
+     },
+     "result": {
+      "stillSince": 100,
+      "stimuli": [
+       {
+        "kind": "newThreat",
+        "at": 100,
+        "subject": "p2",
+        "central": true,
+        "value": 80
+       }
+      ],
+      "records": [
+       {
+        "id": "p2",
+        "seenAt": 100,
+        "faction": "frost",
+        "inHand": "sword",
+        "otherSlot": null,
+        "weaponsSeen": [
+         "sword"
+        ],
+        "hpFrac": 1,
+        "bounty": 0,
+        "alive": true,
+        "diedAt": null,
+        "whereabouts": {
+         "at": {
+          "x": 380,
+          "y": 300
+         },
+         "radius": 0
+        }
+       }
+      ]
+     }
+    },
+    {
+     "input": {
+      "now": 150,
+      "owner": {
+       "x": 300,
+       "y": 300,
+       "status": "alive"
+      },
+      "players": [
+       {
+        "id": "p2",
+        "x": 380,
+        "y": 300,
+        "status": "alive",
+        "hpFrac": 1,
+        "faction": "frost",
+        "inHand": "bow",
+        "bounty": 0
+       }
+      ]
+     },
+     "result": {
+      "stillSince": 100,
+      "stimuli": [
+       {
+        "kind": "foeSwapped",
+        "at": 150,
+        "subject": "p2",
+        "central": true
+       }
+      ],
+      "records": [
+       {
+        "id": "p2",
+        "seenAt": 150,
+        "faction": "frost",
+        "inHand": "bow",
+        "otherSlot": "sword",
+        "weaponsSeen": [
+         "sword",
+         "bow"
+        ],
+        "hpFrac": 1,
+        "bounty": 0,
+        "alive": true,
+        "diedAt": null,
+        "whereabouts": {
+         "at": {
+          "x": 380,
+          "y": 300
+         },
+         "radius": 0
+        }
+       }
+      ]
+     }
+    },
+    {
+     "input": {
+      "now": 200,
+      "owner": {
+       "x": 300,
+       "y": 300,
+       "status": "alive"
+      },
+      "players": [
+       {
+        "id": "p2",
+        "x": 380,
+        "y": 300,
+        "status": "alive",
+        "hpFrac": 1,
+        "faction": "frost",
+        "inHand": null,
+        "bounty": 0
+       }
+      ]
+     },
+     "result": {
+      "stillSince": 100,
+      "stimuli": [],
+      "records": [
+       {
+        "id": "p2",
+        "seenAt": 200,
+        "faction": "frost",
+        "inHand": null,
+        "otherSlot": "sword",
+        "weaponsSeen": [
+         "sword",
+         "bow"
+        ],
+        "hpFrac": 1,
+        "bounty": 0,
+        "alive": true,
+        "diedAt": null,
+        "whereabouts": {
+         "at": {
+          "x": 380,
+          "y": 300
+         },
+         "radius": 0
+        }
+       }
+      ]
+     }
+    },
+    {
+     "input": {
+      "now": 250,
+      "owner": {
+       "x": 300,
+       "y": 300,
+       "status": "alive"
+      },
+      "players": [
+       {
+        "id": "p2",
+        "x": 380,
+        "y": 300,
+        "status": "alive",
+        "hpFrac": 1,
+        "faction": "frost",
+        "inHand": "axe",
+        "bounty": 0
+       }
+      ]
+     },
+     "result": {
+      "stillSince": 100,
+      "stimuli": [],
+      "records": [
+       {
+        "id": "p2",
+        "seenAt": 250,
+        "faction": "frost",
+        "inHand": "axe",
+        "otherSlot": "bow",
+        "weaponsSeen": [
+         "sword",
+         "bow",
+         "axe"
+        ],
+        "hpFrac": 1,
+        "bounty": 0,
+        "alive": true,
+        "diedAt": null,
+        "whereabouts": {
+         "at": {
+          "x": 380,
+          "y": 300
+         },
+         "radius": 0
+        }
+       }
+      ]
+     }
+    },
+    {
+     "input": {
+      "now": 300,
+      "owner": {
+       "x": 300,
+       "y": 300,
+       "status": "alive"
+      },
+      "players": []
+     },
+     "result": {
+      "stillSince": 100,
+      "stimuli": [],
+      "records": [
+       {
+        "id": "p2",
+        "seenAt": 250,
+        "faction": "frost",
+        "inHand": "axe",
+        "otherSlot": "bow",
+        "weaponsSeen": [
+         "sword",
+         "bow",
+         "axe"
+        ],
+        "hpFrac": 1,
+        "bounty": 0,
+        "alive": true,
+        "diedAt": null,
+        "whereabouts": {
+         "at": {
+          "x": 380,
+          "y": 300
+         },
+         "radius": 5.1000000000000005
+        }
+       }
+      ]
+     }
+    },
+    {
+     "input": {
+      "now": 350,
+      "owner": {
+       "x": 300,
+       "y": 300,
+       "status": "alive"
+      },
+      "players": [
+       {
+        "id": "p2",
+        "x": 380,
+        "y": 300,
+        "status": "alive",
+        "hpFrac": 1,
+        "faction": "frost",
+        "inHand": "axe",
+        "bounty": 0
+       }
+      ]
+     },
+     "result": {
+      "stillSince": 100,
+      "stimuli": [
+       {
+        "kind": "newThreat",
+        "at": 350,
+        "subject": "p2",
+        "central": true,
+        "value": 80
+       }
+      ],
+      "records": [
+       {
+        "id": "p2",
+        "seenAt": 350,
+        "faction": "frost",
+        "inHand": "axe",
+        "otherSlot": "bow",
+        "weaponsSeen": [
+         "sword",
+         "bow",
+         "axe"
+        ],
+        "hpFrac": 1,
+        "bounty": 0,
+        "alive": true,
+        "diedAt": null,
+        "whereabouts": {
+         "at": {
+          "x": 380,
+          "y": 300
+         },
+         "radius": 0
+        }
+       }
+      ]
+     }
+    },
+    {
+     "input": {
+      "now": 400,
+      "owner": {
+       "x": 300,
+       "y": 300,
+       "status": "alive"
+      },
+      "players": [
+       {
+        "id": "p2",
+        "x": 1090,
+        "y": 300,
+        "status": "alive",
+        "hpFrac": 1,
+        "faction": "frost",
+        "inHand": "sword",
+        "bounty": 0
+       }
+      ]
+     },
+     "result": {
+      "stillSince": 100,
+      "stimuli": [
+       {
+        "kind": "foeSwapped",
+        "at": 400,
+        "subject": "p2",
+        "central": false
+       }
+      ],
+      "records": [
+       {
+        "id": "p2",
+        "seenAt": 400,
+        "faction": "frost",
+        "inHand": "sword",
+        "otherSlot": "axe",
+        "weaponsSeen": [
+         "sword",
+         "bow",
+         "axe"
+        ],
+        "hpFrac": 1,
+        "bounty": 0,
+        "alive": true,
+        "diedAt": null,
+        "whereabouts": {
+         "at": {
+          "x": 1090,
+          "y": 300
+         },
+         "radius": 0
+        }
+       }
+      ]
+     }
+    },
+    {
+     "input": {
+      "now": 450,
+      "owner": {
+       "x": 300,
+       "y": 300,
+       "status": "alive"
+      },
+      "players": []
+     },
+     "result": {
+      "stillSince": 100,
+      "stimuli": [],
+      "records": [
+       {
+        "id": "p2",
+        "seenAt": 400,
+        "faction": "frost",
+        "inHand": "sword",
+        "otherSlot": "axe",
+        "weaponsSeen": [
+         "sword",
+         "bow",
+         "axe"
+        ],
+        "hpFrac": 1,
+        "bounty": 0,
+        "alive": true,
+        "diedAt": null,
+        "whereabouts": {
+         "at": {
+          "x": 1090,
+          "y": 300
+         },
+         "radius": 5.1000000000000005
+        }
+       }
+      ]
+     }
+    },
+    {
+     "input": {
+      "now": 3400,
+      "owner": {
+       "x": 300,
+       "y": 300,
+       "status": "alive"
+      },
+      "players": [
+       {
+        "id": "p2",
+        "x": 1090,
+        "y": 300,
+        "status": "alive",
+        "hpFrac": 1,
+        "faction": "frost",
+        "inHand": "sword",
+        "bounty": 0
+       }
+      ]
+     },
+     "result": {
+      "stillSince": 100,
+      "stimuli": [],
+      "records": [
+       {
+        "id": "p2",
+        "seenAt": 3400,
+        "faction": "frost",
+        "inHand": "sword",
+        "otherSlot": "axe",
+        "weaponsSeen": [
+         "sword",
+         "bow",
+         "axe"
+        ],
+        "hpFrac": 1,
+        "bounty": 0,
+        "alive": true,
+        "diedAt": null,
+        "whereabouts": {
+         "at": {
+          "x": 1090,
+          "y": 300
+         },
+         "radius": 0
+        }
+       }
+      ]
+     }
+    },
+    {
+     "input": {
+      "now": 3450,
+      "owner": {
+       "x": 300,
+       "y": 300,
+       "status": "alive"
+      },
+      "players": []
+     },
+     "result": {
+      "stillSince": 100,
+      "stimuli": [],
+      "records": [
+       {
+        "id": "p2",
+        "seenAt": 3400,
+        "faction": "frost",
+        "inHand": "sword",
+        "otherSlot": "axe",
+        "weaponsSeen": [
+         "sword",
+         "bow",
+         "axe"
+        ],
+        "hpFrac": 1,
+        "bounty": 0,
+        "alive": true,
+        "diedAt": null,
+        "whereabouts": {
+         "at": {
+          "x": 1090,
+          "y": 300
+         },
+         "radius": 5.1000000000000005
+        }
+       }
+      ]
+     }
+    },
+    {
+     "input": {
+      "now": 6451,
+      "owner": {
+       "x": 300,
+       "y": 300,
+       "status": "alive"
+      },
+      "players": [
+       {
+        "id": "p2",
+        "x": 1090,
+        "y": 300,
+        "status": "alive",
+        "hpFrac": 1,
+        "faction": "frost",
+        "inHand": "sword",
+        "bounty": 0
+       }
+      ]
+     },
+     "result": {
+      "stillSince": 100,
+      "stimuli": [
+       {
+        "kind": "newThreat",
+        "at": 6451,
+        "subject": "p2",
+        "central": false,
+        "value": 790
+       }
+      ],
+      "records": [
+       {
+        "id": "p2",
+        "seenAt": 6451,
+        "faction": "frost",
+        "inHand": "sword",
+        "otherSlot": "axe",
+        "weaponsSeen": [
+         "sword",
+         "bow",
+         "axe"
+        ],
+        "hpFrac": 1,
+        "bounty": 0,
+        "alive": true,
+        "diedAt": null,
+        "whereabouts": {
+         "at": {
+          "x": 1090,
+          "y": 300
+         },
+         "radius": 0
+        }
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "permanent-death-hp-expiry",
+   "tier": "hard",
+   "frames": [
+    {
+     "input": {
+      "now": 100,
+      "owner": {
+       "x": 300,
+       "y": 300,
+       "status": "alive"
+      },
+      "players": [
+       {
+        "id": "p2",
+        "x": 380,
+        "y": 300,
+        "status": "alive",
+        "hpFrac": 0.4,
+        "faction": "frost",
+        "inHand": "sword",
+        "bounty": 10
+       }
+      ]
+     },
+     "result": {
+      "stillSince": 100,
+      "stimuli": [
+       {
+        "kind": "newThreat",
+        "at": 100,
+        "subject": "p2",
+        "central": true,
+        "value": 80
+       }
+      ],
+      "records": [
+       {
+        "id": "p2",
+        "seenAt": 100,
+        "faction": "frost",
+        "inHand": "sword",
+        "otherSlot": null,
+        "weaponsSeen": [
+         "sword"
+        ],
+        "hpFrac": 0.4,
+        "bounty": 10,
+        "alive": true,
+        "diedAt": null,
+        "whereabouts": {
+         "at": {
+          "x": 380,
+          "y": 300
+         },
+         "radius": 0
+        }
+       }
+      ]
+     }
+    },
+    {
+     "input": {
+      "now": 200,
+      "owner": {
+       "x": 300,
+       "y": 300,
+       "status": "alive"
+      },
+      "players": [
+       {
+        "id": "p2",
+        "x": 380,
+        "y": 300,
+        "status": "dead",
+        "hpFrac": 0,
+        "faction": "frost",
+        "inHand": "sword",
+        "bounty": 0
+       }
+      ]
+     },
+     "result": {
+      "stillSince": 100,
+      "stimuli": [],
+      "records": [
+       {
+        "id": "p2",
+        "seenAt": 200,
+        "faction": "frost",
+        "inHand": "sword",
+        "otherSlot": null,
+        "weaponsSeen": [
+         "sword"
+        ],
+        "hpFrac": 0,
+        "bounty": 0,
+        "alive": false,
+        "diedAt": 200,
+        "whereabouts": null
+       }
+      ]
+     }
+    },
+    {
+     "input": {
+      "now": 250,
+      "owner": {
+       "x": 300,
+       "y": 300,
+       "status": "alive"
+      },
+      "players": [
+       {
+        "id": "p2",
+        "x": 380,
+        "y": 300,
+        "status": "alive",
+        "hpFrac": 1,
+        "faction": "frost",
+        "inHand": "sword",
+        "bounty": 0
+       }
+      ]
+     },
+     "result": {
+      "stillSince": 100,
+      "stimuli": [],
+      "records": [
+       {
+        "id": "p2",
+        "seenAt": 250,
+        "faction": "frost",
+        "inHand": "sword",
+        "otherSlot": null,
+        "weaponsSeen": [
+         "sword"
+        ],
+        "hpFrac": 1,
+        "bounty": 0,
+        "alive": false,
+        "diedAt": 200,
+        "whereabouts": null
+       }
+      ]
+     }
+    },
+    {
+     "input": {
+      "now": 20251,
+      "owner": {
+       "x": 300,
+       "y": 300,
+       "status": "alive"
+      },
+      "players": []
+     },
+     "result": {
+      "stillSince": 100,
+      "stimuli": [],
+      "records": [
+       {
+        "id": "p2",
+        "seenAt": 250,
+        "faction": "frost",
+        "inHand": "sword",
+        "otherSlot": null,
+        "weaponsSeen": [
+         "sword"
+        ],
+        "hpFrac": 1,
+        "bounty": 0,
+        "alive": false,
+        "diedAt": 200,
+        "whereabouts": null
+       }
+      ]
+     }
+    },
+    {
+     "input": {
+      "now": 45300,
+      "owner": {
+       "x": 300,
+       "y": 300,
+       "status": "alive"
+      },
+      "players": []
+     },
+     "result": {
+      "stillSince": 100,
+      "stimuli": [],
+      "records": [
+       {
+        "id": "p2",
+        "seenAt": 250,
+        "faction": "frost",
+        "inHand": "sword",
+        "otherSlot": null,
+        "weaponsSeen": [
+         "sword"
+        ],
+        "hpFrac": 1,
+        "bounty": 0,
+        "alive": false,
+        "diedAt": 200,
+        "whereabouts": null
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "owner-anchor",
+   "tier": "hard",
+   "frames": [
+    {
+     "input": {
+      "now": 100,
+      "owner": {
+       "x": 300,
+       "y": 300,
+       "status": "alive"
+      },
+      "players": []
+     },
+     "result": {
+      "stillSince": 100,
+      "stimuli": [],
+      "records": []
+     }
+    },
+    {
+     "input": {
+      "now": 150,
+      "owner": {
+       "x": 300.75,
+       "y": 300,
+       "status": "alive"
+      },
+      "players": []
+     },
+     "result": {
+      "stillSince": 100,
+      "stimuli": [],
+      "records": []
+     }
+    },
+    {
+     "input": {
+      "now": 200,
+      "owner": {
+       "x": 301,
+       "y": 300,
+       "status": "alive"
+      },
+      "players": []
+     },
+     "result": {
+      "stillSince": 100,
+      "stimuli": [],
+      "records": []
+     }
+    },
+    {
+     "input": {
+      "now": 250,
+      "owner": {
+       "x": 301.125,
+       "y": 300,
+       "status": "alive"
+      },
+      "players": []
+     },
+     "result": {
+      "stillSince": 250,
+      "stimuli": [],
+      "records": []
+     }
+    },
+    {
+     "input": {
+      "now": 300,
+      "owner": {
+       "x": 301.75,
+       "y": 300,
+       "status": "alive"
+      },
+      "players": []
+     },
+     "result": {
+      "stillSince": 250,
+      "stimuli": [],
+      "records": []
+     }
+    }
+   ]
+  }
+ ],
+ "sentCases": [
+  {
+   "input": {
+    "at": 125,
+    "cmd": {
+     "type": "move",
+     "msg": {
+      "x": 340,
+      "y": 300
+     }
+    },
+    "intent": "move",
+    "priority": 2
+   },
+   "lastOrder": {
+    "at": 125,
+    "cmd": {
+     "type": "move",
+     "msg": {
+      "x": 340,
+      "y": 300
+     }
+    },
+    "intent": "move",
+    "priority": 2
+   },
+   "lastCast": null
+  },
+  {
+   "input": {
+    "at": 150,
+    "cmd": {
+     "type": "stop",
+     "msg": {}
+    },
+    "intent": "stop",
+    "priority": 2
+   },
+   "lastOrder": {
+    "at": 150,
+    "cmd": {
+     "type": "stop",
+     "msg": {}
+    },
+    "intent": "stop",
+    "priority": 2
+   },
+   "lastCast": null
+  },
+  {
+   "input": {
+    "at": 175,
+    "cmd": {
+     "type": "target",
+     "msg": {
+      "id": "p2"
+     }
+    },
+    "intent": "lock",
+    "priority": 2
+   },
+   "lastOrder": {
+    "at": 175,
+    "cmd": {
+     "type": "target",
+     "msg": {
+      "id": "p2"
+     }
+    },
+    "intent": "lock",
+    "priority": 2
+   },
+   "lastCast": null
+  },
+  {
+   "input": {
+    "at": 200,
+    "cmd": {
+     "type": "cast",
+     "msg": {
+      "slot": "wish",
+      "x": 350,
+      "y": 300
+     }
+    },
+    "intent": "cast",
+    "priority": 2
+   },
+   "lastOrder": {
+    "at": 175,
+    "cmd": {
+     "type": "target",
+     "msg": {
+      "id": "p2"
+     }
+    },
+    "intent": "lock",
+    "priority": 2
+   },
+   "lastCast": {
+    "at": 200,
+    "cmd": {
+     "type": "cast",
+     "msg": {
+      "slot": "wish",
+      "x": 350,
+      "y": 300
+     }
+    },
+    "intent": "cast",
+    "priority": 2
+   }
+  },
+  {
+   "input": {
+    "at": 225,
+    "cmd": {
+     "type": "swap",
+     "msg": {
+      "slot": 1
+     }
+    },
+    "intent": "swap",
+    "priority": 2
+   },
+   "lastOrder": {
+    "at": 175,
+    "cmd": {
+     "type": "target",
+     "msg": {
+      "id": "p2"
+     }
+    },
+    "intent": "lock",
+    "priority": 2
+   },
+   "lastCast": {
+    "at": 200,
+    "cmd": {
+     "type": "cast",
+     "msg": {
+      "slot": "wish",
+      "x": 350,
+      "y": 300
+     }
+    },
+    "intent": "cast",
+    "priority": 2
+   }
+  }
+ ],
+ "worldCases": [
+  {
+   "input": {
+    "now": 100,
+    "goal": {
+     "kind": "roam",
+     "to": {
+      "x": 600,
+      "y": 300
+     },
+     "why": "centre"
+    },
+    "stillSince": 100,
+    "walkable": true,
+    "at": {
+     "x": 300,
+     "y": 300
+    }
+   },
+   "result": {
+    "intents": [
+     {
+      "kind": "move",
+      "to": {
+       "x": 600,
+       "y": 300
+      },
+      "priority": 2,
+      "timing": {
+       "kind": "step"
+      },
+      "why": "roam"
+     }
+    ],
+    "status": {
+     "state": "running",
+     "why": "walking"
+    },
+    "attacking": false
+   },
+   "walks": 1
+  },
+  {
+   "input": {
+    "now": 150,
+    "goal": {
+     "kind": "roam",
+     "to": {
+      "x": 348,
+      "y": 300
+     },
+     "why": "centre"
+    },
+    "stillSince": 100,
+    "walkable": false,
+    "at": {
+     "x": 300,
+     "y": 300
+    }
+   },
+   "result": {
+    "intents": [],
+    "status": {
+     "state": "done",
+     "why": "arrived"
+    },
+    "attacking": false
+   },
+   "walks": 0
+  },
+  {
+   "input": {
+    "now": 1300,
+    "goal": {
+     "kind": "roam",
+     "to": {
+      "x": 450,
+      "y": 300
+     },
+     "why": "centre"
+    },
+    "stillSince": 100,
+    "walkable": false,
+    "at": {
+     "x": 300,
+     "y": 300
+    }
+   },
+   "result": {
+    "intents": [],
+    "status": {
+     "state": "done",
+     "why": "close enough"
+    },
+    "attacking": false
+   },
+   "walks": 0
+  },
+  {
+   "input": {
+    "now": 1350,
+    "goal": {
+     "kind": "roam",
+     "to": {
+      "x": 600,
+      "y": 300
+     },
+     "why": "centre"
+    },
+    "stillSince": 1300,
+    "walkable": false,
+    "at": {
+     "x": 300,
+     "y": 300
+    }
+   },
+   "result": {
+    "intents": [],
+    "status": {
+     "state": "failed",
+     "why": "unreachable"
+    },
+    "attacking": false
+   },
+   "walks": 1
+  },
+  {
+   "input": {
+    "now": 1400,
+    "goal": {
+     "kind": "idle"
+    },
+    "stillSince": 1400,
+    "walkable": true,
+    "at": {
+     "x": 300,
+     "y": 300
+    }
+   },
+   "result": {
+    "intents": [
+     {
+      "kind": "stop",
+      "priority": 3,
+      "timing": {
+       "kind": "step"
+      },
+      "why": "idle"
+     }
+    ],
+    "status": {
+     "state": "running",
+     "why": "idle"
+    },
+    "attacking": false
+   },
+   "walks": 0
+  },
+  {
+   "input": {
+    "now": 1450,
+    "goal": {
+     "kind": "idle"
+    },
+    "stillSince": 1450,
+    "walkable": true,
+    "at": {
+     "x": 300,
+     "y": 300
+    }
+   },
+   "result": {
+    "intents": [],
+    "status": {
+     "state": "running",
+     "why": "idle"
+    },
+    "attacking": false
+   },
+   "walks": 0
+  },
+  {
+   "input": {
+    "now": 2200,
+    "goal": {
+     "kind": "idle"
+    },
+    "stillSince": 2200,
+    "walkable": true,
+    "at": {
+     "x": 300,
+     "y": 300
+    }
+   },
+   "result": {
+    "intents": [
+     {
+      "kind": "stop",
+      "priority": 3,
+      "timing": {
+       "kind": "step"
+      },
+      "why": "idle"
+     }
+    ],
+    "status": {
+     "state": "running",
+     "why": "idle"
+    },
+    "attacking": false
+   },
+   "walks": 0
+  },
+  {
+   "input": {
+    "now": 2250,
+    "goal": {
+     "kind": "hold",
+     "at": {
+      "x": 300,
+      "y": 300
+     },
+     "why": "wait"
+    },
+    "stillSince": 2250,
+    "walkable": true,
+    "at": {
+     "x": 300,
+     "y": 300
+    }
+   },
+   "result": {
+    "intents": [
+     {
+      "kind": "stop",
+      "priority": 3,
+      "timing": {
+       "kind": "step"
+      },
+      "why": "hold (wait)"
+     }
+    ],
+    "status": {
+     "state": "running",
+     "why": "holding"
+    },
+    "attacking": false
+   },
+   "walks": 0
+  },
+  {
+   "input": {
+    "now": 2300,
+    "goal": {
+     "kind": "hold",
+     "at": {
+      "x": 301,
+      "y": 300
+     },
+     "why": "wait"
+    },
+    "stillSince": 2250,
+    "walkable": true,
+    "at": {
+     "x": 300,
+     "y": 300
+    }
+   },
+   "result": {
+    "intents": [],
+    "status": {
+     "state": "running",
+     "why": "holding"
+    },
+    "attacking": false
+   },
+   "walks": 0
+  },
+  {
+   "input": {
+    "now": 3050,
+    "goal": {
+     "kind": "hold",
+     "at": {
+      "x": 301,
+      "y": 300
+     },
+     "why": "wait"
+    },
+    "stillSince": 3050,
+    "walkable": true,
+    "at": {
+     "x": 300,
+     "y": 300
+    }
+   },
+   "result": {
+    "intents": [
+     {
+      "kind": "stop",
+      "priority": 3,
+      "timing": {
+       "kind": "step"
+      },
+      "why": "hold (wait)"
+     }
+    ],
+    "status": {
+     "state": "running",
+     "why": "holding"
+    },
+    "attacking": false
+   },
+   "walks": 0
+  },
+  {
+   "input": {
+    "now": 3100,
+    "goal": {
+     "kind": "hold",
+     "at": {
+      "x": 301,
+      "y": 300
+     },
+     "why": "wait"
+    },
+    "stillSince": 100,
+    "walkable": true,
+    "at": {
+     "x": 300,
+     "y": 300
+    }
+   },
+   "result": {
+    "intents": [],
+    "status": {
+     "state": "running",
+     "why": "holding"
+    },
+    "attacking": false
+   },
+   "walks": 0
+  },
+  {
+   "input": {
+    "now": 6201,
+    "goal": {
+     "kind": "idle"
+    },
+    "stillSince": 6201,
+    "walkable": true,
+    "at": {
+     "x": 300,
+     "y": 300
+    }
+   },
+   "result": {
+    "intents": [
+     {
+      "kind": "stop",
+      "priority": 3,
+      "timing": {
+       "kind": "step"
+      },
+      "why": "idle"
+     }
+    ],
+    "status": {
+     "state": "running",
+     "why": "idle"
+    },
+    "attacking": false
+   },
+   "walks": 0
+  },
+  {
+   "input": {
+    "now": 6250,
+    "goal": {
+     "kind": "hold",
+     "at": {
+      "x": 300,
+      "y": 300
+     },
+     "why": "ambush"
+    },
+    "stillSince": 6250,
+    "walkable": true,
+    "at": {
+     "x": 300,
+     "y": 300
+    }
+   },
+   "result": {
+    "intents": [
+     {
+      "kind": "stop",
+      "priority": 3,
+      "timing": {
+       "kind": "step"
+      },
+      "why": "hold (ambush)"
+     }
+    ],
+    "status": {
+     "state": "running",
+     "why": "holding"
+    },
+    "attacking": false
+   },
+   "walks": 0
+  }
+ ],
+ "schedulerCases": [
+  {
+   "tier": "easy",
+   "seed": 7,
+   "declaredTierOverride": {
+    "lapseP": 0
+   },
+   "frames": [
+    {
+     "now": 100,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe",
+      "strategy",
+      "act"
+     ],
+     "draws": [
+      {
+       "stream": "decide",
+       "phase": "strategy",
+       "value": 0.890012247255072
+      },
+      {
+       "stream": "decide",
+       "phase": "act",
+       "value": 0.8843999071978033
+      }
+     ]
+    },
+    {
+     "now": 125,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 150,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 175,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 200,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 225,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 250,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 275,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 300,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 325,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 350,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 375,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 400,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 425,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 450,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 475,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 500,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe",
+      "act"
+     ],
+     "draws": [
+      {
+       "stream": "decide",
+       "phase": "act",
+       "value": 0.4762176154181361
+      }
+     ]
+    },
+    {
+     "now": 525,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 550,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 575,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 600,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [
+      "newThreat"
+     ],
+     "events": [
+      "observe",
+      "strategy",
+      "act"
+     ],
+     "draws": [
+      {
+       "stream": "decide",
+       "phase": "observe",
+       "value": 0.9157360186800361
+      },
+      {
+       "stream": "decide",
+       "phase": "observe",
+       "value": 0.12353306449949741
+      },
+      {
+       "stream": "decide",
+       "phase": "strategy",
+       "value": 0.9872043312061578
+      },
+      {
+       "stream": "decide",
+       "phase": "act",
+       "value": 0.9191137845627964
+      }
+     ]
+    },
+    {
+     "now": 625,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 650,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 675,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 700,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [
+      "hpLoss",
+      "lowHp"
+     ],
+     "events": [
+      "observe",
+      "strategy",
+      "act"
+     ],
+     "draws": [
+      {
+       "stream": "lapse",
+       "phase": "strategy",
+       "value": 0.34087040391750634
+      },
+      {
+       "stream": "decide",
+       "phase": "strategy",
+       "value": 0.23257361049763858
+      },
+      {
+       "stream": "decide",
+       "phase": "strategy",
+       "value": 0.501379023771733
+      },
+      {
+       "stream": "decide",
+       "phase": "act",
+       "value": 0.6462854682467878
+      }
+     ]
+    },
+    {
+     "now": 725,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 750,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 775,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 800,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 825,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 850,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 875,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 900,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 925,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 950,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 975,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 1000,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 1025,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 1050,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe",
+      "act"
+     ],
+     "draws": [
+      {
+       "stream": "decide",
+       "phase": "act",
+       "value": 0.20945348590612411
+      }
+     ]
+    },
+    {
+     "now": 1075,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 1100,
+     "slot": 0,
+     "status": "blocked",
+     "toast": true,
+     "stimuli": [],
+     "events": [
+      "observe",
+      "act"
+     ],
+     "draws": [
+      {
+       "stream": "decide",
+       "phase": "act",
+       "value": 0.08811566373333335
+      }
+     ]
+    },
+    {
+     "now": 1125,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe",
+      "strategy"
+     ],
+     "draws": [
+      {
+       "stream": "decide",
+       "phase": "strategy",
+       "value": 0.4635701784864068
+      }
+     ]
+    },
+    {
+     "now": 1150,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 1175,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 1200,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 1225,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 1250,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 1275,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 1300,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 1325,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe",
+      "act"
+     ],
+     "draws": [
+      {
+       "stream": "decide",
+       "phase": "act",
+       "value": 0.2715015383437276
+      }
+     ]
+    },
+    {
+     "now": 1350,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 1375,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 1400,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 1425,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 1450,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 1475,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 1500,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 1525,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 1550,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 1575,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 1600,
+     "slot": 0,
+     "status": "done",
+     "toast": true,
+     "stimuli": [],
+     "events": [
+      "observe",
+      "act"
+     ],
+     "draws": [
+      {
+       "stream": "decide",
+       "phase": "act",
+       "value": 0.7731686914339662
+      }
+     ]
+    },
+    {
+     "now": 1625,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe",
+      "strategy",
+      "act"
+     ],
+     "draws": [
+      {
+       "stream": "decide",
+       "phase": "strategy",
+       "value": 0.08619775180704892
+      },
+      {
+       "stream": "decide",
+       "phase": "act",
+       "value": 0.39874363178387284
+      }
+     ]
+    },
+    {
+     "now": 1650,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 1675,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 1700,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 1725,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 1750,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 1775,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 1800,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 1825,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 1850,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 1875,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 1900,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 1925,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe",
+      "act"
+     ],
+     "draws": [
+      {
+       "stream": "decide",
+       "phase": "act",
+       "value": 0.06669832346960902
+      }
+     ]
+    },
+    {
+     "now": 1950,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 1975,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 2000,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 2025,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 2050,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 2075,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 2100,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 2125,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 2150,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe",
+      "act"
+     ],
+     "draws": [
+      {
+       "stream": "decide",
+       "phase": "act",
+       "value": 0.6425806386396289
+      }
+     ]
+    },
+    {
+     "now": 2175,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 2200,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 2225,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 2250,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 2275,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 2300,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 2325,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 2350,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 2375,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 2400,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 2425,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 2450,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 2475,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 2500,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe",
+      "act"
+     ],
+     "draws": [
+      {
+       "stream": "decide",
+       "phase": "act",
+       "value": 0.307799486676231
+      }
+     ]
+    },
+    {
+     "now": 2525,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 2550,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 2575,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 2600,
+     "slot": 1,
+     "status": "failed",
+     "toast": true,
+     "stimuli": [],
+     "events": [
+      "observe",
+      "act"
+     ],
+     "draws": [
+      {
+       "stream": "decide",
+       "phase": "act",
+       "value": 0.15651245834305882
+      }
+     ]
+    },
+    {
+     "now": 2625,
+     "slot": 2,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe",
+      "strategy",
+      "act"
+     ],
+     "draws": [
+      {
+       "stream": "decide",
+       "phase": "strategy",
+       "value": 0.30215105367824435
+      },
+      {
+       "stream": "decide",
+       "phase": "act",
+       "value": 0.5743418373167515
+      }
+     ]
+    },
+    {
+     "now": 2650,
+     "slot": 2,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 2675,
+     "slot": 2,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 2700,
+     "slot": 2,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 2725,
+     "slot": 2,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 2750,
+     "slot": 2,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 2775,
+     "slot": 2,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 2800,
+     "slot": 2,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 2825,
+     "slot": 2,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 2850,
+     "slot": 2,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 2875,
+     "slot": 2,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 2900,
+     "slot": 2,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 2925,
+     "slot": 2,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 2950,
+     "slot": 2,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe",
+      "act"
+     ],
+     "draws": [
+      {
+       "stream": "decide",
+       "phase": "act",
+       "value": 0.16242923750542104
+      }
+     ]
+    },
+    {
+     "now": 2975,
+     "slot": 2,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 3000,
+     "slot": 2,
+     "status": "running",
+     "toast": true,
+     "stimuli": [],
+     "events": [
+      "observe",
+      "act"
+     ],
+     "draws": [
+      {
+       "stream": "decide",
+       "phase": "act",
+       "value": 0.17519655777141452
+      }
+     ]
+    },
+    {
+     "now": 3025,
+     "slot": 2,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 3050,
+     "slot": 2,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 3075,
+     "slot": 2,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 3100,
+     "slot": 2,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 3125,
+     "slot": 2,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 3150,
+     "slot": 2,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 3175,
+     "slot": 2,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 3200,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 3225,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 3250,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe",
+      "act"
+     ],
+     "draws": [
+      {
+       "stream": "decide",
+       "phase": "act",
+       "value": 0.10591307864524424
+      }
+     ]
+    },
+    {
+     "now": 3275,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 3300,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 3325,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 3350,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 3375,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 3400,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 3425,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 3450,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 3475,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe",
+      "act"
+     ],
+     "draws": [
+      {
+       "stream": "decide",
+       "phase": "act",
+       "value": 0.33569475379772484
+      }
+     ]
+    },
+    {
+     "now": 3500,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 3525,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 3550,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 3575,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 3600,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 3625,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 3650,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 3675,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 3700,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 3725,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 3750,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe",
+      "act"
+     ],
+     "draws": [
+      {
+       "stream": "decide",
+       "phase": "act",
+       "value": 0.27354872273281217
+      }
+     ]
+    },
+    {
+     "now": 3775,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 3800,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 3825,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 3850,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 3875,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 3900,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 3925,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 3950,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 3975,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 4000,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 4025,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe",
+      "act"
+     ],
+     "draws": [
+      {
+       "stream": "decide",
+       "phase": "act",
+       "value": 0.14230888499878347
+      }
+     ]
+    },
+    {
+     "now": 4050,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 4075,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 4100,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    }
+   ]
+  },
+  {
+   "tier": "normal",
+   "seed": 7,
+   "declaredTierOverride": {
+    "lapseP": 0
+   },
+   "frames": [
+    {
+     "now": 100,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe",
+      "strategy",
+      "act"
+     ],
+     "draws": [
+      {
+       "stream": "decide",
+       "phase": "strategy",
+       "value": 0.890012247255072
+      },
+      {
+       "stream": "decide",
+       "phase": "act",
+       "value": 0.8843999071978033
+      }
+     ]
+    },
+    {
+     "now": 125,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 150,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 175,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 200,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 225,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 250,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 275,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 300,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 325,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 350,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe",
+      "act"
+     ],
+     "draws": [
+      {
+       "stream": "decide",
+       "phase": "act",
+       "value": 0.4762176154181361
+      }
+     ]
+    },
+    {
+     "now": 375,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 400,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 425,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 450,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 475,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 500,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 525,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 550,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe",
+      "act"
+     ],
+     "draws": [
+      {
+       "stream": "decide",
+       "phase": "act",
+       "value": 0.9157360186800361
+      }
+     ]
+    },
+    {
+     "now": 575,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 600,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [
+      "newThreat"
+     ],
+     "events": [
+      "observe",
+      "strategy",
+      "act"
+     ],
+     "draws": [
+      {
+       "stream": "decide",
+       "phase": "observe",
+       "value": 0.12353306449949741
+      },
+      {
+       "stream": "decide",
+       "phase": "observe",
+       "value": 0.9872043312061578
+      },
+      {
+       "stream": "lapse",
+       "phase": "strategy",
+       "value": 0.34087040391750634
+      },
+      {
+       "stream": "decide",
+       "phase": "strategy",
+       "value": 0.9191137845627964
+      },
+      {
+       "stream": "decide",
+       "phase": "strategy",
+       "value": 0.23257361049763858
+      },
+      {
+       "stream": "decide",
+       "phase": "act",
+       "value": 0.501379023771733
+      }
+     ]
+    },
+    {
+     "now": 625,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 650,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 675,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 700,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [
+      "hpLoss",
+      "lowHp"
+     ],
+     "events": [
+      "observe",
+      "strategy",
+      "act"
+     ],
+     "draws": [
+      {
+       "stream": "lapse",
+       "phase": "strategy",
+       "value": 0.8611133096273988
+      },
+      {
+       "stream": "decide",
+       "phase": "strategy",
+       "value": 0.6462854682467878
+      },
+      {
+       "stream": "decide",
+       "phase": "strategy",
+       "value": 0.20945348590612411
+      },
+      {
+       "stream": "decide",
+       "phase": "act",
+       "value": 0.08811566373333335
+      }
+     ]
+    },
+    {
+     "now": 725,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 750,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 775,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 800,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 825,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 850,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 875,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe",
+      "act"
+     ],
+     "draws": [
+      {
+       "stream": "decide",
+       "phase": "act",
+       "value": 0.4635701784864068
+      }
+     ]
+    },
+    {
+     "now": 900,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 925,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 950,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 975,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 1000,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 1025,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 1050,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 1075,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe",
+      "act"
+     ],
+     "draws": [
+      {
+       "stream": "decide",
+       "phase": "act",
+       "value": 0.2715015383437276
+      }
+     ]
+    },
+    {
+     "now": 1100,
+     "slot": 0,
+     "status": "blocked",
+     "toast": true,
+     "stimuli": [],
+     "events": [
+      "observe",
+      "act"
+     ],
+     "draws": [
+      {
+       "stream": "decide",
+       "phase": "act",
+       "value": 0.7731686914339662
+      }
+     ]
+    },
+    {
+     "now": 1125,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe",
+      "strategy"
+     ],
+     "draws": [
+      {
+       "stream": "decide",
+       "phase": "strategy",
+       "value": 0.08619775180704892
+      }
+     ]
+    },
+    {
+     "now": 1150,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 1175,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 1200,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 1225,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 1250,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 1275,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 1300,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 1325,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 1350,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe",
+      "act"
+     ],
+     "draws": [
+      {
+       "stream": "decide",
+       "phase": "act",
+       "value": 0.39874363178387284
+      }
+     ]
+    },
+    {
+     "now": 1375,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 1400,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 1425,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 1450,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 1475,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 1500,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 1525,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 1550,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe",
+      "act"
+     ],
+     "draws": [
+      {
+       "stream": "decide",
+       "phase": "act",
+       "value": 0.06669832346960902
+      }
+     ]
+    },
+    {
+     "now": 1575,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 1600,
+     "slot": 0,
+     "status": "done",
+     "toast": true,
+     "stimuli": [],
+     "events": [
+      "observe",
+      "act"
+     ],
+     "draws": [
+      {
+       "stream": "decide",
+       "phase": "act",
+       "value": 0.6425806386396289
+      }
+     ]
+    },
+    {
+     "now": 1625,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe",
+      "strategy",
+      "act"
+     ],
+     "draws": [
+      {
+       "stream": "decide",
+       "phase": "strategy",
+       "value": 0.307799486676231
+      },
+      {
+       "stream": "decide",
+       "phase": "act",
+       "value": 0.15651245834305882
+      }
+     ]
+    },
+    {
+     "now": 1650,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 1675,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 1700,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 1725,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 1750,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 1775,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 1800,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe",
+      "act"
+     ],
+     "draws": [
+      {
+       "stream": "decide",
+       "phase": "act",
+       "value": 0.30215105367824435
+      }
+     ]
+    },
+    {
+     "now": 1825,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 1850,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 1875,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 1900,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 1925,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 1950,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 1975,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 2000,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe",
+      "act"
+     ],
+     "draws": [
+      {
+       "stream": "decide",
+       "phase": "act",
+       "value": 0.5743418373167515
+      }
+     ]
+    },
+    {
+     "now": 2025,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 2050,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 2075,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 2100,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 2125,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 2150,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 2175,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 2200,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 2225,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe",
+      "act"
+     ],
+     "draws": [
+      {
+       "stream": "decide",
+       "phase": "act",
+       "value": 0.16242923750542104
+      }
+     ]
+    },
+    {
+     "now": 2250,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 2275,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 2300,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 2325,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 2350,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 2375,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 2400,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe",
+      "act"
+     ],
+     "draws": [
+      {
+       "stream": "decide",
+       "phase": "act",
+       "value": 0.17519655777141452
+      }
+     ]
+    },
+    {
+     "now": 2425,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 2450,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 2475,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 2500,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 2525,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 2550,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 2575,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe",
+      "act"
+     ],
+     "draws": [
+      {
+       "stream": "decide",
+       "phase": "act",
+       "value": 0.10591307864524424
+      }
+     ]
+    },
+    {
+     "now": 2600,
+     "slot": 1,
+     "status": "failed",
+     "toast": true,
+     "stimuli": [],
+     "events": [
+      "observe",
+      "act"
+     ],
+     "draws": [
+      {
+       "stream": "decide",
+       "phase": "act",
+       "value": 0.33569475379772484
+      }
+     ]
+    },
+    {
+     "now": 2625,
+     "slot": 2,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe",
+      "strategy",
+      "act"
+     ],
+     "draws": [
+      {
+       "stream": "decide",
+       "phase": "strategy",
+       "value": 0.27354872273281217
+      },
+      {
+       "stream": "decide",
+       "phase": "act",
+       "value": 0.14230888499878347
+      }
+     ]
+    },
+    {
+     "now": 2650,
+     "slot": 2,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 2675,
+     "slot": 2,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 2700,
+     "slot": 2,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 2725,
+     "slot": 2,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 2750,
+     "slot": 2,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 2775,
+     "slot": 2,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 2800,
+     "slot": 2,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe",
+      "act"
+     ],
+     "draws": [
+      {
+       "stream": "decide",
+       "phase": "act",
+       "value": 0.6768787000328302
+      }
+     ]
+    },
+    {
+     "now": 2825,
+     "slot": 2,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 2850,
+     "slot": 2,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 2875,
+     "slot": 2,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 2900,
+     "slot": 2,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 2925,
+     "slot": 2,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 2950,
+     "slot": 2,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 2975,
+     "slot": 2,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 3000,
+     "slot": 2,
+     "status": "running",
+     "toast": true,
+     "stimuli": [],
+     "events": [
+      "observe",
+      "act"
+     ],
+     "draws": [
+      {
+       "stream": "decide",
+       "phase": "act",
+       "value": 0.14191152038984
+      }
+     ]
+    },
+    {
+     "now": 3025,
+     "slot": 2,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 3050,
+     "slot": 2,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 3075,
+     "slot": 2,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 3100,
+     "slot": 2,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 3125,
+     "slot": 2,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 3150,
+     "slot": 2,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 3175,
+     "slot": 2,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe",
+      "act"
+     ],
+     "draws": [
+      {
+       "stream": "decide",
+       "phase": "act",
+       "value": 0.6945680184289813
+      }
+     ]
+    },
+    {
+     "now": 3200,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 3225,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 3250,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 3275,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 3300,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 3325,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 3350,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 3375,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 3400,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe",
+      "act"
+     ],
+     "draws": [
+      {
+       "stream": "decide",
+       "phase": "act",
+       "value": 0.7096843898762017
+      }
+     ]
+    },
+    {
+     "now": 3425,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 3450,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 3475,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 3500,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 3525,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 3550,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 3575,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 3600,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 3625,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 3650,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe",
+      "act"
+     ],
+     "draws": [
+      {
+       "stream": "decide",
+       "phase": "act",
+       "value": 0.8824455756694078
+      }
+     ]
+    },
+    {
+     "now": 3675,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 3700,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 3725,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 3750,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 3775,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 3800,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 3825,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 3850,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 3875,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 3900,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe",
+      "act"
+     ],
+     "draws": [
+      {
+       "stream": "decide",
+       "phase": "act",
+       "value": 0.6492213965393603
+      }
+     ]
+    },
+    {
+     "now": 3925,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 3950,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe",
+      "strategy",
+      "act"
+     ],
+     "draws": [
+      {
+       "stream": "decide",
+       "phase": "strategy",
+       "value": 0.46732648462057114
+      },
+      {
+       "stream": "decide",
+       "phase": "act",
+       "value": 0.321530134184286
+      }
+     ]
+    },
+    {
+     "now": 3975,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 4000,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 4025,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 4050,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 4075,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 4100,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    }
+   ]
+  },
+  {
+   "tier": "hard",
+   "seed": 7,
+   "declaredTierOverride": {
+    "lapseP": 0
+   },
+   "frames": [
+    {
+     "now": 100,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe",
+      "strategy",
+      "act"
+     ],
+     "draws": [
+      {
+       "stream": "decide",
+       "phase": "strategy",
+       "value": 0.890012247255072
+      },
+      {
+       "stream": "decide",
+       "phase": "act",
+       "value": 0.8843999071978033
+      }
+     ]
+    },
+    {
+     "now": 125,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 150,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 175,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 200,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 225,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 250,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 275,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 300,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe",
+      "act"
+     ],
+     "draws": [
+      {
+       "stream": "decide",
+       "phase": "act",
+       "value": 0.4762176154181361
+      }
+     ]
+    },
+    {
+     "now": 325,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 350,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 375,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 400,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 425,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 450,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe",
+      "act"
+     ],
+     "draws": [
+      {
+       "stream": "decide",
+       "phase": "act",
+       "value": 0.9157360186800361
+      }
+     ]
+    },
+    {
+     "now": 475,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 500,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 525,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 550,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 575,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 600,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [
+      "newThreat"
+     ],
+     "events": [
+      "observe",
+      "strategy",
+      "act"
+     ],
+     "draws": [
+      {
+       "stream": "decide",
+       "phase": "observe",
+       "value": 0.12353306449949741
+      },
+      {
+       "stream": "decide",
+       "phase": "observe",
+       "value": 0.9872043312061578
+      },
+      {
+       "stream": "lapse",
+       "phase": "strategy",
+       "value": 0.34087040391750634
+      },
+      {
+       "stream": "decide",
+       "phase": "strategy",
+       "value": 0.9191137845627964
+      },
+      {
+       "stream": "decide",
+       "phase": "strategy",
+       "value": 0.23257361049763858
+      },
+      {
+       "stream": "decide",
+       "phase": "act",
+       "value": 0.501379023771733
+      }
+     ]
+    },
+    {
+     "now": 625,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 650,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 675,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 700,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [
+      "hpLoss",
+      "lowHp"
+     ],
+     "events": [
+      "observe",
+      "strategy",
+      "act"
+     ],
+     "draws": [
+      {
+       "stream": "lapse",
+       "phase": "strategy",
+       "value": 0.8611133096273988
+      },
+      {
+       "stream": "decide",
+       "phase": "strategy",
+       "value": 0.6462854682467878
+      },
+      {
+       "stream": "decide",
+       "phase": "strategy",
+       "value": 0.20945348590612411
+      },
+      {
+       "stream": "decide",
+       "phase": "act",
+       "value": 0.08811566373333335
+      }
+     ]
+    },
+    {
+     "now": 725,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 750,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 775,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 800,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 825,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe",
+      "act"
+     ],
+     "draws": [
+      {
+       "stream": "decide",
+       "phase": "act",
+       "value": 0.4635701784864068
+      }
+     ]
+    },
+    {
+     "now": 850,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 875,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 900,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 925,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 950,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 975,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe",
+      "act"
+     ],
+     "draws": [
+      {
+       "stream": "decide",
+       "phase": "act",
+       "value": 0.2715015383437276
+      }
+     ]
+    },
+    {
+     "now": 1000,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 1025,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 1050,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 1075,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 1100,
+     "slot": 0,
+     "status": "blocked",
+     "toast": true,
+     "stimuli": [],
+     "events": [
+      "observe",
+      "act"
+     ],
+     "draws": [
+      {
+       "stream": "decide",
+       "phase": "act",
+       "value": 0.7731686914339662
+      }
+     ]
+    },
+    {
+     "now": 1125,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe",
+      "strategy"
+     ],
+     "draws": [
+      {
+       "stream": "decide",
+       "phase": "strategy",
+       "value": 0.08619775180704892
+      }
+     ]
+    },
+    {
+     "now": 1150,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 1175,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 1200,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 1225,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 1250,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 1275,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe",
+      "act"
+     ],
+     "draws": [
+      {
+       "stream": "decide",
+       "phase": "act",
+       "value": 0.39874363178387284
+      }
+     ]
+    },
+    {
+     "now": 1300,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 1325,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 1350,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 1375,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 1400,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 1425,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe",
+      "act"
+     ],
+     "draws": [
+      {
+       "stream": "decide",
+       "phase": "act",
+       "value": 0.06669832346960902
+      }
+     ]
+    },
+    {
+     "now": 1450,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 1475,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 1500,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 1525,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 1550,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe",
+      "act"
+     ],
+     "draws": [
+      {
+       "stream": "decide",
+       "phase": "act",
+       "value": 0.6425806386396289
+      }
+     ]
+    },
+    {
+     "now": 1575,
+     "slot": 0,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 1600,
+     "slot": 0,
+     "status": "done",
+     "toast": true,
+     "stimuli": [],
+     "events": [
+      "observe",
+      "act"
+     ],
+     "draws": [
+      {
+       "stream": "decide",
+       "phase": "act",
+       "value": 0.307799486676231
+      }
+     ]
+    },
+    {
+     "now": 1625,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe",
+      "strategy",
+      "act"
+     ],
+     "draws": [
+      {
+       "stream": "decide",
+       "phase": "strategy",
+       "value": 0.15651245834305882
+      },
+      {
+       "stream": "decide",
+       "phase": "act",
+       "value": 0.30215105367824435
+      }
+     ]
+    },
+    {
+     "now": 1650,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 1675,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 1700,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 1725,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 1750,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 1775,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe",
+      "act"
+     ],
+     "draws": [
+      {
+       "stream": "decide",
+       "phase": "act",
+       "value": 0.5743418373167515
+      }
+     ]
+    },
+    {
+     "now": 1800,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 1825,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 1850,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 1875,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 1900,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 1925,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 1950,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe",
+      "act"
+     ],
+     "draws": [
+      {
+       "stream": "decide",
+       "phase": "act",
+       "value": 0.16242923750542104
+      }
+     ]
+    },
+    {
+     "now": 1975,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 2000,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 2025,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 2050,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 2075,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe",
+      "act"
+     ],
+     "draws": [
+      {
+       "stream": "decide",
+       "phase": "act",
+       "value": 0.17519655777141452
+      }
+     ]
+    },
+    {
+     "now": 2100,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 2125,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 2150,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 2175,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 2200,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe",
+      "act"
+     ],
+     "draws": [
+      {
+       "stream": "decide",
+       "phase": "act",
+       "value": 0.10591307864524424
+      }
+     ]
+    },
+    {
+     "now": 2225,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 2250,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 2275,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 2300,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 2325,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe",
+      "act"
+     ],
+     "draws": [
+      {
+       "stream": "decide",
+       "phase": "act",
+       "value": 0.33569475379772484
+      }
+     ]
+    },
+    {
+     "now": 2350,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 2375,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 2400,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 2425,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 2450,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 2475,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe",
+      "act"
+     ],
+     "draws": [
+      {
+       "stream": "decide",
+       "phase": "act",
+       "value": 0.27354872273281217
+      }
+     ]
+    },
+    {
+     "now": 2500,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 2525,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 2550,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 2575,
+     "slot": 1,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 2600,
+     "slot": 1,
+     "status": "failed",
+     "toast": true,
+     "stimuli": [],
+     "events": [
+      "observe",
+      "act"
+     ],
+     "draws": [
+      {
+       "stream": "decide",
+       "phase": "act",
+       "value": 0.14230888499878347
+      }
+     ]
+    },
+    {
+     "now": 2625,
+     "slot": 2,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe",
+      "strategy",
+      "act"
+     ],
+     "draws": [
+      {
+       "stream": "decide",
+       "phase": "strategy",
+       "value": 0.6768787000328302
+      },
+      {
+       "stream": "decide",
+       "phase": "act",
+       "value": 0.14191152038984
+      }
+     ]
+    },
+    {
+     "now": 2650,
+     "slot": 2,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 2675,
+     "slot": 2,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 2700,
+     "slot": 2,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 2725,
+     "slot": 2,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 2750,
+     "slot": 2,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe",
+      "act"
+     ],
+     "draws": [
+      {
+       "stream": "decide",
+       "phase": "act",
+       "value": 0.6945680184289813
+      }
+     ]
+    },
+    {
+     "now": 2775,
+     "slot": 2,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 2800,
+     "slot": 2,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 2825,
+     "slot": 2,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 2850,
+     "slot": 2,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 2875,
+     "slot": 2,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 2900,
+     "slot": 2,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 2925,
+     "slot": 2,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe",
+      "act"
+     ],
+     "draws": [
+      {
+       "stream": "decide",
+       "phase": "act",
+       "value": 0.7096843898762017
+      }
+     ]
+    },
+    {
+     "now": 2950,
+     "slot": 2,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 2975,
+     "slot": 2,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 3000,
+     "slot": 2,
+     "status": "running",
+     "toast": true,
+     "stimuli": [],
+     "events": [
+      "observe",
+      "act"
+     ],
+     "draws": [
+      {
+       "stream": "decide",
+       "phase": "act",
+       "value": 0.8824455756694078
+      }
+     ]
+    },
+    {
+     "now": 3025,
+     "slot": 2,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 3050,
+     "slot": 2,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 3075,
+     "slot": 2,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 3100,
+     "slot": 2,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 3125,
+     "slot": 2,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 3150,
+     "slot": 2,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 3175,
+     "slot": 2,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 3200,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe",
+      "act"
+     ],
+     "draws": [
+      {
+       "stream": "decide",
+       "phase": "act",
+       "value": 0.6492213965393603
+      }
+     ]
+    },
+    {
+     "now": 3225,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 3250,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 3275,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 3300,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 3325,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 3350,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 3375,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe",
+      "act"
+     ],
+     "draws": [
+      {
+       "stream": "decide",
+       "phase": "act",
+       "value": 0.46732648462057114
+      }
+     ]
+    },
+    {
+     "now": 3400,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 3425,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 3450,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 3475,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 3500,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 3525,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe",
+      "act"
+     ],
+     "draws": [
+      {
+       "stream": "decide",
+       "phase": "act",
+       "value": 0.321530134184286
+      }
+     ]
+    },
+    {
+     "now": 3550,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 3575,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 3600,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 3625,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 3650,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 3675,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe",
+      "act"
+     ],
+     "draws": [
+      {
+       "stream": "decide",
+       "phase": "act",
+       "value": 0.9551342220511287
+      }
+     ]
+    },
+    {
+     "now": 3700,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 3725,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 3750,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 3775,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 3800,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 3825,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 3850,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 3875,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe",
+      "act"
+     ],
+     "draws": [
+      {
+       "stream": "decide",
+       "phase": "act",
+       "value": 0.8069830280728638
+      }
+     ]
+    },
+    {
+     "now": 3900,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 3925,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 3950,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe",
+      "strategy",
+      "act"
+     ],
+     "draws": [
+      {
+       "stream": "decide",
+       "phase": "strategy",
+       "value": 0.599961712025106
+      },
+      {
+       "stream": "decide",
+       "phase": "act",
+       "value": 0.029295642161741853
+      }
+     ]
+    },
+    {
+     "now": 3975,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 4000,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 4025,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 4050,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    },
+    {
+     "now": 4075,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe",
+      "act"
+     ],
+     "draws": [
+      {
+       "stream": "decide",
+       "phase": "act",
+       "value": 0.17669051815755665
+      }
+     ]
+    },
+    {
+     "now": 4100,
+     "slot": 3,
+     "status": "running",
+     "toast": false,
+     "stimuli": [],
+     "events": [
+      "observe"
+     ],
+     "draws": []
+    }
+   ]
+  }
+ ],
+ "arbitrationCases": [
+  {
+   "base": [
+    {
+     "kind": "stop",
+     "priority": 3,
+     "timing": {
+      "kind": "step"
+     },
+     "why": "idle"
+    }
+   ],
+   "extra": [
+    {
+     "kind": "move",
+     "to": {
+      "x": 340,
+      "y": 300
+     },
+     "priority": 2,
+     "timing": {
+      "kind": "step"
+     },
+     "why": "declared move"
+    },
+    {
+     "kind": "stop",
+     "priority": 0,
+     "timing": {
+      "kind": "step"
+     },
+     "why": "declared stop"
+    }
+   ],
+   "result": [
+    {
+     "kind": "move",
+     "to": {
+      "x": 340,
+      "y": 300
+     },
+     "priority": 2,
+     "timing": {
+      "kind": "step"
+     },
+     "why": "declared move"
+    }
+   ]
+  },
+  {
+   "base": [
+    {
+     "kind": "stop",
+     "priority": 3,
+     "timing": {
+      "kind": "step"
+     },
+     "why": "idle"
+    }
+   ],
+   "extra": [
+    {
+     "kind": "stop",
+     "priority": 3,
+     "timing": {
+      "kind": "step"
+     },
+     "why": "declared stop"
+    },
+    {
+     "kind": "move",
+     "to": {
+      "x": 340,
+      "y": 300
+     },
+     "priority": 2,
+     "timing": {
+      "kind": "step"
+     },
+     "why": "declared move"
+    }
+   ],
+   "result": [
+    {
+     "kind": "move",
+     "to": {
+      "x": 340,
+      "y": 300
+     },
+     "priority": 2,
+     "timing": {
+      "kind": "step"
+     },
+     "why": "declared move"
+    }
+   ]
+  },
+  {
+   "base": [
+    {
+     "kind": "stop",
+     "priority": 3,
+     "timing": {
+      "kind": "step"
+     },
+     "why": "idle"
+    }
+   ],
+   "extra": [
+    {
+     "kind": "stop",
+     "priority": 3,
+     "timing": {
+      "kind": "step"
+     },
+     "why": "declared stop"
+    },
+    {
+     "kind": "stop",
+     "priority": 3,
+     "timing": {
+      "kind": "step"
+     },
+     "why": "declared stop"
+    }
+   ],
+   "result": [
+    {
+     "kind": "stop",
+     "priority": 3,
+     "timing": {
+      "kind": "step"
+     },
+     "why": "idle"
+    }
+   ]
+  },
+  {
+   "base": [
+    {
+     "kind": "stop",
+     "priority": 3,
+     "timing": {
+      "kind": "step"
+     },
+     "why": "idle"
+    }
+   ],
+   "extra": [
+    {
+     "kind": "cast",
+     "slot": "wish",
+     "x": 350,
+     "y": 300,
+     "priority": 3,
+     "timing": {
+      "kind": "step"
+     },
+     "why": "first cast"
+    },
+    {
+     "kind": "cast",
+     "slot": "wish",
+     "x": 360,
+     "y": 300,
+     "priority": 0,
+     "timing": {
+      "kind": "step"
+     },
+     "why": "second cast"
+    }
+   ],
+   "result": [
+    {
+     "kind": "stop",
+     "priority": 3,
+     "timing": {
+      "kind": "step"
+     },
+     "why": "idle"
+    },
+    {
+     "kind": "cast",
+     "slot": "wish",
+     "x": 350,
+     "y": 300,
+     "priority": 3,
+     "timing": {
+      "kind": "step"
+     },
+     "why": "first cast"
+    }
+   ]
+  }
+ ]
+}
