@@ -1,0 +1,13 @@
+# Actual NPC continuity source witness
+
+This new additive harness starts from `197926e27747545934fb801e3df61ae7070905a2`. It keeps earlier corpora and source files unchanged. It records actual `createGameWorld` camp births and queued movement through fixed 50 ms steps, actual Schema encoding/decoding and FxChannel publication, human producer source callbacks, and actual bot perception/memory/hunt method consumers.
+
+Run `bash tools/npc-continuity-fixtures/capture.sh` for a pinned Linux amd64 Node 22.23.4 source capture and one byte-exact check. `--check` only compares. `RH_NPC_CONTINUITY_OUTPUT` can select an external output directory. The repository is read-only in the container; installed npm dependencies and cache use tmpfs. No host dependency installation is required.
+
+`world.mts` declares its initial arena/configuration/seats/seeds. Regional actors are born through installed source gameplay, and movement uses ordinary queued client messages. It never installs an actor position, health, weapon, phase or expected result after construction. The callback runs after every real step. Its source RNG instrumentation states exactly which stream it observes; consumer-method streams are separate.
+
+`human.mts` extracts exact TypeScript AST spans from unchanged `RaidScene.ts`: remote drawing, the regional-mob admission prefix and the inline minimap source callback. It executes those source bodies over real decoded updates using actual pure interpolation, remote-draw and vision components. Source/extracted/transpiled hashes, callback context and clock assumptions are explicit. Full RaidScene, Phaser, MobView, Minimap canvas and rendering are unrun. These are producer callback/input facts, not display pixels or a live Room/socket proof.
+
+`bot.mts` uses actual source perception, FrameRing, Memory, HuntAdapter and MobHunter. Method seeds, cadence, private diagnostic engagement/ban snapshots and returned decisions are labelled; the decisions are never submitted to the World. No full Brain, humanizer or survival result is claimed. The parent owns the real FxChannel batch-before-patch and roster delivery order.
+
+The fixture distinguishes raw source diagnostics, human callback returns, legitimate source bot inputs and remembered outcomes. A hidden death or replacement is admitted only if actually produced. Camp lifecycle cues, locks, HP, FX, ordering and RNG must be considered before asserting an ID-only equivalence. No guessed UI/death intention, silent source-bug classification, public continuity design, native/protocol change or universal lifetime/population cap follows from the witness. Evidence names the verified boundary and any unsupported histories.
