@@ -31,12 +31,26 @@ struct Reveal {
     ordinal: u8,
 }
 
-#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub(crate) struct VisionTrail {
     phase: Option<u32>,
     #[serde(deserialize_with = "decode_reveals")]
     reveals: VecDeque<Reveal>,
 }
+// Clone is a cold session boundary. Preserve the original allocation, as serde's
+// bounded decoder does, so continuing movement cannot regrow a shortened live trail.
+// Keep the exact old capacity rather than reserving a new domain or changing samples.
+impl Clone for VisionTrail {
+    fn clone(&self) -> Self {
+        let mut reveals = VecDeque::with_capacity(self.reveals.capacity());
+        reveals.extend(self.reveals.iter().copied());
+        Self {
+            phase: self.phase,
+            reveals,
+        }
+    }
+}
+
 /// A malformed checkpoint cannot grow a viewer's trail past the live sampling bound.
 fn decode_reveals<'de, D: serde::Deserializer<'de>>(
     decoder: D,
@@ -73,6 +87,23 @@ impl Default for VisionTrail {
     }
 }
 impl VisionTrail {
+    #[cfg(test)]
+    pub(crate) fn test_storage(&self) -> (usize, usize, usize) {
+        (
+            self.reveals.len(),
+            self.reveals.capacity(),
+            self.reveals.capacity() * std::mem::size_of::<Reveal>(),
+        )
+    }
+
+    #[cfg(test)]
+    pub(crate) fn test_legacy_clone_storage(&self) -> (usize, usize) {
+        let reveals = self.reveals.clone();
+        (
+            reveals.capacity(),
+            reveals.capacity() * std::mem::size_of::<Reveal>(),
+        )
+    }
     #[cfg(test)]
     fn refresh(&mut self, origin: Vec2, tick: u32) {
         self.refresh_on(origin, tick, Variant::Open);

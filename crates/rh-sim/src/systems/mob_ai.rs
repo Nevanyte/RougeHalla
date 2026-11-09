@@ -290,10 +290,9 @@ fn fight(cx: &mut Cx, id: PlayerId, b: &mut Brain) {
     let vel = super::targeting::velocity(target, now);
     let ix = cx.w.fighter_idx(id).unwrap();
     let sheet = cx.w.paced_faction_spec(ix).expect("regional faction");
-    let tm = crate::content::npc_timings(
-        weapon,
-        crate::content::attack_interval(&sheet, weapon, cx.w.core(ix).modifiers.mirrors().as_mult),
-    );
+    let mirrors = cx.w.core(ix).modifiers.mirrors();
+    let tm =
+        crate::content::mirror_timings(&sheet, weapon, mirrors.as_mult, mirrors.windup_mult, true);
     let mask = if matches!(
         crate::content::weapon(weapon).shape,
         crate::content::Shape::Arc { .. }

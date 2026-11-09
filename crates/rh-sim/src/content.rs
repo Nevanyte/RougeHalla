@@ -359,6 +359,43 @@ pub fn npc_timings(w: WeaponId, interval: f64) -> Timings {
     t
 }
 
+/// Source shared/mods.ts scaleWindup, with ties/operation order unchanged.
+pub fn scale_windup(t: Timings, windup_mult: f64) -> Timings {
+    if windup_mult == 1. || !windup_mult.is_finite() || (t.ranged && windup_mult < 1.) {
+        return t;
+    }
+    let windup = if t.ranged {
+        t.windup.max(t.interval.min(t.windup * windup_mult))
+    } else {
+        t.interval.min(t.windup * windup_mult)
+    };
+    let root = if t.root > 0. {
+        windup.max(t.interval.min(t.root * windup_mult))
+    } else {
+        0.
+    };
+    Timings { windup, root, ..t }
+}
+
+/// The actual source player/NPC mirrored timings. Zombies retain their separate explicit timing profile.
+pub fn mirror_timings(
+    f: &FactionSpec,
+    w: WeaponId,
+    as_mult: f64,
+    windup_mult: f64,
+    npc: bool,
+) -> Timings {
+    let timing = if npc { npc_timings } else { player_timings };
+    let mut t = timing(w, attack_interval(f, w, as_mult));
+    if npc && t.ranged && as_mult > 1. {
+        let base = timing(w, attack_interval(f, w, 1.)).windup;
+        if t.windup < base {
+            t.windup = base;
+        }
+    }
+    scale_windup(t, windup_mult)
+}
+
 /// Weapons whose hits stagger the victim (legacy: the sword). A rule flag registered as data so the rules identity covers
 /// it; the sim's stagger check still compares against `WeaponId::Sword` directly until it is switched to read this table.
 pub const STAGGER_WEAPONS: &[WeaponId] = &[WeaponId::Sword];

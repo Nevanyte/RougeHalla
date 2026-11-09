@@ -592,7 +592,7 @@ fn check_world(k: &MatchStatic, w: &World) -> Result<(), String> {
     }
     for p in w.players.iter() {
         // Shape only: zero hints and zeroAll retain the previous direction byte.
-        if p.walk_ticks > 3 {
+        if p.walk_ticks > crate::constants::WALK_HINT_MAX_TICKS {
             return Err(format!("player {}: invalid walk hint ticks", p.id.0));
         }
         // Locked history becomes admissible with the complete Source arena lifecycle.

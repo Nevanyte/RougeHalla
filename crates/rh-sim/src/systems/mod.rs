@@ -48,6 +48,7 @@ pub(crate) mod status;
 pub(crate) mod targeting;
 pub(crate) mod terrain;
 pub(crate) mod training;
+pub(crate) mod walk_hint;
 pub(crate) mod weapons;
 pub(crate) mod wind;
 

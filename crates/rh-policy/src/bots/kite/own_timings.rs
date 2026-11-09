@@ -1,7 +1,7 @@
 //! Native port of the source bot's ownTimings component (packages/server/src/bots/brain/tactics/kite.ts):
 //! the attack interval/windup the sim computes for the bot from its faction, weapon, asMult and windup mirror.
 //! This is a pure timing component; it does not activate a fight, orb-walk, brain, policy seat or live dispatch.
-use rh_sim::content::{attack_interval, paced, player_timings, Timings, WeaponId};
+use rh_sim::content::{mirror_timings, paced, WeaponId};
 use rh_sim::FactionId;
 
 use crate::bots::types::BotWeapon;
@@ -11,33 +11,6 @@ use crate::bots::types::BotWeapon;
 pub struct OwnTimings {
     pub interval_ms: f64,
     pub windup_ms: f64,
-}
-
-/// Source scaleWindup(t, windupMult) from shared/mods.ts, preserving its exact binary64 operation order.
-/// A ranged windup can never be cut by attack speed; a slower fighter's windup grows up to the interval.
-fn scale_windup(t: Timings, windup_mult: f64) -> Timings {
-    if windup_mult == 1.0 || !windup_mult.is_finite() {
-        return t;
-    }
-    if t.ranged && windup_mult < 1.0 {
-        return t;
-    }
-    let windup = if t.ranged {
-        t.windup.max(t.interval.min(t.windup * windup_mult))
-    } else {
-        t.interval.min(t.windup * windup_mult)
-    };
-    let root = if t.root > 0.0 {
-        windup.max(t.interval.min(t.root * windup_mult))
-    } else {
-        0.0
-    };
-    Timings {
-        interval: t.interval,
-        windup,
-        root,
-        ranged: t.ranged,
-    }
 }
 
 fn weapon_of(weapon: BotWeapon) -> WeaponId {
@@ -62,11 +35,13 @@ pub fn own_timings(
 ) -> Option<OwnTimings> {
     let faction = faction?;
     let paced = paced(faction);
-    let player = player_timings(
+    let scaled = mirror_timings(
+        &paced,
         weapon_of(weapon),
-        attack_interval(&paced, weapon_of(weapon), as_mult),
+        as_mult,
+        windup_mult.unwrap_or(1.0),
+        false,
     );
-    let scaled = scale_windup(player, windup_mult.unwrap_or(1.0));
     Some(OwnTimings {
         interval_ms: scaled.interval * 1000.0,
         windup_ms: scaled.windup * 1000.0,

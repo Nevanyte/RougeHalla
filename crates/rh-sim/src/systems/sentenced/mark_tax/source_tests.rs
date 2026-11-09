@@ -135,13 +135,13 @@ fn snapshot(w: &World) -> Value {
     let rows = p.modifiers.own_as_rows();
     let own_as = rows.uncapped(efficiency(w, &p.core));
     let f = factor(w, &p.core, rows);
-    let tm = crate::content::player_timings(
+    let mirrors = p.modifiers.mirrors();
+    let tm = crate::content::mirror_timings(
+        &crate::content::paced(p.faction()),
         p.active_weapon(),
-        crate::content::attack_interval(
-            &crate::content::paced(p.faction()),
-            p.active_weapon(),
-            p.modifiers.mirrors().as_mult,
-        ),
+        mirrors.as_mult,
+        mirrors.windup_mult,
+        false,
     );
     let sources:Vec<_>=w.mobs.iter().filter(|m|m.mob_type==Some(crate::mob_catalog::MobTypeId::Bailiff)).map(|m| {
         let mut public=common(w,&m.core,m.status);public.as_object_mut().unwrap().extend(json!({"kind":"mob","name":crate::mob_catalog::mob_type_by_id("bailiff").unwrap().name,"type":"bailiff","camp":m.camp,"ownerId":m.owner.map(|id|label(w,id)).unwrap_or_default()}).as_object().unwrap().clone());

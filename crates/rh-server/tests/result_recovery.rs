@@ -139,6 +139,7 @@ fn director_with(
         linger: Duration::from_millis(100),
         ..DirectorConfig::new(
             SimConfig {
+                walk_hints: None,
                 regen: false,
                 quests: false,
                 training: false,

@@ -4,7 +4,7 @@
 //! queue.
 
 use crate::constants::*;
-use crate::content::{attack_interval, player_timings, weapon, Shape, Timings, WeaponId};
+use crate::content::{mirror_timings, weapon, Shape, Timings, WeaponId};
 use crate::events::Event;
 use crate::fighter::{FighterCore, FighterIx};
 use crate::input::ActionCmd;
@@ -115,18 +115,12 @@ fn step_weapon(cx: &mut Cx, ix: FighterIx) {
             };
             let base_hp = base_hp.expect("faction sheet has base HP");
             let f = sheet;
-            let timing = if npc {
-                crate::content::npc_timings
-            } else {
-                player_timings
-            };
-            let tm = timing(
+            let tm = mirror_timings(
+                &f,
                 weapon,
-                attack_interval(
-                    &f,
-                    weapon,
-                    crate::stat_fold::decode_mult(p.modifiers.attack_rate_wire()),
-                ),
+                crate::stat_fold::decode_mult(p.modifiers.attack_rate_wire()),
+                p.modifiers.mirrors().windup_mult,
+                npc,
             );
             let packet = if npc {
                 crate::modifiers::packet_with_sheet(p, weapon, &sheet, base_hp)

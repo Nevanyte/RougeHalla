@@ -30,6 +30,7 @@ fn room_cfg() -> RoomConfig {
     let assets = MapAssets::new(rh_sim::arenas::practice_arena()).unwrap();
     RoomConfig {
         sim: SimConfig {
+            walk_hints: None,
             regen: false,
             quests: false,
             training: false,

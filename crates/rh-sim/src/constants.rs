@@ -462,4 +462,12 @@ content! {
 
     /// Source Overkill fires only for excess damage strictly above this threshold.
     OVERKILL_EPS: f64 = 1e-9, "damage";
+
+    // Source walkHint.ts: presentation-only bounds, independent of authoritative movement.
+    WALK_HINT_MAX_TICKS: u8 = 3, "ticks";
+    WALK_DIR_HYSTERESIS: u8 = 3, "byte-directions";
+    WALK_HINT_SPEED_SLACK: f64 = 1.01, "multiplier";
+    WALK_HINT_ICE_PROBE_U: f64 = 8.0, "u";
+    WALK_HINT_SEGMENT_EPS_U: f64 = 1e-3, "u";
+    WALK_HINT_WAYPOINT_SLACK_U: f64 = 1e-6, "u";
 }
