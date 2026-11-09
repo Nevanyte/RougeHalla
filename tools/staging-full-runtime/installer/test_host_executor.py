@@ -1218,6 +1218,7 @@ class HostExecutor(unittest.TestCase):
         argv = unit_text_fields(service)['ExecStart'].split()
         self.assertEqual(argv[0], '/usr/bin/python3.12')
         argv[0] = sys.executable
+        argv.insert(1, '-B')  # -E ignores PYTHONDONTWRITEBYTECODE; never write bytecode into the source tree.
         argv[argv.index('/opt/rougehalla/installer/host_executor.py')] = str(Path(x.__file__).resolve())
         # --help exits inside argparse before any boundary is built: proves the interpreter flags can import siblings.
         result = subprocess.run(argv + ['--help'], capture_output=True, text=True, cwd='/', timeout=60,
