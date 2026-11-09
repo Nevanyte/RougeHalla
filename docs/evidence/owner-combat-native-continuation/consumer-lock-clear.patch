@@ -1,0 +1,12 @@
+--- a/crates/rh-sim/src/owner_combat/continuation_tests.rs
++++ b/crates/rh-sim/src/owner_combat/continuation_tests.rs
+@@ -277,7 +277,8 @@
+         );
+     }
+     let before = s.state_hash();
+-    let group = project(owner, &entitled).unwrap();
++    let mut group = project(owner, &entitled).unwrap();
++    if label == "L07/281" { group.lock = Lock::Clear; }
+     assert_eq!(s.state_hash(), before, "{label}/projection mutated state");
+     assert_eq!(
+         group.lock,

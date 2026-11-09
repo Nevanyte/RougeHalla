@@ -1,0 +1,21 @@
+{
+  "kind": "compiled consumer-output boundary diagnostic; not a production-kernel/source-producer kill",
+  "mutation": "force projected Lock::Clear only at actual L07 death frame281",
+  "baselineConsumerSha256": "07d586a07591dc97ebdd122e365a51ecd9246f00bf04f05a7ed2267a828ee931",
+  "mutantConsumerSha256": "2baf94bdacb71fc18c035fae57dd80be9ca7d262efc898b5235c46b71de2812a",
+  "failureExit": 101,
+  "requiredFailure": "L07/281/current identity",
+  "restoredExactBytes": true,
+  "restoredControlExit": 0,
+  "noSignalRecoveryClaim": true,
+  "command": [
+    "cargo",
+    "test",
+    "-p",
+    "rh-sim",
+    "--lib",
+    "owner_combat::continuation_tests::source_l07_actual_target_death_retains_one_completed_held_frame",
+    "--",
+    "--exact"
+  ]
+}

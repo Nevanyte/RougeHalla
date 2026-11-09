@@ -1,0 +1,24 @@
+   Compiling rh-sim v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/owner-combat-native-continuation/repo/crates/rh-sim)
+    Finished `test` profile [unoptimized] target(s) in 24.65s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/owner-combat-native-continuation/target/debug/deps/rh_sim-bebc1724c13fdcb0)
+
+running 1 test
+test owner_combat::continuation_tests::source_m04_refused_base_card_never_becomes_a_mirror_producer ... FAILED
+
+failures:
+
+---- owner_combat::continuation_tests::source_m04_refused_base_card_never_becomes_a_mirror_producer stdout ----
+
+thread 'owner_combat::continuation_tests::source_m04_refused_base_card_never_becomes_a_mirror_producer' (65914550) panicked at crates/rh-sim/src/owner_combat/continuation_tests.rs:259:5:
+assertion `left == right` failed: M04/0/mirrors
+  left: [1000.0, 1000.0, 1001.0]
+ right: [1000.0, 1000.0, 1000.0]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    owner_combat::continuation_tests::source_m04_refused_base_card_never_becomes_a_mirror_producer
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 759 filtered out; finished in 0.04s
+
+error: test failed, to rerun pass `-p rh-sim --lib`
