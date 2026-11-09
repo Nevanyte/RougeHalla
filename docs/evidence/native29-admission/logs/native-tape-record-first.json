@@ -1,0 +1,28 @@
+{
+  "head": "78be4f7e183df246387d2ab1058b96dd7982da25",
+  "command": [
+    "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/cargo/bin/cargo",
+    "test",
+    "--locked",
+    "-p",
+    "rh-sim",
+    "--features",
+    "trusted-status-probes",
+    "--lib",
+    "abilities::source_tests::hash_tape::record_ability_hash_tape",
+    "--",
+    "--exact",
+    "--ignored",
+    "--nocapture"
+  ],
+  "extra_env": {
+    "RH_ABIL_REQUIRE_FULL": "1"
+  },
+  "started_utc": "2026-11-09T16:52:01.072074+00:00",
+  "ended_utc": "2026-11-09T16:52:05.206521+00:00",
+  "exit_code": 0,
+  "log_sha256": "55a5df0a3e9a7d687a2848f0dc660a3303b3121bcbb615d7344843a253c6998e",
+  "old_tape_sha256": "79f87e6ae604bc4f74bf72904b55a524c0f449cb87df5cbe0d626fe7bca5ad4f",
+  "new_tape_sha256": "b2ca366de422109572682bfcb242d4242491c3219f59e76d7f7dabf78234ea5f",
+  "scope": "native-onlyderivedtape after strict63sourcecomparison; no legacyexpectedvalueschanged"
+}
