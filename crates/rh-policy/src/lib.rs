@@ -10,6 +10,7 @@
 //! deterministic rules, behind [`AsyncSeat`]; no model runtime is part of this crate (Stage 1 scope: architecture only).
 
 pub mod bots;
+pub mod delivery;
 pub mod scripted;
 
 use rh_sim::content::content_hash;
