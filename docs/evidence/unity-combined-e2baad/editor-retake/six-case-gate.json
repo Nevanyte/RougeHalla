@@ -1,0 +1,11 @@
+{
+  "source": "e2baadae03dd25cf74979bdfeb3bf35fd696393d",
+  "status": "FAIL_STOPPED",
+  "expected": 6,
+  "executed": 6,
+  "passed": 5,
+  "failed": 1,
+  "unrun": 0,
+  "nativeProof": "NOTRUN",
+  "otherRevisionTestsRerun": false
+}

@@ -1,0 +1,154 @@
+{
+  "source": "e2baadae03dd25cf74979bdfeb3bf35fd696393d",
+  "branch": "codex/unity-e2baad-native-proof",
+  "status": "FAIL_STOPPED",
+  "expected": 6,
+  "executed": 6,
+  "passed": 5,
+  "failed": 1,
+  "unrun": 0,
+  "playSessions": 0,
+  "nativeCaptures": 0,
+  "files": [
+    {
+      "path": "EXPECTED_TESTS.json",
+      "bytes": 2931,
+      "sha256": "783fd0097f294fb543247c26952c35ad939d938b48ebd42516ee351fc467bce0"
+    },
+    {
+      "path": "EXPECTED_TESTS.md",
+      "bytes": 1797,
+      "sha256": "58aec756ec1a86b594a851a26e93e479e5cc943da5578d1d1488f6a8a707dcb3"
+    },
+    {
+      "path": "FAILURE_TRIAGE.md",
+      "bytes": 1756,
+      "sha256": "b76c1cf2ebbafec9cba37527b750154bb94d66a797f85d15ce46ef0f679dba56"
+    },
+    {
+      "path": "README.md",
+      "bytes": 4652,
+      "sha256": "d542b79cc696da8970c8e159d2614862c6672c66ef2869aeba12dcfcab88aaac"
+    },
+    {
+      "path": "SOURCE_AUDIT.md",
+      "bytes": 1241,
+      "sha256": "f7382f7236cd3751a698197ca7ca0e1ab0ae4ec117c87c8cee1ded5b6ed1c32a"
+    },
+    {
+      "path": "ShaderGraphSettings-as-tested.asset.txt",
+      "bytes": 557,
+      "sha256": "83556175c6dccd540f2cac05e5c0f9fbb36c3c8d7a56bed2c7cf4d29e4c2ee2e"
+    },
+    {
+      "path": "ShaderGraphSettings-overlay.patch",
+      "bytes": 666,
+      "sha256": "09cb74c55dae2e6a26bf99861554f91293633dade61b3fede4889229c3a9062d"
+    },
+    {
+      "path": "as-tested-source.json",
+      "bytes": 318440,
+      "sha256": "0aa5c9a05e5d1728535cef4f3ef66de58689a57d75868629af23a5d03f780ebb"
+    },
+    {
+      "path": "autotick-for-tests.json",
+      "bytes": 101,
+      "sha256": "db4b8c66312249ee644383d5a8d75efa983694353a05fb553684ab15874dcbef"
+    },
+    {
+      "path": "autotick-restored.json",
+      "bytes": 67,
+      "sha256": "8f7a98f96988f9d475b037fe7f70f89543c1de743d4da1af5266949716ee2db1"
+    },
+    {
+      "path": "compile-after-switch.json",
+      "bytes": 76,
+      "sha256": "557b4b332f7528cefa6e865b86ceadbd17bf1074d7d7ba0c72199248f6e2b2dd"
+    },
+    {
+      "path": "compile-final.json",
+      "bytes": 76,
+      "sha256": "557b4b332f7528cefa6e865b86ceadbd17bf1074d7d7ba0c72199248f6e2b2dd"
+    },
+    {
+      "path": "console-on-test-failure.json",
+      "bytes": 7213,
+      "sha256": "1bd1f17a67859034a8b2fa14b4fc151a78b14e0fa3b9895b9ae11ff9e6e93080"
+    },
+    {
+      "path": "editor-ready-after-switch.json",
+      "bytes": 1105,
+      "sha256": "d76f027e77bc1c8b8b6b3f97398d67b0efa0d2470f77b3ed4e64b56cd83b6607"
+    },
+    {
+      "path": "final-idle-state.json",
+      "bytes": 412,
+      "sha256": "3177b406c4ba69ab92b4ef692a7bd44ca2db6f4c3b60f773951a4b0fdf2c93d3"
+    },
+    {
+      "path": "hold-and-baseline.cs.txt",
+      "bytes": 928,
+      "sha256": "e200c3f50608544059e638833e5bcacb7a18c3f7a069da683ce8545b7979b9b9"
+    },
+    {
+      "path": "identity-observer.cs.txt",
+      "bytes": 1222,
+      "sha256": "5163fab6447db79a2d393299f1e5a002776647ead528744c5e8f1fb096407f19"
+    },
+    {
+      "path": "identity-verification.pretest.json",
+      "bytes": 1755,
+      "sha256": "eb89e70af704ab8073d75ece25698c6185ad8b4415d2aa49ea9920a58e3c2dee"
+    },
+    {
+      "path": "imported-loaded-identity.json",
+      "bytes": 1459,
+      "sha256": "8ee3c2b7d6b9353c7d84e3b143e179e762aff71423af6557913cd5c82f50d5f6"
+    },
+    {
+      "path": "input-prefs-baseline.json",
+      "bytes": 364,
+      "sha256": "756eed50ea1e2a5bb0568e1edd00682ca589a88c322cfb40e7b3a3124293c29e"
+    },
+    {
+      "path": "loaded-net-identity.json",
+      "bytes": 241,
+      "sha256": "8cb602b71b176a066b8d7feb24f623c84c529a524ac80bdf7bd295487d4e1557"
+    },
+    {
+      "path": "refresh-after-switch.json",
+      "bytes": 120,
+      "sha256": "f62e201d9f425f596076b6c199bd46edc609b5771db71b8a92bc3ffd521c397d"
+    },
+    {
+      "path": "restoration-verification.json",
+      "bytes": 638,
+      "sha256": "19f843a579842ede50ead77ec00656b4ffe7c9accfe96e23b62fe2746fcc3c4a"
+    },
+    {
+      "path": "six-case-gate.json",
+      "bytes": 228,
+      "sha256": "b48b3fa9c4230cc9246a5e2d9a552de1524b9c5c08fcbe9f9844bd4dcac17111"
+    },
+    {
+      "path": "source-after-tests.json",
+      "bytes": 1248,
+      "sha256": "9440627e366547a50f2611b4b3e2b49f7c8e40a9b64ddb8ca13cb5ad7fb8e931"
+    },
+    {
+      "path": "test-verification.json",
+      "bytes": 5033,
+      "sha256": "788ff663dff349cbf6e5cc8a4f770054cf39730b50ec47d5e1db2b3c162ea46f"
+    },
+    {
+      "path": "tests-AccountRecoveryViewEditModeTests.json",
+      "bytes": 639,
+      "sha256": "53185ad07aad47fe39f36dd76df5e63e4ec96766d3aaec6421f3d508efa65a0b"
+    },
+    {
+      "path": "tests-MatchClientAccountBindingEditModeTests.json",
+      "bytes": 1763,
+      "sha256": "16ac72bb5d301d9c7d498f4b6d5e2a4305dfa36b5e0a5b4cd6c9e9faf8a3b715"
+    }
+  ]
+}

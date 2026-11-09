@@ -1,0 +1,110 @@
+{
+  "targetRootCommit": "e2baadae03dd25cf74979bdfeb3bf35fd696393d",
+  "manifestPath": "/Users/nevinmckinnon/.codex/tools/rougehalla-unity-art/combined-e2baad-2026-11-08/evidence/EXPECTED_TESTS.json",
+  "manifestSha256": "783fd0097f294fb543247c26952c35ad939d938b48ebd42516ee351fc467bce0",
+  "gateStatus": "Stopped after first recorded failure; no retry requested or performed.",
+  "expected": {
+    "groups": 2,
+    "testMethods": 6,
+    "selectors": 6
+  },
+  "execution": {
+    "groupsExecuted": 2,
+    "ran": 6,
+    "passed": 5,
+    "failed": 1,
+    "skipped": 0,
+    "inconclusive": 0,
+    "unrun": 0,
+    "allExecutedNamesMatchManifest": true,
+    "groupSummaries": [
+      {
+        "class": "AccountRecoveryViewEditModeTests",
+        "expected": 2,
+        "Total": 2,
+        "Passed": 2,
+        "Failed": 0,
+        "Skipped": 0,
+        "Inconclusive": 0,
+        "rawResultFile": "tests-AccountRecoveryViewEditModeTests.json",
+        "expectedMethodNamesMatch": true
+      },
+      {
+        "class": "MatchClientAccountBindingEditModeTests",
+        "expected": 4,
+        "Total": 4,
+        "Passed": 3,
+        "Failed": 1,
+        "Skipped": 0,
+        "Inconclusive": 0,
+        "rawResultFile": "tests-MatchClientAccountBindingEditModeTests.json",
+        "expectedMethodNamesMatch": true
+      }
+    ],
+    "results": [
+      {
+        "fullName": "Roguehalla.Client.Tests.AccountRecoveryViewEditModeTests.OwnedKeyNeedsRevealAndManualSelectionAndClearsOnCloseSwitchCancelAndBlur",
+        "class": "AccountRecoveryViewEditModeTests",
+        "method": "OwnedKeyNeedsRevealAndManualSelectionAndClearsOnCloseSwitchCancelAndBlur",
+        "status": "Passed",
+        "message": null,
+        "stackTrace": null,
+        "rawResultFile": "tests-AccountRecoveryViewEditModeTests.json"
+      },
+      {
+        "fullName": "Roguehalla.Client.Tests.AccountRecoveryViewEditModeTests.UnownedAndFailedProfilesCannotRevealARecoveryKey",
+        "class": "AccountRecoveryViewEditModeTests",
+        "method": "UnownedAndFailedProfilesCannotRevealARecoveryKey",
+        "status": "Passed",
+        "message": null,
+        "stackTrace": null,
+        "rawResultFile": "tests-AccountRecoveryViewEditModeTests.json"
+      },
+      {
+        "fullName": "MatchClientAccountBindingEditModeTests.MutatingMatchUrlWhileOwnershipRequestIsPendingCannotUseCapturedIntentOrConnect",
+        "class": "MatchClientAccountBindingEditModeTests",
+        "method": "MutatingMatchUrlWhileOwnershipRequestIsPendingCannotUseCapturedIntentOrConnect",
+        "status": "Passed",
+        "message": null,
+        "stackTrace": null,
+        "rawResultFile": "tests-MatchClientAccountBindingEditModeTests.json"
+      },
+      {
+        "fullName": "MatchClientAccountBindingEditModeTests.SelectingFactionDuringDeferredJoinInvalidatesIntentAndCreatesNoSocket",
+        "class": "MatchClientAccountBindingEditModeTests",
+        "method": "SelectingFactionDuringDeferredJoinInvalidatesIntentAndCreatesNoSocket",
+        "status": "Passed",
+        "message": null,
+        "stackTrace": null,
+        "rawResultFile": "tests-MatchClientAccountBindingEditModeTests.json"
+      },
+      {
+        "fullName": "MatchClientAccountBindingEditModeTests.StaleJoinFailureCannotOverwriteProfileSelectedBySynchronousFlowCallback",
+        "class": "MatchClientAccountBindingEditModeTests",
+        "method": "StaleJoinFailureCannotOverwriteProfileSelectedBySynchronousFlowCallback",
+        "status": "Passed",
+        "message": null,
+        "stackTrace": null,
+        "rawResultFile": "tests-MatchClientAccountBindingEditModeTests.json"
+      },
+      {
+        "fullName": "MatchClientAccountBindingEditModeTests.SuccessfulOrdinaryJoinUsesOwnedCanonicalIdentityTokenAndValidatedUrl",
+        "class": "MatchClientAccountBindingEditModeTests",
+        "method": "SuccessfulOrdinaryJoinUsesOwnedCanonicalIdentityTokenAndValidatedUrl",
+        "status": "Failed",
+        "message": "  Expected: True\n  But was:  False\n",
+        "stackTrace": "at MatchClientAccountBindingEditModeTests.SuccessfulOrdinaryJoinUsesOwnedCanonicalIdentityTokenAndValidatedUrl () [0x000ae] in /Users/nevinmckinnon/Documents/Projects/RogueHalla-unity-art/client-unity/UnityProject/Assets/Tests/Editor/MatchClientAccountBindingEditModeTests.cs:196\nat UnityEngine.TestTools.TestRunner.TestTaskWrapper+<Execute>d__2.MoveNext () [0x00063] in ./Library/PackageCache/com.unity.test-framework@082c24152fd4/UnityEngine.TestRunner/TestRunner/TestTaskWrapper.cs:31\nat UnityEngine.TestTools.TestEnumerator+<Execute>d__7.MoveNext () [0x0003a] in ./Library/PackageCache/com.unity.test-framework@082c24152fd4/UnityEngine.TestRunner/NUnitExtensions/Attributes/TestEnumerator.cs:44\n",
+        "rawResultFile": "tests-MatchClientAccountBindingEditModeTests.json"
+      }
+    ]
+  },
+  "acceptanceBoundary": {
+    "play": false,
+    "nativeCaptures": false,
+    "retry": false,
+    "codeEdits": false,
+    "httpReplay": false,
+    "prior95bd9cRerun": false,
+    "prior719cc2Rerun": false
+  }
+}
