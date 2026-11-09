@@ -1,0 +1,7 @@
+# Corrected launch fixture: one fresh engine gate
+
+The production source and all42 method/argument cases stay as approved. The first actual9c658e04 run remains FAIL:30 passed/12 failed, with all original logs/identity retained. Fixture correction9398ce23 supplies seven genuinely valid zero counters instead of the DTO default minus-one sentinels, asserts ordinary ownership readiness, and adds healthy public-launch controls to the five prior negative passes. It changes no production code or selector.
+
+The attached independent review releases this correction for ONE fresh42-selector actual Editor run. SOURCE_IDENTITY.json hashes the exact composed project/net input tree before this receipt commit; the final gate commit is its descendant with these additive receipt files only. Bind actual NUnit discovery one-to-one to the unchanged selector contract; preserve25 prior bodies and all17 launch tuples. Record source hashes, actual loaded assembly MVID, executed/missing/extra outcomes and cleanup. Keep any actual failure; do not rerun or alter tests silently.
+
+The sole Editor owner may temporarily overlay this exact source using the prior documented package/ShaderGraph overlay, then restore its clean Frozen4source, preferences, empty scene and hold. No Play, new Webbuild, art/audio, browser, real bank or cloud claim is authorized by this finite gate. Corrected42 outcomes remain UNRUN until the new actual receipt.
