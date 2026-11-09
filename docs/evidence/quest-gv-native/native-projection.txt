@@ -1,0 +1,10 @@
+   Compiling rh-sim v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/quest-gv-native-projection/repo/crates/rh-sim)
+    Finished `test` profile [unoptimized] target(s) in 30.26s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/quest-gv-native-projection/target/debug/deps/rh_sim-0ad75f2b040c28b6)
+
+running 3 tests
+test observe::quest_gv_tests::every_other_gv_reason_remains_server_only_for_every_observer ... ok
+test observe::quest_gv_tests::quest_gv_preserves_integer_text_owner_class_and_event_position ... ok
+test observe::quest_gv_tests::identical_player_labels_never_grant_the_foreign_quest_payment_notice ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 783 filtered out; finished in 0.00s

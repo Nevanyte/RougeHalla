@@ -49,5 +49,13 @@
     "updated_at": "2026-11-08T23:01:37Z",
     "successful_jobs": ["provenance", "simulation", "rust", "csharp", "card-runtime-source"]
   },
-  "limits": "Pinned recaptures and mutation controls independently executed by separate lane checkers; root repeats JSON/pin/evidence audit, not the unchanged source campaign. Full integration CI passes at the exact recorded a31f02e1 revision; later candidates require separate acceptance."
+  "subsequent_integration_ci": {
+    "run_id": 42536838870,
+    "head_sha": "dbd70f9d810330099b754281b70d511a60f62cf8",
+    "url": "https://github.com/Nevanyte/RougeHalla/actions/runs/42536838870",
+    "status": "completed",
+    "conclusion": "success",
+    "successful_jobs": ["provenance", "simulation", "rust", "csharp", "card-runtime-source"]
+  },
+  "limits": "Pinned recaptures and mutation controls independently executed by separate lane checkers; root repeats JSON/pin/evidence audit, not the unchanged source campaign. Full integration CI passes at the exact recorded a31f02e1 and dbd70f9d revisions; later candidates require separate acceptance."
 }

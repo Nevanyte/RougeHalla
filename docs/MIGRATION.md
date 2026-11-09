@@ -73,6 +73,13 @@ tests. [CI42531608964](https://github.com/Nevanyte/RougeHalla/actions/runs/42531
 remain historical failures. Later recovery/package/source additions and private Full/protocol14/Unity candidates are
 not covered by that exact-head result; each retains its own focused evidence and remaining integration gates.
 
+The subsequent [CI42536838870](https://github.com/Nevanyte/RougeHalla/actions/runs/42536838870) passes all five jobs at
+`dbd70f9d810330099b754281b70d511a60f62cf8`, including the admitted recovery-key accessor, direct Unity package pin and
+human-eligibility source evidence. The later [operation-owner query](evidence/account-operation-owner/ADMISSION.md)
+is admitted after31 focused API tests and independent review; it gives the Hub a read-only registration/current-owner
+check while preserving unknown transaction history and the existing SendAsync authority. Its UI adoption remains
+separate, and that later commit is not part of the recorded dbd CI result.
+
 One actual final Unity Web build passes,14files/74,247,550bytes. Generated BakedContent is aa64c642; the manifest binds
 frozen1310 source, exact as-built serialization overlay and the dev server binary SHA20d5b70e…5b4b0. Independent checks
 verify82source hashes,24packaged build-evidence files and all14served resources. There is no embedded runtime revision

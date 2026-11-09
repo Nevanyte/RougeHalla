@@ -1,0 +1,11 @@
+{
+  "status": "PASS",
+  "scope": "independent standalone comparator controls only, no source mutation/capture",
+  "checks": {
+    "pristine": true,
+    "text": true,
+    "recipient": true,
+    "order": true,
+    "provenance_only_nonkill": true
+  }
+}

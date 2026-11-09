@@ -1,0 +1,13 @@
+import assert from "node:assert/strict";
+import { readFileSync, writeFileSync } from "node:fs";
+import { join, resolve } from "node:path";
+const [repo, name] = process.argv.slice(2);
+assert(repo && name && resolve(repo).startsWith("/work/variant-"), "mutations require a disposable container variant");
+const definitions = JSON.parse(readFileSync(join(repo, "tools/quest-room-feedback-fixtures/mutants.json"), "utf8"));
+const mutant = definitions.find(row => row.name === name);
+assert(mutant, "declared mutant required");
+const path = join(repo, "packages/server/src/rooms/RaidRoom.ts");
+const original = readFileSync(path, "utf8");
+assert.equal(original.split(mutant.before).length - 1, 1, "mutant must match exactly one actual source location");
+writeFileSync(path, original.replace(mutant.before, mutant.after));
+console.log(JSON.stringify({ applied: name, kind: mutant.kind, path: "packages/server/src/rooms/RaidRoom.ts" }));

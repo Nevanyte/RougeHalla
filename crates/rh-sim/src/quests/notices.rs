@@ -35,3 +35,9 @@ impl Expired {
         }
     }
 }
+
+/// Source RaidRoom's derived owner notice; projection formats the unchanged raw GV event.
+/// Actual Room-method capture admission is separate from this pure formatter.
+pub(crate) fn quest_gv_text(amount: u32) -> String {
+    format!("+{amount} GV (quest)")
+}

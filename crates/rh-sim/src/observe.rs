@@ -287,6 +287,13 @@ fn to_seen(e: &Event, can_see: &impl Fn(PlayerId) -> bool, points: [bool; 2]) ->
         Event::CampCleared { camp } => Some(SeenEvent::CampCleared { camp }),
         Event::PotionNotice { notice, .. } => Some(SeenEvent::PotionNotice { notice }),
         Event::Toast { ref text, .. } => Some(SeenEvent::Toast { text: text.clone() }),
+        Event::Gv {
+            amount,
+            reason: crate::results::GvReason::Quest,
+            ..
+        } => Some(SeenEvent::Toast {
+            text: crate::quests::quest_gv_text(amount),
+        }),
         Event::CannonNotice { notice, .. } => Some(SeenEvent::CannonNotice { notice }),
         Event::WindEmblem { .. } => Some(SeenEvent::WindEmblem),
         Event::ChestRefused { reason, .. } => Some(SeenEvent::ChestRefused { reason }),
@@ -1236,3 +1243,7 @@ mod tests {
 #[cfg(test)]
 #[path = "observe/barrier_tests.rs"]
 mod barrier_tests;
+
+#[cfg(test)]
+#[path = "observe/quest_gv_tests.rs"]
+mod quest_gv_tests;

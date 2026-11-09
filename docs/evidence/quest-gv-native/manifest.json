@@ -1,0 +1,88 @@
+{
+  "format": "rh-quest-gv-native-held/1",
+  "base": "d28df076bf98d10bfe6cb5fbc88b8d30a3fbe712",
+  "production_head": "4cbddd5339f6e0f14eecd29674cbad42c443340f",
+  "admission": "HELD: actual Room-derived source witness not yet consumed",
+  "code": [
+    {
+      "path": "crates/rh-sim/src/events.rs",
+      "bytes": 13288,
+      "sha256": "d9b684019335df12f3dace41a4c325faf33c6d65644d103a5e3d9eb8f2477cc7"
+    },
+    {
+      "path": "crates/rh-sim/src/observe.rs",
+      "bytes": 43199,
+      "sha256": "5986947f962ccf41a4bf52759ac1c78b679b14f125ef61bf7b37fb4ee8d1046e"
+    },
+    {
+      "path": "crates/rh-sim/src/observe/quest_gv_tests.rs",
+      "bytes": 3823,
+      "sha256": "eea120e254039a94c06c654337ae29e35f975fee1250bcc0be4e48565205a63f"
+    },
+    {
+      "path": "crates/rh-sim/src/quests/live_tests.rs",
+      "bytes": 25060,
+      "sha256": "ce3cfa18d38124d8d17a94420c1ddf2a67224241e56018da87465a5b93c3d52d"
+    },
+    {
+      "path": "crates/rh-sim/src/quests/mod.rs",
+      "bytes": 1113,
+      "sha256": "a3bebd2748b62feb1043ce52b1f5c4610ea83a7ece0389aa7c77d5de91b18817"
+    },
+    {
+      "path": "crates/rh-sim/src/quests/notices.rs",
+      "bytes": 1409,
+      "sha256": "531832b7ecabb9d57f3e659fee62b52e1f7c0b268bd1b4097ed277ddec11560a"
+    }
+  ],
+  "receipts": [
+    {
+      "path": "docs/evidence/quest-gv-native/README.md",
+      "bytes": 3556,
+      "sha256": "6faafc6bdda2fc9a990c8325139221f589d54aef691b844c35f8b170eae610e0"
+    },
+    {
+      "path": "docs/evidence/quest-gv-native/clippy.txt",
+      "bytes": 1013,
+      "sha256": "1d9df74edb00e699fc88b6da30a105047725e4be604f687d0bdb7b573cfbe980"
+    },
+    {
+      "path": "docs/evidence/quest-gv-native/declarations.txt",
+      "bytes": 439,
+      "sha256": "b606b02f261d84fd1b9cc88fd5c427846c57b4e55b903a9caede36159f59d03c"
+    },
+    {
+      "path": "docs/evidence/quest-gv-native/fmt.txt",
+      "bytes": 40,
+      "sha256": "f8585fe9ef465b465e8501be55a43a72060940fc952de9612cce2ba28ff7f23e"
+    },
+    {
+      "path": "docs/evidence/quest-gv-native/native-projection.txt",
+      "bytes": 816,
+      "sha256": "de0bb032df4344113c124b31b7d25d8e6623b202570bc1ad5ab5d1f06fb54034"
+    },
+    {
+      "path": "docs/evidence/quest-gv-native/real-completion.txt",
+      "bytes": 448,
+      "sha256": "a3380763342d13f42a583f2d80fe50d1ad88981d8813c8053eb7e39433aa1cb0"
+    }
+  ],
+  "read_only_source": [
+    {
+      "path": "packages/server/src/rooms/RaidRoom.ts",
+      "bytes": 42272,
+      "sha256": "af86018c9e97f06edac65412fa890ddf3502993e8f0b4e09e93afcc07aed7aa3"
+    },
+    {
+      "path": "parity/quest-giver/source.json",
+      "bytes": 1229693,
+      "sha256": "039d4e058fa914f42080f1c55d8640cc508c5b4745504930ca3db49579adc8b4"
+    },
+    {
+      "path": "parity/quests/data.json",
+      "bytes": 79403,
+      "sha256": "c01c045f9ddac21cbe95244c21d9b8d9332db7b2d793ac85df8767b2a6297e03"
+    }
+  ],
+  "unchanged_protected_files": true
+}
