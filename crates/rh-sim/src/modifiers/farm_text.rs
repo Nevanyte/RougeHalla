@@ -65,3 +65,13 @@ fn one(n: f64) -> String {
 pub(crate) fn mob_name(id: MobTypeId) -> &'static str {
     mob_type_by_id(id.as_str()).map_or("", |d| d.name)
 }
+
+/// The source grantMobStat feedback, shared by a normal kill and a quest payout.
+pub(crate) fn grant_notice(id: MobTypeId, gained: u64, count: u64) -> String {
+    format!(
+        "{}: +{gained} kill {} · {} total",
+        mob_name(id),
+        if gained == 1 { "stack" } else { "stacks" },
+        stat_text(id, count)
+    )
+}

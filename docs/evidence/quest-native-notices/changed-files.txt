@@ -1,0 +1,16 @@
+crates/rh-headless/src/digest.rs
+crates/rh-parity/src/canon.rs
+crates/rh-sim/src/abilities/source_tests/full_profile.rs
+crates/rh-sim/src/actor_refs.rs
+crates/rh-sim/src/events.rs
+crates/rh-sim/src/map.rs
+crates/rh-sim/src/modifiers/farm_text.rs
+crates/rh-sim/src/quests/giver_tests/source.rs
+crates/rh-sim/src/quests/live.rs
+crates/rh-sim/src/quests/mod.rs
+crates/rh-sim/src/quests/notice_tests.rs
+crates/rh-sim/src/quests/notice_tests/source_public.rs
+crates/rh-sim/src/quests/notices.rs
+crates/rh-sim/src/systems/mob_life.rs
+crates/rh-sim/src/systems/training/console.rs
+crates/rh-sim/src/systems/training/corpus_tests.rs

@@ -394,6 +394,13 @@ fn nav_masks(tiles: &[u8], w: usize, h: usize) -> Vec<u8> {
 
 #[cfg(test)]
 impl TileMap {
+    /// Declared noncanonical source LOS guard only; never admission, restore, or production geometry.
+    pub(crate) fn source_collision_fixture(&self, tiles: Vec<u8>) -> Self {
+        let mut map = Self::new(self.w, self.h, tiles).expect("declared fixture collision");
+        map.layers = self.layers.clone();
+        map
+    }
+
     /// Uncertified legacy helper map only. Never used by native admission or restore tests.
     pub(crate) fn source_terrain_fixture(mut self, terrain: Vec<u8>) -> Self {
         self.layers = Some(std::sync::Arc::new(crate::mapdata::source_terrain_fixture(

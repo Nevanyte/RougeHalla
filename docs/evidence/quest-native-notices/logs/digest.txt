@@ -1,0 +1,12 @@
+   Compiling rh-sim v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/quest-native-notices/repo/crates/rh-sim)
+   Compiling rh-policy v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/quest-native-notices/repo/crates/rh-policy)
+   Compiling rh-headless v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/quest-native-notices/repo/crates/rh-headless)
+    Finished `test` profile [unoptimized] target(s) in 18.35s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/quest-native-notices/target/debug/deps/rh_headless-0e536b6b75a846b9)
+
+running 3 tests
+test digest::ending_metadata_tests::the_private_digest_includes_both_result_metadata_fields ... ok
+test digest::wish_event_time_tests::raw_wish_event_time_is_part_of_the_behavior_digest ... ok
+test digest::wish_event_time_tests::toast_recipient_is_part_of_the_behavior_digest ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; finished in 0.00s

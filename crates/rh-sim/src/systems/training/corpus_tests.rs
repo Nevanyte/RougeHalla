@@ -135,7 +135,7 @@ fn project_events(sim: &Sim, events: &[Event]) -> Value {
     for e in events {
         match e {
             Event::Toast { to, text } => toasts.push(json!({
-                "to": if Some(*to) == me { "p0" } else { "other" },
+                "to": to.map(|id| if Some(id) == me { "p0" } else { "other" }),
                 "text": text,
             })),
             Event::Hit {

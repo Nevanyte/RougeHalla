@@ -1,0 +1,29 @@
+   Compiling rh-sim v0.1.0 (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/native-integration-test-repairs/repo/crates/rh-sim)
+    Finished `test` profile [unoptimized] target(s) in 9.21s
+     Running tests/no_alloc.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/native-integration-test-repairs/target/debug/deps/no_alloc-d04724df005fd112)
+
+running 1 test
+test a_steady_state_step_allocates_nothing ... Holy crowded: 67 measured steps, 64 real heals, 0 allocations
+wind emblem: 120 measured steps, 0 allocations
+potion Hot: 100 measured steps, 18 heals, 0 allocations
+Sentenced crowded: 660 measured zeroalloc steps; rawmax=30, instantmax=2, namedkeymax=2, pulses=175, top-tierframes=1892
+frost_weapon_bow: 200 measured steps, 0 allocations
+frost_weapon_wand: 200 measured steps, 0 allocations
+frost_multisource_thaw: 230 measured steps, 0 allocations
+frost_ranged_splash: 80 measured steps, 0 allocations
+fire_whiff_thirdparty: 110 measured steps, 0 allocations
+fire_wand_pause: 110 measured steps, 0 allocations
+fire_projectile_requests: 110 measured steps, 0 allocations
+plague_thresholds_swap: 110 measured steps, 0 allocations
+plague_wand_pause: 110 measured steps, 0 allocations
+holy_lifesteal_low_hp: 120 measured steps, 0 allocations
+holy_sword_shield: 120 measured steps, 0 allocations
+holy_arrow_reflection: 110 measured steps, 0 allocations
+holy_wand_splash: 120 measured steps, 0 allocations
+holy_contact_forget: 200 measured steps, 0 allocations
+holy_contact_tie_12: 25 measured steps, 0 allocations
+regen_clock: 160 measured steps, 0 allocations
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 8.89s
+

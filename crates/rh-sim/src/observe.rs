@@ -112,7 +112,8 @@ pub enum SeenEvent {
     PotionNotice {
         notice: crate::potions::Notice,
     },
-    /// The training console's owner-only notice (legacy `toast`); text is the source's exact message.
+    /// An entitled legacy `toast`, including private console notices and room-wide quest notices.
+    /// Recipient filtering happens before this projection; text is the source's exact message.
     Toast {
         text: String,
     },

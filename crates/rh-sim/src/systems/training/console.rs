@@ -53,7 +53,7 @@ pub(crate) fn handle_train(cx: &mut Cx, ix: FighterIx, cmd: &ActionCmd) {
 }
 
 fn toast(ev: &mut Vec<Event>, to: PlayerId, text: String) {
-    ev.push(Event::Toast { to, text });
+    ev.push(Event::Toast { to: Some(to), text });
 }
 
 /// A camp/chest may be dropped now: not within \`TRAIN_SPAWN_GAP_MS\` of the last one (legacy \`dropAllowed\`).

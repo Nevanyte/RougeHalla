@@ -1,0 +1,8 @@
+    Finished `test` profile [unoptimized] target(s) in 0.04s
+     Running unittests src/lib.rs (/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/native-integration-test-repairs/target/debug/deps/rh_sim-bebc1724c13fdcb0)
+
+running 1 test
+test systems::abilities::effects::row_harness::trial_convicted_radius_is_a_row_number_and_uses_the_casters_mark ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 759 filtered out; finished in 0.01s
+
