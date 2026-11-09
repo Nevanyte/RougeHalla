@@ -8,7 +8,15 @@ The owner asked to keep workers running and leave active branches until last dur
 The primary project checkout is the write location for `optimization_port`. The earlier managed checkout is a clean
 detached review snapshot; use `git worktree list` to resolve the authoritative path and keep future edits on the branch.
 
-## Current wrap-up (2026-11-09 UTC)
+## Current delivery: technical demo (owner decision, 2026-11-09)
+
+The [technical demo plan](coordination/TECHNICAL_DEMO.md) is the current scope: one presentable optimized Unity client,
+ordinary networked core match, bounded Calgary staging and actual M5 Pro speed/latency/resource measurements. Full
+quests/augments/elite rewards, advanced bots and production completeness are deferred. The lead has redirected the four
+Codex chats; DeepSeek's completed private Memory repair is preserved and parked, not a demo prerequisite. Keep active
+worker branches/evidence and use one combined build with focused affected checks.
+
+## Previous full-port wrap-up (2026-11-09 UTC; historical priorities)
 
 Use the [latest migration update](MIGRATION.md#latest-integration-update-2026-11-09-2145-utc) for exact evidence and limits. Identity remains protocol14/checkpoint29/replay23/OBS21/policy15/content7c6a633f68c2cc72. Full Rust faction/NPC/Wish/core gameplay prefixes are composed; Sentenced, Frost, WalkHint, MarkTax, SlowStarter and PackLeader are no longer missing implementation tasks. Full port acceptance remains open.
 

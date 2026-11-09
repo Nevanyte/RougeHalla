@@ -4,7 +4,20 @@ The single status record of the Rust + Unity + AWS migration. **Only the coordin
 [REQUIREMENTS.md](REQUIREMENTS.md). Invariants and their validation status: [CONTRACTS.md](CONTRACTS.md). Remaining work:
 [backlog/README.md](backlog/README.md). Decisions: [adr/](adr/README.md).
 
-## Latest integration update (2026-11-09 21:45 UTC)
+## Current delivery scope: technical demo (owner decision, 2026-11-09)
+
+The owner now prioritizes a complete visual/networked **technical demo as soon as possible** to measure Unity 2D and
+AWS/Rust speed. Full quests, every augment/elite reward, advanced bot parity and production completeness no longer block
+this delivery. The [demo scope and owners](coordination/TECHNICAL_DEMO.md) supersede earlier full-port release blockers
+below; the existing Rust authority/privacy/input rules remain. Settings and icon-first HUD are composed at `68ef361e`,
+with one combined optimized Web build and real core-match acceptance next. Normal `cdec` and `7401` CI each pass four
+jobs; Rust stops at a demonstrated private-output Docker UID permission failure. The reviewed caller-UID fix reproduces
+both unchanged historical NPC outputs exactly (13,952,630 and30,636,484 bytes). The reviewed native packaging repair
+passes25 offline tests; its first Linux run compiled successfully but failed postbuild for an unknown reason, retained
+as a failure. One diagnostic retry is authorized. These are preparation results, not completed demo/hosting/performance
+claims. Both AWS Core connections currently require renewal; local build/browser work continues meanwhile.
+
+## Latest integration update (2026-11-09 21:45 UTC; before demo scope change)
 
 The native identity remains **protocol14/checkpoint29/replay23/OBS21/policy15/content7c6a633f68c2cc72**. Canonical `optimization_port` now includes reviewed three-asset Unity serialization merge `5e19ef1b`; no P15 or full Brain activation is implied. The exact [Web57 artifact](evidence/unity-web57-admission/README.md) passes its fresh actual build, complete pre/post source/settings checks and Root's independent14-file/37-payload verification. Earlier native98 remains scoped to6d; both zero-case layout failures and the first successful compiler job's failed source guard remain retained. Actual browser flows and the raster matrix are next.
 
