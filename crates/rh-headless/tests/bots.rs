@@ -3,12 +3,64 @@
 //!
 //! The hand itself is compared against the frozen source corpus in rh-policy (parity/policy/bot-core.json); this file
 //! proves the seat integration: a deterministic replay, no policy faults, real proposed/accepted commands, and that a
-//! decision is a pure function of the delivered Observation.
+//! pair of identically reset bots proposes the same commands for the same accepted delivered-frame history.
 use rh_headless::{Agent, AgentSpec, Env, EnvConfig};
 use rh_policy::bots::{assign_seats, HumanBot};
-use rh_policy::{MatchStart, Policy, SeatStats};
+use rh_policy::{
+    drive_seats_queued, InputKind, InputPreview, InputRefusal, InputRequirements, MatchStart,
+    Policy, PolicyInput, PolicySpec, Seat, SeatStats,
+};
 use rh_sim::arenas::practice_arena;
-use rh_sim::{observe, FactionId, Phase, Placement, Secrets, Sim, SimConfig, Vec2};
+use rh_sim::{
+    observe, FactionId, Observation, Phase, Placement, PublicCommand, Secrets, Sim, SimConfig, Vec2,
+};
+
+/// Both bots independently consume the same receipt produced by the ordinary seat's DeliverySession.
+/// This adapter neither constructs an AcceptedFrame14 nor substitutes commands for either bot.
+struct CompareDeliveredHistory {
+    a: HumanBot,
+    b: HumanBot,
+}
+
+impl Policy for CompareDeliveredHistory {
+    fn spec(&self) -> PolicySpec {
+        self.a.spec()
+    }
+    fn input_kind(&self) -> InputKind {
+        self.a.input_kind()
+    }
+    fn input_requirements(&self) -> InputRequirements {
+        self.a.input_requirements()
+    }
+    fn reset(&mut self, start: &MatchStart) {
+        self.a.reset(start);
+        self.b.reset(start);
+    }
+    fn check_input(&self, input: InputPreview<'_>) -> Result<(), InputRefusal> {
+        self.a.check_input(input)?;
+        self.b.check_input(input)
+    }
+    fn decide_input_into(
+        &mut self,
+        input: PolicyInput<'_>,
+        out: &mut Vec<PublicCommand>,
+    ) -> Result<(), InputRefusal> {
+        assert!(matches!(input, PolicyInput::Delivered14(_)));
+        let base = out.len();
+        self.a.decide_input_into(input, out)?;
+        let mut other = Vec::new();
+        self.b.decide_input_into(input, &mut other)?;
+        assert_eq!(
+            &out[base..],
+            other.as_slice(),
+            "identical accepted delivered-frame histories decide identically"
+        );
+        Ok(())
+    }
+    fn decide(&mut self, _: &Observation) -> Vec<PublicCommand> {
+        panic!("the accepted-history control must use the typed delivery path")
+    }
+}
 
 fn seats(seed: u64, max_ticks: u32, record: bool) -> Env {
     let arena = practice_arena();
@@ -105,7 +157,7 @@ fn human_bots_play_deterministically_on_the_policy_seats() {
 }
 
 #[test]
-fn a_decision_is_a_pure_function_of_the_delivered_observation() {
+fn identical_accepted_delivered_histories_produce_identical_commands() {
     let arena = practice_arena();
     let placements: Vec<Placement> = (0..2)
         .map(|i| Placement {
@@ -126,30 +178,65 @@ fn a_decision_is_a_pure_function_of_the_delivered_observation() {
     );
     let me = sim.players()[0].id;
     let start = MatchStart::of(&sim, me, 11);
-    let mut a = HumanBot::new(
-        rh_policy::bots::TierId::Normal,
-        rh_policy::bots::PersonaId::Hunter,
+    let new_bot = || {
+        HumanBot::new(
+            rh_policy::bots::TierId::Normal,
+            rh_policy::bots::PersonaId::Hunter,
+        )
+    };
+    // Raw Vec callbacks intentionally do nothing; typed raw input must refuse rather than restoring the old leak.
+    // This negative probe never supplies the accepted history or its expected commands.
+    let raw = observe(&sim, me, &[]);
+    let mut raw_probe = new_bot();
+    raw_probe.reset(&start);
+    assert_eq!(raw_probe.input_kind(), InputKind::Delivered14);
+    assert!(raw_probe.decide(&raw).is_empty());
+    let mut refused = Vec::new();
+    raw_probe.decide_into(&raw, &mut refused);
+    assert!(refused.is_empty());
+    assert_eq!(
+        raw_probe.check_input(InputPreview::NativeCompatibility(&raw)),
+        Err(InputRefusal::RequiresDelivered14)
     );
-    let mut b = HumanBot::new(
-        rh_policy::bots::TierId::Normal,
-        rh_policy::bots::PersonaId::Hunter,
+    assert_eq!(
+        raw_probe.decide_input_into(PolicyInput::NativeCompatibility(&raw), &mut refused),
+        Err(InputRefusal::RequiresDelivered14)
     );
-    a.reset(&start);
-    b.reset(&start);
+    assert!(refused.is_empty(), "raw refusal cannot append a proposal");
+
+    let mut seats = [Seat::new(
+        &start,
+        Box::new(CompareDeliveredHistory {
+            a: new_bot(),
+            b: new_bot(),
+        }),
+        Box::new(rh_policy::scripted::Idle),
+    )];
+    seats[0].bind_fx(&sim).expect("bind before the first step");
+    let mut sight = rh_sim::SightCache::new();
     let mut any = 0usize;
     for _ in 0..200 {
-        let events: Vec<rh_sim::Event> = Vec::new();
-        let obs = observe(&sim, me, &events);
-        let ca = a.decide(&obs);
-        let cb = b.decide(&obs);
-        assert_eq!(
-            ca, cb,
-            "identical delivered observations decide identically"
+        drive_seats_queued(&mut sim, &mut seats, &[], &mut sight, |id, _| {
+            assert_eq!(id, me);
+            any += 1;
+        });
+        assert!(
+            seats[0].fault.is_none(),
+            "delivery/decision fault: {:?}",
+            seats[0].fault
         );
-        any += ca.len();
         sim.step();
     }
-    assert!(any > 0, "the bot acted from observations alone");
+    assert!(
+        seats[0].stats.decisions > 1,
+        "compare an accepted history, not one frame"
+    );
+    assert!(
+        any > 0,
+        "the bot proposed commands from accepted delivered frames"
+    );
+    assert_eq!(seats[0].stats.proposed, any as u64);
+    assert_eq!(seats[0].stats.fallback_decisions, 0);
 }
 
 #[test]
