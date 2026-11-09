@@ -1,0 +1,13 @@
+{
+  "name": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/return-cleanup-2026-11-08/full-game-runtime/repo/docs/evidence/staging-full-runtime-preparation/template.review-only.json",
+  "metadata": {},
+  "status": "PASS",
+  "not_compliant": [],
+  "not_applicable": [],
+  "compliant": [
+    "durable_data_not_host_root",
+    "no_host_credentials_or_unlimited_cpu",
+    "private_encrypted_versioned_backup",
+    "web_and_acme_only"
+  ]
+}

@@ -1,0 +1,87 @@
+{
+  "format": "rh-calgary-preparation/1",
+  "account": "048226733033",
+  "region": "ca-west-1",
+  "domain": "rougehalla.com",
+  "source_commit": "a0c4818ce9df8ad0f4124db31e65ba1244bddc3b",
+  "run_id": null,
+  "prepared_at": null,
+  "host_expires_at": null,
+  "data_delete_by": null,
+  "runtime_seconds": null,
+  "identity": {
+    "account": null,
+    "region": null,
+    "checked_at": null
+  },
+  "resource_plan": {
+    "account": null,
+    "region": null,
+    "checked_at": null,
+    "reviewed_empty_or_owned": null,
+    "receipt_sha256": null,
+    "cleanup_owner": null,
+    "cleanup_plan_sha256": null
+  },
+  "budget": {
+    "checked_at": null,
+    "account": null,
+    "currency": "CAD",
+    "authorized_total_cad": "20",
+    "credits_expand_cap": false,
+    "cost_receipt_sha256": null,
+    "fx_source": null,
+    "fx_checked_at": null,
+    "cad_per_usd": null,
+    "existing_gross_usd": null,
+    "new_all_in_usd_reserve": null,
+    "other_staging_gross_cad": null,
+    "tax_and_lag_margin_cad": null,
+    "priced_components": null
+  },
+  "compute": {
+    "ami_id": null,
+    "ami_owner": null,
+    "architecture": "arm64",
+    "availability_zone": null,
+    "instance_type": null,
+    "cpu_credits": "standard",
+    "root_gib": null,
+    "data_gib": null,
+    "sizing_receipt_sha256": null,
+    "price_receipt_sha256": null,
+    "price_checked_at": null,
+    "sizing_checked_at": null
+  },
+  "backup": {
+    "encryption": "age",
+    "public_recipient": null,
+    "restore_receipt_sha256": null,
+    "transfer_plan_sha256": null,
+    "owner": null,
+    "delete_by": null,
+    "lifecycle_days": null
+  },
+  "artifacts": {
+    "server": {
+      "path": null,
+      "sha256": null
+    },
+    "caddy": {
+      "path": null,
+      "sha256": null
+    },
+    "source_map": {
+      "path": null,
+      "sha256": null
+    },
+    "web_manifest": {
+      "path": null,
+      "sha256": null
+    },
+    "native_validation": {
+      "path": null,
+      "sha256": null
+    }
+  }
+}

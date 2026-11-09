@@ -1,0 +1,23 @@
+[Unit]
+Description=Single-human training, no results or fill (PREPARATION ONLY)
+RequiresMountsFor=/srv/rougehalla-data
+Requires=rougehalla-postgres.service
+After=rougehalla-postgres.service
+ConditionPathExists=/srv/rougehalla-data/installation-verified.json
+[Service]
+Type=simple
+User=rougehalla
+Group=rougehalla
+ExecStart=/usr/bin/python3 /opt/rougehalla/preparation/run-runtime.py training
+Restart=no
+RuntimeMaxSec=@RUNTIME_SECONDS@
+KillSignal=SIGTERM
+TimeoutStopSec=180
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/srv/rougehalla-data/spool-training
+LimitNOFILE=4096
+[Install]
+WantedBy=multi-user.target

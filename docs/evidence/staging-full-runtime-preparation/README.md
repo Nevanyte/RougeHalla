@@ -1,0 +1,28 @@
+# Dual-runtime Calgary staging preparation
+
+**LOCAL PREPARATION RELEASE; CLOUD ACTIVATION HOLD.** Exact base a0c4818ce9df8ad0f4124db31e65ba1244bddc3b. No native/gameplay/runtime rules, existing hosting files, shared status, Cargo files or cloud resources changed. Only the two leased new directories are in this packet. No AWS API/login/DNS/TLS/account/permission operation was called. Root's separate login renewal was not touched. The earlier AWS Core UNAUTHORIZED finding is not replaced by these local tests.
+
+The source packet supplies offline integrity/budget/retention preflight+review-only CFN, two real native-runtime command lines/systemd inputs, one same-origin Caddy configuration, private PG settings, runtime-only secret generation/launch, and local encrypted backup/restore mechanisms. See tools/staging-full-runtime/README.md for exact contracts and real remaining seams. Review-only Host userdata intentionally powers off/refuses; there is no deploy/apply/upload command. Successful supplied local receipt checks still return deployable:false. The blank plan refuses exit2. No working cost/AMI/sizing/artifact values are invented.
+
+## Actual local checks
+
+- Existing cfn-lint1.46.0: Calgary review template PASS (exit0).
+- Existing cfn-guard3.2.1: four focused rule groups PASS; encrypted independent retained data, private encrypted/versioned backup, web ingress only, no host credentials/unlimited credits.
+- Python3.9 focused suite:10 tests PASS. Covers actual frozen-native source pins, source/training command/PG/spool/no-fallback shape, Decimal total cost (existing gross+new reserve times verified FX plus other CAD+tax/lag), wrong account/region/production domain/credits/staleness/over-cap/retention/missing backup/sizing, artifact substitution/symlinks/collision-only map/wrong Web origin, one-host/zero-IAM retention, complete restore archive and traversal/link/duplicate/unmanifested refusal before extraction. Test receipts/ARM headers/dump bytes are explicitly synthetic contract inputs, not binary/cloud/PG proof.
+- Real pre-existing ARM64 Caddy adaptation through cached Node22.23.4 Linux image: PASS. Six actual local HTTP routes and five private404 refusals PASS; exact Training URI rewrite/query, account Origin/token preservation and spoofed XFF replacement checked. Upstreams are labelled stubs, so this is not native/WS upgrade/account/TLS/browser proof. No network access, published ports, image pull/build or cloud request. Container was --rm and probe exited0 after owned child/listener cleanup.
+- Python AST and bash-n syntax PASS; no host-only secret generator/runtime/PG/backup/restore procedure was executed.
+- git diff --check PASS after staging (recorded separately).
+
+The first local Python run refused macOS's /var→/private/var ancestor alias. Correction canonicalizes only the operator-selected artifact root and continues refusing descendant artifact symlinks; final10-test receipt includes a real descendant-symlink negative. Initial Docker request used linux/arm64 against a cached amd64 Node image and was refused before Caddy launch; raw refusal is retained. Final run uses that same cached image's actual amd64 platform (--pull=never), executes the unchanged statically linked ARM64 Caddy on the ARM Linux engine, and passes. No image/package installation or download was performed. Caddy retains two redundant-XFF and formatting warnings; they are not compilation/routing failures and are preserved in caddy-adapt.log.
+
+## Provenance and boundaries
+
+MANIFEST.json binds all packet source/config/test/evidence payloads except itself, frozen runtime pin file, template and actual adapted Caddy JSON. Paths in logs are private local work/output paths, not credentials. No private DB URL, credentials, dump/key or account login file was read. The cached Caddy binary SHA and Node image ID are recorded in manifest; neither is a new cloud build.
+
+Source native base has SourceArena/Training one-profile-per-process, source map mandatory, Training practice map with exactly one human/no bots/no result banking or replay, and --runtime refusing --first-playable. Wrapper keeps Source defaults min2/fill0/max16/lobby30/fill5. Training max_rooms1 is this bounded endpoint limit; native per-room rules stay unchanged. Both auth paths use actual PG, learning Off, separate instance IDs, one account origin; no raw client/game rules are introduced.
+
+## Remaining hard gates
+
+Current correct-account identity/permissions and project inventory/DNS; posted gross cost and current FX/regional prices+tax/lag/egress/current+noncurrent backup/retained-volume cleanup reserve within CAD20 TOTAL (credits no expansion); Root's exact actual ELF/Web/map/native validation evidence; combined size/disk/RAM/CPU proof (no200-match capacity claim); pinned PG/age toolchain; reviewed private host artifact delivery/secret-role initialization/retained-mount verification; absolute expiry/egress installer; approved exact-object encrypted offhost transfer, independent real restore and same-client/fencing/idempotence/pending proof; public native WS/account/Training/Source/Unity/TLS functional proof; finite retained data/object-version deletion and scoped cleanup receipts; separate Root deployment authorization.
+
+The data volume and backup bucket retain state on host/stack destruction, so they can continue costing money. EBS DeleteBy is metadata, S3 lifecycle is asynchronous and does not remove retained buckets/delete markers; explicit operator deletion and a funded finite retention window remain required. No old disposable cleanup, credits, zero-net-USD bill, local boolean receipt or passing stub router can certify these gates.

@@ -1,0 +1,429 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "PREPARATION ONLY: Calgary dual runtime; bootstrap is held; no deployment authorization",
+  "Parameters": {
+    "AmiId": {
+      "Type": "AWS::EC2::Image::Id"
+    },
+    "InstanceType": {
+      "Type": "String",
+      "AllowedPattern": "t4g\\.[a-z0-9]+"
+    },
+    "AvailabilityZone": {
+      "Type": "AWS::EC2::AvailabilityZone::Name"
+    },
+    "RootGiB": {
+      "Type": "Number",
+      "MinValue": 1
+    },
+    "DataGiB": {
+      "Type": "Number",
+      "MinValue": 1
+    },
+    "BackupRetentionDays": {
+      "Type": "Number",
+      "MinValue": 1,
+      "MaxValue": 7
+    },
+    "DataDeleteBy": {
+      "Type": "String",
+      "AllowedPattern": "[0-9TZ:+.\\-]+"
+    },
+    "RunId": {
+      "Type": "String",
+      "AllowedPattern": "[0-9]{8}t[0-9]{6}z-[0-9a-f]{6}"
+    }
+  },
+  "Rules": {
+    "CorrectScope": {
+      "Assertions": [
+        {
+          "Assert": {
+            "Fn::Equals": [
+              {
+                "Ref": "AWS::AccountId"
+              },
+              "048226733033"
+            ]
+          },
+          "AssertDescription": "Dedicated staging account only"
+        },
+        {
+          "Assert": {
+            "Fn::Equals": [
+              {
+                "Ref": "AWS::Region"
+              },
+              "ca-west-1"
+            ]
+          },
+          "AssertDescription": "Calgary only"
+        }
+      ]
+    }
+  },
+  "Resources": {
+    "Vpc": {
+      "Type": "AWS::EC2::VPC",
+      "Properties": {
+        "CidrBlock": "10.70.0.0/24",
+        "EnableDnsSupport": true,
+        "EnableDnsHostnames": true,
+        "Tags": [
+          {
+            "Key": "RoguehallaRun",
+            "Value": {
+              "Ref": "RunId"
+            }
+          },
+          {
+            "Key": "Purpose",
+            "Value": "DualRuntimePreparation"
+          }
+        ]
+      }
+    },
+    "Gateway": {
+      "Type": "AWS::EC2::InternetGateway",
+      "Properties": {
+        "Tags": [
+          {
+            "Key": "RoguehallaRun",
+            "Value": {
+              "Ref": "RunId"
+            }
+          },
+          {
+            "Key": "Purpose",
+            "Value": "DualRuntimePreparation"
+          }
+        ]
+      }
+    },
+    "GatewayAttachment": {
+      "Type": "AWS::EC2::VPCGatewayAttachment",
+      "Properties": {
+        "VpcId": {
+          "Ref": "Vpc"
+        },
+        "InternetGatewayId": {
+          "Ref": "Gateway"
+        }
+      }
+    },
+    "Subnet": {
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "VpcId": {
+          "Ref": "Vpc"
+        },
+        "AvailabilityZone": {
+          "Ref": "AvailabilityZone"
+        },
+        "CidrBlock": "10.70.0.0/28",
+        "MapPublicIpOnLaunch": true,
+        "Tags": [
+          {
+            "Key": "RoguehallaRun",
+            "Value": {
+              "Ref": "RunId"
+            }
+          },
+          {
+            "Key": "Purpose",
+            "Value": "DualRuntimePreparation"
+          }
+        ]
+      }
+    },
+    "Routes": {
+      "Type": "AWS::EC2::RouteTable",
+      "Properties": {
+        "VpcId": {
+          "Ref": "Vpc"
+        },
+        "Tags": [
+          {
+            "Key": "RoguehallaRun",
+            "Value": {
+              "Ref": "RunId"
+            }
+          },
+          {
+            "Key": "Purpose",
+            "Value": "DualRuntimePreparation"
+          }
+        ]
+      }
+    },
+    "InternetRoute": {
+      "Type": "AWS::EC2::Route",
+      "DependsOn": "GatewayAttachment",
+      "Properties": {
+        "RouteTableId": {
+          "Ref": "Routes"
+        },
+        "DestinationCidrBlock": "0.0.0.0/0",
+        "GatewayId": {
+          "Ref": "Gateway"
+        }
+      }
+    },
+    "SubnetRoutes": {
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties": {
+        "SubnetId": {
+          "Ref": "Subnet"
+        },
+        "RouteTableId": {
+          "Ref": "Routes"
+        }
+      }
+    },
+    "WebSecurityGroup": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "VpcId": {
+          "Ref": "Vpc"
+        },
+        "GroupDescription": "Practice HTTPS and ACME only; no DB, SSH or game/control ports",
+        "SecurityGroupIngress": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": 80,
+            "ToPort": 80,
+            "CidrIp": "0.0.0.0/0"
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": 443,
+            "ToPort": 443,
+            "CidrIp": "0.0.0.0/0"
+          }
+        ],
+        "SecurityGroupEgress": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": 80,
+            "ToPort": 80,
+            "CidrIp": "0.0.0.0/0"
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": 443,
+            "ToPort": 443,
+            "CidrIp": "0.0.0.0/0"
+          }
+        ],
+        "Tags": [
+          {
+            "Key": "RoguehallaRun",
+            "Value": {
+              "Ref": "RunId"
+            }
+          },
+          {
+            "Key": "Purpose",
+            "Value": "DualRuntimePreparation"
+          }
+        ]
+      }
+    },
+    "Host": {
+      "Type": "AWS::EC2::Instance",
+      "DependsOn": [
+        "InternetRoute",
+        "SubnetRoutes"
+      ],
+      "Properties": {
+        "ImageId": {
+          "Ref": "AmiId"
+        },
+        "InstanceType": {
+          "Ref": "InstanceType"
+        },
+        "AvailabilityZone": {
+          "Ref": "AvailabilityZone"
+        },
+        "SubnetId": {
+          "Ref": "Subnet"
+        },
+        "SecurityGroupIds": [
+          {
+            "Ref": "WebSecurityGroup"
+          }
+        ],
+        "CreditSpecification": {
+          "CPUCredits": "standard"
+        },
+        "Monitoring": false,
+        "MetadataOptions": {
+          "HttpEndpoint": "enabled",
+          "HttpTokens": "required",
+          "HttpPutResponseHopLimit": 1
+        },
+        "InstanceInitiatedShutdownBehavior": "terminate",
+        "Tags": [
+          {
+            "Key": "RoguehallaRun",
+            "Value": {
+              "Ref": "RunId"
+            }
+          },
+          {
+            "Key": "Purpose",
+            "Value": "DualRuntimePreparation"
+          }
+        ],
+        "BlockDeviceMappings": [
+          {
+            "DeviceName": "/dev/sda1",
+            "Ebs": {
+              "VolumeType": "gp3",
+              "VolumeSize": {
+                "Ref": "RootGiB"
+              },
+              "Encrypted": true,
+              "DeleteOnTermination": true
+            }
+          }
+        ],
+        "UserData": {
+          "Fn::Base64": "#!/bin/bash\n# Review-only refusal, NOT a full-runtime installer. No credentials or artifact capabilities.\nsystemctl poweroff\nexit 78\n"
+        }
+      }
+    },
+    "DataVolume": {
+      "Type": "AWS::EC2::Volume",
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain",
+      "Properties": {
+        "AvailabilityZone": {
+          "Ref": "AvailabilityZone"
+        },
+        "Size": {
+          "Ref": "DataGiB"
+        },
+        "VolumeType": "gp3",
+        "Encrypted": true,
+        "Tags": [
+          {
+            "Key": "RoguehallaRun",
+            "Value": {
+              "Ref": "RunId"
+            }
+          },
+          {
+            "Key": "Purpose",
+            "Value": "DualRuntimePreparation"
+          },
+          {
+            "Key": "DeleteBy",
+            "Value": {
+              "Ref": "DataDeleteBy"
+            }
+          }
+        ]
+      }
+    },
+    "DataAttachment": {
+      "Type": "AWS::EC2::VolumeAttachment",
+      "Properties": {
+        "InstanceId": {
+          "Ref": "Host"
+        },
+        "VolumeId": {
+          "Ref": "DataVolume"
+        },
+        "Device": "/dev/sdf"
+      }
+    },
+    "BackupBucket": {
+      "Type": "AWS::S3::Bucket",
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain",
+      "Properties": {
+        "PublicAccessBlockConfiguration": {
+          "BlockPublicAcls": true,
+          "IgnorePublicAcls": true,
+          "BlockPublicPolicy": true,
+          "RestrictPublicBuckets": true
+        },
+        "BucketEncryption": {
+          "ServerSideEncryptionConfiguration": [
+            {
+              "ServerSideEncryptionByDefault": {
+                "SSEAlgorithm": "AES256"
+              }
+            }
+          ]
+        },
+        "VersioningConfiguration": {
+          "Status": "Enabled"
+        },
+        "OwnershipControls": {
+          "Rules": [
+            {
+              "ObjectOwnership": "BucketOwnerEnforced"
+            }
+          ]
+        },
+        "LifecycleConfiguration": {
+          "Rules": [
+            {
+              "Id": "BoundedBackupVersions",
+              "Status": "Enabled",
+              "ExpirationInDays": {
+                "Ref": "BackupRetentionDays"
+              },
+              "NoncurrentVersionExpiration": {
+                "NoncurrentDays": 1
+              },
+              "AbortIncompleteMultipartUpload": {
+                "DaysAfterInitiation": 1
+              }
+            }
+          ]
+        },
+        "Tags": [
+          {
+            "Key": "RoguehallaRun",
+            "Value": {
+              "Ref": "RunId"
+            }
+          },
+          {
+            "Key": "Purpose",
+            "Value": "DualRuntimePreparation"
+          },
+          {
+            "Key": "DeleteBy",
+            "Value": {
+              "Ref": "DataDeleteBy"
+            }
+          }
+        ]
+      }
+    }
+  },
+  "Outputs": {
+    "HostId": {
+      "Value": {
+        "Ref": "Host"
+      },
+      "Description": "Owned resource metadata only; retention and explicit cleanup remain required"
+    },
+    "DataVolumeId": {
+      "Value": {
+        "Ref": "DataVolume"
+      },
+      "Description": "Owned resource metadata only; retention and explicit cleanup remain required"
+    },
+    "BackupBucketName": {
+      "Value": {
+        "Ref": "BackupBucket"
+      },
+      "Description": "Owned resource metadata only; retention and explicit cleanup remain required"
+    }
+  }
+}
